@@ -37,7 +37,7 @@
 #include <linux/mmu_notifier.h>
 #include <linux/pci.h>
 
-#include <drm/drm_client_setup.h>
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
 #include <drm/drm_fourcc.h>
@@ -603,7 +603,6 @@ static const struct drm_driver kms_driver = {
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
 	.major = KMS_DRIVER_MAJOR,
 	.minor = KMS_DRIVER_MINOR,
 	.patchlevel = KMS_DRIVER_PATCHLEVEL,

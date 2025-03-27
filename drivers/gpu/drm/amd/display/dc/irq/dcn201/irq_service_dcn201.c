@@ -30,8 +30,8 @@
 #include "../dce110/irq_service_dce110.h"
 #include "irq_service_dcn201.h"
 
-#include "dcn/dcn_2_0_3_offset.h"
-#include "dcn/dcn_2_0_3_sh_mask.h"
+#include "dcn/dcn_2_0_1_offset.h"
+#include "dcn/dcn_2_0_1_sh_mask.h"
 
 #include "cyan_skillfish_ip_offset.h"
 #include "soc15_hw_ip.h"

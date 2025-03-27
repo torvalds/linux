@@ -3088,11 +3088,12 @@ static enum bp_result construct_integrated_info(
 						info->ext_disp_conn_info.path[i].ext_encoder_obj_id.id,
 						info->ext_disp_conn_info.path[i].caps
 						);
-			if (info->ext_disp_conn_info.path[i].caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN)
-				DC_LOG_BIOS("BIOS EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN on path %d\n", i);
+			if ((info->ext_disp_conn_info.path[i].caps & AMD_EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK) == AMD_EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN)
+				DC_LOG_BIOS("BIOS AMD_EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN on path %d\n", i);
 			else if (bp->base.ctx->dc->config.force_bios_fixed_vs) {
-				info->ext_disp_conn_info.path[i].caps |= EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN;
-				DC_LOG_BIOS("driver forced EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN on path %d\n", i);
+				info->ext_disp_conn_info.path[i].caps &= ~AMD_EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK;
+				info->ext_disp_conn_info.path[i].caps |= AMD_EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN;
+				DC_LOG_BIOS("driver forced AMD_EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN on path %d\n", i);
 			}
 		}
 		// Log the Checksum and Voltage Swing

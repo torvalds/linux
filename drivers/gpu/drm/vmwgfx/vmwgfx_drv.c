@@ -35,7 +35,7 @@
 #include "vmwgfx_vkms.h"
 #include "ttm_object.h"
 
-#include <drm/drm_client_setup.h>
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_ttm.h>
 #include <drm/drm_gem_ttm_helper.h>
@@ -1631,7 +1631,6 @@ static const struct drm_driver driver = {
 	.fops = &vmwgfx_driver_fops,
 	.name = VMWGFX_DRIVER_NAME,
 	.desc = VMWGFX_DRIVER_DESC,
-	.date = VMWGFX_DRIVER_DATE,
 	.major = VMWGFX_DRIVER_MAJOR,
 	.minor = VMWGFX_DRIVER_MINOR,
 	.patchlevel = VMWGFX_DRIVER_PATCHLEVEL

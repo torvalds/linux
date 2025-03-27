@@ -2332,7 +2332,7 @@ static struct irq_chip intcapxt_controller = {
 	.irq_retrigger		= irq_chip_retrigger_hierarchy,
 	.irq_set_affinity       = intcapxt_set_affinity,
 	.irq_set_wake		= intcapxt_set_wake,
-	.flags			= IRQCHIP_MASK_ON_SUSPEND,
+	.flags			= IRQCHIP_MASK_ON_SUSPEND | IRQCHIP_MOVE_DEFERRED,
 };
 
 static const struct irq_domain_ops intcapxt_domain_ops = {

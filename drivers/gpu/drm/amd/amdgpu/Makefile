@@ -1,5 +1,5 @@
 #
-# Copyright 2017 Advanced Micro Devices, Inc.
+# Copyright 2017-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -105,7 +105,7 @@ amdgpu-y += \
 
 # add UMC block
 amdgpu-y += \
-	umc_v6_0.o umc_v6_1.o umc_v6_7.o umc_v8_7.o umc_v8_10.o umc_v12_0.o
+	umc_v6_0.o umc_v6_1.o umc_v6_7.o umc_v8_7.o umc_v8_10.o umc_v12_0.o umc_v8_14.o
 
 # add IH block
 amdgpu-y += \
@@ -200,6 +200,7 @@ amdgpu-y += \
 	vcn_v4_0_3.o \
 	vcn_v4_0_5.o \
 	vcn_v5_0_0.o \
+	vcn_v5_0_1.o \
 	amdgpu_jpeg.o \
 	jpeg_v1_0.o \
 	jpeg_v2_0.o \
@@ -208,7 +209,8 @@ amdgpu-y += \
 	jpeg_v4_0.o \
 	jpeg_v4_0_3.o \
 	jpeg_v4_0_5.o \
-	jpeg_v5_0_0.o
+	jpeg_v5_0_0.o \
+	jpeg_v5_0_1.o
 
 # add VPE block
 amdgpu-y += \

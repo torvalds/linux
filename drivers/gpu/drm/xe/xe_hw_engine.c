@@ -324,6 +324,7 @@ void xe_hw_engine_enable_ring(struct xe_hw_engine *hwe)
 {
 	u32 ccs_mask =
 		xe_hw_engine_mask_per_class(hwe->gt, XE_ENGINE_CLASS_COMPUTE);
+	u32 ring_mode = _MASKED_BIT_ENABLE(GFX_DISABLE_LEGACY_MODE);
 
 	if (hwe->class == XE_ENGINE_CLASS_COMPUTE && ccs_mask)
 		xe_mmio_write32(&hwe->gt->mmio, RCU_MODE,
@@ -332,8 +333,10 @@ void xe_hw_engine_enable_ring(struct xe_hw_engine *hwe)
 	xe_hw_engine_mmio_write32(hwe, RING_HWSTAM(0), ~0x0);
 	xe_hw_engine_mmio_write32(hwe, RING_HWS_PGA(0),
 				  xe_bo_ggtt_addr(hwe->hwsp));
-	xe_hw_engine_mmio_write32(hwe, RING_MODE(0),
-				  _MASKED_BIT_ENABLE(GFX_DISABLE_LEGACY_MODE));
+
+	if (xe_device_has_msix(gt_to_xe(hwe->gt)))
+		ring_mode |= _MASKED_BIT_ENABLE(GFX_MSIX_INTERRUPT_ENABLE);
+	xe_hw_engine_mmio_write32(hwe, RING_MODE(0), ring_mode);
 	xe_hw_engine_mmio_write32(hwe, RING_MI_MODE(0),
 				  _MASKED_BIT_DISABLE(STOP_RING));
 	xe_hw_engine_mmio_read32(hwe, RING_MI_MODE(0));
@@ -574,7 +577,6 @@ static int hw_engine_init(struct xe_gt *gt, struct xe_hw_engine *hwe,
 	xe_gt_assert(gt, gt->info.engine_mask & BIT(id));
 
 	xe_reg_sr_apply_mmio(&hwe->reg_sr, gt);
-	xe_reg_sr_apply_whitelist(hwe);
 
 	hwe->hwsp = xe_managed_bo_create_pin_map(xe, tile, SZ_4K,
 						 XE_BO_FLAG_VRAM_IF_DGFX(tile) |
@@ -773,7 +775,7 @@ static void check_gsc_availability(struct xe_gt *gt)
 		xe_mmio_write32(&gt->mmio, GUNIT_GSC_INTR_ENABLE, 0);
 		xe_mmio_write32(&gt->mmio, GUNIT_GSC_INTR_MASK, ~0);
 
-		drm_info(&xe->drm, "gsccs disabled due to lack of FW\n");
+		drm_dbg(&xe->drm, "GSC FW not used, disabling gsccs\n");
 	}
 }
 
@@ -829,7 +831,7 @@ void xe_hw_engine_handle_irq(struct xe_hw_engine *hwe, u16 intr_vec)
 /**
  * xe_hw_engine_snapshot_capture - Take a quick snapshot of the HW Engine.
  * @hwe: Xe HW Engine.
- * @job: The job object.
+ * @q: The exec queue object.
  *
  * This can be printed out in a later stage like during dev_coredump
  * analysis.
@@ -838,7 +840,7 @@ void xe_hw_engine_handle_irq(struct xe_hw_engine *hwe, u16 intr_vec)
  * caller, using `xe_hw_engine_snapshot_free`.
  */
 struct xe_hw_engine_snapshot *
-xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe, struct xe_sched_job *job)
+xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe, struct xe_exec_queue *q)
 {
 	struct xe_hw_engine_snapshot *snapshot;
 	struct __guc_capture_parsed_output *node;
@@ -864,15 +866,14 @@ xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe, struct xe_sched_job *job
 	if (IS_SRIOV_VF(gt_to_xe(hwe->gt)))
 		return snapshot;
 
-	if (job) {
+	if (q) {
 		/* If got guc capture, set source to GuC */
-		node = xe_guc_capture_get_matching_and_lock(job);
+		node = xe_guc_capture_get_matching_and_lock(q);
 		if (node) {
 			struct xe_device *xe = gt_to_xe(hwe->gt);
 			struct xe_devcoredump *coredump = &xe->devcoredump;
 
 			coredump->snapshot.matched_node = node;
-			snapshot->source = XE_ENGINE_CAPTURE_SOURCE_GUC;
 			xe_gt_dbg(hwe->gt, "Found and locked GuC-err-capture node");
 			return snapshot;
 		}
@@ -880,7 +881,6 @@ xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe, struct xe_sched_job *job
 
 	/* otherwise, do manual capture */
 	xe_engine_manual_capture(hwe, snapshot);
-	snapshot->source = XE_ENGINE_CAPTURE_SOURCE_MANUAL;
 	xe_gt_dbg(hwe->gt, "Proceeding with manual engine snapshot");
 
 	return snapshot;

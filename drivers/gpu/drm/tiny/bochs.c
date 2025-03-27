@@ -5,9 +5,9 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
@@ -680,7 +680,6 @@ static const struct drm_driver bochs_driver = {
 	.fops			= &bochs_fops,
 	.name			= "bochs-drm",
 	.desc			= "bochs dispi vga interface (qemu stdvga)",
-	.date			= "20130925",
 	.major			= 1,
 	.minor			= 0,
 	DRM_GEM_SHMEM_DRIVER_OPS,

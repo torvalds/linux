@@ -538,7 +538,7 @@ static struct k_itimer *__lock_timer(timer_t timer_id, unsigned long *flags)
 	 * When the reference count reaches zero, the timer is scheduled
 	 * for RCU removal after the grace period.
 	 *
-	 * Holding rcu_read_lock() accross the lookup ensures that
+	 * Holding rcu_read_lock() across the lookup ensures that
 	 * the timer cannot be freed.
 	 *
 	 * The lookup validates locklessly that timr::it_signal ==

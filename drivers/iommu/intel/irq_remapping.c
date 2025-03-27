@@ -1463,7 +1463,6 @@ static int intel_irq_remapping_alloc(struct irq_domain *domain,
 		else
 			irq_data->chip = &intel_ir_chip;
 		intel_irq_remapping_prepare_irte(ird, irq_cfg, info, index, i);
-		irq_set_status_flags(virq + i, IRQ_MOVE_PCNTXT);
 	}
 	return 0;
 

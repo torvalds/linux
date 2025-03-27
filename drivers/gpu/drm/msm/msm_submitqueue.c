@@ -18,7 +18,7 @@ int msm_file_private_set_sysprof(struct msm_file_private *ctx,
 
 	switch (sysprof) {
 	default:
-		return -EINVAL;
+		return UERR(EINVAL, gpu->dev, "Invalid sysprof: %d", sysprof);
 	case 2:
 		pm_runtime_get_sync(&gpu->pdev->dev);
 		fallthrough;

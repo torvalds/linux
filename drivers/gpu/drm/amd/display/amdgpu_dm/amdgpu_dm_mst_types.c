@@ -597,11 +597,12 @@ dm_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	amdgpu_dm_set_mst_status(&aconnector->mst_status,
 			MST_PROBE, true);
 
-	if (drm_connector_init(
+	if (drm_connector_dynamic_init(
 		dev,
 		connector,
 		&dm_dp_mst_connector_funcs,
-		DRM_MODE_CONNECTOR_DisplayPort)) {
+		DRM_MODE_CONNECTOR_DisplayPort,
+		NULL)) {
 		kfree(aconnector);
 		return NULL;
 	}
@@ -1695,16 +1696,16 @@ clean_exit:
 	return ret;
 }
 
-static unsigned int kbps_from_pbn(unsigned int pbn)
+static uint32_t kbps_from_pbn(unsigned int pbn)
 {
-	unsigned int kbps = pbn;
+	uint64_t kbps = (uint64_t)pbn;
 
 	kbps *= (1000000 / PEAK_FACTOR_X1000);
 	kbps *= 8;
 	kbps *= 54;
 	kbps /= 64;
 
-	return kbps;
+	return (uint32_t)kbps;
 }
 
 static bool is_dsc_common_config_possible(struct dc_stream_state *stream,

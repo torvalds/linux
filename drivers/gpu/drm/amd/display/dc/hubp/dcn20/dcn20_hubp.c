@@ -310,7 +310,7 @@ void hubp2_setup_interdependent(
  */
 static void hubp2_program_tiling(
 	struct dcn20_hubp *hubp2,
-	const union dc_tiling_info *info,
+	const struct dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format)
 {
 	REG_UPDATE_3(DCSURF_ADDR_CONFIG,
@@ -404,6 +404,20 @@ void hubp2_program_rotation(
 		REG_UPDATE_2(DCSURF_SURFACE_CONFIG,
 				ROTATION_ANGLE, 3,
 				H_MIRROR_EN, mirror);
+}
+
+void hubp2_clear_tiling(struct hubp *hubp)
+{
+	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
+
+	REG_UPDATE(DCHUBP_REQ_SIZE_CONFIG, SWATH_HEIGHT, 0);
+	REG_UPDATE(DCSURF_TILING_CONFIG, SW_MODE, DC_SW_LINEAR);
+
+	REG_UPDATE_4(DCSURF_SURFACE_CONTROL,
+		     PRIMARY_SURFACE_DCC_EN, 0,
+		     PRIMARY_SURFACE_DCC_IND_64B_BLK, 0,
+		     SECONDARY_SURFACE_DCC_EN, 0,
+		     SECONDARY_SURFACE_DCC_IND_64B_BLK, 0);
 }
 
 void hubp2_dcc_control(struct hubp *hubp, bool enable,
@@ -536,7 +550,7 @@ void hubp2_program_pixel_format(
 void hubp2_program_surface_config(
 	struct hubp *hubp,
 	enum surface_pixel_format format,
-	union dc_tiling_info *tiling_info,
+	struct dc_tiling_info *tiling_info,
 	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
@@ -1676,6 +1690,7 @@ static struct hubp_funcs dcn20_hubp_funcs = {
 	.hubp_in_blank = hubp1_in_blank,
 	.hubp_soft_reset = hubp1_soft_reset,
 	.hubp_set_flip_int = hubp1_set_flip_int,
+	.hubp_clear_tiling = hubp2_clear_tiling,
 };
 
 

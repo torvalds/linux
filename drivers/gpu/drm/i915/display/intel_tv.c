@@ -1714,7 +1714,6 @@ intel_tv_detect(struct drm_connector *connector,
 		bool force)
 {
 	struct intel_display *display = to_intel_display(connector->dev);
-	struct drm_i915_private *i915 = to_i915(connector->dev);
 	struct intel_tv *intel_tv = intel_attached_tv(to_intel_connector(connector));
 	enum drm_connector_status status;
 	int type;
@@ -1722,10 +1721,10 @@ intel_tv_detect(struct drm_connector *connector,
 	drm_dbg_kms(display->drm, "[CONNECTOR:%d:%s] force=%d\n",
 		    connector->base.id, connector->name, force);
 
-	if (!intel_display_device_enabled(i915))
+	if (!intel_display_device_enabled(display))
 		return connector_status_disconnected;
 
-	if (!intel_display_driver_check_access(i915))
+	if (!intel_display_driver_check_access(display))
 		return connector->status;
 
 	if (force) {

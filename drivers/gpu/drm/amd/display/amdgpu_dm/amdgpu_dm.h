@@ -541,12 +541,12 @@ struct amdgpu_display_manager {
 
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 	/**
-	 * @secure_display_ctxs:
+	 * @secure_display_ctx:
 	 *
-	 * Store the ROI information and the work_struct to command dmub and psp for
-	 * all crtcs.
+	 * Store secure display relevant info. e.g. the ROI information
+	 * , the work_struct to command dmub, etc.
 	 */
-	struct secure_display_context *secure_display_ctxs;
+	struct secure_display_context secure_display_ctx;
 #endif
 	/**
 	 * @hpd_rx_offload_wq:
@@ -670,6 +670,8 @@ struct amdgpu_dm_connector {
 	struct drm_connector base;
 	uint32_t connector_id;
 	int bl_idx;
+
+	struct cec_notifier *notifier;
 
 	/* we need to mind the EDID between detect
 	   and get modes due to analog/digital/tvencoder */
@@ -1011,5 +1013,9 @@ void dm_free_gpu_mem(struct amdgpu_device *adev,
 						  void *addr);
 
 bool amdgpu_dm_is_headless(struct amdgpu_device *adev);
+
+void hdmi_cec_set_edid(struct amdgpu_dm_connector *aconnector);
+void hdmi_cec_unset_edid(struct amdgpu_dm_connector *aconnector);
+int amdgpu_dm_initialize_hdmi_connector(struct amdgpu_dm_connector *aconnector);
 
 #endif /* __AMDGPU_DM_H__ */

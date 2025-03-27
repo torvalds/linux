@@ -275,6 +275,7 @@ static void rcu_preempt_ctxt_queue(struct rcu_node *rnp, struct rcu_data *rdp)
 		rcu_report_exp_rdp(rdp);
 	else
 		WARN_ON_ONCE(rdp->cpu_no_qs.b.exp);
+	ASSERT_EXCLUSIVE_WRITER_SCOPED(rdp->cpu_no_qs.b.exp);
 }
 
 /*

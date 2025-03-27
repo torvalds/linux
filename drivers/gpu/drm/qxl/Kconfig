@@ -6,6 +6,7 @@ config DRM_QXL
 	select DRM_KMS_HELPER
 	select DRM_TTM
 	select DRM_TTM_HELPER
+	select DRM_EXEC
 	select CRC32
 	help
 	  QXL virtual GPU for Spice virtualization desktop integration.

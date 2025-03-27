@@ -1113,6 +1113,7 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 		 * Warn CI about the unrecoverable wedged condition.
 		 * Time for a reboot.
 		 */
+		gt_err(gt, "Unrecoverable wedged condition\n");
 		add_taint_for_CI(gt->i915, TAINT_WARN);
 		return false;
 	}
@@ -1198,6 +1199,7 @@ void intel_gt_reset(struct intel_gt *gt,
 		    intel_engine_mask_t stalled_mask,
 		    const char *reason)
 {
+	struct intel_display *display = &gt->i915->display;
 	intel_engine_mask_t awake;
 	int ret;
 
@@ -1243,7 +1245,7 @@ void intel_gt_reset(struct intel_gt *gt,
 	if (INTEL_INFO(gt->i915)->gpu_reset_clobbers_display)
 		intel_irq_resume(gt->i915);
 
-	intel_overlay_reset(gt->i915);
+	intel_overlay_reset(display);
 
 	/* sanitize uC after engine reset */
 	if (!intel_uc_uses_guc_submission(&gt->uc))
@@ -1263,8 +1265,10 @@ void intel_gt_reset(struct intel_gt *gt,
 	}
 
 	ret = resume(gt);
-	if (ret)
+	if (ret) {
+		gt_err(gt, "Failed to resume (%d)\n", ret);
 		goto taint;
+	}
 
 finish:
 	reset_finish(gt, awake);
@@ -1607,6 +1611,7 @@ void intel_gt_set_wedged_on_init(struct intel_gt *gt)
 	set_bit(I915_WEDGED_ON_INIT, &gt->reset.flags);
 
 	/* Wedged on init is non-recoverable */
+	gt_err(gt, "Non-recoverable wedged on init\n");
 	add_taint_for_CI(gt->i915, TAINT_WARN);
 }
 

@@ -534,8 +534,9 @@ config LS1X_IRQ
 	  Support for the Loongson-1 platform Interrupt Controller.
 
 config TI_SCI_INTR_IRQCHIP
-	bool
+	tristate "TI SCI INTR Interrupt Controller"
 	depends on TI_SCI_PROTOCOL
+	depends on ARCH_K3 || COMPILE_TEST
 	select IRQ_DOMAIN_HIERARCHY
 	help
 	  This enables the irqchip driver support for K3 Interrupt router
@@ -544,8 +545,9 @@ config TI_SCI_INTR_IRQCHIP
 	  TI System Controller, say Y here. Otherwise, say N.
 
 config TI_SCI_INTA_IRQCHIP
-	bool
+	tristate "TI SCI INTA Interrupt Controller"
 	depends on TI_SCI_PROTOCOL
+	depends on ARCH_K3 || (COMPILE_TEST && ARM64)
 	select IRQ_DOMAIN_HIERARCHY
 	select TI_SCI_INTA_MSI_DOMAIN
 	help

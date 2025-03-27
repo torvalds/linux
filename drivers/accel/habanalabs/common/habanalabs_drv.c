@@ -101,7 +101,6 @@ static const struct drm_driver hl_driver = {
 	.major = LINUX_VERSION_MAJOR,
 	.minor = LINUX_VERSION_PATCHLEVEL,
 	.patchlevel = LINUX_VERSION_SUBLEVEL,
-	.date = "20190505",
 
 	.fops = &hl_fops,
 	.open = hl_device_open,

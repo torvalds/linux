@@ -23,7 +23,7 @@
  */
 
 #include <drm/amdgpu_drm.h>
-#include <drm/drm_client_setup.h>
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_ttm.h>
 #include <drm/drm_gem.h>
@@ -2552,7 +2552,6 @@ static int amdgpu_pmops_freeze(struct device *dev)
 	struct amdgpu_device *adev = drm_to_adev(drm_dev);
 	int r;
 
-	adev->in_s4 = true;
 	r = amdgpu_device_suspend(drm_dev, true);
 	adev->in_s4 = false;
 	if (r)
@@ -2916,7 +2915,6 @@ static const struct drm_driver amdgpu_kms_driver = {
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
 	.major = KMS_DRIVER_MAJOR,
 	.minor = KMS_DRIVER_MINOR,
 	.patchlevel = KMS_DRIVER_PATCHLEVEL,
@@ -2940,7 +2938,6 @@ const struct drm_driver amdgpu_partition_driver = {
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
 	.major = KMS_DRIVER_MAJOR,
 	.minor = KMS_DRIVER_MINOR,
 	.patchlevel = KMS_DRIVER_PATCHLEVEL,

@@ -9,6 +9,7 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_file.h>
 #include <drm/drm_kunit_helpers.h>
 #include <drm/drm_modes.h>
 
@@ -179,6 +180,465 @@ static struct kunit_suite drmm_connector_init_test_suite = {
 	.name = "drmm_connector_init",
 	.init = drm_test_connector_init,
 	.test_cases = drmm_connector_init_tests,
+};
+
+static const struct drm_connector_funcs dummy_dynamic_init_funcs = {
+	.atomic_destroy_state	= drm_atomic_helper_connector_destroy_state,
+	.atomic_duplicate_state	= drm_atomic_helper_connector_duplicate_state,
+	.reset			= drm_atomic_helper_connector_reset,
+	.destroy		= drm_connector_cleanup,
+};
+
+/*
+ * Test that the initialization of a bog standard dynamic connector works
+ * as expected and doesn't report any error.
+ */
+static void drm_test_drm_connector_dynamic_init(struct kunit *test)
+{
+	struct drm_connector_init_priv *priv = test->priv;
+	struct drm_connector *connector = &priv->connector;
+	int ret;
+
+	ret = drm_connector_dynamic_init(&priv->drm, connector,
+					 &dummy_dynamic_init_funcs,
+					 DRM_MODE_CONNECTOR_DisplayPort,
+					 &priv->ddc);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+}
+
+static void drm_test_connector_dynamic_init_cleanup(struct kunit *test)
+{
+	struct drm_connector_init_priv *priv = test->priv;
+	struct drm_connector *connector = &priv->connector;
+
+	drm_connector_cleanup(connector);
+}
+
+/*
+ * Test that the initialization of a dynamic connector without a DDC adapter
+ * doesn't report any error.
+ */
+static void drm_test_drm_connector_dynamic_init_null_ddc(struct kunit *test)
+{
+	struct drm_connector_init_priv *priv = test->priv;
+	struct drm_connector *connector = &priv->connector;
+	int ret;
+
+	ret = drm_connector_dynamic_init(&priv->drm, connector,
+					 &dummy_dynamic_init_funcs,
+					 DRM_MODE_CONNECTOR_DisplayPort,
+					 NULL);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+}
+
+/*
+ * Test that the initialization of a dynamic connector doesn't add the
+ * connector to the connector list.
+ */
+static void drm_test_drm_connector_dynamic_init_not_added(struct kunit *test)
+{
+	struct drm_connector_init_priv *priv = test->priv;
+	struct drm_connector *connector = &priv->connector;
+	int ret;
+
+	ret = drm_connector_dynamic_init(&priv->drm, connector,
+					 &dummy_dynamic_init_funcs,
+					 DRM_MODE_CONNECTOR_DisplayPort,
+					 &priv->ddc);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+	KUNIT_ASSERT_PTR_EQ(test, connector->head.next, &connector->head);
+}
+
+static void test_connector_property(struct kunit *test,
+				    struct drm_connector *connector,
+				    const struct drm_property *expected_prop)
+{
+	struct drm_property *prop;
+	uint64_t val;
+	int ret;
+
+	KUNIT_ASSERT_NOT_NULL(test, expected_prop);
+	prop = drm_mode_obj_find_prop_id(&connector->base, expected_prop->base.id);
+	KUNIT_ASSERT_PTR_EQ_MSG(test, prop, expected_prop,
+				"Can't find property %s", expected_prop->name);
+
+	ret = drm_object_property_get_default_value(&connector->base, prop, &val);
+	KUNIT_EXPECT_EQ(test, ret, 0);
+	KUNIT_EXPECT_EQ(test, val, 0);
+
+	/* TODO: Check property value in the connector state. */
+}
+
+/*
+ * Test that the initialization of a dynamic connector adds all the expected
+ * properties to it.
+ */
+static void drm_test_drm_connector_dynamic_init_properties(struct kunit *test)
+{
+	struct drm_connector_init_priv *priv = test->priv;
+	struct drm_connector *connector = &priv->connector;
+	struct drm_mode_config *config = &priv->drm.mode_config;
+	const struct drm_property *props[] = {
+		config->edid_property,
+		config->dpms_property,
+		config->link_status_property,
+		config->non_desktop_property,
+		config->tile_property,
+		config->prop_crtc_id,
+	};
+	int ret;
+	int i;
+
+	ret = drm_connector_dynamic_init(&priv->drm, connector,
+					 &dummy_dynamic_init_funcs,
+					 DRM_MODE_CONNECTOR_DisplayPort,
+					 &priv->ddc);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	for (i = 0; i < ARRAY_SIZE(props); i++)
+		test_connector_property(test, connector, props[i]);
+}
+
+/*
+ * Test that the initialization of a dynamic connector succeeds for all
+ * possible connector types.
+ */
+static void drm_test_drm_connector_dynamic_init_type_valid(struct kunit *test)
+{
+	struct drm_connector_init_priv *priv = test->priv;
+	struct drm_connector *connector = &priv->connector;
+	unsigned int connector_type = *(unsigned int *)test->param_value;
+	int ret;
+
+	ret = drm_connector_dynamic_init(&priv->drm, connector,
+					 &dummy_dynamic_init_funcs,
+					 connector_type,
+					 &priv->ddc);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+}
+
+/*
+ * Test that the initialization of a dynamic connector sets the expected name
+ * for it for all possible connector types.
+ */
+static void drm_test_drm_connector_dynamic_init_name(struct kunit *test)
+{
+	struct drm_connector_init_priv *priv = test->priv;
+	struct drm_connector *connector = &priv->connector;
+	unsigned int connector_type = *(unsigned int *)test->param_value;
+	char expected_name[128];
+	int ret;
+
+	ret = drm_connector_dynamic_init(&priv->drm, connector,
+					 &dummy_dynamic_init_funcs,
+					 connector_type,
+					 &priv->ddc);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	snprintf(expected_name, sizeof(expected_name), "%s-%d",
+		 drm_get_connector_type_name(connector_type), connector->connector_type_id);
+	KUNIT_ASSERT_STREQ(test, connector->name, expected_name);
+}
+
+static struct kunit_case drm_connector_dynamic_init_tests[] = {
+	KUNIT_CASE(drm_test_drm_connector_dynamic_init),
+	KUNIT_CASE(drm_test_drm_connector_dynamic_init_null_ddc),
+	KUNIT_CASE(drm_test_drm_connector_dynamic_init_not_added),
+	KUNIT_CASE(drm_test_drm_connector_dynamic_init_properties),
+	KUNIT_CASE_PARAM(drm_test_drm_connector_dynamic_init_type_valid,
+			 drm_connector_init_type_valid_gen_params),
+	KUNIT_CASE_PARAM(drm_test_drm_connector_dynamic_init_name,
+			 drm_connector_init_type_valid_gen_params),
+	{}
+};
+
+static struct kunit_suite drm_connector_dynamic_init_test_suite = {
+	.name = "drm_connector_dynamic_init",
+	.init = drm_test_connector_init,
+	.exit = drm_test_connector_dynamic_init_cleanup,
+	.test_cases = drm_connector_dynamic_init_tests,
+};
+
+static int drm_test_connector_dynamic_register_early_init(struct kunit *test)
+{
+	struct drm_connector_init_priv *priv;
+	int ret;
+
+	ret = drm_test_connector_init(test);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	priv = test->priv;
+
+	ret = drm_connector_dynamic_init(&priv->drm, &priv->connector,
+					 &dummy_dynamic_init_funcs,
+					 DRM_MODE_CONNECTOR_DisplayPort,
+					 &priv->ddc);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	return 0;
+}
+
+static void drm_test_connector_dynamic_register_early_cleanup(struct kunit *test)
+{
+	struct drm_connector_init_priv *priv = test->priv;
+	struct drm_connector *connector = &priv->connector;
+
+	drm_connector_unregister(connector);
+	drm_connector_put(connector);
+}
+
+/*
+ * Test that registration of a dynamic connector adds it to the connector list.
+ */
+static void drm_test_drm_connector_dynamic_register_early_on_list(struct kunit *test)
+{
+	struct drm_connector_init_priv *priv = test->priv;
+	struct drm_connector *connector = &priv->connector;
+	int ret;
+
+	KUNIT_ASSERT_TRUE(test, list_empty(&connector->head));
+
+	ret = drm_connector_dynamic_register(connector);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	KUNIT_ASSERT_PTR_EQ(test, connector->head.next, &priv->drm.mode_config.connector_list);
+}
+
+/*
+ * Test that the registration of a dynamic connector before the drm device is
+ * registered results in deferring the connector's user interface registration.
+ */
+static void drm_test_drm_connector_dynamic_register_early_defer(struct kunit *test)
+{
+	struct drm_connector_init_priv *priv = test->priv;
+	struct drm_connector *connector = &priv->connector;
+	int ret;
+
+	ret = drm_connector_dynamic_register(connector);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	KUNIT_ASSERT_EQ(test, connector->registration_state, DRM_CONNECTOR_INITIALIZING);
+}
+
+/*
+ * Test that the registration of a dynamic connector fails, if this is done before
+ * the connector is initialized.
+ */
+static void drm_test_drm_connector_dynamic_register_early_no_init(struct kunit *test)
+{
+	struct drm_connector *connector;
+	int ret;
+
+	connector = kunit_kzalloc(test, sizeof(*connector), GFP_KERNEL); /* auto freed */
+	KUNIT_ASSERT_NOT_NULL(test, connector);
+
+	ret = drm_connector_dynamic_register(connector);
+	KUNIT_ASSERT_EQ(test, ret, -EINVAL);
+}
+
+/*
+ * Test that the registration of a dynamic connector before the drm device is
+ * registered results in deferring adding a mode object for the connector.
+ */
+static void drm_test_drm_connector_dynamic_register_early_no_mode_object(struct kunit *test)
+{
+	struct drm_connector_init_priv *priv = test->priv;
+	struct drm_connector *connector = &priv->connector;
+	struct drm_connector *tmp_connector;
+	int ret;
+
+	ret = drm_connector_dynamic_register(&priv->connector);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	tmp_connector = drm_connector_lookup(connector->dev, NULL, connector->base.id);
+	KUNIT_ASSERT_NULL(test, tmp_connector);
+}
+
+static struct kunit_case drm_connector_dynamic_register_early_tests[] = {
+	KUNIT_CASE(drm_test_drm_connector_dynamic_register_early_on_list),
+	KUNIT_CASE(drm_test_drm_connector_dynamic_register_early_defer),
+	KUNIT_CASE(drm_test_drm_connector_dynamic_register_early_no_init),
+	KUNIT_CASE(drm_test_drm_connector_dynamic_register_early_no_mode_object),
+	{ }
+};
+
+static struct kunit_suite drm_connector_dynamic_register_early_test_suite = {
+	.name = "drm_connector_dynamic_register_early",
+	.init = drm_test_connector_dynamic_register_early_init,
+	.exit = drm_test_connector_dynamic_register_early_cleanup,
+	.test_cases = drm_connector_dynamic_register_early_tests,
+};
+
+static int drm_test_connector_dynamic_register_init(struct kunit *test)
+{
+	struct drm_connector_init_priv *priv;
+	int ret;
+
+	ret = drm_test_connector_dynamic_register_early_init(test);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	priv = test->priv;
+
+	ret = drm_dev_register(priv->connector.dev, 0);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	return 0;
+}
+
+static void drm_test_connector_dynamic_register_cleanup(struct kunit *test)
+{
+	struct drm_connector_init_priv *priv = test->priv;
+	struct drm_device *dev = priv->connector.dev;
+
+	drm_connector_unregister(&priv->connector);
+	drm_connector_put(&priv->connector);
+
+	drm_dev_unregister(dev);
+
+	drm_test_connector_dynamic_register_early_cleanup(test);
+}
+
+static void drm_test_drm_connector_dynamic_register_on_list(struct kunit *test)
+{
+	struct drm_connector_init_priv *priv = test->priv;
+	int ret;
+
+	KUNIT_ASSERT_TRUE(test, list_empty(&priv->connector.head));
+
+	ret = drm_connector_dynamic_register(&priv->connector);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	KUNIT_ASSERT_PTR_EQ(test, priv->connector.head.next, &priv->drm.mode_config.connector_list);
+}
+
+/*
+ * Test that the registration of a dynamic connector doesn't get deferred if
+ * this is done after the drm device is registered.
+ */
+static void drm_test_drm_connector_dynamic_register_no_defer(struct kunit *test)
+{
+	struct drm_connector_init_priv *priv = test->priv;
+	int ret;
+
+	KUNIT_ASSERT_EQ(test, priv->connector.registration_state, DRM_CONNECTOR_INITIALIZING);
+
+	ret = drm_connector_dynamic_register(&priv->connector);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	KUNIT_ASSERT_EQ(test, priv->connector.registration_state, DRM_CONNECTOR_REGISTERED);
+}
+
+/*
+ * Test that the registration of a dynamic connector fails if this is done after the
+ * drm device is registered, but before the connector is initialized.
+ */
+static void drm_test_drm_connector_dynamic_register_no_init(struct kunit *test)
+{
+	struct drm_connector *connector;
+	int ret;
+
+	connector = kunit_kzalloc(test, sizeof(*connector), GFP_KERNEL); /* auto freed */
+	KUNIT_ASSERT_NOT_NULL(test, connector);
+
+	ret = drm_connector_dynamic_register(connector);
+	KUNIT_ASSERT_EQ(test, ret, -EINVAL);
+}
+
+/*
+ * Test that the registration of a dynamic connector after the drm device is
+ * registered adds the mode object for the connector.
+ */
+static void drm_test_drm_connector_dynamic_register_mode_object(struct kunit *test)
+{
+	struct drm_connector_init_priv *priv = test->priv;
+	struct drm_connector *connector = &priv->connector;
+	struct drm_connector *tmp_connector;
+	int ret;
+
+	tmp_connector = drm_connector_lookup(connector->dev, NULL, connector->base.id);
+	KUNIT_ASSERT_NULL(test, tmp_connector);
+
+	ret = drm_connector_dynamic_register(&priv->connector);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	tmp_connector = drm_connector_lookup(connector->dev, NULL, connector->base.id);
+	KUNIT_ASSERT_PTR_EQ(test, tmp_connector, connector);
+}
+
+/*
+ * Test that the registration of a dynamic connector after the drm device is
+ * registered adds the connector to sysfs.
+ */
+static void drm_test_drm_connector_dynamic_register_sysfs(struct kunit *test)
+{
+	struct drm_connector_init_priv *priv = test->priv;
+	struct drm_connector *connector = &priv->connector;
+	int ret;
+
+	KUNIT_ASSERT_NULL(test, connector->kdev);
+
+	ret = drm_connector_dynamic_register(connector);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	KUNIT_ASSERT_NOT_NULL(test, connector->kdev);
+}
+
+/*
+ * Test that the registration of a dynamic connector after the drm device is
+ * registered sets the connector's sysfs name as expected.
+ */
+static void drm_test_drm_connector_dynamic_register_sysfs_name(struct kunit *test)
+{
+	struct drm_connector_init_priv *priv = test->priv;
+	struct drm_connector *connector = &priv->connector;
+	char expected_name[128];
+	int ret;
+
+	ret = drm_connector_dynamic_register(connector);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	snprintf(expected_name, sizeof(expected_name), "card%d-%s",
+		 connector->dev->primary->index, connector->name);
+
+	KUNIT_ASSERT_STREQ(test, dev_name(connector->kdev), expected_name);
+}
+
+/*
+ * Test that the registration of a dynamic connector after the drm device is
+ * registered adds the connector to debugfs.
+ */
+static void drm_test_drm_connector_dynamic_register_debugfs(struct kunit *test)
+{
+	struct drm_connector_init_priv *priv = test->priv;
+	int ret;
+
+	KUNIT_ASSERT_NULL(test, priv->connector.debugfs_entry);
+
+	ret = drm_connector_dynamic_register(&priv->connector);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	if (IS_ENABLED(CONFIG_DEBUG_FS))
+		KUNIT_ASSERT_NOT_NULL(test, priv->connector.debugfs_entry);
+	else
+		KUNIT_ASSERT_NULL(test, priv->connector.debugfs_entry);
+}
+
+static struct kunit_case drm_connector_dynamic_register_tests[] = {
+	KUNIT_CASE(drm_test_drm_connector_dynamic_register_on_list),
+	KUNIT_CASE(drm_test_drm_connector_dynamic_register_no_defer),
+	KUNIT_CASE(drm_test_drm_connector_dynamic_register_no_init),
+	KUNIT_CASE(drm_test_drm_connector_dynamic_register_mode_object),
+	KUNIT_CASE(drm_test_drm_connector_dynamic_register_sysfs),
+	KUNIT_CASE(drm_test_drm_connector_dynamic_register_sysfs_name),
+	KUNIT_CASE(drm_test_drm_connector_dynamic_register_debugfs),
+	{ }
+};
+
+static struct kunit_suite drm_connector_dynamic_register_test_suite = {
+	.name = "drm_connector_dynamic_register",
+	.init = drm_test_connector_dynamic_register_init,
+	.exit = drm_test_connector_dynamic_register_cleanup,
+	.test_cases = drm_connector_dynamic_register_tests,
 };
 
 /*
@@ -1343,6 +1803,9 @@ static struct kunit_suite drm_hdmi_compute_mode_clock_test_suite = {
 kunit_test_suites(
 	&drmm_connector_hdmi_init_test_suite,
 	&drmm_connector_init_test_suite,
+	&drm_connector_dynamic_init_test_suite,
+	&drm_connector_dynamic_register_early_test_suite,
+	&drm_connector_dynamic_register_test_suite,
 	&drm_connector_attach_broadcast_rgb_property_test_suite,
 	&drm_get_tv_mode_from_name_test_suite,
 	&drm_hdmi_compute_mode_clock_test_suite,

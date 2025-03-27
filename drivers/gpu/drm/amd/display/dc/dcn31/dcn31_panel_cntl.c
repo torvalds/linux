@@ -168,31 +168,33 @@ void dcn31_panel_cntl_construct(
 	struct dcn31_panel_cntl *dcn31_panel_cntl,
 	const struct panel_cntl_init_data *init_data)
 {
-	uint8_t pwrseq_inst = 0xF;
 
 	dcn31_panel_cntl->base.funcs = &dcn31_link_panel_cntl_funcs;
 	dcn31_panel_cntl->base.ctx = init_data->ctx;
 	dcn31_panel_cntl->base.inst = init_data->inst;
 
-	switch (init_data->eng_id) {
-	case ENGINE_ID_DIGA:
-		pwrseq_inst = 0;
-		break;
-	case ENGINE_ID_DIGB:
-		pwrseq_inst = 1;
-		break;
-	default:
-		DC_LOG_WARNING("Unsupported pwrseq engine id: %d!\n", init_data->eng_id);
-		ASSERT(false);
-		break;
-	}
-
-	if (dcn31_panel_cntl->base.ctx->dc->config.support_edp0_on_dp1)
+	if (dcn31_panel_cntl->base.ctx->dc->config.support_edp0_on_dp1) {
 		//If supported, power sequencer mapping shall follow the DIG instance
+		uint8_t pwrseq_inst = 0xF;
+
+		switch (init_data->eng_id) {
+		case ENGINE_ID_DIGA:
+			pwrseq_inst = 0;
+			break;
+		case ENGINE_ID_DIGB:
+			pwrseq_inst = 1;
+			break;
+		default:
+			DC_LOG_WARNING("Unsupported pwrseq engine id: %d!\n", init_data->eng_id);
+			ASSERT(false);
+			break;
+		}
+
 		dcn31_panel_cntl->base.pwrseq_inst = pwrseq_inst;
-	else
+	} else {
 		/* If not supported, pwrseq will be assigned in order,
 		 * so first pwrseq will be assigned to first panel instance (legacy behavior)
 		 */
 		dcn31_panel_cntl->base.pwrseq_inst = dcn31_panel_cntl->base.inst;
+	}
 }

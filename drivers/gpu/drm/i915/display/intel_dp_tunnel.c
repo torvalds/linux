@@ -3,11 +3,10 @@
  * Copyright © 2023 Intel Corporation
  */
 
-#include "i915_drv.h"
-
 #include <drm/display/drm_dp_tunnel.h>
 
 #include "intel_atomic.h"
+#include "intel_display_core.h"
 #include "intel_display_limits.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"

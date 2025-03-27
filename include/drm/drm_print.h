@@ -199,6 +199,8 @@ void drm_puts(struct drm_printer *p, const char *str);
 void drm_print_regset32(struct drm_printer *p, struct debugfs_regset32 *regset);
 void drm_print_bits(struct drm_printer *p, unsigned long value,
 		    const char * const bits[], unsigned int nbits);
+void drm_print_hex_dump(struct drm_printer *p, const char *prefix,
+			const u8 *buf, size_t len);
 
 __printf(2, 0)
 /**

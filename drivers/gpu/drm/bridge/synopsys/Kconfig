@@ -59,3 +59,9 @@ config DRM_DW_MIPI_DSI
 	select DRM_KMS_HELPER
 	select DRM_MIPI_DSI
 	select DRM_PANEL_BRIDGE
+
+config DRM_DW_MIPI_DSI2
+	tristate
+	select DRM_KMS_HELPER
+	select DRM_MIPI_DSI
+	select DRM_PANEL_BRIDGE

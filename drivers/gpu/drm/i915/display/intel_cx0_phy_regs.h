@@ -9,6 +9,11 @@
 #include "i915_reg_defs.h"
 #include "intel_display_limits.h"
 
+/* DDI Buffer Control */
+#define _DDI_CLK_VALFREQ_A		0x64030
+#define _DDI_CLK_VALFREQ_B		0x64130
+#define DDI_CLK_VALFREQ(port)		_MMIO_PORT(port, _DDI_CLK_VALFREQ_A, _DDI_CLK_VALFREQ_B)
+
 /*
  * Wrapper macro to convert from port number to the index used in some of the
  * registers. For Display version 20 and above it converts the port number to a
@@ -187,7 +192,9 @@
 #define   XELPDP_TBT_CLOCK_REQUEST			REG_BIT(19)
 #define   XELPDP_TBT_CLOCK_ACK				REG_BIT(18)
 #define   XELPDP_DDI_CLOCK_SELECT_MASK			REG_GENMASK(15, 12)
+#define   XE3_DDI_CLOCK_SELECT_MASK			REG_GENMASK(16, 12)
 #define   XELPDP_DDI_CLOCK_SELECT(val)			REG_FIELD_PREP(XELPDP_DDI_CLOCK_SELECT_MASK, val)
+#define   XE3_DDI_CLOCK_SELECT(val)			REG_FIELD_PREP(XE3_DDI_CLOCK_SELECT_MASK, val)
 #define   XELPDP_DDI_CLOCK_SELECT_NONE			0x0
 #define   XELPDP_DDI_CLOCK_SELECT_MAXPCLK		0x8
 #define   XELPDP_DDI_CLOCK_SELECT_DIV18CLK		0x9
@@ -195,10 +202,19 @@
 #define   XELPDP_DDI_CLOCK_SELECT_TBT_270		0xd
 #define   XELPDP_DDI_CLOCK_SELECT_TBT_540		0xe
 #define   XELPDP_DDI_CLOCK_SELECT_TBT_810		0xf
+#define   XELPDP_DDI_CLOCK_SELECT_TBT_312_5		0x18
+#define   XELPDP_DDI_CLOCK_SELECT_TBT_625		0x19
 #define   XELPDP_FORWARD_CLOCK_UNGATE			REG_BIT(10)
 #define   XELPDP_LANE1_PHY_CLOCK_SELECT			REG_BIT(8)
 #define   XELPDP_SSC_ENABLE_PLLA			REG_BIT(1)
 #define   XELPDP_SSC_ENABLE_PLLB			REG_BIT(0)
+
+#define TCSS_DISP_MAILBOX_IN_CMD		_MMIO(0x161300)
+#define   TCSS_DISP_MAILBOX_IN_CMD_RUN_BUSY	REG_BIT(31)
+#define   TCSS_DISP_MAILBOX_IN_CMD_CMD_MASK	REG_GENMASK(7, 0)
+#define   TCSS_DISP_MAILBOX_IN_CMD_DATA(val)	REG_FIELD_PREP(TCSS_DISP_MAILBOX_IN_CMD_CMD_MASK, val)
+
+#define TCSS_DISP_MAILBOX_IN_DATA		_MMIO(0x161304)
 
 /* C10 Vendor Registers */
 #define PHY_C10_VDR_PLL(idx)		(0xC00 + (idx))

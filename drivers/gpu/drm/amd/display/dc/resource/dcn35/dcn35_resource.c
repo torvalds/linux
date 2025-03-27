@@ -1752,6 +1752,13 @@ static bool dcn35_validate_bandwidth(struct dc *dc,
 	return out;
 }
 
+enum dc_status dcn35_patch_unknown_plane_state(struct dc_plane_state *plane_state)
+{
+	plane_state->tiling_info.gfxversion = DcGfxVersion9;
+	dcn20_patch_unknown_plane_state(plane_state);
+	return DC_OK;
+}
+
 
 static struct resource_funcs dcn35_res_pool_funcs = {
 	.destroy = dcn35_destroy_resource_pool,
@@ -1775,10 +1782,11 @@ static struct resource_funcs dcn35_res_pool_funcs = {
 	.acquire_post_bldn_3dlut = dcn30_acquire_post_bldn_3dlut,
 	.release_post_bldn_3dlut = dcn30_release_post_bldn_3dlut,
 	.update_bw_bounding_box = dcn35_update_bw_bounding_box_fpu,
-	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
+	.patch_unknown_plane_state = dcn35_patch_unknown_plane_state,
 	.get_panel_config_defaults = dcn35_get_panel_config_defaults,
 	.get_preferred_eng_id_dpia = dcn35_get_preferred_eng_id_dpia,
 	.get_det_buffer_size = dcn31_get_det_buffer_size,
+	.get_vstartup_for_pipe = dcn10_get_vstartup_for_pipe
 };
 
 static bool dcn35_resource_construct(

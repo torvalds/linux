@@ -726,6 +726,10 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_unbounded_requesting = false,
 	.enable_legacy_fast_update = false,
 	.dcc_meta_propagation_delay_us = 10,
+	.fams_version = {
+		.minor = 1,
+		.major = 2,
+	}, //v2.1
 	.fams2_config = {
 		.bits = {
 			.enable = true,
@@ -733,7 +737,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 			.enable_stall_recovery = true,
 		}
 	},
-	.force_cositing = CHROMA_COSITING_TOPLEFT + 1,
+	.force_cositing = CHROMA_COSITING_NONE + 1,
 };
 
 static struct dce_aux *dcn401_aux_engine_create(
@@ -1293,6 +1297,29 @@ static struct hpo_dp_link_encoder *dcn401_hpo_dp_link_encoder_create(
 	return &hpo_dp_enc31->base;
 }
 
+static unsigned int dcn401_calc_num_avail_chans_for_mall(struct dc *dc, unsigned int num_chans)
+{
+	unsigned int num_available_chans = 1;
+
+	/* channels for MALL must be a power of 2 */
+	while (num_chans > 1) {
+		num_available_chans = (num_available_chans << 1);
+		num_chans = (num_chans >> 1);
+	}
+
+	/* cannot be odd */
+	num_available_chans &= ~1;
+
+	/* clamp to max available channels for MALL per ASIC */
+	if (ASICREV_IS_GC_12_0_0_A0(dc->ctx->asic_id.hw_internal_rev)) {
+		num_available_chans = num_available_chans > 16 ? 16 : num_available_chans;
+	} else if (ASICREV_IS_GC_12_0_1_A0(dc->ctx->asic_id.hw_internal_rev)) {
+		num_available_chans = num_available_chans > 8 ? 8 : num_available_chans;
+	}
+
+	return num_available_chans;
+}
+
 static struct dce_hwseq *dcn401_hwseq_create(
 	struct dc_context *ctx)
 {
@@ -1588,6 +1615,14 @@ static void dcn401_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *b
 
 	memcpy(dml2_opt, &dc->dml2_options, sizeof(dc->dml2_options));
 
+	/* re-calculate the available MALL size if required */
+	if (bw_params->num_channels > 0) {
+		dc->caps.max_cab_allocation_bytes = dcn401_calc_num_avail_chans_for_mall(
+			dc, bw_params->num_channels) *
+			dc->caps.mall_size_per_mem_channel * 1024 * 1024;
+		dc->caps.mall_size_total = dc->caps.max_cab_allocation_bytes;
+	}
+
 	DC_FP_START();
 
 	dcn401_update_bw_bounding_box_fpu(dc, bw_params);
@@ -1605,6 +1640,7 @@ static void dcn401_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *b
 
 enum dc_status dcn401_patch_unknown_plane_state(struct dc_plane_state *plane_state)
 {
+	plane_state->tiling_info.gfxversion = DcGfxAddr3;
 	plane_state->tiling_info.gfx_addr3.swizzle = DC_ADDR3_SW_64KB_2D;
 	return DC_OK;
 }
@@ -1704,27 +1740,9 @@ static int dcn401_get_power_profile(const struct dc_state *context)
 	return dpm_level;
 }
 
-static unsigned int dcn401_calc_num_avail_chans_for_mall(struct dc *dc, unsigned int num_chans)
+static unsigned int dcn401_get_vstartup_for_pipe(struct pipe_ctx *pipe_ctx)
 {
-	unsigned int num_available_chans = 1;
-
-	/* channels for MALL must be a power of 2 */
-	while (num_chans > 1) {
-		num_available_chans = (num_available_chans << 1);
-		num_chans = (num_chans >> 1);
-	}
-
-	/* cannot be odd */
-	num_available_chans &= ~1;
-
-	/* clamp to max available channels for MALL per ASIC */
-	if (ASICREV_IS_GC_12_0_0_A0(dc->ctx->asic_id.hw_internal_rev)) {
-		num_available_chans = num_available_chans > 16 ? 16 : num_available_chans;
-	} else if (ASICREV_IS_GC_12_0_1_A0(dc->ctx->asic_id.hw_internal_rev)) {
-		num_available_chans = num_available_chans > 8 ? 8 : num_available_chans;
-	}
-
-	return num_available_chans;
+	return pipe_ctx->global_sync.dcn4x.vstartup_lines;
 }
 
 static struct resource_funcs dcn401_res_pool_funcs = {
@@ -1754,6 +1772,7 @@ static struct resource_funcs dcn401_res_pool_funcs = {
 	.build_pipe_pix_clk_params = dcn401_build_pipe_pix_clk_params,
 	.calculate_mall_ways_from_bytes = dcn32_calculate_mall_ways_from_bytes,
 	.get_power_profile = dcn401_get_power_profile,
+	.get_vstartup_for_pipe = dcn401_get_vstartup_for_pipe
 };
 
 static uint32_t read_pipe_fuses(struct dc_context *ctx)

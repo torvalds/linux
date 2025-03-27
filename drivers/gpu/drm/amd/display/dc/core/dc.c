@@ -579,7 +579,7 @@ dc_stream_forward_dmcu_crc_window(struct dmcu *dmcu,
 
 bool
 dc_stream_forward_crc_window(struct dc_stream_state *stream,
-		struct rect *rect, bool is_stop)
+		struct rect *rect, uint8_t phy_id, bool is_stop)
 {
 	struct dmcu *dmcu;
 	struct dc_dmub_srv *dmub_srv;
@@ -598,7 +598,7 @@ dc_stream_forward_crc_window(struct dc_stream_state *stream,
 	if (i == MAX_PIPES)
 		return false;
 
-	mux_mapping.phy_output_num = stream->link->link_enc_hw_inst;
+	mux_mapping.phy_output_num = phy_id;
 	mux_mapping.otg_output_num = pipe->stream_res.tg->inst;
 
 	dmcu = dc->res_pool->dmcu;
@@ -615,6 +615,68 @@ dc_stream_forward_crc_window(struct dc_stream_state *stream,
 
 	return true;
 }
+
+static void
+dc_stream_forward_dmub_multiple_crc_window(struct dc_dmub_srv *dmub_srv,
+		struct crc_window *window, struct otg_phy_mux *mux_mapping, bool stop)
+{
+	int i;
+	union dmub_rb_cmd cmd = {0};
+
+	cmd.secure_display.mul_roi_ctl.phy_id = mux_mapping->phy_output_num;
+	cmd.secure_display.mul_roi_ctl.otg_id = mux_mapping->otg_output_num;
+
+	cmd.secure_display.header.type = DMUB_CMD__SECURE_DISPLAY;
+
+	if (stop) {
+		cmd.secure_display.header.sub_type = DMUB_CMD__SECURE_DISPLAY_MULTIPLE_CRC_STOP_UPDATE;
+	} else {
+		cmd.secure_display.header.sub_type = DMUB_CMD__SECURE_DISPLAY_MULTIPLE_CRC_WIN_NOTIFY;
+		for (i = 0; i < MAX_CRC_WINDOW_NUM; i++) {
+			cmd.secure_display.mul_roi_ctl.roi_ctl[i].x_start = window[i].rect.x;
+			cmd.secure_display.mul_roi_ctl.roi_ctl[i].y_start = window[i].rect.y;
+			cmd.secure_display.mul_roi_ctl.roi_ctl[i].x_end = window[i].rect.x + window[i].rect.width;
+			cmd.secure_display.mul_roi_ctl.roi_ctl[i].y_end = window[i].rect.y + window[i].rect.height;
+			cmd.secure_display.mul_roi_ctl.roi_ctl[i].enable = window[i].enable;
+		}
+	}
+
+	dc_wake_and_execute_dmub_cmd(dmub_srv->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
+}
+
+bool
+dc_stream_forward_multiple_crc_window(struct dc_stream_state *stream,
+		struct crc_window *window, uint8_t phy_id, bool stop)
+{
+	struct dc_dmub_srv *dmub_srv;
+	struct otg_phy_mux mux_mapping;
+	struct pipe_ctx *pipe;
+	int i;
+	struct dc *dc = stream->ctx->dc;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe->stream == stream && !pipe->top_pipe && !pipe->prev_odm_pipe)
+			break;
+	}
+
+	/* Stream not found */
+	if (i == MAX_PIPES)
+		return false;
+
+	mux_mapping.phy_output_num = phy_id;
+	mux_mapping.otg_output_num = pipe->stream_res.tg->inst;
+
+	dmub_srv = dc->ctx->dmub_srv;
+
+	/* forward to dmub only. no dmcu support*/
+	if (dmub_srv)
+		dc_stream_forward_dmub_multiple_crc_window(dmub_srv, window, &mux_mapping, stop);
+	else
+		return false;
+
+	return true;
+}
 #endif /* CONFIG_DRM_AMD_SECURE_DISPLAY */
 
 /**
@@ -625,15 +687,17 @@ dc_stream_forward_crc_window(struct dc_stream_state *stream,
  * @enable: Enable CRC if true, disable otherwise.
  * @continuous: Capture CRC on every frame if true. Otherwise, only capture
  *              once.
+ * @idx: Capture CRC on which CRC engine instance
+ * @reset: Reset CRC engine before the configuration
  *
- * By default, only CRC0 is configured, and the entire frame is used to
- * calculate the CRC.
+ * By default, the entire frame is used to calculate the CRC.
  *
  * Return: %false if the stream is not found or CRC capture is not supported;
  *         %true if the stream has been configured.
  */
 bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
-			     struct crc_params *crc_window, bool enable, bool continuous)
+			     struct crc_params *crc_window, bool enable, bool continuous,
+			     uint8_t idx, bool reset)
 {
 	struct pipe_ctx *pipe;
 	struct crc_params param;
@@ -677,6 +741,9 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 	param.continuous_mode = continuous;
 	param.enable = enable;
 
+	param.crc_eng_inst = idx;
+	param.reset = reset;
+
 	tg = pipe->stream_res.tg;
 
 	/* Only call if supported */
@@ -691,6 +758,7 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
  *
  * @dc: DC object.
  * @stream: The DC stream state of the stream to get CRCs from.
+ * @idx: index of crc engine to get CRC from
  * @r_cr: CRC value for the red component.
  * @g_y:  CRC value for the green component.
  * @b_cb: CRC value for the blue component.
@@ -700,7 +768,7 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
  * Return:
  * %false if stream is not found, or if CRCs are not enabled.
  */
-bool dc_stream_get_crc(struct dc *dc, struct dc_stream_state *stream,
+bool dc_stream_get_crc(struct dc *dc, struct dc_stream_state *stream, uint8_t idx,
 		       uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb)
 {
 	int i;
@@ -721,7 +789,7 @@ bool dc_stream_get_crc(struct dc *dc, struct dc_stream_state *stream,
 	tg = pipe->stream_res.tg;
 
 	if (tg->funcs->get_crc)
-		return tg->funcs->get_crc(tg, r_cr, g_y, b_cb);
+		return tg->funcs->get_crc(tg, idx, r_cr, g_y, b_cb);
 	DC_LOG_WARNING("CRC capture not supported.");
 	return false;
 }
@@ -1173,6 +1241,8 @@ static void dc_update_visual_confirm_color(struct dc *dc, struct dc_state *conte
 				get_mclk_switch_visual_confirm_color(pipe_ctx, &(pipe_ctx->visual_confirm_color));
 			else if (dc->debug.visual_confirm == VISUAL_CONFIRM_FAMS2)
 				get_fams2_visual_confirm_color(dc, context, pipe_ctx, &(pipe_ctx->visual_confirm_color));
+			else if (dc->debug.visual_confirm == VISUAL_CONFIRM_VABC)
+				get_vabc_visual_confirm_color(pipe_ctx, &(pipe_ctx->visual_confirm_color));
 		}
 	}
 }
@@ -2153,6 +2223,11 @@ enum dc_status dc_commit_streams(struct dc *dc, struct dc_commit_streams_params 
 		struct dc_stream_state *stream = params->streams[i];
 		struct dc_stream_status *status = dc_stream_get_status(stream);
 
+		/* revalidate streams */
+		res = dc_validate_stream(dc, stream);
+		if (res != DC_OK)
+			return res;
+
 		dc_stream_log(dc, stream);
 
 		set[i].stream = stream;
@@ -2487,7 +2562,7 @@ static enum surface_update_type get_plane_info_update_type(const struct dc *dc, 
 
 
 	if (memcmp(&u->plane_info->tiling_info, &u->surface->tiling_info,
-			sizeof(union dc_tiling_info)) != 0) {
+			sizeof(struct dc_tiling_info)) != 0) {
 		update_flags->bits.swizzle_change = 1;
 		elevate_update_type(&update_type, UPDATE_TYPE_MED);
 
@@ -2982,6 +3057,10 @@ static void copy_surface_update_to_plane(
 	if (srf_update->cursor_csc_color_matrix)
 		surface->cursor_csc_color_matrix =
 			*srf_update->cursor_csc_color_matrix;
+
+	if (srf_update->bias_and_scale.bias_and_scale_valid)
+			surface->bias_and_scale =
+					srf_update->bias_and_scale;
 }
 
 static void copy_stream_update_to_stream(struct dc *dc,
@@ -5307,11 +5386,9 @@ void dc_set_power_state(struct dc *dc, enum dc_acpi_cm_power_state power_state)
 			dc->vm_pa_config.valid) {
 			dc->hwss.init_sys_ctx(dc->hwseq, dc, &dc->vm_pa_config);
 		}
-
 		break;
 	default:
 		ASSERT(dc->current_state->stream_count == 0);
-
 		dc_dmub_srv_notify_fw_dc_power_state(dc->ctx->dmub_srv, power_state);
 
 		dc_state_destruct(dc->current_state);
@@ -5435,6 +5512,11 @@ bool dc_set_ips_disable(struct dc *dc, unsigned int disable_ips)
 
 void dc_allow_idle_optimizations_internal(struct dc *dc, bool allow, char const *caller_name)
 {
+	int idle_fclk_khz = 0, idle_dramclk_khz = 0, i = 0;
+	enum mall_stream_type subvp_pipe_type[MAX_PIPES] = {0};
+	struct pipe_ctx *pipe = NULL;
+	struct dc_state *context = dc->current_state;
+
 	if (dc->debug.disable_idle_power_optimizations) {
 		DC_LOG_DEBUG("%s: disabled\n", __func__);
 		return;
@@ -5459,6 +5541,23 @@ void dc_allow_idle_optimizations_internal(struct dc *dc, bool allow, char const 
 		dc->idle_optimizations_allowed = allow;
 		DC_LOG_DEBUG("%s: %s\n", __func__, allow ? "enabled" : "disabled");
 	}
+
+	// log idle clocks and sub vp pipe types at idle optimization time
+	if (dc->clk_mgr != NULL && dc->clk_mgr->funcs->get_hard_min_fclk)
+		idle_fclk_khz = dc->clk_mgr->funcs->get_hard_min_fclk(dc->clk_mgr);
+
+	if (dc->clk_mgr != NULL && dc->clk_mgr->funcs->get_hard_min_memclk)
+		idle_dramclk_khz = dc->clk_mgr->funcs->get_hard_min_memclk(dc->clk_mgr);
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		pipe = &context->res_ctx.pipe_ctx[i];
+		subvp_pipe_type[i] = dc_state_get_pipe_subvp_type(context, pipe);
+	}
+
+	DC_LOG_DC("%s: allow_idle=%d\n HardMinUClk_Khz=%d HardMinDramclk_Khz=%d\n Pipe_0=%d Pipe_1=%d Pipe_2=%d Pipe_3=%d Pipe_4=%d Pipe_5=%d (caller=%s)\n",
+			__func__, allow, idle_fclk_khz, idle_dramclk_khz, subvp_pipe_type[0], subvp_pipe_type[1], subvp_pipe_type[2],
+			subvp_pipe_type[3], subvp_pipe_type[4], subvp_pipe_type[5], caller_name);
+
 }
 
 void dc_exit_ips_for_hw_access_internal(struct dc *dc, const char *caller_name)
@@ -6056,7 +6155,7 @@ void dc_query_current_properties(struct dc *dc, struct dc_current_properties *pr
 	bool subvp_sw_cursor_req = false;
 
 	for (i = 0; i < dc->current_state->stream_count; i++) {
-		if (check_subvp_sw_cursor_fallback_req(dc, dc->current_state->streams[i])) {
+		if (check_subvp_sw_cursor_fallback_req(dc, dc->current_state->streams[i]) && !dc->current_state->streams[i]->hw_cursor_req) {
 			subvp_sw_cursor_req = true;
 			break;
 		}

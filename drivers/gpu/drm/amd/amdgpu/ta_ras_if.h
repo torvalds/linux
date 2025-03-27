@@ -30,6 +30,9 @@
 #define RSP_ID_MASK (1U << 31)
 #define RSP_ID(cmdId) (((uint32_t)(cmdId)) | RSP_ID_MASK)
 
+/* invalid node instance value */
+#define TA_RAS_INV_NODE 0xffff
+
 /* RAS related enumerations */
 /**********************************************************/
 enum ras_command {

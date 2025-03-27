@@ -31,12 +31,12 @@
 
 #include "vcn/vcn_5_0_0_offset.h"
 #include "vcn/vcn_5_0_0_sh_mask.h"
-#include "ivsrcid/vcn/irqsrcs_vcn_4_0.h"
+#include "ivsrcid/vcn/irqsrcs_vcn_5_0.h"
 #include "jpeg_v5_0_0.h"
 
 static void jpeg_v5_0_0_set_dec_ring_funcs(struct amdgpu_device *adev);
 static void jpeg_v5_0_0_set_irq_funcs(struct amdgpu_device *adev);
-static int jpeg_v5_0_0_set_powergating_state(void *handle,
+static int jpeg_v5_0_0_set_powergating_state(struct amdgpu_ip_block *ip_block,
 				enum amd_powergating_state state);
 
 /**
@@ -74,7 +74,7 @@ static int jpeg_v5_0_0_sw_init(struct amdgpu_ip_block *ip_block)
 
 	/* JPEG TRAP */
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VCN,
-		VCN_4_0__SRCID__JPEG_DECODE, &adev->jpeg.inst->irq);
+		VCN_5_0__SRCID__JPEG_DECODE, &adev->jpeg.inst->irq);
 	if (r)
 		return r;
 
@@ -172,7 +172,7 @@ static int jpeg_v5_0_0_hw_fini(struct amdgpu_ip_block *ip_block)
 
 	if (adev->jpeg.cur_state != AMD_PG_STATE_GATE &&
 	      RREG32_SOC15(JPEG, 0, regUVD_JRBC_STATUS))
-		jpeg_v5_0_0_set_powergating_state(adev, AMD_PG_STATE_GATE);
+		jpeg_v5_0_0_set_powergating_state(ip_block, AMD_PG_STATE_GATE);
 
 	return 0;
 }
@@ -560,14 +560,14 @@ static int jpeg_v5_0_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 		UVD_JRBC_STATUS__RB_JOB_DONE_MASK);
 }
 
-static int jpeg_v5_0_0_set_clockgating_state(void *handle,
+static int jpeg_v5_0_0_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 					  enum amd_clockgating_state state)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
 
 	if (enable) {
-		if (!jpeg_v5_0_0_is_idle(handle))
+		if (!jpeg_v5_0_0_is_idle(adev))
 			return -EBUSY;
 		jpeg_v5_0_0_enable_clock_gating(adev);
 	} else {
@@ -577,10 +577,10 @@ static int jpeg_v5_0_0_set_clockgating_state(void *handle,
 	return 0;
 }
 
-static int jpeg_v5_0_0_set_powergating_state(void *handle,
+static int jpeg_v5_0_0_set_powergating_state(struct amdgpu_ip_block *ip_block,
 					  enum amd_powergating_state state)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int ret;
 
 	if (state == adev->jpeg.cur_state)
@@ -612,7 +612,7 @@ static int jpeg_v5_0_0_process_interrupt(struct amdgpu_device *adev,
 	DRM_DEBUG("IH: JPEG TRAP\n");
 
 	switch (entry->src_id) {
-	case VCN_4_0__SRCID__JPEG_DECODE:
+	case VCN_5_0__SRCID__JPEG_DECODE:
 		amdgpu_fence_process(adev->jpeg.inst->ring_dec);
 		break;
 	default:

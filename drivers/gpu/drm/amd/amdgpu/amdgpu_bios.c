@@ -47,35 +47,37 @@
 /* Check if current bios is an ATOM BIOS.
  * Return true if it is ATOM BIOS. Otherwise, return false.
  */
-static bool check_atom_bios(uint8_t *bios, size_t size)
+static bool check_atom_bios(struct amdgpu_device *adev, size_t size)
 {
 	uint16_t tmp, bios_header_start;
+	uint8_t *bios = adev->bios;
 
 	if (!bios || size < 0x49) {
-		DRM_INFO("vbios mem is null or mem size is wrong\n");
+		dev_dbg(adev->dev, "VBIOS mem is null or mem size is wrong\n");
 		return false;
 	}
 
 	if (!AMD_IS_VALID_VBIOS(bios)) {
-		DRM_INFO("BIOS signature incorrect %x %x\n", bios[0], bios[1]);
+		dev_dbg(adev->dev, "VBIOS signature incorrect %x %x\n", bios[0],
+			bios[1]);
 		return false;
 	}
 
 	bios_header_start = bios[0x48] | (bios[0x49] << 8);
 	if (!bios_header_start) {
-		DRM_INFO("Can't locate bios header\n");
+		dev_dbg(adev->dev, "Can't locate VBIOS header\n");
 		return false;
 	}
 
 	tmp = bios_header_start + 4;
 	if (size < tmp) {
-		DRM_INFO("BIOS header is broken\n");
+		dev_dbg(adev->dev, "VBIOS header is broken\n");
 		return false;
 	}
 
 	if (!memcmp(bios + tmp, "ATOM", 4) ||
 	    !memcmp(bios + tmp, "MOTA", 4)) {
-		DRM_DEBUG("ATOMBIOS detected\n");
+		dev_dbg(adev->dev, "ATOMBIOS detected\n");
 		return true;
 	}
 
@@ -118,7 +120,7 @@ static bool amdgpu_read_bios_from_vram(struct amdgpu_device *adev)
 	memcpy_fromio(adev->bios, bios, size);
 	iounmap(bios);
 
-	if (!check_atom_bios(adev->bios, size)) {
+	if (!check_atom_bios(adev, size)) {
 		kfree(adev->bios);
 		return false;
 	}
@@ -146,7 +148,7 @@ bool amdgpu_read_bios(struct amdgpu_device *adev)
 	memcpy_fromio(adev->bios, bios, size);
 	pci_unmap_rom(adev->pdev, bios);
 
-	if (!check_atom_bios(adev->bios, size)) {
+	if (!check_atom_bios(adev, size)) {
 		kfree(adev->bios);
 		return false;
 	}
@@ -186,7 +188,7 @@ static bool amdgpu_read_bios_from_rom(struct amdgpu_device *adev)
 	/* read complete BIOS */
 	amdgpu_asic_read_bios_from_rom(adev, adev->bios, len);
 
-	if (!check_atom_bios(adev->bios, len)) {
+	if (!check_atom_bios(adev, len)) {
 		kfree(adev->bios);
 		return false;
 	}
@@ -216,7 +218,7 @@ static bool amdgpu_read_platform_bios(struct amdgpu_device *adev)
 	memcpy_fromio(adev->bios, bios, romlen);
 	iounmap(bios);
 
-	if (!check_atom_bios(adev->bios, romlen))
+	if (!check_atom_bios(adev, romlen))
 		goto free_bios;
 
 	adev->bios_size = romlen;
@@ -324,7 +326,7 @@ static bool amdgpu_atrm_get_bios(struct amdgpu_device *adev)
 			break;
 	}
 
-	if (!check_atom_bios(adev->bios, size)) {
+	if (!check_atom_bios(adev, size)) {
 		kfree(adev->bios);
 		return false;
 	}
@@ -389,7 +391,7 @@ static bool amdgpu_acpi_vfct_bios(struct amdgpu_device *adev)
 					     vhdr->ImageLength,
 					     GFP_KERNEL);
 
-			if (!check_atom_bios(adev->bios, vhdr->ImageLength)) {
+			if (!check_atom_bios(adev, vhdr->ImageLength)) {
 				kfree(adev->bios);
 				return false;
 			}

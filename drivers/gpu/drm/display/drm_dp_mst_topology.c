@@ -29,7 +29,6 @@
 #include <linux/random.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
-#include <linux/iopoll.h>
 
 #if IS_ENABLED(CONFIG_DRM_DEBUG_DP_MST_TOPOLOGY_REFS)
 #include <linux/stacktrace.h>
@@ -67,9 +66,6 @@ static bool dump_dp_payload_table(struct drm_dp_mst_topology_mgr *mgr,
 				  char *buf);
 
 static void drm_dp_mst_topology_put_port(struct drm_dp_mst_port *port);
-
-static int drm_dp_dpcd_write_payload(struct drm_dp_mst_topology_mgr *mgr,
-				     int id, u8 start_slot, u8 num_slots);
 
 static int drm_dp_send_dpcd_read(struct drm_dp_mst_topology_mgr *mgr,
 				 struct drm_dp_mst_port *port,
@@ -2285,7 +2281,7 @@ drm_dp_mst_port_add_connector(struct drm_dp_mst_branch *mstb,
 		port->cached_edid = drm_edid_read_ddc(port->connector,
 						      &port->aux.ddc);
 
-	drm_connector_register(port->connector);
+	drm_connector_dynamic_register(port->connector);
 	return;
 
 error:
@@ -3267,7 +3263,7 @@ EXPORT_SYMBOL(drm_dp_send_query_stream_enc_status);
 static int drm_dp_create_payload_at_dfp(struct drm_dp_mst_topology_mgr *mgr,
 					struct drm_dp_mst_atomic_payload *payload)
 {
-	return drm_dp_dpcd_write_payload(mgr, payload->vcpi, payload->vc_start_slot,
+	return drm_dp_dpcd_write_payload(mgr->aux, payload->vcpi, payload->vc_start_slot,
 					 payload->time_slots);
 }
 
@@ -3298,7 +3294,7 @@ static void drm_dp_destroy_payload_at_remote_and_dfp(struct drm_dp_mst_topology_
 	}
 
 	if (payload->payload_allocation_status == DRM_DP_MST_PAYLOAD_ALLOCATION_DFP)
-		drm_dp_dpcd_write_payload(mgr, payload->vcpi, payload->vc_start_slot, 0);
+		drm_dp_dpcd_write_payload(mgr->aux, payload->vcpi, payload->vc_start_slot, 0);
 }
 
 /**
@@ -3576,8 +3572,7 @@ static int drm_dp_send_up_ack_reply(struct drm_dp_mst_topology_mgr *mgr,
 }
 
 /**
- * drm_dp_get_vc_payload_bw - get the VC payload BW for an MST link
- * @mgr: The &drm_dp_mst_topology_mgr to use
+ * drm_dp_get_vc_payload_bw - get the VC payload BW for an MTP link
  * @link_rate: link rate in 10kbits/s units
  * @link_lane_count: lane count
  *
@@ -3588,16 +3583,11 @@ static int drm_dp_send_up_ack_reply(struct drm_dp_mst_topology_mgr *mgr,
  *
  * Returns the BW / timeslot value in 20.12 fixed point format.
  */
-fixed20_12 drm_dp_get_vc_payload_bw(const struct drm_dp_mst_topology_mgr *mgr,
-				    int link_rate, int link_lane_count)
+fixed20_12 drm_dp_get_vc_payload_bw(int link_rate, int link_lane_count)
 {
 	int ch_coding_efficiency =
 		drm_dp_bw_channel_coding_efficiency(drm_dp_is_uhbr_rate(link_rate));
 	fixed20_12 ret;
-
-	if (link_rate == 0 || link_lane_count == 0)
-		drm_dbg_kms(mgr->dev, "invalid link rate/lane count: (%d / %d)\n",
-			    link_rate, link_lane_count);
 
 	/* See DP v2.0 2.6.4.2, 2.7.6.3 VCPayload_Bandwidth_for_OneTimeSlotPer_MTP_Allocation */
 	ret.full = DIV_ROUND_DOWN_ULL(mul_u32_u32(link_rate * link_lane_count,
@@ -3686,7 +3676,7 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 			goto out_unlock;
 
 		/* Write reset payload */
-		drm_dp_dpcd_write_payload(mgr, 0, 0, 0x3f);
+		drm_dp_dpcd_clear_payload(mgr->aux);
 
 		drm_dp_mst_queue_probe_work(mgr);
 
@@ -4747,61 +4737,6 @@ void drm_dp_mst_update_slots(struct drm_dp_mst_topology_state *mst_state, uint8_
 }
 EXPORT_SYMBOL(drm_dp_mst_update_slots);
 
-static int drm_dp_dpcd_write_payload(struct drm_dp_mst_topology_mgr *mgr,
-				     int id, u8 start_slot, u8 num_slots)
-{
-	u8 payload_alloc[3], status;
-	int ret;
-	int retries = 0;
-
-	drm_dp_dpcd_writeb(mgr->aux, DP_PAYLOAD_TABLE_UPDATE_STATUS,
-			   DP_PAYLOAD_TABLE_UPDATED);
-
-	payload_alloc[0] = id;
-	payload_alloc[1] = start_slot;
-	payload_alloc[2] = num_slots;
-
-	ret = drm_dp_dpcd_write(mgr->aux, DP_PAYLOAD_ALLOCATE_SET, payload_alloc, 3);
-	if (ret != 3) {
-		drm_dbg_kms(mgr->dev, "failed to write payload allocation %d\n", ret);
-		goto fail;
-	}
-
-retry:
-	ret = drm_dp_dpcd_readb(mgr->aux, DP_PAYLOAD_TABLE_UPDATE_STATUS, &status);
-	if (ret < 0) {
-		drm_dbg_kms(mgr->dev, "failed to read payload table status %d\n", ret);
-		goto fail;
-	}
-
-	if (!(status & DP_PAYLOAD_TABLE_UPDATED)) {
-		retries++;
-		if (retries < 20) {
-			usleep_range(10000, 20000);
-			goto retry;
-		}
-		drm_dbg_kms(mgr->dev, "status not set after read payload table status %d\n",
-			    status);
-		ret = -EINVAL;
-		goto fail;
-	}
-	ret = 0;
-fail:
-	return ret;
-}
-
-static int do_get_act_status(struct drm_dp_aux *aux)
-{
-	int ret;
-	u8 status;
-
-	ret = drm_dp_dpcd_readb(aux, DP_PAYLOAD_TABLE_UPDATE_STATUS, &status);
-	if (ret < 0)
-		return ret;
-
-	return status;
-}
-
 /**
  * drm_dp_check_act_status() - Polls for ACT handled status.
  * @mgr: manager to use
@@ -4819,28 +4754,9 @@ int drm_dp_check_act_status(struct drm_dp_mst_topology_mgr *mgr)
 	 * There doesn't seem to be any recommended retry count or timeout in
 	 * the MST specification. Since some hubs have been observed to take
 	 * over 1 second to update their payload allocations under certain
-	 * conditions, we use a rather large timeout value.
+	 * conditions, we use a rather large timeout value of 3 seconds.
 	 */
-	const int timeout_ms = 3000;
-	int ret, status;
-
-	ret = readx_poll_timeout(do_get_act_status, mgr->aux, status,
-				 status & DP_PAYLOAD_ACT_HANDLED || status < 0,
-				 200, timeout_ms * USEC_PER_MSEC);
-	if (ret < 0 && status >= 0) {
-		drm_err(mgr->dev, "Failed to get ACT after %dms, last status: %02x\n",
-			timeout_ms, status);
-		return -EINVAL;
-	} else if (status < 0) {
-		/*
-		 * Failure here isn't unexpected - the hub may have
-		 * just been unplugged
-		 */
-		drm_dbg_kms(mgr->dev, "Failed to read payload table status: %d\n", status);
-		return status;
-	}
-
-	return 0;
+	return drm_dp_dpcd_poll_act_handled(mgr->aux, 3000);
 }
 EXPORT_SYMBOL(drm_dp_check_act_status);
 

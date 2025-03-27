@@ -43,6 +43,12 @@ int init_srcu_struct(struct srcu_struct *ssp);
 #define __SRCU_DEP_MAP_INIT(srcu_name)
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
+/* Values for SRCU Tree srcu_data ->srcu_reader_flavor, but also used by rcutorture. */
+#define SRCU_READ_FLAVOR_NORMAL	0x1		// srcu_read_lock().
+#define SRCU_READ_FLAVOR_NMI	0x2		// srcu_read_lock_nmisafe().
+#define SRCU_READ_FLAVOR_LITE	0x4		// srcu_read_lock_lite().
+#define SRCU_READ_FLAVOR_ALL	0x7		// All of the above.
+
 #ifdef CONFIG_TINY_SRCU
 #include <linux/srcutiny.h>
 #elif defined(CONFIG_TREE_SRCU)
@@ -232,13 +238,14 @@ static inline int srcu_read_lock_held(const struct srcu_struct *ssp)
  * a mutex that is held elsewhere while calling synchronize_srcu() or
  * synchronize_srcu_expedited().
  *
- * The return value from srcu_read_lock() must be passed unaltered
- * to the matching srcu_read_unlock().  Note that srcu_read_lock() and
- * the matching srcu_read_unlock() must occur in the same context, for
- * example, it is illegal to invoke srcu_read_unlock() in an irq handler
- * if the matching srcu_read_lock() was invoked in process context.  Or,
- * for that matter to invoke srcu_read_unlock() from one task and the
- * matching srcu_read_lock() from another.
+ * The return value from srcu_read_lock() is guaranteed to be
+ * non-negative.  This value must be passed unaltered to the matching
+ * srcu_read_unlock().  Note that srcu_read_lock() and the matching
+ * srcu_read_unlock() must occur in the same context, for example, it is
+ * illegal to invoke srcu_read_unlock() in an irq handler if the matching
+ * srcu_read_lock() was invoked in process context.  Or, for that matter to
+ * invoke srcu_read_unlock() from one task and the matching srcu_read_lock()
+ * from another.
  */
 static inline int srcu_read_lock(struct srcu_struct *ssp) __acquires(ssp)
 {

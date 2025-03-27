@@ -11,9 +11,9 @@ struct msm_mdss_data {
 	/* can be read from register 0x58 */
 	u32 ubwc_dec_version;
 	u32 ubwc_swizzle;
-	u32 ubwc_static;
 	u32 highest_bank_bit;
-	u32 macrotile_mode;
+	bool ubwc_bank_spread;
+	bool macrotile_mode;
 	u32 reg_bus_bw;
 };
 

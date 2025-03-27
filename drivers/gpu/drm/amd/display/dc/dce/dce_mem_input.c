@@ -98,7 +98,7 @@ static enum mi_bits_per_pixel get_mi_bpp(
 }
 
 static enum mi_tiling_format get_mi_tiling(
-		union dc_tiling_info *tiling_info)
+		struct dc_tiling_info *tiling_info)
 {
 	switch (tiling_info->gfx8.array_mode) {
 	case DC_ARRAY_1D_TILED_THIN1:
@@ -133,7 +133,7 @@ static bool is_vert_scan(enum dc_rotation_angle rotation)
 static void dce_mi_program_pte_vm(
 		struct mem_input *mi,
 		enum surface_pixel_format format,
-		union dc_tiling_info *tiling_info,
+		struct dc_tiling_info *tiling_info,
 		enum dc_rotation_angle rotation)
 {
 	struct dce_mem_input *dce_mi = TO_DCE_MEM_INPUT(mi);
@@ -430,7 +430,7 @@ static void dce120_mi_program_display_marks(struct mem_input *mi,
 }
 
 static void program_tiling(
-	struct dce_mem_input *dce_mi, const union dc_tiling_info *info)
+	struct dce_mem_input *dce_mi, const struct dc_tiling_info *info)
 {
 	if (dce_mi->masks->GRPH_SW_MODE) { /* GFX9 */
 		REG_UPDATE_6(GRPH_CONTROL,
@@ -480,7 +480,6 @@ static void program_tiling(
 				*/
 	}
 }
-
 
 static void program_size_and_rotation(
 	struct dce_mem_input *dce_mi,
@@ -627,10 +626,31 @@ static void program_grph_pixel_format(
 			GRPH_PRESCALE_B_SIGN, sign);
 }
 
+static void dce_mi_clear_tiling(
+	struct mem_input *mi)
+{
+	struct dce_mem_input *dce_mi = TO_DCE_MEM_INPUT(mi);
+
+	if (dce_mi->masks->GRPH_SW_MODE) { /* GFX9 */
+		REG_UPDATE(GRPH_CONTROL,
+			   GRPH_SW_MODE, DC_SW_LINEAR);
+	}
+
+	if (dce_mi->masks->GRPH_MICRO_TILE_MODE) { /* GFX8 */
+		REG_UPDATE(GRPH_CONTROL,
+			   GRPH_ARRAY_MODE, DC_SW_LINEAR);
+	}
+
+	if (dce_mi->masks->GRPH_ARRAY_MODE) { /* GFX6 but reuses gfx8 struct */
+		REG_UPDATE(GRPH_CONTROL,
+			   GRPH_ARRAY_MODE, DC_SW_LINEAR);
+	}
+}
+
 static void dce_mi_program_surface_config(
 	struct mem_input *mi,
 	enum surface_pixel_format format,
-	union dc_tiling_info *tiling_info,
+	struct dc_tiling_info *tiling_info,
 	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
@@ -650,7 +670,7 @@ static void dce_mi_program_surface_config(
 static void dce60_mi_program_surface_config(
 	struct mem_input *mi,
 	enum surface_pixel_format format,
-	union dc_tiling_info *tiling_info,
+	struct dc_tiling_info *tiling_info,
 	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation, /* not used in DCE6 */
 	struct dc_plane_dcc_param *dcc,
@@ -884,7 +904,8 @@ static const struct mem_input_funcs dce_mi_funcs = {
 	.mem_input_program_pte_vm = dce_mi_program_pte_vm,
 	.mem_input_program_surface_config =
 			dce_mi_program_surface_config,
-	.mem_input_is_flip_pending = dce_mi_is_flip_pending
+	.mem_input_is_flip_pending = dce_mi_is_flip_pending,
+	.mem_input_clear_tiling = dce_mi_clear_tiling,
 };
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
@@ -897,7 +918,8 @@ static const struct mem_input_funcs dce60_mi_funcs = {
 	.mem_input_program_pte_vm = dce_mi_program_pte_vm,
 	.mem_input_program_surface_config =
 			dce60_mi_program_surface_config,
-	.mem_input_is_flip_pending = dce_mi_is_flip_pending
+	.mem_input_is_flip_pending = dce_mi_is_flip_pending,
+	.mem_input_clear_tiling = dce_mi_clear_tiling,
 };
 #endif
 
@@ -910,7 +932,8 @@ static const struct mem_input_funcs dce112_mi_funcs = {
 	.mem_input_program_pte_vm = dce_mi_program_pte_vm,
 	.mem_input_program_surface_config =
 			dce_mi_program_surface_config,
-	.mem_input_is_flip_pending = dce_mi_is_flip_pending
+	.mem_input_is_flip_pending = dce_mi_is_flip_pending,
+	.mem_input_clear_tiling = dce_mi_clear_tiling,
 };
 
 static const struct mem_input_funcs dce120_mi_funcs = {
@@ -922,7 +945,8 @@ static const struct mem_input_funcs dce120_mi_funcs = {
 	.mem_input_program_pte_vm = dce_mi_program_pte_vm,
 	.mem_input_program_surface_config =
 			dce_mi_program_surface_config,
-	.mem_input_is_flip_pending = dce_mi_is_flip_pending
+	.mem_input_is_flip_pending = dce_mi_is_flip_pending,
+	.mem_input_clear_tiling = dce_mi_clear_tiling,
 };
 
 void dce_mem_input_construct(

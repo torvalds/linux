@@ -1670,9 +1670,7 @@ static int tmigr_setup_groups(unsigned int cpu, unsigned int node)
 		 * be different from tmigr_hierarchy_levels, contains only a
 		 * single group.
 		 */
-		if (group->parent || i == tmigr_hierarchy_levels ||
-		    (list_empty(&tmigr_level_list[i]) &&
-		     list_is_singular(&tmigr_level_list[i - 1])))
+		if (group->parent || list_is_singular(&tmigr_level_list[i - 1]))
 			break;
 
 	} while (i < tmigr_hierarchy_levels);

@@ -885,6 +885,12 @@ bool dm_helpers_dp_write_dsc_enable(
 	return ret;
 }
 
+bool dm_helpers_dp_write_hblank_reduction(struct dc_context *ctx, const struct dc_stream_state *stream)
+{
+	// TODO
+	return false;
+}
+
 bool dm_helpers_is_dp_sink_present(struct dc_link *link)
 {
 	bool dp_sink_present;

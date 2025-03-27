@@ -37,7 +37,7 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt);
 
 /**
  * xe_gt_record_user_engines - save data related to engines available to
- * usersapce
+ * userspace
  * @gt: GT structure
  *
  * Walk the available HW engines from gt->info.engine_mask and calculate data

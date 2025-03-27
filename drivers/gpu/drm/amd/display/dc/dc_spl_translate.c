@@ -64,6 +64,13 @@ static void populate_inits_from_splinits(struct scl_inits *inits,
 	inits->h_c = dc_fixpt_from_int_dy(spl_inits->h_filter_init_int_c, spl_inits->h_filter_init_frac_c >> 5, 0, 19);
 	inits->v_c = dc_fixpt_from_int_dy(spl_inits->v_filter_init_int_c, spl_inits->v_filter_init_frac_c >> 5, 0, 19);
 }
+static void populate_splformat_from_format(enum spl_pixel_format *spl_pixel_format, const enum pixel_format pixel_format)
+{
+	if (pixel_format < PIXEL_FORMAT_INVALID)
+		*spl_pixel_format = (enum spl_pixel_format)pixel_format;
+	else
+		*spl_pixel_format = SPL_PIXEL_FORMAT_INVALID;
+}
 /// @brief Translate SPL input parameters from pipe context
 /// @param pipe_ctx
 /// @param spl_in
@@ -89,7 +96,7 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 		spl_in->callbacks = dcn2_spl_callbacks;
 	}
 	// Make format field from spl_in point to plane_res scl_data format
-	spl_in->basic_in.format = (enum spl_pixel_format)pipe_ctx->plane_res.scl_data.format;
+	populate_splformat_from_format(&spl_in->basic_in.format, pipe_ctx->plane_res.scl_data.format);
 	// Make view_format from basic_out point to view_format from stream
 	spl_in->basic_out.view_format = (enum spl_view_3d)stream->view_format;
 	// Populate spl input basic input clip rect from plane state clip rect
@@ -108,12 +115,14 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 	spl_in->basic_in.horizontal_mirror = plane_state->horizontal_mirror;
 
 	// Calculate horizontal splits and split index
-	spl_in->basic_in.mpc_combine_h = resource_get_mpc_slice_count(pipe_ctx);
+	spl_in->basic_in.num_h_slices_recout_width_align.use_recout_width_aligned = false;
+	spl_in->basic_in.num_h_slices_recout_width_align.num_slices_recout_width.mpc_num_h_slices =
+		resource_get_mpc_slice_count(pipe_ctx);
 
 	if (stream->view_format == VIEW_3D_FORMAT_SIDE_BY_SIDE)
-		spl_in->basic_in.mpc_combine_v = 0;
+		spl_in->basic_in.mpc_h_slice_index = 0;
 	else
-		spl_in->basic_in.mpc_combine_v = resource_get_mpc_slice_index(pipe_ctx);
+		spl_in->basic_in.mpc_h_slice_index = resource_get_mpc_slice_index(pipe_ctx);
 
 	populate_splrect_from_rect(&spl_in->basic_out.odm_slice_rect, &odm_slice_src);
 	spl_in->basic_out.odm_combine_factor = 0;

@@ -18,7 +18,7 @@
  * is within a range of supported VF numbers (up to maximum number of VFs that
  * driver can support, including VF0 that represents the PF itself).
  *
- * Note: Effective only on debug builds. See `Xe ASSERTs`_ for more information.
+ * Note: Effective only on debug builds. See `Xe Asserts`_ for more information.
  */
 #define xe_gt_sriov_pf_assert_vfid(gt, vfid)	xe_sriov_pf_assert_vfid(gt_to_xe(gt), (vfid))
 

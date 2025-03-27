@@ -10,21 +10,20 @@
 #include "intel_display_power.h"
 #include "intel_dpio_phy.h"
 
-struct drm_i915_private;
 struct i915_power_well_ops;
 struct intel_display;
 struct intel_encoder;
 
-#define for_each_power_well(__dev_priv, __power_well)				\
-	for ((__power_well) = (__dev_priv)->display.power.domains.power_wells;	\
-	     (__power_well) - (__dev_priv)->display.power.domains.power_wells <	\
-		(__dev_priv)->display.power.domains.power_well_count;		\
+#define for_each_power_well(___display, __power_well)			\
+	for ((__power_well) = (___display)->power.domains.power_wells;	\
+	     (__power_well) - (___display)->power.domains.power_wells <	\
+		     (___display)->power.domains.power_well_count;	\
 	     (__power_well)++)
 
-#define for_each_power_well_reverse(__dev_priv, __power_well)			\
-	for ((__power_well) = (__dev_priv)->display.power.domains.power_wells +		\
-			      (__dev_priv)->display.power.domains.power_well_count - 1;	\
-	     (__power_well) - (__dev_priv)->display.power.domains.power_wells >= 0;	\
+#define for_each_power_well_reverse(___display, __power_well)		\
+	for ((__power_well) = (___display)->power.domains.power_wells +	\
+		     (___display)->power.domains.power_well_count - 1;	\
+	     (__power_well) - (___display)->power.domains.power_wells >= 0; \
 	     (__power_well)--)
 
 /*
@@ -127,23 +126,23 @@ struct i915_power_well {
 	u8 instance_idx;
 };
 
-struct i915_power_well *lookup_power_well(struct drm_i915_private *i915,
+struct i915_power_well *lookup_power_well(struct intel_display *display,
 					  enum i915_power_well_id id);
 
-void intel_power_well_enable(struct drm_i915_private *i915,
+void intel_power_well_enable(struct intel_display *display,
 			     struct i915_power_well *power_well);
-void intel_power_well_disable(struct drm_i915_private *i915,
+void intel_power_well_disable(struct intel_display *display,
 			      struct i915_power_well *power_well);
-void intel_power_well_sync_hw(struct drm_i915_private *i915,
+void intel_power_well_sync_hw(struct intel_display *display,
 			      struct i915_power_well *power_well);
-void intel_power_well_get(struct drm_i915_private *i915,
+void intel_power_well_get(struct intel_display *display,
 			  struct i915_power_well *power_well);
-void intel_power_well_put(struct drm_i915_private *i915,
+void intel_power_well_put(struct intel_display *display,
 			  struct i915_power_well *power_well);
-bool intel_power_well_is_enabled(struct drm_i915_private *i915,
+bool intel_power_well_is_enabled(struct intel_display *display,
 				 struct i915_power_well *power_well);
 bool intel_power_well_is_enabled_cached(struct i915_power_well *power_well);
-bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
+bool intel_display_power_well_is_enabled(struct intel_display *display,
 					 enum i915_power_well_id power_well_id);
 bool intel_power_well_is_always_on(struct i915_power_well *power_well);
 const char *intel_power_well_name(struct i915_power_well *power_well);
@@ -152,7 +151,7 @@ int intel_power_well_refcount(struct i915_power_well *power_well);
 
 void chv_phy_powergate_lanes(struct intel_encoder *encoder,
 			     bool override, unsigned int mask);
-bool chv_phy_powergate_ch(struct drm_i915_private *dev_priv, enum dpio_phy phy,
+bool chv_phy_powergate_ch(struct intel_display *display, enum dpio_phy phy,
 			  enum dpio_channel ch, bool override);
 
 void gen9_enable_dc5(struct intel_display *display);

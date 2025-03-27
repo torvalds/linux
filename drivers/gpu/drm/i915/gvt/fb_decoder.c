@@ -154,8 +154,9 @@ static u32 intel_vgpu_get_stride(struct intel_vgpu *vgpu, int pipe,
 	u32 tiled, int stride_mask, int bpp)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
+	struct intel_display *display = &dev_priv->display;
 
-	u32 stride_reg = vgpu_vreg_t(vgpu, DSPSTRIDE(dev_priv, pipe)) & stride_mask;
+	u32 stride_reg = vgpu_vreg_t(vgpu, DSPSTRIDE(display, pipe)) & stride_mask;
 	u32 stride = stride_reg;
 
 	if (GRAPHICS_VER(dev_priv) >= 9) {
@@ -210,6 +211,7 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	struct intel_vgpu_primary_plane_format *plane)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
+	struct intel_display *display = &dev_priv->display;
 	u32 val, fmt;
 	int pipe;
 
@@ -217,7 +219,7 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	if (pipe >= I915_MAX_PIPES)
 		return -ENODEV;
 
-	val = vgpu_vreg_t(vgpu, DSPCNTR(dev_priv, pipe));
+	val = vgpu_vreg_t(vgpu, DSPCNTR(display, pipe));
 	plane->enabled = !!(val & DISP_ENABLE);
 	if (!plane->enabled)
 		return -ENODEV;
@@ -251,7 +253,7 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 
 	plane->hw_format = fmt;
 
-	plane->base = vgpu_vreg_t(vgpu, DSPSURF(dev_priv, pipe)) & I915_GTT_PAGE_MASK;
+	plane->base = vgpu_vreg_t(vgpu, DSPSURF(display, pipe)) & I915_GTT_PAGE_MASK;
 	if (!vgpu_gmadr_is_valid(vgpu, plane->base))
 		return  -EINVAL;
 
@@ -267,14 +269,14 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 		(_PRI_PLANE_STRIDE_MASK >> 6) :
 		_PRI_PLANE_STRIDE_MASK, plane->bpp);
 
-	plane->width = (vgpu_vreg_t(vgpu, PIPESRC(dev_priv, pipe)) & _PIPE_H_SRCSZ_MASK) >>
+	plane->width = (vgpu_vreg_t(vgpu, PIPESRC(display, pipe)) & _PIPE_H_SRCSZ_MASK) >>
 		_PIPE_H_SRCSZ_SHIFT;
 	plane->width += 1;
-	plane->height = (vgpu_vreg_t(vgpu, PIPESRC(dev_priv, pipe)) &
+	plane->height = (vgpu_vreg_t(vgpu, PIPESRC(display, pipe)) &
 			 _PIPE_V_SRCSZ_MASK) >> _PIPE_V_SRCSZ_SHIFT;
 	plane->height += 1;	/* raw height is one minus the real value */
 
-	val = vgpu_vreg_t(vgpu, DSPTILEOFF(dev_priv, pipe));
+	val = vgpu_vreg_t(vgpu, DSPTILEOFF(display, pipe));
 	plane->x_offset = (val & _PRI_PLANE_X_OFF_MASK) >>
 		_PRI_PLANE_X_OFF_SHIFT;
 	plane->y_offset = (val & _PRI_PLANE_Y_OFF_MASK) >>
@@ -340,6 +342,7 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 	struct intel_vgpu_cursor_plane_format *plane)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
+	struct intel_display *display = &dev_priv->display;
 	u32 val, mode, index;
 	u32 alpha_plane, alpha_force;
 	int pipe;
@@ -348,7 +351,7 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 	if (pipe >= I915_MAX_PIPES)
 		return -ENODEV;
 
-	val = vgpu_vreg_t(vgpu, CURCNTR(dev_priv, pipe));
+	val = vgpu_vreg_t(vgpu, CURCNTR(display, pipe));
 	mode = val & MCURSOR_MODE_MASK;
 	plane->enabled = (mode != MCURSOR_MODE_DISABLE);
 	if (!plane->enabled)
@@ -374,7 +377,7 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 		gvt_dbg_core("alpha_plane=0x%x, alpha_force=0x%x\n",
 			alpha_plane, alpha_force);
 
-	plane->base = vgpu_vreg_t(vgpu, CURBASE(dev_priv, pipe)) & I915_GTT_PAGE_MASK;
+	plane->base = vgpu_vreg_t(vgpu, CURBASE(display, pipe)) & I915_GTT_PAGE_MASK;
 	if (!vgpu_gmadr_is_valid(vgpu, plane->base))
 		return  -EINVAL;
 
@@ -385,7 +388,7 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 		return  -EINVAL;
 	}
 
-	val = vgpu_vreg_t(vgpu, CURPOS(dev_priv, pipe));
+	val = vgpu_vreg_t(vgpu, CURPOS(display, pipe));
 	plane->x_pos = (val & _CURSOR_POS_X_MASK) >> _CURSOR_POS_X_SHIFT;
 	plane->x_sign = (val & _CURSOR_SIGN_X_MASK) >> _CURSOR_SIGN_X_SHIFT;
 	plane->y_pos = (val & _CURSOR_POS_Y_MASK) >> _CURSOR_POS_Y_SHIFT;

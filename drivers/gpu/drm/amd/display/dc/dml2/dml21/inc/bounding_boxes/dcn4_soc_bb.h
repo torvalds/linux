@@ -344,6 +344,7 @@ static const struct dml2_ip_capabilities dml2_dcn401_max_ip_caps = {
 	.config_return_buffer_segment_size_in_kbytes = 64,
 	.meta_fifo_size_in_kentries = 22,
 	.compressed_buffer_segment_size_in_kbytes = 64,
+	.cursor_buffer_size = 24,
 	.max_flip_time_us = 80,
 	.max_flip_time_lines = 32,
 	.hostvm_mode = 0,
@@ -354,7 +355,7 @@ static const struct dml2_ip_capabilities dml2_dcn401_max_ip_caps = {
 
 	.fams2 = {
 		.max_allow_delay_us = 100 * 1000,
-		.scheduling_delay_us = 125,
+		.scheduling_delay_us = 550,
 		.vertical_interrupt_ack_delay_us = 40,
 		.allow_programming_delay_us = 18,
 		.min_allow_width_us = 20,

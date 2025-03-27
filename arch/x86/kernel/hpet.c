@@ -517,22 +517,14 @@ static int hpet_msi_init(struct irq_domain *domain,
 			 struct msi_domain_info *info, unsigned int virq,
 			 irq_hw_number_t hwirq, msi_alloc_info_t *arg)
 {
-	irq_set_status_flags(virq, IRQ_MOVE_PCNTXT);
 	irq_domain_set_info(domain, virq, arg->hwirq, info->chip, NULL,
 			    handle_edge_irq, arg->data, "edge");
 
 	return 0;
 }
 
-static void hpet_msi_free(struct irq_domain *domain,
-			  struct msi_domain_info *info, unsigned int virq)
-{
-	irq_clear_status_flags(virq, IRQ_MOVE_PCNTXT);
-}
-
 static struct msi_domain_ops hpet_msi_domain_ops = {
 	.msi_init	= hpet_msi_init,
-	.msi_free	= hpet_msi_free,
 };
 
 static struct msi_domain_info hpet_msi_domain_info = {

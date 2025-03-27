@@ -2388,6 +2388,9 @@ static int wait_on_destroy_queue(struct device_queue_manager *dqm,
 								q->process);
 	int ret = 0;
 
+	if (WARN_ON(!pdd))
+		return ret;
+
 	if (pdd->qpd.is_debug)
 		return ret;
 

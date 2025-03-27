@@ -829,7 +829,8 @@ static bool should_verify_link_capability_destructively(struct dc_link *link,
 
 		if (link->dc->debug.skip_detection_link_training ||
 				dc_is_embedded_signal(link->local_sink->sink_signal) ||
-				link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
+				(link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA &&
+				!link->dc->config.enable_dpia_pre_training)) {
 			destrictive = false;
 		} else if (link_dp_get_encoding_format(&max_link_cap) ==
 				DP_8b_10b_ENCODING) {

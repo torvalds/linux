@@ -30,8 +30,9 @@
 #include <linux/vga_switcheroo.h>
 #include <linux/mmu_notifier.h>
 #include <linux/dynamic_debug.h>
+#include <linux/debugfs.h>
 
-#include <drm/drm_client_setup.h>
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_ttm.h>
 #include <drm/drm_gem_ttm_helper.h>
@@ -47,6 +48,7 @@
 #include <nvif/fifo.h>
 #include <nvif/push006c.h>
 #include <nvif/user.h>
+#include <nvif/log.h>
 
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
@@ -112,6 +114,20 @@ module_param_named(runpm, nouveau_runtime_pm, int, 0400);
 static struct drm_driver driver_stub;
 static struct drm_driver driver_pci;
 static struct drm_driver driver_platform;
+
+#ifdef CONFIG_DEBUG_FS
+struct dentry *nouveau_debugfs_root;
+
+/**
+ * gsp_logs - list of nvif_log GSP-RM logging buffers
+ *
+ * Head pointer to a a list of nvif_log buffers that is created for each GPU
+ * upon GSP shutdown if the "keep_gsp_logging" command-line parameter is
+ * specified. This is used to track the alternative debugfs entries for the
+ * GSP-RM logs.
+ */
+NVIF_LOGS_DECLARE(gsp_logs);
+#endif
 
 static u64
 nouveau_pci_name(struct pci_dev *pdev)
@@ -1326,11 +1342,6 @@ driver_stub = {
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
-#ifdef GIT_REVISION
-	.date = GIT_REVISION,
-#else
-	.date = DRIVER_DATE,
-#endif
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
@@ -1423,6 +1434,8 @@ err_free:
 static int __init
 nouveau_drm_init(void)
 {
+	int ret;
+
 	driver_pci = driver_stub;
 	driver_platform = driver_stub;
 
@@ -1436,6 +1449,10 @@ nouveau_drm_init(void)
 	if (!nouveau_modeset)
 		return 0;
 
+	ret = nouveau_module_debugfs_init();
+	if (ret)
+		return ret;
+
 #ifdef CONFIG_NOUVEAU_PLATFORM_DRIVER
 	platform_driver_register(&nouveau_platform_driver);
 #endif
@@ -1444,10 +1461,14 @@ nouveau_drm_init(void)
 	nouveau_backlight_ctor();
 
 #ifdef CONFIG_PCI
-	return pci_register_driver(&nouveau_drm_pci_driver);
-#else
-	return 0;
+	ret = pci_register_driver(&nouveau_drm_pci_driver);
+	if (ret) {
+		nouveau_module_debugfs_fini();
+		return ret;
+	}
 #endif
+
+	return 0;
 }
 
 static void __exit
@@ -1467,6 +1488,12 @@ nouveau_drm_exit(void)
 #endif
 	if (IS_ENABLED(CONFIG_DRM_NOUVEAU_SVM))
 		mmu_notifier_synchronize();
+
+#ifdef CONFIG_DEBUG_FS
+	nvif_log_shutdown(&gsp_logs);
+#endif
+
+	nouveau_module_debugfs_fini();
 }
 
 module_init(nouveau_drm_init);

@@ -24,6 +24,7 @@ menuconfig DRM_ACCEL
 	  different device files, called accel/accel* (in /dev, sysfs
 	  and debugfs).
 
+source "drivers/accel/amdxdna/Kconfig"
 source "drivers/accel/habanalabs/Kconfig"
 source "drivers/accel/ivpu/Kconfig"
 source "drivers/accel/qaic/Kconfig"

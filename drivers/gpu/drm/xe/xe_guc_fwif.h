@@ -17,6 +17,7 @@
 #define G2H_LEN_DW_TLB_INVALIDATE		3
 
 #define GUC_ID_MAX			65535
+#define GUC_ID_UNKNOWN			0xffffffff
 
 #define GUC_CONTEXT_DISABLE		0
 #define GUC_CONTEXT_ENABLE		1

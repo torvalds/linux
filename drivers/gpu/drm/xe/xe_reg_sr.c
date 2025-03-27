@@ -24,7 +24,6 @@
 #include "xe_hw_engine_types.h"
 #include "xe_macros.h"
 #include "xe_mmio.h"
-#include "xe_reg_whitelist.h"
 #include "xe_rtp_types.h"
 
 static void reg_sr_fini(struct drm_device *drm, void *arg)
@@ -190,58 +189,6 @@ void xe_reg_sr_apply_mmio(struct xe_reg_sr *sr, struct xe_gt *gt)
 err_force_wake:
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	xe_gt_err(gt, "Failed to apply, err=-ETIMEDOUT\n");
-}
-
-void xe_reg_sr_apply_whitelist(struct xe_hw_engine *hwe)
-{
-	struct xe_reg_sr *sr = &hwe->reg_whitelist;
-	struct xe_gt *gt = hwe->gt;
-	struct xe_device *xe = gt_to_xe(gt);
-	struct xe_reg_sr_entry *entry;
-	struct drm_printer p;
-	u32 mmio_base = hwe->mmio_base;
-	unsigned long reg;
-	unsigned int slot = 0;
-	unsigned int fw_ref;
-
-	if (xa_empty(&sr->xa))
-		return;
-
-	drm_dbg(&xe->drm, "Whitelisting %s registers\n", sr->name);
-
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
-	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FORCEWAKE_ALL))
-		goto err_force_wake;
-
-	p = drm_dbg_printer(&xe->drm, DRM_UT_DRIVER, NULL);
-	xa_for_each(&sr->xa, reg, entry) {
-		if (slot == RING_MAX_NONPRIV_SLOTS) {
-			xe_gt_err(gt,
-				  "hwe %s: maximum register whitelist slots (%d) reached, refusing to add more\n",
-				  hwe->name, RING_MAX_NONPRIV_SLOTS);
-			break;
-		}
-
-		xe_reg_whitelist_print_entry(&p, 0, reg, entry);
-		xe_mmio_write32(&gt->mmio, RING_FORCE_TO_NONPRIV(mmio_base, slot),
-				reg | entry->set_bits);
-		slot++;
-	}
-
-	/* And clear the rest just in case of garbage */
-	for (; slot < RING_MAX_NONPRIV_SLOTS; slot++) {
-		u32 addr = RING_NOPID(mmio_base).addr;
-
-		xe_mmio_write32(&gt->mmio, RING_FORCE_TO_NONPRIV(mmio_base, slot), addr);
-	}
-
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
-
-	return;
-
-err_force_wake:
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
-	drm_err(&xe->drm, "Failed to apply, err=-ETIMEDOUT\n");
 }
 
 /**

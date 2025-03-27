@@ -3222,6 +3222,33 @@ static const struct panel_desc mitsubishi_aa084xe01 = {
 	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE,
 };
 
+static const struct display_timing multi_inno_mi0700a2t_30_timing = {
+	.pixelclock = { 26400000, 33000000, 46800000 },
+	.hactive = { 800, 800, 800 },
+	.hfront_porch = { 16, 204, 354 },
+	.hback_porch = { 46, 46, 46 },
+	.hsync_len = { 1, 6, 40 },
+	.vactive = { 480, 480, 480 },
+	.vfront_porch = { 7, 22, 147 },
+	.vback_porch = { 23, 23, 23 },
+	.vsync_len = { 1, 3, 20 },
+	.flags = DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
+		 DISPLAY_FLAGS_DE_HIGH,
+};
+
+static const struct panel_desc multi_inno_mi0700a2t_30 = {
+	.timings = &multi_inno_mi0700a2t_30_timing,
+	.num_timings = 1,
+	.bpc = 6,
+	.size = {
+		.width = 153,
+		.height = 92,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X7X3_SPWG,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
+};
+
 static const struct display_timing multi_inno_mi0700s4t_6_timing = {
 	.pixelclock = { 29000000, 33000000, 38000000 },
 	.hactive = { 800, 800, 800 },
@@ -3309,6 +3336,33 @@ static const struct panel_desc multi_inno_mi1010ait_1cp = {
 		.disable = 50,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
+};
+
+static const struct display_timing multi_inno_mi1010z1t_1cp11_timing = {
+	.pixelclock = { 40800000, 51200000, 67200000 },
+	.hactive = { 1024, 1024, 1024 },
+	.hfront_porch = { 30, 110, 130 },
+	.hback_porch = { 30, 110, 130 },
+	.hsync_len = { 30, 100, 116 },
+	.vactive = { 600, 600, 600 },
+	.vfront_porch = { 4, 13, 80 },
+	.vback_porch = { 4, 13, 80 },
+	.vsync_len = { 2, 9, 40 },
+	.flags = DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
+		 DISPLAY_FLAGS_DE_HIGH,
+};
+
+static const struct panel_desc multi_inno_mi1010z1t_1cp11 = {
+	.timings = &multi_inno_mi1010z1t_1cp11_timing,
+	.num_timings = 1,
+	.bpc = 6,
+	.size = {
+		.width = 260,
+		.height = 162,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X7X3_SPWG,
 	.bus_flags = DRM_BUS_FLAG_DE_HIGH,
 	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
@@ -4280,6 +4334,45 @@ static const struct panel_desc tianma_tm070jvhg33 = {
 	.bus_flags = DRM_BUS_FLAG_DE_HIGH,
 };
 
+/*
+ * The datasheet computes total blanking as back porch + front porch, not
+ * including sync pulse width. This is for both H and V. To make the total
+ * blanking and period correct, subtract the pulse width from the front
+ * porch.
+ *
+ * This works well for the Min and Typ values, but for Max values the sync
+ * pulse width is higher than back porch + front porch, so work around that
+ * by reducing the Max sync length value to 1 and then treating the Max
+ * porches as in the Min and Typ cases.
+ *
+ * Exact datasheet values are added as a comment where they differ from the
+ * ones implemented for the above reason.
+ */
+static const struct display_timing tianma_tm070jdhg34_00_timing = {
+	.pixelclock = { 68400000, 71900000, 78100000 },
+	.hactive = { 1280, 1280, 1280 },
+	.hfront_porch = { 130, 138, 158 }, /* 131, 139, 159 */
+	.hback_porch = { 5, 5, 5 },
+	.hsync_len = { 1, 1, 1 }, /* 1, 1, 256 */
+	.vactive = { 800, 800, 800 },
+	.vfront_porch = { 2, 39, 98 }, /* 3, 40, 99 */
+	.vback_porch = { 2, 2, 2 },
+	.vsync_len = { 1, 1, 1 }, /* 1, 1, 128 */
+	.flags = DISPLAY_FLAGS_DE_HIGH,
+};
+
+static const struct panel_desc tianma_tm070jdhg34_00 = {
+	.timings = &tianma_tm070jdhg34_00_timing,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 150, /* 149.76 */
+		.height = 94, /* 93.60 */
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
+};
+
 static const struct display_timing tianma_tm070rvhg71_timing = {
 	.pixelclock = { 27700000, 29200000, 39600000 },
 	.hactive = { 800, 800, 800 },
@@ -4359,6 +4452,37 @@ static const struct panel_desc ti_nspire_classic_lcd_panel = {
 	/* This is the grayscale bus format */
 	.bus_format = MEDIA_BUS_FMT_Y8_1X8,
 	.bus_flags = DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE,
+};
+
+static const struct display_timing topland_tian_g07017_01_timing = {
+	.pixelclock = { 44900000, 51200000, 63000000 },
+	.hactive = { 1024, 1024, 1024 },
+	.hfront_porch = { 16, 160, 216 },
+	.hback_porch = { 160, 160, 160 },
+	.hsync_len = { 1, 1, 140 },
+	.vactive = { 600, 600, 600 },
+	.vfront_porch = { 1, 12, 127 },
+	.vback_porch = { 23, 23, 23 },
+	.vsync_len = { 1, 1, 20 },
+};
+
+static const struct panel_desc topland_tian_g07017_01 = {
+	.timings = &topland_tian_g07017_01_timing,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 154,
+		.height = 86,
+	},
+	.delay = {
+		.prepare = 1, /* 6.5 - 150µs PLL wake-up time */
+		.enable = 100,  /* 6.4 - Power on: 6 VSyncs */
+		.disable = 84, /* 6.4 - Power off: 5 Vsyncs */
+		.unprepare = 50, /* 6.4 - Power off: 3 Vsyncs */
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH,
 };
 
 static const struct drm_display_mode toshiba_lt089ac29000_mode = {
@@ -4906,6 +5030,9 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "mitsubishi,aa084xe01",
 		.data = &mitsubishi_aa084xe01,
 	}, {
+		.compatible = "multi-inno,mi0700a2t-30",
+		.data = &multi_inno_mi0700a2t_30,
+	}, {
 		.compatible = "multi-inno,mi0700s4t-6",
 		.data = &multi_inno_mi0700s4t_6,
 	}, {
@@ -4914,6 +5041,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "multi-inno,mi1010ait-1cp",
 		.data = &multi_inno_mi1010ait_1cp,
+	}, {
+		.compatible = "multi-inno,mi1010z1t-1cp11",
+		.data = &multi_inno_mi1010z1t_1cp11,
 	}, {
 		.compatible = "nec,nl12880bc20-05",
 		.data = &nec_nl12880bc20_05,
@@ -5023,6 +5153,9 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "tianma,tm070jdhg30",
 		.data = &tianma_tm070jdhg30,
 	}, {
+		.compatible = "tianma,tm070jdhg34-00",
+		.data = &tianma_tm070jdhg34_00,
+	}, {
 		.compatible = "tianma,tm070jvhg33",
 		.data = &tianma_tm070jvhg33,
 	}, {
@@ -5037,6 +5170,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "toshiba,lt089ac29000",
 		.data = &toshiba_lt089ac29000,
+	}, {
+		.compatible = "topland,tian-g07017-01",
+		.data = &topland_tian_g07017_01,
 	}, {
 		.compatible = "tpk,f07a-0102",
 		.data = &tpk_f07a_0102,

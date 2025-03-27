@@ -1595,6 +1595,7 @@ double dml32_TruncToValidBPP(
 	unsigned int   NonDSCBPP0;
 	unsigned int   NonDSCBPP1;
 	unsigned int   NonDSCBPP2;
+	unsigned int   NonDSCBPP3 = BPP_INVALID;
 
 	if (Format == dm_420) {
 		NonDSCBPP0 = 12;
@@ -1603,6 +1604,7 @@ double dml32_TruncToValidBPP(
 		MinDSCBPP = 6;
 		MaxDSCBPP = 1.5 * DSCInputBitPerComponent - 1.0 / 16;
 	} else if (Format == dm_444) {
+		NonDSCBPP3 = 18;
 		NonDSCBPP0 = 24;
 		NonDSCBPP1 = 30;
 		NonDSCBPP2 = 36;
@@ -1667,6 +1669,8 @@ double dml32_TruncToValidBPP(
 				return NonDSCBPP1;
 			else if (MaxLinkBPP >= NonDSCBPP0)
 				return 16.0;
+			else if ((Output == dm_dp2p0 || Output == dm_dp) && NonDSCBPP3 != BPP_INVALID &&  MaxLinkBPP >= NonDSCBPP3)
+				return NonDSCBPP3; // Special case to allow 6bpc RGB for DP connections.
 			else
 				return BPP_INVALID;
 		}

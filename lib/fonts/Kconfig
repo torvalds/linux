@@ -10,7 +10,7 @@ if FONT_SUPPORT
 
 config FONTS
 	bool "Select compiled-in fonts"
-	depends on FRAMEBUFFER_CONSOLE || STI_CONSOLE || DRM_PANIC
+	depends on FRAMEBUFFER_CONSOLE || STI_CONSOLE || DRM_PANIC || DRM_CLIENT_LOG
 	help
 	  Say Y here if you would like to use fonts other than the default
 	  your frame buffer console usually use.

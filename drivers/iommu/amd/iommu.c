@@ -3540,7 +3540,6 @@ static int irq_remapping_alloc(struct irq_domain *domain, unsigned int virq,
 		irq_data->chip_data = data;
 		irq_data->chip = &amd_ir_chip;
 		irq_remapping_prepare_irte(data, cfg, info, devid, index, i);
-		irq_set_status_flags(virq + i, IRQ_MOVE_PCNTXT);
 	}
 
 	return 0;

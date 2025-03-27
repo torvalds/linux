@@ -490,7 +490,7 @@ static void read_gmdid(struct xe_device *xe, enum xe_gmdid_type type, u32 *ver, 
 		 * least basic xe_gt and xe_guc initialization.
 		 *
 		 * Since to obtain the value of GMDID_MEDIA we need to use the
-		 * media GuC, temporarly tweak the gt type.
+		 * media GuC, temporarily tweak the gt type.
 		 */
 		xe_gt_assert(gt, gt->info.type == XE_GT_TYPE_UNINITIALIZED);
 
@@ -781,7 +781,7 @@ static void xe_pci_remove(struct pci_dev *pdev)
  * error injectable functions is proper handling of the error code by the
  * caller for recovery, which is always the case here. The second
  * requirement is that no state is changed before the first error return.
- * It is not strictly fullfilled for all initialization functions using the
+ * It is not strictly fulfilled for all initialization functions using the
  * ALLOW_ERROR_INJECTION() macro but this is acceptable because for those
  * error cases at probe time, the error code is simply propagated up by the
  * caller. Therefore there is no consequence on those specific callers when

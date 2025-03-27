@@ -722,12 +722,6 @@ static struct irq_info *xen_irq_init(unsigned int irq)
 		INIT_RCU_WORK(&info->rwork, delayed_free_irq);
 
 		set_info_for_irq(irq, info);
-		/*
-		 * Interrupt affinity setting can be immediate. No point
-		 * in delaying it until an interrupt is handled.
-		 */
-		irq_set_status_flags(irq, IRQ_MOVE_PCNTXT);
-
 		INIT_LIST_HEAD(&info->eoi_list);
 		list_add_tail(&info->list, &xen_irq_list_head);
 	}

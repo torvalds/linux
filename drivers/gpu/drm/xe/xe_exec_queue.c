@@ -17,6 +17,7 @@
 #include "xe_hw_engine_class_sysfs.h"
 #include "xe_hw_engine_group.h"
 #include "xe_hw_fence.h"
+#include "xe_irq.h"
 #include "xe_lrc.h"
 #include "xe_macros.h"
 #include "xe_migrate.h"
@@ -69,6 +70,7 @@ static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 	q->gt = gt;
 	q->class = hwe->class;
 	q->width = width;
+	q->msix_vec = XE_IRQ_DEFAULT_MSIX;
 	q->logical_mask = logical_mask;
 	q->fence_irq = &gt->fence_irq[hwe->class];
 	q->ring_ops = gt->ring_ops[hwe->class];
@@ -118,7 +120,7 @@ static int __xe_exec_queue_init(struct xe_exec_queue *q)
 	}
 
 	for (i = 0; i < q->width; ++i) {
-		q->lrc[i] = xe_lrc_create(q->hwe, q->vm, SZ_16K);
+		q->lrc[i] = xe_lrc_create(q->hwe, q->vm, SZ_16K, q->msix_vec);
 		if (IS_ERR(q->lrc[i])) {
 			err = PTR_ERR(q->lrc[i]);
 			goto err_unlock;
@@ -241,6 +243,7 @@ struct xe_exec_queue *xe_exec_queue_create_bind(struct xe_device *xe,
 
 	return q;
 }
+ALLOW_ERROR_INJECTION(xe_exec_queue_create_bind, ERRNO);
 
 void xe_exec_queue_destroy(struct kref *ref)
 {
@@ -263,8 +266,11 @@ void xe_exec_queue_fini(struct xe_exec_queue *q)
 
 	/*
 	 * Before releasing our ref to lrc and xef, accumulate our run ticks
+	 * and wakeup any waiters.
 	 */
 	xe_exec_queue_update_run_ticks(q);
+	if (q->xef && atomic_dec_and_test(&q->xef->exec_queue.pending_removal))
+		wake_up_var(&q->xef->exec_queue.pending_removal);
 
 	for (i = 0; i < q->width; ++i)
 		xe_lrc_put(q->lrc[i]);
@@ -764,25 +770,20 @@ bool xe_exec_queue_is_idle(struct xe_exec_queue *q)
 void xe_exec_queue_update_run_ticks(struct xe_exec_queue *q)
 {
 	struct xe_device *xe = gt_to_xe(q->gt);
-	struct xe_file *xef;
 	struct xe_lrc *lrc;
 	u32 old_ts, new_ts;
 	int idx;
 
 	/*
-	 * Jobs that are run during driver load may use an exec_queue, but are
-	 * not associated with a user xe file, so avoid accumulating busyness
-	 * for kernel specific work.
+	 * Jobs that are executed by kernel doesn't have a corresponding xe_file
+	 * and thus are not accounted.
 	 */
-	if (!q->vm || !q->vm->xef)
+	if (!q->xef)
 		return;
 
 	/* Synchronize with unbind while holding the xe file open */
 	if (!drm_dev_enter(&xe->drm, &idx))
 		return;
-
-	xef = q->vm->xef;
-
 	/*
 	 * Only sample the first LRC. For parallel submission, all of them are
 	 * scheduled together and we compensate that below by multiplying by
@@ -793,7 +794,7 @@ void xe_exec_queue_update_run_ticks(struct xe_exec_queue *q)
 	 */
 	lrc = q->lrc[0];
 	new_ts = xe_lrc_update_timestamp(lrc, &old_ts);
-	xef->run_ticks[q->class] += (new_ts - old_ts) * q->width;
+	q->xef->run_ticks[q->class] += (new_ts - old_ts) * q->width;
 
 	drm_dev_exit(idx);
 }
@@ -835,7 +836,10 @@ int xe_exec_queue_destroy_ioctl(struct drm_device *dev, void *data,
 
 	mutex_lock(&xef->exec_queue.lock);
 	q = xa_erase(&xef->exec_queue.xa, args->exec_queue_id);
+	if (q)
+		atomic_inc(&xef->exec_queue.pending_removal);
 	mutex_unlock(&xef->exec_queue.lock);
+
 	if (XE_IOCTL_DBG(xe, !q))
 		return -ENOENT;
 

@@ -10,7 +10,6 @@
 #include "dml21_utils.h"
 #include "dml21_translation_helper.h"
 #include "bounding_boxes/dcn4_soc_bb.h"
-#include "bounding_boxes/dcn3_soc_bb.h"
 
 static void dml21_init_socbb_params(struct dml2_initialize_instance_in_out *dml_init,
 		const struct dml2_configuration_options *config,
@@ -20,10 +19,6 @@ static void dml21_init_socbb_params(struct dml2_initialize_instance_in_out *dml_
 	const struct dml2_soc_qos_parameters *qos_params;
 
 	switch (in_dc->ctx->dce_version) {
-	case DCN_VERSION_3_2:	// TODO : Temporary for N-1 validation. Remove this after N-1 validation phase is complete.
-		soc_bb = &dml2_socbb_dcn31;
-		qos_params = &dml_dcn31_soc_qos_params;
-		break;
 	case DCN_VERSION_4_01:
 	default:
 		if (config->bb_from_dmub)
@@ -60,9 +55,6 @@ static void dml21_init_ip_params(struct dml2_initialize_instance_in_out *dml_ini
 	const struct dml2_ip_capabilities *ip_caps;
 
 	switch (in_dc->ctx->dce_version) {
-	case DCN_VERSION_3_2:	// TODO : Temporary for N-1 validation. Remove this after N-1 validation phase is complete.
-		ip_caps = &dml2_dcn31_max_ip_caps;
-		break;
 	case DCN_VERSION_4_01:
 	default:
 		ip_caps = &dml2_dcn401_max_ip_caps;
@@ -302,12 +294,17 @@ void dml21_apply_soc_bb_overrides(struct dml2_initialize_instance_in_out *dml_in
 		dml_soc_bb->power_management_parameters.stutter_exit_latency_us =
 			(in_dc->ctx->dc_bios->bb_info.dram_sr_exit_latency_100ns + 9) / 10;
 
-	if (in_dc->ctx->dc_bios->vram_info.num_chans) {
+	if (dc_bw_params->num_channels) {
+		dml_clk_table->dram_config.channel_count = dc_bw_params->num_channels;
+		dml_soc_bb->mall_allocated_for_dcn_mbytes = in_dc->caps.mall_size_total / 1048576;
+	} else if (in_dc->ctx->dc_bios->vram_info.num_chans) {
 		dml_clk_table->dram_config.channel_count = in_dc->ctx->dc_bios->vram_info.num_chans;
 		dml_soc_bb->mall_allocated_for_dcn_mbytes = in_dc->caps.mall_size_total / 1048576;
 	}
 
-	if (in_dc->ctx->dc_bios->vram_info.dram_channel_width_bytes) {
+	if (dc_bw_params->dram_channel_width_bytes) {
+		dml_clk_table->dram_config.channel_width_bytes = dc_bw_params->dram_channel_width_bytes;
+	} else if (in_dc->ctx->dc_bios->vram_info.dram_channel_width_bytes) {
 		dml_clk_table->dram_config.channel_width_bytes = in_dc->ctx->dc_bios->vram_info.dram_channel_width_bytes;
 	}
 
@@ -721,11 +718,21 @@ static void populate_dml21_surface_config_from_plane_state(
 	surface->dcc.informative.fraction_of_zero_size_request_plane1 = plane_state->dcc.independent_64b_blks_c;
 	surface->dcc.plane0.pitch = plane_state->dcc.meta_pitch;
 	surface->dcc.plane1.pitch = plane_state->dcc.meta_pitch_c;
-	if (in_dc->ctx->dce_version < DCN_VERSION_4_01) {
-		/* needed for N-1 testing */
+
+	// Update swizzle / array mode based on the gfx_format
+	switch (plane_state->tiling_info.gfxversion) {
+	case DcGfxVersion7:
+	case DcGfxVersion8:
+		// Placeholder for programming the array_mode
+		break;
+	case DcGfxVersion9:
+	case DcGfxVersion10:
+	case DcGfxVersion11:
 		surface->tiling = gfx9_to_dml2_swizzle_mode(plane_state->tiling_info.gfx9.swizzle);
-	} else {
+		break;
+	case DcGfxAddr3:
 		surface->tiling = gfx_addr3_to_dml2_swizzle_mode(plane_state->tiling_info.gfx_addr3.swizzle);
+		break;
 	}
 }
 
@@ -1077,28 +1084,8 @@ void dml21_copy_clocks_to_dc_state(struct dml2_context *in_ctx, struct dc_state 
 	context->bw_ctx.bw.dcn.clk.dtbclk_en = in_ctx->v21.mode_programming.programming->min_clocks.dcn4x.dtbrefclk_khz > 0;
 	context->bw_ctx.bw.dcn.clk.ref_dtbclk_khz = in_ctx->v21.mode_programming.programming->min_clocks.dcn4x.dtbrefclk_khz;
 	context->bw_ctx.bw.dcn.clk.socclk_khz = in_ctx->v21.mode_programming.programming->min_clocks.dcn4x.socclk_khz;
-}
-
-void dml21_extract_legacy_watermark_set(const struct dc *in_dc, struct dcn_watermarks *watermark, enum dml2_dchub_watermark_reg_set_index reg_set_idx, struct dml2_context *in_ctx)
-{
-	struct dml2_core_internal_display_mode_lib *mode_lib = &in_ctx->v21.dml_init.dml2_instance->core_instance.clean_me_up.mode_lib;
-	double refclk_freq_in_mhz = (in_ctx->v21.display_config.overrides.hw.dlg_ref_clk_mhz > 0) ? (double)in_ctx->v21.display_config.overrides.hw.dlg_ref_clk_mhz : mode_lib->soc.dchub_refclk_mhz;
-
-	if (reg_set_idx >= DML2_DCHUB_WATERMARK_SET_NUM) {
-		/* invalid register set index */
-		return;
-	}
-
-	/* convert to legacy format (time in ns) */
-	watermark->urgent_ns = ((double)in_ctx->v21.mode_programming.programming->global_regs.wm_regs[reg_set_idx].urgent / refclk_freq_in_mhz) * 1000.0;
-	watermark->pte_meta_urgent_ns = ((double)in_ctx->v21.mode_programming.programming->global_regs.wm_regs[reg_set_idx].urgent / refclk_freq_in_mhz) * 1000.0;
-	watermark->cstate_pstate.cstate_enter_plus_exit_ns = ((double)in_ctx->v21.mode_programming.programming->global_regs.wm_regs[reg_set_idx].sr_enter / refclk_freq_in_mhz) * 1000.0;
-	watermark->cstate_pstate.cstate_exit_ns = ((double)in_ctx->v21.mode_programming.programming->global_regs.wm_regs[reg_set_idx].sr_exit / refclk_freq_in_mhz) * 1000.0;
-	watermark->cstate_pstate.pstate_change_ns = ((double)in_ctx->v21.mode_programming.programming->global_regs.wm_regs[reg_set_idx].uclk_pstate / refclk_freq_in_mhz) * 1000.0;
-	watermark->urgent_latency_ns = ((double)in_ctx->v21.mode_programming.programming->global_regs.wm_regs[reg_set_idx].urgent / refclk_freq_in_mhz) * 1000.0;
-	watermark->cstate_pstate.fclk_pstate_change_ns = ((double)in_ctx->v21.mode_programming.programming->global_regs.wm_regs[reg_set_idx].fclk_pstate / refclk_freq_in_mhz) * 1000.0;
-	watermark->frac_urg_bw_flip = in_ctx->v21.mode_programming.programming->global_regs.wm_regs[reg_set_idx].frac_urg_bw_flip;
-	watermark->frac_urg_bw_nom = in_ctx->v21.mode_programming.programming->global_regs.wm_regs[reg_set_idx].frac_urg_bw_nom;
+	context->bw_ctx.bw.dcn.clk.subvp_prefetch_dramclk_khz = in_ctx->v21.mode_programming.programming->min_clocks.dcn4x.svp_prefetch_no_throttle.uclk_khz;
+	context->bw_ctx.bw.dcn.clk.subvp_prefetch_fclk_khz = in_ctx->v21.mode_programming.programming->min_clocks.dcn4x.svp_prefetch_no_throttle.fclk_khz;
 }
 
 static struct dml2_dchub_watermark_regs *wm_set_index_to_dc_wm_set(union dcn_watermark_set *watermarks, const enum dml2_dchub_watermark_reg_set_index wm_index)
@@ -1144,53 +1131,6 @@ void dml21_extract_watermark_sets(const struct dc *in_dc, union dcn_watermark_se
 	}
 }
 
-
-void dml21_populate_pipe_ctx_dlg_params(struct dml2_context *dml_ctx, struct dc_state *context, struct pipe_ctx *pipe_ctx, struct dml2_per_stream_programming *stream_programming)
-{
-	unsigned int hactive, vactive, hblank_start, vblank_start, hblank_end, vblank_end;
-	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
-	union dml2_global_sync_programming *global_sync = &stream_programming->global_sync;
-
-	hactive = timing->h_addressable + timing->h_border_left + timing->h_border_right + pipe_ctx->hblank_borrow;
-	vactive = timing->v_addressable + timing->v_border_bottom + timing->v_border_top;
-	hblank_start = pipe_ctx->stream->timing.h_total - pipe_ctx->stream->timing.h_front_porch;
-	vblank_start = pipe_ctx->stream->timing.v_total - pipe_ctx->stream->timing.v_front_porch;
-
-	hblank_end = hblank_start - timing->h_addressable - timing->h_border_left - timing->h_border_right - pipe_ctx->hblank_borrow;
-	vblank_end = vblank_start - timing->v_addressable - timing->v_border_top - timing->v_border_bottom;
-
-	if (dml_ctx->config.svp_pstate.callbacks.get_pipe_subvp_type(context, pipe_ctx) == SUBVP_PHANTOM) {
-		/* phantom has its own global sync */
-		global_sync = &stream_programming->phantom_stream.global_sync;
-	}
-
-	pipe_ctx->pipe_dlg_param.vstartup_start = global_sync->dcn4x.vstartup_lines;
-	pipe_ctx->pipe_dlg_param.vupdate_offset = global_sync->dcn4x.vupdate_offset_pixels;
-	pipe_ctx->pipe_dlg_param.vupdate_width = global_sync->dcn4x.vupdate_vupdate_width_pixels;
-	pipe_ctx->pipe_dlg_param.vready_offset = global_sync->dcn4x.vready_offset_pixels;
-	pipe_ctx->pipe_dlg_param.pstate_keepout = global_sync->dcn4x.pstate_keepout_start_lines;
-
-	pipe_ctx->pipe_dlg_param.otg_inst = pipe_ctx->stream_res.tg->inst;
-
-	pipe_ctx->pipe_dlg_param.hactive = hactive;
-	pipe_ctx->pipe_dlg_param.vactive = vactive;
-	pipe_ctx->pipe_dlg_param.htotal = pipe_ctx->stream->timing.h_total;
-	pipe_ctx->pipe_dlg_param.vtotal = pipe_ctx->stream->timing.v_total;
-	pipe_ctx->pipe_dlg_param.hblank_end = hblank_end;
-	pipe_ctx->pipe_dlg_param.vblank_end = vblank_end;
-	pipe_ctx->pipe_dlg_param.hblank_start = hblank_start;
-	pipe_ctx->pipe_dlg_param.vblank_start = vblank_start;
-	pipe_ctx->pipe_dlg_param.vfront_porch = pipe_ctx->stream->timing.v_front_porch;
-	pipe_ctx->pipe_dlg_param.pixel_rate_mhz = pipe_ctx->stream->timing.pix_clk_100hz / 10000.00;
-	pipe_ctx->pipe_dlg_param.refresh_rate = ((timing->pix_clk_100hz * 100) / timing->h_total) / timing->v_total;
-	pipe_ctx->pipe_dlg_param.vtotal_max = pipe_ctx->stream->adjust.v_total_max;
-	pipe_ctx->pipe_dlg_param.vtotal_min = pipe_ctx->stream->adjust.v_total_min;
-	pipe_ctx->pipe_dlg_param.recout_height = pipe_ctx->plane_res.scl_data.recout.height;
-	pipe_ctx->pipe_dlg_param.recout_width = pipe_ctx->plane_res.scl_data.recout.width;
-	pipe_ctx->pipe_dlg_param.full_recout_height = pipe_ctx->plane_res.scl_data.recout.height;
-	pipe_ctx->pipe_dlg_param.full_recout_width = pipe_ctx->plane_res.scl_data.recout.width;
-}
-
 void dml21_map_hw_resources(struct dml2_context *dml_ctx)
 {
 	unsigned int i = 0;
@@ -1226,22 +1166,22 @@ void dml21_set_dc_p_state_type(
 		bool sub_vp_enabled)
 {
 	switch (stream_programming->uclk_pstate_method) {
-	case dml2_uclk_pstate_support_method_vactive:
-	case dml2_uclk_pstate_support_method_fw_vactive_drr:
+	case dml2_pstate_method_vactive:
+	case dml2_pstate_method_fw_vactive_drr:
 		pipe_ctx->p_state_type = P_STATE_V_ACTIVE;
 		break;
-	case dml2_uclk_pstate_support_method_vblank:
-	case dml2_uclk_pstate_support_method_fw_vblank_drr:
+	case dml2_pstate_method_vblank:
+	case dml2_pstate_method_fw_vblank_drr:
 		if (sub_vp_enabled)
 			pipe_ctx->p_state_type = P_STATE_V_BLANK_SUB_VP;
 		else
 			pipe_ctx->p_state_type = P_STATE_V_BLANK;
 		break;
-	case dml2_uclk_pstate_support_method_fw_subvp_phantom:
-	case dml2_uclk_pstate_support_method_fw_subvp_phantom_drr:
+	case dml2_pstate_method_fw_svp:
+	case dml2_pstate_method_fw_svp_drr:
 		pipe_ctx->p_state_type = P_STATE_SUB_VP;
 		break;
-	case dml2_uclk_pstate_support_method_fw_drr:
+	case dml2_pstate_method_fw_drr:
 		if (sub_vp_enabled)
 			pipe_ctx->p_state_type = P_STATE_DRR_SUB_VP;
 		else
