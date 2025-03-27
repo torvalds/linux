@@ -188,11 +188,15 @@ struct pci_epc {
  * enum pci_epc_bar_type - configurability of endpoint BAR
  * @BAR_PROGRAMMABLE: The BAR mask can be configured by the EPC.
  * @BAR_FIXED: The BAR mask is fixed by the hardware.
+ * @BAR_RESIZABLE: The BAR implements the PCI-SIG Resizable BAR Capability.
+ *		   NOTE: An EPC driver can currently only set a single supported
+ *		   size.
  * @BAR_RESERVED: The BAR should not be touched by an EPF driver.
  */
 enum pci_epc_bar_type {
 	BAR_PROGRAMMABLE = 0,
 	BAR_FIXED,
+	BAR_RESIZABLE,
 	BAR_RESERVED,
 };
 
@@ -257,7 +261,6 @@ __devm_pci_epc_create(struct device *dev, const struct pci_epc_ops *ops,
 struct pci_epc *
 __pci_epc_create(struct device *dev, const struct pci_epc_ops *ops,
 		 struct module *owner);
-void devm_pci_epc_destroy(struct device *dev, struct pci_epc *epc);
 void pci_epc_destroy(struct pci_epc *epc);
 int pci_epc_add_epf(struct pci_epc *epc, struct pci_epf *epf,
 		    enum pci_epc_interface_type type);
@@ -271,6 +274,7 @@ void pci_epc_remove_epf(struct pci_epc *epc, struct pci_epf *epf,
 			enum pci_epc_interface_type type);
 int pci_epc_write_header(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 			 struct pci_epf_header *hdr);
+int pci_epc_bar_size_to_rebar_cap(size_t size, u32 *cap);
 int pci_epc_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 		    struct pci_epf_bar *epf_bar);
 void pci_epc_clear_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
