@@ -81,6 +81,20 @@ struct ublk_rq_data {
 };
 
 struct ublk_uring_cmd_pdu {
+	/*
+	 * Store requests in same batch temporarily for queuing them to
+	 * daemon context.
+	 *
+	 * It should have been stored to request payload, but we do want
+	 * to avoid extra pre-allocation, and uring_cmd payload is always
+	 * free for us
+	 */
+	struct request *req_list;
+
+	/*
+	 * The following two are valid in this cmd whole lifetime, and
+	 * setup in ublk uring_cmd handler
+	 */
 	struct ublk_queue *ubq;
 	u16 tag;
 };
@@ -1170,14 +1184,12 @@ static inline void __ublk_abort_rq(struct ublk_queue *ubq,
 		blk_mq_end_request(rq, BLK_STS_IOERR);
 }
 
-static void ublk_rq_task_work_cb(struct io_uring_cmd *cmd,
-				 unsigned int issue_flags)
+static void ublk_dispatch_req(struct ublk_queue *ubq,
+			      struct io_uring_cmd *cmd,
+			      struct request *req,
+			      unsigned int issue_flags)
 {
-	struct ublk_uring_cmd_pdu *pdu = ublk_get_uring_cmd_pdu(cmd);
-	struct ublk_queue *ubq = pdu->ubq;
-	int tag = pdu->tag;
-	struct request *req = blk_mq_tag_to_rq(
-		ubq->dev->tag_set.tags[ubq->q_id], tag);
+	int tag = req->tag;
 	struct ublk_io *io = &ubq->ios[tag];
 	unsigned int mapped_bytes;
 
@@ -1252,11 +1264,52 @@ static void ublk_rq_task_work_cb(struct io_uring_cmd *cmd,
 	ubq_complete_io_cmd(io, UBLK_IO_RES_OK, issue_flags);
 }
 
+static void ublk_rq_task_work_cb(struct io_uring_cmd *cmd,
+				 unsigned int issue_flags)
+{
+	struct ublk_uring_cmd_pdu *pdu = ublk_get_uring_cmd_pdu(cmd);
+	struct ublk_queue *ubq = pdu->ubq;
+	int tag = pdu->tag;
+	struct request *req = blk_mq_tag_to_rq(
+		ubq->dev->tag_set.tags[ubq->q_id], tag);
+
+	ublk_dispatch_req(ubq, cmd, req, issue_flags);
+}
+
 static void ublk_queue_cmd(struct ublk_queue *ubq, struct request *rq)
 {
 	struct ublk_io *io = &ubq->ios[rq->tag];
 
 	io_uring_cmd_complete_in_task(io->cmd, ublk_rq_task_work_cb);
+}
+
+static void ublk_cmd_list_tw_cb(struct io_uring_cmd *cmd,
+		unsigned int issue_flags)
+{
+	struct ublk_uring_cmd_pdu *pdu = ublk_get_uring_cmd_pdu(cmd);
+	struct request *rq = pdu->req_list;
+	struct ublk_queue *ubq = rq->mq_hctx->driver_data;
+	struct request *next;
+
+	while (rq) {
+		struct ublk_io *io = &ubq->ios[rq->tag];
+
+		next = rq->rq_next;
+		rq->rq_next = NULL;
+		ublk_dispatch_req(ubq, io->cmd, rq, issue_flags);
+		rq = next;
+	}
+}
+
+static void ublk_queue_cmd_list(struct ublk_queue *ubq, struct rq_list *l)
+{
+	struct request *rq = rq_list_peek(l);
+	struct ublk_io *io = &ubq->ios[rq->tag];
+	struct ublk_uring_cmd_pdu *pdu = ublk_get_uring_cmd_pdu(io->cmd);
+
+	pdu->req_list = rq;
+	rq_list_init(l);
+	io_uring_cmd_complete_in_task(io->cmd, ublk_cmd_list_tw_cb);
 }
 
 static enum blk_eh_timer_return ublk_timeout(struct request *rq)
@@ -1297,21 +1350,12 @@ static enum blk_eh_timer_return ublk_timeout(struct request *rq)
 	return BLK_EH_RESET_TIMER;
 }
 
-static blk_status_t ublk_queue_rq(struct blk_mq_hw_ctx *hctx,
-		const struct blk_mq_queue_data *bd)
+static blk_status_t ublk_prep_req(struct ublk_queue *ubq, struct request *rq)
 {
-	struct ublk_queue *ubq = hctx->driver_data;
-	struct request *rq = bd->rq;
 	blk_status_t res;
 
-	if (unlikely(ubq->fail_io)) {
+	if (unlikely(ubq->fail_io))
 		return BLK_STS_TARGET;
-	}
-
-	/* fill iod to slot in io cmd buffer */
-	res = ublk_setup_iod(ubq, rq);
-	if (unlikely(res != BLK_STS_OK))
-		return BLK_STS_IOERR;
 
 	/* With recovery feature enabled, force_abort is set in
 	 * ublk_stop_dev() before calling del_gendisk(). We have to
@@ -1325,6 +1369,29 @@ static blk_status_t ublk_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (ublk_nosrv_should_queue_io(ubq) && unlikely(ubq->force_abort))
 		return BLK_STS_IOERR;
 
+	if (unlikely(ubq->canceling))
+		return BLK_STS_IOERR;
+
+	/* fill iod to slot in io cmd buffer */
+	res = ublk_setup_iod(ubq, rq);
+	if (unlikely(res != BLK_STS_OK))
+		return BLK_STS_IOERR;
+
+	blk_mq_start_request(rq);
+	return BLK_STS_OK;
+}
+
+static blk_status_t ublk_queue_rq(struct blk_mq_hw_ctx *hctx,
+		const struct blk_mq_queue_data *bd)
+{
+	struct ublk_queue *ubq = hctx->driver_data;
+	struct request *rq = bd->rq;
+	blk_status_t res;
+
+	res = ublk_prep_req(ubq, rq);
+	if (res != BLK_STS_OK)
+		return res;
+
 	/*
 	 * ->canceling has to be handled after ->force_abort and ->fail_io
 	 * is dealt with, otherwise this request may not be failed in case
@@ -1335,10 +1402,33 @@ static blk_status_t ublk_queue_rq(struct blk_mq_hw_ctx *hctx,
 		return BLK_STS_OK;
 	}
 
-	blk_mq_start_request(bd->rq);
 	ublk_queue_cmd(ubq, rq);
-
 	return BLK_STS_OK;
+}
+
+static void ublk_queue_rqs(struct rq_list *rqlist)
+{
+	struct rq_list requeue_list = { };
+	struct rq_list submit_list = { };
+	struct ublk_queue *ubq = NULL;
+	struct request *req;
+
+	while ((req = rq_list_pop(rqlist))) {
+		struct ublk_queue *this_q = req->mq_hctx->driver_data;
+
+		if (ubq && ubq != this_q && !rq_list_empty(&submit_list))
+			ublk_queue_cmd_list(ubq, &submit_list);
+		ubq = this_q;
+
+		if (ublk_prep_req(ubq, req) == BLK_STS_OK)
+			rq_list_add_tail(&submit_list, req);
+		else
+			rq_list_add_tail(&requeue_list, req);
+	}
+
+	if (ubq && !rq_list_empty(&submit_list))
+		ublk_queue_cmd_list(ubq, &submit_list);
+	*rqlist = requeue_list;
 }
 
 static int ublk_init_hctx(struct blk_mq_hw_ctx *hctx, void *driver_data,
@@ -1353,6 +1443,7 @@ static int ublk_init_hctx(struct blk_mq_hw_ctx *hctx, void *driver_data,
 
 static const struct blk_mq_ops ublk_mq_ops = {
 	.queue_rq       = ublk_queue_rq,
+	.queue_rqs      = ublk_queue_rqs,
 	.init_hctx	= ublk_init_hctx,
 	.timeout	= ublk_timeout,
 };
