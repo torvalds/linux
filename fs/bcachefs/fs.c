@@ -2290,7 +2290,8 @@ err_stop_fs:
 	goto err;
 
 err_put_super:
-	__bch2_fs_stop(c);
+	if (!sb->s_root)
+		__bch2_fs_stop(c);
 	deactivate_locked_super(sb);
 	goto err;
 }
