@@ -55,3 +55,6 @@ You can use simple reads/writes to access these files::
 	# echo 3 > rdac0
 	# cat rdac0
 	3
+
+* Note: See device-tree example in:
+ Documentation/devicetree/bindings/misc/ad525x_dpot.txt
