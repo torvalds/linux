@@ -247,6 +247,8 @@ static void mmhub_v4_2_0_mid_init_system_aperture_regs(struct amdgpu_device *ade
 				   regMMVM_L2_PROTECTION_FAULT_CNTL2);
 		tmp = REG_SET_FIELD(tmp, MMVM_L2_PROTECTION_FAULT_CNTL2,
 				    ACTIVE_PAGE_MIGRATION_PTE_READ_RETRY, 1);
+		tmp = REG_SET_FIELD(tmp, MMVM_L2_PROTECTION_FAULT_CNTL2,
+				    ENABLE_RETRY_FAULT_INTERRUPT, 0x1);
 		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
 			     regMMVM_L2_PROTECTION_FAULT_CNTL2, tmp);
 	}
