@@ -43,9 +43,10 @@ is_static struct percpu_rw_semaphore name = {				\
 #define DEFINE_STATIC_PERCPU_RWSEM(name)	\
 	__DEFINE_PERCPU_RWSEM(name, static)
 
-extern bool __percpu_down_read(struct percpu_rw_semaphore *, bool);
+extern bool __percpu_down_read(struct percpu_rw_semaphore *, bool, bool);
 
-static inline void percpu_down_read(struct percpu_rw_semaphore *sem)
+static inline void percpu_down_read_internal(struct percpu_rw_semaphore *sem,
+					     bool freezable)
 {
 	might_sleep();
 
@@ -63,12 +64,23 @@ static inline void percpu_down_read(struct percpu_rw_semaphore *sem)
 	if (likely(rcu_sync_is_idle(&sem->rss)))
 		this_cpu_inc(*sem->read_count);
 	else
-		__percpu_down_read(sem, false); /* Unconditional memory barrier */
+		__percpu_down_read(sem, false, freezable); /* Unconditional memory barrier */
 	/*
 	 * The preempt_enable() prevents the compiler from
 	 * bleeding the critical section out.
 	 */
 	preempt_enable();
+}
+
+static inline void percpu_down_read(struct percpu_rw_semaphore *sem)
+{
+	percpu_down_read_internal(sem, false);
+}
+
+static inline void percpu_down_read_freezable(struct percpu_rw_semaphore *sem,
+					      bool freeze)
+{
+	percpu_down_read_internal(sem, freeze);
 }
 
 static inline bool percpu_down_read_trylock(struct percpu_rw_semaphore *sem)
@@ -82,7 +94,7 @@ static inline bool percpu_down_read_trylock(struct percpu_rw_semaphore *sem)
 	if (likely(rcu_sync_is_idle(&sem->rss)))
 		this_cpu_inc(*sem->read_count);
 	else
-		ret = __percpu_down_read(sem, true); /* Unconditional memory barrier */
+		ret = __percpu_down_read(sem, true, false); /* Unconditional memory barrier */
 	preempt_enable();
 	/*
 	 * The barrier() from preempt_enable() prevents the compiler from
