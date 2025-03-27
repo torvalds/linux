@@ -6,6 +6,7 @@ struct clk;
 struct clk_hw;
 struct device;
 struct device_node;
+struct of_phandle_args;
 struct kunit;
 
 struct clk *
