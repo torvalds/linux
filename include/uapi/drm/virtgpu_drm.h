@@ -163,6 +163,12 @@ struct drm_virtgpu_3d_wait {
 	__u32 flags;
 };
 
+#define VIRTGPU_DRM_CAPSET_VIRGL 1
+#define VIRTGPU_DRM_CAPSET_VIRGL2 2
+#define VIRTGPU_DRM_CAPSET_GFXSTREAM_VULKAN 3
+#define VIRTGPU_DRM_CAPSET_VENUS 4
+#define VIRTGPU_DRM_CAPSET_CROSS_DOMAIN 5
+#define VIRTGPU_DRM_CAPSET_DRM 6
 struct drm_virtgpu_get_caps {
 	__u32 cap_set_id;
 	__u32 cap_set_ver;
