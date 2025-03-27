@@ -633,7 +633,7 @@ static int acpm_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, acpm);
 
-	return 0;
+	return devm_of_platform_populate(dev);
 }
 
 /**
