@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * linux/ipc/namespace.c
- * Copyright (C) 2006 Pavel Emelyanov <xemul@openvz.org> OpenVZ, SWsoft Inc.
- */
-
 #include <linux/ipc.h>
 #include <linux/msg.h>
 #include <linux/ipc_namespace.h>
@@ -33,6 +27,11 @@ static struct ucounts *inc_ipc_namespaces(struct user_namespace *ns)
 static void dec_ipc_namespaces(struct ucounts *ucounts)
 {
 	dec_ucount(ucounts, UCOUNT_IPC_NAMESPACES);
+}
+
+static void audit_log_ipc_ns(const char *operation, struct ipc_namespace *ns)
+{
+	pr_info("IPC namespace %s: %p\n", operation, ns);
 }
 
 static struct ipc_namespace *create_ipc_ns(struct user_namespace *user_ns,
@@ -88,6 +87,8 @@ static struct ipc_namespace *create_ipc_ns(struct user_namespace *user_ns,
 	sem_init_ns(ns);
 	shm_init_ns(ns);
 
+	audit_log_ipc_ns("created", ns);
+
 	return ns;
 
 fail_ipc:
@@ -111,7 +112,10 @@ struct ipc_namespace *copy_ipcs(unsigned long flags,
 {
 	if (!(flags & CLONE_NEWIPC))
 		return get_ipc_ns(ns);
-	return create_ipc_ns(user_ns, ns);
+
+	struct ipc_namespace *new_ns = create_ipc_ns(user_ns, ns);
+	audit_log_ipc_ns("copied", new_ns);
+	return new_ns;
 }
 
 /*
@@ -163,6 +167,8 @@ static void free_ipc_ns(struct ipc_namespace *ns)
 	put_user_ns(ns->user_ns);
 	ns_free_inum(&ns->ns);
 	kfree(ns);
+
+	audit_log_ipc_ns("freed", ns);
 }
 
 static LLIST_HEAD(free_ipc_list);
@@ -205,6 +211,8 @@ void put_ipc_ns(struct ipc_namespace *ns)
 
 		if (llist_add(&ns->mnt_llist, &free_ipc_list))
 			schedule_work(&free_ipc_work);
+
+		audit_log_ipc_ns("reference dropped", ns);
 	}
 }
 

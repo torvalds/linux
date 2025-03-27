@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * sys_ipc() is the old de-multiplexer for the SysV IPC calls.
- *
- * This is really horribly ugly, and new architectures should just wire up
- * the individual syscalls instead.
- */
 #include <linux/unistd.h>
 #include <linux/syscalls.h>
 #include <linux/security.h>
@@ -17,6 +10,11 @@
 #include <linux/shm.h>
 #include <linux/uaccess.h>
 
+void audit_log_ipc_syscall(const char *operation, unsigned int call, int first, unsigned long second, unsigned long third, void __user *ptr, long fifth)
+{
+	pr_info("IPC syscall %s: call=%u, first=%d, second=%lu, third=%lu, ptr=%p, fifth=%ld\n", operation, call, first, second, third, ptr, fifth);
+}
+
 int ksys_ipc(unsigned int call, int first, unsigned long second,
 	unsigned long third, void __user * ptr, long fifth)
 {
@@ -24,6 +22,8 @@ int ksys_ipc(unsigned int call, int first, unsigned long second,
 
 	version = call >> 16; /* hack for backward compatibility */
 	call &= 0xffff;
+
+	audit_log_ipc_syscall("ksys_ipc", call, first, second, third, ptr, fifth);
 
 	switch (call) {
 	case SEMOP:
@@ -135,6 +135,8 @@ int compat_ksys_ipc(u32 call, int first, int second,
 
 	version = call >> 16; /* hack for backward compatibility */
 	call &= 0xffff;
+
+	audit_log_ipc_syscall("compat_ksys_ipc", call, first, second, third, compat_ptr(ptr), fifth);
 
 	switch (call) {
 	case SEMOP:
