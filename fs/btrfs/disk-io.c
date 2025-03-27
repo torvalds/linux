@@ -3853,7 +3853,6 @@ static int write_dev_supers(struct btrfs_device *device,
 			atomic_inc(&device->sb_write_errors);
 			continue;
 		}
-		ASSERT(folio_order(folio) == 0);
 
 		offset = offset_in_folio(folio, bytenr);
 		disk_super = folio_address(folio) + offset;
@@ -3926,7 +3925,6 @@ static int wait_dev_supers(struct btrfs_device *device, int max_mirrors)
 		/* If the folio has been removed, then we know it completed. */
 		if (IS_ERR(folio))
 			continue;
-		ASSERT(folio_order(folio) == 0);
 
 		/* Folio will be unlocked once the write completes. */
 		folio_wait_locked(folio);
