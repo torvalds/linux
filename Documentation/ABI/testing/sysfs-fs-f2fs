@@ -734,6 +734,7 @@ Description:	Support configuring fault injection type, should be
 		FAULT_BLKADDR_VALIDITY           0x000040000
 		FAULT_BLKADDR_CONSISTENCE        0x000080000
 		FAULT_NO_SEGMENT                 0x000100000
+		FAULT_INCONSISTENT_FOOTER        0x000200000
 		===========================      ===========
 
 What:		/sys/fs/f2fs/<disk>/discard_io_aware_gran
@@ -828,3 +829,20 @@ Date:		November 2024
 Contact:	"Chao Yu" <chao@kernel.org>
 Description:	It controls max read extent count for per-inode, the value of threshold
 		is 10240 by default.
+
+What:		/sys/fs/f2fs/tuning/reclaim_caches_kb
+Date:		February 2025
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:	It reclaims the given KBs of file-backed pages registered by
+		ioctl(F2FS_IOC_DONATE_RANGE).
+		For example, writing N tries to drop N KBs spaces in LRU.
+
+What:		/sys/fs/f2fs/<disk>/carve_out
+Date:		March 2025
+Contact:	"Daeho Jeong" <daehojeong@google.com>
+Description:	For several zoned storage devices, vendors will provide extra space which
+		was used for device level GC than specs and F2FS can use this space for
+		filesystem level GC. To do that, we can reserve the space using
+		reserved_blocks. However, it is not enough, since this extra space should
+		not be shown to users. So, with this new sysfs node, we can hide the space
+		by substracting reserved_blocks from total bytes.
