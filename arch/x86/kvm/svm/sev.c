@@ -3988,10 +3988,8 @@ static int sev_snp_ap_creation(struct vcpu_svm *svm)
 	 * Unless Creation is deferred until INIT, signal the vCPU to update
 	 * its state.
 	 */
-	if (request != SVM_VMGEXIT_AP_CREATE_ON_INIT) {
-		kvm_make_request(KVM_REQ_UPDATE_PROTECTED_GUEST_STATE, target_vcpu);
-		kvm_vcpu_kick(target_vcpu);
-	}
+	if (request != SVM_VMGEXIT_AP_CREATE_ON_INIT)
+		kvm_make_request_and_kick(KVM_REQ_UPDATE_PROTECTED_GUEST_STATE, target_vcpu);
 
 	return 0;
 }
