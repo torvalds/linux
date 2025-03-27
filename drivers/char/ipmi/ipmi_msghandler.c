@@ -4165,14 +4165,33 @@ static int handle_lan_get_msg_cmd(struct ipmi_smi *intf,
 	rcu_read_unlock();
 
 	if (user == NULL) {
-		/* We didn't find a user, just give up. */
+		/* We didn't find a user, just give up and return an error. */
 		ipmi_inc_stat(intf, unhandled_commands);
 
+		msg->data[0] = (IPMI_NETFN_APP_REQUEST << 2);
+		msg->data[1] = IPMI_SEND_MSG_CMD;
+		msg->data[2] = chan;
+		msg->data[3] = msg->rsp[4]; /* handle */
+		msg->data[4] = msg->rsp[8]; /* rsSWID */
+		msg->data[5] = ((netfn + 1) << 2) | (msg->rsp[9] & 0x3);
+		msg->data[6] = ipmb_checksum(&msg->data[3], 3);
+		msg->data[7] = msg->rsp[5]; /* rqSWID */
+		/* rqseq/lun */
+		msg->data[8] = (msg->rsp[9] & 0xfc) | (msg->rsp[6] & 0x3);
+		msg->data[9] = cmd;
+		msg->data[10] = IPMI_INVALID_CMD_COMPLETION_CODE;
+		msg->data[11] = ipmb_checksum(&msg->data[7], 4);
+		msg->data_size = 12;
+
+		dev_dbg(intf->si_dev, "Invalid command: %*ph\n",
+			msg->data_size, msg->data);
+
+		smi_send(intf, intf->handlers, msg, 0);
 		/*
-		 * Don't do anything with these messages, just allow
-		 * them to be freed.
+		 * We used the message, so return the value that
+		 * causes it to not be freed or queued.
 		 */
-		rv = 0;
+		rv = -1;
 	} else {
 		recv_msg = ipmi_alloc_recv_msg();
 		if (!recv_msg) {
