@@ -835,18 +835,6 @@ lkl_netdev_wintap_create(const char *ifparams)
 }
 #endif
 
-
-/*
- * lkl_register_dbg_handler- register a signal handler that loads a debug lib.
- *
- * The signal handler is triggered by Ctrl-Z. It creates a new pthread which
- * call dbg_entrance().
- *
- * If you run the program from shell script, make sure you ignore SIGTSTP by
- * "trap '' TSTP" in the shell script.
- */
-void lkl_register_dbg_handler(void);
-
 /**
  * lkl_add_neighbor - add a permanent arp entry
  * @ifindex - the ifindex of the interface
