@@ -4302,8 +4302,7 @@ static inline int get_pdn(struct ib_pd *ib_pd)
 }
 
 static void modify_qp_reset_to_init(struct ib_qp *ibqp,
-				    struct hns_roce_v2_qp_context *context,
-				    struct hns_roce_v2_qp_context *qpc_mask)
+				    struct hns_roce_v2_qp_context *context)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
 	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
@@ -5122,7 +5121,7 @@ static int hns_roce_v2_set_abs_fields(struct ib_qp *ibqp,
 
 	if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT) {
 		memset(qpc_mask, 0, hr_dev->caps.qpc_sz);
-		modify_qp_reset_to_init(ibqp, context, qpc_mask);
+		modify_qp_reset_to_init(ibqp, context);
 	} else if (cur_state == IB_QPS_INIT && new_state == IB_QPS_INIT) {
 		modify_qp_init_to_init(ibqp, context, qpc_mask);
 	} else if (cur_state == IB_QPS_INIT && new_state == IB_QPS_RTR) {
