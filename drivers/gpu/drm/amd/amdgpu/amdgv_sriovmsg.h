@@ -109,10 +109,11 @@ union amd_sriov_msg_feature_flags {
 
 union amd_sriov_reg_access_flags {
 	struct {
-		uint32_t vf_reg_access_ih	: 1;
-		uint32_t vf_reg_access_mmhub	: 1;
-		uint32_t vf_reg_access_gc	: 1;
-		uint32_t reserved		: 29;
+		uint32_t vf_reg_access_ih		: 1;
+		uint32_t vf_reg_access_mmhub		: 1;
+		uint32_t vf_reg_access_gc		: 1;
+		uint32_t vf_reg_access_l1_tlb_cntl	: 1;
+		uint32_t reserved			: 28;
 	} flags;
 	uint32_t all;
 };

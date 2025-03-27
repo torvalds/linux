@@ -146,11 +146,13 @@ enum AMDGIM_FEATURE_FLAG {
 
 enum AMDGIM_REG_ACCESS_FLAG {
 	/* Use PSP to program IH_RB_CNTL */
-	AMDGIM_FEATURE_IH_REG_PSP_EN     = (1 << 0),
+	AMDGIM_FEATURE_IH_REG_PSP_EN      = (1 << 0),
 	/* Use RLC to program MMHUB regs */
-	AMDGIM_FEATURE_MMHUB_REG_RLC_EN  = (1 << 1),
+	AMDGIM_FEATURE_MMHUB_REG_RLC_EN   = (1 << 1),
 	/* Use RLC to program GC regs */
-	AMDGIM_FEATURE_GC_REG_RLC_EN     = (1 << 2),
+	AMDGIM_FEATURE_GC_REG_RLC_EN      = (1 << 2),
+	/* Use PSP to program L1_TLB_CNTL*/
+	AMDGIM_FEATURE_L1_TLB_CNTL_PSP_EN = (1 << 3),
 };
 
 struct amdgim_pf2vf_info_v1 {
@@ -329,6 +331,10 @@ struct amdgpu_video_codec_info;
 #define amdgpu_sriov_reg_indirect_gc(adev) \
 (amdgpu_sriov_vf((adev)) && \
 	((adev)->virt.reg_access & (AMDGIM_FEATURE_GC_REG_RLC_EN)))
+
+#define amdgpu_sriov_reg_indirect_l1_tlb_cntl(adev) \
+(amdgpu_sriov_vf((adev)) && \
+	((adev)->virt.reg_access & (AMDGIM_FEATURE_L1_TLB_CNTL_PSP_EN)))
 
 #define amdgpu_sriov_rlcg_error_report_enabled(adev) \
         (amdgpu_sriov_reg_indirect_mmhub(adev) || amdgpu_sriov_reg_indirect_gc(adev))
