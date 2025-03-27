@@ -182,7 +182,7 @@ optimized_callback(struct optimized_kprobe *op, struct pt_regs *regs)
 
 	preempt_disable();
 	if (kprobe_running()) {
-		kprobes_inc_nmissed_count(&op->kp);
+		kprobes_inc_nmissed_count(&op->kp, KPROBE_MISSED_CALLBACK);
 	} else {
 		struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 		/* Adjust stack pointer */
