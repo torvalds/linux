@@ -2156,7 +2156,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 
  wake_up:
 
-	if (local->monitors == local->open_count && local->monitors > 0)
+	if (local->virt_monitors > 0 &&
+	    local->virt_monitors == local->open_count)
 		ieee80211_add_virtual_monitor(local);
 
 	/*

@@ -51,7 +51,7 @@ struct imx_dwmac_ops {
 
 	int (*fix_soc_reset)(void *priv, void __iomem *ioaddr);
 	int (*set_intf_mode)(struct plat_stmmacenet_data *plat_dat);
-	void (*fix_mac_speed)(void *priv, unsigned int speed, unsigned int mode);
+	void (*fix_mac_speed)(void *priv, int speed, unsigned int mode);
 };
 
 struct imx_priv_data {
@@ -192,7 +192,20 @@ static void imx_dwmac_exit(struct platform_device *pdev, void *priv)
 	/* nothing to do now */
 }
 
-static void imx_dwmac_fix_speed(void *priv, unsigned int speed, unsigned int mode)
+static int imx_dwmac_set_clk_tx_rate(void *bsp_priv, struct clk *clk_tx_i,
+				     phy_interface_t interface, int speed)
+{
+	struct imx_priv_data *dwmac = bsp_priv;
+
+	interface = dwmac->plat_dat->mac_interface;
+	if (interface == PHY_INTERFACE_MODE_RMII ||
+	    interface == PHY_INTERFACE_MODE_MII)
+		return 0;
+
+	return stmmac_set_clk_tx_rate(bsp_priv, clk_tx_i, interface, speed);
+}
+
+static void imx_dwmac_fix_speed(void *priv, int speed, unsigned int mode)
 {
 	struct plat_stmmacenet_data *plat_dat;
 	struct imx_priv_data *dwmac = priv;
@@ -208,7 +221,7 @@ static void imx_dwmac_fix_speed(void *priv, unsigned int speed, unsigned int mod
 
 	rate = rgmii_clock(speed);
 	if (rate < 0) {
-		dev_err(dwmac->dev, "invalid speed %u\n", speed);
+		dev_err(dwmac->dev, "invalid speed %d\n", speed);
 		return;
 	}
 
@@ -217,7 +230,7 @@ static void imx_dwmac_fix_speed(void *priv, unsigned int speed, unsigned int mod
 		dev_err(dwmac->dev, "failed to set tx rate %lu\n", rate);
 }
 
-static void imx93_dwmac_fix_speed(void *priv, unsigned int speed, unsigned int mode)
+static void imx93_dwmac_fix_speed(void *priv, int speed, unsigned int mode)
 {
 	struct imx_priv_data *dwmac = priv;
 	unsigned int iface;
@@ -358,7 +371,6 @@ static int imx_dwmac_probe(struct platform_device *pdev)
 	plat_dat->init = imx_dwmac_init;
 	plat_dat->exit = imx_dwmac_exit;
 	plat_dat->clks_config = imx_dwmac_clks_config;
-	plat_dat->fix_mac_speed = imx_dwmac_fix_speed;
 	plat_dat->bsp_priv = dwmac;
 	dwmac->plat_dat = plat_dat;
 	dwmac->base_addr = stmmac_res.addr;
@@ -371,8 +383,13 @@ static int imx_dwmac_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_dwmac_init;
 
-	if (dwmac->ops->fix_mac_speed)
+	if (dwmac->ops->fix_mac_speed) {
 		plat_dat->fix_mac_speed = dwmac->ops->fix_mac_speed;
+	} else if (!dwmac->ops->mac_rgmii_txclk_auto_adj) {
+		plat_dat->clk_tx_i = dwmac->clk_tx;
+		plat_dat->set_clk_tx_rate = imx_dwmac_set_clk_tx_rate;
+	}
+
 	dwmac->plat_dat->fix_soc_reset = dwmac->ops->fix_soc_reset;
 
 	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);

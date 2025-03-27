@@ -355,7 +355,6 @@ static struct phylink_pcs *lynx_pcs_create(struct mdio_device *mdio)
 	mdio_device_get(mdio);
 	lynx->mdio = mdio;
 	lynx->pcs.ops = &lynx_pcs_phylink_ops;
-	lynx->pcs.neg_mode = true;
 	lynx->pcs.poll = true;
 
 	for (i = 0; i < ARRAY_SIZE(lynx_interfaces); i++)

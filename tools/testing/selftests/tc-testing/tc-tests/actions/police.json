@@ -689,7 +689,7 @@
         "cmdUnderTest": "$TC actions add action police rate 7mbit burst 1m continue index 1",
         "expExitCode": "0",
         "verifyCmd": "$TC actions get action police index 1",
-        "matchPattern": "action order [0-9]*:  police 0x1 rate 7Mbit burst 1024Kb mtu 2Kb action continue",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 7Mbit burst (1024Kb|1Mb) mtu 2Kb action continue",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action police"
@@ -716,7 +716,7 @@
         "cmdUnderTest": "$TC actions add action police rate 7mbit burst 1m drop index 1",
         "expExitCode": "0",
         "verifyCmd": "$TC actions ls action police",
-        "matchPattern": "action order [0-9]*:  police 0x1 rate 7Mbit burst 1024Kb mtu 2Kb action drop",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 7Mbit burst (1024Kb|1Mb) mtu 2Kb action drop",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action police"
@@ -743,7 +743,7 @@
         "cmdUnderTest": "$TC actions add action police rate 7mbit burst 1m ok index 1",
         "expExitCode": "0",
         "verifyCmd": "$TC actions ls action police",
-        "matchPattern": "action order [0-9]*:  police 0x1 rate 7Mbit burst 1024Kb mtu 2Kb action pass",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 7Mbit burst (1024Kb|1Mb) mtu 2Kb action pass",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action police"
@@ -770,7 +770,7 @@
         "cmdUnderTest": "$TC actions add action police rate 7mbit burst 1m reclassify index 1",
         "expExitCode": "0",
         "verifyCmd": "$TC actions get action police index 1",
-        "matchPattern": "action order [0-9]*:  police 0x1 rate 7Mbit burst 1024Kb mtu 2Kb action reclassify",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 7Mbit burst (1024Kb|1Mb) mtu 2Kb action reclassify",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action police"
@@ -797,7 +797,7 @@
         "cmdUnderTest": "$TC actions add action police rate 7mbit burst 1m pipe index 1",
         "expExitCode": "0",
         "verifyCmd": "$TC actions ls action police",
-        "matchPattern": "action order [0-9]*:  police 0x1 rate 7Mbit burst 1024Kb mtu 2Kb action pipe",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 7Mbit burst (1024Kb|1Mb) mtu 2Kb action pipe",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action police"

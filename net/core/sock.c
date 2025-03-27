@@ -938,6 +938,7 @@ int sock_set_timestamping(struct sock *sk, int optname,
 
 	WRITE_ONCE(sk->sk_tsflags, val);
 	sock_valbool_flag(sk, SOCK_TSTAMP_NEW, optname == SO_TIMESTAMPING_NEW);
+	sock_valbool_flag(sk, SOCK_TIMESTAMPING_ANY, !!(val & TSFLAGS_ANY));
 
 	if (val & SOF_TIMESTAMPING_RX_SOFTWARE)
 		sock_enable_timestamp(sk,
@@ -947,6 +948,20 @@ int sock_set_timestamping(struct sock *sk, int optname,
 				       (1UL << SOCK_TIMESTAMPING_RX_SOFTWARE));
 	return 0;
 }
+
+#if defined(CONFIG_CGROUP_BPF)
+void bpf_skops_tx_timestamping(struct sock *sk, struct sk_buff *skb, int op)
+{
+	struct bpf_sock_ops_kern sock_ops;
+
+	memset(&sock_ops, 0, offsetof(struct bpf_sock_ops_kern, temp));
+	sock_ops.op = op;
+	sock_ops.is_fullsock = 1;
+	sock_ops.sk = sk;
+	bpf_skops_init_skb(&sock_ops, skb, 0);
+	__cgroup_bpf_run_filter_sock_ops(sk, &sock_ops, CGROUP_SOCK_OPS);
+}
+#endif
 
 void sock_set_keepalive(struct sock *sk)
 {
@@ -2041,7 +2056,7 @@ int sk_getsockopt(struct sock *sk, int level, int optname,
 		v.val = READ_ONCE(sk->sk_napi_id);
 
 		/* aggregate non-NAPI IDs down to 0 */
-		if (v.val < MIN_NAPI_ID)
+		if (!napi_id_valid(v.val))
 			v.val = 0;
 
 		break;
@@ -2550,8 +2565,12 @@ void sk_setup_caps(struct sock *sk, struct dst_entry *dst)
 	u32 max_segs = 1;
 
 	sk->sk_route_caps = dst->dev->features;
-	if (sk_is_tcp(sk))
+	if (sk_is_tcp(sk)) {
+		struct inet_connection_sock *icsk = inet_csk(sk);
+
 		sk->sk_route_caps |= NETIF_F_GSO;
+		icsk->icsk_ack.dst_quick_ack = dst_metric(dst, RTAX_QUICKACK);
+	}
 	if (sk->sk_route_caps & NETIF_F_GSO)
 		sk->sk_route_caps |= NETIF_F_GSO_SOFTWARE;
 	if (unlikely(sk->sk_gso_disabled))
@@ -2820,6 +2839,22 @@ void *sock_kmalloc(struct sock *sk, int size, gfp_t priority)
 	return NULL;
 }
 EXPORT_SYMBOL(sock_kmalloc);
+
+/*
+ * Duplicate the input "src" memory block using the socket's
+ * option memory buffer.
+ */
+void *sock_kmemdup(struct sock *sk, const void *src,
+		   int size, gfp_t priority)
+{
+	void *mem;
+
+	mem = sock_kmalloc(sk, size, priority);
+	if (mem)
+		memcpy(mem, src, size);
+	return mem;
+}
+EXPORT_SYMBOL(sock_kmemdup);
 
 /* Free an option memory block. Note, we actually want the inline
  * here as this allows gcc to detect the nullify and fold away the
@@ -3898,7 +3933,7 @@ void sk_get_meminfo(const struct sock *sk, u32 *mem)
 	mem[SK_MEMINFO_RCVBUF] = READ_ONCE(sk->sk_rcvbuf);
 	mem[SK_MEMINFO_WMEM_ALLOC] = sk_wmem_alloc_get(sk);
 	mem[SK_MEMINFO_SNDBUF] = READ_ONCE(sk->sk_sndbuf);
-	mem[SK_MEMINFO_FWD_ALLOC] = sk_forward_alloc_get(sk);
+	mem[SK_MEMINFO_FWD_ALLOC] = READ_ONCE(sk->sk_forward_alloc);
 	mem[SK_MEMINFO_WMEM_QUEUED] = READ_ONCE(sk->sk_wmem_queued);
 	mem[SK_MEMINFO_OPTMEM] = atomic_read(&sk->sk_omem_alloc);
 	mem[SK_MEMINFO_BACKLOG] = READ_ONCE(sk->sk_backlog.len);

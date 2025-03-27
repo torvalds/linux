@@ -36,6 +36,7 @@ const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN] = {
 	[NETIF_F_TSO_BIT] =              "tx-tcp-segmentation",
 	[NETIF_F_GSO_ROBUST_BIT] =       "tx-gso-robust",
 	[NETIF_F_TSO_ECN_BIT] =          "tx-tcp-ecn-segmentation",
+	[NETIF_F_GSO_ACCECN_BIT] =	 "tx-tcp-accecn-segmentation",
 	[NETIF_F_TSO_MANGLEID_BIT] =	 "tx-tcp-mangleid-segmentation",
 	[NETIF_F_TSO6_BIT] =             "tx-tcp6-segmentation",
 	[NETIF_F_FSO_BIT] =              "tx-fcoe-segmentation",
@@ -214,6 +215,24 @@ const char link_mode_names[][ETH_GSTRING_LEN] = {
 	__DEFINE_LINK_MODE_NAME(10, T1S, Half),
 	__DEFINE_LINK_MODE_NAME(10, T1S_P2MP, Half),
 	__DEFINE_LINK_MODE_NAME(10, T1BRR, Full),
+	__DEFINE_LINK_MODE_NAME(200000, CR, Full),
+	__DEFINE_LINK_MODE_NAME(200000, KR, Full),
+	__DEFINE_LINK_MODE_NAME(200000, DR, Full),
+	__DEFINE_LINK_MODE_NAME(200000, DR_2, Full),
+	__DEFINE_LINK_MODE_NAME(200000, SR, Full),
+	__DEFINE_LINK_MODE_NAME(200000, VR, Full),
+	__DEFINE_LINK_MODE_NAME(400000, CR2, Full),
+	__DEFINE_LINK_MODE_NAME(400000, KR2, Full),
+	__DEFINE_LINK_MODE_NAME(400000, DR2, Full),
+	__DEFINE_LINK_MODE_NAME(400000, DR2_2, Full),
+	__DEFINE_LINK_MODE_NAME(400000, SR2, Full),
+	__DEFINE_LINK_MODE_NAME(400000, VR2, Full),
+	__DEFINE_LINK_MODE_NAME(800000, CR4, Full),
+	__DEFINE_LINK_MODE_NAME(800000, KR4, Full),
+	__DEFINE_LINK_MODE_NAME(800000, DR4, Full),
+	__DEFINE_LINK_MODE_NAME(800000, DR4_2, Full),
+	__DEFINE_LINK_MODE_NAME(800000, SR4, Full),
+	__DEFINE_LINK_MODE_NAME(800000, VR4, Full),
 };
 static_assert(ARRAY_SIZE(link_mode_names) == __ETHTOOL_LINK_MODE_MASK_NBITS);
 
@@ -222,8 +241,11 @@ static_assert(ARRAY_SIZE(link_mode_names) == __ETHTOOL_LINK_MODE_MASK_NBITS);
 #define __LINK_MODE_LANES_CR4		4
 #define __LINK_MODE_LANES_CR8		8
 #define __LINK_MODE_LANES_DR		1
+#define __LINK_MODE_LANES_DR_2		1
 #define __LINK_MODE_LANES_DR2		2
+#define __LINK_MODE_LANES_DR2_2		2
 #define __LINK_MODE_LANES_DR4		4
+#define __LINK_MODE_LANES_DR4_2		4
 #define __LINK_MODE_LANES_DR8		8
 #define __LINK_MODE_LANES_KR		1
 #define __LINK_MODE_LANES_KR2		2
@@ -252,6 +274,9 @@ static_assert(ARRAY_SIZE(link_mode_names) == __ETHTOOL_LINK_MODE_MASK_NBITS);
 #define __LINK_MODE_LANES_T1L		1
 #define __LINK_MODE_LANES_T1S		1
 #define __LINK_MODE_LANES_T1S_P2MP	1
+#define __LINK_MODE_LANES_VR		1
+#define __LINK_MODE_LANES_VR2		2
+#define __LINK_MODE_LANES_VR4		4
 #define __LINK_MODE_LANES_VR8		8
 #define __LINK_MODE_LANES_DR8_2		8
 #define __LINK_MODE_LANES_T1BRR		1
@@ -379,8 +404,27 @@ const struct link_mode_info link_mode_params[] = {
 	__DEFINE_LINK_MODE_PARAMS(10, T1S, Half),
 	__DEFINE_LINK_MODE_PARAMS(10, T1S_P2MP, Half),
 	__DEFINE_LINK_MODE_PARAMS(10, T1BRR, Full),
+	__DEFINE_LINK_MODE_PARAMS(200000, CR, Full),
+	__DEFINE_LINK_MODE_PARAMS(200000, KR, Full),
+	__DEFINE_LINK_MODE_PARAMS(200000, DR, Full),
+	__DEFINE_LINK_MODE_PARAMS(200000, DR_2, Full),
+	__DEFINE_LINK_MODE_PARAMS(200000, SR, Full),
+	__DEFINE_LINK_MODE_PARAMS(200000, VR, Full),
+	__DEFINE_LINK_MODE_PARAMS(400000, CR2, Full),
+	__DEFINE_LINK_MODE_PARAMS(400000, KR2, Full),
+	__DEFINE_LINK_MODE_PARAMS(400000, DR2, Full),
+	__DEFINE_LINK_MODE_PARAMS(400000, DR2_2, Full),
+	__DEFINE_LINK_MODE_PARAMS(400000, SR2, Full),
+	__DEFINE_LINK_MODE_PARAMS(400000, VR2, Full),
+	__DEFINE_LINK_MODE_PARAMS(800000, CR4, Full),
+	__DEFINE_LINK_MODE_PARAMS(800000, KR4, Full),
+	__DEFINE_LINK_MODE_PARAMS(800000, DR4, Full),
+	__DEFINE_LINK_MODE_PARAMS(800000, DR4_2, Full),
+	__DEFINE_LINK_MODE_PARAMS(800000, SR4, Full),
+	__DEFINE_LINK_MODE_PARAMS(800000, VR4, Full),
 };
 static_assert(ARRAY_SIZE(link_mode_params) == __ETHTOOL_LINK_MODE_MASK_NBITS);
+EXPORT_SYMBOL_GPL(link_mode_params);
 
 const char netif_msg_class_names[][ETH_GSTRING_LEN] = {
 	[NETIF_MSG_DRV_BIT]		= "drv",
@@ -432,6 +476,7 @@ const char sof_timestamping_names[][ETH_GSTRING_LEN] = {
 	[const_ilog2(SOF_TIMESTAMPING_BIND_PHC)]     = "bind-phc",
 	[const_ilog2(SOF_TIMESTAMPING_OPT_ID_TCP)]   = "option-id-tcp",
 	[const_ilog2(SOF_TIMESTAMPING_OPT_RX_FILTER)] = "option-rx-filter",
+	[const_ilog2(SOF_TIMESTAMPING_TX_COMPLETION)] = "tx-completion",
 };
 static_assert(ARRAY_SIZE(sof_timestamping_names) == __SOF_TIMESTAMPING_CNT);
 

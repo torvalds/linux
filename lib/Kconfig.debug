@@ -2580,15 +2580,6 @@ config TEST_BPF
 
 	  If unsure, say N.
 
-config TEST_BLACKHOLE_DEV
-	tristate "Test blackhole netdev functionality"
-	depends on m && NET
-	help
-	  This builds the "test_blackhole_dev" module that validates the
-	  data path through this blackhole netdev.
-
-	  If unsure, say N.
-
 config FIND_BIT_BENCHMARK
 	tristate "Test find_bit functions"
 	help
@@ -2925,6 +2916,17 @@ config USERCOPY_KUNIT_TEST
 	  This builds the "usercopy_kunit" module that runs sanity checks
 	  on the copy_to/from_user infrastructure, making sure basic
 	  user/kernel boundary testing is working.
+
+config BLACKHOLE_DEV_KUNIT_TEST
+	tristate "Test blackhole netdev functionality" if !KUNIT_ALL_TESTS
+	depends on NET
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the "blackhole_dev_kunit" module that validates the
+	  data path through this blackhole netdev.
+
+	  If unsure, say N.
 
 config TEST_UDELAY
 	tristate "udelay test driver"

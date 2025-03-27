@@ -4833,6 +4833,18 @@ static void vnic_add_client_data(struct ibmvnic_adapter *adapter,
 	strscpy(vlcd->name, adapter->netdev->name, len);
 }
 
+static void ibmvnic_print_hex_dump(struct net_device *dev, void *buf,
+				   size_t len)
+{
+	unsigned char hex_str[16 * 3];
+
+	for (size_t i = 0; i < len; i += 16) {
+		hex_dump_to_buffer((unsigned char *)buf + i, len - i, 16, 8,
+				   hex_str, sizeof(hex_str), false);
+		netdev_dbg(dev, "%s\n", hex_str);
+	}
+}
+
 static int send_login(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_login_rsp_buffer *login_rsp_buffer;
@@ -4943,10 +4955,8 @@ static int send_login(struct ibmvnic_adapter *adapter)
 	vnic_add_client_data(adapter, vlcd);
 
 	netdev_dbg(adapter->netdev, "Login Buffer:\n");
-	for (i = 0; i < (adapter->login_buf_sz - 1) / 8 + 1; i++) {
-		netdev_dbg(adapter->netdev, "%016lx\n",
-			   ((unsigned long *)(adapter->login_buf))[i]);
-	}
+	ibmvnic_print_hex_dump(adapter->netdev, adapter->login_buf,
+			       adapter->login_buf_sz);
 
 	memset(&crq, 0, sizeof(crq));
 	crq.login.first = IBMVNIC_CRQ_CMD;
@@ -5323,15 +5333,13 @@ static void handle_query_ip_offload_rsp(struct ibmvnic_adapter *adapter)
 {
 	struct device *dev = &adapter->vdev->dev;
 	struct ibmvnic_query_ip_offload_buffer *buf = &adapter->ip_offload_buf;
-	int i;
 
 	dma_unmap_single(dev, adapter->ip_offload_tok,
 			 sizeof(adapter->ip_offload_buf), DMA_FROM_DEVICE);
 
 	netdev_dbg(adapter->netdev, "Query IP Offload Buffer:\n");
-	for (i = 0; i < (sizeof(adapter->ip_offload_buf) - 1) / 8 + 1; i++)
-		netdev_dbg(adapter->netdev, "%016lx\n",
-			   ((unsigned long *)(buf))[i]);
+	ibmvnic_print_hex_dump(adapter->netdev, buf,
+			       sizeof(adapter->ip_offload_buf));
 
 	netdev_dbg(adapter->netdev, "ipv4_chksum = %d\n", buf->ipv4_chksum);
 	netdev_dbg(adapter->netdev, "ipv6_chksum = %d\n", buf->ipv6_chksum);
@@ -5562,10 +5570,8 @@ static int handle_login_rsp(union ibmvnic_crq *login_rsp_crq,
 	netdev->mtu = adapter->req_mtu - ETH_HLEN;
 
 	netdev_dbg(adapter->netdev, "Login Response Buffer:\n");
-	for (i = 0; i < (adapter->login_rsp_buf_sz - 1) / 8 + 1; i++) {
-		netdev_dbg(adapter->netdev, "%016lx\n",
-			   ((unsigned long *)(adapter->login_rsp_buf))[i]);
-	}
+	ibmvnic_print_hex_dump(netdev, adapter->login_rsp_buf,
+			       adapter->login_rsp_buf_sz);
 
 	/* Sanity checks */
 	if (login->num_txcomp_subcrqs != login_rsp->num_txsubm_subcrqs ||

@@ -9,7 +9,7 @@
 #include "netdev-genl-gen.h"
 
 #include <uapi/linux/netdev.h>
-#include <linux/list.h>
+#include <net/netdev_netlink.h>
 
 /* Integer value ranges */
 static const struct netlink_range_validation netdev_a_page_pool_id_range = {
@@ -217,7 +217,7 @@ struct genl_family netdev_nl_family __ro_after_init = {
 	.n_split_ops	= ARRAY_SIZE(netdev_nl_ops),
 	.mcgrps		= netdev_nl_mcgrps,
 	.n_mcgrps	= ARRAY_SIZE(netdev_nl_mcgrps),
-	.sock_priv_size	= sizeof(struct list_head),
+	.sock_priv_size	= sizeof(struct netdev_nl_sock),
 	.sock_priv_init	= __netdev_nl_sock_priv_init,
 	.sock_priv_destroy = __netdev_nl_sock_priv_destroy,
 };

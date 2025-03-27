@@ -13,20 +13,20 @@ remote_ifname=""
 no_sleep=False
 
 def _test_v4(cfg) -> None:
-    cfg.require_v4()
+    cfg.require_ipver("4")
 
-    cmd(f"ping -c 1 -W0.5 {cfg.remote_v4}")
-    cmd(f"ping -c 1 -W0.5 {cfg.v4}", host=cfg.remote)
-    cmd(f"ping -s 65000 -c 1 -W0.5 {cfg.remote_v4}")
-    cmd(f"ping -s 65000 -c 1 -W0.5 {cfg.v4}", host=cfg.remote)
+    cmd("ping -c 1 -W0.5 " + cfg.remote_addr_v["4"])
+    cmd("ping -c 1 -W0.5 " + cfg.addr_v["4"], host=cfg.remote)
+    cmd("ping -s 65000 -c 1 -W0.5 " + cfg.remote_addr_v["4"])
+    cmd("ping -s 65000 -c 1 -W0.5 " + cfg.addr_v["4"], host=cfg.remote)
 
 def _test_v6(cfg) -> None:
-    cfg.require_v6()
+    cfg.require_ipver("6")
 
-    cmd(f"ping -c 1 -W5 {cfg.remote_v6}")
-    cmd(f"ping -c 1 -W5 {cfg.v6}", host=cfg.remote)
-    cmd(f"ping -s 65000 -c 1 -W0.5 {cfg.remote_v6}")
-    cmd(f"ping -s 65000 -c 1 -W0.5 {cfg.v6}", host=cfg.remote)
+    cmd("ping -c 1 -W5 " + cfg.remote_addr_v["6"])
+    cmd("ping -c 1 -W5 " + cfg.addr_v["6"], host=cfg.remote)
+    cmd("ping -s 65000 -c 1 -W0.5 " + cfg.remote_addr_v["6"])
+    cmd("ping -s 65000 -c 1 -W0.5 " + cfg.addr_v["6"], host=cfg.remote)
 
 def _test_tcp(cfg) -> None:
     cfg.require_cmd("socat", remote=True)
@@ -126,7 +126,7 @@ def get_interface_info(cfg) -> None:
     global remote_ifname
     global no_sleep
 
-    remote_info = cmd(f"ip -4 -o addr show to {cfg.remote_v4} | awk '{{print $2}}'", shell=True, host=cfg.remote).stdout
+    remote_info = cmd(f"ip -4 -o addr show to {cfg.remote_addr_v['4']} | awk '{{print $2}}'", shell=True, host=cfg.remote).stdout
     remote_ifname = remote_info.rstrip('\n')
     if remote_ifname == "":
         raise KsftFailEx('Can not get remote interface')

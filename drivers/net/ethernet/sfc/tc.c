@@ -1043,7 +1043,7 @@ static int efx_tc_flower_handle_lhs_actions(struct efx_nic *efx,
 				return -EOPNOTSUPP;
 			}
 			if (fa->ct.action) {
-				NL_SET_ERR_MSG_FMT_MOD(extack, "Unhandled ct.action %u for LHS rule\n",
+				NL_SET_ERR_MSG_FMT_MOD(extack, "Unhandled ct.action %u for LHS rule",
 						       fa->ct.action);
 				return -EOPNOTSUPP;
 			}
@@ -1056,7 +1056,7 @@ static int efx_tc_flower_handle_lhs_actions(struct efx_nic *efx,
 			act->zone = ct_zone;
 			break;
 		default:
-			NL_SET_ERR_MSG_FMT_MOD(extack, "Unhandled action %u for LHS rule\n",
+			NL_SET_ERR_MSG_FMT_MOD(extack, "Unhandled action %u for LHS rule",
 					       fa->id);
 			return -EOPNOTSUPP;
 		}
@@ -1581,7 +1581,7 @@ static int efx_tc_flower_replace_foreign_lhs(struct efx_nic *efx,
 
 	type = efx_tc_indr_netdev_type(net_dev);
 	if (type == EFX_ENCAP_TYPE_NONE) {
-		NL_SET_ERR_MSG_MOD(extack, "Egress encap match on unsupported tunnel device\n");
+		NL_SET_ERR_MSG_MOD(extack, "Egress encap match on unsupported tunnel device");
 		return -EOPNOTSUPP;
 	}
 

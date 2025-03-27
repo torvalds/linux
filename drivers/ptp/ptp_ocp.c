@@ -2090,6 +2090,10 @@ ptp_ocp_signal_from_perout(struct ptp_ocp *bp, int gen,
 {
 	struct ptp_ocp_signal s = { };
 
+	if (req->flags & ~(PTP_PEROUT_DUTY_CYCLE |
+			   PTP_PEROUT_PHASE))
+		return -EOPNOTSUPP;
+
 	s.polarity = bp->signal[gen].polarity;
 	s.period = ktime_set(req->period.sec, req->period.nsec);
 	if (!s.period)
@@ -3958,9 +3962,6 @@ _signal_summary_show(struct seq_file *s, struct ptp_ocp *bp, int nr)
 	char label[8];
 	bool on;
 	u32 val;
-
-	if (!signal)
-		return;
 
 	on = signal->running;
 	sprintf(label, "GEN%d", nr + 1);

@@ -331,8 +331,21 @@ void e1000e_update_mc_addr_list_generic(struct e1000_hw *hw,
 	}
 
 	/* replace the entire MTA table */
-	for (i = hw->mac.mta_reg_count - 1; i >= 0; i--)
+	for (i = hw->mac.mta_reg_count - 1; i >= 0; i--) {
 		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, i, hw->mac.mta_shadow[i]);
+
+		if (IS_ENABLED(CONFIG_PREEMPT_RT)) {
+			/*
+			 * Do not queue up too many posted writes to prevent
+			 * increased latency for other devices on the
+			 * interconnect. Flush after each 8th posted write,
+			 * to keep additional execution time low while still
+			 * preventing increased latency.
+			 */
+			if (!(i % 8) && i)
+				e1e_flush();
+		}
+	}
 	e1e_flush();
 }
 

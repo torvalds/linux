@@ -2291,18 +2291,9 @@ static int ath_tx_prepare(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_sta *sta = txctl->sta;
 	struct ieee80211_vif *vif = info->control.vif;
-	struct ath_vif *avp;
 	struct ath_softc *sc = hw->priv;
 	int frmlen = skb->len + FCS_LEN;
 	int padpos, padsize;
-
-	/* NOTE:  sta can be NULL according to net/mac80211.h */
-	if (sta)
-		txctl->an = (struct ath_node *)sta->drv_priv;
-	else if (vif && ieee80211_is_data(hdr->frame_control)) {
-		avp = (void *)vif->drv_priv;
-		txctl->an = &avp->mcast_node;
-	}
 
 	if (info->control.hw_key)
 		frmlen += info->control.hw_key->icv_len;

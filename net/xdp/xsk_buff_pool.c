@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <linux/netdevice.h>
+#include <net/netdev_lock.h>
 #include <net/xsk_buff_pool.h>
 #include <net/xdp_sock.h>
 #include <net/xdp_sock_drv.h>
@@ -219,6 +221,7 @@ int xp_assign_dev(struct xsk_buff_pool *pool,
 	bpf.xsk.pool = pool;
 	bpf.xsk.queue_id = queue_id;
 
+	netdev_ops_assert_locked(netdev);
 	err = netdev->netdev_ops->ndo_bpf(netdev, &bpf);
 	if (err)
 		goto err_unreg_pool;
@@ -699,18 +702,56 @@ void xp_free(struct xdp_buff_xsk *xskb)
 }
 EXPORT_SYMBOL(xp_free);
 
+static u64 __xp_raw_get_addr(const struct xsk_buff_pool *pool, u64 addr)
+{
+	return pool->unaligned ? xp_unaligned_add_offset_to_addr(addr) : addr;
+}
+
+static void *__xp_raw_get_data(const struct xsk_buff_pool *pool, u64 addr)
+{
+	return pool->addrs + addr;
+}
+
 void *xp_raw_get_data(struct xsk_buff_pool *pool, u64 addr)
 {
-	addr = pool->unaligned ? xp_unaligned_add_offset_to_addr(addr) : addr;
-	return pool->addrs + addr;
+	return __xp_raw_get_data(pool, __xp_raw_get_addr(pool, addr));
 }
 EXPORT_SYMBOL(xp_raw_get_data);
 
-dma_addr_t xp_raw_get_dma(struct xsk_buff_pool *pool, u64 addr)
+static dma_addr_t __xp_raw_get_dma(const struct xsk_buff_pool *pool, u64 addr)
 {
-	addr = pool->unaligned ? xp_unaligned_add_offset_to_addr(addr) : addr;
 	return (pool->dma_pages[addr >> PAGE_SHIFT] &
 		~XSK_NEXT_PG_CONTIG_MASK) +
 		(addr & ~PAGE_MASK);
 }
+
+dma_addr_t xp_raw_get_dma(struct xsk_buff_pool *pool, u64 addr)
+{
+	return __xp_raw_get_dma(pool, __xp_raw_get_addr(pool, addr));
+}
 EXPORT_SYMBOL(xp_raw_get_dma);
+
+/**
+ * xp_raw_get_ctx - get &xdp_desc context
+ * @pool: XSk buff pool desc address belongs to
+ * @addr: desc address (from userspace)
+ *
+ * Helper for getting desc's DMA address and metadata pointer, if present.
+ * Saves one call on hotpath, double calculation of the actual address,
+ * and inline checks for metadata presence and sanity.
+ *
+ * Return: new &xdp_desc_ctx struct containing desc's DMA address and metadata
+ * pointer, if it is present and valid (initialized to %NULL otherwise).
+ */
+struct xdp_desc_ctx xp_raw_get_ctx(const struct xsk_buff_pool *pool, u64 addr)
+{
+	struct xdp_desc_ctx ret;
+
+	addr = __xp_raw_get_addr(pool, addr);
+
+	ret.dma = __xp_raw_get_dma(pool, addr);
+	ret.meta = __xsk_buff_get_metadata(pool, __xp_raw_get_data(pool, addr));
+
+	return ret;
+}
+EXPORT_SYMBOL(xp_raw_get_ctx);

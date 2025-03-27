@@ -23,6 +23,10 @@ unsigned int ath12k_debug_mask;
 module_param_named(debug_mask, ath12k_debug_mask, uint, 0644);
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
 
+bool ath12k_ftm_mode;
+module_param_named(ftm_mode, ath12k_ftm_mode, bool, 0444);
+MODULE_PARM_DESC(ftm_mode, "Boots up in factory test mode");
+
 /* protected with ath12k_hw_group_mutex */
 static struct list_head ath12k_hw_group_list = LIST_HEAD_INIT(ath12k_hw_group_list);
 
@@ -34,6 +38,9 @@ static int ath12k_core_rfkill_config(struct ath12k_base *ab)
 	int ret = 0, i;
 
 	if (!(ab->target_caps.sys_cap_info & WMI_SYS_CAP_INFO_RFKILL))
+		return 0;
+
+	if (ath12k_acpi_get_disable_rfkill(ab))
 		return 0;
 
 	for (i = 0; i < ab->num_radios; i++) {
@@ -173,7 +180,7 @@ EXPORT_SYMBOL(ath12k_core_resume);
 
 static int __ath12k_core_create_board_name(struct ath12k_base *ab, char *name,
 					   size_t name_len, bool with_variant,
-					   bool bus_type_mode)
+					   bool bus_type_mode, bool with_default)
 {
 	/* strlen(',variant=') + strlen(ab->qmi.target.bdf_ext) */
 	char variant[9 + ATH12K_QMI_BDF_EXT_STR_LENGTH] = { 0 };
@@ -204,7 +211,9 @@ static int __ath12k_core_create_board_name(struct ath12k_base *ab, char *name,
 			  "bus=%s,qmi-chip-id=%d,qmi-board-id=%d%s",
 			  ath12k_bus_str(ab->hif.bus),
 			  ab->qmi.target.chip_id,
-			  ab->qmi.target.board_id, variant);
+			  with_default ?
+			  ATH12K_BOARD_ID_DEFAULT : ab->qmi.target.board_id,
+			  variant);
 		break;
 	}
 
@@ -216,19 +225,19 @@ static int __ath12k_core_create_board_name(struct ath12k_base *ab, char *name,
 static int ath12k_core_create_board_name(struct ath12k_base *ab, char *name,
 					 size_t name_len)
 {
-	return __ath12k_core_create_board_name(ab, name, name_len, true, false);
+	return __ath12k_core_create_board_name(ab, name, name_len, true, false, false);
 }
 
 static int ath12k_core_create_fallback_board_name(struct ath12k_base *ab, char *name,
 						  size_t name_len)
 {
-	return __ath12k_core_create_board_name(ab, name, name_len, false, false);
+	return __ath12k_core_create_board_name(ab, name, name_len, false, false, true);
 }
 
 static int ath12k_core_create_bus_type_board_name(struct ath12k_base *ab, char *name,
 						  size_t name_len)
 {
-	return __ath12k_core_create_board_name(ab, name, name_len, false, true);
+	return __ath12k_core_create_board_name(ab, name, name_len, false, true, true);
 }
 
 const struct firmware *ath12k_core_firmware_request(struct ath12k_base *ab,
@@ -693,6 +702,11 @@ static int ath12k_core_soc_create(struct ath12k_base *ab)
 {
 	int ret;
 
+	if (ath12k_ftm_mode) {
+		ab->fw_mode = ATH12K_FIRMWARE_MODE_FTM;
+		ath12k_info(ab, "Booting in ftm mode\n");
+	}
+
 	ret = ath12k_qmi_init_service(ab);
 	if (ret) {
 		ath12k_err(ab, "failed to initialize qmi :%d\n", ret);
@@ -741,8 +755,7 @@ static void ath12k_core_pdev_destroy(struct ath12k_base *ab)
 	ath12k_dp_pdev_free(ab);
 }
 
-static int ath12k_core_start(struct ath12k_base *ab,
-			     enum ath12k_firmware_mode mode)
+static int ath12k_core_start(struct ath12k_base *ab)
 {
 	int ret;
 
@@ -836,10 +849,7 @@ static int ath12k_core_start(struct ath12k_base *ab,
 		goto err_reo_cleanup;
 	}
 
-	ret = ath12k_acpi_start(ab);
-	if (ret)
-		/* ACPI is optional so continue in case of an error */
-		ath12k_dbg(ab, ATH12K_DBG_BOOT, "acpi failed: %d\n", ret);
+	ath12k_acpi_set_dsm_func(ab);
 
 	if (!test_bit(ATH12K_FLAG_RECOVERY, &ab->dev_flags))
 		/* Indicate the core start in the appropriate group */
@@ -887,9 +897,40 @@ static void ath12k_core_hw_group_stop(struct ath12k_hw_group *ag)
 	ath12k_mac_destroy(ag);
 }
 
+u8 ath12k_get_num_partner_link(struct ath12k *ar)
+{
+	struct ath12k_base *partner_ab, *ab = ar->ab;
+	struct ath12k_hw_group *ag = ab->ag;
+	struct ath12k_pdev *pdev;
+	u8 num_link = 0;
+	int i, j;
+
+	lockdep_assert_held(&ag->mutex);
+
+	for (i = 0; i < ag->num_devices; i++) {
+		partner_ab = ag->ab[i];
+
+		for (j = 0; j < partner_ab->num_radios; j++) {
+			pdev = &partner_ab->pdevs[j];
+
+			/* Avoid the self link */
+			if (ar == pdev->ar)
+				continue;
+
+			num_link++;
+		}
+	}
+
+	return num_link;
+}
+
 static int __ath12k_mac_mlo_ready(struct ath12k *ar)
 {
+	u8 num_link = ath12k_get_num_partner_link(ar);
 	int ret;
+
+	if (num_link == 0)
+		return 0;
 
 	ret = ath12k_wmi_mlo_ready(ar);
 	if (ret) {
@@ -920,19 +961,18 @@ int ath12k_mac_mlo_ready(struct ath12k_hw_group *ag)
 			ar = &ah->radio[j];
 			ret = __ath12k_mac_mlo_ready(ar);
 			if (ret)
-				goto out;
+				return ret;
 		}
 	}
 
-out:
-	return ret;
+	return 0;
 }
 
 static int ath12k_core_mlo_setup(struct ath12k_hw_group *ag)
 {
 	int ret, i;
 
-	if (!ag->mlo_capable || ag->num_devices == 1)
+	if (!ag->mlo_capable)
 		return 0;
 
 	ret = ath12k_mac_mlo_setup(ag);
@@ -1068,7 +1108,7 @@ int ath12k_core_qmi_firmware_ready(struct ath12k_base *ab)
 	struct ath12k_hw_group *ag = ath12k_ab_to_ag(ab);
 	int ret, i;
 
-	ret = ath12k_core_start_firmware(ab, ATH12K_FIRMWARE_MODE_NORMAL);
+	ret = ath12k_core_start_firmware(ab, ab->fw_mode);
 	if (ret) {
 		ath12k_err(ab, "failed to start firmware: %d\n", ret);
 		return ret;
@@ -1089,7 +1129,7 @@ int ath12k_core_qmi_firmware_ready(struct ath12k_base *ab)
 	mutex_lock(&ag->mutex);
 	mutex_lock(&ab->core_lock);
 
-	ret = ath12k_core_start(ab, ATH12K_FIRMWARE_MODE_NORMAL);
+	ret = ath12k_core_start(ab);
 	if (ret) {
 		ath12k_err(ab, "failed to start core: %d\n", ret);
 		goto err_dp_free;
@@ -1122,16 +1162,18 @@ err_core_stop:
 		ath12k_core_stop(ab);
 		mutex_unlock(&ab->core_lock);
 	}
+	mutex_unlock(&ag->mutex);
 	goto exit;
 
 err_dp_free:
 	ath12k_dp_free(ab);
 	mutex_unlock(&ab->core_lock);
+	mutex_unlock(&ag->mutex);
+
 err_firmware_stop:
 	ath12k_qmi_firmware_stop(ab);
 
 exit:
-	mutex_unlock(&ag->mutex);
 	return ret;
 }
 
@@ -1239,7 +1281,8 @@ static void ath12k_core_pre_reconfigure_recovery(struct ath12k_base *ab)
 
 	for (i = 0; i < ag->num_hw; i++) {
 		ah = ath12k_ag_to_ah(ag, i);
-		if (!ah || ah->state == ATH12K_HW_STATE_OFF)
+		if (!ah || ah->state == ATH12K_HW_STATE_OFF ||
+		    ah->state == ATH12K_HW_STATE_TM)
 			continue;
 
 		ieee80211_stop_queues(ah->hw);
@@ -1308,6 +1351,9 @@ static void ath12k_core_post_reconfigure_recovery(struct ath12k_base *ab)
 		case ATH12K_HW_STATE_WEDGED:
 			ath12k_warn(ab,
 				    "device is wedged, will not restart hw %d\n", i);
+			break;
+		case ATH12K_HW_STATE_TM:
+			ath12k_warn(ab, "fw mode reset done radio %d\n", i);
 			break;
 		}
 
@@ -1602,6 +1648,9 @@ static struct ath12k_hw_group *ath12k_core_hw_group_assign(struct ath12k_base *a
 
 	lockdep_assert_held(&ath12k_hw_group_mutex);
 
+	if (ath12k_ftm_mode)
+		goto invalid_group;
+
 	/* The grouping of multiple devices will be done based on device tree file.
 	 * The platforms that do not have any valid group information would have
 	 * each device to be part of its own invalid group.
@@ -1789,19 +1838,19 @@ void ath12k_core_hw_group_set_mlo_capable(struct ath12k_hw_group *ag)
 	struct ath12k_base *ab;
 	int i;
 
+	if (ath12k_ftm_mode)
+		return;
+
 	lockdep_assert_held(&ag->mutex);
 
 	/* If more than one devices are grouped, then inter MLO
 	 * functionality can work still independent of whether internally
 	 * each device supports single_chip_mlo or not.
-	 * Only when there is one device, then it depends whether the
-	 * device can support intra chip MLO or not
+	 * Only when there is one device, then disable for WCN chipsets
+	 * till the required driver implementation is in place.
 	 */
-	if (ag->num_devices > 1) {
-		ag->mlo_capable = true;
-	} else {
+	if (ag->num_devices == 1) {
 		ab = ag->ab[0];
-		ag->mlo_capable = ab->single_chip_mlo_supp;
 
 		/* WCN chipsets does not advertise in firmware features
 		 * hence skip checking
@@ -1810,8 +1859,7 @@ void ath12k_core_hw_group_set_mlo_capable(struct ath12k_hw_group *ag)
 			return;
 	}
 
-	if (!ag->mlo_capable)
-		return;
+	ag->mlo_capable = true;
 
 	for (i = 0; i < ag->num_devices; i++) {
 		ab = ag->ab[i];
@@ -1927,7 +1975,6 @@ struct ath12k_base *ath12k_core_alloc(struct device *dev, size_t priv_size,
 	ab->dev = dev;
 	ab->hif.bus = bus;
 	ab->qmi.num_radios = U8_MAX;
-	ab->single_chip_mlo_supp = false;
 
 	/* Device index used to identify the devices in a group.
 	 *

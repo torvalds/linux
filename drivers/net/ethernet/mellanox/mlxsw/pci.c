@@ -2214,6 +2214,8 @@ static int mlxsw_pci_skb_transmit(void *bus_priv, struct sk_buff *skb,
 	for (i++; i < MLXSW_PCI_WQE_SG_ENTRIES; i++)
 		mlxsw_pci_wqe_byte_count_set(wqe, i, 0);
 
+	mlxsw_pci_wqe_ipcs_set(wqe, skb->ip_summed == CHECKSUM_PARTIAL);
+
 	/* Everything is set up, ring producer doorbell to get HW going */
 	q->producer_counter++;
 	mlxsw_pci_queue_doorbell_producer_ring(mlxsw_pci, q);

@@ -92,11 +92,12 @@ static inline void ipcm_init(struct ipcm_cookie *ipcm)
 static inline void ipcm_init_sk(struct ipcm_cookie *ipcm,
 				const struct inet_sock *inet)
 {
-	ipcm_init(ipcm);
+	*ipcm = (struct ipcm_cookie) {
+		.tos = READ_ONCE(inet->tos),
+	};
 
-	ipcm->sockc.mark = READ_ONCE(inet->sk.sk_mark);
-	ipcm->sockc.priority = READ_ONCE(inet->sk.sk_priority);
-	ipcm->sockc.tsflags = READ_ONCE(inet->sk.sk_tsflags);
+	sockcm_init(&ipcm->sockc, &inet->sk);
+
 	ipcm->oif = READ_ONCE(inet->sk.sk_bound_dev_if);
 	ipcm->addr = inet->inet_saddr;
 	ipcm->protocol = inet->inet_num;
@@ -257,13 +258,6 @@ static inline u8 ip_sendmsg_scope(const struct inet_sock *inet,
 	return RT_SCOPE_UNIVERSE;
 }
 
-static inline __u8 get_rttos(struct ipcm_cookie* ipc, struct inet_sock *inet)
-{
-	u8 dsfield = ipc->tos != -1 ? ipc->tos : READ_ONCE(inet->tos);
-
-	return dsfield & INET_DSCP_MASK;
-}
-
 /* datagram.c */
 int __ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len);
 int ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len);
@@ -363,7 +357,7 @@ static inline void inet_get_local_port_range(const struct net *net, int *low, in
 bool inet_sk_get_local_port_range(const struct sock *sk, int *low, int *high);
 
 #ifdef CONFIG_SYSCTL
-static inline bool inet_is_local_reserved_port(struct net *net, unsigned short port)
+static inline bool inet_is_local_reserved_port(const struct net *net, unsigned short port)
 {
 	if (!net->ipv4.sysctl_local_reserved_ports)
 		return false;
@@ -672,6 +666,14 @@ static inline void ip_ipgre_mc_map(__be32 naddr, const unsigned char *broadcast,
 	else
 		memcpy(buf, &naddr, sizeof(naddr));
 }
+
+#if IS_MODULE(CONFIG_IPV6)
+#define EXPORT_IPV6_MOD(X) EXPORT_SYMBOL(X)
+#define EXPORT_IPV6_MOD_GPL(X) EXPORT_SYMBOL_GPL(X)
+#else
+#define EXPORT_IPV6_MOD(X)
+#define EXPORT_IPV6_MOD_GPL(X)
+#endif
 
 #if IS_ENABLED(CONFIG_IPV6)
 #include <linux/ipv6.h>

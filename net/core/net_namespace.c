@@ -340,6 +340,8 @@ static __net_init void preinit_net(struct net *net, struct user_namespace *user_
 	lock_set_cmp_fn(&net->rtnl_mutex, rtnl_net_lock_cmp_fn, NULL);
 #endif
 
+	INIT_LIST_HEAD(&net->ptype_all);
+	INIT_LIST_HEAD(&net->ptype_specific);
 	preinit_net_sysctl(net);
 }
 

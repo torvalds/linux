@@ -447,7 +447,7 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 
 	if (q->wsum + delta_w > QFQ_MAX_WSUM) {
 		NL_SET_ERR_MSG_FMT_MOD(extack,
-				       "total weight out of range (%d + %u)\n",
+				       "total weight out of range (%d + %u)",
 				       delta_w, q->wsum);
 		return -EINVAL;
 	}

@@ -3295,7 +3295,7 @@ static int ipw_init_nic(struct ipw_priv *priv)
 	rc = ipw_poll_bit(priv, IPW_GP_CNTRL_RW,
 			  IPW_GP_CNTRL_BIT_CLOCK_READY, 250);
 	if (rc < 0)
-		IPW_DEBUG_INFO("FAILED wait for clock stablization\n");
+		IPW_DEBUG_INFO("FAILED wait for clock stabilization\n");
 
 	/* assert SW reset */
 	ipw_set_bit(priv, IPW_RESET_REG, IPW_RESET_REG_SW_RESET);

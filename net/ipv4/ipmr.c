@@ -563,7 +563,7 @@ static void reg_vif_setup(struct net_device *dev)
 	dev->flags		= IFF_NOARP;
 	dev->netdev_ops		= &reg_vif_netdev_ops;
 	dev->needs_free_netdev	= true;
-	dev->netns_local	= true;
+	dev->netns_immutable	= true;
 }
 
 static struct net_device *ipmr_reg_vif(struct net *net, struct mr_table *mrt)

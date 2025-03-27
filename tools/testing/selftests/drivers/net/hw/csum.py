@@ -9,15 +9,12 @@ from lib.py import ksft_run, ksft_exit, KsftSkipEx
 from lib.py import EthtoolFamily, NetDrvEpEnv
 from lib.py import bkg, cmd, wait_port_listen
 
-def test_receive(cfg, ipv4=False, extra_args=None):
+def test_receive(cfg, ipver="6", extra_args=None):
     """Test local nic checksum receive. Remote host sends crafted packets."""
     if not cfg.have_rx_csum:
         raise KsftSkipEx(f"Test requires rx checksum offload on {cfg.ifname}")
 
-    if ipv4:
-        ip_args = f"-4 -S {cfg.remote_v4} -D {cfg.v4}"
-    else:
-        ip_args = f"-6 -S {cfg.remote_v6} -D {cfg.v6}"
+    ip_args = f"-{ipver} -S {cfg.remote_addr_v[ipver]} -D {cfg.addr_v[ipver]}"
 
     rx_cmd = f"{cfg.bin_local} -i {cfg.ifname} -n 100 {ip_args} -r 1 -R {extra_args}"
     tx_cmd = f"{cfg.bin_remote} -i {cfg.ifname} -n 100 {ip_args} -r 1 -T {extra_args}"
@@ -27,17 +24,14 @@ def test_receive(cfg, ipv4=False, extra_args=None):
         cmd(tx_cmd, host=cfg.remote)
 
 
-def test_transmit(cfg, ipv4=False, extra_args=None):
+def test_transmit(cfg, ipver="6", extra_args=None):
     """Test local nic checksum transmit. Remote host verifies packets."""
     if (not cfg.have_tx_csum_generic and
-        not (cfg.have_tx_csum_ipv4 and ipv4) and
-        not (cfg.have_tx_csum_ipv6 and not ipv4)):
+        not (cfg.have_tx_csum_ipv4 and ipver == "4") and
+        not (cfg.have_tx_csum_ipv6 and ipver == "6")):
         raise KsftSkipEx(f"Test requires tx checksum offload on {cfg.ifname}")
 
-    if ipv4:
-        ip_args = f"-4 -S {cfg.v4} -D {cfg.remote_v4}"
-    else:
-        ip_args = f"-6 -S {cfg.v6} -D {cfg.remote_v6}"
+    ip_args = f"-{ipver} -S {cfg.addr_v[ipver]} -D {cfg.remote_addr_v[ipver]}"
 
     # Cannot randomize input when calculating zero checksum
     if extra_args != "-U -Z":
@@ -51,26 +45,20 @@ def test_transmit(cfg, ipv4=False, extra_args=None):
         cmd(tx_cmd)
 
 
-def test_builder(name, cfg, ipv4=False, tx=False, extra_args=""):
+def test_builder(name, cfg, ipver="6", tx=False, extra_args=""):
     """Construct specific tests from the common template.
 
        Most tests follow the same basic pattern, differing only in
        Direction of the test and optional flags passed to csum."""
     def f(cfg):
-        if ipv4:
-            cfg.require_v4()
-        else:
-            cfg.require_v6()
+        cfg.require_ipver(ipver)
 
         if tx:
-            test_transmit(cfg, ipv4, extra_args)
+            test_transmit(cfg, ipver, extra_args)
         else:
-            test_receive(cfg, ipv4, extra_args)
+            test_receive(cfg, ipver, extra_args)
 
-    if ipv4:
-        f.__name__ = "ipv4_" + name
-    else:
-        f.__name__ = "ipv6_" + name
+    f.__name__ = f"ipv{ipver}_" + name
     return f
 
 
@@ -100,19 +88,19 @@ def main() -> None:
     with NetDrvEpEnv(__file__, nsim_test=False) as cfg:
         check_nic_features(cfg)
 
-        cfg.bin_local = path.abspath(path.dirname(__file__) + "/../../../net/lib/csum")
+        cfg.bin_local = cfg.rpath("../../../net/lib/csum")
         cfg.bin_remote = cfg.remote.deploy(cfg.bin_local)
 
         cases = []
-        for ipv4 in [True, False]:
-            cases.append(test_builder("rx_tcp", cfg, ipv4, False, "-t"))
-            cases.append(test_builder("rx_tcp_invalid", cfg, ipv4, False, "-t -E"))
+        for ipver in ["4", "6"]:
+            cases.append(test_builder("rx_tcp", cfg, ipver, False, "-t"))
+            cases.append(test_builder("rx_tcp_invalid", cfg, ipver, False, "-t -E"))
 
-            cases.append(test_builder("rx_udp", cfg, ipv4, False, ""))
-            cases.append(test_builder("rx_udp_invalid", cfg, ipv4, False, "-E"))
+            cases.append(test_builder("rx_udp", cfg, ipver, False, ""))
+            cases.append(test_builder("rx_udp_invalid", cfg, ipver, False, "-E"))
 
-            cases.append(test_builder("tx_udp_csum_offload", cfg, ipv4, True, "-U"))
-            cases.append(test_builder("tx_udp_zero_checksum", cfg, ipv4, True, "-U -Z"))
+            cases.append(test_builder("tx_udp_csum_offload", cfg, ipver, True, "-U"))
+            cases.append(test_builder("tx_udp_zero_checksum", cfg, ipver, True, "-U -Z"))
 
         ksft_run(cases=cases, args=(cfg, ))
     ksft_exit()

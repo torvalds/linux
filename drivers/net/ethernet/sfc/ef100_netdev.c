@@ -452,7 +452,6 @@ int ef100_probe_netdev(struct efx_probe_data *probe_data)
 				  NETIF_F_HIGHDMA | NETIF_F_ALL_TSO;
 	netif_set_tso_max_segs(net_dev,
 			       ESE_EF100_DP_GZ_TSO_MAX_HDR_NUM_SEGS_DEFAULT);
-	efx->mdio.dev = net_dev;
 
 	rc = efx_ef100_init_datapath_caps(efx);
 	if (rc < 0)

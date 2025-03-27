@@ -34,10 +34,8 @@ int __test_listen_socket(int backlog, void *addr, size_t addr_sz)
 	return sk;
 }
 
-int test_wait_fd(int sk, time_t sec, bool write)
+static int __test_wait_fd(int sk, struct timeval *tv, bool write)
 {
-	struct timeval tv = { .tv_sec = sec };
-	struct timeval *ptv = NULL;
 	fd_set fds, efds;
 	int ret;
 	socklen_t slen = sizeof(ret);
@@ -47,14 +45,11 @@ int test_wait_fd(int sk, time_t sec, bool write)
 	FD_ZERO(&efds);
 	FD_SET(sk, &efds);
 
-	if (sec)
-		ptv = &tv;
-
 	errno = 0;
 	if (write)
-		ret = select(sk + 1, NULL, &fds, &efds, ptv);
+		ret = select(sk + 1, NULL, &fds, &efds, tv);
 	else
-		ret = select(sk + 1, &fds, NULL, &efds, ptv);
+		ret = select(sk + 1, &fds, NULL, &efds, tv);
 	if (ret < 0)
 		return -errno;
 	if (ret == 0) {
@@ -69,8 +64,54 @@ int test_wait_fd(int sk, time_t sec, bool write)
 	return 0;
 }
 
+int test_wait_fd(int sk, time_t sec, bool write)
+{
+	struct timeval tv = { .tv_sec = sec, };
+
+	return __test_wait_fd(sk, sec ? &tv : NULL, write);
+}
+
+static bool __skpair_poll_should_stop(int sk, struct tcp_counters *c,
+				      test_cnt condition)
+{
+	struct tcp_counters c2;
+	test_cnt diff;
+
+	if (test_get_tcp_counters(sk, &c2))
+		test_error("test_get_tcp_counters()");
+
+	diff = test_cmp_counters(c, &c2);
+	test_tcp_counters_free(&c2);
+	return (diff & condition) == condition;
+}
+
+/* How often wake up and check netns counters & paired (*err) */
+#define POLL_USEC	150
+static int __test_skpair_poll(int sk, bool write, uint64_t timeout,
+			      struct tcp_counters *c, test_cnt cond,
+			      volatile int *err)
+{
+	uint64_t t;
+
+	for (t = 0; t <= timeout * 1000000; t += POLL_USEC) {
+		struct timeval tv = { .tv_usec = POLL_USEC, };
+		int ret;
+
+		ret = __test_wait_fd(sk, &tv, write);
+		if (ret != -ETIMEDOUT)
+			return ret;
+		if (c && cond && __skpair_poll_should_stop(sk, c, cond))
+			break;
+		if (err && *err)
+			return *err;
+	}
+	if (err)
+		*err = -ETIMEDOUT;
+	return -ETIMEDOUT;
+}
+
 int __test_connect_socket(int sk, const char *device,
-			  void *addr, size_t addr_sz, time_t timeout)
+			  void *addr, size_t addr_sz, bool async)
 {
 	long flags;
 	int err;
@@ -82,15 +123,6 @@ int __test_connect_socket(int sk, const char *device,
 			test_error("setsockopt(SO_BINDTODEVICE, %s)", device);
 	}
 
-	if (!timeout) {
-		err = connect(sk, addr, addr_sz);
-		if (err) {
-			err = -errno;
-			goto out;
-		}
-		return 0;
-	}
-
 	flags = fcntl(sk, F_GETFL);
 	if ((flags < 0) || (fcntl(sk, F_SETFL, flags | O_NONBLOCK) < 0))
 		test_error("fcntl()");
@@ -100,9 +132,9 @@ int __test_connect_socket(int sk, const char *device,
 			err = -errno;
 			goto out;
 		}
-		if (timeout < 0)
+		if (async)
 			return sk;
-		err = test_wait_fd(sk, timeout, 1);
+		err = test_wait_fd(sk, TEST_TIMEOUT_SEC, 1);
 		if (err)
 			goto out;
 	}
@@ -111,6 +143,45 @@ int __test_connect_socket(int sk, const char *device,
 out:
 	close(sk);
 	return err;
+}
+
+int test_skpair_wait_poll(int sk, bool write,
+			  test_cnt cond, volatile int *err)
+{
+	struct tcp_counters c;
+	int ret;
+
+	*err = 0;
+	if (test_get_tcp_counters(sk, &c))
+		test_error("test_get_tcp_counters()");
+	synchronize_threads(); /* 1: init skpair & read nscounters */
+
+	ret = __test_skpair_poll(sk, write, TEST_TIMEOUT_SEC, &c, cond, err);
+	test_tcp_counters_free(&c);
+	return ret;
+}
+
+int _test_skpair_connect_poll(int sk, const char *device,
+			      void *addr, size_t addr_sz,
+			      test_cnt condition, volatile int *err)
+{
+	struct tcp_counters c;
+	int ret;
+
+	*err = 0;
+	if (test_get_tcp_counters(sk, &c))
+		test_error("test_get_tcp_counters()");
+	synchronize_threads(); /* 1: init skpair & read nscounters */
+	ret = __test_connect_socket(sk, device, addr, addr_sz, true);
+	if (ret < 0) {
+		test_tcp_counters_free(&c);
+		return (*err = ret);
+	}
+	ret = __test_skpair_poll(sk, 1, TEST_TIMEOUT_SEC, &c, condition, err);
+	if (ret < 0)
+		close(sk);
+	test_tcp_counters_free(&c);
+	return ret;
 }
 
 int __test_set_md5(int sk, void *addr, size_t addr_sz, uint8_t prefix,
@@ -333,12 +404,12 @@ do {									\
 	return 0;
 }
 
-int test_get_tcp_ao_counters(int sk, struct tcp_ao_counters *out)
+int test_get_tcp_counters(int sk, struct tcp_counters *out)
 {
 	struct tcp_ao_getsockopt *key_dump;
 	socklen_t key_dump_sz = sizeof(*key_dump);
 	struct tcp_ao_info_opt info = {};
-	bool c1, c2, c3, c4, c5;
+	bool c1, c2, c3, c4, c5, c6, c7, c8;
 	struct netstat *ns;
 	int err, nr_keys;
 
@@ -346,25 +417,30 @@ int test_get_tcp_ao_counters(int sk, struct tcp_ao_counters *out)
 
 	/* per-netns */
 	ns = netstat_read();
-	out->netns_ao_good = netstat_get(ns, "TCPAOGood", &c1);
-	out->netns_ao_bad = netstat_get(ns, "TCPAOBad", &c2);
-	out->netns_ao_key_not_found = netstat_get(ns, "TCPAOKeyNotFound", &c3);
-	out->netns_ao_required = netstat_get(ns, "TCPAORequired", &c4);
-	out->netns_ao_dropped_icmp = netstat_get(ns, "TCPAODroppedIcmps", &c5);
+	out->ao.netns_ao_good = netstat_get(ns, "TCPAOGood", &c1);
+	out->ao.netns_ao_bad = netstat_get(ns, "TCPAOBad", &c2);
+	out->ao.netns_ao_key_not_found = netstat_get(ns, "TCPAOKeyNotFound", &c3);
+	out->ao.netns_ao_required = netstat_get(ns, "TCPAORequired", &c4);
+	out->ao.netns_ao_dropped_icmp = netstat_get(ns, "TCPAODroppedIcmps", &c5);
+	out->netns_md5_notfound = netstat_get(ns, "TCPMD5NotFound", &c6);
+	out->netns_md5_unexpected = netstat_get(ns, "TCPMD5Unexpected", &c7);
+	out->netns_md5_failure = netstat_get(ns, "TCPMD5Failure", &c8);
 	netstat_free(ns);
-	if (c1 || c2 || c3 || c4 || c5)
+	if (c1 || c2 || c3 || c4 || c5 || c6 || c7 || c8)
 		return -EOPNOTSUPP;
 
 	err = test_get_ao_info(sk, &info);
+	if (err == -ENOENT)
+		return 0;
 	if (err)
 		return err;
 
 	/* per-socket */
-	out->ao_info_pkt_good		= info.pkt_good;
-	out->ao_info_pkt_bad		= info.pkt_bad;
-	out->ao_info_pkt_key_not_found	= info.pkt_key_not_found;
-	out->ao_info_pkt_ao_required	= info.pkt_ao_required;
-	out->ao_info_pkt_dropped_icmp	= info.pkt_dropped_icmp;
+	out->ao.ao_info_pkt_good = info.pkt_good;
+	out->ao.ao_info_pkt_bad = info.pkt_bad;
+	out->ao.ao_info_pkt_key_not_found = info.pkt_key_not_found;
+	out->ao.ao_info_pkt_ao_required = info.pkt_ao_required;
+	out->ao.ao_info_pkt_dropped_icmp = info.pkt_dropped_icmp;
 
 	/* per-key */
 	nr_keys = test_get_ao_keys_nr(sk);
@@ -372,7 +448,7 @@ int test_get_tcp_ao_counters(int sk, struct tcp_ao_counters *out)
 		return nr_keys;
 	if (nr_keys == 0)
 		test_error("test_get_ao_keys_nr() == 0");
-	out->nr_keys = (size_t)nr_keys;
+	out->ao.nr_keys = (size_t)nr_keys;
 	key_dump = calloc(nr_keys, key_dump_sz);
 	if (!key_dump)
 		return -errno;
@@ -386,72 +462,84 @@ int test_get_tcp_ao_counters(int sk, struct tcp_ao_counters *out)
 		return -errno;
 	}
 
-	out->key_cnts = calloc(nr_keys, sizeof(out->key_cnts[0]));
-	if (!out->key_cnts) {
+	out->ao.key_cnts = calloc(nr_keys, sizeof(out->ao.key_cnts[0]));
+	if (!out->ao.key_cnts) {
 		free(key_dump);
 		return -errno;
 	}
 
 	while (nr_keys--) {
-		out->key_cnts[nr_keys].sndid = key_dump[nr_keys].sndid;
-		out->key_cnts[nr_keys].rcvid = key_dump[nr_keys].rcvid;
-		out->key_cnts[nr_keys].pkt_good = key_dump[nr_keys].pkt_good;
-		out->key_cnts[nr_keys].pkt_bad = key_dump[nr_keys].pkt_bad;
+		out->ao.key_cnts[nr_keys].sndid = key_dump[nr_keys].sndid;
+		out->ao.key_cnts[nr_keys].rcvid = key_dump[nr_keys].rcvid;
+		out->ao.key_cnts[nr_keys].pkt_good = key_dump[nr_keys].pkt_good;
+		out->ao.key_cnts[nr_keys].pkt_bad = key_dump[nr_keys].pkt_bad;
 	}
 	free(key_dump);
 
 	return 0;
 }
 
-int __test_tcp_ao_counters_cmp(const char *tst_name,
-			       struct tcp_ao_counters *before,
-			       struct tcp_ao_counters *after,
-			       test_cnt expected)
+test_cnt test_cmp_counters(struct tcp_counters *before,
+			   struct tcp_counters *after)
 {
-#define __cmp_ao(cnt, expecting_inc)					\
+#define __cmp(cnt, e_cnt)						\
+do {									\
+	if (before->cnt > after->cnt)					\
+		test_error("counter " __stringify(cnt) " decreased");	\
+	if (before->cnt != after->cnt)					\
+		ret |= e_cnt;						\
+} while (0)
+
+	test_cnt ret = 0;
+	size_t i;
+
+	if (before->ao.nr_keys != after->ao.nr_keys)
+		test_error("the number of keys has changed");
+
+	_for_each_counter(__cmp);
+
+	i = before->ao.nr_keys;
+	while (i--) {
+		__cmp(ao.key_cnts[i].pkt_good, TEST_CNT_KEY_GOOD);
+		__cmp(ao.key_cnts[i].pkt_bad, TEST_CNT_KEY_BAD);
+	}
+#undef __cmp
+	return ret;
+}
+
+int test_assert_counters_sk(const char *tst_name,
+			    struct tcp_counters *before,
+			    struct tcp_counters *after,
+			    test_cnt expected)
+{
+#define __cmp_ao(cnt, e_cnt)						\
 do {									\
 	if (before->cnt > after->cnt) {					\
 		test_fail("%s: Decreased counter " __stringify(cnt) " %" PRIu64 " > %" PRIu64, \
-			  tst_name ?: "", before->cnt, after->cnt);		\
+			  tst_name ?: "", before->cnt, after->cnt);	\
 		return -1;						\
 	}								\
-	if ((before->cnt != after->cnt) != (expecting_inc)) {		\
+	if ((before->cnt != after->cnt) != !!(expected & e_cnt)) {	\
 		test_fail("%s: Counter " __stringify(cnt) " was %sexpected to increase %" PRIu64 " => %" PRIu64, \
-			  tst_name ?: "", (expecting_inc) ? "" : "not ",	\
+			  tst_name ?: "", (expected & e_cnt) ? "" : "not ",	\
 			  before->cnt, after->cnt);			\
 		return -1;						\
 	}								\
-} while(0)
+} while (0)
 
 	errno = 0;
-	/* per-netns */
-	__cmp_ao(netns_ao_good, !!(expected & TEST_CNT_NS_GOOD));
-	__cmp_ao(netns_ao_bad, !!(expected & TEST_CNT_NS_BAD));
-	__cmp_ao(netns_ao_key_not_found,
-		 !!(expected & TEST_CNT_NS_KEY_NOT_FOUND));
-	__cmp_ao(netns_ao_required, !!(expected & TEST_CNT_NS_AO_REQUIRED));
-	__cmp_ao(netns_ao_dropped_icmp,
-		 !!(expected & TEST_CNT_NS_DROPPED_ICMP));
-	/* per-socket */
-	__cmp_ao(ao_info_pkt_good, !!(expected & TEST_CNT_SOCK_GOOD));
-	__cmp_ao(ao_info_pkt_bad, !!(expected & TEST_CNT_SOCK_BAD));
-	__cmp_ao(ao_info_pkt_key_not_found,
-		 !!(expected & TEST_CNT_SOCK_KEY_NOT_FOUND));
-	__cmp_ao(ao_info_pkt_ao_required, !!(expected & TEST_CNT_SOCK_AO_REQUIRED));
-	__cmp_ao(ao_info_pkt_dropped_icmp,
-		 !!(expected & TEST_CNT_SOCK_DROPPED_ICMP));
+	_for_each_counter(__cmp_ao);
 	return 0;
 #undef __cmp_ao
 }
 
-int test_tcp_ao_key_counters_cmp(const char *tst_name,
-				 struct tcp_ao_counters *before,
-				 struct tcp_ao_counters *after,
-				 test_cnt expected,
-				 int sndid, int rcvid)
+int test_assert_counters_key(const char *tst_name,
+			     struct tcp_ao_counters *before,
+			     struct tcp_ao_counters *after,
+			     test_cnt expected, int sndid, int rcvid)
 {
 	size_t i;
-#define __cmp_ao(i, cnt, expecting_inc)					\
+#define __cmp_ao(i, cnt, e_cnt)					\
 do {									\
 	if (before->key_cnts[i].cnt > after->key_cnts[i].cnt) {		\
 		test_fail("%s: Decreased counter " __stringify(cnt) " %" PRIu64 " > %" PRIu64 " for key %u:%u", \
@@ -461,16 +549,16 @@ do {									\
 			  before->key_cnts[i].rcvid);			\
 		return -1;						\
 	}								\
-	if ((before->key_cnts[i].cnt != after->key_cnts[i].cnt) != (expecting_inc)) {		\
+	if ((before->key_cnts[i].cnt != after->key_cnts[i].cnt) != !!(expected & e_cnt)) {		\
 		test_fail("%s: Counter " __stringify(cnt) " was %sexpected to increase %" PRIu64 " => %" PRIu64 " for key %u:%u", \
-			  tst_name ?: "", (expecting_inc) ? "" : "not ",\
+			  tst_name ?: "", (expected & e_cnt) ? "" : "not ",\
 			  before->key_cnts[i].cnt,			\
 			  after->key_cnts[i].cnt,			\
 			  before->key_cnts[i].sndid,			\
 			  before->key_cnts[i].rcvid);			\
 		return -1;						\
 	}								\
-} while(0)
+} while (0)
 
 	if (before->nr_keys != after->nr_keys) {
 		test_fail("%s: Keys changed on the socket %zu != %zu",
@@ -485,20 +573,22 @@ do {									\
 			continue;
 		if (rcvid >= 0 && before->key_cnts[i].rcvid != rcvid)
 			continue;
-		__cmp_ao(i, pkt_good, !!(expected & TEST_CNT_KEY_GOOD));
-		__cmp_ao(i, pkt_bad, !!(expected & TEST_CNT_KEY_BAD));
+		__cmp_ao(i, pkt_good, TEST_CNT_KEY_GOOD);
+		__cmp_ao(i, pkt_bad, TEST_CNT_KEY_BAD);
 	}
 	return 0;
 #undef __cmp_ao
 }
 
-void test_tcp_ao_counters_free(struct tcp_ao_counters *cnts)
+void test_tcp_counters_free(struct tcp_counters *cnts)
 {
-	free(cnts->key_cnts);
+	free(cnts->ao.key_cnts);
 }
 
 #define TEST_BUF_SIZE 4096
-ssize_t test_server_run(int sk, ssize_t quota, time_t timeout_sec)
+static ssize_t _test_server_run(int sk, ssize_t quota, struct tcp_counters *c,
+				test_cnt cond, volatile int *err,
+				time_t timeout_sec)
 {
 	ssize_t total = 0;
 
@@ -507,7 +597,7 @@ ssize_t test_server_run(int sk, ssize_t quota, time_t timeout_sec)
 		ssize_t bytes, sent;
 		int ret;
 
-		ret = test_wait_fd(sk, timeout_sec, 0);
+		ret = __test_skpair_poll(sk, 0, timeout_sec, c, cond, err);
 		if (ret)
 			return ret;
 
@@ -518,7 +608,7 @@ ssize_t test_server_run(int sk, ssize_t quota, time_t timeout_sec)
 		if (bytes == 0)
 			break;
 
-		ret = test_wait_fd(sk, timeout_sec, 1);
+		ret = __test_skpair_poll(sk, 1, timeout_sec, c, cond, err);
 		if (ret)
 			return ret;
 
@@ -533,12 +623,40 @@ ssize_t test_server_run(int sk, ssize_t quota, time_t timeout_sec)
 	return total;
 }
 
-ssize_t test_client_loop(int sk, char *buf, size_t buf_sz,
-			 const size_t msg_len, time_t timeout_sec)
+ssize_t test_server_run(int sk, ssize_t quota, time_t timeout_sec)
+{
+	return _test_server_run(sk, quota, NULL, 0, NULL,
+				timeout_sec ?: TEST_TIMEOUT_SEC);
+}
+
+int test_skpair_server(int sk, ssize_t quota, test_cnt cond, volatile int *err)
+{
+	struct tcp_counters c;
+	ssize_t ret;
+
+	*err = 0;
+	if (test_get_tcp_counters(sk, &c))
+		test_error("test_get_tcp_counters()");
+	synchronize_threads(); /* 1: init skpair & read nscounters */
+
+	ret = _test_server_run(sk, quota, &c, cond, err, TEST_TIMEOUT_SEC);
+	test_tcp_counters_free(&c);
+	return ret;
+}
+
+static ssize_t test_client_loop(int sk, size_t buf_sz, const size_t msg_len,
+				struct tcp_counters *c, test_cnt cond,
+				volatile int *err)
 {
 	char msg[msg_len];
 	int nodelay = 1;
+	char *buf;
 	size_t i;
+
+	buf = alloca(buf_sz);
+	if (!buf)
+		return -ENOMEM;
+	randomize_buffer(buf, buf_sz);
 
 	if (setsockopt(sk, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof(nodelay)))
 		test_error("setsockopt(TCP_NODELAY)");
@@ -547,7 +665,7 @@ ssize_t test_client_loop(int sk, char *buf, size_t buf_sz,
 		size_t sent, bytes = min(msg_len, buf_sz - i);
 		int ret;
 
-		ret = test_wait_fd(sk, timeout_sec, 1);
+		ret = __test_skpair_poll(sk, 1, TEST_TIMEOUT_SEC, c, cond, err);
 		if (ret)
 			return ret;
 
@@ -561,7 +679,8 @@ ssize_t test_client_loop(int sk, char *buf, size_t buf_sz,
 		do {
 			ssize_t got;
 
-			ret = test_wait_fd(sk, timeout_sec, 0);
+			ret = __test_skpair_poll(sk, 0, TEST_TIMEOUT_SEC,
+						 c, cond, err);
 			if (ret)
 				return ret;
 
@@ -580,15 +699,31 @@ ssize_t test_client_loop(int sk, char *buf, size_t buf_sz,
 	return i;
 }
 
-int test_client_verify(int sk, const size_t msg_len, const size_t nr,
-		       time_t timeout_sec)
+int test_client_verify(int sk, const size_t msg_len, const size_t nr)
 {
 	size_t buf_sz = msg_len * nr;
-	char *buf = alloca(buf_sz);
 	ssize_t ret;
 
-	randomize_buffer(buf, buf_sz);
-	ret = test_client_loop(sk, buf, buf_sz, msg_len, timeout_sec);
+	ret = test_client_loop(sk, buf_sz, msg_len, NULL, 0, NULL);
+	if (ret < 0)
+		return (int)ret;
+	return ret != buf_sz ? -1 : 0;
+}
+
+int test_skpair_client(int sk, const size_t msg_len, const size_t nr,
+		       test_cnt cond, volatile int *err)
+{
+	struct tcp_counters c;
+	size_t buf_sz = msg_len * nr;
+	ssize_t ret;
+
+	*err = 0;
+	if (test_get_tcp_counters(sk, &c))
+		test_error("test_get_tcp_counters()");
+	synchronize_threads(); /* 1: init skpair & read nscounters */
+
+	ret = test_client_loop(sk, buf_sz, msg_len, &c, cond, err);
+	test_tcp_counters_free(&c);
 	if (ret < 0)
 		return (int)ret;
 	return ret != buf_sz ? -1 : 0;

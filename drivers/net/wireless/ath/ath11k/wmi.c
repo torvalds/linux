@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/skbuff.h>
 #include <linux/ctype.h>
@@ -2662,7 +2662,8 @@ int ath11k_wmi_send_scan_chan_list_cmd(struct ath11k *ar,
 }
 
 int ath11k_wmi_send_wmm_update_cmd_tlv(struct ath11k *ar, u32 vdev_id,
-				       struct wmi_wmm_params_all_arg *param)
+				       struct wmi_wmm_params_all_arg *param,
+				       enum wmi_wmm_params_type wmm_param_type)
 {
 	struct ath11k_pdev_wmi *wmi = ar->wmi;
 	struct wmi_vdev_set_wmm_params_cmd *cmd;
@@ -2681,7 +2682,7 @@ int ath11k_wmi_send_wmm_update_cmd_tlv(struct ath11k *ar, u32 vdev_id,
 			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
 
 	cmd->vdev_id = vdev_id;
-	cmd->wmm_param_type = 0;
+	cmd->wmm_param_type = wmm_param_type;
 
 	for (ac = 0; ac < WME_NUM_AC; ac++) {
 		switch (ac) {
@@ -2714,8 +2715,8 @@ int ath11k_wmi_send_wmm_update_cmd_tlv(struct ath11k *ar, u32 vdev_id,
 		wmm_param->no_ack = wmi_wmm_arg->no_ack;
 
 		ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
-			   "wmm set ac %d aifs %d cwmin %d cwmax %d txop %d acm %d no_ack %d\n",
-			   ac, wmm_param->aifs, wmm_param->cwmin,
+			   "wmm set type %d ac %d aifs %d cwmin %d cwmax %d txop %d acm %d no_ack %d\n",
+			   wmm_param_type, ac, wmm_param->aifs, wmm_param->cwmin,
 			   wmm_param->cwmax, wmm_param->txoplimit,
 			   wmm_param->acm, wmm_param->no_ack);
 	}

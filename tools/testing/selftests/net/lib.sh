@@ -450,6 +450,25 @@ kill_process()
 	{ kill $pid && wait $pid; } 2>/dev/null
 }
 
+check_command()
+{
+	local cmd=$1; shift
+
+	if [[ ! -x "$(command -v "$cmd")" ]]; then
+		log_test_skip "$cmd not installed"
+		return $EXIT_STATUS
+	fi
+}
+
+require_command()
+{
+	local cmd=$1; shift
+
+	if ! check_command "$cmd"; then
+		exit $EXIT_STATUS
+	fi
+}
+
 ip_link_add()
 {
 	local name=$1; shift

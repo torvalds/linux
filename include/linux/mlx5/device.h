@@ -538,6 +538,7 @@ struct mlx5_cmd_layout {
 };
 
 enum mlx5_rfr_severity_bit_offsets {
+	MLX5_CRR_BIT_OFFSET = 0x6,
 	MLX5_RFR_BIT_OFFSET = 0x7,
 };
 
@@ -1250,6 +1251,7 @@ enum mlx5_cap_type {
 	MLX5_CAP_GENERAL_2 = 0x20,
 	MLX5_CAP_PORT_SELECTION = 0x25,
 	MLX5_CAP_ADV_VIRTUALIZATION = 0x26,
+	MLX5_CAP_ADV_RDMA = 0x28,
 	/* NUM OF CAP Types */
 	MLX5_CAP_NUM
 };
@@ -1344,6 +1346,12 @@ enum mlx5_qcam_feature_groups {
 #define MLX5_CAP_FLOWTABLE_RDMA_TX(mdev, cap) \
 	MLX5_CAP_FLOWTABLE(mdev, flow_table_properties_nic_transmit_rdma.cap)
 
+#define MLX5_CAP_FLOWTABLE_RDMA_TRANSPORT_RX(mdev, cap) \
+	MLX5_CAP_ADV_RDMA(mdev, rdma_transport_rx_flow_table_properties.cap)
+
+#define MLX5_CAP_FLOWTABLE_RDMA_TRANSPORT_TX(mdev, cap) \
+	MLX5_CAP_ADV_RDMA(mdev, rdma_transport_tx_flow_table_properties.cap)
+
 #define MLX5_CAP_ESW_FLOWTABLE(mdev, cap) \
 	MLX5_GET(flow_table_eswitch_cap, \
 		 mdev->caps.hca[MLX5_CAP_ESWITCH_FLOW_TABLE]->cur, cap)
@@ -1382,6 +1390,10 @@ enum mlx5_qcam_feature_groups {
 #define MLX5_CAP_ADV_VIRTUALIZATION(mdev, cap) \
 	MLX5_GET(adv_virtualization_cap, \
 		 mdev->caps.hca[MLX5_CAP_ADV_VIRTUALIZATION]->cur, cap)
+
+#define MLX5_CAP_ADV_RDMA(mdev, cap) \
+	MLX5_GET(adv_rdma_cap, \
+		 mdev->caps.hca[MLX5_CAP_ADV_RDMA]->cur, cap)
 
 #define MLX5_CAP_FLOWTABLE_PORT_SELECTION(mdev, cap) \
 	MLX5_CAP_PORT_SELECTION(mdev, flow_table_properties_port_selection.cap)
@@ -1505,6 +1517,7 @@ enum {
 	MLX5_PHYSICAL_LAYER_COUNTERS_GROUP    = 0x12,
 	MLX5_PER_TRAFFIC_CLASS_CONGESTION_GROUP = 0x13,
 	MLX5_PHYSICAL_LAYER_STATISTICAL_GROUP = 0x16,
+	MLX5_PHYSICAL_LAYER_RECOVERY_GROUP    = 0x1a,
 	MLX5_INFINIBAND_PORT_COUNTERS_GROUP   = 0x20,
 	MLX5_INFINIBAND_EXTENDED_PORT_COUNTERS_GROUP = 0x21,
 };

@@ -25,6 +25,7 @@
 #include <net/page_pool/helpers.h>
 #include <net/netlink.h>
 #include <net/net_shaper.h>
+#include <net/netdev_lock.h>
 #include <net/pkt_cls.h>
 #include <net/rtnetlink.h>
 #include <net/udp_tunnel.h>
@@ -87,7 +88,8 @@ static netdev_tx_t nsim_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(nsim_forward_skb(peer_dev, skb, rq) == NET_RX_DROP))
 		goto out_drop_cnt;
 
-	napi_schedule(&rq->napi);
+	if (!hrtimer_active(&rq->napi_timer))
+		hrtimer_start(&rq->napi_timer, us_to_ktime(5), HRTIMER_MODE_REL);
 
 	rcu_read_unlock();
 	u64_stats_update_begin(&ns->syncp);
@@ -114,7 +116,8 @@ static int nsim_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct netdevsim *ns = netdev_priv(dev);
 
-	if (ns->xdp.prog && new_mtu > NSIM_XDP_MAX_MTU)
+	if (ns->xdp.prog && !ns->xdp.prog->aux->xdp_has_frags &&
+	    new_mtu > NSIM_XDP_MAX_MTU)
 		return -EBUSY;
 
 	WRITE_ONCE(dev->mtu, new_mtu);
@@ -401,7 +404,7 @@ static int nsim_init_napi(struct netdevsim *ns)
 	for (i = 0; i < dev->num_rx_queues; i++) {
 		rq = ns->rq[i];
 
-		netif_napi_add_config(dev, &rq->napi, nsim_poll, i);
+		netif_napi_add_config_locked(dev, &rq->napi, nsim_poll, i);
 	}
 
 	for (i = 0; i < dev->num_rx_queues; i++) {
@@ -421,9 +424,25 @@ err_pp_destroy:
 	}
 
 	for (i = 0; i < dev->num_rx_queues; i++)
-		__netif_napi_del(&ns->rq[i]->napi);
+		__netif_napi_del_locked(&ns->rq[i]->napi);
 
 	return err;
+}
+
+static enum hrtimer_restart nsim_napi_schedule(struct hrtimer *timer)
+{
+	struct nsim_rq *rq;
+
+	rq = container_of(timer, struct nsim_rq, napi_timer);
+	napi_schedule(&rq->napi);
+
+	return HRTIMER_NORESTART;
+}
+
+static void nsim_rq_timer_init(struct nsim_rq *rq)
+{
+	hrtimer_init(&rq->napi_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	rq->napi_timer.function = nsim_napi_schedule;
 }
 
 static void nsim_enable_napi(struct netdevsim *ns)
@@ -435,7 +454,7 @@ static void nsim_enable_napi(struct netdevsim *ns)
 		struct nsim_rq *rq = ns->rq[i];
 
 		netif_queue_set_napi(dev, i, NETDEV_QUEUE_TYPE_RX, &rq->napi);
-		napi_enable(&rq->napi);
+		napi_enable_locked(&rq->napi);
 	}
 }
 
@@ -443,6 +462,8 @@ static int nsim_open(struct net_device *dev)
 {
 	struct netdevsim *ns = netdev_priv(dev);
 	int err;
+
+	netdev_assert_locked(dev);
 
 	err = nsim_init_napi(ns);
 	if (err)
@@ -461,8 +482,8 @@ static void nsim_del_napi(struct netdevsim *ns)
 	for (i = 0; i < dev->num_rx_queues; i++) {
 		struct nsim_rq *rq = ns->rq[i];
 
-		napi_disable(&rq->napi);
-		__netif_napi_del(&rq->napi);
+		napi_disable_locked(&rq->napi);
+		__netif_napi_del_locked(&rq->napi);
 	}
 	synchronize_net();
 
@@ -476,6 +497,8 @@ static int nsim_stop(struct net_device *dev)
 {
 	struct netdevsim *ns = netdev_priv(dev);
 	struct netdevsim *peer;
+
+	netdev_assert_locked(dev);
 
 	netif_carrier_off(dev);
 	peer = rtnl_dereference(ns->peer);
@@ -615,11 +638,13 @@ static struct nsim_rq *nsim_queue_alloc(void)
 		return NULL;
 
 	skb_queue_head_init(&rq->skb_queue);
+	nsim_rq_timer_init(rq);
 	return rq;
 }
 
 static void nsim_queue_free(struct nsim_rq *rq)
 {
+	hrtimer_cancel(&rq->napi_timer);
 	skb_queue_purge_reason(&rq->skb_queue, SKB_DROP_REASON_QUEUE_PURGE);
 	kfree(rq);
 }
@@ -645,8 +670,11 @@ nsim_queue_mem_alloc(struct net_device *dev, void *per_queue_mem, int idx)
 	if (ns->rq_reset_mode > 3)
 		return -EINVAL;
 
-	if (ns->rq_reset_mode == 1)
+	if (ns->rq_reset_mode == 1) {
+		if (!netif_running(ns->netdev))
+			return -ENETDOWN;
 		return nsim_create_page_pool(&qmem->pp, &ns->rq[idx]->napi);
+	}
 
 	qmem->rq = nsim_queue_alloc();
 	if (!qmem->rq)
@@ -657,7 +685,8 @@ nsim_queue_mem_alloc(struct net_device *dev, void *per_queue_mem, int idx)
 		goto err_free;
 
 	if (!ns->rq_reset_mode)
-		netif_napi_add_config(dev, &qmem->rq->napi, nsim_poll, idx);
+		netif_napi_add_config_locked(dev, &qmem->rq->napi, nsim_poll,
+					     idx);
 
 	return 0;
 
@@ -674,7 +703,7 @@ static void nsim_queue_mem_free(struct net_device *dev, void *per_queue_mem)
 	page_pool_destroy(qmem->pp);
 	if (qmem->rq) {
 		if (!ns->rq_reset_mode)
-			netif_napi_del(&qmem->rq->napi);
+			netif_napi_del_locked(&qmem->rq->napi);
 		page_pool_destroy(qmem->rq->page_pool);
 		nsim_queue_free(qmem->rq);
 	}
@@ -686,9 +715,11 @@ nsim_queue_start(struct net_device *dev, void *per_queue_mem, int idx)
 	struct nsim_queue_mem *qmem = per_queue_mem;
 	struct netdevsim *ns = netdev_priv(dev);
 
+	netdev_assert_locked(dev);
+
 	if (ns->rq_reset_mode == 1) {
 		ns->rq[idx]->page_pool = qmem->pp;
-		napi_enable(&ns->rq[idx]->napi);
+		napi_enable_locked(&ns->rq[idx]->napi);
 		return 0;
 	}
 
@@ -696,15 +727,17 @@ nsim_queue_start(struct net_device *dev, void *per_queue_mem, int idx)
 	 * here we want to test various call orders.
 	 */
 	if (ns->rq_reset_mode == 2) {
-		netif_napi_del(&ns->rq[idx]->napi);
-		netif_napi_add_config(dev, &qmem->rq->napi, nsim_poll, idx);
+		netif_napi_del_locked(&ns->rq[idx]->napi);
+		netif_napi_add_config_locked(dev, &qmem->rq->napi, nsim_poll,
+					     idx);
 	} else if (ns->rq_reset_mode == 3) {
-		netif_napi_add_config(dev, &qmem->rq->napi, nsim_poll, idx);
-		netif_napi_del(&ns->rq[idx]->napi);
+		netif_napi_add_config_locked(dev, &qmem->rq->napi, nsim_poll,
+					     idx);
+		netif_napi_del_locked(&ns->rq[idx]->napi);
 	}
 
 	ns->rq[idx] = qmem->rq;
-	napi_enable(&ns->rq[idx]->napi);
+	napi_enable_locked(&ns->rq[idx]->napi);
 
 	return 0;
 }
@@ -714,7 +747,9 @@ static int nsim_queue_stop(struct net_device *dev, void *per_queue_mem, int idx)
 	struct nsim_queue_mem *qmem = per_queue_mem;
 	struct netdevsim *ns = netdev_priv(dev);
 
-	napi_disable(&ns->rq[idx]->napi);
+	netdev_assert_locked(dev);
+
+	napi_disable_locked(&ns->rq[idx]->napi);
 
 	if (ns->rq_reset_mode == 1) {
 		qmem->pp = ns->rq[idx]->page_pool;
@@ -753,12 +788,7 @@ nsim_qreset_write(struct file *file, const char __user *data,
 	if (ret != 2)
 		return -EINVAL;
 
-	rtnl_lock();
-	if (!netif_running(ns->netdev)) {
-		ret = -ENETDOWN;
-		goto exit_unlock;
-	}
-
+	netdev_lock(ns->netdev);
 	if (queue >= ns->netdev->real_num_rx_queues) {
 		ret = -EINVAL;
 		goto exit_unlock;
@@ -772,7 +802,7 @@ nsim_qreset_write(struct file *file, const char __user *data,
 
 	ret = count;
 exit_unlock:
-	rtnl_unlock();
+	netdev_unlock(ns->netdev);
 	return ret;
 }
 
