@@ -33,7 +33,7 @@ static int __init early_hostname(char *arg)
 early_param("hostname", early_hostname);
 
 const char linux_proc_banner[] =
-	"%s version %s"
+	"NeTT OS 7, using Linux: %s version %s"
 	" (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ")"
 	" (" LINUX_COMPILER ") %s\n";
 
