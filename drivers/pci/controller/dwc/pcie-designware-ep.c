@@ -167,7 +167,7 @@ static int dw_pcie_ep_write_header(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 }
 
 static int dw_pcie_ep_inbound_atu(struct dw_pcie_ep *ep, u8 func_no, int type,
-				  dma_addr_t cpu_addr, enum pci_barno bar,
+				  dma_addr_t parent_bus_addr, enum pci_barno bar,
 				  size_t size)
 {
 	int ret;
@@ -185,7 +185,7 @@ static int dw_pcie_ep_inbound_atu(struct dw_pcie_ep *ep, u8 func_no, int type,
 	}
 
 	ret = dw_pcie_prog_ep_inbound_atu(pci, func_no, free_win, type,
-					  cpu_addr, bar, size);
+					  parent_bus_addr, bar, size);
 	if (ret < 0) {
 		dev_err(pci->dev, "Failed to program IB window\n");
 		return ret;
@@ -220,7 +220,7 @@ static int dw_pcie_ep_outbound_atu(struct dw_pcie_ep *ep,
 		return ret;
 
 	set_bit(free_win, ep->ob_window_map);
-	ep->outbound_addr[free_win] = atu->cpu_addr;
+	ep->outbound_addr[free_win] = atu->parent_bus_addr;
 
 	return 0;
 }
@@ -451,7 +451,7 @@ static int dw_pcie_find_index(struct dw_pcie_ep *ep, phys_addr_t addr,
 	u32 index;
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 
-	for (index = 0; index < pci->num_ob_windows; index++) {
+	for_each_set_bit(index, ep->ob_window_map, pci->num_ob_windows) {
 		if (ep->outbound_addr[index] != addr)
 			continue;
 		*atu_index = index;
@@ -483,7 +483,8 @@ static void dw_pcie_ep_unmap_addr(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 	struct dw_pcie_ep *ep = epc_get_drvdata(epc);
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 
-	ret = dw_pcie_find_index(ep, addr, &atu_index);
+	ret = dw_pcie_find_index(ep, addr - pci->parent_bus_offset,
+				 &atu_index);
 	if (ret < 0)
 		return;
 
@@ -502,7 +503,7 @@ static int dw_pcie_ep_map_addr(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 
 	atu.func_no = func_no;
 	atu.type = PCIE_ATU_TYPE_MEM;
-	atu.cpu_addr = addr;
+	atu.parent_bus_addr = addr - pci->parent_bus_offset;
 	atu.pci_addr = pci_addr;
 	atu.size = size;
 	ret = dw_pcie_ep_outbound_atu(ep, &atu);
@@ -1060,26 +1061,15 @@ void dw_pcie_ep_linkdown(struct dw_pcie_ep *ep)
 }
 EXPORT_SYMBOL_GPL(dw_pcie_ep_linkdown);
 
-/**
- * dw_pcie_ep_init - Initialize the endpoint device
- * @ep: DWC EP device
- *
- * Initialize the endpoint device. Allocate resources and create the EPC
- * device with the endpoint framework.
- *
- * Return: 0 if success, errno otherwise.
- */
-int dw_pcie_ep_init(struct dw_pcie_ep *ep)
+static int dw_pcie_ep_get_resources(struct dw_pcie_ep *ep)
 {
-	int ret;
-	struct resource *res;
-	struct pci_epc *epc;
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct device *dev = pci->dev;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct device_node *np = dev->of_node;
-
-	INIT_LIST_HEAD(&ep->func_list);
+	struct pci_epc *epc = ep->epc;
+	struct resource *res;
+	int ret;
 
 	ret = dw_pcie_get_resources(pci);
 	if (ret)
@@ -1092,8 +1082,37 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 	ep->phys_base = res->start;
 	ep->addr_size = resource_size(res);
 
-	if (ep->ops->pre_init)
-		ep->ops->pre_init(ep);
+	/*
+	 * artpec6_pcie_cpu_addr_fixup() uses ep->phys_base, so call
+	 * dw_pcie_parent_bus_offset() after setting ep->phys_base.
+	 */
+	pci->parent_bus_offset = dw_pcie_parent_bus_offset(pci, "addr_space",
+							   ep->phys_base);
+
+	ret = of_property_read_u8(np, "max-functions", &epc->max_functions);
+	if (ret < 0)
+		epc->max_functions = 1;
+
+	return 0;
+}
+
+/**
+ * dw_pcie_ep_init - Initialize the endpoint device
+ * @ep: DWC EP device
+ *
+ * Initialize the endpoint device. Allocate resources and create the EPC
+ * device with the endpoint framework.
+ *
+ * Return: 0 if success, errno otherwise.
+ */
+int dw_pcie_ep_init(struct dw_pcie_ep *ep)
+{
+	int ret;
+	struct pci_epc *epc;
+	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
+	struct device *dev = pci->dev;
+
+	INIT_LIST_HEAD(&ep->func_list);
 
 	epc = devm_pci_epc_create(dev, &epc_ops);
 	if (IS_ERR(epc)) {
@@ -1104,9 +1123,12 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 	ep->epc = epc;
 	epc_set_drvdata(epc, ep);
 
-	ret = of_property_read_u8(np, "max-functions", &epc->max_functions);
-	if (ret < 0)
-		epc->max_functions = 1;
+	ret = dw_pcie_ep_get_resources(ep);
+	if (ret)
+		return ret;
+
+	if (ep->ops->pre_init)
+		ep->ops->pre_init(ep);
 
 	ret = pci_epc_mem_init(epc, ep->phys_base, ep->addr_size,
 			       ep->page_size);
