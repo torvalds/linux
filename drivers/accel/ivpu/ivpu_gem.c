@@ -282,7 +282,7 @@ static void ivpu_gem_bo_free(struct drm_gem_object *obj)
 	ivpu_bo_unbind_locked(bo);
 	mutex_destroy(&bo->lock);
 
-	drm_WARN_ON(obj->dev, bo->base.pages_use_count > 1);
+	drm_WARN_ON(obj->dev, refcount_read(&bo->base.pages_use_count) > 1);
 	drm_gem_shmem_free(&bo->base);
 }
 
