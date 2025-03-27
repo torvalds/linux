@@ -215,7 +215,8 @@ enum cache_policy {
 	((KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2)) ||	\
 	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3)) ||	\
 	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 4)) ||	\
-	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 5, 0)))
+	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 5, 0)) ||	\
+	 (KFD_GC_VERSION(dev) == IP_VERSION(12, 1, 0)))
 
 struct kfd_node;
 

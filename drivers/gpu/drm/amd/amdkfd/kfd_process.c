@@ -1557,7 +1557,8 @@ bool kfd_process_xnack_mode(struct kfd_process *p, bool supported)
 		 * management and memory-manager-related preemptions or
 		 * even deadlocks.
 		 */
-		if (KFD_GC_VERSION(dev) >= IP_VERSION(10, 1, 1))
+		if (KFD_GC_VERSION(dev) >= IP_VERSION(10, 1, 1) &&
+		    KFD_GC_VERSION(dev) < IP_VERSION(12, 1, 0))
 			return false;
 
 		if (dev->kfd->noretry)

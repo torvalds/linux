@@ -253,6 +253,7 @@ struct mes_add_queue_input {
 	uint32_t	is_aql_queue;
 	uint32_t	queue_size;
 	uint32_t	exclusively_scheduled;
+	uint32_t	sh_mem_config_data;
 };
 
 struct mes_remove_queue_input {
