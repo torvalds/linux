@@ -8,7 +8,7 @@
 
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 
-#define __EMIT_BUG(x) do {					\
+#define __EMIT_BUG(cond_str, x) do {				\
 	asm_inline volatile(					\
 		"0:	mc	0,0\n"				\
 		".section .rodata.str,\"aMS\",@progbits,1\n"	\
@@ -27,7 +27,7 @@
 
 #else /* CONFIG_DEBUG_BUGVERBOSE */
 
-#define __EMIT_BUG(x) do {					\
+#define __EMIT_BUG(cond_str, x) do {				\
 	asm_inline volatile(					\
 		"0:	mc	0,0\n"				\
 		".section __bug_table,\"aw\"\n"			\
@@ -42,12 +42,12 @@
 #endif /* CONFIG_DEBUG_BUGVERBOSE */
 
 #define BUG() do {					\
-	__EMIT_BUG(0);					\
+	__EMIT_BUG("", 0);				\
 	unreachable();					\
 } while (0)
 
 #define __WARN_FLAGS(cond_str, flags) do {		\
-	__EMIT_BUG(BUGFLAG_WARNING|(flags));		\
+	__EMIT_BUG(cond_str, BUGFLAG_WARNING|(flags));	\
 } while (0)
 
 #define WARN_ON(x) ({					\
