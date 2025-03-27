@@ -13,12 +13,12 @@ config EROFS_FS
 	  smartphones with Android OS, LiveCDs and high-density hosts with
 	  numerous containers;
 
-	  It also provides fixed-sized output compression support in order to
-	  improve storage density as well as keep relatively higher compression
-	  ratios and implements in-place decompression to reuse the file page
-	  for compressed data temporarily with proper strategies, which is
-	  quite useful to ensure guaranteed end-to-end runtime decompression
-	  performance under extremely memory pressure without extra cost.
+	  It also provides transparent compression and deduplication support to
+	  improve storage density and maintain relatively high compression
+	  ratios, and it implements in-place decompression to temporarily reuse
+	  page cache for compressed data using proper strategies, which is
+	  quite useful for ensuring guaranteed end-to-end runtime decompression
+	  performance under extreme memory pressure without extra cost.
 
 	  See the documentation at <file:Documentation/filesystems/erofs.rst>
 	  and the web pages at <https://erofs.docs.kernel.org> for more details.
@@ -97,7 +97,7 @@ config EROFS_FS_ZIP
 	select LZ4_DECOMPRESS
 	default y
 	help
-	  Enable fixed-sized output compression for EROFS.
+	  Enable transparent compression support for EROFS file systems.
 
 	  If you don't want to enable compression feature, say N.
 
