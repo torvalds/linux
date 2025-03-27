@@ -2029,7 +2029,7 @@ static void aac_pci_resume(struct pci_dev *pdev)
 	dev_err(&pdev->dev, "aacraid: PCI error - resume\n");
 }
 
-static struct pci_error_handlers aac_pci_err_handler = {
+static const struct pci_error_handlers aac_pci_err_handler = {
 	.error_detected		= aac_pci_error_detected,
 	.mmio_enabled		= aac_pci_mmio_enabled,
 	.slot_reset		= aac_pci_slot_reset,

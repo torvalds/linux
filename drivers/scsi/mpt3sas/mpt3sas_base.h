@@ -77,8 +77,8 @@
 #define MPT3SAS_DRIVER_NAME		"mpt3sas"
 #define MPT3SAS_AUTHOR "Avago Technologies <MPT-FusionLinux.pdl@avagotech.com>"
 #define MPT3SAS_DESCRIPTION	"LSI MPT Fusion SAS 3.0 Device Driver"
-#define MPT3SAS_DRIVER_VERSION		"51.100.00.00"
-#define MPT3SAS_MAJOR_VERSION		51
+#define MPT3SAS_DRIVER_VERSION		"52.100.00.00"
+#define MPT3SAS_MAJOR_VERSION		52
 #define MPT3SAS_MINOR_VERSION		100
 #define MPT3SAS_BUILD_VERSION		00
 #define MPT3SAS_RELEASE_VERSION		00
@@ -1858,9 +1858,6 @@ int mpt3sas_config_get_manufacturing_pg0(struct MPT3SAS_ADAPTER *ioc,
 int mpt3sas_config_get_manufacturing_pg1(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2ConfigReply_t *mpi_reply, Mpi2ManufacturingPage1_t *config_page);
 
-int mpt3sas_config_get_manufacturing_pg7(struct MPT3SAS_ADAPTER *ioc,
-	Mpi2ConfigReply_t *mpi_reply, Mpi2ManufacturingPage7_t *config_page,
-	u16 sz);
 int mpt3sas_config_get_manufacturing_pg10(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2ConfigReply_t *mpi_reply,
 	struct Mpi2ManufacturingPage10_t *config_page);
@@ -1886,9 +1883,6 @@ int mpt3sas_config_get_iounit_pg0(struct MPT3SAS_ADAPTER *ioc, Mpi2ConfigReply_t
 	*mpi_reply, Mpi2IOUnitPage0_t *config_page);
 int mpt3sas_config_get_sas_device_pg0(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2ConfigReply_t *mpi_reply, Mpi2SasDevicePage0_t *config_page,
-	u32 form, u32 handle);
-int mpt3sas_config_get_sas_device_pg1(struct MPT3SAS_ADAPTER *ioc,
-	Mpi2ConfigReply_t *mpi_reply, Mpi2SasDevicePage1_t *config_page,
 	u32 form, u32 handle);
 int mpt3sas_config_get_pcie_device_pg0(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2ConfigReply_t *mpi_reply, Mpi26PCIeDevicePage0_t *config_page,

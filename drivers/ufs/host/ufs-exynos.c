@@ -321,7 +321,7 @@ static int exynosauto_ufs_pre_pwr_change(struct exynos_ufs *ufs,
 }
 
 static int exynosauto_ufs_post_pwr_change(struct exynos_ufs *ufs,
-					  struct ufs_pa_layer_attr *pwr)
+					  const struct ufs_pa_layer_attr *pwr)
 {
 	struct ufs_hba *hba = ufs->hba;
 	u32 enabled_vh;
@@ -396,7 +396,7 @@ static int exynos7_ufs_pre_pwr_change(struct exynos_ufs *ufs,
 }
 
 static int exynos7_ufs_post_pwr_change(struct exynos_ufs *ufs,
-						struct ufs_pa_layer_attr *pwr)
+				       const struct ufs_pa_layer_attr *pwr)
 {
 	struct ufs_hba *hba = ufs->hba;
 	int lanes = max_t(u32, pwr->lane_rx, pwr->lane_tx);
@@ -813,7 +813,7 @@ static u32 exynos_ufs_get_hs_gear(struct ufs_hba *hba)
 }
 
 static int exynos_ufs_pre_pwr_mode(struct ufs_hba *hba,
-				struct ufs_pa_layer_attr *dev_max_params,
+				const struct ufs_pa_layer_attr *dev_max_params,
 				struct ufs_pa_layer_attr *dev_req_params)
 {
 	struct exynos_ufs *ufs = ufshcd_get_variant(hba);
@@ -865,7 +865,7 @@ out:
 
 #define PWR_MODE_STR_LEN	64
 static int exynos_ufs_post_pwr_mode(struct ufs_hba *hba,
-				struct ufs_pa_layer_attr *pwr_req)
+				const struct ufs_pa_layer_attr *pwr_req)
 {
 	struct exynos_ufs *ufs = ufshcd_get_variant(hba);
 	struct phy *generic_phy = ufs->phy;
@@ -1635,7 +1635,7 @@ static int exynos_ufs_link_startup_notify(struct ufs_hba *hba,
 
 static int exynos_ufs_pwr_change_notify(struct ufs_hba *hba,
 				enum ufs_notify_change_status status,
-				struct ufs_pa_layer_attr *dev_max_params,
+				const struct ufs_pa_layer_attr *dev_max_params,
 				struct ufs_pa_layer_attr *dev_req_params)
 {
 	int ret = 0;

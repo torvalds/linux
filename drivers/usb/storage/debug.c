@@ -58,8 +58,8 @@ void usb_stor_show_command(const struct us_data *us, struct scsi_cmnd *srb)
 	case INQUIRY: what = "INQUIRY"; break;
 	case RECOVER_BUFFERED_DATA: what = "RECOVER_BUFFERED_DATA"; break;
 	case MODE_SELECT: what = "MODE_SELECT"; break;
-	case RESERVE: what = "RESERVE"; break;
-	case RELEASE: what = "RELEASE"; break;
+	case RESERVE_6: what = "RESERVE"; break;
+	case RELEASE_6: what = "RELEASE"; break;
 	case COPY: what = "COPY"; break;
 	case ERASE: what = "ERASE"; break;
 	case MODE_SENSE: what = "MODE_SENSE"; break;

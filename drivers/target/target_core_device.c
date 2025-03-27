@@ -1078,8 +1078,8 @@ passthrough_parse_cdb(struct se_cmd *cmd,
 	if (!dev->dev_attrib.emulate_pr &&
 	    ((cdb[0] == PERSISTENT_RESERVE_IN) ||
 	     (cdb[0] == PERSISTENT_RESERVE_OUT) ||
-	     (cdb[0] == RELEASE || cdb[0] == RELEASE_10) ||
-	     (cdb[0] == RESERVE || cdb[0] == RESERVE_10))) {
+	     (cdb[0] == RELEASE_6 || cdb[0] == RELEASE_10) ||
+	     (cdb[0] == RESERVE_6 || cdb[0] == RESERVE_10))) {
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
 	}
 
@@ -1101,7 +1101,7 @@ passthrough_parse_cdb(struct se_cmd *cmd,
 			return target_cmd_size_check(cmd, size);
 		}
 
-		if (cdb[0] == RELEASE || cdb[0] == RELEASE_10) {
+		if (cdb[0] == RELEASE_6 || cdb[0] == RELEASE_10) {
 			cmd->execute_cmd = target_scsi2_reservation_release;
 			if (cdb[0] == RELEASE_10)
 				size = get_unaligned_be16(&cdb[7]);
@@ -1109,7 +1109,7 @@ passthrough_parse_cdb(struct se_cmd *cmd,
 				size = cmd->data_length;
 			return target_cmd_size_check(cmd, size);
 		}
-		if (cdb[0] == RESERVE || cdb[0] == RESERVE_10) {
+		if (cdb[0] == RESERVE_6 || cdb[0] == RESERVE_10) {
 			cmd->execute_cmd = target_scsi2_reservation_reserve;
 			if (cdb[0] == RESERVE_10)
 				size = get_unaligned_be16(&cdb[7]);
