@@ -1303,6 +1303,7 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	struct io_sr_msg *zc = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_kiocb *notif;
+	int ret;
 
 	zc->done_io = 0;
 	zc->retry = false;
@@ -1355,7 +1356,16 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		req->flags |= REQ_F_IMPORT_BUFFER;
 		return io_send_setup(req, sqe);
 	}
-	return io_sendmsg_zc_setup(req, sqe);
+	ret = io_sendmsg_zc_setup(req, sqe);
+	if (unlikely(ret))
+		return ret;
+
+	if (!(zc->flags & IORING_RECVSEND_FIXED_BUF)) {
+		struct io_async_msghdr *iomsg = req->async_data;
+
+		return io_notif_account_mem(zc->notif, iomsg->msg.msg_iter.count);
+	}
+	return 0;
 }
 
 static int io_sg_from_iter_iovec(struct sk_buff *skb,
