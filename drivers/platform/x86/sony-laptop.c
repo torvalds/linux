@@ -3327,8 +3327,10 @@ struct sony_pic_ioport {
 };
 
 struct sony_pic_irq {
-	struct acpi_resource_irq	irq;
 	struct list_head		list;
+
+	/* Must be last --ends in a flexible-array member. */
+	struct acpi_resource_irq	irq;
 };
 
 struct sonypi_eventtypes {
