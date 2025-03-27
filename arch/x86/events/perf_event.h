@@ -120,6 +120,11 @@ static inline bool is_pebs_counter_event_group(struct perf_event *event)
 	return event->group_leader->hw.flags & PERF_X86_EVENT_PEBS_CNTR;
 }
 
+static inline bool is_acr_event_group(struct perf_event *event)
+{
+	return event->group_leader->hw.flags & PERF_X86_EVENT_ACR;
+}
+
 struct amd_nb {
 	int nb_id;  /* NorthBridge id */
 	int refcnt; /* reference count */
@@ -286,6 +291,10 @@ struct cpu_hw_events {
 	/* Intel Fixed counter configuration */
 	u64			fixed_ctrl_val;
 	u64			active_fixed_ctrl_val;
+
+	/* Intel ACR configuration */
+	u64			acr_cfg_b[X86_PMC_IDX_MAX];
+	u64			acr_cfg_c[X86_PMC_IDX_MAX];
 
 	/*
 	 * Intel LBR bits
@@ -1103,6 +1112,7 @@ static struct perf_pmu_format_hybrid_attr format_attr_hybrid_##_name = {\
 	.pmu_type	= _pmu,						\
 }
 
+int is_x86_event(struct perf_event *event);
 struct pmu *x86_get_pmu(unsigned int cpu);
 extern struct x86_pmu x86_pmu __read_mostly;
 

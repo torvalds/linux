@@ -2603,7 +2603,8 @@ static void intel_pmu_del_event(struct perf_event *event)
 		intel_pmu_lbr_del(event);
 	if (event->attr.precise_ip)
 		intel_pmu_pebs_del(event);
-	if (is_pebs_counter_event_group(event))
+	if (is_pebs_counter_event_group(event) ||
+	    is_acr_event_group(event))
 		this_cpu_ptr(&cpu_hw_events)->n_late_setup--;
 }
 
@@ -2882,6 +2883,52 @@ static void intel_pmu_enable_fixed(struct perf_event *event)
 	cpuc->fixed_ctrl_val |= bits;
 }
 
+static void intel_pmu_config_acr(int idx, u64 mask, u32 reload)
+{
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+	int msr_b, msr_c;
+
+	if (!mask && !cpuc->acr_cfg_b[idx])
+		return;
+
+	if (idx < INTEL_PMC_IDX_FIXED) {
+		msr_b = MSR_IA32_PMC_V6_GP0_CFG_B;
+		msr_c = MSR_IA32_PMC_V6_GP0_CFG_C;
+	} else {
+		msr_b = MSR_IA32_PMC_V6_FX0_CFG_B;
+		msr_c = MSR_IA32_PMC_V6_FX0_CFG_C;
+		idx -= INTEL_PMC_IDX_FIXED;
+	}
+
+	if (cpuc->acr_cfg_b[idx] != mask) {
+		wrmsrl(msr_b + x86_pmu.addr_offset(idx, false), mask);
+		cpuc->acr_cfg_b[idx] = mask;
+	}
+	/* Only need to update the reload value when there is a valid config value. */
+	if (mask && cpuc->acr_cfg_c[idx] != reload) {
+		wrmsrl(msr_c + x86_pmu.addr_offset(idx, false), reload);
+		cpuc->acr_cfg_c[idx] = reload;
+	}
+}
+
+static void intel_pmu_enable_acr(struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+
+	if (!is_acr_event_group(event) || !event->attr.config2) {
+		/*
+		 * The disable doesn't clear the ACR CFG register.
+		 * Check and clear the ACR CFG register.
+		 */
+		intel_pmu_config_acr(hwc->idx, 0, 0);
+		return;
+	}
+
+	intel_pmu_config_acr(hwc->idx, hwc->config1, -hwc->sample_period);
+}
+
+DEFINE_STATIC_CALL_NULL(intel_pmu_enable_acr_event, intel_pmu_enable_acr);
+
 static void intel_pmu_enable_event(struct perf_event *event)
 {
 	u64 enable_mask = ARCH_PERFMON_EVENTSEL_ENABLE;
@@ -2896,9 +2943,12 @@ static void intel_pmu_enable_event(struct perf_event *event)
 		if (branch_sample_counters(event))
 			enable_mask |= ARCH_PERFMON_EVENTSEL_BR_CNTR;
 		intel_set_masks(event, idx);
+		static_call_cond(intel_pmu_enable_acr_event)(event);
 		__x86_pmu_enable_event(hwc, enable_mask);
 		break;
 	case INTEL_PMC_IDX_FIXED ... INTEL_PMC_IDX_FIXED_BTS - 1:
+		static_call_cond(intel_pmu_enable_acr_event)(event);
+		fallthrough;
 	case INTEL_PMC_IDX_METRIC_BASE ... INTEL_PMC_IDX_METRIC_END:
 		intel_pmu_enable_fixed(event);
 		break;
@@ -2916,6 +2966,31 @@ static void intel_pmu_enable_event(struct perf_event *event)
 	}
 }
 
+static void intel_pmu_acr_late_setup(struct cpu_hw_events *cpuc)
+{
+	struct perf_event *event, *leader;
+	int i, j, idx;
+
+	for (i = 0; i < cpuc->n_events; i++) {
+		leader = cpuc->event_list[i];
+		if (!is_acr_event_group(leader))
+			continue;
+
+		/* The ACR events must be contiguous. */
+		for (j = i; j < cpuc->n_events; j++) {
+			event = cpuc->event_list[j];
+			if (event->group_leader != leader->group_leader)
+				break;
+			for_each_set_bit(idx, (unsigned long *)&event->attr.config2, X86_PMC_IDX_MAX) {
+				if (WARN_ON_ONCE(i + idx > cpuc->n_events))
+					return;
+				__set_bit(cpuc->assign[i + idx], (unsigned long *)&event->hw.config1);
+			}
+		}
+		i = j - 1;
+	}
+}
+
 void intel_pmu_late_setup(void)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
@@ -2924,6 +2999,7 @@ void intel_pmu_late_setup(void)
 		return;
 
 	intel_pmu_pebs_late_setup(cpuc);
+	intel_pmu_acr_late_setup(cpuc);
 }
 
 static void intel_pmu_add_event(struct perf_event *event)
@@ -2932,7 +3008,8 @@ static void intel_pmu_add_event(struct perf_event *event)
 		intel_pmu_pebs_add(event);
 	if (intel_pmu_needs_branch_stack(event))
 		intel_pmu_lbr_add(event);
-	if (is_pebs_counter_event_group(event))
+	if (is_pebs_counter_event_group(event) ||
+	    is_acr_event_group(event))
 		this_cpu_ptr(&cpu_hw_events)->n_late_setup++;
 }
 
@@ -4087,6 +4164,39 @@ end:
 	return start;
 }
 
+static inline bool intel_pmu_has_acr(struct pmu *pmu)
+{
+	return !!hybrid(pmu, acr_cause_mask64);
+}
+
+static bool intel_pmu_is_acr_group(struct perf_event *event)
+{
+	/* The group leader has the ACR flag set */
+	if (is_acr_event_group(event))
+		return true;
+
+	/* The acr_mask is set */
+	if (event->attr.config2)
+		return true;
+
+	return false;
+}
+
+static inline void intel_pmu_set_acr_cntr_constr(struct perf_event *event,
+						 u64 *cause_mask, int *num)
+{
+	event->hw.dyn_constraint &= hybrid(event->pmu, acr_cntr_mask64);
+	*cause_mask |= event->attr.config2;
+	*num += 1;
+}
+
+static inline void intel_pmu_set_acr_caused_constr(struct perf_event *event,
+						   int idx, u64 cause_mask)
+{
+	if (test_bit(idx, (unsigned long *)&cause_mask))
+		event->hw.dyn_constraint &= hybrid(event->pmu, acr_cause_mask64);
+}
+
 static int intel_pmu_hw_config(struct perf_event *event)
 {
 	int ret = x86_pmu_hw_config(event);
@@ -4214,6 +4324,94 @@ static int intel_pmu_hw_config(struct perf_event *event)
 	    is_sampling_event(event) &&
 	    event->attr.precise_ip)
 		event->group_leader->hw.flags |= PERF_X86_EVENT_PEBS_CNTR;
+
+	if (intel_pmu_has_acr(event->pmu) && intel_pmu_is_acr_group(event)) {
+		struct perf_event *sibling, *leader = event->group_leader;
+		struct pmu *pmu = event->pmu;
+		bool has_sw_event = false;
+		int num = 0, idx = 0;
+		u64 cause_mask = 0;
+
+		/* Not support perf metrics */
+		if (is_metric_event(event))
+			return -EINVAL;
+
+		/* Not support freq mode */
+		if (event->attr.freq)
+			return -EINVAL;
+
+		/* PDist is not supported */
+		if (event->attr.config2 && event->attr.precise_ip > 2)
+			return -EINVAL;
+
+		/* The reload value cannot exceeds the max period */
+		if (event->attr.sample_period > x86_pmu.max_period)
+			return -EINVAL;
+		/*
+		 * The counter-constraints of each event cannot be finalized
+		 * unless the whole group is scanned. However, it's hard
+		 * to know whether the event is the last one of the group.
+		 * Recalculate the counter-constraints for each event when
+		 * adding a new event.
+		 *
+		 * The group is traversed twice, which may be optimized later.
+		 * In the first round,
+		 * - Find all events which do reload when other events
+		 *   overflow and set the corresponding counter-constraints
+		 * - Add all events, which can cause other events reload,
+		 *   in the cause_mask
+		 * - Error out if the number of events exceeds the HW limit
+		 * - The ACR events must be contiguous.
+		 *   Error out if there are non-X86 events between ACR events.
+		 *   This is not a HW limit, but a SW limit.
+		 *   With the assumption, the intel_pmu_acr_late_setup() can
+		 *   easily convert the event idx to counter idx without
+		 *   traversing the whole event list.
+		 */
+		if (!is_x86_event(leader))
+			return -EINVAL;
+
+		if (leader->attr.config2)
+			intel_pmu_set_acr_cntr_constr(leader, &cause_mask, &num);
+
+		if (leader->nr_siblings) {
+			for_each_sibling_event(sibling, leader) {
+				if (!is_x86_event(sibling)) {
+					has_sw_event = true;
+					continue;
+				}
+				if (!sibling->attr.config2)
+					continue;
+				if (has_sw_event)
+					return -EINVAL;
+				intel_pmu_set_acr_cntr_constr(sibling, &cause_mask, &num);
+			}
+		}
+		if (leader != event && event->attr.config2) {
+			if (has_sw_event)
+				return -EINVAL;
+			intel_pmu_set_acr_cntr_constr(event, &cause_mask, &num);
+		}
+
+		if (hweight64(cause_mask) > hweight64(hybrid(pmu, acr_cause_mask64)) ||
+		    num > hweight64(hybrid(event->pmu, acr_cntr_mask64)))
+			return -EINVAL;
+		/*
+		 * In the second round, apply the counter-constraints for
+		 * the events which can cause other events reload.
+		 */
+		intel_pmu_set_acr_caused_constr(leader, idx++, cause_mask);
+
+		if (leader->nr_siblings) {
+			for_each_sibling_event(sibling, leader)
+				intel_pmu_set_acr_caused_constr(sibling, idx++, cause_mask);
+		}
+
+		if (leader != event)
+			intel_pmu_set_acr_caused_constr(event, idx, cause_mask);
+
+		leader->hw.flags |= PERF_X86_EVENT_ACR;
+	}
 
 	if ((event->attr.type == PERF_TYPE_HARDWARE) ||
 	    (event->attr.type == PERF_TYPE_HW_CACHE))
@@ -6061,6 +6259,21 @@ td_is_visible(struct kobject *kobj, struct attribute *attr, int i)
 	return attr->mode;
 }
 
+PMU_FORMAT_ATTR(acr_mask,	"config2:0-63");
+
+static struct attribute *format_acr_attrs[] = {
+	&format_attr_acr_mask.attr,
+	NULL
+};
+
+static umode_t
+acr_is_visible(struct kobject *kobj, struct attribute *attr, int i)
+{
+	struct device *dev = kobj_to_dev(kobj);
+
+	return intel_pmu_has_acr(dev_get_drvdata(dev)) ? attr->mode : 0;
+}
+
 static struct attribute_group group_events_td  = {
 	.name = "events",
 	.is_visible = td_is_visible,
@@ -6103,6 +6316,12 @@ static struct attribute_group group_format_evtsel_ext = {
 	.is_visible = evtsel_ext_is_visible,
 };
 
+static struct attribute_group group_format_acr = {
+	.name       = "format",
+	.attrs      = format_acr_attrs,
+	.is_visible = acr_is_visible,
+};
+
 static struct attribute_group group_default = {
 	.attrs      = intel_pmu_attrs,
 	.is_visible = default_is_visible,
@@ -6117,6 +6336,7 @@ static const struct attribute_group *attr_update[] = {
 	&group_format_extra,
 	&group_format_extra_skl,
 	&group_format_evtsel_ext,
+	&group_format_acr,
 	&group_default,
 	NULL,
 };
@@ -6401,6 +6621,7 @@ static const struct attribute_group *hybrid_attr_update[] = {
 	&group_caps_lbr,
 	&hybrid_group_format_extra,
 	&group_format_evtsel_ext,
+	&group_format_acr,
 	&group_default,
 	&hybrid_group_cpus,
 	NULL,
@@ -6593,6 +6814,7 @@ static __always_inline void intel_pmu_init_skt(struct pmu *pmu)
 	intel_pmu_init_grt(pmu);
 	hybrid(pmu, event_constraints) = intel_skt_event_constraints;
 	hybrid(pmu, extra_regs) = intel_cmt_extra_regs;
+	static_call_update(intel_pmu_enable_acr_event, intel_pmu_enable_acr);
 }
 
 __init int intel_pmu_init(void)
