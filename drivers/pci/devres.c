@@ -956,30 +956,6 @@ err:
 EXPORT_SYMBOL(pcim_request_all_regions);
 
 /**
- * pcim_iounmap_regions - Unmap and release PCI BARs (DEPRECATED)
- * @pdev: PCI device to map IO resources for
- * @mask: Mask of BARs to unmap and release
- *
- * Unmap and release regions specified by @mask.
- *
- * This function is DEPRECATED. Do not use it in new code.
- * Use pcim_iounmap_region() instead.
- */
-void pcim_iounmap_regions(struct pci_dev *pdev, int mask)
-{
-	int i;
-
-	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
-		if (!mask_contains_bar(mask, i))
-			continue;
-
-		pcim_iounmap_region(pdev, i);
-		pcim_remove_bar_from_legacy_table(pdev, i);
-	}
-}
-EXPORT_SYMBOL(pcim_iounmap_regions);
-
-/**
  * pcim_iomap_range - Create a ranged __iomap mapping within a PCI BAR
  * @pdev: PCI device to map IO resources for
  * @bar: Index of the BAR
