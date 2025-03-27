@@ -675,7 +675,7 @@ static int shpc_get_cur_bus_speed(struct controller *ctrl)
 
  out:
 	bus->cur_bus_speed = bus_speed;
-	dbg("Current bus speed = %d\n", bus_speed);
+	ctrl_dbg(ctrl, "Current bus speed = %d\n", bus_speed);
 	return retval;
 }
 

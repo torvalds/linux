@@ -22,7 +22,6 @@
 #include "shpchp.h"
 
 /* Global variables */
-bool shpchp_debug;
 bool shpchp_poll_mode;
 int shpchp_poll_time;
 
@@ -33,10 +32,8 @@ int shpchp_poll_time;
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 
-module_param(shpchp_debug, bool, 0644);
 module_param(shpchp_poll_mode, bool, 0644);
 module_param(shpchp_poll_time, int, 0644);
-MODULE_PARM_DESC(shpchp_debug, "Debugging mode enabled or not");
 MODULE_PARM_DESC(shpchp_poll_mode, "Using polling mechanism for hot-plug events or not");
 MODULE_PARM_DESC(shpchp_poll_time, "Polling mechanism frequency, in seconds");
 
@@ -324,20 +321,12 @@ static struct pci_driver shpc_driver = {
 
 static int __init shpcd_init(void)
 {
-	int retval;
-
-	retval = pci_register_driver(&shpc_driver);
-	dbg("%s: pci_register_driver = %d\n", __func__, retval);
-	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
-
-	return retval;
+	return pci_register_driver(&shpc_driver);
 }
 
 static void __exit shpcd_cleanup(void)
 {
-	dbg("unload_shpchpd()\n");
 	pci_unregister_driver(&shpc_driver);
-	info(DRIVER_DESC " version: " DRIVER_VERSION " unloaded\n");
 }
 
 module_init(shpcd_init);
