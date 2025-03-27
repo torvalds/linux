@@ -20,6 +20,7 @@
 #include "snapshot.h"
 
 #include <linux/prefetch.h>
+#include <linux/string_helpers.h>
 
 static const char * const trans_commit_flags_strs[] = {
 #define x(n, ...) #n,
@@ -366,7 +367,8 @@ static noinline void journal_transaction_name(struct btree_trans *trans)
 	struct jset_entry_log *l =
 		container_of(entry, struct jset_entry_log, entry);
 
-	strncpy(l->d, trans->fn, JSET_ENTRY_LOG_U64s * sizeof(u64));
+	memcpy_and_pad(l->d, JSET_ENTRY_LOG_U64s * sizeof(u64),
+		       trans->fn, strlen(trans->fn), 0);
 }
 
 static inline int btree_key_can_insert(struct btree_trans *trans,
