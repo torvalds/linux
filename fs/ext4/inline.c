@@ -20,6 +20,11 @@
 #define EXT4_INLINE_DOTDOT_OFFSET	2
 #define EXT4_INLINE_DOTDOT_SIZE		4
 
+
+static int ext4_da_convert_inline_data_to_extent(struct address_space *mapping,
+						 struct inode *inode,
+						 void **fsdata);
+
 static int ext4_get_inline_size(struct inode *inode)
 {
 	if (EXT4_I(inode)->i_inline_off)
@@ -228,7 +233,7 @@ static void ext4_write_inline_data(struct inode *inode, struct ext4_iloc *iloc,
 	struct ext4_inode *raw_inode;
 	int cp_len = 0;
 
-	if (unlikely(ext4_forced_shutdown(inode->i_sb)))
+	if (unlikely(ext4_emergency_state(inode->i_sb)))
 		return;
 
 	BUG_ON(!EXT4_I(inode)->i_inline_off);
@@ -653,6 +658,95 @@ out_nofolio:
 }
 
 /*
+ * Prepare the write for the inline data.
+ * If the data can be written into the inode, we just read
+ * the page and make it uptodate, and start the journal.
+ * Otherwise read the page, makes it dirty so that it can be
+ * handle in writepages(the i_disksize update is left to the
+ * normal ext4_da_write_end).
+ */
+int ext4_generic_write_inline_data(struct address_space *mapping,
+					  struct inode *inode,
+					  loff_t pos, unsigned len,
+					  struct folio **foliop,
+					  void **fsdata, bool da)
+{
+	int ret;
+	handle_t *handle;
+	struct folio *folio;
+	struct ext4_iloc iloc;
+	int retries = 0;
+
+	ret = ext4_get_inode_loc(inode, &iloc);
+	if (ret)
+		return ret;
+
+retry_journal:
+	handle = ext4_journal_start(inode, EXT4_HT_INODE, 1);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		goto out_release_bh;
+	}
+
+	ret = ext4_prepare_inline_data(handle, inode, pos + len);
+	if (ret && ret != -ENOSPC)
+		goto out_stop_journal;
+
+	if (ret == -ENOSPC) {
+		ext4_journal_stop(handle);
+		if (!da) {
+			brelse(iloc.bh);
+			/* Retry inside */
+			return ext4_convert_inline_data_to_extent(mapping, inode);
+		}
+
+		ret = ext4_da_convert_inline_data_to_extent(mapping, inode, fsdata);
+		if (ret == -ENOSPC &&
+		    ext4_should_retry_alloc(inode->i_sb, &retries))
+			goto retry_journal;
+		goto out_release_bh;
+	}
+
+	folio = __filemap_get_folio(mapping, 0, FGP_WRITEBEGIN | FGP_NOFS,
+					mapping_gfp_mask(mapping));
+	if (IS_ERR(folio)) {
+		ret = PTR_ERR(folio);
+		goto out_stop_journal;
+	}
+
+	down_read(&EXT4_I(inode)->xattr_sem);
+	/* Someone else had converted it to extent */
+	if (!ext4_has_inline_data(inode)) {
+		ret = 0;
+		goto out_release_folio;
+	}
+
+	if (!folio_test_uptodate(folio)) {
+		ret = ext4_read_inline_folio(inode, folio);
+		if (ret < 0)
+			goto out_release_folio;
+	}
+
+	ret = ext4_journal_get_write_access(handle, inode->i_sb, iloc.bh, EXT4_JTR_NONE);
+	if (ret)
+		goto out_release_folio;
+	*foliop = folio;
+	up_read(&EXT4_I(inode)->xattr_sem);
+	brelse(iloc.bh);
+	return 1;
+
+out_release_folio:
+	up_read(&EXT4_I(inode)->xattr_sem);
+	folio_unlock(folio);
+	folio_put(folio);
+out_stop_journal:
+	ext4_journal_stop(handle);
+out_release_bh:
+	brelse(iloc.bh);
+	return ret;
+}
+
+/*
  * Try to write data in the inode.
  * If the inode has inline data, check whether the new write can be
  * in the inode also. If not, create the page the handle, move the data
@@ -663,81 +757,10 @@ int ext4_try_to_write_inline_data(struct address_space *mapping,
 				  loff_t pos, unsigned len,
 				  struct folio **foliop)
 {
-	int ret;
-	handle_t *handle;
-	struct folio *folio;
-	struct ext4_iloc iloc;
-
 	if (pos + len > ext4_get_max_inline_size(inode))
-		goto convert;
-
-	ret = ext4_get_inode_loc(inode, &iloc);
-	if (ret)
-		return ret;
-
-	/*
-	 * The possible write could happen in the inode,
-	 * so try to reserve the space in inode first.
-	 */
-	handle = ext4_journal_start(inode, EXT4_HT_INODE, 1);
-	if (IS_ERR(handle)) {
-		ret = PTR_ERR(handle);
-		handle = NULL;
-		goto out;
-	}
-
-	ret = ext4_prepare_inline_data(handle, inode, pos + len);
-	if (ret && ret != -ENOSPC)
-		goto out;
-
-	/* We don't have space in inline inode, so convert it to extent. */
-	if (ret == -ENOSPC) {
-		ext4_journal_stop(handle);
-		brelse(iloc.bh);
-		goto convert;
-	}
-
-	ret = ext4_journal_get_write_access(handle, inode->i_sb, iloc.bh,
-					    EXT4_JTR_NONE);
-	if (ret)
-		goto out;
-
-	folio = __filemap_get_folio(mapping, 0, FGP_WRITEBEGIN | FGP_NOFS,
-					mapping_gfp_mask(mapping));
-	if (IS_ERR(folio)) {
-		ret = PTR_ERR(folio);
-		goto out;
-	}
-
-	*foliop = folio;
-	down_read(&EXT4_I(inode)->xattr_sem);
-	if (!ext4_has_inline_data(inode)) {
-		ret = 0;
-		folio_unlock(folio);
-		folio_put(folio);
-		goto out_up_read;
-	}
-
-	if (!folio_test_uptodate(folio)) {
-		ret = ext4_read_inline_folio(inode, folio);
-		if (ret < 0) {
-			folio_unlock(folio);
-			folio_put(folio);
-			goto out_up_read;
-		}
-	}
-
-	ret = 1;
-	handle = NULL;
-out_up_read:
-	up_read(&EXT4_I(inode)->xattr_sem);
-out:
-	if (handle && (ret != 1))
-		ext4_journal_stop(handle);
-	brelse(iloc.bh);
-	return ret;
-convert:
-	return ext4_convert_inline_data_to_extent(mapping, inode);
+		return ext4_convert_inline_data_to_extent(mapping, inode);
+	return ext4_generic_write_inline_data(mapping, inode, pos, len,
+					      foliop, NULL, false);
 }
 
 int ext4_write_inline_data_end(struct inode *inode, loff_t pos, unsigned len,
@@ -881,94 +904,6 @@ out:
 	return ret;
 }
 
-/*
- * Prepare the write for the inline data.
- * If the data can be written into the inode, we just read
- * the page and make it uptodate, and start the journal.
- * Otherwise read the page, makes it dirty so that it can be
- * handle in writepages(the i_disksize update is left to the
- * normal ext4_da_write_end).
- */
-int ext4_da_write_inline_data_begin(struct address_space *mapping,
-				    struct inode *inode,
-				    loff_t pos, unsigned len,
-				    struct folio **foliop,
-				    void **fsdata)
-{
-	int ret;
-	handle_t *handle;
-	struct folio *folio;
-	struct ext4_iloc iloc;
-	int retries = 0;
-
-	ret = ext4_get_inode_loc(inode, &iloc);
-	if (ret)
-		return ret;
-
-retry_journal:
-	handle = ext4_journal_start(inode, EXT4_HT_INODE, 1);
-	if (IS_ERR(handle)) {
-		ret = PTR_ERR(handle);
-		goto out;
-	}
-
-	ret = ext4_prepare_inline_data(handle, inode, pos + len);
-	if (ret && ret != -ENOSPC)
-		goto out_journal;
-
-	if (ret == -ENOSPC) {
-		ext4_journal_stop(handle);
-		ret = ext4_da_convert_inline_data_to_extent(mapping,
-							    inode,
-							    fsdata);
-		if (ret == -ENOSPC &&
-		    ext4_should_retry_alloc(inode->i_sb, &retries))
-			goto retry_journal;
-		goto out;
-	}
-
-	/*
-	 * We cannot recurse into the filesystem as the transaction
-	 * is already started.
-	 */
-	folio = __filemap_get_folio(mapping, 0, FGP_WRITEBEGIN | FGP_NOFS,
-					mapping_gfp_mask(mapping));
-	if (IS_ERR(folio)) {
-		ret = PTR_ERR(folio);
-		goto out_journal;
-	}
-
-	down_read(&EXT4_I(inode)->xattr_sem);
-	if (!ext4_has_inline_data(inode)) {
-		ret = 0;
-		goto out_release_page;
-	}
-
-	if (!folio_test_uptodate(folio)) {
-		ret = ext4_read_inline_folio(inode, folio);
-		if (ret < 0)
-			goto out_release_page;
-	}
-	ret = ext4_journal_get_write_access(handle, inode->i_sb, iloc.bh,
-					    EXT4_JTR_NONE);
-	if (ret)
-		goto out_release_page;
-
-	up_read(&EXT4_I(inode)->xattr_sem);
-	*foliop = folio;
-	brelse(iloc.bh);
-	return 1;
-out_release_page:
-	up_read(&EXT4_I(inode)->xattr_sem);
-	folio_unlock(folio);
-	folio_put(folio);
-out_journal:
-	ext4_journal_stop(handle);
-out:
-	brelse(iloc.bh);
-	return ret;
-}
-
 #ifdef INLINE_DIR_DEBUG
 void ext4_show_inline_dir(struct inode *dir, struct buffer_head *bh,
 			  void *inline_start, int inline_size)
@@ -1012,7 +947,7 @@ static int ext4_add_dirent_to_inline(handle_t *handle,
 	int		err;
 	struct ext4_dir_entry_2 *de;
 
-	err = ext4_find_dest_de(dir, inode, iloc->bh, inline_start,
+	err = ext4_find_dest_de(dir, iloc->bh, inline_start,
 				inline_size, fname, &de);
 	if (err)
 		return err;
@@ -1146,7 +1081,7 @@ static int ext4_finish_convert_inline_dir(handle_t *handle,
 	memcpy((void *)de, buf + EXT4_INLINE_DOTDOT_SIZE,
 		inline_size - EXT4_INLINE_DOTDOT_SIZE);
 
-	if (ext4_has_metadata_csum(inode->i_sb))
+	if (ext4_has_feature_metadata_csum(inode->i_sb))
 		csum_size = sizeof(struct ext4_dir_entry_tail);
 
 	inode->i_size = inode->i_sb->s_blocksize;
