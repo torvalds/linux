@@ -24,7 +24,7 @@
 
 #include "kfd_device_queue_manager.h"
 #include "gc/gc_12_1_0_sh_mask.h"
-#include "soc24_enum.h"
+#include "soc_v1_0_enum.h"
 
 static int update_qpd_v12_1(struct device_queue_manager *dqm,
 			 struct qcm_process_device *qpd);
