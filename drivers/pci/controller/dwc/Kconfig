@@ -6,6 +6,16 @@ menu "DesignWare-based PCIe controllers"
 config PCIE_DW
 	bool
 
+config PCIE_DW_DEBUGFS
+	bool "DesignWare PCIe debugfs entries"
+	depends on DEBUG_FS
+	depends on PCIE_DW_HOST || PCIE_DW_EP
+	help
+	  Say Y here to enable debugfs entries for the PCIe controller. These
+	  entries provide various debug features related to the controller and
+	  expose the RAS DES capabilities such as Silicon Debug, Error Injection
+	  and Statistical Counters.
+
 config PCIE_DW_HOST
 	bool
 	select PCIE_DW

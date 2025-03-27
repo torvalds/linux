@@ -330,9 +330,40 @@ enum dw_pcie_ltssm {
 	/* Need to align with PCIE_PORT_DEBUG0 bits 0:5 */
 	DW_PCIE_LTSSM_DETECT_QUIET = 0x0,
 	DW_PCIE_LTSSM_DETECT_ACT = 0x1,
+	DW_PCIE_LTSSM_POLL_ACTIVE = 0x2,
+	DW_PCIE_LTSSM_POLL_COMPLIANCE = 0x3,
+	DW_PCIE_LTSSM_POLL_CONFIG = 0x4,
+	DW_PCIE_LTSSM_PRE_DETECT_QUIET = 0x5,
 	DW_PCIE_LTSSM_DETECT_WAIT = 0x6,
+	DW_PCIE_LTSSM_CFG_LINKWD_START = 0x7,
+	DW_PCIE_LTSSM_CFG_LINKWD_ACEPT = 0x8,
+	DW_PCIE_LTSSM_CFG_LANENUM_WAI = 0x9,
+	DW_PCIE_LTSSM_CFG_LANENUM_ACEPT = 0xa,
+	DW_PCIE_LTSSM_CFG_COMPLETE = 0xb,
+	DW_PCIE_LTSSM_CFG_IDLE = 0xc,
+	DW_PCIE_LTSSM_RCVRY_LOCK = 0xd,
+	DW_PCIE_LTSSM_RCVRY_SPEED = 0xe,
+	DW_PCIE_LTSSM_RCVRY_RCVRCFG = 0xf,
+	DW_PCIE_LTSSM_RCVRY_IDLE = 0x10,
 	DW_PCIE_LTSSM_L0 = 0x11,
+	DW_PCIE_LTSSM_L0S = 0x12,
+	DW_PCIE_LTSSM_L123_SEND_EIDLE = 0x13,
+	DW_PCIE_LTSSM_L1_IDLE = 0x14,
 	DW_PCIE_LTSSM_L2_IDLE = 0x15,
+	DW_PCIE_LTSSM_L2_WAKE = 0x16,
+	DW_PCIE_LTSSM_DISABLED_ENTRY = 0x17,
+	DW_PCIE_LTSSM_DISABLED_IDLE = 0x18,
+	DW_PCIE_LTSSM_DISABLED = 0x19,
+	DW_PCIE_LTSSM_LPBK_ENTRY = 0x1a,
+	DW_PCIE_LTSSM_LPBK_ACTIVE = 0x1b,
+	DW_PCIE_LTSSM_LPBK_EXIT = 0x1c,
+	DW_PCIE_LTSSM_LPBK_EXIT_TIMEOUT = 0x1d,
+	DW_PCIE_LTSSM_HOT_RESET_ENTRY = 0x1e,
+	DW_PCIE_LTSSM_HOT_RESET = 0x1f,
+	DW_PCIE_LTSSM_RCVRY_EQ0 = 0x20,
+	DW_PCIE_LTSSM_RCVRY_EQ1 = 0x21,
+	DW_PCIE_LTSSM_RCVRY_EQ2 = 0x22,
+	DW_PCIE_LTSSM_RCVRY_EQ3 = 0x23,
 
 	DW_PCIE_LTSSM_UNKNOWN = 0xFFFFFFFF,
 };
@@ -437,6 +468,11 @@ struct dw_pcie_ops {
 	void	(*stop_link)(struct dw_pcie *pcie);
 };
 
+struct debugfs_info {
+	struct dentry		*debug_dir;
+	void			*rasdes_info;
+};
+
 struct dw_pcie {
 	struct device		*dev;
 	void __iomem		*dbi_base;
@@ -465,6 +501,7 @@ struct dw_pcie {
 	struct reset_control_bulk_data	core_rsts[DW_PCIE_NUM_CORE_RSTS];
 	struct gpio_desc		*pe_rst;
 	bool			suspended;
+	struct debugfs_info	*debugfs;
 };
 
 #define to_dw_pcie_from_pp(port) container_of((port), struct dw_pcie, pp)
@@ -478,6 +515,7 @@ void dw_pcie_version_detect(struct dw_pcie *pci);
 
 u8 dw_pcie_find_capability(struct dw_pcie *pci, u8 cap);
 u16 dw_pcie_find_ext_capability(struct dw_pcie *pci, u8 cap);
+u16 dw_pcie_find_rasdes_capability(struct dw_pcie *pci);
 
 int dw_pcie_read(void __iomem *addr, int size, u32 *val);
 int dw_pcie_write(void __iomem *addr, int size, u32 val);
@@ -743,6 +781,7 @@ int dw_pcie_ep_raise_msix_irq(struct dw_pcie_ep *ep, u8 func_no,
 int dw_pcie_ep_raise_msix_irq_doorbell(struct dw_pcie_ep *ep, u8 func_no,
 				       u16 interrupt_num);
 void dw_pcie_ep_reset_bar(struct dw_pcie *pci, enum pci_barno bar);
+int dw_pcie_ep_hide_ext_capability(struct dw_pcie *pci, u8 prev_cap, u8 cap);
 struct dw_pcie_ep_func *
 dw_pcie_ep_get_func_from_ep(struct dw_pcie_ep *ep, u8 func_no);
 #else
@@ -800,10 +839,29 @@ static inline void dw_pcie_ep_reset_bar(struct dw_pcie *pci, enum pci_barno bar)
 {
 }
 
+static inline int dw_pcie_ep_hide_ext_capability(struct dw_pcie *pci,
+						 u8 prev_cap, u8 cap)
+{
+	return 0;
+}
+
 static inline struct dw_pcie_ep_func *
 dw_pcie_ep_get_func_from_ep(struct dw_pcie_ep *ep, u8 func_no)
 {
 	return NULL;
 }
 #endif
+
+#ifdef CONFIG_PCIE_DW_DEBUGFS
+void dwc_pcie_debugfs_init(struct dw_pcie *pci);
+void dwc_pcie_debugfs_deinit(struct dw_pcie *pci);
+#else
+static inline void dwc_pcie_debugfs_init(struct dw_pcie *pci)
+{
+}
+static inline void dwc_pcie_debugfs_deinit(struct dw_pcie *pci)
+{
+}
+#endif
+
 #endif /* _PCIE_DESIGNWARE_H */
