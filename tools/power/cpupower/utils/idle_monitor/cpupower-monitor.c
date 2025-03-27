@@ -6,6 +6,7 @@
  */
 
 
+#include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -91,7 +92,11 @@ int fill_string_with_spaces(char *s, int n)
 	return 0;
 }
 
-#define MAX_COL_WIDTH 6
+#define MAX_COL_WIDTH		6
+#define TOPOLOGY_DEPTH_PKG	3
+#define TOPOLOGY_DEPTH_CORE	2
+#define TOPOLOGY_DEPTH_CPU	1
+
 void print_header(int topology_depth)
 {
 	int unsigned mon;
@@ -113,12 +118,19 @@ void print_header(int topology_depth)
 	}
 	printf("\n");
 
-	if (topology_depth > 2)
+	switch (topology_depth) {
+	case TOPOLOGY_DEPTH_PKG:
 		printf(" PKG|");
-	if (topology_depth > 1)
+		break;
+	case TOPOLOGY_DEPTH_CORE:
 		printf("CORE|");
-	if (topology_depth > 0)
+		break;
+	case	TOPOLOGY_DEPTH_CPU:
 		printf(" CPU|");
+		break;
+	default:
+		return;
+	}
 
 	for (mon = 0; mon < avail_monitors; mon++) {
 		if (mon != 0)
@@ -152,12 +164,19 @@ void print_results(int topology_depth, int cpu)
 	    cpu_top.core_info[cpu].pkg == -1)
 		return;
 
-	if (topology_depth > 2)
+	switch (topology_depth) {
+	case TOPOLOGY_DEPTH_PKG:
 		printf("%4d|", cpu_top.core_info[cpu].pkg);
-	if (topology_depth > 1)
+		break;
+	case TOPOLOGY_DEPTH_CORE:
 		printf("%4d|", cpu_top.core_info[cpu].core);
-	if (topology_depth > 0)
+		break;
+	case TOPOLOGY_DEPTH_CPU:
 		printf("%4d|", cpu_top.core_info[cpu].cpu);
+		break;
+	default:
+		return;
+	}
 
 	for (mon = 0; mon < avail_monitors; mon++) {
 		if (mon != 0)
@@ -294,7 +313,10 @@ int fork_it(char **argv)
 
 	if (!child_pid) {
 		/* child */
-		execvp(argv[0], argv);
+		if (execvp(argv[0], argv) == -1) {
+			printf("Invalid monitor command %s\n", argv[0]);
+			exit(errno);
+		}
 	} else {
 		/* parent */
 		if (child_pid == -1) {
@@ -423,11 +445,13 @@ int cmd_monitor(int argc, char **argv)
 
 	if (avail_monitors == 0) {
 		printf(_("No HW Cstate monitors found\n"));
+		cpu_topology_release(cpu_top);
 		return 1;
 	}
 
 	if (mode == list) {
 		list_monitors();
+		cpu_topology_release(cpu_top);
 		exit(EXIT_SUCCESS);
 	}
 
@@ -448,15 +472,15 @@ int cmd_monitor(int argc, char **argv)
 	/* ToDo: Topology parsing needs fixing first to do
 	   this more generically */
 	if (cpu_top.pkgs > 1)
-		print_header(3);
+		print_header(TOPOLOGY_DEPTH_PKG);
 	else
-		print_header(1);
+		print_header(TOPOLOGY_DEPTH_CPU);
 
 	for (cpu = 0; cpu < cpu_count; cpu++) {
 		if (cpu_top.pkgs > 1)
-			print_results(3, cpu);
+			print_results(TOPOLOGY_DEPTH_PKG, cpu);
 		else
-			print_results(1, cpu);
+			print_results(TOPOLOGY_DEPTH_CPU, cpu);
 	}
 
 	for (num = 0; num < avail_monitors; num++) {

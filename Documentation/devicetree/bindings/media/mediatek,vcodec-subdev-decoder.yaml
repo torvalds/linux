@@ -4,52 +4,70 @@
 $id: http://devicetree.org/schemas/media/mediatek,vcodec-subdev-decoder.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Mediatek Video Decode Accelerator With Multi Hardware
+title: MediaTek Video Decode Accelerator With Multi Hardware
 
 maintainers:
   - Yunfei Dong <yunfei.dong@mediatek.com>
 
 description: |
-  Mediatek Video Decode is the video decode hardware present in Mediatek
-  SoCs which supports high resolution decoding functionalities. Required
-  parent and child device node.
+  MediaTek Video Decode Accelerator is the video decoding hardware present in
+  MediaTek SoCs that supports high-resolution decoding functionalities.
+  It consists of parent and child nodes.
 
-  About the Decoder Hardware Block Diagram, please check below:
+  The decoder hardware block diagram is shown below:
 
-    +------------------------------------------------+-------------------------------------+
-    |                                                |                                     |
-    |  input -> lat soc HW -> lat HW -> lat buffer --|--> lat buffer -> core HW -> output  |
-    |            ||             ||                   |                     ||              |
-    +------------||-------------||-------------------+---------------------||--------------+
-                 ||     lat     ||                   |               core workqueue  <parent>
-    -------------||-------------||-------------------|---------------------||---------------
-                 ||<------------||----------------HW index---------------->||        <child>
-                 \/             \/                                         \/
-               +-------------------------------------------------------------+
-               |                          enable/disable                     |
-               |                 clk     power    irq    iommu               |
-               |                   (lat/lat soc/core0/core1)                 |
-               +-------------------------------------------------------------+
+    +------------------------------------------------+------------------------------+
+    |                                                |                              |
+    |  input -> LAT-SoC HW -> LAT HW -> LAT buffer --|--> Core HW -> output buffer  |
+    |              ||           ||                   |       ||                     |
+    +--------------||-----------||-------------------+-------||---------------------+
+                    LAT Workqueue                    |  Core Workqueue       <parent>
+    ---------------||-----------||-------------------|-------||----------------------
+                   ||<----------||---------HW index--------->||              <child>
+                   \/           \/                           \/
+           +-------------------------------------------------------------+
+           |                          enable/disable                     |
+           |                 clk     power    irq    iommu               |
+           |                   (lat/lat-soc/core0/core1)                 |
+           +-------------------------------------------------------------+
 
-  As above, there are parent and child devices, child mean each hardware. The child device
-  controls the information of each hardware independent which include clk/power/irq.
+  The child nodes represent the individual hardware blocks within the decoding
+  pipeline, such as LAT-SoC, LAT and Core.
+  Each child node is responsible for managing the dedicated resources of the
+  hardware, such as clocks, power domains, interrupts and IOMMUs.
 
-  There are two workqueues in parent device: lat workqueue and core workqueue. They are used
-  to lat and core hardware decoder. Lat workqueue need to get input bitstream and lat buffer,
-  then enable lat to decode, writing the result to lat buffer, dislabe hardware when lat decode
-  done. Core workqueue need to get lat buffer and output buffer, then enable core to decode,
-  writing the result to output buffer, disable hardware when core decode done. These two
-  hardwares will decode each frame cyclically.
+  The parent node is a central point of control for the child nodes.
+  It identifies the specific video decoding pipeline architecture used by the
+  SoC, manages the shared resources like workqueues and platform data, and
+  handles V4L2 API calls on behalf of the underlying hardware.
 
-  For the smi common may not the same for each hardware, can't combine all hardware in one node,
-  or leading to iommu fault when access dram data.
+  The parent utilizes two workqueues to manage the decoding process.
+  1. LAT Workqueue, for LAT-SoC and LAT decoder:
+     Its workers take input bitstream and LAT buffer, enable the hardware for
+     decoding tasks, write the result to LAT buffer, and disable the hardware
+     after the LAT decoding is done.
+  2. Core Workqueue, for Core decoder:
+     Its workers take LAT buffer and output buffer, enable the hardware for
+     decoding tasks, write the result to output buffer, and disable the hardware
+     after the Core decoding is done.
 
-  Lat soc is a hardware which is related with some larb(local arbiter) ports. For mt8195
-  platform, there are some ports like RDMA, UFO in lat soc larb, need to enable its power and
-  clock when lat start to work, don't have interrupt.
+  These hardware decode each frame cyclically.
 
-  mt8195: lat soc HW + lat HW + core HW
-  mt8192: lat HW + core HW
+  The hardware might be associated with different SMI-common devices.
+  To prevent IOMMU faults during DRAM access in such cases, each hardware with
+  the unique SMI-common device must be placed under a separate parent node in
+  the device tree.
+
+  LAT-SoC refers to another hardware block that connected to additional LARB
+  (local arbiter) ports, such as RDMA and UFO.
+  It requires independent power and clock control to work with LAT decoder, and
+  it doesn't have a dedicated interrupt.
+
+  The used video decoding pipeline architecture across various Mediatek SoC:
+    MT8195: LAT-SoC + LAT + Core
+    MT8192: LAT + Core
+    MT8188: LAT + Core
+    MT8186: Core
 
 properties:
   compatible:

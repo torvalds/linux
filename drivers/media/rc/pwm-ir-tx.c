@@ -172,8 +172,7 @@ static int pwm_ir_probe(struct platform_device *pdev)
 		rcdev->tx_ir = pwm_ir_tx_sleep;
 	} else {
 		init_completion(&pwm_ir->tx_done);
-		hrtimer_init(&pwm_ir->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-		pwm_ir->timer.function = pwm_ir_timer;
+		hrtimer_setup(&pwm_ir->timer, pwm_ir_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		rcdev->tx_ir = pwm_ir_tx_atomic;
 	}
 

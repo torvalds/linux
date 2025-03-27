@@ -155,6 +155,12 @@ struct seccomp_data {
 # endif
 #endif
 
+#ifndef __NR_uretprobe
+# if defined(__x86_64__)
+#  define __NR_uretprobe 335
+# endif
+#endif
+
 #ifndef SECCOMP_SET_MODE_STRICT
 #define SECCOMP_SET_MODE_STRICT 0
 #endif

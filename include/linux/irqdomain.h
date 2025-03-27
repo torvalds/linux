@@ -281,6 +281,8 @@ static inline struct fwnode_handle *irq_domain_alloc_fwnode(phys_addr_t *pa)
 
 void irq_domain_free_fwnode(struct fwnode_handle *fwnode);
 
+DEFINE_FREE(irq_domain_free_fwnode, struct fwnode_handle *, if (_T) irq_domain_free_fwnode(_T))
+
 struct irq_domain_chip_generic_info;
 
 /**
@@ -350,13 +352,13 @@ struct irq_domain *irq_domain_create_legacy(struct fwnode_handle *fwnode,
 					    irq_hw_number_t first_hwirq,
 					    const struct irq_domain_ops *ops,
 					    void *host_data);
-extern struct irq_domain *irq_find_matching_fwspec(struct irq_fwspec *fwspec,
-						   enum irq_domain_bus_token bus_token);
-extern void irq_set_default_host(struct irq_domain *host);
-extern struct irq_domain *irq_get_default_host(void);
-extern int irq_domain_alloc_descs(int virq, unsigned int nr_irqs,
-				  irq_hw_number_t hwirq, int node,
-				  const struct irq_affinity_desc *affinity);
+struct irq_domain *irq_find_matching_fwspec(struct irq_fwspec *fwspec,
+					    enum irq_domain_bus_token bus_token);
+void irq_set_default_host(struct irq_domain *host);
+struct irq_domain *irq_get_default_host(void);
+int irq_domain_alloc_descs(int virq, unsigned int nr_irqs,
+			   irq_hw_number_t hwirq, int node,
+			   const struct irq_affinity_desc *affinity);
 
 static inline struct fwnode_handle *of_node_to_fwnode(struct device_node *node)
 {
@@ -370,8 +372,8 @@ static inline bool is_fwnode_irqchip(const struct fwnode_handle *fwnode)
 	return fwnode && fwnode->ops == &irqchip_fwnode_ops;
 }
 
-extern void irq_domain_update_bus_token(struct irq_domain *domain,
-					enum irq_domain_bus_token bus_token);
+void irq_domain_update_bus_token(struct irq_domain *domain,
+				 enum irq_domain_bus_token bus_token);
 
 static inline
 struct irq_domain *irq_find_matching_fwnode(struct fwnode_handle *fwnode,
@@ -454,7 +456,7 @@ static inline struct irq_domain *irq_domain_add_nomap(struct device_node *of_nod
 	return IS_ERR(d) ? NULL : d;
 }
 
-extern unsigned int irq_create_direct_mapping(struct irq_domain *host);
+unsigned int irq_create_direct_mapping(struct irq_domain *host);
 #endif
 
 static inline struct irq_domain *irq_domain_add_tree(struct device_node *of_node,
@@ -507,19 +509,19 @@ static inline struct irq_domain *irq_domain_create_tree(struct fwnode_handle *fw
 	return IS_ERR(d) ? NULL : d;
 }
 
-extern void irq_domain_remove(struct irq_domain *host);
+void irq_domain_remove(struct irq_domain *host);
 
-extern int irq_domain_associate(struct irq_domain *domain, unsigned int irq,
-					irq_hw_number_t hwirq);
-extern void irq_domain_associate_many(struct irq_domain *domain,
-				      unsigned int irq_base,
-				      irq_hw_number_t hwirq_base, int count);
+int irq_domain_associate(struct irq_domain *domain, unsigned int irq,
+			 irq_hw_number_t hwirq);
+void irq_domain_associate_many(struct irq_domain *domain,
+			       unsigned int irq_base,
+			       irq_hw_number_t hwirq_base, int count);
 
-extern unsigned int irq_create_mapping_affinity(struct irq_domain *host,
-				      irq_hw_number_t hwirq,
-				      const struct irq_affinity_desc *affinity);
-extern unsigned int irq_create_fwspec_mapping(struct irq_fwspec *fwspec);
-extern void irq_dispose_mapping(unsigned int virq);
+unsigned int irq_create_mapping_affinity(struct irq_domain *host,
+					 irq_hw_number_t hwirq,
+					 const struct irq_affinity_desc *affinity);
+unsigned int irq_create_fwspec_mapping(struct irq_fwspec *fwspec);
+void irq_dispose_mapping(unsigned int virq);
 
 static inline unsigned int irq_create_mapping(struct irq_domain *host,
 					      irq_hw_number_t hwirq)
@@ -527,9 +529,9 @@ static inline unsigned int irq_create_mapping(struct irq_domain *host,
 	return irq_create_mapping_affinity(host, hwirq, NULL);
 }
 
-extern struct irq_desc *__irq_resolve_mapping(struct irq_domain *domain,
-					      irq_hw_number_t hwirq,
-					      unsigned int *irq);
+struct irq_desc *__irq_resolve_mapping(struct irq_domain *domain,
+				       irq_hw_number_t hwirq,
+				       unsigned int *irq);
 
 static inline struct irq_desc *irq_resolve_mapping(struct irq_domain *domain,
 						   irq_hw_number_t hwirq)
@@ -587,19 +589,21 @@ int irq_reserve_ipi(struct irq_domain *domain, const struct cpumask *dest);
 int irq_destroy_ipi(unsigned int irq, const struct cpumask *dest);
 
 /* V2 interfaces to support hierarchy IRQ domains. */
-extern struct irq_data *irq_domain_get_irq_data(struct irq_domain *domain,
-						unsigned int virq);
-extern void irq_domain_set_info(struct irq_domain *domain, unsigned int virq,
-				irq_hw_number_t hwirq,
-				const struct irq_chip *chip,
-				void *chip_data, irq_flow_handler_t handler,
-				void *handler_data, const char *handler_name);
-extern void irq_domain_reset_irq_data(struct irq_data *irq_data);
+struct irq_data *irq_domain_get_irq_data(struct irq_domain *domain,
+					 unsigned int virq);
+void irq_domain_set_info(struct irq_domain *domain, unsigned int virq,
+			 irq_hw_number_t hwirq,
+			 const struct irq_chip *chip,
+			 void *chip_data, irq_flow_handler_t handler,
+			 void *handler_data, const char *handler_name);
+void irq_domain_reset_irq_data(struct irq_data *irq_data);
 #ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
-extern struct irq_domain *irq_domain_create_hierarchy(struct irq_domain *parent,
-			unsigned int flags, unsigned int size,
-			struct fwnode_handle *fwnode,
-			const struct irq_domain_ops *ops, void *host_data);
+struct irq_domain *irq_domain_create_hierarchy(struct irq_domain *parent,
+					       unsigned int flags,
+					       unsigned int size,
+					       struct fwnode_handle *fwnode,
+					       const struct irq_domain_ops *ops,
+					       void *host_data);
 
 static inline struct irq_domain *irq_domain_add_hierarchy(struct irq_domain *parent,
 					    unsigned int flags,
@@ -613,13 +617,13 @@ static inline struct irq_domain *irq_domain_add_hierarchy(struct irq_domain *par
 					   ops, host_data);
 }
 
-extern int __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
-				   unsigned int nr_irqs, int node, void *arg,
-				   bool realloc,
-				   const struct irq_affinity_desc *affinity);
-extern void irq_domain_free_irqs(unsigned int virq, unsigned int nr_irqs);
-extern int irq_domain_activate_irq(struct irq_data *irq_data, bool early);
-extern void irq_domain_deactivate_irq(struct irq_data *irq_data);
+int __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
+			    unsigned int nr_irqs, int node, void *arg,
+			    bool realloc,
+			    const struct irq_affinity_desc *affinity);
+void irq_domain_free_irqs(unsigned int virq, unsigned int nr_irqs);
+int irq_domain_activate_irq(struct irq_data *irq_data, bool early);
+void irq_domain_deactivate_irq(struct irq_data *irq_data);
 
 static inline int irq_domain_alloc_irqs(struct irq_domain *domain,
 			unsigned int nr_irqs, int node, void *arg)
@@ -628,32 +632,29 @@ static inline int irq_domain_alloc_irqs(struct irq_domain *domain,
 				       NULL);
 }
 
-extern int irq_domain_alloc_irqs_hierarchy(struct irq_domain *domain,
-					   unsigned int irq_base,
-					   unsigned int nr_irqs, void *arg);
-extern int irq_domain_set_hwirq_and_chip(struct irq_domain *domain,
-					 unsigned int virq,
-					 irq_hw_number_t hwirq,
-					 const struct irq_chip *chip,
-					 void *chip_data);
-extern void irq_domain_free_irqs_common(struct irq_domain *domain,
-					unsigned int virq,
-					unsigned int nr_irqs);
-extern void irq_domain_free_irqs_top(struct irq_domain *domain,
-				     unsigned int virq, unsigned int nr_irqs);
+int irq_domain_set_hwirq_and_chip(struct irq_domain *domain,
+				  unsigned int virq,
+				  irq_hw_number_t hwirq,
+				  const struct irq_chip *chip,
+				  void *chip_data);
+void irq_domain_free_irqs_common(struct irq_domain *domain,
+				 unsigned int virq,
+				 unsigned int nr_irqs);
+void irq_domain_free_irqs_top(struct irq_domain *domain,
+			      unsigned int virq, unsigned int nr_irqs);
 
-extern int irq_domain_push_irq(struct irq_domain *domain, int virq, void *arg);
-extern int irq_domain_pop_irq(struct irq_domain *domain, int virq);
+int irq_domain_push_irq(struct irq_domain *domain, int virq, void *arg);
+int irq_domain_pop_irq(struct irq_domain *domain, int virq);
 
-extern int irq_domain_alloc_irqs_parent(struct irq_domain *domain,
-					unsigned int irq_base,
-					unsigned int nr_irqs, void *arg);
+int irq_domain_alloc_irqs_parent(struct irq_domain *domain,
+				 unsigned int irq_base,
+				 unsigned int nr_irqs, void *arg);
 
-extern void irq_domain_free_irqs_parent(struct irq_domain *domain,
-					unsigned int irq_base,
-					unsigned int nr_irqs);
+void irq_domain_free_irqs_parent(struct irq_domain *domain,
+				 unsigned int irq_base,
+				 unsigned int nr_irqs);
 
-extern int irq_domain_disconnect_hierarchy(struct irq_domain *domain,
+int irq_domain_disconnect_hierarchy(struct irq_domain *domain,
 					   unsigned int virq);
 
 static inline bool irq_domain_is_hierarchy(struct irq_domain *domain)

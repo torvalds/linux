@@ -242,6 +242,10 @@ menu "Slab allocator options"
 config SLUB
 	def_bool y
 
+config KVFREE_RCU_BATCHED
+	def_bool y
+	depends on !SLUB_TINY && !TINY_RCU
+
 config SLUB_TINY
 	bool "Configure for minimal memory footprint"
 	depends on EXPERT

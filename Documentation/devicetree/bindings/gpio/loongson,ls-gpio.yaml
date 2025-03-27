@@ -20,7 +20,10 @@ properties:
           - loongson,ls2k2000-gpio1
           - loongson,ls2k2000-gpio2
           - loongson,ls3a5000-gpio
+          - loongson,ls3a6000-gpio  # Loongson-3A6000 node GPIO
           - loongson,ls7a-gpio
+          - loongson,ls7a2000-gpio1 # LS7A2000 chipset GPIO
+          - loongson,ls7a2000-gpio2 # LS7A2000 ACPI GPIO
       - items:
           - const: loongson,ls2k1000-gpio
           - const: loongson,ls2k-gpio

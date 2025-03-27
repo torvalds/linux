@@ -518,7 +518,7 @@ static struct neigh_hash_table *neigh_hash_alloc(unsigned int shift)
 	if (!ret)
 		return NULL;
 
-	hash_heads = kvzalloc(size, GFP_ATOMIC);
+	hash_heads = kzalloc(size, GFP_ATOMIC);
 	if (!hash_heads) {
 		kfree(ret);
 		return NULL;
@@ -536,7 +536,7 @@ static void neigh_hash_free_rcu(struct rcu_head *head)
 						    struct neigh_hash_table,
 						    rcu);
 
-	kvfree(nht->hash_heads);
+	kfree(nht->hash_heads);
 	kfree(nht);
 }
 
@@ -832,12 +832,10 @@ static int pneigh_ifdown_and_unlock(struct neigh_table *tbl,
 	return -ENOENT;
 }
 
-static void neigh_parms_destroy(struct neigh_parms *parms);
-
 static inline void neigh_parms_put(struct neigh_parms *parms)
 {
 	if (refcount_dec_and_test(&parms->refcnt))
-		neigh_parms_destroy(parms);
+		kfree(parms);
 }
 
 /*
@@ -1713,11 +1711,6 @@ void neigh_parms_release(struct neigh_table *tbl, struct neigh_parms *parms)
 }
 EXPORT_SYMBOL(neigh_parms_release);
 
-static void neigh_parms_destroy(struct neigh_parms *parms)
-{
-	kfree(parms);
-}
-
 static struct lock_class_key neigh_table_proxy_queue_class;
 
 static struct neigh_table __rcu *neigh_tables[NEIGH_NR_TABLES] __read_mostly;
@@ -2250,6 +2243,7 @@ static const struct nla_policy nl_neightbl_policy[NDTA_MAX+1] = {
 static const struct nla_policy nl_ntbl_parm_policy[NDTPA_MAX+1] = {
 	[NDTPA_IFINDEX]			= { .type = NLA_U32 },
 	[NDTPA_QUEUE_LEN]		= { .type = NLA_U32 },
+	[NDTPA_QUEUE_LENBYTES]		= { .type = NLA_U32 },
 	[NDTPA_PROXY_QLEN]		= { .type = NLA_U32 },
 	[NDTPA_APP_PROBES]		= { .type = NLA_U32 },
 	[NDTPA_UCAST_PROBES]		= { .type = NLA_U32 },

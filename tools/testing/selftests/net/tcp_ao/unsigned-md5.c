@@ -6,6 +6,7 @@
 #define fault(type)	(inj == FAULT_ ## type)
 static const char *md5_password = "Some evil genius, enemy to mankind, must have been the first contriver.";
 static const char *ao_password = DEFAULT_TEST_PASSWORD;
+static volatile int sk_pair;
 
 static union tcp_addr client2;
 static union tcp_addr client3;
@@ -41,10 +42,10 @@ static void try_accept(const char *tst_name, unsigned int port,
 		       const char *cnt_name, test_cnt cnt_expected,
 		       int needs_tcp_md5, fault_t inj)
 {
-	struct tcp_ao_counters ao_cnt1, ao_cnt2;
+	struct tcp_counters cnt1, cnt2;
 	uint64_t before_cnt = 0, after_cnt = 0; /* silence GCC */
-	int lsk, err, sk = 0;
-	time_t timeout;
+	test_cnt poll_cnt = (cnt_expected == TEST_CNT_GOOD) ? 0 : cnt_expected;
+	int lsk, err, sk = -1;
 
 	if (needs_tcp_md5 && should_skip_test(tst_name, KCONFIG_TCP_MD5))
 		return;
@@ -63,22 +64,25 @@ static void try_accept(const char *tst_name, unsigned int port,
 
 	if (cnt_name)
 		before_cnt = netstat_get_one(cnt_name, NULL);
-	if (ao_addr && test_get_tcp_ao_counters(lsk, &ao_cnt1))
-		test_error("test_get_tcp_ao_counters()");
+	if (ao_addr && test_get_tcp_counters(lsk, &cnt1))
+		test_error("test_get_tcp_counters()");
 
 	synchronize_threads(); /* preparations done */
 
-	timeout = fault(TIMEOUT) ? TEST_RETRANSMIT_SEC : TEST_TIMEOUT_SEC;
-	err = test_wait_fd(lsk, timeout, 0);
+	err = test_skpair_wait_poll(lsk, 0, poll_cnt, &sk_pair);
 	synchronize_threads(); /* connect()/accept() timeouts */
 	if (err == -ETIMEDOUT) {
+		sk_pair = err;
 		if (!fault(TIMEOUT))
-			test_fail("timed out for accept()");
+			test_fail("%s: timed out for accept()", tst_name);
+	} else if (err == -EKEYREJECTED) {
+		if (!fault(KEYREJECT))
+			test_fail("%s: key was rejected", tst_name);
 	} else if (err < 0) {
-		test_error("test_wait_fd()");
+		test_error("test_skpair_wait_poll()");
 	} else {
 		if (fault(TIMEOUT))
-			test_fail("ready to accept");
+			test_fail("%s: ready to accept", tst_name);
 
 		sk = accept(lsk, NULL, NULL);
 		if (sk < 0) {
@@ -89,8 +93,8 @@ static void try_accept(const char *tst_name, unsigned int port,
 		}
 	}
 
-	if (ao_addr && test_get_tcp_ao_counters(lsk, &ao_cnt2))
-		test_error("test_get_tcp_ao_counters()");
+	if (ao_addr && test_get_tcp_counters(lsk, &cnt2))
+		test_error("test_get_tcp_counters()");
 	close(lsk);
 
 	if (!cnt_name) {
@@ -108,11 +112,11 @@ static void try_accept(const char *tst_name, unsigned int port,
 			tst_name, cnt_name, before_cnt, after_cnt);
 	}
 	if (ao_addr)
-		test_tcp_ao_counters_cmp(tst_name, &ao_cnt1, &ao_cnt2, cnt_expected);
+		test_assert_counters(tst_name, &cnt1, &cnt2, cnt_expected);
 
 out:
 	synchronize_threads(); /* test_kill_sk() */
-	if (sk > 0)
+	if (sk >= 0)
 		test_kill_sk(sk);
 }
 
@@ -153,78 +157,82 @@ static void *server_fn(void *arg)
 
 	server_add_routes();
 
-	try_accept("AO server (INADDR_ANY): AO client", port++, NULL, 0,
+	try_accept("[server] AO server (INADDR_ANY): AO client", port++, NULL, 0,
 		   &addr_any, 0, 0, 100, 100, 0, "TCPAOGood",
 		   TEST_CNT_GOOD, 0, 0);
-	try_accept("AO server (INADDR_ANY): MD5 client", port++, NULL, 0,
+	try_accept("[server] AO server (INADDR_ANY): MD5 client", port++, NULL, 0,
 		   &addr_any, 0, 0, 100, 100, 0, "TCPMD5Unexpected",
-		   0, 1, FAULT_TIMEOUT);
-	try_accept("AO server (INADDR_ANY): no sign client", port++, NULL, 0,
+		   TEST_CNT_NS_MD5_UNEXPECTED, 1, FAULT_TIMEOUT);
+	try_accept("[server] AO server (INADDR_ANY): no sign client", port++, NULL, 0,
 		   &addr_any, 0, 0, 100, 100, 0, "TCPAORequired",
 		   TEST_CNT_AO_REQUIRED, 0, FAULT_TIMEOUT);
-	try_accept("AO server (AO_REQUIRED): AO client", port++, NULL, 0,
+	try_accept("[server] AO server (AO_REQUIRED): AO client", port++, NULL, 0,
 		   &this_ip_dest, TEST_PREFIX, true,
 		   100, 100, 0, "TCPAOGood", TEST_CNT_GOOD, 0, 0);
-	try_accept("AO server (AO_REQUIRED): unsigned client", port++, NULL, 0,
+	try_accept("[server] AO server (AO_REQUIRED): unsigned client", port++, NULL, 0,
 		   &this_ip_dest, TEST_PREFIX, true,
 		   100, 100, 0, "TCPAORequired",
 		   TEST_CNT_AO_REQUIRED, 0, FAULT_TIMEOUT);
 
-	try_accept("MD5 server (INADDR_ANY): AO client", port++, &addr_any, 0,
+	try_accept("[server] MD5 server (INADDR_ANY): AO client", port++, &addr_any, 0,
 		   NULL, 0, 0, 0, 0, 0, "TCPAOKeyNotFound",
-		   0, 1, FAULT_TIMEOUT);
-	try_accept("MD5 server (INADDR_ANY): MD5 client", port++, &addr_any, 0,
+		   TEST_CNT_NS_KEY_NOT_FOUND, 1, FAULT_TIMEOUT);
+	try_accept("[server] MD5 server (INADDR_ANY): MD5 client", port++, &addr_any, 0,
 		   NULL, 0, 0, 0, 0, 0, NULL, 0, 1, 0);
-	try_accept("MD5 server (INADDR_ANY): no sign client", port++, &addr_any,
+	try_accept("[server] MD5 server (INADDR_ANY): no sign client", port++, &addr_any,
 		   0, NULL, 0, 0, 0, 0, 0, "TCPMD5NotFound",
-		   0, 1, FAULT_TIMEOUT);
+		   TEST_CNT_NS_MD5_NOT_FOUND, 1, FAULT_TIMEOUT);
 
-	try_accept("no sign server: AO client", port++, NULL, 0,
+	try_accept("[server] no sign server: AO client", port++, NULL, 0,
 		   NULL, 0, 0, 0, 0, 0, "TCPAOKeyNotFound",
-		   TEST_CNT_AO_KEY_NOT_FOUND, 0, FAULT_TIMEOUT);
-	try_accept("no sign server: MD5 client", port++, NULL, 0,
+		   TEST_CNT_NS_KEY_NOT_FOUND, 0, FAULT_TIMEOUT);
+	try_accept("[server] no sign server: MD5 client", port++, NULL, 0,
 		   NULL, 0, 0, 0, 0, 0, "TCPMD5Unexpected",
-		   0, 1, FAULT_TIMEOUT);
-	try_accept("no sign server: no sign client", port++, NULL, 0,
+		   TEST_CNT_NS_MD5_UNEXPECTED, 1, FAULT_TIMEOUT);
+	try_accept("[server] no sign server: no sign client", port++, NULL, 0,
 		   NULL, 0, 0, 0, 0, 0, "CurrEstab", 0, 0, 0);
 
-	try_accept("AO+MD5 server: AO client (matching)", port++,
+	try_accept("[server] AO+MD5 server: AO client (matching)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
 		   100, 100, 0, "TCPAOGood", TEST_CNT_GOOD, 1, 0);
-	try_accept("AO+MD5 server: AO client (misconfig, matching MD5)", port++,
+	try_accept("[server] AO+MD5 server: AO client (misconfig, matching MD5)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
 		   100, 100, 0, "TCPAOKeyNotFound", TEST_CNT_AO_KEY_NOT_FOUND,
 		   1, FAULT_TIMEOUT);
-	try_accept("AO+MD5 server: AO client (misconfig, non-matching)", port++,
+	try_accept("[server] AO+MD5 server: AO client (misconfig, non-matching)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
 		   100, 100, 0, "TCPAOKeyNotFound", TEST_CNT_AO_KEY_NOT_FOUND,
 		   1, FAULT_TIMEOUT);
-	try_accept("AO+MD5 server: MD5 client (matching)", port++,
+	try_accept("[server] AO+MD5 server: MD5 client (matching)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
 		   100, 100, 0, NULL, 0, 1, 0);
-	try_accept("AO+MD5 server: MD5 client (misconfig, matching AO)", port++,
+	try_accept("[server] AO+MD5 server: MD5 client (misconfig, matching AO)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
-		   100, 100, 0, "TCPMD5Unexpected", 0, 1, FAULT_TIMEOUT);
-	try_accept("AO+MD5 server: MD5 client (misconfig, non-matching)", port++,
+		   100, 100, 0, "TCPMD5Unexpected",
+		   TEST_CNT_NS_MD5_UNEXPECTED, 1, FAULT_TIMEOUT);
+	try_accept("[server] AO+MD5 server: MD5 client (misconfig, non-matching)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
-		   100, 100, 0, "TCPMD5Unexpected", 0, 1, FAULT_TIMEOUT);
-	try_accept("AO+MD5 server: no sign client (unmatched)", port++,
+		   100, 100, 0, "TCPMD5Unexpected",
+		   TEST_CNT_NS_MD5_UNEXPECTED, 1, FAULT_TIMEOUT);
+	try_accept("[server] AO+MD5 server: no sign client (unmatched)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
 		   100, 100, 0, "CurrEstab", 0, 1, 0);
-	try_accept("AO+MD5 server: no sign client (misconfig, matching AO)",
+	try_accept("[server] AO+MD5 server: no sign client (misconfig, matching AO)",
 		   port++, &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
 		   100, 100, 0, "TCPAORequired",
 		   TEST_CNT_AO_REQUIRED, 1, FAULT_TIMEOUT);
-	try_accept("AO+MD5 server: no sign client (misconfig, matching MD5)",
+	try_accept("[server] AO+MD5 server: no sign client (misconfig, matching MD5)",
 		   port++, &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
-		   100, 100, 0, "TCPMD5NotFound", 0, 1, FAULT_TIMEOUT);
+		   100, 100, 0, "TCPMD5NotFound",
+		   TEST_CNT_NS_MD5_NOT_FOUND, 1, FAULT_TIMEOUT);
 
-	try_accept("AO+MD5 server: client with both [TCP-MD5] and TCP-AO keys",
+	/* Key rejected by the other side, failing short through skpair */
+	try_accept("[server] AO+MD5 server: client with both [TCP-MD5] and TCP-AO keys",
 		   port++, &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
-		   100, 100, 0, NULL, 0, 1, FAULT_TIMEOUT);
-	try_accept("AO+MD5 server: client with both TCP-MD5 and [TCP-AO] keys",
+		   100, 100, 0, NULL, 0, 1, FAULT_KEYREJECT);
+	try_accept("[server] AO+MD5 server: client with both TCP-MD5 and [TCP-AO] keys",
 		   port++, &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
-		   100, 100, 0, NULL, 0, 1, FAULT_TIMEOUT);
+		   100, 100, 0, NULL, 0, 1, FAULT_KEYREJECT);
 
 	server_add_fail_tests(&port);
 
@@ -259,7 +267,6 @@ static void try_connect(const char *tst_name, unsigned int port,
 		       uint8_t sndid, uint8_t rcvid, uint8_t vrf,
 		       fault_t inj, int needs_tcp_md5, union tcp_addr *bind_addr)
 {
-	time_t timeout;
 	int sk, ret;
 
 	if (needs_tcp_md5 && should_skip_test(tst_name, KCONFIG_TCP_MD5))
@@ -281,11 +288,10 @@ static void try_connect(const char *tst_name, unsigned int port,
 
 	synchronize_threads(); /* preparations done */
 
-	timeout = fault(TIMEOUT) ? TEST_RETRANSMIT_SEC : TEST_TIMEOUT_SEC;
-	ret = _test_connect_socket(sk, this_ip_dest, port, timeout);
-
+	ret = test_skpair_connect_poll(sk, this_ip_dest, port, 0, &sk_pair);
 	synchronize_threads(); /* connect()/accept() timeouts */
 	if (ret < 0) {
+		sk_pair = ret;
 		if (fault(KEYREJECT) && ret == -EKEYREJECTED)
 			test_ok("%s: connect() was prevented", tst_name);
 		else if (ret == -ETIMEDOUT && fault(TIMEOUT))
@@ -305,8 +311,7 @@ static void try_connect(const char *tst_name, unsigned int port,
 
 out:
 	synchronize_threads(); /* test_kill_sk() */
-	/* _test_connect_socket() cleans up on failure */
-	if (ret > 0)
+	if (ret > 0) /* test_skpair_connect_poll() cleans up on failure */
 		test_kill_sk(sk);
 }
 
@@ -437,7 +442,6 @@ static void try_to_add(const char *tst_name, unsigned int port,
 		       int ao_vrf, uint8_t sndid, uint8_t rcvid,
 		       int needs_tcp_md5, fault_t inj)
 {
-	time_t timeout;
 	int sk, ret;
 
 	if (needs_tcp_md5 && should_skip_test(tst_name, KCONFIG_TCP_MD5))
@@ -450,11 +454,10 @@ static void try_to_add(const char *tst_name, unsigned int port,
 
 	synchronize_threads(); /* preparations done */
 
-	timeout = fault(TIMEOUT) ? TEST_RETRANSMIT_SEC : TEST_TIMEOUT_SEC;
-	ret = _test_connect_socket(sk, this_ip_dest, port, timeout);
+	ret = test_skpair_connect_poll(sk, this_ip_dest, port, 0, &sk_pair);
 
 	synchronize_threads(); /* connect()/accept() timeouts */
-	if (ret <= 0) {
+	if (ret < 0) {
 		test_error("%s: connect() returned %d", tst_name, ret);
 		goto out;
 	}
@@ -490,8 +493,7 @@ static void try_to_add(const char *tst_name, unsigned int port,
 
 out:
 	synchronize_threads(); /* test_kill_sk() */
-	/* _test_connect_socket() cleans up on failure */
-	if (ret > 0)
+	if (ret > 0) /* test_skpair_connect_poll() cleans up on failure */
 		test_kill_sk(sk);
 }
 

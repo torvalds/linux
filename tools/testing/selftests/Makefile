@@ -35,6 +35,7 @@ TARGETS += filesystems/epoll
 TARGETS += filesystems/fat
 TARGETS += filesystems/overlayfs
 TARGETS += filesystems/statmount
+TARGETS += filesystems/mount-notify
 TARGETS += firmware
 TARGETS += fpu
 TARGETS += ftrace
@@ -113,6 +114,7 @@ endif
 TARGETS += tmpfs
 TARGETS += tpm2
 TARGETS += tty
+TARGETS += ublk
 TARGETS += uevent
 TARGETS += user_events
 TARGETS += vDSO

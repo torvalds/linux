@@ -30,7 +30,7 @@ static void setup_lo_intf(const char *lo_intf)
 static void tcp_self_connect(const char *tst, unsigned int port,
 			     bool different_keyids, bool check_restore)
 {
-	struct tcp_ao_counters before_ao, after_ao;
+	struct tcp_counters before, after;
 	uint64_t before_aogood, after_aogood;
 	struct netstat *ns_before, *ns_after;
 	const size_t nr_packets = 20;
@@ -60,17 +60,17 @@ static void tcp_self_connect(const char *tst, unsigned int port,
 
 	ns_before = netstat_read();
 	before_aogood = netstat_get(ns_before, "TCPAOGood", NULL);
-	if (test_get_tcp_ao_counters(sk, &before_ao))
-		test_error("test_get_tcp_ao_counters()");
+	if (test_get_tcp_counters(sk, &before))
+		test_error("test_get_tcp_counters()");
 
 	if (__test_connect_socket(sk, "lo", (struct sockaddr *)&addr,
-				  sizeof(addr), TEST_TIMEOUT_SEC) < 0) {
+				  sizeof(addr), 0) < 0) {
 		ns_after = netstat_read();
 		netstat_print_diff(ns_before, ns_after);
 		test_error("failed to connect()");
 	}
 
-	if (test_client_verify(sk, 100, nr_packets, TEST_TIMEOUT_SEC)) {
+	if (test_client_verify(sk, 100, nr_packets)) {
 		test_fail("%s: tcp connection verify failed", tst);
 		close(sk);
 		return;
@@ -78,8 +78,8 @@ static void tcp_self_connect(const char *tst, unsigned int port,
 
 	ns_after = netstat_read();
 	after_aogood = netstat_get(ns_after, "TCPAOGood", NULL);
-	if (test_get_tcp_ao_counters(sk, &after_ao))
-		test_error("test_get_tcp_ao_counters()");
+	if (test_get_tcp_counters(sk, &after))
+		test_error("test_get_tcp_counters()");
 	if (!check_restore) {
 		/* to debug: netstat_print_diff(ns_before, ns_after); */
 		netstat_free(ns_before);
@@ -93,7 +93,7 @@ static void tcp_self_connect(const char *tst, unsigned int port,
 		return;
 	}
 
-	if (test_tcp_ao_counters_cmp(tst, &before_ao, &after_ao, TEST_CNT_GOOD)) {
+	if (test_assert_counters(tst, &before, &after, TEST_CNT_GOOD)) {
 		close(sk);
 		return;
 	}
@@ -136,7 +136,7 @@ static void tcp_self_connect(const char *tst, unsigned int port,
 	test_ao_restore(sk, &ao_img);
 	test_disable_repair(sk);
 	test_sock_state_free(&img);
-	if (test_client_verify(sk, 100, nr_packets, TEST_TIMEOUT_SEC)) {
+	if (test_client_verify(sk, 100, nr_packets)) {
 		test_fail("%s: tcp connection verify failed", tst);
 		close(sk);
 		return;

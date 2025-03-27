@@ -4811,21 +4811,9 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned int argc, char **argv
 			ti->error = "Cannot allocate bio set";
 			goto bad;
 		}
-		r = bioset_integrity_create(&ic->recheck_bios, RECHECK_POOL_SIZE);
-		if (r) {
-			ti->error = "Cannot allocate bio integrity set";
-			r = -ENOMEM;
-			goto bad;
-		}
 		r = bioset_init(&ic->recalc_bios, 1, 0, BIOSET_NEED_BVECS);
 		if (r) {
 			ti->error = "Cannot allocate bio set";
-			goto bad;
-		}
-		r = bioset_integrity_create(&ic->recalc_bios, 1);
-		if (r) {
-			ti->error = "Cannot allocate bio integrity set";
-			r = -ENOMEM;
 			goto bad;
 		}
 	}

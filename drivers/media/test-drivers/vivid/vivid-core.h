@@ -403,9 +403,11 @@ struct vivid_dev {
 	int				display_byte_stride;
 	int				bits_per_pixel;
 	int				bytes_per_pixel;
+#ifdef CONFIG_VIDEO_VIVID_OSD
 	struct fb_info			fb_info;
 	struct fb_var_screeninfo	fb_defined;
 	struct fb_fix_screeninfo	fb_fix;
+#endif
 
 	/* Error injection */
 	bool				disconnect_error;

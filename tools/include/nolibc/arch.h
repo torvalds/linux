@@ -29,7 +29,7 @@
 #include "arch-powerpc.h"
 #elif defined(__riscv)
 #include "arch-riscv.h"
-#elif defined(__s390x__)
+#elif defined(__s390x__) || defined(__s390__)
 #include "arch-s390.h"
 #elif defined(__loongarch__)
 #include "arch-loongarch.h"

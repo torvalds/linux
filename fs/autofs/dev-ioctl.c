@@ -442,7 +442,6 @@ static int autofs_dev_ioctl_timeout(struct file *fp,
 		sbi->exp_timeout = timeout * HZ;
 	} else {
 		struct dentry *base = fp->f_path.dentry;
-		struct inode *inode = base->d_inode;
 		int path_len = param->size - AUTOFS_DEV_IOCTL_SIZE - 1;
 		struct dentry *dentry;
 		struct autofs_info *ino;
@@ -460,9 +459,7 @@ static int autofs_dev_ioctl_timeout(struct file *fp,
 				"the parent autofs mount timeout which could "
 				"prevent shutdown\n");
 
-		inode_lock_shared(inode);
 		dentry = try_lookup_one_len(param->path, base, path_len);
-		inode_unlock_shared(inode);
 		if (IS_ERR_OR_NULL(dentry))
 			return dentry ? PTR_ERR(dentry) : -ENOENT;
 		ino = autofs_dentry_ino(dentry);

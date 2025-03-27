@@ -1034,11 +1034,11 @@ static int da732x_set_dai_fmt(struct snd_soc_dai *dai, u32 fmt)
 	}
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		aif1 = DA732X_AIF_SLAVE;
 		aif_mclk = DA732X_AIFM_FRAME_64 | DA732X_AIFM_SRC_SEL_AIFA;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		aif1 = DA732X_AIF_CLK_FROM_SRC;
 		aif_mclk = DA732X_CLK_GENERATION_AIF_A;
 		break;

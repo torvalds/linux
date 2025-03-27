@@ -95,8 +95,7 @@ static int amd_fch_gpio_get_direction(struct gpio_chip *gc, unsigned int gpio)
 	return ret ? GPIO_LINE_DIRECTION_OUT : GPIO_LINE_DIRECTION_IN;
 }
 
-static void amd_fch_gpio_set(struct gpio_chip *gc,
-			     unsigned int gpio, int value)
+static int amd_fch_gpio_set(struct gpio_chip *gc, unsigned int gpio, int value)
 {
 	unsigned long flags;
 	struct amd_fch_gpio_priv *priv = gpiochip_get_data(gc);
@@ -113,6 +112,8 @@ static void amd_fch_gpio_set(struct gpio_chip *gc,
 	writel_relaxed(mask, ptr);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
 }
 
 static int amd_fch_gpio_get(struct gpio_chip *gc,
@@ -164,7 +165,7 @@ static int amd_fch_gpio_probe(struct platform_device *pdev)
 	priv->gc.direction_output	= amd_fch_gpio_direction_output;
 	priv->gc.get_direction		= amd_fch_gpio_get_direction;
 	priv->gc.get			= amd_fch_gpio_get;
-	priv->gc.set			= amd_fch_gpio_set;
+	priv->gc.set_rv			= amd_fch_gpio_set;
 
 	spin_lock_init(&priv->lock);
 

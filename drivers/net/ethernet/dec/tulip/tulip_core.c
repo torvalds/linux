@@ -1177,7 +1177,6 @@ static void set_rx_mode(struct net_device *dev)
 	iowrite32(csr6, ioaddr + CSR6);
 }
 
-#ifdef CONFIG_TULIP_MWI
 static void tulip_mwi_config(struct pci_dev *pdev, struct net_device *dev)
 {
 	struct tulip_private *tp = netdev_priv(dev);
@@ -1251,7 +1250,6 @@ out:
 		netdev_dbg(dev, "MWI config cacheline=%d, csr0=%08x\n",
 			   cache, csr0);
 }
-#endif
 
 /*
  *	Chips that have the MRM/reserved bit quirk and the burst quirk. That
@@ -1463,10 +1461,9 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	INIT_WORK(&tp->media_work, tulip_tbl[tp->chip_id].media_task);
 
-#ifdef CONFIG_TULIP_MWI
-	if (!force_csr0 && (tp->flags & HAS_PCI_MWI))
+	if (IS_ENABLED(CONFIG_TULIP_MWI) && !force_csr0 &&
+	    (tp->flags & HAS_PCI_MWI))
 		tulip_mwi_config (pdev, dev);
-#endif
 
 	/* Stop the chip's Tx and Rx processes. */
 	tulip_stop_rxtx(tp);

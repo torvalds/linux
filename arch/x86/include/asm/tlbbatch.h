@@ -10,6 +10,11 @@ struct arch_tlbflush_unmap_batch {
 	 * the PFNs being flushed..
 	 */
 	struct cpumask cpumask;
+	/*
+	 * Set if pages were unmapped from any MM, even one that does not
+	 * have active CPUs in its cpumask.
+	 */
+	bool unmapped_pages;
 };
 
 #endif /* _ARCH_X86_TLBBATCH_H */

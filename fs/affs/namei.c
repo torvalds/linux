@@ -273,7 +273,7 @@ affs_create(struct mnt_idmap *idmap, struct inode *dir,
 	return 0;
 }
 
-int
+struct dentry *
 affs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	   struct dentry *dentry, umode_t mode)
 {
@@ -285,7 +285,7 @@ affs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 
 	inode = affs_new_inode(dir);
 	if (!inode)
-		return -ENOSPC;
+		return ERR_PTR(-ENOSPC);
 
 	inode->i_mode = S_IFDIR | mode;
 	affs_mode_to_prot(inode);
@@ -298,9 +298,9 @@ affs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 		clear_nlink(inode);
 		mark_inode_dirty(inode);
 		iput(inode);
-		return error;
+		return ERR_PTR(error);
 	}
-	return 0;
+	return NULL;
 }
 
 int

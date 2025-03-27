@@ -97,7 +97,7 @@ static int mlx5_lag_create_port_sel_table(struct mlx5_lag *ldev,
 						mlx5_del_flow_rules(lag_definer->rules[idx]);
 					}
 					j = ldev->buckets;
-				};
+				}
 				goto destroy_fg;
 			}
 		}

@@ -153,8 +153,8 @@ int fscrypt_crypt_data_unit(const struct fscrypt_inode_info *ci,
 }
 
 /**
- * fscrypt_encrypt_pagecache_blocks() - Encrypt data from a pagecache page
- * @page: the locked pagecache page containing the data to encrypt
+ * fscrypt_encrypt_pagecache_blocks() - Encrypt data from a pagecache folio
+ * @folio: the locked pagecache folio containing the data to encrypt
  * @len: size of the data to encrypt, in bytes
  * @offs: offset within @page of the data to encrypt, in bytes
  * @gfp_flags: memory allocation flags; see details below
@@ -177,23 +177,21 @@ int fscrypt_crypt_data_unit(const struct fscrypt_inode_info *ci,
  *
  * Return: the new encrypted bounce page on success; an ERR_PTR() on failure
  */
-struct page *fscrypt_encrypt_pagecache_blocks(struct page *page,
-					      unsigned int len,
-					      unsigned int offs,
-					      gfp_t gfp_flags)
-
+struct page *fscrypt_encrypt_pagecache_blocks(struct folio *folio,
+		size_t len, size_t offs, gfp_t gfp_flags)
 {
-	const struct inode *inode = page->mapping->host;
+	const struct inode *inode = folio->mapping->host;
 	const struct fscrypt_inode_info *ci = inode->i_crypt_info;
 	const unsigned int du_bits = ci->ci_data_unit_bits;
 	const unsigned int du_size = 1U << du_bits;
 	struct page *ciphertext_page;
-	u64 index = ((u64)page->index << (PAGE_SHIFT - du_bits)) +
+	u64 index = ((u64)folio->index << (PAGE_SHIFT - du_bits)) +
 		    (offs >> du_bits);
 	unsigned int i;
 	int err;
 
-	if (WARN_ON_ONCE(!PageLocked(page)))
+	VM_BUG_ON_FOLIO(folio_test_large(folio), folio);
+	if (WARN_ON_ONCE(!folio_test_locked(folio)))
 		return ERR_PTR(-EINVAL);
 
 	if (WARN_ON_ONCE(len <= 0 || !IS_ALIGNED(len | offs, du_size)))
@@ -205,7 +203,7 @@ struct page *fscrypt_encrypt_pagecache_blocks(struct page *page,
 
 	for (i = offs; i < offs + len; i += du_size, index++) {
 		err = fscrypt_crypt_data_unit(ci, FS_ENCRYPT, index,
-					      page, ciphertext_page,
+					      &folio->page, ciphertext_page,
 					      du_size, i, gfp_flags);
 		if (err) {
 			fscrypt_free_bounce_page(ciphertext_page);
@@ -213,7 +211,7 @@ struct page *fscrypt_encrypt_pagecache_blocks(struct page *page,
 		}
 	}
 	SetPagePrivate(ciphertext_page);
-	set_page_private(ciphertext_page, (unsigned long)page);
+	set_page_private(ciphertext_page, (unsigned long)folio);
 	return ciphertext_page;
 }
 EXPORT_SYMBOL(fscrypt_encrypt_pagecache_blocks);

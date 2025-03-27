@@ -59,14 +59,14 @@ u32 crc32_le_arch(u32 crc, const u8 *p, size_t len)
 }
 EXPORT_SYMBOL(crc32_le_arch);
 
-static u32 crc32c_le_scalar(u32 crc, const u8 *p, size_t len)
+static u32 crc32c_scalar(u32 crc, const u8 *p, size_t len)
 {
 	if (static_branch_likely(&have_crc32))
 		return crc32c_armv8_le(crc, p, len);
-	return crc32c_le_base(crc, p, len);
+	return crc32c_base(crc, p, len);
 }
 
-u32 crc32c_le_arch(u32 crc, const u8 *p, size_t len)
+u32 crc32c_arch(u32 crc, const u8 *p, size_t len)
 {
 	if (len >= PMULL_MIN_LEN + 15 &&
 	    static_branch_likely(&have_pmull) && crypto_simd_usable()) {
@@ -74,7 +74,7 @@ u32 crc32c_le_arch(u32 crc, const u8 *p, size_t len)
 
 		/* align p to 16-byte boundary */
 		if (n) {
-			crc = crc32c_le_scalar(crc, p, n);
+			crc = crc32c_scalar(crc, p, n);
 			p += n;
 			len -= n;
 		}
@@ -85,9 +85,9 @@ u32 crc32c_le_arch(u32 crc, const u8 *p, size_t len)
 		p += n;
 		len -= n;
 	}
-	return crc32c_le_scalar(crc, p, len);
+	return crc32c_scalar(crc, p, len);
 }
-EXPORT_SYMBOL(crc32c_le_arch);
+EXPORT_SYMBOL(crc32c_arch);
 
 u32 crc32_be_arch(u32 crc, const u8 *p, size_t len)
 {

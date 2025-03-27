@@ -15,6 +15,13 @@
 #include <sound/pcm_params.h>
 #include <sound/simple_card_utils.h>
 
+#define simple_ret(priv, ret) _simple_ret(priv, __func__, ret)
+static inline int _simple_ret(struct simple_util_priv *priv,
+			      const char *func, int ret)
+{
+	return snd_soc_ret(simple_priv_to_dev(priv), ret, "at %s()\n", func);
+}
+
 int simple_util_get_sample_fmt(struct simple_util_data *data)
 {
 	int i;
@@ -133,33 +140,42 @@ int simple_util_parse_daifmt(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(simple_util_parse_daifmt);
 
-int simple_util_parse_tdm_width_map(struct device *dev, struct device_node *np,
+int simple_util_parse_tdm_width_map(struct simple_util_priv *priv, struct device_node *np,
 				    struct simple_util_dai *dai)
 {
+	struct device *dev = simple_priv_to_dev(priv);
 	int n, i, ret;
 	u32 *p;
+
+	/*
+	 * NOTE
+	 *
+	 * Clang doesn't allow to use "goto end" before calling __free(),
+	 * because it bypasses the initialization. Use simple_ret() directly.
+	 */
 
 	n = of_property_count_elems_of_size(np, "dai-tdm-slot-width-map", sizeof(u32));
 	if (n <= 0)
 		return 0;
+
 	if (n % 3) {
 		dev_err(dev, "Invalid number of cells for dai-tdm-slot-width-map\n");
-		return -EINVAL;
+		return simple_ret(priv, -EINVAL); /* see NOTE */
 	}
 
+	ret = -ENOMEM;
 	dai->tdm_width_map = devm_kcalloc(dev, n, sizeof(*dai->tdm_width_map), GFP_KERNEL);
 	if (!dai->tdm_width_map)
-		return -ENOMEM;
+		return simple_ret(priv, ret); /* see NOTE */
 
-	u32 *array_values __free(kfree) = kcalloc(n, sizeof(*array_values),
-						  GFP_KERNEL);
+	u32 *array_values __free(kfree) = kcalloc(n, sizeof(*array_values), GFP_KERNEL);
 	if (!array_values)
-		return -ENOMEM;
+		goto end;
 
 	ret = of_property_read_u32_array(np, "dai-tdm-slot-width-map", array_values, n);
 	if (ret < 0) {
 		dev_err(dev, "Could not read dai-tdm-slot-width-map: %d\n", ret);
-		return ret;
+		goto end;
 	}
 
 	p = array_values;
@@ -170,15 +186,17 @@ int simple_util_parse_tdm_width_map(struct device *dev, struct device_node *np,
 	}
 
 	dai->n_tdm_widths = i;
-
-	return 0;
+	ret = 0;
+end:
+	return simple_ret(priv, ret);
 }
 EXPORT_SYMBOL_GPL(simple_util_parse_tdm_width_map);
 
-int simple_util_set_dailink_name(struct device *dev,
+int simple_util_set_dailink_name(struct simple_util_priv *priv,
 				 struct snd_soc_dai_link *dai_link,
 				 const char *fmt, ...)
 {
+	struct device *dev = simple_priv_to_dev(priv);
 	va_list ap;
 	char *name = NULL;
 	int ret = -ENOMEM;
@@ -194,13 +212,14 @@ int simple_util_set_dailink_name(struct device *dev,
 		dai_link->stream_name	= name;
 	}
 
-	return ret;
+	return simple_ret(priv, ret);
 }
 EXPORT_SYMBOL_GPL(simple_util_set_dailink_name);
 
-int simple_util_parse_card_name(struct snd_soc_card *card,
+int simple_util_parse_card_name(struct simple_util_priv *priv,
 				char *prefix)
 {
+	struct snd_soc_card *card = simple_priv_to_card(priv);
 	int ret;
 
 	if (!prefix)
@@ -214,13 +233,13 @@ int simple_util_parse_card_name(struct snd_soc_card *card,
 		snprintf(prop, sizeof(prop), "%sname", prefix);
 		ret = snd_soc_of_parse_card_name(card, prop);
 		if (ret < 0)
-			return ret;
+			goto end;
 	}
 
 	if (!card->name && card->dai_link)
 		card->name = card->dai_link->name;
-
-	return 0;
+end:
+	return simple_ret(priv, ret);
 }
 EXPORT_SYMBOL_GPL(simple_util_parse_card_name);
 
@@ -348,7 +367,8 @@ cpu_err:
 			break;
 		simple_clk_disable(dai);
 	}
-	return ret;
+
+	return simple_ret(priv, ret);
 }
 EXPORT_SYMBOL_GPL(simple_util_startup);
 
@@ -379,16 +399,19 @@ void simple_util_shutdown(struct snd_pcm_substream *substream)
 }
 EXPORT_SYMBOL_GPL(simple_util_shutdown);
 
-static int simple_set_clk_rate(struct device *dev,
-				    struct simple_util_dai *simple_dai,
-				    unsigned long rate)
+static int simple_set_clk_rate(struct simple_util_priv *priv,
+			       struct simple_util_dai *simple_dai,
+			       unsigned long rate)
 {
+	struct device *dev = simple_priv_to_dev(priv);
+	int ret = -EINVAL;
+
 	if (!simple_dai)
 		return 0;
 
 	if (simple_dai->clk_fixed && rate != simple_dai->sysclk) {
 		dev_err(dev, "dai %s invalid clock rate %lu\n", simple_dai->name, rate);
-		return -EINVAL;
+		goto end;
 	}
 
 	if (!simple_dai->clk)
@@ -397,12 +420,15 @@ static int simple_set_clk_rate(struct device *dev,
 	if (clk_get_rate(simple_dai->clk) == rate)
 		return 0;
 
-	return clk_set_rate(simple_dai->clk, rate);
+	ret = clk_set_rate(simple_dai->clk, rate);
+end:
+	return simple_ret(priv, ret);
 }
 
-static int simple_set_tdm(struct snd_soc_dai *dai,
-				struct simple_util_dai *simple_dai,
-				struct snd_pcm_hw_params *params)
+static int simple_set_tdm(struct simple_util_priv *priv,
+			  struct snd_soc_dai *dai,
+			  struct simple_util_dai *simple_dai,
+			  struct snd_pcm_hw_params *params)
 {
 	int sample_bits = params_width(params);
 	int slot_width, slot_count;
@@ -430,12 +456,8 @@ static int simple_set_tdm(struct snd_soc_dai *dai,
 				       simple_dai->rx_slot_mask,
 				       slot_count,
 				       slot_width);
-	if (ret && ret != -ENOTSUPP) {
-		dev_err(dai->dev, "simple-card: set_tdm_slot error: %d\n", ret);
-		return ret;
-	}
 
-	return 0;
+	return simple_ret(priv, ret);
 }
 
 int simple_util_hw_params(struct snd_pcm_substream *substream,
@@ -457,15 +479,15 @@ int simple_util_hw_params(struct snd_pcm_substream *substream,
 		mclk = params_rate(params) * mclk_fs;
 
 		for_each_prop_dai_codec(props, i, pdai) {
-			ret = simple_set_clk_rate(rtd->dev, pdai, mclk);
+			ret = simple_set_clk_rate(priv, pdai, mclk);
 			if (ret < 0)
-				return ret;
+				goto end;
 		}
 
 		for_each_prop_dai_cpu(props, i, pdai) {
-			ret = simple_set_clk_rate(rtd->dev, pdai, mclk);
+			ret = simple_set_clk_rate(priv, pdai, mclk);
 			if (ret < 0)
-				return ret;
+				goto end;
 		}
 
 		/* Ensure sysclk is set on all components in case any
@@ -476,39 +498,40 @@ int simple_util_hw_params(struct snd_pcm_substream *substream,
 			ret = snd_soc_component_set_sysclk(component, 0, 0,
 							   mclk, SND_SOC_CLOCK_IN);
 			if (ret && ret != -ENOTSUPP)
-				return ret;
+				goto end;
 		}
 
 		for_each_rtd_codec_dais(rtd, i, sdai) {
 			pdai = simple_props_to_dai_codec(props, i);
 			ret = snd_soc_dai_set_sysclk(sdai, 0, mclk, pdai->clk_direction);
 			if (ret && ret != -ENOTSUPP)
-				return ret;
+				goto end;
 		}
 
 		for_each_rtd_cpu_dais(rtd, i, sdai) {
 			pdai = simple_props_to_dai_cpu(props, i);
 			ret = snd_soc_dai_set_sysclk(sdai, 0, mclk, pdai->clk_direction);
 			if (ret && ret != -ENOTSUPP)
-				return ret;
+				goto end;
 		}
 	}
 
 	for_each_prop_dai_codec(props, i, pdai) {
 		sdai = snd_soc_rtd_to_codec(rtd, i);
-		ret = simple_set_tdm(sdai, pdai, params);
+		ret = simple_set_tdm(priv, sdai, pdai, params);
 		if (ret < 0)
-			return ret;
+			goto end;
 	}
 
 	for_each_prop_dai_cpu(props, i, pdai) {
 		sdai = snd_soc_rtd_to_cpu(rtd, i);
-		ret = simple_set_tdm(sdai, pdai, params);
+		ret = simple_set_tdm(priv, sdai, pdai, params);
 		if (ret < 0)
-			return ret;
+			goto end;
 	}
-
-	return 0;
+	ret = 0;
+end:
+	return simple_ret(priv, ret);
 }
 EXPORT_SYMBOL_GPL(simple_util_hw_params);
 
@@ -536,7 +559,8 @@ int simple_util_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 }
 EXPORT_SYMBOL_GPL(simple_util_be_hw_params_fixup);
 
-static int simple_init_dai(struct snd_soc_dai *dai, struct simple_util_dai *simple_dai)
+static int simple_init_dai(struct simple_util_priv *priv,
+			   struct snd_soc_dai *dai, struct simple_util_dai *simple_dai)
 {
 	int ret;
 
@@ -548,7 +572,7 @@ static int simple_init_dai(struct snd_soc_dai *dai, struct simple_util_dai *simp
 					     simple_dai->clk_direction);
 		if (ret && ret != -ENOTSUPP) {
 			dev_err(dai->dev, "simple-card: set_sysclk error\n");
-			return ret;
+			goto end;
 		}
 	}
 
@@ -560,11 +584,12 @@ static int simple_init_dai(struct snd_soc_dai *dai, struct simple_util_dai *simp
 					       simple_dai->slot_width);
 		if (ret && ret != -ENOTSUPP) {
 			dev_err(dai->dev, "simple-card: set_tdm_slot error\n");
-			return ret;
+			goto end;
 		}
 	}
-
-	return 0;
+	ret = 0;
+end:
+	return simple_ret(priv, ret);
 }
 
 static inline int simple_component_is_codec(struct snd_soc_component *component)
@@ -572,7 +597,8 @@ static inline int simple_component_is_codec(struct snd_soc_component *component)
 	return component->driver->endianness;
 }
 
-static int simple_init_for_codec2codec(struct snd_soc_pcm_runtime *rtd,
+static int simple_init_for_codec2codec(struct simple_util_priv *priv,
+				       struct snd_soc_pcm_runtime *rtd,
 				       struct simple_dai_props *dai_props)
 {
 	struct snd_soc_dai_link *dai_link = rtd->dai_link;
@@ -604,12 +630,13 @@ static int simple_init_for_codec2codec(struct snd_soc_pcm_runtime *rtd,
 
 	if (ret < 0) {
 		dev_err(rtd->dev, "simple-card: no valid dai_link params\n");
-		return ret;
+		goto end;
 	}
 
+	ret = -ENOMEM;
 	c2c_params = devm_kzalloc(rtd->dev, sizeof(*c2c_params), GFP_KERNEL);
 	if (!c2c_params)
-		return -ENOMEM;
+		goto end;
 
 	c2c_params->formats		= hw.formats;
 	c2c_params->rates		= hw.rates;
@@ -621,7 +648,9 @@ static int simple_init_for_codec2codec(struct snd_soc_pcm_runtime *rtd,
 	dai_link->c2c_params		= c2c_params;
 	dai_link->num_c2c_params	= 1;
 
-	return 0;
+	ret = 0;
+end:
+	return simple_ret(priv, ret);
 }
 
 int simple_util_dai_init(struct snd_soc_pcm_runtime *rtd)
@@ -632,21 +661,19 @@ int simple_util_dai_init(struct snd_soc_pcm_runtime *rtd)
 	int i, ret;
 
 	for_each_prop_dai_codec(props, i, dai) {
-		ret = simple_init_dai(snd_soc_rtd_to_codec(rtd, i), dai);
+		ret = simple_init_dai(priv, snd_soc_rtd_to_codec(rtd, i), dai);
 		if (ret < 0)
-			return ret;
+			goto end;
 	}
 	for_each_prop_dai_cpu(props, i, dai) {
-		ret = simple_init_dai(snd_soc_rtd_to_cpu(rtd, i), dai);
+		ret = simple_init_dai(priv, snd_soc_rtd_to_cpu(rtd, i), dai);
 		if (ret < 0)
-			return ret;
+			goto end;
 	}
 
-	ret = simple_init_for_codec2codec(rtd, props);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	ret = simple_init_for_codec2codec(priv, rtd, props);
+end:
+	return simple_ret(priv, ret);
 }
 EXPORT_SYMBOL_GPL(simple_util_dai_init);
 
@@ -831,7 +858,7 @@ int simple_util_init_aux_jacks(struct simple_util_priv *priv, char *prefix)
 	priv->aux_jacks = devm_kcalloc(card->dev, num,
 				       sizeof(struct snd_soc_jack), GFP_KERNEL);
 	if (!priv->aux_jacks)
-		return -ENOMEM;
+		return simple_ret(priv, -ENOMEM);
 
 	for_each_card_auxs(card, component) {
 		char id[128];
@@ -992,13 +1019,11 @@ int graph_util_card_probe(struct snd_soc_card *card)
 
 	ret = simple_util_init_hp(card, &priv->hp_jack, NULL);
 	if (ret < 0)
-		return ret;
+		goto end;
 
 	ret = simple_util_init_mic(card, &priv->mic_jack, NULL);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+end:
+	return simple_ret(priv, ret);
 }
 EXPORT_SYMBOL_GPL(graph_util_card_probe);
 
@@ -1074,9 +1099,11 @@ static int graph_get_dai_id(struct device_node *ep)
 	return id;
 }
 
-int graph_util_parse_dai(struct device *dev, struct device_node *ep,
+int graph_util_parse_dai(struct simple_util_priv *priv, struct device_node *ep,
 			 struct snd_soc_dai_link_component *dlc, int *is_single_link)
 {
+	struct device *dev = simple_priv_to_dev(priv);
+	struct device_node *node;
 	struct of_phandle_args args = {};
 	struct snd_soc_dai *dai;
 	int ret;
@@ -1084,7 +1111,7 @@ int graph_util_parse_dai(struct device *dev, struct device_node *ep,
 	if (!ep)
 		return 0;
 
-	struct device_node *node __free(device_node) = of_graph_get_port_parent(ep);
+	node = of_graph_get_port_parent(ep);
 
 	/*
 	 * Try to find from DAI node
@@ -1092,11 +1119,12 @@ int graph_util_parse_dai(struct device *dev, struct device_node *ep,
 	args.np = ep;
 	dai = snd_soc_get_dai_via_args(&args);
 	if (dai) {
+		ret = -ENOMEM;
 		dlc->of_node  = node;
 		dlc->dai_name = snd_soc_dai_name_get(dai);
 		dlc->dai_args = snd_soc_copy_dai_args(dev, &args);
 		if (!dlc->dai_args)
-			return -ENOMEM;
+			goto end;
 
 		goto parse_dai_end;
 	}
@@ -1126,14 +1154,17 @@ int graph_util_parse_dai(struct device *dev, struct device_node *ep,
 	 *    if he unbinded CPU or Codec.
 	 */
 	ret = snd_soc_get_dlc(&args, dlc);
-	if (ret < 0)
-		return ret;
+	if (ret < 0) {
+		of_node_put(node);
+		goto end;
+	}
 
 parse_dai_end:
 	if (is_single_link)
 		*is_single_link = of_graph_get_endpoint_count(node) == 1;
-
-	return 0;
+	ret = 0;
+end:
+	return simple_ret(priv, ret);
 }
 EXPORT_SYMBOL_GPL(graph_util_parse_dai);
 

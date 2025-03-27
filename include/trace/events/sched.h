@@ -193,9 +193,7 @@ static inline long __trace_sched_switch_state(bool preempt,
 {
 	unsigned int state;
 
-#ifdef CONFIG_SCHED_DEBUG
 	BUG_ON(p != current);
-#endif /* CONFIG_SCHED_DEBUG */
 
 	/*
 	 * Preemption ignores task state, therefore preempted tasks are always

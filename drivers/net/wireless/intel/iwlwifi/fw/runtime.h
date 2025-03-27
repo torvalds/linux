@@ -104,6 +104,7 @@ struct iwl_txf_iter_data {
  *	the driver by calling &iwl_fw_set_current_image()
  * @dump: debug dump data
  * @uats_table: AP type table
+ * @uats_valid: is AP type table valid
  * @uefi_tables_lock_status: The status of the WIFI GUID UEFI variables lock:
  *	0: Unlocked, 1 and 2: Locked.
  *	Only read the UEFI variables if locked.
@@ -181,6 +182,7 @@ struct iwl_fw_runtime {
 	struct iwl_sar_offset_mapping_cmd sgom_table;
 	bool sgom_enabled;
 	struct iwl_mcc_allowed_ap_type_cmd uats_table;
+	bool uats_valid;
 	u8 uefi_tables_lock_status;
 };
 

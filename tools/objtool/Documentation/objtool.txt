@@ -28,6 +28,15 @@ Objtool has the following features:
   sites, enabling the kernel to patch them inline, to prevent "thunk
   funneling" for both security and performance reasons
 
+- Return thunk validation -- validates return thunks are used for
+  certain CPU mitigations including Retbleed and SRSO
+
+- Return thunk annotation -- annotates all return thunk sites so kernel
+  can patch them inline, depending on enabled mitigations
+
+- Return thunk training valiation -- validate that all entry paths
+  untrain a "safe return" before the first return (or call)
+
 - Non-instrumentation validation -- validates non-instrumentable
   ("noinstr") code rules, preventing instrumentation in low-level C
   entry code
@@ -52,6 +61,9 @@ Objtool has the following features:
 
 - Function entry annotation -- annotates function entries, enabling
   kernel function tracing
+
+- Function preamble (prefix) annotation and/or symbol generation -- used
+  for FineIBT and call depth tracking
 
 - Other toolchain hacks which will go unmentioned at this time...
 
@@ -197,19 +209,17 @@ To achieve the validation, objtool enforces the following rules:
 
 1. Each callable function must be annotated as such with the ELF
    function type.  In asm code, this is typically done using the
-   ENTRY/ENDPROC macros.  If objtool finds a return instruction
+   SYM_FUNC_{START,END} macros.  If objtool finds a return instruction
    outside of a function, it flags an error since that usually indicates
    callable code which should be annotated accordingly.
 
    This rule is needed so that objtool can properly identify each
    callable function in order to analyze its stack metadata.
 
-2. Conversely, each section of code which is *not* callable should *not*
-   be annotated as an ELF function.  The ENDPROC macro shouldn't be used
-   in this case.
-
-   This rule is needed so that objtool can ignore non-callable code.
-   Such code doesn't have to follow any of the other rules.
+2. Conversely, each section of code which is *not* callable, or is
+   otherwise doing funny things with the stack or registers, should
+   *not* be annotated as an ELF function.  Rather, SYM_CODE_{START,END}
+   should be used along with unwind hints.
 
 3. Each callable function which calls another function must have the
    correct frame pointer logic, if required by CONFIG_FRAME_POINTER or
@@ -221,7 +231,7 @@ To achieve the validation, objtool enforces the following rules:
    function B, the _caller_ of function A will be skipped on the stack
    trace.
 
-4. Dynamic jumps and jumps to undefined symbols are only allowed if:
+4. Indirect jumps and jumps to undefined symbols are only allowed if:
 
    a) the jump is part of a switch statement; or
 
@@ -304,29 +314,29 @@ the objtool maintainers.
    001e    2823e:  80 ce 02                or     $0x2,%dh
    ...
 
+
 2. file.o: warning: objtool: .text+0x53: unreachable instruction
 
    Objtool couldn't find a code path to reach the instruction.
 
    If the error is for an asm file, and the instruction is inside (or
    reachable from) a callable function, the function should be annotated
-   with the ENTRY/ENDPROC macros (ENDPROC is the important one).
-   Otherwise, the code should probably be annotated with the unwind hint
-   macros in asm/unwind_hints.h so objtool and the unwinder can know the
-   stack state associated with the code.
+   with the SYM_FUNC_START and SYM_FUNC_END macros.
 
-   If you're 100% sure the code won't affect stack traces, or if you're
-   a just a bad person, you can tell objtool to ignore it.  See the
-   "Adding exceptions" section below.
+   Otherwise, SYM_CODE_START can be used.  In that case the code needs
+   to be annotated with unwind hint macros.
 
-   If it's not actually in a callable function (e.g. kernel entry code),
-   change ENDPROC to END.
+   If you're sure the code won't affect the reliability of runtime stack
+   traces and want objtool to ignore it, see "Adding exceptions" below.
 
-3. file.o: warning: objtool: foo+0x48c: bar() is missing a __noreturn annotation
 
-   The call from foo() to bar() doesn't return, but bar() is missing the
-   __noreturn annotation.  NOTE: In addition to annotating the function
-   with __noreturn, please also add it to tools/objtool/noreturns.h.
+3. file.o: warning: objtool: foo+0x48c: bar() missing __noreturn in .c/.h or NORETURN() in noreturns.h
+
+   The call from foo() to bar() doesn't return, but bar() is incorrectly
+   annotated.  A noreturn function must be marked __noreturn in both its
+   declaration and its definition, and must have a NORETURN() annotation
+   in tools/objtool/noreturns.h.
+
 
 4. file.o: warning: objtool: func(): can't find starting instruction
    or
@@ -341,23 +351,21 @@ the objtool maintainers.
 
    This is a kernel entry/exit instruction like sysenter or iret.  Such
    instructions aren't allowed in a callable function, and are most
-   likely part of the kernel entry code.  They should usually not have
-   the callable function annotation (ENDPROC) and should always be
-   annotated with the unwind hint macros in asm/unwind_hints.h.
+   likely part of the kernel entry code.  Such code should probably be
+   placed in a SYM_FUNC_CODE block with unwind hints.
 
 
 6. file.o: warning: objtool: func()+0x26: sibling call from callable instruction with modified stack frame
 
-   This is a dynamic jump or a jump to an undefined symbol.  Objtool
-   assumed it's a sibling call and detected that the frame pointer
-   wasn't first restored to its original state.
+   This is a branch to an UNDEF symbol.  Objtool assumed it's a
+   sibling call and detected that the stack wasn't first restored to its
+   original state.
 
-   If it's not really a sibling call, you may need to move the
-   destination code to the local file.
+   If it's not really a sibling call, you may need to use unwind hints
+   and/or move the destination code to the local file.
 
    If the instruction is not actually in a callable function (e.g.
-   kernel entry code), change ENDPROC to END and annotate manually with
-   the unwind hint macros in asm/unwind_hints.h.
+   kernel entry code), use SYM_CODE_{START,END} and unwind hints.
 
 
 7. file: warning: objtool: func()+0x5c: stack state mismatch
@@ -373,8 +381,8 @@ the objtool maintainers.
 
    Another possibility is that the code has some asm or inline asm which
    does some unusual things to the stack or the frame pointer.  In such
-   cases it's probably appropriate to use the unwind hint macros in
-   asm/unwind_hints.h.
+   cases it's probably appropriate to use SYM_FUNC_CODE with unwind
+   hints.
 
 
 8. file.o: warning: objtool: funcA() falls through to next function funcB()
@@ -384,17 +392,16 @@ the objtool maintainers.
    can fall through into the next function.  There could be different
    reasons for this:
 
-   1) funcA()'s last instruction is a call to a "noreturn" function like
+   a) funcA()'s last instruction is a call to a "noreturn" function like
       panic().  In this case the noreturn function needs to be added to
       objtool's hard-coded global_noreturns array.  Feel free to bug the
       objtool maintainer, or you can submit a patch.
 
-   2) funcA() uses the unreachable() annotation in a section of code
+   b) funcA() uses the unreachable() annotation in a section of code
       that is actually reachable.
 
-   3) If funcA() calls an inline function, the object code for funcA()
-      might be corrupt due to a gcc bug.  For more details, see:
-      https://gcc.gnu.org/bugzilla/show_bug.cgi?id=70646
+   c) Some undefined behavior like divide by zero.
+
 
 9. file.o: warning: objtool: funcA() call to funcB() with UACCESS enabled
 
@@ -432,24 +439,26 @@ the objtool maintainers.
     This limitation can be overcome by massaging the alternatives with
     NOPs to shift the stack changes around so they no longer conflict.
 
+
 11. file.o: warning: unannotated intra-function call
 
-   This warning means that a direct call is done to a destination which
-   is not at the beginning of a function. If this is a legit call, you
-   can remove this warning by putting the ANNOTATE_INTRA_FUNCTION_CALL
-   directive right before the call.
+    This warning means that a direct call is done to a destination which
+    is not at the beginning of a function. If this is a legit call, you
+    can remove this warning by putting the ANNOTATE_INTRA_FUNCTION_CALL
+    directive right before the call.
+
 
 12. file.o: warning: func(): not an indirect call target
 
-   This means that objtool is running with --ibt and a function expected
-   to be an indirect call target is not. In particular, this happens for
-   init_module() or cleanup_module() if a module relies on these special
-   names and does not use module_init() / module_exit() macros to create
-   them.
+    This means that objtool is running with --ibt and a function
+    expected to be an indirect call target is not. In particular, this
+    happens for init_module() or cleanup_module() if a module relies on
+    these special names and does not use module_init() / module_exit()
+    macros to create them.
 
 
 If the error doesn't seem to make sense, it could be a bug in objtool.
-Feel free to ask the objtool maintainer for help.
+Feel free to ask objtool maintainers for help.
 
 
 Adding exceptions

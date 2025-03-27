@@ -8,6 +8,8 @@
 
 #include <linux/export.h>
 #include <linux/linkage.h>
+#include <linux/cfi_types.h>
+#include <linux/objtool.h>
 #include <asm/cpufeatures.h>
 #include <asm/alternative.h>
 #include <asm/asm.h>
@@ -30,6 +32,7 @@
  * it simpler for us, we can clobber rsi/rdi and rax freely.
  */
 SYM_FUNC_START(rep_movs_alternative)
+	ANNOTATE_NOENDBR
 	cmpq $64,%rcx
 	jae .Llarge
 

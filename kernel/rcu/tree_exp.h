@@ -230,17 +230,19 @@ static void __maybe_unused rcu_report_exp_rnp(struct rcu_node *rnp, bool wake)
  * specified leaf rcu_node structure, which is acquired by the caller.
  */
 static void rcu_report_exp_cpu_mult(struct rcu_node *rnp, unsigned long flags,
-				    unsigned long mask, bool wake)
+				    unsigned long mask_in, bool wake)
 				    __releases(rnp->lock)
 {
 	int cpu;
+	unsigned long mask;
 	struct rcu_data *rdp;
 
 	raw_lockdep_assert_held_rcu_node(rnp);
-	if (!(rnp->expmask & mask)) {
+	if (!(rnp->expmask & mask_in)) {
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 		return;
 	}
+	mask = mask_in & rnp->expmask;
 	WRITE_ONCE(rnp->expmask, rnp->expmask & ~mask);
 	for_each_leaf_node_cpu_mask(rnp, cpu, mask) {
 		rdp = per_cpu_ptr(&rcu_data, cpu);

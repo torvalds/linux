@@ -168,15 +168,6 @@ config CRC_T10DIF_ARCH
 	tristate
 	default CRC_T10DIF if ARCH_HAS_CRC_T10DIF && CRC_OPTIMIZATIONS
 
-config CRC64_ROCKSOFT
-	tristate "CRC calculation for the Rocksoft model CRC64"
-	select CRC64
-	select CRYPTO
-	select CRYPTO_CRC64_ROCKSOFT
-	help
-	  This option provides a CRC64 API to a registered crypto driver.
-	  This is used with the block layer's data integrity subsystem.
-
 config CRC_ITU_T
 	tristate "CRC ITU-T V.41 functions"
 	help
@@ -203,42 +194,30 @@ config CRC32_ARCH
 	default CRC32 if ARCH_HAS_CRC32 && CRC_OPTIMIZATIONS
 
 config CRC64
-	tristate "CRC64 functions"
-	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require CRC64 functions, but a module built outside
-	  the kernel tree does. Such modules that use library CRC64
-	  functions require M here.
+	tristate
+
+config ARCH_HAS_CRC64
+	bool
+
+config CRC64_ARCH
+	tristate
+	default CRC64 if ARCH_HAS_CRC64 && CRC_OPTIMIZATIONS
 
 config CRC4
-	tristate "CRC4 functions"
-	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require CRC4 functions, but a module built outside
-	  the kernel tree does. Such modules that use library CRC4
-	  functions require M here.
+	tristate
 
 config CRC7
-	tristate "CRC7 functions"
-	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require CRC7 functions, but a module built outside
-	  the kernel tree does. Such modules that use library CRC7
-	  functions require M here.
+	tristate
 
 config LIBCRC32C
-	tristate "CRC32c (Castagnoli, et al) Cyclic Redundancy-Check"
+	tristate
 	select CRC32
 	help
 	  This option just selects CRC32 and is provided for compatibility
 	  purposes until the users are updated to select CRC32 directly.
 
 config CRC8
-	tristate "CRC8 function"
-	help
-	  This option provides CRC8 function. Drivers may select this
-	  when they need to do cyclic redundancy check according CRC8
-	  algorithm. Module will be called crc8.
+	tristate
 
 config CRC_OPTIMIZATIONS
 	bool "Enable optimized CRC implementations" if EXPERT

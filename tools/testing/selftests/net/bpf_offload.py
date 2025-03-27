@@ -207,9 +207,11 @@ def bpftool_prog_list_wait(expected=0, n_retry=20):
     raise Exception("Time out waiting for program counts to stabilize want %d, have %d" % (expected, nprogs))
 
 def bpftool_map_list_wait(expected=0, n_retry=20, ns=""):
+    nmaps = None
     for i in range(n_retry):
         maps = bpftool_map_list(ns=ns)
-        if len(maps) == expected:
+        nmaps = len(maps)
+        if nmaps == expected:
             return maps
         time.sleep(0.05)
     raise Exception("Time out waiting for map counts to stabilize want %d, have %d" % (expected, nmaps))
@@ -710,6 +712,7 @@ _, base_maps = bpftool("map")
 base_map_names = [
     'pid_iter.rodata', # created on each bpftool invocation
     'libbpf_det_bind', # created on each bpftool invocation
+    'libbpf_global',
 ]
 
 # Check netdevsim

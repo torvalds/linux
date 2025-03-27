@@ -82,7 +82,7 @@ Install tools to build Linux kernel and tools in kernel repository.
 scripts/ver_linux is a good way to check if your system already has
 the necessary tools::
 
-  sudo apt-get build-essentials flex bison yacc
+  sudo apt-get install build-essential flex bison yacc
   sudo apt install libelf-dev systemtap-sdt-dev libslang2-dev libperl-dev libdw-dev
 
 cscope is a good tool to browse kernel sources. Let's install it now::

@@ -189,7 +189,7 @@ void tcp_fastopen_add_skb(struct sock *sk, struct sk_buff *skb)
 	tcp_segs_in(tp, skb);
 	__skb_pull(skb, tcp_hdrlen(skb));
 	sk_forced_mem_schedule(sk, skb->truesize);
-	skb_set_owner_r(skb, sk);
+	tcp_skb_set_owner_r(skb, sk);
 
 	TCP_SKB_CB(skb)->seq++;
 	TCP_SKB_CB(skb)->tcp_flags &= ~TCPHDR_SYN;
@@ -274,8 +274,8 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 	 * because it's been added to the accept queue directly.
 	 */
 	req->timeout = tcp_timeout_init(child);
-	inet_csk_reset_xmit_timer(child, ICSK_TIME_RETRANS,
-				  req->timeout, TCP_RTO_MAX);
+	tcp_reset_xmit_timer(child, ICSK_TIME_RETRANS,
+			     req->timeout, false);
 
 	refcount_set(&req->rsk_refcnt, 2);
 
@@ -468,7 +468,7 @@ bool tcp_fastopen_defer_connect(struct sock *sk, int *err)
 	}
 	return false;
 }
-EXPORT_SYMBOL(tcp_fastopen_defer_connect);
+EXPORT_IPV6_MOD(tcp_fastopen_defer_connect);
 
 /*
  * The following code block is to deal with middle box issues with TFO:

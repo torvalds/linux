@@ -16,6 +16,7 @@ properties:
   compatible:
     oneOf:
       - const: brcm,bcm5325
+      - const: brcm,bcm53101
       - const: brcm,bcm53115
       - const: brcm,bcm53125
       - const: brcm,bcm53128
@@ -77,6 +78,7 @@ allOf:
           contains:
             enum:
               - brcm,bcm5325
+              - brcm,bcm53101
               - brcm,bcm53115
               - brcm,bcm53125
               - brcm,bcm53128

@@ -1216,7 +1216,7 @@ static void hook_inode_free_security_rcu(void *inode_security)
 /*
  * Release the inodes used in a security policy.
  *
- * Cf. fsnotify_unmount_inodes() and invalidate_inodes()
+ * Cf. fsnotify_unmount_inodes() and evict_inodes()
  */
 static void hook_sb_delete(struct super_block *const sb)
 {

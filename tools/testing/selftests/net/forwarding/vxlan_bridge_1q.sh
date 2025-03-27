@@ -539,6 +539,21 @@ test_flood()
 		10 10 0 10 0
 	__test_flood ca:fe:be:ef:13:37 198.51.100.100 20 "flood vlan 20" \
 		10 0 10 0 10
+
+	# Add entries with arbitrary destination IP. Verify that packets are
+	# not duplicated (this can happen if hardware floods the packets, and
+	# then traps them due to misconfiguration, so software data path repeats
+	# flooding and resends packets).
+	bridge fdb append dev vx10 00:00:00:00:00:00 dst 203.0.113.1 self
+	bridge fdb append dev vx20 00:00:00:00:00:00 dst 203.0.113.2 self
+
+	__test_flood de:ad:be:ef:13:37 192.0.2.100 10 \
+		"flood vlan 10, unresolved FDB entry" 10 10 0 10 0
+	__test_flood ca:fe:be:ef:13:37 198.51.100.100 20 \
+		"flood vlan 20, unresolved FDB entry" 10 0 10 0 10
+
+	bridge fdb del dev vx20 00:00:00:00:00:00 dst 203.0.113.2 self
+	bridge fdb del dev vx10 00:00:00:00:00:00 dst 203.0.113.1 self
 }
 
 vxlan_fdb_add_del()

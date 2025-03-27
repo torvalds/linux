@@ -70,7 +70,7 @@ the DPSW object that it will probe:
 Besides the configuration of the actual DPSW object, the dpaa2-switch driver
 will need the following DPAA2 objects:
 
- * 1 DPMCP - A Management Command Portal object is needed for any interraction
+ * 1 DPMCP - A Management Command Portal object is needed for any interaction
    with the MC firmware.
 
  * 1 DPBP - A Buffer Pool is used for seeding buffers intended for the Rx path

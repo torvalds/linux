@@ -524,6 +524,9 @@ int stmmac_pcs_setup(struct net_device *ndev)
 	if (ret)
 		return dev_err_probe(priv->device, ret, "No xPCS found\n");
 
+	if (xpcs)
+		xpcs_config_eee_mult_fact(xpcs, priv->plat->mult_fact_100ns);
+
 	priv->hw->xpcs = xpcs;
 
 	return 0;

@@ -116,21 +116,22 @@ config UBSAN_UNREACHABLE
 	  This option enables -fsanitize=unreachable which checks for control
 	  flow reaching an expected-to-be-unreachable position.
 
-config UBSAN_SIGNED_WRAP
-	bool "Perform checking for signed arithmetic wrap-around"
+config UBSAN_INTEGER_WRAP
+	bool "Perform checking for integer arithmetic wrap-around"
 	default UBSAN
 	depends on !COMPILE_TEST
-	# The no_sanitize attribute was introduced in GCC with version 8.
-	depends on !CC_IS_GCC || GCC_VERSION >= 80000
+	depends on $(cc-option,-fsanitize-undefined-ignore-overflow-pattern=all)
 	depends on $(cc-option,-fsanitize=signed-integer-overflow)
+	depends on $(cc-option,-fsanitize=unsigned-integer-overflow)
+	depends on $(cc-option,-fsanitize=implicit-signed-integer-truncation)
+	depends on $(cc-option,-fsanitize=implicit-unsigned-integer-truncation)
+	depends on $(cc-option,-fsanitize-ignorelist=/dev/null)
 	help
-	  This option enables -fsanitize=signed-integer-overflow which checks
-	  for wrap-around of any arithmetic operations with signed integers.
-	  This currently performs nearly no instrumentation due to the
-	  kernel's use of -fno-strict-overflow which converts all would-be
-	  arithmetic undefined behavior into wrap-around arithmetic. Future
-	  sanitizer versions will allow for wrap-around checking (rather than
-	  exclusively undefined behavior).
+	  This option enables all of the sanitizers involved in integer overflow
+	  (wrap-around) mitigation: signed-integer-overflow, unsigned-integer-overflow,
+	  implicit-signed-integer-truncation, and implicit-unsigned-integer-truncation.
+	  This is currently limited only to the size_t type while testing and
+	  compiler development continues.
 
 config UBSAN_BOOL
 	bool "Perform checking for non-boolean values used as boolean"

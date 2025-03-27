@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2023 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  */
 
 /**
@@ -206,17 +206,19 @@ u8 ieee80211_retrieve_addba_ext_data(struct sta_info *sta,
 
 	elems = ieee802_11_parse_elems(elem_data, elem_len, true, NULL);
 
-	if (elems && !elems->parse_error && elems->addba_ext_ie) {
-		data = elems->addba_ext_ie->data;
+	if (!elems || elems->parse_error || !elems->addba_ext_ie)
+		goto free;
 
-		if (!sta->sta.deflink.eht_cap.has_eht || !buf_size)
-			goto free;
+	data = elems->addba_ext_ie->data;
 
+	if (buf_size &&
+	    (sta->sta.valid_links || sta->sta.deflink.eht_cap.has_eht)) {
 		buf_size_1k = u8_get_bits(elems->addba_ext_ie->data,
 					  IEEE80211_ADDBA_EXT_BUF_SIZE_MASK);
 		*buf_size |= (u16)buf_size_1k <<
 			     IEEE80211_ADDBA_EXT_BUF_SIZE_SHIFT;
 	}
+
 free:
 	kfree(elems);
 
@@ -258,7 +260,7 @@ static void ieee80211_send_addba_resp(struct sta_info *sta, u8 *da, u16 tid,
 	mgmt->u.action.u.addba_resp.timeout = cpu_to_le16(timeout);
 	mgmt->u.action.u.addba_resp.status = cpu_to_le16(status);
 
-	if (sta->sta.deflink.he_cap.has_he)
+	if (sta->sta.valid_links || sta->sta.deflink.he_cap.has_he)
 		ieee80211_add_addbaext(skb, req_addba_ext_data, buf_size);
 
 	ieee80211_tx_skb(sdata, skb);
@@ -293,7 +295,8 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 		goto end;
 	}
 
-	if (!sta->sta.deflink.ht_cap.ht_supported &&
+	if (!sta->sta.valid_links &&
+	    !sta->sta.deflink.ht_cap.ht_supported &&
 	    !sta->sta.deflink.he_cap.has_he) {
 		ht_dbg(sta->sdata,
 		       "STA %pM erroneously requests BA session on tid %d w/o HT\n",
@@ -309,7 +312,7 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 		goto end;
 	}
 
-	if (sta->sta.deflink.eht_cap.has_eht)
+	if (sta->sta.valid_links || sta->sta.deflink.eht_cap.has_eht)
 		max_buf_size = IEEE80211_MAX_AMPDU_BUF_EHT;
 	else if (sta->sta.deflink.he_cap.has_he)
 		max_buf_size = IEEE80211_MAX_AMPDU_BUF_HE;
@@ -321,7 +324,8 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 	 * and if buffer size does not exceeds max value */
 	/* XXX: check own ht delayed BA capability?? */
 	if (((ba_policy != 1) &&
-	     (!(sta->sta.deflink.ht_cap.cap & IEEE80211_HT_CAP_DELAY_BA))) ||
+	     (sta->sta.valid_links ||
+	      !(sta->sta.deflink.ht_cap.cap & IEEE80211_HT_CAP_DELAY_BA))) ||
 	    (buf_size > max_buf_size)) {
 		status = WLAN_STATUS_INVALID_QOS_PARAM;
 		ht_dbg_ratelimited(sta->sdata,

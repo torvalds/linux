@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2018, 2020-2024 Intel Corporation
+ * Copyright (C) 2018, 2020-2025 Intel Corporation
  */
 #ifndef __iwl_context_info_file_gen3_h__
 #define __iwl_context_info_file_gen3_h__
@@ -80,10 +80,12 @@ enum iwl_prph_scratch_flags {
  * enum iwl_prph_scratch_ext_flags - PRPH scratch control ext flags
  * @IWL_PRPH_SCRATCH_EXT_URM_FW: switch to URM mode based on fw setting
  * @IWL_PRPH_SCRATCH_EXT_URM_PERM: switch to permanent URM mode
+ * @IWL_PRPH_SCRATCH_EXT_32KHZ_CLK_VALID: use external 32 KHz clock
  */
 enum iwl_prph_scratch_ext_flags {
-	IWL_PRPH_SCRATCH_EXT_URM_FW	= BIT(4),
-	IWL_PRPH_SCRATCH_EXT_URM_PERM	= BIT(5),
+	IWL_PRPH_SCRATCH_EXT_URM_FW		= BIT(4),
+	IWL_PRPH_SCRATCH_EXT_URM_PERM		= BIT(5),
+	IWL_PRPH_SCRATCH_EXT_32KHZ_CLK_VALID	= BIT(8),
 };
 
 /**

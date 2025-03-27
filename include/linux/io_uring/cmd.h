@@ -4,6 +4,7 @@
 
 #include <uapi/linux/io_uring.h>
 #include <linux/io_uring_types.h>
+#include <linux/blk-mq.h>
 
 /* only top 8 bits of sqe->uring_cmd_flags for kernel internal use */
 #define IORING_URING_CMD_CANCELABLE	(1U << 30)
@@ -39,7 +40,9 @@ static inline void io_uring_cmd_private_sz_check(size_t cmd_sz)
 
 #if defined(CONFIG_IO_URING)
 int io_uring_cmd_import_fixed(u64 ubuf, unsigned long len, int rw,
-			      struct iov_iter *iter, void *ioucmd);
+			      struct iov_iter *iter,
+			      struct io_uring_cmd *ioucmd,
+			      unsigned int issue_flags);
 
 /*
  * Completes the request, i.e. posts an io_uring CQE and deallocates @ioucmd
@@ -66,8 +69,10 @@ void io_uring_cmd_mark_cancelable(struct io_uring_cmd *cmd,
 void io_uring_cmd_issue_blocking(struct io_uring_cmd *ioucmd);
 
 #else
-static inline int io_uring_cmd_import_fixed(u64 ubuf, unsigned long len, int rw,
-			      struct iov_iter *iter, void *ioucmd)
+static inline int
+io_uring_cmd_import_fixed(u64 ubuf, unsigned long len, int rw,
+			  struct iov_iter *iter, struct io_uring_cmd *ioucmd,
+			  unsigned int issue_flags)
 {
 	return -EOPNOTSUPP;
 }
@@ -122,5 +127,11 @@ static inline struct io_uring_cmd_data *io_uring_cmd_get_async_data(struct io_ur
 {
 	return cmd_to_io_kiocb(cmd)->async_data;
 }
+
+int io_buffer_register_bvec(struct io_uring_cmd *cmd, struct request *rq,
+			    void (*release)(void *), unsigned int index,
+			    unsigned int issue_flags);
+int io_buffer_unregister_bvec(struct io_uring_cmd *cmd, unsigned int index,
+			      unsigned int issue_flags);
 
 #endif /* _LINUX_IO_URING_CMD_H */

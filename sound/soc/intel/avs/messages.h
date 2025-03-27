@@ -451,6 +451,8 @@ enum avs_fw_cfg_params {
 	AVS_FW_CFG_RESERVED,
 	AVS_FW_CFG_POWER_GATING_POLICY,
 	AVS_FW_CFG_ASSERT_MODE,
+	AVS_FW_CFG_RESERVED2,
+	AVS_FW_CFG_BUS_HARDWARE_ID,
 };
 
 struct avs_fw_cfg {
@@ -475,7 +477,14 @@ struct avs_fw_cfg {
 	u32 power_gating_policy;
 };
 
+struct avs_bus_hwid {
+	u32 device;
+	u32 subsystem;
+	u8 revision;
+};
+
 int avs_ipc_get_fw_config(struct avs_dev *adev, struct avs_fw_cfg *cfg);
+int avs_ipc_set_fw_config(struct avs_dev *adev, size_t num_tlvs, ...);
 
 enum avs_hw_cfg_params {
 	AVS_HW_CFG_AVS_VER,
@@ -643,6 +652,9 @@ int avs_ipc_set_system_time(struct avs_dev *adev);
 #define AVS_INTELWOV_MOD_UUID \
 	GUID_INIT(0xEC774FA9, 0x28D3, 0x424A, 0x90, 0xE4, 0x69, 0xF9, 0x84, 0xF1, 0xEE, 0xB7)
 
+#define AVS_WOVHOSTM_MOD_UUID \
+	GUID_INIT(0xF9ED62B7, 0x092E, 0x4A90, 0x8F, 0x4D, 0x82, 0xDA, 0xA8, 0xB3, 0x8F, 0x3B)
+
 /* channel map */
 enum avs_channel_index {
 	AVS_CHANNEL_LEFT = 0,
@@ -802,6 +814,15 @@ struct avs_volume_cfg {
 } __packed;
 static_assert(sizeof(struct avs_volume_cfg) == 24);
 
+struct avs_mute_cfg {
+	u32 channel_id;
+	u32 mute;
+	u32 curve_type;
+	u32 reserved; /* alignment */
+	u64 curve_duration;
+} __packed;
+static_assert(sizeof(struct avs_mute_cfg) == 24);
+
 struct avs_peakvol_cfg {
 	struct avs_modcfg_base base;
 	struct avs_volume_cfg vols[];
@@ -872,7 +893,19 @@ struct avs_wov_cfg {
 } __packed;
 static_assert(sizeof(struct avs_wov_cfg) == 44);
 
+struct avs_whm_cfg {
+	struct avs_modcfg_base base;
+	/* Audio format for output pin 0 */
+	struct avs_audio_format ref_fmt;
+	struct avs_audio_format out_fmt;
+	u32 wake_tick_period;
+	struct avs_copier_gtw_cfg gtw_cfg;
+} __packed;
+static_assert(sizeof(struct avs_whm_cfg) == 108);
+
 /* Module runtime parameters */
+
+#define AVS_VENDOR_CONFIG	0xFF
 
 enum avs_copier_runtime_param {
 	AVS_COPIER_SET_SINK_FORMAT = 2,
@@ -892,6 +925,7 @@ int avs_ipc_copier_set_sink_format(struct avs_dev *adev, u16 module_id,
 
 enum avs_peakvol_runtime_param {
 	AVS_PEAKVOL_VOLUME = 0,
+	AVS_PEAKVOL_MUTE = 3,
 };
 
 enum avs_audio_curve_type {
@@ -899,10 +933,18 @@ enum avs_audio_curve_type {
 	AVS_AUDIO_CURVE_WINDOWS_FADE = 1,
 };
 
-int avs_ipc_peakvol_set_volume(struct avs_dev *adev, u16 module_id, u8 instance_id,
-			       struct avs_volume_cfg *vol);
 int avs_ipc_peakvol_get_volume(struct avs_dev *adev, u16 module_id, u8 instance_id,
 			       struct avs_volume_cfg **vols, size_t *num_vols);
+int avs_ipc_peakvol_set_volume(struct avs_dev *adev, u16 module_id, u8 instance_id,
+			       struct avs_volume_cfg *vol);
+int avs_ipc_peakvol_set_volumes(struct avs_dev *adev, u16 module_id, u8 instance_id,
+				struct avs_volume_cfg *vols, size_t num_vols);
+int avs_ipc_peakvol_get_mute(struct avs_dev *adev, u16 module_id, u8 instance_id,
+			     struct avs_mute_cfg **mutes, size_t *num_mutes);
+int avs_ipc_peakvol_set_mute(struct avs_dev *adev, u16 module_id, u8 instance_id,
+			     struct avs_mute_cfg *mute);
+int avs_ipc_peakvol_set_mutes(struct avs_dev *adev, u16 module_id, u8 instance_id,
+			      struct avs_mute_cfg *mutes, size_t num_mutes);
 
 #define AVS_PROBE_INST_ID	0
 

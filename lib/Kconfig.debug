@@ -545,6 +545,17 @@ config FRAME_POINTER
 config OBJTOOL
 	bool
 
+config OBJTOOL_WERROR
+	bool "Upgrade objtool warnings to errors"
+	depends on OBJTOOL && !COMPILE_TEST
+	help
+	  Fail the build on objtool warnings.
+
+	  Objtool warnings can indicate kernel instability, including boot
+	  failures.  This option is highly recommended.
+
+	  If unsure, say Y.
+
 config STACK_VALIDATION
 	bool "Compile-time stack metadata validation"
 	depends on HAVE_STACK_VALIDATION && UNWINDER_FRAME_POINTER
@@ -807,6 +818,15 @@ config ARCH_HAS_DEBUG_VM_PGTABLE
 	help
 	  An architecture should select this when it can successfully
 	  build and run DEBUG_VM_PGTABLE.
+
+config DEBUG_VFS
+	bool "Debug VFS"
+	depends on DEBUG_KERNEL
+	help
+	  Enable this to turn on extended checks in the VFS layer that may impact
+	  performance.
+
+	  If unsure, say N.
 
 config DEBUG_VM_IRQSOFF
 	def_bool DEBUG_VM && !PREEMPT_RT
@@ -1300,15 +1320,6 @@ config TEST_LOCKUP
 endmenu # "Debug lockups and hangs"
 
 menu "Scheduler Debugging"
-
-config SCHED_DEBUG
-	bool "Collect scheduler debugging info"
-	depends on DEBUG_KERNEL && DEBUG_FS
-	default y
-	help
-	  If you say Y here, the /sys/kernel/debug/sched file will be provided
-	  that can help debug the scheduler. The runtime overhead of this
-	  option is minimal.
 
 config SCHED_INFO
 	bool
@@ -2427,6 +2438,24 @@ config ASYNC_RAID6_TEST
 config TEST_HEXDUMP
 	tristate "Test functions located in the hexdump module at runtime"
 
+config PRINTF_KUNIT_TEST
+	tristate "KUnit test printf() family of functions at runtime" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Enable this option to test the printf functions at runtime.
+
+	  If unsure, say N.
+
+config SCANF_KUNIT_TEST
+	tristate "KUnit test scanf() family of functions at runtime" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Enable this option to test the scanf functions at runtime.
+
+	  If unsure, say N.
+
 config STRING_KUNIT_TEST
 	tristate "KUnit test string functions at runtime" if !KUNIT_ALL_TESTS
 	depends on KUNIT
@@ -2439,12 +2468,6 @@ config STRING_HELPERS_KUNIT_TEST
 
 config TEST_KSTRTOX
 	tristate "Test kstrto*() family of functions at runtime"
-
-config TEST_PRINTF
-	tristate "Test printf() family of functions at runtime"
-
-config TEST_SCANF
-	tristate "Test scanf() family of functions at runtime"
 
 config TEST_BITMAP
 	tristate "Test bitmap_*() family of functions at runtime"
@@ -2554,15 +2577,6 @@ config TEST_BPF
 	  development, but also to run regression tests against changes in
 	  the interpreter code. It also enables test stubs for eBPF maps and
 	  verifier used by user space verifier testsuite.
-
-	  If unsure, say N.
-
-config TEST_BLACKHOLE_DEV
-	tristate "Test blackhole netdev functionality"
-	depends on m && NET
-	help
-	  This builds the "test_blackhole_dev" module that validates the
-	  data path through this blackhole netdev.
 
 	  If unsure, say N.
 
@@ -2686,6 +2700,20 @@ config SYSCTL_KUNIT_TEST
 	help
 	  This builds the proc sysctl unit test, which runs on boot.
 	  Tests the API contract and implementation correctness of sysctl.
+	  For more information on KUnit and unit tests in general please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.
+
+config KFIFO_KUNIT_TEST
+	tristate "KUnit Test for the generic kernel FIFO implementation" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the generic FIFO implementation KUnit test suite.
+	  It tests that the API and basic functionality of the kfifo type
+	  and associated macros.
+
 	  For more information on KUnit and unit tests in general please refer
 	  to the KUnit documentation in Documentation/dev-tools/kunit/.
 
@@ -2852,6 +2880,7 @@ config CRC_KUNIT_TEST
 	tristate "KUnit tests for CRC functions" if !KUNIT_ALL_TESTS
 	depends on KUNIT
 	default KUNIT_ALL_TESTS
+	select CRC7
 	select CRC16
 	select CRC_T10DIF
 	select CRC32
@@ -2887,6 +2916,17 @@ config USERCOPY_KUNIT_TEST
 	  This builds the "usercopy_kunit" module that runs sanity checks
 	  on the copy_to/from_user infrastructure, making sure basic
 	  user/kernel boundary testing is working.
+
+config BLACKHOLE_DEV_KUNIT_TEST
+	tristate "Test blackhole netdev functionality" if !KUNIT_ALL_TESTS
+	depends on NET
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the "blackhole_dev_kunit" module that validates the
+	  data path through this blackhole netdev.
+
+	  If unsure, say N.
 
 config TEST_UDELAY
 	tristate "udelay test driver"
@@ -3166,7 +3206,7 @@ config TEST_OBJPOOL
 
 	  If unsure, say N.
 
-config INT_POW_TEST
+config INT_POW_KUNIT_TEST
 	tristate "Integer exponentiation (int_pow) test" if !KUNIT_ALL_TESTS
 	depends on KUNIT
 	default KUNIT_ALL_TESTS
@@ -3194,6 +3234,44 @@ config INT_SQRT_KUNIT_TEST
 	  Enabling this option will include tests that check various scenarios
 	  and edge cases to ensure the accuracy and reliability of the square root
 	  function.
+
+	  If unsure, say N
+
+config INT_LOG_KUNIT_TEST
+        tristate "Integer log (int_log) test" if !KUNIT_ALL_TESTS
+        depends on KUNIT
+        default KUNIT_ALL_TESTS
+        help
+          This option enables the KUnit test suite for the int_log library, which
+          provides two functions to compute the integer logarithm in base 2 and
+          base 10, called respectively as intlog2 and intlog10.
+
+          If unsure, say N
+
+config GCD_KUNIT_TEST
+	tristate "Greatest common divisor test" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This option enables the KUnit test suite for the gcd() function,
+	  which computes the greatest common divisor of two numbers.
+
+	  This test suite verifies the correctness of gcd() across various
+	  scenarios, including edge cases.
+
+	  If unsure, say N
+
+config PRIME_NUMBERS_KUNIT_TEST
+	tristate "Prime number generator test" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	select PRIME_NUMBERS
+	default KUNIT_ALL_TESTS
+	help
+	  This option enables the KUnit test suite for the {is,next}_prime_number
+	  functions.
+
+	  Enabling this option will include tests that compare the prime number
+	  generator functions against a brute force implementation.
 
 	  If unsure, say N
 

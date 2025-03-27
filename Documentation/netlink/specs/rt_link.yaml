@@ -771,6 +771,18 @@ definitions:
         name: to
         type: u32
   -
+    name: ifla-geneve-port-range
+    type: struct
+    members:
+      -
+        name: low
+        type: u16
+        byte-order: big-endian
+      -
+        name: high
+        type: u16
+        byte-order: big-endian
+  -
     name: ifla-vf-mac
     type: struct
     members:
@@ -1148,6 +1160,9 @@ attribute-sets:
         name: max-pacing-offload-horizon
         type: uint
         doc: EDT offload horizon supported by the device (in nsec).
+      -
+        name: netns-immutable
+        type: u8
   -
     name: af-spec-attrs
     attributes:
@@ -1915,6 +1930,10 @@ attribute-sets:
       -
         name: inner-proto-inherit
         type: flag
+      -
+        name: port-range
+        type: binary
+        struct: ifla-geneve-port-range
   -
     name: linkinfo-iptun-attrs
     name-prefix: ifla-iptun-

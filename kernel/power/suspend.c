@@ -91,14 +91,22 @@ static void s2idle_enter(void)
 {
 	trace_suspend_resume(TPS("machine_suspend"), PM_SUSPEND_TO_IDLE, true);
 
+	/*
+	 * The correctness of the code below depends on the number of online
+	 * CPUs being stable, but CPUs cannot be taken offline or put online
+	 * while it is running.
+	 *
+	 * The s2idle_lock must be acquired before the pending wakeup check to
+	 * prevent pm_system_wakeup() from running as a whole between that check
+	 * and the subsequent s2idle_state update in which case a wakeup event
+	 * would get lost.
+	 */
 	raw_spin_lock_irq(&s2idle_lock);
 	if (pm_wakeup_pending())
 		goto out;
 
 	s2idle_state = S2IDLE_STATE_ENTER;
 	raw_spin_unlock_irq(&s2idle_lock);
-
-	cpus_read_lock();
 
 	/* Push all the CPUs into the idle loop. */
 	wake_up_all_idle_cpus();
@@ -111,8 +119,6 @@ static void s2idle_enter(void)
 	 * consistent system state.
 	 */
 	wake_up_all_idle_cpus();
-
-	cpus_read_unlock();
 
 	raw_spin_lock_irq(&s2idle_lock);
 

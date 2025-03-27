@@ -2,13 +2,15 @@
 # SPDX-License-Identifier: GPL-2.0
 
 from lib.py import ksft_disruptive, ksft_exit, ksft_run
-from lib.py import ksft_eq, ksft_raises, KsftSkipEx
+from lib.py import ksft_eq, ksft_not_in, ksft_raises, KsftSkipEx, KsftFailEx
 from lib.py import EthtoolFamily, NetdevFamily, NlError
 from lib.py import NetDrvEnv
-from lib.py import cmd, defer, ip
+from lib.py import bkg, cmd, defer, ip
 import errno
 import glob
-
+import os
+import socket
+import struct
 
 def sys_get_queues(ifname, qtype='rx') -> int:
     folders = glob.glob(f'/sys/class/net/{ifname}/queues/{qtype}-*')
@@ -20,6 +22,40 @@ def nl_get_queues(cfg, nl, qtype='rx'):
     if queues:
         return len([q for q in queues if q['type'] == qtype])
     return None
+
+
+def check_xsk(cfg, nl, xdp_queue_id=0) -> None:
+    # Probe for support
+    xdp = cmd(cfg.rpath("xdp_helper") + ' - -', fail=False)
+    if xdp.ret == 255:
+        raise KsftSkipEx('AF_XDP unsupported')
+    elif xdp.ret > 0:
+        raise KsftFailEx('unable to create AF_XDP socket')
+
+    with bkg(f'{cfg.rpath("xdp_helper")} {cfg.ifindex} {xdp_queue_id}',
+             ksft_wait=3):
+
+        rx = tx = False
+
+        queues = nl.queue_get({'ifindex': cfg.ifindex}, dump=True)
+        if not queues:
+            raise KsftSkipEx("Netlink reports no queues")
+
+        for q in queues:
+            if q['id'] == 0:
+                if q['type'] == 'rx':
+                    rx = True
+                if q['type'] == 'tx':
+                    tx = True
+
+                ksft_eq(q.get('xsk', None), {},
+                        comment="xsk attr on queue we configured")
+            else:
+                ksft_not_in('xsk', q,
+                            comment="xsk attr on queue we didn't configure")
+
+        ksft_eq(rx, True)
+        ksft_eq(tx, True)
 
 
 def get_queues(cfg, nl) -> None:
@@ -80,7 +116,8 @@ def check_down(cfg, nl) -> None:
 
 def main() -> None:
     with NetDrvEnv(__file__, queue_count=100) as cfg:
-        ksft_run([get_queues, addremove_queues, check_down], args=(cfg, NetdevFamily()))
+        ksft_run([get_queues, addremove_queues, check_down, check_xsk],
+                 args=(cfg, NetdevFamily()))
     ksft_exit()
 
 

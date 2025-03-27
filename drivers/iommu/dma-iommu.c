@@ -24,6 +24,7 @@
 #include <linux/memremap.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
+#include <linux/msi.h>
 #include <linux/of_iommu.h>
 #include <linux/pci.h>
 #include <linux/scatterlist.h>
@@ -86,7 +87,6 @@ struct iommu_dma_cookie {
 	struct iommu_domain		*fq_domain;
 	/* Options for dma-iommu use */
 	struct iommu_dma_options	options;
-	struct mutex			mutex;
 };
 
 static DEFINE_STATIC_KEY_FALSE(iommu_deferred_attach_enabled);
@@ -101,6 +101,9 @@ static int __init iommu_dma_forcedac_setup(char *str)
 	return ret;
 }
 early_param("iommu.forcedac", iommu_dma_forcedac_setup);
+
+static int iommu_dma_sw_msi(struct iommu_domain *domain, struct msi_desc *desc,
+			    phys_addr_t msi_addr);
 
 /* Number of entries per flush queue */
 #define IOVA_DEFAULT_FQ_SIZE	256
@@ -397,7 +400,7 @@ int iommu_get_dma_cookie(struct iommu_domain *domain)
 	if (!domain->iova_cookie)
 		return -ENOMEM;
 
-	mutex_init(&domain->iova_cookie->mutex);
+	iommu_domain_set_sw_msi(domain, iommu_dma_sw_msi);
 	return 0;
 }
 
@@ -429,6 +432,7 @@ int iommu_get_msi_cookie(struct iommu_domain *domain, dma_addr_t base)
 
 	cookie->msi_iova = base;
 	domain->iova_cookie = cookie;
+	iommu_domain_set_sw_msi(domain, iommu_dma_sw_msi);
 	return 0;
 }
 EXPORT_SYMBOL(iommu_get_msi_cookie);
@@ -442,6 +446,11 @@ void iommu_put_dma_cookie(struct iommu_domain *domain)
 {
 	struct iommu_dma_cookie *cookie = domain->iova_cookie;
 	struct iommu_dma_msi_page *msi, *tmp;
+
+#if IS_ENABLED(CONFIG_IRQ_MSI_IOMMU)
+	if (domain->sw_msi != iommu_dma_sw_msi)
+		return;
+#endif
 
 	if (!cookie)
 		return;
@@ -698,23 +707,20 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, struct device *dev
 			 domain->geometry.aperture_start >> order);
 
 	/* start_pfn is always nonzero for an already-initialised domain */
-	mutex_lock(&cookie->mutex);
 	if (iovad->start_pfn) {
 		if (1UL << order != iovad->granule ||
 		    base_pfn != iovad->start_pfn) {
 			pr_warn("Incompatible range for DMA domain\n");
-			ret = -EFAULT;
-			goto done_unlock;
+			return -EFAULT;
 		}
 
-		ret = 0;
-		goto done_unlock;
+		return 0;
 	}
 
 	init_iova_domain(iovad, 1UL << order, base_pfn);
 	ret = iova_domain_init_rcaches(iovad);
 	if (ret)
-		goto done_unlock;
+		return ret;
 
 	iommu_dma_init_options(&cookie->options, dev);
 
@@ -723,11 +729,7 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, struct device *dev
 	    (!device_iommu_capable(dev, IOMMU_CAP_DEFERRED_FLUSH) || iommu_dma_init_fq(domain)))
 		domain->type = IOMMU_DOMAIN_DMA;
 
-	ret = iova_reserve_iommu_regions(dev, domain);
-
-done_unlock:
-	mutex_unlock(&cookie->mutex);
-	return ret;
+	return iova_reserve_iommu_regions(dev, domain);
 }
 
 /**
@@ -1800,60 +1802,26 @@ out_free_page:
 	return NULL;
 }
 
-/**
- * iommu_dma_prepare_msi() - Map the MSI page in the IOMMU domain
- * @desc: MSI descriptor, will store the MSI page
- * @msi_addr: MSI target address to be mapped
- *
- * Return: 0 on success or negative error code if the mapping failed.
- */
-int iommu_dma_prepare_msi(struct msi_desc *desc, phys_addr_t msi_addr)
+static int iommu_dma_sw_msi(struct iommu_domain *domain, struct msi_desc *desc,
+			    phys_addr_t msi_addr)
 {
 	struct device *dev = msi_desc_to_dev(desc);
-	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
-	struct iommu_dma_msi_page *msi_page;
-	static DEFINE_MUTEX(msi_prepare_lock); /* see below */
+	const struct iommu_dma_msi_page *msi_page;
 
-	if (!domain || !domain->iova_cookie) {
-		desc->iommu_cookie = NULL;
+	if (!domain->iova_cookie) {
+		msi_desc_set_iommu_msi_iova(desc, 0, 0);
 		return 0;
 	}
 
-	/*
-	 * In fact the whole prepare operation should already be serialised by
-	 * irq_domain_mutex further up the callchain, but that's pretty subtle
-	 * on its own, so consider this locking as failsafe documentation...
-	 */
-	mutex_lock(&msi_prepare_lock);
+	iommu_group_mutex_assert(dev);
 	msi_page = iommu_dma_get_msi_page(dev, msi_addr, domain);
-	mutex_unlock(&msi_prepare_lock);
-
-	msi_desc_set_iommu_cookie(desc, msi_page);
-
 	if (!msi_page)
 		return -ENOMEM;
+
+	msi_desc_set_iommu_msi_iova(
+		desc, msi_page->iova,
+		ilog2(cookie_msi_granule(domain->iova_cookie)));
 	return 0;
-}
-
-/**
- * iommu_dma_compose_msi_msg() - Apply translation to an MSI message
- * @desc: MSI descriptor prepared by iommu_dma_prepare_msi()
- * @msg: MSI message containing target physical address
- */
-void iommu_dma_compose_msi_msg(struct msi_desc *desc, struct msi_msg *msg)
-{
-	struct device *dev = msi_desc_to_dev(desc);
-	const struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
-	const struct iommu_dma_msi_page *msi_page;
-
-	msi_page = msi_desc_get_iommu_cookie(desc);
-
-	if (!domain || !domain->iova_cookie || WARN_ON(!msi_page))
-		return;
-
-	msg->address_hi = upper_32_bits(msi_page->iova);
-	msg->address_lo &= cookie_msi_granule(domain->iova_cookie) - 1;
-	msg->address_lo += lower_32_bits(msi_page->iova);
 }
 
 static int iommu_dma_init(void)

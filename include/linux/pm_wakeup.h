@@ -205,17 +205,17 @@ static inline void device_set_awake_path(struct device *dev)
 
 static inline void __pm_wakeup_event(struct wakeup_source *ws, unsigned int msec)
 {
-	return pm_wakeup_ws_event(ws, msec, false);
+	pm_wakeup_ws_event(ws, msec, false);
 }
 
 static inline void pm_wakeup_event(struct device *dev, unsigned int msec)
 {
-	return pm_wakeup_dev_event(dev, msec, false);
+	pm_wakeup_dev_event(dev, msec, false);
 }
 
 static inline void pm_wakeup_hard_event(struct device *dev)
 {
-	return pm_wakeup_dev_event(dev, 0, true);
+	pm_wakeup_dev_event(dev, 0, true);
 }
 
 /**

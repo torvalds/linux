@@ -61,6 +61,7 @@ static inline void file_ref_init(file_ref_t *ref, unsigned long cnt)
 	atomic_long_set(&ref->refcnt, cnt - 1);
 }
 
+bool __file_ref_put_badval(file_ref_t *ref, unsigned long cnt);
 bool __file_ref_put(file_ref_t *ref, unsigned long cnt);
 
 /**
@@ -161,6 +162,39 @@ static __always_inline __must_check bool file_ref_put(file_ref_t *ref)
 }
 
 /**
+ * file_ref_put_close - drop a reference expecting it would transition to FILE_REF_NOREF
+ * @ref:	Pointer to the reference count
+ *
+ * Semantically it is equivalent to calling file_ref_put(), but it trades lower
+ * performance in face of other CPUs also modifying the refcount for higher
+ * performance when this happens to be the last reference.
+ *
+ * For the last reference file_ref_put() issues 2 atomics. One to drop the
+ * reference and another to transition it to FILE_REF_DEAD. This routine does
+ * the work in one step, but in order to do it has to pre-read the variable which
+ * decreases scalability.
+ *
+ * Use with close() et al, stick to file_ref_put() by default.
+ */
+static __always_inline __must_check bool file_ref_put_close(file_ref_t *ref)
+{
+	long old, new;
+
+	old = atomic_long_read(&ref->refcnt);
+	do {
+		if (unlikely(old < 0))
+			return __file_ref_put_badval(ref, old);
+
+		if (old == FILE_REF_ONEREF)
+			new = FILE_REF_DEAD;
+		else
+			new = old - 1;
+	} while (!atomic_long_try_cmpxchg(&ref->refcnt, &old, new));
+
+	return new == FILE_REF_DEAD;
+}
+
+/**
  * file_ref_read - Read the number of file references
  * @ref: Pointer to the reference count
  *
@@ -172,6 +206,20 @@ static inline unsigned long file_ref_read(file_ref_t *ref)
 
 	/* Return 0 if within the DEAD zone. */
 	return c >= FILE_REF_RELEASED ? 0 : c + 1;
+}
+
+/*
+ * __file_ref_read_raw - Return the value stored in ref->refcnt
+ * @ref: Pointer to the reference count
+ *
+ * Return: The raw value found in the counter
+ *
+ * A hack for file_needs_f_pos_lock(), you probably want to use
+ * file_ref_read() instead.
+ */
+static inline unsigned long __file_ref_read_raw(file_ref_t *ref)
+{
+	return atomic_long_read(&ref->refcnt);
 }
 
 #endif

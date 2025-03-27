@@ -231,7 +231,7 @@ void BPF_STRUCT_OPS(qmap_enqueue, struct task_struct *p, u64 enq_flags)
 	}
 
 	/* if select_cpu() wasn't called, try direct dispatch */
-	if (!(enq_flags & SCX_ENQ_CPU_SELECTED) &&
+	if (!__COMPAT_is_enq_cpu_selected(enq_flags) &&
 	    (cpu = pick_direct_dispatch_cpu(p, scx_bpf_task_cpu(p))) >= 0) {
 		__sync_fetch_and_add(&nr_ddsp_from_enq, 1);
 		scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL_ON | cpu, slice_ns, enq_flags);
@@ -763,6 +763,8 @@ static void dump_shared_dsq(void)
 
 static int monitor_timerfn(void *map, int *key, struct bpf_timer *timer)
 {
+	struct scx_event_stats events;
+
 	bpf_rcu_read_lock();
 	dispatch_highpri(true);
 	bpf_rcu_read_unlock();
@@ -771,6 +773,25 @@ static int monitor_timerfn(void *map, int *key, struct bpf_timer *timer)
 
 	if (print_shared_dsq)
 		dump_shared_dsq();
+
+	__COMPAT_scx_bpf_events(&events, sizeof(events));
+
+	bpf_printk("%35s: %lld", "SCX_EV_SELECT_CPU_FALLBACK",
+		   scx_read_event(&events, SCX_EV_SELECT_CPU_FALLBACK));
+	bpf_printk("%35s: %lld", "SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE",
+		   scx_read_event(&events, SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE));
+	bpf_printk("%35s: %lld", "SCX_EV_DISPATCH_KEEP_LAST",
+		   scx_read_event(&events, SCX_EV_DISPATCH_KEEP_LAST));
+	bpf_printk("%35s: %lld", "SCX_EV_ENQ_SKIP_EXITING",
+		   scx_read_event(&events, SCX_EV_ENQ_SKIP_EXITING));
+	bpf_printk("%35s: %lld", "SCX_EV_ENQ_SLICE_DFL",
+		   scx_read_event(&events, SCX_EV_ENQ_SLICE_DFL));
+	bpf_printk("%35s: %lld", "SCX_EV_BYPASS_DURATION",
+		   scx_read_event(&events, SCX_EV_BYPASS_DURATION));
+	bpf_printk("%35s: %lld", "SCX_EV_BYPASS_DISPATCH",
+		   scx_read_event(&events, SCX_EV_BYPASS_DISPATCH));
+	bpf_printk("%35s: %lld", "SCX_EV_BYPASS_ACTIVATE",
+		   scx_read_event(&events, SCX_EV_BYPASS_ACTIVATE));
 
 	bpf_timer_start(timer, ONE_SEC_IN_NS, 0);
 	return 0;

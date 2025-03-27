@@ -3,7 +3,7 @@
 config INTEL_MEI
 	tristate "Intel Management Engine Interface"
 	depends on X86 && PCI
-	default GENERIC_CPU || MCORE2 || MATOM || X86_GENERIC
+	default X86_64 || MATOM
 	help
 	  The Intel Management Engine (Intel ME) provides Manageability,
 	  Security and Media services for system containing Intel chipsets.
