@@ -5269,8 +5269,8 @@
 		};
 
 		apps_rsc: rsc@179c0000 {
+			compatible = "qcom,sdm845-rpmh-apps-rsc", "qcom,rpmh-rsc";
 			label = "apps_rsc";
-			compatible = "qcom,rpmh-rsc";
 			reg = <0 0x179c0000 0 0x10000>,
 			      <0 0x179d0000 0 0x10000>,
 			      <0 0x179e0000 0 0x10000>;
