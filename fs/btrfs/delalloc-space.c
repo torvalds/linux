@@ -439,6 +439,29 @@ void btrfs_delalloc_release_extents(struct btrfs_inode *inode, u64 num_bytes)
 	btrfs_inode_rsv_release(inode, true);
 }
 
+/* Shrink a previously reserved extent to a new length. */
+void btrfs_delalloc_shrink_extents(struct btrfs_inode *inode, u64 reserved_len, u64 new_len)
+{
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	const u32 reserved_num_extents = count_max_extents(fs_info, reserved_len);
+	const u32 new_num_extents = count_max_extents(fs_info, new_len);
+	const int diff_num_extents = new_num_extents - reserved_num_extents;
+
+	ASSERT(new_len <= reserved_len);
+	if (new_num_extents == reserved_num_extents)
+		return;
+
+	spin_lock(&inode->lock);
+	btrfs_mod_outstanding_extents(inode, diff_num_extents);
+	btrfs_calculate_inode_block_rsv_size(fs_info, inode);
+	spin_unlock(&inode->lock);
+
+	if (btrfs_is_testing(fs_info))
+		return;
+
+	btrfs_inode_rsv_release(inode, true);
+}
+
 /*
  * Reserve data and metadata space for delalloc
  *

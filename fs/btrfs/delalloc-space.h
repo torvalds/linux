@@ -27,5 +27,6 @@ int btrfs_delalloc_reserve_space(struct btrfs_inode *inode,
 int btrfs_delalloc_reserve_metadata(struct btrfs_inode *inode, u64 num_bytes,
 				    u64 disk_num_bytes, bool noflush);
 void btrfs_delalloc_release_extents(struct btrfs_inode *inode, u64 num_bytes);
+void btrfs_delalloc_shrink_extents(struct btrfs_inode *inode, u64 reserved_len, u64 new_len);
 
 #endif /* BTRFS_DELALLOC_SPACE_H */
