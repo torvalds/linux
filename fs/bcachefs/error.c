@@ -11,7 +11,16 @@
 
 #define FSCK_ERR_RATELIMIT_NR	10
 
-bool bch2_inconsistent_error(struct bch_fs *c)
+void bch2_log_msg_start(struct bch_fs *c, struct printbuf *out)
+{
+	printbuf_indent_add_nextline(out, 2);
+
+#ifdef BCACHEFS_LOG_PREFIX
+	prt_printf(out, bch2_log_msg(c, ""));
+#endif
+}
+
+bool __bch2_inconsistent_error(struct bch_fs *c, struct printbuf *out)
 {
 	set_bit(BCH_FS_error, &c->flags);
 
@@ -21,8 +30,8 @@ bool bch2_inconsistent_error(struct bch_fs *c)
 	case BCH_ON_ERROR_fix_safe:
 	case BCH_ON_ERROR_ro:
 		if (bch2_fs_emergency_read_only(c))
-			bch_err(c, "inconsistency detected - emergency read only at journal seq %llu",
-				journal_cur_seq(&c->journal));
+			prt_printf(out, "inconsistency detected - emergency read only at journal seq %llu\n",
+				   journal_cur_seq(&c->journal));
 		return true;
 	case BCH_ON_ERROR_panic:
 		panic(bch2_fmt(c, "panic after error"));
@@ -30,6 +39,56 @@ bool bch2_inconsistent_error(struct bch_fs *c)
 	default:
 		BUG();
 	}
+}
+
+bool bch2_inconsistent_error(struct bch_fs *c)
+{
+	struct printbuf buf = PRINTBUF;
+	printbuf_indent_add_nextline(&buf, 2);
+
+	bool ret = __bch2_inconsistent_error(c, &buf);
+	if (ret)
+		bch_err(c, "%s", buf.buf);
+	printbuf_exit(&buf);
+	return ret;
+}
+
+__printf(3, 0)
+static bool bch2_fs_trans_inconsistent(struct bch_fs *c, struct btree_trans *trans,
+				       const char *fmt, va_list args)
+{
+	struct printbuf buf = PRINTBUF;
+
+	bch2_log_msg_start(c, &buf);
+
+	prt_vprintf(&buf, fmt, args);
+	prt_newline(&buf);
+
+	if (trans)
+		bch2_trans_updates_to_text(&buf, trans);
+	bool ret = __bch2_inconsistent_error(c, &buf);
+	bch2_print_string_as_lines(KERN_ERR, buf.buf);
+
+	printbuf_exit(&buf);
+	return ret;
+}
+
+bool bch2_fs_inconsistent(struct bch_fs *c, const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	bool ret = bch2_fs_trans_inconsistent(c, NULL, fmt, args);
+	va_end(args);
+	return ret;
+}
+
+bool bch2_trans_inconsistent(struct btree_trans *trans, const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	bool ret = bch2_fs_trans_inconsistent(trans->c, trans, fmt, args);
+	va_end(args);
+	return ret;
 }
 
 int bch2_topology_error(struct bch_fs *c)
@@ -42,6 +101,31 @@ int bch2_topology_error(struct bch_fs *c)
 		return bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology) ?:
 			-BCH_ERR_btree_node_read_validate_error;
 	}
+}
+
+int __bch2_topology_error(struct bch_fs *c, struct printbuf *out)
+{
+	prt_printf(out, "btree topology error: ");
+
+	return bch2_topology_error(c);
+}
+
+int bch2_fs_topology_error(struct bch_fs *c, const char *fmt, ...)
+{
+	struct printbuf buf = PRINTBUF;
+
+	bch2_log_msg_start(c, &buf);
+
+	va_list args;
+	va_start(args, fmt);
+	prt_vprintf(&buf, fmt, args);
+	va_end(args);
+
+	int ret = __bch2_topology_error(c, &buf);
+	bch2_print_string_as_lines(KERN_ERR, buf.buf);
+
+	printbuf_exit(&buf);
+	return ret;
 }
 
 void bch2_fatal_error(struct bch_fs *c)
@@ -379,6 +463,7 @@ int __bch2_fsck_err(struct bch_fs *c,
 		    !(flags & (FSCK_CAN_FIX|FSCK_CAN_IGNORE))) {
 			prt_str(out, ", shutting down");
 			inconsistent = true;
+			print = true;
 			ret = -BCH_ERR_fsck_errors_not_fixed;
 		} else if (flags & FSCK_CAN_FIX) {
 			prt_str(out, ", ");
@@ -440,24 +525,26 @@ print:
 	prt_newline(out);
 
 	if (inconsistent)
-		bch2_inconsistent_error(c);
+		__bch2_inconsistent_error(c, out);
 	else if (exiting)
 		prt_printf(out, "Unable to continue, halting\n");
 	else if (suppressing)
 		prt_printf(out, "Ratelimiting new instances of previous error\n");
 
 	if (print) {
+		/* possibly strip an empty line, from printbuf_indent_add */
+		while (out->pos && out->buf[out->pos - 1] == ' ')
+			--out->pos;
+		printbuf_nul_terminate(out);
+
 		if (bch2_fs_stdio_redirect(c))
-			bch2_print(c, "%s\n", out->buf);
+			bch2_print(c, "%s", out->buf);
 		else
 			bch2_print_string_as_lines(KERN_ERR, out->buf);
 	}
 
 	if (s)
 		s->ret = ret;
-
-	if (inconsistent)
-		bch2_inconsistent_error(c);
 
 	/*
 	 * We don't yet track whether the filesystem currently has errors, for
@@ -527,9 +614,7 @@ int __bch2_bkey_fsck_err(struct bch_fs *c,
 	prt_vprintf(&buf, fmt, args);
 	va_end(args);
 
-	prt_str(&buf, ": delete?");
-
-	int ret = __bch2_fsck_err(c, NULL, fsck_flags, err, "%s", buf.buf);
+	int ret = __bch2_fsck_err(c, NULL, fsck_flags, err, "%s, delete?", buf.buf);
 	printbuf_exit(&buf);
 	return ret;
 }
