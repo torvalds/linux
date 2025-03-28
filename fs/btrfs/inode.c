@@ -3232,8 +3232,6 @@ out:
 		btrfs_end_transaction(trans);
 
 	if (ret || truncated) {
-		u64 unwritten_start = start;
-
 		/*
 		 * If we failed to finish this ordered extent for any reason we
 		 * need to make sure BTRFS_ORDERED_IOERR is set on the ordered
@@ -3244,10 +3242,6 @@ out:
 		 */
 		if (ret)
 			btrfs_mark_ordered_extent_error(ordered_extent);
-
-		if (truncated)
-			unwritten_start += logical_len;
-		clear_extent_uptodate(io_tree, unwritten_start, end, NULL);
 
 		/*
 		 * Drop extent maps for the part of the extent we didn't write.
@@ -3263,9 +3257,15 @@ out:
 		 * we don't mess with the extent map tree in the NOCOW case, but
 		 * for now simply skip this if we are the free space inode.
 		 */
-		if (!btrfs_is_free_space_inode(inode))
+		if (!btrfs_is_free_space_inode(inode)) {
+			u64 unwritten_start = start;
+
+			if (truncated)
+				unwritten_start += logical_len;
+
 			btrfs_drop_extent_map_range(inode, unwritten_start,
 						    end, false);
+		}
 
 		/*
 		 * If the ordered extent had an IOERR or something else went
@@ -7480,12 +7480,10 @@ next:
 		 *    Since the IO will never happen for this page.
 		 */
 		btrfs_qgroup_free_data(inode, NULL, cur, range_end + 1 - cur, NULL);
-		if (!inode_evicting) {
+		if (!inode_evicting)
 			clear_extent_bit(tree, cur, range_end, EXTENT_LOCKED |
-				 EXTENT_DELALLOC | EXTENT_UPTODATE |
-				 EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG |
-				 extra_flags, &cached_state);
-		}
+					 EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING |
+					 EXTENT_DEFRAG | extra_flags, &cached_state);
 		cur = range_end + 1;
 	}
 	/*

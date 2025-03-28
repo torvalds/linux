@@ -196,13 +196,6 @@ int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		   u32 bits, struct extent_state **cached_state);
 
-static inline int clear_extent_uptodate(struct extent_io_tree *tree, u64 start,
-		u64 end, struct extent_state **cached_state)
-{
-	return __clear_extent_bit(tree, start, end, EXTENT_UPTODATE,
-				  cached_state, NULL);
-}
-
 static inline int clear_extent_dirty(struct extent_io_tree *tree, u64 start,
 				     u64 end, struct extent_state **cached)
 {

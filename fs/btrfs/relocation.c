@@ -2706,9 +2706,6 @@ static noinline_for_stack int prealloc_file_extent_cluster(struct reloc_control 
 		if (ret < 0)
 			return ret;
 
-		clear_extent_bits(&inode->io_tree, i_size,
-				  round_up(i_size, PAGE_SIZE) - 1,
-				  EXTENT_UPTODATE);
 		folio = filemap_lock_folio(mapping, i_size >> PAGE_SHIFT);
 		/*
 		 * If page is freed we don't need to do anything then, as we
