@@ -553,9 +553,9 @@ void kunit_cleanup(struct kunit *test);
 void __printf(2, 3) kunit_log_append(struct string_stream *log, const char *fmt, ...);
 
 /**
- * kunit_mark_skipped() - Marks @test_or_suite as skipped
+ * kunit_mark_skipped() - Marks @test as skipped
  *
- * @test_or_suite: The test context object.
+ * @test: The test context object.
  * @fmt:  A printk() style format string.
  *
  * Marks the test as skipped. @fmt is given output as the test status
@@ -563,18 +563,18 @@ void __printf(2, 3) kunit_log_append(struct string_stream *log, const char *fmt,
  *
  * Test execution continues after kunit_mark_skipped() is called.
  */
-#define kunit_mark_skipped(test_or_suite, fmt, ...)			\
+#define kunit_mark_skipped(test, fmt, ...)				\
 	do {								\
-		WRITE_ONCE((test_or_suite)->status, KUNIT_SKIPPED);	\
-		scnprintf((test_or_suite)->status_comment,		\
+		WRITE_ONCE((test)->status, KUNIT_SKIPPED);		\
+		scnprintf((test)->status_comment,			\
 			  KUNIT_STATUS_COMMENT_SIZE,			\
 			  fmt, ##__VA_ARGS__);				\
 	} while (0)
 
 /**
- * kunit_skip() - Marks @test_or_suite as skipped
+ * kunit_skip() - Marks @test as skipped
  *
- * @test_or_suite: The test context object.
+ * @test: The test context object.
  * @fmt:  A printk() style format string.
  *
  * Skips the test. @fmt is given output as the test status
@@ -582,10 +582,10 @@ void __printf(2, 3) kunit_log_append(struct string_stream *log, const char *fmt,
  *
  * Test execution is halted after kunit_skip() is called.
  */
-#define kunit_skip(test_or_suite, fmt, ...)				\
+#define kunit_skip(test, fmt, ...)					\
 	do {								\
-		kunit_mark_skipped((test_or_suite), fmt, ##__VA_ARGS__);\
-		kunit_try_catch_throw(&((test_or_suite)->try_catch));	\
+		kunit_mark_skipped((test), fmt, ##__VA_ARGS__);		\
+		kunit_try_catch_throw(&((test)->try_catch));		\
 	} while (0)
 
 /*
