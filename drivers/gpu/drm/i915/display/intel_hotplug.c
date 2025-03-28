@@ -1075,6 +1075,7 @@ static bool unblock_hpd_pin(struct intel_display *display, enum hpd_pin pin)
  * Blocks the handling of HPD IRQs on the HPD pin of @encoder.
  *
  * On return:
+ *
  * - It's guaranteed that the blocked encoders' HPD pulse handler
  *   (via intel_digital_port::hpd_pulse()) is not running.
  * - The hotplug event handling (via intel_encoder::hotplug()) of an
