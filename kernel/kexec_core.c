@@ -1013,7 +1013,7 @@ int kernel_kexec(void)
 			error = -EBUSY;
 			goto Restore_console;
 		}
-		suspend_console();
+		console_suspend_all();
 		error = dpm_suspend_start(PMSG_FREEZE);
 		if (error)
 			goto Resume_console;
@@ -1072,7 +1072,7 @@ int kernel_kexec(void)
  Resume_devices:
 		dpm_resume_end(PMSG_RESTORE);
  Resume_console:
-		resume_console();
+		console_resume_all();
 		thaw_processes();
  Restore_console:
 		pm_restore_console();
