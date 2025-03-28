@@ -1318,23 +1318,23 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (unlikely(!iomsg))
 		return -ENOMEM;
 
-	if (zc->flags & IORING_RECVSEND_FIXED_BUF)
-		iomsg->msg.sg_from_iter = io_sg_from_iter;
-	else
-		iomsg->msg.sg_from_iter = io_sg_from_iter_iovec;
-
 	if (req->opcode == IORING_OP_SEND_ZC) {
-		req->flags |= REQ_F_IMPORT_BUFFER;
-		return io_send_setup(req, sqe);
+		if (zc->flags & IORING_RECVSEND_FIXED_BUF)
+			req->flags |= REQ_F_IMPORT_BUFFER;
+		ret = io_send_setup(req, sqe);
+	} else {
+		if (unlikely(sqe->addr2 || sqe->file_index))
+			return -EINVAL;
+		ret = io_sendmsg_setup(req, sqe);
 	}
-	if (unlikely(sqe->addr2 || sqe->file_index))
-		return -EINVAL;
-	ret = io_sendmsg_setup(req, sqe);
 	if (unlikely(ret))
 		return ret;
 
-	if (!(zc->flags & IORING_RECVSEND_FIXED_BUF))
+	if (!(zc->flags & IORING_RECVSEND_FIXED_BUF)) {
+		iomsg->msg.sg_from_iter = io_sg_from_iter_iovec;
 		return io_notif_account_mem(zc->notif, iomsg->msg.msg_iter.count);
+	}
+	iomsg->msg.sg_from_iter = io_sg_from_iter;
 	return 0;
 }
 
@@ -1392,25 +1392,13 @@ static int io_send_zc_import(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct io_async_msghdr *kmsg = req->async_data;
-	int ret;
 
-	if (sr->flags & IORING_RECVSEND_FIXED_BUF) {
-		sr->notif->buf_index = req->buf_index;
-		ret = io_import_reg_buf(sr->notif, &kmsg->msg.msg_iter,
-					(u64)(uintptr_t)sr->buf, sr->len,
-					ITER_SOURCE, issue_flags);
-		if (unlikely(ret))
-			return ret;
-	} else {
-		ret = import_ubuf(ITER_SOURCE, sr->buf, sr->len, &kmsg->msg.msg_iter);
-		if (unlikely(ret))
-			return ret;
-		ret = io_notif_account_mem(sr->notif, sr->len);
-		if (unlikely(ret))
-			return ret;
-	}
+	WARN_ON_ONCE(!(sr->flags & IORING_RECVSEND_FIXED_BUF));
 
-	return ret;
+	sr->notif->buf_index = req->buf_index;
+	return io_import_reg_buf(sr->notif, &kmsg->msg.msg_iter,
+				(u64)(uintptr_t)sr->buf, sr->len,
+				ITER_SOURCE, issue_flags);
 }
 
 int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
