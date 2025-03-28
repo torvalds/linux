@@ -246,6 +246,18 @@ static int drm_fb_xfrm(struct iosys_map *dst,
 				     xfrm_line);
 }
 
+static __always_inline void drm_fb_xfrm_line_32to16(void *dbuf, const void *sbuf,
+						    unsigned int pixels,
+						    u32 (*xfrm_pixel)(u32))
+{
+	__le16 *dbuf16 = dbuf;
+	const __le32 *sbuf32 = sbuf;
+	const __le32 *send32 = sbuf32 + pixels;
+
+	while (sbuf32 < send32)
+		*dbuf16++ = cpu_to_le16(xfrm_pixel(le32_to_cpup(sbuf32++)));
+}
+
 static __always_inline void drm_fb_xfrm_line_32to24(void *dbuf, const void *sbuf,
 						    unsigned int pixels,
 						    u32 (*xfrm_pixel)(u32))
@@ -448,38 +460,19 @@ EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb332);
 
 static void drm_fb_xrgb8888_to_rgb565_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
-	__le16 *dbuf16 = dbuf;
-	const __le32 *sbuf32 = sbuf;
-	unsigned int x;
-	u16 val16;
-	u32 pix;
+	drm_fb_xfrm_line_32to16(dbuf, sbuf, pixels, drm_pixel_xrgb8888_to_rgb565);
+}
 
-	for (x = 0; x < pixels; x++) {
-		pix = le32_to_cpu(sbuf32[x]);
-		val16 = ((pix & 0x00F80000) >> 8) |
-			((pix & 0x0000FC00) >> 5) |
-			((pix & 0x000000F8) >> 3);
-		dbuf16[x] = cpu_to_le16(val16);
-	}
+static __always_inline u32 drm_xrgb8888_to_rgb565_swab(u32 pix)
+{
+	return swab16(drm_pixel_xrgb8888_to_rgb565(pix));
 }
 
 /* TODO: implement this helper as conversion to RGB565|BIG_ENDIAN */
 static void drm_fb_xrgb8888_to_rgb565_swab_line(void *dbuf, const void *sbuf,
 						unsigned int pixels)
 {
-	__le16 *dbuf16 = dbuf;
-	const __le32 *sbuf32 = sbuf;
-	unsigned int x;
-	u16 val16;
-	u32 pix;
-
-	for (x = 0; x < pixels; x++) {
-		pix = le32_to_cpu(sbuf32[x]);
-		val16 = ((pix & 0x00F80000) >> 8) |
-			((pix & 0x0000FC00) >> 5) |
-			((pix & 0x000000F8) >> 3);
-		dbuf16[x] = cpu_to_le16(swab16(val16));
-	}
+	drm_fb_xfrm_line_32to16(dbuf, sbuf, pixels, drm_xrgb8888_to_rgb565_swab);
 }
 
 /**
@@ -526,19 +519,7 @@ EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb565);
 
 static void drm_fb_xrgb8888_to_xrgb1555_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
-	__le16 *dbuf16 = dbuf;
-	const __le32 *sbuf32 = sbuf;
-	unsigned int x;
-	u16 val16;
-	u32 pix;
-
-	for (x = 0; x < pixels; x++) {
-		pix = le32_to_cpu(sbuf32[x]);
-		val16 = ((pix & 0x00f80000) >> 9) |
-			((pix & 0x0000f800) >> 6) |
-			((pix & 0x000000f8) >> 3);
-		dbuf16[x] = cpu_to_le16(val16);
-	}
+	drm_fb_xfrm_line_32to16(dbuf, sbuf, pixels, drm_pixel_xrgb8888_to_xrgb1555);
 }
 
 /**
@@ -578,20 +559,7 @@ EXPORT_SYMBOL(drm_fb_xrgb8888_to_xrgb1555);
 
 static void drm_fb_xrgb8888_to_argb1555_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
-	__le16 *dbuf16 = dbuf;
-	const __le32 *sbuf32 = sbuf;
-	unsigned int x;
-	u16 val16;
-	u32 pix;
-
-	for (x = 0; x < pixels; x++) {
-		pix = le32_to_cpu(sbuf32[x]);
-		val16 = BIT(15) | /* set alpha bit */
-			((pix & 0x00f80000) >> 9) |
-			((pix & 0x0000f800) >> 6) |
-			((pix & 0x000000f8) >> 3);
-		dbuf16[x] = cpu_to_le16(val16);
-	}
+	drm_fb_xfrm_line_32to16(dbuf, sbuf, pixels, drm_pixel_xrgb8888_to_argb1555);
 }
 
 /**
@@ -631,20 +599,7 @@ EXPORT_SYMBOL(drm_fb_xrgb8888_to_argb1555);
 
 static void drm_fb_xrgb8888_to_rgba5551_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
-	__le16 *dbuf16 = dbuf;
-	const __le32 *sbuf32 = sbuf;
-	unsigned int x;
-	u16 val16;
-	u32 pix;
-
-	for (x = 0; x < pixels; x++) {
-		pix = le32_to_cpu(sbuf32[x]);
-		val16 = ((pix & 0x00f80000) >> 8) |
-			((pix & 0x0000f800) >> 5) |
-			((pix & 0x000000f8) >> 2) |
-			BIT(0); /* set alpha bit */
-		dbuf16[x] = cpu_to_le16(val16);
-	}
+	drm_fb_xfrm_line_32to16(dbuf, sbuf, pixels, drm_pixel_xrgb8888_to_rgba5551);
 }
 
 /**
@@ -980,36 +935,7 @@ EXPORT_SYMBOL(drm_fb_xrgb8888_to_gray8);
 
 static void drm_fb_argb8888_to_argb4444_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
-	unsigned int pixels2 = pixels & ~GENMASK_ULL(0, 0);
-	__le32 *dbuf32 = dbuf;
-	__le16 *dbuf16 = dbuf + pixels2 * sizeof(*dbuf16);
-	const __le32 *sbuf32 = sbuf;
-	unsigned int x;
-	u32 val32;
-	u16 val16;
-	u32 pix[2];
-
-	for (x = 0; x < pixels2; x += 2, ++dbuf32) {
-		pix[0] = le32_to_cpu(sbuf32[x]);
-		pix[1] = le32_to_cpu(sbuf32[x + 1]);
-		val32 = ((pix[0] & 0xf0000000) >> 16) |
-			((pix[0] & 0x00f00000) >> 12) |
-			((pix[0] & 0x0000f000) >> 8) |
-			((pix[0] & 0x000000f0) >> 4) |
-			((pix[1] & 0xf0000000) >> 0) |
-			((pix[1] & 0x00f00000) << 4) |
-			((pix[1] & 0x0000f000) << 8) |
-			((pix[1] & 0x000000f0) << 12);
-		*dbuf32 = cpu_to_le32(val32);
-	}
-	for (; x < pixels; x++) {
-		pix[0] = le32_to_cpu(sbuf32[x]);
-		val16 = ((pix[0] & 0xf0000000) >> 16) |
-			((pix[0] & 0x00f00000) >> 12) |
-			((pix[0] & 0x0000f000) >> 8) |
-			((pix[0] & 0x000000f0) >> 4);
-		dbuf16[x] = cpu_to_le16(val16);
-	}
+	drm_fb_xfrm_line_32to16(dbuf, sbuf, pixels, drm_pixel_argb8888_to_argb4444);
 }
 
 /**

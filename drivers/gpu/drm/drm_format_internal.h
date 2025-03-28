@@ -128,4 +128,16 @@ static inline u32 drm_pixel_xrgb8888_to_abgr2101010(u32 pix)
 	       drm_pixel_xrgb8888_to_xbgr2101010(pix);
 }
 
+/*
+ * Conversion from ARGB8888
+ */
+
+static inline u32 drm_pixel_argb8888_to_argb4444(u32 pix)
+{
+	return ((pix & 0xf0000000) >> 16) |
+	       ((pix & 0x00f00000) >> 12) |
+	       ((pix & 0x0000f000) >> 8) |
+	       ((pix & 0x000000f0) >> 4);
+}
+
 #endif
