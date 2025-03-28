@@ -1290,12 +1290,12 @@ static void ublk_cmd_list_tw_cb(struct io_uring_cmd *cmd,
 	struct ublk_queue *ubq = rq->mq_hctx->driver_data;
 	struct request *next;
 
-	while (rq) {
+	do {
 		next = rq->rq_next;
 		rq->rq_next = NULL;
 		ublk_dispatch_req(ubq, rq, issue_flags);
 		rq = next;
-	}
+	} while (rq);
 }
 
 static void ublk_queue_cmd_list(struct ublk_queue *ubq, struct rq_list *l)
