@@ -951,12 +951,14 @@ void netdev_nl_sock_priv_destroy(struct netdev_nl_sock *priv)
 {
 	struct net_devmem_dmabuf_binding *binding;
 	struct net_devmem_dmabuf_binding *temp;
+	struct net_device *dev;
 
 	mutex_lock(&priv->lock);
 	list_for_each_entry_safe(binding, temp, &priv->bindings, list) {
-		netdev_lock(binding->dev);
+		dev = binding->dev;
+		netdev_lock(dev);
 		net_devmem_unbind_dmabuf(binding);
-		netdev_unlock(binding->dev);
+		netdev_unlock(dev);
 	}
 	mutex_unlock(&priv->lock);
 }
