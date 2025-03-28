@@ -80,6 +80,7 @@ struct device_attribute;
 struct irq_domain;
 struct irq_affinity_desc;
 
+void __get_cached_msi_msg(struct msi_desc *entry, struct msi_msg *msg);
 #ifdef CONFIG_GENERIC_MSI_IRQ
 void get_cached_msi_msg(unsigned int irq, struct msi_msg *msg);
 #else
@@ -228,11 +229,8 @@ struct msi_dev_domain {
 
 int msi_setup_device_data(struct device *dev);
 
-void __msi_lock_descs(struct device *dev);
-void __msi_unlock_descs(struct device *dev);
-
-DEFINE_LOCK_GUARD_1(msi_descs_lock, struct device, __msi_lock_descs(_T->lock),
-		    __msi_unlock_descs(_T->lock));
+void msi_lock_descs(struct device *dev);
+void msi_unlock_descs(struct device *dev);
 
 struct msi_desc *msi_domain_first_desc(struct device *dev, unsigned int domid,
 				       enum msi_desc_filter filter);
@@ -636,6 +634,8 @@ void msi_remove_device_irq_domain(struct device *dev, unsigned int domid);
 bool msi_match_device_irq_domain(struct device *dev, unsigned int domid,
 				 enum irq_domain_bus_token bus_token);
 
+int msi_domain_alloc_irqs_range_locked(struct device *dev, unsigned int domid,
+				       unsigned int first, unsigned int last);
 int msi_domain_alloc_irqs_range(struct device *dev, unsigned int domid,
 				unsigned int first, unsigned int last);
 int msi_domain_alloc_irqs_all_locked(struct device *dev, unsigned int domid, int nirqs);
@@ -644,6 +644,8 @@ struct msi_map msi_domain_alloc_irq_at(struct device *dev, unsigned int domid, u
 				       const struct irq_affinity_desc *affdesc,
 				       union msi_instance_cookie *cookie);
 
+void msi_domain_free_irqs_range_locked(struct device *dev, unsigned int domid,
+				       unsigned int first, unsigned int last);
 void msi_domain_free_irqs_range(struct device *dev, unsigned int domid,
 				unsigned int first, unsigned int last);
 void msi_domain_free_irqs_all_locked(struct device *dev, unsigned int domid);

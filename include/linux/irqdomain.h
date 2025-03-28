@@ -281,8 +281,6 @@ static inline struct fwnode_handle *irq_domain_alloc_fwnode(phys_addr_t *pa)
 
 void irq_domain_free_fwnode(struct fwnode_handle *fwnode);
 
-DEFINE_FREE(irq_domain_free_fwnode, struct fwnode_handle *, if (_T) irq_domain_free_fwnode(_T))
-
 struct irq_domain_chip_generic_info;
 
 /**
