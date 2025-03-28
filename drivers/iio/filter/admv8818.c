@@ -14,6 +14,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/notifier.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
 #include <linux/units.h>
@@ -70,6 +71,16 @@
 #define ADMV8818_HPF_WR0_MSK			GENMASK(7, 4)
 #define ADMV8818_LPF_WR0_MSK			GENMASK(3, 0)
 
+#define ADMV8818_BAND_BYPASS       0
+#define ADMV8818_BAND_MIN          1
+#define ADMV8818_BAND_MAX          4
+#define ADMV8818_BAND_CORNER_LOW   0
+#define ADMV8818_BAND_CORNER_HIGH  1
+
+#define ADMV8818_STATE_MIN   0
+#define ADMV8818_STATE_MAX   15
+#define ADMV8818_NUM_STATES  16
+
 enum {
 	ADMV8818_BW_FREQ,
 	ADMV8818_CENTER_FREQ
@@ -90,16 +101,20 @@ struct admv8818_state {
 	struct mutex		lock;
 	unsigned int		filter_mode;
 	u64			cf_hz;
+	u64			lpf_margin_hz;
+	u64			hpf_margin_hz;
 };
 
-static const unsigned long long freq_range_hpf[4][2] = {
+static const unsigned long long freq_range_hpf[5][2] = {
+	{0ULL, 0ULL}, /* bypass */
 	{1750000000ULL, 3550000000ULL},
 	{3400000000ULL, 7250000000ULL},
 	{6600000000, 12000000000},
 	{12500000000, 19900000000}
 };
 
-static const unsigned long long freq_range_lpf[4][2] = {
+static const unsigned long long freq_range_lpf[5][2] = {
+	{U64_MAX, U64_MAX}, /* bypass */
 	{2050000000ULL, 3850000000ULL},
 	{3350000000ULL, 7250000000ULL},
 	{7000000000, 13000000000},
@@ -121,42 +136,57 @@ static const char * const admv8818_modes[] = {
 
 static int __admv8818_hpf_select(struct admv8818_state *st, u64 freq)
 {
-	unsigned int hpf_step = 0, hpf_band = 0, i, j;
-	u64 freq_step;
-	int ret;
+	int band, state, ret;
+	unsigned int hpf_state = ADMV8818_STATE_MIN, hpf_band = ADMV8818_BAND_BYPASS;
+	u64 freq_error, min_freq_error, freq_corner, freq_step;
 
-	if (freq < freq_range_hpf[0][0])
+	if (freq < freq_range_hpf[ADMV8818_BAND_MIN][ADMV8818_BAND_CORNER_LOW])
 		goto hpf_write;
 
-	if (freq > freq_range_hpf[3][1]) {
-		hpf_step = 15;
-		hpf_band = 4;
-
+	if (freq >= freq_range_hpf[ADMV8818_BAND_MAX][ADMV8818_BAND_CORNER_HIGH]) {
+		hpf_state = ADMV8818_STATE_MAX;
+		hpf_band = ADMV8818_BAND_MAX;
 		goto hpf_write;
-	}
-
-	for (i = 0; i < 4; i++) {
-		freq_step = div_u64((freq_range_hpf[i][1] -
-			freq_range_hpf[i][0]), 15);
-
-		if (freq > freq_range_hpf[i][0] &&
-		    (freq < freq_range_hpf[i][1] + freq_step)) {
-			hpf_band = i + 1;
-
-			for (j = 1; j <= 16; j++) {
-				if (freq < (freq_range_hpf[i][0] + (freq_step * j))) {
-					hpf_step = j - 1;
-					break;
-				}
-			}
-			break;
-		}
 	}
 
 	/* Close HPF frequency gap between 12 and 12.5 GHz */
 	if (freq >= 12000ULL * HZ_PER_MHZ && freq < 12500ULL * HZ_PER_MHZ) {
+		hpf_state = ADMV8818_STATE_MAX;
 		hpf_band = 3;
-		hpf_step = 15;
+		goto hpf_write;
+	}
+
+	min_freq_error = U64_MAX;
+	for (band = ADMV8818_BAND_MIN; band <= ADMV8818_BAND_MAX; band++) {
+		/*
+		 * This (and therefore all other ranges) have a corner
+		 * frequency higher than the target frequency.
+		 */
+		if (freq_range_hpf[band][ADMV8818_BAND_CORNER_LOW] > freq)
+			break;
+
+		freq_step = freq_range_hpf[band][ADMV8818_BAND_CORNER_HIGH] -
+			    freq_range_hpf[band][ADMV8818_BAND_CORNER_LOW];
+		freq_step = div_u64(freq_step, ADMV8818_NUM_STATES - 1);
+
+		for (state = ADMV8818_STATE_MIN; state <= ADMV8818_STATE_MAX; state++) {
+			freq_corner = freq_range_hpf[band][ADMV8818_BAND_CORNER_LOW] +
+				      freq_step * state;
+
+			/*
+			 * This (and therefore all other states) have a corner
+			 * frequency higher than the target frequency.
+			 */
+			if (freq_corner > freq)
+				break;
+
+			freq_error = freq - freq_corner;
+			if (freq_error < min_freq_error) {
+				min_freq_error = freq_error;
+				hpf_state = state;
+				hpf_band = band;
+			}
+		}
 	}
 
 hpf_write:
@@ -170,7 +200,7 @@ hpf_write:
 
 	return regmap_update_bits(st->regmap, ADMV8818_REG_WR0_FILTER,
 				  ADMV8818_HPF_WR0_MSK,
-				  FIELD_PREP(ADMV8818_HPF_WR0_MSK, hpf_step));
+				  FIELD_PREP(ADMV8818_HPF_WR0_MSK, hpf_state));
 }
 
 static int admv8818_hpf_select(struct admv8818_state *st, u64 freq)
@@ -186,31 +216,52 @@ static int admv8818_hpf_select(struct admv8818_state *st, u64 freq)
 
 static int __admv8818_lpf_select(struct admv8818_state *st, u64 freq)
 {
-	unsigned int lpf_step = 0, lpf_band = 0, i, j;
-	u64 freq_step;
-	int ret;
+	int band, state, ret;
+	unsigned int lpf_state = ADMV8818_STATE_MIN, lpf_band = ADMV8818_BAND_BYPASS;
+	u64 freq_error, min_freq_error, freq_corner, freq_step;
 
-	if (freq > freq_range_lpf[3][1])
+	if (freq > freq_range_lpf[ADMV8818_BAND_MAX][ADMV8818_BAND_CORNER_HIGH])
 		goto lpf_write;
 
-	if (freq < freq_range_lpf[0][0]) {
-		lpf_band = 1;
-
+	if (freq < freq_range_lpf[ADMV8818_BAND_MIN][ADMV8818_BAND_CORNER_LOW]) {
+		lpf_state = ADMV8818_STATE_MIN;
+		lpf_band = ADMV8818_BAND_MIN;
 		goto lpf_write;
 	}
 
-	for (i = 0; i < 4; i++) {
-		if (freq > freq_range_lpf[i][0] && freq < freq_range_lpf[i][1]) {
-			lpf_band = i + 1;
-			freq_step = div_u64((freq_range_lpf[i][1] - freq_range_lpf[i][0]), 15);
-
-			for (j = 0; j <= 15; j++) {
-				if (freq < (freq_range_lpf[i][0] + (freq_step * j))) {
-					lpf_step = j;
-					break;
-				}
-			}
+	min_freq_error = U64_MAX;
+	for (band = ADMV8818_BAND_MAX; band >= ADMV8818_BAND_MIN; --band) {
+		/*
+		 * At this point the highest corner frequency of
+		 * all remaining ranges is below the target.
+		 * LPF corner should be >= the target.
+		 */
+		if (freq > freq_range_lpf[band][ADMV8818_BAND_CORNER_HIGH])
 			break;
+
+		freq_step = freq_range_lpf[band][ADMV8818_BAND_CORNER_HIGH] -
+			    freq_range_lpf[band][ADMV8818_BAND_CORNER_LOW];
+		freq_step = div_u64(freq_step, ADMV8818_NUM_STATES - 1);
+
+		for (state = ADMV8818_STATE_MAX; state >= ADMV8818_STATE_MIN; --state) {
+
+			freq_corner = freq_range_lpf[band][ADMV8818_BAND_CORNER_LOW] +
+				      state * freq_step;
+
+			/*
+			 * At this point all other states in range will
+			 * place the corner frequency below the target
+			 * LPF corner should >= the target.
+			 */
+			if (freq > freq_corner)
+				break;
+
+			freq_error = freq_corner - freq;
+			if (freq_error < min_freq_error) {
+				min_freq_error = freq_error;
+				lpf_state = state;
+				lpf_band = band;
+			}
 		}
 	}
 
@@ -225,7 +276,7 @@ lpf_write:
 
 	return regmap_update_bits(st->regmap, ADMV8818_REG_WR0_FILTER,
 				  ADMV8818_LPF_WR0_MSK,
-				  FIELD_PREP(ADMV8818_LPF_WR0_MSK, lpf_step));
+				  FIELD_PREP(ADMV8818_LPF_WR0_MSK, lpf_state));
 }
 
 static int admv8818_lpf_select(struct admv8818_state *st, u64 freq)
@@ -242,16 +293,28 @@ static int admv8818_lpf_select(struct admv8818_state *st, u64 freq)
 static int admv8818_rfin_band_select(struct admv8818_state *st)
 {
 	int ret;
+	u64 hpf_corner_target, lpf_corner_target;
 
 	st->cf_hz = clk_get_rate(st->clkin);
 
+	/* Check for underflow */
+	if (st->cf_hz > st->hpf_margin_hz)
+		hpf_corner_target = st->cf_hz - st->hpf_margin_hz;
+	else
+		hpf_corner_target = 0;
+
+	/* Check for overflow */
+	lpf_corner_target = st->cf_hz + st->lpf_margin_hz;
+	if (lpf_corner_target < st->cf_hz)
+		lpf_corner_target = U64_MAX;
+
 	mutex_lock(&st->lock);
 
-	ret = __admv8818_hpf_select(st, st->cf_hz);
+	ret = __admv8818_hpf_select(st, hpf_corner_target);
 	if (ret)
 		goto exit;
 
-	ret = __admv8818_lpf_select(st, st->cf_hz);
+	ret = __admv8818_lpf_select(st, lpf_corner_target);
 exit:
 	mutex_unlock(&st->lock);
 	return ret;
@@ -278,8 +341,11 @@ static int __admv8818_read_hpf_freq(struct admv8818_state *st, u64 *hpf_freq)
 
 	hpf_state = FIELD_GET(ADMV8818_HPF_WR0_MSK, data);
 
-	*hpf_freq = div_u64(freq_range_hpf[hpf_band - 1][1] - freq_range_hpf[hpf_band - 1][0], 15);
-	*hpf_freq = freq_range_hpf[hpf_band - 1][0] + (*hpf_freq * hpf_state);
+	*hpf_freq = freq_range_hpf[hpf_band][ADMV8818_BAND_CORNER_HIGH] -
+		    freq_range_hpf[hpf_band][ADMV8818_BAND_CORNER_LOW];
+	*hpf_freq = div_u64(*hpf_freq, ADMV8818_NUM_STATES - 1);
+	*hpf_freq = freq_range_hpf[hpf_band][ADMV8818_BAND_CORNER_LOW] +
+		    (*hpf_freq * hpf_state);
 
 	return ret;
 }
@@ -316,8 +382,11 @@ static int __admv8818_read_lpf_freq(struct admv8818_state *st, u64 *lpf_freq)
 
 	lpf_state = FIELD_GET(ADMV8818_LPF_WR0_MSK, data);
 
-	*lpf_freq = div_u64(freq_range_lpf[lpf_band - 1][1] - freq_range_lpf[lpf_band - 1][0], 15);
-	*lpf_freq = freq_range_lpf[lpf_band - 1][0] + (*lpf_freq * lpf_state);
+	*lpf_freq = freq_range_lpf[lpf_band][ADMV8818_BAND_CORNER_HIGH] -
+		    freq_range_lpf[lpf_band][ADMV8818_BAND_CORNER_LOW];
+	*lpf_freq = div_u64(*lpf_freq, ADMV8818_NUM_STATES - 1);
+	*lpf_freq = freq_range_lpf[lpf_band][ADMV8818_BAND_CORNER_LOW] +
+		    (*lpf_freq * lpf_state);
 
 	return ret;
 }
@@ -641,6 +710,32 @@ static int admv8818_clk_setup(struct admv8818_state *st)
 	return devm_add_action_or_reset(&spi->dev, admv8818_clk_notifier_unreg, st);
 }
 
+static int admv8818_read_properties(struct admv8818_state *st)
+{
+	struct spi_device *spi = st->spi;
+	u32 mhz;
+	int ret;
+
+	ret = device_property_read_u32(&spi->dev, "adi,lpf-margin-mhz", &mhz);
+	if (ret == 0)
+		st->lpf_margin_hz = (u64)mhz * HZ_PER_MHZ;
+	else if (ret == -EINVAL)
+		st->lpf_margin_hz = 0;
+	else
+		return ret;
+
+
+	ret = device_property_read_u32(&spi->dev, "adi,hpf-margin-mhz", &mhz);
+	if (ret == 0)
+		st->hpf_margin_hz = (u64)mhz * HZ_PER_MHZ;
+	else if (ret == -EINVAL)
+		st->hpf_margin_hz = 0;
+	else if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static int admv8818_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
@@ -671,6 +766,10 @@ static int admv8818_probe(struct spi_device *spi)
 		return ret;
 
 	mutex_init(&st->lock);
+
+	ret = admv8818_read_properties(st);
+	if (ret)
+		return ret;
 
 	ret = admv8818_init(st);
 	if (ret)
