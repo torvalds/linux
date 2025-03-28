@@ -1632,6 +1632,8 @@ static int overlapping_extents_found(struct btree_trans *trans,
 			bch2_trans_commit(trans, &res, NULL, BCH_TRANS_COMMIT_no_enospc);
 		bch2_disk_reservation_put(c, &res);
 
+		bch_info(c, "repair ret %s", bch2_err_str(ret));
+
 		if (ret)
 			goto err;
 

@@ -67,7 +67,7 @@ int bch2_fs_topology_error(struct bch_fs *, const char *, ...);
 
 struct fsck_err_state {
 	struct list_head	list;
-	const char		*fmt;
+	enum bch_sb_error_id	id;
 	u64			nr;
 	bool			ratelimited;
 	int			ret;
@@ -76,6 +76,12 @@ struct fsck_err_state {
 };
 
 #define fsck_err_count(_c, _err)	bch2_sb_err_count(_c, BCH_FSCK_ERR_##_err)
+
+void __bch2_count_fsck_err(struct bch_fs *,
+			   enum bch_sb_error_id, const char *,
+			   bool *, bool *, bool *);
+#define bch2_count_fsck_err(_c, _err, ...)				\
+	__bch2_count_fsck_err(_c, BCH_FSCK_ERR_##_err, __VA_ARGS__)
 
 __printf(5, 6) __cold
 int __bch2_fsck_err(struct bch_fs *, struct btree_trans *,
