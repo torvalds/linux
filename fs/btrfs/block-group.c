@@ -527,8 +527,7 @@ int btrfs_add_new_free_space(struct btrfs_block_group *block_group, u64 start,
 	while (start < end) {
 		if (!find_first_extent_bit(&info->excluded_extents, start,
 					   &extent_start, &extent_end,
-					   EXTENT_DIRTY | EXTENT_UPTODATE,
-					   NULL))
+					   EXTENT_UPTODATE, NULL))
 			break;
 
 		if (extent_start <= start) {
