@@ -418,6 +418,51 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "Counts the number of LLC prefetches that were  throttled due to Dynamic Prefetch Throttling.  The throttle requestor/source could be from the uncore/SOC or the Dead Block Predictor. Counts on a per core basis.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x29",
+        "EventName": "LLC_PREFETCHES_THROTTLED.DPT",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of LLC prefetches throttled due to Demand Throttle Prefetcher.  DTP Global Triggered with no Local Override. Counts on a per core basis.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x29",
+        "EventName": "LLC_PREFETCHES_THROTTLED.DTP",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of LLC prefetches not throttled by DTP due to local override.  These prefetches may still be throttled due to another throttler mechanism. Counts on a per core basis.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x29",
+        "EventName": "LLC_PREFETCHES_THROTTLED.DTP_OVERRIDE",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x4",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of LLC prefetches throttled due to LLC hit rate in <insert knob name here>. Counts on a per core basis.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x29",
+        "EventName": "LLC_PREFETCHES_THROTTLED.HIT_RATE",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x10",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of LLC prefetches throttled due to exceeding the XQ threshold set by either XQ_THRESOLD_DTP or LLC_XQ_THRESHOLD. Counts on a per core basis.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x29",
+        "EventName": "LLC_PREFETCHES_THROTTLED.XQ_THRESH",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Cycles when L1D is locked",
         "Counter": "0,1,2,3,4,5,6,7,8,9",
         "EventCode": "0x42",
@@ -547,7 +592,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.ALL_LOADS",
-        "PublicDescription": "Counts Instructions with at least one architecturally visible load retired.",
+        "PublicDescription": "Counts Instructions with at least one architecturally visible load retired. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x81",
         "Unit": "cpu_core"
@@ -558,7 +603,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.ALL_STORES",
-        "PublicDescription": "Counts all retired store instructions.",
+        "PublicDescription": "Counts all retired store instructions. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x82",
         "Unit": "cpu_core"
@@ -568,7 +613,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.ALL_SWPF",
-        "PublicDescription": "Counts all retired software prefetch instructions.",
+        "PublicDescription": "Counts all retired software prefetch instructions. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x84",
         "Unit": "cpu_core"
@@ -579,7 +624,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.ANY",
-        "PublicDescription": "Counts all retired memory instructions - loads and stores.",
+        "PublicDescription": "Counts all retired memory instructions - loads and stores. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x87",
         "Unit": "cpu_core"
@@ -590,7 +635,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.LOCK_LOADS",
-        "PublicDescription": "Counts retired load instructions with locked access.",
+        "PublicDescription": "Counts retired load instructions with locked access. Available PDIST counters: 0",
         "SampleAfterValue": "100007",
         "UMask": "0x21",
         "Unit": "cpu_core"
@@ -601,7 +646,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.SPLIT_LOADS",
-        "PublicDescription": "Counts retired load instructions that split across a cacheline boundary.",
+        "PublicDescription": "Counts retired load instructions that split across a cacheline boundary. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x41",
         "Unit": "cpu_core"
@@ -612,7 +657,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.SPLIT_STORES",
-        "PublicDescription": "Counts retired store instructions that split across a cacheline boundary.",
+        "PublicDescription": "Counts retired store instructions that split across a cacheline boundary. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x42",
         "Unit": "cpu_core"
@@ -623,7 +668,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.STLB_HIT_LOADS",
-        "PublicDescription": "Number of retired load instructions with a clean hit in the 2nd-level TLB (STLB).",
+        "PublicDescription": "Number of retired load instructions with a clean hit in the 2nd-level TLB (STLB). Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x9",
         "Unit": "cpu_core"
@@ -634,7 +679,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.STLB_HIT_STORES",
-        "PublicDescription": "Number of retired store instructions that hit in the 2nd-level TLB (STLB).",
+        "PublicDescription": "Number of retired store instructions that hit in the 2nd-level TLB (STLB). Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0xa",
         "Unit": "cpu_core"
@@ -645,7 +690,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.STLB_MISS_LOADS",
-        "PublicDescription": "Number of retired load instructions that (start a) miss in the 2nd-level TLB (STLB).",
+        "PublicDescription": "Number of retired load instructions that (start a) miss in the 2nd-level TLB (STLB). Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x11",
         "Unit": "cpu_core"
@@ -656,7 +701,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.STLB_MISS_STORES",
-        "PublicDescription": "Number of retired store instructions that (start a) miss in the 2nd-level TLB (STLB).",
+        "PublicDescription": "Number of retired store instructions that (start a) miss in the 2nd-level TLB (STLB). Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x12",
         "Unit": "cpu_core"
@@ -667,7 +712,7 @@
         "Data_LA": "1",
         "EventCode": "0xd2",
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_FWD",
-        "PublicDescription": "Counts retired load instructions whose data sources were a cross-core Snoop hits and forwards data from an in on-package core cache (induced by NI$)",
+        "PublicDescription": "Counts retired load instructions whose data sources were a cross-core Snoop hits and forwards data from an in on-package core cache (induced by NI$) Available PDIST counters: 0",
         "SampleAfterValue": "20011",
         "UMask": "0x10",
         "Unit": "cpu_core"
@@ -678,7 +723,7 @@
         "Data_LA": "1",
         "EventCode": "0xd2",
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_HITM",
-        "PublicDescription": "Counts retired load instructions whose data sources were HitM responses from shared L3, Hit-with-FWD is normally excluded.",
+        "PublicDescription": "Counts retired load instructions whose data sources were HitM responses from shared L3, Hit-with-FWD is normally excluded. Available PDIST counters: 0",
         "SampleAfterValue": "20011",
         "UMask": "0x4",
         "Unit": "cpu_core"
@@ -689,7 +734,7 @@
         "Data_LA": "1",
         "EventCode": "0xd2",
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_MISS",
-        "PublicDescription": "Counts the retired load instructions whose data sources were L3 hit and cross-core snoop missed in on-pkg core cache.",
+        "PublicDescription": "Counts the retired load instructions whose data sources were L3 hit and cross-core snoop missed in on-pkg core cache. Available PDIST counters: 0",
         "SampleAfterValue": "20011",
         "UMask": "0x1",
         "Unit": "cpu_core"
@@ -700,7 +745,7 @@
         "Data_LA": "1",
         "EventCode": "0xd2",
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_NO_FWD",
-        "PublicDescription": "Counts retired load instructions whose data sources were L3 and cross-core snoop hits in on-pkg core cache.",
+        "PublicDescription": "Counts retired load instructions whose data sources were L3 and cross-core snoop hits in on-pkg core cache. Available PDIST counters: 0",
         "SampleAfterValue": "20011",
         "UMask": "0x2",
         "Unit": "cpu_core"
@@ -711,6 +756,7 @@
         "Data_LA": "1",
         "EventCode": "0xd3",
         "EventName": "MEM_LOAD_L3_MISS_RETIRED.MEMSIDE_CACHE",
+        "PublicDescription": "Retired load instructions which data source is memory side cache. Available PDIST counters: 0",
         "SampleAfterValue": "100007",
         "Unit": "cpu_core"
     },
@@ -720,7 +766,7 @@
         "Data_LA": "1",
         "EventCode": "0xd4",
         "EventName": "MEM_LOAD_MISC_RETIRED.UC",
-        "PublicDescription": "Retired instructions with at least one load to uncacheable memory-type, or at least one cache-line split locked access (Bus Lock).",
+        "PublicDescription": "Retired instructions with at least one load to uncacheable memory-type, or at least one cache-line split locked access (Bus Lock). Available PDIST counters: 0",
         "SampleAfterValue": "100007",
         "UMask": "0x4",
         "Unit": "cpu_core"
@@ -731,7 +777,7 @@
         "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_RETIRED.FB_HIT",
-        "PublicDescription": "Counts retired load instructions with at least one uop was load missed in L1 but hit FB (Fill Buffers) due to preceding miss to the same cache line with data not ready.",
+        "PublicDescription": "Counts retired load instructions with at least one uop was load missed in L1 but hit FB (Fill Buffers) due to preceding miss to the same cache line with data not ready. Available PDIST counters: 0",
         "SampleAfterValue": "100007",
         "UMask": "0x40",
         "Unit": "cpu_core"
@@ -742,7 +788,7 @@
         "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_RETIRED.L1_HIT",
-        "PublicDescription": "Counts retired load instructions with at least one uop that hit in the L1 data cache. This event includes all SW prefetches and lock instructions regardless of the data source.",
+        "PublicDescription": "Counts retired load instructions with at least one uop that hit in the L1 data cache. This event includes all SW prefetches and lock instructions regardless of the data source. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x1",
         "Unit": "cpu_core"
@@ -752,6 +798,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_RETIRED.L1_HIT_L1",
+        "PublicDescription": "Counts retired load instructions with at least one uop that hit in the Level 1 of the L1 data cache. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "Unit": "cpu_core"
     },
@@ -761,7 +808,7 @@
         "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_RETIRED.L1_MISS",
-        "PublicDescription": "Counts retired load instructions with at least one uop that missed in the L1 cache.",
+        "PublicDescription": "Counts retired load instructions with at least one uop that missed in the L1 cache. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x8",
         "Unit": "cpu_core"
@@ -772,7 +819,7 @@
         "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_RETIRED.L2_HIT",
-        "PublicDescription": "Counts retired load instructions with L2 cache hits as data sources.",
+        "PublicDescription": "Counts retired load instructions with L2 cache hits as data sources. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x2",
         "Unit": "cpu_core"
@@ -783,7 +830,7 @@
         "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_RETIRED.L2_MISS",
-        "PublicDescription": "Counts retired load instructions missed L2 cache as data sources.",
+        "PublicDescription": "Counts retired load instructions missed L2 cache as data sources. Available PDIST counters: 0",
         "SampleAfterValue": "100021",
         "UMask": "0x10",
         "Unit": "cpu_core"
@@ -794,7 +841,7 @@
         "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_RETIRED.L3_HIT",
-        "PublicDescription": "Counts retired load instructions with at least one uop that hit in the L3 cache.",
+        "PublicDescription": "Counts retired load instructions with at least one uop that hit in the L3 cache. Available PDIST counters: 0",
         "SampleAfterValue": "100021",
         "UMask": "0x4",
         "Unit": "cpu_core"
@@ -805,7 +852,7 @@
         "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_RETIRED.L3_MISS",
-        "PublicDescription": "Counts retired load instructions with at least one uop that missed in the L3 cache.",
+        "PublicDescription": "Counts retired load instructions with at least one uop that missed in the L3 cache. Available PDIST counters: 0",
         "SampleAfterValue": "50021",
         "UMask": "0x20",
         "Unit": "cpu_core"
@@ -1184,15 +1231,76 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "Counts writebacks of modified cachelines that have any type of response.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xB7",
+        "EventName": "OCR.COREWB_M.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10008",
+        "PublicDescription": "Counts writebacks of modified cachelines that have any type of response. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts writebacks of non-modified cachelines that have any type of response.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xB7",
+        "EventName": "OCR.COREWB_NONM.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x11000",
+        "PublicDescription": "Counts writebacks of non-modified cachelines that have any type of response. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that have any type of response.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xB7",
+        "EventName": "OCR.DEMAND_CODE_RD.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10004",
+        "PublicDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that have any type of response. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by mem side cache.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xB7",
         "EventName": "OCR.DEMAND_CODE_RD.MEMSIDE_CACHE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x11F80000004",
+        "PublicDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by mem side cache. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1",
         "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts demand data reads that have any type of response.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xB7",
+        "EventName": "OCR.DEMAND_DATA_RD.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10001",
+        "PublicDescription": "Counts demand data reads that have any type of response. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts demand data reads that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.DEMAND_DATA_RD.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10001",
+        "PublicDescription": "Counts demand data reads that have any type of response. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
     },
     {
         "BriefDescription": "Counts demand data reads that were supplied by the L3 cache where a snoop hit in another cores caches, data forwarding is required as the data is modified.",
@@ -1201,6 +1309,7 @@
         "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x40001E00001",
+        "PublicDescription": "Counts demand data reads that were supplied by the L3 cache where a snoop hit in another cores caches, data forwarding is required as the data is modified. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1",
         "Unit": "cpu_core"
@@ -1212,6 +1321,7 @@
         "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x20001E00001",
+        "PublicDescription": "Counts demand data reads that were supplied by the L3 cache where a snoop hit in another cores caches which forwarded the unmodified data to the requesting core. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1",
         "Unit": "cpu_core"
@@ -1223,9 +1333,34 @@
         "EventName": "OCR.DEMAND_DATA_RD.MEMSIDE_CACHE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x11F80000001",
+        "PublicDescription": "Counts demand data reads that were supplied by mem side cache. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1",
         "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts demand read for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that have any type of response.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xB7",
+        "EventName": "OCR.DEMAND_RFO.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10002",
+        "PublicDescription": "Counts demand read for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that have any type of response. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts demand read for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.DEMAND_RFO.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10002",
+        "PublicDescription": "Counts demand read for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that have any type of response. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
     },
     {
         "BriefDescription": "Counts demand read for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were supplied by the L3 cache where a snoop hit in another cores caches, data forwarding is required as the data is modified.",
@@ -1234,6 +1369,7 @@
         "EventName": "OCR.DEMAND_RFO.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x40001E00002",
+        "PublicDescription": "Counts demand read for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were supplied by the L3 cache where a snoop hit in another cores caches, data forwarding is required as the data is modified. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1",
         "Unit": "cpu_core"
