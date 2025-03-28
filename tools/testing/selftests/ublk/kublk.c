@@ -322,7 +322,7 @@ static int ublk_queue_init(struct ublk_queue *q)
 
 	cmd_buf_size = ublk_queue_cmd_buf_sz(q);
 	off = UBLKSRV_CMD_BUF_OFFSET + q->q_id * ublk_queue_max_cmd_buf_sz();
-	q->io_cmd_buf = (char *)mmap(0, cmd_buf_size, PROT_READ,
+	q->io_cmd_buf = mmap(0, cmd_buf_size, PROT_READ,
 			MAP_SHARED | MAP_POPULATE, dev->fds[0], off);
 	if (q->io_cmd_buf == MAP_FAILED) {
 		ublk_err("ublk dev %d queue %d map io_cmd_buf failed %m\n",
