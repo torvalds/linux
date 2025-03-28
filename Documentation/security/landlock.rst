@@ -7,7 +7,7 @@ Landlock LSM: kernel documentation
 ==================================
 
 :Author: Mickaël Salaün
-:Date: December 2022
+:Date: March 2025
 
 Landlock's goal is to create scoped access-control (i.e. sandboxing).  To
 harden a whole system, this feature should be available to any process,
@@ -45,6 +45,10 @@ Guiding principles for safe access controls
   sandboxed process shall retain their scoped accesses (at the time of resource
   acquisition) whatever process uses them.
   Cf. `File descriptor access rights`_.
+* Access denials shall be logged according to system and Landlock domain
+  configurations.  Log entries must contain information about the cause of the
+  denial and the owner of the related security policy.  Such log generation
+  should have a negligible performance and memory impact on allowed requests.
 
 Design choices
 ==============
@@ -123,6 +127,13 @@ makes the reasoning much easier and helps avoid pitfalls.
 
 .. kernel-doc:: security/landlock/ruleset.h
     :identifiers:
+
+Additional documentation
+========================
+
+* Documentation/userspace-api/landlock.rst
+* Documentation/admin-guide/LSM/landlock.rst
+* https://landlock.io
 
 .. Links
 .. _tools/testing/selftests/landlock/:

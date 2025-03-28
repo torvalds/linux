@@ -4,6 +4,7 @@
  *
  * Copyright © 2017-2020 Mickaël Salaün <mic@digikod.net>
  * Copyright © 2018-2020 ANSSI
+ * Copyright © 2021-2025 Microsoft Corporation
  */
 
 #ifndef _UAPI_LINUX_LANDLOCK_H
@@ -57,9 +58,43 @@ struct landlock_ruleset_attr {
  *
  * - %LANDLOCK_CREATE_RULESET_VERSION: Get the highest supported Landlock ABI
  *   version.
+ * - %LANDLOCK_CREATE_RULESET_ERRATA: Get a bitmask of fixed issues.
  */
 /* clang-format off */
 #define LANDLOCK_CREATE_RULESET_VERSION			(1U << 0)
+#define LANDLOCK_CREATE_RULESET_ERRATA			(1U << 1)
+/* clang-format on */
+
+/*
+ * sys_landlock_restrict_self() flags:
+ *
+ * - %LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF: Do not create any log related to the
+ *   enforced restrictions.  This should only be set by tools launching unknown
+ *   or untrusted programs (e.g. a sandbox tool, container runtime, system
+ *   service manager).  Because programs sandboxing themselves should fix any
+ *   denied access, they should not set this flag to be aware of potential
+ *   issues reported by system's logs (i.e. audit).
+ * - %LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON: Explicitly ask to continue
+ *   logging denied access requests even after an :manpage:`execve(2)` call.
+ *   This flag should only be set if all the programs than can legitimately be
+ *   executed will not try to request a denied access (which could spam audit
+ *   logs).
+ * - %LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF: Do not create any log related
+ *   to the enforced restrictions coming from future nested domains created by
+ *   the caller or its descendants.  This should only be set according to a
+ *   runtime configuration (i.e. not hardcoded) by programs launching other
+ *   unknown or untrusted programs that may create their own Landlock domains
+ *   and spam logs.  The main use case is for container runtimes to enable users
+ *   to mute buggy sandboxed programs for a specific container image.  Other use
+ *   cases include sandboxer tools and init systems.  Unlike
+ *   %LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF,
+ *   %LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF does not impact the requested
+ *   restriction (if any) but only the future nested domains.
+ */
+/* clang-format off */
+#define LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF		(1U << 0)
+#define LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON			(1U << 1)
+#define LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF		(1U << 2)
 /* clang-format on */
 
 /**
