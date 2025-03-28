@@ -3,11 +3,7 @@
 #define GCC_COMMON_H_INCLUDED
 
 #include "bversion.h"
-#if BUILDING_GCC_VERSION >= 6000
 #include "gcc-plugin.h"
-#else
-#include "plugin.h"
-#endif
 #include "plugin-version.h"
 #include "config.h"
 #include "system.h"
@@ -39,9 +35,7 @@
 
 #include "hash-map.h"
 
-#if BUILDING_GCC_VERSION >= 7000
 #include "memmodel.h"
-#endif
 #include "emit-rtl.h"
 #include "debug.h"
 #include "target.h"
@@ -74,9 +68,7 @@
 #include "context.h"
 #include "tree-ssa-alias.h"
 #include "tree-ssa.h"
-#if BUILDING_GCC_VERSION >= 7000
 #include "tree-vrp.h"
-#endif
 #include "tree-ssanames.h"
 #include "print-tree.h"
 #include "tree-eh.h"
@@ -149,16 +141,6 @@ static inline opt_pass *get_pass_for_id(int id)
 	return g->get_passes()->get_pass_for_id(id);
 }
 
-#if BUILDING_GCC_VERSION < 6000
-/* gimple related */
-template <>
-template <>
-inline bool is_a_helper<const gassign *>::test(const_gimple gs)
-{
-	return gs->code == GIMPLE_ASSIGN;
-}
-#endif
-
 #define TODO_verify_ssa TODO_verify_il
 #define TODO_verify_flow TODO_verify_il
 #define TODO_verify_stmts TODO_verify_il
@@ -181,7 +163,6 @@ static inline const char *get_decl_section_name(const_tree decl)
 #define varpool_get_node(decl) varpool_node::get(decl)
 #define dump_varpool_node(file, node) (node)->dump(file)
 
-#if BUILDING_GCC_VERSION >= 8000
 #define cgraph_create_edge(caller, callee, call_stmt, count, freq) \
 	(caller)->create_edge((callee), (call_stmt), (count))
 
@@ -189,15 +170,6 @@ static inline const char *get_decl_section_name(const_tree decl)
 		old_call_stmt, call_stmt, count, freq, reason)	\
 	(caller)->create_edge_including_clones((callee),	\
 		(old_call_stmt), (call_stmt), (count), (reason))
-#else
-#define cgraph_create_edge(caller, callee, call_stmt, count, freq) \
-	(caller)->create_edge((callee), (call_stmt), (count), (freq))
-
-#define cgraph_create_edge_including_clones(caller, callee,	\
-		old_call_stmt, call_stmt, count, freq, reason)	\
-	(caller)->create_edge_including_clones((callee),	\
-		(old_call_stmt), (call_stmt), (count), (freq), (reason))
-#endif
 
 typedef struct cgraph_node *cgraph_node_ptr;
 typedef struct cgraph_edge *cgraph_edge_p;
@@ -293,14 +265,12 @@ static inline void cgraph_call_edge_duplication_hooks(cgraph_edge *cs1, cgraph_e
 	symtab->call_edge_duplication_hooks(cs1, cs2);
 }
 
-#if BUILDING_GCC_VERSION >= 6000
 typedef gimple *gimple_ptr;
 typedef const gimple *const_gimple_ptr;
 #define gimple gimple_ptr
 #define const_gimple const_gimple_ptr
 #undef CONST_CAST_GIMPLE
 #define CONST_CAST_GIMPLE(X) CONST_CAST(gimple, (X))
-#endif
 
 /* gimple related */
 static inline gimple gimple_build_assign_with_ops(enum tree_code subcode, tree lhs, tree op1, tree op2 MEM_STAT_DECL)
@@ -400,15 +370,7 @@ static inline void ipa_remove_stmt_references(symtab_node *referring_node, gimpl
 	referring_node->remove_stmt_references(stmt);
 }
 
-#if BUILDING_GCC_VERSION < 6000
-#define get_inner_reference(exp, pbitsize, pbitpos, poffset, pmode, punsignedp, preversep, pvolatilep, keep_aligning)	\
-	get_inner_reference(exp, pbitsize, pbitpos, poffset, pmode, punsignedp, pvolatilep, keep_aligning)
-#define gen_rtx_set(ARG0, ARG1) gen_rtx_SET(VOIDmode, (ARG0), (ARG1))
-#endif
-
-#if BUILDING_GCC_VERSION >= 6000
 #define gen_rtx_set(ARG0, ARG1) gen_rtx_SET((ARG0), (ARG1))
-#endif
 
 #ifdef __cplusplus
 static inline void debug_tree(const_tree t)
@@ -425,15 +387,8 @@ static inline void debug_gimple_stmt(const_gimple s)
 #define debug_gimple_stmt(s) debug_gimple_stmt(CONST_CAST_GIMPLE(s))
 #endif
 
-#if BUILDING_GCC_VERSION >= 7000
 #define get_inner_reference(exp, pbitsize, pbitpos, poffset, pmode, punsignedp, preversep, pvolatilep, keep_aligning)	\
 	get_inner_reference(exp, pbitsize, pbitpos, poffset, pmode, punsignedp, preversep, pvolatilep)
-#endif
-
-#if BUILDING_GCC_VERSION < 7000
-#define SET_DECL_ALIGN(decl, align)	DECL_ALIGN(decl) = (align)
-#define SET_DECL_MODE(decl, mode)	DECL_MODE(decl) = (mode)
-#endif
 
 #if BUILDING_GCC_VERSION >= 14000
 #define last_stmt(x)			last_nondebug_stmt(x)
