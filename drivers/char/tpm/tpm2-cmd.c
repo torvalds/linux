@@ -359,7 +359,6 @@ int tpm2_get_random(struct tpm_chip *chip, u8 *dest, size_t max)
 	} while (retries-- && total < max);
 
 	tpm_buf_destroy(&buf);
-	tpm2_end_auth_session(chip);
 
 	return total ? total : -EIO;
 out:
