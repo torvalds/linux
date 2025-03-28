@@ -238,22 +238,22 @@ static int fsl_sai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 	if (dir == SND_SOC_CLOCK_IN)
 		return 0;
 
-	if (freq > 0 && clk_id != FSL_SAI_CLK_BUS) {
-		if (clk_id < 0 || clk_id >= FSL_SAI_MCLK_MAX) {
-			dev_err(cpu_dai->dev, "Unknown clock id: %d\n", clk_id);
-			return -EINVAL;
-		}
+	if (clk_id < 0 || clk_id >= FSL_SAI_MCLK_MAX) {
+		dev_err(cpu_dai->dev, "Unknown clock id: %d\n", clk_id);
+		return -EINVAL;
+	}
 
-		if (IS_ERR_OR_NULL(sai->mclk_clk[clk_id])) {
-			dev_err(cpu_dai->dev, "Unassigned clock: %d\n", clk_id);
-			return -EINVAL;
-		}
+	if (IS_ERR_OR_NULL(sai->mclk_clk[clk_id])) {
+		dev_err(cpu_dai->dev, "Unassigned clock: %d\n", clk_id);
+		return -EINVAL;
+	}
 
-		if (sai->mclk_streams == 0) {
-			ret = fsl_sai_set_mclk_rate(cpu_dai, clk_id, freq);
-			if (ret < 0)
-				return ret;
-		}
+	if (sai->mclk_streams == 0 && freq > 0) {
+		ret = fsl_sai_set_mclk_rate(cpu_dai,
+					    clk_id ? clk_id : FSL_SAI_CLK_MAST1,
+					    freq);
+		if (ret < 0)
+			return ret;
 	}
 
 	ret = fsl_sai_set_dai_sysclk_tr(cpu_dai, clk_id, freq, true);
