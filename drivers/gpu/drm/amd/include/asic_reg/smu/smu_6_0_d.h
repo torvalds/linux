@@ -41,7 +41,49 @@
 #define ixLCAC_MC5_CNTL 0x012B
 #define ixLCAC_MC5_OVR_SEL 0x012C
 #define ixLCAC_MC5_OVR_VAL 0x012D
+
+#define mmCG_SPLL_FUNC_CNTL				0x0180
+#define mmCG_SPLL_FUNC_CNTL_2				0x0181
+#define mmCG_SPLL_FUNC_CNTL_3				0x0182
+#define mmCG_SPLL_FUNC_CNTL_4				0x0183
+#define mmCG_SPLL_STATUS					0x0185
+#define mmSPLL_CNTL_MODE					0x0186
+#define mmCG_SPLL_SPREAD_SPECTRUM				0x0188
+#define mmCG_SPLL_SPREAD_SPECTRUM_2			0x0189
+#define mmCG_SPLL_AUTOSCALE_CNTL				0x018B
+#define mmMPLL_BYPASSCLK_SEL				0x0197
+#define mmCG_CLKPIN_CNTL                                    0x0198
+#define mmCG_CLKPIN_CNTL_2                                  0x0199
+#define mmTHM_CLK_CNTL					0x019B
+#define mmMISC_CLK_CNTL					0x019C
+#define mmCG_THERMAL_CTRL					0x01C0
+#define mmCG_THERMAL_STATUS				0x01C1
+#define mmCG_THERMAL_INT					0x01C2
+#define mmCG_MULT_THERMAL_CTRL					0x01C4
+#define mmCG_MULT_THERMAL_STATUS					0x01C5
+#define mmCG_FDO_CTRL0					0x01D5
+#define mmCG_FDO_CTRL1					0x01D6
+#define mmCG_FDO_CTRL2					0x01D7
+#define mmCG_TACH_CTRL                                    0x01DC
+#define mmCG_TACH_STATUS                                  0x01DD
+#define mmGENERAL_PWRMGT                                  0x1E0
+#define mmCG_TPC                                            0x1E1
+#define mmSCLK_PWRMGT_CNTL                                  0x1E2
+#define mmTARGET_AND_CURRENT_PROFILE_INDEX                  0x01E6
+#define mmCG_FTV                                            0x01EF
+#define mmCG_FFCT_0                                         0x01F0
+#define mmCG_BSP                                          0x01FF
+#define mmCG_AT                                           0x0200
+#define mmCG_GIT                                          0x0201
+#define mmCG_SSP                                            0x0203
+#define mmCG_DISPLAY_GAP_CNTL                               0x020A
+#define mmCG_ULV_CONTROL					0x021E
+#define mmCG_ULV_PARAMETER				0x021F
+#define mmSMC_SCRATCH0					0x0221
+#define mmCG_CAC_CTRL					0x022E
+
 #define ixSMC_PC_C 0x80000370
+
 #define ixTHM_TMON0_DEBUG 0x03F0
 #define ixTHM_TMON0_INT_DATA 0x0380
 #define ixTHM_TMON0_RDIL0_DATA 0x0300
@@ -110,6 +152,7 @@
 #define ixTHM_TMON1_RDIR7_DATA 0x0337
 #define ixTHM_TMON1_RDIR8_DATA 0x0338
 #define ixTHM_TMON1_RDIR9_DATA 0x0339
+
 #define mmGPIOPAD_A 0x05E7
 #define mmGPIOPAD_EN 0x05E8
 #define mmGPIOPAD_EXTERN_TRIG_CNTL 0x05F1
@@ -127,6 +170,7 @@
 #define mmGPIOPAD_STRENGTH 0x05E5
 #define mmGPIOPAD_SW_INT_STAT 0x05E4
 #define mmGPIOPAD_Y 0x05E9
+
 #define mmSMC_IND_ACCESS_CNTL 0x008A
 #define mmSMC_IND_DATA_0 0x0081
 #define mmSMC_IND_DATA 0x0081
