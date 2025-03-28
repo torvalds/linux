@@ -253,10 +253,29 @@ static __always_inline void drm_fb_xfrm_line_32to8(void *dbuf, const void *sbuf,
 						   unsigned int pixels,
 						   u32 (*xfrm_pixel)(u32))
 {
-	u8 *dbuf8 = dbuf;
+	__le32 *dbuf32 = dbuf;
+	u8 *dbuf8;
 	const __le32 *sbuf32 = sbuf;
 	const __le32 *send32 = sbuf32 + pixels;
 
+	/* write 4 pixels at once */
+	while (sbuf32 < ALIGN_DOWN_PIXELS(send32, pixels, 4)) {
+		u32 pix[4] = {
+			le32_to_cpup(sbuf32++),
+			le32_to_cpup(sbuf32++),
+			le32_to_cpup(sbuf32++),
+			le32_to_cpup(sbuf32++),
+		};
+		/* write output bytes in reverse order for little endianness */
+		u32 val32 = xfrm_pixel(pix[0]) |
+			   (xfrm_pixel(pix[1]) << 8) |
+			   (xfrm_pixel(pix[2]) << 16) |
+			   (xfrm_pixel(pix[3]) << 24);
+		*dbuf32++ = cpu_to_le32(val32);
+	}
+
+	/* write trailing pixels */
+	dbuf8 = (u8 __force *)dbuf32;
 	while (sbuf32 < send32)
 		*dbuf8++ = xfrm_pixel(le32_to_cpup(sbuf32++));
 }
