@@ -161,6 +161,7 @@
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.DRAM_HIT",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of load uops retired that hit in DRAM. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x80"
     },
@@ -171,6 +172,7 @@
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.HITM",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of load uops retired that hit in the L3 cache, in which a snoop was required and modified data was forwarded from another core or module. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x20"
     },
@@ -181,6 +183,7 @@
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L1_HIT",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of load uops retired that hit in the L1 data cache. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x1"
     },
@@ -191,6 +194,7 @@
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L1_MISS",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of load uops retired that miss in the L1 data cache. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x8"
     },
@@ -201,6 +205,7 @@
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L2_HIT",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of load uops retired that hit in the L2 cache. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x2"
     },
@@ -211,6 +216,7 @@
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L2_MISS",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of load uops retired that miss in the L2 cache. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x10"
     },
@@ -221,6 +227,7 @@
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L3_HIT",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of load uops retired that hit in the L3 cache. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x4"
     },
@@ -231,7 +238,7 @@
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.ALL",
         "PEBS": "1",
-        "PublicDescription": "Counts the number of memory uops retired.  A single uop that performs both a load AND a store will be counted as 1, not 2 (e.g. ADD [mem], CONST)",
+        "PublicDescription": "Counts the number of memory uops retired.  A single uop that performs both a load AND a store will be counted as 1, not 2 (e.g. ADD [mem], CONST) Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x83"
     },
@@ -242,7 +249,7 @@
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.ALL_LOADS",
         "PEBS": "1",
-        "PublicDescription": "Counts the total number of load uops retired.",
+        "PublicDescription": "Counts the total number of load uops retired. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x81"
     },
@@ -253,7 +260,7 @@
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.ALL_STORES",
         "PEBS": "1",
-        "PublicDescription": "Counts the total number of store uops retired.",
+        "PublicDescription": "Counts the total number of store uops retired. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x82"
     },
@@ -264,6 +271,7 @@
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOCK_LOADS",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of load uops retired that performed one or more locks. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x21"
     },
@@ -274,6 +282,7 @@
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.SPLIT",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of memory uops retired that were splits. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x43"
     },
@@ -284,6 +293,7 @@
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.SPLIT_LOADS",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of retired split load uops. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x41"
     },
@@ -294,6 +304,7 @@
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.SPLIT_STORES",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of retired split store uops. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x42"
     },
@@ -304,6 +315,7 @@
         "EventName": "OCR.ALL_CODE_RD.L3_HIT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1F803C0044",
+        "PublicDescription": "Counts all code reads that were supplied by the L3 cache. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -314,6 +326,7 @@
         "EventName": "OCR.ALL_CODE_RD.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0044",
+        "PublicDescription": "Counts all code reads that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -324,6 +337,7 @@
         "EventName": "OCR.ALL_CODE_RD.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0044",
+        "PublicDescription": "Counts all code reads that were supplied by the L3 cache where a snoop was sent, the snoop hit, but no data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -334,6 +348,7 @@
         "EventName": "OCR.ALL_CODE_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x8003C0044",
+        "PublicDescription": "Counts all code reads that were supplied by the L3 cache where a snoop was sent, the snoop hit, and non-modified data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -344,6 +359,7 @@
         "EventName": "OCR.ALL_CODE_RD.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0044",
+        "PublicDescription": "Counts all code reads that were supplied by the L3 cache where a snoop was sent but the snoop missed. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -354,6 +370,18 @@
         "EventName": "OCR.ALL_CODE_RD.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0044",
+        "PublicDescription": "Counts all code reads that were supplied by the L3 cache where no snoop was needed to satisfy the request. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts modified writebacks from L1 cache and L2 cache that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0XB7",
+        "EventName": "OCR.COREWB_M.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x3000000010000",
+        "PublicDescription": "Counts modified writebacks from L1 cache and L2 cache that have any type of response. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -364,6 +392,29 @@
         "EventName": "OCR.COREWB_M.L3_HIT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3001F803C0000",
+        "PublicDescription": "Counts modified writebacks from L1 cache and L2 cache that were supplied by the L3 cache. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts modified writebacks from L1 cache and L2 cache that have an outstanding request. Returns the number of cycles until the response is received (i.e. XQ to XQ latency).",
+        "Counter": "0,1,2,3",
+        "EventCode": "0XB7",
+        "EventName": "OCR.COREWB_M.OUTSTANDING",
+        "MSRIndex": "0x1a6",
+        "MSRValue": "0x8003000000000000",
+        "PublicDescription": "Counts modified writebacks from L1 cache and L2 cache that have an outstanding request. Returns the number of cycles until the response is received (i.e. XQ to XQ latency). Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0XB7",
+        "EventName": "OCR.DEMAND_CODE_RD.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10004",
+        "PublicDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that have any type of response. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -374,6 +425,7 @@
         "EventName": "OCR.DEMAND_CODE_RD.L3_HIT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1F803C0004",
+        "PublicDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by the L3 cache. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -384,6 +436,7 @@
         "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0004",
+        "PublicDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -394,6 +447,7 @@
         "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0004",
+        "PublicDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by the L3 cache where a snoop was sent, the snoop hit, but no data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -404,6 +458,7 @@
         "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x8003C0004",
+        "PublicDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by the L3 cache where a snoop was sent, the snoop hit, and non-modified data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -414,6 +469,7 @@
         "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0004",
+        "PublicDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by the L3 cache where a snoop was sent but the snoop missed. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -424,6 +480,18 @@
         "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0004",
+        "PublicDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by the L3 cache where no snoop was needed to satisfy the request. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts cacheable demand data reads, L1 data cache hardware prefetches and software prefetches (except PREFETCHW) that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0XB7",
+        "EventName": "OCR.DEMAND_DATA_AND_L1PF_RD.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10001",
+        "PublicDescription": "Counts cacheable demand data reads, L1 data cache hardware prefetches and software prefetches (except PREFETCHW) that have any type of response. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -434,6 +502,7 @@
         "EventName": "OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1F803C0001",
+        "PublicDescription": "Counts cacheable demand data reads, L1 data cache hardware prefetches and software prefetches (except PREFETCHW) that were supplied by the L3 cache. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -444,6 +513,7 @@
         "EventName": "OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0001",
+        "PublicDescription": "Counts cacheable demand data reads, L1 data cache hardware prefetches and software prefetches (except PREFETCHW) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -454,6 +524,7 @@
         "EventName": "OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0001",
+        "PublicDescription": "Counts cacheable demand data reads, L1 data cache hardware prefetches and software prefetches (except PREFETCHW) that were supplied by the L3 cache where a snoop was sent, the snoop hit, but no data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -464,6 +535,7 @@
         "EventName": "OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x8003C0001",
+        "PublicDescription": "Counts cacheable demand data reads, L1 data cache hardware prefetches and software prefetches (except PREFETCHW) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and non-modified data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -474,6 +546,7 @@
         "EventName": "OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0001",
+        "PublicDescription": "Counts cacheable demand data reads, L1 data cache hardware prefetches and software prefetches (except PREFETCHW) that were supplied by the L3 cache where a snoop was sent but the snoop missed. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -484,6 +557,30 @@
         "EventName": "OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0001",
+        "PublicDescription": "Counts cacheable demand data reads, L1 data cache hardware prefetches and software prefetches (except PREFETCHW) that were supplied by the L3 cache where no snoop was needed to satisfy the request. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts cacheable demand data reads, L1 data cache hardware prefetches and software prefetches (except PREFETCHW) that have an outstanding request. Returns the number of cycles until the response is received (i.e. XQ to XQ latency).",
+        "Counter": "0,1,2,3",
+        "EventCode": "0XB7",
+        "EventName": "OCR.DEMAND_DATA_AND_L1PF_RD.OUTSTANDING",
+        "MSRIndex": "0x1a6",
+        "MSRValue": "0x8000000000000001",
+        "PublicDescription": "Counts cacheable demand data reads, L1 data cache hardware prefetches and software prefetches (except PREFETCHW) that have an outstanding request. Returns the number of cycles until the response is received (i.e. XQ to XQ latency). Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.ANY_RESPONSE",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0XB7",
+        "EventName": "OCR.DEMAND_DATA_RD.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10001",
+        "PublicDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.ANY_RESPONSE Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -495,6 +592,7 @@
         "EventName": "OCR.DEMAND_DATA_RD.L3_HIT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1F803C0001",
+        "PublicDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -506,6 +604,7 @@
         "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0001",
+        "PublicDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SNOOP_HITM Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -517,6 +616,7 @@
         "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0001",
+        "PublicDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SNOOP_HIT_NO_FWD Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -528,6 +628,7 @@
         "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x8003C0001",
+        "PublicDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SNOOP_HIT_WITH_FWD Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -539,6 +640,7 @@
         "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0001",
+        "PublicDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SNOOP_MISS Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -550,6 +652,30 @@
         "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0001",
+        "PublicDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SNOOP_NOT_NEEDED Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.OUTSTANDING",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0XB7",
+        "EventName": "OCR.DEMAND_DATA_RD.OUTSTANDING",
+        "MSRIndex": "0x1a6",
+        "MSRValue": "0x8000000000000001",
+        "PublicDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.OUTSTANDING Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0XB7",
+        "EventName": "OCR.DEMAND_RFO.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10002",
+        "PublicDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that have any type of response. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -560,6 +686,7 @@
         "EventName": "OCR.DEMAND_RFO.L3_HIT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1F803C0002",
+        "PublicDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that were supplied by the L3 cache. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -570,6 +697,7 @@
         "EventName": "OCR.DEMAND_RFO.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0002",
+        "PublicDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -580,6 +708,7 @@
         "EventName": "OCR.DEMAND_RFO.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0002",
+        "PublicDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that were supplied by the L3 cache where a snoop was sent, the snoop hit, but no data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -590,6 +719,7 @@
         "EventName": "OCR.DEMAND_RFO.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x8003C0002",
+        "PublicDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and non-modified data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -600,6 +730,7 @@
         "EventName": "OCR.DEMAND_RFO.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0002",
+        "PublicDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that were supplied by the L3 cache where a snoop was sent but the snoop missed. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -610,6 +741,18 @@
         "EventName": "OCR.DEMAND_RFO.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0002",
+        "PublicDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that were supplied by the L3 cache where no snoop was needed to satisfy the request. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that have an outstanding request. Returns the number of cycles until the response is received (i.e. XQ to XQ latency).",
+        "Counter": "0,1,2,3",
+        "EventCode": "0XB7",
+        "EventName": "OCR.DEMAND_RFO.OUTSTANDING",
+        "MSRIndex": "0x1a6",
+        "MSRValue": "0x8000000000000002",
+        "PublicDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that have an outstanding request. Returns the number of cycles until the response is received (i.e. XQ to XQ latency). Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -620,6 +763,18 @@
         "EventName": "OCR.FULL_STREAMING_WR.L3_HIT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x801F803C0000",
+        "PublicDescription": "Counts streaming stores which modify a full 64 byte cacheline that were supplied by the L3 cache. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L1 data cache hardware prefetches and software prefetches (except PREFETCHW and PFRFO) that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0XB7",
+        "EventName": "OCR.HWPF_L1D_AND_SWPF.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10400",
+        "PublicDescription": "Counts L1 data cache hardware prefetches and software prefetches (except PREFETCHW and PFRFO) that have any type of response. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -630,6 +785,18 @@
         "EventName": "OCR.HWPF_L1D_AND_SWPF.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0400",
+        "PublicDescription": "Counts L1 data cache hardware prefetches and software prefetches (except PREFETCHW and PFRFO) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L2 cache hardware prefetch code reads (written to the L2 cache only) that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0XB7",
+        "EventName": "OCR.HWPF_L2_CODE_RD.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10040",
+        "PublicDescription": "Counts L2 cache hardware prefetch code reads (written to the L2 cache only) that have any type of response. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -640,6 +807,7 @@
         "EventName": "OCR.HWPF_L2_CODE_RD.L3_HIT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1F803C0040",
+        "PublicDescription": "Counts L2 cache hardware prefetch code reads (written to the L2 cache only) that were supplied by the L3 cache. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -650,6 +818,7 @@
         "EventName": "OCR.HWPF_L2_CODE_RD.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0040",
+        "PublicDescription": "Counts L2 cache hardware prefetch code reads (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -660,6 +829,7 @@
         "EventName": "OCR.HWPF_L2_CODE_RD.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0040",
+        "PublicDescription": "Counts L2 cache hardware prefetch code reads (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent, the snoop hit, but no data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -670,6 +840,7 @@
         "EventName": "OCR.HWPF_L2_CODE_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x8003C0040",
+        "PublicDescription": "Counts L2 cache hardware prefetch code reads (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and non-modified data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -680,6 +851,7 @@
         "EventName": "OCR.HWPF_L2_CODE_RD.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0040",
+        "PublicDescription": "Counts L2 cache hardware prefetch code reads (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent but the snoop missed. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -690,6 +862,29 @@
         "EventName": "OCR.HWPF_L2_CODE_RD.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0040",
+        "PublicDescription": "Counts L2 cache hardware prefetch code reads (written to the L2 cache only) that were supplied by the L3 cache where no snoop was needed to satisfy the request. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L2 cache hardware prefetch code reads (written to the L2 cache only) that have an outstanding request. Returns the number of cycles until the response is received (i.e. XQ to XQ latency).",
+        "Counter": "0,1,2,3",
+        "EventCode": "0XB7",
+        "EventName": "OCR.HWPF_L2_CODE_RD.OUTSTANDING",
+        "MSRIndex": "0x1a6",
+        "MSRValue": "0x8000000000000040",
+        "PublicDescription": "Counts L2 cache hardware prefetch code reads (written to the L2 cache only) that have an outstanding request. Returns the number of cycles until the response is received (i.e. XQ to XQ latency). Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L2 cache hardware prefetch data reads (written to the L2 cache only) that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0XB7",
+        "EventName": "OCR.HWPF_L2_DATA_RD.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10010",
+        "PublicDescription": "Counts L2 cache hardware prefetch data reads (written to the L2 cache only) that have any type of response. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -700,6 +895,7 @@
         "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1F803C0010",
+        "PublicDescription": "Counts L2 cache hardware prefetch data reads (written to the L2 cache only) that were supplied by the L3 cache. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -710,6 +906,7 @@
         "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0010",
+        "PublicDescription": "Counts L2 cache hardware prefetch data reads (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -720,6 +917,7 @@
         "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0010",
+        "PublicDescription": "Counts L2 cache hardware prefetch data reads (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent, the snoop hit, but no data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -730,6 +928,7 @@
         "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x8003C0010",
+        "PublicDescription": "Counts L2 cache hardware prefetch data reads (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and non-modified data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -740,6 +939,7 @@
         "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0010",
+        "PublicDescription": "Counts L2 cache hardware prefetch data reads (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent but the snoop missed. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -750,6 +950,18 @@
         "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0010",
+        "PublicDescription": "Counts L2 cache hardware prefetch data reads (written to the L2 cache only) that were supplied by the L3 cache where no snoop was needed to satisfy the request. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L2 cache hardware prefetch RFOs (written to the L2 cache only) that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0XB7",
+        "EventName": "OCR.HWPF_L2_RFO.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10020",
+        "PublicDescription": "Counts L2 cache hardware prefetch RFOs (written to the L2 cache only) that have any type of response. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -760,6 +972,7 @@
         "EventName": "OCR.HWPF_L2_RFO.L3_HIT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1F803C0020",
+        "PublicDescription": "Counts L2 cache hardware prefetch RFOs (written to the L2 cache only) that were supplied by the L3 cache. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -770,6 +983,7 @@
         "EventName": "OCR.HWPF_L2_RFO.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0020",
+        "PublicDescription": "Counts L2 cache hardware prefetch RFOs (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -780,6 +994,7 @@
         "EventName": "OCR.HWPF_L2_RFO.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0020",
+        "PublicDescription": "Counts L2 cache hardware prefetch RFOs (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent, the snoop hit, but no data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -790,6 +1005,7 @@
         "EventName": "OCR.HWPF_L2_RFO.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x8003C0020",
+        "PublicDescription": "Counts L2 cache hardware prefetch RFOs (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and non-modified data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -800,6 +1016,7 @@
         "EventName": "OCR.HWPF_L2_RFO.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0020",
+        "PublicDescription": "Counts L2 cache hardware prefetch RFOs (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent but the snoop missed. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -810,6 +1027,29 @@
         "EventName": "OCR.HWPF_L2_RFO.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0020",
+        "PublicDescription": "Counts L2 cache hardware prefetch RFOs (written to the L2 cache only) that were supplied by the L3 cache where no snoop was needed to satisfy the request. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L2 cache hardware prefetch RFOs (written to the L2 cache only) that have an outstanding request. Returns the number of cycles until the response is received (i.e. XQ to XQ latency).",
+        "Counter": "0,1,2,3",
+        "EventCode": "0XB7",
+        "EventName": "OCR.HWPF_L2_RFO.OUTSTANDING",
+        "MSRIndex": "0x1a6",
+        "MSRValue": "0x8000000000000020",
+        "PublicDescription": "Counts L2 cache hardware prefetch RFOs (written to the L2 cache only) that have an outstanding request. Returns the number of cycles until the response is received (i.e. XQ to XQ latency). Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts modified writebacks from L1 cache that miss the L2 cache that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0XB7",
+        "EventName": "OCR.L1WB_M.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x1000000010000",
+        "PublicDescription": "Counts modified writebacks from L1 cache that miss the L2 cache that have any type of response. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -820,6 +1060,18 @@
         "EventName": "OCR.L1WB_M.L3_HIT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1001F803C0000",
+        "PublicDescription": "Counts modified writebacks from L1 cache that miss the L2 cache that were supplied by the L3 cache. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts modified writeBacks from L2 cache that miss the L3 cache that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0XB7",
+        "EventName": "OCR.L2WB_M.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x2000000010000",
+        "PublicDescription": "Counts modified writeBacks from L2 cache that miss the L3 cache that have any type of response. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -830,6 +1082,7 @@
         "EventName": "OCR.L2WB_M.L3_HIT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2001F803C0000",
+        "PublicDescription": "Counts modified writeBacks from L2 cache that miss the L3 cache that were supplied by the L3 cache. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -840,6 +1093,18 @@
         "EventName": "OCR.PARTIAL_STREAMING_WR.L3_HIT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x401F803C0000",
+        "PublicDescription": "Counts streaming stores which modify only part of a 64 byte cacheline that were supplied by the L3 cache. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0XB7",
+        "EventName": "OCR.READS_TO_CORE.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10477",
+        "PublicDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that have any type of response. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -850,6 +1115,7 @@
         "EventName": "OCR.READS_TO_CORE.L3_HIT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1F803C0477",
+        "PublicDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by the L3 cache. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -860,6 +1126,7 @@
         "EventName": "OCR.READS_TO_CORE.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0477",
+        "PublicDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -870,6 +1137,7 @@
         "EventName": "OCR.READS_TO_CORE.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0477",
+        "PublicDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by the L3 cache where a snoop was sent, the snoop hit, but no data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -880,6 +1148,7 @@
         "EventName": "OCR.READS_TO_CORE.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x8003C0477",
+        "PublicDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and non-modified data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -890,6 +1159,7 @@
         "EventName": "OCR.READS_TO_CORE.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0477",
+        "PublicDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by the L3 cache where a snoop was sent but the snoop missed. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -900,6 +1170,18 @@
         "EventName": "OCR.READS_TO_CORE.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0477",
+        "PublicDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by the L3 cache where no snoop was needed to satisfy the request. Available PDIST counters: 0",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that have an outstanding request. Returns the number of cycles until the response is received (i.e. XQ to XQ latency).",
+        "Counter": "0,1,2,3",
+        "EventCode": "0XB7",
+        "EventName": "OCR.READS_TO_CORE.OUTSTANDING",
+        "MSRIndex": "0x1a6",
+        "MSRValue": "0x8000000000000477",
+        "PublicDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that have an outstanding request. Returns the number of cycles until the response is received (i.e. XQ to XQ latency). Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -910,6 +1192,7 @@
         "EventName": "OCR.STREAMING_WR.L3_HIT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1F803C0800",
+        "PublicDescription": "Counts streaming stores that were supplied by the L3 cache. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -920,6 +1203,7 @@
         "EventName": "OCR.UC_RD.L3_HIT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x101F803C0000",
+        "PublicDescription": "Counts uncached memory reads that were supplied by the L3 cache. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -930,6 +1214,7 @@
         "EventName": "OCR.UC_RD.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1010003C0000",
+        "PublicDescription": "Counts uncached memory reads that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -940,6 +1225,7 @@
         "EventName": "OCR.UC_RD.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1004003C0000",
+        "PublicDescription": "Counts uncached memory reads that were supplied by the L3 cache where a snoop was sent, the snoop hit, but no data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -950,6 +1236,7 @@
         "EventName": "OCR.UC_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1008003C0000",
+        "PublicDescription": "Counts uncached memory reads that were supplied by the L3 cache where a snoop was sent, the snoop hit, and non-modified data was forwarded. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -960,6 +1247,7 @@
         "EventName": "OCR.UC_RD.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1002003C0000",
+        "PublicDescription": "Counts uncached memory reads that were supplied by the L3 cache where a snoop was sent but the snoop missed. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -970,6 +1258,7 @@
         "EventName": "OCR.UC_RD.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1001003C0000",
+        "PublicDescription": "Counts uncached memory reads that were supplied by the L3 cache where no snoop was needed to satisfy the request. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -980,6 +1269,7 @@
         "EventName": "OCR.UC_WR.L3_HIT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x201F803C0000",
+        "PublicDescription": "Counts uncached memory writes that were supplied by the L3 cache. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
