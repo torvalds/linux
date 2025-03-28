@@ -480,6 +480,10 @@ struct pipe_ctx {
 	struct pixel_rate_divider pixel_rate_divider;
 	/* pixels borrowed from hblank to hactive */
 	uint8_t hblank_borrow;
+	/* next vupdate */
+	uint32_t next_vupdate;
+	uint32_t wait_frame_count;
+	bool wait_is_required;
 };
 
 /* Data used for dynamic link encoder assignment.

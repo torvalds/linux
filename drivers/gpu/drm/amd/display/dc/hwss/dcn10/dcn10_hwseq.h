@@ -50,6 +50,13 @@ void dcn10_optimize_bandwidth(
 void dcn10_prepare_bandwidth(
 		struct dc *dc,
 		struct dc_state *context);
+void dcn10_wait_for_pipe_update_if_needed(
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		bool is_surface_update_only);
+void dcn10_set_wait_for_update_needed_for_pipe(
+	struct dc *dc,
+	struct pipe_ctx *pipe_ctx);
 void dcn10_pipe_control_lock(
 	struct dc *dc,
 	struct pipe_ctx *pipe,

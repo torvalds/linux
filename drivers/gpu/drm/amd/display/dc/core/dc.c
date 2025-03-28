@@ -2104,6 +2104,18 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 		dc->hwss.enable_accelerated_mode(dc, context);
 	}
 
+	if (dc->hwseq->funcs.wait_for_pipe_update_if_needed) {
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			pipe = &context->res_ctx.pipe_ctx[i];
+			//Only delay otg master for a given config
+			if (resource_is_pipe_type(pipe, OTG_MASTER)) {
+				//dc_commit_state_no_check is always a full update
+				dc->hwseq->funcs.wait_for_pipe_update_if_needed(dc, pipe, false);
+				break;
+			}
+		}
+	}
+
 	if (context->stream_count > get_seamless_boot_stream_count(context) ||
 		context->stream_count == 0)
 		dc->hwss.prepare_bandwidth(dc, context);
@@ -2168,6 +2180,14 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	if (dc->hwss.program_front_end_for_ctx) {
 		dc->hwss.interdependent_update_lock(dc, context, true);
 		dc->hwss.program_front_end_for_ctx(dc, context);
+
+		if (dc->hwseq->funcs.set_wait_for_update_needed_for_pipe) {
+			for (i = 0; i < dc->res_pool->pipe_count; i++) {
+				pipe = &context->res_ctx.pipe_ctx[i];
+				dc->hwseq->funcs.set_wait_for_update_needed_for_pipe(dc, pipe);
+			}
+		}
+
 		dc->hwss.interdependent_update_lock(dc, context, false);
 		dc->hwss.post_unlock_program_front_end(dc, context);
 	}
@@ -4049,6 +4069,7 @@ static void commit_planes_for_stream(struct dc *dc,
 				&context->res_ctx,
 				stream);
 	ASSERT(top_pipe_to_program != NULL);
+
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 
@@ -4098,6 +4119,9 @@ static void commit_planes_for_stream(struct dc *dc,
 	if (dc->hwss.wait_for_dcc_meta_propagation) {
 		dc->hwss.wait_for_dcc_meta_propagation(dc, top_pipe_to_program);
 	}
+
+	if (dc->hwseq->funcs.wait_for_pipe_update_if_needed)
+		dc->hwseq->funcs.wait_for_pipe_update_if_needed(dc, top_pipe_to_program, update_type == UPDATE_TYPE_FAST);
 
 	if (should_lock_all_pipes && dc->hwss.interdependent_update_lock) {
 		if (dc->hwss.subvp_pipe_control_lock)
@@ -4235,6 +4259,16 @@ static void commit_planes_for_stream(struct dc *dc,
 	}
 	if (dc->hwss.program_front_end_for_ctx && update_type != UPDATE_TYPE_FAST) {
 		dc->hwss.program_front_end_for_ctx(dc, context);
+
+		//Pipe busy until some frame and line #
+		if (dc->hwseq->funcs.set_wait_for_update_needed_for_pipe && update_type == UPDATE_TYPE_FULL) {
+			for (j = 0; j < dc->res_pool->pipe_count; j++) {
+				struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
+
+				dc->hwseq->funcs.set_wait_for_update_needed_for_pipe(dc, pipe_ctx);
+			}
+		}
+
 		if (dc->debug.validate_dml_output) {
 			for (i = 0; i < dc->res_pool->pipe_count; i++) {
 				struct pipe_ctx *cur_pipe = &context->res_ctx.pipe_ctx[i];

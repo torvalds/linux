@@ -68,6 +68,7 @@ struct optc {
 	int pstate_keepout;
 	struct dc_crtc_timing orginal_patched_timing;
 	enum signal_type signal;
+	uint32_t max_frame_count;
 };
 
 void optc1_read_otg_state(struct timing_generator *optc, struct dcn_otg_state *s);
