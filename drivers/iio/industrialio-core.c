@@ -26,6 +26,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
+#include <linux/wordpart.h>
 
 #include <linux/iio/buffer.h>
 #include <linux/iio/buffer_impl.h>
@@ -966,8 +967,10 @@ static ssize_t iio_write_channel_info(struct device *dev,
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret, fract_mult = 100000;
 	int integer, fract = 0;
+	long long integer64;
 	bool is_char = false;
 	bool scale_db = false;
+	bool is_64bit = false;
 
 	/* Assumes decimal - precision based on number of digits */
 	if (!indio_dev->info->write_raw)
@@ -991,6 +994,9 @@ static ssize_t iio_write_channel_info(struct device *dev,
 		case IIO_VAL_CHAR:
 			is_char = true;
 			break;
+		case IIO_VAL_INT_64:
+			is_64bit = true;
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -1001,6 +1007,13 @@ static ssize_t iio_write_channel_info(struct device *dev,
 		if (sscanf(buf, "%c", &ch) != 1)
 			return -EINVAL;
 		integer = ch;
+	} else if (is_64bit) {
+		ret = kstrtoll(buf, 0, &integer64);
+		if (ret)
+			return ret;
+
+		fract = upper_32_bits(integer64);
+		integer = lower_32_bits(integer64);
 	} else {
 		ret = __iio_str_to_fixpoint(buf, fract_mult, &integer, &fract,
 					    scale_db);
