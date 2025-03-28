@@ -3074,6 +3074,12 @@ TEST_F(iommufd_device_pasid, pasid_attach)
 	uint32_t pasid = 100;
 	uint32_t viommu_id;
 
+	/*
+	 * Negative, detach pasid without attaching, this is not expected.
+	 * But it should not result in failure anyway.
+	 */
+	test_cmd_pasid_detach(pasid);
+
 	/* Allocate two nested hwpts sharing one common parent hwpt */
 	test_cmd_hwpt_alloc(self->device_id, self->ioas_id,
 			    IOMMU_HWPT_ALLOC_NEST_PARENT,

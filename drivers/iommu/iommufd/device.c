@@ -644,6 +644,11 @@ iommufd_hw_pagetable_detach(struct iommufd_device *idev, ioasid_t pasid)
 
 	mutex_lock(&igroup->lock);
 	attach = xa_load(&igroup->pasid_attach, pasid);
+	if (!attach) {
+		mutex_unlock(&igroup->lock);
+		return NULL;
+	}
+
 	hwpt = attach->hwpt;
 	hwpt_paging = find_hwpt_paging(hwpt);
 
@@ -1001,6 +1006,8 @@ void iommufd_device_detach(struct iommufd_device *idev, ioasid_t pasid)
 	struct iommufd_hw_pagetable *hwpt;
 
 	hwpt = iommufd_hw_pagetable_detach(idev, pasid);
+	if (!hwpt)
+		return;
 	iommufd_hw_pagetable_put(idev->ictx, hwpt);
 	refcount_dec(&idev->obj.users);
 }
