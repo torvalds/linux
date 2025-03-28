@@ -1402,31 +1402,12 @@ static void cpufreq_policy_free(struct cpufreq_policy *policy)
 	kfree(policy);
 }
 
-static int cpufreq_online(unsigned int cpu)
+static int cpufreq_policy_online(struct cpufreq_policy *policy,
+				 unsigned int cpu, bool new_policy)
 {
-	struct cpufreq_policy *policy;
-	bool new_policy;
 	unsigned long flags;
 	unsigned int j;
 	int ret;
-
-	pr_debug("%s: bringing CPU%u online\n", __func__, cpu);
-
-	/* Check if this CPU already has a policy to manage it */
-	policy = per_cpu(cpufreq_cpu_data, cpu);
-	if (policy) {
-		WARN_ON(!cpumask_test_cpu(cpu, policy->related_cpus));
-		if (!policy_is_inactive(policy))
-			return cpufreq_add_policy_cpu(policy, cpu);
-
-		/* This is the only online CPU for the policy.  Start over. */
-		new_policy = false;
-	} else {
-		new_policy = true;
-		policy = cpufreq_policy_alloc(cpu);
-		if (!policy)
-			return -ENOMEM;
-	}
 
 	down_write(&policy->rwsem);
 
@@ -1454,7 +1435,7 @@ static int cpufreq_online(unsigned int cpu)
 		if (ret) {
 			pr_debug("%s: %d: initialization failed\n", __func__,
 				 __LINE__);
-			goto out_free_policy;
+			goto out_clear_policy;
 		}
 
 		/*
@@ -1605,7 +1586,58 @@ static int cpufreq_online(unsigned int cpu)
 		goto out_destroy_policy;
 	}
 
+out_unlock:
 	up_write(&policy->rwsem);
+
+	return ret;
+
+out_destroy_policy:
+	for_each_cpu(j, policy->real_cpus)
+		remove_cpu_dev_symlink(policy, j, get_cpu_device(j));
+
+out_offline_policy:
+	if (cpufreq_driver->offline)
+		cpufreq_driver->offline(policy);
+
+out_exit_policy:
+	if (cpufreq_driver->exit)
+		cpufreq_driver->exit(policy);
+
+out_clear_policy:
+	cpumask_clear(policy->cpus);
+
+	goto out_unlock;
+}
+
+static int cpufreq_online(unsigned int cpu)
+{
+	struct cpufreq_policy *policy;
+	bool new_policy;
+	int ret;
+
+	pr_debug("%s: bringing CPU%u online\n", __func__, cpu);
+
+	/* Check if this CPU already has a policy to manage it */
+	policy = per_cpu(cpufreq_cpu_data, cpu);
+	if (policy) {
+		WARN_ON(!cpumask_test_cpu(cpu, policy->related_cpus));
+		if (!policy_is_inactive(policy))
+			return cpufreq_add_policy_cpu(policy, cpu);
+
+		/* This is the only online CPU for the policy.  Start over. */
+		new_policy = false;
+	} else {
+		new_policy = true;
+		policy = cpufreq_policy_alloc(cpu);
+		if (!policy)
+			return -ENOMEM;
+	}
+
+	ret = cpufreq_policy_online(policy, cpu, new_policy);
+	if (ret) {
+		cpufreq_policy_free(policy);
+		return ret;
+	}
 
 	kobject_uevent(&policy->kobj, KOBJ_ADD);
 
@@ -1633,25 +1665,6 @@ static int cpufreq_online(unsigned int cpu)
 	pr_debug("initialization complete\n");
 
 	return 0;
-
-out_destroy_policy:
-	for_each_cpu(j, policy->real_cpus)
-		remove_cpu_dev_symlink(policy, j, get_cpu_device(j));
-
-out_offline_policy:
-	if (cpufreq_driver->offline)
-		cpufreq_driver->offline(policy);
-
-out_exit_policy:
-	if (cpufreq_driver->exit)
-		cpufreq_driver->exit(policy);
-
-out_free_policy:
-	cpumask_clear(policy->cpus);
-	up_write(&policy->rwsem);
-
-	cpufreq_policy_free(policy);
-	return ret;
 }
 
 /**
