@@ -17,7 +17,6 @@ struct btrfs_inode;
 /* Bits for the extent state */
 enum {
 	ENUM_BIT(EXTENT_DIRTY),
-	ENUM_BIT(EXTENT_UPTODATE),
 	ENUM_BIT(EXTENT_LOCKED),
 	ENUM_BIT(EXTENT_DIO_LOCKED),
 	ENUM_BIT(EXTENT_NEW),

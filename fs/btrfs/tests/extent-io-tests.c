@@ -74,7 +74,6 @@ static void extent_flag_to_str(const struct extent_state *state, char *dest)
 
 	dest[0] = 0;
 	PRINT_ONE_FLAG(state, dest, cur, DIRTY);
-	PRINT_ONE_FLAG(state, dest, cur, UPTODATE);
 	PRINT_ONE_FLAG(state, dest, cur, LOCKED);
 	PRINT_ONE_FLAG(state, dest, cur, NEW);
 	PRINT_ONE_FLAG(state, dest, cur, DELALLOC);

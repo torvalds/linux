@@ -527,7 +527,7 @@ int btrfs_add_new_free_space(struct btrfs_block_group *block_group, u64 start,
 	while (start < end) {
 		if (!find_first_extent_bit(&info->excluded_extents, start,
 					   &extent_start, &extent_end,
-					   EXTENT_UPTODATE, NULL))
+					   EXTENT_DIRTY, NULL))
 			break;
 
 		if (extent_start <= start) {
@@ -834,7 +834,7 @@ out:
 static inline void btrfs_free_excluded_extents(const struct btrfs_block_group *bg)
 {
 	clear_extent_bits(&bg->fs_info->excluded_extents, bg->start,
-			  bg->start + bg->length - 1, EXTENT_UPTODATE);
+			  bg->start + bg->length - 1, EXTENT_DIRTY);
 }
 
 static noinline void caching_thread(struct btrfs_work *work)
@@ -2219,7 +2219,7 @@ static int exclude_super_stripes(struct btrfs_block_group *cache)
 		cache->bytes_super += stripe_len;
 		ret = set_extent_bit(&fs_info->excluded_extents, cache->start,
 				     cache->start + stripe_len - 1,
-				     EXTENT_UPTODATE, NULL);
+				     EXTENT_DIRTY, NULL);
 		if (ret)
 			return ret;
 	}
@@ -2247,7 +2247,7 @@ static int exclude_super_stripes(struct btrfs_block_group *cache)
 			cache->bytes_super += len;
 			ret = set_extent_bit(&fs_info->excluded_extents, logical[nr],
 					     logical[nr] + len - 1,
-					     EXTENT_UPTODATE, NULL);
+					     EXTENT_DIRTY, NULL);
 			if (ret) {
 				kfree(logical);
 				return ret;
