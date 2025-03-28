@@ -286,7 +286,7 @@ struct fsl_sai {
 
 	bool is_consumer_mode[2];
 	bool is_lsb_first;
-	bool is_dsp_mode;
+	bool is_dsp_mode[2];
 	bool is_pdm_mode;
 	bool is_multi_fifo_dma;
 	bool synchronous[2];
