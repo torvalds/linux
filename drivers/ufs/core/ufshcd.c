@@ -6068,7 +6068,7 @@ int ufshcd_wb_toggle_buf_flush(struct ufs_hba *hba, bool enable)
 	return ret;
 }
 
-static bool ufshcd_wb_presrv_usrspc_keep_vcc_on(struct ufs_hba *hba,
+static bool ufshcd_wb_curr_buff_threshold_check(struct ufs_hba *hba,
 						u32 avail_buf)
 {
 	u32 cur_buf;
@@ -6150,15 +6150,13 @@ static bool ufshcd_wb_need_flush(struct ufs_hba *hba)
 	}
 
 	/*
-	 * The ufs device needs the vcc to be ON to flush.
 	 * With user-space reduction enabled, it's enough to enable flush
 	 * by checking only the available buffer. The threshold
 	 * defined here is > 90% full.
 	 * With user-space preserved enabled, the current-buffer
 	 * should be checked too because the wb buffer size can reduce
 	 * when disk tends to be full. This info is provided by current
-	 * buffer (dCurrentWriteBoosterBufferSize). There's no point in
-	 * keeping vcc on when current buffer is empty.
+	 * buffer (dCurrentWriteBoosterBufferSize).
 	 */
 	index = ufshcd_wb_get_query_index(hba);
 	ret = ufshcd_query_attr_retry(hba, UPIU_QUERY_OPCODE_READ_ATTR,
@@ -6173,7 +6171,7 @@ static bool ufshcd_wb_need_flush(struct ufs_hba *hba)
 	if (!hba->dev_info.b_presrv_uspc_en)
 		return avail_buf <= UFS_WB_BUF_REMAIN_PERCENT(10);
 
-	return ufshcd_wb_presrv_usrspc_keep_vcc_on(hba, avail_buf);
+	return ufshcd_wb_curr_buff_threshold_check(hba, avail_buf);
 }
 
 static void ufshcd_rpm_dev_flush_recheck_work(struct work_struct *work)
