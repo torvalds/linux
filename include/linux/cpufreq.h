@@ -170,6 +170,12 @@ struct cpufreq_policy {
 	struct notifier_block nb_max;
 };
 
+DEFINE_GUARD(cpufreq_policy_write, struct cpufreq_policy *,
+	     down_write(&_T->rwsem), up_write(&_T->rwsem))
+
+DEFINE_GUARD(cpufreq_policy_read, struct cpufreq_policy *,
+	     down_read(&_T->rwsem), up_read(&_T->rwsem))
+
 /*
  * Used for passing new cpufreq policy data to the cpufreq driver's ->verify()
  * callback for sanitization.  That callback is only expected to modify the min
