@@ -446,6 +446,16 @@
         "UMask": "0x20"
     },
     {
+        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.DEMAND_CODE_RD.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10004",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
         "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that hit a cacheline in the L3 where a snoop was sent or not.",
         "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
@@ -502,6 +512,16 @@
         "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.SNOOP_SENT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1E003C0004",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand data reads that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.DEMAND_DATA_RD.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10001",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -566,6 +586,16 @@
         "UMask": "0x1"
     },
     {
+        "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.DEMAND_RFO.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10002",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
         "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that hit a cacheline in the L3 where a snoop was sent or not.",
         "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
@@ -626,6 +656,16 @@
         "UMask": "0x1"
     },
     {
+        "BriefDescription": "Counts L1 data cache prefetch requests and software prefetches (except PREFETCHW) that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.HWPF_L1D_AND_SWPF.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10400",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
         "BriefDescription": "Counts L1 data cache prefetch requests and software prefetches (except PREFETCHW) that hit a cacheline in the L3 where a snoop was sent or not.",
         "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
@@ -652,6 +692,16 @@
         "EventName": "OCR.HWPF_L1D_AND_SWPF.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0400",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts hardware prefetch data reads (which bring data to L2)  that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.HWPF_L2_DATA_RD.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10010",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -712,6 +762,16 @@
         "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT.SNOOP_SENT",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1E003C0010",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts hardware prefetch RFOs (which bring data to L2) that have any type of response.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.HWPF_L2_RFO.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10020",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
