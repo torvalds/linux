@@ -2806,6 +2806,8 @@ void dcn20_reset_back_end_for_pipe(
 {
 	struct dc_link *link = pipe_ctx->stream->link;
 	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
+	struct dccg *dccg = dc->res_pool->dccg;
+	struct dtbclk_dto_params dto_params = {0};
 
 	DC_LOGGER_INIT(dc->ctx->logger);
 	if (pipe_ctx->stream_res.stream_enc == NULL) {
@@ -2865,6 +2867,12 @@ void dcn20_reset_back_end_for_pipe(
 			link_hwss->disable_link_output(link,
 					&pipe_ctx->link_res, pipe_ctx->stream->signal);
 			link->phy_state.symclk_state = SYMCLK_OFF_TX_OFF;
+		}
+		if (dc->link_srv->dp_is_128b_132b_signal(pipe_ctx) && dccg) {
+			dto_params.otg_inst = pipe_ctx->stream_res.tg->inst;
+			dto_params.timing = &pipe_ctx->stream->timing;
+			if (dccg && dccg->funcs->set_dtbclk_dto)
+				dccg->funcs->set_dtbclk_dto(dccg, &dto_params);
 		}
 	}
 
