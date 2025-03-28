@@ -265,10 +265,45 @@ static __always_inline void drm_fb_xfrm_line_32to16(void *dbuf, const void *sbuf
 						    unsigned int pixels,
 						    u32 (*xfrm_pixel)(u32))
 {
-	__le16 *dbuf16 = dbuf;
+	__le64 *dbuf64 = dbuf;
+	__le32 *dbuf32;
+	__le16 *dbuf16;
 	const __le32 *sbuf32 = sbuf;
 	const __le32 *send32 = sbuf32 + pixels;
 
+#if defined(CONFIG_64BIT)
+	/* write 4 pixels at once */
+	while (sbuf32 < ALIGN_DOWN_PIXELS(send32, pixels, 4)) {
+		u32 pix[4] = {
+			le32_to_cpup(sbuf32++),
+			le32_to_cpup(sbuf32++),
+			le32_to_cpup(sbuf32++),
+			le32_to_cpup(sbuf32++),
+		};
+		/* write output bytes in reverse order for little endianness */
+		u64 val64 = ((u64)xfrm_pixel(pix[0])) |
+			    ((u64)xfrm_pixel(pix[1]) << 16) |
+			    ((u64)xfrm_pixel(pix[2]) << 32) |
+			    ((u64)xfrm_pixel(pix[3]) << 48);
+		*dbuf64++ = cpu_to_le64(val64);
+	}
+#endif
+
+	/* write 2 pixels at once */
+	dbuf32 = (__le32 __force *)dbuf64;
+	while (sbuf32 < ALIGN_DOWN_PIXELS(send32, pixels, 2)) {
+		u32 pix[2] = {
+			le32_to_cpup(sbuf32++),
+			le32_to_cpup(sbuf32++),
+		};
+		/* write output bytes in reverse order for little endianness */
+		u32 val32 = xfrm_pixel(pix[0]) |
+			   (xfrm_pixel(pix[1]) << 16);
+		*dbuf32++ = cpu_to_le32(val32);
+	}
+
+	/* write trailing pixel */
+	dbuf16 = (__le16 __force *)dbuf32;
 	while (sbuf32 < send32)
 		*dbuf16++ = cpu_to_le16(xfrm_pixel(le32_to_cpup(sbuf32++)));
 }
