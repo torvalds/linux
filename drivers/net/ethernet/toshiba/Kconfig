@@ -6,7 +6,7 @@
 config NET_VENDOR_TOSHIBA
 	bool "Toshiba devices"
 	default y
-	depends on PCI && (PPC_IBM_CELL_BLADE || MIPS) || PPC_PS3
+	depends on PCI && MIPS || PPC_PS3
 	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
@@ -38,15 +38,6 @@ config GELIC_WIRELESS
 	  use wireless feature, disabling this option saves memory.  As
 	  the driver automatically distinguishes the models, you can
 	  safely enable this option even if you have a wireless-less model.
-
-config SPIDER_NET
-	tristate "Spider Gigabit Ethernet driver"
-	depends on PCI && PPC_IBM_CELL_BLADE
-	select FW_LOADER
-	select SUNGEM_PHY
-	help
-	  This driver supports the Gigabit Ethernet chips present on the
-	  Cell Processor-Based Blades from IBM.
 
 config TC35815
 	tristate "TOSHIBA TC35815 Ethernet support"

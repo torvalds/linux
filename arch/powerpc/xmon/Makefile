@@ -16,7 +16,4 @@ ccflags-$(CONFIG_CC_IS_CLANG) += -Wframe-larger-than=4096
 
 obj-y			+= xmon.o nonstdio.o spr_access.o xmon_bpts.o
 
-ifdef CONFIG_XMON_DISASSEMBLY
-obj-y			+= ppc-dis.o ppc-opc.o
-obj-$(CONFIG_SPU_BASE)	+= spu-dis.o spu-opc.o
-endif
+obj-$(CONFIG_XMON_DISASSEMBLY) += ppc-dis.o ppc-opc.o

@@ -31,13 +31,14 @@ void _insb(const volatile u8 __iomem *port, void *buf, long count)
 
 	if (unlikely(count <= 0))
 		return;
-	asm volatile("sync");
+
+	mb();
 	do {
 		tmp = *(const volatile u8 __force *)port;
 		eieio();
 		*tbuf++ = tmp;
 	} while (--count != 0);
-	asm volatile("twi 0,%0,0; isync" : : "r" (tmp));
+	data_barrier(tmp);
 }
 EXPORT_SYMBOL(_insb);
 
@@ -47,75 +48,80 @@ void _outsb(volatile u8 __iomem *port, const void *buf, long count)
 
 	if (unlikely(count <= 0))
 		return;
-	asm volatile("sync");
+
+	mb();
 	do {
 		*(volatile u8 __force *)port = *tbuf++;
 	} while (--count != 0);
-	asm volatile("sync");
+	mb();
 }
 EXPORT_SYMBOL(_outsb);
 
-void _insw_ns(const volatile u16 __iomem *port, void *buf, long count)
+void _insw(const volatile u16 __iomem *port, void *buf, long count)
 {
 	u16 *tbuf = buf;
 	u16 tmp;
 
 	if (unlikely(count <= 0))
 		return;
-	asm volatile("sync");
+
+	mb();
 	do {
 		tmp = *(const volatile u16 __force *)port;
 		eieio();
 		*tbuf++ = tmp;
 	} while (--count != 0);
-	asm volatile("twi 0,%0,0; isync" : : "r" (tmp));
+	data_barrier(tmp);
 }
-EXPORT_SYMBOL(_insw_ns);
+EXPORT_SYMBOL(_insw);
 
-void _outsw_ns(volatile u16 __iomem *port, const void *buf, long count)
+void _outsw(volatile u16 __iomem *port, const void *buf, long count)
 {
 	const u16 *tbuf = buf;
 
 	if (unlikely(count <= 0))
 		return;
-	asm volatile("sync");
+
+	mb();
 	do {
 		*(volatile u16 __force *)port = *tbuf++;
 	} while (--count != 0);
-	asm volatile("sync");
+	mb();
 }
-EXPORT_SYMBOL(_outsw_ns);
+EXPORT_SYMBOL(_outsw);
 
-void _insl_ns(const volatile u32 __iomem *port, void *buf, long count)
+void _insl(const volatile u32 __iomem *port, void *buf, long count)
 {
 	u32 *tbuf = buf;
 	u32 tmp;
 
 	if (unlikely(count <= 0))
 		return;
-	asm volatile("sync");
+
+	mb();
 	do {
 		tmp = *(const volatile u32 __force *)port;
 		eieio();
 		*tbuf++ = tmp;
 	} while (--count != 0);
-	asm volatile("twi 0,%0,0; isync" : : "r" (tmp));
+	data_barrier(tmp);
 }
-EXPORT_SYMBOL(_insl_ns);
+EXPORT_SYMBOL(_insl);
 
-void _outsl_ns(volatile u32 __iomem *port, const void *buf, long count)
+void _outsl(volatile u32 __iomem *port, const void *buf, long count)
 {
 	const u32 *tbuf = buf;
 
 	if (unlikely(count <= 0))
 		return;
-	asm volatile("sync");
+
+	mb();
 	do {
 		*(volatile u32 __force *)port = *tbuf++;
 	} while (--count != 0);
-	asm volatile("sync");
+	mb();
 }
-EXPORT_SYMBOL(_outsl_ns);
+EXPORT_SYMBOL(_outsl);
 
 #define IO_CHECK_ALIGN(v,a) ((((unsigned long)(v)) & ((a) - 1)) == 0)
 
@@ -127,7 +133,7 @@ _memset_io(volatile void __iomem *addr, int c, unsigned long n)
 	lc |= lc << 8;
 	lc |= lc << 16;
 
-	__asm__ __volatile__ ("sync" : : : "memory");
+	mb();
 	while(n && !IO_CHECK_ALIGN(p, 4)) {
 		*((volatile u8 *)p) = c;
 		p++;
@@ -143,7 +149,7 @@ _memset_io(volatile void __iomem *addr, int c, unsigned long n)
 		p++;
 		n--;
 	}
-	__asm__ __volatile__ ("sync" : : : "memory");
+	mb();
 }
 EXPORT_SYMBOL(_memset_io);
 
@@ -152,7 +158,7 @@ void _memcpy_fromio(void *dest, const volatile void __iomem *src,
 {
 	void *vsrc = (void __force *) src;
 
-	__asm__ __volatile__ ("sync" : : : "memory");
+	mb();
 	while(n && (!IO_CHECK_ALIGN(vsrc, 4) || !IO_CHECK_ALIGN(dest, 4))) {
 		*((u8 *)dest) = *((volatile u8 *)vsrc);
 		eieio();
@@ -174,7 +180,7 @@ void _memcpy_fromio(void *dest, const volatile void __iomem *src,
 		dest++;
 		n--;
 	}
-	__asm__ __volatile__ ("sync" : : : "memory");
+	mb();
 }
 EXPORT_SYMBOL(_memcpy_fromio);
 
@@ -182,7 +188,7 @@ void _memcpy_toio(volatile void __iomem *dest, const void *src, unsigned long n)
 {
 	void *vdest = (void __force *) dest;
 
-	__asm__ __volatile__ ("sync" : : : "memory");
+	mb();
 	while(n && (!IO_CHECK_ALIGN(vdest, 4) || !IO_CHECK_ALIGN(src, 4))) {
 		*((volatile u8 *)vdest) = *((u8 *)src);
 		src++;
@@ -201,6 +207,6 @@ void _memcpy_toio(volatile void __iomem *dest, const void *src, unsigned long n)
 		vdest++;
 		n--;
 	}
-	__asm__ __volatile__ ("sync" : : : "memory");
+	mb();
 }
 EXPORT_SYMBOL(_memcpy_toio);

@@ -288,6 +288,7 @@ config PPC
 	select HAVE_STACKPROTECTOR		if PPC32 && $(cc-option,$(m32-flag) -mstack-protector-guard=tls -mstack-protector-guard-reg=r2 -mstack-protector-guard-offset=0)
 	select HAVE_STACKPROTECTOR		if PPC64 && $(cc-option,$(m64-flag) -mstack-protector-guard=tls -mstack-protector-guard-reg=r13 -mstack-protector-guard-offset=0)
 	select HAVE_STATIC_CALL			if PPC32
+	select HAVE_STATIC_CALL_INLINE		if PPC32
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_VIRT_CPU_ACCOUNTING
 	select HAVE_VIRT_CPU_ACCOUNTING_GEN
@@ -413,12 +414,9 @@ config ARCH_HAS_ADD_PAGES
 config PPC_DCR_NATIVE
 	bool
 
-config PPC_DCR_MMIO
-	bool
-
 config PPC_DCR
 	bool
-	depends on PPC_DCR_NATIVE || PPC_DCR_MMIO
+	depends on PPC_DCR_NATIVE
 	default y
 
 config PPC_PCI_OF_BUS_MAP
@@ -443,11 +441,6 @@ config PPC_PCI_BUS_NUM_DOMAIN_DEPENDENT
 	  PCI domains. When this option is enabled then PCI bus numbers are
 	  PCI domain dependent and each PCI controller on own domain can have
 	  256 PCI buses, like it is on other Linux architectures.
-
-config PPC_OF_PLATFORM_PCI
-	bool
-	depends on PCI
-	depends on PPC64 # not supported on 32 bits yet
 
 config ARCH_SUPPORTS_UPROBES
 	def_bool y

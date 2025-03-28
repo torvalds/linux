@@ -1358,18 +1358,6 @@ static void __init htab_initialize(void)
 	} else {
 		unsigned long limit = MEMBLOCK_ALLOC_ANYWHERE;
 
-#ifdef CONFIG_PPC_CELL
-		/*
-		 * Cell may require the hash table down low when using the
-		 * Axon IOMMU in order to fit the dynamic region over it, see
-		 * comments in cell/iommu.c
-		 */
-		if (fdt_subnode_offset(initial_boot_params, 0, "axon") > 0) {
-			limit = 0x80000000;
-			pr_info("Hash table forced below 2G for Axon IOMMU\n");
-		}
-#endif /* CONFIG_PPC_CELL */
-
 		table = memblock_phys_alloc_range(htab_size_bytes,
 						  htab_size_bytes,
 						  0, limit);

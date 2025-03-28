@@ -2187,6 +2187,10 @@ D: Various ACPI fixes, keeping correct battery state through suspend
 D: various lockdep annotations, autofs and other random bugfixes
 S: Prague, Czech Republic
 
+N: Ishizaki Kou
+E: kou.ishizaki@toshiba.co.jp
+D: Spidernet driver for PowerPC Cell platforms
+
 N: Gene Kozin
 E: 74604.152@compuserve.com
 W: https://www.sangoma.com
@@ -2196,6 +2200,9 @@ S: 7170 Warden Avenue, Unit 2
 S: Markham, Ontario
 S: L3R 8B2
 S: Canada
+
+N: Christian Krafft
+D: PowerPC Cell support
 
 N: Maxim Krasnyansky
 E: maxk@qualcomm.com
@@ -2388,6 +2395,10 @@ D: GDT Disk Array Controller/Storage RAID controller driver
 S: ICP vortex GmbH
 S: Neckarsulm
 S: Germany
+
+N: Geoff Levand
+E: geoff@infradead.org
+D: Spidernet driver for PowerPC Cell platforms
 
 N: Phil Lewis
 E: beans@bucket.ualr.edu
