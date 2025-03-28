@@ -9,5 +9,6 @@
 #include "incore.h"
 
 void adjust_fs_space(struct inode *inode);
+int gfs2_jdata_writeback(struct address_space *mapping, struct writeback_control *wbc);
 
 #endif /* __AOPS_DOT_H__ */
