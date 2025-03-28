@@ -176,16 +176,6 @@ static struct io_async_msghdr *io_msg_alloc_async(struct io_kiocb *req)
 	return hdr;
 }
 
-/* assign new iovec to kmsg, if we need to */
-static void io_net_vec_assign(struct io_kiocb *req, struct io_async_msghdr *kmsg,
-			     struct iovec *iov)
-{
-	if (iov) {
-		req->flags |= REQ_F_NEED_CLEANUP;
-		io_vec_reset_iovec(&kmsg->vec, iov, kmsg->msg.msg_iter.nr_segs);
-	}
-}
-
 static inline void io_mshot_prep_retry(struct io_kiocb *req,
 				       struct io_async_msghdr *kmsg)
 {
@@ -217,7 +207,11 @@ static int io_net_import_vec(struct io_kiocb *req, struct io_async_msghdr *iomsg
 			     &iomsg->msg.msg_iter, io_is_compat(req->ctx));
 	if (unlikely(ret < 0))
 		return ret;
-	io_net_vec_assign(req, iomsg, iov);
+
+	if (iov) {
+		req->flags |= REQ_F_NEED_CLEANUP;
+		io_vec_reset_iovec(&iomsg->vec, iov, iomsg->msg.msg_iter.nr_segs);
+	}
 	return 0;
 }
 
