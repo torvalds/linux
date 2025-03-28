@@ -174,6 +174,13 @@ static int fsl_sai_set_dai_tdm_slot(struct snd_soc_dai *cpu_dai, u32 tx_mask,
 	return 0;
 }
 
+static int fsl_sai_xlate_tdm_slot_mask(unsigned int slots,
+				       unsigned int *tx_mask, unsigned int *rx_mask)
+{
+	/* Leave it empty, don't change the value of tx_mask and rx_mask */
+	return 0;
+}
+
 static int fsl_sai_set_dai_bclk_ratio(struct snd_soc_dai *dai,
 				      unsigned int ratio)
 {
@@ -933,6 +940,7 @@ static const struct snd_soc_dai_ops fsl_sai_pcm_dai_tx_ops = {
 	.set_sysclk	= fsl_sai_set_dai_sysclk,
 	.set_fmt	= fsl_sai_set_dai_fmt_tx,
 	.set_tdm_slot	= fsl_sai_set_dai_tdm_slot,
+	.xlate_tdm_slot_mask = fsl_sai_xlate_tdm_slot_mask,
 	.hw_params	= fsl_sai_hw_params,
 	.hw_free	= fsl_sai_hw_free,
 	.trigger	= fsl_sai_trigger,
@@ -945,6 +953,7 @@ static const struct snd_soc_dai_ops fsl_sai_pcm_dai_rx_ops = {
 	.set_sysclk	= fsl_sai_set_dai_sysclk,
 	.set_fmt	= fsl_sai_set_dai_fmt_rx,
 	.set_tdm_slot	= fsl_sai_set_dai_tdm_slot,
+	.xlate_tdm_slot_mask = fsl_sai_xlate_tdm_slot_mask,
 	.hw_params	= fsl_sai_hw_params,
 	.hw_free	= fsl_sai_hw_free,
 	.trigger	= fsl_sai_trigger,
