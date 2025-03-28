@@ -310,6 +310,7 @@
 	x(BCH_ERR_data_write,		data_write_misaligned)			\
 	x(BCH_ERR_decompress,		data_read)				\
 	x(BCH_ERR_data_read,		no_device_to_read_from)			\
+	x(BCH_ERR_data_read,		no_devices_valid)			\
 	x(BCH_ERR_data_read,		data_read_io_err)			\
 	x(BCH_ERR_data_read,		data_read_csum_err)			\
 	x(BCH_ERR_data_read,		data_read_retry)			\
