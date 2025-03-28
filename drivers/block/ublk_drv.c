@@ -89,7 +89,10 @@ struct ublk_uring_cmd_pdu {
 	 * to avoid extra pre-allocation, and uring_cmd payload is always
 	 * free for us
 	 */
-	struct request *req_list;
+	union {
+		struct request *req;
+		struct request *req_list;
+	};
 
 	/*
 	 * The following two are valid in this cmd whole lifetime, and
@@ -1268,18 +1271,17 @@ static void ublk_cmd_tw_cb(struct io_uring_cmd *cmd,
 {
 	struct ublk_uring_cmd_pdu *pdu = ublk_get_uring_cmd_pdu(cmd);
 	struct ublk_queue *ubq = pdu->ubq;
-	int tag = pdu->tag;
-	struct request *req = blk_mq_tag_to_rq(
-		ubq->dev->tag_set.tags[ubq->q_id], tag);
 
-	ublk_dispatch_req(ubq, req, issue_flags);
+	ublk_dispatch_req(ubq, pdu->req, issue_flags);
 }
 
 static void ublk_queue_cmd(struct ublk_queue *ubq, struct request *rq)
 {
-	struct ublk_io *io = &ubq->ios[rq->tag];
+	struct io_uring_cmd *cmd = ubq->ios[rq->tag].cmd;
+	struct ublk_uring_cmd_pdu *pdu = ublk_get_uring_cmd_pdu(cmd);
 
-	io_uring_cmd_complete_in_task(io->cmd, ublk_cmd_tw_cb);
+	pdu->req = rq;
+	io_uring_cmd_complete_in_task(cmd, ublk_cmd_tw_cb);
 }
 
 static void ublk_cmd_list_tw_cb(struct io_uring_cmd *cmd,
