@@ -1620,7 +1620,7 @@ struct intel_psr {
 	bool sink_support;
 	bool source_support;
 	bool enabled;
-	bool paused;
+	int pause_counter;
 	enum pipe pipe;
 	enum transcoder transcoder;
 	bool active;

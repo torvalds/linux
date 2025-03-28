@@ -2014,7 +2014,7 @@ static void intel_psr_enable_locked(struct intel_dp *intel_dp,
 
 	intel_psr_enable_source(intel_dp, crtc_state);
 	intel_dp->psr.enabled = true;
-	intel_dp->psr.paused = false;
+	intel_dp->psr.pause_counter = 0;
 
 	/*
 	 * Link_ok is sticky and set here on PSR enable. We can assume link
@@ -2199,7 +2199,6 @@ void intel_psr_disable(struct intel_dp *intel_dp,
  */
 void intel_psr_pause(struct intel_dp *intel_dp)
 {
-	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_psr *psr = &intel_dp->psr;
 
 	if (!CAN_PSR(intel_dp) && !CAN_PANEL_REPLAY(intel_dp))
@@ -2212,12 +2211,10 @@ void intel_psr_pause(struct intel_dp *intel_dp)
 		return;
 	}
 
-	/* If we ever hit this, we will need to add refcount to pause/resume */
-	drm_WARN_ON(display->drm, psr->paused);
-
-	intel_psr_exit(intel_dp);
-	intel_psr_wait_exit_locked(intel_dp);
-	psr->paused = true;
+	if (intel_dp->psr.pause_counter++ == 0) {
+		intel_psr_exit(intel_dp);
+		intel_psr_wait_exit_locked(intel_dp);
+	}
 
 	mutex_unlock(&psr->lock);
 
@@ -2233,6 +2230,7 @@ void intel_psr_pause(struct intel_dp *intel_dp)
  */
 void intel_psr_resume(struct intel_dp *intel_dp)
 {
+	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_psr *psr = &intel_dp->psr;
 
 	if (!CAN_PSR(intel_dp) && !CAN_PANEL_REPLAY(intel_dp))
@@ -2240,13 +2238,18 @@ void intel_psr_resume(struct intel_dp *intel_dp)
 
 	mutex_lock(&psr->lock);
 
-	if (!psr->paused)
-		goto unlock;
+	if (!psr->enabled)
+		goto out;
 
-	psr->paused = false;
-	intel_psr_activate(intel_dp);
+	if (!psr->pause_counter) {
+		drm_warn(display->drm, "Unbalanced PSR pause/resume!\n");
+		goto out;
+	}
 
-unlock:
+	if (--intel_dp->psr.pause_counter == 0)
+		intel_psr_activate(intel_dp);
+
+out:
 	mutex_unlock(&psr->lock);
 }
 
@@ -3298,7 +3301,7 @@ void intel_psr_flush(struct intel_display *display,
 		 * we have to ensure that the PSR is not activated until
 		 * intel_psr_resume() is called.
 		 */
-		if (intel_dp->psr.paused)
+		if (intel_dp->psr.pause_counter)
 			goto unlock;
 
 		if (origin == ORIGIN_FLIP ||
