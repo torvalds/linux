@@ -2780,10 +2780,13 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
  */
 void cpufreq_update_policy(unsigned int cpu)
 {
-	struct cpufreq_policy *policy = cpufreq_cpu_acquire(cpu);
+	struct cpufreq_policy *policy __free(put_cpufreq_policy);
 
+	policy = cpufreq_cpu_get(cpu);
 	if (!policy)
 		return;
+
+	guard(cpufreq_policy_write)(policy);
 
 	/*
 	 * BIOS might change freq behind our back
@@ -2791,12 +2794,9 @@ void cpufreq_update_policy(unsigned int cpu)
 	 */
 	if (cpufreq_driver->get && has_target() &&
 	    (cpufreq_suspended || WARN_ON(!cpufreq_verify_current_freq(policy, false))))
-		goto unlock;
+		return;
 
 	refresh_frequency_limits(policy);
-
-unlock:
-	cpufreq_cpu_release(policy);
 }
 EXPORT_SYMBOL(cpufreq_update_policy);
 
