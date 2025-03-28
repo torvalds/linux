@@ -1136,7 +1136,7 @@ int ath11k_core_suspend(struct ath11k_base *ab)
 	if (ret <= 0)
 		return ret;
 
-	if (ab->pm_policy == ATH11K_PM_WOW)
+	if (ab->actual_pm_policy == ATH11K_PM_WOW)
 		return ath11k_core_suspend_wow(ab);
 
 	return ath11k_core_suspend_default(ab);
@@ -1151,7 +1151,7 @@ int ath11k_core_suspend_late(struct ath11k_base *ab)
 	if (ret <= 0)
 		return ret;
 
-	if (ab->pm_policy == ATH11K_PM_WOW)
+	if (ab->actual_pm_policy == ATH11K_PM_WOW)
 		return 0;
 
 	ath11k_hif_irq_disable(ab);
@@ -1171,7 +1171,7 @@ int ath11k_core_resume_early(struct ath11k_base *ab)
 	if (ret <= 0)
 		return ret;
 
-	if (ab->pm_policy == ATH11K_PM_WOW)
+	if (ab->actual_pm_policy == ATH11K_PM_WOW)
 		return 0;
 
 	reinit_completion(&ab->restart_completed);
@@ -1240,7 +1240,7 @@ int ath11k_core_resume(struct ath11k_base *ab)
 	if (ret <= 0)
 		return ret;
 
-	if (ab->pm_policy == ATH11K_PM_WOW)
+	if (ab->actual_pm_policy == ATH11K_PM_WOW)
 		return ath11k_core_resume_wow(ab);
 
 	return ath11k_core_resume_default(ab);
@@ -2500,6 +2500,43 @@ int ath11k_core_pre_init(struct ath11k_base *ab)
 }
 EXPORT_SYMBOL(ath11k_core_pre_init);
 
+static int ath11k_core_pm_notify(struct notifier_block *nb,
+				 unsigned long action, void *nouse)
+{
+	struct ath11k_base *ab = container_of(nb, struct ath11k_base,
+					      pm_nb);
+
+	switch (action) {
+	case PM_SUSPEND_PREPARE:
+		ab->actual_pm_policy = ab->pm_policy;
+		break;
+	case PM_HIBERNATION_PREPARE:
+		ab->actual_pm_policy = ATH11K_PM_DEFAULT;
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static int ath11k_core_pm_notifier_register(struct ath11k_base *ab)
+{
+	ab->pm_nb.notifier_call = ath11k_core_pm_notify;
+	return register_pm_notifier(&ab->pm_nb);
+}
+
+void ath11k_core_pm_notifier_unregister(struct ath11k_base *ab)
+{
+	int ret;
+
+	ret = unregister_pm_notifier(&ab->pm_nb);
+	if (ret)
+		/* just warn here, there is nothing can be done in fail case */
+		ath11k_warn(ab, "failed to unregister PM notifier %d\n", ret);
+}
+EXPORT_SYMBOL(ath11k_core_pm_notifier_unregister);
+
 int ath11k_core_init(struct ath11k_base *ab)
 {
 	const struct dmi_system_id *dmi_id;
@@ -2512,6 +2549,12 @@ int ath11k_core_init(struct ath11k_base *ab)
 		ab->pm_policy = ATH11K_PM_DEFAULT;
 
 	ath11k_dbg(ab, ATH11K_DBG_BOOT, "pm policy %u\n", ab->pm_policy);
+
+	ret = ath11k_core_pm_notifier_register(ab);
+	if (ret) {
+		ath11k_err(ab, "failed to register PM notifier: %d\n", ret);
+		return ret;
+	}
 
 	ret = ath11k_core_soc_create(ab);
 	if (ret) {
@@ -2535,6 +2578,7 @@ void ath11k_core_deinit(struct ath11k_base *ab)
 	ath11k_hif_power_down(ab, false);
 	ath11k_mac_destroy(ab);
 	ath11k_core_soc_destroy(ab);
+	ath11k_core_pm_notifier_unregister(ab);
 }
 EXPORT_SYMBOL(ath11k_core_deinit);
 
