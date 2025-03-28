@@ -377,30 +377,14 @@ static int io_sendmsg_setup(struct io_kiocb *req, const struct io_uring_sqe *sqe
 	/* save msg_control as sys_sendmsg() overwrites it */
 	sr->msg_control = kmsg->msg.msg_control_user;
 
+	if (sr->flags & IORING_RECVSEND_FIXED_BUF) {
+		kmsg->msg.msg_iter.nr_segs = msg.msg_iovlen;
+		return io_prep_reg_iovec(req, &kmsg->vec, msg.msg_iov,
+					 msg.msg_iovlen);
+	}
 	if (req->flags & REQ_F_BUFFER_SELECT)
 		return 0;
 	return io_net_import_vec(req, kmsg, msg.msg_iov, msg.msg_iovlen, ITER_SOURCE);
-}
-
-static int io_sendmsg_zc_setup(struct io_kiocb *req, const struct io_uring_sqe *sqe)
-{
-	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
-	struct io_async_msghdr *kmsg = req->async_data;
-	struct user_msghdr msg;
-	int ret;
-
-	if (!(sr->flags & IORING_RECVSEND_FIXED_BUF))
-		return io_sendmsg_setup(req, sqe);
-
-	sr->umsg = u64_to_user_ptr(READ_ONCE(sqe->addr));
-
-	ret = io_msg_copy_hdr(req, kmsg, &msg, ITER_SOURCE, NULL);
-	if (unlikely(ret))
-		return ret;
-	sr->msg_control = kmsg->msg.msg_control_user;
-	kmsg->msg.msg_iter.nr_segs = msg.msg_iovlen;
-
-	return io_prep_reg_iovec(req, &kmsg->vec, msg.msg_iov, msg.msg_iovlen);
 }
 
 #define SENDMSG_FLAGS (IORING_RECVSEND_POLL_FIRST | IORING_RECVSEND_BUNDLE)
@@ -1339,7 +1323,7 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		req->flags |= REQ_F_IMPORT_BUFFER;
 		return io_send_setup(req, sqe);
 	}
-	ret = io_sendmsg_zc_setup(req, sqe);
+	ret = io_sendmsg_setup(req, sqe);
 	if (unlikely(ret))
 		return ret;
 
