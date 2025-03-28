@@ -854,6 +854,16 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "Ingress (from CMS) Allocations : IRQ : Counts number of allocations per cycle into the specified Ingress queue.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x13",
+        "EventName": "UNC_CHA_RxC_INSERTS.IRQ",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "Ingress (from CMS) Occupancy : IRQ : Counts number of entries in the specified Ingress queue in each cycle.",
         "Counter": "0",
         "EventCode": "0x11",
@@ -861,6 +871,38 @@
         "Experimental": "1",
         "PerPkg": "1",
         "UMask": "0x1",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Counts snoop filter capacity evictions for entries tracking exclusive lines in the core's cache. Snoop filter capacity evictions occur when the snoop filter is full and evicts an existing entry to track a new entry. Does not count clean evictions such as when a core's cache replaces a tracked cacheline with a new cacheline.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3d",
+        "EventName": "UNC_CHA_SF_EVICTION.E_STATE",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Snoop Filter Capacity Evictions : E state",
+        "UMask": "0x2",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Counts snoop filter capacity evictions for entries tracking modified lines in the core's cache. Snoop filter capacity evictions occur when the snoop filter is full and evicts an existing entry to track a new entry. Does not count clean evictions such as when a core's cache replaces a tracked cacheline with a new cacheline.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3d",
+        "EventName": "UNC_CHA_SF_EVICTION.M_STATE",
+        "PerPkg": "1",
+        "PublicDescription": "Snoop Filter Capacity Evictions : M state",
+        "UMask": "0x1",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Counts snoop filter capacity evictions for entries tracking shared lines in the core's cache. Snoop filter capacity evictions occur when the snoop filter is full and evicts an existing entry to track a new entry. Does not count clean evictions such as when a core's cache replaces a tracked cacheline with a new cacheline.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3d",
+        "EventName": "UNC_CHA_SF_EVICTION.S_STATE",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Snoop Filter Capacity Evictions : S state",
+        "UMask": "0x4",
         "Unit": "CHA"
     },
     {
