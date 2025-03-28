@@ -289,7 +289,7 @@ static void io_free_alloc_caches(struct io_ring_ctx *ctx)
 	io_alloc_cache_free(&ctx->apoll_cache, kfree);
 	io_alloc_cache_free(&ctx->netmsg_cache, io_netmsg_cache_free);
 	io_alloc_cache_free(&ctx->rw_cache, io_rw_cache_free);
-	io_alloc_cache_free(&ctx->uring_cache, kfree);
+	io_alloc_cache_free(&ctx->cmd_cache, io_cmd_cache_free);
 	io_alloc_cache_free(&ctx->msg_cache, kfree);
 	io_futex_cache_free(ctx);
 	io_rsrc_cache_free(ctx);
@@ -334,8 +334,9 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	ret |= io_alloc_cache_init(&ctx->rw_cache, IO_ALLOC_CACHE_MAX,
 			    sizeof(struct io_async_rw),
 			    offsetof(struct io_async_rw, clear));
-	ret |= io_alloc_cache_init(&ctx->uring_cache, IO_ALLOC_CACHE_MAX,
-			    sizeof(struct io_uring_cmd_data), 0);
+	ret |= io_alloc_cache_init(&ctx->cmd_cache, IO_ALLOC_CACHE_MAX,
+			    sizeof(struct io_async_cmd),
+			    sizeof(struct io_async_cmd));
 	spin_lock_init(&ctx->msg_lock);
 	ret |= io_alloc_cache_init(&ctx->msg_cache, IO_ALLOC_CACHE_MAX,
 			    sizeof(struct io_kiocb), 0);
@@ -833,24 +834,14 @@ static bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res,
 	return false;
 }
 
-static bool __io_post_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res,
-			      u32 cflags)
-{
-	bool filled;
-
-	filled = io_fill_cqe_aux(ctx, user_data, res, cflags);
-	if (!filled)
-		filled = io_cqring_event_overflow(ctx, user_data, res, cflags, 0, 0);
-
-	return filled;
-}
-
 bool io_post_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags)
 {
 	bool filled;
 
 	io_cq_lock(ctx);
-	filled = __io_post_aux_cqe(ctx, user_data, res, cflags);
+	filled = io_fill_cqe_aux(ctx, user_data, res, cflags);
+	if (!filled)
+		filled = io_cqring_event_overflow(ctx, user_data, res, cflags, 0, 0);
 	io_cq_unlock_post(ctx);
 	return filled;
 }
@@ -891,6 +882,7 @@ bool io_req_post_cqe(struct io_kiocb *req, s32 res, u32 cflags)
 static void io_req_complete_post(struct io_kiocb *req, unsigned issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
+	bool completed = true;
 
 	/*
 	 * All execution paths but io-wq use the deferred completions by
@@ -903,18 +895,20 @@ static void io_req_complete_post(struct io_kiocb *req, unsigned issue_flags)
 	 * Handle special CQ sync cases via task_work. DEFER_TASKRUN requires
 	 * the submitter task context, IOPOLL protects with uring_lock.
 	 */
-	if (ctx->lockless_cq) {
+	if (ctx->lockless_cq || (req->flags & REQ_F_REISSUE)) {
+defer_complete:
 		req->io_task_work.func = io_req_task_complete;
 		io_req_task_work_add(req);
 		return;
 	}
 
 	io_cq_lock(ctx);
-	if (!(req->flags & REQ_F_CQE_SKIP)) {
-		if (!io_fill_cqe_req(ctx, req))
-			io_req_cqe_overflow(req);
-	}
+	if (!(req->flags & REQ_F_CQE_SKIP))
+		completed = io_fill_cqe_req(ctx, req);
 	io_cq_unlock_post(ctx);
+
+	if (!completed)
+		goto defer_complete;
 
 	/*
 	 * We don't free the request here because we know it's called from
@@ -1511,10 +1505,12 @@ static __cold void io_iopoll_try_reap_events(struct io_ring_ctx *ctx)
 	mutex_unlock(&ctx->uring_lock);
 }
 
-static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
+static int io_iopoll_check(struct io_ring_ctx *ctx, unsigned int min_events)
 {
 	unsigned int nr_events = 0;
 	unsigned long check_cq;
+
+	min_events = min(min_events, ctx->cq_entries);
 
 	lockdep_assert_held(&ctx->uring_lock);
 
@@ -1557,7 +1553,7 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 		    io_task_work_pending(ctx)) {
 			u32 tail = ctx->cached_cq_tail;
 
-			(void) io_run_local_work_locked(ctx, min);
+			(void) io_run_local_work_locked(ctx, min_events);
 
 			if (task_work_pending(current) ||
 			    wq_list_empty(&ctx->iopoll_list)) {
@@ -1570,7 +1566,7 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 			    wq_list_empty(&ctx->iopoll_list))
 				break;
 		}
-		ret = io_do_iopoll(ctx, !min);
+		ret = io_do_iopoll(ctx, !min_events);
 		if (unlikely(ret < 0))
 			return ret;
 
@@ -1580,7 +1576,7 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 			break;
 
 		nr_events += ret;
-	} while (nr_events < min);
+	} while (nr_events < min_events);
 
 	return 0;
 }
@@ -1791,10 +1787,7 @@ int io_poll_issue(struct io_kiocb *req, io_tw_token_t tw)
 
 	ret = __io_issue_sqe(req, issue_flags, &io_issue_defs[req->opcode]);
 
-	WARN_ON_ONCE(ret == IOU_OK);
-
-	if (ret == IOU_ISSUE_SKIP_COMPLETE)
-		ret = 0;
+	WARN_ON_ONCE(ret == IOU_ISSUE_SKIP_COMPLETE);
 	return ret;
 }
 
@@ -1847,7 +1840,7 @@ fail:
 	 * Don't allow any multishot execution from io-wq. It's more restrictive
 	 * than necessary and also cleaner.
 	 */
-	if (req->flags & REQ_F_APOLL_MULTISHOT) {
+	if (req->flags & (REQ_F_MULTISHOT|REQ_F_APOLL_MULTISHOT)) {
 		err = -EBADFD;
 		if (!io_file_can_poll(req))
 			goto fail;
@@ -1858,7 +1851,7 @@ fail:
 				goto fail;
 			return;
 		} else {
-			req->flags &= ~REQ_F_APOLL_MULTISHOT;
+			req->flags &= ~(REQ_F_APOLL_MULTISHOT|REQ_F_MULTISHOT);
 		}
 	}
 
@@ -2548,6 +2541,8 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events, u32 flags,
 	struct io_rings *rings = ctx->rings;
 	ktime_t start_time;
 	int ret;
+
+	min_events = min_t(int, min_events, ctx->cq_entries);
 
 	if (!io_allowed_run_tw(ctx))
 		return -EEXIST;
@@ -3435,22 +3430,16 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 			mutex_lock(&ctx->uring_lock);
 iopoll_locked:
 			ret2 = io_validate_ext_arg(ctx, flags, argp, argsz);
-			if (likely(!ret2)) {
-				min_complete = min(min_complete,
-						   ctx->cq_entries);
+			if (likely(!ret2))
 				ret2 = io_iopoll_check(ctx, min_complete);
-			}
 			mutex_unlock(&ctx->uring_lock);
 		} else {
 			struct ext_arg ext_arg = { .argsz = argsz };
 
 			ret2 = io_get_ext_arg(ctx, flags, argp, &ext_arg);
-			if (likely(!ret2)) {
-				min_complete = min(min_complete,
-						   ctx->cq_entries);
+			if (likely(!ret2))
 				ret2 = io_cqring_wait(ctx, min_complete, flags,
 						      &ext_arg);
-			}
 		}
 
 		if (!ret) {

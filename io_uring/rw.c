@@ -87,9 +87,9 @@ static int io_import_vec(int ddir, struct io_kiocb *req,
 	int ret, nr_segs;
 	struct iovec *iov;
 
-	if (io->free_iovec) {
-		nr_segs = io->free_iov_nr;
-		iov = io->free_iovec;
+	if (io->vec.iovec) {
+		nr_segs = io->vec.nr;
+		iov = io->vec.iovec;
 	} else {
 		nr_segs = 1;
 		iov = &io->fast_iov;
@@ -101,9 +101,7 @@ static int io_import_vec(int ddir, struct io_kiocb *req,
 		return ret;
 	if (iov) {
 		req->flags |= REQ_F_NEED_CLEANUP;
-		io->free_iov_nr = io->iter.nr_segs;
-		kfree(io->free_iovec);
-		io->free_iovec = iov;
+		io_vec_reset_iovec(&io->vec, iov, io->iter.nr_segs);
 	}
 	return 0;
 }
@@ -151,7 +149,10 @@ static void io_rw_recycle(struct io_kiocb *req, unsigned int issue_flags)
 	if (unlikely(issue_flags & IO_URING_F_UNLOCKED))
 		return;
 
-	io_alloc_cache_kasan(&rw->free_iovec, &rw->free_iov_nr);
+	io_alloc_cache_vec_kasan(&rw->vec);
+	if (rw->vec.nr > IO_VEC_CACHE_SOFT_CAP)
+		io_vec_free(&rw->vec);
+
 	if (io_alloc_cache_put(&req->ctx->rw_cache, rw)) {
 		req->async_data = NULL;
 		req->flags &= ~REQ_F_ASYNC_DATA;
@@ -201,7 +202,7 @@ static int io_rw_alloc_async(struct io_kiocb *req)
 	rw = io_uring_alloc_async_data(&ctx->rw_cache, req);
 	if (!rw)
 		return -ENOMEM;
-	if (rw->free_iovec)
+	if (rw->vec.iovec)
 		req->flags |= REQ_F_NEED_CLEANUP;
 	rw->bytes_done = 0;
 	return 0;
@@ -381,6 +382,53 @@ int io_prep_read_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 int io_prep_write_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	return __io_prep_rw(req, sqe, ITER_SOURCE);
+}
+
+static int io_rw_import_reg_vec(struct io_kiocb *req,
+				struct io_async_rw *io,
+				int ddir, unsigned int issue_flags)
+{
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
+	unsigned uvec_segs = rw->len;
+	int ret;
+
+	ret = io_import_reg_vec(ddir, &io->iter, req, &io->vec,
+				uvec_segs, issue_flags);
+	if (unlikely(ret))
+		return ret;
+	iov_iter_save_state(&io->iter, &io->iter_state);
+	req->flags &= ~REQ_F_IMPORT_BUFFER;
+	return 0;
+}
+
+static int io_rw_prep_reg_vec(struct io_kiocb *req)
+{
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
+	struct io_async_rw *io = req->async_data;
+	const struct iovec __user *uvec;
+
+	uvec = u64_to_user_ptr(rw->addr);
+	return io_prep_reg_iovec(req, &io->vec, uvec, rw->len);
+}
+
+int io_prep_readv_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	int ret;
+
+	ret = __io_prep_rw(req, sqe, ITER_DEST);
+	if (unlikely(ret))
+		return ret;
+	return io_rw_prep_reg_vec(req);
+}
+
+int io_prep_writev_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	int ret;
+
+	ret = __io_prep_rw(req, sqe, ITER_SOURCE);
+	if (unlikely(ret))
+		return ret;
+	return io_rw_prep_reg_vec(req);
 }
 
 /*
@@ -856,7 +904,11 @@ static int __io_read(struct io_kiocb *req, unsigned int issue_flags)
 	ssize_t ret;
 	loff_t *ppos;
 
-	if (io_do_buffer_select(req)) {
+	if (req->flags & REQ_F_IMPORT_BUFFER) {
+		ret = io_rw_import_reg_vec(req, io, ITER_DEST, issue_flags);
+		if (unlikely(ret))
+			return ret;
+	} else if (io_do_buffer_select(req)) {
 		ret = io_import_rw_buffer(ITER_DEST, req, io, issue_flags);
 		if (unlikely(ret < 0))
 			return ret;
@@ -995,9 +1047,7 @@ int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
 		 */
 		if (io_kbuf_recycle(req, issue_flags))
 			rw->len = 0;
-		if (issue_flags & IO_URING_F_MULTISHOT)
-			return IOU_ISSUE_SKIP_COMPLETE;
-		return -EAGAIN;
+		return IOU_RETRY;
 	} else if (ret <= 0) {
 		io_kbuf_recycle(req, issue_flags);
 		if (ret < 0)
@@ -1015,16 +1065,15 @@ int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
 		rw->len = 0; /* similarly to above, reset len to 0 */
 
 		if (io_req_post_cqe(req, ret, cflags | IORING_CQE_F_MORE)) {
-			if (issue_flags & IO_URING_F_MULTISHOT) {
+			if (issue_flags & IO_URING_F_MULTISHOT)
 				/*
 				 * Force retry, as we might have more data to
 				 * be read and otherwise it won't get retried
 				 * until (if ever) another poll is triggered.
 				 */
 				io_poll_multishot_retry(req);
-				return IOU_ISSUE_SKIP_COMPLETE;
-			}
-			return -EAGAIN;
+
+			return IOU_RETRY;
 		}
 	}
 
@@ -1034,9 +1083,7 @@ int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
 	 */
 	io_req_set_res(req, ret, cflags);
 	io_req_rw_cleanup(req, issue_flags);
-	if (issue_flags & IO_URING_F_MULTISHOT)
-		return IOU_STOP_MULTISHOT;
-	return IOU_OK;
+	return IOU_COMPLETE;
 }
 
 static bool io_kiocb_start_write(struct io_kiocb *req, struct kiocb *kiocb)
@@ -1066,6 +1113,12 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 	struct kiocb *kiocb = &rw->kiocb;
 	ssize_t ret, ret2;
 	loff_t *ppos;
+
+	if (req->flags & REQ_F_IMPORT_BUFFER) {
+		ret = io_rw_import_reg_vec(req, io, ITER_SOURCE, issue_flags);
+		if (unlikely(ret))
+			return ret;
+	}
 
 	ret = io_rw_init_file(req, FMODE_WRITE, WRITE);
 	if (unlikely(ret))
@@ -1326,7 +1379,6 @@ void io_rw_cache_free(const void *entry)
 {
 	struct io_async_rw *rw = (struct io_async_rw *) entry;
 
-	if (rw->free_iovec)
-		kfree(rw->free_iovec);
+	io_vec_free(&rw->vec);
 	kfree(rw);
 }

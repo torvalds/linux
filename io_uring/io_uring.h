@@ -19,8 +19,18 @@
 #endif
 
 enum {
-	IOU_OK			= 0,
+	IOU_OK			= 0, /* deprecated, use IOU_COMPLETE */
+	IOU_COMPLETE		= 0,
+
 	IOU_ISSUE_SKIP_COMPLETE	= -EIOCBQUEUED,
+
+	/*
+	 * The request has more work to do and should be retried. io_uring will
+	 * attempt to wait on the file for eligible opcodes, but otherwise
+	 * it'll be handed to iowq for blocking execution. It works for normal
+	 * requests as well as for the multi shot mode.
+	 */
+	IOU_RETRY		= -EAGAIN,
 
 	/*
 	 * Requeue the task_work to restart operations on this request. The
@@ -28,13 +38,6 @@ enum {
 	 * valid error code, yet less than -MAX_ERRNO and valid internally.
 	 */
 	IOU_REQUEUE		= -3072,
-
-	/*
-	 * Intended only when both IO_URING_F_MULTISHOT is passed
-	 * to indicate to the poll runner that multishot should be
-	 * removed and the result is set on req->cqe.res.
-	 */
-	IOU_STOP_MULTISHOT	= -ECANCELED,
 };
 
 struct io_wait_queue {

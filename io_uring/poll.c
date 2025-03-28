@@ -289,11 +289,12 @@ static int io_poll_check_events(struct io_kiocb *req, io_tw_token_t tw)
 			}
 		} else {
 			int ret = io_poll_issue(req, tw);
-			if (ret == IOU_STOP_MULTISHOT)
+
+			if (ret == IOU_COMPLETE)
 				return IOU_POLL_REMOVE_POLL_USE_RES;
 			else if (ret == IOU_REQUEUE)
 				return IOU_POLL_REQUEUE;
-			if (ret < 0)
+			if (ret != IOU_RETRY && ret < 0)
 				return ret;
 		}
 
