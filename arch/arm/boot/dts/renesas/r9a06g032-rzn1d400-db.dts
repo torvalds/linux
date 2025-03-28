@@ -8,8 +8,10 @@
 
 /dts-v1/;
 
-#include <dt-bindings/pinctrl/rzn1-pinctrl.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/net/pcs-rzn1-miic.h>
+#include <dt-bindings/pinctrl/rzn1-pinctrl.h>
 
 #include "r9a06g032.dtsi"
 
@@ -23,6 +25,68 @@
 
 	aliases {
 		serial0 = &uart0;
+	};
+
+	keyboard {
+		compatible = "gpio-keys-polled";
+		poll-interval = <100>;
+
+		switch-1 {
+			linux,code = <KEY_1>;
+			label = "SW1-1";
+			debounce-interval = <20>;
+			gpios = <&pca9698 8 GPIO_ACTIVE_LOW>;
+		};
+
+		switch-2 {
+			linux,code = <KEY_2>;
+			label = "SW1-2";
+			debounce-interval = <20>;
+			gpios = <&pca9698 9 GPIO_ACTIVE_LOW>;
+		};
+
+		switch-3 {
+			linux,code = <KEY_3>;
+			label = "SW1-3";
+			debounce-interval = <20>;
+			gpios = <&pca9698 10 GPIO_ACTIVE_LOW>;
+		};
+
+		switch-4 {
+			linux,code = <KEY_4>;
+			label = "SW1-4";
+			debounce-interval = <20>;
+			gpios = <&pca9698 11 GPIO_ACTIVE_LOW>;
+		};
+
+		switch-5 {
+			linux,code = <KEY_5>;
+			label = "SW1-5";
+			debounce-interval = <20>;
+			gpios = <&pca9698 12 GPIO_ACTIVE_LOW>;
+		};
+
+		switch-6 {
+			linux,code = <KEY_6>;
+			label = "SW1-6";
+			debounce-interval = <20>;
+			gpios = <&pca9698 13 GPIO_ACTIVE_LOW>;
+		};
+
+		switch-7 {
+			linux,code = <KEY_7>;
+			label = "SW1-7";
+			debounce-interval = <20>;
+			gpios = <&pca9698 14 GPIO_ACTIVE_LOW>;
+		};
+
+		switch-8 {
+			linux,code = <KEY_8>;
+			label = "SW1-8";
+			debounce-interval = <20>;
+			gpios = <&pca9698 15 GPIO_ACTIVE_LOW>;
+		};
+
 	};
 };
 
