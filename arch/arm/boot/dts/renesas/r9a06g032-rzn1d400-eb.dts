@@ -15,6 +15,14 @@
 		     "renesas,r9a06g032";
 };
 
+&i2c2 {
+	/* Sensors are different across revisions. All are LM75B compatible */
+	sensor@49 {
+		compatible = "national,lm75b";
+		reg = <0x49>;
+	};
+};
+
 &mii_conv2 {
 	renesas,miic-input = <MIIC_SWITCH_PORTD>;
 	status = "okay";
