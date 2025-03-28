@@ -1287,7 +1287,7 @@ static void ublk_cmd_list_tw_cb(struct io_uring_cmd *cmd,
 {
 	struct ublk_uring_cmd_pdu *pdu = ublk_get_uring_cmd_pdu(cmd);
 	struct request *rq = pdu->req_list;
-	struct ublk_queue *ubq = rq->mq_hctx->driver_data;
+	struct ublk_queue *ubq = pdu->ubq;
 	struct request *next;
 
 	do {
