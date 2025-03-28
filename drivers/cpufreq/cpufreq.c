@@ -1334,7 +1334,6 @@ static struct cpufreq_policy *cpufreq_policy_alloc(unsigned int cpu)
 	init_waitqueue_head(&policy->transition_wait);
 	INIT_WORK(&policy->update, handle_update);
 
-	policy->cpu = cpu;
 	return policy;
 
 err_min_qos_notifier:
@@ -1422,16 +1421,17 @@ static int cpufreq_online(unsigned int cpu)
 
 		/* This is the only online CPU for the policy.  Start over. */
 		new_policy = false;
-		down_write(&policy->rwsem);
-		policy->cpu = cpu;
-		policy->governor = NULL;
 	} else {
 		new_policy = true;
 		policy = cpufreq_policy_alloc(cpu);
 		if (!policy)
 			return -ENOMEM;
-		down_write(&policy->rwsem);
 	}
+
+	down_write(&policy->rwsem);
+
+	policy->cpu = cpu;
+	policy->governor = NULL;
 
 	if (!new_policy && cpufreq_driver->online) {
 		/* Recover policy->cpus using related_cpus */
