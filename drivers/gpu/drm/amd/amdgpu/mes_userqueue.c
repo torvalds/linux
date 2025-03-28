@@ -358,10 +358,8 @@ mes_userq_mqd_destroy(struct amdgpu_userq_mgr *uq_mgr,
 static int mes_userq_suspend(struct amdgpu_userq_mgr *uq_mgr,
 				   struct amdgpu_usermode_queue *queue)
 {
-	if (queue->queue_active) {
+	if (queue->queue_active)
 		mes_userq_unmap(uq_mgr, queue);
-		queue->queue_active = false;
-	}
 
 	return 0;
 }
@@ -379,8 +377,6 @@ static int mes_userq_resume(struct amdgpu_userq_mgr *uq_mgr,
 		DRM_ERROR("Failed to resume queue\n");
 		return ret;
 	}
-
-	queue->queue_active = true;
 	return 0;
 }
 
