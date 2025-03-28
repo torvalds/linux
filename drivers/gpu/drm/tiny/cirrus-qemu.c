@@ -613,9 +613,17 @@ static enum drm_mode_status cirrus_mode_config_mode_valid(struct drm_device *dev
 							  const struct drm_display_mode *mode)
 {
 	const struct drm_format_info *format = drm_format_info(DRM_FORMAT_XRGB8888);
-	uint64_t pitch = drm_format_info_min_pitch(format, 0, mode->hdisplay);
+	u64 pitch;
 
-	if (pitch * mode->vdisplay > CIRRUS_VRAM_SIZE)
+	if (drm_WARN_ON_ONCE(dev, !format))
+		return MODE_ERROR; /* driver bug */
+
+	pitch = drm_format_info_min_pitch(format, 0, mode->hdisplay);
+	if (!pitch)
+		return MODE_BAD_WIDTH;
+	if (pitch > CIRRUS_MAX_PITCH)
+		return MODE_BAD_WIDTH; /* maximum programmable pitch */
+	if (pitch > CIRRUS_VRAM_SIZE / mode->vdisplay)
 		return MODE_MEM;
 
 	return MODE_OK;
