@@ -145,7 +145,7 @@ static ssize_t debugfs_run(struct file *file,
 	struct inode *f_inode = file->f_inode;
 	struct kunit_suite *suite = (struct kunit_suite *) f_inode->i_private;
 
-	__kunit_test_suites_init(&suite, 1);
+	__kunit_test_suites_init(&suite, 1, true);
 
 	return count;
 }

@@ -45,7 +45,7 @@ enum wl1271_tm_attrs {
 };
 #define WL1271_TM_ATTR_MAX (__WL1271_TM_ATTR_AFTER_LAST - 1)
 
-static struct nla_policy wl1271_tm_policy[WL1271_TM_ATTR_MAX + 1] = {
+static const struct nla_policy wl1271_tm_policy[WL1271_TM_ATTR_MAX + 1] = {
 	[WL1271_TM_ATTR_CMD_ID] =	{ .type = NLA_U32 },
 	[WL1271_TM_ATTR_ANSWER] =	{ .type = NLA_U8 },
 	[WL1271_TM_ATTR_DATA] =		{ .type = NLA_BINARY,

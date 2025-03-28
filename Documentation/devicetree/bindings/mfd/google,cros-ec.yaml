@@ -108,9 +108,6 @@ properties:
   pwm:
     $ref: /schemas/pwm/google,cros-ec-pwm.yaml#
 
-  kbd-led-backlight:
-    $ref: /schemas/chrome/google,cros-kbd-led-backlight.yaml#
-
   keyboard-controller:
     $ref: /schemas/input/google,cros-ec-keyb.yaml#
 

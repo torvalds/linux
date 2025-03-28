@@ -21,6 +21,37 @@ static const struct regcache_ops *cache_types[] = {
 	&regcache_flat_ops,
 };
 
+static int regcache_defaults_cmp(const void *a, const void *b)
+{
+	const struct reg_default *x = a;
+	const struct reg_default *y = b;
+
+	if (x->reg > y->reg)
+		return 1;
+	else if (x->reg < y->reg)
+		return -1;
+	else
+		return 0;
+}
+
+static void regcache_defaults_swap(void *a, void *b, int size)
+{
+	struct reg_default *x = a;
+	struct reg_default *y = b;
+	struct reg_default tmp;
+
+	tmp = *x;
+	*x = *y;
+	*y = tmp;
+}
+
+void regcache_sort_defaults(struct reg_default *defaults, unsigned int ndefaults)
+{
+	sort(defaults, ndefaults, sizeof(*defaults),
+	     regcache_defaults_cmp, regcache_defaults_swap);
+}
+EXPORT_SYMBOL_GPL(regcache_sort_defaults);
+
 static int regcache_hw_init(struct regmap *map)
 {
 	int i, j;
@@ -154,7 +185,7 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 	map->num_reg_defaults = config->num_reg_defaults;
 	map->num_reg_defaults_raw = config->num_reg_defaults_raw;
 	map->reg_defaults_raw = config->reg_defaults_raw;
-	map->cache_word_size = DIV_ROUND_UP(config->val_bits, 8);
+	map->cache_word_size = BITS_TO_BYTES(config->val_bits);
 	map->cache_size_raw = map->cache_word_size * config->num_reg_defaults_raw;
 
 	map->cache = NULL;

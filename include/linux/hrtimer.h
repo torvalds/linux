@@ -223,6 +223,11 @@ static inline void hrtimer_cancel_wait_running(struct hrtimer *timer)
 }
 #endif
 
+static inline enum hrtimer_restart hrtimer_dummy_timeout(struct hrtimer *unused)
+{
+	return HRTIMER_NORESTART;
+}
+
 /* Exported timer functions: */
 
 /* Initialize timers: */
@@ -333,6 +338,7 @@ static inline int hrtimer_callback_running(struct hrtimer *timer)
 static inline void hrtimer_update_function(struct hrtimer *timer,
 					   enum hrtimer_restart (*function)(struct hrtimer *))
 {
+#ifdef CONFIG_PROVE_LOCKING
 	guard(raw_spinlock_irqsave)(&timer->base->cpu_base->lock);
 
 	if (WARN_ON_ONCE(hrtimer_is_queued(timer)))
@@ -340,7 +346,7 @@ static inline void hrtimer_update_function(struct hrtimer *timer,
 
 	if (WARN_ON_ONCE(!function))
 		return;
-
+#endif
 	timer->function = function;
 }
 

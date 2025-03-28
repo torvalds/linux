@@ -36,7 +36,7 @@
 static int sysctl_unprivileged_userfaultfd __read_mostly;
 
 #ifdef CONFIG_SYSCTL
-static struct ctl_table vm_userfaultfd_table[] = {
+static const struct ctl_table vm_userfaultfd_table[] = {
 	{
 		.procname	= "unprivileged_userfaultfd",
 		.data		= &sysctl_unprivileged_userfaultfd,

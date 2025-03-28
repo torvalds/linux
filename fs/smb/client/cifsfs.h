@@ -59,8 +59,8 @@ extern int cifs_unlink(struct inode *dir, struct dentry *dentry);
 extern int cifs_hardlink(struct dentry *, struct inode *, struct dentry *);
 extern int cifs_mknod(struct mnt_idmap *, struct inode *, struct dentry *,
 		      umode_t, dev_t);
-extern int cifs_mkdir(struct mnt_idmap *, struct inode *, struct dentry *,
-		      umode_t);
+extern struct dentry *cifs_mkdir(struct mnt_idmap *, struct inode *, struct dentry *,
+				 umode_t);
 extern int cifs_rmdir(struct inode *, struct dentry *);
 extern int cifs_rename2(struct mnt_idmap *, struct inode *,
 			struct dentry *, struct inode *, struct dentry *,
@@ -146,6 +146,6 @@ extern const struct export_operations cifs_export_ops;
 #endif /* CONFIG_CIFS_NFSD_EXPORT */
 
 /* when changing internal version - update following two lines at same time */
-#define SMB3_PRODUCT_BUILD 52
-#define CIFS_VERSION   "2.52"
+#define SMB3_PRODUCT_BUILD 53
+#define CIFS_VERSION   "2.53"
 #endif				/* _CIFSFS_H */

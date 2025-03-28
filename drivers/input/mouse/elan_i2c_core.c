@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/string_choices.h>
 #include <linux/input.h>
 #include <linux/uaccess.h>
 #include <linux/jiffies.h>
@@ -199,7 +200,7 @@ static int elan_set_power(struct elan_tp_data *data, bool on)
 	} while (--repeat > 0);
 
 	dev_err(&data->client->dev, "failed to set power %s: %d\n",
-		on ? "on" : "off", error);
+		str_on_off(on), error);
 	return error;
 }
 

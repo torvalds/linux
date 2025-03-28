@@ -49,17 +49,10 @@ mkdir -p "${destdir}"
 # This caters to host programs that participate in Kbuild. objtool and
 # resolve_btfids are out of scope.
 if [ "${CC}" != "${HOSTCC}" ]; then
-	echo "Rebuilding host programs with ${CC}..."
-
-	# This leverages external module building.
-	# - Clear sub_make_done to allow the top-level Makefile to redo sub-make.
-	# - Filter out --no-print-directory to print "Entering directory" logs
-	#   when Make changes the working directory.
-	unset sub_make_done
-	MAKEFLAGS=$(echo "${MAKEFLAGS}" | sed s/--no-print-directory//)
-
-	cat <<-'EOF' >  "${destdir}/Kbuild"
-	subdir-y := scripts
+	cat "${destdir}/scripts/Makefile" - <<-'EOF' > "${destdir}/scripts/Kbuild"
+	subdir-y += basic
+	hostprogs-always-y += mod/modpost
+	mod/modpost-objs := $(addprefix mod/, modpost.o file2alias.o sumversion.o symsearch.o)
 	EOF
 
 	# HOSTCXX is not overridden. The C++ compiler is used to build:
@@ -67,20 +60,12 @@ if [ "${CC}" != "${HOSTCC}" ]; then
 	# - GCC plugins, which will not work on the installed system even after
 	#   being rebuilt.
 	#
-	# Use the single-target build to avoid the modpost invocation, which
-	# would overwrite Module.symvers.
-	"${MAKE}" HOSTCC="${CC}" KBUILD_OUTPUT=. KBUILD_EXTMOD="${destdir}" scripts/
+	# Clear VPATH and srcroot because the source files reside in the output
+	# directory.
+	# shellcheck disable=SC2016 # $(MAKE) and $(build) will be expanded by Make
+	"${MAKE}" run-command KBUILD_RUN_COMMAND='+$(MAKE) HOSTCC='"${CC}"' VPATH= srcroot=. $(build)='"$(realpath --relative-base=. "${destdir}")"/scripts
 
-	cat <<-'EOF' >  "${destdir}/scripts/Kbuild"
-	subdir-y := basic
-	hostprogs-always-y := mod/modpost
-	mod/modpost-objs := $(addprefix mod/, modpost.o file2alias.o sumversion.o symsearch.o)
-	EOF
-
-	# Run once again to rebuild scripts/basic/ and scripts/mod/modpost.
-	"${MAKE}" HOSTCC="${CC}" KBUILD_OUTPUT=. KBUILD_EXTMOD="${destdir}" scripts/
-
-	rm -f "${destdir}/Kbuild" "${destdir}/scripts/Kbuild"
+	rm -f "${destdir}/scripts/Kbuild"
 fi
 
 find "${destdir}" \( -name '.*.cmd' -o -name '*.o' \) -delete

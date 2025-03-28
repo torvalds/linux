@@ -14,6 +14,7 @@
 #include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/errno.h>
+#include <linux/firmware.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/irqreturn.h>
@@ -100,6 +101,17 @@
 #define HX9023S_INTERRUPT_MASK GENMASK(9, 0)
 #define HX9023S_PROX_DEBOUNCE_MASK GENMASK(3, 0)
 
+#define FW_VER_OFFSET 2
+#define FW_REG_CNT_OFFSET 3
+#define FW_DATA_OFFSET 16
+
+struct hx9023s_bin {
+	u16 reg_count;
+	u16 fw_size;
+	u8 fw_ver;
+	u8 data[] __counted_by(fw_size);
+};
+
 struct hx9023s_ch_data {
 	s16 raw; /* Raw Data*/
 	s16 lp; /* Low Pass Filter Data*/
@@ -134,7 +146,7 @@ struct hx9023s_data {
 
 	struct {
 		__le16 channels[HX9023S_CH_NUM];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} buffer;
 
 	/*
@@ -998,6 +1010,78 @@ static int hx9023s_id_check(struct iio_dev *indio_dev)
 	return 0;
 }
 
+static int hx9023s_bin_load(struct hx9023s_data *data, struct hx9023s_bin *bin)
+{
+	u8 *cfg_start = bin->data + FW_DATA_OFFSET;
+	u8 addr, val;
+	u16 i;
+	int ret;
+
+	for (i = 0; i < bin->reg_count; i++) {
+		addr = cfg_start[i * 2];
+		val = cfg_start[i * 2 + 1];
+		ret = regmap_write(data->regmap, addr, val);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int hx9023s_send_cfg(const struct firmware *fw, struct hx9023s_data *data)
+{
+	struct hx9023s_bin *bin __free(kfree) =
+		kzalloc(fw->size + sizeof(*bin), GFP_KERNEL);
+	if (!bin)
+		return -ENOMEM;
+
+	memcpy(bin->data, fw->data, fw->size);
+
+	bin->fw_size = fw->size;
+	bin->fw_ver = bin->data[FW_VER_OFFSET];
+	bin->reg_count = get_unaligned_le16(bin->data + FW_REG_CNT_OFFSET);
+
+	release_firmware(fw);
+
+	return hx9023s_bin_load(data, bin);
+}
+
+static void hx9023s_cfg_update(const struct firmware *fw, void *context)
+{
+	struct hx9023s_data *data = context;
+	struct device *dev = regmap_get_device(data->regmap);
+	int ret;
+
+	if (!fw || !fw->data) {
+		dev_warn(dev, "No firmware\n");
+		goto no_fw;
+	}
+
+	ret = hx9023s_send_cfg(fw, data);
+	if (ret) {
+		dev_warn(dev, "Firmware update failed: %d\n", ret);
+		goto no_fw;
+	}
+
+	ret = regcache_sync(data->regmap);
+	if (ret)
+		dev_err(dev, "regcache sync failed\n");
+
+	return;
+
+no_fw:
+	ret = regmap_multi_reg_write(data->regmap, hx9023s_reg_init_list,
+				     ARRAY_SIZE(hx9023s_reg_init_list));
+	if (ret) {
+		dev_err(dev, "Error loading default configuration\n");
+		return;
+	}
+
+	ret = regcache_sync(data->regmap);
+	if (ret)
+		dev_err(dev, "regcache sync failed\n");
+}
+
 static int hx9023s_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -1036,18 +1120,14 @@ static int hx9023s_probe(struct i2c_client *client)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	i2c_set_clientdata(client, indio_dev);
 
-	ret = regmap_multi_reg_write(data->regmap, hx9023s_reg_init_list,
-				     ARRAY_SIZE(hx9023s_reg_init_list));
-	if (ret)
-		return dev_err_probe(dev, ret, "device init failed\n");
-
 	ret = hx9023s_ch_cfg(data);
 	if (ret)
 		return dev_err_probe(dev, ret, "channel config failed\n");
 
-	ret = regcache_sync(data->regmap);
+	ret = request_firmware_nowait(THIS_MODULE, true, "hx9023s.bin", dev,
+				      GFP_KERNEL, data, hx9023s_cfg_update);
 	if (ret)
-		return dev_err_probe(dev, ret, "regcache sync failed\n");
+		return dev_err_probe(dev, ret, "reg config failed\n");
 
 	if (client->irq) {
 		ret = devm_request_threaded_irq(dev, client->irq,

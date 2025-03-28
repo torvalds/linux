@@ -40,7 +40,7 @@ static void net_shaper_lock(struct net_shaper_binding *binding)
 {
 	switch (binding->type) {
 	case NET_SHAPER_BINDING_TYPE_NETDEV:
-		mutex_lock(&binding->netdev->lock);
+		netdev_lock(binding->netdev);
 		break;
 	}
 }
@@ -49,7 +49,7 @@ static void net_shaper_unlock(struct net_shaper_binding *binding)
 {
 	switch (binding->type) {
 	case NET_SHAPER_BINDING_TYPE_NETDEV:
-		mutex_unlock(&binding->netdev->lock);
+		netdev_unlock(binding->netdev);
 		break;
 	}
 }
@@ -1398,7 +1398,7 @@ void net_shaper_set_real_num_tx_queues(struct net_device *dev,
 	/* Only drivers implementing shapers support ensure
 	 * the lock is acquired in advance.
 	 */
-	lockdep_assert_held(&dev->lock);
+	netdev_assert_locked(dev);
 
 	/* Take action only when decreasing the tx queue number. */
 	for (i = txq; i < dev->real_num_tx_queues; ++i) {

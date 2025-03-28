@@ -21,7 +21,7 @@ description: |
   =================
 
   All available clocks are defined as preprocessor macros in
-  dt-bindings/clock/stm32mp1-clks.h header and can be used in device
+  include/dt-bindings/clock/stm32mp1-clks.h header and can be used in device
   tree sources.
 
   Specifying softreset control of devices
@@ -40,8 +40,8 @@ description: |
           = 0x180 / 4 * 32 + 0 = 3072
 
   The list of valid indices for STM32MP1 is available in:
-  include/dt-bindings/reset-controller/stm32mp1-resets.h
-  include/dt-bindings/reset-controller/stm32mp13-resets.h
+  include/dt-bindings/reset/stm32mp1-resets.h
+  include/dt-bindings/reset/stm32mp13-resets.h
 
   This file implements defines like:
   #define LTDC_R	3072

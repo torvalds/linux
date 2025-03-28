@@ -322,6 +322,7 @@ SEQCOUNT_LOCKNAME(mutex,        struct mutex,    true,     mutex)
  * raw_seqcount_try_begin() - begin a seqcount_t read critical section
  *                            w/o lockdep and w/o counter stabilization
  * @s: Pointer to seqcount_t or any of the seqcount_LOCKNAME_t variants
+ * @start: count to be passed to read_seqcount_retry()
  *
  * Similar to raw_seqcount_begin(), except it enables eliding the critical
  * section entirely if odd, instead of doing the speculation knowing it will

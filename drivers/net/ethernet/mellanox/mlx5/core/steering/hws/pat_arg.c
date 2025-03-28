@@ -153,8 +153,7 @@ mlx5hws_pat_get_existing_cached_pattern(struct mlx5hws_pattern_cache *cache,
 	cached_pattern = mlx5hws_pat_find_cached_pattern(cache, num_of_actions, actions);
 	if (cached_pattern) {
 		/* LRU: move it to be first in the list */
-		list_del_init(&cached_pattern->ptrn_list_node);
-		list_add(&cached_pattern->ptrn_list_node, &cache->ptrn_list);
+		list_move(&cached_pattern->ptrn_list_node, &cache->ptrn_list);
 		cached_pattern->refcount++;
 	}
 
@@ -344,7 +343,7 @@ void mlx5hws_arg_write(struct mlx5hws_send_engine *queue,
 		mlx5hws_send_engine_post_req_wqe(&ctrl, (void *)&wqe_ctrl, &wqe_len);
 		memset(wqe_ctrl, 0, wqe_len);
 		mlx5hws_send_engine_post_req_wqe(&ctrl, (void *)&wqe_arg, &wqe_len);
-		memcpy(wqe_arg, arg_data, wqe_len);
+		memcpy(wqe_arg, arg_data, MLX5HWS_ARG_DATA_SIZE);
 		send_attr.id = arg_idx++;
 		mlx5hws_send_engine_post_end(&ctrl, &send_attr);
 

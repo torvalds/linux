@@ -184,29 +184,30 @@ static inline bool vcpu_is_el2(const struct kvm_vcpu *vcpu)
 	return vcpu_is_el2_ctxt(&vcpu->arch.ctxt);
 }
 
-static inline bool __vcpu_el2_e2h_is_set(const struct kvm_cpu_context *ctxt)
-{
-	return (!cpus_have_final_cap(ARM64_HAS_HCR_NV1) ||
-		(ctxt_sys_reg(ctxt, HCR_EL2) & HCR_E2H));
-}
-
 static inline bool vcpu_el2_e2h_is_set(const struct kvm_vcpu *vcpu)
 {
-	return __vcpu_el2_e2h_is_set(&vcpu->arch.ctxt);
-}
-
-static inline bool __vcpu_el2_tge_is_set(const struct kvm_cpu_context *ctxt)
-{
-	return ctxt_sys_reg(ctxt, HCR_EL2) & HCR_TGE;
+	return (!cpus_have_final_cap(ARM64_HAS_HCR_NV1) ||
+		(__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_E2H));
 }
 
 static inline bool vcpu_el2_tge_is_set(const struct kvm_vcpu *vcpu)
 {
-	return __vcpu_el2_tge_is_set(&vcpu->arch.ctxt);
+	return ctxt_sys_reg(&vcpu->arch.ctxt, HCR_EL2) & HCR_TGE;
 }
 
-static inline bool __is_hyp_ctxt(const struct kvm_cpu_context *ctxt)
+static inline bool is_hyp_ctxt(const struct kvm_vcpu *vcpu)
 {
+	bool e2h, tge;
+	u64 hcr;
+
+	if (!vcpu_has_nv(vcpu))
+		return false;
+
+	hcr = __vcpu_sys_reg(vcpu, HCR_EL2);
+
+	e2h = (hcr & HCR_E2H);
+	tge = (hcr & HCR_TGE);
+
 	/*
 	 * We are in a hypervisor context if the vcpu mode is EL2 or
 	 * E2H and TGE bits are set. The latter means we are in the user space
@@ -215,14 +216,7 @@ static inline bool __is_hyp_ctxt(const struct kvm_cpu_context *ctxt)
 	 * Note that the HCR_EL2.{E2H,TGE}={0,1} isn't really handled in the
 	 * rest of the KVM code, and will result in a misbehaving guest.
 	 */
-	return vcpu_is_el2_ctxt(ctxt) ||
-		(__vcpu_el2_e2h_is_set(ctxt) && __vcpu_el2_tge_is_set(ctxt)) ||
-		__vcpu_el2_tge_is_set(ctxt);
-}
-
-static inline bool is_hyp_ctxt(const struct kvm_vcpu *vcpu)
-{
-	return vcpu_has_nv(vcpu) && __is_hyp_ctxt(&vcpu->arch.ctxt);
+	return vcpu_is_el2(vcpu) || (e2h && tge) || tge;
 }
 
 static inline bool vcpu_is_host_el0(const struct kvm_vcpu *vcpu)
@@ -279,6 +273,19 @@ static inline bool vcpu_mode_priv(const struct kvm_vcpu *vcpu)
 static __always_inline u64 kvm_vcpu_get_esr(const struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.fault.esr_el2;
+}
+
+static inline bool guest_hyp_wfx_traps_enabled(const struct kvm_vcpu *vcpu)
+{
+	u64 esr = kvm_vcpu_get_esr(vcpu);
+	bool is_wfe = !!(esr & ESR_ELx_WFx_ISS_WFE);
+	u64 hcr_el2 = __vcpu_sys_reg(vcpu, HCR_EL2);
+
+	if (!vcpu_has_nv(vcpu) || vcpu_is_el2(vcpu))
+		return false;
+
+	return ((is_wfe && (hcr_el2 & HCR_TWE)) ||
+		(!is_wfe && (hcr_el2 & HCR_TWI)));
 }
 
 static __always_inline int kvm_vcpu_get_condition(const struct kvm_vcpu *vcpu)
@@ -611,48 +618,6 @@ static __always_inline void kvm_incr_pc(struct kvm_vcpu *vcpu)
 					 __cpacr_to_cptr_set(clr, set));\
 	} while (0)
 
-static __always_inline void kvm_write_cptr_el2(u64 val)
-{
-	if (has_vhe() || has_hvhe())
-		write_sysreg(val, cpacr_el1);
-	else
-		write_sysreg(val, cptr_el2);
-}
-
-static __always_inline u64 kvm_get_reset_cptr_el2(struct kvm_vcpu *vcpu)
-{
-	u64 val;
-
-	if (has_vhe()) {
-		val = (CPACR_EL1_FPEN | CPACR_EL1_ZEN_EL1EN);
-		if (cpus_have_final_cap(ARM64_SME))
-			val |= CPACR_EL1_SMEN_EL1EN;
-	} else if (has_hvhe()) {
-		val = CPACR_EL1_FPEN;
-
-		if (!vcpu_has_sve(vcpu) || !guest_owns_fp_regs())
-			val |= CPACR_EL1_ZEN;
-		if (cpus_have_final_cap(ARM64_SME))
-			val |= CPACR_EL1_SMEN;
-	} else {
-		val = CPTR_NVHE_EL2_RES1;
-
-		if (vcpu_has_sve(vcpu) && guest_owns_fp_regs())
-			val |= CPTR_EL2_TZ;
-		if (cpus_have_final_cap(ARM64_SME))
-			val &= ~CPTR_EL2_TSM;
-	}
-
-	return val;
-}
-
-static __always_inline void kvm_reset_cptr_el2(struct kvm_vcpu *vcpu)
-{
-	u64 val = kvm_get_reset_cptr_el2(vcpu);
-
-	kvm_write_cptr_el2(val);
-}
-
 /*
  * Returns a 'sanitised' view of CPTR_EL2, translating from nVHE to the VHE
  * format if E2H isn't set.
@@ -698,8 +663,27 @@ static inline bool guest_hyp_sve_traps_enabled(const struct kvm_vcpu *vcpu)
 	return __guest_hyp_cptr_xen_trap_enabled(vcpu, ZEN);
 }
 
-static inline void kvm_vcpu_enable_ptrauth(struct kvm_vcpu *vcpu)
+static inline void vcpu_set_hcrx(struct kvm_vcpu *vcpu)
 {
-	vcpu_set_flag(vcpu, GUEST_HAS_PTRAUTH);
+	struct kvm *kvm = vcpu->kvm;
+
+	if (cpus_have_final_cap(ARM64_HAS_HCX)) {
+		/*
+		 * In general, all HCRX_EL2 bits are gated by a feature.
+		 * The only reason we can set SMPME without checking any
+		 * feature is that its effects are not directly observable
+		 * from the guest.
+		 */
+		vcpu->arch.hcrx_el2 = HCRX_EL2_SMPME;
+
+		if (kvm_has_feat(kvm, ID_AA64ISAR2_EL1, MOPS, IMP))
+			vcpu->arch.hcrx_el2 |= (HCRX_EL2_MSCEn | HCRX_EL2_MCE2);
+
+		if (kvm_has_tcr2(kvm))
+			vcpu->arch.hcrx_el2 |= HCRX_EL2_TCR2En;
+
+		if (kvm_has_fpmr(kvm))
+			vcpu->arch.hcrx_el2 |= HCRX_EL2_EnFPM;
+	}
 }
 #endif /* __ARM64_KVM_EMULATE_H__ */

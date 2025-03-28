@@ -281,6 +281,19 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 			return err;
 	}
 
+	if (MLX5_CAP_GEN(dev, shampo)) {
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_SHAMPO, HCA_CAP_OPMOD_GET_CUR);
+		if (err)
+			return err;
+	}
+
+	if (MLX5_CAP_GEN(dev, adv_rdma)) {
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_ADV_RDMA,
+					      HCA_CAP_OPMOD_GET_CUR);
+		if (err)
+			return err;
+	}
+
 	return 0;
 }
 

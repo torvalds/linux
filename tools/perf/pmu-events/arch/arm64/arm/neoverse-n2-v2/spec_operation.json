@@ -5,7 +5,7 @@
     },
     {
         "ArchStdEvent": "BR_PRED",
-        "PublicDescription": "Counts branches speculatively executed and were predicted right."
+        "PublicDescription": "Counts all speculatively executed branches."
     },
     {
         "ArchStdEvent": "INST_SPEC",
@@ -29,7 +29,7 @@
     },
     {
         "ArchStdEvent": "LDREX_SPEC",
-        "PublicDescription": "Counts Load-Exclusive operations that have been speculatively executed. Eg: LDREX, LDX"
+        "PublicDescription": "Counts Load-Exclusive operations that have been speculatively executed. For example: LDREX, LDX"
     },
     {
         "ArchStdEvent": "STREX_PASS_SPEC",
@@ -73,15 +73,15 @@
     },
     {
         "ArchStdEvent": "BR_IMMED_SPEC",
-        "PublicDescription": "Counts immediate branch operations which are speculatively executed."
+        "PublicDescription": "Counts direct branch operations which are speculatively executed."
     },
     {
         "ArchStdEvent": "BR_RETURN_SPEC",
-        "PublicDescription": "Counts procedure return operations (RET) which are speculatively executed."
+        "PublicDescription": "Counts procedure return operations (RET, RETAA and RETAB) which are speculatively executed."
     },
     {
         "ArchStdEvent": "BR_INDIRECT_SPEC",
-        "PublicDescription": "Counts indirect branch operations including procedure returns, which are speculatively executed. This includes operations that force a software change of the PC, other than exception-generating operations.  Eg: BR Xn, RET"
+        "PublicDescription": "Counts indirect branch operations including procedure returns, which are speculatively executed. This includes operations that force a software change of the PC, other than exception-generating operations and direct branch instructions. Some examples of the instructions counted by this event include BR Xn, RET, etc..."
     },
     {
         "ArchStdEvent": "ISB_SPEC",
@@ -97,11 +97,11 @@
     },
     {
         "ArchStdEvent": "RC_LD_SPEC",
-        "PublicDescription": "Counts any load acquire operations that are speculatively executed. Eg: LDAR, LDARH, LDARB"
+        "PublicDescription": "Counts any load acquire operations that are speculatively executed. For example: LDAR, LDARH, LDARB"
     },
     {
         "ArchStdEvent": "RC_ST_SPEC",
-        "PublicDescription": "Counts any store release operations that are speculatively executed. Eg: STLR, STLRH, STLRB'"
+        "PublicDescription": "Counts any store release operations that are speculatively executed. For example: STLR, STLRH, STLRB"
     },
     {
         "ArchStdEvent": "ASE_INST_SPEC",

@@ -1,0 +1,74 @@
+What:		/sys/bus/edac/devices/<dev-name>/ecs_fruX
+Date:		March 2025
+KernelVersion:	6.15
+Contact:	linux-edac@vger.kernel.org
+Description:
+		The sysfs EDAC bus devices /<dev-name>/ecs_fruX subdirectory
+		pertains to the memory media ECS (Error Check Scrub) control
+		feature, where <dev-name> directory corresponds to a device
+		registered with the EDAC device driver for the ECS feature.
+		/ecs_fruX belongs to the media FRUs (Field Replaceable Unit)
+		under the memory device.
+
+		The sysfs ECS attr nodes are only present if the parent
+		driver has implemented the corresponding attr callback
+		function and provided the necessary operations to the EDAC
+		device driver during registration.
+
+What:		/sys/bus/edac/devices/<dev-name>/ecs_fruX/log_entry_type
+Date:		March 2025
+KernelVersion:	6.15
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(RW) The log entry type of how the DDR5 ECS log is reported.
+
+		- 0 - per DRAM.
+
+		- 1 - per memory media FRU.
+
+		- All other values are reserved.
+
+What:		/sys/bus/edac/devices/<dev-name>/ecs_fruX/mode
+Date:		March 2025
+KernelVersion:	6.15
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(RW) The mode of how the DDR5 ECS counts the errors.
+		Error count is tracked based on two different modes
+		selected by DDR5 ECS Control Feature - Codeword mode and
+		Row Count mode. If the ECS is under Codeword mode, then
+		the error count increments each time a codeword with check
+		bit errors is detected. If the ECS is under Row Count mode,
+		then the error counter increments each time a row with
+		check bit errors is detected.
+
+		- 0 - ECS counts rows in the memory media that have ECC errors.
+
+		- 1 - ECS counts codewords with errors, specifically, it counts
+		      the number of ECC-detected errors in the memory media.
+
+		- All other values are reserved.
+
+What:		/sys/bus/edac/devices/<dev-name>/ecs_fruX/reset
+Date:		March 2025
+KernelVersion:	6.15
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(WO) ECS reset ECC counter.
+
+		- 1 - reset ECC counter to the default value.
+
+		- All other values are reserved.
+
+What:		/sys/bus/edac/devices/<dev-name>/ecs_fruX/threshold
+Date:		March 2025
+KernelVersion:	6.15
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(RW) DDR5 ECS threshold count per gigabits of memory cells.
+		The ECS error count is subject to the ECS Threshold count
+		per Gbit, which masks error counts less than the Threshold.
+
+		Supported values are 256, 1024 and 4096.
+
+		All other values are reserved.

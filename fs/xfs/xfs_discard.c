@@ -90,7 +90,7 @@ xfs_discard_endio_work(
 
 /*
  * Queue up the actual completion to a thread to avoid IRQ-safe locking for
- * pagb_lock.
+ * eb_lock.
  */
 static void
 xfs_discard_endio(
@@ -844,7 +844,8 @@ xfs_ioc_trim(
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	if (mp->m_rtdev_targp &&
+
+	if (mp->m_rtdev_targp && !xfs_has_zoned(mp) &&
 	    bdev_max_discard_sectors(mp->m_rtdev_targp->bt_bdev))
 		rt_bdev = mp->m_rtdev_targp->bt_bdev;
 	if (!bdev_max_discard_sectors(mp->m_ddev_targp->bt_bdev) && !rt_bdev)

@@ -5,7 +5,6 @@ menu "AMD SFH HID Support"
 
 config AMD_SFH_HID
 	tristate "AMD Sensor Fusion Hub"
-	depends on HID
 	depends on X86
 	help
 	  If you say yes to this option, support will be included for the

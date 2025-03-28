@@ -43,6 +43,25 @@ impl<T> ArrayLayout<T> {
     /// # Errors
     ///
     /// When `len * size_of::<T>()` overflows or when `len * size_of::<T>() > isize::MAX`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use kernel::alloc::layout::{ArrayLayout, LayoutError};
+    /// let layout = ArrayLayout::<i32>::new(15)?;
+    /// assert_eq!(layout.len(), 15);
+    ///
+    /// // Errors because `len * size_of::<T>()` overflows.
+    /// let layout = ArrayLayout::<i32>::new(isize::MAX as usize);
+    /// assert!(layout.is_err());
+    ///
+    /// // Errors because `len * size_of::<i32>() > isize::MAX`,
+    /// // even though `len < isize::MAX`.
+    /// let layout = ArrayLayout::<i32>::new(isize::MAX as usize / 2);
+    /// assert!(layout.is_err());
+    ///
+    /// # Ok::<(), Error>(())
+    /// ```
     pub const fn new(len: usize) -> Result<Self, LayoutError> {
         match len.checked_mul(core::mem::size_of::<T>()) {
             Some(size) if size <= ISIZE_MAX => {

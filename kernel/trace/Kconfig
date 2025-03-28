@@ -263,6 +263,18 @@ config FUNCTION_GRAPH_RETADDR
 	  the function is called. This feature is off by default, and you can
 	  enable it via the trace option funcgraph-retaddr.
 
+config FUNCTION_TRACE_ARGS
+       bool
+	depends on HAVE_FUNCTION_ARG_ACCESS_API
+	depends on DEBUG_INFO_BTF
+	default y
+	help
+	  If supported with function argument access API and BTF, then
+	  the function tracer and function graph tracer will support printing
+	  of function arguments. This feature is off by default, and can be
+	  enabled via the trace option func-args (for the function tracer) and
+	  funcgraph-args (for the function graph tracer)
+
 config DYNAMIC_FTRACE
 	bool "enable/disable function tracing dynamically"
 	depends on FUNCTION_TRACER

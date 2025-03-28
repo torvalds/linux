@@ -1686,12 +1686,16 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type, u64 read_fo
 	}
 
 	if (type & PERF_SAMPLE_RAW) {
-		u.val32[0] = sample->raw_size;
-		*array = u.val64;
-		array = (void *)array + sizeof(u32);
+		u32 *array32 = (void *)array;
 
-		memcpy(array, sample->raw_data, sample->raw_size);
-		array = (void *)array + sample->raw_size;
+		*array32 = sample->raw_size;
+		array32++;
+
+		memcpy(array32, sample->raw_data, sample->raw_size);
+		array = (void *)(array32 + (sample->raw_size / sizeof(u32)));
+
+		/* make sure the array is 64-bit aligned */
+		BUG_ON(((long)array) % sizeof(u64));
 	}
 
 	if (type & PERF_SAMPLE_BRANCH_STACK) {

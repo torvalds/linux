@@ -101,8 +101,7 @@ static inline bool kaslr_requires_kpti(void)
 	if (IS_ENABLED(CONFIG_CAVIUM_ERRATUM_27456)) {
 		extern const struct midr_range cavium_erratum_27456_cpus[];
 
-		if (is_midr_in_range_list(read_cpuid_id(),
-					  cavium_erratum_27456_cpus))
+		if (is_midr_in_range_list(cavium_erratum_27456_cpus))
 			return false;
 	}
 

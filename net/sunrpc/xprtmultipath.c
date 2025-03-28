@@ -603,23 +603,6 @@ struct rpc_xprt *xprt_iter_get_helper(struct rpc_xprt_iter *xpi,
 }
 
 /**
- * xprt_iter_get_xprt - Returns the rpc_xprt pointed to by the cursor
- * @xpi: pointer to rpc_xprt_iter
- *
- * Returns a reference to the struct rpc_xprt that is currently
- * pointed to by the cursor.
- */
-struct rpc_xprt *xprt_iter_get_xprt(struct rpc_xprt_iter *xpi)
-{
-	struct rpc_xprt *xprt;
-
-	rcu_read_lock();
-	xprt = xprt_iter_get_helper(xpi, xprt_iter_ops(xpi)->xpi_xprt);
-	rcu_read_unlock();
-	return xprt;
-}
-
-/**
  * xprt_iter_get_next - Returns the next rpc_xprt following the cursor
  * @xpi: pointer to rpc_xprt_iter
  *

@@ -18,4 +18,5 @@ Human Interface Devices (HID)
 
    hid-alps
    intel-ish-hid
+   intel-thc-hid
    amd-sfh-hid

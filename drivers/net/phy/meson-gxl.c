@@ -221,7 +221,7 @@ static struct phy_driver meson_gxl_phy[] = {
 	},
 };
 
-static struct mdio_device_id __maybe_unused meson_gxl_tbl[] = {
+static const struct mdio_device_id __maybe_unused meson_gxl_tbl[] = {
 	{ PHY_ID_MATCH_VENDOR(0x01814400) },
 	{ PHY_ID_MATCH_VENDOR(0x01803301) },
 	{ }

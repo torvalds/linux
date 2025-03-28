@@ -28,6 +28,13 @@
 #include "trace.h"
 #include "util.h"
 
+static const char * const bch2_extent_flags_strs[] = {
+#define x(n, v)	[BCH_EXTENT_FLAG_##n] = #n,
+	BCH_EXTENT_FLAGS()
+#undef x
+	NULL,
+};
+
 static unsigned bch2_crc_field_size_max[] = {
 	[BCH_EXTENT_ENTRY_crc32] = CRC32_SIZE_MAX,
 	[BCH_EXTENT_ENTRY_crc64] = CRC64_SIZE_MAX,
@@ -51,7 +58,8 @@ struct bch_dev_io_failures *bch2_dev_io_failures(struct bch_io_failures *f,
 }
 
 void bch2_mark_io_failure(struct bch_io_failures *failed,
-			  struct extent_ptr_decoded *p)
+			  struct extent_ptr_decoded *p,
+			  bool csum_error)
 {
 	struct bch_dev_io_failures *f = bch2_dev_io_failures(failed, p->ptr.dev);
 
@@ -59,23 +67,26 @@ void bch2_mark_io_failure(struct bch_io_failures *failed,
 		BUG_ON(failed->nr >= ARRAY_SIZE(failed->devs));
 
 		f = &failed->devs[failed->nr++];
-		f->dev		= p->ptr.dev;
-		f->idx		= p->idx;
-		f->nr_failed	= 1;
-		f->nr_retries	= 0;
-	} else if (p->idx != f->idx) {
-		f->idx		= p->idx;
-		f->nr_failed	= 1;
-		f->nr_retries	= 0;
-	} else {
-		f->nr_failed++;
+		memset(f, 0, sizeof(*f));
+		f->dev = p->ptr.dev;
 	}
+
+	if (p->do_ec_reconstruct)
+		f->failed_ec = true;
+	else if (!csum_error)
+		f->failed_io = true;
+	else
+		f->failed_csum_nr++;
 }
 
-static inline u64 dev_latency(struct bch_fs *c, unsigned dev)
+static inline u64 dev_latency(struct bch_dev *ca)
 {
-	struct bch_dev *ca = bch2_dev_rcu(c, dev);
 	return ca ? atomic64_read(&ca->cur_latency[READ]) : S64_MAX;
+}
+
+static inline int dev_failed(struct bch_dev *ca)
+{
+	return !ca || ca->mi.state == BCH_MEMBER_STATE_failed;
 }
 
 /*
@@ -83,29 +94,30 @@ static inline u64 dev_latency(struct bch_fs *c, unsigned dev)
  */
 static inline bool ptr_better(struct bch_fs *c,
 			      const struct extent_ptr_decoded p1,
-			      const struct extent_ptr_decoded p2)
+			      u64 p1_latency,
+			      struct bch_dev *ca1,
+			      const struct extent_ptr_decoded p2,
+			      u64 p2_latency)
 {
-	if (likely(!p1.idx && !p2.idx)) {
-		u64 l1 = dev_latency(c, p1.ptr.dev);
-		u64 l2 = dev_latency(c, p2.ptr.dev);
+	struct bch_dev *ca2 = bch2_dev_rcu(c, p2.ptr.dev);
 
-		/*
-		 * Square the latencies, to bias more in favor of the faster
-		 * device - we never want to stop issuing reads to the slower
-		 * device altogether, so that we can update our latency numbers:
-		 */
-		l1 *= l1;
-		l2 *= l2;
+	int failed_delta = dev_failed(ca1) - dev_failed(ca2);
+	if (unlikely(failed_delta))
+		return failed_delta < 0;
 
-		/* Pick at random, biased in favor of the faster device: */
+	if (unlikely(bch2_force_reconstruct_read))
+		return p1.do_ec_reconstruct > p2.do_ec_reconstruct;
 
-		return bch2_rand_range(l1 + l2) > l1;
-	}
+	if (unlikely(p1.do_ec_reconstruct || p2.do_ec_reconstruct))
+		return p1.do_ec_reconstruct < p2.do_ec_reconstruct;
 
-	if (bch2_force_reconstruct_read)
-		return p1.idx > p2.idx;
+	int crc_retry_delta = (int) p1.crc_retry_nr - (int) p2.crc_retry_nr;
+	if (unlikely(crc_retry_delta))
+		return crc_retry_delta < 0;
 
-	return p1.idx < p2.idx;
+	/* Pick at random, biased in favor of the faster device: */
+
+	return bch2_get_random_u64_below(p1_latency + p2_latency) > p1_latency;
 }
 
 /*
@@ -115,64 +127,108 @@ static inline bool ptr_better(struct bch_fs *c,
  */
 int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 			       struct bch_io_failures *failed,
-			       struct extent_ptr_decoded *pick)
+			       struct extent_ptr_decoded *pick,
+			       int dev)
 {
-	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	const union bch_extent_entry *entry;
-	struct extent_ptr_decoded p;
-	struct bch_dev_io_failures *f;
-	int ret = 0;
+	bool have_csum_errors = false, have_io_errors = false, have_missing_devs = false;
+	bool have_dirty_ptrs = false, have_pick = false;
 
 	if (k.k->type == KEY_TYPE_error)
 		return -BCH_ERR_key_type_error;
 
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+
+	if (bch2_bkey_extent_ptrs_flags(ptrs) & BIT_ULL(BCH_EXTENT_FLAG_poisoned))
+		return -BCH_ERR_extent_poisened;
+
 	rcu_read_lock();
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
+	u64 pick_latency;
+
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
+		have_dirty_ptrs |= !p.ptr.cached;
+
 		/*
 		 * Unwritten extent: no need to actually read, treat it as a
 		 * hole and return 0s:
 		 */
 		if (p.ptr.unwritten) {
-			ret = 0;
-			break;
+			rcu_read_unlock();
+			return 0;
 		}
 
-		/*
-		 * If there are any dirty pointers it's an error if we can't
-		 * read:
-		 */
-		if (!ret && !p.ptr.cached)
-			ret = -BCH_ERR_no_device_to_read_from;
+		/* Are we being asked to read from a specific device? */
+		if (dev >= 0 && p.ptr.dev != dev)
+			continue;
 
 		struct bch_dev *ca = bch2_dev_rcu(c, p.ptr.dev);
 
 		if (p.ptr.cached && (!ca || dev_ptr_stale_rcu(ca, &p.ptr)))
 			continue;
 
-		f = failed ? bch2_dev_io_failures(failed, p.ptr.dev) : NULL;
-		if (f)
-			p.idx = f->nr_failed < f->nr_retries
-				? f->idx
-				: f->idx + 1;
+		struct bch_dev_io_failures *f =
+			unlikely(failed) ? bch2_dev_io_failures(failed, p.ptr.dev) : NULL;
+		if (unlikely(f)) {
+			p.crc_retry_nr	   = f->failed_csum_nr;
+			p.has_ec	  &= ~f->failed_ec;
 
-		if (!p.idx && (!ca || !bch2_dev_is_readable(ca)))
-			p.idx++;
+			if (ca && ca->mi.state != BCH_MEMBER_STATE_failed) {
+				have_io_errors	|= f->failed_io;
+				have_io_errors	|= f->failed_ec;
+			}
+			have_csum_errors	|= !!f->failed_csum_nr;
 
-		if (!p.idx && p.has_ec && bch2_force_reconstruct_read)
-			p.idx++;
+			if (p.has_ec && (f->failed_io || f->failed_csum_nr))
+				p.do_ec_reconstruct = true;
+			else if (f->failed_io ||
+				 f->failed_csum_nr > c->opts.checksum_err_retry_nr)
+				continue;
+		}
 
-		if (p.idx > (unsigned) p.has_ec)
-			continue;
+		have_missing_devs |= ca && !bch2_dev_is_online(ca);
 
-		if (ret > 0 && !ptr_better(c, p, *pick))
-			continue;
+		if (!ca || !bch2_dev_is_online(ca)) {
+			if (!p.has_ec)
+				continue;
+			p.do_ec_reconstruct = true;
+		}
 
-		*pick = p;
-		ret = 1;
+		if (bch2_force_reconstruct_read && p.has_ec)
+			p.do_ec_reconstruct = true;
+
+		u64 p_latency = dev_latency(ca);
+		/*
+		 * Square the latencies, to bias more in favor of the faster
+		 * device - we never want to stop issuing reads to the slower
+		 * device altogether, so that we can update our latency numbers:
+		 */
+		p_latency *= p_latency;
+
+		if (!have_pick ||
+		    ptr_better(c,
+			       p, p_latency, ca,
+			       *pick, pick_latency)) {
+			*pick = p;
+			pick_latency = p_latency;
+			have_pick = true;
+		}
 	}
 	rcu_read_unlock();
 
-	return ret;
+	if (have_pick)
+		return 1;
+	if (!have_dirty_ptrs)
+		return 0;
+	if (have_missing_devs)
+		return -BCH_ERR_no_device_to_read_from;
+	if (have_csum_errors)
+		return -BCH_ERR_data_read_csum_err;
+	if (have_io_errors)
+		return -BCH_ERR_data_read_io_err;
+
+	WARN_ONCE(1, "unhandled error case in %s\n", __func__);
+	return -EINVAL;
 }
 
 /* KEY_TYPE_btree_ptr: */
@@ -536,29 +592,35 @@ static void bch2_extent_crc_pack(union bch_extent_crc *dst,
 				 struct bch_extent_crc_unpacked src,
 				 enum bch_extent_entry_type type)
 {
-#define set_common_fields(_dst, _src)					\
-		_dst.type		= 1 << type;			\
-		_dst.csum_type		= _src.csum_type,		\
-		_dst.compression_type	= _src.compression_type,	\
-		_dst._compressed_size	= _src.compressed_size - 1,	\
-		_dst._uncompressed_size	= _src.uncompressed_size - 1,	\
-		_dst.offset		= _src.offset
+#define common_fields(_src)						\
+		.type			= BIT(type),			\
+		.csum_type		= _src.csum_type,		\
+		.compression_type	= _src.compression_type,	\
+		._compressed_size	= _src.compressed_size - 1,	\
+		._uncompressed_size	= _src.uncompressed_size - 1,	\
+		.offset			= _src.offset
 
 	switch (type) {
 	case BCH_EXTENT_ENTRY_crc32:
-		set_common_fields(dst->crc32, src);
-		dst->crc32.csum		= (u32 __force) *((__le32 *) &src.csum.lo);
+		dst->crc32		= (struct bch_extent_crc32) {
+			common_fields(src),
+			.csum		= (u32 __force) *((__le32 *) &src.csum.lo),
+		};
 		break;
 	case BCH_EXTENT_ENTRY_crc64:
-		set_common_fields(dst->crc64, src);
-		dst->crc64.nonce	= src.nonce;
-		dst->crc64.csum_lo	= (u64 __force) src.csum.lo;
-		dst->crc64.csum_hi	= (u64 __force) *((__le16 *) &src.csum.hi);
+		dst->crc64		= (struct bch_extent_crc64) {
+			common_fields(src),
+			.nonce		= src.nonce,
+			.csum_lo	= (u64 __force) src.csum.lo,
+			.csum_hi	= (u64 __force) *((__le16 *) &src.csum.hi),
+		};
 		break;
 	case BCH_EXTENT_ENTRY_crc128:
-		set_common_fields(dst->crc128, src);
-		dst->crc128.nonce	= src.nonce;
-		dst->crc128.csum	= src.csum;
+		dst->crc128		= (struct bch_extent_crc128) {
+			common_fields(src),
+			.nonce		= src.nonce,
+			.csum		= src.csum,
+		};
 		break;
 	default:
 		BUG();
@@ -997,7 +1059,7 @@ static bool want_cached_ptr(struct bch_fs *c, struct bch_io_opts *opts,
 
 	struct bch_dev *ca = bch2_dev_rcu_noerror(c, ptr->dev);
 
-	return ca && bch2_dev_is_readable(ca) && !dev_ptr_stale_rcu(ca, ptr);
+	return ca && bch2_dev_is_healthy(ca) && !dev_ptr_stale_rcu(ca, ptr);
 }
 
 void bch2_extent_ptr_set_cached(struct bch_fs *c,
@@ -1220,6 +1282,10 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 			bch2_extent_rebalance_to_text(out, c, &entry->rebalance);
 			break;
 
+		case BCH_EXTENT_ENTRY_flags:
+			prt_bitflags(out, bch2_extent_flags_strs, entry->flags.flags);
+			break;
+
 		default:
 			prt_printf(out, "(invalid extent entry %.16llx)", *((u64 *) entry));
 			return;
@@ -1381,6 +1447,11 @@ int bch2_bkey_ptrs_validate(struct bch_fs *c, struct bkey_s_c k,
 #endif
 			break;
 		}
+		case BCH_EXTENT_ENTRY_flags:
+			bkey_fsck_err_on(entry != ptrs.start,
+					 c, extent_flags_not_at_start,
+					 "extent flags entry not at start");
+			break;
 		}
 	}
 
@@ -1447,6 +1518,28 @@ void bch2_ptr_swab(struct bkey_s k)
 	}
 }
 
+int bch2_bkey_extent_flags_set(struct bch_fs *c, struct bkey_i *k, u64 flags)
+{
+	int ret = bch2_request_incompat_feature(c, bcachefs_metadata_version_extent_flags);
+	if (ret)
+		return ret;
+
+	struct bkey_ptrs ptrs = bch2_bkey_ptrs(bkey_i_to_s(k));
+
+	if (ptrs.start != ptrs.end &&
+	    extent_entry_type(ptrs.start) == BCH_EXTENT_ENTRY_flags) {
+		ptrs.start->flags.flags = flags;
+	} else {
+		struct bch_extent_flags f = {
+			.type	= BIT(BCH_EXTENT_ENTRY_flags),
+			.flags	= flags,
+		};
+		__extent_entry_insert(k, ptrs.start, (union bch_extent_entry *) &f);
+	}
+
+	return 0;
+}
+
 /* Generic extent code: */
 
 int bch2_cut_front_s(struct bpos where, struct bkey_s k)
@@ -1492,8 +1585,8 @@ int bch2_cut_front_s(struct bpos where, struct bkey_s k)
 				entry->crc128.offset += sub;
 				break;
 			case BCH_EXTENT_ENTRY_stripe_ptr:
-				break;
 			case BCH_EXTENT_ENTRY_rebalance:
+			case BCH_EXTENT_ENTRY_flags:
 				break;
 			}
 

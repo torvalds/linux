@@ -51,7 +51,8 @@ void io_splice_cleanup(struct io_kiocb *req)
 {
 	struct io_splice *sp = io_kiocb_to_cmd(req, struct io_splice);
 
-	io_put_rsrc_node(req->ctx, sp->rsrc_node);
+	if (sp->rsrc_node)
+		io_put_rsrc_node(req->ctx, sp->rsrc_node);
 }
 
 static struct file *io_splice_get_file(struct io_kiocb *req,

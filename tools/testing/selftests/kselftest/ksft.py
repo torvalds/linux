@@ -27,6 +27,9 @@ def set_plan(num_tests):
 
 
 def print_cnts():
+    if ksft_cnt['skip'] > 0:
+        print(f"# {ksft_cnt['skip']} skipped test(s) detected. Consider enabling relevant config options to improve coverage.")
+
     print(
         f"# Totals: pass:{ksft_cnt['pass']} fail:{ksft_cnt['fail']} xfail:0 xpass:0 skip:{ksft_cnt['skip']} error:0"
     )

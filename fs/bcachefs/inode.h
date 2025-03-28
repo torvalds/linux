@@ -277,6 +277,7 @@ static inline bool bch2_inode_should_have_single_bp(struct bch_inode_unpacked *i
 	bool inode_has_bp = inode->bi_dir || inode->bi_dir_offset;
 
 	return S_ISDIR(inode->bi_mode) ||
+		inode->bi_subvol ||
 		(!inode->bi_nlink && inode_has_bp);
 }
 
@@ -285,12 +286,14 @@ void bch2_inode_opts_get(struct bch_io_opts *, struct bch_fs *,
 			 struct bch_inode_unpacked *);
 int bch2_inum_opts_get(struct btree_trans*, subvol_inum, struct bch_io_opts *);
 
+#include "rebalance.h"
+
 static inline struct bch_extent_rebalance
 bch2_inode_rebalance_opts_get(struct bch_fs *c, struct bch_inode_unpacked *inode)
 {
 	struct bch_io_opts io_opts;
 	bch2_inode_opts_get(&io_opts, c, inode);
-	return io_opts_to_rebalance_opts(&io_opts);
+	return io_opts_to_rebalance_opts(c, &io_opts);
 }
 
 int bch2_inode_rm_snapshot(struct btree_trans *, u64, u32);

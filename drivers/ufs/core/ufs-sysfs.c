@@ -458,6 +458,14 @@ static ssize_t pm_qos_enable_store(struct device *dev,
 	return count;
 }
 
+static ssize_t critical_health_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%d\n", hba->critical_health_count);
+}
+
 static DEVICE_ATTR_RW(rpm_lvl);
 static DEVICE_ATTR_RO(rpm_target_dev_state);
 static DEVICE_ATTR_RO(rpm_target_link_state);
@@ -470,6 +478,7 @@ static DEVICE_ATTR_RW(enable_wb_buf_flush);
 static DEVICE_ATTR_RW(wb_flush_threshold);
 static DEVICE_ATTR_RW(rtc_update_ms);
 static DEVICE_ATTR_RW(pm_qos_enable);
+static DEVICE_ATTR_RO(critical_health);
 
 static struct attribute *ufs_sysfs_ufshcd_attrs[] = {
 	&dev_attr_rpm_lvl.attr,
@@ -484,6 +493,7 @@ static struct attribute *ufs_sysfs_ufshcd_attrs[] = {
 	&dev_attr_wb_flush_threshold.attr,
 	&dev_attr_rtc_update_ms.attr,
 	&dev_attr_pm_qos_enable.attr,
+	&dev_attr_critical_health.attr,
 	NULL
 };
 
@@ -1439,6 +1449,7 @@ static ssize_t max_number_of_rtt_store(struct device *dev,
 	struct ufs_hba *hba = dev_get_drvdata(dev);
 	struct ufs_dev_info *dev_info = &hba->dev_info;
 	struct scsi_device *sdev;
+	unsigned int memflags;
 	unsigned int rtt;
 	int ret;
 
@@ -1458,14 +1469,16 @@ static ssize_t max_number_of_rtt_store(struct device *dev,
 
 	ufshcd_rpm_get_sync(hba);
 
+	memflags = memalloc_noio_save();
 	shost_for_each_device(sdev, hba->host)
-		blk_mq_freeze_queue(sdev->request_queue);
+		blk_mq_freeze_queue_nomemsave(sdev->request_queue);
 
 	ret = ufshcd_query_attr(hba, UPIU_QUERY_OPCODE_WRITE_ATTR,
 		QUERY_ATTR_IDN_MAX_NUM_OF_RTT, 0, 0, &rtt);
 
 	shost_for_each_device(sdev, hba->host)
-		blk_mq_unfreeze_queue(sdev->request_queue);
+		blk_mq_unfreeze_queue_nomemrestore(sdev->request_queue);
+	memalloc_noio_restore(memflags);
 
 	ufshcd_rpm_put_sync(hba);
 

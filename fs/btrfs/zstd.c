@@ -26,11 +26,12 @@
 #define ZSTD_BTRFS_MAX_WINDOWLOG 17
 #define ZSTD_BTRFS_MAX_INPUT (1 << ZSTD_BTRFS_MAX_WINDOWLOG)
 #define ZSTD_BTRFS_DEFAULT_LEVEL 3
+#define ZSTD_BTRFS_MIN_LEVEL -15
 #define ZSTD_BTRFS_MAX_LEVEL 15
 /* 307s to avoid pathologically clashing with transaction commit */
 #define ZSTD_BTRFS_RECLAIM_JIFFIES (307 * HZ)
 
-static zstd_parameters zstd_get_btrfs_parameters(unsigned int level,
+static zstd_parameters zstd_get_btrfs_parameters(int level,
 						 size_t src_len)
 {
 	zstd_parameters params = zstd_get_params(level, src_len);
@@ -45,13 +46,14 @@ struct workspace {
 	void *mem;
 	size_t size;
 	char *buf;
-	unsigned int level;
-	unsigned int req_level;
+	int level;
+	int req_level;
 	unsigned long last_used; /* jiffies */
 	struct list_head list;
 	struct list_head lru_list;
 	zstd_in_buffer in_buf;
 	zstd_out_buffer out_buf;
+	zstd_parameters params;
 };
 
 /*
@@ -93,8 +95,10 @@ static inline struct workspace *list_to_workspace(struct list_head *list)
 	return container_of(list, struct workspace, list);
 }
 
-void zstd_free_workspace(struct list_head *ws);
-struct list_head *zstd_alloc_workspace(unsigned int level);
+static inline int clip_level(int level)
+{
+	return max(0, level - 1);
+}
 
 /*
  * Timer callback to free unused workspaces.
@@ -123,7 +127,7 @@ static void zstd_reclaim_timer_fn(struct timer_list *timer)
 	list_for_each_prev_safe(pos, next, &wsm.lru_list) {
 		struct workspace *victim = container_of(pos, struct workspace,
 							lru_list);
-		unsigned int level;
+		int level;
 
 		if (time_after(victim->last_used, reclaim_threshold))
 			break;
@@ -137,8 +141,8 @@ static void zstd_reclaim_timer_fn(struct timer_list *timer)
 		list_del(&victim->list);
 		zstd_free_workspace(&victim->list);
 
-		if (list_empty(&wsm.idle_ws[level - 1]))
-			clear_bit(level - 1, &wsm.active_map);
+		if (list_empty(&wsm.idle_ws[level]))
+			clear_bit(level, &wsm.active_map);
 
 	}
 
@@ -160,9 +164,11 @@ static void zstd_reclaim_timer_fn(struct timer_list *timer)
 static void zstd_calc_ws_mem_sizes(void)
 {
 	size_t max_size = 0;
-	unsigned int level;
+	int level;
 
-	for (level = 1; level <= ZSTD_BTRFS_MAX_LEVEL; level++) {
+	for (level = ZSTD_BTRFS_MIN_LEVEL; level <= ZSTD_BTRFS_MAX_LEVEL; level++) {
+		if (level == 0)
+			continue;
 		zstd_parameters params =
 			zstd_get_btrfs_parameters(level, ZSTD_BTRFS_MAX_INPUT);
 		size_t level_size =
@@ -171,7 +177,8 @@ static void zstd_calc_ws_mem_sizes(void)
 			      zstd_dstream_workspace_bound(ZSTD_BTRFS_MAX_INPUT));
 
 		max_size = max_t(size_t, max_size, level_size);
-		zstd_ws_mem_sizes[level - 1] = max_size;
+		/* Use level 1 workspace size for all the fast mode negative levels. */
+		zstd_ws_mem_sizes[clip_level(level)] = max_size;
 	}
 }
 
@@ -233,11 +240,11 @@ void zstd_cleanup_workspace_manager(void)
  * offer the opportunity to reclaim the workspace in favor of allocating an
  * appropriately sized one in the future.
  */
-static struct list_head *zstd_find_workspace(unsigned int level)
+static struct list_head *zstd_find_workspace(int level)
 {
 	struct list_head *ws;
 	struct workspace *workspace;
-	int i = level - 1;
+	int i = clip_level(level);
 
 	spin_lock_bh(&wsm.lock);
 	for_each_set_bit_from(i, &wsm.active_map, ZSTD_BTRFS_MAX_LEVEL) {
@@ -247,7 +254,7 @@ static struct list_head *zstd_find_workspace(unsigned int level)
 			list_del_init(ws);
 			/* keep its place if it's a lower level using this */
 			workspace->req_level = level;
-			if (level == workspace->level)
+			if (clip_level(level) == workspace->level)
 				list_del(&workspace->lru_list);
 			if (list_empty(&wsm.idle_ws[i]))
 				clear_bit(i, &wsm.active_map);
@@ -270,7 +277,7 @@ static struct list_head *zstd_find_workspace(unsigned int level)
  * attempt to allocate a new workspace.  If we fail to allocate one due to
  * memory pressure, go to sleep waiting for the max level workspace to free up.
  */
-struct list_head *zstd_get_workspace(unsigned int level)
+struct list_head *zstd_get_workspace(int level)
 {
 	struct list_head *ws;
 	unsigned int nofs_flag;
@@ -319,7 +326,7 @@ void zstd_put_workspace(struct list_head *ws)
 	spin_lock_bh(&wsm.lock);
 
 	/* A node is only taken off the lru if we are the corresponding level */
-	if (workspace->req_level == workspace->level) {
+	if (clip_level(workspace->req_level) == workspace->level) {
 		/* Hide a max level workspace from reclaim */
 		if (list_empty(&wsm.idle_ws[ZSTD_BTRFS_MAX_LEVEL - 1])) {
 			INIT_LIST_HEAD(&workspace->lru_list);
@@ -332,13 +339,13 @@ void zstd_put_workspace(struct list_head *ws)
 		}
 	}
 
-	set_bit(workspace->level - 1, &wsm.active_map);
-	list_add(&workspace->list, &wsm.idle_ws[workspace->level - 1]);
+	set_bit(workspace->level, &wsm.active_map);
+	list_add(&workspace->list, &wsm.idle_ws[workspace->level]);
 	workspace->req_level = 0;
 
 	spin_unlock_bh(&wsm.lock);
 
-	if (workspace->level == ZSTD_BTRFS_MAX_LEVEL)
+	if (workspace->level == clip_level(ZSTD_BTRFS_MAX_LEVEL))
 		cond_wake_up(&wsm.wait);
 }
 
@@ -351,7 +358,7 @@ void zstd_free_workspace(struct list_head *ws)
 	kfree(workspace);
 }
 
-struct list_head *zstd_alloc_workspace(unsigned int level)
+struct list_head *zstd_alloc_workspace(int level)
 {
 	struct workspace *workspace;
 
@@ -359,8 +366,9 @@ struct list_head *zstd_alloc_workspace(unsigned int level)
 	if (!workspace)
 		return ERR_PTR(-ENOMEM);
 
-	workspace->size = zstd_ws_mem_sizes[level - 1];
-	workspace->level = level;
+	/* Use level 1 workspace size for all the fast mode negative levels. */
+	workspace->size = zstd_ws_mem_sizes[clip_level(level)];
+	workspace->level = clip_level(level);
 	workspace->req_level = level;
 	workspace->last_used = jiffies;
 	workspace->mem = kvmalloc(workspace->size, GFP_KERNEL | __GFP_NOWARN);
@@ -393,17 +401,15 @@ int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
 	const unsigned long nr_dest_folios = *out_folios;
 	const u64 orig_end = start + len;
 	unsigned long max_out = nr_dest_folios * PAGE_SIZE;
-	unsigned int pg_off;
 	unsigned int cur_len;
-	zstd_parameters params = zstd_get_btrfs_parameters(workspace->req_level,
-							   len);
 
+	workspace->params = zstd_get_btrfs_parameters(workspace->req_level, len);
 	*out_folios = 0;
 	*total_out = 0;
 	*total_in = 0;
 
 	/* Initialize the stream */
-	stream = zstd_init_cstream(&params, len, workspace->mem,
+	stream = zstd_init_cstream(&workspace->params, len, workspace->mem,
 			workspace->size);
 	if (unlikely(!stream)) {
 		struct btrfs_inode *inode = BTRFS_I(mapping->host);
@@ -420,9 +426,8 @@ int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
 	ret = btrfs_compress_filemap_get_folio(mapping, start, &in_folio);
 	if (ret < 0)
 		goto out;
-	pg_off = offset_in_page(start);
 	cur_len = btrfs_calc_input_length(orig_end, start);
-	workspace->in_buf.src = kmap_local_folio(in_folio, pg_off);
+	workspace->in_buf.src = kmap_local_folio(in_folio, offset_in_page(start));
 	workspace->in_buf.pos = 0;
 	workspace->in_buf.size = cur_len;
 
@@ -506,9 +511,9 @@ int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
 			ret = btrfs_compress_filemap_get_folio(mapping, start, &in_folio);
 			if (ret < 0)
 				goto out;
-			pg_off = offset_in_page(start);
 			cur_len = btrfs_calc_input_length(orig_end, start);
-			workspace->in_buf.src = kmap_local_folio(in_folio, pg_off);
+			workspace->in_buf.src = kmap_local_folio(in_folio,
+							 offset_in_page(start));
 			workspace->in_buf.pos = 0;
 			workspace->in_buf.size = cur_len;
 		}
@@ -717,6 +722,7 @@ finish:
 const struct btrfs_compress_op btrfs_zstd_compress = {
 	/* ZSTD uses own workspace manager */
 	.workspace_manager = NULL,
+	.min_level	= ZSTD_BTRFS_MIN_LEVEL,
 	.max_level	= ZSTD_BTRFS_MAX_LEVEL,
 	.default_level	= ZSTD_BTRFS_DEFAULT_LEVEL,
 };

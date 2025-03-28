@@ -51,6 +51,7 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 {
 	return addr;
 }
+#define ftrace_get_symaddr(fentry_ip) ((unsigned long)(fentry_ip))
 
 #include <linux/ftrace_regs.h>
 

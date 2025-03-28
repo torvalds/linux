@@ -333,50 +333,6 @@ int iscsit_sequence_cmd(struct iscsit_conn *conn, struct iscsit_cmd *cmd,
 }
 EXPORT_SYMBOL(iscsit_sequence_cmd);
 
-int iscsit_check_unsolicited_dataout(struct iscsit_cmd *cmd, unsigned char *buf)
-{
-	struct iscsit_conn *conn = cmd->conn;
-	struct se_cmd *se_cmd = &cmd->se_cmd;
-	struct iscsi_data *hdr = (struct iscsi_data *) buf;
-	u32 payload_length = ntoh24(hdr->dlength);
-
-	if (conn->sess->sess_ops->InitialR2T) {
-		pr_err("Received unexpected unsolicited data"
-			" while InitialR2T=Yes, protocol error.\n");
-		transport_send_check_condition_and_sense(se_cmd,
-				TCM_UNEXPECTED_UNSOLICITED_DATA, 0);
-		return -1;
-	}
-
-	if ((cmd->first_burst_len + payload_length) >
-	     conn->sess->sess_ops->FirstBurstLength) {
-		pr_err("Total %u bytes exceeds FirstBurstLength: %u"
-			" for this Unsolicited DataOut Burst.\n",
-			(cmd->first_burst_len + payload_length),
-				conn->sess->sess_ops->FirstBurstLength);
-		transport_send_check_condition_and_sense(se_cmd,
-				TCM_INCORRECT_AMOUNT_OF_DATA, 0);
-		return -1;
-	}
-
-	if (!(hdr->flags & ISCSI_FLAG_CMD_FINAL))
-		return 0;
-
-	if (((cmd->first_burst_len + payload_length) != cmd->se_cmd.data_length) &&
-	    ((cmd->first_burst_len + payload_length) !=
-	      conn->sess->sess_ops->FirstBurstLength)) {
-		pr_err("Unsolicited non-immediate data received %u"
-			" does not equal FirstBurstLength: %u, and does"
-			" not equal ExpXferLen %u.\n",
-			(cmd->first_burst_len + payload_length),
-			conn->sess->sess_ops->FirstBurstLength, cmd->se_cmd.data_length);
-		transport_send_check_condition_and_sense(se_cmd,
-				TCM_INCORRECT_AMOUNT_OF_DATA, 0);
-		return -1;
-	}
-	return 0;
-}
-
 struct iscsit_cmd *iscsit_find_cmd_from_itt(
 	struct iscsit_conn *conn,
 	itt_t init_task_tag)
@@ -1250,20 +1206,6 @@ int iscsit_tx_login_rsp(struct iscsit_conn *conn, u8 status_class, u8 status_det
 	hdr->itt		= conn->login_itt;
 
 	return conn->conn_transport->iscsit_put_login_tx(conn, login, 0);
-}
-
-void iscsit_print_session_params(struct iscsit_session *sess)
-{
-	struct iscsit_conn *conn;
-
-	pr_debug("-----------------------------[Session Params for"
-		" SID: %u]-----------------------------\n", sess->sid);
-	spin_lock_bh(&sess->conn_lock);
-	list_for_each_entry(conn, &sess->sess_conn_list, conn_list)
-		iscsi_dump_conn_ops(conn->conn_ops);
-	spin_unlock_bh(&sess->conn_lock);
-
-	iscsi_dump_sess_ops(sess->sess_ops);
 }
 
 int rx_data(

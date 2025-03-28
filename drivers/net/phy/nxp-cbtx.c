@@ -215,7 +215,7 @@ static struct phy_driver cbtx_driver[] = {
 
 module_phy_driver(cbtx_driver);
 
-static struct mdio_device_id __maybe_unused cbtx_tbl[] = {
+static const struct mdio_device_id __maybe_unused cbtx_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(PHY_ID_CBTX_SJA1110) },
 	{ },
 };

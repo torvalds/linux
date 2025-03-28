@@ -2,11 +2,8 @@
 #ifndef IOU_RSRC_H
 #define IOU_RSRC_H
 
-#define IO_NODE_ALLOC_CACHE_MAX 32
-
-#define IO_RSRC_TAG_TABLE_SHIFT	(PAGE_SHIFT - 3)
-#define IO_RSRC_TAG_TABLE_MAX	(1U << IO_RSRC_TAG_TABLE_SHIFT)
-#define IO_RSRC_TAG_TABLE_MASK	(IO_RSRC_TAG_TABLE_MAX - 1)
+#include <linux/io_uring_types.h>
+#include <linux/lockdep.h>
 
 enum {
 	IORING_RSRC_FILE		= 0,
@@ -24,6 +21,11 @@ struct io_rsrc_node {
 	};
 };
 
+enum {
+	IO_IMU_DEST	= 1 << ITER_DEST,
+	IO_IMU_SOURCE	= 1 << ITER_SOURCE,
+};
+
 struct io_mapped_ubuf {
 	u64		ubuf;
 	unsigned int	len;
@@ -31,6 +33,10 @@ struct io_mapped_ubuf {
 	unsigned int    folio_shift;
 	refcount_t	refs;
 	unsigned long	acct_pages;
+	void		(*release)(void *);
+	void		*priv;
+	bool		is_kbuf;
+	u8		dir;
 	struct bio_vec	bvec[] __counted_by(nr_bvecs);
 };
 
@@ -43,14 +49,18 @@ struct io_imu_folio_data {
 	unsigned int	nr_folios;
 };
 
+bool io_rsrc_cache_init(struct io_ring_ctx *ctx);
+void io_rsrc_cache_free(struct io_ring_ctx *ctx);
 struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx, int type);
 void io_free_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node);
 void io_rsrc_data_free(struct io_ring_ctx *ctx, struct io_rsrc_data *data);
 int io_rsrc_data_alloc(struct io_rsrc_data *data, unsigned nr);
 
-int io_import_fixed(int ddir, struct iov_iter *iter,
-			   struct io_mapped_ubuf *imu,
-			   u64 buf_addr, size_t len);
+struct io_rsrc_node *io_find_buf_node(struct io_kiocb *req,
+				      unsigned issue_flags);
+int io_import_reg_buf(struct io_kiocb *req, struct iov_iter *iter,
+			u64 buf_addr, size_t len, int ddir,
+			unsigned issue_flags);
 
 int io_register_clone_buffers(struct io_ring_ctx *ctx, void __user *arg);
 int io_sqe_buffers_unregister(struct io_ring_ctx *ctx);
@@ -80,7 +90,8 @@ static inline struct io_rsrc_node *io_rsrc_node_lookup(struct io_rsrc_data *data
 
 static inline void io_put_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 {
-	if (node && !--node->refs)
+	lockdep_assert_held(&ctx->uring_lock);
+	if (!--node->refs)
 		io_free_rsrc_node(ctx, node);
 }
 

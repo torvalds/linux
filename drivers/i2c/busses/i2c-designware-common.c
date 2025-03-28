@@ -8,6 +8,9 @@
  * Copyright (C) 2007 MontaVista Software Inc.
  * Copyright (C) 2009 Provigent Ltd.
  */
+
+#define DEFAULT_SYMBOL_NAMESPACE	"I2C_DW_COMMON"
+
 #include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -28,8 +31,6 @@
 #include <linux/swab.h>
 #include <linux/types.h>
 #include <linux/units.h>
-
-#define DEFAULT_SYMBOL_NAMESPACE	"I2C_DW_COMMON"
 
 #include "i2c-designware-core.h"
 

@@ -15,18 +15,8 @@
 static inline int _soc_card_ret(struct snd_soc_card *card,
 				const char *func, int ret)
 {
-	switch (ret) {
-	case -EPROBE_DEFER:
-	case -ENOTSUPP:
-	case 0:
-		break;
-	default:
-		dev_err(card->dev,
-			"ASoC: error at %s on %s: %d\n",
-			func, card->name, ret);
-	}
-
-	return ret;
+	return snd_soc_ret(card->dev, ret,
+			   "at %s() on %s\n", func, card->name);
 }
 
 struct snd_kcontrol *snd_soc_card_get_kcontrol(struct snd_soc_card *soc_card,
@@ -219,7 +209,7 @@ int snd_soc_card_set_bias_level(struct snd_soc_card *card,
 {
 	int ret = 0;
 
-	if (card && card->set_bias_level)
+	if (card->set_bias_level)
 		ret = card->set_bias_level(card, dapm, level);
 
 	return soc_card_ret(card, ret);
@@ -231,7 +221,7 @@ int snd_soc_card_set_bias_level_post(struct snd_soc_card *card,
 {
 	int ret = 0;
 
-	if (card && card->set_bias_level_post)
+	if (card->set_bias_level_post)
 		ret = card->set_bias_level_post(card, dapm, level);
 
 	return soc_card_ret(card, ret);

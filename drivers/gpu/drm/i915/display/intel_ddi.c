@@ -658,7 +658,6 @@ void intel_ddi_disable_transcoder_func(const struct intel_crtc_state *crtc_state
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
-	bool is_mst = intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST);
 	u32 ctl;
 
 	if (DISPLAY_VER(dev_priv) >= 11)
@@ -678,8 +677,7 @@ void intel_ddi_disable_transcoder_func(const struct intel_crtc_state *crtc_state
 			 TRANS_DDI_PORT_SYNC_MASTER_SELECT_MASK);
 
 	if (DISPLAY_VER(dev_priv) >= 12) {
-		if (!intel_dp_mst_is_master_trans(crtc_state) ||
-		    (!is_mst && intel_dp_is_uhbr(crtc_state))) {
+		if (!intel_dp_mst_is_master_trans(crtc_state)) {
 			ctl &= ~(TGL_TRANS_DDI_PORT_MASK |
 				 TRANS_DDI_MODE_SELECT_MASK);
 		}
@@ -868,7 +866,7 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 			    encoder->base.base.id, encoder->base.name);
 
 	if (!mst_pipe_mask && dp128b132b_pipe_mask) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+		struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
 		/*
 		 * If we don't have 8b/10b MST, but have more than one
@@ -880,7 +878,8 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 		 * we don't expect MST to have been enabled at that point, and
 		 * can assume it's SST.
 		 */
-		if (hweight8(dp128b132b_pipe_mask) > 1 || intel_dp->is_mst)
+		if (hweight8(dp128b132b_pipe_mask) > 1 ||
+		    intel_dp_mst_encoder_active_links(dig_port))
 			mst_pipe_mask = dp128b132b_pipe_mask;
 	}
 
@@ -3134,7 +3133,7 @@ static void intel_ddi_post_disable_dp(struct intel_atomic_state *state,
 	intel_dp_set_power(intel_dp, DP_SET_POWER_D3);
 
 	if (DISPLAY_VER(dev_priv) >= 12) {
-		if (is_mst) {
+		if (is_mst || intel_dp_is_uhbr(old_crtc_state)) {
 			enum transcoder cpu_transcoder = old_crtc_state->cpu_transcoder;
 
 			intel_de_rmw(dev_priv,
@@ -3487,7 +3486,7 @@ static void intel_ddi_enable_hdmi(struct intel_atomic_state *state,
 		intel_de_rmw(dev_priv, XELPDP_PORT_BUF_CTL1(dev_priv, port),
 			     XELPDP_PORT_WIDTH_MASK | XELPDP_PORT_REVERSAL, port_buf);
 
-		buf_ctl |= DDI_PORT_WIDTH(lane_count);
+		buf_ctl |= DDI_PORT_WIDTH(crtc_state->lane_count);
 
 		if (DISPLAY_VER(dev_priv) >= 20)
 			buf_ctl |= XE2LPD_DDI_BUF_D2D_LINK_ENABLE;
@@ -4153,13 +4152,13 @@ static void intel_ddi_read_func_ctl(struct intel_encoder *encoder,
 	} else if (ddi_mode == TRANS_DDI_MODE_SELECT_DP_MST) {
 		intel_ddi_read_func_ctl_dp_mst(encoder, pipe_config, ddi_func_ctl);
 	} else if (ddi_mode == TRANS_DDI_MODE_SELECT_FDI_OR_128B132B && HAS_DP20(display)) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+		struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
 		/*
 		 * If this is true, we know we're being called from mst stream
 		 * encoder's ->get_config().
 		 */
-		if (intel_dp->is_mst)
+		if (intel_dp_mst_encoder_active_links(dig_port))
 			intel_ddi_read_func_ctl_dp_mst(encoder, pipe_config, ddi_func_ctl);
 		else
 			intel_ddi_read_func_ctl_dp_sst(encoder, pipe_config, ddi_func_ctl);

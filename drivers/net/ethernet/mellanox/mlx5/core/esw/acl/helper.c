@@ -27,7 +27,7 @@ esw_acl_table_create(struct mlx5_eswitch *esw, struct mlx5_vport *vport, int ns,
 	esw_debug(dev, "Create vport[%d] %s ACL table\n", vport_num,
 		  ns == MLX5_FLOW_NAMESPACE_ESW_INGRESS ? "ingress" : "egress");
 
-	root_ns = mlx5_get_flow_vport_acl_namespace(dev, ns, vport->index);
+	root_ns = mlx5_get_flow_vport_namespace(dev, ns, vport->index);
 	if (!root_ns) {
 		esw_warn(dev, "Failed to get E-Switch root namespace for vport (%d)\n",
 			 vport_num);

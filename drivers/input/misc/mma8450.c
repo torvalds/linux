@@ -38,6 +38,8 @@
 
 #define MMA8450_CTRL_REG1	0x38
 #define MMA8450_CTRL_REG2	0x39
+#define MMA8450_ID		0xc6
+#define MMA8450_WHO_AM_I	0x0f
 
 static int mma8450_read(struct i2c_client *c, unsigned int off)
 {
@@ -148,8 +150,20 @@ static void mma8450_close(struct input_dev *input)
  */
 static int mma8450_probe(struct i2c_client *c)
 {
+	struct i2c_adapter *adapter = c->adapter;
 	struct input_dev *input;
-	int err;
+	int err, client_id;
+
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE |
+						I2C_FUNC_SMBUS_BYTE_DATA))
+		return dev_err_probe(&c->dev, -EINVAL,
+				     "I2C adapter doesn't support SMBUS BYTE");
+
+	client_id = i2c_smbus_read_byte_data(c, MMA8450_WHO_AM_I);
+	if (client_id != MMA8450_ID)
+		return dev_err_probe(&c->dev, -EINVAL,
+				     "unexpected chip ID 0x%x (vs 0x%x)\n",
+				     client_id, MMA8450_ID);
 
 	input = devm_input_allocate_device(&c->dev);
 	if (!input)

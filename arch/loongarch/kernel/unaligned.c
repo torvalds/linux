@@ -482,14 +482,10 @@ sigbus:
 #ifdef CONFIG_DEBUG_FS
 static int __init debugfs_unaligned(void)
 {
-	struct dentry *d;
-
-	d = debugfs_create_dir("loongarch", NULL);
-
 	debugfs_create_u32("unaligned_instructions_user",
-				S_IRUGO, d, &unaligned_instructions_user);
+				S_IRUGO, arch_debugfs_dir, &unaligned_instructions_user);
 	debugfs_create_u32("unaligned_instructions_kernel",
-				S_IRUGO, d, &unaligned_instructions_kernel);
+				S_IRUGO, arch_debugfs_dir, &unaligned_instructions_kernel);
 
 	return 0;
 }

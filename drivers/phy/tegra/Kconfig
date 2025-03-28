@@ -13,7 +13,8 @@ config PHY_TEGRA_XUSB
 
 config PHY_TEGRA194_P2U
 	tristate "NVIDIA Tegra194 PIPE2UPHY PHY driver"
-	depends on ARCH_TEGRA_194_SOC || COMPILE_TEST
+	depends on ARCH_TEGRA_194_SOC || ARCH_TEGRA_234_SOC || COMPILE_TEST
 	select GENERIC_PHY
 	help
-	  Enable this to support the P2U (PIPE to UPHY) that is part of Tegra 19x SOCs.
+	  Enable this to support the P2U (PIPE to UPHY) that is part of Tegra 19x
+	  and 234 SOCs.

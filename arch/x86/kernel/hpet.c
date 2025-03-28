@@ -1382,12 +1382,6 @@ int hpet_set_periodic_freq(unsigned long freq)
 }
 EXPORT_SYMBOL_GPL(hpet_set_periodic_freq);
 
-int hpet_rtc_dropped_irq(void)
-{
-	return is_hpet_enabled();
-}
-EXPORT_SYMBOL_GPL(hpet_rtc_dropped_irq);
-
 static void hpet_rtc_timer_reinit(void)
 {
 	unsigned int delta;

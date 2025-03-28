@@ -89,6 +89,9 @@ Similar to the ``WExx`` ACPI methods, except that it controls data collection
 instead of events and thus the last two characters of the ACPI method name are
 the method ID of the data block to enable/disable.
 
+Those ACPI methods are also called before setting data blocks to match the
+behaviour of the Windows driver.
+
 _WED ACPI method
 ----------------
 

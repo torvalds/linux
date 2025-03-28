@@ -724,7 +724,7 @@ static int hpet_is_known(struct hpet_data *hdp)
 	return 0;
 }
 
-static struct ctl_table hpet_table[] = {
+static const struct ctl_table hpet_table[] = {
 	{
 	 .procname = "max-user-freq",
 	 .data = &hpet_max_freq,

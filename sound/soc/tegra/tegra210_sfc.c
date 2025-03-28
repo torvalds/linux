@@ -3056,7 +3056,7 @@ static s32 *coef_addr_table[TEGRA210_SFC_NUM_RATES][TEGRA210_SFC_NUM_RATES] = {
 	},
 };
 
-static int __maybe_unused tegra210_sfc_runtime_suspend(struct device *dev)
+static int tegra210_sfc_runtime_suspend(struct device *dev)
 {
 	struct tegra210_sfc *sfc = dev_get_drvdata(dev);
 
@@ -3066,7 +3066,7 @@ static int __maybe_unused tegra210_sfc_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused tegra210_sfc_runtime_resume(struct device *dev)
+static int tegra210_sfc_runtime_resume(struct device *dev)
 {
 	struct tegra210_sfc *sfc = dev_get_drvdata(dev);
 
@@ -3623,17 +3623,16 @@ static void tegra210_sfc_platform_remove(struct platform_device *pdev)
 }
 
 static const struct dev_pm_ops tegra210_sfc_pm_ops = {
-	SET_RUNTIME_PM_OPS(tegra210_sfc_runtime_suspend,
-			   tegra210_sfc_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	RUNTIME_PM_OPS(tegra210_sfc_runtime_suspend,
+		       tegra210_sfc_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 static struct platform_driver tegra210_sfc_driver = {
 	.driver = {
 		.name = "tegra210-sfc",
 		.of_match_table = tegra210_sfc_of_match,
-		.pm = &tegra210_sfc_pm_ops,
+		.pm = pm_ptr(&tegra210_sfc_pm_ops),
 	},
 	.probe = tegra210_sfc_platform_probe,
 	.remove = tegra210_sfc_platform_remove,

@@ -33,7 +33,7 @@ The entire physical address space is partitioned into one or more blocks
 called zones which represent ranges within memory. These ranges are usually
 determined by architectural constraints for accessing the physical memory.
 The memory range within a node that corresponds to a particular zone is
-described by a ``struct zone``, typedeffed to ``zone_t``. Each zone has
+described by a ``struct zone``. Each zone has
 one of the types described below.
 
 * ``ZONE_DMA`` and ``ZONE_DMA32`` historically represented memory suitable for

@@ -407,9 +407,29 @@ Description:
 
 		Access: Read, Write
 
+		Reading this returns the current active value, e.g. 'Standard'.
+		Check charge_types to get the values supported by the battery.
+
 		Valid values:
 			      "Unknown", "N/A", "Trickle", "Fast", "Standard",
 			      "Adaptive", "Custom", "Long Life", "Bypass"
+
+What:		/sys/class/power_supply/<supply_name>/charge_types
+Date:		December 2024
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Identical to charge_type but reading returns a list of supported
+		charge-types with the currently active type surrounded by square
+		brackets, e.g.: "Fast [Standard] Long_Life".
+
+		power_supply class devices may support both charge_type and
+		charge_types for backward compatibility. In this case both will
+		always have the same active value and the active value can be
+		changed by writing either property.
+
+		Note charge-types which contain a space such as "Long Life" will
+		have the space replaced by a '_' resulting in e.g. "Long_Life".
+		When writing charge-types both variants are accepted.
 
 What:		/sys/class/power_supply/<supply_name>/charge_term_current
 Date:		July 2014
@@ -433,7 +453,7 @@ Description:
 
 		Valid values:
 			      "Unknown", "Good", "Overheat", "Dead",
-			      "Over voltage", "Unspecified failure", "Cold",
+			      "Over voltage", "Under voltage", "Unspecified failure", "Cold",
 			      "Watchdog timer expire", "Safety timer expire",
 			      "Over current", "Calibration required", "Warm",
 			      "Cool", "Hot", "No battery"
@@ -793,3 +813,12 @@ Description:
 
 		Access: Read
 		Valid values: 1-31
+
+What:		/sys/class/power_supply/<supply_name>/extensions/<extension_name>
+Date:		March 2025
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Reports the extensions registered to the power supply.
+		Each entry is a link to the device which registered the extension.
+
+		Access: Read

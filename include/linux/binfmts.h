@@ -44,7 +44,12 @@ struct linux_binprm {
 		 */
 		point_of_no_return:1,
 		/* Set when "comm" must come from the dentry. */
-		comm_from_dentry:1;
+		comm_from_dentry:1,
+		/*
+		 * Set by user space to check executability according to the
+		 * caller's environment.
+		 */
+		is_check:1;
 	struct file *executable; /* Executable to pass to the interpreter */
 	struct file *interpreter;
 	struct file *file;
@@ -59,7 +64,7 @@ struct linux_binprm {
 	const char *fdpath;	/* generated filename for execveat */
 	unsigned interp_flags;
 	int execfd;		/* File descriptor of the executable */
-	unsigned long loader, exec;
+	unsigned long exec;
 
 	struct rlimit rlim_stack; /* Saved RLIMIT_STACK used during exec. */
 

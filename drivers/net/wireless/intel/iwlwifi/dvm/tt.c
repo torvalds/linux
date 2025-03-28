@@ -124,17 +124,6 @@ enum iwl_antenna_ok iwl_tx_ant_restriction(struct iwl_priv *priv)
 	return restriction->tx_stream;
 }
 
-enum iwl_antenna_ok iwl_rx_ant_restriction(struct iwl_priv *priv)
-{
-	struct iwl_tt_mgmt *tt = &priv->thermal_throttle;
-	struct iwl_tt_restriction *restriction;
-
-	if (!priv->thermal_throttle.advanced_tt)
-		return IWL_ANT_OK_MULTI;
-	restriction = tt->restriction + tt->state;
-	return restriction->rx_stream;
-}
-
 #define CT_KILL_EXIT_DURATION (5)	/* 5 seconds duration */
 #define CT_KILL_WAITING_DURATION (300)	/* 300ms duration */
 

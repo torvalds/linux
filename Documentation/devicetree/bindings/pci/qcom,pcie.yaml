@@ -32,6 +32,10 @@ properties:
           - qcom,pcie-sdm845
           - qcom,pcie-sdx55
       - items:
+          - enum:
+              - qcom,pcie-ipq5424
+          - const: qcom,pcie-ipq9574
+      - items:
           - const: qcom,pcie-msm8998
           - const: qcom,pcie-msm8996
 

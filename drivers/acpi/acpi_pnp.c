@@ -120,8 +120,6 @@ static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	{"IBM0071"},
 	/* smsc-ircc2 */
 	{"SMCf010"},
-	/* sb1000 */
-	{"GIC1000"},
 	/* parport_pc */
 	{"PNP0400"},		/* Standard LPT Printer Port */
 	{"PNP0401"},		/* ECP Printer Port */

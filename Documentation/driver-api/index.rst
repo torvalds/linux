@@ -86,6 +86,7 @@ Subsystem-specific APIs
    dmaengine/index
    dpll
    edac
+   extcon
    firmware/index
    fpga/index
    frame-buffer

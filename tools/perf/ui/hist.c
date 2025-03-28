@@ -121,7 +121,7 @@ int hpp__fmt(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	     const char *fmtstr, hpp_snprint_fn print_fn,
 	     enum perf_hpp_fmt_type fmtype)
 {
-	int len = fmt->user_len ?: fmt->len;
+	int len = max(fmt->user_len ?: fmt->len, (int)strlen(fmt->name));
 
 	if (symbol_conf.field_sep) {
 		return __hpp__fmt(hpp, he, get_field, fmtstr, 1,

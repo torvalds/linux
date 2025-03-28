@@ -17,9 +17,11 @@ config UNIX
 	  Say Y unless you know what you are doing.
 
 config	AF_UNIX_OOB
-	bool
+	bool "UNIX: out-of-bound messages"
 	depends on UNIX
 	default y
+	help
+	  Support for MSG_OOB in UNIX domain sockets. If unsure, say Y.
 
 config UNIX_DIAG
 	tristate "UNIX: socket monitoring interface"

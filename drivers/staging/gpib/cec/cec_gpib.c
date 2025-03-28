@@ -182,32 +182,32 @@ void cec_return_to_local(gpib_board_t *board)
 	nec7210_return_to_local(board, &priv->nec7210_priv);
 }
 
-gpib_interface_t cec_pci_interface = {
-name: "cec_pci",
-attach : cec_pci_attach,
-detach : cec_pci_detach,
-read : cec_read,
-write : cec_write,
-command : cec_command,
-take_control : cec_take_control,
-go_to_standby : cec_go_to_standby,
-request_system_control : cec_request_system_control,
-interface_clear : cec_interface_clear,
-remote_enable : cec_remote_enable,
-enable_eos : cec_enable_eos,
-disable_eos : cec_disable_eos,
-parallel_poll : cec_parallel_poll,
-parallel_poll_configure : cec_parallel_poll_configure,
-parallel_poll_response : cec_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : NULL,	//XXX
-update_status : cec_update_status,
-primary_address : cec_primary_address,
-secondary_address : cec_secondary_address,
-serial_poll_response : cec_serial_poll_response,
-serial_poll_status : cec_serial_poll_status,
-t1_delay : cec_t1_delay,
-return_to_local : cec_return_to_local,
+static gpib_interface_t cec_pci_interface = {
+	.name = "cec_pci",
+	.attach = cec_pci_attach,
+	.detach = cec_pci_detach,
+	.read = cec_read,
+	.write = cec_write,
+	.command = cec_command,
+	.take_control = cec_take_control,
+	.go_to_standby = cec_go_to_standby,
+	.request_system_control = cec_request_system_control,
+	.interface_clear = cec_interface_clear,
+	.remote_enable = cec_remote_enable,
+	.enable_eos = cec_enable_eos,
+	.disable_eos = cec_disable_eos,
+	.parallel_poll = cec_parallel_poll,
+	.parallel_poll_configure = cec_parallel_poll_configure,
+	.parallel_poll_response = cec_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = NULL,	//XXX
+	.update_status = cec_update_status,
+	.primary_address = cec_primary_address,
+	.secondary_address = cec_secondary_address,
+	.serial_poll_response = cec_serial_poll_response,
+	.serial_poll_status = cec_serial_poll_status,
+	.t1_delay = cec_t1_delay,
+	.return_to_local = cec_return_to_local,
 };
 
 static int cec_allocate_private(gpib_board_t *board)
@@ -365,11 +365,15 @@ static int __init cec_init_module(void)
 
 	result = pci_register_driver(&cec_pci_driver);
 	if (result) {
-		pr_err("cec_gpib: pci_driver_register failed!\n");
+		pr_err("cec_gpib: pci_register_driver failed: error = %d\n", result);
 		return result;
 	}
 
-	gpib_register_driver(&cec_pci_interface, THIS_MODULE);
+	result = gpib_register_driver(&cec_pci_interface, THIS_MODULE);
+	if (result) {
+		pr_err("cec_gpib: gpib_register_driver failed: error = %d\n", result);
+		return result;
+	}
 
 	return 0;
 }

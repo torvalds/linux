@@ -141,6 +141,12 @@ config CRYPTO_ACOMP
 	select CRYPTO_ALGAPI
 	select CRYPTO_ACOMP2
 
+config CRYPTO_HKDF
+	tristate
+	select CRYPTO_SHA256 if !CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
+	select CRYPTO_SHA512 if !CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
+	select CRYPTO_HASH2
+
 config CRYPTO_MANAGER
 	tristate "Cryptographic algorithm manager"
 	select CRYPTO_MANAGER2
@@ -684,14 +690,6 @@ config CRYPTO_HCTR2
 
 	  See https://eprint.iacr.org/2021/1441
 
-config CRYPTO_KEYWRAP
-	tristate "KW (AES Key Wrap)"
-	select CRYPTO_SKCIPHER
-	select CRYPTO_MANAGER
-	help
-	  KW (AES Key Wrap) authenticated encryption mode (NIST SP800-38F
-	  and RFC3394) without padding.
-
 config CRYPTO_LRW
 	tristate "LRW (Liskov Rivest Wagner)"
 	select CRYPTO_LIB_GF128MUL
@@ -1029,16 +1027,6 @@ config CRYPTO_STREEBOG
 	  https://tc26.ru/upload/iblock/fed/feddbb4d26b685903faa2ba11aea43f6.pdf
 	  https://tools.ietf.org/html/rfc6986
 
-config CRYPTO_VMAC
-	tristate "VMAC"
-	select CRYPTO_HASH
-	select CRYPTO_MANAGER
-	help
-	  VMAC is a message authentication algorithm designed for
-	  very high speed on 64-bit architectures.
-
-	  See https://fastcrypto.org/vmac for further information.
-
 config CRYPTO_WP512
 	tristate "Whirlpool"
 	select CRYPTO_HASH
@@ -1098,25 +1086,6 @@ config CRYPTO_CRC32
 	  CRC32 CRC algorithm (IEEE 802.3)
 
 	  Used by RoCEv2 and f2fs.
-
-config CRYPTO_CRCT10DIF
-	tristate "CRCT10DIF"
-	select CRYPTO_HASH
-	help
-	  CRC16 CRC algorithm used for the T10 (SCSI) Data Integrity Field (DIF)
-
-	  CRC algorithm used by the SCSI Block Commands standard.
-
-config CRYPTO_CRC64_ROCKSOFT
-	tristate "CRC64 based on Rocksoft Model algorithm"
-	depends on CRC64
-	select CRYPTO_HASH
-	help
-	  CRC64 CRC algorithm based on the Rocksoft Model CRC Algorithm
-
-	  Used by the NVMe implementation of T10 DIF (BLK_DEV_INTEGRITY)
-
-	  See https://zlib.net/crc_v3.txt
 
 endmenu
 

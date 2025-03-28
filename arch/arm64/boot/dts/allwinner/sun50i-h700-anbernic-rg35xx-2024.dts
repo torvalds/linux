@@ -167,6 +167,12 @@
 			gpios = <&pio 8 12 GPIO_ACTIVE_HIGH>; /* PI12 */
 			default-state = "on";
 		};
+
+		led-1 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&pio 8 11 GPIO_ACTIVE_HIGH>; /* PI11 */
+		};
 	};
 
 	reg_vcc5v: regulator-vcc5v { /* USB-C power input */
@@ -237,6 +243,7 @@
 		battery_power: battery-power {
 			compatible = "x-powers,axp717-battery-power-supply";
 			monitored-battery = <&battery>;
+			x-powers,no-thermistor;
 		};
 
 		regulators {
@@ -328,8 +335,17 @@
 				regulator-name = "boost";
 			};
 
+			/*
+			 * Regulator function is unknown, but reading
+			 * GPIO values in bootloader is inconsistent
+			 * on reboot if this is disabled. Setting to
+			 * default value from regulator OTP mem.
+			 */
 			reg_cpusldo: cpusldo {
-				/* unused */
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <900000>;
 			};
 		};
 

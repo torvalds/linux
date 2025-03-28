@@ -7,6 +7,8 @@
  * Author: Mario Limonciello <mario.limonciello@amd.com>
  */
 
+#include <linux/mutex.h>
+
 #include "dbc.h"
 
 #define DBC_DEFAULT_TIMEOUT		(10 * MSEC_PER_SEC)
@@ -137,64 +139,49 @@ static long dbc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return -ENODEV;
 	dbc_dev = psp_master->dbc_data;
 
-	mutex_lock(&dbc_dev->ioctl_mutex);
+	guard(mutex)(&dbc_dev->ioctl_mutex);
 
 	switch (cmd) {
 	case DBCIOCNONCE:
-		if (copy_from_user(dbc_dev->payload, argp, sizeof(struct dbc_user_nonce))) {
-			ret = -EFAULT;
-			goto unlock;
-		}
+		if (copy_from_user(dbc_dev->payload, argp, sizeof(struct dbc_user_nonce)))
+			return -EFAULT;
 
 		ret = send_dbc_nonce(dbc_dev);
 		if (ret)
-			goto unlock;
+			return ret;
 
-		if (copy_to_user(argp, dbc_dev->payload, sizeof(struct dbc_user_nonce))) {
-			ret = -EFAULT;
-			goto unlock;
-		}
+		if (copy_to_user(argp, dbc_dev->payload, sizeof(struct dbc_user_nonce)))
+			return -EFAULT;
 		break;
 	case DBCIOCUID:
-		if (copy_from_user(dbc_dev->payload, argp, sizeof(struct dbc_user_setuid))) {
-			ret = -EFAULT;
-			goto unlock;
-		}
+		if (copy_from_user(dbc_dev->payload, argp, sizeof(struct dbc_user_setuid)))
+			return -EFAULT;
 
 		*dbc_dev->payload_size = dbc_dev->header_size + sizeof(struct dbc_user_setuid);
 		ret = send_dbc_cmd(dbc_dev, PSP_DYNAMIC_BOOST_SET_UID);
 		if (ret)
-			goto unlock;
+			return ret;
 
-		if (copy_to_user(argp, dbc_dev->payload, sizeof(struct dbc_user_setuid))) {
-			ret = -EFAULT;
-			goto unlock;
-		}
+		if (copy_to_user(argp, dbc_dev->payload, sizeof(struct dbc_user_setuid)))
+			return -EFAULT;
 		break;
 	case DBCIOCPARAM:
-		if (copy_from_user(dbc_dev->payload, argp, sizeof(struct dbc_user_param))) {
-			ret = -EFAULT;
-			goto unlock;
-		}
+		if (copy_from_user(dbc_dev->payload, argp, sizeof(struct dbc_user_param)))
+			return -EFAULT;
 
 		*dbc_dev->payload_size = dbc_dev->header_size + sizeof(struct dbc_user_param);
 		ret = send_dbc_parameter(dbc_dev);
 		if (ret)
-			goto unlock;
+			return ret;
 
-		if (copy_to_user(argp, dbc_dev->payload, sizeof(struct dbc_user_param)))  {
-			ret = -EFAULT;
-			goto unlock;
-		}
+		if (copy_to_user(argp, dbc_dev->payload, sizeof(struct dbc_user_param)))
+			return -EFAULT;
 		break;
 	default:
-		ret = -EINVAL;
-
+		return -EINVAL;
 	}
-unlock:
-	mutex_unlock(&dbc_dev->ioctl_mutex);
 
-	return ret;
+	return 0;
 }
 
 static const struct file_operations dbc_fops = {

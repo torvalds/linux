@@ -187,23 +187,23 @@ static const struct hantro_fmt imx8m_vpu_g2_dec_fmts[] = {
 		.frmsize = {
 			.min_width = FMT_MIN_WIDTH,
 			.max_width = FMT_UHD_WIDTH,
-			.step_width = TILE_MB_DIM,
+			.step_width = 8,
 			.min_height = FMT_MIN_HEIGHT,
 			.max_height = FMT_UHD_HEIGHT,
-			.step_height = TILE_MB_DIM,
+			.step_height = 32,
 		},
 	},
 	{
-		.fourcc = V4L2_PIX_FMT_P010_4L4,
+		.fourcc = V4L2_PIX_FMT_NV15_4L4,
 		.codec_mode = HANTRO_MODE_NONE,
 		.match_depth = true,
 		.frmsize = {
 			.min_width = FMT_MIN_WIDTH,
 			.max_width = FMT_UHD_WIDTH,
-			.step_width = TILE_MB_DIM,
+			.step_width = 8,
 			.min_height = FMT_MIN_HEIGHT,
 			.max_height = FMT_UHD_HEIGHT,
-			.step_height = TILE_MB_DIM,
+			.step_height = 32,
 		},
 	},
 	{

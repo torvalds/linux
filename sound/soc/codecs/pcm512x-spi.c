@@ -58,7 +58,7 @@ static struct spi_driver pcm512x_spi_driver = {
 	.driver = {
 		.name	= "pcm512x",
 		.of_match_table = pcm512x_of_match,
-		.pm     = &pcm512x_pm_ops,
+		.pm     = pm_ptr(&pcm512x_pm_ops),
 	},
 };
 

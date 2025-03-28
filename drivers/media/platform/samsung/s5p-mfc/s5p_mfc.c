@@ -774,8 +774,10 @@ static int s5p_mfc_open(struct file *file)
 	int ret = 0;
 
 	mfc_debug_enter();
-	if (mutex_lock_interruptible(&dev->mfc_mutex))
-		return -ERESTARTSYS;
+	if (mutex_lock_interruptible(&dev->mfc_mutex)) {
+		ret = -ERESTARTSYS;
+		goto err_enter;
+	}
 	dev->num_inst++;	/* It is guarded by mfc_mutex in vfd */
 	/* Allocate memory for context */
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
@@ -946,6 +948,7 @@ err_no_ctx:
 err_alloc:
 	dev->num_inst--;
 	mutex_unlock(&dev->mfc_mutex);
+err_enter:
 	mfc_debug_leave();
 	return ret;
 }

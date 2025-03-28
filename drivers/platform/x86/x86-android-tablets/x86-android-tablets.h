@@ -57,8 +57,15 @@ struct x86_spi_dev_info {
 };
 
 struct x86_serdev_info {
-	const char *ctrl_hid;
-	const char *ctrl_uid;
+	union {
+		struct {
+			const char *hid;
+			const char *uid;
+		} acpi;
+		struct {
+			unsigned int devfn;
+		} pci;
+	} ctrl;
 	const char *ctrl_devname;
 	/*
 	 * ATM the serdev core only supports of or ACPI matching; and so far all
@@ -91,7 +98,7 @@ struct x86_dev_info {
 	int gpio_button_count;
 	int (*init)(struct device *dev);
 	void (*exit)(void);
-	bool use_pci_devname;
+	bool use_pci;
 };
 
 int x86_android_tablet_get_gpiod(const char *chip, int pin, const char *con_id,

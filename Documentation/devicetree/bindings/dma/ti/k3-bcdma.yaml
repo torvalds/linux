@@ -34,6 +34,7 @@ properties:
       - ti,am62a-dmss-bcdma-csirx
       - ti,am64-dmss-bcdma
       - ti,j721s2-dmss-bcdma-csi
+      - ti,j722s-dmss-bcdma-csi
 
   reg:
     minItems: 3
@@ -196,7 +197,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: ti,j721s2-dmss-bcdma-csi
+            enum:
+              - ti,j721s2-dmss-bcdma-csi
+              - ti,j722s-dmss-bcdma-csi
     then:
       properties:
         ti,sci-rm-range-bchan: false

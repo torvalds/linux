@@ -49,6 +49,7 @@
 #define TCP_SAVED_SYN		28
 #define TCP_CA_NAME_MAX		16
 #define TCP_NAGLE_OFF		1
+#define TCP_RTO_MAX_MS		44
 
 #define TCP_ECN_OK              1
 #define TCP_ECN_QUEUE_CWR       2

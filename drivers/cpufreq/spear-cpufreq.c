@@ -165,7 +165,6 @@ static struct cpufreq_driver spear_cpufreq_driver = {
 	.target_index	= spear_cpufreq_target,
 	.get		= cpufreq_generic_get,
 	.init		= spear_cpufreq_init,
-	.attr		= cpufreq_generic_attr,
 };
 
 static int spear_cpufreq_probe(struct platform_device *pdev)

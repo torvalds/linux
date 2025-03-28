@@ -1479,12 +1479,12 @@ static void setup_split_accounting(struct clone_info *ci, unsigned int len)
 
 static void alloc_multiple_bios(struct bio_list *blist, struct clone_info *ci,
 				struct dm_target *ti, unsigned int num_bios,
-				unsigned *len, gfp_t gfp_flag)
+				unsigned *len)
 {
 	struct bio *bio;
-	int try = (gfp_flag & GFP_NOWAIT) ? 0 : 1;
+	int try;
 
-	for (; try < 2; try++) {
+	for (try = 0; try < 2; try++) {
 		int bio_nr;
 
 		if (try && num_bios > 1)
@@ -1508,8 +1508,7 @@ static void alloc_multiple_bios(struct bio_list *blist, struct clone_info *ci,
 }
 
 static unsigned int __send_duplicate_bios(struct clone_info *ci, struct dm_target *ti,
-					  unsigned int num_bios, unsigned int *len,
-					  gfp_t gfp_flag)
+					  unsigned int num_bios, unsigned int *len)
 {
 	struct bio_list blist = BIO_EMPTY_LIST;
 	struct bio *clone;
@@ -1526,7 +1525,7 @@ static unsigned int __send_duplicate_bios(struct clone_info *ci, struct dm_targe
 	 * Using alloc_multiple_bios(), even if num_bios is 1, to consistently
 	 * support allocating using GFP_NOWAIT with GFP_NOIO fallback.
 	 */
-	alloc_multiple_bios(&blist, ci, ti, num_bios, len, gfp_flag);
+	alloc_multiple_bios(&blist, ci, ti, num_bios, len);
 	while ((clone = bio_list_pop(&blist))) {
 		if (num_bios > 1)
 			dm_tio_set_flag(clone_to_tio(clone), DM_TIO_IS_DUPLICATE_BIO);
@@ -1564,7 +1563,7 @@ static void __send_empty_flush(struct clone_info *ci)
 
 			atomic_add(ti->num_flush_bios, &ci->io->io_count);
 			bios = __send_duplicate_bios(ci, ti, ti->num_flush_bios,
-						     NULL, GFP_NOWAIT);
+						     NULL);
 			atomic_sub(ti->num_flush_bios - bios, &ci->io->io_count);
 		}
 	} else {
@@ -1612,7 +1611,7 @@ static void __send_abnormal_io(struct clone_info *ci, struct dm_target *ti,
 		    __max_io_len(ti, ci->sector, max_granularity, max_sectors));
 
 	atomic_add(num_bios, &ci->io->io_count);
-	bios = __send_duplicate_bios(ci, ti, num_bios, &len, GFP_NOIO);
+	bios = __send_duplicate_bios(ci, ti, num_bios, &len);
 	/*
 	 * alloc_io() takes one extra reference for submission, so the
 	 * reference won't reach 0 without the following (+1) subtraction
@@ -1746,6 +1745,9 @@ static blk_status_t __split_and_process_bio(struct clone_info *ci)
 	ci->submit_as_polled = !!(ci->bio->bi_opf & REQ_POLLED);
 
 	len = min_t(sector_t, max_io_len(ti, ci->sector), ci->sector_count);
+	if (ci->bio->bi_opf & REQ_ATOMIC && len != ci->sector_count)
+		return BLK_STS_IOERR;
+
 	setup_split_accounting(ci, len);
 
 	if (unlikely(ci->bio->bi_opf & REQ_NOWAIT)) {
@@ -1849,7 +1851,7 @@ static blk_status_t __send_zone_reset_all_emulated(struct clone_info *ci,
 			 * not go crazy with the clone allocation.
 			 */
 			alloc_multiple_bios(&blist, ci, ti, min(nr_reset, 32),
-					    NULL, GFP_NOIO);
+					    NULL);
 		}
 
 		/* Get a clone and change it to a regular reset operation. */
@@ -1881,7 +1883,7 @@ static void __send_zone_reset_all_native(struct clone_info *ci,
 	unsigned int bios;
 
 	atomic_add(1, &ci->io->io_count);
-	bios = __send_duplicate_bios(ci, ti, 1, NULL, GFP_NOIO);
+	bios = __send_duplicate_bios(ci, ti, 1, NULL);
 	atomic_sub(1 - bios, &ci->io->io_count);
 
 	ci->sector_count = 0;
@@ -1969,6 +1971,15 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 
 	/* Only support nowait for normal IO */
 	if (unlikely(bio->bi_opf & REQ_NOWAIT) && !is_abnormal) {
+		/*
+		 * Don't support NOWAIT for FLUSH because it may allocate
+		 * multiple bios and there's no easy way how to undo the
+		 * allocations.
+		 */
+		if (bio->bi_opf & REQ_PREFLUSH) {
+			bio_wouldblock_error(bio);
+			return;
+		}
 		io = alloc_io(md, bio, GFP_NOWAIT);
 		if (unlikely(!io)) {
 			/* Unable to do anything without dm_io. */

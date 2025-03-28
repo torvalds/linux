@@ -175,19 +175,6 @@ enum sci_status sci_remote_device_reset(
 	struct isci_remote_device *idev);
 
 /**
- * sci_remote_device_reset_complete() - This method informs the device object
- *    that the reset operation is complete and the device can resume operation
- *    again.
- * @remote_device: This parameter specifies the device which is to be informed
- *    of the reset complete operation.
- *
- * An indication that the device is resuming operation. SCI_SUCCESS the device
- * is resuming operation.
- */
-enum sci_status sci_remote_device_reset_complete(
-	struct isci_remote_device *idev);
-
-/**
  * enum sci_remote_device_states - This enumeration depicts all the states
  *    for the common remote device state machine.
  * @SCI_DEV_INITIAL: Simply the initial state for the base remote device
@@ -211,7 +198,7 @@ enum sci_status sci_remote_device_reset_complete(
  * device.  When there are no active IO for the device it is is in this
  * state.
  *
- * @SCI_STP_DEV_CMD: This is the command state for for the STP remote
+ * @SCI_STP_DEV_CMD: This is the command state for the STP remote
  * device.  This state is entered when the device is processing a
  * non-NCQ command.  The device object will fail any new start IO
  * requests until this command is complete.
@@ -361,10 +348,6 @@ enum sci_status isci_remote_device_resume_from_abort(
 	struct isci_remote_device *idev);
 
 enum sci_status isci_remote_device_reset(
-	struct isci_host *ihost,
-	struct isci_remote_device *idev);
-
-enum sci_status isci_remote_device_reset_complete(
 	struct isci_host *ihost,
 	struct isci_remote_device *idev);
 

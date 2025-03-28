@@ -40,7 +40,9 @@
 #include "mgb4_trigger.h"
 #include "mgb4_core.h"
 
-#define MGB4_USER_IRQS 16
+#define MGB4_USER_IRQS  16
+#define MGB4_MGB4_BAR_ID 0
+#define MGB4_XDMA_BAR_ID 1
 
 #define DIGITEQ_VID 0x1ed8
 #define T100_DID    0x0101
@@ -123,7 +125,7 @@ static const struct hwmon_chip_info temp_chip_info = {
 };
 #endif
 
-static int match_i2c_adap(struct device *dev, void *data)
+static int match_i2c_adap(struct device *dev, const void *data)
 {
 	return i2c_verify_adapter(dev) ? 1 : 0;
 }
@@ -139,7 +141,7 @@ static struct i2c_adapter *get_i2c_adap(struct platform_device *pdev)
 	return dev ? to_i2c_adapter(dev) : NULL;
 }
 
-static int match_spi_adap(struct device *dev, void *data)
+static int match_spi_adap(struct device *dev, const void *data)
 {
 	return to_spi_device(dev) ? 1 : 0;
 }
@@ -404,8 +406,9 @@ static int get_module_version(struct mgb4_dev *mgbdev)
 		dev_err(dev, "unknown module type\n");
 		return -EINVAL;
 	}
-	fw_version = mgb4_read_reg(&mgbdev->video, 0xC4);
-	if (fw_version >> 24 != mgbdev->module_version >> 4) {
+	fw_version = mgb4_read_reg(&mgbdev->video, 0xC4) >> 24;
+	if ((MGB4_IS_FPDL3(mgbdev) && fw_version != 1) ||
+	    (MGB4_IS_GMSL(mgbdev) && fw_version != 2)) {
 		dev_err(dev, "module/firmware type mismatch\n");
 		return -EINVAL;
 	}
@@ -597,14 +600,18 @@ static int mgb4_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	rv = get_module_version(mgbdev);
 	if (rv < 0)
 		goto exit;
+	/* Propagate the module type(version) to the FPGA */
+	mgb4_write_reg(&mgbdev->video, 0xD4, mgbdev->module_version);
 
 	/* Video input v4l2 devices */
 	for (i = 0; i < MGB4_VIN_DEVICES; i++)
 		mgbdev->vin[i] = mgb4_vin_create(mgbdev, i);
 
 	/* Video output v4l2 devices */
-	for (i = 0; i < MGB4_VOUT_DEVICES; i++)
-		mgbdev->vout[i] = mgb4_vout_create(mgbdev, i);
+	if (MGB4_HAS_VOUT(mgbdev)) {
+		for (i = 0; i < MGB4_VOUT_DEVICES; i++)
+			mgbdev->vout[i] = mgb4_vout_create(mgbdev, i);
+	}
 
 	/* Triggers */
 	mgbdev->indio_dev = mgb4_trigger_create(mgbdev);

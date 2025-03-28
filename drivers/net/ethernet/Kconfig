@@ -20,6 +20,7 @@ source "drivers/net/ethernet/actions/Kconfig"
 source "drivers/net/ethernet/adaptec/Kconfig"
 source "drivers/net/ethernet/aeroflex/Kconfig"
 source "drivers/net/ethernet/agere/Kconfig"
+source "drivers/net/ethernet/airoha/Kconfig"
 source "drivers/net/ethernet/alacritech/Kconfig"
 source "drivers/net/ethernet/allwinner/Kconfig"
 source "drivers/net/ethernet/alteon/Kconfig"
@@ -159,7 +160,7 @@ config ETHOC
 	  Say Y here if you want to use the OpenCores 10/100 Mbps Ethernet MAC.
 
 config OA_TC6
-	tristate "OPEN Alliance TC6 10BASE-T1x MAC-PHY support"
+	tristate "OPEN Alliance TC6 10BASE-T1x MAC-PHY support" if COMPILE_TEST
 	depends on SPI
 	select PHYLIB
 	help

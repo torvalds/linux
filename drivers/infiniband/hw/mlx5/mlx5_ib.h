@@ -669,6 +669,12 @@ struct mlx5_ib_mkey {
 #define mlx5_update_odp_stats(mr, counter_name, value)		\
 	atomic64_add(value, &((mr)->odp_stats.counter_name))
 
+#define mlx5_update_odp_stats_with_handled(mr, counter_name, value)         \
+	do {                                                                \
+		mlx5_update_odp_stats(mr, counter_name, value);             \
+		atomic64_add(1, &((mr)->odp_stats.counter_name##_handled)); \
+	} while (0)
+
 struct mlx5_ib_mr {
 	struct ib_mr ibmr;
 	struct mlx5_ib_mkey mmkey;

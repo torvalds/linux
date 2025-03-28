@@ -473,13 +473,6 @@ static inline void sci_swab32_cpy(void *_dest, void *_src, ssize_t word_cnt)
 		dest[word_cnt] = swab32(src[word_cnt]);
 }
 
-extern unsigned char no_outbound_task_to;
-extern u16 ssp_max_occ_to;
-extern u16 stp_max_occ_to;
-extern u16 ssp_inactive_to;
-extern u16 stp_inactive_to;
-extern unsigned char phy_gen;
-extern unsigned char max_concurr_spinup;
 extern uint cable_selection_override;
 
 irqreturn_t isci_msix_isr(int vec, void *data);

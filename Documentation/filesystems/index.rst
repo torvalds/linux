@@ -98,6 +98,7 @@ Documentation for filesystem implementations.
    hpfs
    fuse
    fuse-io
+   fuse-io-uring
    inotify
    isofs
    nilfs2
@@ -117,7 +118,6 @@ Documentation for filesystem implementations.
    spufs/index
    squashfs
    sysfs
-   sysv-fs
    tmpfs
    ubifs
    ubifs-authentication

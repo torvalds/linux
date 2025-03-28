@@ -208,16 +208,34 @@ static int debugfs_show_options(struct seq_file *m, struct dentry *root)
 	return 0;
 }
 
+static struct kmem_cache *debugfs_inode_cachep __ro_after_init;
+
+static void init_once(void *foo)
+{
+	struct debugfs_inode_info *info = foo;
+	inode_init_once(&info->vfs_inode);
+}
+
+static struct inode *debugfs_alloc_inode(struct super_block *sb)
+{
+	struct debugfs_inode_info *info;
+	info = alloc_inode_sb(sb, debugfs_inode_cachep, GFP_KERNEL);
+	if (!info)
+		return NULL;
+	return &info->vfs_inode;
+}
+
 static void debugfs_free_inode(struct inode *inode)
 {
 	if (S_ISLNK(inode->i_mode))
 		kfree(inode->i_link);
-	free_inode_nonrcu(inode);
+	kmem_cache_free(debugfs_inode_cachep, DEBUGFS_I(inode));
 }
 
 static const struct super_operations debugfs_super_operations = {
 	.statfs		= simple_statfs,
 	.show_options	= debugfs_show_options,
+	.alloc_inode	= debugfs_alloc_inode,
 	.free_inode	= debugfs_free_inode,
 };
 
@@ -225,23 +243,18 @@ static void debugfs_release_dentry(struct dentry *dentry)
 {
 	struct debugfs_fsdata *fsd = dentry->d_fsdata;
 
-	if ((unsigned long)fsd & DEBUGFS_FSDATA_IS_REAL_FOPS_BIT)
-		return;
-
-	/* check it wasn't a dir (no fsdata) or automount (no real_fops) */
-	if (fsd && (fsd->real_fops || fsd->short_fops)) {
+	if (fsd) {
 		WARN_ON(!list_empty(&fsd->cancellations));
 		mutex_destroy(&fsd->cancellations_mtx);
 	}
-
 	kfree(fsd);
 }
 
 static struct vfsmount *debugfs_automount(struct path *path)
 {
-	struct debugfs_fsdata *fsd = path->dentry->d_fsdata;
+	struct inode *inode = path->dentry->d_inode;
 
-	return fsd->automount(path->dentry, d_inode(path->dentry)->i_private);
+	return DEBUGFS_I(inode)->automount(path->dentry, inode->i_private);
 }
 
 static const struct dentry_operations debugfs_dops = {
@@ -411,6 +424,7 @@ static struct dentry *end_creating(struct dentry *dentry)
 
 static struct dentry *__debugfs_create_file(const char *name, umode_t mode,
 				struct dentry *parent, void *data,
+				const void *aux,
 				const struct file_operations *proxy_fops,
 				const void *real_fops)
 {
@@ -441,9 +455,11 @@ static struct dentry *__debugfs_create_file(const char *name, umode_t mode,
 	inode->i_private = data;
 
 	inode->i_op = &debugfs_file_inode_operations;
+	if (!real_fops)
+		proxy_fops = &debugfs_noop_file_operations;
 	inode->i_fop = proxy_fops;
-	dentry->d_fsdata = (void *)((unsigned long)real_fops |
-				DEBUGFS_FSDATA_IS_REAL_FOPS_BIT);
+	DEBUGFS_I(inode)->raw = real_fops;
+	DEBUGFS_I(inode)->aux = aux;
 
 	d_instantiate(dentry, inode);
 	fsnotify_create(d_inode(dentry->d_parent), dentry);
@@ -452,30 +468,22 @@ static struct dentry *__debugfs_create_file(const char *name, umode_t mode,
 
 struct dentry *debugfs_create_file_full(const char *name, umode_t mode,
 					struct dentry *parent, void *data,
+					const void *aux,
 					const struct file_operations *fops)
 {
-	if (WARN_ON((unsigned long)fops &
-		    DEBUGFS_FSDATA_IS_REAL_FOPS_BIT))
-		return ERR_PTR(-EINVAL);
-
-	return __debugfs_create_file(name, mode, parent, data,
-				fops ? &debugfs_full_proxy_file_operations :
-					&debugfs_noop_file_operations,
+	return __debugfs_create_file(name, mode, parent, data, aux,
+				&debugfs_full_proxy_file_operations,
 				fops);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_file_full);
 
 struct dentry *debugfs_create_file_short(const char *name, umode_t mode,
-					 struct dentry *parent, void *data,
-					 const struct debugfs_short_fops *fops)
+					struct dentry *parent, void *data,
+					const void *aux,
+					const struct debugfs_short_fops *fops)
 {
-	if (WARN_ON((unsigned long)fops &
-		    DEBUGFS_FSDATA_IS_REAL_FOPS_BIT))
-		return ERR_PTR(-EINVAL);
-
-	return __debugfs_create_file(name, mode, parent, data,
-				fops ? &debugfs_full_short_proxy_file_operations :
-					&debugfs_noop_file_operations,
+	return __debugfs_create_file(name, mode, parent, data, aux,
+				&debugfs_full_short_proxy_file_operations,
 				fops);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_file_short);
@@ -512,9 +520,8 @@ struct dentry *debugfs_create_file_unsafe(const char *name, umode_t mode,
 				   const struct file_operations *fops)
 {
 
-	return __debugfs_create_file(name, mode, parent, data,
-				fops ? &debugfs_open_proxy_file_operations :
-					&debugfs_noop_file_operations,
+	return __debugfs_create_file(name, mode, parent, data, NULL,
+				&debugfs_open_proxy_file_operations,
 				fops);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_file_unsafe);
@@ -624,23 +631,13 @@ struct dentry *debugfs_create_automount(const char *name,
 					void *data)
 {
 	struct dentry *dentry = start_creating(name, parent);
-	struct debugfs_fsdata *fsd;
 	struct inode *inode;
 
 	if (IS_ERR(dentry))
 		return dentry;
 
-	fsd = kzalloc(sizeof(*fsd), GFP_KERNEL);
-	if (!fsd) {
-		failed_creating(dentry);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	fsd->automount = f;
-
 	if (!(debugfs_allow & DEBUGFS_ALLOW_API)) {
 		failed_creating(dentry);
-		kfree(fsd);
 		return ERR_PTR(-EPERM);
 	}
 
@@ -648,14 +645,13 @@ struct dentry *debugfs_create_automount(const char *name,
 	if (unlikely(!inode)) {
 		pr_err("out of free dentries, can not create automount '%s'\n",
 		       name);
-		kfree(fsd);
 		return failed_creating(dentry);
 	}
 
 	make_empty_dir_inode(inode);
 	inode->i_flags |= S_AUTOMOUNT;
 	inode->i_private = data;
-	dentry->d_fsdata = fsd;
+	DEBUGFS_I(inode)->automount = f;
 	/* directory inodes start off with i_nlink == 2 (for "." entry) */
 	inc_nlink(inode);
 	d_instantiate(dentry, inode);
@@ -730,7 +726,7 @@ static void __debugfs_file_removed(struct dentry *dentry)
 	 */
 	smp_mb();
 	fsd = READ_ONCE(dentry->d_fsdata);
-	if ((unsigned long)fsd & DEBUGFS_FSDATA_IS_REAL_FOPS_BIT)
+	if (!fsd)
 		return;
 
 	/* if this was the last reference, we're done */
@@ -834,76 +830,70 @@ void debugfs_lookup_and_remove(const char *name, struct dentry *parent)
 EXPORT_SYMBOL_GPL(debugfs_lookup_and_remove);
 
 /**
- * debugfs_rename - rename a file/directory in the debugfs filesystem
- * @old_dir: a pointer to the parent dentry for the renamed object. This
- *          should be a directory dentry.
- * @old_dentry: dentry of an object to be renamed.
- * @new_dir: a pointer to the parent dentry where the object should be
- *          moved. This should be a directory dentry.
- * @new_name: a pointer to a string containing the target name.
+ * debugfs_change_name - rename a file/directory in the debugfs filesystem
+ * @dentry: dentry of an object to be renamed.
+ * @fmt: format for new name
  *
  * This function renames a file/directory in debugfs.  The target must not
  * exist for rename to succeed.
  *
- * This function will return a pointer to old_dentry (which is updated to
- * reflect renaming) if it succeeds. If an error occurs, ERR_PTR(-ERROR)
- * will be returned.
+ * This function will return 0 on success and -E... on failure.
  *
  * If debugfs is not enabled in the kernel, the value -%ENODEV will be
  * returned.
  */
-struct dentry *debugfs_rename(struct dentry *old_dir, struct dentry *old_dentry,
-		struct dentry *new_dir, const char *new_name)
+int __printf(2, 3) debugfs_change_name(struct dentry *dentry, const char *fmt, ...)
 {
-	int error;
-	struct dentry *dentry = NULL, *trap;
+	int error = 0;
+	const char *new_name;
 	struct name_snapshot old_name;
+	struct dentry *parent, *target;
+	struct inode *dir;
+	va_list ap;
 
-	if (IS_ERR(old_dir))
-		return old_dir;
-	if (IS_ERR(new_dir))
-		return new_dir;
-	if (IS_ERR_OR_NULL(old_dentry))
-		return old_dentry;
+	if (IS_ERR_OR_NULL(dentry))
+		return 0;
 
-	trap = lock_rename(new_dir, old_dir);
-	/* Source or destination directories don't exist? */
-	if (d_really_is_negative(old_dir) || d_really_is_negative(new_dir))
-		goto exit;
-	/* Source does not exist, cyclic rename, or mountpoint? */
-	if (d_really_is_negative(old_dentry) || old_dentry == trap ||
-	    d_mountpoint(old_dentry))
-		goto exit;
-	dentry = lookup_one_len(new_name, new_dir, strlen(new_name));
-	/* Lookup failed, cyclic rename or target exists? */
-	if (IS_ERR(dentry) || dentry == trap || d_really_is_positive(dentry))
-		goto exit;
+	va_start(ap, fmt);
+	new_name = kvasprintf_const(GFP_KERNEL, fmt, ap);
+	va_end(ap);
+	if (!new_name)
+		return -ENOMEM;
 
-	take_dentry_name_snapshot(&old_name, old_dentry);
+	parent = dget_parent(dentry);
+	dir = d_inode(parent);
+	inode_lock(dir);
 
-	error = simple_rename(&nop_mnt_idmap, d_inode(old_dir), old_dentry,
-			      d_inode(new_dir), dentry, 0);
-	if (error) {
-		release_dentry_name_snapshot(&old_name);
-		goto exit;
+	take_dentry_name_snapshot(&old_name, dentry);
+
+	if (WARN_ON_ONCE(dentry->d_parent != parent)) {
+		error = -EINVAL;
+		goto out;
 	}
-	d_move(old_dentry, dentry);
-	fsnotify_move(d_inode(old_dir), d_inode(new_dir), &old_name.name,
-		d_is_dir(old_dentry),
-		NULL, old_dentry);
+	if (strcmp(old_name.name.name, new_name) == 0)
+		goto out;
+	target = lookup_one_len(new_name, parent, strlen(new_name));
+	if (IS_ERR(target)) {
+		error = PTR_ERR(target);
+		goto out;
+	}
+	if (d_really_is_positive(target)) {
+		dput(target);
+		error = -EINVAL;
+		goto out;
+	}
+	simple_rename_timestamp(dir, dentry, dir, target);
+	d_move(dentry, target);
+	dput(target);
+	fsnotify_move(dir, dir, &old_name.name, d_is_dir(dentry), NULL, dentry);
+out:
 	release_dentry_name_snapshot(&old_name);
-	unlock_rename(new_dir, old_dir);
-	dput(dentry);
-	return old_dentry;
-exit:
-	if (dentry && !IS_ERR(dentry))
-		dput(dentry);
-	unlock_rename(new_dir, old_dir);
-	if (IS_ERR(dentry))
-		return dentry;
-	return ERR_PTR(-EINVAL);
+	inode_unlock(dir);
+	dput(parent);
+	kfree_const(new_name);
+	return error;
 }
-EXPORT_SYMBOL_GPL(debugfs_rename);
+EXPORT_SYMBOL_GPL(debugfs_change_name);
 
 /**
  * debugfs_initialized - Tells whether debugfs has been registered
@@ -939,12 +929,22 @@ static int __init debugfs_init(void)
 	if (retval)
 		return retval;
 
-	retval = register_filesystem(&debug_fs_type);
-	if (retval)
+	debugfs_inode_cachep = kmem_cache_create("debugfs_inode_cache",
+				sizeof(struct debugfs_inode_info), 0,
+				SLAB_RECLAIM_ACCOUNT | SLAB_ACCOUNT,
+				init_once);
+	if (debugfs_inode_cachep == NULL) {
 		sysfs_remove_mount_point(kernel_kobj, "debug");
-	else
-		debugfs_registered = true;
+		return -ENOMEM;
+	}
 
-	return retval;
+	retval = register_filesystem(&debug_fs_type);
+	if (retval) { // Really not going to happen
+		sysfs_remove_mount_point(kernel_kobj, "debug");
+		kmem_cache_destroy(debugfs_inode_cachep);
+		return retval;
+	}
+	debugfs_registered = true;
+	return 0;
 }
 core_initcall(debugfs_init);

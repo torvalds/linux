@@ -40,7 +40,7 @@
 #define AMDGPU_MES_VERSION_MASK		0x00000fff
 #define AMDGPU_MES_API_VERSION_MASK	0x00fff000
 #define AMDGPU_MES_FEAT_VERSION_MASK	0xff000000
-#define AMDGPU_MES_MSCRATCH_SIZE	0x8000
+#define AMDGPU_MES_MSCRATCH_SIZE	0x40000
 
 enum amdgpu_mes_priority_level {
 	AMDGPU_MES_PRIORITY_LEVEL_LOW       = 0,
@@ -534,6 +534,6 @@ static inline void amdgpu_mes_unlock(struct amdgpu_mes *mes)
 
 bool amdgpu_mes_suspend_resume_all_supported(struct amdgpu_device *adev);
 
-int amdgpu_mes_set_enforce_isolation(struct amdgpu_device *adev, uint32_t node_id, bool enable);
+int amdgpu_mes_update_enforce_isolation(struct amdgpu_device *adev);
 
 #endif /* __AMDGPU_MES_H__ */

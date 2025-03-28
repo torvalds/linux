@@ -261,7 +261,7 @@ static int kone_get_firmware_version(struct usb_device *usb_dev, int *result)
 }
 
 static ssize_t kone_sysfs_read_settings(struct file *fp, struct kobject *kobj,
-		struct bin_attribute *attr, char *buf,
+		const struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	struct device *dev = kobj_to_dev(kobj)->parent->parent;
 	struct kone_device *kone = hid_get_drvdata(dev_get_drvdata(dev));
@@ -285,7 +285,7 @@ static ssize_t kone_sysfs_read_settings(struct file *fp, struct kobject *kobj,
  * case of error the old data is still valid
  */
 static ssize_t kone_sysfs_write_settings(struct file *fp, struct kobject *kobj,
-		struct bin_attribute *attr, char *buf,
+		const struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	struct device *dev = kobj_to_dev(kobj)->parent->parent;
 	struct kone_device *kone = hid_get_drvdata(dev_get_drvdata(dev));
@@ -327,11 +327,11 @@ unlock:
 
 	return sizeof(struct kone_settings);
 }
-static BIN_ATTR(settings, 0660, kone_sysfs_read_settings,
-		kone_sysfs_write_settings, sizeof(struct kone_settings));
+static const BIN_ATTR(settings, 0660, kone_sysfs_read_settings,
+		      kone_sysfs_write_settings, sizeof(struct kone_settings));
 
 static ssize_t kone_sysfs_read_profilex(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr,
+		struct kobject *kobj, const struct bin_attribute *attr,
 		char *buf, loff_t off, size_t count) {
 	struct device *dev = kobj_to_dev(kobj)->parent->parent;
 	struct kone_device *kone = hid_get_drvdata(dev_get_drvdata(dev));
@@ -351,7 +351,7 @@ static ssize_t kone_sysfs_read_profilex(struct file *fp,
 
 /* Writes data only if different to stored data */
 static ssize_t kone_sysfs_write_profilex(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr,
+		struct kobject *kobj, const struct bin_attribute *attr,
 		char *buf, loff_t off, size_t count) {
 	struct device *dev = kobj_to_dev(kobj)->parent->parent;
 	struct kone_device *kone = hid_get_drvdata(dev_get_drvdata(dev));
@@ -382,11 +382,11 @@ static ssize_t kone_sysfs_write_profilex(struct file *fp,
 	return sizeof(struct kone_profile);
 }
 #define PROFILE_ATTR(number)					\
-static struct bin_attribute bin_attr_profile##number = {	\
+static const struct bin_attribute bin_attr_profile##number = {	\
 	.attr = { .name = "profile" #number, .mode = 0660 },	\
 	.size = sizeof(struct kone_profile),			\
-	.read = kone_sysfs_read_profilex,			\
-	.write = kone_sysfs_write_profilex,			\
+	.read_new = kone_sysfs_read_profilex,			\
+	.write_new = kone_sysfs_write_profilex,			\
 	.private = &profile_numbers[number-1],			\
 }
 PROFILE_ATTR(1);
@@ -634,7 +634,7 @@ static struct attribute *kone_attrs[] = {
 	NULL,
 };
 
-static struct bin_attribute *kone_bin_attributes[] = {
+static const struct bin_attribute *const kone_bin_attributes[] = {
 	&bin_attr_settings,
 	&bin_attr_profile1,
 	&bin_attr_profile2,
@@ -646,7 +646,7 @@ static struct bin_attribute *kone_bin_attributes[] = {
 
 static const struct attribute_group kone_group = {
 	.attrs = kone_attrs,
-	.bin_attrs = kone_bin_attributes,
+	.bin_attrs_new = kone_bin_attributes,
 };
 
 static const struct attribute_group *kone_groups[] = {

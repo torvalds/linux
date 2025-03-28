@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2005-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  */
 #ifndef __IWL_CONFIG_H__
 #define __IWL_CONFIG_H__
@@ -38,6 +38,7 @@ enum iwl_device_family {
 	IWL_DEVICE_FAMILY_AX210,
 	IWL_DEVICE_FAMILY_BZ,
 	IWL_DEVICE_FAMILY_SC,
+	IWL_DEVICE_FAMILY_DR,
 };
 
 /*
@@ -101,6 +102,10 @@ enum iwl_nvm_type {
 #define ANT_BC		(ANT_B | ANT_C)
 #define ANT_ABC		(ANT_A | ANT_B | ANT_C)
 
+
+#define IWL_FW_AND_PNVM(pfx, api)				\
+	MODULE_FIRMWARE(pfx "-" __stringify(api) ".ucode");	\
+	MODULE_FIRMWARE(pfx ".pnvm")
 
 static inline u8 num_of_ant(u8 mask)
 {
@@ -424,6 +429,8 @@ struct iwl_cfg {
 #define IWL_CFG_MAC_TYPE_SC2		0x49
 #define IWL_CFG_MAC_TYPE_SC2F		0x4A
 #define IWL_CFG_MAC_TYPE_BZ_W		0x4B
+#define IWL_CFG_MAC_TYPE_BR		0x4C
+#define IWL_CFG_MAC_TYPE_DR		0x4D
 
 #define IWL_CFG_RF_TYPE_TH		0x105
 #define IWL_CFG_RF_TYPE_TH1		0x108
@@ -434,6 +441,7 @@ struct iwl_cfg {
 #define IWL_CFG_RF_TYPE_GF		0x10D
 #define IWL_CFG_RF_TYPE_FM		0x112
 #define IWL_CFG_RF_TYPE_WH		0x113
+#define IWL_CFG_RF_TYPE_PE		0x114
 
 #define IWL_CFG_RF_ID_TH		0x1
 #define IWL_CFG_RF_ID_TH1		0x1
@@ -443,11 +451,8 @@ struct iwl_cfg {
 #define IWL_CFG_RF_ID_HR		0x7
 #define IWL_CFG_RF_ID_HR1		0x4
 
-#define IWL_CFG_NO_160			0x1
-#define IWL_CFG_160			0x0
-
-#define IWL_CFG_NO_320			0x1
-#define IWL_CFG_320			0x0
+#define IWL_CFG_BW_NO_LIM		(U16_MAX - 1)
+#define IWL_CFG_BW_ANY			U16_MAX
 
 #define IWL_CFG_CORES_BT		0x0
 #define IWL_CFG_CORES_BT_GNSS		0x5
@@ -459,7 +464,7 @@ struct iwl_cfg {
 #define IWL_CFG_IS_JACKET		0x1
 
 #define IWL_SUBDEVICE_RF_ID(subdevice)	((u16)((subdevice) & 0x00F0) >> 4)
-#define IWL_SUBDEVICE_NO_160(subdevice)	((u16)((subdevice) & 0x0200) >> 9)
+#define IWL_SUBDEVICE_BW_LIM(subdevice)	((u16)((subdevice) & 0x0200) >> 9)
 #define IWL_SUBDEVICE_CORES(subdevice)	((u16)((subdevice) & 0x1C00) >> 10)
 
 struct iwl_dev_info {
@@ -467,10 +472,10 @@ struct iwl_dev_info {
 	u16 subdevice;
 	u16 mac_type;
 	u16 rf_type;
+	u16 bw_limit;
 	u8 mac_step;
 	u8 rf_step;
 	u8 rf_id;
-	u8 no_160;
 	u8 cores;
 	u8 cdb;
 	u8 jacket;
@@ -484,7 +489,7 @@ extern const unsigned int iwl_dev_info_table_size;
 const struct iwl_dev_info *
 iwl_pci_find_dev_info(u16 device, u16 subsystem_device,
 		      u16 mac_type, u8 mac_step, u16 rf_type, u8 cdb,
-		      u8 jacket, u8 rf_id, u8 no_160, u8 cores, u8 rf_step);
+		      u8 jacket, u8 rf_id, u8 bw_limit, u8 cores, u8 rf_step);
 extern const struct pci_device_id iwl_hw_card_ids[];
 #endif
 
@@ -506,6 +511,8 @@ extern const struct iwl_cfg_trans_params iwl_ma_trans_cfg;
 extern const struct iwl_cfg_trans_params iwl_bz_trans_cfg;
 extern const struct iwl_cfg_trans_params iwl_gl_trans_cfg;
 extern const struct iwl_cfg_trans_params iwl_sc_trans_cfg;
+extern const struct iwl_cfg_trans_params iwl_dr_trans_cfg;
+extern const struct iwl_cfg_trans_params iwl_br_trans_cfg;
 extern const char iwl9162_name[];
 extern const char iwl9260_name[];
 extern const char iwl9260_1_name[];
@@ -524,7 +531,6 @@ extern const char iwl9560_killer_1550i_name[];
 extern const char iwl9560_killer_1550s_name[];
 extern const char iwl_ax200_name[];
 extern const char iwl_ax203_name[];
-extern const char iwl_ax204_name[];
 extern const char iwl_ax201_name[];
 extern const char iwl_ax101_name[];
 extern const char iwl_ax200_killer_1650w_name[];
@@ -540,17 +546,15 @@ extern const char iwl_ax211_killer_1675i_name[];
 extern const char iwl_ax411_killer_1690s_name[];
 extern const char iwl_ax411_killer_1690i_name[];
 extern const char iwl_ax211_name[];
-extern const char iwl_ax221_name[];
 extern const char iwl_ax231_name[];
 extern const char iwl_ax411_name[];
-extern const char iwl_bz_name[];
 extern const char iwl_fm_name[];
 extern const char iwl_wh_name[];
+extern const char iwl_sp_name[];
 extern const char iwl_gl_name[];
 extern const char iwl_mtp_name[];
-extern const char iwl_sc_name[];
-extern const char iwl_sc2_name[];
-extern const char iwl_sc2f_name[];
+extern const char iwl_dr_name[];
+extern const char iwl_br_name[];
 #if IS_ENABLED(CONFIG_IWLDVM)
 extern const struct iwl_cfg iwl5300_agn_cfg;
 extern const struct iwl_cfg iwl5100_agn_cfg;
@@ -649,8 +653,13 @@ extern const struct iwl_cfg iwlax411_2ax_cfg_so_gf4_a0_long;
 extern const struct iwl_cfg iwl_cfg_ma;
 
 extern const struct iwl_cfg iwl_cfg_so_a0_hr_a0;
-extern const struct iwl_cfg iwl_cfg_so_a0_ms_a0;
 extern const struct iwl_cfg iwl_cfg_quz_a0_hr_b0;
+#endif /* CONFIG_IWLMVM */
+
+#if IS_ENABLED(CONFIG_IWLMLD)
+extern const struct iwl_ht_params iwl_bz_ht_params;
+
+extern const struct iwl_ht_params iwl_bz_ht_params;
 
 extern const struct iwl_cfg iwl_cfg_bz;
 extern const struct iwl_cfg iwl_cfg_gl;
@@ -658,6 +667,8 @@ extern const struct iwl_cfg iwl_cfg_gl;
 extern const struct iwl_cfg iwl_cfg_sc;
 extern const struct iwl_cfg iwl_cfg_sc2;
 extern const struct iwl_cfg iwl_cfg_sc2f;
-#endif /* CONFIG_IWLMVM */
+extern const struct iwl_cfg iwl_cfg_dr;
+extern const struct iwl_cfg iwl_cfg_br;
+#endif /* CONFIG_IWLMLD */
 
 #endif /* __IWL_CONFIG_H__ */

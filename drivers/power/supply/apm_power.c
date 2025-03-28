@@ -42,11 +42,11 @@ struct find_bat_param {
 	int max_energy;
 };
 
-static int __find_main_battery(struct device *dev, void *data)
+static int __find_main_battery(struct power_supply *psy, void *data)
 {
 	struct find_bat_param *bp = (struct find_bat_param *)data;
 
-	bp->bat = dev_get_drvdata(dev);
+	bp->bat = psy;
 
 	if (bp->bat->desc->use_for_apm) {
 		/* nice, we explicitly asked to report this battery. */
@@ -79,7 +79,7 @@ static void find_main_battery(void)
 	main_battery = NULL;
 	bp.main = main_battery;
 
-	error = power_supply_for_each_device(&bp, __find_main_battery);
+	error = power_supply_for_each_psy(&bp, __find_main_battery);
 	if (error) {
 		main_battery = bp.main;
 		return;

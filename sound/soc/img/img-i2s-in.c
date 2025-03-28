@@ -539,7 +539,6 @@ static void img_i2s_in_dev_remove(struct platform_device *pdev)
 		img_i2s_in_runtime_suspend(&pdev->dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int img_i2s_in_suspend(struct device *dev)
 {
 	struct img_i2s_in *i2s = dev_get_drvdata(dev);
@@ -586,7 +585,6 @@ static int img_i2s_in_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct of_device_id img_i2s_in_of_match[] = {
 	{ .compatible = "img,i2s-in" },
@@ -595,16 +593,15 @@ static const struct of_device_id img_i2s_in_of_match[] = {
 MODULE_DEVICE_TABLE(of, img_i2s_in_of_match);
 
 static const struct dev_pm_ops img_i2s_in_pm_ops = {
-	SET_RUNTIME_PM_OPS(img_i2s_in_runtime_suspend,
-			   img_i2s_in_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(img_i2s_in_suspend, img_i2s_in_resume)
+	RUNTIME_PM_OPS(img_i2s_in_runtime_suspend, img_i2s_in_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(img_i2s_in_suspend, img_i2s_in_resume)
 };
 
 static struct platform_driver img_i2s_in_driver = {
 	.driver = {
 		.name = "img-i2s-in",
 		.of_match_table = img_i2s_in_of_match,
-		.pm = &img_i2s_in_pm_ops
+		.pm = pm_ptr(&img_i2s_in_pm_ops)
 	},
 	.probe = img_i2s_in_probe,
 	.remove = img_i2s_in_dev_remove

@@ -173,7 +173,6 @@ struct il3945_ibss_seq {
  * for use by iwl-*.c
  *
  *****************************************************************************/
-int il3945_calc_db_from_ratio(int sig_ratio);
 void il3945_rx_replenish(void *data);
 void il3945_rx_queue_reset(struct il_priv *il, struct il_rx_queue *rxq);
 unsigned int il3945_fill_beacon_frame(struct il_priv *il,

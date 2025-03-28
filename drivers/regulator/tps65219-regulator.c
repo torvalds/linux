@@ -287,21 +287,6 @@ static irqreturn_t tps65219_regulator_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int tps65219_get_rdev_by_name(const char *regulator_name,
-				     struct regulator_dev *rdevtbl[7],
-				     struct regulator_dev **dev)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(regulators); i++) {
-		if (strcmp(regulator_name, regulators[i].name) == 0) {
-			*dev = rdevtbl[i];
-			return 0;
-		}
-	}
-	return -EINVAL;
-}
-
 static int tps65219_regulator_probe(struct platform_device *pdev)
 {
 	struct tps65219 *tps = dev_get_drvdata(pdev->dev.parent);
@@ -312,23 +297,18 @@ static int tps65219_regulator_probe(struct platform_device *pdev)
 	int irq;
 	struct tps65219_regulator_irq_data *irq_data;
 	struct tps65219_regulator_irq_type *irq_type;
-	struct regulator_dev *rdevtbl[7];
 
 	config.dev = tps->dev;
 	config.driver_data = tps;
 	config.regmap = tps->regmap;
 
 	for (i = 0; i < ARRAY_SIZE(regulators); i++) {
-		dev_dbg(tps->dev, "%s regul i= %d START", __func__, i);
 		rdev = devm_regulator_register(&pdev->dev, &regulators[i],
 					       &config);
-		if (IS_ERR(rdev)) {
-			dev_err(tps->dev, "failed to register %s regulator\n",
-				regulators[i].name);
-			return PTR_ERR(rdev);
-		}
-		rdevtbl[i] = rdev;
-		dev_dbg(tps->dev, "%s regul i= %d COMPLETED", __func__, i);
+		if (IS_ERR(rdev))
+			return dev_err_probe(tps->dev, PTR_ERR(rdev),
+					"Failed to register %s regulator\n",
+					regulators[i].name);
 	}
 
 	irq_data = devm_kmalloc(tps->dev,
@@ -347,14 +327,6 @@ static int tps65219_regulator_probe(struct platform_device *pdev)
 
 		irq_data[i].dev = tps->dev;
 		irq_data[i].type = irq_type;
-
-		tps65219_get_rdev_by_name(irq_type->regulator_name, rdevtbl, &rdev);
-		if (IS_ERR(rdev)) {
-			dev_err(tps->dev, "Failed to get rdev for %s\n",
-				irq_type->regulator_name);
-			return -EINVAL;
-		}
-		irq_data[i].rdev = rdev;
 
 		error = devm_request_threaded_irq(tps->dev, irq, NULL,
 						  tps65219_regulator_irq_handler,
@@ -379,7 +351,7 @@ MODULE_DEVICE_TABLE(platform, tps65219_regulator_id_table);
 
 static struct platform_driver tps65219_regulator_driver = {
 	.driver = {
-		.name = "tps65219-pmic",
+		.name = "tps65219-regulator",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = tps65219_regulator_probe,
@@ -390,5 +362,4 @@ module_platform_driver(tps65219_regulator_driver);
 
 MODULE_AUTHOR("Jerome Neanne <j-neanne@baylibre.com>");
 MODULE_DESCRIPTION("TPS65219 voltage regulator driver");
-MODULE_ALIAS("platform:tps65219-pmic");
 MODULE_LICENSE("GPL");

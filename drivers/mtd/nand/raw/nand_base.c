@@ -1833,7 +1833,7 @@ int nand_readid_op(struct nand_chip *chip, u8 addr, void *buf,
 
 		/* READ_ID data bytes are received twice in NV-DDR mode */
 		if (len && nand_interface_is_nvddr(conf)) {
-			ddrbuf = kzalloc(len * 2, GFP_KERNEL);
+			ddrbuf = kcalloc(2, len, GFP_KERNEL);
 			if (!ddrbuf)
 				return -ENOMEM;
 
@@ -2203,7 +2203,7 @@ int nand_read_data_op(struct nand_chip *chip, void *buf, unsigned int len,
 		 * twice.
 		 */
 		if (force_8bit && nand_interface_is_nvddr(conf)) {
-			ddrbuf = kzalloc(len * 2, GFP_KERNEL);
+			ddrbuf = kcalloc(2, len, GFP_KERNEL);
 			if (!ddrbuf)
 				return -ENOMEM;
 

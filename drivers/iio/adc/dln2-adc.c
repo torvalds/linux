@@ -66,8 +66,6 @@ struct dln2_adc {
 	/* Demux table */
 	unsigned int demux_count;
 	struct dln2_adc_demux_table demux[DLN2_ADC_MAX_CHANNELS];
-	/* Precomputed timestamp padding offset and length */
-	unsigned int ts_pad_offset, ts_pad_length;
 };
 
 struct dln2_adc_port_chan {
@@ -111,8 +109,6 @@ static void dln2_adc_update_demux(struct dln2_adc *dln2)
 	if (iio_get_masklength(indio_dev) &&
 	    (*indio_dev->active_scan_mask & 0xff) == 0xff) {
 		dln2_adc_add_demux(dln2, 0, 0, 16);
-		dln2->ts_pad_offset = 0;
-		dln2->ts_pad_length = 0;
 		return;
 	}
 
@@ -126,16 +122,6 @@ static void dln2_adc_update_demux(struct dln2_adc *dln2)
 		dln2_adc_add_demux(dln2, in_loc, out_loc, 2);
 		out_loc += 2;
 		in_loc += 2;
-	}
-
-	if (indio_dev->scan_timestamp) {
-		size_t ts_offset = indio_dev->scan_bytes / sizeof(int64_t) - 1;
-
-		dln2->ts_pad_offset = out_loc;
-		dln2->ts_pad_length = ts_offset * sizeof(int64_t) - out_loc;
-	} else {
-		dln2->ts_pad_offset = 0;
-		dln2->ts_pad_length = 0;
 	}
 }
 
@@ -494,17 +480,14 @@ static irqreturn_t dln2_adc_trigger_h(int irq, void *p)
 	if (ret < 0)
 		goto done;
 
+	memset(&data, 0, sizeof(data));
+
 	/* Demux operation */
 	for (i = 0; i < dln2->demux_count; ++i) {
 		t = &dln2->demux[i];
 		memcpy((void *)data.values + t->to,
 		       (void *)dev_data.values + t->from, t->length);
 	}
-
-	/* Zero padding space between values and timestamp */
-	if (dln2->ts_pad_length)
-		memset((void *)data.values + dln2->ts_pad_offset,
-		       0, dln2->ts_pad_length);
 
 	iio_push_to_buffers_with_timestamp(indio_dev, &data,
 					   iio_get_time_ns(indio_dev));

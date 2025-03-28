@@ -2,12 +2,15 @@
 # SPDX-License-Identifier: GPL-2.0
 
 import errno
+import subprocess
+import time
 from lib.py import ksft_run, ksft_exit, ksft_pr
-from lib.py import ksft_ge, ksft_eq, ksft_in, ksft_true, ksft_raises, KsftSkipEx, KsftXfailEx
+from lib.py import ksft_ge, ksft_eq, ksft_is, ksft_in, ksft_lt, ksft_true, ksft_raises
+from lib.py import KsftSkipEx, KsftXfailEx
 from lib.py import ksft_disruptive
 from lib.py import EthtoolFamily, NetdevFamily, RtnlFamily, NlError
 from lib.py import NetDrvEnv
-from lib.py import ip, defer
+from lib.py import cmd, ip, defer
 
 ethnl = EthtoolFamily()
 netfam = NetdevFamily()
@@ -174,10 +177,95 @@ def check_down(cfg) -> None:
     netfam.qstats_get({"ifindex": cfg.ifindex, "scope": "queue"}, dump=True)
 
 
+def __run_inf_loop(body):
+    body = body.strip()
+    if body[-1] != ';':
+        body += ';'
+
+    return subprocess.Popen(f"while true; do {body} done", shell=True,
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
+def __stats_increase_sanely(old, new) -> None:
+    for k in old.keys():
+        ksft_ge(new[k], old[k])
+        ksft_lt(new[k] - old[k], 1 << 31, comment="likely wrapping error")
+
+
+def procfs_hammer(cfg) -> None:
+    """
+    Reading stats via procfs only holds the RCU lock, which is not an exclusive
+    lock, make sure drivers can handle parallel reads of stats.
+    """
+    one = __run_inf_loop("cat /proc/net/dev")
+    defer(one.kill)
+    two = __run_inf_loop("cat /proc/net/dev")
+    defer(two.kill)
+
+    time.sleep(1)
+    # Make sure the processes are running
+    ksft_is(one.poll(), None)
+    ksft_is(two.poll(), None)
+
+    rtstat1 = rtnl.getlink({"ifi-index": cfg.ifindex})['stats64']
+    time.sleep(2)
+    rtstat2 = rtnl.getlink({"ifi-index": cfg.ifindex})['stats64']
+    __stats_increase_sanely(rtstat1, rtstat2)
+    # defers will kill the loops
+
+
+@ksft_disruptive
+def procfs_downup_hammer(cfg) -> None:
+    """
+    Reading stats via procfs only holds the RCU lock, drivers often try
+    to sleep when reading the stats, or don't protect against races.
+    """
+    # Max out the queues, we'll flip between max and 1
+    channels = ethnl.channels_get({'header': {'dev-index': cfg.ifindex}})
+    if channels['combined-count'] == 0:
+        rx_type = 'rx'
+    else:
+        rx_type = 'combined'
+    cur_queue_cnt = channels[f'{rx_type}-count']
+    max_queue_cnt = channels[f'{rx_type}-max']
+
+    cmd(f"ethtool -L {cfg.ifname} {rx_type} {max_queue_cnt}")
+    defer(cmd, f"ethtool -L {cfg.ifname} {rx_type} {cur_queue_cnt}")
+
+    # Real test stats
+    stats = __run_inf_loop("cat /proc/net/dev")
+    defer(stats.kill)
+
+    ipset = f"ip link set dev {cfg.ifname}"
+    defer(ip, f"link set dev {cfg.ifname} up")
+    # The "echo -n 1" lets us count iterations below
+    updown = f"{ipset} down; sleep 0.05; {ipset} up; sleep 0.05; " + \
+             f"ethtool -L {cfg.ifname} {rx_type} 1; " + \
+             f"ethtool -L {cfg.ifname} {rx_type} {max_queue_cnt}; " + \
+              "echo -n 1"
+    updown = __run_inf_loop(updown)
+    kill_updown = defer(updown.kill)
+
+    time.sleep(1)
+    # Make sure the processes are running
+    ksft_is(stats.poll(), None)
+    ksft_is(updown.poll(), None)
+
+    rtstat1 = rtnl.getlink({"ifi-index": cfg.ifindex})['stats64']
+    # We're looking for crashes, give it extra time
+    time.sleep(9)
+    rtstat2 = rtnl.getlink({"ifi-index": cfg.ifindex})['stats64']
+    __stats_increase_sanely(rtstat1, rtstat2)
+
+    kill_updown.exec()
+    stdout, _ = updown.communicate(timeout=5)
+    ksft_pr("completed up/down cycles:", len(stdout.decode('utf-8')))
+
+
 def main() -> None:
     with NetDrvEnv(__file__, queue_count=100) as cfg:
         ksft_run([check_pause, check_fec, pkt_byte_sum, qstat_by_ifindex,
-                  check_down],
+                  check_down, procfs_hammer, procfs_downup_hammer],
                  args=(cfg, ))
     ksft_exit()
 

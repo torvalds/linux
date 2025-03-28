@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # description: event trigger - test inter-event histogram trigger expected fail actions
 # requires: set_event snapshot "snapshot()":README
+# flags: instance
 
 fail() { #msg
     echo $1

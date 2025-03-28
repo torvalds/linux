@@ -136,11 +136,7 @@ void * __init prom_early_alloc(unsigned long size)
 		 * fast enough on the platforms we care about while minimizing
 		 * wasted bootmem) and hand off chunks of it to callers.
 		 */
-		res = memblock_alloc(chunk_size, SMP_CACHE_BYTES);
-		if (!res)
-			panic("%s: Failed to allocate %zu bytes\n", __func__,
-			      chunk_size);
-		BUG_ON(!res);
+		res = memblock_alloc_or_panic(chunk_size, SMP_CACHE_BYTES);
 		prom_early_allocated += chunk_size;
 		memset(res, 0, chunk_size);
 		free_mem = chunk_size;
@@ -219,13 +215,12 @@ static u32 __init olpc_dt_get_board_revision(void)
 static int __init olpc_dt_compatible_match(phandle node, const char *compat)
 {
 	char buf[64], *p;
-	int plen, len;
+	int plen;
 
 	plen = olpc_dt_getproperty(node, "compatible", buf, sizeof(buf));
 	if (plen <= 0)
 		return 0;
 
-	len = strlen(compat);
 	for (p = buf; p < buf + plen; p += strlen(p) + 1) {
 		if (strcmp(p, compat) == 0)
 			return 1;

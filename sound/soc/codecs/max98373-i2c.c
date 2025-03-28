@@ -472,7 +472,6 @@ static struct snd_soc_dai_driver max98373_dai[] = {
 	}
 };
 
-#ifdef CONFIG_PM_SLEEP
 static int max98373_suspend(struct device *dev)
 {
 	struct max98373_priv *max98373 = dev_get_drvdata(dev);
@@ -496,10 +495,9 @@ static int max98373_resume(struct device *dev)
 	regcache_sync(max98373->regmap);
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops max98373_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(max98373_suspend, max98373_resume)
+	SYSTEM_SLEEP_PM_OPS(max98373_suspend, max98373_resume)
 };
 
 static const struct regmap_config max98373_regmap = {
@@ -605,7 +603,7 @@ static struct i2c_driver max98373_i2c_driver = {
 		.name = "max98373",
 		.of_match_table = of_match_ptr(max98373_of_match),
 		.acpi_match_table = ACPI_PTR(max98373_acpi_match),
-		.pm = &max98373_pm,
+		.pm = pm_ptr(&max98373_pm),
 	},
 	.probe = max98373_i2c_probe,
 	.id_table = max98373_i2c_id,

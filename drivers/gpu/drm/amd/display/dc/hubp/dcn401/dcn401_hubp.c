@@ -141,7 +141,7 @@ void hubp401_update_mall_sel(struct hubp *hubp, uint32_t mall_sel, bool c_cursor
 
 void hubp401_init(struct hubp *hubp)
 {
-	//For now nothing to do, HUBPREQ_DEBUG_DB register is removed on DCN4x.
+	hubp_reset(hubp);
 }
 
 void hubp401_vready_at_or_After_vsync(struct hubp *hubp,
@@ -742,11 +742,13 @@ void hubp401_cursor_set_position(
 			dc_fixpt_from_int(dst_x_offset),
 			param->h_scale_ratio));
 
-	if (cur_en && REG_READ(CURSOR_SURFACE_ADDRESS) == 0)
-		hubp->funcs->set_cursor_attributes(hubp, &hubp->curs_attr);
+	if (hubp->pos.cur_ctl.bits.cur_enable != cur_en) {
+		if (cur_en && REG_READ(CURSOR_SURFACE_ADDRESS) == 0)
+			hubp->funcs->set_cursor_attributes(hubp, &hubp->curs_attr);
 
-	REG_UPDATE(CURSOR_CONTROL,
-		CURSOR_ENABLE, cur_en);
+		REG_UPDATE(CURSOR_CONTROL,
+			CURSOR_ENABLE, cur_en);
+	}
 
 	REG_SET_2(CURSOR_POSITION, 0,
 		CURSOR_X_POSITION, x_pos,
@@ -998,6 +1000,7 @@ static struct hubp_funcs dcn401_hubp_funcs = {
 	.hubp_set_vm_system_aperture_settings = hubp3_set_vm_system_aperture_settings,
 	.set_blank = hubp2_set_blank,
 	.set_blank_regs = hubp2_set_blank_regs,
+	.hubp_reset = hubp_reset,
 	.mem_program_viewport = hubp401_set_viewport,
 	.set_cursor_attributes	= hubp32_cursor_set_attributes,
 	.set_cursor_position	= hubp401_cursor_set_position,

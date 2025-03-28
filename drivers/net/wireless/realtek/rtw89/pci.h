@@ -455,34 +455,36 @@
 #define B_BE_RX0DMA_INT_EN BIT(0)
 
 #define R_BE_HAXI_HISR00 0xB0B4
-#define B_BE_RDU_CH6_INT BIT(28)
-#define B_BE_RDU_CH5_INT BIT(27)
-#define B_BE_RDU_CH4_INT BIT(26)
-#define B_BE_RDU_CH2_INT BIT(25)
-#define B_BE_RDU_CH1_INT BIT(24)
-#define B_BE_RDU_CH0_INT BIT(23)
-#define B_BE_RXDMA_STUCK_INT BIT(22)
-#define B_BE_TXDMA_STUCK_INT BIT(21)
-#define B_BE_TXDMA_CH14_INT BIT(20)
-#define B_BE_TXDMA_CH13_INT BIT(19)
-#define B_BE_TXDMA_CH12_INT BIT(18)
-#define B_BE_TXDMA_CH11_INT BIT(17)
-#define B_BE_TXDMA_CH10_INT BIT(16)
-#define B_BE_TXDMA_CH9_INT BIT(15)
-#define B_BE_TXDMA_CH8_INT BIT(14)
-#define B_BE_TXDMA_CH7_INT BIT(13)
-#define B_BE_TXDMA_CH6_INT BIT(12)
-#define B_BE_TXDMA_CH5_INT BIT(11)
-#define B_BE_TXDMA_CH4_INT BIT(10)
-#define B_BE_TXDMA_CH3_INT BIT(9)
-#define B_BE_TXDMA_CH2_INT BIT(8)
-#define B_BE_TXDMA_CH1_INT BIT(7)
-#define B_BE_TXDMA_CH0_INT BIT(6)
-#define B_BE_RPQ1DMA_INT BIT(5)
-#define B_BE_RX1P1DMA_INT BIT(4)
+#define B_BE_RDU_CH5_INT_V1 BIT(30)
+#define B_BE_RDU_CH4_INT_V1 BIT(29)
+#define B_BE_RDU_CH3_INT_V1 BIT(28)
+#define B_BE_RDU_CH2_INT_V1 BIT(27)
+#define B_BE_RDU_CH1_INT_V1 BIT(26)
+#define B_BE_RDU_CH0_INT_V1 BIT(25)
+#define B_BE_RXDMA_STUCK_INT_V1 BIT(24)
+#define B_BE_TXDMA_STUCK_INT_V1 BIT(23)
+#define B_BE_TXDMA_CH14_INT_V1 BIT(22)
+#define B_BE_TXDMA_CH13_INT_V1 BIT(21)
+#define B_BE_TXDMA_CH12_INT_V1 BIT(20)
+#define B_BE_TXDMA_CH11_INT_V1 BIT(19)
+#define B_BE_TXDMA_CH10_INT_V1 BIT(18)
+#define B_BE_TXDMA_CH9_INT_V1 BIT(17)
+#define B_BE_TXDMA_CH8_INT_V1 BIT(16)
+#define B_BE_TXDMA_CH7_INT_V1 BIT(15)
+#define B_BE_TXDMA_CH6_INT_V1 BIT(14)
+#define B_BE_TXDMA_CH5_INT_V1 BIT(13)
+#define B_BE_TXDMA_CH4_INT_V1 BIT(12)
+#define B_BE_TXDMA_CH3_INT_V1 BIT(11)
+#define B_BE_TXDMA_CH2_INT_V1 BIT(10)
+#define B_BE_TXDMA_CH1_INT_V1 BIT(9)
+#define B_BE_TXDMA_CH0_INT_V1 BIT(8)
+#define B_BE_RX1P1DMA_INT_V1 BIT(7)
+#define B_BE_RX0P1DMA_INT_V1 BIT(6)
+#define B_BE_RO1DMA_INT BIT(5)
+#define B_BE_RP1DMA_INT BIT(4)
 #define B_BE_RX1DMA_INT BIT(3)
-#define B_BE_RPQ0DMA_INT BIT(2)
-#define B_BE_RX0P1DMA_INT BIT(1)
+#define B_BE_RO0DMA_INT BIT(2)
+#define B_BE_RP0DMA_INT BIT(1)
 #define B_BE_RX0DMA_INT BIT(0)
 
 /* TX/RX */
@@ -1051,7 +1053,8 @@
 #define RTW89_PCI_TXWD_NUM_MAX		512
 #define RTW89_PCI_TXWD_PAGE_SIZE	128
 #define RTW89_PCI_ADDRINFO_MAX		4
-#define RTW89_PCI_RX_BUF_SIZE		(11454 + 40) /* +40 for rtw89_rxdesc_long_v2 */
+/* +40 for rtw89_rxdesc_long_v2; +4 for rtw89_pci_rxbd_info */
+#define RTW89_PCI_RX_BUF_SIZE		(11454 + 40 + 4)
 
 #define RTW89_PCI_POLL_BDRAM_RST_CNT	100
 #define RTW89_PCI_MULTITAG		8
@@ -1290,6 +1293,7 @@ struct rtw89_pci_gen_def {
 	void (*l1ss_set)(struct rtw89_dev *rtwdev, bool enable);
 
 	void (*disable_eq)(struct rtw89_dev *rtwdev);
+	void (*power_wake)(struct rtw89_dev *rtwdev, bool pwr_up);
 };
 
 #define RTW89_PCI_SSID(v, d, ssv, ssd, cust) \
@@ -1323,6 +1327,7 @@ struct rtw89_pci_info {
 	enum mac_ax_io_rcy_tmr io_rcy_tmr;
 	bool rx_ring_eq_is_full;
 	bool check_rx_tag;
+	bool no_rxbd_fs;
 
 	u32 init_cfg_reg;
 	u32 txhci_en_bit;
@@ -1803,6 +1808,14 @@ static inline void rtw89_pci_disable_eq(struct rtw89_dev *rtwdev)
 	const struct rtw89_pci_gen_def *gen_def = info->gen_def;
 
 	gen_def->disable_eq(rtwdev);
+}
+
+static inline void rtw89_pci_power_wake(struct rtw89_dev *rtwdev, bool pwr_up)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_pci_gen_def *gen_def = info->gen_def;
+
+	gen_def->power_wake(rtwdev, pwr_up);
 }
 
 #endif

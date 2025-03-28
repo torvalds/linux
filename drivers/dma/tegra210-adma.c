@@ -43,6 +43,10 @@
 #define ADMA_CH_CONFIG_MAX_BUFS				8
 #define TEGRA186_ADMA_CH_CONFIG_OUTSTANDING_REQS(reqs)	(reqs << 4)
 
+#define TEGRA186_ADMA_GLOBAL_PAGE_CHGRP			0x30
+#define TEGRA186_ADMA_GLOBAL_PAGE_RX_REQ		0x70
+#define TEGRA186_ADMA_GLOBAL_PAGE_TX_REQ		0x84
+
 #define ADMA_CH_FIFO_CTRL				0x2c
 #define ADMA_CH_TX_FIFO_SIZE_SHIFT			8
 #define ADMA_CH_RX_FIFO_SIZE_SHIFT			0
@@ -79,7 +83,9 @@ struct tegra_adma;
  * @nr_channels: Number of DMA channels available.
  * @ch_fifo_size_mask: Mask for FIFO size field.
  * @sreq_index_offset: Slave channel index offset.
+ * @max_page: Maximum ADMA Channel Page.
  * @has_outstanding_reqs: If DMA channel can have outstanding requests.
+ * @set_global_pg_config: Global page programming.
  */
 struct tegra_adma_chip_data {
 	unsigned int (*adma_get_burst_config)(unsigned int burst_size);
@@ -95,7 +101,9 @@ struct tegra_adma_chip_data {
 	unsigned int nr_channels;
 	unsigned int ch_fifo_size_mask;
 	unsigned int sreq_index_offset;
+	unsigned int max_page;
 	bool has_outstanding_reqs;
+	void (*set_global_pg_config)(struct tegra_adma *tdma);
 };
 
 /*
@@ -151,6 +159,7 @@ struct tegra_adma {
 	struct dma_device		dma_dev;
 	struct device			*dev;
 	void __iomem			*base_addr;
+	void __iomem			*ch_base_addr;
 	struct clk			*ahub_clk;
 	unsigned int			nr_channels;
 	unsigned long			*dma_chan_mask;
@@ -159,6 +168,7 @@ struct tegra_adma {
 
 	/* Used to store global command register state when suspending */
 	unsigned int			global_cmd;
+	unsigned int			ch_page_no;
 
 	const struct tegra_adma_chip_data *cdata;
 
@@ -174,6 +184,11 @@ static inline void tdma_write(struct tegra_adma *tdma, u32 reg, u32 val)
 static inline u32 tdma_read(struct tegra_adma *tdma, u32 reg)
 {
 	return readl(tdma->base_addr + tdma->cdata->global_reg_offset + reg);
+}
+
+static inline void tdma_ch_global_write(struct tegra_adma *tdma, u32 reg, u32 val)
+{
+	writel(val, tdma->ch_base_addr + tdma->cdata->global_reg_offset + reg);
 }
 
 static inline void tdma_ch_write(struct tegra_adma_chan *tdc, u32 reg, u32 val)
@@ -217,13 +232,30 @@ static int tegra_adma_slave_config(struct dma_chan *dc,
 	return 0;
 }
 
+static void tegra186_adma_global_page_config(struct tegra_adma *tdma)
+{
+	/*
+	 * Clear the default page1 channel group configs and program
+	 * the global registers based on the actual page usage
+	 */
+	tdma_write(tdma, TEGRA186_ADMA_GLOBAL_PAGE_CHGRP, 0);
+	tdma_write(tdma, TEGRA186_ADMA_GLOBAL_PAGE_RX_REQ, 0);
+	tdma_write(tdma, TEGRA186_ADMA_GLOBAL_PAGE_TX_REQ, 0);
+	tdma_write(tdma, TEGRA186_ADMA_GLOBAL_PAGE_CHGRP + (tdma->ch_page_no * 0x4), 0xff);
+	tdma_write(tdma, TEGRA186_ADMA_GLOBAL_PAGE_RX_REQ + (tdma->ch_page_no * 0x4), 0x1ffffff);
+	tdma_write(tdma, TEGRA186_ADMA_GLOBAL_PAGE_TX_REQ + (tdma->ch_page_no * 0x4), 0xffffff);
+}
+
 static int tegra_adma_init(struct tegra_adma *tdma)
 {
 	u32 status;
 	int ret;
 
-	/* Clear any interrupts */
-	tdma_write(tdma, tdma->cdata->ch_base_offset + tdma->cdata->global_int_clear, 0x1);
+	/* Clear any channels group global interrupts */
+	tdma_ch_global_write(tdma, tdma->cdata->global_int_clear, 0x1);
+
+	if (!tdma->base_addr)
+		return 0;
 
 	/* Assert soft reset */
 	tdma_write(tdma, ADMA_GLOBAL_SOFT_RESET, 0x1);
@@ -236,6 +268,9 @@ static int tegra_adma_init(struct tegra_adma *tdma)
 				 status, status == 0, 20, 10000);
 	if (ret)
 		return ret;
+
+	if (tdma->cdata->set_global_pg_config)
+		tdma->cdata->set_global_pg_config(tdma);
 
 	/* Enable global ADMA registers */
 	tdma_write(tdma, ADMA_GLOBAL_CMD, 1);
@@ -736,7 +771,9 @@ static int __maybe_unused tegra_adma_runtime_suspend(struct device *dev)
 	struct tegra_adma_chan *tdc;
 	int i;
 
-	tdma->global_cmd = tdma_read(tdma, ADMA_GLOBAL_CMD);
+	if (tdma->base_addr)
+		tdma->global_cmd = tdma_read(tdma, ADMA_GLOBAL_CMD);
+
 	if (!tdma->global_cmd)
 		goto clk_disable;
 
@@ -777,7 +814,11 @@ static int __maybe_unused tegra_adma_runtime_resume(struct device *dev)
 		dev_err(dev, "ahub clk_enable failed: %d\n", ret);
 		return ret;
 	}
-	tdma_write(tdma, ADMA_GLOBAL_CMD, tdma->global_cmd);
+	if (tdma->base_addr) {
+		tdma_write(tdma, ADMA_GLOBAL_CMD, tdma->global_cmd);
+		if (tdma->cdata->set_global_pg_config)
+			tdma->cdata->set_global_pg_config(tdma);
+	}
 
 	if (!tdma->global_cmd)
 		return 0;
@@ -816,7 +857,9 @@ static const struct tegra_adma_chip_data tegra210_chip_data = {
 	.nr_channels		= 22,
 	.ch_fifo_size_mask	= 0xf,
 	.sreq_index_offset	= 2,
+	.max_page		= 0,
 	.has_outstanding_reqs	= false,
+	.set_global_pg_config	= NULL,
 };
 
 static const struct tegra_adma_chip_data tegra186_chip_data = {
@@ -832,7 +875,9 @@ static const struct tegra_adma_chip_data tegra186_chip_data = {
 	.nr_channels		= 32,
 	.ch_fifo_size_mask	= 0x1f,
 	.sreq_index_offset	= 4,
+	.max_page		= 4,
 	.has_outstanding_reqs	= true,
+	.set_global_pg_config	= tegra186_adma_global_page_config,
 };
 
 static const struct of_device_id tegra_adma_of_match[] = {
@@ -846,6 +891,7 @@ static int tegra_adma_probe(struct platform_device *pdev)
 {
 	const struct tegra_adma_chip_data *cdata;
 	struct tegra_adma *tdma;
+	struct resource *res_page, *res_base;
 	int ret, i;
 
 	cdata = of_device_get_match_data(&pdev->dev);
@@ -865,9 +911,46 @@ static int tegra_adma_probe(struct platform_device *pdev)
 	tdma->nr_channels = cdata->nr_channels;
 	platform_set_drvdata(pdev, tdma);
 
-	tdma->base_addr = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(tdma->base_addr))
-		return PTR_ERR(tdma->base_addr);
+	res_page = platform_get_resource_byname(pdev, IORESOURCE_MEM, "page");
+	if (res_page) {
+		tdma->ch_base_addr = devm_ioremap_resource(&pdev->dev, res_page);
+		if (IS_ERR(tdma->ch_base_addr))
+			return PTR_ERR(tdma->ch_base_addr);
+
+		res_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "global");
+		if (res_base) {
+			resource_size_t page_offset, page_no;
+			unsigned int ch_base_offset;
+
+			if (res_page->start < res_base->start)
+				return -EINVAL;
+			page_offset = res_page->start - res_base->start;
+			ch_base_offset = cdata->ch_base_offset;
+			if (!ch_base_offset)
+				return -EINVAL;
+
+			page_no = div_u64(page_offset, ch_base_offset);
+			if (!page_no || page_no > INT_MAX)
+				return -EINVAL;
+
+			tdma->ch_page_no = page_no - 1;
+			tdma->base_addr = devm_ioremap_resource(&pdev->dev, res_base);
+			if (IS_ERR(tdma->base_addr))
+				return PTR_ERR(tdma->base_addr);
+		}
+	} else {
+		/* If no 'page' property found, then reg DT binding would be legacy */
+		res_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (res_base) {
+			tdma->base_addr = devm_ioremap_resource(&pdev->dev, res_base);
+			if (IS_ERR(tdma->base_addr))
+				return PTR_ERR(tdma->base_addr);
+		} else {
+			return -ENODEV;
+		}
+
+		tdma->ch_base_addr = tdma->base_addr + cdata->ch_base_offset;
+	}
 
 	tdma->ahub_clk = devm_clk_get(&pdev->dev, "d_audio");
 	if (IS_ERR(tdma->ahub_clk)) {
@@ -900,8 +983,7 @@ static int tegra_adma_probe(struct platform_device *pdev)
 		if (!test_bit(i, tdma->dma_chan_mask))
 			continue;
 
-		tdc->chan_addr = tdma->base_addr + cdata->ch_base_offset
-				 + (cdata->ch_reg_size * i);
+		tdc->chan_addr = tdma->ch_base_addr + (cdata->ch_reg_size * i);
 
 		tdc->irq = of_irq_get(pdev->dev.of_node, i);
 		if (tdc->irq <= 0) {

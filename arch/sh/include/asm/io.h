@@ -19,7 +19,6 @@
 #include <asm/machvec.h>
 #include <asm/page.h>
 #include <linux/pgtable.h>
-#include <asm-generic/iomap.h>
 
 #define __IO_PREFIX     generic
 #include <asm/io_generic.h>
@@ -100,7 +99,7 @@ pfx##writes##bwlq(volatile void __iomem *mem, const void *addr,		\
 	}								\
 }									\
 									\
-static inline void pfx##reads##bwlq(volatile void __iomem *mem,		\
+static inline void pfx##reads##bwlq(const volatile void __iomem *mem,	\
 				    void *addr, unsigned int count)	\
 {									\
 	volatile type *__addr = addr;					\
@@ -114,36 +113,17 @@ static inline void pfx##reads##bwlq(volatile void __iomem *mem,		\
 __BUILD_MEMORY_STRING(__raw_, b, u8)
 __BUILD_MEMORY_STRING(__raw_, w, u16)
 
-void __raw_writesl(void __iomem *addr, const void *data, int longlen);
-void __raw_readsl(const void __iomem *addr, void *data, int longlen);
+void __raw_writesl(void volatile __iomem *addr, const void *data, int longlen);
+void __raw_readsl(const volatile void __iomem *addr, void *data, int longlen);
 
 __BUILD_MEMORY_STRING(__raw_, q, u64)
 
 #define ioport_map ioport_map
-#define ioport_unmap ioport_unmap
 #define pci_iounmap pci_iounmap
 
-#define ioread8 ioread8
-#define ioread16 ioread16
-#define ioread16be ioread16be
-#define ioread32 ioread32
-#define ioread32be ioread32be
-
-#define iowrite8 iowrite8
-#define iowrite16 iowrite16
-#define iowrite16be iowrite16be
-#define iowrite32 iowrite32
-#define iowrite32be iowrite32be
-
-#define ioread8_rep ioread8_rep
-#define ioread16_rep ioread16_rep
-#define ioread32_rep ioread32_rep
-
-#define iowrite8_rep iowrite8_rep
-#define iowrite16_rep iowrite16_rep
-#define iowrite32_rep iowrite32_rep
-
 #ifdef CONFIG_HAS_IOPORT_MAP
+
+extern void __iomem *ioport_map(unsigned long port, unsigned int nr);
 
 /*
  * Slowdown I/O port space accesses for antique hardware.

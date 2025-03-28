@@ -802,6 +802,7 @@ static void panthor_query_group_priorities_info(struct drm_file *file,
 {
 	int prio;
 
+	memset(arg, 0, sizeof(*arg));
 	for (prio = PANTHOR_GROUP_PRIORITY_REALTIME; prio >= 0; prio--) {
 		if (!group_priority_permit(file, prio))
 			arg->allowed_mask |= BIT(prio);

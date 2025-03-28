@@ -335,8 +335,6 @@ static void bochs_hw_setmode(struct bochs_device *bochs, struct drm_display_mode
 			 bochs->xres, bochs->yres, bochs->bpp,
 			 bochs->yres_virtual);
 
-	bochs_hw_blank(bochs, false);
-
 	bochs_dispi_write(bochs, VBE_DISPI_INDEX_ENABLE,      0);
 	bochs_dispi_write(bochs, VBE_DISPI_INDEX_BPP,         bochs->bpp);
 	bochs_dispi_write(bochs, VBE_DISPI_INDEX_XRES,        bochs->xres);
@@ -506,6 +504,9 @@ static int bochs_crtc_helper_atomic_check(struct drm_crtc *crtc,
 static void bochs_crtc_helper_atomic_enable(struct drm_crtc *crtc,
 					    struct drm_atomic_state *state)
 {
+	struct bochs_device *bochs = to_bochs_device(crtc->dev);
+
+	bochs_hw_blank(bochs, false);
 }
 
 static void bochs_crtc_helper_atomic_disable(struct drm_crtc *crtc,
@@ -757,7 +758,6 @@ static void bochs_pci_remove(struct pci_dev *pdev)
 
 	drm_dev_unplug(dev);
 	drm_atomic_helper_shutdown(dev);
-	drm_dev_put(dev);
 }
 
 static void bochs_pci_shutdown(struct pci_dev *pdev)

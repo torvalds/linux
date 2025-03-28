@@ -56,7 +56,7 @@ struct adjd_s311_data {
 	struct i2c_client *client;
 	struct {
 		s16 chans[4];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 };
 

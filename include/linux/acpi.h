@@ -330,7 +330,6 @@ static inline bool acpi_sci_irq_valid(void)
 }
 
 extern int sbf_port;
-extern unsigned long acpi_realmode_flags;
 
 int acpi_register_gsi (struct device *dev, u32 gsi, int triggering, int polarity);
 int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);
@@ -850,6 +849,11 @@ static inline bool acpi_data_node_match(const struct fwnode_handle *fwnode,
 }
 
 static inline struct fwnode_handle *acpi_fwnode_handle(struct acpi_device *adev)
+{
+	return NULL;
+}
+
+static inline acpi_handle acpi_device_handle(struct acpi_device *adev)
 {
 	return NULL;
 }

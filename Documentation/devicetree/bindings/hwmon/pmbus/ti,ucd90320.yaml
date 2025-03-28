@@ -28,6 +28,15 @@ properties:
   reg:
     maxItems: 1
 
+  gpio-controller: true
+
+  gpio-line-names:
+    minItems: 84
+    maxItems: 84
+
+  '#gpio-cells':
+    const: 1
+
 required:
   - compatible
   - reg

@@ -1040,116 +1040,116 @@ static int fmh_gpib_fifo_read(gpib_board_t *board, uint8_t *buffer, size_t lengt
 	return retval;
 }
 
-gpib_interface_t fmh_gpib_unaccel_interface = {
-name: "fmh_gpib_unaccel",
-attach : fmh_gpib_attach_holdoff_all,
-detach : fmh_gpib_detach,
-read : fmh_gpib_read,
-write : fmh_gpib_write,
-command : fmh_gpib_command,
-take_control : fmh_gpib_take_control,
-go_to_standby : fmh_gpib_go_to_standby,
-request_system_control : fmh_gpib_request_system_control,
-interface_clear : fmh_gpib_interface_clear,
-remote_enable : fmh_gpib_remote_enable,
-enable_eos : fmh_gpib_enable_eos,
-disable_eos : fmh_gpib_disable_eos,
-parallel_poll : fmh_gpib_parallel_poll,
-parallel_poll_configure : fmh_gpib_parallel_poll_configure,
-parallel_poll_response : fmh_gpib_parallel_poll_response,
-local_parallel_poll_mode : fmh_gpib_local_parallel_poll_mode,
-line_status : fmh_gpib_line_status,
-update_status : fmh_gpib_update_status,
-primary_address : fmh_gpib_primary_address,
-secondary_address : fmh_gpib_secondary_address,
-serial_poll_response2 : fmh_gpib_serial_poll_response2,
-serial_poll_status : fmh_gpib_serial_poll_status,
-t1_delay : fmh_gpib_t1_delay,
-return_to_local : fmh_gpib_return_to_local,
+static gpib_interface_t fmh_gpib_unaccel_interface = {
+	.name = "fmh_gpib_unaccel",
+	.attach = fmh_gpib_attach_holdoff_all,
+	.detach = fmh_gpib_detach,
+	.read = fmh_gpib_read,
+	.write = fmh_gpib_write,
+	.command = fmh_gpib_command,
+	.take_control = fmh_gpib_take_control,
+	.go_to_standby = fmh_gpib_go_to_standby,
+	.request_system_control = fmh_gpib_request_system_control,
+	.interface_clear = fmh_gpib_interface_clear,
+	.remote_enable = fmh_gpib_remote_enable,
+	.enable_eos = fmh_gpib_enable_eos,
+	.disable_eos = fmh_gpib_disable_eos,
+	.parallel_poll = fmh_gpib_parallel_poll,
+	.parallel_poll_configure = fmh_gpib_parallel_poll_configure,
+	.parallel_poll_response = fmh_gpib_parallel_poll_response,
+	.local_parallel_poll_mode = fmh_gpib_local_parallel_poll_mode,
+	.line_status = fmh_gpib_line_status,
+	.update_status = fmh_gpib_update_status,
+	.primary_address = fmh_gpib_primary_address,
+	.secondary_address = fmh_gpib_secondary_address,
+	.serial_poll_response2 = fmh_gpib_serial_poll_response2,
+	.serial_poll_status = fmh_gpib_serial_poll_status,
+	.t1_delay = fmh_gpib_t1_delay,
+	.return_to_local = fmh_gpib_return_to_local,
 };
 
-gpib_interface_t fmh_gpib_interface = {
-name: "fmh_gpib",
-attach : fmh_gpib_attach_holdoff_end,
-detach : fmh_gpib_detach,
-read : fmh_gpib_accel_read,
-write : fmh_gpib_accel_write,
-command : fmh_gpib_command,
-take_control : fmh_gpib_take_control,
-go_to_standby : fmh_gpib_go_to_standby,
-request_system_control : fmh_gpib_request_system_control,
-interface_clear : fmh_gpib_interface_clear,
-remote_enable : fmh_gpib_remote_enable,
-enable_eos : fmh_gpib_enable_eos,
-disable_eos : fmh_gpib_disable_eos,
-parallel_poll : fmh_gpib_parallel_poll,
-parallel_poll_configure : fmh_gpib_parallel_poll_configure,
-parallel_poll_response : fmh_gpib_parallel_poll_response,
-local_parallel_poll_mode : fmh_gpib_local_parallel_poll_mode,
-line_status : fmh_gpib_line_status,
-update_status : fmh_gpib_update_status,
-primary_address : fmh_gpib_primary_address,
-secondary_address : fmh_gpib_secondary_address,
-serial_poll_response2 : fmh_gpib_serial_poll_response2,
-serial_poll_status : fmh_gpib_serial_poll_status,
-t1_delay : fmh_gpib_t1_delay,
-return_to_local : fmh_gpib_return_to_local,
+static gpib_interface_t fmh_gpib_interface = {
+	.name = "fmh_gpib",
+	.attach = fmh_gpib_attach_holdoff_end,
+	.detach = fmh_gpib_detach,
+	.read = fmh_gpib_accel_read,
+	.write = fmh_gpib_accel_write,
+	.command = fmh_gpib_command,
+	.take_control = fmh_gpib_take_control,
+	.go_to_standby = fmh_gpib_go_to_standby,
+	.request_system_control = fmh_gpib_request_system_control,
+	.interface_clear = fmh_gpib_interface_clear,
+	.remote_enable = fmh_gpib_remote_enable,
+	.enable_eos = fmh_gpib_enable_eos,
+	.disable_eos = fmh_gpib_disable_eos,
+	.parallel_poll = fmh_gpib_parallel_poll,
+	.parallel_poll_configure = fmh_gpib_parallel_poll_configure,
+	.parallel_poll_response = fmh_gpib_parallel_poll_response,
+	.local_parallel_poll_mode = fmh_gpib_local_parallel_poll_mode,
+	.line_status = fmh_gpib_line_status,
+	.update_status = fmh_gpib_update_status,
+	.primary_address = fmh_gpib_primary_address,
+	.secondary_address = fmh_gpib_secondary_address,
+	.serial_poll_response2 = fmh_gpib_serial_poll_response2,
+	.serial_poll_status = fmh_gpib_serial_poll_status,
+	.t1_delay = fmh_gpib_t1_delay,
+	.return_to_local = fmh_gpib_return_to_local,
 };
 
-gpib_interface_t fmh_gpib_pci_interface = {
-name: "fmh_gpib_pci",
-attach : fmh_gpib_pci_attach_holdoff_end,
-detach : fmh_gpib_pci_detach,
-read : fmh_gpib_fifo_read,
-write : fmh_gpib_fifo_write,
-command : fmh_gpib_command,
-take_control : fmh_gpib_take_control,
-go_to_standby : fmh_gpib_go_to_standby,
-request_system_control : fmh_gpib_request_system_control,
-interface_clear : fmh_gpib_interface_clear,
-remote_enable : fmh_gpib_remote_enable,
-enable_eos : fmh_gpib_enable_eos,
-disable_eos : fmh_gpib_disable_eos,
-parallel_poll : fmh_gpib_parallel_poll,
-parallel_poll_configure : fmh_gpib_parallel_poll_configure,
-parallel_poll_response : fmh_gpib_parallel_poll_response,
-local_parallel_poll_mode : fmh_gpib_local_parallel_poll_mode,
-line_status : fmh_gpib_line_status,
-update_status : fmh_gpib_update_status,
-primary_address : fmh_gpib_primary_address,
-secondary_address : fmh_gpib_secondary_address,
-serial_poll_response2 : fmh_gpib_serial_poll_response2,
-serial_poll_status : fmh_gpib_serial_poll_status,
-t1_delay : fmh_gpib_t1_delay,
-return_to_local : fmh_gpib_return_to_local,
+static gpib_interface_t fmh_gpib_pci_interface = {
+	.name = "fmh_gpib_pci",
+	.attach = fmh_gpib_pci_attach_holdoff_end,
+	.detach = fmh_gpib_pci_detach,
+	.read = fmh_gpib_fifo_read,
+	.write = fmh_gpib_fifo_write,
+	.command = fmh_gpib_command,
+	.take_control = fmh_gpib_take_control,
+	.go_to_standby = fmh_gpib_go_to_standby,
+	.request_system_control = fmh_gpib_request_system_control,
+	.interface_clear = fmh_gpib_interface_clear,
+	.remote_enable = fmh_gpib_remote_enable,
+	.enable_eos = fmh_gpib_enable_eos,
+	.disable_eos = fmh_gpib_disable_eos,
+	.parallel_poll = fmh_gpib_parallel_poll,
+	.parallel_poll_configure = fmh_gpib_parallel_poll_configure,
+	.parallel_poll_response = fmh_gpib_parallel_poll_response,
+	.local_parallel_poll_mode = fmh_gpib_local_parallel_poll_mode,
+	.line_status = fmh_gpib_line_status,
+	.update_status = fmh_gpib_update_status,
+	.primary_address = fmh_gpib_primary_address,
+	.secondary_address = fmh_gpib_secondary_address,
+	.serial_poll_response2 = fmh_gpib_serial_poll_response2,
+	.serial_poll_status = fmh_gpib_serial_poll_status,
+	.t1_delay = fmh_gpib_t1_delay,
+	.return_to_local = fmh_gpib_return_to_local,
 };
 
-gpib_interface_t fmh_gpib_pci_unaccel_interface = {
-name: "fmh_gpib_pci_unaccel",
-attach : fmh_gpib_pci_attach_holdoff_all,
-detach : fmh_gpib_pci_detach,
-read : fmh_gpib_read,
-write : fmh_gpib_write,
-command : fmh_gpib_command,
-take_control : fmh_gpib_take_control,
-go_to_standby : fmh_gpib_go_to_standby,
-request_system_control : fmh_gpib_request_system_control,
-interface_clear : fmh_gpib_interface_clear,
-remote_enable : fmh_gpib_remote_enable,
-enable_eos : fmh_gpib_enable_eos,
-disable_eos : fmh_gpib_disable_eos,
-parallel_poll : fmh_gpib_parallel_poll,
-parallel_poll_configure : fmh_gpib_parallel_poll_configure,
-parallel_poll_response : fmh_gpib_parallel_poll_response,
-local_parallel_poll_mode : fmh_gpib_local_parallel_poll_mode,
-line_status : fmh_gpib_line_status,
-update_status : fmh_gpib_update_status,
-primary_address : fmh_gpib_primary_address,
-secondary_address : fmh_gpib_secondary_address,
-serial_poll_response2 : fmh_gpib_serial_poll_response2,
-serial_poll_status : fmh_gpib_serial_poll_status,
-t1_delay : fmh_gpib_t1_delay,
-return_to_local : fmh_gpib_return_to_local,
+static gpib_interface_t fmh_gpib_pci_unaccel_interface = {
+	.name = "fmh_gpib_pci_unaccel",
+	.attach = fmh_gpib_pci_attach_holdoff_all,
+	.detach = fmh_gpib_pci_detach,
+	.read = fmh_gpib_read,
+	.write = fmh_gpib_write,
+	.command = fmh_gpib_command,
+	.take_control = fmh_gpib_take_control,
+	.go_to_standby = fmh_gpib_go_to_standby,
+	.request_system_control = fmh_gpib_request_system_control,
+	.interface_clear = fmh_gpib_interface_clear,
+	.remote_enable = fmh_gpib_remote_enable,
+	.enable_eos = fmh_gpib_enable_eos,
+	.disable_eos = fmh_gpib_disable_eos,
+	.parallel_poll = fmh_gpib_parallel_poll,
+	.parallel_poll_configure = fmh_gpib_parallel_poll_configure,
+	.parallel_poll_response = fmh_gpib_parallel_poll_response,
+	.local_parallel_poll_mode = fmh_gpib_local_parallel_poll_mode,
+	.line_status = fmh_gpib_line_status,
+	.update_status = fmh_gpib_update_status,
+	.primary_address = fmh_gpib_primary_address,
+	.secondary_address = fmh_gpib_secondary_address,
+	.serial_poll_response2 = fmh_gpib_serial_poll_response2,
+	.serial_poll_status = fmh_gpib_serial_poll_status,
+	.t1_delay = fmh_gpib_t1_delay,
+	.return_to_local = fmh_gpib_return_to_local,
 };
 
 irqreturn_t fmh_gpib_internal_interrupt(gpib_board_t *board)
@@ -1692,23 +1692,54 @@ static int __init fmh_gpib_init_module(void)
 
 	result = platform_driver_register(&fmh_gpib_platform_driver);
 	if (result) {
-		pr_err("fmh_gpib: platform_driver_register failed!\n");
+		pr_err("fmh_gpib: platform_driver_register failed: error = %d\n", result);
 		return result;
 	}
 
 	result = pci_register_driver(&fmh_gpib_pci_driver);
 	if (result) {
-		pr_err("fmh_gpib: pci_driver_register failed!\n");
-		return result;
+		pr_err("fmh_gpib: pci_register_driver failed: error = %d\n", result);
+		goto err_pci_driver;
 	}
 
-	gpib_register_driver(&fmh_gpib_unaccel_interface, THIS_MODULE);
-	gpib_register_driver(&fmh_gpib_interface, THIS_MODULE);
-	gpib_register_driver(&fmh_gpib_pci_unaccel_interface, THIS_MODULE);
-	gpib_register_driver(&fmh_gpib_pci_interface, THIS_MODULE);
+	result = gpib_register_driver(&fmh_gpib_unaccel_interface, THIS_MODULE);
+	if (result) {
+		pr_err("fmh_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_unaccel;
+	}
 
-	pr_info("fmh_gpib\n");
+	result = gpib_register_driver(&fmh_gpib_interface, THIS_MODULE);
+	if (result) {
+		pr_err("fmh_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_interface;
+	}
+
+	result = gpib_register_driver(&fmh_gpib_pci_unaccel_interface, THIS_MODULE);
+	if (result) {
+		pr_err("fmh_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_pci_unaccel;
+	}
+
+	result = gpib_register_driver(&fmh_gpib_pci_interface, THIS_MODULE);
+	if (result) {
+		pr_err("fmh_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_pci;
+	}
+
 	return 0;
+
+err_pci:
+	gpib_unregister_driver(&fmh_gpib_pci_unaccel_interface);
+err_pci_unaccel:
+	gpib_unregister_driver(&fmh_gpib_interface);
+err_interface:
+	gpib_unregister_driver(&fmh_gpib_unaccel_interface);
+err_unaccel:
+	pci_unregister_driver(&fmh_gpib_pci_driver);
+err_pci_driver:
+	platform_driver_unregister(&fmh_gpib_platform_driver);
+
+	return result;
 }
 
 static void __exit fmh_gpib_exit_module(void)

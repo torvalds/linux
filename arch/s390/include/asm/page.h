@@ -184,7 +184,11 @@ extern struct vm_layout vm_layout;
 
 #define __kaslr_offset		vm_layout.kaslr_offset
 #define __kaslr_offset_phys	vm_layout.kaslr_offset_phys
+#ifdef CONFIG_RANDOMIZE_IDENTITY_BASE
 #define __identity_base		vm_layout.identity_base
+#else
+#define __identity_base		0UL
+#endif
 #define ident_map_size		vm_layout.identity_size
 
 static inline unsigned long kaslr_offset(void)

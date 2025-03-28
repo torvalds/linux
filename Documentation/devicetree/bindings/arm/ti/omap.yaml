@@ -141,6 +141,13 @@ properties:
           - const: ti,omap4430
           - const: ti,omap4
 
+      - description: OMAP4 PandaBoard Revision A4 and later
+        items:
+          - const: ti,omap4-panda-a4
+          - const: ti,omap4-panda
+          - const: ti,omap4430
+          - const: ti,omap4
+
       - description: OMAP4 DuoVero with Parlor expansion board/daughter board
         items:
           - const: gumstix,omap4-duovero-parlor

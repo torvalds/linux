@@ -17,7 +17,7 @@
 #include "ath9k.h"
 
 /* Set/change channels.  If the channel is really being changed, it's done
- * by reseting the chip.  To accomplish this we must first cleanup any pending
+ * by resetting the chip.  To accomplish this we must first cleanup any pending
  * DMA, then restart stuff.
  */
 static int ath_set_channel(struct ath_softc *sc)
@@ -232,16 +232,11 @@ static const char *chanctx_state_string(enum ath_chanctx_state state)
 
 static u32 chanctx_event_delta(struct ath_softc *sc)
 {
-	u64 ms;
-	struct timespec64 ts, *old;
+	ktime_t ts = ktime_get_raw();
+	s64 ms = ktime_ms_delta(ts, sc->last_event_time);
 
-	ktime_get_raw_ts64(&ts);
-	old = &sc->last_event_time;
-	ms = ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
-	ms -= old->tv_sec * 1000 + old->tv_nsec / 1000000;
 	sc->last_event_time = ts;
-
-	return (u32)ms;
+	return ms;
 }
 
 void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx)
@@ -334,8 +329,8 @@ ath_chanctx_get_next(struct ath_softc *sc, struct ath_chanctx *ctx)
 static void ath_chanctx_adjust_tbtt_delta(struct ath_softc *sc)
 {
 	struct ath_chanctx *prev, *cur;
-	struct timespec64 ts;
 	u32 cur_tsf, prev_tsf, beacon_int;
+	ktime_t ts;
 	s32 offset;
 
 	beacon_int = TU_TO_USEC(sc->cur_chan->beacon.beacon_interval);
@@ -346,12 +341,12 @@ static void ath_chanctx_adjust_tbtt_delta(struct ath_softc *sc)
 	if (!prev->switch_after_beacon)
 		return;
 
-	ktime_get_raw_ts64(&ts);
+	ts = ktime_get_raw();
 	cur_tsf = (u32) cur->tsf_val +
-		  ath9k_hw_get_tsf_offset(&cur->tsf_ts, &ts);
+		  ath9k_hw_get_tsf_offset(cur->tsf_ts, ts);
 
 	prev_tsf = prev->last_beacon - (u32) prev->tsf_val + cur_tsf;
-	prev_tsf -= ath9k_hw_get_tsf_offset(&prev->tsf_ts, &ts);
+	prev_tsf -= ath9k_hw_get_tsf_offset(prev->tsf_ts, ts);
 
 	/* Adjust the TSF time of the AP chanctx to keep its beacons
 	 * at half beacon interval offset relative to the STA chanctx.
@@ -691,7 +686,7 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		 */
 		tsf_time = sc->sched.switch_start_time;
 		tsf_time -= (u32) sc->cur_chan->tsf_val +
-			ath9k_hw_get_tsf_offset(&sc->cur_chan->tsf_ts, NULL);
+			ath9k_hw_get_tsf_offset(sc->cur_chan->tsf_ts, 0);
 		tsf_time += ath9k_hw_gettsf32(ah);
 
 		sc->sched.beacon_adjust = false;
@@ -1230,10 +1225,10 @@ void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_chanctx *old_ctx;
-	struct timespec64 ts;
 	bool measure_time = false;
 	bool send_ps = false;
 	bool queues_stopped = false;
+	ktime_t ts;
 
 	spin_lock_bh(&sc->chan_lock);
 	if (!sc->next_chan) {
@@ -1260,7 +1255,7 @@ void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 		spin_unlock_bh(&sc->chan_lock);
 
 		if (sc->next_chan == &sc->offchannel.chan) {
-			ktime_get_raw_ts64(&ts);
+			ts = ktime_get_raw();
 			measure_time = true;
 		}
 
@@ -1277,7 +1272,7 @@ void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 		spin_lock_bh(&sc->chan_lock);
 
 		if (sc->cur_chan != &sc->offchannel.chan) {
-			ktime_get_raw_ts64(&sc->cur_chan->tsf_ts);
+			sc->cur_chan->tsf_ts = ktime_get_raw();
 			sc->cur_chan->tsf_val = ath9k_hw_gettsf64(sc->sc_ah);
 		}
 	}
@@ -1303,7 +1298,7 @@ void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 		ath_set_channel(sc);
 		if (measure_time)
 			sc->sched.channel_switch_time =
-				ath9k_hw_get_tsf_offset(&ts, NULL);
+				ath9k_hw_get_tsf_offset(ts, 0);
 		/*
 		 * A reset will ensure that all queues are woken up,
 		 * so there is no need to awaken them again.

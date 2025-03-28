@@ -142,7 +142,7 @@ examples:
                             <&cpu2_intc 11>,
                             <&cpu3_intc 11>,
                             <&cpu4_intc 11>;
-      reg = <0x28000000 0x4000>;
+      reg = <0x24000000 0x4000>;
       interrupt-controller;
       #interrupt-cells = <0>;
       msi-controller;

@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: GPL-2.0
+
+`./defaults.sh`
+
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+
+   +0 < S 0:0(0) win 0 <mss 1460>
+   +0 > S. 0:0(0) ack 1 <mss 1460>
+
+  +.1 < . 1:1(0) ack 1 win 65530
+   +0 accept(3, ..., ...) = 4
+
+   +0 setsockopt(4, SOL_TCP, TCP_USER_TIMEOUT, [3000], 4) = 0
+   +0 write(4, ..., 24) = 24
+   +0 > P. 1:25(24) ack 1
+   +.1 < . 1:1(0) ack 25 win 65530
+   +0 %{ assert tcpi_probes == 0, tcpi_probes; \
+         assert tcpi_backoff == 0, tcpi_backoff }%
+
+// install a qdisc dropping all packets
+   +0 `tc qdisc delete dev tun0 root 2>/dev/null ; tc qdisc add dev tun0 root pfifo limit 0`
+   +0 write(4, ..., 24) = 24
+   // When qdisc is congested we retry every 500ms
+   // (TCP_RESOURCE_PROBE_INTERVAL) and therefore
+   // we retry 6 times before hitting 3s timeout.
+   // First verify that the connection is alive:
++3.250 write(4, ..., 24) = 24
+   // Now verify that shortly after that the socket is dead:
+ +.100 write(4, ..., 24) = -1 ETIMEDOUT (Connection timed out)
+
+   +0 %{ assert tcpi_probes == 6, tcpi_probes; \
+         assert tcpi_backoff == 0, tcpi_backoff }%
+   +0 close(4) = 0

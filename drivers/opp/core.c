@@ -1528,11 +1528,6 @@ err:
 	return ERR_PTR(ret);
 }
 
-void _get_opp_table_kref(struct opp_table *opp_table)
-{
-	kref_get(&opp_table->kref);
-}
-
 static struct opp_table *_update_opp_table_clk(struct device *dev,
 					       struct opp_table *opp_table,
 					       bool getclk)
@@ -1693,6 +1688,17 @@ static void _opp_table_kref_release(struct kref *kref)
 	kfree(opp_table);
 }
 
+void _get_opp_table_kref(struct opp_table *opp_table)
+{
+	kref_get(&opp_table->kref);
+}
+
+void dev_pm_opp_get_opp_table_ref(struct opp_table *opp_table)
+{
+	_get_opp_table_kref(opp_table);
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_get_opp_table_ref);
+
 void dev_pm_opp_put_opp_table(struct opp_table *opp_table)
 {
 	kref_put_mutex(&opp_table->kref, _opp_table_kref_release,
@@ -1727,6 +1733,7 @@ void dev_pm_opp_get(struct dev_pm_opp *opp)
 {
 	kref_get(&opp->kref);
 }
+EXPORT_SYMBOL_GPL(dev_pm_opp_get);
 
 void dev_pm_opp_put(struct dev_pm_opp *opp)
 {

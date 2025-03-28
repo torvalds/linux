@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
+#include <linux/string_choices.h>
 #include <linux/mfd/da903x.h>
 
 #include <linux/debugfs.h>
@@ -138,7 +139,7 @@ static int bat_debug_show(struct seq_file *s, void *data)
 {
 	struct da9030_charger *charger = s->private;
 
-	seq_printf(s, "charger is %s\n", charger->is_on ? "on" : "off");
+	seq_printf(s, "charger is %s\n", str_on_off(charger->is_on));
 	if (charger->chdet) {
 		seq_printf(s, "iset = %dmA, vset = %dmV\n",
 			   charger->mA, charger->mV);

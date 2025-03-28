@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: GPL-2.0
+`./defaults.sh`
+
+// Initialize connection
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK>
+  +.1 < . 1:1(0) ack 1 win 32792
+
+
+   +0 accept(3, ..., ...) = 4
+
+// Okay, we received nothing, and decide to close this idle socket.
+// We set TCP_USER_TIMEOUT to 3 seconds because really it is not worth
+// trying hard to cleanly close this flow, at the price of keeping
+// a TCP structure in kernel for about 1 minute !
+   +2 setsockopt(4, SOL_TCP, TCP_USER_TIMEOUT, [3000], 4) = 0
+   +0 close(4) = 0
+
+   +0 > F. 1:1(0) ack 1
+  +.3~+.400 > F. 1:1(0) ack 1
+  +.3~+.400 > F. 1:1(0) ack 1
+  +.6~+.800 > F. 1:1(0) ack 1
+
+// We finally receive something from the peer, but it is way too late
+// Our socket vanished because TCP_USER_TIMEOUT was really small
+   +0 < . 1:2(1) ack 1 win 32792
+   +0 > R 1:1(0)

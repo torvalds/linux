@@ -13,12 +13,14 @@ fbnic-y := fbnic_csr.o \
 	   fbnic_ethtool.o \
 	   fbnic_fw.o \
 	   fbnic_hw_stats.o \
+	   fbnic_hwmon.o \
 	   fbnic_irq.o \
 	   fbnic_mac.o \
 	   fbnic_netdev.o \
 	   fbnic_pci.o \
 	   fbnic_phylink.o \
 	   fbnic_rpc.o \
+	   fbnic_time.o \
 	   fbnic_tlv.o \
 	   fbnic_txrx.o \
-	   fbnic_time.o
+# End of objects

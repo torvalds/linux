@@ -517,8 +517,6 @@
 		eeprom@a4 {
 			compatible = "zii,rave-sp-eeprom";
 			reg = <0xa4 0x4000>;
-			#address-cells = <1>;
-			#size-cells = <1>;
 			zii,eeprom-name = "main-eeprom";
 		};
 	};

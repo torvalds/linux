@@ -4,9 +4,10 @@
 #
 
 config PINCTRL_SPACEMIT_K1
-	tristate "SpacemiT K1 SoC Pinctrl driver"
+	bool "SpacemiT K1 SoC Pinctrl driver"
 	depends on ARCH_SPACEMIT || COMPILE_TEST
 	depends on OF
+	default ARCH_SPACEMIT
 	select GENERIC_PINCTRL_GROUPS
 	select GENERIC_PINMUX_FUNCTIONS
 	select GENERIC_PINCONF

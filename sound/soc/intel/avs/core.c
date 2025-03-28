@@ -612,7 +612,7 @@ static int avs_suspend_standby(struct avs_dev *adev)
 	return 0;
 }
 
-static int __maybe_unused avs_suspend_common(struct avs_dev *adev, bool low_power)
+static int avs_suspend_common(struct avs_dev *adev, bool low_power)
 {
 	struct hdac_bus *bus = &adev->base.core;
 	int ret;
@@ -673,7 +673,7 @@ static int avs_resume_standby(struct avs_dev *adev)
 	return 0;
 }
 
-static int __maybe_unused avs_resume_common(struct avs_dev *adev, bool low_power, bool purge)
+static int avs_resume_common(struct avs_dev *adev, bool low_power, bool purge)
 {
 	struct hdac_bus *bus = &adev->base.core;
 	int ret;
@@ -696,41 +696,41 @@ static int __maybe_unused avs_resume_common(struct avs_dev *adev, bool low_power
 	return 0;
 }
 
-static int __maybe_unused avs_suspend(struct device *dev)
+static int avs_suspend(struct device *dev)
 {
 	return avs_suspend_common(to_avs_dev(dev), true);
 }
 
-static int __maybe_unused avs_resume(struct device *dev)
+static int avs_resume(struct device *dev)
 {
 	return avs_resume_common(to_avs_dev(dev), true, true);
 }
 
-static int __maybe_unused avs_runtime_suspend(struct device *dev)
+static int avs_runtime_suspend(struct device *dev)
 {
 	return avs_suspend_common(to_avs_dev(dev), true);
 }
 
-static int __maybe_unused avs_runtime_resume(struct device *dev)
+static int avs_runtime_resume(struct device *dev)
 {
 	return avs_resume_common(to_avs_dev(dev), true, false);
 }
 
-static int __maybe_unused avs_freeze(struct device *dev)
+static int avs_freeze(struct device *dev)
 {
 	return avs_suspend_common(to_avs_dev(dev), false);
 }
-static int __maybe_unused avs_thaw(struct device *dev)
+static int avs_thaw(struct device *dev)
 {
 	return avs_resume_common(to_avs_dev(dev), false, true);
 }
 
-static int __maybe_unused avs_poweroff(struct device *dev)
+static int avs_poweroff(struct device *dev)
 {
 	return avs_suspend_common(to_avs_dev(dev), false);
 }
 
-static int __maybe_unused avs_restore(struct device *dev)
+static int avs_restore(struct device *dev)
 {
 	return avs_resume_common(to_avs_dev(dev), false, true);
 }
@@ -742,7 +742,7 @@ static const struct dev_pm_ops avs_dev_pm = {
 	.thaw = avs_thaw,
 	.poweroff = avs_poweroff,
 	.restore = avs_restore,
-	SET_RUNTIME_PM_OPS(avs_runtime_suspend, avs_runtime_resume, NULL)
+	RUNTIME_PM_OPS(avs_runtime_suspend, avs_runtime_resume, NULL)
 };
 
 static const struct avs_sram_spec skl_sram_spec = {
@@ -829,10 +829,10 @@ static const struct avs_spec jsl_desc = {
 	.hipc = &cnl_hipc_spec,
 };
 
-#define AVS_TGL_BASED_SPEC(sname)		\
+#define AVS_TGL_BASED_SPEC(sname, min)		\
 static const struct avs_spec sname##_desc = {	\
 	.name = #sname,				\
-	.min_fw_version = { 10,	29, 0, 5646 },	\
+	.min_fw_version = { 10,	min, 0, 5646 },	\
 	.dsp_ops = &avs_tgl_dsp_ops,		\
 	.core_init_mask = 1,			\
 	.attributes = AVS_PLATATTR_IMR,		\
@@ -840,11 +840,11 @@ static const struct avs_spec sname##_desc = {	\
 	.hipc = &cnl_hipc_spec,			\
 }
 
-AVS_TGL_BASED_SPEC(lkf);
-AVS_TGL_BASED_SPEC(tgl);
-AVS_TGL_BASED_SPEC(ehl);
-AVS_TGL_BASED_SPEC(adl);
-AVS_TGL_BASED_SPEC(adl_n);
+AVS_TGL_BASED_SPEC(lkf, 28);
+AVS_TGL_BASED_SPEC(tgl, 29);
+AVS_TGL_BASED_SPEC(ehl, 30);
+AVS_TGL_BASED_SPEC(adl, 35);
+AVS_TGL_BASED_SPEC(adl_n, 35);
 
 static const struct pci_device_id avs_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, HDA_SKL_LP, &skl_desc) },
@@ -893,7 +893,7 @@ static struct pci_driver avs_pci_driver = {
 	.shutdown = avs_pci_shutdown,
 	.dev_groups = avs_attr_groups,
 	.driver = {
-		.pm = &avs_dev_pm,
+		.pm = pm_ptr(&avs_dev_pm),
 	},
 };
 module_pci_driver(avs_pci_driver);
@@ -902,3 +902,13 @@ MODULE_AUTHOR("Cezary Rojewski <cezary.rojewski@intel.com>");
 MODULE_AUTHOR("Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>");
 MODULE_DESCRIPTION("Intel cAVS sound driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE("intel/skl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/apl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/cnl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/icl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/jsl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/lkf/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/tgl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/ehl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/adl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/adl_n/dsp_basefw.bin");

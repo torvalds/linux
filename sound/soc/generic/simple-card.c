@@ -29,7 +29,16 @@ static const struct snd_soc_ops simple_ops = {
 	.hw_params	= simple_util_hw_params,
 };
 
-static int simple_parse_platform(struct device_node *node, struct snd_soc_dai_link_component *dlc)
+#define simple_ret(priv, ret) _simple_ret(priv, __func__, ret)
+static inline int _simple_ret(struct simple_util_priv *priv,
+			      const char *func, int ret)
+{
+	return snd_soc_ret(simple_priv_to_dev(priv), ret, "at %s()\n", func);
+}
+
+static int simple_parse_platform(struct simple_util_priv *priv,
+				 struct device_node *node,
+				 struct snd_soc_dai_link_component *dlc)
 {
 	struct of_phandle_args args;
 	int ret;
@@ -43,7 +52,7 @@ static int simple_parse_platform(struct device_node *node, struct snd_soc_dai_li
 	 */
 	ret = of_parse_phandle_with_args(node, DAI, CELL, 0, &args);
 	if (ret)
-		return ret;
+		return simple_ret(priv, ret);
 
 	/* dai_name is not required and may not exist for plat component */
 
@@ -52,11 +61,12 @@ static int simple_parse_platform(struct device_node *node, struct snd_soc_dai_li
 	return 0;
 }
 
-static int simple_parse_dai(struct device *dev,
+static int simple_parse_dai(struct simple_util_priv *priv,
 			    struct device_node *node,
 			    struct snd_soc_dai_link_component *dlc,
 			    int *is_single_link)
 {
+	struct device *dev = simple_priv_to_dev(priv);
 	struct of_phandle_args args;
 	struct snd_soc_dai *dai;
 	int ret;
@@ -70,17 +80,18 @@ static int simple_parse_dai(struct device *dev,
 	 */
 	ret = of_parse_phandle_with_args(node, DAI, CELL, 0, &args);
 	if (ret)
-		return ret;
+		goto end;
 
 	/*
 	 * Try to find from DAI args
 	 */
 	dai = snd_soc_get_dai_via_args(&args);
 	if (dai) {
+		ret = -ENOMEM;
 		dlc->dai_name = snd_soc_dai_name_get(dai);
 		dlc->dai_args = snd_soc_copy_dai_args(dev, &args);
 		if (!dlc->dai_args)
-			return -ENOMEM;
+			goto end;
 
 		goto parse_dai_end;
 	}
@@ -106,13 +117,14 @@ static int simple_parse_dai(struct device *dev,
 	 */
 	ret = snd_soc_get_dlc(&args, dlc);
 	if (ret < 0)
-		return ret;
+		goto end;
 
 parse_dai_end:
 	if (is_single_link)
 		*is_single_link = !args.args_count;
-
-	return 0;
+	ret = 0;
+end:
+	return simple_ret(priv, ret);
 }
 
 static void simple_parse_convert(struct device *dev,
@@ -120,14 +132,12 @@ static void simple_parse_convert(struct device *dev,
 				 struct simple_util_data *adata)
 {
 	struct device_node *top = dev->of_node;
-	struct device_node *node = of_get_parent(np);
+	struct device_node *node __free(device_node) = of_get_parent(np);
 
 	simple_util_parse_convert(top,  PREFIX, adata);
 	simple_util_parse_convert(node, PREFIX, adata);
 	simple_util_parse_convert(node, NULL,   adata);
 	simple_util_parse_convert(np,   NULL,   adata);
-
-	of_node_put(node);
 }
 
 static int simple_parse_node(struct simple_util_priv *priv,
@@ -151,19 +161,17 @@ static int simple_parse_node(struct simple_util_priv *priv,
 		dai = simple_props_to_dai_codec(dai_props, 0);
 	}
 
-	ret = simple_parse_dai(dev, np, dlc, cpu);
+	ret = simple_parse_dai(priv, np, dlc, cpu);
 	if (ret)
-		return ret;
+		goto end;
 
 	ret = simple_util_parse_clk(dev, np, dai, dlc);
 	if (ret)
-		return ret;
+		goto end;
 
 	ret = simple_util_parse_tdm(np, dai);
-	if (ret)
-		return ret;
-
-	return 0;
+end:
+	return simple_ret(priv, ret);
 }
 
 static int simple_link_init(struct simple_util_priv *priv,
@@ -176,7 +184,7 @@ static int simple_link_init(struct simple_util_priv *priv,
 	struct device_node *top = dev->of_node;
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
 	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
-	struct device_node *node = of_get_parent(cpu);
+	struct device_node *node __free(device_node) = of_get_parent(cpu);
 	enum snd_soc_trigger_order trigger_start = SND_SOC_TRIGGER_ORDER_DEFAULT;
 	enum snd_soc_trigger_order trigger_stop  = SND_SOC_TRIGGER_ORDER_DEFAULT;
 	bool playback_only = 0, capture_only = 0;
@@ -185,7 +193,7 @@ static int simple_link_init(struct simple_util_priv *priv,
 	ret = simple_util_parse_daifmt(dev, node, codec,
 				       prefix, &dai_link->dai_fmt);
 	if (ret < 0)
-		goto init_end;
+		goto end;
 
 	graph_util_parse_link_direction(top,	&playback_only, &capture_only);
 	graph_util_parse_link_direction(node,	&playback_only, &capture_only);
@@ -215,11 +223,9 @@ static int simple_link_init(struct simple_util_priv *priv,
 	dai_link->init			= simple_util_dai_init;
 	dai_link->ops			= &simple_ops;
 
-	ret = simple_util_set_dailink_name(dev, dai_link, name);
-init_end:
-	of_node_put(node);
-
-	return ret;
+	ret = simple_util_set_dailink_name(priv, dai_link, name);
+end:
+	return simple_ret(priv, ret);
 }
 
 static int simple_dai_link_of_dpcm(struct simple_util_priv *priv,
@@ -232,7 +238,7 @@ static int simple_dai_link_of_dpcm(struct simple_util_priv *priv,
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
 	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
 	struct device_node *top = dev->of_node;
-	struct device_node *node = of_get_parent(np);
+	struct device_node *node __free(device_node) = of_get_parent(np);
 	char *prefix = "";
 	char dai_name[64];
 	int ret;
@@ -296,8 +302,7 @@ static int simple_dai_link_of_dpcm(struct simple_util_priv *priv,
 out_put_node:
 	li->link++;
 
-	of_node_put(node);
-	return ret;
+	return simple_ret(priv, ret);
 }
 
 static int simple_dai_link_of(struct simple_util_priv *priv,
@@ -312,15 +317,13 @@ static int simple_dai_link_of(struct simple_util_priv *priv,
 	struct snd_soc_dai_link_component *codecs = snd_soc_link_to_codec(dai_link, 0);
 	struct snd_soc_dai_link_component *platforms = snd_soc_link_to_platform(dai_link, 0);
 	struct device_node *cpu = NULL;
-	struct device_node *node = NULL;
-	struct device_node *plat = NULL;
 	char dai_name[64];
 	char prop[128];
 	char *prefix = "";
 	int ret, single_cpu = 0;
 
 	cpu  = np;
-	node = of_get_parent(np);
+	struct device_node *node __free(device_node) = of_get_parent(np);
 
 	dev_dbg(dev, "link_of (%pOF)\n", node);
 
@@ -329,7 +332,7 @@ static int simple_dai_link_of(struct simple_util_priv *priv,
 		prefix = PREFIX;
 
 	snprintf(prop, sizeof(prop), "%splat", prefix);
-	plat = of_get_child_by_name(node, prop);
+	struct device_node *plat __free(device_node)  = of_get_child_by_name(node, prop);
 
 	ret = simple_parse_node(priv, cpu, li, prefix, &single_cpu);
 	if (ret < 0)
@@ -339,7 +342,7 @@ static int simple_dai_link_of(struct simple_util_priv *priv,
 	if (ret < 0)
 		goto dai_link_of_err;
 
-	ret = simple_parse_platform(plat, platforms);
+	ret = simple_parse_platform(priv, plat, platforms);
 	if (ret < 0)
 		goto dai_link_of_err;
 
@@ -352,12 +355,9 @@ static int simple_dai_link_of(struct simple_util_priv *priv,
 	ret = simple_link_init(priv, cpu, codec, li, prefix, dai_name);
 
 dai_link_of_err:
-	of_node_put(plat);
-	of_node_put(node);
-
 	li->link++;
 
-	return ret;
+	return simple_ret(priv, ret);
 }
 
 static int __simple_for_each_link(struct simple_util_priv *priv,
@@ -374,7 +374,6 @@ static int __simple_for_each_link(struct simple_util_priv *priv,
 	struct device *dev = simple_priv_to_dev(priv);
 	struct device_node *top = dev->of_node;
 	struct device_node *node;
-	struct device_node *add_devs;
 	uintptr_t dpcm_selectable = (uintptr_t)of_device_get_match_data(dev);
 	bool is_top = 0;
 	int ret = 0;
@@ -386,14 +385,11 @@ static int __simple_for_each_link(struct simple_util_priv *priv,
 		is_top = 1;
 	}
 
-	add_devs = of_get_child_by_name(top, PREFIX "additional-devs");
+	struct device_node *add_devs __free(device_node) = of_get_child_by_name(top, PREFIX "additional-devs");
 
 	/* loop for all dai-link */
 	do {
 		struct simple_util_data adata;
-		struct device_node *codec;
-		struct device_node *plat;
-		struct device_node *np;
 		int num = of_get_child_count(node);
 
 		/* Skip additional-devs node */
@@ -403,26 +399,26 @@ static int __simple_for_each_link(struct simple_util_priv *priv,
 		}
 
 		/* get codec */
-		codec = of_get_child_by_name(node, is_top ?
-					     PREFIX "codec" : "codec");
+		struct device_node *codec __free(device_node) =
+			of_get_child_by_name(node, is_top ? PREFIX "codec" : "codec");
 		if (!codec) {
 			ret = -ENODEV;
 			goto error;
 		}
 		/* get platform */
-		plat = of_get_child_by_name(node, is_top ?
-					    PREFIX "plat" : "plat");
+		struct device_node *plat __free(device_node) =
+			of_get_child_by_name(node, is_top ? PREFIX "plat" : "plat");
 
 		/* get convert-xxx property */
 		memset(&adata, 0, sizeof(adata));
-		for_each_child_of_node(node, np) {
+		for_each_child_of_node_scoped(node, np) {
 			if (np == add_devs)
 				continue;
 			simple_parse_convert(dev, np, &adata);
 		}
 
 		/* loop for all CPU/Codec node */
-		for_each_child_of_node(node, np) {
+		for_each_child_of_node_scoped(node, np) {
 			if (plat == np || add_devs == np)
 				continue;
 			/*
@@ -452,23 +448,17 @@ static int __simple_for_each_link(struct simple_util_priv *priv,
 					ret = func_noml(priv, np, codec, li, is_top);
 			}
 
-			if (ret < 0) {
-				of_node_put(codec);
-				of_node_put(plat);
-				of_node_put(np);
+			if (ret < 0)
 				goto error;
-			}
 		}
 
-		of_node_put(codec);
-		of_node_put(plat);
 		node = of_get_next_child(top, node);
 	} while (!is_top && node);
 
- error:
-	of_node_put(add_devs);
+error:
 	of_node_put(node);
-	return ret;
+
+	return simple_ret(priv, ret);
 }
 
 static int simple_for_each_link(struct simple_util_priv *priv,
@@ -501,7 +491,7 @@ static int simple_for_each_link(struct simple_util_priv *priv,
 			break;
 	}
 
-	return ret;
+	return simple_ret(priv, ret);
 }
 
 static void simple_depopulate_aux(void *data)
@@ -514,19 +504,19 @@ static void simple_depopulate_aux(void *data)
 static int simple_populate_aux(struct simple_util_priv *priv)
 {
 	struct device *dev = simple_priv_to_dev(priv);
-	struct device_node *node;
+	struct device_node *node __free(device_node) = of_get_child_by_name(dev->of_node, PREFIX "additional-devs");
 	int ret;
 
-	node = of_get_child_by_name(dev->of_node, PREFIX "additional-devs");
 	if (!node)
 		return 0;
 
 	ret = of_platform_populate(node, NULL, NULL, dev);
-	of_node_put(node);
 	if (ret)
-		return ret;
+		goto end;
 
-	return devm_add_action_or_reset(dev, simple_depopulate_aux, priv);
+	ret = devm_add_action_or_reset(dev, simple_depopulate_aux, priv);
+end:
+	return simple_ret(priv, ret);
 }
 
 static int simple_parse_of(struct simple_util_priv *priv, struct link_info *li)
@@ -536,15 +526,15 @@ static int simple_parse_of(struct simple_util_priv *priv, struct link_info *li)
 
 	ret = simple_util_parse_widgets(card, PREFIX);
 	if (ret < 0)
-		return ret;
+		goto end;
 
 	ret = simple_util_parse_routing(card, PREFIX);
 	if (ret < 0)
-		return ret;
+		goto end;
 
 	ret = simple_util_parse_pin_switches(card, PREFIX);
 	if (ret < 0)
-		return ret;
+		goto end;
 
 	/* Single/Muti DAI link(s) & New style of DT node */
 	memset(li, 0, sizeof(*li));
@@ -552,19 +542,19 @@ static int simple_parse_of(struct simple_util_priv *priv, struct link_info *li)
 				   simple_dai_link_of,
 				   simple_dai_link_of_dpcm);
 	if (ret < 0)
-		return ret;
+		goto end;
 
-	ret = simple_util_parse_card_name(card, PREFIX);
+	ret = simple_util_parse_card_name(priv, PREFIX);
 	if (ret < 0)
-		return ret;
+		goto end;
 
 	ret = simple_populate_aux(priv);
 	if (ret < 0)
-		return ret;
+		goto end;
 
 	ret = snd_soc_of_parse_aux_devs(card, PREFIX "aux-devs");
-
-	return ret;
+end:
+	return simple_ret(priv, ret);
 }
 
 static int simple_count_noml(struct simple_util_priv *priv,
@@ -572,12 +562,10 @@ static int simple_count_noml(struct simple_util_priv *priv,
 			     struct device_node *codec,
 			     struct link_info *li, bool is_top)
 {
-	if (li->link >= SNDRV_MAX_LINKS) {
-		struct device *dev = simple_priv_to_dev(priv);
+	int ret = -EINVAL;
 
-		dev_err(dev, "too many links\n");
-		return -EINVAL;
-	}
+	if (li->link >= SNDRV_MAX_LINKS)
+		goto end;
 
 	/*
 	 * DON'T REMOVE platforms
@@ -599,8 +587,9 @@ static int simple_count_noml(struct simple_util_priv *priv,
 	li->num[li->link].codecs	= 1;
 
 	li->link += 1;
-
-	return 0;
+	ret = 0;
+end:
+	return simple_ret(priv, ret);
 }
 
 static int simple_count_dpcm(struct simple_util_priv *priv,
@@ -608,12 +597,10 @@ static int simple_count_dpcm(struct simple_util_priv *priv,
 			     struct device_node *codec,
 			     struct link_info *li, bool is_top)
 {
-	if (li->link >= SNDRV_MAX_LINKS) {
-		struct device *dev = simple_priv_to_dev(priv);
+	int ret = -EINVAL;
 
-		dev_err(dev, "too many links\n");
-		return -EINVAL;
-	}
+	if (li->link >= SNDRV_MAX_LINKS)
+		goto end;
 
 	if (li->cpu) {
 		/*
@@ -630,8 +617,9 @@ static int simple_count_dpcm(struct simple_util_priv *priv,
 
 		li->link++; /* dummy-Codec */
 	}
-
-	return 0;
+	ret = 0;
+end:
+	return simple_ret(priv, ret);
 }
 
 static int simple_get_dais_count(struct simple_util_priv *priv,
@@ -707,17 +695,15 @@ static int simple_soc_probe(struct snd_soc_card *card)
 
 	ret = simple_util_init_hp(card, &priv->hp_jack, PREFIX);
 	if (ret < 0)
-		return ret;
+		goto end;
 
 	ret = simple_util_init_mic(card, &priv->mic_jack, PREFIX);
 	if (ret < 0)
-		return ret;
+		goto end;
 
 	ret = simple_util_init_aux_jacks(priv, PREFIX);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+end:
+	return simple_ret(priv, ret);
 }
 
 static int simple_probe(struct platform_device *pdev)
@@ -739,20 +725,22 @@ static int simple_probe(struct platform_device *pdev)
 	card->probe		= simple_soc_probe;
 	card->driver_name       = "simple-card";
 
+	ret = -ENOMEM;
 	struct link_info *li __free(kfree) = kzalloc(sizeof(*li), GFP_KERNEL);
 	if (!li)
-		return -ENOMEM;
+		goto end;
 
 	ret = simple_get_dais_count(priv, li);
 	if (ret < 0)
-		return ret;
+		goto end;
 
+	ret = -EINVAL;
 	if (!li->link)
-		return -EINVAL;
+		goto end;
 
 	ret = simple_util_init_priv(priv, li);
 	if (ret < 0)
-		return ret;
+		goto end;
 
 	if (np && of_device_is_available(np)) {
 
@@ -819,8 +807,8 @@ static int simple_probe(struct platform_device *pdev)
 	return 0;
 err:
 	simple_util_clean_reference(card);
-
-	return ret;
+end:
+	return dev_err_probe(dev, ret, "parse error\n");
 }
 
 static const struct of_device_id simple_of_match[] = {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -422,6 +422,8 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	/* if reached this point, Alive notification was received */
 	iwl_mei_alive_notif(true);
 
+	iwl_trans_fw_alive(mvm->trans, alive_data.scd_base_addr);
+
 	ret = iwl_pnvm_load(mvm->trans, &mvm->notif_wait,
 			    &mvm->fw->ucode_capa);
 	if (ret) {
@@ -429,8 +431,6 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 		iwl_fw_set_current_image(&mvm->fwrt, old_type);
 		return ret;
 	}
-
-	iwl_trans_fw_alive(mvm->trans, alive_data.scd_base_addr);
 
 	/*
 	 * Note: all the queues are enabled as part of the interface
@@ -642,7 +642,8 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 		/* if we needed reset then fail here, but notify and remove */
 		if (mvm->fw_product_reset) {
 			iwl_mei_alive_notif(false);
-			iwl_trans_pcie_remove(mvm->trans, true);
+			iwl_trans_pcie_reset(mvm->trans,
+					     IWL_RESET_MODE_RESCAN);
 		}
 
 		goto error;
@@ -1093,36 +1094,24 @@ static int iwl_mvm_ppag_init(struct iwl_mvm *mvm)
 	return iwl_mvm_ppag_send_cmd(mvm);
 }
 
-static bool iwl_mvm_add_to_tas_block_list(__le32 *list, __le32 *le_size, unsigned int mcc)
-{
-	int i;
-	u32 size = le32_to_cpu(*le_size);
-
-	/* Verify that there is room for another country */
-	if (size >= IWL_WTAS_BLACK_LIST_MAX)
-		return false;
-
-	for (i = 0; i < size; i++) {
-		if (list[i] == cpu_to_le32(mcc))
-			return true;
-	}
-
-	list[size++] = cpu_to_le32(mcc);
-	*le_size = cpu_to_le32(size);
-	return true;
-}
-
 static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 {
 	u32 cmd_id = WIDE_ID(REGULATORY_AND_NVM_GROUP, TAS_CONFIG);
-	int ret;
+	int fw_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id,
+					   IWL_FW_CMD_VER_UNKNOWN);
+	struct iwl_tas_selection_data selection_data = {};
+	struct iwl_tas_config_cmd_v2_v4 cmd_v2_v4 = {};
+	struct iwl_tas_config_cmd cmd_v5 = {};
 	struct iwl_tas_data data = {};
-	struct iwl_tas_config_cmd cmd = {};
-	int cmd_size, fw_ver;
+	void *cmd_data = &cmd_v2_v4;
+	int cmd_size;
+	int ret;
 
 	BUILD_BUG_ON(ARRAY_SIZE(data.block_list_array) !=
 		     IWL_WTAS_BLACK_LIST_MAX);
-	BUILD_BUG_ON(ARRAY_SIZE(cmd.common.block_list_array) !=
+	BUILD_BUG_ON(ARRAY_SIZE(cmd_v2_v4.common.block_list_array) !=
+		     IWL_WTAS_BLACK_LIST_MAX);
+	BUILD_BUG_ON(ARRAY_SIZE(cmd_v5.block_list_array) !=
 		     IWL_WTAS_BLACK_LIST_MAX);
 
 	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TAS_CFG)) {
@@ -1138,17 +1127,17 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 		return;
 	}
 
-	if (ret == 0)
+	if (ret == 0 && fw_ver < 5)
 		return;
 
 	if (!iwl_is_tas_approved()) {
 		IWL_DEBUG_RADIO(mvm,
 				"System vendor '%s' is not in the approved list, disabling TAS in US and Canada.\n",
 				dmi_get_system_info(DMI_SYS_VENDOR) ?: "<unknown>");
-		if ((!iwl_mvm_add_to_tas_block_list(data.block_list_array,
+		if ((!iwl_add_mcc_to_tas_block_list(data.block_list_array,
 						    &data.block_list_size,
 						    IWL_MCC_US)) ||
-		    (!iwl_mvm_add_to_tas_block_list(data.block_list_array,
+		    (!iwl_add_mcc_to_tas_block_list(data.block_list_array,
 						    &data.block_list_size,
 						    IWL_MCC_CANADA))) {
 			IWL_DEBUG_RADIO(mvm,
@@ -1161,61 +1150,51 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 				dmi_get_system_info(DMI_SYS_VENDOR) ?: "<unknown>");
 	}
 
-	fw_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id,
-				       IWL_FW_CMD_VER_UNKNOWN);
-
-	memcpy(&cmd.common, &data, sizeof(struct iwl_tas_config_cmd_common));
-
-	/* Set v3 or v4 specific parts. will be trunctated for fw_ver < 3 */
-	if (fw_ver == 4) {
-		cmd.v4.override_tas_iec = data.override_tas_iec;
-		cmd.v4.enable_tas_iec = data.enable_tas_iec;
-		cmd.v4.usa_tas_uhb_allowed = data.usa_tas_uhb_allowed;
-	} else {
-		cmd.v3.override_tas_iec = cpu_to_le16(data.override_tas_iec);
-		cmd.v3.enable_tas_iec = cpu_to_le16(data.enable_tas_iec);
+	if (fw_ver < 5) {
+		selection_data = iwl_parse_tas_selection(data.tas_selection,
+							 data.table_revision);
+		cmd_v2_v4.common.block_list_size =
+			cpu_to_le32(data.block_list_size);
+		for (u8 i = 0; i < data.block_list_size; i++)
+			cmd_v2_v4.common.block_list_array[i] =
+				cpu_to_le32(data.block_list_array[i]);
 	}
 
-	cmd_size = sizeof(struct iwl_tas_config_cmd_common);
-	if (fw_ver >= 3)
-		/* v4 is the same size as v3 */
-		cmd_size += sizeof(struct iwl_tas_config_cmd_v3);
+	if (fw_ver == 5) {
+		cmd_size = sizeof(cmd_v5);
+		cmd_data = &cmd_v5;
+		cmd_v5.block_list_size = cpu_to_le16(data.block_list_size);
+		for (u16 i = 0; i < data.block_list_size; i++)
+			cmd_v5.block_list_array[i] =
+				cpu_to_le16(data.block_list_array[i]);
+		cmd_v5.tas_config_info.table_source = data.table_source;
+		cmd_v5.tas_config_info.table_revision = data.table_revision;
+		cmd_v5.tas_config_info.value = cpu_to_le32(data.tas_selection);
+	} else if (fw_ver == 4) {
+		cmd_size = sizeof(cmd_v2_v4.common) + sizeof(cmd_v2_v4.v4);
+		cmd_v2_v4.v4.override_tas_iec = selection_data.override_tas_iec;
+		cmd_v2_v4.v4.enable_tas_iec = selection_data.enable_tas_iec;
+		cmd_v2_v4.v4.usa_tas_uhb_allowed =
+			selection_data.usa_tas_uhb_allowed;
+		if (fw_has_capa(&mvm->fw->ucode_capa,
+				IWL_UCODE_TLV_CAPA_UHB_CANADA_TAS_SUPPORT) &&
+		    selection_data.canada_tas_uhb_allowed)
+			cmd_v2_v4.v4.uhb_allowed_flags = TAS_UHB_ALLOWED_CANADA;
+	} else if (fw_ver == 3) {
+		cmd_size = sizeof(cmd_v2_v4.common) + sizeof(cmd_v2_v4.v3);
+		cmd_v2_v4.v3.override_tas_iec =
+			cpu_to_le16(selection_data.override_tas_iec);
+		cmd_v2_v4.v3.enable_tas_iec =
+			cpu_to_le16(selection_data.enable_tas_iec);
+	} else if (fw_ver == 2) {
+		cmd_size = sizeof(cmd_v2_v4.common);
+	} else {
+		return;
+	}
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, cmd_size, &cmd);
+	ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, cmd_size, cmd_data);
 	if (ret < 0)
 		IWL_DEBUG_RADIO(mvm, "failed to send TAS_CONFIG (%d)\n", ret);
-}
-
-static bool iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
-{
-	u32 value = 0;
-	/* default behaviour is disabled */
-	bool bios_enable_rfi = false;
-	int ret = iwl_bios_get_dsm(&mvm->fwrt, DSM_FUNC_RFI_CONFIG, &value);
-
-
-	if (ret < 0) {
-		IWL_DEBUG_RADIO(mvm, "Failed to get DSM RFI, ret=%d\n", ret);
-		return bios_enable_rfi;
-	}
-
-	value &= DSM_VALUE_RFI_DISABLE;
-	/* RFI BIOS CONFIG value can be 0 or 3 only.
-	 * i.e 0 means DDR and DLVR enabled. 3 means DDR and DLVR disabled.
-	 * 1 and 2 are invalid BIOS configurations, So, it's not possible to
-	 * disable ddr/dlvr separately.
-	 */
-	if (!value) {
-		IWL_DEBUG_RADIO(mvm, "DSM RFI is evaluated to enable\n");
-		bios_enable_rfi = true;
-	} else if (value == DSM_VALUE_RFI_DISABLE) {
-		IWL_DEBUG_RADIO(mvm, "DSM RFI is evaluated to disable\n");
-	} else {
-		IWL_DEBUG_RADIO(mvm,
-				"DSM RFI got invalid value, value=%d\n", value);
-	}
-
-	return bios_enable_rfi;
 }
 
 static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
@@ -1604,7 +1583,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	iwl_mvm_uats_init(mvm);
 
 	if (iwl_rfi_supported(mvm)) {
-		if (iwl_mvm_eval_dsm_rfi(mvm))
+		if (iwl_rfi_is_enabled_in_bios(&mvm->fwrt))
 			iwl_rfi_send_config_cmd(mvm, NULL);
 	}
 

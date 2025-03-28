@@ -335,13 +335,20 @@ static inline void bch2_trans_verify_not_unlocked_or_in_restart(struct btree_tra
 }
 
 __always_inline
-static int btree_trans_restart_ip(struct btree_trans *trans, int err, unsigned long ip)
+static int btree_trans_restart_foreign_task(struct btree_trans *trans, int err, unsigned long ip)
 {
 	BUG_ON(err <= 0);
 	BUG_ON(!bch2_err_matches(-err, BCH_ERR_transaction_restart));
 
 	trans->restarted = err;
 	trans->last_restarted_ip = ip;
+	return -err;
+}
+
+__always_inline
+static int btree_trans_restart_ip(struct btree_trans *trans, int err, unsigned long ip)
+{
+	btree_trans_restart_foreign_task(trans, err, ip);
 #ifdef CONFIG_BCACHEFS_DEBUG
 	darray_exit(&trans->last_restarted_trace);
 	bch2_save_backtrace(&trans->last_restarted_trace, current, 0, GFP_NOWAIT);
@@ -353,6 +360,18 @@ __always_inline
 static int btree_trans_restart(struct btree_trans *trans, int err)
 {
 	return btree_trans_restart_ip(trans, err, _THIS_IP_);
+}
+
+static inline int trans_maybe_inject_restart(struct btree_trans *trans, unsigned long ip)
+{
+#ifdef CONFIG_BCACHEFS_INJECT_TRANSACTION_RESTARTS
+	if (!(ktime_get_ns() & ~(~0ULL << min(63, (10 + trans->restart_count_this_trans))))) {
+		trace_and_count(trans->c, trans_restart_injected, trans, ip);
+		return btree_trans_restart_ip(trans,
+					BCH_ERR_transaction_restart_fault_inject, ip);
+	}
+#endif
+	return 0;
 }
 
 bool bch2_btree_node_upgrade(struct btree_trans *,
@@ -739,7 +758,7 @@ transaction_restart:							\
 	if (!_ret2)							\
 		bch2_trans_verify_not_restarted(_trans, _restart_count);\
 									\
-	_ret2 ?: trans_was_restarted(_trans, _restart_count);		\
+	_ret2 ?: trans_was_restarted(_trans, _orig_restart_count);		\
 })
 
 #define for_each_btree_key_max_continue(_trans, _iter,			\

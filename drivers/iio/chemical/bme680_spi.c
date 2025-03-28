@@ -154,6 +154,7 @@ static struct spi_driver bme680_spi_driver = {
 	.driver = {
 		.name			= "bme680_spi",
 		.of_match_table		= bme680_of_spi_match,
+		.pm = pm_ptr(&bme680_dev_pm_ops),
 	},
 	.probe = bme680_spi_probe,
 	.id_table = bme680_spi_id,

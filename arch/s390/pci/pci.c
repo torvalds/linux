@@ -124,14 +124,13 @@ int zpci_register_ioat(struct zpci_dev *zdev, u8 dmaas,
 	struct zpci_fib fib = {0};
 	u8 cc;
 
-	WARN_ON_ONCE(iota & 0x3fff);
 	fib.pba = base;
 	/* Work around off by one in ISM virt device */
 	if (zdev->pft == PCI_FUNC_TYPE_ISM && limit > base)
 		fib.pal = limit + (1 << 12);
 	else
 		fib.pal = limit;
-	fib.iota = iota | ZPCI_IOTA_RTTO_FLAG;
+	fib.iota = iota;
 	fib.gd = zdev->gisa;
 	cc = zpci_mod_fc(req, &fib, status);
 	if (cc)
@@ -690,6 +689,23 @@ int zpci_enable_device(struct zpci_dev *zdev)
 }
 EXPORT_SYMBOL_GPL(zpci_enable_device);
 
+int zpci_reenable_device(struct zpci_dev *zdev)
+{
+	u8 status;
+	int rc;
+
+	rc = zpci_enable_device(zdev);
+	if (rc)
+		return rc;
+
+	rc = zpci_iommu_register_ioat(zdev, &status);
+	if (rc)
+		zpci_disable_device(zdev);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(zpci_reenable_device);
+
 int zpci_disable_device(struct zpci_dev *zdev)
 {
 	u32 fh = zdev->fh;
@@ -739,7 +755,6 @@ EXPORT_SYMBOL_GPL(zpci_disable_device);
  */
 int zpci_hot_reset_device(struct zpci_dev *zdev)
 {
-	u8 status;
 	int rc;
 
 	lockdep_assert_held(&zdev->state_lock);
@@ -758,19 +773,9 @@ int zpci_hot_reset_device(struct zpci_dev *zdev)
 			return rc;
 	}
 
-	rc = zpci_enable_device(zdev);
-	if (rc)
-		return rc;
+	rc = zpci_reenable_device(zdev);
 
-	if (zdev->dma_table)
-		rc = zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
-					virt_to_phys(zdev->dma_table), &status);
-	if (rc) {
-		zpci_disable_device(zdev);
-		return rc;
-	}
-
-	return 0;
+	return rc;
 }
 
 /**

@@ -33,6 +33,7 @@ config PHY_SAMSUNG_UFS
 	tristate "Exynos SoC series UFS PHY driver"
 	depends on OF && (ARCH_EXYNOS || COMPILE_TEST)
 	select GENERIC_PHY
+	select MFD_SYSCON
 	help
 	  Enable this to support the Samsung Exynos SoC UFS PHY driver for
 	  Samsung Exynos SoCs. This driver provides the interface for UFS host

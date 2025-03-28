@@ -69,16 +69,16 @@ def check_json_output(expected_items):
   for item in json.loads(input):
     if expected_items != -1:
       count = len(item)
-      if count != expected_items and count >= 1 and count <= 7 and 'metric-value' in item:
+      if count not in expected_items and count >= 1 and count <= 7 and 'metric-value' in item:
         # Events that generate >1 metric may have isolated metric
         # values and possibly other prefixes like interval, core,
         # aggregate-number, or event-runtime/pcnt-running from multiplexing.
         pass
-      elif count != expected_items and count >= 1 and count <= 5 and 'metricgroup' in item:
+      elif count not in expected_items and count >= 1 and count <= 5 and 'metricgroup' in item:
         pass
-      elif count == expected_items + 1 and 'metric-threshold' in item:
+      elif count - 1 in expected_items and 'metric-threshold' in item:
           pass
-      elif count != expected_items:
+      elif count not in expected_items:
         raise RuntimeError(f'wrong number of fields. counted {count} expected {expected_items}'
                            f' in \'{item}\'')
     for key, value in item.items():
@@ -90,11 +90,11 @@ def check_json_output(expected_items):
 
 try:
   if args.no_args or args.system_wide or args.event:
-    expected_items = 7
+    expected_items = [5, 7]
   elif args.interval or args.per_thread or args.system_wide_no_aggr:
-    expected_items = 8
+    expected_items = [6, 8]
   elif args.per_core or args.per_socket or args.per_node or args.per_die or args.per_cluster or args.per_cache:
-    expected_items = 9
+    expected_items = [7, 9]
   else:
     # If no option is specified, don't check the number of items.
     expected_items = -1

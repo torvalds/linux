@@ -683,170 +683,170 @@ void cb7210_return_to_local(gpib_board_t *board)
 	write_byte(nec_priv, AUX_RTL, AUXMR);
 }
 
-gpib_interface_t cb_pci_unaccel_interface = {
-name: "cbi_pci_unaccel",
-attach : cb_pci_attach,
-detach : cb_pci_detach,
-read : cb7210_read,
-write : cb7210_write,
-command : cb7210_command,
-take_control : cb7210_take_control,
-go_to_standby : cb7210_go_to_standby,
-request_system_control : cb7210_request_system_control,
-interface_clear : cb7210_interface_clear,
-remote_enable : cb7210_remote_enable,
-enable_eos : cb7210_enable_eos,
-disable_eos : cb7210_disable_eos,
-parallel_poll : cb7210_parallel_poll,
-parallel_poll_configure : cb7210_parallel_poll_configure,
-parallel_poll_response : cb7210_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : cb7210_line_status,
-update_status : cb7210_update_status,
-primary_address : cb7210_primary_address,
-secondary_address : cb7210_secondary_address,
-serial_poll_response : cb7210_serial_poll_response,
-serial_poll_status : cb7210_serial_poll_status,
-t1_delay : cb7210_t1_delay,
-return_to_local : cb7210_return_to_local,
+static gpib_interface_t cb_pci_unaccel_interface = {
+	.name = "cbi_pci_unaccel",
+	.attach = cb_pci_attach,
+	.detach = cb_pci_detach,
+	.read = cb7210_read,
+	.write = cb7210_write,
+	.command = cb7210_command,
+	.take_control = cb7210_take_control,
+	.go_to_standby = cb7210_go_to_standby,
+	.request_system_control = cb7210_request_system_control,
+	.interface_clear = cb7210_interface_clear,
+	.remote_enable = cb7210_remote_enable,
+	.enable_eos = cb7210_enable_eos,
+	.disable_eos = cb7210_disable_eos,
+	.parallel_poll = cb7210_parallel_poll,
+	.parallel_poll_configure = cb7210_parallel_poll_configure,
+	.parallel_poll_response = cb7210_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = cb7210_line_status,
+	.update_status = cb7210_update_status,
+	.primary_address = cb7210_primary_address,
+	.secondary_address = cb7210_secondary_address,
+	.serial_poll_response = cb7210_serial_poll_response,
+	.serial_poll_status = cb7210_serial_poll_status,
+	.t1_delay = cb7210_t1_delay,
+	.return_to_local = cb7210_return_to_local,
 };
 
-gpib_interface_t cb_pci_accel_interface = {
-name: "cbi_pci_accel",
-attach : cb_pci_attach,
-detach : cb_pci_detach,
-read : cb7210_accel_read,
-write : cb7210_accel_write,
-command : cb7210_command,
-take_control : cb7210_take_control,
-go_to_standby : cb7210_go_to_standby,
-request_system_control : cb7210_request_system_control,
-interface_clear : cb7210_interface_clear,
-remote_enable : cb7210_remote_enable,
-enable_eos : cb7210_enable_eos,
-disable_eos : cb7210_disable_eos,
-parallel_poll : cb7210_parallel_poll,
-parallel_poll_configure : cb7210_parallel_poll_configure,
-parallel_poll_response : cb7210_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : cb7210_line_status,
-update_status : cb7210_update_status,
-primary_address : cb7210_primary_address,
-secondary_address : cb7210_secondary_address,
-serial_poll_response : cb7210_serial_poll_response,
-serial_poll_status : cb7210_serial_poll_status,
-t1_delay : cb7210_t1_delay,
-return_to_local : cb7210_return_to_local,
+static gpib_interface_t cb_pci_accel_interface = {
+	.name = "cbi_pci_accel",
+	.attach = cb_pci_attach,
+	.detach = cb_pci_detach,
+	.read = cb7210_accel_read,
+	.write = cb7210_accel_write,
+	.command = cb7210_command,
+	.take_control = cb7210_take_control,
+	.go_to_standby = cb7210_go_to_standby,
+	.request_system_control = cb7210_request_system_control,
+	.interface_clear = cb7210_interface_clear,
+	.remote_enable = cb7210_remote_enable,
+	.enable_eos = cb7210_enable_eos,
+	.disable_eos = cb7210_disable_eos,
+	.parallel_poll = cb7210_parallel_poll,
+	.parallel_poll_configure = cb7210_parallel_poll_configure,
+	.parallel_poll_response = cb7210_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = cb7210_line_status,
+	.update_status = cb7210_update_status,
+	.primary_address = cb7210_primary_address,
+	.secondary_address = cb7210_secondary_address,
+	.serial_poll_response = cb7210_serial_poll_response,
+	.serial_poll_status = cb7210_serial_poll_status,
+	.t1_delay = cb7210_t1_delay,
+	.return_to_local = cb7210_return_to_local,
 };
 
-gpib_interface_t cb_pci_interface = {
-name: "cbi_pci",
-attach : cb_pci_attach,
-detach : cb_pci_detach,
-read : cb7210_accel_read,
-write : cb7210_accel_write,
-command : cb7210_command,
-take_control : cb7210_take_control,
-go_to_standby : cb7210_go_to_standby,
-request_system_control : cb7210_request_system_control,
-interface_clear : cb7210_interface_clear,
-remote_enable : cb7210_remote_enable,
-enable_eos : cb7210_enable_eos,
-disable_eos : cb7210_disable_eos,
-parallel_poll : cb7210_parallel_poll,
-parallel_poll_configure : cb7210_parallel_poll_configure,
-parallel_poll_response : cb7210_parallel_poll_response,
-line_status : cb7210_line_status,
-update_status : cb7210_update_status,
-primary_address : cb7210_primary_address,
-secondary_address : cb7210_secondary_address,
-serial_poll_response : cb7210_serial_poll_response,
-serial_poll_status : cb7210_serial_poll_status,
-t1_delay : cb7210_t1_delay,
-return_to_local : cb7210_return_to_local,
+static gpib_interface_t cb_pci_interface = {
+	.name = "cbi_pci",
+	.attach = cb_pci_attach,
+	.detach = cb_pci_detach,
+	.read = cb7210_accel_read,
+	.write = cb7210_accel_write,
+	.command = cb7210_command,
+	.take_control = cb7210_take_control,
+	.go_to_standby = cb7210_go_to_standby,
+	.request_system_control = cb7210_request_system_control,
+	.interface_clear = cb7210_interface_clear,
+	.remote_enable = cb7210_remote_enable,
+	.enable_eos = cb7210_enable_eos,
+	.disable_eos = cb7210_disable_eos,
+	.parallel_poll = cb7210_parallel_poll,
+	.parallel_poll_configure = cb7210_parallel_poll_configure,
+	.parallel_poll_response = cb7210_parallel_poll_response,
+	.line_status = cb7210_line_status,
+	.update_status = cb7210_update_status,
+	.primary_address = cb7210_primary_address,
+	.secondary_address = cb7210_secondary_address,
+	.serial_poll_response = cb7210_serial_poll_response,
+	.serial_poll_status = cb7210_serial_poll_status,
+	.t1_delay = cb7210_t1_delay,
+	.return_to_local = cb7210_return_to_local,
 };
 
-gpib_interface_t cb_isa_unaccel_interface = {
-name: "cbi_isa_unaccel",
-attach : cb_isa_attach,
-detach : cb_isa_detach,
-read : cb7210_read,
-write : cb7210_write,
-command : cb7210_command,
-take_control : cb7210_take_control,
-go_to_standby : cb7210_go_to_standby,
-request_system_control : cb7210_request_system_control,
-interface_clear : cb7210_interface_clear,
-remote_enable : cb7210_remote_enable,
-enable_eos : cb7210_enable_eos,
-disable_eos : cb7210_disable_eos,
-parallel_poll : cb7210_parallel_poll,
-parallel_poll_configure : cb7210_parallel_poll_configure,
-parallel_poll_response : cb7210_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : cb7210_line_status,
-update_status : cb7210_update_status,
-primary_address : cb7210_primary_address,
-secondary_address : cb7210_secondary_address,
-serial_poll_response : cb7210_serial_poll_response,
-serial_poll_status : cb7210_serial_poll_status,
-t1_delay : cb7210_t1_delay,
-return_to_local : cb7210_return_to_local,
+static gpib_interface_t cb_isa_unaccel_interface = {
+	.name = "cbi_isa_unaccel",
+	.attach = cb_isa_attach,
+	.detach = cb_isa_detach,
+	.read = cb7210_read,
+	.write = cb7210_write,
+	.command = cb7210_command,
+	.take_control = cb7210_take_control,
+	.go_to_standby = cb7210_go_to_standby,
+	.request_system_control = cb7210_request_system_control,
+	.interface_clear = cb7210_interface_clear,
+	.remote_enable = cb7210_remote_enable,
+	.enable_eos = cb7210_enable_eos,
+	.disable_eos = cb7210_disable_eos,
+	.parallel_poll = cb7210_parallel_poll,
+	.parallel_poll_configure = cb7210_parallel_poll_configure,
+	.parallel_poll_response = cb7210_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = cb7210_line_status,
+	.update_status = cb7210_update_status,
+	.primary_address = cb7210_primary_address,
+	.secondary_address = cb7210_secondary_address,
+	.serial_poll_response = cb7210_serial_poll_response,
+	.serial_poll_status = cb7210_serial_poll_status,
+	.t1_delay = cb7210_t1_delay,
+	.return_to_local = cb7210_return_to_local,
 };
 
-gpib_interface_t cb_isa_interface = {
-name: "cbi_isa",
-attach : cb_isa_attach,
-detach : cb_isa_detach,
-read : cb7210_accel_read,
-write : cb7210_accel_write,
-command : cb7210_command,
-take_control : cb7210_take_control,
-go_to_standby : cb7210_go_to_standby,
-request_system_control : cb7210_request_system_control,
-interface_clear : cb7210_interface_clear,
-remote_enable : cb7210_remote_enable,
-enable_eos : cb7210_enable_eos,
-disable_eos : cb7210_disable_eos,
-parallel_poll : cb7210_parallel_poll,
-parallel_poll_configure : cb7210_parallel_poll_configure,
-parallel_poll_response : cb7210_parallel_poll_response,
-line_status : cb7210_line_status,
-update_status : cb7210_update_status,
-primary_address : cb7210_primary_address,
-secondary_address : cb7210_secondary_address,
-serial_poll_response : cb7210_serial_poll_response,
-serial_poll_status : cb7210_serial_poll_status,
-t1_delay : cb7210_t1_delay,
-return_to_local : cb7210_return_to_local,
+static gpib_interface_t cb_isa_interface = {
+	.name = "cbi_isa",
+	.attach = cb_isa_attach,
+	.detach = cb_isa_detach,
+	.read = cb7210_accel_read,
+	.write = cb7210_accel_write,
+	.command = cb7210_command,
+	.take_control = cb7210_take_control,
+	.go_to_standby = cb7210_go_to_standby,
+	.request_system_control = cb7210_request_system_control,
+	.interface_clear = cb7210_interface_clear,
+	.remote_enable = cb7210_remote_enable,
+	.enable_eos = cb7210_enable_eos,
+	.disable_eos = cb7210_disable_eos,
+	.parallel_poll = cb7210_parallel_poll,
+	.parallel_poll_configure = cb7210_parallel_poll_configure,
+	.parallel_poll_response = cb7210_parallel_poll_response,
+	.line_status = cb7210_line_status,
+	.update_status = cb7210_update_status,
+	.primary_address = cb7210_primary_address,
+	.secondary_address = cb7210_secondary_address,
+	.serial_poll_response = cb7210_serial_poll_response,
+	.serial_poll_status = cb7210_serial_poll_status,
+	.t1_delay = cb7210_t1_delay,
+	.return_to_local = cb7210_return_to_local,
 };
 
-gpib_interface_t cb_isa_accel_interface = {
-name: "cbi_isa_accel",
-attach : cb_isa_attach,
-detach : cb_isa_detach,
-read : cb7210_accel_read,
-write : cb7210_accel_write,
-command : cb7210_command,
-take_control : cb7210_take_control,
-go_to_standby : cb7210_go_to_standby,
-request_system_control : cb7210_request_system_control,
-interface_clear : cb7210_interface_clear,
-remote_enable : cb7210_remote_enable,
-enable_eos : cb7210_enable_eos,
-disable_eos : cb7210_disable_eos,
-parallel_poll : cb7210_parallel_poll,
-parallel_poll_configure : cb7210_parallel_poll_configure,
-parallel_poll_response : cb7210_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : cb7210_line_status,
-update_status : cb7210_update_status,
-primary_address : cb7210_primary_address,
-secondary_address : cb7210_secondary_address,
-serial_poll_response : cb7210_serial_poll_response,
-serial_poll_status : cb7210_serial_poll_status,
-t1_delay : cb7210_t1_delay,
-return_to_local : cb7210_return_to_local,
+static gpib_interface_t cb_isa_accel_interface = {
+	.name = "cbi_isa_accel",
+	.attach = cb_isa_attach,
+	.detach = cb_isa_detach,
+	.read = cb7210_accel_read,
+	.write = cb7210_accel_write,
+	.command = cb7210_command,
+	.take_control = cb7210_take_control,
+	.go_to_standby = cb7210_go_to_standby,
+	.request_system_control = cb7210_request_system_control,
+	.interface_clear = cb7210_interface_clear,
+	.remote_enable = cb7210_remote_enable,
+	.enable_eos = cb7210_enable_eos,
+	.disable_eos = cb7210_disable_eos,
+	.parallel_poll = cb7210_parallel_poll,
+	.parallel_poll_configure = cb7210_parallel_poll_configure,
+	.parallel_poll_response = cb7210_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = cb7210_line_status,
+	.update_status = cb7210_update_status,
+	.primary_address = cb7210_primary_address,
+	.secondary_address = cb7210_secondary_address,
+	.serial_poll_response = cb7210_serial_poll_response,
+	.serial_poll_status = cb7210_serial_poll_status,
+	.t1_delay = cb7210_t1_delay,
+	.return_to_local = cb7210_return_to_local,
 };
 
 static int cb7210_allocate_private(gpib_board_t *board)
@@ -1040,8 +1040,8 @@ int cb_isa_attach(gpib_board_t *board, const gpib_board_config_t *config)
 		return retval;
 	cb_priv = board->private_data;
 	nec_priv = &cb_priv->nec7210_priv;
-	if (request_region(config->ibbase, cb7210_iosize, "cb7210") == 0) {
-		pr_err("gpib: ioports starting at 0x%u are already in use\n", config->ibbase);
+	if (!request_region(config->ibbase, cb7210_iosize, "cb7210")) {
+		pr_err("gpib: ioports starting at 0x%x are already in use\n", config->ibbase);
 		return -EIO;
 	}
 	nec_priv->iobase = config->ibbase;
@@ -1351,100 +1351,94 @@ static struct pcmcia_driver cb_gpib_cs_driver = {
 	.resume		= cb_gpib_resume,
 };
 
-int cb_pcmcia_init_module(void)
-{
-	pcmcia_register_driver(&cb_gpib_cs_driver);
-	return 0;
-}
-
 void cb_pcmcia_cleanup_module(void)
 {
 	DEBUG(0, "cb_gpib_cs: unloading\n");
 	pcmcia_unregister_driver(&cb_gpib_cs_driver);
 }
 
-gpib_interface_t cb_pcmcia_unaccel_interface = {
-name: "cbi_pcmcia_unaccel",
-attach : cb_pcmcia_attach,
-detach : cb_pcmcia_detach,
-read : cb7210_read,
-write : cb7210_write,
-command : cb7210_command,
-take_control : cb7210_take_control,
-go_to_standby : cb7210_go_to_standby,
-request_system_control : cb7210_request_system_control,
-interface_clear : cb7210_interface_clear,
-remote_enable : cb7210_remote_enable,
-enable_eos : cb7210_enable_eos,
-disable_eos : cb7210_disable_eos,
-parallel_poll : cb7210_parallel_poll,
-parallel_poll_configure : cb7210_parallel_poll_configure,
-parallel_poll_response : cb7210_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : cb7210_line_status,
-update_status : cb7210_update_status,
-primary_address : cb7210_primary_address,
-secondary_address : cb7210_secondary_address,
-serial_poll_response : cb7210_serial_poll_response,
-serial_poll_status : cb7210_serial_poll_status,
-t1_delay : cb7210_t1_delay,
-return_to_local : cb7210_return_to_local,
+static gpib_interface_t cb_pcmcia_unaccel_interface = {
+	.name = "cbi_pcmcia_unaccel",
+	.attach = cb_pcmcia_attach,
+	.detach = cb_pcmcia_detach,
+	.read = cb7210_read,
+	.write = cb7210_write,
+	.command = cb7210_command,
+	.take_control = cb7210_take_control,
+	.go_to_standby = cb7210_go_to_standby,
+	.request_system_control = cb7210_request_system_control,
+	.interface_clear = cb7210_interface_clear,
+	.remote_enable = cb7210_remote_enable,
+	.enable_eos = cb7210_enable_eos,
+	.disable_eos = cb7210_disable_eos,
+	.parallel_poll = cb7210_parallel_poll,
+	.parallel_poll_configure = cb7210_parallel_poll_configure,
+	.parallel_poll_response = cb7210_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = cb7210_line_status,
+	.update_status = cb7210_update_status,
+	.primary_address = cb7210_primary_address,
+	.secondary_address = cb7210_secondary_address,
+	.serial_poll_response = cb7210_serial_poll_response,
+	.serial_poll_status = cb7210_serial_poll_status,
+	.t1_delay = cb7210_t1_delay,
+	.return_to_local = cb7210_return_to_local,
 };
 
-gpib_interface_t cb_pcmcia_interface = {
-name: "cbi_pcmcia",
-attach : cb_pcmcia_attach,
-detach : cb_pcmcia_detach,
-read : cb7210_accel_read,
-write : cb7210_accel_write,
-command : cb7210_command,
-take_control : cb7210_take_control,
-go_to_standby : cb7210_go_to_standby,
-request_system_control : cb7210_request_system_control,
-interface_clear : cb7210_interface_clear,
-remote_enable : cb7210_remote_enable,
-enable_eos : cb7210_enable_eos,
-disable_eos : cb7210_disable_eos,
-parallel_poll : cb7210_parallel_poll,
-parallel_poll_configure : cb7210_parallel_poll_configure,
-parallel_poll_response : cb7210_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : cb7210_line_status,
-update_status : cb7210_update_status,
-primary_address : cb7210_primary_address,
-secondary_address : cb7210_secondary_address,
-serial_poll_response : cb7210_serial_poll_response,
-serial_poll_status : cb7210_serial_poll_status,
-t1_delay : cb7210_t1_delay,
-return_to_local : cb7210_return_to_local,
+static gpib_interface_t cb_pcmcia_interface = {
+	.name = "cbi_pcmcia",
+	.attach = cb_pcmcia_attach,
+	.detach = cb_pcmcia_detach,
+	.read = cb7210_accel_read,
+	.write = cb7210_accel_write,
+	.command = cb7210_command,
+	.take_control = cb7210_take_control,
+	.go_to_standby = cb7210_go_to_standby,
+	.request_system_control = cb7210_request_system_control,
+	.interface_clear = cb7210_interface_clear,
+	.remote_enable = cb7210_remote_enable,
+	.enable_eos = cb7210_enable_eos,
+	.disable_eos = cb7210_disable_eos,
+	.parallel_poll = cb7210_parallel_poll,
+	.parallel_poll_configure = cb7210_parallel_poll_configure,
+	.parallel_poll_response = cb7210_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = cb7210_line_status,
+	.update_status = cb7210_update_status,
+	.primary_address = cb7210_primary_address,
+	.secondary_address = cb7210_secondary_address,
+	.serial_poll_response = cb7210_serial_poll_response,
+	.serial_poll_status = cb7210_serial_poll_status,
+	.t1_delay = cb7210_t1_delay,
+	.return_to_local = cb7210_return_to_local,
 };
 
-gpib_interface_t cb_pcmcia_accel_interface = {
-name: "cbi_pcmcia_accel",
-attach : cb_pcmcia_attach,
-detach : cb_pcmcia_detach,
-read : cb7210_accel_read,
-write : cb7210_accel_write,
-command : cb7210_command,
-take_control : cb7210_take_control,
-go_to_standby : cb7210_go_to_standby,
-request_system_control : cb7210_request_system_control,
-interface_clear : cb7210_interface_clear,
-remote_enable : cb7210_remote_enable,
-enable_eos : cb7210_enable_eos,
-disable_eos : cb7210_disable_eos,
-parallel_poll : cb7210_parallel_poll,
-parallel_poll_configure : cb7210_parallel_poll_configure,
-parallel_poll_response : cb7210_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : cb7210_line_status,
-update_status : cb7210_update_status,
-primary_address : cb7210_primary_address,
-secondary_address : cb7210_secondary_address,
-serial_poll_response : cb7210_serial_poll_response,
-serial_poll_status : cb7210_serial_poll_status,
-t1_delay : cb7210_t1_delay,
-return_to_local : cb7210_return_to_local,
+static gpib_interface_t cb_pcmcia_accel_interface = {
+	.name = "cbi_pcmcia_accel",
+	.attach = cb_pcmcia_attach,
+	.detach = cb_pcmcia_detach,
+	.read = cb7210_accel_read,
+	.write = cb7210_accel_write,
+	.command = cb7210_command,
+	.take_control = cb7210_take_control,
+	.go_to_standby = cb7210_go_to_standby,
+	.request_system_control = cb7210_request_system_control,
+	.interface_clear = cb7210_interface_clear,
+	.remote_enable = cb7210_remote_enable,
+	.enable_eos = cb7210_enable_eos,
+	.disable_eos = cb7210_disable_eos,
+	.parallel_poll = cb7210_parallel_poll,
+	.parallel_poll_configure = cb7210_parallel_poll_configure,
+	.parallel_poll_response = cb7210_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = cb7210_line_status,
+	.update_status = cb7210_update_status,
+	.primary_address = cb7210_primary_address,
+	.secondary_address = cb7210_secondary_address,
+	.serial_poll_response = cb7210_serial_poll_response,
+	.serial_poll_status = cb7210_serial_poll_status,
+	.t1_delay = cb7210_t1_delay,
+	.return_to_local = cb7210_return_to_local,
 };
 
 int cb_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config)
@@ -1465,8 +1459,8 @@ int cb_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	cb_priv = board->private_data;
 	nec_priv = &cb_priv->nec7210_priv;
 
-	if (request_region(curr_dev->resource[0]->start, resource_size(curr_dev->resource[0]),
-			   "cb7210") == 0)	{
+	if (!request_region(curr_dev->resource[0]->start, resource_size(curr_dev->resource[0]),
+			    "cb7210"))	{
 		pr_err("gpib: ioports starting at 0x%lx are already in use\n",
 		       (unsigned long)curr_dev->resource[0]->start);
 		return -EIO;
@@ -1506,32 +1500,102 @@ void cb_pcmcia_detach(gpib_board_t *board)
 
 static int __init cb7210_init_module(void)
 {
-	int err = 0;
-	int result;
+	int ret;
 
-	result = pci_register_driver(&cb7210_pci_driver);
-	if (result) {
-		pr_err("cb7210: pci_driver_register failed!\n");
-		return result;
+	ret = pci_register_driver(&cb7210_pci_driver);
+	if (ret) {
+		pr_err("cb7210: pci_register_driver failed: error = %d\n", ret);
+		return ret;
 	}
 
-	gpib_register_driver(&cb_pci_interface, THIS_MODULE);
-	gpib_register_driver(&cb_isa_interface, THIS_MODULE);
-	gpib_register_driver(&cb_pci_accel_interface, THIS_MODULE);
-	gpib_register_driver(&cb_pci_unaccel_interface, THIS_MODULE);
-	gpib_register_driver(&cb_isa_accel_interface, THIS_MODULE);
-	gpib_register_driver(&cb_isa_unaccel_interface, THIS_MODULE);
+	ret = gpib_register_driver(&cb_pci_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("cb7210: gpib_register_driver failed: error = %d\n", ret);
+		goto err_pci;
+	}
 
-#ifdef GPIB__PCMCIA
-	gpib_register_driver(&cb_pcmcia_interface, THIS_MODULE);
-	gpib_register_driver(&cb_pcmcia_accel_interface, THIS_MODULE);
-	gpib_register_driver(&cb_pcmcia_unaccel_interface, THIS_MODULE);
-	err += cb_pcmcia_init_module();
+	ret = gpib_register_driver(&cb_isa_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("cb7210: gpib_register_driver failed: error = %d\n", ret);
+		goto err_isa;
+	}
+
+	ret = gpib_register_driver(&cb_pci_accel_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("cb7210: gpib_register_driver failed: error = %d\n", ret);
+		goto err_pci_accel;
+	}
+
+	ret = gpib_register_driver(&cb_pci_unaccel_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("cb7210: gpib_register_driver failed: error = %d\n", ret);
+		goto err_pci_unaccel;
+	}
+
+	ret = gpib_register_driver(&cb_isa_accel_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("cb7210: gpib_register_driver failed: error = %d\n", ret);
+		goto err_isa_accel;
+	}
+
+	ret = gpib_register_driver(&cb_isa_unaccel_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("cb7210: gpib_register_driver failed: error = %d\n", ret);
+		goto err_isa_unaccel;
+	}
+
+#ifdef GPIB_PCMCIA
+	ret = gpib_register_driver(&cb_pcmcia_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("cb7210: gpib_register_driver failed: error = %d\n", ret);
+		goto err_pcmcia;
+	}
+
+	ret = gpib_register_driver(&cb_pcmcia_accel_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("cb7210: gpib_register_driver failed: error = %d\n", ret);
+		goto err_pcmcia_accel;
+	}
+
+	ret = gpib_register_driver(&cb_pcmcia_unaccel_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("cb7210: gpib_register_driver failed: error = %d\n", ret);
+		goto err_pcmcia_unaccel;
+	}
+
+	ret = pcmcia_register_driver(&cb_gpib_cs_driver);
+	if (ret) {
+		pr_err("cb7210: pcmcia_register_driver failed: error = %d\n", ret);
+		goto err_pcmcia_driver;
+	}
 #endif
-	if (err)
-		return -1;
 
 	return 0;
+
+#ifdef GPIB_PCMCIA
+err_pcmcia_driver:
+	gpib_unregister_driver(&cb_pcmcia_unaccel_interface);
+err_pcmcia_unaccel:
+	gpib_unregister_driver(&cb_pcmcia_accel_interface);
+err_pcmcia_accel:
+	gpib_unregister_driver(&cb_pcmcia_interface);
+err_pcmcia:
+#endif
+	gpib_unregister_driver(&cb_isa_unaccel_interface);
+err_isa_unaccel:
+	gpib_unregister_driver(&cb_isa_accel_interface);
+err_isa_accel:
+	gpib_unregister_driver(&cb_pci_unaccel_interface);
+err_pci_unaccel:
+	gpib_unregister_driver(&cb_pci_accel_interface);
+err_pci_accel:
+	gpib_unregister_driver(&cb_isa_interface);
+err_isa:
+	gpib_unregister_driver(&cb_pci_interface);
+err_pci:
+	pci_unregister_driver(&cb7210_pci_driver);
+
+	return ret;
 }
 
 static void __exit cb7210_exit_module(void)

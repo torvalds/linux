@@ -19,6 +19,8 @@
 #include <linux/of.h>
 #include <linux/of_pdt.h>
 
+#include "of_private.h"
+
 static struct of_pdt_ops *of_pdt_prom_ops __initdata;
 
 #if defined(CONFIG_SPARC)

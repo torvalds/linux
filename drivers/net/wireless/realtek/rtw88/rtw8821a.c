@@ -706,6 +706,31 @@ static void rtw8821a_pwr_track(struct rtw_dev *rtwdev)
 	dm_info->pwr_trk_triggered = false;
 }
 
+static void rtw8821a_led_set(struct led_classdev *led,
+			     enum led_brightness brightness)
+{
+	struct rtw_dev *rtwdev = container_of(led, struct rtw_dev, led_cdev);
+	u32 gpio8_cfg;
+	u8 ledcfg;
+
+	if (brightness == LED_OFF) {
+		gpio8_cfg = rtw_read32(rtwdev, REG_GPIO_PIN_CTRL_2);
+		gpio8_cfg &= ~BIT(24);
+		gpio8_cfg |= BIT(16) | BIT(8);
+		rtw_write32(rtwdev, REG_GPIO_PIN_CTRL_2, gpio8_cfg);
+	} else {
+		ledcfg = rtw_read8(rtwdev, REG_LED_CFG + 2);
+		gpio8_cfg = rtw_read32(rtwdev, REG_GPIO_PIN_CTRL_2);
+
+		ledcfg &= BIT(7) | BIT(6);
+		rtw_write8(rtwdev, REG_LED_CFG + 2, ledcfg);
+
+		gpio8_cfg &= ~(BIT(24) | BIT(8));
+		gpio8_cfg |= BIT(16);
+		rtw_write32(rtwdev, REG_GPIO_PIN_CTRL_2, gpio8_cfg);
+	}
+}
+
 static void rtw8821a_fill_txdesc_checksum(struct rtw_dev *rtwdev,
 					  struct rtw_tx_pkt_info *pkt_info,
 					  u8 *txdesc)
@@ -853,6 +878,7 @@ static const struct rtw_chip_ops rtw8821a_ops = {
 	.config_bfee		= NULL,
 	.set_gid_table		= NULL,
 	.cfg_csi_rate		= NULL,
+	.led_set		= rtw8821a_led_set,
 	.fill_txdesc_checksum	= rtw8821a_fill_txdesc_checksum,
 	.coex_set_init		= rtw8821a_coex_cfg_init,
 	.coex_set_ant_switch	= rtw8821a_coex_cfg_ant_switch,
@@ -1118,7 +1144,7 @@ const struct rtw_chip_info rtw8821a_hw_spec = {
 	.rx_buf_desc_sz = 8,
 	.phy_efuse_size = 512,
 	.log_efuse_size = 512,
-	.ptct_efuse_size = 96 + 1, /* TODO or just 18? */
+	.ptct_efuse_size = 0,
 	.txff_size = 65536,
 	.rxff_size = 16128,
 	.rsvd_drv_pg_num = 8,

@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test TCP fastopen behavior with NULL as buffer pointer, but a non-zero
+// buffer length.
+`./defaults.sh
+./set_sysctls.py /proc/sys/net/ipv4/tcp_timestamps=0`
+
+// Cache warmup: send a Fast Open cookie request
+ 0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
++0 fcntl(3, F_SETFL, O_RDWR|O_NONBLOCK) = 0
++0 setsockopt(3, SOL_TCP, TCP_FASTOPEN_CONNECT, [1], 4) = 0
++0 connect(3, ..., ...) = -1 EINPROGRESS (Operation is now in progress)
++0 > S 0:0(0) <mss 1460,nop,nop,sackOK,nop,wscale 8,FO,nop,nop>
++0 < S. 123:123(0) ack 1 win 14600 <mss 1460,nop,nop,sackOK,nop,wscale 6,FO abcd1234,nop,nop>
++0 > . 1:1(0) ack 1
++0 close(3) = 0
++0 > F. 1:1(0) ack 1
++0 < F. 1:1(0) ack 2 win 92
++0 > .  2:2(0) ack 2
+
+// Test with MSG_FASTOPEN without TCP_FASTOPEN_CONNECT.
++0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 4
++0 fcntl(4, F_SETFL, O_RDWR|O_NONBLOCK) = 0
++0 sendto(4, NULL, 1, MSG_FASTOPEN, ..., ...) = -1
++0 close(4) = 0
+
+// Test with TCP_FASTOPEN_CONNECT without MSG_FASTOPEN.
++0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 5
++0 fcntl(5, F_SETFL, O_RDWR|O_NONBLOCK) = 0
++0 setsockopt(5, SOL_TCP, TCP_FASTOPEN_CONNECT, [1], 4) = 0
++0 connect(5, ..., ...) = 0
++0 sendto(5, NULL, 1, 0, ..., ...) = -1
++0 close(5) = 0
+
+// Test with both TCP_FASTOPEN_CONNECT and MSG_FASTOPEN.
++0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 6
++0 fcntl(6, F_SETFL, O_RDWR|O_NONBLOCK) = 0
++0 setsockopt(6, SOL_TCP, TCP_FASTOPEN_CONNECT, [1], 4) = 0
++0 connect(6, ..., ...) = 0
++0 sendto(6, NULL, 1, MSG_FASTOPEN, ..., ...) = -1
++0 close(6) = 0
+
+`/tmp/sysctl_restore_${PPID}.sh`

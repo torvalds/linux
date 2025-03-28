@@ -144,7 +144,7 @@ static inline void psi_enqueue(struct task_struct *p, int flags)
 
 	if (p->se.sched_delayed) {
 		/* CPU migration of "sleeping" task */
-		SCHED_WARN_ON(!(flags & ENQUEUE_MIGRATED));
+		WARN_ON_ONCE(!(flags & ENQUEUE_MIGRATED));
 		if (p->in_memstall)
 			set |= TSK_MEMSTALL;
 		if (p->in_iowait)
@@ -248,7 +248,10 @@ static inline void sched_info_dequeue(struct rq *rq, struct task_struct *t)
 	delta = rq_clock(rq) - t->sched_info.last_queued;
 	t->sched_info.last_queued = 0;
 	t->sched_info.run_delay += delta;
-
+	if (delta > t->sched_info.max_run_delay)
+		t->sched_info.max_run_delay = delta;
+	if (delta && (!t->sched_info.min_run_delay || delta < t->sched_info.min_run_delay))
+		t->sched_info.min_run_delay = delta;
 	rq_sched_info_dequeue(rq, delta);
 }
 
@@ -270,6 +273,10 @@ static void sched_info_arrive(struct rq *rq, struct task_struct *t)
 	t->sched_info.run_delay += delta;
 	t->sched_info.last_arrival = now;
 	t->sched_info.pcount++;
+	if (delta > t->sched_info.max_run_delay)
+		t->sched_info.max_run_delay = delta;
+	if (delta && (!t->sched_info.min_run_delay || delta < t->sched_info.min_run_delay))
+		t->sched_info.min_run_delay = delta;
 
 	rq_sched_info_arrive(rq, delta);
 }

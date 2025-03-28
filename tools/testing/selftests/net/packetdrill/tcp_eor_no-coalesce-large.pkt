@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test TCP does not append any data from consequent writes to the tail
+// skb created for the chunk. The large chunk itself should be packetized as
+// usual.
+`./defaults.sh
+`
+
+// Initialize connection
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 10>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+ +.01 < . 1:1(0) ack 1 win 514
+
+   +0 accept(3, ..., ...) = 4
+
+// Write a 10400B chunk to fill the ICW, and have a 400 byte skb sitting on
+// the tail.
+   +0 write(4, ..., 10400) = 10400
+
+// Write another 10040B chunk with no coalescing options.
+   +0 send(4, ..., 10400, MSG_EOR) = 10400
+
+// Write a 2KB chunk. This chunk should not be appended to the packets created
+// the previous chunk.
+   +0 write(4, ..., 2000) = 2000
+
+   +0 > P. 1:10001(10000) ack 1
++.001 < .  1:1(0) ack 10001 win 514
+// Now we have enough room to send out the 2 x 400B packets out.
+   +0 > P. 10001:20801(10800) ack 1
++.001 < .  1:1(0) ack 20801 win 514
+// This 2KB packet should be sent alone.
+   +0 > P. 20801:22801(2000) ack 1
++.001 < .  1:1(0) ack 22801 win 514

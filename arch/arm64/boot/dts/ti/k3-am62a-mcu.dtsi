@@ -12,7 +12,6 @@
 		#pinctrl-cells = <1>;
 		pinctrl-single,register-width = <32>;
 		pinctrl-single,function-mask = <0xffffffff>;
-		status = "disabled";
 	};
 
 	mcu_esm: esm@4100000 {

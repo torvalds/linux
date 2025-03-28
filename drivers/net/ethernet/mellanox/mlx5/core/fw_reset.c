@@ -345,14 +345,11 @@ static void mlx5_fw_live_patch_event(struct work_struct *work)
 }
 
 #if IS_ENABLED(CONFIG_HOTPLUG_PCI_PCIE)
-static int mlx5_check_hotplug_interrupt(struct mlx5_core_dev *dev)
+static int mlx5_check_hotplug_interrupt(struct mlx5_core_dev *dev,
+					struct pci_dev *bridge)
 {
-	struct pci_dev *bridge = dev->pdev->bus->self;
 	u16 reg16;
 	int err;
-
-	if (!bridge)
-		return -EOPNOTSUPP;
 
 	err = pcie_capability_read_word(bridge, PCI_EXP_SLTCTL, &reg16);
 	if (err)
@@ -416,8 +413,14 @@ static int mlx5_check_dev_ids(struct mlx5_core_dev *dev, u16 dev_id)
 static bool mlx5_is_reset_now_capable(struct mlx5_core_dev *dev,
 				      u8 reset_method)
 {
+	struct pci_dev *bridge = dev->pdev->bus->self;
 	u16 dev_id;
 	int err;
+
+	if (!bridge) {
+		mlx5_core_warn(dev, "PCI bus bridge is not accessible\n");
+		return false;
+	}
 
 	if (!MLX5_CAP_GEN(dev, fast_teardown)) {
 		mlx5_core_warn(dev, "fast teardown is not supported by firmware\n");
@@ -426,7 +429,7 @@ static bool mlx5_is_reset_now_capable(struct mlx5_core_dev *dev,
 
 #if IS_ENABLED(CONFIG_HOTPLUG_PCI_PCIE)
 	if (reset_method != MLX5_MFRL_REG_PCI_RESET_METHOD_HOT_RESET) {
-		err = mlx5_check_hotplug_interrupt(dev);
+		err = mlx5_check_hotplug_interrupt(dev, bridge);
 		if (err)
 			return false;
 	}

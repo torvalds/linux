@@ -3839,6 +3839,18 @@ int mpi3mr_issue_tm(struct mpi3mr_ioc *mrioc, u8 tm_type,
 	tgtdev = mpi3mr_get_tgtdev_by_handle(mrioc, handle);
 
 	if (scmd) {
+		if (tm_type == MPI3_SCSITASKMGMT_TASKTYPE_ABORT_TASK) {
+			cmd_priv = scsi_cmd_priv(scmd);
+			if (!cmd_priv)
+				goto out_unlock;
+
+			struct op_req_qinfo *op_req_q;
+
+			op_req_q = &mrioc->req_qinfo[cmd_priv->req_q_idx];
+			tm_req.task_host_tag = cpu_to_le16(cmd_priv->host_tag);
+			tm_req.task_request_queue_id =
+				cpu_to_le16(op_req_q->qid);
+		}
 		sdev = scmd->device;
 		sdev_priv_data = sdev->hostdata;
 		scsi_tgt_priv_data = ((sdev_priv_data) ?
@@ -4388,6 +4400,92 @@ out:
 }
 
 /**
+ * mpi3mr_eh_abort - Callback function for abort error handling
+ * @scmd: SCSI command reference
+ *
+ * Issues Abort Task Management if the command is in LLD scope
+ * and verifies if it is aborted successfully, and return status
+ * accordingly.
+ *
+ * Return: SUCCESS if the abort was successful, otherwise FAILED
+ */
+static int mpi3mr_eh_abort(struct scsi_cmnd *scmd)
+{
+	struct mpi3mr_ioc *mrioc = shost_priv(scmd->device->host);
+	struct mpi3mr_stgt_priv_data *stgt_priv_data;
+	struct mpi3mr_sdev_priv_data *sdev_priv_data;
+	struct scmd_priv *cmd_priv;
+	u16 dev_handle, timeout = MPI3MR_ABORTTM_TIMEOUT;
+	u8 resp_code = 0;
+	int retval = FAILED, ret = 0;
+	struct request *rq = scsi_cmd_to_rq(scmd);
+	unsigned long scmd_age_ms = jiffies_to_msecs(jiffies - scmd->jiffies_at_alloc);
+	unsigned long scmd_age_sec = scmd_age_ms / HZ;
+
+	sdev_printk(KERN_INFO, scmd->device,
+		    "%s: attempting abort task for scmd(%p)\n", mrioc->name, scmd);
+
+	sdev_printk(KERN_INFO, scmd->device,
+		    "%s: scmd(0x%p) is outstanding for %lus %lums, timeout %us, retries %d, allowed %d\n",
+		    mrioc->name, scmd, scmd_age_sec, scmd_age_ms % HZ, rq->timeout / HZ,
+		    scmd->retries, scmd->allowed);
+
+	scsi_print_command(scmd);
+
+	sdev_priv_data = scmd->device->hostdata;
+	if (!sdev_priv_data || !sdev_priv_data->tgt_priv_data) {
+		sdev_printk(KERN_INFO, scmd->device,
+			    "%s: Device not available, Skip issuing abort task\n",
+			    mrioc->name);
+		retval = SUCCESS;
+		goto out;
+	}
+
+	stgt_priv_data = sdev_priv_data->tgt_priv_data;
+	dev_handle = stgt_priv_data->dev_handle;
+
+	cmd_priv = scsi_cmd_priv(scmd);
+	if (!cmd_priv->in_lld_scope ||
+	    cmd_priv->host_tag == MPI3MR_HOSTTAG_INVALID) {
+		sdev_printk(KERN_INFO, scmd->device,
+			    "%s: scmd (0x%p) not in LLD scope, Skip issuing Abort Task\n",
+			    mrioc->name, scmd);
+		retval = SUCCESS;
+		goto out;
+	}
+
+	if (stgt_priv_data->dev_removed) {
+		sdev_printk(KERN_INFO, scmd->device,
+			    "%s: Device (handle = 0x%04x) removed, Skip issuing Abort Task\n",
+			    mrioc->name, dev_handle);
+		retval = FAILED;
+		goto out;
+	}
+
+	ret = mpi3mr_issue_tm(mrioc, MPI3_SCSITASKMGMT_TASKTYPE_ABORT_TASK,
+			      dev_handle, sdev_priv_data->lun_id, MPI3MR_HOSTTAG_BLK_TMS,
+			      timeout, &mrioc->host_tm_cmds, &resp_code, scmd);
+
+	if (ret)
+		goto out;
+
+	if (cmd_priv->in_lld_scope) {
+		sdev_printk(KERN_INFO, scmd->device,
+			    "%s: Abort task failed. scmd (0x%p) was not terminated\n",
+			    mrioc->name, scmd);
+		goto out;
+	}
+
+	retval = SUCCESS;
+out:
+	sdev_printk(KERN_INFO, scmd->device,
+		    "%s: Abort Task %s for scmd (0x%p)\n", mrioc->name,
+		    ((retval == SUCCESS) ? "SUCCEEDED" : "FAILED"), scmd);
+
+	return retval;
+}
+
+/**
  * mpi3mr_scan_start - Scan start callback handler
  * @shost: SCSI host reference
  *
@@ -4465,14 +4563,14 @@ static int mpi3mr_scan_finished(struct Scsi_Host *shost,
 }
 
 /**
- * mpi3mr_slave_destroy - Slave destroy callback handler
+ * mpi3mr_sdev_destroy - Slave destroy callback handler
  * @sdev: SCSI device reference
  *
  * Cleanup and free per device(lun) private data.
  *
  * Return: Nothing.
  */
-static void mpi3mr_slave_destroy(struct scsi_device *sdev)
+static void mpi3mr_sdev_destroy(struct scsi_device *sdev)
 {
 	struct Scsi_Host *shost;
 	struct mpi3mr_ioc *mrioc;
@@ -4552,7 +4650,7 @@ static void mpi3mr_target_destroy(struct scsi_target *starget)
 }
 
 /**
- * mpi3mr_device_configure - Slave configure callback handler
+ * mpi3mr_sdev_configure - Slave configure callback handler
  * @sdev: SCSI device reference
  * @lim: queue limits
  *
@@ -4561,8 +4659,8 @@ static void mpi3mr_target_destroy(struct scsi_target *starget)
  *
  * Return: 0 always.
  */
-static int mpi3mr_device_configure(struct scsi_device *sdev,
-		struct queue_limits *lim)
+static int mpi3mr_sdev_configure(struct scsi_device *sdev,
+				 struct queue_limits *lim)
 {
 	struct scsi_target *starget;
 	struct Scsi_Host *shost;
@@ -4599,14 +4697,14 @@ static int mpi3mr_device_configure(struct scsi_device *sdev,
 }
 
 /**
- * mpi3mr_slave_alloc -Slave alloc callback handler
+ * mpi3mr_sdev_init -Slave alloc callback handler
  * @sdev: SCSI device reference
  *
  * Allocate per device(lun) private data and initialize it.
  *
  * Return: 0 on success -ENOMEM on memory allocation failure.
  */
-static int mpi3mr_slave_alloc(struct scsi_device *sdev)
+static int mpi3mr_sdev_init(struct scsi_device *sdev)
 {
 	struct Scsi_Host *shost;
 	struct mpi3mr_ioc *mrioc;
@@ -5062,13 +5160,14 @@ static const struct scsi_host_template mpi3mr_driver_template = {
 	.proc_name			= MPI3MR_DRIVER_NAME,
 	.queuecommand			= mpi3mr_qcmd,
 	.target_alloc			= mpi3mr_target_alloc,
-	.slave_alloc			= mpi3mr_slave_alloc,
-	.device_configure		= mpi3mr_device_configure,
+	.sdev_init			= mpi3mr_sdev_init,
+	.sdev_configure			= mpi3mr_sdev_configure,
 	.target_destroy			= mpi3mr_target_destroy,
-	.slave_destroy			= mpi3mr_slave_destroy,
+	.sdev_destroy			= mpi3mr_sdev_destroy,
 	.scan_finished			= mpi3mr_scan_finished,
 	.scan_start			= mpi3mr_scan_start,
 	.change_queue_depth		= mpi3mr_change_queue_depth,
+	.eh_abort_handler		= mpi3mr_eh_abort,
 	.eh_device_reset_handler	= mpi3mr_eh_dev_reset,
 	.eh_target_reset_handler	= mpi3mr_eh_target_reset,
 	.eh_bus_reset_handler		= mpi3mr_eh_bus_reset,
@@ -5803,7 +5902,7 @@ static const struct pci_device_id mpi3mr_pci_id_table[] = {
 };
 MODULE_DEVICE_TABLE(pci, mpi3mr_pci_id_table);
 
-static struct pci_error_handlers mpi3mr_err_handler = {
+static const struct pci_error_handlers mpi3mr_err_handler = {
 	.error_detected = mpi3mr_pcierr_error_detected,
 	.mmio_enabled = mpi3mr_pcierr_mmio_enabled,
 	.slot_reset = mpi3mr_pcierr_slot_reset,

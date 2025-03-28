@@ -38,6 +38,7 @@
 #include <linux/kdb.h>
 #include <linux/irq.h>
 #include <linux/perf_event.h>
+#include <linux/string_choices.h>
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
@@ -1705,10 +1706,10 @@ static inline __init void parity_protection_init(void)
 		l2parity &= l1parity;
 
 		/* Probe L1 ECC support */
-		cp0_ectl = read_c0_ecc();
-		write_c0_ecc(cp0_ectl | ERRCTL_PE);
+		cp0_ectl = read_c0_errctl();
+		write_c0_errctl(cp0_ectl | ERRCTL_PE);
 		back_to_back_c0_hazard();
-		cp0_ectl = read_c0_ecc();
+		cp0_ectl = read_c0_errctl();
 
 		/* Probe L2 ECC support */
 		gcr_ectl = read_gcr_err_control();
@@ -1727,9 +1728,9 @@ static inline __init void parity_protection_init(void)
 			cp0_ectl |= ERRCTL_PE;
 		else
 			cp0_ectl &= ~ERRCTL_PE;
-		write_c0_ecc(cp0_ectl);
+		write_c0_errctl(cp0_ectl);
 		back_to_back_c0_hazard();
-		WARN_ON(!!(read_c0_ecc() & ERRCTL_PE) != l1parity);
+		WARN_ON(!!(read_c0_errctl() & ERRCTL_PE) != l1parity);
 
 		/* Configure L2 ECC checking */
 		if (l2parity)
@@ -1741,8 +1742,8 @@ static inline __init void parity_protection_init(void)
 		gcr_ectl &= CM_GCR_ERR_CONTROL_L2_ECC_EN;
 		WARN_ON(!!gcr_ectl != l2parity);
 
-		pr_info("Cache parity protection %sabled\n",
-			l1parity ? "en" : "dis");
+		pr_info("Cache parity protection %s\n",
+			str_enabled_disabled(l1parity));
 		return;
 	}
 
@@ -1761,18 +1762,18 @@ static inline __init void parity_protection_init(void)
 			unsigned long errctl;
 			unsigned int l1parity_present, l2parity_present;
 
-			errctl = read_c0_ecc();
+			errctl = read_c0_errctl();
 			errctl &= ~(ERRCTL_PE|ERRCTL_L2P);
 
 			/* probe L1 parity support */
-			write_c0_ecc(errctl | ERRCTL_PE);
+			write_c0_errctl(errctl | ERRCTL_PE);
 			back_to_back_c0_hazard();
-			l1parity_present = (read_c0_ecc() & ERRCTL_PE);
+			l1parity_present = (read_c0_errctl() & ERRCTL_PE);
 
 			/* probe L2 parity support */
-			write_c0_ecc(errctl|ERRCTL_L2P);
+			write_c0_errctl(errctl|ERRCTL_L2P);
 			back_to_back_c0_hazard();
-			l2parity_present = (read_c0_ecc() & ERRCTL_L2P);
+			l2parity_present = (read_c0_errctl() & ERRCTL_L2P);
 
 			if (l1parity_present && l2parity_present) {
 				if (l1parity)
@@ -1791,20 +1792,20 @@ static inline __init void parity_protection_init(void)
 
 			printk(KERN_INFO "Writing ErrCtl register=%08lx\n", errctl);
 
-			write_c0_ecc(errctl);
+			write_c0_errctl(errctl);
 			back_to_back_c0_hazard();
-			errctl = read_c0_ecc();
+			errctl = read_c0_errctl();
 			printk(KERN_INFO "Readback ErrCtl register=%08lx\n", errctl);
 
 			if (l1parity_present)
-				printk(KERN_INFO "Cache parity protection %sabled\n",
-				       (errctl & ERRCTL_PE) ? "en" : "dis");
+				pr_info("Cache parity protection %s\n",
+					str_enabled_disabled(errctl & ERRCTL_PE));
 
 			if (l2parity_present) {
 				if (l1parity_present && l1parity)
 					errctl ^= ERRCTL_L2P;
-				printk(KERN_INFO "L2 cache parity protection %sabled\n",
-				       (errctl & ERRCTL_L2P) ? "en" : "dis");
+				pr_info("L2 cache parity protection %s\n",
+					str_enabled_disabled(errctl & ERRCTL_L2P));
 			}
 		}
 		break;
@@ -1812,11 +1813,11 @@ static inline __init void parity_protection_init(void)
 	case CPU_5KC:
 	case CPU_5KE:
 	case CPU_LOONGSON32:
-		write_c0_ecc(0x80000000);
+		write_c0_errctl(0x80000000);
 		back_to_back_c0_hazard();
 		/* Set the PE bit (bit 31) in the c0_errctl register. */
-		printk(KERN_INFO "Cache parity protection %sabled\n",
-		       (read_c0_ecc() & 0x80000000) ? "en" : "dis");
+		pr_info("Cache parity protection %s\n",
+			str_enabled_disabled(read_c0_errctl() & 0x80000000));
 		break;
 	case CPU_20KC:
 	case CPU_25KF:
@@ -1887,8 +1888,8 @@ asmlinkage void do_ftlb(void)
 	if ((cpu_has_mips_r2_r6) &&
 	    (((current_cpu_data.processor_id & 0xff0000) == PRID_COMP_MIPS) ||
 	    ((current_cpu_data.processor_id & 0xff0000) == PRID_COMP_LOONGSON))) {
-		pr_err("FTLB error exception, cp0_ecc=0x%08x:\n",
-		       read_c0_ecc());
+		pr_err("FTLB error exception, cp0_errctl=0x%08x:\n",
+		       read_c0_errctl());
 		pr_err("cp0_errorepc == %0*lx\n", field, read_c0_errorepc());
 		reg_val = read_c0_cacheerr();
 		pr_err("c0_cacheerr == %08x\n", reg_val);

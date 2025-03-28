@@ -66,7 +66,7 @@ static int ksz_connect(struct dsa_switch *ds)
 	if (!priv)
 		return -ENOMEM;
 
-	xmit_worker = kthread_create_worker(0, "dsa%d:%d_xmit",
+	xmit_worker = kthread_run_worker(0, "dsa%d:%d_xmit",
 					    ds->dst->index, ds->index);
 	if (IS_ERR(xmit_worker)) {
 		ret = PTR_ERR(xmit_worker);

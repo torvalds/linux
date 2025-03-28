@@ -1429,7 +1429,7 @@ static int wcd9390_probe(struct sdw_slave *pdev, const struct sdw_device_id *id)
 	 * Port map index starts with 0, however the data port for this codec
 	 * are from index 1
 	 */
-	if (of_property_read_bool(dev->of_node, "qcom,tx-port-mapping")) {
+	if (of_property_present(dev->of_node, "qcom,tx-port-mapping")) {
 		wcd->is_tx = true;
 		ret = of_property_read_u32_array(dev->of_node,
 						 "qcom,tx-port-mapping",
@@ -1507,7 +1507,7 @@ static const struct sdw_device_id wcd9390_slave_id[] = {
 };
 MODULE_DEVICE_TABLE(sdw, wcd9390_slave_id);
 
-static int __maybe_unused wcd939x_sdw_runtime_suspend(struct device *dev)
+static int wcd939x_sdw_runtime_suspend(struct device *dev)
 {
 	struct wcd939x_sdw_priv *wcd = dev_get_drvdata(dev);
 
@@ -1519,7 +1519,7 @@ static int __maybe_unused wcd939x_sdw_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused wcd939x_sdw_runtime_resume(struct device *dev)
+static int wcd939x_sdw_runtime_resume(struct device *dev)
 {
 	struct wcd939x_sdw_priv *wcd = dev_get_drvdata(dev);
 
@@ -1532,7 +1532,7 @@ static int __maybe_unused wcd939x_sdw_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops wcd939x_sdw_pm_ops = {
-	SET_RUNTIME_PM_OPS(wcd939x_sdw_runtime_suspend, wcd939x_sdw_runtime_resume, NULL)
+	RUNTIME_PM_OPS(wcd939x_sdw_runtime_suspend, wcd939x_sdw_runtime_resume, NULL)
 };
 
 static struct sdw_driver wcd9390_codec_driver = {
@@ -1542,7 +1542,7 @@ static struct sdw_driver wcd9390_codec_driver = {
 	.id_table = wcd9390_slave_id,
 	.driver = {
 		.name = "wcd9390-codec",
-		.pm = &wcd939x_sdw_pm_ops,
+		.pm = pm_ptr(&wcd939x_sdw_pm_ops),
 	}
 };
 module_sdw_driver(wcd9390_codec_driver);

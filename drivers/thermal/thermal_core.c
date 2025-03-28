@@ -453,23 +453,23 @@ static void move_to_trips_invalid(struct thermal_zone_device *tz,
 static void thermal_governor_trip_crossed(struct thermal_governor *governor,
 					  struct thermal_zone_device *tz,
 					  const struct thermal_trip *trip,
-					  bool crossed_up)
+					  bool upward)
 {
 	if (trip->type == THERMAL_TRIP_HOT || trip->type == THERMAL_TRIP_CRITICAL)
 		return;
 
 	if (governor->trip_crossed)
-		governor->trip_crossed(tz, trip, crossed_up);
+		governor->trip_crossed(tz, trip, upward);
 }
 
 static void thermal_trip_crossed(struct thermal_zone_device *tz,
 				 struct thermal_trip_desc *td,
 				 struct thermal_governor *governor,
-				 bool crossed_up)
+				 bool upward)
 {
 	const struct thermal_trip *trip = &td->trip;
 
-	if (crossed_up) {
+	if (upward) {
 		if (trip->type == THERMAL_TRIP_PASSIVE)
 			tz->passive++;
 		else if (trip->type == THERMAL_TRIP_CRITICAL ||
@@ -486,7 +486,7 @@ static void thermal_trip_crossed(struct thermal_zone_device *tz,
 		thermal_notify_tz_trip_down(tz, trip);
 		thermal_debug_tz_trip_down(tz, trip);
 	}
-	thermal_governor_trip_crossed(governor, tz, trip, crossed_up);
+	thermal_governor_trip_crossed(governor, tz, trip, upward);
 }
 
 void thermal_zone_set_trip_hyst(struct thermal_zone_device *tz,
@@ -1589,25 +1589,25 @@ thermal_zone_device_register_with_trips(const char *type,
 
 	tz->state = TZ_STATE_FLAG_INIT;
 
+	result = dev_set_name(&tz->device, "thermal_zone%d", tz->id);
+	if (result)
+		goto remove_id;
+
+	thermal_zone_device_init(tz);
+
+	result = thermal_zone_init_governor(tz);
+	if (result)
+		goto remove_id;
+
 	/* sys I/F */
 	/* Add nodes that are always present via .groups */
 	result = thermal_zone_create_device_groups(tz);
 	if (result)
 		goto remove_id;
 
-	result = dev_set_name(&tz->device, "thermal_zone%d", tz->id);
-	if (result) {
-		thermal_zone_destroy_device_groups(tz);
-		goto remove_id;
-	}
-	thermal_zone_device_init(tz);
 	result = device_register(&tz->device);
 	if (result)
 		goto release_device;
-
-	result = thermal_zone_init_governor(tz);
-	if (result)
-		goto unregister;
 
 	if (!tz->tzp || !tz->tzp->no_hwmon) {
 		result = thermal_add_hwmon_sysfs(tz);

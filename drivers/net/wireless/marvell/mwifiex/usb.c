@@ -10,7 +10,7 @@
 
 #define USB_VERSION	"1.0"
 
-static struct mwifiex_if_ops usb_ops;
+static const struct mwifiex_if_ops usb_ops;
 
 static const struct usb_device_id mwifiex_usb_table[] = {
 	/* 8766 */
@@ -1585,7 +1585,7 @@ mwifiex_pm_wakeup_card_complete(struct mwifiex_adapter *adapter)
 	return 0;
 }
 
-static struct mwifiex_if_ops usb_ops = {
+static const struct mwifiex_if_ops usb_ops = {
 	.register_dev =		mwifiex_register_dev,
 	.unregister_dev =	mwifiex_unregister_dev,
 	.wakeup =		mwifiex_pm_wakeup_card,

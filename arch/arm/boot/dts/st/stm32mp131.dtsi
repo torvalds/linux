@@ -100,6 +100,31 @@
 		always-on;
 	};
 
+	thermal-zones {
+		cpu_thermal: cpu-thermal {
+			polling-delay-passive = <0>;
+			polling-delay = <0>;
+			thermal-sensors = <&dts>;
+
+			trips {
+				cpu_alert1: cpu-alert1 {
+					temperature = <85000>;
+					hysteresis = <0>;
+					type = "passive";
+				};
+
+				cpu-crit {
+					temperature = <120000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+			};
+		};
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -261,6 +286,11 @@
 			dma-names = "up";
 			status = "disabled";
 
+			counter {
+				compatible = "st,stm32-timer-counter";
+				status = "disabled";
+			};
+
 			timer@5 {
 				compatible = "st,stm32h7-timer-trigger";
 				reg = <5>;
@@ -280,6 +310,11 @@
 			dmas = <&dmamux1 70 0x400 0x1>;
 			dma-names = "up";
 			status = "disabled";
+
+			counter {
+				compatible = "st,stm32-timer-counter";
+				status = "disabled";
+			};
 
 			timer@6 {
 				compatible = "st,stm32h7-timer-trigger";
@@ -909,6 +944,16 @@
 			};
 		};
 
+		dts: thermal@50028000 {
+			compatible = "st,stm32-thermal";
+			reg = <0x50028000 0x100>;
+			interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&rcc DTS>;
+			clock-names = "pclk";
+			#thermal-sensor-cells = <0>;
+			status = "disabled";
+		};
+
 		mdma: dma-controller@58000000 {
 			compatible = "st,stm32h7-mdma";
 			reg = <0x58000000 0x1000>;
@@ -1196,6 +1241,11 @@
 				access-controllers = <&etzpc 23>;
 				status = "disabled";
 
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
+
 				pwm {
 					compatible = "st,stm32-pwm";
 					#pwm-cells = <3>;
@@ -1221,6 +1271,11 @@
 				access-controllers = <&etzpc 24>;
 				status = "disabled";
 
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
+
 				pwm {
 					compatible = "st,stm32-pwm";
 					#pwm-cells = <3>;
@@ -1245,6 +1300,11 @@
 				clock-names = "int";
 				access-controllers = <&etzpc 25>;
 				status = "disabled";
+
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
 
 				pwm {
 					compatible = "st,stm32-pwm";
@@ -1276,6 +1336,11 @@
 				access-controllers = <&etzpc 26>;
 				status = "disabled";
 
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
+
 				pwm {
 					compatible = "st,stm32-pwm";
 					#pwm-cells = <3>;
@@ -1304,6 +1369,11 @@
 				access-controllers = <&etzpc 27>;
 				status = "disabled";
 
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
+
 				pwm {
 					compatible = "st,stm32-pwm";
 					#pwm-cells = <3>;
@@ -1331,6 +1401,11 @@
 				dma-names = "ch1", "up";
 				access-controllers = <&etzpc 28>;
 				status = "disabled";
+
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
 
 				pwm {
 					compatible = "st,stm32-pwm";

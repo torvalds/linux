@@ -9,6 +9,7 @@ extern struct kmem_cache *fanotify_mark_cache;
 extern struct kmem_cache *fanotify_fid_event_cachep;
 extern struct kmem_cache *fanotify_path_event_cachep;
 extern struct kmem_cache *fanotify_perm_event_cachep;
+extern struct kmem_cache *fanotify_mnt_event_cachep;
 
 /* Possible states of the permission event */
 enum {
@@ -244,6 +245,7 @@ enum fanotify_event_type {
 	FANOTIFY_EVENT_TYPE_PATH_PERM,
 	FANOTIFY_EVENT_TYPE_OVERFLOW, /* struct fanotify_event */
 	FANOTIFY_EVENT_TYPE_FS_ERROR, /* struct fanotify_error_event */
+	FANOTIFY_EVENT_TYPE_MNT,
 	__FANOTIFY_EVENT_TYPE_NUM
 };
 
@@ -409,10 +411,21 @@ struct fanotify_path_event {
 	struct path path;
 };
 
+struct fanotify_mnt_event {
+	struct fanotify_event fae;
+	u64 mnt_id;
+};
+
 static inline struct fanotify_path_event *
 FANOTIFY_PE(struct fanotify_event *event)
 {
 	return container_of(event, struct fanotify_path_event, fae);
+}
+
+static inline struct fanotify_mnt_event *
+FANOTIFY_ME(struct fanotify_event *event)
+{
+	return container_of(event, struct fanotify_mnt_event, fae);
 }
 
 /*
@@ -425,6 +438,8 @@ FANOTIFY_PE(struct fanotify_event *event)
 struct fanotify_perm_event {
 	struct fanotify_event fae;
 	struct path path;
+	const loff_t *ppos;		/* optional file range info */
+	size_t count;
 	u32 response;			/* userspace answer to the event */
 	unsigned short state;		/* state of the event */
 	int fd;		/* fd we passed to userspace for this event */
@@ -446,6 +461,14 @@ static inline bool fanotify_is_perm_event(u32 mask)
 		mask & FANOTIFY_PERM_EVENTS;
 }
 
+static inline bool fanotify_event_has_access_range(struct fanotify_event *event)
+{
+	if (!(event->mask & FANOTIFY_PRE_CONTENT_EVENTS))
+		return false;
+
+	return FANOTIFY_PERM(event)->ppos;
+}
+
 static inline struct fanotify_event *FANOTIFY_E(struct fsnotify_event *fse)
 {
 	return container_of(fse, struct fanotify_event, fse);
@@ -454,6 +477,11 @@ static inline struct fanotify_event *FANOTIFY_E(struct fsnotify_event *fse)
 static inline bool fanotify_is_error_event(u32 mask)
 {
 	return mask & FAN_FS_ERROR;
+}
+
+static inline bool fanotify_is_mnt_event(u32 mask)
+{
+	return mask & (FAN_MNT_ATTACH | FAN_MNT_DETACH);
 }
 
 static inline const struct path *fanotify_event_path(struct fanotify_event *event)
@@ -517,4 +545,9 @@ static inline unsigned int fanotify_mark_user_flags(struct fsnotify_mark *mark)
 		mflags |= FAN_MARK_IGNORE;
 
 	return mflags;
+}
+
+static inline u32 fanotify_get_response_errno(int res)
+{
+	return (res >> FAN_ERRNO_SHIFT) & FAN_ERRNO_MASK;
 }

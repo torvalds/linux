@@ -300,7 +300,7 @@ bad_area:
 	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *)addr);
 }
 
-static struct ctl_table alignment_tbl[5] = {
+static const struct ctl_table alignment_tbl[] = {
 	{
 		.procname = "kernel_enable",
 		.data = &align_kern_enable,

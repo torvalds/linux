@@ -36,33 +36,4 @@ allOf:
   - $ref: nvmem-deprecated-cells.yaml#
 
 unevaluatedProperties: false
-
-examples:
-  - |
-    pmic {
-      #address-cells = <1>;
-      #size-cells = <0>;
-
-      efuse@380 {
-        compatible = "sprd,sc2731-efuse";
-        reg = <0x380>;
-        hwlocks = <&hwlock 12>;
-        #address-cells = <1>;
-        #size-cells = <1>;
-
-        /* Data cells */
-        fgu_calib: calib@6 {
-          reg = <0x6 0x2>;
-          bits = <0 9>;
-        };
-
-        adc_big_scale: calib@24 {
-          reg = <0x24 0x2>;
-        };
-
-        adc_small_scale: calib@26 {
-          reg = <0x26 0x2>;
-        };
-      };
-    };
 ...

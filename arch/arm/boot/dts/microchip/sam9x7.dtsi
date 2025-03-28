@@ -132,6 +132,8 @@
 				compatible = "microchip,sam9x7-spi", "atmel,at91rm9200-spi";
 				reg = <0x400 0x200>;
 				interrupts = <13 IRQ_TYPE_LEVEL_HIGH 7>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 13>;
 				clock-names = "spi_clk";
 				dmas = <&dma0
@@ -151,6 +153,8 @@
 				compatible = "microchip,sam9x7-i2c", "microchip,sam9x60-i2c";
 				reg = <0x600 0x200>;
 				interrupts = <13 IRQ_TYPE_LEVEL_HIGH 7>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 13>;
 				dmas = <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) |
@@ -201,6 +205,8 @@
 				compatible = "microchip,sam9x7-spi", "atmel,at91rm9200-spi";
 				reg = <0x400 0x200>;
 				interrupts = <14 IRQ_TYPE_LEVEL_HIGH 7>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 14>;
 				clock-names = "spi_clk";
 				dmas = <&dma0
@@ -220,6 +226,8 @@
 				compatible = "microchip,sam9x7-i2c", "microchip,sam9x60-i2c";
 				reg = <0x600 0x200>;
 				interrupts = <14 IRQ_TYPE_LEVEL_HIGH 7>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 14>;
 				dmas = <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) |
@@ -312,6 +320,8 @@
 				compatible = "microchip,sam9x7-i2c", "microchip,sam9x60-i2c";
 				reg = <0x600 0x200>;
 				interrupts = <32 IRQ_TYPE_LEVEL_HIGH 7>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 32>;
 				dmas = <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) |
@@ -362,6 +372,8 @@
 				compatible = "microchip,sam9x7-i2c", "microchip,sam9x60-i2c";
 				reg = <0x600 0x200>;
 				interrupts = <33 IRQ_TYPE_LEVEL_HIGH 7>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 33>;
 				dmas = <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) |
@@ -533,6 +545,8 @@
 				compatible = "microchip,sam9x7-i2c", "microchip,sam9x60-i2c";
 				reg = <0x600 0x200>;
 				interrupts = <9 IRQ_TYPE_LEVEL_HIGH 7>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 9>;
 				dmas = <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) |
@@ -583,6 +597,8 @@
 				compatible = "microchip,sam9x7-i2c", "microchip,sam9x60-i2c";
 				reg = <0x600 0x200>;
 				interrupts = <10 IRQ_TYPE_LEVEL_HIGH 7>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 10>;
 				dmas = <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) |
@@ -633,6 +649,8 @@
 				compatible = "microchip,sam9x7-i2c", "microchip,sam9x60-i2c";
 				reg = <0x600 0x200>;
 				interrupts = <11 IRQ_TYPE_LEVEL_HIGH 7>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 11>;
 				dmas = <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) |
@@ -683,6 +701,8 @@
 				compatible = "microchip,sam9x7-spi", "atmel,at91rm9200-spi";
 				reg = <0x400 0x200>;
 				interrupts = <5 IRQ_TYPE_LEVEL_HIGH 7>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 5>;
 				clock-names = "spi_clk";
 				dmas = <&dma0
@@ -702,6 +722,8 @@
 				compatible = "microchip,sam9x7-i2c", "microchip,sam9x60-i2c";
 				reg = <0x600 0x200>;
 				interrupts = <5 IRQ_TYPE_LEVEL_HIGH 7>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 5>;
 				dmas = <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) |
@@ -752,6 +774,8 @@
 				compatible = "microchip,sam9x7-spi", "atmel,at91rm9200-spi";
 				reg = <0x400 0x200>;
 				interrupts = <6 IRQ_TYPE_LEVEL_HIGH 7>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 6>;
 				clock-names = "spi_clk";
 				dmas = <&dma0
@@ -771,6 +795,8 @@
 				compatible = "microchip,sam9x7-i2c", "microchip,sam9x60-i2c";
 				reg = <0x600 0x200>;
 				interrupts = <6 IRQ_TYPE_LEVEL_HIGH 7>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 6>;
 				dmas = <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) |
@@ -821,6 +847,8 @@
 				compatible = "microchip,sam9x7-spi", "atmel,at91rm9200-spi";
 				reg = <0x400 0x200>;
 				interrupts = <7 IRQ_TYPE_LEVEL_HIGH 7>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 7>;
 				clock-names = "spi_clk";
 				dmas = <&dma0
@@ -840,6 +868,8 @@
 				compatible = "microchip,sam9x7-i2c", "microchip,sam9x60-i2c";
 				reg = <0x600 0x200>;
 				interrupts = <7 IRQ_TYPE_LEVEL_HIGH 7>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 7>;
 				dmas = <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) |
@@ -890,6 +920,8 @@
 				compatible = "microchip,sam9x7-spi", "atmel,at91rm9200-spi";
 				reg = <0x400 0x200>;
 				interrupts = <8 IRQ_TYPE_LEVEL_HIGH 7>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 8>;
 				clock-names = "spi_clk";
 				dmas = <&dma0
@@ -909,6 +941,8 @@
 				compatible = "microchip,sam9x7-i2c", "microchip,sam9x60-i2c";
 				reg = <0x600 0x200>;
 				interrupts = <8 IRQ_TYPE_LEVEL_HIGH 7>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 8>;
 				dmas = <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) |
@@ -984,6 +1018,8 @@
 				compatible = "microchip,sam9x7-i2c", "microchip,sam9x60-i2c";
 				reg = <0x600 0x200>;
 				interrupts = <15 IRQ_TYPE_LEVEL_HIGH 7>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 15>;
 				dmas = <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) |
@@ -1034,6 +1070,8 @@
 				compatible = "microchip,sam9x7-i2c", "microchip,sam9x60-i2c";
 				reg = <0x600 0x200>;
 				interrupts = <16 IRQ_TYPE_LEVEL_HIGH 7>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 16>;
 				dmas = <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) |

@@ -41,7 +41,7 @@ pre-allocation or re-sizing of any kernel data structures.
 dentry-negative
 ----------------------------
 
-Policy for negative dentries. Set to 1 to to always delete the dentry when a
+Policy for negative dentries. Set to 1 to always delete the dentry when a
 file is removed, and 0 to disable it. By default, this behavior is disabled.
 
 dentry-state

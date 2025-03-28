@@ -27,6 +27,12 @@ void output_ptreg_defines(void);
 void output_ptreg_defines(void)
 {
 	COMMENT("MIPS pt_regs offsets.");
+#ifdef CONFIG_32BIT
+	OFFSET(PT_ARG4, pt_regs, args[4]);
+	OFFSET(PT_ARG5, pt_regs, args[5]);
+	OFFSET(PT_ARG6, pt_regs, args[6]);
+	OFFSET(PT_ARG7, pt_regs, args[7]);
+#endif
 	OFFSET(PT_R0, pt_regs, regs[0]);
 	OFFSET(PT_R1, pt_regs, regs[1]);
 	OFFSET(PT_R2, pt_regs, regs[2]);

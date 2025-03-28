@@ -21,7 +21,7 @@
 #define PCIE_VERSION	"1.0"
 #define DRV_NAME        "Marvell mwifiex PCIe"
 
-static struct mwifiex_if_ops pcie_ops;
+static const struct mwifiex_if_ops pcie_ops;
 
 static const struct mwifiex_pcie_card_reg mwifiex_reg_8766 = {
 	.cmd_addr_lo = PCIE_SCRATCH_0_REG,
@@ -3240,7 +3240,7 @@ static void mwifiex_pcie_down_dev(struct mwifiex_adapter *adapter)
 	mwifiex_pcie_free_buffers(adapter);
 }
 
-static struct mwifiex_if_ops pcie_ops = {
+static const struct mwifiex_if_ops pcie_ops = {
 	.init_if =			mwifiex_init_pcie,
 	.cleanup_if =			mwifiex_cleanup_pcie,
 	.check_fw_status =		mwifiex_check_fw_status,

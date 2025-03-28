@@ -20,13 +20,6 @@
 					 BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE)   | \
 					 BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE))
 
-enum CROS_CHCTL_ATTR {
-	CROS_CHCTL_ATTR_START_THRESHOLD,
-	CROS_CHCTL_ATTR_END_THRESHOLD,
-	CROS_CHCTL_ATTR_CHARGE_BEHAVIOUR,
-	_CROS_CHCTL_ATTR_COUNT
-};
-
 /*
  * Semantics of data *returned* from the EC API and Linux sysfs differ
  * slightly, also the v1 API can not return any data.
@@ -38,18 +31,13 @@ enum CROS_CHCTL_ATTR {
  */
 
 struct cros_chctl_priv {
+	struct device *dev;
 	struct cros_ec_device *cros_ec;
 	struct acpi_battery_hook battery_hook;
 	struct power_supply *hooked_battery;
 	u8 cmd_version;
 
-	/* The callbacks need to access this priv structure.
-	 * As neither the struct device nor power_supply are under the drivers
-	 * control, embed the attributes within priv to use with container_of().
-	 */
-	struct device_attribute device_attrs[_CROS_CHCTL_ATTR_COUNT];
-	struct attribute *attributes[_CROS_CHCTL_ATTR_COUNT];
-	struct attribute_group group;
+	const struct power_supply_ext *psy_ext;
 
 	struct mutex lock; /* protects fields below and cros_ec */
 	enum power_supply_charge_behaviour current_behaviour;
@@ -119,26 +107,39 @@ static int cros_chctl_configure_ec(struct cros_chctl_priv *priv)
 	return cros_chctl_send_charge_control_cmd(priv->cros_ec, priv->cmd_version, &req);
 }
 
-static struct cros_chctl_priv *cros_chctl_attr_to_priv(struct attribute *attr,
-						       enum CROS_CHCTL_ATTR idx)
+static int cros_chctl_psy_ext_get_prop(struct power_supply *psy,
+				       const struct power_supply_ext *ext,
+				       void *data,
+				       enum power_supply_property psp,
+				       union power_supply_propval *val)
 {
-	struct device_attribute *dev_attr = container_of(attr, struct device_attribute, attr);
+	struct cros_chctl_priv *priv = data;
 
-	return container_of(dev_attr, struct cros_chctl_priv, device_attrs[idx]);
+	switch (psp) {
+	case POWER_SUPPLY_PROP_CHARGE_CONTROL_START_THRESHOLD:
+		val->intval = priv->current_start_threshold;
+		return 0;
+	case POWER_SUPPLY_PROP_CHARGE_CONTROL_END_THRESHOLD:
+		val->intval = priv->current_end_threshold;
+		return 0;
+	case POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR:
+		val->intval = priv->current_behaviour;
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
-static ssize_t cros_chctl_store_threshold(struct device *dev, struct cros_chctl_priv *priv,
-					  int is_end_threshold, const char *buf, size_t count)
+static int cros_chctl_psy_ext_set_threshold(struct cros_chctl_priv *priv,
+					    enum power_supply_property psp,
+					    int val)
 {
-	int ret, val;
+	int ret;
 
-	ret = kstrtoint(buf, 10, &val);
-	if (ret < 0)
-		return ret;
 	if (val < 0 || val > 100)
 		return -EINVAL;
 
-	if (is_end_threshold) {
+	if (psp == POWER_SUPPLY_PROP_CHARGE_CONTROL_END_THRESHOLD) {
 		/* Start threshold is not exposed, use fixed value */
 		if (priv->cmd_version == 2)
 			priv->current_start_threshold = val == 100 ? 0 : val;
@@ -158,93 +159,73 @@ static ssize_t cros_chctl_store_threshold(struct device *dev, struct cros_chctl_
 			return ret;
 	}
 
-	return count;
+	return 0;
 }
 
-static ssize_t charge_control_start_threshold_show(struct device *dev,
-						   struct device_attribute *attr,
-						   char *buf)
+
+static int cros_chctl_psy_ext_set_prop(struct power_supply *psy,
+				       const struct power_supply_ext *ext,
+				       void *data,
+				       enum power_supply_property psp,
+				       const union power_supply_propval *val)
 {
-	struct cros_chctl_priv *priv = cros_chctl_attr_to_priv(&attr->attr,
-							       CROS_CHCTL_ATTR_START_THRESHOLD);
-
-	guard(mutex)(&priv->lock);
-	return sysfs_emit(buf, "%u\n", (unsigned int)priv->current_start_threshold);
-}
-
-static ssize_t charge_control_start_threshold_store(struct device *dev,
-						    struct device_attribute *attr,
-						    const char *buf, size_t count)
-{
-	struct cros_chctl_priv *priv = cros_chctl_attr_to_priv(&attr->attr,
-							       CROS_CHCTL_ATTR_START_THRESHOLD);
-
-	guard(mutex)(&priv->lock);
-	return cros_chctl_store_threshold(dev, priv, 0, buf, count);
-}
-
-static ssize_t charge_control_end_threshold_show(struct device *dev, struct device_attribute *attr,
-						 char *buf)
-{
-	struct cros_chctl_priv *priv = cros_chctl_attr_to_priv(&attr->attr,
-							       CROS_CHCTL_ATTR_END_THRESHOLD);
-
-	guard(mutex)(&priv->lock);
-	return sysfs_emit(buf, "%u\n", (unsigned int)priv->current_end_threshold);
-}
-
-static ssize_t charge_control_end_threshold_store(struct device *dev, struct device_attribute *attr,
-						  const char *buf, size_t count)
-{
-	struct cros_chctl_priv *priv = cros_chctl_attr_to_priv(&attr->attr,
-							       CROS_CHCTL_ATTR_END_THRESHOLD);
-
-	guard(mutex)(&priv->lock);
-	return cros_chctl_store_threshold(dev, priv, 1, buf, count);
-}
-
-static ssize_t charge_behaviour_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct cros_chctl_priv *priv = cros_chctl_attr_to_priv(&attr->attr,
-							       CROS_CHCTL_ATTR_CHARGE_BEHAVIOUR);
-
-	guard(mutex)(&priv->lock);
-	return power_supply_charge_behaviour_show(dev, EC_CHARGE_CONTROL_BEHAVIOURS,
-						  priv->current_behaviour, buf);
-}
-
-static ssize_t charge_behaviour_store(struct device *dev, struct device_attribute *attr,
-				      const char *buf, size_t count)
-{
-	struct cros_chctl_priv *priv = cros_chctl_attr_to_priv(&attr->attr,
-							       CROS_CHCTL_ATTR_CHARGE_BEHAVIOUR);
+	struct cros_chctl_priv *priv = data;
 	int ret;
 
-	ret = power_supply_charge_behaviour_parse(EC_CHARGE_CONTROL_BEHAVIOURS, buf);
-	if (ret < 0)
-		return ret;
-
 	guard(mutex)(&priv->lock);
-	priv->current_behaviour = ret;
 
-	ret = cros_chctl_configure_ec(priv);
-	if (ret < 0)
-		return ret;
-
-	return count;
+	switch (psp) {
+	case POWER_SUPPLY_PROP_CHARGE_CONTROL_START_THRESHOLD:
+	case POWER_SUPPLY_PROP_CHARGE_CONTROL_END_THRESHOLD:
+		return cros_chctl_psy_ext_set_threshold(priv, psp, val->intval);
+	case POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR:
+		priv->current_behaviour = val->intval;
+		ret = cros_chctl_configure_ec(priv);
+		if (ret < 0)
+			return ret;
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
-static umode_t cros_chtl_attr_is_visible(struct kobject *kobj, struct attribute *attr, int n)
+static int cros_chctl_psy_prop_is_writeable(struct power_supply *psy,
+					    const struct power_supply_ext *ext,
+					    void *data,
+					    enum power_supply_property psp)
 {
-	struct cros_chctl_priv *priv = cros_chctl_attr_to_priv(attr, n);
-
-	if (n == CROS_CHCTL_ATTR_START_THRESHOLD && priv->cmd_version < 3)
-		return 0;
-	else if (n == CROS_CHCTL_ATTR_END_THRESHOLD && priv->cmd_version < 2)
-		return 0;
-
-	return attr->mode;
+	return true;
 }
+
+#define DEFINE_CROS_CHCTL_POWER_SUPPLY_EXTENSION(_name, ...)			\
+	static const enum power_supply_property _name ## _props[] = {		\
+		__VA_ARGS__,							\
+	};									\
+										\
+	static const struct power_supply_ext _name = {				\
+		.name			= "cros-charge-control",		\
+		.properties		= _name ## _props,			\
+		.num_properties		= ARRAY_SIZE(_name ## _props),		\
+		.charge_behaviours	= EC_CHARGE_CONTROL_BEHAVIOURS,		\
+		.get_property		= cros_chctl_psy_ext_get_prop,		\
+		.set_property		= cros_chctl_psy_ext_set_prop,		\
+		.property_is_writeable	= cros_chctl_psy_prop_is_writeable,	\
+	}
+
+DEFINE_CROS_CHCTL_POWER_SUPPLY_EXTENSION(cros_chctl_psy_ext_v1,
+	POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR
+);
+
+DEFINE_CROS_CHCTL_POWER_SUPPLY_EXTENSION(cros_chctl_psy_ext_v2,
+	POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR,
+	POWER_SUPPLY_PROP_CHARGE_CONTROL_END_THRESHOLD
+);
+
+DEFINE_CROS_CHCTL_POWER_SUPPLY_EXTENSION(cros_chctl_psy_ext_v3,
+	POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR,
+	POWER_SUPPLY_PROP_CHARGE_CONTROL_START_THRESHOLD,
+	POWER_SUPPLY_PROP_CHARGE_CONTROL_END_THRESHOLD
+);
 
 static int cros_chctl_add_battery(struct power_supply *battery, struct acpi_battery_hook *hook)
 {
@@ -254,7 +235,7 @@ static int cros_chctl_add_battery(struct power_supply *battery, struct acpi_batt
 		return 0;
 
 	priv->hooked_battery = battery;
-	return device_add_group(&battery->dev, &priv->group);
+	return power_supply_register_extension(battery, priv->psy_ext, priv->dev, priv);
 }
 
 static int cros_chctl_remove_battery(struct power_supply *battery, struct acpi_battery_hook *hook)
@@ -262,7 +243,7 @@ static int cros_chctl_remove_battery(struct power_supply *battery, struct acpi_b
 	struct cros_chctl_priv *priv = container_of(hook, struct cros_chctl_priv, battery_hook);
 
 	if (priv->hooked_battery == battery) {
-		device_remove_group(&battery->dev, &priv->group);
+		power_supply_unregister_extension(battery, priv->psy_ext);
 		priv->hooked_battery = NULL;
 	}
 
@@ -288,7 +269,6 @@ static int cros_chctl_probe(struct platform_device *pdev)
 	struct cros_ec_dev *ec_dev = dev_get_drvdata(dev->parent);
 	struct cros_ec_device *cros_ec = ec_dev->ec_dev;
 	struct cros_chctl_priv *priv;
-	size_t i;
 	int ret;
 
 	ret = cros_chctl_fwk_charge_control_versions(cros_ec);
@@ -321,19 +301,15 @@ static int cros_chctl_probe(struct platform_device *pdev)
 
 	dev_dbg(dev, "Command version: %u\n", (unsigned int)priv->cmd_version);
 
+	priv->dev = dev;
 	priv->cros_ec = cros_ec;
-	priv->device_attrs[CROS_CHCTL_ATTR_START_THRESHOLD] =
-		(struct device_attribute)__ATTR_RW(charge_control_start_threshold);
-	priv->device_attrs[CROS_CHCTL_ATTR_END_THRESHOLD] =
-		(struct device_attribute)__ATTR_RW(charge_control_end_threshold);
-	priv->device_attrs[CROS_CHCTL_ATTR_CHARGE_BEHAVIOUR] =
-		(struct device_attribute)__ATTR_RW(charge_behaviour);
-	for (i = 0; i < _CROS_CHCTL_ATTR_COUNT; i++) {
-		sysfs_attr_init(&priv->device_attrs[i].attr);
-		priv->attributes[i] = &priv->device_attrs[i].attr;
-	}
-	priv->group.is_visible = cros_chtl_attr_is_visible;
-	priv->group.attrs = priv->attributes;
+
+	if (priv->cmd_version == 1)
+		priv->psy_ext = &cros_chctl_psy_ext_v1;
+	else if (priv->cmd_version == 2)
+		priv->psy_ext = &cros_chctl_psy_ext_v2;
+	else
+		priv->psy_ext = &cros_chctl_psy_ext_v3;
 
 	priv->battery_hook.name = dev_name(dev);
 	priv->battery_hook.add_battery = cros_chctl_add_battery;

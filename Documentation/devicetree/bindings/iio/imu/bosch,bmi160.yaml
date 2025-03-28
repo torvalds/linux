@@ -37,6 +37,7 @@ properties:
       to "INT2" if INT2 pin should be used instead
 
   drive-open-drain:
+    type: boolean
     description: |
       set if the specified interrupt pin should be configured as
       open drain. If not set, defaults to push-pull.

@@ -19,6 +19,8 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
+#include "../pidfd/pidfd.h"
+
 /*
  * Ignore the checkpatch warning, as per the C99 standard, section 7.14.1.1:
  *
@@ -50,9 +52,10 @@ static void handle_fatal(int c)
 	siglongjmp(signal_jmp_buf, c);
 }
 
-static int pidfd_open(pid_t pid, unsigned int flags)
+static ssize_t sys_process_madvise(int pidfd, const struct iovec *iovec,
+				   size_t n, int advice, unsigned int flags)
 {
-	return syscall(SYS_pidfd_open, pid, flags);
+	return syscall(__NR_process_madvise, pidfd, iovec, n, advice, flags);
 }
 
 /*
@@ -364,13 +367,9 @@ TEST_F(guard_pages, multi_vma)
 TEST_F(guard_pages, process_madvise)
 {
 	const unsigned long page_size = self->page_size;
-	pid_t pid = getpid();
-	int pidfd = pidfd_open(pid, 0);
 	char *ptr_region, *ptr1, *ptr2, *ptr3;
 	ssize_t count;
 	struct iovec vec[6];
-
-	ASSERT_NE(pidfd, -1);
 
 	/* Reserve region to map over. */
 	ptr_region = mmap(NULL, 100 * page_size, PROT_NONE,
@@ -419,7 +418,7 @@ TEST_F(guard_pages, process_madvise)
 	ASSERT_EQ(munmap(&ptr_region[99 * page_size], page_size), 0);
 
 	/* Now guard in one step. */
-	count = process_madvise(pidfd, vec, 6, MADV_GUARD_INSTALL, 0);
+	count = sys_process_madvise(PIDFD_SELF, vec, 6, MADV_GUARD_INSTALL, 0);
 
 	/* OK we don't have permission to do this, skip. */
 	if (count == -1 && errno == EPERM)
@@ -440,7 +439,7 @@ TEST_F(guard_pages, process_madvise)
 	ASSERT_FALSE(try_read_write_buf(&ptr3[19 * page_size]));
 
 	/* Now do the same with unguard... */
-	count = process_madvise(pidfd, vec, 6, MADV_GUARD_REMOVE, 0);
+	count = sys_process_madvise(PIDFD_SELF, vec, 6, MADV_GUARD_REMOVE, 0);
 
 	/* ...and everything should now succeed. */
 
@@ -457,7 +456,6 @@ TEST_F(guard_pages, process_madvise)
 	ASSERT_EQ(munmap(ptr1, 10 * page_size), 0);
 	ASSERT_EQ(munmap(ptr2, 5 * page_size), 0);
 	ASSERT_EQ(munmap(ptr3, 20 * page_size), 0);
-	close(pidfd);
 }
 
 /* Assert that unmapping ranges does not leave guard markers behind. */
@@ -990,7 +988,7 @@ TEST_F(guard_pages, fork)
 		   MAP_ANON | MAP_PRIVATE, -1, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
-	/* Establish guard apges in the first 5 pages. */
+	/* Establish guard pages in the first 5 pages. */
 	ASSERT_EQ(madvise(ptr, 5 * page_size, MADV_GUARD_INSTALL), 0);
 
 	pid = fork();
@@ -1023,6 +1021,77 @@ TEST_F(guard_pages, fork)
 		bool result = try_read_write_buf(curr);
 
 		ASSERT_TRUE(i >= 5 ? result : !result);
+	}
+
+	/* Cleanup. */
+	ASSERT_EQ(munmap(ptr, 10 * page_size), 0);
+}
+
+/*
+ * Assert expected behaviour after we fork populated ranges of anonymous memory
+ * and then guard and unguard the range.
+ */
+TEST_F(guard_pages, fork_cow)
+{
+	const unsigned long page_size = self->page_size;
+	char *ptr;
+	pid_t pid;
+	int i;
+
+	/* Map 10 pages. */
+	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
+		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ASSERT_NE(ptr, MAP_FAILED);
+
+	/* Populate range. */
+	for (i = 0; i < 10 * page_size; i++) {
+		char chr = 'a' + (i % 26);
+
+		ptr[i] = chr;
+	}
+
+	pid = fork();
+	ASSERT_NE(pid, -1);
+	if (!pid) {
+		/* This is the child process now. */
+
+		/* Ensure the range is as expected. */
+		for (i = 0; i < 10 * page_size; i++) {
+			char expected = 'a' + (i % 26);
+			char actual = ptr[i];
+
+			ASSERT_EQ(actual, expected);
+		}
+
+		/* Establish guard pages across the whole range. */
+		ASSERT_EQ(madvise(ptr, 10 * page_size, MADV_GUARD_INSTALL), 0);
+		/* Remove it. */
+		ASSERT_EQ(madvise(ptr, 10 * page_size, MADV_GUARD_REMOVE), 0);
+
+		/*
+		 * By removing the guard pages, the page tables will be
+		 * cleared. Assert that we are looking at the zero page now.
+		 */
+		for (i = 0; i < 10 * page_size; i++) {
+			char actual = ptr[i];
+
+			ASSERT_EQ(actual, '\0');
+		}
+
+		exit(0);
+	}
+
+	/* Parent process. */
+
+	/* Parent simply waits on child. */
+	waitpid(pid, NULL, 0);
+
+	/* Ensure the range is unchanged in parent anon range. */
+	for (i = 0; i < 10 * page_size; i++) {
+		char expected = 'a' + (i % 26);
+		char actual = ptr[i];
+
+		ASSERT_EQ(actual, expected);
 	}
 
 	/* Cleanup. */

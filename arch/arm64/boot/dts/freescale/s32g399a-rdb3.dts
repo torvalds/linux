@@ -8,6 +8,7 @@
 /dts-v1/;
 
 #include "s32g3.dtsi"
+#include "s32gxxxa-rdb.dtsi"
 
 / {
 	model = "NXP S32G3 Reference Design Board 3 (S32G-VNP-RDB3)";
@@ -37,6 +38,14 @@
 
 &uart1 {
 	status = "okay";
+};
+
+&i2c4 {
+	current-sensor@40 {
+		compatible = "ti,ina231";
+		reg = <0x40>;
+		shunt-resistor = <1000>;
+	};
 };
 
 &usdhc0 {

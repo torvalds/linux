@@ -112,14 +112,7 @@
 #define XGMAC_MGKPKTEN			BIT(1)
 #define XGMAC_PWRDWN			BIT(0)
 #define XGMAC_LPI_CTRL			0x000000d0
-#define XGMAC_TXCGE			BIT(21)
-#define XGMAC_LPITXA			BIT(19)
-#define XGMAC_PLS			BIT(17)
-#define XGMAC_LPITXEN			BIT(16)
-#define XGMAC_RLPIEX			BIT(3)
-#define XGMAC_RLPIEN			BIT(2)
-#define XGMAC_TLPIEX			BIT(1)
-#define XGMAC_TLPIEN			BIT(0)
+/* For definitions, see LPI_CTRL_STATUS_xxx in common.h */
 #define XGMAC_LPI_TIMER_CTRL		0x000000d4
 #define XGMAC_HW_FEATURE0		0x0000011c
 #define XGMAC_HWFEAT_EDMA		BIT(31)
@@ -492,5 +485,10 @@
 #define XGMAC_RDES3_PL			GENMASK(13, 0)
 #define XGMAC_RDES3_TSD			BIT(6)
 #define XGMAC_RDES3_TSA			BIT(4)
+
+extern const struct stmmac_ops dwxgmac210_ops;
+extern const struct stmmac_ops dwxlgmac2_ops;
+extern const struct stmmac_dma_ops dwxgmac210_dma_ops;
+extern const struct stmmac_desc_ops dwxgmac210_desc_ops;
 
 #endif /* __STMMAC_DWXGMAC2_H__ */

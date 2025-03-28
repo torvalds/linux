@@ -1,5 +1,5 @@
 obj-$(CONFIG_DELL_WMI_SYSMAN)  += dell-wmi-sysman.o
-dell-wmi-sysman-objs := 	sysman.o		\
+dell-wmi-sysman-y :=		sysman.o		\
 				enum-attributes.o	\
 				int-attributes.o	\
 				string-attributes.o	\

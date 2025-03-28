@@ -738,35 +738,11 @@ static inline unsigned int ioread32be(const void __iomem *addr)
 #define ioread32be ioread32be
 
 #ifdef __powerpc64__
-static inline u64 ioread64_lo_hi(const void __iomem *addr)
-{
-	return readq(addr);
-}
-#define ioread64_lo_hi ioread64_lo_hi
-
-static inline u64 ioread64_hi_lo(const void __iomem *addr)
-{
-	return readq(addr);
-}
-#define ioread64_hi_lo ioread64_hi_lo
-
 static inline u64 ioread64be(const void __iomem *addr)
 {
 	return readq_be(addr);
 }
 #define ioread64be ioread64be
-
-static inline u64 ioread64be_lo_hi(const void __iomem *addr)
-{
-	return readq_be(addr);
-}
-#define ioread64be_lo_hi ioread64be_lo_hi
-
-static inline u64 ioread64be_hi_lo(const void __iomem *addr)
-{
-	return readq_be(addr);
-}
-#define ioread64be_hi_lo ioread64be_hi_lo
 #endif /* __powerpc64__ */
 
 static inline void iowrite16be(u16 val, void __iomem *addr)
@@ -782,35 +758,11 @@ static inline void iowrite32be(u32 val, void __iomem *addr)
 #define iowrite32be iowrite32be
 
 #ifdef __powerpc64__
-static inline void iowrite64_lo_hi(u64 val, void __iomem *addr)
-{
-	writeq(val, addr);
-}
-#define iowrite64_lo_hi iowrite64_lo_hi
-
-static inline void iowrite64_hi_lo(u64 val, void __iomem *addr)
-{
-	writeq(val, addr);
-}
-#define iowrite64_hi_lo iowrite64_hi_lo
-
 static inline void iowrite64be(u64 val, void __iomem *addr)
 {
 	writeq_be(val, addr);
 }
 #define iowrite64be iowrite64be
-
-static inline void iowrite64be_lo_hi(u64 val, void __iomem *addr)
-{
-	writeq_be(val, addr);
-}
-#define iowrite64be_lo_hi iowrite64be_lo_hi
-
-static inline void iowrite64be_hi_lo(u64 val, void __iomem *addr)
-{
-	writeq_be(val, addr);
-}
-#define iowrite64be_hi_lo iowrite64be_hi_lo
 #endif /* __powerpc64__ */
 
 struct pci_dev;

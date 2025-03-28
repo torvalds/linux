@@ -86,7 +86,7 @@ void __page_frag_cache_drain(struct page *page, unsigned int count)
 	VM_BUG_ON_PAGE(page_ref_count(page) == 0, page);
 
 	if (page_ref_sub_and_test(page, count))
-		free_unref_page(page, compound_order(page));
+		free_frozen_pages(page, compound_order(page));
 }
 EXPORT_SYMBOL(__page_frag_cache_drain);
 
@@ -138,7 +138,7 @@ refill:
 			goto refill;
 
 		if (unlikely(encoded_page_decode_pfmemalloc(encoded_page))) {
-			free_unref_page(page,
+			free_frozen_pages(page,
 					encoded_page_decode_order(encoded_page));
 			goto refill;
 		}
@@ -166,6 +166,6 @@ void page_frag_free(void *addr)
 	struct page *page = virt_to_head_page(addr);
 
 	if (unlikely(put_page_testzero(page)))
-		free_unref_page(page, compound_order(page));
+		free_frozen_pages(page, compound_order(page));
 }
 EXPORT_SYMBOL(page_frag_free);

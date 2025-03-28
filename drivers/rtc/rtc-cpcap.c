@@ -295,7 +295,7 @@ static int cpcap_rtc_probe(struct platform_device *pdev)
 	}
 	disable_irq(rtc->update_irq);
 
-	err = device_init_wakeup(dev, 1);
+	err = device_init_wakeup(dev, true);
 	if (err) {
 		dev_err(dev, "wakeup initialization failed (%d)\n", err);
 		/* ignore error and continue without wakeup support */

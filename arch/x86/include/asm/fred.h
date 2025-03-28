@@ -32,7 +32,7 @@
 #define FRED_CONFIG_INT_STKLVL(l)	(_AT(unsigned long, l) << 9)
 #define FRED_CONFIG_ENTRYPOINT(p)	_AT(unsigned long, (p))
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #ifdef CONFIG_X86_FRED
 #include <linux/kernel.h>
@@ -113,6 +113,6 @@ static inline void fred_entry_from_kvm(unsigned int type, unsigned int vector) {
 static inline void fred_sync_rsp0(unsigned long rsp0) { }
 static inline void fred_update_rsp0(void) { }
 #endif /* CONFIG_X86_FRED */
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* ASM_X86_FRED_H */

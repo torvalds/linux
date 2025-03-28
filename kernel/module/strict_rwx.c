@@ -9,6 +9,7 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/set_memory.h>
+#include <linux/execmem.h>
 #include "internal.h"
 
 static int module_set_memory(const struct module *mod, enum mod_mem_type type,
@@ -32,12 +33,12 @@ static int module_set_memory(const struct module *mod, enum mod_mem_type type,
 int module_enable_text_rox(const struct module *mod)
 {
 	for_class_mod_mem_type(type, text) {
+		const struct module_memory *mem = &mod->mem[type];
 		int ret;
 
-		if (mod->mem[type].is_rox)
-			continue;
-
-		if (IS_ENABLED(CONFIG_STRICT_MODULE_RWX))
+		if (mem->is_rox)
+			ret = execmem_restore_rox(mem->base, mem->size);
+		else if (IS_ENABLED(CONFIG_STRICT_MODULE_RWX))
 			ret = module_set_memory(mod, type, set_memory_rox);
 		else
 			ret = module_set_memory(mod, type, set_memory_x);
@@ -47,7 +48,7 @@ int module_enable_text_rox(const struct module *mod)
 	return 0;
 }
 
-int module_enable_rodata_ro(const struct module *mod, bool after_init)
+int module_enable_rodata_ro(const struct module *mod)
 {
 	int ret;
 
@@ -61,10 +62,15 @@ int module_enable_rodata_ro(const struct module *mod, bool after_init)
 	if (ret)
 		return ret;
 
-	if (after_init)
-		return module_set_memory(mod, MOD_RO_AFTER_INIT, set_memory_ro);
-
 	return 0;
+}
+
+int module_enable_rodata_ro_after_init(const struct module *mod)
+{
+	if (!IS_ENABLED(CONFIG_STRICT_MODULE_RWX) || !rodata_enabled)
+		return 0;
+
+	return module_set_memory(mod, MOD_RO_AFTER_INIT, set_memory_ro);
 }
 
 int module_enable_data_nx(const struct module *mod)

@@ -129,8 +129,12 @@ static int kvm_handle_fpasimd(struct kvm_vcpu *vcpu)
 static int kvm_handle_wfx(struct kvm_vcpu *vcpu)
 {
 	u64 esr = kvm_vcpu_get_esr(vcpu);
+	bool is_wfe = !!(esr & ESR_ELx_WFx_ISS_WFE);
 
-	if (esr & ESR_ELx_WFx_ISS_WFE) {
+	if (guest_hyp_wfx_traps_enabled(vcpu))
+		return kvm_inject_nested_sync(vcpu, kvm_vcpu_get_esr(vcpu));
+
+	if (is_wfe) {
 		trace_kvm_wfx_arm64(*vcpu_pc(vcpu), true);
 		vcpu->stat.wfe_exit_stat++;
 	} else {
@@ -183,6 +187,9 @@ static int kvm_handle_guest_debug(struct kvm_vcpu *vcpu)
 	struct kvm_run *run = vcpu->run;
 	u64 esr = kvm_vcpu_get_esr(vcpu);
 
+	if (!vcpu->guest_debug && forward_debug_exception(vcpu))
+		return 1;
+
 	run->exit_reason = KVM_EXIT_DEBUG;
 	run->debug.arch.hsr = lower_32_bits(esr);
 	run->debug.arch.hsr_high = upper_32_bits(esr);
@@ -193,7 +200,7 @@ static int kvm_handle_guest_debug(struct kvm_vcpu *vcpu)
 		run->debug.arch.far = vcpu->arch.fault.far_el2;
 		break;
 	case ESR_ELx_EC_SOFTSTP_LOW:
-		vcpu_clear_flag(vcpu, DBG_SS_ACTIVE_PENDING);
+		*vcpu_cpsr(vcpu) |= DBG_SPSR_SS;
 		break;
 	}
 

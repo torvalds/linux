@@ -233,6 +233,7 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 	mvif->mt76.omac_idx = idx;
 	mvif->phy = phy;
 	mvif->mt76.band_idx = phy->mt76->band_idx;
+	mvif->mt76.wcid = &mvif->sta.wcid;
 
 	mvif->mt76.wmm_idx = vif->type != NL80211_IFTYPE_AP;
 	if (ext_phy)
@@ -246,16 +247,15 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 	phy->omac_mask |= BIT_ULL(mvif->mt76.omac_idx);
 
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, mt7915_wtbl_size(dev));
-	if (idx < 0)
-		return -ENOSPC;
+	if (idx < 0) {
+		ret = -ENOSPC;
+		goto out;
+	}
 
 	INIT_LIST_HEAD(&mvif->sta.rc_list);
-	INIT_LIST_HEAD(&mvif->sta.wcid.poll_list);
 	mvif->sta.wcid.idx = idx;
-	mvif->sta.wcid.phy_idx = ext_phy;
-	mvif->sta.wcid.hw_key_idx = -1;
 	mvif->sta.wcid.tx_info |= MT_WCID_TX_INFO_SET;
-	mt76_wcid_init(&mvif->sta.wcid);
+	mt76_wcid_init(&mvif->sta.wcid, phy->mt76->band_idx);
 
 	mt7915_mac_wtbl_update(dev, idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
@@ -366,8 +366,12 @@ static int mt7915_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	int idx = key->keyidx;
 	int err = 0;
 
-	if (sta && !wcid->sta)
+	if (sta && !wcid->sta) {
+		if (cmd != SET_KEY)
+			return 0;
+
 		return -EOPNOTSUPP;
+	}
 
 	/* The hardware does not support per-STA RX GTK, fallback
 	 * to software mode for these.
@@ -619,8 +623,9 @@ static void mt7915_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_ASSOC)
 		set_bss_info = vif->cfg.assoc;
 	if (changed & BSS_CHANGED_BEACON_ENABLED &&
+	    info->enable_beacon &&
 	    vif->type != NL80211_IFTYPE_AP)
-		set_bss_info = set_sta = info->enable_beacon;
+		set_bss_info = set_sta = 1;
 
 	if (set_bss_info == 1)
 		mt7915_mcu_add_bss_info(phy, vif, true);
@@ -631,7 +636,11 @@ static void mt7915_bss_info_changed(struct ieee80211_hw *hw,
 		mt7915_mac_enable_rtscts(dev, vif, info->use_cts_prot);
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
-		int slottime = info->use_short_slot ? 9 : 20;
+		int slottime = 9;
+
+		if (phy->mt76->chandef.chan->band == NL80211_BAND_2GHZ &&
+		    !info->use_short_slot)
+			slottime = 20;
 
 		if (slottime != phy->slottime) {
 			phy->slottime = slottime;
@@ -758,6 +767,57 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	return 0;
 }
 
+struct drop_sta_iter {
+	struct mt7915_dev *dev;
+	struct ieee80211_hw *hw;
+	struct ieee80211_vif *vif;
+	u8 sta_addr[ETH_ALEN];
+};
+
+static void
+__mt7915_drop_sta(void *ptr, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct drop_sta_iter *data = ptr;
+	struct ieee80211_sta *sta;
+	struct mt7915_sta *msta;
+
+	if (vif == data->vif || vif->type != NL80211_IFTYPE_AP)
+		return;
+
+	sta = ieee80211_find_sta_by_ifaddr(data->hw, data->sta_addr, mac);
+	if (!sta)
+		return;
+
+	msta = (struct mt7915_sta *)sta->drv_priv;
+	mt7915_mcu_add_sta(data->dev, vif, sta, CONN_STATE_DISCONNECT, false);
+	msta->wcid.sta_disabled = 1;
+	msta->wcid.sta = 0;
+}
+
+static void
+mt7915_drop_other_sta(struct mt7915_dev *dev, struct ieee80211_vif *vif,
+		      struct ieee80211_sta *sta)
+{
+	struct mt76_phy *ext_phy = dev->mt76.phys[MT_BAND1];
+	struct drop_sta_iter data = {
+		.dev = dev,
+		.hw = dev->mphy.hw,
+		.vif = vif,
+	};
+
+	if (vif->type != NL80211_IFTYPE_AP)
+		return;
+
+	memcpy(data.sta_addr, sta->addr, ETH_ALEN);
+	ieee80211_iterate_active_interfaces(data.hw, 0, __mt7915_drop_sta, &data);
+
+	if (!ext_phy)
+		return;
+
+	data.hw = ext_phy->hw;
+	ieee80211_iterate_active_interfaces(data.hw, 0, __mt7915_drop_sta, &data);
+}
+
 int mt7915_mac_sta_event(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 			 struct ieee80211_sta *sta, enum mt76_sta_event ev)
 {
@@ -786,6 +846,7 @@ int mt7915_mac_sta_event(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		return 0;
 
 	case MT76_STA_EVENT_AUTHORIZE:
+		mt7915_drop_other_sta(dev, vif, sta);
 		return mt7915_mcu_add_sta(dev, vif, sta, CONN_STATE_PORT_SECURE, false);
 
 	case MT76_STA_EVENT_DISASSOC:

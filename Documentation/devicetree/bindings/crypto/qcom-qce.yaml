@@ -7,7 +7,8 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm crypto engine driver
 
 maintainers:
-  - Bhupesh Sharma <bhupesh.sharma@linaro.org>
+  - Bjorn Andersson <andersson@kernel.org>
+  - Konrad Dybcio <konradybcio@kernel.org>
 
 description:
   This document defines the binding for the QCE crypto
@@ -44,6 +45,7 @@ properties:
 
       - items:
           - enum:
+              - qcom,qcs8300-qce
               - qcom,sa8775p-qce
               - qcom,sc7280-qce
               - qcom,sm6350-qce
@@ -52,6 +54,7 @@ properties:
               - qcom,sm8450-qce
               - qcom,sm8550-qce
               - qcom,sm8650-qce
+              - qcom,sm8750-qce
           - const: qcom,sm8150-qce
           - const: qcom,qce
 

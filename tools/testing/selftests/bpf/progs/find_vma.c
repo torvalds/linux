@@ -25,7 +25,7 @@ static long check_vma(struct task_struct *task, struct vm_area_struct *vma,
 {
 	if (vma->vm_file)
 		bpf_probe_read_kernel_str(d_iname, DNAME_INLINE_LEN - 1,
-					  vma->vm_file->f_path.dentry->d_iname);
+					  vma->vm_file->f_path.dentry->d_shortname.string);
 
 	/* check for VM_EXEC */
 	if (vma->vm_flags & VM_EXEC)

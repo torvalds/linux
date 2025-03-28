@@ -886,10 +886,8 @@ static __poll_t scmi_dbg_raw_mode_message_poll(struct file *filp,
 
 static int scmi_dbg_raw_mode_open(struct inode *inode, struct file *filp)
 {
-	u8 id;
 	struct scmi_raw_mode_info *raw;
 	struct scmi_dbg_raw_data *rd;
-	const char *id_str = filp->f_path.dentry->d_parent->d_name.name;
 
 	if (!inode->i_private)
 		return -ENODEV;
@@ -915,8 +913,8 @@ static int scmi_dbg_raw_mode_open(struct inode *inode, struct file *filp)
 	}
 
 	/* Grab channel ID from debugfs entry naming if any */
-	if (!kstrtou8(id_str, 16, &id))
-		rd->chan_id = id;
+	/* not set - reassing 0 we already had after kzalloc() */
+	rd->chan_id = debugfs_get_aux_num(filp);
 
 	rd->raw = raw;
 	filp->private_data = rd;
@@ -1225,10 +1223,12 @@ void *scmi_raw_mode_init(const struct scmi_handle *handle,
 			snprintf(cdir, 8, "0x%02X", channels[i]);
 			chd = debugfs_create_dir(cdir, top_chans);
 
-			debugfs_create_file("message", 0600, chd, raw,
+			debugfs_create_file_aux_num("message", 0600, chd,
+					    raw, channels[i],
 					    &scmi_dbg_raw_mode_message_fops);
 
-			debugfs_create_file("message_async", 0600, chd, raw,
+			debugfs_create_file_aux_num("message_async", 0600, chd,
+					    raw, channels[i],
 					    &scmi_dbg_raw_mode_message_async_fops);
 		}
 	}

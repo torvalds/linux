@@ -8,11 +8,13 @@
 
 #include <linux/bits.h>
 #include <linux/bug.h>
+#include <linux/cleanup.h>
 #include <linux/compiler_types.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/lockdep.h>
+#include <linux/mutex.h>
 #include <linux/overflow.h>
 #include <linux/rbtree.h>
 #include <linux/refcount.h>
@@ -20,6 +22,7 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 
+#include "access.h"
 #include "limits.h"
 #include "object.h"
 #include "ruleset.h"
@@ -121,7 +124,7 @@ create_rule(const struct landlock_id id,
 		return ERR_PTR(-ENOMEM);
 	RB_CLEAR_NODE(&new_rule->node);
 	if (is_object_pointer(id.type)) {
-		/* This should be catched by insert_rule(). */
+		/* This should have been caught by insert_rule(). */
 		WARN_ON_ONCE(!id.key.object);
 		landlock_get_object(id.key.object);
 	}
@@ -384,7 +387,8 @@ static int merge_ruleset(struct landlock_ruleset *const dst,
 		err = -EINVAL;
 		goto out_unlock;
 	}
-	dst->access_masks[dst->num_layers - 1] = src->access_masks[0];
+	dst->access_masks[dst->num_layers - 1] =
+		landlock_upgrade_handled_access_masks(src->access_masks[0]);
 
 	/* Merges the @src inode tree. */
 	err = merge_tree(dst, src, LANDLOCK_KEY_INODE);
@@ -537,7 +541,7 @@ struct landlock_ruleset *
 landlock_merge_ruleset(struct landlock_ruleset *const parent,
 		       struct landlock_ruleset *const ruleset)
 {
-	struct landlock_ruleset *new_dom;
+	struct landlock_ruleset *new_dom __free(landlock_put_ruleset) = NULL;
 	u32 num_layers;
 	int err;
 
@@ -557,29 +561,25 @@ landlock_merge_ruleset(struct landlock_ruleset *const parent,
 	new_dom = create_ruleset(num_layers);
 	if (IS_ERR(new_dom))
 		return new_dom;
+
 	new_dom->hierarchy =
 		kzalloc(sizeof(*new_dom->hierarchy), GFP_KERNEL_ACCOUNT);
-	if (!new_dom->hierarchy) {
-		err = -ENOMEM;
-		goto out_put_dom;
-	}
+	if (!new_dom->hierarchy)
+		return ERR_PTR(-ENOMEM);
+
 	refcount_set(&new_dom->hierarchy->usage, 1);
 
 	/* ...as a child of @parent... */
 	err = inherit_ruleset(parent, new_dom);
 	if (err)
-		goto out_put_dom;
+		return ERR_PTR(err);
 
 	/* ...and including @ruleset. */
 	err = merge_ruleset(new_dom, ruleset);
 	if (err)
-		goto out_put_dom;
+		return ERR_PTR(err);
 
-	return new_dom;
-
-out_put_dom:
-	landlock_put_ruleset(new_dom);
-	return ERR_PTR(err);
+	return no_free_ptr(new_dom);
 }
 
 /*

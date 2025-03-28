@@ -271,17 +271,25 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 }
 
 static inline const struct cpumask *
-task_cpu_possible_mask(struct task_struct *p)
+__task_cpu_possible_mask(struct task_struct *p, const struct cpumask *mask)
 {
 	if (!static_branch_unlikely(&arm64_mismatched_32bit_el0))
-		return cpu_possible_mask;
+		return mask;
 
 	if (!is_compat_thread(task_thread_info(p)))
-		return cpu_possible_mask;
+		return mask;
 
 	return system_32bit_el0_cpumask();
 }
+
+static inline const struct cpumask *
+task_cpu_possible_mask(struct task_struct *p)
+{
+	return __task_cpu_possible_mask(p, cpu_possible_mask);
+}
 #define task_cpu_possible_mask	task_cpu_possible_mask
+
+const struct cpumask *task_cpu_fallback_mask(struct task_struct *p);
 
 void verify_cpu_asid_bits(void);
 void post_ttbr_update_workaround(void);

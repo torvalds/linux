@@ -68,14 +68,12 @@ bool is_directory(const char *base_path, const struct dirent *dent)
 	return S_ISDIR(st.st_mode);
 }
 
-bool is_executable_file(const char *base_path, const struct dirent *dent)
+bool is_directory_at(int dir_fd, const char *path)
 {
-	char path[PATH_MAX];
 	struct stat st;
 
-	snprintf(path, sizeof(path), "%s/%s", base_path, dent->d_name);
-	if (stat(path, &st))
+	if (fstatat(dir_fd, path, &st, /*flags=*/0))
 		return false;
 
-	return !S_ISDIR(st.st_mode) && (st.st_mode & S_IXUSR);
+	return S_ISDIR(st.st_mode);
 }

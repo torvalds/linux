@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test send-buffer-limited time in tcp_info for client side.
+`./defaults.sh`
+
+// Create a socket and set it to non-blocking.
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 fcntl(3, F_GETFL) = 0x2 (flags O_RDWR)
+   +0 fcntl(3, F_SETFL, O_RDWR|O_NONBLOCK) = 0
+
+   +0 connect(3, ..., ...) = -1 EINPROGRESS (Operation now in progress)
+   +0 > S 0:0(0) <mss 1460,sackOK,TS val 100 ecr 0,nop,wscale 8>
+ +.01 < S. 0:0(0) ack 1 win 10000 <mss 1000,sackOK,nop,nop,nop,wscale 8>
+   +0 > . 1:1(0) ack 1
+   +0 getsockopt(3, SOL_SOCKET, SO_ERROR, [0], [4]) = 0
+   +0 fcntl(3, F_SETFL, O_RDWR) = 0   // set back to blocking
+   +0 setsockopt(3, SOL_SOCKET, SO_SNDBUF, [10000], 4) = 0
+   +0 getsockopt(3, SOL_SOCKET, SO_SNDBUF, [20000], [4]) = 0
+
+ +.09...0.14 write(3, ..., 150000) = 150000
+
+ +.01 < . 1:1(0) ack 10001 win 10000
+
+ +.01 < . 1:1(0) ack 30001 win 10000
+
+// cwnd goes from 40(60KB) to 80(120KB), and that we hit the tiny sndbuf limit 10KB
+ +.01 < . 1:1(0) ack 70001 win 10000
+
+ +.02 < . 1:1(0) ack 95001 win 10000
+   +0 %{ assert 19000 <= tcpi_sndbuf_limited <= 21000, tcpi_sndbuf_limited; \
+	 assert 49000 <= tcpi_busy_time <= 52000, tcpi_busy_time; \
+	 assert 0 == tcpi_rwnd_limited, tcpi_rwnd_limited }%
+
+// This ack frees up enough buffer so we are no longer
+// buffer limited (socket flag SOCK_NOSPACE is cleared)
+ +.02 < . 1:1(0) ack 150001 win 10000
+   +0 %{ assert 19000 <= tcpi_sndbuf_limited <= 21000, tcpi_sndbuf_limited;\
+	 assert 69000 <= tcpi_busy_time <= 73000, tcpi_busy_time;\
+	 assert 0 == tcpi_rwnd_limited, tcpi_rwnd_limited }%

@@ -10,6 +10,7 @@ ALL_TESTS="
 	lag_rif_nomaster_addr
 "
 
+REQUIRE_TEAMD="yes"
 NUM_NETIFS=2
 source $lib_dir/lib.sh
 source $lib_dir/devlink_lib.sh

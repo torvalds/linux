@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config REALTEK_PHY
+	tristate "Realtek PHYs"
+	help
+	  Currently supports RTL821x/RTL822x and fast ethernet PHYs
+
+if REALTEK_PHY
+
+config REALTEK_PHY_HWMON
+	bool "HWMON support for Realtek PHYs"
+	depends on HWMON && !(REALTEK_PHY=y && HWMON=m)
+	help
+	  Optional hwmon support for the temperature sensor
+
+endif # REALTEK_PHY

@@ -10,7 +10,6 @@
 
 /* base module includes */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/init.h>
@@ -25,7 +24,6 @@
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/sched/signal.h>
-#include <linux/uaccess.h>
 #include <linux/usb.h>
 
 #include "gpibP.h"
@@ -1133,33 +1131,33 @@ static unsigned int usb_gpib_t1_delay(gpib_board_t *board, unsigned int nano_sec
  *   ***  module dispatch table and init/exit functions	 ***
  */
 
-gpib_interface_t usb_gpib_interface = {
-name: NAME,
-attach : usb_gpib_attach,
-detach : usb_gpib_detach,
-read : usb_gpib_read,
-write : usb_gpib_write,
-command : usb_gpib_command,
-take_control : usb_gpib_take_control,
-go_to_standby : usb_gpib_go_to_standby,
-request_system_control : usb_gpib_request_system_control,
-interface_clear : usb_gpib_interface_clear,
-remote_enable : usb_gpib_remote_enable,
-enable_eos : usb_gpib_enable_eos,
-disable_eos : usb_gpib_disable_eos,
-parallel_poll : usb_gpib_parallel_poll,
-parallel_poll_configure : usb_gpib_parallel_poll_configure,
-parallel_poll_response : usb_gpib_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : usb_gpib_line_status,
-update_status : usb_gpib_update_status,
-primary_address : usb_gpib_primary_address,
-secondary_address : usb_gpib_secondary_address,
-serial_poll_response : usb_gpib_serial_poll_response,
-serial_poll_status : usb_gpib_serial_poll_status,
-t1_delay : usb_gpib_t1_delay,
-return_to_local : usb_gpib_return_to_local,
-skip_check_for_command_acceptors : 1
+static gpib_interface_t usb_gpib_interface = {
+	.name = NAME,
+	.attach = usb_gpib_attach,
+	.detach = usb_gpib_detach,
+	.read = usb_gpib_read,
+	.write = usb_gpib_write,
+	.command = usb_gpib_command,
+	.take_control = usb_gpib_take_control,
+	.go_to_standby = usb_gpib_go_to_standby,
+	.request_system_control = usb_gpib_request_system_control,
+	.interface_clear = usb_gpib_interface_clear,
+	.remote_enable = usb_gpib_remote_enable,
+	.enable_eos = usb_gpib_enable_eos,
+	.disable_eos = usb_gpib_disable_eos,
+	.parallel_poll = usb_gpib_parallel_poll,
+	.parallel_poll_configure = usb_gpib_parallel_poll_configure,
+	.parallel_poll_response = usb_gpib_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = usb_gpib_line_status,
+	.update_status = usb_gpib_update_status,
+	.primary_address = usb_gpib_primary_address,
+	.secondary_address = usb_gpib_secondary_address,
+	.serial_poll_response = usb_gpib_serial_poll_response,
+	.serial_poll_status = usb_gpib_serial_poll_status,
+	.t1_delay = usb_gpib_t1_delay,
+	.return_to_local = usb_gpib_return_to_local,
+	.skip_check_for_command_acceptors = 1
 };
 
 /*
@@ -1181,7 +1179,11 @@ static int usb_gpib_init_module(struct usb_interface *interface)
 		return rv;
 
 	if (!assigned_usb_minors) {
-		gpib_register_driver(&usb_gpib_interface, THIS_MODULE);
+		rv = gpib_register_driver(&usb_gpib_interface, THIS_MODULE);
+		if (rv) {
+			pr_err("lpvo_usb_gpib: gpib_register_driver failed: error = %d\n", rv);
+			goto exit;
+		}
 	} else {
 		/* check if minor is already registered - maybe useless, but if
 		 *  it happens the code is inconsistent somewhere
@@ -1878,7 +1880,7 @@ static int skel_release(struct inode *inode, struct file *file)
  *  user space access to read function
  */
 
-static ssize_t skel_read(struct file *file, char *buffer, size_t count,
+static ssize_t skel_read(struct file *file, char __user *buffer, size_t count,
 			 loff_t *ppos)
 {
 	struct usb_skel *dev;
@@ -1909,7 +1911,7 @@ static ssize_t skel_read(struct file *file, char *buffer, size_t count,
  *  user space access to write function
  */
 
-static ssize_t skel_write(struct file *file, const char *user_buffer,
+static ssize_t skel_write(struct file *file, const char __user *user_buffer,
 			  size_t count, loff_t *ppos)
 {
 	struct usb_skel *dev;

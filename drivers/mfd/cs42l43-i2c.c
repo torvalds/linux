@@ -56,13 +56,6 @@ static int cs42l43_i2c_probe(struct i2c_client *i2c)
 	return cs42l43_dev_probe(cs42l43);
 }
 
-static void cs42l43_i2c_remove(struct i2c_client *i2c)
-{
-	struct cs42l43 *cs42l43 = dev_get_drvdata(&i2c->dev);
-
-	cs42l43_dev_remove(cs42l43);
-}
-
 #if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id cs42l43_of_match[] = {
 	{ .compatible = "cirrus,cs42l43", },
@@ -88,7 +81,6 @@ static struct i2c_driver cs42l43_i2c_driver = {
 	},
 
 	.probe		= cs42l43_i2c_probe,
-	.remove		= cs42l43_i2c_remove,
 };
 module_i2c_driver(cs42l43_i2c_driver);
 

@@ -57,9 +57,8 @@ impl Page {
     /// ```
     /// use kernel::page::Page;
     ///
-    /// # fn dox() -> Result<(), kernel::alloc::AllocError> {
     /// let page = Page::alloc_page(GFP_KERNEL)?;
-    /// # Ok(()) }
+    /// # Ok::<(), kernel::alloc::AllocError>(())
     /// ```
     ///
     /// Allocate memory for a page and zero its contents.
@@ -67,9 +66,8 @@ impl Page {
     /// ```
     /// use kernel::page::Page;
     ///
-    /// # fn dox() -> Result<(), kernel::alloc::AllocError> {
     /// let page = Page::alloc_page(GFP_KERNEL | __GFP_ZERO)?;
-    /// # Ok(()) }
+    /// # Ok::<(), kernel::alloc::AllocError>(())
     /// ```
     pub fn alloc_page(flags: Flags) -> Result<Self, AllocError> {
         // SAFETY: Depending on the value of `gfp_flags`, this call may sleep. Other than that, it

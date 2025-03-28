@@ -151,34 +151,6 @@ static void usnic_ib_handle_usdev_event(struct usnic_ib_dev *us_ibdev,
 		ib_event.element.port_num = 1;
 		ib_dispatch_event(&ib_event);
 		break;
-	case NETDEV_UP:
-	case NETDEV_DOWN:
-	case NETDEV_CHANGE:
-		if (!us_ibdev->ufdev->link_up &&
-				netif_carrier_ok(netdev)) {
-			usnic_fwd_carrier_up(us_ibdev->ufdev);
-			usnic_info("Link UP on %s\n",
-				   dev_name(&us_ibdev->ib_dev.dev));
-			ib_event.event = IB_EVENT_PORT_ACTIVE;
-			ib_event.device = &us_ibdev->ib_dev;
-			ib_event.element.port_num = 1;
-			ib_dispatch_event(&ib_event);
-		} else if (us_ibdev->ufdev->link_up &&
-				!netif_carrier_ok(netdev)) {
-			usnic_fwd_carrier_down(us_ibdev->ufdev);
-			usnic_info("Link DOWN on %s\n",
-				   dev_name(&us_ibdev->ib_dev.dev));
-			usnic_ib_qp_grp_modify_active_to_err(us_ibdev);
-			ib_event.event = IB_EVENT_PORT_ERR;
-			ib_event.device = &us_ibdev->ib_dev;
-			ib_event.element.port_num = 1;
-			ib_dispatch_event(&ib_event);
-		} else {
-			usnic_dbg("Ignoring %s on %s\n",
-					netdev_cmd_to_name(event),
-					dev_name(&us_ibdev->ib_dev.dev));
-		}
-		break;
 	case NETDEV_CHANGEADDR:
 		if (!memcmp(us_ibdev->ufdev->mac, netdev->dev_addr,
 				sizeof(us_ibdev->ufdev->mac))) {
@@ -214,6 +186,50 @@ static void usnic_ib_handle_usdev_event(struct usnic_ib_dev *us_ibdev,
 		usnic_dbg("Ignoring event %s on %s",
 				netdev_cmd_to_name(event),
 				dev_name(&us_ibdev->ib_dev.dev));
+	}
+	mutex_unlock(&us_ibdev->usdev_lock);
+}
+
+static void usnic_ib_handle_port_event(struct ib_device *ibdev,
+				       struct net_device *netdev,
+				       unsigned long event)
+{
+	struct usnic_ib_dev *us_ibdev =
+			container_of(ibdev, struct usnic_ib_dev, ib_dev);
+	struct ib_event ib_event;
+
+	mutex_lock(&us_ibdev->usdev_lock);
+	switch (event) {
+	case NETDEV_UP:
+	case NETDEV_DOWN:
+	case NETDEV_CHANGE:
+		if (!us_ibdev->ufdev->link_up &&
+		    netif_carrier_ok(netdev)) {
+			usnic_fwd_carrier_up(us_ibdev->ufdev);
+			usnic_info("Link UP on %s\n",
+				   dev_name(&us_ibdev->ib_dev.dev));
+			ib_event.event = IB_EVENT_PORT_ACTIVE;
+			ib_event.device = &us_ibdev->ib_dev;
+			ib_event.element.port_num = 1;
+			ib_dispatch_event(&ib_event);
+		} else if (us_ibdev->ufdev->link_up &&
+			   !netif_carrier_ok(netdev)) {
+			usnic_fwd_carrier_down(us_ibdev->ufdev);
+			usnic_info("Link DOWN on %s\n",
+				   dev_name(&us_ibdev->ib_dev.dev));
+			usnic_ib_qp_grp_modify_active_to_err(us_ibdev);
+			ib_event.event = IB_EVENT_PORT_ERR;
+			ib_event.device = &us_ibdev->ib_dev;
+			ib_event.element.port_num = 1;
+			ib_dispatch_event(&ib_event);
+		} else {
+			usnic_dbg("Ignoring %s on %s\n",
+				  netdev_cmd_to_name(event),
+				  dev_name(&us_ibdev->ib_dev.dev));
+		}
+		break;
+	default:
+		break;
 	}
 	mutex_unlock(&us_ibdev->usdev_lock);
 }
@@ -358,6 +374,7 @@ static const struct ib_device_ops usnic_dev_ops = {
 	.query_port = usnic_ib_query_port,
 	.query_qp = usnic_ib_query_qp,
 	.reg_user_mr = usnic_ib_reg_mr,
+	.report_port_event = usnic_ib_handle_port_event,
 	INIT_RDMA_OBJ_SIZE(ib_pd, usnic_ib_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_cq, usnic_ib_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_qp, usnic_ib_qp_grp, ibqp),

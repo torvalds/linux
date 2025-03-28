@@ -24,13 +24,29 @@ struct fbnic_net;
 #define FBNIC_TX_DESC_WAKEUP	(FBNIC_MAX_SKB_DESC * 2)
 #define FBNIC_TX_DESC_MIN	roundup_pow_of_two(FBNIC_TX_DESC_WAKEUP)
 
+/* To receive the worst case packet we need:
+ *	1 descriptor for primary metadata
+ *	+ 1 descriptor for optional metadata
+ *	+ 1 descriptor for headers
+ *	+ 4 descriptors for payload
+ */
+#define FBNIC_MAX_RX_PKT_DESC	7
+#define FBNIC_RX_DESC_MIN	roundup_pow_of_two(FBNIC_MAX_RX_PKT_DESC * 2)
+
 #define FBNIC_MAX_TXQS			128u
 #define FBNIC_MAX_RXQS			128u
+
+/* These apply to TWQs, TCQ, RCQ */
+#define FBNIC_QUEUE_SIZE_MIN		16u
+#define FBNIC_QUEUE_SIZE_MAX		SZ_64K
 
 #define FBNIC_TXQ_SIZE_DEFAULT		1024
 #define FBNIC_HPQ_SIZE_DEFAULT		256
 #define FBNIC_PPQ_SIZE_DEFAULT		256
 #define FBNIC_RCQ_SIZE_DEFAULT		1024
+#define FBNIC_TX_USECS_DEFAULT		35
+#define FBNIC_RX_USECS_DEFAULT		30
+#define FBNIC_RX_FRAMES_DEFAULT		0
 
 #define FBNIC_RX_TROOM \
 	SKB_DATA_ALIGN(sizeof(struct skb_shared_info))
@@ -56,9 +72,22 @@ struct fbnic_pkt_buff {
 struct fbnic_queue_stats {
 	u64 packets;
 	u64 bytes;
+	union {
+		struct {
+			u64 csum_partial;
+			u64 lso;
+			u64 ts_packets;
+			u64 ts_lost;
+			u64 stop;
+			u64 wake;
+		} twq;
+		struct {
+			u64 alloc_failed;
+			u64 csum_complete;
+			u64 csum_none;
+		} rx;
+	};
 	u64 dropped;
-	u64 ts_packets;
-	u64 ts_lost;
 	struct u64_stats_sync syncp;
 };
 
@@ -104,13 +133,10 @@ struct fbnic_napi_vector {
 	struct device *dev;		/* Device for DMA unmapping */
 	struct page_pool *page_pool;
 	struct fbnic_dev *fbd;
-	char name[IFNAMSIZ + 9];
 
 	u16 v_idx;
 	u8 txt_count;
 	u8 rxt_count;
-
-	struct list_head napis;
 
 	struct fbnic_q_triad qt[];
 };
@@ -123,10 +149,18 @@ netdev_features_t
 fbnic_features_check(struct sk_buff *skb, struct net_device *dev,
 		     netdev_features_t features);
 
+void fbnic_aggregate_ring_rx_counters(struct fbnic_net *fbn,
+				      struct fbnic_ring *rxr);
+void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
+				      struct fbnic_ring *txr);
+
 int fbnic_alloc_napi_vectors(struct fbnic_net *fbn);
 void fbnic_free_napi_vectors(struct fbnic_net *fbn);
 int fbnic_alloc_resources(struct fbnic_net *fbn);
 void fbnic_free_resources(struct fbnic_net *fbn);
+int fbnic_set_netif_queues(struct fbnic_net *fbn);
+void fbnic_reset_netif_queues(struct fbnic_net *fbn);
+irqreturn_t fbnic_msix_clean_rings(int irq, void *data);
 void fbnic_napi_enable(struct fbnic_net *fbn);
 void fbnic_napi_disable(struct fbnic_net *fbn);
 void fbnic_enable(struct fbnic_net *fbn);
@@ -136,5 +170,10 @@ void fbnic_fill(struct fbnic_net *fbn);
 
 void fbnic_napi_depletion_check(struct net_device *netdev);
 int fbnic_wait_all_queues_idle(struct fbnic_dev *fbd, bool may_fail);
+
+static inline int fbnic_napi_idx(const struct fbnic_napi_vector *nv)
+{
+	return nv->v_idx - FBNIC_NON_NAPI_VECTORS;
+}
 
 #endif /* _FBNIC_TXRX_H_ */

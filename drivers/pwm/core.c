@@ -242,6 +242,9 @@ int pwm_round_waveform_might_sleep(struct pwm_device *pwm, struct pwm_waveform *
 
 	BUG_ON(WFHWSIZE < ops->sizeof_wfhw);
 
+	if (!pwmchip_supports_waveform(chip))
+		return -EOPNOTSUPP;
+
 	if (!pwm_wf_valid(wf))
 		return -EINVAL;
 
@@ -294,6 +297,9 @@ int pwm_get_waveform_might_sleep(struct pwm_device *pwm, struct pwm_waveform *wf
 
 	BUG_ON(WFHWSIZE < ops->sizeof_wfhw);
 
+	if (!pwmchip_supports_waveform(chip) || !ops->read_waveform)
+		return -EOPNOTSUPP;
+
 	guard(pwmchip)(chip);
 
 	if (!chip->operational)
@@ -319,6 +325,9 @@ static int __pwm_set_waveform(struct pwm_device *pwm,
 	int err;
 
 	BUG_ON(WFHWSIZE < ops->sizeof_wfhw);
+
+	if (!pwmchip_supports_waveform(chip))
+		return -EOPNOTSUPP;
 
 	if (!pwm_wf_valid(wf))
 		return -EINVAL;
@@ -592,7 +601,7 @@ static int __pwm_apply(struct pwm_device *pwm, const struct pwm_state *state)
 	    state->usage_power == pwm->state.usage_power)
 		return 0;
 
-	if (ops->write_waveform) {
+	if (pwmchip_supports_waveform(chip)) {
 		struct pwm_waveform wf;
 		char wfhw[WFHWSIZE];
 
@@ -746,7 +755,7 @@ int pwm_get_state_hw(struct pwm_device *pwm, struct pwm_state *state)
 	if (!chip->operational)
 		return -ENODEV;
 
-	if (ops->read_waveform) {
+	if (pwmchip_supports_waveform(chip) && ops->read_waveform) {
 		char wfhw[WFHWSIZE];
 		struct pwm_waveform wf;
 
@@ -991,10 +1000,26 @@ of_pwm_xlate_with_flags(struct pwm_chip *chip, const struct of_phandle_args *arg
 }
 EXPORT_SYMBOL_GPL(of_pwm_xlate_with_flags);
 
+/*
+ * This callback is used for PXA PWM chips that only have a single PWM line.
+ * For such chips you could argue that passing the line number (i.e. the first
+ * parameter in the common case) is useless as it's always zero. So compared to
+ * the default xlate function of_pwm_xlate_with_flags() the first parameter is
+ * the default period and the second are flags.
+ *
+ * Note that if #pwm-cells = <3>, the semantic is the same as for
+ * of_pwm_xlate_with_flags() to allow converting the affected driver to
+ * #pwm-cells = <3> without breaking the legacy binding.
+ *
+ * Don't use for new drivers.
+ */
 struct pwm_device *
 of_pwm_single_xlate(struct pwm_chip *chip, const struct of_phandle_args *args)
 {
 	struct pwm_device *pwm;
+
+	if (args->args_count >= 3)
+		return of_pwm_xlate_with_flags(chip, args);
 
 	pwm = pwm_request_from_chip(chip, 0, NULL);
 	if (IS_ERR(pwm))
@@ -1276,7 +1301,7 @@ static int pwm_export_child(struct device *pwmchip_dev, struct pwm_device *pwm)
 	return 0;
 }
 
-static int pwm_unexport_match(struct device *pwm_dev, void *data)
+static int pwm_unexport_match(struct device *pwm_dev, const void *data)
 {
 	return pwm_from_dev(pwm_dev) == data;
 }
@@ -1707,8 +1732,7 @@ static struct pwm_device *of_pwm_get(struct device *dev, struct device_node *np,
 			return ERR_PTR(index);
 	}
 
-	err = of_parse_phandle_with_args(np, "pwms", "#pwm-cells", index,
-					 &args);
+	err = of_parse_phandle_with_args_map(np, "pwms", "pwm", index, &args);
 	if (err) {
 		pr_err("%s(): can't parse \"pwms\" property\n", __func__);
 		return ERR_PTR(err);

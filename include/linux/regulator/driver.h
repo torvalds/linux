@@ -656,6 +656,8 @@ struct regulator_dev {
 	int cached_err;
 	bool use_cached_err;
 	spinlock_t err_lock;
+
+	int pw_requested_mW;
 };
 
 /*
