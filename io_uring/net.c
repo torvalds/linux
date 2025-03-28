@@ -325,25 +325,6 @@ static int io_msg_copy_hdr(struct io_kiocb *req, struct io_async_msghdr *iomsg,
 	return 0;
 }
 
-static int io_sendmsg_copy_hdr(struct io_kiocb *req,
-			       struct io_async_msghdr *iomsg)
-{
-	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
-	struct user_msghdr msg;
-	int ret;
-
-	ret = io_msg_copy_hdr(req, iomsg, &msg, ITER_SOURCE, NULL);
-	if (unlikely(ret))
-		return ret;
-
-	if (!(req->flags & REQ_F_BUFFER_SELECT))
-		ret = io_net_import_vec(req, iomsg, msg.msg_iov, msg.msg_iovlen,
-					ITER_SOURCE);
-	/* save msg_control as sys_sendmsg() overwrites it */
-	sr->msg_control = iomsg->msg.msg_control_user;
-	return ret;
-}
-
 void io_sendmsg_recvmsg_cleanup(struct io_kiocb *req)
 {
 	struct io_async_msghdr *io = req->async_data;
@@ -392,10 +373,19 @@ static int io_sendmsg_setup(struct io_kiocb *req, const struct io_uring_sqe *sqe
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct io_async_msghdr *kmsg = req->async_data;
+	struct user_msghdr msg;
+	int ret;
 
 	sr->umsg = u64_to_user_ptr(READ_ONCE(sqe->addr));
+	ret = io_msg_copy_hdr(req, kmsg, &msg, ITER_SOURCE, NULL);
+	if (unlikely(ret))
+		return ret;
+	/* save msg_control as sys_sendmsg() overwrites it */
+	sr->msg_control = kmsg->msg.msg_control_user;
 
-	return io_sendmsg_copy_hdr(req, kmsg);
+	if (req->flags & REQ_F_BUFFER_SELECT)
+		return 0;
+	return io_net_import_vec(req, kmsg, msg.msg_iov, msg.msg_iovlen, ITER_SOURCE);
 }
 
 static int io_sendmsg_zc_setup(struct io_kiocb *req, const struct io_uring_sqe *sqe)
