@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0+ OR MIT
 
+TEST_GEN_FILES = iou-zcrx
+
 TEST_PROGS = \
 	csum.py \
 	devlink_port_split.py \
@@ -10,6 +12,7 @@ TEST_PROGS = \
 	ethtool_rmon.sh \
 	hw_stats_l3.sh \
 	hw_stats_l3_gre.sh \
+	iou-zcrx.py \
 	irq.py \
 	loopback.sh \
 	nic_link_layer.py \
@@ -44,3 +47,5 @@ YNL_GENS := ethtool netdev
 include ../../../net/ynl.mk
 
 include ../../../net/bpf.mk
+
+$(OUTPUT)/iou-zcrx: LDLIBS += -luring
