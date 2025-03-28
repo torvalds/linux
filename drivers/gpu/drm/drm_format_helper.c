@@ -246,6 +246,23 @@ static int drm_fb_xfrm(struct iosys_map *dst,
 				     xfrm_line);
 }
 
+static __always_inline void drm_fb_xfrm_line_32to24(void *dbuf, const void *sbuf,
+						    unsigned int pixels,
+						    u32 (*xfrm_pixel)(u32))
+{
+	u8 *dbuf8 = dbuf;
+	const __le32 *sbuf32 = sbuf;
+	const __le32 *send32 = sbuf32 + pixels;
+
+	while (sbuf32 < send32) {
+		u32 val24 = xfrm_pixel(le32_to_cpup(sbuf32++));
+		/* write output in reverse order for little endianness */
+		*dbuf8++ = (val24 & 0x000000ff);
+		*dbuf8++ = (val24 & 0x0000ff00) >>  8;
+		*dbuf8++ = (val24 & 0x00ff0000) >> 16;
+	}
+}
+
 static __always_inline void drm_fb_xfrm_line_32to32(void *dbuf, const void *sbuf,
 						    unsigned int pixels,
 						    u32 (*xfrm_pixel)(u32))
@@ -667,18 +684,7 @@ EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgba5551);
 
 static void drm_fb_xrgb8888_to_rgb888_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
-	u8 *dbuf8 = dbuf;
-	const __le32 *sbuf32 = sbuf;
-	unsigned int x;
-	u32 pix;
-
-	for (x = 0; x < pixels; x++) {
-		pix = le32_to_cpu(sbuf32[x]);
-		/* write blue-green-red to output in little endianness */
-		*dbuf8++ = (pix & 0x000000FF) >>  0;
-		*dbuf8++ = (pix & 0x0000FF00) >>  8;
-		*dbuf8++ = (pix & 0x00FF0000) >> 16;
-	}
+	drm_fb_xfrm_line_32to24(dbuf, sbuf, pixels, drm_pixel_xrgb8888_to_rgb888);
 }
 
 /**
@@ -718,18 +724,7 @@ EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb888);
 
 static void drm_fb_xrgb8888_to_bgr888_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
-	u8 *dbuf8 = dbuf;
-	const __le32 *sbuf32 = sbuf;
-	unsigned int x;
-	u32 pix;
-
-	for (x = 0; x < pixels; x++) {
-		pix = le32_to_cpu(sbuf32[x]);
-		/* write red-green-blue to output in little endianness */
-		*dbuf8++ = (pix & 0x00ff0000) >> 16;
-		*dbuf8++ = (pix & 0x0000ff00) >> 8;
-		*dbuf8++ = (pix & 0x000000ff) >> 0;
-	}
+	drm_fb_xfrm_line_32to24(dbuf, sbuf, pixels, drm_pixel_xrgb8888_to_bgr888);
 }
 
 /**

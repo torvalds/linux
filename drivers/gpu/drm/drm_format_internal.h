@@ -68,6 +68,18 @@ static inline u32 drm_pixel_xrgb8888_to_argb1555(u32 pix)
 	       drm_pixel_xrgb8888_to_xrgb1555(pix);
 }
 
+static inline u32 drm_pixel_xrgb8888_to_rgb888(u32 pix)
+{
+	return pix & GENMASK(23, 0);
+}
+
+static inline u32 drm_pixel_xrgb8888_to_bgr888(u32 pix)
+{
+	return ((pix & 0x00ff0000) >> 16) |
+	       ((pix & 0x0000ff00)) |
+	       ((pix & 0x000000ff) << 16);
+}
+
 static inline u32 drm_pixel_xrgb8888_to_argb8888(u32 pix)
 {
 	return GENMASK(31, 24) | /* fill alpha bits */
