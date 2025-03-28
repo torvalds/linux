@@ -28,6 +28,9 @@ properties:
       - fsl,imx95-aonmix-mqs
       - fsl,imx95-netcmix-mqs
 
+  "#sound-dai-cells":
+    const: 0
+
   clocks:
     minItems: 1
     maxItems: 2
@@ -55,6 +58,7 @@ required:
   - clock-names
 
 allOf:
+  - $ref: dai-common.yaml#
   - if:
       properties:
         compatible:
@@ -86,7 +90,7 @@ allOf:
       required:
         - gpr
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
