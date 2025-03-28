@@ -1301,12 +1301,12 @@ static void ublk_cmd_list_tw_cb(struct io_uring_cmd *cmd,
 static void ublk_queue_cmd_list(struct ublk_queue *ubq, struct rq_list *l)
 {
 	struct request *rq = rq_list_peek(l);
-	struct ublk_io *io = &ubq->ios[rq->tag];
-	struct ublk_uring_cmd_pdu *pdu = ublk_get_uring_cmd_pdu(io->cmd);
+	struct io_uring_cmd *cmd = ubq->ios[rq->tag].cmd;
+	struct ublk_uring_cmd_pdu *pdu = ublk_get_uring_cmd_pdu(cmd);
 
 	pdu->req_list = rq;
 	rq_list_init(l);
-	io_uring_cmd_complete_in_task(io->cmd, ublk_cmd_list_tw_cb);
+	io_uring_cmd_complete_in_task(cmd, ublk_cmd_list_tw_cb);
 }
 
 static enum blk_eh_timer_return ublk_timeout(struct request *rq)
