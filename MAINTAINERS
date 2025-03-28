@@ -2481,6 +2481,7 @@ X:	arch/arm64/boot/dts/freescale/qoriq-*
 X:	drivers/media/i2c/
 N:	imx
 N:	mxs
+N:	\bmxc[^\d]
 
 ARM/FREESCALE LAYERSCAPE ARM ARCHITECTURE
 M:	Shawn Guo <shawnguo@kernel.org>
@@ -2756,6 +2757,13 @@ S:	Maintained
 F:	arch/arm/boot/dts/socionext/milbeaut*
 F:	arch/arm/mach-milbeaut/
 N:	milbeaut
+
+ARM/MORELLO PLATFORM
+M:	Vincenzo Frascino <vincenzo.frascino@arm.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	Documentation/devicetree/bindings/arm/arm,morello.yaml
+F:	arch/arm64/boot/dts/arm/morello*
 
 ARM/MOXA ART SOC
 M:	Krzysztof Kozlowski <krzk@kernel.org>
@@ -3076,6 +3084,7 @@ F:	drivers/*/*s3c24*
 F:	drivers/*/*s3c64xx*
 F:	drivers/*/*s5pv210*
 F:	drivers/clocksource/samsung_pwm_timer.c
+F:	drivers/firmware/samsung/
 F:	drivers/mailbox/exynos-mailbox.c
 F:	drivers/memory/samsung/
 F:	drivers/pwm/pwm-samsung.c
@@ -20528,7 +20537,10 @@ F:	drivers/perf/riscv_pmu_sbi.c
 RISC-V SPACEMIT SoC Support
 M:	Yixun Lan <dlan@gentoo.org>
 L:	linux-riscv@lists.infradead.org
+L:	spacemit@lists.linux.dev
 S:	Maintained
+W:	https://github.com/spacemit-com/linux/wiki
+C:	irc://irc.libera.chat/spacemit
 T:	git https://github.com/spacemit-com/linux
 F:	arch/riscv/boot/dts/spacemit/
 N:	spacemit
@@ -21077,6 +21089,15 @@ F:	Documentation/devicetree/bindings/clock/samsung,exynos850-clock.yaml
 F:	arch/arm64/boot/dts/exynos/exynos850*
 F:	drivers/clk/samsung/clk-exynos850.c
 F:	include/dt-bindings/clock/exynos850.h
+
+SAMSUNG EXYNOS ACPM MAILBOX PROTOCOL
+M:	Tudor Ambarus <tudor.ambarus@linaro.org>
+L:	linux-kernel@vger.kernel.org
+L:	linux-samsung-soc@vger.kernel.org
+S:	Supported
+F:	Documentation/devicetree/bindings/firmware/google,gs101-acpm-ipc.yaml
+F:	drivers/firmware/samsung/exynos-acpm*
+F:	include/linux/firmware/samsung/exynos-acpm-protocol.h
 
 SAMSUNG EXYNOS MAILBOX DRIVER
 M:	Tudor Ambarus <tudor.ambarus@linaro.org>
@@ -22285,7 +22306,9 @@ F:	include/linux/sony-laptop.h
 
 SOPHGO DEVICETREES and DRIVERS
 M:	Chen Wang <unicorn_wang@outlook.com>
-M:	Inochi Amaoto <inochiama@outlook.com>
+M:	Inochi Amaoto <inochiama@gmail.com>
+L:	sophgo@lists.linux.dev
+W:	https://github.com/sophgo/linux/wiki
 T:	git https://github.com/sophgo/linux.git
 S:	Maintained
 N:	sophgo
@@ -22502,15 +22525,6 @@ F:	drivers/spi/
 F:	include/linux/spi/
 F:	include/uapi/linux/spi/
 F:	tools/spi/
-
-SPIDERNET NETWORK DRIVER for CELL
-M:	Ishizaki Kou <kou.ishizaki@toshiba.co.jp>
-M:	Geoff Levand <geoff@infradead.org>
-L:	netdev@vger.kernel.org
-L:	linuxppc-dev@lists.ozlabs.org
-S:	Maintained
-F:	Documentation/networking/device_drivers/ethernet/toshiba/spider_net.rst
-F:	drivers/net/ethernet/toshiba/spider_net*
 
 SPMI SUBSYSTEM
 M:	Stephen Boyd <sboyd@kernel.org>
@@ -24217,6 +24231,7 @@ F:	fs/tracefs/
 F:	include/linux/trace*.h
 F:	include/trace/
 F:	kernel/trace/
+F:	kernel/tracepoint.c
 F:	scripts/tracing/
 F:	tools/testing/selftests/ftrace/
 

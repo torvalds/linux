@@ -87,6 +87,7 @@ void __init disable_tracing_selftest(const char *reason)
 static struct trace_iterator *tracepoint_print_iter;
 int tracepoint_printk;
 static bool tracepoint_printk_stop_on_boot __initdata;
+static bool traceoff_after_boot __initdata;
 static DEFINE_STATIC_KEY_FALSE(tracepoint_printk_key);
 
 /* For tracers that don't implement custom flags */
@@ -329,6 +330,13 @@ static int __init set_tracepoint_printk_stop(char *str)
 	return 1;
 }
 __setup("tp_printk_stop_on_boot", set_tracepoint_printk_stop);
+
+static int __init set_traceoff_after_boot(char *str)
+{
+	traceoff_after_boot = true;
+	return 1;
+}
+__setup("traceoff_after_boot", set_traceoff_after_boot);
 
 unsigned long long ns2usecs(u64 nsec)
 {
@@ -2878,19 +2886,29 @@ trace_buffer_unlock_commit_nostack(struct trace_buffer *buffer,
 
 void
 trace_function(struct trace_array *tr, unsigned long ip, unsigned long
-	       parent_ip, unsigned int trace_ctx)
+	       parent_ip, unsigned int trace_ctx, struct ftrace_regs *fregs)
 {
 	struct trace_buffer *buffer = tr->array_buffer.buffer;
 	struct ring_buffer_event *event;
 	struct ftrace_entry *entry;
+	int size = sizeof(*entry);
 
-	event = __trace_buffer_lock_reserve(buffer, TRACE_FN, sizeof(*entry),
+	size += FTRACE_REGS_MAX_ARGS * !!fregs * sizeof(long);
+
+	event = __trace_buffer_lock_reserve(buffer, TRACE_FN, size,
 					    trace_ctx);
 	if (!event)
 		return;
 	entry	= ring_buffer_event_data(event);
 	entry->ip			= ip;
 	entry->parent_ip		= parent_ip;
+
+#ifdef CONFIG_HAVE_FUNCTION_ARG_ACCESS_API
+	if (fregs) {
+		for (int i = 0; i < FTRACE_REGS_MAX_ARGS; i++)
+			entry->args[i] = ftrace_regs_get_argument(fregs, i);
+	}
+#endif
 
 	if (static_branch_unlikely(&trace_function_exports_enabled))
 		ftrace_exports(event, TRACE_EXPORT_FUNCTION);
@@ -10698,6 +10716,9 @@ __init static int late_trace_init(void)
 		static_key_disable(&tracepoint_printk_key.key);
 		tracepoint_printk = 0;
 	}
+
+	if (traceoff_after_boot)
+		tracing_off();
 
 	tracing_set_default_clock();
 	clear_boot_tracer();

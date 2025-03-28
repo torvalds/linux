@@ -990,9 +990,6 @@ unsigned filemap_get_folios_contig(struct address_space *mapping,
 unsigned filemap_get_folios_tag(struct address_space *mapping, pgoff_t *start,
 		pgoff_t end, xa_mark_t tag, struct folio_batch *fbatch);
 
-struct page *grab_cache_page_write_begin(struct address_space *mapping,
-			pgoff_t index);
-
 /*
  * Returns locked page at given index in given cache, creating it if needed.
  */
@@ -1247,18 +1244,12 @@ static inline int folio_wait_locked_killable(struct folio *folio)
 	return folio_wait_bit_killable(folio, PG_locked);
 }
 
-static inline void wait_on_page_locked(struct page *page)
-{
-	folio_wait_locked(page_folio(page));
-}
-
 void folio_end_read(struct folio *folio, bool success);
 void wait_on_page_writeback(struct page *page);
 void folio_wait_writeback(struct folio *folio);
 int folio_wait_writeback_killable(struct folio *folio);
 void end_page_writeback(struct page *page);
 void folio_end_writeback(struct folio *folio);
-void wait_for_stable_page(struct page *page);
 void folio_wait_stable(struct folio *folio);
 void __folio_mark_dirty(struct folio *folio, struct address_space *, int warn);
 void folio_account_cleaned(struct folio *folio, struct bdi_writeback *wb);

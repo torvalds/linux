@@ -54,6 +54,10 @@ properties:
 
   dma-coherent: true
 
+  firmware-name:
+    maxItems: 1
+    description: Specify the name of the QUP firmware to load.
+
 required:
   - compatible
   - reg
@@ -135,6 +139,7 @@ examples:
             #address-cells = <2>;
             #size-cells = <2>;
             ranges;
+            firmware-name = "qcom/sa8775p/qupv3fw.elf";
 
             i2c0: i2c@a94000 {
                 compatible = "qcom,geni-i2c";

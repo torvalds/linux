@@ -172,7 +172,7 @@
 			status = "okay";
 		};
 
-		usb1: ohci@600000 {
+		usb1: usb@600000 {
 			num-ports = <3>;
 			atmel,vbus-gpio = <&pioD 25 GPIO_ACTIVE_HIGH
 					   &pioD 26 GPIO_ACTIVE_LOW
@@ -181,7 +181,7 @@
 			status = "okay";
 		};
 
-		usb2: ehci@700000 {
+		usb2: usb@700000 {
 			status = "okay";
 		};
 	};

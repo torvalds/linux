@@ -12,15 +12,19 @@
 #include <linux/sched/clock.h>
 #include <linux/sched/mm.h>
 #include <linux/idr.h>
+#include <linux/btf.h>
+#include <linux/bpf.h>
+#include <linux/hashtable.h>
 
 #include "trace_output.h"
+#include "trace_btf.h"
 
-/* must be a power of 2 */
-#define EVENT_HASHSIZE	128
+/* 2^7 = 128 */
+#define EVENT_HASH_BITS 7
 
 DECLARE_RWSEM(trace_event_sem);
 
-static struct hlist_head event_hash[EVENT_HASHSIZE] __read_mostly;
+static DEFINE_HASHTABLE(event_hash, EVENT_HASH_BITS);
 
 enum print_line_t trace_print_bputs_msg_only(struct trace_iterator *iter)
 {
@@ -684,6 +688,88 @@ int trace_print_lat_context(struct trace_iterator *iter)
 	return !trace_seq_has_overflowed(s);
 }
 
+#ifdef CONFIG_FUNCTION_TRACE_ARGS
+void print_function_args(struct trace_seq *s, unsigned long *args,
+			 unsigned long func)
+{
+	const struct btf_param *param;
+	const struct btf_type *t;
+	const char *param_name;
+	char name[KSYM_NAME_LEN];
+	unsigned long arg;
+	struct btf *btf;
+	s32 tid, nr = 0;
+	int a, p, x;
+
+	trace_seq_printf(s, "(");
+
+	if (!args)
+		goto out;
+	if (lookup_symbol_name(func, name))
+		goto out;
+
+	/* TODO: Pass module name here too */
+	t = btf_find_func_proto(name, &btf);
+	if (IS_ERR_OR_NULL(t))
+		goto out;
+
+	param = btf_get_func_param(t, &nr);
+	if (!param)
+		goto out_put;
+
+	for (a = 0, p = 0; p < nr; a++, p++) {
+		if (p)
+			trace_seq_puts(s, ", ");
+
+		/* This only prints what the arch allows (6 args by default) */
+		if (a == FTRACE_REGS_MAX_ARGS) {
+			trace_seq_puts(s, "...");
+			break;
+		}
+
+		arg = args[a];
+
+		param_name = btf_name_by_offset(btf, param[p].name_off);
+		if (param_name)
+			trace_seq_printf(s, "%s=", param_name);
+		t = btf_type_skip_modifiers(btf, param[p].type, &tid);
+
+		switch (t ? BTF_INFO_KIND(t->info) : BTF_KIND_UNKN) {
+		case BTF_KIND_UNKN:
+			trace_seq_putc(s, '?');
+			/* Still print unknown type values */
+			fallthrough;
+		case BTF_KIND_PTR:
+			trace_seq_printf(s, "0x%lx", arg);
+			break;
+		case BTF_KIND_INT:
+			trace_seq_printf(s, "%ld", arg);
+			break;
+		case BTF_KIND_ENUM:
+			trace_seq_printf(s, "%ld", arg);
+			break;
+		default:
+			/* This does not handle complex arguments */
+			trace_seq_printf(s, "(%s)[0x%lx", btf_type_str(t), arg);
+			for (x = sizeof(long); x < t->size; x += sizeof(long)) {
+				trace_seq_putc(s, ':');
+				if (++a == FTRACE_REGS_MAX_ARGS) {
+					trace_seq_puts(s, "...]");
+					goto out_put;
+				}
+				trace_seq_printf(s, "0x%lx", args[a]);
+			}
+			trace_seq_putc(s, ']');
+			break;
+		}
+	}
+out_put:
+	btf_put(btf);
+out:
+	trace_seq_printf(s, ")");
+}
+#endif
+
 /**
  * ftrace_find_event - find a registered event
  * @type: the type of event to look for
@@ -694,11 +780,8 @@ int trace_print_lat_context(struct trace_iterator *iter)
 struct trace_event *ftrace_find_event(int type)
 {
 	struct trace_event *event;
-	unsigned key;
 
-	key = type & (EVENT_HASHSIZE - 1);
-
-	hlist_for_each_entry(event, &event_hash[key], node) {
+	hash_for_each_possible(event_hash, event, node, type) {
 		if (event->type == type)
 			return event;
 	}
@@ -753,7 +836,6 @@ void trace_event_read_unlock(void)
  */
 int register_trace_event(struct trace_event *event)
 {
-	unsigned key;
 	int ret = 0;
 
 	down_write(&trace_event_sem);
@@ -786,9 +868,7 @@ int register_trace_event(struct trace_event *event)
 	if (event->funcs->binary == NULL)
 		event->funcs->binary = trace_nop_print;
 
-	key = event->type & (EVENT_HASHSIZE - 1);
-
-	hlist_add_head(&event->node, &event_hash[key]);
+	hash_add(event_hash, &event->node, event->type);
 
 	ret = event->type;
  out:
@@ -803,7 +883,7 @@ EXPORT_SYMBOL_GPL(register_trace_event);
  */
 int __unregister_trace_event(struct trace_event *event)
 {
-	hlist_del(&event->node);
+	hash_del(&event->node);
 	free_trace_event_type(event->type);
 	return 0;
 }
@@ -1005,12 +1085,15 @@ enum print_line_t trace_nop_print(struct trace_iterator *iter, int flags,
 }
 
 static void print_fn_trace(struct trace_seq *s, unsigned long ip,
-			   unsigned long parent_ip, long delta, int flags)
+			   unsigned long parent_ip, long delta,
+			   unsigned long *args, int flags)
 {
 	ip += delta;
 	parent_ip += delta;
 
 	seq_print_ip_sym(s, ip, flags);
+	if (args)
+		print_function_args(s, args, ip);
 
 	if ((flags & TRACE_ITER_PRINT_PARENT) && parent_ip) {
 		trace_seq_puts(s, " <-");
@@ -1024,10 +1107,19 @@ static enum print_line_t trace_fn_trace(struct trace_iterator *iter, int flags,
 {
 	struct ftrace_entry *field;
 	struct trace_seq *s = &iter->seq;
+	unsigned long *args;
+	int args_size;
 
 	trace_assign_type(field, iter->ent);
 
-	print_fn_trace(s, field->ip, field->parent_ip, iter->tr->text_delta, flags);
+	args_size = iter->ent_size - offsetof(struct ftrace_entry, args);
+	if (args_size >= FTRACE_REGS_MAX_ARGS * sizeof(long))
+		args = field->args;
+	else
+		args = NULL;
+
+	print_fn_trace(s, field->ip, field->parent_ip, iter->tr->text_delta,
+		       args, flags);
 	trace_seq_putc(s, '\n');
 
 	return trace_handle_return(s);
@@ -1700,7 +1792,7 @@ trace_func_repeats_print(struct trace_iterator *iter, int flags,
 
 	trace_assign_type(field, iter->ent);
 
-	print_fn_trace(s, field->ip, field->parent_ip, iter->tr->text_delta, flags);
+	print_fn_trace(s, field->ip, field->parent_ip, iter->tr->text_delta, NULL, flags);
 	trace_seq_printf(s, " (repeats: %u, last_ts:", field->count);
 	trace_print_time(s, iter,
 			 iter->ts - FUNC_REPEATS_GET_DELTA_TS(field));

@@ -4,8 +4,6 @@
  * Author: Markus Niebel <Markus.Niebel@tq-group.com>
  */
 
-#include "imx6ul-tqma6ul2.dtsi"
-
 / {
 	model = "TQ-Systems TQMa6UL1 SoM";
 	compatible = "tq,imx6ul-tqma6ul1", "fsl,imx6ul";

@@ -383,7 +383,24 @@ config NULL_TTY
 	  available or desired.
 
 	  In order to use this driver, you should redirect the console to this
-	  TTY, or boot the kernel with console=ttynull.
+	  TTY, boot the kernel with console=ttynull, or enable
+	  NULL_TTY_DEFAULT_CONSOLE.
+
+	  If unsure, say N.
+
+config NULL_TTY_DEFAULT_CONSOLE
+	bool "Support for console on ttynull"
+	depends on NULL_TTY=y && !VT_CONSOLE
+	help
+	  Say Y here if you want the NULL TTY to be used as a /dev/console
+	  device by default.
+
+	  For example, it might be useful to prevent a VT-less kernel from
+	  writing the system log to a random device connected to the serial
+	  port.
+
+	  Another console driver still might get preferred via the command
+	  line, SPCR, or the device tree.
 
 	  If unsure, say N.
 

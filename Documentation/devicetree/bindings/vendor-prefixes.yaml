@@ -147,6 +147,8 @@ patternProperties:
     description: Arctic Sand
   "^arcx,.*":
     description: arcx Inc. / Archronix Inc.
+  "^ariaboard,.*":
+    description: Shanghai Novotech Co., Ltd. (Ariaboard)
   "^aries,.*":
     description: Aries Embedded GmbH
   "^arm,.*":
@@ -1033,6 +1035,8 @@ patternProperties:
     description: Neofidelity Inc.
   "^neonode,.*":
     description: Neonode Inc.
+  "^netcube,.*":
+    description: NetCube Systems Austria
   "^netgear,.*":
     description: NETGEAR
   "^netlogic,.*":
@@ -1204,6 +1208,8 @@ patternProperties:
     description: Primux Trading, S.L.
   "^probox2,.*":
     description: PROBOX2 (by W2COMP Co., Ltd.)
+  "^pri,.*":
+    description: Priva
   "^prt,.*":
     description: Protonic Holland
   "^pulsedlight,.*":
@@ -1269,7 +1275,7 @@ patternProperties:
   "^riscv,.*":
     description: RISC-V Foundation
   "^rockchip,.*":
-    description: Fuzhou Rockchip Electronics Co., Ltd
+    description: Rockchip Electronics Co., Ltd.
   "^rocktech,.*":
     description: ROCKTECH DISPLAYS LIMITED
   "^rohm,.*":
@@ -1739,6 +1745,8 @@ patternProperties:
     description: Shenzhen Yashi Changhua Intelligent Technology Co., Ltd.
   "^ysoft,.*":
     description: Y Soft Corporation a.s.
+  "^yuridenki,.*":
+    description: Yuridenki-Shokai Co. Ltd.
   "^zarlink,.*":
     description: Zarlink Semiconductor
   "^zealz,.*":

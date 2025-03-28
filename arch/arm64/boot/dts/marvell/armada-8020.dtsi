@@ -9,12 +9,6 @@
 #include "armada-ap806-dual.dtsi"
 #include "armada-80x0.dtsi"
 
-/ {
-	model = "Marvell Armada 8020";
-	compatible = "marvell,armada8020", "marvell,armada-ap806-dual",
-		     "marvell,armada-ap806";
-};
-
 /* The RTC requires external oscillator. But on Aramda 80x0, the RTC clock
  * in CP master is not connected (by package) to the oscillator. So
  * disable it. However, the RTC clock in CP slave is connected to the

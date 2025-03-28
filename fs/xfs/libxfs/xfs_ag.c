@@ -301,7 +301,7 @@ xfs_get_aghdr_buf(
 	struct xfs_buf		*bp;
 	int			error;
 
-	error = xfs_buf_get_uncached(mp->m_ddev_targp, numblks, 0, &bp);
+	error = xfs_buf_get_uncached(mp->m_ddev_targp, numblks, &bp);
 	if (error)
 		return error;
 

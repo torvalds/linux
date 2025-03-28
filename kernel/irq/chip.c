@@ -838,53 +838,6 @@ out_unlock:
 }
 EXPORT_SYMBOL(handle_edge_irq);
 
-#ifdef CONFIG_IRQ_EDGE_EOI_HANDLER
-/**
- *	handle_edge_eoi_irq - edge eoi type IRQ handler
- *	@desc:	the interrupt description structure for this irq
- *
- * Similar as the above handle_edge_irq, but using eoi and w/o the
- * mask/unmask logic.
- */
-void handle_edge_eoi_irq(struct irq_desc *desc)
-{
-	struct irq_chip *chip = irq_desc_get_chip(desc);
-
-	raw_spin_lock(&desc->lock);
-
-	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
-
-	if (!irq_may_run(desc)) {
-		desc->istate |= IRQS_PENDING;
-		goto out_eoi;
-	}
-
-	/*
-	 * If its disabled or no action available then mask it and get
-	 * out of here.
-	 */
-	if (irqd_irq_disabled(&desc->irq_data) || !desc->action) {
-		desc->istate |= IRQS_PENDING;
-		goto out_eoi;
-	}
-
-	kstat_incr_irqs_this_cpu(desc);
-
-	do {
-		if (unlikely(!desc->action))
-			goto out_eoi;
-
-		handle_irq_event(desc);
-
-	} while ((desc->istate & IRQS_PENDING) &&
-		 !irqd_irq_disabled(&desc->irq_data));
-
-out_eoi:
-	chip->irq_eoi(&desc->irq_data);
-	raw_spin_unlock(&desc->lock);
-}
-#endif
-
 /**
  *	handle_percpu_irq - Per CPU local irq handler
  *	@desc:	the interrupt description structure for this irq

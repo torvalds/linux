@@ -455,7 +455,7 @@ static void user_event_enabler_fault_fixup(struct work_struct *work)
 	if (ret && ret != -ENOENT) {
 		struct user_event *user = enabler->event;
 
-		pr_warn("user_events: Fault for mm: 0x%pK @ 0x%llx event: %s\n",
+		pr_warn("user_events: Fault for mm: 0x%p @ 0x%llx event: %s\n",
 			mm->mm, (unsigned long long)uaddr, EVENT_NAME(user));
 	}
 
@@ -2793,11 +2793,8 @@ static int user_seq_show(struct seq_file *m, void *p)
 
 		seq_printf(m, "%s", EVENT_TP_NAME(user));
 
-		if (status != 0)
-			seq_puts(m, " #");
-
 		if (status != 0) {
-			seq_puts(m, " Used by");
+			seq_puts(m, " # Used by");
 			if (status & EVENT_STATUS_FTRACE)
 				seq_puts(m, " ftrace");
 			if (status & EVENT_STATUS_PERF)

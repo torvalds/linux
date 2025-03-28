@@ -19,16 +19,31 @@ class dot2k(Dot2c):
     monitor_type = "per_cpu"
 
     def __init__(self, file_path, MonitorType, extra_params={}):
-        super().__init__(file_path, extra_params.get("model_name"))
-
-        self.monitor_type = self.monitor_types.get(MonitorType)
-        if self.monitor_type is None:
-            raise ValueError("Unknown monitor type: %s" % MonitorType)
-
-        self.monitor_type = MonitorType
+        self.container = extra_params.get("container")
+        self.parent = extra_params.get("parent")
         self.__fill_rv_templates_dir()
-        self.main_c = self.__read_file(self.monitor_templates_dir + "main.c")
-        self.trace_h = self.__read_file(self.monitor_templates_dir + "trace.h")
+
+        if self.container:
+            if file_path:
+                raise ValueError("A container does not require a dot file")
+            if MonitorType:
+                raise ValueError("A container does not require a monitor type")
+            if self.parent:
+                raise ValueError("A container cannot have a parent")
+            self.name = extra_params.get("model_name")
+            self.events = []
+            self.states = []
+            self.main_c = self.__read_file(self.monitor_templates_dir + "main_container.c")
+            self.main_h = self.__read_file(self.monitor_templates_dir + "main_container.h")
+        else:
+            super().__init__(file_path, extra_params.get("model_name"))
+
+            self.monitor_type = self.monitor_types.get(MonitorType)
+            if self.monitor_type is None:
+                raise ValueError("Unknown monitor type: %s" % MonitorType)
+            self.monitor_type = MonitorType
+            self.main_c = self.__read_file(self.monitor_templates_dir + "main.c")
+            self.trace_h = self.__read_file(self.monitor_templates_dir + "trace.h")
         self.kconfig = self.__read_file(self.monitor_templates_dir + "Kconfig")
         self.enum_suffix = "_%s" % self.name
         self.description = extra_params.get("description", self.name) or "auto-generated"
@@ -105,6 +120,14 @@ class dot2k(Dot2c):
     def fill_monitor_type(self):
         return self.monitor_type.upper()
 
+    def fill_parent(self):
+        return "&rv_%s" % self.parent if self.parent else "NULL"
+
+    def fill_include_parent(self):
+        if self.parent:
+            return "#include <monitors/%s/%s.h>\n" % (self.parent, self.parent)
+        return ""
+
     def fill_tracepoint_handlers_skel(self):
         buff = []
         for event in self.events:
@@ -146,6 +169,8 @@ class dot2k(Dot2c):
         tracepoint_handlers = self.fill_tracepoint_handlers_skel()
         tracepoint_attach = self.fill_tracepoint_attach_probe()
         tracepoint_detach = self.fill_tracepoint_detach_helper()
+        parent = self.fill_parent()
+        parent_include = self.fill_include_parent()
 
         main_c = main_c.replace("%%MONITOR_TYPE%%", monitor_type)
         main_c = main_c.replace("%%MIN_TYPE%%", min_type)
@@ -155,11 +180,14 @@ class dot2k(Dot2c):
         main_c = main_c.replace("%%TRACEPOINT_ATTACH%%", tracepoint_attach)
         main_c = main_c.replace("%%TRACEPOINT_DETACH%%", tracepoint_detach)
         main_c = main_c.replace("%%DESCRIPTION%%", self.description)
+        main_c = main_c.replace("%%PARENT%%", parent)
+        main_c = main_c.replace("%%INCLUDE_PARENT%%", parent_include)
 
         return main_c
 
     def fill_model_h_header(self):
         buff = []
+        buff.append("/* SPDX-License-Identifier: GPL-2.0 */")
         buff.append("/*")
         buff.append(" * Automatically generated C representation of %s automaton" % (self.name))
         buff.append(" * For further information about this format, see kernel documentation:")
@@ -215,6 +243,14 @@ class dot2k(Dot2c):
         buff.append("	     TP_ARGS(%s)" % tp_args_c)
         return self.__buff_to_string(buff)
 
+    def fill_monitor_deps(self):
+        buff = []
+        buff.append("	# XXX: add dependencies if there")
+        if self.parent:
+            buff.append("	depends on RV_MON_%s" % self.parent.upper())
+            buff.append("	default y")
+        return self.__buff_to_string(buff)
+
     def fill_trace_h(self):
         trace_h = self.trace_h
         monitor_class = self.fill_monitor_class()
@@ -232,11 +268,18 @@ class dot2k(Dot2c):
     def fill_kconfig(self):
         kconfig = self.kconfig
         monitor_class_type = self.fill_monitor_class_type()
+        monitor_deps = self.fill_monitor_deps()
         kconfig = kconfig.replace("%%MODEL_NAME%%", self.name)
         kconfig = kconfig.replace("%%MODEL_NAME_UP%%", self.name.upper())
         kconfig = kconfig.replace("%%MONITOR_CLASS_TYPE%%", monitor_class_type)
         kconfig = kconfig.replace("%%DESCRIPTION%%", self.description)
+        kconfig = kconfig.replace("%%MONITOR_DEPS%%", monitor_deps)
         return kconfig
+
+    def fill_main_container_h(self):
+        main_h = self.main_h
+        main_h = main_h.replace("%%MODEL_NAME%%", self.name)
+        return main_h
 
     def __patch_file(self, file, marker, line):
         file_to_patch = os.path.join(self.rv_dir, file)
@@ -323,19 +366,24 @@ obj-$(CONFIG_RV_MON_%s) += monitors/%s/%s.o
 
     def print_files(self):
         main_c = self.fill_main_c()
-        model_h = self.fill_model_h()
 
         self.__create_directory()
 
         path = "%s.c" % self.name
         self.__create_file(path, main_c)
 
-        path = "%s.h" % self.name
-        self.__create_file(path, model_h)
+        if self.container:
+            main_h = self.fill_main_container_h()
+            path = "%s.h" % self.name
+            self.__create_file(path, main_h)
+        else:
+            model_h = self.fill_model_h()
+            path = "%s.h" % self.name
+            self.__create_file(path, model_h)
 
-        trace_h = self.fill_trace_h()
-        path = "%s_trace.h" % self.name
-        self.__create_file(path, trace_h)
+            trace_h = self.fill_trace_h()
+            path = "%s_trace.h" % self.name
+            self.__create_file(path, trace_h)
 
         kconfig = self.fill_kconfig()
         self.__create_file("Kconfig", kconfig)

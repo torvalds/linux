@@ -649,6 +649,14 @@ static int btree_update_nodes_written_trans(struct btree_trans *trans,
 	return 0;
 }
 
+/* If the node has been reused, we might be reading uninitialized memory - that's fine: */
+static noinline __no_kmsan_checks bool btree_node_seq_matches(struct btree *b, __le64 seq)
+{
+	struct btree_node *b_data = READ_ONCE(b->data);
+
+	return (b_data ? b_data->keys.seq : 0) == seq;
+}
+
 static void btree_update_nodes_written(struct btree_update *as)
 {
 	struct bch_fs *c = as->c;
@@ -677,17 +685,9 @@ static void btree_update_nodes_written(struct btree_update *as)
 	 * on disk:
 	 */
 	for (i = 0; i < as->nr_old_nodes; i++) {
-		__le64 seq;
-
 		b = as->old_nodes[i];
 
-		bch2_trans_begin(trans);
-		btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_read);
-		seq = b->data ? b->data->keys.seq : 0;
-		six_unlock_read(&b->c.lock);
-		bch2_trans_unlock_long(trans);
-
-		if (seq == as->old_nodes_seq[i])
+		if (btree_node_seq_matches(b, as->old_nodes_seq[i]))
 			wait_on_bit_io(&b->flags, BTREE_NODE_write_in_flight_inner,
 				       TASK_UNINTERRUPTIBLE);
 	}
@@ -2126,6 +2126,31 @@ err_free_update:
 	goto out;
 }
 
+static int get_iter_to_node(struct btree_trans *trans, struct btree_iter *iter,
+			    struct btree *b)
+{
+	bch2_trans_node_iter_init(trans, iter, b->c.btree_id, b->key.k.p,
+				  BTREE_MAX_DEPTH, b->c.level,
+				  BTREE_ITER_intent);
+	int ret = bch2_btree_iter_traverse(iter);
+	if (ret)
+		goto err;
+
+	/* has node been freed? */
+	if (btree_iter_path(trans, iter)->l[b->c.level].b != b) {
+		/* node has been freed: */
+		BUG_ON(!btree_node_dying(b));
+		ret = -BCH_ERR_btree_node_dying;
+		goto err;
+	}
+
+	BUG_ON(!btree_node_hashed(b));
+	return 0;
+err:
+	bch2_trans_iter_exit(trans, iter);
+	return ret;
+}
+
 int bch2_btree_node_rewrite(struct btree_trans *trans,
 			    struct btree_iter *iter,
 			    struct btree *b,
@@ -2191,6 +2216,61 @@ err:
 	goto out;
 }
 
+static int bch2_btree_node_rewrite_key(struct btree_trans *trans,
+				       enum btree_id btree, unsigned level,
+				       struct bkey_i *k, unsigned flags)
+{
+	struct btree_iter iter;
+	bch2_trans_node_iter_init(trans, &iter,
+				  btree, k->k.p,
+				  BTREE_MAX_DEPTH, level, 0);
+	struct btree *b = bch2_btree_iter_peek_node(&iter);
+	int ret = PTR_ERR_OR_ZERO(b);
+	if (ret)
+		goto out;
+
+	bool found = b && btree_ptr_hash_val(&b->key) == btree_ptr_hash_val(k);
+	ret = found
+		? bch2_btree_node_rewrite(trans, &iter, b, flags)
+		: -ENOENT;
+out:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
+int bch2_btree_node_rewrite_pos(struct btree_trans *trans,
+				enum btree_id btree, unsigned level,
+				struct bpos pos, unsigned flags)
+{
+	BUG_ON(!level);
+
+	/* Traverse one depth lower to get a pointer to the node itself: */
+	struct btree_iter iter;
+	bch2_trans_node_iter_init(trans, &iter, btree, pos, 0, level - 1, 0);
+	struct btree *b = bch2_btree_iter_peek_node(&iter);
+	int ret = PTR_ERR_OR_ZERO(b);
+	if (ret)
+		goto err;
+
+	ret = bch2_btree_node_rewrite(trans, &iter, b, flags);
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
+int bch2_btree_node_rewrite_key_get_iter(struct btree_trans *trans,
+					 struct btree *b, unsigned flags)
+{
+	struct btree_iter iter;
+	int ret = get_iter_to_node(trans, &iter, b);
+	if (ret)
+		return ret == -BCH_ERR_btree_node_dying ? 0 : ret;
+
+	ret = bch2_btree_node_rewrite(trans, &iter, b, flags);
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
 struct async_btree_rewrite {
 	struct bch_fs		*c;
 	struct work_struct	work;
@@ -2200,57 +2280,14 @@ struct async_btree_rewrite {
 	struct bkey_buf		key;
 };
 
-static int async_btree_node_rewrite_trans(struct btree_trans *trans,
-					  struct async_btree_rewrite *a)
-{
-	struct btree_iter iter;
-	bch2_trans_node_iter_init(trans, &iter,
-				  a->btree_id, a->key.k->k.p,
-				  BTREE_MAX_DEPTH, a->level, 0);
-	struct btree *b = bch2_btree_iter_peek_node(&iter);
-	int ret = PTR_ERR_OR_ZERO(b);
-	if (ret)
-		goto out;
-
-	bool found = b && btree_ptr_hash_val(&b->key) == btree_ptr_hash_val(a->key.k);
-	ret = found
-		? bch2_btree_node_rewrite(trans, &iter, b, 0)
-		: -ENOENT;
-
-#if 0
-	/* Tracepoint... */
-	if (!ret || ret == -ENOENT) {
-		struct bch_fs *c = trans->c;
-		struct printbuf buf = PRINTBUF;
-
-		if (!ret) {
-			prt_printf(&buf, "rewrite node:\n  ");
-			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(a->key.k));
-		} else {
-			prt_printf(&buf, "node to rewrite not found:\n  want: ");
-			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(a->key.k));
-			prt_printf(&buf, "\n  got:  ");
-			if (b)
-				bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
-			else
-				prt_str(&buf, "(null)");
-		}
-		bch_info(c, "%s", buf.buf);
-		printbuf_exit(&buf);
-	}
-#endif
-out:
-	bch2_trans_iter_exit(trans, &iter);
-	return ret;
-}
-
 static void async_btree_node_rewrite_work(struct work_struct *work)
 {
 	struct async_btree_rewrite *a =
 		container_of(work, struct async_btree_rewrite, work);
 	struct bch_fs *c = a->c;
 
-	int ret = bch2_trans_do(c, async_btree_node_rewrite_trans(trans, a));
+	int ret = bch2_trans_do(c, bch2_btree_node_rewrite_key(trans,
+						a->btree_id, a->level, a->key.k, 0));
 	if (ret != -ENOENT)
 		bch_err_fn_ratelimited(c, ret);
 
@@ -2494,30 +2531,15 @@ int bch2_btree_node_update_key_get_iter(struct btree_trans *trans,
 					unsigned commit_flags, bool skip_triggers)
 {
 	struct btree_iter iter;
-	int ret;
-
-	bch2_trans_node_iter_init(trans, &iter, b->c.btree_id, b->key.k.p,
-				  BTREE_MAX_DEPTH, b->c.level,
-				  BTREE_ITER_intent);
-	ret = bch2_btree_iter_traverse(&iter);
+	int ret = get_iter_to_node(trans, &iter, b);
 	if (ret)
-		goto out;
-
-	/* has node been freed? */
-	if (btree_iter_path(trans, &iter)->l[b->c.level].b != b) {
-		/* node has been freed: */
-		BUG_ON(!btree_node_dying(b));
-		goto out;
-	}
-
-	BUG_ON(!btree_node_hashed(b));
+		return ret == -BCH_ERR_btree_node_dying ? 0 : ret;
 
 	bch2_bkey_drop_ptrs(bkey_i_to_s(new_key), ptr,
 			    !bch2_bkey_has_device(bkey_i_to_s(&b->key), ptr->dev));
 
 	ret = bch2_btree_node_update_key(trans, &iter, b, new_key,
 					 commit_flags, skip_triggers);
-out:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }

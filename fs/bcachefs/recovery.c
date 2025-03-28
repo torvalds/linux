@@ -13,12 +13,12 @@
 #include "disk_accounting.h"
 #include "errcode.h"
 #include "error.h"
-#include "fs-common.h"
 #include "journal_io.h"
 #include "journal_reclaim.h"
 #include "journal_seq_blacklist.h"
 #include "logged_ops.h"
 #include "move.h"
+#include "namei.h"
 #include "quota.h"
 #include "rebalance.h"
 #include "recovery.h"
@@ -899,7 +899,7 @@ use_clean:
 	 * journal sequence numbers:
 	 */
 	if (!c->sb.clean)
-		journal_seq += 8;
+		journal_seq += JOURNAL_BUF_NR * 4;
 
 	if (blacklist_seq != journal_seq) {
 		ret =   bch2_journal_log_msg(c, "blacklisting entries %llu-%llu",

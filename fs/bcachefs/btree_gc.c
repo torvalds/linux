@@ -27,6 +27,7 @@
 #include "journal.h"
 #include "keylist.h"
 #include "move.h"
+#include "progress.h"
 #include "recovery_passes.h"
 #include "reflink.h"
 #include "recovery.h"
@@ -656,7 +657,9 @@ fsck_err:
 	return ret;
 }
 
-static int bch2_gc_btree(struct btree_trans *trans, enum btree_id btree, bool initial)
+static int bch2_gc_btree(struct btree_trans *trans,
+			 struct progress_indicator_state *progress,
+			 enum btree_id btree, bool initial)
 {
 	struct bch_fs *c = trans->c;
 	unsigned target_depth = btree_node_type_has_triggers(__btree_node_type(0, btree)) ? 0 : 1;
@@ -673,6 +676,7 @@ static int bch2_gc_btree(struct btree_trans *trans, enum btree_id btree, bool in
 					  BTREE_ITER_prefetch);
 
 		ret = for_each_btree_key_continue(trans, iter, 0, k, ({
+			bch2_progress_update_iter(trans, progress, &iter, "check_allocations");
 			gc_pos_set(c, gc_pos_btree(btree, level, k.k->p));
 			bch2_gc_mark_key(trans, btree, level, &prev, &iter, k, initial);
 		}));
@@ -717,22 +721,24 @@ static inline int btree_id_gc_phase_cmp(enum btree_id l, enum btree_id r)
 static int bch2_gc_btrees(struct bch_fs *c)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
-	enum btree_id ids[BTREE_ID_NR];
 	struct printbuf buf = PRINTBUF;
-	unsigned i;
 	int ret = 0;
 
-	for (i = 0; i < BTREE_ID_NR; i++)
+	struct progress_indicator_state progress;
+	bch2_progress_init(&progress, c, ~0ULL);
+
+	enum btree_id ids[BTREE_ID_NR];
+	for (unsigned i = 0; i < BTREE_ID_NR; i++)
 		ids[i] = i;
 	bubble_sort(ids, BTREE_ID_NR, btree_id_gc_phase_cmp);
 
-	for (i = 0; i < btree_id_nr_alive(c) && !ret; i++) {
+	for (unsigned i = 0; i < btree_id_nr_alive(c) && !ret; i++) {
 		unsigned btree = i < BTREE_ID_NR ? ids[i] : i;
 
 		if (IS_ERR_OR_NULL(bch2_btree_id_root(c, btree)->b))
 			continue;
 
-		ret = bch2_gc_btree(trans, btree, true);
+		ret = bch2_gc_btree(trans, &progress, btree, true);
 	}
 
 	printbuf_exit(&buf);

@@ -2426,10 +2426,10 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 	}
 
 	/*
-	 * Disable the console device before suspending.
+	 * Suspend the console device before suspending the port.
 	 */
 	if (uart_console(uport))
-		console_stop(uport->cons);
+		console_suspend(uport->cons);
 
 	uart_change_pm(state, UART_PM_STATE_OFF);
 
@@ -2484,7 +2484,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 			uart_port_unlock_irq(uport);
 		}
 		if (console_suspend_enabled)
-			console_start(uport->cons);
+			console_resume(uport->cons);
 	}
 
 	if (tty_port_suspended(port)) {

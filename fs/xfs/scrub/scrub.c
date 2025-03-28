@@ -399,12 +399,14 @@ static const struct xchk_meta_ops meta_scrub_ops[] = {
 	},
 	[XFS_SCRUB_TYPE_RTBITMAP] = {	/* realtime bitmap */
 		.type	= ST_RTGROUP,
+		.has	= xfs_has_nonzoned,
 		.setup	= xchk_setup_rtbitmap,
 		.scrub	= xchk_rtbitmap,
 		.repair	= xrep_rtbitmap,
 	},
 	[XFS_SCRUB_TYPE_RTSUM] = {	/* realtime summary */
 		.type	= ST_RTGROUP,
+		.has	= xfs_has_nonzoned,
 		.setup	= xchk_setup_rtsummary,
 		.scrub	= xchk_rtsummary,
 		.repair	= xrep_rtsummary,

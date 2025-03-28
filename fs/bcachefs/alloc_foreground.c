@@ -127,14 +127,14 @@ void __bch2_open_bucket_put(struct bch_fs *c, struct open_bucket *ob)
 
 void bch2_open_bucket_write_error(struct bch_fs *c,
 				  struct open_buckets *obs,
-				  unsigned dev)
+				  unsigned dev, int err)
 {
 	struct open_bucket *ob;
 	unsigned i;
 
 	open_bucket_for_each(c, obs, ob, i)
 		if (ob->dev == dev && ob->ec)
-			bch2_ec_bucket_cancel(c, ob);
+			bch2_ec_bucket_cancel(c, ob, err);
 }
 
 static struct open_bucket *bch2_open_bucket_alloc(struct bch_fs *c)
@@ -177,23 +177,6 @@ static void open_bucket_free_unused(struct bch_fs *c, struct open_bucket *ob)
 
 	closure_wake_up(&c->open_buckets_wait);
 	closure_wake_up(&c->freelist_wait);
-}
-
-static inline unsigned open_buckets_reserved(enum bch_watermark watermark)
-{
-	switch (watermark) {
-	case BCH_WATERMARK_interior_updates:
-		return 0;
-	case BCH_WATERMARK_reclaim:
-		return OPEN_BUCKETS_COUNT / 6;
-	case BCH_WATERMARK_btree:
-	case BCH_WATERMARK_btree_copygc:
-		return OPEN_BUCKETS_COUNT / 4;
-	case BCH_WATERMARK_copygc:
-		return OPEN_BUCKETS_COUNT / 3;
-	default:
-		return OPEN_BUCKETS_COUNT / 2;
-	}
 }
 
 static inline bool may_alloc_bucket(struct bch_fs *c,
@@ -239,7 +222,7 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *
 
 	spin_lock(&c->freelist_lock);
 
-	if (unlikely(c->open_buckets_nr_free <= open_buckets_reserved(watermark))) {
+	if (unlikely(c->open_buckets_nr_free <= bch2_open_buckets_reserved(watermark))) {
 		if (cl)
 			closure_wait(&c->open_buckets_wait, cl);
 
@@ -648,7 +631,7 @@ static inline void bch2_dev_stripe_increment_inlined(struct bch_dev *ca,
 			       struct bch_dev_usage *usage)
 {
 	u64 *v = stripe->next_alloc + ca->dev_idx;
-	u64 free_space = dev_buckets_available(ca, BCH_WATERMARK_normal);
+	u64 free_space = __dev_buckets_available(ca, *usage, BCH_WATERMARK_normal);
 	u64 free_space_inv = free_space
 		? div64_u64(1ULL << 48, free_space)
 		: 1ULL << 48;
@@ -728,7 +711,7 @@ int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 
 		struct bch_dev_usage usage;
 		struct open_bucket *ob = bch2_bucket_alloc_trans(trans, ca, watermark, data_type,
-						     cl, flags & BCH_WRITE_ALLOC_NOWAIT, &usage);
+						     cl, flags & BCH_WRITE_alloc_nowait, &usage);
 		if (!IS_ERR(ob))
 			bch2_dev_stripe_increment_inlined(ca, stripe, &usage);
 		bch2_dev_put(ca);
@@ -1336,7 +1319,7 @@ retry:
 	if (wp->data_type != BCH_DATA_user)
 		have_cache = true;
 
-	if (target && !(flags & BCH_WRITE_ONLY_SPECIFIED_DEVS)) {
+	if (target && !(flags & BCH_WRITE_only_specified_devs)) {
 		ret = open_bucket_add_buckets(trans, &ptrs, wp, devs_have,
 					      target, erasure_code,
 					      nr_replicas, &nr_effective,
@@ -1426,7 +1409,7 @@ err:
 	if (cl && bch2_err_matches(ret, BCH_ERR_open_buckets_empty))
 		ret = -BCH_ERR_bucket_alloc_blocked;
 
-	if (cl && !(flags & BCH_WRITE_ALLOC_NOWAIT) &&
+	if (cl && !(flags & BCH_WRITE_alloc_nowait) &&
 	    bch2_err_matches(ret, BCH_ERR_freelist_empty))
 		ret = -BCH_ERR_bucket_alloc_blocked;
 

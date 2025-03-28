@@ -12,7 +12,6 @@
 #include "super.h"
 
 #include <linux/crc32c.h>
-#include <crypto/hash.h>
 #include <crypto/sha2.h>
 
 static inline enum bch_str_hash_type
@@ -34,6 +33,7 @@ bch2_str_hash_opt_to_type(struct bch_fs *c, enum bch_str_hash_opts opt)
 
 struct bch_hash_info {
 	u8			type;
+	struct unicode_map 	*cf_encoding;
 	/*
 	 * For crc32 or crc64 string hashes the first key value of
 	 * the siphash_key (k0) is used as the key.
@@ -47,17 +47,17 @@ bch2_hash_info_init(struct bch_fs *c, const struct bch_inode_unpacked *bi)
 	/* XXX ick */
 	struct bch_hash_info info = {
 		.type = INODE_STR_HASH(bi),
+#ifdef CONFIG_UNICODE
+		.cf_encoding = !!(bi->bi_flags & BCH_INODE_casefolded) ? c->cf_encoding : NULL,
+#endif
 		.siphash_key = { .k0 = bi->bi_hash_seed }
 	};
 
 	if (unlikely(info.type == BCH_STR_HASH_siphash_old)) {
-		SHASH_DESC_ON_STACK(desc, c->sha256);
 		u8 digest[SHA256_DIGEST_SIZE];
 
-		desc->tfm = c->sha256;
-
-		crypto_shash_digest(desc, (void *) &bi->bi_hash_seed,
-				    sizeof(bi->bi_hash_seed), digest);
+		sha256((const u8 *)&bi->bi_hash_seed,
+		       sizeof(bi->bi_hash_seed), digest);
 		memcpy(&info.siphash_key, digest, sizeof(info.siphash_key));
 	}
 

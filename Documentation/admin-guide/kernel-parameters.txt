@@ -5020,6 +5020,14 @@
 			Format: <bool>
 			default: 0 (auto_verbose is enabled)
 
+	printk.debug_non_panic_cpus=
+			Allows storing messages from non-panic CPUs into
+			the printk log buffer during panic(). They are
+			flushed to consoles by the panic-CPU on
+			a best-effort basis.
+			Format: <bool> (1/Y/y=enable, 0/N/n=disable)
+			Default: disabled
+
 	printk.devkmsg={on,off,ratelimit}
 			Control writing to /dev/kmsg.
 			on - unlimited logging to /dev/kmsg from userspace
@@ -7288,6 +7296,15 @@
 
 			See also "Event triggers" in Documentation/trace/events.rst
 
+
+	traceoff_after_boot
+			[FTRACE] Sometimes tracing is used to debug issues
+			during the boot process. Since the trace buffer has a
+			limited amount of storage, it may be prudent to
+			disable tracing after the boot is finished, otherwise
+			the critical information may be overwritten.  With this
+			option, the main tracing buffer will be turned off at
+			the end of the boot process.
 
 	traceoff_on_warning
 			[FTRACE] enable this option to disable tracing when a

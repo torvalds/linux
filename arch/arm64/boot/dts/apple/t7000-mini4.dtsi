@@ -49,3 +49,15 @@
 		};
 	};
 };
+
+&framebuffer0 {
+	power-domains = <&ps_disp0 &ps_dp>;
+};
+
+&typhoon_opp06 {
+	status = "okay";
+};
+
+&typhoon_opp07 {
+	status = "okay";
+};

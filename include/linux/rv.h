@@ -7,7 +7,7 @@
 #ifndef _LINUX_RV_H
 #define _LINUX_RV_H
 
-#define MAX_DA_NAME_LEN	24
+#define MAX_DA_NAME_LEN	32
 
 #ifdef CONFIG_RV
 /*
@@ -56,7 +56,7 @@ struct rv_monitor {
 
 bool rv_monitoring_on(void);
 int rv_unregister_monitor(struct rv_monitor *monitor);
-int rv_register_monitor(struct rv_monitor *monitor);
+int rv_register_monitor(struct rv_monitor *monitor, struct rv_monitor *parent);
 int rv_get_task_monitor_slot(void);
 void rv_put_task_monitor_slot(int slot);
 

@@ -216,32 +216,43 @@ void bch2_io_error_work(struct work_struct *);
 /* Does the error handling without logging a message */
 void bch2_io_error(struct bch_dev *, enum bch_member_error_type);
 
-#define bch2_dev_io_err_on(cond, ca, _type, ...)			\
-({									\
-	bool _ret = (cond);						\
-									\
-	if (_ret) {							\
-		bch_err_dev_ratelimited(ca, __VA_ARGS__);		\
-		bch2_io_error(ca, _type);				\
-	}								\
-	_ret;								\
-})
+#ifndef CONFIG_BCACHEFS_NO_LATENCY_ACCT
+void bch2_latency_acct(struct bch_dev *, u64, int);
+#else
+static inline void bch2_latency_acct(struct bch_dev *ca, u64 submit_time, int rw) {}
+#endif
 
-#define bch2_dev_inum_io_err_on(cond, ca, _type, ...)			\
-({									\
-	bool _ret = (cond);						\
-									\
-	if (_ret) {							\
-		bch_err_inum_offset_ratelimited(ca, __VA_ARGS__);	\
-		bch2_io_error(ca, _type);				\
-	}								\
-	_ret;								\
-})
+static inline void bch2_account_io_success_fail(struct bch_dev *ca,
+						enum bch_member_error_type type,
+						bool success)
+{
+	if (likely(success)) {
+		if (type == BCH_MEMBER_ERROR_write &&
+		    ca->write_errors_start)
+			ca->write_errors_start = 0;
+	} else {
+		bch2_io_error(ca, type);
+	}
+}
 
-int bch2_inum_err_msg_trans(struct btree_trans *, struct printbuf *, subvol_inum);
+static inline void bch2_account_io_completion(struct bch_dev *ca,
+					      enum bch_member_error_type type,
+					      u64 submit_time, bool success)
+{
+	if (unlikely(!ca))
+		return;
+
+	if (type != BCH_MEMBER_ERROR_checksum)
+		bch2_latency_acct(ca, submit_time, type);
+
+	bch2_account_io_success_fail(ca, type, success);
+}
+
 int bch2_inum_offset_err_msg_trans(struct btree_trans *, struct printbuf *, subvol_inum, u64);
 
-void bch2_inum_err_msg(struct bch_fs *, struct printbuf *, subvol_inum);
 void bch2_inum_offset_err_msg(struct bch_fs *, struct printbuf *, subvol_inum, u64);
+
+int bch2_inum_snap_offset_err_msg_trans(struct btree_trans *, struct printbuf *, struct bpos);
+void bch2_inum_snap_offset_err_msg(struct bch_fs *, struct printbuf *, struct bpos);
 
 #endif /* _BCACHEFS_ERROR_H */

@@ -167,8 +167,8 @@ static int bch2_copygc_get_buckets(struct moving_context *ctxt,
 	bch2_trans_begin(trans);
 
 	ret = for_each_btree_key_max(trans, iter, BTREE_ID_lru,
-				  lru_pos(BCH_LRU_FRAGMENTATION_START, 0, 0),
-				  lru_pos(BCH_LRU_FRAGMENTATION_START, U64_MAX, LRU_TIME_MAX),
+				  lru_pos(BCH_LRU_BUCKET_FRAGMENTATION, 0, 0),
+				  lru_pos(BCH_LRU_BUCKET_FRAGMENTATION, U64_MAX, LRU_TIME_MAX),
 				  0, k, ({
 		struct move_bucket b = { .k.bucket = u64_to_bucket(k.k->p.offset) };
 		int ret2 = 0;
@@ -317,6 +317,17 @@ void bch2_copygc_wait_to_text(struct printbuf *out, struct bch_fs *c)
 	prt_printf(out, "Currently calculated wait:\t");
 	prt_human_readable_u64(out, bch2_copygc_wait_amount(c));
 	prt_newline(out);
+
+	rcu_read_lock();
+	struct task_struct *t = rcu_dereference(c->copygc_thread);
+	if (t)
+		get_task_struct(t);
+	rcu_read_unlock();
+
+	if (t) {
+		bch2_prt_task_backtrace(out, t, 0, GFP_KERNEL);
+		put_task_struct(t);
+	}
 }
 
 static int bch2_copygc_thread(void *arg)

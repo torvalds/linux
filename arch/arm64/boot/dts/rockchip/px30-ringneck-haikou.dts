@@ -154,6 +154,8 @@
 };
 
 &i2c3 {
+	status = "okay";
+
 	eeprom@50 {
 		reg = <0x50>;
 		compatible = "atmel,24c01";

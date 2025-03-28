@@ -162,7 +162,7 @@ struct dentry *get_monitors_root(void)
 /*
  * Interface for the monitor register.
  */
-static LIST_HEAD(rv_monitors_list);
+LIST_HEAD(rv_monitors_list);
 
 static int task_monitor_count;
 static bool task_monitor_slots[RV_PER_TASK_MONITORS];
@@ -207,6 +207,30 @@ void rv_put_task_monitor_slot(int slot)
 }
 
 /*
+ * Monitors with a parent are nested,
+ * Monitors without a parent could be standalone or containers.
+ */
+bool rv_is_nested_monitor(struct rv_monitor_def *mdef)
+{
+	return mdef->parent != NULL;
+}
+
+/*
+ * We set our list to have nested monitors listed after their parent
+ * if a monitor has a child element its a container.
+ * Containers can be also identified based on their function pointers:
+ * as they are not real monitors they do not need function definitions
+ * for enable()/disable(). Use this condition to find empty containers.
+ * Keep both conditions in case we have some non-compliant containers.
+ */
+bool rv_is_container_monitor(struct rv_monitor_def *mdef)
+{
+	struct rv_monitor_def *next = list_next_entry(mdef, list);
+
+	return next->parent == mdef->monitor || !mdef->monitor->enable;
+}
+
+/*
  * This section collects the monitor/ files and folders.
  */
 static ssize_t monitor_enable_read_data(struct file *filp, char __user *user_buf, size_t count,
@@ -229,7 +253,8 @@ static int __rv_disable_monitor(struct rv_monitor_def *mdef, bool sync)
 
 	if (mdef->monitor->enabled) {
 		mdef->monitor->enabled = 0;
-		mdef->monitor->disable();
+		if (mdef->monitor->disable)
+			mdef->monitor->disable();
 
 		/*
 		 * Wait for the execution of all events to finish.
@@ -243,6 +268,60 @@ static int __rv_disable_monitor(struct rv_monitor_def *mdef, bool sync)
 	return 0;
 }
 
+static void rv_disable_single(struct rv_monitor_def *mdef)
+{
+	__rv_disable_monitor(mdef, true);
+}
+
+static int rv_enable_single(struct rv_monitor_def *mdef)
+{
+	int retval;
+
+	lockdep_assert_held(&rv_interface_lock);
+
+	if (mdef->monitor->enabled)
+		return 0;
+
+	retval = mdef->monitor->enable();
+
+	if (!retval)
+		mdef->monitor->enabled = 1;
+
+	return retval;
+}
+
+static void rv_disable_container(struct rv_monitor_def *mdef)
+{
+	struct rv_monitor_def *p = mdef;
+	int enabled = 0;
+
+	list_for_each_entry_continue(p, &rv_monitors_list, list) {
+		if (p->parent != mdef->monitor)
+			break;
+		enabled += __rv_disable_monitor(p, false);
+	}
+	if (enabled)
+		tracepoint_synchronize_unregister();
+	mdef->monitor->enabled = 0;
+}
+
+static int rv_enable_container(struct rv_monitor_def *mdef)
+{
+	struct rv_monitor_def *p = mdef;
+	int retval = 0;
+
+	list_for_each_entry_continue(p, &rv_monitors_list, list) {
+		if (retval || p->parent != mdef->monitor)
+			break;
+		retval = rv_enable_single(p);
+	}
+	if (retval)
+		rv_disable_container(mdef);
+	else
+		mdef->monitor->enabled = 1;
+	return retval;
+}
+
 /**
  * rv_disable_monitor - disable a given runtime monitor
  * @mdef: Pointer to the monitor definition structure.
@@ -251,7 +330,11 @@ static int __rv_disable_monitor(struct rv_monitor_def *mdef, bool sync)
  */
 int rv_disable_monitor(struct rv_monitor_def *mdef)
 {
-	__rv_disable_monitor(mdef, true);
+	if (rv_is_container_monitor(mdef))
+		rv_disable_container(mdef);
+	else
+		rv_disable_single(mdef);
+
 	return 0;
 }
 
@@ -265,15 +348,10 @@ int rv_enable_monitor(struct rv_monitor_def *mdef)
 {
 	int retval;
 
-	lockdep_assert_held(&rv_interface_lock);
-
-	if (mdef->monitor->enabled)
-		return 0;
-
-	retval = mdef->monitor->enable();
-
-	if (!retval)
-		mdef->monitor->enabled = 1;
+	if (rv_is_container_monitor(mdef))
+		retval = rv_enable_container(mdef);
+	else
+		retval = rv_enable_single(mdef);
 
 	return retval;
 }
@@ -336,9 +414,9 @@ static const struct file_operations interface_desc_fops = {
  * the monitor dir, where the specific options of the monitor
  * are exposed.
  */
-static int create_monitor_dir(struct rv_monitor_def *mdef)
+static int create_monitor_dir(struct rv_monitor_def *mdef, struct rv_monitor_def *parent)
 {
-	struct dentry *root = get_monitors_root();
+	struct dentry *root = parent ? parent->root_d : get_monitors_root();
 	const char *name = mdef->monitor->name;
 	struct dentry *tmp;
 	int retval;
@@ -377,7 +455,11 @@ static int monitors_show(struct seq_file *m, void *p)
 {
 	struct rv_monitor_def *mon_def = p;
 
-	seq_printf(m, "%s\n", mon_def->monitor->name);
+	if (mon_def->parent)
+		seq_printf(m, "%s:%s\n", mon_def->parent->name,
+			   mon_def->monitor->name);
+	else
+		seq_printf(m, "%s\n", mon_def->monitor->name);
 	return 0;
 }
 
@@ -514,7 +596,7 @@ static ssize_t enabled_monitors_write(struct file *filp, const char __user *user
 	struct rv_monitor_def *mdef;
 	int retval = -EINVAL;
 	bool enable = true;
-	char *ptr;
+	char *ptr, *tmp;
 	int len;
 
 	if (count < 1 || count > MAX_RV_MONITOR_NAME_SIZE + 1)
@@ -540,6 +622,11 @@ static ssize_t enabled_monitors_write(struct file *filp, const char __user *user
 	mutex_lock(&rv_interface_lock);
 
 	retval = -EINVAL;
+
+	/* we support 1 nesting level, trim the parent */
+	tmp = strstr(ptr, ":");
+	if (tmp)
+		ptr = tmp+1;
 
 	list_for_each_entry(mdef, &rv_monitors_list, list) {
 		if (strcmp(ptr, mdef->monitor->name) != 0)
@@ -613,7 +700,7 @@ static void reset_all_monitors(void)
 	struct rv_monitor_def *mdef;
 
 	list_for_each_entry(mdef, &rv_monitors_list, list) {
-		if (mdef->monitor->enabled)
+		if (mdef->monitor->enabled && mdef->monitor->reset)
 			mdef->monitor->reset();
 	}
 }
@@ -685,18 +772,19 @@ static void destroy_monitor_dir(struct rv_monitor_def *mdef)
 /**
  * rv_register_monitor - register a rv monitor.
  * @monitor:    The rv_monitor to be registered.
+ * @parent:     The parent of the monitor to be registered, NULL if not nested.
  *
  * Returns 0 if successful, error otherwise.
  */
-int rv_register_monitor(struct rv_monitor *monitor)
+int rv_register_monitor(struct rv_monitor *monitor, struct rv_monitor *parent)
 {
-	struct rv_monitor_def *r;
+	struct rv_monitor_def *r, *p = NULL;
 	int retval = 0;
 
 	if (strlen(monitor->name) >= MAX_RV_MONITOR_NAME_SIZE) {
 		pr_info("Monitor %s has a name longer than %d\n", monitor->name,
 			MAX_RV_MONITOR_NAME_SIZE);
-		return -1;
+		return -EINVAL;
 	}
 
 	mutex_lock(&rv_interface_lock);
@@ -704,9 +792,24 @@ int rv_register_monitor(struct rv_monitor *monitor)
 	list_for_each_entry(r, &rv_monitors_list, list) {
 		if (strcmp(monitor->name, r->monitor->name) == 0) {
 			pr_info("Monitor %s is already registered\n", monitor->name);
-			retval = -1;
+			retval = -EEXIST;
 			goto out_unlock;
 		}
+	}
+
+	if (parent) {
+		list_for_each_entry(r, &rv_monitors_list, list) {
+			if (strcmp(parent->name, r->monitor->name) == 0) {
+				p = r;
+				break;
+			}
+		}
+	}
+
+	if (p && rv_is_nested_monitor(p)) {
+		pr_info("Parent monitor %s is already nested, cannot nest further\n",
+			parent->name);
+		return -EINVAL;
 	}
 
 	r = kzalloc(sizeof(struct rv_monitor_def), GFP_KERNEL);
@@ -716,14 +819,19 @@ int rv_register_monitor(struct rv_monitor *monitor)
 	}
 
 	r->monitor = monitor;
+	r->parent = parent;
 
-	retval = create_monitor_dir(r);
+	retval = create_monitor_dir(r, p);
 	if (retval) {
 		kfree(r);
 		goto out_unlock;
 	}
 
-	list_add_tail(&r->list, &rv_monitors_list);
+	/* keep children close to the parent for easier visualisation */
+	if (p)
+		list_add(&r->list, &p->list);
+	else
+		list_add_tail(&r->list, &rv_monitors_list);
 
 out_unlock:
 	mutex_unlock(&rv_interface_lock);

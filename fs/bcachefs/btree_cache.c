@@ -610,6 +610,7 @@ void bch2_fs_btree_cache_exit(struct bch_fs *c)
 		       btree_node_write_in_flight(b));
 
 		btree_node_data_free(bc, b);
+		cond_resched();
 	}
 
 	BUG_ON(!bch2_journal_error(&c->journal) &&

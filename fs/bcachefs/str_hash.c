@@ -50,7 +50,7 @@ static noinline int fsck_rename_dirent(struct btree_trans *trans,
 	for (unsigned i = 0; i < 1000; i++) {
 		unsigned len = sprintf(new->v.d_name, "%.*s.fsck_renamed-%u",
 				       old_name.len, old_name.name, i);
-		unsigned u64s = BKEY_U64s + dirent_val_u64s(len);
+		unsigned u64s = BKEY_U64s + dirent_val_u64s(len, 0);
 
 		if (u64s > U8_MAX)
 			return -EINVAL;

@@ -113,14 +113,14 @@ enum disk_accounting_type {
 	BCH_DISK_ACCOUNTING_TYPE_NR,
 };
 
-struct bch_nr_inodes {
+struct bch_acct_nr_inodes {
 };
 
-struct bch_persistent_reserved {
+struct bch_acct_persistent_reserved {
 	__u8			nr_replicas;
 };
 
-struct bch_dev_data_type {
+struct bch_acct_dev_data_type {
 	__u8			dev;
 	__u8			data_type;
 };
@@ -149,10 +149,10 @@ struct disk_accounting_pos {
 	struct {
 		__u8				type;
 		union {
-		struct bch_nr_inodes		nr_inodes;
-		struct bch_persistent_reserved	persistent_reserved;
+		struct bch_acct_nr_inodes		nr_inodes;
+		struct bch_acct_persistent_reserved	persistent_reserved;
 		struct bch_replicas_entry_v1	replicas;
-		struct bch_dev_data_type	dev_data_type;
+		struct bch_acct_dev_data_type	dev_data_type;
 		struct bch_acct_compression	compression;
 		struct bch_acct_snapshot	snapshot;
 		struct bch_acct_btree		btree;

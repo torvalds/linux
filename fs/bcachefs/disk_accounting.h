@@ -85,6 +85,24 @@ static inline struct bpos disk_accounting_pos_to_bpos(struct disk_accounting_pos
 
 int bch2_disk_accounting_mod(struct btree_trans *, struct disk_accounting_pos *,
 			     s64 *, unsigned, bool);
+
+#define disk_accounting_key_init(_k, _type, ...)			\
+do {									\
+	memset(&(_k), 0, sizeof(_k));					\
+	(_k).type	= BCH_DISK_ACCOUNTING_##_type;			\
+	(_k)._type	= (struct bch_acct_##_type) { __VA_ARGS__ };	\
+} while (0)
+
+#define bch2_disk_accounting_mod2_nr(_trans, _gc, _v, _nr, ...)		\
+({									\
+	struct disk_accounting_pos pos;					\
+	disk_accounting_key_init(pos, __VA_ARGS__);			\
+	bch2_disk_accounting_mod(trans, &pos, _v, _nr, _gc);		\
+})
+
+#define bch2_disk_accounting_mod2(_trans, _gc, _v, ...)			\
+	bch2_disk_accounting_mod2_nr(_trans, _gc, _v, ARRAY_SIZE(_v), __VA_ARGS__)
+
 int bch2_mod_dev_cached_sectors(struct btree_trans *, unsigned, s64, bool);
 
 int bch2_accounting_validate(struct bch_fs *, struct bkey_s_c,
