@@ -2259,7 +2259,7 @@ BCH_DEBUG_PARAMS()
 
 __maybe_unused
 static unsigned bch2_metadata_version = bcachefs_metadata_version_current;
-module_param_named(version, bch2_metadata_version, uint, 0400);
+module_param_named(version, bch2_metadata_version, uint, 0444);
 
 module_exit(bcachefs_exit);
 module_init(bcachefs_init);
