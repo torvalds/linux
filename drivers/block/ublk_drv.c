@@ -1185,7 +1185,6 @@ static inline void __ublk_abort_rq(struct ublk_queue *ubq,
 }
 
 static void ublk_dispatch_req(struct ublk_queue *ubq,
-			      struct io_uring_cmd *cmd,
 			      struct request *req,
 			      unsigned int issue_flags)
 {
@@ -1273,7 +1272,7 @@ static void ublk_cmd_tw_cb(struct io_uring_cmd *cmd,
 	struct request *req = blk_mq_tag_to_rq(
 		ubq->dev->tag_set.tags[ubq->q_id], tag);
 
-	ublk_dispatch_req(ubq, cmd, req, issue_flags);
+	ublk_dispatch_req(ubq, req, issue_flags);
 }
 
 static void ublk_queue_cmd(struct ublk_queue *ubq, struct request *rq)
@@ -1292,11 +1291,9 @@ static void ublk_cmd_list_tw_cb(struct io_uring_cmd *cmd,
 	struct request *next;
 
 	while (rq) {
-		struct ublk_io *io = &ubq->ios[rq->tag];
-
 		next = rq->rq_next;
 		rq->rq_next = NULL;
-		ublk_dispatch_req(ubq, io->cmd, rq, issue_flags);
+		ublk_dispatch_req(ubq, rq, issue_flags);
 		rq = next;
 	}
 }
