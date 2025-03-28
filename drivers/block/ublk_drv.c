@@ -158,7 +158,7 @@ struct ublk_queue {
 
 	unsigned long flags;
 	struct task_struct	*ubq_daemon;
-	char *io_cmd_buf;
+	struct ublksrv_io_desc *io_cmd_buf;
 
 	bool force_abort;
 	bool timeout;
@@ -706,11 +706,11 @@ static inline bool ublk_rq_has_data(const struct request *rq)
 static inline struct ublksrv_io_desc *ublk_get_iod(struct ublk_queue *ubq,
 		int tag)
 {
-	return (struct ublksrv_io_desc *)
-		&(ubq->io_cmd_buf[tag * sizeof(struct ublksrv_io_desc)]);
+	return &ubq->io_cmd_buf[tag];
 }
 
-static inline char *ublk_queue_cmd_buf(struct ublk_device *ub, int q_id)
+static inline struct ublksrv_io_desc *
+ublk_queue_cmd_buf(struct ublk_device *ub, int q_id)
 {
 	return ublk_get_queue(ub, q_id)->io_cmd_buf;
 }
