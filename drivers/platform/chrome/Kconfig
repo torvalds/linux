@@ -155,7 +155,7 @@ config CROS_EC_LPC
 	  module will be called cros_ec_lpcs.
 
 config CROS_EC_PROTO
-	bool
+	tristate
 	help
 	  ChromeOS EC communication protocol helpers.
 

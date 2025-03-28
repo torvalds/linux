@@ -1152,3 +1152,6 @@ int cros_ec_get_cmd_versions(struct cros_ec_device *ec_dev, u16 cmd)
 		return resp.version_mask;
 }
 EXPORT_SYMBOL_GPL(cros_ec_get_cmd_versions);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("ChromeOS EC communication protocol helpers");
