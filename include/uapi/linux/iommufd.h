@@ -1045,21 +1045,26 @@ enum iommu_veventq_flag {
  *            [0, INT_MAX] where the following index of INT_MAX is 0
  *
  * Each iommufd_vevent_header reports a sequence index of the following vEVENT:
- *  -------------------------------------------------------------------------
+ *
+ * +----------------------+-------+----------------------+-------+---+-------+
  * | header0 {sequence=0} | data0 | header1 {sequence=1} | data1 |...| dataN |
- *  -------------------------------------------------------------------------
+ * +----------------------+-------+----------------------+-------+---+-------+
+ *
  * And this sequence index is expected to be monotonic to the sequence index of
  * the previous vEVENT. If two adjacent sequence indexes has a delta larger than
  * 1, it means that delta - 1 number of vEVENTs has lost, e.g. two lost vEVENTs:
- *  -------------------------------------------------------------------------
+ *
+ * +-----+----------------------+-------+----------------------+-------+-----+
  * | ... | header3 {sequence=3} | data3 | header6 {sequence=6} | data6 | ... |
- *  -------------------------------------------------------------------------
+ * +-----+----------------------+-------+----------------------+-------+-----+
+ *
  * If a vEVENT lost at the tail of the vEVENTQ and there is no following vEVENT
  * providing the next sequence index, an IOMMU_VEVENTQ_FLAG_LOST_EVENTS header
  * would be added to the tail, and no data would follow this header:
- *  ---------------------------------------------------------------------------
+ *
+ * +--+----------------------+-------+-----------------------------------------+
  * |..| header3 {sequence=3} | data3 | header4 {flags=LOST_EVENTS, sequence=4} |
- *  ---------------------------------------------------------------------------
+ * +--+----------------------+-------+-----------------------------------------+
  */
 struct iommufd_vevent_header {
 	__u32 flags;
@@ -1117,9 +1122,11 @@ struct iommu_vevent_arm_smmuv3 {
  *
  * Each vEVENT in a vEVENTQ encloses a struct iommufd_vevent_header followed by
  * a type-specific data structure, in a normal case:
- *  -------------------------------------------------------------
- * || header0 | data0 | header1 | data1 | ... | headerN | dataN ||
- *  -------------------------------------------------------------
+ *
+ * +-+---------+-------+---------+-------+-----+---------+-------+-+
+ * | | header0 | data0 | header1 | data1 | ... | headerN | dataN | |
+ * +-+---------+-------+---------+-------+-----+---------+-------+-+
+ *
  * unless a tailing IOMMU_VEVENTQ_FLAG_LOST_EVENTS header is logged (refer to
  * struct iommufd_vevent_header).
  */
