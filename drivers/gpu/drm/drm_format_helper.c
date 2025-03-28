@@ -246,6 +246,9 @@ static int drm_fb_xfrm(struct iosys_map *dst,
 				     xfrm_line);
 }
 
+#define ALIGN_DOWN_PIXELS(end, n, a) \
+	((end) - ((n) & ((a) - 1)))
+
 static __always_inline void drm_fb_xfrm_line_32to8(void *dbuf, const void *sbuf,
 						   unsigned int pixels,
 						   u32 (*xfrm_pixel)(u32))
@@ -274,10 +277,42 @@ static __always_inline void drm_fb_xfrm_line_32to24(void *dbuf, const void *sbuf
 						    unsigned int pixels,
 						    u32 (*xfrm_pixel)(u32))
 {
-	u8 *dbuf8 = dbuf;
+	__le32 *dbuf32 = dbuf;
+	u8 *dbuf8;
 	const __le32 *sbuf32 = sbuf;
 	const __le32 *send32 = sbuf32 + pixels;
 
+	/* write pixels in chunks of 4 */
+	while (sbuf32 < ALIGN_DOWN_PIXELS(send32, pixels, 4)) {
+		u32 val24[4] = {
+			xfrm_pixel(le32_to_cpup(sbuf32++)),
+			xfrm_pixel(le32_to_cpup(sbuf32++)),
+			xfrm_pixel(le32_to_cpup(sbuf32++)),
+			xfrm_pixel(le32_to_cpup(sbuf32++)),
+		};
+		u32 out32[3] = {
+			/* write output bytes in reverse order for little endianness */
+			((val24[0] & 0x000000ff)) |
+			((val24[0] & 0x0000ff00)) |
+			((val24[0] & 0x00ff0000)) |
+			((val24[1] & 0x000000ff) << 24),
+			((val24[1] & 0x0000ff00) >> 8) |
+			((val24[1] & 0x00ff0000) >> 8) |
+			((val24[2] & 0x000000ff) << 16) |
+			((val24[2] & 0x0000ff00) << 16),
+			((val24[2] & 0x00ff0000) >> 16) |
+			((val24[3] & 0x000000ff) << 8) |
+			((val24[3] & 0x0000ff00) << 8) |
+			((val24[3] & 0x00ff0000) << 8),
+		};
+
+		*dbuf32++ = cpu_to_le32(out32[0]);
+		*dbuf32++ = cpu_to_le32(out32[1]);
+		*dbuf32++ = cpu_to_le32(out32[2]);
+	}
+
+	/* write trailing pixel */
+	dbuf8 = (u8 __force *)dbuf32;
 	while (sbuf32 < send32) {
 		u32 val24 = xfrm_pixel(le32_to_cpup(sbuf32++));
 		/* write output in reverse order for little endianness */
