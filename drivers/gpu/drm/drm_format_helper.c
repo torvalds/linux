@@ -246,6 +246,18 @@ static int drm_fb_xfrm(struct iosys_map *dst,
 				     xfrm_line);
 }
 
+static __always_inline void drm_fb_xfrm_line_32to8(void *dbuf, const void *sbuf,
+						   unsigned int pixels,
+						   u32 (*xfrm_pixel)(u32))
+{
+	u8 *dbuf8 = dbuf;
+	const __le32 *sbuf32 = sbuf;
+	const __le32 *send32 = sbuf32 + pixels;
+
+	while (sbuf32 < send32)
+		*dbuf8++ = xfrm_pixel(le32_to_cpup(sbuf32++));
+}
+
 static __always_inline void drm_fb_xfrm_line_32to16(void *dbuf, const void *sbuf,
 						    unsigned int pixels,
 						    u32 (*xfrm_pixel)(u32))
@@ -411,17 +423,7 @@ EXPORT_SYMBOL(drm_fb_swab);
 
 static void drm_fb_xrgb8888_to_rgb332_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
-	u8 *dbuf8 = dbuf;
-	const __le32 *sbuf32 = sbuf;
-	unsigned int x;
-	u32 pix;
-
-	for (x = 0; x < pixels; x++) {
-		pix = le32_to_cpu(sbuf32[x]);
-		dbuf8[x] = ((pix & 0x00e00000) >> 16) |
-			   ((pix & 0x0000e000) >> 11) |
-			   ((pix & 0x000000c0) >> 6);
-	}
+	drm_fb_xfrm_line_32to8(dbuf, sbuf, pixels, drm_pixel_xrgb8888_to_rgb332);
 }
 
 /**
@@ -879,19 +881,7 @@ EXPORT_SYMBOL(drm_fb_xrgb8888_to_argb2101010);
 
 static void drm_fb_xrgb8888_to_gray8_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
-	u8 *dbuf8 = dbuf;
-	const __le32 *sbuf32 = sbuf;
-	unsigned int x;
-
-	for (x = 0; x < pixels; x++) {
-		u32 pix = le32_to_cpu(sbuf32[x]);
-		u8 r = (pix & 0x00ff0000) >> 16;
-		u8 g = (pix & 0x0000ff00) >> 8;
-		u8 b =  pix & 0x000000ff;
-
-		/* ITU BT.601: Y = 0.299 R + 0.587 G + 0.114 B */
-		*dbuf8++ = (3 * r + 6 * g + b) / 10;
-	}
+	drm_fb_xfrm_line_32to8(dbuf, sbuf, pixels, drm_pixel_xrgb8888_to_r8_bt601);
 }
 
 /**

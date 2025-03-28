@@ -35,6 +35,23 @@
  * Conversions from XRGB8888
  */
 
+static inline u32 drm_pixel_xrgb8888_to_r8_bt601(u32 pix)
+{
+	u32 r = (pix & 0x00ff0000) >> 16;
+	u32 g = (pix & 0x0000ff00) >> 8;
+	u32 b =  pix & 0x000000ff;
+
+	/* ITU-R BT.601: Y = 0.299 R + 0.587 G + 0.114 B */
+	return (3 * r + 6 * g + b) / 10;
+}
+
+static inline u32 drm_pixel_xrgb8888_to_rgb332(u32 pix)
+{
+	return ((pix & 0x00e00000) >> 16) |
+	       ((pix & 0x0000e000) >> 11) |
+	       ((pix & 0x000000c0) >> 6);
+}
+
 static inline u32 drm_pixel_xrgb8888_to_rgb565(u32 pix)
 {
 	return ((pix & 0x00f80000) >> 8) |
