@@ -395,12 +395,6 @@ int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	sr->done_io = 0;
 	sr->retry = false;
-
-	if (req->opcode != IORING_OP_SEND) {
-		if (sqe->addr2 || sqe->file_index)
-			return -EINVAL;
-	}
-
 	sr->len = READ_ONCE(sqe->len);
 	sr->flags = READ_ONCE(sqe->ioprio);
 	if (sr->flags & ~SENDMSG_FLAGS)
@@ -426,6 +420,8 @@ int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return -ENOMEM;
 	if (req->opcode != IORING_OP_SENDMSG)
 		return io_send_setup(req, sqe);
+	if (unlikely(sqe->addr2 || sqe->file_index))
+		return -EINVAL;
 	return io_sendmsg_setup(req, sqe);
 }
 
@@ -1303,11 +1299,6 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		}
 	}
 
-	if (req->opcode != IORING_OP_SEND_ZC) {
-		if (unlikely(sqe->addr2 || sqe->file_index))
-			return -EINVAL;
-	}
-
 	zc->len = READ_ONCE(sqe->len);
 	zc->msg_flags = READ_ONCE(sqe->msg_flags) | MSG_NOSIGNAL | MSG_ZEROCOPY;
 	req->buf_index = READ_ONCE(sqe->buf_index);
@@ -1323,6 +1314,8 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		req->flags |= REQ_F_IMPORT_BUFFER;
 		return io_send_setup(req, sqe);
 	}
+	if (unlikely(sqe->addr2 || sqe->file_index))
+		return -EINVAL;
 	ret = io_sendmsg_setup(req, sqe);
 	if (unlikely(ret))
 		return ret;
