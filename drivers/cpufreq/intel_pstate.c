@@ -1353,14 +1353,9 @@ static void intel_pstate_update_policies(void)
 		cpufreq_update_policy(cpu);
 }
 
-static bool intel_pstate_update_max_freq(struct cpudata *cpudata)
+static void __intel_pstate_update_max_freq(struct cpufreq_policy *policy,
+					   struct cpudata *cpudata)
 {
-	struct cpufreq_policy *policy __free(put_cpufreq_policy);
-
-	policy = cpufreq_cpu_get(cpudata->cpu);
-	if (!policy)
-		return false;
-
 	guard(cpufreq_policy_write)(policy);
 
 	if (hwp_active)
@@ -1370,16 +1365,28 @@ static bool intel_pstate_update_max_freq(struct cpudata *cpudata)
 			cpudata->pstate.max_freq : cpudata->pstate.turbo_freq;
 
 	refresh_frequency_limits(policy);
+}
+
+static bool intel_pstate_update_max_freq(struct cpudata *cpudata)
+{
+	struct cpufreq_policy *policy __free(put_cpufreq_policy);
+
+	policy = cpufreq_cpu_get(cpudata->cpu);
+	if (!policy)
+		return false;
+
+	__intel_pstate_update_max_freq(policy, cpudata);
 
 	return true;
 }
 
-static void intel_pstate_update_limits(unsigned int cpu)
+static void intel_pstate_update_limits(struct cpufreq_policy *policy)
 {
-	struct cpudata *cpudata = all_cpu_data[cpu];
+	struct cpudata *cpudata = all_cpu_data[policy->cpu];
 
-	if (intel_pstate_update_max_freq(cpudata))
-		hybrid_update_capacity(cpudata);
+	__intel_pstate_update_max_freq(policy, cpudata);
+
+	hybrid_update_capacity(cpudata);
 }
 
 static void intel_pstate_update_limits_for_all(void)
