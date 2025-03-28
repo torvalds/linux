@@ -163,15 +163,40 @@ out:
 	return iret;
 }
 
-static int fsl_sai_set_dai_tdm_slot(struct snd_soc_dai *cpu_dai, u32 tx_mask,
-				u32 rx_mask, int slots, int slot_width)
+static int fsl_sai_set_dai_tdm_slot_tx(struct snd_soc_dai *cpu_dai, u32 tx_mask,
+				       u32 rx_mask, int slots, int slot_width)
 {
 	struct fsl_sai *sai = snd_soc_dai_get_drvdata(cpu_dai);
+	bool tx = true;
 
-	sai->slots = slots;
-	sai->slot_width = slot_width;
+	sai->slots[tx] = slots;
+	sai->slot_width[tx] = slot_width;
 
 	return 0;
+}
+
+static int fsl_sai_set_dai_tdm_slot_rx(struct snd_soc_dai *cpu_dai, u32 tx_mask,
+				       u32 rx_mask, int slots, int slot_width)
+{
+	struct fsl_sai *sai = snd_soc_dai_get_drvdata(cpu_dai);
+	bool tx = false;
+
+	sai->slots[tx] = slots;
+	sai->slot_width[tx] = slot_width;
+
+	return 0;
+}
+
+static int fsl_sai_set_dai_tdm_slot(struct snd_soc_dai *cpu_dai, u32 tx_mask,
+				    u32 rx_mask, int slots, int slot_width)
+{
+	int ret;
+
+	ret = fsl_sai_set_dai_tdm_slot_tx(cpu_dai, tx_mask, rx_mask, slots, slot_width);
+	if (ret)
+		return ret;
+
+	return fsl_sai_set_dai_tdm_slot_rx(cpu_dai, tx_mask, rx_mask, slots, slot_width);
 }
 
 static int fsl_sai_xlate_tdm_slot_mask(unsigned int slots,
@@ -548,11 +573,11 @@ static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 	u32 watermark;
 	int ret, i;
 
-	if (sai->slot_width)
-		slot_width = sai->slot_width;
+	if (sai->slot_width[tx])
+		slot_width = sai->slot_width[tx];
 
-	if (sai->slots)
-		slots = sai->slots;
+	if (sai->slots[tx])
+		slots = sai->slots[tx];
 	else if (sai->bclk_ratio)
 		slots = sai->bclk_ratio / slot_width;
 
@@ -939,7 +964,7 @@ static const struct snd_soc_dai_ops fsl_sai_pcm_dai_tx_ops = {
 	.set_bclk_ratio	= fsl_sai_set_dai_bclk_ratio,
 	.set_sysclk	= fsl_sai_set_dai_sysclk,
 	.set_fmt	= fsl_sai_set_dai_fmt_tx,
-	.set_tdm_slot	= fsl_sai_set_dai_tdm_slot,
+	.set_tdm_slot	= fsl_sai_set_dai_tdm_slot_tx,
 	.xlate_tdm_slot_mask = fsl_sai_xlate_tdm_slot_mask,
 	.hw_params	= fsl_sai_hw_params,
 	.hw_free	= fsl_sai_hw_free,
@@ -952,7 +977,7 @@ static const struct snd_soc_dai_ops fsl_sai_pcm_dai_rx_ops = {
 	.set_bclk_ratio	= fsl_sai_set_dai_bclk_ratio,
 	.set_sysclk	= fsl_sai_set_dai_sysclk,
 	.set_fmt	= fsl_sai_set_dai_fmt_rx,
-	.set_tdm_slot	= fsl_sai_set_dai_tdm_slot,
+	.set_tdm_slot	= fsl_sai_set_dai_tdm_slot_rx,
 	.xlate_tdm_slot_mask = fsl_sai_xlate_tdm_slot_mask,
 	.hw_params	= fsl_sai_hw_params,
 	.hw_free	= fsl_sai_hw_free,

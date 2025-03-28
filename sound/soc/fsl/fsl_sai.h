@@ -296,8 +296,8 @@ struct fsl_sai {
 
 	unsigned int mclk_id[2];
 	unsigned int mclk_streams;
-	unsigned int slots;
-	unsigned int slot_width;
+	unsigned int slots[2];
+	unsigned int slot_width[2];
 	unsigned int bclk_ratio;
 
 	const struct fsl_sai_soc_data *soc_data;
