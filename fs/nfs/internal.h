@@ -912,6 +912,11 @@ static inline u32 nfs_stateid_hash(nfs4_stateid *stateid)
 }
 #endif
 
+static inline bool nfs_current_task_exiting(void)
+{
+	return (current->flags & PF_EXITING) != 0;
+}
+
 static inline bool nfs_error_is_fatal(int err)
 {
 	switch (err) {
