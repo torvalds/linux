@@ -70,16 +70,6 @@ struct cirrus_device {
 
 #define to_cirrus(_dev) container_of(_dev, struct cirrus_device, dev)
 
-struct cirrus_primary_plane_state {
-	struct drm_shadow_plane_state base;
-};
-
-static inline struct cirrus_primary_plane_state *
-to_cirrus_primary_plane_state(struct drm_plane_state *plane_state)
-{
-	return container_of(plane_state, struct cirrus_primary_plane_state, base.base);
-};
-
 /* ------------------------------------------------------------------ */
 /*
  * The meat of this driver. The core passes us a mode and we have to program
@@ -374,58 +364,11 @@ static const struct drm_plane_helper_funcs cirrus_primary_plane_helper_funcs = {
 	.atomic_update = cirrus_primary_plane_helper_atomic_update,
 };
 
-static struct drm_plane_state *
-cirrus_primary_plane_atomic_duplicate_state(struct drm_plane *plane)
-{
-	struct drm_plane_state *plane_state = plane->state;
-	struct cirrus_primary_plane_state *new_primary_plane_state;
-	struct drm_shadow_plane_state *new_shadow_plane_state;
-
-	if (!plane_state)
-		return NULL;
-
-	new_primary_plane_state = kzalloc(sizeof(*new_primary_plane_state), GFP_KERNEL);
-	if (!new_primary_plane_state)
-		return NULL;
-	new_shadow_plane_state = &new_primary_plane_state->base;
-
-	__drm_gem_duplicate_shadow_plane_state(plane, new_shadow_plane_state);
-
-	return &new_shadow_plane_state->base;
-}
-
-static void cirrus_primary_plane_atomic_destroy_state(struct drm_plane *plane,
-						      struct drm_plane_state *plane_state)
-{
-	struct cirrus_primary_plane_state *primary_plane_state =
-		to_cirrus_primary_plane_state(plane_state);
-
-	__drm_gem_destroy_shadow_plane_state(&primary_plane_state->base);
-	kfree(primary_plane_state);
-}
-
-static void cirrus_reset_primary_plane(struct drm_plane *plane)
-{
-	struct cirrus_primary_plane_state *primary_plane_state;
-
-	if (plane->state) {
-		cirrus_primary_plane_atomic_destroy_state(plane, plane->state);
-		plane->state = NULL; /* must be set to NULL here */
-	}
-
-	primary_plane_state = kzalloc(sizeof(*primary_plane_state), GFP_KERNEL);
-	if (!primary_plane_state)
-		return;
-	__drm_gem_reset_shadow_plane(plane, &primary_plane_state->base);
-}
-
 static const struct drm_plane_funcs cirrus_primary_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = drm_plane_cleanup,
-	.reset = cirrus_reset_primary_plane,
-	.atomic_duplicate_state = cirrus_primary_plane_atomic_duplicate_state,
-	.atomic_destroy_state = cirrus_primary_plane_atomic_destroy_state,
+	DRM_GEM_SHADOW_PLANE_FUNCS,
 };
 
 static int cirrus_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
