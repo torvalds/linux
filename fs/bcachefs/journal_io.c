@@ -308,8 +308,8 @@ static void journal_entry_err_msg(struct printbuf *out,
 		break;							\
 	case WRITE:							\
 		bch2_sb_error_count(c, BCH_FSCK_ERR_##_err);		\
-		bch_err(c, "corrupt metadata before write: %s\n", _buf.buf);\
-		if (bch2_fs_inconsistent(c)) {				\
+		if (bch2_fs_inconsistent(c,				\
+				"corrupt metadata before write: %s\n", _buf.buf)) {\
 			ret = -BCH_ERR_fsck_errors_not_fixed;		\
 			goto fsck_err;					\
 		}							\
