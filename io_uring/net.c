@@ -1291,7 +1291,6 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	zc->done_io = 0;
 	zc->retry = false;
-	req->flags |= REQ_F_POLL_NO_LAZY;
 
 	if (unlikely(READ_ONCE(sqe->__pad2[0]) || READ_ONCE(sqe->addr3)))
 		return -EINVAL;
@@ -1305,7 +1304,7 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	notif->cqe.user_data = req->cqe.user_data;
 	notif->cqe.res = 0;
 	notif->cqe.flags = IORING_CQE_F_NOTIF;
-	req->flags |= REQ_F_NEED_CLEANUP;
+	req->flags |= REQ_F_NEED_CLEANUP | REQ_F_POLL_NO_LAZY;
 
 	zc->flags = READ_ONCE(sqe->ioprio);
 	if (unlikely(zc->flags & ~IO_ZC_FLAGS_COMMON)) {
