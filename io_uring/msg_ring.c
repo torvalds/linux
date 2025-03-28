@@ -100,7 +100,7 @@ static int io_msg_remote_post(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	req->ctx = ctx;
 	req->tctx = NULL;
 	req->io_task_work.func = io_msg_tw_complete;
-	io_req_task_work_add_remote(req, ctx, IOU_F_TWQ_LAZY_WAKE);
+	io_req_task_work_add_remote(req, IOU_F_TWQ_LAZY_WAKE);
 	return 0;
 }
 
