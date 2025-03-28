@@ -109,5 +109,4 @@ void dcn401_detect_pipe_changes(
 void dcn401_plane_atomic_power_down(struct dc *dc,
 		struct dpp *dpp,
 		struct hubp *hubp);
-int dcn401_get_vupdate_offset_from_vsync(struct pipe_ctx *pipe_ctx);
 #endif /* __DC_HWSS_DCN401_H__ */
