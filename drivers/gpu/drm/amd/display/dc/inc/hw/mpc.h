@@ -967,23 +967,6 @@ struct mpc_funcs {
 	*/
 
 	void (*update_3dlut_fast_load_select)(struct mpc *mpc, int mpcc_id, int hubp_idx);
-	/**
-	* @get_3dlut_fast_load_status:
-	*
-	* Get 3D LUT fast load status and reference them with done, soft_underflow and hard_underflow pointers.
-	*
-	* Parameters:
-	* - [in/out] mpc - MPC context.
-	* - [in] mpcc_id
-	* - [in/out] done
-	* - [in/out] soft_underflow
-	* - [in/out] hard_underflow
-	*
-	* Return:
-	*
-	* void
-	*/
-	void (*get_3dlut_fast_load_status)(struct mpc *mpc, int mpcc_id, uint32_t *done, uint32_t *soft_underflow, uint32_t *hard_underflow);
 
 	/**
 	* @populate_lut:
