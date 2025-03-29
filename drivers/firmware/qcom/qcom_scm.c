@@ -132,9 +132,9 @@ static const u8 qcom_scm_cpu_warm_bits[QCOM_SCM_BOOT_MAX_CPUS] = {
 
 static const char * const qcom_scm_convention_names[] = {
 	[SMC_CONVENTION_UNKNOWN] = "unknown",
-	[SMC_CONVENTION_ARM_32] = "smc arm 32",
-	[SMC_CONVENTION_ARM_64] = "smc arm 64",
-	[SMC_CONVENTION_LEGACY] = "smc legacy",
+	[SMC_CONVENTION_ARM_32]  = "smc arm 32",
+	[SMC_CONVENTION_ARM_64]  = "smc arm 64",
+	[SMC_CONVENTION_LEGACY]  = "smc legacy",
 };
 
 static const char * const download_mode_name[] = {
