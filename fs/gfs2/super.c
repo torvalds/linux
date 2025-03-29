@@ -674,7 +674,7 @@ static int gfs2_sync_fs(struct super_block *sb, int wait)
 	return sdp->sd_log_error;
 }
 
-static int gfs2_do_thaw(struct gfs2_sbd *sdp, enum freeze_holder who)
+static int gfs2_do_thaw(struct gfs2_sbd *sdp, enum freeze_holder who, const void *freeze_owner)
 {
 	struct super_block *sb = sdp->sd_vfs;
 	int error;
@@ -682,7 +682,7 @@ static int gfs2_do_thaw(struct gfs2_sbd *sdp, enum freeze_holder who)
 	error = gfs2_freeze_lock_shared(sdp);
 	if (error)
 		goto fail;
-	error = thaw_super(sb, who);
+	error = thaw_super(sb, who, freeze_owner);
 	if (!error)
 		return 0;
 
@@ -703,14 +703,14 @@ void gfs2_freeze_func(struct work_struct *work)
 	if (test_bit(SDF_FROZEN, &sdp->sd_flags))
 		goto freeze_failed;
 
-	error = freeze_super(sb, FREEZE_HOLDER_USERSPACE);
+	error = freeze_super(sb, FREEZE_HOLDER_USERSPACE, NULL);
 	if (error)
 		goto freeze_failed;
 
 	gfs2_freeze_unlock(sdp);
 	set_bit(SDF_FROZEN, &sdp->sd_flags);
 
-	error = gfs2_do_thaw(sdp, FREEZE_HOLDER_USERSPACE);
+	error = gfs2_do_thaw(sdp, FREEZE_HOLDER_USERSPACE, NULL);
 	if (error)
 		goto out;
 
@@ -729,10 +729,12 @@ out:
  * gfs2_freeze_super - prevent further writes to the filesystem
  * @sb: the VFS structure for the filesystem
  * @who: freeze flags
+ * @freeze_owner: owner of the freeze
  *
  */
 
-static int gfs2_freeze_super(struct super_block *sb, enum freeze_holder who)
+static int gfs2_freeze_super(struct super_block *sb, enum freeze_holder who,
+			     const void *freeze_owner)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	int error;
@@ -745,7 +747,7 @@ static int gfs2_freeze_super(struct super_block *sb, enum freeze_holder who)
 	}
 
 	for (;;) {
-		error = freeze_super(sb, who);
+		error = freeze_super(sb, who, freeze_owner);
 		if (error) {
 			fs_info(sdp, "GFS2: couldn't freeze filesystem: %d\n",
 				error);
@@ -759,7 +761,7 @@ static int gfs2_freeze_super(struct super_block *sb, enum freeze_holder who)
 			break;
 		}
 
-		error = gfs2_do_thaw(sdp, who);
+		error = gfs2_do_thaw(sdp, who, freeze_owner);
 		if (error)
 			goto out;
 
@@ -798,10 +800,12 @@ static int gfs2_freeze_fs(struct super_block *sb)
  * gfs2_thaw_super - reallow writes to the filesystem
  * @sb: the VFS structure for the filesystem
  * @who: freeze flags
+ * @freeze_owner: owner of the freeze
  *
  */
 
-static int gfs2_thaw_super(struct super_block *sb, enum freeze_holder who)
+static int gfs2_thaw_super(struct super_block *sb, enum freeze_holder who,
+			   const void *freeze_owner)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	int error;
@@ -816,7 +820,7 @@ static int gfs2_thaw_super(struct super_block *sb, enum freeze_holder who)
 	atomic_inc(&sb->s_active);
 	gfs2_freeze_unlock(sdp);
 
-	error = gfs2_do_thaw(sdp, who);
+	error = gfs2_do_thaw(sdp, who, freeze_owner);
 
 	if (!error) {
 		clear_bit(SDF_FREEZE_INITIATOR, &sdp->sd_flags);

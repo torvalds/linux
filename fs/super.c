@@ -39,7 +39,8 @@
 #include <uapi/linux/mount.h>
 #include "internal.h"
 
-static int thaw_super_locked(struct super_block *sb, enum freeze_holder who);
+static int thaw_super_locked(struct super_block *sb, enum freeze_holder who,
+			     const void *freeze_owner);
 
 static LIST_HEAD(super_blocks);
 static DEFINE_SPINLOCK(sb_lock);
@@ -1148,7 +1149,7 @@ static void do_thaw_all_callback(struct super_block *sb, void *unused)
 	if (IS_ENABLED(CONFIG_BLOCK))
 		while (sb->s_bdev && !bdev_thaw(sb->s_bdev))
 			pr_warn("Emergency Thaw on %pg\n", sb->s_bdev);
-	thaw_super_locked(sb, FREEZE_HOLDER_USERSPACE);
+	thaw_super_locked(sb, FREEZE_HOLDER_USERSPACE, NULL);
 	return;
 }
 
@@ -1173,6 +1174,66 @@ void emergency_thaw_all(void)
 		INIT_WORK(work, do_thaw_all);
 		schedule_work(work);
 	}
+}
+
+static inline bool get_active_super(struct super_block *sb)
+{
+	bool active = false;
+
+	if (super_lock_excl(sb)) {
+		active = atomic_inc_not_zero(&sb->s_active);
+		super_unlock_excl(sb);
+	}
+	return active;
+}
+
+static const char *filesystems_freeze_ptr = "filesystems_freeze";
+
+static void filesystems_freeze_callback(struct super_block *sb, void *unused)
+{
+	if (!sb->s_op->freeze_fs && !sb->s_op->freeze_super)
+		return;
+
+	if (!get_active_super(sb))
+		return;
+
+	if (sb->s_op->freeze_super)
+		sb->s_op->freeze_super(sb, FREEZE_EXCL | FREEZE_HOLDER_KERNEL,
+				       filesystems_freeze_ptr);
+	else
+		freeze_super(sb, FREEZE_EXCL | FREEZE_HOLDER_KERNEL,
+			     filesystems_freeze_ptr);
+
+	deactivate_super(sb);
+}
+
+void filesystems_freeze(void)
+{
+	__iterate_supers(filesystems_freeze_callback, NULL,
+			 SUPER_ITER_UNLOCKED | SUPER_ITER_REVERSE);
+}
+
+static void filesystems_thaw_callback(struct super_block *sb, void *unused)
+{
+	if (!sb->s_op->freeze_fs && !sb->s_op->freeze_super)
+		return;
+
+	if (!get_active_super(sb))
+		return;
+
+	if (sb->s_op->thaw_super)
+		sb->s_op->thaw_super(sb, FREEZE_EXCL | FREEZE_HOLDER_KERNEL,
+				     filesystems_freeze_ptr);
+	else
+		thaw_super(sb, FREEZE_EXCL | FREEZE_HOLDER_KERNEL,
+			   filesystems_freeze_ptr);
+
+	deactivate_super(sb);
+}
+
+void filesystems_thaw(void)
+{
+	__iterate_supers(filesystems_thaw_callback, NULL, SUPER_ITER_UNLOCKED);
 }
 
 static DEFINE_IDA(unnamed_dev_ida);
@@ -1468,10 +1529,10 @@ static int fs_bdev_freeze(struct block_device *bdev)
 
 	if (sb->s_op->freeze_super)
 		error = sb->s_op->freeze_super(sb,
-				FREEZE_MAY_NEST | FREEZE_HOLDER_USERSPACE);
+				FREEZE_MAY_NEST | FREEZE_HOLDER_USERSPACE, NULL);
 	else
 		error = freeze_super(sb,
-				FREEZE_MAY_NEST | FREEZE_HOLDER_USERSPACE);
+				FREEZE_MAY_NEST | FREEZE_HOLDER_USERSPACE, NULL);
 	if (!error)
 		error = sync_blockdev(bdev);
 	deactivate_super(sb);
@@ -1517,10 +1578,10 @@ static int fs_bdev_thaw(struct block_device *bdev)
 
 	if (sb->s_op->thaw_super)
 		error = sb->s_op->thaw_super(sb,
-				FREEZE_MAY_NEST | FREEZE_HOLDER_USERSPACE);
+				FREEZE_MAY_NEST | FREEZE_HOLDER_USERSPACE, NULL);
 	else
 		error = thaw_super(sb,
-				FREEZE_MAY_NEST | FREEZE_HOLDER_USERSPACE);
+				FREEZE_MAY_NEST | FREEZE_HOLDER_USERSPACE, NULL);
 	deactivate_super(sb);
 	return error;
 }
@@ -1892,7 +1953,7 @@ static int wait_for_partially_frozen(struct super_block *sb)
 }
 
 #define FREEZE_HOLDERS (FREEZE_HOLDER_KERNEL | FREEZE_HOLDER_USERSPACE)
-#define FREEZE_FLAGS (FREEZE_HOLDERS | FREEZE_MAY_NEST)
+#define FREEZE_FLAGS (FREEZE_HOLDERS | FREEZE_MAY_NEST | FREEZE_EXCL)
 
 static inline int freeze_inc(struct super_block *sb, enum freeze_holder who)
 {
@@ -1918,10 +1979,33 @@ static inline int freeze_dec(struct super_block *sb, enum freeze_holder who)
 	return sb->s_writers.freeze_kcount + sb->s_writers.freeze_ucount;
 }
 
-static inline bool may_freeze(struct super_block *sb, enum freeze_holder who)
+static inline bool may_freeze(struct super_block *sb, enum freeze_holder who,
+			      const void *freeze_owner)
 {
+	lockdep_assert_held(&sb->s_umount);
+
 	WARN_ON_ONCE((who & ~FREEZE_FLAGS));
 	WARN_ON_ONCE(hweight32(who & FREEZE_HOLDERS) > 1);
+
+	if (who & FREEZE_EXCL) {
+		if (WARN_ON_ONCE(!(who & FREEZE_HOLDER_KERNEL)))
+			return false;
+		if (WARN_ON_ONCE(who & ~(FREEZE_EXCL | FREEZE_HOLDER_KERNEL)))
+			return false;
+		if (WARN_ON_ONCE(!freeze_owner))
+			return false;
+		/* This freeze already has a specific owner. */
+		if (sb->s_writers.freeze_owner)
+			return false;
+		/*
+		 * This is already frozen multiple times so we're just
+		 * going to take a reference count and mark the freeze as
+		 * being owned by the caller.
+		 */
+		if (sb->s_writers.freeze_kcount + sb->s_writers.freeze_ucount)
+			sb->s_writers.freeze_owner = freeze_owner;
+		return true;
+	}
 
 	if (who & FREEZE_HOLDER_KERNEL)
 		return (who & FREEZE_MAY_NEST) ||
@@ -1932,10 +2016,61 @@ static inline bool may_freeze(struct super_block *sb, enum freeze_holder who)
 	return false;
 }
 
+static inline bool may_unfreeze(struct super_block *sb, enum freeze_holder who,
+				const void *freeze_owner)
+{
+	lockdep_assert_held(&sb->s_umount);
+
+	WARN_ON_ONCE((who & ~FREEZE_FLAGS));
+	WARN_ON_ONCE(hweight32(who & FREEZE_HOLDERS) > 1);
+
+	if (who & FREEZE_EXCL) {
+		if (WARN_ON_ONCE(!(who & FREEZE_HOLDER_KERNEL)))
+			return false;
+		if (WARN_ON_ONCE(who & ~(FREEZE_EXCL | FREEZE_HOLDER_KERNEL)))
+			return false;
+		if (WARN_ON_ONCE(!freeze_owner))
+			return false;
+		if (WARN_ON_ONCE(sb->s_writers.freeze_kcount == 0))
+			return false;
+		/* This isn't exclusively frozen. */
+		if (!sb->s_writers.freeze_owner)
+			return false;
+		/* This isn't exclusively frozen by us. */
+		if (sb->s_writers.freeze_owner != freeze_owner)
+			return false;
+		/*
+		 * This is still frozen multiple times so we're just
+		 * going to drop our reference count and undo our
+		 * exclusive freeze.
+		 */
+		if ((sb->s_writers.freeze_kcount + sb->s_writers.freeze_ucount) > 1)
+			sb->s_writers.freeze_owner = NULL;
+		return true;
+	}
+
+	if (who & FREEZE_HOLDER_KERNEL) {
+		/*
+		 * Someone's trying to steal the reference belonging to
+		 * @sb->s_writers.freeze_owner.
+		 */
+		if (sb->s_writers.freeze_kcount == 1 &&
+		    sb->s_writers.freeze_owner)
+			return false;
+		return sb->s_writers.freeze_kcount > 0;
+	}
+
+	if (who & FREEZE_HOLDER_USERSPACE)
+		return sb->s_writers.freeze_ucount > 0;
+
+	return false;
+}
+
 /**
  * freeze_super - lock the filesystem and force it into a consistent state
  * @sb: the super to lock
  * @who: context that wants to freeze
+ * @freeze_owner: owner of the freeze
  *
  * Syncs the super to make sure the filesystem is consistent and calls the fs's
  * freeze_fs.  Subsequent calls to this without first thawing the fs may return
@@ -1987,7 +2122,7 @@ static inline bool may_freeze(struct super_block *sb, enum freeze_holder who)
  * Return: If the freeze was successful zero is returned. If the freeze
  *         failed a negative error code is returned.
  */
-int freeze_super(struct super_block *sb, enum freeze_holder who)
+int freeze_super(struct super_block *sb, enum freeze_holder who, const void *freeze_owner)
 {
 	int ret;
 
@@ -1999,7 +2134,7 @@ int freeze_super(struct super_block *sb, enum freeze_holder who)
 
 retry:
 	if (sb->s_writers.frozen == SB_FREEZE_COMPLETE) {
-		if (may_freeze(sb, who))
+		if (may_freeze(sb, who, freeze_owner))
 			ret = !!WARN_ON_ONCE(freeze_inc(sb, who) == 1);
 		else
 			ret = -EBUSY;
@@ -2021,6 +2156,7 @@ retry:
 	if (sb_rdonly(sb)) {
 		/* Nothing to do really... */
 		WARN_ON_ONCE(freeze_inc(sb, who) > 1);
+		sb->s_writers.freeze_owner = freeze_owner;
 		sb->s_writers.frozen = SB_FREEZE_COMPLETE;
 		wake_up_var(&sb->s_writers.frozen);
 		super_unlock_excl(sb);
@@ -2068,6 +2204,7 @@ retry:
 	 * when frozen is set to SB_FREEZE_COMPLETE, and for thaw_super().
 	 */
 	WARN_ON_ONCE(freeze_inc(sb, who) > 1);
+	sb->s_writers.freeze_owner = freeze_owner;
 	sb->s_writers.frozen = SB_FREEZE_COMPLETE;
 	wake_up_var(&sb->s_writers.frozen);
 	lockdep_sb_freeze_release(sb);
@@ -2082,11 +2219,15 @@ EXPORT_SYMBOL(freeze_super);
  * removes that state without releasing the other state or unlocking the
  * filesystem.
  */
-static int thaw_super_locked(struct super_block *sb, enum freeze_holder who)
+static int thaw_super_locked(struct super_block *sb, enum freeze_holder who,
+			     const void *freeze_owner)
 {
 	int error = -EINVAL;
 
 	if (sb->s_writers.frozen != SB_FREEZE_COMPLETE)
+		goto out_unlock;
+
+	if (!may_unfreeze(sb, who, freeze_owner))
 		goto out_unlock;
 
 	/*
@@ -2098,6 +2239,7 @@ static int thaw_super_locked(struct super_block *sb, enum freeze_holder who)
 
 	if (sb_rdonly(sb)) {
 		sb->s_writers.frozen = SB_UNFROZEN;
+		sb->s_writers.freeze_owner = NULL;
 		wake_up_var(&sb->s_writers.frozen);
 		goto out_deactivate;
 	}
@@ -2115,6 +2257,7 @@ static int thaw_super_locked(struct super_block *sb, enum freeze_holder who)
 	}
 
 	sb->s_writers.frozen = SB_UNFROZEN;
+	sb->s_writers.freeze_owner = NULL;
 	wake_up_var(&sb->s_writers.frozen);
 	sb_freeze_unlock(sb, SB_FREEZE_FS);
 out_deactivate:
@@ -2130,6 +2273,7 @@ out_unlock:
  * thaw_super -- unlock filesystem
  * @sb: the super to thaw
  * @who: context that wants to freeze
+ * @freeze_owner: owner of the freeze
  *
  * Unlocks the filesystem and marks it writeable again after freeze_super()
  * if there are no remaining freezes on the filesystem.
@@ -2143,13 +2287,14 @@ out_unlock:
  * have been frozen through the block layer via multiple block devices.
  * The filesystem remains frozen until all block devices are unfrozen.
  */
-int thaw_super(struct super_block *sb, enum freeze_holder who)
+int thaw_super(struct super_block *sb, enum freeze_holder who,
+	       const void *freeze_owner)
 {
 	if (!super_lock_excl(sb)) {
 		WARN_ON_ONCE("Dying superblock while thawing!");
 		return -EINVAL;
 	}
-	return thaw_super_locked(sb, who);
+	return thaw_super_locked(sb, who, freeze_owner);
 }
 EXPORT_SYMBOL(thaw_super);
 
