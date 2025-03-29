@@ -605,7 +605,7 @@ void bch2_rebalance_status_to_text(struct printbuf *out, struct bch_fs *c)
 	bch2_accounting_mem_read(c, disk_accounting_pos_to_bpos(&acc), &v, 1);
 
 	prt_printf(out, "pending work:\t");
-	prt_human_readable_u64(out, v);
+	prt_human_readable_u64(out, v << 9);
 	prt_printf(out, "\n\n");
 
 	prt_str(out, bch2_rebalance_state_strs[r->state]);
