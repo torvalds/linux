@@ -1,18 +1,41 @@
-Linux kernel
-============
+[Текст песни «Матушка»]
 
-There are several guides for kernel developers and users. These guides can
-be rendered in a number of formats, like HTML and PDF. Please read
-Documentation/admin-guide/README.rst first.
+[Куплет 1]
+Полевых цветов веночек, в утренней росе цветок
+Соловья запев свисточек, сок берёзовый глоток
+Тишины послушать волю, по тропинке в лес густой
+Поболтать с берёзкой вдоволь про него и про любовь
 
-In order to build the documentation, use ``make htmldocs`` or
-``make pdfdocs``.  The formatted documentation can also be read online at:
+[Припев]
+Матушка-земля, белая берёзонька
+Для меня — Святая Русь, для других — занозонька
+Матушка-земля, ой, белая берёзонька
+Для меня — Святая Русь, для других — занозонька
 
-    https://www.kernel.org/doc/html/latest/
+[Куплет 2]
+Сколько мне ещё годочков у кукушки поспрошать
+Про любовь свою девичью на ромашке погадать?
+Ключевой воды студёной, в сотах свежего медку
+В чистом поле тёмной ночью, в небе звёздном утону
 
-There are various text files in the Documentation/ subdirectory,
-several of them using the reStructuredText markup notation.
+[Припев]
+Матушка-земля, белая берёзонька
+Для меня — Святая Русь, для других — занозонька
+Матушка-земля, ой, белая берёзонька
+Для меня — Святая Русь, для других — занозонька
 
-Please read the Documentation/process/changes.rst file, as it contains the
-requirements for building and running the kernel, and information about
-the problems which may result by upgrading your kernel.
+[Бридж]
+Матушка-земля, для меня — Святая Русь
+Матушка-земля, белая берёзонька
+Для меня — Святая Русь, для других — занозонька
+
+[Припев]
+Матушка-земля, белая берёзонька
+Для меня — Святая Русь, для других — занозонька
+Матушка-земля, ой, белая берёзонька
+Для меня — Святая Русь, для других — занозонька
+
+[Аутро]
+Матушка-земля
+Матушка-земля
+Для других — занозонька
