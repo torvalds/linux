@@ -185,6 +185,12 @@ properties:
           - maxim,max5484
             # PECI-to-I2C translator for PECI-to-SMBus/I2C protocol conversion
           - maxim,max6621
+            # InTune Automatically Compensated Digital PoL Controller with Driver and PMBus Telemetry
+          - maxim,max15301
+            # 6A InTune Automatically Compensated Converter with PMBus Telemetry
+          - maxim,max15303
+            # Multiphase Master with PMBus Interface and Internal Buck Converter
+          - maxim,max20751
             # mCube 3-axis 8-bit digital accelerometer
           - mcube,mc3230
             # Measurement Specialities I2C temperature and humidity sensor
@@ -382,6 +388,8 @@ properties:
           - ti,tps53676
             # TI Dual channel DCAP+ multiphase controller TPS53679
           - ti,tps53679
+            # TI Dual channel DCAP+ multiphase controller TPS53681
+          - ti,tps53681
             # TI Dual channel DCAP+ multiphase controller TPS53688
           - ti,tps53688
             # TI DC-DC converters on PMBus
@@ -389,6 +397,7 @@ properties:
           - ti,tps544b25
           - ti,tps544c20
           - ti,tps544c25
+          - ti,tps546b24
           - ti,tps546d24
             # I2C Touch-Screen Controller
           - ti,tsc2003
