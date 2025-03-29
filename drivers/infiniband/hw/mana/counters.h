@@ -1,0 +1,44 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Copyright (c) 2024 Microsoft Corporation. All rights reserved.
+ */
+
+#ifndef _COUNTERS_H_
+#define _COUNTERS_H_
+
+#include "mana_ib.h"
+
+enum mana_ib_port_counters {
+	MANA_IB_REQUESTER_TIMEOUT,
+	MANA_IB_REQUESTER_OOS_NAK,
+	MANA_IB_REQUESTER_RNR_NAK,
+	MANA_IB_RESPONDER_RNR_NAK,
+	MANA_IB_RESPONDER_OOS,
+	MANA_IB_RESPONDER_DUP_REQUEST,
+	MANA_IB_REQUESTER_IMPLICIT_NAK,
+	MANA_IB_REQUESTER_READRESP_PSN_MISMATCH,
+	MANA_IB_NAK_INV_REQ,
+	MANA_IB_NAK_ACCESS_ERR,
+	MANA_IB_NAK_OPP_ERR,
+	MANA_IB_NAK_INV_READ,
+	MANA_IB_RESPONDER_LOCAL_LEN_ERR,
+	MANA_IB_REQUESTOR_LOCAL_PROT_ERR,
+	MANA_IB_RESPONDER_REM_ACCESS_ERR,
+	MANA_IB_RESPONDER_LOCAL_QP_ERR,
+	MANA_IB_RESPONDER_MALFORMED_WQE,
+	MANA_IB_GENERAL_HW_ERR,
+	MANA_IB_REQUESTER_RNR_NAK_RETRIES_EXCEEDED,
+	MANA_IB_REQUESTER_RETRIES_EXCEEDED,
+	MANA_IB_TOTAL_FATAL_ERR,
+	MANA_IB_RECEIVED_CNPS,
+	MANA_IB_NUM_QPS_CONGESTED,
+	MANA_IB_RATE_INC_EVENTS,
+	MANA_IB_NUM_QPS_RECOVERED,
+	MANA_IB_CURRENT_RATE,
+};
+
+struct rdma_hw_stats *mana_ib_alloc_hw_port_stats(struct ib_device *ibdev,
+						  u32 port_num);
+int mana_ib_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
+			 u32 port_num, int index);
+#endif /* _COUNTERS_H_ */

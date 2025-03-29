@@ -152,6 +152,7 @@ struct gdma_general_req {
 #define GDMA_MESSAGE_V1 1
 #define GDMA_MESSAGE_V2 2
 #define GDMA_MESSAGE_V3 3
+#define GDMA_MESSAGE_V4 4
 
 struct gdma_general_resp {
 	struct gdma_resp_hdr hdr;
@@ -778,6 +779,7 @@ struct gdma_destroy_dma_region_req {
 
 enum gdma_pd_flags {
 	GDMA_PD_FLAG_INVALID = 0,
+	GDMA_PD_FLAG_ALLOW_GPA_MR = 1,
 };
 
 struct gdma_create_pd_req {
@@ -803,6 +805,11 @@ struct gdma_destory_pd_resp {
 };/* HW DATA */
 
 enum gdma_mr_type {
+	/*
+	 * Guest Physical Address - MRs of this type allow access
+	 * to any DMA-mapped memory using bus-logical address
+	 */
+	GDMA_MR_TYPE_GPA = 1,
 	/* Guest Virtual Address - MRs of this type allow access
 	 * to memory mapped by PTEs associated with this MR using a virtual
 	 * address that is set up in the MST

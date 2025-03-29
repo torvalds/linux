@@ -225,6 +225,8 @@ struct bnxt_re_dev {
 	unsigned long			event_bitmap;
 	struct bnxt_qplib_cc_param	cc_param;
 	struct workqueue_struct		*dcb_wq;
+	struct dentry                   *cc_config;
+	struct bnxt_re_dbg_cc_config_params *cc_config_params;
 };
 
 #define to_bnxt_re_dev(ptr, member)	\
@@ -236,6 +238,10 @@ struct bnxt_re_dev {
 
 #define BNXT_RE_CHECK_RC(x) ((x) && ((x) != -ETIMEDOUT))
 void bnxt_re_pacing_alert(struct bnxt_re_dev *rdev);
+
+int bnxt_re_assign_pma_port_counters(struct bnxt_re_dev *rdev, struct ib_mad *out_mad);
+int bnxt_re_assign_pma_port_ext_counters(struct bnxt_re_dev *rdev,
+					 struct ib_mad *out_mad);
 
 static inline struct device *rdev_to_dev(struct bnxt_re_dev *rdev)
 {

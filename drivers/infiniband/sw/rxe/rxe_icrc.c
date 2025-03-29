@@ -10,28 +10,6 @@
 #include "rxe_loc.h"
 
 /**
- * rxe_icrc_init() - Initialize crypto function for computing crc32
- * @rxe: rdma_rxe device object
- *
- * Return: 0 on success else an error
- */
-int rxe_icrc_init(struct rxe_dev *rxe)
-{
-	struct crypto_shash *tfm;
-
-	tfm = crypto_alloc_shash("crc32", 0, 0);
-	if (IS_ERR(tfm)) {
-		rxe_dbg_dev(rxe, "failed to init crc32 algorithm err: %ld\n",
-			       PTR_ERR(tfm));
-		return PTR_ERR(tfm);
-	}
-
-	rxe->tfm = tfm;
-
-	return 0;
-}
-
-/**
  * rxe_crc32() - Compute cumulative crc32 for a contiguous segment
  * @rxe: rdma_rxe device object
  * @crc: starting crc32 value from previous segments
@@ -42,23 +20,7 @@ int rxe_icrc_init(struct rxe_dev *rxe)
  */
 static __be32 rxe_crc32(struct rxe_dev *rxe, __be32 crc, void *next, size_t len)
 {
-	__be32 icrc;
-	int err;
-
-	SHASH_DESC_ON_STACK(shash, rxe->tfm);
-
-	shash->tfm = rxe->tfm;
-	*(__be32 *)shash_desc_ctx(shash) = crc;
-	err = crypto_shash_update(shash, next, len);
-	if (unlikely(err)) {
-		rxe_dbg_dev(rxe, "failed crc calculation, err: %d\n", err);
-		return (__force __be32)crc32_le((__force u32)crc, next, len);
-	}
-
-	icrc = *(__be32 *)shash_desc_ctx(shash);
-	barrier_data(shash_desc_ctx(shash));
-
-	return icrc;
+	return (__force __be32)crc32_le((__force u32)crc, next, len);
 }
 
 /**

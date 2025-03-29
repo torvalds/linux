@@ -10,9 +10,9 @@
 #include <rdma/restrack.h>
 #include <linux/socket.h>
 #include <linux/skbuff.h>
-#include <crypto/hash.h>
 #include <linux/crc32.h>
 #include <linux/crc32c.h>
+#include <linux/unaligned.h>
 
 #include <rdma/siw-abi.h>
 #include "iwarp.h"
@@ -289,7 +289,8 @@ struct siw_rx_stream {
 
 	union iwarp_hdr hdr;
 	struct mpa_trailer trailer;
-	struct shash_desc *mpa_crc_hd;
+	u32 mpa_crc;
+	bool mpa_crc_enabled;
 
 	/*
 	 * For each FPDU, main RX loop runs through 3 stages:
@@ -390,7 +391,8 @@ struct siw_iwarp_tx {
 	int burst;
 	int bytes_unsent; /* ddp payload bytes */
 
-	struct shash_desc *mpa_crc_hd;
+	u32 mpa_crc;
+	bool mpa_crc_enabled;
 
 	u8 do_crc : 1; /* do crc for segment */
 	u8 use_sendpage : 1; /* send w/o copy */
@@ -496,7 +498,6 @@ extern u_char mpa_version;
 extern const bool peer_to_peer;
 extern struct task_struct *siw_tx_thread[];
 
-extern struct crypto_shash *siw_crypto_shash;
 extern struct iwarp_msg_info iwarp_pktinfo[RDMAP_TERMINATE + 1];
 
 /* QP general functions */
@@ -668,6 +669,30 @@ static inline struct siw_sqe *irq_alloc_free(struct siw_qp *qp)
 	return NULL;
 }
 
+static inline void siw_crc_init(u32 *crc)
+{
+	*crc = ~0;
+}
+
+static inline void siw_crc_update(u32 *crc, const void *data, size_t len)
+{
+	*crc = crc32c(*crc, data, len);
+}
+
+static inline void siw_crc_final(u32 *crc, u8 out[4])
+{
+	put_unaligned_le32(~*crc, out);
+}
+
+static inline void siw_crc_oneshot(const void *data, size_t len, u8 out[4])
+{
+	u32 crc;
+
+	siw_crc_init(&crc);
+	siw_crc_update(&crc, data, len);
+	return siw_crc_final(&crc, out);
+}
+
 static inline __wsum siw_csum_update(const void *buff, int len, __wsum sum)
 {
 	return (__force __wsum)crc32c((__force __u32)sum, buff, len);
@@ -686,11 +711,11 @@ static inline void siw_crc_skb(struct siw_rx_stream *srx, unsigned int len)
 		.update = siw_csum_update,
 		.combine = siw_csum_combine,
 	};
-	__wsum crc = *(u32 *)shash_desc_ctx(srx->mpa_crc_hd);
+	__wsum crc = (__force __wsum)srx->mpa_crc;
 
 	crc = __skb_checksum(srx->skb, srx->skb_offset, len, crc,
 			     &siw_cs_ops);
-	*(u32 *)shash_desc_ctx(srx->mpa_crc_hd) = crc;
+	srx->mpa_crc = (__force u32)crc;
 }
 
 #define siw_dbg(ibdev, fmt, ...)                                               \

@@ -1274,57 +1274,14 @@ void irdma_ieq_mpa_crc_ae(struct irdma_sc_dev *dev, struct irdma_sc_qp *qp)
 }
 
 /**
- * irdma_init_hash_desc - initialize hash for crc calculation
- * @desc: cryption type
- */
-int irdma_init_hash_desc(struct shash_desc **desc)
-{
-	struct crypto_shash *tfm;
-	struct shash_desc *tdesc;
-
-	tfm = crypto_alloc_shash("crc32c", 0, 0);
-	if (IS_ERR(tfm))
-		return -EINVAL;
-
-	tdesc = kzalloc(sizeof(*tdesc) + crypto_shash_descsize(tfm),
-			GFP_KERNEL);
-	if (!tdesc) {
-		crypto_free_shash(tfm);
-		return -EINVAL;
-	}
-
-	tdesc->tfm = tfm;
-	*desc = tdesc;
-
-	return 0;
-}
-
-/**
- * irdma_free_hash_desc - free hash desc
- * @desc: to be freed
- */
-void irdma_free_hash_desc(struct shash_desc *desc)
-{
-	if (desc) {
-		crypto_free_shash(desc->tfm);
-		kfree(desc);
-	}
-}
-
-/**
  * irdma_ieq_check_mpacrc - check if mpa crc is OK
- * @desc: desc for hash
  * @addr: address of buffer for crc
  * @len: length of buffer
  * @val: value to be compared
  */
-int irdma_ieq_check_mpacrc(struct shash_desc *desc, void *addr, u32 len,
-			   u32 val)
+int irdma_ieq_check_mpacrc(const void *addr, u32 len, u32 val)
 {
-	u32 crc = 0;
-
-	crypto_shash_digest(desc, addr, len, (u8 *)&crc);
-	if (crc != val)
+	if ((__force u32)cpu_to_le32(~crc32c(~0, addr, len)) != val)
 		return -EINVAL;
 
 	return 0;

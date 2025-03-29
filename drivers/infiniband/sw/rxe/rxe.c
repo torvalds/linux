@@ -31,9 +31,6 @@ void rxe_dealloc(struct ib_device *ib_dev)
 
 	WARN_ON(!RB_EMPTY_ROOT(&rxe->mcg_tree));
 
-	if (rxe->tfm)
-		crypto_free_shash(rxe->tfm);
-
 	mutex_destroy(&rxe->usdev_lock);
 }
 
@@ -72,10 +69,39 @@ static void rxe_init_device_param(struct rxe_dev *rxe, struct net_device *ndev)
 	rxe->attr.max_pkeys			= RXE_MAX_PKEYS;
 	rxe->attr.local_ca_ack_delay		= RXE_LOCAL_CA_ACK_DELAY;
 
+	if (ndev->addr_len) {
+		memcpy(rxe->raw_gid, ndev->dev_addr,
+			min_t(unsigned int, ndev->addr_len, ETH_ALEN));
+	} else {
+		/*
+		 * This device does not have a HW address, but
+		 * connection mangagement requires a unique gid.
+		 */
+		eth_random_addr(rxe->raw_gid);
+	}
+
 	addrconf_addr_eui48((unsigned char *)&rxe->attr.sys_image_guid,
-			ndev->dev_addr);
+			rxe->raw_gid);
 
 	rxe->max_ucontext			= RXE_MAX_UCONTEXT;
+
+	if (IS_ENABLED(CONFIG_INFINIBAND_ON_DEMAND_PAGING)) {
+		rxe->attr.kernel_cap_flags |= IBK_ON_DEMAND_PAGING;
+
+		/* IB_ODP_SUPPORT_IMPLICIT is not supported right now. */
+		rxe->attr.odp_caps.general_caps |= IB_ODP_SUPPORT;
+
+		rxe->attr.odp_caps.per_transport_caps.ud_odp_caps |= IB_ODP_SUPPORT_SEND;
+		rxe->attr.odp_caps.per_transport_caps.ud_odp_caps |= IB_ODP_SUPPORT_RECV;
+		rxe->attr.odp_caps.per_transport_caps.ud_odp_caps |= IB_ODP_SUPPORT_SRQ_RECV;
+
+		rxe->attr.odp_caps.per_transport_caps.rc_odp_caps |= IB_ODP_SUPPORT_SEND;
+		rxe->attr.odp_caps.per_transport_caps.rc_odp_caps |= IB_ODP_SUPPORT_RECV;
+		rxe->attr.odp_caps.per_transport_caps.rc_odp_caps |= IB_ODP_SUPPORT_WRITE;
+		rxe->attr.odp_caps.per_transport_caps.rc_odp_caps |= IB_ODP_SUPPORT_READ;
+		rxe->attr.odp_caps.per_transport_caps.rc_odp_caps |= IB_ODP_SUPPORT_ATOMIC;
+		rxe->attr.odp_caps.per_transport_caps.rc_odp_caps |= IB_ODP_SUPPORT_SRQ_RECV;
+	}
 }
 
 /* initialize port attributes */
@@ -113,7 +139,7 @@ static void rxe_init_ports(struct rxe_dev *rxe, struct net_device *ndev)
 
 	rxe_init_port_param(port);
 	addrconf_addr_eui48((unsigned char *)&port->port_guid,
-			    ndev->dev_addr);
+			    rxe->raw_gid);
 	spin_lock_init(&port->port_lock);
 }
 
