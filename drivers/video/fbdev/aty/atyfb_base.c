@@ -1861,6 +1861,9 @@ static int atyfb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 		if (M64_HAS(INTEGRATED)) {
 			struct atyclk clk = { 0 };
 			union aty_pll *pll = &par->pll;
+			
+			memset( &clk, 0, sizeof(struct atyclk) );
+			
 			u32 dsp_config = pll->ct.dsp_config;
 			u32 dsp_on_off = pll->ct.dsp_on_off;
 			clk.ref_clk_per = par->ref_clk_per;
