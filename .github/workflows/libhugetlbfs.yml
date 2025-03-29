@@ -1,0 +1,59 @@
+# SPDX-FileCopyrightText: 2024 Rivos Inc.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: linux-riscv-ci-libhugetlbfs
+
+defaults:
+  run:
+    shell: bash -leo pipefail {0}
+
+on: pull_request
+
+concurrency:
+  group: ci-test-${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  build-series:
+    if:  ${{ startsWith(github.head_ref, 'dev/alex/fixes_v6.12_test') }}
+    runs-on: self-hosted
+    timeout-minutes: 50400 # 35 days
+    container:
+      image: ghcr.io/linux-riscv/linaro-tuxrun-dispatcher-riscv64:latest
+      volumes:
+        - /home/github/ramdisk/build:/build
+        - /home/github/ccache:/build/ccache
+        - /home/github/gitref:/build/gitref
+        - /tmp:/tmp
+        - /boot:/boot
+        - /lib/modules:/lib/modules
+      options: --device /dev/kvm
+    steps:
+      - name: Configure git
+        run: |
+          git config --global --add safe.directory '*'
+      - name: Checkout git
+        run: |
+          mkdir -p /build/my-linux
+          cd /build/my-linux
+          git clone --filter=tree:0 --reference /build/gitref https://github.com/${{ github.repository }} .
+          git fetch origin ${{ github.event.pull_request.head.sha }}
+          git reset --hard ${{ github.event.pull_request.head.sha }}
+          git log -1
+      - name: Run checks
+        env:
+          SQUAD_TOKEN: ${{ secrets.SQUAD_TOKEN_ALEX }}
+          GITHUB_JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        continue-on-error: true
+        run: |
+          mkdir -p /build/logs/
+          cd /build/my-linux && bash .github/scripts/libhugetlbfs.sh | tee -i /build/logs/all.log
+      - name: Collect logs and json squad
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: |
+            /build/logs/*
+            /build/squad_json/*
+
