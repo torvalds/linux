@@ -368,9 +368,8 @@ static void __rate_control_send_low(struct ieee80211_hw *hw,
 				    struct ieee80211_tx_info *info,
 				    u32 rate_mask)
 {
+	u32 rate_flags = 0;
 	int i;
-	u32 rate_flags =
-		ieee80211_chandef_rate_flags(&hw->conf.chandef);
 
 	if (sband->band == NL80211_BAND_S1GHZ) {
 		info->control.rates[0].flags |= IEEE80211_TX_RC_S1G_MCS;
@@ -778,14 +777,9 @@ static bool rate_control_cap_mask(struct ieee80211_sub_if_data *sdata,
 				  u8 mcs_mask[IEEE80211_HT_MCS_MASK_LEN],
 				  u16 vht_mask[NL80211_VHT_NSS_MAX])
 {
-	u32 i, flags;
+	u32 i;
 
 	*mask = sdata->rc_rateidx_mask[sband->band];
-	flags = ieee80211_chandef_rate_flags(&sdata->vif.bss_conf.chanreq.oper);
-	for (i = 0; i < sband->n_bitrates; i++) {
-		if ((flags & sband->bitrates[i].flags) != flags)
-			*mask &= ~BIT(i);
-	}
 
 	if (*mask == (1 << sband->n_bitrates) - 1 &&
 	    !sdata->rc_has_mcs_mask[sband->band] &&

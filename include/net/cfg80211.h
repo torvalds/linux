@@ -1097,43 +1097,6 @@ int cfg80211_chandef_primary(const struct cfg80211_chan_def *chandef,
 int nl80211_send_chandef(struct sk_buff *msg, const struct cfg80211_chan_def *chandef);
 
 /**
- * ieee80211_chanwidth_rate_flags - return rate flags for channel width
- * @width: the channel width of the channel
- *
- * In some channel types, not all rates may be used - for example CCK
- * rates may not be used in 5/10 MHz channels.
- *
- * Returns: rate flags which apply for this channel width
- */
-static inline enum ieee80211_rate_flags
-ieee80211_chanwidth_rate_flags(enum nl80211_chan_width width)
-{
-	switch (width) {
-	case NL80211_CHAN_WIDTH_5:
-		return IEEE80211_RATE_SUPPORTS_5MHZ;
-	case NL80211_CHAN_WIDTH_10:
-		return IEEE80211_RATE_SUPPORTS_10MHZ;
-	default:
-		break;
-	}
-	return 0;
-}
-
-/**
- * ieee80211_chandef_rate_flags - returns rate flags for a channel
- * @chandef: channel definition for the channel
- *
- * See ieee80211_chanwidth_rate_flags().
- *
- * Returns: rate flags which apply for this channel
- */
-static inline enum ieee80211_rate_flags
-ieee80211_chandef_rate_flags(struct cfg80211_chan_def *chandef)
-{
-	return ieee80211_chanwidth_rate_flags(chandef->width);
-}
-
-/**
  * ieee80211_chandef_max_power - maximum transmission power for the chandef
  *
  * In some regulations, the transmit power may depend on the configured channel
