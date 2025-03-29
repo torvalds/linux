@@ -1164,7 +1164,7 @@
 						groups = "uart_tx_a",
 							 "uart_rx_a";
 						function = "uart_a";
-						bias-disable;
+						bias-pull-up;
 					};
 				};
 
@@ -1182,7 +1182,7 @@
 						groups = "uart_tx_b_x",
 							 "uart_rx_b_x";
 						function = "uart_b";
-						bias-disable;
+						bias-pull-up;
 					};
 				};
 
@@ -1200,7 +1200,7 @@
 						groups = "uart_tx_b_z",
 							 "uart_rx_b_z";
 						function = "uart_b";
-						bias-disable;
+						bias-pull-up;
 					};
 				};
 
@@ -1218,7 +1218,7 @@
 						groups = "uart_ao_tx_b_z",
 							 "uart_ao_rx_b_z";
 						function = "uart_ao_b_z";
-						bias-disable;
+						bias-pull-up;
 					};
 				};
 
@@ -1654,7 +1654,7 @@
 						groups = "uart_ao_tx_a",
 							 "uart_ao_rx_a";
 						function = "uart_ao_a";
-						bias-disable;
+						bias-pull-up;
 					};
 				};
 
@@ -1672,7 +1672,7 @@
 						groups = "uart_ao_tx_b",
 							 "uart_ao_rx_b";
 						function = "uart_ao_b";
-						bias-disable;
+						bias-pull-up;
 					};
 				};
 
