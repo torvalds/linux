@@ -2,6 +2,8 @@
 #include <linux/export.h>
 #include <linux/init.h>
 
+/* This file includes the compiled-in list of X.509 certificates and reserves space for an extra certificate. */
+
 	__INITRODATA
 
 	.align 8

@@ -1,8 +1,10 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+ // SPDX-License-Identifier: GPL-2.0-or-later
 /* System trusted keyring for trusted public keys
  *
  * Copyright (C) 2012 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
+ *
+ * This file implements the system trusted keyring, which contains trusted public keys and manages the addition of keys to the keyring.
  */
 
 #include <linux/export.h>
