@@ -114,9 +114,6 @@ enum {
 struct io_wq {
 	unsigned long state;
 
-	free_work_fn *free_work;
-	io_wq_work_fn *do_work;
-
 	struct io_wq_hash *hash;
 
 	atomic_t worker_refs;
@@ -612,10 +609,10 @@ static void io_worker_handle_work(struct io_wq_acct *acct,
 			if (do_kill &&
 			    (work_flags & IO_WQ_WORK_UNBOUND))
 				atomic_or(IO_WQ_WORK_CANCEL, &work->flags);
-			wq->do_work(work);
+			io_wq_submit_work(work);
 			io_assign_current_work(worker, NULL);
 
-			linked = wq->free_work(work);
+			linked = io_wq_free_work(work);
 			work = next_hashed;
 			if (!work && linked && !io_wq_is_hashed(linked)) {
 				work = linked;
@@ -934,8 +931,8 @@ static void io_run_cancel(struct io_wq_work *work, struct io_wq *wq)
 {
 	do {
 		atomic_or(IO_WQ_WORK_CANCEL, &work->flags);
-		wq->do_work(work);
-		work = wq->free_work(work);
+		io_wq_submit_work(work);
+		work = io_wq_free_work(work);
 	} while (work);
 }
 
@@ -1195,8 +1192,6 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 	int ret, i;
 	struct io_wq *wq;
 
-	if (WARN_ON_ONCE(!data->free_work || !data->do_work))
-		return ERR_PTR(-EINVAL);
 	if (WARN_ON_ONCE(!bounded))
 		return ERR_PTR(-EINVAL);
 
@@ -1206,8 +1201,6 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 
 	refcount_inc(&data->hash->refs);
 	wq->hash = data->hash;
-	wq->free_work = data->free_work;
-	wq->do_work = data->do_work;
 
 	ret = -ENOMEM;
 
