@@ -658,7 +658,7 @@ static int imx334_update_exp_gain(struct imx334 *imx334, u32 exposure, u32 gain)
 	lpfr = imx334->vblank + imx334->cur_mode->height;
 	shutter = lpfr - exposure;
 
-	dev_dbg(imx334->dev, "Set long exp %u analog gain %u sh0 %u lpfr %u",
+	dev_dbg(imx334->dev, "Set long exp %u analog gain %u sh0 %u lpfr %u\n",
 		exposure, gain, shutter, lpfr);
 
 	ret = imx334_write_reg(imx334, IMX334_REG_HOLD, 1, 1);
@@ -705,7 +705,7 @@ static int imx334_set_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_VBLANK:
 		imx334->vblank = imx334->vblank_ctrl->val;
 
-		dev_dbg(imx334->dev, "Received vblank %u, new lpfr %u",
+		dev_dbg(imx334->dev, "Received vblank %u, new lpfr %u\n",
 			imx334->vblank,
 			imx334->vblank + imx334->cur_mode->height);
 
@@ -725,7 +725,7 @@ static int imx334_set_ctrl(struct v4l2_ctrl *ctrl)
 		exposure = ctrl->val;
 		analog_gain = imx334->again_ctrl->val;
 
-		dev_dbg(imx334->dev, "Received exp %u analog gain %u",
+		dev_dbg(imx334->dev, "Received exp %u analog gain %u\n",
 			exposure, analog_gain);
 
 		ret = imx334_update_exp_gain(imx334, exposure, analog_gain);
@@ -759,7 +759,7 @@ static int imx334_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret = 0;
 		break;
 	default:
-		dev_err(imx334->dev, "Invalid control %d", ctrl->id);
+		dev_err(imx334->dev, "Invalid control %d\n", ctrl->id);
 		ret = -EINVAL;
 	}
 
@@ -986,7 +986,7 @@ static int imx334_start_streaming(struct imx334 *imx334)
 	ret = imx334_write_regs(imx334, common_mode_regs,
 				ARRAY_SIZE(common_mode_regs));
 	if (ret) {
-		dev_err(imx334->dev, "fail to write common registers");
+		dev_err(imx334->dev, "fail to write common registers\n");
 		return ret;
 	}
 
@@ -995,7 +995,7 @@ static int imx334_start_streaming(struct imx334 *imx334)
 	ret = imx334_write_regs(imx334, reg_list->regs,
 				reg_list->num_of_regs);
 	if (ret) {
-		dev_err(imx334->dev, "fail to write initial registers");
+		dev_err(imx334->dev, "fail to write initial registers\n");
 		return ret;
 	}
 
@@ -1009,7 +1009,7 @@ static int imx334_start_streaming(struct imx334 *imx334)
 	/* Setup handler will write actual exposure and gain */
 	ret =  __v4l2_ctrl_handler_setup(imx334->sd.ctrl_handler);
 	if (ret) {
-		dev_err(imx334->dev, "fail to setup handler");
+		dev_err(imx334->dev, "fail to setup handler\n");
 		return ret;
 	}
 
@@ -1017,7 +1017,7 @@ static int imx334_start_streaming(struct imx334 *imx334)
 	ret = imx334_write_reg(imx334, IMX334_REG_MODE_SELECT,
 			       1, IMX334_MODE_STREAMING);
 	if (ret) {
-		dev_err(imx334->dev, "fail to start streaming");
+		dev_err(imx334->dev, "fail to start streaming\n");
 		return ret;
 	}
 
@@ -1091,7 +1091,7 @@ static int imx334_detect(struct imx334 *imx334)
 		return ret;
 
 	if (val != IMX334_ID) {
-		dev_err(imx334->dev, "chip id mismatch: %x!=%x",
+		dev_err(imx334->dev, "chip id mismatch: %x!=%x\n",
 			IMX334_ID, val);
 		return -ENXIO;
 	}
@@ -1121,24 +1121,20 @@ static int imx334_parse_hw_config(struct imx334 *imx334)
 	/* Request optional reset pin */
 	imx334->reset_gpio = devm_gpiod_get_optional(imx334->dev, "reset",
 						     GPIOD_OUT_LOW);
-	if (IS_ERR(imx334->reset_gpio)) {
-		dev_err(imx334->dev, "failed to get reset gpio %ld",
-			PTR_ERR(imx334->reset_gpio));
-		return PTR_ERR(imx334->reset_gpio);
-	}
+	if (IS_ERR(imx334->reset_gpio))
+		return dev_err_probe(imx334->dev, PTR_ERR(imx334->reset_gpio),
+				     "failed to get reset gpio\n");
 
 	/* Get sensor input clock */
 	imx334->inclk = devm_clk_get(imx334->dev, NULL);
-	if (IS_ERR(imx334->inclk)) {
-		dev_err(imx334->dev, "could not get inclk");
-		return PTR_ERR(imx334->inclk);
-	}
+	if (IS_ERR(imx334->inclk))
+		return dev_err_probe(imx334->dev, PTR_ERR(imx334->inclk),
+					 "could not get inclk\n");
 
 	rate = clk_get_rate(imx334->inclk);
-	if (rate != IMX334_INCLK_RATE) {
-		dev_err(imx334->dev, "inclk frequency mismatch");
-		return -EINVAL;
-	}
+	if (rate != IMX334_INCLK_RATE)
+		return dev_err_probe(imx334->dev, -EINVAL,
+					 "inclk frequency mismatch\n");
 
 	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
 	if (!ep)
@@ -1151,7 +1147,7 @@ static int imx334_parse_hw_config(struct imx334 *imx334)
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != IMX334_NUM_DATA_LANES) {
 		dev_err(imx334->dev,
-			"number of CSI2 data lanes %d is not supported",
+			"number of CSI2 data lanes %d is not supported\n",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
 		goto done_endpoint_free;
@@ -1205,7 +1201,7 @@ static int imx334_power_on(struct device *dev)
 
 	ret = clk_prepare_enable(imx334->inclk);
 	if (ret) {
-		dev_err(imx334->dev, "fail to enable inclk");
+		dev_err(imx334->dev, "fail to enable inclk\n");
 		goto error_reset;
 	}
 
@@ -1349,23 +1345,22 @@ static int imx334_probe(struct i2c_client *client)
 	imx334->sd.internal_ops = &imx334_internal_ops;
 
 	ret = imx334_parse_hw_config(imx334);
-	if (ret) {
-		dev_err(imx334->dev, "HW configuration is not supported");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(imx334->dev, ret,
+					"HW configuration is not supported\n");
 
 	mutex_init(&imx334->mutex);
 
 	ret = imx334_power_on(imx334->dev);
 	if (ret) {
-		dev_err(imx334->dev, "failed to power-on the sensor");
+		dev_err_probe(imx334->dev, ret, "failed to power-on the sensor\n");
 		goto error_mutex_destroy;
 	}
 
 	/* Check module identity */
 	ret = imx334_detect(imx334);
 	if (ret) {
-		dev_err(imx334->dev, "failed to find sensor: %d", ret);
+		dev_err(imx334->dev, "failed to find sensor: %d\n", ret);
 		goto error_power_off;
 	}
 
@@ -1376,7 +1371,7 @@ static int imx334_probe(struct i2c_client *client)
 
 	ret = imx334_init_controls(imx334);
 	if (ret) {
-		dev_err(imx334->dev, "failed to init controls: %d", ret);
+		dev_err(imx334->dev, "failed to init controls: %d\n", ret);
 		goto error_power_off;
 	}
 
@@ -1388,14 +1383,14 @@ static int imx334_probe(struct i2c_client *client)
 	imx334->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&imx334->sd.entity, 1, &imx334->pad);
 	if (ret) {
-		dev_err(imx334->dev, "failed to init entity pads: %d", ret);
+		dev_err(imx334->dev, "failed to init entity pads: %d\n", ret);
 		goto error_handler_free;
 	}
 
 	ret = v4l2_async_register_subdev_sensor(&imx334->sd);
 	if (ret < 0) {
 		dev_err(imx334->dev,
-			"failed to register async subdev: %d", ret);
+			"failed to register async subdev: %d\n", ret);
 		goto error_media_entity;
 	}
 
