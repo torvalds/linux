@@ -43,7 +43,6 @@ EXPORT_SYMBOL($global$);
 #endif
 
 #include <asm/io.h>
-EXPORT_SYMBOL(memcpy_fromio);
 
 extern void $$divI(void);
 extern void $$divU(void);
