@@ -184,7 +184,6 @@ struct imx334_mode {
  * @again_ctrl: Pointer to analog gain control
  * @vblank: Vertical blanking in lines
  * @cur_mode: Pointer to current selected sensor mode
- * @mutex: Mutex for serializing sensor controls
  * @link_freq_bitmap: Menu bitmap for link_freq_ctrl
  * @cur_code: current selected format code
  */
@@ -207,7 +206,6 @@ struct imx334 {
 	};
 	u32 vblank;
 	const struct imx334_mode *cur_mode;
-	struct mutex mutex;
 	unsigned long link_freq_bitmap;
 	u32 cur_code;
 };
@@ -755,8 +753,6 @@ static int imx334_get_pad_format(struct v4l2_subdev *sd,
 {
 	struct imx334 *imx334 = to_imx334(sd);
 
-	mutex_lock(&imx334->mutex);
-
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *framefmt;
 
@@ -766,8 +762,6 @@ static int imx334_get_pad_format(struct v4l2_subdev *sd,
 		fmt->format.code = imx334->cur_code;
 		imx334_fill_pad_format(imx334, imx334->cur_mode, fmt);
 	}
-
-	mutex_unlock(&imx334->mutex);
 
 	return 0;
 }
@@ -787,8 +781,6 @@ static int imx334_set_pad_format(struct v4l2_subdev *sd,
 	struct imx334 *imx334 = to_imx334(sd);
 	const struct imx334_mode *mode;
 	int ret = 0;
-
-	mutex_lock(&imx334->mutex);
 
 	mode = v4l2_find_nearest_size(supported_modes,
 				      ARRAY_SIZE(supported_modes),
@@ -810,8 +802,6 @@ static int imx334_set_pad_format(struct v4l2_subdev *sd,
 			imx334->cur_mode = mode;
 	}
 
-	mutex_unlock(&imx334->mutex);
-
 	return ret;
 }
 
@@ -830,16 +820,12 @@ static int imx334_init_state(struct v4l2_subdev *sd,
 
 	fmt.which = sd_state ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
 
-	mutex_lock(&imx334->mutex);
-
 	imx334_fill_pad_format(imx334, imx334->cur_mode, &fmt);
 
 	__v4l2_ctrl_modify_range(imx334->link_freq_ctrl, 0,
 				 __fls(imx334->link_freq_bitmap),
 				 ~(imx334->link_freq_bitmap),
 				 __ffs(imx334->link_freq_bitmap));
-
-	mutex_unlock(&imx334->mutex);
 
 	return imx334_set_pad_format(sd, sd_state, &fmt);
 }
@@ -943,12 +929,10 @@ static int imx334_set_stream(struct v4l2_subdev *sd, int enable)
 	struct imx334 *imx334 = to_imx334(sd);
 	int ret;
 
-	mutex_lock(&imx334->mutex);
-
 	if (enable) {
 		ret = pm_runtime_resume_and_get(imx334->dev);
 		if (ret < 0)
-			goto error_unlock;
+			return ret;
 
 		ret = imx334_start_streaming(imx334);
 		if (ret)
@@ -958,15 +942,10 @@ static int imx334_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(imx334->dev);
 	}
 
-	mutex_unlock(&imx334->mutex);
-
 	return 0;
 
 error_power_off:
 	pm_runtime_put(imx334->dev);
-error_unlock:
-	mutex_unlock(&imx334->mutex);
-
 	return ret;
 }
 
@@ -1145,9 +1124,6 @@ static int imx334_init_controls(struct imx334 *imx334)
 	if (ret)
 		return ret;
 
-	/* Serialize controls with sensor device */
-	ctrl_hdlr->lock = &imx334->mutex;
-
 	/* Initialize exposure and gain */
 	lpfr = mode->vblank + mode->height;
 	imx334->exp_ctrl = v4l2_ctrl_new_std(ctrl_hdlr,
@@ -1249,12 +1225,10 @@ static int imx334_probe(struct i2c_client *client)
 		return dev_err_probe(imx334->dev, ret,
 					"HW configuration is not supported\n");
 
-	mutex_init(&imx334->mutex);
-
 	ret = imx334_power_on(imx334->dev);
 	if (ret) {
 		dev_err_probe(imx334->dev, ret, "failed to power-on the sensor\n");
-		goto error_mutex_destroy;
+		return ret;
 	}
 
 	/* Check module identity */
@@ -1287,6 +1261,13 @@ static int imx334_probe(struct i2c_client *client)
 		goto error_handler_free;
 	}
 
+	imx334->sd.state_lock = imx334->ctrl_handler.lock;
+	ret = v4l2_subdev_init_finalize(&imx334->sd);
+	if (ret < 0) {
+		dev_err(imx334->dev, "subdev init error: %d\n", ret);
+		goto error_media_entity;
+	}
+
 	pm_runtime_set_active(imx334->dev);
 	pm_runtime_enable(imx334->dev);
 
@@ -1294,23 +1275,26 @@ static int imx334_probe(struct i2c_client *client)
 	if (ret < 0) {
 		dev_err(imx334->dev,
 			"failed to register async subdev: %d\n", ret);
-		goto error_media_entity;
+		goto error_subdev_cleanup;
 	}
 
 	pm_runtime_idle(imx334->dev);
 
 	return 0;
 
-error_media_entity:
+error_subdev_cleanup:
+	v4l2_subdev_cleanup(&imx334->sd);
 	pm_runtime_disable(imx334->dev);
 	pm_runtime_set_suspended(imx334->dev);
+
+error_media_entity:
 	media_entity_cleanup(&imx334->sd.entity);
+
 error_handler_free:
 	v4l2_ctrl_handler_free(imx334->sd.ctrl_handler);
+
 error_power_off:
 	imx334_power_off(imx334->dev);
-error_mutex_destroy:
-	mutex_destroy(&imx334->mutex);
 
 	return ret;
 }
@@ -1324,9 +1308,9 @@ error_mutex_destroy:
 static void imx334_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct imx334 *imx334 = to_imx334(sd);
 
 	v4l2_async_unregister_subdev(sd);
+	v4l2_subdev_cleanup(sd);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 
@@ -1335,8 +1319,6 @@ static void imx334_remove(struct i2c_client *client)
 		imx334_power_off(&client->dev);
 		pm_runtime_set_suspended(&client->dev);
 	}
-
-	mutex_destroy(&imx334->mutex);
 }
 
 static const struct dev_pm_ops imx334_pm_ops = {
