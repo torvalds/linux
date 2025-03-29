@@ -46,6 +46,13 @@
 		regulator-boot-on;
 		regulator-always-on;
 	};
+
+	/* 32.768kHz crystal */
+	x3: x3-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+	};
 };
 
 &audio_extal_clk {
@@ -57,12 +64,30 @@
 	pinctrl-names = "default";
 	clock-frequency = <1000000>;
 	status = "okay";
+
+	raa215300: pmic@12 {
+		compatible = "renesas,raa215300";
+		reg = <0x12>, <0x6f>;
+		reg-names = "main", "rtc";
+		clocks = <&x3>;
+		clock-names = "xin";
+
+		pinctrl-0 = <&rtc_irq_pin>;
+		pinctrl-names = "default";
+
+		interrupts-extended = <&pinctrl RZG3E_GPIO(S, 1) IRQ_TYPE_EDGE_FALLING>;
+	};
 };
 
 &pinctrl {
 	i2c2_pins: i2c {
 		pinmux = <RZG3E_PORT_PINMUX(3, 4, 1)>, /* SCL2 */
 			 <RZG3E_PORT_PINMUX(3, 5, 1)>; /* SDA2 */
+	};
+
+	rtc_irq_pin: rtc-irq {
+		pins = "PS1";
+		bias-pull-up;
 	};
 
 	sdhi0_emmc_pins: sd0-emmc {
