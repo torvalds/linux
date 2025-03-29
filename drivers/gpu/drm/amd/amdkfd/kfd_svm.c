@@ -1305,6 +1305,21 @@ svm_range_get_pte_flags(struct kfd_node *node, struct amdgpu_vm *vm,
 	case IP_VERSION(12, 0, 1):
 		mapping_flags |= AMDGPU_VM_MTYPE_NC;
 		break;
+	case IP_VERSION(12, 1, 0):
+		snoop = true;
+		if (domain == SVM_RANGE_VRAM_DOMAIN) {
+			/* local HBM  */
+			if (bo_node->adev == node->adev)
+				mapping_flags |= AMDGPU_VM_MTYPE_RW;
+			/* Remote GPU memory */
+			else
+				mapping_flags |= ext_coherent ? AMDGPU_VM_MTYPE_UC :
+								AMDGPU_VM_MTYPE_NC;
+		/* system memory accessed by the dGPU */
+		} else {
+			mapping_flags |= ext_coherent ? AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
+		}
+		break;
 	default:
 		mapping_flags |= coherent ?
 			AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;

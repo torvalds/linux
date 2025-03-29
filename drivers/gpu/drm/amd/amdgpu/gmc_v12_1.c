@@ -265,6 +265,62 @@ static void gmc_v12_1_get_vm_pde(struct amdgpu_device *adev, int level,
 	}
 }
 
+#if 0
+static void gmc_v12_1_get_coherence_flags(struct amdgpu_device *adev,
+					  struct amdgpu_bo *bo,
+					  uint64_t *flags)
+{
+	struct amdgpu_device *bo_adev = amdgpu_ttm_adev(bo->tbo.bdev);
+	bool is_vram = bo->tbo.resource &&
+		       bo->tbo.resource->mem_type == TTM_PL_VRAM;
+	bool coherent = bo->flags & (AMDGPU_GEM_CREATE_COHERENT |
+				     AMDGPU_GEM_CREATE_EXT_COHERENT);
+	bool ext_coherent = bo->flags & AMDGPU_GEM_CREATE_EXT_COHERENT;
+	uint32_t gc_ip_version = amdgpu_ip_version(adev, GC_HWIP, 0);
+	bool uncached = bo->flags & AMDGPU_GEM_CREATE_UNCACHED;
+	unsigned int mtype, mtype_local;
+	bool snoop = false;
+	bool is_local;
+
+	switch (gc_ip_version) {
+	case IP_VERSION(12, 1, 0):
+		mtype_local = MTYPE_RW;
+		if (amdgpu_mtype_local == 1) {
+			DRM_INFO_ONCE("Using MTYPE_NC for local memory\n");
+			mtype_local = MTYPE_NC;
+		} else if (amdgpu_mtype_local == 2) {
+			DRM_INFO_ONCE("MTYPE_CC not supported, using MTYPE_RW instead for local memory\n");
+		} else {
+			DRM_INFO_ONCE("Using MTYPE_RW for local memory\n");
+		}
+
+		is_local = (is_vram && adev == bo_adev);
+		snoop = true;
+		if (uncached) {
+			mtype = MTYPE_UC;
+		} else if (ext_coherent) {
+			mtype = is_local ? mtype_local : MTYPE_UC;
+		} else {
+			if (is_local)
+				mtype = mtype_local;
+			else
+				mtype = MTYPE_NC;
+		}
+		break;
+	default:
+		if (uncached || coherent)
+			mtype = MTYPE_UC;
+		else
+			mtype = MTYPE_NC;
+	}
+
+	if (mtype != MTYPE_NC)
+		*flags = AMDGPU_PTE_MTYPE_GFX12(*flags, mtype);
+
+	*flags |= snoop ? AMDGPU_PTE_SNOOPED : 0;
+}
+#endif
+
 static void gmc_v12_1_get_vm_pte(struct amdgpu_device *adev,
 				 struct amdgpu_vm *vm,
 				 struct amdgpu_bo *bo,
@@ -306,11 +362,11 @@ static void gmc_v12_1_get_vm_pte(struct amdgpu_device *adev,
 			       AMDGPU_GEM_CREATE_UNCACHED))
 		*flags = AMDGPU_PTE_MTYPE_NV10(*flags, MTYPE_UC);
 
-	if (bo && bo->flags & AMDGPU_GEM_CREATE_UNCACHED)
-		*flags = AMDGPU_PTE_MTYPE_GFX12(*flags, MTYPE_UC);
-
 	if (adev->have_atomics_support)
 		*flags |= AMDGPU_PTE_BUS_ATOMICS;
+
+	if (bo && bo->flags & AMDGPU_GEM_CREATE_UNCACHED)
+		*flags = AMDGPU_PTE_MTYPE_GFX12(*flags, MTYPE_UC);
 }
 
 static const struct amdgpu_gmc_funcs gmc_v12_1_gmc_funcs = {
