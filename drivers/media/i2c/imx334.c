@@ -578,8 +578,7 @@ static int imx334_set_ctrl(struct v4l2_ctrl *ctrl)
 	u32 exposure;
 	int ret;
 
-	switch (ctrl->id) {
-	case V4L2_CID_VBLANK:
+	if (ctrl->id == V4L2_CID_VBLANK) {
 		imx334->vblank = imx334->vblank_ctrl->val;
 
 		dev_dbg(imx334->dev, "Received vblank %u, new lpfr %u\n",
@@ -592,12 +591,23 @@ static int imx334_set_ctrl(struct v4l2_ctrl *ctrl)
 					       imx334->cur_mode->height -
 					       IMX334_EXPOSURE_OFFSET,
 					       1, IMX334_EXPOSURE_DEFAULT);
+		if (ret)
+			return ret;
+	}
+
+	/* Set controls only if sensor is in power on state */
+	if (!pm_runtime_get_if_in_use(imx334->dev))
+		return 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_VBLANK:
+		exposure = imx334->exp_ctrl->val;
+		analog_gain = imx334->again_ctrl->val;
+
+		ret = imx334_update_exp_gain(imx334, exposure, analog_gain);
+
 		break;
 	case V4L2_CID_EXPOSURE:
-
-		/* Set controls only if sensor is in power on state */
-		if (!pm_runtime_get_if_in_use(imx334->dev))
-			return 0;
 
 		exposure = ctrl->val;
 		analog_gain = imx334->again_ctrl->val;
@@ -606,8 +616,6 @@ static int imx334_set_ctrl(struct v4l2_ctrl *ctrl)
 			exposure, analog_gain);
 
 		ret = imx334_update_exp_gain(imx334, exposure, analog_gain);
-
-		pm_runtime_put(imx334->dev);
 
 		break;
 	case V4L2_CID_PIXEL_RATE:
@@ -639,6 +647,8 @@ static int imx334_set_ctrl(struct v4l2_ctrl *ctrl)
 		dev_err(imx334->dev, "Invalid control %d\n", ctrl->id);
 		ret = -EINVAL;
 	}
+
+	pm_runtime_put(imx334->dev);
 
 	return ret;
 }
