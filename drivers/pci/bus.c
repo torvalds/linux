@@ -331,47 +331,6 @@ void __weak pcibios_resource_survey_bus(struct pci_bus *bus) { }
 
 void __weak pcibios_bus_add_device(struct pci_dev *pdev) { }
 
-/*
- * Create pwrctrl devices (if required) for the PCI devices to handle the power
- * state.
- */
-static void pci_pwrctrl_create_devices(struct pci_dev *dev)
-{
-	struct device_node *np = dev_of_node(&dev->dev);
-	struct device *parent = &dev->dev;
-	struct platform_device *pdev;
-
-	/*
-	 * First ensure that we are starting from a PCI bridge and it has a
-	 * corresponding devicetree node.
-	 */
-	if (np && pci_is_bridge(dev)) {
-		/*
-		 * Now look for the child PCI device nodes and create pwrctrl
-		 * devices for them. The pwrctrl device drivers will manage the
-		 * power state of the devices.
-		 */
-		for_each_available_child_of_node_scoped(np, child) {
-			/*
-			 * First check whether the pwrctrl device really
-			 * needs to be created or not. This is decided
-			 * based on at least one of the power supplies
-			 * being defined in the devicetree node of the
-			 * device.
-			 */
-			if (!of_pci_supply_present(child)) {
-				pci_dbg(dev, "skipping OF node: %s\n", child->name);
-				return;
-			}
-
-			/* Now create the pwrctrl device */
-			pdev = of_platform_device_create(child, NULL, parent);
-			if (!pdev)
-				pci_err(dev, "failed to create OF node: %s\n", child->name);
-		}
-	}
-}
-
 /**
  * pci_bus_add_device - start driver for a single device
  * @dev: device to add
@@ -395,8 +354,6 @@ void pci_bus_add_device(struct pci_dev *dev)
 	pci_create_sysfs_dev_files(dev);
 	pci_proc_attach_device(dev);
 	pci_bridge_d3_update(dev);
-
-	pci_pwrctrl_create_devices(dev);
 
 	/*
 	 * If the PCI device is associated with a pwrctrl device with a

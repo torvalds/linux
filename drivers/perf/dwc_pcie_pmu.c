@@ -13,6 +13,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/pcie-dwc.h>
 #include <linux/perf_event.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
@@ -97,26 +98,6 @@ struct dwc_pcie_dev_info {
 	struct platform_device *plat_dev;
 	struct pci_dev *pdev;
 	struct list_head dev_node;
-};
-
-struct dwc_pcie_pmu_vsec_id {
-	u16 vendor_id;
-	u16 vsec_id;
-	u8 vsec_rev;
-};
-
-/*
- * VSEC IDs are allocated by the vendor, so a given ID may mean different
- * things to different vendors.  See PCIe r6.0, sec 7.9.5.2.
- */
-static const struct dwc_pcie_pmu_vsec_id dwc_pcie_pmu_vsec_ids[] = {
-	{ .vendor_id = PCI_VENDOR_ID_ALIBABA,
-	  .vsec_id = 0x02, .vsec_rev = 0x4 },
-	{ .vendor_id = PCI_VENDOR_ID_AMPERE,
-	  .vsec_id = 0x02, .vsec_rev = 0x4 },
-	{ .vendor_id = PCI_VENDOR_ID_QCOM,
-	  .vsec_id = 0x02, .vsec_rev = 0x4 },
-	{} /* terminator */
 };
 
 static ssize_t cpumask_show(struct device *dev,
@@ -529,14 +510,14 @@ static void dwc_pcie_unregister_pmu(void *data)
 
 static u16 dwc_pcie_des_cap(struct pci_dev *pdev)
 {
-	const struct dwc_pcie_pmu_vsec_id *vid;
+	const struct dwc_pcie_vsec_id *vid;
 	u16 vsec;
 	u32 val;
 
 	if (!pci_is_pcie(pdev) || !(pci_pcie_type(pdev) == PCI_EXP_TYPE_ROOT_PORT))
 		return 0;
 
-	for (vid = dwc_pcie_pmu_vsec_ids; vid->vendor_id; vid++) {
+	for (vid = dwc_pcie_rasdes_vsec_ids; vid->vendor_id; vid++) {
 		vsec = pci_find_vsec_capability(pdev, vid->vendor_id,
 						vid->vsec_id);
 		if (vsec) {
