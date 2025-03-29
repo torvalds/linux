@@ -14,6 +14,7 @@
 #include <linux/mfd/samsung/s2mps11.h>
 #include <linux/mfd/samsung/s2mps14.h>
 #include <linux/mfd/samsung/s2mpu02.h>
+#include <linux/mfd/samsung/s2mpu05.h>
 #include <linux/mfd/samsung/s5m8767.h>
 
 static const struct regmap_irq s2mps11_irqs[] = {
@@ -225,6 +226,26 @@ static const struct regmap_irq s2mpu02_irqs[] = {
 	},
 };
 
+static const struct regmap_irq s2mpu05_irqs[] = {
+	REGMAP_IRQ_REG(S2MPU05_IRQ_PWRONF, 0, S2MPU05_IRQ_PWRONF_MASK),
+	REGMAP_IRQ_REG(S2MPU05_IRQ_PWRONR, 0, S2MPU05_IRQ_PWRONR_MASK),
+	REGMAP_IRQ_REG(S2MPU05_IRQ_JIGONBF, 0, S2MPU05_IRQ_JIGONBF_MASK),
+	REGMAP_IRQ_REG(S2MPU05_IRQ_JIGONBR, 0, S2MPU05_IRQ_JIGONBR_MASK),
+	REGMAP_IRQ_REG(S2MPU05_IRQ_ACOKF, 0, S2MPU05_IRQ_ACOKF_MASK),
+	REGMAP_IRQ_REG(S2MPU05_IRQ_ACOKR, 0, S2MPU05_IRQ_ACOKR_MASK),
+	REGMAP_IRQ_REG(S2MPU05_IRQ_PWRON1S, 0, S2MPU05_IRQ_PWRON1S_MASK),
+	REGMAP_IRQ_REG(S2MPU05_IRQ_MRB, 0, S2MPU05_IRQ_MRB_MASK),
+	REGMAP_IRQ_REG(S2MPU05_IRQ_RTC60S, 1, S2MPU05_IRQ_RTC60S_MASK),
+	REGMAP_IRQ_REG(S2MPU05_IRQ_RTCA1, 1, S2MPU05_IRQ_RTCA1_MASK),
+	REGMAP_IRQ_REG(S2MPU05_IRQ_RTCA0, 1, S2MPU05_IRQ_RTCA0_MASK),
+	REGMAP_IRQ_REG(S2MPU05_IRQ_SMPL, 1, S2MPU05_IRQ_SMPL_MASK),
+	REGMAP_IRQ_REG(S2MPU05_IRQ_RTC1S, 1, S2MPU05_IRQ_RTC1S_MASK),
+	REGMAP_IRQ_REG(S2MPU05_IRQ_WTSR, 1, S2MPU05_IRQ_WTSR_MASK),
+	REGMAP_IRQ_REG(S2MPU05_IRQ_INT120C, 2, S2MPU05_IRQ_INT120C_MASK),
+	REGMAP_IRQ_REG(S2MPU05_IRQ_INT140C, 2, S2MPU05_IRQ_INT140C_MASK),
+	REGMAP_IRQ_REG(S2MPU05_IRQ_TSD, 2, S2MPU05_IRQ_TSD_MASK),
+};
+
 static const struct regmap_irq s5m8767_irqs[] = {
 	[S5M8767_IRQ_PWRR] = {
 		.reg_offset = 0,
@@ -339,6 +360,16 @@ static const struct regmap_irq_chip s2mpu02_irq_chip = {
 	.ack_base = S2MPU02_REG_INT1,
 };
 
+static const struct regmap_irq_chip s2mpu05_irq_chip = {
+	.name = "s2mpu05",
+	.irqs = s2mpu05_irqs,
+	.num_irqs = ARRAY_SIZE(s2mpu05_irqs),
+	.num_regs = 3,
+	.status_base = S2MPU05_REG_INT1,
+	.mask_base = S2MPU05_REG_INT1M,
+	.ack_base = S2MPU05_REG_INT1,
+};
+
 static const struct regmap_irq_chip s5m8767_irq_chip = {
 	.name = "s5m8767",
 	.irqs = s5m8767_irqs,
@@ -382,6 +413,9 @@ int sec_irq_init(struct sec_pmic_dev *sec_pmic)
 		break;
 	case S2MPU02:
 		sec_irq_chip = &s2mpu02_irq_chip;
+		break;
+	case S2MPU05:
+		sec_irq_chip = &s2mpu05_irq_chip;
 		break;
 	default:
 		dev_err(sec_pmic->dev, "Unknown device type %lu\n",
