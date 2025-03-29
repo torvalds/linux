@@ -936,6 +936,33 @@ static void cdns_dsi_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 	cdns_dsi_hs_init(dsi);
 }
 
+static u32 *cdns_dsi_bridge_get_input_bus_fmts(struct drm_bridge *bridge,
+					       struct drm_bridge_state *bridge_state,
+					       struct drm_crtc_state *crtc_state,
+					       struct drm_connector_state *conn_state,
+					       u32 output_fmt,
+					       unsigned int *num_input_fmts)
+{
+	struct cdns_dsi_input *input = bridge_to_cdns_dsi_input(bridge);
+	struct cdns_dsi *dsi = input_to_dsi(input);
+	struct cdns_dsi_output *output = &dsi->output;
+	u32 *input_fmts;
+
+	*num_input_fmts = 0;
+
+	input_fmts = kzalloc(sizeof(*input_fmts), GFP_KERNEL);
+	if (!input_fmts)
+		return NULL;
+
+	input_fmts[0] = drm_mipi_dsi_get_input_bus_fmt(output->dev->format);
+	if (!input_fmts[0])
+		return NULL;
+
+	*num_input_fmts = 1;
+
+	return input_fmts;
+}
+
 static const struct drm_bridge_funcs cdns_dsi_bridge_funcs = {
 	.attach = cdns_dsi_bridge_attach,
 	.mode_valid = cdns_dsi_bridge_mode_valid,
@@ -946,6 +973,7 @@ static const struct drm_bridge_funcs cdns_dsi_bridge_funcs = {
 	.atomic_reset = drm_atomic_helper_bridge_reset,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_get_input_bus_fmts = cdns_dsi_bridge_get_input_bus_fmts,
 };
 
 static int cdns_dsi_attach(struct mipi_dsi_host *host,
