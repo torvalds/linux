@@ -35,6 +35,8 @@ static const char * const bch2_btree_update_modes[] = {
 	NULL
 };
 
+static void bch2_btree_update_to_text(struct printbuf *, struct btree_update *);
+
 static int bch2_btree_insert_node(struct btree_update *, struct btree_trans *,
 				  btree_path_idx_t, struct btree *, struct keylist *);
 static void bch2_btree_update_add_new_node(struct btree_update *, struct btree *);
@@ -1777,10 +1779,23 @@ static int bch2_btree_insert_node(struct btree_update *as, struct btree_trans *t
 	int ret;
 
 	lockdep_assert_held(&c->gc_lock);
-	BUG_ON(!btree_node_intent_locked(path, b->c.level));
 	BUG_ON(!b->c.level);
 	BUG_ON(!as || as->b);
 	bch2_verify_keylist_sorted(keys);
+
+	if (!btree_node_intent_locked(path, b->c.level)) {
+		struct printbuf buf = PRINTBUF;
+		bch2_log_msg_start(c, &buf);
+		prt_printf(&buf, "%s(): node not locked at level %u\n",
+			   __func__, b->c.level);
+		bch2_btree_update_to_text(&buf, as);
+		bch2_btree_path_to_text(&buf, trans, path_idx);
+
+		bch2_print_string_as_lines(KERN_ERR, buf.buf);
+		printbuf_exit(&buf);
+		bch2_fs_emergency_read_only(c);
+		return -EIO;
+	}
 
 	ret = bch2_btree_node_lock_write(trans, path, &b->c);
 	if (ret)
