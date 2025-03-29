@@ -14,6 +14,7 @@
 
 #include <linux/sched.h>
 #include <linux/mm_types.h>
+#include <linux/cpufeature.h>
 #include <linux/page-flags.h>
 #include <linux/radix-tree.h>
 #include <linux/atomic.h>
@@ -583,13 +584,14 @@ static inline int mm_is_protected(struct mm_struct *mm)
 	return 0;
 }
 
-static inline int mm_alloc_pgste(struct mm_struct *mm)
+static inline pgste_t clear_pgste_bit(pgste_t pgste, unsigned long mask)
 {
-#ifdef CONFIG_PGSTE
-	if (unlikely(mm->context.alloc_pgste))
-		return 1;
-#endif
-	return 0;
+	return __pgste(pgste_val(pgste) & ~mask);
+}
+
+static inline pgste_t set_pgste_bit(pgste_t pgste, unsigned long mask)
+{
+	return __pgste(pgste_val(pgste) | mask);
 }
 
 static inline pte_t clear_pte_bit(pte_t pte, pgprot_t prot)
@@ -1339,7 +1341,7 @@ static inline void flush_tlb_fix_spurious_fault(struct vm_area_struct *vma,
 	 * PTE does not have _PAGE_PROTECT set, to avoid unnecessary overhead.
 	 * A local RDP can be used to do the flush.
 	 */
-	if (MACHINE_HAS_RDP && !(pte_val(*ptep) & _PAGE_PROTECT))
+	if (cpu_has_rdp() && !(pte_val(*ptep) & _PAGE_PROTECT))
 		__ptep_rdp(address, ptep, 0, 0, 1);
 }
 #define flush_tlb_fix_spurious_fault flush_tlb_fix_spurious_fault
@@ -1354,7 +1356,7 @@ static inline int ptep_set_access_flags(struct vm_area_struct *vma,
 {
 	if (pte_same(*ptep, entry))
 		return 0;
-	if (MACHINE_HAS_RDP && !mm_has_pgste(vma->vm_mm) && pte_allow_rdp(*ptep, entry))
+	if (cpu_has_rdp() && !mm_has_pgste(vma->vm_mm) && pte_allow_rdp(*ptep, entry))
 		ptep_reset_dat_prot(vma->vm_mm, addr, ptep, entry);
 	else
 		ptep_xchg_direct(vma->vm_mm, addr, ptep, entry);
@@ -1401,9 +1403,6 @@ void gmap_pmdp_idte_global(struct mm_struct *mm, unsigned long vmaddr);
 
 #define pgprot_writecombine	pgprot_writecombine
 pgprot_t pgprot_writecombine(pgprot_t prot);
-
-#define pgprot_writethrough	pgprot_writethrough
-pgprot_t pgprot_writethrough(pgprot_t prot);
 
 #define PFN_PTE_SHIFT		PAGE_SHIFT
 
@@ -1890,7 +1889,7 @@ static inline int pmd_trans_huge(pmd_t pmd)
 #define has_transparent_hugepage has_transparent_hugepage
 static inline int has_transparent_hugepage(void)
 {
-	return MACHINE_HAS_EDAT1 ? 1 : 0;
+	return cpu_has_edat1() ? 1 : 0;
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 

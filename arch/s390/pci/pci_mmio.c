@@ -34,7 +34,7 @@ static inline int __pcistb_mio_inuser(
 	int cc, exception;
 
 	exception = 1;
-	asm volatile (
+	asm_inline volatile (
 		"	sacf	256\n"
 		"0:	.insn	rsy,0xeb00000000d4,%[len],%[ioaddr],%[src]\n"
 		"1:	lhi	%[exc],0\n"
@@ -64,7 +64,7 @@ static inline int __pcistg_mio_inuser(
 	 * address space. pcistg then uses the user mappings.
 	 */
 	exception = 1;
-	asm volatile (
+	asm_inline volatile (
 		"	sacf	256\n"
 		"0:	llgc	%[tmp],0(%[src])\n"
 		"4:	sllg	%[val],%[val],8\n"
@@ -215,7 +215,7 @@ static inline int __pcilg_mio_inuser(
 	 * user address @dst
 	 */
 	exception = 1;
-	asm volatile (
+	asm_inline volatile (
 		"	sacf	256\n"
 		"0:	.insn	rre,0xb9d60000,%[val],%[ioaddr_len]\n"
 		"1:	lhi	%[exc],0\n"

@@ -8,6 +8,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/sched/debug.h>
+#include <linux/cpufeature.h>
 #include <linux/compiler.h>
 #include <linux/init.h>
 #include <linux/errno.h>
@@ -21,6 +22,7 @@
 #include <asm/asm-extable.h>
 #include <linux/memblock.h>
 #include <asm/access-regs.h>
+#include <asm/machine.h>
 #include <asm/diag.h>
 #include <asm/ebcdic.h>
 #include <asm/fpu.h>
@@ -36,12 +38,14 @@
 #include <asm/boot_data.h>
 #include "entry.h"
 
-#define decompressor_handled_param(param)			\
-static int __init ignore_decompressor_param_##param(char *s)	\
+#define __decompressor_handled_param(func, param)		\
+static int __init ignore_decompressor_param_##func(char *s)	\
 {								\
 	return 0;						\
 }								\
-early_param(#param, ignore_decompressor_param_##param)
+early_param(#param, ignore_decompressor_param_##func)
+
+#define decompressor_handled_param(param) __decompressor_handled_param(param, param)
 
 decompressor_handled_param(mem);
 decompressor_handled_param(vmalloc);
@@ -51,6 +55,7 @@ decompressor_handled_param(nokaslr);
 decompressor_handled_param(cmma);
 decompressor_handled_param(relocate_lowcore);
 decompressor_handled_param(bootdebug);
+__decompressor_handled_param(debug_alternative, debug-alternative);
 #if IS_ENABLED(CONFIG_KVM)
 decompressor_handled_param(prot_virt);
 #endif
@@ -61,21 +66,6 @@ static void __init kasan_early_init(void)
 	init_task.kasan_depth = 0;
 	pr_info("KernelAddressSanitizer initialized\n");
 #endif
-}
-
-static void __init reset_tod_clock(void)
-{
-	union tod_clock clk;
-
-	if (store_tod_clock_ext_cc(&clk) == 0)
-		return;
-	/* TOD clock not running. Set the clock to Unix Epoch. */
-	if (set_tod_clock(TOD_UNIX_EPOCH) || store_tod_clock_ext_cc(&clk))
-		disabled_wait();
-
-	memset(&tod_clock_base, 0, sizeof(tod_clock_base));
-	tod_clock_base.tod = TOD_UNIX_EPOCH;
-	get_lowcore()->last_update_clock = TOD_UNIX_EPOCH;
 }
 
 /*
@@ -95,26 +85,6 @@ static noinline __init void init_kernel_storage_key(void)
 }
 
 static __initdata char sysinfo_page[PAGE_SIZE] __aligned(PAGE_SIZE);
-
-static noinline __init void detect_machine_type(void)
-{
-	struct sysinfo_3_2_2 *vmms = (struct sysinfo_3_2_2 *)&sysinfo_page;
-
-	/* Check current-configuration-level */
-	if (stsi(NULL, 0, 0, 0) <= 2) {
-		get_lowcore()->machine_flags |= MACHINE_FLAG_LPAR;
-		return;
-	}
-	/* Get virtual-machine cpu information. */
-	if (stsi(vmms, 3, 2, 2) || !vmms->count)
-		return;
-
-	/* Detect known hypervisors */
-	if (!memcmp(vmms->vm[0].cpi, "\xd2\xe5\xd4", 3))
-		get_lowcore()->machine_flags |= MACHINE_FLAG_KVM;
-	else if (!memcmp(vmms->vm[0].cpi, "\xa9\x61\xe5\xd4", 4))
-		get_lowcore()->machine_flags |= MACHINE_FLAG_VM;
-}
 
 /* Remove leading, trailing and double whitespace. */
 static inline void strim_all(char *str)
@@ -156,9 +126,9 @@ static noinline __init void setup_arch_string(void)
 		strim_all(hvstr);
 	} else {
 		sprintf(hvstr, "%s",
-			MACHINE_IS_LPAR ? "LPAR" :
-			MACHINE_IS_VM ? "z/VM" :
-			MACHINE_IS_KVM ? "KVM" : "unknown");
+			machine_is_lpar() ? "LPAR" :
+			machine_is_vm() ? "z/VM" :
+			machine_is_kvm() ? "KVM" : "unknown");
 	}
 	dump_stack_set_arch_desc("%s (%s)", mstr, hvstr);
 }
@@ -167,9 +137,8 @@ static __init void setup_topology(void)
 {
 	int max_mnest;
 
-	if (!test_facility(11))
+	if (!cpu_has_topology())
 		return;
-	get_lowcore()->machine_flags |= MACHINE_FLAG_TOPOLOGY;
 	for (max_mnest = 6; max_mnest > 1; max_mnest--) {
 		if (stsi(&sysinfo_page, 15, 1, max_mnest) == 0)
 			break;
@@ -218,65 +187,10 @@ static noinline __init void setup_lowcore_early(void)
 	lc->return_mcck_lpswe = gen_lpswe(__LC_RETURN_MCCK_PSW);
 }
 
-static __init void detect_diag9c(void)
-{
-	unsigned int cpu_address;
-	int rc;
-
-	cpu_address = stap();
-	diag_stat_inc(DIAG_STAT_X09C);
-	asm volatile(
-		"	diag	%2,0,0x9c\n"
-		"0:	la	%0,0\n"
-		"1:\n"
-		EX_TABLE(0b,1b)
-		: "=d" (rc) : "0" (-EOPNOTSUPP), "d" (cpu_address) : "cc");
-	if (!rc)
-		get_lowcore()->machine_flags |= MACHINE_FLAG_DIAG9C;
-}
-
-static __init void detect_machine_facilities(void)
-{
-	if (test_facility(8)) {
-		get_lowcore()->machine_flags |= MACHINE_FLAG_EDAT1;
-		system_ctl_set_bit(0, CR0_EDAT_BIT);
-	}
-	if (test_facility(78))
-		get_lowcore()->machine_flags |= MACHINE_FLAG_EDAT2;
-	if (test_facility(3))
-		get_lowcore()->machine_flags |= MACHINE_FLAG_IDTE;
-	if (test_facility(50) && test_facility(73)) {
-		get_lowcore()->machine_flags |= MACHINE_FLAG_TE;
-		system_ctl_set_bit(0, CR0_TRANSACTIONAL_EXECUTION_BIT);
-	}
-	if (test_facility(51))
-		get_lowcore()->machine_flags |= MACHINE_FLAG_TLB_LC;
-	if (test_facility(129))
-		system_ctl_set_bit(0, CR0_VECTOR_BIT);
-	if (test_facility(130))
-		get_lowcore()->machine_flags |= MACHINE_FLAG_NX;
-	if (test_facility(133))
-		get_lowcore()->machine_flags |= MACHINE_FLAG_GS;
-	if (test_facility(139) && (tod_clock_base.tod >> 63)) {
-		/* Enabled signed clock comparator comparisons */
-		get_lowcore()->machine_flags |= MACHINE_FLAG_SCC;
-		clock_comparator_max = -1ULL >> 1;
-		system_ctl_set_bit(0, CR0_CLOCK_COMPARATOR_SIGN_BIT);
-	}
-	if (IS_ENABLED(CONFIG_PCI) && test_facility(153)) {
-		get_lowcore()->machine_flags |= MACHINE_FLAG_PCI_MIO;
-		/* the control bit is set during PCI initialization */
-	}
-	if (test_facility(194))
-		get_lowcore()->machine_flags |= MACHINE_FLAG_RDP;
-	if (test_facility(85))
-		get_lowcore()->machine_flags |= MACHINE_FLAG_SEQ_INSN;
-}
-
 static inline void save_vector_registers(void)
 {
 #ifdef CONFIG_CRASH_DUMP
-	if (test_facility(129))
+	if (cpu_has_vx())
 		save_vx_regs(boot_cpu_vector_save_area);
 #endif
 }
@@ -308,17 +222,13 @@ static void __init sort_amode31_extable(void)
 void __init startup_init(void)
 {
 	kasan_early_init();
-	reset_tod_clock();
 	time_early_init();
 	init_kernel_storage_key();
 	lockdep_off();
 	sort_amode31_extable();
 	setup_lowcore_early();
-	detect_machine_type();
 	setup_arch_string();
 	setup_boot_command_line();
-	detect_diag9c();
-	detect_machine_facilities();
 	save_vector_registers();
 	setup_topology();
 	sclp_early_detect();

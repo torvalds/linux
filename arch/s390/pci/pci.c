@@ -31,6 +31,7 @@
 #include <linux/lockdep.h>
 #include <linux/list_sort.h>
 
+#include <asm/machine.h>
 #include <asm/isc.h>
 #include <asm/airq.h>
 #include <asm/facility.h>
@@ -1078,7 +1079,7 @@ char * __init pcibios_setup(char *str)
 		return NULL;
 	}
 	if (!strcmp(str, "nomio")) {
-		get_lowcore()->machine_flags &= ~MACHINE_FLAG_PCI_MIO;
+		clear_machine_feature(MFEATURE_PCI_MIO);
 		return NULL;
 	}
 	if (!strcmp(str, "force_floating")) {
@@ -1153,7 +1154,7 @@ static int __init pci_base_init(void)
 		return 0;
 	}
 
-	if (MACHINE_HAS_PCI_MIO) {
+	if (test_machine_feature(MFEATURE_PCI_MIO)) {
 		static_branch_enable(&have_mio);
 		system_ctl_set_bit(2, CR2_MIO_ADDRESSING_BIT);
 	}

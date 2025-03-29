@@ -8,6 +8,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/stop_machine.h>
+#include <linux/cpufeature.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/random.h>
@@ -19,6 +20,7 @@
 #include <linux/cpu.h>
 #include <linux/smp.h>
 #include <asm/text-patching.h>
+#include <asm/machine.h>
 #include <asm/diag.h>
 #include <asm/facility.h>
 #include <asm/elf.h>
@@ -209,14 +211,14 @@ static int __init setup_hwcaps(void)
 		elf_hwcap |= HWCAP_DFP;
 
 	/* huge page support */
-	if (MACHINE_HAS_EDAT1)
+	if (cpu_has_edat1())
 		elf_hwcap |= HWCAP_HPAGE;
 
 	/* 64-bit register support for 31-bit processes */
 	elf_hwcap |= HWCAP_HIGH_GPRS;
 
 	/* transactional execution */
-	if (MACHINE_HAS_TE)
+	if (machine_has_tx())
 		elf_hwcap |= HWCAP_TE;
 
 	/* vector */
@@ -244,10 +246,10 @@ static int __init setup_hwcaps(void)
 		elf_hwcap |= HWCAP_NNPA;
 
 	/* guarded storage */
-	if (MACHINE_HAS_GS)
+	if (cpu_has_gs())
 		elf_hwcap |= HWCAP_GS;
 
-	if (MACHINE_HAS_PCI_MIO)
+	if (test_machine_feature(MFEATURE_PCI_MIO))
 		elf_hwcap |= HWCAP_PCI_MIO;
 
 	/* virtualization support */

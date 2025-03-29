@@ -13,28 +13,6 @@
 #define PARMAREA		0x10400
 
 #define COMMAND_LINE_SIZE CONFIG_COMMAND_LINE_SIZE
-/*
- * Machine features detected in early.c
- */
-
-#define MACHINE_FLAG_VM		BIT(0)
-#define MACHINE_FLAG_KVM	BIT(1)
-#define MACHINE_FLAG_LPAR	BIT(2)
-#define MACHINE_FLAG_DIAG9C	BIT(3)
-#define MACHINE_FLAG_ESOP	BIT(4)
-#define MACHINE_FLAG_IDTE	BIT(5)
-#define MACHINE_FLAG_EDAT1	BIT(7)
-#define MACHINE_FLAG_EDAT2	BIT(8)
-#define MACHINE_FLAG_TOPOLOGY	BIT(10)
-#define MACHINE_FLAG_TE		BIT(11)
-#define MACHINE_FLAG_TLB_LC	BIT(12)
-#define MACHINE_FLAG_TLB_GUEST	BIT(14)
-#define MACHINE_FLAG_NX		BIT(15)
-#define MACHINE_FLAG_GS		BIT(16)
-#define MACHINE_FLAG_SCC	BIT(17)
-#define MACHINE_FLAG_PCI_MIO	BIT(18)
-#define MACHINE_FLAG_RDP	BIT(19)
-#define MACHINE_FLAG_SEQ_INSN	BIT(20)
 
 #define LPP_MAGIC		BIT(31)
 #define LPP_PID_MASK		_AC(0xffffffff, UL)
@@ -77,26 +55,6 @@ extern unsigned long max_mappable;
 
 /* The Write Back bit position in the physaddr is given by the SLPC PCI */
 extern unsigned long mio_wb_bit_mask;
-
-#define MACHINE_IS_VM		(get_lowcore()->machine_flags & MACHINE_FLAG_VM)
-#define MACHINE_IS_KVM		(get_lowcore()->machine_flags & MACHINE_FLAG_KVM)
-#define MACHINE_IS_LPAR		(get_lowcore()->machine_flags & MACHINE_FLAG_LPAR)
-
-#define MACHINE_HAS_DIAG9C	(get_lowcore()->machine_flags & MACHINE_FLAG_DIAG9C)
-#define MACHINE_HAS_ESOP	(get_lowcore()->machine_flags & MACHINE_FLAG_ESOP)
-#define MACHINE_HAS_IDTE	(get_lowcore()->machine_flags & MACHINE_FLAG_IDTE)
-#define MACHINE_HAS_EDAT1	(get_lowcore()->machine_flags & MACHINE_FLAG_EDAT1)
-#define MACHINE_HAS_EDAT2	(get_lowcore()->machine_flags & MACHINE_FLAG_EDAT2)
-#define MACHINE_HAS_TOPOLOGY	(get_lowcore()->machine_flags & MACHINE_FLAG_TOPOLOGY)
-#define MACHINE_HAS_TE		(get_lowcore()->machine_flags & MACHINE_FLAG_TE)
-#define MACHINE_HAS_TLB_LC	(get_lowcore()->machine_flags & MACHINE_FLAG_TLB_LC)
-#define MACHINE_HAS_TLB_GUEST	(get_lowcore()->machine_flags & MACHINE_FLAG_TLB_GUEST)
-#define MACHINE_HAS_NX		(get_lowcore()->machine_flags & MACHINE_FLAG_NX)
-#define MACHINE_HAS_GS		(get_lowcore()->machine_flags & MACHINE_FLAG_GS)
-#define MACHINE_HAS_SCC		(get_lowcore()->machine_flags & MACHINE_FLAG_SCC)
-#define MACHINE_HAS_PCI_MIO	(get_lowcore()->machine_flags & MACHINE_FLAG_PCI_MIO)
-#define MACHINE_HAS_RDP		(get_lowcore()->machine_flags & MACHINE_FLAG_RDP)
-#define MACHINE_HAS_SEQ_INSN	(get_lowcore()->machine_flags & MACHINE_FLAG_SEQ_INSN)
 
 /*
  * Console mode. Override with conmode=

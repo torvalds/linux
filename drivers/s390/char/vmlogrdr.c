@@ -23,6 +23,7 @@
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
 #include <linux/uaccess.h>
+#include <asm/machine.h>
 #include <asm/cpcmd.h>
 #include <asm/debug.h>
 #include <asm/ebcdic.h>
@@ -809,7 +810,7 @@ static int __init vmlogrdr_init(void)
 	int i;
 	dev_t dev;
 
-	if (! MACHINE_IS_VM) {
+	if (!machine_is_vm()) {
 		pr_err("not running under VM, driver not loaded.\n");
 		return -ENODEV;
 	}

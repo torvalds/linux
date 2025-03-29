@@ -56,7 +56,7 @@ static inline int clp_get_ilp(unsigned long *ilp)
 	int cc, exception;
 
 	exception = 1;
-	asm volatile (
+	asm_inline volatile (
 		"	.insn	rrf,0xb9a00000,%[mask],%[cmd],8,0\n"
 		"0:	lhi	%[exc],0\n"
 		"1:\n"
@@ -79,7 +79,7 @@ static __always_inline int clp_req(void *data, unsigned int lps)
 	u64 ignored;
 
 	exception = 1;
-	asm volatile (
+	asm_inline volatile (
 		"	.insn	rrf,0xb9a00000,%[ign],%[req],0,%[lps]\n"
 		"0:	lhi	%[exc],0\n"
 		"1:\n"

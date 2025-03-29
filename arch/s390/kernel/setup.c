@@ -54,6 +54,7 @@
 
 #include <asm/archrandom.h>
 #include <asm/boot_data.h>
+#include <asm/machine.h>
 #include <asm/ipl.h>
 #include <asm/facility.h>
 #include <asm/smp.h>
@@ -180,8 +181,6 @@ unsigned long __bootdata_preserved(MODULES_END);
 struct lowcore *lowcore_ptr[NR_CPUS];
 EXPORT_SYMBOL(lowcore_ptr);
 
-DEFINE_STATIC_KEY_FALSE(cpu_has_bear);
-
 /*
  * The Write Back bit position in the physaddr is given by the SLPC PCI.
  * Leaving the mask zero always uses write through which is safe
@@ -251,7 +250,7 @@ static void __init conmode_default(void)
 	char query_buffer[1024];
 	char *ptr;
 
-        if (MACHINE_IS_VM) {
+	if (machine_is_vm()) {
 		cpcmd("QUERY CONSOLE", query_buffer, 1024, NULL);
 		console_devno = simple_strtoul(query_buffer + 5, NULL, 16);
 		ptr = strstr(query_buffer, "SUBCHANNEL =");
@@ -289,7 +288,7 @@ static void __init conmode_default(void)
 			SET_CONSOLE_SCLP;
 #endif
 		}
-	} else if (MACHINE_IS_KVM) {
+	} else if (machine_is_kvm()) {
 		if (sclp.has_vt220 && IS_ENABLED(CONFIG_SCLP_VT220_CONSOLE))
 			SET_CONSOLE_VT220;
 		else if (sclp.has_linemode && IS_ENABLED(CONFIG_SCLP_CONSOLE))
@@ -652,7 +651,7 @@ static void __init reserve_crashkernel(void)
 		return;
 	}
 
-	if (!oldmem_data.start && MACHINE_IS_VM)
+	if (!oldmem_data.start && machine_is_vm())
 		diag10_range(PFN_DOWN(crash_base), PFN_DOWN(crash_size));
 	crashk_res.start = crash_base;
 	crashk_res.end = crash_base + crash_size - 1;
@@ -898,12 +897,12 @@ void __init setup_arch(char **cmdline_p)
         /*
          * print what head.S has found out about the machine
          */
-	if (MACHINE_IS_VM)
+	if (machine_is_vm())
 		pr_info("Linux is running as a z/VM "
 			"guest operating system in 64-bit mode\n");
-	else if (MACHINE_IS_KVM)
+	else if (machine_is_kvm())
 		pr_info("Linux is running under KVM in 64-bit mode\n");
-	else if (MACHINE_IS_LPAR)
+	else if (machine_is_lpar())
 		pr_info("Linux is running natively in 64-bit mode\n");
 	else
 		pr_info("Linux is running as a guest in 64-bit mode\n");
@@ -911,7 +910,7 @@ void __init setup_arch(char **cmdline_p)
 	if (!boot_earlyprintk)
 		boot_rb_foreach(print_rb_entry);
 
-	if (have_relocated_lowcore())
+	if (machine_has_relocated_lowcore())
 		pr_info("Lowcore relocated to 0x%px\n", get_lowcore());
 
 	log_component_list();
@@ -961,7 +960,7 @@ void __init setup_arch(char **cmdline_p)
 	setup_uv();
 	dma_contiguous_reserve(ident_map_size);
 	vmcp_cma_reserve();
-	if (MACHINE_HAS_EDAT2)
+	if (cpu_has_edat2())
 		hugetlb_cma_reserve(PUD_SHIFT - PAGE_SHIFT);
 
 	reserve_crashkernel();
@@ -981,10 +980,6 @@ void __init setup_arch(char **cmdline_p)
 	numa_setup();
 	smp_detect_cpus();
 	topology_init_early();
-
-	if (test_facility(193))
-		static_branch_enable(&cpu_has_bear);
-
 	setup_protection_map();
 	/*
 	 * Create kernel page tables.
