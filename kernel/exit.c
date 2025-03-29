@@ -79,10 +79,12 @@
 #include "exit.h"
 
 /*
- * The default value should be high enough to not crash a system that randomly
- * crashes its kernel from time to time, but low enough to at least not permit
- * overflowing 32-bit refcounts or the ldsem writer count.
+ * The default value should be set high enough to prevent system crashes
+ * caused by occasional kernel faults, but still low enough to avoid issues 
+ * like overflowing 32-bit reference counters or exceeding the writer count 
+ * for ldsem.
  */
+
 static unsigned int oops_limit = 10000;
 
 #ifdef CONFIG_SYSCTL
