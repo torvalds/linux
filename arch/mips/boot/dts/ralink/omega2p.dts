@@ -1,6 +1,6 @@
 /dts-v1/;
 
-/include/ "mt7628a.dtsi"
+#include "mt7628a.dtsi"
 
 / {
 	compatible = "onion,omega2+", "ralink,mt7688a-soc", "ralink,mt7628a-soc";

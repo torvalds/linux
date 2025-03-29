@@ -115,6 +115,9 @@ static void gic_update_frequency(void *data)
 
 static int gic_starting_cpu(unsigned int cpu)
 {
+	/* Ensure the GIC counter is running */
+	clear_gic_config(GIC_CONFIG_COUNTSTOP);
+
 	gic_clockevent_cpu_init(cpu, this_cpu_ptr(&gic_clockevent_device));
 	return 0;
 }
@@ -287,9 +290,6 @@ static int __init gic_clocksource_of_init(struct device_node *node)
 		if (clk_notifier_register(clk, &gic_clk_nb) < 0)
 			pr_warn("Unable to register clock notifier\n");
 	}
-
-	/* And finally start the counter */
-	clear_gic_config(GIC_CONFIG_COUNTSTOP);
 
 	/*
 	 * It's safe to use the MIPS GIC timer as a sched clock source only if
