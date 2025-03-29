@@ -479,13 +479,11 @@ static void bch2_subvolume_wait_for_pagecache_and_delete(struct work_struct *wor
 {
 	struct bch_fs *c = container_of(work, struct bch_fs,
 				snapshot_wait_for_pagecache_and_delete_work);
-	snapshot_id_list s;
-	u32 *id;
 	int ret = 0;
 
 	while (!ret) {
 		mutex_lock(&c->snapshots_unlinked_lock);
-		s = c->snapshots_unlinked;
+		snapshot_id_list s = c->snapshots_unlinked;
 		darray_init(&c->snapshots_unlinked);
 		mutex_unlock(&c->snapshots_unlinked_lock);
 
@@ -494,7 +492,7 @@ static void bch2_subvolume_wait_for_pagecache_and_delete(struct work_struct *wor
 
 		bch2_evict_subvolume_inodes(c, &s);
 
-		for (id = s.data; id < s.data + s.nr; id++) {
+		darray_for_each(s, id) {
 			ret = bch2_trans_run(c, bch2_subvolume_delete(trans, *id));
 			bch_err_msg(c, ret, "deleting subvolume %u", *id);
 			if (ret)
