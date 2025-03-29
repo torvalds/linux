@@ -47,6 +47,8 @@
 #define IMX334_EXPOSURE_DEFAULT		0x0648
 
 #define IMX334_REG_LANEMODE		CCI_REG8(0x3a01)
+#define IMX334_CSI_4_LANE_MODE		3
+#define IMX334_CSI_8_LANE_MODE		7
 
 /* Window cropping Settings */
 #define IMX334_REG_AREA3_ST_ADR_1	CCI_REG16_LE(0x3074)
@@ -240,7 +242,6 @@ static const struct cci_reg_sequence common_mode_regs[] = {
 	{ IMX334_REG_HADD_VADD,		0x00 },
 	{ IMX334_REG_VALID_EXPAND,	0x03 },
 	{ IMX334_REG_TCYCLE,		0x00 },
-	{ IMX334_REG_LANEMODE,		0x03 },
 	{ IMX334_REG_TCLKPOST,		0x007f },
 	{ IMX334_REG_TCLKPREPARE,	0x0037 },
 	{ IMX334_REG_TCLKTRAIL,		0x0037 },
@@ -873,6 +874,13 @@ static int imx334_start_streaming(struct imx334 *imx334)
 				  reg_list->num_of_regs, NULL);
 	if (ret) {
 		dev_err(imx334->dev, "fail to write initial registers\n");
+		return ret;
+	}
+
+	ret = cci_write(imx334->cci, IMX334_REG_LANEMODE,
+			IMX334_CSI_4_LANE_MODE, NULL);
+	if (ret) {
+		dev_err(imx334->dev, "failed to configure lanes\n");
 		return ret;
 	}
 
