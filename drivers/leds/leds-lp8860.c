@@ -331,7 +331,6 @@ static const struct regmap_config lp8860_regmap_config = {
 	.max_register = LP8860_EEPROM_UNLOCK,
 	.reg_defaults = lp8860_reg_defs,
 	.num_reg_defaults = ARRAY_SIZE(lp8860_reg_defs),
-	.cache_type = REGCACHE_NONE,
 };
 
 static const struct reg_default lp8860_eeprom_defs[] = {
@@ -369,7 +368,6 @@ static const struct regmap_config lp8860_eeprom_regmap_config = {
 	.max_register = LP8860_EEPROM_REG_24,
 	.reg_defaults = lp8860_eeprom_defs,
 	.num_reg_defaults = ARRAY_SIZE(lp8860_eeprom_defs),
-	.cache_type = REGCACHE_NONE,
 };
 
 static int lp8860_probe(struct i2c_client *client)
