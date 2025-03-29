@@ -70,9 +70,15 @@ static void wacom_wac_queue_flush(struct hid_device *hdev,
 {
 	while (!kfifo_is_empty(fifo)) {
 		int size = kfifo_peek_len(fifo);
-		u8 *buf = kzalloc(size, GFP_KERNEL);
+		u8 *buf;
 		unsigned int count;
 		int err;
+
+		buf = kzalloc(size, GFP_KERNEL);
+		if (!buf) {
+			kfifo_skip(fifo);
+			continue;
+		}
 
 		count = kfifo_out(fifo, buf, size);
 		if (count != size) {
