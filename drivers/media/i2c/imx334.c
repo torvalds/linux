@@ -847,21 +847,31 @@ static int imx334_set_framefmt(struct imx334 *imx334)
 }
 
 /**
- * imx334_start_streaming() - Start sensor stream
- * @imx334: pointer to imx334 device
+ * imx334_enable_streams() - Enable specified streams for the sensor
+ * @sd: pointer to the V4L2 subdevice
+ * @state: pointer to the subdevice state
+ * @pad: pad number for which streams are enabled
+ * @streams_mask: bitmask specifying the streams to enable
  *
  * Return: 0 if successful, error code otherwise.
  */
-static int imx334_start_streaming(struct imx334 *imx334)
+static int imx334_enable_streams(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *state, u32 pad,
+				 u64 streams_mask)
 {
+	struct imx334 *imx334 = to_imx334(sd);
 	const struct imx334_reg_list *reg_list;
 	int ret;
+
+	ret = pm_runtime_resume_and_get(imx334->dev);
+	if (ret < 0)
+		return ret;
 
 	ret = cci_multi_reg_write(imx334->cci, common_mode_regs,
 				  ARRAY_SIZE(common_mode_regs), NULL);
 	if (ret) {
 		dev_err(imx334->dev, "fail to write common registers\n");
-		return ret;
+		goto err_rpm_put;
 	}
 
 	/* Write sensor mode registers */
@@ -870,28 +880,28 @@ static int imx334_start_streaming(struct imx334 *imx334)
 				  reg_list->num_of_regs, NULL);
 	if (ret) {
 		dev_err(imx334->dev, "fail to write initial registers\n");
-		return ret;
+		goto err_rpm_put;
 	}
 
 	ret = cci_write(imx334->cci, IMX334_REG_LANEMODE,
 			IMX334_CSI_4_LANE_MODE, NULL);
 	if (ret) {
 		dev_err(imx334->dev, "failed to configure lanes\n");
-		return ret;
+		goto err_rpm_put;
 	}
 
 	ret = imx334_set_framefmt(imx334);
 	if (ret) {
 		dev_err(imx334->dev, "%s failed to set frame format: %d\n",
 			__func__, ret);
-		return ret;
+		goto err_rpm_put;
 	}
 
 	/* Setup handler will write actual exposure and gain */
 	ret =  __v4l2_ctrl_handler_setup(imx334->sd.ctrl_handler);
 	if (ret) {
 		dev_err(imx334->dev, "fail to setup handler\n");
-		return ret;
+		goto err_rpm_put;
 	}
 
 	/* Start streaming */
@@ -899,53 +909,39 @@ static int imx334_start_streaming(struct imx334 *imx334)
 			IMX334_MODE_STREAMING, NULL);
 	if (ret) {
 		dev_err(imx334->dev, "fail to start streaming\n");
-		return ret;
+		goto err_rpm_put;
 	}
 
 	return 0;
+
+err_rpm_put:
+	pm_runtime_put(imx334->dev);
+	return ret;
 }
 
 /**
- * imx334_stop_streaming() - Stop sensor stream
- * @imx334: pointer to imx334 device
+ * imx334_disable_streams() - Enable specified streams for the sensor
+ * @sd: pointer to the V4L2 subdevice
+ * @state: pointer to the subdevice state
+ * @pad: pad number for which streams are disabled
+ * @streams_mask: bitmask specifying the streams to disable
  *
  * Return: 0 if successful, error code otherwise.
  */
-static int imx334_stop_streaming(struct imx334 *imx334)
-{
-	return cci_write(imx334->cci, IMX334_REG_MODE_SELECT,
-			IMX334_MODE_STANDBY, NULL);
-}
-
-/**
- * imx334_set_stream() - Enable sensor streaming
- * @sd: pointer to imx334 subdevice
- * @enable: set to enable sensor streaming
- *
- * Return: 0 if successful, error code otherwise.
- */
-static int imx334_set_stream(struct v4l2_subdev *sd, int enable)
+static int imx334_disable_streams(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *state, u32 pad,
+				  u64 streams_mask)
 {
 	struct imx334 *imx334 = to_imx334(sd);
 	int ret;
 
-	if (enable) {
-		ret = pm_runtime_resume_and_get(imx334->dev);
-		if (ret < 0)
-			return ret;
+	ret = cci_write(imx334->cci, IMX334_REG_MODE_SELECT,
+			IMX334_MODE_STANDBY, NULL);
+	if (ret)
+		dev_err(imx334->dev, "%s failed to stop stream\n", __func__);
 
-		ret = imx334_start_streaming(imx334);
-		if (ret)
-			goto error_power_off;
-	} else {
-		imx334_stop_streaming(imx334);
-		pm_runtime_put(imx334->dev);
-	}
-
-	return 0;
-
-error_power_off:
 	pm_runtime_put(imx334->dev);
+
 	return ret;
 }
 
@@ -1040,7 +1036,7 @@ done_endpoint_free:
 
 /* V4l2 subdevice ops */
 static const struct v4l2_subdev_video_ops imx334_video_ops = {
-	.s_stream = imx334_set_stream,
+	.s_stream = v4l2_subdev_s_stream_helper,
 };
 
 static const struct v4l2_subdev_pad_ops imx334_pad_ops = {
@@ -1048,6 +1044,8 @@ static const struct v4l2_subdev_pad_ops imx334_pad_ops = {
 	.enum_frame_size = imx334_enum_frame_size,
 	.get_fmt = imx334_get_pad_format,
 	.set_fmt = imx334_set_pad_format,
+	.enable_streams = imx334_enable_streams,
+	.disable_streams = imx334_disable_streams,
 };
 
 static const struct v4l2_subdev_ops imx334_subdev_ops = {
