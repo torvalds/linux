@@ -107,6 +107,7 @@ void dml2_init_ip_params(struct dml2_context *dml2, const struct dc *in_dc, stru
 
 	case dml_project_dcn35:
 	case dml_project_dcn351:
+	case dml_project_dcn36:
 		out->rob_buffer_size_kbytes = 64;
 		out->config_return_buffer_size_in_kbytes = 1792;
 		out->compressed_buffer_segment_size_in_kbytes = 64;
@@ -292,6 +293,7 @@ void dml2_init_socbb_params(struct dml2_context *dml2, const struct dc *in_dc, s
 
 	case dml_project_dcn35:
 	case dml_project_dcn351:
+	case dml_project_dcn36:
 		out->num_chans = 4;
 		out->round_trip_ping_latency_dcfclk_cycles = 106;
 		out->smn_latency_us = 2;
@@ -506,6 +508,7 @@ void dml2_init_soc_states(struct dml2_context *dml2, const struct dc *in_dc,
 		p->dcfclk_stas_mhz[3] = 1324;
 		p->dcfclk_stas_mhz[4] = p->in_states->state_array[1].dcfclk_mhz;
 	} else if (dml2->v20.dml_core_ctx.project != dml_project_dcn35 &&
+			dml2->v20.dml_core_ctx.project != dml_project_dcn36 &&
 			dml2->v20.dml_core_ctx.project != dml_project_dcn351) {
 		p->dcfclk_stas_mhz[0] = 300;
 		p->dcfclk_stas_mhz[1] = 615;
@@ -554,6 +557,7 @@ void dml2_init_soc_states(struct dml2_context *dml2, const struct dc *in_dc,
 	}
 
 	if (dml2->v20.dml_core_ctx.project == dml_project_dcn35 ||
+	    dml2->v20.dml_core_ctx.project == dml_project_dcn36 ||
 	    dml2->v20.dml_core_ctx.project == dml_project_dcn351) {
 		int max_dcfclk_mhz = 0, max_dispclk_mhz = 0, max_dppclk_mhz = 0, max_phyclk_mhz = 0,
 			max_dtbclk_mhz = 0, max_fclk_mhz = 0, max_uclk_mhz = 0, max_socclk_mhz = 0;
@@ -586,11 +590,11 @@ void dml2_init_soc_states(struct dml2_context *dml2, const struct dc *in_dc,
 			p->out_states->state_array[i].dtbclk_mhz = max_dtbclk_mhz;
 			p->out_states->state_array[i].phyclk_mhz = max_phyclk_mhz;
 
-			p->out_states->state_array[i].dscclk_mhz = max_dispclk_mhz / 3.0;
 			p->out_states->state_array[i].phyclk_mhz = max_phyclk_mhz;
 			p->out_states->state_array[i].dtbclk_mhz = max_dtbclk_mhz;
 
 			/* Dependent states. */
+			p->out_states->state_array[i].dscclk_mhz = p->in_states->state_array[i].dscclk_mhz;
 			p->out_states->state_array[i].dram_speed_mts = p->in_states->state_array[i].dram_speed_mts;
 			p->out_states->state_array[i].fabricclk_mhz = p->in_states->state_array[i].fabricclk_mhz;
 			p->out_states->state_array[i].socclk_mhz = p->in_states->state_array[i].socclk_mhz;

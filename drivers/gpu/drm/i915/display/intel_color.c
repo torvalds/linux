@@ -29,6 +29,7 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dsb.h"
+#include "intel_vrr.h"
 
 struct intel_color_funcs {
 	int (*color_check)(struct intel_atomic_state *state,
@@ -998,7 +999,7 @@ static void skl_color_commit_noarm(struct intel_dsb *dsb,
 	 * output all black (until CSC_MODE is rearmed and properly latched).
 	 * Once PSR exit (and proper register latching) has occurred the
 	 * danger is over. Thus when PSR is enabled the CSC coeff/offset
-	 * register programming will be peformed from skl_color_commit_arm()
+	 * register programming will be performed from skl_color_commit_arm()
 	 * which is called after PSR exit.
 	 */
 	if (!crtc_state->has_psr)
@@ -1987,8 +1988,12 @@ void intel_color_prepare_commit(struct intel_atomic_state *state,
 
 	display->funcs.color->load_luts(crtc_state);
 
-	intel_dsb_wait_vblank_delay(state, crtc_state->dsb_color_vblank);
-	intel_dsb_interrupt(crtc_state->dsb_color_vblank);
+	if (crtc_state->use_dsb) {
+		intel_vrr_send_push(crtc_state->dsb_color_vblank, crtc_state);
+		intel_dsb_wait_vblank_delay(state, crtc_state->dsb_color_vblank);
+		intel_vrr_check_push_sent(crtc_state->dsb_color_vblank, crtc_state);
+		intel_dsb_interrupt(crtc_state->dsb_color_vblank);
+	}
 
 	intel_dsb_finish(crtc_state->dsb_color_vblank);
 }

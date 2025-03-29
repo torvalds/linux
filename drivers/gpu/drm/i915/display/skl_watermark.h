@@ -17,12 +17,13 @@ struct intel_atomic_state;
 struct intel_bw_state;
 struct intel_crtc;
 struct intel_crtc_state;
+struct intel_display;
 struct intel_plane;
 struct intel_plane_state;
 struct skl_pipe_wm;
 struct skl_wm_level;
 
-u8 intel_enabled_dbuf_slices_mask(struct drm_i915_private *i915);
+u8 intel_enabled_dbuf_slices_mask(struct intel_display *display);
 
 void intel_sagv_pre_plane_update(struct intel_atomic_state *state);
 void intel_sagv_post_plane_update(struct intel_atomic_state *state);
@@ -39,6 +40,10 @@ bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry *ddb,
 
 void intel_wm_state_verify(struct intel_atomic_state *state,
 			   struct intel_crtc *crtc);
+
+void skl_wm_crtc_disable_noatomic(struct intel_crtc *crtc);
+void skl_wm_plane_disable_noatomic(struct intel_crtc *crtc,
+				   struct intel_plane *plane);
 
 void skl_watermark_ipc_init(struct drm_i915_private *i915);
 void skl_watermark_ipc_update(struct drm_i915_private *i915);

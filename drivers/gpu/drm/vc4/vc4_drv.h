@@ -186,11 +186,6 @@ struct vc4_dev {
 	 */
 	struct vc4_perfmon *active_perfmon;
 
-	/* List of struct vc4_seqno_cb for callbacks to be made from a
-	 * workqueue when the given seqno is passed.
-	 */
-	struct list_head seqno_cb_list;
-
 	/* The memory used for storing binner tile alloc, tile state,
 	 * and overflow memory allocations.  This is freed when V3D
 	 * powers down.
@@ -247,16 +242,6 @@ struct vc4_dev {
 struct vc4_bo {
 	struct drm_gem_dma_object base;
 
-	/* seqno of the last job to render using this BO. */
-	uint64_t seqno;
-
-	/* seqno of the last job to use the RCL to write to this BO.
-	 *
-	 * Note that this doesn't include binner overflow memory
-	 * writes.
-	 */
-	uint64_t write_seqno;
-
 	bool t_format;
 
 	/* List entry for the BO's position in either
@@ -303,12 +288,6 @@ struct vc4_fence {
 
 #define to_vc4_fence(_fence)					\
 	container_of_const(_fence, struct vc4_fence, base)
-
-struct vc4_seqno_cb {
-	struct work_struct work;
-	uint64_t seqno;
-	void (*func)(struct vc4_seqno_cb *cb);
-};
 
 struct vc4_v3d {
 	struct vc4_dev *vc4;
@@ -695,9 +674,6 @@ struct vc4_exec_info {
 	/* Sequence number for this bin/render job. */
 	uint64_t seqno;
 
-	/* Latest write_seqno of any BO that binning depends on. */
-	uint64_t bin_dep_seqno;
-
 	struct dma_fence *fence;
 
 	/* Last current addresses the hardware was processing when the
@@ -1025,9 +1001,6 @@ void vc4_move_job_to_render(struct drm_device *dev, struct vc4_exec_info *exec);
 int vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno,
 		       uint64_t timeout_ns, bool interruptible);
 void vc4_job_handle_completed(struct vc4_dev *vc4);
-int vc4_queue_seqno_cb(struct drm_device *dev,
-		       struct vc4_seqno_cb *cb, uint64_t seqno,
-		       void (*func)(struct vc4_seqno_cb *cb));
 int vc4_gem_madvise_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv);
 

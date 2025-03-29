@@ -18,6 +18,7 @@
 #include "display/intel_fbc_regs.h"
 #include "display/intel_fdi_regs.h"
 #include "display/intel_lvds_regs.h"
+#include "display/intel_pfit_regs.h"
 #include "display/intel_psr_regs.h"
 #include "display/intel_sprite_regs.h"
 #include "display/skl_universal_plane_regs.h"
@@ -1260,7 +1261,7 @@ static int iterate_bxt_mmio(struct intel_gvt_mmio_table_iter *iter)
 
 /**
  * intel_gvt_iterate_mmio_table - Iterate the GVT MMIO table
- * @iter: the interator
+ * @iter: the iterator
  *
  * This function is called for iterating the GVT MMIO table when i915 is
  * taking the snapshot of the HW and GVT is building MMIO tracking table.

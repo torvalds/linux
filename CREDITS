@@ -3961,6 +3961,10 @@ S: 1 Amherst Street
 S: Cambridge, Massachusetts 02139
 S: USA
 
+N: Luben Tuikov
+E: Luben Tuikov <ltuikov89@gmail.com>
+D: Maintainer of the DRM GPU Scheduler
+
 N: Simmule Turner
 E: sturner@tele-tv.com
 D: Added swapping to filesystem

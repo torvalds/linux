@@ -199,10 +199,11 @@ Dengcheng Zhu <dzhu@wavecomp.com> <dengcheng.zhu@imgtec.com>
 Dengcheng Zhu <dzhu@wavecomp.com> <dengcheng.zhu@mips.com>
 <dev.kurt@vandijck-laurijssen.be> <kurt.van.dijck@eia.be>
 Dikshita Agarwal <quic_dikshita@quicinc.com> <dikshita@codeaurora.org>
-Dmitry Baryshkov <dbaryshkov@gmail.com>
-Dmitry Baryshkov <dbaryshkov@gmail.com> <[dbaryshkov@gmail.com]>
-Dmitry Baryshkov <dbaryshkov@gmail.com> <dmitry_baryshkov@mentor.com>
-Dmitry Baryshkov <dbaryshkov@gmail.com> <dmitry_eremin@mentor.com>
+Dmitry Baryshkov <lumag@kernel.org> <dbaryshkov@gmail.com>
+Dmitry Baryshkov <lumag@kernel.org> <[dbaryshkov@gmail.com]>
+Dmitry Baryshkov <lumag@kernel.org> <dmitry_baryshkov@mentor.com>
+Dmitry Baryshkov <lumag@kernel.org> <dmitry_eremin@mentor.com>
+Dmitry Baryshkov <lumag@kernel.org> <dmitry.baryshkov@linaro.org>
 Dmitry Safonov <0x7f454c46@gmail.com> <dima@arista.com>
 Dmitry Safonov <0x7f454c46@gmail.com> <d.safonov@partner.samsung.com>
 Dmitry Safonov <0x7f454c46@gmail.com> <dsafonov@virtuozzo.com>
@@ -323,7 +324,8 @@ Jeff Johnson <jeff.johnson@oss.qualcomm.com> <quic_jjohnson@quicinc.com>
 Jeff Layton <jlayton@kernel.org> <jlayton@poochiereds.net>
 Jeff Layton <jlayton@kernel.org> <jlayton@primarydata.com>
 Jeff Layton <jlayton@kernel.org> <jlayton@redhat.com>
-Jeffrey Hugo <quic_jhugo@quicinc.com> <jhugo@codeaurora.org>
+Jeff Hugo <jeff.hugo@oss.qualcomm.com> <jhugo@codeaurora.org>
+Jeff Hugo <jeff.hugo@oss.qualcomm.com> <quic_jhugo@quicinc.com>
 Jens Axboe <axboe@kernel.dk> <axboe@suse.de>
 Jens Axboe <axboe@kernel.dk> <jens.axboe@oracle.com>
 Jens Axboe <axboe@kernel.dk> <axboe@fb.com>

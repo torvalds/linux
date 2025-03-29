@@ -32,6 +32,8 @@
 
 #include "gem/i915_gem_object_types.h"
 
+#include "i915_gtt_view_types.h"
+
 /**
  * DOC: Global GTT views
  *
@@ -95,46 +97,6 @@
 
 struct i915_vma_resource;
 
-struct intel_remapped_plane_info {
-	/* in gtt pages */
-	u32 offset:31;
-	u32 linear:1;
-	union {
-		/* in gtt pages for !linear */
-		struct {
-			u16 width;
-			u16 height;
-			u16 src_stride;
-			u16 dst_stride;
-		};
-
-		/* in gtt pages for linear */
-		u32 size;
-	};
-} __packed;
-
-struct intel_remapped_info {
-	struct intel_remapped_plane_info plane[4];
-	/* in gtt pages */
-	u32 plane_alignment;
-} __packed;
-
-struct intel_rotation_info {
-	struct intel_remapped_plane_info plane[2];
-} __packed;
-
-struct intel_partial_info {
-	u64 offset;
-	unsigned int size;
-} __packed;
-
-enum i915_gtt_view_type {
-	I915_GTT_VIEW_NORMAL = 0,
-	I915_GTT_VIEW_ROTATED = sizeof(struct intel_rotation_info),
-	I915_GTT_VIEW_PARTIAL = sizeof(struct intel_partial_info),
-	I915_GTT_VIEW_REMAPPED = sizeof(struct intel_remapped_info),
-};
-
 static inline void assert_i915_gem_gtt_types(void)
 {
 	BUILD_BUG_ON(sizeof(struct intel_rotation_info) != 2 * sizeof(u32) + 8 * sizeof(u16));
@@ -159,16 +121,6 @@ static inline void assert_i915_gem_gtt_types(void)
 		break;
 	}
 }
-
-struct i915_gtt_view {
-	enum i915_gtt_view_type type;
-	union {
-		/* Members need to contain no holes/padding */
-		struct intel_partial_info partial;
-		struct intel_rotation_info rotated;
-		struct intel_remapped_info remapped;
-	};
-};
 
 /**
  * DOC: Virtual Memory Address

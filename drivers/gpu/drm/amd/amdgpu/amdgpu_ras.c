@@ -1864,6 +1864,9 @@ int amdgpu_ras_sysfs_create(struct amdgpu_device *adev,
 	if (!obj || obj->attr_inuse)
 		return -EINVAL;
 
+	if (amdgpu_sriov_vf(adev) && !amdgpu_virt_ras_telemetry_block_en(adev, head->block))
+		return 0;
+
 	get_obj(obj);
 
 	snprintf(obj->fs_data.sysfs_name, sizeof(obj->fs_data.sysfs_name),
@@ -2796,20 +2799,108 @@ static int amdgpu_ras_mca2pa(struct amdgpu_device *adev,
 		return  -EINVAL;
 }
 
+static int __amdgpu_ras_restore_bad_pages(struct amdgpu_device *adev,
+					struct eeprom_table_record *bps, int count)
+{
+	int j;
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct ras_err_handler_data *data = con->eh_data;
+
+	for (j = 0; j < count; j++) {
+		if (amdgpu_ras_check_bad_page_unlock(con,
+			bps[j].retired_page << AMDGPU_GPU_PAGE_SHIFT))
+			continue;
+
+		if (!data->space_left &&
+		    amdgpu_ras_realloc_eh_data_space(adev, data, 256)) {
+			return -ENOMEM;
+		}
+
+		amdgpu_ras_reserve_page(adev, bps[j].retired_page);
+
+		memcpy(&data->bps[data->count], &(bps[j]),
+				sizeof(struct eeprom_table_record));
+		data->count++;
+		data->space_left--;
+	}
+
+	return 0;
+}
+
+static int __amdgpu_ras_convert_rec_array_from_rom(struct amdgpu_device *adev,
+				struct eeprom_table_record *bps, struct ras_err_data *err_data,
+				enum amdgpu_memory_partition nps)
+{
+	int i = 0;
+	enum amdgpu_memory_partition save_nps;
+
+	save_nps = (bps[0].retired_page >> UMC_NPS_SHIFT) & UMC_NPS_MASK;
+
+	/*old asics just have pa in eeprom*/
+	if (IP_VERSION_MAJ(amdgpu_ip_version(adev, UMC_HWIP, 0)) < 12) {
+		memcpy(err_data->err_addr, bps,
+			sizeof(struct eeprom_table_record) * adev->umc.retire_unit);
+		goto out;
+	}
+
+	for (i = 0; i < adev->umc.retire_unit; i++)
+		bps[i].retired_page &= ~(UMC_NPS_MASK << UMC_NPS_SHIFT);
+
+	if (save_nps) {
+		if (save_nps == nps) {
+			if (amdgpu_umc_pages_in_a_row(adev, err_data,
+					bps[0].retired_page << AMDGPU_GPU_PAGE_SHIFT))
+				return -EINVAL;
+		} else {
+			if (amdgpu_ras_mca2pa_by_idx(adev, &bps[0], err_data))
+				return -EINVAL;
+		}
+	} else {
+		if (amdgpu_ras_mca2pa(adev, &bps[0], err_data)) {
+			if (nps == AMDGPU_NPS1_PARTITION_MODE)
+				memcpy(err_data->err_addr, bps,
+					sizeof(struct eeprom_table_record) * adev->umc.retire_unit);
+			else
+				return -EOPNOTSUPP;
+		}
+	}
+
+out:
+	return __amdgpu_ras_restore_bad_pages(adev, err_data->err_addr, adev->umc.retire_unit);
+}
+
+static int __amdgpu_ras_convert_rec_from_rom(struct amdgpu_device *adev,
+				struct eeprom_table_record *bps, struct ras_err_data *err_data,
+				enum amdgpu_memory_partition nps)
+{
+	enum amdgpu_memory_partition save_nps;
+
+	save_nps = (bps->retired_page >> UMC_NPS_SHIFT) & UMC_NPS_MASK;
+	bps->retired_page &= ~(UMC_NPS_MASK << UMC_NPS_SHIFT);
+
+	if (save_nps == nps) {
+		if (amdgpu_umc_pages_in_a_row(adev, err_data,
+				bps->retired_page << AMDGPU_GPU_PAGE_SHIFT))
+			return -EINVAL;
+	} else {
+		if (amdgpu_ras_mca2pa_by_idx(adev, bps, err_data))
+			return -EINVAL;
+	}
+	return __amdgpu_ras_restore_bad_pages(adev, err_data->err_addr,
+									adev->umc.retire_unit);
+}
+
 /* it deal with vram only. */
 int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 		struct eeprom_table_record *bps, int pages, bool from_rom)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-	struct ras_err_handler_data *data;
 	struct ras_err_data err_data;
-	struct eeprom_table_record *err_rec;
 	struct amdgpu_ras_eeprom_control *control =
 			&adev->psp.ras_context.ras->eeprom_control;
 	enum amdgpu_memory_partition nps = AMDGPU_NPS1_PARTITION_MODE;
 	int ret = 0;
-	uint32_t i, j, loop_cnt = 1;
-	bool find_pages_per_pa = false;
+	uint32_t i;
 
 	if (!con || !con->eh_data || !bps || pages <= 0)
 		return 0;
@@ -2820,114 +2911,46 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 				sizeof(struct eeprom_table_record), GFP_KERNEL);
 		if (!err_data.err_addr) {
 			dev_warn(adev->dev, "Failed to alloc UMC error address record in mca2pa conversion!\n");
-			ret = -ENOMEM;
-			goto out;
+			return -ENOMEM;
 		}
 
-		err_rec = err_data.err_addr;
-		loop_cnt = adev->umc.retire_unit;
 		if (adev->gmc.gmc_funcs->query_mem_partition_mode)
 			nps = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
 	}
 
 	mutex_lock(&con->recovery_lock);
-	data = con->eh_data;
-	if (!data) {
-		/* Returning 0 as the absence of eh_data is acceptable */
-		goto free;
-	}
 
-	for (i = 0; i < pages; i++) {
-		if (from_rom &&
-		    control->rec_type == AMDGPU_RAS_EEPROM_REC_MCA) {
-			if (!find_pages_per_pa) {
-				if (amdgpu_ras_mca2pa_by_idx(adev, &bps[i], &err_data)) {
-					if (!i && nps == AMDGPU_NPS1_PARTITION_MODE) {
-						/* may use old RAS TA, use PA to find pages in
-						 * one row
-						 */
-						if (amdgpu_umc_pages_in_a_row(adev, &err_data,
-									      bps[i].retired_page <<
-									      AMDGPU_GPU_PAGE_SHIFT)) {
-							ret = -EINVAL;
-							goto free;
-						} else {
-							find_pages_per_pa = true;
-						}
-					} else {
-						/* unsupported cases */
-						ret = -EOPNOTSUPP;
+	if (from_rom) {
+		for (i = 0; i < pages; i++) {
+			if (control->ras_num_recs - i >= adev->umc.retire_unit) {
+				if ((bps[i].address == bps[i + 1].address) &&
+				    (bps[i].mem_channel == bps[i + 1].mem_channel)) {
+					//deal with retire_unit records a time
+					ret = __amdgpu_ras_convert_rec_array_from_rom(adev,
+									&bps[i], &err_data, nps);
+					if (ret)
 						goto free;
-					}
-				}
-			} else {
-				if (amdgpu_umc_pages_in_a_row(adev, &err_data,
-						bps[i].retired_page << AMDGPU_GPU_PAGE_SHIFT)) {
-					ret = -EINVAL;
-					goto free;
-				}
-			}
-		} else {
-			if (from_rom && !find_pages_per_pa) {
-				if (bps[i].retired_page & UMC_CHANNEL_IDX_V2) {
-					/* bad page in any NPS mode in eeprom */
-					if (amdgpu_ras_mca2pa_by_idx(adev, &bps[i], &err_data)) {
-						ret = -EINVAL;
-						goto free;
-					}
-				} else {
-					/* legacy bad page in eeprom, generated only in
-					 * NPS1 mode
-					 */
-					if (amdgpu_ras_mca2pa(adev, &bps[i], &err_data)) {
-						/* old RAS TA or ASICs which don't support to
-						 * convert addrss via mca address
-						 */
-						if (!i && nps == AMDGPU_NPS1_PARTITION_MODE) {
-							find_pages_per_pa = true;
-							err_rec = &bps[i];
-							loop_cnt = 1;
-						} else {
-							/* non-nps1 mode, old RAS TA
-							 * can't support it
-							 */
-							ret = -EOPNOTSUPP;
-							goto free;
-						}
-					}
-				}
-
-				if (!find_pages_per_pa)
 					i += (adev->umc.retire_unit - 1);
+				} else {
+					break;
+				}
 			} else {
-				err_rec = &bps[i];
+				break;
 			}
 		}
-
-		for (j = 0; j < loop_cnt; j++) {
-			if (amdgpu_ras_check_bad_page_unlock(con,
-				err_rec[j].retired_page << AMDGPU_GPU_PAGE_SHIFT))
-				continue;
-
-			if (!data->space_left &&
-			    amdgpu_ras_realloc_eh_data_space(adev, data, 256)) {
-				ret = -ENOMEM;
+		for (; i < pages; i++) {
+			ret = __amdgpu_ras_convert_rec_from_rom(adev,
+				&bps[i], &err_data, nps);
+			if (ret)
 				goto free;
-			}
-
-			amdgpu_ras_reserve_page(adev, err_rec[j].retired_page);
-
-			memcpy(&data->bps[data->count], &(err_rec[j]),
-					sizeof(struct eeprom_table_record));
-			data->count++;
-			data->space_left--;
 		}
+	} else {
+		ret = __amdgpu_ras_restore_bad_pages(adev, bps, pages);
 	}
 
 free:
 	if (from_rom)
 		kfree(err_data.err_addr);
-out:
 	mutex_unlock(&con->recovery_lock);
 
 	return ret;
@@ -2966,18 +2989,18 @@ int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev,
 
 	/* only new entries are saved */
 	if (save_count > 0) {
-		if (control->rec_type == AMDGPU_RAS_EEPROM_REC_PA) {
+		/*old asics only save pa to eeprom like before*/
+		if (IP_VERSION_MAJ(amdgpu_ip_version(adev, UMC_HWIP, 0)) < 12) {
 			if (amdgpu_ras_eeprom_append(control,
-						     &data->bps[control->ras_num_recs],
-						     save_count)) {
+					&data->bps[bad_page_num], save_count)) {
 				dev_err(adev->dev, "Failed to save EEPROM table data!");
 				return -EIO;
 			}
 		} else {
 			for (i = 0; i < unit_num; i++) {
 				if (amdgpu_ras_eeprom_append(control,
-						&data->bps[bad_page_num + i * adev->umc.retire_unit],
-						1)) {
+						&data->bps[bad_page_num +
+						i * adev->umc.retire_unit], 1)) {
 					dev_err(adev->dev, "Failed to save EEPROM table data!");
 					return -EIO;
 				}
@@ -2999,7 +3022,7 @@ static int amdgpu_ras_load_bad_pages(struct amdgpu_device *adev)
 	struct amdgpu_ras_eeprom_control *control =
 		&adev->psp.ras_context.ras->eeprom_control;
 	struct eeprom_table_record *bps;
-	int ret;
+	int ret, i = 0;
 
 	/* no bad page record, skip eeprom access */
 	if (control->ras_num_recs == 0 || amdgpu_bad_page_threshold == 0)
@@ -3013,13 +3036,23 @@ static int amdgpu_ras_load_bad_pages(struct amdgpu_device *adev)
 	if (ret) {
 		dev_err(adev->dev, "Failed to load EEPROM table records!");
 	} else {
-		if (control->ras_num_recs > 1 &&
-		    adev->umc.ras && adev->umc.ras->convert_ras_err_addr) {
-			if ((bps[0].address == bps[1].address) &&
-			    (bps[0].mem_channel == bps[1].mem_channel))
-				control->rec_type = AMDGPU_RAS_EEPROM_REC_PA;
-			else
-				control->rec_type = AMDGPU_RAS_EEPROM_REC_MCA;
+		if (adev->umc.ras && adev->umc.ras->convert_ras_err_addr) {
+			for (i = 0; i < control->ras_num_recs; i++) {
+				if ((control->ras_num_recs - i) >= adev->umc.retire_unit) {
+					if ((bps[i].address == bps[i + 1].address) &&
+						(bps[i].mem_channel == bps[i + 1].mem_channel)) {
+						control->ras_num_pa_recs += adev->umc.retire_unit;
+						i += (adev->umc.retire_unit - 1);
+					} else {
+						control->ras_num_mca_recs +=
+									(control->ras_num_recs - i);
+						break;
+					}
+				} else {
+					control->ras_num_mca_recs += (control->ras_num_recs - i);
+					break;
+				}
+			}
 		}
 
 		ret = amdgpu_ras_eeprom_check(control);
@@ -3080,31 +3113,29 @@ static void amdgpu_ras_validate_threshold(struct amdgpu_device *adev,
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 
 	/*
-	 * Justification of value bad_page_cnt_threshold in ras structure
-	 *
-	 * Generally, 0 <= amdgpu_bad_page_threshold <= max record length
-	 * in eeprom or amdgpu_bad_page_threshold == -2, introduce two
-	 * scenarios accordingly.
-	 *
-	 * Bad page retirement enablement:
-	 *    - If amdgpu_bad_page_threshold = -2,
-	 *      bad_page_cnt_threshold = typical value by formula.
-	 *
-	 *    - When the value from user is 0 < amdgpu_bad_page_threshold <
-	 *      max record length in eeprom, use it directly.
-	 *
-	 * Bad page retirement disablement:
-	 *    - If amdgpu_bad_page_threshold = 0, bad page retirement
-	 *      functionality is disabled, and bad_page_cnt_threshold will
-	 *      take no effect.
+	 * amdgpu_bad_page_threshold is used to config
+	 * the threshold for the number of bad pages.
+	 * -1:  Threshold is set to default value
+	 *      Driver will issue a warning message when threshold is reached
+	 *      and continue runtime services.
+	 * 0:   Disable bad page retirement
+	 *      Driver will not retire bad pages
+	 *      which is intended for debugging purpose.
+	 * -2:  Threshold is determined by a formula
+	 *      that assumes 1 bad page per 100M of local memory.
+	 *      Driver will continue runtime services when threhold is reached.
+	 * 0 < threshold < max number of bad page records in EEPROM,
+	 *      A user-defined threshold is set
+	 *      Driver will halt runtime services when this custom threshold is reached.
 	 */
-
-	if (amdgpu_bad_page_threshold < 0) {
+	if (amdgpu_bad_page_threshold == -2) {
 		u64 val = adev->gmc.mc_vram_size;
 
 		do_div(val, RAS_BAD_PAGE_COVER);
 		con->bad_page_cnt_threshold = min(lower_32_bits(val),
 						  max_count);
+	} else if (amdgpu_bad_page_threshold == -1) {
+		con->bad_page_cnt_threshold = ((con->reserved_pages_in_bytes) >> 21) << 4;
 	} else {
 		con->bad_page_cnt_threshold = min_t(int, max_count,
 						    amdgpu_bad_page_threshold);
@@ -3427,12 +3458,7 @@ int amdgpu_ras_init_badpage_info(struct amdgpu_device *adev)
 		return ret;
 
 	if (!adev->umc.ras || !adev->umc.ras->convert_ras_err_addr)
-		control->rec_type = AMDGPU_RAS_EEPROM_REC_PA;
-
-	/* default status is MCA storage */
-	if (control->ras_num_recs <= 1 &&
-	    adev->umc.ras && adev->umc.ras->convert_ras_err_addr)
-		control->rec_type = AMDGPU_RAS_EEPROM_REC_MCA;
+		control->ras_num_pa_recs = control->ras_num_recs;
 
 	if (control->ras_num_recs) {
 		ret = amdgpu_ras_load_bad_pages(adev);
@@ -3447,6 +3473,13 @@ int amdgpu_ras_init_badpage_info(struct amdgpu_device *adev)
 				adev, control->bad_channel_bitmap);
 			con->update_channel_flag = false;
 		}
+
+		/* The format action is only applied to new ASICs */
+		if (IP_VERSION_MAJ(amdgpu_ip_version(adev, UMC_HWIP, 0)) >= 12 &&
+		    control->tbl_hdr.version < RAS_TABLE_VER_V3)
+			if (!amdgpu_ras_eeprom_reset_table(control))
+				if (amdgpu_ras_save_bad_pages(adev, NULL))
+					dev_warn(adev->dev, "Failed to format RAS EEPROM data in V3 version!\n");
 	}
 
 	return ret;
@@ -3759,8 +3792,11 @@ init_ras_enabled_flag:
 	adev->ras_enabled = amdgpu_ras_enable == 0 ? 0 :
 		adev->ras_hw_enabled & amdgpu_ras_mask;
 
-	/* aca is disabled by default */
-	adev->aca.is_enabled = false;
+	/* aca is disabled by default except for psp v13_0_6/v13_0_12/v13_0_14 */
+	adev->aca.is_enabled =
+		(amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6) ||
+		 amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 12) ||
+		 amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 14));
 
 	/* bad page feature is not applicable to specific app platform */
 	if (adev->gmc.is_app_apu &&
@@ -3848,8 +3884,10 @@ static void amdgpu_ras_init_reserved_vram_size(struct amdgpu_device *adev)
 	case IP_VERSION(13, 0, 2):
 	case IP_VERSION(13, 0, 6):
 	case IP_VERSION(13, 0, 12):
+		con->reserved_pages_in_bytes = AMDGPU_RAS_RESERVED_VRAM_SIZE_DEFAULT;
+		break;
 	case IP_VERSION(13, 0, 14):
-		con->reserved_pages_in_bytes = AMDGPU_RAS_RESERVED_VRAM_SIZE;
+		con->reserved_pages_in_bytes = (AMDGPU_RAS_RESERVED_VRAM_SIZE_DEFAULT << 1);
 		break;
 	default:
 		break;
@@ -5127,9 +5165,9 @@ static void amdgpu_ras_boot_time_error_reporting(struct amdgpu_device *adev,
 			 "socket: %d, aid: %d, fw_status: 0x%x, data abort exception\n",
 			 socket_id, aid_id, fw_status);
 
-	if (AMDGPU_RAS_GPU_ERR_UNKNOWN(boot_error))
+	if (AMDGPU_RAS_GPU_ERR_GENERIC(boot_error))
 		dev_info(adev->dev,
-			 "socket: %d, aid: %d, fw_status: 0x%x, unknown boot time errors\n",
+			 "socket: %d, aid: %d, fw_status: 0x%x, Boot Controller Generic Error\n",
 			 socket_id, aid_id, fw_status);
 }
 

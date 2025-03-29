@@ -245,6 +245,7 @@ int smu_v14_0_check_fw_version(struct smu_context *smu)
 	switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
 	case IP_VERSION(14, 0, 0):
 	case IP_VERSION(14, 0, 4):
+	case IP_VERSION(14, 0, 5):
 		smu->smc_driver_if_version = SMU14_DRIVER_IF_VERSION_SMU_V14_0_0;
 		break;
 	case IP_VERSION(14, 0, 1):
@@ -769,6 +770,7 @@ int smu_v14_0_gfx_off_control(struct smu_context *smu, bool enable)
 	case IP_VERSION(14, 0, 2):
 	case IP_VERSION(14, 0, 3):
 	case IP_VERSION(14, 0, 4):
+	case IP_VERSION(14, 0, 5):
 		if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
 			return 0;
 		if (enable)
@@ -948,6 +950,14 @@ static int smu_v14_0_irq_process(struct amdgpu_device *adev,
 	uint32_t client_id = entry->client_id;
 	uint32_t src_id = entry->src_id;
 
+	/*
+	 * ctxid is used to distinguish different
+	 * events for SMCToHost interrupt.
+	 */
+	uint32_t ctxid = entry->src_data[0];
+	uint32_t data;
+	uint32_t high;
+
 	if (client_id == SOC15_IH_CLIENTID_THM) {
 		switch (src_id) {
 		case THM_11_0__SRCID__THM_DIG_THERM_L2H:
@@ -961,6 +971,50 @@ static int smu_v14_0_irq_process(struct amdgpu_device *adev,
 			dev_emerg(adev->dev, "ERROR: GPU under temperature range unknown src id (%d)\n",
 				  src_id);
 			break;
+		}
+	} else if (client_id == SOC15_IH_CLIENTID_MP1) {
+		if (src_id == SMU_IH_INTERRUPT_ID_TO_DRIVER) {
+			/* ACK SMUToHost interrupt */
+			data = RREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_CTRL);
+			data = REG_SET_FIELD(data, MP1_SMN_IH_SW_INT_CTRL, INT_ACK, 1);
+			WREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_CTRL, data);
+
+			switch (ctxid) {
+			case SMU_IH_INTERRUPT_CONTEXT_ID_FAN_ABNORMAL:
+				high = smu->thermal_range.software_shutdown_temp +
+					smu->thermal_range.software_shutdown_temp_offset;
+				high = min_t(typeof(high),
+					     SMU_THERMAL_MAXIMUM_ALERT_TEMP,
+					     high);
+				dev_emerg(adev->dev, "Reduce soft CTF limit to %d (by an offset %d)\n",
+							high,
+							smu->thermal_range.software_shutdown_temp_offset);
+
+				data = RREG32_SOC15(THM, 0, regTHM_THERMAL_INT_CTRL);
+				data = REG_SET_FIELD(data, THM_THERMAL_INT_CTRL,
+							DIG_THERM_INTH,
+							(high & 0xff));
+				data = data & (~THM_THERMAL_INT_CTRL__THERM_TRIGGER_MASK_MASK);
+				WREG32_SOC15(THM, 0, regTHM_THERMAL_INT_CTRL, data);
+				break;
+			case SMU_IH_INTERRUPT_CONTEXT_ID_FAN_RECOVERY:
+				high = min_t(typeof(high),
+					     SMU_THERMAL_MAXIMUM_ALERT_TEMP,
+					     smu->thermal_range.software_shutdown_temp);
+				dev_emerg(adev->dev, "Recover soft CTF limit to %d\n", high);
+
+				data = RREG32_SOC15(THM, 0, regTHM_THERMAL_INT_CTRL);
+				data = REG_SET_FIELD(data, THM_THERMAL_INT_CTRL,
+							DIG_THERM_INTH,
+							(high & 0xff));
+				data = data & (~THM_THERMAL_INT_CTRL__THERM_TRIGGER_MASK_MASK);
+				WREG32_SOC15(THM, 0, regTHM_THERMAL_INT_CTRL, data);
+				break;
+			default:
+				dev_dbg(adev->dev, "Unhandled context id %d from client:%d!\n",
+									ctxid, client_id);
+				break;
+			}
 		}
 	}
 

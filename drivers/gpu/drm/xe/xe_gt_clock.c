@@ -12,24 +12,9 @@
 #include "xe_assert.h"
 #include "xe_device.h"
 #include "xe_gt.h"
+#include "xe_gt_printk.h"
 #include "xe_macros.h"
 #include "xe_mmio.h"
-
-static u32 read_reference_ts_freq(struct xe_gt *gt)
-{
-	u32 ts_override = xe_mmio_read32(&gt->mmio, TIMESTAMP_OVERRIDE);
-	u32 base_freq, frac_freq;
-
-	base_freq = REG_FIELD_GET(TIMESTAMP_OVERRIDE_US_COUNTER_DIVIDER_MASK,
-				  ts_override) + 1;
-	base_freq *= 1000000;
-
-	frac_freq = REG_FIELD_GET(TIMESTAMP_OVERRIDE_US_COUNTER_DENOMINATOR_MASK,
-				  ts_override);
-	frac_freq = 1000000 / (frac_freq + 1);
-
-	return base_freq + frac_freq;
-}
 
 static u32 get_crystal_clock_freq(u32 rpm_config_reg)
 {
@@ -57,26 +42,30 @@ static u32 get_crystal_clock_freq(u32 rpm_config_reg)
 
 int xe_gt_clock_init(struct xe_gt *gt)
 {
-	u32 ctc_reg = xe_mmio_read32(&gt->mmio, CTC_MODE);
+	u32 c0 = xe_mmio_read32(&gt->mmio, RPM_CONFIG0);
 	u32 freq = 0;
 
-	/* Assuming gen11+ so assert this assumption is correct */
-	xe_gt_assert(gt, GRAPHICS_VER(gt_to_xe(gt)) >= 11);
+	/*
+	 * CTC_MODE[0] = 1 is definitely not supported for Xe2 and later
+	 * platforms.  In theory it could be a valid setting for pre-Xe2
+	 * platforms, but there's no documentation on how to properly handle
+	 * this case.  Reading TIMESTAMP_OVERRIDE, as the driver attempted in
+	 * the past has been confirmed as incorrect by the hardware architects.
+	 *
+	 * For now just warn if we ever encounter hardware in the wild that
+	 * has this setting and move on as if it hadn't been set.
+	 */
+	if (xe_mmio_read32(&gt->mmio, CTC_MODE) & CTC_SOURCE_DIVIDE_LOGIC)
+		xe_gt_warn(gt, "CTC_MODE[0] is set; this is unexpected and undocumented\n");
 
-	if (ctc_reg & CTC_SOURCE_DIVIDE_LOGIC) {
-		freq = read_reference_ts_freq(gt);
-	} else {
-		u32 c0 = xe_mmio_read32(&gt->mmio, RPM_CONFIG0);
+	freq = get_crystal_clock_freq(c0);
 
-		freq = get_crystal_clock_freq(c0);
-
-		/*
-		 * Now figure out how the command stream's timestamp
-		 * register increments from this frequency (it might
-		 * increment only every few clock cycle).
-		 */
-		freq >>= 3 - REG_FIELD_GET(RPM_CONFIG0_CTC_SHIFT_PARAMETER_MASK, c0);
-	}
+	/*
+	 * Now figure out how the command stream's timestamp
+	 * register increments from this frequency (it might
+	 * increment only every few clock cycle).
+	 */
+	freq >>= 3 - REG_FIELD_GET(RPM_CONFIG0_CTC_SHIFT_PARAMETER_MASK, c0);
 
 	gt->info.reference_clock = freq;
 	return 0;

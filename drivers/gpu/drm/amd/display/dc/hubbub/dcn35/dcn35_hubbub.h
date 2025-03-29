@@ -152,4 +152,20 @@ void hubbub35_construct(struct dcn20_hubbub *hubbub2,
 	int det_size_kb,
 	int pixel_chunk_size_kb,
 	int config_return_buffer_size_kb);
+
+void hubbub35_wm_read_state(struct hubbub *hubbub,
+	struct dcn_hubbub_wm *wm);
+void hubbub35_get_dchub_ref_freq(struct hubbub *hubbub,
+	unsigned int dccg_ref_freq_inKhz,
+	unsigned int *dchub_ref_freq_inKhz);
+bool hubbub35_program_watermarks(
+	struct hubbub *hubbub,
+	union dcn_watermark_set *watermarks,
+	unsigned int refclk_mhz,
+	bool safe_to_lower);
+void hubbub35_init_watermarks(struct hubbub *hubbub);
+void dcn35_program_compbuf_size(struct hubbub *hubbub,
+	unsigned int compbuf_size_kb, bool safe_to_increase);
+void dcn35_init_crb(struct hubbub *hubbub);
+void hubbub35_init(struct hubbub *hubbub);
 #endif

@@ -79,8 +79,8 @@ struct nouveau_svm {
 #define SVM_ERR(s,f,a...) NV_WARN((s)->drm, "svm: "f"\n", ##a)
 
 struct nouveau_pfnmap_args {
-	struct nvif_ioctl_v0 i;
-	struct nvif_ioctl_mthd_v0 m;
+	struct nvif_ioctl_v0_hdr i;
+	struct nvif_ioctl_mthd_v0_hdr m;
 	struct nvif_vmm_pfnmap_v0 p;
 };
 

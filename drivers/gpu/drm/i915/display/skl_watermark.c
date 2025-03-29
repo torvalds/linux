@@ -52,13 +52,13 @@ struct skl_wm_params {
 	u32 dbuf_block_size;
 };
 
-u8 intel_enabled_dbuf_slices_mask(struct drm_i915_private *i915)
+u8 intel_enabled_dbuf_slices_mask(struct intel_display *display)
 {
 	u8 enabled_slices = 0;
 	enum dbuf_slice slice;
 
-	for_each_dbuf_slice(i915, slice) {
-		if (intel_de_read(i915, DBUF_CTL_S(slice)) & DBUF_POWER_STATE)
+	for_each_dbuf_slice(display, slice) {
+		if (intel_de_read(display, DBUF_CTL_S(slice)) & DBUF_POWER_STATE)
 			enabled_slices |= BIT(slice);
 	}
 
@@ -584,7 +584,7 @@ u32 skl_ddb_dbuf_slice_mask(struct drm_i915_private *i915,
 
 	/*
 	 * Per plane DDB entry can in a really worst case be on multiple slices
-	 * but single entry is anyway contigious.
+	 * but single entry is anyway contiguous.
 	 */
 	while (start_slice <= end_slice) {
 		slice_mask |= BIT(start_slice);
@@ -836,6 +836,7 @@ static void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
 				      struct skl_ddb_entry *ddb_y,
 				      u16 *min_ddb, u16 *interim_ddb)
 {
+	struct intel_display *display = to_intel_display(crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	enum intel_display_power_domain power_domain;
 	enum pipe pipe = crtc->pipe;
@@ -843,7 +844,7 @@ static void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
 	enum plane_id plane_id;
 
 	power_domain = POWER_DOMAIN_PIPE(pipe);
-	wakeref = intel_display_power_get_if_enabled(i915, power_domain);
+	wakeref = intel_display_power_get_if_enabled(display, power_domain);
 	if (!wakeref)
 		return;
 
@@ -855,7 +856,7 @@ static void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
 					   &min_ddb[plane_id],
 					   &interim_ddb[plane_id]);
 
-	intel_display_power_put(i915, power_domain, wakeref);
+	intel_display_power_put(display, power_domain, wakeref);
 }
 
 struct dbuf_slice_conf_entry {
@@ -2259,8 +2260,8 @@ static int icl_build_plane_wm(struct intel_crtc_state *crtc_state,
 	struct skl_plane_wm *wm = &crtc_state->wm.skl.raw.planes[plane_id];
 	int ret;
 
-	/* Watermarks calculated in master */
-	if (plane_state->planar_slave)
+	/* Watermarks calculated on UV plane */
+	if (plane_state->is_y_plane)
 		return 0;
 
 	memset(wm, 0, sizeof(*wm));
@@ -2292,6 +2293,87 @@ static int icl_build_plane_wm(struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
+static int
+cdclk_prefill_adjustment(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	struct intel_atomic_state *state =
+		to_intel_atomic_state(crtc_state->uapi.state);
+	const struct intel_cdclk_state *cdclk_state;
+
+	cdclk_state = intel_atomic_get_cdclk_state(state);
+	if (IS_ERR(cdclk_state)) {
+		drm_WARN_ON(display->drm, PTR_ERR(cdclk_state));
+		return 1;
+	}
+
+	return min(1, DIV_ROUND_UP(crtc_state->pixel_rate,
+				   2 * cdclk_state->logical.cdclk));
+}
+
+static int
+dsc_prefill_latency(const struct intel_crtc_state *crtc_state)
+{
+	const struct intel_crtc_scaler_state *scaler_state =
+					&crtc_state->scaler_state;
+	int linetime = DIV_ROUND_UP(1000 * crtc_state->hw.adjusted_mode.htotal,
+				    crtc_state->hw.adjusted_mode.clock);
+	int num_scaler_users = hweight32(scaler_state->scaler_users);
+	int chroma_downscaling_factor =
+		crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ? 2 : 1;
+	u32 dsc_prefill_latency = 0;
+
+	if (!crtc_state->dsc.compression_enable || !num_scaler_users)
+		return dsc_prefill_latency;
+
+	dsc_prefill_latency = DIV_ROUND_UP(15 * linetime * chroma_downscaling_factor, 10);
+
+	for (int i = 0; i < num_scaler_users; i++) {
+		u64 hscale_k, vscale_k;
+
+		hscale_k = max(1000, mul_u32_u32(scaler_state->scalers[i].hscale, 1000) >> 16);
+		vscale_k = max(1000, mul_u32_u32(scaler_state->scalers[i].vscale, 1000) >> 16);
+		dsc_prefill_latency = DIV_ROUND_UP_ULL(dsc_prefill_latency * hscale_k * vscale_k,
+						       1000000);
+	}
+
+	dsc_prefill_latency *= cdclk_prefill_adjustment(crtc_state);
+
+	return intel_usecs_to_scanlines(&crtc_state->hw.adjusted_mode, dsc_prefill_latency);
+}
+
+static int
+scaler_prefill_latency(const struct intel_crtc_state *crtc_state)
+{
+	const struct intel_crtc_scaler_state *scaler_state =
+					&crtc_state->scaler_state;
+	int num_scaler_users = hweight32(scaler_state->scaler_users);
+	int scaler_prefill_latency = 0;
+	int linetime = DIV_ROUND_UP(1000 * crtc_state->hw.adjusted_mode.htotal,
+				    crtc_state->hw.adjusted_mode.clock);
+
+	if (!num_scaler_users)
+		return scaler_prefill_latency;
+
+	scaler_prefill_latency = 4 * linetime;
+
+	if (num_scaler_users > 1) {
+		u64 hscale_k = max(1000, mul_u32_u32(scaler_state->scalers[0].hscale, 1000) >> 16);
+		u64 vscale_k = max(1000, mul_u32_u32(scaler_state->scalers[0].vscale, 1000) >> 16);
+		int chroma_downscaling_factor =
+			crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ? 2 : 1;
+		int latency;
+
+		latency = DIV_ROUND_UP_ULL((4 * linetime * hscale_k * vscale_k *
+					    chroma_downscaling_factor), 1000000);
+		scaler_prefill_latency += latency;
+	}
+
+	scaler_prefill_latency *= cdclk_prefill_adjustment(crtc_state);
+
+	return intel_usecs_to_scanlines(&crtc_state->hw.adjusted_mode, scaler_prefill_latency);
+}
+
 static bool
 skl_is_vblank_too_short(const struct intel_crtc_state *crtc_state,
 			int wm0_lines, int latency)
@@ -2299,9 +2381,10 @@ skl_is_vblank_too_short(const struct intel_crtc_state *crtc_state,
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
 
-	/* FIXME missing scaler and DSC pre-fill time */
 	return crtc_state->framestart_delay +
 		intel_usecs_to_scanlines(adjusted_mode, latency) +
+		scaler_prefill_latency(crtc_state) +
+		dsc_prefill_latency(crtc_state) +
 		wm0_lines >
 		adjusted_mode->crtc_vtotal - adjusted_mode->crtc_vblank_start;
 }
@@ -3074,6 +3157,7 @@ static void skl_wm_get_hw_state(struct drm_i915_private *i915)
 		dbuf_state->joined_mbus = intel_de_read(display, MBUS_CTL) & MBUS_JOIN;
 
 	dbuf_state->mdclk_cdclk_ratio = intel_mdclk_cdclk_ratio(display, &display->cdclk.hw);
+	dbuf_state->active_pipes = 0;
 
 	for_each_intel_crtc(display->drm, crtc) {
 		struct intel_crtc_state *crtc_state =
@@ -3085,8 +3169,10 @@ static void skl_wm_get_hw_state(struct drm_i915_private *i915)
 
 		memset(&crtc_state->wm.skl.optimal, 0,
 		       sizeof(crtc_state->wm.skl.optimal));
-		if (crtc_state->hw.active)
+		if (crtc_state->hw.active) {
 			skl_pipe_wm_get_hw_state(crtc, &crtc_state->wm.skl.optimal);
+			dbuf_state->active_pipes |= BIT(pipe);
+		}
 		crtc_state->wm.skl.raw = crtc_state->wm.skl.optimal;
 
 		memset(&dbuf_state->ddb[pipe], 0, sizeof(dbuf_state->ddb[pipe]));
@@ -3204,7 +3290,7 @@ adjust_wm_latency(struct drm_i915_private *i915,
 	 * WaWmMemoryReadLatency
 	 *
 	 * punit doesn't take into account the read latency so we need
-	 * to add proper adjustement to each valid level we retrieve
+	 * to add proper adjustment to each valid level we retrieve
 	 * from the punit when level 0 response data is 0us.
 	 */
 	if (wm[0] == 0) {
@@ -3618,7 +3704,7 @@ void intel_dbuf_mbus_post_ddb_update(struct intel_atomic_state *state)
 
 void intel_dbuf_pre_plane_update(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_display *display = to_intel_display(state);
 	const struct intel_dbuf_state *new_dbuf_state =
 		intel_atomic_get_new_dbuf_state(state);
 	const struct intel_dbuf_state *old_dbuf_state =
@@ -3636,12 +3722,12 @@ void intel_dbuf_pre_plane_update(struct intel_atomic_state *state)
 
 	WARN_ON(!new_dbuf_state->base.changed);
 
-	gen9_dbuf_slices_update(i915, new_slices);
+	gen9_dbuf_slices_update(display, new_slices);
 }
 
 void intel_dbuf_post_plane_update(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_display *display = to_intel_display(state);
 	const struct intel_dbuf_state *new_dbuf_state =
 		intel_atomic_get_new_dbuf_state(state);
 	const struct intel_dbuf_state *old_dbuf_state =
@@ -3659,7 +3745,7 @@ void intel_dbuf_post_plane_update(struct intel_atomic_state *state)
 
 	WARN_ON(!new_dbuf_state->base.changed);
 
-	gen9_dbuf_slices_update(i915, new_slices);
+	gen9_dbuf_slices_update(display, new_slices);
 }
 
 static void skl_mbus_sanitize(struct drm_i915_private *i915)
@@ -3754,12 +3840,54 @@ static void skl_dbuf_sanitize(struct drm_i915_private *i915)
 	}
 }
 
-static void skl_wm_get_hw_state_and_sanitize(struct drm_i915_private *i915)
+static void skl_wm_sanitize(struct drm_i915_private *i915)
 {
-	skl_wm_get_hw_state(i915);
-
 	skl_mbus_sanitize(i915);
 	skl_dbuf_sanitize(i915);
+}
+
+void skl_wm_crtc_disable_noatomic(struct intel_crtc *crtc)
+{
+	struct intel_display *display = to_intel_display(crtc);
+	struct intel_crtc_state *crtc_state =
+		to_intel_crtc_state(crtc->base.state);
+	struct intel_dbuf_state *dbuf_state =
+		to_intel_dbuf_state(display->dbuf.obj.state);
+	enum pipe pipe = crtc->pipe;
+
+	if (DISPLAY_VER(display) < 9)
+		return;
+
+	dbuf_state->active_pipes &= ~BIT(pipe);
+
+	dbuf_state->weight[pipe] = 0;
+	dbuf_state->slices[pipe] = 0;
+
+	memset(&dbuf_state->ddb[pipe], 0, sizeof(dbuf_state->ddb[pipe]));
+
+	memset(&crtc_state->wm.skl.ddb, 0, sizeof(crtc_state->wm.skl.ddb));
+}
+
+void skl_wm_plane_disable_noatomic(struct intel_crtc *crtc,
+				   struct intel_plane *plane)
+{
+	struct intel_display *display = to_intel_display(crtc);
+	struct intel_crtc_state *crtc_state =
+		to_intel_crtc_state(crtc->base.state);
+
+	if (DISPLAY_VER(display) < 9)
+		return;
+
+	skl_ddb_entry_init(&crtc_state->wm.skl.plane_ddb[plane->id], 0, 0);
+	skl_ddb_entry_init(&crtc_state->wm.skl.plane_ddb[plane->id], 0, 0);
+
+	crtc_state->wm.skl.plane_min_ddb[plane->id] = 0;
+	crtc_state->wm.skl.plane_interim_ddb[plane->id] = 0;
+
+	memset(&crtc_state->wm.skl.raw.planes[plane->id], 0,
+	       sizeof(crtc_state->wm.skl.raw.planes[plane->id]));
+	memset(&crtc_state->wm.skl.optimal.planes[plane->id], 0,
+	       sizeof(crtc_state->wm.skl.optimal.planes[plane->id]));
 }
 
 void intel_wm_state_verify(struct intel_atomic_state *state,
@@ -3792,7 +3920,7 @@ void intel_wm_state_verify(struct intel_atomic_state *state,
 
 	skl_pipe_ddb_get_hw_state(crtc, hw->ddb, hw->ddb_y, hw->min_ddb, hw->interim_ddb);
 
-	hw_enabled_slices = intel_enabled_dbuf_slices_mask(i915);
+	hw_enabled_slices = intel_enabled_dbuf_slices_mask(display);
 
 	if (DISPLAY_VER(i915) >= 11 &&
 	    hw_enabled_slices != i915->display.dbuf.enabled_slices)
@@ -3889,7 +4017,8 @@ void intel_wm_state_verify(struct intel_atomic_state *state,
 
 static const struct intel_wm_funcs skl_wm_funcs = {
 	.compute_global_watermarks = skl_compute_wm,
-	.get_hw_state = skl_wm_get_hw_state_and_sanitize,
+	.get_hw_state = skl_wm_get_hw_state,
+	.sanitize = skl_wm_sanitize,
 };
 
 void skl_wm_init(struct drm_i915_private *i915)

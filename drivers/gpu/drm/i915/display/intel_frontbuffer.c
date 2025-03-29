@@ -59,6 +59,7 @@
 
 #include "i915_active.h"
 #include "i915_drv.h"
+#include "i915_vma.h"
 #include "intel_bo.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
@@ -98,10 +99,10 @@ static void frontbuffer_flush(struct drm_i915_private *i915,
 	trace_intel_frontbuffer_flush(display, frontbuffer_bits, origin);
 
 	might_sleep();
-	intel_td_flush(i915);
-	intel_drrs_flush(i915, frontbuffer_bits);
+	intel_td_flush(display);
+	intel_drrs_flush(display, frontbuffer_bits);
 	intel_psr_flush(display, frontbuffer_bits, origin);
-	intel_fbc_flush(i915, frontbuffer_bits, origin);
+	intel_fbc_flush(display, frontbuffer_bits, origin);
 }
 
 /**
@@ -176,7 +177,6 @@ void __intel_fb_invalidate(struct intel_frontbuffer *front,
 			   unsigned int frontbuffer_bits)
 {
 	struct intel_display *display = to_intel_display(front->obj->dev);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 
 	if (origin == ORIGIN_CS) {
 		spin_lock(&display->fb_tracking.lock);
@@ -189,8 +189,8 @@ void __intel_fb_invalidate(struct intel_frontbuffer *front,
 
 	might_sleep();
 	intel_psr_invalidate(display, frontbuffer_bits, origin);
-	intel_drrs_invalidate(i915, frontbuffer_bits);
-	intel_fbc_invalidate(i915, frontbuffer_bits, origin);
+	intel_drrs_invalidate(display, frontbuffer_bits);
+	intel_fbc_invalidate(display, frontbuffer_bits, origin);
 }
 
 void __intel_fb_flush(struct intel_frontbuffer *front,
@@ -227,7 +227,7 @@ static void intel_frontbuffer_flush_work(struct work_struct *work)
  * @front: GEM object to flush
  *
  * This function is targeted for our dirty callback for queueing flush when
- * dma fence is signales
+ * dma fence is signals
  */
 void intel_frontbuffer_queue_flush(struct intel_frontbuffer *front)
 {

@@ -26,7 +26,6 @@
 #include <drm/drm_bridge.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_of.h>
-#include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
 
 #define FLD_VAL(val, start, end) FIELD_PREP(GENMASK(start, end), val)

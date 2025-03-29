@@ -44,7 +44,7 @@
 #include "amdgpu_securedisplay.h"
 #include "amdgpu_atomfirmware.h"
 
-#define AMD_VBIOS_FILE_MAX_SIZE_B      (1024*1024*3)
+#define AMD_VBIOS_FILE_MAX_SIZE_B      (1024*1024*16)
 
 static int psp_load_smu_fw(struct psp_context *psp);
 static int psp_rap_terminate(struct psp_context *psp);
@@ -153,6 +153,9 @@ static int psp_init_sriov_microcode(struct psp_context *psp)
 		adev->virt.autoload_ucode_id = AMDGPU_UCODE_ID_CP_MES1_DATA;
 		ret = psp_init_cap_microcode(psp, ucode_prefix);
 		break;
+	case IP_VERSION(13, 0, 12):
+		ret = psp_init_ta_microcode(psp, ucode_prefix);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -193,6 +196,7 @@ static int psp_early_init(struct amdgpu_ip_block *ip_block)
 	case IP_VERSION(11, 0, 9):
 	case IP_VERSION(11, 0, 11):
 	case IP_VERSION(11, 5, 0):
+	case IP_VERSION(11, 5, 2):
 	case IP_VERSION(11, 0, 12):
 	case IP_VERSION(11, 0, 13):
 		psp_v11_0_set_psp_funcs(psp);
@@ -208,10 +212,14 @@ static int psp_early_init(struct amdgpu_ip_block *ip_block)
 		psp->boot_time_tmr = false;
 		fallthrough;
 	case IP_VERSION(13, 0, 6):
-	case IP_VERSION(13, 0, 12):
 	case IP_VERSION(13, 0, 14):
 		psp_v13_0_set_psp_funcs(psp);
 		psp->autoload_supported = false;
+		break;
+	case IP_VERSION(13, 0, 12):
+		psp_v13_0_set_psp_funcs(psp);
+		psp->autoload_supported = false;
+		adev->psp.sup_ifwi_up = !amdgpu_sriov_vf(adev);
 		break;
 	case IP_VERSION(13, 0, 1):
 	case IP_VERSION(13, 0, 3):
@@ -245,6 +253,10 @@ static int psp_early_init(struct amdgpu_ip_block *ip_block)
 	case IP_VERSION(14, 0, 2):
 	case IP_VERSION(14, 0, 3):
 		psp_v14_0_set_psp_funcs(psp);
+		break;
+	case IP_VERSION(14, 0, 5):
+		psp_v14_0_set_psp_funcs(psp);
+		psp->boot_time_tmr = false;
 		break;
 	default:
 		return -EINVAL;
@@ -533,7 +545,6 @@ static int psp_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
 	struct psp_context *psp = &adev->psp;
-	struct psp_gfx_cmd_resp *cmd = psp->cmd;
 
 	psp_memory_training_fini(psp);
 
@@ -543,8 +554,8 @@ static int psp_sw_fini(struct amdgpu_ip_block *ip_block)
 	amdgpu_ucode_release(&psp->cap_fw);
 	amdgpu_ucode_release(&psp->toc_fw);
 
-	kfree(cmd);
-	cmd = NULL;
+	kfree(psp->cmd);
+	psp->cmd = NULL;
 
 	psp_free_shared_bufs(psp);
 
@@ -1786,34 +1797,47 @@ int psp_ras_initialize(struct psp_context *psp)
 		if (ret)
 			dev_warn(adev->dev, "PSP get boot config failed\n");
 
-		if (!amdgpu_ras_is_supported(psp->adev, AMDGPU_RAS_BLOCK__UMC)) {
-			if (!boot_cfg) {
-				dev_info(adev->dev, "GECC is disabled\n");
-			} else {
-				/* disable GECC in next boot cycle if ras is
-				 * disabled by module parameter amdgpu_ras_enable
-				 * and/or amdgpu_ras_mask, or boot_config_get call
-				 * is failed
-				 */
-				ret = psp_boot_config_set(adev, 0);
-				if (ret)
-					dev_warn(adev->dev, "PSP set boot config failed\n");
-				else
-					dev_warn(adev->dev, "GECC will be disabled in next boot cycle if set amdgpu_ras_enable and/or amdgpu_ras_mask to 0x0\n");
-			}
+		if (boot_cfg == 1 && !adev->ras_default_ecc_enabled &&
+		    amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__UMC)) {
+			dev_warn(adev->dev, "GECC is currently enabled, which may affect performance\n");
+			dev_warn(adev->dev,
+				"To disable GECC, please reboot the system and load the amdgpu driver with the parameter amdgpu_ras_enable=0\n");
 		} else {
-			if (boot_cfg == 1) {
-				dev_info(adev->dev, "GECC is enabled\n");
+			if ((adev->ras_default_ecc_enabled || amdgpu_ras_enable == 1) &&
+				amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__UMC)) {
+				if (boot_cfg == 1) {
+					dev_info(adev->dev, "GECC is enabled\n");
+				} else {
+					/* enable GECC in next boot cycle if it is disabled
+					 * in boot config, or force enable GECC if failed to
+					 * get boot configuration
+					 */
+					ret = psp_boot_config_set(adev, BOOT_CONFIG_GECC);
+					if (ret)
+						dev_warn(adev->dev, "PSP set boot config failed\n");
+					else
+						dev_warn(adev->dev, "GECC will be enabled in next boot cycle\n");
+				}
 			} else {
-				/* enable GECC in next boot cycle if it is disabled
-				 * in boot config, or force enable GECC if failed to
-				 * get boot configuration
-				 */
-				ret = psp_boot_config_set(adev, BOOT_CONFIG_GECC);
-				if (ret)
-					dev_warn(adev->dev, "PSP set boot config failed\n");
-				else
-					dev_warn(adev->dev, "GECC will be enabled in next boot cycle\n");
+				if (!boot_cfg) {
+					if (!adev->ras_default_ecc_enabled &&
+					    amdgpu_ras_enable != 1 &&
+					    amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__UMC))
+						dev_warn(adev->dev, "GECC is disabled, set amdgpu_ras_enable=1 to enable GECC in next boot cycle if needed\n");
+					else
+						dev_info(adev->dev, "GECC is disabled\n");
+				} else {
+					/* disable GECC in next boot cycle if ras is
+					 * disabled by module parameter amdgpu_ras_enable
+					 * and/or amdgpu_ras_mask, or boot_config_get call
+					 * is failed
+					 */
+					ret = psp_boot_config_set(adev, 0);
+					if (ret)
+						dev_warn(adev->dev, "PSP set boot config failed\n");
+					else
+						dev_warn(adev->dev, "GECC will be disabled in next boot cycle if set amdgpu_ras_enable and/or amdgpu_ras_mask to 0x0\n");
+				}
 			}
 		}
 	}
@@ -1840,6 +1864,7 @@ int psp_ras_initialize(struct psp_context *psp)
 	if (adev->gmc.gmc_funcs->query_mem_partition_mode)
 		ras_cmd->ras_in_message.init_flags.nps_mode =
 			adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
+	ras_cmd->ras_in_message.init_flags.active_umc_mask = adev->umc.active_mask;
 
 	ret = psp_ta_load(psp, &psp->ras_context.context);
 

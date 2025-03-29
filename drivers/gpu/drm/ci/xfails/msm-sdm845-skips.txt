@@ -30,3 +30,8 @@ kms_cursor_crc.*
 # IGT Version: 1.28-ga73311079
 # Linux Version: 6.11.0-rc2
 kms_content_protection@uevent
+
+# IGT issue. is_joiner_mode() should return false for non-Intel hardware.
+# https://gitlab.freedesktop.org/drm/igt-gpu-tools/-/issues/162
+kms_display_modes@extended-mode-basic
+kms_display_modes@mst-extended-mode-negative

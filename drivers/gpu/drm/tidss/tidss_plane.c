@@ -67,7 +67,7 @@ static int tidss_plane_atomic_check(struct drm_plane *plane,
 
 	/*
 	 * The HW is only able to start drawing at subpixel boundary
-	 * (the two first checks bellow). At the end of a row the HW
+	 * (the two first checks below). At the end of a row the HW
 	 * can only jump integer number of subpixels forward to the
 	 * beginning of the next row. So we can only show picture with
 	 * integer subpixel width (the third check). However, after

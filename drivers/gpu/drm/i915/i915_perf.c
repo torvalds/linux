@@ -548,7 +548,8 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 	bool pollin;
 	u32 partial_report_size;
 
-	/* We have to consider the (unlikely) possibility that read() errors
+	/*
+	 * We have to consider the (unlikely) possibility that read() errors
 	 * could result in an OA buffer reset which might reset the head and
 	 * tail state.
 	 */
@@ -557,7 +558,8 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 	hw_tail = stream->perf->ops.oa_hw_tail_read(stream);
 	hw_tail -= gtt_offset;
 
-	/* The tail pointer increases in 64 byte increments, not in report_size
+	/*
+	 * The tail pointer increases in 64 byte increments, not in report_size
 	 * steps. Also the report size may not be a power of 2. Compute
 	 * potentially partially landed report in the OA buffer
 	 */
@@ -569,8 +571,9 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 
 	tail = hw_tail;
 
-	/* Walk the stream backward until we find a report with report
-	 * id and timestmap not at 0. Since the circular buffer pointers
+	/*
+	 * Walk the stream backward until we find a report with report
+	 * id and timestamp not at 0. Since the circular buffer pointers
 	 * progress by increments of 64 bytes and that reports can be up
 	 * to 256 bytes long, we can't tell whether a report has fully
 	 * landed in memory before the report id and timestamp of the
@@ -3848,7 +3851,7 @@ i915_perf_open_ioctl_locked(struct i915_perf *perf,
 	}
 
 	/*
-	 * Asking for SSEU configuration is a priviliged operation.
+	 * Asking for SSEU configuration is a privileged operation.
 	 */
 	if (props->has_sseu)
 		privileged_op = true;
@@ -4477,14 +4480,16 @@ static bool gen12_is_valid_mux_addr(struct i915_perf *perf, u32 addr)
 
 static u32 mask_reg_value(u32 reg, u32 val)
 {
-	/* HALF_SLICE_CHICKEN2 is programmed with a the
+	/*
+	 * HALF_SLICE_CHICKEN2 is programmed with a the
 	 * WaDisableSTUnitPowerOptimization workaround. Make sure the value
 	 * programmed by userspace doesn't change this.
 	 */
 	if (REG_EQUAL(reg, HALF_SLICE_CHICKEN2))
 		val = val & ~_MASKED_BIT_ENABLE(GEN8_ST_PO_DISABLE);
 
-	/* WAIT_FOR_RC6_EXIT has only one bit fullfilling the function
+	/*
+	 * WAIT_FOR_RC6_EXIT has only one bit fulfilling the function
 	 * indicated by its name and a bunch of selection fields used by OA
 	 * configs.
 	 */

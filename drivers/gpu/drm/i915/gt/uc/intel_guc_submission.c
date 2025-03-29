@@ -1223,7 +1223,7 @@ __extend_last_switch(struct intel_guc *guc, u64 *prev_start, u32 new_start)
  * determine validity of these values. Instead we read the values multiple times
  * until they are consistent. In test runs, 3 attempts results in consistent
  * values. The upper bound is set to 6 attempts and may need to be tuned as per
- * any new occurences.
+ * any new occurrences.
  */
 static void __get_engine_usage_record(struct intel_engine_cs *engine,
 				      u32 *last_in, u32 *id, u32 *total)
@@ -1285,15 +1285,12 @@ static void guc_update_engine_gt_clks(struct intel_engine_cs *engine)
 static u32 gpm_timestamp_shift(struct intel_gt *gt)
 {
 	intel_wakeref_t wakeref;
-	u32 reg, shift;
+	u32 reg;
 
 	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
 		reg = intel_uncore_read(gt->uncore, RPM_CONFIG0);
 
-	shift = (reg & GEN10_RPM_CONFIG0_CTC_SHIFT_PARAMETER_MASK) >>
-		GEN10_RPM_CONFIG0_CTC_SHIFT_PARAMETER_SHIFT;
-
-	return 3 - shift;
+	return 3 - REG_FIELD_GET(GEN10_RPM_CONFIG0_CTC_SHIFT_PARAMETER_MASK, reg);
 }
 
 static void guc_update_pm_timestamp(struct intel_guc *guc, ktime_t *now)
@@ -3011,7 +3008,7 @@ static int __guc_context_pin(struct intel_context *ce,
 
 	/*
 	 * GuC context gets pinned in guc_request_alloc. See that function for
-	 * explaination of why.
+	 * explanation of why.
 	 */
 
 	return lrc_pin(ce, engine, vaddr);

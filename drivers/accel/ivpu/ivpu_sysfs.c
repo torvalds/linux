@@ -7,11 +7,14 @@
 #include <linux/err.h>
 
 #include "ivpu_drv.h"
+#include "ivpu_gem.h"
 #include "ivpu_fw.h"
 #include "ivpu_hw.h"
 #include "ivpu_sysfs.h"
 
-/*
+/**
+ * DOC: npu_busy_time_us
+ *
  * npu_busy_time_us is the time that the device spent executing jobs.
  * The time is counted when and only when there are jobs submitted to firmware.
  *
@@ -30,16 +33,41 @@ npu_busy_time_us_show(struct device *dev, struct device_attribute *attr, char *b
 	struct ivpu_device *vdev = to_ivpu_device(drm);
 	ktime_t total, now = 0;
 
-	xa_lock(&vdev->submitted_jobs_xa);
+	mutex_lock(&vdev->submitted_jobs_lock);
+
 	total = vdev->busy_time;
 	if (!xa_empty(&vdev->submitted_jobs_xa))
 		now = ktime_sub(ktime_get(), vdev->busy_start_ts);
-	xa_unlock(&vdev->submitted_jobs_xa);
+	mutex_unlock(&vdev->submitted_jobs_lock);
 
 	return sysfs_emit(buf, "%lld\n", ktime_to_us(ktime_add(total, now)));
 }
 
 static DEVICE_ATTR_RO(npu_busy_time_us);
+
+/**
+ * DOC: npu_memory_utilization
+ *
+ * The npu_memory_utilization is used to report in bytes a current NPU memory utilization.
+ *
+ */
+static ssize_t
+npu_memory_utilization_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+	struct ivpu_device *vdev = to_ivpu_device(drm);
+	struct ivpu_bo *bo;
+	u64 total_npu_memory = 0;
+
+	mutex_lock(&vdev->bo_list_lock);
+	list_for_each_entry(bo, &vdev->bo_list, bo_list_node)
+		total_npu_memory += bo->base.base.size;
+	mutex_unlock(&vdev->bo_list_lock);
+
+	return sysfs_emit(buf, "%lld\n", total_npu_memory);
+}
+
+static DEVICE_ATTR_RO(npu_memory_utilization);
 
 /**
  * DOC: sched_mode
@@ -64,6 +92,7 @@ static DEVICE_ATTR_RO(sched_mode);
 
 static struct attribute *ivpu_dev_attrs[] = {
 	&dev_attr_npu_busy_time_us.attr,
+	&dev_attr_npu_memory_utilization.attr,
 	&dev_attr_sched_mode.attr,
 	NULL,
 };

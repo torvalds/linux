@@ -90,10 +90,11 @@ verify_connector_state(struct intel_atomic_state *state,
 
 static void intel_pipe_config_sanity_check(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
 	if (crtc_state->has_pch_encoder) {
-		int fdi_dotclock = intel_dotclock_calculate(intel_fdi_link_freq(i915, crtc_state),
+		int fdi_dotclock = intel_dotclock_calculate(intel_fdi_link_freq(display, crtc_state),
 							    &crtc_state->fdi_m_n);
 		int dotclock = crtc_state->hw.adjusted_mode.crtc_clock;
 

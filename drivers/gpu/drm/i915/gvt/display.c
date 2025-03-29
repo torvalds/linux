@@ -97,7 +97,7 @@ int pipe_is_enabled(struct intel_vgpu *vgpu, int pipe)
 	return 0;
 }
 
-static unsigned char virtual_dp_monitor_edid[GVT_EDID_NUM][EDID_SIZE] = {
+static const unsigned char virtual_dp_monitor_edid[GVT_EDID_NUM][EDID_SIZE] = {
 	{
 /* EDID with 1024x768 as its resolution */
 		/*Header*/

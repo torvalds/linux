@@ -1285,6 +1285,12 @@ static int renoir_read_sensor(struct smu_context *smu,
 						  (uint32_t *)data);
 		*size = 4;
 		break;
+	case AMDGPU_PP_SENSOR_VCN_LOAD:
+		ret = renoir_get_smu_metrics_data(smu,
+						  METRICS_AVERAGE_VCNACTIVITY,
+						  (uint32_t *)data);
+		*size = 4;
+		break;
 	case AMDGPU_PP_SENSOR_EDGE_TEMP:
 		ret = renoir_get_smu_metrics_data(smu,
 						  METRICS_TEMPERATURE_EDGE,

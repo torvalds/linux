@@ -294,4 +294,12 @@ struct i915_irq_regs {
 #define I915_IRQ_REGS(_imr, _ier, _iir) \
 	((const struct i915_irq_regs){ .imr = (_imr), .ier = (_ier), .iir = (_iir) })
 
+struct i915_error_regs {
+	i915_reg_t emr;
+	i915_reg_t eir;
+};
+
+#define I915_ERROR_REGS(_emr, _eir) \
+	((const struct i915_error_regs){ .emr = (_emr), .eir = (_eir) })
+
 #endif /* __I915_REG_DEFS__ */

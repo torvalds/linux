@@ -121,9 +121,11 @@
  * - 3.59.0 - Cleared VRAM
  * - 3.60.0 - Add AMDGPU_TILING_GFX12_DCC_WRITE_COMPRESS_DISABLE (Vulkan requirement)
  * - 3.61.0 - Contains fix for RV/PCO compute queues
+ * - 3.62.0 - Add AMDGPU_IDS_FLAGS_MODE_PF, AMDGPU_IDS_FLAGS_MODE_VF & AMDGPU_IDS_FLAGS_MODE_PT
+ * - 3.63.0 - GFX12 display DCC supports 256B max compressed block size
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	61
+#define KMS_DRIVER_MINOR	63
 #define KMS_DRIVER_PATCHLEVEL	0
 
 /*
@@ -136,6 +138,8 @@ enum AMDGPU_DEBUG_MASK {
 	AMDGPU_DEBUG_USE_VRAM_FW_BUF = BIT(3),
 	AMDGPU_DEBUG_ENABLE_RAS_ACA = BIT(4),
 	AMDGPU_DEBUG_ENABLE_EXP_RESETS = BIT(5),
+	AMDGPU_DEBUG_DISABLE_GPU_RING_RESET = BIT(6),
+	AMDGPU_DEBUG_SMU_POOL = BIT(7),
 };
 
 unsigned int amdgpu_vram_limit = UINT_MAX;
@@ -173,6 +177,7 @@ uint amdgpu_sdma_phase_quantum = 32;
 char *amdgpu_disable_cu;
 char *amdgpu_virtual_display;
 bool enforce_isolation;
+int amdgpu_modeset = -1;
 
 /* Specifies the default granularity for SVM, used in buffer
  * migration and restoration of backing memory when handling
@@ -283,6 +288,7 @@ module_param_named(gartsize, amdgpu_gart_size, uint, 0600);
  * DOC: gttsize (int)
  * Restrict the size of GTT domain (for userspace use) in MiB for testing.
  * The default is -1 (Use value specified by TTM).
+ * This parameter is deprecated and will be removed in the future.
  */
 MODULE_PARM_DESC(gttsize, "Size of the GTT userspace domain in megabytes (-1 = auto)");
 module_param_named(gttsize, amdgpu_gtt_size, int, 0600);
@@ -963,7 +969,7 @@ module_param_named_unsafe(reset_method, amdgpu_reset_method, int, 0644);
  * result in the GPU entering bad status when the number of total
  * faulty pages by ECC exceeds the threshold value.
  */
-MODULE_PARM_DESC(bad_page_threshold, "Bad page threshold(-1 = ignore threshold (default value), 0 = disable bad page retirement, -2 = driver sets threshold)");
+MODULE_PARM_DESC(bad_page_threshold, "Bad page threshold(-1 = ignore threshold (default value), 0 = disable bad page retirement, -2 = threshold determined by a formula, 0 < threshold < max records, user-defined threshold)");
 module_param_named(bad_page_threshold, amdgpu_bad_page_threshold, int, 0444);
 
 MODULE_PARM_DESC(num_kcq, "number of kernel compute queue user want to setup (8 if set to greater than 8 or less than 0, only affect gfx 8+)");
@@ -1034,6 +1040,13 @@ module_param(enforce_isolation, bool, 0444);
 MODULE_PARM_DESC(enforce_isolation, "enforce process isolation between graphics and compute . enforce_isolation = on");
 
 /**
+ * DOC: modeset (int)
+ * Override nomodeset (1 = override, -1 = auto). The default is -1 (auto).
+ */
+MODULE_PARM_DESC(modeset, "Override nomodeset (1 = enable, -1 = auto)");
+module_param_named(modeset, amdgpu_modeset, int, 0444);
+
+/**
  * DOC: seamless (int)
  * Seamless boot will keep the image on the screen during the boot process.
  */
@@ -1049,6 +1062,11 @@ module_param_named(seamless, amdgpu_seamless, int, 0444);
  *   limits the VRAM size reported to ROCm applications to the visible
  *   size, usually 256MB.
  * - 0x4: Disable GPU soft recovery, always do a full reset
+ * - 0x8: Use VRAM for firmware loading
+ * - 0x10: Enable ACA based RAS logging
+ * - 0x20: Enable experimental resets
+ * - 0x40: Disable ring resets
+ * - 0x80: Use VRAM for SMU pool
  */
 MODULE_PARM_DESC(debug_mask, "debug options for amdgpu, disabled by default");
 module_param_named_unsafe(debug_mask, amdgpu_debug_mask, uint, 0444);
@@ -2221,6 +2239,15 @@ static void amdgpu_init_debug_options(struct amdgpu_device *adev)
 		pr_info("debug: enable experimental reset features\n");
 		adev->debug_exp_resets = true;
 	}
+
+	if (amdgpu_debug_mask & AMDGPU_DEBUG_DISABLE_GPU_RING_RESET) {
+		pr_info("debug: ring reset disabled\n");
+		adev->debug_disable_gpu_ring_reset = true;
+	}
+	if (amdgpu_debug_mask & AMDGPU_DEBUG_SMU_POOL) {
+		pr_info("debug: use vram for smu pool\n");
+		adev->pm.smu_debug_mask |= SMU_DEBUG_POOL_USE_VRAM;
+	}
 }
 
 static unsigned long amdgpu_fix_asic_type(struct pci_dev *pdev, unsigned long flags)
@@ -2247,6 +2274,12 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 	unsigned long flags = ent->driver_data;
 	int ret, retry = 0, i;
 	bool supports_atomic = false;
+
+	if ((pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA ||
+	    (pdev->class >> 8) == PCI_CLASS_DISPLAY_OTHER) {
+		if (drm_firmware_drivers_only() && amdgpu_modeset == -1)
+			return -EINVAL;
+	}
 
 	/* skip devices which are owned by radeon */
 	for (i = 0; i < ARRAY_SIZE(amdgpu_unsupported_pciidlist); i++) {
@@ -2980,9 +3013,6 @@ static struct pci_driver amdgpu_kms_pci_driver = {
 static int __init amdgpu_init(void)
 {
 	int r;
-
-	if (drm_firmware_drivers_only())
-		return -EINVAL;
 
 	r = amdgpu_sync_init();
 	if (r)
