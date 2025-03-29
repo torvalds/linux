@@ -694,7 +694,7 @@ than stress the kernel.
 To start a new job that is to be contained within a cpuset, the steps are:
 
  1) mkdir /sys/fs/cgroup/cpuset
- 2) mount -t cgroup -ocpuset cpuset /sys/fs/cgroup/cpuset
+ 2) mount -t cgroup -o cpuset cpuset /sys/fs/cgroup/cpuset
  3) Create the new cpuset by doing mkdir's and write's (or echo's) in
     the /sys/fs/cgroup/cpuset virtual file system.
  4) Start a task that will be the "founding father" of the new job.
@@ -706,7 +706,7 @@ For example, the following sequence of commands will setup a cpuset
 named "Charlie", containing just CPUs 2 and 3, and Memory Node 1,
 and then start a subshell 'sh' in that cpuset::
 
-  mount -t cgroup -ocpuset cpuset /sys/fs/cgroup/cpuset
+  mount -t cgroup -o cpuset cpuset /sys/fs/cgroup/cpuset
   cd /sys/fs/cgroup/cpuset
   mkdir Charlie
   cd Charlie
@@ -812,7 +812,7 @@ The command::
 
 is equivalent to::
 
-  mount -t cgroup -ocpuset,noprefix X /sys/fs/cgroup/cpuset
+  mount -t cgroup -o cpuset,noprefix X /sys/fs/cgroup/cpuset
   echo "/sbin/cpuset_release_agent" > /sys/fs/cgroup/cpuset/release_agent
 
 2.2 Adding/removing cpus
