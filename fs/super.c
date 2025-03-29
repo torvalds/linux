@@ -930,8 +930,7 @@ void iterate_supers(void (*f)(struct super_block *, void *), void *arg)
 
 		locked = super_lock_shared(sb);
 		if (locked) {
-			if (sb->s_root)
-				f(sb, arg);
+			f(sb, arg);
 			super_unlock_shared(sb);
 		}
 
@@ -967,11 +966,8 @@ void iterate_supers_type(struct file_system_type *type,
 		spin_unlock(&sb_lock);
 
 		locked = super_lock_shared(sb);
-		if (locked) {
-			if (sb->s_root)
-				f(sb, arg);
-			super_unlock_shared(sb);
-		}
+		if (locked)
+			f(sb, arg);
 
 		spin_lock(&sb_lock);
 		if (p)
@@ -991,18 +987,15 @@ struct super_block *user_get_super(dev_t dev, bool excl)
 
 	spin_lock(&sb_lock);
 	list_for_each_entry(sb, &super_blocks, s_list) {
-		if (sb->s_dev ==  dev) {
+		if (sb->s_dev == dev) {
 			bool locked;
 
 			sb->s_count++;
 			spin_unlock(&sb_lock);
 			/* still alive? */
 			locked = super_lock(sb, excl);
-			if (locked) {
-				if (sb->s_root)
-					return sb;
-				super_unlock(sb, excl);
-			}
+			if (locked)
+				return sb; /* caller will drop */
 			/* nope, got unmounted */
 			spin_lock(&sb_lock);
 			__put_super(sb);
