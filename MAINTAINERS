@@ -3610,13 +3610,41 @@ F:	drivers/hwmon/asus_wmi_sensors.c
 
 ASYMMETRIC KEYS
 M:	David Howells <dhowells@redhat.com>
+M:	Lukas Wunner <lukas@wunner.de>
+M:	Ignat Korchagin <ignat@cloudflare.com>
 L:	keyrings@vger.kernel.org
+L:	linux-crypto@vger.kernel.org
 S:	Maintained
 F:	Documentation/crypto/asymmetric-keys.rst
 F:	crypto/asymmetric_keys/
 F:	include/crypto/pkcs7.h
 F:	include/crypto/public_key.h
+F:	include/keys/asymmetric-*.h
 F:	include/linux/verification.h
+
+ASYMMETRIC KEYS - ECDSA
+M:	Lukas Wunner <lukas@wunner.de>
+M:	Ignat Korchagin <ignat@cloudflare.com>
+R:	Stefan Berger <stefanb@linux.ibm.com>
+L:	linux-crypto@vger.kernel.org
+S:	Maintained
+F:	crypto/ecc*
+F:	crypto/ecdsa*
+F:	include/crypto/ecc*
+
+ASYMMETRIC KEYS - GOST
+M:	Lukas Wunner <lukas@wunner.de>
+M:	Ignat Korchagin <ignat@cloudflare.com>
+L:	linux-crypto@vger.kernel.org
+S:	Odd fixes
+F:	crypto/ecrdsa*
+
+ASYMMETRIC KEYS - RSA
+M:	Lukas Wunner <lukas@wunner.de>
+M:	Ignat Korchagin <ignat@cloudflare.com>
+L:	linux-crypto@vger.kernel.org
+S:	Maintained
+F:	crypto/rsa*
 
 ASYNCHRONOUS TRANSFERS/TRANSFORMS (IOAT) API
 R:	Dan Williams <dan.j.williams@intel.com>
@@ -11599,6 +11627,13 @@ L:	linux-crypto@vger.kernel.org
 S:	Maintained
 F:	drivers/crypto/inside-secure/
 
+INSIDE SECURE EIP93 CRYPTO DRIVER
+M:	Christian Marangi <ansuelsmth@gmail.com>
+L:	linux-crypto@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/crypto/inside-secure,safexcel-eip93.yaml
+F:	drivers/crypto/inside-secure/eip93/
+
 INTEGRITY MEASUREMENT ARCHITECTURE (IMA)
 M:	Mimi Zohar <zohar@linux.ibm.com>
 M:	Roberto Sassu <roberto.sassu@huawei.com>
@@ -11802,6 +11837,7 @@ F:	drivers/dma/ioat*
 
 INTEL IAA CRYPTO DRIVER
 M:	Kristen Accardi <kristen.c.accardi@intel.com>
+M:	Vinicius Costa Gomes <vinicius.gomes@intel.com>
 L:	linux-crypto@vger.kernel.org
 S:	Supported
 F:	Documentation/driver-api/crypto/iaa/iaa-crypto.rst
@@ -20675,8 +20711,10 @@ F:	include/uapi/linux/rkisp1-config.h
 ROCKCHIP RK3568 RANDOM NUMBER GENERATOR SUPPORT
 M:	Daniel Golle <daniel@makrotopia.org>
 M:	Aurelien Jarno <aurelien@aurel32.net>
+M:	Nicolas Frattaroli <nicolas.frattaroli@collabora.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/rng/rockchip,rk3568-rng.yaml
+F:	Documentation/devicetree/bindings/rng/rockchip,rk3588-rng.yaml
 F:	drivers/char/hw_random/rockchip-rng.c
 
 ROCKCHIP RASTER 2D GRAPHIC ACCELERATION UNIT DRIVER
@@ -26493,6 +26531,7 @@ F:	mm/zsmalloc.c
 
 ZSTD
 M:	Nick Terrell <terrelln@fb.com>
+M:	David Sterba <dsterba@suse.com>
 S:	Maintained
 B:	https://github.com/facebook/zstd/issues
 T:	git https://github.com/terrelln/linux.git

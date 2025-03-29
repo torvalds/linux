@@ -234,6 +234,18 @@ config CRYPTO_AUTHENC
 
 	  This is required for IPSec ESP (XFRM_ESP).
 
+config CRYPTO_KRB5ENC
+	tristate "Kerberos 5 combined hash+cipher support"
+	select CRYPTO_AEAD
+	select CRYPTO_SKCIPHER
+	select CRYPTO_MANAGER
+	select CRYPTO_HASH
+	select CRYPTO_NULL
+	help
+	  Combined hash and cipher support for Kerberos 5 RFC3961 simplified
+	  profile.  This is required for Kerberos 5-style encryption, used by
+	  sunrpc/NFS and rxrpc/AFS.
+
 config CRYPTO_TEST
 	tristate "Testing module"
 	depends on m || EXPERT
@@ -324,6 +336,7 @@ config CRYPTO_CURVE25519
 	tristate "Curve25519"
 	select CRYPTO_KPP
 	select CRYPTO_LIB_CURVE25519_GENERIC
+	select CRYPTO_LIB_CURVE25519_INTERNAL
 	help
 	  Curve25519 elliptic curve (RFC7748)
 
@@ -622,6 +635,7 @@ config CRYPTO_ARC4
 config CRYPTO_CHACHA20
 	tristate "ChaCha"
 	select CRYPTO_LIB_CHACHA_GENERIC
+	select CRYPTO_LIB_CHACHA_INTERNAL
 	select CRYPTO_SKCIPHER
 	help
 	  The ChaCha20, XChaCha20, and XChaCha12 stream cipher algorithms
@@ -943,6 +957,7 @@ config CRYPTO_POLY1305
 	tristate "Poly1305"
 	select CRYPTO_HASH
 	select CRYPTO_LIB_POLY1305_GENERIC
+	select CRYPTO_LIB_POLY1305_INTERNAL
 	help
 	  Poly1305 authenticator algorithm (RFC7539)
 
@@ -1446,5 +1461,6 @@ endif
 source "drivers/crypto/Kconfig"
 source "crypto/asymmetric_keys/Kconfig"
 source "certs/Kconfig"
+source "crypto/krb5/Kconfig"
 
 endif	# if CRYPTO
