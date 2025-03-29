@@ -5,6 +5,7 @@
  * Copyright (C) 2016 Martin Blumenstingl <martin.blumenstingl@googlemail.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -39,9 +40,7 @@
 	#define REG_CTRL_TX_BITSTUFF_ENN		BIT(18)
 	#define REG_CTRL_COMMON_ON			BIT(19)
 	#define REG_CTRL_REF_CLK_SEL_MASK		GENMASK(21, 20)
-	#define REG_CTRL_REF_CLK_SEL_SHIFT		20
 	#define REG_CTRL_FSEL_MASK			GENMASK(24, 22)
-	#define REG_CTRL_FSEL_SHIFT			22
 	#define REG_CTRL_PORT_RESET			BIT(25)
 	#define REG_CTRL_THREAD_ID_MASK			GENMASK(31, 26)
 
@@ -170,10 +169,10 @@ static int phy_meson8b_usb2_power_on(struct phy *phy)
 			   REG_CONFIG_CLK_32k_ALTSEL);
 
 	regmap_update_bits(priv->regmap, REG_CTRL, REG_CTRL_REF_CLK_SEL_MASK,
-			   0x2 << REG_CTRL_REF_CLK_SEL_SHIFT);
+			   FIELD_PREP(REG_CTRL_REF_CLK_SEL_MASK, 0x2));
 
 	regmap_update_bits(priv->regmap, REG_CTRL, REG_CTRL_FSEL_MASK,
-			   0x5 << REG_CTRL_FSEL_SHIFT);
+			   FIELD_PREP(REG_CTRL_FSEL_MASK, 0x5));
 
 	/* reset the PHY */
 	regmap_update_bits(priv->regmap, REG_CTRL, REG_CTRL_POWER_ON_RESET,
