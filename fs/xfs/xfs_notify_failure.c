@@ -127,7 +127,7 @@ xfs_dax_notify_failure_freeze(
 	struct super_block	*sb = mp->m_super;
 	int			error;
 
-	error = freeze_super(sb, FREEZE_HOLDER_KERNEL);
+	error = freeze_super(sb, FREEZE_HOLDER_KERNEL, NULL);
 	if (error)
 		xfs_emerg(mp, "already frozen by kernel, err=%d", error);
 
@@ -143,7 +143,7 @@ xfs_dax_notify_failure_thaw(
 	int			error;
 
 	if (kernel_frozen) {
-		error = thaw_super(sb, FREEZE_HOLDER_KERNEL);
+		error = thaw_super(sb, FREEZE_HOLDER_KERNEL, NULL);
 		if (error)
 			xfs_emerg(mp, "still frozen after notify failure, err=%d",
 				error);
@@ -153,7 +153,7 @@ xfs_dax_notify_failure_thaw(
 	 * Also thaw userspace call anyway because the device is about to be
 	 * removed immediately.
 	 */
-	thaw_super(sb, FREEZE_HOLDER_USERSPACE);
+	thaw_super(sb, FREEZE_HOLDER_USERSPACE, NULL);
 }
 
 static int
