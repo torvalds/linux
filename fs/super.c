@@ -987,20 +987,21 @@ struct super_block *user_get_super(dev_t dev, bool excl)
 
 	spin_lock(&sb_lock);
 	list_for_each_entry(sb, &super_blocks, s_list) {
-		if (sb->s_dev == dev) {
-			bool locked;
+		bool locked;
 
-			sb->s_count++;
-			spin_unlock(&sb_lock);
-			/* still alive? */
-			locked = super_lock(sb, excl);
-			if (locked)
-				return sb; /* caller will drop */
-			/* nope, got unmounted */
-			spin_lock(&sb_lock);
-			__put_super(sb);
-			break;
-		}
+		if (sb->s_dev != dev)
+			continue;
+
+		sb->s_count++;
+		spin_unlock(&sb_lock);
+
+		locked = super_lock(sb, excl);
+		if (locked)
+			return sb;
+
+		spin_lock(&sb_lock);
+		__put_super(sb);
+		break;
 	}
 	spin_unlock(&sb_lock);
 	return NULL;
