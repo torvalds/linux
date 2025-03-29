@@ -10,6 +10,8 @@
  * Author: Alan Cox <alan@linux.intel.com>
  */
 
+#define DEFAULT_SYMBOL_NAMESPACE "PWM_LPSS"
+
 #include <linux/bits.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -19,8 +21,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/pwm.h>
 #include <linux/time.h>
-
-#define DEFAULT_SYMBOL_NAMESPACE "PWM_LPSS"
 
 #include "pwm-lpss.h"
 
