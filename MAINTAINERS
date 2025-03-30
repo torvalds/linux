@@ -14090,6 +14090,7 @@ MAILBOX API
 M:	Jassi Brar <jassisinghbrar@gmail.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jassibrar/mailbox.git for-next
 F:	Documentation/devicetree/bindings/mailbox/
 F:	drivers/mailbox/
 F:	include/dt-bindings/mailbox/
