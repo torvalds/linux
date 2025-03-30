@@ -1,7 +1,0 @@
-[
-  {
-    "BriefDescription": "Transaction count",
-    "MetricName": "transaction",
-    "MetricExpr": "TX_C_TEND + TX_NC_TEND + TX_NC_TABORT + TX_C_TABORT_SPECIAL + TX_C_TABORT_NO_SPECIAL"
-  }
-]

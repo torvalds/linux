@@ -1,8 +1,0 @@
-{# SPDX-License-Identifier: GPL-2.0 #}
-	} u;
-};
-{%- if name in public_apis %}
-
-bool xdrgen_decode_{{ name }}(struct xdr_stream *xdr, struct {{ name }} *ptr);
-bool xdrgen_encode_{{ name }}(struct xdr_stream *xdr, const struct {{ name }} *ptr);
-{%- endif -%}

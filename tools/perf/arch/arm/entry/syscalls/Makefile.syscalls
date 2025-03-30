@@ -1,2 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0
-syscall-y += syscalls_32.h

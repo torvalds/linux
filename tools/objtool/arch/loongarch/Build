@@ -1,3 +1,0 @@
-objtool-y += decode.o
-objtool-y += special.o
-objtool-y += orc.o

@@ -1,8 +1,0 @@
-# The async firmware timeout is set to 1 second (but ends up being effectively
-# 2 seconds). There are 3 test configs, each done with and without firmware
-# present, each with 2 "nowait" functions tested 5 times. Expected time for a
-# normal execution should be 2 * 3 * 2 * 2 * 5 = 120 seconds for those alone.
-# Additionally, fw_fallback may take 5 seconds for internal timeouts in each
-# of the 3 configs, so at least another 15 seconds are needed. Add another
-# 10 seconds for each testing config: 120 + 15 + 30
-timeout=165
