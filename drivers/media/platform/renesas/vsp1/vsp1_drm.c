@@ -593,8 +593,8 @@ static int vsp1_du_pipeline_set_rwpf_format(struct vsp1_device *vsp1,
 
 	fmtinfo = vsp1_get_format_info(vsp1, pixelformat);
 	if (!fmtinfo) {
-		dev_dbg(vsp1->dev, "Unsupported pixel format %08x\n",
-			pixelformat);
+		dev_dbg(vsp1->dev, "Unsupported pixel format %p4cc\n",
+			&pixelformat);
 		return -EINVAL;
 	}
 
@@ -849,11 +849,11 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int pipe_index,
 	}
 
 	dev_dbg(vsp1->dev,
-		"%s: RPF%u: (%u,%u)/%ux%u -> (%u,%u)/%ux%u (%08x), pitch %u dma { %pad, %pad, %pad } zpos %u\n",
+		"%s: RPF%u: (%u,%u)/%ux%u -> (%u,%u)/%ux%u (%p4cc), pitch %u dma { %pad, %pad, %pad } zpos %u\n",
 		__func__, rpf_index,
 		cfg->src.left, cfg->src.top, cfg->src.width, cfg->src.height,
 		cfg->dst.left, cfg->dst.top, cfg->dst.width, cfg->dst.height,
-		cfg->pixelformat, cfg->pitch, &cfg->mem[0], &cfg->mem[1],
+		&cfg->pixelformat, cfg->pitch, &cfg->mem[0], &cfg->mem[1],
 		&cfg->mem[2], cfg->zpos);
 
 	/*
