@@ -445,6 +445,7 @@ struct filter_match_data {
 	size_t index;
 	size_t size;
 	unsigned long *addrs;
+	struct module **mods;
 };
 
 static int filter_match_callback(void *data, const char *name, unsigned long addr)
@@ -458,30 +459,47 @@ static int filter_match_callback(void *data, const char *name, unsigned long add
 	if (!ftrace_location(addr))
 		return 0;
 
-	if (match->addrs)
-		match->addrs[match->index] = addr;
+	if (match->addrs) {
+		struct module *mod = __module_text_address(addr);
 
+		if (mod && !try_module_get(mod))
+			return 0;
+
+		match->mods[match->index] = mod;
+		match->addrs[match->index] = addr;
+	}
 	match->index++;
 	return match->index == match->size;
 }
 
 /*
  * Make IP list from the filter/no-filter glob patterns.
- * Return the number of matched symbols, or -ENOENT.
+ * Return the number of matched symbols, or errno.
+ * If @addrs == NULL, this just counts the number of matched symbols. If @addrs
+ * is passed with an array, we need to pass the an @mods array of the same size
+ * to increment the module refcount for each symbol.
+ * This means we also need to call `module_put` for each element of @mods after
+ * using the @addrs.
  */
-static int ip_list_from_filter(const char *filter, const char *notfilter,
-			       unsigned long *addrs, size_t size)
+static int get_ips_from_filter(const char *filter, const char *notfilter,
+			       unsigned long *addrs, struct module **mods,
+			       size_t size)
 {
 	struct filter_match_data match = { .filter = filter, .notfilter = notfilter,
-		.index = 0, .size = size, .addrs = addrs};
+		.index = 0, .size = size, .addrs = addrs, .mods = mods};
 	int ret;
+
+	if (addrs && !mods)
+		return -EINVAL;
 
 	ret = kallsyms_on_each_symbol(filter_match_callback, &match);
 	if (ret < 0)
 		return ret;
-	ret = module_kallsyms_on_each_symbol(NULL, filter_match_callback, &match);
-	if (ret < 0)
-		return ret;
+	if (IS_ENABLED(CONFIG_MODULES)) {
+		ret = module_kallsyms_on_each_symbol(NULL, filter_match_callback, &match);
+		if (ret < 0)
+			return ret;
+	}
 
 	return match.index ?: -ENOENT;
 }
@@ -543,24 +561,35 @@ static int fprobe_init(struct fprobe *fp, unsigned long *addrs, int num)
  */
 int register_fprobe(struct fprobe *fp, const char *filter, const char *notfilter)
 {
-	unsigned long *addrs;
-	int ret;
+	unsigned long *addrs __free(kfree) = NULL;
+	struct module **mods __free(kfree) = NULL;
+	int ret, num;
 
 	if (!fp || !filter)
 		return -EINVAL;
 
-	ret = ip_list_from_filter(filter, notfilter, NULL, FPROBE_IPS_MAX);
+	num = get_ips_from_filter(filter, notfilter, NULL, NULL, FPROBE_IPS_MAX);
+	if (num < 0)
+		return num;
+
+	addrs = kcalloc(num, sizeof(*addrs), GFP_KERNEL);
+	if (!addrs)
+		return -ENOMEM;
+
+	mods = kcalloc(num, sizeof(*mods), GFP_KERNEL);
+	if (!mods)
+		return -ENOMEM;
+
+	ret = get_ips_from_filter(filter, notfilter, addrs, mods, num);
 	if (ret < 0)
 		return ret;
 
-	addrs = kcalloc(ret, sizeof(unsigned long), GFP_KERNEL);
-	if (!addrs)
-		return -ENOMEM;
-	ret = ip_list_from_filter(filter, notfilter, addrs, ret);
-	if (ret > 0)
-		ret = register_fprobe_ips(fp, addrs, ret);
+	ret = register_fprobe_ips(fp, addrs, ret);
 
-	kfree(addrs);
+	for (int i = 0; i < num; i++) {
+		if (mods[i])
+			module_put(mods[i]);
+	}
 	return ret;
 }
 EXPORT_SYMBOL_GPL(register_fprobe);
