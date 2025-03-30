@@ -259,6 +259,7 @@ static struct bch_read_bio *__promote_alloc(struct btree_trans *trans,
 			&orig->opts,
 			update_opts,
 			btree_id, k);
+	op->write.type = BCH_DATA_UPDATE_promote;
 	/*
 	 * possible errors: -BCH_ERR_nocow_lock_blocked,
 	 * -BCH_ERR_ENOSPC_disk_reservation:
