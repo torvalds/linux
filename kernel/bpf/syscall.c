@@ -569,7 +569,24 @@ static void bpf_map_release_memcg(struct bpf_map *map)
 }
 #endif
 
-int bpf_map_alloc_pages(const struct bpf_map *map, gfp_t gfp, int nid,
+static bool can_alloc_pages(void)
+{
+	return preempt_count() == 0 && !irqs_disabled() &&
+		!IS_ENABLED(CONFIG_PREEMPT_RT);
+}
+
+static struct page *__bpf_alloc_page(int nid)
+{
+	if (!can_alloc_pages())
+		return try_alloc_pages(nid, 0);
+
+	return alloc_pages_node(nid,
+				GFP_KERNEL | __GFP_ZERO | __GFP_ACCOUNT
+				| __GFP_NOWARN,
+				0);
+}
+
+int bpf_map_alloc_pages(const struct bpf_map *map, int nid,
 			unsigned long nr_pages, struct page **pages)
 {
 	unsigned long i, j;
@@ -582,14 +599,14 @@ int bpf_map_alloc_pages(const struct bpf_map *map, gfp_t gfp, int nid,
 	old_memcg = set_active_memcg(memcg);
 #endif
 	for (i = 0; i < nr_pages; i++) {
-		pg = alloc_pages_node(nid, gfp | __GFP_ACCOUNT, 0);
+		pg = __bpf_alloc_page(nid);
 
 		if (pg) {
 			pages[i] = pg;
 			continue;
 		}
 		for (j = 0; j < i; j++)
-			__free_page(pages[j]);
+			free_pages_nolock(pages[j], 0);
 		ret = -ENOMEM;
 		break;
 	}
