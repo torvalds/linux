@@ -1,8 +1,0 @@
-{# SPDX-License-Identifier: GPL-2.0 #}
-{% if annotate %}
-	/* member {{ name }} (fixed-length array) */
-{% endif %}
-	for (u32 i = 0; i < {{ size }}; i++) {
-		if (xdrgen_decode_{{ type }}(xdr, &ptr->{{ name }}.items[i]) < 0)
-			return false;
-	}

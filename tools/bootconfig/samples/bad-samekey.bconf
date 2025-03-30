@@ -1,6 +1,0 @@
-# Same key value is not allowed
-key {
-	foo = value
-	bar = value2
-}
-key.foo = value

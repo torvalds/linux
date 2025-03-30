@@ -1,8 +1,0 @@
-#!/bin/sh -e
-# SPDX-License-Identifier: GPL-2.0-only
-#
-# ftracetest-ktap: Wrapper to integrate ftracetest with the kselftest runner
-#
-# Copyright (C) Arm Ltd., 2023
-
-./ftracetest -K -v

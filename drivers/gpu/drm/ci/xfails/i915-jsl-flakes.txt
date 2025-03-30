@@ -1,6 +1,0 @@
-# Board Name: acer-cb317-1h-c3z6-dedede
-# Bug Report: https://gitlab.freedesktop.org/drm/i915/kernel/-/issues/13349
-# Failure Rate: 100
-# IGT Version: 1.29-g33adea9eb
-# Linux Version: 6.13.0-rc2
-kms_flip@flip-vs-fences-interruptible

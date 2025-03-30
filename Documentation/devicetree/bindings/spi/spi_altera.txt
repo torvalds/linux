@@ -1,5 +1,0 @@
-Altera SPI
-
-Required properties:
-- compatible : should be "ALTR,spi-1.0". <DEPRECATED>
-- compatible : should be "altr,spi-1.0".

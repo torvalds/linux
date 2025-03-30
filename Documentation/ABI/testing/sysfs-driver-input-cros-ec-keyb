@@ -1,6 +1,0 @@
-What:		/sys/class/input/input(x)/device/function_row_physmap
-Date:		January 2021
-Contact:	Philip Chen <philipchen@chromium.org>
-Description:	A space separated list of scancodes for the top row keys,
-		ordered by the physical positions of the keys, from left
-		to right.

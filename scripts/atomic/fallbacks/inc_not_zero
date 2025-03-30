@@ -1,3 +1,0 @@
-cat <<EOF
-	return raw_${atomic}_add_unless(v, 1, 0);
-EOF

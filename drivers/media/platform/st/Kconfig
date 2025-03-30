@@ -1,6 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-
-comment "STMicroelectronics media platform drivers"
-
-source "drivers/media/platform/st/sti/Kconfig"
-source "drivers/media/platform/st/stm32/Kconfig"

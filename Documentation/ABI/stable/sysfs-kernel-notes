@@ -1,5 +1,0 @@
-What:		/sys/kernel/notes
-Date:		July 2009
-Contact:	<linux-kernel@vger.kernel.org>
-Description:	The /sys/kernel/notes file contains the binary representation
-		of the running vmlinux's .notes section.
