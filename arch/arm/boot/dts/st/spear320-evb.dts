@@ -142,15 +142,15 @@
 			status = "okay";
 		};
 
-		ehci@e1800000 {
+		usb@e1800000 {
 			status = "okay";
 		};
 
-		ohci@e1900000 {
+		usb@e1900000 {
 			status = "okay";
 		};
 
-		ohci@e2100000 {
+		usb@e2100000 {
 			status = "okay";
 		};
 
