@@ -168,11 +168,11 @@ journal_error_check_stuck(struct journal *j, int error, unsigned flags)
 		return stuck;
 	}
 	j->err_seq = journal_cur_seq(j);
-	spin_unlock(&j->lock);
 
-	bch_err(c, "Journal stuck! Hava a pre-reservation but journal full (error %s)",
-		bch2_err_str(error));
-	bch2_journal_debug_to_text(&buf, j);
+	__bch2_journal_debug_to_text(&buf, j);
+	spin_unlock(&j->lock);
+	prt_printf(&buf, bch2_fmt(c, "Journal stuck! Hava a pre-reservation but journal full (error %s)"),
+				  bch2_err_str(error));
 	bch2_print_string_as_lines(KERN_ERR, buf.buf);
 
 	printbuf_reset(&buf);
@@ -727,10 +727,10 @@ int bch2_journal_res_get_slowpath(struct journal *j, struct journal_res *res,
 		   remaining_wait))
 		return ret;
 
-	bch_err(c, "Journal stuck? Waited for 10 seconds, err %s", bch2_err_str(ret));
 	struct printbuf buf = PRINTBUF;
 	bch2_journal_debug_to_text(&buf, j);
 	bch2_print_string_as_lines(KERN_ERR, buf.buf);
+	prt_printf(&buf, bch2_fmt(c, "Journal stuck? Waited for 10 seconds, err %s"), bch2_err_str(ret));
 	printbuf_exit(&buf);
 
 	closure_wait_event(&j->async_wait,
