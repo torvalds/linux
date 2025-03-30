@@ -1561,11 +1561,12 @@ static unsigned long expand_vma_in_place(struct vma_remap_struct *vrm)
 	 * adjacent to the expanded vma and otherwise
 	 * compatible.
 	 */
-	vma = vrm->vma = vma_merge_extend(&vmi, vma, vrm->delta);
+	vma = vma_merge_extend(&vmi, vma, vrm->delta);
 	if (!vma) {
 		vrm_uncharge(vrm);
 		return -ENOMEM;
 	}
+	vrm->vma = vma;
 
 	vrm_stat_account(vrm, vrm->delta);
 
