@@ -257,10 +257,8 @@ static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c
 	prt_printf(out, "type\tcompressed\runcompressed\raverage extent size\r\n");
 
 	for (unsigned i = 1; i < BCH_COMPRESSION_TYPE_NR; i++) {
-		struct disk_accounting_pos a = {
-			.type			= BCH_DISK_ACCOUNTING_compression,
-			.compression.type	= i,
-		};
+		struct disk_accounting_pos a;
+		disk_accounting_key_init(a, compression, .type = i);
 		struct bpos p = disk_accounting_pos_to_bpos(&a);
 		u64 v[3];
 		bch2_accounting_mem_read(c, p, v, ARRAY_SIZE(v));

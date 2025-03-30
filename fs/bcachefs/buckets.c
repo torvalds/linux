@@ -666,9 +666,9 @@ static int bch2_trigger_stripe_ptr(struct btree_trans *trans,
 			stripe_blockcount_get(&s->v, p.ec.block) +
 			sectors);
 
-		struct disk_accounting_pos acc = {
-			.type = BCH_DISK_ACCOUNTING_replicas,
-		};
+		struct disk_accounting_pos acc;
+		memset(&acc, 0, sizeof(acc));
+		acc.type = BCH_DISK_ACCOUNTING_replicas;
 		bch2_bkey_to_replicas(&acc.replicas, bkey_i_to_s_c(&s->k_i));
 		acc.replicas.data_type = data_type;
 		ret = bch2_disk_accounting_mod(trans, &acc, &sectors, 1, false);
@@ -704,9 +704,9 @@ err:
 
 		m->block_sectors[p.ec.block] += sectors;
 
-		struct disk_accounting_pos acc = {
-			.type = BCH_DISK_ACCOUNTING_replicas,
-		};
+		struct disk_accounting_pos acc;
+		memset(&acc, 0, sizeof(acc));
+		acc.type = BCH_DISK_ACCOUNTING_replicas;
 		memcpy(&acc.replicas, &m->r.e, replicas_entry_bytes(&m->r.e));
 		gc_stripe_unlock(m);
 
@@ -734,12 +734,12 @@ static int __trigger_extent(struct btree_trans *trans,
 		: BCH_DATA_user;
 	int ret = 0;
 
-	struct disk_accounting_pos acc_replicas_key = {
-		.type			= BCH_DISK_ACCOUNTING_replicas,
-		.replicas.data_type	= data_type,
-		.replicas.nr_devs	= 0,
-		.replicas.nr_required	= 1,
-	};
+	struct disk_accounting_pos acc_replicas_key;
+	memset(&acc_replicas_key, 0, sizeof(acc_replicas_key));
+	acc_replicas_key.type = BCH_DISK_ACCOUNTING_replicas;
+	acc_replicas_key.replicas.data_type	= data_type;
+	acc_replicas_key.replicas.nr_devs	= 0;
+	acc_replicas_key.replicas.nr_required	= 1;
 
 	unsigned cur_compression_type = 0;
 	u64 compression_acct[3] = { 1, 0, 0 };

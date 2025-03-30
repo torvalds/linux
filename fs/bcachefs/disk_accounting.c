@@ -114,10 +114,9 @@ int bch2_mod_dev_cached_sectors(struct btree_trans *trans,
 				unsigned dev, s64 sectors,
 				bool gc)
 {
-	struct disk_accounting_pos acc = {
-		.type = BCH_DISK_ACCOUNTING_replicas,
-	};
-
+	struct disk_accounting_pos acc;
+	memset(&acc, 0, sizeof(acc));
+	acc.type = BCH_DISK_ACCOUNTING_replicas;
 	bch2_replicas_entry_cached(&acc.replicas, dev);
 
 	return bch2_disk_accounting_mod(trans, &acc, &sectors, 1, gc);
@@ -737,7 +736,9 @@ int bch2_accounting_read(struct bch_fs *c)
 				break;
 
 			if (!bch2_accounting_is_mem(acc_k)) {
-				struct disk_accounting_pos next = { .type = acc_k.type + 1 };
+				struct disk_accounting_pos next;
+				memset(&next, 0, sizeof(next));
+				next.type = acc_k.type + 1;
 				bch2_btree_iter_set_pos(&iter, disk_accounting_pos_to_bpos(&next));
 				continue;
 			}
@@ -893,15 +894,13 @@ int bch2_dev_usage_remove(struct bch_fs *c, unsigned dev)
 int bch2_dev_usage_init(struct bch_dev *ca, bool gc)
 {
 	struct bch_fs *c = ca->fs;
-	struct disk_accounting_pos acc = {
-		.type = BCH_DISK_ACCOUNTING_dev_data_type,
-		.dev_data_type.dev = ca->dev_idx,
-		.dev_data_type.data_type = BCH_DATA_free,
-	};
 	u64 v[3] = { ca->mi.nbuckets - ca->mi.first_bucket, 0, 0 };
 
 	int ret = bch2_trans_do(c, ({
-		bch2_disk_accounting_mod(trans, &acc, v, ARRAY_SIZE(v), gc) ?:
+		bch2_disk_accounting_mod2(trans, gc,
+					  v, dev_data_type,
+					  .dev = ca->dev_idx,
+					  .data_type = BCH_DATA_free) ?:
 		(!gc ? bch2_trans_commit(trans, NULL, NULL, 0) : 0);
 	}));
 	bch_err_fn(c, ret);
@@ -928,7 +927,9 @@ void bch2_verify_accounting_clean(struct bch_fs *c)
 				break;
 
 			if (!bch2_accounting_is_mem(acc_k)) {
-				struct disk_accounting_pos next = { .type = acc_k.type + 1 };
+				struct disk_accounting_pos next;
+				memset(&next, 0, sizeof(next));
+				next.type = acc_k.type + 1;
 				bch2_btree_iter_set_pos(&iter, disk_accounting_pos_to_bpos(&next));
 				continue;
 			}

@@ -600,7 +600,8 @@ void bch2_rebalance_status_to_text(struct printbuf *out, struct bch_fs *c)
 	struct bch_fs_rebalance *r = &c->rebalance;
 
 	/* print pending work */
-	struct disk_accounting_pos acc = { .type = BCH_DISK_ACCOUNTING_rebalance_work, };
+	struct disk_accounting_pos acc;
+	disk_accounting_key_init(acc, rebalance_work);
 	u64 v;
 	bch2_accounting_mem_read(c, disk_accounting_pos_to_bpos(&acc), &v, 1);
 
