@@ -1,6 +1,0 @@
-#
-# Atheros AR71xx/AR724x/AR913x
-#
-
-cflags-$(CONFIG_ATH79)		+= -I$(srctree)/arch/mips/include/asm/mach-ath79
-load-$(CONFIG_ATH79)		= 0xffffffff80060000
