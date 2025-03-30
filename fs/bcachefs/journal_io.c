@@ -764,6 +764,23 @@ static void journal_entry_overwrite_to_text(struct printbuf *out, struct bch_fs 
 	journal_entry_btree_keys_to_text(out, c, entry);
 }
 
+static int journal_entry_log_bkey_validate(struct bch_fs *c,
+				struct jset *jset,
+				struct jset_entry *entry,
+				unsigned version, int big_endian,
+				struct bkey_validate_context from)
+{
+	from.flags = 0;
+	return journal_entry_btree_keys_validate(c, jset, entry,
+				version, big_endian, from);
+}
+
+static void journal_entry_log_bkey_to_text(struct printbuf *out, struct bch_fs *c,
+					   struct jset_entry *entry)
+{
+	journal_entry_btree_keys_to_text(out, c, entry);
+}
+
 static int journal_entry_write_buffer_keys_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
