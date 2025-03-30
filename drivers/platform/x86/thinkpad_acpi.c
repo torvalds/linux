@@ -367,6 +367,7 @@ static struct {
 	u32 beep_needs_two_args:1;
 	u32 mixer_no_level_control:1;
 	u32 battery_force_primary:1;
+	u32 platform_drv_registered:1;
 	u32 hotkey_poll_active:1;
 	u32 has_adaptive_kbd:1;
 	u32 kbd_lang:1;
@@ -11820,10 +11821,10 @@ static void thinkpad_acpi_module_exit(void)
 		platform_device_unregister(tpacpi_sensors_pdev);
 	}
 
-	if (tpacpi_pdev) {
+	if (tp_features.platform_drv_registered)
 		platform_driver_unregister(&tpacpi_pdriver);
+	if (tpacpi_pdev)
 		platform_device_unregister(tpacpi_pdev);
-	}
 
 	if (proc_dir)
 		remove_proc_entry(TPACPI_PROC_DIR, acpi_root_dir);
@@ -11893,9 +11894,8 @@ static int __init tpacpi_pdriver_probe(struct platform_device *pdev)
 
 static int __init tpacpi_hwmon_pdriver_probe(struct platform_device *pdev)
 {
-	tpacpi_hwmon = devm_hwmon_device_register_with_groups(
-		&tpacpi_sensors_pdev->dev, TPACPI_NAME, NULL, tpacpi_hwmon_groups);
-
+	tpacpi_hwmon = devm_hwmon_device_register_with_groups(&pdev->dev, TPACPI_NAME,
+							      NULL, tpacpi_hwmon_groups);
 	if (IS_ERR(tpacpi_hwmon))
 		pr_err("unable to register hwmon device\n");
 
@@ -11965,15 +11965,23 @@ static int __init thinkpad_acpi_module_init(void)
 		tp_features.quirks = dmi_id->driver_data;
 
 	/* Device initialization */
-	tpacpi_pdev = platform_create_bundle(&tpacpi_pdriver, tpacpi_pdriver_probe,
-					     NULL, 0, NULL, 0);
+	tpacpi_pdev = platform_device_register_simple(TPACPI_DRVR_NAME, PLATFORM_DEVID_NONE,
+						      NULL, 0);
 	if (IS_ERR(tpacpi_pdev)) {
 		ret = PTR_ERR(tpacpi_pdev);
 		tpacpi_pdev = NULL;
-		pr_err("unable to register platform device/driver bundle\n");
+		pr_err("unable to register platform device\n");
 		thinkpad_acpi_module_exit();
 		return ret;
 	}
+
+	ret = platform_driver_probe(&tpacpi_pdriver, tpacpi_pdriver_probe);
+	if (ret) {
+		pr_err("unable to register main platform driver\n");
+		thinkpad_acpi_module_exit();
+		return ret;
+	}
+	tp_features.platform_drv_registered = 1;
 
 	tpacpi_sensors_pdev = platform_create_bundle(&tpacpi_hwmon_pdriver,
 						     tpacpi_hwmon_pdriver_probe,
