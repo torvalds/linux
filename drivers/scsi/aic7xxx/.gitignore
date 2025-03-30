@@ -1,7 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-aic79xx_reg.h
-aic79xx_reg_print.c
-aic79xx_seq.h
-aic7xxx_reg.h
-aic7xxx_reg_print.c
-aic7xxx_seq.h

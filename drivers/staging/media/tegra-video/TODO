@@ -1,5 +1,0 @@
-TODO list
-* Add support for Ganged mode.
-* Add RAW10 packed video format support to Tegra210 video formats.
-* Add support for suspend and resume.
-* Make sure v4l2-compliance tests pass with all of the above implementations.

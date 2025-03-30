@@ -1,4 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-source "drivers/power/reset/Kconfig"
-source "drivers/power/sequencing/Kconfig"
-source "drivers/power/supply/Kconfig"
