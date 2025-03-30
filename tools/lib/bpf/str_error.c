@@ -36,7 +36,7 @@ char *libbpf_strerror_r(int err, char *dst, int len)
 	return dst;
 }
 
-const char *errstr(int err)
+const char *libbpf_errstr(int err)
 {
 	static __thread char buf[12];
 

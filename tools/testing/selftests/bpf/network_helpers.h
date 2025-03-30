@@ -18,6 +18,7 @@ typedef __u16 __sum16;
 #include <netinet/udp.h>
 #include <bpf/bpf_endian.h>
 #include <net/if.h>
+#include <stdio.h>
 
 #define MAGIC_VAL 0x1234
 #define NUM_ITER 100000
@@ -100,6 +101,18 @@ void close_netns(struct nstoken *token);
 int send_recv_data(int lfd, int fd, uint32_t total_bytes);
 int make_netns(const char *name);
 int remove_netns(const char *name);
+
+/**
+ * append_tid() - Append thread ID to the given string.
+ *
+ * @str: string to extend
+ * @sz: string's size
+ *
+ * 8 characters are used to append the thread ID (7 digits + '\0')
+ *
+ * Returns -1 on errors, 0 otherwise
+ */
+int append_tid(char *str, size_t sz);
 
 static __u16 csum_fold(__u32 csum)
 {
@@ -240,10 +253,13 @@ static inline __sum16 build_udp_v6_csum(const struct ipv6hdr *ip6h,
 
 struct tmonitor_ctx;
 
+typedef int (*tm_print_fn_t)(const char *format, va_list args);
+
 #ifdef TRAFFIC_MONITOR
 struct tmonitor_ctx *traffic_monitor_start(const char *netns, const char *test_name,
 					   const char *subtest_name);
 void traffic_monitor_stop(struct tmonitor_ctx *ctx);
+tm_print_fn_t traffic_monitor_set_print(tm_print_fn_t fn);
 #else
 static inline struct tmonitor_ctx *traffic_monitor_start(const char *netns, const char *test_name,
 							 const char *subtest_name)
@@ -253,6 +269,11 @@ static inline struct tmonitor_ctx *traffic_monitor_start(const char *netns, cons
 
 static inline void traffic_monitor_stop(struct tmonitor_ctx *ctx)
 {
+}
+
+static inline tm_print_fn_t traffic_monitor_set_print(tm_print_fn_t fn)
+{
+	return NULL;
 }
 #endif
 

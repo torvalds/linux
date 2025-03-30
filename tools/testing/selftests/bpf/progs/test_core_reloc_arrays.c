@@ -15,6 +15,7 @@ struct {
 
 struct core_reloc_arrays_output {
 	int a2;
+	int a3;
 	char b123;
 	int c1c;
 	int d00d;
@@ -41,6 +42,7 @@ int test_core_arrays(void *ctx)
 {
 	struct core_reloc_arrays *in = (void *)&data.in;
 	struct core_reloc_arrays_output *out = (void *)&data.out;
+	int *a;
 
 	if (CORE_READ(&out->a2, &in->a[2]))
 		return 1;
@@ -52,6 +54,9 @@ int test_core_arrays(void *ctx)
 		return 1;
 	if (CORE_READ(&out->f01c, &in->f[0][1].c))
 		return 1;
+
+	a = __builtin_preserve_access_index(({ in->a; }));
+	out->a3 = a[0] + a[1] + a[2] + a[3];
 
 	return 0;
 }
