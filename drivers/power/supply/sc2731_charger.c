@@ -480,7 +480,7 @@ static int sc2731_charger_probe(struct platform_device *pdev)
 	}
 
 	charger_cfg.drv_data = info;
-	charger_cfg.of_node = np;
+	charger_cfg.fwnode = dev_fwnode(&pdev->dev);
 	info->psy_usb = devm_power_supply_register(&pdev->dev,
 						   &sc2731_charger_desc,
 						   &charger_cfg);

@@ -848,7 +848,7 @@ static int ip5xxx_power_probe(struct i2c_client *client)
 		fields = (const struct ip5xxx_regfield_config *)of_id->data;
 	ip5xxx_setup_regs(dev, ip5xxx, fields);
 
-	psy_cfg.of_node = dev->of_node;
+	psy_cfg.fwnode = dev_fwnode(dev);
 	psy_cfg.drv_data = ip5xxx;
 
 	psy = devm_power_supply_register(dev, &ip5xxx_battery_desc, &psy_cfg);
