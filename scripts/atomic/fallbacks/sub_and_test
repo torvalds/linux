@@ -1,3 +1,0 @@
-cat <<EOF
-	return raw_${atomic}_sub_return(i, v) == 0;
-EOF
