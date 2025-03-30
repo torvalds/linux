@@ -1268,7 +1268,8 @@ err:
 	bch2_btree_update_free(as, trans);
 	if (!bch2_err_matches(ret, ENOSPC) &&
 	    !bch2_err_matches(ret, EROFS) &&
-	    ret != -BCH_ERR_journal_reclaim_would_deadlock)
+	    ret != -BCH_ERR_journal_reclaim_would_deadlock &&
+	    ret != -BCH_ERR_journal_shutdown)
 		bch_err_fn_ratelimited(c, ret);
 	return ERR_PTR(ret);
 }
@@ -2302,7 +2303,9 @@ static void async_btree_node_rewrite_work(struct work_struct *work)
 
 	int ret = bch2_trans_do(c, bch2_btree_node_rewrite_key(trans,
 						a->btree_id, a->level, a->key.k, 0));
-	if (ret != -ENOENT)
+	if (ret != -ENOENT &&
+	    !bch2_err_matches(ret, EROFS) &&
+	    ret != -BCH_ERR_journal_shutdown)
 		bch_err_fn_ratelimited(c, ret);
 
 	spin_lock(&c->btree_node_rewrites_lock);

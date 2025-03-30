@@ -1623,7 +1623,8 @@ static CLOSURE_CALLBACK(journal_write_done)
 			       : j->noflush_write_time, j->write_start_time);
 
 	if (!w->devs_written.nr) {
-		bch_err(c, "unable to write journal to sufficient devices");
+		if (!bch2_journal_error(j))
+			bch_err(c, "unable to write journal to sufficient devices");
 		err = -BCH_ERR_journal_write_err;
 	} else {
 		bch2_devlist_to_replicas(&replicas.e, BCH_DATA_journal,
