@@ -508,7 +508,7 @@ static inline void fpstate_init_fstate(struct fpstate *fpstate)
 /*
  * Used in two places:
  * 1) Early boot to setup init_fpstate for non XSAVE systems
- * 2) fpu_init_fpstate_user() which is invoked from KVM
+ * 2) fpu_alloc_guest_fpstate() which is invoked from KVM
  */
 void fpstate_init_user(struct fpstate *fpstate)
 {
