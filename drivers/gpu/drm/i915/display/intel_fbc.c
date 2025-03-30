@@ -520,6 +520,20 @@ static void ilk_fbc_activate(struct intel_fbc *fbc)
 		       DPFC_CTL_EN | g4x_dpfc_ctl(fbc));
 }
 
+static void fbc_compressor_clkgate_disable_wa(struct intel_fbc *fbc,
+					      bool disable)
+{
+	struct intel_display *display = fbc->display;
+
+	if (display->platform.dg2)
+		intel_de_rmw(display, GEN9_CLKGATE_DIS_4, DG2_DPFC_GATING_DIS,
+			     disable ? DG2_DPFC_GATING_DIS : 0);
+	else if (DISPLAY_VER(display) >= 14)
+		intel_de_rmw(display, MTL_PIPE_CLKGATE_DIS2(fbc->id),
+			     MTL_DPFC_GATING_DIS,
+			     disable ? MTL_DPFC_GATING_DIS : 0);
+}
+
 static void ilk_fbc_deactivate(struct intel_fbc *fbc)
 {
 	struct intel_display *display = fbc->display;
@@ -533,6 +547,10 @@ static void ilk_fbc_deactivate(struct intel_fbc *fbc)
 	if (dpfc_ctl & DPFC_CTL_EN) {
 		dpfc_ctl &= ~DPFC_CTL_EN;
 		intel_de_write(display, ILK_DPFC_CONTROL(fbc->id), dpfc_ctl);
+
+		/* wa_18038517565 Enable DPFC clock gating after FBC disable */
+		if (display->platform.dg2 || DISPLAY_VER(display) >= 14)
+			fbc_compressor_clkgate_disable_wa(fbc, false);
 	}
 }
 
@@ -922,6 +940,10 @@ static void intel_fbc_program_workarounds(struct intel_fbc *fbc)
 	if (DISPLAY_VER(display) >= 11 && !display->platform.dg2)
 		intel_de_rmw(display, ILK_DPFC_CHICKEN(fbc->id),
 			     0, DPFC_CHICKEN_FORCE_SLB_INVALIDATION);
+
+	/* wa_18038517565 Disable DPFC clock gating before FBC enable */
+	if (display->platform.dg2 || DISPLAY_VER(display) >= 14)
+		fbc_compressor_clkgate_disable_wa(fbc, true);
 }
 
 static void __intel_fbc_cleanup_cfb(struct intel_fbc *fbc)
