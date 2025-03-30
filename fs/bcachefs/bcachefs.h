@@ -524,8 +524,8 @@ struct bch_dev {
 	struct percpu_ref	ref;
 #endif
 	struct completion	ref_completion;
-	struct percpu_ref	io_ref;
-	struct completion	io_ref_completion;
+	struct percpu_ref	io_ref[2];
+	struct completion	io_ref_completion[2];
 
 	struct bch_fs		*fs;
 

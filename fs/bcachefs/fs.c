@@ -2237,7 +2237,7 @@ got_sb:
 		/* XXX: create an anonymous device for multi device filesystems */
 		sb->s_bdev	= bdev;
 		sb->s_dev	= bdev->bd_dev;
-		percpu_ref_put(&ca->io_ref);
+		percpu_ref_put(&ca->io_ref[READ]);
 		break;
 	}
 

@@ -445,6 +445,11 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
 	BUG_ON(c->opts.nochanges);
 
 	bkey_for_each_ptr(ptrs, ptr) {
+		/*
+		 * XXX: btree writes should be using io_ref[WRITE], but we
+		 * aren't retrying failed btree writes yet (due to device
+		 * removal/ro):
+		 */
 		struct bch_dev *ca = nocow
 			? bch2_dev_have_ref(c, ptr->dev)
 			: bch2_dev_get_ioref(c, ptr->dev, type == BCH_DATA_btree ? READ : WRITE);
@@ -722,7 +727,7 @@ static void bch2_write_endio(struct bio *bio)
 	}
 
 	if (wbio->have_ioref)
-		percpu_ref_put(&ca->io_ref);
+		percpu_ref_put(&ca->io_ref[WRITE]);
 
 	if (wbio->bounce)
 		bch2_bio_free_pages_pool(c, bio);
@@ -1421,7 +1426,7 @@ err:
 	return;
 err_get_ioref:
 	darray_for_each(buckets, i)
-		percpu_ref_put(&bch2_dev_have_ref(c, i->b.inode)->io_ref);
+		percpu_ref_put(&bch2_dev_have_ref(c, i->b.inode)->io_ref[WRITE]);
 
 	/* Fall back to COW path: */
 	goto out;

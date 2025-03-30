@@ -394,7 +394,7 @@ static inline struct bch_read_bio *bch2_rbio_free(struct bch_read_bio *rbio)
 
 	if (rbio->have_ioref) {
 		struct bch_dev *ca = bch2_dev_have_ref(rbio->c, rbio->pick.ptr.dev);
-		percpu_ref_put(&ca->io_ref);
+		percpu_ref_put(&ca->io_ref[READ]);
 	}
 
 	if (rbio->split) {
@@ -1003,7 +1003,7 @@ retry_pick:
 	    unlikely(dev_ptr_stale(ca, &pick.ptr))) {
 		read_from_stale_dirty_pointer(trans, ca, k, pick.ptr);
 		bch2_mark_io_failure(failed, &pick, false);
-		percpu_ref_put(&ca->io_ref);
+		percpu_ref_put(&ca->io_ref[READ]);
 		goto retry_pick;
 	}
 
@@ -1036,7 +1036,7 @@ retry_pick:
 		 */
 		if (pick.crc.compressed_size > u->op.wbio.bio.bi_iter.bi_size) {
 			if (ca)
-				percpu_ref_put(&ca->io_ref);
+				percpu_ref_put(&ca->io_ref[READ]);
 			rbio->ret = -BCH_ERR_data_read_buffer_too_small;
 			goto out_read_done;
 		}

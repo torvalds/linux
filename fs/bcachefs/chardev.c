@@ -615,7 +615,7 @@ static long bch2_ioctl_disk_get_idx(struct bch_fs *c,
 
 	for_each_online_member(c, ca)
 		if (ca->dev == dev) {
-			percpu_ref_put(&ca->io_ref);
+			percpu_ref_put(&ca->io_ref[READ]);
 			return ca->dev_idx;
 		}
 

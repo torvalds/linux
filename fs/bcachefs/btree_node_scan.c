@@ -271,7 +271,7 @@ static int read_btree_nodes_worker(void *p)
 err:
 	bio_put(bio);
 	free_page((unsigned long) buf);
-	percpu_ref_put(&ca->io_ref);
+	percpu_ref_put(&ca->io_ref[READ]);
 	closure_put(w->cl);
 	kfree(w);
 	return 0;
@@ -291,7 +291,7 @@ static int read_btree_nodes(struct find_btree_nodes *f)
 
 		struct find_btree_nodes_worker *w = kmalloc(sizeof(*w), GFP_KERNEL);
 		if (!w) {
-			percpu_ref_put(&ca->io_ref);
+			percpu_ref_put(&ca->io_ref[READ]);
 			ret = -ENOMEM;
 			goto err;
 		}
@@ -303,14 +303,14 @@ static int read_btree_nodes(struct find_btree_nodes *f)
 		struct task_struct *t = kthread_create(read_btree_nodes_worker, w, "read_btree_nodes/%s", ca->name);
 		ret = PTR_ERR_OR_ZERO(t);
 		if (ret) {
-			percpu_ref_put(&ca->io_ref);
+			percpu_ref_put(&ca->io_ref[READ]);
 			kfree(w);
 			bch_err_msg(c, ret, "starting kthread");
 			break;
 		}
 
 		closure_get(&cl);
-		percpu_ref_get(&ca->io_ref);
+		percpu_ref_get(&ca->io_ref[READ]);
 		wake_up_process(t);
 	}
 err:

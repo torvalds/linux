@@ -105,6 +105,7 @@ struct ec_bio {
 	struct bch_dev		*ca;
 	struct ec_stripe_buf	*buf;
 	size_t			idx;
+	int			rw;
 	u64			submit_time;
 	struct bio		bio;
 };
@@ -704,6 +705,7 @@ static void ec_block_endio(struct bio *bio)
 	struct bch_extent_ptr *ptr = &v->ptrs[ec_bio->idx];
 	struct bch_dev *ca = ec_bio->ca;
 	struct closure *cl = bio->bi_private;
+	int rw = ec_bio->rw;
 
 	bch2_account_io_completion(ca, bio_data_dir(bio),
 				   ec_bio->submit_time, !bio->bi_status);
@@ -725,7 +727,7 @@ static void ec_block_endio(struct bio *bio)
 	}
 
 	bio_put(&ec_bio->bio);
-	percpu_ref_put(&ca->io_ref);
+	percpu_ref_put(&ca->io_ref[rw]);
 	closure_put(cl);
 }
 
@@ -776,6 +778,7 @@ static void ec_block_io(struct bch_fs *c, struct ec_stripe_buf *buf,
 		ec_bio->ca			= ca;
 		ec_bio->buf			= buf;
 		ec_bio->idx			= idx;
+		ec_bio->rw			= rw;
 		ec_bio->submit_time		= local_clock();
 
 		ec_bio->bio.bi_iter.bi_sector	= ptr->offset + buf->offset + (offset >> 9);
@@ -785,14 +788,14 @@ static void ec_block_io(struct bch_fs *c, struct ec_stripe_buf *buf,
 		bch2_bio_map(&ec_bio->bio, buf->data[idx] + offset, b);
 
 		closure_get(cl);
-		percpu_ref_get(&ca->io_ref);
+		percpu_ref_get(&ca->io_ref[rw]);
 
 		submit_bio(&ec_bio->bio);
 
 		offset += b;
 	}
 
-	percpu_ref_put(&ca->io_ref);
+	percpu_ref_put(&ca->io_ref[rw]);
 }
 
 static int get_stripe_key_trans(struct btree_trans *trans, u64 idx,
@@ -1265,7 +1268,7 @@ static void zero_out_rest_of_ec_bucket(struct bch_fs *c,
 			ob->sectors_free,
 			GFP_KERNEL, 0);
 
-	percpu_ref_put(&ca->io_ref);
+	percpu_ref_put(&ca->io_ref[WRITE]);
 
 	if (ret)
 		s->err = ret;

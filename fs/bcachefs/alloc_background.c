@@ -1950,7 +1950,7 @@ static void bch2_do_discards_work(struct work_struct *work)
 	trace_discard_buckets(c, s.seen, s.open, s.need_journal_commit, s.discarded,
 			      bch2_err_str(ret));
 
-	percpu_ref_put(&ca->io_ref);
+	percpu_ref_put(&ca->io_ref[WRITE]);
 	bch2_write_ref_put(c, BCH_WRITE_REF_discard);
 }
 
@@ -1967,7 +1967,7 @@ void bch2_dev_do_discards(struct bch_dev *ca)
 	if (queue_work(c->write_ref_wq, &ca->discard_work))
 		return;
 
-	percpu_ref_put(&ca->io_ref);
+	percpu_ref_put(&ca->io_ref[WRITE]);
 put_write_ref:
 	bch2_write_ref_put(c, BCH_WRITE_REF_discard);
 }
@@ -2045,7 +2045,7 @@ static void bch2_do_discards_fast_work(struct work_struct *work)
 	trace_discard_buckets_fast(c, s.seen, s.open, s.need_journal_commit, s.discarded, bch2_err_str(ret));
 
 	bch2_trans_put(trans);
-	percpu_ref_put(&ca->io_ref);
+	percpu_ref_put(&ca->io_ref[WRITE]);
 	bch2_write_ref_put(c, BCH_WRITE_REF_discard_fast);
 }
 
@@ -2065,7 +2065,7 @@ static void bch2_discard_one_bucket_fast(struct bch_dev *ca, u64 bucket)
 	if (queue_work(c->write_ref_wq, &ca->discard_fast_work))
 		return;
 
-	percpu_ref_put(&ca->io_ref);
+	percpu_ref_put(&ca->io_ref[WRITE]);
 put_ref:
 	bch2_write_ref_put(c, BCH_WRITE_REF_discard_fast);
 }
@@ -2256,7 +2256,7 @@ restart_err:
 	bch2_trans_iter_exit(trans, &iter);
 err:
 	bch2_trans_put(trans);
-	percpu_ref_put(&ca->io_ref);
+	percpu_ref_put(&ca->io_ref[WRITE]);
 	bch2_bkey_buf_exit(&last_flushed, c);
 	bch2_write_ref_put(c, BCH_WRITE_REF_invalidate);
 }
@@ -2274,7 +2274,7 @@ void bch2_dev_do_invalidates(struct bch_dev *ca)
 	if (queue_work(c->write_ref_wq, &ca->invalidate_work))
 		return;
 
-	percpu_ref_put(&ca->io_ref);
+	percpu_ref_put(&ca->io_ref[WRITE]);
 put_ref:
 	bch2_write_ref_put(c, BCH_WRITE_REF_invalidate);
 }
@@ -2506,7 +2506,7 @@ void bch2_recalc_capacity(struct bch_fs *c)
 
 	bch2_set_ra_pages(c, ra_pages);
 
-	for_each_rw_member(c, ca) {
+	__for_each_online_member(c, ca, BIT(BCH_MEMBER_STATE_rw), READ) {
 		u64 dev_reserve = 0;
 
 		/*

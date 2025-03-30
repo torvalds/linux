@@ -462,7 +462,7 @@ err:
 	if (bio)
 		bio_put(bio);
 	kvfree(data_buf);
-	percpu_ref_put(&ca->io_ref);
+	percpu_ref_put(&ca->io_ref[READ]);
 	printbuf_exit(&buf);
 	return ret;
 }

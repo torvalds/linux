@@ -57,7 +57,7 @@ static bool bch2_btree_verify_replica(struct bch_fs *c, struct btree *b,
 	submit_bio_wait(bio);
 
 	bio_put(bio);
-	percpu_ref_put(&ca->io_ref);
+	percpu_ref_put(&ca->io_ref[READ]);
 
 	memcpy(n_ondisk, n_sorted, btree_buf_bytes(b));
 
@@ -297,7 +297,7 @@ out:
 	if (bio)
 		bio_put(bio);
 	kvfree(n_ondisk);
-	percpu_ref_put(&ca->io_ref);
+	percpu_ref_put(&ca->io_ref[READ]);
 }
 
 #ifdef CONFIG_DEBUG_FS

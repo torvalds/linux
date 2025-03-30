@@ -1315,7 +1315,7 @@ int bch2_fs_journal_alloc(struct bch_fs *c)
 
 		int ret = bch2_dev_journal_alloc(ca, true);
 		if (ret) {
-			percpu_ref_put(&ca->io_ref);
+			percpu_ref_put(&ca->io_ref[READ]);
 			return ret;
 		}
 	}
@@ -1461,11 +1461,9 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 	j->reservations.idx = journal_cur_seq(j);
 
 	c->last_bucket_seq_cleanup = journal_cur_seq(j);
-
-	bch2_journal_space_available(j);
 	spin_unlock(&j->lock);
 
-	return bch2_journal_reclaim_start(j);
+	return 0;
 }
 
 /* init/exit: */

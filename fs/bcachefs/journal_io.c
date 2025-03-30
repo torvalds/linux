@@ -1218,7 +1218,7 @@ static CLOSURE_CALLBACK(bch2_journal_read_device)
 out:
 	bch_verbose(c, "journal read done on device %s, ret %i", ca->name, ret);
 	kvfree(buf.data);
-	percpu_ref_put(&ca->io_ref);
+	percpu_ref_put(&ca->io_ref[READ]);
 	closure_return(cl);
 	return;
 err:
@@ -1253,7 +1253,7 @@ int bch2_journal_read(struct bch_fs *c,
 
 		if ((ca->mi.state == BCH_MEMBER_STATE_rw ||
 		     ca->mi.state == BCH_MEMBER_STATE_ro) &&
-		    percpu_ref_tryget(&ca->io_ref))
+		    percpu_ref_tryget(&ca->io_ref[READ]))
 			closure_call(&ca->journal.read,
 				     bch2_journal_read_device,
 				     system_unbound_wq,
@@ -1768,7 +1768,7 @@ static void journal_write_endio(struct bio *bio)
 	}
 
 	closure_put(&w->io);
-	percpu_ref_put(&ca->io_ref);
+	percpu_ref_put(&ca->io_ref[WRITE]);
 }
 
 static CLOSURE_CALLBACK(journal_write_submit)
@@ -1843,7 +1843,7 @@ static CLOSURE_CALLBACK(journal_write_preflush)
 
 	if (w->separate_flush) {
 		for_each_rw_member(c, ca) {
-			percpu_ref_get(&ca->io_ref);
+			percpu_ref_get(&ca->io_ref[WRITE]);
 
 			struct journal_device *ja = &ca->journal;
 			struct bio *bio = &ja->bio[w->idx]->bio;
