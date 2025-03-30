@@ -14267,8 +14267,6 @@ F:	drivers/gpu/drm/armada/
 F:	include/uapi/drm/armada_drm.h
 
 MARVELL CRYPTO DRIVER
-M:	Boris Brezillon <bbrezillon@kernel.org>
-M:	Arnaud Ebalard <arno@natisbad.org>
 M:	Srujana Challa <schalla@marvell.com>
 L:	linux-crypto@vger.kernel.org
 S:	Maintained
