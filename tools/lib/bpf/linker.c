@@ -573,7 +573,7 @@ int bpf_linker__add_buf(struct bpf_linker *linker, void *buf, size_t buf_sz,
 
 	snprintf(filename, sizeof(filename), "mem:%p+%zu", buf, buf_sz);
 
-	fd = memfd_create(filename, 0);
+	fd = sys_memfd_create(filename, 0);
 	if (fd < 0) {
 		ret = -errno;
 		pr_warn("failed to create memfd '%s': %s\n", filename, errstr(ret));
