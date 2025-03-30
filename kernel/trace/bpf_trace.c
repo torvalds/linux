@@ -2338,10 +2338,9 @@ void bpf_put_raw_tracepoint(struct bpf_raw_event_map *btp)
 {
 	struct module *mod;
 
-	preempt_disable();
+	guard(rcu)();
 	mod = __module_address((unsigned long)btp);
 	module_put(mod);
-	preempt_enable();
 }
 
 static __always_inline
@@ -2925,18 +2924,21 @@ static int get_modules_for_addrs(struct module ***mods, unsigned long *addrs, u3
 	u32 i, err = 0;
 
 	for (i = 0; i < addrs_cnt; i++) {
+		bool skip_add = false;
 		struct module *mod;
 
-		preempt_disable();
-		mod = __module_address(addrs[i]);
-		/* Either no module or we it's already stored  */
-		if (!mod || has_module(&arr, mod)) {
-			preempt_enable();
-			continue;
+		scoped_guard(rcu) {
+			mod = __module_address(addrs[i]);
+			/* Either no module or it's already stored  */
+			if (!mod || has_module(&arr, mod)) {
+				skip_add = true;
+				break; /* scoped_guard */
+			}
+			if (!try_module_get(mod))
+				err = -EINVAL;
 		}
-		if (!try_module_get(mod))
-			err = -EINVAL;
-		preempt_enable();
+		if (skip_add)
+			continue;
 		if (err)
 			break;
 		err = add_module(&arr, mod);

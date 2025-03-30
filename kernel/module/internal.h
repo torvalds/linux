@@ -124,17 +124,6 @@ char *module_next_tag_pair(char *string, unsigned long *secsize);
 #define for_each_modinfo_entry(entry, info, name) \
 	for (entry = get_modinfo(info, name); entry; entry = get_next_modinfo(info, name, entry))
 
-static inline void module_assert_mutex_or_preempt(void)
-{
-#ifdef CONFIG_LOCKDEP
-	if (unlikely(!debug_locks))
-		return;
-
-	WARN_ON_ONCE(!rcu_read_lock_sched_held() &&
-		     !lockdep_is_held(&module_mutex));
-#endif
-}
-
 static inline unsigned long kernel_symbol_value(const struct kernel_symbol *sym)
 {
 #ifdef CONFIG_HAVE_ARCH_PREL32_RELOCATIONS
