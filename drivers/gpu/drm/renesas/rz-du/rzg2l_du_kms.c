@@ -38,19 +38,16 @@ static const struct rzg2l_du_format_info rzg2l_du_format_infos[] = {
 	{
 		.fourcc = DRM_FORMAT_XRGB8888,
 		.v4l2 = V4L2_PIX_FMT_XBGR32,
-		.bpp = 32,
 		.planes = 1,
 		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_ARGB8888,
 		.v4l2 = V4L2_PIX_FMT_ABGR32,
-		.bpp = 32,
 		.planes = 1,
 		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_RGB888,
 		.v4l2 = V4L2_PIX_FMT_BGR24,
-		.bpp = 24,
 		.planes = 1,
 		.hsub = 1,
 	}

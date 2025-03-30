@@ -23,7 +23,6 @@ struct sg_table;
 struct rzg2l_du_format_info {
 	u32 fourcc;
 	u32 v4l2;
-	unsigned int bpp;
 	unsigned int planes;
 	unsigned int hsub;
 };
