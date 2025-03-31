@@ -648,6 +648,11 @@ static int fprobe_init(struct fprobe *fp, unsigned long *addrs, int num)
 
 #define FPROBE_IPS_MAX	INT_MAX
 
+int fprobe_count_ips_from_filter(const char *filter, const char *notfilter)
+{
+	return get_ips_from_filter(filter, notfilter, NULL, NULL, FPROBE_IPS_MAX);
+}
+
 /**
  * register_fprobe() - Register fprobe to ftrace by pattern.
  * @fp: A fprobe data structure to be registered.
