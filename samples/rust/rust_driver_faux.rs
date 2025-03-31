@@ -7,7 +7,7 @@ use kernel::{c_str, faux, prelude::*, Module};
 module! {
     type: SampleModule,
     name: "rust_faux_driver",
-    author: "Lyude Paul",
+    authors: ["Lyude Paul"],
     description: "Rust faux device sample",
     license: "GPL",
 }

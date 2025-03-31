@@ -1,19 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-//! This module contains API-internal items for pin-init.
+//! This module contains library internal items.
 //!
-//! These items must not be used outside of
-//! - `kernel/init.rs`
-//! - `macros/pin_data.rs`
-//! - `macros/pinned_drop.rs`
+//! These items must not be used outside of this crate and the pin-init-internal crate located at
+//! `../internal`.
 
 use super::*;
 
 /// See the [nomicon] for what subtyping is. See also [this table].
 ///
+/// The reason for not using `PhantomData<*mut T>` is that that type never implements [`Send`] and
+/// [`Sync`]. Hence `fn(*mut T) -> *mut T` is used, as that type always implements them.
+///
 /// [nomicon]: https://doc.rust-lang.org/nomicon/subtyping.html
 /// [this table]: https://doc.rust-lang.org/nomicon/phantom-data.html#table-of-phantomdata-patterns
-pub(super) type Invariant<T> = PhantomData<fn(*mut T) -> *mut T>;
+pub(crate) type Invariant<T> = PhantomData<fn(*mut T) -> *mut T>;
 
 /// Module-internal type implementing `PinInit` and `Init`.
 ///
@@ -105,7 +106,7 @@ pub unsafe trait InitData: Copy {
     }
 }
 
-pub struct AllData<T: ?Sized>(PhantomData<fn(KBox<T>) -> KBox<T>>);
+pub struct AllData<T: ?Sized>(Invariant<T>);
 
 impl<T: ?Sized> Clone for AllData<T> {
     fn clone(&self) -> Self {
@@ -135,7 +136,7 @@ unsafe impl<T: ?Sized> HasInitData for T {
 ///
 /// If `self.is_init` is true, then `self.value` is initialized.
 ///
-/// [`stack_pin_init`]: kernel::stack_pin_init
+/// [`stack_pin_init`]: crate::stack_pin_init
 pub struct StackInit<T> {
     value: MaybeUninit<T>,
     is_init: bool,
@@ -156,7 +157,7 @@ impl<T> StackInit<T> {
     /// Creates a new [`StackInit<T>`] that is uninitialized. Use [`stack_pin_init`] instead of this
     /// primitive.
     ///
-    /// [`stack_pin_init`]: kernel::stack_pin_init
+    /// [`stack_pin_init`]: crate::stack_pin_init
     #[inline]
     pub fn uninit() -> Self {
         Self {
@@ -184,6 +185,33 @@ impl<T> StackInit<T> {
         // SAFETY: The slot is now pinned, since we will never give access to `&mut T`.
         Ok(unsafe { Pin::new_unchecked(this.value.assume_init_mut()) })
     }
+}
+
+#[test]
+fn stack_init_reuse() {
+    use ::std::{borrow::ToOwned, println, string::String};
+    use core::pin::pin;
+
+    #[derive(Debug)]
+    struct Foo {
+        a: usize,
+        b: String,
+    }
+    let mut slot: Pin<&mut StackInit<Foo>> = pin!(StackInit::uninit());
+    let value: Result<Pin<&mut Foo>, core::convert::Infallible> =
+        slot.as_mut().init(crate::init!(Foo {
+            a: 42,
+            b: "Hello".to_owned(),
+        }));
+    let value = value.unwrap();
+    println!("{value:?}");
+    let value: Result<Pin<&mut Foo>, core::convert::Infallible> =
+        slot.as_mut().init(crate::init!(Foo {
+            a: 24,
+            b: "world!".to_owned(),
+        }));
+    let value = value.unwrap();
+    println!("{value:?}");
 }
 
 /// When a value of this type is dropped, it drops a `T`.

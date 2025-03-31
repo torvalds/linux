@@ -5,9 +5,9 @@
 //! This module contains the kernel APIs related to synchronisation that have been ported or
 //! wrapped for usage by Rust code in the kernel.
 
-use crate::pin_init;
 use crate::prelude::*;
 use crate::types::Opaque;
+use pin_init;
 
 mod arc;
 mod condvar;
@@ -41,10 +41,11 @@ impl LockClassKey {
     ///
     /// # Example
     /// ```
-    /// # use kernel::{c_str, stack_pin_init};
+    /// # use kernel::c_str;
     /// # use kernel::alloc::KBox;
     /// # use kernel::types::ForeignOwnable;
     /// # use kernel::sync::{LockClassKey, SpinLock};
+    /// # use pin_init::stack_pin_init;
     ///
     /// let key = KBox::pin_init(LockClassKey::new_dynamic(), GFP_KERNEL)?;
     /// let key_ptr = key.into_foreign();

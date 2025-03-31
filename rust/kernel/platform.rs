@@ -101,7 +101,7 @@ impl<T: Driver + 'static> driver::Adapter for Adapter<T> {
 /// kernel::module_platform_driver! {
 ///     type: MyDriver,
 ///     name: "Module name",
-///     author: "Author name",
+///     authors: ["Author name"],
 ///     description: "Description",
 ///     license: "GPL v2",
 /// }

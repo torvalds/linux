@@ -267,7 +267,7 @@ impl LocalFile {
     /// # Safety
     ///
     /// * The caller must ensure that `ptr` points at a valid file and that the file's refcount is
-    ///   positive for the duration of 'a.
+    ///   positive for the duration of `'a`.
     /// * The caller must ensure that if there is an active call to `fdget_pos` that did not take
     ///   the `f_pos_lock` mutex, then that call is on the current thread.
     #[inline]
@@ -341,7 +341,7 @@ impl File {
     /// # Safety
     ///
     /// * The caller must ensure that `ptr` points at a valid file and that the file's refcount is
-    ///   positive for the duration of 'a.
+    ///   positive for the duration of `'a`.
     /// * The caller must ensure that if there are active `fdget_pos` calls on this file, then they
     ///   took the `f_pos_lock` mutex.
     #[inline]

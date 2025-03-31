@@ -373,3 +373,11 @@ triggered due to non-local changes (such as ``dead_code``).
 For more information about diagnostics in Rust, please see:
 
 	https://doc.rust-lang.org/stable/reference/attributes/diagnostics.html
+
+Error handling
+--------------
+
+For some background and guidelines about Rust for Linux specific error handling,
+please see:
+
+	https://rust.docs.kernel.org/kernel/error/type.Result.html#error-codes-in-c-and-rust
