@@ -296,7 +296,6 @@ int f2fs_recover_inline_data(struct inode *inode, struct page *npage)
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_inode *ri = NULL;
 	void *src_addr, *dst_addr;
-	struct page *ipage;
 
 	/*
 	 * The inline_data recovery policy is as follows.
@@ -311,33 +310,34 @@ int f2fs_recover_inline_data(struct inode *inode, struct page *npage)
 
 	if (f2fs_has_inline_data(inode) &&
 			ri && (ri->i_inline & F2FS_INLINE_DATA)) {
+		struct folio *ifolio;
 process_inline:
-		ipage = f2fs_get_inode_page(sbi, inode->i_ino);
-		if (IS_ERR(ipage))
-			return PTR_ERR(ipage);
+		ifolio = f2fs_get_inode_folio(sbi, inode->i_ino);
+		if (IS_ERR(ifolio))
+			return PTR_ERR(ifolio);
 
-		f2fs_wait_on_page_writeback(ipage, NODE, true, true);
+		f2fs_folio_wait_writeback(ifolio, NODE, true, true);
 
 		src_addr = inline_data_addr(inode, npage);
-		dst_addr = inline_data_addr(inode, ipage);
+		dst_addr = inline_data_addr(inode, &ifolio->page);
 		memcpy(dst_addr, src_addr, MAX_INLINE_DATA(inode));
 
 		set_inode_flag(inode, FI_INLINE_DATA);
 		set_inode_flag(inode, FI_DATA_EXIST);
 
-		set_page_dirty(ipage);
-		f2fs_put_page(ipage, 1);
+		folio_mark_dirty(ifolio);
+		f2fs_folio_put(ifolio, true);
 		return 1;
 	}
 
 	if (f2fs_has_inline_data(inode)) {
-		ipage = f2fs_get_inode_page(sbi, inode->i_ino);
-		if (IS_ERR(ipage))
-			return PTR_ERR(ipage);
-		f2fs_truncate_inline_inode(inode, ipage, 0);
+		struct folio *ifolio = f2fs_get_inode_folio(sbi, inode->i_ino);
+		if (IS_ERR(ifolio))
+			return PTR_ERR(ifolio);
+		f2fs_truncate_inline_inode(inode, &ifolio->page, 0);
 		stat_dec_inline_inode(inode);
 		clear_inode_flag(inode, FI_INLINE_DATA);
-		f2fs_put_page(ipage, 1);
+		f2fs_folio_put(ifolio, true);
 	} else if (ri && (ri->i_inline & F2FS_INLINE_DATA)) {
 		int ret;
 
