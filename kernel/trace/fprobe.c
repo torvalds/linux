@@ -89,8 +89,11 @@ static bool delete_fprobe_node(struct fprobe_hlist_node *node)
 {
 	lockdep_assert_held(&fprobe_mutex);
 
-	WRITE_ONCE(node->fp, NULL);
-	hlist_del_rcu(&node->hlist);
+	/* Avoid double deleting */
+	if (READ_ONCE(node->fp) != NULL) {
+		WRITE_ONCE(node->fp, NULL);
+		hlist_del_rcu(&node->hlist);
+	}
 	return !!find_first_fprobe_node(node->addr);
 }
 
@@ -410,6 +413,102 @@ static void fprobe_graph_remove_ips(unsigned long *addrs, int num)
 	if (num)
 		ftrace_set_filter_ips(&fprobe_graph_ops.ops, addrs, num, 1, 0);
 }
+
+#ifdef CONFIG_MODULES
+
+#define FPROBE_IPS_BATCH_INIT 8
+/* instruction pointer address list */
+struct fprobe_addr_list {
+	int index;
+	int size;
+	unsigned long *addrs;
+};
+
+static int fprobe_addr_list_add(struct fprobe_addr_list *alist, unsigned long addr)
+{
+	unsigned long *addrs;
+
+	if (alist->index >= alist->size)
+		return -ENOMEM;
+
+	alist->addrs[alist->index++] = addr;
+	if (alist->index < alist->size)
+		return 0;
+
+	/* Expand the address list */
+	addrs = kcalloc(alist->size * 2, sizeof(*addrs), GFP_KERNEL);
+	if (!addrs)
+		return -ENOMEM;
+
+	memcpy(addrs, alist->addrs, alist->size * sizeof(*addrs));
+	alist->size *= 2;
+	kfree(alist->addrs);
+	alist->addrs = addrs;
+
+	return 0;
+}
+
+static void fprobe_remove_node_in_module(struct module *mod, struct hlist_head *head,
+					struct fprobe_addr_list *alist)
+{
+	struct fprobe_hlist_node *node;
+	int ret = 0;
+
+	hlist_for_each_entry_rcu(node, head, hlist) {
+		if (!within_module(node->addr, mod))
+			continue;
+		if (delete_fprobe_node(node))
+			continue;
+		/*
+		 * If failed to update alist, just continue to update hlist.
+		 * Therefore, at list user handler will not hit anymore.
+		 */
+		if (!ret)
+			ret = fprobe_addr_list_add(alist, node->addr);
+	}
+}
+
+/* Handle module unloading to manage fprobe_ip_table. */
+static int fprobe_module_callback(struct notifier_block *nb,
+				  unsigned long val, void *data)
+{
+	struct fprobe_addr_list alist = {.size = FPROBE_IPS_BATCH_INIT};
+	struct module *mod = data;
+	int i;
+
+	if (val != MODULE_STATE_GOING)
+		return NOTIFY_DONE;
+
+	alist.addrs = kcalloc(alist.size, sizeof(*alist.addrs), GFP_KERNEL);
+	/* If failed to alloc memory, we can not remove ips from hash. */
+	if (!alist.addrs)
+		return NOTIFY_DONE;
+
+	mutex_lock(&fprobe_mutex);
+	for (i = 0; i < FPROBE_IP_TABLE_SIZE; i++)
+		fprobe_remove_node_in_module(mod, &fprobe_ip_table[i], &alist);
+
+	if (alist.index < alist.size && alist.index > 0)
+		ftrace_set_filter_ips(&fprobe_graph_ops.ops,
+				      alist.addrs, alist.index, 1, 0);
+	mutex_unlock(&fprobe_mutex);
+
+	kfree(alist.addrs);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block fprobe_module_nb = {
+	.notifier_call = fprobe_module_callback,
+	.priority = 0,
+};
+
+static int __init init_fprobe_module(void)
+{
+	return register_module_notifier(&fprobe_module_nb);
+}
+early_initcall(init_fprobe_module);
+#endif
 
 static int symbols_cmp(const void *a, const void *b)
 {
