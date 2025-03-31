@@ -99,6 +99,9 @@
 
 #define HIBMC_DP_TIMING_SYNC_CTRL		0xFF0
 
+#define HIBMC_DP_INTSTAT			0x1e0724
+#define HIBMC_DP_INTCLR				0x1e0728
+
 /* dp serdes reg */
 #define HIBMC_DP_HOST_OFFSET		0x10000
 #define HIBMC_DP_LANE0_RATE_OFFSET	0x4
