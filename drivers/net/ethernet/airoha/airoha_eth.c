@@ -2358,7 +2358,7 @@ static int airoha_tc_get_htb_get_leaf_queue(struct airoha_gdm_port *port,
 		return -EINVAL;
 	}
 
-	opt->qid = channel;
+	opt->qid = AIROHA_NUM_TX_RING + channel;
 
 	return 0;
 }
