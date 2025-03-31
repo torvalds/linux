@@ -784,7 +784,7 @@ static void write_orphan_inodes(struct f2fs_sb_info *sbi, block_t start_blk)
 	unsigned int nentries = 0;
 	unsigned short index = 1;
 	unsigned short orphan_blocks;
-	struct page *page = NULL;
+	struct folio *folio = NULL;
 	struct ino_entry *orphan = NULL;
 	struct inode_management *im = &sbi->im[ORPHAN_INO];
 
@@ -799,10 +799,9 @@ static void write_orphan_inodes(struct f2fs_sb_info *sbi, block_t start_blk)
 
 	/* loop for each orphan inode entry and write them in journal block */
 	list_for_each_entry(orphan, head, list) {
-		if (!page) {
-			page = f2fs_grab_meta_page(sbi, start_blk++);
-			orphan_blk =
-				(struct f2fs_orphan_block *)page_address(page);
+		if (!folio) {
+			folio = f2fs_grab_meta_folio(sbi, start_blk++);
+			orphan_blk = folio_address(folio);
 			memset(orphan_blk, 0, sizeof(*orphan_blk));
 		}
 
@@ -817,20 +816,20 @@ static void write_orphan_inodes(struct f2fs_sb_info *sbi, block_t start_blk)
 			orphan_blk->blk_addr = cpu_to_le16(index);
 			orphan_blk->blk_count = cpu_to_le16(orphan_blocks);
 			orphan_blk->entry_count = cpu_to_le32(nentries);
-			set_page_dirty(page);
-			f2fs_put_page(page, 1);
+			folio_mark_dirty(folio);
+			f2fs_folio_put(folio, true);
 			index++;
 			nentries = 0;
-			page = NULL;
+			folio = NULL;
 		}
 	}
 
-	if (page) {
+	if (folio) {
 		orphan_blk->blk_addr = cpu_to_le16(index);
 		orphan_blk->blk_count = cpu_to_le16(orphan_blocks);
 		orphan_blk->entry_count = cpu_to_le32(nentries);
-		set_page_dirty(page);
-		f2fs_put_page(page, 1);
+		folio_mark_dirty(folio);
+		f2fs_folio_put(folio, true);
 	}
 }
 
