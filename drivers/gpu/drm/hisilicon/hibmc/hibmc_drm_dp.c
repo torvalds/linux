@@ -55,6 +55,7 @@ static const struct drm_connector_funcs hibmc_dp_conn_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 	.late_register = hibmc_dp_late_register,
 	.early_unregister = hibmc_dp_early_unregister,
+	.debugfs_init = hibmc_debugfs_init,
 };
 
 static inline int hibmc_dp_prepare(struct hibmc_dp *dp, struct drm_display_mode *mode)

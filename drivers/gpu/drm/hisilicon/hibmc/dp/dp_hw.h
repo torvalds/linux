@@ -14,6 +14,33 @@
 
 struct hibmc_dp_dev;
 
+enum hibmc_dp_cbar_pattern {
+	CBAR_COLOR_BAR,
+	CBAR_WHITE,
+	CBAR_RED,
+	CBAR_ORANGE,
+	CBAR_YELLOW,
+	CBAR_GREEN,
+	CBAR_CYAN,
+	CBAR_BLUE,
+	CBAR_PURPLE,
+	CBAR_BLACK,
+};
+
+struct hibmc_dp_color_raw {
+	enum hibmc_dp_cbar_pattern pattern;
+	u32 r_value;
+	u32 g_value;
+	u32 b_value;
+};
+
+struct hibmc_dp_cbar_cfg {
+	u8 enable;
+	u8 self_timing;
+	u8 dynamic_rate; /* 0:static, 1-255(frame):dynamic */
+	enum hibmc_dp_cbar_pattern pattern;
+};
+
 struct hibmc_dp {
 	struct hibmc_dp_dev *dp_dev;
 	struct drm_device *drm_dev;
@@ -21,10 +48,12 @@ struct hibmc_dp {
 	struct drm_connector connector;
 	void __iomem *mmio;
 	struct drm_dp_aux aux;
+	struct hibmc_dp_cbar_cfg cfg;
 };
 
 int hibmc_dp_hw_init(struct hibmc_dp *dp);
 int hibmc_dp_mode_set(struct hibmc_dp *dp, struct drm_display_mode *mode);
 void hibmc_dp_display_en(struct hibmc_dp *dp, bool enable);
+void hibmc_dp_set_cbar(struct hibmc_dp *dp, const struct hibmc_dp_cbar_cfg *cfg);
 
 #endif

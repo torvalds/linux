@@ -226,3 +226,46 @@ int hibmc_dp_mode_set(struct hibmc_dp *dp, struct drm_display_mode *mode)
 
 	return 0;
 }
+
+static const struct hibmc_dp_color_raw g_rgb_raw[] = {
+	{CBAR_COLOR_BAR, 0x000, 0x000, 0x000},
+	{CBAR_WHITE,     0xfff, 0xfff, 0xfff},
+	{CBAR_RED,       0xfff, 0x000, 0x000},
+	{CBAR_ORANGE,    0xfff, 0x800, 0x000},
+	{CBAR_YELLOW,    0xfff, 0xfff, 0x000},
+	{CBAR_GREEN,     0x000, 0xfff, 0x000},
+	{CBAR_CYAN,      0x000, 0x800, 0x800},
+	{CBAR_BLUE,      0x000, 0x000, 0xfff},
+	{CBAR_PURPLE,    0x800, 0x000, 0x800},
+	{CBAR_BLACK,     0x000, 0x000, 0x000},
+};
+
+void hibmc_dp_set_cbar(struct hibmc_dp *dp, const struct hibmc_dp_cbar_cfg *cfg)
+{
+	struct hibmc_dp_dev *dp_dev = dp->dp_dev;
+	struct hibmc_dp_color_raw raw_data;
+
+	if (cfg->enable) {
+		hibmc_dp_reg_write_field(dp_dev, HIBMC_DP_COLOR_BAR_CTRL, BIT(9),
+					 cfg->self_timing);
+		hibmc_dp_reg_write_field(dp_dev, HIBMC_DP_COLOR_BAR_CTRL, GENMASK(8, 1),
+					 cfg->dynamic_rate);
+		if (cfg->pattern == CBAR_COLOR_BAR) {
+			hibmc_dp_reg_write_field(dp_dev, HIBMC_DP_COLOR_BAR_CTRL, BIT(10), 0);
+		} else {
+			raw_data = g_rgb_raw[cfg->pattern];
+			drm_dbg_dp(dp->drm_dev, "r:%x g:%x b:%x\n", raw_data.r_value,
+				   raw_data.g_value, raw_data.b_value);
+			hibmc_dp_reg_write_field(dp_dev, HIBMC_DP_COLOR_BAR_CTRL, BIT(10), 1);
+			hibmc_dp_reg_write_field(dp_dev, HIBMC_DP_COLOR_BAR_CTRL, GENMASK(23, 12),
+						 raw_data.r_value);
+			hibmc_dp_reg_write_field(dp_dev, HIBMC_DP_COLOR_BAR_CTRL1, GENMASK(23, 12),
+						 raw_data.g_value);
+			hibmc_dp_reg_write_field(dp_dev, HIBMC_DP_COLOR_BAR_CTRL1, GENMASK(11, 0),
+						 raw_data.b_value);
+		}
+	}
+
+	hibmc_dp_reg_write_field(dp_dev, HIBMC_DP_COLOR_BAR_CTRL, BIT(0), cfg->enable);
+	writel(HIBMC_DP_SYNC_EN_MASK, dp_dev->base + HIBMC_DP_TIMING_SYNC_CTRL);
+}
