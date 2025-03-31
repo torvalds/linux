@@ -406,12 +406,9 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 	return de;
 }
 
-struct f2fs_dir_entry *f2fs_parent_dir(struct inode *dir, struct page **p)
+struct f2fs_dir_entry *f2fs_parent_dir(struct inode *dir, struct folio **f)
 {
-	struct folio *folio;
-	struct f2fs_dir_entry *r = f2fs_find_entry(dir, &dotdot_name, &folio);
-	*p = &folio->page;
-	return r;
+	return f2fs_find_entry(dir, &dotdot_name, f);
 }
 
 ino_t f2fs_inode_by_name(struct inode *dir, const struct qstr *qstr,
