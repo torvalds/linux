@@ -1240,15 +1240,10 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 
 	sd_ctrl_write32_as_16_and_16(host, CTL_IRQ_MASK, host->sdcard_irq_mask_all);
 
-	num_irqs = platform_irq_count(pdev);
-	if (num_irqs < 0) {
-		ret = num_irqs;
-		goto edisclk;
-	}
-
 	/* There must be at least one IRQ source */
-	if (!num_irqs) {
-		ret = -ENXIO;
+	num_irqs = platform_irq_count(pdev);
+	if (num_irqs <= 0) {
+		ret = num_irqs ?: -ENOENT;
 		goto edisclk;
 	}
 
