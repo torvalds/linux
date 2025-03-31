@@ -388,7 +388,7 @@ static void srp_reconnect_work(struct work_struct *work)
 			     "reconnect attempt %d failed (%d)\n",
 			     ++rport->failed_reconnects, res);
 		delay = rport->reconnect_delay *
-			min(100, max(1, rport->failed_reconnects - 10));
+			clamp(rport->failed_reconnects - 10, 1, 100);
 		if (delay > 0)
 			queue_delayed_work(system_long_wq,
 					   &rport->reconnect_work, delay * HZ);
