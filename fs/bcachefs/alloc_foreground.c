@@ -1219,26 +1219,25 @@ out:
 
 static noinline void
 deallocate_extra_replicas(struct bch_fs *c,
-			  struct open_buckets *ptrs,
-			  struct open_buckets *ptrs_no_use,
-			  unsigned extra_replicas)
+			  struct alloc_request *req)
 {
 	struct open_buckets ptrs2 = { 0 };
 	struct open_bucket *ob;
+	unsigned extra_replicas = req->nr_effective - req->nr_replicas;
 	unsigned i;
 
-	open_bucket_for_each(c, ptrs, ob, i) {
+	open_bucket_for_each(c, &req->ptrs, ob, i) {
 		unsigned d = ob_dev(c, ob)->mi.durability;
 
 		if (d && d <= extra_replicas) {
 			extra_replicas -= d;
-			ob_push(c, ptrs_no_use, ob);
+			ob_push(c, &req->wp->ptrs, ob);
 		} else {
 			ob_push(c, &ptrs2, ob);
 		}
 	}
 
-	*ptrs = ptrs2;
+	req->ptrs = ptrs2;
 }
 
 /*
@@ -1335,8 +1334,7 @@ alloc_done:
 		goto err;
 
 	if (req.nr_effective > req.nr_replicas)
-		deallocate_extra_replicas(c, &req.ptrs, &req.wp->ptrs,
-					  req.nr_effective - req.nr_replicas);
+		deallocate_extra_replicas(c, &req);
 
 	/* Free buckets we didn't use: */
 	open_bucket_for_each(c, &req.wp->ptrs, ob, i)
