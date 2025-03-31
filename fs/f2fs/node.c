@@ -1351,7 +1351,7 @@ struct folio *f2fs_new_node_folio(struct dnode_of_data *dn, unsigned int ofs)
 		dec_valid_node_count(sbi, dn->inode, !ofs);
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
 		f2fs_warn_ratelimited(sbi,
-			"f2fs_new_node_page: inconsistent nat entry, "
+			"f2fs_new_node_folio: inconsistent nat entry, "
 			"ino:%u, nid:%u, blkaddr:%u, ver:%u, flag:%u",
 			new_ni.ino, new_ni.nid, new_ni.blk_addr,
 			new_ni.version, new_ni.flag);
@@ -2354,7 +2354,7 @@ static bool add_free_nid(struct f2fs_sb_info *sbi,
 		 *  - f2fs_add_link
 		 *   - f2fs_init_inode_metadata
 		 *    - f2fs_new_inode_folio
-		 *     - f2fs_new_node_page
+		 *     - f2fs_new_node_folio
 		 *      - set_node_addr
 		 *  - f2fs_alloc_nid_done
 		 *   - __remove_nid_from_list(PREALLOC_NID)

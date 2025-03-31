@@ -3779,12 +3779,6 @@ void f2fs_destroy_node_manager(struct f2fs_sb_info *sbi);
 int __init f2fs_create_node_manager_caches(void);
 void f2fs_destroy_node_manager_caches(void);
 
-static inline
-struct page *f2fs_new_node_page(struct dnode_of_data *dn, unsigned int ofs)
-{
-	return &f2fs_new_node_folio(dn, ofs)->page;
-}
-
 /*
  * segment.c
  */
