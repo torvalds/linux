@@ -10,6 +10,7 @@
 #include "xe_force_wake.h"
 #include "xe_gt_idle.h"
 #include "xe_guc_engine_activity.h"
+#include "xe_guc_pc.h"
 #include "xe_hw_engine.h"
 #include "xe_pm.h"
 #include "xe_pmu.h"
@@ -84,6 +85,8 @@ static unsigned int config_to_gt_id(u64 config)
 #define XE_PMU_EVENT_GT_C6_RESIDENCY		0x01
 #define XE_PMU_EVENT_ENGINE_ACTIVE_TICKS	0x02
 #define XE_PMU_EVENT_ENGINE_TOTAL_TICKS		0x03
+#define XE_PMU_EVENT_GT_ACTUAL_FREQUENCY	0x04
+#define XE_PMU_EVENT_GT_REQUESTED_FREQUENCY	0x05
 
 static struct xe_gt *event_to_gt(struct perf_event *event)
 {
@@ -119,6 +122,14 @@ static bool is_engine_event(u64 config)
 		event_id == XE_PMU_EVENT_ENGINE_ACTIVE_TICKS);
 }
 
+static bool is_gt_frequency_event(struct perf_event *event)
+{
+	u32 id = config_to_event_id(event->attr.config);
+
+	return id == XE_PMU_EVENT_GT_ACTUAL_FREQUENCY ||
+	       id == XE_PMU_EVENT_GT_REQUESTED_FREQUENCY;
+}
+
 static bool event_gt_forcewake(struct perf_event *event)
 {
 	struct xe_device *xe = container_of(event->pmu, typeof(*xe), pmu.base);
@@ -126,7 +137,7 @@ static bool event_gt_forcewake(struct perf_event *event)
 	struct xe_gt *gt;
 	unsigned int *fw_ref;
 
-	if (!is_engine_event(config))
+	if (!is_engine_event(config) && !is_gt_frequency_event(event))
 		return true;
 
 	gt = xe_device_get_gt(xe, config_to_gt_id(config));
@@ -173,6 +184,8 @@ static bool event_param_valid(struct perf_event *event)
 
 	switch (config_to_event_id(config)) {
 	case XE_PMU_EVENT_GT_C6_RESIDENCY:
+	case XE_PMU_EVENT_GT_ACTUAL_FREQUENCY:
+	case XE_PMU_EVENT_GT_REQUESTED_FREQUENCY:
 		if (engine_class || engine_instance || function_id)
 			return false;
 		break;
@@ -288,6 +301,10 @@ static u64 __xe_pmu_event_read(struct perf_event *event)
 	case XE_PMU_EVENT_ENGINE_ACTIVE_TICKS:
 	case XE_PMU_EVENT_ENGINE_TOTAL_TICKS:
 		return read_engine_events(gt, event);
+	case XE_PMU_EVENT_GT_ACTUAL_FREQUENCY:
+		return xe_guc_pc_get_act_freq(&gt->uc.guc.pc);
+	case XE_PMU_EVENT_GT_REQUESTED_FREQUENCY:
+		return xe_guc_pc_get_cur_freq_fw(&gt->uc.guc.pc);
 	}
 
 	return 0;
@@ -303,7 +320,14 @@ static void xe_pmu_event_update(struct perf_event *event)
 		new = __xe_pmu_event_read(event);
 	} while (!local64_try_cmpxchg(&hwc->prev_count, &prev, new));
 
-	local64_add(new - prev, &event->count);
+	/*
+	 * GT frequency is not a monotonically increasing counter, so add the
+	 * instantaneous value instead.
+	 */
+	if (is_gt_frequency_event(event))
+		local64_add(new, &event->count);
+	else
+		local64_add(new - prev, &event->count);
 }
 
 static void xe_pmu_event_read(struct perf_event *event)
@@ -443,6 +467,10 @@ static ssize_t event_attr_show(struct device *dev,
 XE_EVENT_ATTR_SIMPLE(gt-c6-residency, gt_c6_residency, XE_PMU_EVENT_GT_C6_RESIDENCY, "ms");
 XE_EVENT_ATTR_NOUNIT(engine-active-ticks, engine_active_ticks, XE_PMU_EVENT_ENGINE_ACTIVE_TICKS);
 XE_EVENT_ATTR_NOUNIT(engine-total-ticks, engine_total_ticks, XE_PMU_EVENT_ENGINE_TOTAL_TICKS);
+XE_EVENT_ATTR_SIMPLE(gt-actual-frequency, gt_actual_frequency,
+		     XE_PMU_EVENT_GT_ACTUAL_FREQUENCY, "MHz");
+XE_EVENT_ATTR_SIMPLE(gt-requested-frequency, gt_requested_frequency,
+		     XE_PMU_EVENT_GT_REQUESTED_FREQUENCY, "MHz");
 
 static struct attribute *pmu_empty_event_attrs[] = {
 	/* Empty - all events are added as groups with .attr_update() */
@@ -458,6 +486,8 @@ static const struct attribute_group *pmu_events_attr_update[] = {
 	&pmu_group_gt_c6_residency,
 	&pmu_group_engine_active_ticks,
 	&pmu_group_engine_total_ticks,
+	&pmu_group_gt_actual_frequency,
+	&pmu_group_gt_requested_frequency,
 	NULL,
 };
 
@@ -466,8 +496,11 @@ static void set_supported_events(struct xe_pmu *pmu)
 	struct xe_device *xe = container_of(pmu, typeof(*xe), pmu);
 	struct xe_gt *gt = xe_device_get_gt(xe, 0);
 
-	if (!xe->info.skip_guc_pc)
+	if (!xe->info.skip_guc_pc) {
 		pmu->supported_events |= BIT_ULL(XE_PMU_EVENT_GT_C6_RESIDENCY);
+		pmu->supported_events |= BIT_ULL(XE_PMU_EVENT_GT_ACTUAL_FREQUENCY);
+		pmu->supported_events |= BIT_ULL(XE_PMU_EVENT_GT_REQUESTED_FREQUENCY);
+	}
 
 	if (xe_guc_engine_activity_supported(&gt->uc.guc)) {
 		pmu->supported_events |= BIT_ULL(XE_PMU_EVENT_ENGINE_ACTIVE_TICKS);

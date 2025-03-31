@@ -462,6 +462,21 @@ static u32 get_cur_freq(struct xe_gt *gt)
 }
 
 /**
+ * xe_guc_pc_get_cur_freq_fw - With fw held, get requested frequency
+ * @pc: The GuC PC
+ *
+ * Returns: the requested frequency for that GT instance
+ */
+u32 xe_guc_pc_get_cur_freq_fw(struct xe_guc_pc *pc)
+{
+	struct xe_gt *gt = pc_to_gt(pc);
+
+	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
+
+	return get_cur_freq(gt);
+}
+
+/**
  * xe_guc_pc_get_cur_freq - Get Current requested frequency
  * @pc: The GuC PC
  * @freq: A pointer to a u32 where the freq value will be returned
