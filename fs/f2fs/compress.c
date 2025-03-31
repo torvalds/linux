@@ -1869,14 +1869,13 @@ void f2fs_decompress_end_io(struct decompress_io_ctx *dic, bool failed,
 }
 
 /*
- * Put a reference to a compressed page's decompress_io_ctx.
+ * Put a reference to a compressed folio's decompress_io_ctx.
  *
- * This is called when the page is no longer needed and can be freed.
+ * This is called when the folio is no longer needed and can be freed.
  */
-void f2fs_put_page_dic(struct page *page, bool in_task)
+void f2fs_put_folio_dic(struct folio *folio, bool in_task)
 {
-	struct decompress_io_ctx *dic =
-			(struct decompress_io_ctx *)page_private(page);
+	struct decompress_io_ctx *dic = folio->private;
 
 	f2fs_put_dic(dic, in_task);
 }

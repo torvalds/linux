@@ -146,7 +146,7 @@ static void f2fs_finish_read_bio(struct bio *bio, bool in_task)
 			if (ctx && !ctx->decompression_attempted)
 				f2fs_end_read_compressed_page(&folio->page, true, 0,
 							in_task);
-			f2fs_put_page_dic(&folio->page, in_task);
+			f2fs_put_folio_dic(folio, in_task);
 			continue;
 		}
 
