@@ -444,17 +444,17 @@ void f2fs_set_link(struct inode *dir, struct f2fs_dir_entry *de,
 
 static void init_dent_inode(struct inode *dir, struct inode *inode,
 			    const struct f2fs_filename *fname,
-			    struct page *ipage)
+			    struct folio *ifolio)
 {
 	struct f2fs_inode *ri;
 
 	if (!fname) /* tmpfile case? */
 		return;
 
-	f2fs_wait_on_page_writeback(ipage, NODE, true, true);
+	f2fs_folio_wait_writeback(ifolio, NODE, true, true);
 
-	/* copy name info. to this inode page */
-	ri = F2FS_INODE(ipage);
+	/* copy name info. to this inode folio */
+	ri = F2FS_INODE(&ifolio->page);
 	ri->i_namelen = cpu_to_le32(fname->disk_name.len);
 	memcpy(ri->i_name, fname->disk_name.name, fname->disk_name.len);
 	if (IS_ENCRYPTED(dir)) {
@@ -475,7 +475,7 @@ static void init_dent_inode(struct inode *dir, struct inode *inode,
 				file_lost_pino(inode);
 		}
 	}
-	set_page_dirty(ipage);
+	folio_mark_dirty(ifolio);
 }
 
 void f2fs_do_make_empty_dir(struct inode *inode, struct inode *parent,
@@ -558,7 +558,7 @@ struct page *f2fs_init_inode_metadata(struct inode *inode, struct inode *dir,
 			return &folio->page;
 	}
 
-	init_dent_inode(dir, inode, fname, &folio->page);
+	init_dent_inode(dir, inode, fname, folio);
 
 	/*
 	 * This file should be checkpointed during fsync.
