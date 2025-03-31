@@ -622,14 +622,14 @@ next:
 	goto next;
 }
 
-bool f2fs_has_enough_room(struct inode *dir, struct page *ipage,
+bool f2fs_has_enough_room(struct inode *dir, struct folio *ifolio,
 			  const struct f2fs_filename *fname)
 {
 	struct f2fs_dentry_ptr d;
 	unsigned int bit_pos;
 	int slots = GET_DENTRY_SLOTS(fname->disk_name.len);
 
-	make_dentry_ptr_inline(dir, &d, inline_data_addr(dir, ipage));
+	make_dentry_ptr_inline(dir, &d, inline_data_addr(dir, &ifolio->page));
 
 	bit_pos = f2fs_room_for_filename(d.bitmap, slots, d.max);
 

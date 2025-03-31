@@ -615,7 +615,7 @@ int f2fs_try_convert_inline_dir(struct inode *dir, struct dentry *dentry)
 		goto out_fname;
 	}
 
-	if (f2fs_has_enough_room(dir, &ifolio->page, &fname)) {
+	if (f2fs_has_enough_room(dir, ifolio, &fname)) {
 		f2fs_folio_put(ifolio, true);
 		goto out_fname;
 	}
