@@ -1532,37 +1532,39 @@ static int f2fs_write_raw_pages(struct compress_ctx *cc,
 		f2fs_lock_op(sbi);
 
 	for (i = 0; i < cc->cluster_size; i++) {
+		struct folio *folio;
+
 		if (!cc->rpages[i])
 			continue;
+		folio = page_folio(cc->rpages[i]);
 retry_write:
-		lock_page(cc->rpages[i]);
+		folio_lock(folio);
 
-		if (cc->rpages[i]->mapping != mapping) {
+		if (folio->mapping != mapping) {
 continue_unlock:
-			unlock_page(cc->rpages[i]);
+			folio_unlock(folio);
 			continue;
 		}
 
-		if (!PageDirty(cc->rpages[i]))
+		if (!folio_test_dirty(folio))
 			goto continue_unlock;
 
-		if (folio_test_writeback(page_folio(cc->rpages[i]))) {
+		if (folio_test_writeback(folio)) {
 			if (wbc->sync_mode == WB_SYNC_NONE)
 				goto continue_unlock;
-			f2fs_wait_on_page_writeback(cc->rpages[i], DATA, true, true);
+			f2fs_folio_wait_writeback(folio, DATA, true, true);
 		}
 
-		if (!clear_page_dirty_for_io(cc->rpages[i]))
+		if (!folio_clear_dirty_for_io(folio))
 			goto continue_unlock;
 
 		submitted = 0;
-		ret = f2fs_write_single_data_page(page_folio(cc->rpages[i]),
-						&submitted,
+		ret = f2fs_write_single_data_page(folio, &submitted,
 						NULL, NULL, wbc, io_type,
 						compr_blocks, false);
 		if (ret) {
 			if (ret == AOP_WRITEPAGE_ACTIVATE) {
-				unlock_page(cc->rpages[i]);
+				folio_unlock(folio);
 				ret = 0;
 			} else if (ret == -EAGAIN) {
 				ret = 0;
