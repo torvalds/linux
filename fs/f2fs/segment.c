@@ -3003,7 +3003,7 @@ static int change_curseg(struct f2fs_sb_info *sbi, int type)
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
 	unsigned int new_segno = curseg->next_segno;
 	struct f2fs_summary_block *sum_node;
-	struct page *sum_page;
+	struct folio *sum_folio;
 
 	if (curseg->inited)
 		write_sum_page(sbi, curseg->sum_blk, GET_SUM_BLOCK(sbi, curseg->segno));
@@ -3019,15 +3019,15 @@ static int change_curseg(struct f2fs_sb_info *sbi, int type)
 	curseg->alloc_type = SSR;
 	curseg->next_blkoff = __next_free_blkoff(sbi, curseg->segno, 0);
 
-	sum_page = f2fs_get_sum_page(sbi, new_segno);
-	if (IS_ERR(sum_page)) {
+	sum_folio = f2fs_get_sum_folio(sbi, new_segno);
+	if (IS_ERR(sum_folio)) {
 		/* GC won't be able to use stale summary pages by cp_error */
 		memset(curseg->sum_blk, 0, SUM_ENTRY_SIZE);
-		return PTR_ERR(sum_page);
+		return PTR_ERR(sum_folio);
 	}
-	sum_node = (struct f2fs_summary_block *)page_address(sum_page);
+	sum_node = folio_address(sum_folio);
 	memcpy(curseg->sum_blk, sum_node, SUM_ENTRY_SIZE);
-	f2fs_put_page(sum_page, 1);
+	f2fs_folio_put(sum_folio, true);
 	return 0;
 }
 
