@@ -623,9 +623,9 @@ cache:
 /*
  * readahead MAX_RA_NODE number of node pages.
  */
-static void f2fs_ra_node_pages(struct page *parent, int start, int n)
+static void f2fs_ra_node_pages(struct folio *parent, int start, int n)
 {
-	struct f2fs_sb_info *sbi = F2FS_P_SB(parent);
+	struct f2fs_sb_info *sbi = F2FS_F_SB(parent);
 	struct blk_plug plug;
 	int i, end;
 	nid_t nid;
@@ -636,7 +636,7 @@ static void f2fs_ra_node_pages(struct page *parent, int start, int n)
 	end = start + n;
 	end = min(end, (int)NIDS_PER_BLOCK);
 	for (i = start; i < end; i++) {
-		nid = get_nid(parent, i, false);
+		nid = get_nid(&parent->page, i, false);
 		f2fs_ra_node_page(sbi, nid);
 	}
 
@@ -1005,7 +1005,7 @@ static int truncate_nodes(struct dnode_of_data *dn, unsigned int nofs,
 		return PTR_ERR(folio);
 	}
 
-	f2fs_ra_node_pages(&folio->page, ofs, NIDS_PER_BLOCK);
+	f2fs_ra_node_pages(folio, ofs, NIDS_PER_BLOCK);
 
 	rn = F2FS_NODE(&folio->page);
 	if (depth < 3) {
@@ -1086,7 +1086,7 @@ static int truncate_partial_nodes(struct dnode_of_data *dn,
 		nid[i + 1] = get_nid(&folios[i]->page, offset[i + 1], false);
 	}
 
-	f2fs_ra_node_pages(&folios[idx]->page, offset[idx + 1], NIDS_PER_BLOCK);
+	f2fs_ra_node_pages(folios[idx], offset[idx + 1], NIDS_PER_BLOCK);
 
 	/* free direct nodes linked to a partial indirect node */
 	for (i = offset[idx + 1]; i < NIDS_PER_BLOCK; i++) {
@@ -1503,7 +1503,7 @@ repeat:
 		goto page_hit;
 
 	if (parent)
-		f2fs_ra_node_pages(&parent->page, start + 1, MAX_RA_NODE);
+		f2fs_ra_node_pages(parent, start + 1, MAX_RA_NODE);
 
 	folio_lock(folio);
 
