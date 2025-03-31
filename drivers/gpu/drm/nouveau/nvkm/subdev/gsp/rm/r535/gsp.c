@@ -1700,6 +1700,14 @@ lvl1_fail:
 	return ret;
 }
 
+static u32
+r535_gsp_sr_data_size(struct nvkm_gsp *gsp)
+{
+	GspFwWprMeta *meta = gsp->wpr_meta.data;
+
+	return meta->gspFwWprEnd - meta->gspFwWprStart;
+}
+
 int
 r535_gsp_fini(struct nvkm_gsp *gsp, bool suspend)
 {
@@ -1707,8 +1715,7 @@ r535_gsp_fini(struct nvkm_gsp *gsp, bool suspend)
 	int ret;
 
 	if (suspend) {
-		GspFwWprMeta *meta = gsp->wpr_meta.data;
-		u64 len = meta->gspFwWprEnd - meta->gspFwWprStart;
+		u32 len = rm->api->gsp->sr_data_size(gsp);
 		GspFwSRMeta *sr;
 
 		ret = nvkm_gsp_sg(gsp->subdev.device, len, &gsp->sr.sgt);
@@ -2167,4 +2174,5 @@ r535_gsp = {
 	.get_static_info = r535_gsp_get_static_info,
 	.xlat_mc_engine_idx = r535_gsp_xlat_mc_engine_idx,
 	.drop_send_user_shared_data = r535_gsp_drop_send_user_shared_data,
+	.sr_data_size = r535_gsp_sr_data_size,
 };
