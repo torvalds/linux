@@ -1731,12 +1731,8 @@ cifs_get_tcp_session(struct smb3_fs_context *ctx,
 	 */
 	tcp_ses->tcpStatus = CifsNew;
 	++tcp_ses->srv_count;
+	tcp_ses->echo_interval = ctx->echo_interval * HZ;
 
-	if (ctx->echo_interval >= SMB_ECHO_INTERVAL_MIN &&
-		ctx->echo_interval <= SMB_ECHO_INTERVAL_MAX)
-		tcp_ses->echo_interval = ctx->echo_interval * HZ;
-	else
-		tcp_ses->echo_interval = SMB_ECHO_INTERVAL_DEFAULT * HZ;
 	if (tcp_ses->rdma) {
 #ifndef CONFIG_CIFS_SMB_DIRECT
 		cifs_dbg(VFS, "CONFIG_CIFS_SMB_DIRECT is not enabled\n");
