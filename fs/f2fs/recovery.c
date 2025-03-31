@@ -494,8 +494,7 @@ static int check_index_in_prev_nodes(struct f2fs_sb_info *sbi,
 	unsigned short blkoff = GET_BLKOFF_FROM_SEG0(sbi, blkaddr);
 	struct f2fs_summary_block *sum_node;
 	struct f2fs_summary sum;
-	struct folio *sum_folio;
-	struct page *node_page;
+	struct folio *sum_folio, *node_folio;
 	struct dnode_of_data tdn = *dn;
 	nid_t ino, nid;
 	struct inode *inode;
@@ -549,13 +548,13 @@ got_it:
 	}
 
 	/* Get the node page */
-	node_page = f2fs_get_node_page(sbi, nid);
-	if (IS_ERR(node_page))
-		return PTR_ERR(node_page);
+	node_folio = f2fs_get_node_folio(sbi, nid);
+	if (IS_ERR(node_folio))
+		return PTR_ERR(node_folio);
 
-	offset = ofs_of_node(node_page);
-	ino = ino_of_node(node_page);
-	f2fs_put_page(node_page, 1);
+	offset = ofs_of_node(&node_folio->page);
+	ino = ino_of_node(&node_folio->page);
+	f2fs_folio_put(node_folio, true);
 
 	if (ino != dn->inode->i_ino) {
 		int ret;
