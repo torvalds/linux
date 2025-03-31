@@ -166,7 +166,7 @@ fail:
 }
 
 static struct posix_acl *__f2fs_get_acl(struct inode *inode, int type,
-						struct page *dpage)
+						struct folio *dfolio)
 {
 	int name_index = F2FS_XATTR_INDEX_POSIX_ACL_DEFAULT;
 	void *value = NULL;
@@ -176,13 +176,13 @@ static struct posix_acl *__f2fs_get_acl(struct inode *inode, int type,
 	if (type == ACL_TYPE_ACCESS)
 		name_index = F2FS_XATTR_INDEX_POSIX_ACL_ACCESS;
 
-	retval = f2fs_getxattr(inode, name_index, "", NULL, 0, dpage);
+	retval = f2fs_getxattr(inode, name_index, "", NULL, 0, dfolio);
 	if (retval > 0) {
 		value = f2fs_kmalloc(F2FS_I_SB(inode), retval, GFP_F2FS_ZERO);
 		if (!value)
 			return ERR_PTR(-ENOMEM);
 		retval = f2fs_getxattr(inode, name_index, "", value,
-							retval, dpage);
+							retval, dfolio);
 	}
 
 	if (retval > 0)
@@ -371,7 +371,7 @@ static int f2fs_acl_create(struct inode *dir, umode_t *mode,
 	if (S_ISLNK(*mode) || !IS_POSIXACL(dir))
 		return 0;
 
-	p = __f2fs_get_acl(dir, ACL_TYPE_DEFAULT, &dfolio->page);
+	p = __f2fs_get_acl(dir, ACL_TYPE_DEFAULT, dfolio);
 	if (!p || p == ERR_PTR(-EOPNOTSUPP)) {
 		*mode &= ~current_umask();
 		return 0;

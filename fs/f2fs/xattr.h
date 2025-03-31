@@ -130,7 +130,7 @@ extern const struct xattr_handler * const f2fs_xattr_handlers[];
 int f2fs_setxattr(struct inode *, int, const char *, const void *,
 		size_t, struct folio *, int);
 int f2fs_getxattr(struct inode *, int, const char *, void *,
-		size_t, struct page *);
+		size_t, struct folio *);
 ssize_t f2fs_listxattr(struct dentry *, char *, size_t);
 int f2fs_init_xattr_caches(struct f2fs_sb_info *);
 void f2fs_destroy_xattr_caches(struct f2fs_sb_info *);
@@ -146,7 +146,7 @@ static inline int f2fs_setxattr(struct inode *inode, int index,
 }
 static inline int f2fs_getxattr(struct inode *inode, int index,
 			const char *name, void *buffer,
-			size_t buffer_size, struct page *dpage)
+			size_t buffer_size, struct folio *dfolio)
 {
 	return -EOPNOTSUPP;
 }
