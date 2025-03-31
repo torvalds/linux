@@ -1341,7 +1341,7 @@ struct folio *f2fs_get_lock_data_folio(struct inode *inode, pgoff_t index,
  * Note that, ipage is set only by make_empty_dir, and if any error occur,
  * ipage should be released by this function.
  */
-struct page *f2fs_get_new_data_page(struct inode *inode,
+struct folio *f2fs_get_new_data_folio(struct inode *inode,
 		struct page *ipage, pgoff_t index, bool new_i_size)
 {
 	struct address_space *mapping = inode->i_mapping;
@@ -1382,13 +1382,13 @@ struct page *f2fs_get_new_data_page(struct inode *inode,
 		f2fs_bug_on(F2FS_I_SB(inode), ipage);
 		folio = f2fs_get_lock_data_folio(inode, index, true);
 		if (IS_ERR(folio))
-			return &folio->page;
+			return folio;
 	}
 got_it:
 	if (new_i_size && i_size_read(inode) <
 				((loff_t)(index + 1) << PAGE_SHIFT))
 		f2fs_i_size_write(inode, ((loff_t)(index + 1) << PAGE_SHIFT));
-	return &folio->page;
+	return folio;
 }
 
 static int __allocate_data_block(struct dnode_of_data *dn, int seg_type)

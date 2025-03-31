@@ -3972,7 +3972,7 @@ struct folio *f2fs_find_data_folio(struct inode *inode, pgoff_t index,
 		pgoff_t *next_pgofs);
 struct folio *f2fs_get_lock_data_folio(struct inode *inode, pgoff_t index,
 			bool for_write);
-struct page *f2fs_get_new_data_page(struct inode *inode,
+struct folio *f2fs_get_new_data_folio(struct inode *inode,
 			struct page *ipage, pgoff_t index, bool new_i_size);
 int f2fs_do_write_data_page(struct f2fs_io_info *fio);
 int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map, int flag);
@@ -3996,6 +3996,13 @@ void f2fs_destroy_post_read_processing(void);
 int f2fs_init_post_read_wq(struct f2fs_sb_info *sbi);
 void f2fs_destroy_post_read_wq(struct f2fs_sb_info *sbi);
 extern const struct iomap_ops f2fs_iomap_ops;
+
+static inline
+struct page *f2fs_get_new_data_page(struct inode *inode,
+			struct page *ipage, pgoff_t index, bool new_i_size)
+{
+	return &f2fs_get_new_data_folio(inode, ipage, index, new_i_size)->page;
+}
 
 static inline struct page *f2fs_get_lock_data_page(struct inode *inode,
 		pgoff_t index, bool for_write)
