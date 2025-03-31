@@ -82,7 +82,7 @@ bool f2fs_is_compressed_page(struct page *page)
 	if (page_private_nonpointer(page))
 		return false;
 
-	f2fs_bug_on(F2FS_M_SB(page->mapping),
+	f2fs_bug_on(F2FS_P_SB(page),
 		*((u32 *)page_private(page)) != F2FS_COMPRESSED_PAGE_MAGIC);
 	return true;
 }
