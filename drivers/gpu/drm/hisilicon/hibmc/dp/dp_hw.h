@@ -49,11 +49,16 @@ struct hibmc_dp {
 	void __iomem *mmio;
 	struct drm_dp_aux aux;
 	struct hibmc_dp_cbar_cfg cfg;
+	u32 irq_status;
 };
 
 int hibmc_dp_hw_init(struct hibmc_dp *dp);
 int hibmc_dp_mode_set(struct hibmc_dp *dp, struct drm_display_mode *mode);
 void hibmc_dp_display_en(struct hibmc_dp *dp, bool enable);
 void hibmc_dp_set_cbar(struct hibmc_dp *dp, const struct hibmc_dp_cbar_cfg *cfg);
+void hibmc_dp_reset_link(struct hibmc_dp *dp);
+void hibmc_dp_hpd_cfg(struct hibmc_dp *dp);
+void hibmc_dp_enable_int(struct hibmc_dp *dp);
+void hibmc_dp_disable_int(struct hibmc_dp *dp);
 
 #endif
