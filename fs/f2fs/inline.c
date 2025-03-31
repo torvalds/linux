@@ -410,16 +410,16 @@ int f2fs_make_empty_inline_dir(struct inode *inode, struct inode *parent,
 static int f2fs_move_inline_dirents(struct inode *dir, struct page *ipage,
 							void *inline_dentry)
 {
-	struct page *page;
+	struct folio *folio;
 	struct dnode_of_data dn;
 	struct f2fs_dentry_block *dentry_blk;
 	struct f2fs_dentry_ptr src, dst;
 	int err;
 
-	page = f2fs_grab_cache_page(dir->i_mapping, 0, true);
-	if (!page) {
+	folio = f2fs_grab_cache_folio(dir->i_mapping, 0, true);
+	if (IS_ERR(folio)) {
 		f2fs_put_page(ipage, 1);
-		return -ENOMEM;
+		return PTR_ERR(folio);
 	}
 
 	set_new_dnode(&dn, dir, ipage, NULL, 0);
@@ -429,17 +429,17 @@ static int f2fs_move_inline_dirents(struct inode *dir, struct page *ipage,
 
 	if (unlikely(dn.data_blkaddr != NEW_ADDR)) {
 		f2fs_put_dnode(&dn);
-		set_sbi_flag(F2FS_P_SB(page), SBI_NEED_FSCK);
-		f2fs_warn(F2FS_P_SB(page), "%s: corrupted inline inode ino=%lx, i_addr[0]:0x%x, run fsck to fix.",
+		set_sbi_flag(F2FS_F_SB(folio), SBI_NEED_FSCK);
+		f2fs_warn(F2FS_F_SB(folio), "%s: corrupted inline inode ino=%lx, i_addr[0]:0x%x, run fsck to fix.",
 			  __func__, dir->i_ino, dn.data_blkaddr);
-		f2fs_handle_error(F2FS_P_SB(page), ERROR_INVALID_BLKADDR);
+		f2fs_handle_error(F2FS_F_SB(folio), ERROR_INVALID_BLKADDR);
 		err = -EFSCORRUPTED;
 		goto out;
 	}
 
-	f2fs_wait_on_page_writeback(page, DATA, true, true);
+	f2fs_folio_wait_writeback(folio, DATA, true, true);
 
-	dentry_blk = page_address(page);
+	dentry_blk = folio_address(folio);
 
 	/*
 	 * Start by zeroing the full block, to ensure that all unused space is
@@ -455,9 +455,9 @@ static int f2fs_move_inline_dirents(struct inode *dir, struct page *ipage,
 	memcpy(dst.dentry, src.dentry, SIZE_OF_DIR_ENTRY * src.max);
 	memcpy(dst.filename, src.filename, src.max * F2FS_SLOT_LEN);
 
-	if (!PageUptodate(page))
-		SetPageUptodate(page);
-	set_page_dirty(page);
+	if (!folio_test_uptodate(folio))
+		folio_mark_uptodate(folio);
+	folio_mark_dirty(folio);
 
 	/* clear inline dir and flag after data writeback */
 	f2fs_truncate_inline_inode(dir, ipage, 0);
@@ -477,7 +477,7 @@ static int f2fs_move_inline_dirents(struct inode *dir, struct page *ipage,
 	if (i_size_read(dir) < PAGE_SIZE)
 		f2fs_i_size_write(dir, PAGE_SIZE);
 out:
-	f2fs_put_page(page, 1);
+	f2fs_folio_put(folio, true);
 	return err;
 }
 
