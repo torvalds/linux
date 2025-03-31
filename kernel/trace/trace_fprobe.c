@@ -46,7 +46,6 @@ struct trace_fprobe {
 	struct fprobe		fp;
 	const char		*symbol;
 	struct tracepoint	*tpoint;
-	struct module		*mod;
 	struct trace_probe	tp;
 };
 
@@ -426,7 +425,6 @@ static struct trace_fprobe *alloc_trace_fprobe(const char *group,
 					       const char *event,
 					       const char *symbol,
 					       struct tracepoint *tpoint,
-					       struct module *mod,
 					       int nargs, bool is_return)
 {
 	struct trace_fprobe *tf __free(free_trace_fprobe) = NULL;
@@ -446,7 +444,6 @@ static struct trace_fprobe *alloc_trace_fprobe(const char *group,
 		tf->fp.entry_handler = fentry_dispatcher;
 
 	tf->tpoint = tpoint;
-	tf->mod = mod;
 
 	ret = trace_probe_init(&tf->tp, event, group, false, nargs);
 	if (ret < 0)
@@ -776,7 +773,6 @@ static void __unregister_trace_fprobe(struct trace_fprobe *tf)
 			tracepoint_probe_unregister(tf->tpoint,
 					tf->tpoint->probestub, NULL);
 			tf->tpoint = NULL;
-			tf->mod = NULL;
 		}
 	}
 }
@@ -1001,23 +997,23 @@ static int __tracepoint_probe_module_cb(struct notifier_block *self,
 
 	mutex_lock(&event_mutex);
 	for_each_trace_fprobe(tf, pos) {
+		if (!trace_fprobe_is_tracepoint(tf))
+			continue;
 		if (val == MODULE_STATE_COMING && tf->tpoint == TRACEPOINT_STUB) {
 			tpoint = find_tracepoint_in_module(tp_mod->mod, tf->symbol);
 			if (tpoint) {
 				tf->tpoint = tpoint;
-				tf->mod = tp_mod->mod;
 				if (!WARN_ON_ONCE(__regsiter_tracepoint_fprobe(tf)) &&
 				    trace_probe_is_enabled(&tf->tp))
 					reenable_trace_fprobe(tf);
 			}
-		} else if (val == MODULE_STATE_GOING && tp_mod->mod == tf->mod) {
+		} else if (val == MODULE_STATE_GOING &&
+			   tf->tpoint != TRACEPOINT_STUB &&
+			   within_module((unsigned long)tf->tpoint->probestub, tp_mod->mod)) {
 			unregister_fprobe(&tf->fp);
-			if (trace_fprobe_is_tracepoint(tf)) {
-				tracepoint_probe_unregister(tf->tpoint,
-					tf->tpoint->probestub, NULL);
-				tf->tpoint = TRACEPOINT_STUB;
-				tf->mod = NULL;
-			}
+			tracepoint_probe_unregister(tf->tpoint,
+				tf->tpoint->probestub, NULL);
+			tf->tpoint = TRACEPOINT_STUB;
 		}
 	}
 	mutex_unlock(&event_mutex);
@@ -1218,8 +1214,7 @@ static int trace_fprobe_create_internal(int argc, const char *argv[],
 		return ret;
 
 	/* setup a probe */
-	tf = alloc_trace_fprobe(group, event, symbol, tpoint, tp_mod,
-				argc, is_return);
+	tf = alloc_trace_fprobe(group, event, symbol, tpoint, argc, is_return);
 	if (IS_ERR(tf)) {
 		ret = PTR_ERR(tf);
 		/* This must return -ENOMEM, else there is a bug */
