@@ -707,7 +707,7 @@ err:
 		struct disk_accounting_pos acc;
 		memset(&acc, 0, sizeof(acc));
 		acc.type = BCH_DISK_ACCOUNTING_replicas;
-		memcpy(&acc.replicas, &m->r.e, replicas_entry_bytes(&m->r.e));
+		unsafe_memcpy(&acc.replicas, &m->r.e, replicas_entry_bytes(&m->r.e), "VLA");
 		gc_stripe_unlock(m);
 
 		acc.replicas.data_type = data_type;

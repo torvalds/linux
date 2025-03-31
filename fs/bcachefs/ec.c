@@ -462,7 +462,8 @@ int bch2_trigger_stripe(struct btree_trans *trans,
 				return ret;
 
 			if (gc)
-				memcpy(&gc->r.e, &acc.replicas, replicas_entry_bytes(&acc.replicas));
+				unsafe_memcpy(&gc->r.e, &acc.replicas,
+					      replicas_entry_bytes(&acc.replicas), "VLA");
 		}
 
 		if (old_s) {
