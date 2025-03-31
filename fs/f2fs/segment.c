@@ -4503,23 +4503,23 @@ static struct page *get_current_sit_page(struct f2fs_sb_info *sbi,
 	return f2fs_get_meta_page(sbi, current_sit_addr(sbi, segno));
 }
 
-static struct page *get_next_sit_page(struct f2fs_sb_info *sbi,
+static struct folio *get_next_sit_folio(struct f2fs_sb_info *sbi,
 					unsigned int start)
 {
 	struct sit_info *sit_i = SIT_I(sbi);
-	struct page *page;
+	struct folio *folio;
 	pgoff_t src_off, dst_off;
 
 	src_off = current_sit_addr(sbi, start);
 	dst_off = next_sit_addr(sbi, src_off);
 
-	page = f2fs_grab_meta_page(sbi, dst_off);
-	seg_info_to_sit_page(sbi, page, start);
+	folio = f2fs_grab_meta_folio(sbi, dst_off);
+	seg_info_to_sit_folio(sbi, folio, start);
 
-	set_page_dirty(page);
+	folio_mark_dirty(folio);
 	set_to_next_sit(sit_i, start);
 
-	return page;
+	return folio;
 }
 
 static struct sit_entry_set *grab_sit_entry_set(void)
@@ -4649,7 +4649,7 @@ void f2fs_flush_sit_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	 * #2, flush sit entries to sit page.
 	 */
 	list_for_each_entry_safe(ses, tmp, head, set_list) {
-		struct page *page = NULL;
+		struct folio *folio = NULL;
 		struct f2fs_sit_block *raw_sit = NULL;
 		unsigned int start_segno = ses->start_segno;
 		unsigned int end = min(start_segno + SIT_ENTRY_PER_BLOCK,
@@ -4663,8 +4663,8 @@ void f2fs_flush_sit_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 		if (to_journal) {
 			down_write(&curseg->journal_rwsem);
 		} else {
-			page = get_next_sit_page(sbi, start_segno);
-			raw_sit = page_address(page);
+			folio = get_next_sit_folio(sbi, start_segno);
+			raw_sit = folio_address(folio);
 		}
 
 		/* flush dirty sit entries in region of current sit set */
@@ -4710,7 +4710,7 @@ void f2fs_flush_sit_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 		if (to_journal)
 			up_write(&curseg->journal_rwsem);
 		else
-			f2fs_put_page(page, 1);
+			f2fs_folio_put(folio, true);
 
 		f2fs_bug_on(sbi, ses->entry_cnt);
 		release_sit_entry_set(ses);
