@@ -948,35 +948,35 @@ static int truncate_node(struct dnode_of_data *dn)
 static int truncate_dnode(struct dnode_of_data *dn)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
-	struct page *page;
+	struct folio *folio;
 	int err;
 
 	if (dn->nid == 0)
 		return 1;
 
 	/* get direct node */
-	page = f2fs_get_node_page(sbi, dn->nid);
-	if (PTR_ERR(page) == -ENOENT)
+	folio = f2fs_get_node_folio(sbi, dn->nid);
+	if (PTR_ERR(folio) == -ENOENT)
 		return 1;
-	else if (IS_ERR(page))
-		return PTR_ERR(page);
+	else if (IS_ERR(folio))
+		return PTR_ERR(folio);
 
-	if (IS_INODE(page) || ino_of_node(page) != dn->inode->i_ino) {
+	if (IS_INODE(&folio->page) || ino_of_node(&folio->page) != dn->inode->i_ino) {
 		f2fs_err(sbi, "incorrect node reference, ino: %lu, nid: %u, ino_of_node: %u",
-				dn->inode->i_ino, dn->nid, ino_of_node(page));
+				dn->inode->i_ino, dn->nid, ino_of_node(&folio->page));
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
 		f2fs_handle_error(sbi, ERROR_INVALID_NODE_REFERENCE);
-		f2fs_put_page(page, 1);
+		f2fs_folio_put(folio, true);
 		return -EFSCORRUPTED;
 	}
 
 	/* Make dnode_of_data for parameter */
-	dn->node_page = page;
+	dn->node_page = &folio->page;
 	dn->ofs_in_node = 0;
 	f2fs_truncate_data_blocks_range(dn, ADDRS_PER_BLOCK(dn->inode));
 	err = truncate_node(dn);
 	if (err) {
-		f2fs_put_page(page, 1);
+		f2fs_folio_put(folio, true);
 		return err;
 	}
 
