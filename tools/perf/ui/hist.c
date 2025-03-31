@@ -739,9 +739,10 @@ void perf_hpp__cancel_cumulate(struct evlist *evlist)
 	}
 }
 
-void perf_hpp__cancel_latency(void)
+void perf_hpp__cancel_latency(struct evlist *evlist)
 {
 	struct perf_hpp_fmt *fmt, *lat, *acc, *tmp;
+	struct evsel *evsel;
 
 	if (is_strict_order(field_order))
 		return;
@@ -754,6 +755,18 @@ void perf_hpp__cancel_latency(void)
 	perf_hpp_list__for_each_format_safe(&perf_hpp_list, fmt, tmp) {
 		if (fmt_equal(lat, fmt) || fmt_equal(acc, fmt))
 			perf_hpp__column_unregister(fmt);
+	}
+
+	evlist__for_each_entry(evlist, evsel) {
+		struct hists *hists = evsel__hists(evsel);
+		struct perf_hpp_list_node *node;
+
+		list_for_each_entry(node, &hists->hpp_formats, list) {
+			perf_hpp_list__for_each_format_safe(&node->hpp, fmt, tmp) {
+				if (fmt_equal(lat, fmt) || fmt_equal(acc, fmt))
+					perf_hpp__column_unregister(fmt);
+			}
+		}
 	}
 }
 

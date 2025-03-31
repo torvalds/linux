@@ -1088,7 +1088,7 @@ static int __cmd_report(struct report *rep)
 	/* Don't show Latency column for non-parallel profiles by default. */
 	if (!symbol_conf.prefer_latency && rep->total_samples &&
 		rep->singlethreaded_samples * 100 / rep->total_samples >= 99)
-		perf_hpp__cancel_latency();
+		perf_hpp__cancel_latency(session->evlist);
 
 	evlist__check_mem_load_aux(session->evlist);
 
