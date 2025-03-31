@@ -595,7 +595,7 @@ static int do_convert_inline_dir(struct inode *dir, struct page *ipage,
 int f2fs_try_convert_inline_dir(struct inode *dir, struct dentry *dentry)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
-	struct page *ipage;
+	struct folio *ifolio;
 	struct f2fs_filename fname;
 	void *inline_dentry = NULL;
 	int err = 0;
@@ -609,22 +609,22 @@ int f2fs_try_convert_inline_dir(struct inode *dir, struct dentry *dentry)
 	if (err)
 		goto out;
 
-	ipage = f2fs_get_inode_page(sbi, dir->i_ino);
-	if (IS_ERR(ipage)) {
-		err = PTR_ERR(ipage);
+	ifolio = f2fs_get_inode_folio(sbi, dir->i_ino);
+	if (IS_ERR(ifolio)) {
+		err = PTR_ERR(ifolio);
 		goto out_fname;
 	}
 
-	if (f2fs_has_enough_room(dir, ipage, &fname)) {
-		f2fs_put_page(ipage, 1);
+	if (f2fs_has_enough_room(dir, &ifolio->page, &fname)) {
+		f2fs_folio_put(ifolio, true);
 		goto out_fname;
 	}
 
-	inline_dentry = inline_data_addr(dir, ipage);
+	inline_dentry = inline_data_addr(dir, &ifolio->page);
 
-	err = do_convert_inline_dir(dir, ipage, inline_dentry);
+	err = do_convert_inline_dir(dir, &ifolio->page, inline_dentry);
 	if (!err)
-		f2fs_put_page(ipage, 1);
+		f2fs_folio_put(ifolio, true);
 out_fname:
 	f2fs_free_filename(&fname);
 out:
