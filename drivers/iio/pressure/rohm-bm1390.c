@@ -319,12 +319,11 @@ static int bm1390_read_raw(struct iio_dev *idev,
 
 		return -EINVAL;
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(idev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(idev))
+			return -EBUSY;
 
 		ret = bm1390_read_data(data, chan, val, val2);
-		iio_device_release_direct_mode(idev);
+		iio_device_release_direct(idev);
 		if (ret)
 			return ret;
 
