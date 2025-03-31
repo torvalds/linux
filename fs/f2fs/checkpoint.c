@@ -54,7 +54,7 @@ repeat:
 	return folio;
 }
 
-static struct page *__get_meta_page(struct f2fs_sb_info *sbi, pgoff_t index,
+static struct folio *__get_meta_folio(struct f2fs_sb_info *sbi, pgoff_t index,
 							bool is_meta)
 {
 	struct address_space *mapping = META_MAPPING(sbi);
@@ -104,34 +104,34 @@ repeat:
 		return ERR_PTR(-EIO);
 	}
 out:
-	return &folio->page;
+	return folio;
 }
 
 struct page *f2fs_get_meta_page(struct f2fs_sb_info *sbi, pgoff_t index)
 {
-	return __get_meta_page(sbi, index, true);
+	return &__get_meta_folio(sbi, index, true)->page;
 }
 
 struct page *f2fs_get_meta_page_retry(struct f2fs_sb_info *sbi, pgoff_t index)
 {
-	struct page *page;
+	struct folio *folio;
 	int count = 0;
 
 retry:
-	page = __get_meta_page(sbi, index, true);
-	if (IS_ERR(page)) {
-		if (PTR_ERR(page) == -EIO &&
+	folio = __get_meta_folio(sbi, index, true);
+	if (IS_ERR(folio)) {
+		if (PTR_ERR(folio) == -EIO &&
 				++count <= DEFAULT_RETRY_IO_COUNT)
 			goto retry;
 		f2fs_stop_checkpoint(sbi, false, STOP_CP_REASON_META_PAGE);
 	}
-	return page;
+	return &folio->page;
 }
 
 /* for POR only */
 struct page *f2fs_get_tmp_page(struct f2fs_sb_info *sbi, pgoff_t index)
 {
-	return __get_meta_page(sbi, index, false);
+	return &__get_meta_folio(sbi, index, false)->page;
 }
 
 static bool __is_bitmap_valid(struct f2fs_sb_info *sbi, block_t blkaddr,
