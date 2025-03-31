@@ -11,10 +11,10 @@
  */
 
 #include <linux/delay.h>
-#include <linux/fwnode.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 
@@ -551,10 +551,9 @@ static int rdacm21_probe(struct i2c_client *client)
 	dev->dev = &client->dev;
 	dev->serializer.client = client;
 
-	ret = of_property_read_u32_array(client->dev.of_node, "reg",
-					 dev->addrs, 2);
+	ret = device_property_read_u32_array(dev->dev, "reg", dev->addrs, 2);
 	if (ret < 0) {
-		dev_err(dev->dev, "Invalid DT reg property: %d\n", ret);
+		dev_err(dev->dev, "Invalid FW reg property: %d\n", ret);
 		return -EINVAL;
 	}
 
