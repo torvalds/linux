@@ -3590,7 +3590,7 @@ static int __get_segment_type_2(struct f2fs_io_info *fio)
 static int __get_segment_type_4(struct f2fs_io_info *fio)
 {
 	if (fio->type == DATA) {
-		struct inode *inode = fio->page->mapping->host;
+		struct inode *inode = fio_inode(fio);
 
 		if (S_ISDIR(inode->i_mode))
 			return CURSEG_HOT_DATA;
@@ -3624,7 +3624,7 @@ static int __get_age_segment_type(struct inode *inode, pgoff_t pgofs)
 static int __get_segment_type_6(struct f2fs_io_info *fio)
 {
 	if (fio->type == DATA) {
-		struct inode *inode = fio->page->mapping->host;
+		struct inode *inode = fio_inode(fio);
 		int type;
 
 		if (is_inode_flag_set(inode, FI_ALIGNED_WRITE))
@@ -4029,7 +4029,7 @@ int f2fs_inplace_write_data(struct f2fs_io_info *fio)
 	if (!err) {
 		f2fs_update_device_state(fio->sbi, fio->ino,
 						fio->new_blkaddr, 1);
-		f2fs_update_iostat(fio->sbi, fio->page->mapping->host,
+		f2fs_update_iostat(fio->sbi, fio_inode(fio),
 						fio->io_type, F2FS_BLKSIZE);
 	}
 

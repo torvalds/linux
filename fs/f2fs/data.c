@@ -995,13 +995,13 @@ next:
 	if (io->bio &&
 	    (!io_is_mergeable(sbi, io->bio, io, fio, io->last_block_in_bio,
 			      fio->new_blkaddr) ||
-	     !f2fs_crypt_mergeable_bio(io->bio, fio->page->mapping->host,
+	     !f2fs_crypt_mergeable_bio(io->bio, fio_inode(fio),
 				page_folio(bio_page)->index, fio)))
 		__submit_merged_bio(io);
 alloc_new:
 	if (io->bio == NULL) {
 		io->bio = __bio_alloc(fio, BIO_MAX_VECS);
-		f2fs_set_bio_crypt_ctx(io->bio, fio->page->mapping->host,
+		f2fs_set_bio_crypt_ctx(io->bio, fio_inode(fio),
 				page_folio(bio_page)->index, fio, GFP_NOIO);
 		io->fio = *fio;
 	}
@@ -2501,7 +2501,7 @@ static void f2fs_readahead(struct readahead_control *rac)
 
 int f2fs_encrypt_one_page(struct f2fs_io_info *fio)
 {
-	struct inode *inode = fio->page->mapping->host;
+	struct inode *inode = fio_inode(fio);
 	struct page *mpage, *page;
 	gfp_t gfp_flags = GFP_NOFS;
 
@@ -2631,7 +2631,7 @@ bool f2fs_should_update_outplace(struct inode *inode, struct f2fs_io_info *fio)
 
 static inline bool need_inplace_update(struct f2fs_io_info *fio)
 {
-	struct inode *inode = fio->page->mapping->host;
+	struct inode *inode = fio_inode(fio);
 
 	if (f2fs_should_update_outplace(inode, fio))
 		return false;

@@ -3872,6 +3872,11 @@ unsigned int f2fs_usable_blks_in_seg(struct f2fs_sb_info *sbi,
 unsigned long long f2fs_get_section_mtime(struct f2fs_sb_info *sbi,
 			unsigned int segno);
 
+static inline struct inode *fio_inode(struct f2fs_io_info *fio)
+{
+	return page_folio(fio->page)->mapping->host;
+}
+
 #define DEF_FRAGMENT_SIZE	4
 #define MIN_FRAGMENT_SIZE	1
 #define MAX_FRAGMENT_SIZE	512
