@@ -193,7 +193,7 @@ static void __user *io_ring_buffer_select(struct io_kiocb *req, size_t *len,
 }
 
 void __user *io_buffer_select(struct io_kiocb *req, size_t *len,
-			      unsigned int issue_flags)
+			      unsigned buf_group, unsigned int issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_buffer_list *bl;
@@ -201,7 +201,7 @@ void __user *io_buffer_select(struct io_kiocb *req, size_t *len,
 
 	io_ring_submit_lock(req->ctx, issue_flags);
 
-	bl = io_buffer_get_list(ctx, req->buf_index);
+	bl = io_buffer_get_list(ctx, buf_group);
 	if (likely(bl)) {
 		if (bl->flags & IOBL_BUF_RING)
 			ret = io_ring_buffer_select(req, len, bl, issue_flags);

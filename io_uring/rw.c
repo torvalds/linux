@@ -119,7 +119,7 @@ static int __io_import_rw_buffer(int ddir, struct io_kiocb *req,
 		return io_import_vec(ddir, req, io, buf, sqe_len);
 
 	if (io_do_buffer_select(req)) {
-		buf = io_buffer_select(req, &sqe_len, issue_flags);
+		buf = io_buffer_select(req, &sqe_len, io->buf_group, issue_flags);
 		if (!buf)
 			return -ENOBUFS;
 		rw->addr = (unsigned long) buf;
@@ -253,16 +253,19 @@ static int __io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			int ddir)
 {
 	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
+	struct io_async_rw *io;
 	unsigned ioprio;
 	u64 attr_type_mask;
 	int ret;
 
 	if (io_rw_alloc_async(req))
 		return -ENOMEM;
+	io = req->async_data;
 
 	rw->kiocb.ki_pos = READ_ONCE(sqe->off);
 	/* used for fixed read/write too - just read unconditionally */
 	req->buf_index = READ_ONCE(sqe->buf_index);
+	io->buf_group = req->buf_index;
 
 	ioprio = READ_ONCE(sqe->ioprio);
 	if (ioprio) {

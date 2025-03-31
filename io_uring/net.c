@@ -407,13 +407,12 @@ int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	sr->msg_flags = READ_ONCE(sqe->msg_flags) | MSG_NOSIGNAL;
 	if (sr->msg_flags & MSG_DONTWAIT)
 		req->flags |= REQ_F_NOWAIT;
+	if (req->flags & REQ_F_BUFFER_SELECT)
+		sr->buf_group = req->buf_index;
 	if (sr->flags & IORING_RECVSEND_BUNDLE) {
 		if (req->opcode == IORING_OP_SENDMSG)
 			return -EINVAL;
-		if (!(req->flags & REQ_F_BUFFER_SELECT))
-			return -EINVAL;
 		sr->msg_flags |= MSG_WAITALL;
-		sr->buf_group = req->buf_index;
 		req->buf_list = NULL;
 		req->flags |= REQ_F_MULTISHOT;
 	}
@@ -979,7 +978,7 @@ retry_multishot:
 		void __user *buf;
 		size_t len = sr->len;
 
-		buf = io_buffer_select(req, &len, issue_flags);
+		buf = io_buffer_select(req, &len, sr->buf_group, issue_flags);
 		if (!buf)
 			return -ENOBUFS;
 
@@ -1089,7 +1088,7 @@ static int io_recv_buf_select(struct io_kiocb *req, struct io_async_msghdr *kmsg
 		void __user *buf;
 
 		*len = sr->len;
-		buf = io_buffer_select(req, len, issue_flags);
+		buf = io_buffer_select(req, len, sr->buf_group, issue_flags);
 		if (!buf)
 			return -ENOBUFS;
 		sr->buf = buf;
