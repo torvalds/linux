@@ -325,16 +325,16 @@ out:
 void f2fs_ra_meta_pages_cond(struct f2fs_sb_info *sbi, pgoff_t index,
 							unsigned int ra_blocks)
 {
-	struct page *page;
+	struct folio *folio;
 	bool readahead = false;
 
 	if (ra_blocks == RECOVERY_MIN_RA_BLOCKS)
 		return;
 
-	page = find_get_page(META_MAPPING(sbi), index);
-	if (!page || !PageUptodate(page))
+	folio = filemap_get_folio(META_MAPPING(sbi), index);
+	if (IS_ERR(folio) || !folio_test_uptodate(folio))
 		readahead = true;
-	f2fs_put_page(page, 0);
+	f2fs_folio_put(folio, false);
 
 	if (readahead)
 		f2fs_ra_meta_pages(sbi, index, ra_blocks, META_POR, true);

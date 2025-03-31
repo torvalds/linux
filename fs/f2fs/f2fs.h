@@ -2885,7 +2885,7 @@ static inline struct page *f2fs_pagecache_get_page(
 
 static inline void f2fs_folio_put(struct folio *folio, bool unlock)
 {
-	if (!folio)
+	if (IS_ERR_OR_NULL(folio))
 		return;
 
 	if (unlock) {
