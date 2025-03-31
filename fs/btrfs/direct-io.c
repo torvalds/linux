@@ -42,10 +42,10 @@ static int lock_extent_direct(struct inode *inode, u64 lockstart, u64 lockend,
 
 	/* Direct lock must be taken before the extent lock. */
 	if (nowait) {
-		if (!try_lock_dio_extent(io_tree, lockstart, lockend, cached_state))
+		if (!btrfs_try_lock_dio_extent(io_tree, lockstart, lockend, cached_state))
 			return -EAGAIN;
 	} else {
-		lock_dio_extent(io_tree, lockstart, lockend, cached_state);
+		btrfs_lock_dio_extent(io_tree, lockstart, lockend, cached_state);
 	}
 
 	while (1) {
@@ -131,7 +131,7 @@ static int lock_extent_direct(struct inode *inode, u64 lockstart, u64 lockend,
 	}
 
 	if (ret)
-		unlock_dio_extent(io_tree, lockstart, lockend, cached_state);
+		btrfs_unlock_dio_extent(io_tree, lockstart, lockend, cached_state);
 	return ret;
 }
 
@@ -580,8 +580,8 @@ static int btrfs_dio_iomap_begin(struct inode *inode, loff_t start,
 
 	/* We didn't use everything, unlock the dio extent for the remainder. */
 	if (!write && (start + len) < lockend)
-		unlock_dio_extent(&BTRFS_I(inode)->io_tree, start + len,
-				  lockend, NULL);
+		btrfs_unlock_dio_extent(&BTRFS_I(inode)->io_tree, start + len,
+					lockend, NULL);
 
 	return 0;
 
@@ -615,8 +615,8 @@ static int btrfs_dio_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 
 	if (!write && (iomap->type == IOMAP_HOLE)) {
 		/* If reading from a hole, unlock and return */
-		unlock_dio_extent(&BTRFS_I(inode)->io_tree, pos,
-				  pos + length - 1, NULL);
+		btrfs_unlock_dio_extent(&BTRFS_I(inode)->io_tree, pos,
+					pos + length - 1, NULL);
 		return 0;
 	}
 
@@ -627,8 +627,8 @@ static int btrfs_dio_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 			btrfs_finish_ordered_extent(dio_data->ordered, NULL,
 						    pos, length, false);
 		else
-			unlock_dio_extent(&BTRFS_I(inode)->io_tree, pos,
-					  pos + length - 1, NULL);
+			btrfs_unlock_dio_extent(&BTRFS_I(inode)->io_tree, pos,
+						pos + length - 1, NULL);
 		ret = -ENOTBLK;
 	}
 	if (write) {
@@ -660,8 +660,8 @@ static void btrfs_dio_end_io(struct btrfs_bio *bbio)
 					    dip->file_offset, dip->bytes,
 					    !bio->bi_status);
 	} else {
-		unlock_dio_extent(&inode->io_tree, dip->file_offset,
-				  dip->file_offset + dip->bytes - 1, NULL);
+		btrfs_unlock_dio_extent(&inode->io_tree, dip->file_offset,
+					dip->file_offset + dip->bytes - 1, NULL);
 	}
 
 	bbio->bio.bi_private = bbio->private;

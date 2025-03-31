@@ -223,20 +223,20 @@ int find_contiguous_extent_bit(struct extent_io_tree *tree, u64 start,
 bool btrfs_find_delalloc_range(struct extent_io_tree *tree, u64 *start,
 			       u64 *end, u64 max_bytes,
 			       struct extent_state **cached_state);
-static inline int lock_dio_extent(struct extent_io_tree *tree, u64 start,
-				  u64 end, struct extent_state **cached)
+static inline int btrfs_lock_dio_extent(struct extent_io_tree *tree, u64 start,
+					u64 end, struct extent_state **cached)
 {
 	return __lock_extent(tree, start, end, EXTENT_DIO_LOCKED, cached);
 }
 
-static inline bool try_lock_dio_extent(struct extent_io_tree *tree, u64 start,
-				       u64 end, struct extent_state **cached)
+static inline bool btrfs_try_lock_dio_extent(struct extent_io_tree *tree, u64 start,
+					     u64 end, struct extent_state **cached)
 {
 	return __try_lock_extent(tree, start, end, EXTENT_DIO_LOCKED, cached);
 }
 
-static inline int unlock_dio_extent(struct extent_io_tree *tree, u64 start,
-				    u64 end, struct extent_state **cached)
+static inline int btrfs_unlock_dio_extent(struct extent_io_tree *tree, u64 start,
+					  u64 end, struct extent_state **cached)
 {
 	return __clear_extent_bit(tree, start, end, EXTENT_DIO_LOCKED, cached, NULL);
 }
