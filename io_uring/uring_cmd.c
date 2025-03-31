@@ -205,8 +205,8 @@ static int io_uring_cmd_prep_setup(struct io_kiocb *req,
 	 * that it doesn't read in per-op data, play it safe and ensure that
 	 * any SQE data is stable beyond prep. This can later get relaxed.
 	 */
-	memcpy(ac->data.sqes, sqe, uring_sqe_size(req->ctx));
-	ioucmd->sqe = ac->data.sqes;
+	memcpy(ac->sqes, sqe, uring_sqe_size(req->ctx));
+	ioucmd->sqe = ac->sqes;
 	return 0;
 }
 
