@@ -518,13 +518,12 @@ static int atlas_read_raw(struct iio_dev *indio_dev,
 		case IIO_CONCENTRATION:
 		case IIO_ELECTRICALCONDUCTIVITY:
 		case IIO_VOLTAGE:
-			ret = iio_device_claim_direct_mode(indio_dev);
-			if (ret)
-				return ret;
+			if (!iio_device_claim_direct(indio_dev))
+				return -EBUSY;
 
 			ret = atlas_read_measurement(data, chan->address, &reg);
 
-			iio_device_release_direct_mode(indio_dev);
+			iio_device_release_direct(indio_dev);
 			break;
 		default:
 			ret = -EINVAL;
