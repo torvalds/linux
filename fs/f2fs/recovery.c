@@ -640,7 +640,7 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 	}
 
 	/* step 2: recover inline data */
-	err = f2fs_recover_inline_data(inode, &folio->page);
+	err = f2fs_recover_inline_data(inode, folio);
 	if (err) {
 		if (err == 1)
 			err = 0;
