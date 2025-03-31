@@ -464,13 +464,12 @@ static int hts221_read_raw(struct iio_dev *iio_dev,
 {
 	int ret;
 
-	ret = iio_device_claim_direct_mode(iio_dev);
-	if (ret)
-		return ret;
+	if (!iio_device_claim_direct(iio_dev))
+		return -EBUSY;
 
 	ret = __hts221_read_raw(iio_dev, ch, val, val2, mask);
 
-	iio_device_release_direct_mode(iio_dev);
+	iio_device_release_direct(iio_dev);
 
 	return ret;
 }
@@ -504,13 +503,12 @@ static int hts221_write_raw(struct iio_dev *iio_dev,
 {
 	int ret;
 
-	ret = iio_device_claim_direct_mode(iio_dev);
-	if (ret)
-		return ret;
+	if (!iio_device_claim_direct(iio_dev))
+		return -EBUSY;
 
 	ret = __hts221_write_raw(iio_dev, chan, val, mask);
 
-	iio_device_release_direct_mode(iio_dev);
+	iio_device_release_direct(iio_dev);
 
 	return ret;
 }
