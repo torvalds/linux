@@ -56,8 +56,7 @@ def _set_offload_checksum(cfg, netnl, on) -> None:
         return
 
 def _set_xdp_generic_sb_on(cfg) -> None:
-    test_dir = os.path.dirname(os.path.realpath(__file__))
-    prog = test_dir + "/../../net/lib/xdp_dummy.bpf.o"
+    prog = cfg.net_lib_dir / "xdp_dummy.bpf.o"
     cmd(f"ip link set dev {remote_ifname} mtu 1500", shell=True, host=cfg.remote)
     cmd(f"ip link set dev {cfg.ifname} mtu 1500 xdpgeneric obj {prog} sec xdp", shell=True)
     defer(cmd, f"ip link set dev {cfg.ifname} xdpgeneric off")
@@ -66,8 +65,7 @@ def _set_xdp_generic_sb_on(cfg) -> None:
         time.sleep(10)
 
 def _set_xdp_generic_mb_on(cfg) -> None:
-    test_dir = os.path.dirname(os.path.realpath(__file__))
-    prog = test_dir + "/../../net/lib/xdp_dummy.bpf.o"
+    prog = cfg.net_lib_dir / "xdp_dummy.bpf.o"
     cmd(f"ip link set dev {remote_ifname} mtu 9000", shell=True, host=cfg.remote)
     defer(ip, f"link set dev {remote_ifname} mtu 1500", host=cfg.remote)
     ip("link set dev %s mtu 9000 xdpgeneric obj %s sec xdp.frags" % (cfg.ifname, prog))
@@ -77,8 +75,7 @@ def _set_xdp_generic_mb_on(cfg) -> None:
         time.sleep(10)
 
 def _set_xdp_native_sb_on(cfg) -> None:
-    test_dir = os.path.dirname(os.path.realpath(__file__))
-    prog = test_dir + "/../../net/lib/xdp_dummy.bpf.o"
+    prog = cfg.net_lib_dir / "xdp_dummy.bpf.o"
     cmd(f"ip link set dev {remote_ifname} mtu 1500", shell=True, host=cfg.remote)
     cmd(f"ip -j link set dev {cfg.ifname} mtu 1500 xdp obj {prog} sec xdp", shell=True)
     defer(ip, f"link set dev {cfg.ifname} mtu 1500 xdp off")
@@ -95,8 +92,7 @@ def _set_xdp_native_sb_on(cfg) -> None:
         time.sleep(10)
 
 def _set_xdp_native_mb_on(cfg) -> None:
-    test_dir = os.path.dirname(os.path.realpath(__file__))
-    prog = test_dir + "/../../net/lib/xdp_dummy.bpf.o"
+    prog = cfg.net_lib_dir / "xdp_dummy.bpf.o"
     cmd(f"ip link set dev {remote_ifname} mtu 9000", shell=True, host=cfg.remote)
     defer(ip, f"link set dev {remote_ifname} mtu 1500", host=cfg.remote)
     try:
@@ -109,8 +105,7 @@ def _set_xdp_native_mb_on(cfg) -> None:
         time.sleep(10)
 
 def _set_xdp_offload_on(cfg) -> None:
-    test_dir = os.path.dirname(os.path.realpath(__file__))
-    prog = test_dir + "/../../net/lib/xdp_dummy.bpf.o"
+    prog = cfg.net_lib_dir / "xdp_dummy.bpf.o"
     cmd(f"ip link set dev {cfg.ifname} mtu 1500", shell=True)
     try:
         cmd(f"ip link set dev {cfg.ifname} xdpoffload obj {prog} sec xdp", shell=True)
