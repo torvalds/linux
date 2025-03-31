@@ -2884,9 +2884,10 @@ static int __sort_dimension__add_hpp_sort(struct sort_dimension *sd,
 }
 
 static int __sort_dimension__add_hpp_output(struct sort_dimension *sd,
-					    struct perf_hpp_list *list)
+					    struct perf_hpp_list *list,
+					    int level)
 {
-	struct hpp_sort_entry *hse = __sort_dimension__alloc_hpp(sd, 0);
+	struct hpp_sort_entry *hse = __sort_dimension__alloc_hpp(sd, level);
 
 	if (hse == NULL)
 		return -1;
@@ -3495,12 +3496,13 @@ static int __hpp_dimension__add(struct hpp_dimension *hd,
 }
 
 static int __sort_dimension__add_output(struct perf_hpp_list *list,
-					struct sort_dimension *sd)
+					struct sort_dimension *sd,
+					int level)
 {
 	if (sd->taken)
 		return 0;
 
-	if (__sort_dimension__add_hpp_output(sd, list) < 0)
+	if (__sort_dimension__add_hpp_output(sd, list, level) < 0)
 		return -1;
 
 	sd->taken = 1;
@@ -3508,14 +3510,15 @@ static int __sort_dimension__add_output(struct perf_hpp_list *list,
 }
 
 static int __hpp_dimension__add_output(struct perf_hpp_list *list,
-				       struct hpp_dimension *hd)
+				       struct hpp_dimension *hd,
+				       int level)
 {
 	struct perf_hpp_fmt *fmt;
 
 	if (hd->taken)
 		return 0;
 
-	fmt = __hpp_dimension__alloc_hpp(hd, 0);
+	fmt = __hpp_dimension__alloc_hpp(hd, level);
 	if (!fmt)
 		return -1;
 
@@ -3532,7 +3535,7 @@ int hpp_dimension__add_output(unsigned col, bool implicit)
 	hd = &hpp_sort_dimensions[col];
 	if (implicit && !hd->was_taken)
 		return 0;
-	return __hpp_dimension__add_output(&perf_hpp_list, hd);
+	return __hpp_dimension__add_output(&perf_hpp_list, hd, /*level=*/0);
 }
 
 int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
@@ -4000,7 +4003,7 @@ void sort__setup_elide(FILE *output)
 	}
 }
 
-int output_field_add(struct perf_hpp_list *list, const char *tok)
+int output_field_add(struct perf_hpp_list *list, const char *tok, int *level)
 {
 	unsigned int i;
 
@@ -4013,8 +4016,14 @@ int output_field_add(struct perf_hpp_list *list, const char *tok)
 		if (!strcasecmp(tok, "weight"))
 			ui__warning("--fields weight shows the average value unlike in the --sort key.\n");
 
-		return __hpp_dimension__add_output(list, hd);
+		return __hpp_dimension__add_output(list, hd, *level);
 	}
+
+	/*
+	 * A non-output field will increase level so that it can be in a
+	 * different hierarchy.
+	 */
+	(*level)++;
 
 	for (i = 0; i < ARRAY_SIZE(common_sort_dimensions); i++) {
 		struct sort_dimension *sd = &common_sort_dimensions[i];
@@ -4022,7 +4031,7 @@ int output_field_add(struct perf_hpp_list *list, const char *tok)
 		if (!sd->name || strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
-		return __sort_dimension__add_output(list, sd);
+		return __sort_dimension__add_output(list, sd, *level);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(bstack_sort_dimensions); i++) {
@@ -4034,7 +4043,7 @@ int output_field_add(struct perf_hpp_list *list, const char *tok)
 		if (sort__mode != SORT_MODE__BRANCH)
 			return -EINVAL;
 
-		return __sort_dimension__add_output(list, sd);
+		return __sort_dimension__add_output(list, sd, *level);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(memory_sort_dimensions); i++) {
@@ -4046,7 +4055,7 @@ int output_field_add(struct perf_hpp_list *list, const char *tok)
 		if (sort__mode != SORT_MODE__MEMORY)
 			return -EINVAL;
 
-		return __sort_dimension__add_output(list, sd);
+		return __sort_dimension__add_output(list, sd, *level);
 	}
 
 	return -ESRCH;
@@ -4056,10 +4065,11 @@ static int setup_output_list(struct perf_hpp_list *list, char *str)
 {
 	char *tmp, *tok;
 	int ret = 0;
+	int level = 0;
 
 	for (tok = strtok_r(str, ", ", &tmp);
 			tok; tok = strtok_r(NULL, ", ", &tmp)) {
-		ret = output_field_add(list, tok);
+		ret = output_field_add(list, tok, &level);
 		if (ret == -EINVAL) {
 			ui__error("Invalid --fields key: `%s'", tok);
 			break;

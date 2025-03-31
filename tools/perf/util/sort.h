@@ -146,7 +146,7 @@ void reset_dimensions(void);
 int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 			struct evlist *evlist,
 			int level);
-int output_field_add(struct perf_hpp_list *list, const char *tok);
+int output_field_add(struct perf_hpp_list *list, const char *tok, int *level);
 int64_t
 sort__iaddr_cmp(struct hist_entry *left, struct hist_entry *right);
 int64_t
