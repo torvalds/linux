@@ -4819,13 +4819,13 @@ static inline void f2fs_truncate_meta_inode_pages(struct f2fs_sb_info *sbi,
 	int i = 0;
 
 	do {
-		struct page *page;
+		struct folio *folio;
 
-		page = find_get_page(META_MAPPING(sbi), blkaddr + i);
-		if (page) {
-			if (folio_test_writeback(page_folio(page)))
+		folio = filemap_get_folio(META_MAPPING(sbi), blkaddr + i);
+		if (!IS_ERR(folio)) {
+			if (folio_test_writeback(folio))
 				need_submit = true;
-			f2fs_put_page(page, 0);
+			f2fs_folio_put(folio, false);
 		}
 	} while (++i < cnt && !need_submit);
 
