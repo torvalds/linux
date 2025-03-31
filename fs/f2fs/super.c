@@ -2692,12 +2692,9 @@ static ssize_t f2fs_quota_read(struct super_block *sb, int type, char *data,
 {
 	struct inode *inode = sb_dqopt(sb)->files[type];
 	struct address_space *mapping = inode->i_mapping;
-	block_t blkidx = F2FS_BYTES_TO_BLK(off);
-	int offset = off & (sb->s_blocksize - 1);
 	int tocopy;
 	size_t toread;
 	loff_t i_size = i_size_read(inode);
-	struct page *page;
 
 	if (off > i_size)
 		return 0;
@@ -2706,37 +2703,36 @@ static ssize_t f2fs_quota_read(struct super_block *sb, int type, char *data,
 		len = i_size - off;
 	toread = len;
 	while (toread > 0) {
-		tocopy = min_t(unsigned long, sb->s_blocksize - offset, toread);
+		struct folio *folio;
+		size_t offset;
+
 repeat:
-		page = read_cache_page_gfp(mapping, blkidx, GFP_NOFS);
-		if (IS_ERR(page)) {
-			if (PTR_ERR(page) == -ENOMEM) {
+		folio = mapping_read_folio_gfp(mapping, off >> PAGE_SHIFT,
+				GFP_NOFS);
+		if (IS_ERR(folio)) {
+			if (PTR_ERR(folio) == -ENOMEM) {
 				memalloc_retry_wait(GFP_NOFS);
 				goto repeat;
 			}
 			set_sbi_flag(F2FS_SB(sb), SBI_QUOTA_NEED_REPAIR);
-			return PTR_ERR(page);
+			return PTR_ERR(folio);
 		}
+		offset = offset_in_folio(folio, off);
+		tocopy = min(folio_size(folio) - offset, toread);
 
-		lock_page(page);
+		folio_lock(folio);
 
-		if (unlikely(page->mapping != mapping)) {
-			f2fs_put_page(page, 1);
+		if (unlikely(folio->mapping != mapping)) {
+			f2fs_folio_put(folio, true);
 			goto repeat;
 		}
-		if (unlikely(!PageUptodate(page))) {
-			f2fs_put_page(page, 1);
-			set_sbi_flag(F2FS_SB(sb), SBI_QUOTA_NEED_REPAIR);
-			return -EIO;
-		}
 
-		memcpy_from_page(data, page, offset, tocopy);
-		f2fs_put_page(page, 1);
+		memcpy_from_folio(data, folio, offset, tocopy);
+		f2fs_folio_put(folio, true);
 
-		offset = 0;
 		toread -= tocopy;
 		data += tocopy;
-		blkidx++;
+		off += tocopy;
 	}
 	return len;
 }
