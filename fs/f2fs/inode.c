@@ -408,7 +408,7 @@ static int do_read_inode(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
-	struct page *node_page;
+	struct folio *node_folio;
 	struct f2fs_inode *ri;
 	projid_t i_projid;
 
@@ -416,11 +416,11 @@ static int do_read_inode(struct inode *inode)
 	if (f2fs_check_nid_range(sbi, inode->i_ino))
 		return -EINVAL;
 
-	node_page = f2fs_get_inode_page(sbi, inode->i_ino);
-	if (IS_ERR(node_page))
-		return PTR_ERR(node_page);
+	node_folio = f2fs_get_inode_folio(sbi, inode->i_ino);
+	if (IS_ERR(node_folio))
+		return PTR_ERR(node_folio);
 
-	ri = F2FS_INODE(node_page);
+	ri = F2FS_INODE(&node_folio->page);
 
 	inode->i_mode = le16_to_cpu(ri->i_mode);
 	i_uid_write(inode, le32_to_cpu(ri->i_uid));
@@ -470,8 +470,8 @@ static int do_read_inode(struct inode *inode)
 		fi->i_inline_xattr_size = 0;
 	}
 
-	if (!sanity_check_inode(inode, node_page)) {
-		f2fs_put_page(node_page, 1);
+	if (!sanity_check_inode(inode, &node_folio->page)) {
+		f2fs_folio_put(node_folio, true);
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
 		f2fs_handle_error(sbi, ERROR_CORRUPTED_INODE);
 		return -EFSCORRUPTED;
@@ -479,17 +479,17 @@ static int do_read_inode(struct inode *inode)
 
 	/* check data exist */
 	if (f2fs_has_inline_data(inode) && !f2fs_exist_data(inode))
-		__recover_inline_status(inode, node_page);
+		__recover_inline_status(inode, &node_folio->page);
 
 	/* try to recover cold bit for non-dir inode */
-	if (!S_ISDIR(inode->i_mode) && !is_cold_node(node_page)) {
-		f2fs_wait_on_page_writeback(node_page, NODE, true, true);
-		set_cold_node(node_page, false);
-		set_page_dirty(node_page);
+	if (!S_ISDIR(inode->i_mode) && !is_cold_node(&node_folio->page)) {
+		f2fs_folio_wait_writeback(node_folio, NODE, true, true);
+		set_cold_node(&node_folio->page, false);
+		folio_mark_dirty(node_folio);
 	}
 
 	/* get rdev by using inline_info */
-	__get_inode_rdev(inode, node_page);
+	__get_inode_rdev(inode, &node_folio->page);
 
 	if (!f2fs_need_inode_block_update(sbi, inode->i_ino))
 		fi->last_disk_size = inode->i_size;
@@ -532,17 +532,17 @@ static int do_read_inode(struct inode *inode)
 
 	init_idisk_time(inode);
 
-	if (!sanity_check_extent_cache(inode, node_page)) {
-		f2fs_put_page(node_page, 1);
+	if (!sanity_check_extent_cache(inode, &node_folio->page)) {
+		f2fs_folio_put(node_folio, true);
 		f2fs_handle_error(sbi, ERROR_CORRUPTED_INODE);
 		return -EFSCORRUPTED;
 	}
 
 	/* Need all the flag bits */
-	f2fs_init_read_extent_tree(inode, node_page);
+	f2fs_init_read_extent_tree(inode, &node_folio->page);
 	f2fs_init_age_extent_tree(inode);
 
-	f2fs_put_page(node_page, 1);
+	f2fs_folio_put(node_folio, true);
 
 	stat_inc_inline_xattr(inode);
 	stat_inc_inline_inode(inode);
