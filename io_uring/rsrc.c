@@ -1016,6 +1016,8 @@ static int io_import_fixed(int ddir, struct iov_iter *iter,
 	/* not inside the mapped region */
 	if (unlikely(buf_addr < imu->ubuf || buf_end > (imu->ubuf + imu->len)))
 		return -EFAULT;
+	if (unlikely(len > MAX_RW_COUNT))
+		return -EFAULT;
 	if (!(imu->dir & (1 << ddir)))
 		return -EFAULT;
 
