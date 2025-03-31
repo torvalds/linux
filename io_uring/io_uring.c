@@ -1643,6 +1643,8 @@ io_req_flags_t io_file_get_flags(struct file *file)
 {
 	io_req_flags_t res = 0;
 
+	BUILD_BUG_ON(REQ_F_ISREG_BIT != REQ_F_SUPPORT_NOWAIT_BIT + 1);
+
 	if (S_ISREG(file_inode(file)->i_mode))
 		res |= REQ_F_ISREG;
 	if ((file->f_flags & O_NONBLOCK) || (file->f_mode & FMODE_NOWAIT))
