@@ -3127,9 +3127,9 @@ int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent)
 	 */
 	if (!test_bit(BTRFS_ORDERED_NOCOW, &ordered_extent->flags)) {
 		clear_bits |= EXTENT_LOCKED | EXTENT_FINISHING_ORDERED;
-		__lock_extent(io_tree, start, end,
-			      EXTENT_LOCKED | EXTENT_FINISHING_ORDERED,
-			      &cached_state);
+		btrfs_lock_extent_bits(io_tree, start, end,
+				       EXTENT_LOCKED | EXTENT_FINISHING_ORDERED,
+				       &cached_state);
 	}
 
 	if (freespace_inode)

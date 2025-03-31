@@ -140,21 +140,21 @@ const struct btrfs_fs_info *extent_io_tree_to_fs_info(const struct extent_io_tre
 void extent_io_tree_init(struct btrfs_fs_info *fs_info,
 			 struct extent_io_tree *tree, unsigned int owner);
 void extent_io_tree_release(struct extent_io_tree *tree);
-int __lock_extent(struct extent_io_tree *tree, u64 start, u64 end, u32 bits,
-		  struct extent_state **cached);
-bool __try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end, u32 bits,
-		       struct extent_state **cached);
+int btrfs_lock_extent_bits(struct extent_io_tree *tree, u64 start, u64 end, u32 bits,
+			   struct extent_state **cached);
+bool btrfs_try_lock_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
+				u32 bits, struct extent_state **cached);
 
 static inline int btrfs_lock_extent(struct extent_io_tree *tree, u64 start, u64 end,
 				    struct extent_state **cached)
 {
-	return __lock_extent(tree, start, end, EXTENT_LOCKED, cached);
+	return btrfs_lock_extent_bits(tree, start, end, EXTENT_LOCKED, cached);
 }
 
 static inline bool btrfs_try_lock_extent(struct extent_io_tree *tree, u64 start,
 					 u64 end, struct extent_state **cached)
 {
-	return __try_lock_extent(tree, start, end, EXTENT_LOCKED, cached);
+	return btrfs_try_lock_extent_bits(tree, start, end, EXTENT_LOCKED, cached);
 }
 
 int __init extent_state_init_cachep(void);
@@ -226,13 +226,13 @@ bool btrfs_find_delalloc_range(struct extent_io_tree *tree, u64 *start,
 static inline int btrfs_lock_dio_extent(struct extent_io_tree *tree, u64 start,
 					u64 end, struct extent_state **cached)
 {
-	return __lock_extent(tree, start, end, EXTENT_DIO_LOCKED, cached);
+	return btrfs_lock_extent_bits(tree, start, end, EXTENT_DIO_LOCKED, cached);
 }
 
 static inline bool btrfs_try_lock_dio_extent(struct extent_io_tree *tree, u64 start,
 					     u64 end, struct extent_state **cached)
 {
-	return __try_lock_extent(tree, start, end, EXTENT_DIO_LOCKED, cached);
+	return btrfs_try_lock_extent_bits(tree, start, end, EXTENT_DIO_LOCKED, cached);
 }
 
 static inline int btrfs_unlock_dio_extent(struct extent_io_tree *tree, u64 start,
