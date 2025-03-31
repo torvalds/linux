@@ -4004,14 +4004,6 @@ struct page *f2fs_get_new_data_page(struct inode *inode,
 	return &f2fs_get_new_data_folio(inode, ipage, index, new_i_size)->page;
 }
 
-static inline struct page *f2fs_get_lock_data_page(struct inode *inode,
-		pgoff_t index, bool for_write)
-{
-	struct folio *folio = f2fs_get_lock_data_folio(inode, index, for_write);
-
-	return &folio->page;
-}
-
 /*
  * gc.c
  */
