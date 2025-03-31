@@ -2421,10 +2421,9 @@ static void remove_free_nid(struct f2fs_sb_info *sbi, nid_t nid)
 }
 
 static int scan_nat_page(struct f2fs_sb_info *sbi,
-			struct page *nat_page, nid_t start_nid)
+			struct f2fs_nat_block *nat_blk, nid_t start_nid)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
-	struct f2fs_nat_block *nat_blk = page_address(nat_page);
 	block_t blk_addr;
 	unsigned int nat_ofs = NAT_BLOCK_OFFSET(start_nid);
 	int i;
@@ -2549,7 +2548,8 @@ static int __f2fs_build_free_nids(struct f2fs_sb_info *sbi,
 			if (IS_ERR(folio)) {
 				ret = PTR_ERR(folio);
 			} else {
-				ret = scan_nat_page(sbi, &folio->page, nid);
+				ret = scan_nat_page(sbi, folio_address(folio),
+						nid);
 				f2fs_folio_put(folio, true);
 			}
 
