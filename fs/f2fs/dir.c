@@ -173,7 +173,7 @@ static unsigned long dir_block_index(unsigned int level,
 }
 
 static struct f2fs_dir_entry *find_in_block(struct inode *dir,
-				struct page *dentry_page,
+				struct folio *dentry_folio,
 				const struct f2fs_filename *fname,
 				int *max_slots,
 				bool use_hash)
@@ -181,7 +181,7 @@ static struct f2fs_dir_entry *find_in_block(struct inode *dir,
 	struct f2fs_dentry_block *dentry_blk;
 	struct f2fs_dentry_ptr d;
 
-	dentry_blk = (struct f2fs_dentry_block *)page_address(dentry_page);
+	dentry_blk = folio_address(dentry_folio);
 
 	make_dentry_ptr_block(dir, &d, dentry_blk);
 	return f2fs_find_target_dentry(&d, fname, max_slots, use_hash);
@@ -266,7 +266,6 @@ static struct f2fs_dir_entry *find_in_level(struct inode *dir,
 	int s = GET_DENTRY_SLOTS(fname->disk_name.len);
 	unsigned int nbucket, nblock;
 	unsigned int bidx, end_block, bucket_no;
-	struct page *dentry_page;
 	struct f2fs_dir_entry *de = NULL;
 	pgoff_t next_pgofs;
 	bool room = false;
@@ -284,31 +283,32 @@ start_find_bucket:
 
 	while (bidx < end_block) {
 		/* no need to allocate new dentry pages to all the indices */
-		dentry_page = f2fs_find_data_page(dir, bidx, &next_pgofs);
-		if (IS_ERR(dentry_page)) {
-			if (PTR_ERR(dentry_page) == -ENOENT) {
+		struct folio *dentry_folio;
+		dentry_folio = f2fs_find_data_folio(dir, bidx, &next_pgofs);
+		if (IS_ERR(dentry_folio)) {
+			if (PTR_ERR(dentry_folio) == -ENOENT) {
 				room = true;
 				bidx = next_pgofs;
 				continue;
 			} else {
-				*res_page = dentry_page;
+				*res_page = &dentry_folio->page;
 				break;
 			}
 		}
 
-		de = find_in_block(dir, dentry_page, fname, &max_slots, use_hash);
+		de = find_in_block(dir, dentry_folio, fname, &max_slots, use_hash);
 		if (IS_ERR(de)) {
 			*res_page = ERR_CAST(de);
 			de = NULL;
 			break;
 		} else if (de) {
-			*res_page = dentry_page;
+			*res_page = &dentry_folio->page;
 			break;
 		}
 
 		if (max_slots >= s)
 			room = true;
-		f2fs_put_page(dentry_page, 0);
+		f2fs_folio_put(dentry_folio, false);
 
 		bidx++;
 	}
