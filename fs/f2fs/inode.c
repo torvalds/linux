@@ -97,19 +97,19 @@ static void __set_inode_rdev(struct inode *inode, struct page *node_page)
 	}
 }
 
-static void __recover_inline_status(struct inode *inode, struct page *ipage)
+static void __recover_inline_status(struct inode *inode, struct folio *ifolio)
 {
-	void *inline_data = inline_data_addr(inode, ipage);
+	void *inline_data = inline_data_addr(inode, &ifolio->page);
 	__le32 *start = inline_data;
 	__le32 *end = start + MAX_INLINE_DATA(inode) / sizeof(__le32);
 
 	while (start < end) {
 		if (*start++) {
-			f2fs_wait_on_page_writeback(ipage, NODE, true, true);
+			f2fs_folio_wait_writeback(ifolio, NODE, true, true);
 
 			set_inode_flag(inode, FI_DATA_EXIST);
-			set_raw_inline(inode, F2FS_INODE(ipage));
-			set_page_dirty(ipage);
+			set_raw_inline(inode, F2FS_INODE(&ifolio->page));
+			folio_mark_dirty(ifolio);
 			return;
 		}
 	}
@@ -479,7 +479,7 @@ static int do_read_inode(struct inode *inode)
 
 	/* check data exist */
 	if (f2fs_has_inline_data(inode) && !f2fs_exist_data(inode))
-		__recover_inline_status(inode, &node_folio->page);
+		__recover_inline_status(inode, node_folio);
 
 	/* try to recover cold bit for non-dir inode */
 	if (!S_ISDIR(inode->i_mode) && !is_cold_node(&node_folio->page)) {
