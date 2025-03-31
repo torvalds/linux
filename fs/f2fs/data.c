@@ -826,13 +826,13 @@ static int add_ipu_page(struct f2fs_io_info *fio, struct bio **bio,
 }
 
 void f2fs_submit_merged_ipu_write(struct f2fs_sb_info *sbi,
-					struct bio **bio, struct page *page)
+					struct bio **bio, struct folio *folio)
 {
 	enum temp_type temp;
 	bool found = false;
 	struct bio *target = bio ? *bio : NULL;
 
-	f2fs_bug_on(sbi, !target && !page);
+	f2fs_bug_on(sbi, !target && !folio);
 
 	for (temp = HOT; temp < NR_TEMP_TYPE && !found; temp++) {
 		struct f2fs_bio_info *io = sbi->write_io[DATA] + temp;
@@ -848,7 +848,7 @@ void f2fs_submit_merged_ipu_write(struct f2fs_sb_info *sbi,
 				found = (target == be->bio);
 			else
 				found = __has_merged_page(be->bio, NULL,
-								page, 0);
+							&folio->page, 0);
 			if (found)
 				break;
 		}
@@ -865,7 +865,7 @@ void f2fs_submit_merged_ipu_write(struct f2fs_sb_info *sbi,
 				found = (target == be->bio);
 			else
 				found = __has_merged_page(be->bio, NULL,
-								page, 0);
+							&folio->page, 0);
 			if (found) {
 				target = be->bio;
 				del_bio_entry(be);
