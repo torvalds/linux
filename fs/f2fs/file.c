@@ -2923,19 +2923,19 @@ do_map:
 		idx = map.m_lblk;
 		while (idx < map.m_lblk + map.m_len &&
 						cnt < BLKS_PER_SEG(sbi)) {
-			struct page *page;
+			struct folio *folio;
 
-			page = f2fs_get_lock_data_page(inode, idx, true);
-			if (IS_ERR(page)) {
-				err = PTR_ERR(page);
+			folio = f2fs_get_lock_data_folio(inode, idx, true);
+			if (IS_ERR(folio)) {
+				err = PTR_ERR(folio);
 				goto clear_out;
 			}
 
-			f2fs_wait_on_page_writeback(page, DATA, true, true);
+			f2fs_folio_wait_writeback(folio, DATA, true, true);
 
-			set_page_dirty(page);
-			set_page_private_gcing(page);
-			f2fs_put_page(page, 1);
+			folio_mark_dirty(folio);
+			set_page_private_gcing(&folio->page);
+			f2fs_folio_put(folio, true);
 
 			idx++;
 			cnt++;
