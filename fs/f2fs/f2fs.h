@@ -3997,13 +3997,6 @@ int f2fs_init_post_read_wq(struct f2fs_sb_info *sbi);
 void f2fs_destroy_post_read_wq(struct f2fs_sb_info *sbi);
 extern const struct iomap_ops f2fs_iomap_ops;
 
-static inline
-struct page *f2fs_get_new_data_page(struct inode *inode,
-			struct page *ipage, pgoff_t index, bool new_i_size)
-{
-	return &f2fs_get_new_data_folio(inode, ipage, index, new_i_size)->page;
-}
-
 /*
  * gc.c
  */
