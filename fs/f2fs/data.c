@@ -3878,18 +3878,18 @@ static int f2fs_migrate_blocks(struct inode *inode, block_t start_blk,
 		set_inode_flag(inode, FI_SKIP_WRITES);
 
 		for (blkofs = 0; blkofs <= blkofs_end; blkofs++) {
-			struct page *page;
+			struct folio *folio;
 			unsigned int blkidx = secidx * blk_per_sec + blkofs;
 
-			page = f2fs_get_lock_data_page(inode, blkidx, true);
-			if (IS_ERR(page)) {
+			folio = f2fs_get_lock_data_folio(inode, blkidx, true);
+			if (IS_ERR(folio)) {
 				f2fs_up_write(&sbi->pin_sem);
-				ret = PTR_ERR(page);
+				ret = PTR_ERR(folio);
 				goto done;
 			}
 
-			set_page_dirty(page);
-			f2fs_put_page(page, 1);
+			folio_mark_dirty(folio);
+			f2fs_folio_put(folio, true);
 		}
 
 		clear_inode_flag(inode, FI_SKIP_WRITES);
