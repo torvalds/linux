@@ -385,7 +385,7 @@ out:
 	return err;
 }
 
-static int read_all_xattrs(struct inode *inode, struct page *ipage,
+static int read_all_xattrs(struct inode *inode, struct folio *ifolio,
 							void **base_addr)
 {
 	struct f2fs_xattr_header *header;
@@ -402,7 +402,7 @@ static int read_all_xattrs(struct inode *inode, struct page *ipage,
 
 	/* read from inline xattr */
 	if (inline_size) {
-		err = read_inline_xattr(inode, ipage, txattr_addr);
+		err = read_inline_xattr(inode, &ifolio->page, txattr_addr);
 		if (err)
 			goto fail;
 	}
@@ -627,7 +627,7 @@ static bool f2fs_xattr_value_same(struct f2fs_xattr_entry *entry,
 
 static int __f2fs_setxattr(struct inode *inode, int index,
 			const char *name, const void *value, size_t size,
-			struct page *ipage, int flags)
+			struct folio *ifolio, int flags)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_xattr_entry *here, *last;
@@ -651,7 +651,7 @@ static int __f2fs_setxattr(struct inode *inode, int index,
 	if (size > MAX_VALUE_LEN(inode))
 		return -E2BIG;
 retry:
-	error = read_all_xattrs(inode, ipage, &base_addr);
+	error = read_all_xattrs(inode, ifolio, &base_addr);
 	if (error)
 		return error;
 
@@ -766,7 +766,7 @@ retry:
 		*(u32 *)((u8 *)last + newsize) = 0;
 	}
 
-	error = write_all_xattrs(inode, new_hsize, base_addr, ipage);
+	error = write_all_xattrs(inode, new_hsize, base_addr, &ifolio->page);
 	if (error)
 		goto exit;
 
@@ -817,7 +817,7 @@ int f2fs_setxattr(struct inode *inode, int index, const char *name,
 	/* this case is only from f2fs_init_inode_metadata */
 	if (ifolio)
 		return __f2fs_setxattr(inode, index, name, value,
-						size, &ifolio->page, flags);
+						size, ifolio, flags);
 	f2fs_balance_fs(sbi, true);
 
 	f2fs_lock_op(sbi);
