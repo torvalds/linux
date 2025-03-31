@@ -145,14 +145,14 @@ int __lock_extent(struct extent_io_tree *tree, u64 start, u64 end, u32 bits,
 bool __try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end, u32 bits,
 		       struct extent_state **cached);
 
-static inline int lock_extent(struct extent_io_tree *tree, u64 start, u64 end,
-			      struct extent_state **cached)
+static inline int btrfs_lock_extent(struct extent_io_tree *tree, u64 start, u64 end,
+				    struct extent_state **cached)
 {
 	return __lock_extent(tree, start, end, EXTENT_LOCKED, cached);
 }
 
-static inline bool try_lock_extent(struct extent_io_tree *tree, u64 start,
-				   u64 end, struct extent_state **cached)
+static inline bool btrfs_try_lock_extent(struct extent_io_tree *tree, u64 start,
+					 u64 end, struct extent_state **cached)
 {
 	return __try_lock_extent(tree, start, end, EXTENT_LOCKED, cached);
 }
@@ -184,8 +184,8 @@ static inline int clear_extent_bit(struct extent_io_tree *tree, u64 start,
 	return __clear_extent_bit(tree, start, end, bits, cached, NULL);
 }
 
-static inline int unlock_extent(struct extent_io_tree *tree, u64 start, u64 end,
-				struct extent_state **cached)
+static inline int btrfs_unlock_extent(struct extent_io_tree *tree, u64 start, u64 end,
+				      struct extent_state **cached)
 {
 	return __clear_extent_bit(tree, start, end, EXTENT_LOCKED, cached, NULL);
 }

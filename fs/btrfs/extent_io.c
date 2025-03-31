@@ -371,13 +371,13 @@ again:
 	}
 
 	/* step three, lock the state bits for the whole range */
-	lock_extent(tree, delalloc_start, delalloc_end, &cached_state);
+	btrfs_lock_extent(tree, delalloc_start, delalloc_end, &cached_state);
 
 	/* then test to make sure it is all still delalloc */
 	ret = test_range_bit(tree, delalloc_start, delalloc_end,
 			     EXTENT_DELALLOC, cached_state);
 
-	unlock_extent(tree, delalloc_start, delalloc_end, &cached_state);
+	btrfs_unlock_extent(tree, delalloc_start, delalloc_end, &cached_state);
 	if (!ret) {
 		unlock_delalloc_folio(inode, locked_folio, delalloc_start,
 				      delalloc_end);
@@ -1201,7 +1201,7 @@ static void lock_extents_for_read(struct btrfs_inode *inode, u64 start, u64 end,
 	ASSERT(IS_ALIGNED(end + 1, PAGE_SIZE));
 
 again:
-	lock_extent(&inode->io_tree, start, end, cached_state);
+	btrfs_lock_extent(&inode->io_tree, start, end, cached_state);
 	cur_pos = start;
 	while (cur_pos < end) {
 		struct btrfs_ordered_extent *ordered;
@@ -1224,7 +1224,7 @@ again:
 		}
 
 		/* Now wait for the OE to finish. */
-		unlock_extent(&inode->io_tree, start, end, cached_state);
+		btrfs_unlock_extent(&inode->io_tree, start, end, cached_state);
 		btrfs_start_ordered_extent_nowriteback(ordered, start, end + 1 - start);
 		btrfs_put_ordered_extent(ordered);
 		/* We have unlocked the whole range, restart from the beginning. */
@@ -1244,7 +1244,7 @@ int btrfs_read_folio(struct file *file, struct folio *folio)
 
 	lock_extents_for_read(inode, start, end, &cached_state);
 	ret = btrfs_do_readpage(folio, &em_cached, &bio_ctrl, NULL);
-	unlock_extent(&inode->io_tree, start, end, &cached_state);
+	btrfs_unlock_extent(&inode->io_tree, start, end, &cached_state);
 
 	free_extent_map(em_cached);
 
@@ -1432,8 +1432,8 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 			 * We've hit an error during previous delalloc range,
 			 * have to cleanup the remaining locked ranges.
 			 */
-			unlock_extent(&inode->io_tree, found_start,
-				      found_start + found_len - 1, NULL);
+			btrfs_unlock_extent(&inode->io_tree, found_start,
+					    found_start + found_len - 1, NULL);
 			unlock_delalloc_folio(&inode->vfs_inode, folio,
 					      found_start,
 					      found_start + found_len - 1);
@@ -2563,7 +2563,7 @@ void btrfs_readahead(struct readahead_control *rac)
 	while ((folio = readahead_folio(rac)) != NULL)
 		btrfs_do_readpage(folio, &em_cached, &bio_ctrl, &prev_em_start);
 
-	unlock_extent(&inode->io_tree, start, end, &cached_state);
+	btrfs_unlock_extent(&inode->io_tree, start, end, &cached_state);
 
 	if (em_cached)
 		free_extent_map(em_cached);
@@ -2590,7 +2590,7 @@ int extent_invalidate_folio(struct extent_io_tree *tree,
 	if (start > end)
 		return 0;
 
-	lock_extent(tree, start, end, &cached_state);
+	btrfs_lock_extent(tree, start, end, &cached_state);
 	folio_wait_writeback(folio);
 
 	/*
@@ -2598,7 +2598,7 @@ int extent_invalidate_folio(struct extent_io_tree *tree,
 	 * so here we only need to unlock the extent range to free any
 	 * existing extent state.
 	 */
-	unlock_extent(tree, start, end, &cached_state);
+	btrfs_unlock_extent(tree, start, end, &cached_state);
 	return 0;
 }
 
