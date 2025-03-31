@@ -151,6 +151,7 @@ int hibmc_dp_hw_init(struct hibmc_dp *dp)
 {
 	struct drm_device *drm_dev = dp->drm_dev;
 	struct hibmc_dp_dev *dp_dev;
+	int ret;
 
 	dp_dev = devm_kzalloc(drm_dev->dev, sizeof(struct hibmc_dp_dev), GFP_KERNEL);
 	if (!dp_dev)
@@ -164,6 +165,10 @@ int hibmc_dp_hw_init(struct hibmc_dp *dp)
 	dp_dev->base = dp->mmio + HIBMC_DP_OFFSET;
 
 	hibmc_dp_aux_init(dp_dev);
+
+	ret = hibmc_dp_serdes_init(dp_dev);
+	if (ret)
+		return ret;
 
 	dp_dev->link.cap.lanes = 0x2;
 	dp_dev->link.cap.link_rate = DP_LINK_BW_2_7;
