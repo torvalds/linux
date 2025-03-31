@@ -2774,7 +2774,7 @@ int f2fs_recover_xattr_data(struct inode *inode, struct page *page)
 	nid_t new_xnid;
 	struct dnode_of_data dn;
 	struct node_info ni;
-	struct page *xpage;
+	struct folio *xfolio;
 	int err;
 
 	if (!prev_xnid)
@@ -2795,10 +2795,10 @@ recover_xnid:
 		return -ENOSPC;
 
 	set_new_dnode(&dn, inode, NULL, NULL, new_xnid);
-	xpage = f2fs_new_node_page(&dn, XATTR_NODE_OFFSET);
-	if (IS_ERR(xpage)) {
+	xfolio = f2fs_new_node_folio(&dn, XATTR_NODE_OFFSET);
+	if (IS_ERR(xfolio)) {
 		f2fs_alloc_nid_failed(sbi, new_xnid);
-		return PTR_ERR(xpage);
+		return PTR_ERR(xfolio);
 	}
 
 	f2fs_alloc_nid_done(sbi, new_xnid);
@@ -2806,11 +2806,11 @@ recover_xnid:
 
 	/* 3: update and set xattr node page dirty */
 	if (page) {
-		memcpy(F2FS_NODE(xpage), F2FS_NODE(page),
+		memcpy(F2FS_NODE(&xfolio->page), F2FS_NODE(page),
 				VALID_XATTR_BLOCK_SIZE);
-		set_page_dirty(xpage);
+		folio_mark_dirty(xfolio);
 	}
-	f2fs_put_page(xpage, 1);
+	f2fs_folio_put(xfolio, true);
 
 	return 0;
 }
