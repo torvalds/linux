@@ -1672,14 +1672,10 @@ repeat:
 	}
 
 	if (symbol_conf.report_hierarchy) {
-		/* disable incompatible options */
-		if (field_order) {
-			pr_err("Error: --hierarchy and --fields options cannot be used together\n");
-			parse_options_usage(report_usage, options, "F", 1);
-			parse_options_usage(NULL, options, "hierarchy", 0);
-			goto error;
-		}
-
+		/*
+		 * The hist entries in hierarchy are added during the collpase
+		 * phase.  Let's enable it even if no sort keys require it.
+		 */
 		perf_hpp_list.need_collapse = true;
 	}
 
