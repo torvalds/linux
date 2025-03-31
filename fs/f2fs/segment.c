@@ -4283,7 +4283,7 @@ static int read_normal_summaries(struct f2fs_sb_info *sbi, int type)
 	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
 	struct f2fs_summary_block *sum;
 	struct curseg_info *curseg;
-	struct page *new;
+	struct folio *new;
 	unsigned short blk_off;
 	unsigned int segno = 0;
 	block_t blk_addr = 0;
@@ -4310,10 +4310,10 @@ static int read_normal_summaries(struct f2fs_sb_info *sbi, int type)
 			blk_addr = GET_SUM_BLOCK(sbi, segno);
 	}
 
-	new = f2fs_get_meta_page(sbi, blk_addr);
+	new = f2fs_get_meta_folio(sbi, blk_addr);
 	if (IS_ERR(new))
 		return PTR_ERR(new);
-	sum = (struct f2fs_summary_block *)page_address(new);
+	sum = folio_address(new);
 
 	if (IS_NODESEG(type)) {
 		if (__exist_node_summaries(sbi)) {
@@ -4348,7 +4348,7 @@ static int read_normal_summaries(struct f2fs_sb_info *sbi, int type)
 	curseg->next_blkoff = blk_off;
 	mutex_unlock(&curseg->curseg_mutex);
 out:
-	f2fs_put_page(new, 1);
+	f2fs_folio_put(new, true);
 	return err;
 }
 
