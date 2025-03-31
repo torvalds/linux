@@ -49,7 +49,7 @@ void f2fs_destroy_bioset(void)
 
 bool f2fs_is_cp_guaranteed(struct page *page)
 {
-	struct address_space *mapping = page->mapping;
+	struct address_space *mapping = page_folio(page)->mapping;
 	struct inode *inode;
 	struct f2fs_sb_info *sbi;
 
