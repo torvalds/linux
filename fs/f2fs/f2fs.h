@@ -3936,12 +3936,6 @@ int f2fs_start_ckpt_thread(struct f2fs_sb_info *sbi);
 void f2fs_stop_ckpt_thread(struct f2fs_sb_info *sbi);
 void f2fs_init_ckpt_req_control(struct f2fs_sb_info *sbi);
 
-static inline
-struct page *f2fs_grab_meta_page(struct f2fs_sb_info *sbi, pgoff_t index)
-{
-	return &f2fs_grab_meta_folio(sbi, index)->page;
-}
-
 /*
  * data.c
  */
