@@ -1042,7 +1042,6 @@ static int f2fs_readdir(struct file *file, struct dir_context *ctx)
 	struct inode *inode = file_inode(file);
 	unsigned long npages = dir_blocks(inode);
 	struct f2fs_dentry_block *dentry_blk = NULL;
-	struct page *dentry_page = NULL;
 	struct file_ra_state *ra = &file->f_ra;
 	loff_t start_pos = ctx->pos;
 	unsigned int n = ((unsigned long)ctx->pos / NR_DENTRY_IN_BLOCK);
@@ -1066,6 +1065,7 @@ static int f2fs_readdir(struct file *file, struct dir_context *ctx)
 	}
 
 	for (; n < npages; ctx->pos = n * NR_DENTRY_IN_BLOCK) {
+		struct folio *dentry_folio;
 		pgoff_t next_pgofs;
 
 		/* allow readdir() to be interrupted */
@@ -1080,9 +1080,9 @@ static int f2fs_readdir(struct file *file, struct dir_context *ctx)
 			page_cache_sync_readahead(inode->i_mapping, ra, file, n,
 				min(npages - n, (pgoff_t)MAX_DIR_RA_PAGES));
 
-		dentry_page = f2fs_find_data_page(inode, n, &next_pgofs);
-		if (IS_ERR(dentry_page)) {
-			err = PTR_ERR(dentry_page);
+		dentry_folio = f2fs_find_data_folio(inode, n, &next_pgofs);
+		if (IS_ERR(dentry_folio)) {
+			err = PTR_ERR(dentry_folio);
 			if (err == -ENOENT) {
 				err = 0;
 				n = next_pgofs;
@@ -1092,18 +1092,15 @@ static int f2fs_readdir(struct file *file, struct dir_context *ctx)
 			}
 		}
 
-		dentry_blk = page_address(dentry_page);
+		dentry_blk = folio_address(dentry_folio);
 
 		make_dentry_ptr_block(inode, &d, dentry_blk);
 
 		err = f2fs_fill_dentries(ctx, &d,
 				n * NR_DENTRY_IN_BLOCK, &fstr);
-		if (err) {
-			f2fs_put_page(dentry_page, 0);
+		f2fs_folio_put(dentry_folio, false);
+		if (err)
 			break;
-		}
-
-		f2fs_put_page(dentry_page, 0);
 
 		n++;
 	}
