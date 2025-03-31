@@ -429,11 +429,11 @@ fail:
 }
 
 static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
-				void *txattr_addr, struct page *ipage)
+				void *txattr_addr, struct folio *ifolio)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	size_t inline_size = inline_xattr_size(inode);
-	struct page *in_page = NULL;
+	struct folio *in_folio = NULL;
 	void *xattr_addr;
 	void *inline_addr = NULL;
 	struct folio *xfolio;
@@ -446,29 +446,29 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 
 	/* write to inline xattr */
 	if (inline_size) {
-		if (ipage) {
-			inline_addr = inline_xattr_addr(inode, ipage);
+		if (ifolio) {
+			inline_addr = inline_xattr_addr(inode, &ifolio->page);
 		} else {
-			in_page = f2fs_get_inode_page(sbi, inode->i_ino);
-			if (IS_ERR(in_page)) {
+			in_folio = f2fs_get_inode_folio(sbi, inode->i_ino);
+			if (IS_ERR(in_folio)) {
 				f2fs_alloc_nid_failed(sbi, new_nid);
-				return PTR_ERR(in_page);
+				return PTR_ERR(in_folio);
 			}
-			inline_addr = inline_xattr_addr(inode, in_page);
+			inline_addr = inline_xattr_addr(inode, &in_folio->page);
 		}
 
-		f2fs_wait_on_page_writeback(ipage ? ipage : in_page,
+		f2fs_folio_wait_writeback(ifolio ? ifolio : in_folio,
 							NODE, true, true);
 		/* no need to use xattr node block */
 		if (hsize <= inline_size) {
 			err = f2fs_truncate_xattr_node(inode);
 			f2fs_alloc_nid_failed(sbi, new_nid);
 			if (err) {
-				f2fs_put_page(in_page, 1);
+				f2fs_folio_put(in_folio, true);
 				return err;
 			}
 			memcpy(inline_addr, txattr_addr, inline_size);
-			set_page_dirty(ipage ? ipage : in_page);
+			folio_mark_dirty(ifolio ? ifolio : in_folio);
 			goto in_page_out;
 		}
 	}
@@ -502,12 +502,12 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 	memcpy(xattr_addr, txattr_addr + inline_size, VALID_XATTR_BLOCK_SIZE);
 
 	if (inline_size)
-		set_page_dirty(ipage ? ipage : in_page);
+		folio_mark_dirty(ifolio ? ifolio : in_folio);
 	folio_mark_dirty(xfolio);
 
 	f2fs_folio_put(xfolio, true);
 in_page_out:
-	f2fs_put_page(in_page, 1);
+	f2fs_folio_put(in_folio, true);
 	return err;
 }
 
@@ -766,7 +766,7 @@ retry:
 		*(u32 *)((u8 *)last + newsize) = 0;
 	}
 
-	error = write_all_xattrs(inode, new_hsize, base_addr, &ifolio->page);
+	error = write_all_xattrs(inode, new_hsize, base_addr, ifolio);
 	if (error)
 		goto exit;
 
