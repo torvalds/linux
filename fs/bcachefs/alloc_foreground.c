@@ -1560,7 +1560,7 @@ static void bch2_write_point_to_text(struct printbuf *out, struct bch_fs *c,
 	unsigned i;
 
 	prt_printf(out, "%lu: ", wp->write_point);
-	prt_human_readable_u64(out, wp->sectors_allocated);
+	prt_human_readable_u64(out, wp->sectors_allocated << 9);
 
 	prt_printf(out, " last wrote: ");
 	bch2_pr_time_units(out, sched_clock() - wp->last_used);
