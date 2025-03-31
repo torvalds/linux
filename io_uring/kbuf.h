@@ -55,6 +55,7 @@ struct buf_sel_arg {
 	size_t max_len;
 	unsigned short nr_iovs;
 	unsigned short mode;
+	unsigned buf_group;
 };
 
 void __user *io_buffer_select(struct io_kiocb *req, size_t *len,
@@ -94,7 +95,6 @@ static inline bool io_kbuf_recycle_ring(struct io_kiocb *req)
 	 * to monopolize the buffer.
 	 */
 	if (req->buf_list) {
-		req->buf_index = req->buf_list->bgid;
 		req->flags &= ~(REQ_F_BUFFER_RING|REQ_F_BUFFERS_COMMIT);
 		return true;
 	}
