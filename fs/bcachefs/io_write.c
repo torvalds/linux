@@ -697,12 +697,19 @@ static void bch2_write_endio(struct bio *bio)
 	bch2_account_io_completion(ca, BCH_MEMBER_ERROR_write,
 				   wbio->submit_time, !bio->bi_status);
 
-	if (bio->bi_status) {
-		bch_err_inum_offset_ratelimited(ca,
-				    op->pos.inode,
-				    wbio->inode_offset << 9,
-				    "data write error: %s",
-				    bch2_blk_status_to_str(bio->bi_status));
+	if (unlikely(bio->bi_status)) {
+		if (ca)
+			bch_err_inum_offset_ratelimited(ca,
+					    op->pos.inode,
+					    wbio->inode_offset << 9,
+					    "data write error: %s",
+					    bch2_blk_status_to_str(bio->bi_status));
+		else
+			bch_err_inum_offset_ratelimited(c,
+					    op->pos.inode,
+					    wbio->inode_offset << 9,
+					    "data write error: %s",
+					    bch2_blk_status_to_str(bio->bi_status));
 		set_bit(wbio->dev, op->failed.d);
 		op->flags |= BCH_WRITE_io_error;
 	}
