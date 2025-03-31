@@ -1457,9 +1457,11 @@ void f2fs_ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 }
 
 static int sanity_check_node_footer(struct f2fs_sb_info *sbi,
-					struct page *page, pgoff_t nid,
+					struct folio *folio, pgoff_t nid,
 					enum node_type ntype)
 {
+	struct page *page = &folio->page;
+
 	if (unlikely(nid != nid_of_node(page) ||
 		(ntype == NODE_TYPE_INODE && !IS_INODE(page)) ||
 		(ntype == NODE_TYPE_XATTR &&
@@ -1469,7 +1471,7 @@ static int sanity_check_node_footer(struct f2fs_sb_info *sbi,
 			  "node_footer[nid:%u,ino:%u,ofs:%u,cpver:%llu,blkaddr:%u]",
 			  ntype, nid, nid_of_node(page), ino_of_node(page),
 			  ofs_of_node(page), cpver_of_node(page),
-			  next_blkaddr_of_node(page));
+			  next_blkaddr_of_node(folio));
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
 		f2fs_handle_error(sbi, ERROR_INCONSISTENT_FOOTER);
 		return -EFSCORRUPTED;
@@ -1519,7 +1521,7 @@ repeat:
 		goto out_err;
 	}
 page_hit:
-	err = sanity_check_node_footer(sbi, &folio->page, nid, ntype);
+	err = sanity_check_node_footer(sbi, folio, nid, ntype);
 	if (!err)
 		return folio;
 out_err:

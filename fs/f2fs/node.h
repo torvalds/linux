@@ -268,9 +268,9 @@ static inline __u64 cpver_of_node(struct page *node_page)
 	return le64_to_cpu(rn->footer.cp_ver);
 }
 
-static inline block_t next_blkaddr_of_node(struct page *node_page)
+static inline block_t next_blkaddr_of_node(struct folio *node_folio)
 {
-	struct f2fs_node *rn = F2FS_NODE(node_page);
+	struct f2fs_node *rn = F2FS_NODE(&node_folio->page);
 	return le32_to_cpu(rn->footer.next_blkaddr);
 }
 

@@ -382,9 +382,9 @@ static int sanity_check_node_chain(struct f2fs_sb_info *sbi, block_t blkaddr,
 		}
 
 		ra_blocks = adjust_por_ra_blocks(sbi, ra_blocks, *blkaddr_fast,
-					next_blkaddr_of_node(&folio->page));
+					next_blkaddr_of_node(folio));
 
-		*blkaddr_fast = next_blkaddr_of_node(&folio->page);
+		*blkaddr_fast = next_blkaddr_of_node(folio);
 		f2fs_folio_put(folio, true);
 
 		f2fs_ra_meta_pages_cond(sbi, *blkaddr_fast, ra_blocks);
@@ -467,7 +467,7 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head,
 			entry->last_dentry = blkaddr;
 next:
 		/* check next segment */
-		blkaddr = next_blkaddr_of_node(&folio->page);
+		blkaddr = next_blkaddr_of_node(folio);
 		f2fs_folio_put(folio, true);
 
 		err = sanity_check_node_chain(sbi, blkaddr, &blkaddr_fast,
@@ -833,10 +833,10 @@ static int recover_data(struct f2fs_sb_info *sbi, struct list_head *inode_list,
 			list_move_tail(&entry->list, tmp_inode_list);
 next:
 		ra_blocks = adjust_por_ra_blocks(sbi, ra_blocks, blkaddr,
-					next_blkaddr_of_node(&folio->page));
+					next_blkaddr_of_node(folio));
 
 		/* check next segment */
-		blkaddr = next_blkaddr_of_node(&folio->page);
+		blkaddr = next_blkaddr_of_node(folio);
 		f2fs_folio_put(folio, true);
 
 		f2fs_ra_meta_pages_cond(sbi, blkaddr, ra_blocks);
