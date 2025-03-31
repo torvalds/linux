@@ -361,13 +361,9 @@ static int io_send_setup(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	}
 	if (sr->flags & IORING_RECVSEND_FIXED_BUF)
 		return 0;
-	if (!io_do_buffer_select(req)) {
-		ret = import_ubuf(ITER_SOURCE, sr->buf, sr->len,
-				  &kmsg->msg.msg_iter);
-		if (unlikely(ret < 0))
-			return ret;
-	}
-	return 0;
+	if (req->flags & REQ_F_BUFFER_SELECT)
+		return 0;
+	return import_ubuf(ITER_SOURCE, sr->buf, sr->len, &kmsg->msg.msg_iter);
 }
 
 static int io_sendmsg_setup(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -723,7 +719,6 @@ static int io_recvmsg_prep_setup(struct io_kiocb *req)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct io_async_msghdr *kmsg;
-	int ret;
 
 	kmsg = io_msg_alloc_async(req);
 	if (unlikely(!kmsg))
@@ -739,13 +734,10 @@ static int io_recvmsg_prep_setup(struct io_kiocb *req)
 		kmsg->msg.msg_iocb = NULL;
 		kmsg->msg.msg_ubuf = NULL;
 
-		if (!io_do_buffer_select(req)) {
-			ret = import_ubuf(ITER_DEST, sr->buf, sr->len,
-					  &kmsg->msg.msg_iter);
-			if (unlikely(ret))
-				return ret;
-		}
-		return 0;
+		if (req->flags & REQ_F_BUFFER_SELECT)
+			return 0;
+		return import_ubuf(ITER_DEST, sr->buf, sr->len,
+				   &kmsg->msg.msg_iter);
 	}
 
 	return io_recvmsg_copy_hdr(req, kmsg);
