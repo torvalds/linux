@@ -79,7 +79,7 @@ bool f2fs_may_inline_dentry(struct inode *inode)
 	return true;
 }
 
-void f2fs_do_read_inline_data(struct folio *folio, struct page *ipage)
+void f2fs_do_read_inline_data(struct folio *folio, struct folio *ifolio)
 {
 	struct inode *inode = folio->mapping->host;
 
@@ -91,7 +91,7 @@ void f2fs_do_read_inline_data(struct folio *folio, struct page *ipage)
 	folio_zero_segment(folio, MAX_INLINE_DATA(inode), folio_size(folio));
 
 	/* Copy the whole inline data block */
-	memcpy_to_folio(folio, 0, inline_data_addr(inode, ipage),
+	memcpy_to_folio(folio, 0, inline_data_addr(inode, &ifolio->page),
 		       MAX_INLINE_DATA(inode));
 	if (!folio_test_uptodate(folio))
 		folio_mark_uptodate(folio);
@@ -133,7 +133,7 @@ int f2fs_read_inline_data(struct inode *inode, struct folio *folio)
 	if (folio_index(folio))
 		folio_zero_segment(folio, 0, folio_size(folio));
 	else
-		f2fs_do_read_inline_data(folio, &ifolio->page);
+		f2fs_do_read_inline_data(folio, ifolio);
 
 	if (!folio_test_uptodate(folio))
 		folio_mark_uptodate(folio);
@@ -184,7 +184,7 @@ int f2fs_convert_inline_folio(struct dnode_of_data *dn, struct folio *folio)
 
 	f2fs_bug_on(F2FS_F_SB(folio), folio_test_writeback(folio));
 
-	f2fs_do_read_inline_data(folio, &dn->inode_folio->page);
+	f2fs_do_read_inline_data(folio, dn->inode_folio);
 	folio_mark_dirty(folio);
 
 	/* clear dirty state */
