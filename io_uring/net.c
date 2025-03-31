@@ -359,8 +359,10 @@ static int io_send_setup(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		kmsg->msg.msg_name = &kmsg->addr;
 		kmsg->msg.msg_namelen = addr_len;
 	}
-	if (sr->flags & IORING_RECVSEND_FIXED_BUF)
+	if (sr->flags & IORING_RECVSEND_FIXED_BUF) {
+		req->flags |= REQ_F_IMPORT_BUFFER;
 		return 0;
+	}
 	if (req->flags & REQ_F_BUFFER_SELECT)
 		return 0;
 	return import_ubuf(ITER_SOURCE, sr->buf, sr->len, &kmsg->msg.msg_iter);
@@ -1313,8 +1315,6 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return -ENOMEM;
 
 	if (req->opcode == IORING_OP_SEND_ZC) {
-		if (zc->flags & IORING_RECVSEND_FIXED_BUF)
-			req->flags |= REQ_F_IMPORT_BUFFER;
 		ret = io_send_setup(req, sqe);
 	} else {
 		if (unlikely(sqe->addr2 || sqe->file_index))
