@@ -3821,7 +3821,7 @@ int f2fs_allocate_new_segments(struct f2fs_sb_info *sbi);
 int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range);
 bool f2fs_exist_trim_candidates(struct f2fs_sb_info *sbi,
 					struct cp_control *cpc);
-struct page *f2fs_get_sum_page(struct f2fs_sb_info *sbi, unsigned int segno);
+struct folio *f2fs_get_sum_folio(struct f2fs_sb_info *sbi, unsigned int segno);
 void f2fs_update_meta_page(struct f2fs_sb_info *sbi, void *src,
 					block_t blk_addr);
 void f2fs_do_write_meta_page(struct f2fs_sb_info *sbi, struct folio *folio,
@@ -3875,6 +3875,12 @@ unsigned long long f2fs_get_section_mtime(struct f2fs_sb_info *sbi,
 static inline struct inode *fio_inode(struct f2fs_io_info *fio)
 {
 	return page_folio(fio->page)->mapping->host;
+}
+
+static inline
+struct page *f2fs_get_sum_page(struct f2fs_sb_info *sbi, unsigned int segno)
+{
+	return &f2fs_get_sum_folio(sbi, segno)->page;
 }
 
 #define DEF_FRAGMENT_SIZE	4

@@ -2681,13 +2681,13 @@ int f2fs_npages_for_summary_flush(struct f2fs_sb_info *sbi, bool for_ra)
 }
 
 /*
- * Caller should put this summary page
+ * Caller should put this summary folio
  */
-struct page *f2fs_get_sum_page(struct f2fs_sb_info *sbi, unsigned int segno)
+struct folio *f2fs_get_sum_folio(struct f2fs_sb_info *sbi, unsigned int segno)
 {
 	if (unlikely(f2fs_cp_error(sbi)))
 		return ERR_PTR(-EIO);
-	return &f2fs_get_meta_folio_retry(sbi, GET_SUM_BLOCK(sbi, segno))->page;
+	return f2fs_get_meta_folio_retry(sbi, GET_SUM_BLOCK(sbi, segno));
 }
 
 void f2fs_update_meta_page(struct f2fs_sb_info *sbi,
