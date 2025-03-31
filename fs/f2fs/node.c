@@ -1436,7 +1436,7 @@ static int read_node_page(struct page *page, blk_opf_t op_flags)
  */
 void f2fs_ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 {
-	struct page *apage;
+	struct folio *afolio;
 	int err;
 
 	if (!nid)
@@ -1444,16 +1444,16 @@ void f2fs_ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 	if (f2fs_check_nid_range(sbi, nid))
 		return;
 
-	apage = xa_load(&NODE_MAPPING(sbi)->i_pages, nid);
-	if (apage)
+	afolio = xa_load(&NODE_MAPPING(sbi)->i_pages, nid);
+	if (afolio)
 		return;
 
-	apage = f2fs_grab_cache_page(NODE_MAPPING(sbi), nid, false);
-	if (!apage)
+	afolio = f2fs_grab_cache_folio(NODE_MAPPING(sbi), nid, false);
+	if (IS_ERR(afolio))
 		return;
 
-	err = read_node_page(apage, REQ_RAHEAD);
-	f2fs_put_page(apage, err ? 1 : 0);
+	err = read_node_page(&afolio->page, REQ_RAHEAD);
+	f2fs_folio_put(afolio, err ? true : false);
 }
 
 static int sanity_check_node_footer(struct f2fs_sb_info *sbi,
