@@ -9076,9 +9076,10 @@ the local APIC.
 
 The same is true for the ``KVM_FEATURE_PV_UNHALT`` paravirtualized feature.
 
-CPU[EAX=1]:ECX[24] (TSC_DEADLINE) is not reported by ``KVM_GET_SUPPORTED_CPUID``.
-It can be enabled if ``KVM_CAP_TSC_DEADLINE_TIMER`` is present and the kernel
-has enabled in-kernel emulation of the local APIC.
+On older versions of Linux, CPU[EAX=1]:ECX[24] (TSC_DEADLINE) is not reported by
+``KVM_GET_SUPPORTED_CPUID``, but it can be enabled if ``KVM_CAP_TSC_DEADLINE_TIMER``
+is present and the kernel has enabled in-kernel emulation of the local APIC.
+On newer versions, ``KVM_GET_SUPPORTED_CPUID`` does report the bit as available.
 
 CPU topology
 ~~~~~~~~~~~~
