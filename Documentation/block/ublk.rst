@@ -349,5 +349,3 @@ References
 .. [#userspace_nbdublk] https://gitlab.com/rwmjones/libnbd/-/tree/nbdublk
 
 .. [#userspace_readme] https://github.com/ming1/ubdsrv/blob/master/README
-
-.. [#xiaoguang] https://lore.kernel.org/linux-block/YoOr6jBfgVm8GvWg@stefanha-x1.localdomain/
