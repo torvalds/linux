@@ -136,7 +136,7 @@ static int f2fs_xattr_advise_set(const struct xattr_handler *handler,
 
 #ifdef CONFIG_F2FS_FS_SECURITY
 static int f2fs_initxattrs(struct inode *inode, const struct xattr *xattr_array,
-		void *page)
+		void *folio)
 {
 	const struct xattr *xattr;
 	int err = 0;
@@ -144,7 +144,7 @@ static int f2fs_initxattrs(struct inode *inode, const struct xattr *xattr_array,
 	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
 		err = f2fs_setxattr(inode, F2FS_XATTR_INDEX_SECURITY,
 				xattr->name, xattr->value,
-				xattr->value_len, (struct page *)page, 0);
+				xattr->value_len, folio, 0);
 		if (err < 0)
 			break;
 	}
@@ -152,10 +152,10 @@ static int f2fs_initxattrs(struct inode *inode, const struct xattr *xattr_array,
 }
 
 int f2fs_init_security(struct inode *inode, struct inode *dir,
-				const struct qstr *qstr, struct page *ipage)
+				const struct qstr *qstr, struct folio *ifolio)
 {
 	return security_inode_init_security(inode, dir, qstr,
-				&f2fs_initxattrs, ipage);
+				f2fs_initxattrs, ifolio);
 }
 #endif
 
@@ -800,7 +800,7 @@ exit:
 
 int f2fs_setxattr(struct inode *inode, int index, const char *name,
 				const void *value, size_t size,
-				struct page *ipage, int flags)
+				struct folio *ifolio, int flags)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	int err;
@@ -815,14 +815,14 @@ int f2fs_setxattr(struct inode *inode, int index, const char *name,
 		return err;
 
 	/* this case is only from f2fs_init_inode_metadata */
-	if (ipage)
+	if (ifolio)
 		return __f2fs_setxattr(inode, index, name, value,
-						size, ipage, flags);
+						size, &ifolio->page, flags);
 	f2fs_balance_fs(sbi, true);
 
 	f2fs_lock_op(sbi);
 	f2fs_down_write(&F2FS_I(inode)->i_xattr_sem);
-	err = __f2fs_setxattr(inode, index, name, value, size, ipage, flags);
+	err = __f2fs_setxattr(inode, index, name, value, size, NULL, flags);
 	f2fs_up_write(&F2FS_I(inode)->i_xattr_sem);
 	f2fs_unlock_op(sbi);
 

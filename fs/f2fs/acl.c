@@ -264,7 +264,7 @@ static int __f2fs_set_acl(struct mnt_idmap *idmap,
 		}
 	}
 
-	error = f2fs_setxattr(inode, name_index, "", value, size, &ifolio->page, 0);
+	error = f2fs_setxattr(inode, name_index, "", value, size, ifolio, 0);
 
 	kfree(value);
 	if (!error)

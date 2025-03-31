@@ -543,7 +543,7 @@ struct page *f2fs_init_inode_metadata(struct inode *inode, struct inode *dir,
 
 		err = f2fs_init_security(inode, dir,
 					 fname ? fname->usr_fname : NULL,
-					 &folio->page);
+					 folio);
 		if (err)
 			goto put_error;
 
