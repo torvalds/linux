@@ -2736,8 +2736,8 @@ int f2fs_recover_inline_xattr(struct inode *inode, struct folio *folio)
 		goto update_inode;
 	}
 
-	dst_addr = inline_xattr_addr(inode, &ifolio->page);
-	src_addr = inline_xattr_addr(inode, &folio->page);
+	dst_addr = inline_xattr_addr(inode, ifolio);
+	src_addr = inline_xattr_addr(inode, folio);
 	inline_size = inline_xattr_size(inode);
 
 	f2fs_folio_wait_writeback(ifolio, NODE, true, true);

@@ -3348,9 +3348,9 @@ static inline unsigned int addrs_per_page(struct inode *inode,
 	return addrs;
 }
 
-static inline void *inline_xattr_addr(struct inode *inode, struct page *page)
+static inline void *inline_xattr_addr(struct inode *inode, struct folio *folio)
 {
-	struct f2fs_inode *ri = F2FS_INODE(page);
+	struct f2fs_inode *ri = F2FS_INODE(&folio->page);
 
 	return (void *)&(ri->i_addr[DEF_ADDRS_PER_INODE -
 					get_inline_xattr_addrs(inode)]);

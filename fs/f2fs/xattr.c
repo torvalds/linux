@@ -280,13 +280,13 @@ static int read_inline_xattr(struct inode *inode, struct folio *ifolio,
 	void *inline_addr;
 
 	if (ifolio) {
-		inline_addr = inline_xattr_addr(inode, &ifolio->page);
+		inline_addr = inline_xattr_addr(inode, ifolio);
 	} else {
 		folio = f2fs_get_inode_folio(sbi, inode->i_ino);
 		if (IS_ERR(folio))
 			return PTR_ERR(folio);
 
-		inline_addr = inline_xattr_addr(inode, &folio->page);
+		inline_addr = inline_xattr_addr(inode, folio);
 	}
 	memcpy(txattr_addr, inline_addr, inline_size);
 	f2fs_folio_put(folio, true);
@@ -447,14 +447,14 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 	/* write to inline xattr */
 	if (inline_size) {
 		if (ifolio) {
-			inline_addr = inline_xattr_addr(inode, &ifolio->page);
+			inline_addr = inline_xattr_addr(inode, ifolio);
 		} else {
 			in_folio = f2fs_get_inode_folio(sbi, inode->i_ino);
 			if (IS_ERR(in_folio)) {
 				f2fs_alloc_nid_failed(sbi, new_nid);
 				return PTR_ERR(in_folio);
 			}
-			inline_addr = inline_xattr_addr(inode, &in_folio->page);
+			inline_addr = inline_xattr_addr(inode, in_folio);
 		}
 
 		f2fs_folio_wait_writeback(ifolio ? ifolio : in_folio,
