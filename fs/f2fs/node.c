@@ -1787,7 +1787,7 @@ redirty_out:
 	return AOP_WRITEPAGE_ACTIVATE;
 }
 
-int f2fs_move_node_page(struct page *node_page, int gc_type)
+int f2fs_move_node_folio(struct folio *node_folio, int gc_type)
 {
 	int err = 0;
 
@@ -1798,30 +1798,30 @@ int f2fs_move_node_page(struct page *node_page, int gc_type)
 			.for_reclaim = 0,
 		};
 
-		f2fs_wait_on_page_writeback(node_page, NODE, true, true);
+		f2fs_folio_wait_writeback(node_folio, NODE, true, true);
 
-		set_page_dirty(node_page);
+		folio_mark_dirty(node_folio);
 
-		if (!clear_page_dirty_for_io(node_page)) {
+		if (!folio_clear_dirty_for_io(node_folio)) {
 			err = -EAGAIN;
 			goto out_page;
 		}
 
-		if (__write_node_page(node_page, false, NULL,
+		if (__write_node_page(&node_folio->page, false, NULL,
 					&wbc, false, FS_GC_NODE_IO, NULL)) {
 			err = -EAGAIN;
-			unlock_page(node_page);
+			folio_unlock(node_folio);
 		}
 		goto release_page;
 	} else {
 		/* set page dirty and write it */
-		if (!folio_test_writeback(page_folio(node_page)))
-			set_page_dirty(node_page);
+		if (!folio_test_writeback(node_folio))
+			folio_mark_dirty(node_folio);
 	}
 out_page:
-	unlock_page(node_page);
+	folio_unlock(node_folio);
 release_page:
-	f2fs_put_page(node_page, 0);
+	f2fs_folio_put(node_folio, false);
 	return err;
 }
 
