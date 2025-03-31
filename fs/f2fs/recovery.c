@@ -212,7 +212,7 @@ retry:
 			iput(einode);
 			goto out_put;
 		}
-		f2fs_delete_entry(de, &folio->page, dir, einode);
+		f2fs_delete_entry(de, folio, dir, einode);
 		iput(einode);
 		goto retry;
 	} else if (IS_ERR(folio)) {

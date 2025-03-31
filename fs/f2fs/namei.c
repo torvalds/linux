@@ -587,7 +587,7 @@ static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
 		f2fs_folio_put(folio, false);
 		goto fail;
 	}
-	f2fs_delete_entry(de, &folio->page, dir, inode);
+	f2fs_delete_entry(de, folio, dir, inode);
 	f2fs_unlock_op(sbi);
 
 	/* VFS negative dentries are incompatible with Encoding and
@@ -1047,7 +1047,7 @@ static int f2fs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	inode_set_ctime_current(old_inode);
 	f2fs_mark_inode_dirty_sync(old_inode, false);
 
-	f2fs_delete_entry(old_entry, &old_folio->page, old_dir, NULL);
+	f2fs_delete_entry(old_entry, old_folio, old_dir, NULL);
 	old_folio = NULL;
 
 	if (whiteout) {

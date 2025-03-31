@@ -861,13 +861,13 @@ void f2fs_drop_nlink(struct inode *dir, struct inode *inode)
  * It only removes the dentry from the dentry page, corresponding name
  * entry in name page does not need to be touched during deletion.
  */
-void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
+void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct folio *folio,
 					struct inode *dir, struct inode *inode)
 {
-	struct	f2fs_dentry_block *dentry_blk;
+	struct f2fs_dentry_block *dentry_blk;
 	unsigned int bit_pos;
 	int slots = GET_DENTRY_SLOTS(le16_to_cpu(dentry->name_len));
-	pgoff_t index = page_folio(page)->index;
+	pgoff_t index = folio->index;
 	int i;
 
 	f2fs_update_time(F2FS_I_SB(dir), REQ_TIME);
@@ -876,12 +876,12 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 		f2fs_add_ino_entry(F2FS_I_SB(dir), dir->i_ino, TRANS_DIR_INO);
 
 	if (f2fs_has_inline_dentry(dir))
-		return f2fs_delete_inline_entry(dentry, page, dir, inode);
+		return f2fs_delete_inline_entry(dentry, &folio->page, dir, inode);
 
-	lock_page(page);
-	f2fs_wait_on_page_writeback(page, DATA, true, true);
+	folio_lock(folio);
+	f2fs_folio_wait_writeback(folio, DATA, true, true);
 
-	dentry_blk = page_address(page);
+	dentry_blk = folio_address(folio);
 	bit_pos = dentry - dentry_blk->dentry;
 	for (i = 0; i < slots; i++)
 		__clear_bit_le(bit_pos + i, &dentry_blk->dentry_bitmap);
@@ -890,19 +890,19 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 	bit_pos = find_next_bit_le(&dentry_blk->dentry_bitmap,
 			NR_DENTRY_IN_BLOCK,
 			0);
-	set_page_dirty(page);
+	folio_mark_dirty(folio);
 
 	if (bit_pos == NR_DENTRY_IN_BLOCK &&
 		!f2fs_truncate_hole(dir, index, index + 1)) {
-		f2fs_clear_page_cache_dirty_tag(page_folio(page));
-		clear_page_dirty_for_io(page);
-		ClearPageUptodate(page);
-		clear_page_private_all(page);
+		f2fs_clear_page_cache_dirty_tag(folio);
+		folio_clear_dirty_for_io(folio);
+		folio_clear_uptodate(folio);
+		clear_page_private_all(&folio->page);
 
 		inode_dec_dirty_pages(dir);
 		f2fs_remove_dirty_inode(dir);
 	}
-	f2fs_put_page(page, 1);
+	f2fs_folio_put(folio, true);
 
 	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	f2fs_mark_inode_dirty_sync(dir, false);
