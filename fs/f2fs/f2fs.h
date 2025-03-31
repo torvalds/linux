@@ -4301,7 +4301,7 @@ struct f2fs_dir_entry *f2fs_find_in_inline_dir(struct inode *dir,
 					struct page **res_page,
 					bool use_hash);
 int f2fs_make_empty_inline_dir(struct inode *inode, struct inode *parent,
-			struct page *ipage);
+			struct folio *ifolio);
 int f2fs_add_inline_entry(struct inode *dir, const struct f2fs_filename *fname,
 			struct inode *inode, nid_t ino, umode_t mode);
 void f2fs_delete_inline_entry(struct f2fs_dir_entry *dentry,

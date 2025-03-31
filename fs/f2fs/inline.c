@@ -385,17 +385,17 @@ struct f2fs_dir_entry *f2fs_find_in_inline_dir(struct inode *dir,
 }
 
 int f2fs_make_empty_inline_dir(struct inode *inode, struct inode *parent,
-							struct page *ipage)
+							struct folio *ifolio)
 {
 	struct f2fs_dentry_ptr d;
 	void *inline_dentry;
 
-	inline_dentry = inline_data_addr(inode, ipage);
+	inline_dentry = inline_data_addr(inode, &ifolio->page);
 
 	make_dentry_ptr_inline(inode, &d, inline_dentry);
 	f2fs_do_make_empty_dir(inode, parent, &d);
 
-	set_page_dirty(ipage);
+	folio_mark_dirty(ifolio);
 
 	/* update i_size to MAX_INLINE_DATA */
 	if (i_size_read(inode) < MAX_INLINE_DATA(inode))

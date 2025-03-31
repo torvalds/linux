@@ -499,7 +499,7 @@ static int make_empty_dir(struct inode *inode,
 	struct f2fs_dentry_ptr d;
 
 	if (f2fs_has_inline_dentry(inode))
-		return f2fs_make_empty_inline_dir(inode, parent, &folio->page);
+		return f2fs_make_empty_inline_dir(inode, parent, folio);
 
 	dentry_folio = f2fs_get_new_data_folio(inode, folio, 0, true);
 	if (IS_ERR(dentry_folio))
