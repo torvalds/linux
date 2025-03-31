@@ -44,6 +44,8 @@ struct alloc_request {
 	struct bch_dev_usage	usage;
 
 	/* bch2_bucket_alloc_trans(): */
+	struct bch_dev		*ca;
+
 	enum {
 				BTREE_BITMAP_NO,
 				BTREE_BITMAP_YES,

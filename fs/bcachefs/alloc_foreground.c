@@ -206,11 +206,13 @@ static inline bool may_alloc_bucket(struct bch_fs *c,
 	return true;
 }
 
-static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
+static struct open_bucket *__try_alloc_bucket(struct bch_fs *c,
 					      struct alloc_request *req,
 					      u64 bucket, u8 gen,
 					      struct closure *cl)
 {
+	struct bch_dev *ca = req->ca;
+
 	if (unlikely(is_superblock_bucket(c, ca, bucket)))
 		return NULL;
 
@@ -257,7 +259,7 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *
 	return ob;
 }
 
-static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bch_dev *ca,
+static struct open_bucket *try_alloc_bucket(struct btree_trans *trans,
 					    struct alloc_request *req,
 					    struct btree_iter *freespace_iter,
 					    struct closure *cl)
@@ -265,7 +267,7 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 	struct bch_fs *c = trans->c;
 	u64 b = freespace_iter->pos.offset & ~(~0ULL << 56);
 
-	if (!may_alloc_bucket(c, req, POS(ca->dev_idx, b)))
+	if (!may_alloc_bucket(c, req, POS(req->ca->dev_idx, b)))
 		return NULL;
 
 	u8 gen;
@@ -275,7 +277,7 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 	if (ret)
 		return NULL;
 
-	return __try_alloc_bucket(c, ca, req, b, gen, cl);
+	return __try_alloc_bucket(c, req, b, gen, cl);
 }
 
 /*
@@ -283,11 +285,11 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
  */
 static noinline struct open_bucket *
 bch2_bucket_alloc_early(struct btree_trans *trans,
-			struct bch_dev *ca,
 			struct alloc_request *req,
 			struct closure *cl)
 {
 	struct bch_fs *c = trans->c;
+	struct bch_dev *ca = req->ca;
 	struct btree_iter iter, citer;
 	struct bkey_s_c k, ck;
 	struct open_bucket *ob = NULL;
@@ -348,7 +350,7 @@ again:
 		req->counters.buckets_seen++;
 
 		ob = may_alloc_bucket(c, req, k.k->p)
-			? __try_alloc_bucket(c, ca, req, k.k->p.offset, a->gen, cl)
+			? __try_alloc_bucket(c, req, k.k->p.offset, a->gen, cl)
 			: NULL;
 next:
 		bch2_set_btree_iter_dontneed(trans, &citer);
@@ -374,10 +376,10 @@ next:
 }
 
 static struct open_bucket *bch2_bucket_alloc_freelist(struct btree_trans *trans,
-						   struct bch_dev *ca,
-						   struct alloc_request *req,
-						   struct closure *cl)
+						      struct alloc_request *req,
+						      struct closure *cl)
 {
+	struct bch_dev *ca = req->ca;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct open_bucket *ob = NULL;
@@ -417,7 +419,7 @@ again:
 				goto next;
 			}
 
-			ob = try_alloc_bucket(trans, ca, req, &iter, cl);
+			ob = try_alloc_bucket(trans, req, &iter, cl);
 			if (ob) {
 				if (!IS_ERR(ob))
 					*dev_alloc_cursor = iter.pos.offset;
@@ -448,7 +450,7 @@ fail:
 	return ob;
 }
 
-static noinline void trace_bucket_alloc2(struct bch_fs *c, struct bch_dev *ca,
+static noinline void trace_bucket_alloc2(struct bch_fs *c,
 					 struct alloc_request *req,
 					 struct closure *cl,
 					 struct open_bucket *ob)
@@ -457,12 +459,12 @@ static noinline void trace_bucket_alloc2(struct bch_fs *c, struct bch_dev *ca,
 
 	printbuf_tabstop_push(&buf, 24);
 
-	prt_printf(&buf, "dev\t%s (%u)\n",	ca->name, ca->dev_idx);
+	prt_printf(&buf, "dev\t%s (%u)\n",	req->ca->name, req->ca->dev_idx);
 	prt_printf(&buf, "watermark\t%s\n",	bch2_watermarks[req->watermark]);
 	prt_printf(&buf, "data type\t%s\n",	__bch2_data_types[req->data_type]);
 	prt_printf(&buf, "blocking\t%u\n",	cl != NULL);
 	prt_printf(&buf, "free\t%llu\n",	req->usage.buckets[BCH_DATA_free]);
-	prt_printf(&buf, "avail\t%llu\n",	dev_buckets_free(ca, req->usage, req->watermark));
+	prt_printf(&buf, "avail\t%llu\n",	dev_buckets_free(req->ca, req->usage, req->watermark));
 	prt_printf(&buf, "copygc_wait\t%lu/%lli\n",
 		   bch2_copygc_wait_amount(c),
 		   c->copygc_wait - atomic64_read(&c->io_clock[WRITE].now));
@@ -488,7 +490,6 @@ static noinline void trace_bucket_alloc2(struct bch_fs *c, struct bch_dev *ca,
  * bch2_bucket_alloc_trans - allocate a single bucket from a specific device
  * @trans:	transaction object
  * @req:	state for the entire allocation
- * @ca:		device to allocate from
  * @cl:		if not NULL, closure to be used to wait if buckets not available
  * @nowait:	if true, do not wait for buckets to become available
  *
@@ -496,11 +497,11 @@ static noinline void trace_bucket_alloc2(struct bch_fs *c, struct bch_dev *ca,
  */
 static struct open_bucket *bch2_bucket_alloc_trans(struct btree_trans *trans,
 						   struct alloc_request *req,
-						   struct bch_dev *ca,
 						   struct closure *cl,
 						   bool nowait)
 {
 	struct bch_fs *c = trans->c;
+	struct bch_dev *ca = req->ca;
 	struct open_bucket *ob = NULL;
 	bool freespace = READ_ONCE(ca->mi.freespace_initialized);
 	u64 avail;
@@ -542,8 +543,8 @@ again:
 		closure_wake_up(&c->freelist_wait);
 alloc:
 	ob = likely(freespace)
-		? bch2_bucket_alloc_freelist(trans, ca, req, cl)
-		: bch2_bucket_alloc_early(trans, ca, req, cl);
+		? bch2_bucket_alloc_freelist(trans, req, cl)
+		: bch2_bucket_alloc_early(trans, req, cl);
 
 	if (req->counters.need_journal_commit * 2 > avail)
 		bch2_journal_flush_async(&c->journal, NULL);
@@ -572,7 +573,7 @@ err:
 	if (!IS_ERR(ob)
 	    ? trace_bucket_alloc_enabled()
 	    : trace_bucket_alloc_fail_enabled())
-		trace_bucket_alloc2(c, ca, req, cl, ob);
+		trace_bucket_alloc2(c, req, cl, ob);
 
 	return ob;
 }
@@ -586,10 +587,11 @@ struct open_bucket *bch2_bucket_alloc(struct bch_fs *c, struct bch_dev *ca,
 	struct alloc_request req = {
 		.watermark	= watermark,
 		.data_type	= data_type,
+		.ca		= ca,
 	};
 
 	bch2_trans_do(c,
-		PTR_ERR_OR_ZERO(ob = bch2_bucket_alloc_trans(trans, &req, ca, cl, false)));
+		PTR_ERR_OR_ZERO(ob = bch2_bucket_alloc_trans(trans, &req, cl, false)));
 	return ob;
 }
 
@@ -715,20 +717,20 @@ int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 
 	struct dev_alloc_list devs_sorted = bch2_dev_alloc_list(c, stripe, &req->devs_may_alloc);
 	darray_for_each(devs_sorted, i) {
-		struct bch_dev *ca = bch2_dev_tryget_noerror(c, *i);
-		if (!ca)
+		req->ca = bch2_dev_tryget_noerror(c, *i);
+		if (!req->ca)
 			continue;
 
-		if (!ca->mi.durability && req->have_cache) {
-			bch2_dev_put(ca);
+		if (!req->ca->mi.durability && req->have_cache) {
+			bch2_dev_put(req->ca);
 			continue;
 		}
 
-		struct open_bucket *ob = bch2_bucket_alloc_trans(trans, req, ca, cl,
+		struct open_bucket *ob = bch2_bucket_alloc_trans(trans, req, cl,
 							req->flags & BCH_WRITE_alloc_nowait);
 		if (!IS_ERR(ob))
-			bch2_dev_stripe_increment_inlined(ca, stripe, &req->usage);
-		bch2_dev_put(ca);
+			bch2_dev_stripe_increment_inlined(req->ca, stripe, &req->usage);
+		bch2_dev_put(req->ca);
 
 		if (IS_ERR(ob)) {
 			ret = PTR_ERR(ob);
