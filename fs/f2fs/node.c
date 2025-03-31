@@ -3173,15 +3173,15 @@ static int __get_nat_bitmaps(struct f2fs_sb_info *sbi)
 	nat_bits_addr = __start_cp_addr(sbi) + BLKS_PER_SEG(sbi) -
 						nm_i->nat_bits_blocks;
 	for (i = 0; i < nm_i->nat_bits_blocks; i++) {
-		struct page *page;
+		struct folio *folio;
 
-		page = f2fs_get_meta_page(sbi, nat_bits_addr++);
-		if (IS_ERR(page))
-			return PTR_ERR(page);
+		folio = f2fs_get_meta_folio(sbi, nat_bits_addr++);
+		if (IS_ERR(folio))
+			return PTR_ERR(folio);
 
 		memcpy(nm_i->nat_bits + F2FS_BLK_TO_BYTES(i),
-					page_address(page), F2FS_BLKSIZE);
-		f2fs_put_page(page, 1);
+					folio_address(folio), F2FS_BLKSIZE);
+		f2fs_folio_put(folio, true);
 	}
 
 	cp_ver |= (cur_cp_crc(ckpt) << 32);
