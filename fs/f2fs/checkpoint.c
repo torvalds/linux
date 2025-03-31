@@ -340,12 +340,11 @@ void f2fs_ra_meta_pages_cond(struct f2fs_sb_info *sbi, pgoff_t index,
 		f2fs_ra_meta_pages(sbi, index, ra_blocks, META_POR, true);
 }
 
-static int __f2fs_write_meta_page(struct page *page,
+static int __f2fs_write_meta_folio(struct folio *folio,
 				struct writeback_control *wbc,
 				enum iostat_type io_type)
 {
-	struct f2fs_sb_info *sbi = F2FS_P_SB(page);
-	struct folio *folio = page_folio(page);
+	struct f2fs_sb_info *sbi = F2FS_F_SB(folio);
 
 	trace_f2fs_writepage(folio, META);
 
@@ -367,7 +366,7 @@ static int __f2fs_write_meta_page(struct page *page,
 	dec_page_count(sbi, F2FS_DIRTY_META);
 
 	if (wbc->for_reclaim)
-		f2fs_submit_merged_write_cond(sbi, NULL, page, 0, META);
+		f2fs_submit_merged_write_cond(sbi, NULL, &folio->page, 0, META);
 
 	folio_unlock(folio);
 
@@ -377,7 +376,7 @@ static int __f2fs_write_meta_page(struct page *page,
 	return 0;
 
 redirty_out:
-	redirty_page_for_writepage(wbc, page);
+	folio_redirty_for_writepage(wbc, folio);
 	return AOP_WRITEPAGE_ACTIVATE;
 }
 
@@ -463,7 +462,7 @@ continue_unlock:
 			if (!folio_clear_dirty_for_io(folio))
 				goto continue_unlock;
 
-			if (__f2fs_write_meta_page(&folio->page, &wbc,
+			if (__f2fs_write_meta_folio(folio, &wbc,
 						io_type)) {
 				folio_unlock(folio);
 				break;
@@ -1421,7 +1420,7 @@ static void commit_checkpoint(struct f2fs_sb_info *sbi,
 		f2fs_bug_on(sbi, 1);
 
 	/* writeout cp pack 2 page */
-	err = __f2fs_write_meta_page(&folio->page, &wbc, FS_CP_META_IO);
+	err = __f2fs_write_meta_folio(folio, &wbc, FS_CP_META_IO);
 	if (unlikely(err && f2fs_cp_error(sbi))) {
 		f2fs_folio_put(folio, true);
 		return;
