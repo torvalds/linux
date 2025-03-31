@@ -913,7 +913,6 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 bool f2fs_empty_dir(struct inode *dir)
 {
 	unsigned long bidx = 0;
-	struct page *dentry_page;
 	unsigned int bit_pos;
 	struct f2fs_dentry_block *dentry_blk;
 	unsigned long nblock = dir_blocks(dir);
@@ -923,10 +922,11 @@ bool f2fs_empty_dir(struct inode *dir)
 
 	while (bidx < nblock) {
 		pgoff_t next_pgofs;
+		struct folio *dentry_folio;
 
-		dentry_page = f2fs_find_data_page(dir, bidx, &next_pgofs);
-		if (IS_ERR(dentry_page)) {
-			if (PTR_ERR(dentry_page) == -ENOENT) {
+		dentry_folio = f2fs_find_data_folio(dir, bidx, &next_pgofs);
+		if (IS_ERR(dentry_folio)) {
+			if (PTR_ERR(dentry_folio) == -ENOENT) {
 				bidx = next_pgofs;
 				continue;
 			} else {
@@ -934,7 +934,7 @@ bool f2fs_empty_dir(struct inode *dir)
 			}
 		}
 
-		dentry_blk = page_address(dentry_page);
+		dentry_blk = folio_address(dentry_folio);
 		if (bidx == 0)
 			bit_pos = 2;
 		else
@@ -943,7 +943,7 @@ bool f2fs_empty_dir(struct inode *dir)
 						NR_DENTRY_IN_BLOCK,
 						bit_pos);
 
-		f2fs_put_page(dentry_page, 0);
+		f2fs_folio_put(dentry_folio, false);
 
 		if (bit_pos < NR_DENTRY_IN_BLOCK)
 			return false;
