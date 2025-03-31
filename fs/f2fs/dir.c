@@ -665,7 +665,7 @@ int f2fs_add_regular_entry(struct inode *dir, const struct f2fs_filename *fname,
 	unsigned int current_depth;
 	unsigned long bidx, block;
 	unsigned int nbucket, nblock;
-	struct page *dentry_page = NULL;
+	struct folio *dentry_folio = NULL;
 	struct f2fs_dentry_block *dentry_blk = NULL;
 	struct f2fs_dentry_ptr d;
 	struct page *page = NULL;
@@ -698,24 +698,24 @@ start:
 				(le32_to_cpu(fname->hash) % nbucket));
 
 	for (block = bidx; block <= (bidx + nblock - 1); block++) {
-		dentry_page = f2fs_get_new_data_page(dir, NULL, block, true);
-		if (IS_ERR(dentry_page))
-			return PTR_ERR(dentry_page);
+		dentry_folio = f2fs_get_new_data_folio(dir, NULL, block, true);
+		if (IS_ERR(dentry_folio))
+			return PTR_ERR(dentry_folio);
 
-		dentry_blk = page_address(dentry_page);
+		dentry_blk = folio_address(dentry_folio);
 		bit_pos = f2fs_room_for_filename(&dentry_blk->dentry_bitmap,
 						slots, NR_DENTRY_IN_BLOCK);
 		if (bit_pos < NR_DENTRY_IN_BLOCK)
 			goto add_dentry;
 
-		f2fs_put_page(dentry_page, 1);
+		f2fs_folio_put(dentry_folio, true);
 	}
 
 	/* Move to next level to find the empty slot for new dentry */
 	++level;
 	goto start;
 add_dentry:
-	f2fs_wait_on_page_writeback(dentry_page, DATA, true, true);
+	f2fs_folio_wait_writeback(dentry_folio, DATA, true, true);
 
 	if (inode) {
 		f2fs_down_write(&F2FS_I(inode)->i_sem);
@@ -730,7 +730,7 @@ add_dentry:
 	f2fs_update_dentry(ino, mode, &d, &fname->disk_name, fname->hash,
 			   bit_pos);
 
-	set_page_dirty(dentry_page);
+	folio_mark_dirty(dentry_folio);
 
 	if (inode) {
 		f2fs_i_pino_write(inode, dir->i_ino);
@@ -747,7 +747,7 @@ fail:
 	if (inode)
 		f2fs_up_write(&F2FS_I(inode)->i_sem);
 
-	f2fs_put_page(dentry_page, 1);
+	f2fs_folio_put(dentry_folio, true);
 
 	return err;
 }
