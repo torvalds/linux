@@ -212,12 +212,11 @@ static int hdc100x_read_raw(struct iio_dev *indio_dev,
 			*val = hdc100x_get_heater_status(data);
 			return IIO_VAL_INT;
 		}
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
 		ret = hdc100x_get_measurement(data, chan);
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 		if (ret < 0)
 			return ret;
 		*val = ret;
