@@ -15,7 +15,7 @@
 #define INTERRUPT_CNT_NAME "interrupt-cnt"
 
 struct interrupt_cnt_priv {
-	atomic_t count;
+	atomic_long_t count;
 	struct gpio_desc *gpio;
 	int irq;
 	bool enabled;
@@ -29,7 +29,7 @@ static irqreturn_t interrupt_cnt_isr(int irq, void *dev_id)
 	struct counter_device *counter = dev_id;
 	struct interrupt_cnt_priv *priv = counter_priv(counter);
 
-	atomic_inc(&priv->count);
+	atomic_long_inc(&priv->count);
 
 	counter_push_event(counter, COUNTER_EVENT_CHANGE_OF_STATE, 0);
 
@@ -89,7 +89,7 @@ static int interrupt_cnt_read(struct counter_device *counter,
 {
 	struct interrupt_cnt_priv *priv = counter_priv(counter);
 
-	*val = atomic_read(&priv->count);
+	*val = atomic_long_read(&priv->count);
 
 	return 0;
 }
@@ -102,7 +102,7 @@ static int interrupt_cnt_write(struct counter_device *counter,
 	if (val != (typeof(priv->count.counter))val)
 		return -ERANGE;
 
-	atomic_set(&priv->count, val);
+	atomic_long_set(&priv->count, val);
 
 	return 0;
 }
