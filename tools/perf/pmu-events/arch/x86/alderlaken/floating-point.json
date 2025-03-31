@@ -1,5 +1,21 @@
 [
     {
+        "BriefDescription": "Counts the number of cycles the floating point divider is in the loop stage.",
+        "Counter": "0,1,2,3,4,5",
+        "EventCode": "0xcd",
+        "EventName": "ARITH.FPDIV_ACTIVE",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Counts the number of floating point divider uops executed per cycle.",
+        "Counter": "0,1,2,3,4,5",
+        "EventCode": "0xcd",
+        "EventName": "ARITH.FPDIV_UOPS",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8"
+    },
+    {
         "BriefDescription": "Counts the number of floating point operations retired that required microcode assist.",
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc3",
@@ -13,7 +29,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc2",
         "EventName": "UOPS_RETIRED.FPDIV",
-        "PEBS": "1",
         "SampleAfterValue": "2000003",
         "UMask": "0x8"
     }

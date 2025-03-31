@@ -1,6 +1,6 @@
 [
     {
-        "BriefDescription": "UNC_ARB_COH_TRK_REQUESTS.ALL",
+        "BriefDescription": "Number of entries allocated. Account for Any type: e.g. Snoop,  etc.",
         "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_ARB_COH_TRK_REQUESTS.ALL",
@@ -90,7 +90,7 @@
         "Unit": "ARB"
     },
     {
-        "BriefDescription": "UNC_ARB_TRK_REQUESTS.ALL",
+        "BriefDescription": "Total number of all outgoing entries allocated. Accounts for Coherent and non-coherent traffic.",
         "Counter": "0,1",
         "EventCode": "0x81",
         "EventName": "UNC_ARB_TRK_REQUESTS.ALL",

@@ -5,24 +5,31 @@
 
 import perf
 
-class tracepoint(perf.evsel):
-    def __init__(self, sys, name):
-        config = perf.tracepoint(sys, name)
-        perf.evsel.__init__(self,
-                            type   = perf.TYPE_TRACEPOINT,
-                            config = config,
-                            freq = 0, sample_period = 1, wakeup_events = 1,
-                            sample_type = perf.SAMPLE_PERIOD | perf.SAMPLE_TID | perf.SAMPLE_CPU | perf.SAMPLE_RAW | perf.SAMPLE_TIME)
+def change_proctitle():
+    try:
+        import setproctitle
+        setproctitle.setproctitle("tracepoint.py")
+    except:
+        print("Install the setproctitle python package to help with top and friends")
 
 def main():
-    tp      = tracepoint("sched", "sched_switch")
+    change_proctitle()
     cpus    = perf.cpu_map()
     threads = perf.thread_map(-1)
+    evlist = perf.parse_events("sched:sched_switch", cpus, threads)
+    # Disable tracking of mmaps and similar that are unnecessary.
+    for ev in evlist:
+        ev.tracking = False
+    # Configure evsels with default record options.
+    evlist.config()
+    # Simplify the sample_type and read_format of evsels
+    for ev in evlist:
+        ev.sample_type = ev.sample_type & ~perf.SAMPLE_IP
+        ev.read_format = 0
 
-    evlist = perf.evlist(cpus, threads)
-    evlist.add(tp)
     evlist.open()
     evlist.mmap()
+    evlist.enable();
 
     while True:
         evlist.poll(timeout = -1)

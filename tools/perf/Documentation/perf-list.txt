@@ -27,7 +27,7 @@ Don't print descriptions.
 
 -v::
 --long-desc::
-Print longer event descriptions.
+Print longer event descriptions and all similar PMUs with alphanumeric suffixes.
 
 --debug::
 Enable debugging output.
@@ -188,7 +188,7 @@ in the CPU vendor specific documentation.
 
 The available PMUs and their raw parameters can be listed with
 
-  ls /sys/devices/*/format
+  ls /sys/bus/event_source/devices/*/format
 
 For example the raw event "LSD.UOPS" core pmu event above could
 be specified as

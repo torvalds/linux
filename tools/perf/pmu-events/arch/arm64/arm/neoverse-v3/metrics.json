@@ -1,0 +1,457 @@
+[
+    {
+        "ArchStdEvent": "backend_bound"
+    },
+    {
+        "MetricName": "backend_busy_bound",
+        "MetricExpr": "STALL_BACKEND_BUSY / STALL_BACKEND * 100",
+        "BriefDescription": "This metric is the percentage of total cycles stalled in the backend due to issue queues being full to accept operations for execution.",
+        "MetricGroup": "Topdown_Backend",
+        "ScaleUnit": "1percent of cycles"
+    },
+    {
+        "MetricName": "backend_cache_l1d_bound",
+        "MetricExpr": "STALL_BACKEND_L1D / (STALL_BACKEND_L1D + STALL_BACKEND_MEM) * 100",
+        "BriefDescription": "This metric is the percentage of total cycles stalled in the backend due to memory access latency issues caused by level 1 data cache misses.",
+        "MetricGroup": "Topdown_Backend",
+        "ScaleUnit": "1percent of cycles"
+    },
+    {
+        "MetricName": "backend_cache_l2d_bound",
+        "MetricExpr": "STALL_BACKEND_MEM / (STALL_BACKEND_L1D + STALL_BACKEND_MEM) * 100",
+        "BriefDescription": "This metric is the percentage of total cycles stalled in the backend due to memory access latency issues caused by level 2 data cache misses.",
+        "MetricGroup": "Topdown_Backend",
+        "ScaleUnit": "1percent of cycles"
+    },
+    {
+        "MetricName": "backend_core_bound",
+        "MetricExpr": "STALL_BACKEND_CPUBOUND / STALL_BACKEND * 100",
+        "BriefDescription": "This metric is the percentage of total cycles stalled in the backend due to backend core resource constraints not related to instruction fetch latency issues caused by memory access components.",
+        "MetricGroup": "Topdown_Backend",
+        "ScaleUnit": "1percent of cycles"
+    },
+    {
+        "MetricName": "backend_core_rename_bound",
+        "MetricExpr": "STALL_BACKEND_RENAME / STALL_BACKEND_CPUBOUND * 100",
+        "BriefDescription": "This metric is the percentage of total cycles stalled in the backend as the rename unit registers are unavailable.",
+        "MetricGroup": "Topdown_Backend",
+        "ScaleUnit": "1percent of cycles"
+    },
+    {
+        "MetricName": "backend_mem_bound",
+        "MetricExpr": "STALL_BACKEND_MEMBOUND / STALL_BACKEND * 100",
+        "BriefDescription": "This metric is the percentage of total cycles stalled in the backend due to backend core resource constraints related to memory access latency issues caused by memory access components.",
+        "MetricGroup": "Topdown_Backend",
+        "ScaleUnit": "1percent of cycles"
+    },
+    {
+        "MetricName": "backend_mem_cache_bound",
+        "MetricExpr": "(STALL_BACKEND_L1D + STALL_BACKEND_MEM) / STALL_BACKEND_MEMBOUND * 100",
+        "BriefDescription": "This metric is the percentage of total cycles stalled in the backend due to memory latency issues caused by data cache misses.",
+        "MetricGroup": "Topdown_Backend",
+        "ScaleUnit": "1percent of cycles"
+    },
+    {
+        "MetricName": "backend_mem_store_bound",
+        "MetricExpr": "STALL_BACKEND_ST / STALL_BACKEND_MEMBOUND * 100",
+        "BriefDescription": "This metric is the percentage of total cycles stalled in the frontend due to memory write pending caused by stores stalled in the pre-commit stage.",
+        "MetricGroup": "Topdown_Backend",
+        "ScaleUnit": "1percent of cycles"
+    },
+    {
+        "MetricName": "backend_mem_tlb_bound",
+        "MetricExpr": "STALL_BACKEND_TLB / STALL_BACKEND_MEMBOUND * 100",
+        "BriefDescription": "This metric is the percentage of total cycles stalled in the backend due to memory access latency issues caused by data TLB misses.",
+        "MetricGroup": "Topdown_Backend",
+        "ScaleUnit": "1percent of cycles"
+    },
+    {
+        "MetricName": "backend_stalled_cycles",
+        "MetricExpr": "STALL_BACKEND / CPU_CYCLES * 100",
+        "BriefDescription": "This metric is the percentage of cycles that were stalled due to resource constraints in the backend unit of the processor.",
+        "MetricGroup": "Cycle_Accounting",
+        "ScaleUnit": "1percent of cycles"
+    },
+    {
+        "ArchStdEvent": "bad_speculation",
+        "MetricExpr": "(1 - STALL_SLOT / (10 * CPU_CYCLES)) * (1 - OP_RETIRED / OP_SPEC) * 100 + STALL_FRONTEND_FLUSH / CPU_CYCLES * 100"
+    },
+    {
+        "MetricName": "barrier_percentage",
+        "MetricExpr": "(ISB_SPEC + DSB_SPEC + DMB_SPEC) / INST_SPEC * 100",
+        "BriefDescription": "This metric measures instruction and data barrier operations as a percentage of operations speculatively executed.",
+        "MetricGroup": "Operation_Mix",
+        "ScaleUnit": "1percent of operations"
+    },
+    {
+        "MetricName": "branch_direct_ratio",
+        "MetricExpr": "BR_IMMED_RETIRED / BR_RETIRED",
+        "BriefDescription": "This metric measures the ratio of direct branches retired to the total number of branches architecturally executed.",
+        "MetricGroup": "Branch_Effectiveness",
+        "ScaleUnit": "1per branch"
+    },
+    {
+        "MetricName": "branch_indirect_ratio",
+        "MetricExpr": "BR_IND_RETIRED / BR_RETIRED",
+        "BriefDescription": "This metric measures the ratio of indirect branches retired, including function returns, to the total number of branches architecturally executed.",
+        "MetricGroup": "Branch_Effectiveness",
+        "ScaleUnit": "1per branch"
+    },
+    {
+        "MetricName": "branch_misprediction_ratio",
+        "MetricExpr": "BR_MIS_PRED_RETIRED / BR_RETIRED",
+        "BriefDescription": "This metric measures the ratio of branches mispredicted to the total number of branches architecturally executed. This gives an indication of the effectiveness of the branch prediction unit.",
+        "MetricGroup": "Miss_Ratio;Branch_Effectiveness",
+        "ScaleUnit": "100percent of branches"
+    },
+    {
+        "MetricName": "branch_mpki",
+        "MetricExpr": "BR_MIS_PRED_RETIRED / INST_RETIRED * 1000",
+        "BriefDescription": "This metric measures the number of branch mispredictions per thousand instructions executed.",
+        "MetricGroup": "MPKI;Branch_Effectiveness",
+        "ScaleUnit": "1MPKI"
+    },
+    {
+        "MetricName": "branch_percentage",
+        "MetricExpr": "(BR_IMMED_SPEC + BR_INDIRECT_SPEC) / INST_SPEC * 100",
+        "BriefDescription": "This metric measures branch operations as a percentage of operations speculatively executed.",
+        "MetricGroup": "Operation_Mix",
+        "ScaleUnit": "1percent of operations"
+    },
+    {
+        "MetricName": "branch_return_ratio",
+        "MetricExpr": "BR_RETURN_RETIRED / BR_RETIRED",
+        "BriefDescription": "This metric measures the ratio of branches retired that are function returns to the total number of branches architecturally executed.",
+        "MetricGroup": "Branch_Effectiveness",
+        "ScaleUnit": "1per branch"
+    },
+    {
+        "MetricName": "crypto_percentage",
+        "MetricExpr": "CRYPTO_SPEC / INST_SPEC * 100",
+        "BriefDescription": "This metric measures crypto operations as a percentage of operations speculatively executed.",
+        "MetricGroup": "Operation_Mix",
+        "ScaleUnit": "1percent of operations"
+    },
+    {
+        "MetricName": "dtlb_mpki",
+        "MetricExpr": "DTLB_WALK / INST_RETIRED * 1000",
+        "BriefDescription": "This metric measures the number of data TLB Walks per thousand instructions executed.",
+        "MetricGroup": "MPKI;DTLB_Effectiveness",
+        "ScaleUnit": "1MPKI"
+    },
+    {
+        "MetricName": "dtlb_walk_ratio",
+        "MetricExpr": "DTLB_WALK / L1D_TLB",
+        "BriefDescription": "This metric measures the ratio of data TLB Walks to the total number of data TLB accesses. This gives an indication of the effectiveness of the data TLB accesses.",
+        "MetricGroup": "Miss_Ratio;DTLB_Effectiveness",
+        "ScaleUnit": "100percent of TLB accesses"
+    },
+    {
+        "MetricName": "fp16_percentage",
+        "MetricExpr": "FP_HP_SPEC / INST_SPEC * 100",
+        "BriefDescription": "This metric measures half-precision floating point operations as a percentage of operations speculatively executed.",
+        "MetricGroup": "FP_Precision_Mix",
+        "ScaleUnit": "1percent of operations"
+    },
+    {
+        "MetricName": "fp32_percentage",
+        "MetricExpr": "FP_SP_SPEC / INST_SPEC * 100",
+        "BriefDescription": "This metric measures single-precision floating point operations as a percentage of operations speculatively executed.",
+        "MetricGroup": "FP_Precision_Mix",
+        "ScaleUnit": "1percent of operations"
+    },
+    {
+        "MetricName": "fp64_percentage",
+        "MetricExpr": "FP_DP_SPEC / INST_SPEC * 100",
+        "BriefDescription": "This metric measures double-precision floating point operations as a percentage of operations speculatively executed.",
+        "MetricGroup": "FP_Precision_Mix",
+        "ScaleUnit": "1percent of operations"
+    },
+    {
+        "MetricName": "fp_ops_per_cycle",
+        "MetricExpr": "(FP_SCALE_OPS_SPEC + FP_FIXED_OPS_SPEC) / CPU_CYCLES",
+        "BriefDescription": "This metric measures floating point operations per cycle in any precision performed by any instruction. Operations are counted by computation and by vector lanes, fused computations such as multiply-add count as twice per vector lane for example.",
+        "MetricGroup": "FP_Arithmetic_Intensity",
+        "ScaleUnit": "1operations per cycle"
+    },
+    {
+        "ArchStdEvent": "frontend_bound",
+        "MetricExpr": "(STALL_SLOT_FRONTEND / (10 * CPU_CYCLES) - STALL_FRONTEND_FLUSH / CPU_CYCLES) * 100"
+    },
+    {
+        "MetricName": "frontend_cache_l1i_bound",
+        "MetricExpr": "STALL_FRONTEND_L1I / (STALL_FRONTEND_L1I + STALL_FRONTEND_MEM) * 100",
+        "BriefDescription": "This metric is the percentage of total cycles stalled in the frontend due to memory access latency issues caused by level 1 instruction cache misses.",
+        "MetricGroup": "Topdown_Frontend",
+        "ScaleUnit": "1percent of cycles"
+    },
+    {
+        "MetricName": "frontend_cache_l2i_bound",
+        "MetricExpr": "STALL_FRONTEND_MEM / (STALL_FRONTEND_L1I + STALL_FRONTEND_MEM) * 100",
+        "BriefDescription": "This metric is the percentage of total cycles stalled in the frontend due to memory access latency issues caused by level 2 instruction cache misses.",
+        "MetricGroup": "Topdown_Frontend",
+        "ScaleUnit": "1percent of cycles"
+    },
+    {
+        "MetricName": "frontend_core_bound",
+        "MetricExpr": "STALL_FRONTEND_CPUBOUND / STALL_FRONTEND * 100",
+        "BriefDescription": "This metric is the percentage of total cycles stalled in the frontend due to frontend core resource constraints not related to instruction fetch latency issues caused by memory access components.",
+        "MetricGroup": "Topdown_Frontend",
+        "ScaleUnit": "1percent of cycles"
+    },
+    {
+        "MetricName": "frontend_core_flow_bound",
+        "MetricExpr": "STALL_FRONTEND_FLOW / STALL_FRONTEND_CPUBOUND * 100",
+        "BriefDescription": "This metric is the percentage of total cycles stalled in the frontend as the decode unit is awaiting input from the branch prediction unit.",
+        "MetricGroup": "Topdown_Frontend",
+        "ScaleUnit": "1percent of cycles"
+    },
+    {
+        "MetricName": "frontend_core_flush_bound",
+        "MetricExpr": "STALL_FRONTEND_FLUSH / STALL_FRONTEND_CPUBOUND * 100",
+        "BriefDescription": "This metric is the percentage of total cycles stalled in the frontend as the processor is recovering from a pipeline flush caused by bad speculation or other machine resteers.",
+        "MetricGroup": "Topdown_Frontend",
+        "ScaleUnit": "1percent of cycles"
+    },
+    {
+        "MetricName": "frontend_mem_bound",
+        "MetricExpr": "STALL_FRONTEND_MEMBOUND / STALL_FRONTEND * 100",
+        "BriefDescription": "This metric is the percentage of total cycles stalled in the frontend due to frontend core resource constraints related to the instruction fetch latency issues caused by memory access components.",
+        "MetricGroup": "Topdown_Frontend",
+        "ScaleUnit": "1percent of cycles"
+    },
+    {
+        "MetricName": "frontend_mem_cache_bound",
+        "MetricExpr": "(STALL_FRONTEND_L1I + STALL_FRONTEND_MEM) / STALL_FRONTEND_MEMBOUND * 100",
+        "BriefDescription": "This metric is the percentage of total cycles stalled in the frontend due to instruction fetch latency issues caused by instruction cache misses.",
+        "MetricGroup": "Topdown_Frontend",
+        "ScaleUnit": "1percent of cycles"
+    },
+    {
+        "MetricName": "frontend_mem_tlb_bound",
+        "MetricExpr": "STALL_FRONTEND_TLB / STALL_FRONTEND_MEMBOUND * 100",
+        "BriefDescription": "This metric is the percentage of total cycles stalled in the frontend due to instruction fetch latency issues caused by instruction TLB misses.",
+        "MetricGroup": "Topdown_Frontend",
+        "ScaleUnit": "1percent of cycles"
+    },
+    {
+        "MetricName": "frontend_stalled_cycles",
+        "MetricExpr": "STALL_FRONTEND / CPU_CYCLES * 100",
+        "BriefDescription": "This metric is the percentage of cycles that were stalled due to resource constraints in the frontend unit of the processor.",
+        "MetricGroup": "Cycle_Accounting",
+        "ScaleUnit": "1percent of cycles"
+    },
+    {
+        "MetricName": "integer_dp_percentage",
+        "MetricExpr": "DP_SPEC / INST_SPEC * 100",
+        "BriefDescription": "This metric measures scalar integer operations as a percentage of operations speculatively executed.",
+        "MetricGroup": "Operation_Mix",
+        "ScaleUnit": "1percent of operations"
+    },
+    {
+        "MetricName": "ipc",
+        "MetricExpr": "INST_RETIRED / CPU_CYCLES",
+        "BriefDescription": "This metric measures the number of instructions retired per cycle.",
+        "MetricGroup": "General",
+        "ScaleUnit": "1per cycle"
+    },
+    {
+        "MetricName": "itlb_mpki",
+        "MetricExpr": "ITLB_WALK / INST_RETIRED * 1000",
+        "BriefDescription": "This metric measures the number of instruction TLB Walks per thousand instructions executed.",
+        "MetricGroup": "MPKI;ITLB_Effectiveness",
+        "ScaleUnit": "1MPKI"
+    },
+    {
+        "MetricName": "itlb_walk_ratio",
+        "MetricExpr": "ITLB_WALK / L1I_TLB",
+        "BriefDescription": "This metric measures the ratio of instruction TLB Walks to the total number of instruction TLB accesses. This gives an indication of the effectiveness of the instruction TLB accesses.",
+        "MetricGroup": "Miss_Ratio;ITLB_Effectiveness",
+        "ScaleUnit": "100percent of TLB accesses"
+    },
+    {
+        "MetricName": "l1d_cache_miss_ratio",
+        "MetricExpr": "L1D_CACHE_REFILL / L1D_CACHE",
+        "BriefDescription": "This metric measures the ratio of level 1 data cache accesses missed to the total number of level 1 data cache accesses. This gives an indication of the effectiveness of the level 1 data cache.",
+        "MetricGroup": "Miss_Ratio;L1D_Cache_Effectiveness",
+        "ScaleUnit": "100percent of cache accesses"
+    },
+    {
+        "MetricName": "l1d_cache_mpki",
+        "MetricExpr": "L1D_CACHE_REFILL / INST_RETIRED * 1000",
+        "BriefDescription": "This metric measures the number of level 1 data cache accesses missed per thousand instructions executed.",
+        "MetricGroup": "MPKI;L1D_Cache_Effectiveness",
+        "ScaleUnit": "1MPKI"
+    },
+    {
+        "MetricName": "l1d_tlb_miss_ratio",
+        "MetricExpr": "L1D_TLB_REFILL / L1D_TLB",
+        "BriefDescription": "This metric measures the ratio of level 1 data TLB accesses missed to the total number of level 1 data TLB accesses. This gives an indication of the effectiveness of the level 1 data TLB.",
+        "MetricGroup": "Miss_Ratio;DTLB_Effectiveness",
+        "ScaleUnit": "100percent of TLB accesses"
+    },
+    {
+        "MetricName": "l1d_tlb_mpki",
+        "MetricExpr": "L1D_TLB_REFILL / INST_RETIRED * 1000",
+        "BriefDescription": "This metric measures the number of level 1 data TLB accesses missed per thousand instructions executed.",
+        "MetricGroup": "MPKI;DTLB_Effectiveness",
+        "ScaleUnit": "1MPKI"
+    },
+    {
+        "MetricName": "l1i_cache_miss_ratio",
+        "MetricExpr": "L1I_CACHE_REFILL / L1I_CACHE",
+        "BriefDescription": "This metric measures the ratio of level 1 instruction cache accesses missed to the total number of level 1 instruction cache accesses. This gives an indication of the effectiveness of the level 1 instruction cache.",
+        "MetricGroup": "Miss_Ratio;L1I_Cache_Effectiveness",
+        "ScaleUnit": "100percent of cache accesses"
+    },
+    {
+        "MetricName": "l1i_cache_mpki",
+        "MetricExpr": "L1I_CACHE_REFILL / INST_RETIRED * 1000",
+        "BriefDescription": "This metric measures the number of level 1 instruction cache accesses missed per thousand instructions executed.",
+        "MetricGroup": "MPKI;L1I_Cache_Effectiveness",
+        "ScaleUnit": "1MPKI"
+    },
+    {
+        "MetricName": "l1i_tlb_miss_ratio",
+        "MetricExpr": "L1I_TLB_REFILL / L1I_TLB",
+        "BriefDescription": "This metric measures the ratio of level 1 instruction TLB accesses missed to the total number of level 1 instruction TLB accesses. This gives an indication of the effectiveness of the level 1 instruction TLB.",
+        "MetricGroup": "Miss_Ratio;ITLB_Effectiveness",
+        "ScaleUnit": "100percent of TLB accesses"
+    },
+    {
+        "MetricName": "l1i_tlb_mpki",
+        "MetricExpr": "L1I_TLB_REFILL / INST_RETIRED * 1000",
+        "BriefDescription": "This metric measures the number of level 1 instruction TLB accesses missed per thousand instructions executed.",
+        "MetricGroup": "MPKI;ITLB_Effectiveness",
+        "ScaleUnit": "1MPKI"
+    },
+    {
+        "MetricName": "l2_cache_miss_ratio",
+        "MetricExpr": "L2D_CACHE_REFILL / L2D_CACHE",
+        "BriefDescription": "This metric measures the ratio of level 2 cache accesses missed to the total number of level 2 cache accesses. This gives an indication of the effectiveness of the level 2 cache, which is a unified cache that stores both data and instruction. Note that cache accesses in this cache are either data memory access or instruction fetch as this is a unified cache.",
+        "MetricGroup": "Miss_Ratio;L2_Cache_Effectiveness",
+        "ScaleUnit": "100percent of cache accesses"
+    },
+    {
+        "MetricName": "l2_cache_mpki",
+        "MetricExpr": "L2D_CACHE_REFILL / INST_RETIRED * 1000",
+        "BriefDescription": "This metric measures the number of level 2 unified cache accesses missed per thousand instructions executed. Note that cache accesses in this cache are either data memory access or instruction fetch as this is a unified cache.",
+        "MetricGroup": "MPKI;L2_Cache_Effectiveness",
+        "ScaleUnit": "1MPKI"
+    },
+    {
+        "MetricName": "l2_tlb_miss_ratio",
+        "MetricExpr": "L2D_TLB_REFILL / L2D_TLB",
+        "BriefDescription": "This metric measures the ratio of level 2 unified TLB accesses missed to the total number of level 2 unified TLB accesses. This gives an indication of the effectiveness of the level 2 TLB.",
+        "MetricGroup": "Miss_Ratio;ITLB_Effectiveness;DTLB_Effectiveness",
+        "ScaleUnit": "100percent of TLB accesses"
+    },
+    {
+        "MetricName": "l2_tlb_mpki",
+        "MetricExpr": "L2D_TLB_REFILL / INST_RETIRED * 1000",
+        "BriefDescription": "This metric measures the number of level 2 unified TLB accesses missed per thousand instructions executed.",
+        "MetricGroup": "MPKI;ITLB_Effectiveness;DTLB_Effectiveness",
+        "ScaleUnit": "1MPKI"
+    },
+    {
+        "MetricName": "ll_cache_read_hit_ratio",
+        "MetricExpr": "(LL_CACHE_RD - LL_CACHE_MISS_RD) / LL_CACHE_RD",
+        "BriefDescription": "This metric measures the ratio of last level cache read accesses hit in the cache to the total number of last level cache accesses. This gives an indication of the effectiveness of the last level cache for read traffic. Note that cache accesses in this cache are either data memory access or instruction fetch as this is a system level cache.",
+        "MetricGroup": "LL_Cache_Effectiveness",
+        "ScaleUnit": "100percent of cache accesses"
+    },
+    {
+        "MetricName": "ll_cache_read_miss_ratio",
+        "MetricExpr": "LL_CACHE_MISS_RD / LL_CACHE_RD",
+        "BriefDescription": "This metric measures the ratio of last level cache read accesses missed to the total number of last level cache accesses. This gives an indication of the effectiveness of the last level cache for read traffic. Note that cache accesses in this cache are either data memory access or instruction fetch as this is a system level cache.",
+        "MetricGroup": "Miss_Ratio;LL_Cache_Effectiveness",
+        "ScaleUnit": "100percent of cache accesses"
+    },
+    {
+        "MetricName": "ll_cache_read_mpki",
+        "MetricExpr": "LL_CACHE_MISS_RD / INST_RETIRED * 1000",
+        "BriefDescription": "This metric measures the number of last level cache read accesses missed per thousand instructions executed.",
+        "MetricGroup": "MPKI;LL_Cache_Effectiveness",
+        "ScaleUnit": "1MPKI"
+    },
+    {
+        "MetricName": "load_percentage",
+        "MetricExpr": "LD_SPEC / INST_SPEC * 100",
+        "BriefDescription": "This metric measures load operations as a percentage of operations speculatively executed.",
+        "MetricGroup": "Operation_Mix",
+        "ScaleUnit": "1percent of operations"
+    },
+    {
+        "MetricName": "nonsve_fp_ops_per_cycle",
+        "MetricExpr": "FP_FIXED_OPS_SPEC / CPU_CYCLES",
+        "BriefDescription": "This metric measures floating point operations per cycle in any precision performed by an instruction that is not an SVE instruction. Operations are counted by computation and by vector lanes, fused computations such as multiply-add count as twice per vector lane for example.",
+        "MetricGroup": "FP_Arithmetic_Intensity",
+        "ScaleUnit": "1operations per cycle"
+    },
+    {
+        "ArchStdEvent": "retiring"
+    },
+    {
+        "MetricName": "scalar_fp_percentage",
+        "MetricExpr": "VFP_SPEC / INST_SPEC * 100",
+        "BriefDescription": "This metric measures scalar floating point operations as a percentage of operations speculatively executed.",
+        "MetricGroup": "Operation_Mix",
+        "ScaleUnit": "1percent of operations"
+    },
+    {
+        "MetricName": "simd_percentage",
+        "MetricExpr": "ASE_SPEC / INST_SPEC * 100",
+        "BriefDescription": "This metric measures advanced SIMD operations as a percentage of total operations speculatively executed.",
+        "MetricGroup": "Operation_Mix",
+        "ScaleUnit": "1percent of operations"
+    },
+    {
+        "MetricName": "store_percentage",
+        "MetricExpr": "ST_SPEC / INST_SPEC * 100",
+        "BriefDescription": "This metric measures store operations as a percentage of operations speculatively executed.",
+        "MetricGroup": "Operation_Mix",
+        "ScaleUnit": "1percent of operations"
+    },
+    {
+        "MetricName": "sve_all_percentage",
+        "MetricExpr": "SVE_INST_SPEC / INST_SPEC * 100",
+        "BriefDescription": "This metric measures scalable vector operations, including loads and stores, as a percentage of operations speculatively executed.",
+        "MetricGroup": "Operation_Mix",
+        "ScaleUnit": "1percent of operations"
+    },
+    {
+        "MetricName": "sve_fp_ops_per_cycle",
+        "MetricExpr": "FP_SCALE_OPS_SPEC / CPU_CYCLES",
+        "BriefDescription": "This metric measures floating point operations per cycle in any precision performed by SVE instructions. Operations are counted by computation and by vector lanes, fused computations such as multiply-add count as twice per vector lane for example.",
+        "MetricGroup": "FP_Arithmetic_Intensity",
+        "ScaleUnit": "1operations per cycle"
+    },
+    {
+        "MetricName": "sve_predicate_empty_percentage",
+        "MetricExpr": "SVE_PRED_EMPTY_SPEC / SVE_PRED_SPEC * 100",
+        "BriefDescription": "This metric measures scalable vector operations with no active predicates as a percentage of sve predicated operations speculatively executed.",
+        "MetricGroup": "SVE_Effectiveness",
+        "ScaleUnit": "1percent of operations"
+    },
+    {
+        "MetricName": "sve_predicate_full_percentage",
+        "MetricExpr": "SVE_PRED_FULL_SPEC / SVE_PRED_SPEC * 100",
+        "BriefDescription": "This metric measures scalable vector operations with all active predicates as a percentage of sve predicated operations speculatively executed.",
+        "MetricGroup": "SVE_Effectiveness",
+        "ScaleUnit": "1percent of operations"
+    },
+    {
+        "MetricName": "sve_predicate_partial_percentage",
+        "MetricExpr": "SVE_PRED_PARTIAL_SPEC / SVE_PRED_SPEC * 100",
+        "BriefDescription": "This metric measures scalable vector operations with at least one active predicates as a percentage of sve predicated operations speculatively executed.",
+        "MetricGroup": "SVE_Effectiveness",
+        "ScaleUnit": "1percent of operations"
+    },
+    {
+        "MetricName": "sve_predicate_percentage",
+        "MetricExpr": "SVE_PRED_SPEC / INST_SPEC * 100",
+        "BriefDescription": "This metric measures scalable vector operations with predicates as a percentage of operations speculatively executed.",
+        "MetricGroup": "SVE_Effectiveness",
+        "ScaleUnit": "1percent of operations"
+    }
+]

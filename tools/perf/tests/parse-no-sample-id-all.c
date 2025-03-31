@@ -13,6 +13,7 @@
 static int process_event(struct evlist **pevlist, union perf_event *event)
 {
 	struct perf_sample sample;
+	int ret;
 
 	if (event->header.type == PERF_RECORD_HEADER_ATTR) {
 		if (perf_event__process_attr(NULL, event, pevlist)) {
@@ -28,7 +29,10 @@ static int process_event(struct evlist **pevlist, union perf_event *event)
 	if (!*pevlist)
 		return -1;
 
-	if (evlist__parse_sample(*pevlist, event, &sample)) {
+	perf_sample__init(&sample, /*all=*/false);
+	ret = evlist__parse_sample(*pevlist, event, &sample);
+	perf_sample__exit(&sample);
+	if (ret) {
 		pr_debug("evlist__parse_sample failed\n");
 		return -1;
 	}

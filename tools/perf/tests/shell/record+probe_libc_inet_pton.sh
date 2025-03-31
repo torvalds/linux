@@ -105,6 +105,7 @@ delete_libc_inet_pton_event() {
 
 # Check for IPv6 interface existence
 ip a sh lo | grep -F -q inet6 || exit 2
+[ "$(id -u)" = 0 ] || exit 2
 
 skip_if_no_perf_probe && \
 add_libc_inet_pton_event && \
