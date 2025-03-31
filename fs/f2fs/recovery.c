@@ -620,7 +620,7 @@ static int f2fs_reserve_new_block_retry(struct dnode_of_data *dn)
 }
 
 static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
-					struct page *page)
+					struct folio *folio)
 {
 	struct dnode_of_data dn;
 	struct node_info ni;
@@ -628,19 +628,19 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 	int err = 0, recovered = 0;
 
 	/* step 1: recover xattr */
-	if (IS_INODE(page)) {
-		err = f2fs_recover_inline_xattr(inode, page);
+	if (IS_INODE(&folio->page)) {
+		err = f2fs_recover_inline_xattr(inode, &folio->page);
 		if (err)
 			goto out;
-	} else if (f2fs_has_xattr_block(ofs_of_node(page))) {
-		err = f2fs_recover_xattr_data(inode, page);
+	} else if (f2fs_has_xattr_block(ofs_of_node(&folio->page))) {
+		err = f2fs_recover_xattr_data(inode, &folio->page);
 		if (!err)
 			recovered++;
 		goto out;
 	}
 
 	/* step 2: recover inline data */
-	err = f2fs_recover_inline_data(inode, page);
+	err = f2fs_recover_inline_data(inode, &folio->page);
 	if (err) {
 		if (err == 1)
 			err = 0;
@@ -648,8 +648,8 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 	}
 
 	/* step 3: recover data indices */
-	start = f2fs_start_bidx_of_node(ofs_of_node(page), inode);
-	end = start + ADDRS_PER_PAGE(page, inode);
+	start = f2fs_start_bidx_of_node(ofs_of_node(&folio->page), inode);
+	end = start + ADDRS_PER_PAGE(&folio->page, inode);
 
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
 retry_dn:
@@ -668,12 +668,12 @@ retry_dn:
 	if (err)
 		goto err;
 
-	f2fs_bug_on(sbi, ni.ino != ino_of_node(page));
+	f2fs_bug_on(sbi, ni.ino != ino_of_node(&folio->page));
 
-	if (ofs_of_node(dn.node_page) != ofs_of_node(page)) {
+	if (ofs_of_node(dn.node_page) != ofs_of_node(&folio->page)) {
 		f2fs_warn(sbi, "Inconsistent ofs_of_node, ino:%lu, ofs:%u, %u",
 			  inode->i_ino, ofs_of_node(dn.node_page),
-			  ofs_of_node(page));
+			  ofs_of_node(&folio->page));
 		err = -EFSCORRUPTED;
 		f2fs_handle_error(sbi, ERROR_INCONSISTENT_FOOTER);
 		goto err;
@@ -683,7 +683,7 @@ retry_dn:
 		block_t src, dest;
 
 		src = f2fs_data_blkaddr(&dn);
-		dest = data_blkaddr(dn.inode, page, dn.ofs_in_node);
+		dest = data_blkaddr(dn.inode, &folio->page, dn.ofs_in_node);
 
 		if (__is_valid_data_blkaddr(src) &&
 			!f2fs_is_valid_blkaddr(sbi, src, META_POR)) {
@@ -758,9 +758,9 @@ retry_prev:
 		}
 	}
 
-	copy_node_footer(dn.node_page, page);
+	copy_node_footer(dn.node_page, &folio->page);
 	fill_node_footer(dn.node_page, dn.nid, ni.ino,
-					ofs_of_node(page), false);
+					ofs_of_node(&folio->page), false);
 	set_page_dirty(dn.node_page);
 err:
 	f2fs_put_dnode(&dn);
@@ -823,7 +823,7 @@ static int recover_data(struct f2fs_sb_info *sbi, struct list_head *inode_list,
 				break;
 			}
 		}
-		err = do_recover_data(sbi, entry->inode, &folio->page);
+		err = do_recover_data(sbi, entry->inode, folio);
 		if (err) {
 			f2fs_folio_put(folio, true);
 			break;
