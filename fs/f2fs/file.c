@@ -4347,34 +4347,36 @@ static int redirty_blocks(struct inode *inode, pgoff_t page_idx, int len)
 {
 	DEFINE_READAHEAD(ractl, NULL, NULL, inode->i_mapping, page_idx);
 	struct address_space *mapping = inode->i_mapping;
-	struct page *page;
+	struct folio *folio;
 	pgoff_t redirty_idx = page_idx;
-	int i, page_len = 0, ret = 0;
+	int page_len = 0, ret = 0;
 
 	page_cache_ra_unbounded(&ractl, len, 0);
 
-	for (i = 0; i < len; i++, page_idx++) {
-		page = read_cache_page(mapping, page_idx, NULL, NULL);
-		if (IS_ERR(page)) {
-			ret = PTR_ERR(page);
+	do {
+		folio = read_cache_folio(mapping, page_idx, NULL, NULL);
+		if (IS_ERR(folio)) {
+			ret = PTR_ERR(folio);
 			break;
 		}
-		page_len++;
-	}
+		page_len += folio_nr_pages(folio) - (page_idx - folio->index);
+		page_idx = folio_next_index(folio);
+	} while (page_len < len);
 
-	for (i = 0; i < page_len; i++, redirty_idx++) {
-		page = find_lock_page(mapping, redirty_idx);
+	do {
+		folio = filemap_lock_folio(mapping, redirty_idx);
 
-		/* It will never fail, when page has pinned above */
-		f2fs_bug_on(F2FS_I_SB(inode), !page);
+		/* It will never fail, when folio has pinned above */
+		f2fs_bug_on(F2FS_I_SB(inode), IS_ERR(folio));
 
-		f2fs_wait_on_page_writeback(page, DATA, true, true);
+		f2fs_folio_wait_writeback(folio, DATA, true, true);
 
-		set_page_dirty(page);
-		set_page_private_gcing(page);
-		f2fs_put_page(page, 1);
-		f2fs_put_page(page, 0);
-	}
+		folio_mark_dirty(folio);
+		set_page_private_gcing(&folio->page);
+		redirty_idx = folio_next_index(folio);
+		folio_unlock(folio);
+		folio_put_refs(folio, 2);
+	} while (redirty_idx < page_idx);
 
 	return ret;
 }
