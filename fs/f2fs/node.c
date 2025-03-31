@@ -120,14 +120,14 @@ bool f2fs_available_free_memory(struct f2fs_sb_info *sbi, int type)
 	return res;
 }
 
-static void clear_node_page_dirty(struct page *page)
+static void clear_node_folio_dirty(struct folio *folio)
 {
-	if (PageDirty(page)) {
-		f2fs_clear_page_cache_dirty_tag(page_folio(page));
-		clear_page_dirty_for_io(page);
-		dec_page_count(F2FS_P_SB(page), F2FS_DIRTY_NODES);
+	if (folio_test_dirty(folio)) {
+		f2fs_clear_page_cache_dirty_tag(folio);
+		folio_clear_dirty_for_io(folio);
+		dec_page_count(F2FS_F_SB(folio), F2FS_DIRTY_NODES);
 	}
-	ClearPageUptodate(page);
+	folio_clear_uptodate(folio);
 }
 
 static struct folio *get_current_nat_folio(struct f2fs_sb_info *sbi, nid_t nid)
@@ -930,7 +930,7 @@ static int truncate_node(struct dnode_of_data *dn)
 		f2fs_inode_synced(dn->inode);
 	}
 
-	clear_node_page_dirty(&dn->node_folio->page);
+	clear_node_folio_dirty(dn->node_folio);
 	set_sbi_flag(sbi, SBI_IS_DIRTY);
 
 	index = dn->node_folio->index;
@@ -1381,7 +1381,7 @@ struct folio *f2fs_new_node_folio(struct dnode_of_data *dn, unsigned int ofs)
 		inc_valid_inode_count(sbi);
 	return folio;
 fail:
-	clear_node_page_dirty(&folio->page);
+	clear_node_folio_dirty(folio);
 	f2fs_folio_put(folio, true);
 	return ERR_PTR(err);
 }
