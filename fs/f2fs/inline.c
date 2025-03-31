@@ -352,7 +352,7 @@ process_inline:
 
 struct f2fs_dir_entry *f2fs_find_in_inline_dir(struct inode *dir,
 					const struct f2fs_filename *fname,
-					struct page **res_page,
+					struct folio **res_folio,
 					bool use_hash)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(dir->i_sb);
@@ -363,7 +363,7 @@ struct f2fs_dir_entry *f2fs_find_in_inline_dir(struct inode *dir,
 
 	ifolio = f2fs_get_inode_folio(sbi, dir->i_ino);
 	if (IS_ERR(ifolio)) {
-		*res_page = &ifolio->page;
+		*res_folio = ifolio;
 		return NULL;
 	}
 
@@ -373,11 +373,11 @@ struct f2fs_dir_entry *f2fs_find_in_inline_dir(struct inode *dir,
 	de = f2fs_find_target_dentry(&d, fname, NULL, use_hash);
 	folio_unlock(ifolio);
 	if (IS_ERR(de)) {
-		*res_page = ERR_CAST(de);
+		*res_folio = ERR_CAST(de);
 		de = NULL;
 	}
 	if (de)
-		*res_page = &ifolio->page;
+		*res_folio = ifolio;
 	else
 		f2fs_folio_put(ifolio, false);
 

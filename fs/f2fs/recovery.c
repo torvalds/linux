@@ -165,7 +165,7 @@ static int recover_dentry(struct inode *inode, struct page *ipage,
 	struct f2fs_dir_entry *de;
 	struct f2fs_filename fname;
 	struct qstr usr_fname;
-	struct page *page;
+	struct folio *folio;
 	struct inode *dir, *einode;
 	struct fsync_inode_entry *entry;
 	int err = 0;
@@ -187,7 +187,7 @@ static int recover_dentry(struct inode *inode, struct page *ipage,
 	if (err)
 		goto out;
 retry:
-	de = __f2fs_find_entry(dir, &fname, &page);
+	de = __f2fs_find_entry(dir, &fname, &folio);
 	if (de && inode->i_ino == le32_to_cpu(de->ino))
 		goto out_put;
 
@@ -212,11 +212,11 @@ retry:
 			iput(einode);
 			goto out_put;
 		}
-		f2fs_delete_entry(de, page, dir, einode);
+		f2fs_delete_entry(de, &folio->page, dir, einode);
 		iput(einode);
 		goto retry;
-	} else if (IS_ERR(page)) {
-		err = PTR_ERR(page);
+	} else if (IS_ERR(folio)) {
+		err = PTR_ERR(folio);
 	} else {
 		err = f2fs_add_dentry(dir, &fname, inode,
 					inode->i_ino, inode->i_mode);
@@ -226,7 +226,7 @@ retry:
 	goto out;
 
 out_put:
-	f2fs_put_page(page, 0);
+	f2fs_folio_put(folio, false);
 out:
 	if (file_enc_name(inode))
 		name = "<encrypted>";

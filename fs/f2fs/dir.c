@@ -260,7 +260,7 @@ found:
 static struct f2fs_dir_entry *find_in_level(struct inode *dir,
 					unsigned int level,
 					const struct f2fs_filename *fname,
-					struct page **res_page,
+					struct folio **res_folio,
 					bool use_hash)
 {
 	int s = GET_DENTRY_SLOTS(fname->disk_name.len);
@@ -291,18 +291,18 @@ start_find_bucket:
 				bidx = next_pgofs;
 				continue;
 			} else {
-				*res_page = &dentry_folio->page;
+				*res_folio = dentry_folio;
 				break;
 			}
 		}
 
 		de = find_in_block(dir, dentry_folio, fname, &max_slots, use_hash);
 		if (IS_ERR(de)) {
-			*res_page = ERR_CAST(de);
+			*res_folio = ERR_CAST(de);
 			de = NULL;
 			break;
 		} else if (de) {
-			*res_page = &dentry_folio->page;
+			*res_folio = dentry_folio;
 			break;
 		}
 
@@ -329,7 +329,7 @@ start_find_bucket:
 
 struct f2fs_dir_entry *__f2fs_find_entry(struct inode *dir,
 					 const struct f2fs_filename *fname,
-					 struct page **res_page)
+					 struct folio **res_folio)
 {
 	unsigned long npages = dir_blocks(dir);
 	struct f2fs_dir_entry *de = NULL;
@@ -337,13 +337,13 @@ struct f2fs_dir_entry *__f2fs_find_entry(struct inode *dir,
 	unsigned int level;
 	bool use_hash = true;
 
-	*res_page = NULL;
+	*res_folio = NULL;
 
 #if IS_ENABLED(CONFIG_UNICODE)
 start_find_entry:
 #endif
 	if (f2fs_has_inline_dentry(dir)) {
-		de = f2fs_find_in_inline_dir(dir, fname, res_page, use_hash);
+		de = f2fs_find_in_inline_dir(dir, fname, res_folio, use_hash);
 		goto out;
 	}
 
@@ -359,8 +359,8 @@ start_find_entry:
 	}
 
 	for (level = 0; level < max_depth; level++) {
-		de = find_in_level(dir, level, fname, res_page, use_hash);
-		if (de || IS_ERR(*res_page))
+		de = find_in_level(dir, level, fname, res_folio, use_hash);
+		if (de || IS_ERR(*res_folio))
 			break;
 	}
 
@@ -389,6 +389,7 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 {
 	struct f2fs_dir_entry *de = NULL;
 	struct f2fs_filename fname;
+	struct folio *rfolio;
 	int err;
 
 	err = f2fs_setup_filename(dir, child, 1, &fname);
@@ -400,7 +401,8 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 		return NULL;
 	}
 
-	de = __f2fs_find_entry(dir, &fname, res_page);
+	de = __f2fs_find_entry(dir, &fname, &rfolio);
+	*res_page = &rfolio->page;
 
 	f2fs_free_filename(&fname);
 	return de;
@@ -782,7 +784,7 @@ int f2fs_do_add_link(struct inode *dir, const struct qstr *name,
 				struct inode *inode, nid_t ino, umode_t mode)
 {
 	struct f2fs_filename fname;
-	struct page *page = NULL;
+	struct folio *folio = NULL;
 	struct f2fs_dir_entry *de = NULL;
 	int err;
 
@@ -798,14 +800,14 @@ int f2fs_do_add_link(struct inode *dir, const struct qstr *name,
 	 * consistency more.
 	 */
 	if (current != F2FS_I(dir)->task) {
-		de = __f2fs_find_entry(dir, &fname, &page);
+		de = __f2fs_find_entry(dir, &fname, &folio);
 		F2FS_I(dir)->task = NULL;
 	}
 	if (de) {
-		f2fs_put_page(page, 0);
+		f2fs_folio_put(folio, false);
 		err = -EEXIST;
-	} else if (IS_ERR(page)) {
-		err = PTR_ERR(page);
+	} else if (IS_ERR(folio)) {
+		err = PTR_ERR(folio);
 	} else {
 		err = f2fs_add_dentry(dir, &fname, inode, ino, mode);
 	}
