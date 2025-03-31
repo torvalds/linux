@@ -494,7 +494,8 @@ static int check_index_in_prev_nodes(struct f2fs_sb_info *sbi,
 	unsigned short blkoff = GET_BLKOFF_FROM_SEG0(sbi, blkaddr);
 	struct f2fs_summary_block *sum_node;
 	struct f2fs_summary sum;
-	struct page *sum_page, *node_page;
+	struct folio *sum_folio;
+	struct page *node_page;
 	struct dnode_of_data tdn = *dn;
 	nid_t ino, nid;
 	struct inode *inode;
@@ -516,12 +517,12 @@ static int check_index_in_prev_nodes(struct f2fs_sb_info *sbi,
 		}
 	}
 
-	sum_page = f2fs_get_sum_page(sbi, segno);
-	if (IS_ERR(sum_page))
-		return PTR_ERR(sum_page);
-	sum_node = (struct f2fs_summary_block *)page_address(sum_page);
+	sum_folio = f2fs_get_sum_folio(sbi, segno);
+	if (IS_ERR(sum_folio))
+		return PTR_ERR(sum_folio);
+	sum_node = folio_address(sum_folio);
 	sum = sum_node->entries[blkoff];
-	f2fs_put_page(sum_page, 1);
+	f2fs_folio_put(sum_folio, true);
 got_it:
 	/* Use the locked dnode page and inode */
 	nid = le32_to_cpu(sum.nid);
