@@ -407,7 +407,7 @@ int f2fs_make_empty_inline_dir(struct inode *inode, struct inode *parent,
  * NOTE: ipage is grabbed by caller, but if any error occurs, we should
  * release ipage in this function.
  */
-static int f2fs_move_inline_dirents(struct inode *dir, struct page *ipage,
+static int f2fs_move_inline_dirents(struct inode *dir, struct folio *ifolio,
 							void *inline_dentry)
 {
 	struct folio *folio;
@@ -418,11 +418,11 @@ static int f2fs_move_inline_dirents(struct inode *dir, struct page *ipage,
 
 	folio = f2fs_grab_cache_folio(dir->i_mapping, 0, true);
 	if (IS_ERR(folio)) {
-		f2fs_put_page(ipage, 1);
+		f2fs_folio_put(ifolio, true);
 		return PTR_ERR(folio);
 	}
 
-	set_new_dnode(&dn, dir, ipage, NULL, 0);
+	set_new_dnode(&dn, dir, &ifolio->page, NULL, 0);
 	err = f2fs_reserve_block(&dn, 0);
 	if (err)
 		goto out;
@@ -460,7 +460,7 @@ static int f2fs_move_inline_dirents(struct inode *dir, struct page *ipage,
 	folio_mark_dirty(folio);
 
 	/* clear inline dir and flag after data writeback */
-	f2fs_truncate_inline_inode(dir, ipage, 0);
+	f2fs_truncate_inline_inode(dir, &ifolio->page, 0);
 
 	stat_dec_inline_dir(dir);
 	clear_inode_flag(dir, FI_INLINE_DENTRY);
@@ -583,13 +583,13 @@ recover:
 	return err;
 }
 
-static int do_convert_inline_dir(struct inode *dir, struct page *ipage,
+static int do_convert_inline_dir(struct inode *dir, struct folio *ifolio,
 							void *inline_dentry)
 {
 	if (!F2FS_I(dir)->i_dir_level)
-		return f2fs_move_inline_dirents(dir, ipage, inline_dentry);
+		return f2fs_move_inline_dirents(dir, ifolio, inline_dentry);
 	else
-		return f2fs_move_rehashed_dirents(dir, ipage, inline_dentry);
+		return f2fs_move_rehashed_dirents(dir, &ifolio->page, inline_dentry);
 }
 
 int f2fs_try_convert_inline_dir(struct inode *dir, struct dentry *dentry)
@@ -622,7 +622,7 @@ int f2fs_try_convert_inline_dir(struct inode *dir, struct dentry *dentry)
 
 	inline_dentry = inline_data_addr(dir, &ifolio->page);
 
-	err = do_convert_inline_dir(dir, &ifolio->page, inline_dentry);
+	err = do_convert_inline_dir(dir, ifolio, inline_dentry);
 	if (!err)
 		f2fs_folio_put(ifolio, true);
 out_fname:
@@ -653,7 +653,7 @@ int f2fs_add_inline_entry(struct inode *dir, const struct f2fs_filename *fname,
 
 	bit_pos = f2fs_room_for_filename(d.bitmap, slots, d.max);
 	if (bit_pos >= d.max) {
-		err = do_convert_inline_dir(dir, &ifolio->page, inline_dentry);
+		err = do_convert_inline_dir(dir, ifolio, inline_dentry);
 		if (err)
 			return err;
 		err = -EAGAIN;
