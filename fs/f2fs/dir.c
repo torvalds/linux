@@ -579,7 +579,7 @@ struct folio *f2fs_init_inode_metadata(struct inode *inode, struct inode *dir,
 
 put_error:
 	clear_nlink(inode);
-	f2fs_update_inode(inode, &folio->page);
+	f2fs_update_inode(inode, folio);
 	f2fs_folio_put(folio, true);
 	return ERR_PTR(err);
 }
@@ -738,7 +738,7 @@ add_dentry:
 
 		/* synchronize inode page's data from inode cache */
 		if (is_inode_flag_set(inode, FI_NEW_INODE))
-			f2fs_update_inode(inode, &folio->page);
+			f2fs_update_inode(inode, folio);
 
 		f2fs_folio_put(folio, true);
 	}

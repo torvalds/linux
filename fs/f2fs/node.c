@@ -1870,7 +1870,7 @@ continue_unlock:
 				if (IS_INODE(&folio->page)) {
 					if (is_inode_flag_set(inode,
 								FI_DIRTY_INODE))
-						f2fs_update_inode(inode, &folio->page);
+						f2fs_update_inode(inode, folio);
 					set_dentry_mark(&folio->page,
 						f2fs_need_dentry_mark(sbi, ino));
 				}
@@ -1955,7 +1955,7 @@ static bool flush_dirty_inode(struct folio *folio)
 	if (!inode)
 		return false;
 
-	f2fs_update_inode(inode, &folio->page);
+	f2fs_update_inode(inode, folio);
 	folio_unlock(folio);
 
 	iput(inode);
@@ -2743,7 +2743,7 @@ int f2fs_recover_inline_xattr(struct inode *inode, struct folio *folio)
 	f2fs_folio_wait_writeback(ifolio, NODE, true, true);
 	memcpy(dst_addr, src_addr, inline_size);
 update_inode:
-	f2fs_update_inode(inode, &ifolio->page);
+	f2fs_update_inode(inode, ifolio);
 	f2fs_folio_put(ifolio, true);
 	return 0;
 }

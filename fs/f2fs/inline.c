@@ -683,7 +683,7 @@ int f2fs_add_inline_entry(struct inode *dir, const struct f2fs_filename *fname,
 
 		/* synchronize inode page's data from inode cache */
 		if (is_inode_flag_set(inode, FI_NEW_INODE))
-			f2fs_update_inode(inode, &folio->page);
+			f2fs_update_inode(inode, folio);
 
 		f2fs_folio_put(folio, true);
 	}

@@ -659,18 +659,18 @@ retry:
 	return inode;
 }
 
-void f2fs_update_inode(struct inode *inode, struct page *node_page)
+void f2fs_update_inode(struct inode *inode, struct folio *node_folio)
 {
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	struct f2fs_inode *ri;
 	struct extent_tree *et = fi->extent_tree[EX_READ];
 
-	f2fs_wait_on_page_writeback(node_page, NODE, true, true);
-	set_page_dirty(node_page);
+	f2fs_folio_wait_writeback(node_folio, NODE, true, true);
+	folio_mark_dirty(node_folio);
 
 	f2fs_inode_synced(inode);
 
-	ri = F2FS_INODE(node_page);
+	ri = F2FS_INODE(&node_folio->page);
 
 	ri->i_mode = cpu_to_le16(inode->i_mode);
 	ri->i_advise = fi->i_advise;
@@ -745,15 +745,15 @@ void f2fs_update_inode(struct inode *inode, struct page *node_page)
 		}
 	}
 
-	__set_inode_rdev(inode, node_page);
+	__set_inode_rdev(inode, &node_folio->page);
 
 	/* deleted inode */
 	if (inode->i_nlink == 0)
-		clear_page_private_inline(node_page);
+		clear_page_private_inline(&node_folio->page);
 
 	init_idisk_time(inode);
 #ifdef CONFIG_F2FS_CHECK_FS
-	f2fs_inode_chksum_set(F2FS_I_SB(inode), node_page);
+	f2fs_inode_chksum_set(F2FS_I_SB(inode), &node_folio->page);
 #endif
 }
 
@@ -780,7 +780,7 @@ stop_checkpoint:
 		f2fs_stop_checkpoint(sbi, false, STOP_CP_REASON_UPDATE_INODE);
 		return;
 	}
-	f2fs_update_inode(inode, &node_folio->page);
+	f2fs_update_inode(inode, node_folio);
 	f2fs_folio_put(node_folio, true);
 }
 
