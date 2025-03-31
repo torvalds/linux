@@ -593,11 +593,14 @@ static struct page *f2fs_compress_alloc_page(void)
 
 static void f2fs_compress_free_page(struct page *page)
 {
+	struct folio *folio;
+
 	if (!page)
 		return;
-	detach_page_private(page);
-	page->mapping = NULL;
-	unlock_page(page);
+	folio = page_folio(page);
+	folio_detach_private(folio);
+	folio->mapping = NULL;
+	folio_unlock(folio);
 	mempool_free(page, compress_page_pool);
 }
 
