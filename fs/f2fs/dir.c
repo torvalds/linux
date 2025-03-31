@@ -494,24 +494,24 @@ void f2fs_do_make_empty_dir(struct inode *inode, struct inode *parent,
 static int make_empty_dir(struct inode *inode,
 		struct inode *parent, struct page *page)
 {
-	struct page *dentry_page;
+	struct folio *dentry_folio;
 	struct f2fs_dentry_block *dentry_blk;
 	struct f2fs_dentry_ptr d;
 
 	if (f2fs_has_inline_dentry(inode))
 		return f2fs_make_empty_inline_dir(inode, parent, page);
 
-	dentry_page = f2fs_get_new_data_page(inode, page, 0, true);
-	if (IS_ERR(dentry_page))
-		return PTR_ERR(dentry_page);
+	dentry_folio = f2fs_get_new_data_folio(inode, page, 0, true);
+	if (IS_ERR(dentry_folio))
+		return PTR_ERR(dentry_folio);
 
-	dentry_blk = page_address(dentry_page);
+	dentry_blk = folio_address(dentry_folio);
 
 	make_dentry_ptr_block(NULL, &d, dentry_blk);
 	f2fs_do_make_empty_dir(inode, parent, &d);
 
-	set_page_dirty(dentry_page);
-	f2fs_put_page(dentry_page, 1);
+	folio_mark_dirty(dentry_folio);
+	f2fs_folio_put(dentry_folio, true);
 	return 0;
 }
 
