@@ -1320,19 +1320,19 @@ struct page *f2fs_new_inode_page(struct inode *inode)
 	return f2fs_new_node_page(&dn, 0);
 }
 
-struct page *f2fs_new_node_page(struct dnode_of_data *dn, unsigned int ofs)
+struct folio *f2fs_new_node_folio(struct dnode_of_data *dn, unsigned int ofs)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
 	struct node_info new_ni;
-	struct page *page;
+	struct folio *folio;
 	int err;
 
 	if (unlikely(is_inode_flag_set(dn->inode, FI_NO_ALLOC)))
 		return ERR_PTR(-EPERM);
 
-	page = f2fs_grab_cache_page(NODE_MAPPING(sbi), dn->nid, false);
-	if (!page)
-		return ERR_PTR(-ENOMEM);
+	folio = f2fs_grab_cache_folio(NODE_MAPPING(sbi), dn->nid, false);
+	if (IS_ERR(folio))
+		return folio;
 
 	if (unlikely((err = inc_valid_node_count(sbi, dn->inode, !ofs))))
 		goto fail;
@@ -1363,12 +1363,12 @@ struct page *f2fs_new_node_page(struct dnode_of_data *dn, unsigned int ofs)
 	new_ni.version = 0;
 	set_node_addr(sbi, &new_ni, NEW_ADDR, false);
 
-	f2fs_wait_on_page_writeback(page, NODE, true, true);
-	fill_node_footer(page, dn->nid, dn->inode->i_ino, ofs, true);
-	set_cold_node(page, S_ISDIR(dn->inode->i_mode));
-	if (!PageUptodate(page))
-		SetPageUptodate(page);
-	if (set_page_dirty(page))
+	f2fs_folio_wait_writeback(folio, NODE, true, true);
+	fill_node_footer(&folio->page, dn->nid, dn->inode->i_ino, ofs, true);
+	set_cold_node(&folio->page, S_ISDIR(dn->inode->i_mode));
+	if (!folio_test_uptodate(folio))
+		folio_mark_uptodate(folio);
+	if (folio_mark_dirty(folio))
 		dn->node_changed = true;
 
 	if (f2fs_has_xattr_block(ofs))
@@ -1376,10 +1376,10 @@ struct page *f2fs_new_node_page(struct dnode_of_data *dn, unsigned int ofs)
 
 	if (ofs == 0)
 		inc_valid_inode_count(sbi);
-	return page;
+	return folio;
 fail:
-	clear_node_page_dirty(page);
-	f2fs_put_page(page, 1);
+	clear_node_page_dirty(&folio->page);
+	f2fs_folio_put(folio, true);
 	return ERR_PTR(err);
 }
 

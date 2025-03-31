@@ -3751,7 +3751,7 @@ int f2fs_wait_on_node_pages_writeback(struct f2fs_sb_info *sbi,
 					unsigned int seq_id);
 int f2fs_remove_inode_page(struct inode *inode);
 struct page *f2fs_new_inode_page(struct inode *inode);
-struct page *f2fs_new_node_page(struct dnode_of_data *dn, unsigned int ofs);
+struct folio *f2fs_new_node_folio(struct dnode_of_data *dn, unsigned int ofs);
 void f2fs_ra_node_page(struct f2fs_sb_info *sbi, nid_t nid);
 struct page *f2fs_get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid);
 struct folio *f2fs_get_inode_folio(struct f2fs_sb_info *sbi, pgoff_t ino);
@@ -3781,6 +3781,12 @@ int f2fs_build_node_manager(struct f2fs_sb_info *sbi);
 void f2fs_destroy_node_manager(struct f2fs_sb_info *sbi);
 int __init f2fs_create_node_manager_caches(void);
 void f2fs_destroy_node_manager_caches(void);
+
+static inline
+struct page *f2fs_new_node_page(struct dnode_of_data *dn, unsigned int ofs)
+{
+	return &f2fs_new_node_folio(dn, ofs)->page;
+}
 
 /*
  * segment.c
