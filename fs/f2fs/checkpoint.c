@@ -880,7 +880,7 @@ static int get_checkpoint_version(struct f2fs_sb_info *sbi, block_t cp_addr,
 	return 0;
 }
 
-static struct page *validate_checkpoint(struct f2fs_sb_info *sbi,
+static struct folio *validate_checkpoint(struct f2fs_sb_info *sbi,
 				block_t cp_addr, unsigned long long *version)
 {
 	struct folio *cp_folio_1 = NULL, *cp_folio_2 = NULL;
@@ -913,7 +913,7 @@ static struct page *validate_checkpoint(struct f2fs_sb_info *sbi,
 	if (cur_version == pre_version) {
 		*version = cur_version;
 		f2fs_folio_put(cp_folio_2, true);
-		return &cp_folio_1->page;
+		return cp_folio_1;
 	}
 	f2fs_folio_put(cp_folio_2, true);
 invalid_cp:
@@ -925,7 +925,7 @@ int f2fs_get_valid_checkpoint(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_checkpoint *cp_block;
 	struct f2fs_super_block *fsb = sbi->raw_super;
-	struct page *cp1, *cp2, *cur_page;
+	struct folio *cp1, *cp2, *cur_folio;
 	unsigned long blk_size = sbi->blocksize;
 	unsigned long long cp1_version = 0, cp2_version = 0;
 	unsigned long long cp_start_blk_no;
@@ -952,22 +952,22 @@ int f2fs_get_valid_checkpoint(struct f2fs_sb_info *sbi)
 
 	if (cp1 && cp2) {
 		if (ver_after(cp2_version, cp1_version))
-			cur_page = cp2;
+			cur_folio = cp2;
 		else
-			cur_page = cp1;
+			cur_folio = cp1;
 	} else if (cp1) {
-		cur_page = cp1;
+		cur_folio = cp1;
 	} else if (cp2) {
-		cur_page = cp2;
+		cur_folio = cp2;
 	} else {
 		err = -EFSCORRUPTED;
 		goto fail_no_cp;
 	}
 
-	cp_block = (struct f2fs_checkpoint *)page_address(cur_page);
+	cp_block = folio_address(cur_folio);
 	memcpy(sbi->ckpt, cp_block, blk_size);
 
-	if (cur_page == cp1)
+	if (cur_folio == cp1)
 		sbi->cur_cp_pack = 1;
 	else
 		sbi->cur_cp_pack = 2;
@@ -982,30 +982,30 @@ int f2fs_get_valid_checkpoint(struct f2fs_sb_info *sbi)
 		goto done;
 
 	cp_blk_no = le32_to_cpu(fsb->cp_blkaddr);
-	if (cur_page == cp2)
+	if (cur_folio == cp2)
 		cp_blk_no += BIT(le32_to_cpu(fsb->log_blocks_per_seg));
 
 	for (i = 1; i < cp_blks; i++) {
 		void *sit_bitmap_ptr;
 		unsigned char *ckpt = (unsigned char *)sbi->ckpt;
 
-		cur_page = f2fs_get_meta_page(sbi, cp_blk_no + i);
-		if (IS_ERR(cur_page)) {
-			err = PTR_ERR(cur_page);
+		cur_folio = f2fs_get_meta_folio(sbi, cp_blk_no + i);
+		if (IS_ERR(cur_folio)) {
+			err = PTR_ERR(cur_folio);
 			goto free_fail_no_cp;
 		}
-		sit_bitmap_ptr = page_address(cur_page);
+		sit_bitmap_ptr = folio_address(cur_folio);
 		memcpy(ckpt + i * blk_size, sit_bitmap_ptr, blk_size);
-		f2fs_put_page(cur_page, 1);
+		f2fs_folio_put(cur_folio, true);
 	}
 done:
-	f2fs_put_page(cp1, 1);
-	f2fs_put_page(cp2, 1);
+	f2fs_folio_put(cp1, true);
+	f2fs_folio_put(cp2, true);
 	return 0;
 
 free_fail_no_cp:
-	f2fs_put_page(cp1, 1);
-	f2fs_put_page(cp2, 1);
+	f2fs_folio_put(cp1, true);
+	f2fs_folio_put(cp2, true);
 fail_no_cp:
 	kvfree(sbi->ckpt);
 	return err;
