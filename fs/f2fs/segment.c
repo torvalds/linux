@@ -4398,15 +4398,15 @@ static int restore_curseg_summaries(struct f2fs_sb_info *sbi)
 
 static void write_compacted_summaries(struct f2fs_sb_info *sbi, block_t blkaddr)
 {
-	struct page *page;
+	struct folio *folio;
 	unsigned char *kaddr;
 	struct f2fs_summary *summary;
 	struct curseg_info *seg_i;
 	int written_size = 0;
 	int i, j;
 
-	page = f2fs_grab_meta_page(sbi, blkaddr++);
-	kaddr = (unsigned char *)page_address(page);
+	folio = f2fs_grab_meta_folio(sbi, blkaddr++);
+	kaddr = folio_address(folio);
 	memset(kaddr, 0, PAGE_SIZE);
 
 	/* Step 1: write nat cache */
@@ -4423,9 +4423,9 @@ static void write_compacted_summaries(struct f2fs_sb_info *sbi, block_t blkaddr)
 	for (i = CURSEG_HOT_DATA; i <= CURSEG_COLD_DATA; i++) {
 		seg_i = CURSEG_I(sbi, i);
 		for (j = 0; j < f2fs_curseg_valid_blocks(sbi, i); j++) {
-			if (!page) {
-				page = f2fs_grab_meta_page(sbi, blkaddr++);
-				kaddr = (unsigned char *)page_address(page);
+			if (!folio) {
+				folio = f2fs_grab_meta_folio(sbi, blkaddr++);
+				kaddr = folio_address(folio);
 				memset(kaddr, 0, PAGE_SIZE);
 				written_size = 0;
 			}
@@ -4437,14 +4437,14 @@ static void write_compacted_summaries(struct f2fs_sb_info *sbi, block_t blkaddr)
 							SUM_FOOTER_SIZE)
 				continue;
 
-			set_page_dirty(page);
-			f2fs_put_page(page, 1);
-			page = NULL;
+			folio_mark_dirty(folio);
+			f2fs_folio_put(folio, true);
+			folio = NULL;
 		}
 	}
-	if (page) {
-		set_page_dirty(page);
-		f2fs_put_page(page, 1);
+	if (folio) {
+		folio_mark_dirty(folio);
+		f2fs_folio_put(folio, true);
 	}
 }
 
