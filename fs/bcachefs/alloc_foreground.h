@@ -41,7 +41,24 @@ struct alloc_request {
 	struct bch_devs_mask	devs_may_alloc;
 
 	/* bch2_bucket_alloc_set_trans(): */
-	struct bch_dev_usage usage;
+	struct bch_dev_usage	usage;
+
+	/* bch2_bucket_alloc_trans(): */
+	enum {
+				BTREE_BITMAP_NO,
+				BTREE_BITMAP_YES,
+				BTREE_BITMAP_ANY,
+	}			btree_bitmap;
+
+	struct {
+		u64		buckets_seen;
+		u64		skipped_open;
+		u64		skipped_need_journal_commit;
+		u64		need_journal_commit;
+		u64		skipped_nocow;
+		u64		skipped_nouse;
+		u64		skipped_mi_btree_bitmap;
+	} counters;
 };
 
 struct dev_alloc_list bch2_dev_alloc_list(struct bch_fs *,

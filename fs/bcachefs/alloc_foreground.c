@@ -180,11 +180,11 @@ static void open_bucket_free_unused(struct bch_fs *c, struct open_bucket *ob)
 }
 
 static inline bool may_alloc_bucket(struct bch_fs *c,
-				    struct bpos bucket,
-				    struct bucket_alloc_state *s)
+				    struct alloc_request *req,
+				    struct bpos bucket)
 {
 	if (bch2_bucket_is_open(c, bucket.inode, bucket.offset)) {
-		s->skipped_open++;
+		req->counters.skipped_open++;
 		return false;
 	}
 
@@ -193,13 +193,13 @@ static inline bool may_alloc_bucket(struct bch_fs *c,
 					      bucket.inode, bucket.offset);
 	if (journal_seq_ready > c->journal.flushed_seq_ondisk) {
 		if (journal_seq_ready > c->journal.flushing_seq)
-			s->need_journal_commit++;
-		s->skipped_need_journal_commit++;
+			req->counters.need_journal_commit++;
+		req->counters.skipped_need_journal_commit++;
 		return false;
 	}
 
 	if (bch2_bucket_nocow_is_locked(&c->nocow_locks, bucket)) {
-		s->skipped_nocow++;
+		req->counters.skipped_nocow++;
 		return false;
 	}
 
@@ -207,22 +207,21 @@ static inline bool may_alloc_bucket(struct bch_fs *c,
 }
 
 static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
+					      struct alloc_request *req,
 					      u64 bucket, u8 gen,
-					      enum bch_watermark watermark,
-					      struct bucket_alloc_state *s,
 					      struct closure *cl)
 {
 	if (unlikely(is_superblock_bucket(c, ca, bucket)))
 		return NULL;
 
 	if (unlikely(ca->buckets_nouse && test_bit(bucket, ca->buckets_nouse))) {
-		s->skipped_nouse++;
+		req->counters.skipped_nouse++;
 		return NULL;
 	}
 
 	spin_lock(&c->freelist_lock);
 
-	if (unlikely(c->open_buckets_nr_free <= bch2_open_buckets_reserved(watermark))) {
+	if (unlikely(c->open_buckets_nr_free <= bch2_open_buckets_reserved(req->watermark))) {
 		if (cl)
 			closure_wait(&c->open_buckets_wait, cl);
 
@@ -234,7 +233,7 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *
 	/* Recheck under lock: */
 	if (bch2_bucket_is_open(c, ca->dev_idx, bucket)) {
 		spin_unlock(&c->freelist_lock);
-		s->skipped_open++;
+		req->counters.skipped_open++;
 		return NULL;
 	}
 
@@ -259,15 +258,14 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *
 }
 
 static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bch_dev *ca,
-					    enum bch_watermark watermark,
-					    struct bucket_alloc_state *s,
+					    struct alloc_request *req,
 					    struct btree_iter *freespace_iter,
 					    struct closure *cl)
 {
 	struct bch_fs *c = trans->c;
 	u64 b = freespace_iter->pos.offset & ~(~0ULL << 56);
 
-	if (!may_alloc_bucket(c, POS(ca->dev_idx, b), s))
+	if (!may_alloc_bucket(c, req, POS(ca->dev_idx, b)))
 		return NULL;
 
 	u8 gen;
@@ -277,7 +275,7 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 	if (ret)
 		return NULL;
 
-	return __try_alloc_bucket(c, ca, b, gen, watermark, s, cl);
+	return __try_alloc_bucket(c, ca, req, b, gen, cl);
 }
 
 /*
@@ -286,8 +284,7 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 static noinline struct open_bucket *
 bch2_bucket_alloc_early(struct btree_trans *trans,
 			struct bch_dev *ca,
-			enum bch_watermark watermark,
-			struct bucket_alloc_state *s,
+			struct alloc_request *req,
 			struct closure *cl)
 {
 	struct bch_fs *c = trans->c;
@@ -295,7 +292,7 @@ bch2_bucket_alloc_early(struct btree_trans *trans,
 	struct bkey_s_c k, ck;
 	struct open_bucket *ob = NULL;
 	u64 first_bucket = ca->mi.first_bucket;
-	u64 *dev_alloc_cursor = &ca->alloc_cursor[s->btree_bitmap];
+	u64 *dev_alloc_cursor = &ca->alloc_cursor[req->btree_bitmap];
 	u64 alloc_start = max(first_bucket, *dev_alloc_cursor);
 	u64 alloc_cursor = alloc_start;
 	int ret;
@@ -317,10 +314,10 @@ again:
 		if (bkey_ge(k.k->p, POS(ca->dev_idx, ca->mi.nbuckets)))
 			break;
 
-		if (s->btree_bitmap != BTREE_BITMAP_ANY &&
-		    s->btree_bitmap != bch2_dev_btree_bitmap_marked_sectors(ca,
+		if (req->btree_bitmap != BTREE_BITMAP_ANY &&
+		    req->btree_bitmap != bch2_dev_btree_bitmap_marked_sectors(ca,
 				bucket_to_sector(ca, bucket), ca->mi.bucket_size)) {
-			if (s->btree_bitmap == BTREE_BITMAP_YES &&
+			if (req->btree_bitmap == BTREE_BITMAP_YES &&
 			    bucket_to_sector(ca, bucket) > 64ULL << ca->mi.btree_bitmap_shift)
 				break;
 
@@ -328,8 +325,8 @@ again:
 					round_up(bucket_to_sector(ca, bucket) + 1,
 						 1ULL << ca->mi.btree_bitmap_shift));
 			bch2_btree_iter_set_pos(trans, &iter, POS(ca->dev_idx, bucket));
-			s->buckets_seen++;
-			s->skipped_mi_btree_bitmap++;
+			req->counters.buckets_seen++;
+			req->counters.skipped_mi_btree_bitmap++;
 			continue;
 		}
 
@@ -348,11 +345,10 @@ again:
 		if (a->data_type != BCH_DATA_free)
 			goto next;
 
-		s->buckets_seen++;
+		req->counters.buckets_seen++;
 
-		ob = may_alloc_bucket(c, k.k->p, s)
-			? __try_alloc_bucket(c, ca, k.k->p.offset, a->gen,
-					     watermark, s, cl)
+		ob = may_alloc_bucket(c, req, k.k->p)
+			? __try_alloc_bucket(c, ca, req, k.k->p.offset, a->gen, cl)
 			: NULL;
 next:
 		bch2_set_btree_iter_dontneed(trans, &citer);
@@ -379,14 +375,13 @@ next:
 
 static struct open_bucket *bch2_bucket_alloc_freelist(struct btree_trans *trans,
 						   struct bch_dev *ca,
-						   enum bch_watermark watermark,
-						   struct bucket_alloc_state *s,
+						   struct alloc_request *req,
 						   struct closure *cl)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct open_bucket *ob = NULL;
-	u64 *dev_alloc_cursor = &ca->alloc_cursor[s->btree_bitmap];
+	u64 *dev_alloc_cursor = &ca->alloc_cursor[req->btree_bitmap];
 	u64 alloc_start = max_t(u64, ca->mi.first_bucket, READ_ONCE(*dev_alloc_cursor));
 	u64 alloc_cursor = alloc_start;
 	int ret;
@@ -402,13 +397,13 @@ again:
 		iter.k.size = iter.k.p.offset - iter.pos.offset;
 
 		while (iter.k.size) {
-			s->buckets_seen++;
+			req->counters.buckets_seen++;
 
 			u64 bucket = iter.pos.offset & ~(~0ULL << 56);
-			if (s->btree_bitmap != BTREE_BITMAP_ANY &&
-			    s->btree_bitmap != bch2_dev_btree_bitmap_marked_sectors(ca,
+			if (req->btree_bitmap != BTREE_BITMAP_ANY &&
+			    req->btree_bitmap != bch2_dev_btree_bitmap_marked_sectors(ca,
 					bucket_to_sector(ca, bucket), ca->mi.bucket_size)) {
-				if (s->btree_bitmap == BTREE_BITMAP_YES &&
+				if (req->btree_bitmap == BTREE_BITMAP_YES &&
 				    bucket_to_sector(ca, bucket) > 64ULL << ca->mi.btree_bitmap_shift)
 					goto fail;
 
@@ -418,11 +413,11 @@ again:
 				alloc_cursor = bucket|(iter.pos.offset & (~0ULL << 56));
 
 				bch2_btree_iter_set_pos(trans, &iter, POS(ca->dev_idx, alloc_cursor));
-				s->skipped_mi_btree_bitmap++;
+				req->counters.skipped_mi_btree_bitmap++;
 				goto next;
 			}
 
-			ob = try_alloc_bucket(trans, ca, watermark, s, &iter, cl);
+			ob = try_alloc_bucket(trans, ca, req, &iter, cl);
 			if (ob) {
 				if (!IS_ERR(ob))
 					*dev_alloc_cursor = iter.pos.offset;
@@ -456,7 +451,6 @@ fail:
 static noinline void trace_bucket_alloc2(struct bch_fs *c, struct bch_dev *ca,
 					 struct alloc_request *req,
 					 struct closure *cl,
-					 struct bucket_alloc_state *s,
 					 struct open_bucket *ob)
 {
 	struct printbuf buf = PRINTBUF;
@@ -472,12 +466,12 @@ static noinline void trace_bucket_alloc2(struct bch_fs *c, struct bch_dev *ca,
 	prt_printf(&buf, "copygc_wait\t%lu/%lli\n",
 		   bch2_copygc_wait_amount(c),
 		   c->copygc_wait - atomic64_read(&c->io_clock[WRITE].now));
-	prt_printf(&buf, "seen\t%llu\n",	s->buckets_seen);
-	prt_printf(&buf, "open\t%llu\n",	s->skipped_open);
-	prt_printf(&buf, "need journal commit\t%llu\n", s->skipped_need_journal_commit);
-	prt_printf(&buf, "nocow\t%llu\n",	s->skipped_nocow);
-	prt_printf(&buf, "nouse\t%llu\n",	s->skipped_nouse);
-	prt_printf(&buf, "mi_btree_bitmap\t%llu\n", s->skipped_mi_btree_bitmap);
+	prt_printf(&buf, "seen\t%llu\n",	req->counters.buckets_seen);
+	prt_printf(&buf, "open\t%llu\n",	req->counters.skipped_open);
+	prt_printf(&buf, "need journal commit\t%llu\n", req->counters.skipped_need_journal_commit);
+	prt_printf(&buf, "nocow\t%llu\n",	req->counters.skipped_nocow);
+	prt_printf(&buf, "nouse\t%llu\n",	req->counters.skipped_nouse);
+	prt_printf(&buf, "mi_btree_bitmap\t%llu\n", req->counters.skipped_mi_btree_bitmap);
 
 	if (!IS_ERR(ob)) {
 		prt_printf(&buf, "allocated\t%llu\n", ob->bucket);
@@ -510,10 +504,10 @@ static struct open_bucket *bch2_bucket_alloc_trans(struct btree_trans *trans,
 	struct open_bucket *ob = NULL;
 	bool freespace = READ_ONCE(ca->mi.freespace_initialized);
 	u64 avail;
-	struct bucket_alloc_state s = {
-		.btree_bitmap = req->data_type == BCH_DATA_btree,
-	};
 	bool waiting = nowait;
+
+	req->btree_bitmap = req->data_type == BCH_DATA_btree;
+	memset(&req->counters, 0, sizeof(req->counters));
 again:
 	bch2_dev_usage_read_fast(ca, &req->usage);
 	avail = dev_buckets_free(ca, req->usage, req->watermark);
@@ -548,14 +542,14 @@ again:
 		closure_wake_up(&c->freelist_wait);
 alloc:
 	ob = likely(freespace)
-		? bch2_bucket_alloc_freelist(trans, ca, req->watermark, &s, cl)
-		: bch2_bucket_alloc_early(trans, ca, req->watermark, &s, cl);
+		? bch2_bucket_alloc_freelist(trans, ca, req, cl)
+		: bch2_bucket_alloc_early(trans, ca, req, cl);
 
-	if (s.need_journal_commit * 2 > avail)
+	if (req->counters.need_journal_commit * 2 > avail)
 		bch2_journal_flush_async(&c->journal, NULL);
 
-	if (!ob && s.btree_bitmap != BTREE_BITMAP_ANY) {
-		s.btree_bitmap = BTREE_BITMAP_ANY;
+	if (!ob && req->btree_bitmap != BTREE_BITMAP_ANY) {
+		req->btree_bitmap = BTREE_BITMAP_ANY;
 		goto alloc;
 	}
 
@@ -578,7 +572,7 @@ err:
 	if (!IS_ERR(ob)
 	    ? trace_bucket_alloc_enabled()
 	    : trace_bucket_alloc_fail_enabled())
-		trace_bucket_alloc2(c, ca, req, cl, &s, ob);
+		trace_bucket_alloc2(c, ca, req, cl, ob);
 
 	return ob;
 }
