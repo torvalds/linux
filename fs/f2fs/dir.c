@@ -537,7 +537,7 @@ struct page *f2fs_init_inode_metadata(struct inode *inode, struct inode *dir,
 			folio_put(folio);
 		}
 
-		err = f2fs_init_acl(inode, dir, &folio->page, &dfolio->page);
+		err = f2fs_init_acl(inode, dir, folio, dfolio);
 		if (err)
 			goto put_error;
 
