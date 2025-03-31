@@ -263,31 +263,31 @@ out:
 int f2fs_write_inline_data(struct inode *inode, struct folio *folio)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	struct page *ipage;
+	struct folio *ifolio;
 
-	ipage = f2fs_get_inode_page(sbi, inode->i_ino);
-	if (IS_ERR(ipage))
-		return PTR_ERR(ipage);
+	ifolio = f2fs_get_inode_folio(sbi, inode->i_ino);
+	if (IS_ERR(ifolio))
+		return PTR_ERR(ifolio);
 
 	if (!f2fs_has_inline_data(inode)) {
-		f2fs_put_page(ipage, 1);
+		f2fs_folio_put(ifolio, true);
 		return -EAGAIN;
 	}
 
 	f2fs_bug_on(F2FS_I_SB(inode), folio->index);
 
-	f2fs_wait_on_page_writeback(ipage, NODE, true, true);
-	memcpy_from_folio(inline_data_addr(inode, ipage),
+	f2fs_folio_wait_writeback(ifolio, NODE, true, true);
+	memcpy_from_folio(inline_data_addr(inode, &ifolio->page),
 			 folio, 0, MAX_INLINE_DATA(inode));
-	set_page_dirty(ipage);
+	folio_mark_dirty(ifolio);
 
 	f2fs_clear_page_cache_dirty_tag(folio);
 
 	set_inode_flag(inode, FI_APPEND_WRITE);
 	set_inode_flag(inode, FI_DATA_EXIST);
 
-	clear_page_private_inline(ipage);
-	f2fs_put_page(ipage, 1);
+	clear_page_private_inline(&ifolio->page);
+	f2fs_folio_put(ifolio, 1);
 	return 0;
 }
 
