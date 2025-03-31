@@ -226,12 +226,13 @@ static inline enum cp_reason_type need_do_checkpoint(struct inode *inode)
 
 static bool need_inode_page_update(struct f2fs_sb_info *sbi, nid_t ino)
 {
-	struct page *i = find_get_page(NODE_MAPPING(sbi), ino);
+	struct folio *i = filemap_get_folio(NODE_MAPPING(sbi), ino);
 	bool ret = false;
 	/* But we need to avoid that there are some inode updates */
-	if ((i && PageDirty(i)) || f2fs_need_inode_block_update(sbi, ino))
+	if ((!IS_ERR(i) && folio_test_dirty(i)) ||
+	    f2fs_need_inode_block_update(sbi, ino))
 		ret = true;
-	f2fs_put_page(i, 0);
+	f2fs_folio_put(i, false);
 	return ret;
 }
 
