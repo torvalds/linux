@@ -876,7 +876,7 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct folio *folio,
 		f2fs_add_ino_entry(F2FS_I_SB(dir), dir->i_ino, TRANS_DIR_INO);
 
 	if (f2fs_has_inline_dentry(dir))
-		return f2fs_delete_inline_entry(dentry, &folio->page, dir, inode);
+		return f2fs_delete_inline_entry(dentry, folio, dir, inode);
 
 	folio_lock(folio);
 	f2fs_folio_wait_writeback(folio, DATA, true, true);

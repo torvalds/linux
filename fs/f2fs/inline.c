@@ -697,8 +697,8 @@ out:
 	return err;
 }
 
-void f2fs_delete_inline_entry(struct f2fs_dir_entry *dentry, struct page *page,
-					struct inode *dir, struct inode *inode)
+void f2fs_delete_inline_entry(struct f2fs_dir_entry *dentry,
+		struct folio *folio, struct inode *dir, struct inode *inode)
 {
 	struct f2fs_dentry_ptr d;
 	void *inline_dentry;
@@ -706,18 +706,18 @@ void f2fs_delete_inline_entry(struct f2fs_dir_entry *dentry, struct page *page,
 	unsigned int bit_pos;
 	int i;
 
-	lock_page(page);
-	f2fs_wait_on_page_writeback(page, NODE, true, true);
+	folio_lock(folio);
+	f2fs_folio_wait_writeback(folio, NODE, true, true);
 
-	inline_dentry = inline_data_addr(dir, page);
+	inline_dentry = inline_data_addr(dir, &folio->page);
 	make_dentry_ptr_inline(dir, &d, inline_dentry);
 
 	bit_pos = dentry - d.dentry;
 	for (i = 0; i < slots; i++)
 		__clear_bit_le(bit_pos + i, d.bitmap);
 
-	set_page_dirty(page);
-	f2fs_put_page(page, 1);
+	folio_mark_dirty(folio);
+	f2fs_folio_put(folio, true);
 
 	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	f2fs_mark_inode_dirty_sync(dir, false);
