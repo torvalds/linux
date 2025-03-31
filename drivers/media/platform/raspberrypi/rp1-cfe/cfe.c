@@ -12,7 +12,6 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
-#include <linux/fwnode.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
