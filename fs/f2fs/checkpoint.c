@@ -748,26 +748,26 @@ int f2fs_recover_orphan_inodes(struct f2fs_sb_info *sbi)
 	f2fs_ra_meta_pages(sbi, start_blk, orphan_blocks, META_CP, true);
 
 	for (i = 0; i < orphan_blocks; i++) {
-		struct page *page;
+		struct folio *folio;
 		struct f2fs_orphan_block *orphan_blk;
 
-		page = f2fs_get_meta_page(sbi, start_blk + i);
-		if (IS_ERR(page)) {
-			err = PTR_ERR(page);
+		folio = f2fs_get_meta_folio(sbi, start_blk + i);
+		if (IS_ERR(folio)) {
+			err = PTR_ERR(folio);
 			goto out;
 		}
 
-		orphan_blk = (struct f2fs_orphan_block *)page_address(page);
+		orphan_blk = folio_address(folio);
 		for (j = 0; j < le32_to_cpu(orphan_blk->entry_count); j++) {
 			nid_t ino = le32_to_cpu(orphan_blk->ino[j]);
 
 			err = recover_orphan_inode(sbi, ino);
 			if (err) {
-				f2fs_put_page(page, 1);
+				f2fs_folio_put(folio, true);
 				goto out;
 			}
 		}
-		f2fs_put_page(page, 1);
+		f2fs_folio_put(folio, true);
 	}
 	/* clear Orphan Flag */
 	clear_ckpt_flags(sbi, CP_ORPHAN_PRESENT_FLAG);
