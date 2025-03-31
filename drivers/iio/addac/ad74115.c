@@ -866,15 +866,14 @@ static int ad74115_get_adc_code(struct iio_dev *indio_dev,
 	struct ad74115_state *st = iio_priv(indio_dev);
 	int ret;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
 
 	mutex_lock(&st->lock);
 	ret = _ad74115_get_adc_code(st, channel, val);
 	mutex_unlock(&st->lock);
 
-	iio_device_release_direct_mode(indio_dev);
+	iio_device_release_direct(indio_dev);
 
 	return ret;
 }
