@@ -1338,11 +1338,11 @@ struct folio *f2fs_get_lock_data_folio(struct inode *inode, pgoff_t index,
  *
  * Also, caller should grab and release a rwsem by calling f2fs_lock_op() and
  * f2fs_unlock_op().
- * Note that, ipage is set only by make_empty_dir, and if any error occur,
- * ipage should be released by this function.
+ * Note that, ifolio is set only by make_empty_dir, and if any error occur,
+ * ifolio should be released by this function.
  */
 struct folio *f2fs_get_new_data_folio(struct inode *inode,
-		struct page *ipage, pgoff_t index, bool new_i_size)
+		struct folio *ifolio, pgoff_t index, bool new_i_size)
 {
 	struct address_space *mapping = inode->i_mapping;
 	struct folio *folio;
@@ -1352,20 +1352,20 @@ struct folio *f2fs_get_new_data_folio(struct inode *inode,
 	folio = f2fs_grab_cache_folio(mapping, index, true);
 	if (IS_ERR(folio)) {
 		/*
-		 * before exiting, we should make sure ipage will be released
+		 * before exiting, we should make sure ifolio will be released
 		 * if any error occur.
 		 */
-		f2fs_put_page(ipage, 1);
+		f2fs_folio_put(ifolio, true);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	set_new_dnode(&dn, inode, ipage, NULL, 0);
+	set_new_dnode(&dn, inode, &ifolio->page, NULL, 0);
 	err = f2fs_reserve_block(&dn, index);
 	if (err) {
 		f2fs_folio_put(folio, true);
 		return ERR_PTR(err);
 	}
-	if (!ipage)
+	if (!ifolio)
 		f2fs_put_dnode(&dn);
 
 	if (folio_test_uptodate(folio))
@@ -1378,8 +1378,8 @@ struct folio *f2fs_get_new_data_folio(struct inode *inode,
 	} else {
 		f2fs_folio_put(folio, true);
 
-		/* if ipage exists, blkaddr should be NEW_ADDR */
-		f2fs_bug_on(F2FS_I_SB(inode), ipage);
+		/* if ifolio exists, blkaddr should be NEW_ADDR */
+		f2fs_bug_on(F2FS_I_SB(inode), ifolio);
 		folio = f2fs_get_lock_data_folio(inode, index, true);
 		if (IS_ERR(folio))
 			return folio;

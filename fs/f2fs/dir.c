@@ -492,16 +492,16 @@ void f2fs_do_make_empty_dir(struct inode *inode, struct inode *parent,
 }
 
 static int make_empty_dir(struct inode *inode,
-		struct inode *parent, struct page *page)
+		struct inode *parent, struct folio *folio)
 {
 	struct folio *dentry_folio;
 	struct f2fs_dentry_block *dentry_blk;
 	struct f2fs_dentry_ptr d;
 
 	if (f2fs_has_inline_dentry(inode))
-		return f2fs_make_empty_inline_dir(inode, parent, page);
+		return f2fs_make_empty_inline_dir(inode, parent, &folio->page);
 
-	dentry_folio = f2fs_get_new_data_folio(inode, page, 0, true);
+	dentry_folio = f2fs_get_new_data_folio(inode, folio, 0, true);
 	if (IS_ERR(dentry_folio))
 		return PTR_ERR(dentry_folio);
 
@@ -529,7 +529,7 @@ struct page *f2fs_init_inode_metadata(struct inode *inode, struct inode *dir,
 		if (S_ISDIR(inode->i_mode)) {
 			/* in order to handle error case */
 			folio_get(folio);
-			err = make_empty_dir(inode, dir, &folio->page);
+			err = make_empty_dir(inode, dir, folio);
 			if (err) {
 				folio_lock(folio);
 				goto put_error;
