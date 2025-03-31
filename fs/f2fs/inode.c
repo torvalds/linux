@@ -156,7 +156,7 @@ static __u32 f2fs_inode_chksum(struct f2fs_sb_info *sbi, struct page *page)
 	return chksum;
 }
 
-bool f2fs_inode_chksum_verify(struct f2fs_sb_info *sbi, struct page *page)
+bool f2fs_inode_chksum_verify(struct f2fs_sb_info *sbi, struct folio *folio)
 {
 	struct f2fs_inode *ri;
 	__u32 provided, calculated;
@@ -165,21 +165,21 @@ bool f2fs_inode_chksum_verify(struct f2fs_sb_info *sbi, struct page *page)
 		return true;
 
 #ifdef CONFIG_F2FS_CHECK_FS
-	if (!f2fs_enable_inode_chksum(sbi, page))
+	if (!f2fs_enable_inode_chksum(sbi, &folio->page))
 #else
-	if (!f2fs_enable_inode_chksum(sbi, page) ||
-			PageDirty(page) ||
-			folio_test_writeback(page_folio(page)))
+	if (!f2fs_enable_inode_chksum(sbi, &folio->page) ||
+			folio_test_dirty(folio) ||
+			folio_test_writeback(folio))
 #endif
 		return true;
 
-	ri = &F2FS_NODE(page)->i;
+	ri = &F2FS_NODE(&folio->page)->i;
 	provided = le32_to_cpu(ri->i_inode_checksum);
-	calculated = f2fs_inode_chksum(sbi, page);
+	calculated = f2fs_inode_chksum(sbi, &folio->page);
 
 	if (provided != calculated)
 		f2fs_warn(sbi, "checksum invalid, nid = %lu, ino_of_node = %x, %x vs. %x",
-			  page_folio(page)->index, ino_of_node(page),
+			  folio->index, ino_of_node(&folio->page),
 			  provided, calculated);
 
 	return provided == calculated;
