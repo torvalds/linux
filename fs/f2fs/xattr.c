@@ -436,7 +436,7 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 	struct page *in_page = NULL;
 	void *xattr_addr;
 	void *inline_addr = NULL;
-	struct page *xpage;
+	struct folio *xfolio;
 	nid_t new_nid = 0;
 	int err = 0;
 
@@ -475,27 +475,27 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 
 	/* write to xattr node block */
 	if (F2FS_I(inode)->i_xattr_nid) {
-		xpage = f2fs_get_xnode_page(sbi, F2FS_I(inode)->i_xattr_nid);
-		if (IS_ERR(xpage)) {
-			err = PTR_ERR(xpage);
+		xfolio = f2fs_get_xnode_folio(sbi, F2FS_I(inode)->i_xattr_nid);
+		if (IS_ERR(xfolio)) {
+			err = PTR_ERR(xfolio);
 			f2fs_alloc_nid_failed(sbi, new_nid);
 			goto in_page_out;
 		}
 		f2fs_bug_on(sbi, new_nid);
-		f2fs_wait_on_page_writeback(xpage, NODE, true, true);
+		f2fs_folio_wait_writeback(xfolio, NODE, true, true);
 	} else {
 		struct dnode_of_data dn;
 
 		set_new_dnode(&dn, inode, NULL, NULL, new_nid);
-		xpage = f2fs_new_node_page(&dn, XATTR_NODE_OFFSET);
-		if (IS_ERR(xpage)) {
-			err = PTR_ERR(xpage);
+		xfolio = f2fs_new_node_folio(&dn, XATTR_NODE_OFFSET);
+		if (IS_ERR(xfolio)) {
+			err = PTR_ERR(xfolio);
 			f2fs_alloc_nid_failed(sbi, new_nid);
 			goto in_page_out;
 		}
 		f2fs_alloc_nid_done(sbi, new_nid);
 	}
-	xattr_addr = page_address(xpage);
+	xattr_addr = folio_address(xfolio);
 
 	if (inline_size)
 		memcpy(inline_addr, txattr_addr, inline_size);
@@ -503,9 +503,9 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 
 	if (inline_size)
 		set_page_dirty(ipage ? ipage : in_page);
-	set_page_dirty(xpage);
+	folio_mark_dirty(xfolio);
 
-	f2fs_put_page(xpage, 1);
+	f2fs_folio_put(xfolio, true);
 in_page_out:
 	f2fs_put_page(in_page, 1);
 	return err;
