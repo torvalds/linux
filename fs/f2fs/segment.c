@@ -4184,7 +4184,7 @@ void f2fs_folio_wait_writeback(struct folio *folio, enum page_type type,
 void f2fs_wait_on_block_writeback(struct inode *inode, block_t blkaddr)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	struct page *cpage;
+	struct folio *cfolio;
 
 	if (!f2fs_meta_inode_gc_required(inode))
 		return;
@@ -4192,10 +4192,10 @@ void f2fs_wait_on_block_writeback(struct inode *inode, block_t blkaddr)
 	if (!__is_valid_data_blkaddr(blkaddr))
 		return;
 
-	cpage = find_lock_page(META_MAPPING(sbi), blkaddr);
-	if (cpage) {
-		f2fs_wait_on_page_writeback(cpage, DATA, true, true);
-		f2fs_put_page(cpage, 1);
+	cfolio = filemap_lock_folio(META_MAPPING(sbi), blkaddr);
+	if (!IS_ERR(cfolio)) {
+		f2fs_folio_wait_writeback(cfolio, DATA, true, true);
+		f2fs_folio_put(cfolio, true);
 	}
 }
 
