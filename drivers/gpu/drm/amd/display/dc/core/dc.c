@@ -5547,6 +5547,15 @@ void dc_set_power_state(struct dc *dc, enum dc_acpi_cm_power_state power_state)
 			dc->hwss.init_sys_ctx(dc->hwseq, dc, &dc->vm_pa_config);
 		}
 		break;
+	case DC_ACPI_CM_POWER_STATE_D3:
+		if (dc->caps.ips_support)
+			dc_dmub_srv_notify_fw_dc_power_state(dc->ctx->dmub_srv, DC_ACPI_CM_POWER_STATE_D3);
+
+		if (dc->caps.ips_v2_support) {
+			if (dc->clk_mgr->funcs->set_low_power_state)
+				dc->clk_mgr->funcs->set_low_power_state(dc->clk_mgr);
+		}
+		break;
 	default:
 		ASSERT(dc->current_state->stream_count == 0);
 		dc_dmub_srv_notify_fw_dc_power_state(dc->ctx->dmub_srv, power_state);

@@ -311,6 +311,7 @@ struct dc_caps {
 	bool dmcub_support;
 	bool zstate_support;
 	bool ips_support;
+	bool ips_v2_support;
 	uint32_t num_of_internal_disp;
 	enum dp_protocol_version max_dp_protocol_version;
 	unsigned int mall_size_per_mem_channel;
