@@ -495,9 +495,8 @@ static noinline void trace_bucket_alloc2(struct bch_fs *c, struct bch_dev *ca,
 /**
  * bch2_bucket_alloc_trans - allocate a single bucket from a specific device
  * @trans:	transaction object
+ * @req:	state for the entire allocation
  * @ca:		device to allocate from
- * @watermark:	how important is this allocation?
- * @data_type:	BCH_DATA_journal, btree, user...
  * @cl:		if not NULL, closure to be used to wait if buckets not available
  * @nowait:	if true, do not wait for buckets to become available
  * @usage:	for secondarily also returning the current device usage
@@ -782,7 +781,7 @@ static int bucket_alloc_from_stripe(struct btree_trans *trans,
 		return 0;
 
 	struct ec_stripe_head *h =
-		bch2_ec_stripe_head_get(trans, req->target, 0, req->nr_replicas - 1, req->watermark, cl);
+		bch2_ec_stripe_head_get(trans, req, 0, cl);
 	if (IS_ERR(h))
 		return PTR_ERR(h);
 	if (!h)

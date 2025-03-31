@@ -1977,17 +1977,15 @@ err:
 }
 
 struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
-					       unsigned target,
+					       struct alloc_request *req,
 					       unsigned algo,
-					       unsigned redundancy,
-					       enum bch_watermark watermark,
 					       struct closure *cl)
 {
 	struct bch_fs *c = trans->c;
-	struct ec_stripe_head *h;
-	bool waiting = false;
+	unsigned redundancy = req->nr_replicas - 1;
 	unsigned disk_label = 0;
-	struct target t = target_decode(target);
+	struct target t = target_decode(req->target);
+	bool waiting = false;
 	int ret;
 
 	if (t.type == TARGET_GROUP) {
@@ -1998,7 +1996,9 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 		disk_label = t.group + 1; /* 0 == no label */
 	}
 
-	h = __bch2_ec_stripe_head_get(trans, disk_label, algo, redundancy, watermark);
+	struct ec_stripe_head *h =
+		__bch2_ec_stripe_head_get(trans, disk_label, algo,
+					  redundancy, req->watermark);
 	if (IS_ERR_OR_NULL(h))
 		return h;
 
@@ -2041,8 +2041,8 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 		if (waiting || !cl || ret != -BCH_ERR_stripe_alloc_blocked)
 			goto err;
 
-		if (watermark == BCH_WATERMARK_copygc) {
-			ret =   new_stripe_alloc_buckets(trans, h, s, watermark, NULL) ?:
+		if (req->watermark == BCH_WATERMARK_copygc) {
+			ret =   new_stripe_alloc_buckets(trans, h, s, req->watermark, NULL) ?:
 				__bch2_ec_stripe_head_reserve(trans, h, s);
 			if (ret)
 				goto err;
@@ -2061,7 +2061,7 @@ alloc_existing:
 	 * Retry allocating buckets, with the watermark for this
 	 * particular write:
 	 */
-	ret = new_stripe_alloc_buckets(trans, h, s, watermark, cl);
+	ret = new_stripe_alloc_buckets(trans, h, s, req->watermark, cl);
 	if (ret)
 		goto err;
 

@@ -255,9 +255,10 @@ void bch2_ec_bucket_cancel(struct bch_fs *, struct open_bucket *, int);
 int bch2_ec_stripe_new_alloc(struct bch_fs *, struct ec_stripe_head *);
 
 void bch2_ec_stripe_head_put(struct bch_fs *, struct ec_stripe_head *);
+
+struct alloc_request;
 struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *,
-			unsigned, unsigned, unsigned,
-			enum bch_watermark, struct closure *);
+			struct alloc_request *, unsigned, struct closure *);
 
 void bch2_do_stripe_deletes(struct bch_fs *);
 void bch2_ec_do_stripe_creates(struct bch_fs *);
