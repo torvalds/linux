@@ -1719,8 +1719,6 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 				struct gc_inode_list *gc_list, int gc_type,
 				bool force_migrate, bool one_time)
 {
-	struct page *sum_page;
-	struct f2fs_summary_block *sum;
 	struct blk_plug plug;
 	unsigned int segno = start_segno;
 	unsigned int end_segno = start_segno + SEGS_PER_SEC(sbi);
@@ -1770,40 +1768,40 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 
 	/* reference all summary page */
 	while (segno < end_segno) {
-		sum_page = f2fs_get_sum_page(sbi, segno++);
-		if (IS_ERR(sum_page)) {
-			int err = PTR_ERR(sum_page);
+		struct folio *sum_folio = f2fs_get_sum_folio(sbi, segno++);
+		if (IS_ERR(sum_folio)) {
+			int err = PTR_ERR(sum_folio);
 
 			end_segno = segno - 1;
 			for (segno = start_segno; segno < end_segno; segno++) {
-				sum_page = find_get_page(META_MAPPING(sbi),
+				sum_folio = filemap_get_folio(META_MAPPING(sbi),
 						GET_SUM_BLOCK(sbi, segno));
-				f2fs_put_page(sum_page, 0);
-				f2fs_put_page(sum_page, 0);
+				folio_put_refs(sum_folio, 2);
 			}
 			return err;
 		}
-		unlock_page(sum_page);
+		folio_unlock(sum_folio);
 	}
 
 	blk_start_plug(&plug);
 
 	for (segno = start_segno; segno < end_segno; segno++) {
+		struct f2fs_summary_block *sum;
 
 		/* find segment summary of victim */
-		sum_page = find_get_page(META_MAPPING(sbi),
+		struct folio *sum_folio = filemap_get_folio(META_MAPPING(sbi),
 					GET_SUM_BLOCK(sbi, segno));
-		f2fs_put_page(sum_page, 0);
 
 		if (get_valid_blocks(sbi, segno, false) == 0)
 			goto freed;
 		if (gc_type == BG_GC && __is_large_section(sbi) &&
 				migrated >= sbi->migration_granularity)
 			goto skip;
-		if (!PageUptodate(sum_page) || unlikely(f2fs_cp_error(sbi)))
+		if (!folio_test_uptodate(sum_folio) ||
+		    unlikely(f2fs_cp_error(sbi)))
 			goto skip;
 
-		sum = page_address(sum_page);
+		sum = folio_address(sum_folio);
 		if (type != GET_SUM_TYPE((&sum->footer))) {
 			f2fs_err(sbi, "Inconsistent segment (%u) type [%d, %d] in SSA and SIT",
 				 segno, type, GET_SUM_TYPE((&sum->footer)));
@@ -1841,7 +1839,7 @@ freed:
 				(segno + 1 < sec_end_segno) ?
 					segno + 1 : NULL_SEGNO;
 skip:
-		f2fs_put_page(sum_page, 0);
+		folio_put_refs(sum_folio, 2);
 	}
 
 	if (submitted)
