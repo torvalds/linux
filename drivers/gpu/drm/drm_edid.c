@@ -7099,17 +7099,11 @@ EXPORT_SYMBOL(drm_add_edid_modes);
  * Return: The number of modes added or 0 if we couldn't find any.
  */
 int drm_add_modes_noedid(struct drm_connector *connector,
-			int hdisplay, int vdisplay)
+			 unsigned int hdisplay, unsigned int vdisplay)
 {
-	int i, count, num_modes = 0;
+	int i, count = ARRAY_SIZE(drm_dmt_modes), num_modes = 0;
 	struct drm_display_mode *mode;
 	struct drm_device *dev = connector->dev;
-
-	count = ARRAY_SIZE(drm_dmt_modes);
-	if (hdisplay < 0)
-		hdisplay = 0;
-	if (vdisplay < 0)
-		vdisplay = 0;
 
 	for (i = 0; i < count; i++) {
 		const struct drm_display_mode *ptr = &drm_dmt_modes[i];
