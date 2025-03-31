@@ -385,24 +385,22 @@ out:
  * Entry is guaranteed to be valid.
  */
 struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
-			const struct qstr *child, struct page **res_page)
+			const struct qstr *child, struct folio **res_folio)
 {
 	struct f2fs_dir_entry *de = NULL;
 	struct f2fs_filename fname;
-	struct folio *rfolio;
 	int err;
 
 	err = f2fs_setup_filename(dir, child, 1, &fname);
 	if (err) {
 		if (err == -ENOENT)
-			*res_page = NULL;
+			*res_folio = NULL;
 		else
-			*res_page = ERR_PTR(err);
+			*res_folio = ERR_PTR(err);
 		return NULL;
 	}
 
-	de = __f2fs_find_entry(dir, &fname, &rfolio);
-	*res_page = &rfolio->page;
+	de = __f2fs_find_entry(dir, &fname, res_folio);
 
 	f2fs_free_filename(&fname);
 	return de;
@@ -410,19 +408,22 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 
 struct f2fs_dir_entry *f2fs_parent_dir(struct inode *dir, struct page **p)
 {
-	return f2fs_find_entry(dir, &dotdot_name, p);
+	struct folio *folio;
+	struct f2fs_dir_entry *r = f2fs_find_entry(dir, &dotdot_name, &folio);
+	*p = &folio->page;
+	return r;
 }
 
 ino_t f2fs_inode_by_name(struct inode *dir, const struct qstr *qstr,
-							struct page **page)
+							struct folio **folio)
 {
 	ino_t res = 0;
 	struct f2fs_dir_entry *de;
 
-	de = f2fs_find_entry(dir, qstr, page);
+	de = f2fs_find_entry(dir, qstr, folio);
 	if (de) {
 		res = le32_to_cpu(de->ino);
-		f2fs_put_page(*page, 0);
+		f2fs_folio_put(*folio, false);
 	}
 
 	return res;
