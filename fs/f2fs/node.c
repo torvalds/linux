@@ -1312,15 +1312,15 @@ int f2fs_remove_inode_page(struct inode *inode)
 	return 0;
 }
 
-struct page *f2fs_new_inode_page(struct inode *inode)
+struct folio *f2fs_new_inode_folio(struct inode *inode)
 {
 	struct dnode_of_data dn;
 
 	/* allocate inode page for new inode */
 	set_new_dnode(&dn, inode, NULL, NULL, inode->i_ino);
 
-	/* caller should f2fs_put_page(page, 1); */
-	return f2fs_new_node_page(&dn, 0);
+	/* caller should f2fs_folio_put(folio, true); */
+	return f2fs_new_node_folio(&dn, 0);
 }
 
 struct folio *f2fs_new_node_folio(struct dnode_of_data *dn, unsigned int ofs)
@@ -2367,7 +2367,7 @@ static bool add_free_nid(struct f2fs_sb_info *sbi,
 		 *                          - __lookup_nat_cache
 		 *  - f2fs_add_link
 		 *   - f2fs_init_inode_metadata
-		 *    - f2fs_new_inode_page
+		 *    - f2fs_new_inode_folio
 		 *     - f2fs_new_node_page
 		 *      - set_node_addr
 		 *  - f2fs_alloc_nid_done

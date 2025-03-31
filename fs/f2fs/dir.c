@@ -518,46 +518,47 @@ static int make_empty_dir(struct inode *inode,
 struct page *f2fs_init_inode_metadata(struct inode *inode, struct inode *dir,
 			const struct f2fs_filename *fname, struct page *dpage)
 {
-	struct page *page;
+	struct folio *folio;
 	int err;
 
 	if (is_inode_flag_set(inode, FI_NEW_INODE)) {
-		page = f2fs_new_inode_page(inode);
-		if (IS_ERR(page))
-			return page;
+		folio = f2fs_new_inode_folio(inode);
+		if (IS_ERR(folio))
+			return &folio->page;
 
 		if (S_ISDIR(inode->i_mode)) {
 			/* in order to handle error case */
-			get_page(page);
-			err = make_empty_dir(inode, dir, page);
+			folio_get(folio);
+			err = make_empty_dir(inode, dir, &folio->page);
 			if (err) {
-				lock_page(page);
+				folio_lock(folio);
 				goto put_error;
 			}
-			put_page(page);
+			folio_put(folio);
 		}
 
-		err = f2fs_init_acl(inode, dir, page, dpage);
+		err = f2fs_init_acl(inode, dir, &folio->page, dpage);
 		if (err)
 			goto put_error;
 
 		err = f2fs_init_security(inode, dir,
-					 fname ? fname->usr_fname : NULL, page);
+					 fname ? fname->usr_fname : NULL,
+					 &folio->page);
 		if (err)
 			goto put_error;
 
 		if (IS_ENCRYPTED(inode)) {
-			err = fscrypt_set_context(inode, page);
+			err = fscrypt_set_context(inode, folio);
 			if (err)
 				goto put_error;
 		}
 	} else {
-		page = f2fs_get_inode_page(F2FS_I_SB(dir), inode->i_ino);
-		if (IS_ERR(page))
-			return page;
+		folio = f2fs_get_inode_folio(F2FS_I_SB(dir), inode->i_ino);
+		if (IS_ERR(folio))
+			return &folio->page;
 	}
 
-	init_dent_inode(dir, inode, fname, page);
+	init_dent_inode(dir, inode, fname, &folio->page);
 
 	/*
 	 * This file should be checkpointed during fsync.
@@ -574,12 +575,12 @@ struct page *f2fs_init_inode_metadata(struct inode *inode, struct inode *dir,
 			f2fs_remove_orphan_inode(F2FS_I_SB(dir), inode->i_ino);
 		f2fs_i_links_write(inode, true);
 	}
-	return page;
+	return &folio->page;
 
 put_error:
 	clear_nlink(inode);
-	f2fs_update_inode(inode, page);
-	f2fs_put_page(page, 1);
+	f2fs_update_inode(inode, &folio->page);
+	f2fs_folio_put(folio, true);
 	return ERR_PTR(err);
 }
 
