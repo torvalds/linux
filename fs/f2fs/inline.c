@@ -636,7 +636,7 @@ int f2fs_add_inline_entry(struct inode *dir, const struct f2fs_filename *fname,
 			  struct inode *inode, nid_t ino, umode_t mode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
-	struct page *ipage;
+	struct folio *ifolio;
 	unsigned int bit_pos;
 	void *inline_dentry = NULL;
 	struct f2fs_dentry_ptr d;
@@ -644,16 +644,16 @@ int f2fs_add_inline_entry(struct inode *dir, const struct f2fs_filename *fname,
 	struct page *page = NULL;
 	int err = 0;
 
-	ipage = f2fs_get_inode_page(sbi, dir->i_ino);
-	if (IS_ERR(ipage))
-		return PTR_ERR(ipage);
+	ifolio = f2fs_get_inode_folio(sbi, dir->i_ino);
+	if (IS_ERR(ifolio))
+		return PTR_ERR(ifolio);
 
-	inline_dentry = inline_data_addr(dir, ipage);
+	inline_dentry = inline_data_addr(dir, &ifolio->page);
 	make_dentry_ptr_inline(dir, &d, inline_dentry);
 
 	bit_pos = f2fs_room_for_filename(d.bitmap, slots, d.max);
 	if (bit_pos >= d.max) {
-		err = do_convert_inline_dir(dir, ipage, inline_dentry);
+		err = do_convert_inline_dir(dir, &ifolio->page, inline_dentry);
 		if (err)
 			return err;
 		err = -EAGAIN;
@@ -663,19 +663,19 @@ int f2fs_add_inline_entry(struct inode *dir, const struct f2fs_filename *fname,
 	if (inode) {
 		f2fs_down_write_nested(&F2FS_I(inode)->i_sem,
 						SINGLE_DEPTH_NESTING);
-		page = f2fs_init_inode_metadata(inode, dir, fname, ipage);
+		page = f2fs_init_inode_metadata(inode, dir, fname, ifolio);
 		if (IS_ERR(page)) {
 			err = PTR_ERR(page);
 			goto fail;
 		}
 	}
 
-	f2fs_wait_on_page_writeback(ipage, NODE, true, true);
+	f2fs_folio_wait_writeback(ifolio, NODE, true, true);
 
 	f2fs_update_dentry(ino, mode, &d, &fname->disk_name, fname->hash,
 			   bit_pos);
 
-	set_page_dirty(ipage);
+	folio_mark_dirty(ifolio);
 
 	/* we don't need to mark_inode_dirty now */
 	if (inode) {
@@ -693,7 +693,7 @@ fail:
 	if (inode)
 		f2fs_up_write(&F2FS_I(inode)->i_sem);
 out:
-	f2fs_put_page(ipage, 1);
+	f2fs_folio_put(ifolio, true);
 	return err;
 }
 

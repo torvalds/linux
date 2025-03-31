@@ -516,7 +516,7 @@ static int make_empty_dir(struct inode *inode,
 }
 
 struct page *f2fs_init_inode_metadata(struct inode *inode, struct inode *dir,
-			const struct f2fs_filename *fname, struct page *dpage)
+		const struct f2fs_filename *fname, struct folio *dfolio)
 {
 	struct folio *folio;
 	int err;
@@ -537,7 +537,7 @@ struct page *f2fs_init_inode_metadata(struct inode *inode, struct inode *dir,
 			folio_put(folio);
 		}
 
-		err = f2fs_init_acl(inode, dir, &folio->page, dpage);
+		err = f2fs_init_acl(inode, dir, &folio->page, &dfolio->page);
 		if (err)
 			goto put_error;
 
