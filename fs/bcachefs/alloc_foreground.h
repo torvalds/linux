@@ -34,10 +34,14 @@ struct alloc_request {
 	struct bch_devs_list	*devs_have;
 	struct write_point	*wp;
 
+	/* These fields are used primarily by open_bucket_add_buckets */
 	struct open_buckets	ptrs;
 	unsigned		nr_effective;	/* sum of @ptrs durability */
 	bool			have_cache;	/* have we allocated from a 0 durability dev */
 	struct bch_devs_mask	devs_may_alloc;
+
+	/* bch2_bucket_alloc_set_trans(): */
+	struct bch_dev_usage usage;
 };
 
 struct dev_alloc_list bch2_dev_alloc_list(struct bch_fs *,
