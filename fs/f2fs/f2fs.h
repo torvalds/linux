@@ -3893,7 +3893,7 @@ static inline bool f2fs_need_rand_seg(struct f2fs_sb_info *sbi)
 void f2fs_stop_checkpoint(struct f2fs_sb_info *sbi, bool end_io,
 							unsigned char reason);
 void f2fs_flush_ckpt_thread(struct f2fs_sb_info *sbi);
-struct page *f2fs_grab_meta_page(struct f2fs_sb_info *sbi, pgoff_t index);
+struct folio *f2fs_grab_meta_folio(struct f2fs_sb_info *sbi, pgoff_t index);
 struct page *f2fs_get_meta_page(struct f2fs_sb_info *sbi, pgoff_t index);
 struct page *f2fs_get_meta_page_retry(struct f2fs_sb_info *sbi, pgoff_t index);
 struct page *f2fs_get_tmp_page(struct f2fs_sb_info *sbi, pgoff_t index);
@@ -3935,6 +3935,12 @@ int f2fs_issue_checkpoint(struct f2fs_sb_info *sbi);
 int f2fs_start_ckpt_thread(struct f2fs_sb_info *sbi);
 void f2fs_stop_ckpt_thread(struct f2fs_sb_info *sbi);
 void f2fs_init_ckpt_req_control(struct f2fs_sb_info *sbi);
+
+static inline
+struct page *f2fs_grab_meta_page(struct f2fs_sb_info *sbi, pgoff_t index)
+{
+	return &f2fs_grab_meta_folio(sbi, index)->page;
+}
 
 /*
  * data.c
