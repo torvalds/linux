@@ -558,12 +558,11 @@ st_lsm6dsx_shub_read_raw(struct iio_dev *iio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(iio_dev);
-		if (ret)
-			break;
+		if (!iio_device_claim_direct(iio_dev))
+			return -EBUSY;
 
 		ret = st_lsm6dsx_shub_read_oneshot(sensor, ch, val);
-		iio_device_release_direct_mode(iio_dev);
+		iio_device_release_direct(iio_dev);
 		break;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		*val = sensor->ext_info.slv_odr / 1000;
@@ -657,13 +656,12 @@ st_lsm6dsx_shub_write_raw(struct iio_dev *iio_dev,
 {
 	int ret;
 
-	ret = iio_device_claim_direct_mode(iio_dev);
-	if (ret)
-		return ret;
+	if (!iio_device_claim_direct(iio_dev))
+		return -EBUSY;
 
 	ret = __st_lsm6dsx_shub_write_raw(iio_dev, chan, val, val2, mask);
 
-	iio_device_release_direct_mode(iio_dev);
+	iio_device_release_direct(iio_dev);
 
 	return ret;
 }
