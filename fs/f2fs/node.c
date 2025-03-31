@@ -1674,21 +1674,20 @@ continue_unlock:
 	return last_folio;
 }
 
-static int __write_node_page(struct page *page, bool atomic, bool *submitted,
+static int __write_node_folio(struct folio *folio, bool atomic, bool *submitted,
 				struct writeback_control *wbc, bool do_balance,
 				enum iostat_type io_type, unsigned int *seq_id)
 {
-	struct f2fs_sb_info *sbi = F2FS_P_SB(page);
-	struct folio *folio = page_folio(page);
+	struct f2fs_sb_info *sbi = F2FS_F_SB(folio);
 	nid_t nid;
 	struct node_info ni;
 	struct f2fs_io_info fio = {
 		.sbi = sbi,
-		.ino = ino_of_node(page),
+		.ino = ino_of_node(&folio->page),
 		.type = NODE,
 		.op = REQ_OP_WRITE,
 		.op_flags = wbc_to_write_flags(wbc),
-		.page = page,
+		.page = &folio->page,
 		.encrypted_page = NULL,
 		.submitted = 0,
 		.io_type = io_type,
@@ -1713,11 +1712,11 @@ static int __write_node_page(struct page *page, bool atomic, bool *submitted,
 
 	if (!is_sbi_flag_set(sbi, SBI_CP_DISABLED) &&
 			wbc->sync_mode == WB_SYNC_NONE &&
-			IS_DNODE(page) && is_cold_node(page))
+			IS_DNODE(&folio->page) && is_cold_node(&folio->page))
 		goto redirty_out;
 
 	/* get old block addr of this node page */
-	nid = nid_of_node(page);
+	nid = nid_of_node(&folio->page);
 	f2fs_bug_on(sbi, folio->index != nid);
 
 	if (f2fs_get_node_info(sbi, nid, &ni, !do_balance))
@@ -1751,7 +1750,7 @@ static int __write_node_page(struct page *page, bool atomic, bool *submitted,
 
 	/* should add to global list before clearing PAGECACHE status */
 	if (f2fs_in_warm_node_list(sbi, folio)) {
-		seq = f2fs_add_fsync_node_entry(sbi, page);
+		seq = f2fs_add_fsync_node_entry(sbi, &folio->page);
 		if (seq_id)
 			*seq_id = seq;
 	}
@@ -1760,12 +1759,12 @@ static int __write_node_page(struct page *page, bool atomic, bool *submitted,
 
 	fio.old_blkaddr = ni.blk_addr;
 	f2fs_do_write_node_page(nid, &fio);
-	set_node_addr(sbi, &ni, fio.new_blkaddr, is_fsync_dnode(page));
+	set_node_addr(sbi, &ni, fio.new_blkaddr, is_fsync_dnode(&folio->page));
 	dec_page_count(sbi, F2FS_DIRTY_NODES);
 	f2fs_up_read(&sbi->node_write);
 
 	if (wbc->for_reclaim) {
-		f2fs_submit_merged_write_cond(sbi, NULL, page, 0, NODE);
+		f2fs_submit_merged_write_cond(sbi, NULL, &folio->page, 0, NODE);
 		submitted = NULL;
 	}
 
@@ -1807,7 +1806,7 @@ int f2fs_move_node_folio(struct folio *node_folio, int gc_type)
 			goto out_page;
 		}
 
-		if (__write_node_page(&node_folio->page, false, NULL,
+		if (__write_node_folio(node_folio, false, NULL,
 					&wbc, false, FS_GC_NODE_IO, NULL)) {
 			err = -EAGAIN;
 			folio_unlock(node_folio);
@@ -1906,7 +1905,7 @@ continue_unlock:
 			if (!folio_clear_dirty_for_io(folio))
 				goto continue_unlock;
 
-			ret = __write_node_page(&folio->page, atomic &&
+			ret = __write_node_folio(folio, atomic &&
 						folio == last_folio,
 						&submitted, wbc, true,
 						FS_NODE_IO, seq_id);
@@ -2114,7 +2113,7 @@ write_node:
 			set_fsync_mark(&folio->page, 0);
 			set_dentry_mark(&folio->page, 0);
 
-			ret = __write_node_page(&folio->page, false, &submitted,
+			ret = __write_node_folio(folio, false, &submitted,
 						wbc, do_balance, io_type, NULL);
 			if (ret)
 				folio_unlock(folio);
