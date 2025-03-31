@@ -1385,26 +1385,25 @@ fail:
 
 /*
  * Caller should do after getting the following values.
- * 0: f2fs_put_page(page, 0)
- * LOCKED_PAGE or error: f2fs_put_page(page, 1)
+ * 0: f2fs_folio_put(folio, false)
+ * LOCKED_PAGE or error: f2fs_folio_put(folio, true)
  */
-static int read_node_page(struct page *page, blk_opf_t op_flags)
+static int read_node_folio(struct folio *folio, blk_opf_t op_flags)
 {
-	struct folio *folio = page_folio(page);
-	struct f2fs_sb_info *sbi = F2FS_P_SB(page);
+	struct f2fs_sb_info *sbi = F2FS_F_SB(folio);
 	struct node_info ni;
 	struct f2fs_io_info fio = {
 		.sbi = sbi,
 		.type = NODE,
 		.op = REQ_OP_READ,
 		.op_flags = op_flags,
-		.page = page,
+		.page = &folio->page,
 		.encrypted_page = NULL,
 	};
 	int err;
 
 	if (folio_test_uptodate(folio)) {
-		if (!f2fs_inode_chksum_verify(sbi, page)) {
+		if (!f2fs_inode_chksum_verify(sbi, &folio->page)) {
 			folio_clear_uptodate(folio);
 			return -EFSBADCRC;
 		}
@@ -1452,7 +1451,7 @@ void f2fs_ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 	if (IS_ERR(afolio))
 		return;
 
-	err = read_node_page(&afolio->page, REQ_RAHEAD);
+	err = read_node_folio(afolio, REQ_RAHEAD);
 	f2fs_folio_put(afolio, err ? true : false);
 }
 
@@ -1495,7 +1494,7 @@ repeat:
 	if (IS_ERR(folio))
 		return folio;
 
-	err = read_node_page(&folio->page, 0);
+	err = read_node_folio(folio, 0);
 	if (err < 0)
 		goto out_put_err;
 	if (err == LOCKED_PAGE)
@@ -1527,7 +1526,7 @@ page_hit:
 out_err:
 	folio_clear_uptodate(folio);
 out_put_err:
-	/* ENOENT comes from read_node_page which is not an error. */
+	/* ENOENT comes from read_node_folio which is not an error. */
 	if (err != -ENOENT)
 		f2fs_handle_page_eio(sbi, folio, NODE);
 	f2fs_folio_put(folio, true);
