@@ -3895,7 +3895,7 @@ void f2fs_stop_checkpoint(struct f2fs_sb_info *sbi, bool end_io,
 void f2fs_flush_ckpt_thread(struct f2fs_sb_info *sbi);
 struct folio *f2fs_grab_meta_folio(struct f2fs_sb_info *sbi, pgoff_t index);
 struct folio *f2fs_get_meta_folio(struct f2fs_sb_info *sbi, pgoff_t index);
-struct page *f2fs_get_meta_page_retry(struct f2fs_sb_info *sbi, pgoff_t index);
+struct folio *f2fs_get_meta_folio_retry(struct f2fs_sb_info *sbi, pgoff_t index);
 struct folio *f2fs_get_tmp_folio(struct f2fs_sb_info *sbi, pgoff_t index);
 bool f2fs_is_valid_blkaddr(struct f2fs_sb_info *sbi,
 					block_t blkaddr, int type);

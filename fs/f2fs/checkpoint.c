@@ -112,7 +112,7 @@ struct folio *f2fs_get_meta_folio(struct f2fs_sb_info *sbi, pgoff_t index)
 	return __get_meta_folio(sbi, index, true);
 }
 
-struct page *f2fs_get_meta_page_retry(struct f2fs_sb_info *sbi, pgoff_t index)
+struct folio *f2fs_get_meta_folio_retry(struct f2fs_sb_info *sbi, pgoff_t index)
 {
 	struct folio *folio;
 	int count = 0;
@@ -125,7 +125,7 @@ retry:
 			goto retry;
 		f2fs_stop_checkpoint(sbi, false, STOP_CP_REASON_META_PAGE);
 	}
-	return &folio->page;
+	return folio;
 }
 
 /* for POR only */

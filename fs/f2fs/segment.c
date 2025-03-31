@@ -2687,7 +2687,7 @@ struct page *f2fs_get_sum_page(struct f2fs_sb_info *sbi, unsigned int segno)
 {
 	if (unlikely(f2fs_cp_error(sbi)))
 		return ERR_PTR(-EIO);
-	return f2fs_get_meta_page_retry(sbi, GET_SUM_BLOCK(sbi, segno));
+	return &f2fs_get_meta_folio_retry(sbi, GET_SUM_BLOCK(sbi, segno))->page;
 }
 
 void f2fs_update_meta_page(struct f2fs_sb_info *sbi,

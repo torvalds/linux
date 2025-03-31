@@ -130,14 +130,14 @@ static void clear_node_page_dirty(struct page *page)
 	ClearPageUptodate(page);
 }
 
-static struct page *get_current_nat_page(struct f2fs_sb_info *sbi, nid_t nid)
+static struct folio *get_current_nat_folio(struct f2fs_sb_info *sbi, nid_t nid)
 {
-	return f2fs_get_meta_page_retry(sbi, current_nat_addr(sbi, nid));
+	return f2fs_get_meta_folio_retry(sbi, current_nat_addr(sbi, nid));
 }
 
 static struct page *get_next_nat_page(struct f2fs_sb_info *sbi, nid_t nid)
 {
-	struct page *src_page;
+	struct folio *src_folio;
 	struct folio *dst_folio;
 	pgoff_t dst_off;
 	void *src_addr;
@@ -147,17 +147,17 @@ static struct page *get_next_nat_page(struct f2fs_sb_info *sbi, nid_t nid)
 	dst_off = next_nat_addr(sbi, current_nat_addr(sbi, nid));
 
 	/* get current nat block page with lock */
-	src_page = get_current_nat_page(sbi, nid);
-	if (IS_ERR(src_page))
-		return src_page;
+	src_folio = get_current_nat_folio(sbi, nid);
+	if (IS_ERR(src_folio))
+		return &src_folio->page;
 	dst_folio = f2fs_grab_meta_folio(sbi, dst_off);
-	f2fs_bug_on(sbi, PageDirty(src_page));
+	f2fs_bug_on(sbi, folio_test_dirty(src_folio));
 
-	src_addr = page_address(src_page);
+	src_addr = folio_address(src_folio);
 	dst_addr = folio_address(dst_folio);
 	memcpy(dst_addr, src_addr, PAGE_SIZE);
 	folio_mark_dirty(dst_folio);
-	f2fs_put_page(src_page, 1);
+	f2fs_folio_put(src_folio, true);
 
 	set_to_next_nat(nm_i, nid);
 
@@ -2544,13 +2544,13 @@ static int __f2fs_build_free_nids(struct f2fs_sb_info *sbi,
 	while (1) {
 		if (!test_bit_le(NAT_BLOCK_OFFSET(nid),
 						nm_i->nat_block_bitmap)) {
-			struct page *page = get_current_nat_page(sbi, nid);
+			struct folio *folio = get_current_nat_folio(sbi, nid);
 
-			if (IS_ERR(page)) {
-				ret = PTR_ERR(page);
+			if (IS_ERR(folio)) {
+				ret = PTR_ERR(folio);
 			} else {
-				ret = scan_nat_page(sbi, page, nid);
-				f2fs_put_page(page, 1);
+				ret = scan_nat_page(sbi, &folio->page, nid);
+				f2fs_folio_put(folio, true);
 			}
 
 			if (ret) {
