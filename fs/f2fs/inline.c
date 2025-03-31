@@ -97,19 +97,19 @@ void f2fs_do_read_inline_data(struct folio *folio, struct folio *ifolio)
 		folio_mark_uptodate(folio);
 }
 
-void f2fs_truncate_inline_inode(struct inode *inode,
-					struct page *ipage, u64 from)
+void f2fs_truncate_inline_inode(struct inode *inode, struct folio *ifolio,
+		u64 from)
 {
 	void *addr;
 
 	if (from >= MAX_INLINE_DATA(inode))
 		return;
 
-	addr = inline_data_addr(inode, ipage);
+	addr = inline_data_addr(inode, &ifolio->page);
 
-	f2fs_wait_on_page_writeback(ipage, NODE, true, true);
+	f2fs_folio_wait_writeback(ifolio, NODE, true, true);
 	memset(addr + from, 0, MAX_INLINE_DATA(inode) - from);
-	set_page_dirty(ipage);
+	folio_mark_dirty(ifolio);
 
 	if (from == 0)
 		clear_inode_flag(inode, FI_DATA_EXIST);
@@ -205,7 +205,7 @@ int f2fs_convert_inline_folio(struct dnode_of_data *dn, struct folio *folio)
 	set_inode_flag(dn->inode, FI_APPEND_WRITE);
 
 	/* clear inline data and flag after data writeback */
-	f2fs_truncate_inline_inode(dn->inode, &dn->inode_folio->page, 0);
+	f2fs_truncate_inline_inode(dn->inode, dn->inode_folio, 0);
 	clear_page_private_inline(&dn->inode_folio->page);
 clear_out:
 	stat_dec_inline_inode(dn->inode);
@@ -334,7 +334,7 @@ process_inline:
 		struct folio *ifolio = f2fs_get_inode_folio(sbi, inode->i_ino);
 		if (IS_ERR(ifolio))
 			return PTR_ERR(ifolio);
-		f2fs_truncate_inline_inode(inode, &ifolio->page, 0);
+		f2fs_truncate_inline_inode(inode, ifolio, 0);
 		stat_dec_inline_inode(inode);
 		clear_inode_flag(inode, FI_INLINE_DATA);
 		f2fs_folio_put(ifolio, true);
@@ -460,7 +460,7 @@ static int f2fs_move_inline_dirents(struct inode *dir, struct folio *ifolio,
 	folio_mark_dirty(folio);
 
 	/* clear inline dir and flag after data writeback */
-	f2fs_truncate_inline_inode(dir, &ifolio->page, 0);
+	f2fs_truncate_inline_inode(dir, ifolio, 0);
 
 	stat_dec_inline_dir(dir);
 	clear_inode_flag(dir, FI_INLINE_DENTRY);
@@ -547,7 +547,7 @@ static int f2fs_move_rehashed_dirents(struct inode *dir, struct folio *ifolio,
 	}
 
 	memcpy(backup_dentry, inline_dentry, MAX_INLINE_DATA(dir));
-	f2fs_truncate_inline_inode(dir, &ifolio->page, 0);
+	f2fs_truncate_inline_inode(dir, ifolio, 0);
 
 	folio_unlock(ifolio);
 
