@@ -699,9 +699,10 @@ static void perf_hpp__column_unregister(struct perf_hpp_fmt *format)
 	fmt_free(format);
 }
 
-void perf_hpp__cancel_cumulate(void)
+void perf_hpp__cancel_cumulate(struct evlist *evlist)
 {
 	struct perf_hpp_fmt *fmt, *acc, *ovh, *acc_lat, *tmp;
+	struct evsel *evsel;
 
 	if (is_strict_order(field_order))
 		return;
@@ -718,6 +719,23 @@ void perf_hpp__cancel_cumulate(void)
 
 		if (fmt_equal(ovh, fmt))
 			fmt->name = "Overhead";
+	}
+
+	evlist__for_each_entry(evlist, evsel) {
+		struct hists *hists = evsel__hists(evsel);
+		struct perf_hpp_list_node *node;
+
+		list_for_each_entry(node, &hists->hpp_formats, list) {
+			perf_hpp_list__for_each_format_safe(&node->hpp, fmt, tmp) {
+				if (fmt_equal(acc, fmt) || fmt_equal(acc_lat, fmt)) {
+					perf_hpp__column_unregister(fmt);
+					continue;
+				}
+
+				if (fmt_equal(ovh, fmt))
+					fmt->name = "Overhead";
+			}
+		}
 	}
 }
 

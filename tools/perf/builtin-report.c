@@ -413,7 +413,7 @@ static int report__setup_sample_type(struct report *rep)
 		/* Silently ignore if callchain is missing */
 		if (!(sample_type & PERF_SAMPLE_CALLCHAIN)) {
 			symbol_conf.cumulate_callchain = false;
-			perf_hpp__cancel_cumulate();
+			perf_hpp__cancel_cumulate(session->evlist);
 		}
 	}
 

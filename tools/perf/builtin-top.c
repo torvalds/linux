@@ -1790,7 +1790,7 @@ int cmd_top(int argc, const char **argv)
 
 	if (!callchain_param.enabled) {
 		symbol_conf.cumulate_callchain = false;
-		perf_hpp__cancel_cumulate();
+		perf_hpp__cancel_cumulate(top.evlist);
 	}
 
 	if (symbol_conf.cumulate_callchain && !callchain_param.order_set)
