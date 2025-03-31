@@ -427,19 +427,19 @@ ino_t f2fs_inode_by_name(struct inode *dir, const struct qstr *qstr,
 }
 
 void f2fs_set_link(struct inode *dir, struct f2fs_dir_entry *de,
-		struct page *page, struct inode *inode)
+		struct folio *folio, struct inode *inode)
 {
 	enum page_type type = f2fs_has_inline_dentry(dir) ? NODE : DATA;
 
-	lock_page(page);
-	f2fs_wait_on_page_writeback(page, type, true, true);
+	folio_lock(folio);
+	f2fs_folio_wait_writeback(folio, type, true, true);
 	de->ino = cpu_to_le32(inode->i_ino);
 	de->file_type = fs_umode_to_ftype(inode->i_mode);
-	set_page_dirty(page);
+	folio_mark_dirty(folio);
 
 	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	f2fs_mark_inode_dirty_sync(dir, false);
-	f2fs_put_page(page, 1);
+	f2fs_folio_put(folio, true);
 }
 
 static void init_dent_inode(struct inode *dir, struct inode *inode,

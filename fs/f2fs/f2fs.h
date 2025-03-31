@@ -3666,7 +3666,7 @@ struct f2fs_dir_entry *f2fs_parent_dir(struct inode *dir, struct folio **f);
 ino_t f2fs_inode_by_name(struct inode *dir, const struct qstr *qstr,
 			struct folio **folio);
 void f2fs_set_link(struct inode *dir, struct f2fs_dir_entry *de,
-			struct page *page, struct inode *inode);
+			struct folio *folio, struct inode *inode);
 bool f2fs_has_enough_room(struct inode *dir, struct folio *ifolio,
 			  const struct f2fs_filename *fname);
 void f2fs_update_dentry(nid_t ino, umode_t mode, struct f2fs_dentry_ptr *d,
