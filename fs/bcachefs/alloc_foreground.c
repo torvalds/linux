@@ -1248,49 +1248,51 @@ int bch2_alloc_sectors_start_trans(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct open_bucket *ob;
 	unsigned write_points_nr;
-	int ret;
 	int i;
 
-	struct alloc_request req = {
-		.nr_replicas	= nr_replicas,
-		.target		= target,
-		.ec		= erasure_code,
-		.watermark	= watermark,
-		.flags		= flags,
-		.devs_have	= devs_have,
-	};
+	struct alloc_request *req = bch2_trans_kmalloc_nomemzero(trans, sizeof(*req));
+	int ret = PTR_ERR_OR_ZERO(req);
+	if (unlikely(ret))
+		return ret;
+
+	req->nr_replicas	= nr_replicas;
+	req->target		= target;
+	req->ec			= erasure_code;
+	req->watermark		= watermark;
+	req->flags		= flags;
+	req->devs_have		= devs_have;
 
 	if (!IS_ENABLED(CONFIG_BCACHEFS_ERASURE_CODING))
 		erasure_code = false;
 
 	BUG_ON(!nr_replicas || !nr_replicas_required);
 retry:
-	req.ptrs.nr		= 0;
-	req.nr_effective	= 0;
-	req.have_cache		= false;
+	req->ptrs.nr		= 0;
+	req->nr_effective	= 0;
+	req->have_cache		= false;
 	write_points_nr		= c->write_points_nr;
 
-	*wp_ret = req.wp = writepoint_find(trans, write_point.v);
+	*wp_ret = req->wp = writepoint_find(trans, write_point.v);
 
-	req.data_type		= req.wp->data_type;
+	req->data_type		= req->wp->data_type;
 
 	ret = bch2_trans_relock(trans);
 	if (ret)
 		goto err;
 
 	/* metadata may not allocate on cache devices: */
-	if (req.data_type != BCH_DATA_user)
-		req.have_cache = true;
+	if (req->data_type != BCH_DATA_user)
+		req->have_cache = true;
 
 	if (target && !(flags & BCH_WRITE_only_specified_devs)) {
-		ret = open_bucket_add_buckets(trans, &req, NULL);
+		ret = open_bucket_add_buckets(trans, req, NULL);
 		if (!ret ||
 		    bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			goto alloc_done;
 
 		/* Don't retry from all devices if we're out of open buckets: */
 		if (bch2_err_matches(ret, BCH_ERR_open_buckets_empty)) {
-			int ret2 = open_bucket_add_buckets(trans, &req, cl);
+			int ret2 = open_bucket_add_buckets(trans, req, cl);
 			if (!ret2 ||
 			    bch2_err_matches(ret2, BCH_ERR_transaction_restart) ||
 			    bch2_err_matches(ret2, BCH_ERR_open_buckets_empty)) {
@@ -1303,38 +1305,38 @@ retry:
 		 * Only try to allocate cache (durability = 0 devices) from the
 		 * specified target:
 		 */
-		req.have_cache	= true;
-		req.target	= 0;
+		req->have_cache	= true;
+		req->target	= 0;
 
-		ret = open_bucket_add_buckets(trans, &req, cl);
+		ret = open_bucket_add_buckets(trans, req, cl);
 	} else {
-		ret = open_bucket_add_buckets(trans, &req, cl);
+		ret = open_bucket_add_buckets(trans, req, cl);
 	}
 alloc_done:
-	BUG_ON(!ret && req.nr_effective < req.nr_replicas);
+	BUG_ON(!ret && req->nr_effective < req->nr_replicas);
 
-	if (erasure_code && !ec_open_bucket(c, &req.ptrs))
+	if (erasure_code && !ec_open_bucket(c, &req->ptrs))
 		pr_debug("failed to get ec bucket: ret %u", ret);
 
 	if (ret == -BCH_ERR_insufficient_devices &&
-	    req.nr_effective >= nr_replicas_required)
+	    req->nr_effective >= nr_replicas_required)
 		ret = 0;
 
 	if (ret)
 		goto err;
 
-	if (req.nr_effective > req.nr_replicas)
-		deallocate_extra_replicas(c, &req);
+	if (req->nr_effective > req->nr_replicas)
+		deallocate_extra_replicas(c, req);
 
 	/* Free buckets we didn't use: */
-	open_bucket_for_each(c, &req.wp->ptrs, ob, i)
+	open_bucket_for_each(c, &req->wp->ptrs, ob, i)
 		open_bucket_free_unused(c, ob);
 
-	req.wp->ptrs = req.ptrs;
+	req->wp->ptrs = req->ptrs;
 
-	req.wp->sectors_free = UINT_MAX;
+	req->wp->sectors_free = UINT_MAX;
 
-	open_bucket_for_each(c, &req.wp->ptrs, ob, i) {
+	open_bucket_for_each(c, &req->wp->ptrs, ob, i) {
 		/*
 		 * Ensure proper write alignment - either due to misaligned
 		 * bucket sizes (from buggy bcachefs-tools), or writes that mix
@@ -1348,29 +1350,29 @@ alloc_done:
 
 		ob->sectors_free = max_t(int, 0, ob->sectors_free - align);
 
-		req.wp->sectors_free = min(req.wp->sectors_free, ob->sectors_free);
+		req->wp->sectors_free = min(req->wp->sectors_free, ob->sectors_free);
 	}
 
-	req.wp->sectors_free = rounddown(req.wp->sectors_free, block_sectors(c));
+	req->wp->sectors_free = rounddown(req->wp->sectors_free, block_sectors(c));
 
 	/* Did alignment use up space in an open_bucket? */
-	if (unlikely(!req.wp->sectors_free)) {
-		bch2_alloc_sectors_done(c, req.wp);
+	if (unlikely(!req->wp->sectors_free)) {
+		bch2_alloc_sectors_done(c, req->wp);
 		goto retry;
 	}
 
-	BUG_ON(!req.wp->sectors_free || req.wp->sectors_free == UINT_MAX);
+	BUG_ON(!req->wp->sectors_free || req->wp->sectors_free == UINT_MAX);
 
 	return 0;
 err:
-	open_bucket_for_each(c, &req.wp->ptrs, ob, i)
-		if (req.ptrs.nr < ARRAY_SIZE(req.ptrs.v))
-			ob_push(c, &req.ptrs, ob);
+	open_bucket_for_each(c, &req->wp->ptrs, ob, i)
+		if (req->ptrs.nr < ARRAY_SIZE(req->ptrs.v))
+			ob_push(c, &req->ptrs, ob);
 		else
 			open_bucket_free_unused(c, ob);
-	req.wp->ptrs = req.ptrs;
+	req->wp->ptrs = req->ptrs;
 
-	mutex_unlock(&req.wp->lock);
+	mutex_unlock(&req->wp->lock);
 
 	if (bch2_err_matches(ret, BCH_ERR_freelist_empty) &&
 	    try_decrease_writepoints(trans, write_points_nr))
