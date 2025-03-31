@@ -1189,7 +1189,7 @@ int f2fs_reserve_new_block(struct dnode_of_data *dn)
 
 int f2fs_reserve_block(struct dnode_of_data *dn, pgoff_t index)
 {
-	bool need_put = dn->inode_page ? false : true;
+	bool need_put = dn->inode_folio ? false : true;
 	int err;
 
 	err = f2fs_get_dnode_of_data(dn, index, ALLOC_NODE);

@@ -537,9 +537,9 @@ got_it:
 
 	if (dn->inode->i_ino == nid) {
 		tdn.nid = nid;
-		if (!dn->inode_page_locked)
-			lock_page(dn->inode_page);
-		tdn.node_page = dn->inode_page;
+		if (!dn->inode_folio_locked)
+			folio_lock(dn->inode_folio);
+		tdn.node_page = &dn->inode_folio->page;
 		tdn.ofs_in_node = ofs_in_node;
 		goto truncate_out;
 	} else if (dn->nid == nid) {
@@ -580,8 +580,8 @@ got_it:
 	 * if inode page is locked, unlock temporarily, but its reference
 	 * count keeps alive.
 	 */
-	if (ino == dn->inode->i_ino && dn->inode_page_locked)
-		unlock_page(dn->inode_page);
+	if (ino == dn->inode->i_ino && dn->inode_folio_locked)
+		folio_unlock(dn->inode_folio);
 
 	set_new_dnode(&tdn, inode, NULL, NULL, 0);
 	if (f2fs_get_dnode_of_data(&tdn, bidx, LOOKUP_NODE))
@@ -594,15 +594,15 @@ got_it:
 out:
 	if (ino != dn->inode->i_ino)
 		iput(inode);
-	else if (dn->inode_page_locked)
-		lock_page(dn->inode_page);
+	else if (dn->inode_folio_locked)
+		folio_lock(dn->inode_folio);
 	return 0;
 
 truncate_out:
 	if (f2fs_data_blkaddr(&tdn) == blkaddr)
 		f2fs_truncate_data_blocks_range(&tdn, 1);
-	if (dn->inode->i_ino == nid && !dn->inode_page_locked)
-		unlock_page(dn->inode_page);
+	if (dn->inode->i_ino == nid && !dn->inode_folio_locked)
+		folio_unlock(dn->inode_folio);
 	return 0;
 }
 

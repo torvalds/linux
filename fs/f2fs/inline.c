@@ -184,7 +184,7 @@ int f2fs_convert_inline_folio(struct dnode_of_data *dn, struct folio *folio)
 
 	f2fs_bug_on(F2FS_F_SB(folio), folio_test_writeback(folio));
 
-	f2fs_do_read_inline_data(folio, dn->inode_page);
+	f2fs_do_read_inline_data(folio, &dn->inode_folio->page);
 	folio_mark_dirty(folio);
 
 	/* clear dirty state */
@@ -205,8 +205,8 @@ int f2fs_convert_inline_folio(struct dnode_of_data *dn, struct folio *folio)
 	set_inode_flag(dn->inode, FI_APPEND_WRITE);
 
 	/* clear inline data and flag after data writeback */
-	f2fs_truncate_inline_inode(dn->inode, dn->inode_page, 0);
-	clear_page_private_inline(dn->inode_page);
+	f2fs_truncate_inline_inode(dn->inode, &dn->inode_folio->page, 0);
+	clear_page_private_inline(&dn->inode_folio->page);
 clear_out:
 	stat_dec_inline_inode(dn->inode);
 	clear_inode_flag(dn->inode, FI_INLINE_DATA);

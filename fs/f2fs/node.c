@@ -778,12 +778,12 @@ int f2fs_get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 
 	nids[0] = dn->inode->i_ino;
 
-	if (!dn->inode_page) {
+	if (!dn->inode_folio) {
 		nfolio[0] = f2fs_get_inode_folio(sbi, nids[0]);
 		if (IS_ERR(nfolio[0]))
 			return PTR_ERR(nfolio[0]);
 	} else {
-		nfolio[0] = page_folio(dn->inode_page);
+		nfolio[0] = dn->inode_folio;
 	}
 
 	/* if inline_data is set, should not report any block indices */
@@ -796,8 +796,8 @@ int f2fs_get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 	parent = nfolio[0];
 	if (level != 0)
 		nids[1] = get_nid(&parent->page, offset[0], true);
-	dn->inode_page = &nfolio[0]->page;
-	dn->inode_page_locked = true;
+	dn->inode_folio = nfolio[0];
+	dn->inode_folio_locked = true;
 
 	/* get indirect or direct nodes */
 	for (i = 1; i <= level; i++) {
@@ -830,7 +830,7 @@ int f2fs_get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 			done = true;
 		}
 		if (i == 1) {
-			dn->inode_page_locked = false;
+			dn->inode_folio_locked = false;
 			folio_unlock(parent);
 		} else {
 			f2fs_folio_put(parent, true);
@@ -888,7 +888,7 @@ release_pages:
 	if (i > 1)
 		f2fs_folio_put(nfolio[0], false);
 release_out:
-	dn->inode_page = NULL;
+	dn->inode_folio = NULL;
 	dn->node_page = NULL;
 	if (err == -ENOENT) {
 		dn->cur_level = i;
@@ -1070,7 +1070,7 @@ static int truncate_partial_nodes(struct dnode_of_data *dn,
 	int i;
 	int idx = depth - 2;
 
-	nid[0] = get_nid(dn->inode_page, offset[0], true);
+	nid[0] = get_nid(&dn->inode_folio->page, offset[0], true);
 	if (!nid[0])
 		return 0;
 

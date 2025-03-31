@@ -1001,11 +1001,11 @@ struct f2fs_nm_info {
  */
 struct dnode_of_data {
 	struct inode *inode;		/* vfs inode pointer */
-	struct page *inode_page;	/* its inode page, NULL is possible */
+	struct folio *inode_folio;	/* its inode folio, NULL is possible */
 	struct page *node_page;		/* cached direct node page */
 	nid_t nid;			/* node id of the direct node block */
 	unsigned int ofs_in_node;	/* data offset in the node page */
-	bool inode_page_locked;		/* inode page is locked or not */
+	bool inode_folio_locked;	/* inode folio is locked or not */
 	bool node_changed;		/* is node block changed */
 	char cur_level;			/* level of hole node page */
 	char max_level;			/* level of current page located */
@@ -1017,7 +1017,7 @@ static inline void set_new_dnode(struct dnode_of_data *dn, struct inode *inode,
 {
 	memset(dn, 0, sizeof(*dn));
 	dn->inode = inode;
-	dn->inode_page = &ifolio->page;
+	dn->inode_folio = ifolio;
 	dn->node_page = &nfolio->page;
 	dn->nid = nid;
 }
@@ -2896,10 +2896,10 @@ static inline void f2fs_put_dnode(struct dnode_of_data *dn)
 {
 	if (dn->node_page)
 		f2fs_put_page(dn->node_page, 1);
-	if (dn->inode_page && dn->node_page != dn->inode_page)
-		f2fs_put_page(dn->inode_page, 0);
+	if (dn->inode_folio && dn->node_page != &dn->inode_folio->page)
+		f2fs_folio_put(dn->inode_folio, false);
 	dn->node_page = NULL;
-	dn->inode_page = NULL;
+	dn->inode_folio = NULL;
 }
 
 static inline struct kmem_cache *f2fs_kmem_cache_create(const char *name,
