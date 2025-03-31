@@ -548,8 +548,7 @@ static void __submit_merged_bio(struct f2fs_bio_info *io)
 static bool __has_merged_page(struct bio *bio, struct inode *inode,
 						struct page *page, nid_t ino)
 {
-	struct bio_vec *bvec;
-	struct bvec_iter_all iter_all;
+	struct folio_iter fi;
 
 	if (!bio)
 		return false;
@@ -557,25 +556,25 @@ static bool __has_merged_page(struct bio *bio, struct inode *inode,
 	if (!inode && !page && !ino)
 		return true;
 
-	bio_for_each_segment_all(bvec, bio, iter_all) {
-		struct page *target = bvec->bv_page;
+	bio_for_each_folio_all(fi, bio) {
+		struct folio *target = fi.folio;
 
-		if (fscrypt_is_bounce_page(target)) {
-			target = fscrypt_pagecache_page(target);
+		if (fscrypt_is_bounce_folio(target)) {
+			target = fscrypt_pagecache_folio(target);
 			if (IS_ERR(target))
 				continue;
 		}
-		if (f2fs_is_compressed_page(target)) {
-			target = f2fs_compress_control_page(target);
+		if (f2fs_is_compressed_page(&target->page)) {
+			target = f2fs_compress_control_folio(target);
 			if (IS_ERR(target))
 				continue;
 		}
 
 		if (inode && inode == target->mapping->host)
 			return true;
-		if (page && page == target)
+		if (page && page == &target->page)
 			return true;
-		if (ino && ino == ino_of_node(target))
+		if (ino && ino == ino_of_node(&target->page))
 			return true;
 	}
 

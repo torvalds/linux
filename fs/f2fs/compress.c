@@ -137,9 +137,11 @@ static void f2fs_put_rpages_wbc(struct compress_ctx *cc,
 	}
 }
 
-struct page *f2fs_compress_control_page(struct page *page)
+struct folio *f2fs_compress_control_folio(struct folio *folio)
 {
-	return ((struct compress_io_ctx *)page_private(page))->rpages[0];
+	struct compress_io_ctx *ctx = folio->private;
+
+	return page_folio(ctx->rpages[0]);
 }
 
 int f2fs_init_compress_ctx(struct compress_ctx *cc)
