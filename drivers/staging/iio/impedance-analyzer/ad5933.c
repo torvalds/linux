@@ -271,11 +271,12 @@ static ssize_t ad5933_show_frequency(struct device *dev,
 		u8 d8[4];
 	} dat;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
 	ret = ad5933_i2c_read(st->client, this_attr->address, 3, &dat.d8[1]);
-	iio_device_release_direct_mode(indio_dev);
+
+	iio_device_release_direct(indio_dev);
 	if (ret < 0)
 		return ret;
 
@@ -305,11 +306,12 @@ static ssize_t ad5933_store_frequency(struct device *dev,
 	if (val > AD5933_MAX_OUTPUT_FREQ_Hz)
 		return -EINVAL;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
 	ret = ad5933_set_freq(st, this_attr->address, val);
-	iio_device_release_direct_mode(indio_dev);
+
+	iio_device_release_direct(indio_dev);
 
 	return ret ? ret : len;
 }
@@ -384,9 +386,9 @@ static ssize_t ad5933_store(struct device *dev,
 			return ret;
 	}
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
 	mutex_lock(&st->lock);
 	switch ((u32)this_attr->address) {
 	case AD5933_OUT_RANGE:
@@ -438,7 +440,8 @@ static ssize_t ad5933_store(struct device *dev,
 	}
 
 	mutex_unlock(&st->lock);
-	iio_device_release_direct_mode(indio_dev);
+
+	iio_device_release_direct(indio_dev);
 	return ret ? ret : len;
 }
 
@@ -506,9 +509,9 @@ static int ad5933_read_raw(struct iio_dev *indio_dev,
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+
 		ret = ad5933_cmd(st, AD5933_CTRL_MEASURE_TEMP);
 		if (ret < 0)
 			goto out;
@@ -521,7 +524,8 @@ static int ad5933_read_raw(struct iio_dev *indio_dev,
 				      2, (u8 *)&dat);
 		if (ret < 0)
 			goto out;
-		iio_device_release_direct_mode(indio_dev);
+
+		iio_device_release_direct(indio_dev);
 		*val = sign_extend32(be16_to_cpu(dat), 13);
 
 		return IIO_VAL_INT;
@@ -533,7 +537,7 @@ static int ad5933_read_raw(struct iio_dev *indio_dev,
 
 	return -EINVAL;
 out:
-	iio_device_release_direct_mode(indio_dev);
+	iio_device_release_direct(indio_dev);
 	return ret;
 }
 
