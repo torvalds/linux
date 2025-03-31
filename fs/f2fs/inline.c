@@ -729,21 +729,21 @@ void f2fs_delete_inline_entry(struct f2fs_dir_entry *dentry, struct page *page,
 bool f2fs_empty_inline_dir(struct inode *dir)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
-	struct page *ipage;
+	struct folio *ifolio;
 	unsigned int bit_pos = 2;
 	void *inline_dentry;
 	struct f2fs_dentry_ptr d;
 
-	ipage = f2fs_get_inode_page(sbi, dir->i_ino);
-	if (IS_ERR(ipage))
+	ifolio = f2fs_get_inode_folio(sbi, dir->i_ino);
+	if (IS_ERR(ifolio))
 		return false;
 
-	inline_dentry = inline_data_addr(dir, ipage);
+	inline_dentry = inline_data_addr(dir, &ifolio->page);
 	make_dentry_ptr_inline(dir, &d, inline_dentry);
 
 	bit_pos = find_next_bit_le(d.bitmap, d.max, bit_pos);
 
-	f2fs_put_page(ipage, 1);
+	f2fs_folio_put(ifolio, true);
 
 	if (bit_pos < d.max)
 		return false;
