@@ -818,7 +818,7 @@ int f2fs_get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 				goto release_pages;
 			}
 
-			set_nid(&parent->page, offset[i - 1], nids[i], i == 1);
+			set_nid(parent, offset[i - 1], nids[i], i == 1);
 			f2fs_alloc_nid_done(sbi, nids[i]);
 			done = true;
 		} else if (mode == LOOKUP_NODE_RA && i == level && level > 1) {
@@ -1017,7 +1017,7 @@ static int truncate_nodes(struct dnode_of_data *dn, unsigned int nofs,
 			ret = truncate_dnode(&rdn);
 			if (ret < 0)
 				goto out_err;
-			if (set_nid(&folio->page, i, 0, false))
+			if (set_nid(folio, i, 0, false))
 				dn->node_changed = true;
 		}
 	} else {
@@ -1031,7 +1031,7 @@ static int truncate_nodes(struct dnode_of_data *dn, unsigned int nofs,
 			rdn.nid = child_nid;
 			ret = truncate_nodes(&rdn, child_nofs, 0, depth - 1);
 			if (ret == (NIDS_PER_BLOCK + 1)) {
-				if (set_nid(&folio->page, i, 0, false))
+				if (set_nid(folio, i, 0, false))
 					dn->node_changed = true;
 				child_nofs += ret;
 			} else if (ret < 0 && ret != -ENOENT) {
@@ -1097,7 +1097,7 @@ static int truncate_partial_nodes(struct dnode_of_data *dn,
 		err = truncate_dnode(dn);
 		if (err < 0)
 			goto fail;
-		if (set_nid(&folios[idx]->page, i, 0, false))
+		if (set_nid(folios[idx], i, 0, false))
 			dn->node_changed = true;
 	}
 
@@ -1223,7 +1223,7 @@ skip_partial:
 		if (offset[1] == 0 && get_nid(&folio->page, offset[0], true)) {
 			folio_lock(folio);
 			BUG_ON(folio->mapping != NODE_MAPPING(sbi));
-			set_nid(&folio->page, offset[0], 0, true);
+			set_nid(folio, offset[0], 0, true);
 			folio_unlock(folio);
 		}
 		offset[1] = 0;
