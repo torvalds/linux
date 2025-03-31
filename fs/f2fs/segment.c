@@ -2693,11 +2693,11 @@ struct page *f2fs_get_sum_page(struct f2fs_sb_info *sbi, unsigned int segno)
 void f2fs_update_meta_page(struct f2fs_sb_info *sbi,
 					void *src, block_t blk_addr)
 {
-	struct page *page = f2fs_grab_meta_page(sbi, blk_addr);
+	struct folio *folio = f2fs_grab_meta_folio(sbi, blk_addr);
 
-	memcpy(page_address(page), src, PAGE_SIZE);
-	set_page_dirty(page);
-	f2fs_put_page(page, 1);
+	memcpy(folio_address(folio), src, PAGE_SIZE);
+	folio_mark_dirty(folio);
+	f2fs_folio_put(folio, true);
 }
 
 static void write_sum_page(struct f2fs_sb_info *sbi,
