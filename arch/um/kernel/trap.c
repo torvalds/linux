@@ -16,7 +16,6 @@
 #include <kern_util.h>
 #include <os.h>
 #include <skas.h>
-#include <arch.h>
 
 /*
  * Note this is constrained to return 0, -EFAULT, -EACCES, -ENOMEM by
