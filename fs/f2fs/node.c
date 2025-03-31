@@ -1533,6 +1533,11 @@ out_put_err:
 	return ERR_PTR(err);
 }
 
+struct folio *f2fs_get_node_folio(struct f2fs_sb_info *sbi, pgoff_t nid)
+{
+	return __get_node_folio(sbi, nid, NULL, 0, NODE_TYPE_REGULAR);
+}
+
 struct page *f2fs_get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid)
 {
 	struct folio *folio = __get_node_folio(sbi, nid, NULL, 0,
