@@ -515,7 +515,7 @@ static int make_empty_dir(struct inode *inode,
 	return 0;
 }
 
-struct page *f2fs_init_inode_metadata(struct inode *inode, struct inode *dir,
+struct folio *f2fs_init_inode_metadata(struct inode *inode, struct inode *dir,
 		const struct f2fs_filename *fname, struct folio *dfolio)
 {
 	struct folio *folio;
@@ -524,7 +524,7 @@ struct page *f2fs_init_inode_metadata(struct inode *inode, struct inode *dir,
 	if (is_inode_flag_set(inode, FI_NEW_INODE)) {
 		folio = f2fs_new_inode_folio(inode);
 		if (IS_ERR(folio))
-			return &folio->page;
+			return folio;
 
 		if (S_ISDIR(inode->i_mode)) {
 			/* in order to handle error case */
@@ -555,7 +555,7 @@ struct page *f2fs_init_inode_metadata(struct inode *inode, struct inode *dir,
 	} else {
 		folio = f2fs_get_inode_folio(F2FS_I_SB(dir), inode->i_ino);
 		if (IS_ERR(folio))
-			return &folio->page;
+			return folio;
 	}
 
 	init_dent_inode(dir, inode, fname, folio);
@@ -575,7 +575,7 @@ struct page *f2fs_init_inode_metadata(struct inode *inode, struct inode *dir,
 			f2fs_remove_orphan_inode(F2FS_I_SB(dir), inode->i_ino);
 		f2fs_i_links_write(inode, true);
 	}
-	return &folio->page;
+	return folio;
 
 put_error:
 	clear_nlink(inode);
@@ -669,7 +669,7 @@ int f2fs_add_regular_entry(struct inode *dir, const struct f2fs_filename *fname,
 	struct folio *dentry_folio = NULL;
 	struct f2fs_dentry_block *dentry_blk = NULL;
 	struct f2fs_dentry_ptr d;
-	struct page *page = NULL;
+	struct folio *folio = NULL;
 	int slots, err = 0;
 
 	level = 0;
@@ -720,9 +720,9 @@ add_dentry:
 
 	if (inode) {
 		f2fs_down_write(&F2FS_I(inode)->i_sem);
-		page = f2fs_init_inode_metadata(inode, dir, fname, NULL);
-		if (IS_ERR(page)) {
-			err = PTR_ERR(page);
+		folio = f2fs_init_inode_metadata(inode, dir, fname, NULL);
+		if (IS_ERR(folio)) {
+			err = PTR_ERR(folio);
 			goto fail;
 		}
 	}
@@ -738,9 +738,9 @@ add_dentry:
 
 		/* synchronize inode page's data from inode cache */
 		if (is_inode_flag_set(inode, FI_NEW_INODE))
-			f2fs_update_inode(inode, page);
+			f2fs_update_inode(inode, &folio->page);
 
-		f2fs_put_page(page, 1);
+		f2fs_folio_put(folio, true);
 	}
 
 	f2fs_update_parent_metadata(dir, inode, current_depth);
@@ -816,16 +816,16 @@ int f2fs_do_add_link(struct inode *dir, const struct qstr *name,
 int f2fs_do_tmpfile(struct inode *inode, struct inode *dir,
 					struct f2fs_filename *fname)
 {
-	struct page *page;
+	struct folio *folio;
 	int err = 0;
 
 	f2fs_down_write(&F2FS_I(inode)->i_sem);
-	page = f2fs_init_inode_metadata(inode, dir, fname, NULL);
-	if (IS_ERR(page)) {
-		err = PTR_ERR(page);
+	folio = f2fs_init_inode_metadata(inode, dir, fname, NULL);
+	if (IS_ERR(folio)) {
+		err = PTR_ERR(folio);
 		goto fail;
 	}
-	f2fs_put_page(page, 1);
+	f2fs_folio_put(folio, true);
 
 	clear_inode_flag(inode, FI_NEW_INODE);
 	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);

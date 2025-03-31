@@ -641,7 +641,7 @@ int f2fs_add_inline_entry(struct inode *dir, const struct f2fs_filename *fname,
 	void *inline_dentry = NULL;
 	struct f2fs_dentry_ptr d;
 	int slots = GET_DENTRY_SLOTS(fname->disk_name.len);
-	struct page *page = NULL;
+	struct folio *folio = NULL;
 	int err = 0;
 
 	ifolio = f2fs_get_inode_folio(sbi, dir->i_ino);
@@ -663,9 +663,9 @@ int f2fs_add_inline_entry(struct inode *dir, const struct f2fs_filename *fname,
 	if (inode) {
 		f2fs_down_write_nested(&F2FS_I(inode)->i_sem,
 						SINGLE_DEPTH_NESTING);
-		page = f2fs_init_inode_metadata(inode, dir, fname, ifolio);
-		if (IS_ERR(page)) {
-			err = PTR_ERR(page);
+		folio = f2fs_init_inode_metadata(inode, dir, fname, ifolio);
+		if (IS_ERR(folio)) {
+			err = PTR_ERR(folio);
 			goto fail;
 		}
 	}
@@ -683,9 +683,9 @@ int f2fs_add_inline_entry(struct inode *dir, const struct f2fs_filename *fname,
 
 		/* synchronize inode page's data from inode cache */
 		if (is_inode_flag_set(inode, FI_NEW_INODE))
-			f2fs_update_inode(inode, page);
+			f2fs_update_inode(inode, &folio->page);
 
-		f2fs_put_page(page, 1);
+		f2fs_folio_put(folio, true);
 	}
 
 	f2fs_update_parent_metadata(dir, inode, 0);
