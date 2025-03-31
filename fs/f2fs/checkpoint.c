@@ -107,9 +107,9 @@ out:
 	return folio;
 }
 
-struct page *f2fs_get_meta_page(struct f2fs_sb_info *sbi, pgoff_t index)
+struct folio *f2fs_get_meta_folio(struct f2fs_sb_info *sbi, pgoff_t index)
 {
-	return &__get_meta_folio(sbi, index, true)->page;
+	return __get_meta_folio(sbi, index, true);
 }
 
 struct page *f2fs_get_meta_page_retry(struct f2fs_sb_info *sbi, pgoff_t index)
