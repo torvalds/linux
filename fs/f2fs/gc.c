@@ -1307,7 +1307,8 @@ static int move_data_block(struct inode *inode, block_t bidx,
 	struct dnode_of_data dn;
 	struct f2fs_summary sum;
 	struct node_info ni;
-	struct page *page, *mpage;
+	struct page *page;
+	struct folio *mfolio;
 	block_t newaddr;
 	int err = 0;
 	bool lfs_mode = f2fs_lfs_mode(fio.sbi);
@@ -1359,20 +1360,20 @@ static int move_data_block(struct inode *inode, block_t bidx,
 	if (lfs_mode)
 		f2fs_down_write(&fio.sbi->io_order_lock);
 
-	mpage = f2fs_grab_cache_page(META_MAPPING(fio.sbi),
+	mfolio = f2fs_grab_cache_folio(META_MAPPING(fio.sbi),
 					fio.old_blkaddr, false);
-	if (!mpage) {
-		err = -ENOMEM;
+	if (IS_ERR(mfolio)) {
+		err = PTR_ERR(mfolio);
 		goto up_out;
 	}
 
-	fio.encrypted_page = mpage;
+	fio.encrypted_page = folio_file_page(mfolio, fio.old_blkaddr);
 
-	/* read source block in mpage */
-	if (!PageUptodate(mpage)) {
+	/* read source block in mfolio */
+	if (!folio_test_uptodate(mfolio)) {
 		err = f2fs_submit_page_bio(&fio);
 		if (err) {
-			f2fs_put_page(mpage, 1);
+			f2fs_folio_put(mfolio, true);
 			goto up_out;
 		}
 
@@ -1381,11 +1382,11 @@ static int move_data_block(struct inode *inode, block_t bidx,
 		f2fs_update_iostat(fio.sbi, NULL, FS_GDATA_READ_IO,
 							F2FS_BLKSIZE);
 
-		lock_page(mpage);
-		if (unlikely(mpage->mapping != META_MAPPING(fio.sbi) ||
-						!PageUptodate(mpage))) {
+		folio_lock(mfolio);
+		if (unlikely(mfolio->mapping != META_MAPPING(fio.sbi) ||
+			     !folio_test_uptodate(mfolio))) {
 			err = -EIO;
-			f2fs_put_page(mpage, 1);
+			f2fs_folio_put(mfolio, true);
 			goto up_out;
 		}
 	}
@@ -1396,7 +1397,7 @@ static int move_data_block(struct inode *inode, block_t bidx,
 	err = f2fs_allocate_data_block(fio.sbi, NULL, fio.old_blkaddr, &newaddr,
 				&sum, type, NULL);
 	if (err) {
-		f2fs_put_page(mpage, 1);
+		f2fs_folio_put(mfolio, true);
 		/* filesystem should shutdown, no need to recovery block */
 		goto up_out;
 	}
@@ -1405,15 +1406,15 @@ static int move_data_block(struct inode *inode, block_t bidx,
 				newaddr, FGP_LOCK | FGP_CREAT, GFP_NOFS);
 	if (!fio.encrypted_page) {
 		err = -ENOMEM;
-		f2fs_put_page(mpage, 1);
+		f2fs_folio_put(mfolio, true);
 		goto recover_block;
 	}
 
 	/* write target block */
 	f2fs_wait_on_page_writeback(fio.encrypted_page, DATA, true, true);
 	memcpy(page_address(fio.encrypted_page),
-				page_address(mpage), PAGE_SIZE);
-	f2fs_put_page(mpage, 1);
+				folio_address(mfolio), PAGE_SIZE);
+	f2fs_folio_put(mfolio, true);
 
 	f2fs_invalidate_internal_cache(fio.sbi, fio.old_blkaddr, 1);
 
