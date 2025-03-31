@@ -1242,20 +1242,20 @@ int f2fs_truncate_xattr_node(struct inode *inode)
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	nid_t nid = F2FS_I(inode)->i_xattr_nid;
 	struct dnode_of_data dn;
-	struct page *npage;
+	struct folio *nfolio;
 	int err;
 
 	if (!nid)
 		return 0;
 
-	npage = f2fs_get_xnode_page(sbi, nid);
-	if (IS_ERR(npage))
-		return PTR_ERR(npage);
+	nfolio = f2fs_get_xnode_folio(sbi, nid);
+	if (IS_ERR(nfolio))
+		return PTR_ERR(nfolio);
 
-	set_new_dnode(&dn, inode, NULL, npage, nid);
+	set_new_dnode(&dn, inode, NULL, &nfolio->page, nid);
 	err = truncate_node(&dn);
 	if (err) {
-		f2fs_put_page(npage, 1);
+		f2fs_folio_put(nfolio, true);
 		return err;
 	}
 
