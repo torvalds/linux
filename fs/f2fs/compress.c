@@ -1095,7 +1095,7 @@ static int prepare_compress_overwrite(struct compress_ctx *cc,
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(cc->inode);
 	struct address_space *mapping = cc->inode->i_mapping;
-	struct page *page;
+	struct folio *folio;
 	sector_t last_block_in_bio;
 	fgf_t fgp_flag = FGP_LOCK | FGP_WRITE | FGP_CREAT;
 	pgoff_t start_idx = start_idx_of_cluster(cc);
@@ -1110,19 +1110,19 @@ retry:
 	if (ret)
 		return ret;
 
-	/* keep page reference to avoid page reclaim */
+	/* keep folio reference to avoid page reclaim */
 	for (i = 0; i < cc->cluster_size; i++) {
-		page = f2fs_pagecache_get_page(mapping, start_idx + i,
-							fgp_flag, GFP_NOFS);
-		if (!page) {
-			ret = -ENOMEM;
+		folio = f2fs_filemap_get_folio(mapping, start_idx + i,
+				fgp_flag, GFP_NOFS);
+		if (IS_ERR(folio)) {
+			ret = PTR_ERR(folio);
 			goto unlock_pages;
 		}
 
-		if (PageUptodate(page))
-			f2fs_put_page(page, 1);
+		if (folio_test_uptodate(folio))
+			f2fs_folio_put(folio, true);
 		else
-			f2fs_compress_ctx_add_page(cc, page_folio(page));
+			f2fs_compress_ctx_add_page(cc, folio);
 	}
 
 	if (!f2fs_cluster_is_empty(cc)) {
@@ -1145,17 +1145,17 @@ retry:
 	for (i = 0; i < cc->cluster_size; i++) {
 		f2fs_bug_on(sbi, cc->rpages[i]);
 
-		page = find_lock_page(mapping, start_idx + i);
-		if (!page) {
-			/* page can be truncated */
+		folio = filemap_lock_folio(mapping, start_idx + i);
+		if (IS_ERR(folio)) {
+			/* folio could be truncated */
 			goto release_and_retry;
 		}
 
-		f2fs_wait_on_page_writeback(page, DATA, true, true);
-		f2fs_compress_ctx_add_page(cc, page_folio(page));
+		f2fs_folio_wait_writeback(folio, DATA, true, true);
+		f2fs_compress_ctx_add_page(cc, folio);
 
-		if (!PageUptodate(page)) {
-			f2fs_handle_page_eio(sbi, page_folio(page), DATA);
+		if (!folio_test_uptodate(folio)) {
+			f2fs_handle_page_eio(sbi, folio, DATA);
 release_and_retry:
 			f2fs_put_rpages(cc);
 			f2fs_unlock_rpages(cc, i + 1);

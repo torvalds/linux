@@ -2863,6 +2863,16 @@ static inline struct folio *f2fs_grab_cache_folio(struct address_space *mapping,
 	return folio;
 }
 
+static inline struct folio *f2fs_filemap_get_folio(
+				struct address_space *mapping, pgoff_t index,
+				fgf_t fgp_flags, gfp_t gfp_mask)
+{
+	if (time_to_inject(F2FS_M_SB(mapping), FAULT_PAGE_GET))
+		return ERR_PTR(-ENOMEM);
+
+	return __filemap_get_folio(mapping, index, fgp_flags, gfp_mask);
+}
+
 static inline struct page *f2fs_pagecache_get_page(
 				struct address_space *mapping, pgoff_t index,
 				fgf_t fgp_flags, gfp_t gfp_mask)
