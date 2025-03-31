@@ -1345,12 +1345,12 @@ struct page *f2fs_get_new_data_page(struct inode *inode,
 		struct page *ipage, pgoff_t index, bool new_i_size)
 {
 	struct address_space *mapping = inode->i_mapping;
-	struct page *page;
+	struct folio *folio;
 	struct dnode_of_data dn;
 	int err;
 
-	page = f2fs_grab_cache_page(mapping, index, true);
-	if (!page) {
+	folio = f2fs_grab_cache_folio(mapping, index, true);
+	if (IS_ERR(folio)) {
 		/*
 		 * before exiting, we should make sure ipage will be released
 		 * if any error occur.
@@ -1362,33 +1362,33 @@ struct page *f2fs_get_new_data_page(struct inode *inode,
 	set_new_dnode(&dn, inode, ipage, NULL, 0);
 	err = f2fs_reserve_block(&dn, index);
 	if (err) {
-		f2fs_put_page(page, 1);
+		f2fs_folio_put(folio, true);
 		return ERR_PTR(err);
 	}
 	if (!ipage)
 		f2fs_put_dnode(&dn);
 
-	if (PageUptodate(page))
+	if (folio_test_uptodate(folio))
 		goto got_it;
 
 	if (dn.data_blkaddr == NEW_ADDR) {
-		zero_user_segment(page, 0, PAGE_SIZE);
-		if (!PageUptodate(page))
-			SetPageUptodate(page);
+		folio_zero_segment(folio, 0, folio_size(folio));
+		if (!folio_test_uptodate(folio))
+			folio_mark_uptodate(folio);
 	} else {
-		f2fs_put_page(page, 1);
+		f2fs_folio_put(folio, true);
 
 		/* if ipage exists, blkaddr should be NEW_ADDR */
 		f2fs_bug_on(F2FS_I_SB(inode), ipage);
-		page = f2fs_get_lock_data_page(inode, index, true);
-		if (IS_ERR(page))
-			return page;
+		folio = f2fs_get_lock_data_folio(inode, index, true);
+		if (IS_ERR(folio))
+			return &folio->page;
 	}
 got_it:
 	if (new_i_size && i_size_read(inode) <
 				((loff_t)(index + 1) << PAGE_SHIFT))
 		f2fs_i_size_write(inode, ((loff_t)(index + 1) << PAGE_SHIFT));
-	return page;
+	return &folio->page;
 }
 
 static int __allocate_data_block(struct dnode_of_data *dn, int seg_type)
