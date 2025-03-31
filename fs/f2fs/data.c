@@ -1116,7 +1116,7 @@ static int f2fs_submit_page_read(struct inode *inode, struct folio *folio,
 
 static void __set_data_blkaddr(struct dnode_of_data *dn, block_t blkaddr)
 {
-	__le32 *addr = get_dnode_addr(dn->inode, dn->node_page);
+	__le32 *addr = get_dnode_addr(dn->inode, &dn->node_folio->page);
 
 	dn->data_blkaddr = blkaddr;
 	addr[dn->ofs_in_node] = cpu_to_le32(dn->data_blkaddr);
@@ -1125,14 +1125,14 @@ static void __set_data_blkaddr(struct dnode_of_data *dn, block_t blkaddr)
 /*
  * Lock ordering for the change of data block address:
  * ->data_page
- *  ->node_page
+ *  ->node_folio
  *    update block addresses in the node page
  */
 void f2fs_set_data_blkaddr(struct dnode_of_data *dn, block_t blkaddr)
 {
-	f2fs_wait_on_page_writeback(dn->node_page, NODE, true, true);
+	f2fs_folio_wait_writeback(dn->node_folio, NODE, true, true);
 	__set_data_blkaddr(dn, blkaddr);
-	if (set_page_dirty(dn->node_page))
+	if (folio_mark_dirty(dn->node_folio))
 		dn->node_changed = true;
 }
 
@@ -1160,7 +1160,7 @@ int f2fs_reserve_new_blocks(struct dnode_of_data *dn, blkcnt_t count)
 	trace_f2fs_reserve_new_blocks(dn->inode, dn->nid,
 						dn->ofs_in_node, count);
 
-	f2fs_wait_on_page_writeback(dn->node_page, NODE, true, true);
+	f2fs_folio_wait_writeback(dn->node_folio, NODE, true, true);
 
 	for (; count > 0; dn->ofs_in_node++) {
 		block_t blkaddr = f2fs_data_blkaddr(dn);
@@ -1171,7 +1171,7 @@ int f2fs_reserve_new_blocks(struct dnode_of_data *dn, blkcnt_t count)
 		}
 	}
 
-	if (set_page_dirty(dn->node_page))
+	if (folio_mark_dirty(dn->node_folio))
 		dn->node_changed = true;
 	return 0;
 }
@@ -1589,7 +1589,7 @@ next_dnode:
 	start_pgofs = pgofs;
 	prealloc = 0;
 	last_ofs_in_node = ofs_in_node = dn.ofs_in_node;
-	end_offset = ADDRS_PER_PAGE(dn.node_page, inode);
+	end_offset = ADDRS_PER_PAGE(&dn.node_folio->page, inode);
 
 next_block:
 	blkaddr = f2fs_data_blkaddr(&dn);
@@ -2246,7 +2246,7 @@ skip_reading_dnode:
 	for (i = 1; i < cc->cluster_size; i++) {
 		block_t blkaddr;
 
-		blkaddr = from_dnode ? data_blkaddr(dn.inode, dn.node_page,
+		blkaddr = from_dnode ? data_blkaddr(dn.inode, dn.node_folio,
 					dn.ofs_in_node + i) :
 					ei.blk + i - 1;
 
@@ -2280,7 +2280,7 @@ skip_reading_dnode:
 		block_t blkaddr;
 		struct bio_post_read_ctx *ctx;
 
-		blkaddr = from_dnode ? data_blkaddr(dn.inode, dn.node_page,
+		blkaddr = from_dnode ? data_blkaddr(dn.inode, dn.node_folio,
 					dn.ofs_in_node + i + 1) :
 					ei.blk + i;
 

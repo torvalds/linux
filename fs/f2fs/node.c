@@ -851,7 +851,7 @@ int f2fs_get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 	}
 	dn->nid = nids[level];
 	dn->ofs_in_node = offset[level];
-	dn->node_page = &nfolio[level]->page;
+	dn->node_folio = nfolio[level];
 	dn->data_blkaddr = f2fs_data_blkaddr(dn);
 
 	if (is_inode_flag_set(dn->inode, FI_COMPRESSED_FILE) &&
@@ -872,9 +872,9 @@ int f2fs_get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 		if (!c_len)
 			goto out;
 
-		blkaddr = data_blkaddr(dn->inode, dn->node_page, ofs_in_node);
+		blkaddr = data_blkaddr(dn->inode, dn->node_folio, ofs_in_node);
 		if (blkaddr == COMPRESS_ADDR)
-			blkaddr = data_blkaddr(dn->inode, dn->node_page,
+			blkaddr = data_blkaddr(dn->inode, dn->node_folio,
 						ofs_in_node + 1);
 
 		f2fs_update_read_extent_tree_range_compressed(dn->inode,
@@ -889,7 +889,7 @@ release_pages:
 		f2fs_folio_put(nfolio[0], false);
 release_out:
 	dn->inode_folio = NULL;
-	dn->node_page = NULL;
+	dn->node_folio = NULL;
 	if (err == -ENOENT) {
 		dn->cur_level = i;
 		dn->max_level = level;
@@ -930,16 +930,16 @@ static int truncate_node(struct dnode_of_data *dn)
 		f2fs_inode_synced(dn->inode);
 	}
 
-	clear_node_page_dirty(dn->node_page);
+	clear_node_page_dirty(&dn->node_folio->page);
 	set_sbi_flag(sbi, SBI_IS_DIRTY);
 
-	index = page_folio(dn->node_page)->index;
-	f2fs_put_page(dn->node_page, 1);
+	index = dn->node_folio->index;
+	f2fs_folio_put(dn->node_folio, true);
 
 	invalidate_mapping_pages(NODE_MAPPING(sbi),
 			index, index);
 
-	dn->node_page = NULL;
+	dn->node_folio = NULL;
 	trace_f2fs_truncate_node(dn->inode, dn->nid, ni.blk_addr);
 
 	return 0;
@@ -971,7 +971,7 @@ static int truncate_dnode(struct dnode_of_data *dn)
 	}
 
 	/* Make dnode_of_data for parameter */
-	dn->node_page = &folio->page;
+	dn->node_folio = folio;
 	dn->ofs_in_node = 0;
 	f2fs_truncate_data_blocks_range(dn, ADDRS_PER_BLOCK(dn->inode));
 	err = truncate_node(dn);
@@ -1043,7 +1043,7 @@ static int truncate_nodes(struct dnode_of_data *dn, unsigned int nofs,
 
 	if (!ofs) {
 		/* remove current indirect node */
-		dn->node_page = &folio->page;
+		dn->node_folio = folio;
 		ret = truncate_node(dn);
 		if (ret)
 			goto out_err;
@@ -1102,7 +1102,7 @@ static int truncate_partial_nodes(struct dnode_of_data *dn,
 	}
 
 	if (offset[idx + 1] == 0) {
-		dn->node_page = &folios[idx]->page;
+		dn->node_folio = folios[idx];
 		dn->nid = nid[idx];
 		err = truncate_node(dn);
 		if (err)

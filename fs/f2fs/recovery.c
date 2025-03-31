@@ -527,7 +527,7 @@ got_it:
 	nid = le32_to_cpu(sum.nid);
 	ofs_in_node = le16_to_cpu(sum.ofs_in_node);
 
-	max_addrs = ADDRS_PER_PAGE(dn->node_page, dn->inode);
+	max_addrs = ADDRS_PER_PAGE(&dn->node_folio->page, dn->inode);
 	if (ofs_in_node >= max_addrs) {
 		f2fs_err(sbi, "Inconsistent ofs_in_node:%u in summary, ino:%lu, nid:%u, max:%u",
 			ofs_in_node, dn->inode->i_ino, nid, max_addrs);
@@ -539,7 +539,7 @@ got_it:
 		tdn.nid = nid;
 		if (!dn->inode_folio_locked)
 			folio_lock(dn->inode_folio);
-		tdn.node_page = &dn->inode_folio->page;
+		tdn.node_folio = dn->inode_folio;
 		tdn.ofs_in_node = ofs_in_node;
 		goto truncate_out;
 	} else if (dn->nid == nid) {
@@ -662,7 +662,7 @@ retry_dn:
 		goto out;
 	}
 
-	f2fs_wait_on_page_writeback(dn.node_page, NODE, true, true);
+	f2fs_folio_wait_writeback(dn.node_folio, NODE, true, true);
 
 	err = f2fs_get_node_info(sbi, dn.nid, &ni, false);
 	if (err)
@@ -670,9 +670,9 @@ retry_dn:
 
 	f2fs_bug_on(sbi, ni.ino != ino_of_node(&folio->page));
 
-	if (ofs_of_node(dn.node_page) != ofs_of_node(&folio->page)) {
+	if (ofs_of_node(&dn.node_folio->page) != ofs_of_node(&folio->page)) {
 		f2fs_warn(sbi, "Inconsistent ofs_of_node, ino:%lu, ofs:%u, %u",
-			  inode->i_ino, ofs_of_node(dn.node_page),
+			  inode->i_ino, ofs_of_node(&dn.node_folio->page),
 			  ofs_of_node(&folio->page));
 		err = -EFSCORRUPTED;
 		f2fs_handle_error(sbi, ERROR_INCONSISTENT_FOOTER);
@@ -683,7 +683,7 @@ retry_dn:
 		block_t src, dest;
 
 		src = f2fs_data_blkaddr(&dn);
-		dest = data_blkaddr(dn.inode, &folio->page, dn.ofs_in_node);
+		dest = data_blkaddr(dn.inode, folio, dn.ofs_in_node);
 
 		if (__is_valid_data_blkaddr(src) &&
 			!f2fs_is_valid_blkaddr(sbi, src, META_POR)) {
@@ -758,10 +758,10 @@ retry_prev:
 		}
 	}
 
-	copy_node_footer(dn.node_page, &folio->page);
-	fill_node_footer(dn.node_page, dn.nid, ni.ino,
+	copy_node_footer(&dn.node_folio->page, &folio->page);
+	fill_node_footer(&dn.node_folio->page, dn.nid, ni.ino,
 					ofs_of_node(&folio->page), false);
-	set_page_dirty(dn.node_page);
+	folio_mark_dirty(dn.node_folio);
 err:
 	f2fs_put_dnode(&dn);
 out:

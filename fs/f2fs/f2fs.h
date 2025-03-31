@@ -1002,7 +1002,7 @@ struct f2fs_nm_info {
 struct dnode_of_data {
 	struct inode *inode;		/* vfs inode pointer */
 	struct folio *inode_folio;	/* its inode folio, NULL is possible */
-	struct page *node_page;		/* cached direct node page */
+	struct folio *node_folio;	/* cached direct node folio */
 	nid_t nid;			/* node id of the direct node block */
 	unsigned int ofs_in_node;	/* data offset in the node page */
 	bool inode_folio_locked;	/* inode folio is locked or not */
@@ -1018,7 +1018,7 @@ static inline void set_new_dnode(struct dnode_of_data *dn, struct inode *inode,
 	memset(dn, 0, sizeof(*dn));
 	dn->inode = inode;
 	dn->inode_folio = ifolio;
-	dn->node_page = &nfolio->page;
+	dn->node_folio = nfolio;
 	dn->nid = nid;
 }
 
@@ -2904,11 +2904,11 @@ static inline void f2fs_put_page(struct page *page, int unlock)
 
 static inline void f2fs_put_dnode(struct dnode_of_data *dn)
 {
-	if (dn->node_page)
-		f2fs_put_page(dn->node_page, 1);
-	if (dn->inode_folio && dn->node_page != &dn->inode_folio->page)
+	if (dn->node_folio)
+		f2fs_folio_put(dn->node_folio, true);
+	if (dn->inode_folio && dn->node_folio != dn->inode_folio)
 		f2fs_folio_put(dn->inode_folio, false);
-	dn->node_page = NULL;
+	dn->node_folio = NULL;
 	dn->inode_folio = NULL;
 }
 
@@ -3040,14 +3040,14 @@ static inline __le32 *get_dnode_addr(struct inode *inode,
 }
 
 static inline block_t data_blkaddr(struct inode *inode,
-			struct page *node_page, unsigned int offset)
+			struct folio *node_folio, unsigned int offset)
 {
-	return le32_to_cpu(*(get_dnode_addr(inode, node_page) + offset));
+	return le32_to_cpu(*(get_dnode_addr(inode, &node_folio->page) + offset));
 }
 
 static inline block_t f2fs_data_blkaddr(struct dnode_of_data *dn)
 {
-	return data_blkaddr(dn->inode, dn->node_page, dn->ofs_in_node);
+	return data_blkaddr(dn->inode, dn->node_folio, dn->ofs_in_node);
 }
 
 static inline int f2fs_test_bit(unsigned int nr, char *addr)

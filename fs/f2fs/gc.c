@@ -1178,7 +1178,7 @@ static bool is_alive(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 	}
 
 	*nofs = ofs_of_node(&node_folio->page);
-	source_blkaddr = data_blkaddr(NULL, &node_folio->page, ofs_in_node);
+	source_blkaddr = data_blkaddr(NULL, node_folio, ofs_in_node);
 	f2fs_folio_put(node_folio, true);
 
 	if (source_blkaddr != blkaddr) {
