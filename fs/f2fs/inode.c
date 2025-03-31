@@ -68,9 +68,9 @@ void f2fs_set_inode_flags(struct inode *inode)
 			S_ENCRYPTED|S_VERITY|S_CASEFOLD);
 }
 
-static void __get_inode_rdev(struct inode *inode, struct page *node_page)
+static void __get_inode_rdev(struct inode *inode, struct folio *node_folio)
 {
-	__le32 *addr = get_dnode_addr(inode, node_page);
+	__le32 *addr = get_dnode_addr(inode, node_folio);
 
 	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode) ||
 			S_ISFIFO(inode->i_mode) || S_ISSOCK(inode->i_mode)) {
@@ -81,9 +81,9 @@ static void __get_inode_rdev(struct inode *inode, struct page *node_page)
 	}
 }
 
-static void __set_inode_rdev(struct inode *inode, struct page *node_page)
+static void __set_inode_rdev(struct inode *inode, struct folio *node_folio)
 {
-	__le32 *addr = get_dnode_addr(inode, node_page);
+	__le32 *addr = get_dnode_addr(inode, node_folio);
 
 	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode)) {
 		if (old_valid_dev(inode->i_rdev)) {
@@ -489,7 +489,7 @@ static int do_read_inode(struct inode *inode)
 	}
 
 	/* get rdev by using inline_info */
-	__get_inode_rdev(inode, &node_folio->page);
+	__get_inode_rdev(inode, node_folio);
 
 	if (!f2fs_need_inode_block_update(sbi, inode->i_ino))
 		fi->last_disk_size = inode->i_size;
@@ -745,7 +745,7 @@ void f2fs_update_inode(struct inode *inode, struct folio *node_folio)
 		}
 	}
 
-	__set_inode_rdev(inode, &node_folio->page);
+	__set_inode_rdev(inode, node_folio);
 
 	/* deleted inode */
 	if (inode->i_nlink == 0)

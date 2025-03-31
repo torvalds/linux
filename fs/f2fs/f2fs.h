@@ -3033,16 +3033,16 @@ static inline unsigned int get_dnode_base(struct inode *inode,
 }
 
 static inline __le32 *get_dnode_addr(struct inode *inode,
-					struct page *node_page)
+					struct folio *node_folio)
 {
-	return blkaddr_in_node(F2FS_NODE(node_page)) +
-			get_dnode_base(inode, node_page);
+	return blkaddr_in_node(F2FS_NODE(&node_folio->page)) +
+			get_dnode_base(inode, &node_folio->page);
 }
 
 static inline block_t data_blkaddr(struct inode *inode,
 			struct folio *node_folio, unsigned int offset)
 {
-	return le32_to_cpu(*(get_dnode_addr(inode, &node_folio->page) + offset));
+	return le32_to_cpu(*(get_dnode_addr(inode, node_folio) + offset));
 }
 
 static inline block_t f2fs_data_blkaddr(struct dnode_of_data *dn)
@@ -3409,7 +3409,7 @@ static inline bool f2fs_is_cow_file(struct inode *inode)
 
 static inline void *inline_data_addr(struct inode *inode, struct folio *folio)
 {
-	__le32 *addr = get_dnode_addr(inode, &folio->page);
+	__le32 *addr = get_dnode_addr(inode, folio);
 
 	return (void *)(addr + DEF_INLINE_RESERVED_SIZE);
 }
