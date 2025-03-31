@@ -760,12 +760,12 @@ void f2fs_update_inode(struct inode *inode, struct page *node_page)
 void f2fs_update_inode_page(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	struct page *node_page;
+	struct folio *node_folio;
 	int count = 0;
 retry:
-	node_page = f2fs_get_inode_page(sbi, inode->i_ino);
-	if (IS_ERR(node_page)) {
-		int err = PTR_ERR(node_page);
+	node_folio = f2fs_get_inode_folio(sbi, inode->i_ino);
+	if (IS_ERR(node_folio)) {
+		int err = PTR_ERR(node_folio);
 
 		/* The node block was truncated. */
 		if (err == -ENOENT)
@@ -780,8 +780,8 @@ stop_checkpoint:
 		f2fs_stop_checkpoint(sbi, false, STOP_CP_REASON_UPDATE_INODE);
 		return;
 	}
-	f2fs_update_inode(inode, node_page);
-	f2fs_put_page(node_page, 1);
+	f2fs_update_inode(inode, &node_folio->page);
+	f2fs_folio_put(node_folio, true);
 }
 
 int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
