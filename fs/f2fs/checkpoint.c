@@ -849,29 +849,29 @@ static __u32 f2fs_checkpoint_chksum(struct f2fs_sb_info *sbi,
 }
 
 static int get_checkpoint_version(struct f2fs_sb_info *sbi, block_t cp_addr,
-		struct f2fs_checkpoint **cp_block, struct page **cp_page,
+		struct f2fs_checkpoint **cp_block, struct folio **cp_folio,
 		unsigned long long *version)
 {
 	size_t crc_offset = 0;
 	__u32 crc;
 
-	*cp_page = f2fs_get_meta_page(sbi, cp_addr);
-	if (IS_ERR(*cp_page))
-		return PTR_ERR(*cp_page);
+	*cp_folio = f2fs_get_meta_folio(sbi, cp_addr);
+	if (IS_ERR(*cp_folio))
+		return PTR_ERR(*cp_folio);
 
-	*cp_block = (struct f2fs_checkpoint *)page_address(*cp_page);
+	*cp_block = folio_address(*cp_folio);
 
 	crc_offset = le32_to_cpu((*cp_block)->checksum_offset);
 	if (crc_offset < CP_MIN_CHKSUM_OFFSET ||
 			crc_offset > CP_CHKSUM_OFFSET) {
-		f2fs_put_page(*cp_page, 1);
+		f2fs_folio_put(*cp_folio, true);
 		f2fs_warn(sbi, "invalid crc_offset: %zu", crc_offset);
 		return -EINVAL;
 	}
 
 	crc = f2fs_checkpoint_chksum(sbi, *cp_block);
 	if (crc != cur_cp_crc(*cp_block)) {
-		f2fs_put_page(*cp_page, 1);
+		f2fs_folio_put(*cp_folio, true);
 		f2fs_warn(sbi, "invalid crc value");
 		return -EINVAL;
 	}
@@ -883,14 +883,14 @@ static int get_checkpoint_version(struct f2fs_sb_info *sbi, block_t cp_addr,
 static struct page *validate_checkpoint(struct f2fs_sb_info *sbi,
 				block_t cp_addr, unsigned long long *version)
 {
-	struct page *cp_page_1 = NULL, *cp_page_2 = NULL;
+	struct folio *cp_folio_1 = NULL, *cp_folio_2 = NULL;
 	struct f2fs_checkpoint *cp_block = NULL;
 	unsigned long long cur_version = 0, pre_version = 0;
 	unsigned int cp_blocks;
 	int err;
 
 	err = get_checkpoint_version(sbi, cp_addr, &cp_block,
-					&cp_page_1, version);
+					&cp_folio_1, version);
 	if (err)
 		return NULL;
 
@@ -905,19 +905,19 @@ static struct page *validate_checkpoint(struct f2fs_sb_info *sbi,
 
 	cp_addr += cp_blocks - 1;
 	err = get_checkpoint_version(sbi, cp_addr, &cp_block,
-					&cp_page_2, version);
+					&cp_folio_2, version);
 	if (err)
 		goto invalid_cp;
 	cur_version = *version;
 
 	if (cur_version == pre_version) {
 		*version = cur_version;
-		f2fs_put_page(cp_page_2, 1);
-		return cp_page_1;
+		f2fs_folio_put(cp_folio_2, true);
+		return &cp_folio_1->page;
 	}
-	f2fs_put_page(cp_page_2, 1);
+	f2fs_folio_put(cp_folio_2, true);
 invalid_cp:
-	f2fs_put_page(cp_page_1, 1);
+	f2fs_folio_put(cp_folio_1, true);
 	return NULL;
 }
 
