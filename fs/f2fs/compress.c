@@ -1928,7 +1928,7 @@ void f2fs_invalidate_compress_pages_range(struct f2fs_sb_info *sbi,
 void f2fs_cache_compressed_page(struct f2fs_sb_info *sbi, struct page *page,
 						nid_t ino, block_t blkaddr)
 {
-	struct page *cpage;
+	struct folio *cfolio;
 	int ret;
 
 	if (!test_opt(sbi, COMPRESS_CACHE))
@@ -1940,28 +1940,28 @@ void f2fs_cache_compressed_page(struct f2fs_sb_info *sbi, struct page *page,
 	if (!f2fs_available_free_memory(sbi, COMPRESS_PAGE))
 		return;
 
-	cpage = find_get_page(COMPRESS_MAPPING(sbi), blkaddr);
-	if (cpage) {
-		f2fs_put_page(cpage, 0);
+	cfolio = filemap_get_folio(COMPRESS_MAPPING(sbi), blkaddr);
+	if (!IS_ERR(cfolio)) {
+		f2fs_folio_put(cfolio, false);
 		return;
 	}
 
-	cpage = alloc_page(__GFP_NOWARN | __GFP_IO);
-	if (!cpage)
+	cfolio = filemap_alloc_folio(__GFP_NOWARN | __GFP_IO, 0);
+	if (!cfolio)
 		return;
 
-	ret = add_to_page_cache_lru(cpage, COMPRESS_MAPPING(sbi),
+	ret = filemap_add_folio(COMPRESS_MAPPING(sbi), cfolio,
 						blkaddr, GFP_NOFS);
 	if (ret) {
-		f2fs_put_page(cpage, 0);
+		f2fs_folio_put(cfolio, false);
 		return;
 	}
 
-	set_page_private_data(cpage, ino);
+	set_page_private_data(&cfolio->page, ino);
 
-	memcpy(page_address(cpage), page_address(page), PAGE_SIZE);
-	SetPageUptodate(cpage);
-	f2fs_put_page(cpage, 1);
+	memcpy(folio_address(cfolio), page_address(page), PAGE_SIZE);
+	folio_mark_uptodate(cfolio);
+	f2fs_folio_put(cfolio, true);
 }
 
 bool f2fs_load_compressed_page(struct f2fs_sb_info *sbi, struct page *page,
