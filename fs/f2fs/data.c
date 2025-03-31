@@ -3128,7 +3128,7 @@ continue_unlock:
 			if (folio_test_writeback(folio)) {
 				if (wbc->sync_mode == WB_SYNC_NONE)
 					goto continue_unlock;
-				f2fs_wait_on_page_writeback(&folio->page, DATA, true, true);
+				f2fs_folio_wait_writeback(folio, DATA, true, true);
 			}
 
 			if (!folio_clear_dirty_for_io(folio))
@@ -3623,7 +3623,7 @@ repeat:
 		}
 	}
 
-	f2fs_wait_on_page_writeback(&folio->page, DATA, false, true);
+	f2fs_folio_wait_writeback(folio, DATA, false, true);
 
 	if (len == folio_size(folio) || folio_test_uptodate(folio))
 		return 0;

@@ -131,7 +131,7 @@ static vm_fault_t f2fs_vm_page_mkwrite(struct vm_fault *vmf)
 		goto out_sem;
 	}
 
-	f2fs_wait_on_page_writeback(folio_page(folio, 0), DATA, false, true);
+	f2fs_folio_wait_writeback(folio, DATA, false, true);
 
 	/* wait for GCed page writeback via META_MAPPING */
 	f2fs_wait_on_block_writeback(inode, dn.data_blkaddr);

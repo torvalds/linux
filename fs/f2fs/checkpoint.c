@@ -456,8 +456,7 @@ continue_unlock:
 				goto continue_unlock;
 			}
 
-			f2fs_wait_on_page_writeback(&folio->page, META,
-					true, true);
+			f2fs_folio_wait_writeback(folio, META, true, true);
 
 			if (!folio_clear_dirty_for_io(folio))
 				goto continue_unlock;
