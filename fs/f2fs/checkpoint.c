@@ -252,7 +252,6 @@ bool f2fs_is_valid_blkaddr_raw(struct f2fs_sb_info *sbi,
 int f2fs_ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages,
 							int type, bool sync)
 {
-	struct page *page;
 	block_t blkno = start;
 	struct f2fs_io_info fio = {
 		.sbi = sbi,
@@ -271,6 +270,7 @@ int f2fs_ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages,
 
 	blk_start_plug(&plug);
 	for (; nrpages-- > 0; blkno++) {
+		struct folio *folio;
 
 		if (!f2fs_is_valid_blkaddr(sbi, blkno, type))
 			goto out;
@@ -300,18 +300,18 @@ int f2fs_ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages,
 			BUG();
 		}
 
-		page = f2fs_grab_cache_page(META_MAPPING(sbi),
+		folio = f2fs_grab_cache_folio(META_MAPPING(sbi),
 						fio.new_blkaddr, false);
-		if (!page)
+		if (IS_ERR(folio))
 			continue;
-		if (PageUptodate(page)) {
-			f2fs_put_page(page, 1);
+		if (folio_test_uptodate(folio)) {
+			f2fs_folio_put(folio, true);
 			continue;
 		}
 
-		fio.page = page;
+		fio.page = &folio->page;
 		err = f2fs_submit_page_bio(&fio);
-		f2fs_put_page(page, err ? 1 : 0);
+		f2fs_folio_put(folio, err ? true : false);
 
 		if (!err)
 			f2fs_update_iostat(sbi, NULL, FS_META_READ_IO,
