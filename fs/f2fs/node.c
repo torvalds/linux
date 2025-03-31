@@ -2815,7 +2815,7 @@ int f2fs_recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)
 	struct f2fs_inode *src, *dst;
 	nid_t ino = ino_of_node(page);
 	struct node_info old_ni, new_ni;
-	struct page *ipage;
+	struct folio *ifolio;
 	int err;
 
 	err = f2fs_get_node_info(sbi, ino, &old_ni, false);
@@ -2825,8 +2825,8 @@ int f2fs_recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)
 	if (unlikely(old_ni.blk_addr != NULL_ADDR))
 		return -EINVAL;
 retry:
-	ipage = f2fs_grab_cache_page(NODE_MAPPING(sbi), ino, false);
-	if (!ipage) {
+	ifolio = f2fs_grab_cache_folio(NODE_MAPPING(sbi), ino, false);
+	if (IS_ERR(ifolio)) {
 		memalloc_retry_wait(GFP_NOFS);
 		goto retry;
 	}
@@ -2834,13 +2834,13 @@ retry:
 	/* Should not use this inode from free nid list */
 	remove_free_nid(sbi, ino);
 
-	if (!PageUptodate(ipage))
-		SetPageUptodate(ipage);
-	fill_node_footer(ipage, ino, ino, 0, true);
-	set_cold_node(ipage, false);
+	if (!folio_test_uptodate(ifolio))
+		folio_mark_uptodate(ifolio);
+	fill_node_footer(&ifolio->page, ino, ino, 0, true);
+	set_cold_node(&ifolio->page, false);
 
 	src = F2FS_INODE(page);
-	dst = F2FS_INODE(ipage);
+	dst = F2FS_INODE(&ifolio->page);
 
 	memcpy(dst, src, offsetof(struct f2fs_inode, i_ext));
 	dst->i_size = 0;
@@ -2876,8 +2876,8 @@ retry:
 		WARN_ON(1);
 	set_node_addr(sbi, &new_ni, NEW_ADDR, false);
 	inc_valid_inode_count(sbi);
-	set_page_dirty(ipage);
-	f2fs_put_page(ipage, 1);
+	folio_mark_dirty(ifolio);
+	f2fs_folio_put(ifolio, true);
 	return 0;
 }
 
