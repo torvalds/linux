@@ -1557,14 +1557,6 @@ struct folio *f2fs_get_xnode_folio(struct f2fs_sb_info *sbi, pgoff_t xnid)
 	return __get_node_folio(sbi, xnid, NULL, 0, NODE_TYPE_XATTR);
 }
 
-struct page *f2fs_get_xnode_page(struct f2fs_sb_info *sbi, pgoff_t xnid)
-{
-	struct folio *folio = __get_node_folio(sbi, xnid, NULL, 0,
-						NODE_TYPE_XATTR);
-
-	return &folio->page;
-}
-
 static struct folio *f2fs_get_node_folio_ra(struct folio *parent, int start)
 {
 	struct f2fs_sb_info *sbi = F2FS_F_SB(parent);
