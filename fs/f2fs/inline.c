@@ -117,27 +117,27 @@ void f2fs_truncate_inline_inode(struct inode *inode,
 
 int f2fs_read_inline_data(struct inode *inode, struct folio *folio)
 {
-	struct page *ipage;
+	struct folio *ifolio;
 
-	ipage = f2fs_get_inode_page(F2FS_I_SB(inode), inode->i_ino);
-	if (IS_ERR(ipage)) {
+	ifolio = f2fs_get_inode_folio(F2FS_I_SB(inode), inode->i_ino);
+	if (IS_ERR(ifolio)) {
 		folio_unlock(folio);
-		return PTR_ERR(ipage);
+		return PTR_ERR(ifolio);
 	}
 
 	if (!f2fs_has_inline_data(inode)) {
-		f2fs_put_page(ipage, 1);
+		f2fs_folio_put(ifolio, true);
 		return -EAGAIN;
 	}
 
 	if (folio_index(folio))
 		folio_zero_segment(folio, 0, folio_size(folio));
 	else
-		f2fs_do_read_inline_data(folio, ipage);
+		f2fs_do_read_inline_data(folio, &ifolio->page);
 
 	if (!folio_test_uptodate(folio))
 		folio_mark_uptodate(folio);
-	f2fs_put_page(ipage, 1);
+	f2fs_folio_put(ifolio, true);
 	folio_unlock(folio);
 	return 0;
 }
