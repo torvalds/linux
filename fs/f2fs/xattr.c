@@ -276,20 +276,20 @@ static int read_inline_xattr(struct inode *inode, struct page *ipage,
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	unsigned int inline_size = inline_xattr_size(inode);
-	struct page *page = NULL;
+	struct folio *folio = NULL;
 	void *inline_addr;
 
 	if (ipage) {
 		inline_addr = inline_xattr_addr(inode, ipage);
 	} else {
-		page = f2fs_get_inode_page(sbi, inode->i_ino);
-		if (IS_ERR(page))
-			return PTR_ERR(page);
+		folio = f2fs_get_inode_folio(sbi, inode->i_ino);
+		if (IS_ERR(folio))
+			return PTR_ERR(folio);
 
-		inline_addr = inline_xattr_addr(inode, page);
+		inline_addr = inline_xattr_addr(inode, &folio->page);
 	}
 	memcpy(txattr_addr, inline_addr, inline_size);
-	f2fs_put_page(page, 1);
+	f2fs_folio_put(folio, true);
 
 	return 0;
 }
