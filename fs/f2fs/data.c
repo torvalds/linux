@@ -1825,7 +1825,6 @@ static int f2fs_xattr_fiemap(struct inode *inode,
 				struct fiemap_extent_info *fieinfo)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	struct page *page;
 	struct node_info ni;
 	__u64 phys = 0, len;
 	__u32 flags;
@@ -1834,15 +1833,15 @@ static int f2fs_xattr_fiemap(struct inode *inode,
 
 	if (f2fs_has_inline_xattr(inode)) {
 		int offset;
+		struct folio *folio = f2fs_grab_cache_folio(NODE_MAPPING(sbi),
+				inode->i_ino, false);
 
-		page = f2fs_grab_cache_page(NODE_MAPPING(sbi),
-						inode->i_ino, false);
-		if (!page)
-			return -ENOMEM;
+		if (IS_ERR(folio))
+			return PTR_ERR(folio);
 
 		err = f2fs_get_node_info(sbi, inode->i_ino, &ni, false);
 		if (err) {
-			f2fs_put_page(page, 1);
+			f2fs_folio_put(folio, true);
 			return err;
 		}
 
@@ -1854,7 +1853,7 @@ static int f2fs_xattr_fiemap(struct inode *inode,
 		phys += offset;
 		len = inline_xattr_size(inode);
 
-		f2fs_put_page(page, 1);
+		f2fs_folio_put(folio, true);
 
 		flags = FIEMAP_EXTENT_DATA_INLINE | FIEMAP_EXTENT_NOT_ALIGNED;
 
@@ -1868,20 +1867,22 @@ static int f2fs_xattr_fiemap(struct inode *inode,
 	}
 
 	if (xnid) {
-		page = f2fs_grab_cache_page(NODE_MAPPING(sbi), xnid, false);
-		if (!page)
-			return -ENOMEM;
+		struct folio *folio = f2fs_grab_cache_folio(NODE_MAPPING(sbi),
+				xnid, false);
+
+		if (IS_ERR(folio))
+			return PTR_ERR(folio);
 
 		err = f2fs_get_node_info(sbi, xnid, &ni, false);
 		if (err) {
-			f2fs_put_page(page, 1);
+			f2fs_folio_put(folio, true);
 			return err;
 		}
 
 		phys = F2FS_BLK_TO_BYTES(ni.blk_addr);
 		len = inode->i_sb->s_blocksize;
 
-		f2fs_put_page(page, 1);
+		f2fs_folio_put(folio, true);
 
 		flags = FIEMAP_EXTENT_LAST;
 	}
