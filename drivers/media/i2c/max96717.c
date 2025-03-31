@@ -357,7 +357,6 @@ static int max96717_gpiochip_probe(struct max96717_priv *priv)
 	gc->direction_output = max96717_gpio_direction_out;
 	gc->set_rv = max96717_gpiochip_set;
 	gc->get = max96717_gpiochip_get;
-	gc->of_gpio_n_cells = 2;
 
 	/* Disable GPIO forwarding */
 	for (i = 0; i < gc->ngpio; i++)

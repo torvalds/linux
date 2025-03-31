@@ -1684,7 +1684,7 @@ config VIDEO_MAX96714
 
 config VIDEO_MAX96717
 	tristate "Maxim MAX96717 GMSL2 Serializer support"
-	depends on OF && I2C && VIDEO_DEV && COMMON_CLK
+	depends on I2C && VIDEO_DEV && COMMON_CLK
 	select I2C_MUX
 	select MEDIA_CONTROLLER
 	select GPIOLIB
