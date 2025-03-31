@@ -2502,7 +2502,8 @@ static void f2fs_readahead(struct readahead_control *rac)
 int f2fs_encrypt_one_page(struct f2fs_io_info *fio)
 {
 	struct inode *inode = fio_inode(fio);
-	struct page *mpage, *page;
+	struct folio *mfolio;
+	struct page *page;
 	gfp_t gfp_flags = GFP_NOFS;
 
 	if (!f2fs_encrypted_file(inode))
@@ -2527,12 +2528,12 @@ retry_encrypt:
 		return PTR_ERR(fio->encrypted_page);
 	}
 
-	mpage = find_lock_page(META_MAPPING(fio->sbi), fio->old_blkaddr);
-	if (mpage) {
-		if (PageUptodate(mpage))
-			memcpy(page_address(mpage),
+	mfolio = filemap_lock_folio(META_MAPPING(fio->sbi), fio->old_blkaddr);
+	if (!IS_ERR(mfolio)) {
+		if (folio_test_uptodate(mfolio))
+			memcpy(folio_address(mfolio),
 				page_address(fio->encrypted_page), PAGE_SIZE);
-		f2fs_put_page(mpage, 1);
+		f2fs_folio_put(mfolio, true);
 	}
 	return 0;
 }
