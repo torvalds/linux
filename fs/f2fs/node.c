@@ -325,7 +325,7 @@ void f2fs_init_fsync_node_info(struct f2fs_sb_info *sbi)
 }
 
 static unsigned int f2fs_add_fsync_node_entry(struct f2fs_sb_info *sbi,
-							struct page *page)
+		struct folio *folio)
 {
 	struct fsync_node_entry *fn;
 	unsigned long flags;
@@ -334,8 +334,8 @@ static unsigned int f2fs_add_fsync_node_entry(struct f2fs_sb_info *sbi,
 	fn = f2fs_kmem_cache_alloc(fsync_node_entry_slab,
 					GFP_NOFS, true, NULL);
 
-	get_page(page);
-	fn->page = page;
+	folio_get(folio);
+	fn->folio = folio;
 	INIT_LIST_HEAD(&fn->list);
 
 	spin_lock_irqsave(&sbi->fsync_node_lock, flags);
@@ -348,19 +348,19 @@ static unsigned int f2fs_add_fsync_node_entry(struct f2fs_sb_info *sbi,
 	return seq_id;
 }
 
-void f2fs_del_fsync_node_entry(struct f2fs_sb_info *sbi, struct page *page)
+void f2fs_del_fsync_node_entry(struct f2fs_sb_info *sbi, struct folio *folio)
 {
 	struct fsync_node_entry *fn;
 	unsigned long flags;
 
 	spin_lock_irqsave(&sbi->fsync_node_lock, flags);
 	list_for_each_entry(fn, &sbi->fsync_node_list, list) {
-		if (fn->page == page) {
+		if (fn->folio == folio) {
 			list_del(&fn->list);
 			sbi->fsync_node_num--;
 			spin_unlock_irqrestore(&sbi->fsync_node_lock, flags);
 			kmem_cache_free(fsync_node_entry_slab, fn);
-			put_page(page);
+			folio_put(folio);
 			return;
 		}
 	}
@@ -1727,7 +1727,7 @@ static int __write_node_folio(struct folio *folio, bool atomic, bool *submitted,
 
 	/* should add to global list before clearing PAGECACHE status */
 	if (f2fs_in_warm_node_list(sbi, folio)) {
-		seq = f2fs_add_fsync_node_entry(sbi, &folio->page);
+		seq = f2fs_add_fsync_node_entry(sbi, folio);
 		if (seq_id)
 			*seq_id = seq;
 	}
@@ -2129,12 +2129,13 @@ int f2fs_wait_on_node_pages_writeback(struct f2fs_sb_info *sbi,
 						unsigned int seq_id)
 {
 	struct fsync_node_entry *fn;
-	struct page *page;
 	struct list_head *head = &sbi->fsync_node_list;
 	unsigned long flags;
 	unsigned int cur_seq_id = 0;
 
 	while (seq_id && cur_seq_id < seq_id) {
+		struct folio *folio;
+
 		spin_lock_irqsave(&sbi->fsync_node_lock, flags);
 		if (list_empty(head)) {
 			spin_unlock_irqrestore(&sbi->fsync_node_lock, flags);
@@ -2146,13 +2147,13 @@ int f2fs_wait_on_node_pages_writeback(struct f2fs_sb_info *sbi,
 			break;
 		}
 		cur_seq_id = fn->seq_id;
-		page = fn->page;
-		get_page(page);
+		folio = fn->folio;
+		folio_get(folio);
 		spin_unlock_irqrestore(&sbi->fsync_node_lock, flags);
 
-		f2fs_wait_on_page_writeback(page, NODE, true, false);
+		f2fs_folio_wait_writeback(folio, NODE, true, false);
 
-		put_page(page);
+		folio_put(folio);
 	}
 
 	return filemap_check_errors(NODE_MAPPING(sbi));
