@@ -469,7 +469,7 @@ static noinline void trace_bucket_alloc2(struct bch_fs *c, struct bch_dev *ca,
 	prt_printf(&buf, "watermark\t%s\n",	bch2_watermarks[watermark]);
 	prt_printf(&buf, "data type\t%s\n",	__bch2_data_types[data_type]);
 	prt_printf(&buf, "blocking\t%u\n",	cl != NULL);
-	prt_printf(&buf, "free\t%llu\n",	usage->d[BCH_DATA_free].buckets);
+	prt_printf(&buf, "free\t%llu\n",	usage->buckets[BCH_DATA_free]);
 	prt_printf(&buf, "avail\t%llu\n",	dev_buckets_free(ca, *usage, watermark));
 	prt_printf(&buf, "copygc_wait\t%lu/%lli\n",
 		   bch2_copygc_wait_amount(c),
@@ -524,10 +524,10 @@ again:
 	bch2_dev_usage_read_fast(ca, usage);
 	avail = dev_buckets_free(ca, *usage, watermark);
 
-	if (usage->d[BCH_DATA_need_discard].buckets > avail)
+	if (usage->buckets[BCH_DATA_need_discard] > avail)
 		bch2_dev_do_discards(ca);
 
-	if (usage->d[BCH_DATA_need_gc_gens].buckets > avail)
+	if (usage->buckets[BCH_DATA_need_gc_gens] > avail)
 		bch2_gc_gens_async(c);
 
 	if (should_invalidate_buckets(ca, *usage))
@@ -1669,7 +1669,7 @@ void bch2_fs_alloc_debug_to_text(struct printbuf *out, struct bch_fs *c)
 void bch2_dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 {
 	struct bch_fs *c = ca->fs;
-	struct bch_dev_usage stats = bch2_dev_usage_read(ca);
+	struct bch_dev_usage_full stats = bch2_dev_usage_full_read(ca);
 	unsigned nr[BCH_DATA_NR];
 
 	memset(nr, 0, sizeof(nr));
@@ -1692,7 +1692,8 @@ void bch2_dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 	printbuf_tabstop_push(out, 16);
 
 	prt_printf(out, "open buckets\t%i\r\n",	ca->nr_open_buckets);
-	prt_printf(out, "buckets to invalidate\t%llu\r\n",	should_invalidate_buckets(ca, stats));
+	prt_printf(out, "buckets to invalidate\t%llu\r\n",
+		   should_invalidate_buckets(ca, bch2_dev_usage_read(ca)));
 }
 
 static noinline void bch2_print_allocator_stuck(struct bch_fs *c)

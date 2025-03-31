@@ -30,6 +30,12 @@
 
 void bch2_dev_usage_read_fast(struct bch_dev *ca, struct bch_dev_usage *usage)
 {
+	for (unsigned i = 0; i < BCH_DATA_NR; i++)
+		usage->buckets[i] = percpu_u64_get(&ca->usage->d[i].buckets);
+}
+
+void bch2_dev_usage_full_read_fast(struct bch_dev *ca, struct bch_dev_usage_full *usage)
+{
 	memset(usage, 0, sizeof(*usage));
 	acc_u64s_percpu((u64 *) usage, (u64 __percpu *) ca->usage, dev_usage_u64s());
 }
@@ -75,7 +81,7 @@ bch2_fs_usage_read_short(struct bch_fs *c)
 
 void bch2_dev_usage_to_text(struct printbuf *out,
 			    struct bch_dev *ca,
-			    struct bch_dev_usage *usage)
+			    struct bch_dev_usage_full *usage)
 {
 	if (out->nr_tabstops < 5) {
 		printbuf_tabstops_reset(out);
@@ -1331,7 +1337,7 @@ void bch2_dev_buckets_free(struct bch_dev *ca)
 
 int bch2_dev_buckets_alloc(struct bch_fs *c, struct bch_dev *ca)
 {
-	ca->usage = alloc_percpu(struct bch_dev_usage);
+	ca->usage = alloc_percpu(struct bch_dev_usage_full);
 	if (!ca->usage)
 		return -BCH_ERR_ENOMEM_usage_init;
 

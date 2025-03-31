@@ -562,7 +562,8 @@ struct bch_dev {
 	unsigned long		*bucket_backpointer_mismatches;
 	unsigned long		*bucket_backpointer_empty;
 
-	struct bch_dev_usage __percpu	*usage;
+	struct bch_dev_usage_full __percpu
+				*usage;
 
 	/* Allocator: */
 	u64			alloc_cursor[3];
