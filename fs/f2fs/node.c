@@ -2711,7 +2711,7 @@ int f2fs_try_to_free_nids(struct f2fs_sb_info *sbi, int nr_shrink)
 	return nr - nr_shrink;
 }
 
-int f2fs_recover_inline_xattr(struct inode *inode, struct page *page)
+int f2fs_recover_inline_xattr(struct inode *inode, struct folio *folio)
 {
 	void *src_addr, *dst_addr;
 	size_t inline_size;
@@ -2722,7 +2722,7 @@ int f2fs_recover_inline_xattr(struct inode *inode, struct page *page)
 	if (IS_ERR(ifolio))
 		return PTR_ERR(ifolio);
 
-	ri = F2FS_INODE(page);
+	ri = F2FS_INODE(&folio->page);
 	if (ri->i_inline & F2FS_INLINE_XATTR) {
 		if (!f2fs_has_inline_xattr(inode)) {
 			set_inode_flag(inode, FI_INLINE_XATTR);
@@ -2737,7 +2737,7 @@ int f2fs_recover_inline_xattr(struct inode *inode, struct page *page)
 	}
 
 	dst_addr = inline_xattr_addr(inode, &ifolio->page);
-	src_addr = inline_xattr_addr(inode, page);
+	src_addr = inline_xattr_addr(inode, &folio->page);
 	inline_size = inline_xattr_size(inode);
 
 	f2fs_folio_wait_writeback(ifolio, NODE, true, true);
