@@ -1964,25 +1964,25 @@ void f2fs_cache_compressed_page(struct f2fs_sb_info *sbi, struct page *page,
 	f2fs_folio_put(cfolio, true);
 }
 
-bool f2fs_load_compressed_page(struct f2fs_sb_info *sbi, struct page *page,
+bool f2fs_load_compressed_folio(struct f2fs_sb_info *sbi, struct folio *folio,
 								block_t blkaddr)
 {
-	struct page *cpage;
+	struct folio *cfolio;
 	bool hitted = false;
 
 	if (!test_opt(sbi, COMPRESS_CACHE))
 		return false;
 
-	cpage = f2fs_pagecache_get_page(COMPRESS_MAPPING(sbi),
+	cfolio = f2fs_filemap_get_folio(COMPRESS_MAPPING(sbi),
 				blkaddr, FGP_LOCK | FGP_NOWAIT, GFP_NOFS);
-	if (cpage) {
-		if (PageUptodate(cpage)) {
+	if (!IS_ERR(cfolio)) {
+		if (folio_test_uptodate(cfolio)) {
 			atomic_inc(&sbi->compress_page_hit);
-			memcpy(page_address(page),
-				page_address(cpage), PAGE_SIZE);
+			memcpy(folio_address(folio),
+				folio_address(cfolio), folio_size(folio));
 			hitted = true;
 		}
-		f2fs_put_page(cpage, 1);
+		f2fs_folio_put(cfolio, true);
 	}
 
 	return hitted;
