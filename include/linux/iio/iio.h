@@ -659,8 +659,8 @@ void iio_device_unregister(struct iio_dev *indio_dev);
 int __devm_iio_device_register(struct device *dev, struct iio_dev *indio_dev,
 			       struct module *this_mod);
 int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp);
-int iio_device_claim_direct_mode(struct iio_dev *indio_dev);
-void iio_device_release_direct_mode(struct iio_dev *indio_dev);
+bool __iio_device_claim_direct(struct iio_dev *indio_dev);
+void __iio_device_release_direct(struct iio_dev *indio_dev);
 
 /*
  * Helper functions that allow claim and release of direct mode
@@ -671,9 +671,7 @@ void iio_device_release_direct_mode(struct iio_dev *indio_dev);
  */
 static inline bool iio_device_claim_direct(struct iio_dev *indio_dev)
 {
-	int ret = iio_device_claim_direct_mode(indio_dev);
-
-	if (ret)
+	if (!__iio_device_claim_direct(indio_dev))
 		return false;
 
 	__acquire(iio_dev);
@@ -683,7 +681,7 @@ static inline bool iio_device_claim_direct(struct iio_dev *indio_dev)
 
 static inline void iio_device_release_direct(struct iio_dev *indio_dev)
 {
-	iio_device_release_direct_mode(indio_dev);
+	__iio_device_release_direct(indio_dev);
 	__release(indio_dev);
 }
 

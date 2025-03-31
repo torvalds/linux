@@ -2157,17 +2157,19 @@ int __devm_iio_device_register(struct device *dev, struct iio_dev *indio_dev,
 EXPORT_SYMBOL_GPL(__devm_iio_device_register);
 
 /**
- * iio_device_claim_direct_mode - Keep device in direct mode
+ * __iio_device_claim_direct - Keep device in direct mode
  * @indio_dev:	the iio_dev associated with the device
  *
  * If the device is in direct mode it is guaranteed to stay
- * that way until iio_device_release_direct_mode() is called.
+ * that way until __iio_device_release_direct() is called.
  *
- * Use with iio_device_release_direct_mode()
+ * Use with __iio_device_release_direct().
  *
- * Returns: 0 on success, -EBUSY on failure.
+ * Drivers should only call iio_device_claim_direct().
+ *
+ * Returns: true on success, false on failure.
  */
-int iio_device_claim_direct_mode(struct iio_dev *indio_dev)
+bool __iio_device_claim_direct(struct iio_dev *indio_dev)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 
@@ -2175,26 +2177,28 @@ int iio_device_claim_direct_mode(struct iio_dev *indio_dev)
 
 	if (iio_buffer_enabled(indio_dev)) {
 		mutex_unlock(&iio_dev_opaque->mlock);
-		return -EBUSY;
+		return false;
 	}
-	return 0;
+	return true;
 }
-EXPORT_SYMBOL_GPL(iio_device_claim_direct_mode);
+EXPORT_SYMBOL_GPL(__iio_device_claim_direct);
 
 /**
- * iio_device_release_direct_mode - releases claim on direct mode
+ * __iio_device_release_direct - releases claim on direct mode
  * @indio_dev:	the iio_dev associated with the device
  *
  * Release the claim. Device is no longer guaranteed to stay
  * in direct mode.
  *
- * Use with iio_device_claim_direct_mode()
+ * Drivers should only call iio_device_release_direct().
+ *
+ * Use with __iio_device_claim_direct()
  */
-void iio_device_release_direct_mode(struct iio_dev *indio_dev)
+void __iio_device_release_direct(struct iio_dev *indio_dev)
 {
 	mutex_unlock(&to_iio_dev_opaque(indio_dev)->mlock);
 }
-EXPORT_SYMBOL_GPL(iio_device_release_direct_mode);
+EXPORT_SYMBOL_GPL(__iio_device_release_direct);
 
 /**
  * iio_device_claim_buffer_mode - Keep device in buffer mode
