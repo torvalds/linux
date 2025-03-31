@@ -1156,7 +1156,7 @@ int f2fs_truncate_inode_blocks(struct inode *inode, pgoff_t from)
 		return PTR_ERR(folio);
 	}
 
-	set_new_dnode(&dn, inode, &folio->page, NULL, 0);
+	set_new_dnode(&dn, inode, folio, NULL, 0);
 	folio_unlock(folio);
 
 	ri = F2FS_INODE(&folio->page);
@@ -1252,7 +1252,7 @@ int f2fs_truncate_xattr_node(struct inode *inode)
 	if (IS_ERR(nfolio))
 		return PTR_ERR(nfolio);
 
-	set_new_dnode(&dn, inode, NULL, &nfolio->page, nid);
+	set_new_dnode(&dn, inode, NULL, nfolio, nid);
 	err = truncate_node(&dn);
 	if (err) {
 		f2fs_folio_put(nfolio, true);
