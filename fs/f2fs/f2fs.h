@@ -2863,16 +2863,6 @@ static inline struct folio *f2fs_grab_cache_folio(struct address_space *mapping,
 	return folio;
 }
 
-static inline struct page *f2fs_grab_cache_page(struct address_space *mapping,
-						pgoff_t index, bool for_write)
-{
-	struct folio *folio = f2fs_grab_cache_folio(mapping, index, for_write);
-
-	if (IS_ERR(folio))
-		return NULL;
-	return &folio->page;
-}
-
 static inline struct page *f2fs_pagecache_get_page(
 				struct address_space *mapping, pgoff_t index,
 				fgf_t fgp_flags, gfp_t gfp_mask)
