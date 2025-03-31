@@ -2900,17 +2900,17 @@ int f2fs_restore_node_summary(struct f2fs_sb_info *sbi,
 		f2fs_ra_meta_pages(sbi, addr, nrpages, META_POR, true);
 
 		for (idx = addr; idx < addr + nrpages; idx++) {
-			struct page *page = f2fs_get_tmp_page(sbi, idx);
+			struct folio *folio = f2fs_get_tmp_folio(sbi, idx);
 
-			if (IS_ERR(page))
-				return PTR_ERR(page);
+			if (IS_ERR(folio))
+				return PTR_ERR(folio);
 
-			rn = F2FS_NODE(page);
+			rn = F2FS_NODE(&folio->page);
 			sum_entry->nid = rn->footer.nid;
 			sum_entry->version = 0;
 			sum_entry->ofs_in_node = 0;
 			sum_entry++;
-			f2fs_put_page(page, 1);
+			f2fs_folio_put(folio, true);
 		}
 
 		invalidate_mapping_pages(META_MAPPING(sbi), addr,

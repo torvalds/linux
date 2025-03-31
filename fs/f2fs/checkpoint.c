@@ -129,9 +129,9 @@ retry:
 }
 
 /* for POR only */
-struct page *f2fs_get_tmp_page(struct f2fs_sb_info *sbi, pgoff_t index)
+struct folio *f2fs_get_tmp_folio(struct f2fs_sb_info *sbi, pgoff_t index)
 {
-	return &__get_meta_folio(sbi, index, false)->page;
+	return __get_meta_folio(sbi, index, false);
 }
 
 static bool __is_bitmap_valid(struct f2fs_sb_info *sbi, block_t blkaddr,

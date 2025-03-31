@@ -358,33 +358,34 @@ static int sanity_check_node_chain(struct f2fs_sb_info *sbi, block_t blkaddr,
 		block_t *blkaddr_fast, bool *is_detecting)
 {
 	unsigned int ra_blocks = RECOVERY_MAX_RA_BLOCKS;
-	struct page *page = NULL;
 	int i;
 
 	if (!*is_detecting)
 		return 0;
 
 	for (i = 0; i < 2; i++) {
+		struct folio *folio;
+
 		if (!f2fs_is_valid_blkaddr(sbi, *blkaddr_fast, META_POR)) {
 			*is_detecting = false;
 			return 0;
 		}
 
-		page = f2fs_get_tmp_page(sbi, *blkaddr_fast);
-		if (IS_ERR(page))
-			return PTR_ERR(page);
+		folio = f2fs_get_tmp_folio(sbi, *blkaddr_fast);
+		if (IS_ERR(folio))
+			return PTR_ERR(folio);
 
-		if (!is_recoverable_dnode(page)) {
-			f2fs_put_page(page, 1);
+		if (!is_recoverable_dnode(&folio->page)) {
+			f2fs_folio_put(folio, true);
 			*is_detecting = false;
 			return 0;
 		}
 
 		ra_blocks = adjust_por_ra_blocks(sbi, ra_blocks, *blkaddr_fast,
-						next_blkaddr_of_node(page));
+					next_blkaddr_of_node(&folio->page));
 
-		*blkaddr_fast = next_blkaddr_of_node(page);
-		f2fs_put_page(page, 1);
+		*blkaddr_fast = next_blkaddr_of_node(&folio->page);
+		f2fs_folio_put(folio, true);
 
 		f2fs_ra_meta_pages_cond(sbi, *blkaddr_fast, ra_blocks);
 	}
@@ -401,7 +402,6 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head,
 				bool check_only)
 {
 	struct curseg_info *curseg;
-	struct page *page = NULL;
 	block_t blkaddr, blkaddr_fast;
 	bool is_detecting = true;
 	int err = 0;
@@ -413,33 +413,35 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head,
 
 	while (1) {
 		struct fsync_inode_entry *entry;
+		struct folio *folio;
 
 		if (!f2fs_is_valid_blkaddr(sbi, blkaddr, META_POR))
 			return 0;
 
-		page = f2fs_get_tmp_page(sbi, blkaddr);
-		if (IS_ERR(page)) {
-			err = PTR_ERR(page);
+		folio = f2fs_get_tmp_folio(sbi, blkaddr);
+		if (IS_ERR(folio)) {
+			err = PTR_ERR(folio);
 			break;
 		}
 
-		if (!is_recoverable_dnode(page)) {
-			f2fs_put_page(page, 1);
+		if (!is_recoverable_dnode(&folio->page)) {
+			f2fs_folio_put(folio, true);
 			break;
 		}
 
-		if (!is_fsync_dnode(page))
+		if (!is_fsync_dnode(&folio->page))
 			goto next;
 
-		entry = get_fsync_inode(head, ino_of_node(page));
+		entry = get_fsync_inode(head, ino_of_node(&folio->page));
 		if (!entry) {
 			bool quota_inode = false;
 
 			if (!check_only &&
-					IS_INODE(page) && is_dent_dnode(page)) {
-				err = f2fs_recover_inode_page(sbi, page);
+					IS_INODE(&folio->page) &&
+					is_dent_dnode(&folio->page)) {
+				err = f2fs_recover_inode_page(sbi, &folio->page);
 				if (err) {
-					f2fs_put_page(page, 1);
+					f2fs_folio_put(folio, true);
 					break;
 				}
 				quota_inode = true;
@@ -449,24 +451,24 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head,
 			 * CP | dnode(F) | inode(DF)
 			 * For this case, we should not give up now.
 			 */
-			entry = add_fsync_inode(sbi, head, ino_of_node(page),
+			entry = add_fsync_inode(sbi, head, ino_of_node(&folio->page),
 								quota_inode);
 			if (IS_ERR(entry)) {
 				err = PTR_ERR(entry);
 				if (err == -ENOENT)
 					goto next;
-				f2fs_put_page(page, 1);
+				f2fs_folio_put(folio, true);
 				break;
 			}
 		}
 		entry->blkaddr = blkaddr;
 
-		if (IS_INODE(page) && is_dent_dnode(page))
+		if (IS_INODE(&folio->page) && is_dent_dnode(&folio->page))
 			entry->last_dentry = blkaddr;
 next:
 		/* check next segment */
-		blkaddr = next_blkaddr_of_node(page);
-		f2fs_put_page(page, 1);
+		blkaddr = next_blkaddr_of_node(&folio->page);
+		f2fs_folio_put(folio, true);
 
 		err = sanity_check_node_chain(sbi, blkaddr, &blkaddr_fast,
 				&is_detecting);
@@ -773,7 +775,6 @@ static int recover_data(struct f2fs_sb_info *sbi, struct list_head *inode_list,
 		struct list_head *tmp_inode_list, struct list_head *dir_list)
 {
 	struct curseg_info *curseg;
-	struct page *page = NULL;
 	int err = 0;
 	block_t blkaddr;
 	unsigned int ra_blocks = RECOVERY_MAX_RA_BLOCKS;
@@ -784,22 +785,23 @@ static int recover_data(struct f2fs_sb_info *sbi, struct list_head *inode_list,
 
 	while (1) {
 		struct fsync_inode_entry *entry;
+		struct folio *folio;
 
 		if (!f2fs_is_valid_blkaddr(sbi, blkaddr, META_POR))
 			break;
 
-		page = f2fs_get_tmp_page(sbi, blkaddr);
-		if (IS_ERR(page)) {
-			err = PTR_ERR(page);
+		folio = f2fs_get_tmp_folio(sbi, blkaddr);
+		if (IS_ERR(folio)) {
+			err = PTR_ERR(folio);
 			break;
 		}
 
-		if (!is_recoverable_dnode(page)) {
-			f2fs_put_page(page, 1);
+		if (!is_recoverable_dnode(&folio->page)) {
+			f2fs_folio_put(folio, true);
 			break;
 		}
 
-		entry = get_fsync_inode(inode_list, ino_of_node(page));
+		entry = get_fsync_inode(inode_list, ino_of_node(&folio->page));
 		if (!entry)
 			goto next;
 		/*
@@ -807,23 +809,23 @@ static int recover_data(struct f2fs_sb_info *sbi, struct list_head *inode_list,
 		 * In this case, we can lose the latest inode(x).
 		 * So, call recover_inode for the inode update.
 		 */
-		if (IS_INODE(page)) {
-			err = recover_inode(entry->inode, page);
+		if (IS_INODE(&folio->page)) {
+			err = recover_inode(entry->inode, &folio->page);
 			if (err) {
-				f2fs_put_page(page, 1);
+				f2fs_folio_put(folio, true);
 				break;
 			}
 		}
 		if (entry->last_dentry == blkaddr) {
-			err = recover_dentry(entry->inode, page, dir_list);
+			err = recover_dentry(entry->inode, &folio->page, dir_list);
 			if (err) {
-				f2fs_put_page(page, 1);
+				f2fs_folio_put(folio, true);
 				break;
 			}
 		}
-		err = do_recover_data(sbi, entry->inode, page);
+		err = do_recover_data(sbi, entry->inode, &folio->page);
 		if (err) {
-			f2fs_put_page(page, 1);
+			f2fs_folio_put(folio, true);
 			break;
 		}
 
@@ -831,11 +833,11 @@ static int recover_data(struct f2fs_sb_info *sbi, struct list_head *inode_list,
 			list_move_tail(&entry->list, tmp_inode_list);
 next:
 		ra_blocks = adjust_por_ra_blocks(sbi, ra_blocks, blkaddr,
-						next_blkaddr_of_node(page));
+					next_blkaddr_of_node(&folio->page));
 
 		/* check next segment */
-		blkaddr = next_blkaddr_of_node(page);
-		f2fs_put_page(page, 1);
+		blkaddr = next_blkaddr_of_node(&folio->page);
+		f2fs_folio_put(folio, true);
 
 		f2fs_ra_meta_pages_cond(sbi, blkaddr, ra_blocks);
 	}
