@@ -91,7 +91,7 @@ void f2fs_do_read_inline_data(struct folio *folio, struct folio *ifolio)
 	folio_zero_segment(folio, MAX_INLINE_DATA(inode), folio_size(folio));
 
 	/* Copy the whole inline data block */
-	memcpy_to_folio(folio, 0, inline_data_addr(inode, &ifolio->page),
+	memcpy_to_folio(folio, 0, inline_data_addr(inode, ifolio),
 		       MAX_INLINE_DATA(inode));
 	if (!folio_test_uptodate(folio))
 		folio_mark_uptodate(folio);
@@ -105,7 +105,7 @@ void f2fs_truncate_inline_inode(struct inode *inode, struct folio *ifolio,
 	if (from >= MAX_INLINE_DATA(inode))
 		return;
 
-	addr = inline_data_addr(inode, &ifolio->page);
+	addr = inline_data_addr(inode, ifolio);
 
 	f2fs_folio_wait_writeback(ifolio, NODE, true, true);
 	memset(addr + from, 0, MAX_INLINE_DATA(inode) - from);
@@ -277,7 +277,7 @@ int f2fs_write_inline_data(struct inode *inode, struct folio *folio)
 	f2fs_bug_on(F2FS_I_SB(inode), folio->index);
 
 	f2fs_folio_wait_writeback(ifolio, NODE, true, true);
-	memcpy_from_folio(inline_data_addr(inode, &ifolio->page),
+	memcpy_from_folio(inline_data_addr(inode, ifolio),
 			 folio, 0, MAX_INLINE_DATA(inode));
 	folio_mark_dirty(ifolio);
 
@@ -318,8 +318,8 @@ process_inline:
 
 		f2fs_folio_wait_writeback(ifolio, NODE, true, true);
 
-		src_addr = inline_data_addr(inode, &nfolio->page);
-		dst_addr = inline_data_addr(inode, &ifolio->page);
+		src_addr = inline_data_addr(inode, nfolio);
+		dst_addr = inline_data_addr(inode, ifolio);
 		memcpy(dst_addr, src_addr, MAX_INLINE_DATA(inode));
 
 		set_inode_flag(inode, FI_INLINE_DATA);
@@ -367,7 +367,7 @@ struct f2fs_dir_entry *f2fs_find_in_inline_dir(struct inode *dir,
 		return NULL;
 	}
 
-	inline_dentry = inline_data_addr(dir, &ifolio->page);
+	inline_dentry = inline_data_addr(dir, ifolio);
 
 	make_dentry_ptr_inline(dir, &d, inline_dentry);
 	de = f2fs_find_target_dentry(&d, fname, NULL, use_hash);
@@ -390,7 +390,7 @@ int f2fs_make_empty_inline_dir(struct inode *inode, struct inode *parent,
 	struct f2fs_dentry_ptr d;
 	void *inline_dentry;
 
-	inline_dentry = inline_data_addr(inode, &ifolio->page);
+	inline_dentry = inline_data_addr(inode, ifolio);
 
 	make_dentry_ptr_inline(inode, &d, inline_dentry);
 	f2fs_do_make_empty_dir(inode, parent, &d);
@@ -620,7 +620,7 @@ int f2fs_try_convert_inline_dir(struct inode *dir, struct dentry *dentry)
 		goto out_fname;
 	}
 
-	inline_dentry = inline_data_addr(dir, &ifolio->page);
+	inline_dentry = inline_data_addr(dir, ifolio);
 
 	err = do_convert_inline_dir(dir, ifolio, inline_dentry);
 	if (!err)
@@ -648,7 +648,7 @@ int f2fs_add_inline_entry(struct inode *dir, const struct f2fs_filename *fname,
 	if (IS_ERR(ifolio))
 		return PTR_ERR(ifolio);
 
-	inline_dentry = inline_data_addr(dir, &ifolio->page);
+	inline_dentry = inline_data_addr(dir, ifolio);
 	make_dentry_ptr_inline(dir, &d, inline_dentry);
 
 	bit_pos = f2fs_room_for_filename(d.bitmap, slots, d.max);
@@ -709,7 +709,7 @@ void f2fs_delete_inline_entry(struct f2fs_dir_entry *dentry,
 	folio_lock(folio);
 	f2fs_folio_wait_writeback(folio, NODE, true, true);
 
-	inline_dentry = inline_data_addr(dir, &folio->page);
+	inline_dentry = inline_data_addr(dir, folio);
 	make_dentry_ptr_inline(dir, &d, inline_dentry);
 
 	bit_pos = dentry - d.dentry;
@@ -738,7 +738,7 @@ bool f2fs_empty_inline_dir(struct inode *dir)
 	if (IS_ERR(ifolio))
 		return false;
 
-	inline_dentry = inline_data_addr(dir, &ifolio->page);
+	inline_dentry = inline_data_addr(dir, ifolio);
 	make_dentry_ptr_inline(dir, &d, inline_dentry);
 
 	bit_pos = find_next_bit_le(d.bitmap, d.max, bit_pos);
@@ -775,7 +775,7 @@ int f2fs_read_inline_dir(struct file *file, struct dir_context *ctx,
 	 */
 	folio_unlock(ifolio);
 
-	inline_dentry = inline_data_addr(inode, &ifolio->page);
+	inline_dentry = inline_data_addr(inode, ifolio);
 
 	make_dentry_ptr_inline(inode, &d, inline_dentry);
 
@@ -824,7 +824,7 @@ int f2fs_inline_data_fiemap(struct inode *inode,
 		goto out;
 
 	byteaddr = (__u64)ni.blk_addr << inode->i_sb->s_blocksize_bits;
-	byteaddr += (char *)inline_data_addr(inode, &ifolio->page) -
+	byteaddr += (char *)inline_data_addr(inode, ifolio) -
 					(char *)F2FS_INODE(&ifolio->page);
 	err = fiemap_fill_next_extent(fieinfo, start, byteaddr, ilen, flags);
 	trace_f2fs_fiemap(inode, start, byteaddr, ilen, flags, err);

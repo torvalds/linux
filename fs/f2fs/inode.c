@@ -99,7 +99,7 @@ static void __set_inode_rdev(struct inode *inode, struct page *node_page)
 
 static void __recover_inline_status(struct inode *inode, struct folio *ifolio)
 {
-	void *inline_data = inline_data_addr(inode, &ifolio->page);
+	void *inline_data = inline_data_addr(inode, ifolio);
 	__le32 *start = inline_data;
 	__le32 *end = start + MAX_INLINE_DATA(inode) / sizeof(__le32);
 

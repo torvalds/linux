@@ -3397,9 +3397,9 @@ static inline bool f2fs_is_cow_file(struct inode *inode)
 	return is_inode_flag_set(inode, FI_COW_FILE);
 }
 
-static inline void *inline_data_addr(struct inode *inode, struct page *page)
+static inline void *inline_data_addr(struct inode *inode, struct folio *folio)
 {
-	__le32 *addr = get_dnode_addr(inode, page);
+	__le32 *addr = get_dnode_addr(inode, &folio->page);
 
 	return (void *)(addr + DEF_INLINE_RESERVED_SIZE);
 }

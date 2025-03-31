@@ -629,7 +629,7 @@ bool f2fs_has_enough_room(struct inode *dir, struct folio *ifolio,
 	unsigned int bit_pos;
 	int slots = GET_DENTRY_SLOTS(fname->disk_name.len);
 
-	make_dentry_ptr_inline(dir, &d, inline_data_addr(dir, &ifolio->page));
+	make_dentry_ptr_inline(dir, &d, inline_data_addr(dir, ifolio));
 
 	bit_pos = f2fs_room_for_filename(d.bitmap, slots, d.max);
 
