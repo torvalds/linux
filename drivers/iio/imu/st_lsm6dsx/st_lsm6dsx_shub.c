@@ -614,53 +614,58 @@ st_lsm6dsx_shub_set_full_scale(struct st_lsm6dsx_sensor *sensor,
 }
 
 static int
-st_lsm6dsx_shub_write_raw(struct iio_dev *iio_dev,
-			  struct iio_chan_spec const *chan,
-			  int val, int val2, long mask)
+__st_lsm6dsx_shub_write_raw(struct iio_dev *iio_dev,
+			    struct iio_chan_spec const *chan,
+			    int val, int val2, long mask)
 {
 	struct st_lsm6dsx_sensor *sensor = iio_priv(iio_dev);
 	int err;
 
-	err = iio_device_claim_direct_mode(iio_dev);
-	if (err)
-		return err;
-
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ: {
+		struct st_lsm6dsx_hw *hw = sensor->hw;
+		struct st_lsm6dsx_sensor *ref_sensor;
+		u8 odr_val;
 		u16 data;
+		int odr;
 
 		val = val * 1000 + val2 / 1000;
 		err = st_lsm6dsx_shub_get_odr_val(sensor, val, &data);
-		if (!err) {
-			struct st_lsm6dsx_hw *hw = sensor->hw;
-			struct st_lsm6dsx_sensor *ref_sensor;
-			u8 odr_val;
-			int odr;
+		if (err)
+			return err;
 
-			ref_sensor = iio_priv(hw->iio_devs[ST_LSM6DSX_ID_ACC]);
-			odr = st_lsm6dsx_check_odr(ref_sensor, val, &odr_val);
-			if (odr < 0) {
-				err = odr;
-				goto release;
-			}
+		ref_sensor = iio_priv(hw->iio_devs[ST_LSM6DSX_ID_ACC]);
+		odr = st_lsm6dsx_check_odr(ref_sensor, val, &odr_val);
+		if (odr < 0)
+			return odr;
 
-			sensor->ext_info.slv_odr = val;
-			sensor->odr = odr;
-		}
-		break;
+		sensor->ext_info.slv_odr = val;
+		sensor->odr = odr;
+		return 0;
 	}
 	case IIO_CHAN_INFO_SCALE:
-		err = st_lsm6dsx_shub_set_full_scale(sensor, val2);
-		break;
+		return st_lsm6dsx_shub_set_full_scale(sensor, val2);
 	default:
-		err = -EINVAL;
-		break;
+		return -EINVAL;
 	}
+}
 
-release:
+static int
+st_lsm6dsx_shub_write_raw(struct iio_dev *iio_dev,
+			  struct iio_chan_spec const *chan,
+			  int val, int val2, long mask)
+{
+	int ret;
+
+	ret = iio_device_claim_direct_mode(iio_dev);
+	if (ret)
+		return ret;
+
+	ret = __st_lsm6dsx_shub_write_raw(iio_dev, chan, val, val2, mask);
+
 	iio_device_release_direct_mode(iio_dev);
 
-	return err;
+	return ret;
 }
 
 static ssize_t
