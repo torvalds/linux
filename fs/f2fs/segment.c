@@ -2710,11 +2710,11 @@ static void write_current_sum_page(struct f2fs_sb_info *sbi,
 						int type, block_t blk_addr)
 {
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
-	struct page *page = f2fs_grab_meta_page(sbi, blk_addr);
+	struct folio *folio = f2fs_grab_meta_folio(sbi, blk_addr);
 	struct f2fs_summary_block *src = curseg->sum_blk;
 	struct f2fs_summary_block *dst;
 
-	dst = (struct f2fs_summary_block *)page_address(page);
+	dst = folio_address(folio);
 	memset(dst, 0, PAGE_SIZE);
 
 	mutex_lock(&curseg->curseg_mutex);
@@ -2728,8 +2728,8 @@ static void write_current_sum_page(struct f2fs_sb_info *sbi,
 
 	mutex_unlock(&curseg->curseg_mutex);
 
-	set_page_dirty(page);
-	f2fs_put_page(page, 1);
+	folio_mark_dirty(folio);
+	f2fs_folio_put(folio, true);
 }
 
 static int is_next_segment_free(struct f2fs_sb_info *sbi,
