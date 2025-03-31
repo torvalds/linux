@@ -1436,6 +1436,7 @@ struct dc_scratch_space {
 	enum signal_type connector_signal;
 	enum dc_irq_source irq_source_hpd;
 	enum dc_irq_source irq_source_hpd_rx;/* aka DP Short Pulse  */
+	enum dc_irq_source irq_source_read_request;/* Read Request */
 
 	bool is_hpd_filter_disabled;
 	bool dp_ss_off;

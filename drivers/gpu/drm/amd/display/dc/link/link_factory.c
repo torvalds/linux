@@ -464,6 +464,7 @@ static bool construct_phy(struct dc_link *link,
 
 	link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
 	link->irq_source_hpd_rx = DC_IRQ_SOURCE_INVALID;
+	link->irq_source_read_request = DC_IRQ_SOURCE_INVALID;
 	link->link_status.dpcd_caps = &link->dpcd_caps;
 
 	link->dc = init_params->dc;
@@ -514,6 +515,9 @@ static bool construct_phy(struct dc_link *link,
 	case CONNECTOR_ID_HDMI_TYPE_A:
 		link->connector_signal = SIGNAL_TYPE_HDMI_TYPE_A;
 
+		if (link->hpd_gpio)
+			link->irq_source_read_request =
+					dal_irq_get_read_request(link->hpd_gpio);
 		break;
 	case CONNECTOR_ID_SINGLE_LINK_DVID:
 	case CONNECTOR_ID_SINGLE_LINK_DVII:
