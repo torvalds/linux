@@ -313,6 +313,11 @@ struct trace_func_repeats {
 	u64		ts_last_call;
 };
 
+struct trace_module_delta {
+	struct rcu_head	rcu;
+	long		delta[];
+};
+
 /*
  * The trace array - an array of per-CPU trace arrays. This is the
  * highest level data structure that individual tracers deal with.
@@ -349,8 +354,13 @@ struct trace_array {
 	unsigned int		mapped;
 	unsigned long		range_addr_start;
 	unsigned long		range_addr_size;
+	char			*range_name;
 	long			text_delta;
-	long			data_delta;
+	struct trace_module_delta *module_delta;
+	void			*scratch; /* pointer in persistent memory */
+	int			scratch_size;
+
+	int			buffer_disabled;
 
 	struct trace_pid_list	__rcu *filtered_pids;
 	struct trace_pid_list	__rcu *filtered_no_pids;
@@ -368,7 +378,6 @@ struct trace_array {
 	 * CONFIG_TRACER_MAX_TRACE.
 	 */
 	arch_spinlock_t		max_lock;
-	int			buffer_disabled;
 #ifdef CONFIG_FTRACE_SYSCALLS
 	int			sys_refcount_enter;
 	int			sys_refcount_exit;
@@ -434,9 +443,10 @@ struct trace_array {
 };
 
 enum {
-	TRACE_ARRAY_FL_GLOBAL	= BIT(0),
-	TRACE_ARRAY_FL_BOOT	= BIT(1),
-	TRACE_ARRAY_FL_MOD_INIT	= BIT(2),
+	TRACE_ARRAY_FL_GLOBAL		= BIT(0),
+	TRACE_ARRAY_FL_BOOT		= BIT(1),
+	TRACE_ARRAY_FL_LAST_BOOT	= BIT(2),
+	TRACE_ARRAY_FL_MOD_INIT		= BIT(3),
 };
 
 #ifdef CONFIG_MODULES
@@ -462,6 +472,8 @@ extern int tracing_set_filter_buffering(struct trace_array *tr, bool set);
 extern int tracing_set_clock(struct trace_array *tr, const char *clockstr);
 
 extern bool trace_clock_in_ns(struct trace_array *tr);
+
+extern unsigned long trace_adjust_address(struct trace_array *tr, unsigned long addr);
 
 /*
  * The global tracer (top) should be the first trace array added,
@@ -784,6 +796,8 @@ extern u64 ftrace_now(int cpu);
 extern void trace_find_cmdline(int pid, char comm[]);
 extern int trace_find_tgid(int pid);
 extern void trace_event_follow_fork(struct trace_array *tr, bool enable);
+
+extern int trace_events_enabled(struct trace_array *tr, const char *system);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 extern unsigned long ftrace_update_tot_cnt;
