@@ -533,7 +533,7 @@ punch_dentry_pages:
 	return err;
 }
 
-static int f2fs_move_rehashed_dirents(struct inode *dir, struct page *ipage,
+static int f2fs_move_rehashed_dirents(struct inode *dir, struct folio *ifolio,
 							void *inline_dentry)
 {
 	void *backup_dentry;
@@ -542,20 +542,20 @@ static int f2fs_move_rehashed_dirents(struct inode *dir, struct page *ipage,
 	backup_dentry = f2fs_kmalloc(F2FS_I_SB(dir),
 				MAX_INLINE_DATA(dir), GFP_F2FS_ZERO);
 	if (!backup_dentry) {
-		f2fs_put_page(ipage, 1);
+		f2fs_folio_put(ifolio, true);
 		return -ENOMEM;
 	}
 
 	memcpy(backup_dentry, inline_dentry, MAX_INLINE_DATA(dir));
-	f2fs_truncate_inline_inode(dir, ipage, 0);
+	f2fs_truncate_inline_inode(dir, &ifolio->page, 0);
 
-	unlock_page(ipage);
+	folio_unlock(ifolio);
 
 	err = f2fs_add_inline_entries(dir, backup_dentry);
 	if (err)
 		goto recover;
 
-	lock_page(ipage);
+	folio_lock(ifolio);
 
 	stat_dec_inline_dir(dir);
 	clear_inode_flag(dir, FI_INLINE_DENTRY);
@@ -571,13 +571,13 @@ static int f2fs_move_rehashed_dirents(struct inode *dir, struct page *ipage,
 	kfree(backup_dentry);
 	return 0;
 recover:
-	lock_page(ipage);
-	f2fs_wait_on_page_writeback(ipage, NODE, true, true);
+	folio_lock(ifolio);
+	f2fs_folio_wait_writeback(ifolio, NODE, true, true);
 	memcpy(inline_dentry, backup_dentry, MAX_INLINE_DATA(dir));
 	f2fs_i_depth_write(dir, 0);
 	f2fs_i_size_write(dir, MAX_INLINE_DATA(dir));
-	set_page_dirty(ipage);
-	f2fs_put_page(ipage, 1);
+	folio_mark_dirty(ifolio);
+	f2fs_folio_put(ifolio, 1);
 
 	kfree(backup_dentry);
 	return err;
@@ -589,7 +589,7 @@ static int do_convert_inline_dir(struct inode *dir, struct folio *ifolio,
 	if (!F2FS_I(dir)->i_dir_level)
 		return f2fs_move_inline_dirents(dir, ifolio, inline_dentry);
 	else
-		return f2fs_move_rehashed_dirents(dir, &ifolio->page, inline_dentry);
+		return f2fs_move_rehashed_dirents(dir, ifolio, inline_dentry);
 }
 
 int f2fs_try_convert_inline_dir(struct inode *dir, struct dentry *dentry)
