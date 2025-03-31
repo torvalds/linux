@@ -754,6 +754,8 @@ got:
 	return level;
 }
 
+static struct folio *f2fs_get_node_folio_ra(struct folio *parent, int start);
+
 /*
  * Caller should call f2fs_put_dnode(dn).
  * Also, it should grab and release a rwsem by calling f2fs_lock_op() and
@@ -762,8 +764,8 @@ got:
 int f2fs_get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
-	struct page *npage[4];
-	struct page *parent = NULL;
+	struct folio *nfolio[4];
+	struct folio *parent = NULL;
 	int offset[4];
 	unsigned int noffset[4];
 	nid_t nids[4];
@@ -775,25 +777,26 @@ int f2fs_get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 		return level;
 
 	nids[0] = dn->inode->i_ino;
-	npage[0] = dn->inode_page;
 
-	if (!npage[0]) {
-		npage[0] = f2fs_get_inode_page(sbi, nids[0]);
-		if (IS_ERR(npage[0]))
-			return PTR_ERR(npage[0]);
+	if (!dn->inode_page) {
+		nfolio[0] = f2fs_get_inode_folio(sbi, nids[0]);
+		if (IS_ERR(nfolio[0]))
+			return PTR_ERR(nfolio[0]);
+	} else {
+		nfolio[0] = page_folio(dn->inode_page);
 	}
 
 	/* if inline_data is set, should not report any block indices */
 	if (f2fs_has_inline_data(dn->inode) && index) {
 		err = -ENOENT;
-		f2fs_put_page(npage[0], 1);
+		f2fs_folio_put(nfolio[0], true);
 		goto release_out;
 	}
 
-	parent = npage[0];
+	parent = nfolio[0];
 	if (level != 0)
-		nids[1] = get_nid(parent, offset[0], true);
-	dn->inode_page = npage[0];
+		nids[1] = get_nid(&parent->page, offset[0], true);
+	dn->inode_page = &nfolio[0]->page;
 	dn->inode_page_locked = true;
 
 	/* get indirect or direct nodes */
@@ -808,47 +811,47 @@ int f2fs_get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 			}
 
 			dn->nid = nids[i];
-			npage[i] = f2fs_new_node_page(dn, noffset[i]);
-			if (IS_ERR(npage[i])) {
+			nfolio[i] = f2fs_new_node_folio(dn, noffset[i]);
+			if (IS_ERR(nfolio[i])) {
 				f2fs_alloc_nid_failed(sbi, nids[i]);
-				err = PTR_ERR(npage[i]);
+				err = PTR_ERR(nfolio[i]);
 				goto release_pages;
 			}
 
-			set_nid(parent, offset[i - 1], nids[i], i == 1);
+			set_nid(&parent->page, offset[i - 1], nids[i], i == 1);
 			f2fs_alloc_nid_done(sbi, nids[i]);
 			done = true;
 		} else if (mode == LOOKUP_NODE_RA && i == level && level > 1) {
-			npage[i] = f2fs_get_node_page_ra(parent, offset[i - 1]);
-			if (IS_ERR(npage[i])) {
-				err = PTR_ERR(npage[i]);
+			nfolio[i] = f2fs_get_node_folio_ra(parent, offset[i - 1]);
+			if (IS_ERR(nfolio[i])) {
+				err = PTR_ERR(nfolio[i]);
 				goto release_pages;
 			}
 			done = true;
 		}
 		if (i == 1) {
 			dn->inode_page_locked = false;
-			unlock_page(parent);
+			folio_unlock(parent);
 		} else {
-			f2fs_put_page(parent, 1);
+			f2fs_folio_put(parent, true);
 		}
 
 		if (!done) {
-			npage[i] = f2fs_get_node_page(sbi, nids[i]);
-			if (IS_ERR(npage[i])) {
-				err = PTR_ERR(npage[i]);
-				f2fs_put_page(npage[0], 0);
+			nfolio[i] = f2fs_get_node_folio(sbi, nids[i]);
+			if (IS_ERR(nfolio[i])) {
+				err = PTR_ERR(nfolio[i]);
+				f2fs_folio_put(nfolio[0], false);
 				goto release_out;
 			}
 		}
 		if (i < level) {
-			parent = npage[i];
-			nids[i + 1] = get_nid(parent, offset[i], false);
+			parent = nfolio[i];
+			nids[i + 1] = get_nid(&parent->page, offset[i], false);
 		}
 	}
 	dn->nid = nids[level];
 	dn->ofs_in_node = offset[level];
-	dn->node_page = npage[level];
+	dn->node_page = &nfolio[level]->page;
 	dn->data_blkaddr = f2fs_data_blkaddr(dn);
 
 	if (is_inode_flag_set(dn->inode, FI_COMPRESSED_FILE) &&
@@ -881,9 +884,9 @@ out:
 	return 0;
 
 release_pages:
-	f2fs_put_page(parent, 1);
+	f2fs_folio_put(parent, true);
 	if (i > 1)
-		f2fs_put_page(npage[0], 0);
+		f2fs_folio_put(nfolio[0], false);
 release_out:
 	dn->inode_page = NULL;
 	dn->node_page = NULL;
@@ -1479,8 +1482,7 @@ static int sanity_check_node_footer(struct f2fs_sb_info *sbi,
 }
 
 static struct folio *__get_node_folio(struct f2fs_sb_info *sbi, pgoff_t nid,
-					struct page *parent, int start,
-					enum node_type ntype)
+		struct folio *parent, int start, enum node_type ntype)
 {
 	struct folio *folio;
 	int err;
@@ -1501,7 +1503,7 @@ repeat:
 		goto page_hit;
 
 	if (parent)
-		f2fs_ra_node_pages(parent, start + 1, MAX_RA_NODE);
+		f2fs_ra_node_pages(&parent->page, start + 1, MAX_RA_NODE);
 
 	folio_lock(folio);
 
@@ -1571,14 +1573,12 @@ struct page *f2fs_get_xnode_page(struct f2fs_sb_info *sbi, pgoff_t xnid)
 	return &folio->page;
 }
 
-struct page *f2fs_get_node_page_ra(struct page *parent, int start)
+static struct folio *f2fs_get_node_folio_ra(struct folio *parent, int start)
 {
-	struct f2fs_sb_info *sbi = F2FS_P_SB(parent);
-	nid_t nid = get_nid(parent, start, false);
-	struct folio *folio = __get_node_folio(sbi, nid, parent, start,
-							NODE_TYPE_REGULAR);
+	struct f2fs_sb_info *sbi = F2FS_F_SB(parent);
+	nid_t nid = get_nid(&parent->page, start, false);
 
-	return &folio->page;
+	return __get_node_folio(sbi, nid, parent, start, NODE_TYPE_REGULAR);
 }
 
 static void flush_inline_data(struct f2fs_sb_info *sbi, nid_t ino)
