@@ -358,28 +358,28 @@ struct f2fs_dir_entry *f2fs_find_in_inline_dir(struct inode *dir,
 	struct f2fs_sb_info *sbi = F2FS_SB(dir->i_sb);
 	struct f2fs_dir_entry *de;
 	struct f2fs_dentry_ptr d;
-	struct page *ipage;
+	struct folio *ifolio;
 	void *inline_dentry;
 
-	ipage = f2fs_get_inode_page(sbi, dir->i_ino);
-	if (IS_ERR(ipage)) {
-		*res_page = ipage;
+	ifolio = f2fs_get_inode_folio(sbi, dir->i_ino);
+	if (IS_ERR(ifolio)) {
+		*res_page = &ifolio->page;
 		return NULL;
 	}
 
-	inline_dentry = inline_data_addr(dir, ipage);
+	inline_dentry = inline_data_addr(dir, &ifolio->page);
 
 	make_dentry_ptr_inline(dir, &d, inline_dentry);
 	de = f2fs_find_target_dentry(&d, fname, NULL, use_hash);
-	unlock_page(ipage);
+	folio_unlock(ifolio);
 	if (IS_ERR(de)) {
 		*res_page = ERR_CAST(de);
 		de = NULL;
 	}
 	if (de)
-		*res_page = ipage;
+		*res_page = &ifolio->page;
 	else
-		f2fs_put_page(ipage, 0);
+		f2fs_folio_put(ifolio, false);
 
 	return de;
 }
