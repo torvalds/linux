@@ -36,6 +36,7 @@ struct alloc_request {
 
 	/* These fields are used primarily by open_bucket_add_buckets */
 	struct open_buckets	ptrs;
+	struct open_buckets	ptrs2;
 	unsigned		nr_effective;	/* sum of @ptrs durability */
 	bool			have_cache;	/* have we allocated from a 0 durability dev */
 	struct bch_devs_mask	devs_may_alloc;

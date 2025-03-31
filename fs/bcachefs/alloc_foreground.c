@@ -825,18 +825,19 @@ static bool want_bucket(struct bch_fs *c,
 static int bucket_alloc_set_writepoint(struct bch_fs *c,
 				       struct alloc_request *req)
 {
-	struct open_buckets ptrs_skip = { .nr = 0 };
 	struct open_bucket *ob;
 	unsigned i;
 	int ret = 0;
+
+	req->ptrs2.nr = 0;
 
 	open_bucket_for_each(c, &req->wp->ptrs, ob, i) {
 		if (!ret && want_bucket(c, req, ob))
 			ret = add_new_bucket(c, req, ob);
 		else
-			ob_push(c, &ptrs_skip, ob);
+			ob_push(c, &req->ptrs2, ob);
 	}
-	req->wp->ptrs = ptrs_skip;
+	req->wp->ptrs = req->ptrs2;
 
 	return ret;
 }
@@ -1209,10 +1210,11 @@ static noinline void
 deallocate_extra_replicas(struct bch_fs *c,
 			  struct alloc_request *req)
 {
-	struct open_buckets ptrs2 = { 0 };
 	struct open_bucket *ob;
 	unsigned extra_replicas = req->nr_effective - req->nr_replicas;
 	unsigned i;
+
+	req->ptrs2.nr = 0;
 
 	open_bucket_for_each(c, &req->ptrs, ob, i) {
 		unsigned d = ob_dev(c, ob)->mi.durability;
@@ -1221,11 +1223,11 @@ deallocate_extra_replicas(struct bch_fs *c,
 			extra_replicas -= d;
 			ob_push(c, &req->wp->ptrs, ob);
 		} else {
-			ob_push(c, &ptrs2, ob);
+			ob_push(c, &req->ptrs2, ob);
 		}
 	}
 
-	req->ptrs = ptrs2;
+	req->ptrs = req->ptrs2;
 }
 
 /*
