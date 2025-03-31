@@ -606,8 +606,7 @@ struct open_bucket *bch2_bucket_alloc(struct bch_fs *c, struct bch_dev *ca,
 static int __dev_stripe_cmp(struct dev_stripe_state *stripe,
 			    unsigned l, unsigned r)
 {
-	return ((stripe->next_alloc[l] > stripe->next_alloc[r]) -
-		(stripe->next_alloc[l] < stripe->next_alloc[r]));
+	return cmp_int(stripe->next_alloc[l], stripe->next_alloc[r]);
 }
 
 #define dev_stripe_cmp(l, r) __dev_stripe_cmp(stripe, l, r)
@@ -626,25 +625,62 @@ struct dev_alloc_list bch2_dev_alloc_list(struct bch_fs *c,
 	return ret;
 }
 
+static const u64 stripe_clock_hand_rescale	= 1ULL << 62; /* trigger rescale at */
+static const u64 stripe_clock_hand_max		= 1ULL << 56; /* max after rescale */
+static const u64 stripe_clock_hand_inv		= 1ULL << 52; /* max increment, if a device is empty */
+
+static noinline void bch2_stripe_state_rescale(struct dev_stripe_state *stripe)
+{
+	/*
+	 * Avoid underflowing clock hands if at all possible, if clock hands go
+	 * to 0 then we lose information - clock hands can be in a wide range if
+	 * we have devices we rarely try to allocate from, if we generally
+	 * allocate from a specified target but only sometimes have to fall back
+	 * to the whole filesystem.
+	 */
+	u64 scale_max = U64_MAX;	/* maximum we can subtract without underflow */
+	u64 scale_min = 0;		/* minumum we must subtract to avoid overflow */
+
+	for (u64 *v = stripe->next_alloc;
+	     v < stripe->next_alloc + ARRAY_SIZE(stripe->next_alloc); v++) {
+		if (*v)
+			scale_max = min(scale_max, *v);
+		if (*v > stripe_clock_hand_max)
+			scale_min = max(scale_min, *v - stripe_clock_hand_max);
+	}
+
+	u64 scale = max(scale_min, scale_max);
+
+	for (u64 *v = stripe->next_alloc;
+	     v < stripe->next_alloc + ARRAY_SIZE(stripe->next_alloc); v++)
+		*v = *v < scale ? 0 : *v - scale;
+}
+
 static inline void bch2_dev_stripe_increment_inlined(struct bch_dev *ca,
 			       struct dev_stripe_state *stripe,
 			       struct bch_dev_usage *usage)
 {
+	/*
+	 * Stripe state has a per device clock hand: we allocate from the device
+	 * with the smallest clock hand.
+	 *
+	 * When we allocate, we don't do a simple increment; we add the inverse
+	 * of the device's free space. This results in round robin behavior that
+	 * biases in favor of the device(s) with more free space.
+	 */
+
 	u64 *v = stripe->next_alloc + ca->dev_idx;
 	u64 free_space = __dev_buckets_available(ca, *usage, BCH_WATERMARK_normal);
 	u64 free_space_inv = free_space
-		? div64_u64(1ULL << 48, free_space)
-		: 1ULL << 48;
-	u64 scale = *v / 4;
+		? div64_u64(stripe_clock_hand_inv, free_space)
+		: stripe_clock_hand_inv;
 
-	if (*v + free_space_inv >= *v)
-		*v += free_space_inv;
-	else
-		*v = U64_MAX;
+	/* Saturating add, avoid overflow: */
+	u64 sum = *v + free_space_inv;
+	*v = sum >= *v ? sum : U64_MAX;
 
-	for (v = stripe->next_alloc;
-	     v < stripe->next_alloc + ARRAY_SIZE(stripe->next_alloc); v++)
-		*v = *v < scale ? 0 : *v - scale;
+	if (unlikely(*v > stripe_clock_hand_rescale))
+		bch2_stripe_state_rescale(stripe);
 }
 
 void bch2_dev_stripe_increment(struct bch_dev *ca,
