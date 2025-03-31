@@ -1062,9 +1062,8 @@ static int zpa2326_sample_oneshot(struct iio_dev     *indio_dev,
 	int                     ret;
 	struct zpa2326_private *priv;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
 
 	ret = zpa2326_resume(indio_dev);
 	if (ret < 0)
@@ -1120,7 +1119,7 @@ static int zpa2326_sample_oneshot(struct iio_dev     *indio_dev,
 suspend:
 	zpa2326_suspend(indio_dev);
 release:
-	iio_device_release_direct_mode(indio_dev);
+	iio_device_release_direct(indio_dev);
 
 	return ret;
 }
@@ -1438,7 +1437,6 @@ static int zpa2326_set_frequency(struct iio_dev *indio_dev, int hz)
 {
 	struct zpa2326_private *priv = iio_priv(indio_dev);
 	int                     freq;
-	int                     err;
 
 	/* Check if requested frequency is supported. */
 	for (freq = 0; freq < ARRAY_SIZE(zpa2326_sampling_frequencies); freq++)
@@ -1448,13 +1446,12 @@ static int zpa2326_set_frequency(struct iio_dev *indio_dev, int hz)
 		return -EINVAL;
 
 	/* Don't allow changing frequency if buffered sampling is ongoing. */
-	err = iio_device_claim_direct_mode(indio_dev);
-	if (err)
-		return err;
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
 
 	priv->frequency = &zpa2326_sampling_frequencies[freq];
 
-	iio_device_release_direct_mode(indio_dev);
+	iio_device_release_direct(indio_dev);
 
 	return 0;
 }
