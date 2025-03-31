@@ -56,6 +56,7 @@
 #define RISCV_RUNTIME_CONST_64_ZBA				\
 	".option push\n\t"					\
 	".option arch,+zba\n\t"					\
+	".option norvc\n\t"					\
 	"slli	%[__tmp],%[__tmp],32\n\t"			\
 	"add.uw %[__ret],%[__ret],%[__tmp]\n\t"			\
 	"nop\n\t"						\
@@ -65,6 +66,7 @@
 #define RISCV_RUNTIME_CONST_64_ZBKB				\
 	".option push\n\t"					\
 	".option arch,+zbkb\n\t"				\
+	".option norvc\n\t"					\
 	"pack	%[__ret],%[__ret],%[__tmp]\n\t"			\
 	"nop\n\t"						\
 	"nop\n\t"						\
