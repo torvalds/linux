@@ -299,17 +299,17 @@ static int read_xattr_block(struct inode *inode, void *txattr_addr)
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	nid_t xnid = F2FS_I(inode)->i_xattr_nid;
 	unsigned int inline_size = inline_xattr_size(inode);
-	struct page *xpage;
+	struct folio *xfolio;
 	void *xattr_addr;
 
 	/* The inode already has an extended attribute block. */
-	xpage = f2fs_get_xnode_page(sbi, xnid);
-	if (IS_ERR(xpage))
-		return PTR_ERR(xpage);
+	xfolio = f2fs_get_xnode_folio(sbi, xnid);
+	if (IS_ERR(xfolio))
+		return PTR_ERR(xfolio);
 
-	xattr_addr = page_address(xpage);
+	xattr_addr = folio_address(xfolio);
 	memcpy(txattr_addr + inline_size, xattr_addr, VALID_XATTR_BLOCK_SIZE);
-	f2fs_put_page(xpage, 1);
+	f2fs_folio_put(xfolio, true);
 
 	return 0;
 }
