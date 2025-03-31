@@ -3365,7 +3365,7 @@ static inline int inline_xattr_size(struct inode *inode)
 
 /*
  * Notice: check inline_data flag without inode page lock is unsafe.
- * It could change at any time by f2fs_convert_inline_page().
+ * It could change at any time by f2fs_convert_inline_folio().
  */
 static inline int f2fs_has_inline_data(struct inode *inode)
 {
@@ -4293,7 +4293,7 @@ void f2fs_do_read_inline_data(struct folio *folio, struct page *ipage);
 void f2fs_truncate_inline_inode(struct inode *inode,
 						struct page *ipage, u64 from);
 int f2fs_read_inline_data(struct inode *inode, struct folio *folio);
-int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page);
+int f2fs_convert_inline_folio(struct dnode_of_data *dn, struct folio *folio);
 int f2fs_convert_inline_inode(struct inode *inode);
 int f2fs_try_convert_inline_dir(struct inode *dir, struct dentry *dentry);
 int f2fs_write_inline_data(struct inode *inode, struct folio *folio);

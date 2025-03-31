@@ -142,7 +142,7 @@ int f2fs_read_inline_data(struct inode *inode, struct folio *folio)
 	return 0;
 }
 
-int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page)
+int f2fs_convert_inline_folio(struct dnode_of_data *dn, struct folio *folio)
 {
 	struct f2fs_io_info fio = {
 		.sbi = F2FS_I_SB(dn->inode),
@@ -150,7 +150,7 @@ int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page)
 		.type = DATA,
 		.op = REQ_OP_WRITE,
 		.op_flags = REQ_SYNC | REQ_PRIO,
-		.page = page,
+		.page = &folio->page,
 		.encrypted_page = NULL,
 		.io_type = FS_DATA_IO,
 	};
@@ -182,20 +182,20 @@ int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page)
 		return -EFSCORRUPTED;
 	}
 
-	f2fs_bug_on(F2FS_P_SB(page), folio_test_writeback(page_folio(page)));
+	f2fs_bug_on(F2FS_F_SB(folio), folio_test_writeback(folio));
 
-	f2fs_do_read_inline_data(page_folio(page), dn->inode_page);
-	set_page_dirty(page);
+	f2fs_do_read_inline_data(folio, dn->inode_page);
+	folio_mark_dirty(folio);
 
 	/* clear dirty state */
-	dirty = clear_page_dirty_for_io(page);
+	dirty = folio_clear_dirty_for_io(folio);
 
 	/* write data page to try to make data consistent */
-	set_page_writeback(page);
+	folio_start_writeback(folio);
 	fio.old_blkaddr = dn->data_blkaddr;
 	set_inode_flag(dn->inode, FI_HOT_DATA);
 	f2fs_outplace_write_data(dn, &fio);
-	f2fs_wait_on_page_writeback(page, DATA, true, true);
+	f2fs_folio_wait_writeback(folio, DATA, true, true);
 	if (dirty) {
 		inode_dec_dirty_pages(dn->inode);
 		f2fs_remove_dirty_inode(dn->inode);
@@ -246,7 +246,7 @@ int f2fs_convert_inline_inode(struct inode *inode)
 	set_new_dnode(&dn, inode, ifolio, ifolio, 0);
 
 	if (f2fs_has_inline_data(inode))
-		err = f2fs_convert_inline_page(&dn, &folio->page);
+		err = f2fs_convert_inline_folio(&dn, folio);
 
 	f2fs_put_dnode(&dn);
 out:
