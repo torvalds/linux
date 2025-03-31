@@ -1545,13 +1545,6 @@ struct folio *f2fs_get_inode_folio(struct f2fs_sb_info *sbi, pgoff_t ino)
 	return __get_node_folio(sbi, ino, NULL, 0, NODE_TYPE_INODE);
 }
 
-struct page *f2fs_get_inode_page(struct f2fs_sb_info *sbi, pgoff_t ino)
-{
-	struct folio *folio = f2fs_get_inode_folio(sbi, ino);
-
-	return &folio->page;
-}
-
 struct folio *f2fs_get_xnode_folio(struct f2fs_sb_info *sbi, pgoff_t xnid)
 {
 	return __get_node_folio(sbi, xnid, NULL, 0, NODE_TYPE_XATTR);
