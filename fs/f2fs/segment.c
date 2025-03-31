@@ -4219,16 +4219,16 @@ static int read_compacted_summaries(struct f2fs_sb_info *sbi)
 	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
 	struct curseg_info *seg_i;
 	unsigned char *kaddr;
-	struct page *page;
+	struct folio *folio;
 	block_t start;
 	int i, j, offset;
 
 	start = start_sum_block(sbi);
 
-	page = f2fs_get_meta_page(sbi, start++);
-	if (IS_ERR(page))
-		return PTR_ERR(page);
-	kaddr = (unsigned char *)page_address(page);
+	folio = f2fs_get_meta_folio(sbi, start++);
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
+	kaddr = folio_address(folio);
 
 	/* Step 1: restore nat cache */
 	seg_i = CURSEG_I(sbi, CURSEG_HOT_DATA);
@@ -4265,17 +4265,16 @@ static int read_compacted_summaries(struct f2fs_sb_info *sbi)
 						SUM_FOOTER_SIZE)
 				continue;
 
-			f2fs_put_page(page, 1);
-			page = NULL;
+			f2fs_folio_put(folio, true);
 
-			page = f2fs_get_meta_page(sbi, start++);
-			if (IS_ERR(page))
-				return PTR_ERR(page);
-			kaddr = (unsigned char *)page_address(page);
+			folio = f2fs_get_meta_folio(sbi, start++);
+			if (IS_ERR(folio))
+				return PTR_ERR(folio);
+			kaddr = folio_address(folio);
 			offset = 0;
 		}
 	}
-	f2fs_put_page(page, 1);
+	f2fs_folio_put(folio, true);
 	return 0;
 }
 
