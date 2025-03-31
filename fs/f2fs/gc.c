@@ -1045,7 +1045,7 @@ next_step:
 
 	for (off = 0; off < usable_blks_in_seg; off++, entry++) {
 		nid_t nid = le32_to_cpu(entry->nid);
-		struct page *node_page;
+		struct folio *node_folio;
 		struct node_info ni;
 		int err;
 
@@ -1068,27 +1068,27 @@ next_step:
 		}
 
 		/* phase == 2 */
-		node_page = f2fs_get_node_page(sbi, nid);
-		if (IS_ERR(node_page))
+		node_folio = f2fs_get_node_folio(sbi, nid);
+		if (IS_ERR(node_folio))
 			continue;
 
-		/* block may become invalid during f2fs_get_node_page */
+		/* block may become invalid during f2fs_get_node_folio */
 		if (check_valid_map(sbi, segno, off) == 0) {
-			f2fs_put_page(node_page, 1);
+			f2fs_folio_put(node_folio, true);
 			continue;
 		}
 
 		if (f2fs_get_node_info(sbi, nid, &ni, false)) {
-			f2fs_put_page(node_page, 1);
+			f2fs_folio_put(node_folio, true);
 			continue;
 		}
 
 		if (ni.blk_addr != start_addr + off) {
-			f2fs_put_page(node_page, 1);
+			f2fs_folio_put(node_folio, true);
 			continue;
 		}
 
-		err = f2fs_move_node_page(node_page, gc_type);
+		err = f2fs_move_node_page(&node_folio->page, gc_type);
 		if (!err && gc_type == FG_GC)
 			submitted++;
 		stat_inc_node_blk_count(sbi, 1, gc_type);
