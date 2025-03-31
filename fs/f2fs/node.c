@@ -551,7 +551,7 @@ int f2fs_get_node_info(struct f2fs_sb_info *sbi, nid_t nid,
 	struct f2fs_journal *journal = curseg->journal;
 	nid_t start_nid = START_NID(nid);
 	struct f2fs_nat_block *nat_blk;
-	struct page *page = NULL;
+	struct folio *folio = NULL;
 	struct f2fs_nat_entry ne;
 	struct nat_entry *e;
 	pgoff_t index;
@@ -601,14 +601,14 @@ retry:
 	index = current_nat_addr(sbi, nid);
 	f2fs_up_read(&nm_i->nat_tree_lock);
 
-	page = f2fs_get_meta_page(sbi, index);
-	if (IS_ERR(page))
-		return PTR_ERR(page);
+	folio = f2fs_get_meta_folio(sbi, index);
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
 
-	nat_blk = (struct f2fs_nat_block *)page_address(page);
+	nat_blk = folio_address(folio);
 	ne = nat_blk->entries[nid - start_nid];
 	node_info_from_raw_nat(ni, &ne);
-	f2fs_put_page(page, 1);
+	f2fs_folio_put(folio, true);
 cache:
 	blkaddr = le32_to_cpu(ne.block_addr);
 	if (__is_valid_data_blkaddr(blkaddr) &&
