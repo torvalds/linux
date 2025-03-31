@@ -54,6 +54,8 @@ struct amdgpu_ras_mgr {
 	bool ras_is_ready;
 };
 
+extern const struct amdgpu_ip_block_version ras_v1_0_ip_block;
+
 struct amdgpu_ras_mgr *amdgpu_ras_mgr_get_context(
 			struct amdgpu_device *adev);
 int amdgpu_enable_uniras(struct amdgpu_device *adev, bool enable);

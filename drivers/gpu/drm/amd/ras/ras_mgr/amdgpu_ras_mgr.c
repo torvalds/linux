@@ -381,6 +381,14 @@ static const struct amd_ip_funcs __maybe_unused ras_v1_0_ip_funcs = {
 	.hw_fini = amdgpu_ras_mgr_hw_fini,
 };
 
+const struct amdgpu_ip_block_version ras_v1_0_ip_block = {
+	.type = AMD_IP_BLOCK_TYPE_RAS,
+	.major = 1,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &ras_v1_0_ip_funcs,
+};
+
 int amdgpu_enable_uniras(struct amdgpu_device *adev, bool enable)
 {
 	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);

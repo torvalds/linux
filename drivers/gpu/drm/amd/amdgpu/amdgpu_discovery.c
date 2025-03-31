@@ -107,6 +107,7 @@
 #include "vcn_v5_0_1.h"
 #include "jpeg_v5_0_0.h"
 #include "jpeg_v5_0_1.h"
+#include "amdgpu_ras_mgr.h"
 
 #include "amdgpu_vpe.h"
 #if defined(CONFIG_DRM_AMD_ISP)
@@ -2393,6 +2394,21 @@ static int amdgpu_discovery_set_sdma_ip_blocks(struct amdgpu_device *adev)
 			amdgpu_ip_version(adev, SDMA0_HWIP, 0));
 		return -EINVAL;
 	}
+
+	return 0;
+}
+
+static int amdgpu_discovery_set_ras_ip_blocks(struct amdgpu_device *adev)
+{
+	switch (amdgpu_ip_version(adev, MP0_HWIP, 0)) {
+	case IP_VERSION(13, 0, 6):
+	case IP_VERSION(13, 0, 12):
+	case IP_VERSION(13, 0, 14):
+		amdgpu_device_ip_block_add(adev, &ras_v1_0_ip_block);
+		break;
+	default:
+		break;
+	}
 	return 0;
 }
 
@@ -3170,6 +3186,10 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 		return r;
 
 	r = amdgpu_discovery_set_sdma_ip_blocks(adev);
+	if (r)
+		return r;
+
+	r = amdgpu_discovery_set_ras_ip_blocks(adev);
 	if (r)
 		return r;
 

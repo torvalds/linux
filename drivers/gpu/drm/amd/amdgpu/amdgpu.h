@@ -380,7 +380,7 @@ int amdgpu_ip_block_suspend(struct amdgpu_ip_block *ip_block);
 
 int amdgpu_ip_block_resume(struct amdgpu_ip_block *ip_block);
 
-#define AMDGPU_MAX_IP_NUM 16
+#define AMDGPU_MAX_IP_NUM AMD_IP_BLOCK_TYPE_NUM
 
 struct amdgpu_ip_block_status {
 	bool valid;
