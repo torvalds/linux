@@ -95,9 +95,8 @@ static int copy_inline_to_page(struct btrfs_inode *inode,
 	if (ret < 0)
 		goto out_unlock;
 
-	clear_extent_bit(&inode->io_tree, file_offset, range_end,
-			 EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG,
-			 NULL);
+	clear_extent_bits(&inode->io_tree, file_offset, range_end,
+			  EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG);
 	ret = btrfs_set_extent_delalloc(inode, file_offset, range_end, 0, NULL);
 	if (ret)
 		goto out_unlock;

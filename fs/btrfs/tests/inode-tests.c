@@ -949,10 +949,10 @@ static int test_extent_accounting(u32 sectorsize, u32 nodesize)
 	}
 
 	/* [BTRFS_MAX_EXTENT_SIZE/2][sectorsize HOLE][the rest] */
-	ret = clear_extent_bit(&BTRFS_I(inode)->io_tree,
-			       BTRFS_MAX_EXTENT_SIZE >> 1,
-			       (BTRFS_MAX_EXTENT_SIZE >> 1) + sectorsize - 1,
-			       EXTENT_DELALLOC | EXTENT_DELALLOC_NEW, NULL);
+	ret = clear_extent_bits(&BTRFS_I(inode)->io_tree,
+				BTRFS_MAX_EXTENT_SIZE >> 1,
+				(BTRFS_MAX_EXTENT_SIZE >> 1) + sectorsize - 1,
+				EXTENT_DELALLOC | EXTENT_DELALLOC_NEW);
 	if (ret) {
 		test_err("clear_extent_bit returned %d", ret);
 		goto out;
@@ -1016,10 +1016,10 @@ static int test_extent_accounting(u32 sectorsize, u32 nodesize)
 	}
 
 	/* [BTRFS_MAX_EXTENT_SIZE+4k][4K HOLE][BTRFS_MAX_EXTENT_SIZE+4k] */
-	ret = clear_extent_bit(&BTRFS_I(inode)->io_tree,
-			       BTRFS_MAX_EXTENT_SIZE + sectorsize,
-			       BTRFS_MAX_EXTENT_SIZE + 2 * sectorsize - 1,
-			       EXTENT_DELALLOC | EXTENT_DELALLOC_NEW, NULL);
+	ret = clear_extent_bits(&BTRFS_I(inode)->io_tree,
+				BTRFS_MAX_EXTENT_SIZE + sectorsize,
+				BTRFS_MAX_EXTENT_SIZE + 2 * sectorsize - 1,
+				EXTENT_DELALLOC | EXTENT_DELALLOC_NEW);
 	if (ret) {
 		test_err("clear_extent_bit returned %d", ret);
 		goto out;
@@ -1050,8 +1050,8 @@ static int test_extent_accounting(u32 sectorsize, u32 nodesize)
 	}
 
 	/* Empty */
-	ret = clear_extent_bit(&BTRFS_I(inode)->io_tree, 0, (u64)-1,
-			       EXTENT_DELALLOC | EXTENT_DELALLOC_NEW, NULL);
+	ret = clear_extent_bits(&BTRFS_I(inode)->io_tree, 0, (u64)-1,
+				EXTENT_DELALLOC | EXTENT_DELALLOC_NEW);
 	if (ret) {
 		test_err("clear_extent_bit returned %d", ret);
 		goto out;
@@ -1065,8 +1065,8 @@ static int test_extent_accounting(u32 sectorsize, u32 nodesize)
 	ret = 0;
 out:
 	if (ret)
-		clear_extent_bit(&BTRFS_I(inode)->io_tree, 0, (u64)-1,
-				 EXTENT_DELALLOC | EXTENT_DELALLOC_NEW, NULL);
+		clear_extent_bits(&BTRFS_I(inode)->io_tree, 0, (u64)-1,
+				  EXTENT_DELALLOC | EXTENT_DELALLOC_NEW);
 	iput(inode);
 	btrfs_free_dummy_root(root);
 	btrfs_free_dummy_fs_info(fs_info);
