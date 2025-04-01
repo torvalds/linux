@@ -139,12 +139,7 @@ config TRACE_MMIO_ACCESS
 source "lib/crypto/Kconfig"
 
 config CRC_CCITT
-	tristate "CRC-CCITT functions"
-	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require CRC-CCITT functions, but a module built outside
-	  the kernel tree does. Such modules that use library CRC-CCITT
-	  functions require M here.
+	tristate
 
 config CRC16
 	tristate "CRC16 functions"
