@@ -56,7 +56,7 @@
 #define RPCIF_DROPR		0x0018	/* R/W */
 
 #define RPCIF_DRENR		0x001C	/* R/W */
-#define RPCIF_DRENR_CDB(o)	(u32)((((o) & 0x3) << 30))
+#define RPCIF_DRENR_CDB(o)	(((u32)((o) & 0x3)) << 30)
 #define RPCIF_DRENR_OCDB(o)	(((o) & 0x3) << 28)
 #define RPCIF_DRENR_ADB(o)	(((o) & 0x3) << 24)
 #define RPCIF_DRENR_OPDB(o)	(((o) & 0x3) << 20)
