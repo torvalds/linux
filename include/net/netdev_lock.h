@@ -98,4 +98,7 @@ static inline int netdev_lock_cmp_fn(const struct lockdep_map *a,
 				  &qdisc_xmit_lock_key);	\
 }
 
+int netdev_debug_event(struct notifier_block *nb, unsigned long event,
+		       void *ptr);
+
 #endif
