@@ -249,6 +249,7 @@ struct dc_caps {
 	uint32_t i2c_speed_in_khz_hdcp;
 	uint32_t dmdata_alloc_size;
 	unsigned int max_cursor_size;
+	unsigned int max_buffered_cursor_size;
 	unsigned int max_video_width;
 	/*
 	 * max video plane width that can be safely assumed to be always
@@ -2606,5 +2607,8 @@ void dc_disable_accelerated_mode(struct dc *dc);
 
 bool dc_is_timing_changed(struct dc_stream_state *cur_stream,
 		       struct dc_stream_state *new_stream);
+
+bool dc_is_cursor_limit_pending(struct dc *dc);
+bool dc_can_clear_cursor_limit(struct dc *dc);
 
 #endif /* DC_INTERFACE_H_ */
