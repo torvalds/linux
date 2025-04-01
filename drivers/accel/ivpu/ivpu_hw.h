@@ -87,6 +87,11 @@ static inline u32 ivpu_hw_dpu_max_freq_get(struct ivpu_device *vdev)
 	return ivpu_hw_btrs_dpu_max_freq_get(vdev);
 }
 
+static inline u32 ivpu_hw_dpu_freq_get(struct ivpu_device *vdev)
+{
+	return ivpu_hw_btrs_dpu_freq_get(vdev);
+}
+
 static inline void ivpu_hw_irq_clear(struct ivpu_device *vdev)
 {
 	ivpu_hw_ip_irq_clear(vdev);
