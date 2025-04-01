@@ -1804,7 +1804,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	}
 
 	/* set erase_arg */
-	if (mmc_can_discard(card))
+	if (mmc_card_can_discard(card))
 		card->erase_arg = MMC_DISCARD_ARG;
 	else if (mmc_can_trim(card))
 		card->erase_arg = MMC_TRIM_ARG;
