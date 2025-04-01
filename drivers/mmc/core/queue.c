@@ -186,7 +186,7 @@ static void mmc_queue_setup_discard(struct mmc_card *card,
 	lim->max_hw_discard_sectors = max_discard;
 	if (mmc_card_can_secure_erase_trim(card))
 		lim->max_secure_erase_sectors = max_discard;
-	if (mmc_can_trim(card) && card->erased_byte == 0)
+	if (mmc_card_can_trim(card) && card->erased_byte == 0)
 		lim->max_write_zeroes_sectors = max_discard;
 
 	/* granularity must not be greater than max. discard */

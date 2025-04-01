@@ -1746,7 +1746,7 @@ static int mmc_test_profile_trim_perf(struct mmc_test_card *test)
 	struct timespec64 ts1, ts2;
 	int ret;
 
-	if (!mmc_can_trim(test->card))
+	if (!mmc_card_can_trim(test->card))
 		return RESULT_UNSUP_CARD;
 
 	if (!mmc_card_can_erase(test->card))
@@ -1863,7 +1863,7 @@ static int mmc_test_profile_seq_trim_perf(struct mmc_test_card *test)
 	struct timespec64 ts1, ts2;
 	int ret;
 
-	if (!mmc_can_trim(test->card))
+	if (!mmc_card_can_trim(test->card))
 		return RESULT_UNSUP_CARD;
 
 	if (!mmc_card_can_erase(test->card))

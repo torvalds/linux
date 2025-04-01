@@ -1843,14 +1843,12 @@ bool mmc_card_can_erase(struct mmc_card *card)
 }
 EXPORT_SYMBOL(mmc_card_can_erase);
 
-int mmc_can_trim(struct mmc_card *card)
+bool mmc_card_can_trim(struct mmc_card *card)
 {
-	if ((card->ext_csd.sec_feature_support & EXT_CSD_SEC_GB_CL_EN) &&
-	    (!(card->quirks & MMC_QUIRK_TRIM_BROKEN)))
-		return 1;
-	return 0;
+	return ((card->ext_csd.sec_feature_support & EXT_CSD_SEC_GB_CL_EN) &&
+		(!(card->quirks & MMC_QUIRK_TRIM_BROKEN)));
 }
-EXPORT_SYMBOL(mmc_can_trim);
+EXPORT_SYMBOL(mmc_card_can_trim);
 
 bool mmc_card_can_discard(struct mmc_card *card)
 {
@@ -1864,7 +1862,7 @@ EXPORT_SYMBOL(mmc_card_can_discard);
 
 bool mmc_card_can_sanitize(struct mmc_card *card)
 {
-	if (!mmc_can_trim(card) && !mmc_card_can_erase(card))
+	if (!mmc_card_can_trim(card) && !mmc_card_can_erase(card))
 		return false;
 	if (card->ext_csd.sec_feature_support & EXT_CSD_SEC_SANITIZE)
 		return true;
@@ -1981,7 +1979,7 @@ unsigned int mmc_calc_max_discard(struct mmc_card *card)
 		return card->pref_erase;
 
 	max_discard = mmc_do_calc_max_discard(card, MMC_ERASE_ARG);
-	if (mmc_can_trim(card)) {
+	if (mmc_card_can_trim(card)) {
 		max_trim = mmc_do_calc_max_discard(card, MMC_TRIM_ARG);
 		if (max_trim < max_discard || max_discard == 0)
 			max_discard = max_trim;
