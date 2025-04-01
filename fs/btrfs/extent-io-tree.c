@@ -1720,14 +1720,14 @@ search:
  */
 bool test_range_bit_exists(struct extent_io_tree *tree, u64 start, u64 end, u32 bit)
 {
-	struct extent_state *state = NULL;
+	struct extent_state *state;
 	bool bitset = false;
 
 	ASSERT(is_power_of_2(bit));
 
 	spin_lock(&tree->lock);
 	state = tree_search(tree, start);
-	while (state && start <= end) {
+	while (state) {
 		if (state->start > end)
 			break;
 
@@ -1736,9 +1736,7 @@ bool test_range_bit_exists(struct extent_io_tree *tree, u64 start, u64 end, u32 
 			break;
 		}
 
-		/* If state->end is (u64)-1, start will overflow to 0 */
-		start = state->end + 1;
-		if (start > end || start == 0)
+		if (state->end >= end)
 			break;
 		state = next_state(state);
 	}
