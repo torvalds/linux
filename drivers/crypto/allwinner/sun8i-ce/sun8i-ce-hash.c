@@ -23,6 +23,20 @@
 #include <linux/string.h>
 #include "sun8i-ce.h"
 
+static void sun8i_ce_hash_stat_fb_inc(struct crypto_ahash *tfm)
+{
+	if (IS_ENABLED(CONFIG_CRYPTO_DEV_SUN8I_CE_DEBUG)) {
+		struct sun8i_ce_alg_template *algt __maybe_unused;
+		struct ahash_alg *alg = crypto_ahash_alg(tfm);
+
+		algt = container_of(alg, struct sun8i_ce_alg_template,
+				    alg.hash.base);
+#ifdef CONFIG_CRYPTO_DEV_SUN8I_CE_DEBUG
+		algt->stat_fb++;
+#endif
+	}
+}
+
 int sun8i_ce_hash_init_tfm(struct crypto_ahash *tfm)
 {
 	struct sun8i_ce_hash_tfm_ctx *op = crypto_ahash_ctx(tfm);
@@ -113,21 +127,12 @@ int sun8i_ce_hash_final(struct ahash_request *areq)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(areq);
 	struct sun8i_ce_hash_tfm_ctx *tfmctx = crypto_ahash_ctx(tfm);
 
+	sun8i_ce_hash_stat_fb_inc(tfm);
+
 	ahash_request_set_tfm(&rctx->fallback_req, tfmctx->fallback_tfm);
 	rctx->fallback_req.base.flags = areq->base.flags &
 					CRYPTO_TFM_REQ_MAY_SLEEP;
 	rctx->fallback_req.result = areq->result;
-
-	if (IS_ENABLED(CONFIG_CRYPTO_DEV_SUN8I_CE_DEBUG)) {
-		struct sun8i_ce_alg_template *algt __maybe_unused;
-		struct ahash_alg *alg = crypto_ahash_alg(tfm);
-
-		algt = container_of(alg, struct sun8i_ce_alg_template,
-				    alg.hash.base);
-#ifdef CONFIG_CRYPTO_DEV_SUN8I_CE_DEBUG
-		algt->stat_fb++;
-#endif
-	}
 
 	return crypto_ahash_final(&rctx->fallback_req);
 }
@@ -153,6 +158,8 @@ int sun8i_ce_hash_finup(struct ahash_request *areq)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(areq);
 	struct sun8i_ce_hash_tfm_ctx *tfmctx = crypto_ahash_ctx(tfm);
 
+	sun8i_ce_hash_stat_fb_inc(tfm);
+
 	ahash_request_set_tfm(&rctx->fallback_req, tfmctx->fallback_tfm);
 	rctx->fallback_req.base.flags = areq->base.flags &
 					CRYPTO_TFM_REQ_MAY_SLEEP;
@@ -160,17 +167,6 @@ int sun8i_ce_hash_finup(struct ahash_request *areq)
 	rctx->fallback_req.nbytes = areq->nbytes;
 	rctx->fallback_req.src = areq->src;
 	rctx->fallback_req.result = areq->result;
-
-	if (IS_ENABLED(CONFIG_CRYPTO_DEV_SUN8I_CE_DEBUG)) {
-		struct sun8i_ce_alg_template *algt __maybe_unused;
-		struct ahash_alg *alg = crypto_ahash_alg(tfm);
-
-		algt = container_of(alg, struct sun8i_ce_alg_template,
-				    alg.hash.base);
-#ifdef CONFIG_CRYPTO_DEV_SUN8I_CE_DEBUG
-		algt->stat_fb++;
-#endif
-	}
 
 	return crypto_ahash_finup(&rctx->fallback_req);
 }
@@ -181,6 +177,8 @@ static int sun8i_ce_hash_digest_fb(struct ahash_request *areq)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(areq);
 	struct sun8i_ce_hash_tfm_ctx *tfmctx = crypto_ahash_ctx(tfm);
 
+	sun8i_ce_hash_stat_fb_inc(tfm);
+
 	ahash_request_set_tfm(&rctx->fallback_req, tfmctx->fallback_tfm);
 	rctx->fallback_req.base.flags = areq->base.flags &
 					CRYPTO_TFM_REQ_MAY_SLEEP;
@@ -188,17 +186,6 @@ static int sun8i_ce_hash_digest_fb(struct ahash_request *areq)
 	rctx->fallback_req.nbytes = areq->nbytes;
 	rctx->fallback_req.src = areq->src;
 	rctx->fallback_req.result = areq->result;
-
-	if (IS_ENABLED(CONFIG_CRYPTO_DEV_SUN8I_CE_DEBUG)) {
-		struct sun8i_ce_alg_template *algt __maybe_unused;
-		struct ahash_alg *alg = crypto_ahash_alg(tfm);
-
-		algt = container_of(alg, struct sun8i_ce_alg_template,
-				    alg.hash.base);
-#ifdef CONFIG_CRYPTO_DEV_SUN8I_CE_DEBUG
-		algt->stat_fb++;
-#endif
-	}
 
 	return crypto_ahash_digest(&rctx->fallback_req);
 }
