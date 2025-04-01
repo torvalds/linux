@@ -12,6 +12,9 @@
 
 #include "vsp1_entity.h"
 
+#define VSPX_IIF_SINK_PAD_IMG		0
+#define VSPX_IIF_SINK_PAD_CONFIG	2
+
 struct vsp1_iif {
 	struct vsp1_entity entity;
 };
