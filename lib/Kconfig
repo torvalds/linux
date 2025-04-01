@@ -155,12 +155,7 @@ config CRC_T10DIF_ARCH
 	default CRC_T10DIF if ARCH_HAS_CRC_T10DIF && CRC_OPTIMIZATIONS
 
 config CRC_ITU_T
-	tristate "CRC ITU-T V.41 functions"
-	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require CRC ITU-T V.41 functions, but a module built outside
-	  the kernel tree does. Such modules that use library CRC ITU-T V.41
-	  functions require M here.
+	tristate
 
 config CRC32
 	tristate
