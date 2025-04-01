@@ -279,6 +279,18 @@ config LENOVO_SE10_WDT
 	  This driver can also be built as a module. If so, the module
 	  will be called lenovo-se10-wdt.
 
+config LENOVO_SE30_WDT
+	tristate "Lenovo SE30 Watchdog"
+	depends on (X86 && DMI) || COMPILE_TEST
+	depends on HAS_IOPORT
+	select WATCHDOG_CORE
+	help
+	  If you say yes here you get support for the watchdog
+	  functionality for the Lenovo SE30 platform.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lenovo-se30-wdt.
+
 config MENF21BMC_WATCHDOG
 	tristate "MEN 14F021P00 BMC Watchdog"
 	depends on MFD_MENF21BMC || COMPILE_TEST
@@ -963,13 +975,14 @@ config RENESAS_RZG2LWDT
 	  Renesas RZ/G2L SoCs. These watchdogs can be used to reset a system.
 
 config RENESAS_RZV2HWDT
-	tristate "Renesas RZ/V2H(P) WDT Watchdog"
-	depends on ARCH_R9A09G057 || COMPILE_TEST
+	tristate "Renesas RZ/{G3E,V2H(P)} WDT Watchdog"
+	depends on ARCH_RENESAS || COMPILE_TEST
 	depends on PM || COMPILE_TEST
 	select WATCHDOG_CORE
 	help
 	  This driver adds watchdog support for the integrated watchdogs in the
-	  Renesas RZ/V2H(P) SoCs. These watchdogs can be used to reset a system.
+	  Renesas RZ/{G3E,V2H(P)} SoCs. These watchdogs can be used to reset a
+	  system.
 
 config ASPEED_WATCHDOG
 	tristate "Aspeed BMC watchdog support"
@@ -1730,7 +1743,8 @@ config NI903X_WDT
 
 config NIC7018_WDT
 	tristate "NIC7018 Watchdog"
-	depends on X86 && ACPI
+	depends on HAS_IOPORT
+	depends on ACPI || COMPILE_TEST
 	select WATCHDOG_CORE
 	help
 	  Support for National Instruments NIC7018 Watchdog.
