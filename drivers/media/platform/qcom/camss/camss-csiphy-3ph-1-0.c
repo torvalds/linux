@@ -700,6 +700,9 @@ static int csiphy_init(struct csiphy_device *csiphy)
 	csiphy->regs = regs;
 	regs->offset = 0x800;
 
+	if (!csiphy_is_gen2(csiphy->camss->res->version))
+		return 0;
+
 	switch (csiphy->camss->res->version) {
 	case CAMSS_845:
 		regs->lane_regs = &lane_regs_sdm845[0];
