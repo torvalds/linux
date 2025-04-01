@@ -838,10 +838,7 @@ static int analogix_dp_commit(struct analogix_dp_device *dp)
 	int ret;
 
 	/* Keep the panel disabled while we configure video */
-	if (dp->plat_data->panel) {
-		if (drm_panel_disable(dp->plat_data->panel))
-			DRM_ERROR("failed to disable the panel\n");
-	}
+	drm_panel_disable(dp->plat_data->panel);
 
 	ret = analogix_dp_train_link(dp);
 	if (ret) {
@@ -863,13 +860,7 @@ static int analogix_dp_commit(struct analogix_dp_device *dp)
 	}
 
 	/* Safe to enable the panel now */
-	if (dp->plat_data->panel) {
-		ret = drm_panel_enable(dp->plat_data->panel);
-		if (ret) {
-			DRM_ERROR("failed to enable the panel\n");
-			return ret;
-		}
-	}
+	drm_panel_enable(dp->plat_data->panel);
 
 	/* Check whether panel supports fast training */
 	ret = analogix_dp_fast_link_train_detection(dp);
@@ -1136,7 +1127,6 @@ static void analogix_dp_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 	struct analogix_dp_device *dp = bridge->driver_private;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
-	int ret;
 
 	crtc = analogix_dp_get_new_crtc(dp, old_state);
 	if (!crtc)
@@ -1147,11 +1137,7 @@ static void analogix_dp_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 	if (old_crtc_state && old_crtc_state->self_refresh_active)
 		return;
 
-	if (dp->plat_data->panel) {
-		ret = drm_panel_prepare(dp->plat_data->panel);
-		if (ret)
-			DRM_ERROR("failed to prepare the panel ret = %d\n", ret);
-	}
+	drm_panel_prepare(dp->plat_data->panel);
 }
 
 static int analogix_dp_set_bridge(struct analogix_dp_device *dp)
@@ -1231,17 +1217,11 @@ static void analogix_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 static void analogix_dp_bridge_disable(struct drm_bridge *bridge)
 {
 	struct analogix_dp_device *dp = bridge->driver_private;
-	int ret;
 
 	if (dp->dpms_mode != DRM_MODE_DPMS_ON)
 		return;
 
-	if (dp->plat_data->panel) {
-		if (drm_panel_disable(dp->plat_data->panel)) {
-			DRM_ERROR("failed to disable the panel\n");
-			return;
-		}
-	}
+	drm_panel_disable(dp->plat_data->panel);
 
 	disable_irq(dp->irq);
 
@@ -1249,11 +1229,7 @@ static void analogix_dp_bridge_disable(struct drm_bridge *bridge)
 
 	pm_runtime_put_sync(dp->dev);
 
-	if (dp->plat_data->panel) {
-		ret = drm_panel_unprepare(dp->plat_data->panel);
-		if (ret)
-			DRM_ERROR("failed to unprepare the panel ret = %d\n", ret);
-	}
+	drm_panel_unprepare(dp->plat_data->panel);
 
 	dp->fast_train_enable = false;
 	dp->psr_supported = false;
@@ -1694,10 +1670,7 @@ void analogix_dp_unbind(struct analogix_dp_device *dp)
 	analogix_dp_bridge_disable(dp->bridge);
 	dp->connector.funcs->destroy(&dp->connector);
 
-	if (dp->plat_data->panel) {
-		if (drm_panel_unprepare(dp->plat_data->panel))
-			DRM_ERROR("failed to turnoff the panel\n");
-	}
+	drm_panel_unprepare(dp->plat_data->panel);
 
 	drm_dp_aux_unregister(&dp->aux);
 }
