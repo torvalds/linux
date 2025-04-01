@@ -307,7 +307,7 @@ void __init hv_get_partition_id(void)
 
 	local_irq_save(flags);
 	output = *this_cpu_ptr(hyperv_pcpu_input_arg);
-	status = hv_do_hypercall(HVCALL_GET_PARTITION_ID, NULL, &output);
+	status = hv_do_hypercall(HVCALL_GET_PARTITION_ID, NULL, output);
 	pt_id = output->partition_id;
 	local_irq_restore(flags);
 
