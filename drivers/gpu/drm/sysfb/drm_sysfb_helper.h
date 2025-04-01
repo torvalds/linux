@@ -38,6 +38,21 @@ static inline struct drm_sysfb_device *to_drm_sysfb_device(struct drm_device *de
 }
 
 /*
+ * Connector
+ */
+
+int drm_sysfb_connector_helper_get_modes(struct drm_connector *connector);
+
+#define DRM_SYSFB_CONNECTOR_HELPER_FUNCS \
+	.get_modes = drm_sysfb_connector_helper_get_modes
+
+#define DRM_SYSFB_CONNECTOR_FUNCS \
+	.reset = drm_atomic_helper_connector_reset, \
+	.fill_modes = drm_helper_probe_single_connector_modes, \
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state, \
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state
+
+/*
  * Mode config
  */
 

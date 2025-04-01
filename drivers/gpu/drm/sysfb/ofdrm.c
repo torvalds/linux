@@ -998,23 +998,13 @@ static const struct drm_encoder_funcs ofdrm_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
-static int ofdrm_connector_helper_get_modes(struct drm_connector *connector)
-{
-	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(connector->dev);
-
-	return drm_connector_helper_get_modes_fixed(connector, &sysfb->fb_mode);
-}
-
 static const struct drm_connector_helper_funcs ofdrm_connector_helper_funcs = {
-	.get_modes = ofdrm_connector_helper_get_modes,
+	DRM_SYSFB_CONNECTOR_HELPER_FUNCS,
 };
 
 static const struct drm_connector_funcs ofdrm_connector_funcs = {
-	.reset = drm_atomic_helper_connector_reset,
-	.fill_modes = drm_helper_probe_single_connector_modes,
+	DRM_SYSFB_CONNECTOR_FUNCS,
 	.destroy = drm_connector_cleanup,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static const struct drm_mode_config_funcs ofdrm_mode_config_funcs = {

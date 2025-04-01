@@ -2,6 +2,8 @@
 
 #include <linux/module.h>
 
+#include <drm/drm_probe_helper.h>
+
 #include "drm_sysfb_helper.h"
 
 MODULE_DESCRIPTION("Helpers for DRM sysfb drivers");
@@ -30,3 +32,15 @@ struct drm_display_mode drm_sysfb_mode(unsigned int width,
 	}
 }
 EXPORT_SYMBOL(drm_sysfb_mode);
+
+/*
+ * Connector
+ */
+
+int drm_sysfb_connector_helper_get_modes(struct drm_connector *connector)
+{
+	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(connector->dev);
+
+	return drm_connector_helper_get_modes_fixed(connector, &sysfb->fb_mode);
+}
+EXPORT_SYMBOL(drm_sysfb_connector_helper_get_modes);
