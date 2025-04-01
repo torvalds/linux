@@ -139,22 +139,22 @@ int cmd_parse_options(int argc, const char **argv, const char * const usage[])
 static bool opts_valid(void)
 {
 	if (opts.mnop && !opts.mcount) {
-		WARN("--mnop requires --mcount");
+		ERROR("--mnop requires --mcount");
 		return false;
 	}
 
 	if (opts.noinstr && !opts.link) {
-		WARN("--noinstr requires --link");
+		ERROR("--noinstr requires --link");
 		return false;
 	}
 
 	if (opts.ibt && !opts.link) {
-		WARN("--ibt requires --link");
+		ERROR("--ibt requires --link");
 		return false;
 	}
 
 	if (opts.unret && !opts.link) {
-		WARN("--unret requires --link");
+		ERROR("--unret requires --link");
 		return false;
 	}
 
@@ -171,7 +171,7 @@ static bool opts_valid(void)
 	    opts.static_call		||
 	    opts.uaccess) {
 		if (opts.dump_orc) {
-			WARN("--dump can't be combined with other actions");
+			ERROR("--dump can't be combined with other actions");
 			return false;
 		}
 
@@ -181,7 +181,7 @@ static bool opts_valid(void)
 	if (opts.dump_orc)
 		return true;
 
-	WARN("At least one action required");
+	ERROR("At least one action required");
 	return false;
 }
 
@@ -194,30 +194,30 @@ static int copy_file(const char *src, const char *dst)
 
 	src_fd = open(src, O_RDONLY);
 	if (src_fd == -1) {
-		WARN("can't open %s for reading: %s", src, strerror(errno));
+		ERROR("can't open %s for reading: %s", src, strerror(errno));
 		return 1;
 	}
 
 	dst_fd = open(dst, O_WRONLY | O_CREAT | O_TRUNC, 0400);
 	if (dst_fd == -1) {
-		WARN("can't open %s for writing: %s", dst, strerror(errno));
+		ERROR("can't open %s for writing: %s", dst, strerror(errno));
 		return 1;
 	}
 
 	if (fstat(src_fd, &stat) == -1) {
-		WARN_GLIBC("fstat");
+		ERROR_GLIBC("fstat");
 		return 1;
 	}
 
 	if (fchmod(dst_fd, stat.st_mode) == -1) {
-		WARN_GLIBC("fchmod");
+		ERROR_GLIBC("fchmod");
 		return 1;
 	}
 
 	for (to_copy = stat.st_size; to_copy > 0; to_copy -= copied) {
 		copied = sendfile(dst_fd, src_fd, &offset, to_copy);
 		if (copied == -1) {
-			WARN_GLIBC("sendfile");
+			ERROR_GLIBC("sendfile");
 			return 1;
 		}
 	}
@@ -231,14 +231,14 @@ static void save_argv(int argc, const char **argv)
 {
 	orig_argv = calloc(argc, sizeof(char *));
 	if (!orig_argv) {
-		WARN_GLIBC("calloc");
+		ERROR_GLIBC("calloc");
 		exit(1);
 	}
 
 	for (int i = 0; i < argc; i++) {
 		orig_argv[i] = strdup(argv[i]);
 		if (!orig_argv[i]) {
-			WARN_GLIBC("strdup(%s)", argv[i]);
+			ERROR_GLIBC("strdup(%s)", argv[i]);
 			exit(1);
 		}
 	};
@@ -257,7 +257,7 @@ void print_args(void)
 	 */
 	backup = malloc(strlen(objname) + strlen(ORIG_SUFFIX) + 1);
 	if (!backup) {
-		WARN_GLIBC("malloc");
+		ERROR_GLIBC("malloc");
 		goto print;
 	}
 
@@ -319,7 +319,7 @@ int objtool_run(int argc, const char **argv)
 		return 1;
 
 	if (!opts.link && has_multiple_files(file->elf)) {
-		WARN("Linked object requires --link");
+		ERROR("Linked object requires --link");
 		return 1;
 	}
 

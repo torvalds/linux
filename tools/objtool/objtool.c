@@ -23,7 +23,7 @@ static struct objtool_file file;
 struct objtool_file *objtool_open_read(const char *filename)
 {
 	if (file.elf) {
-		WARN("won't handle more than one file at a time");
+		ERROR("won't handle more than one file at a time");
 		return NULL;
 	}
 
@@ -50,7 +50,7 @@ int objtool_pv_add(struct objtool_file *f, int idx, struct symbol *func)
 		return 0;
 
 	if (!f->pv_ops) {
-		WARN("paravirt confusion");
+		ERROR("paravirt confusion");
 		return -1;
 	}
 

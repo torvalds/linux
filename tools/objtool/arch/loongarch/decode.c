@@ -63,7 +63,7 @@ static bool is_loongarch(const struct elf *elf)
 	if (elf->ehdr.e_machine == EM_LOONGARCH)
 		return true;
 
-	WARN("unexpected ELF machine type %d", elf->ehdr.e_machine);
+	ERROR("unexpected ELF machine type %d", elf->ehdr.e_machine);
 	return false;
 }
 
@@ -327,8 +327,10 @@ const char *arch_nop_insn(int len)
 {
 	static u32 nop;
 
-	if (len != LOONGARCH_INSN_SIZE)
-		WARN("invalid NOP size: %d\n", len);
+	if (len != LOONGARCH_INSN_SIZE) {
+		ERROR("invalid NOP size: %d\n", len);
+		return NULL;
+	}
 
 	nop = LOONGARCH_INSN_NOP;
 
@@ -339,8 +341,10 @@ const char *arch_ret_insn(int len)
 {
 	static u32 ret;
 
-	if (len != LOONGARCH_INSN_SIZE)
-		WARN("invalid RET size: %d\n", len);
+	if (len != LOONGARCH_INSN_SIZE) {
+		ERROR("invalid RET size: %d\n", len);
+		return NULL;
+	}
 
 	emit_jirl((union loongarch_instruction *)&ret, LOONGARCH_GPR_RA, LOONGARCH_GPR_ZERO, 0);
 
