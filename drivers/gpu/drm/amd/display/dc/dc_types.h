@@ -1255,6 +1255,7 @@ enum dc_cm2_gpu_mem_layout {
 
 enum dc_cm2_gpu_mem_pixel_component_order {
 	DC_CM2_GPU_MEM_PIXEL_COMPONENT_ORDER_RGBA,
+	DC_CM2_GPU_MEM_PIXEL_COMPONENT_ORDER_BGRA
 };
 
 enum dc_cm2_gpu_mem_format {
@@ -1276,7 +1277,8 @@ struct dc_cm2_gpu_mem_format_parameters {
 
 enum dc_cm2_gpu_mem_size {
 	DC_CM2_GPU_MEM_SIZE_171717,
-	DC_CM2_GPU_MEM_SIZE_TRANSFORMED
+	DC_CM2_GPU_MEM_SIZE_333333,
+	DC_CM2_GPU_MEM_SIZE_TRANSFORMED,
 };
 
 struct dc_cm2_gpu_mem_parameters {
@@ -1285,6 +1287,7 @@ struct dc_cm2_gpu_mem_parameters {
 	struct dc_cm2_gpu_mem_format_parameters format_params;
 	enum dc_cm2_gpu_mem_pixel_component_order component_order;
 	enum dc_cm2_gpu_mem_size  size;
+	uint16_t bit_depth;
 };
 
 enum dc_cm2_transfer_func_source {
@@ -1308,6 +1311,10 @@ struct dc_cm2_func_luts {
 			const struct dc_3dlut *lut3d_func;
 			struct dc_cm2_gpu_mem_parameters gpu_mem_params;
 		};
+		bool rmcm_3dlut_shaper_select;
+		bool mpc_3dlut_enable;
+		bool rmcm_3dlut_enable;
+		bool mpc_mcm_post_blend;
 	} lut3d_data;
 	const struct dc_transfer_func *lut1d_func;
 };
