@@ -3761,7 +3761,7 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 				return 0;
 
 			WARN("%s%sunexpected end of section %s",
-			     func ? func->name : "", func ? ": " : "",
+			     func ? func->name : "", func ? "(): " : "",
 			     sec->name);
 			return 1;
 		}
