@@ -145,11 +145,7 @@ config CRC16
 	tristate
 
 config CRC_T10DIF
-	tristate "CRC calculation for the T10 Data Integrity Field"
-	help
-	  This option is only needed if a module that's not in the
-	  kernel tree needs to calculate CRC checks for use with the
-	  SCSI data integrity subsystem.
+	tristate
 
 config ARCH_HAS_CRC_T10DIF
 	bool
