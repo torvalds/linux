@@ -1258,12 +1258,12 @@ err_lock_bucket:
 	return ret;
 }
 
-static long __htab_percpu_map_update_elem(struct bpf_map *map, void *key,
+static long htab_map_update_elem_in_place(struct bpf_map *map, void *key,
 					  void *value, u64 map_flags,
-					  bool onallcpus)
+					  bool percpu, bool onallcpus)
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
-	struct htab_elem *l_new = NULL, *l_old;
+	struct htab_elem *l_new, *l_old;
 	struct hlist_nulls_head *head;
 	unsigned long flags;
 	struct bucket *b;
@@ -1295,19 +1295,18 @@ static long __htab_percpu_map_update_elem(struct bpf_map *map, void *key,
 		goto err;
 
 	if (l_old) {
-		/* per-cpu hash map can update value in-place */
+		/* Update value in-place */
 		pcpu_copy_value(htab, htab_elem_get_ptr(l_old, key_size),
 				value, onallcpus);
 	} else {
 		l_new = alloc_htab_elem(htab, key, value, key_size,
-					hash, true, onallcpus, NULL);
+					hash, percpu, onallcpus, NULL);
 		if (IS_ERR(l_new)) {
 			ret = PTR_ERR(l_new);
 			goto err;
 		}
 		hlist_nulls_add_head_rcu(&l_new->hash_node, head);
 	}
-	ret = 0;
 err:
 	htab_unlock_bucket(b, flags);
 	return ret;
@@ -1386,7 +1385,7 @@ err_lock_bucket:
 static long htab_percpu_map_update_elem(struct bpf_map *map, void *key,
 					void *value, u64 map_flags)
 {
-	return __htab_percpu_map_update_elem(map, key, value, map_flags, false);
+	return htab_map_update_elem_in_place(map, key, value, map_flags, true, false);
 }
 
 static long htab_lru_percpu_map_update_elem(struct bpf_map *map, void *key,
@@ -2407,8 +2406,8 @@ int bpf_percpu_hash_update(struct bpf_map *map, void *key, void *value,
 		ret = __htab_lru_percpu_map_update_elem(map, key, value,
 							map_flags, true);
 	else
-		ret = __htab_percpu_map_update_elem(map, key, value, map_flags,
-						    true);
+		ret = htab_map_update_elem_in_place(map, key, value, map_flags,
+						    true, true);
 	rcu_read_unlock();
 
 	return ret;
