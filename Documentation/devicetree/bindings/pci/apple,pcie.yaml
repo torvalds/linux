@@ -17,6 +17,10 @@ description: |
   implements its root ports.  But the ATU found on most DesignWare
   PCIe host bridges is absent.
 
+  On systems derived from T602x, the PHY registers are in a region
+  separate from the port registers. In that case, there is one PHY
+  register range per port register range.
+
   All root ports share a single ECAM space, but separate GPIOs are
   used to take the PCI devices on those ports out of reset.  Therefore
   the standard "reset-gpios" and "max-link-speed" properties appear on
@@ -30,16 +34,18 @@ description: |
 
 properties:
   compatible:
-    items:
-      - enum:
-          - apple,t8103-pcie
-          - apple,t8112-pcie
-          - apple,t6000-pcie
-      - const: apple,pcie
+    oneOf:
+      - items:
+          - enum:
+              - apple,t8103-pcie
+              - apple,t8112-pcie
+              - apple,t6000-pcie
+          - const: apple,pcie
+      - const: apple,t6020-pcie
 
   reg:
     minItems: 3
-    maxItems: 6
+    maxItems: 10
 
   reg-names:
     minItems: 3
@@ -50,6 +56,10 @@ properties:
       - const: port1
       - const: port2
       - const: port3
+      - const: phy0
+      - const: phy1
+      - const: phy2
+      - const: phy3
 
   ranges:
     minItems: 2
@@ -98,6 +108,15 @@ allOf:
           maxItems: 5
         interrupts:
           maxItems: 3
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: apple,t6020-pcie
+    then:
+      properties:
+        reg-names:
+          minItems: 10
 
 examples:
   - |
