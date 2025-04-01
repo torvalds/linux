@@ -3,6 +3,10 @@
 menu "Drivers for system framebuffers"
 	depends on DRM
 
+config DRM_SYSFB_HELPER
+	tristate
+	depends on DRM
+
 config DRM_OFDRM
 	tristate "Open Firmware display driver"
 	depends on DRM && MMU && OF && (PPC || COMPILE_TEST)
@@ -10,6 +14,7 @@ config DRM_OFDRM
 	select DRM_CLIENT_SELECTION
 	select DRM_GEM_SHMEM_HELPER
 	select DRM_KMS_HELPER
+	select DRM_SYSFB_HELPER
 	help
 	  DRM driver for Open Firmware framebuffers.
 
@@ -24,6 +29,7 @@ config DRM_SIMPLEDRM
 	select DRM_CLIENT_SELECTION
 	select DRM_GEM_SHMEM_HELPER
 	select DRM_KMS_HELPER
+	select DRM_SYSFB_HELPER
 	help
 	  DRM driver for simple platform-provided framebuffers.
 

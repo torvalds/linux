@@ -29,6 +29,8 @@
 #include <drm/drm_panic.h>
 #include <drm/drm_probe_helper.h>
 
+#include "drm_sysfb_helper.h"
+
 #define DRIVER_NAME	"simpledrm"
 #define DRIVER_DESC	"DRM driver for simple-framebuffer platform devices"
 #define DRIVER_MAJOR	1
@@ -217,7 +219,7 @@ simplefb_get_memory_of(struct drm_device *dev, struct device_node *of_node)
  */
 
 struct simpledrm_device {
-	struct drm_device dev;
+	struct drm_sysfb_device sysfb;
 
 	/* clocks */
 #if defined CONFIG_OF && defined CONFIG_COMMON_CLK
@@ -236,14 +238,6 @@ struct simpledrm_device {
 	struct device_link **pwr_dom_links;
 #endif
 
-	/* simplefb settings */
-	struct drm_display_mode mode;
-	const struct drm_format_info *format;
-	unsigned int pitch;
-
-	/* memory management */
-	struct iosys_map screen_base;
-
 	/* modesetting */
 	uint32_t formats[8];
 	struct drm_plane primary_plane;
@@ -254,7 +248,7 @@ struct simpledrm_device {
 
 static struct simpledrm_device *simpledrm_device_of_dev(struct drm_device *dev)
 {
-	return container_of(dev, struct simpledrm_device, dev);
+	return container_of(to_drm_sysfb_device(dev), struct simpledrm_device, sysfb);
 }
 
 /*
@@ -296,7 +290,7 @@ static void simpledrm_device_release_clocks(void *res)
 
 static int simpledrm_device_init_clocks(struct simpledrm_device *sdev)
 {
-	struct drm_device *dev = &sdev->dev;
+	struct drm_device *dev = &sdev->sysfb.dev;
 	struct platform_device *pdev = to_platform_device(dev->dev);
 	struct device_node *of_node = pdev->dev.of_node;
 	struct clk *clock;
@@ -394,7 +388,7 @@ static void simpledrm_device_release_regulators(void *res)
 
 static int simpledrm_device_init_regulators(struct simpledrm_device *sdev)
 {
-	struct drm_device *dev = &sdev->dev;
+	struct drm_device *dev = &sdev->sysfb.dev;
 	struct platform_device *pdev = to_platform_device(dev->dev);
 	struct device_node *of_node = pdev->dev.of_node;
 	struct property *prop;
@@ -515,7 +509,7 @@ static void simpledrm_device_detach_genpd(void *res)
 
 static int simpledrm_device_attach_genpd(struct simpledrm_device *sdev)
 {
-	struct device *dev = sdev->dev.dev;
+	struct device *dev = sdev->sysfb.dev.dev;
 	int i;
 
 	sdev->pwr_dom_count = of_count_phandle_with_args(dev->of_node, "power-domains",
@@ -547,7 +541,7 @@ static int simpledrm_device_attach_genpd(struct simpledrm_device *sdev)
 				simpledrm_device_detach_genpd(sdev);
 				return ret;
 			}
-			drm_warn(&sdev->dev,
+			drm_warn(&sdev->sysfb.dev,
 				 "pm_domain_attach_by_id(%u) failed: %d\n", i, ret);
 			continue;
 		}
@@ -558,7 +552,7 @@ static int simpledrm_device_attach_genpd(struct simpledrm_device *sdev)
 							 DL_FLAG_PM_RUNTIME |
 							 DL_FLAG_RPM_ACTIVE);
 		if (!sdev->pwr_dom_links[i])
-			drm_warn(&sdev->dev, "failed to link power-domain %d\n", i);
+			drm_warn(&sdev->sysfb.dev, "failed to link power-domain %d\n", i);
 	}
 
 	return devm_add_action_or_reset(dev, simpledrm_device_detach_genpd, sdev);
@@ -589,7 +583,7 @@ static int simpledrm_primary_plane_helper_atomic_check(struct drm_plane *plane,
 	struct drm_crtc *new_crtc = new_plane_state->crtc;
 	struct drm_crtc_state *new_crtc_state = NULL;
 	struct drm_device *dev = plane->dev;
-	struct simpledrm_device *sdev = simpledrm_device_of_dev(dev);
+	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(dev);
 	int ret;
 
 	if (new_crtc)
@@ -604,12 +598,12 @@ static int simpledrm_primary_plane_helper_atomic_check(struct drm_plane *plane,
 	else if (!new_plane_state->visible)
 		return 0;
 
-	if (new_fb->format != sdev->format) {
+	if (new_fb->format != sysfb->fb_format) {
 		void *buf;
 
 		/* format conversion necessary; reserve buffer */
 		buf = drm_format_conv_state_reserve(&new_shadow_plane_state->fmtcnv_state,
-						    sdev->pitch, GFP_KERNEL);
+						    sysfb->fb_pitch, GFP_KERNEL);
 		if (!buf)
 			return -ENOMEM;
 	}
@@ -625,7 +619,7 @@ static void simpledrm_primary_plane_helper_atomic_update(struct drm_plane *plane
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct drm_device *dev = plane->dev;
-	struct simpledrm_device *sdev = simpledrm_device_of_dev(dev);
+	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(dev);
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_rect damage;
 	int ret, idx;
@@ -640,13 +634,15 @@ static void simpledrm_primary_plane_helper_atomic_update(struct drm_plane *plane
 	drm_atomic_helper_damage_iter_init(&iter, old_plane_state, plane_state);
 	drm_atomic_for_each_plane_damage(&iter, &damage) {
 		struct drm_rect dst_clip = plane_state->dst;
-		struct iosys_map dst = sdev->screen_base;
+		struct iosys_map dst = sysfb->fb_addr;
 
 		if (!drm_rect_intersect(&dst_clip, &damage))
 			continue;
 
-		iosys_map_incr(&dst, drm_fb_clip_offset(sdev->pitch, sdev->format, &dst_clip));
-		drm_fb_blit(&dst, &sdev->pitch, sdev->format->format, shadow_plane_state->data,
+		iosys_map_incr(&dst, drm_fb_clip_offset(sysfb->fb_pitch, sysfb->fb_format,
+							&dst_clip));
+		drm_fb_blit(&dst, &sysfb->fb_pitch, sysfb->fb_format->format,
+			    shadow_plane_state->data,
 			    fb, &damage, &shadow_plane_state->fmtcnv_state);
 	}
 
@@ -659,14 +655,14 @@ static void simpledrm_primary_plane_helper_atomic_disable(struct drm_plane *plan
 							  struct drm_atomic_state *state)
 {
 	struct drm_device *dev = plane->dev;
-	struct simpledrm_device *sdev = simpledrm_device_of_dev(dev);
+	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(plane->dev);
 	int idx;
 
 	if (!drm_dev_enter(dev, &idx))
 		return;
 
 	/* Clear screen to black if disabled */
-	iosys_map_memset(&sdev->screen_base, 0, 0, sdev->pitch * sdev->mode.vdisplay);
+	iosys_map_memset(&sysfb->fb_addr, 0, 0, sysfb->fb_pitch * sysfb->fb_mode.vdisplay);
 
 	drm_dev_exit(idx);
 }
@@ -674,13 +670,13 @@ static void simpledrm_primary_plane_helper_atomic_disable(struct drm_plane *plan
 static int simpledrm_primary_plane_helper_get_scanout_buffer(struct drm_plane *plane,
 							     struct drm_scanout_buffer *sb)
 {
-	struct simpledrm_device *sdev = simpledrm_device_of_dev(plane->dev);
+	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(plane->dev);
 
-	sb->width = sdev->mode.hdisplay;
-	sb->height = sdev->mode.vdisplay;
-	sb->format = sdev->format;
-	sb->pitch[0] = sdev->pitch;
-	sb->map[0] = sdev->screen_base;
+	sb->width = sysfb->fb_mode.hdisplay;
+	sb->height = sysfb->fb_mode.vdisplay;
+	sb->format = sysfb->fb_format;
+	sb->pitch[0] = sysfb->fb_pitch;
+	sb->map[0] = sysfb->fb_addr;
 
 	return 0;
 }
@@ -703,9 +699,9 @@ static const struct drm_plane_funcs simpledrm_primary_plane_funcs = {
 static enum drm_mode_status simpledrm_crtc_helper_mode_valid(struct drm_crtc *crtc,
 							     const struct drm_display_mode *mode)
 {
-	struct simpledrm_device *sdev = simpledrm_device_of_dev(crtc->dev);
+	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(crtc->dev);
 
-	return drm_crtc_helper_mode_valid_fixed(crtc, mode, &sdev->mode);
+	return drm_crtc_helper_mode_valid_fixed(crtc, mode, &sysfb->fb_mode);
 }
 
 /*
@@ -733,9 +729,9 @@ static const struct drm_encoder_funcs simpledrm_encoder_funcs = {
 
 static int simpledrm_connector_helper_get_modes(struct drm_connector *connector)
 {
-	struct simpledrm_device *sdev = simpledrm_device_of_dev(connector->dev);
+	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(connector->dev);
 
-	return drm_connector_helper_get_modes_fixed(connector, &sdev->mode);
+	return drm_connector_helper_get_modes_fixed(connector, &sysfb->fb_mode);
 }
 
 static const struct drm_connector_helper_funcs simpledrm_connector_helper_funcs = {
@@ -778,6 +774,7 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 	const struct simplefb_platform_data *pd = dev_get_platdata(&pdev->dev);
 	struct device_node *of_node = pdev->dev.of_node;
 	struct simpledrm_device *sdev;
+	struct drm_sysfb_device *sysfb;
 	struct drm_device *dev;
 	int width, height, stride;
 	int width_mm = 0, height_mm = 0;
@@ -792,10 +789,11 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 	size_t nformats;
 	int ret;
 
-	sdev = devm_drm_dev_alloc(&pdev->dev, drv, struct simpledrm_device, dev);
+	sdev = devm_drm_dev_alloc(&pdev->dev, drv, struct simpledrm_device, sysfb.dev);
 	if (IS_ERR(sdev))
 		return ERR_CAST(sdev);
-	dev = &sdev->dev;
+	sysfb = &sdev->sysfb;
+	dev = &sysfb->dev;
 	platform_set_drvdata(pdev, sdev);
 
 	/*
@@ -866,11 +864,11 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 	if (!height_mm)
 		height_mm = DRM_MODE_RES_MM(height, 96ul);
 
-	sdev->mode = simpledrm_mode(width, height, width_mm, height_mm);
-	sdev->format = format;
-	sdev->pitch = stride;
+	sysfb->fb_mode = simpledrm_mode(width, height, width_mm, height_mm);
+	sysfb->fb_format = format;
+	sysfb->fb_pitch = stride;
 
-	drm_dbg(dev, "display mode={" DRM_MODE_FMT "}\n", DRM_MODE_ARG(&sdev->mode));
+	drm_dbg(dev, "display mode={" DRM_MODE_FMT "}\n", DRM_MODE_ARG(&sysfb->fb_mode));
 	drm_dbg(dev, "framebuffer format=%p4cc, size=%dx%d, stride=%d byte\n",
 		&format->format, width, height, stride);
 
@@ -894,7 +892,7 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 		if (IS_ERR(screen_base))
 			return screen_base;
 
-		iosys_map_set_vaddr(&sdev->screen_base, screen_base);
+		iosys_map_set_vaddr(&sysfb->fb_addr, screen_base);
 	} else {
 		void __iomem *screen_base;
 
@@ -927,7 +925,7 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 		if (!screen_base)
 			return ERR_PTR(-ENOMEM);
 
-		iosys_map_set_vaddr_iomem(&sdev->screen_base, screen_base);
+		iosys_map_set_vaddr_iomem(&sysfb->fb_addr, screen_base);
 	}
 
 	/*
@@ -1026,19 +1024,21 @@ static struct drm_driver simpledrm_driver = {
 static int simpledrm_probe(struct platform_device *pdev)
 {
 	struct simpledrm_device *sdev;
+	struct drm_sysfb_device *sysfb;
 	struct drm_device *dev;
 	int ret;
 
 	sdev = simpledrm_device_create(&simpledrm_driver, pdev);
 	if (IS_ERR(sdev))
 		return PTR_ERR(sdev);
-	dev = &sdev->dev;
+	sysfb = &sdev->sysfb;
+	dev = &sysfb->dev;
 
 	ret = drm_dev_register(dev, 0);
 	if (ret)
 		return ret;
 
-	drm_client_setup(dev, sdev->format);
+	drm_client_setup(dev, sdev->sysfb.fb_format);
 
 	return 0;
 }
@@ -1046,7 +1046,7 @@ static int simpledrm_probe(struct platform_device *pdev)
 static void simpledrm_remove(struct platform_device *pdev)
 {
 	struct simpledrm_device *sdev = platform_get_drvdata(pdev);
-	struct drm_device *dev = &sdev->dev;
+	struct drm_device *dev = &sdev->sysfb.dev;
 
 	drm_dev_unplug(dev);
 }
