@@ -9077,7 +9077,7 @@ static ssize_t btrfs_encoded_read_inline(
 	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct extent_io_tree *io_tree = &inode->io_tree;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct extent_buffer *leaf;
 	struct btrfs_file_extent_item *item;
 	u64 ram_bytes;
@@ -9087,10 +9087,8 @@ static ssize_t btrfs_encoded_read_inline(
 	const bool nowait = (iocb->ki_flags & IOCB_NOWAIT);
 
 	path = btrfs_alloc_path();
-	if (!path) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!path)
+		return -ENOMEM;
 
 	path->nowait = nowait;
 
@@ -9099,9 +9097,9 @@ static ssize_t btrfs_encoded_read_inline(
 	if (ret) {
 		if (ret > 0) {
 			/* The extent item disappeared? */
-			ret = -EIO;
+			return -EIO;
 		}
-		goto out;
+		return ret;
 	}
 	leaf = path->nodes[0];
 	item = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_file_extent_item);
@@ -9114,17 +9112,16 @@ static ssize_t btrfs_encoded_read_inline(
 	ret = btrfs_encoded_io_compression_from_extent(fs_info,
 				 btrfs_file_extent_compression(leaf, item));
 	if (ret < 0)
-		goto out;
+		return ret;
 	encoded->compression = ret;
 	if (encoded->compression) {
 		size_t inline_size;
 
 		inline_size = btrfs_file_extent_inline_item_len(leaf,
 								path->slots[0]);
-		if (inline_size > count) {
-			ret = -ENOBUFS;
-			goto out;
-		}
+		if (inline_size > count)
+			return -ENOBUFS;
+
 		count = inline_size;
 		encoded->unencoded_len = ram_bytes;
 		encoded->unencoded_offset = iocb->ki_pos - extent_start;
@@ -9136,10 +9133,9 @@ static ssize_t btrfs_encoded_read_inline(
 	}
 
 	tmp = kmalloc(count, GFP_NOFS);
-	if (!tmp) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!tmp)
+		return -ENOMEM;
+
 	read_extent_buffer(leaf, tmp, ptr, count);
 	btrfs_release_path(path);
 	unlock_extent(io_tree, start, lockend, cached_state);
@@ -9150,8 +9146,7 @@ static ssize_t btrfs_encoded_read_inline(
 	if (ret != count)
 		ret = -EFAULT;
 	kfree(tmp);
-out:
-	btrfs_free_path(path);
+
 	return ret;
 }
 
