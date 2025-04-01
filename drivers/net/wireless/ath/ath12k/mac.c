@@ -4472,7 +4472,7 @@ static int ath12k_mac_op_hw_scan(struct ieee80211_hw *hw,
 		return -EINVAL;
 
 	/* check if any of the links of ML VIF is already started on
-	 * radio(ar) correpsondig to given scan frequency and use it,
+	 * radio(ar) corresponding to given scan frequency and use it,
 	 * if not use scan link (link 15) for scan purpose.
 	 */
 	link_id = ath12k_mac_find_link_id_by_ar(ahvif, ar);
@@ -10600,7 +10600,7 @@ static int ath12k_mac_op_remain_on_channel(struct ieee80211_hw *hw,
 		return -EINVAL;
 
 	/* check if any of the links of ML VIF is already started on
-	 * radio(ar) correpsondig to given scan frequency and use it,
+	 * radio(ar) corresponding to given scan frequency and use it,
 	 * if not use deflink(link 0) for scan purpose.
 	 */
 
