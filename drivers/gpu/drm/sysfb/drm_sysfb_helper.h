@@ -24,6 +24,8 @@ struct drm_display_mode drm_sysfb_mode(unsigned int width,
 struct drm_sysfb_device {
 	struct drm_device dev;
 
+	const u8 *edid; /* can be NULL */
+
 	/* hardware settings */
 	struct drm_display_mode fb_mode;
 	const struct drm_format_info *fb_format;

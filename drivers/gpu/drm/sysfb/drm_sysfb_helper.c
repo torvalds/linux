@@ -9,6 +9,7 @@
 #include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
@@ -281,10 +282,43 @@ EXPORT_SYMBOL(drm_sysfb_crtc_atomic_destroy_state);
  * Connector
  */
 
+static int drm_sysfb_get_edid_block(void *data, u8 *buf, unsigned int block, size_t len)
+{
+	struct drm_sysfb_device *sysfb = data;
+	const u8 *edid = sysfb->edid;
+	size_t off = block * EDID_LENGTH;
+	size_t end = off + len;
+
+	if (!edid)
+		return -EINVAL;
+	if (end > EDID_LENGTH)
+		return -EINVAL;
+	memcpy(buf, &edid[off], len);
+
+	/*
+	 * We don't have EDID extensions available and reporting them
+	 * will upset DRM helpers. Thus clear the extension field and
+	 * update the checksum. Adding the extension flag to the checksum
+	 * does this.
+	 */
+	buf[127] += buf[126];
+	buf[126] = 0;
+
+	return 0;
+}
+
 int drm_sysfb_connector_helper_get_modes(struct drm_connector *connector)
 {
 	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(connector->dev);
+	const struct drm_edid *drm_edid;
 
+	if (sysfb->edid) {
+		drm_edid = drm_edid_read_custom(connector, drm_sysfb_get_edid_block, sysfb);
+		drm_edid_connector_update(connector, drm_edid);
+		drm_edid_free(drm_edid);
+	}
+
+	/* Return the fixed mode even with EDID */
 	return drm_connector_helper_get_modes_fixed(connector, &sysfb->fb_mode);
 }
 EXPORT_SYMBOL(drm_sysfb_connector_helper_get_modes);

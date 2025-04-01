@@ -12,6 +12,7 @@
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_fbdev_shmem.h>
 #include <drm/drm_format_helper.h>
 #include <drm/drm_framebuffer.h>
@@ -227,6 +228,16 @@ static u64 display_get_address_of(struct drm_device *dev, struct device_node *of
 	return address;
 }
 
+static const u8 *display_get_edid_of(struct drm_device *dev, struct device_node *of_node,
+				     u8 buf[EDID_LENGTH])
+{
+	int ret = of_property_read_u8_array(of_node, "EDID", buf, EDID_LENGTH);
+
+	if (ret)
+		return NULL;
+	return buf;
+}
+
 static bool is_avivo(u32 vendor, u32 device)
 {
 	/* This will match most R5xx */
@@ -297,6 +308,8 @@ struct ofdrm_device {
 
 	/* colormap */
 	void __iomem *cmap_base;
+
+	u8 edid[EDID_LENGTH];
 
 	/* modesetting */
 	u32 formats[DRM_SYSFB_PLANE_NFORMATS(1)];
@@ -840,6 +853,7 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 	int width, height, depth, linebytes;
 	const struct drm_format_info *format;
 	u64 address;
+	const u8 *edid;
 	resource_size_t fb_size, fb_base, fb_pgbase, fb_pgsize;
 	struct resource *res, *mem;
 	void __iomem *screen_base;
@@ -989,6 +1003,9 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 		}
 	}
 
+	/* EDID is optional */
+	edid = display_get_edid_of(dev, of_node, odev->edid);
+
 	/*
 	 * Firmware framebuffer
 	 */
@@ -999,6 +1016,7 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 	sysfb->fb_pitch = linebytes;
 	if (odev->cmap_base)
 		sysfb->fb_gamma_lut_size = OFDRM_GAMMA_LUT_SIZE;
+	sysfb->edid = edid;
 
 	drm_dbg(dev, "display mode={" DRM_MODE_FMT "}\n", DRM_MODE_ARG(&sysfb->fb_mode));
 	drm_dbg(dev, "framebuffer format=%p4cc, size=%dx%d, linebytes=%d byte\n",
@@ -1072,6 +1090,8 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 	drm_connector_set_panel_orientation_with_quirk(connector,
 						       DRM_MODE_PANEL_ORIENTATION_UNKNOWN,
 						       width, height);
+	if (edid)
+		drm_connector_attach_edid_property(connector);
 
 	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret)
