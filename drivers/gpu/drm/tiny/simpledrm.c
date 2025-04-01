@@ -246,7 +246,6 @@ struct simpledrm_device {
 
 	/* modesetting */
 	uint32_t formats[8];
-	size_t nformats;
 	struct drm_plane primary_plane;
 	struct drm_crtc crtc;
 	struct drm_encoder encoder;
