@@ -7447,6 +7447,75 @@ Unused bitfields in the bitarrays must be set to zero.
 
 This capability connects the vcpu to an in-kernel XIVE device.
 
+6.76 KVM_CAP_HYPERV_SYNIC
+-------------------------
+
+:Architectures: x86
+:Target: vcpu
+
+This capability, if KVM_CHECK_EXTENSION indicates that it is
+available, means that the kernel has an implementation of the
+Hyper-V Synthetic interrupt controller(SynIC). Hyper-V SynIC is
+used to support Windows Hyper-V based guest paravirt drivers(VMBus).
+
+In order to use SynIC, it has to be activated by setting this
+capability via KVM_ENABLE_CAP ioctl on the vcpu fd. Note that this
+will disable the use of APIC hardware virtualization even if supported
+by the CPU, as it's incompatible with SynIC auto-EOI behavior.
+
+6.77 KVM_CAP_HYPERV_SYNIC2
+--------------------------
+
+:Architectures: x86
+:Target: vcpu
+
+This capability enables a newer version of Hyper-V Synthetic interrupt
+controller (SynIC).  The only difference with KVM_CAP_HYPERV_SYNIC is that KVM
+doesn't clear SynIC message and event flags pages when they are enabled by
+writing to the respective MSRs.
+
+6.78 KVM_CAP_HYPERV_DIRECT_TLBFLUSH
+-----------------------------------
+
+:Architectures: x86
+:Target: vcpu
+
+This capability indicates that KVM running on top of Hyper-V hypervisor
+enables Direct TLB flush for its guests meaning that TLB flush
+hypercalls are handled by Level 0 hypervisor (Hyper-V) bypassing KVM.
+Due to the different ABI for hypercall parameters between Hyper-V and
+KVM, enabling this capability effectively disables all hypercall
+handling by KVM (as some KVM hypercall may be mistakenly treated as TLB
+flush hypercalls by Hyper-V) so userspace should disable KVM identification
+in CPUID and only exposes Hyper-V identification. In this case, guest
+thinks it's running on Hyper-V and only use Hyper-V hypercalls.
+
+6.79 KVM_CAP_HYPERV_ENFORCE_CPUID
+---------------------------------
+
+:Architectures: x86
+:Target: vcpu
+
+When enabled, KVM will disable emulated Hyper-V features provided to the
+guest according to the bits Hyper-V CPUID feature leaves. Otherwise, all
+currently implemented Hyper-V features are provided unconditionally when
+Hyper-V identification is set in the HYPERV_CPUID_INTERFACE (0x40000001)
+leaf.
+
+6.80 KVM_CAP_ENFORCE_PV_FEATURE_CPUID
+-------------------------------------
+
+:Architectures: x86
+:Target: vcpu
+
+When enabled, KVM will disable paravirtual features provided to the
+guest according to the bits in the KVM_CPUID_FEATURES CPUID leaf
+(0x40000001). Otherwise, a guest may use the paravirtual features
+regardless of what has actually been exposed through the CPUID leaf.
+
+.. _KVM_CAP_DIRTY_LOG_RING:
+
+
 .. _cap_enable_vm:
 
 7. Capabilities that can be enabled on VMs
@@ -7963,23 +8032,6 @@ default.
 
 See Documentation/arch/x86/sgx.rst for more details.
 
-7.26 KVM_CAP_PPC_RPT_INVALIDATE
--------------------------------
-
-:Architectures: ppc
-:Type: vm
-
-This capability indicates that the kernel is capable of handling
-H_RPT_INVALIDATE hcall.
-
-In order to enable the use of H_RPT_INVALIDATE in the guest,
-user space might have to advertise it for the guest. For example,
-IBM pSeries (sPAPR) guest starts using it if "hcall-rpt-invalidate" is
-present in the "ibm,hypertas-functions" device-tree property.
-
-This capability is enabled for hypervisors on platforms like POWER9
-that support radix MMU.
-
 7.27 KVM_CAP_EXIT_ON_EMULATION_FAILURE
 --------------------------------------
 
@@ -8036,19 +8088,6 @@ indicated by the fd to the VM this is called on.
 
 This is intended to support intra-host migration of VMs between userspace VMMs,
 upgrading the VMM process without interrupting the guest.
-
-7.30 KVM_CAP_PPC_AIL_MODE_3
--------------------------------
-
-:Architectures: ppc
-:Type: vm
-
-This capability indicates that the kernel supports the mode 3 setting for the
-"Address Translation Mode on Interrupt" aka "Alternate Interrupt Location"
-resource that is controlled with the H_SET_MODE hypercall.
-
-This capability allows a guest kernel to use a better-performance mode for
-handling interrupts and system calls.
 
 7.31 KVM_CAP_DISABLE_QUIRKS2
 ----------------------------
@@ -8207,27 +8246,6 @@ This capability is aimed to mitigate the threat that malicious VMs can
 cause CPU stuck (due to event windows don't open up) and make the CPU
 unavailable to host or other VMs.
 
-7.34 KVM_CAP_MEMORY_FAULT_INFO
-------------------------------
-
-:Architectures: x86
-:Returns: Informational only, -EINVAL on direct KVM_ENABLE_CAP.
-
-The presence of this capability indicates that KVM_RUN will fill
-kvm_run.memory_fault if KVM cannot resolve a guest page fault VM-Exit, e.g. if
-there is a valid memslot but no backing VMA for the corresponding host virtual
-address.
-
-The information in kvm_run.memory_fault is valid if and only if KVM_RUN returns
-an error with errno=EFAULT or errno=EHWPOISON *and* kvm_run.exit_reason is set
-to KVM_EXIT_MEMORY_FAULT.
-
-Note: Userspaces which attempt to resolve memory faults so that they can retry
-KVM_RUN are encouraged to guard against repeatedly receiving the same
-error/annotated fault.
-
-See KVM_EXIT_MEMORY_FAULT for more information.
-
 7.35 KVM_CAP_X86_APIC_BUS_CYCLES_NS
 -----------------------------------
 
@@ -8245,19 +8263,220 @@ by KVM_CHECK_EXTENSION.
 Note: Userspace is responsible for correctly configuring CPUID 0x15, a.k.a. the
 core crystal clock frequency, if a non-zero CPUID 0x15 is exposed to the guest.
 
-7.36 KVM_CAP_X86_GUEST_MODE
-------------------------------
+7.36 KVM_CAP_DIRTY_LOG_RING/KVM_CAP_DIRTY_LOG_RING_ACQ_REL
+----------------------------------------------------------
+
+:Architectures: x86, arm64
+:Type: vm
+:Parameters: args[0] - size of the dirty log ring
+
+KVM is capable of tracking dirty memory using ring buffers that are
+mmapped into userspace; there is one dirty ring per vcpu.
+
+The dirty ring is available to userspace as an array of
+``struct kvm_dirty_gfn``.  Each dirty entry is defined as::
+
+  struct kvm_dirty_gfn {
+          __u32 flags;
+          __u32 slot; /* as_id | slot_id */
+          __u64 offset;
+  };
+
+The following values are defined for the flags field to define the
+current state of the entry::
+
+  #define KVM_DIRTY_GFN_F_DIRTY           BIT(0)
+  #define KVM_DIRTY_GFN_F_RESET           BIT(1)
+  #define KVM_DIRTY_GFN_F_MASK            0x3
+
+Userspace should call KVM_ENABLE_CAP ioctl right after KVM_CREATE_VM
+ioctl to enable this capability for the new guest and set the size of
+the rings.  Enabling the capability is only allowed before creating any
+vCPU, and the size of the ring must be a power of two.  The larger the
+ring buffer, the less likely the ring is full and the VM is forced to
+exit to userspace. The optimal size depends on the workload, but it is
+recommended that it be at least 64 KiB (4096 entries).
+
+Just like for dirty page bitmaps, the buffer tracks writes to
+all user memory regions for which the KVM_MEM_LOG_DIRTY_PAGES flag was
+set in KVM_SET_USER_MEMORY_REGION.  Once a memory region is registered
+with the flag set, userspace can start harvesting dirty pages from the
+ring buffer.
+
+An entry in the ring buffer can be unused (flag bits ``00``),
+dirty (flag bits ``01``) or harvested (flag bits ``1X``).  The
+state machine for the entry is as follows::
+
+          dirtied         harvested        reset
+     00 -----------> 01 -------------> 1X -------+
+      ^                                          |
+      |                                          |
+      +------------------------------------------+
+
+To harvest the dirty pages, userspace accesses the mmapped ring buffer
+to read the dirty GFNs.  If the flags has the DIRTY bit set (at this stage
+the RESET bit must be cleared), then it means this GFN is a dirty GFN.
+The userspace should harvest this GFN and mark the flags from state
+``01b`` to ``1Xb`` (bit 0 will be ignored by KVM, but bit 1 must be set
+to show that this GFN is harvested and waiting for a reset), and move
+on to the next GFN.  The userspace should continue to do this until the
+flags of a GFN have the DIRTY bit cleared, meaning that it has harvested
+all the dirty GFNs that were available.
+
+Note that on weakly ordered architectures, userspace accesses to the
+ring buffer (and more specifically the 'flags' field) must be ordered,
+using load-acquire/store-release accessors when available, or any
+other memory barrier that will ensure this ordering.
+
+It's not necessary for userspace to harvest the all dirty GFNs at once.
+However it must collect the dirty GFNs in sequence, i.e., the userspace
+program cannot skip one dirty GFN to collect the one next to it.
+
+After processing one or more entries in the ring buffer, userspace
+calls the VM ioctl KVM_RESET_DIRTY_RINGS to notify the kernel about
+it, so that the kernel will reprotect those collected GFNs.
+Therefore, the ioctl must be called *before* reading the content of
+the dirty pages.
+
+The dirty ring can get full.  When it happens, the KVM_RUN of the
+vcpu will return with exit reason KVM_EXIT_DIRTY_LOG_FULL.
+
+The dirty ring interface has a major difference comparing to the
+KVM_GET_DIRTY_LOG interface in that, when reading the dirty ring from
+userspace, it's still possible that the kernel has not yet flushed the
+processor's dirty page buffers into the kernel buffer (with dirty bitmaps, the
+flushing is done by the KVM_GET_DIRTY_LOG ioctl).  To achieve that, one
+needs to kick the vcpu out of KVM_RUN using a signal.  The resulting
+vmexit ensures that all dirty GFNs are flushed to the dirty rings.
+
+NOTE: KVM_CAP_DIRTY_LOG_RING_ACQ_REL is the only capability that
+should be exposed by weakly ordered architecture, in order to indicate
+the additional memory ordering requirements imposed on userspace when
+reading the state of an entry and mutating it from DIRTY to HARVESTED.
+Architecture with TSO-like ordering (such as x86) are allowed to
+expose both KVM_CAP_DIRTY_LOG_RING and KVM_CAP_DIRTY_LOG_RING_ACQ_REL
+to userspace.
+
+After enabling the dirty rings, the userspace needs to detect the
+capability of KVM_CAP_DIRTY_LOG_RING_WITH_BITMAP to see whether the
+ring structures can be backed by per-slot bitmaps. With this capability
+advertised, it means the architecture can dirty guest pages without
+vcpu/ring context, so that some of the dirty information will still be
+maintained in the bitmap structure. KVM_CAP_DIRTY_LOG_RING_WITH_BITMAP
+can't be enabled if the capability of KVM_CAP_DIRTY_LOG_RING_ACQ_REL
+hasn't been enabled, or any memslot has been existing.
+
+Note that the bitmap here is only a backup of the ring structure. The
+use of the ring and bitmap combination is only beneficial if there is
+only a very small amount of memory that is dirtied out of vcpu/ring
+context. Otherwise, the stand-alone per-slot bitmap mechanism needs to
+be considered.
+
+To collect dirty bits in the backup bitmap, userspace can use the same
+KVM_GET_DIRTY_LOG ioctl. KVM_CLEAR_DIRTY_LOG isn't needed as long as all
+the generation of the dirty bits is done in a single pass. Collecting
+the dirty bitmap should be the very last thing that the VMM does before
+considering the state as complete. VMM needs to ensure that the dirty
+state is final and avoid missing dirty pages from another ioctl ordered
+after the bitmap collection.
+
+NOTE: Multiple examples of using the backup bitmap: (1) save vgic/its
+tables through command KVM_DEV_ARM_{VGIC_GRP_CTRL, ITS_SAVE_TABLES} on
+KVM device "kvm-arm-vgic-its". (2) restore vgic/its tables through
+command KVM_DEV_ARM_{VGIC_GRP_CTRL, ITS_RESTORE_TABLES} on KVM device
+"kvm-arm-vgic-its". VGICv3 LPI pending status is restored. (3) save
+vgic3 pending table through KVM_DEV_ARM_VGIC_{GRP_CTRL, SAVE_PENDING_TABLES}
+command on KVM device "kvm-arm-vgic-v3".
+
+7.37 KVM_CAP_PMU_CAPABILITY
+---------------------------
 
 :Architectures: x86
-:Returns: Informational only, -EINVAL on direct KVM_ENABLE_CAP.
+:Type: vm
+:Parameters: arg[0] is bitmask of PMU virtualization capabilities.
+:Returns: 0 on success, -EINVAL when arg[0] contains invalid bits
 
-The presence of this capability indicates that KVM_RUN will update the
-KVM_RUN_X86_GUEST_MODE bit in kvm_run.flags to indicate whether the
-vCPU was executing nested guest code when it exited.
+This capability alters PMU virtualization in KVM.
 
-KVM exits with the register state of either the L1 or L2 guest
-depending on which executed at the time of an exit. Userspace must
-take care to differentiate between these cases.
+Calling KVM_CHECK_EXTENSION for this capability returns a bitmask of
+PMU virtualization capabilities that can be adjusted on a VM.
+
+The argument to KVM_ENABLE_CAP is also a bitmask and selects specific
+PMU virtualization capabilities to be applied to the VM.  This can
+only be invoked on a VM prior to the creation of VCPUs.
+
+At this time, KVM_PMU_CAP_DISABLE is the only capability.  Setting
+this capability will disable PMU virtualization for that VM.  Usermode
+should adjust CPUID leaf 0xA to reflect that the PMU is disabled.
+
+7.38 KVM_CAP_VM_DISABLE_NX_HUGE_PAGES
+-------------------------------------
+
+:Architectures: x86
+:Type: vm
+:Parameters: arg[0] must be 0.
+:Returns: 0 on success, -EPERM if the userspace process does not
+          have CAP_SYS_BOOT, -EINVAL if args[0] is not 0 or any vCPUs have been
+          created.
+
+This capability disables the NX huge pages mitigation for iTLB MULTIHIT.
+
+The capability has no effect if the nx_huge_pages module parameter is not set.
+
+This capability may only be set before any vCPUs are created.
+
+7.39 KVM_CAP_ARM_EAGER_SPLIT_CHUNK_SIZE
+---------------------------------------
+
+:Architectures: arm64
+:Type: vm
+:Parameters: arg[0] is the new split chunk size.
+:Returns: 0 on success, -EINVAL if any memslot was already created.
+
+This capability sets the chunk size used in Eager Page Splitting.
+
+Eager Page Splitting improves the performance of dirty-logging (used
+in live migrations) when guest memory is backed by huge-pages.  It
+avoids splitting huge-pages (into PAGE_SIZE pages) on fault, by doing
+it eagerly when enabling dirty logging (with the
+KVM_MEM_LOG_DIRTY_PAGES flag for a memory region), or when using
+KVM_CLEAR_DIRTY_LOG.
+
+The chunk size specifies how many pages to break at a time, using a
+single allocation for each chunk. Bigger the chunk size, more pages
+need to be allocated ahead of time.
+
+The chunk size needs to be a valid block size. The list of acceptable
+block sizes is exposed in KVM_CAP_ARM_SUPPORTED_BLOCK_SIZES as a
+64-bit bitmap (each bit describing a block size). The default value is
+0, to disable the eager page splitting.
+
+7.40 KVM_CAP_EXIT_HYPERCALL
+---------------------------
+
+:Architectures: x86
+:Type: vm
+
+This capability, if enabled, will cause KVM to exit to userspace
+with KVM_EXIT_HYPERCALL exit reason to process some hypercalls.
+
+Calling KVM_CHECK_EXTENSION for this capability will return a bitmask
+of hypercalls that can be configured to exit to userspace.
+Right now, the only such hypercall is KVM_HC_MAP_GPA_RANGE.
+
+The argument to KVM_ENABLE_CAP is also a bitmask, and must be a subset
+of the result of KVM_CHECK_EXTENSION.  KVM will forward to userspace
+the hypercalls whose corresponding bit is in the argument, and return
+ENOSYS for the others.
+
+7.41 KVM_CAP_ARM_SYSTEM_SUSPEND
+-------------------------------
+
+:Architectures: arm64
+:Type: vm
+
+When enabled, KVM will exit to userspace with KVM_EXIT_SYSTEM_EVENT of
+type KVM_SYSTEM_EVENT_SUSPEND to process the guest suspend request.
 
 7.37 KVM_CAP_ARM_WRITABLE_IMP_ID_REGS
 -------------------------------------
@@ -8293,21 +8512,6 @@ available, means that the kernel has an implementation of the
 H_RANDOM hypercall backed by a hardware random-number generator.
 If present, the kernel H_RANDOM handler can be enabled for guest use
 with the KVM_CAP_PPC_ENABLE_HCALL capability.
-
-8.2 KVM_CAP_HYPERV_SYNIC
-------------------------
-
-:Architectures: x86
-
-This capability, if KVM_CHECK_EXTENSION indicates that it is
-available, means that the kernel has an implementation of the
-Hyper-V Synthetic interrupt controller(SynIC). Hyper-V SynIC is
-used to support Windows Hyper-V based guest paravirt drivers(VMBus).
-
-In order to use SynIC, it has to be activated by setting this
-capability via KVM_ENABLE_CAP ioctl on the vcpu fd. Note that this
-will disable the use of APIC hardware virtualization even if supported
-by the CPU, as it's incompatible with SynIC auto-EOI behavior.
 
 8.3 KVM_CAP_PPC_MMU_RADIX
 -------------------------
@@ -8454,16 +8658,6 @@ virtual SMT modes that can be set using KVM_CAP_PPC_SMT.  If bit N
 (counting from the right) is set, then a virtual SMT mode of 2^N is
 available.
 
-8.11 KVM_CAP_HYPERV_SYNIC2
---------------------------
-
-:Architectures: x86
-
-This capability enables a newer version of Hyper-V Synthetic interrupt
-controller (SynIC).  The only difference with KVM_CAP_HYPERV_SYNIC is that KVM
-doesn't clear SynIC message and event flags pages when they are enabled by
-writing to the respective MSRs.
-
 8.12 KVM_CAP_HYPERV_VP_INDEX
 ----------------------------
 
@@ -8478,7 +8672,6 @@ capability is absent, userspace can still query this msr's value.
 -------------------------------
 
 :Architectures: s390
-:Parameters: none
 
 This capability indicates if the flic device will be able to get/set the
 AIS states for migration via the KVM_DEV_FLIC_AISM_ALL attribute and allows
@@ -8551,21 +8744,6 @@ See KVM_CAP_VCPU_EVENTS for more details.
 This capability indicates that KVM supports paravirtualized Hyper-V IPI send
 hypercalls:
 HvCallSendSyntheticClusterIpi, HvCallSendSyntheticClusterIpiEx.
-
-8.21 KVM_CAP_HYPERV_DIRECT_TLBFLUSH
------------------------------------
-
-:Architectures: x86
-
-This capability indicates that KVM running on top of Hyper-V hypervisor
-enables Direct TLB flush for its guests meaning that TLB flush
-hypercalls are handled by Level 0 hypervisor (Hyper-V) bypassing KVM.
-Due to the different ABI for hypercall parameters between Hyper-V and
-KVM, enabling this capability effectively disables all hypercall
-handling by KVM (as some KVM hypercall may be mistakenly treated as TLB
-flush hypercalls by Hyper-V) so userspace should disable KVM identification
-in CPUID and only exposes Hyper-V identification. In this case, guest
-thinks it's running on Hyper-V and only use Hyper-V hypercalls.
 
 8.22 KVM_CAP_S390_VCPU_RESETS
 -----------------------------
@@ -8643,142 +8821,6 @@ ranges that KVM should deny access to.
 In combination with KVM_CAP_X86_USER_SPACE_MSR, this allows user space to
 trap and emulate MSRs that are outside of the scope of KVM as well as
 limit the attack surface on KVM's MSR emulation code.
-
-8.28 KVM_CAP_ENFORCE_PV_FEATURE_CPUID
--------------------------------------
-
-:Architectures: x86
-
-When enabled, KVM will disable paravirtual features provided to the
-guest according to the bits in the KVM_CPUID_FEATURES CPUID leaf
-(0x40000001). Otherwise, a guest may use the paravirtual features
-regardless of what has actually been exposed through the CPUID leaf.
-
-.. _KVM_CAP_DIRTY_LOG_RING:
-
-8.29 KVM_CAP_DIRTY_LOG_RING/KVM_CAP_DIRTY_LOG_RING_ACQ_REL
-----------------------------------------------------------
-
-:Architectures: x86, arm64
-:Parameters: args[0] - size of the dirty log ring
-
-KVM is capable of tracking dirty memory using ring buffers that are
-mmapped into userspace; there is one dirty ring per vcpu.
-
-The dirty ring is available to userspace as an array of
-``struct kvm_dirty_gfn``.  Each dirty entry is defined as::
-
-  struct kvm_dirty_gfn {
-          __u32 flags;
-          __u32 slot; /* as_id | slot_id */
-          __u64 offset;
-  };
-
-The following values are defined for the flags field to define the
-current state of the entry::
-
-  #define KVM_DIRTY_GFN_F_DIRTY           BIT(0)
-  #define KVM_DIRTY_GFN_F_RESET           BIT(1)
-  #define KVM_DIRTY_GFN_F_MASK            0x3
-
-Userspace should call KVM_ENABLE_CAP ioctl right after KVM_CREATE_VM
-ioctl to enable this capability for the new guest and set the size of
-the rings.  Enabling the capability is only allowed before creating any
-vCPU, and the size of the ring must be a power of two.  The larger the
-ring buffer, the less likely the ring is full and the VM is forced to
-exit to userspace. The optimal size depends on the workload, but it is
-recommended that it be at least 64 KiB (4096 entries).
-
-Just like for dirty page bitmaps, the buffer tracks writes to
-all user memory regions for which the KVM_MEM_LOG_DIRTY_PAGES flag was
-set in KVM_SET_USER_MEMORY_REGION.  Once a memory region is registered
-with the flag set, userspace can start harvesting dirty pages from the
-ring buffer.
-
-An entry in the ring buffer can be unused (flag bits ``00``),
-dirty (flag bits ``01``) or harvested (flag bits ``1X``).  The
-state machine for the entry is as follows::
-
-          dirtied         harvested        reset
-     00 -----------> 01 -------------> 1X -------+
-      ^                                          |
-      |                                          |
-      +------------------------------------------+
-
-To harvest the dirty pages, userspace accesses the mmapped ring buffer
-to read the dirty GFNs.  If the flags has the DIRTY bit set (at this stage
-the RESET bit must be cleared), then it means this GFN is a dirty GFN.
-The userspace should harvest this GFN and mark the flags from state
-``01b`` to ``1Xb`` (bit 0 will be ignored by KVM, but bit 1 must be set
-to show that this GFN is harvested and waiting for a reset), and move
-on to the next GFN.  The userspace should continue to do this until the
-flags of a GFN have the DIRTY bit cleared, meaning that it has harvested
-all the dirty GFNs that were available.
-
-Note that on weakly ordered architectures, userspace accesses to the
-ring buffer (and more specifically the 'flags' field) must be ordered,
-using load-acquire/store-release accessors when available, or any
-other memory barrier that will ensure this ordering.
-
-It's not necessary for userspace to harvest the all dirty GFNs at once.
-However it must collect the dirty GFNs in sequence, i.e., the userspace
-program cannot skip one dirty GFN to collect the one next to it.
-
-After processing one or more entries in the ring buffer, userspace
-calls the VM ioctl KVM_RESET_DIRTY_RINGS to notify the kernel about
-it, so that the kernel will reprotect those collected GFNs.
-Therefore, the ioctl must be called *before* reading the content of
-the dirty pages.
-
-The dirty ring can get full.  When it happens, the KVM_RUN of the
-vcpu will return with exit reason KVM_EXIT_DIRTY_LOG_FULL.
-
-The dirty ring interface has a major difference comparing to the
-KVM_GET_DIRTY_LOG interface in that, when reading the dirty ring from
-userspace, it's still possible that the kernel has not yet flushed the
-processor's dirty page buffers into the kernel buffer (with dirty bitmaps, the
-flushing is done by the KVM_GET_DIRTY_LOG ioctl).  To achieve that, one
-needs to kick the vcpu out of KVM_RUN using a signal.  The resulting
-vmexit ensures that all dirty GFNs are flushed to the dirty rings.
-
-NOTE: KVM_CAP_DIRTY_LOG_RING_ACQ_REL is the only capability that
-should be exposed by weakly ordered architecture, in order to indicate
-the additional memory ordering requirements imposed on userspace when
-reading the state of an entry and mutating it from DIRTY to HARVESTED.
-Architecture with TSO-like ordering (such as x86) are allowed to
-expose both KVM_CAP_DIRTY_LOG_RING and KVM_CAP_DIRTY_LOG_RING_ACQ_REL
-to userspace.
-
-After enabling the dirty rings, the userspace needs to detect the
-capability of KVM_CAP_DIRTY_LOG_RING_WITH_BITMAP to see whether the
-ring structures can be backed by per-slot bitmaps. With this capability
-advertised, it means the architecture can dirty guest pages without
-vcpu/ring context, so that some of the dirty information will still be
-maintained in the bitmap structure. KVM_CAP_DIRTY_LOG_RING_WITH_BITMAP
-can't be enabled if the capability of KVM_CAP_DIRTY_LOG_RING_ACQ_REL
-hasn't been enabled, or any memslot has been existing.
-
-Note that the bitmap here is only a backup of the ring structure. The
-use of the ring and bitmap combination is only beneficial if there is
-only a very small amount of memory that is dirtied out of vcpu/ring
-context. Otherwise, the stand-alone per-slot bitmap mechanism needs to
-be considered.
-
-To collect dirty bits in the backup bitmap, userspace can use the same
-KVM_GET_DIRTY_LOG ioctl. KVM_CLEAR_DIRTY_LOG isn't needed as long as all
-the generation of the dirty bits is done in a single pass. Collecting
-the dirty bitmap should be the very last thing that the VMM does before
-considering the state as complete. VMM needs to ensure that the dirty
-state is final and avoid missing dirty pages from another ioctl ordered
-after the bitmap collection.
-
-NOTE: Multiple examples of using the backup bitmap: (1) save vgic/its
-tables through command KVM_DEV_ARM_{VGIC_GRP_CTRL, ITS_SAVE_TABLES} on
-KVM device "kvm-arm-vgic-its". (2) restore vgic/its tables through
-command KVM_DEV_ARM_{VGIC_GRP_CTRL, ITS_RESTORE_TABLES} on KVM device
-"kvm-arm-vgic-its". VGICv3 LPI pending status is restored. (3) save
-vgic3 pending table through KVM_DEV_ARM_VGIC_{GRP_CTRL, SAVE_PENDING_TABLES}
-command on KVM device "kvm-arm-vgic-v3".
 
 8.30 KVM_CAP_XEN_HVM
 --------------------
@@ -8878,65 +8920,6 @@ This capability indicates that the KVM virtual PTP service is
 supported in the host. A VMM can check whether the service is
 available to the guest on migration.
 
-8.33 KVM_CAP_HYPERV_ENFORCE_CPUID
----------------------------------
-
-:Architectures: x86
-
-When enabled, KVM will disable emulated Hyper-V features provided to the
-guest according to the bits Hyper-V CPUID feature leaves. Otherwise, all
-currently implemented Hyper-V features are provided unconditionally when
-Hyper-V identification is set in the HYPERV_CPUID_INTERFACE (0x40000001)
-leaf.
-
-8.34 KVM_CAP_EXIT_HYPERCALL
----------------------------
-
-:Architectures: x86
-:Type: vm
-
-This capability, if enabled, will cause KVM to exit to userspace
-with KVM_EXIT_HYPERCALL exit reason to process some hypercalls.
-
-Calling KVM_CHECK_EXTENSION for this capability will return a bitmask
-of hypercalls that can be configured to exit to userspace.
-Right now, the only such hypercall is KVM_HC_MAP_GPA_RANGE.
-
-The argument to KVM_ENABLE_CAP is also a bitmask, and must be a subset
-of the result of KVM_CHECK_EXTENSION.  KVM will forward to userspace
-the hypercalls whose corresponding bit is in the argument, and return
-ENOSYS for the others.
-
-8.35 KVM_CAP_PMU_CAPABILITY
----------------------------
-
-:Architectures: x86
-:Type: vm
-:Parameters: arg[0] is bitmask of PMU virtualization capabilities.
-:Returns: 0 on success, -EINVAL when arg[0] contains invalid bits
-
-This capability alters PMU virtualization in KVM.
-
-Calling KVM_CHECK_EXTENSION for this capability returns a bitmask of
-PMU virtualization capabilities that can be adjusted on a VM.
-
-The argument to KVM_ENABLE_CAP is also a bitmask and selects specific
-PMU virtualization capabilities to be applied to the VM.  This can
-only be invoked on a VM prior to the creation of VCPUs.
-
-At this time, KVM_PMU_CAP_DISABLE is the only capability.  Setting
-this capability will disable PMU virtualization for that VM.  Usermode
-should adjust CPUID leaf 0xA to reflect that the PMU is disabled.
-
-8.36 KVM_CAP_ARM_SYSTEM_SUSPEND
--------------------------------
-
-:Architectures: arm64
-:Type: vm
-
-When enabled, KVM will exit to userspace with KVM_EXIT_SYSTEM_EVENT of
-type KVM_SYSTEM_EVENT_SUSPEND to process the guest suspend request.
-
 8.37 KVM_CAP_S390_PROTECTED_DUMP
 --------------------------------
 
@@ -8948,22 +8931,6 @@ PV guests. The `KVM_PV_DUMP` command is available for the
 `KVM_S390_PV_COMMAND` ioctl and the `KVM_PV_INFO` command provides
 dump related UV data. Also the vcpu ioctl `KVM_S390_PV_CPU_COMMAND` is
 available and supports the `KVM_PV_DUMP_CPU` subcommand.
-
-8.38 KVM_CAP_VM_DISABLE_NX_HUGE_PAGES
--------------------------------------
-
-:Architectures: x86
-:Type: vm
-:Parameters: arg[0] must be 0.
-:Returns: 0 on success, -EPERM if the userspace process does not
-          have CAP_SYS_BOOT, -EINVAL if args[0] is not 0 or any vCPUs have been
-          created.
-
-This capability disables the NX huge pages mitigation for iTLB MULTIHIT.
-
-The capability has no effect if the nx_huge_pages module parameter is not set.
-
-This capability may only be set before any vCPUs are created.
 
 8.39 KVM_CAP_S390_CPU_TOPOLOGY
 ------------------------------
@@ -8989,32 +8956,6 @@ structure.
 When getting the Modified Change Topology Report value, the attr->addr
 must point to a byte where the value will be stored or retrieved from.
 
-8.40 KVM_CAP_ARM_EAGER_SPLIT_CHUNK_SIZE
----------------------------------------
-
-:Architectures: arm64
-:Type: vm
-:Parameters: arg[0] is the new split chunk size.
-:Returns: 0 on success, -EINVAL if any memslot was already created.
-
-This capability sets the chunk size used in Eager Page Splitting.
-
-Eager Page Splitting improves the performance of dirty-logging (used
-in live migrations) when guest memory is backed by huge-pages.  It
-avoids splitting huge-pages (into PAGE_SIZE pages) on fault, by doing
-it eagerly when enabling dirty logging (with the
-KVM_MEM_LOG_DIRTY_PAGES flag for a memory region), or when using
-KVM_CLEAR_DIRTY_LOG.
-
-The chunk size specifies how many pages to break at a time, using a
-single allocation for each chunk. Bigger the chunk size, more pages
-need to be allocated ahead of time.
-
-The chunk size needs to be a valid block size. The list of acceptable
-block sizes is exposed in KVM_CAP_ARM_SUPPORTED_BLOCK_SIZES as a
-64-bit bitmap (each bit describing a block size). The default value is
-0, to disable the eager page splitting.
-
 8.41 KVM_CAP_VM_TYPES
 ---------------------
 
@@ -9033,6 +8974,67 @@ Note, KVM_X86_SW_PROTECTED_VM is currently only for development and testing.
 Do not use KVM_X86_SW_PROTECTED_VM for "real" VMs, and especially not in
 production.  The behavior and effective ABI for software-protected VMs is
 unstable.
+
+8.42 KVM_CAP_PPC_RPT_INVALIDATE
+-------------------------------
+
+:Architectures: ppc
+
+This capability indicates that the kernel is capable of handling
+H_RPT_INVALIDATE hcall.
+
+In order to enable the use of H_RPT_INVALIDATE in the guest,
+user space might have to advertise it for the guest. For example,
+IBM pSeries (sPAPR) guest starts using it if "hcall-rpt-invalidate" is
+present in the "ibm,hypertas-functions" device-tree property.
+
+This capability is enabled for hypervisors on platforms like POWER9
+that support radix MMU.
+
+8.43 KVM_CAP_PPC_AIL_MODE_3
+---------------------------
+
+:Architectures: ppc
+
+This capability indicates that the kernel supports the mode 3 setting for the
+"Address Translation Mode on Interrupt" aka "Alternate Interrupt Location"
+resource that is controlled with the H_SET_MODE hypercall.
+
+This capability allows a guest kernel to use a better-performance mode for
+handling interrupts and system calls.
+
+8.44 KVM_CAP_MEMORY_FAULT_INFO
+------------------------------
+
+:Architectures: x86
+
+The presence of this capability indicates that KVM_RUN will fill
+kvm_run.memory_fault if KVM cannot resolve a guest page fault VM-Exit, e.g. if
+there is a valid memslot but no backing VMA for the corresponding host virtual
+address.
+
+The information in kvm_run.memory_fault is valid if and only if KVM_RUN returns
+an error with errno=EFAULT or errno=EHWPOISON *and* kvm_run.exit_reason is set
+to KVM_EXIT_MEMORY_FAULT.
+
+Note: Userspaces which attempt to resolve memory faults so that they can retry
+KVM_RUN are encouraged to guard against repeatedly receiving the same
+error/annotated fault.
+
+See KVM_EXIT_MEMORY_FAULT for more information.
+
+8.45 KVM_CAP_X86_GUEST_MODE
+---------------------------
+
+:Architectures: x86
+
+The presence of this capability indicates that KVM_RUN will update the
+KVM_RUN_X86_GUEST_MODE bit in kvm_run.flags to indicate whether the
+vCPU was executing nested guest code when it exited.
+
+KVM exits with the register state of either the L1 or L2 guest
+depending on which executed at the time of an exit. Userspace must
+take care to differentiate between these cases.
 
 9. Known KVM API problems
 =========================
