@@ -1220,7 +1220,7 @@ static void mmc_blk_issue_erase_rq(struct mmc_queue *mq, struct request *req,
 	int err = 0;
 	blk_status_t status = BLK_STS_OK;
 
-	if (!mmc_can_erase(card)) {
+	if (!mmc_card_can_erase(card)) {
 		status = BLK_STS_NOTSUPP;
 		goto fail;
 	}

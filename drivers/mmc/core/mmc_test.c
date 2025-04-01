@@ -1510,7 +1510,7 @@ static int mmc_test_area_erase(struct mmc_test_card *test)
 {
 	struct mmc_test_area *t = &test->area;
 
-	if (!mmc_can_erase(test->card))
+	if (!mmc_card_can_erase(test->card))
 		return 0;
 
 	return mmc_erase(test->card, t->dev_addr, t->max_sz >> 9,
@@ -1749,7 +1749,7 @@ static int mmc_test_profile_trim_perf(struct mmc_test_card *test)
 	if (!mmc_can_trim(test->card))
 		return RESULT_UNSUP_CARD;
 
-	if (!mmc_can_erase(test->card))
+	if (!mmc_card_can_erase(test->card))
 		return RESULT_UNSUP_HOST;
 
 	for (sz = 512; sz < t->max_sz; sz <<= 1) {
@@ -1866,7 +1866,7 @@ static int mmc_test_profile_seq_trim_perf(struct mmc_test_card *test)
 	if (!mmc_can_trim(test->card))
 		return RESULT_UNSUP_CARD;
 
-	if (!mmc_can_erase(test->card))
+	if (!mmc_card_can_erase(test->card))
 		return RESULT_UNSUP_HOST;
 
 	for (sz = 512; sz <= t->max_sz; sz <<= 1) {
@@ -2114,7 +2114,7 @@ static int mmc_test_rw_multiple(struct mmc_test_card *test,
 		return 0;
 
 	/* prepare test area */
-	if (mmc_can_erase(test->card) &&
+	if (mmc_card_can_erase(test->card) &&
 	    tdata->prepare & MMC_TEST_PREP_ERASE) {
 		ret = mmc_erase(test->card, dev_addr,
 				size / 512, test->card->erase_arg);

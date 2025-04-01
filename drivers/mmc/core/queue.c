@@ -352,7 +352,7 @@ static struct gendisk *mmc_alloc_disk(struct mmc_queue *mq,
 	};
 	struct gendisk *disk;
 
-	if (mmc_can_erase(card))
+	if (mmc_card_can_erase(card))
 		mmc_queue_setup_discard(card, &lim);
 
 	lim.max_hw_sectors = min(host->max_blk_count, host->max_req_size / 512);
