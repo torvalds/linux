@@ -414,27 +414,28 @@ void intel_posted_msi_init(void)
  */
 static __always_inline bool handle_pending_pir(u64 *pir, struct pt_regs *regs)
 {
+	unsigned long pir_copy[4], pending = 0;
 	int i, vec = FIRST_EXTERNAL_VECTOR;
-	unsigned long pir_copy[4];
-	bool handled = false;
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < 4; i++) {
 		pir_copy[i] = READ_ONCE(pir[i]);
+		pending |= pir_copy[i];
+	}
+
+	if (!pending)
+		return false;
 
 	for (i = 0; i < 4; i++) {
 		if (!pir_copy[i])
 			continue;
 
 		pir_copy[i] = arch_xchg(&pir[i], 0);
-		handled = true;
 	}
 
-	if (handled) {
-		for_each_set_bit_from(vec, pir_copy, FIRST_SYSTEM_VECTOR)
-			call_irq_handler(vec, regs);
-	}
+	for_each_set_bit_from(vec, pir_copy, FIRST_SYSTEM_VECTOR)
+		call_irq_handler(vec, regs);
 
-	return handled;
+	return true;
 }
 
 /*
