@@ -1076,10 +1076,9 @@ static long htab_map_update_elem(struct bpf_map *map, void *key, void *value,
 				 u64 map_flags)
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
-	struct htab_elem *l_new = NULL, *l_old;
+	struct htab_elem *l_new, *l_old;
 	struct hlist_nulls_head *head;
 	unsigned long flags;
-	void *old_map_ptr;
 	struct bucket *b;
 	u32 key_size, hash;
 	int ret;
@@ -1160,24 +1159,14 @@ static long htab_map_update_elem(struct bpf_map *map, void *key, void *value,
 		hlist_nulls_del_rcu(&l_old->hash_node);
 
 		/* l_old has already been stashed in htab->extra_elems, free
-		 * its special fields before it is available for reuse. Also
-		 * save the old map pointer in htab of maps before unlock
-		 * and release it after unlock.
+		 * its special fields before it is available for reuse.
 		 */
-		old_map_ptr = NULL;
-		if (htab_is_prealloc(htab)) {
-			if (map->ops->map_fd_put_ptr)
-				old_map_ptr = fd_htab_map_get_ptr(map, l_old);
+		if (htab_is_prealloc(htab))
 			check_and_free_fields(htab, l_old);
-		}
 	}
 	htab_unlock_bucket(b, flags);
-	if (l_old) {
-		if (old_map_ptr)
-			map->ops->map_fd_put_ptr(map, old_map_ptr, true);
-		if (!htab_is_prealloc(htab))
-			free_htab_elem(htab, l_old);
-	}
+	if (l_old && !htab_is_prealloc(htab))
+		free_htab_elem(htab, l_old);
 	return 0;
 err:
 	htab_unlock_bucket(b, flags);
@@ -1265,6 +1254,7 @@ static long htab_map_update_elem_in_place(struct bpf_map *map, void *key,
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
 	struct htab_elem *l_new, *l_old;
 	struct hlist_nulls_head *head;
+	void *old_map_ptr = NULL;
 	unsigned long flags;
 	struct bucket *b;
 	u32 key_size, hash;
@@ -1296,8 +1286,15 @@ static long htab_map_update_elem_in_place(struct bpf_map *map, void *key,
 
 	if (l_old) {
 		/* Update value in-place */
-		pcpu_copy_value(htab, htab_elem_get_ptr(l_old, key_size),
-				value, onallcpus);
+		if (percpu) {
+			pcpu_copy_value(htab, htab_elem_get_ptr(l_old, key_size),
+					value, onallcpus);
+		} else {
+			void **inner_map_pptr = htab_elem_value(l_old, key_size);
+
+			old_map_ptr = *inner_map_pptr;
+			WRITE_ONCE(*inner_map_pptr, *(void **)value);
+		}
 	} else {
 		l_new = alloc_htab_elem(htab, key, value, key_size,
 					hash, percpu, onallcpus, NULL);
@@ -1309,6 +1306,8 @@ static long htab_map_update_elem_in_place(struct bpf_map *map, void *key,
 	}
 err:
 	htab_unlock_bucket(b, flags);
+	if (old_map_ptr)
+		map->ops->map_fd_put_ptr(map, old_map_ptr, true);
 	return ret;
 }
 
@@ -2531,24 +2530,23 @@ int bpf_fd_htab_map_lookup_elem(struct bpf_map *map, void *key, u32 *value)
 	return ret;
 }
 
-/* only called from syscall */
+/* Only called from syscall */
 int bpf_fd_htab_map_update_elem(struct bpf_map *map, struct file *map_file,
 				void *key, void *value, u64 map_flags)
 {
 	void *ptr;
 	int ret;
-	u32 ufd = *(u32 *)value;
 
-	ptr = map->ops->map_fd_get_ptr(map, map_file, ufd);
+	ptr = map->ops->map_fd_get_ptr(map, map_file, *(int *)value);
 	if (IS_ERR(ptr))
 		return PTR_ERR(ptr);
 
 	/* The htab bucket lock is always held during update operations in fd
 	 * htab map, and the following rcu_read_lock() is only used to avoid
-	 * the WARN_ON_ONCE in htab_map_update_elem().
+	 * the WARN_ON_ONCE in htab_map_update_elem_in_place().
 	 */
 	rcu_read_lock();
-	ret = htab_map_update_elem(map, key, &ptr, map_flags);
+	ret = htab_map_update_elem_in_place(map, key, &ptr, map_flags, false, false);
 	rcu_read_unlock();
 	if (ret)
 		map->ops->map_fd_put_ptr(map, ptr, false);
