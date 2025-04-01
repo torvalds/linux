@@ -45,6 +45,7 @@ static struct val_table_ent debug_values_table[] = {
 	{ "policy", DEBUG_POLICY },
 	{ "interface", DEBUG_INTERFACE },
 	{ "unpack", DEBUG_UNPACK },
+	{ "tags", DEBUG_TAGS },
 	{ NULL, 0 }
 };
 
@@ -511,3 +512,4 @@ void aa_policy_destroy(struct aa_policy *policy)
 	/* don't free name as its a subset of hname */
 	aa_put_str(policy->hname);
 }
+

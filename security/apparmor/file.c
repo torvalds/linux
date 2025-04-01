@@ -103,6 +103,7 @@ int aa_audit_file(const struct cred *subj_cred,
 
 	ad.subj_cred = subj_cred;
 	ad.request = request;
+	ad.tags = perms->tag;
 	ad.name = name;
 	ad.fs.target = target;
 	ad.peer = tlabel;

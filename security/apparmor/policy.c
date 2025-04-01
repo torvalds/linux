@@ -98,6 +98,13 @@ const char *const aa_profile_mode_names[] = {
 	"user",
 };
 
+void aa_destroy_tags(struct aa_tags_struct *tags)
+{
+	kfree_sensitive(tags->hdrs.table);
+	kfree_sensitive(tags->sets.table);
+	aa_destroy_str_table(&tags->strs);
+	memset(tags, 0, sizeof(*tags));
+}
 
 static void aa_free_pdb(struct aa_policydb *pdb)
 {
@@ -105,6 +112,7 @@ static void aa_free_pdb(struct aa_policydb *pdb)
 		aa_put_dfa(pdb->dfa);
 		kvfree(pdb->perms);
 		aa_destroy_str_table(&pdb->trans);
+		aa_destroy_tags(&pdb->tags);
 		kfree(pdb);
 	}
 }

@@ -30,9 +30,10 @@ extern struct aa_dfa *stacksplitdfa;
 #define DEBUG_DOMAIN 4
 #define DEBUG_POLICY 8
 #define DEBUG_INTERFACE 0x10
-#define DEBUG_UNPACK 0x40
+#define DEBUG_UNPACK 0x20
+#define DEBUG_TAGS 0x40
 
-#define DEBUG_ALL 0x1f		/* update if new DEBUG_X added */
+#define DEBUG_ALL 0x7f		/* update if new DEBUG_X added */
 #define DEBUG_PARSE_ERROR (-1)
 
 #define DEBUG_ON (aa_g_debug != DEBUG_NONE)
