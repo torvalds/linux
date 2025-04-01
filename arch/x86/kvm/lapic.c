@@ -657,7 +657,7 @@ static u8 count_vectors(void *bitmap)
 
 bool __kvm_apic_update_irr(unsigned long *pir, void *regs, int *max_irr)
 {
-	unsigned long pir_vals[NR_PIR_WORDS];
+	unsigned long pir_vals[NR_PIR_WORDS], pending = 0;
 	u32 *__pir = (void *)pir_vals;
 	u32 i, vec;
 	u32 irr_val, prev_irr_val;
@@ -668,6 +668,13 @@ bool __kvm_apic_update_irr(unsigned long *pir, void *regs, int *max_irr)
 
 	for (i = 0; i < NR_PIR_WORDS; i++) {
 		pir_vals[i] = READ_ONCE(pir[i]);
+		pending |= pir_vals[i];
+	}
+
+	if (!pending)
+		return false;
+
+	for (i = 0; i < NR_PIR_WORDS; i++) {
 		if (!pir_vals[i])
 			continue;
 
