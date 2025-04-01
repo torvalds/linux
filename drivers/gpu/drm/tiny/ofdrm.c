@@ -21,7 +21,6 @@
 #include <drm/drm_managed.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_simple_kms_helper.h>
 
 #define DRIVER_NAME	"ofdrm"
 #define DRIVER_DESC	"DRM driver for OF platform devices"
@@ -999,6 +998,10 @@ static const struct drm_crtc_funcs ofdrm_crtc_funcs = {
 	.atomic_destroy_state = ofdrm_crtc_atomic_destroy_state,
 };
 
+static const struct drm_encoder_funcs ofdrm_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
 static int ofdrm_connector_helper_get_modes(struct drm_connector *connector)
 {
 	struct ofdrm_device *odev = ofdrm_device_of_dev(connector->dev);
@@ -1309,7 +1312,7 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 	/* Encoder */
 
 	encoder = &odev->encoder;
-	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_NONE);
+	ret = drm_encoder_init(dev, encoder, &ofdrm_encoder_funcs, DRM_MODE_ENCODER_NONE, NULL);
 	if (ret)
 		return ERR_PTR(ret);
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
