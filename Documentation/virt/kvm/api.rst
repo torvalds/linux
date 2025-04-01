@@ -8563,20 +8563,6 @@ may be incompatible with the MIPS VZ ASE.
     virtualization, including standard guest virtual memory segments.
 ==  ==========================================================================
 
-8.6 KVM_CAP_MIPS_TE
--------------------
-
-:Architectures: mips
-
-This capability, if KVM_CHECK_EXTENSION on the main kvm handle indicates that
-it is available, means that the trap & emulate implementation is available to
-run guest code in user mode, even if KVM_CAP_MIPS_VZ indicates that hardware
-assisted virtualisation is also available. KVM_VM_MIPS_TE (0) must be passed
-to KVM_CREATE_VM to create a VM which utilises it.
-
-If KVM_CHECK_EXTENSION on a kvm VM handle indicates that this capability is
-available, it means that the VM is using trap & emulate.
-
 8.7 KVM_CAP_MIPS_64BIT
 ----------------------
 
