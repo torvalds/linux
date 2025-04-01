@@ -4475,7 +4475,7 @@ out:
 static noinline int may_destroy_subvol(struct btrfs_root *root)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_dir_item *di;
 	struct btrfs_key key;
 	struct fscrypt_str name = FSTR_INIT("default", 7);
@@ -4497,7 +4497,7 @@ static noinline int may_destroy_subvol(struct btrfs_root *root)
 			btrfs_err(fs_info,
 				  "deleting default subvolume %llu is not allowed",
 				  key.objectid);
-			goto out;
+			return ret;
 		}
 		btrfs_release_path(path);
 	}
@@ -4508,14 +4508,13 @@ static noinline int may_destroy_subvol(struct btrfs_root *root)
 
 	ret = btrfs_search_slot(NULL, fs_info->tree_root, &key, path, 0, 0);
 	if (ret < 0)
-		goto out;
+		return ret;
 	if (ret == 0) {
 		/*
 		 * Key with offset -1 found, there would have to exist a root
 		 * with such id, but this is out of valid range.
 		 */
-		ret = -EUCLEAN;
-		goto out;
+		return -EUCLEAN;
 	}
 
 	ret = 0;
@@ -4525,8 +4524,7 @@ static noinline int may_destroy_subvol(struct btrfs_root *root)
 		if (key.objectid == btrfs_root_id(root) && key.type == BTRFS_ROOT_REF_KEY)
 			ret = -ENOTEMPTY;
 	}
-out:
-	btrfs_free_path(path);
+
 	return ret;
 }
 
