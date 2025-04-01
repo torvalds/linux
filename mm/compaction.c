@@ -1001,10 +1001,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 				locked = NULL;
 			}
 
-			ret = isolate_or_dissolve_huge_page(page, &cc->migratepages);
+			folio = page_folio(page);
+			ret = isolate_or_dissolve_huge_folio(folio, &cc->migratepages);
 
 			/*
-			 * Fail isolation in case isolate_or_dissolve_huge_page()
+			 * Fail isolation in case isolate_or_dissolve_huge_folio()
 			 * reports an error. In case of -ENOMEM, abort right away.
 			 */
 			if (ret < 0) {
@@ -1016,12 +1017,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 				goto isolate_fail;
 			}
 
-			if (PageHuge(page)) {
+			if (folio_test_hugetlb(folio)) {
 				/*
 				 * Hugepage was successfully isolated and placed
 				 * on the cc->migratepages list.
 				 */
-				folio = page_folio(page);
 				low_pfn += folio_nr_pages(folio) - 1;
 				goto isolate_success_no_list;
 			}

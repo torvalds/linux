@@ -2896,10 +2896,9 @@ free_new:
 	return ret;
 }
 
-int isolate_or_dissolve_huge_page(struct page *page, struct list_head *list)
+int isolate_or_dissolve_huge_folio(struct folio *folio, struct list_head *list)
 {
 	struct hstate *h;
-	struct folio *folio = page_folio(page);
 	int ret = -EBUSY;
 
 	/*
