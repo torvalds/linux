@@ -147,7 +147,7 @@ struct apple_pcie_port {
 	void __iomem		*base;
 	struct irq_domain	*domain;
 	struct list_head	entry;
-	DECLARE_BITMAP(sid_map, MAX_RID2SID);
+	unsigned long		*sid_map;
 	int			sid_map_sz;
 	int			idx;
 };
@@ -522,6 +522,10 @@ static int apple_pcie_setup_port(struct apple_pcie *pcie,
 
 	port = devm_kzalloc(pcie->dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
+		return -ENOMEM;
+
+	port->sid_map = devm_bitmap_zalloc(pcie->dev, MAX_RID2SID, GFP_KERNEL);
+	if (!port->sid_map)
 		return -ENOMEM;
 
 	ret = of_property_read_u32_index(np, "reg", 0, &idx);
