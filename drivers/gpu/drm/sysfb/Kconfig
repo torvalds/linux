@@ -7,6 +7,22 @@ config DRM_SYSFB_HELPER
 	tristate
 	depends on DRM
 
+config DRM_EFIDRM
+	bool "EFI framebuffer driver"
+	depends on (DRM=y) && MMU && EFI && (!SYSFB_SIMPLEFB || COMPILE_TEST)
+	select APERTURE_HELPERS
+	select DRM_CLIENT_SELECTION
+	select DRM_GEM_SHMEM_HELPER
+	select DRM_KMS_HELPER
+	select DRM_SYSFB_HELPER
+	select SYSFB
+	help
+	  DRM driver for EFI framebuffers.
+
+	  This driver assumes that the display hardware has been initialized
+	  by the firmware or bootloader before the kernel boots. Scanout
+	  buffer, size, and display format must be provided via EFI interfaces.
+
 config DRM_OFDRM
 	tristate "Open Firmware display driver"
 	depends on DRM && MMU && OF && (PPC || COMPILE_TEST)
