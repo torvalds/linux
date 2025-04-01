@@ -8847,10 +8847,9 @@ clearing the PVCLOCK_TSC_STABLE_BIT flag in Xen pvclock sources. This will be
 done when the KVM_CAP_XEN_HVM ioctl sets the
 KVM_XEN_HVM_CONFIG_PVCLOCK_TSC_UNSTABLE flag.
 
-8.31 KVM_CAP_PPC_MULTITCE
--------------------------
+8.31 KVM_CAP_SPAPR_MULTITCE
+---------------------------
 
-:Capability: KVM_CAP_PPC_MULTITCE
 :Architectures: ppc
 :Type: vm
 
