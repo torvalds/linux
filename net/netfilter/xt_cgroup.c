@@ -23,12 +23,19 @@ MODULE_DESCRIPTION("Xtables: process control group matching");
 MODULE_ALIAS("ipt_cgroup");
 MODULE_ALIAS("ip6t_cgroup");
 
+#define NET_CLS_CLASSID_INVALID_MSG "xt_cgroup: classid invalid without net_cls cgroups\n"
+
 static int cgroup_mt_check_v0(const struct xt_mtchk_param *par)
 {
 	struct xt_cgroup_info_v0 *info = par->matchinfo;
 
 	if (info->invert & ~1)
 		return -EINVAL;
+
+	if (!IS_ENABLED(CONFIG_CGROUP_NET_CLASSID)) {
+		pr_info(NET_CLS_CLASSID_INVALID_MSG);
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -48,6 +55,11 @@ static int cgroup_mt_check_v1(const struct xt_mtchk_param *par)
 
 	if (info->has_path && info->has_classid) {
 		pr_info_ratelimited("path and classid specified\n");
+		return -EINVAL;
+	}
+
+	if (info->has_classid && !IS_ENABLED(CONFIG_CGROUP_NET_CLASSID)) {
+		pr_info(NET_CLS_CLASSID_INVALID_MSG);
 		return -EINVAL;
 	}
 
@@ -80,6 +92,11 @@ static int cgroup_mt_check_v2(const struct xt_mtchk_param *par)
 
 	if (info->has_path && info->has_classid) {
 		pr_info_ratelimited("path and classid specified\n");
+		return -EINVAL;
+	}
+
+	if (info->has_classid && !IS_ENABLED(CONFIG_CGROUP_NET_CLASSID)) {
+		pr_info(NET_CLS_CLASSID_INVALID_MSG);
 		return -EINVAL;
 	}
 
