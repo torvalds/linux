@@ -700,7 +700,7 @@ static int load_extent_tree_free(struct btrfs_caching_control *caching_ctl)
 	struct btrfs_block_group *block_group = caching_ctl->block_group;
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	struct btrfs_root *extent_root;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct extent_buffer *leaf;
 	struct btrfs_key key;
 	u64 total_found = 0;
@@ -827,7 +827,6 @@ next:
 				       block_group->start + block_group->length,
 				       NULL);
 out:
-	btrfs_free_path(path);
 	return ret;
 }
 

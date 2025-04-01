@@ -308,8 +308,9 @@ int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
 	bool locked = false;
 
 	if (block_group) {
-		struct btrfs_path *path = btrfs_alloc_path();
+		BTRFS_PATH_AUTO_FREE(path);
 
+		path = btrfs_alloc_path();
 		if (!path) {
 			ret = -ENOMEM;
 			goto fail;
@@ -330,7 +331,6 @@ int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
 		spin_lock(&block_group->lock);
 		block_group->disk_cache_state = BTRFS_DC_CLEAR;
 		spin_unlock(&block_group->lock);
-		btrfs_free_path(path);
 	}
 
 	btrfs_i_size_write(inode, 0);

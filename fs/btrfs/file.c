@@ -553,7 +553,7 @@ int btrfs_mark_extent_written(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_root *root = inode->root;
 	struct extent_buffer *leaf;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_file_extent_item *fi;
 	struct btrfs_ref ref = { 0 };
 	struct btrfs_key key;
@@ -791,7 +791,6 @@ again:
 		}
 	}
 out:
-	btrfs_free_path(path);
 	return ret;
 }
 

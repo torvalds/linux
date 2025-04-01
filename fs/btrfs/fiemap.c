@@ -634,7 +634,7 @@ static int extent_fiemap(struct btrfs_inode *inode,
 	const u64 ino = btrfs_ino(inode);
 	struct extent_state *cached_state = NULL;
 	struct extent_state *delalloc_cached_state = NULL;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct fiemap_cache cache = { 0 };
 	struct btrfs_backref_share_check_ctx *backref_ctx;
 	u64 last_extent_end = 0;
@@ -874,7 +874,6 @@ out:
 	free_extent_state(delalloc_cached_state);
 	kfree(cache.entries);
 	btrfs_free_backref_share_ctx(backref_ctx);
-	btrfs_free_path(path);
 	return ret;
 }
 
