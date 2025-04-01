@@ -1112,7 +1112,7 @@ static int unix_connect_perm(const struct cred *cred, struct aa_label *label,
 
 	error = aa_unix_peer_perm(cred, label, OP_CONNECT,
 				(AA_MAY_CONNECT | AA_MAY_SEND | AA_MAY_RECEIVE),
-				  sk, peer_sk, NULL);
+				  sk, peer_sk, peer_ctx->label);
 	if (!is_unix_fs(peer_sk)) {
 		last_error(error,
 			   aa_unix_peer_perm(cred,
@@ -1184,7 +1184,7 @@ static int apparmor_unix_may_send(struct socket *sock, struct socket *peer)
 	label = __begin_current_label_crit_section(&needput);
 	error = xcheck(aa_unix_peer_perm(current_cred(),
 					 label, OP_SENDMSG, AA_MAY_SEND,
-					 sock->sk, peer->sk, NULL),
+					 sock->sk, peer->sk, peer_ctx->label),
 		       aa_unix_peer_perm(peer->file ? peer->file->f_cred : NULL,
 					 peer_ctx->label, OP_SENDMSG,
 					 AA_MAY_RECEIVE,

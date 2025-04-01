@@ -30,11 +30,10 @@ static inline struct sock *aa_unix_sk(struct unix_sock *u)
 }
 
 static int unix_fs_perm(const char *op, u32 mask, const struct cred *subj_cred,
-			struct aa_label *label, struct unix_sock *u)
+			struct aa_label *label, struct path *path)
 {
 	AA_BUG(!label);
-	AA_BUG(!u);
-	AA_BUG(!is_unix_fs(aa_unix_sk(u)));
+	AA_BUG(!path);
 
 	if (unconfined(label) || !label_mediates(label, AA_CLASS_FILE))
 		return 0;
@@ -43,13 +42,13 @@ static int unix_fs_perm(const char *op, u32 mask, const struct cred *subj_cred,
 	/* if !u->path.dentry socket is being shutdown - implicit delegation
 	 * until obj delegation is supported
 	 */
-	if (u->path.dentry) {
+	if (path->dentry) {
 		/* the sunpath may not be valid for this ns so use the path */
-		struct path_cond cond = { u->path.dentry->d_inode->i_uid,
-					  u->path.dentry->d_inode->i_mode
+		struct path_cond cond = { path->dentry->d_inode->i_uid,
+					  path->dentry->d_inode->i_mode
 		};
 
-		return aa_path_perm(op, subj_cred, label, &u->path,
+		return aa_path_perm(op, subj_cred, label, path,
 				    PATH_SOCK_COND, mask, &cond);
 	} /* else implicitly delegated */
 
@@ -102,18 +101,27 @@ static aa_state_t match_to_local(struct aa_policydb *policy,
 	return state;
 }
 
+struct sockaddr_un *aa_sunaddr(const struct unix_sock *u, int *addrlen)
+{
+	struct unix_address *addr;
+
+	/* memory barrier is sufficient see note in net/unix/af_unix.c */
+	addr = smp_load_acquire(&u->addr);
+	if (addr) {
+		*addrlen = addr->len;
+		return addr->name;
+	}
+	*addrlen = 0;
+	return NULL;
+}
+
 static aa_state_t match_to_sk(struct aa_policydb *policy,
 			      aa_state_t state, u32 request,
 			      struct unix_sock *u, struct aa_perms **p,
 			      const char **info)
 {
-	struct sockaddr_un *addr = NULL;
-	int addrlen = 0;
-
-	if (u->addr) {
-		addr = u->addr->name;
-		addrlen = u->addr->len;
-	}
+	int addrlen;
+	struct sockaddr_un *addr = aa_sunaddr(u, &addrlen);
 
 	return match_to_local(policy, state, request, u->sk.sk_type,
 			      u->sk.sk_protocol, addr, addrlen, p, info);
@@ -363,7 +371,8 @@ static int profile_opt_perm(struct aa_profile *profile, u32 request,
 
 /* null peer_label is allowed, in which case the peer_sk label is used */
 static int profile_peer_perm(struct aa_profile *profile, u32 request,
-			     struct sock *sk, struct sock *peer_sk,
+			     struct sock *sk, struct sockaddr_un *peer_addr,
+			     int peer_addrlen,
 			     struct aa_label *peer_label,
 			     struct apparmor_audit_data *ad)
 {
@@ -375,26 +384,16 @@ static int profile_peer_perm(struct aa_profile *profile, u32 request,
 	AA_BUG(!profile);
 	AA_BUG(profile_unconfined(profile));
 	AA_BUG(!sk);
-	AA_BUG(!peer_sk);
+	AA_BUG(!peer_label);
 	AA_BUG(!ad);
-	AA_BUG(is_unix_fs(peer_sk)); /* currently always calls unix_fs_perm */
 
 	state = RULE_MEDIATES_v9NET(rules);
 	if (state) {
-		struct aa_sk_ctx *peer_ctx = aa_sock(peer_sk);
 		struct aa_profile *peerp;
-		struct sockaddr_un *addr = NULL;
-		int len = 0;
 
-		if (unix_sk(peer_sk)->addr) {
-			addr = unix_sk(peer_sk)->addr->name;
-			len = unix_sk(peer_sk)->addr->len;
-		}
 		state = match_to_peer(rules->policy, state, request,
 				      unix_sk(sk),
-				      addr, len, &p, &ad->info);
-		if (!peer_label)
-			peer_label = peer_ctx->label;
+				      peer_addr, peer_addrlen, &p, &ad->info);
 
 		return fn_for_each_in_ns(peer_label, peerp,
 				match_label(profile, rules, state, request,
@@ -422,9 +421,8 @@ int aa_unix_create_perm(struct aa_label *label, int family, int type,
 	return 0;
 }
 
-int aa_unix_label_sk_perm(const struct cred *subj_cred,
-			  struct aa_label *label, const char *op, u32 request,
-			  struct sock *sk)
+int aa_unix_label_sk_perm(const struct cred *subj_cred, struct aa_label *label,
+			  const char *op, u32 request, struct sock *sk)
 {
 	if (!unconfined(label)) {
 		struct aa_profile *profile;
@@ -436,19 +434,6 @@ int aa_unix_label_sk_perm(const struct cred *subj_cred,
 	return 0;
 }
 
-static int unix_label_sock_perm(const struct cred *subj_cred,
-				struct aa_label *label, const char *op,
-				u32 request, struct socket *sock)
-{
-	if (unconfined(label))
-		return 0;
-	if (is_unix_fs(sock->sk))
-		return unix_fs_perm(op, request, subj_cred, label,
-				    unix_sk(sock->sk));
-
-	return aa_unix_label_sk_perm(subj_cred, label, op, request, sock->sk);
-}
-
 /* revalidation, get/set attr, shutdown */
 int aa_unix_sock_perm(const char *op, u32 request, struct socket *sock)
 {
@@ -456,7 +441,12 @@ int aa_unix_sock_perm(const char *op, u32 request, struct socket *sock)
 	int error;
 
 	label = begin_current_label_crit_section();
-	error = unix_label_sock_perm(current_cred(), label, op, request, sock);
+	if (is_unix_fs(sock->sk))
+		error = unix_fs_perm(op, request, current_cred(), label,
+				     &unix_sk(sock->sk)->path);
+	else
+		error = aa_unix_label_sk_perm(current_cred(), label, op,
+					      request, sock->sk);
 	end_current_label_crit_section(label);
 
 	return error;
@@ -464,7 +454,7 @@ int aa_unix_sock_perm(const char *op, u32 request, struct socket *sock)
 
 static int valid_addr(struct sockaddr *addr, int addr_len)
 {
-	struct sockaddr_un *sunaddr = (struct sockaddr_un *)addr;
+	struct sockaddr_un *sunaddr = unix_addr(addr);
 
 	/* addr_len == offsetof(struct sockaddr_un, sun_path) is autobind */
 	if (addr_len < offsetof(struct sockaddr_un, sun_path) ||
@@ -586,6 +576,22 @@ int aa_unix_opt_perm(const char *op, u32 request, struct socket *sock,
 	return error;
 }
 
+static int unix_peer_perm(const struct cred *subj_cred,
+			  struct aa_label *label, const char *op, u32 request,
+			  struct sock *sk, struct sockaddr_un *peer_addr,
+			  int peer_addrlen, struct aa_label *peer_label)
+{
+	struct aa_profile *profile;
+	DEFINE_AUDIT_SK(ad, op, subj_cred, sk);
+
+	ad.net.addr = peer_addr;
+	ad.net.addrlen = peer_addrlen;
+
+	return fn_for_each_confined(label, profile,
+			profile_peer_perm(profile, request, sk,
+					  peer_addr, peer_addrlen, peer_label, &ad));
+}
+
 /**
  *
  * Requires: lock held on both @sk and @peer_sk
@@ -602,58 +608,37 @@ int aa_unix_peer_perm(const struct cred *subj_cred,
 	AA_BUG(!label);
 	AA_BUG(!sk);
 	AA_BUG(!peer_sk);
+	AA_BUG(!peer_label);
 
 	if (is_unix_fs(aa_unix_sk(peeru))) {
-		return unix_fs_perm(op, request, subj_cred, label, peeru);
+		return unix_fs_perm(op, request, subj_cred, label,
+				    &peeru->path);
 	} else if (is_unix_fs(aa_unix_sk(u))) {
-		return unix_fs_perm(op, request, subj_cred, label, u);
+		return unix_fs_perm(op, request, subj_cred, label, &u->path);
 	} else if (!unconfined(label)) {
-		struct aa_profile *profile;
-		DEFINE_AUDIT_SK(ad, op, subj_cred, sk);
+		int plen;
+		struct sockaddr_un *paddr = aa_sunaddr(unix_sk(peer_sk),
+							       &plen);
 
-		ad.net.peer_sk = peer_sk;
-
-		return fn_for_each_confined(label, profile,
-				profile_peer_perm(profile, request, sk,
-						  peer_sk, peer_label, &ad));
+		return unix_peer_perm(subj_cred, label, op, request,
+				      sk, paddr, plen, peer_label);
 	}
 
 	return 0;
 }
 
-static void unix_state_double_lock(struct sock *sk1, struct sock *sk2)
-{
-	if (unlikely(sk1 == sk2) || !sk2) {
-		unix_state_lock(sk1);
-		return;
-	}
-	if (sk1 < sk2) {
-		unix_state_lock(sk1);
-		unix_state_lock(sk2);
-	} else {
-		unix_state_lock(sk2);
-		unix_state_lock(sk1);
-	}
-}
-
-static void unix_state_double_unlock(struct sock *sk1, struct sock *sk2)
-{
-	if (unlikely(sk1 == sk2) || !sk2) {
-		unix_state_unlock(sk1);
-		return;
-	}
-	unix_state_unlock(sk1);
-	unix_state_unlock(sk2);
-}
-
-/* TODO: examine replacing double lock with cached addr */
-
+/* This fn is only checked if something has changed in the security
+ * boundaries. Otherwise cached info off file is sufficient
+ */
 int aa_unix_file_perm(const struct cred *subj_cred, struct aa_label *label,
 		      const char *op, u32 request, struct file *file)
 {
 	struct socket *sock = (struct socket *) file->private_data;
+	struct sockaddr_un *addr, *peer_addr;
+	int addrlen, peer_addrlen;
 	struct sock *peer_sk = NULL;
 	u32 sk_req = request & ~NET_PEER_MASK;
+	struct path path;
 	bool is_sk_fs;
 	int error = 0;
 
@@ -663,40 +648,60 @@ int aa_unix_file_perm(const struct cred *subj_cred, struct aa_label *label,
 	AA_BUG(sock->sk->sk_family != PF_UNIX);
 
 	/* TODO: update sock label with new task label */
+	/* investigate only using lock via unix_peer_get()
+	 * addr only needs the memory barrier, but need to investigate
+	 * path
+	 */
 	unix_state_lock(sock->sk);
 	peer_sk = unix_peer(sock->sk);
 	if (peer_sk)
 		sock_hold(peer_sk);
 
 	is_sk_fs = is_unix_fs(sock->sk);
+	addr = aa_sunaddr(unix_sk(sock->sk), &addrlen);
+	path = unix_sk(sock->sk)->path;
+	unix_state_unlock(sock->sk);
+
 	if (is_sk_fs && peer_sk)
 		sk_req = request;
-	if (sk_req)
-		error = unix_label_sock_perm(subj_cred, label, op, sk_req,
-					     sock);
-	unix_state_unlock(sock->sk);
+	if (sk_req) {
+		if (is_sk_fs)
+			error = unix_fs_perm(op, sk_req, subj_cred, label,
+					     &path);
+		else
+			error = aa_unix_label_sk_perm(subj_cred, label, op,
+						      sk_req, sock->sk);
+	}
 	if (!peer_sk)
-		return error;
+		goto out;
 
-	unix_state_double_lock(sock->sk, peer_sk);
+	peer_addr = aa_sunaddr(unix_sk(peer_sk), &peer_addrlen);
+
+	struct path peer_path;
+
+	peer_path = unix_sk(peer_sk)->path;
 	if (!is_sk_fs && is_unix_fs(peer_sk)) {
 		last_error(error,
 			   unix_fs_perm(op, request, subj_cred, label,
-					unix_sk(peer_sk)));
+					&peer_path));
 	} else if (!is_sk_fs) {
 		struct aa_sk_ctx *pctx = aa_sock(peer_sk);
 
+		/* no fs check of aa_unix_peer_perm because conditions above
+		 * ensure they will never be done
+		 */
 		last_error(error,
-			xcheck(aa_unix_peer_perm(subj_cred, label, op,
-						 MAY_READ | MAY_WRITE,
-						 sock->sk, peer_sk, NULL),
-			       aa_unix_peer_perm(file->f_cred, pctx->label, op,
-						 MAY_READ | MAY_WRITE,
-						 peer_sk, sock->sk, label)));
+			xcheck(unix_peer_perm(subj_cred, label, op,
+					      MAY_READ | MAY_WRITE, sock->sk,
+					      peer_addr, peer_addrlen,
+					      pctx->label),
+			       unix_peer_perm(file->f_cred, pctx->label, op,
+					      MAY_READ | MAY_WRITE, peer_sk,
+					      addr, addrlen, label)));
 	}
-	unix_state_double_unlock(sock->sk, peer_sk);
-
 	sock_put(peer_sk);
+
+out:
 
 	return error;
 }

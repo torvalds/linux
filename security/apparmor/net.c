@@ -148,9 +148,6 @@ void audit_net_cb(struct audit_buffer *ab, void *va)
 				audit_unix_addr(ab, "peer_addr",
 						unix_addr(ad->net.addr),
 						ad->net.addrlen);
-			else
-				audit_unix_sk_addr(ab, "peer_addr",
-						   ad->net.peer_sk);
 		}
 	}
 	if (ad->peer) {

@@ -31,6 +31,7 @@
 #define is_unix_connected(S) ((S)->state == SS_CONNECTED)
 
 
+struct sockaddr_un *aa_sunaddr(const struct unix_sock *u, int *addrlen);
 int aa_unix_peer_perm(const struct cred *subj_cred,
 		      struct aa_label *label, const char *op, u32 request,
 		      struct sock *sk, struct sock *peer_sk,
