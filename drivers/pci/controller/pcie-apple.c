@@ -39,14 +39,18 @@
 #define   CORE_RC_STAT_READY		BIT(0)
 #define CORE_FABRIC_STAT		0x04000
 #define   CORE_FABRIC_STAT_MASK		0x001F001F
-#define CORE_LANE_CFG(port)		(0x84000 + 0x4000 * (port))
-#define   CORE_LANE_CFG_REFCLK0REQ	BIT(0)
-#define   CORE_LANE_CFG_REFCLK1REQ	BIT(1)
-#define   CORE_LANE_CFG_REFCLK0ACK	BIT(2)
-#define   CORE_LANE_CFG_REFCLK1ACK	BIT(3)
-#define   CORE_LANE_CFG_REFCLKEN	(BIT(9) | BIT(10))
-#define CORE_LANE_CTL(port)		(0x84004 + 0x4000 * (port))
-#define   CORE_LANE_CTL_CFGACC		BIT(15)
+
+#define CORE_PHY_DEFAULT_BASE(port)	(0x84000 + 0x4000 * (port))
+
+#define PHY_LANE_CFG			0x00000
+#define   PHY_LANE_CFG_REFCLK0REQ	BIT(0)
+#define   PHY_LANE_CFG_REFCLK1REQ	BIT(1)
+#define   PHY_LANE_CFG_REFCLK0ACK	BIT(2)
+#define   PHY_LANE_CFG_REFCLK1ACK	BIT(3)
+#define   PHY_LANE_CFG_REFCLKEN		(BIT(9) | BIT(10))
+#define   PHY_LANE_CFG_REFCLKCGEN	(BIT(30) | BIT(31))
+#define PHY_LANE_CTL			0x00004
+#define   PHY_LANE_CTL_CFGACC		BIT(15)
 
 #define PORT_LTSSMCTL			0x00080
 #define   PORT_LTSSMCTL_START		BIT(0)
@@ -146,6 +150,7 @@ struct apple_pcie_port {
 	struct apple_pcie	*pcie;
 	struct device_node	*np;
 	void __iomem		*base;
+	void __iomem		*phy;
 	struct irq_domain	*domain;
 	struct list_head	entry;
 	unsigned long		*sid_map;
@@ -476,26 +481,26 @@ static int apple_pcie_setup_refclk(struct apple_pcie *pcie,
 	if (res < 0)
 		return res;
 
-	rmw_set(CORE_LANE_CTL_CFGACC, pcie->base + CORE_LANE_CTL(port->idx));
-	rmw_set(CORE_LANE_CFG_REFCLK0REQ, pcie->base + CORE_LANE_CFG(port->idx));
+	rmw_set(PHY_LANE_CTL_CFGACC, port->phy + PHY_LANE_CTL);
+	rmw_set(PHY_LANE_CFG_REFCLK0REQ, port->phy + PHY_LANE_CFG);
 
-	res = readl_relaxed_poll_timeout(pcie->base + CORE_LANE_CFG(port->idx),
-					 stat, stat & CORE_LANE_CFG_REFCLK0ACK,
+	res = readl_relaxed_poll_timeout(port->phy + PHY_LANE_CFG,
+					 stat, stat & PHY_LANE_CFG_REFCLK0ACK,
 					 100, 50000);
 	if (res < 0)
 		return res;
 
-	rmw_set(CORE_LANE_CFG_REFCLK1REQ, pcie->base + CORE_LANE_CFG(port->idx));
-	res = readl_relaxed_poll_timeout(pcie->base + CORE_LANE_CFG(port->idx),
-					 stat, stat & CORE_LANE_CFG_REFCLK1ACK,
+	rmw_set(PHY_LANE_CFG_REFCLK1REQ, port->phy + PHY_LANE_CFG);
+	res = readl_relaxed_poll_timeout(port->phy + PHY_LANE_CFG,
+					 stat, stat & PHY_LANE_CFG_REFCLK1ACK,
 					 100, 50000);
 
 	if (res < 0)
 		return res;
 
-	rmw_clear(CORE_LANE_CTL_CFGACC, pcie->base + CORE_LANE_CTL(port->idx));
+	rmw_clear(PHY_LANE_CTL_CFGACC, port->phy + PHY_LANE_CTL);
 
-	rmw_set(CORE_LANE_CFG_REFCLKEN, pcie->base + CORE_LANE_CFG(port->idx));
+	rmw_set(PHY_LANE_CFG_REFCLKEN, port->phy + PHY_LANE_CFG);
 	rmw_set(PORT_REFCLK_EN, port->base + PORT_REFCLK);
 
 	return 0;
@@ -515,6 +520,8 @@ static int apple_pcie_setup_port(struct apple_pcie *pcie,
 	struct platform_device *platform = to_platform_device(pcie->dev);
 	struct apple_pcie_port *port;
 	struct gpio_desc *reset;
+	struct resource *res;
+	char name[16];
 	u32 stat, idx;
 	int ret, i;
 
@@ -542,9 +549,21 @@ static int apple_pcie_setup_port(struct apple_pcie *pcie,
 
 	raw_spin_lock_init(&port->lock);
 
-	port->base = devm_platform_ioremap_resource(platform, port->idx + 2);
+	snprintf(name, sizeof(name), "port%d", port->idx);
+	res = platform_get_resource_byname(platform, IORESOURCE_MEM, name);
+	if (!res)
+		res = platform_get_resource(platform, IORESOURCE_MEM, port->idx + 2);
+
+	port->base = devm_ioremap_resource(&platform->dev, res);
 	if (IS_ERR(port->base))
 		return PTR_ERR(port->base);
+
+	snprintf(name, sizeof(name), "phy%d", port->idx);
+	res = platform_get_resource_byname(platform, IORESOURCE_MEM, name);
+	if (res)
+		port->phy = devm_ioremap_resource(&platform->dev, res);
+	else
+		port->phy = pcie->base + CORE_PHY_DEFAULT_BASE(port->idx);
 
 	rmw_set(PORT_APPCLK_EN, port->base + PORT_APPCLK);
 
