@@ -31,6 +31,7 @@ config SOUNDWIRE_AMD
 
 config SOUNDWIRE_CADENCE
 	tristate
+	select CRC8
 
 config SOUNDWIRE_INTEL
 	tristate "Intel SoundWire Master driver"
