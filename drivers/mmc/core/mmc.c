@@ -2269,14 +2269,12 @@ static int mmc_runtime_resume(struct mmc_host *host)
 	return 0;
 }
 
-static int mmc_can_reset(struct mmc_card *card)
+static bool mmc_card_can_reset(struct mmc_card *card)
 {
 	u8 rst_n_function;
 
 	rst_n_function = card->ext_csd.rst_n_function;
-	if ((rst_n_function & EXT_CSD_RST_N_EN_MASK) != EXT_CSD_RST_N_ENABLED)
-		return 0;
-	return 1;
+	return ((rst_n_function & EXT_CSD_RST_N_EN_MASK) == EXT_CSD_RST_N_ENABLED);
 }
 
 static int _mmc_hw_reset(struct mmc_host *host)
@@ -2290,7 +2288,7 @@ static int _mmc_hw_reset(struct mmc_host *host)
 	_mmc_flush_cache(host);
 
 	if ((host->caps & MMC_CAP_HW_RESET) && host->ops->card_hw_reset &&
-	     mmc_can_reset(card)) {
+	     mmc_card_can_reset(card)) {
 		/* If the card accept RST_n signal, send it. */
 		mmc_set_clock(host, host->f_init);
 		host->ops->card_hw_reset(host);
