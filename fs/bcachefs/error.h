@@ -18,6 +18,8 @@ struct work_struct;
 
 /* Error messages: */
 
+void bch2_log_msg_start(struct bch_fs *, struct printbuf *);
+
 /*
  * Inconsistency errors: The on disk data is inconsistent. If these occur during
  * initial recovery, they don't indicate a bug in the running code - we walk all
@@ -29,21 +31,10 @@ struct work_struct;
  * BCH_ON_ERROR_CONTINUE mode
  */
 
+bool __bch2_inconsistent_error(struct bch_fs *, struct printbuf *);
 bool bch2_inconsistent_error(struct bch_fs *);
-
-int bch2_topology_error(struct bch_fs *);
-
-#define bch2_fs_topology_error(c, ...)					\
-({									\
-	bch_err(c, "btree topology error: " __VA_ARGS__);		\
-	bch2_topology_error(c);						\
-})
-
-#define bch2_fs_inconsistent(c, ...)					\
-({									\
-	bch_err(c, __VA_ARGS__);					\
-	bch2_inconsistent_error(c);					\
-})
+__printf(2, 3)
+bool bch2_fs_inconsistent(struct bch_fs *, const char *, ...);
 
 #define bch2_fs_inconsistent_on(cond, ...)				\
 ({									\
@@ -53,25 +44,20 @@ int bch2_topology_error(struct bch_fs *);
 	_ret;								\
 })
 
-/*
- * When a transaction update discovers or is causing a fs inconsistency, it's
- * helpful to also dump the pending updates:
- */
-#define bch2_trans_inconsistent(trans, ...)				\
-({									\
-	bch_err(trans->c, __VA_ARGS__);					\
-	bch2_dump_trans_updates(trans);					\
-	bch2_inconsistent_error(trans->c);				\
-})
+__printf(2, 3)
+bool bch2_trans_inconsistent(struct btree_trans *, const char *, ...);
 
-#define bch2_trans_inconsistent_on(cond, trans, ...)			\
+#define bch2_trans_inconsistent_on(cond, ...)				\
 ({									\
 	bool _ret = unlikely(!!(cond));					\
-									\
 	if (_ret)							\
-		bch2_trans_inconsistent(trans, __VA_ARGS__);		\
+		bch2_trans_inconsistent(__VA_ARGS__);			\
 	_ret;								\
 })
+
+int __bch2_topology_error(struct bch_fs *, struct printbuf *);
+__printf(2, 3)
+int bch2_fs_topology_error(struct bch_fs *, const char *, ...);
 
 /*
  * Fsck errors: inconsistency errors we detect at mount time, and should ideally
@@ -80,7 +66,7 @@ int bch2_topology_error(struct bch_fs *);
 
 struct fsck_err_state {
 	struct list_head	list;
-	const char		*fmt;
+	enum bch_sb_error_id	id;
 	u64			nr;
 	bool			ratelimited;
 	int			ret;
@@ -89,6 +75,12 @@ struct fsck_err_state {
 };
 
 #define fsck_err_count(_c, _err)	bch2_sb_err_count(_c, BCH_FSCK_ERR_##_err)
+
+void __bch2_count_fsck_err(struct bch_fs *,
+			   enum bch_sb_error_id, const char *,
+			   bool *, bool *, bool *);
+#define bch2_count_fsck_err(_c, _err, ...)				\
+	__bch2_count_fsck_err(_c, BCH_FSCK_ERR_##_err, __VA_ARGS__)
 
 __printf(5, 6) __cold
 int __bch2_fsck_err(struct bch_fs *, struct btree_trans *,

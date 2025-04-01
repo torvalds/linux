@@ -214,12 +214,12 @@ static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
 
 		fsck_err_on(same_device,
 			    c, journal_entry_dup_same_device,
-			    "duplicate journal entry on same device\n  %s",
+			    "duplicate journal entry on same device\n%s",
 			    buf.buf);
 
 		fsck_err_on(not_identical,
 			    c, journal_entry_replicas_data_mismatch,
-			    "found duplicate but non identical journal entries\n  %s",
+			    "found duplicate but non identical journal entries\n%s",
 			    buf.buf);
 
 		if (entry_ptr.csum_good && !identical)
@@ -308,8 +308,8 @@ static void journal_entry_err_msg(struct printbuf *out,
 		break;							\
 	case WRITE:							\
 		bch2_sb_error_count(c, BCH_FSCK_ERR_##_err);		\
-		bch_err(c, "corrupt metadata before write: %s\n", _buf.buf);\
-		if (bch2_fs_inconsistent(c)) {				\
+		if (bch2_fs_inconsistent(c,				\
+				"corrupt metadata before write: %s\n", _buf.buf)) {\
 			ret = -BCH_ERR_fsck_errors_not_fixed;		\
 			goto fsck_err;					\
 		}							\
@@ -760,6 +760,23 @@ static int journal_entry_overwrite_validate(struct bch_fs *c,
 
 static void journal_entry_overwrite_to_text(struct printbuf *out, struct bch_fs *c,
 					    struct jset_entry *entry)
+{
+	journal_entry_btree_keys_to_text(out, c, entry);
+}
+
+static int journal_entry_log_bkey_validate(struct bch_fs *c,
+				struct jset *jset,
+				struct jset_entry *entry,
+				unsigned version, int big_endian,
+				struct bkey_validate_context from)
+{
+	from.flags = 0;
+	return journal_entry_btree_keys_validate(c, jset, entry,
+				version, big_endian, from);
+}
+
+static void journal_entry_log_bkey_to_text(struct printbuf *out, struct bch_fs *c,
+					   struct jset_entry *entry)
 {
 	journal_entry_btree_keys_to_text(out, c, entry);
 }
@@ -1371,8 +1388,8 @@ int bch2_journal_read(struct bch_fs *c,
 			missing_end = seq - 1;
 			fsck_err(c, journal_entries_missing,
 				 "journal entries %llu-%llu missing! (replaying %llu-%llu)\n"
-				 "  prev at %s\n"
-				 "  next at %s, continue?",
+				 "prev at %s\n"
+				 "next at %s, continue?",
 				 missing_start, missing_end,
 				 *last_seq, *blacklist_seq - 1,
 				 buf1.buf, buf2.buf);
@@ -1426,7 +1443,7 @@ int bch2_journal_read(struct bch_fs *c,
 		    !bch2_replicas_marked(c, &replicas.e) &&
 		    (le64_to_cpu(i->j.seq) == *last_seq ||
 		     fsck_err(c, journal_entry_replicas_not_marked,
-			      "superblock not marked as containing replicas for journal entry %llu\n  %s",
+			      "superblock not marked as containing replicas for journal entry %llu\n%s",
 			      le64_to_cpu(i->j.seq), buf.buf))) {
 			ret = bch2_mark_replicas(c, &replicas.e);
 			if (ret)
@@ -1623,7 +1640,8 @@ static CLOSURE_CALLBACK(journal_write_done)
 			       : j->noflush_write_time, j->write_start_time);
 
 	if (!w->devs_written.nr) {
-		bch_err(c, "unable to write journal to sufficient devices");
+		if (!bch2_journal_error(j))
+			bch_err(c, "unable to write journal to sufficient devices");
 		err = -BCH_ERR_journal_write_err;
 	} else {
 		bch2_devlist_to_replicas(&replicas.e, BCH_DATA_journal,
@@ -2081,12 +2099,12 @@ CLOSURE_CALLBACK(bch2_journal_write)
 		struct printbuf buf = PRINTBUF;
 		buf.atomic++;
 
+		__bch2_journal_debug_to_text(&buf, j);
+		spin_unlock(&j->lock);
 		prt_printf(&buf, bch2_fmt(c, "Unable to allocate journal write at seq %llu for %zu sectors: %s"),
 					  le64_to_cpu(w->data->seq),
 					  vstruct_sectors(w->data, c->block_bits),
 					  bch2_err_str(ret));
-		__bch2_journal_debug_to_text(&buf, j);
-		spin_unlock(&j->lock);
 		bch2_print_string_as_lines(KERN_ERR, buf.buf);
 		printbuf_exit(&buf);
 	}

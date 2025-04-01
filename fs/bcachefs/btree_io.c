@@ -525,8 +525,6 @@ static void btree_err_msg(struct printbuf *out, struct bch_fs *c,
 	prt_printf(out, "at btree ");
 	bch2_btree_pos_to_text(out, c, b);
 
-	printbuf_indent_add(out, 2);
-
 	prt_printf(out, "\nnode offset %u/%u",
 		   b->written, btree_ptr_sectors_written(bkey_i_to_s_c(&b->key)));
 	if (i)
@@ -550,23 +548,7 @@ static int __btree_err(int ret,
 		       enum bch_sb_error_id err_type,
 		       const char *fmt, ...)
 {
-	struct printbuf out = PRINTBUF;
 	bool silent = c->curr_recovery_pass == BCH_RECOVERY_PASS_scan_for_btree_nodes;
-	va_list args;
-
-	btree_err_msg(&out, c, ca, b, i, k, b->written, write);
-
-	va_start(args, fmt);
-	prt_vprintf(&out, fmt, args);
-	va_end(args);
-
-	if (write == WRITE) {
-		bch2_print_string_as_lines(KERN_ERR, out.buf);
-		ret = c->opts.errors == BCH_ON_ERROR_continue
-			? 0
-			: -BCH_ERR_fsck_errors_not_fixed;
-		goto out;
-	}
 
 	if (!have_retry && ret == -BCH_ERR_btree_node_read_err_want_retry)
 		ret = -BCH_ERR_btree_node_read_err_fixable;
@@ -575,6 +557,29 @@ static int __btree_err(int ret,
 
 	if (!silent && ret != -BCH_ERR_btree_node_read_err_fixable)
 		bch2_sb_error_count(c, err_type);
+
+	struct printbuf out = PRINTBUF;
+	if (write != WRITE && ret != -BCH_ERR_btree_node_read_err_fixable) {
+		printbuf_indent_add_nextline(&out, 2);
+#ifdef BCACHEFS_LOG_PREFIX
+		prt_printf(&out, bch2_log_msg(c, ""));
+#endif
+	}
+
+	btree_err_msg(&out, c, ca, b, i, k, b->written, write);
+
+	va_list args;
+	va_start(args, fmt);
+	prt_vprintf(&out, fmt, args);
+	va_end(args);
+
+	if (write == WRITE) {
+		prt_str(&out, ", ");
+		ret = __bch2_inconsistent_error(c, &out)
+			? -BCH_ERR_fsck_errors_not_fixed
+			: 0;
+		silent = false;
+	}
 
 	switch (ret) {
 	case -BCH_ERR_btree_node_read_err_fixable:
@@ -585,25 +590,21 @@ static int __btree_err(int ret,
 		    ret != -BCH_ERR_fsck_ignore)
 			goto fsck_err;
 		ret = -BCH_ERR_fsck_fix;
-		break;
-	case -BCH_ERR_btree_node_read_err_want_retry:
-	case -BCH_ERR_btree_node_read_err_must_retry:
-		if (!silent)
-			bch2_print_string_as_lines(KERN_ERR, out.buf);
-		break;
+		goto out;
 	case -BCH_ERR_btree_node_read_err_bad_node:
-		if (!silent)
-			bch2_print_string_as_lines(KERN_ERR, out.buf);
-		ret = bch2_topology_error(c);
+		prt_str(&out, ", ");
+		ret = __bch2_topology_error(c, &out);
+		if (ret)
+			silent = false;
 		break;
 	case -BCH_ERR_btree_node_read_err_incompatible:
-		if (!silent)
-			bch2_print_string_as_lines(KERN_ERR, out.buf);
 		ret = -BCH_ERR_fsck_errors_not_fixed;
+		silent = false;
 		break;
-	default:
-		BUG();
 	}
+
+	if (!silent)
+		bch2_print_string_as_lines(KERN_ERR, out.buf);
 out:
 fsck_err:
 	printbuf_exit(&out);
@@ -817,7 +818,7 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 			     -BCH_ERR_btree_node_read_err_bad_node,
 			     c, ca, b, i, NULL,
 			     btree_node_bad_format,
-			     "invalid bkey format: %s\n  %s", buf1.buf,
+			     "invalid bkey format: %s\n%s", buf1.buf,
 			     (printbuf_reset(&buf2),
 			      bch2_bkey_format_to_text(&buf2, &bn->format), buf2.buf));
 		printbuf_reset(&buf1);

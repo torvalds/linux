@@ -673,7 +673,7 @@ static struct bch_inode_info *bch2_lookup_trans(struct btree_trans *trans,
 	 * back to this dirent
 	 */
 	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT),
-				c, "dirent to missing inode:\n  %s",
+				c, "dirent to missing inode:\n%s",
 				(bch2_bkey_val_to_text(&buf, c, d.s_c), buf.buf));
 	if (ret)
 		goto err;
@@ -2179,7 +2179,7 @@ static int bch2_fs_get_tree(struct fs_context *fc)
 
 	/* Some options can't be parsed until after the fs is started: */
 	opts = bch2_opts_empty();
-	ret = bch2_parse_mount_opts(c, &opts, NULL, opts_parse->parse_later.buf);
+	ret = bch2_parse_mount_opts(c, &opts, NULL, opts_parse->parse_later.buf, false);
 	if (ret)
 		goto err_stop_fs;
 
@@ -2290,7 +2290,8 @@ err_stop_fs:
 	goto err;
 
 err_put_super:
-	__bch2_fs_stop(c);
+	if (!sb->s_root)
+		__bch2_fs_stop(c);
 	deactivate_locked_super(sb);
 	goto err;
 }
@@ -2333,6 +2334,8 @@ static int bch2_fs_parse_param(struct fs_context *fc,
 	int ret = bch2_parse_one_mount_opt(c, &opts->opts,
 					   &opts->parse_later, param->key,
 					   param->string);
+	if (ret)
+		pr_err("Error parsing option %s: %s", param->key, bch2_err_str(ret));
 
 	return bch2_err_class(ret);
 }

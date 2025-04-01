@@ -96,6 +96,7 @@ static noinline int backpointer_mod_err(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct printbuf buf = PRINTBUF;
+	int ret = 0;
 
 	if (insert) {
 		prt_printf(&buf, "existing backpointer found when inserting ");
@@ -125,17 +126,15 @@ static noinline int backpointer_mod_err(struct btree_trans *trans,
 
 		prt_printf(&buf, "for ");
 		bch2_bkey_val_to_text(&buf, c, orig_k);
-
-		bch_err(c, "%s", buf.buf);
 	}
 
+	if (c->curr_recovery_pass > BCH_RECOVERY_PASS_check_extents_to_backpointers &&
+	    __bch2_inconsistent_error(c, &buf))
+		ret = -BCH_ERR_erofs_unfixed_errors;
+
+	bch_err(c, "%s", buf.buf);
 	printbuf_exit(&buf);
-
-	if (c->curr_recovery_pass > BCH_RECOVERY_PASS_check_extents_to_backpointers) {
-		return bch2_inconsistent_error(c) ? BCH_ERR_erofs_unfixed_errors : 0;
-	} else {
-		return 0;
-	}
+	return ret;
 }
 
 int bch2_bucket_backpointer_mod_nowritebuffer(struct btree_trans *trans,
@@ -210,11 +209,11 @@ static int backpointer_target_not_found(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	prt_printf(&buf, "backpointer doesn't match %s it points to:\n  ",
+	prt_printf(&buf, "backpointer doesn't match %s it points to:\n",
 		   bp.v->level ? "btree node" : "extent");
 	bch2_bkey_val_to_text(&buf, c, bp.s_c);
 
-	prt_printf(&buf, "\n  ");
+	prt_newline(&buf);
 	bch2_bkey_val_to_text(&buf, c, target_k);
 
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(target_k);
@@ -222,7 +221,7 @@ static int backpointer_target_not_found(struct btree_trans *trans,
 	struct extent_ptr_decoded p;
 	bkey_for_each_ptr_decode(target_k.k, ptrs, p, entry)
 		if (p.ptr.dev == bp.k->p.inode) {
-			prt_printf(&buf, "\n  ");
+			prt_newline(&buf);
 			struct bkey_i_backpointer bp2;
 			bch2_extent_ptr_to_bp(c, bp.v->btree_id, bp.v->level, target_k, p, entry, &bp2);
 			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&bp2.k_i));
@@ -443,12 +442,11 @@ found:
 	if (ret)
 		goto err;
 
-	prt_str(&buf, "extents pointing to same space, but first extent checksum bad:");
-	prt_printf(&buf, "\n  ");
+	prt_printf(&buf, "extents pointing to same space, but first extent checksum bad:\n");
 	bch2_btree_id_to_text(&buf, btree);
 	prt_str(&buf, " ");
 	bch2_bkey_val_to_text(&buf, c, extent);
-	prt_printf(&buf, "\n  ");
+	prt_newline(&buf);
 	bch2_btree_id_to_text(&buf, o_btree);
 	prt_str(&buf, " ");
 	bch2_bkey_val_to_text(&buf, c, extent2);
@@ -539,9 +537,9 @@ check_existing_bp:
 
 	if (bch2_extents_match(orig_k, other_extent)) {
 		printbuf_reset(&buf);
-		prt_printf(&buf, "duplicate versions of same extent, deleting smaller\n  ");
+		prt_printf(&buf, "duplicate versions of same extent, deleting smaller\n");
 		bch2_bkey_val_to_text(&buf, c, orig_k);
-		prt_str(&buf, "\n  ");
+		prt_newline(&buf);
 		bch2_bkey_val_to_text(&buf, c, other_extent);
 		bch_err(c, "%s", buf.buf);
 
@@ -580,20 +578,20 @@ check_existing_bp:
 	}
 
 	printbuf_reset(&buf);
-	prt_printf(&buf, "duplicate extents pointing to same space on dev %llu\n  ", bp->k.p.inode);
+	prt_printf(&buf, "duplicate extents pointing to same space on dev %llu\n", bp->k.p.inode);
 	bch2_bkey_val_to_text(&buf, c, orig_k);
-	prt_str(&buf, "\n  ");
+	prt_newline(&buf);
 	bch2_bkey_val_to_text(&buf, c, other_extent);
 	bch_err(c, "%s", buf.buf);
 	ret = -BCH_ERR_fsck_repair_unimplemented;
 	goto err;
 missing:
 	printbuf_reset(&buf);
-	prt_str(&buf, "missing backpointer\n  for:  ");
+	prt_str(&buf, "missing backpointer\nfor:  ");
 	bch2_bkey_val_to_text(&buf, c, orig_k);
-	prt_printf(&buf, "\n  want: ");
+	prt_printf(&buf, "\nwant: ");
 	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&bp->k_i));
-	prt_printf(&buf, "\n  got:  ");
+	prt_printf(&buf, "\ngot:  ");
 	bch2_bkey_val_to_text(&buf, c, bp_k);
 
 	if (fsck_err(trans, ptr_to_missing_backpointer, "%s", buf.buf))
@@ -1023,7 +1021,7 @@ int bch2_check_extents_to_backpointers(struct bch_fs *c)
 	 * Can't allow devices to come/go/resize while we have bucket bitmaps
 	 * allocated
 	 */
-	lockdep_assert_held(&c->state_lock);
+	down_read(&c->state_lock);
 
 	for_each_member_device(c, ca) {
 		BUG_ON(ca->bucket_backpointer_mismatches);
@@ -1108,6 +1106,7 @@ err_free_bitmaps:
 		ca->bucket_backpointer_mismatches = NULL;
 	}
 
+	up_read(&c->state_lock);
 	bch_err_fn(c, ret);
 	return ret;
 }

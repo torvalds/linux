@@ -561,6 +561,7 @@ int bch2_subvolume_unlink(struct btree_trans *trans, u32 subvolid)
 	}
 
 	SET_BCH_SUBVOLUME_UNLINKED(&n->v, true);
+	n->v.fs_path_parent = 0;
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }

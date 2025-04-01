@@ -320,7 +320,7 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 
 	if (flags & BTREE_TRIGGER_gc) {
 		struct bucket *g = gc_bucket(ca, bucket.offset);
-		if (bch2_fs_inconsistent_on(!g, c, "reference to invalid bucket on device %u\n  %s",
+		if (bch2_fs_inconsistent_on(!g, c, "reference to invalid bucket on device %u\n%s",
 					    ptr->dev,
 					    (bch2_bkey_val_to_text(&buf, c, s.s_c), buf.buf))) {
 			ret = -BCH_ERR_mark_stripe;
@@ -453,9 +453,9 @@ int bch2_trigger_stripe(struct btree_trans *trans,
 		if (new_s) {
 			s64 sectors = (u64) le16_to_cpu(new_s->sectors) * new_s->nr_redundant;
 
-			struct disk_accounting_pos acc = {
-				.type = BCH_DISK_ACCOUNTING_replicas,
-			};
+			struct disk_accounting_pos acc;
+			memset(&acc, 0, sizeof(acc));
+			acc.type = BCH_DISK_ACCOUNTING_replicas;
 			bch2_bkey_to_replicas(&acc.replicas, new);
 			int ret = bch2_disk_accounting_mod(trans, &acc, &sectors, 1, gc);
 			if (ret)
@@ -468,9 +468,9 @@ int bch2_trigger_stripe(struct btree_trans *trans,
 		if (old_s) {
 			s64 sectors = -((s64) le16_to_cpu(old_s->sectors)) * old_s->nr_redundant;
 
-			struct disk_accounting_pos acc = {
-				.type = BCH_DISK_ACCOUNTING_replicas,
-			};
+			struct disk_accounting_pos acc;
+			memset(&acc, 0, sizeof(acc));
+			acc.type = BCH_DISK_ACCOUNTING_replicas;
 			bch2_bkey_to_replicas(&acc.replicas, old);
 			int ret = bch2_disk_accounting_mod(trans, &acc, &sectors, 1, gc);
 			if (ret)
@@ -2110,14 +2110,14 @@ static int bch2_invalidate_stripe_to_dev(struct btree_trans *trans, struct bkey_
 	if (ret)
 		return ret;
 
-	struct disk_accounting_pos acc = {
-		.type = BCH_DISK_ACCOUNTING_replicas,
-	};
+	struct disk_accounting_pos acc;
 
 	s64 sectors = 0;
 	for (unsigned i = 0; i < s->v.nr_blocks; i++)
 		sectors -= stripe_blockcount_get(&s->v, i);
 
+	memset(&acc, 0, sizeof(acc));
+	acc.type = BCH_DISK_ACCOUNTING_replicas;
 	bch2_bkey_to_replicas(&acc.replicas, bkey_i_to_s_c(&s->k_i));
 	acc.replicas.data_type = BCH_DATA_user;
 	ret = bch2_disk_accounting_mod(trans, &acc, &sectors, 1, false);
@@ -2131,6 +2131,8 @@ static int bch2_invalidate_stripe_to_dev(struct btree_trans *trans, struct bkey_
 
 	sectors = -sectors;
 
+	memset(&acc, 0, sizeof(acc));
+	acc.type = BCH_DISK_ACCOUNTING_replicas;
 	bch2_bkey_to_replicas(&acc.replicas, bkey_i_to_s_c(&s->k_i));
 	acc.replicas.data_type = BCH_DATA_user;
 	ret = bch2_disk_accounting_mod(trans, &acc, &sectors, 1, false);

@@ -426,10 +426,8 @@ static long bch2_ioctl_fs_usage(struct bch_fs *c,
 	arg.replica_entries_bytes = replicas.nr;
 
 	for (unsigned i = 0; i < BCH_REPLICAS_MAX; i++) {
-		struct disk_accounting_pos k = {
-			.type = BCH_DISK_ACCOUNTING_persistent_reserved,
-			.persistent_reserved.nr_replicas = i,
-		};
+		struct disk_accounting_pos k;
+		disk_accounting_key_init(k, persistent_reserved, .nr_replicas = i);
 
 		bch2_accounting_mem_read(c,
 					 disk_accounting_pos_to_bpos(&k),

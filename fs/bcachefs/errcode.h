@@ -5,6 +5,8 @@
 #define BCH_ERRCODES()								\
 	x(ERANGE,			ERANGE_option_too_small)		\
 	x(ERANGE,			ERANGE_option_too_big)			\
+	x(EINVAL,			injected)				\
+	x(BCH_ERR_injected,		injected_fs_start)			\
 	x(EINVAL,			mount_option)				\
 	x(BCH_ERR_mount_option,		option_name)				\
 	x(BCH_ERR_mount_option,		option_value)				\
@@ -308,6 +310,7 @@
 	x(BCH_ERR_data_write,		data_write_misaligned)			\
 	x(BCH_ERR_decompress,		data_read)				\
 	x(BCH_ERR_data_read,		no_device_to_read_from)			\
+	x(BCH_ERR_data_read,		no_devices_valid)			\
 	x(BCH_ERR_data_read,		data_read_io_err)			\
 	x(BCH_ERR_data_read,		data_read_csum_err)			\
 	x(BCH_ERR_data_read,		data_read_retry)			\

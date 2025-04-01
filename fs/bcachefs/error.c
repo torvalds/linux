@@ -11,7 +11,16 @@
 
 #define FSCK_ERR_RATELIMIT_NR	10
 
-bool bch2_inconsistent_error(struct bch_fs *c)
+void bch2_log_msg_start(struct bch_fs *c, struct printbuf *out)
+{
+	printbuf_indent_add_nextline(out, 2);
+
+#ifdef BCACHEFS_LOG_PREFIX
+	prt_printf(out, bch2_log_msg(c, ""));
+#endif
+}
+
+bool __bch2_inconsistent_error(struct bch_fs *c, struct printbuf *out)
 {
 	set_bit(BCH_FS_error, &c->flags);
 
@@ -21,10 +30,11 @@ bool bch2_inconsistent_error(struct bch_fs *c)
 	case BCH_ON_ERROR_fix_safe:
 	case BCH_ON_ERROR_ro:
 		if (bch2_fs_emergency_read_only(c))
-			bch_err(c, "inconsistency detected - emergency read only at journal seq %llu",
-				journal_cur_seq(&c->journal));
+			prt_printf(out, "inconsistency detected - emergency read only at journal seq %llu\n",
+				   journal_cur_seq(&c->journal));
 		return true;
 	case BCH_ON_ERROR_panic:
+		bch2_print_string_as_lines(KERN_ERR, out->buf);
 		panic(bch2_fmt(c, "panic after error"));
 		return true;
 	default:
@@ -32,16 +42,86 @@ bool bch2_inconsistent_error(struct bch_fs *c)
 	}
 }
 
-int bch2_topology_error(struct bch_fs *c)
+bool bch2_inconsistent_error(struct bch_fs *c)
 {
+	struct printbuf buf = PRINTBUF;
+	printbuf_indent_add_nextline(&buf, 2);
+
+	bool ret = __bch2_inconsistent_error(c, &buf);
+	if (ret)
+		bch_err(c, "%s", buf.buf);
+	printbuf_exit(&buf);
+	return ret;
+}
+
+__printf(3, 0)
+static bool bch2_fs_trans_inconsistent(struct bch_fs *c, struct btree_trans *trans,
+				       const char *fmt, va_list args)
+{
+	struct printbuf buf = PRINTBUF;
+
+	bch2_log_msg_start(c, &buf);
+
+	prt_vprintf(&buf, fmt, args);
+	prt_newline(&buf);
+
+	if (trans)
+		bch2_trans_updates_to_text(&buf, trans);
+	bool ret = __bch2_inconsistent_error(c, &buf);
+	bch2_print_string_as_lines(KERN_ERR, buf.buf);
+
+	printbuf_exit(&buf);
+	return ret;
+}
+
+bool bch2_fs_inconsistent(struct bch_fs *c, const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	bool ret = bch2_fs_trans_inconsistent(c, NULL, fmt, args);
+	va_end(args);
+	return ret;
+}
+
+bool bch2_trans_inconsistent(struct btree_trans *trans, const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	bool ret = bch2_fs_trans_inconsistent(trans->c, trans, fmt, args);
+	va_end(args);
+	return ret;
+}
+
+int __bch2_topology_error(struct bch_fs *c, struct printbuf *out)
+{
+	prt_printf(out, "btree topology error: ");
+
 	set_bit(BCH_FS_topology_error, &c->flags);
 	if (!test_bit(BCH_FS_recovery_running, &c->flags)) {
-		bch2_inconsistent_error(c);
+		__bch2_inconsistent_error(c, out);
 		return -BCH_ERR_btree_need_topology_repair;
 	} else {
 		return bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology) ?:
 			-BCH_ERR_btree_node_read_validate_error;
 	}
+}
+
+int bch2_fs_topology_error(struct bch_fs *c, const char *fmt, ...)
+{
+	struct printbuf buf = PRINTBUF;
+
+	bch2_log_msg_start(c, &buf);
+
+	va_list args;
+	va_start(args, fmt);
+	prt_vprintf(&buf, fmt, args);
+	va_end(args);
+
+	int ret = __bch2_topology_error(c, &buf);
+	bch2_print_string_as_lines(KERN_ERR, buf.buf);
+
+	printbuf_exit(&buf);
+	return ret;
 }
 
 void bch2_fatal_error(struct bch_fs *c)
@@ -184,7 +264,8 @@ static enum ask_yn bch2_fsck_ask_yn(struct bch_fs *c, struct btree_trans *trans)
 
 #endif
 
-static struct fsck_err_state *fsck_err_get(struct bch_fs *c, const char *fmt)
+static struct fsck_err_state *fsck_err_get(struct bch_fs *c,
+					   enum bch_sb_error_id id)
 {
 	struct fsck_err_state *s;
 
@@ -192,7 +273,7 @@ static struct fsck_err_state *fsck_err_get(struct bch_fs *c, const char *fmt)
 		return NULL;
 
 	list_for_each_entry(s, &c->fsck_error_msgs, list)
-		if (s->fmt == fmt) {
+		if (s->id == id) {
 			/*
 			 * move it to the head of the list: repeated fsck errors
 			 * are common
@@ -210,7 +291,7 @@ static struct fsck_err_state *fsck_err_get(struct bch_fs *c, const char *fmt)
 	}
 
 	INIT_LIST_HEAD(&s->list);
-	s->fmt = fmt;
+	s->id = id;
 	list_add(&s->list, &c->fsck_error_msgs);
 	return s;
 }
@@ -260,15 +341,59 @@ static int do_fsck_ask_yn(struct bch_fs *c,
 	return ask;
 }
 
+static struct fsck_err_state *count_fsck_err_locked(struct bch_fs *c,
+			  enum bch_sb_error_id id, const char *msg,
+			  bool *repeat, bool *print, bool *suppress)
+{
+	bch2_sb_error_count(c, id);
+
+	struct fsck_err_state *s = fsck_err_get(c, id);
+	if (s) {
+		/*
+		 * We may be called multiple times for the same error on
+		 * transaction restart - this memoizes instead of asking the user
+		 * multiple times for the same error:
+		 */
+		if (s->last_msg && !strcmp(msg, s->last_msg)) {
+			*repeat = true;
+			*print = false;
+			return s;
+		}
+
+		kfree(s->last_msg);
+		s->last_msg = kstrdup(msg, GFP_KERNEL);
+
+		if (c->opts.ratelimit_errors &&
+		    s->nr >= FSCK_ERR_RATELIMIT_NR) {
+			if (s->nr == FSCK_ERR_RATELIMIT_NR)
+				*suppress = true;
+			else
+				*print = false;
+		}
+
+		s->nr++;
+	}
+	return s;
+}
+
+void __bch2_count_fsck_err(struct bch_fs *c,
+			   enum bch_sb_error_id id, const char *msg,
+			   bool *repeat, bool *print, bool *suppress)
+{
+	bch2_sb_error_count(c, id);
+
+	mutex_lock(&c->fsck_error_msgs_lock);
+	count_fsck_err_locked(c, id, msg, repeat, print, suppress);
+	mutex_unlock(&c->fsck_error_msgs_lock);
+}
+
 int __bch2_fsck_err(struct bch_fs *c,
 		  struct btree_trans *trans,
 		  enum bch_fsck_flags flags,
 		  enum bch_sb_error_id err,
 		  const char *fmt, ...)
 {
-	struct fsck_err_state *s = NULL;
 	va_list args;
-	bool print = true, suppressing = false, inconsistent = false, exiting = false;
 	struct printbuf buf = PRINTBUF, *out = &buf;
 	int ret = -BCH_ERR_fsck_ignore;
 	const char *action_orig = "fix?", *action = action_orig;
@@ -303,7 +428,12 @@ int __bch2_fsck_err(struct bch_fs *c,
 			? -BCH_ERR_fsck_fix
 			: -BCH_ERR_fsck_ignore;
 
-	bch2_sb_error_count(c, err);
+	printbuf_indent_add_nextline(out, 2);
+
+#ifdef BCACHEFS_LOG_PREFIX
+	if (strncmp(fmt, "bcachefs", 8))
+		prt_printf(out, bch2_log_msg(c, ""));
+#endif
 
 	va_start(args, fmt);
 	prt_vprintf(out, fmt, args);
@@ -323,41 +453,14 @@ int __bch2_fsck_err(struct bch_fs *c,
 	}
 
 	mutex_lock(&c->fsck_error_msgs_lock);
-	s = fsck_err_get(c, fmt);
-	if (s) {
-		/*
-		 * We may be called multiple times for the same error on
-		 * transaction restart - this memoizes instead of asking the user
-		 * multiple times for the same error:
-		 */
-		if (s->last_msg && !strcmp(buf.buf, s->last_msg)) {
-			ret = s->ret;
-			goto err_unlock;
-		}
-
-		kfree(s->last_msg);
-		s->last_msg = kstrdup(buf.buf, GFP_KERNEL);
-		if (!s->last_msg) {
-			ret = -ENOMEM;
-			goto err_unlock;
-		}
-
-		if (c->opts.ratelimit_errors &&
-		    !(flags & FSCK_NO_RATELIMIT) &&
-		    s->nr >= FSCK_ERR_RATELIMIT_NR) {
-			if (s->nr == FSCK_ERR_RATELIMIT_NR)
-				suppressing = true;
-			else
-				print = false;
-		}
-
-		s->nr++;
+	bool repeat = false, print = true, suppress = false;
+	bool inconsistent = false, exiting = false;
+	struct fsck_err_state *s =
+		count_fsck_err_locked(c, err, buf.buf, &repeat, &print, &suppress);
+	if (repeat) {
+		ret = s->ret;
+		goto err_unlock;
 	}
-
-#ifdef BCACHEFS_LOG_PREFIX
-	if (!strncmp(fmt, "bcachefs:", 9))
-		prt_printf(out, bch2_log_msg(c, ""));
-#endif
 
 	if ((flags & FSCK_AUTOFIX) &&
 	    (c->opts.errors == BCH_ON_ERROR_continue ||
@@ -377,6 +480,7 @@ int __bch2_fsck_err(struct bch_fs *c,
 		    !(flags & (FSCK_CAN_FIX|FSCK_CAN_IGNORE))) {
 			prt_str(out, ", shutting down");
 			inconsistent = true;
+			print = true;
 			ret = -BCH_ERR_fsck_errors_not_fixed;
 		} else if (flags & FSCK_CAN_FIX) {
 			prt_str(out, ", ");
@@ -435,23 +539,29 @@ int __bch2_fsck_err(struct bch_fs *c,
 		print = true;
 	}
 print:
+	prt_newline(out);
+
+	if (inconsistent)
+		__bch2_inconsistent_error(c, out);
+	else if (exiting)
+		prt_printf(out, "Unable to continue, halting\n");
+	else if (suppress)
+		prt_printf(out, "Ratelimiting new instances of previous error\n");
+
 	if (print) {
+		/* possibly strip an empty line, from printbuf_indent_add */
+		while (out->pos && out->buf[out->pos - 1] == ' ')
+			--out->pos;
+		printbuf_nul_terminate(out);
+
 		if (bch2_fs_stdio_redirect(c))
-			bch2_print(c, "%s\n", out->buf);
+			bch2_print(c, "%s", out->buf);
 		else
 			bch2_print_string_as_lines(KERN_ERR, out->buf);
 	}
 
-	if (exiting)
-		bch_err(c, "Unable to continue, halting");
-	else if (suppressing)
-		bch_err(c, "Ratelimiting new instances of previous error");
-
 	if (s)
 		s->ret = ret;
-
-	if (inconsistent)
-		bch2_inconsistent_error(c);
 
 	/*
 	 * We don't yet track whether the filesystem currently has errors, for
@@ -514,16 +624,14 @@ int __bch2_bkey_fsck_err(struct bch_fs *c,
 	prt_printf(&buf, " level=%u: ", from.level);
 
 	bch2_bkey_val_to_text(&buf, c, k);
-	prt_str(&buf, "\n  ");
+	prt_newline(&buf);
 
 	va_list args;
 	va_start(args, fmt);
 	prt_vprintf(&buf, fmt, args);
 	va_end(args);
 
-	prt_str(&buf, ": delete?");
-
-	int ret = __bch2_fsck_err(c, NULL, fsck_flags, err, "%s", buf.buf);
+	int ret = __bch2_fsck_err(c, NULL, fsck_flags, err, "%s, delete?", buf.buf);
 	printbuf_exit(&buf);
 	return ret;
 }
@@ -536,7 +644,7 @@ void bch2_flush_fsck_errs(struct bch_fs *c)
 
 	list_for_each_entry_safe(s, n, &c->fsck_error_msgs, list) {
 		if (s->ratelimited && s->last_msg)
-			bch_err(c, "Saw %llu errors like:\n    %s", s->nr, s->last_msg);
+			bch_err(c, "Saw %llu errors like:\n  %s", s->nr, s->last_msg);
 
 		list_del(&s->list);
 		kfree(s->last_msg);

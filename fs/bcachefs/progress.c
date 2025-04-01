@@ -16,10 +16,8 @@ void bch2_progress_init(struct progress_indicator_state *s,
 		if (!(btree_id_mask & BIT_ULL(i)))
 			continue;
 
-		struct disk_accounting_pos acc = {
-			.type		= BCH_DISK_ACCOUNTING_btree,
-			.btree.id	= i,
-		};
+		struct disk_accounting_pos acc;
+		disk_accounting_key_init(acc, btree, .id = i);
 
 		u64 v;
 		bch2_accounting_mem_read(c, disk_accounting_pos_to_bpos(&acc), &v, 1);

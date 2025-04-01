@@ -999,17 +999,28 @@ static loff_t bch2_seek_hole(struct file *file, u64 offset)
 				   POS(inode->v.i_ino, offset >> 9),
 				   POS(inode->v.i_ino, U64_MAX),
 				   inum.subvol, BTREE_ITER_slots, k, ({
-			if (k.k->p.inode != inode->v.i_ino) {
-				next_hole = bch2_seek_pagecache_hole(&inode->v,
-						offset, MAX_LFS_FILESIZE, 0, false);
-				break;
-			} else if (!bkey_extent_is_data(k.k)) {
-				next_hole = bch2_seek_pagecache_hole(&inode->v,
-						max(offset, bkey_start_offset(k.k) << 9),
-						k.k->p.offset << 9, 0, false);
+			if (k.k->p.inode != inode->v.i_ino ||
+			    !bkey_extent_is_data(k.k)) {
+				loff_t start_offset = k.k->p.inode == inode->v.i_ino
+					? max(offset, bkey_start_offset(k.k) << 9)
+					: offset;
+				loff_t end_offset = k.k->p.inode == inode->v.i_ino
+					? MAX_LFS_FILESIZE
+					: k.k->p.offset << 9;
 
-				if (next_hole < k.k->p.offset << 9)
+				/*
+				 * Found a hole in the btree, now make sure it's
+				 * a hole in the pagecache. We might have to
+				 * keep searching if this hole is entirely dirty
+				 * in the page cache:
+				 */
+				bch2_trans_unlock(trans);
+				loff_t pagecache_hole = bch2_seek_pagecache_hole(&inode->v,
+								start_offset, end_offset, 0, false);
+				if (pagecache_hole < end_offset) {
+					next_hole = pagecache_hole;
 					break;
+				}
 			} else {
 				offset = max(offset, bkey_start_offset(k.k) << 9);
 			}

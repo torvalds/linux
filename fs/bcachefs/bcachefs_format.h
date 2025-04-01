@@ -1143,7 +1143,8 @@ static inline __u64 __bset_magic(struct bch_sb *sb)
 	x(log,			9)		\
 	x(overwrite,		10)		\
 	x(write_buffer_keys,	11)		\
-	x(datetime,		12)
+	x(datetime,		12)		\
+	x(log_bkey,		13)
 
 enum bch_jset_entry_type {
 #define x(f, nr)	BCH_JSET_ENTRY_##f	= nr,

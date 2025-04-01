@@ -13,6 +13,7 @@
 
 #include <linux/kthread.h>
 #include <linux/min_heap.h>
+#include <linux/sched/sysctl.h>
 #include <linux/sort.h>
 
 struct find_btree_nodes_worker {
@@ -313,7 +314,8 @@ static int read_btree_nodes(struct find_btree_nodes *f)
 		wake_up_process(t);
 	}
 err:
-	closure_sync(&cl);
+	while (closure_sync_timeout(&cl, sysctl_hung_task_timeout_secs * HZ / 2))
+		;
 	return f->ret ?: ret;
 }
 
@@ -577,10 +579,12 @@ int bch2_get_scanned_nodes(struct bch_fs *c, enum btree_id btree,
 
 		found_btree_node_to_key(&tmp.k, &n);
 
-		struct printbuf buf = PRINTBUF;
-		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&tmp.k));
-		bch_verbose(c, "%s(): recovering %s", __func__, buf.buf);
-		printbuf_exit(&buf);
+		if (c->opts.verbose) {
+			struct printbuf buf = PRINTBUF;
+			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&tmp.k));
+			bch_verbose(c, "%s(): recovering %s", __func__, buf.buf);
+			printbuf_exit(&buf);
+		}
 
 		BUG_ON(bch2_bkey_validate(c, bkey_i_to_s_c(&tmp.k),
 					  (struct bkey_validate_context) {

@@ -381,6 +381,36 @@ err:
 	return ret;
 }
 
+static int bucket_ref_update_err(struct btree_trans *trans, struct printbuf *buf,
+				 struct bkey_s_c k, bool insert, enum bch_sb_error_id id)
+{
+	struct bch_fs *c = trans->c;
+	bool repeat = false, print = true, suppress = false;
+
+	prt_printf(buf, "\nwhile marking ");
+	bch2_bkey_val_to_text(buf, c, k);
+	prt_newline(buf);
+
+	__bch2_count_fsck_err(c, id, buf->buf, &repeat, &print, &suppress);
+
+	int ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
+
+	if (insert) {
+		print = true;
+		suppress = false;
+
+		bch2_trans_updates_to_text(buf, trans);
+		__bch2_inconsistent_error(c, buf);
+		ret = -BCH_ERR_bucket_ref_update;
+	}
+
+	if (suppress)
+		prt_printf(buf, "Ratelimiting new instances of previous error\n");
+	if (print)
+		bch2_print_string_as_lines(KERN_ERR, buf->buf);
+	return ret;
+}
+
 int bch2_bucket_ref_update(struct btree_trans *trans, struct bch_dev *ca,
 			   struct bkey_s_c k,
 			   const struct bch_extent_ptr *ptr,
@@ -396,32 +426,29 @@ int bch2_bucket_ref_update(struct btree_trans *trans, struct bch_dev *ca,
 
 	BUG_ON(!sectors);
 
-	if (gen_after(ptr->gen, b_gen)) {
-		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
-		log_fsck_err(trans, ptr_gen_newer_than_bucket_gen,
-			"bucket %u:%zu gen %u data type %s: ptr gen %u newer than bucket gen\n"
-			"while marking %s",
+	if (unlikely(gen_after(ptr->gen, b_gen))) {
+		bch2_log_msg_start(c, &buf);
+		prt_printf(&buf,
+			"bucket %u:%zu gen %u data type %s: ptr gen %u newer than bucket gen",
 			ptr->dev, bucket_nr, b_gen,
 			bch2_data_type_str(bucket_data_type ?: ptr_data_type),
-			ptr->gen,
-			(bch2_bkey_val_to_text(&buf, c, k), buf.buf));
-		if (inserting)
-			goto err;
+			ptr->gen);
+
+		ret = bucket_ref_update_err(trans, &buf, k, inserting,
+					    BCH_FSCK_ERR_ptr_gen_newer_than_bucket_gen);
 		goto out;
 	}
 
-	if (gen_cmp(b_gen, ptr->gen) > BUCKET_GC_GEN_MAX) {
-		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
-		log_fsck_err(trans, ptr_too_stale,
-			"bucket %u:%zu gen %u data type %s: ptr gen %u too stale\n"
-			"while marking %s",
+	if (unlikely(gen_cmp(b_gen, ptr->gen) > BUCKET_GC_GEN_MAX)) {
+		bch2_log_msg_start(c, &buf);
+		prt_printf(&buf,
+			"bucket %u:%zu gen %u data type %s: ptr gen %u too stale",
 			ptr->dev, bucket_nr, b_gen,
 			bch2_data_type_str(bucket_data_type ?: ptr_data_type),
-			ptr->gen,
-			(printbuf_reset(&buf),
-			 bch2_bkey_val_to_text(&buf, c, k), buf.buf));
-		if (inserting)
-			goto err;
+			ptr->gen);
+
+		ret = bucket_ref_update_err(trans, &buf, k, inserting,
+					    BCH_FSCK_ERR_ptr_too_stale);
 		goto out;
 	}
 
@@ -430,62 +457,50 @@ int bch2_bucket_ref_update(struct btree_trans *trans, struct bch_dev *ca,
 		goto out;
 	}
 
-	if (b_gen != ptr->gen) {
-		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
-		log_fsck_err(trans, stale_dirty_ptr,
-			"bucket %u:%zu gen %u (mem gen %u) data type %s: stale dirty ptr (gen %u)\n"
-			"while marking %s",
+	if (unlikely(b_gen != ptr->gen)) {
+		bch2_log_msg_start(c, &buf);
+		prt_printf(&buf,
+			"bucket %u:%zu gen %u (mem gen %u) data type %s: stale dirty ptr (gen %u)",
 			ptr->dev, bucket_nr, b_gen,
 			bucket_gen_get(ca, bucket_nr),
 			bch2_data_type_str(bucket_data_type ?: ptr_data_type),
-			ptr->gen,
-			(printbuf_reset(&buf),
-			 bch2_bkey_val_to_text(&buf, c, k), buf.buf));
-		if (inserting)
-			goto err;
+			ptr->gen);
+
+		ret = bucket_ref_update_err(trans, &buf, k, inserting,
+					    BCH_FSCK_ERR_stale_dirty_ptr);
 		goto out;
 	}
 
-	if (bucket_data_type_mismatch(bucket_data_type, ptr_data_type)) {
-		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
-		log_fsck_err(trans, ptr_bucket_data_type_mismatch,
-			"bucket %u:%zu gen %u different types of data in same bucket: %s, %s\n"
-			"while marking %s",
-			ptr->dev, bucket_nr, b_gen,
-			bch2_data_type_str(bucket_data_type),
-			bch2_data_type_str(ptr_data_type),
-			(printbuf_reset(&buf),
-			 bch2_bkey_val_to_text(&buf, c, k), buf.buf));
-		if (inserting)
-			goto err;
+	if (unlikely(bucket_data_type_mismatch(bucket_data_type, ptr_data_type))) {
+		bch2_log_msg_start(c, &buf);
+		prt_printf(&buf, "bucket %u:%zu gen %u different types of data in same bucket: %s, %s",
+			   ptr->dev, bucket_nr, b_gen,
+			   bch2_data_type_str(bucket_data_type),
+			   bch2_data_type_str(ptr_data_type));
+
+		ret = bucket_ref_update_err(trans, &buf, k, inserting,
+					    BCH_FSCK_ERR_ptr_bucket_data_type_mismatch);
 		goto out;
 	}
 
-	if ((u64) *bucket_sectors + sectors > U32_MAX) {
-		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
-		log_fsck_err(trans, bucket_sector_count_overflow,
-			"bucket %u:%zu gen %u data type %s sector count overflow: %u + %lli > U32_MAX\n"
-			"while marking %s",
+	if (unlikely((u64) *bucket_sectors + sectors > U32_MAX)) {
+		bch2_log_msg_start(c, &buf);
+		prt_printf(&buf,
+			"bucket %u:%zu gen %u data type %s sector count overflow: %u + %lli > U32_MAX",
 			ptr->dev, bucket_nr, b_gen,
 			bch2_data_type_str(bucket_data_type ?: ptr_data_type),
-			*bucket_sectors, sectors,
-			(printbuf_reset(&buf),
-			 bch2_bkey_val_to_text(&buf, c, k), buf.buf));
-		if (inserting)
-			goto err;
+			*bucket_sectors, sectors);
+
+		ret = bucket_ref_update_err(trans, &buf, k, inserting,
+					    BCH_FSCK_ERR_bucket_sector_count_overflow);
 		sectors = -*bucket_sectors;
+		goto out;
 	}
 
 	*bucket_sectors += sectors;
 out:
 	printbuf_exit(&buf);
 	return ret;
-err:
-fsck_err:
-	bch2_dump_trans_updates(trans);
-	bch2_inconsistent_error(c);
-	ret = -BCH_ERR_bucket_ref_update;
-	goto out;
 }
 
 void bch2_trans_account_disk_usage_change(struct btree_trans *trans)
@@ -651,9 +666,9 @@ static int bch2_trigger_stripe_ptr(struct btree_trans *trans,
 			stripe_blockcount_get(&s->v, p.ec.block) +
 			sectors);
 
-		struct disk_accounting_pos acc = {
-			.type = BCH_DISK_ACCOUNTING_replicas,
-		};
+		struct disk_accounting_pos acc;
+		memset(&acc, 0, sizeof(acc));
+		acc.type = BCH_DISK_ACCOUNTING_replicas;
 		bch2_bkey_to_replicas(&acc.replicas, bkey_i_to_s_c(&s->k_i));
 		acc.replicas.data_type = data_type;
 		ret = bch2_disk_accounting_mod(trans, &acc, &sectors, 1, false);
@@ -677,19 +692,21 @@ err:
 		if (!m || !m->alive) {
 			gc_stripe_unlock(m);
 			struct printbuf buf = PRINTBUF;
+			bch2_log_msg_start(c, &buf);
+			prt_printf(&buf, "pointer to nonexistent stripe %llu\n  while marking ",
+				   (u64) p.ec.idx);
 			bch2_bkey_val_to_text(&buf, c, k);
-			bch_err_ratelimited(c, "pointer to nonexistent stripe %llu\n  while marking %s",
-					    (u64) p.ec.idx, buf.buf);
+			__bch2_inconsistent_error(c, &buf);
+			bch2_print_string_as_lines(KERN_ERR, buf.buf);
 			printbuf_exit(&buf);
-			bch2_inconsistent_error(c);
 			return -BCH_ERR_trigger_stripe_pointer;
 		}
 
 		m->block_sectors[p.ec.block] += sectors;
 
-		struct disk_accounting_pos acc = {
-			.type = BCH_DISK_ACCOUNTING_replicas,
-		};
+		struct disk_accounting_pos acc;
+		memset(&acc, 0, sizeof(acc));
+		acc.type = BCH_DISK_ACCOUNTING_replicas;
 		memcpy(&acc.replicas, &m->r.e, replicas_entry_bytes(&m->r.e));
 		gc_stripe_unlock(m);
 
@@ -717,12 +734,12 @@ static int __trigger_extent(struct btree_trans *trans,
 		: BCH_DATA_user;
 	int ret = 0;
 
-	struct disk_accounting_pos acc_replicas_key = {
-		.type			= BCH_DISK_ACCOUNTING_replicas,
-		.replicas.data_type	= data_type,
-		.replicas.nr_devs	= 0,
-		.replicas.nr_required	= 1,
-	};
+	struct disk_accounting_pos acc_replicas_key;
+	memset(&acc_replicas_key, 0, sizeof(acc_replicas_key));
+	acc_replicas_key.type = BCH_DISK_ACCOUNTING_replicas;
+	acc_replicas_key.replicas.data_type	= data_type;
+	acc_replicas_key.replicas.nr_devs	= 0;
+	acc_replicas_key.replicas.nr_required	= 1;
 
 	unsigned cur_compression_type = 0;
 	u64 compression_acct[3] = { 1, 0, 0 };
