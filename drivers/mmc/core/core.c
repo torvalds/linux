@@ -1871,14 +1871,12 @@ bool mmc_card_can_sanitize(struct mmc_card *card)
 	return false;
 }
 
-int mmc_can_secure_erase_trim(struct mmc_card *card)
+bool mmc_card_can_secure_erase_trim(struct mmc_card *card)
 {
-	if ((card->ext_csd.sec_feature_support & EXT_CSD_SEC_ER_EN) &&
-	    !(card->quirks & MMC_QUIRK_SEC_ERASE_TRIM_BROKEN))
-		return 1;
-	return 0;
+	return ((card->ext_csd.sec_feature_support & EXT_CSD_SEC_ER_EN) &&
+		!(card->quirks & MMC_QUIRK_SEC_ERASE_TRIM_BROKEN));
 }
-EXPORT_SYMBOL(mmc_can_secure_erase_trim);
+EXPORT_SYMBOL(mmc_card_can_secure_erase_trim);
 
 int mmc_erase_group_aligned(struct mmc_card *card, sector_t from,
 			    unsigned int nr)
