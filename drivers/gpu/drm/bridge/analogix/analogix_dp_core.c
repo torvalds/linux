@@ -964,9 +964,7 @@ static int analogix_dp_disable_psr(struct analogix_dp_device *dp)
  * is false, the panel will be unprepared.
  *
  * The function will disregard the current state
- * of the panel and either prepare/unprepare the panel based on @prepare. Once
- * it finishes, it will update dp->panel_is_modeset to reflect the current state
- * of the panel.
+ * of the panel and either prepare/unprepare the panel based on @prepare.
  */
 static int analogix_dp_prepare_panel(struct analogix_dp_device *dp,
 				     bool prepare)
@@ -983,12 +981,6 @@ static int analogix_dp_prepare_panel(struct analogix_dp_device *dp,
 	else
 		ret = drm_panel_unprepare(dp->plat_data->panel);
 
-	if (ret)
-		goto out;
-
-	dp->panel_is_modeset = prepare;
-
-out:
 	mutex_unlock(&dp->panel_lock);
 	return ret;
 }
@@ -1556,7 +1548,6 @@ analogix_dp_probe(struct device *dev, struct analogix_dp_plat_data *plat_data)
 	dp->dpms_mode = DRM_MODE_DPMS_OFF;
 
 	mutex_init(&dp->panel_lock);
-	dp->panel_is_modeset = false;
 
 	/*
 	 * platform dp driver need containor_of the plat_data to get

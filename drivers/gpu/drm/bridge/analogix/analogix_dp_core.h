@@ -170,7 +170,6 @@ struct analogix_dp_device {
 	bool			psr_supported;
 
 	struct mutex		panel_lock;
-	bool			panel_is_modeset;
 
 	struct analogix_dp_plat_data *plat_data;
 };
