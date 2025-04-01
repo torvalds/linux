@@ -1955,7 +1955,7 @@ err:
 	return err;
 }
 
-static int mmc_can_sleep(struct mmc_card *card)
+static bool mmc_card_can_sleep(struct mmc_card *card)
 {
 	return card->ext_csd.rev >= 3;
 }
@@ -2139,7 +2139,7 @@ static int _mmc_suspend(struct mmc_host *host, enum mmc_poweroff_type pm_type)
 	if (mmc_card_can_poweroff_notify(host->card) &&
 	    mmc_host_can_poweroff_notify(host, pm_type))
 		err = mmc_poweroff_notify(host->card, notify_type);
-	else if (mmc_can_sleep(host->card))
+	else if (mmc_card_can_sleep(host->card))
 		err = mmc_sleep(host);
 	else if (!mmc_host_is_spi(host))
 		err = mmc_deselect_cards(host);
