@@ -3,7 +3,7 @@ config CEPH_FS
 	tristate "Ceph distributed file system"
 	depends on INET
 	select CEPH_LIB
-	select LIBCRC32C
+	select CRC32
 	select CRYPTO_AES
 	select CRYPTO
 	select NETFS_SUPPORT

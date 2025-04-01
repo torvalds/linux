@@ -367,7 +367,7 @@ config BLK_DEV_RBD
 	tristate "Rados block device (RBD)"
 	depends on INET && BLOCK
 	select CEPH_LIB
-	select LIBCRC32C
+	select CRC32
 	select CRYPTO_AES
 	select CRYPTO
 	help

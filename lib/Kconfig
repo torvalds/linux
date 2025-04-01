@@ -208,13 +208,6 @@ config CRC7
 	  The CRC7 library functions.  Select this if your module uses any of
 	  the functions from <linux/crc7.h>.
 
-config LIBCRC32C
-	tristate
-	select CRC32
-	help
-	  This option just selects CRC32 and is provided for compatibility
-	  purposes until the users are updated to select CRC32 directly.
-
 config CRC8
 	tristate
 	help
