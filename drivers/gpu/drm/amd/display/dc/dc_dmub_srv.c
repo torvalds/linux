@@ -1269,12 +1269,16 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 			new_signals.bits.allow_ips1 = 1;
 			new_signals.bits.allow_ips2 = 1;
 			new_signals.bits.allow_z10 = 1;
+			// New in IPSv2.0
+			new_signals.bits.allow_ips1z8 = 1;
 		} else if (dc->config.disable_ips == DMUB_IPS_DISABLE_IPS1) {
 			new_signals.bits.allow_ips1 = 1;
 		} else if (dc->config.disable_ips == DMUB_IPS_DISABLE_IPS2) {
+			// IPSv1.0 only
 			new_signals.bits.allow_pg = 1;
 			new_signals.bits.allow_ips1 = 1;
 		} else if (dc->config.disable_ips == DMUB_IPS_DISABLE_IPS2_Z10) {
+			// IPSv1.0 only
 			new_signals.bits.allow_pg = 1;
 			new_signals.bits.allow_ips1 = 1;
 			new_signals.bits.allow_ips2 = 1;
@@ -1286,6 +1290,8 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 				new_signals.bits.allow_ips1 = 1;
 				new_signals.bits.allow_ips2 = 1;
 				new_signals.bits.allow_z10 = 1;
+				// New in IPSv2.0
+				new_signals.bits.allow_ips1z8 = 1;
 			} else {
 				/* RCG only */
 				new_signals.bits.allow_pg = 0;
@@ -1293,8 +1299,21 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 				new_signals.bits.allow_ips2 = 0;
 				new_signals.bits.allow_z10 = 0;
 			}
+		} else if (dc->config.disable_ips == DMUB_IPS_DISABLE_Z8_RETENTION) {
+			new_signals.bits.allow_pg = 1;
+			new_signals.bits.allow_ips1 = 1;
+			new_signals.bits.allow_ips2 = 1;
+			new_signals.bits.allow_z10 = 1;
 		}
-
+		// Setting RCG allow bits (IPSv2.0)
+		if (dc->config.disable_ips_rcg == DMUB_IPS_RCG_ENABLE) {
+			new_signals.bits.allow_ips0_rcg = 1;
+			new_signals.bits.allow_ips1_rcg = 1;
+		} else if (dc->config.disable_ips_rcg == DMUB_IPS0_RCG_DISABLE) {
+			new_signals.bits.allow_ips1_rcg = 1;
+		} else if (dc->config.disable_ips_rcg == DMUB_IPS1_RCG_DISABLE) {
+			new_signals.bits.allow_ips0_rcg = 1;
+		}
 		ips_driver->signals = new_signals;
 		dc_dmub_srv->driver_signals = ips_driver->signals;
 	}
@@ -1318,7 +1337,7 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 {
 	struct dc_dmub_srv *dc_dmub_srv;
-	uint32_t rcg_exit_count = 0, ips1_exit_count = 0, ips2_exit_count = 0;
+	uint32_t rcg_exit_count = 0, ips1_exit_count = 0, ips2_exit_count = 0, ips1z8_exit_count = 0;
 
 	if (dc->debug.dmcub_emulation)
 		return;
@@ -1338,31 +1357,34 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 		rcg_exit_count = ips_fw->rcg_exit_count;
 		ips1_exit_count = ips_fw->ips1_exit_count;
 		ips2_exit_count = ips_fw->ips2_exit_count;
+		ips1z8_exit_count = ips_fw->ips1_z8ret_exit_count;
 
 		ips_driver->signals.all = 0;
 		dc_dmub_srv->driver_signals = ips_driver->signals;
 
 		DC_LOG_IPS(
-			"%s (allow ips1=%u ips2=%u) (commit ips1=%u ips2=%u) (count rcg=%u ips1=%u ips2=%u)",
+			"%s (allow ips1=%u ips2=%u) (commit ips1=%u ips2=%u ips1z8=%u) (count rcg=%u ips1=%u ips2=%u ips1_z8=%u)",
 			__func__,
 			ips_driver->signals.bits.allow_ips1,
 			ips_driver->signals.bits.allow_ips2,
 			ips_fw->signals.bits.ips1_commit,
 			ips_fw->signals.bits.ips2_commit,
+			ips_fw->signals.bits.ips1z8_commit,
 			ips_fw->rcg_entry_count,
 			ips_fw->ips1_entry_count,
-			ips_fw->ips2_entry_count);
+			ips_fw->ips2_entry_count,
+			ips_fw->ips1_z8ret_entry_count);
 
 		/* Note: register access has technically not resumed for DCN here, but we
 		 * need to be message PMFW through our standard register interface.
 		 */
 		dc_dmub_srv->needs_idle_wake = false;
 
-		if ((prev_driver_signals.bits.allow_ips2 || prev_driver_signals.all == 0) &&
+		if (!dc->caps.ips_v2_support && ((prev_driver_signals.bits.allow_ips2 || prev_driver_signals.all == 0) &&
 		    (!dc->debug.optimize_ips_handshake ||
-		     ips_fw->signals.bits.ips2_commit || !ips_fw->signals.bits.in_idle)) {
+		     ips_fw->signals.bits.ips2_commit || !ips_fw->signals.bits.in_idle))) {
 			DC_LOG_IPS(
-				"wait IPS2 eval (ips1_commit=%u ips2_commit=%u)",
+				"wait IPS2 eval (ips1_commit=%u ips2_commit=%u )",
 				ips_fw->signals.bits.ips1_commit,
 				ips_fw->signals.bits.ips2_commit);
 
@@ -1422,28 +1444,31 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 		dc_dmub_srv_notify_idle(dc, false);
 		if (prev_driver_signals.bits.allow_ips1 || prev_driver_signals.all == 0) {
 			DC_LOG_IPS(
-				"wait for IPS1 commit clear (ips1_commit=%u ips2_commit=%u)",
+				"wait for IPS1 commit clear (ips1_commit=%u ips2_commit=%u ips1z8=%u)",
 				ips_fw->signals.bits.ips1_commit,
-				ips_fw->signals.bits.ips2_commit);
+				ips_fw->signals.bits.ips2_commit,
+				ips_fw->signals.bits.ips1z8_commit);
 
 			while (ips_fw->signals.bits.ips1_commit)
 				udelay(1);
 
 			DC_LOG_IPS(
-				"wait for IPS1 commit clear done (ips1_commit=%u ips2_commit=%u)",
+				"wait for IPS1 commit clear done (ips1_commit=%u ips2_commit=%u ips1z8=%u)",
 				ips_fw->signals.bits.ips1_commit,
-				ips_fw->signals.bits.ips2_commit);
+				ips_fw->signals.bits.ips2_commit,
+				ips_fw->signals.bits.ips1z8_commit);
 		}
 	}
 
 	if (!dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true))
 		ASSERT(0);
 
-	DC_LOG_IPS("%s exit (count rcg=%u ips1=%u ips2=%u)",
+	DC_LOG_IPS("%s exit (count rcg=%u ips1=%u ips2=%u ips1z8=%u)",
 		__func__,
 		rcg_exit_count,
 		ips1_exit_count,
-		ips2_exit_count);
+		ips2_exit_count,
+		ips1z8_exit_count);
 }
 
 void dc_dmub_srv_set_power_state(struct dc_dmub_srv *dc_dmub_srv, enum dc_acpi_cm_power_state power_state)

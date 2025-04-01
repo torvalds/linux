@@ -515,6 +515,7 @@ struct dc_config {
 	bool EnableMinDispClkODM;
 	bool enable_auto_dpm_test_logs;
 	unsigned int disable_ips;
+	unsigned int disable_ips_rcg;
 	unsigned int disable_ips_in_vpb;
 	bool disable_ips_in_dpms_off;
 	bool usb4_bw_alloc_support;

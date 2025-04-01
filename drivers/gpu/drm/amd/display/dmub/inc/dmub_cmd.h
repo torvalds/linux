@@ -875,7 +875,7 @@ enum dmub_shared_state_feature_id {
 /**
  * struct dmub_shared_state_ips_fw - Firmware signals for IPS.
  */
-union dmub_shared_state_ips_fw_signals {
+ union dmub_shared_state_ips_fw_signals {
 	struct {
 		uint32_t ips1_commit : 1;  /**< 1 if in IPS1 or IPS0 RCG */
 		uint32_t ips2_commit : 1; /**< 1 if in IPS2 */
@@ -890,7 +890,7 @@ union dmub_shared_state_ips_fw_signals {
 /**
  * struct dmub_shared_state_ips_signals - Firmware signals for IPS.
  */
-union dmub_shared_state_ips_driver_signals {
+ union dmub_shared_state_ips_driver_signals {
 	struct {
 		uint32_t allow_pg : 1; /**< 1 if PG is allowed */
 		uint32_t allow_ips1 : 1; /**< 1 is IPS1 is allowed */
