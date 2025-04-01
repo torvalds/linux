@@ -1609,6 +1609,7 @@ static void btree_node_read_all_replicas_endio(struct bio *bio)
 		struct bch_dev *ca = bch2_dev_have_ref(c, rb->pick.ptr.dev);
 
 		bch2_latency_acct(ca, rb->start_time, READ);
+		percpu_ref_put(&ca->io_ref);
 	}
 
 	ra->err[rb->idx] = bio->bi_status;
