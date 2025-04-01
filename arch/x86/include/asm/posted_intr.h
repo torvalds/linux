@@ -1,7 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _X86_POSTED_INTR_H
 #define _X86_POSTED_INTR_H
+
+#include <asm/cmpxchg.h>
+#include <asm/rwonce.h>
 #include <asm/irq_vectors.h>
+
+#include <linux/bitmap.h>
 
 #define POSTED_INTR_ON  0
 #define POSTED_INTR_SN  1
@@ -25,6 +30,65 @@ struct pi_desc {
 	};
 	u32 rsvd[6];
 } __aligned(64);
+
+/*
+ * De-multiplexing posted interrupts is on the performance path, the code
+ * below is written to optimize the cache performance based on the following
+ * considerations:
+ * 1.Posted interrupt descriptor (PID) fits in a cache line that is frequently
+ *   accessed by both CPU and IOMMU.
+ * 2.During software processing of posted interrupts, the CPU needs to do
+ *   natural width read and xchg for checking and clearing posted interrupt
+ *   request (PIR), a 256 bit field within the PID.
+ * 3.On the other side, the IOMMU does atomic swaps of the entire PID cache
+ *   line when posting interrupts and setting control bits.
+ * 4.The CPU can access the cache line a magnitude faster than the IOMMU.
+ * 5.Each time the IOMMU does interrupt posting to the PIR will evict the PID
+ *   cache line. The cache line states after each operation are as follows,
+ *   assuming a 64-bit kernel:
+ *   CPU		IOMMU			PID Cache line state
+ *   ---------------------------------------------------------------
+ *...read64					exclusive
+ *...lock xchg64				modified
+ *...			post/atomic swap	invalid
+ *...-------------------------------------------------------------
+ *
+ * To reduce L1 data cache miss, it is important to avoid contention with
+ * IOMMU's interrupt posting/atomic swap. Therefore, a copy of PIR is used
+ * when processing posted interrupts in software, e.g. to dispatch interrupt
+ * handlers for posted MSIs, or to move interrupts from the PIR to the vIRR
+ * in KVM.
+ *
+ * In addition, the code is trying to keep the cache line state consistent
+ * as much as possible. e.g. when making a copy and clearing the PIR
+ * (assuming non-zero PIR bits are present in the entire PIR), it does:
+ *		read, read, read, read, xchg, xchg, xchg, xchg
+ * instead of:
+ *		read, xchg, read, xchg, read, xchg, read, xchg
+ */
+static __always_inline bool pi_harvest_pir(unsigned long *pir,
+					   unsigned long *pir_vals)
+{
+	unsigned long pending = 0;
+	int i;
+
+	for (i = 0; i < NR_PIR_WORDS; i++) {
+		pir_vals[i] = READ_ONCE(pir[i]);
+		pending |= pir_vals[i];
+	}
+
+	if (!pending)
+		return false;
+
+	for (i = 0; i < NR_PIR_WORDS; i++) {
+		if (!pir_vals[i])
+			continue;
+
+		pir_vals[i] = arch_xchg(&pir[i], 0);
+	}
+
+	return true;
+}
 
 static inline bool pi_test_and_set_on(struct pi_desc *pi_desc)
 {

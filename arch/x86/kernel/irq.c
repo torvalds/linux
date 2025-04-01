@@ -380,57 +380,13 @@ void intel_posted_msi_init(void)
 	this_cpu_write(posted_msi_pi_desc.ndst, destination);
 }
 
-/*
- * De-multiplexing posted interrupts is on the performance path, the code
- * below is written to optimize the cache performance based on the following
- * considerations:
- * 1.Posted interrupt descriptor (PID) fits in a cache line that is frequently
- *   accessed by both CPU and IOMMU.
- * 2.During posted MSI processing, the CPU needs to do 64-bit read and xchg
- *   for checking and clearing posted interrupt request (PIR), a 256 bit field
- *   within the PID.
- * 3.On the other side, the IOMMU does atomic swaps of the entire PID cache
- *   line when posting interrupts and setting control bits.
- * 4.The CPU can access the cache line a magnitude faster than the IOMMU.
- * 5.Each time the IOMMU does interrupt posting to the PIR will evict the PID
- *   cache line. The cache line states after each operation are as follows:
- *   CPU		IOMMU			PID Cache line state
- *   ---------------------------------------------------------------
- *...read64					exclusive
- *...lock xchg64				modified
- *...			post/atomic swap	invalid
- *...-------------------------------------------------------------
- *
- * To reduce L1 data cache miss, it is important to avoid contention with
- * IOMMU's interrupt posting/atomic swap. Therefore, a copy of PIR is used
- * to dispatch interrupt handlers.
- *
- * In addition, the code is trying to keep the cache line state consistent
- * as much as possible. e.g. when making a copy and clearing the PIR
- * (assuming non-zero PIR bits are present in the entire PIR), it does:
- *		read, read, read, read, xchg, xchg, xchg, xchg
- * instead of:
- *		read, xchg, read, xchg, read, xchg, read, xchg
- */
 static __always_inline bool handle_pending_pir(unsigned long *pir, struct pt_regs *regs)
 {
-	unsigned long pir_copy[NR_PIR_WORDS], pending = 0;
-	int i, vec = FIRST_EXTERNAL_VECTOR;
+	unsigned long pir_copy[NR_PIR_WORDS];
+	int vec = FIRST_EXTERNAL_VECTOR;
 
-	for (i = 0; i < NR_PIR_WORDS; i++) {
-		pir_copy[i] = READ_ONCE(pir[i]);
-		pending |= pir_copy[i];
-	}
-
-	if (!pending)
+	if (!pi_harvest_pir(pir, pir_copy))
 		return false;
-
-	for (i = 0; i < NR_PIR_WORDS; i++) {
-		if (!pir_copy[i])
-			continue;
-
-		pir_copy[i] = arch_xchg(&pir[i], 0);
-	}
 
 	for_each_set_bit_from(vec, pir_copy, FIRST_SYSTEM_VECTOR)
 		call_irq_handler(vec, regs);

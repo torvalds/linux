@@ -657,7 +657,7 @@ static u8 count_vectors(void *bitmap)
 
 bool __kvm_apic_update_irr(unsigned long *pir, void *regs, int *max_irr)
 {
-	unsigned long pir_vals[NR_PIR_WORDS], pending = 0;
+	unsigned long pir_vals[NR_PIR_WORDS];
 	u32 *__pir = (void *)pir_vals;
 	u32 i, vec;
 	u32 irr_val, prev_irr_val;
@@ -666,20 +666,8 @@ bool __kvm_apic_update_irr(unsigned long *pir, void *regs, int *max_irr)
 	max_updated_irr = -1;
 	*max_irr = -1;
 
-	for (i = 0; i < NR_PIR_WORDS; i++) {
-		pir_vals[i] = READ_ONCE(pir[i]);
-		pending |= pir_vals[i];
-	}
-
-	if (!pending)
+	if (!pi_harvest_pir(pir, pir_vals))
 		return false;
-
-	for (i = 0; i < NR_PIR_WORDS; i++) {
-		if (!pir_vals[i])
-			continue;
-
-		pir_vals[i] = arch_xchg(&pir[i], 0);
-	}
 
 	for (i = vec = 0; i <= 7; i++, vec += 32) {
 		u32 *p_irr = (u32 *)(regs + APIC_IRR + i * 0x10);
