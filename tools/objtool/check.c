@@ -4753,6 +4753,9 @@ out:
 	if (!ret && !warnings)
 		return 0;
 
+	if (opts.werror && warnings)
+		ret = 1;
+
 	if (opts.verbose) {
 		if (opts.werror && warnings)
 			WARN("%d warning(s) upgraded to errors", warnings);
@@ -4760,15 +4763,5 @@ out:
 		disas_warned_funcs(file);
 	}
 
-	/*
-	 * CONFIG_OBJTOOL_WERROR upgrades all warnings (and errors) to actual
-	 * errors.
-	 *
-	 * Note that even fatal errors don't yet actually return an error
-	 * without CONFIG_OBJTOOL_WERROR.  That will be fixed soon-ish.
-	 */
-	if (opts.werror)
-		return 1;
-
-	return 0;
+	return ret;
 }
