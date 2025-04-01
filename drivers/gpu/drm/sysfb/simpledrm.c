@@ -25,7 +25,6 @@
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_modeset_helper_vtables.h>
-#include <drm/drm_panic.h>
 #include <drm/drm_probe_helper.h>
 
 #include "drm_sysfb_helper.h"
@@ -238,7 +237,7 @@ struct simpledrm_device {
 #endif
 
 	/* modesetting */
-	uint32_t formats[8];
+	u32 formats[DRM_SYSFB_PLANE_NFORMATS(1)];
 	struct drm_plane primary_plane;
 	struct drm_crtc crtc;
 	struct drm_encoder encoder;
@@ -567,132 +566,17 @@ static int simpledrm_device_attach_genpd(struct simpledrm_device *sdev)
  * Modesetting
  */
 
-static const uint64_t simpledrm_primary_plane_format_modifiers[] = {
-	DRM_FORMAT_MOD_LINEAR,
-	DRM_FORMAT_MOD_INVALID
+static const u64 simpledrm_primary_plane_format_modifiers[] = {
+	DRM_SYSFB_PLANE_FORMAT_MODIFIERS,
 };
 
-static int simpledrm_primary_plane_helper_atomic_check(struct drm_plane *plane,
-						       struct drm_atomic_state *state)
-{
-	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state, plane);
-	struct drm_shadow_plane_state *new_shadow_plane_state =
-		to_drm_shadow_plane_state(new_plane_state);
-	struct drm_framebuffer *new_fb = new_plane_state->fb;
-	struct drm_crtc *new_crtc = new_plane_state->crtc;
-	struct drm_crtc_state *new_crtc_state = NULL;
-	struct drm_device *dev = plane->dev;
-	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(dev);
-	int ret;
-
-	if (new_crtc)
-		new_crtc_state = drm_atomic_get_new_crtc_state(state, new_crtc);
-
-	ret = drm_atomic_helper_check_plane_state(new_plane_state, new_crtc_state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
-						  false, false);
-	if (ret)
-		return ret;
-	else if (!new_plane_state->visible)
-		return 0;
-
-	if (new_fb->format != sysfb->fb_format) {
-		void *buf;
-
-		/* format conversion necessary; reserve buffer */
-		buf = drm_format_conv_state_reserve(&new_shadow_plane_state->fmtcnv_state,
-						    sysfb->fb_pitch, GFP_KERNEL);
-		if (!buf)
-			return -ENOMEM;
-	}
-
-	return 0;
-}
-
-static void simpledrm_primary_plane_helper_atomic_update(struct drm_plane *plane,
-							 struct drm_atomic_state *state)
-{
-	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
-	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
-	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
-	struct drm_framebuffer *fb = plane_state->fb;
-	struct drm_device *dev = plane->dev;
-	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(dev);
-	struct drm_atomic_helper_damage_iter iter;
-	struct drm_rect damage;
-	int ret, idx;
-
-	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
-	if (ret)
-		return;
-
-	if (!drm_dev_enter(dev, &idx))
-		goto out_drm_gem_fb_end_cpu_access;
-
-	drm_atomic_helper_damage_iter_init(&iter, old_plane_state, plane_state);
-	drm_atomic_for_each_plane_damage(&iter, &damage) {
-		struct drm_rect dst_clip = plane_state->dst;
-		struct iosys_map dst = sysfb->fb_addr;
-
-		if (!drm_rect_intersect(&dst_clip, &damage))
-			continue;
-
-		iosys_map_incr(&dst, drm_fb_clip_offset(sysfb->fb_pitch, sysfb->fb_format,
-							&dst_clip));
-		drm_fb_blit(&dst, &sysfb->fb_pitch, sysfb->fb_format->format,
-			    shadow_plane_state->data,
-			    fb, &damage, &shadow_plane_state->fmtcnv_state);
-	}
-
-	drm_dev_exit(idx);
-out_drm_gem_fb_end_cpu_access:
-	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
-}
-
-static void simpledrm_primary_plane_helper_atomic_disable(struct drm_plane *plane,
-							  struct drm_atomic_state *state)
-{
-	struct drm_device *dev = plane->dev;
-	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(plane->dev);
-	int idx;
-
-	if (!drm_dev_enter(dev, &idx))
-		return;
-
-	/* Clear screen to black if disabled */
-	iosys_map_memset(&sysfb->fb_addr, 0, 0, sysfb->fb_pitch * sysfb->fb_mode.vdisplay);
-
-	drm_dev_exit(idx);
-}
-
-static int simpledrm_primary_plane_helper_get_scanout_buffer(struct drm_plane *plane,
-							     struct drm_scanout_buffer *sb)
-{
-	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(plane->dev);
-
-	sb->width = sysfb->fb_mode.hdisplay;
-	sb->height = sysfb->fb_mode.vdisplay;
-	sb->format = sysfb->fb_format;
-	sb->pitch[0] = sysfb->fb_pitch;
-	sb->map[0] = sysfb->fb_addr;
-
-	return 0;
-}
-
 static const struct drm_plane_helper_funcs simpledrm_primary_plane_helper_funcs = {
-	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
-	.atomic_check = simpledrm_primary_plane_helper_atomic_check,
-	.atomic_update = simpledrm_primary_plane_helper_atomic_update,
-	.atomic_disable = simpledrm_primary_plane_helper_atomic_disable,
-	.get_scanout_buffer = simpledrm_primary_plane_helper_get_scanout_buffer,
+	DRM_SYSFB_PLANE_HELPER_FUNCS,
 };
 
 static const struct drm_plane_funcs simpledrm_primary_plane_funcs = {
-	.update_plane = drm_atomic_helper_update_plane,
-	.disable_plane = drm_atomic_helper_disable_plane,
+	DRM_SYSFB_PLANE_FUNCS,
 	.destroy = drm_plane_cleanup,
-	DRM_GEM_SHADOW_PLANE_FUNCS,
 };
 
 static const struct drm_crtc_helper_funcs simpledrm_crtc_helper_funcs = {

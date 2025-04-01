@@ -7,6 +7,13 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_state_helper.h>
+#include <drm/drm_damage_helper.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_gem_atomic_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_panic.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
@@ -38,6 +45,144 @@ struct drm_display_mode drm_sysfb_mode(unsigned int width,
 	}
 }
 EXPORT_SYMBOL(drm_sysfb_mode);
+
+/*
+ * Plane
+ */
+
+int drm_sysfb_plane_helper_atomic_check(struct drm_plane *plane,
+					struct drm_atomic_state *new_state)
+{
+	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(plane->dev);
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(new_state, plane);
+	struct drm_shadow_plane_state *new_shadow_plane_state =
+		to_drm_shadow_plane_state(new_plane_state);
+	struct drm_framebuffer *new_fb = new_plane_state->fb;
+	struct drm_crtc *new_crtc = new_plane_state->crtc;
+	struct drm_crtc_state *new_crtc_state = NULL;
+	struct drm_sysfb_crtc_state *new_sysfb_crtc_state;
+	int ret;
+
+	if (new_crtc)
+		new_crtc_state = drm_atomic_get_new_crtc_state(new_state, new_plane_state->crtc);
+
+	ret = drm_atomic_helper_check_plane_state(new_plane_state, new_crtc_state,
+						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
+						  false, false);
+	if (ret)
+		return ret;
+	else if (!new_plane_state->visible)
+		return 0;
+
+	if (new_fb->format != sysfb->fb_format) {
+		void *buf;
+
+		/* format conversion necessary; reserve buffer */
+		buf = drm_format_conv_state_reserve(&new_shadow_plane_state->fmtcnv_state,
+						    sysfb->fb_pitch, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+	}
+
+	new_crtc_state = drm_atomic_get_new_crtc_state(new_state, new_plane_state->crtc);
+
+	new_sysfb_crtc_state = to_drm_sysfb_crtc_state(new_crtc_state);
+	new_sysfb_crtc_state->format = new_fb->format;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_sysfb_plane_helper_atomic_check);
+
+void drm_sysfb_plane_helper_atomic_update(struct drm_plane *plane, struct drm_atomic_state *state)
+{
+	struct drm_device *dev = plane->dev;
+	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(dev);
+	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
+	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
+	struct drm_framebuffer *fb = plane_state->fb;
+	unsigned int dst_pitch = sysfb->fb_pitch;
+	const struct drm_format_info *dst_format = sysfb->fb_format;
+	struct drm_atomic_helper_damage_iter iter;
+	struct drm_rect damage;
+	int ret, idx;
+
+	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
+	if (ret)
+		return;
+
+	if (!drm_dev_enter(dev, &idx))
+		goto out_drm_gem_fb_end_cpu_access;
+
+	drm_atomic_helper_damage_iter_init(&iter, old_plane_state, plane_state);
+	drm_atomic_for_each_plane_damage(&iter, &damage) {
+		struct iosys_map dst = sysfb->fb_addr;
+		struct drm_rect dst_clip = plane_state->dst;
+
+		if (!drm_rect_intersect(&dst_clip, &damage))
+			continue;
+
+		iosys_map_incr(&dst, drm_fb_clip_offset(dst_pitch, dst_format, &dst_clip));
+		drm_fb_blit(&dst, &dst_pitch, dst_format->format, shadow_plane_state->data, fb,
+			    &damage, &shadow_plane_state->fmtcnv_state);
+	}
+
+	drm_dev_exit(idx);
+out_drm_gem_fb_end_cpu_access:
+	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
+}
+EXPORT_SYMBOL(drm_sysfb_plane_helper_atomic_update);
+
+void drm_sysfb_plane_helper_atomic_disable(struct drm_plane *plane,
+					   struct drm_atomic_state *state)
+{
+	struct drm_device *dev = plane->dev;
+	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(dev);
+	struct iosys_map dst = sysfb->fb_addr;
+	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
+	void __iomem *dst_vmap = dst.vaddr_iomem; /* TODO: Use mapping abstraction */
+	unsigned int dst_pitch = sysfb->fb_pitch;
+	const struct drm_format_info *dst_format = sysfb->fb_format;
+	struct drm_rect dst_clip;
+	unsigned long lines, linepixels, i;
+	int idx;
+
+	drm_rect_init(&dst_clip,
+		      plane_state->src_x >> 16, plane_state->src_y >> 16,
+		      plane_state->src_w >> 16, plane_state->src_h >> 16);
+
+	lines = drm_rect_height(&dst_clip);
+	linepixels = drm_rect_width(&dst_clip);
+
+	if (!drm_dev_enter(dev, &idx))
+		return;
+
+	/* Clear buffer to black if disabled */
+	dst_vmap += drm_fb_clip_offset(dst_pitch, dst_format, &dst_clip);
+	for (i = 0; i < lines; ++i) {
+		memset_io(dst_vmap, 0, linepixels * dst_format->cpp[0]);
+		dst_vmap += dst_pitch;
+	}
+
+	drm_dev_exit(idx);
+}
+EXPORT_SYMBOL(drm_sysfb_plane_helper_atomic_disable);
+
+int drm_sysfb_plane_helper_get_scanout_buffer(struct drm_plane *plane,
+					      struct drm_scanout_buffer *sb)
+{
+	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(plane->dev);
+
+	sb->width = sysfb->fb_mode.hdisplay;
+	sb->height = sysfb->fb_mode.vdisplay;
+	sb->format = sysfb->fb_format;
+	sb->pitch[0] = sysfb->fb_pitch;
+	sb->map[0] = sysfb->fb_addr;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_sysfb_plane_helper_get_scanout_buffer);
 
 /*
  * CRTC

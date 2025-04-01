@@ -40,6 +40,38 @@ static inline struct drm_sysfb_device *to_drm_sysfb_device(struct drm_device *de
 }
 
 /*
+ * Plane
+ */
+
+int drm_sysfb_plane_helper_atomic_check(struct drm_plane *plane,
+					struct drm_atomic_state *new_state);
+void drm_sysfb_plane_helper_atomic_update(struct drm_plane *plane,
+					  struct drm_atomic_state *state);
+void drm_sysfb_plane_helper_atomic_disable(struct drm_plane *plane,
+					   struct drm_atomic_state *state);
+int drm_sysfb_plane_helper_get_scanout_buffer(struct drm_plane *plane,
+					      struct drm_scanout_buffer *sb);
+
+#define DRM_SYSFB_PLANE_NFORMATS(_num_native) \
+	((_num_native) + 1)
+
+#define DRM_SYSFB_PLANE_FORMAT_MODIFIERS \
+	DRM_FORMAT_MOD_LINEAR, \
+	DRM_FORMAT_MOD_INVALID
+
+#define DRM_SYSFB_PLANE_HELPER_FUNCS \
+	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS, \
+	.atomic_check = drm_sysfb_plane_helper_atomic_check, \
+	.atomic_update = drm_sysfb_plane_helper_atomic_update, \
+	.atomic_disable = drm_sysfb_plane_helper_atomic_disable, \
+	.get_scanout_buffer = drm_sysfb_plane_helper_get_scanout_buffer
+
+#define DRM_SYSFB_PLANE_FUNCS \
+	.update_plane = drm_atomic_helper_update_plane, \
+	.disable_plane = drm_atomic_helper_disable_plane, \
+	DRM_GEM_SHADOW_PLANE_FUNCS
+
+/*
  * CRTC
  */
 
