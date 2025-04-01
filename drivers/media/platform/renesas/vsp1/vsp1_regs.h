@@ -253,6 +253,13 @@
 #define VI6_RPF_BRDITH_CTRL_CBRM	BIT(0)
 
 /* -----------------------------------------------------------------------------
+ * IIF Control Registers
+ */
+
+#define VI6_IIF_CTRL			0x0608
+#define VI6_IIF_CTRL_CTRL		0x13
+
+/* -----------------------------------------------------------------------------
  * WPF Control Registers
  */
 
@@ -388,6 +395,7 @@
 #define VI6_DPR_HST_ROUTE		0x2044
 #define VI6_DPR_HSI_ROUTE		0x2048
 #define VI6_DPR_BRU_ROUTE		0x204c
+#define VI6_DPR_ROUTE_IIFSEL		BIT(28)
 #define VI6_DPR_ILV_BRS_ROUTE		0x2050
 #define VI6_DPR_ROUTE_BRSSEL		BIT(28)
 #define VI6_DPR_ROUTE_FXA_MASK		(0xff << 16)
