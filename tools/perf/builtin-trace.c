@@ -1653,7 +1653,7 @@ static const size_t trace__entry_str_size = 2048;
 
 static void thread_trace__free_files(struct thread_trace *ttrace)
 {
-	for (int i = 0; i < ttrace->files.max; ++i) {
+	for (int i = 0; i <= ttrace->files.max; ++i) {
 		struct file *file = ttrace->files.table + i;
 		zfree(&file->pathname);
 	}
@@ -1699,6 +1699,7 @@ static int trace__set_fd_pathname(struct thread *thread, int fd, const char *pat
 
 	if (file != NULL) {
 		struct stat st;
+
 		if (stat(pathname, &st) == 0)
 			file->dev_maj = major(st.st_rdev);
 		file->pathname = strdup(pathname);
