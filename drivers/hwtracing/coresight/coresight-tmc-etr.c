@@ -1634,6 +1634,7 @@ tmc_update_etr_buffer(struct coresight_device *csdev,
 	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 	struct etr_perf_buffer *etr_perf = config;
 	struct etr_buf *etr_buf = etr_perf->etr_buf;
+	struct perf_event *event = handle->event;
 
 	raw_spin_lock_irqsave(&drvdata->spinlock, flags);
 
@@ -1702,6 +1703,15 @@ tmc_update_etr_buffer(struct coresight_device *csdev,
 	 * perf ring buffer.
 	 */
 	smp_wmb();
+
+	/*
+	 * If the event is active, it is triggered during an AUX pause.
+	 * Re-enable the sink so that it is ready when AUX resume is invoked.
+	 */
+	raw_spin_lock_irqsave(&drvdata->spinlock, flags);
+	if (csdev->refcnt && !event->hw.state)
+		__tmc_etr_enable_hw(drvdata);
+	raw_spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 out:
 	/*
