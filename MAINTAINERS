@@ -18097,7 +18097,9 @@ F:	drivers/irqchip/irq-ompic.c
 F:	drivers/irqchip/irq-or1k-*
 
 OPENVSWITCH
-M:	Pravin B Shelar <pshelar@ovn.org>
+M:	Aaron Conole <aconole@redhat.com>
+M:	Eelco Chaudron <echaudro@redhat.com>
+M:	Ilya Maximets <i.maximets@ovn.org>
 L:	netdev@vger.kernel.org
 L:	dev@openvswitch.org
 S:	Maintained
