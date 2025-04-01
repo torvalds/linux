@@ -366,7 +366,8 @@ start_find_entry:
 
 out:
 #if IS_ENABLED(CONFIG_UNICODE)
-	if (IS_CASEFOLDED(dir) && !de && use_hash) {
+	if (!sb_no_casefold_compat_fallback(dir->i_sb) &&
+		IS_CASEFOLDED(dir) && !de && use_hash) {
 		use_hash = false;
 		goto start_find_entry;
 	}
