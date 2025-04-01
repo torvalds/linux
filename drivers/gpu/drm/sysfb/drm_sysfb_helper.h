@@ -28,6 +28,7 @@ struct drm_sysfb_device {
 	struct drm_display_mode fb_mode;
 	const struct drm_format_info *fb_format;
 	unsigned int fb_pitch;
+	unsigned int fb_gamma_lut_size;
 
 	/* hardware-framebuffer kernel address */
 	struct iosys_map fb_addr;
@@ -54,6 +55,14 @@ to_drm_sysfb_crtc_state(struct drm_crtc_state *base)
 {
 	return container_of(base, struct drm_sysfb_crtc_state, base);
 }
+
+enum drm_mode_status drm_sysfb_crtc_helper_mode_valid(struct drm_crtc *crtc,
+						      const struct drm_display_mode *mode);
+int drm_sysfb_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *new_state);
+
+#define DRM_SYSFB_CRTC_HELPER_FUNCS \
+	.mode_valid = drm_sysfb_crtc_helper_mode_valid, \
+	.atomic_check = drm_sysfb_crtc_helper_atomic_check
 
 void drm_sysfb_crtc_reset(struct drm_crtc *crtc);
 struct drm_crtc_state *drm_sysfb_crtc_atomic_duplicate_state(struct drm_crtc *crtc);

@@ -14,7 +14,6 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_connector.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
@@ -696,22 +695,8 @@ static const struct drm_plane_funcs simpledrm_primary_plane_funcs = {
 	DRM_GEM_SHADOW_PLANE_FUNCS,
 };
 
-static enum drm_mode_status simpledrm_crtc_helper_mode_valid(struct drm_crtc *crtc,
-							     const struct drm_display_mode *mode)
-{
-	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(crtc->dev);
-
-	return drm_crtc_helper_mode_valid_fixed(crtc, mode, &sysfb->fb_mode);
-}
-
-/*
- * The CRTC is always enabled. Screen updates are performed by
- * the primary plane's atomic_update function. Disabling clears
- * the screen in the primary plane's atomic_disable function.
- */
 static const struct drm_crtc_helper_funcs simpledrm_crtc_helper_funcs = {
-	.mode_valid = simpledrm_crtc_helper_mode_valid,
-	.atomic_check = drm_crtc_helper_atomic_check,
+	DRM_SYSFB_CRTC_HELPER_FUNCS,
 };
 
 static const struct drm_crtc_funcs simpledrm_crtc_funcs = {

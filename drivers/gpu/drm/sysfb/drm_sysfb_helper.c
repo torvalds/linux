@@ -4,6 +4,8 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
@@ -47,6 +49,44 @@ static void drm_sysfb_crtc_state_destroy(struct drm_sysfb_crtc_state *sysfb_crtc
 
 	kfree(sysfb_crtc_state);
 }
+
+enum drm_mode_status drm_sysfb_crtc_helper_mode_valid(struct drm_crtc *crtc,
+						      const struct drm_display_mode *mode)
+{
+	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(crtc->dev);
+
+	return drm_crtc_helper_mode_valid_fixed(crtc, mode, &sysfb->fb_mode);
+}
+EXPORT_SYMBOL(drm_sysfb_crtc_helper_mode_valid);
+
+int drm_sysfb_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *new_state)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(dev);
+	struct drm_crtc_state *new_crtc_state = drm_atomic_get_new_crtc_state(new_state, crtc);
+	int ret;
+
+	if (!new_crtc_state->enable)
+		return 0;
+
+	ret = drm_atomic_helper_check_crtc_primary_plane(new_crtc_state);
+	if (ret)
+		return ret;
+
+	if (new_crtc_state->color_mgmt_changed) {
+		const size_t gamma_lut_length =
+			sysfb->fb_gamma_lut_size * sizeof(struct drm_color_lut);
+		const struct drm_property_blob *gamma_lut = new_crtc_state->gamma_lut;
+
+		if (gamma_lut && (gamma_lut->length != gamma_lut_length)) {
+			drm_dbg(dev, "Incorrect gamma_lut length %zu\n", gamma_lut->length);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_sysfb_crtc_helper_atomic_check);
 
 void drm_sysfb_crtc_reset(struct drm_crtc *crtc)
 {

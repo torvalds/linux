@@ -862,42 +862,6 @@ static const struct drm_plane_funcs ofdrm_primary_plane_funcs = {
 	DRM_GEM_SHADOW_PLANE_FUNCS,
 };
 
-static enum drm_mode_status ofdrm_crtc_helper_mode_valid(struct drm_crtc *crtc,
-							 const struct drm_display_mode *mode)
-{
-	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(crtc->dev);
-
-	return drm_crtc_helper_mode_valid_fixed(crtc, mode, &sysfb->fb_mode);
-}
-
-static int ofdrm_crtc_helper_atomic_check(struct drm_crtc *crtc,
-					  struct drm_atomic_state *new_state)
-{
-	static const size_t gamma_lut_length = OFDRM_GAMMA_LUT_SIZE * sizeof(struct drm_color_lut);
-
-	struct drm_device *dev = crtc->dev;
-	struct drm_crtc_state *new_crtc_state = drm_atomic_get_new_crtc_state(new_state, crtc);
-	int ret;
-
-	if (!new_crtc_state->enable)
-		return 0;
-
-	ret = drm_atomic_helper_check_crtc_primary_plane(new_crtc_state);
-	if (ret)
-		return ret;
-
-	if (new_crtc_state->color_mgmt_changed) {
-		struct drm_property_blob *gamma_lut = new_crtc_state->gamma_lut;
-
-		if (gamma_lut && (gamma_lut->length != gamma_lut_length)) {
-			drm_dbg(dev, "Incorrect gamma_lut length %zu\n", gamma_lut->length);
-			return -EINVAL;
-		}
-	}
-
-	return 0;
-}
-
 static void ofdrm_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
 	struct ofdrm_device *odev = ofdrm_device_of_dev(crtc->dev);
@@ -914,14 +878,8 @@ static void ofdrm_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_ato
 	}
 }
 
-/*
- * The CRTC is always enabled. Screen updates are performed by
- * the primary plane's atomic_update function. Disabling clears
- * the screen in the primary plane's atomic_disable function.
- */
 static const struct drm_crtc_helper_funcs ofdrm_crtc_helper_funcs = {
-	.mode_valid = ofdrm_crtc_helper_mode_valid,
-	.atomic_check = ofdrm_crtc_helper_atomic_check,
+	DRM_SYSFB_CRTC_HELPER_FUNCS,
 	.atomic_flush = ofdrm_crtc_helper_atomic_flush,
 };
 
@@ -1163,6 +1121,8 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 	sysfb->fb_mode = drm_sysfb_mode(width, height, 0, 0);
 	sysfb->fb_format = format;
 	sysfb->fb_pitch = linebytes;
+	if (odev->cmap_base)
+		sysfb->fb_gamma_lut_size = OFDRM_GAMMA_LUT_SIZE;
 
 	drm_dbg(dev, "display mode={" DRM_MODE_FMT "}\n", DRM_MODE_ARG(&sysfb->fb_mode));
 	drm_dbg(dev, "framebuffer format=%p4cc, size=%dx%d, linebytes=%d byte\n",
@@ -1211,9 +1171,10 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 		return ERR_PTR(ret);
 	drm_crtc_helper_add(crtc, &ofdrm_crtc_helper_funcs);
 
-	if (odev->cmap_base) {
-		drm_mode_crtc_set_gamma_size(crtc, OFDRM_GAMMA_LUT_SIZE);
-		drm_crtc_enable_color_mgmt(crtc, 0, false, OFDRM_GAMMA_LUT_SIZE);
+	if (sysfb->fb_gamma_lut_size) {
+		ret = drm_mode_crtc_set_gamma_size(crtc, sysfb->fb_gamma_lut_size);
+		if (!ret)
+			drm_crtc_enable_color_mgmt(crtc, 0, false, sysfb->fb_gamma_lut_size);
 	}
 
 	/* Encoder */
