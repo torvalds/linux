@@ -12,6 +12,7 @@
 #include <linux/sizes.h>
 
 #include "pcie-cadence.h"
+#include "../../pci.h"
 
 #define CDNS_PCIE_EP_MIN_APERTURE		128	/* 128 bytes */
 #define CDNS_PCIE_EP_IRQ_PCI_ADDR_NONE		0x1
@@ -337,10 +338,10 @@ static void cdns_pcie_ep_assert_intx(struct cdns_pcie_ep *ep, u8 fn, u8 intx,
 
 	if (is_asserted) {
 		ep->irq_pending |= BIT(intx);
-		msg_code = MSG_CODE_ASSERT_INTA + intx;
+		msg_code = PCIE_MSG_CODE_ASSERT_INTA + intx;
 	} else {
 		ep->irq_pending &= ~BIT(intx);
-		msg_code = MSG_CODE_DEASSERT_INTA + intx;
+		msg_code = PCIE_MSG_CODE_DEASSERT_INTA + intx;
 	}
 
 	spin_lock_irqsave(&ep->lock, flags);

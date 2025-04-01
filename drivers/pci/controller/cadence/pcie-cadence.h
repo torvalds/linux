@@ -250,17 +250,6 @@ struct cdns_pcie_rp_ib_bar {
 
 struct cdns_pcie;
 
-enum cdns_pcie_msg_code {
-	MSG_CODE_ASSERT_INTA	= 0x20,
-	MSG_CODE_ASSERT_INTB	= 0x21,
-	MSG_CODE_ASSERT_INTC	= 0x22,
-	MSG_CODE_ASSERT_INTD	= 0x23,
-	MSG_CODE_DEASSERT_INTA	= 0x24,
-	MSG_CODE_DEASSERT_INTB	= 0x25,
-	MSG_CODE_DEASSERT_INTC	= 0x26,
-	MSG_CODE_DEASSERT_INTD	= 0x27,
-};
-
 enum cdns_pcie_msg_routing {
 	/* Route to Root Complex */
 	MSG_ROUTING_TO_RC,
