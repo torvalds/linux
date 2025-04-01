@@ -124,6 +124,13 @@
 #define   PORT_TUNSTAT_PERST_ACK_PEND	BIT(1)
 #define PORT_PREFMEM_ENABLE		0x00994
 
+/* T602x (M2-pro and co) */
+#define PORT_T602X_MSIADDR	0x016c
+#define PORT_T602X_MSIADDR_HI	0x0170
+#define PORT_T602X_PERST	0x082c
+#define PORT_T602X_RID2SID	0x3000
+#define PORT_T602X_MSIMAP	0x3800
+
 #define PORT_MSIMAP_ENABLE	BIT(31)
 #define PORT_MSIMAP_TARGET	GENMASK(7, 0)
 
@@ -156,6 +163,18 @@ static const struct hw_info t8103_hw = {
 	.port_rid2sid		= PORT_RID2SID,
 	.port_msimap		= 0,
 	.max_rid2sid		= 64,
+};
+
+static const struct hw_info t602x_hw = {
+	.phy_lane_ctl		= 0,
+	.port_msiaddr		= PORT_T602X_MSIADDR,
+	.port_msiaddr_hi	= PORT_T602X_MSIADDR_HI,
+	.port_refclk		= 0,
+	.port_perst		= PORT_T602X_PERST,
+	.port_rid2sid		= PORT_T602X_RID2SID,
+	.port_msimap		= PORT_T602X_MSIMAP,
+	/* 16 on t602x, guess for autodetect on future HW */
+	.max_rid2sid		= 512,
 };
 
 struct apple_pcie {
@@ -425,6 +444,7 @@ static int apple_pcie_port_setup_irq(struct apple_pcie_port *port)
 	/* Disable all interrupts */
 	writel_relaxed(~0, port->base + PORT_INTMSK);
 	writel_relaxed(~0, port->base + PORT_INTSTAT);
+	writel_relaxed(~0, port->base + PORT_LINKCMDSTS);
 
 	irq_set_chained_handler_and_data(irq, apple_port_irq_handler, port);
 
@@ -863,6 +883,7 @@ static int apple_pcie_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id apple_pcie_of_match[] = {
+	{ .compatible = "apple,t6020-pcie",	.data = &t602x_hw },
 	{ .compatible = "apple,pcie",		.data = &t8103_hw },
 	{ }
 };
