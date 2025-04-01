@@ -1733,7 +1733,7 @@ static char *amdgpu_ras_badpage_flags_str(unsigned int flags)
  */
 
 static ssize_t amdgpu_ras_sysfs_badpages_read(struct file *f,
-		struct kobject *kobj, struct bin_attribute *attr,
+		struct kobject *kobj, const struct bin_attribute *attr,
 		char *buf, loff_t ppos, size_t count)
 {
 	struct amdgpu_ras *con =
@@ -2068,8 +2068,8 @@ void amdgpu_ras_debugfs_create_all(struct amdgpu_device *adev)
 /* debugfs end */
 
 /* ras fs */
-static BIN_ATTR(gpu_vram_bad_pages, S_IRUGO,
-		amdgpu_ras_sysfs_badpages_read, NULL, 0);
+static const BIN_ATTR(gpu_vram_bad_pages, S_IRUGO,
+		      amdgpu_ras_sysfs_badpages_read, NULL, 0);
 static DEVICE_ATTR(features, S_IRUGO,
 		amdgpu_ras_sysfs_features_read, NULL);
 static DEVICE_ATTR(version, 0444,
@@ -2091,7 +2091,7 @@ static int amdgpu_ras_fs_init(struct amdgpu_device *adev)
 		&con->event_state_attr.attr,
 		NULL
 	};
-	struct bin_attribute *bin_attrs[] = {
+	const struct bin_attribute *bin_attrs[] = {
 		NULL,
 		NULL,
 	};
@@ -2117,11 +2117,10 @@ static int amdgpu_ras_fs_init(struct amdgpu_device *adev)
 
 	if (amdgpu_bad_page_threshold != 0) {
 		/* add bad_page_features entry */
-		bin_attr_gpu_vram_bad_pages.private = NULL;
 		con->badpages_attr = bin_attr_gpu_vram_bad_pages;
+		sysfs_bin_attr_init(&con->badpages_attr);
 		bin_attrs[0] = &con->badpages_attr;
-		group.bin_attrs = bin_attrs;
-		sysfs_bin_attr_init(bin_attrs[0]);
+		group.bin_attrs_new = bin_attrs;
 	}
 
 	r = sysfs_create_group(&adev->dev->kobj, &group);

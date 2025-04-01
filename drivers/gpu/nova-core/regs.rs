@@ -35,7 +35,7 @@ pub(crate) struct Boot0(u32);
 impl Boot0 {
     #[inline]
     pub(crate) fn read(bar: &Bar0) -> Self {
-        Self(bar.readl(BOOT0_OFFSET))
+        Self(bar.read32(BOOT0_OFFSET))
     }
 
     #[inline]

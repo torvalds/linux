@@ -554,7 +554,7 @@ static unsigned long aligned_access_size(size_t offset, size_t count)
 }
 
 static ssize_t fsi_slave_sysfs_raw_read(struct file *file,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
+		struct kobject *kobj, const struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count)
 {
 	struct fsi_slave *slave = to_fsi_slave(kobj_to_dev(kobj));
@@ -581,7 +581,7 @@ static ssize_t fsi_slave_sysfs_raw_read(struct file *file,
 }
 
 static ssize_t fsi_slave_sysfs_raw_write(struct file *file,
-		struct kobject *kobj, struct bin_attribute *attr,
+		struct kobject *kobj, const struct bin_attribute *attr,
 		char *buf, loff_t off, size_t count)
 {
 	struct fsi_slave *slave = to_fsi_slave(kobj_to_dev(kobj));
@@ -613,8 +613,8 @@ static const struct bin_attribute fsi_slave_raw_attr = {
 		.mode = 0600,
 	},
 	.size = 0,
-	.read = fsi_slave_sysfs_raw_read,
-	.write = fsi_slave_sysfs_raw_write,
+	.read_new = fsi_slave_sysfs_raw_read,
+	.write_new = fsi_slave_sysfs_raw_write,
 };
 
 static void fsi_slave_release(struct device *dev)

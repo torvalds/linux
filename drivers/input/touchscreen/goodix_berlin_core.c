@@ -673,7 +673,7 @@ static void goodix_berlin_power_off_act(void *data)
 }
 
 static ssize_t registers_read(struct file *filp, struct kobject *kobj,
-			      struct bin_attribute *bin_attr,
+			      const struct bin_attribute *bin_attr,
 			      char *buf, loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -686,7 +686,7 @@ static ssize_t registers_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t registers_write(struct file *filp, struct kobject *kobj,
-			       struct bin_attribute *bin_attr,
+			       const struct bin_attribute *bin_attr,
 			       char *buf, loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -698,15 +698,15 @@ static ssize_t registers_write(struct file *filp, struct kobject *kobj,
 	return error ? error : count;
 }
 
-static BIN_ATTR_ADMIN_RW(registers, 0);
+static const BIN_ATTR_ADMIN_RW(registers, 0);
 
-static struct bin_attribute *goodix_berlin_bin_attrs[] = {
+static const struct bin_attribute *const goodix_berlin_bin_attrs[] = {
 	&bin_attr_registers,
 	NULL,
 };
 
 static const struct attribute_group goodix_berlin_attr_group = {
-	.bin_attrs = goodix_berlin_bin_attrs,
+	.bin_attrs_new = goodix_berlin_bin_attrs,
 };
 
 const struct attribute_group *goodix_berlin_groups[] = {

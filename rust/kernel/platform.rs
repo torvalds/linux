@@ -5,7 +5,7 @@
 //! C header: [`include/linux/platform_device.h`](srctree/include/linux/platform_device.h)
 
 use crate::{
-    bindings, container_of, device, driver,
+    bindings, device, driver,
     error::{to_result, Result},
     of,
     prelude::*,
@@ -14,7 +14,11 @@ use crate::{
     ThisModule,
 };
 
-use core::ptr::addr_of_mut;
+use core::{
+    marker::PhantomData,
+    ops::Deref,
+    ptr::{addr_of_mut, NonNull},
+};
 
 /// An adapter for the registration of platform drivers.
 pub struct Adapter<T: Driver>(T);
@@ -54,14 +58,14 @@ unsafe impl<T: Driver + 'static> driver::RegistrationOps for Adapter<T> {
 
 impl<T: Driver + 'static> Adapter<T> {
     extern "C" fn probe_callback(pdev: *mut bindings::platform_device) -> kernel::ffi::c_int {
-        // SAFETY: The platform bus only ever calls the probe callback with a valid `pdev`.
-        let dev = unsafe { device::Device::get_device(addr_of_mut!((*pdev).dev)) };
-        // SAFETY: `dev` is guaranteed to be embedded in a valid `struct platform_device` by the
-        // call above.
-        let mut pdev = unsafe { Device::from_dev(dev) };
+        // SAFETY: The platform bus only ever calls the probe callback with a valid pointer to a
+        // `struct platform_device`.
+        //
+        // INVARIANT: `pdev` is valid for the duration of `probe_callback()`.
+        let pdev = unsafe { &*pdev.cast::<Device<device::Core>>() };
 
         let info = <Self as driver::Adapter>::id_info(pdev.as_ref());
-        match T::probe(&mut pdev, info) {
+        match T::probe(pdev, info) {
             Ok(data) => {
                 // Let the `struct platform_device` own a reference of the driver's private data.
                 // SAFETY: By the type invariant `pdev.as_raw` returns a valid pointer to a
@@ -120,7 +124,7 @@ macro_rules! module_platform_driver {
 /// # Example
 ///
 ///```
-/// # use kernel::{bindings, c_str, of, platform};
+/// # use kernel::{bindings, c_str, device::Core, of, platform};
 ///
 /// struct MyDriver;
 ///
@@ -138,14 +142,14 @@ macro_rules! module_platform_driver {
 ///     const OF_ID_TABLE: Option<of::IdTable<Self::IdInfo>> = Some(&OF_TABLE);
 ///
 ///     fn probe(
-///         _pdev: &mut platform::Device,
+///         _pdev: &platform::Device<Core>,
 ///         _id_info: Option<&Self::IdInfo>,
 ///     ) -> Result<Pin<KBox<Self>>> {
 ///         Err(ENODEV)
 ///     }
 /// }
 ///```
-pub trait Driver {
+pub trait Driver: Send {
     /// The type holding driver private data about each device id supported by the driver.
     ///
     /// TODO: Use associated_type_defaults once stabilized:
@@ -160,41 +164,79 @@ pub trait Driver {
     ///
     /// Called when a new platform device is added or discovered.
     /// Implementers should attempt to initialize the device here.
-    fn probe(dev: &mut Device, id_info: Option<&Self::IdInfo>) -> Result<Pin<KBox<Self>>>;
+    fn probe(dev: &Device<device::Core>, id_info: Option<&Self::IdInfo>)
+        -> Result<Pin<KBox<Self>>>;
 }
 
 /// The platform device representation.
 ///
-/// A platform device is based on an always reference counted `device:Device` instance. Cloning a
-/// platform device, hence, also increments the base device' reference count.
+/// This structure represents the Rust abstraction for a C `struct platform_device`. The
+/// implementation abstracts the usage of an already existing C `struct platform_device` within Rust
+/// code that we get passed from the C side.
 ///
 /// # Invariants
 ///
-/// `Device` holds a valid reference of `ARef<device::Device>` whose underlying `struct device` is a
-/// member of a `struct platform_device`.
-#[derive(Clone)]
-pub struct Device(ARef<device::Device>);
+/// A [`Device`] instance represents a valid `struct platform_device` created by the C portion of
+/// the kernel.
+#[repr(transparent)]
+pub struct Device<Ctx: device::DeviceContext = device::Normal>(
+    Opaque<bindings::platform_device>,
+    PhantomData<Ctx>,
+);
 
 impl Device {
-    /// Convert a raw kernel device into a `Device`
-    ///
-    /// # Safety
-    ///
-    /// `dev` must be an `Aref<device::Device>` whose underlying `bindings::device` is a member of a
-    /// `bindings::platform_device`.
-    unsafe fn from_dev(dev: ARef<device::Device>) -> Self {
-        Self(dev)
+    fn as_raw(&self) -> *mut bindings::platform_device {
+        self.0.get()
+    }
+}
+
+impl Deref for Device<device::Core> {
+    type Target = Device;
+
+    fn deref(&self) -> &Self::Target {
+        let ptr: *const Self = self;
+
+        // CAST: `Device<Ctx>` is a transparent wrapper of `Opaque<bindings::platform_device>`.
+        let ptr = ptr.cast::<Device>();
+
+        // SAFETY: `ptr` was derived from `&self`.
+        unsafe { &*ptr }
+    }
+}
+
+impl From<&Device<device::Core>> for ARef<Device> {
+    fn from(dev: &Device<device::Core>) -> Self {
+        (&**dev).into()
+    }
+}
+
+// SAFETY: Instances of `Device` are always reference-counted.
+unsafe impl crate::types::AlwaysRefCounted for Device {
+    fn inc_ref(&self) {
+        // SAFETY: The existence of a shared reference guarantees that the refcount is non-zero.
+        unsafe { bindings::get_device(self.as_ref().as_raw()) };
     }
 
-    fn as_raw(&self) -> *mut bindings::platform_device {
-        // SAFETY: By the type invariant `self.0.as_raw` is a pointer to the `struct device`
-        // embedded in `struct platform_device`.
-        unsafe { container_of!(self.0.as_raw(), bindings::platform_device, dev) }.cast_mut()
+    unsafe fn dec_ref(obj: NonNull<Self>) {
+        // SAFETY: The safety requirements guarantee that the refcount is non-zero.
+        unsafe { bindings::platform_device_put(obj.cast().as_ptr()) }
     }
 }
 
 impl AsRef<device::Device> for Device {
     fn as_ref(&self) -> &device::Device {
-        &self.0
+        // SAFETY: By the type invariant of `Self`, `self.as_raw()` is a pointer to a valid
+        // `struct platform_device`.
+        let dev = unsafe { addr_of_mut!((*self.as_raw()).dev) };
+
+        // SAFETY: `dev` points to a valid `struct device`.
+        unsafe { device::Device::as_ref(dev) }
     }
 }
+
+// SAFETY: A `Device` is always reference-counted and can be released from any thread.
+unsafe impl Send for Device {}
+
+// SAFETY: `Device` can be shared among threads because all methods of `Device`
+// (i.e. `Device<Normal>) are thread safe.
+unsafe impl Sync for Device {}
