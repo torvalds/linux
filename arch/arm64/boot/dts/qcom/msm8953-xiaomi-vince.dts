@@ -181,6 +181,18 @@
 	};
 };
 
+&ibb {
+	/* xiaomi-vince's panel uses 5.7v instead of 5.5v */
+	regulator-min-microvolt = <5700000>;
+	regulator-max-microvolt = <5700000>;
+};
+
+&lab {
+	/* xiaomi-vince's panel uses 5.7v instead of 5.5v */
+	regulator-min-microvolt = <5700000>;
+	regulator-max-microvolt = <5700000>;
+};
+
 &i2c_3 {
 	touchscreen@1 {
 		compatible = "novatek,nt36672a-ts";
