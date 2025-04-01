@@ -1005,17 +1005,11 @@ static int analogix_dp_get_modes(struct drm_connector *connector)
 {
 	struct analogix_dp_device *dp = to_dp(connector);
 	const struct drm_edid *drm_edid;
-	int ret, num_modes = 0;
+	int num_modes = 0;
 
 	if (dp->plat_data->panel) {
 		num_modes += drm_panel_get_modes(dp->plat_data->panel, connector);
 	} else {
-		ret = analogix_dp_prepare_panel(dp, true, false);
-		if (ret) {
-			DRM_ERROR("Failed to prepare panel (%d)\n", ret);
-			return 0;
-		}
-
 		drm_edid = drm_edid_read_ddc(connector, &dp->aux.ddc);
 
 		drm_edid_connector_update(&dp->connector, drm_edid);
@@ -1024,10 +1018,6 @@ static int analogix_dp_get_modes(struct drm_connector *connector)
 			num_modes += drm_edid_connector_add_modes(&dp->connector);
 			drm_edid_free(drm_edid);
 		}
-
-		ret = analogix_dp_prepare_panel(dp, false, false);
-		if (ret)
-			DRM_ERROR("Failed to unprepare panel (%d)\n", ret);
 	}
 
 	if (dp->plat_data->get_modes)
@@ -1087,18 +1077,8 @@ analogix_dp_detect(struct drm_connector *connector, bool force)
 	if (dp->plat_data->panel)
 		return connector_status_connected;
 
-	ret = analogix_dp_prepare_panel(dp, true, false);
-	if (ret) {
-		DRM_ERROR("Failed to prepare panel (%d)\n", ret);
-		return connector_status_disconnected;
-	}
-
 	if (!analogix_dp_detect_hpd(dp))
 		status = connector_status_connected;
-
-	ret = analogix_dp_prepare_panel(dp, false, false);
-	if (ret)
-		DRM_ERROR("Failed to unprepare panel (%d)\n", ret);
 
 	return status;
 }
