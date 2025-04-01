@@ -22,6 +22,7 @@ properties:
           - samsung,exynos5-sata-phy-i2c
       - items:
           - enum:
+              - samsung,exynos7870-i2c
               - samsung,exynos7885-i2c
               - samsung,exynos850-i2c
           - const: samsung,s3c2440-i2c
