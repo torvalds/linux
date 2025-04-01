@@ -275,10 +275,10 @@ int mmc_gpiod_request_ro(struct mmc_host *host, const char *con_id,
 }
 EXPORT_SYMBOL(mmc_gpiod_request_ro);
 
-bool mmc_can_gpio_ro(struct mmc_host *host)
+bool mmc_host_can_gpio_ro(struct mmc_host *host)
 {
 	struct mmc_gpio *ctx = host->slot.handler_priv;
 
 	return ctx->ro_gpio ? true : false;
 }
-EXPORT_SYMBOL(mmc_can_gpio_ro);
+EXPORT_SYMBOL(mmc_host_can_gpio_ro);

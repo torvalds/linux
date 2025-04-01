@@ -1176,7 +1176,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 				  dma_max_mapping_size(&pdev->dev));
 	mmc->max_seg_size = mmc->max_req_size;
 
-	if (mmc_can_gpio_ro(mmc))
+	if (mmc_host_can_gpio_ro(mmc))
 		_host->ops.get_ro = mmc_gpio_get_ro;
 
 	if (mmc_host_can_gpio_cd(mmc))

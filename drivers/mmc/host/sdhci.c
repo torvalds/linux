@@ -2571,7 +2571,7 @@ int sdhci_get_ro(struct mmc_host *mmc)
 		is_readonly = 0;
 	} else if (host->ops->get_ro) {
 		is_readonly = host->ops->get_ro(host);
-	} else if (mmc_can_gpio_ro(mmc)) {
+	} else if (mmc_host_can_gpio_ro(mmc)) {
 		is_readonly = mmc_gpio_get_ro(mmc);
 		/* Do not invert twice */
 		allow_invert = !(mmc->caps2 & MMC_CAP2_RO_ACTIVE_HIGH);

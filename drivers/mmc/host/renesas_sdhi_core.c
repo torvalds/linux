@@ -1112,7 +1112,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		host->mmc->caps2 &= ~(MMC_CAP2_HS400 | MMC_CAP2_HS400_ES);
 
 	/* For some SoC, we disable internal WP. GPIO may override this */
-	if (mmc_can_gpio_ro(host->mmc))
+	if (mmc_host_can_gpio_ro(host->mmc))
 		mmc_data->capabilities2 &= ~MMC_CAP2_NO_WRITE_PROTECT;
 
 	/* SDR speeds are only available on Gen2+ */
