@@ -543,17 +543,45 @@ void bch2_trans_copy_iter(struct btree_trans *, struct btree_iter *, struct btre
 
 void bch2_set_btree_iter_dontneed(struct btree_trans *, struct btree_iter *);
 
-void *__bch2_trans_kmalloc(struct btree_trans *, size_t);
+#ifdef CONFIG_BCACHEFS_TRANS_KMALLOC_TRACE
+void bch2_trans_kmalloc_trace_to_text(struct printbuf *,
+				      darray_trans_kmalloc_trace *);
+#endif
 
-/**
- * bch2_trans_kmalloc - allocate memory for use by the current transaction
- *
- * Must be called after bch2_trans_begin, which on second and further calls
- * frees all memory allocated in this transaction
- */
-static inline void *bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
+void *__bch2_trans_kmalloc(struct btree_trans *, size_t, unsigned long);
+
+static inline void bch2_trans_kmalloc_trace(struct btree_trans *trans, size_t size,
+					    unsigned long ip)
+{
+#ifdef CONFIG_BCACHEFS_TRANS_KMALLOC_TRACE
+	darray_push(&trans->trans_kmalloc_trace,
+		    ((struct trans_kmalloc_trace) { .ip = ip, .bytes = size }));
+#endif
+}
+
+static __always_inline void *bch2_trans_kmalloc_nomemzero_ip(struct btree_trans *trans, size_t size,
+						    unsigned long ip)
 {
 	size = roundup(size, 8);
+
+	bch2_trans_kmalloc_trace(trans, size, ip);
+
+	if (likely(trans->mem_top + size <= trans->mem_bytes)) {
+		void *p = trans->mem + trans->mem_top;
+
+		trans->mem_top += size;
+		return p;
+	} else {
+		return __bch2_trans_kmalloc(trans, size, ip);
+	}
+}
+
+static __always_inline void *bch2_trans_kmalloc_ip(struct btree_trans *trans, size_t size,
+					  unsigned long ip)
+{
+	size = roundup(size, 8);
+
+	bch2_trans_kmalloc_trace(trans, size, ip);
 
 	if (likely(trans->mem_top + size <= trans->mem_bytes)) {
 		void *p = trans->mem + trans->mem_top;
@@ -562,22 +590,24 @@ static inline void *bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 		memset(p, 0, size);
 		return p;
 	} else {
-		return __bch2_trans_kmalloc(trans, size);
+		return __bch2_trans_kmalloc(trans, size, ip);
 	}
 }
 
-static inline void *bch2_trans_kmalloc_nomemzero(struct btree_trans *trans, size_t size)
+/**
+ * bch2_trans_kmalloc - allocate memory for use by the current transaction
+ *
+ * Must be called after bch2_trans_begin, which on second and further calls
+ * frees all memory allocated in this transaction
+ */
+static __always_inline void *bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 {
-	size = round_up(size, 8);
+	return bch2_trans_kmalloc_ip(trans, size, _THIS_IP_);
+}
 
-	if (likely(trans->mem_top + size <= trans->mem_bytes)) {
-		void *p = trans->mem + trans->mem_top;
-
-		trans->mem_top += size;
-		return p;
-	} else {
-		return __bch2_trans_kmalloc(trans, size);
-	}
+static __always_inline void *bch2_trans_kmalloc_nomemzero(struct btree_trans *trans, size_t size)
+{
+	return bch2_trans_kmalloc_nomemzero_ip(trans, size, _THIS_IP_);
 }
 
 static inline struct bkey_s_c __bch2_bkey_get_iter(struct btree_trans *trans,

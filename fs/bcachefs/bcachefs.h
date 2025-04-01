@@ -650,6 +650,9 @@ struct btree_transaction_stats {
 	unsigned		nr_max_paths;
 	unsigned		journal_entries_size;
 	unsigned		max_mem;
+#ifdef CONFIG_BCACHEFS_TRANS_KMALLOC_TRACE
+	darray_trans_kmalloc_trace trans_kmalloc_trace;
+#endif
 	char			*max_paths_text;
 };
 

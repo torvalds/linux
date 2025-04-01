@@ -477,6 +477,12 @@ struct btree_trans_paths {
 	struct btree_path	paths[];
 };
 
+struct trans_kmalloc_trace {
+	unsigned long		ip;
+	size_t			bytes;
+};
+typedef DARRAY(struct trans_kmalloc_trace) darray_trans_kmalloc_trace;
+
 struct btree_trans {
 	struct bch_fs		*c;
 
@@ -488,6 +494,9 @@ struct btree_trans {
 	void			*mem;
 	unsigned		mem_top;
 	unsigned		mem_bytes;
+#ifdef CONFIG_BCACHEFS_TRANS_KMALLOC_TRACE
+	darray_trans_kmalloc_trace trans_kmalloc_trace;
+#endif
 
 	btree_path_idx_t	nr_sorted;
 	btree_path_idx_t	nr_paths;

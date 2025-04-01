@@ -3095,7 +3095,19 @@ void bch2_trans_copy_iter(struct btree_trans *trans,
 	dst->key_cache_path = 0;
 }
 
-void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
+#ifdef CONFIG_BCACHEFS_TRANS_KMALLOC_TRACE
+void bch2_trans_kmalloc_trace_to_text(struct printbuf *out,
+				      darray_trans_kmalloc_trace *trace)
+{
+	printbuf_tabstops_reset(out);
+	printbuf_tabstop_push(out, 60);
+
+	darray_for_each(*trace, i)
+		prt_printf(out, "%pS\t%zu\n", (void *) i->ip, i->bytes);
+}
+#endif
+
+void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size, unsigned long ip)
 {
 	struct bch_fs *c = trans->c;
 	unsigned new_top = trans->mem_top + size;
@@ -3105,14 +3117,35 @@ void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 	void *new_mem;
 	void *p;
 
-	WARN_ON_ONCE(new_bytes > BTREE_TRANS_MEM_MAX);
+	if (WARN_ON_ONCE(new_bytes > BTREE_TRANS_MEM_MAX)) {
+#ifdef CONFIG_BCACHEFS_TRANS_KMALLOC_TRACE
+		struct printbuf buf = PRINTBUF;
+		bch2_trans_kmalloc_trace_to_text(&buf, &trans->trans_kmalloc_trace);
+		bch2_print_string_as_lines(KERN_ERR, buf.buf);
+		printbuf_exit(&buf);
+#endif
+	}
 
 	ret = trans_maybe_inject_restart(trans, _RET_IP_);
 	if (ret)
 		return ERR_PTR(ret);
 
 	struct btree_transaction_stats *s = btree_trans_stats(trans);
-	s->max_mem = max(s->max_mem, new_bytes);
+	if (new_bytes > s->max_mem) {
+		mutex_lock(&s->lock);
+#ifdef CONFIG_BCACHEFS_TRANS_KMALLOC_TRACE
+		darray_resize(&s->trans_kmalloc_trace, trans->trans_kmalloc_trace.nr);
+		s->trans_kmalloc_trace.nr = min(s->trans_kmalloc_trace.size,
+						trans->trans_kmalloc_trace.nr);
+
+		memcpy(s->trans_kmalloc_trace.data,
+		       trans->trans_kmalloc_trace.data,
+		       sizeof(s->trans_kmalloc_trace.data[0]) *
+		       s->trans_kmalloc_trace.nr);
+#endif
+		s->max_mem = new_bytes;
+		mutex_unlock(&s->lock);
+	}
 
 	if (trans->used_mempool) {
 		if (trans->mem_bytes >= new_bytes)
@@ -3172,6 +3205,8 @@ out_new_mem:
 					BCH_ERR_transaction_restart_mem_realloced, _RET_IP_));
 	}
 out_change_top:
+	bch2_trans_kmalloc_trace(trans, size, ip);
+
 	p = trans->mem + trans->mem_top;
 	trans->mem_top += size;
 	memset(p, 0, size);
@@ -3283,6 +3318,10 @@ u32 bch2_trans_begin(struct btree_trans *trans)
 	} else {
 		trans->restart_count_this_trans = 0;
 	}
+#endif
+
+#ifdef CONFIG_BCACHEFS_TRANS_KMALLOC_TRACE
+	trans->trans_kmalloc_trace.nr = 0;
 #endif
 
 	trans_set_locked(trans, false);
@@ -3454,6 +3493,9 @@ void bch2_trans_put(struct btree_trans *trans)
 #ifdef CONFIG_BCACHEFS_DEBUG
 	darray_exit(&trans->last_restarted_trace);
 #endif
+#ifdef CONFIG_BCACHEFS_TRANS_KMALLOC_TRACE
+	darray_exit(&trans->trans_kmalloc_trace);
+#endif
 
 	unsigned long *paths_allocated = trans->paths_allocated;
 	trans->paths_allocated	= NULL;
@@ -3608,6 +3650,9 @@ void bch2_fs_btree_iter_exit(struct bch_fs *c)
 	for (s = c->btree_transaction_stats;
 	     s < c->btree_transaction_stats + ARRAY_SIZE(c->btree_transaction_stats);
 	     s++) {
+#ifdef CONFIG_BCACHEFS_TRANS_KMALLOC_TRACE
+		darray_exit(&s->trans_kmalloc_trace);
+#endif
 		kfree(s->max_paths_text);
 		bch2_time_stats_exit(&s->lock_hold_times);
 	}

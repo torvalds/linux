@@ -222,7 +222,7 @@ static inline void bch2_trans_reset_updates(struct btree_trans *trans)
 	trans->extra_disk_res		= 0;
 }
 
-static inline struct bkey_i *__bch2_bkey_make_mut_noupdate(struct btree_trans *trans, struct bkey_s_c k,
+static __always_inline struct bkey_i *__bch2_bkey_make_mut_noupdate(struct btree_trans *trans, struct bkey_s_c k,
 						  unsigned type, unsigned min_bytes)
 {
 	unsigned bytes = max_t(unsigned, min_bytes, bkey_bytes(k.k));
@@ -245,7 +245,7 @@ static inline struct bkey_i *__bch2_bkey_make_mut_noupdate(struct btree_trans *t
 	return mut;
 }
 
-static inline struct bkey_i *bch2_bkey_make_mut_noupdate(struct btree_trans *trans, struct bkey_s_c k)
+static __always_inline struct bkey_i *bch2_bkey_make_mut_noupdate(struct btree_trans *trans, struct bkey_s_c k)
 {
 	return __bch2_bkey_make_mut_noupdate(trans, k, 0, 0);
 }
