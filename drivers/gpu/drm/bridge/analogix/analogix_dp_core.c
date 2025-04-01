@@ -974,14 +974,11 @@ static int analogix_dp_prepare_panel(struct analogix_dp_device *dp,
 	if (!dp->plat_data->panel)
 		return 0;
 
-	mutex_lock(&dp->panel_lock);
-
 	if (prepare)
 		ret = drm_panel_prepare(dp->plat_data->panel);
 	else
 		ret = drm_panel_unprepare(dp->plat_data->panel);
 
-	mutex_unlock(&dp->panel_lock);
 	return ret;
 }
 
@@ -1546,8 +1543,6 @@ analogix_dp_probe(struct device *dev, struct analogix_dp_plat_data *plat_data)
 
 	dp->dev = &pdev->dev;
 	dp->dpms_mode = DRM_MODE_DPMS_OFF;
-
-	mutex_init(&dp->panel_lock);
 
 	/*
 	 * platform dp driver need containor_of the plat_data to get
