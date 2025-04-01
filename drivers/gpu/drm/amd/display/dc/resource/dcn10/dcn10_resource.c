@@ -23,6 +23,7 @@
  *
  */
 
+#include "core_status.h"
 #include "dm_services.h"
 #include "dc.h"
 
@@ -1125,7 +1126,7 @@ static void dcn10_destroy_resource_pool(struct resource_pool **pool)
 	*pool = NULL;
 }
 
-static bool dcn10_validate_bandwidth(
+static enum dc_status dcn10_validate_bandwidth(
 		struct dc *dc,
 		struct dc_state *context,
 		bool fast_validate)
@@ -1136,7 +1137,7 @@ static bool dcn10_validate_bandwidth(
 	voltage_supported = dcn_validate_bandwidth(dc, context, fast_validate);
 	DC_FP_END();
 
-	return voltage_supported;
+	return voltage_supported ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
 }
 
 static enum dc_status dcn10_validate_plane(const struct dc_plane_state *plane_state, struct dc_caps *caps)

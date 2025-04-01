@@ -836,7 +836,7 @@ static enum dc_status build_mapped_resource(
 	return DC_OK;
 }
 
-static bool dce100_validate_bandwidth(
+static enum dc_status dce100_validate_bandwidth(
 	struct dc  *dc,
 	struct dc_state *context,
 	bool fast_validate)
@@ -858,7 +858,7 @@ static bool dce100_validate_bandwidth(
 		context->bw_ctx.bw.dce.yclk_khz = 0;
 	}
 
-	return true;
+	return DC_OK;
 }
 
 static bool dce100_validate_surface_sets(

@@ -628,8 +628,6 @@ enum dc_status update_dp_encoder_resources_for_test_harness(const struct dc *dc,
 		struct dc_state *context,
 		struct pipe_ctx *pipe_ctx);
 
-bool check_subvp_sw_cursor_fallback_req(const struct dc *dc, struct dc_stream_state *stream);
-
 /* Get hw programming parameters container from pipe context
  * @pipe_ctx: pipe context
  * @dscl_prog_data: struct to hold programmable hw reg values

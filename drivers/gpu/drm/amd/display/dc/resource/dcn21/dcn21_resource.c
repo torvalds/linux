@@ -923,7 +923,7 @@ validate_out:
  * with DC_FP_START()/DC_FP_END(). Use the same approach as for
  * dcn20_validate_bandwidth in dcn20_resource.c.
  */
-static bool dcn21_validate_bandwidth(struct dc *dc, struct dc_state *context,
+static enum dc_status dcn21_validate_bandwidth(struct dc *dc, struct dc_state *context,
 		bool fast_validate)
 {
 	bool voltage_supported;
@@ -931,14 +931,14 @@ static bool dcn21_validate_bandwidth(struct dc *dc, struct dc_state *context,
 
 	pipes = kcalloc(dc->res_pool->pipe_count, sizeof(display_e2e_pipe_params_st), GFP_KERNEL);
 	if (!pipes)
-		return false;
+		return DC_FAIL_BANDWIDTH_VALIDATE;
 
 	DC_FP_START();
 	voltage_supported = dcn21_validate_bandwidth_fp(dc, context, fast_validate, pipes);
 	DC_FP_END();
 
 	kfree(pipes);
-	return voltage_supported;
+	return voltage_supported ? DC_OK : DC_NOT_SUPPORTED;
 }
 
 static void dcn21_destroy_resource_pool(struct resource_pool **pool)
