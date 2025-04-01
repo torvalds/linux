@@ -119,7 +119,7 @@ struct ad7380_chip_info {
 	const char * const *supplies;
 	unsigned int num_supplies;
 	bool external_ref_only;
-	bool adaq_internal_ref_only;
+	bool internal_ref_only;
 	const char * const *vcm_supplies;
 	unsigned int num_vcm_supplies;
 	const unsigned long *available_scan_masks;
@@ -806,7 +806,7 @@ static const struct ad7380_chip_info adaq4370_4_chip_info = {
 	.num_simult_channels = 4,
 	.supplies = adaq4380_supplies,
 	.num_supplies = ARRAY_SIZE(adaq4380_supplies),
-	.adaq_internal_ref_only = true,
+	.internal_ref_only = true,
 	.has_hardware_gain = true,
 	.available_scan_masks = ad7380_4_channel_scan_masks,
 	.timing_specs = &ad7380_4_timing,
@@ -821,7 +821,7 @@ static const struct ad7380_chip_info adaq4380_4_chip_info = {
 	.num_simult_channels = 4,
 	.supplies = adaq4380_supplies,
 	.num_supplies = ARRAY_SIZE(adaq4380_supplies),
-	.adaq_internal_ref_only = true,
+	.internal_ref_only = true,
 	.has_hardware_gain = true,
 	.available_scan_masks = ad7380_4_channel_scan_masks,
 	.timing_specs = &ad7380_4_timing,
@@ -836,7 +836,7 @@ static const struct ad7380_chip_info adaq4381_4_chip_info = {
 	.num_simult_channels = 4,
 	.supplies = adaq4380_supplies,
 	.num_supplies = ARRAY_SIZE(adaq4380_supplies),
-	.adaq_internal_ref_only = true,
+	.internal_ref_only = true,
 	.has_hardware_gain = true,
 	.available_scan_masks = ad7380_4_channel_scan_masks,
 	.timing_specs = &ad7380_4_timing,
@@ -1847,7 +1847,7 @@ static int ad7380_probe(struct spi_device *spi)
 				     "Failed to enable power supplies\n");
 	fsleep(T_POWERUP_US);
 
-	if (st->chip_info->adaq_internal_ref_only) {
+	if (st->chip_info->internal_ref_only) {
 		/*
 		 * ADAQ chips use fixed internal reference but still
 		 * require a specific reference supply to power it.
