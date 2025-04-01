@@ -666,7 +666,7 @@ IMPLEMENT_BTRFS_PAGE_OPS(checked, folio_set_checked, folio_clear_checked,
 				btrfs_blocks_per_folio(fs_info, folio);	\
 	const struct btrfs_subpage *subpage = folio_get_private(folio);	\
 									\
-	ASSERT(blocks_per_folio < BITS_PER_LONG);			\
+	ASSERT(blocks_per_folio <= BITS_PER_LONG);			\
 	*dst = bitmap_read(subpage->bitmaps,				\
 			   blocks_per_folio * btrfs_bitmap_nr_##name,	\
 			   blocks_per_folio);				\
