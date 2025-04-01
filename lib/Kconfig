@@ -142,12 +142,7 @@ config CRC_CCITT
 	tristate
 
 config CRC16
-	tristate "CRC16 functions"
-	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require CRC16 functions, but a module built outside
-	  the kernel tree does. Such modules that use library CRC16
-	  functions require M here.
+	tristate
 
 config CRC_T10DIF
 	tristate "CRC calculation for the T10 Data Integrity Field"
