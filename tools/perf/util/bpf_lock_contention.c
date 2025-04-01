@@ -12,6 +12,7 @@
 #include "util/lock-contention.h"
 #include <linux/zalloc.h>
 #include <linux/string.h>
+#include <api/fs/fs.h>
 #include <bpf/bpf.h>
 #include <bpf/btf.h>
 #include <inttypes.h>
@@ -35,28 +36,26 @@ static bool slab_cache_equal(long key1, long key2, void *ctx __maybe_unused)
 
 static void check_slab_cache_iter(struct lock_contention *con)
 {
-	struct btf *btf = btf__load_vmlinux_btf();
 	s32 ret;
 
 	hashmap__init(&slab_hash, slab_cache_hash, slab_cache_equal, /*ctx=*/NULL);
 
-	if (btf == NULL) {
+	con->btf = btf__load_vmlinux_btf();
+	if (con->btf == NULL) {
 		pr_debug("BTF loading failed: %s\n", strerror(errno));
 		return;
 	}
 
-	ret = btf__find_by_name_kind(btf, "bpf_iter__kmem_cache", BTF_KIND_STRUCT);
+	ret = btf__find_by_name_kind(con->btf, "bpf_iter__kmem_cache", BTF_KIND_STRUCT);
 	if (ret < 0) {
 		bpf_program__set_autoload(skel->progs.slab_cache_iter, false);
 		pr_debug("slab cache iterator is not available: %d\n", ret);
-		goto out;
+		return;
 	}
 
 	has_slab_iter = true;
 
 	bpf_map__set_max_entries(skel->maps.slab_caches, con->map_nr_entries);
-out:
-	btf__free(btf);
 }
 
 static void run_slab_cache_iter(void)
@@ -107,6 +106,75 @@ static void exit_slab_cache_iter(void)
 		free(cur->pvalue);
 
 	hashmap__clear(&slab_hash);
+}
+
+static void init_numa_data(struct lock_contention *con)
+{
+	struct symbol *sym;
+	struct map *kmap;
+	char *buf = NULL, *p;
+	size_t len;
+	long last = -1;
+	int ret;
+
+	/*
+	 * 'struct zone' is embedded in 'struct pglist_data' as an array.
+	 * As we may not have full information of the struct zone in the
+	 * (fake) vmlinux.h, let's get the actual size from BTF.
+	 */
+	ret = btf__find_by_name_kind(con->btf, "zone", BTF_KIND_STRUCT);
+	if (ret < 0) {
+		pr_debug("cannot get type of struct zone: %d\n", ret);
+		return;
+	}
+
+	ret = btf__resolve_size(con->btf, ret);
+	if (ret < 0) {
+		pr_debug("cannot get size of struct zone: %d\n", ret);
+		return;
+	}
+	skel->rodata->sizeof_zone = ret;
+
+	/* UMA system doesn't have 'node_data[]' - just use contig_page_data. */
+	sym = machine__find_kernel_symbol_by_name(con->machine,
+						  "contig_page_data",
+						  &kmap);
+	if (sym) {
+		skel->rodata->contig_page_data_addr = map__unmap_ip(kmap, sym->start);
+		map__put(kmap);
+		return;
+	}
+
+	/*
+	 * The 'node_data' is an array of pointers to struct pglist_data.
+	 * It needs to follow the pointer for each node in BPF to get the
+	 * address of struct pglist_data and its zones.
+	 */
+	sym = machine__find_kernel_symbol_by_name(con->machine,
+						  "node_data",
+						  &kmap);
+	if (sym == NULL)
+		return;
+
+	skel->rodata->node_data_addr = map__unmap_ip(kmap, sym->start);
+	map__put(kmap);
+
+	/* get the number of online nodes using the last node number + 1 */
+	ret = sysfs__read_str("devices/system/node/online", &buf, &len);
+	if (ret < 0) {
+		pr_debug("failed to read online node: %d\n", ret);
+		return;
+	}
+
+	p = buf;
+	while (p && *p) {
+		last = strtol(p, &p, 0);
+
+		if (p && (*p == ',' || *p == '-' || *p == '\n'))
+			p++;
+	}
+	skel->rodata->nr_nodes = last + 1;
+	free(buf);
 }
 
 int lock_contention_prepare(struct lock_contention *con)
@@ -217,6 +285,8 @@ int lock_contention_prepare(struct lock_contention *con)
 	}
 
 	bpf_map__set_max_entries(skel->maps.slab_filter, nslabs);
+
+	init_numa_data(con);
 
 	if (lock_contention_bpf__load(skel) < 0) {
 		pr_err("Failed to load lock-contention BPF skeleton\n");
@@ -505,6 +575,11 @@ static const char *lock_contention_get_name(struct lock_contention *con,
 				return "rq_lock";
 		}
 
+		if (!bpf_map_lookup_elem(lock_fd, &key->lock_addr_or_cgroup, &flags)) {
+			if (flags == LOCK_CLASS_ZONE_LOCK)
+				return "zone_lock";
+		}
+
 		/* look slab_hash for dynamic locks in a slab object */
 		if (hashmap__find(&slab_hash, flags & LCB_F_SLAB_ID_MASK, &slab_data)) {
 			snprintf(name_buf, sizeof(name_buf), "&%s", slab_data->name);
@@ -743,6 +818,7 @@ int lock_contention_finish(struct lock_contention *con)
 	}
 
 	exit_slab_cache_iter();
+	btf__free(con->btf);
 
 	return 0;
 }

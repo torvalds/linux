@@ -142,6 +142,7 @@ struct lock_contention {
 	struct lock_filter *filters;
 	struct lock_contention_fails fails;
 	struct rb_root cgroups;
+	void *btf;
 	unsigned long map_nr_entries;
 	int max_stack;
 	int stack_skip;

@@ -11,6 +11,9 @@
 /* for collect_lock_syms().  4096 was rejected by the verifier */
 #define MAX_CPUS  1024
 
+/* for collect_zone_lock().  It should be more than the actual zones. */
+#define MAX_ZONES  10
+
 /* lock contention flags from include/trace/events/lock.h */
 #define LCB_F_SPIN	(1U << 0)
 #define LCB_F_READ	(1U << 1)
@@ -801,6 +804,11 @@ out:
 
 extern struct rq runqueues __ksym;
 
+const volatile __u64 contig_page_data_addr;
+const volatile __u64 node_data_addr;
+const volatile int nr_nodes;
+const volatile int sizeof_zone;
+
 struct rq___old {
 	raw_spinlock_t lock;
 } __attribute__((preserve_access_index));
@@ -808,6 +816,59 @@ struct rq___old {
 struct rq___new {
 	raw_spinlock_t __lock;
 } __attribute__((preserve_access_index));
+
+static void collect_zone_lock(void)
+{
+	__u64 nr_zones, zone_off;
+	__u64 lock_addr, lock_off;
+	__u32 lock_flag = LOCK_CLASS_ZONE_LOCK;
+
+	zone_off = offsetof(struct pglist_data, node_zones);
+	lock_off = offsetof(struct zone, lock);
+
+	if (contig_page_data_addr) {
+		struct pglist_data *contig_page_data;
+
+		contig_page_data = (void *)(long)contig_page_data_addr;
+		nr_zones = BPF_CORE_READ(contig_page_data, nr_zones);
+
+		for (int i = 0; i < MAX_ZONES; i++) {
+			__u64 zone_addr;
+
+			if (i >= nr_zones)
+				break;
+
+			zone_addr = contig_page_data_addr + (sizeof_zone * i) + zone_off;
+			lock_addr = zone_addr + lock_off;
+
+			bpf_map_update_elem(&lock_syms, &lock_addr, &lock_flag, BPF_ANY);
+		}
+	} else if (nr_nodes > 0) {
+		struct pglist_data **node_data = (void *)(long)node_data_addr;
+
+		for (int i = 0; i < nr_nodes; i++) {
+			struct pglist_data *pgdat = NULL;
+			int err;
+
+			err = bpf_core_read(&pgdat, sizeof(pgdat), &node_data[i]);
+			if (err < 0 || pgdat == NULL)
+				break;
+
+			nr_zones = BPF_CORE_READ(pgdat, nr_zones);
+			for (int k = 0; k < MAX_ZONES; k++) {
+				__u64 zone_addr;
+
+				if (k >= nr_zones)
+					break;
+
+				zone_addr = (__u64)(void *)pgdat + (sizeof_zone * k) + zone_off;
+				lock_addr = zone_addr + lock_off;
+
+				bpf_map_update_elem(&lock_syms, &lock_addr, &lock_flag, BPF_ANY);
+			}
+		}
+	}
+}
 
 SEC("raw_tp/bpf_test_finish")
 int BPF_PROG(collect_lock_syms)
@@ -830,6 +891,9 @@ int BPF_PROG(collect_lock_syms)
 		lock_flag = LOCK_CLASS_RQLOCK;
 		bpf_map_update_elem(&lock_syms, &lock_addr, &lock_flag, BPF_ANY);
 	}
+
+	collect_zone_lock();
+
 	return 0;
 }
 
