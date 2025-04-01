@@ -148,9 +148,8 @@ static void pi_enable_wakeup_handler(struct kvm_vcpu *vcpu)
 	struct pi_desc *pi_desc = vcpu_to_pi_desc(vcpu);
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct pi_desc old, new;
-	unsigned long flags;
 
-	local_irq_save(flags);
+	lockdep_assert_irqs_disabled();
 
 	raw_spin_lock(&per_cpu(wakeup_vcpus_on_cpu_lock, vcpu->cpu));
 	list_add_tail(&vmx->pi_wakeup_list,
@@ -176,8 +175,6 @@ static void pi_enable_wakeup_handler(struct kvm_vcpu *vcpu)
 	 */
 	if (pi_test_on(&new))
 		__apic_send_IPI_self(POSTED_INTR_WAKEUP_VECTOR);
-
-	local_irq_restore(flags);
 }
 
 static bool vmx_needs_pi_wakeup(struct kvm_vcpu *vcpu)
