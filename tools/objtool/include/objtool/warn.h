@@ -57,22 +57,14 @@ static inline char *offstr(struct section *sec, unsigned long offset)
 	free(_str);					\
 })
 
-#define WARN_LIMIT 2
-
 #define WARN_INSN(insn, format, ...)					\
 ({									\
 	struct instruction *_insn = (insn);				\
-	BUILD_BUG_ON(WARN_LIMIT > 2);					\
-	if (!_insn->sym || _insn->sym->warnings < WARN_LIMIT) {		\
+	if (!_insn->sym || !_insn->sym->warned)				\
 		WARN_FUNC(format, _insn->sec, _insn->offset,		\
 			  ##__VA_ARGS__);				\
-		if (_insn->sym)						\
-			_insn->sym->warnings++;				\
-	} else if (_insn->sym && _insn->sym->warnings == WARN_LIMIT) {	\
-		WARN_FUNC("skipping duplicate warning(s)",		\
-			  _insn->sec, _insn->offset);			\
-		_insn->sym->warnings++;					\
-	}								\
+	if (_insn->sym)							\
+		_insn->sym->warned = 1;					\
 })
 
 #define BT_INSN(insn, format, ...)				\
