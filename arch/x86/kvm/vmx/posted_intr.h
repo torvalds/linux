@@ -20,7 +20,7 @@ static inline int pi_find_highest_vector(struct pi_desc *pi_desc)
 {
 	int vec;
 
-	vec = find_last_bit((unsigned long *)pi_desc->pir, 256);
+	vec = find_last_bit(pi_desc->pir, 256);
 	return vec < 256 ? vec : -1;
 }
 
