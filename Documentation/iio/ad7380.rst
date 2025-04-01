@@ -27,6 +27,7 @@ The following chips are supported by this driver:
 * `AD7386-4 <https://www.analog.com/en/products/ad7386-4.html>`_
 * `AD7387-4 <https://www.analog.com/en/products/ad7387-4.html>`_
 * `AD7388-4 <https://www.analog.com/en/products/ad7388-4.html>`_
+* `AD7389-4 <https://www.analog.com/en/products/ad7389-4.html>`_
 * `ADAQ4370-4 <https://www.analog.com/en/products/adaq4370-4.html>`_
 * `ADAQ4380-4 <https://www.analog.com/en/products/adaq4380-4.html>`_
 * `ADAQ4381-4 <https://www.analog.com/en/products/adaq4381-4.html>`_
@@ -49,6 +50,12 @@ ad7380-4
 
 ad7380-4 supports only an external reference voltage (2.5V to 3.3V). It must be
 declared in the device tree as ``refin-supply``.
+
+ad7389-4
+~~~~~~~~
+
+ad7389-4 supports only an internal reference voltage. ``refin-supply`` and
+``refio-supply`` properties are both omitted in this case.
 
 ADAQ devices
 ~~~~~~~~~~~~
