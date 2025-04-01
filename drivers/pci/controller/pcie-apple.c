@@ -142,6 +142,7 @@ struct apple_pcie {
 };
 
 struct apple_pcie_port {
+	raw_spinlock_t		lock;
 	struct apple_pcie	*pcie;
 	struct device_node	*np;
 	void __iomem		*base;
@@ -261,14 +262,16 @@ static void apple_port_irq_mask(struct irq_data *data)
 {
 	struct apple_pcie_port *port = irq_data_get_irq_chip_data(data);
 
-	writel_relaxed(BIT(data->hwirq), port->base + PORT_INTMSKSET);
+	guard(raw_spinlock_irqsave)(&port->lock);
+	rmw_set(BIT(data->hwirq), port->base + PORT_INTMSK);
 }
 
 static void apple_port_irq_unmask(struct irq_data *data)
 {
 	struct apple_pcie_port *port = irq_data_get_irq_chip_data(data);
 
-	writel_relaxed(BIT(data->hwirq), port->base + PORT_INTMSKCLR);
+	guard(raw_spinlock_irqsave)(&port->lock);
+	rmw_clear(BIT(data->hwirq), port->base + PORT_INTMSK);
 }
 
 static bool hwirq_is_intx(unsigned int hwirq)
@@ -387,7 +390,7 @@ static int apple_pcie_port_setup_irq(struct apple_pcie_port *port)
 		return -ENOMEM;
 
 	/* Disable all interrupts */
-	writel_relaxed(~0, port->base + PORT_INTMSKSET);
+	writel_relaxed(~0, port->base + PORT_INTMSK);
 	writel_relaxed(~0, port->base + PORT_INTSTAT);
 
 	irq_set_chained_handler_and_data(irq, apple_port_irq_handler, port);
@@ -536,6 +539,8 @@ static int apple_pcie_setup_port(struct apple_pcie *pcie,
 	port->idx = idx >> 11;
 	port->pcie = pcie;
 	port->np = np;
+
+	raw_spin_lock_init(&port->lock);
 
 	port->base = devm_platform_ioremap_resource(platform, port->idx + 2);
 	if (IS_ERR(port->base))
