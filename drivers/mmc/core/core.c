@@ -1862,13 +1862,13 @@ bool mmc_card_can_discard(struct mmc_card *card)
 }
 EXPORT_SYMBOL(mmc_card_can_discard);
 
-int mmc_can_sanitize(struct mmc_card *card)
+bool mmc_card_can_sanitize(struct mmc_card *card)
 {
 	if (!mmc_can_trim(card) && !mmc_card_can_erase(card))
-		return 0;
+		return false;
 	if (card->ext_csd.sec_feature_support & EXT_CSD_SEC_SANITIZE)
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
 int mmc_can_secure_erase_trim(struct mmc_card *card)

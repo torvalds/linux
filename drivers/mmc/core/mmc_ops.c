@@ -1046,7 +1046,7 @@ int mmc_sanitize(struct mmc_card *card, unsigned int timeout_ms)
 	struct mmc_host *host = card->host;
 	int err;
 
-	if (!mmc_can_sanitize(card)) {
+	if (!mmc_card_can_sanitize(card)) {
 		pr_warn("%s: Sanitize not supported\n", mmc_hostname(host));
 		return -EOPNOTSUPP;
 	}
