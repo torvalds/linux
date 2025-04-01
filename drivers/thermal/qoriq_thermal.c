@@ -18,6 +18,7 @@
 #define SITES_MAX		16
 #define TMR_DISABLE		0x0
 #define TMR_ME			0x80000000
+#define TMR_CMD			BIT(29)
 #define TMR_ALPF		0x0c000000
 #define TMR_ALPF_V2		0x03000000
 #define TMTMIR_DEFAULT	0x0000000f
@@ -265,7 +266,6 @@ static void qoriq_tmu_action(void *p)
 	struct qoriq_tmu_data *data = p;
 
 	regmap_write(data->regmap, REGS_TMR, TMR_DISABLE);
-	clk_disable_unprepare(data->clk);
 }
 
 static int qoriq_tmu_probe(struct platform_device *pdev)
@@ -296,27 +296,17 @@ static int qoriq_tmu_probe(struct platform_device *pdev)
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	ret = PTR_ERR_OR_ZERO(base);
-	if (ret) {
-		dev_err(dev, "Failed to get memory region\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to get memory region\n");
 
 	data->regmap = devm_regmap_init_mmio(dev, base, &regmap_config);
 	ret = PTR_ERR_OR_ZERO(data->regmap);
-	if (ret) {
-		dev_err(dev, "Failed to init regmap (%d)\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to init regmap\n");
 
-	data->clk = devm_clk_get_optional(dev, NULL);
+	data->clk = devm_clk_get_optional_enabled(dev, NULL);
 	if (IS_ERR(data->clk))
 		return PTR_ERR(data->clk);
-
-	ret = clk_prepare_enable(data->clk);
-	if (ret) {
-		dev_err(dev, "Failed to enable clock\n");
-		return ret;
-	}
 
 	ret = devm_add_action_or_reset(dev, qoriq_tmu_action, data);
 	if (ret)
@@ -324,10 +314,9 @@ static int qoriq_tmu_probe(struct platform_device *pdev)
 
 	/* version register offset at: 0xbf8 on both v1 and v2 */
 	ret = regmap_read(data->regmap, REGS_IPBRR(0), &ver);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to read IP block version\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret,  "Failed to read IP block version\n");
+
 	data->ver = (ver >> 8) & 0xff;
 
 	qoriq_tmu_init_device(data);	/* TMU initialization */
@@ -337,10 +326,8 @@ static int qoriq_tmu_probe(struct platform_device *pdev)
 		return ret;
 
 	ret = qoriq_tmu_register_tmu_zone(dev, data);
-	if (ret < 0) {
-		dev_err(dev, "Failed to register sensors\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Failed to register sensors\n");
 
 	platform_set_drvdata(pdev, data);
 
@@ -356,6 +343,12 @@ static int qoriq_tmu_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
+	if (data->ver > TMU_VER1) {
+		ret = regmap_set_bits(data->regmap, REGS_TMR, TMR_CMD);
+		if (ret)
+			return ret;
+	}
+
 	clk_disable_unprepare(data->clk);
 
 	return 0;
@@ -369,6 +362,12 @@ static int qoriq_tmu_resume(struct device *dev)
 	ret = clk_prepare_enable(data->clk);
 	if (ret)
 		return ret;
+
+	if (data->ver > TMU_VER1) {
+		ret = regmap_clear_bits(data->regmap, REGS_TMR, TMR_CMD);
+		if (ret)
+			return ret;
+	}
 
 	/* Enable monitoring */
 	return regmap_update_bits(data->regmap, REGS_TMR, TMR_ME, TMR_ME);
