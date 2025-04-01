@@ -281,9 +281,31 @@ struct damos_filter *damos_new_filter(enum damos_filter_type type,
 	return filter;
 }
 
+/**
+ * damos_filter_for_ops() - Return if the filter is ops-hndled one.
+ * @type:	type of the filter.
+ *
+ * Return: true if the filter of @type needs to be handled by ops layer, false
+ * otherwise.
+ */
+bool damos_filter_for_ops(enum damos_filter_type type)
+{
+	switch (type) {
+	case DAMOS_FILTER_TYPE_ADDR:
+	case DAMOS_FILTER_TYPE_TARGET:
+		return false;
+	default:
+		break;
+	}
+	return true;
+}
+
 void damos_add_filter(struct damos *s, struct damos_filter *f)
 {
-	list_add_tail(&f->list, &s->filters);
+	if (damos_filter_for_ops(f->type))
+		list_add_tail(&f->list, &s->ops_filters);
+	else
+		list_add_tail(&f->list, &s->filters);
 }
 
 static void damos_del_filter(struct damos_filter *f)
@@ -375,6 +397,7 @@ struct damos *damon_new_scheme(struct damos_access_pattern *pattern,
 	scheme->next_apply_sis = 0;
 	scheme->walk_completed = false;
 	INIT_LIST_HEAD(&scheme->filters);
+	INIT_LIST_HEAD(&scheme->ops_filters);
 	scheme->stat = (struct damos_stat){};
 	INIT_LIST_HEAD(&scheme->list);
 
@@ -502,7 +525,7 @@ struct damon_ctx *damon_new_ctx(void)
 	ctx->attrs.ops_update_interval = 60 * 1000 * 1000;
 
 	ctx->passed_sample_intervals = 0;
-	/* These will be set from kdamond_init_intervals_sis() */
+	/* These will be set from kdamond_init_ctx() */
 	ctx->next_aggregation_sis = 0;
 	ctx->next_ops_update_sis = 0;
 
@@ -580,11 +603,25 @@ static unsigned int damon_nr_accesses_for_new_attrs(unsigned int nr_accesses,
 }
 
 static void damon_update_monitoring_result(struct damon_region *r,
-		struct damon_attrs *old_attrs, struct damon_attrs *new_attrs)
+		struct damon_attrs *old_attrs, struct damon_attrs *new_attrs,
+		bool aggregating)
 {
-	r->nr_accesses = damon_nr_accesses_for_new_attrs(r->nr_accesses,
-			old_attrs, new_attrs);
-	r->nr_accesses_bp = r->nr_accesses * 10000;
+	if (!aggregating) {
+		r->nr_accesses = damon_nr_accesses_for_new_attrs(
+				r->nr_accesses, old_attrs, new_attrs);
+		r->nr_accesses_bp = r->nr_accesses * 10000;
+	} else {
+		/*
+		 * if this is called in the middle of the aggregation, reset
+		 * the aggregations we made so far for this aggregation
+		 * interval.  In other words, make the status like
+		 * kdamond_reset_aggregated() is called.
+		 */
+		r->last_nr_accesses = damon_nr_accesses_for_new_attrs(
+				r->last_nr_accesses, old_attrs, new_attrs);
+		r->nr_accesses_bp = r->last_nr_accesses * 10000;
+		r->nr_accesses = 0;
+	}
 	r->age = damon_age_for_new_attrs(r->age, old_attrs, new_attrs);
 }
 
@@ -597,7 +634,7 @@ static void damon_update_monitoring_result(struct damon_region *r,
  * ->nr_accesses and ->age of given damon_ctx's regions for new damon_attrs.
  */
 static void damon_update_monitoring_results(struct damon_ctx *ctx,
-		struct damon_attrs *new_attrs)
+		struct damon_attrs *new_attrs, bool aggregating)
 {
 	struct damon_attrs *old_attrs = &ctx->attrs;
 	struct damon_target *t;
@@ -612,7 +649,26 @@ static void damon_update_monitoring_results(struct damon_ctx *ctx,
 	damon_for_each_target(t, ctx)
 		damon_for_each_region(r, t)
 			damon_update_monitoring_result(
-					r, old_attrs, new_attrs);
+					r, old_attrs, new_attrs, aggregating);
+}
+
+/*
+ * damon_valid_intervals_goal() - return if the intervals goal of @attrs is
+ * valid.
+ */
+static bool damon_valid_intervals_goal(struct damon_attrs *attrs)
+{
+	struct damon_intervals_goal *goal = &attrs->intervals_goal;
+
+	/* tuning is disabled */
+	if (!goal->aggrs)
+		return true;
+	if (goal->min_sample_us > goal->max_sample_us)
+		return false;
+	if (attrs->sample_interval < goal->min_sample_us ||
+			goal->max_sample_us < attrs->sample_interval)
+		return false;
+	return true;
 }
 
 /**
@@ -620,10 +676,10 @@ static void damon_update_monitoring_results(struct damon_ctx *ctx,
  * @ctx:		monitoring context
  * @attrs:		monitoring attributes
  *
- * This function should be called while the kdamond is not running, or an
- * access check results aggregation is not ongoing (e.g., from
- * &struct damon_callback->after_aggregation or
- * &struct damon_callback->after_wmarks_check callbacks).
+ * This function should be called while the kdamond is not running, an access
+ * check results aggregation is not ongoing (e.g., from &struct
+ * damon_callback->after_aggregation or &struct
+ * damon_callback->after_wmarks_check callbacks), or from damon_call().
  *
  * Every time interval is in micro-seconds.
  *
@@ -634,6 +690,11 @@ int damon_set_attrs(struct damon_ctx *ctx, struct damon_attrs *attrs)
 	unsigned long sample_interval = attrs->sample_interval ?
 		attrs->sample_interval : 1;
 	struct damos *s;
+	bool aggregating = ctx->passed_sample_intervals <
+		ctx->next_aggregation_sis;
+
+	if (!damon_valid_intervals_goal(attrs))
+		return -EINVAL;
 
 	if (attrs->min_nr_regions < 3)
 		return -EINVAL;
@@ -642,12 +703,16 @@ int damon_set_attrs(struct damon_ctx *ctx, struct damon_attrs *attrs)
 	if (attrs->sample_interval > attrs->aggr_interval)
 		return -EINVAL;
 
+	/* calls from core-external doesn't set this. */
+	if (!attrs->aggr_samples)
+		attrs->aggr_samples = attrs->aggr_interval / sample_interval;
+
 	ctx->next_aggregation_sis = ctx->passed_sample_intervals +
 		attrs->aggr_interval / sample_interval;
 	ctx->next_ops_update_sis = ctx->passed_sample_intervals +
 		attrs->ops_update_interval / sample_interval;
 
-	damon_update_monitoring_results(ctx, attrs);
+	damon_update_monitoring_results(ctx, attrs, aggregating);
 	ctx->attrs = *attrs;
 
 	damon_for_each_scheme(s, ctx)
@@ -777,6 +842,9 @@ static void damos_commit_filter_arg(
 	case DAMOS_FILTER_TYPE_TARGET:
 		dst->target_idx = src->target_idx;
 		break;
+	case DAMOS_FILTER_TYPE_HUGEPAGE_SIZE:
+		dst->sz_range = src->sz_range;
+		break;
 	default:
 		break;
 	}
@@ -790,7 +858,7 @@ static void damos_commit_filter(
 	damos_commit_filter_arg(dst, src);
 }
 
-static int damos_commit_filters(struct damos *dst, struct damos *src)
+static int damos_commit_core_filters(struct damos *dst, struct damos *src)
 {
 	struct damos_filter *dst_filter, *next, *src_filter, *new_filter;
 	int i = 0, j = 0;
@@ -815,6 +883,74 @@ static int damos_commit_filters(struct damos *dst, struct damos *src)
 		damos_commit_filter_arg(new_filter, src_filter);
 		damos_add_filter(dst, new_filter);
 	}
+	return 0;
+}
+
+static int damos_commit_ops_filters(struct damos *dst, struct damos *src)
+{
+	struct damos_filter *dst_filter, *next, *src_filter, *new_filter;
+	int i = 0, j = 0;
+
+	damos_for_each_ops_filter_safe(dst_filter, next, dst) {
+		src_filter = damos_nth_filter(i++, src);
+		if (src_filter)
+			damos_commit_filter(dst_filter, src_filter);
+		else
+			damos_destroy_filter(dst_filter);
+	}
+
+	damos_for_each_ops_filter_safe(src_filter, next, src) {
+		if (j++ < i)
+			continue;
+
+		new_filter = damos_new_filter(
+				src_filter->type, src_filter->matching,
+				src_filter->allow);
+		if (!new_filter)
+			return -ENOMEM;
+		damos_commit_filter_arg(new_filter, src_filter);
+		damos_add_filter(dst, new_filter);
+	}
+	return 0;
+}
+
+/**
+ * damos_filters_default_reject() - decide whether to reject memory that didn't
+ *				    match with any given filter.
+ * @filters:	Given DAMOS filters of a group.
+ */
+static bool damos_filters_default_reject(struct list_head *filters)
+{
+	struct damos_filter *last_filter;
+
+	if (list_empty(filters))
+		return false;
+	last_filter = list_last_entry(filters, struct damos_filter, list);
+	return last_filter->allow;
+}
+
+static void damos_set_filters_default_reject(struct damos *s)
+{
+	if (!list_empty(&s->ops_filters))
+		s->core_filters_default_reject = false;
+	else
+		s->core_filters_default_reject =
+			damos_filters_default_reject(&s->filters);
+	s->ops_filters_default_reject =
+		damos_filters_default_reject(&s->ops_filters);
+}
+
+static int damos_commit_filters(struct damos *dst, struct damos *src)
+{
+	int err;
+
+	err = damos_commit_core_filters(dst, src);
+	if (err)
+		return err;
+	err = damos_commit_ops_filters(dst, src);
+	if (err)
+		return err;
+	damos_set_filters_default_reject(dst);
 	return 0;
 }
 
@@ -1276,6 +1412,65 @@ static void kdamond_reset_aggregated(struct damon_ctx *c)
 	}
 }
 
+static unsigned long damon_get_intervals_score(struct damon_ctx *c)
+{
+	struct damon_target *t;
+	struct damon_region *r;
+	unsigned long sz_region, max_access_events = 0, access_events = 0;
+	unsigned long target_access_events;
+	unsigned long goal_bp = c->attrs.intervals_goal.access_bp;
+
+	damon_for_each_target(t, c) {
+		damon_for_each_region(r, t) {
+			sz_region = damon_sz_region(r);
+			max_access_events += sz_region * c->attrs.aggr_samples;
+			access_events += sz_region * r->nr_accesses;
+		}
+	}
+	target_access_events = max_access_events * goal_bp / 10000;
+	return access_events * 10000 / target_access_events;
+}
+
+static unsigned long damon_feed_loop_next_input(unsigned long last_input,
+		unsigned long score);
+
+static unsigned long damon_get_intervals_adaptation_bp(struct damon_ctx *c)
+{
+	unsigned long score_bp, adaptation_bp;
+
+	score_bp = damon_get_intervals_score(c);
+	adaptation_bp = damon_feed_loop_next_input(100000000, score_bp) /
+		10000;
+	/*
+	 * adaptaion_bp ranges from 1 to 20,000.  Avoid too rapid reduction of
+	 * the intervals by rescaling [1,10,000] to [5000, 10,000].
+	 */
+	if (adaptation_bp <= 10000)
+		adaptation_bp = 5000 + adaptation_bp / 2;
+	return adaptation_bp;
+}
+
+static void kdamond_tune_intervals(struct damon_ctx *c)
+{
+	unsigned long adaptation_bp;
+	struct damon_attrs new_attrs;
+	struct damon_intervals_goal *goal;
+
+	adaptation_bp = damon_get_intervals_adaptation_bp(c);
+	if (adaptation_bp == 10000)
+		return;
+
+	new_attrs = c->attrs;
+	goal = &c->attrs.intervals_goal;
+	new_attrs.sample_interval = min(goal->max_sample_us,
+			c->attrs.sample_interval * adaptation_bp / 10000);
+	new_attrs.sample_interval = max(goal->min_sample_us,
+			new_attrs.sample_interval);
+	new_attrs.aggr_interval = new_attrs.sample_interval *
+		c->attrs.aggr_samples;
+	damon_set_attrs(c, &new_attrs);
+}
+
 static void damon_split_region_at(struct damon_target *t,
 				  struct damon_region *r, unsigned long sz_r);
 
@@ -1438,7 +1633,7 @@ static bool damos_filter_out(struct damon_ctx *ctx, struct damon_target *t,
 			return !filter->allow;
 		}
 	}
-	return false;
+	return s->core_filters_default_reject;
 }
 
 /*
@@ -1458,11 +1653,13 @@ static void damos_walk_call_walk(struct damon_ctx *ctx, struct damon_target *t,
 {
 	struct damos_walk_control *control;
 
-	mutex_lock(&ctx->walk_control_lock);
+	if (s->walk_completed)
+		return;
+
 	control = ctx->walk_control;
-	mutex_unlock(&ctx->walk_control_lock);
 	if (!control)
 		return;
+
 	control->walk_fn(control->data, ctx, t, r, s, sz_filter_passed);
 }
 
@@ -1482,9 +1679,7 @@ static void damos_walk_complete(struct damon_ctx *ctx, struct damos *s)
 	struct damos *siter;
 	struct damos_walk_control *control;
 
-	mutex_lock(&ctx->walk_control_lock);
 	control = ctx->walk_control;
-	mutex_unlock(&ctx->walk_control_lock);
 	if (!control)
 		return;
 
@@ -1494,10 +1689,11 @@ static void damos_walk_complete(struct damon_ctx *ctx, struct damos *s)
 		if (!siter->walk_completed)
 			return;
 	}
+	damon_for_each_scheme(siter, ctx)
+		siter->walk_completed = false;
+
 	complete(&control->completion);
-	mutex_lock(&ctx->walk_control_lock);
 	ctx->walk_control = NULL;
-	mutex_unlock(&ctx->walk_control_lock);
 }
 
 /*
@@ -1535,7 +1731,6 @@ static void damos_apply_scheme(struct damon_ctx *c, struct damon_target *t,
 	struct timespec64 begin, end;
 	unsigned long sz_applied = 0;
 	unsigned long sz_ops_filter_passed = 0;
-	int err = 0;
 	/*
 	 * We plan to support multiple context per kdamond, as DAMON sysfs
 	 * implies with 'nr_contexts' file.  Nevertheless, only single context
@@ -1575,14 +1770,10 @@ static void damos_apply_scheme(struct damon_ctx *c, struct damon_target *t,
 		if (damos_filter_out(c, t, r, s))
 			return;
 		ktime_get_coarse_ts64(&begin);
-		if (c->callback.before_damos_apply)
-			err = c->callback.before_damos_apply(c, t, r, s);
-		if (!err) {
-			trace_damos_before_apply(cidx, sidx, tidx, r,
-					damon_nr_regions(t), do_trace);
-			sz_applied = c->ops.apply_scheme(c, t, r, s,
-					&sz_ops_filter_passed);
-		}
+		trace_damos_before_apply(cidx, sidx, tidx, r,
+				damon_nr_regions(t), do_trace);
+		sz_applied = c->ops.apply_scheme(c, t, r, s,
+				&sz_ops_filter_passed);
 		damos_walk_call_walk(c, t, r, s, sz_ops_filter_passed);
 		ktime_get_coarse_ts64(&end);
 		quota->total_charged_ns += timespec64_to_ns(&end) -
@@ -1844,6 +2035,7 @@ static void kdamond_apply_schemes(struct damon_ctx *c)
 	if (!has_schemes_to_apply)
 		return;
 
+	mutex_lock(&c->walk_control_lock);
 	damon_for_each_target(t, c) {
 		damon_for_each_region_safe(r, next_r, t)
 			damon_do_apply_schemes(c, t, r);
@@ -1856,7 +2048,9 @@ static void kdamond_apply_schemes(struct damon_ctx *c)
 		s->next_apply_sis = c->passed_sample_intervals +
 			(s->apply_interval_us ? s->apply_interval_us :
 			 c->attrs.aggr_interval) / sample_interval;
+		s->last_applied = NULL;
 	}
+	mutex_unlock(&c->walk_control_lock);
 }
 
 /*
@@ -2169,7 +2363,7 @@ static int kdamond_wait_activation(struct damon_ctx *ctx)
 	return -EBUSY;
 }
 
-static void kdamond_init_intervals_sis(struct damon_ctx *ctx)
+static void kdamond_init_ctx(struct damon_ctx *ctx)
 {
 	unsigned long sample_interval = ctx->attrs.sample_interval ?
 		ctx->attrs.sample_interval : 1;
@@ -2180,11 +2374,14 @@ static void kdamond_init_intervals_sis(struct damon_ctx *ctx)
 	ctx->next_aggregation_sis = ctx->attrs.aggr_interval / sample_interval;
 	ctx->next_ops_update_sis = ctx->attrs.ops_update_interval /
 		sample_interval;
+	ctx->next_intervals_tune_sis = ctx->next_aggregation_sis *
+		ctx->attrs.intervals_goal.aggrs;
 
 	damon_for_each_scheme(scheme, ctx) {
 		apply_interval = scheme->apply_interval_us ?
 			scheme->apply_interval_us : ctx->attrs.aggr_interval;
 		scheme->next_apply_sis = apply_interval / sample_interval;
+		damos_set_filters_default_reject(scheme);
 	}
 }
 
@@ -2202,12 +2399,10 @@ static int kdamond_fn(void *data)
 	pr_debug("kdamond (%d) starts\n", current->pid);
 
 	complete(&ctx->kdamond_started);
-	kdamond_init_intervals_sis(ctx);
+	kdamond_init_ctx(ctx);
 
 	if (ctx->ops.init)
 		ctx->ops.init(ctx);
-	if (ctx->callback.before_start && ctx->callback.before_start(ctx))
-		goto done;
 	ctx->regions_score_histogram = kmalloc_array(DAMOS_MAX_SCORE + 1,
 			sizeof(*ctx->regions_score_histogram), GFP_KERNEL);
 	if (!ctx->regions_score_histogram)
@@ -2232,10 +2427,6 @@ static int kdamond_fn(void *data)
 
 		if (ctx->ops.prepare_access_checks)
 			ctx->ops.prepare_access_checks(ctx);
-		if (ctx->callback.after_sampling &&
-				ctx->callback.after_sampling(ctx))
-			break;
-		kdamond_call(ctx, false);
 
 		kdamond_usleep(sample_interval);
 		ctx->passed_sample_intervals++;
@@ -2253,9 +2444,10 @@ static int kdamond_fn(void *data)
 		}
 
 		/*
-		 * do kdamond_apply_schemes() after kdamond_merge_regions() if
-		 * possible, to reduce overhead
+		 * do kdamond_call() and kdamond_apply_schemes() after
+		 * kdamond_merge_regions() if possible, to reduce overhead
 		 */
+		kdamond_call(ctx, false);
 		if (!list_empty(&ctx->schemes))
 			kdamond_apply_schemes(ctx);
 		else
@@ -2264,13 +2456,40 @@ static int kdamond_fn(void *data)
 		sample_interval = ctx->attrs.sample_interval ?
 			ctx->attrs.sample_interval : 1;
 		if (ctx->passed_sample_intervals >= next_aggregation_sis) {
+			if (ctx->attrs.intervals_goal.aggrs &&
+					ctx->passed_sample_intervals >=
+					ctx->next_intervals_tune_sis) {
+				/*
+				 * ctx->next_aggregation_sis might be updated
+				 * from kdamond_call().  In the case,
+				 * damon_set_attrs() which will be called from
+				 * kdamond_tune_interval() may wrongly think
+				 * this is in the middle of the current
+				 * aggregation, and make aggregation
+				 * information reset for all regions.  Then,
+				 * following kdamond_reset_aggregated() call
+				 * will make the region information invalid,
+				 * particularly for ->nr_accesses_bp.
+				 *
+				 * Reset ->next_aggregation_sis to avoid that.
+				 * It will anyway correctly updated after this
+				 * if caluse.
+				 */
+				ctx->next_aggregation_sis =
+					next_aggregation_sis;
+				ctx->next_intervals_tune_sis +=
+					ctx->attrs.aggr_samples *
+					ctx->attrs.intervals_goal.aggrs;
+				kdamond_tune_intervals(ctx);
+				sample_interval = ctx->attrs.sample_interval ?
+					ctx->attrs.sample_interval : 1;
+
+			}
 			ctx->next_aggregation_sis = next_aggregation_sis +
 				ctx->attrs.aggr_interval / sample_interval;
 
 			kdamond_reset_aggregated(ctx);
 			kdamond_split_regions(ctx);
-			if (ctx->ops.reset_aggregated)
-				ctx->ops.reset_aggregated(ctx);
 		}
 
 		if (ctx->passed_sample_intervals >= next_ops_update_sis) {

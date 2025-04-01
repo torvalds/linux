@@ -58,35 +58,85 @@ enum vma_merge_state {
 	VMA_MERGE_SUCCESS,
 };
 
-enum vma_merge_flags {
-	VMG_FLAG_DEFAULT = 0,
-	/*
-	 * If we can expand, simply do so. We know there is nothing to merge to
-	 * the right. Does not reset state upon failure to merge. The VMA
-	 * iterator is assumed to be positioned at the previous VMA, rather than
-	 * at the gap.
-	 */
-	VMG_FLAG_JUST_EXPAND = 1 << 0,
-};
-
-/* Represents a VMA merge operation. */
+/*
+ * Describes a VMA merge operation and is threaded throughout it.
+ *
+ * Any of the fields may be mutated by the merge operation, so no guarantees are
+ * made to the contents of this structure after a merge operation has completed.
+ */
 struct vma_merge_struct {
 	struct mm_struct *mm;
 	struct vma_iterator *vmi;
-	pgoff_t pgoff;
+	/*
+	 * Adjacent VMAs, any of which may be NULL if not present:
+	 *
+	 * |------|--------|------|
+	 * | prev | middle | next |
+	 * |------|--------|------|
+	 *
+	 * middle may not yet exist in the case of a proposed new VMA being
+	 * merged, or it may be an existing VMA.
+	 *
+	 * next may be assigned by the caller.
+	 */
 	struct vm_area_struct *prev;
-	struct vm_area_struct *next; /* Modified by vma_merge(). */
-	struct vm_area_struct *vma; /* Either a new VMA or the one being modified. */
+	struct vm_area_struct *middle;
+	struct vm_area_struct *next;
+	/* This is the VMA we ultimately target to become the merged VMA. */
+	struct vm_area_struct *target;
+	/*
+	 * Initially, the start, end, pgoff fields are provided by the caller
+	 * and describe the proposed new VMA range, whether modifying an
+	 * existing VMA (which will be 'middle'), or adding a new one.
+	 *
+	 * During the merge process these fields are updated to describe the new
+	 * range _including those VMAs which will be merged_.
+	 */
 	unsigned long start;
 	unsigned long end;
+	pgoff_t pgoff;
+
 	unsigned long flags;
 	struct file *file;
 	struct anon_vma *anon_vma;
 	struct mempolicy *policy;
 	struct vm_userfaultfd_ctx uffd_ctx;
 	struct anon_vma_name *anon_name;
-	enum vma_merge_flags merge_flags;
 	enum vma_merge_state state;
+
+	/* Flags which callers can use to modify merge behaviour: */
+
+	/*
+	 * If we can expand, simply do so. We know there is nothing to merge to
+	 * the right. Does not reset state upon failure to merge. The VMA
+	 * iterator is assumed to be positioned at the previous VMA, rather than
+	 * at the gap.
+	 */
+	bool just_expand :1;
+
+	/* Internal flags set during merge process: */
+
+	/*
+	 * Internal flag indicating the merge increases vmg->middle->vm_start
+	 * (and thereby, vmg->prev->vm_end).
+	 */
+	bool __adjust_middle_start :1;
+	/*
+	 * Internal flag indicating the merge decreases vmg->next->vm_start
+	 * (and thereby, vmg->middle->vm_end).
+	 */
+	bool __adjust_next_start :1;
+	/*
+	 * Internal flag used during the merge operation to indicate we will
+	 * remove vmg->middle.
+	 */
+	bool __remove_middle :1;
+	/*
+	 * Internal flag used during the merge operationr to indicate we will
+	 * remove vmg->next.
+	 */
+	bool __remove_next :1;
+
 };
 
 static inline bool vmg_nomem(struct vma_merge_struct *vmg)
@@ -110,7 +160,6 @@ static inline pgoff_t vma_pgoff_offset(struct vm_area_struct *vma,
 		.flags = flags_,					\
 		.pgoff = pgoff_,					\
 		.state = VMA_MERGE_START,				\
-		.merge_flags = VMG_FLAG_DEFAULT,			\
 	}
 
 #define VMG_VMA_STATE(name, vmi_, prev_, vma_, start_, end_)	\
@@ -118,8 +167,8 @@ static inline pgoff_t vma_pgoff_offset(struct vm_area_struct *vma,
 		.mm = vma_->vm_mm,				\
 		.vmi = vmi_,					\
 		.prev = prev_,					\
+		.middle = vma_,					\
 		.next = NULL,					\
-		.vma = vma_,					\
 		.start = start_,				\
 		.end = end_,					\
 		.flags = vma_->vm_flags,			\
@@ -130,7 +179,6 @@ static inline pgoff_t vma_pgoff_offset(struct vm_area_struct *vma,
 		.uffd_ctx = vma_->vm_userfaultfd_ctx,		\
 		.anon_name = anon_vma_name(vma_),		\
 		.state = VMA_MERGE_START,			\
-		.merge_flags = VMG_FLAG_DEFAULT,		\
 	}
 
 #ifdef CONFIG_DEBUG_VM_MAPLE_TREE
@@ -157,6 +205,7 @@ static inline int vma_iter_store_gfp(struct vma_iterator *vmi,
 	if (unlikely(mas_is_err(&vmi->mas)))
 		return -ENOMEM;
 
+	vma_mark_attached(vma);
 	return 0;
 }
 
@@ -169,7 +218,7 @@ int do_vmi_munmap(struct vma_iterator *vmi, struct mm_struct *mm,
 		  unsigned long start, size_t len, struct list_head *uf,
 		  bool unlock);
 
-void remove_vma(struct vm_area_struct *vma, bool unreachable);
+void remove_vma(struct vm_area_struct *vma);
 
 void unmap_region(struct ma_state *mas, struct vm_area_struct *vma,
 		struct vm_area_struct *prev, struct vm_area_struct *next);
@@ -364,9 +413,10 @@ static inline struct vm_area_struct *vma_iter_load(struct vma_iterator *vmi)
 }
 
 /* Store a VMA with preallocated memory */
-static inline void vma_iter_store(struct vma_iterator *vmi,
-				  struct vm_area_struct *vma)
+static inline void vma_iter_store_overwrite(struct vma_iterator *vmi,
+					    struct vm_area_struct *vma)
 {
+	vma_assert_attached(vma);
 
 #if defined(CONFIG_DEBUG_VM_MAPLE_TREE)
 	if (MAS_WARN_ON(&vmi->mas, vmi->mas.status != ma_start &&
@@ -389,6 +439,13 @@ static inline void vma_iter_store(struct vma_iterator *vmi,
 
 	__mas_set_range(&vmi->mas, vma->vm_start, vma->vm_end - 1);
 	mas_store_prealloc(&vmi->mas, vma);
+}
+
+static inline void vma_iter_store_new(struct vma_iterator *vmi,
+				      struct vm_area_struct *vma)
+{
+	vma_mark_attached(vma);
+	vma_iter_store_overwrite(vmi, vma);
 }
 
 static inline unsigned long vma_iter_addr(struct vma_iterator *vmi)

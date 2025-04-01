@@ -341,7 +341,7 @@ static void xe_svm_garbage_collector_work_func(struct work_struct *w)
 
 static struct xe_vram_region *page_to_vr(struct page *page)
 {
-	return container_of(page->pgmap, struct xe_vram_region, pagemap);
+	return container_of(page_pgmap(page), struct xe_vram_region, pagemap);
 }
 
 static struct xe_tile *vr_to_tile(struct xe_vram_region *vr)

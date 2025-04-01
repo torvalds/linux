@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/limits.h>
 #include <linux/userfaultfd.h>
 #include <setjmp.h>
 #include <signal.h>
@@ -18,6 +19,7 @@
 #include <sys/syscall.h>
 #include <sys/uio.h>
 #include <unistd.h>
+#include "vm_util.h"
 
 #include "../pidfd/pidfd.h"
 
@@ -38,6 +40,79 @@ static sigjmp_buf signal_jmp_buf;
  * volatile to stop the compiler from optimising this away.
  */
 #define FORCE_READ(x) (*(volatile typeof(x) *)x)
+
+/*
+ * How is the test backing the mapping being tested?
+ */
+enum backing_type {
+	ANON_BACKED,
+	SHMEM_BACKED,
+	LOCAL_FILE_BACKED,
+};
+
+FIXTURE(guard_regions)
+{
+	unsigned long page_size;
+	char path[PATH_MAX];
+	int fd;
+};
+
+FIXTURE_VARIANT(guard_regions)
+{
+	enum backing_type backing;
+};
+
+FIXTURE_VARIANT_ADD(guard_regions, anon)
+{
+	.backing = ANON_BACKED,
+};
+
+FIXTURE_VARIANT_ADD(guard_regions, shmem)
+{
+	.backing = SHMEM_BACKED,
+};
+
+FIXTURE_VARIANT_ADD(guard_regions, file)
+{
+	.backing = LOCAL_FILE_BACKED,
+};
+
+static bool is_anon_backed(const FIXTURE_VARIANT(guard_regions) * variant)
+{
+	switch (variant->backing) {
+	case  ANON_BACKED:
+	case  SHMEM_BACKED:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static void *mmap_(FIXTURE_DATA(guard_regions) * self,
+		   const FIXTURE_VARIANT(guard_regions) * variant,
+		   void *addr, size_t length, int prot, int extra_flags,
+		   off_t offset)
+{
+	int fd;
+	int flags = extra_flags;
+
+	switch (variant->backing) {
+	case ANON_BACKED:
+		flags |= MAP_PRIVATE | MAP_ANON;
+		fd = -1;
+		break;
+	case SHMEM_BACKED:
+	case LOCAL_FILE_BACKED:
+		flags |= MAP_SHARED;
+		fd = self->fd;
+		break;
+	default:
+		ksft_exit_fail();
+		break;
+	}
+
+	return mmap(addr, length, prot, flags, fd, offset);
+}
 
 static int userfaultfd(int flags)
 {
@@ -104,12 +179,7 @@ static bool try_read_write_buf(char *ptr)
 	return try_read_buf(ptr) && try_write_buf(ptr);
 }
 
-FIXTURE(guard_pages)
-{
-	unsigned long page_size;
-};
-
-FIXTURE_SETUP(guard_pages)
+static void setup_sighandler(void)
 {
 	struct sigaction act = {
 		.sa_handler = &handle_fatal,
@@ -119,11 +189,9 @@ FIXTURE_SETUP(guard_pages)
 	sigemptyset(&act.sa_mask);
 	if (sigaction(SIGSEGV, &act, NULL))
 		ksft_exit_fail_perror("sigaction");
+}
 
-	self->page_size = (unsigned long)sysconf(_SC_PAGESIZE);
-};
-
-FIXTURE_TEARDOWN(guard_pages)
+static void teardown_sighandler(void)
 {
 	struct sigaction act = {
 		.sa_handler = SIG_DFL,
@@ -134,15 +202,109 @@ FIXTURE_TEARDOWN(guard_pages)
 	sigaction(SIGSEGV, &act, NULL);
 }
 
-TEST_F(guard_pages, basic)
+static int open_file(const char *prefix, char *path)
+{
+	int fd;
+
+	snprintf(path, PATH_MAX, "%sguard_regions_test_file_XXXXXX", prefix);
+	fd = mkstemp(path);
+	if (fd < 0)
+		ksft_exit_fail_perror("mkstemp");
+
+	return fd;
+}
+
+/* Establish a varying pattern in a buffer. */
+static void set_pattern(char *ptr, size_t num_pages, size_t page_size)
+{
+	size_t i;
+
+	for (i = 0; i < num_pages; i++) {
+		char *ptr2 = &ptr[i * page_size];
+
+		memset(ptr2, 'a' + (i % 26), page_size);
+	}
+}
+
+/*
+ * Check that a buffer contains the pattern set by set_pattern(), starting at a
+ * page offset of pgoff within the buffer.
+ */
+static bool check_pattern_offset(char *ptr, size_t num_pages, size_t page_size,
+				 size_t pgoff)
+{
+	size_t i;
+
+	for (i = 0; i < num_pages * page_size; i++) {
+		size_t offset = pgoff * page_size + i;
+		char actual = ptr[offset];
+		char expected = 'a' + ((offset / page_size) % 26);
+
+		if (actual != expected)
+			return false;
+	}
+
+	return true;
+}
+
+/* Check that a buffer contains the pattern set by set_pattern(). */
+static bool check_pattern(char *ptr, size_t num_pages, size_t page_size)
+{
+	return check_pattern_offset(ptr, num_pages, page_size, 0);
+}
+
+/* Determine if a buffer contains only repetitions of a specified char. */
+static bool is_buf_eq(char *buf, size_t size, char chr)
+{
+	size_t i;
+
+	for (i = 0; i < size; i++) {
+		if (buf[i] != chr)
+			return false;
+	}
+
+	return true;
+}
+
+FIXTURE_SETUP(guard_regions)
+{
+	self->page_size = (unsigned long)sysconf(_SC_PAGESIZE);
+	setup_sighandler();
+
+	if (variant->backing == ANON_BACKED)
+		return;
+
+	self->fd = open_file(
+		variant->backing == SHMEM_BACKED ? "/tmp/" : "",
+		self->path);
+
+	/* We truncate file to at least 100 pages, tests can modify as needed. */
+	ASSERT_EQ(ftruncate(self->fd, 100 * self->page_size), 0);
+};
+
+FIXTURE_TEARDOWN_PARENT(guard_regions)
+{
+	teardown_sighandler();
+
+	if (variant->backing == ANON_BACKED)
+		return;
+
+	if (self->fd >= 0)
+		close(self->fd);
+
+	if (self->path[0] != '\0')
+		unlink(self->path);
+}
+
+TEST_F(guard_regions, basic)
 {
 	const unsigned long NUM_PAGES = 10;
 	const unsigned long page_size = self->page_size;
 	char *ptr;
 	int i;
 
-	ptr = mmap(NULL, NUM_PAGES * page_size, PROT_READ | PROT_WRITE,
-		   MAP_PRIVATE | MAP_ANON, -1, 0);
+	ptr = mmap_(self, variant, NULL, NUM_PAGES * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Trivially assert we can touch the first page. */
@@ -228,32 +390,30 @@ TEST_F(guard_pages, basic)
 }
 
 /* Assert that operations applied across multiple VMAs work as expected. */
-TEST_F(guard_pages, multi_vma)
+TEST_F(guard_regions, multi_vma)
 {
 	const unsigned long page_size = self->page_size;
 	char *ptr_region, *ptr, *ptr1, *ptr2, *ptr3;
 	int i;
 
 	/* Reserve a 100 page region over which we can install VMAs. */
-	ptr_region = mmap(NULL, 100 * page_size, PROT_NONE,
-			  MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr_region = mmap_(self, variant, NULL, 100 * page_size,
+			   PROT_NONE, 0, 0);
 	ASSERT_NE(ptr_region, MAP_FAILED);
 
 	/* Place a VMA of 10 pages size at the start of the region. */
-	ptr1 = mmap(ptr_region, 10 * page_size, PROT_READ | PROT_WRITE,
-		    MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr1 = mmap_(self, variant, ptr_region, 10 * page_size,
+		     PROT_READ | PROT_WRITE, MAP_FIXED, 0);
 	ASSERT_NE(ptr1, MAP_FAILED);
 
 	/* Place a VMA of 5 pages size 50 pages into the region. */
-	ptr2 = mmap(&ptr_region[50 * page_size], 5 * page_size,
-		    PROT_READ | PROT_WRITE,
-		    MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr2 = mmap_(self, variant, &ptr_region[50 * page_size], 5 * page_size,
+		     PROT_READ | PROT_WRITE, MAP_FIXED, 0);
 	ASSERT_NE(ptr2, MAP_FAILED);
 
 	/* Place a VMA of 20 pages size at the end of the region. */
-	ptr3 = mmap(&ptr_region[80 * page_size], 20 * page_size,
-		    PROT_READ | PROT_WRITE,
-		    MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr3 = mmap_(self, variant, &ptr_region[80 * page_size], 20 * page_size,
+		     PROT_READ | PROT_WRITE, MAP_FIXED, 0);
 	ASSERT_NE(ptr3, MAP_FAILED);
 
 	/* Unmap gaps. */
@@ -323,13 +483,11 @@ TEST_F(guard_pages, multi_vma)
 	}
 
 	/* Now map incompatible VMAs in the gaps. */
-	ptr = mmap(&ptr_region[10 * page_size], 40 * page_size,
-		   PROT_READ | PROT_WRITE | PROT_EXEC,
-		   MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, &ptr_region[10 * page_size], 40 * page_size,
+		    PROT_READ | PROT_WRITE | PROT_EXEC, MAP_FIXED, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
-	ptr = mmap(&ptr_region[55 * page_size], 25 * page_size,
-		   PROT_READ | PROT_WRITE | PROT_EXEC,
-		   MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, &ptr_region[55 * page_size], 25 * page_size,
+		    PROT_READ | PROT_WRITE | PROT_EXEC, MAP_FIXED, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/*
@@ -364,7 +522,7 @@ TEST_F(guard_pages, multi_vma)
  * Assert that batched operations performed using process_madvise() work as
  * expected.
  */
-TEST_F(guard_pages, process_madvise)
+TEST_F(guard_regions, process_madvise)
 {
 	const unsigned long page_size = self->page_size;
 	char *ptr_region, *ptr1, *ptr2, *ptr3;
@@ -372,8 +530,8 @@ TEST_F(guard_pages, process_madvise)
 	struct iovec vec[6];
 
 	/* Reserve region to map over. */
-	ptr_region = mmap(NULL, 100 * page_size, PROT_NONE,
-			  MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr_region = mmap_(self, variant, NULL, 100 * page_size,
+			   PROT_NONE, 0, 0);
 	ASSERT_NE(ptr_region, MAP_FAILED);
 
 	/*
@@ -381,9 +539,8 @@ TEST_F(guard_pages, process_madvise)
 	 * overwrite existing entries and test this code path against
 	 * overwriting existing entries.
 	 */
-	ptr1 = mmap(&ptr_region[page_size], 10 * page_size,
-		    PROT_READ | PROT_WRITE,
-		    MAP_FIXED | MAP_ANON | MAP_PRIVATE | MAP_POPULATE, -1, 0);
+	ptr1 = mmap_(self, variant, &ptr_region[page_size], 10 * page_size,
+		     PROT_READ | PROT_WRITE, MAP_FIXED | MAP_POPULATE, 0);
 	ASSERT_NE(ptr1, MAP_FAILED);
 	/* We want guard markers at start/end of each VMA. */
 	vec[0].iov_base = ptr1;
@@ -392,9 +549,8 @@ TEST_F(guard_pages, process_madvise)
 	vec[1].iov_len = page_size;
 
 	/* 5 pages offset 50 pages into reserve region. */
-	ptr2 = mmap(&ptr_region[50 * page_size], 5 * page_size,
-		    PROT_READ | PROT_WRITE,
-		    MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr2 = mmap_(self, variant, &ptr_region[50 * page_size], 5 * page_size,
+		     PROT_READ | PROT_WRITE, MAP_FIXED, 0);
 	ASSERT_NE(ptr2, MAP_FAILED);
 	vec[2].iov_base = ptr2;
 	vec[2].iov_len = page_size;
@@ -402,9 +558,8 @@ TEST_F(guard_pages, process_madvise)
 	vec[3].iov_len = page_size;
 
 	/* 20 pages offset 79 pages into reserve region. */
-	ptr3 = mmap(&ptr_region[79 * page_size], 20 * page_size,
-		    PROT_READ | PROT_WRITE,
-		    MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr3 = mmap_(self, variant, &ptr_region[79 * page_size], 20 * page_size,
+		    PROT_READ | PROT_WRITE, MAP_FIXED, 0);
 	ASSERT_NE(ptr3, MAP_FAILED);
 	vec[4].iov_base = ptr3;
 	vec[4].iov_len = page_size;
@@ -459,13 +614,13 @@ TEST_F(guard_pages, process_madvise)
 }
 
 /* Assert that unmapping ranges does not leave guard markers behind. */
-TEST_F(guard_pages, munmap)
+TEST_F(guard_regions, munmap)
 {
 	const unsigned long page_size = self->page_size;
 	char *ptr, *ptr_new1, *ptr_new2;
 
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Guard first and last pages. */
@@ -481,11 +636,11 @@ TEST_F(guard_pages, munmap)
 	ASSERT_EQ(munmap(&ptr[9 * page_size], page_size), 0);
 
 	/* Map over them.*/
-	ptr_new1 = mmap(ptr, page_size, PROT_READ | PROT_WRITE,
-			MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr_new1 = mmap_(self, variant, ptr, page_size, PROT_READ | PROT_WRITE,
+			 MAP_FIXED, 0);
 	ASSERT_NE(ptr_new1, MAP_FAILED);
-	ptr_new2 = mmap(&ptr[9 * page_size], page_size, PROT_READ | PROT_WRITE,
-			MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr_new2 = mmap_(self, variant, &ptr[9 * page_size], page_size,
+			 PROT_READ | PROT_WRITE, MAP_FIXED, 0);
 	ASSERT_NE(ptr_new2, MAP_FAILED);
 
 	/* Assert that they are now not guarded. */
@@ -497,14 +652,14 @@ TEST_F(guard_pages, munmap)
 }
 
 /* Assert that mprotect() operations have no bearing on guard markers. */
-TEST_F(guard_pages, mprotect)
+TEST_F(guard_regions, mprotect)
 {
 	const unsigned long page_size = self->page_size;
 	char *ptr;
 	int i;
 
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Guard the middle of the range. */
@@ -545,14 +700,14 @@ TEST_F(guard_pages, mprotect)
 }
 
 /* Split and merge VMAs and make sure guard pages still behave. */
-TEST_F(guard_pages, split_merge)
+TEST_F(guard_regions, split_merge)
 {
 	const unsigned long page_size = self->page_size;
 	char *ptr, *ptr_new;
 	int i;
 
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Guard the whole range. */
@@ -593,14 +748,14 @@ TEST_F(guard_pages, split_merge)
 	}
 
 	/* Now map them again - the unmap will have cleared the guards. */
-	ptr_new = mmap(&ptr[2 * page_size], page_size, PROT_READ | PROT_WRITE,
-		       MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr_new = mmap_(self, variant, &ptr[2 * page_size], page_size,
+			PROT_READ | PROT_WRITE, MAP_FIXED, 0);
 	ASSERT_NE(ptr_new, MAP_FAILED);
-	ptr_new = mmap(&ptr[5 * page_size], page_size, PROT_READ | PROT_WRITE,
-		       MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr_new = mmap_(self, variant, &ptr[5 * page_size], page_size,
+			PROT_READ | PROT_WRITE, MAP_FIXED, 0);
 	ASSERT_NE(ptr_new, MAP_FAILED);
-	ptr_new = mmap(&ptr[8 * page_size], page_size, PROT_READ | PROT_WRITE,
-		       MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr_new = mmap_(self, variant, &ptr[8 * page_size], page_size,
+			PROT_READ | PROT_WRITE, MAP_FIXED, 0);
 	ASSERT_NE(ptr_new, MAP_FAILED);
 
 	/* Now make sure guard pages are established. */
@@ -676,14 +831,14 @@ TEST_F(guard_pages, split_merge)
 }
 
 /* Assert that MADV_DONTNEED does not remove guard markers. */
-TEST_F(guard_pages, dontneed)
+TEST_F(guard_regions, dontneed)
 {
 	const unsigned long page_size = self->page_size;
 	char *ptr;
 	int i;
 
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Back the whole range. */
@@ -713,8 +868,16 @@ TEST_F(guard_pages, dontneed)
 			ASSERT_FALSE(result);
 		} else {
 			ASSERT_TRUE(result);
-			/* Make sure we really did get reset to zero page. */
-			ASSERT_EQ(*curr, '\0');
+			switch (variant->backing) {
+			case ANON_BACKED:
+				/* If anon, then we get a zero page. */
+				ASSERT_EQ(*curr, '\0');
+				break;
+			default:
+				/* Otherwise, we get the file data. */
+				ASSERT_EQ(*curr, 'y');
+				break;
+			}
 		}
 
 		/* Now write... */
@@ -729,14 +892,14 @@ TEST_F(guard_pages, dontneed)
 }
 
 /* Assert that mlock()'ed pages work correctly with guard markers. */
-TEST_F(guard_pages, mlock)
+TEST_F(guard_regions, mlock)
 {
 	const unsigned long page_size = self->page_size;
 	char *ptr;
 	int i;
 
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Populate. */
@@ -802,14 +965,14 @@ TEST_F(guard_pages, mlock)
  *
  * - Moving a mapping alone should retain markers as they are.
  */
-TEST_F(guard_pages, mremap_move)
+TEST_F(guard_regions, mremap_move)
 {
 	const unsigned long page_size = self->page_size;
 	char *ptr, *ptr_new;
 
 	/* Map 5 pages. */
-	ptr = mmap(NULL, 5 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 5 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Place guard markers at both ends of the 5 page span. */
@@ -823,8 +986,7 @@ TEST_F(guard_pages, mremap_move)
 	/* Map a new region we will move this range into. Doing this ensures
 	 * that we have reserved a range to map into.
 	 */
-	ptr_new = mmap(NULL, 5 * page_size, PROT_NONE, MAP_ANON | MAP_PRIVATE,
-		       -1, 0);
+	ptr_new = mmap_(self, variant, NULL, 5 * page_size, PROT_NONE, 0, 0);
 	ASSERT_NE(ptr_new, MAP_FAILED);
 
 	ASSERT_EQ(mremap(ptr, 5 * page_size, 5 * page_size,
@@ -849,14 +1011,14 @@ TEST_F(guard_pages, mremap_move)
  * will have to remove guard pages manually to fix up (they'd have to do the
  * same if it were a PROT_NONE mapping).
  */
-TEST_F(guard_pages, mremap_expand)
+TEST_F(guard_regions, mremap_expand)
 {
 	const unsigned long page_size = self->page_size;
 	char *ptr, *ptr_new;
 
 	/* Map 10 pages... */
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 	/* ...But unmap the last 5 so we can ensure we can expand into them. */
 	ASSERT_EQ(munmap(&ptr[5 * page_size], 5 * page_size), 0);
@@ -880,8 +1042,7 @@ TEST_F(guard_pages, mremap_expand)
 	ASSERT_FALSE(try_read_write_buf(&ptr[4 * page_size]));
 
 	/* Reserve a region which we can move to and expand into. */
-	ptr_new = mmap(NULL, 20 * page_size, PROT_NONE,
-		       MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr_new = mmap_(self, variant, NULL, 20 * page_size, PROT_NONE, 0, 0);
 	ASSERT_NE(ptr_new, MAP_FAILED);
 
 	/* Now move and expand into it. */
@@ -912,15 +1073,15 @@ TEST_F(guard_pages, mremap_expand)
  * if the user were using a PROT_NONE mapping they'd have to manually fix this
  * up also so this is OK.
  */
-TEST_F(guard_pages, mremap_shrink)
+TEST_F(guard_regions, mremap_shrink)
 {
 	const unsigned long page_size = self->page_size;
 	char *ptr;
 	int i;
 
 	/* Map 5 pages. */
-	ptr = mmap(NULL, 5 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 5 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Place guard markers at both ends of the 5 page span. */
@@ -976,7 +1137,7 @@ TEST_F(guard_pages, mremap_shrink)
  * Assert that forking a process with VMAs that do not have VM_WIPEONFORK set
  * retain guard pages.
  */
-TEST_F(guard_pages, fork)
+TEST_F(guard_regions, fork)
 {
 	const unsigned long page_size = self->page_size;
 	char *ptr;
@@ -984,8 +1145,8 @@ TEST_F(guard_pages, fork)
 	int i;
 
 	/* Map 10 pages. */
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Establish guard pages in the first 5 pages. */
@@ -1031,16 +1192,19 @@ TEST_F(guard_pages, fork)
  * Assert expected behaviour after we fork populated ranges of anonymous memory
  * and then guard and unguard the range.
  */
-TEST_F(guard_pages, fork_cow)
+TEST_F(guard_regions, fork_cow)
 {
 	const unsigned long page_size = self->page_size;
 	char *ptr;
 	pid_t pid;
 	int i;
 
+	if (variant->backing != ANON_BACKED)
+		SKIP(return, "CoW only supported on anon mappings");
+
 	/* Map 10 pages. */
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Populate range. */
@@ -1102,16 +1266,19 @@ TEST_F(guard_pages, fork_cow)
  * Assert that forking a process with VMAs that do have VM_WIPEONFORK set
  * behave as expected.
  */
-TEST_F(guard_pages, fork_wipeonfork)
+TEST_F(guard_regions, fork_wipeonfork)
 {
 	const unsigned long page_size = self->page_size;
 	char *ptr;
 	pid_t pid;
 	int i;
 
+	if (variant->backing != ANON_BACKED)
+		SKIP(return, "Wipe on fork only supported on anon mappings");
+
 	/* Map 10 pages. */
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Mark wipe on fork. */
@@ -1152,15 +1319,18 @@ TEST_F(guard_pages, fork_wipeonfork)
 }
 
 /* Ensure that MADV_FREE retains guard entries as expected. */
-TEST_F(guard_pages, lazyfree)
+TEST_F(guard_regions, lazyfree)
 {
 	const unsigned long page_size = self->page_size;
 	char *ptr;
 	int i;
 
+	if (variant->backing != ANON_BACKED)
+		SKIP(return, "MADV_FREE only supported on anon mappings");
+
 	/* Map 10 pages. */
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Guard range. */
@@ -1188,14 +1358,14 @@ TEST_F(guard_pages, lazyfree)
 }
 
 /* Ensure that MADV_POPULATE_READ, MADV_POPULATE_WRITE behave as expected. */
-TEST_F(guard_pages, populate)
+TEST_F(guard_regions, populate)
 {
 	const unsigned long page_size = self->page_size;
 	char *ptr;
 
 	/* Map 10 pages. */
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Guard range. */
@@ -1214,15 +1384,15 @@ TEST_F(guard_pages, populate)
 }
 
 /* Ensure that MADV_COLD, MADV_PAGEOUT do not remove guard markers. */
-TEST_F(guard_pages, cold_pageout)
+TEST_F(guard_regions, cold_pageout)
 {
 	const unsigned long page_size = self->page_size;
 	char *ptr;
 	int i;
 
 	/* Map 10 pages. */
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Guard range. */
@@ -1260,7 +1430,7 @@ TEST_F(guard_pages, cold_pageout)
 }
 
 /* Ensure that guard pages do not break userfaultd. */
-TEST_F(guard_pages, uffd)
+TEST_F(guard_regions, uffd)
 {
 	const unsigned long page_size = self->page_size;
 	int uffd;
@@ -1273,6 +1443,9 @@ TEST_F(guard_pages, uffd)
 	struct uffdio_register reg;
 	struct uffdio_range range;
 
+	if (!is_anon_backed(variant))
+		SKIP(return, "uffd only works on anon backing");
+
 	/* Set up uffd. */
 	uffd = userfaultfd(0);
 	if (uffd == -1 && errno == EPERM)
@@ -1282,8 +1455,8 @@ TEST_F(guard_pages, uffd)
 	ASSERT_EQ(ioctl(uffd, UFFDIO_API, &api), 0);
 
 	/* Map 10 pages. */
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Register the range with uffd. */
@@ -1306,6 +1479,595 @@ TEST_F(guard_pages, uffd)
 	/* Cleanup. */
 	ASSERT_EQ(ioctl(uffd, UFFDIO_UNREGISTER, &range), 0);
 	close(uffd);
+	ASSERT_EQ(munmap(ptr, 10 * page_size), 0);
+}
+
+/*
+ * Mark a region within a file-backed mapping using MADV_SEQUENTIAL so we
+ * aggressively read-ahead, then install guard regions and assert that it
+ * behaves correctly.
+ *
+ * We page out using MADV_PAGEOUT before checking guard regions so we drop page
+ * cache folios, meaning we maximise the possibility of some broken readahead.
+ */
+TEST_F(guard_regions, madvise_sequential)
+{
+	char *ptr;
+	int i;
+	const unsigned long page_size = self->page_size;
+
+	if (variant->backing == ANON_BACKED)
+		SKIP(return, "MADV_SEQUENTIAL meaningful only for file-backed");
+
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
+	ASSERT_NE(ptr, MAP_FAILED);
+
+	/* Establish a pattern of data in the file. */
+	set_pattern(ptr, 10, page_size);
+	ASSERT_TRUE(check_pattern(ptr, 10, page_size));
+
+	/* Mark it as being accessed sequentially. */
+	ASSERT_EQ(madvise(ptr, 10 * page_size, MADV_SEQUENTIAL), 0);
+
+	/* Mark every other page a guard page. */
+	for (i = 0; i < 10; i += 2) {
+		char *ptr2 = &ptr[i * page_size];
+
+		ASSERT_EQ(madvise(ptr2, page_size, MADV_GUARD_INSTALL), 0);
+	}
+
+	/* Now page it out. */
+	ASSERT_EQ(madvise(ptr, 10 * page_size, MADV_PAGEOUT), 0);
+
+	/* Now make sure pages are as expected. */
+	for (i = 0; i < 10; i++) {
+		char *chrp = &ptr[i * page_size];
+
+		if (i % 2 == 0) {
+			bool result = try_read_write_buf(chrp);
+
+			ASSERT_FALSE(result);
+		} else {
+			ASSERT_EQ(*chrp, 'a' + i);
+		}
+	}
+
+	/* Now remove guard pages. */
+	ASSERT_EQ(madvise(ptr, 10 * page_size, MADV_GUARD_REMOVE), 0);
+
+	/* Now make sure all data is as expected. */
+	if (!check_pattern(ptr, 10, page_size))
+		ASSERT_TRUE(false);
+
+	ASSERT_EQ(munmap(ptr, 10 * page_size), 0);
+}
+
+/*
+ * Check that file-backed mappings implement guard regions with MAP_PRIVATE
+ * correctly.
+ */
+TEST_F(guard_regions, map_private)
+{
+	const unsigned long page_size = self->page_size;
+	char *ptr_shared, *ptr_private;
+	int i;
+
+	if (variant->backing == ANON_BACKED)
+		SKIP(return, "MAP_PRIVATE test specific to file-backed");
+
+	ptr_shared = mmap_(self, variant, NULL, 10 * page_size, PROT_READ | PROT_WRITE, 0, 0);
+	ASSERT_NE(ptr_shared, MAP_FAILED);
+
+	/* Manually mmap(), do not use mmap_() wrapper so we can force MAP_PRIVATE. */
+	ptr_private = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, self->fd, 0);
+	ASSERT_NE(ptr_private, MAP_FAILED);
+
+	/* Set pattern in shared mapping. */
+	set_pattern(ptr_shared, 10, page_size);
+
+	/* Install guard regions in every other page in the shared mapping. */
+	for (i = 0; i < 10; i += 2) {
+		char *ptr = &ptr_shared[i * page_size];
+
+		ASSERT_EQ(madvise(ptr, page_size, MADV_GUARD_INSTALL), 0);
+	}
+
+	for (i = 0; i < 10; i++) {
+		/* Every even shared page should be guarded. */
+		ASSERT_EQ(try_read_buf(&ptr_shared[i * page_size]), i % 2 != 0);
+		/* Private mappings should always be readable. */
+		ASSERT_TRUE(try_read_buf(&ptr_private[i * page_size]));
+	}
+
+	/* Install guard regions in every other page in the private mapping. */
+	for (i = 0; i < 10; i += 2) {
+		char *ptr = &ptr_private[i * page_size];
+
+		ASSERT_EQ(madvise(ptr, page_size, MADV_GUARD_INSTALL), 0);
+	}
+
+	for (i = 0; i < 10; i++) {
+		/* Every even shared page should be guarded. */
+		ASSERT_EQ(try_read_buf(&ptr_shared[i * page_size]), i % 2 != 0);
+		/* Every odd private page should be guarded. */
+		ASSERT_EQ(try_read_buf(&ptr_private[i * page_size]), i % 2 != 0);
+	}
+
+	/* Remove guard regions from shared mapping. */
+	ASSERT_EQ(madvise(ptr_shared, 10 * page_size, MADV_GUARD_REMOVE), 0);
+
+	for (i = 0; i < 10; i++) {
+		/* Shared mappings should always be readable. */
+		ASSERT_TRUE(try_read_buf(&ptr_shared[i * page_size]));
+		/* Every even private page should be guarded. */
+		ASSERT_EQ(try_read_buf(&ptr_private[i * page_size]), i % 2 != 0);
+	}
+
+	/* Remove guard regions from private mapping. */
+	ASSERT_EQ(madvise(ptr_private, 10 * page_size, MADV_GUARD_REMOVE), 0);
+
+	for (i = 0; i < 10; i++) {
+		/* Shared mappings should always be readable. */
+		ASSERT_TRUE(try_read_buf(&ptr_shared[i * page_size]));
+		/* Private mappings should always be readable. */
+		ASSERT_TRUE(try_read_buf(&ptr_private[i * page_size]));
+	}
+
+	/* Ensure patterns are intact. */
+	ASSERT_TRUE(check_pattern(ptr_shared, 10, page_size));
+	ASSERT_TRUE(check_pattern(ptr_private, 10, page_size));
+
+	/* Now write out every other page to MAP_PRIVATE. */
+	for (i = 0; i < 10; i += 2) {
+		char *ptr = &ptr_private[i * page_size];
+
+		memset(ptr, 'a' + i, page_size);
+	}
+
+	/*
+	 * At this point the mapping is:
+	 *
+	 * 0123456789
+	 * SPSPSPSPSP
+	 *
+	 * Where S = shared, P = private mappings.
+	 */
+
+	/* Now mark the beginning of the mapping guarded. */
+	ASSERT_EQ(madvise(ptr_private, 5 * page_size, MADV_GUARD_INSTALL), 0);
+
+	/*
+	 * This renders the mapping:
+	 *
+	 * 0123456789
+	 * xxxxxPSPSP
+	 */
+
+	for (i = 0; i < 10; i++) {
+		char *ptr = &ptr_private[i * page_size];
+
+		/* Ensure guard regions as expected. */
+		ASSERT_EQ(try_read_buf(ptr), i >= 5);
+		/* The shared mapping should always succeed. */
+		ASSERT_TRUE(try_read_buf(&ptr_shared[i * page_size]));
+	}
+
+	/* Remove the guard regions altogether. */
+	ASSERT_EQ(madvise(ptr_private, 10 * page_size, MADV_GUARD_REMOVE), 0);
+
+	/*
+	 *
+	 * We now expect the mapping to be:
+	 *
+	 * 0123456789
+	 * SSSSSPSPSP
+	 *
+	 * As we removed guard regions, the private pages from the first 5 will
+	 * have been zapped, so on fault will reestablish the shared mapping.
+	 */
+
+	for (i = 0; i < 10; i++) {
+		char *ptr = &ptr_private[i * page_size];
+
+		/*
+		 * Assert that shared mappings in the MAP_PRIVATE mapping match
+		 * the shared mapping.
+		 */
+		if (i < 5 || i % 2 == 0) {
+			char *ptr_s = &ptr_shared[i * page_size];
+
+			ASSERT_EQ(memcmp(ptr, ptr_s, page_size), 0);
+			continue;
+		}
+
+		/* Everything else is a private mapping. */
+		ASSERT_TRUE(is_buf_eq(ptr, page_size, 'a' + i));
+	}
+
+	ASSERT_EQ(munmap(ptr_shared, 10 * page_size), 0);
+	ASSERT_EQ(munmap(ptr_private, 10 * page_size), 0);
+}
+
+/* Test that guard regions established over a read-only mapping function correctly. */
+TEST_F(guard_regions, readonly_file)
+{
+	const unsigned long page_size = self->page_size;
+	char *ptr;
+	int i;
+
+	if (variant->backing == ANON_BACKED)
+		SKIP(return, "Read-only test specific to file-backed");
+
+	/* Map shared so we can populate with pattern, populate it, unmap. */
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
+	ASSERT_NE(ptr, MAP_FAILED);
+	set_pattern(ptr, 10, page_size);
+	ASSERT_EQ(munmap(ptr, 10 * page_size), 0);
+	/* Close the fd so we can re-open read-only. */
+	ASSERT_EQ(close(self->fd), 0);
+
+	/* Re-open read-only. */
+	self->fd = open(self->path, O_RDONLY);
+	ASSERT_NE(self->fd, -1);
+	/* Re-map read-only. */
+	ptr = mmap_(self, variant, NULL, 10 * page_size, PROT_READ, 0, 0);
+	ASSERT_NE(ptr, MAP_FAILED);
+
+	/* Mark every other page guarded. */
+	for (i = 0; i < 10; i += 2) {
+		char *ptr_pg = &ptr[i * page_size];
+
+		ASSERT_EQ(madvise(ptr_pg, page_size, MADV_GUARD_INSTALL), 0);
+	}
+
+	/* Assert that the guard regions are in place.*/
+	for (i = 0; i < 10; i++) {
+		char *ptr_pg = &ptr[i * page_size];
+
+		ASSERT_EQ(try_read_buf(ptr_pg), i % 2 != 0);
+	}
+
+	/* Remove guard regions. */
+	ASSERT_EQ(madvise(ptr, 10 * page_size, MADV_GUARD_REMOVE), 0);
+
+	/* Ensure the data is as expected. */
+	ASSERT_TRUE(check_pattern(ptr, 10, page_size));
+
+	ASSERT_EQ(munmap(ptr, 10 * page_size), 0);
+}
+
+TEST_F(guard_regions, fault_around)
+{
+	const unsigned long page_size = self->page_size;
+	char *ptr;
+	int i;
+
+	if (variant->backing == ANON_BACKED)
+		SKIP(return, "Fault-around test specific to file-backed");
+
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
+	ASSERT_NE(ptr, MAP_FAILED);
+
+	/* Establish a pattern in the backing file. */
+	set_pattern(ptr, 10, page_size);
+
+	/*
+	 * Now drop it from the page cache so we get major faults when next we
+	 * map it.
+	 */
+	ASSERT_EQ(madvise(ptr, 10 * page_size, MADV_PAGEOUT), 0);
+
+	/* Unmap and remap 'to be sure'. */
+	ASSERT_EQ(munmap(ptr, 10 * page_size), 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
+	ASSERT_NE(ptr, MAP_FAILED);
+
+	/* Now make every even page guarded. */
+	for (i = 0; i < 10; i += 2) {
+		char *ptr_p = &ptr[i * page_size];
+
+		ASSERT_EQ(madvise(ptr_p, page_size, MADV_GUARD_INSTALL), 0);
+	}
+
+	/* Now fault in every odd page. This should trigger fault-around. */
+	for (i = 1; i < 10; i += 2) {
+		char *ptr_p = &ptr[i * page_size];
+
+		ASSERT_TRUE(try_read_buf(ptr_p));
+	}
+
+	/* Finally, ensure that guard regions are intact as expected. */
+	for (i = 0; i < 10; i++) {
+		char *ptr_p = &ptr[i * page_size];
+
+		ASSERT_EQ(try_read_buf(ptr_p), i % 2 != 0);
+	}
+
+	ASSERT_EQ(munmap(ptr, 10 * page_size), 0);
+}
+
+TEST_F(guard_regions, truncation)
+{
+	const unsigned long page_size = self->page_size;
+	char *ptr;
+	int i;
+
+	if (variant->backing == ANON_BACKED)
+		SKIP(return, "Truncation test specific to file-backed");
+
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
+	ASSERT_NE(ptr, MAP_FAILED);
+
+	/*
+	 * Establish a pattern in the backing file, just so there is data
+	 * there.
+	 */
+	set_pattern(ptr, 10, page_size);
+
+	/* Now make every even page guarded. */
+	for (i = 0; i < 10; i += 2) {
+		char *ptr_p = &ptr[i * page_size];
+
+		ASSERT_EQ(madvise(ptr_p, page_size, MADV_GUARD_INSTALL), 0);
+	}
+
+	/* Now assert things are as expected. */
+	for (i = 0; i < 10; i++) {
+		char *ptr_p = &ptr[i * page_size];
+
+		ASSERT_EQ(try_read_write_buf(ptr_p), i % 2 != 0);
+	}
+
+	/* Now truncate to actually used size (initialised to 100). */
+	ASSERT_EQ(ftruncate(self->fd, 10 * page_size), 0);
+
+	/* Here the guard regions will remain intact. */
+	for (i = 0; i < 10; i++) {
+		char *ptr_p = &ptr[i * page_size];
+
+		ASSERT_EQ(try_read_write_buf(ptr_p), i % 2 != 0);
+	}
+
+	/* Now truncate to half the size, then truncate again to the full size. */
+	ASSERT_EQ(ftruncate(self->fd, 5 * page_size), 0);
+	ASSERT_EQ(ftruncate(self->fd, 10 * page_size), 0);
+
+	/* Again, guard pages will remain intact. */
+	for (i = 0; i < 10; i++) {
+		char *ptr_p = &ptr[i * page_size];
+
+		ASSERT_EQ(try_read_write_buf(ptr_p), i % 2 != 0);
+	}
+
+	ASSERT_EQ(munmap(ptr, 10 * page_size), 0);
+}
+
+TEST_F(guard_regions, hole_punch)
+{
+	const unsigned long page_size = self->page_size;
+	char *ptr;
+	int i;
+
+	if (variant->backing == ANON_BACKED)
+		SKIP(return, "Truncation test specific to file-backed");
+
+	/* Establish pattern in mapping. */
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
+	ASSERT_NE(ptr, MAP_FAILED);
+	set_pattern(ptr, 10, page_size);
+
+	/* Install a guard region in the middle of the mapping. */
+	ASSERT_EQ(madvise(&ptr[3 * page_size], 4 * page_size,
+			  MADV_GUARD_INSTALL), 0);
+
+	/*
+	 * The buffer will now be:
+	 *
+	 * 0123456789
+	 * ***xxxx***
+	 *
+	 * Where * is data and x is the guard region.
+	 */
+
+	/* Ensure established. */
+	for (i = 0; i < 10; i++) {
+		char *ptr_p = &ptr[i * page_size];
+
+		ASSERT_EQ(try_read_buf(ptr_p), i < 3 || i >= 7);
+	}
+
+	/* Now hole punch the guarded region. */
+	ASSERT_EQ(madvise(&ptr[3 * page_size], 4 * page_size,
+			  MADV_REMOVE), 0);
+
+	/* Ensure guard regions remain. */
+	for (i = 0; i < 10; i++) {
+		char *ptr_p = &ptr[i * page_size];
+
+		ASSERT_EQ(try_read_buf(ptr_p), i < 3 || i >= 7);
+	}
+
+	/* Now remove guard region throughout. */
+	ASSERT_EQ(madvise(ptr, 10 * page_size, MADV_GUARD_REMOVE), 0);
+
+	/* Check that the pattern exists in non-hole punched region. */
+	ASSERT_TRUE(check_pattern(ptr, 3, page_size));
+	/* Check that hole punched region is zeroed. */
+	ASSERT_TRUE(is_buf_eq(&ptr[3 * page_size], 4 * page_size, '\0'));
+	/* Check that the pattern exists in the remainder of the file. */
+	ASSERT_TRUE(check_pattern_offset(ptr, 3, page_size, 7));
+
+	ASSERT_EQ(munmap(ptr, 10 * page_size), 0);
+}
+
+/*
+ * Ensure that a memfd works correctly with guard regions, that we can write
+ * seal it then open the mapping read-only and still establish guard regions
+ * within, remove those guard regions and have everything work correctly.
+ */
+TEST_F(guard_regions, memfd_write_seal)
+{
+	const unsigned long page_size = self->page_size;
+	char *ptr;
+	int i;
+
+	if (variant->backing != SHMEM_BACKED)
+		SKIP(return, "memfd write seal test specific to shmem");
+
+	/* OK, we need a memfd, so close existing one. */
+	ASSERT_EQ(close(self->fd), 0);
+
+	/* Create and truncate memfd. */
+	self->fd = memfd_create("guard_regions_memfd_seals_test",
+				MFD_ALLOW_SEALING);
+	ASSERT_NE(self->fd, -1);
+	ASSERT_EQ(ftruncate(self->fd, 10 * page_size), 0);
+
+	/* Map, set pattern, unmap. */
+	ptr = mmap_(self, variant, NULL, 10 * page_size, PROT_READ | PROT_WRITE, 0, 0);
+	ASSERT_NE(ptr, MAP_FAILED);
+	set_pattern(ptr, 10, page_size);
+	ASSERT_EQ(munmap(ptr, 10 * page_size), 0);
+
+	/* Write-seal the memfd. */
+	ASSERT_EQ(fcntl(self->fd, F_ADD_SEALS, F_SEAL_WRITE), 0);
+
+	/* Now map the memfd readonly. */
+	ptr = mmap_(self, variant, NULL, 10 * page_size, PROT_READ, 0, 0);
+	ASSERT_NE(ptr, MAP_FAILED);
+
+	/* Ensure pattern is as expected. */
+	ASSERT_TRUE(check_pattern(ptr, 10, page_size));
+
+	/* Now make every even page guarded. */
+	for (i = 0; i < 10; i += 2) {
+		char *ptr_p = &ptr[i * page_size];
+
+		ASSERT_EQ(madvise(ptr_p, page_size, MADV_GUARD_INSTALL), 0);
+	}
+
+	/* Now assert things are as expected. */
+	for (i = 0; i < 10; i++) {
+		char *ptr_p = &ptr[i * page_size];
+
+		ASSERT_EQ(try_read_buf(ptr_p), i % 2 != 0);
+	}
+
+	/* Now remove guard regions. */
+	ASSERT_EQ(madvise(ptr, 10 * page_size, MADV_GUARD_REMOVE), 0);
+
+	/* Ensure pattern is as expected. */
+	ASSERT_TRUE(check_pattern(ptr, 10, page_size));
+
+	/* Ensure write seal intact. */
+	for (i = 0; i < 10; i++) {
+		char *ptr_p = &ptr[i * page_size];
+
+		ASSERT_FALSE(try_write_buf(ptr_p));
+	}
+
+	ASSERT_EQ(munmap(ptr, 10 * page_size), 0);
+}
+
+
+/*
+ * Since we are now permitted to establish guard regions in read-only anonymous
+ * mappings, for the sake of thoroughness, though it probably has no practical
+ * use, test that guard regions function with a mapping to the anonymous zero
+ * page.
+ */
+TEST_F(guard_regions, anon_zeropage)
+{
+	const unsigned long page_size = self->page_size;
+	char *ptr;
+	int i;
+
+	if (!is_anon_backed(variant))
+		SKIP(return, "anon zero page test specific to anon/shmem");
+
+	/* Obtain a read-only i.e. anon zero page mapping. */
+	ptr = mmap_(self, variant, NULL, 10 * page_size, PROT_READ, 0, 0);
+	ASSERT_NE(ptr, MAP_FAILED);
+
+	/* Now make every even page guarded. */
+	for (i = 0; i < 10; i += 2) {
+		char *ptr_p = &ptr[i * page_size];
+
+		ASSERT_EQ(madvise(ptr_p, page_size, MADV_GUARD_INSTALL), 0);
+	}
+
+	/* Now assert things are as expected. */
+	for (i = 0; i < 10; i++) {
+		char *ptr_p = &ptr[i * page_size];
+
+		ASSERT_EQ(try_read_buf(ptr_p), i % 2 != 0);
+	}
+
+	/* Now remove all guard regions. */
+	ASSERT_EQ(madvise(ptr, 10 * page_size, MADV_GUARD_REMOVE), 0);
+
+	/* Now assert things are as expected. */
+	for (i = 0; i < 10; i++) {
+		char *ptr_p = &ptr[i * page_size];
+
+		ASSERT_TRUE(try_read_buf(ptr_p));
+	}
+
+	/* Ensure zero page...*/
+	ASSERT_TRUE(is_buf_eq(ptr, 10 * page_size, '\0'));
+
+	ASSERT_EQ(munmap(ptr, 10 * page_size), 0);
+}
+
+/*
+ * Assert that /proc/$pid/pagemap correctly identifies guard region ranges.
+ */
+TEST_F(guard_regions, pagemap)
+{
+	const unsigned long page_size = self->page_size;
+	int proc_fd;
+	char *ptr;
+	int i;
+
+	proc_fd = open("/proc/self/pagemap", O_RDONLY);
+	ASSERT_NE(proc_fd, -1);
+
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
+	ASSERT_NE(ptr, MAP_FAILED);
+
+	/* Read from pagemap, and assert no guard regions are detected. */
+	for (i = 0; i < 10; i++) {
+		char *ptr_p = &ptr[i * page_size];
+		unsigned long entry = pagemap_get_entry(proc_fd, ptr_p);
+		unsigned long masked = entry & PM_GUARD_REGION;
+
+		ASSERT_EQ(masked, 0);
+	}
+
+	/* Install a guard region in every other page. */
+	for (i = 0; i < 10; i += 2) {
+		char *ptr_p = &ptr[i * page_size];
+
+		ASSERT_EQ(madvise(ptr_p, page_size, MADV_GUARD_INSTALL), 0);
+	}
+
+	/* Re-read from pagemap, and assert guard regions are detected. */
+	for (i = 0; i < 10; i++) {
+		char *ptr_p = &ptr[i * page_size];
+		unsigned long entry = pagemap_get_entry(proc_fd, ptr_p);
+		unsigned long masked = entry & PM_GUARD_REGION;
+
+		ASSERT_EQ(masked, i % 2 == 0 ? PM_GUARD_REGION : 0);
+	}
+
+	ASSERT_EQ(close(proc_fd), 0);
 	ASSERT_EQ(munmap(ptr, 10 * page_size), 0);
 }
 

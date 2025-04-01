@@ -1305,7 +1305,8 @@ void exit_mmap(struct mm_struct *mm)
 	do {
 		if (vma->vm_flags & VM_ACCOUNT)
 			nr_accounted += vma_pages(vma);
-		remove_vma(vma, /* unreachable = */ true);
+		vma_mark_detached(vma);
+		remove_vma(vma);
 		count++;
 		cond_resched();
 		vma = vma_next(&vmi);
@@ -1747,6 +1748,7 @@ int relocate_vma_down(struct vm_area_struct *vma, unsigned long shift)
 	VMG_STATE(vmg, mm, &vmi, new_start, old_end, 0, vma->vm_pgoff);
 	struct vm_area_struct *next;
 	struct mmu_gather tlb;
+	PAGETABLE_MOVE(pmc, vma, vma, old_start, new_start, length);
 
 	BUG_ON(new_start > new_end);
 
@@ -1761,7 +1763,7 @@ int relocate_vma_down(struct vm_area_struct *vma, unsigned long shift)
 	/*
 	 * cover the whole range: [new_start, old_end)
 	 */
-	vmg.vma = vma;
+	vmg.middle = vma;
 	if (vma_expand(&vmg))
 		return -ENOMEM;
 
@@ -1769,8 +1771,8 @@ int relocate_vma_down(struct vm_area_struct *vma, unsigned long shift)
 	 * move the page tables downwards, on failure we rely on
 	 * process cleanup to remove whatever mess we made.
 	 */
-	if (length != move_page_tables(vma, old_start,
-				       vma, new_start, length, false, true))
+	pmc.for_stack = true;
+	if (length != move_page_tables(&pmc))
 		return -ENOMEM;
 
 	tlb_gather_mmu(&tlb, mm);

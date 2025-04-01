@@ -385,7 +385,6 @@ int __init linux_main(int argc, char **argv, char **envp)
 
 	high_physmem = uml_physmem + physmem_size;
 	end_iomem = high_physmem + iomem_size;
-	high_memory = (void *) end_iomem;
 
 	start_vm = VMALLOC_START;
 
@@ -419,7 +418,6 @@ void __init setup_arch(char **cmdline_p)
 
 	stack_protections((unsigned long) init_task.stack);
 	setup_physmem(uml_physmem, uml_reserved, physmem_size);
-	mem_total_pages(physmem_size, iomem_size);
 	uml_dtb_init();
 	read_initrd();
 

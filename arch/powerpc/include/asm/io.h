@@ -826,7 +826,7 @@ void __iomem *ioremap_wt(phys_addr_t address, unsigned long size);
 
 void __iomem *ioremap_coherent(phys_addr_t address, unsigned long size);
 #define ioremap_cache(addr, size) \
-	ioremap_prot((addr), (size), pgprot_val(PAGE_KERNEL))
+	ioremap_prot((addr), (size), PAGE_KERNEL)
 
 #define iounmap iounmap
 

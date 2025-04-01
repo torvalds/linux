@@ -1111,7 +1111,7 @@ void __iomem *generic_ioremap_prot(phys_addr_t phys_addr, size_t size,
 				   pgprot_t prot);
 
 void __iomem *ioremap_prot(phys_addr_t phys_addr, size_t size,
-			   unsigned long prot);
+			   pgprot_t prot);
 void iounmap(volatile void __iomem *addr);
 void generic_iounmap(volatile void __iomem *addr);
 
@@ -1120,7 +1120,7 @@ void generic_iounmap(volatile void __iomem *addr);
 static inline void __iomem *ioremap(phys_addr_t addr, size_t size)
 {
 	/* _PAGE_IOREMAP needs to be supplied by the architecture */
-	return ioremap_prot(addr, size, _PAGE_IOREMAP);
+	return ioremap_prot(addr, size, __pgprot(_PAGE_IOREMAP));
 }
 #endif
 #endif /* !CONFIG_MMU || CONFIG_GENERIC_IOREMAP */

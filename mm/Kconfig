@@ -129,7 +129,6 @@ choice
 	prompt "Default allocator"
 	depends on ZSWAP
 	default ZSWAP_ZPOOL_DEFAULT_ZSMALLOC if MMU
-	default ZSWAP_ZPOOL_DEFAULT_ZBUD
 	help
 	  Selects the default allocator for the compressed cache for
 	  swap pages.
@@ -139,21 +138,6 @@ choice
 
 	  The selection made here can be overridden by using the kernel
 	  command line 'zswap.zpool=' option.
-
-config ZSWAP_ZPOOL_DEFAULT_ZBUD
-	bool "zbud"
-	select ZBUD
-	help
-	  Use the zbud allocator as the default allocator.
-
-config ZSWAP_ZPOOL_DEFAULT_Z3FOLD_DEPRECATED
-	bool "z3foldi (DEPRECATED)"
-	select Z3FOLD_DEPRECATED
-	help
-	  Use the z3fold allocator as the default allocator.
-
-	  Deprecated and scheduled for removal in a few cycles,
-	  see CONFIG_Z3FOLD_DEPRECATED.
 
 config ZSWAP_ZPOOL_DEFAULT_ZSMALLOC
 	bool "zsmalloc"
@@ -165,39 +149,8 @@ endchoice
 config ZSWAP_ZPOOL_DEFAULT
        string
        depends on ZSWAP
-       default "zbud" if ZSWAP_ZPOOL_DEFAULT_ZBUD
-       default "z3fold" if ZSWAP_ZPOOL_DEFAULT_Z3FOLD_DEPRECATED
        default "zsmalloc" if ZSWAP_ZPOOL_DEFAULT_ZSMALLOC
        default ""
-
-config ZBUD
-	tristate "2:1 compression allocator (zbud)"
-	depends on ZSWAP
-	help
-	  A special purpose allocator for storing compressed pages.
-	  It is designed to store up to two compressed pages per physical
-	  page.  While this design limits storage density, it has simple and
-	  deterministic reclaim properties that make it preferable to a higher
-	  density approach when reclaim will be used.
-
-config Z3FOLD_DEPRECATED
-	tristate "3:1 compression allocator (z3fold) (DEPRECATED)"
-	depends on ZSWAP
-	help
-	  Deprecated and scheduled for removal in a few cycles. If you have
-	  a good reason for using Z3FOLD over ZSMALLOC, please contact
-	  linux-mm@kvack.org and the zswap maintainers.
-
-	  A special purpose allocator for storing compressed pages.
-	  It is designed to store up to three compressed pages per physical
-	  page. It is a ZBUD derivative so the simplicity and determinism are
-	  still there.
-
-config Z3FOLD
-	tristate
-	default y if Z3FOLD_DEPRECATED=y
-	default m if Z3FOLD_DEPRECATED=m
-	depends on Z3FOLD_DEPRECATED
 
 config ZSMALLOC
 	tristate
@@ -493,6 +446,9 @@ config SPARSEMEM_VMEMMAP
 	  SPARSEMEM_VMEMMAP uses a virtually mapped memmap to optimise
 	  pfn_to_page and page_to_pfn operations.  This is the most
 	  efficient option when sufficient kernel resources are available.
+
+config SPARSEMEM_VMEMMAP_PREINIT
+	bool
 #
 # Select this config option from the architecture Kconfig, if it is preferred
 # to enable the feature of HugeTLB/dev_dax vmemmap optimization.
@@ -501,6 +457,9 @@ config ARCH_WANT_OPTIMIZE_DAX_VMEMMAP
 	bool
 
 config ARCH_WANT_OPTIMIZE_HUGETLB_VMEMMAP
+	bool
+
+config ARCH_WANT_HUGETLB_VMEMMAP_PREINIT
 	bool
 
 config HAVE_MEMBLOCK_PHYS_MAP
@@ -860,11 +819,15 @@ config ARCH_WANT_GENERAL_HUGETLB
 config ARCH_WANTS_THP_SWAP
 	def_bool n
 
+config MM_ID
+	def_bool n
+
 menuconfig TRANSPARENT_HUGEPAGE
 	bool "Transparent Hugepage Support"
 	depends on HAVE_ARCH_TRANSPARENT_HUGEPAGE && !PREEMPT_RT
 	select COMPACTION
 	select XARRAY_MULTI
+	select MM_ID
 	help
 	  Transparent Hugepages allows the kernel to use huge pages and
 	  huge tlb transparently to the applications whenever possible.
@@ -928,7 +891,24 @@ config READ_ONLY_THP_FOR_FS
 	  support of file THPs will be developed in the next few release
 	  cycles.
 
+config NO_PAGE_MAPCOUNT
+	bool "No per-page mapcount (EXPERIMENTAL)"
+	help
+	  Do not maintain per-page mapcounts for pages part of larger
+	  allocations, such as transparent huge pages.
+
+	  When this config option is enabled, some interfaces that relied on
+	  this information will rely on less-precise per-allocation information
+	  instead: for example, using the average per-page mapcount in such
+	  a large allocation instead of the per-page mapcount.
+
+	  EXPERIMENTAL because the impact of some changes is still unclear.
+
 endif # TRANSPARENT_HUGEPAGE
+
+# simple helper to make the code a bit easier to read
+config PAGE_MAPCOUNT
+	def_bool !NO_PAGE_MAPCOUNT
 
 #
 # The architecture supports pgtable leaves that is larger than PAGE_SIZE

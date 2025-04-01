@@ -33,7 +33,7 @@ void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr);
 #define _PAGE_IOREMAP pgprot_val(PAGE_KERNEL)
 
 #define ioremap_wc(addr, size)  \
-	ioremap_prot((addr), (size), pgprot_val(pgprot_writecombine(PAGE_KERNEL)))
+	ioremap_prot((addr), (size), pgprot_writecombine(PAGE_KERNEL))
 
 static inline void __iomem *ioport_map(unsigned long port, unsigned int nr)
 {
