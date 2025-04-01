@@ -747,9 +747,7 @@ static const struct drm_connector_funcs simpledrm_connector_funcs = {
 };
 
 static const struct drm_mode_config_funcs simpledrm_mode_config_funcs = {
-	.fb_create = drm_gem_fb_create_with_dirty,
-	.atomic_check = drm_atomic_helper_check,
-	.atomic_commit = drm_atomic_helper_commit,
+	DRM_SYSFB_MODE_CONFIG_FUNCS,
 };
 
 /*
