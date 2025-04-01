@@ -2200,6 +2200,8 @@ static int drm_dp_check_mstb_guid(struct drm_dp_mst_branch *mstb, guid_t *guid)
 			ret = drm_dp_send_dpcd_write(mstb->mgr,
 						     mstb->port_parent,
 						     DP_GUID, sizeof(buf), buf);
+			if (ret >= 0)
+				ret = ret == sizeof(buf) ? 0 : -EPROTO;
 		} else {
 			ret = drm_dp_dpcd_write_data(mstb->mgr->aux,
 						     DP_GUID, buf, sizeof(buf));
