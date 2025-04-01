@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+
+name: lockd
+protocol: genetlink
+uapi-header: linux/lockd_netlink.h
+
+doc: lockd configuration over generic netlink
+
+attribute-sets:
+  -
+    name: server
+    attributes:
+      -
+        name: gracetime
+        type: u32
+      -
+        name: tcp-port
+        type: u16
+      -
+        name: udp-port
+        type: u16
+
+operations:
+  list:
+    -
+      name: server-set
+      doc: set the lockd server parameters
+      attribute-set: server
+      flags: [ admin-perm ]
+      do:
+        request:
+          attributes:
+            - gracetime
+            - tcp-port
+            - udp-port
+    -
+      name: server-get
+      doc: get the lockd server parameters
+      attribute-set: server
+      do:
+        reply:
+          attributes:
+            - gracetime
+            - tcp-port
+            - udp-port

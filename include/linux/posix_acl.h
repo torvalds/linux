@@ -27,11 +27,16 @@ struct posix_acl_entry {
 };
 
 struct posix_acl {
-	refcount_t		a_refcount;
-	unsigned int		a_count;
-	struct rcu_head		a_rcu;
+	/* New members MUST be added within the struct_group() macro below. */
+	struct_group_tagged(posix_acl_hdr, hdr,
+		refcount_t		a_refcount;
+		unsigned int		a_count;
+		struct rcu_head		a_rcu;
+	);
 	struct posix_acl_entry	a_entries[] __counted_by(a_count);
 };
+static_assert(offsetof(struct posix_acl, a_entries) == sizeof(struct posix_acl_hdr),
+	      "struct member likely outside of struct_group_tagged()");
 
 #define FOREACH_ACL_ENTRY(pa, acl, pe) \
 	for(pa=(acl)->a_entries, pe=pa+(acl)->a_count; pa<pe; pa++)
