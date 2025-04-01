@@ -291,7 +291,6 @@ struct ofdrm_device_funcs {
 
 struct ofdrm_device {
 	struct drm_device dev;
-	struct platform_device *pdev;
 
 	const struct ofdrm_device_funcs *funcs;
 
