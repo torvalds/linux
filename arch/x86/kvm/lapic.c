@@ -678,7 +678,7 @@ bool __kvm_apic_update_irr(unsigned long *pir, void *regs, int *max_irr)
 		if (!pir_vals[i])
 			continue;
 
-		pir_vals[i] = xchg(&pir[i], 0);
+		pir_vals[i] = arch_xchg(&pir[i], 0);
 	}
 
 	for (i = vec = 0; i <= 7; i++, vec += 32) {
