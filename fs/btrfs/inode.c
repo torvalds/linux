@@ -5834,7 +5834,7 @@ static int btrfs_set_inode_index_count(struct btrfs_inode *inode)
 {
 	struct btrfs_root *root = inode->root;
 	struct btrfs_key key, found_key;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct extent_buffer *leaf;
 	int ret;
 
@@ -5848,15 +5848,14 @@ static int btrfs_set_inode_index_count(struct btrfs_inode *inode)
 
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
-		goto out;
+		return ret;
 	/* FIXME: we should be able to handle this */
 	if (ret == 0)
-		goto out;
-	ret = 0;
+		return ret;
 
 	if (path->slots[0] == 0) {
 		inode->index_cnt = BTRFS_DIR_START_INDEX;
-		goto out;
+		return 0;
 	}
 
 	path->slots[0]--;
@@ -5867,13 +5866,12 @@ static int btrfs_set_inode_index_count(struct btrfs_inode *inode)
 	if (found_key.objectid != btrfs_ino(inode) ||
 	    found_key.type != BTRFS_DIR_INDEX_KEY) {
 		inode->index_cnt = BTRFS_DIR_START_INDEX;
-		goto out;
+		return 0;
 	}
 
 	inode->index_cnt = found_key.offset + 1;
-out:
-	btrfs_free_path(path);
-	return ret;
+
+	return 0;
 }
 
 static int btrfs_get_dir_last_index(struct btrfs_inode *dir, u64 *index)
