@@ -667,7 +667,7 @@ bool __kvm_apic_update_irr(u32 *pir, void *regs, int *max_irr)
 	for (i = vec = 0; i <= 7; i++, vec += 32) {
 		u32 *p_irr = (u32 *)(regs + APIC_IRR + i * 0x10);
 
-		irr_val = *p_irr;
+		irr_val = READ_ONCE(*p_irr);
 		pir_val = READ_ONCE(pir[i]);
 
 		if (pir_val) {
