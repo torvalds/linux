@@ -7927,10 +7927,10 @@ by POWER10 processor.
 7.24 KVM_CAP_VM_COPY_ENC_CONTEXT_FROM
 -------------------------------------
 
-Architectures: x86 SEV enabled
-Type: vm
-Parameters: args[0] is the fd of the source vm
-Returns: 0 on success; ENOTTY on error
+:Architectures: x86 SEV enabled
+:Type: vm
+:Parameters: args[0] is the fd of the source vm
+:Returns: 0 on success; ENOTTY on error
 
 This capability enables userspace to copy encryption context from the vm
 indicated by the fd to the vm this is called on.
@@ -8647,7 +8647,7 @@ limit the attack surface on KVM's MSR emulation code.
 8.28 KVM_CAP_ENFORCE_PV_FEATURE_CPUID
 -------------------------------------
 
-Architectures: x86
+:Architectures: x86
 
 When enabled, KVM will disable paravirtual features provided to the
 guest according to the bits in the KVM_CPUID_FEATURES CPUID leaf
@@ -8881,7 +8881,7 @@ available to the guest on migration.
 8.33 KVM_CAP_HYPERV_ENFORCE_CPUID
 ---------------------------------
 
-Architectures: x86
+:Architectures: x86
 
 When enabled, KVM will disable emulated Hyper-V features provided to the
 guest according to the bits Hyper-V CPUID feature leaves. Otherwise, all
