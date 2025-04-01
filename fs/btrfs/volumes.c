@@ -5419,10 +5419,9 @@ static void chunk_map_device_clear_bits(struct btrfs_chunk_map *map, unsigned in
 		struct btrfs_io_stripe *stripe = &map->stripes[i];
 		struct btrfs_device *device = stripe->dev;
 
-		__clear_extent_bit(&device->alloc_state, stripe->physical,
-				   stripe->physical + map->stripe_size - 1,
-				   bits | EXTENT_NOWAIT,
-				   NULL, NULL);
+		clear_extent_bits(&device->alloc_state, stripe->physical,
+				  stripe->physical + map->stripe_size - 1,
+				  bits | EXTENT_NOWAIT);
 	}
 }
 
