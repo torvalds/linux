@@ -372,6 +372,19 @@ struct bss_mld_tlv {
 	u8 __rsv[3];
 } __packed;
 
+struct bss_eht_tlv {
+	__le16 tag;
+	__le16 len;
+	u8  is_eht_op_present;
+	u8  is_eth_dscb_present;
+	u8  eht_ctrl;
+	u8  eht_ccfs0;
+	u8  eht_ccfs1;
+	u8  pad1;
+	__le16 eht_dis_sub_chan_bitmap;
+	u8  pad2[4];
+} __packed;
+
 struct sta_rec_ba_uni {
 	__le16 tag;
 	__le16 len;
@@ -642,6 +655,9 @@ int mt7925_mcu_set_radio_en(struct mt792x_phy *phy, bool enable);
 int mt7925_mcu_set_chctx(struct mt76_phy *phy, struct mt76_vif_link *mvif,
 			 struct ieee80211_bss_conf *link_conf,
 			 struct ieee80211_chanctx_conf *ctx);
+int mt7925_mcu_set_eht_pp(struct mt76_phy *phy, struct mt76_vif_link *mvif,
+			  struct ieee80211_bss_conf *link_conf,
+			  struct ieee80211_chanctx_conf *ctx);
 int mt7925_mcu_set_rate_txpower(struct mt76_phy *phy);
 int mt7925_mcu_update_arp_filter(struct mt76_dev *dev,
 				 struct ieee80211_bss_conf *link_conf);
