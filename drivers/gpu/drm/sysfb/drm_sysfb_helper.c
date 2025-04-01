@@ -6,3 +6,27 @@
 
 MODULE_DESCRIPTION("Helpers for DRM sysfb drivers");
 MODULE_LICENSE("GPL");
+
+struct drm_display_mode drm_sysfb_mode(unsigned int width,
+				       unsigned int height,
+				       unsigned int width_mm,
+				       unsigned int height_mm)
+{
+	/*
+	 * Assume a monitor resolution of 96 dpi to
+	 * get a somewhat reasonable screen size.
+	 */
+	if (!width_mm)
+		width_mm = DRM_MODE_RES_MM(width, 96ul);
+	if (!height_mm)
+		height_mm = DRM_MODE_RES_MM(height, 96ul);
+
+	{
+		const struct drm_display_mode mode = {
+			DRM_MODE_INIT(60, width, height, width_mm, height_mm)
+		};
+
+		return mode;
+	}
+}
+EXPORT_SYMBOL(drm_sysfb_mode);

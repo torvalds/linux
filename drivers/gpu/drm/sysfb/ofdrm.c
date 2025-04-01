@@ -1070,21 +1070,6 @@ static const struct ofdrm_device_funcs ofdrm_qemu_device_funcs = {
 	.cmap_write = ofdrm_qemu_cmap_write,
 };
 
-static struct drm_display_mode ofdrm_mode(unsigned int width, unsigned int height)
-{
-	/*
-	 * Assume a monitor resolution of 96 dpi to
-	 * get a somewhat reasonable screen size.
-	 */
-	const struct drm_display_mode mode = {
-		DRM_MODE_INIT(60, width, height,
-			      DRM_MODE_RES_MM(width, 96ul),
-			      DRM_MODE_RES_MM(height, 96ul))
-	};
-
-	return mode;
-}
-
 static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 						struct platform_device *pdev)
 {
@@ -1251,7 +1236,7 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 	 */
 
 	iosys_map_set_vaddr_iomem(&sysfb->fb_addr, screen_base);
-	sysfb->fb_mode = ofdrm_mode(width, height);
+	sysfb->fb_mode = drm_sysfb_mode(width, height, 0, 0);
 	sysfb->fb_format = format;
 	sysfb->fb_pitch = linebytes;
 

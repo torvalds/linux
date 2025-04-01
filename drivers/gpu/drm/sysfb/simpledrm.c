@@ -756,18 +756,6 @@ static const struct drm_mode_config_funcs simpledrm_mode_config_funcs = {
  * Init / Cleanup
  */
 
-static struct drm_display_mode simpledrm_mode(unsigned int width,
-					      unsigned int height,
-					      unsigned int width_mm,
-					      unsigned int height_mm)
-{
-	const struct drm_display_mode mode = {
-		DRM_MODE_INIT(60, width, height, width_mm, height_mm)
-	};
-
-	return mode;
-}
-
 static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 							struct platform_device *pdev)
 {
@@ -855,16 +843,7 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 			return ERR_PTR(-EINVAL);
 	}
 
-	/*
-	 * Assume a monitor resolution of 96 dpi if physical dimensions
-	 * are not specified to get a somewhat reasonable screen size.
-	 */
-	if (!width_mm)
-		width_mm = DRM_MODE_RES_MM(width, 96ul);
-	if (!height_mm)
-		height_mm = DRM_MODE_RES_MM(height, 96ul);
-
-	sysfb->fb_mode = simpledrm_mode(width, height, width_mm, height_mm);
+	sysfb->fb_mode = drm_sysfb_mode(width, height, width_mm, height_mm);
 	sysfb->fb_format = format;
 	sysfb->fb_pitch = stride;
 

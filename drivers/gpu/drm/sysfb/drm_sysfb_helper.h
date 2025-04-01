@@ -11,6 +11,11 @@
 
 struct drm_format_info;
 
+struct drm_display_mode drm_sysfb_mode(unsigned int width,
+				       unsigned int height,
+				       unsigned int width_mm,
+				       unsigned int height_mm);
+
 /*
  * Device
  */
