@@ -42,7 +42,7 @@
 #include <linux/sysfs.h>
 #include <linux/device.h>
 #include <linux/miscdevice.h>
-#include <linux/platform_device.h>
+#include <linux/device/faux.h>
 #include <asm/io.h>		/* inb/outb */
 #include <linux/uaccess.h>
 
@@ -742,7 +742,7 @@ static ssize_t store_reset (struct device *d,
 
 static DEVICE_ATTR(reset, (S_IWUSR|S_IWGRP), NULL, store_reset);
 
-static struct attribute *tlclk_sysfs_entries[] = {
+static struct attribute *tlclk_attrs[] = {
 	&dev_attr_current_ref.attr,
 	&dev_attr_telclock_version.attr,
 	&dev_attr_alarms.attr,
@@ -766,13 +766,9 @@ static struct attribute *tlclk_sysfs_entries[] = {
 	&dev_attr_reset.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(tlclk);
 
-static const struct attribute_group tlclk_attribute_group = {
-	.name = NULL,		/* put in device directory */
-	.attrs = tlclk_sysfs_entries,
-};
-
-static struct platform_device *tlclk_device;
+static struct faux_device *tlclk_device;
 
 static int __init tlclk_init(void)
 {
@@ -817,24 +813,13 @@ static int __init tlclk_init(void)
 		goto out3;
 	}
 
-	tlclk_device = platform_device_register_simple("telco_clock",
-				-1, NULL, 0);
-	if (IS_ERR(tlclk_device)) {
-		printk(KERN_ERR "tlclk: platform_device_register failed.\n");
-		ret = PTR_ERR(tlclk_device);
+	tlclk_device = faux_device_create_with_groups("telco_clock", NULL, NULL, tlclk_groups);
+	if (!tlclk_device) {
+		ret = -ENODEV;
 		goto out4;
 	}
 
-	ret = sysfs_create_group(&tlclk_device->dev.kobj,
-			&tlclk_attribute_group);
-	if (ret) {
-		printk(KERN_ERR "tlclk: failed to create sysfs device attributes.\n");
-		goto out5;
-	}
-
 	return 0;
-out5:
-	platform_device_unregister(tlclk_device);
 out4:
 	misc_deregister(&tlclk_miscdev);
 out3:
@@ -848,8 +833,7 @@ out1:
 
 static void __exit tlclk_cleanup(void)
 {
-	sysfs_remove_group(&tlclk_device->dev.kobj, &tlclk_attribute_group);
-	platform_device_unregister(tlclk_device);
+	faux_device_destroy(tlclk_device);
 	misc_deregister(&tlclk_miscdev);
 	unregister_chrdev(tlclk_major, "telco_clock");
 

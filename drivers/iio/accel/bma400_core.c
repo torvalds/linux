@@ -190,7 +190,7 @@ const struct regmap_config bma400_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = BMA400_CMD_REG,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.writeable_reg = bma400_is_writable_reg,
 	.volatile_reg = bma400_is_volatile_reg,
 };

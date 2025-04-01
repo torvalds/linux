@@ -332,7 +332,7 @@ static const struct regmap_config msa311_regmap_config = {
 	.wr_table = &msa311_writeable_table,
 	.rd_table = &msa311_readable_table,
 	.volatile_table = &msa311_volatile_table,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 #define MSA311_GENMASK(field) ({                \
@@ -594,22 +594,23 @@ static int msa311_read_raw_data(struct iio_dev *indio_dev,
 	__le16 axis;
 	int err;
 
-	err = pm_runtime_resume_and_get(dev);
-	if (err)
-		return err;
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
 
-	err = iio_device_claim_direct_mode(indio_dev);
-	if (err)
+	err = pm_runtime_resume_and_get(dev);
+	if (err) {
+		iio_device_release_direct(indio_dev);
 		return err;
+	}
 
 	mutex_lock(&msa311->lock);
 	err = msa311_get_axis(msa311, chan, &axis);
 	mutex_unlock(&msa311->lock);
 
-	iio_device_release_direct_mode(indio_dev);
-
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
+
+	iio_device_release_direct(indio_dev);
 
 	if (err) {
 		dev_err(dev, "can't get axis %s (%pe)\n",
@@ -756,18 +757,19 @@ static int msa311_write_samp_freq(struct iio_dev *indio_dev, int val, int val2)
 	unsigned int odr;
 	int err;
 
-	err = pm_runtime_resume_and_get(dev);
-	if (err)
-		return err;
-
 	/*
 	 * Sampling frequency changing is prohibited when buffer mode is
 	 * enabled, because sometimes MSA311 chip returns outliers during
 	 * frequency values growing up in the read operation moment.
 	 */
-	err = iio_device_claim_direct_mode(indio_dev);
-	if (err)
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
+	err = pm_runtime_resume_and_get(dev);
+	if (err) {
+		iio_device_release_direct(indio_dev);
 		return err;
+	}
 
 	err = -EINVAL;
 	for (odr = 0; odr < ARRAY_SIZE(msa311_odr_table); odr++)
@@ -779,10 +781,10 @@ static int msa311_write_samp_freq(struct iio_dev *indio_dev, int val, int val2)
 			break;
 		}
 
-	iio_device_release_direct_mode(indio_dev);
-
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
+
+	iio_device_release_direct(indio_dev);
 
 	if (err)
 		dev_err(dev, "can't update frequency (%pe)\n", ERR_PTR(err));

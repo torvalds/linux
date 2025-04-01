@@ -61,7 +61,7 @@ static int pps_gen_dummy_enable(struct pps_gen_device *pps_gen, bool enable)
  * The PPS info struct
  */
 
-static struct pps_gen_source_info pps_gen_dummy_info = {
+static const struct pps_gen_source_info pps_gen_dummy_info = {
 	.use_system_clock	= true,
 	.get_time		= pps_gen_dummy_get_time,
 	.enable			= pps_gen_dummy_enable,

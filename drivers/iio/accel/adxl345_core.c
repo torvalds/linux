@@ -76,6 +76,26 @@ static const unsigned long adxl345_scan_masks[] = {
 	0
 };
 
+/**
+ * adxl345_set_measure_en() - Enable and disable measuring.
+ *
+ * @st: The device data.
+ * @en: Enable measurements, else standby mode.
+ *
+ * For lowest power operation, standby mode can be used. In standby mode,
+ * current consumption is supposed to be reduced to 0.1uA (typical). In this
+ * mode no measurements are made. Placing the device into standby mode
+ * preserves the contents of FIFO.
+ *
+ * Return: Returns 0 if successful, or a negative error value.
+ */
+static int adxl345_set_measure_en(struct adxl345_state *st, bool en)
+{
+	unsigned int val = en ? ADXL345_POWER_CTL_MEASURE : ADXL345_POWER_CTL_STANDBY;
+
+	return regmap_write(st->regmap, ADXL345_REG_POWER_CTL, val);
+}
+
 static int adxl345_set_interrupts(struct adxl345_state *st)
 {
 	int ret;
@@ -87,8 +107,7 @@ static int adxl345_set_interrupts(struct adxl345_state *st)
 	 * interrupts to the INT1 pin, whereas bits set to 1 send their respective
 	 * interrupts to the INT2 pin. The intio shall convert this accordingly.
 	 */
-	int_map = FIELD_GET(ADXL345_REG_INT_SOURCE_MSK,
-			    st->intio ? st->int_map : ~st->int_map);
+	int_map = st->intio ? st->int_map : ~st->int_map;
 
 	ret = regmap_write(st->regmap, ADXL345_REG_INT_MAP, int_map);
 	if (ret)
@@ -182,6 +201,16 @@ static int adxl345_write_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static int adxl345_reg_access(struct iio_dev *indio_dev, unsigned int reg,
+			      unsigned int writeval, unsigned int *readval)
+{
+	struct adxl345_state *st = iio_priv(indio_dev);
+
+	if (readval)
+		return regmap_read(st->regmap, reg, readval);
+	return regmap_write(st->regmap, reg, writeval);
+}
+
 static int adxl345_set_watermark(struct iio_dev *indio_dev, unsigned int value)
 {
 	struct adxl345_state *st = iio_priv(indio_dev);
@@ -212,26 +241,6 @@ static int adxl345_write_raw_get_fmt(struct iio_dev *indio_dev,
 	default:
 		return -EINVAL;
 	}
-}
-
-/**
- * adxl345_set_measure_en() - Enable and disable measuring.
- *
- * @st: The device data.
- * @en: Enable measurements, else standby mode.
- *
- * For lowest power operation, standby mode can be used. In standby mode,
- * current consumption is supposed to be reduced to 0.1uA (typical). In this
- * mode no measurements are made. Placing the device into standby mode
- * preserves the contents of FIFO.
- *
- * Return: Returns 0 if successful, or a negative error value.
- */
-static int adxl345_set_measure_en(struct adxl345_state *st, bool en)
-{
-	unsigned int val = en ? ADXL345_POWER_CTL_MEASURE : ADXL345_POWER_CTL_STANDBY;
-
-	return regmap_write(st->regmap, ADXL345_REG_POWER_CTL, val);
 }
 
 static void adxl345_powerdown(void *ptr)
@@ -394,18 +403,6 @@ static const struct iio_buffer_setup_ops adxl345_buffer_ops = {
 	.predisable = adxl345_buffer_predisable,
 };
 
-static int adxl345_get_status(struct adxl345_state *st)
-{
-	int ret;
-	unsigned int regval;
-
-	ret = regmap_read(st->regmap, ADXL345_REG_INT_SOURCE, &regval);
-	if (ret < 0)
-		return ret;
-
-	return FIELD_GET(ADXL345_REG_INT_SOURCE_MSK, regval);
-}
-
 static int adxl345_fifo_push(struct iio_dev *indio_dev,
 			     int samples)
 {
@@ -439,14 +436,10 @@ static irqreturn_t adxl345_irq_handler(int irq, void *p)
 	int int_stat;
 	int samples;
 
-	int_stat = adxl345_get_status(st);
-	if (int_stat <= 0)
+	if (regmap_read(st->regmap, ADXL345_REG_INT_SOURCE, &int_stat))
 		return IRQ_NONE;
 
-	if (int_stat & ADXL345_INT_OVERRUN)
-		goto err;
-
-	if (int_stat & ADXL345_INT_WATERMARK) {
+	if (FIELD_GET(ADXL345_INT_WATERMARK, int_stat)) {
 		samples = adxl345_get_samples(st);
 		if (samples < 0)
 			goto err;
@@ -454,6 +447,10 @@ static irqreturn_t adxl345_irq_handler(int irq, void *p)
 		if (adxl345_fifo_push(indio_dev, samples) < 0)
 			goto err;
 	}
+
+	if (FIELD_GET(ADXL345_INT_OVERRUN, int_stat))
+		goto err;
+
 	return IRQ_HANDLED;
 
 err:
@@ -467,6 +464,7 @@ static const struct iio_info adxl345_info = {
 	.read_raw	= adxl345_read_raw,
 	.write_raw	= adxl345_write_raw,
 	.write_raw_get_fmt	= adxl345_write_raw_get_fmt,
+	.debugfs_reg_access = &adxl345_reg_access,
 	.hwfifo_set_watermark = adxl345_set_watermark,
 };
 

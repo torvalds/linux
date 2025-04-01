@@ -7,6 +7,7 @@
 
 #include <linux/unaligned.h>
 #include <linux/bitfield.h>
+#include <linux/cleanup.h>
 #include <linux/i2c.h>
 #include <linux/iio/events.h>
 #include <linux/iio/iio.h>
