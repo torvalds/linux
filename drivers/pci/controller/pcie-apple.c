@@ -730,34 +730,14 @@ static void apple_pcie_disable_device(struct pci_host_bridge *bridge, struct pci
 
 static int apple_pcie_init(struct pci_config_window *cfg)
 {
+	struct apple_pcie *pcie = cfg->priv;
 	struct device *dev = cfg->parent;
-	struct platform_device *platform = to_platform_device(dev);
-	struct apple_pcie *pcie;
 	int ret;
-
-	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
-	if (!pcie)
-		return -ENOMEM;
-
-	pcie->dev = dev;
-
-	mutex_init(&pcie->lock);
-
-	pcie->base = devm_platform_ioremap_resource(platform, 1);
-	if (IS_ERR(pcie->base))
-		return PTR_ERR(pcie->base);
-
-	cfg->priv = pcie;
-	INIT_LIST_HEAD(&pcie->ports);
-
-	ret = apple_msi_init(pcie);
-	if (ret)
-		return ret;
 
 	for_each_available_child_of_node_scoped(dev->of_node, of_port) {
 		ret = apple_pcie_setup_port(pcie, of_port);
 		if (ret) {
-			dev_err(pcie->dev, "Port %pOF setup fail: %d\n", of_port, ret);
+			dev_err(dev, "Port %pOF setup fail: %d\n", of_port, ret);
 			return ret;
 		}
 	}
@@ -776,14 +756,40 @@ static const struct pci_ecam_ops apple_pcie_cfg_ecam_ops = {
 	}
 };
 
+static int apple_pcie_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct apple_pcie *pcie;
+	int ret;
+
+	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
+	if (!pcie)
+		return -ENOMEM;
+
+	pcie->dev = dev;
+	pcie->base = devm_platform_ioremap_resource(pdev, 1);
+	if (IS_ERR(pcie->base))
+		return PTR_ERR(pcie->base);
+
+	mutex_init(&pcie->lock);
+	INIT_LIST_HEAD(&pcie->ports);
+	dev_set_drvdata(dev, pcie);
+
+	ret = apple_msi_init(pcie);
+	if (ret)
+		return ret;
+
+	return pci_host_common_init(pdev, &apple_pcie_cfg_ecam_ops);
+}
+
 static const struct of_device_id apple_pcie_of_match[] = {
-	{ .compatible = "apple,pcie", .data = &apple_pcie_cfg_ecam_ops },
+	{ .compatible = "apple,pcie" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, apple_pcie_of_match);
 
 static struct platform_driver apple_pcie_driver = {
-	.probe	= pci_host_common_probe,
+	.probe	= apple_pcie_probe,
 	.driver	= {
 		.name			= "pcie-apple",
 		.of_match_table		= apple_pcie_of_match,
