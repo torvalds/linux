@@ -715,12 +715,8 @@ static const struct drm_crtc_helper_funcs simpledrm_crtc_helper_funcs = {
 };
 
 static const struct drm_crtc_funcs simpledrm_crtc_funcs = {
-	.reset = drm_atomic_helper_crtc_reset,
+	DRM_SYSFB_CRTC_FUNCS,
 	.destroy = drm_crtc_cleanup,
-	.set_config = drm_atomic_helper_set_config,
-	.page_flip = drm_atomic_helper_page_flip,
-	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 };
 
 static const struct drm_encoder_funcs simpledrm_encoder_funcs = {

@@ -725,24 +725,6 @@ static void ofdrm_device_set_gamma(struct ofdrm_device *odev,
  * Modesetting
  */
 
-struct ofdrm_crtc_state {
-	struct drm_crtc_state base;
-
-	/* Primary-plane format; required for color mgmt. */
-	const struct drm_format_info *format;
-};
-
-static struct ofdrm_crtc_state *to_ofdrm_crtc_state(struct drm_crtc_state *base)
-{
-	return container_of(base, struct ofdrm_crtc_state, base);
-}
-
-static void ofdrm_crtc_state_destroy(struct ofdrm_crtc_state *ofdrm_crtc_state)
-{
-	__drm_atomic_helper_crtc_destroy_state(&ofdrm_crtc_state->base);
-	kfree(ofdrm_crtc_state);
-}
-
 static const uint64_t ofdrm_primary_plane_format_modifiers[] = {
 	DRM_FORMAT_MOD_LINEAR,
 	DRM_FORMAT_MOD_INVALID
@@ -759,7 +741,7 @@ static int ofdrm_primary_plane_helper_atomic_check(struct drm_plane *plane,
 	struct drm_framebuffer *new_fb = new_plane_state->fb;
 	struct drm_crtc *new_crtc = new_plane_state->crtc;
 	struct drm_crtc_state *new_crtc_state = NULL;
-	struct ofdrm_crtc_state *new_ofdrm_crtc_state;
+	struct drm_sysfb_crtc_state *new_sysfb_crtc_state;
 	int ret;
 
 	if (new_crtc)
@@ -786,8 +768,8 @@ static int ofdrm_primary_plane_helper_atomic_check(struct drm_plane *plane,
 
 	new_crtc_state = drm_atomic_get_new_crtc_state(new_state, new_plane_state->crtc);
 
-	new_ofdrm_crtc_state = to_ofdrm_crtc_state(new_crtc_state);
-	new_ofdrm_crtc_state->format = new_fb->format;
+	new_sysfb_crtc_state = to_drm_sysfb_crtc_state(new_crtc_state);
+	new_sysfb_crtc_state->format = new_fb->format;
 
 	return 0;
 }
@@ -920,10 +902,10 @@ static void ofdrm_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_ato
 {
 	struct ofdrm_device *odev = ofdrm_device_of_dev(crtc->dev);
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
-	struct ofdrm_crtc_state *ofdrm_crtc_state = to_ofdrm_crtc_state(crtc_state);
+	struct drm_sysfb_crtc_state *sysfb_crtc_state = to_drm_sysfb_crtc_state(crtc_state);
 
 	if (crtc_state->enable && crtc_state->color_mgmt_changed) {
-		const struct drm_format_info *format = ofdrm_crtc_state->format;
+		const struct drm_format_info *format = sysfb_crtc_state->format;
 
 		if (crtc_state->gamma_lut)
 			ofdrm_device_set_gamma(odev, format, crtc_state->gamma_lut->data);
@@ -943,55 +925,9 @@ static const struct drm_crtc_helper_funcs ofdrm_crtc_helper_funcs = {
 	.atomic_flush = ofdrm_crtc_helper_atomic_flush,
 };
 
-static void ofdrm_crtc_reset(struct drm_crtc *crtc)
-{
-	struct ofdrm_crtc_state *ofdrm_crtc_state =
-		kzalloc(sizeof(*ofdrm_crtc_state), GFP_KERNEL);
-
-	if (crtc->state)
-		ofdrm_crtc_state_destroy(to_ofdrm_crtc_state(crtc->state));
-
-	if (ofdrm_crtc_state)
-		__drm_atomic_helper_crtc_reset(crtc, &ofdrm_crtc_state->base);
-	else
-		__drm_atomic_helper_crtc_reset(crtc, NULL);
-}
-
-static struct drm_crtc_state *ofdrm_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_crtc_state *crtc_state = crtc->state;
-	struct ofdrm_crtc_state *new_ofdrm_crtc_state;
-	struct ofdrm_crtc_state *ofdrm_crtc_state;
-
-	if (drm_WARN_ON(dev, !crtc_state))
-		return NULL;
-
-	new_ofdrm_crtc_state = kzalloc(sizeof(*new_ofdrm_crtc_state), GFP_KERNEL);
-	if (!new_ofdrm_crtc_state)
-		return NULL;
-
-	ofdrm_crtc_state = to_ofdrm_crtc_state(crtc_state);
-
-	__drm_atomic_helper_crtc_duplicate_state(crtc, &new_ofdrm_crtc_state->base);
-	new_ofdrm_crtc_state->format = ofdrm_crtc_state->format;
-
-	return &new_ofdrm_crtc_state->base;
-}
-
-static void ofdrm_crtc_atomic_destroy_state(struct drm_crtc *crtc,
-					    struct drm_crtc_state *crtc_state)
-{
-	ofdrm_crtc_state_destroy(to_ofdrm_crtc_state(crtc_state));
-}
-
 static const struct drm_crtc_funcs ofdrm_crtc_funcs = {
-	.reset = ofdrm_crtc_reset,
+	DRM_SYSFB_CRTC_FUNCS,
 	.destroy = drm_crtc_cleanup,
-	.set_config = drm_atomic_helper_set_config,
-	.page_flip = drm_atomic_helper_page_flip,
-	.atomic_duplicate_state = ofdrm_crtc_atomic_duplicate_state,
-	.atomic_destroy_state = ofdrm_crtc_atomic_destroy_state,
 };
 
 static const struct drm_encoder_funcs ofdrm_encoder_funcs = {

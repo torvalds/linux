@@ -6,6 +6,7 @@
 #include <linux/container_of.h>
 #include <linux/iosys-map.h>
 
+#include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
 #include <drm/drm_modes.h>
 
@@ -36,6 +37,34 @@ static inline struct drm_sysfb_device *to_drm_sysfb_device(struct drm_device *de
 {
 	return container_of(dev, struct drm_sysfb_device, dev);
 }
+
+/*
+ * CRTC
+ */
+
+struct drm_sysfb_crtc_state {
+	struct drm_crtc_state base;
+
+	/* Primary-plane format; required for color mgmt. */
+	const struct drm_format_info *format;
+};
+
+static inline struct drm_sysfb_crtc_state *
+to_drm_sysfb_crtc_state(struct drm_crtc_state *base)
+{
+	return container_of(base, struct drm_sysfb_crtc_state, base);
+}
+
+void drm_sysfb_crtc_reset(struct drm_crtc *crtc);
+struct drm_crtc_state *drm_sysfb_crtc_atomic_duplicate_state(struct drm_crtc *crtc);
+void drm_sysfb_crtc_atomic_destroy_state(struct drm_crtc *crtc, struct drm_crtc_state *crtc_state);
+
+#define DRM_SYSFB_CRTC_FUNCS \
+	.reset = drm_sysfb_crtc_reset, \
+	.set_config = drm_atomic_helper_set_config, \
+	.page_flip = drm_atomic_helper_page_flip, \
+	.atomic_duplicate_state = drm_sysfb_crtc_atomic_duplicate_state, \
+	.atomic_destroy_state = drm_sysfb_crtc_atomic_destroy_state
 
 /*
  * Connector
