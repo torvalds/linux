@@ -963,13 +963,13 @@ static int analogix_dp_disable_psr(struct analogix_dp_device *dp)
  * If @prepare is true, this function will prepare the panel. Conversely, if it
  * is false, the panel will be unprepared.
  *
- * If @is_modeset_prepare is true, the function will disregard the current state
+ * The function will disregard the current state
  * of the panel and either prepare/unprepare the panel based on @prepare. Once
  * it finishes, it will update dp->panel_is_modeset to reflect the current state
  * of the panel.
  */
 static int analogix_dp_prepare_panel(struct analogix_dp_device *dp,
-				     bool prepare, bool is_modeset_prepare)
+				     bool prepare)
 {
 	int ret = 0;
 
@@ -977,13 +977,6 @@ static int analogix_dp_prepare_panel(struct analogix_dp_device *dp,
 		return 0;
 
 	mutex_lock(&dp->panel_lock);
-
-	/*
-	 * Exit early if this is a temporary prepare/unprepare and we're already
-	 * modeset (since we neither want to prepare twice or unprepare early).
-	 */
-	if (dp->panel_is_modeset && !is_modeset_prepare)
-		goto out;
 
 	if (prepare)
 		ret = drm_panel_prepare(dp->plat_data->panel);
@@ -993,8 +986,7 @@ static int analogix_dp_prepare_panel(struct analogix_dp_device *dp,
 	if (ret)
 		goto out;
 
-	if (is_modeset_prepare)
-		dp->panel_is_modeset = prepare;
+	dp->panel_is_modeset = prepare;
 
 out:
 	mutex_unlock(&dp->panel_lock);
@@ -1072,7 +1064,6 @@ analogix_dp_detect(struct drm_connector *connector, bool force)
 {
 	struct analogix_dp_device *dp = to_dp(connector);
 	enum drm_connector_status status = connector_status_disconnected;
-	int ret;
 
 	if (dp->plat_data->panel)
 		return connector_status_connected;
@@ -1194,7 +1185,7 @@ static void analogix_dp_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 	if (old_crtc_state && old_crtc_state->self_refresh_active)
 		return;
 
-	ret = analogix_dp_prepare_panel(dp, true, true);
+	ret = analogix_dp_prepare_panel(dp, true);
 	if (ret)
 		DRM_ERROR("failed to setup the panel ret = %d\n", ret);
 }
@@ -1294,7 +1285,7 @@ static void analogix_dp_bridge_disable(struct drm_bridge *bridge)
 
 	pm_runtime_put_sync(dp->dev);
 
-	ret = analogix_dp_prepare_panel(dp, false, true);
+	ret = analogix_dp_prepare_panel(dp, false);
 	if (ret)
 		DRM_ERROR("failed to setup the panel ret = %d\n", ret);
 
