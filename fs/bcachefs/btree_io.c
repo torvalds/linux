@@ -2146,6 +2146,7 @@ static void btree_node_write_endio(struct bio *bio)
 
 	if (ca && bio->bi_status) {
 		struct printbuf buf = PRINTBUF;
+		buf.atomic++;
 		prt_printf(&buf, "btree write error: %s\n  ",
 			   bch2_blk_status_to_str(bio->bi_status));
 		bch2_btree_pos_to_text(&buf, c, b);

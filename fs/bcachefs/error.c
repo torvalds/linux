@@ -45,6 +45,8 @@ bool __bch2_inconsistent_error(struct bch_fs *c, struct printbuf *out)
 bool bch2_inconsistent_error(struct bch_fs *c)
 {
 	struct printbuf buf = PRINTBUF;
+	buf.atomic++;
+
 	printbuf_indent_add_nextline(&buf, 2);
 
 	bool ret = __bch2_inconsistent_error(c, &buf);
@@ -59,6 +61,7 @@ static bool bch2_fs_trans_inconsistent(struct bch_fs *c, struct btree_trans *tra
 				       const char *fmt, va_list args)
 {
 	struct printbuf buf = PRINTBUF;
+	buf.atomic++;
 
 	bch2_log_msg_start(c, &buf);
 
