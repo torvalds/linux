@@ -78,6 +78,8 @@
 		     &pinctrl_gmac0_txck_default
 		     &pinctrl_gmac0_phy_irq>;
 	phy-mode = "rgmii-id";
+	nvmem-cells = <&eeprom0_eui48>;
+	nvmem-cell-names = "mac-address";
 	status = "okay";
 
 	ethernet-phy@7 {
@@ -248,6 +250,24 @@
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
+			};
+		};
+	};
+
+	eeprom0: eeprom@51 {
+		compatible = "microchip,24aa025e48";
+		reg = <0x51>;
+		size = <256>;
+		pagesize = <16>;
+		vcc-supply = <&vdd_3v3>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			eeprom0_eui48: eui48@fa {
+				reg = <0xfa 0x6>;
 			};
 		};
 	};
