@@ -2013,7 +2013,7 @@ out_release:
 	return err;
 }
 
-static bool mmc_can_poweroff_notify(const struct mmc_card *card)
+static bool mmc_card_can_poweroff_notify(const struct mmc_card *card)
 {
 	return card &&
 		mmc_card_mmc(card) &&
@@ -2136,7 +2136,7 @@ static int _mmc_suspend(struct mmc_host *host, enum mmc_poweroff_type pm_type)
 	if (err)
 		goto out;
 
-	if (mmc_can_poweroff_notify(host->card) &&
+	if (mmc_card_can_poweroff_notify(host->card) &&
 	    mmc_host_can_poweroff_notify(host, pm_type))
 		err = mmc_poweroff_notify(host->card, notify_type);
 	else if (mmc_can_sleep(host->card))
@@ -2217,7 +2217,7 @@ static int mmc_shutdown(struct mmc_host *host)
 	 * the sleep-cmd (CMD5), we may need to re-initialize it first, to allow
 	 * us to send the preferred poweroff-notification cmd at shutdown.
 	 */
-	if (mmc_can_poweroff_notify(host->card) &&
+	if (mmc_card_can_poweroff_notify(host->card) &&
 	    !mmc_host_can_poweroff_notify(host, MMC_POWEROFF_SUSPEND))
 		err = _mmc_resume(host);
 
