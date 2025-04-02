@@ -269,8 +269,11 @@ struct xe_pt_update {
 	bool preexisting;
 };
 
+/**
+ * struct xe_pt_stage_bind_walk - Walk state for the stage_bind walk.
+ */
 struct xe_pt_stage_bind_walk {
-	/** base: The base class. */
+	/** @base: The base class. */
 	struct xe_pt_walk base;
 
 	/* Input parameters for the walk */
@@ -278,14 +281,14 @@ struct xe_pt_stage_bind_walk {
 	struct xe_vm *vm;
 	/** @tile: The tile we're building for. */
 	struct xe_tile *tile;
-	/** @default_pte: PTE flag only template for VRAM. No address is associated */
+	/** @default_vram_pte: PTE flag only template for VRAM. No address is associated */
 	u64 default_vram_pte;
-	/** @default_pte: PTE flag only template for VRAM. No address is associated */
+	/** @default_system_pte: PTE flag only template for System. No address is associated */
 	u64 default_system_pte;
 	/** @dma_offset: DMA offset to add to the PTE. */
 	u64 dma_offset;
 	/**
-	 * @needs_64k: This address range enforces 64K alignment and
+	 * @needs_64K: This address range enforces 64K alignment and
 	 * granularity on VRAM.
 	 */
 	bool needs_64K;
@@ -301,6 +304,7 @@ struct xe_pt_stage_bind_walk {
 	u64 va_curs_start;
 
 	/* Output */
+	/** @wupd: Walk output data for page-table updates. */
 	struct xe_walk_update {
 		/** @wupd.entries: Caller provided storage. */
 		struct xe_vm_pgtable_update *entries;
@@ -318,7 +322,7 @@ struct xe_pt_stage_bind_walk {
 	u64 l0_end_addr;
 	/** @addr_64K: The start address of the current 64K chunk. */
 	u64 addr_64K;
-	/** @found_64: Whether @add_64K actually points to a 64K chunk. */
+	/** @found_64K: Whether @add_64K actually points to a 64K chunk. */
 	bool found_64K;
 };
 
