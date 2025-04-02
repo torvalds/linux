@@ -578,7 +578,7 @@ void handle_host_mem_abort(struct kvm_cpu_context *host_ctxt)
 		return;
 	}
 
-	addr = (fault.hpfar_el2 & HPFAR_MASK) << 8;
+	addr = FIELD_GET(HPFAR_EL2_FIPA, fault.hpfar_el2) << 12;
 	ret = host_stage2_idmap(addr);
 	BUG_ON(ret && ret != -EAGAIN);
 }
