@@ -233,21 +233,23 @@ static inline struct extent_state *prev_state(struct extent_state *state)
 }
 
 /*
- * Search @tree for an entry that contains @offset. Such entry would have
- * entry->start <= offset && entry->end >= offset.
+ * Search @tree for an entry that contains @offset or if none exists for the
+ * first entry that starts and ends after that offset.
  *
  * @tree:       the tree to search
- * @offset:     offset that should fall within an entry in @tree
+ * @offset:     search offset
  * @node_ret:   pointer where new node should be anchored (used when inserting an
  *	        entry in the tree)
  * @parent_ret: points to entry which would have been the parent of the entry,
  *               containing @offset
  *
- * Return a pointer to the entry that contains @offset byte address and don't change
- * @node_ret and @parent_ret.
+ * Return a pointer to the entry that contains @offset byte address.
  *
- * If no such entry exists, return pointer to entry that ends before @offset
- * and fill parameters @node_ret and @parent_ret, ie. does not return NULL.
+ * If no such entry exists, return the first entry that starts and ends after
+ * @offset if one exists, otherwise NULL.
+ *
+ * If the returned entry starts at @offset, then @node_ret and @parent_ret
+ * aren't changed.
  */
 static inline struct extent_state *tree_search_for_insert(struct extent_io_tree *tree,
 							  u64 offset,
@@ -276,7 +278,11 @@ static inline struct extent_state *tree_search_for_insert(struct extent_io_tree 
 	if (parent_ret)
 		*parent_ret = prev;
 
-	/* Search neighbors until we find the first one past the end */
+	/*
+	 * Return either the current entry if it contains offset (it ends after
+	 * or at offset) or the first entry that starts and ends after offset if
+	 * one exists, or NULL.
+	 */
 	while (entry && offset > entry->end)
 		entry = next_state(entry);
 
