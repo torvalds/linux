@@ -6435,18 +6435,6 @@ S:	Maintained
 W:	http://www.chelsio.com
 F:	drivers/net/ethernet/chelsio/cxgb4vf/
 
-CXL (IBM Coherent Accelerator Processor Interface CAPI) DRIVER
-M:	Frederic Barrat <fbarrat@linux.ibm.com>
-M:	Andrew Donnellan <ajd@linux.ibm.com>
-L:	linuxppc-dev@lists.ozlabs.org
-S:	Obsolete
-F:	Documentation/ABI/obsolete/sysfs-class-cxl
-F:	Documentation/arch/powerpc/cxl.rst
-F:	arch/powerpc/platforms/powernv/pci-cxl.c
-F:	drivers/misc/cxl/
-F:	include/misc/cxl*
-F:	include/uapi/misc/cxl.h
-
 CYBERPRO FB DRIVER
 M:	Russell King <linux@armlinux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)

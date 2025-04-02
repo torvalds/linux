@@ -10,7 +10,6 @@
 #include <linux/pci_hotplug.h>
 #include <linux/irq.h>
 #include <linux/of.h>
-#include <misc/cxl-base.h>
 #include <asm/opal-api.h>
 
 #define PCI_SLOT_ID_PREFIX	(1UL << 63)
@@ -25,24 +24,8 @@ extern int pnv_pci_get_power_state(uint64_t id, uint8_t *state);
 extern int pnv_pci_set_power_state(uint64_t id, uint8_t state,
 				   struct opal_msg *msg);
 
-extern int pnv_pci_set_tunnel_bar(struct pci_dev *dev, uint64_t addr,
-				  int enable);
-int pnv_phb_to_cxl_mode(struct pci_dev *dev, uint64_t mode);
-int pnv_cxl_ioda_msi_setup(struct pci_dev *dev, unsigned int hwirq,
-			   unsigned int virq);
-int pnv_cxl_alloc_hwirqs(struct pci_dev *dev, int num);
-void pnv_cxl_release_hwirqs(struct pci_dev *dev, int hwirq, int num);
-int pnv_cxl_get_irq_count(struct pci_dev *dev);
-struct device_node *pnv_pci_get_phb_node(struct pci_dev *dev);
 int64_t pnv_opal_pci_msi_eoi(struct irq_data *d);
 bool is_pnv_opal_msi(struct irq_chip *chip);
-
-#ifdef CONFIG_CXL_BASE
-int pnv_cxl_alloc_hwirq_ranges(struct cxl_irq_ranges *irqs,
-			       struct pci_dev *dev, int num);
-void pnv_cxl_release_hwirq_ranges(struct cxl_irq_ranges *irqs,
-				  struct pci_dev *dev);
-#endif
 
 struct pnv_php_slot {
 	struct hotplug_slot		slot;

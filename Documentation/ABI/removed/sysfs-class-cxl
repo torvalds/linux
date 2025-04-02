@@ -1,5 +1,4 @@
-The cxl driver is no longer maintained, and will be removed from the kernel in
-the near future.
+The cxl driver was removed in 6.15.
 
 Please note that attributes that are shared between devices are stored in
 the directory pointed to by the symlink device/.
@@ -10,7 +9,7 @@ For example, the real path of the attribute /sys/class/cxl/afu0.0s/irqs_max is
 Slave contexts (eg. /sys/class/cxl/afu0.0s):
 
 What:           /sys/class/cxl/<afu>/afu_err_buf
-Date:           September 2014
+Date:           September 2014, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 AFU Error Buffer contents. The contents of this file are
@@ -21,7 +20,7 @@ Description:    read only
 
 
 What:           /sys/class/cxl/<afu>/irqs_max
-Date:           September 2014
+Date:           September 2014, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read/write
                 Decimal value of maximum number of interrupts that can be
@@ -32,7 +31,7 @@ Description:    read/write
 Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>/irqs_min
-Date:           September 2014
+Date:           September 2014, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Decimal value of the minimum number of interrupts that
@@ -42,7 +41,7 @@ Description:    read only
 Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>/mmio_size
-Date:           September 2014
+Date:           September 2014, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Decimal value of the size of the MMIO space that may be mmapped
@@ -50,7 +49,7 @@ Description:    read only
 Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>/modes_supported
-Date:           September 2014
+Date:           September 2014, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 List of the modes this AFU supports. One per line.
@@ -58,7 +57,7 @@ Description:    read only
 Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>/mode
-Date:           September 2014
+Date:           September 2014, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read/write
                 The current mode the AFU is using. Will be one of the modes
@@ -68,7 +67,7 @@ Users:		https://github.com/ibm-capi/libcxl
 
 
 What:           /sys/class/cxl/<afu>/prefault_mode
-Date:           September 2014
+Date:           September 2014, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read/write
                 Set the mode for prefaulting in segments into the segment table
@@ -88,7 +87,7 @@ Description:    read/write
 Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>/reset
-Date:           September 2014
+Date:           September 2014, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    write only
                 Writing 1 here will reset the AFU provided there are not
@@ -96,14 +95,14 @@ Description:    write only
 Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>/api_version
-Date:           September 2014
+Date:           September 2014, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Decimal value of the current version of the kernel/user API.
 Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>/api_version_compatible
-Date:           September 2014
+Date:           September 2014, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Decimal value of the lowest version of the userspace API
@@ -117,7 +116,7 @@ An AFU may optionally export one or more PCIe like configuration records, known
 as AFU configuration records, which will show up here (if present).
 
 What:           /sys/class/cxl/<afu>/cr<config num>/vendor
-Date:           February 2015
+Date:           February 2015, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
 		Hexadecimal value of the vendor ID found in this AFU
@@ -125,7 +124,7 @@ Description:    read only
 Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>/cr<config num>/device
-Date:           February 2015
+Date:           February 2015, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
 		Hexadecimal value of the device ID found in this AFU
@@ -133,7 +132,7 @@ Description:    read only
 Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>/cr<config num>/class
-Date:           February 2015
+Date:           February 2015, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
 		Hexadecimal value of the class code found in this AFU
@@ -141,7 +140,7 @@ Description:    read only
 Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>/cr<config num>/config
-Date:           February 2015
+Date:           February 2015, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
 		This binary file provides raw access to the AFU configuration
@@ -155,7 +154,7 @@ Users:		https://github.com/ibm-capi/libcxl
 Master contexts (eg. /sys/class/cxl/afu0.0m)
 
 What:           /sys/class/cxl/<afu>m/mmio_size
-Date:           September 2014
+Date:           September 2014, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Decimal value of the size of the MMIO space that may be mmapped
@@ -163,14 +162,14 @@ Description:    read only
 Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>m/pp_mmio_len
-Date:           September 2014
+Date:           September 2014, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Decimal value of the Per Process MMIO space length.
 Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>m/pp_mmio_off
-Date:           September 2014
+Date:           September 2014, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 (not in a guest)
@@ -181,21 +180,21 @@ Users:		https://github.com/ibm-capi/libcxl
 Card info (eg. /sys/class/cxl/card0)
 
 What:           /sys/class/cxl/<card>/caia_version
-Date:           September 2014
+Date:           September 2014, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Identifies the CAIA Version the card implements.
 Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<card>/psl_revision
-Date:           September 2014
+Date:           September 2014, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Identifies the revision level of the PSL.
 Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<card>/base_image
-Date:           September 2014
+Date:           September 2014, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 (not in a guest)
@@ -206,7 +205,7 @@ Description:    read only
 Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<card>/image_loaded
-Date:           September 2014
+Date:           September 2014, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 (not in a guest)
@@ -215,7 +214,7 @@ Description:    read only
 Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<card>/load_image_on_perst
-Date:           December 2014
+Date:           December 2014, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read/write
                 (not in a guest)
@@ -232,7 +231,7 @@ Description:    read/write
 Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<card>/reset
-Date:           October 2014
+Date:           October 2014, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    write only
                 Writing 1 will issue a PERST to card provided there are no
@@ -243,7 +242,7 @@ Description:    write only
 Users:		https://github.com/ibm-capi/libcxl
 
 What:		/sys/class/cxl/<card>/perst_reloads_same_image
-Date:		July 2015
+Date:		July 2015, removed February 2025
 Contact:	linuxppc-dev@lists.ozlabs.org
 Description:	read/write
                 (not in a guest)
@@ -257,7 +256,7 @@ Description:	read/write
 Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<card>/psl_timebase_synced
-Date:           March 2016
+Date:           March 2016, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Returns 1 if the psl timebase register is synchronized
@@ -265,7 +264,7 @@ Description:    read only
 Users:          https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<card>/tunneled_ops_supported
-Date:           May 2018
+Date:           May 2018, removed February 2025
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Returns 1 if tunneled operations are supported in capi mode,
