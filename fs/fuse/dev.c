@@ -32,6 +32,100 @@ MODULE_ALIAS("devname:fuse");
 
 static struct kmem_cache *fuse_req_cachep;
 
+const unsigned long fuse_timeout_timer_freq =
+	secs_to_jiffies(FUSE_TIMEOUT_TIMER_FREQ);
+
+bool fuse_request_expired(struct fuse_conn *fc, struct list_head *list)
+{
+	struct fuse_req *req;
+
+	req = list_first_entry_or_null(list, struct fuse_req, list);
+	if (!req)
+		return false;
+	return time_is_before_jiffies(req->create_time + fc->timeout.req_timeout);
+}
+
+bool fuse_fpq_processing_expired(struct fuse_conn *fc, struct list_head *processing)
+{
+	int i;
+
+	for (i = 0; i < FUSE_PQ_HASH_SIZE; i++)
+		if (fuse_request_expired(fc, &processing[i]))
+			return true;
+
+	return false;
+}
+
+/*
+ * Check if any requests aren't being completed by the time the request timeout
+ * elapses. To do so, we:
+ * - check the fiq pending list
+ * - check the bg queue
+ * - check the fpq io and processing lists
+ *
+ * To make this fast, we only check against the head request on each list since
+ * these are generally queued in order of creation time (eg newer requests get
+ * queued to the tail). We might miss a few edge cases (eg requests transitioning
+ * between lists, re-sent requests at the head of the pending list having a
+ * later creation time than other requests on that list, etc.) but that is fine
+ * since if the request never gets fulfilled, it will eventually be caught.
+ */
+void fuse_check_timeout(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct fuse_conn *fc = container_of(dwork, struct fuse_conn,
+					    timeout.work);
+	struct fuse_iqueue *fiq = &fc->iq;
+	struct fuse_dev *fud;
+	struct fuse_pqueue *fpq;
+	bool expired = false;
+
+	if (!atomic_read(&fc->num_waiting))
+	    goto out;
+
+	spin_lock(&fiq->lock);
+	expired = fuse_request_expired(fc, &fiq->pending);
+	spin_unlock(&fiq->lock);
+	if (expired)
+		goto abort_conn;
+
+	spin_lock(&fc->bg_lock);
+	expired = fuse_request_expired(fc, &fc->bg_queue);
+	spin_unlock(&fc->bg_lock);
+	if (expired)
+		goto abort_conn;
+
+	spin_lock(&fc->lock);
+	if (!fc->connected) {
+		spin_unlock(&fc->lock);
+		return;
+	}
+	list_for_each_entry(fud, &fc->devices, entry) {
+		fpq = &fud->pq;
+		spin_lock(&fpq->lock);
+		if (fuse_request_expired(fc, &fpq->io) ||
+		    fuse_fpq_processing_expired(fc, fpq->processing)) {
+			spin_unlock(&fpq->lock);
+			spin_unlock(&fc->lock);
+			goto abort_conn;
+		}
+
+		spin_unlock(&fpq->lock);
+	}
+	spin_unlock(&fc->lock);
+
+	if (fuse_uring_request_expired(fc))
+	    goto abort_conn;
+
+out:
+	queue_delayed_work(system_wq, &fc->timeout.work,
+			   fuse_timeout_timer_freq);
+	return;
+
+abort_conn:
+	fuse_abort_conn(fc);
+}
+
 static void fuse_request_init(struct fuse_mount *fm, struct fuse_req *req)
 {
 	INIT_LIST_HEAD(&req->list);
@@ -40,6 +134,7 @@ static void fuse_request_init(struct fuse_mount *fm, struct fuse_req *req)
 	refcount_set(&req->count, 1);
 	__set_bit(FR_PENDING, &req->flags);
 	req->fm = fm;
+	req->create_time = jiffies;
 }
 
 static struct fuse_req *fuse_request_alloc(struct fuse_mount *fm, gfp_t flags)
@@ -407,6 +502,24 @@ static int queue_interrupt(struct fuse_req *req)
 	return 0;
 }
 
+bool fuse_remove_pending_req(struct fuse_req *req, spinlock_t *lock)
+{
+	spin_lock(lock);
+	if (test_bit(FR_PENDING, &req->flags)) {
+		/*
+		 * FR_PENDING does not get cleared as the request will end
+		 * up in destruction anyway.
+		 */
+		list_del(&req->list);
+		spin_unlock(lock);
+		__fuse_put_request(req);
+		req->out.h.error = -EINTR;
+		return true;
+	}
+	spin_unlock(lock);
+	return false;
+}
+
 static void request_wait_answer(struct fuse_req *req)
 {
 	struct fuse_conn *fc = req->fm->fc;
@@ -428,22 +541,20 @@ static void request_wait_answer(struct fuse_req *req)
 	}
 
 	if (!test_bit(FR_FORCE, &req->flags)) {
+		bool removed;
+
 		/* Only fatal signals may interrupt this */
 		err = wait_event_killable(req->waitq,
 					test_bit(FR_FINISHED, &req->flags));
 		if (!err)
 			return;
 
-		spin_lock(&fiq->lock);
-		/* Request is not yet in userspace, bail out */
-		if (test_bit(FR_PENDING, &req->flags)) {
-			list_del(&req->list);
-			spin_unlock(&fiq->lock);
-			__fuse_put_request(req);
-			req->out.h.error = -EINTR;
+		if (test_bit(FR_URING, &req->flags))
+			removed = fuse_uring_remove_pending_req(req);
+		else
+			removed = fuse_remove_pending_req(req, &fiq->lock);
+		if (removed)
 			return;
-		}
-		spin_unlock(&fiq->lock);
 	}
 
 	/*
@@ -1533,13 +1644,9 @@ static int fuse_notify_inval_entry(struct fuse_conn *fc, unsigned int size,
 				   struct fuse_copy_state *cs)
 {
 	struct fuse_notify_inval_entry_out outarg;
-	int err = -ENOMEM;
-	char *buf;
+	int err;
+	char *buf = NULL;
 	struct qstr name;
-
-	buf = kzalloc(FUSE_NAME_MAX + 1, GFP_KERNEL);
-	if (!buf)
-		goto err;
 
 	err = -EINVAL;
 	if (size < sizeof(outarg))
@@ -1550,11 +1657,16 @@ static int fuse_notify_inval_entry(struct fuse_conn *fc, unsigned int size,
 		goto err;
 
 	err = -ENAMETOOLONG;
-	if (outarg.namelen > FUSE_NAME_MAX)
+	if (outarg.namelen > fc->name_max)
 		goto err;
 
 	err = -EINVAL;
 	if (size != sizeof(outarg) + outarg.namelen + 1)
+		goto err;
+
+	err = -ENOMEM;
+	buf = kzalloc(outarg.namelen + 1, GFP_KERNEL);
+	if (!buf)
 		goto err;
 
 	name.name = buf;
@@ -1581,13 +1693,9 @@ static int fuse_notify_delete(struct fuse_conn *fc, unsigned int size,
 			      struct fuse_copy_state *cs)
 {
 	struct fuse_notify_delete_out outarg;
-	int err = -ENOMEM;
-	char *buf;
+	int err;
+	char *buf = NULL;
 	struct qstr name;
-
-	buf = kzalloc(FUSE_NAME_MAX + 1, GFP_KERNEL);
-	if (!buf)
-		goto err;
 
 	err = -EINVAL;
 	if (size < sizeof(outarg))
@@ -1598,11 +1706,16 @@ static int fuse_notify_delete(struct fuse_conn *fc, unsigned int size,
 		goto err;
 
 	err = -ENAMETOOLONG;
-	if (outarg.namelen > FUSE_NAME_MAX)
+	if (outarg.namelen > fc->name_max)
 		goto err;
 
 	err = -EINVAL;
 	if (size != sizeof(outarg) + outarg.namelen + 1)
+		goto err;
+
+	err = -ENOMEM;
+	buf = kzalloc(outarg.namelen + 1, GFP_KERNEL);
+	if (!buf)
 		goto err;
 
 	name.name = buf;
@@ -2274,6 +2387,9 @@ void fuse_abort_conn(struct fuse_conn *fc)
 		struct fuse_req *req, *next;
 		LIST_HEAD(to_end);
 		unsigned int i;
+
+		if (fc->timeout.req_timeout)
+			cancel_delayed_work(&fc->timeout.work);
 
 		/* Background queuing checks fc->connected under bg_lock */
 		spin_lock(&fc->bg_lock);
