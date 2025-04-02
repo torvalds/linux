@@ -369,7 +369,6 @@ config CRYPTO_AEGIS128_AESNI_SSE2
 	tristate "AEAD ciphers: AEGIS-128 (AES-NI/SSE4.1)"
 	depends on X86 && 64BIT
 	select CRYPTO_AEAD
-	select CRYPTO_SIMD
 	help
 	  AEGIS-128 AEAD algorithm
 
