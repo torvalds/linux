@@ -1699,8 +1699,12 @@ char *escaped_string(char *buf, char *end, u8 *addr, struct printf_spec spec,
 	return buf;
 }
 
+#pragma GCC diagnostic push
+#ifndef __clang__
+#pragma GCC diagnostic ignored "-Wsuggest-attribute=format"
+#endif
 static char *va_format(char *buf, char *end, struct va_format *va_fmt,
-		       struct printf_spec spec, const char *fmt)
+		       struct printf_spec spec)
 {
 	va_list va;
 
@@ -1713,6 +1717,7 @@ static char *va_format(char *buf, char *end, struct va_format *va_fmt,
 
 	return buf;
 }
+#pragma GCC diagnostic pop
 
 static noinline_for_stack
 char *uuid_string(char *buf, char *end, const u8 *addr,
@@ -2466,7 +2471,7 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 	case 'U':
 		return uuid_string(buf, end, ptr, spec, fmt);
 	case 'V':
-		return va_format(buf, end, ptr, spec, fmt);
+		return va_format(buf, end, ptr, spec);
 	case 'K':
 		return restricted_pointer(buf, end, ptr, spec);
 	case 'N':
