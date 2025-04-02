@@ -2224,15 +2224,6 @@ static inline long compound_nr(struct page *page)
 }
 
 /**
- * thp_nr_pages - The number of regular pages in this huge page.
- * @page: The head page of a huge page.
- */
-static inline long thp_nr_pages(struct page *page)
-{
-	return folio_nr_pages((struct folio *)page);
-}
-
-/**
  * folio_next - Move to the next physical folio.
  * @folio: The folio we're currently operating on.
  *
