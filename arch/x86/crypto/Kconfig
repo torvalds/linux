@@ -23,7 +23,6 @@ config CRYPTO_AES_NI_INTEL
 	select CRYPTO_LIB_GF128MUL
 	select CRYPTO_ALGAPI
 	select CRYPTO_SKCIPHER
-	select CRYPTO_SIMD
 	help
 	  Block cipher: AES cipher algorithms
 	  AEAD cipher: AES with GCM
