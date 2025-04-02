@@ -25,23 +25,21 @@
 #define TPAUSE_C01_STATE		1
 #define TPAUSE_C02_STATE		0
 
-static __always_inline void __monitor(const void *eax, unsigned long ecx,
-			     unsigned long edx)
+static __always_inline void __monitor(const void *eax, u32 ecx, u32 edx)
 {
 	/* "monitor %eax, %ecx, %edx;" */
 	asm volatile(".byte 0x0f, 0x01, 0xc8;"
 		     :: "a" (eax), "c" (ecx), "d"(edx));
 }
 
-static __always_inline void __monitorx(const void *eax, unsigned long ecx,
-			      unsigned long edx)
+static __always_inline void __monitorx(const void *eax, u32 ecx, u32 edx)
 {
 	/* "monitorx %eax, %ecx, %edx;" */
 	asm volatile(".byte 0x0f, 0x01, 0xfa;"
 		     :: "a" (eax), "c" (ecx), "d"(edx));
 }
 
-static __always_inline void __mwait(unsigned long eax, unsigned long ecx)
+static __always_inline void __mwait(u32 eax, u32 ecx)
 {
 	mds_idle_clear_cpu_buffers();
 
@@ -76,8 +74,7 @@ static __always_inline void __mwait(unsigned long eax, unsigned long ecx)
  * EAX                     (logical) address to monitor
  * ECX                     #GP if not zero
  */
-static __always_inline void __mwaitx(unsigned long eax, unsigned long ebx,
-				     unsigned long ecx)
+static __always_inline void __mwaitx(u32 eax, u32 ebx, u32 ecx)
 {
 	/* No MDS buffer clear as this is AMD/HYGON only */
 
@@ -95,7 +92,7 @@ static __always_inline void __mwaitx(unsigned long eax, unsigned long ebx,
  * executing mwait, it would otherwise go unnoticed and the next tick
  * would not be reprogrammed accordingly before mwait ever wakes up.
  */
-static __always_inline void __sti_mwait(unsigned long eax, unsigned long ecx)
+static __always_inline void __sti_mwait(u32 eax, u32 ecx)
 {
 	mds_idle_clear_cpu_buffers();
 	/* "mwait %eax, %ecx;" */
