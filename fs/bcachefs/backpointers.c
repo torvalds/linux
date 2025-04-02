@@ -258,6 +258,18 @@ struct bkey_s_c bch2_backpointer_get_key(struct btree_trans *trans,
 		return k;
 	}
 
+	/*
+	 * peek_slot() doesn't normally return NULL - except when we ask for a
+	 * key at a btree level that doesn't exist.
+	 *
+	 * We may want to revisit this and change peek_slot():
+	 */
+	if (!k.k) {
+		bkey_init(&iter->k);
+		iter->k.p = bp.v->pos;
+		k.k = &iter->k;
+	}
+
 	if (k.k &&
 	    extent_matches_bp(c, bp.v->btree_id, bp.v->level, k, bp))
 		return k;
