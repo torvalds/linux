@@ -48,8 +48,7 @@
 // using the following sets of CPU features:
 //	- AES-NI && AVX
 //	- VAES && AVX2
-//	- VAES && (AVX10/256 || (AVX512BW && AVX512VL)) && BMI2
-//	- VAES && (AVX10/512 || (AVX512BW && AVX512VL)) && BMI2
+//	- VAES && AVX512BW && AVX512VL && BMI2
 //
 // See the function definitions at the bottom of the file for more information.
 
@@ -76,7 +75,6 @@
 .text
 
 // Move a vector between memory and a register.
-// The register operand must be in the first 16 vector registers.
 .macro	_vmovdqu	src, dst
 .if VL < 64
 	vmovdqu		\src, \dst
@@ -86,7 +84,6 @@
 .endm
 
 // Move a vector between registers.
-// The registers must be in the first 16 vector registers.
 .macro	_vmovdqa	src, dst
 .if VL < 64
 	vmovdqa		\src, \dst
@@ -96,7 +93,7 @@
 .endm
 
 // Broadcast a 128-bit value from memory to all 128-bit lanes of a vector
-// register.  The register operand must be in the first 16 vector registers.
+// register.
 .macro	_vbroadcast128	src, dst
 .if VL == 16
 	vmovdqu		\src, \dst
@@ -108,7 +105,6 @@
 .endm
 
 // XOR two vectors together.
-// Any register operands must be in the first 16 vector registers.
 .macro	_vpxor	src1, src2, dst
 .if VL < 64
 	vpxor		\src1, \src2, \dst
@@ -199,8 +195,8 @@
 // XOR each with the zero-th round key.  Also update LE_CTR if !\final.
 .macro	_prepare_2_ctr_vecs	is_xctr, i0, i1, final=0
 .if \is_xctr
-  .if USE_AVX10
-	_vmovdqa	LE_CTR, AESDATA\i0
+  .if USE_AVX512
+	vmovdqa64	LE_CTR, AESDATA\i0
 	vpternlogd	$0x96, XCTR_IV, RNDKEY0, AESDATA\i0
   .else
 	vpxor		XCTR_IV, LE_CTR, AESDATA\i0
@@ -208,7 +204,7 @@
   .endif
 	vpaddq		LE_CTR_INC1, LE_CTR, AESDATA\i1
 
-  .if USE_AVX10
+  .if USE_AVX512
 	vpternlogd	$0x96, XCTR_IV, RNDKEY0, AESDATA\i1
   .else
 	vpxor		XCTR_IV, AESDATA\i1, AESDATA\i1
@@ -481,18 +477,12 @@
 .Lxor_tail_partial_vec_0\@:
 	// XOR the remaining 1 <= LEN < VL bytes.  It's easy if masked
 	// loads/stores are available; otherwise it's a bit harder...
-.if USE_AVX10
-  .if VL <= 32
-	mov		$-1, %eax
-	bzhi		LEN, %eax, %eax
-	kmovd		%eax, %k1
-  .else
+.if USE_AVX512
 	mov		$-1, %rax
 	bzhi		LEN64, %rax, %rax
 	kmovq		%rax, %k1
-  .endif
 	vmovdqu8	(SRC), AESDATA1{%k1}{z}
-	_vpxor		AESDATA1, AESDATA0, AESDATA0
+	vpxord		AESDATA1, AESDATA0, AESDATA0
 	vmovdqu8	AESDATA0, (DST){%k1}
 .else
   .if VL == 32
@@ -554,7 +544,7 @@
 // eliminates carries.  |ctr| is the per-message block counter starting at 1.
 
 .set	VL, 16
-.set	USE_AVX10, 0
+.set	USE_AVX512, 0
 SYM_TYPED_FUNC_START(aes_ctr64_crypt_aesni_avx)
 	_aes_ctr_crypt	0
 SYM_FUNC_END(aes_ctr64_crypt_aesni_avx)
@@ -564,7 +554,7 @@ SYM_FUNC_END(aes_xctr_crypt_aesni_avx)
 
 #if defined(CONFIG_AS_VAES) && defined(CONFIG_AS_VPCLMULQDQ)
 .set	VL, 32
-.set	USE_AVX10, 0
+.set	USE_AVX512, 0
 SYM_TYPED_FUNC_START(aes_ctr64_crypt_vaes_avx2)
 	_aes_ctr_crypt	0
 SYM_FUNC_END(aes_ctr64_crypt_vaes_avx2)
@@ -572,21 +562,12 @@ SYM_TYPED_FUNC_START(aes_xctr_crypt_vaes_avx2)
 	_aes_ctr_crypt	1
 SYM_FUNC_END(aes_xctr_crypt_vaes_avx2)
 
-.set	VL, 32
-.set	USE_AVX10, 1
-SYM_TYPED_FUNC_START(aes_ctr64_crypt_vaes_avx10_256)
-	_aes_ctr_crypt	0
-SYM_FUNC_END(aes_ctr64_crypt_vaes_avx10_256)
-SYM_TYPED_FUNC_START(aes_xctr_crypt_vaes_avx10_256)
-	_aes_ctr_crypt	1
-SYM_FUNC_END(aes_xctr_crypt_vaes_avx10_256)
-
 .set	VL, 64
-.set	USE_AVX10, 1
-SYM_TYPED_FUNC_START(aes_ctr64_crypt_vaes_avx10_512)
+.set	USE_AVX512, 1
+SYM_TYPED_FUNC_START(aes_ctr64_crypt_vaes_avx512)
 	_aes_ctr_crypt	0
-SYM_FUNC_END(aes_ctr64_crypt_vaes_avx10_512)
-SYM_TYPED_FUNC_START(aes_xctr_crypt_vaes_avx10_512)
+SYM_FUNC_END(aes_ctr64_crypt_vaes_avx512)
+SYM_TYPED_FUNC_START(aes_xctr_crypt_vaes_avx512)
 	_aes_ctr_crypt	1
-SYM_FUNC_END(aes_xctr_crypt_vaes_avx10_512)
+SYM_FUNC_END(aes_xctr_crypt_vaes_avx512)
 #endif // CONFIG_AS_VAES && CONFIG_AS_VPCLMULQDQ

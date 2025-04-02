@@ -844,8 +844,7 @@ simd_skcipher_algs_##suffix[ARRAY_SIZE(skcipher_algs_##suffix)]
 DEFINE_AVX_SKCIPHER_ALGS(aesni_avx, "aesni-avx", 500);
 #if defined(CONFIG_AS_VAES) && defined(CONFIG_AS_VPCLMULQDQ)
 DEFINE_AVX_SKCIPHER_ALGS(vaes_avx2, "vaes-avx2", 600);
-DEFINE_AVX_SKCIPHER_ALGS(vaes_avx10_256, "vaes-avx10_256", 700);
-DEFINE_AVX_SKCIPHER_ALGS(vaes_avx10_512, "vaes-avx10_512", 800);
+DEFINE_AVX_SKCIPHER_ALGS(vaes_avx512, "vaes-avx512", 800);
 #endif
 
 /* The common part of the x86_64 AES-GCM key struct */
@@ -1592,11 +1591,6 @@ static int __init register_avx_algs(void)
 			       XFEATURE_MASK_AVX512, NULL))
 		return 0;
 
-	err = simd_register_skciphers_compat(skcipher_algs_vaes_avx10_256,
-					     ARRAY_SIZE(skcipher_algs_vaes_avx10_256),
-					     simd_skcipher_algs_vaes_avx10_256);
-	if (err)
-		return err;
 	err = simd_register_aeads_compat(aes_gcm_algs_vaes_avx10_256,
 					 ARRAY_SIZE(aes_gcm_algs_vaes_avx10_256),
 					 aes_gcm_simdalgs_vaes_avx10_256);
@@ -1606,15 +1600,15 @@ static int __init register_avx_algs(void)
 	if (boot_cpu_has(X86_FEATURE_PREFER_YMM)) {
 		int i;
 
-		for (i = 0; i < ARRAY_SIZE(skcipher_algs_vaes_avx10_512); i++)
-			skcipher_algs_vaes_avx10_512[i].base.cra_priority = 1;
+		for (i = 0; i < ARRAY_SIZE(skcipher_algs_vaes_avx512); i++)
+			skcipher_algs_vaes_avx512[i].base.cra_priority = 1;
 		for (i = 0; i < ARRAY_SIZE(aes_gcm_algs_vaes_avx10_512); i++)
 			aes_gcm_algs_vaes_avx10_512[i].base.cra_priority = 1;
 	}
 
-	err = simd_register_skciphers_compat(skcipher_algs_vaes_avx10_512,
-					     ARRAY_SIZE(skcipher_algs_vaes_avx10_512),
-					     simd_skcipher_algs_vaes_avx10_512);
+	err = simd_register_skciphers_compat(skcipher_algs_vaes_avx512,
+					     ARRAY_SIZE(skcipher_algs_vaes_avx512),
+					     simd_skcipher_algs_vaes_avx512);
 	if (err)
 		return err;
 	err = simd_register_aeads_compat(aes_gcm_algs_vaes_avx10_512,
@@ -1641,18 +1635,14 @@ static void unregister_avx_algs(void)
 		simd_unregister_skciphers(skcipher_algs_vaes_avx2,
 					  ARRAY_SIZE(skcipher_algs_vaes_avx2),
 					  simd_skcipher_algs_vaes_avx2);
-	if (simd_skcipher_algs_vaes_avx10_256[0])
-		simd_unregister_skciphers(skcipher_algs_vaes_avx10_256,
-					  ARRAY_SIZE(skcipher_algs_vaes_avx10_256),
-					  simd_skcipher_algs_vaes_avx10_256);
 	if (aes_gcm_simdalgs_vaes_avx10_256[0])
 		simd_unregister_aeads(aes_gcm_algs_vaes_avx10_256,
 				      ARRAY_SIZE(aes_gcm_algs_vaes_avx10_256),
 				      aes_gcm_simdalgs_vaes_avx10_256);
-	if (simd_skcipher_algs_vaes_avx10_512[0])
-		simd_unregister_skciphers(skcipher_algs_vaes_avx10_512,
-					  ARRAY_SIZE(skcipher_algs_vaes_avx10_512),
-					  simd_skcipher_algs_vaes_avx10_512);
+	if (simd_skcipher_algs_vaes_avx512[0])
+		simd_unregister_skciphers(skcipher_algs_vaes_avx512,
+					  ARRAY_SIZE(skcipher_algs_vaes_avx512),
+					  simd_skcipher_algs_vaes_avx512);
 	if (aes_gcm_simdalgs_vaes_avx10_512[0])
 		simd_unregister_aeads(aes_gcm_algs_vaes_avx10_512,
 				      ARRAY_SIZE(aes_gcm_algs_vaes_avx10_512),
