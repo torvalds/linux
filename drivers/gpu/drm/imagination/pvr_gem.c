@@ -76,8 +76,6 @@ pvr_gem_object_flags_validate(u64 flags)
 		 DRM_PVR_BO_ALLOW_CPU_USERSPACE_ACCESS),
 	};
 
-	int i;
-
 	/*
 	 * Check for bits set in undefined regions. Reserved regions refer to
 	 * options that can only be set by the kernel. These are explicitly
@@ -91,7 +89,7 @@ pvr_gem_object_flags_validate(u64 flags)
 	 * Check for all combinations of flags marked as invalid in the array
 	 * above.
 	 */
-	for (i = 0; i < ARRAY_SIZE(invalid_combinations); ++i) {
+	for (int i = 0; i < ARRAY_SIZE(invalid_combinations); ++i) {
 		u64 combo = invalid_combinations[i];
 
 		if ((flags & combo) == combo)
