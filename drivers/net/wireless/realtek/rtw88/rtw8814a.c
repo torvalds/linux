@@ -1332,6 +1332,16 @@ static void rtw8814a_cfg_ldo25(struct rtw_dev *rtwdev, bool enable)
 {
 }
 
+/* Without this RTL8814A sends too many frames and (some?) 11n AP
+ * can't handle it, resulting in low TX speed. Other chips seem fine.
+ */
+static void rtw8814a_set_ampdu_factor(struct rtw_dev *rtwdev, u8 factor)
+{
+	factor = min_t(u8, factor, IEEE80211_VHT_MAX_AMPDU_256K);
+
+	rtw_write32(rtwdev, REG_AMPDU_MAX_LENGTH, (8192 << factor) - 1);
+}
+
 static void rtw8814a_false_alarm_statistics(struct rtw_dev *rtwdev)
 {
 	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
@@ -2051,6 +2061,7 @@ static const struct rtw_chip_ops rtw8814a_ops = {
 	.set_antenna		= NULL,
 	.cfg_ldo25		= rtw8814a_cfg_ldo25,
 	.efuse_grant		= rtw8814a_efuse_grant,
+	.set_ampdu_factor	= rtw8814a_set_ampdu_factor,
 	.false_alarm_statistics	= rtw8814a_false_alarm_statistics,
 	.phy_calibration	= rtw8814a_phy_calibration,
 	.cck_pd_set		= rtw8814a_phy_cck_pd_set,

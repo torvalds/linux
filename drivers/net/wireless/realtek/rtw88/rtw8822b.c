@@ -2158,6 +2158,7 @@ static const struct rtw_chip_ops rtw8822b_ops = {
 	.set_tx_power_index	= rtw8822b_set_tx_power_index,
 	.set_antenna		= rtw8822b_set_antenna,
 	.cfg_ldo25		= rtw8822b_cfg_ldo25,
+	.set_ampdu_factor	= NULL,
 	.false_alarm_statistics	= rtw8822b_false_alarm_statistics,
 	.phy_calibration	= rtw8822b_phy_calibration,
 	.pwr_track		= rtw8822b_pwr_track,
