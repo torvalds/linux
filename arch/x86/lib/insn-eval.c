@@ -631,14 +631,21 @@ static bool get_desc(struct desc_struct *out, unsigned short sel)
 		/* Bits [15:3] contain the index of the desired entry. */
 		sel >>= 3;
 
-		mutex_lock(&current->active_mm->context.lock);
-		ldt = current->active_mm->context.ldt;
+		/*
+		 * If we're not in a valid context with a real (not just lazy)
+		 * user mm, then don't even try.
+		 */
+		if (!nmi_uaccess_okay())
+			return false;
+
+		mutex_lock(&current->mm->context.lock);
+		ldt = current->mm->context.ldt;
 		if (ldt && sel < ldt->nr_entries) {
 			*out = ldt->entries[sel];
 			success = true;
 		}
 
-		mutex_unlock(&current->active_mm->context.lock);
+		mutex_unlock(&current->mm->context.lock);
 
 		return success;
 	}
