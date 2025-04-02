@@ -713,9 +713,6 @@ static inline pmd_t pmd_clear_soft_dirty(pmd_t pmd)
 
 #endif /* CONFIG_HAVE_ARCH_SOFT_DIRTY */
 
-/* Extern to avoid header file madness */
-extern pmd_t mk_pmd(struct page *page, pgprot_t prot);
-
 static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 {
 	pmd_val(pmd) = (pmd_val(pmd) & (_PAGE_CHG_MASK | _PAGE_HUGE)) |
