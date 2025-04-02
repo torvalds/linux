@@ -554,7 +554,7 @@ static inline bool entity_before(const struct sched_entity *a,
 
 static inline s64 entity_key(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	return (s64)(se->vruntime - cfs_rq->min_vruntime);
+	return (s64)(se->vruntime - cfs_rq->zero_vruntime);
 }
 
 #define __node_2_se(node) \
@@ -606,13 +606,13 @@ static inline s64 entity_key(struct cfs_rq *cfs_rq, struct sched_entity *se)
  *
  * Which we track using:
  *
- *                    v0 := cfs_rq->min_vruntime
+ *                    v0 := cfs_rq->zero_vruntime
  * \Sum (v_i - v0) * w_i := cfs_rq->avg_vruntime
  *              \Sum w_i := cfs_rq->avg_load
  *
- * Since min_vruntime is a monotonic increasing variable that closely tracks
- * the per-task service, these deltas: (v_i - v), will be in the order of the
- * maximal (virtual) lag induced in the system due to quantisation.
+ * Since zero_vruntime closely tracks the per-task service, these
+ * deltas: (v_i - v), will be in the order of the maximal (virtual) lag
+ * induced in the system due to quantisation.
  *
  * Also, we use scale_load_down() to reduce the size.
  *
@@ -671,7 +671,7 @@ u64 avg_vruntime(struct cfs_rq *cfs_rq)
 		avg = div_s64(avg, load);
 	}
 
-	return cfs_rq->min_vruntime + avg;
+	return cfs_rq->zero_vruntime + avg;
 }
 
 /*
@@ -732,7 +732,7 @@ static int vruntime_eligible(struct cfs_rq *cfs_rq, u64 vruntime)
 		load += weight;
 	}
 
-	return avg >= (s64)(vruntime - cfs_rq->min_vruntime) * load;
+	return avg >= (s64)(vruntime - cfs_rq->zero_vruntime) * load;
 }
 
 int entity_eligible(struct cfs_rq *cfs_rq, struct sched_entity *se)
@@ -740,42 +740,14 @@ int entity_eligible(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	return vruntime_eligible(cfs_rq, se->vruntime);
 }
 
-static u64 __update_min_vruntime(struct cfs_rq *cfs_rq, u64 vruntime)
+static void update_zero_vruntime(struct cfs_rq *cfs_rq)
 {
-	u64 min_vruntime = cfs_rq->min_vruntime;
-	/*
-	 * open coded max_vruntime() to allow updating avg_vruntime
-	 */
-	s64 delta = (s64)(vruntime - min_vruntime);
-	if (delta > 0) {
-		avg_vruntime_update(cfs_rq, delta);
-		min_vruntime = vruntime;
-	}
-	return min_vruntime;
-}
+	u64 vruntime = avg_vruntime(cfs_rq);
+	s64 delta = (s64)(vruntime - cfs_rq->zero_vruntime);
 
-static void update_min_vruntime(struct cfs_rq *cfs_rq)
-{
-	struct sched_entity *se = __pick_root_entity(cfs_rq);
-	struct sched_entity *curr = cfs_rq->curr;
-	u64 vruntime = cfs_rq->min_vruntime;
+	avg_vruntime_update(cfs_rq, delta);
 
-	if (curr) {
-		if (curr->on_rq)
-			vruntime = curr->vruntime;
-		else
-			curr = NULL;
-	}
-
-	if (se) {
-		if (!curr)
-			vruntime = se->min_vruntime;
-		else
-			vruntime = min_vruntime(vruntime, se->min_vruntime);
-	}
-
-	/* ensure we never gain time by being placed backwards. */
-	cfs_rq->min_vruntime = __update_min_vruntime(cfs_rq, vruntime);
+	cfs_rq->zero_vruntime = vruntime;
 }
 
 static inline u64 cfs_rq_min_slice(struct cfs_rq *cfs_rq)
@@ -848,6 +820,7 @@ RB_DECLARE_CALLBACKS(static, min_vruntime_cb, struct sched_entity,
 static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	avg_vruntime_add(cfs_rq, se);
+	update_zero_vruntime(cfs_rq);
 	se->min_vruntime = se->vruntime;
 	se->min_slice = se->slice;
 	rb_add_augmented_cached(&se->run_node, &cfs_rq->tasks_timeline,
@@ -859,6 +832,7 @@ static void __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	rb_erase_augmented_cached(&se->run_node, &cfs_rq->tasks_timeline,
 				  &min_vruntime_cb);
 	avg_vruntime_sub(cfs_rq, se);
+	update_zero_vruntime(cfs_rq);
 }
 
 struct sched_entity *__pick_root_entity(struct cfs_rq *cfs_rq)
@@ -1226,7 +1200,6 @@ static void update_curr(struct cfs_rq *cfs_rq)
 
 	curr->vruntime += calc_delta_fair(delta_exec, curr);
 	resched = update_deadline(cfs_rq, curr);
-	update_min_vruntime(cfs_rq);
 
 	if (entity_is_task(curr)) {
 		/*
@@ -3808,15 +3781,6 @@ static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
 		if (!curr)
 			__enqueue_entity(cfs_rq, se);
 		cfs_rq->nr_queued++;
-
-		/*
-		 * The entity's vruntime has been adjusted, so let's check
-		 * whether the rq-wide min_vruntime needs updated too. Since
-		 * the calculations above require stable min_vruntime rather
-		 * than up-to-date one, we do the update at the end of the
-		 * reweight process.
-		 */
-		update_min_vruntime(cfs_rq);
 	}
 }
 
@@ -5428,15 +5392,6 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	return_cfs_rq_runtime(cfs_rq);
 
 	update_cfs_group(se);
-
-	/*
-	 * Now advance min_vruntime if @se was the entity holding it back,
-	 * except when: DEQUEUE_SAVE && !DEQUEUE_MOVE, in this case we'll be
-	 * put back on, and if we advance min_vruntime, we'll be placed back
-	 * further than we started -- i.e. we'll be penalized.
-	 */
-	if ((flags & (DEQUEUE_SAVE | DEQUEUE_MOVE)) != DEQUEUE_SAVE)
-		update_min_vruntime(cfs_rq);
 
 	if (flags & DEQUEUE_DELAYED)
 		finish_delayed_dequeue_entity(se);
@@ -9015,7 +8970,6 @@ static void yield_task_fair(struct rq *rq)
 	if (entity_eligible(cfs_rq, se)) {
 		se->vruntime = se->deadline;
 		se->deadline += calc_delta_fair(se->slice, se);
-		update_min_vruntime(cfs_rq);
 	}
 }
 
@@ -13078,23 +13032,6 @@ static inline void task_tick_core(struct rq *rq, struct task_struct *curr)
  * Which shows that S and s_i transform alike (which makes perfect sense
  * given that S is basically the (weighted) average of s_i).
  *
- * Then:
- *
- *   x -> s_min := min{s_i}                                   (8)
- *
- * to obtain:
- *
- *               \Sum_i w_i (s_i - s_min)
- *   S = s_min + ------------------------                     (9)
- *                     \Sum_i w_i
- *
- * Which already looks familiar, and is the basis for our current
- * approximation:
- *
- *   S ~= s_min                                              (10)
- *
- * Now, obviously, (10) is absolute crap :-), but it sorta works.
- *
  * So the thing to remember is that the above is strictly UP. It is
  * possible to generalize to multiple runqueues -- however it gets really
  * yuck when you have to add affinity support, as illustrated by our very
@@ -13116,23 +13053,23 @@ static inline void task_tick_core(struct rq *rq, struct task_struct *curr)
  * Let, for our runqueue 'k':
  *
  *   T_k = \Sum_i w_i s_i
- *   W_k = \Sum_i w_i      ; for all i of k                  (11)
+ *   W_k = \Sum_i w_i      ; for all i of k                  (8)
  *
  * Then we can write (6) like:
  *
  *         T_k
- *   S_k = ---                                               (12)
+ *   S_k = ---                                               (9)
  *         W_k
  *
  * From which immediately follows that:
  *
  *           T_k + T_l
- *   S_k+l = ---------                                       (13)
+ *   S_k+l = ---------                                       (10)
  *           W_k + W_l
  *
  * On which we can define a combined lag:
  *
- *   lag_k+l(i) := S_k+l - s_i                               (14)
+ *   lag_k+l(i) := S_k+l - s_i                               (11)
  *
  * And that gives us the tools to compare tasks across a combined runqueue.
  *
@@ -13143,7 +13080,7 @@ static inline void task_tick_core(struct rq *rq, struct task_struct *curr)
  *     using (7); this only requires storing single 'time'-stamps.
  *
  *  b) when comparing tasks between 2 runqueues of which one is forced-idle,
- *     compare the combined lag, per (14).
+ *     compare the combined lag, per (11).
  *
  * Now, of course cgroups (I so hate them) make this more interesting in
  * that a) seems to suggest we need to iterate all cgroup on a CPU at such
@@ -13191,12 +13128,11 @@ static inline void task_tick_core(struct rq *rq, struct task_struct *curr)
  * every tick. This limits the observed divergence due to the work
  * conservancy.
  *
- * On top of that, we can improve upon things by moving away from our
- * horrible (10) hack and moving to (9) and employing (13) here.
+ * On top of that, we can improve upon things by employing (10) here.
  */
 
 /*
- * se_fi_update - Update the cfs_rq->min_vruntime_fi in a CFS hierarchy if needed.
+ * se_fi_update - Update the cfs_rq->zero_vruntime_fi in a CFS hierarchy if needed.
  */
 static void se_fi_update(const struct sched_entity *se, unsigned int fi_seq,
 			 bool forceidle)
@@ -13210,7 +13146,7 @@ static void se_fi_update(const struct sched_entity *se, unsigned int fi_seq,
 			cfs_rq->forceidle_seq = fi_seq;
 		}
 
-		cfs_rq->min_vruntime_fi = cfs_rq->min_vruntime;
+		cfs_rq->zero_vruntime_fi = cfs_rq->zero_vruntime;
 	}
 }
 
@@ -13263,11 +13199,11 @@ bool cfs_prio_less(const struct task_struct *a, const struct task_struct *b,
 
 	/*
 	 * Find delta after normalizing se's vruntime with its cfs_rq's
-	 * min_vruntime_fi, which would have been updated in prior calls
+	 * zero_vruntime_fi, which would have been updated in prior calls
 	 * to se_fi_update().
 	 */
 	delta = (s64)(sea->vruntime - seb->vruntime) +
-		(s64)(cfs_rqb->min_vruntime_fi - cfs_rqa->min_vruntime_fi);
+		(s64)(cfs_rqb->zero_vruntime_fi - cfs_rqa->zero_vruntime_fi);
 
 	return delta > 0;
 }
@@ -13513,7 +13449,7 @@ static void set_next_task_fair(struct rq *rq, struct task_struct *p, bool first)
 void init_cfs_rq(struct cfs_rq *cfs_rq)
 {
 	cfs_rq->tasks_timeline = RB_ROOT_CACHED;
-	cfs_rq->min_vruntime = (u64)(-(1LL << 20));
+	cfs_rq->zero_vruntime = (u64)(-(1LL << 20));
 	raw_spin_lock_init(&cfs_rq->removed.lock);
 }
 
