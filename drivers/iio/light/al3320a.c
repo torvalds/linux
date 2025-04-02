@@ -101,6 +101,12 @@ static int al3320a_init(struct al3320a_data *data)
 	if (ret < 0)
 		return ret;
 
+	ret = devm_add_action_or_reset(&data->client->dev,
+				       al3320a_set_pwr_off,
+				       data);
+	if (ret)
+		return ret;
+
 	ret = i2c_smbus_write_byte_data(data->client, AL3320A_REG_CONFIG_RANGE,
 					FIELD_PREP(AL3320A_GAIN_MASK,
 						   AL3320A_RANGE_3));
@@ -210,10 +216,6 @@ static int al3320a_probe(struct i2c_client *client)
 		dev_err(dev, "al3320a chip init failed\n");
 		return ret;
 	}
-
-	ret = devm_add_action_or_reset(dev, al3320a_set_pwr_off, data);
-	if (ret < 0)
-		return ret;
 
 	return devm_iio_device_register(dev, indio_dev);
 }
