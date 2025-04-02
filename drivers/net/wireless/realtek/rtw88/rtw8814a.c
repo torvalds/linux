@@ -2200,6 +2200,7 @@ const struct rtw_chip_info rtw8814a_hw_spec = {
 	.rx_ldpc = true,
 	.max_power_index = 0x3f,
 	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_2,
+	.amsdu_in_ampdu = false, /* RX speed is better without AMSDU */
 	.usb_tx_agg_desc_num = 3,
 	.hw_feature_report = false,
 	.c2h_ra_report_size = 6,
