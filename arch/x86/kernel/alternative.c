@@ -2161,14 +2161,14 @@ static inline struct mm_struct *use_temporary_mm(struct mm_struct *temp_mm)
 __ro_after_init struct mm_struct *text_poke_mm;
 __ro_after_init unsigned long text_poke_mm_addr;
 
-static inline void unuse_temporary_mm(struct mm_struct *prev_mm)
+static inline void unuse_temporary_mm(struct mm_struct *mm, struct mm_struct *prev_mm)
 {
 	lockdep_assert_irqs_disabled();
 
 	switch_mm_irqs_off(NULL, prev_mm, current);
 
 	/* Clear the cpumask, to indicate no TLB flushing is needed anywhere */
-	cpumask_clear_cpu(raw_smp_processor_id(), mm_cpumask(text_poke_mm));
+	cpumask_clear_cpu(raw_smp_processor_id(), mm_cpumask(mm));
 
 	/*
 	 * Restore the breakpoints if they were disabled before the temporary mm
@@ -2275,7 +2275,7 @@ static void *__text_poke(text_poke_f func, void *addr, const void *src, size_t l
 	 * instruction that already allows the core to see the updated version.
 	 * Xen-PV is assumed to serialize execution in a similar manner.
 	 */
-	unuse_temporary_mm(prev_mm);
+	unuse_temporary_mm(text_poke_mm, prev_mm);
 
 	/*
 	 * Flushing the TLB might involve IPIs, which would require enabled
