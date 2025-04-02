@@ -183,7 +183,7 @@ static void try_read_btree_node(struct find_btree_nodes *f, struct bch_dev *ca,
 		return;
 
 	if (bch2_csum_type_is_encryption(BSET_CSUM_TYPE(&bn->keys))) {
-		if (!c->chacha20)
+		if (!c->chacha20_key_set)
 			return;
 
 		struct nonce nonce = btree_nonce(&bn->keys, 0);

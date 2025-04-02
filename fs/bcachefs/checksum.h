@@ -69,7 +69,6 @@ static inline void bch2_csum_err_msg(struct printbuf *out,
 	bch2_csum_to_text(out, type, expected);
 }
 
-int bch2_chacha_encrypt_key(struct bch_key *, struct nonce, void *, size_t);
 int bch2_request_key(struct bch_sb *, struct bch_key *);
 #ifndef __KERNEL__
 int bch2_revoke_key(struct bch_sb *);
@@ -156,7 +155,7 @@ static inline bool bch2_checksum_type_valid(const struct bch_fs *c,
 	if (type >= BCH_CSUM_NR)
 		return false;
 
-	if (bch2_csum_type_is_encryption(type) && !c->chacha20)
+	if (bch2_csum_type_is_encryption(type) && !c->chacha20_key_set)
 		return false;
 
 	return true;
