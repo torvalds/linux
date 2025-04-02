@@ -44,31 +44,41 @@ static inline bool __translate_far_to_hpfar(u64 far, u64 *hpfar)
 	return true;
 }
 
+/*
+ * Checks for the conditions when HPFAR_EL2 is written, per ARM ARM R_FKLWR.
+ */
+static inline bool __hpfar_valid(u64 esr)
+{
+	/*
+	 * CPUs affected by ARM erratum #834220 may incorrectly report a
+	 * stage-2 translation fault when a stage-1 permission fault occurs.
+	 *
+	 * Re-walk the page tables to determine if a stage-1 fault actually
+	 * occurred.
+	 */
+	if (cpus_have_final_cap(ARM64_WORKAROUND_834220) &&
+	    esr_fsc_is_translation_fault(esr))
+		return false;
+
+	if (esr_fsc_is_translation_fault(esr) || esr_fsc_is_access_flag_fault(esr))
+		return true;
+
+	if ((esr & ESR_ELx_S1PTW) && esr_fsc_is_permission_fault(esr))
+		return true;
+
+	return esr_fsc_is_addr_sz_fault(esr);
+}
+
 static inline bool __get_fault_info(u64 esr, struct kvm_vcpu_fault_info *fault)
 {
 	u64 hpfar, far;
 
 	far = read_sysreg_el2(SYS_FAR);
 
-	/*
-	 * The HPFAR can be invalid if the stage 2 fault did not
-	 * happen during a stage 1 page table walk (the ESR_EL2.S1PTW
-	 * bit is clear) and one of the two following cases are true:
-	 *   1. The fault was due to a permission fault
-	 *   2. The processor carries errata 834220
-	 *
-	 * Therefore, for all non S1PTW faults where we either have a
-	 * permission fault or the errata workaround is enabled, we
-	 * resolve the IPA using the AT instruction.
-	 */
-	if (!(esr & ESR_ELx_S1PTW) &&
-	    (cpus_have_final_cap(ARM64_WORKAROUND_834220) ||
-	     esr_fsc_is_permission_fault(esr))) {
-		if (!__translate_far_to_hpfar(far, &hpfar))
-			return false;
-	} else {
+	if (__hpfar_valid(esr))
 		hpfar = read_sysreg(hpfar_el2);
-	}
+	else if (!__translate_far_to_hpfar(far, &hpfar))
+		return false;
 
 	fault->far_el2 = far;
 	fault->hpfar_el2 = hpfar;
