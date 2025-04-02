@@ -1794,6 +1794,7 @@ bool test_range_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bit,
 	bool bitset = true;
 
 	ASSERT(is_power_of_2(bit));
+	ASSERT(start < end);
 
 	spin_lock(&tree->lock);
 	if (cached && extent_state_in_tree(cached) && cached->start <= start &&
@@ -1806,9 +1807,6 @@ bool test_range_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bit,
 			bitset = false;
 			break;
 		}
-
-		if (state->start > end)
-			break;
 
 		if ((state->state & bit) == 0) {
 			bitset = false;
