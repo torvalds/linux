@@ -138,16 +138,9 @@ static __always_inline void mwait_idle_with_hints(unsigned long eax, unsigned lo
  */
 static inline void __tpause(u32 ecx, u32 edx, u32 eax)
 {
-	/* "tpause %ecx, %edx, %eax" */
-	#ifdef CONFIG_AS_TPAUSE
-	asm volatile("tpause %%ecx"
-		     :
-		     : "c"(ecx), "d"(edx), "a"(eax));
-	#else
+	/* "tpause %ecx" */
 	asm volatile(".byte 0x66, 0x0f, 0xae, 0xf1"
-		     :
-		     : "c"(ecx), "d"(edx), "a"(eax));
-	#endif
+		     :: "c" (ecx), "d" (edx), "a" (eax));
 }
 
 #endif /* _ASM_X86_MWAIT_H */
