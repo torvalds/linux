@@ -41,6 +41,7 @@ struct iommu_dirty_ops;
 struct notifier_block;
 struct iommu_sva;
 struct iommu_dma_cookie;
+struct iommu_dma_msi_cookie;
 struct iommu_fault_param;
 struct iommufd_ctx;
 struct iommufd_viommu;
@@ -165,6 +166,15 @@ struct iommu_domain_geometry {
 	bool force_aperture;       /* DMA only allowed in mappable range? */
 };
 
+enum iommu_domain_cookie_type {
+	IOMMU_COOKIE_NONE,
+	IOMMU_COOKIE_DMA_IOVA,
+	IOMMU_COOKIE_DMA_MSI,
+	IOMMU_COOKIE_FAULT_HANDLER,
+	IOMMU_COOKIE_SVA,
+	IOMMU_COOKIE_IOMMUFD,
+};
+
 /* Domain feature flags */
 #define __IOMMU_DOMAIN_PAGING	(1U << 0)  /* Support for iommu_map/unmap */
 #define __IOMMU_DOMAIN_DMA_API	(1U << 1)  /* Domain for use in DMA-API
@@ -211,23 +221,18 @@ struct iommu_domain_geometry {
 
 struct iommu_domain {
 	unsigned type;
+	enum iommu_domain_cookie_type cookie_type;
 	const struct iommu_domain_ops *ops;
 	const struct iommu_dirty_ops *dirty_ops;
 	const struct iommu_ops *owner; /* Whose domain_alloc we came from */
 	unsigned long pgsize_bitmap;	/* Bitmap of page sizes in use */
 	struct iommu_domain_geometry geometry;
-	struct iommu_dma_cookie *iova_cookie;
 	int (*iopf_handler)(struct iopf_group *group);
 
-#if IS_ENABLED(CONFIG_IRQ_MSI_IOMMU)
-	int (*sw_msi)(struct iommu_domain *domain, struct msi_desc *desc,
-		      phys_addr_t msi_addr);
-#endif
-
-	union { /* Pointer usable by owner of the domain */
-		struct iommufd_hw_pagetable *iommufd_hwpt; /* iommufd */
-	};
-	union { /* Fault handler */
+	union { /* cookie */
+		struct iommu_dma_cookie *iova_cookie;
+		struct iommu_dma_msi_cookie *msi_cookie;
+		struct iommufd_hw_pagetable *iommufd_hwpt;
 		struct {
 			iommu_fault_handler_t handler;
 			void *handler_token;
@@ -243,16 +248,6 @@ struct iommu_domain {
 		};
 	};
 };
-
-static inline void iommu_domain_set_sw_msi(
-	struct iommu_domain *domain,
-	int (*sw_msi)(struct iommu_domain *domain, struct msi_desc *desc,
-		      phys_addr_t msi_addr))
-{
-#if IS_ENABLED(CONFIG_IRQ_MSI_IOMMU)
-	domain->sw_msi = sw_msi;
-#endif
-}
 
 static inline bool iommu_is_dma_domain(struct iommu_domain *domain)
 {

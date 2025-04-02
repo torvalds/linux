@@ -5,6 +5,7 @@
 #define __LINUX_IOMMU_PRIV_H
 
 #include <linux/iommu.h>
+#include <linux/msi.h>
 
 static inline const struct iommu_ops *dev_iommu_ops(struct device *dev)
 {
@@ -46,5 +47,20 @@ void iommu_detach_group_handle(struct iommu_domain *domain,
 			       struct iommu_group *group);
 int iommu_replace_group_handle(struct iommu_group *group,
 			       struct iommu_domain *new_domain,
+			       struct iommu_attach_handle *handle);
+
+#if IS_ENABLED(CONFIG_IOMMUFD_DRIVER_CORE) && IS_ENABLED(CONFIG_IRQ_MSI_IOMMU)
+int iommufd_sw_msi(struct iommu_domain *domain, struct msi_desc *desc,
+		   phys_addr_t msi_addr);
+#else /* !CONFIG_IOMMUFD_DRIVER_CORE || !CONFIG_IRQ_MSI_IOMMU */
+static inline int iommufd_sw_msi(struct iommu_domain *domain,
+				 struct msi_desc *desc, phys_addr_t msi_addr)
+{
+	return -EOPNOTSUPP;
+}
+#endif /* CONFIG_IOMMUFD_DRIVER_CORE && CONFIG_IRQ_MSI_IOMMU */
+
+int iommu_replace_device_pasid(struct iommu_domain *domain,
+			       struct device *dev, ioasid_t pasid,
 			       struct iommu_attach_handle *handle);
 #endif /* __LINUX_IOMMU_PRIV_H */
