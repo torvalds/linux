@@ -88,7 +88,7 @@ static int rtw8822bu_probe(struct usb_interface *intf,
 }
 
 static struct usb_driver rtw_8822bu_driver = {
-	.name = "rtw_8822bu",
+	.name = KBUILD_MODNAME,
 	.id_table = rtw_8822bu_id_table,
 	.probe = rtw8822bu_probe,
 	.disconnect = rtw_usb_disconnect,
