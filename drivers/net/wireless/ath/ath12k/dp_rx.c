@@ -1909,17 +1909,11 @@ static struct sk_buff *ath12k_dp_rx_get_msdu_last_buf(struct sk_buff_head *msdu_
 	return NULL;
 }
 
-static void ath12k_dp_rx_h_csum_offload(struct ath12k *ar, struct sk_buff *msdu)
+static void ath12k_dp_rx_h_csum_offload(struct sk_buff *msdu,
+					struct ath12k_dp_rx_info *rx_info)
 {
-	struct ath12k_skb_rxcb *rxcb = ATH12K_SKB_RXCB(msdu);
-	struct ath12k_base *ab = ar->ab;
-	bool ip_csum_fail, l4_csum_fail;
-
-	ip_csum_fail = ath12k_dp_rx_h_ip_cksum_fail(ab, rxcb->rx_desc);
-	l4_csum_fail = ath12k_dp_rx_h_l4_cksum_fail(ab, rxcb->rx_desc);
-
-	msdu->ip_summed = (ip_csum_fail || l4_csum_fail) ?
-			  CHECKSUM_NONE : CHECKSUM_UNNECESSARY;
+	msdu->ip_summed = (rx_info->ip_csum_fail || rx_info->l4_csum_fail) ?
+			   CHECKSUM_NONE : CHECKSUM_UNNECESSARY;
 }
 
 static int ath12k_dp_rx_crypto_mic_len(struct ath12k *ar,
@@ -2221,10 +2215,10 @@ static void ath12k_dp_rx_h_undecap(struct ath12k *ar, struct sk_buff *msdu,
 }
 
 struct ath12k_peer *
-ath12k_dp_rx_h_find_peer(struct ath12k_base *ab, struct sk_buff *msdu)
+ath12k_dp_rx_h_find_peer(struct ath12k_base *ab, struct sk_buff *msdu,
+			 struct ath12k_dp_rx_info *rx_info)
 {
 	struct ath12k_skb_rxcb *rxcb = ATH12K_SKB_RXCB(msdu);
-	struct hal_rx_desc *rx_desc = rxcb->rx_desc;
 	struct ath12k_peer *peer = NULL;
 
 	lockdep_assert_held(&ab->base_lock);
@@ -2235,39 +2229,35 @@ ath12k_dp_rx_h_find_peer(struct ath12k_base *ab, struct sk_buff *msdu)
 	if (peer)
 		return peer;
 
-	if (!rx_desc || !(ath12k_dp_rxdesc_mac_addr2_valid(ab, rx_desc)))
-		return NULL;
+	if (rx_info->addr2_present)
+		peer = ath12k_peer_find_by_addr(ab, rx_info->addr2);
 
-	peer = ath12k_peer_find_by_addr(ab,
-					ath12k_dp_rxdesc_get_mpdu_start_addr2(ab,
-									      rx_desc));
 	return peer;
 }
 
 static void ath12k_dp_rx_h_mpdu(struct ath12k *ar,
 				struct sk_buff *msdu,
 				struct hal_rx_desc *rx_desc,
-				struct ieee80211_rx_status *rx_status)
+				struct ath12k_dp_rx_info *rx_info)
 {
-	bool  fill_crypto_hdr;
 	struct ath12k_base *ab = ar->ab;
 	struct ath12k_skb_rxcb *rxcb;
 	enum hal_encrypt_type enctype;
 	bool is_decrypted = false;
 	struct ieee80211_hdr *hdr;
 	struct ath12k_peer *peer;
+	struct ieee80211_rx_status *rx_status = rx_info->rx_status;
 	u32 err_bitmap;
 
 	/* PN for multicast packets will be checked in mac80211 */
 	rxcb = ATH12K_SKB_RXCB(msdu);
-	fill_crypto_hdr = ath12k_dp_rx_h_is_da_mcbc(ar->ab, rx_desc);
-	rxcb->is_mcbc = fill_crypto_hdr;
+	rxcb->is_mcbc = rx_info->is_mcbc;
 
 	if (rxcb->is_mcbc)
-		rxcb->peer_id = ath12k_dp_rx_h_peer_id(ar->ab, rx_desc);
+		rxcb->peer_id = rx_info->peer_id;
 
 	spin_lock_bh(&ar->ab->base_lock);
-	peer = ath12k_dp_rx_h_find_peer(ar->ab, msdu);
+	peer = ath12k_dp_rx_h_find_peer(ar->ab, msdu, rx_info);
 	if (peer) {
 		if (rxcb->is_mcbc)
 			enctype = peer->sec_type_grp;
@@ -2297,7 +2287,7 @@ static void ath12k_dp_rx_h_mpdu(struct ath12k *ar,
 	if (is_decrypted) {
 		rx_status->flag |= RX_FLAG_DECRYPTED | RX_FLAG_MMIC_STRIPPED;
 
-		if (fill_crypto_hdr)
+		if (rx_info->is_mcbc)
 			rx_status->flag |= RX_FLAG_MIC_STRIPPED |
 					RX_FLAG_ICV_STRIPPED;
 		else
@@ -2305,36 +2295,27 @@ static void ath12k_dp_rx_h_mpdu(struct ath12k *ar,
 					   RX_FLAG_PN_VALIDATED;
 	}
 
-	ath12k_dp_rx_h_csum_offload(ar, msdu);
+	ath12k_dp_rx_h_csum_offload(msdu, rx_info);
 	ath12k_dp_rx_h_undecap(ar, msdu, rx_desc,
 			       enctype, rx_status, is_decrypted);
 
-	if (!is_decrypted || fill_crypto_hdr)
+	if (!is_decrypted || rx_info->is_mcbc)
 		return;
 
-	if (ath12k_dp_rx_h_decap_type(ar->ab, rx_desc) !=
-	    DP_RX_DECAP_TYPE_ETHERNET2_DIX) {
+	if (rx_info->decap_type != DP_RX_DECAP_TYPE_ETHERNET2_DIX) {
 		hdr = (void *)msdu->data;
 		hdr->frame_control &= ~__cpu_to_le16(IEEE80211_FCTL_PROTECTED);
 	}
 }
 
-static void ath12k_dp_rx_h_rate(struct ath12k *ar, struct hal_rx_desc *rx_desc,
-				struct ieee80211_rx_status *rx_status)
+static void ath12k_dp_rx_h_rate(struct ath12k *ar, struct ath12k_dp_rx_info *rx_info)
 {
-	struct ath12k_base *ab = ar->ab;
 	struct ieee80211_supported_band *sband;
-	enum rx_msdu_start_pkt_type pkt_type;
-	u8 bw;
-	u8 rate_mcs, nss;
-	u8 sgi;
+	struct ieee80211_rx_status *rx_status = rx_info->rx_status;
+	enum rx_msdu_start_pkt_type pkt_type = rx_info->pkt_type;
+	u8 bw = rx_info->bw, sgi = rx_info->sgi;
+	u8 rate_mcs = rx_info->rate_mcs, nss = rx_info->nss;
 	bool is_cck;
-
-	pkt_type = ath12k_dp_rx_h_pkt_type(ab, rx_desc);
-	bw = ath12k_dp_rx_h_rx_bw(ab, rx_desc);
-	rate_mcs = ath12k_dp_rx_h_rate_mcs(ab, rx_desc);
-	nss = ath12k_dp_rx_h_nss(ab, rx_desc);
-	sgi = ath12k_dp_rx_h_sgi(ab, rx_desc);
 
 	switch (pkt_type) {
 	case RX_MSDU_START_PKT_TYPE_11A:
@@ -2404,9 +2385,8 @@ static void ath12k_dp_rx_h_rate(struct ath12k *ar, struct hal_rx_desc *rx_desc,
 	}
 }
 
-static void ath12k_dp_rx_h_fetch_info(struct ath12k_base *ab,
-				      struct hal_rx_desc *rx_desc,
-				      struct ath12k_dp_rx_info *rx_info)
+void ath12k_dp_rx_h_fetch_info(struct ath12k_base *ab, struct hal_rx_desc *rx_desc,
+			       struct ath12k_dp_rx_info *rx_info)
 {
 	rx_info->ip_csum_fail = ath12k_dp_rx_h_ip_cksum_fail(ab, rx_desc);
 	rx_info->l4_csum_fail = ath12k_dp_rx_h_l4_cksum_fail(ab, rx_desc);
@@ -2426,12 +2406,14 @@ static void ath12k_dp_rx_h_fetch_info(struct ath12k_base *ab,
 				ath12k_dp_rxdesc_get_mpdu_start_addr2(ab, rx_desc));
 		rx_info->addr2_present = true;
 	}
+
+	ath12k_dbg_dump(ab, ATH12K_DBG_DATA, NULL, "rx_desc: ",
+			rx_desc, sizeof(*rx_desc));
 }
 
-void ath12k_dp_rx_h_ppdu(struct ath12k *ar, struct hal_rx_desc *rx_desc,
-			 struct ieee80211_rx_status *rx_status)
+void ath12k_dp_rx_h_ppdu(struct ath12k *ar, struct ath12k_dp_rx_info *rx_info)
 {
-	struct ath12k_base *ab = ar->ab;
+	struct ieee80211_rx_status *rx_status = rx_info->rx_status;
 	u8 channel_num;
 	u32 center_freq, meta_data;
 	struct ieee80211_channel *channel;
@@ -2445,7 +2427,7 @@ void ath12k_dp_rx_h_ppdu(struct ath12k *ar, struct hal_rx_desc *rx_desc,
 
 	rx_status->flag |= RX_FLAG_NO_SIGNAL_VAL;
 
-	meta_data = ath12k_dp_rx_h_freq(ab, rx_desc);
+	meta_data = rx_info->phy_meta_data;
 	channel_num = meta_data;
 	center_freq = meta_data >> 16;
 
@@ -2466,20 +2448,18 @@ void ath12k_dp_rx_h_ppdu(struct ath12k *ar, struct hal_rx_desc *rx_desc,
 				ieee80211_frequency_to_channel(channel->center_freq);
 		}
 		spin_unlock_bh(&ar->data_lock);
-		ath12k_dbg_dump(ar->ab, ATH12K_DBG_DATA, NULL, "rx_desc: ",
-				rx_desc, sizeof(*rx_desc));
 	}
 
 	if (rx_status->band != NL80211_BAND_6GHZ)
 		rx_status->freq = ieee80211_channel_to_frequency(channel_num,
 								 rx_status->band);
 
-	ath12k_dp_rx_h_rate(ar, rx_desc, rx_status);
+	ath12k_dp_rx_h_rate(ar, rx_info);
 }
 
 static void ath12k_dp_rx_deliver_msdu(struct ath12k *ar, struct napi_struct *napi,
 				      struct sk_buff *msdu,
-				      struct ieee80211_rx_status *status)
+				      struct ath12k_dp_rx_info *rx_info)
 {
 	struct ath12k_base *ab = ar->ab;
 	static const struct ieee80211_radiotap_he known = {
@@ -2492,6 +2472,7 @@ static void ath12k_dp_rx_deliver_msdu(struct ath12k *ar, struct napi_struct *nap
 	struct ieee80211_sta *pubsta;
 	struct ath12k_peer *peer;
 	struct ath12k_skb_rxcb *rxcb = ATH12K_SKB_RXCB(msdu);
+	struct ieee80211_rx_status *status = rx_info->rx_status;
 	u8 decap = DP_RX_DECAP_TYPE_RAW;
 	bool is_mcbc = rxcb->is_mcbc;
 	bool is_eapol = rxcb->is_eapol;
@@ -2504,10 +2485,10 @@ static void ath12k_dp_rx_deliver_msdu(struct ath12k *ar, struct napi_struct *nap
 	}
 
 	if (!(status->flag & RX_FLAG_ONLY_MONITOR))
-		decap = ath12k_dp_rx_h_decap_type(ab, rxcb->rx_desc);
+		decap = rx_info->decap_type;
 
 	spin_lock_bh(&ab->base_lock);
-	peer = ath12k_dp_rx_h_find_peer(ab, msdu);
+	peer = ath12k_dp_rx_h_find_peer(ab, msdu, rx_info);
 
 	pubsta = peer ? peer->sta : NULL;
 
@@ -2651,8 +2632,8 @@ static int ath12k_dp_rx_process_msdu(struct ath12k *ar,
 	}
 
 	ath12k_dp_rx_h_fetch_info(ab, rx_desc, rx_info);
-	ath12k_dp_rx_h_ppdu(ar, rx_desc, rx_info->rx_status);
-	ath12k_dp_rx_h_mpdu(ar, msdu, rx_desc, rx_info->rx_status);
+	ath12k_dp_rx_h_ppdu(ar, rx_info);
+	ath12k_dp_rx_h_mpdu(ar, msdu, rx_desc, rx_info);
 
 	rx_info->rx_status->flag |= RX_FLAG_SKIP_MONITOR | RX_FLAG_DUP_VALIDATED;
 
@@ -2712,7 +2693,7 @@ static void ath12k_dp_rx_process_received_packets(struct ath12k_base *ab,
 			continue;
 		}
 
-		ath12k_dp_rx_deliver_msdu(ar, napi, msdu, &rx_status);
+		ath12k_dp_rx_deliver_msdu(ar, napi, msdu, &rx_info);
 	}
 
 	rcu_read_unlock();
@@ -3054,7 +3035,7 @@ mic_fail:
 	if (unlikely(!ath12k_dp_rx_check_nwifi_hdr_len_valid(ab, rx_desc, msdu)))
 		return -EINVAL;
 
-	ath12k_dp_rx_h_ppdu(ar, rx_desc, rxs);
+	ath12k_dp_rx_h_ppdu(ar, &rx_info);
 	ath12k_dp_rx_h_undecap(ar, msdu, rx_desc,
 			       HAL_ENCRYPT_TYPE_TKIP_MIC, rxs, true);
 	ieee80211_rx(ath12k_ar_to_hw(ar), msdu);
@@ -3806,10 +3787,10 @@ static int ath12k_dp_rx_h_null_q_desc(struct ath12k *ar, struct sk_buff *msdu,
 		return -EINVAL;
 
 	ath12k_dp_rx_h_fetch_info(ab, desc, rx_info);
-	ath12k_dp_rx_h_ppdu(ar, desc, rx_info->rx_status);
-	ath12k_dp_rx_h_mpdu(ar, msdu, desc, rx_info->rx_status);
+	ath12k_dp_rx_h_ppdu(ar, rx_info);
+	ath12k_dp_rx_h_mpdu(ar, msdu, desc, rx_info);
 
-	rxcb->tid = ath12k_dp_rx_h_tid(ab, desc);
+	rxcb->tid = rx_info->tid;
 
 	/* Please note that caller will having the access to msdu and completing
 	 * rx with mac80211. Need not worry about cleaning up amsdu_list.
@@ -3870,7 +3851,7 @@ static bool ath12k_dp_rx_h_tkip_mic_err(struct ath12k *ar, struct sk_buff *msdu,
 	if (unlikely(!ath12k_dp_rx_check_nwifi_hdr_len_valid(ab, desc, msdu)))
 		return true;
 
-	ath12k_dp_rx_h_ppdu(ar, desc, rx_info->rx_status);
+	ath12k_dp_rx_h_ppdu(ar, rx_info);
 
 	rx_info->rx_status->flag |= (RX_FLAG_MMIC_STRIPPED | RX_FLAG_MMIC_ERROR |
 				     RX_FLAG_DECRYPTED);
@@ -3942,7 +3923,7 @@ static void ath12k_dp_rx_wbm_err(struct ath12k *ar,
 		return;
 	}
 
-	ath12k_dp_rx_deliver_msdu(ar, napi, msdu, &rxs);
+	ath12k_dp_rx_deliver_msdu(ar, napi, msdu, &rx_info);
 }
 
 int ath12k_dp_rx_process_wbm_err(struct ath12k_base *ab,
