@@ -74,7 +74,6 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kent Overstreet <kent.overstreet@gmail.com>");
 MODULE_DESCRIPTION("bcachefs filesystem");
-MODULE_SOFTDEP("pre: xxhash");
 
 const char * const bch2_fs_flag_strs[] = {
 #define x(n)		#n,
