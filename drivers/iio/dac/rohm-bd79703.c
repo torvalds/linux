@@ -38,9 +38,17 @@ static const struct regmap_config bd79703_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
+/* Dynamic driver private data */
 struct bd79703_data {
 	struct regmap *regmap;
 	int vfs;
+};
+
+/* Static, IC type specific data for different variants */
+struct bd7970x_chip_data {
+	const char *name;
+	const struct iio_chan_spec *channels;
+	int num_channels;
 };
 
 static int bd79703_read_raw(struct iio_dev *idev,
@@ -94,12 +102,23 @@ static const struct iio_chan_spec bd79703_channels[] = {
 	BD79703_CHAN(5),
 };
 
+static const struct bd7970x_chip_data bd79703_chip_data = {
+	.name = "bd79703",
+	.channels = bd79703_channels,
+	.num_channels = ARRAY_SIZE(bd79703_channels),
+};
+
 static int bd79703_probe(struct spi_device *spi)
 {
+	const struct bd7970x_chip_data *cd;
 	struct device *dev = &spi->dev;
 	struct bd79703_data *data;
 	struct iio_dev *idev;
 	int ret;
+
+	cd = spi_get_device_match_data(spi);
+	if (!cd)
+		return -ENODEV;
 
 	idev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!idev)
@@ -121,11 +140,11 @@ static int bd79703_probe(struct spi_device *spi)
 		return dev_err_probe(dev, ret, "Failed to get Vfs\n");
 
 	data->vfs = ret;
-	idev->channels = bd79703_channels;
-	idev->num_channels = ARRAY_SIZE(bd79703_channels);
+	idev->channels = cd->channels;
+	idev->num_channels = cd->num_channels;
 	idev->modes = INDIO_DIRECT_MODE;
 	idev->info = &bd79703_info;
-	idev->name = "bd79703";
+	idev->name = cd->name;
 
 	/* Initialize all to output zero */
 	ret = regmap_write(data->regmap, BD79703_REG_OUT_ALL, 0);
@@ -136,13 +155,13 @@ static int bd79703_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id bd79703_id[] = {
-	{ "bd79703", },
+	{ "bd79703", (kernel_ulong_t)&bd79703_chip_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, bd79703_id);
 
 static const struct of_device_id bd79703_of_match[] = {
-	{ .compatible = "rohm,bd79703", },
+	{ .compatible = "rohm,bd79703", .data = &bd79703_chip_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, bd79703_of_match);
