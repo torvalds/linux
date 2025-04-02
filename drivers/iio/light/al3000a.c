@@ -85,11 +85,16 @@ static void al3000a_set_pwr_off(void *_data)
 
 static int al3000a_init(struct al3000a_data *data)
 {
+	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 
 	ret = al3000a_set_pwr_on(data);
 	if (ret)
 		return ret;
+
+	ret = devm_add_action_or_reset(dev, al3000a_set_pwr_off, data);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to add action\n");
 
 	ret = regmap_write(data->regmap, AL3000A_REG_SYSTEM, AL3000A_CONFIG_RESET);
 	if (ret)
@@ -156,10 +161,6 @@ static int al3000a_probe(struct i2c_client *client)
 	ret = al3000a_init(data);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to init ALS\n");
-
-	ret = devm_add_action_or_reset(dev, al3000a_set_pwr_off, data);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to add action\n");
 
 	return devm_iio_device_register(dev, indio_dev);
 }
