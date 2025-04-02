@@ -2495,11 +2495,13 @@ struct follow_pfnmap_args {
 	 * Outputs:
 	 *
 	 * @pfn: the PFN of the address
+	 * @addr_mask: address mask covering pfn
 	 * @pgprot: the pgprot_t of the mapping
 	 * @writable: whether the mapping is writable
 	 * @special: whether the mapping is a special mapping (real PFN maps)
 	 */
 	unsigned long pfn;
+	unsigned long addr_mask;
 	pgprot_t pgprot;
 	bool writable;
 	bool special;

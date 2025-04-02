@@ -6670,6 +6670,7 @@ static inline void pfnmap_args_setup(struct follow_pfnmap_args *args,
 	args->lock = lock;
 	args->ptep = ptep;
 	args->pfn = pfn_base + ((args->address & ~addr_mask) >> PAGE_SHIFT);
+	args->addr_mask = addr_mask;
 	args->pgprot = pgprot;
 	args->writable = writable;
 	args->special = special;
