@@ -36,7 +36,6 @@ struct alloc_request {
 
 	/* These fields are used primarily by open_bucket_add_buckets */
 	struct open_buckets	ptrs;
-	struct open_buckets	ptrs2;
 	unsigned		nr_effective;	/* sum of @ptrs durability */
 	bool			have_cache;	/* have we allocated from a 0 durability dev */
 	struct bch_devs_mask	devs_may_alloc;
@@ -62,6 +61,13 @@ struct alloc_request {
 		u64		skipped_nouse;
 		u64		skipped_mi_btree_bitmap;
 	} counters;
+
+	unsigned		scratch_nr_replicas;
+	unsigned		scratch_nr_effective;
+	bool			scratch_have_cache;
+	enum bch_data_type	scratch_data_type;
+	struct open_buckets	scratch_ptrs;
+	struct bch_devs_mask	scratch_devs_may_alloc;
 };
 
 struct dev_alloc_list bch2_dev_alloc_list(struct bch_fs *,

@@ -829,15 +829,15 @@ static int bucket_alloc_set_writepoint(struct bch_fs *c,
 	unsigned i;
 	int ret = 0;
 
-	req->ptrs2.nr = 0;
+	req->scratch_ptrs.nr = 0;
 
 	open_bucket_for_each(c, &req->wp->ptrs, ob, i) {
 		if (!ret && want_bucket(c, req, ob))
 			ret = add_new_bucket(c, req, ob);
 		else
-			ob_push(c, &req->ptrs2, ob);
+			ob_push(c, &req->scratch_ptrs, ob);
 	}
-	req->wp->ptrs = req->ptrs2;
+	req->wp->ptrs = req->scratch_ptrs;
 
 	return ret;
 }
@@ -1214,7 +1214,7 @@ deallocate_extra_replicas(struct bch_fs *c,
 	unsigned extra_replicas = req->nr_effective - req->nr_replicas;
 	unsigned i;
 
-	req->ptrs2.nr = 0;
+	req->scratch_ptrs.nr = 0;
 
 	open_bucket_for_each(c, &req->ptrs, ob, i) {
 		unsigned d = ob_dev(c, ob)->mi.durability;
@@ -1223,11 +1223,11 @@ deallocate_extra_replicas(struct bch_fs *c,
 			extra_replicas -= d;
 			ob_push(c, &req->wp->ptrs, ob);
 		} else {
-			ob_push(c, &req->ptrs2, ob);
+			ob_push(c, &req->scratch_ptrs, ob);
 		}
 	}
 
-	req->ptrs = req->ptrs2;
+	req->ptrs = req->scratch_ptrs;
 }
 
 /*

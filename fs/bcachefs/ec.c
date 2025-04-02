@@ -1720,12 +1720,12 @@ static int new_stripe_alloc_buckets(struct btree_trans *trans,
 	unsigned i, j, nr_have_parity = 0, nr_have_data = 0;
 	int ret = 0;
 
-	enum bch_data_type	saved_data_type		= req->data_type;
-	struct open_buckets	saved_ptrs		= req->ptrs;
-	unsigned		saved_nr_replicas	= req->nr_replicas;
-	unsigned		saved_nr_effective	= req->nr_effective;
-	bool			saved_have_cache	= req->have_cache;
-	struct bch_devs_mask	saved_devs_may_alloc	= req->devs_may_alloc;
+	req->scratch_data_type		= req->data_type;
+	req->scratch_ptrs		= req->ptrs;
+	req->scratch_nr_replicas	= req->nr_replicas;
+	req->scratch_nr_effective	= req->nr_effective;
+	req->scratch_have_cache		= req->have_cache;
+	req->scratch_devs_may_alloc	= req->devs_may_alloc;
 
 	req->devs_may_alloc	= h->devs;
 	req->have_cache		= true;
@@ -1801,12 +1801,12 @@ static int new_stripe_alloc_buckets(struct btree_trans *trans,
 			goto err;
 	}
 err:
-	req->data_type		= saved_data_type;
-	req->ptrs		= saved_ptrs;
-	req->nr_replicas	= saved_nr_replicas;
-	req->nr_effective	= saved_nr_effective;
-	req->have_cache		= saved_have_cache;
-	req->devs_may_alloc	= saved_devs_may_alloc;
+	req->data_type		= req->scratch_data_type;
+	req->ptrs		= req->scratch_ptrs;
+	req->nr_replicas	= req->scratch_nr_replicas;
+	req->nr_effective	= req->scratch_nr_effective;
+	req->have_cache		= req->scratch_have_cache;
+	req->devs_may_alloc	= req->scratch_devs_may_alloc;
 	return ret;
 }
 
