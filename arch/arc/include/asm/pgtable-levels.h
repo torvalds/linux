@@ -177,7 +177,6 @@
 #define set_pte(ptep, pte)	((*(ptep)) = (pte))
 #define pte_pfn(pte)		(pte_val(pte) >> PAGE_SHIFT)
 #define pfn_pte(pfn, prot)	__pte(__pfn_to_phys(pfn) | pgprot_val(prot))
-#define mk_pte(page, prot)	pfn_pte(page_to_pfn(page), prot)
 
 #ifdef CONFIG_ISA_ARCV2
 #define pmd_leaf(x)		(pmd_val(x) & _PAGE_HW_SZ)
