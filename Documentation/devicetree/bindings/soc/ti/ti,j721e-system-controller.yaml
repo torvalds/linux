@@ -68,6 +68,11 @@ patternProperties:
     description:
       The node corresponding to SoC chip identification.
 
+  "^pcie-ctrl@[0-9a-f]+$":
+    type: object
+    description:
+      The node corresponding to PCIe control register.
+
 required:
   - compatible
   - reg
@@ -109,6 +114,11 @@ examples:
         chipid@14 {
             compatible = "ti,am654-chipid";
             reg = <0x14 0x4>;
+        };
+
+        pcie0_ctrl: pcie-ctrl@4070 {
+            compatible = "ti,j784s4-pcie-ctrl", "syscon";
+            reg = <0x4070 0x4>;
         };
     };
 ...
