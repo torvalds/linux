@@ -4,20 +4,18 @@ initramfs buffer format
 
 Al Viro, H. Peter Anvin
 
-Last revision: 2002-01-13
-
-Starting with kernel 2.5.x, the old "initial ramdisk" protocol is
-getting {replaced/complemented} with the new "initial ramfs"
-(initramfs) protocol.  The initramfs contents is passed using the same
-memory buffer protocol used by the initrd protocol, but the contents
+With kernel 2.5.x, the old "initial ramdisk" protocol was complemented
+with an "initial ramfs" protocol.  The initramfs content is passed
+using the same memory buffer protocol used by initrd, but the content
 is different.  The initramfs buffer contains an archive which is
-expanded into a ramfs filesystem; this document details the format of
-the initramfs buffer format.
+expanded into a ramfs filesystem; this document details the initramfs
+buffer format.
 
 The initramfs buffer format is based around the "newc" or "crc" CPIO
 formats, and can be created with the cpio(1) utility.  The cpio
-archive can be compressed using gzip(1).  One valid version of an
-initramfs buffer is thus a single .cpio.gz file.
+archive can be compressed using gzip(1), or any other algorithm provided
+via CONFIG_DECOMPRESS_*.  One valid version of an initramfs buffer is
+thus a single .cpio.gz file.
 
 The full format of the initramfs buffer is defined by the following
 grammar, where::
@@ -25,12 +23,20 @@ grammar, where::
 	*	is used to indicate "0 or more occurrences of"
 	(|)	indicates alternatives
 	+	indicates concatenation
-	GZIP()	indicates the gzip(1) of the operand
+	GZIP()	indicates gzip compression of the operand
+	BZIP2()	indicates bzip2 compression of the operand
+	LZMA()	indicates lzma compression of the operand
+	XZ()	indicates xz compression of the operand
+	LZO()	indicates lzo compression of the operand
+	LZ4()	indicates lz4 compression of the operand
+	ZSTD()	indicates zstd compression of the operand
 	ALGN(n)	means padding with null bytes to an n-byte boundary
 
-	initramfs  := ("\0" | cpio_archive | cpio_gzip_archive)*
+	initramfs := ("\0" | cpio_archive | cpio_compressed_archive)*
 
-	cpio_gzip_archive := GZIP(cpio_archive)
+	cpio_compressed_archive := (GZIP(cpio_archive) | BZIP2(cpio_archive)
+		| LZMA(cpio_archive) | XZ(cpio_archive) | LZO(cpio_archive)
+		| LZ4(cpio_archive) | ZSTD(cpio_archive))
 
 	cpio_archive := cpio_file* + (<nothing> | cpio_trailer)
 
@@ -74,6 +80,8 @@ c_chksum      8 bytes		 Checksum of data field if c_magic is 070702;
 
 The c_mode field matches the contents of st_mode returned by stat(2)
 on Linux, and encodes the file type and file permissions.
+
+c_mtime is ignored unless CONFIG_INITRAMFS_PRESERVE_MTIME=y is set.
 
 The c_filesize should be zero for any file which is not a regular file
 or symlink.
