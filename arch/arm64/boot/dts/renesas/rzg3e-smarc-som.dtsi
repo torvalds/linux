@@ -47,6 +47,16 @@
 		regulator-always-on;
 	};
 
+	reg_vdd0p8v_others: regulator-vdd0p8v-others {
+		compatible = "regulator-fixed";
+
+		regulator-name = "fixed-0.8V";
+		regulator-min-microvolt = <800000>;
+		regulator-max-microvolt = <800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	/* 32.768kHz crystal */
 	x3: x3-clock {
 		compatible = "fixed-clock";
@@ -57,6 +67,11 @@
 
 &audio_extal_clk {
 	clock-frequency = <48000000>;
+};
+
+&gpu {
+	status = "okay";
+	mali-supply = <&reg_vdd0p8v_others>;
 };
 
 &i2c2 {
