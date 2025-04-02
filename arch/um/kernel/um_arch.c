@@ -12,6 +12,7 @@
 #include <linux/panic_notifier.h>
 #include <linux/seq_file.h>
 #include <linux/string.h>
+#include <linux/string_choices.h>
 #include <linux/utsname.h>
 #include <linux/sched.h>
 #include <linux/sched/task.h>
@@ -78,7 +79,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "model name\t: UML\n");
 	seq_printf(m, "mode\t\t: skas\n");
 	seq_printf(m, "host\t\t: %s\n", host_info);
-	seq_printf(m, "fpu\t\t: %s\n", cpu_has(&boot_cpu_data, X86_FEATURE_FPU) ? "yes" : "no");
+	seq_printf(m, "fpu\t\t: %s\n", str_yes_no(cpu_has(&boot_cpu_data, X86_FEATURE_FPU)));
 	seq_printf(m, "flags\t\t:");
 	for (i = 0; i < 32*NCAPINTS; i++)
 		if (cpu_has(&boot_cpu_data, i) && (x86_cap_flags[i] != NULL))
