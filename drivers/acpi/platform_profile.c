@@ -245,7 +245,8 @@ static const struct class platform_profile_class = {
 /**
  * _aggregate_choices - Aggregate the available profile choices
  * @dev: The device
- * @arg: struct aggregate_choices_data
+ * @arg: struct aggregate_choices_data, with it's aggregate member bitmap
+ *	 initially filled with ones
  *
  * Return: 0 on success, -errno on failure
  */
@@ -256,12 +257,10 @@ static int _aggregate_choices(struct device *dev, void *arg)
 	struct platform_profile_handler *handler;
 
 	lockdep_assert_held(&profile_lock);
+
 	handler = to_pprof_handler(dev);
 	bitmap_or(tmp, handler->choices, handler->hidden_choices, PLATFORM_PROFILE_LAST);
-	if (test_bit(PLATFORM_PROFILE_LAST, data->aggregate))
-		bitmap_copy(data->aggregate, tmp, PLATFORM_PROFILE_LAST);
-	else
-		bitmap_and(data->aggregate, tmp, data->aggregate, PLATFORM_PROFILE_LAST);
+	bitmap_and(data->aggregate, tmp, data->aggregate, PLATFORM_PROFILE_LAST);
 	data->count++;
 
 	return 0;
@@ -305,7 +304,6 @@ static ssize_t platform_profile_choices_show(struct kobject *kobj,
 	};
 	int err;
 
-	set_bit(PLATFORM_PROFILE_LAST, data.aggregate);
 	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &profile_lock) {
 		err = class_for_each_device(&platform_profile_class, NULL,
 					    &data, _aggregate_choices);
@@ -422,7 +420,7 @@ static ssize_t platform_profile_store(struct kobject *kobj,
 	i = sysfs_match_string(profile_names, buf);
 	if (i < 0 || i == PLATFORM_PROFILE_CUSTOM)
 		return -EINVAL;
-	set_bit(PLATFORM_PROFILE_LAST, data.aggregate);
+
 	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &profile_lock) {
 		ret = class_for_each_device(&platform_profile_class, NULL,
 					    &data, _aggregate_choices);
@@ -502,7 +500,6 @@ int platform_profile_cycle(void)
 	enum platform_profile_option profile = PLATFORM_PROFILE_LAST;
 	int err;
 
-	set_bit(PLATFORM_PROFILE_LAST, data.aggregate);
 	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &profile_lock) {
 		err = class_for_each_device(&platform_profile_class, NULL,
 					    &profile, _aggregate_profiles);
