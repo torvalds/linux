@@ -1,4 +1,4 @@
-The cxl driver was removed in 6.14.
+The cxl driver was removed in 6.15.
 
 Please note that attributes that are shared between devices are stored in
 the directory pointed to by the symlink device/.
