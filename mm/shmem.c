@@ -98,7 +98,7 @@ static struct vfsmount *shm_mnt __ro_after_init;
 #define SHORT_SYMLINK_LEN 128
 
 /*
- * shmem_fallocate communicates with shmem_fault or shmem_writepage via
+ * shmem_fallocate communicates with shmem_fault or shmem_writeout via
  * inode->i_private (with i_rwsem making sure that it has only one user at
  * a time): we would prefer not to enlarge the shmem inode just for that.
  */
@@ -107,7 +107,7 @@ struct shmem_falloc {
 	pgoff_t start;		/* start of range currently being fallocated */
 	pgoff_t next;		/* the next page offset to be fallocated */
 	pgoff_t nr_falloced;	/* how many new pages have been fallocated */
-	pgoff_t nr_unswapped;	/* how often writepage refused to swap out */
+	pgoff_t nr_unswapped;	/* how often writeout refused to swap out */
 };
 
 struct shmem_options {
@@ -446,7 +446,7 @@ static void shmem_recalc_inode(struct inode *inode, long alloced, long swapped)
 	/*
 	 * Special case: whereas normally shmem_recalc_inode() is called
 	 * after i_mapping->nrpages has already been adjusted (up or down),
-	 * shmem_writepage() has to raise swapped before nrpages is lowered -
+	 * shmem_writeout() has to raise swapped before nrpages is lowered -
 	 * to stop a racing shmem_recalc_inode() from thinking that a page has
 	 * been freed.  Compensate here, to avoid the need for a followup call.
 	 */
@@ -1536,11 +1536,6 @@ int shmem_unuse(unsigned int type)
 	return error;
 }
 
-static int shmem_writepage(struct page *page, struct writeback_control *wbc)
-{
-	return shmem_writeout(page_folio(page), wbc);
-}
-
 /**
  * shmem_writeout - Write the folio to swap
  * @folio: The folio to write
@@ -1558,13 +1553,6 @@ int shmem_writeout(struct folio *folio, struct writeback_control *wbc)
 	int nr_pages;
 	bool split = false;
 
-	/*
-	 * Our capabilities prevent regular writeback or sync from ever calling
-	 * shmem_writepage; but a stacking filesystem might use ->writepage of
-	 * its underlying filesystem, in which case tmpfs should write out to
-	 * swap only in response to memory pressure, and not for the writeback
-	 * threads or sync.
-	 */
 	if (WARN_ON_ONCE(!wbc->for_reclaim))
 		goto redirty;
 
@@ -1653,7 +1641,7 @@ try_split:
 
 		mutex_unlock(&shmem_swaplist_mutex);
 		BUG_ON(folio_mapped(folio));
-		return swap_writepage(&folio->page, wbc);
+		return swap_writeout(folio, wbc);
 	}
 
 	list_del_init(&info->swaplist);
@@ -3776,7 +3764,7 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
 			index--;
 
 		/*
-		 * Inform shmem_writepage() how far we have reached.
+		 * Inform shmem_writeout() how far we have reached.
 		 * No need for lock or barrier: we have the page lock.
 		 */
 		if (!folio_test_uptodate(folio))
@@ -5199,7 +5187,6 @@ static int shmem_error_remove_folio(struct address_space *mapping,
 }
 
 static const struct address_space_operations shmem_aops = {
-	.writepage	= shmem_writepage,
 	.dirty_folio	= noop_dirty_folio,
 #ifdef CONFIG_TMPFS
 	.write_begin	= shmem_write_begin,
