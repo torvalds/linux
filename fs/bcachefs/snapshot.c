@@ -843,9 +843,6 @@ static int check_snapshot_exists(struct btree_trans *trans, u32 id)
 {
 	struct bch_fs *c = trans->c;
 
-	if (bch2_snapshot_exists(c, id))
-		return 0;
-
 	/* Do we need to reconstruct the snapshot_tree entry as well? */
 	struct btree_iter iter;
 	struct bkey_s_c k;
