@@ -1404,6 +1404,14 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 
 	nr = cur_seq - last_seq;
 
+	/*
+	 * Extra fudge factor, in case we crashed when the journal pin fifo was
+	 * nearly or completely full. We'll need to be able to open additional
+	 * journal entries (at least a few) in order for journal replay to get
+	 * going:
+	 */
+	nr += nr / 4;
+
 	if (nr + 1 > j->pin.size) {
 		free_fifo(&j->pin);
 		init_fifo(&j->pin, roundup_pow_of_two(nr + 1), GFP_KERNEL);
