@@ -889,7 +889,6 @@ static void btintel_pcie_msix_tx_handle(struct btintel_pcie_data *data)
 static int btintel_pcie_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_event_hdr *hdr = (void *)skb->data;
-	const char diagnostics_hdr[] = { 0x87, 0x80, 0x03 };
 	struct btintel_pcie_data *data = hci_get_drvdata(hdev);
 
 	if (skb->len > HCI_EVENT_HDR_SIZE && hdr->evt == 0xff &&
@@ -943,15 +942,6 @@ static int btintel_pcie_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
 				kfree_skb(skb);
 				return 0;
 			}
-		}
-
-		/* Handle all diagnostics events separately. May still call
-		 * hci_recv_frame.
-		 */
-		if (len >= sizeof(diagnostics_hdr) &&
-		    memcmp(&skb->data[2], diagnostics_hdr,
-			   sizeof(diagnostics_hdr)) == 0) {
-			return btintel_diagnostics(hdev, skb);
 		}
 
 		/* This is a debug event that comes from IML and OP image when it
