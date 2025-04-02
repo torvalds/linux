@@ -14,10 +14,6 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory@20000000 {
-		reg = <0x20000000 0x4000000>;
-	};
-
 	i2c-gpio-0 {
 		rtc@56 {
 			compatible = "microcrystal,rv3029";
