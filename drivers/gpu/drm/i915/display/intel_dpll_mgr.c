@@ -2604,11 +2604,8 @@ ehl_combo_pll_div_frac_wa_needed(struct intel_display *display)
 {
 	return ((display->platform.elkhartlake &&
 		 IS_DISPLAY_STEP(display, STEP_B0, STEP_FOREVER)) ||
-		 display->platform.dg1 ||
-		 display->platform.tigerlake ||
-		 display->platform.alderlake_s ||
-		 display->platform.alderlake_p) &&
-		 display->dpll.ref_clks.nssc == 38400;
+		DISPLAY_VER(display) >= 12) &&
+		display->dpll.ref_clks.nssc == 38400;
 }
 
 struct icl_combo_pll_params {
