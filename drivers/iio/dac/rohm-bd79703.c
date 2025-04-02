@@ -84,15 +84,17 @@ static const struct iio_info bd79703_info = {
 	.write_raw = bd79703_write_raw,
 };
 
-#define BD79703_CHAN(_chan) {					\
+#define BD79703_CHAN_ADDR(_chan, _addr) {			\
 	.type = IIO_VOLTAGE,					\
 	.indexed = 1,						\
 	.output = 1,						\
 	.channel = (_chan),					\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
-	.address = (_chan + 1),					\
+	.address = (_addr),					\
 }
+
+#define BD79703_CHAN(_chan) BD79703_CHAN_ADDR((_chan), (_chan) + 1)
 
 static const struct iio_chan_spec bd79700_channels[] = {
 	BD79703_CHAN(0),
@@ -103,6 +105,19 @@ static const struct iio_chan_spec bd79701_channels[] = {
 	BD79703_CHAN(0),
 	BD79703_CHAN(1),
 	BD79703_CHAN(2),
+};
+
+/*
+ * The BD79702 has 4 channels. They aren't mapped to BD79703 channels 0, 1, 2
+ * and 3, but to the channels 0, 1, 4, 5. So the addressing used with SPI
+ * accesses is 1, 2, 5 and 6 for them. Thus, they're not constant offset to
+ * the channel number as with other IC variants.
+ */
+static const struct iio_chan_spec bd79702_channels[] = {
+	BD79703_CHAN_ADDR(0, 1),
+	BD79703_CHAN_ADDR(1, 2),
+	BD79703_CHAN_ADDR(2, 5),
+	BD79703_CHAN_ADDR(3, 6),
 };
 
 static const struct iio_chan_spec bd79703_channels[] = {
@@ -126,6 +141,13 @@ static const struct bd7970x_chip_data bd79701_chip_data = {
 	.channels = bd79701_channels,
 	.num_channels = ARRAY_SIZE(bd79701_channels),
 	.has_vfs = false,
+};
+
+static const struct bd7970x_chip_data bd79702_chip_data = {
+	.name = "bd79702",
+	.channels = bd79702_channels,
+	.num_channels = ARRAY_SIZE(bd79702_channels),
+	.has_vfs = true,
 };
 
 static const struct bd7970x_chip_data bd79703_chip_data = {
@@ -194,6 +216,7 @@ static int bd79703_probe(struct spi_device *spi)
 static const struct spi_device_id bd79703_id[] = {
 	{ "bd79700", (kernel_ulong_t)&bd79700_chip_data },
 	{ "bd79701", (kernel_ulong_t)&bd79701_chip_data },
+	{ "bd79702", (kernel_ulong_t)&bd79702_chip_data },
 	{ "bd79703", (kernel_ulong_t)&bd79703_chip_data },
 	{ }
 };
@@ -202,6 +225,7 @@ MODULE_DEVICE_TABLE(spi, bd79703_id);
 static const struct of_device_id bd79703_of_match[] = {
 	{ .compatible = "rohm,bd79700", .data = &bd79700_chip_data },
 	{ .compatible = "rohm,bd79701", .data = &bd79701_chip_data },
+	{ .compatible = "rohm,bd79702", .data = &bd79702_chip_data },
 	{ .compatible = "rohm,bd79703", .data = &bd79703_chip_data },
 	{ }
 };
