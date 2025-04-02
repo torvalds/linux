@@ -877,7 +877,7 @@ static struct extent_state *find_first_extent_bit_state(struct extent_io_tree *t
 	 */
 	state = tree_search(tree, start);
 	while (state) {
-		if (state->end >= start && (state->state & bits))
+		if (state->state & bits)
 			return state;
 		state = next_state(state);
 	}
