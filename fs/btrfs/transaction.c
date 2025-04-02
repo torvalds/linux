@@ -1191,8 +1191,8 @@ static int __btrfs_wait_marked_extents(struct btrfs_fs_info *fs_info,
 		 * concurrently - we do it only at transaction commit time when
 		 * it's safe to do it (through extent_io_tree_release()).
 		 */
-		ret = clear_extent_bit(dirty_pages, start, end,
-				       EXTENT_NEED_WAIT, &cached_state);
+		ret = btrfs_clear_extent_bit(dirty_pages, start, end,
+					     EXTENT_NEED_WAIT, &cached_state);
 		if (ret == -ENOMEM)
 			ret = 0;
 		if (!ret)

@@ -173,27 +173,28 @@ void get_range_bits(struct extent_io_tree *tree, u64 start, u64 end, u32 *bits,
 		    struct extent_state **cached_state);
 int clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 			     u32 bits, struct extent_changeset *changeset);
-int __clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		       u32 bits, struct extent_state **cached,
-		       struct extent_changeset *changeset);
+int btrfs_clear_extent_bit_changeset(struct extent_io_tree *tree, u64 start, u64 end,
+				     u32 bits, struct extent_state **cached,
+				     struct extent_changeset *changeset);
 
-static inline int clear_extent_bit(struct extent_io_tree *tree, u64 start,
-				   u64 end, u32 bits,
-				   struct extent_state **cached)
+static inline int btrfs_clear_extent_bit(struct extent_io_tree *tree, u64 start,
+					 u64 end, u32 bits,
+					 struct extent_state **cached)
 {
-	return __clear_extent_bit(tree, start, end, bits, cached, NULL);
+	return btrfs_clear_extent_bit_changeset(tree, start, end, bits, cached, NULL);
 }
 
 static inline int btrfs_unlock_extent(struct extent_io_tree *tree, u64 start, u64 end,
 				      struct extent_state **cached)
 {
-	return __clear_extent_bit(tree, start, end, EXTENT_LOCKED, cached, NULL);
+	return btrfs_clear_extent_bit_changeset(tree, start, end, EXTENT_LOCKED,
+						cached, NULL);
 }
 
-static inline int clear_extent_bits(struct extent_io_tree *tree, u64 start,
-				    u64 end, u32 bits)
+static inline int btrfs_clear_extent_bits(struct extent_io_tree *tree, u64 start,
+					  u64 end, u32 bits)
 {
-	return clear_extent_bit(tree, start, end, bits, NULL);
+	return btrfs_clear_extent_bit(tree, start, end, bits, NULL);
 }
 
 int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
@@ -201,12 +202,12 @@ int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		   u32 bits, struct extent_state **cached_state);
 
-static inline int clear_extent_dirty(struct extent_io_tree *tree, u64 start,
-				     u64 end, struct extent_state **cached)
+static inline int btrfs_clear_extent_dirty(struct extent_io_tree *tree, u64 start,
+					   u64 end, struct extent_state **cached)
 {
-	return clear_extent_bit(tree, start, end,
-				EXTENT_DIRTY | EXTENT_DELALLOC |
-				EXTENT_DO_ACCOUNTING, cached);
+	return btrfs_clear_extent_bit(tree, start, end,
+				      EXTENT_DIRTY | EXTENT_DELALLOC |
+				      EXTENT_DO_ACCOUNTING, cached);
 }
 
 int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
@@ -238,7 +239,8 @@ static inline bool btrfs_try_lock_dio_extent(struct extent_io_tree *tree, u64 st
 static inline int btrfs_unlock_dio_extent(struct extent_io_tree *tree, u64 start,
 					  u64 end, struct extent_state **cached)
 {
-	return __clear_extent_bit(tree, start, end, EXTENT_DIO_LOCKED, cached, NULL);
+	return btrfs_clear_extent_bit_changeset(tree, start, end, EXTENT_DIO_LOCKED,
+						cached, NULL);
 }
 
 #endif /* BTRFS_EXTENT_IO_TREE_H */

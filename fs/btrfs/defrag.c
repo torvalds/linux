@@ -1170,9 +1170,9 @@ static int defrag_one_locked_target(struct btrfs_inode *inode,
 	ret = btrfs_delalloc_reserve_space(inode, &data_reserved, start, len);
 	if (ret < 0)
 		return ret;
-	clear_extent_bit(&inode->io_tree, start, start + len - 1,
-			 EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING |
-			 EXTENT_DEFRAG, cached_state);
+	btrfs_clear_extent_bit(&inode->io_tree, start, start + len - 1,
+			       EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING |
+			       EXTENT_DEFRAG, cached_state);
 	set_extent_bit(&inode->io_tree, start, start + len - 1,
 		       EXTENT_DELALLOC | EXTENT_DEFRAG, cached_state);
 

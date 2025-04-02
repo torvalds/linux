@@ -575,8 +575,8 @@ static int btrfs_dio_iomap_begin(struct inode *inode, loff_t start,
 	if (write)
 		unlock_bits |= EXTENT_DIO_LOCKED;
 
-	clear_extent_bit(&BTRFS_I(inode)->io_tree, lockstart, lockend,
-			 unlock_bits, &cached_state);
+	btrfs_clear_extent_bit(&BTRFS_I(inode)->io_tree, lockstart, lockend,
+			       unlock_bits, &cached_state);
 
 	/* We didn't use everything, unlock the dio extent for the remainder. */
 	if (!write && (start + len) < lockend)
@@ -591,8 +591,8 @@ unlock_err:
 	 * to update this, be explicit that we expect EXTENT_LOCKED and
 	 * EXTENT_DIO_LOCKED to be set here, and so that's what we're clearing.
 	 */
-	clear_extent_bit(&BTRFS_I(inode)->io_tree, lockstart, lockend,
-			 EXTENT_LOCKED | EXTENT_DIO_LOCKED, &cached_state);
+	btrfs_clear_extent_bit(&BTRFS_I(inode)->io_tree, lockstart, lockend,
+			       EXTENT_LOCKED | EXTENT_DIO_LOCKED, &cached_state);
 err:
 	if (dio_data->data_space_reserved) {
 		btrfs_free_reserved_data_space(BTRFS_I(inode),

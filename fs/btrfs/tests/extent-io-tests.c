@@ -326,7 +326,7 @@ static int test_find_delalloc(u32 sectorsize, u32 nodesize)
 out_bits:
 	if (ret)
 		dump_extent_io_tree(tmp);
-	clear_extent_bits(tmp, 0, total_dirty - 1, (unsigned)-1);
+	btrfs_clear_extent_bits(tmp, 0, total_dirty - 1, (unsigned)-1);
 out:
 	if (locked_page)
 		put_page(locked_page);
@@ -662,7 +662,7 @@ static int test_find_first_clear_extent_bit(void)
 out:
 	if (ret)
 		dump_extent_io_tree(&tree);
-	clear_extent_bits(&tree, 0, (u64)-1, CHUNK_TRIMMED | CHUNK_ALLOCATED);
+	btrfs_clear_extent_bits(&tree, 0, (u64)-1, CHUNK_TRIMMED | CHUNK_ALLOCATED);
 
 	return ret;
 }

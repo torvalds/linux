@@ -121,8 +121,8 @@ int btrfs_inode_clear_file_extent_range(struct btrfs_inode *inode, u64 start,
 	ASSERT(IS_ALIGNED(start + len, inode->root->fs_info->sectorsize) ||
 	       len == (u64)-1);
 
-	return clear_extent_bit(inode->file_extent_tree, start,
-				start + len - 1, EXTENT_DIRTY, NULL);
+	return btrfs_clear_extent_bit(inode->file_extent_tree, start,
+				      start + len - 1, EXTENT_DIRTY, NULL);
 }
 
 static size_t bytes_to_csum_size(const struct btrfs_fs_info *fs_info, u32 bytes)

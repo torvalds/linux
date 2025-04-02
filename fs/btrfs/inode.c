@@ -1757,7 +1757,7 @@ static int fallback_to_cow(struct btrfs_inode *inode,
 		spin_unlock(&sinfo->lock);
 
 		if (count > 0)
-			clear_extent_bits(io_tree, start, end, EXTENT_NORESERVE);
+			btrfs_clear_extent_bits(io_tree, start, end, EXTENT_NORESERVE);
 	}
 	btrfs_unlock_extent(io_tree, start, end, &cached_state);
 
@@ -3213,9 +3213,9 @@ int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent)
 	 */
 	if ((clear_bits & EXTENT_DELALLOC_NEW) &&
 	    !test_bit(BTRFS_ORDERED_TRUNCATED, &ordered_extent->flags))
-		clear_extent_bit(&inode->io_tree, start, end,
-				 EXTENT_DELALLOC_NEW | EXTENT_ADD_INODE_BYTES,
-				 &cached_state);
+		btrfs_clear_extent_bit(&inode->io_tree, start, end,
+				       EXTENT_DELALLOC_NEW | EXTENT_ADD_INODE_BYTES,
+				       &cached_state);
 
 	btrfs_inode_safe_disk_i_size_write(inode, 0);
 	ret = btrfs_update_inode_fallback(trans, inode);
@@ -3224,8 +3224,8 @@ int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent)
 		goto out;
 	}
 out:
-	clear_extent_bit(&inode->io_tree, start, end, clear_bits,
-			 &cached_state);
+	btrfs_clear_extent_bit(&inode->io_tree, start, end, clear_bits,
+			       &cached_state);
 
 	if (trans)
 		btrfs_end_transaction(trans);
@@ -3380,8 +3380,8 @@ bool btrfs_data_csum_ok(struct btrfs_bio *bbio, struct btrfs_device *dev,
 	    test_range_bit(&inode->io_tree, file_offset, end, EXTENT_NODATASUM,
 			   NULL)) {
 		/* Skip the range without csum for data reloc inode */
-		clear_extent_bits(&inode->io_tree, file_offset, end,
-				  EXTENT_NODATASUM);
+		btrfs_clear_extent_bits(&inode->io_tree, file_offset, end,
+					EXTENT_NODATASUM);
 		return true;
 	}
 
@@ -4872,9 +4872,9 @@ again:
 		goto again;
 	}
 
-	clear_extent_bit(&inode->io_tree, block_start, block_end,
-			 EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG,
-			 &cached_state);
+	btrfs_clear_extent_bit(&inode->io_tree, block_start, block_end,
+			       EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG,
+			       &cached_state);
 
 	ret = btrfs_set_extent_delalloc(inode, block_start, block_end, 0,
 					&cached_state);
@@ -5258,9 +5258,9 @@ static void evict_inode_truncate_pages(struct inode *inode)
 			btrfs_qgroup_free_data(BTRFS_I(inode), NULL, start,
 					       end - start + 1, NULL);
 
-		clear_extent_bit(io_tree, start, end,
-				 EXTENT_CLEAR_ALL_BITS | EXTENT_DO_ACCOUNTING,
-				 &cached_state);
+		btrfs_clear_extent_bit(io_tree, start, end,
+				       EXTENT_CLEAR_ALL_BITS | EXTENT_DO_ACCOUNTING,
+				       &cached_state);
 
 		cond_resched();
 		spin_lock(&io_tree->lock);
@@ -7416,10 +7416,10 @@ static void btrfs_invalidate_folio(struct folio *folio, size_t offset,
 		 * btrfs_finish_ordered_io().
 		 */
 		if (!inode_evicting)
-			clear_extent_bit(tree, cur, range_end,
-					 EXTENT_DELALLOC |
-					 EXTENT_LOCKED | EXTENT_DO_ACCOUNTING |
-					 EXTENT_DEFRAG, &cached_state);
+			btrfs_clear_extent_bit(tree, cur, range_end,
+					       EXTENT_DELALLOC |
+					       EXTENT_LOCKED | EXTENT_DO_ACCOUNTING |
+					       EXTENT_DEFRAG, &cached_state);
 
 		spin_lock_irq(&inode->ordered_tree_lock);
 		set_bit(BTRFS_ORDERED_TRUNCATED, &ordered->flags);
@@ -7462,9 +7462,10 @@ next:
 		 */
 		btrfs_qgroup_free_data(inode, NULL, cur, range_end + 1 - cur, NULL);
 		if (!inode_evicting)
-			clear_extent_bit(tree, cur, range_end, EXTENT_LOCKED |
-					 EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING |
-					 EXTENT_DEFRAG | extra_flags, &cached_state);
+			btrfs_clear_extent_bit(tree, cur, range_end, EXTENT_LOCKED |
+					       EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING |
+					       EXTENT_DEFRAG | extra_flags,
+					       &cached_state);
 		cur = range_end + 1;
 	}
 	/*

@@ -4693,7 +4693,7 @@ static void btrfs_destroy_marked_extents(struct btrfs_fs_info *fs_info,
 
 	while (find_first_extent_bit(dirty_pages, start, &start, &end,
 				     mark, NULL)) {
-		clear_extent_bits(dirty_pages, start, end, mark);
+		btrfs_clear_extent_bits(dirty_pages, start, end, mark);
 		while (start <= end) {
 			eb = find_extent_buffer(fs_info, start);
 			start += fs_info->nodesize;
@@ -4732,7 +4732,7 @@ static void btrfs_destroy_pinned_extent(struct btrfs_fs_info *fs_info,
 			break;
 		}
 
-		clear_extent_dirty(unpin, start, end, &cached_state);
+		btrfs_clear_extent_dirty(unpin, start, end, &cached_state);
 		free_extent_state(cached_state);
 		btrfs_error_unpin_extent_range(fs_info, start, end);
 		mutex_unlock(&fs_info->unused_bg_unpin_mutex);

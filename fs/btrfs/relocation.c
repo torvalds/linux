@@ -2904,10 +2904,10 @@ again:
 		ret = btrfs_set_extent_delalloc(BTRFS_I(inode), clamped_start,
 						clamped_end, 0, &cached_state);
 		if (ret) {
-			clear_extent_bit(&BTRFS_I(inode)->io_tree,
-					 clamped_start, clamped_end,
-					 EXTENT_LOCKED | EXTENT_BOUNDARY,
-					 &cached_state);
+			btrfs_clear_extent_bit(&BTRFS_I(inode)->io_tree,
+					       clamped_start, clamped_end,
+					       EXTENT_LOCKED | EXTENT_BOUNDARY,
+					       &cached_state);
 			btrfs_delalloc_release_metadata(BTRFS_I(inode),
 							clamped_len, true);
 			btrfs_delalloc_release_extents(BTRFS_I(inode),
@@ -3643,7 +3643,7 @@ restart:
 	}
 
 	btrfs_release_path(path);
-	clear_extent_bits(&rc->processed_blocks, 0, (u64)-1, EXTENT_DIRTY);
+	btrfs_clear_extent_bits(&rc->processed_blocks, 0, (u64)-1, EXTENT_DIRTY);
 
 	if (trans) {
 		btrfs_end_transaction_throttle(trans);

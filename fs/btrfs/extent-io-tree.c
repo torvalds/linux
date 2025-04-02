@@ -597,9 +597,9 @@ static void set_gfp_mask_from_bits(u32 *bits, gfp_t *mask)
  *
  * This takes the tree lock, and returns 0 on success and < 0 on error.
  */
-int __clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		       u32 bits, struct extent_state **cached_state,
-		       struct extent_changeset *changeset)
+int btrfs_clear_extent_bit_changeset(struct extent_io_tree *tree, u64 start, u64 end,
+				     u32 bits, struct extent_state **cached_state,
+				     struct extent_changeset *changeset)
 {
 	struct extent_state *state;
 	struct extent_state *cached;
@@ -1828,7 +1828,7 @@ int clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 	 */
 	ASSERT(!(bits & EXTENT_LOCK_BITS));
 
-	return __clear_extent_bit(tree, start, end, bits, NULL, changeset);
+	return btrfs_clear_extent_bit_changeset(tree, start, end, bits, NULL, changeset);
 }
 
 bool btrfs_try_lock_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
@@ -1841,7 +1841,8 @@ bool btrfs_try_lock_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 			       NULL, cached, NULL);
 	if (err == -EEXIST) {
 		if (failed_start > start)
-			clear_extent_bit(tree, start, failed_start - 1, bits, cached);
+			btrfs_clear_extent_bit(tree, start, failed_start - 1,
+					       bits, cached);
 		return 0;
 	}
 	return 1;
@@ -1862,8 +1863,8 @@ int btrfs_lock_extent_bits(struct extent_io_tree *tree, u64 start, u64 end, u32 
 			       &failed_state, cached_state, NULL);
 	while (err == -EEXIST) {
 		if (failed_start != start)
-			clear_extent_bit(tree, start, failed_start - 1,
-					 bits, cached_state);
+			btrfs_clear_extent_bit(tree, start, failed_start - 1,
+					       bits, cached_state);
 
 		wait_extent_bit(tree, failed_start, end, bits, &failed_state);
 		err = __set_extent_bit(tree, start, end, bits,

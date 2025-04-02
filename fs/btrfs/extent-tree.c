@@ -2839,7 +2839,7 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
 			ret = btrfs_discard_extent(fs_info, start,
 						   end + 1 - start, NULL);
 
-		clear_extent_dirty(unpin, start, end, &cached_state);
+		btrfs_clear_extent_dirty(unpin, start, end, &cached_state);
 		ret = unpin_extent_range(fs_info, start, end, true);
 		BUG_ON(ret);
 		mutex_unlock(&fs_info->unused_bg_unpin_mutex);
