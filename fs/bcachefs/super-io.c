@@ -468,6 +468,9 @@ int bch2_sb_validate(struct bch_sb *sb, u64 read_offset,
 			SET_BCH_SB_VERSION_INCOMPAT_ALLOWED(sb, BCH_SB_VERSION_INCOMPAT(sb));
 	}
 
+	if (sb->nr_devices > 1)
+		SET_BCH_SB_MULTI_DEVICE(sb, true);
+
 	if (!flags) {
 		/*
 		 * Been seeing a bug where these are getting inexplicably
@@ -612,6 +615,7 @@ static void bch2_sb_update(struct bch_fs *c)
 
 	c->sb.features		= le64_to_cpu(src->features[0]);
 	c->sb.compat		= le64_to_cpu(src->compat[0]);
+	c->sb.multi_device	= BCH_SB_MULTI_DEVICE(src);
 
 	memset(c->sb.errors_silent, 0, sizeof(c->sb.errors_silent));
 

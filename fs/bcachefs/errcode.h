@@ -201,6 +201,7 @@
 	x(EINVAL,			device_has_been_removed)		\
 	x(EINVAL,			device_splitbrain)			\
 	x(EINVAL,			device_already_online)			\
+	x(EINVAL,			filesystem_uuid_already_open)		\
 	x(EINVAL,			insufficient_devices_to_start)		\
 	x(EINVAL,			invalid)				\
 	x(EINVAL,			internal_fsck_err)			\

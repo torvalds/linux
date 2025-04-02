@@ -699,9 +699,10 @@ static int bch2_fs_online(struct bch_fs *c)
 
 	lockdep_assert_held(&bch_fs_list_lock);
 
-	if (__bch2_uuid_to_fs(c->sb.uuid)) {
+	if (c->sb.multi_device &&
+	    __bch2_uuid_to_fs(c->sb.uuid)) {
 		bch_err(c, "filesystem UUID already open");
-		return -EINVAL;
+		return -BCH_ERR_filesystem_uuid_already_open;
 	}
 
 	ret = bch2_fs_chardev_init(c);
@@ -712,7 +713,9 @@ static int bch2_fs_online(struct bch_fs *c)
 
 	bch2_fs_debug_init(c);
 
-	ret = kobject_add(&c->kobj, NULL, "%pU", c->sb.user_uuid.b) ?:
+	ret = (c->sb.multi_device
+	       ? kobject_add(&c->kobj, NULL, "%pU", c->sb.user_uuid.b)
+	       : kobject_add(&c->kobj, NULL, "%s", c->name)) ?:
 	    kobject_add(&c->internal, &c->kobj, "internal") ?:
 	    kobject_add(&c->opts_dir, &c->kobj, "options") ?:
 #ifndef CONFIG_BCACHEFS_NO_LATENCY_ACCT
@@ -902,7 +905,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts,
 		goto err;
 	}
 
-	if (sbs->nr != 1)
+	if (c->sb.multi_device)
 		pr_uuid(&name, c->sb.user_uuid.b);
 	else
 		prt_bdevname(&name, sbs->data[0].bdev);
@@ -1792,11 +1795,11 @@ err:
 int bch2_dev_add(struct bch_fs *c, const char *path)
 {
 	struct bch_opts opts = bch2_opts_empty();
-	struct bch_sb_handle sb;
+	struct bch_sb_handle sb = {};
 	struct bch_dev *ca = NULL;
 	struct printbuf errbuf = PRINTBUF;
 	struct printbuf label = PRINTBUF;
-	int ret;
+	int ret = 0;
 
 	ret = bch2_read_super(path, &opts, &sb);
 	bch_err_msg(c, ret, "reading super");
@@ -1809,6 +1812,20 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 		bch2_disk_path_to_text_sb(&label, sb.sb, BCH_MEMBER_GROUP(&dev_mi) - 1);
 		if (label.allocation_failure) {
 			ret = -ENOMEM;
+			goto err;
+		}
+	}
+
+	if (list_empty(&c->list)) {
+		mutex_lock(&bch_fs_list_lock);
+		if (__bch2_uuid_to_fs(c->sb.uuid))
+			ret = -BCH_ERR_filesystem_uuid_already_open;
+		else
+			list_add(&c->list, &bch_fs_list);
+		mutex_unlock(&bch_fs_list_lock);
+
+		if (ret) {
+			bch_err(c, "filesystem UUID already open");
 			goto err;
 		}
 	}
@@ -1829,6 +1846,7 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 
 	down_write(&c->state_lock);
 	mutex_lock(&c->sb_lock);
+	SET_BCH_SB_MULTI_DEVICE(c->disk_sb.sb, true);
 
 	ret = bch2_sb_from_fs(c, ca);
 	bch_err_msg(c, ret, "setting up new superblock");

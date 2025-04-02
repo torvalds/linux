@@ -933,7 +933,11 @@ void bch2_fs_debug_init(struct bch_fs *c)
 	if (IS_ERR_OR_NULL(bch_debug))
 		return;
 
-	snprintf(name, sizeof(name), "%pU", c->sb.user_uuid.b);
+	if (c->sb.multi_device)
+		snprintf(name, sizeof(name), "%pU", c->sb.user_uuid.b);
+	else
+		strscpy(name, c->name, sizeof(name));
+
 	c->fs_debug_dir = debugfs_create_dir(name, bch_debug);
 	if (IS_ERR_OR_NULL(c->fs_debug_dir))
 		return;

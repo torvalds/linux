@@ -2514,7 +2514,12 @@ got_sb:
 	sb->s_time_min		= div_s64(S64_MIN, c->sb.time_units_per_sec) + 1;
 	sb->s_time_max		= div_s64(S64_MAX, c->sb.time_units_per_sec);
 	super_set_uuid(sb, c->sb.user_uuid.b, sizeof(c->sb.user_uuid));
-	super_set_sysfs_name_uuid(sb);
+
+	if (c->sb.multi_device)
+		super_set_sysfs_name_uuid(sb);
+	else
+		strscpy(sb->s_sysfs_name, c->name, sizeof(sb->s_sysfs_name));
+
 	sb->s_shrink->seeks	= 0;
 	c->vfs_sb		= sb;
 	strscpy(sb->s_id, c->name, sizeof(sb->s_id));
