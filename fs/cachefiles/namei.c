@@ -128,10 +128,11 @@ retry:
 		ret = security_path_mkdir(&path, subdir, 0700);
 		if (ret < 0)
 			goto mkdir_error;
-		subdir = ERR_PTR(cachefiles_inject_write_error());
-		if (!IS_ERR(subdir))
+		ret = cachefiles_inject_write_error();
+		if (ret == 0)
 			subdir = vfs_mkdir(&nop_mnt_idmap, d_inode(dir), subdir, 0700);
-		ret = PTR_ERR(subdir);
+		else
+			subdir = ERR_PTR(ret);
 		if (IS_ERR(subdir)) {
 			trace_cachefiles_vfs_error(NULL, d_inode(dir), ret,
 						   cachefiles_trace_mkdir_error);

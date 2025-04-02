@@ -5326,8 +5326,10 @@ struct kstatmount {
 	struct mnt_idmap *idmap;
 	u64 mask;
 	struct path root;
-	struct statmount sm;
 	struct seq_file seq;
+
+	/* Must be last --ends in a flexible-array member. */
+	struct statmount sm;
 };
 
 static u64 mnt_to_attr_flags(struct vfsmount *mnt)
