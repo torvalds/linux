@@ -8,11 +8,10 @@
  * Copyright (c) 2021 Tianjia Zhang <tianjia.zhang@linux.alibaba.com>
  */
 
+#include <asm/fpu/api.h>
 #include <linux/module.h>
 #include <linux/crypto.h>
 #include <linux/kernel.h>
-#include <asm/simd.h>
-#include <crypto/internal/simd.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/sm4.h>
 #include "sm4-avx.h"
@@ -48,10 +47,9 @@ static int ctr_crypt(struct skcipher_request *req)
 static struct skcipher_alg sm4_aesni_avx2_skciphers[] = {
 	{
 		.base = {
-			.cra_name		= "__ecb(sm4)",
-			.cra_driver_name	= "__ecb-sm4-aesni-avx2",
+			.cra_name		= "ecb(sm4)",
+			.cra_driver_name	= "ecb-sm4-aesni-avx2",
 			.cra_priority		= 500,
-			.cra_flags		= CRYPTO_ALG_INTERNAL,
 			.cra_blocksize		= SM4_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct sm4_ctx),
 			.cra_module		= THIS_MODULE,
@@ -64,10 +62,9 @@ static struct skcipher_alg sm4_aesni_avx2_skciphers[] = {
 		.decrypt	= sm4_avx_ecb_decrypt,
 	}, {
 		.base = {
-			.cra_name		= "__cbc(sm4)",
-			.cra_driver_name	= "__cbc-sm4-aesni-avx2",
+			.cra_name		= "cbc(sm4)",
+			.cra_driver_name	= "cbc-sm4-aesni-avx2",
 			.cra_priority		= 500,
-			.cra_flags		= CRYPTO_ALG_INTERNAL,
 			.cra_blocksize		= SM4_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct sm4_ctx),
 			.cra_module		= THIS_MODULE,
@@ -81,10 +78,9 @@ static struct skcipher_alg sm4_aesni_avx2_skciphers[] = {
 		.decrypt	= cbc_decrypt,
 	}, {
 		.base = {
-			.cra_name		= "__ctr(sm4)",
-			.cra_driver_name	= "__ctr-sm4-aesni-avx2",
+			.cra_name		= "ctr(sm4)",
+			.cra_driver_name	= "ctr-sm4-aesni-avx2",
 			.cra_priority		= 500,
-			.cra_flags		= CRYPTO_ALG_INTERNAL,
 			.cra_blocksize		= 1,
 			.cra_ctxsize		= sizeof(struct sm4_ctx),
 			.cra_module		= THIS_MODULE,
@@ -99,9 +95,6 @@ static struct skcipher_alg sm4_aesni_avx2_skciphers[] = {
 		.decrypt	= ctr_crypt,
 	}
 };
-
-static struct simd_skcipher_alg *
-simd_sm4_aesni_avx2_skciphers[ARRAY_SIZE(sm4_aesni_avx2_skciphers)];
 
 static int __init sm4_init(void)
 {
@@ -121,16 +114,14 @@ static int __init sm4_init(void)
 		return -ENODEV;
 	}
 
-	return simd_register_skciphers_compat(sm4_aesni_avx2_skciphers,
-					ARRAY_SIZE(sm4_aesni_avx2_skciphers),
-					simd_sm4_aesni_avx2_skciphers);
+	return crypto_register_skciphers(sm4_aesni_avx2_skciphers,
+					 ARRAY_SIZE(sm4_aesni_avx2_skciphers));
 }
 
 static void __exit sm4_exit(void)
 {
-	simd_unregister_skciphers(sm4_aesni_avx2_skciphers,
-				ARRAY_SIZE(sm4_aesni_avx2_skciphers),
-				simd_sm4_aesni_avx2_skciphers);
+	crypto_unregister_skciphers(sm4_aesni_avx2_skciphers,
+				    ARRAY_SIZE(sm4_aesni_avx2_skciphers));
 }
 
 module_init(sm4_init);
