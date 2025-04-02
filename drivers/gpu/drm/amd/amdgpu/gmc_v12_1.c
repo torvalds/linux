@@ -117,7 +117,7 @@ static int gmc_v12_1_process_interrupt(struct amdgpu_device *adev,
 	node_id = entry->node_id;
 
 	addr = (u64)entry->src_data[0] << 12;
-	addr |= ((u64)entry->src_data[1] & 0xf) << 44;
+	addr |= ((u64)entry->src_data[1] & 0x1fff) << 44;
 
 	if (entry->src_id == UTCL2_1_0__SRCID__RETRY) {
 		retry_fault = true;
