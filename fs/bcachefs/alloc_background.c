@@ -2084,6 +2084,9 @@ static int invalidate_one_bp(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
+	if (!extent_k.k)
+		return 0;
+
 	struct bkey_i *n =
 		bch2_bkey_make_mut(trans, &extent_iter, &extent_k,
 				   BTREE_UPDATE_internal_snapshot_node);
