@@ -65,6 +65,24 @@ struct ath12k_dp_rx_rfc1042_hdr {
 	__be16 snap_type;
 } __packed;
 
+struct ath12k_dp_rx_info {
+	struct ieee80211_rx_status *rx_status;
+	u32 phy_meta_data;
+	u16 peer_id;
+	u8 decap_type;
+	u8 pkt_type;
+	u8 sgi;
+	u8 rate_mcs;
+	u8 bw;
+	u8 nss;
+	u8 addr2[ETH_ALEN];
+	u8 tid;
+	bool ip_csum_fail;
+	bool l4_csum_fail;
+	bool is_mcbc;
+	bool addr2_present;
+};
+
 static inline u32 ath12k_he_gi_to_nl80211_he_gi(u8 sgi)
 {
 	u32 ret = 0;
