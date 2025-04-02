@@ -1409,7 +1409,7 @@ read the ciphertext into the page cache and decrypt it in-place.  The
 folio lock must be held until decryption has finished, to prevent the
 folio from becoming visible to userspace prematurely.
 
-For the write path (->writepage()) of regular files, filesystems
+For the write path (->writepages()) of regular files, filesystems
 cannot encrypt data in-place in the page cache, since the cached
 plaintext must be preserved.  Instead, filesystems must encrypt into a
 temporary buffer or "bounce page", then write out the temporary
