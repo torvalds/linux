@@ -13,22 +13,17 @@ from .remote import Remote
 class NetDrvEnvBase:
     """
     Base class for a NIC / host envirnoments
+
+    Attributes:
+      test_dir: Path to the source directory of the test
+      net_lib_dir: Path to the net/lib directory
     """
     def __init__(self, src_path):
-        self.src_path = src_path
+        self.src_path = Path(src_path)
+        self.test_dir = self.src_path.parent.resolve()
+        self.net_lib_dir = (Path(__file__).parent / "../../../../net/lib").resolve()
+
         self.env = self._load_env_file()
-
-    def rpath(self, path):
-        """
-        Get an absolute path to a file based on a path relative to the directory
-        containing the test which constructed env.
-
-        For example, if the test.py is in the same directory as
-        a binary (built from helper.c), the test can use env.rpath("helper")
-        to get the absolute path to the binary
-        """
-        src_dir = Path(self.src_path).parent.resolve()
-        return (src_dir / path).as_posix()
 
     def _load_env_file(self):
         env = os.environ.copy()

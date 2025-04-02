@@ -5171,7 +5171,7 @@ end:
 		if (tcp_is_sack(tp))
 			tcp_grow_window(sk, skb, false);
 		skb_condense(skb);
-		tcp_skb_set_owner_r(skb, sk);
+		skb_set_owner_r(skb, sk);
 	}
 }
 
@@ -5187,7 +5187,7 @@ static int __must_check tcp_queue_rcv(struct sock *sk, struct sk_buff *skb,
 	tcp_rcv_nxt_update(tcp_sk(sk), TCP_SKB_CB(skb)->end_seq);
 	if (!eaten) {
 		tcp_add_receive_queue(sk, skb);
-		tcp_skb_set_owner_r(skb, sk);
+		skb_set_owner_r(skb, sk);
 	}
 	return eaten;
 }
@@ -5504,7 +5504,7 @@ skip_this:
 			__skb_queue_before(list, skb, nskb);
 		else
 			__skb_queue_tail(&tmp, nskb); /* defer rbtree insertion */
-		tcp_skb_set_owner_r(nskb, sk);
+		skb_set_owner_r(nskb, sk);
 		mptcp_skb_ext_move(nskb, skb);
 
 		/* Copy data, releasing collapsed skbs. */
