@@ -134,7 +134,6 @@ config CRYPTO_SERPENT_SSE2_X86_64
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_SERPENT
-	select CRYPTO_SIMD
 	imply CRYPTO_CTR
 	help
 	  Length-preserving ciphers: Serpent cipher algorithm
@@ -150,7 +149,6 @@ config CRYPTO_SERPENT_SSE2_586
 	depends on X86 && !64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_SERPENT
-	select CRYPTO_SIMD
 	imply CRYPTO_CTR
 	help
 	  Length-preserving ciphers: Serpent cipher algorithm
@@ -166,7 +164,6 @@ config CRYPTO_SERPENT_AVX_X86_64
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_SERPENT
-	select CRYPTO_SIMD
 	imply CRYPTO_XTS
 	imply CRYPTO_CTR
 	help
