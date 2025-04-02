@@ -977,18 +977,23 @@ void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
  * that override the kernel memory protections (e.g., W^X), without exposing the
  * temporary page-table mappings that are required for these write operations to
  * other CPUs. Using a temporary mm also allows to avoid TLB shootdowns when the
- * mapping is torn down.
+ * mapping is torn down.  Temporary mms can also be used for EFI runtime service
+ * calls or similar functionality.
  *
- * Context: The temporary mm needs to be used exclusively by a single core. To
- *          harden security IRQs must be disabled while the temporary mm is
- *          loaded, thereby preventing interrupt handler bugs from overriding
- *          the kernel memory protection.
+ * It is illegal to schedule while using a temporary mm -- the context switch
+ * code is unaware of the temporary mm and does not know how to context switch.
+ * Use a real (non-temporary) mm in a kernel thread if you need to sleep.
+ *
+ * Note: For sensitive memory writes, the temporary mm needs to be used
+ *       exclusively by a single core, and IRQs should be disabled while the
+ *       temporary mm is loaded, thereby preventing interrupt handler bugs from
+ *       overriding the kernel memory protection.
  */
 struct mm_struct *use_temporary_mm(struct mm_struct *temp_mm)
 {
 	struct mm_struct *prev_mm;
 
-	lockdep_assert_irqs_disabled();
+	lockdep_assert_preemption_disabled();
 
 	/*
 	 * Make sure not to be in TLB lazy mode, as otherwise we'll end up
@@ -1020,7 +1025,7 @@ struct mm_struct *use_temporary_mm(struct mm_struct *temp_mm)
 
 void unuse_temporary_mm(struct mm_struct *prev_mm)
 {
-	lockdep_assert_irqs_disabled();
+	lockdep_assert_preemption_disabled();
 
 	/* Clear the cpumask, to indicate no TLB flushing is needed anywhere */
 	cpumask_clear_cpu(smp_processor_id(), mm_cpumask(this_cpu_read(cpu_tlbstate.loaded_mm)));
