@@ -273,6 +273,6 @@ unsigned long __get_current_cr3_fast(void);
 #include <asm-generic/mmu_context.h>
 
 extern struct mm_struct *use_temporary_mm(struct mm_struct *temp_mm);
-extern void unuse_temporary_mm(struct mm_struct *mm, struct mm_struct *prev_mm);
+extern void unuse_temporary_mm(struct mm_struct *prev_mm);
 
 #endif /* _ASM_X86_MMU_CONTEXT_H */

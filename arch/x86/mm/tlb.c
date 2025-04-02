@@ -1018,14 +1018,14 @@ struct mm_struct *use_temporary_mm(struct mm_struct *temp_mm)
 	return prev_mm;
 }
 
-void unuse_temporary_mm(struct mm_struct *mm, struct mm_struct *prev_mm)
+void unuse_temporary_mm(struct mm_struct *prev_mm)
 {
 	lockdep_assert_irqs_disabled();
 
-	switch_mm_irqs_off(NULL, prev_mm, current);
-
 	/* Clear the cpumask, to indicate no TLB flushing is needed anywhere */
-	cpumask_clear_cpu(raw_smp_processor_id(), mm_cpumask(mm));
+	cpumask_clear_cpu(smp_processor_id(), mm_cpumask(this_cpu_read(cpu_tlbstate.loaded_mm)));
+
+	switch_mm_irqs_off(NULL, prev_mm, current);
 
 	/*
 	 * Restore the breakpoints if they were disabled before the temporary mm
