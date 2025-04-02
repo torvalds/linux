@@ -1891,8 +1891,6 @@ static int get_refresh_rate(struct dc_state *context)
 
 	/* check if refresh rate at least 120hz */
 	timing = &context->streams[0]->timing;
-	if (timing == NULL)
-		return 0;
 
 	h_v_total = timing->h_total * timing->v_total;
 	if (h_v_total == 0)
