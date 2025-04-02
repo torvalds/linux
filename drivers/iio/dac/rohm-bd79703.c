@@ -49,6 +49,7 @@ struct bd7970x_chip_data {
 	const char *name;
 	const struct iio_chan_spec *channels;
 	int num_channels;
+	bool has_vfs;
 };
 
 static int bd79703_read_raw(struct iio_dev *idev,
@@ -93,6 +94,17 @@ static const struct iio_info bd79703_info = {
 	.address = (_chan + 1),					\
 }
 
+static const struct iio_chan_spec bd79700_channels[] = {
+	BD79703_CHAN(0),
+	BD79703_CHAN(1),
+};
+
+static const struct iio_chan_spec bd79701_channels[] = {
+	BD79703_CHAN(0),
+	BD79703_CHAN(1),
+	BD79703_CHAN(2),
+};
+
 static const struct iio_chan_spec bd79703_channels[] = {
 	BD79703_CHAN(0),
 	BD79703_CHAN(1),
@@ -102,10 +114,25 @@ static const struct iio_chan_spec bd79703_channels[] = {
 	BD79703_CHAN(5),
 };
 
+static const struct bd7970x_chip_data bd79700_chip_data = {
+	.name = "bd79700",
+	.channels = bd79700_channels,
+	.num_channels = ARRAY_SIZE(bd79700_channels),
+	.has_vfs = false,
+};
+
+static const struct bd7970x_chip_data bd79701_chip_data = {
+	.name = "bd79701",
+	.channels = bd79701_channels,
+	.num_channels = ARRAY_SIZE(bd79701_channels),
+	.has_vfs = false,
+};
+
 static const struct bd7970x_chip_data bd79703_chip_data = {
 	.name = "bd79703",
 	.channels = bd79703_channels,
 	.num_channels = ARRAY_SIZE(bd79703_channels),
+	.has_vfs = true,
 };
 
 static int bd79703_probe(struct spi_device *spi)
@@ -131,15 +158,25 @@ static int bd79703_probe(struct spi_device *spi)
 		return dev_err_probe(dev, PTR_ERR(data->regmap),
 				     "Failed to initialize Regmap\n");
 
-	ret = devm_regulator_get_enable(dev, "vcc");
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to enable VCC\n");
+	/*
+	 * BD79703 has a separate VFS pin, whereas the BD79700 and BD79701 use
+	 * VCC for their full-scale output voltage.
+	 */
+	if (cd->has_vfs) {
+		ret = devm_regulator_get_enable(dev, "vcc");
+		if (ret)
+			return dev_err_probe(dev, ret, "Failed to enable VCC\n");
 
-	ret = devm_regulator_get_enable_read_voltage(dev, "vfs");
-	if (ret < 0)
-		return dev_err_probe(dev, ret, "Failed to get Vfs\n");
-
+		ret = devm_regulator_get_enable_read_voltage(dev, "vfs");
+		if (ret < 0)
+			return dev_err_probe(dev, ret, "Failed to get Vfs\n");
+	} else {
+		ret = devm_regulator_get_enable_read_voltage(dev, "vcc");
+		if (ret < 0)
+			return dev_err_probe(dev, ret, "Failed to get VCC\n");
+	}
 	data->vfs = ret;
+
 	idev->channels = cd->channels;
 	idev->num_channels = cd->num_channels;
 	idev->modes = INDIO_DIRECT_MODE;
@@ -155,12 +192,16 @@ static int bd79703_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id bd79703_id[] = {
+	{ "bd79700", (kernel_ulong_t)&bd79700_chip_data },
+	{ "bd79701", (kernel_ulong_t)&bd79701_chip_data },
 	{ "bd79703", (kernel_ulong_t)&bd79703_chip_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, bd79703_id);
 
 static const struct of_device_id bd79703_of_match[] = {
+	{ .compatible = "rohm,bd79700", .data = &bd79700_chip_data },
+	{ .compatible = "rohm,bd79701", .data = &bd79701_chip_data },
 	{ .compatible = "rohm,bd79703", .data = &bd79703_chip_data },
 	{ }
 };
