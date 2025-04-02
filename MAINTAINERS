@@ -1216,7 +1216,9 @@ AMD SPI DRIVER
 M:	Raju Rangoju <Raju.Rangoju@amd.com>
 L:	linux-spi@vger.kernel.org
 S:	Supported
+F:	drivers/spi/spi-amd-pci.c
 F:	drivers/spi/spi-amd.c
+F:	drivers/spi/spi-amd.h
 
 AMD XDNA DRIVER
 M:	Min Ma <min.ma@amd.com>

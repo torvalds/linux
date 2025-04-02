@@ -17,6 +17,8 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/spi-mem.h>
 
+#include "spi-amd.h"
+
 #define AMD_SPI_CTRL0_REG	0x00
 #define AMD_SPI_EXEC_CMD	BIT(16)
 #define AMD_SPI_FIFO_CLEAR	BIT(20)
@@ -81,18 +83,6 @@
 #define AMD_SPI_OP_READ_1_1_4_4B	0x6c    /* Read data bytes (Quad Output SPI) */
 #define AMD_SPI_OP_READ_1_4_4_4B	0xec    /* Read data bytes (Quad I/O SPI) */
 
-/**
- * enum amd_spi_versions - SPI controller versions
- * @AMD_SPI_V1:		AMDI0061 hardware version
- * @AMD_SPI_V2:		AMDI0062 hardware version
- * @AMD_HID2_SPI:	AMDI0063 hardware version
- */
-enum amd_spi_versions {
-	AMD_SPI_V1 = 1,
-	AMD_SPI_V2,
-	AMD_HID2_SPI,
-};
-
 enum amd_spi_speed {
 	F_66_66MHz,
 	F_33_33MHz,
@@ -116,22 +106,6 @@ struct amd_spi_freq {
 	u32 speed_hz;
 	u32 enable_val;
 	u32 spd7_val;
-};
-
-/**
- * struct amd_spi - SPI driver instance
- * @io_remap_addr:	Start address of the SPI controller registers
- * @phy_dma_buf:	Physical address of DMA buffer
- * @dma_virt_addr:	Virtual address of DMA buffer
- * @version:		SPI controller hardware version
- * @speed_hz:		Device frequency
- */
-struct amd_spi {
-	void __iomem *io_remap_addr;
-	dma_addr_t phy_dma_buf;
-	void *dma_virt_addr;
-	enum amd_spi_versions version;
-	unsigned int speed_hz;
 };
 
 static inline u8 amd_spi_readreg8(struct amd_spi *amd_spi, int idx)
@@ -749,30 +723,12 @@ static int amd_spi_setup_hiddma(struct amd_spi *amd_spi, struct device *dev)
 	return 0;
 }
 
-static int amd_spi_probe(struct platform_device *pdev)
+int amd_spi_probe_common(struct device *dev, struct spi_controller *host)
 {
-	struct device *dev = &pdev->dev;
-	struct spi_controller *host;
-	struct amd_spi *amd_spi;
+	struct amd_spi *amd_spi = spi_controller_get_devdata(host);
 	int err;
 
-	/* Allocate storage for host and driver private data */
-	host = devm_spi_alloc_host(dev, sizeof(struct amd_spi));
-	if (!host)
-		return dev_err_probe(dev, -ENOMEM, "Error allocating SPI host\n");
-
-	amd_spi = spi_controller_get_devdata(host);
-	amd_spi->io_remap_addr = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(amd_spi->io_remap_addr))
-		return dev_err_probe(dev, PTR_ERR(amd_spi->io_remap_addr),
-				     "ioremap of SPI registers failed\n");
-
-	dev_dbg(dev, "io_remap_address: %p\n", amd_spi->io_remap_addr);
-
-	amd_spi->version = (uintptr_t) device_get_match_data(dev);
-
 	/* Initialize the spi_controller fields */
-	host->bus_num = (amd_spi->version == AMD_HID2_SPI) ? 2 : 0;
 	host->num_chipselect = 4;
 	host->mode_bits = SPI_TX_DUAL | SPI_TX_QUAD | SPI_RX_DUAL | SPI_RX_QUAD;
 	host->flags = SPI_CONTROLLER_HALF_DUPLEX;
@@ -794,6 +750,32 @@ static int amd_spi_probe(struct platform_device *pdev)
 		err = amd_spi_setup_hiddma(amd_spi, dev);
 
 	return err;
+}
+EXPORT_SYMBOL_GPL(amd_spi_probe_common);
+
+static int amd_spi_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct spi_controller *host;
+	struct amd_spi *amd_spi;
+
+	/* Allocate storage for host and driver private data */
+	host = devm_spi_alloc_host(dev, sizeof(struct amd_spi));
+	if (!host)
+		return dev_err_probe(dev, -ENOMEM, "Error allocating SPI host\n");
+
+	amd_spi = spi_controller_get_devdata(host);
+	amd_spi->io_remap_addr = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(amd_spi->io_remap_addr))
+		return dev_err_probe(dev, PTR_ERR(amd_spi->io_remap_addr),
+				     "ioremap of SPI registers failed\n");
+
+	dev_dbg(dev, "io_remap_address: %p\n", amd_spi->io_remap_addr);
+
+	amd_spi->version = (uintptr_t)device_get_match_data(dev);
+	host->bus_num = 0;
+
+	return amd_spi_probe_common(dev, host);
 }
 
 #ifdef CONFIG_ACPI
