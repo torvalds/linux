@@ -27,22 +27,44 @@ static bool sof_ptl_check_mic_privacy_irq(struct snd_sof_dev *sdev, bool alt,
 	return hdac_bus_eml_is_mic_privacy_changed(sof_to_bus(sdev), alt, elid);
 }
 
+static void sof_ptl_mic_privacy_work(struct work_struct *work)
+{
+	struct sof_intel_hda_dev *hdev = container_of(work,
+						      struct sof_intel_hda_dev,
+						      mic_privacy.work);
+	struct hdac_bus *bus = &hdev->hbus.core;
+	struct snd_sof_dev *sdev = dev_get_drvdata(bus->dev);
+	bool state;
+
+	/*
+	 * The microphone privacy state is only available via Soundwire shim
+	 * in PTL
+	 * The work is only scheduled on change.
+	 */
+	state = hdac_bus_eml_get_mic_privacy_state(bus, 1,
+						   AZX_REG_ML_LEPTR_ID_SDW);
+	sof_ipc4_mic_privacy_state_change(sdev, state);
+}
+
 static void sof_ptl_process_mic_privacy(struct snd_sof_dev *sdev, bool alt,
 					int elid)
 {
-	bool state;
+	struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
 
 	if (!alt || elid != AZX_REG_ML_LEPTR_ID_SDW)
 		return;
 
-	state = hdac_bus_eml_get_mic_privacy_state(sof_to_bus(sdev), alt, elid);
-
-	sof_ipc4_mic_privacy_state_change(sdev, state);
+	/*
+	 * Schedule the work to read the microphone privacy state and send IPC
+	 * message about the new state to the firmware
+	 */
+	schedule_work(&hdev->mic_privacy.work);
 }
 
 static void sof_ptl_set_mic_privacy(struct snd_sof_dev *sdev,
 				    struct sof_ipc4_intel_mic_privacy_cap *caps)
 {
+	struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
 	u32 micpvcp;
 
 	if (!caps || !caps->capabilities_length)
@@ -58,6 +80,9 @@ static void sof_ptl_set_mic_privacy(struct snd_sof_dev *sdev,
 	hdac_bus_eml_set_mic_privacy_mask(sof_to_bus(sdev), true,
 					  AZX_REG_ML_LEPTR_ID_SDW,
 					  PTL_MICPVCP_GET_SDW_MASK(micpvcp));
+
+	INIT_WORK(&hdev->mic_privacy.work, sof_ptl_mic_privacy_work);
+	hdev->mic_privacy.active = true;
 }
 
 int sof_ptl_set_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *dsp_ops)
