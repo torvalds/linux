@@ -67,7 +67,7 @@ static int bd79703_write_raw(struct iio_dev *idev,
 	if (val < 0 || val >= 1 << BD79703_DAC_BITS)
 		return -EINVAL;
 
-	return regmap_write(data->regmap, chan->channel + 1, val);
+	return regmap_write(data->regmap, chan->address, val);
 };
 
 static const struct iio_info bd79703_info = {
@@ -82,7 +82,7 @@ static const struct iio_info bd79703_info = {
 	.channel = (_chan),					\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
-	.address = (_chan),					\
+	.address = (_chan + 1),					\
 }
 
 static const struct iio_chan_spec bd79703_channels[] = {
