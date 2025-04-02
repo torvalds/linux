@@ -104,10 +104,11 @@ static inline bool shmem_mapping(struct address_space *mapping)
 	return false;
 }
 #endif /* CONFIG_SHMEM */
-extern void shmem_unlock_mapping(struct address_space *mapping);
-extern struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
+void shmem_unlock_mapping(struct address_space *mapping);
+struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
 					pgoff_t index, gfp_t gfp_mask);
-extern void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end);
+int shmem_writeout(struct folio *folio, struct writeback_control *wbc);
+void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end);
 int shmem_unuse(unsigned int type);
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE

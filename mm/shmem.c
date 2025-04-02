@@ -1536,12 +1536,20 @@ int shmem_unuse(unsigned int type)
 	return error;
 }
 
-/*
- * Move the page from the page cache to the swap cache.
- */
 static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 {
-	struct folio *folio = page_folio(page);
+	return shmem_writeout(page_folio(page), wbc);
+}
+
+/**
+ * shmem_writeout - Write the folio to swap
+ * @folio: The folio to write
+ * @wbc: How writeback is to be done
+ *
+ * Move the folio from the page cache to the swap cache.
+ */
+int shmem_writeout(struct folio *folio, struct writeback_control *wbc)
+{
 	struct address_space *mapping = folio->mapping;
 	struct inode *inode = mapping->host;
 	struct shmem_inode_info *info = SHMEM_I(inode);
@@ -1586,9 +1594,8 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 try_split:
 		/* Ensure the subpages are still dirty */
 		folio_test_set_dirty(folio);
-		if (split_huge_page_to_list_to_order(page, wbc->list, 0))
+		if (split_folio_to_list(folio, wbc->list))
 			goto redirty;
-		folio = page_folio(page);
 		folio_clear_dirty(folio);
 	}
 
@@ -1660,6 +1667,7 @@ redirty:
 	folio_unlock(folio);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(shmem_writeout);
 
 #if defined(CONFIG_NUMA) && defined(CONFIG_TMPFS)
 static void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
