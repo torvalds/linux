@@ -648,7 +648,7 @@ process_accumulated_relocations(struct module *me,
 		kfree(bucket_iter);
 	}
 
-	kfree(*relocation_hashtable);
+	kvfree(*relocation_hashtable);
 }
 
 static int add_relocation_to_accumulate(struct module *me, int type,
@@ -752,9 +752,10 @@ initialize_relocation_hashtable(unsigned int num_relocations,
 
 	hashtable_size <<= should_double_size;
 
-	*relocation_hashtable = kmalloc_array(hashtable_size,
-					      sizeof(**relocation_hashtable),
-					      GFP_KERNEL);
+	/* Number of relocations may be large, so kvmalloc it */
+	*relocation_hashtable = kvmalloc_array(hashtable_size,
+					       sizeof(**relocation_hashtable),
+					       GFP_KERNEL);
 	if (!*relocation_hashtable)
 		return 0;
 
