@@ -1448,20 +1448,6 @@ static inline unsigned int __readahead_batch(struct readahead_control *rac,
 }
 
 /**
- * readahead_page_batch - Get a batch of pages to read.
- * @rac: The current readahead request.
- * @array: An array of pointers to struct page.
- *
- * Context: The pages are locked and have an elevated refcount.  The caller
- * should decreases the refcount once the page has been submitted for I/O
- * and unlock the page once all I/O to that page has completed.
- * Return: The number of pages placed in the array.  0 indicates the request
- * is complete.
- */
-#define readahead_page_batch(rac, array)				\
-	__readahead_batch(rac, array, ARRAY_SIZE(array))
-
-/**
  * readahead_pos - The byte offset into the file of this readahead request.
  * @rac: The readahead request.
  */
