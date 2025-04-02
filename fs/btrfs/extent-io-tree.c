@@ -1790,7 +1790,7 @@ void get_range_bits(struct extent_io_tree *tree, u64 start, u64 end, u32 *bits,
 bool test_range_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bit,
 		    struct extent_state *cached)
 {
-	struct extent_state *state = NULL;
+	struct extent_state *state;
 	bool bitset = true;
 
 	ASSERT(is_power_of_2(bit));
@@ -1801,7 +1801,7 @@ bool test_range_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bit,
 		state = cached;
 	else
 		state = tree_search(tree, start);
-	while (state && start <= end) {
+	while (state) {
 		if (state->start > start) {
 			bitset = false;
 			break;
@@ -1815,16 +1815,11 @@ bool test_range_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bit,
 			break;
 		}
 
-		if (state->end == (u64)-1)
+		if (state->end >= end)
 			break;
 
-		/*
-		 * Last entry (if state->end is (u64)-1 and overflow happens),
-		 * or next entry starts after the range.
-		 */
+		/* Next state must start where this one ends. */
 		start = state->end + 1;
-		if (start > end || start == 0)
-			break;
 		state = next_state(state);
 	}
 
