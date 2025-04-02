@@ -180,7 +180,7 @@ static int umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 					struct ta_ras_query_address_output *addr_out,
 					bool dump_addr)
 {
-	uint32_t col, col_lower, row, row_lower, bank;
+	uint32_t col, col_lower, row, row_lower, row_high, bank;
 	uint32_t channel_index = 0, umc_inst = 0;
 	uint32_t i, loop_bits[UMC_V12_0_RETIRE_LOOP_BITS];
 	uint64_t soc_pa, column, err_addr;
@@ -243,8 +243,17 @@ static int umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 	paddr_out->pa.pa = soc_pa;
 	/* get column bit 0 and 1 in mca address */
 	col_lower = (err_addr >> 1) & 0x3ULL;
-	/* MA_R13_BIT will be handled later */
+	/* extra row bit will be handled later */
 	row_lower = (err_addr >> UMC_V12_0_MA_R0_BIT) & 0x1fffULL;
+
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(9, 5, 0)) {
+		row_high = (soc_pa >> UMC_V12_0_PA_R13_BIT) & 0x3ULL;
+		/* it's 2.25GB in each channel, from MCA address to PA
+		 * [R14 R13] is converted if the two bits value are 0x3,
+		 * get them from PA instead of MCA address.
+		 */
+		row_lower |= (row_high << 13);
+	}
 
 	if (!err_data && !dump_addr)
 		goto out;
