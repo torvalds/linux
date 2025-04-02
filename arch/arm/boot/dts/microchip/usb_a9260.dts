@@ -12,11 +12,6 @@
 	model = "Calao USB A9260";
 	compatible = "calao,usb-a9260", "atmel,at91sam9260", "atmel,at91sam9";
 
-	chosen {
-		bootargs = "mem=64M root=/dev/mtdblock5 rw rootfstype=ubifs";
-		stdout-path = "serial0:115200n8";
-	};
-
 	ahb {
 		apb {
 			shdwc: poweroff@fffffd10 {
