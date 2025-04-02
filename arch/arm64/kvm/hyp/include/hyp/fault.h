@@ -12,6 +12,16 @@
 #include <asm/kvm_hyp.h>
 #include <asm/kvm_mmu.h>
 
+static inline bool __fault_safe_to_translate(u64 esr)
+{
+	u64 fsc = esr & ESR_ELx_FSC;
+
+	if (esr_fsc_is_sea_ttw(esr) || esr_fsc_is_secc_ttw(esr))
+		return false;
+
+	return !(fsc == ESR_ELx_FSC_EXTABT && (esr & ESR_ELx_FnV));
+}
+
 static inline bool __translate_far_to_hpfar(u64 far, u64 *hpfar)
 {
 	int ret;
@@ -71,17 +81,23 @@ static inline bool __hpfar_valid(u64 esr)
 
 static inline bool __get_fault_info(u64 esr, struct kvm_vcpu_fault_info *fault)
 {
-	u64 hpfar, far;
+	u64 hpfar;
 
-	far = read_sysreg_el2(SYS_FAR);
+	fault->far_el2		= read_sysreg_el2(SYS_FAR);
+	fault->hpfar_el2	= 0;
 
 	if (__hpfar_valid(esr))
 		hpfar = read_sysreg(hpfar_el2);
-	else if (!__translate_far_to_hpfar(far, &hpfar))
+	else if (unlikely(!__fault_safe_to_translate(esr)))
+		return true;
+	else if (!__translate_far_to_hpfar(fault->far_el2, &hpfar))
 		return false;
 
-	fault->far_el2 = far;
-	fault->hpfar_el2 = hpfar;
+	/*
+	 * Hijack HPFAR_EL2.NS (RES0 in Non-secure) to indicate a valid
+	 * HPFAR value.
+	 */
+	fault->hpfar_el2 = hpfar | HPFAR_EL2_NS;
 	return true;
 }
 

@@ -307,6 +307,9 @@ static __always_inline phys_addr_t kvm_vcpu_get_fault_ipa(const struct kvm_vcpu 
 {
 	u64 hpfar = vcpu->arch.fault.hpfar_el2;
 
+	if (unlikely(!(hpfar & HPFAR_EL2_NS)))
+		return INVALID_GPA;
+
 	return FIELD_GET(HPFAR_EL2_FIPA, hpfar) << 12;
 }
 
