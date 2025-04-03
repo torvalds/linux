@@ -1018,6 +1018,9 @@
 				reg = <0x4 0x2>;
 				bits = <0 12>;
 			};
+			vrefint: vrefin-cal@52 {
+				reg = <0x52 0x2>;
+			};
 			ts_cal1: calib@5c {
 				reg = <0x5c 0x2>;
 			};
