@@ -1330,6 +1330,7 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 	case IP_VERSION(3, 5, 1):
 	case IP_VERSION(3, 6, 0):
 		hw_params.ips_sequential_ono = adev->external_rev_id > 0x10;
+		hw_params.lower_hbr3_phy_ssc = true;
 		break;
 	default:
 		break;
