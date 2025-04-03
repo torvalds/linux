@@ -103,11 +103,20 @@ static int guc_pc(struct xe_guc *guc, struct drm_printer *p)
 	return 0;
 }
 
-static const struct drm_info_list debugfs_list[] = {
+/*
+ * only for GuC debugfs files which can be safely used on the VF as well:
+ * - without access to the GuC privileged registers
+ * - without access to the PF specific GuC objects
+ */
+static const struct drm_info_list vf_safe_debugfs_list[] = {
 	{ "guc_info", .show = guc_debugfs_show, .data = xe_guc_print_info },
+	{ "guc_ctb", .show = guc_debugfs_show, .data = guc_ctb },
+};
+
+/* everything else should be added here */
+static const struct drm_info_list pf_only_debugfs_list[] = {
 	{ "guc_log", .show = guc_debugfs_show, .data = guc_log },
 	{ "guc_log_dmesg", .show = guc_debugfs_show, .data = guc_log_dmesg },
-	{ "guc_ctb", .show = guc_debugfs_show, .data = guc_ctb },
 	{ "guc_pc", .show = guc_debugfs_show, .data = guc_pc },
 };
 
@@ -115,7 +124,12 @@ void xe_guc_debugfs_register(struct xe_guc *guc, struct dentry *parent)
 {
 	struct drm_minor *minor = guc_to_xe(guc)->drm.primary;
 
-	drm_debugfs_create_files(debugfs_list,
-				 ARRAY_SIZE(debugfs_list),
+	drm_debugfs_create_files(vf_safe_debugfs_list,
+				 ARRAY_SIZE(vf_safe_debugfs_list),
 				 parent, minor);
+
+	if (!IS_SRIOV_VF(guc_to_xe(guc)))
+		drm_debugfs_create_files(pf_only_debugfs_list,
+					 ARRAY_SIZE(pf_only_debugfs_list),
+					 parent, minor);
 }
