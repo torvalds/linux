@@ -253,6 +253,9 @@ struct usb_ctrlrequest {
 #define USB_DT_BOS			0x0f
 #define USB_DT_DEVICE_CAPABILITY	0x10
 #define USB_DT_WIRELESS_ENDPOINT_COMP	0x11
+/* From the eUSB2 spec */
+#define USB_DT_EUSB2_ISOC_ENDPOINT_COMP	0x12
+/* From Wireless USB spec */
 #define USB_DT_WIRE_ADAPTER		0x21
 /* From USB Device Firmware Upgrade Specification, Revision 1.1 */
 #define USB_DT_DFU_FUNCTIONAL		0x21
@@ -673,6 +676,18 @@ static inline int usb_endpoint_interrupt_type(
 {
 	return epd->bmAttributes & USB_ENDPOINT_INTRTYPE;
 }
+
+/*-------------------------------------------------------------------------*/
+
+/* USB_DT_EUSB2_ISOC_ENDPOINT_COMP: eUSB2 Isoch Endpoint Companion descriptor */
+struct usb_eusb2_isoc_ep_comp_descriptor {
+	__u8	bLength;
+	__u8	bDescriptorType;
+	__le16	wMaxPacketSize;
+	__le32	dwBytesPerInterval;
+} __attribute__ ((packed));
+
+#define USB_DT_EUSB2_ISOC_EP_COMP_SIZE	8
 
 /*-------------------------------------------------------------------------*/
 
