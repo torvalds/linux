@@ -809,7 +809,8 @@ int rv_register_monitor(struct rv_monitor *monitor, struct rv_monitor *parent)
 	if (p && rv_is_nested_monitor(p)) {
 		pr_info("Parent monitor %s is already nested, cannot nest further\n",
 			parent->name);
-		return -EINVAL;
+		retval = -EINVAL;
+		goto out_unlock;
 	}
 
 	r = kzalloc(sizeof(struct rv_monitor_def), GFP_KERNEL);

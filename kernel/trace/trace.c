@@ -9604,6 +9604,7 @@ static void free_trace_buffers(struct trace_array *tr)
 		return;
 
 	free_trace_buffer(&tr->array_buffer);
+	kfree(tr->module_delta);
 
 #ifdef CONFIG_TRACER_MAX_TRACE
 	free_trace_buffer(&tr->max_buffer);

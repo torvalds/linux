@@ -265,8 +265,7 @@ config FUNCTION_GRAPH_RETADDR
 
 config FUNCTION_TRACE_ARGS
        bool
-	depends on HAVE_FUNCTION_ARG_ACCESS_API
-	depends on DEBUG_INFO_BTF
+	depends on PROBE_EVENTS_BTF_ARGS
 	default y
 	help
 	  If supported with function argument access API and BTF, then
