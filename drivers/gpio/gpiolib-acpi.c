@@ -804,8 +804,7 @@ static int acpi_populate_gpio_lookup(struct acpi_resource *ares, void *data)
 	return 1;
 }
 
-static int acpi_gpio_resource_lookup(struct acpi_gpio_lookup *lookup,
-				     struct acpi_gpio_info *info)
+static int acpi_gpio_resource_lookup(struct acpi_gpio_lookup *lookup)
 {
 	struct acpi_device *adev = lookup->info.adev;
 	struct list_head res_list;
@@ -824,8 +823,6 @@ static int acpi_gpio_resource_lookup(struct acpi_gpio_lookup *lookup,
 	if (!lookup->desc)
 		return -ENOENT;
 
-	if (info)
-		*info = lookup->info;
 	return 0;
 }
 
@@ -871,97 +868,83 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode, const char *p
  * acpi_get_gpiod_by_index() - get a GPIO descriptor from device resources
  * @adev: pointer to a ACPI device to get GPIO from
  * @propname: Property name of the GPIO (optional)
- * @index: index of GpioIo/GpioInt resource (starting from %0)
- * @info: info pointer to fill in (optional)
+ * @lookup: pointer to struct acpi_gpio_lookup to fill in
  *
- * Function goes through ACPI resources for @adev and based on @index looks
+ * Function goes through ACPI resources for @adev and based on @lookup.index looks
  * up a GpioIo/GpioInt resource, translates it to the Linux GPIO descriptor,
- * and returns it. @index matches GpioIo/GpioInt resources only so if there
- * are total %3 GPIO resources, the index goes from %0 to %2.
+ * and returns it. @lookup.index matches GpioIo/GpioInt resources only so if there
+ * are total 3 GPIO resources, the index goes from 0 to 2.
  *
  * If @propname is specified the GPIO is looked using device property. In
  * that case @index is used to select the GPIO entry in the property value
  * (in case of multiple).
  *
  * Returns:
- * GPIO descriptor to use with Linux generic GPIO API.
- * If the GPIO cannot be translated or there is an error an ERR_PTR is
- * returned.
+ * 0 on success, negative errno on failure.
+ *
+ * The @lookup is filled with GPIO descriptor to use with Linux generic GPIO API.
+ * If the GPIO cannot be translated an error will be returned.
  *
  * Note: if the GPIO resource has multiple entries in the pin list, this
  * function only returns the first.
  */
-static struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
-						 const char *propname,
-						 int index,
-						 struct acpi_gpio_info *info)
+static int acpi_get_gpiod_by_index(struct acpi_device *adev, const char *propname,
+				   struct acpi_gpio_lookup *lookup)
 {
-	struct acpi_gpio_lookup lookup;
-	struct acpi_gpio_params *params = &lookup.params;
+	struct acpi_gpio_info *info = &lookup->info;
+	struct acpi_gpio_params *params = &lookup->params;
 	int ret;
-
-	memset(&lookup, 0, sizeof(lookup));
-	params->crs_entry_index = index;
 
 	if (propname) {
 		dev_dbg(&adev->dev, "GPIO: looking up %s\n", propname);
 
-		ret = acpi_gpio_property_lookup(acpi_fwnode_handle(adev), propname, &lookup);
+		ret = acpi_gpio_property_lookup(acpi_fwnode_handle(adev), propname, lookup);
 		if (ret)
-			return ERR_PTR(ret);
+			return ret;
 
 		dev_dbg(&adev->dev, "GPIO: _DSD returned %s %u %u %u\n",
-			dev_name(&lookup.info.adev->dev),
+			dev_name(&info->adev->dev),
 			params->crs_entry_index, params->line_index, params->active_low);
 	} else {
 		dev_dbg(&adev->dev, "GPIO: looking up %u in _CRS\n", params->crs_entry_index);
-		lookup.info.adev = adev;
+		info->adev = adev;
 	}
 
-	ret = acpi_gpio_resource_lookup(&lookup, info);
-	return ret ? ERR_PTR(ret) : lookup.desc;
+	return acpi_gpio_resource_lookup(lookup);
 }
 
 /**
  * acpi_get_gpiod_from_data() - get a GPIO descriptor from ACPI data node
  * @fwnode: pointer to an ACPI firmware node to get the GPIO information from
  * @propname: Property name of the GPIO
- * @index: index of GpioIo/GpioInt resource (starting from %0)
- * @info: info pointer to fill in (optional)
+ * @lookup: pointer to struct acpi_gpio_lookup to fill in
  *
  * This function uses the property-based GPIO lookup to get to the GPIO
  * resource with the relevant information from a data-only ACPI firmware node
  * and uses that to obtain the GPIO descriptor to return.
  *
  * Returns:
- * GPIO descriptor to use with Linux generic GPIO API.
- * If the GPIO cannot be translated or there is an error an ERR_PTR is
- * returned.
+ * 0 on success, negative errno on failure.
+ *
+ * The @lookup is filled with GPIO descriptor to use with Linux generic GPIO API.
+ * If the GPIO cannot be translated an error will be returned.
  */
-static struct gpio_desc *acpi_get_gpiod_from_data(struct fwnode_handle *fwnode,
-						  const char *propname,
-						  int index,
-						  struct acpi_gpio_info *info)
+static int acpi_get_gpiod_from_data(struct fwnode_handle *fwnode, const char *propname,
+				    struct acpi_gpio_lookup *lookup)
 {
-	struct acpi_gpio_lookup lookup;
-	struct acpi_gpio_params *params = &lookup.params;
 	int ret;
 
 	if (!is_acpi_data_node(fwnode))
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 
 	if (!propname)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
-	memset(&lookup, 0, sizeof(lookup));
-	params->crs_entry_index = index;
-
-	ret = acpi_gpio_property_lookup(fwnode, propname, &lookup);
+	ret = acpi_gpio_property_lookup(fwnode, propname, lookup);
 	if (ret)
-		return ERR_PTR(ret);
+		return ret;
 
-	ret = acpi_gpio_resource_lookup(&lookup, info);
-	return ret ? ERR_PTR(ret) : lookup.desc;
+	return acpi_gpio_resource_lookup(lookup);
 }
 
 static bool acpi_can_fallback_to_crs(struct acpi_device *adev,
@@ -983,17 +966,24 @@ __acpi_find_gpio(struct fwnode_handle *fwnode, const char *con_id, unsigned int 
 		 bool can_fallback, struct acpi_gpio_info *info)
 {
 	struct acpi_device *adev = to_acpi_device_node(fwnode);
+	struct acpi_gpio_lookup lookup;
 	struct gpio_desc *desc;
 	char propname[32];
+	int ret;
+
+	memset(&lookup, 0, sizeof(lookup));
+	lookup.params.crs_entry_index = idx;
 
 	/* Try first from _DSD */
 	for_each_gpio_property_name(propname, con_id) {
 		if (adev)
-			desc = acpi_get_gpiod_by_index(adev,
-						       propname, idx, info);
+			ret = acpi_get_gpiod_by_index(adev, propname, &lookup);
 		else
-			desc = acpi_get_gpiod_from_data(fwnode,
-							propname, idx, info);
+			ret = acpi_get_gpiod_from_data(fwnode, propname, &lookup);
+		if (ret)
+			continue;
+
+		desc = lookup.desc;
 		if (PTR_ERR(desc) == -EPROBE_DEFER)
 			return desc;
 
@@ -1002,8 +992,13 @@ __acpi_find_gpio(struct fwnode_handle *fwnode, const char *con_id, unsigned int 
 	}
 
 	/* Then from plain _CRS GPIOs */
-	if (can_fallback)
-		return acpi_get_gpiod_by_index(adev, NULL, idx, info);
+	if (can_fallback) {
+		ret = acpi_get_gpiod_by_index(adev, NULL, &lookup);
+		if (ret)
+			return ERR_PTR(ret);
+
+		return lookup.desc;
+	}
 
 	return ERR_PTR(-ENOENT);
 }
