@@ -137,7 +137,7 @@ static int f50l1g41lb_user_otp_info(struct spinand_device *spinand, size_t len,
 static int f50l1g41lb_otp_lock(struct spinand_device *spinand, loff_t from,
 			       size_t len)
 {
-	struct spi_mem_op write_op = SPINAND_WR_EN_DIS_OP(true);
+	struct spi_mem_op write_op = SPINAND_WR_EN_DIS_1S_0_0_OP(true);
 	struct spi_mem_op exec_op = SPINAND_PROG_EXEC_OP(0);
 	u8 status;
 	int ret;
