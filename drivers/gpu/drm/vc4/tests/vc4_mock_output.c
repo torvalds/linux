@@ -61,6 +61,19 @@ static const struct drm_display_mode default_mode = {
 	DRM_SIMPLE_MODE(640, 480, 64, 48)
 };
 
+/**
+ * vc4_mock_atomic_add_output() - Enables an output in a state
+ * @test: The test context object
+ * @state: Atomic state to enable the output in.
+ * @type: Type of the output encoder
+ *
+ * Adds an output CRTC and connector to a state, and enables them.
+ *
+ * Returns:
+ * 0 on success, a negative error code on failure. If the error is
+ * EDEADLK, the entire atomic sequence must be restarted. All other
+ * errors are fatal.
+ */
 int vc4_mock_atomic_add_output(struct kunit *test,
 			       struct drm_atomic_state *state,
 			       enum vc4_encoder_type type)
@@ -105,6 +118,19 @@ int vc4_mock_atomic_add_output(struct kunit *test,
 	return 0;
 }
 
+/**
+ * vc4_mock_atomic_del_output() - Disables an output in a state
+ * @test: The test context object
+ * @state: Atomic state to disable the output in.
+ * @type: Type of the output encoder
+ *
+ * Adds an output CRTC and connector to a state, and disables them.
+ *
+ * Returns:
+ * 0 on success, a negative error code on failure. If the error is
+ * EDEADLK, the entire atomic sequence must be restarted. All other
+ * errors are fatal.
+ */
 int vc4_mock_atomic_del_output(struct kunit *test,
 			       struct drm_atomic_state *state,
 			       enum vc4_encoder_type type)
