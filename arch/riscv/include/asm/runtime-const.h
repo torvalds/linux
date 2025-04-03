@@ -79,7 +79,8 @@
 	".long 1b - .\n\t"					\
 	".popsection"						\
 
-#if defined(CONFIG_RISCV_ISA_ZBA) && defined(CONFIG_RISCV_ISA_ZBKB)
+#if defined(CONFIG_RISCV_ISA_ZBA) && defined(CONFIG_TOOLCHAIN_HAS_ZBA)	\
+	&& defined(CONFIG_RISCV_ISA_ZBKB)
 #define runtime_const_ptr(sym)						\
 ({									\
 	typeof(sym) __ret, __tmp;					\
@@ -95,7 +96,7 @@
 		: [__ret] "=r" (__ret), [__tmp] "=r" (__tmp));		\
 	__ret;								\
 })
-#elif defined(CONFIG_RISCV_ISA_ZBA)
+#elif defined(CONFIG_RISCV_ISA_ZBA) && defined(CONFIG_TOOLCHAIN_HAS_ZBA)
 #define runtime_const_ptr(sym)						\
 ({									\
 	typeof(sym) __ret, __tmp;					\
