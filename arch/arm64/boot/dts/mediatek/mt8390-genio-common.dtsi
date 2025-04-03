@@ -501,7 +501,7 @@
 
 &pcie {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pcie_pins_default>;
+	pinctrl-0 = <&pcie_default_pins>;
 	status = "okay";
 };
 
@@ -874,8 +874,8 @@
 		};
 	};
 
-	pcie_pins_default: pcie-default {
-		mux {
+	pcie_default_pins: pcie-default-pins {
+		pins {
 			pinmux = <PINMUX_GPIO47__FUNC_I1_WAKEN>,
 				 <PINMUX_GPIO48__FUNC_O_PERSTN>,
 				 <PINMUX_GPIO49__FUNC_B1_CLKREQN>;
