@@ -61,6 +61,7 @@ LKL_ENTRY_POINTS += \
 endif
 
 core-y += arch/lkl/kernel/
+core-y += arch/lkl/lib/
 core-y += arch/lkl/mm/
 core-y += arch/lkl/drivers/
 
