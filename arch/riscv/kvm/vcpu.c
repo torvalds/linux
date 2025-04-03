@@ -57,6 +57,7 @@ static void kvm_riscv_reset_vcpu(struct kvm_vcpu *vcpu)
 	struct kvm_vcpu_csr *reset_csr = &vcpu->arch.guest_reset_csr;
 	struct kvm_cpu_context *cntx = &vcpu->arch.guest_context;
 	struct kvm_cpu_context *reset_cntx = &vcpu->arch.guest_reset_context;
+	void *vector_datap = cntx->vector.datap;
 	bool loaded;
 
 	/**
@@ -81,6 +82,8 @@ static void kvm_riscv_reset_vcpu(struct kvm_vcpu *vcpu)
 
 	kvm_riscv_vcpu_fp_reset(vcpu);
 
+	/* Restore datap as it's not a part of the guest context. */
+	cntx->vector.datap = vector_datap;
 	kvm_riscv_vcpu_vector_reset(vcpu);
 
 	kvm_riscv_vcpu_timer_reset(vcpu);
@@ -145,7 +148,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	cntx->hstatus |= HSTATUS_SPV;
 	spin_unlock(&vcpu->arch.reset_cntx_lock);
 
-	if (kvm_riscv_vcpu_alloc_vector_context(vcpu, cntx))
+	if (kvm_riscv_vcpu_alloc_vector_context(vcpu))
 		return -ENOMEM;
 
 	/* By default, make CY, TM, and IR counters accessible in VU mode */
