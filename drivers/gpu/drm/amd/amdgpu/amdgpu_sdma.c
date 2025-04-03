@@ -539,6 +539,7 @@ bool amdgpu_sdma_is_shared_inv_eng(struct amdgpu_device *adev, struct amdgpu_rin
 
 /**
  * amdgpu_sdma_register_on_reset_callbacks - Register SDMA reset callbacks
+ * @adev: Pointer to the AMDGPU device
  * @funcs: Pointer to the callback structure containing pre_reset and post_reset functions
  *
  * This function allows KFD and AMDGPU to register their own callbacks for handling
