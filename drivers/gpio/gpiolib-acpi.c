@@ -96,10 +96,10 @@ struct acpi_gpio_chip {
  * @adev: reference to ACPI device which consumes GPIO resource
  * @flags: GPIO initialization flags
  * @gpioint: if %true this GPIO is of type GpioInt otherwise type is GpioIo
+ * @wake_capable: wake capability as provided by ACPI
  * @pin_config: pin bias as provided by ACPI
  * @polarity: interrupt polarity as provided by ACPI
  * @triggering: triggering type as provided by ACPI
- * @wake_capable: wake capability as provided by ACPI
  * @debounce: debounce timeout as provided by ACPI
  * @quirks: Linux specific quirks as provided by struct acpi_gpio_mapping
  */
@@ -107,10 +107,10 @@ struct acpi_gpio_info {
 	struct acpi_device *adev;
 	enum gpiod_flags flags;
 	bool gpioint;
+	bool wake_capable;
 	int pin_config;
 	int polarity;
 	int triggering;
-	bool wake_capable;
 	unsigned int debounce;
 	unsigned int quirks;
 };
