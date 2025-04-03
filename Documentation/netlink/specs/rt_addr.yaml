@@ -187,6 +187,7 @@ operations:
       dump:
         request:
           value: 58
+          attributes:
             - ifa-family
         reply:
           value: 58
