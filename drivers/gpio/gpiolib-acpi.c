@@ -653,12 +653,12 @@ static bool acpi_get_driver_gpio_data(struct acpi_device *adev,
 
 	for (gm = adev->driver_gpios; gm->name; gm++)
 		if (!strcmp(name, gm->name) && gm->data && index < gm->size) {
-			const struct acpi_gpio_params *par = gm->data + index;
+			const struct acpi_gpio_params *params = gm->data + index;
 
 			args->fwnode = acpi_fwnode_handle(adev);
-			args->args[0] = par->crs_entry_index;
-			args->args[1] = par->line_index;
-			args->args[2] = par->active_low;
+			args->args[0] = params->crs_entry_index;
+			args->args[1] = params->line_index;
+			args->args[2] = params->active_low;
 			args->nargs = 3;
 
 			*quirks = gm->quirks;
