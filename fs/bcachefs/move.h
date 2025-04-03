@@ -72,7 +72,7 @@ do {									\
 		break;							\
 } while (1)
 
-typedef bool (*move_pred_fn)(struct bch_fs *, void *, struct bkey_s_c,
+typedef bool (*move_pred_fn)(struct bch_fs *, void *, enum btree_id, struct bkey_s_c,
 			     struct bch_io_opts *, struct data_update_opts *);
 
 extern const char * const bch2_data_ops_strs[];

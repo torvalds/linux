@@ -454,7 +454,7 @@ out:
 }
 
 static bool rebalance_pred(struct bch_fs *c, void *arg,
-			   struct bkey_s_c k,
+			   enum btree_id btree, struct bkey_s_c k,
 			   struct bch_io_opts *io_opts,
 			   struct data_update_opts *data_opts)
 {
