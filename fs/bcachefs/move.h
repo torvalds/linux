@@ -135,6 +135,11 @@ int bch2_move_data(struct bch_fs *,
 		   bool,
 		   move_pred_fn, void *);
 
+int bch2_move_data_phys(struct bch_fs *, unsigned, u64, u64, unsigned,
+			struct bch_ratelimit *, struct bch_move_stats *,
+			struct write_point_specifier, bool,
+			move_pred_fn, void *);
+
 int bch2_evacuate_bucket(struct moving_context *,
 			   struct move_bucket_in_flight *,
 			   struct bpos, int,

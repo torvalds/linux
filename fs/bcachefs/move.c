@@ -900,16 +900,16 @@ err:
 	return ret;
 }
 
-static int bch2_move_data_phys(struct bch_fs *c,
-			       unsigned dev,
-			       u64 start,
-			       u64 end,
-			       unsigned data_types,
-			       struct bch_ratelimit *rate,
-			       struct bch_move_stats *stats,
-			       struct write_point_specifier wp,
-			       bool wait_on_copygc,
-			       move_pred_fn pred, void *arg)
+int bch2_move_data_phys(struct bch_fs *c,
+			unsigned dev,
+			u64 start,
+			u64 end,
+			unsigned data_types,
+			struct bch_ratelimit *rate,
+			struct bch_move_stats *stats,
+			struct write_point_specifier wp,
+			bool wait_on_copygc,
+			move_pred_fn pred, void *arg)
 {
 	struct moving_context ctxt;
 
