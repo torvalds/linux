@@ -724,8 +724,6 @@ u8 rtw_free_drv_sw(struct adapter *padapter)
 
 	rtw_free_mlme_priv(&padapter->mlmepriv);
 
-	/* free_io_queue(padapter); */
-
 	_rtw_free_xmit_priv(&padapter->xmitpriv);
 
 	_rtw_free_sta_priv(&padapter->stapriv); /* will free bcmc_stainfo here */

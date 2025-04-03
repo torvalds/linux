@@ -4,6 +4,8 @@
  *    copyright            : (C) 2001, 2002 by Frank Mori Hess
  ***************************************************************************/
 
+#define dev_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "ibsys.h"
 #include <linux/delay.h>
 #include <linux/kthread.h>
@@ -19,15 +21,13 @@
  * If fallback_to_async is non-zero, try to take control asynchronously
  * if synchronous attempt fails.
  */
-int ibcac(gpib_board_t *board, int sync, int fallback_to_async)
+int ibcac(struct gpib_board *board, int sync, int fallback_to_async)
 {
 	int status = ibstatus(board);
 	int retval;
 
-	if ((status & CIC) == 0) {
-		pr_err("gpib: not CIC during %s()\n", __func__);
-		return -1;
-	}
+	if ((status & CIC) == 0)
+		return -EINVAL;
 
 	if (status & ATN)
 		return 0;
@@ -61,7 +61,7 @@ int ibcac(gpib_board_t *board, int sync, int fallback_to_async)
  * set the skip_check_for_command_acceptors flag in their
  * gpib_interface_struct to avoid useless overhead.
  */
-static int check_for_command_acceptors(gpib_board_t *board)
+static int check_for_command_acceptors(struct gpib_board *board)
 {
 	int lines;
 
@@ -76,15 +76,8 @@ static int check_for_command_acceptors(gpib_board_t *board)
 	if (lines < 0)
 		return lines;
 
-	if (lines & ValidATN) {
-		if ((lines & BusATN) == 0) {
-			pr_err("gpib: ATN not asserted in %s()?", __func__);
-			return 0;
-		}
-	}
-
-	if ((lines & ValidNRFD) && (lines & ValidNDAC))	{
-		if ((lines & BusNRFD) == 0 && (lines & BusNDAC) == 0)
+	if ((lines & VALID_NRFD) && (lines & VALID_NDAC))	{
+		if ((lines & BUS_NRFD) == 0 && (lines & BUS_NDAC) == 0)
 			return -ENOTCONN;
 	}
 
@@ -103,7 +96,7 @@ static int check_for_command_acceptors(gpib_board_t *board)
  *          must be called to initialize the GPIB and enable
  *          the interface to leave the controller idle state.
  */
-int ibcmd(gpib_board_t *board, uint8_t *buf, size_t length, size_t *bytes_written)
+int ibcmd(struct gpib_board *board, uint8_t *buf, size_t length, size_t *bytes_written)
 {
 	ssize_t ret = 0;
 	int status;
@@ -112,10 +105,8 @@ int ibcmd(gpib_board_t *board, uint8_t *buf, size_t length, size_t *bytes_writte
 
 	status = ibstatus(board);
 
-	if ((status & CIC) == 0) {
-		pr_err("gpib: cannot send command when not controller-in-charge\n");
-		return -EIO;
-	}
+	if ((status & CIC) == 0)
+		return -EINVAL;
 
 	os_start_timer(board, board->usec_timeout);
 
@@ -140,26 +131,22 @@ int ibcmd(gpib_board_t *board, uint8_t *buf, size_t length, size_t *bytes_writte
  * active state, i.e., turn ATN off.
  */
 
-int ibgts(gpib_board_t *board)
+int ibgts(struct gpib_board *board)
 {
 	int status = ibstatus(board);
 	int retval;
 
-	if ((status & CIC) == 0) {
-		pr_err("gpib: not CIC during %s()\n", __func__);
-		return -1;
-	}
+	if ((status & CIC) == 0)
+		return -EINVAL;
 
 	retval = board->interface->go_to_standby(board);    /* go to standby */
-	if (retval < 0)
-		pr_err("gpib: error while going to standby\n");
 
 	board->interface->update_status(board, 0);
 
 	return retval;
 }
 
-static int autospoll_wait_should_wake_up(gpib_board_t *board)
+static int autospoll_wait_should_wake_up(struct gpib_board *board)
 {
 	int retval;
 
@@ -175,7 +162,7 @@ static int autospoll_wait_should_wake_up(gpib_board_t *board)
 
 static int autospoll_thread(void *board_void)
 {
-	gpib_board_t *board = board_void;
+	struct gpib_board *board = board_void;
 	int retval = 0;
 
 	dev_dbg(board->gpib_dev, "entering autospoll thread\n");
@@ -200,20 +187,19 @@ static int autospoll_thread(void *board_void)
 			retval = autopoll_all_devices(board);
 			module_put(board->provider_module);
 		} else {
-			pr_err("gpib%i: %s: try_module_get() failed!\n", board->minor, __func__);
+			dev_err(board->gpib_dev, "try_module_get() failed!\n");
 		}
 		if (retval <= 0) {
-			pr_err("gpib%i: %s: stuck SRQ\n", board->minor, __func__);
+			dev_err(board->gpib_dev, "stuck SRQ\n");
 
 			atomic_set(&board->stuck_srq, 1);	// XXX could be better
 			set_bit(SRQI_NUM, &board->status);
 		}
 	}
-	pr_info("gpib%i: exiting autospoll thread\n", board->minor);
 	return retval;
 }
 
-int ibonline(gpib_board_t *board)
+int ibonline(struct gpib_board *board)
 {
 	int retval;
 
@@ -230,7 +216,6 @@ int ibonline(gpib_board_t *board)
 	retval = board->interface->attach(board, &board->config);
 	if (retval < 0) {
 		board->interface->detach(board);
-		pr_err("gpib: interface attach failed\n");
 		return retval;
 	}
 	/* nios2nommu on 2.6.11 uclinux kernel has weird problems
@@ -241,19 +226,19 @@ int ibonline(gpib_board_t *board)
 					    "gpib%d_autospoll_kthread", board->minor);
 	retval = IS_ERR(board->autospoll_task);
 	if (retval) {
-		pr_err("gpib: failed to create autospoll thread\n");
+		dev_err(board->gpib_dev, "failed to create autospoll thread\n");
 		board->interface->detach(board);
 		return retval;
 	}
 #endif
 	board->online = 1;
-	dev_dbg(board->gpib_dev, "gpib: board online\n");
+	dev_dbg(board->gpib_dev, "board online\n");
 
 	return 0;
 }
 
 /* XXX need to make sure board is generally not in use (grab board lock?) */
-int iboffline(gpib_board_t *board)
+int iboffline(struct gpib_board *board)
 {
 	int retval;
 
@@ -265,14 +250,14 @@ int iboffline(gpib_board_t *board)
 	if (board->autospoll_task && !IS_ERR(board->autospoll_task)) {
 		retval = kthread_stop(board->autospoll_task);
 		if (retval)
-			pr_err("gpib: kthread_stop returned %i\n", retval);
+			dev_err(board->gpib_dev, "kthread_stop returned %i\n", retval);
 		board->autospoll_task = NULL;
 	}
 
 	board->interface->detach(board);
 	gpib_deallocate_board(board);
 	board->online = 0;
-	dev_dbg(board->gpib_dev, "gpib: board offline\n");
+	dev_dbg(board->gpib_dev, "board offline\n");
 
 	return 0;
 }
@@ -285,7 +270,7 @@ int iboffline(gpib_board_t *board)
  * Next LSB (bits 8-15) - STATUS lines mask (lines that are currently set).
  *
  */
-int iblines(const gpib_board_t *board, short *lines)
+int iblines(const struct gpib_board *board, short *lines)
 {
 	int retval;
 
@@ -312,7 +297,7 @@ int iblines(const gpib_board_t *board, short *lines)
  *          calling ibcmd.
  */
 
-int ibrd(gpib_board_t *board, uint8_t *buf, size_t length, int *end_flag, size_t *nbytes)
+int ibrd(struct gpib_board *board, uint8_t *buf, size_t length, int *end_flag, size_t *nbytes)
 {
 	ssize_t ret = 0;
 	int retval;
@@ -320,10 +305,8 @@ int ibrd(gpib_board_t *board, uint8_t *buf, size_t length, int *end_flag, size_t
 
 	*nbytes = 0;
 	*end_flag = 0;
-	if (length == 0) {
-		pr_warn("gpib: %s() called with zero length?\n",  __func__);
+	if (length == 0)
 		return 0;
-	}
 
 	if (board->master) {
 		retval = ibgts(board);
@@ -338,10 +321,9 @@ int ibrd(gpib_board_t *board, uint8_t *buf, size_t length, int *end_flag, size_t
 
 	do {
 		ret = board->interface->read(board, buf, length - *nbytes, end_flag, &bytes_read);
-		if (ret < 0) {
-			pr_err("gpib read error\n");
+		if (ret < 0)
 			goto ibrd_out;
-		}
+
 		buf += bytes_read;
 		*nbytes += bytes_read;
 		if (need_resched())
@@ -361,7 +343,7 @@ ibrd_out:
  *	1.  Prior to conducting the poll the interface is placed
  *	    in the controller active state.
  */
-int ibrpp(gpib_board_t *board, uint8_t *result)
+int ibrpp(struct gpib_board *board, uint8_t *result)
 {
 	int retval = 0;
 
@@ -370,15 +352,13 @@ int ibrpp(gpib_board_t *board, uint8_t *result)
 	if (retval)
 		return -1;
 
-	if (board->interface->parallel_poll(board, result)) {
-		pr_err("gpib: parallel poll failed\n");
-		retval = -1;
-	}
+	retval =  board->interface->parallel_poll(board, result);
+
 	os_remove_timer(board);
 	return retval;
 }
 
-int ibppc(gpib_board_t *board, uint8_t configuration)
+int ibppc(struct gpib_board *board, uint8_t configuration)
 {
 	configuration &= 0x1f;
 	board->interface->parallel_poll_configure(board, configuration);
@@ -387,15 +367,13 @@ int ibppc(gpib_board_t *board, uint8_t configuration)
 	return 0;
 }
 
-int ibrsv2(gpib_board_t *board, uint8_t status_byte, int new_reason_for_service)
+int ibrsv2(struct gpib_board *board, uint8_t status_byte, int new_reason_for_service)
 {
 	int board_status = ibstatus(board);
 	const unsigned int MSS = status_byte & request_service_bit;
 
-	if ((board_status & CIC)) {
-		pr_err("gpib: interface requested service while CIC\n");
+	if ((board_status & CIC))
 		return -EINVAL;
-	}
 
 	if (MSS == 0 && new_reason_for_service)
 		return -EINVAL;
@@ -422,21 +400,17 @@ int ibrsv2(gpib_board_t *board, uint8_t status_byte, int new_reason_for_service)
  *	    ibcmd in order to initialize the bus and enable the
  *	    interface to leave the controller idle state.
  */
-int ibsic(gpib_board_t *board, unsigned int usec_duration)
+int ibsic(struct gpib_board *board, unsigned int usec_duration)
 {
-	if (board->master == 0)	{
-		pr_err("gpib: tried to assert IFC when not system controller\n");
-		return -1;
-	}
+	if (board->master == 0)
+		return -EINVAL;
 
 	if (usec_duration < 100)
 		usec_duration = 100;
-	if (usec_duration > 1000) {
+	if (usec_duration > 1000)
 		usec_duration = 1000;
-		pr_warn("gpib: warning, shortening long udelay\n");
-	}
 
-	dev_dbg(board->gpib_dev, "sending interface clear\n");
+	dev_dbg(board->gpib_dev, "sending interface clear, delay = %ius\n", usec_duration);
 	board->interface->interface_clear(board, 1);
 	udelay(usec_duration);
 	board->interface->interface_clear(board, 0);
@@ -444,26 +418,22 @@ int ibsic(gpib_board_t *board, unsigned int usec_duration)
 	return 0;
 }
 
-void ibrsc(gpib_board_t *board, int request_control)
+	/* FIXME make int */
+void ibrsc(struct gpib_board *board, int request_control)
 {
 	board->master = request_control != 0;
-	if (!board->interface->request_system_control)	{
-		pr_err("gpib: bug! driver does not implement request_system_control()\n");
-		return;
-	}
-	board->interface->request_system_control(board, request_control);
+	if (board->interface->request_system_control)
+		board->interface->request_system_control(board, request_control);
 }
 
 /*
  * IBSRE
  * Send REN true if v is non-zero or false if v is zero.
  */
-int ibsre(gpib_board_t *board, int enable)
+int ibsre(struct gpib_board *board, int enable)
 {
-	if (board->master == 0)	{
-		pr_err("gpib: tried to set REN when not system controller\n");
-		return -1;
-	}
+	if (board->master == 0)
+		return -EINVAL;
 
 	board->interface->remote_enable(board, enable);	/* set or clear REN */
 	if (!enable)
@@ -477,12 +447,11 @@ int ibsre(gpib_board_t *board, int enable)
  * change the GPIB address of the interface board.  The address
  * must be 0 through 30.  ibonl resets the address to PAD.
  */
-int ibpad(gpib_board_t *board, unsigned int addr)
+int ibpad(struct gpib_board *board, unsigned int addr)
 {
-	if (addr > MAX_GPIB_PRIMARY_ADDRESS) {
-		pr_err("gpib: invalid primary address %u\n", addr);
-		return -1;
-	}
+	if (addr > MAX_GPIB_PRIMARY_ADDRESS)
+		return -EINVAL;
+
 	board->pad = addr;
 	if (board->online)
 		board->interface->primary_address(board, board->pad);
@@ -496,12 +465,10 @@ int ibpad(gpib_board_t *board, unsigned int addr)
  * The address must be 0 through 30, or negative disables.  ibonl resets the
  * address to SAD.
  */
-int ibsad(gpib_board_t *board, int addr)
+int ibsad(struct gpib_board *board, int addr)
 {
-	if (addr > MAX_GPIB_SECONDARY_ADDRESS) {
-		pr_err("gpib: invalid secondary address %i\n", addr);
-		return -1;
-	}
+	if (addr > MAX_GPIB_SECONDARY_ADDRESS)
+		return -EINVAL;
 	board->sad = addr;
 	if (board->online) {
 		if (board->sad >= 0)
@@ -519,14 +486,12 @@ int ibsad(gpib_board_t *board, int addr)
  * Set the end-of-string modes for I/O operations to v.
  *
  */
-int ibeos(gpib_board_t *board, int eos, int eosflags)
+int ibeos(struct gpib_board *board, int eos, int eosflags)
 {
 	int retval;
 
-	if (eosflags & ~EOS_MASK) {
-		pr_err("bad EOS modes\n");
+	if (eosflags & ~EOS_MASK)
 		return -EINVAL;
-	}
 	if (eosflags & REOS) {
 		retval = board->interface->enable_eos(board, eos, eosflags & BIN);
 	} else {
@@ -536,12 +501,12 @@ int ibeos(gpib_board_t *board, int eos, int eosflags)
 	return retval;
 }
 
-int ibstatus(gpib_board_t *board)
+int ibstatus(struct gpib_board *board)
 {
 	return general_ibstatus(board, NULL, 0, 0, NULL);
 }
 
-int general_ibstatus(gpib_board_t *board, const gpib_status_queue_t *device,
+int general_ibstatus(struct gpib_board *board, const gpib_status_queue_t *device,
 		     int clear_mask, int set_mask, gpib_descriptor_t *desc)
 {
 	int status = 0;
@@ -555,8 +520,8 @@ int general_ibstatus(gpib_board_t *board, const gpib_status_queue_t *device,
 		status &= ~TIMO;
 		/* get real SRQI status if we can */
 		if (iblines(board, &line_status) == 0) {
-			if ((line_status & ValidSRQ)) {
-				if ((line_status & BusSRQ))
+			if ((line_status & VALID_SRQ)) {
+				if ((line_status & BUS_SRQ))
 					status |= SRQI;
 				else
 					status &= ~SRQI;
@@ -587,7 +552,7 @@ int general_ibstatus(gpib_board_t *board, const gpib_status_queue_t *device,
 }
 
 struct wait_info {
-	gpib_board_t *board;
+	struct gpib_board *board;
 	struct timer_list timer;
 	int timed_out;
 	unsigned long usec_timeout;
@@ -611,7 +576,7 @@ static void init_wait_info(struct wait_info *winfo)
 static int wait_satisfied(struct wait_info *winfo, gpib_status_queue_t *status_queue,
 			  int wait_mask, int *status, gpib_descriptor_t *desc)
 {
-	gpib_board_t *board = winfo->board;
+	struct gpib_board *board = winfo->board;
 	int temp_status;
 
 	if (mutex_lock_interruptible(&board->big_gpib_mutex))
@@ -657,7 +622,7 @@ static void remove_wait_timer(struct wait_info *winfo)
  * If the mask is 0 then
  * no condition is waited for.
  */
-int ibwait(gpib_board_t *board, int wait_mask, int clear_mask, int set_mask,
+int ibwait(struct gpib_board *board, int wait_mask, int clear_mask, int set_mask,
 	   int *status, unsigned long usec_timeout, gpib_descriptor_t *desc)
 {
 	int retval = 0;
@@ -712,15 +677,13 @@ int ibwait(gpib_board_t *board, int wait_mask, int clear_mask, int set_mask,
  *          well as the interface board itself must be
  *          addressed by calling ibcmd.
  */
-int ibwrt(gpib_board_t *board, uint8_t *buf, size_t cnt, int send_eoi, size_t *bytes_written)
+int ibwrt(struct gpib_board *board, uint8_t *buf, size_t cnt, int send_eoi, size_t *bytes_written)
 {
 	int ret = 0;
 	int retval;
 
-	if (cnt == 0) {
-		pr_warn("gpib: %s() called with zero length?\n", __func__);
+	if (cnt == 0)
 		return 0;
-	}
 
 	if (board->master) {
 		retval = ibgts(board);

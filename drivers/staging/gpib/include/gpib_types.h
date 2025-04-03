@@ -23,7 +23,7 @@
 #include <linux/interrupt.h>
 
 typedef struct gpib_interface_struct gpib_interface_t;
-typedef struct gpib_board_struct gpib_board_t;
+struct gpib_board;
 
 /* config parameters that are only used by driver attach functions */
 typedef struct {
@@ -55,9 +55,9 @@ struct gpib_interface_struct {
 	/* name of board */
 	char *name;
 	/* attach() initializes board and allocates resources */
-	int (*attach)(gpib_board_t *board, const gpib_board_config_t *config);
+	int (*attach)(struct gpib_board *board, const gpib_board_config_t *config);
 	/* detach() shuts down board and frees resources */
-	void (*detach)(gpib_board_t *board);
+	void (*detach)(struct gpib_board *board);
 	/* read() should read at most 'length' bytes from the bus into
 	 * 'buffer'.  It should return when it fills the buffer or
 	 * encounters an END (EOI and or EOS if appropriate).  It should set 'end'
@@ -68,19 +68,19 @@ struct gpib_interface_struct {
 	 * return indicates error.
 	 * nbytes returns number of bytes read
 	 */
-	int (*read)(gpib_board_t *board, uint8_t *buffer, size_t length, int *end,
+	int (*read)(struct gpib_board *board, uint8_t *buffer, size_t length, int *end,
 		    size_t *bytes_read);
 	/* write() should write 'length' bytes from buffer to the bus.
 	 * If the boolean value send_eoi is nonzero, then EOI should
 	 * be sent along with the last byte.  Returns number of bytes
 	 * written or negative value on error.
 	 */
-	int (*write)(gpib_board_t *board, uint8_t *buffer, size_t length, int send_eoi,
+	int (*write)(struct gpib_board *board, uint8_t *buffer, size_t length, int send_eoi,
 		     size_t *bytes_written);
 	/* command() writes the command bytes in 'buffer' to the bus
 	 * Returns zero on success or negative value on error.
 	 */
-	int (*command)(gpib_board_t *board, uint8_t *buffer, size_t length,
+	int (*command)(struct gpib_board *board, uint8_t *buffer, size_t length,
 		       size_t *bytes_written);
 	/* Take control (assert ATN).  If 'asyncronous' is nonzero, take
 	 * control asyncronously (assert ATN immediately without waiting
@@ -88,54 +88,54 @@ struct gpib_interface_struct {
 	 * until board becomes controller in charge.  Returns zero no success,
 	 * nonzero on error.
 	 */
-	int (*take_control)(gpib_board_t *board, int asyncronous);
+	int (*take_control)(struct gpib_board *board, int asyncronous);
 	/* De-assert ATN.  Returns zero on success, nonzer on error.
 	 */
-	int (*go_to_standby)(gpib_board_t *board);
+	int (*go_to_standby)(struct gpib_board *board);
 	/* request/release control of the IFC and REN lines (system controller) */
-	void (*request_system_control)(gpib_board_t *board, int request_control);
+	void (*request_system_control)(struct gpib_board *board, int request_control);
 	/* Asserts or de-asserts 'interface clear' (IFC) depending on
 	 * boolean value of 'assert'
 	 */
-	void (*interface_clear)(gpib_board_t *board, int assert);
+	void (*interface_clear)(struct gpib_board *board, int assert);
 	/* Sends remote enable command if 'enable' is nonzero, disables remote mode
 	 * if 'enable' is zero
 	 */
-	void (*remote_enable)(gpib_board_t *board, int enable);
+	void (*remote_enable)(struct gpib_board *board, int enable);
 	/* enable END for reads, when byte 'eos' is received.  If
 	 * 'compare_8_bits' is nonzero, then all 8 bits are compared
 	 * with the eos bytes.	Otherwise only the 7 least significant
 	 * bits are compared.
 	 */
-	int (*enable_eos)(gpib_board_t *board, uint8_t eos, int compare_8_bits);
+	int (*enable_eos)(struct gpib_board *board, uint8_t eos, int compare_8_bits);
 	/* disable END on eos byte (END on EOI only)*/
-	void (*disable_eos)(gpib_board_t *board);
+	void (*disable_eos)(struct gpib_board *board);
 	/* configure parallel poll */
-	void (*parallel_poll_configure)(gpib_board_t *board, uint8_t configuration);
+	void (*parallel_poll_configure)(struct gpib_board *board, uint8_t configuration);
 	/* conduct parallel poll */
-	int (*parallel_poll)(gpib_board_t *board, uint8_t *result);
+	int (*parallel_poll)(struct gpib_board *board, uint8_t *result);
 	/* set/clear ist (individual status bit) */
-	void (*parallel_poll_response)(gpib_board_t *board, int ist);
+	void (*parallel_poll_response)(struct gpib_board *board, int ist);
 	/* select local parallel poll configuration mode PP2 versus remote PP1 */
-	void (*local_parallel_poll_mode)(gpib_board_t *board, int local);
+	void (*local_parallel_poll_mode)(struct gpib_board *board, int local);
 	/* Returns current status of the bus lines.  Should be set to
 	 * NULL if your board does not have the ability to query the
 	 * state of the bus lines.
 	 */
-	int (*line_status)(const gpib_board_t *board);
+	int (*line_status)(const struct gpib_board *board);
 	/* updates and returns the board's current status.
 	 * The meaning of the bits are specified in gpib_user.h
 	 * in the IBSTA section.  The driver does not need to
 	 * worry about setting the CMPL, END, TIMO, or ERR bits.
 	 */
-	unsigned int (*update_status)(gpib_board_t *board, unsigned int clear_mask);
+	unsigned int (*update_status)(struct gpib_board *board, unsigned int clear_mask);
 	/* Sets primary address 0-30 for gpib interface card.
 	 */
-	int (*primary_address)(gpib_board_t *board, unsigned int address);
+	int (*primary_address)(struct gpib_board *board, unsigned int address);
 	/* Sets and enables, or disables secondary address 0-30
 	 * for gpib interface card.
 	 */
-	int (*secondary_address)(gpib_board_t *board, unsigned int address,
+	int (*secondary_address)(struct gpib_board *board, unsigned int address,
 				 int enable);
 	/* Sets the byte the board should send in response to a serial poll.
 	 * This function should also start or stop requests for service via
@@ -149,7 +149,7 @@ struct gpib_interface_struct {
 	 * by IEEE 488.2 section 11.3.3.4.3 "Allowed Coupled Control of
 	 * STB, reqt, and reqf".
 	 */
-	void (*serial_poll_response)(gpib_board_t *board, uint8_t status_byte);
+	void (*serial_poll_response)(struct gpib_board *board, uint8_t status_byte);
 	/* Sets the byte the board should send in response to a serial poll.
 	 * This function should also request service via IEEE 488.2 reqt/reqf
 	 * based on MSS (bit 6 of the status_byte) and new_reason_for_service.
@@ -164,15 +164,15 @@ struct gpib_interface_struct {
 	 * If this method is left NULL by the driver, then the user library
 	 * function ibrsv2 will not work.
 	 */
-	void (*serial_poll_response2)(gpib_board_t *board, uint8_t status_byte,
+	void (*serial_poll_response2)(struct gpib_board *board, uint8_t status_byte,
 				      int new_reason_for_service);
 	/* returns the byte the board will send in response to a serial poll.
 	 */
-	uint8_t (*serial_poll_status)(gpib_board_t *board);
+	uint8_t (*serial_poll_status)(struct gpib_board *board);
 	/* adjust T1 delay */
-	unsigned int (*t1_delay)(gpib_board_t *board, unsigned int nano_sec);
+	int (*t1_delay)(struct gpib_board *board, unsigned int nano_sec);
 	/* go to local mode */
-	void (*return_to_local)(gpib_board_t *board);
+	void (*return_to_local)(struct gpib_board *board);
 	/* board does not support 7 bit eos comparisons */
 	unsigned no_7_bit_eos : 1;
 	/* skip check for listeners before trying to send command bytes */
@@ -198,7 +198,7 @@ static inline void init_event_queue(gpib_event_queue_t *queue)
 struct gpib_pseudo_irq {
 	struct timer_list timer;
 	irqreturn_t (*handler)(int irq, void *arg);
-	gpib_board_t *board;
+	struct gpib_board *board;
 	atomic_t active;
 };
 
@@ -216,11 +216,11 @@ typedef struct gpib_interface_list_struct {
 	struct module *module;
 } gpib_interface_list_t;
 
-/* One gpib_board_t is allocated for each physical board in the computer.
+/* One struct gpib_board is allocated for each physical board in the computer.
  * It provides storage for variables local to each board, and interface
  * functions for performing operations on the board
  */
-struct gpib_board_struct {
+struct gpib_board {
 	/* functions used by this board */
 	gpib_interface_t *interface;
 	/* Pointer to module whose use count we should increment when
