@@ -1339,8 +1339,8 @@ static void gfx_v12_1_setup_rb(struct amdgpu_device *adev)
 	adev->gfx.config.num_rbs = hweight32(active_rb_bitmap);
 }
 
-#define LDS_APP_BASE           0x1
-#define SCRATCH_APP_BASE       0x2
+#define LDS_APP_BASE           0x2000
+#define SCRATCH_APP_BASE       0x4
 
 static void gfx_v12_1_xcc_init_compute_vmid(struct amdgpu_device *adev,
 					    int xcc_id)
@@ -1356,7 +1356,7 @@ static void gfx_v12_1_xcc_init_compute_vmid(struct amdgpu_device *adev,
 	 * GPUVM:       0x60010000'00000000 - 0x60020000'00000000 (1TB)
 	 */
 	sh_mem_bases = (LDS_APP_BASE << SH_MEM_BASES__SHARED_BASE__SHIFT) |
-			SCRATCH_APP_BASE;
+			(SCRATCH_APP_BASE << SH_MEM_BASES__PRIVATE_BASE__SHIFT);
 
 	mutex_lock(&adev->srbm_mutex);
 	for (i = adev->vm_manager.first_kfd_vmid; i < AMDGPU_NUM_VMID; i++) {
@@ -1399,7 +1399,7 @@ static void gfx_v12_1_xcc_constants_init(struct amdgpu_device *adev,
 			     regSH_MEM_CONFIG, DEFAULT_SH_MEM_CONFIG);
 		if (i != 0) {
 			tmp = REG_SET_FIELD(0, SH_MEM_BASES, PRIVATE_BASE,
-				(adev->gmc.private_aperture_start >> 48));
+				(adev->gmc.private_aperture_start >> 58));
 			tmp = REG_SET_FIELD(tmp, SH_MEM_BASES, SHARED_BASE,
 				(adev->gmc.shared_aperture_start >> 48));
 			WREG32_SOC15(GC, GET_INST(GC, xcc_id), regSH_MEM_BASES, tmp);
