@@ -88,7 +88,7 @@ int __must_check bch2_write_inode(struct bch_fs *c,
 				  void *p, unsigned fields)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
-	struct btree_iter iter = { NULL };
+	struct btree_iter iter = {};
 	struct bch_inode_unpacked inode_u;
 	int ret;
 retry:
@@ -1075,7 +1075,7 @@ int bch2_setattr_nonsize(struct mnt_idmap *idmap,
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_qid qid;
 	struct btree_trans *trans;
-	struct btree_iter inode_iter = { NULL };
+	struct btree_iter inode_iter = {};
 	struct bch_inode_unpacked inode_u;
 	struct posix_acl *acl = NULL;
 	kuid_t kuid;
@@ -1330,9 +1330,9 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 		if (ret)
 			continue;
 
-		bch2_btree_iter_set_snapshot(&iter, snapshot);
+		bch2_btree_iter_set_snapshot(trans, &iter, snapshot);
 
-		k = bch2_btree_iter_peek_max(&iter, end);
+		k = bch2_btree_iter_peek_max(trans, &iter, end);
 		ret = bkey_err(k);
 		if (ret)
 			continue;
@@ -1342,7 +1342,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 
 		if (!bkey_extent_is_data(k.k) &&
 		    k.k->type != KEY_TYPE_reservation) {
-			bch2_btree_iter_advance(&iter);
+			bch2_btree_iter_advance(trans, &iter);
 			continue;
 		}
 
@@ -1380,7 +1380,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 		bkey_copy(prev.k, cur.k);
 		have_extent = true;
 
-		bch2_btree_iter_set_pos(&iter,
+		bch2_btree_iter_set_pos(trans, &iter,
 			POS(iter.pos.inode, iter.pos.offset + sectors));
 	}
 	bch2_trans_iter_exit(trans, &iter);
@@ -1697,17 +1697,17 @@ retry:
 	if (ret)
 		goto err;
 
-	bch2_btree_iter_set_snapshot(&iter1, snapshot);
-	bch2_btree_iter_set_snapshot(&iter2, snapshot);
+	bch2_btree_iter_set_snapshot(trans, &iter1, snapshot);
+	bch2_btree_iter_set_snapshot(trans, &iter2, snapshot);
 
 	ret = bch2_inode_find_by_inum_trans(trans, inode_inum(inode), &inode_u);
 	if (ret)
 		goto err;
 
 	if (inode_u.bi_dir == dir->ei_inode.bi_inum) {
-		bch2_btree_iter_set_pos(&iter1, POS(inode_u.bi_dir, inode_u.bi_dir_offset));
+		bch2_btree_iter_set_pos(trans, &iter1, POS(inode_u.bi_dir, inode_u.bi_dir_offset));
 
-		k = bch2_btree_iter_peek_slot(&iter1);
+		k = bch2_btree_iter_peek_slot(trans, &iter1);
 		ret = bkey_err(k);
 		if (ret)
 			goto err;
@@ -1731,7 +1731,7 @@ retry:
 		 * File with multiple hardlinks and our backref is to the wrong
 		 * directory - linear search:
 		 */
-		for_each_btree_key_continue_norestart(iter2, 0, k, ret) {
+		for_each_btree_key_continue_norestart(trans, iter2, 0, k, ret) {
 			if (k.k->p.inode > dir->ei_inode.bi_inum)
 				break;
 
@@ -2237,7 +2237,7 @@ got_sb:
 		/* XXX: create an anonymous device for multi device filesystems */
 		sb->s_bdev	= bdev;
 		sb->s_dev	= bdev->bd_dev;
-		percpu_ref_put(&ca->io_ref);
+		percpu_ref_put(&ca->io_ref[READ]);
 		break;
 	}
 

@@ -28,8 +28,8 @@ int bch2_create_trans(struct btree_trans *trans,
 		      unsigned flags)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter dir_iter = { NULL };
-	struct btree_iter inode_iter = { NULL };
+	struct btree_iter dir_iter = {};
+	struct btree_iter inode_iter = {};
 	subvol_inum new_inum = dir;
 	u64 now = bch2_current_time(c);
 	u64 cpu = raw_smp_processor_id();
@@ -127,8 +127,8 @@ int bch2_create_trans(struct btree_trans *trans,
 		if (ret)
 			goto err;
 
-		bch2_btree_iter_set_snapshot(&dir_iter, dir_snapshot);
-		ret = bch2_btree_iter_traverse(&dir_iter);
+		bch2_btree_iter_set_snapshot(trans, &dir_iter, dir_snapshot);
+		ret = bch2_btree_iter_traverse(trans, &dir_iter);
 		if (ret)
 			goto err;
 	}
@@ -177,9 +177,9 @@ int bch2_create_trans(struct btree_trans *trans,
 		new_inode->bi_depth = dir_u->bi_depth + 1;
 
 	inode_iter.flags &= ~BTREE_ITER_all_snapshots;
-	bch2_btree_iter_set_snapshot(&inode_iter, snapshot);
+	bch2_btree_iter_set_snapshot(trans, &inode_iter, snapshot);
 
-	ret   = bch2_btree_iter_traverse(&inode_iter) ?:
+	ret   = bch2_btree_iter_traverse(trans, &inode_iter) ?:
 		bch2_inode_write(trans, &inode_iter, new_inode);
 err:
 	bch2_trans_iter_exit(trans, &inode_iter);
@@ -193,8 +193,8 @@ int bch2_link_trans(struct btree_trans *trans,
 		    const struct qstr *name)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter dir_iter = { NULL };
-	struct btree_iter inode_iter = { NULL };
+	struct btree_iter dir_iter = {};
+	struct btree_iter inode_iter = {};
 	struct bch_hash_info dir_hash;
 	u64 now = bch2_current_time(c);
 	u64 dir_offset = 0;
@@ -253,9 +253,9 @@ int bch2_unlink_trans(struct btree_trans *trans,
 		      bool deleting_subvol)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter dir_iter = { NULL };
-	struct btree_iter dirent_iter = { NULL };
-	struct btree_iter inode_iter = { NULL };
+	struct btree_iter dir_iter = {};
+	struct btree_iter dirent_iter = {};
+	struct btree_iter inode_iter = {};
 	struct bch_hash_info dir_hash;
 	subvol_inum inum;
 	u64 now = bch2_current_time(c);
@@ -301,7 +301,7 @@ int bch2_unlink_trans(struct btree_trans *trans,
 		if (ret)
 			goto err;
 
-		k = bch2_btree_iter_peek_slot(&dirent_iter);
+		k = bch2_btree_iter_peek_slot(trans, &dirent_iter);
 		ret = bkey_err(k);
 		if (ret)
 			goto err;
@@ -310,8 +310,8 @@ int bch2_unlink_trans(struct btree_trans *trans,
 		 * If we're deleting a subvolume, we need to really delete the
 		 * dirent, not just emit a whiteout in the current snapshot:
 		 */
-		bch2_btree_iter_set_snapshot(&dirent_iter, k.k->p.snapshot);
-		ret = bch2_btree_iter_traverse(&dirent_iter);
+		bch2_btree_iter_set_snapshot(trans, &dirent_iter, k.k->p.snapshot);
+		ret = bch2_btree_iter_traverse(trans, &dirent_iter);
 		if (ret)
 			goto err;
 	} else {
@@ -390,10 +390,10 @@ int bch2_rename_trans(struct btree_trans *trans,
 		      enum bch_rename_mode mode)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter src_dir_iter = { NULL };
-	struct btree_iter dst_dir_iter = { NULL };
-	struct btree_iter src_inode_iter = { NULL };
-	struct btree_iter dst_inode_iter = { NULL };
+	struct btree_iter src_dir_iter = {};
+	struct btree_iter dst_dir_iter = {};
+	struct btree_iter src_inode_iter = {};
+	struct btree_iter dst_inode_iter = {};
 	struct bch_hash_info src_hash, dst_hash;
 	subvol_inum src_inum, dst_inum;
 	u64 src_offset, dst_offset;
@@ -666,7 +666,7 @@ static int bch2_check_dirent_inode_dirent(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct printbuf buf = PRINTBUF;
-	struct btree_iter bp_iter = { NULL };
+	struct btree_iter bp_iter = {};
 	int ret = 0;
 
 	if (inode_points_to_dirent(target, d))

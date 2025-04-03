@@ -545,7 +545,7 @@ static struct bkey_s_c bch2_lookup_indirect_extent_for_move(struct btree_trans *
 			     BTREE_ID_reflink, reflink_pos,
 			     BTREE_ITER_not_extents);
 
-	struct bkey_s_c k = bch2_btree_iter_peek(iter);
+	struct bkey_s_c k = bch2_btree_iter_peek(trans, iter);
 	if (!k.k || bkey_err(k)) {
 		bch2_trans_iter_exit(trans, iter);
 		return k;
@@ -603,7 +603,7 @@ static int bch2_move_data_btree(struct moving_context *ctxt,
 
 		bch2_trans_begin(trans);
 
-		k = bch2_btree_iter_peek(&iter);
+		k = bch2_btree_iter_peek(trans, &iter);
 		if (!k.k)
 			break;
 
@@ -681,7 +681,7 @@ next:
 		if (ctxt->stats)
 			atomic64_add(k.k->size, &ctxt->stats->sectors_seen);
 next_nondata:
-		bch2_btree_iter_advance(&iter);
+		bch2_btree_iter_advance(trans, &iter);
 	}
 
 	bch2_trans_iter_exit(trans, &reflink_iter);
@@ -794,7 +794,7 @@ static int __bch2_move_data_phys(struct moving_context *ctxt,
 
 		bch2_trans_begin(trans);
 
-		k = bch2_btree_iter_peek(&bp_iter);
+		k = bch2_btree_iter_peek(trans, &bp_iter);
 		ret = bkey_err(k);
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			continue;
@@ -876,7 +876,7 @@ static int __bch2_move_data_phys(struct moving_context *ctxt,
 		if (ctxt->stats)
 			atomic64_add(sectors, &ctxt->stats->sectors_seen);
 next:
-		bch2_btree_iter_advance(&bp_iter);
+		bch2_btree_iter_advance(trans, &bp_iter);
 	}
 err:
 	bch2_trans_iter_exit(trans, &bp_iter);
@@ -991,7 +991,7 @@ static int bch2_move_btree(struct bch_fs *c,
 retry:
 		ret = 0;
 		while (bch2_trans_begin(trans),
-		       (b = bch2_btree_iter_peek_node(&iter)) &&
+		       (b = bch2_btree_iter_peek_node(trans, &iter)) &&
 		       !(ret = PTR_ERR_OR_ZERO(b))) {
 			if (kthread && kthread_should_stop())
 				break;
@@ -1011,7 +1011,7 @@ retry:
 			if (ret)
 				break;
 next:
-			bch2_btree_iter_next_node(&iter);
+			bch2_btree_iter_next_node(trans, &iter);
 		}
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			goto retry;

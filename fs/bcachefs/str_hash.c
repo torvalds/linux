@@ -195,7 +195,7 @@ int __bch2_str_hash_check_key(struct btree_trans *trans,
 			      struct btree_iter *k_iter, struct bkey_s_c hash_k)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter iter = { NULL };
+	struct btree_iter iter = {};
 	struct printbuf buf = PRINTBUF;
 	struct bkey_s_c k;
 	int ret = 0;

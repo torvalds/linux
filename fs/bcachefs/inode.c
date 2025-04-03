@@ -940,7 +940,7 @@ int bch2_inode_create(struct btree_trans *trans,
 			     BTREE_ITER_intent);
 	struct bkey_s_c k;
 again:
-	while ((k = bch2_btree_iter_peek(iter)).k &&
+	while ((k = bch2_btree_iter_peek(trans, iter)).k &&
 	       !(ret = bkey_err(k)) &&
 	       bkey_lt(k.k->p, POS(0, max))) {
 		if (pos < iter->pos.offset)
@@ -951,7 +951,7 @@ again:
 		 * we've found just one:
 		 */
 		pos = iter->pos.offset + 1;
-		bch2_btree_iter_set_pos(iter, POS(0, pos));
+		bch2_btree_iter_set_pos(trans, iter, POS(0, pos));
 	}
 
 	if (!ret && pos < max)
@@ -967,12 +967,12 @@ again:
 
 	/* Retry from start */
 	pos = start = min;
-	bch2_btree_iter_set_pos(iter, POS(0, pos));
+	bch2_btree_iter_set_pos(trans, iter, POS(0, pos));
 	le32_add_cpu(&cursor->v.gen, 1);
 	goto again;
 found_slot:
-	bch2_btree_iter_set_pos(iter, SPOS(0, pos, snapshot));
-	k = bch2_btree_iter_peek_slot(iter);
+	bch2_btree_iter_set_pos(trans, iter, SPOS(0, pos, snapshot));
+	k = bch2_btree_iter_peek_slot(trans, iter);
 	ret = bkey_err(k);
 	if (ret) {
 		bch2_trans_iter_exit(trans, iter);
@@ -1009,9 +1009,9 @@ static int bch2_inode_delete_keys(struct btree_trans *trans,
 		if (ret)
 			goto err;
 
-		bch2_btree_iter_set_snapshot(&iter, snapshot);
+		bch2_btree_iter_set_snapshot(trans, &iter, snapshot);
 
-		k = bch2_btree_iter_peek_max(&iter, end);
+		k = bch2_btree_iter_peek_max(trans, &iter, end);
 		ret = bkey_err(k);
 		if (ret)
 			goto err;
@@ -1042,7 +1042,7 @@ err:
 int bch2_inode_rm(struct bch_fs *c, subvol_inum inum)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
-	struct btree_iter iter = { NULL };
+	struct btree_iter iter = {};
 	struct bkey_s_c k;
 	u32 snapshot;
 	int ret;
@@ -1207,7 +1207,7 @@ int bch2_inum_opts_get(struct btree_trans *trans, subvol_inum inum, struct bch_i
 static noinline int __bch2_inode_rm_snapshot(struct btree_trans *trans, u64 inum, u32 snapshot)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter iter = { NULL };
+	struct btree_iter iter = {};
 	struct bkey_i_inode_generation delete;
 	struct bch_inode_unpacked inode_u;
 	struct bkey_s_c k;

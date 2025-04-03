@@ -371,13 +371,14 @@ static int attempt_compress(struct bch_fs *c,
 		};
 
 		zlib_set_workspace(&strm, workspace);
-		zlib_deflateInit2(&strm,
+		if (zlib_deflateInit2(&strm,
 				  compression.level
 				  ? clamp_t(unsigned, compression.level,
 					    Z_BEST_SPEED, Z_BEST_COMPRESSION)
 				  : Z_DEFAULT_COMPRESSION,
 				  Z_DEFLATED, -MAX_WBITS, DEF_MEM_LEVEL,
-				  Z_DEFAULT_STRATEGY);
+				  Z_DEFAULT_STRATEGY) != Z_OK)
+			return 0;
 
 		if (zlib_deflate(&strm, Z_FINISH) != Z_STREAM_END)
 			return 0;

@@ -394,7 +394,7 @@ static inline struct bch_read_bio *bch2_rbio_free(struct bch_read_bio *rbio)
 
 	if (rbio->have_ioref) {
 		struct bch_dev *ca = bch2_dev_have_ref(rbio->c, rbio->pick.ptr.dev);
-		percpu_ref_put(&ca->io_ref);
+		percpu_ref_put(&ca->io_ref[READ]);
 	}
 
 	if (rbio->split) {
@@ -909,7 +909,7 @@ static noinline void read_from_stale_dirty_pointer(struct btree_trans *trans,
 
 		prt_printf(&buf, "memory gen: %u", gen);
 
-		ret = lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_slot(&iter)));
+		ret = lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_slot(trans, &iter)));
 		if (!ret) {
 			prt_newline(&buf);
 			bch2_bkey_val_to_text(&buf, c, k);
@@ -1003,7 +1003,7 @@ retry_pick:
 	    unlikely(dev_ptr_stale(ca, &pick.ptr))) {
 		read_from_stale_dirty_pointer(trans, ca, k, pick.ptr);
 		bch2_mark_io_failure(failed, &pick, false);
-		percpu_ref_put(&ca->io_ref);
+		percpu_ref_put(&ca->io_ref[READ]);
 		goto retry_pick;
 	}
 
@@ -1036,7 +1036,7 @@ retry_pick:
 		 */
 		if (pick.crc.compressed_size > u->op.wbio.bio.bi_iter.bi_size) {
 			if (ca)
-				percpu_ref_put(&ca->io_ref);
+				percpu_ref_put(&ca->io_ref[READ]);
 			rbio->ret = -BCH_ERR_data_read_buffer_too_small;
 			goto out_read_done;
 		}
@@ -1285,12 +1285,12 @@ int __bch2_read(struct btree_trans *trans, struct bch_read_bio *rbio,
 		if (ret)
 			goto err;
 
-		bch2_btree_iter_set_snapshot(&iter, snapshot);
+		bch2_btree_iter_set_snapshot(trans, &iter, snapshot);
 
-		bch2_btree_iter_set_pos(&iter,
+		bch2_btree_iter_set_pos(trans, &iter,
 				POS(inum.inum, bvec_iter.bi_sector));
 
-		k = bch2_btree_iter_peek_slot(&iter);
+		k = bch2_btree_iter_peek_slot(trans, &iter);
 		ret = bkey_err(k);
 		if (ret)
 			goto err;

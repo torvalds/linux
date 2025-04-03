@@ -1315,7 +1315,7 @@ int bch2_fs_journal_alloc(struct bch_fs *c)
 
 		int ret = bch2_dev_journal_alloc(ca, true);
 		if (ret) {
-			percpu_ref_put(&ca->io_ref);
+			percpu_ref_put(&ca->io_ref[READ]);
 			return ret;
 		}
 	}
@@ -1404,6 +1404,14 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 
 	nr = cur_seq - last_seq;
 
+	/*
+	 * Extra fudge factor, in case we crashed when the journal pin fifo was
+	 * nearly or completely full. We'll need to be able to open additional
+	 * journal entries (at least a few) in order for journal replay to get
+	 * going:
+	 */
+	nr += nr / 4;
+
 	if (nr + 1 > j->pin.size) {
 		free_fifo(&j->pin);
 		init_fifo(&j->pin, roundup_pow_of_two(nr + 1), GFP_KERNEL);
@@ -1461,11 +1469,9 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 	j->reservations.idx = journal_cur_seq(j);
 
 	c->last_bucket_seq_cleanup = journal_cur_seq(j);
-
-	bch2_journal_space_available(j);
 	spin_unlock(&j->lock);
 
-	return bch2_journal_reclaim_start(j);
+	return 0;
 }
 
 /* init/exit: */
