@@ -1918,7 +1918,7 @@ static void btree_node_scrub_work(struct work_struct *work)
 			bch_err(c, "error validating btree node during scrub on %s at btree %s",
 				scrub->ca->name, err.buf);
 
-			ret = bch2_btree_node_rewrite(trans, &iter, b, 0);
+			ret = bch2_btree_node_rewrite(trans, &iter, b, 0, 0);
 		}
 err:
 		bch2_trans_iter_exit(trans, &iter);

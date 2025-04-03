@@ -872,7 +872,8 @@ static int __bch2_move_data_phys(struct moving_context *ctxt,
 		if (!bp.v->level)
 			ret = bch2_move_extent(ctxt, bucket_in_flight, &iter, k, io_opts, data_opts);
 		else if (!data_opts.scrub)
-			ret = bch2_btree_node_rewrite_pos(trans, bp.v->btree_id, bp.v->level, k.k->p, 0);
+			ret = bch2_btree_node_rewrite_pos(trans, bp.v->btree_id, bp.v->level,
+							  k.k->p, data_opts.target, 0);
 		else
 			ret = bch2_btree_node_scrub(trans, bp.v->btree_id, bp.v->level, k, data_opts.read_dev);
 
@@ -1022,7 +1023,7 @@ retry:
 			if (!pred(c, arg, b, &io_opts, &data_opts))
 				goto next;
 
-			ret = bch2_btree_node_rewrite(trans, &iter, b, 0) ?: ret;
+			ret = bch2_btree_node_rewrite(trans, &iter, b, 0, 0) ?: ret;
 			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 				continue;
 			if (ret)
