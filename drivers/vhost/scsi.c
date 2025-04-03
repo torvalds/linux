@@ -263,6 +263,12 @@ struct vhost_scsi_tmf {
 	struct iovec resp_iov;
 	int in_iovs;
 	int vq_desc;
+
+	/*
+	 * Dirty write descriptors of this command.
+	 */
+	struct vhost_log *tmf_log;
+	unsigned int tmf_log_num;
 };
 
 /*
@@ -452,6 +458,10 @@ static void vhost_scsi_release_tmf_res(struct vhost_scsi_tmf *tmf)
 {
 	struct vhost_scsi_inflight *inflight = tmf->inflight;
 
+	/*
+	 * tmf->tmf_log is default NULL unless VHOST_F_LOG_ALL is set.
+	 */
+	kfree(tmf->tmf_log);
 	kfree(tmf);
 	vhost_scsi_put_inflight(inflight);
 }
@@ -1537,6 +1547,8 @@ static void vhost_scsi_tmf_resp_work(struct vhost_work *work)
 	mutex_lock(&tmf->svq->vq.mutex);
 	vhost_scsi_send_tmf_resp(tmf->vhost, &tmf->svq->vq, tmf->in_iovs,
 				 tmf->vq_desc, &tmf->resp_iov, resp_code);
+	vhost_scsi_log_write(&tmf->svq->vq, tmf->tmf_log,
+			     tmf->tmf_log_num);
 	mutex_unlock(&tmf->svq->vq.mutex);
 
 	vhost_scsi_release_tmf_res(tmf);
@@ -1560,7 +1572,8 @@ static void
 vhost_scsi_handle_tmf(struct vhost_scsi *vs, struct vhost_scsi_tpg *tpg,
 		      struct vhost_virtqueue *vq,
 		      struct virtio_scsi_ctrl_tmf_req *vtmf,
-		      struct vhost_scsi_ctx *vc)
+		      struct vhost_scsi_ctx *vc,
+		      struct vhost_log *log, unsigned int log_num)
 {
 	struct vhost_scsi_virtqueue *svq = container_of(vq,
 					struct vhost_scsi_virtqueue, vq);
@@ -1588,6 +1601,19 @@ vhost_scsi_handle_tmf(struct vhost_scsi *vs, struct vhost_scsi_tpg *tpg,
 	tmf->in_iovs = vc->in;
 	tmf->inflight = vhost_scsi_get_inflight(vq);
 
+	if (unlikely(log && log_num)) {
+		tmf->tmf_log = kmalloc_array(log_num, sizeof(*tmf->tmf_log),
+					     GFP_KERNEL);
+		if (tmf->tmf_log) {
+			memcpy(tmf->tmf_log, log, sizeof(*tmf->tmf_log) * log_num);
+			tmf->tmf_log_num = log_num;
+		} else {
+			pr_err("vhost_scsi tmf log allocation error\n");
+			vhost_scsi_release_tmf_res(tmf);
+			goto send_reject;
+		}
+	}
+
 	if (target_submit_tmr(&tmf->se_cmd, tpg->tpg_nexus->tvn_se_sess, NULL,
 			      vhost_buf_to_lun(vtmf->lun), NULL,
 			      TMR_LUN_RESET, GFP_KERNEL, 0,
@@ -1601,6 +1627,7 @@ vhost_scsi_handle_tmf(struct vhost_scsi *vs, struct vhost_scsi_tpg *tpg,
 send_reject:
 	vhost_scsi_send_tmf_resp(vs, vq, vc->in, vc->head, &vq->iov[vc->out],
 				 VIRTIO_SCSI_S_FUNCTION_REJECTED);
+	vhost_scsi_log_write(vq, log, log_num);
 }
 
 static void
@@ -1637,6 +1664,8 @@ vhost_scsi_ctl_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 	struct vhost_scsi_ctx vc;
 	size_t typ_size;
 	int ret, c = 0;
+	struct vhost_log *vq_log;
+	unsigned int log_num;
 
 	mutex_lock(&vq->mutex);
 	/*
@@ -1650,8 +1679,11 @@ vhost_scsi_ctl_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 
 	vhost_disable_notify(&vs->dev, vq);
 
+	vq_log = unlikely(vhost_has_feature(vq, VHOST_F_LOG_ALL)) ?
+		vq->log : NULL;
+
 	do {
-		ret = vhost_scsi_get_desc(vs, vq, &vc, NULL, NULL);
+		ret = vhost_scsi_get_desc(vs, vq, &vc, vq_log, &log_num);
 		if (ret)
 			goto err;
 
@@ -1715,9 +1747,12 @@ vhost_scsi_ctl_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 			goto err;
 
 		if (v_req.type == VIRTIO_SCSI_T_TMF)
-			vhost_scsi_handle_tmf(vs, tpg, vq, &v_req.tmf, &vc);
-		else
+			vhost_scsi_handle_tmf(vs, tpg, vq, &v_req.tmf, &vc,
+					      vq_log, log_num);
+		else {
 			vhost_scsi_send_an_resp(vs, vq, &vc);
+			vhost_scsi_log_write(vq, vq_log, log_num);
+		}
 err:
 		/*
 		 * ENXIO:  No more requests, or read error, wait for next kick
@@ -1727,11 +1762,13 @@ err:
 		 */
 		if (ret == -ENXIO)
 			break;
-		else if (ret == -EIO)
+		else if (ret == -EIO) {
 			vhost_scsi_send_bad_target(vs, vq, &vc,
 						   v_req.type == VIRTIO_SCSI_T_TMF ?
 						   TYPE_CTRL_TMF :
 						   TYPE_CTRL_AN);
+			vhost_scsi_log_write(vq, vq_log, log_num);
+		}
 	} while (likely(!vhost_exceeds_weight(vq, ++c, 0)));
 out:
 	mutex_unlock(&vq->mutex);
