@@ -362,9 +362,9 @@ TEST_F(pidfd_info, thread_group)
 	ASSERT_EQ(ioctl(pidfd_leader, PIDFD_GET_INFO, &info), 0);
 	ASSERT_FALSE(!!(info.mask & PIDFD_INFO_CREDS));
 	ASSERT_TRUE(!!(info.mask & PIDFD_INFO_EXIT));
-	/* The thread-group leader exited successfully. Only the specific thread was SIGKILLed. */
-	ASSERT_TRUE(WIFEXITED(info.exit_code));
-	ASSERT_EQ(WEXITSTATUS(info.exit_code), 0);
+	/* Even though the thread-group exited successfully it will still report the group exit code. */
+	ASSERT_TRUE(WIFSIGNALED(info.exit_code));
+	ASSERT_EQ(WTERMSIG(info.exit_code), SIGKILL);
 
 	/*
 	 * Retrieve exit information for the thread-group leader via the
@@ -375,9 +375,9 @@ TEST_F(pidfd_info, thread_group)
 	ASSERT_FALSE(!!(info2.mask & PIDFD_INFO_CREDS));
 	ASSERT_TRUE(!!(info2.mask & PIDFD_INFO_EXIT));
 
-	/* The thread-group leader exited successfully. Only the specific thread was SIGKILLed. */
-	ASSERT_TRUE(WIFEXITED(info2.exit_code));
-	ASSERT_EQ(WEXITSTATUS(info2.exit_code), 0);
+	/* Even though the thread-group exited successfully it will still report the group exit code. */
+	ASSERT_TRUE(WIFSIGNALED(info2.exit_code));
+	ASSERT_EQ(WTERMSIG(info2.exit_code), SIGKILL);
 
 	/* Retrieve exit information for the thread. */
 	info.mask = PIDFD_INFO_CGROUPID | PIDFD_INFO_EXIT;
