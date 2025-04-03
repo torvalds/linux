@@ -76,14 +76,13 @@ int damon_register_ops(struct damon_operations *ops)
 
 	if (ops->id >= NR_DAMON_OPS)
 		return -EINVAL;
+
 	mutex_lock(&damon_ops_lock);
 	/* Fail for already registered ops */
-	if (__damon_is_registered_ops(ops->id)) {
+	if (__damon_is_registered_ops(ops->id))
 		err = -EINVAL;
-		goto out;
-	}
-	damon_registered_ops[ops->id] = *ops;
-out:
+	else
+		damon_registered_ops[ops->id] = *ops;
 	mutex_unlock(&damon_ops_lock);
 	return err;
 }
