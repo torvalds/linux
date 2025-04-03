@@ -1842,14 +1842,11 @@ static void icl_dphy_param_init(struct intel_dsi *intel_dsi)
 	struct mipi_config *mipi_config = connector->panel.vbt.dsi.config;
 	u32 tlpx_ns;
 	u32 prepare_cnt, exit_zero_cnt, clk_zero_cnt;
-	u32 ths_prepare_ns;
+	u32 ths_prepare_esc_clk;
 	u32 hs_zero_cnt;
 	u32 tclk_pre_cnt;
 
 	tlpx_ns = intel_dsi_tlpx_ns(intel_dsi);
-
-	ths_prepare_ns = max(mipi_config->ths_prepare,
-			     mipi_config->tclk_prepare);
 
 	/*
 	 * prepare cnt in escape clocks
@@ -1858,7 +1855,7 @@ static void icl_dphy_param_init(struct intel_dsi *intel_dsi)
 	 * and the least significant 2 bits are fraction bits.
 	 * so, the field can represent a range of 0.25 to 1.75
 	 */
-	prepare_cnt = DIV_ROUND_UP(ths_prepare_ns * 4, tlpx_ns);
+	prepare_cnt = DIV_ROUND_UP(mipi_config->tclk_prepare * 4, tlpx_ns);
 	if (prepare_cnt > ICL_PREPARE_CNT_MAX) {
 		drm_dbg_kms(display->drm, "prepare_cnt out of range (%d)\n",
 			    prepare_cnt);
@@ -1867,7 +1864,7 @@ static void icl_dphy_param_init(struct intel_dsi *intel_dsi)
 
 	/* clk zero count in escape clocks */
 	clk_zero_cnt = DIV_ROUND_UP(mipi_config->tclk_prepare_clkzero -
-				    ths_prepare_ns, tlpx_ns);
+				    mipi_config->tclk_prepare, tlpx_ns);
 	if (clk_zero_cnt > ICL_CLK_ZERO_CNT_MAX) {
 		drm_dbg_kms(display->drm,
 			    "clk_zero_cnt out of range (%d)\n", clk_zero_cnt);
@@ -1882,9 +1879,12 @@ static void icl_dphy_param_init(struct intel_dsi *intel_dsi)
 		tclk_pre_cnt = ICL_TCLK_PRE_CNT_MAX;
 	}
 
+	ths_prepare_esc_clk = DIV_ROUND_UP(mipi_config->ths_prepare * 4, tlpx_ns);
+	ths_prepare_esc_clk = min(ths_prepare_esc_clk, 7);
+
 	/* hs zero cnt in escape clocks */
 	hs_zero_cnt = DIV_ROUND_UP(mipi_config->ths_prepare_hszero -
-				   ths_prepare_ns, tlpx_ns);
+				   mipi_config->ths_prepare, tlpx_ns);
 	if (hs_zero_cnt > ICL_HS_ZERO_CNT_MAX) {
 		drm_dbg_kms(display->drm, "hs_zero_cnt out of range (%d)\n",
 			    hs_zero_cnt);
@@ -1910,7 +1910,7 @@ static void icl_dphy_param_init(struct intel_dsi *intel_dsi)
 
 	/* data lanes dphy timings */
 	intel_dsi->dphy_data_lane_reg = (HS_PREPARE_OVERRIDE |
-					 HS_PREPARE(prepare_cnt) |
+					 HS_PREPARE(ths_prepare_esc_clk) |
 					 HS_ZERO_OVERRIDE |
 					 HS_ZERO(hs_zero_cnt) |
 					 HS_EXIT_OVERRIDE |
