@@ -744,9 +744,7 @@ static int acpi_gpio_update_gpiod_lookup_flags(unsigned long *lookupflags,
 
 struct acpi_gpio_lookup {
 	struct acpi_gpio_info info;
-	int index;
-	u16 pin_index;
-	bool active_low;
+	struct acpi_gpio_params params;
 	struct gpio_desc *desc;
 	int n;
 };
@@ -754,6 +752,7 @@ struct acpi_gpio_lookup {
 static int acpi_populate_gpio_lookup(struct acpi_resource *ares, void *data)
 {
 	struct acpi_gpio_lookup *lookup = data;
+	struct acpi_gpio_params *params = &lookup->params;
 
 	if (ares->type != ACPI_RESOURCE_TYPE_GPIO)
 		return 1;
@@ -765,12 +764,12 @@ static int acpi_populate_gpio_lookup(struct acpi_resource *ares, void *data)
 		u16 pin_index;
 
 		if (lookup->info.quirks & ACPI_GPIO_QUIRK_ONLY_GPIOIO && gpioint)
-			lookup->index++;
+			params->crs_entry_index++;
 
-		if (lookup->n++ != lookup->index)
+		if (lookup->n++ != params->crs_entry_index)
 			return 1;
 
-		pin_index = lookup->pin_index;
+		pin_index = params->line_index;
 		if (pin_index >= agpio->pin_table_length)
 			return 1;
 
@@ -796,7 +795,7 @@ static int acpi_populate_gpio_lookup(struct acpi_resource *ares, void *data)
 			lookup->info.polarity = agpio->polarity;
 			lookup->info.triggering = agpio->triggering;
 		} else {
-			lookup->info.polarity = lookup->active_low;
+			lookup->info.polarity = params->active_low;
 		}
 
 		lookup->info.flags = acpi_gpio_to_gpiod_flags(agpio, lookup->info.polarity);
@@ -834,7 +833,8 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode, const char *p
 				     struct acpi_gpio_lookup *lookup)
 {
 	struct fwnode_reference_args args;
-	unsigned int index = lookup->index;
+	struct acpi_gpio_params *params = &lookup->params;
+	unsigned int index = params->crs_entry_index;
 	unsigned int quirks = 0;
 	int ret;
 
@@ -857,9 +857,9 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode, const char *p
 	if (args.nargs != 3)
 		return -EPROTO;
 
-	lookup->index = args.args[0];
-	lookup->pin_index = args.args[1];
-	lookup->active_low = !!args.args[2];
+	params->crs_entry_index = args.args[0];
+	params->line_index = args.args[1];
+	params->active_low = !!args.args[2];
 
 	lookup->info.adev = to_acpi_device_node(args.fwnode);
 	lookup->info.quirks = quirks;
@@ -897,10 +897,11 @@ static struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 						 struct acpi_gpio_info *info)
 {
 	struct acpi_gpio_lookup lookup;
+	struct acpi_gpio_params *params = &lookup.params;
 	int ret;
 
 	memset(&lookup, 0, sizeof(lookup));
-	lookup.index = index;
+	params->crs_entry_index = index;
 
 	if (propname) {
 		dev_dbg(&adev->dev, "GPIO: looking up %s\n", propname);
@@ -909,11 +910,11 @@ static struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 		if (ret)
 			return ERR_PTR(ret);
 
-		dev_dbg(&adev->dev, "GPIO: _DSD returned %s %d %u %u\n",
-			dev_name(&lookup.info.adev->dev), lookup.index,
-			lookup.pin_index, lookup.active_low);
+		dev_dbg(&adev->dev, "GPIO: _DSD returned %s %u %u %u\n",
+			dev_name(&lookup.info.adev->dev),
+			params->crs_entry_index, params->line_index, params->active_low);
 	} else {
-		dev_dbg(&adev->dev, "GPIO: looking up %d in _CRS\n", index);
+		dev_dbg(&adev->dev, "GPIO: looking up %u in _CRS\n", params->crs_entry_index);
 		lookup.info.adev = adev;
 	}
 
@@ -943,6 +944,7 @@ static struct gpio_desc *acpi_get_gpiod_from_data(struct fwnode_handle *fwnode,
 						  struct acpi_gpio_info *info)
 {
 	struct acpi_gpio_lookup lookup;
+	struct acpi_gpio_params *params = &lookup.params;
 	int ret;
 
 	if (!is_acpi_data_node(fwnode))
@@ -952,7 +954,7 @@ static struct gpio_desc *acpi_get_gpiod_from_data(struct fwnode_handle *fwnode,
 		return ERR_PTR(-EINVAL);
 
 	memset(&lookup, 0, sizeof(lookup));
-	lookup.index = index;
+	params->crs_entry_index = index;
 
 	ret = acpi_gpio_property_lookup(fwnode, propname, &lookup);
 	if (ret)
