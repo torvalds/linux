@@ -31,14 +31,12 @@ static int xe_bo_apply_to_pinned(struct xe_device *xe,
 		list_move_tail(&bo->pinned_link, &still_in_list);
 		spin_unlock(&xe->pinned.lock);
 
-		xe_bo_lock(bo, false);
 		ret = pinned_fn(bo);
 		if (ret && pinned_list != new_list) {
 			spin_lock(&xe->pinned.lock);
 			list_move(&bo->pinned_link, pinned_list);
 			spin_unlock(&xe->pinned.lock);
 		}
-		xe_bo_unlock(bo);
 		xe_bo_put(bo);
 		spin_lock(&xe->pinned.lock);
 	}
