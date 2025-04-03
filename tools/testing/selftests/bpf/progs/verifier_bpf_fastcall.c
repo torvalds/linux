@@ -12,7 +12,7 @@ SEC("raw_tp")
 __arch_x86_64
 __log_level(4) __msg("stack depth 8")
 __xlated("4: r5 = 5")
-__xlated("5: w0 = ")
+__xlated("5: r0 = ")
 __xlated("6: r0 = &(void __percpu *)(r0)")
 __xlated("7: r0 = *(u32 *)(r0 +0)")
 __xlated("8: exit")
@@ -704,7 +704,7 @@ SEC("raw_tp")
 __arch_x86_64
 __log_level(4) __msg("stack depth 32+0")
 __xlated("2: r1 = 1")
-__xlated("3: w0 =")
+__xlated("3: r0 =")
 __xlated("4: r0 = &(void __percpu *)(r0)")
 __xlated("5: r0 = *(u32 *)(r0 +0)")
 /* bpf_loop params setup */
@@ -753,7 +753,7 @@ __arch_x86_64
 __log_level(4) __msg("stack depth 40+0")
 /* call bpf_get_smp_processor_id */
 __xlated("2: r1 = 42")
-__xlated("3: w0 =")
+__xlated("3: r0 =")
 __xlated("4: r0 = &(void __percpu *)(r0)")
 __xlated("5: r0 = *(u32 *)(r0 +0)")
 /* call bpf_get_prandom_u32 */
