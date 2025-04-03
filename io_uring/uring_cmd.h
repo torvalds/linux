@@ -6,6 +6,7 @@
 struct io_async_cmd {
 	struct io_uring_cmd_data	data;
 	struct iou_vec			vec;
+	struct io_uring_sqe		sqes[2];
 };
 
 int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags);

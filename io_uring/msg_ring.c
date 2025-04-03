@@ -38,8 +38,8 @@ static void io_double_unlock_ctx(struct io_ring_ctx *octx)
 	mutex_unlock(&octx->uring_lock);
 }
 
-static int io_double_lock_ctx(struct io_ring_ctx *octx,
-			      unsigned int issue_flags)
+static int io_lock_external_ctx(struct io_ring_ctx *octx,
+				unsigned int issue_flags)
 {
 	/*
 	 * To ensure proper ordering between the two ctxs, we can only
@@ -93,13 +93,14 @@ static int io_msg_remote_post(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		kmem_cache_free(req_cachep, req);
 		return -EOWNERDEAD;
 	}
+	req->opcode = IORING_OP_NOP;
 	req->cqe.user_data = user_data;
 	io_req_set_res(req, res, cflags);
 	percpu_ref_get(&ctx->refs);
 	req->ctx = ctx;
 	req->tctx = NULL;
 	req->io_task_work.func = io_msg_tw_complete;
-	io_req_task_work_add_remote(req, ctx, IOU_F_TWQ_LAZY_WAKE);
+	io_req_task_work_add_remote(req, IOU_F_TWQ_LAZY_WAKE);
 	return 0;
 }
 
@@ -154,7 +155,7 @@ static int __io_msg_ring_data(struct io_ring_ctx *target_ctx,
 
 	ret = -EOVERFLOW;
 	if (target_ctx->flags & IORING_SETUP_IOPOLL) {
-		if (unlikely(io_double_lock_ctx(target_ctx, issue_flags)))
+		if (unlikely(io_lock_external_ctx(target_ctx, issue_flags)))
 			return -EAGAIN;
 	}
 	if (io_post_aux_cqe(target_ctx, msg->user_data, msg->len, flags))
@@ -199,7 +200,7 @@ static int io_msg_install_complete(struct io_kiocb *req, unsigned int issue_flag
 	struct file *src_file = msg->src_file;
 	int ret;
 
-	if (unlikely(io_double_lock_ctx(target_ctx, issue_flags)))
+	if (unlikely(io_lock_external_ctx(target_ctx, issue_flags)))
 		return -EAGAIN;
 
 	ret = __io_fixed_fd_install(target_ctx, src_file, msg->dst_fd);

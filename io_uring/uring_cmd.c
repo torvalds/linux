@@ -205,8 +205,8 @@ static int io_uring_cmd_prep_setup(struct io_kiocb *req,
 	 * that it doesn't read in per-op data, play it safe and ensure that
 	 * any SQE data is stable beyond prep. This can later get relaxed.
 	 */
-	memcpy(ac->data.sqes, sqe, uring_sqe_size(req->ctx));
-	ioucmd->sqe = ac->data.sqes;
+	memcpy(ac->sqes, sqe, uring_sqe_size(req->ctx));
+	ioucmd->sqe = ac->sqes;
 	return 0;
 }
 
@@ -307,17 +307,18 @@ static inline int io_uring_cmd_getsockopt(struct socket *sock,
 					  struct io_uring_cmd *cmd,
 					  unsigned int issue_flags)
 {
+	const struct io_uring_sqe *sqe = cmd->sqe;
 	bool compat = !!(issue_flags & IO_URING_F_COMPAT);
 	int optlen, optname, level, err;
 	void __user *optval;
 
-	level = READ_ONCE(cmd->sqe->level);
+	level = READ_ONCE(sqe->level);
 	if (level != SOL_SOCKET)
 		return -EOPNOTSUPP;
 
-	optval = u64_to_user_ptr(READ_ONCE(cmd->sqe->optval));
-	optname = READ_ONCE(cmd->sqe->optname);
-	optlen = READ_ONCE(cmd->sqe->optlen);
+	optval = u64_to_user_ptr(READ_ONCE(sqe->optval));
+	optname = READ_ONCE(sqe->optname);
+	optlen = READ_ONCE(sqe->optlen);
 
 	err = do_sock_getsockopt(sock, compat, level, optname,
 				 USER_SOCKPTR(optval),
@@ -333,15 +334,16 @@ static inline int io_uring_cmd_setsockopt(struct socket *sock,
 					  struct io_uring_cmd *cmd,
 					  unsigned int issue_flags)
 {
+	const struct io_uring_sqe *sqe = cmd->sqe;
 	bool compat = !!(issue_flags & IO_URING_F_COMPAT);
 	int optname, optlen, level;
 	void __user *optval;
 	sockptr_t optval_s;
 
-	optval = u64_to_user_ptr(READ_ONCE(cmd->sqe->optval));
-	optname = READ_ONCE(cmd->sqe->optname);
-	optlen = READ_ONCE(cmd->sqe->optlen);
-	level = READ_ONCE(cmd->sqe->level);
+	optval = u64_to_user_ptr(READ_ONCE(sqe->optval));
+	optname = READ_ONCE(sqe->optname);
+	optlen = READ_ONCE(sqe->optlen);
+	level = READ_ONCE(sqe->level);
 	optval_s = USER_SOCKPTR(optval);
 
 	return do_sock_setsockopt(sock, compat, level, optname, optval_s,

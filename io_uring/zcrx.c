@@ -818,6 +818,14 @@ io_zcrx_recv_skb(read_descriptor_t *desc, struct sk_buff *skb,
 	int ret = 0;
 
 	len = min_t(size_t, len, desc->count);
+	/*
+	 * __tcp_read_sock() always calls io_zcrx_recv_skb one last time, even
+	 * if desc->count is already 0. This is caused by the if (offset + 1 !=
+	 * skb->len) check. Return early in this case to break out of
+	 * __tcp_read_sock().
+	 */
+	if (!len)
+		return 0;
 	if (unlikely(args->nr_skbs++ > IO_SKBS_PER_CALL_LIMIT))
 		return -EAGAIN;
 

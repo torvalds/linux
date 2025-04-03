@@ -1002,20 +1002,33 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(io_buffer_unregister_bvec);
 
-static int io_import_fixed(int ddir, struct iov_iter *iter,
-			   struct io_mapped_ubuf *imu,
-			   u64 buf_addr, size_t len)
+static int validate_fixed_range(u64 buf_addr, size_t len,
+				const struct io_mapped_ubuf *imu)
 {
 	u64 buf_end;
-	size_t offset;
 
-	if (WARN_ON_ONCE(!imu))
-		return -EFAULT;
 	if (unlikely(check_add_overflow(buf_addr, (u64)len, &buf_end)))
 		return -EFAULT;
 	/* not inside the mapped region */
 	if (unlikely(buf_addr < imu->ubuf || buf_end > (imu->ubuf + imu->len)))
 		return -EFAULT;
+	if (unlikely(len > MAX_RW_COUNT))
+		return -EFAULT;
+	return 0;
+}
+
+static int io_import_fixed(int ddir, struct iov_iter *iter,
+			   struct io_mapped_ubuf *imu,
+			   u64 buf_addr, size_t len)
+{
+	size_t offset;
+	int ret;
+
+	if (WARN_ON_ONCE(!imu))
+		return -EFAULT;
+	ret = validate_fixed_range(buf_addr, len, imu);
+	if (unlikely(ret))
+		return ret;
 	if (!(imu->dir & (1 << ddir)))
 		return -EFAULT;
 
@@ -1305,12 +1318,12 @@ static int io_vec_fill_bvec(int ddir, struct iov_iter *iter,
 		u64 buf_addr = (u64)(uintptr_t)iovec[iov_idx].iov_base;
 		struct bio_vec *src_bvec;
 		size_t offset;
-		u64 buf_end;
+		int ret;
 
-		if (unlikely(check_add_overflow(buf_addr, (u64)iov_len, &buf_end)))
-			return -EFAULT;
-		if (unlikely(buf_addr < imu->ubuf || buf_end > (imu->ubuf + imu->len)))
-			return -EFAULT;
+		ret = validate_fixed_range(buf_addr, iov_len, imu);
+		if (unlikely(ret))
+			return ret;
+
 		if (unlikely(!iov_len))
 			return -EFAULT;
 		if (unlikely(check_add_overflow(total_len, iov_len, &total_len)))
@@ -1349,6 +1362,82 @@ static int io_estimate_bvec_size(struct iovec *iov, unsigned nr_iovs,
 	return max_segs;
 }
 
+static int io_vec_fill_kern_bvec(int ddir, struct iov_iter *iter,
+				 struct io_mapped_ubuf *imu,
+				 struct iovec *iovec, unsigned nr_iovs,
+				 struct iou_vec *vec)
+{
+	const struct bio_vec *src_bvec = imu->bvec;
+	struct bio_vec *res_bvec = vec->bvec;
+	unsigned res_idx = 0;
+	size_t total_len = 0;
+	unsigned iov_idx;
+
+	for (iov_idx = 0; iov_idx < nr_iovs; iov_idx++) {
+		size_t offset = (size_t)(uintptr_t)iovec[iov_idx].iov_base;
+		size_t iov_len = iovec[iov_idx].iov_len;
+		struct bvec_iter bi = {
+			.bi_size        = offset + iov_len,
+		};
+		struct bio_vec bv;
+
+		bvec_iter_advance(src_bvec, &bi, offset);
+		for_each_mp_bvec(bv, src_bvec, bi, bi)
+			res_bvec[res_idx++] = bv;
+		total_len += iov_len;
+	}
+	iov_iter_bvec(iter, ddir, res_bvec, res_idx, total_len);
+	return 0;
+}
+
+static int iov_kern_bvec_size(const struct iovec *iov,
+			      const struct io_mapped_ubuf *imu,
+			      unsigned int *nr_seg)
+{
+	size_t offset = (size_t)(uintptr_t)iov->iov_base;
+	const struct bio_vec *bvec = imu->bvec;
+	int start = 0, i = 0;
+	size_t off = 0;
+	int ret;
+
+	ret = validate_fixed_range(offset, iov->iov_len, imu);
+	if (unlikely(ret))
+		return ret;
+
+	for (i = 0; off < offset + iov->iov_len && i < imu->nr_bvecs;
+			off += bvec[i].bv_len, i++) {
+		if (offset >= off && offset < off + bvec[i].bv_len)
+			start = i;
+	}
+	*nr_seg = i - start;
+	return 0;
+}
+
+static int io_kern_bvec_size(struct iovec *iov, unsigned nr_iovs,
+			     struct io_mapped_ubuf *imu, unsigned *nr_segs)
+{
+	unsigned max_segs = 0;
+	size_t total_len = 0;
+	unsigned i;
+	int ret;
+
+	*nr_segs = 0;
+	for (i = 0; i < nr_iovs; i++) {
+		if (unlikely(!iov[i].iov_len))
+			return -EFAULT;
+		if (unlikely(check_add_overflow(total_len, iov[i].iov_len,
+						&total_len)))
+			return -EOVERFLOW;
+		ret = iov_kern_bvec_size(&iov[i], imu, &max_segs);
+		if (unlikely(ret))
+			return ret;
+		*nr_segs += max_segs;
+	}
+	if (total_len > MAX_RW_COUNT)
+		return -EINVAL;
+	return 0;
+}
+
 int io_import_reg_vec(int ddir, struct iov_iter *iter,
 			struct io_kiocb *req, struct iou_vec *vec,
 			unsigned nr_iovs, unsigned issue_flags)
@@ -1363,14 +1452,20 @@ int io_import_reg_vec(int ddir, struct iov_iter *iter,
 	if (!node)
 		return -EFAULT;
 	imu = node->buf;
-	if (imu->is_kbuf)
-		return -EOPNOTSUPP;
 	if (!(imu->dir & (1 << ddir)))
 		return -EFAULT;
 
 	iovec_off = vec->nr - nr_iovs;
 	iov = vec->iovec + iovec_off;
-	nr_segs = io_estimate_bvec_size(iov, nr_iovs, imu);
+
+	if (imu->is_kbuf) {
+		int ret = io_kern_bvec_size(iov, nr_iovs, imu, &nr_segs);
+
+		if (unlikely(ret))
+			return ret;
+	} else {
+		nr_segs = io_estimate_bvec_size(iov, nr_iovs, imu);
+	}
 
 	if (sizeof(struct bio_vec) > sizeof(struct iovec)) {
 		size_t bvec_bytes;
@@ -1396,6 +1491,9 @@ int io_import_reg_vec(int ddir, struct iov_iter *iter,
 		iov = vec->iovec + iovec_off;
 		req->flags |= REQ_F_NEED_CLEANUP;
 	}
+
+	if (imu->is_kbuf)
+		return io_vec_fill_kern_bvec(ddir, iter, imu, iov, nr_iovs, vec);
 
 	return io_vec_fill_bvec(ddir, iter, imu, iov, nr_iovs, vec);
 }

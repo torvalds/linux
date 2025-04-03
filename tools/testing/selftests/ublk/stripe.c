@@ -111,43 +111,67 @@ static void calculate_stripe_array(const struct stripe_conf *conf,
 	}
 }
 
-static inline enum io_uring_op stripe_to_uring_op(const struct ublksrv_io_desc *iod)
+static inline enum io_uring_op stripe_to_uring_op(
+		const struct ublksrv_io_desc *iod, int zc)
 {
 	unsigned ublk_op = ublksrv_get_op(iod);
 
 	if (ublk_op == UBLK_IO_OP_READ)
-		return IORING_OP_READV;
+		return zc ? IORING_OP_READV_FIXED : IORING_OP_READV;
 	else if (ublk_op == UBLK_IO_OP_WRITE)
-		return IORING_OP_WRITEV;
+		return zc ? IORING_OP_WRITEV_FIXED : IORING_OP_WRITEV;
 	assert(0);
 }
 
 static int stripe_queue_tgt_rw_io(struct ublk_queue *q, const struct ublksrv_io_desc *iod, int tag)
 {
 	const struct stripe_conf *conf = get_chunk_shift(q);
-	enum io_uring_op op = stripe_to_uring_op(iod);
+	int zc = !!(ublk_queue_use_zc(q) != 0);
+	enum io_uring_op op = stripe_to_uring_op(iod, zc);
 	struct io_uring_sqe *sqe[NR_STRIPE];
 	struct stripe_array *s = alloc_stripe_array(conf, iod);
 	struct ublk_io *io = ublk_get_io(q, tag);
-	int i;
+	int i, extra = zc ? 2 : 0;
 
 	io->private_data = s;
 	calculate_stripe_array(conf, iod, s);
 
-	ublk_queue_alloc_sqes(q, sqe, s->nr);
-	for (i = 0; i < s->nr; i++) {
-		struct stripe *t = &s->s[i];
+	ublk_queue_alloc_sqes(q, sqe, s->nr + extra);
+
+	if (zc) {
+		io_uring_prep_buf_register(sqe[0], 0, tag, q->q_id, tag);
+		sqe[0]->flags |= IOSQE_CQE_SKIP_SUCCESS | IOSQE_IO_HARDLINK;
+		sqe[0]->user_data = build_user_data(tag,
+			ublk_cmd_op_nr(sqe[0]->cmd_op), 0, 1);
+	}
+
+	for (i = zc; i < s->nr + extra - zc; i++) {
+		struct stripe *t = &s->s[i - zc];
 
 		io_uring_prep_rw(op, sqe[i],
 				t->seq + 1,
 				(void *)t->vec,
 				t->nr_vec,
 				t->start << 9);
-		io_uring_sqe_set_flags(sqe[i], IOSQE_FIXED_FILE);
+		if (zc) {
+			sqe[i]->buf_index = tag;
+			io_uring_sqe_set_flags(sqe[i],
+					IOSQE_FIXED_FILE | IOSQE_IO_HARDLINK);
+		} else {
+			io_uring_sqe_set_flags(sqe[i], IOSQE_FIXED_FILE);
+		}
 		/* bit63 marks us as tgt io */
-		sqe[i]->user_data = build_user_data(tag, ublksrv_get_op(iod), i, 1);
+		sqe[i]->user_data = build_user_data(tag, ublksrv_get_op(iod), i - zc, 1);
 	}
-	return s->nr;
+	if (zc) {
+		struct io_uring_sqe *unreg = sqe[s->nr + 1];
+
+		io_uring_prep_buf_unregister(unreg, 0, tag, q->q_id, tag);
+		unreg->user_data = build_user_data(tag, ublk_cmd_op_nr(unreg->cmd_op), 0, 1);
+	}
+
+	/* register buffer is skip_success */
+	return s->nr + zc;
 }
 
 static int handle_flush(struct ublk_queue *q, const struct ublksrv_io_desc *iod, int tag)
@@ -208,19 +232,27 @@ static void ublk_stripe_io_done(struct ublk_queue *q, int tag,
 	struct ublk_io *io = ublk_get_io(q, tag);
 	int res = cqe->res;
 
-	if (res < 0) {
+	if (res < 0 || op != ublk_cmd_op_nr(UBLK_U_IO_UNREGISTER_IO_BUF)) {
 		if (!io->result)
 			io->result = res;
-		ublk_err("%s: io failure %d tag %u\n", __func__, res, tag);
+		if (res < 0)
+			ublk_err("%s: io failure %d tag %u\n", __func__, res, tag);
 	}
+
+	/* buffer register op is IOSQE_CQE_SKIP_SUCCESS */
+	if (op == ublk_cmd_op_nr(UBLK_U_IO_REGISTER_IO_BUF))
+		io->tgt_ios += 1;
 
 	/* fail short READ/WRITE simply */
 	if (op == UBLK_IO_OP_READ || op == UBLK_IO_OP_WRITE) {
 		unsigned seq = user_data_to_tgt_data(cqe->user_data);
 		struct stripe_array *s = io->private_data;
 
-		if (res < s->s[seq].vec->iov_len)
+		if (res < s->s[seq].nr_sects << 9) {
 			io->result = -EIO;
+			ublk_err("%s: short rw op %u res %d exp %u tag %u\n",
+					__func__, op, res, s->s[seq].vec->iov_len, tag);
+		}
 	}
 
 	if (ublk_completed_tgt_io(q, tag)) {
@@ -253,7 +285,7 @@ static int ublk_stripe_tgt_init(const struct dev_ctx *ctx, struct ublk_dev *dev)
 	struct stripe_conf *conf;
 	unsigned chunk_shift;
 	loff_t bytes = 0;
-	int ret, i;
+	int ret, i, mul = 1;
 
 	if ((chunk_size & (chunk_size - 1)) || !chunk_size) {
 		ublk_err("invalid chunk size %u\n", chunk_size);
@@ -295,8 +327,11 @@ static int ublk_stripe_tgt_init(const struct dev_ctx *ctx, struct ublk_dev *dev)
 	dev->tgt.dev_size = bytes;
 	p.basic.dev_sectors = bytes >> 9;
 	dev->tgt.params = p;
-	dev->tgt.sq_depth = dev->dev_info.queue_depth * conf->nr_files;
-	dev->tgt.cq_depth = dev->dev_info.queue_depth * conf->nr_files;
+
+	if (dev->dev_info.flags & UBLK_F_SUPPORT_ZERO_COPY)
+		mul = 2;
+	dev->tgt.sq_depth = mul * dev->dev_info.queue_depth * conf->nr_files;
+	dev->tgt.cq_depth = mul * dev->dev_info.queue_depth * conf->nr_files;
 
 	printf("%s: shift %u files %u\n", __func__, conf->shift, conf->nr_files);
 

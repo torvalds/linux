@@ -3,7 +3,7 @@
 
 . "$(cd "$(dirname "$0")" && pwd)"/test_common.sh
 
-TID="loop_01"
+TID="loop_05"
 ERR_CODE=0
 
 if ! _have_program fio; then
@@ -14,7 +14,7 @@ _prep_test "loop" "write and verify test"
 
 backfile_0=$(_create_backfile 256M)
 
-dev_id=$(_add_ublk_dev -t loop "$backfile_0")
+dev_id=$(_add_ublk_dev -q 2 -t loop "$backfile_0")
 _check_add_dev $TID $? "${backfile_0}"
 
 # run fio over the ublk disk
