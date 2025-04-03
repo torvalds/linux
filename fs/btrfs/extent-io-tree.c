@@ -869,9 +869,9 @@ static struct extent_state *find_first_extent_bit_state(struct extent_io_tree *t
  * Return true if we find something, and update @start_ret and @end_ret.
  * Return false if we found nothing.
  */
-bool find_first_extent_bit(struct extent_io_tree *tree, u64 start,
-			   u64 *start_ret, u64 *end_ret, u32 bits,
-			   struct extent_state **cached_state)
+bool btrfs_find_first_extent_bit(struct extent_io_tree *tree, u64 start,
+				 u64 *start_ret, u64 *end_ret, u32 bits,
+				 struct extent_state **cached_state)
 {
 	struct extent_state *state;
 	bool ret = false;
@@ -930,8 +930,8 @@ out:
  * then walk down the tree until we find a non-contiguous area.  The area
  * returned will be the full contiguous area with the bits set.
  */
-int find_contiguous_extent_bit(struct extent_io_tree *tree, u64 start,
-			       u64 *start_ret, u64 *end_ret, u32 bits)
+int btrfs_find_contiguous_extent_bit(struct extent_io_tree *tree, u64 start,
+				     u64 *start_ret, u64 *end_ret, u32 bits)
 {
 	struct extent_state *state;
 	int ret = 1;
@@ -1495,8 +1495,8 @@ out:
  * spans (last_range_end, end of device]. In this case it's up to the caller to
  * trim @end_ret to the appropriate size.
  */
-void find_first_clear_extent_bit(struct extent_io_tree *tree, u64 start,
-				 u64 *start_ret, u64 *end_ret, u32 bits)
+void btrfs_find_first_clear_extent_bit(struct extent_io_tree *tree, u64 start,
+				       u64 *start_ret, u64 *end_ret, u32 bits)
 {
 	struct extent_state *state;
 	struct extent_state *prev = NULL, *next = NULL;

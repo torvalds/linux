@@ -1219,9 +1219,9 @@ static noinline_for_stack int write_pinned_extent_entries(
 	start = block_group->start;
 
 	while (start < block_group->start + block_group->length) {
-		if (!find_first_extent_bit(unpin, start,
-					   &extent_start, &extent_end,
-					   EXTENT_DIRTY, NULL))
+		if (!btrfs_find_first_extent_bit(unpin, start,
+						 &extent_start, &extent_end,
+						 EXTENT_DIRTY, NULL))
 			return 0;
 
 		/* This pinned extent is out of our range */

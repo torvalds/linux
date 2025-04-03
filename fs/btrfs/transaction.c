@@ -1128,8 +1128,8 @@ int btrfs_write_marked_extents(struct btrfs_fs_info *fs_info,
 	u64 start = 0;
 	u64 end;
 
-	while (find_first_extent_bit(dirty_pages, start, &start, &end,
-				     mark, &cached_state)) {
+	while (btrfs_find_first_extent_bit(dirty_pages, start, &start, &end,
+					   mark, &cached_state)) {
 		bool wait_writeback = false;
 
 		ret = convert_extent_bit(dirty_pages, start, end,
@@ -1181,8 +1181,8 @@ static int __btrfs_wait_marked_extents(struct btrfs_fs_info *fs_info,
 	u64 end;
 	int ret = 0;
 
-	while (find_first_extent_bit(dirty_pages, start, &start, &end,
-				     EXTENT_NEED_WAIT, &cached_state)) {
+	while (btrfs_find_first_extent_bit(dirty_pages, start, &start, &end,
+					   EXTENT_NEED_WAIT, &cached_state)) {
 		/*
 		 * Ignore -ENOMEM errors returned by clear_extent_bit().
 		 * When committing the transaction, we'll remove any entries

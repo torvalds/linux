@@ -55,8 +55,8 @@ void btrfs_inode_safe_disk_i_size_write(struct btrfs_inode *inode, u64 new_i_siz
 		goto out_unlock;
 	}
 
-	ret = find_contiguous_extent_bit(inode->file_extent_tree, 0, &start,
-					 &end, EXTENT_DIRTY);
+	ret = btrfs_find_contiguous_extent_bit(inode->file_extent_tree, 0, &start,
+					       &end, EXTENT_DIRTY);
 	if (!ret && start == 0)
 		i_size = min(i_size, end + 1);
 	else

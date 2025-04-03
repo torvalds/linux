@@ -567,7 +567,7 @@ static int test_find_first_clear_extent_bit(void)
 	extent_io_tree_init(NULL, &tree, IO_TREE_SELFTEST);
 
 	/* Test correct handling of empty tree */
-	find_first_clear_extent_bit(&tree, 0, &start, &end, CHUNK_TRIMMED);
+	btrfs_find_first_clear_extent_bit(&tree, 0, &start, &end, CHUNK_TRIMMED);
 	if (start != 0 || end != -1) {
 		test_err(
 	"error getting a range from completely empty tree: start %llu end %llu",
@@ -581,8 +581,8 @@ static int test_find_first_clear_extent_bit(void)
 	btrfs_set_extent_bit(&tree, SZ_1M, SZ_4M - 1,
 			     CHUNK_TRIMMED | CHUNK_ALLOCATED, NULL);
 
-	find_first_clear_extent_bit(&tree, SZ_512K, &start, &end,
-				    CHUNK_TRIMMED | CHUNK_ALLOCATED);
+	btrfs_find_first_clear_extent_bit(&tree, SZ_512K, &start, &end,
+					  CHUNK_TRIMMED | CHUNK_ALLOCATED);
 
 	if (start != 0 || end != SZ_1M - 1) {
 		test_err("error finding beginning range: start %llu end %llu",
@@ -597,8 +597,8 @@ static int test_find_first_clear_extent_bit(void)
 	/*
 	 * Request first hole starting at 12M, we should get 4M-32M
 	 */
-	find_first_clear_extent_bit(&tree, 12 * SZ_1M, &start, &end,
-				    CHUNK_TRIMMED | CHUNK_ALLOCATED);
+	btrfs_find_first_clear_extent_bit(&tree, 12 * SZ_1M, &start, &end,
+					  CHUNK_TRIMMED | CHUNK_ALLOCATED);
 
 	if (start != SZ_4M || end != SZ_32M - 1) {
 		test_err("error finding trimmed range: start %llu end %llu",
@@ -610,8 +610,8 @@ static int test_find_first_clear_extent_bit(void)
 	 * Search in the middle of allocated range, should get the next one
 	 * available, which happens to be unallocated -> 4M-32M
 	 */
-	find_first_clear_extent_bit(&tree, SZ_2M, &start, &end,
-				    CHUNK_TRIMMED | CHUNK_ALLOCATED);
+	btrfs_find_first_clear_extent_bit(&tree, SZ_2M, &start, &end,
+					  CHUNK_TRIMMED | CHUNK_ALLOCATED);
 
 	if (start != SZ_4M || end != SZ_32M - 1) {
 		test_err("error finding next unalloc range: start %llu end %llu",
@@ -624,8 +624,8 @@ static int test_find_first_clear_extent_bit(void)
 	 * being unset in this range, we should get the entry in range 64M-72M
 	 */
 	btrfs_set_extent_bit(&tree, SZ_64M, SZ_64M + SZ_8M - 1, CHUNK_ALLOCATED, NULL);
-	find_first_clear_extent_bit(&tree, SZ_64M + SZ_1M, &start, &end,
-				    CHUNK_TRIMMED);
+	btrfs_find_first_clear_extent_bit(&tree, SZ_64M + SZ_1M, &start, &end,
+					  CHUNK_TRIMMED);
 
 	if (start != SZ_64M || end != SZ_64M + SZ_8M - 1) {
 		test_err("error finding exact range: start %llu end %llu",
@@ -633,8 +633,8 @@ static int test_find_first_clear_extent_bit(void)
 		goto out;
 	}
 
-	find_first_clear_extent_bit(&tree, SZ_64M - SZ_8M, &start, &end,
-				    CHUNK_TRIMMED);
+	btrfs_find_first_clear_extent_bit(&tree, SZ_64M - SZ_8M, &start, &end,
+					  CHUNK_TRIMMED);
 
 	/*
 	 * Search in the middle of set range whose immediate neighbour doesn't
@@ -650,7 +650,7 @@ static int test_find_first_clear_extent_bit(void)
 	 * Search beyond any known range, shall return after last known range
 	 * and end should be -1
 	 */
-	find_first_clear_extent_bit(&tree, -1, &start, &end, CHUNK_TRIMMED);
+	btrfs_find_first_clear_extent_bit(&tree, -1, &start, &end, CHUNK_TRIMMED);
 	if (start != SZ_64M + SZ_8M || end != -1) {
 		test_err(
 		"error handling beyond end of range search: start %llu end %llu",

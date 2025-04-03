@@ -3433,9 +3433,9 @@ next:
 			goto next;
 		}
 
-		block_found = find_first_extent_bit(&rc->processed_blocks,
-						    key.objectid, &start, &end,
-						    EXTENT_DIRTY, NULL);
+		block_found = btrfs_find_first_extent_bit(&rc->processed_blocks,
+							  key.objectid, &start, &end,
+							  EXTENT_DIRTY, NULL);
 
 		if (block_found && start <= key.objectid) {
 			btrfs_release_path(path);
