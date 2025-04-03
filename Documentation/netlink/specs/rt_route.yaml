@@ -80,165 +80,167 @@ definitions:
 attribute-sets:
   -
     name: route-attrs
+    name-prefix: rta-
     attributes:
       -
-        name: rta-dst
+        name: dst
         type: binary
         display-hint: ipv4
       -
-        name: rta-src
+        name: src
         type: binary
         display-hint: ipv4
       -
-        name: rta-iif
+        name: iif
         type: u32
       -
-        name: rta-oif
+        name: oif
         type: u32
       -
-        name: rta-gateway
+        name: gateway
         type: binary
         display-hint: ipv4
       -
-        name: rta-priority
+        name: priority
         type: u32
       -
-        name: rta-prefsrc
+        name: prefsrc
         type: binary
         display-hint: ipv4
       -
-        name: rta-metrics
+        name: metrics
         type: nest
-        nested-attributes: rta-metrics
+        nested-attributes: metrics
       -
-        name: rta-multipath
+        name: multipath
         type: binary
       -
-        name: rta-protoinfo # not used
+        name: protoinfo # not used
         type: binary
       -
-        name: rta-flow
+        name: flow
         type: u32
       -
-        name: rta-cacheinfo
+        name: cacheinfo
         type: binary
         struct: rta-cacheinfo
       -
-        name: rta-session # not used
+        name: session # not used
         type: binary
       -
-        name: rta-mp-algo # not used
+        name: mp-algo # not used
         type: binary
       -
-        name: rta-table
+        name: table
         type: u32
       -
-        name: rta-mark
+        name: mark
         type: u32
       -
-        name: rta-mfc-stats
+        name: mfc-stats
         type: binary
       -
-        name: rta-via
+        name: via
         type: binary
       -
-        name: rta-newdst
+        name: newdst
         type: binary
       -
-        name: rta-pref
+        name: pref
         type: u8
       -
-        name: rta-encap-type
+        name: encap-type
         type: u16
       -
-        name: rta-encap
+        name: encap
         type: binary # tunnel specific nest
       -
-        name: rta-expires
+        name: expires
         type: u32
       -
-        name: rta-pad
+        name: pad
         type: binary
       -
-        name: rta-uid
+        name: uid
         type: u32
       -
-        name: rta-ttl-propagate
+        name: ttl-propagate
         type: u8
       -
-        name: rta-ip-proto
+        name: ip-proto
         type: u8
       -
-        name: rta-sport
+        name: sport
         type: u16
       -
-        name: rta-dport
+        name: dport
         type: u16
       -
-        name: rta-nh-id
+        name: nh-id
         type: u32
       -
-        name: rta-flowlabel
+        name: flowlabel
         type: u32
         byte-order: big-endian
         display-hint: hex
   -
-    name: rta-metrics
+    name: metrics
+    name-prefix: rtax-
     attributes:
       -
-        name: rtax-unspec
+        name: unspec
         type: unused
         value: 0
       -
-        name: rtax-lock
+        name: lock
         type: u32
       -
-        name: rtax-mtu
+        name: mtu
         type: u32
       -
-        name: rtax-window
+        name: window
         type: u32
       -
-        name: rtax-rtt
+        name: rtt
         type: u32
       -
-        name: rtax-rttvar
+        name: rttvar
         type: u32
       -
-        name: rtax-ssthresh
+        name: ssthresh
         type: u32
       -
-        name: rtax-cwnd
+        name: cwnd
         type: u32
       -
-        name: rtax-advmss
+        name: advmss
         type: u32
       -
-        name: rtax-reordering
+        name: reordering
         type: u32
       -
-        name: rtax-hoplimit
+        name: hoplimit
         type: u32
       -
-        name: rtax-initcwnd
+        name: initcwnd
         type: u32
       -
-        name: rtax-features
+        name: features
         type: u32
       -
-        name: rtax-rto-min
+        name: rto-min
         type: u32
       -
-        name: rtax-initrwnd
+        name: initrwnd
         type: u32
       -
-        name: rtax-quickack
+        name: quickack
         type: u32
       -
-        name: rtax-cc-algo
+        name: cc-algo
         type: string
       -
-        name: rtax-fastopen-no-cookie
+        name: fastopen-no-cookie
         type: u32
 
 operations:
@@ -254,18 +256,18 @@ operations:
           value: 26
           attributes:
             - rtm-family
-            - rta-src
+            - src
             - rtm-src-len
-            - rta-dst
+            - dst
             - rtm-dst-len
-            - rta-iif
-            - rta-oif
-            - rta-ip-proto
-            - rta-sport
-            - rta-dport
-            - rta-mark
-            - rta-uid
-            - rta-flowlabel
+            - iif
+            - oif
+            - ip-proto
+            - sport
+            - dport
+            - mark
+            - uid
+            - flowlabel
         reply:
           value: 24
           attributes: &all-route-attrs
@@ -278,34 +280,34 @@ operations:
             - rtm-scope
             - rtm-type
             - rtm-flags
-            - rta-dst
-            - rta-src
-            - rta-iif
-            - rta-oif
-            - rta-gateway
-            - rta-priority
-            - rta-prefsrc
-            - rta-metrics
-            - rta-multipath
-            - rta-flow
-            - rta-cacheinfo
-            - rta-table
-            - rta-mark
-            - rta-mfc-stats
-            - rta-via
-            - rta-newdst
-            - rta-pref
-            - rta-encap-type
-            - rta-encap
-            - rta-expires
-            - rta-pad
-            - rta-uid
-            - rta-ttl-propagate
-            - rta-ip-proto
-            - rta-sport
-            - rta-dport
-            - rta-nh-id
-            - rta-flowlabel
+            - dst
+            - src
+            - iif
+            - oif
+            - gateway
+            - priority
+            - prefsrc
+            - metrics
+            - multipath
+            - flow
+            - cacheinfo
+            - table
+            - mark
+            - mfc-stats
+            - via
+            - newdst
+            - pref
+            - encap-type
+            - encap
+            - expires
+            - pad
+            - uid
+            - ttl-propagate
+            - ip-proto
+            - sport
+            - dport
+            - nh-id
+            - flowlabel
       dump:
         request:
           value: 26
