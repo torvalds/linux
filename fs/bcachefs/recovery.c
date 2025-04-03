@@ -33,7 +33,6 @@
 #include <linux/sort.h>
 #include <linux/stat.h>
 
-
 int bch2_btree_lost_data(struct bch_fs *c, enum btree_id btree)
 {
 	u64 b = BIT_ULL(btree);
@@ -114,11 +113,8 @@ static void kill_btree(struct bch_fs *c, enum btree_id btree)
 }
 
 /* for -o reconstruct_alloc: */
-static void bch2_reconstruct_alloc(struct bch_fs *c)
+void bch2_reconstruct_alloc(struct bch_fs *c)
 {
-	bch2_journal_log_msg(c, "dropping alloc info");
-	bch_info(c, "dropping and reconstructing all alloc info");
-
 	mutex_lock(&c->sb_lock);
 	struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
 
@@ -159,6 +155,8 @@ static void bch2_reconstruct_alloc(struct bch_fs *c)
 	c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
 
 	c->opts.recovery_passes |= bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
+
+	c->disk_sb.sb->features[0] &= ~cpu_to_le64(BIT_ULL(BCH_FEATURE_no_alloc_info));
 
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
@@ -889,8 +887,26 @@ use_clean:
 	if (ret)
 		goto err;
 
-	if (c->opts.reconstruct_alloc)
+	if (!c->opts.read_only &&
+	    (c->sb.features & BIT_ULL(BCH_FEATURE_no_alloc_info))) {
+		bch_info(c, "mounting a filesystem with no alloc info read-write; will recreate");
+
 		bch2_reconstruct_alloc(c);
+	} else if (c->opts.reconstruct_alloc) {
+		bch2_journal_log_msg(c, "dropping alloc info");
+		bch_info(c, "dropping and reconstructing all alloc info");
+
+		bch2_reconstruct_alloc(c);
+	}
+
+	if (c->sb.features & BIT_ULL(BCH_FEATURE_no_alloc_info)) {
+		/* We can't go RW to fix errors without alloc info */
+		if (c->opts.fix_errors == FSCK_FIX_yes ||
+		    c->opts.fix_errors == FSCK_FIX_ask)
+			c->opts.fix_errors = FSCK_FIX_no;
+		if (c->opts.errors == BCH_ON_ERROR_fix_safe)
+			c->opts.errors = BCH_ON_ERROR_continue;
+	}
 
 	/*
 	 * After an unclean shutdown, skip then next few journal sequence

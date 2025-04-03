@@ -190,6 +190,12 @@ static int validate_member(struct printbuf *err,
 		return -BCH_ERR_invalid_sb_members;
 	}
 
+	if (BCH_MEMBER_FREESPACE_INITIALIZED(&m) &&
+	    sb->features[0] & cpu_to_le64(BIT_ULL(BCH_FEATURE_no_alloc_info))) {
+		prt_printf(err, "device %u: freespace initialized but fs has no alloc info", i);
+		return -BCH_ERR_invalid_sb_members;
+	}
+
 	return 0;
 }
 

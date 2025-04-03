@@ -443,6 +443,9 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 
 	BUG_ON(!test_bit(BCH_FS_may_go_rw, &c->flags));
 
+	if (WARN_ON(c->sb.features & BIT_ULL(BCH_FEATURE_no_alloc_info)))
+		return -BCH_ERR_erofs_no_alloc_info;
+
 	if (test_bit(BCH_FS_initial_gc_unfixed, &c->flags)) {
 		bch_err(c, "cannot go rw, unfixed btree errors");
 		return -BCH_ERR_erofs_unfixed_errors;
@@ -534,6 +537,9 @@ int bch2_fs_read_write(struct bch_fs *c)
 
 	if (c->opts.nochanges)
 		return -BCH_ERR_erofs_nochanges;
+
+	if (c->sb.features & BIT_ULL(BCH_FEATURE_no_alloc_info))
+		return -BCH_ERR_erofs_no_alloc_info;
 
 	return __bch2_fs_read_write(c, false);
 }
