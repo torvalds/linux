@@ -239,6 +239,9 @@ static void mmhub_v1_8_init_snoop_override_regs(struct amdgpu_device *adev)
 	uint32_t distance = regDAGB1_WRCLI_GPU_SNOOP_OVERRIDE -
 			    regDAGB0_WRCLI_GPU_SNOOP_OVERRIDE;
 
+	if (amdgpu_sriov_vf(adev))
+		return;
+
 	inst_mask = adev->aid_mask;
 	for_each_inst(i, inst_mask) {
 		for (j = 0; j < 5; j++) { /* DAGB instances */
