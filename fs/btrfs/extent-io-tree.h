@@ -134,7 +134,6 @@ struct extent_state {
 #endif
 };
 
-struct btrfs_inode *extent_io_tree_to_inode(struct extent_io_tree *tree);
 const struct btrfs_inode *extent_io_tree_to_inode_const(const struct extent_io_tree *tree);
 const struct btrfs_fs_info *extent_io_tree_to_fs_info(const struct extent_io_tree *tree);
 
