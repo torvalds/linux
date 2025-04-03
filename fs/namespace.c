@@ -2478,7 +2478,8 @@ struct vfsmount *clone_private_mount(const struct path *path)
 	struct mount *old_mnt = real_mount(path->mnt);
 	struct mount *new_mnt;
 
-	scoped_guard(rwsem_read, &namespace_sem)
+	guard(rwsem_read)(&namespace_sem);
+
 	if (IS_MNT_UNBINDABLE(old_mnt))
 		return ERR_PTR(-EINVAL);
 
