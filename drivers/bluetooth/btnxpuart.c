@@ -1286,7 +1286,9 @@ static void nxp_coredump(struct hci_dev *hdev)
 	u8 pcmd = 2;
 
 	skb = nxp_drv_send_cmd(hdev, HCI_NXP_TRIGGER_DUMP, 1, &pcmd);
-	if (!IS_ERR(skb))
+	if (IS_ERR(skb))
+		bt_dev_err(hdev, "Failed to trigger FW Dump. (%ld)", PTR_ERR(skb));
+	else
 		kfree_skb(skb);
 }
 
