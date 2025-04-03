@@ -1394,6 +1394,7 @@ proto:
 	/* Use data from the GuC response as our return value */
 	return FIELD_GET(GUC_HXG_RESPONSE_MSG_0_DATA0, header);
 }
+ALLOW_ERROR_INJECTION(xe_guc_mmio_send_recv, ERRNO);
 
 int xe_guc_mmio_send(struct xe_guc *guc, const u32 *request, u32 len)
 {
