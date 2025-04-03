@@ -221,7 +221,7 @@ static void __process_folios_contig(struct address_space *mapping,
 }
 
 static noinline void unlock_delalloc_folio(const struct inode *inode,
-					   const struct folio *locked_folio,
+					   struct folio *locked_folio,
 					   u64 start, u64 end)
 {
 	ASSERT(locked_folio);
@@ -231,7 +231,7 @@ static noinline void unlock_delalloc_folio(const struct inode *inode,
 }
 
 static noinline int lock_delalloc_folios(struct inode *inode,
-					 const struct folio *locked_folio,
+					 struct folio *locked_folio,
 					 u64 start, u64 end)
 {
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
@@ -1707,7 +1707,7 @@ static int extent_writepage(struct folio *folio, struct btrfs_bio_ctrl *bio_ctrl
 		return 0;
 	}
 
-	if (folio->index == end_index)
+	if (folio_contains(folio, end_index))
 		folio_zero_range(folio, pg_offset, folio_size(folio) - pg_offset);
 
 	/*
