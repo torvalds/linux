@@ -526,12 +526,10 @@ int kvm_riscv_vcpu_aia_update(struct kvm_vcpu *vcpu)
 void kvm_riscv_vcpu_aia_reset(struct kvm_vcpu *vcpu)
 {
 	struct kvm_vcpu_aia_csr *csr = &vcpu->arch.aia_context.guest_csr;
-	struct kvm_vcpu_aia_csr *reset_csr =
-				&vcpu->arch.aia_context.guest_reset_csr;
 
 	if (!kvm_riscv_aia_available())
 		return;
-	memcpy(csr, reset_csr, sizeof(*csr));
+	memset(csr, 0, sizeof(*csr));
 
 	/* Proceed only if AIA was initialized successfully */
 	if (!kvm_riscv_aia_initialized(vcpu->kvm))

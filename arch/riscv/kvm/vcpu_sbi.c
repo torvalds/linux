@@ -159,11 +159,10 @@ void kvm_riscv_vcpu_sbi_system_reset(struct kvm_vcpu *vcpu,
 void kvm_riscv_vcpu_sbi_request_reset(struct kvm_vcpu *vcpu,
 				      unsigned long pc, unsigned long a1)
 {
-	spin_lock(&vcpu->arch.reset_cntx_lock);
-	vcpu->arch.guest_reset_context.sepc = pc;
-	vcpu->arch.guest_reset_context.a0 = vcpu->vcpu_id;
-	vcpu->arch.guest_reset_context.a1 = a1;
-	spin_unlock(&vcpu->arch.reset_cntx_lock);
+	spin_lock(&vcpu->arch.reset_state.lock);
+	vcpu->arch.reset_state.pc = pc;
+	vcpu->arch.reset_state.a1 = a1;
+	spin_unlock(&vcpu->arch.reset_state.lock);
 
 	kvm_make_request(KVM_REQ_VCPU_RESET, vcpu);
 }

@@ -51,13 +51,41 @@ const struct kvm_stats_header kvm_vcpu_stats_header = {
 		       sizeof(kvm_vcpu_stats_desc),
 };
 
-static void kvm_riscv_reset_vcpu(struct kvm_vcpu *vcpu)
+static void kvm_riscv_vcpu_context_reset(struct kvm_vcpu *vcpu)
 {
 	struct kvm_vcpu_csr *csr = &vcpu->arch.guest_csr;
-	struct kvm_vcpu_csr *reset_csr = &vcpu->arch.guest_reset_csr;
 	struct kvm_cpu_context *cntx = &vcpu->arch.guest_context;
-	struct kvm_cpu_context *reset_cntx = &vcpu->arch.guest_reset_context;
+	struct kvm_vcpu_reset_state *reset_state = &vcpu->arch.reset_state;
 	void *vector_datap = cntx->vector.datap;
+
+	memset(cntx, 0, sizeof(*cntx));
+	memset(csr, 0, sizeof(*csr));
+	memset(&vcpu->arch.smstateen_csr, 0, sizeof(vcpu->arch.smstateen_csr));
+
+	/* Restore datap as it's not a part of the guest context. */
+	cntx->vector.datap = vector_datap;
+
+	/* Load SBI reset values */
+	cntx->a0 = vcpu->vcpu_id;
+
+	spin_lock(&reset_state->lock);
+	cntx->sepc = reset_state->pc;
+	cntx->a1 = reset_state->a1;
+	spin_unlock(&reset_state->lock);
+
+	/* Setup reset state of shadow SSTATUS and HSTATUS CSRs */
+	cntx->sstatus = SR_SPP | SR_SPIE;
+
+	cntx->hstatus |= HSTATUS_VTW;
+	cntx->hstatus |= HSTATUS_SPVP;
+	cntx->hstatus |= HSTATUS_SPV;
+
+	/* By default, make CY, TM, and IR counters accessible in VU mode */
+	csr->scounteren = 0x7;
+}
+
+static void kvm_riscv_reset_vcpu(struct kvm_vcpu *vcpu)
+{
 	bool loaded;
 
 	/**
@@ -72,18 +100,10 @@ static void kvm_riscv_reset_vcpu(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.last_exit_cpu = -1;
 
-	memcpy(csr, reset_csr, sizeof(*csr));
-
-	spin_lock(&vcpu->arch.reset_cntx_lock);
-	memcpy(cntx, reset_cntx, sizeof(*cntx));
-	spin_unlock(&vcpu->arch.reset_cntx_lock);
-
-	memset(&vcpu->arch.smstateen_csr, 0, sizeof(vcpu->arch.smstateen_csr));
+	kvm_riscv_vcpu_context_reset(vcpu);
 
 	kvm_riscv_vcpu_fp_reset(vcpu);
 
-	/* Restore datap as it's not a part of the guest context. */
-	cntx->vector.datap = vector_datap;
 	kvm_riscv_vcpu_vector_reset(vcpu);
 
 	kvm_riscv_vcpu_timer_reset(vcpu);
@@ -115,8 +135,6 @@ int kvm_arch_vcpu_precreate(struct kvm *kvm, unsigned int id)
 int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 {
 	int rc;
-	struct kvm_cpu_context *cntx;
-	struct kvm_vcpu_csr *reset_csr = &vcpu->arch.guest_reset_csr;
 
 	spin_lock_init(&vcpu->arch.mp_state_lock);
 
@@ -136,23 +154,10 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	/* Setup VCPU hfence queue */
 	spin_lock_init(&vcpu->arch.hfence_lock);
 
-	/* Setup reset state of shadow SSTATUS and HSTATUS CSRs */
-	spin_lock_init(&vcpu->arch.reset_cntx_lock);
-
-	spin_lock(&vcpu->arch.reset_cntx_lock);
-	cntx = &vcpu->arch.guest_reset_context;
-	cntx->sstatus = SR_SPP | SR_SPIE;
-	cntx->hstatus = 0;
-	cntx->hstatus |= HSTATUS_VTW;
-	cntx->hstatus |= HSTATUS_SPVP;
-	cntx->hstatus |= HSTATUS_SPV;
-	spin_unlock(&vcpu->arch.reset_cntx_lock);
+	spin_lock_init(&vcpu->arch.reset_state.lock);
 
 	if (kvm_riscv_vcpu_alloc_vector_context(vcpu))
 		return -ENOMEM;
-
-	/* By default, make CY, TM, and IR counters accessible in VU mode */
-	reset_csr->scounteren = 0x7;
 
 	/* Setup VCPU timer */
 	kvm_riscv_vcpu_timer_init(vcpu);
