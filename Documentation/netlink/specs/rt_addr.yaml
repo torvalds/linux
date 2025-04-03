@@ -169,7 +169,7 @@ operations:
           value: 20
           attributes: *ifaddr-all
     -
-      name: getmaddrs
+      name: getmulticast
       doc: Get / dump IPv4/IPv6 multicast addresses.
       attribute-set: addr-attrs
       fixed-header: ifaddrmsg

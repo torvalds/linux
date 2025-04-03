@@ -12,7 +12,7 @@ def dump_mcaddr_check(rtnl: RtnlAddrFamily) -> None:
     At least the loopback interface should have this address.
     """
 
-    addresses = rtnl.getmaddrs({"ifa-family": socket.AF_INET}, dump=True)
+    addresses = rtnl.getmulticast({"ifa-family": socket.AF_INET}, dump=True)
 
     all_host_multicasts = [
         addr for addr in addresses if addr['ifa-multicast'] == IPV4_ALL_HOSTS_MULTICAST
