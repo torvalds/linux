@@ -7502,7 +7502,7 @@ static void ath12k_mac_op_tx(struct ieee80211_hw *hw,
 			skb_cb->link_id = link_id;
 
 			/* For open mode, skip peer find logic */
-			if (unlikely(ahvif->key_cipher == WMI_CIPHER_NONE))
+			if (unlikely(!ahvif->key_cipher))
 				goto skip_peer_find;
 
 			spin_lock_bh(&tmp_ar->ab->base_lock);
