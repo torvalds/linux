@@ -939,6 +939,7 @@ static int nsim_init_netdevsim(struct netdevsim *ns)
 	ns->netdev->netdev_ops = &nsim_netdev_ops;
 	ns->netdev->stat_ops = &nsim_stat_ops;
 	ns->netdev->queue_mgmt_ops = &nsim_queue_mgmt_ops;
+	netdev_lockdep_set_classes(ns->netdev);
 
 	err = nsim_udp_tunnels_info_create(ns->nsim_dev, ns->netdev);
 	if (err)
@@ -960,6 +961,14 @@ static int nsim_init_netdevsim(struct netdevsim *ns)
 	if (err)
 		goto err_ipsec_teardown;
 	rtnl_unlock();
+
+	if (IS_ENABLED(CONFIG_DEBUG_NET)) {
+		ns->nb.notifier_call = netdev_debug_event;
+		if (register_netdevice_notifier_dev_net(ns->netdev, &ns->nb,
+							&ns->nn))
+			ns->nb.notifier_call = NULL;
+	}
+
 	return 0;
 
 err_ipsec_teardown:
@@ -1042,6 +1051,10 @@ void nsim_destroy(struct netdevsim *ns)
 
 	debugfs_remove(ns->qr_dfs);
 	debugfs_remove(ns->pp_dfs);
+
+	if (ns->nb.notifier_call)
+		unregister_netdevice_notifier_dev_net(ns->netdev, &ns->nb,
+						      &ns->nn);
 
 	rtnl_lock();
 	peer = rtnl_dereference(ns->peer);

@@ -3025,8 +3025,6 @@ static int do_setlink(const struct sk_buff *skb, struct net_device *dev,
 	char ifname[IFNAMSIZ];
 	int err;
 
-	netdev_lock_ops(dev);
-
 	err = validate_linkmsg(dev, tb, extack);
 	if (err < 0)
 		goto errout;
@@ -3042,13 +3040,15 @@ static int do_setlink(const struct sk_buff *skb, struct net_device *dev,
 
 		new_ifindex = nla_get_s32_default(tb[IFLA_NEW_IFINDEX], 0);
 
-		err = netif_change_net_namespace(dev, tgt_net, pat,
+		err = __dev_change_net_namespace(dev, tgt_net, pat,
 						 new_ifindex, extack);
 		if (err)
-			goto errout;
+			return err;
 
 		status |= DO_SETLINK_MODIFIED;
 	}
+
+	netdev_lock_ops(dev);
 
 	if (tb[IFLA_MAP]) {
 		struct rtnl_link_ifmap *u_map;
