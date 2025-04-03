@@ -78,45 +78,46 @@ definitions:
 attribute-sets:
   -
     name: addr-attrs
+    name-prefix: ifa-
     attributes:
       -
-        name: ifa-address
+        name: address
         type: binary
         display-hint: ipv4
       -
-        name: ifa-local
+        name: local
         type: binary
         display-hint: ipv4
       -
-        name: ifa-label
+        name: label
         type: string
       -
-        name: ifa-broadcast
+        name: broadcast
         type: binary
         display-hint: ipv4
       -
-        name: ifa-anycast
+        name: anycast
         type: binary
       -
-        name: ifa-cacheinfo
+        name: cacheinfo
         type: binary
         struct: ifa-cacheinfo
       -
-        name: ifa-multicast
+        name: multicast
         type: binary
       -
-        name: ifa-flags
+        name: flags
         type: u32
         enum: ifa-flags
         enum-as-flags: true
       -
-        name: ifa-rt-priority
+        name: rt-priority
         type: u32
       -
-        name: ifa-target-netnsid
+        name: target-netnsid
         type: binary
       -
-        name: ifa-proto
+        name: proto
         type: u8
 
 
@@ -137,10 +138,10 @@ operations:
             - ifa-prefixlen
             - ifa-scope
             - ifa-index
-            - ifa-address
-            - ifa-label
-            - ifa-local
-            - ifa-cacheinfo
+            - address
+            - label
+            - local
+            - cacheinfo
     -
       name: deladdr
       doc: Remove address
@@ -154,8 +155,8 @@ operations:
             - ifa-prefixlen
             - ifa-scope
             - ifa-index
-            - ifa-address
-            - ifa-local
+            - address
+            - local
     -
       name: getaddr
       doc: Dump address information.
@@ -182,8 +183,8 @@ operations:
         reply:
           value: 58
           attributes: &mcaddr-attrs
-            - ifa-multicast
-            - ifa-cacheinfo
+            - multicast
+            - cacheinfo
       dump:
         request:
           value: 58

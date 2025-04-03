@@ -15,7 +15,7 @@ def dump_mcaddr_check(rtnl: RtnlAddrFamily) -> None:
     addresses = rtnl.getmulticast({"ifa-family": socket.AF_INET}, dump=True)
 
     all_host_multicasts = [
-        addr for addr in addresses if addr['ifa-multicast'] == IPV4_ALL_HOSTS_MULTICAST
+        addr for addr in addresses if addr['multicast'] == IPV4_ALL_HOSTS_MULTICAST
     ]
 
     ksft_ge(len(all_host_multicasts), 1,
