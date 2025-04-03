@@ -2965,8 +2965,7 @@ static bool blk_mq_attempt_bio_merge(struct request_queue *q,
 
 static struct request *blk_mq_get_new_requests(struct request_queue *q,
 					       struct blk_plug *plug,
-					       struct bio *bio,
-					       unsigned int nsegs)
+					       struct bio *bio)
 {
 	struct blk_mq_alloc_data data = {
 		.q		= q,
@@ -3125,7 +3124,7 @@ new_request:
 	if (rq) {
 		blk_mq_use_cached_rq(rq, plug, bio);
 	} else {
-		rq = blk_mq_get_new_requests(q, plug, bio, nr_segs);
+		rq = blk_mq_get_new_requests(q, plug, bio);
 		if (unlikely(!rq)) {
 			if (bio->bi_opf & REQ_NOWAIT)
 				bio_wouldblock_error(bio);
@@ -4465,14 +4464,12 @@ static struct blk_mq_hw_ctx *blk_mq_alloc_and_init_hctx(
 	return NULL;
 }
 
-static void blk_mq_realloc_hw_ctxs(struct blk_mq_tag_set *set,
-						struct request_queue *q)
+static void __blk_mq_realloc_hw_ctxs(struct blk_mq_tag_set *set,
+				     struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
 	unsigned long i, j;
 
-	/* protect against switching io scheduler  */
-	mutex_lock(&q->elevator_lock);
 	for (i = 0; i < set->nr_hw_queues; i++) {
 		int old_node;
 		int node = blk_mq_get_hctx_node(set, i);
@@ -4505,7 +4502,19 @@ static void blk_mq_realloc_hw_ctxs(struct blk_mq_tag_set *set,
 
 	xa_for_each_start(&q->hctx_table, j, hctx, j)
 		blk_mq_exit_hctx(q, set, hctx, j);
-	mutex_unlock(&q->elevator_lock);
+}
+
+static void blk_mq_realloc_hw_ctxs(struct blk_mq_tag_set *set,
+				   struct request_queue *q, bool lock)
+{
+	if (lock) {
+		/* protect against switching io scheduler  */
+		mutex_lock(&q->elevator_lock);
+		__blk_mq_realloc_hw_ctxs(set, q);
+		mutex_unlock(&q->elevator_lock);
+	} else {
+		__blk_mq_realloc_hw_ctxs(set, q);
+	}
 
 	/* unregister cpuhp callbacks for exited hctxs */
 	blk_mq_remove_hw_queues_cpuhp(q);
@@ -4537,7 +4546,7 @@ int blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 
 	xa_init(&q->hctx_table);
 
-	blk_mq_realloc_hw_ctxs(set, q);
+	blk_mq_realloc_hw_ctxs(set, q, false);
 	if (!q->nr_hw_queues)
 		goto err_hctxs;
 
@@ -5033,7 +5042,7 @@ static void __blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set,
 fallback:
 	blk_mq_update_queue_map(set);
 	list_for_each_entry(q, &set->tag_list, tag_set_list) {
-		blk_mq_realloc_hw_ctxs(set, q);
+		blk_mq_realloc_hw_ctxs(set, q, true);
 
 		if (q->nr_hw_queues != set->nr_hw_queues) {
 			int i = prev_nr_hw_queues;
