@@ -2110,7 +2110,7 @@ int pidfd_prepare(struct pid *pid, unsigned int flags, struct file **ret)
 {
 	bool thread = flags & PIDFD_THREAD;
 
-	if (!pid || !pid_has_task(pid, thread ? PIDTYPE_PID : PIDTYPE_TGID))
+	if (!pid_has_task(pid, thread ? PIDTYPE_PID : PIDTYPE_TGID))
 		return -EINVAL;
 
 	return __pidfd_prepare(pid, flags, ret);
