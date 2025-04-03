@@ -14,7 +14,7 @@
 #include "adf_420xx_hw_data.h"
 
 static const struct pci_device_id adf_pci_tbl[] = {
-	{ PCI_VDEVICE(INTEL, ADF_420XX_PCI_DEVICE_ID), },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_QAT_420XX) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, adf_pci_tbl);
