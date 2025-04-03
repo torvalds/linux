@@ -26,6 +26,35 @@ SPI wiring modes
 These ADCs can output data on several SDO lines (1/2/4/8). The driver
 currently supports only 1 SDO line.
 
+SPI offload wiring
+------------------
+When used with a SPI offload, the supported wiring configuration is:
+
+.. code-block::
+
+    +-------------+         +-------------+
+    |        BUSY |-------->| TRIGGER     |
+    |          CS |<--------| CS          |
+    |             |         |             |
+    |     ADC     |         |     SPI     |
+    |             |         |             |
+    |         SDI |<--------| SDO         |
+    |       DOUTA |-------->| SDI         |
+    |        SCLK |<--------| SCLK        |
+    |             |         |             |
+    |             |         +-------------+
+    |      CONVST |<--------| PWM         |
+    +-------------+         +-------------+
+
+In this case, the ``pwms`` property is required.
+The ``#trigger-source-cells = <1>`` property is also required to connect back
+to the SPI offload. The SPI offload will have ``trigger-sources`` property
+with a cell to indicate the busy signal:
+``<&ad7606 AD4695_TRIGGER_EVENT_BUSY>``.
+
+.. seealso:: `SPI offload support`_
+
+
 Parallel wiring mode
 --------------------
 
@@ -122,6 +151,22 @@ Unimplemented features
 - 2/4/8 SDO lines
 - CRC indication
 - Calibration
+
+SPI offload support
+===================
+
+To be able to achieve the maximum sample rate, the driver can be used with the
+`AXI SPI Engine`_ to provide SPI offload support.
+
+.. _AXI SPI Engine: https://analogdevicesinc.github.io/hdl/library/spi_engine/index.html
+
+When SPI offload is being used, some attributes will be different.
+
+* ``trigger`` directory is removed.
+* ``sampling_frequency`` attribute is added for setting the sample rate.
+* ``timestamp`` channel is removed.
+* Buffer data format may be different compared to when offload is not used,
+  e.g. the ``in_voltage0_type`` attribute.
 
 Device buffers
 ==============
