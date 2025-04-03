@@ -369,7 +369,7 @@ static inline struct device *pwmchip_parent(const struct pwm_chip *chip)
 	return chip->dev.parent;
 }
 
-static inline void *pwmchip_get_drvdata(struct pwm_chip *chip)
+static inline void *pwmchip_get_drvdata(const struct pwm_chip *chip)
 {
 	return dev_get_drvdata(&chip->dev);
 }
