@@ -133,6 +133,11 @@ struct vhost_scsi_cmd {
 	struct se_cmd tvc_se_cmd;
 	/* Sense buffer that will be mapped into outgoing status */
 	unsigned char tvc_sense_buf[TRANSPORT_SENSE_BUFFER];
+	/*
+	 * Dirty write descriptors of this command.
+	 */
+	struct vhost_log *tvc_log;
+	unsigned int tvc_log_num;
 	/* Completed commands list, serviced from vhost worker thread */
 	struct llist_node tvc_completion_list;
 	/* Used to track inflight cmd */
@@ -360,6 +365,45 @@ static int vhost_scsi_check_prot_fabric_only(struct se_portal_group *se_tpg)
 				struct vhost_scsi_tpg, se_tpg);
 
 	return tpg->tv_fabric_prot_type;
+}
+
+static int vhost_scsi_copy_cmd_log(struct vhost_virtqueue *vq,
+				   struct vhost_scsi_cmd *cmd,
+				   struct vhost_log *log,
+				   unsigned int log_num)
+{
+	if (!cmd->tvc_log)
+		cmd->tvc_log = kmalloc_array(vq->dev->iov_limit,
+					     sizeof(*cmd->tvc_log),
+					     GFP_KERNEL);
+
+	if (unlikely(!cmd->tvc_log)) {
+		vq_err(vq, "Failed to alloc tvc_log\n");
+		return -ENOMEM;
+	}
+
+	memcpy(cmd->tvc_log, log, sizeof(*cmd->tvc_log) * log_num);
+	cmd->tvc_log_num = log_num;
+
+	return 0;
+}
+
+static void vhost_scsi_log_write(struct vhost_virtqueue *vq,
+				 struct vhost_log *log,
+				 unsigned int log_num)
+{
+	if (likely(!vhost_has_feature(vq, VHOST_F_LOG_ALL)))
+		return;
+
+	if (likely(!log_num || !log))
+		return;
+
+	/*
+	 * vhost-scsi doesn't support VIRTIO_F_ACCESS_PLATFORM.
+	 * No requirement for vq->iotlb case.
+	 */
+	WARN_ON_ONCE(unlikely(vq->iotlb));
+	vhost_log_write(vq, log, log_num, U64_MAX, NULL, 0);
 }
 
 static void vhost_scsi_release_cmd_res(struct se_cmd *se_cmd)
@@ -660,6 +704,9 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 		} else
 			pr_err("Faulted on virtio_scsi_cmd_resp\n");
 
+		vhost_scsi_log_write(cmd->tvc_vq, cmd->tvc_log,
+				     cmd->tvc_log_num);
+
 		vhost_scsi_release_cmd_res(se_cmd);
 	}
 
@@ -676,6 +723,7 @@ vhost_scsi_get_cmd(struct vhost_virtqueue *vq, u64 scsi_tag)
 					struct vhost_scsi_virtqueue, vq);
 	struct vhost_scsi_cmd *cmd;
 	struct scatterlist *sgl, *prot_sgl;
+	struct vhost_log *log;
 	int tag;
 
 	tag = sbitmap_get(&svq->scsi_tags);
@@ -687,9 +735,11 @@ vhost_scsi_get_cmd(struct vhost_virtqueue *vq, u64 scsi_tag)
 	cmd = &svq->scsi_cmds[tag];
 	sgl = cmd->sgl;
 	prot_sgl = cmd->prot_sgl;
+	log = cmd->tvc_log;
 	memset(cmd, 0, sizeof(*cmd));
 	cmd->sgl = sgl;
 	cmd->prot_sgl = prot_sgl;
+	cmd->tvc_log = log;
 	cmd->tvc_se_cmd.map_tag = tag;
 	cmd->inflight = vhost_scsi_get_inflight(vq);
 
@@ -1225,6 +1275,8 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 	u8 task_attr;
 	bool t10_pi = vhost_has_feature(vq, VIRTIO_SCSI_F_T10_PI);
 	u8 *cdb;
+	struct vhost_log *vq_log;
+	unsigned int log_num;
 
 	mutex_lock(&vq->mutex);
 	/*
@@ -1240,8 +1292,11 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 
 	vhost_disable_notify(&vs->dev, vq);
 
+	vq_log = unlikely(vhost_has_feature(vq, VHOST_F_LOG_ALL)) ?
+		vq->log : NULL;
+
 	do {
-		ret = vhost_scsi_get_desc(vs, vq, &vc, NULL, NULL);
+		ret = vhost_scsi_get_desc(vs, vq, &vc, vq_log, &log_num);
 		if (ret)
 			goto err;
 
@@ -1390,6 +1445,14 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 			goto err;
 		}
 
+		if (unlikely(vq_log && log_num)) {
+			ret = vhost_scsi_copy_cmd_log(vq, cmd, vq_log, log_num);
+			if (unlikely(ret)) {
+				vhost_scsi_release_cmd_res(&cmd->tvc_se_cmd);
+				goto err;
+			}
+		}
+
 		pr_debug("vhost_scsi got command opcode: %#02x, lun: %d\n",
 			 cdb[0], lun);
 		pr_debug("cmd: %p exp_data_len: %d, prot_bytes: %d data_direction:"
@@ -1425,11 +1488,14 @@ err:
 		 */
 		if (ret == -ENXIO)
 			break;
-		else if (ret == -EIO)
+		else if (ret == -EIO) {
 			vhost_scsi_send_bad_target(vs, vq, &vc, TYPE_IO_CMD);
-		else if (ret == -ENOMEM)
+			vhost_scsi_log_write(vq, vq_log, log_num);
+		} else if (ret == -ENOMEM) {
 			vhost_scsi_send_status(vs, vq, &vc,
 					       SAM_STAT_TASK_SET_FULL);
+			vhost_scsi_log_write(vq, vq_log, log_num);
+		}
 	} while (likely(!vhost_exceeds_weight(vq, ++c, 0)));
 out:
 	mutex_unlock(&vq->mutex);
@@ -1760,6 +1826,24 @@ static void vhost_scsi_flush(struct vhost_scsi *vs)
 		wait_for_completion(&vs->old_inflight[i]->comp);
 }
 
+static void vhost_scsi_destroy_vq_log(struct vhost_virtqueue *vq)
+{
+	struct vhost_scsi_virtqueue *svq = container_of(vq,
+					struct vhost_scsi_virtqueue, vq);
+	struct vhost_scsi_cmd *tv_cmd;
+	unsigned int i;
+
+	if (!svq->scsi_cmds)
+		return;
+
+	for (i = 0; i < svq->max_cmds; i++) {
+		tv_cmd = &svq->scsi_cmds[i];
+		kfree(tv_cmd->tvc_log);
+		tv_cmd->tvc_log = NULL;
+		tv_cmd->tvc_log_num = 0;
+	}
+}
+
 static void vhost_scsi_destroy_vq_cmds(struct vhost_virtqueue *vq)
 {
 	struct vhost_scsi_virtqueue *svq = container_of(vq,
@@ -1779,6 +1863,7 @@ static void vhost_scsi_destroy_vq_cmds(struct vhost_virtqueue *vq)
 
 	sbitmap_free(&svq->scsi_tags);
 	kfree(svq->upages);
+	vhost_scsi_destroy_vq_log(vq);
 	kfree(svq->scsi_cmds);
 	svq->scsi_cmds = NULL;
 }
@@ -2088,6 +2173,7 @@ err_dev:
 static int vhost_scsi_set_features(struct vhost_scsi *vs, u64 features)
 {
 	struct vhost_virtqueue *vq;
+	bool is_log, was_log;
 	int i;
 
 	if (features & ~VHOST_SCSI_FEATURES)
@@ -2100,12 +2186,39 @@ static int vhost_scsi_set_features(struct vhost_scsi *vs, u64 features)
 		return -EFAULT;
 	}
 
+	if (!vs->dev.nvqs)
+		goto out;
+
+	is_log = features & (1 << VHOST_F_LOG_ALL);
+	/*
+	 * All VQs should have same feature.
+	 */
+	was_log = vhost_has_feature(&vs->vqs[0].vq, VHOST_F_LOG_ALL);
+
 	for (i = 0; i < vs->dev.nvqs; i++) {
 		vq = &vs->vqs[i].vq;
 		mutex_lock(&vq->mutex);
 		vq->acked_features = features;
 		mutex_unlock(&vq->mutex);
 	}
+
+	/*
+	 * If VHOST_F_LOG_ALL is removed, free tvc_log after
+	 * vq->acked_features is committed.
+	 */
+	if (!is_log && was_log) {
+		for (i = VHOST_SCSI_VQ_IO; i < vs->dev.nvqs; i++) {
+			if (!vs->vqs[i].scsi_cmds)
+				continue;
+
+			vq = &vs->vqs[i].vq;
+			mutex_lock(&vq->mutex);
+			vhost_scsi_destroy_vq_log(vq);
+			mutex_unlock(&vq->mutex);
+		}
+	}
+
+out:
 	mutex_unlock(&vs->dev.mutex);
 	return 0;
 }
