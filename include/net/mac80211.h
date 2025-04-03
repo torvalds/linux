@@ -5347,22 +5347,6 @@ void ieee80211_get_tx_rates(struct ieee80211_vif *vif,
 			    int max_rates);
 
 /**
- * ieee80211_sta_set_expected_throughput - set the expected tpt for a station
- *
- * Call this function to notify mac80211 about a change in expected throughput
- * to a station. A driver for a device that does rate control in firmware can
- * call this function when the expected throughput estimate towards a station
- * changes. The information is used to tune the CoDel AQM applied to traffic
- * going towards that station (which can otherwise be too aggressive and cause
- * slow stations to starve).
- *
- * @pubsta: the station to set throughput for.
- * @thr: the current expected throughput in kbps.
- */
-void ieee80211_sta_set_expected_throughput(struct ieee80211_sta *pubsta,
-					   u32 thr);
-
-/**
  * ieee80211_tx_rate_update - transmit rate update callback
  *
  * Drivers should call this functions with a non-NULL pub sta
