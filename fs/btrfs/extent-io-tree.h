@@ -199,8 +199,8 @@ static inline int btrfs_clear_extent_bits(struct extent_io_tree *tree, u64 start
 
 int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 			   u32 bits, struct extent_changeset *changeset);
-int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		   u32 bits, struct extent_state **cached_state);
+int btrfs_set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
+			 u32 bits, struct extent_state **cached_state);
 
 static inline int btrfs_clear_extent_dirty(struct extent_io_tree *tree, u64 start,
 					   u64 end, struct extent_state **cached)

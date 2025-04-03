@@ -1256,8 +1256,8 @@ out:
 
 }
 
-int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		   u32 bits, struct extent_state **cached_state)
+int btrfs_set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
+			 u32 bits, struct extent_state **cached_state)
 {
 	return __set_extent_bit(tree, start, end, bits, NULL, NULL,
 				cached_state, NULL);

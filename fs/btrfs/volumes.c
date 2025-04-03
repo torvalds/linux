@@ -5407,9 +5407,9 @@ static void chunk_map_device_set_bits(struct btrfs_chunk_map *map, unsigned int 
 		struct btrfs_io_stripe *stripe = &map->stripes[i];
 		struct btrfs_device *device = stripe->dev;
 
-		set_extent_bit(&device->alloc_state, stripe->physical,
-			       stripe->physical + map->stripe_size - 1,
-			       bits | EXTENT_NOWAIT, NULL);
+		btrfs_set_extent_bit(&device->alloc_state, stripe->physical,
+				     stripe->physical + map->stripe_size - 1,
+				     bits | EXTENT_NOWAIT, NULL);
 	}
 }
 

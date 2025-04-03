@@ -2216,9 +2216,9 @@ static int exclude_super_stripes(struct btrfs_block_group *cache)
 	if (cache->start < BTRFS_SUPER_INFO_OFFSET) {
 		stripe_len = BTRFS_SUPER_INFO_OFFSET - cache->start;
 		cache->bytes_super += stripe_len;
-		ret = set_extent_bit(&fs_info->excluded_extents, cache->start,
-				     cache->start + stripe_len - 1,
-				     EXTENT_DIRTY, NULL);
+		ret = btrfs_set_extent_bit(&fs_info->excluded_extents, cache->start,
+					   cache->start + stripe_len - 1,
+					   EXTENT_DIRTY, NULL);
 		if (ret)
 			return ret;
 	}
@@ -2244,9 +2244,9 @@ static int exclude_super_stripes(struct btrfs_block_group *cache)
 				cache->start + cache->length - logical[nr]);
 
 			cache->bytes_super += len;
-			ret = set_extent_bit(&fs_info->excluded_extents, logical[nr],
-					     logical[nr] + len - 1,
-					     EXTENT_DIRTY, NULL);
+			ret = btrfs_set_extent_bit(&fs_info->excluded_extents,
+						   logical[nr], logical[nr] + len - 1,
+						   EXTENT_DIRTY, NULL);
 			if (ret) {
 				kfree(logical);
 				return ret;
@@ -3736,8 +3736,8 @@ int btrfs_update_block_group(struct btrfs_trans_handle *trans,
 		spin_unlock(&cache->lock);
 		spin_unlock(&space_info->lock);
 
-		set_extent_bit(&trans->transaction->pinned_extents, bytenr,
-			       bytenr + num_bytes - 1, EXTENT_DIRTY, NULL);
+		btrfs_set_extent_bit(&trans->transaction->pinned_extents, bytenr,
+				     bytenr + num_bytes - 1, EXTENT_DIRTY, NULL);
 	}
 
 	spin_lock(&trans->transaction->dirty_bgs_lock);
