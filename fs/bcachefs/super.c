@@ -75,6 +75,8 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kent Overstreet <kent.overstreet@gmail.com>");
 MODULE_DESCRIPTION("bcachefs filesystem");
 
+typedef DARRAY(struct bch_sb_handle) bch_sb_handles;
+
 const char * const bch2_fs_flag_strs[] = {
 #define x(n)		#n,
 	BCH_FS_FLAGS()
@@ -770,7 +772,8 @@ static int bch2_fs_init_rw(struct bch_fs *c)
 	return 0;
 }
 
-static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
+static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts,
+				    bch_sb_handles *sbs)
 {
 	struct bch_fs *c;
 	struct printbuf name = PRINTBUF;
@@ -869,14 +872,6 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	if (ret)
 		goto err;
 
-	pr_uuid(&name, c->sb.user_uuid.b);
-	ret = name.allocation_failure ? -BCH_ERR_ENOMEM_fs_name_alloc : 0;
-	if (ret)
-		goto err;
-
-	strscpy(c->name, name.buf, sizeof(c->name));
-	printbuf_exit(&name);
-
 	/* Compat: */
 	if (le16_to_cpu(sb->version) <= bcachefs_metadata_version_inode_v2 &&
 	    !BCH_SB_JOURNAL_FLUSH_DELAY(sb))
@@ -906,6 +901,18 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 		ret = -EFAULT;
 		goto err;
 	}
+
+	if (sbs->nr != 1)
+		pr_uuid(&name, c->sb.user_uuid.b);
+	else
+		prt_bdevname(&name, sbs->data[0].bdev);
+
+	ret = name.allocation_failure ? -BCH_ERR_ENOMEM_fs_name_alloc : 0;
+	if (ret)
+		goto err;
+
+	strscpy(c->name, name.buf, sizeof(c->name));
+	printbuf_exit(&name);
 
 	iter_size = sizeof(struct sort_iter) +
 		(btree_blocks(c) + 1) * 2 *
@@ -1541,11 +1548,7 @@ static int bch2_dev_attach_bdev(struct bch_fs *c, struct bch_sb_handle *sb)
 
 	struct printbuf name = PRINTBUF;
 	prt_bdevname(&name, ca->disk_sb.bdev);
-
-	if (c->sb.nr_devices == 1)
-		strscpy(c->name, name.buf, sizeof(c->name));
 	strscpy(ca->name, name.buf, sizeof(ca->name));
-
 	printbuf_exit(&name);
 
 	bch2_rebalance_wakeup(c);
@@ -2174,7 +2177,7 @@ static inline int sb_cmp(struct bch_sb *l, struct bch_sb *r)
 struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 			    struct bch_opts opts)
 {
-	DARRAY(struct bch_sb_handle) sbs = { 0 };
+	bch_sb_handles sbs = {};
 	struct bch_fs *c = NULL;
 	struct bch_sb_handle *best = NULL;
 	struct printbuf errbuf = PRINTBUF;
@@ -2227,7 +2230,7 @@ struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 			goto err_print;
 	}
 
-	c = bch2_fs_alloc(best->sb, opts);
+	c = bch2_fs_alloc(best->sb, opts, &sbs);
 	ret = PTR_ERR_OR_ZERO(c);
 	if (ret)
 		goto err;
