@@ -2842,7 +2842,7 @@ static int trace__fprintf_sys_enter(struct trace *trace, struct evsel *evsel,
 	e_machine = thread__e_machine(thread, trace->host);
 	sc = trace__syscall_info(trace, evsel, e_machine, id);
 	if (sc == NULL)
-		return -1;
+		goto out_put;
 	ttrace = thread__trace(thread, trace);
 	/*
 	 * We need to get ttrace just to make sure it is there when syscall__scnprintf_args()
