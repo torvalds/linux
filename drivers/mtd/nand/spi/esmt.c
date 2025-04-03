@@ -138,7 +138,7 @@ static int f50l1g41lb_otp_lock(struct spinand_device *spinand, loff_t from,
 			       size_t len)
 {
 	struct spi_mem_op write_op = SPINAND_WR_EN_DIS_1S_0_0_OP(true);
-	struct spi_mem_op exec_op = SPINAND_PROG_EXEC_OP(0);
+	struct spi_mem_op exec_op = SPINAND_PROG_EXEC_1S_1S_0_OP(0);
 	u8 status;
 	int ret;
 
