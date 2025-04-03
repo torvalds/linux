@@ -834,7 +834,7 @@ static inline void *shash_desc_ctx(struct shash_desc *desc)
  * cipher handle must point to a keyed message digest cipher in order for this
  * function to succeed.
  *
- * Context: Any context.
+ * Context: Softirq or process context.
  * Return: 0 if the setting of the key was successful; < 0 if an error occurred
  */
 int crypto_shash_setkey(struct crypto_shash *tfm, const u8 *key,
@@ -851,7 +851,7 @@ int crypto_shash_setkey(struct crypto_shash *tfm, const u8 *key,
  * crypto_shash_update and crypto_shash_final. The parameters have the same
  * meaning as discussed for those separate three functions.
  *
- * Context: Any context.
+ * Context: Softirq or process context.
  * Return: 0 if the message digest creation was successful; < 0 if an error
  *	   occurred
  */
@@ -871,7 +871,7 @@ int crypto_shash_digest(struct shash_desc *desc, const u8 *data,
  * directly, and it allocates a hash descriptor on the stack internally.
  * Note that this stack allocation may be fairly large.
  *
- * Context: Any context.
+ * Context: Softirq or process context.
  * Return: 0 on success; < 0 if an error occurred.
  */
 int crypto_shash_tfm_digest(struct crypto_shash *tfm, const u8 *data,
@@ -886,7 +886,7 @@ int crypto_shash_tfm_digest(struct crypto_shash *tfm, const u8 *data,
  * caller-allocated output buffer out which must have sufficient size (e.g. by
  * calling crypto_shash_descsize).
  *
- * Context: Any context.
+ * Context: Softirq or process context.
  * Return: 0 if the export creation was successful; < 0 if an error occurred
  */
 int crypto_shash_export(struct shash_desc *desc, void *out);
@@ -900,7 +900,7 @@ int crypto_shash_export(struct shash_desc *desc, void *out);
  * the input buffer. That buffer should have been generated with the
  * crypto_ahash_export function.
  *
- * Context: Any context.
+ * Context: Softirq or process context.
  * Return: 0 if the import was successful; < 0 if an error occurred
  */
 int crypto_shash_import(struct shash_desc *desc, const void *in);
@@ -913,7 +913,7 @@ int crypto_shash_import(struct shash_desc *desc, const void *in);
  * operational state handle. Any potentially existing state created by
  * previous operations is discarded.
  *
- * Context: Any context.
+ * Context: Softirq or process context.
  * Return: 0 if the message digest initialization was successful; < 0 if an
  *	   error occurred
  */
@@ -935,7 +935,7 @@ static inline int crypto_shash_init(struct shash_desc *desc)
  *
  * Updates the message digest state of the operational state handle.
  *
- * Context: Any context.
+ * Context: Softirq or process context.
  * Return: 0 if the message digest update was successful; < 0 if an error
  *	   occurred
  */
@@ -952,7 +952,7 @@ int crypto_shash_update(struct shash_desc *desc, const u8 *data,
  * into the output buffer. The caller must ensure that the output buffer is
  * large enough by using crypto_shash_digestsize.
  *
- * Context: Any context.
+ * Context: Softirq or process context.
  * Return: 0 if the message digest creation was successful; < 0 if an error
  *	   occurred
  */
@@ -969,7 +969,7 @@ int crypto_shash_final(struct shash_desc *desc, u8 *out);
  * crypto_shash_update and crypto_shash_final. The parameters have the same
  * meaning as discussed for those separate functions.
  *
- * Context: Any context.
+ * Context: Softirq or process context.
  * Return: 0 if the message digest creation was successful; < 0 if an error
  *	   occurred
  */
