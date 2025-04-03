@@ -299,6 +299,7 @@ TEST_F(pidfd_info, thread_group)
 	/* Opening a thread as a thread-group leader must fail. */
 	pidfd_thread = sys_pidfd_open(pid_thread, 0);
 	ASSERT_LT(pidfd_thread, 0);
+	ASSERT_EQ(errno, ENOENT);
 
 	/* Opening a thread as a PIDFD_THREAD must succeed. */
 	pidfd_thread = sys_pidfd_open(pid_thread, PIDFD_THREAD);
