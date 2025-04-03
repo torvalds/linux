@@ -903,6 +903,7 @@ __ATTRIBUTE_GROUPS(cxl_rcd);
 static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct pci_host_bridge *host_bridge = pci_find_host_bridge(pdev->bus);
+	struct cxl_dpa_info range_info = { 0 };
 	struct cxl_memdev_state *mds;
 	struct cxl_dev_state *cxlds;
 	struct cxl_register_map map;
@@ -993,7 +994,11 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
-	rc = cxl_mem_create_range_info(mds);
+	rc = cxl_mem_dpa_fetch(mds, &range_info);
+	if (rc)
+		return rc;
+
+	rc = cxl_dpa_setup(cxlds, &range_info);
 	if (rc)
 		return rc;
 
