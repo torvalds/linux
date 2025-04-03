@@ -587,7 +587,7 @@ struct gpio_desc *devm_fwnode_gpiod_get(struct device *dev,
 
 struct acpi_gpio_params {
 	unsigned int crs_entry_index;
-	unsigned int line_index;
+	unsigned short line_index;
 	bool active_low;
 };
 
