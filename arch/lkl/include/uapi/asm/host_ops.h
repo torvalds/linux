@@ -226,7 +226,18 @@ void lkl_cleanup(void);
  */
 int lkl_is_running(void);
 
-int lkl_printf(const char *, ...);
-void lkl_bug(const char *, ...);
+/**
+ * lkl_printf - print a message via the host print operation
+ *
+ * @fmt: printf like format string
+ */
+int lkl_printf(const char *fmt, ...);
+
+/**
+ * lkl_bug - print a message and panic via the host operations
+ *
+ * @fmt: printf like format string
+ */
+void lkl_bug(const char *fmt, ...);
 
 #endif
