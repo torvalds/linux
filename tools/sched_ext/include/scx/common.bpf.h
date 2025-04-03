@@ -586,36 +586,48 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 	}
 }
 
-#define READ_ONCE(x)					\
-({							\
-	union { typeof(x) __val; char __c[1]; } __u =	\
-		{ .__c = { 0 } };			\
-	__read_once_size(&(x), __u.__c, sizeof(x));	\
-	__u.__val;					\
+/*
+ * __unqual_typeof(x) - Declare an unqualified scalar type, leaving
+ *			non-scalar types unchanged,
+ *
+ * Prefer C11 _Generic for better compile-times and simpler code. Note: 'char'
+ * is not type-compatible with 'signed char', and we define a separate case.
+ *
+ * This is copied verbatim from kernel's include/linux/compiler_types.h, but
+ * with default expression (for pointers) changed from (x) to (typeof(x)0).
+ *
+ * This is because LLVM has a bug where for lvalue (x), it does not get rid of
+ * an extra address_space qualifier, but does in case of rvalue (typeof(x)0).
+ * Hence, for pointers, we need to create an rvalue expression to get the
+ * desired type. See https://github.com/llvm/llvm-project/issues/53400.
+ */
+#define __scalar_type_to_expr_cases(type) \
+	unsigned type : (unsigned type)0, signed type : (signed type)0
+
+#define __unqual_typeof(x)                              \
+	typeof(_Generic((x),                            \
+		char: (char)0,                          \
+		__scalar_type_to_expr_cases(char),      \
+		__scalar_type_to_expr_cases(short),     \
+		__scalar_type_to_expr_cases(int),       \
+		__scalar_type_to_expr_cases(long),      \
+		__scalar_type_to_expr_cases(long long), \
+		default: (typeof(x))0))
+
+#define READ_ONCE(x)								\
+({										\
+	union { __unqual_typeof(x) __val; char __c[1]; } __u =			\
+		{ .__c = { 0 } };						\
+	__read_once_size((__unqual_typeof(x) *)&(x), __u.__c, sizeof(x));	\
+	__u.__val;								\
 })
 
-#define WRITE_ONCE(x, val)				\
-({							\
-	union { typeof(x) __val; char __c[1]; } __u =	\
-		{ .__val = (val) }; 			\
-	__write_once_size(&(x), __u.__c, sizeof(x));	\
-	__u.__val;					\
-})
-
-#define READ_ONCE_ARENA(type, x)				\
-({								\
-	union { type __val; char __c[1]; } __u =		\
-		{ .__c = { 0 } };				\
-	__read_once_size((void *)&(x), __u.__c, sizeof(x));	\
-	__u.__val;						\
-})
-
-#define WRITE_ONCE_ARENA(type, x, val)				\
-({								\
-	union { type __val; char __c[1]; } __u =		\
-		{ .__val = (val) }; 				\
-	__write_once_size((void *)&(x), __u.__c, sizeof(x));	\
-	__u.__val;						\
+#define WRITE_ONCE(x, val)							\
+({										\
+	union { __unqual_typeof(x) __val; char __c[1]; } __u =			\
+		{ .__val = (val) }; 						\
+	__write_once_size((__unqual_typeof(x) *)&(x), __u.__c, sizeof(x));	\
+	__u.__val;								\
 })
 
 /*
@@ -647,6 +659,23 @@ static inline u32 log2_u64(u64 v)
         else
                 return log2_u32(v) + 1;
 }
+
+/*
+ * Return a value proportionally scaled to the task's weight.
+ */
+static inline u64 scale_by_task_weight(const struct task_struct *p, u64 value)
+{
+	return (value * p->scx.weight) / 100;
+}
+
+/*
+ * Return a value inversely proportional to the task's weight.
+ */
+static inline u64 scale_by_task_weight_inverse(const struct task_struct *p, u64 value)
+{
+	return value * 100 / p->scx.weight;
+}
+
 
 #include "compat.bpf.h"
 #include "enums.bpf.h"
