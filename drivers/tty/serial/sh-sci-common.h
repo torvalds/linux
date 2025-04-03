@@ -89,6 +89,14 @@ struct sci_port_ops {
 	size_t (*suspend_regs_size)(void);
 };
 
+struct sci_of_data {
+	const struct sci_port_params *params;
+	const struct uart_ops *uart_ops;
+	const struct sci_port_ops *ops;
+	unsigned short regtype;
+	unsigned short type;
+};
+
 struct sci_port {
 	struct uart_port	port;
 
@@ -153,7 +161,7 @@ void sci_shutdown(struct uart_port *port);
 #define max_sr(_port)		fls((_port)->sampling_rate_mask)
 
 #ifdef CONFIG_SERIAL_SH_SCI_EARLYCON
-int __init scix_early_console_setup(struct earlycon_device *device, int);
+int __init scix_early_console_setup(struct earlycon_device *device, const struct sci_of_data *data);
 #endif
 
 #endif /* __SH_SCI_COMMON_H__ */
