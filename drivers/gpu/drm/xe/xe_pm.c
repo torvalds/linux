@@ -188,7 +188,7 @@ int xe_pm_resume(struct xe_device *xe)
 	 * This only restores pinned memory which is the memory required for the
 	 * GT(s) to resume.
 	 */
-	err = xe_bo_restore_kernel(xe);
+	err = xe_bo_restore_early(xe);
 	if (err)
 		goto err;
 
@@ -199,7 +199,7 @@ int xe_pm_resume(struct xe_device *xe)
 
 	xe_display_pm_resume(xe);
 
-	err = xe_bo_restore_user(xe);
+	err = xe_bo_restore_late(xe);
 	if (err)
 		goto err;
 
@@ -484,7 +484,7 @@ int xe_pm_runtime_resume(struct xe_device *xe)
 		 * This only restores pinned memory which is the memory
 		 * required for the GT(s) to resume.
 		 */
-		err = xe_bo_restore_kernel(xe);
+		err = xe_bo_restore_early(xe);
 		if (err)
 			goto out;
 	}
@@ -497,7 +497,7 @@ int xe_pm_runtime_resume(struct xe_device *xe)
 	xe_display_pm_runtime_resume(xe);
 
 	if (xe->d3cold.allowed) {
-		err = xe_bo_restore_user(xe);
+		err = xe_bo_restore_late(xe);
 		if (err)
 			goto out;
 	}

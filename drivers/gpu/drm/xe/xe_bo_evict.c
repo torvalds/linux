@@ -91,9 +91,13 @@ int xe_bo_evict_all(struct xe_device *xe)
 		}
 	}
 
-	ret = xe_bo_apply_to_pinned(xe, &xe->pinned.external,
-				    &xe->pinned.external,
+	ret = xe_bo_apply_to_pinned(xe, &xe->pinned.late.external,
+				    &xe->pinned.late.external,
 				    xe_bo_evict_pinned);
+
+	if (!ret)
+		ret = xe_bo_apply_to_pinned(xe, &xe->pinned.late.kernel_bo_present,
+					    &xe->pinned.late.evicted, xe_bo_evict_pinned);
 
 	/*
 	 * Wait for all user BO to be evicted as those evictions depend on the
@@ -105,8 +109,8 @@ int xe_bo_evict_all(struct xe_device *xe)
 	if (ret)
 		return ret;
 
-	return xe_bo_apply_to_pinned(xe, &xe->pinned.kernel_bo_present,
-				     &xe->pinned.evicted,
+	return xe_bo_apply_to_pinned(xe, &xe->pinned.early.kernel_bo_present,
+				     &xe->pinned.early.evicted,
 				     xe_bo_evict_pinned);
 }
 
@@ -137,13 +141,14 @@ static int xe_bo_restore_and_map_ggtt(struct xe_bo *bo)
 	 * We expect validate to trigger a move VRAM and our move code
 	 * should setup the iosys map.
 	 */
-	xe_assert(xe, !iosys_map_is_null(&bo->vmap));
+	xe_assert(xe, !(bo->flags & XE_BO_FLAG_PINNED_LATE_RESTORE) ||
+		  !iosys_map_is_null(&bo->vmap));
 
 	return 0;
 }
 
 /**
- * xe_bo_restore_kernel - restore kernel BOs to VRAM
+ * xe_bo_restore_early - restore early phase kernel BOs to VRAM
  *
  * @xe: xe device
  *
@@ -153,34 +158,44 @@ static int xe_bo_restore_and_map_ggtt(struct xe_bo *bo)
  * This function should be called early, before trying to init the GT, on device
  * resume.
  */
-int xe_bo_restore_kernel(struct xe_device *xe)
+int xe_bo_restore_early(struct xe_device *xe)
 {
-	return xe_bo_apply_to_pinned(xe, &xe->pinned.evicted,
-				     &xe->pinned.kernel_bo_present,
+	return xe_bo_apply_to_pinned(xe, &xe->pinned.early.evicted,
+				     &xe->pinned.early.kernel_bo_present,
 				     xe_bo_restore_and_map_ggtt);
 }
 
 /**
- * xe_bo_restore_user - restore pinned user BOs to VRAM
+ * xe_bo_restore_late - restore pinned late phase BOs
  *
  * @xe: xe device
  *
- * Move pinned user BOs from temporary (typically system) memory to VRAM via
- * CPU. All moves done via TTM calls.
+ * Move pinned user and kernel BOs which can use blitter from temporary
+ * (typically system) memory to VRAM. All moves done via TTM calls.
  *
  * This function should be called late, after GT init, on device resume.
  */
-int xe_bo_restore_user(struct xe_device *xe)
+int xe_bo_restore_late(struct xe_device *xe)
 {
 	struct xe_tile *tile;
 	int ret, id;
+
+	ret = xe_bo_apply_to_pinned(xe, &xe->pinned.late.evicted,
+				    &xe->pinned.late.kernel_bo_present,
+				    xe_bo_restore_and_map_ggtt);
+
+	for_each_tile(tile, xe, id)
+		xe_tile_migrate_wait(tile);
+
+	if (ret)
+		return ret;
 
 	if (!IS_DGFX(xe))
 		return 0;
 
 	/* Pinned user memory in VRAM should be validated on resume */
-	ret = xe_bo_apply_to_pinned(xe, &xe->pinned.external,
-				    &xe->pinned.external,
+	ret = xe_bo_apply_to_pinned(xe, &xe->pinned.late.external,
+				    &xe->pinned.late.external,
 				    xe_bo_restore_pinned);
 
 	/* Wait for restore to complete */
@@ -195,8 +210,8 @@ static void xe_bo_pci_dev_remove_pinned(struct xe_device *xe)
 	struct xe_tile *tile;
 	unsigned int id;
 
-	(void)xe_bo_apply_to_pinned(xe, &xe->pinned.external,
-				    &xe->pinned.external,
+	(void)xe_bo_apply_to_pinned(xe, &xe->pinned.late.external,
+				    &xe->pinned.late.external,
 				    xe_bo_dma_unmap_pinned);
 	for_each_tile(tile, xe, id)
 		xe_tile_migrate_wait(tile);
@@ -241,8 +256,11 @@ static void xe_bo_pinned_fini(void *arg)
 {
 	struct xe_device *xe = arg;
 
-	(void)xe_bo_apply_to_pinned(xe, &xe->pinned.kernel_bo_present,
-				    &xe->pinned.kernel_bo_present,
+	(void)xe_bo_apply_to_pinned(xe, &xe->pinned.late.kernel_bo_present,
+				    &xe->pinned.late.kernel_bo_present,
+				    xe_bo_dma_unmap_pinned);
+	(void)xe_bo_apply_to_pinned(xe, &xe->pinned.early.kernel_bo_present,
+				    &xe->pinned.early.kernel_bo_present,
 				    xe_bo_dma_unmap_pinned);
 }
 
@@ -259,9 +277,11 @@ static void xe_bo_pinned_fini(void *arg)
 int xe_bo_pinned_init(struct xe_device *xe)
 {
 	spin_lock_init(&xe->pinned.lock);
-	INIT_LIST_HEAD(&xe->pinned.kernel_bo_present);
-	INIT_LIST_HEAD(&xe->pinned.external);
-	INIT_LIST_HEAD(&xe->pinned.evicted);
+	INIT_LIST_HEAD(&xe->pinned.early.kernel_bo_present);
+	INIT_LIST_HEAD(&xe->pinned.early.evicted);
+	INIT_LIST_HEAD(&xe->pinned.late.kernel_bo_present);
+	INIT_LIST_HEAD(&xe->pinned.late.evicted);
+	INIT_LIST_HEAD(&xe->pinned.late.external);
 
 	return devm_add_action_or_reset(xe->drm.dev, xe_bo_pinned_fini, xe);
 }

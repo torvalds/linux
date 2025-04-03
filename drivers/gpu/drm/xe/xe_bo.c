@@ -1121,7 +1121,7 @@ int xe_bo_evict_pinned(struct xe_bo *bo)
 		goto out_unlock_bo;
 	}
 
-	if (xe_bo_is_user(bo)) {
+	if (xe_bo_is_user(bo) || (bo->flags & XE_BO_FLAG_PINNED_LATE_RESTORE)) {
 		struct xe_migrate *migrate;
 		struct dma_fence *fence;
 
@@ -1216,7 +1216,7 @@ int xe_bo_restore_pinned(struct xe_bo *bo)
 		goto out_backup;
 	}
 
-	if (xe_bo_is_user(bo)) {
+	if (xe_bo_is_user(bo) || (bo->flags & XE_BO_FLAG_PINNED_LATE_RESTORE)) {
 		struct xe_migrate *migrate;
 		struct dma_fence *fence;
 
@@ -2187,7 +2187,7 @@ int xe_bo_pin_external(struct xe_bo *bo)
 			return err;
 
 		spin_lock(&xe->pinned.lock);
-		list_add_tail(&bo->pinned_link, &xe->pinned.external);
+		list_add_tail(&bo->pinned_link, &xe->pinned.late.external);
 		spin_unlock(&xe->pinned.lock);
 	}
 
@@ -2232,7 +2232,10 @@ int xe_bo_pin(struct xe_bo *bo)
 
 	if (mem_type_is_vram(place->mem_type) || bo->flags & XE_BO_FLAG_GGTT) {
 		spin_lock(&xe->pinned.lock);
-		list_add_tail(&bo->pinned_link, &xe->pinned.kernel_bo_present);
+		if (bo->flags & XE_BO_FLAG_PINNED_LATE_RESTORE)
+			list_add_tail(&bo->pinned_link, &xe->pinned.late.kernel_bo_present);
+		else
+			list_add_tail(&bo->pinned_link, &xe->pinned.early.kernel_bo_present);
 		spin_unlock(&xe->pinned.lock);
 	}
 

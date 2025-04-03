@@ -422,12 +422,22 @@ struct xe_device {
 	struct {
 		/** @pinned.lock: protected pinned BO list state */
 		spinlock_t lock;
-		/** @pinned.kernel_bo_present: pinned kernel BO that are present */
-		struct list_head kernel_bo_present;
-		/** @pinned.evicted: pinned BO that have been evicted */
-		struct list_head evicted;
-		/** @pinned.external: pinned external and dma-buf. */
-		struct list_head external;
+		/** @pinned.early: early pinned lists */
+		struct {
+			/** @pinned.early.kernel_bo_present: pinned kernel BO that are present */
+			struct list_head kernel_bo_present;
+			/** @pinned.early.evicted: pinned BO that have been evicted */
+			struct list_head evicted;
+		} early;
+		/** @pinned.late: late pinned lists */
+		struct {
+			/** @pinned.late.kernel_bo_present: pinned kernel BO that are present */
+			struct list_head kernel_bo_present;
+			/** @pinned.late.evicted: pinned BO that have been evicted */
+			struct list_head evicted;
+			/** @pinned.external: pinned external and dma-buf. */
+			struct list_head external;
+		} late;
 	} pinned;
 
 	/** @ufence_wq: user fence wait queue */
