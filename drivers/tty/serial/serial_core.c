@@ -895,8 +895,8 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 {
 	struct uart_port *uport = uart_port_check(state);
 	unsigned long new_port;
-	unsigned int change_irq, change_port, closing_wait;
-	unsigned int old_custom_divisor, close_delay;
+	unsigned int old_custom_divisor, close_delay, closing_wait;
+	bool change_irq, change_port;
 	upf_t old_flags, new_flags;
 	int retval;
 
@@ -2013,9 +2013,8 @@ static const char *uart_type(struct uart_port *port)
 
 #ifdef CONFIG_PROC_FS
 
-static void uart_line_info(struct seq_file *m, struct uart_driver *drv, int i)
+static void uart_line_info(struct seq_file *m, struct uart_state *state)
 {
-	struct uart_state *state = drv->state + i;
 	struct tty_port *port = &state->port;
 	enum uart_pm_state pm_state;
 	struct uart_port *uport;
@@ -2100,7 +2099,7 @@ static int uart_proc_show(struct seq_file *m, void *v)
 
 	seq_printf(m, "serinfo:1.0 driver%s%s revision:%s\n", "", "", "");
 	for (i = 0; i < drv->nr; i++)
-		uart_line_info(m, drv, i);
+		uart_line_info(m, drv->state + i);
 	return 0;
 }
 #endif
@@ -3156,7 +3155,6 @@ static int serial_core_add_one_port(struct uart_driver *drv, struct uart_port *u
 	if (uport->cons && uport->dev)
 		of_console_check(uport->dev->of_node, uport->cons->name, uport->line);
 
-	tty_port_link_device(port, drv->tty_driver, uport->line);
 	uart_configure_port(drv, state, uport);
 
 	port->console = uart_console(uport);

@@ -42,6 +42,10 @@ properties:
               - samsung,exynosautov9-uart
               - samsung,exynosautov920-uart
           - const: samsung,exynos850-uart
+      - items:
+          - enum:
+              - samsung,exynos7870-uart
+          - const: samsung,exynos8895-uart
 
   reg:
     maxItems: 1

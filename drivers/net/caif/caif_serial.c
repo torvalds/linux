@@ -330,7 +330,7 @@ static int ldisc_open(struct tty_struct *tty)
 	ser->tty = tty_kref_get(tty);
 	ser->dev = dev;
 	debugfs_init(ser, tty);
-	tty->receive_room = N_TTY_BUF_SIZE;
+	tty->receive_room = 4096;
 	tty->disc_data = ser;
 	set_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 	rtnl_lock();

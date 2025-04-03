@@ -179,25 +179,6 @@ config SERIAL_ATMEL_TTYAT
 
 	  Say Y if you have an external 8250/16C550 UART.  If unsure, say N.
 
-config SERIAL_KGDB_NMI
-	bool "Serial console over KGDB NMI debugger port"
-	depends on KGDB_SERIAL_CONSOLE
-	help
-	  This special driver allows you to temporary use NMI debugger port
-	  as a normal console (assuming that the port is attached to KGDB).
-
-	  Unlike KDB's disable_nmi command, with this driver you are always
-	  able to go back to the debugger using KGDB escape sequence ($3#33).
-	  This is because this console driver processes the input in NMI
-	  context, and thus is able to intercept the magic sequence.
-
-	  Note that since the console interprets input and uses polling
-	  communication methods, for things like PPP you still must fully
-	  detach debugger port from the KGDB NMI (i.e. disable_nmi), and
-	  use raw console.
-
-	  If unsure, say N.
-
 config SERIAL_MESON
 	tristate "Meson serial port support"
 	depends on ARCH_MESON || COMPILE_TEST
@@ -303,6 +284,29 @@ config SERIAL_TEGRA_TCU_CONSOLE
 	  system console (the system console is the device which receives all
 	  kernel messages and warnings and which allows logins in single user
 	  mode).
+
+	  If unsure, say Y.
+
+config SERIAL_TEGRA_UTC
+	tristate "NVIDIA Tegra UART Trace Controller"
+	depends on ARCH_TEGRA || COMPILE_TEST
+	select SERIAL_CORE
+	help
+	  Support for Tegra UTC (UART Trace controller) client serial port.
+
+	  UTC is a HW based serial port that allows multiplexing multiple data
+	  streams of up to 16 UTC clients into a single hardware serial port.
+
+config SERIAL_TEGRA_UTC_CONSOLE
+	bool "Support for console on a Tegra UTC serial port"
+	depends on SERIAL_TEGRA_UTC
+	select SERIAL_CORE_CONSOLE
+	default SERIAL_TEGRA_UTC
+	help
+	  If you say Y here, it will be possible to use a Tegra UTC client as
+	  the system console (the system console is the device which receives
+	  all kernel messages and warnings and which allows logins in single
+	  user mode).
 
 	  If unsure, say Y.
 

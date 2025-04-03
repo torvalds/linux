@@ -196,40 +196,44 @@ static const struct tty_operations srmcons_ops = {
 static int __init
 srmcons_init(void)
 {
+	struct tty_driver *driver;
+	int err;
+
 	timer_setup(&srmcons_singleton.timer, srmcons_receive_chars, 0);
-	if (srm_is_registered_console) {
-		struct tty_driver *driver;
-		int err;
 
-		driver = tty_alloc_driver(MAX_SRM_CONSOLE_DEVICES, 0);
-		if (IS_ERR(driver))
-			return PTR_ERR(driver);
+	if (!srm_is_registered_console)
+		return -ENODEV;
 
-		tty_port_init(&srmcons_singleton.port);
+	driver = tty_alloc_driver(MAX_SRM_CONSOLE_DEVICES, 0);
+	if (IS_ERR(driver))
+		return PTR_ERR(driver);
 
-		driver->driver_name = "srm";
-		driver->name = "srm";
-		driver->major = 0; 	/* dynamic */
-		driver->minor_start = 0;
-		driver->type = TTY_DRIVER_TYPE_SYSTEM;
-		driver->subtype = SYSTEM_TYPE_SYSCONS;
-		driver->init_termios = tty_std_termios;
-		tty_set_operations(driver, &srmcons_ops);
-		tty_port_link_device(&srmcons_singleton.port, driver, 0);
-		err = tty_register_driver(driver);
-		if (err) {
-			tty_driver_kref_put(driver);
-			tty_port_destroy(&srmcons_singleton.port);
-			return err;
-		}
-		srmcons_driver = driver;
-	}
+	tty_port_init(&srmcons_singleton.port);
 
-	return -ENODEV;
+	driver->driver_name = "srm";
+	driver->name = "srm";
+	driver->major = 0;	/* dynamic */
+	driver->minor_start = 0;
+	driver->type = TTY_DRIVER_TYPE_SYSTEM;
+	driver->subtype = SYSTEM_TYPE_SYSCONS;
+	driver->init_termios = tty_std_termios;
+	tty_set_operations(driver, &srmcons_ops);
+	tty_port_link_device(&srmcons_singleton.port, driver, 0);
+	err = tty_register_driver(driver);
+	if (err)
+		goto err_free_drv;
+
+	srmcons_driver = driver;
+
+	return 0;
+err_free_drv:
+	tty_driver_kref_put(driver);
+	tty_port_destroy(&srmcons_singleton.port);
+
+	return err;
 }
 device_initcall(srmcons_init);
 
-
 /*
  * The console driver
  */
