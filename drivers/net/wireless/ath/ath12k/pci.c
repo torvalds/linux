@@ -1706,11 +1706,11 @@ err_hal_srng_deinit:
 err_mhi_unregister:
 	ath12k_mhi_unregister(ab_pci);
 
-err_pci_msi_free:
-	ath12k_pci_msi_free(ab_pci);
-
 err_irq_affinity_cleanup:
 	ath12k_pci_set_irq_affinity_hint(ab_pci, NULL);
+
+err_pci_msi_free:
+	ath12k_pci_msi_free(ab_pci);
 
 err_pci_free_region:
 	ath12k_pci_free_region(ab_pci);
