@@ -830,17 +830,17 @@ static int acpi_gpio_resource_lookup(struct acpi_gpio_lookup *lookup,
 	return 0;
 }
 
-static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
-				     const char *propname, int index,
+static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode, const char *propname,
 				     struct acpi_gpio_lookup *lookup)
 {
 	struct fwnode_reference_args args;
+	unsigned int index = lookup->index;
 	unsigned int quirks = 0;
 	int ret;
 
 	memset(&args, 0, sizeof(args));
-	ret = __acpi_node_get_property_reference(fwnode, propname, index, 3,
-						 &args);
+
+	ret = __acpi_node_get_property_reference(fwnode, propname, index, 3, &args);
 	if (ret) {
 		struct acpi_device *adev;
 
@@ -905,8 +905,7 @@ static struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 	if (propname) {
 		dev_dbg(&adev->dev, "GPIO: looking up %s\n", propname);
 
-		ret = acpi_gpio_property_lookup(acpi_fwnode_handle(adev),
-						propname, index, &lookup);
+		ret = acpi_gpio_property_lookup(acpi_fwnode_handle(adev), propname, &lookup);
 		if (ret)
 			return ERR_PTR(ret);
 
@@ -955,7 +954,7 @@ static struct gpio_desc *acpi_get_gpiod_from_data(struct fwnode_handle *fwnode,
 	memset(&lookup, 0, sizeof(lookup));
 	lookup.index = index;
 
-	ret = acpi_gpio_property_lookup(fwnode, propname, index, &lookup);
+	ret = acpi_gpio_property_lookup(fwnode, propname, &lookup);
 	if (ret)
 		return ERR_PTR(ret);
 
