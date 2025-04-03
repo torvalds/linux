@@ -1172,7 +1172,7 @@ static int xgmi_v6_4_0_aca_bank_parser(struct aca_handle *handle, struct aca_ban
 		break;
 	case ACA_SMU_TYPE_CE:
 		count = ext_error_code == 6 ? count : 0ULL;
-		bank->aca_err_type = ACA_BANK_ERR_CE_DE_DECODE(bank);
+		bank->aca_err_type = ACA_ERROR_TYPE_CE;
 		ret = aca_error_cache_log_bank_error(handle, &info, bank->aca_err_type, count);
 		break;
 	default:

@@ -77,6 +77,7 @@ const char *ras_block_string[] = {
 	"jpeg",
 	"ih",
 	"mpio",
+	"mmsch",
 };
 
 const char *ras_mca_block_string[] = {
