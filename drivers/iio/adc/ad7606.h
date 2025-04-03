@@ -60,6 +60,7 @@ typedef int (*ad7606_sw_setup_cb_t)(struct iio_dev *indio_dev);
  * @os_req_reset:	some devices require a reset to update oversampling
  * @init_delay_ms:	required delay in milliseconds for initialization
  *			after a restart
+ * @offload_storagebits: storage bits used by the offload hw implementation
  */
 struct ad7606_chip_info {
 	unsigned int			max_samplerate;
@@ -72,6 +73,7 @@ struct ad7606_chip_info {
 	unsigned int			oversampling_num;
 	bool				os_req_reset;
 	unsigned long			init_delay_ms;
+	u8				offload_storagebits;
 };
 
 /**
@@ -118,6 +120,8 @@ struct ad7606_chan_scale {
  * @trig:		The IIO trigger associated with the device.
  * @completion:		completion to indicate end of conversion
  * @data:		buffer for reading data from the device
+ * @offload_en:		SPI offload enabled
+ * @bus_data:		bus-specific variables
  * @d16:		be16 buffer for reading data from the device
  */
 struct ad7606_state {
@@ -145,6 +149,9 @@ struct ad7606_state {
 	struct iio_trigger		*trig;
 	struct completion		completion;
 
+	bool				offload_en;
+	void				*bus_data;
+
 	/*
 	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
@@ -165,6 +172,8 @@ struct ad7606_state {
  * @read_block:		function pointer for reading blocks of data
  * @sw_mode_config:	pointer to a function which configured the device
  *			for software mode
+ * @offload_config:     function pointer for configuring offload support,
+ *			where any
  * @reg_read:		function pointer for reading spi register
  * @reg_write:		function pointer for writing spi register
  * @update_scan_mode:	function pointer for handling the calls to iio_info's
@@ -174,6 +183,7 @@ struct ad7606_state {
 struct ad7606_bus_ops {
 	/* more methods added in future? */
 	int (*iio_backend_config)(struct device *dev, struct iio_dev *indio_dev);
+	int (*offload_config)(struct device *dev, struct iio_dev *indio_dev);
 	int (*read_block)(struct device *dev, int num, void *data);
 	int (*sw_mode_config)(struct iio_dev *indio_dev);
 	int (*reg_read)(struct ad7606_state *st, unsigned int addr);
@@ -199,6 +209,8 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 		 const struct ad7606_bus_ops *bops);
 
 int ad7606_reset(struct ad7606_state *st);
+int ad7606_pwm_set_swing(struct ad7606_state *st);
+int ad7606_pwm_set_low(struct ad7606_state *st);
 
 extern const struct ad7606_chip_info ad7605_4_info;
 extern const struct ad7606_chip_info ad7606_8_info;

@@ -138,6 +138,7 @@ const struct ad7606_chip_info ad7606_6_info = {
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606_16bit_chan_scale_setup,
+	.offload_storagebits = 32,
 };
 EXPORT_SYMBOL_NS_GPL(ad7606_6_info, "IIO_AD7606");
 
@@ -149,6 +150,7 @@ const struct ad7606_chip_info ad7606_4_info = {
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606_16bit_chan_scale_setup,
+	.offload_storagebits = 32,
 };
 EXPORT_SYMBOL_NS_GPL(ad7606_4_info, "IIO_AD7606");
 
@@ -161,6 +163,7 @@ const struct ad7606_chip_info ad7606b_info = {
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606_16bit_chan_scale_setup,
 	.sw_setup_cb = ad7606b_sw_mode_setup,
+	.offload_storagebits = 32,
 };
 EXPORT_SYMBOL_NS_GPL(ad7606b_info, "IIO_AD7606");
 
@@ -173,6 +176,7 @@ const struct ad7606_chip_info ad7606c_16_info = {
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606c_16bit_chan_scale_setup,
 	.sw_setup_cb = ad7606b_sw_mode_setup,
+	.offload_storagebits = 32,
 };
 EXPORT_SYMBOL_NS_GPL(ad7606c_16_info, "IIO_AD7606");
 
@@ -184,6 +188,7 @@ const struct ad7606_chip_info ad7607_info = {
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7607_chan_scale_setup,
+	.offload_storagebits = 32,
 };
 EXPORT_SYMBOL_NS_GPL(ad7607_info, "IIO_AD7606");
 
@@ -195,6 +200,7 @@ const struct ad7606_chip_info ad7608_info = {
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7608_chan_scale_setup,
+	.offload_storagebits = 32,
 };
 EXPORT_SYMBOL_NS_GPL(ad7608_info, "IIO_AD7606");
 
@@ -206,6 +212,7 @@ const struct ad7606_chip_info ad7609_info = {
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7609_chan_scale_setup,
+	.offload_storagebits = 32,
 };
 EXPORT_SYMBOL_NS_GPL(ad7609_info, "IIO_AD7606");
 
@@ -218,6 +225,7 @@ const struct ad7606_chip_info ad7606c_18_info = {
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606c_18bit_chan_scale_setup,
 	.sw_setup_cb = ad7606b_sw_mode_setup,
+	.offload_storagebits = 32,
 };
 EXPORT_SYMBOL_NS_GPL(ad7606c_18_info, "IIO_AD7606");
 
@@ -232,6 +240,7 @@ const struct ad7606_chip_info ad7616_info = {
 	.os_req_reset = true,
 	.scale_setup_cb = ad7606_16bit_chan_scale_setup,
 	.sw_setup_cb = ad7616_sw_mode_setup,
+	.offload_storagebits = 16,
 };
 EXPORT_SYMBOL_NS_GPL(ad7616_info, "IIO_AD7606");
 
@@ -514,7 +523,7 @@ static int ad7606_pwm_set_high(struct ad7606_state *st)
 	return ret;
 }
 
-static int ad7606_pwm_set_low(struct ad7606_state *st)
+int ad7606_pwm_set_low(struct ad7606_state *st)
 {
 	struct pwm_state cnvst_pwm_state;
 	int ret;
@@ -527,8 +536,9 @@ static int ad7606_pwm_set_low(struct ad7606_state *st)
 
 	return ret;
 }
+EXPORT_SYMBOL_NS_GPL(ad7606_pwm_set_low, "IIO_AD7606");
 
-static int ad7606_pwm_set_swing(struct ad7606_state *st)
+int ad7606_pwm_set_swing(struct ad7606_state *st)
 {
 	struct pwm_state cnvst_pwm_state;
 
@@ -538,6 +548,7 @@ static int ad7606_pwm_set_swing(struct ad7606_state *st)
 
 	return pwm_apply_might_sleep(st->cnvst_pwm, &cnvst_pwm_state);
 }
+EXPORT_SYMBOL_NS_GPL(ad7606_pwm_set_swing, "IIO_AD7606");
 
 static bool ad7606_pwm_is_swinging(struct ad7606_state *st)
 {
@@ -626,7 +637,7 @@ static int ad7606_scan_direct(struct iio_dev *indio_dev, unsigned int ch,
 	 * will not happen because IIO_CHAN_INFO_RAW is not supported for the backend.
 	 * TODO: Add support for reading a single value when the backend is used.
 	 */
-	if (!st->back) {
+	if (st->trig) {
 		ret = wait_for_completion_timeout(&st->completion,
 						  msecs_to_jiffies(1000));
 		if (!ret) {
@@ -634,7 +645,12 @@ static int ad7606_scan_direct(struct iio_dev *indio_dev, unsigned int ch,
 			goto error_ret;
 		}
 	} else {
-		fsleep(1);
+		/*
+		 * If the BUSY interrupt is not available, wait enough time for
+		 * the longest possible conversion (max for the whole family is
+		 * around 350us).
+		 */
+		fsleep(400);
 	}
 
 	ret = ad7606_read_samples(st);
@@ -698,10 +714,6 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 		*val = st->oversampling;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		/*
-		 * TODO: return the real frequency intead of the requested one once
-		 * pwm_get_state_hw comes upstream.
-		 */
 		pwm_get_state(st->cnvst_pwm, &cnvst_pwm_state);
 		*val = DIV_ROUND_CLOSEST_ULL(NSEC_PER_SEC, cnvst_pwm_state.period);
 		return IIO_VAL_INT;
@@ -1196,7 +1208,7 @@ static int ad7606_probe_channels(struct iio_dev *indio_dev)
 	bool slow_bus;
 	int ret, i;
 
-	slow_bus = !st->bops->iio_backend_config;
+	slow_bus = !(st->bops->iio_backend_config || st->offload_en);
 	indio_dev->num_channels = st->chip_info->num_adc_channels;
 
 	/* Slow buses also get 1 more channel for soft timestamp */
@@ -1217,7 +1229,14 @@ static int ad7606_probe_channels(struct iio_dev *indio_dev)
 		chan->scan_index = i;
 		chan->scan_type.sign = 's';
 		chan->scan_type.realbits = st->chip_info->bits;
-		chan->scan_type.storagebits = st->chip_info->bits > 16 ? 32 : 16;
+		/*
+		 * If in SPI offload mode, storagebits are set based
+		 * on the spi-engine hw implementation.
+		 */
+		chan->scan_type.storagebits = st->offload_en ?
+			st->chip_info->offload_storagebits :
+			(st->chip_info->bits > 16 ? 32 : 16);
+
 		chan->scan_type.endianness = IIO_CPU;
 
 		if (indio_dev->modes & INDIO_DIRECT_MODE)
@@ -1335,6 +1354,13 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	indio_dev->modes = st->bops->iio_backend_config ? 0 : INDIO_DIRECT_MODE;
 	indio_dev->name = chip_info->name;
 
+	/* Using spi-engine with offload support ? */
+	if (st->bops->offload_config) {
+		ret = st->bops->offload_config(dev, indio_dev);
+		if (ret)
+			return ret;
+	}
+
 	ret = ad7606_probe_channels(indio_dev);
 	if (ret)
 		return ret;
@@ -1350,7 +1376,7 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	}
 
 	/* If convst pin is not defined, setup PWM. */
-	if (!st->gpio_convst) {
+	if (!st->gpio_convst || st->offload_en) {
 		st->cnvst_pwm = devm_pwm_get(dev, NULL);
 		if (IS_ERR(st->cnvst_pwm))
 			return PTR_ERR(st->cnvst_pwm);
@@ -1389,8 +1415,7 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 			return ret;
 
 		indio_dev->setup_ops = &ad7606_backend_buffer_ops;
-	} else {
-
+	} else if (!st->offload_en) {
 		/* Reserve the PWM use only for backend (force gpio_convst definition) */
 		if (!st->gpio_convst)
 			return dev_err_probe(dev, -EINVAL,
@@ -1428,7 +1453,8 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	st->write_scale = ad7606_write_scale_hw;
 	st->write_os = ad7606_write_os_hw;
 
-	if (st->sw_mode_en) {
+	/* Offload needs 1 DOUT line, applying this setting in sw_setup_cb. */
+	if (st->sw_mode_en || st->offload_en) {
 		indio_dev->info = &ad7606_info_sw_mode;
 		st->chip_info->sw_setup_cb(indio_dev);
 	}

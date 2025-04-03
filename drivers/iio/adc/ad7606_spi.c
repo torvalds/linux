@@ -6,14 +6,30 @@
  */
 
 #include <linux/err.h>
+#include <linux/math.h>
 #include <linux/module.h>
+#include <linux/pwm.h>
+#include <linux/spi/offload/consumer.h>
+#include <linux/spi/offload/provider.h>
 #include <linux/spi/spi.h>
 #include <linux/types.h>
+#include <linux/units.h>
 
+#include <linux/iio/buffer-dmaengine.h>
 #include <linux/iio/iio.h>
+
+#include <dt-bindings/iio/adc/adi,ad7606.h>
+
 #include "ad7606.h"
 
 #define MAX_SPI_FREQ_HZ		23500000	/* VDRIVE above 4.75 V */
+
+struct spi_bus_data {
+	struct spi_offload *offload;
+	struct spi_offload_trigger *offload_trigger;
+	struct spi_transfer offload_xfer;
+	struct spi_message offload_msg;
+};
 
 static u16 ad7616_spi_rd_wr_cmd(int addr, char is_write_op)
 {
@@ -125,19 +141,211 @@ static int ad7606b_sw_mode_config(struct iio_dev *indio_dev)
 				   AD7606_SINGLE_DOUT);
 }
 
+static const struct spi_offload_config ad7606_spi_offload_config = {
+	.capability_flags = SPI_OFFLOAD_CAP_TRIGGER |
+			    SPI_OFFLOAD_CAP_RX_STREAM_DMA,
+};
+
+static int ad7606_spi_offload_buffer_postenable(struct iio_dev *indio_dev)
+{
+	const struct iio_scan_type *scan_type;
+	struct ad7606_state *st = iio_priv(indio_dev);
+	struct spi_bus_data *bus_data = st->bus_data;
+	struct spi_transfer *xfer = &bus_data->offload_xfer;
+	struct spi_device *spi = to_spi_device(st->dev);
+	struct spi_offload_trigger_config config = {
+		.type = SPI_OFFLOAD_TRIGGER_DATA_READY,
+	};
+	int ret;
+
+	scan_type = &indio_dev->channels[0].scan_type;
+
+	xfer->bits_per_word = scan_type->realbits;
+	xfer->offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
+	/*
+	 * Using SPI offload, storagebits are related to the spi-engine
+	 * hw implementation, can be 16 or 32, so can't be used to compute
+	 * struct spi_transfer.len. Using realbits instead.
+	 */
+	xfer->len = (scan_type->realbits > 16 ? 4 : 2) *
+		    st->chip_info->num_adc_channels;
+
+	spi_message_init_with_transfers(&bus_data->offload_msg, xfer, 1);
+	bus_data->offload_msg.offload = bus_data->offload;
+
+	ret = spi_optimize_message(spi, &bus_data->offload_msg);
+	if (ret) {
+		dev_err(st->dev, "failed to prepare offload, err: %d\n", ret);
+		return ret;
+	}
+
+	ret = spi_offload_trigger_enable(bus_data->offload,
+					 bus_data->offload_trigger,
+					 &config);
+	if (ret)
+		goto err_unoptimize_message;
+
+	ret = ad7606_pwm_set_swing(st);
+	if (ret)
+		goto err_offload_exit_conversion_mode;
+
+	return 0;
+
+err_offload_exit_conversion_mode:
+	spi_offload_trigger_disable(bus_data->offload,
+				    bus_data->offload_trigger);
+
+err_unoptimize_message:
+	spi_unoptimize_message(&bus_data->offload_msg);
+
+	return ret;
+}
+
+static int ad7606_spi_offload_buffer_predisable(struct iio_dev *indio_dev)
+{
+	struct ad7606_state *st = iio_priv(indio_dev);
+	struct spi_bus_data *bus_data = st->bus_data;
+	int ret;
+
+	ret = ad7606_pwm_set_low(st);
+	if (ret)
+		return ret;
+
+	spi_offload_trigger_disable(bus_data->offload,
+				    bus_data->offload_trigger);
+	spi_unoptimize_message(&bus_data->offload_msg);
+
+	return 0;
+}
+
+static const struct iio_buffer_setup_ops ad7606_offload_buffer_setup_ops = {
+	.postenable = ad7606_spi_offload_buffer_postenable,
+	.predisable = ad7606_spi_offload_buffer_predisable,
+};
+
+static bool ad7606_spi_offload_trigger_match(
+				struct spi_offload_trigger *trigger,
+				enum spi_offload_trigger_type type,
+				u64 *args, u32 nargs)
+{
+	if (type != SPI_OFFLOAD_TRIGGER_DATA_READY)
+	       return false;
+
+	/*
+	 * Requires 1 arg:
+	 * args[0] is the trigger event.
+	 */
+	if (nargs != 1 || args[0] != AD7606_TRIGGER_EVENT_BUSY)
+		return false;
+
+	return true;
+}
+
+static int ad7606_spi_offload_trigger_request(
+				struct spi_offload_trigger *trigger,
+				enum spi_offload_trigger_type type,
+				u64 *args, u32 nargs)
+{
+	/* Should already be validated by match, but just in case. */
+	if (nargs != 1)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int ad7606_spi_offload_trigger_validate(
+				struct spi_offload_trigger *trigger,
+				struct spi_offload_trigger_config *config)
+{
+	if (config->type != SPI_OFFLOAD_TRIGGER_DATA_READY)
+		return -EINVAL;
+
+	return 0;
+}
+
+static const struct spi_offload_trigger_ops ad7606_offload_trigger_ops = {
+	.match = ad7606_spi_offload_trigger_match,
+	.request = ad7606_spi_offload_trigger_request,
+	.validate = ad7606_spi_offload_trigger_validate,
+};
+
+static int ad7606_spi_offload_probe(struct device *dev,
+				    struct iio_dev *indio_dev)
+{
+	struct ad7606_state *st = iio_priv(indio_dev);
+	struct spi_device *spi = to_spi_device(dev);
+	struct spi_bus_data *bus_data;
+	struct dma_chan *rx_dma;
+	struct spi_offload_trigger_info trigger_info = {
+		.fwnode = dev_fwnode(dev),
+		.ops = &ad7606_offload_trigger_ops,
+		.priv = st,
+	};
+	int ret;
+
+	bus_data = devm_kzalloc(dev, sizeof(*bus_data), GFP_KERNEL);
+	if (!bus_data)
+		return -ENOMEM;
+	st->bus_data = bus_data;
+
+	bus_data->offload = devm_spi_offload_get(dev, spi,
+						 &ad7606_spi_offload_config);
+	ret = PTR_ERR_OR_ZERO(bus_data->offload);
+	if (ret && ret != -ENODEV)
+		return dev_err_probe(dev, ret, "failed to get SPI offload\n");
+	/* Allow main ad7606_probe function to continue. */
+	if (ret == -ENODEV)
+		return 0;
+
+	ret = devm_spi_offload_trigger_register(dev, &trigger_info);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "failed to register offload trigger\n");
+
+	bus_data->offload_trigger = devm_spi_offload_trigger_get(dev,
+		bus_data->offload, SPI_OFFLOAD_TRIGGER_DATA_READY);
+	if (IS_ERR(bus_data->offload_trigger))
+		return dev_err_probe(dev, PTR_ERR(bus_data->offload_trigger),
+				     "failed to get offload trigger\n");
+
+	/* TODO: PWM setup should be ok, done for the backend. PWM mutex ? */
+	rx_dma = devm_spi_offload_rx_stream_request_dma_chan(dev,
+							     bus_data->offload);
+	if (IS_ERR(rx_dma))
+		return dev_err_probe(dev, PTR_ERR(rx_dma),
+				     "failed to get offload RX DMA\n");
+
+	ret = devm_iio_dmaengine_buffer_setup_with_handle(dev, indio_dev,
+		rx_dma, IIO_BUFFER_DIRECTION_IN);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "failed to setup offload RX DMA\n");
+
+	/* Use offload ops. */
+	indio_dev->setup_ops = &ad7606_offload_buffer_setup_ops;
+
+	st->offload_en = true;
+
+	return 0;
+}
+
 static const struct ad7606_bus_ops ad7606_spi_bops = {
+	.offload_config = ad7606_spi_offload_probe,
 	.read_block = ad7606_spi_read_block,
 };
 
 static const struct ad7606_bus_ops ad7607_spi_bops = {
+	.offload_config = ad7606_spi_offload_probe,
 	.read_block = ad7606_spi_read_block14to16,
 };
 
 static const struct ad7606_bus_ops ad7608_spi_bops = {
+	.offload_config = ad7606_spi_offload_probe,
 	.read_block = ad7606_spi_read_block18to32,
 };
 
 static const struct ad7606_bus_ops ad7616_spi_bops = {
+	.offload_config = ad7606_spi_offload_probe,
 	.read_block = ad7606_spi_read_block,
 	.reg_read = ad7606_spi_reg_read,
 	.reg_write = ad7606_spi_reg_write,
@@ -145,6 +353,7 @@ static const struct ad7606_bus_ops ad7616_spi_bops = {
 };
 
 static const struct ad7606_bus_ops ad7606b_spi_bops = {
+	.offload_config = ad7606_spi_offload_probe,
 	.read_block = ad7606_spi_read_block,
 	.reg_read = ad7606_spi_reg_read,
 	.reg_write = ad7606_spi_reg_write,
@@ -153,6 +362,7 @@ static const struct ad7606_bus_ops ad7606b_spi_bops = {
 };
 
 static const struct ad7606_bus_ops ad7606c_18_spi_bops = {
+	.offload_config = ad7606_spi_offload_probe,
 	.read_block = ad7606_spi_read_block18to32,
 	.reg_read = ad7606_spi_reg_read,
 	.reg_write = ad7606_spi_reg_write,
@@ -270,3 +480,4 @@ MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD7606 ADC");
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS("IIO_AD7606");
+MODULE_IMPORT_NS("IIO_DMAENGINE_BUFFER");
