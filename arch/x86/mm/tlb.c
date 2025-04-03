@@ -215,16 +215,20 @@ static void clear_asid_other(void)
 
 atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
 
+struct new_asid {
+	unsigned int asid	: 16;
+	unsigned int need_flush : 1;
+};
 
-static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
-			    u16 *new_asid, bool *need_flush)
+static struct new_asid choose_new_asid(struct mm_struct *next, u64 next_tlb_gen)
 {
+	struct new_asid ns;
 	u16 asid;
 
 	if (!static_cpu_has(X86_FEATURE_PCID)) {
-		*new_asid = 0;
-		*need_flush = true;
-		return;
+		ns.asid = 0;
+		ns.need_flush = 1;
+		return ns;
 	}
 
 	/*
@@ -235,9 +239,9 @@ static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
 		u16 global_asid = mm_global_asid(next);
 
 		if (global_asid) {
-			*new_asid = global_asid;
-			*need_flush = false;
-			return;
+			ns.asid = global_asid;
+			ns.need_flush = 0;
+			return ns;
 		}
 	}
 
@@ -249,22 +253,23 @@ static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
 		    next->context.ctx_id)
 			continue;
 
-		*new_asid = asid;
-		*need_flush = (this_cpu_read(cpu_tlbstate.ctxs[asid].tlb_gen) <
-			       next_tlb_gen);
-		return;
+		ns.asid = asid;
+		ns.need_flush = (this_cpu_read(cpu_tlbstate.ctxs[asid].tlb_gen) < next_tlb_gen);
+		return ns;
 	}
 
 	/*
 	 * We don't currently own an ASID slot on this CPU.
 	 * Allocate a slot.
 	 */
-	*new_asid = this_cpu_add_return(cpu_tlbstate.next_asid, 1) - 1;
-	if (*new_asid >= TLB_NR_DYN_ASIDS) {
-		*new_asid = 0;
+	ns.asid = this_cpu_add_return(cpu_tlbstate.next_asid, 1) - 1;
+	if (ns.asid >= TLB_NR_DYN_ASIDS) {
+		ns.asid = 0;
 		this_cpu_write(cpu_tlbstate.next_asid, 1);
 	}
-	*need_flush = true;
+	ns.need_flush = true;
+
+	return ns;
 }
 
 /*
@@ -781,9 +786,9 @@ void switch_mm_irqs_off(struct mm_struct *unused, struct mm_struct *next,
 	bool was_lazy = this_cpu_read(cpu_tlbstate_shared.is_lazy);
 	unsigned cpu = smp_processor_id();
 	unsigned long new_lam;
+	struct new_asid ns;
 	u64 next_tlb_gen;
-	bool need_flush;
-	u16 new_asid;
+
 
 	/* We don't want flush_tlb_func() to run concurrently with us. */
 	if (IS_ENABLED(CONFIG_PROVE_LOCKING))
@@ -854,7 +859,7 @@ void switch_mm_irqs_off(struct mm_struct *unused, struct mm_struct *next,
 		/* Check if the current mm is transitioning to a global ASID */
 		if (mm_needs_global_asid(next, prev_asid)) {
 			next_tlb_gen = atomic64_read(&next->context.tlb_gen);
-			choose_new_asid(next, next_tlb_gen, &new_asid, &need_flush);
+			ns = choose_new_asid(next, next_tlb_gen);
 			goto reload_tlb;
 		}
 
@@ -889,8 +894,8 @@ void switch_mm_irqs_off(struct mm_struct *unused, struct mm_struct *next,
 		 * TLB contents went out of date while we were in lazy
 		 * mode. Fall through to the TLB switching code below.
 		 */
-		new_asid = prev_asid;
-		need_flush = true;
+		ns.asid = prev_asid;
+		ns.need_flush = true;
 	} else {
 		/*
 		 * Apply process to process speculation vulnerability
@@ -918,21 +923,21 @@ void switch_mm_irqs_off(struct mm_struct *unused, struct mm_struct *next,
 			cpumask_set_cpu(cpu, mm_cpumask(next));
 		next_tlb_gen = atomic64_read(&next->context.tlb_gen);
 
-		choose_new_asid(next, next_tlb_gen, &new_asid, &need_flush);
+		ns = choose_new_asid(next, next_tlb_gen);
 	}
 
 reload_tlb:
 	new_lam = mm_lam_cr3_mask(next);
-	if (need_flush) {
-		VM_WARN_ON_ONCE(is_global_asid(new_asid));
-		this_cpu_write(cpu_tlbstate.ctxs[new_asid].ctx_id, next->context.ctx_id);
-		this_cpu_write(cpu_tlbstate.ctxs[new_asid].tlb_gen, next_tlb_gen);
-		load_new_mm_cr3(next->pgd, new_asid, new_lam, true);
+	if (ns.need_flush) {
+		VM_WARN_ON_ONCE(is_global_asid(ns.asid));
+		this_cpu_write(cpu_tlbstate.ctxs[ns.asid].ctx_id, next->context.ctx_id);
+		this_cpu_write(cpu_tlbstate.ctxs[ns.asid].tlb_gen, next_tlb_gen);
+		load_new_mm_cr3(next->pgd, ns.asid, new_lam, true);
 
 		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
 	} else {
 		/* The new ASID is already up to date. */
-		load_new_mm_cr3(next->pgd, new_asid, new_lam, false);
+		load_new_mm_cr3(next->pgd, ns.asid, new_lam, false);
 
 		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, 0);
 	}
@@ -941,7 +946,7 @@ reload_tlb:
 	barrier();
 
 	this_cpu_write(cpu_tlbstate.loaded_mm, next);
-	this_cpu_write(cpu_tlbstate.loaded_mm_asid, new_asid);
+	this_cpu_write(cpu_tlbstate.loaded_mm_asid, ns.asid);
 	cpu_tlbstate_update_lam(new_lam, mm_untag_mask(next));
 
 	if (next != prev) {
