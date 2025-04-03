@@ -116,21 +116,19 @@ void net_devmem_unbind_dmabuf(struct net_devmem_dmabuf_binding *binding)
 	struct netdev_rx_queue *rxq;
 	unsigned long xa_idx;
 	unsigned int rxq_idx;
-	int err;
 
 	if (binding->list.next)
 		list_del(&binding->list);
 
 	xa_for_each(&binding->bound_rxqs, xa_idx, rxq) {
-		WARN_ON(rxq->mp_params.mp_priv != binding);
-
-		rxq->mp_params.mp_priv = NULL;
-		rxq->mp_params.mp_ops = NULL;
+		const struct pp_memory_provider_params mp_params = {
+			.mp_priv	= binding,
+			.mp_ops		= &dmabuf_devmem_ops,
+		};
 
 		rxq_idx = get_netdev_rx_queue_index(rxq);
 
-		err = netdev_rx_queue_restart(binding->dev, rxq_idx);
-		WARN_ON(err && err != -ENETDOWN);
+		__net_mp_close_rxq(binding->dev, rxq_idx, &mp_params);
 	}
 
 	xa_erase(&net_devmem_dmabuf_bindings, binding->id);

@@ -154,6 +154,7 @@ void __net_mp_close_rxq(struct net_device *dev, unsigned int ifq_idx,
 			const struct pp_memory_provider_params *old_p)
 {
 	struct netdev_rx_queue *rxq;
+	int err;
 
 	if (WARN_ON_ONCE(ifq_idx >= dev->real_num_rx_queues))
 		return;
@@ -173,7 +174,8 @@ void __net_mp_close_rxq(struct net_device *dev, unsigned int ifq_idx,
 
 	rxq->mp_params.mp_ops = NULL;
 	rxq->mp_params.mp_priv = NULL;
-	WARN_ON(netdev_rx_queue_restart(dev, ifq_idx));
+	err = netdev_rx_queue_restart(dev, ifq_idx);
+	WARN_ON(err && err != -ENETDOWN);
 }
 
 void net_mp_close_rxq(struct net_device *dev, unsigned ifq_idx,
