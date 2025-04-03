@@ -209,10 +209,20 @@ int panfrost_device_init(struct panfrost_device *pfdev)
 
 	spin_lock_init(&pfdev->cycle_counter.lock);
 
+	err = panfrost_pm_domain_init(pfdev);
+	if (err)
+		return err;
+
+	err = panfrost_reset_init(pfdev);
+	if (err) {
+		dev_err(pfdev->dev, "reset init failed %d\n", err);
+		goto out_pm_domain;
+	}
+
 	err = panfrost_clk_init(pfdev);
 	if (err) {
 		dev_err(pfdev->dev, "clk init failed %d\n", err);
-		return err;
+		goto out_reset;
 	}
 
 	err = panfrost_devfreq_init(pfdev);
@@ -229,25 +239,15 @@ int panfrost_device_init(struct panfrost_device *pfdev)
 			goto out_devfreq;
 	}
 
-	err = panfrost_reset_init(pfdev);
-	if (err) {
-		dev_err(pfdev->dev, "reset init failed %d\n", err);
-		goto out_regulator;
-	}
-
-	err = panfrost_pm_domain_init(pfdev);
-	if (err)
-		goto out_reset;
-
 	pfdev->iomem = devm_platform_ioremap_resource(pfdev->pdev, 0);
 	if (IS_ERR(pfdev->iomem)) {
 		err = PTR_ERR(pfdev->iomem);
-		goto out_pm_domain;
+		goto out_regulator;
 	}
 
 	err = panfrost_gpu_init(pfdev);
 	if (err)
-		goto out_pm_domain;
+		goto out_regulator;
 
 	err = panfrost_mmu_init(pfdev);
 	if (err)
@@ -268,16 +268,16 @@ out_mmu:
 	panfrost_mmu_fini(pfdev);
 out_gpu:
 	panfrost_gpu_fini(pfdev);
-out_pm_domain:
-	panfrost_pm_domain_fini(pfdev);
-out_reset:
-	panfrost_reset_fini(pfdev);
 out_regulator:
 	panfrost_regulator_fini(pfdev);
 out_devfreq:
 	panfrost_devfreq_fini(pfdev);
 out_clk:
 	panfrost_clk_fini(pfdev);
+out_reset:
+	panfrost_reset_fini(pfdev);
+out_pm_domain:
+	panfrost_pm_domain_fini(pfdev);
 	return err;
 }
 
@@ -287,11 +287,11 @@ void panfrost_device_fini(struct panfrost_device *pfdev)
 	panfrost_job_fini(pfdev);
 	panfrost_mmu_fini(pfdev);
 	panfrost_gpu_fini(pfdev);
-	panfrost_pm_domain_fini(pfdev);
-	panfrost_reset_fini(pfdev);
 	panfrost_devfreq_fini(pfdev);
 	panfrost_regulator_fini(pfdev);
 	panfrost_clk_fini(pfdev);
+	panfrost_reset_fini(pfdev);
+	panfrost_pm_domain_fini(pfdev);
 }
 
 #define PANFROST_EXCEPTION(id) \
