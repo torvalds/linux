@@ -224,12 +224,7 @@ static noinline void unlock_delalloc_folio(const struct inode *inode,
 					   const struct folio *locked_folio,
 					   u64 start, u64 end)
 {
-	unsigned long index = start >> PAGE_SHIFT;
-	unsigned long end_index = end >> PAGE_SHIFT;
-
 	ASSERT(locked_folio);
-	if (index == locked_folio->index && end_index == index)
-		return;
 
 	__process_folios_contig(inode->i_mapping, locked_folio, start, end,
 				PAGE_UNLOCK);
@@ -245,9 +240,6 @@ static noinline int lock_delalloc_folios(struct inode *inode,
 	pgoff_t end_index = end >> PAGE_SHIFT;
 	u64 processed_end = start;
 	struct folio_batch fbatch;
-
-	if (index == locked_folio->index && index == end_index)
-		return 0;
 
 	folio_batch_init(&fbatch);
 	while (index <= end_index) {
