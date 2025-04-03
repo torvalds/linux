@@ -3042,7 +3042,7 @@ static void igc_xdp_xmit_zc(struct igc_ring *ring)
 	 * descriptors. Therefore, to be safe, we always ensure we have at least
 	 * 4 descriptors available.
 	 */
-	while (xsk_tx_peek_desc(pool, &xdp_desc) && budget >= 4) {
+	while (budget >= 4 && xsk_tx_peek_desc(pool, &xdp_desc)) {
 		struct igc_metadata_request meta_req;
 		struct xsk_tx_metadata *meta = NULL;
 		struct igc_tx_buffer *bi;
@@ -5022,8 +5022,8 @@ static int igc_sw_init(struct igc_adapter *adapter)
 	return 0;
 }
 
-void igc_set_queue_napi(struct igc_adapter *adapter, int vector,
-			struct napi_struct *napi)
+static void igc_set_queue_napi(struct igc_adapter *adapter, int vector,
+			       struct napi_struct *napi)
 {
 	struct igc_q_vector *q_vector = adapter->q_vector[vector];
 
