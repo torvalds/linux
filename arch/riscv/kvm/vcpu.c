@@ -77,6 +77,8 @@ static void kvm_riscv_reset_vcpu(struct kvm_vcpu *vcpu)
 	memcpy(cntx, reset_cntx, sizeof(*cntx));
 	spin_unlock(&vcpu->arch.reset_cntx_lock);
 
+	memset(&vcpu->arch.smstateen_csr, 0, sizeof(vcpu->arch.smstateen_csr));
+
 	kvm_riscv_vcpu_fp_reset(vcpu);
 
 	kvm_riscv_vcpu_vector_reset(vcpu);
