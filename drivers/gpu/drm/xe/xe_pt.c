@@ -295,6 +295,8 @@ struct xe_pt_stage_bind_walk {
 	 * granularity on VRAM.
 	 */
 	bool needs_64K;
+	/** @clear_pt: clear page table entries during the bind walk */
+	bool clear_pt;
 	/**
 	 * @vma: VMA being mapped
 	 */
@@ -445,6 +447,10 @@ static bool xe_pt_hugepte_possible(u64 addr, u64 next, unsigned int level,
 	if (xe_vma_is_null(xe_walk->vma))
 		return true;
 
+	/* if we are clearing page table, no dma addresses*/
+	if (xe_walk->clear_pt)
+		return true;
+
 	/* Is the DMA address huge PTE size aligned? */
 	size = next - addr;
 	dma = addr - xe_walk->va_curs_start + xe_res_dma(xe_walk->curs);
@@ -528,23 +534,31 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 
 		XE_WARN_ON(xe_walk->va_curs_start != addr);
 
-		pte = vm->pt_ops->pte_encode_vma(is_null ? 0 :
-						 xe_res_dma(curs) + xe_walk->dma_offset,
-						 xe_walk->vma, pat_index, level);
-		if (!is_null)
-			pte |= is_vram ? xe_walk->default_vram_pte :
-				xe_walk->default_system_pte;
+		if (xe_walk->clear_pt) {
+			pte = 0;
+		} else {
+			pte = vm->pt_ops->pte_encode_vma(is_null ? 0 :
+							 xe_res_dma(curs) +
+							 xe_walk->dma_offset,
+							 xe_walk->vma,
+							 pat_index, level);
+			if (!is_null)
+				pte |= is_vram ? xe_walk->default_vram_pte :
+					xe_walk->default_system_pte;
 
-		/*
-		 * Set the XE_PTE_PS64 hint if possible, otherwise if
-		 * this device *requires* 64K PTE size for VRAM, fail.
-		 */
-		if (level == 0 && !xe_parent->is_compact) {
-			if (xe_pt_is_pte_ps64K(addr, next, xe_walk)) {
-				xe_walk->vma->gpuva.flags |= XE_VMA_PTE_64K;
-				pte |= XE_PTE_PS64;
-			} else if (XE_WARN_ON(xe_walk->needs_64K && is_vram)) {
-				return -EINVAL;
+			/*
+			 * Set the XE_PTE_PS64 hint if possible, otherwise if
+			 * this device *requires* 64K PTE size for VRAM, fail.
+			 */
+			if (level == 0 && !xe_parent->is_compact) {
+				if (xe_pt_is_pte_ps64K(addr, next, xe_walk)) {
+					xe_walk->vma->gpuva.flags |=
+							XE_VMA_PTE_64K;
+					pte |= XE_PTE_PS64;
+				} else if (XE_WARN_ON(xe_walk->needs_64K &&
+					   is_vram)) {
+					return -EINVAL;
+				}
 			}
 		}
 
@@ -552,7 +566,7 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 		if (unlikely(ret))
 			return ret;
 
-		if (!is_null)
+		if (!is_null && !xe_walk->clear_pt)
 			xe_res_next(curs, next - addr);
 		xe_walk->va_curs_start = next;
 		xe_walk->vma->gpuva.flags |= (XE_VMA_PTE_4K << level);
@@ -662,6 +676,7 @@ static bool xe_atomic_for_system(struct xe_vm *vm, struct xe_bo *bo)
  * @entries: Storage for the update entries used for connecting the tree to
  * the main tree at commit time.
  * @num_entries: On output contains the number of @entries used.
+ * @clear_pt: Clear the page table entries.
  *
  * This function builds a disconnected page-table tree for a given address
  * range. The tree is connected to the main vm tree for the gpu using
@@ -675,7 +690,8 @@ static bool xe_atomic_for_system(struct xe_vm *vm, struct xe_bo *bo)
 static int
 xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 		 struct xe_svm_range *range,
-		 struct xe_vm_pgtable_update *entries, u32 *num_entries)
+		 struct xe_vm_pgtable_update *entries,
+		 u32 *num_entries, bool clear_pt)
 {
 	struct xe_device *xe = tile_to_xe(tile);
 	struct xe_bo *bo = xe_vma_bo(vma);
@@ -695,6 +711,7 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 			xe_vma_start(vma),
 		.vma = vma,
 		.wupd.entries = entries,
+		.clear_pt = clear_pt,
 	};
 	struct xe_pt *pt = vm->pt_root[tile->id];
 	int ret;
@@ -723,6 +740,9 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 	}
 
 	xe_walk.needs_64K = (vm->flags & XE_VM_FLAG_64K);
+	if (clear_pt)
+		goto walk_pt;
+
 	if (vma->gpuva.flags & XE_VMA_ATOMIC_PTE_BIT) {
 		xe_walk.default_vram_pte = xe_atomic_for_vram(vm) ? XE_USM_PPGTT_PTE_AE : 0;
 		xe_walk.default_system_pte = xe_atomic_for_system(vm, bo) ?
@@ -748,6 +768,7 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 		curs.size = xe_vma_size(vma);
 	}
 
+walk_pt:
 	ret = xe_pt_walk_range(&pt->base, pt->level,
 			       range ? range->base.itree.start : xe_vma_start(vma),
 			       range ? range->base.itree.last + 1 : xe_vma_end(vma),
@@ -1112,12 +1133,14 @@ static void xe_pt_free_bind(struct xe_vm_pgtable_update *entries,
 static int
 xe_pt_prepare_bind(struct xe_tile *tile, struct xe_vma *vma,
 		   struct xe_svm_range *range,
-		   struct xe_vm_pgtable_update *entries, u32 *num_entries)
+		   struct xe_vm_pgtable_update *entries,
+		   u32 *num_entries, bool invalidate_on_bind)
 {
 	int err;
 
 	*num_entries = 0;
-	err = xe_pt_stage_bind(tile, vma, range, entries, num_entries);
+	err = xe_pt_stage_bind(tile, vma, range, entries, num_entries,
+			       invalidate_on_bind);
 	if (!err)
 		xe_tile_assert(tile, *num_entries);
 
@@ -1802,7 +1825,7 @@ static int vma_reserve_fences(struct xe_device *xe, struct xe_vma *vma)
 
 static int bind_op_prepare(struct xe_vm *vm, struct xe_tile *tile,
 			   struct xe_vm_pgtable_update_ops *pt_update_ops,
-			   struct xe_vma *vma)
+			   struct xe_vma *vma, bool invalidate_on_bind)
 {
 	u32 current_op = pt_update_ops->current_op;
 	struct xe_vm_pgtable_update_op *pt_op = &pt_update_ops->ops[current_op];
@@ -1824,7 +1847,7 @@ static int bind_op_prepare(struct xe_vm *vm, struct xe_tile *tile,
 		return err;
 
 	err = xe_pt_prepare_bind(tile, vma, NULL, pt_op->entries,
-				 &pt_op->num_entries);
+				 &pt_op->num_entries, invalidate_on_bind);
 	if (!err) {
 		xe_tile_assert(tile, pt_op->num_entries <=
 			       ARRAY_SIZE(pt_op->entries));
@@ -1846,11 +1869,11 @@ static int bind_op_prepare(struct xe_vm *vm, struct xe_tile *tile,
 		 * If !rebind, and scratch enabled VMs, there is a chance the scratch
 		 * PTE is already cached in the TLB so it needs to be invalidated.
 		 * On !LR VMs this is done in the ring ops preceding a batch, but on
-		 * non-faulting LR, in particular on user-space batch buffer chaining,
-		 * it needs to be done here.
+		 * LR, in particular on user-space batch buffer chaining, it needs to
+		 * be done here.
 		 */
 		if ((!pt_op->rebind && xe_vm_has_scratch(vm) &&
-		     xe_vm_in_preempt_fence_mode(vm)))
+		     xe_vm_in_lr_mode(vm)))
 			pt_update_ops->needs_invalidation = true;
 		else if (pt_op->rebind && !xe_vm_in_lr_mode(vm))
 			/* We bump also if batch_invalidate_tlb is true */
@@ -1886,7 +1909,7 @@ static int bind_range_prepare(struct xe_vm *vm, struct xe_tile *tile,
 	pt_op->rebind = BIT(tile->id) & range->tile_present;
 
 	err = xe_pt_prepare_bind(tile, vma, range, pt_op->entries,
-				 &pt_op->num_entries);
+				 &pt_op->num_entries, false);
 	if (!err) {
 		xe_tile_assert(tile, pt_op->num_entries <=
 			       ARRAY_SIZE(pt_op->entries));
@@ -1998,11 +2021,13 @@ static int op_prepare(struct xe_vm *vm,
 
 	switch (op->base.op) {
 	case DRM_GPUVA_OP_MAP:
-		if ((!op->map.immediate && xe_vm_in_fault_mode(vm)) ||
+		if ((!op->map.immediate && xe_vm_in_fault_mode(vm) &&
+		     !op->map.invalidate_on_bind) ||
 		    op->map.is_cpu_addr_mirror)
 			break;
 
-		err = bind_op_prepare(vm, tile, pt_update_ops, op->map.vma);
+		err = bind_op_prepare(vm, tile, pt_update_ops, op->map.vma,
+				      op->map.invalidate_on_bind);
 		pt_update_ops->wait_vm_kernel = true;
 		break;
 	case DRM_GPUVA_OP_REMAP:
@@ -2016,12 +2041,12 @@ static int op_prepare(struct xe_vm *vm,
 
 		if (!err && op->remap.prev) {
 			err = bind_op_prepare(vm, tile, pt_update_ops,
-					      op->remap.prev);
+					      op->remap.prev, false);
 			pt_update_ops->wait_vm_bookkeep = true;
 		}
 		if (!err && op->remap.next) {
 			err = bind_op_prepare(vm, tile, pt_update_ops,
-					      op->remap.next);
+					      op->remap.next, false);
 			pt_update_ops->wait_vm_bookkeep = true;
 		}
 		break;
@@ -2043,7 +2068,7 @@ static int op_prepare(struct xe_vm *vm,
 		if (xe_vma_is_cpu_addr_mirror(vma))
 			break;
 
-		err = bind_op_prepare(vm, tile, pt_update_ops, vma);
+		err = bind_op_prepare(vm, tile, pt_update_ops, vma, false);
 		pt_update_ops->wait_vm_kernel = true;
 		break;
 	}
@@ -2126,7 +2151,7 @@ ALLOW_ERROR_INJECTION(xe_pt_update_ops_prepare, ERRNO);
 static void bind_op_commit(struct xe_vm *vm, struct xe_tile *tile,
 			   struct xe_vm_pgtable_update_ops *pt_update_ops,
 			   struct xe_vma *vma, struct dma_fence *fence,
-			   struct dma_fence *fence2)
+			   struct dma_fence *fence2, bool invalidate_on_bind)
 {
 	xe_tile_assert(tile, !xe_vma_is_cpu_addr_mirror(vma));
 
@@ -2143,6 +2168,8 @@ static void bind_op_commit(struct xe_vm *vm, struct xe_tile *tile,
 	}
 	vma->tile_present |= BIT(tile->id);
 	vma->tile_staged &= ~BIT(tile->id);
+	if (invalidate_on_bind)
+		vma->tile_invalidated |= BIT(tile->id);
 	if (xe_vma_is_userptr(vma)) {
 		lockdep_assert_held_read(&vm->userptr.notifier_lock);
 		to_userptr_vma(vma)->userptr.initial_bind = true;
@@ -2204,7 +2231,7 @@ static void op_commit(struct xe_vm *vm,
 			break;
 
 		bind_op_commit(vm, tile, pt_update_ops, op->map.vma, fence,
-			       fence2);
+			       fence2, op->map.invalidate_on_bind);
 		break;
 	case DRM_GPUVA_OP_REMAP:
 	{
@@ -2217,10 +2244,10 @@ static void op_commit(struct xe_vm *vm,
 
 		if (op->remap.prev)
 			bind_op_commit(vm, tile, pt_update_ops, op->remap.prev,
-				       fence, fence2);
+				       fence, fence2, false);
 		if (op->remap.next)
 			bind_op_commit(vm, tile, pt_update_ops, op->remap.next,
-				       fence, fence2);
+				       fence, fence2, false);
 		break;
 	}
 	case DRM_GPUVA_OP_UNMAP:
@@ -2238,7 +2265,7 @@ static void op_commit(struct xe_vm *vm,
 
 		if (!xe_vma_is_cpu_addr_mirror(vma))
 			bind_op_commit(vm, tile, pt_update_ops, vma, fence,
-				       fence2);
+				       fence2, false);
 		break;
 	}
 	case DRM_GPUVA_OP_DRIVER:
