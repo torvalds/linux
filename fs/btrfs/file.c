@@ -1288,7 +1288,7 @@ again:
 				btrfs_unlock_extent(&inode->io_tree, lockstart, lockend,
 						    &cached_state);
 			else
-				free_extent_state(cached_state);
+				btrfs_free_extent_state(cached_state);
 			btrfs_delalloc_release_extents(inode, reserved_len);
 			release_space(inode, *data_reserved, reserved_start, reserved_len,
 				      only_release_metadata);
@@ -1317,7 +1317,7 @@ again:
 	if (extents_locked)
 		btrfs_unlock_extent(&inode->io_tree, lockstart, lockend, &cached_state);
 	else
-		free_extent_state(cached_state);
+		btrfs_free_extent_state(cached_state);
 
 	btrfs_delalloc_release_extents(inode, reserved_len);
 	if (ret) {
@@ -1469,7 +1469,7 @@ int btrfs_release_file(struct inode *inode, struct file *filp)
 
 	if (private) {
 		kfree(private->filldir_buf);
-		free_extent_state(private->llseek_cached_state);
+		btrfs_free_extent_state(private->llseek_cached_state);
 		kfree(private);
 		filp->private_data = NULL;
 	}

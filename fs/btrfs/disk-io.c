@@ -4734,7 +4734,7 @@ static void btrfs_destroy_pinned_extent(struct btrfs_fs_info *fs_info,
 		}
 
 		btrfs_clear_extent_dirty(unpin, start, end, &cached_state);
-		free_extent_state(cached_state);
+		btrfs_free_extent_state(cached_state);
 		btrfs_error_unpin_extent_range(fs_info, start, end);
 		mutex_unlock(&fs_info->unused_bg_unpin_mutex);
 		cond_resched();

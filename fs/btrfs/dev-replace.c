@@ -804,7 +804,7 @@ static int btrfs_set_target_alloc_state(struct btrfs_device *srcdev,
 		start = found_end + 1;
 	}
 
-	free_extent_state(cached_state);
+	btrfs_free_extent_state(cached_state);
 	return ret;
 }
 

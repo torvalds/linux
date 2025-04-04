@@ -130,7 +130,7 @@ void btrfs_extent_io_tree_release(struct extent_io_tree *tree)
 		 * (see wait_extent_bit()).
 		 */
 		ASSERT(!waitqueue_active(&state->wq));
-		free_extent_state(state);
+		btrfs_free_extent_state(state);
 		cond_resched_lock(&tree->lock);
 	}
 	/*
@@ -170,7 +170,7 @@ static struct extent_state *alloc_extent_state_atomic(struct extent_state *preal
 	return prealloc;
 }
 
-void free_extent_state(struct extent_state *state)
+void btrfs_free_extent_state(struct extent_state *state)
 {
 	if (!state)
 		return;
@@ -349,7 +349,7 @@ static void merge_prev_state(struct extent_io_tree *tree, struct extent_state *s
 		state->start = prev->start;
 		rb_erase(&prev->rb_node, &tree->state);
 		RB_CLEAR_NODE(&prev->rb_node);
-		free_extent_state(prev);
+		btrfs_free_extent_state(prev);
 	}
 }
 
@@ -364,7 +364,7 @@ static void merge_next_state(struct extent_io_tree *tree, struct extent_state *s
 		state->end = next->end;
 		rb_erase(&next->rb_node, &tree->state);
 		RB_CLEAR_NODE(&next->rb_node);
-		free_extent_state(next);
+		btrfs_free_extent_state(next);
 	}
 }
 
@@ -526,7 +526,7 @@ static int split_state(struct extent_io_tree *tree, struct extent_state *orig,
 		} else if (prealloc->end > entry->end) {
 			node = &(*node)->rb_right;
 		} else {
-			free_extent_state(prealloc);
+			btrfs_free_extent_state(prealloc);
 			return -EEXIST;
 		}
 	}
@@ -566,7 +566,7 @@ static struct extent_state *clear_state_bit(struct extent_io_tree *tree,
 		if (extent_state_in_tree(state)) {
 			rb_erase(&state->rb_node, &tree->state);
 			RB_CLEAR_NODE(&state->rb_node);
-			free_extent_state(state);
+			btrfs_free_extent_state(state);
 		} else {
 			WARN_ON(1);
 		}
@@ -652,7 +652,7 @@ again:
 			goto hit_next;
 		}
 		if (clear)
-			free_extent_state(cached);
+			btrfs_free_extent_state(cached);
 	}
 
 	/* This search will find the extents that end after our range starts. */
@@ -744,7 +744,7 @@ search_again:
 out:
 	spin_unlock(&tree->lock);
 	if (prealloc)
-		free_extent_state(prealloc);
+		btrfs_free_extent_state(prealloc);
 
 	return 0;
 
@@ -796,7 +796,7 @@ process_node:
 			schedule();
 			spin_lock(&tree->lock);
 			finish_wait(&state->wq, &wait);
-			free_extent_state(state);
+			btrfs_free_extent_state(state);
 			goto again;
 		}
 		start = state->end + 1;
@@ -814,7 +814,7 @@ out:
 	if (cached_state && *cached_state) {
 		state = *cached_state;
 		*cached_state = NULL;
-		free_extent_state(state);
+		btrfs_free_extent_state(state);
 	}
 	spin_unlock(&tree->lock);
 }
@@ -890,13 +890,13 @@ bool btrfs_find_first_extent_bit(struct extent_io_tree *tree, u64 start,
 			 * again. If we haven't found any, clear as well since
 			 * it's now useless.
 			 */
-			free_extent_state(*cached_state);
+			btrfs_free_extent_state(*cached_state);
 			*cached_state = NULL;
 			if (state)
 				goto got_it;
 			goto out;
 		}
-		free_extent_state(*cached_state);
+		btrfs_free_extent_state(*cached_state);
 		*cached_state = NULL;
 	}
 
@@ -1249,7 +1249,7 @@ search_again:
 out:
 	spin_unlock(&tree->lock);
 	if (prealloc)
-		free_extent_state(prealloc);
+		btrfs_free_extent_state(prealloc);
 
 	return ret;
 
@@ -1474,7 +1474,7 @@ search_again:
 out:
 	spin_unlock(&tree->lock);
 	if (prealloc)
-		free_extent_state(prealloc);
+		btrfs_free_extent_state(prealloc);
 
 	return ret;
 }
@@ -1686,7 +1686,7 @@ search:
 	}
 
 	if (cached_state) {
-		free_extent_state(*cached_state);
+		btrfs_free_extent_state(*cached_state);
 		*cached_state = state;
 		if (state)
 			refcount_inc(&state->refs);

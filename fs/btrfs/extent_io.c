@@ -332,7 +332,7 @@ again:
 
 		/* @delalloc_end can be -1, never go beyond @orig_end */
 		*end = min(delalloc_end, orig_end);
-		free_extent_state(cached_state);
+		btrfs_free_extent_state(cached_state);
 		return false;
 	}
 
@@ -358,7 +358,7 @@ again:
 		/* some of the folios are gone, lets avoid looping by
 		 * shortening the size of the delalloc range we're searching
 		 */
-		free_extent_state(cached_state);
+		btrfs_free_extent_state(cached_state);
 		cached_state = NULL;
 		if (!loops) {
 			max_bytes = PAGE_SIZE;
@@ -2644,7 +2644,7 @@ static bool try_release_extent_state(struct extent_io_tree *tree,
 	if (ret2 == 0)
 		ret = true;
 out:
-	free_extent_state(cached_state);
+	btrfs_free_extent_state(cached_state);
 
 	return ret;
 }

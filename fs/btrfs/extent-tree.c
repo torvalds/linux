@@ -2843,7 +2843,7 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
 		ret = unpin_extent_range(fs_info, start, end, true);
 		BUG_ON(ret);
 		mutex_unlock(&fs_info->unused_bg_unpin_mutex);
-		free_extent_state(cached_state);
+		btrfs_free_extent_state(cached_state);
 		cond_resched();
 	}
 

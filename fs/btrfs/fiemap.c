@@ -871,7 +871,7 @@ out_unlock:
 
 	ret = emit_last_fiemap_cache(fieinfo, &cache);
 out:
-	free_extent_state(delalloc_cached_state);
+	btrfs_free_extent_state(delalloc_cached_state);
 	kfree(cache.entries);
 	btrfs_free_backref_share_ctx(backref_ctx);
 	return ret;

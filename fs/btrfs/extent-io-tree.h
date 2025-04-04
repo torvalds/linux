@@ -165,7 +165,7 @@ u64 btrfs_count_range_bits(struct extent_io_tree *tree,
 			   u64 max_bytes, u32 bits, int contig,
 			   struct extent_state **cached_state);
 
-void free_extent_state(struct extent_state *state);
+void btrfs_free_extent_state(struct extent_state *state);
 bool btrfs_test_range_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bit,
 			  struct extent_state *cached_state);
 bool btrfs_test_range_bit_exists(struct extent_io_tree *tree, u64 start, u64 end, u32 bit);
