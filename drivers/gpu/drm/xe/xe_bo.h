@@ -40,20 +40,21 @@
 #define XE_BO_FLAG_NEEDS_2M		BIT(16)
 #define XE_BO_FLAG_GGTT_INVALIDATE	BIT(17)
 #define XE_BO_FLAG_PINNED_NORESTORE	BIT(18)
-#define XE_BO_FLAG_PINNED_LATE_RESTORE BIT(19)
-#define XE_BO_FLAG_GGTT0                BIT(20)
-#define XE_BO_FLAG_GGTT1                BIT(21)
-#define XE_BO_FLAG_GGTT2                BIT(22)
-#define XE_BO_FLAG_GGTT3                BIT(23)
-#define XE_BO_FLAG_GGTT_ALL             (XE_BO_FLAG_GGTT0 | \
-					 XE_BO_FLAG_GGTT1 | \
-					 XE_BO_FLAG_GGTT2 | \
-					 XE_BO_FLAG_GGTT3)
-#define XE_BO_FLAG_CPU_ADDR_MIRROR	BIT(22)
+#define XE_BO_FLAG_PINNED_LATE_RESTORE	BIT(19)
+#define XE_BO_FLAG_GGTT0		BIT(20)
+#define XE_BO_FLAG_GGTT1		BIT(21)
+#define XE_BO_FLAG_GGTT2		BIT(22)
+#define XE_BO_FLAG_GGTT3		BIT(23)
+#define XE_BO_FLAG_CPU_ADDR_MIRROR	BIT(24)
 
 /* this one is trigger internally only */
 #define XE_BO_FLAG_INTERNAL_TEST	BIT(30)
 #define XE_BO_FLAG_INTERNAL_64K		BIT(31)
+
+#define XE_BO_FLAG_GGTT_ALL		(XE_BO_FLAG_GGTT0 | \
+					 XE_BO_FLAG_GGTT1 | \
+					 XE_BO_FLAG_GGTT2 | \
+					 XE_BO_FLAG_GGTT3)
 
 #define XE_BO_FLAG_GGTTx(tile) \
 	(XE_BO_FLAG_GGTT0 << (tile)->id)
