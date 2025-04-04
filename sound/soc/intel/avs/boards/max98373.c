@@ -187,7 +187,7 @@ static int avs_max98373_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return devm_snd_soc_register_card(dev, card);
+	return devm_snd_soc_register_deferrable_card(dev, card);
 }
 
 static const struct platform_device_id avs_max98373_driver_ids[] = {

@@ -116,7 +116,7 @@ static int avs_pcm3168a_probe(struct platform_device *pdev)
 	card->num_dapm_routes = ARRAY_SIZE(card_routes);
 	card->fully_routed = true;
 
-	return devm_snd_soc_register_card(dev, card);
+	return devm_snd_soc_register_deferrable_card(dev, card);
 }
 
 static const struct platform_device_id avs_pcm3168a_driver_ids[] = {

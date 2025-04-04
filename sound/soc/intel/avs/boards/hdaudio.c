@@ -209,7 +209,7 @@ static int avs_hdaudio_probe(struct platform_device *pdev)
 	if (hda_codec_is_display(codec))
 		card->late_probe = avs_card_late_probe;
 
-	return devm_snd_soc_register_card(dev, card);
+	return devm_snd_soc_register_deferrable_card(dev, card);
 }
 
 static const struct platform_device_id avs_hdaudio_driver_ids[] = {
