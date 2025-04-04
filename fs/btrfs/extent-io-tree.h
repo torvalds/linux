@@ -134,8 +134,8 @@ struct extent_state {
 #endif
 };
 
-const struct btrfs_inode *extent_io_tree_to_inode_const(const struct extent_io_tree *tree);
-const struct btrfs_fs_info *extent_io_tree_to_fs_info(const struct extent_io_tree *tree);
+const struct btrfs_inode *btrfs_extent_io_tree_to_inode(const struct extent_io_tree *tree);
+const struct btrfs_fs_info *btrfs_extent_io_tree_to_fs_info(const struct extent_io_tree *tree);
 
 void extent_io_tree_init(struct btrfs_fs_info *fs_info,
 			 struct extent_io_tree *tree, unsigned int owner);

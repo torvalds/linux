@@ -65,7 +65,7 @@ static inline void __btrfs_debug_check_extent_io_range(const char *caller,
 	if (tree->owner != IO_TREE_INODE_IO)
 		return;
 
-	inode = extent_io_tree_to_inode_const(tree);
+	inode = btrfs_extent_io_tree_to_inode(tree);
 	isize = i_size_read(&inode->vfs_inode);
 	if (end >= PAGE_SIZE && (end % 2) == 0 && end != isize - 1) {
 		btrfs_debug_rl(inode->root->fs_info,
@@ -81,7 +81,7 @@ static inline void __btrfs_debug_check_extent_io_range(const char *caller,
 #endif
 
 /* Read-only access to the inode. */
-const struct btrfs_inode *extent_io_tree_to_inode_const(const struct extent_io_tree *tree)
+const struct btrfs_inode *btrfs_extent_io_tree_to_inode(const struct extent_io_tree *tree)
 {
 	if (tree->owner == IO_TREE_INODE_IO)
 		return tree->inode;
@@ -89,7 +89,7 @@ const struct btrfs_inode *extent_io_tree_to_inode_const(const struct extent_io_t
 }
 
 /* For read-only access to fs_info. */
-const struct btrfs_fs_info *extent_io_tree_to_fs_info(const struct extent_io_tree *tree)
+const struct btrfs_fs_info *btrfs_extent_io_tree_to_fs_info(const struct extent_io_tree *tree)
 {
 	if (tree->owner == IO_TREE_INODE_IO)
 		return tree->inode->root->fs_info;
@@ -334,7 +334,7 @@ static void __cold extent_io_tree_panic(const struct extent_io_tree *tree,
 					const char *opname,
 					int err)
 {
-	btrfs_panic(extent_io_tree_to_fs_info(tree), err,
+	btrfs_panic(btrfs_extent_io_tree_to_fs_info(tree), err,
 		    "extent io tree error on %s state start %llu end %llu",
 		    opname, state->start, state->end);
 }
@@ -936,7 +936,7 @@ int btrfs_find_contiguous_extent_bit(struct extent_io_tree *tree, u64 start,
 	struct extent_state *state;
 	int ret = 1;
 
-	ASSERT(!btrfs_fs_incompat(extent_io_tree_to_fs_info(tree), NO_HOLES));
+	ASSERT(!btrfs_fs_incompat(btrfs_extent_io_tree_to_fs_info(tree), NO_HOLES));
 
 	spin_lock(&tree->lock);
 	state = find_first_extent_bit_state(tree, start, bits);

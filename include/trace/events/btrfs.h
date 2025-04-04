@@ -2069,8 +2069,8 @@ TRACE_EVENT(btrfs_set_extent_bit,
 		__field(	unsigned,	set_bits)
 	),
 
-	TP_fast_assign_btrfs(extent_io_tree_to_fs_info(tree),
-		const struct btrfs_inode *inode = extent_io_tree_to_inode_const(tree);
+	TP_fast_assign_btrfs(btrfs_extent_io_tree_to_fs_info(tree),
+		const struct btrfs_inode *inode = btrfs_extent_io_tree_to_inode(tree);
 
 		__entry->owner		= tree->owner;
 		__entry->ino		= inode ? btrfs_ino(inode) : 0;
@@ -2102,8 +2102,8 @@ TRACE_EVENT(btrfs_clear_extent_bit,
 		__field(	unsigned,	clear_bits)
 	),
 
-	TP_fast_assign_btrfs(extent_io_tree_to_fs_info(tree),
-		const struct btrfs_inode *inode = extent_io_tree_to_inode_const(tree);
+	TP_fast_assign_btrfs(btrfs_extent_io_tree_to_fs_info(tree),
+		const struct btrfs_inode *inode = btrfs_extent_io_tree_to_inode(tree);
 
 		__entry->owner		= tree->owner;
 		__entry->ino		= inode ? btrfs_ino(inode) : 0;
@@ -2136,8 +2136,8 @@ TRACE_EVENT(btrfs_convert_extent_bit,
 		__field(	unsigned,	clear_bits)
 	),
 
-	TP_fast_assign_btrfs(extent_io_tree_to_fs_info(tree),
-		const struct btrfs_inode *inode = extent_io_tree_to_inode_const(tree);
+	TP_fast_assign_btrfs(btrfs_extent_io_tree_to_fs_info(tree),
+		const struct btrfs_inode *inode = btrfs_extent_io_tree_to_inode(tree);
 
 		__entry->owner		= tree->owner;
 		__entry->ino		= inode ? btrfs_ino(inode) : 0;
