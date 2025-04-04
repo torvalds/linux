@@ -1547,28 +1547,28 @@ void intel_tc_port_init_mode(struct intel_digital_port *dig_port)
 	mutex_unlock(&tc->lock);
 }
 
-static bool tc_port_has_active_links(struct intel_tc_port *tc,
-				     const struct intel_crtc_state *crtc_state)
+static bool tc_port_has_active_streams(struct intel_tc_port *tc,
+				       const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(tc->dig_port);
 	struct intel_digital_port *dig_port = tc->dig_port;
 	enum icl_port_dpll_id pll_type = ICL_PORT_DPLL_DEFAULT;
-	int active_links = 0;
+	int active_streams = 0;
 
 	if (dig_port->dp.is_mst) {
 		/* TODO: get the PLL type for MST, once HW readout is done for it. */
-		active_links = intel_dp_mst_encoder_active_links(dig_port);
+		active_streams = intel_dp_mst_active_streams(&dig_port->dp);
 	} else if (crtc_state && crtc_state->hw.active) {
 		pll_type = intel_ddi_port_pll_type(&dig_port->base, crtc_state);
-		active_links = 1;
+		active_streams = 1;
 	}
 
-	if (active_links && !tc_phy_is_connected(tc, pll_type))
+	if (active_streams && !tc_phy_is_connected(tc, pll_type))
 		drm_err(display->drm,
-			"Port %s: PHY disconnected with %d active link(s)\n",
-			tc->port_name, active_links);
+			"Port %s: PHY disconnected with %d active stream(s)\n",
+			tc->port_name, active_streams);
 
-	return active_links;
+	return active_streams;
 }
 
 /**
@@ -1592,7 +1592,7 @@ void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port,
 	mutex_lock(&tc->lock);
 
 	drm_WARN_ON(display->drm, tc->link_refcount != 1);
-	if (!tc_port_has_active_links(tc, crtc_state)) {
+	if (!tc_port_has_active_streams(tc, crtc_state)) {
 		/*
 		 * TBT-alt is the default mode in any case the PHY ownership is not
 		 * held (regardless of the sink's connected live state), so

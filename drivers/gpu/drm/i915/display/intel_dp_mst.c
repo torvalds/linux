@@ -105,6 +105,11 @@ static struct intel_dp *to_primary_dp(struct intel_encoder *encoder)
 	return &dig_port->dp;
 }
 
+int intel_dp_mst_active_streams(struct intel_dp *intel_dp)
+{
+	return intel_dp->mst.active_links;
+}
+
 static bool intel_dp_mst_dec_active_streams(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
@@ -1885,12 +1890,6 @@ mst_stream_encoders_create(struct intel_digital_port *dig_port)
 	for_each_pipe(display, pipe)
 		intel_dp->mst.stream_encoders[pipe] = mst_stream_encoder_create(dig_port, pipe);
 	return true;
-}
-
-int
-intel_dp_mst_encoder_active_links(struct intel_digital_port *dig_port)
-{
-	return dig_port->dp.mst.active_links;
 }
 
 int
