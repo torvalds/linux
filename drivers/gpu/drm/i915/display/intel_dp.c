@@ -5004,8 +5004,6 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 	bool link_ok = true;
 	bool reprobe_needed = false;
 
-	drm_WARN_ON_ONCE(display->drm, intel_dp->mst.active_links < 0);
-
 	for (;;) {
 		u8 esi[4] = {};
 		u8 ack[4] = {};
