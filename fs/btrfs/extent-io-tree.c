@@ -59,13 +59,12 @@ static inline void __btrfs_debug_check_extent_io_range(const char *caller,
 						       struct extent_io_tree *tree,
 						       u64 start, u64 end)
 {
-	const struct btrfs_inode *inode;
+	const struct btrfs_inode *inode = tree->inode;
 	u64 isize;
 
 	if (tree->owner != IO_TREE_INODE_IO)
 		return;
 
-	inode = btrfs_extent_io_tree_to_inode(tree);
 	isize = i_size_read(&inode->vfs_inode);
 	if (end >= PAGE_SIZE && (end % 2) == 0 && end != isize - 1) {
 		btrfs_debug_rl(inode->root->fs_info,
