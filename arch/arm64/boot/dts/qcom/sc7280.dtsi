@@ -2652,9 +2652,6 @@
 			compatible = "qcom,sc7280-lpass-va-macro";
 			reg = <0 0x03370000 0 0x1000>;
 
-			pinctrl-names = "default";
-			pinctrl-0 = <&lpass_dmic01_clk>, <&lpass_dmic01_data>;
-
 			clocks = <&lpass_aon LPASS_AON_CC_TX_MCLK_CLK>;
 			clock-names = "mclk";
 
