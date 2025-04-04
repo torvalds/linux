@@ -26,7 +26,7 @@ enum scx_consts {
 	 * Iterating all tasks may take a while. Periodically drop
 	 * scx_tasks_lock to avoid causing e.g. CSD and RCU stalls.
 	 */
-	SCX_OPS_TASK_ITER_BATCH		= 32,
+	SCX_TASK_ITER_BATCH		= 32,
 };
 
 enum scx_exit_kind {
@@ -1401,15 +1401,15 @@ static void scx_task_iter_stop(struct scx_task_iter *iter)
  * @iter: iterator to walk
  *
  * Visit the next task. See scx_task_iter_start() for details. Locks are dropped
- * and re-acquired every %SCX_OPS_TASK_ITER_BATCH iterations to avoid causing
- * stalls by holding scx_tasks_lock for too long.
+ * and re-acquired every %SCX_TASK_ITER_BATCH iterations to avoid causing stalls
+ * by holding scx_tasks_lock for too long.
  */
 static struct task_struct *scx_task_iter_next(struct scx_task_iter *iter)
 {
 	struct list_head *cursor = &iter->cursor.tasks_node;
 	struct sched_ext_entity *pos;
 
-	if (!(++iter->cnt % SCX_OPS_TASK_ITER_BATCH)) {
+	if (!(++iter->cnt % SCX_TASK_ITER_BATCH)) {
 		scx_task_iter_unlock(iter);
 		cond_resched();
 		scx_task_iter_relock(iter);
