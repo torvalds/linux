@@ -1406,7 +1406,7 @@ int avs_i2s_platform_register(struct avs_dev *adev, const char *name, unsigned l
 		goto plat_register;
 
 	for_each_set_bit(i, &port_mask, ssp_count) {
-		for_each_set_bit(j, &tdms[i], ssp_count) {
+		for_each_set_bit(j, &tdms[i], AVS_CHANNELS_MAX) {
 			memcpy(dai, &i2s_dai_template, sizeof(*dai));
 
 			dai->name =
