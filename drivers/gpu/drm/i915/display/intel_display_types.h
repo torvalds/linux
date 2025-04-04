@@ -1658,7 +1658,6 @@ struct intel_dp {
 	int link_rate;
 	u8 lane_count;
 	u8 sink_count;
-	bool link_trained;
 	bool needs_modeset_retry;
 	bool use_max_params;
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
@@ -1683,6 +1682,7 @@ struct intel_dp {
 	int common_rates[DP_MAX_SUPPORTED_RATES];
 	struct {
 		/* TODO: move the rest of link specific fields to here */
+		bool active;
 		/* common rate,lane_count configs in bw order */
 		int num_configs;
 #define INTEL_DP_MAX_LANE_COUNT			4

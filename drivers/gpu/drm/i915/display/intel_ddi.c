@@ -3550,7 +3550,7 @@ static void intel_ddi_disable_dp(struct intel_atomic_state *state,
 	struct intel_connector *connector =
 		to_intel_connector(old_conn_state->connector);
 
-	intel_dp->link_trained = false;
+	intel_dp->link.active = false;
 
 	intel_psr_disable(intel_dp, old_crtc_state);
 	intel_edp_backlight_off(old_conn_state);

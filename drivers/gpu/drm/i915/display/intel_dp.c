@@ -3222,7 +3222,7 @@ void intel_dp_set_link_params(struct intel_dp *intel_dp,
 			      int link_rate, int lane_count)
 {
 	memset(intel_dp->train_set, 0, sizeof(intel_dp->train_set));
-	intel_dp->link_trained = false;
+	intel_dp->link.active = false;
 	intel_dp->needs_modeset_retry = false;
 	intel_dp->link_rate = link_rate;
 	intel_dp->lane_count = lane_count;
@@ -3586,7 +3586,7 @@ void intel_dp_sync_state(struct intel_encoder *encoder,
 	if (crtc_state) {
 		intel_dp_reset_link_params(intel_dp);
 		intel_dp_set_link_params(intel_dp, crtc_state->port_clock, crtc_state->lane_count);
-		intel_dp->link_trained = true;
+		intel_dp->link.active = true;
 	}
 }
 
@@ -5081,7 +5081,7 @@ intel_dp_needs_link_retrain(struct intel_dp *intel_dp)
 {
 	u8 link_status[DP_LINK_STATUS_SIZE];
 
-	if (!intel_dp->link_trained)
+	if (!intel_dp->link.active)
 		return false;
 
 	/*

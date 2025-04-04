@@ -1004,7 +1004,7 @@ static void mst_stream_disable(struct intel_atomic_state *state,
 		    intel_dp->mst.active_links);
 
 	if (intel_dp->mst.active_links == 1)
-		intel_dp->link_trained = false;
+		intel_dp->link.active = false;
 
 	intel_hdcp_disable(intel_mst->connector);
 
@@ -2108,7 +2108,7 @@ void intel_dp_mst_prepare_probe(struct intel_dp *intel_dp)
 	u8 rate_select;
 	u8 link_bw;
 
-	if (intel_dp->link_trained)
+	if (intel_dp->link.active)
 		return;
 
 	if (intel_mst_probed_link_params_valid(intel_dp, link_rate, lane_count))

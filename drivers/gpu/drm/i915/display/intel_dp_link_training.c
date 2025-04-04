@@ -168,7 +168,7 @@ static int intel_dp_init_lttpr_phys(struct intel_dp *intel_dp, const u8 dpcd[DP_
 	 * resetting its internal state when the mode is changed from
 	 * non-transparent to transparent.
 	 */
-	if (intel_dp->link_trained) {
+	if (intel_dp->link.active) {
 		if (lttpr_count < 0 || intel_dp_lttpr_transparent_mode_enabled(intel_dp))
 			goto out_reset_lttpr_count;
 
@@ -1142,7 +1142,7 @@ void intel_dp_stop_link_train(struct intel_dp *intel_dp,
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 
-	intel_dp->link_trained = true;
+	intel_dp->link.active = true;
 
 	intel_dp_disable_dpcd_training_pattern(intel_dp, DP_PHY_DPRX);
 	intel_dp_program_link_training_pattern(intel_dp, crtc_state, DP_PHY_DPRX,
@@ -1735,7 +1735,7 @@ static int i915_dp_force_link_rate_show(struct seq_file *m, void *data)
 	if (err)
 		return err;
 
-	if (intel_dp->link_trained)
+	if (intel_dp->link.active)
 		current_rate = intel_dp->link_rate;
 	force_rate = intel_dp->link.force_rate;
 
@@ -1833,7 +1833,7 @@ static int i915_dp_force_lane_count_show(struct seq_file *m, void *data)
 	if (err)
 		return err;
 
-	if (intel_dp->link_trained)
+	if (intel_dp->link.active)
 		current_lane_count = intel_dp->lane_count;
 	force_lane_count = intel_dp->link.force_lane_count;
 

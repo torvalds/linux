@@ -519,7 +519,7 @@ static void intel_disable_dp(struct intel_atomic_state *state,
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
-	intel_dp->link_trained = false;
+	intel_dp->link.active = false;
 
 	/*
 	 * Make sure the panel is off before trying to change the mode.
