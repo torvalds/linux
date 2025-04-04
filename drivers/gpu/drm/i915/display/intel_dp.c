@@ -5018,7 +5018,7 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 
 		drm_dbg_kms(display->drm, "DPRX ESI: %4ph\n", esi);
 
-		if (intel_dp->mst.active_links > 0 && link_ok &&
+		if (intel_dp_mst_active_streams(intel_dp) > 0 && link_ok &&
 		    esi[3] & LINK_STATUS_CHANGED) {
 			if (!intel_dp_mst_link_status(intel_dp))
 				link_ok = false;

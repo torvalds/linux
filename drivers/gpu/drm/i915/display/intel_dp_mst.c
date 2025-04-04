@@ -1028,7 +1028,7 @@ static void mst_stream_disable(struct intel_atomic_state *state,
 		to_intel_connector(old_conn_state->connector);
 	enum transcoder trans = old_crtc_state->cpu_transcoder;
 
-	if (intel_dp->mst.active_links == 1)
+	if (intel_dp_mst_active_streams(intel_dp) == 1)
 		intel_dp->link.active = false;
 
 	intel_hdcp_disable(intel_mst->connector);
@@ -1144,7 +1144,7 @@ static void mst_stream_post_pll_disable(struct intel_atomic_state *state,
 	struct intel_encoder *primary_encoder = to_primary_encoder(encoder);
 	struct intel_dp *intel_dp = to_primary_dp(encoder);
 
-	if (intel_dp->mst.active_links == 0 &&
+	if (intel_dp_mst_active_streams(intel_dp) == 0 &&
 	    primary_encoder->post_pll_disable)
 		primary_encoder->post_pll_disable(state, primary_encoder, old_crtc_state, old_conn_state);
 }
@@ -1157,7 +1157,7 @@ static void mst_stream_pre_pll_enable(struct intel_atomic_state *state,
 	struct intel_encoder *primary_encoder = to_primary_encoder(encoder);
 	struct intel_dp *intel_dp = to_primary_dp(encoder);
 
-	if (intel_dp->mst.active_links == 0)
+	if (intel_dp_mst_active_streams(intel_dp) == 0)
 		primary_encoder->pre_pll_enable(state, primary_encoder,
 						pipe_config, NULL);
 	else
@@ -1303,7 +1303,7 @@ static void mst_stream_enable(struct intel_atomic_state *state,
 	struct drm_dp_mst_topology_state *mst_state =
 		drm_atomic_get_new_mst_topology_state(&state->base, &intel_dp->mst.mgr);
 	enum transcoder trans = pipe_config->cpu_transcoder;
-	bool first_mst_stream = intel_dp->mst.active_links == 1;
+	bool first_mst_stream = intel_dp_mst_active_streams(intel_dp) == 1;
 	struct intel_crtc *pipe_crtc;
 	int ret, i, min_hblank;
 

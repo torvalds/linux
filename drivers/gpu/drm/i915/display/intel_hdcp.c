@@ -24,6 +24,7 @@
 #include "intel_display_power_well.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
+#include "intel_dp_mst.h"
 #include "intel_hdcp.h"
 #include "intel_hdcp_gsc.h"
 #include "intel_hdcp_regs.h"
@@ -137,7 +138,7 @@ intel_hdcp_required_content_stream(struct intel_atomic_state *state,
 		data->k++;
 
 		/* if there is only one active stream */
-		if (dig_port->dp.mst.active_links <= 1)
+		if (intel_dp_mst_active_streams(&dig_port->dp) <= 1)
 			break;
 	}
 	drm_connector_list_iter_end(&conn_iter);
