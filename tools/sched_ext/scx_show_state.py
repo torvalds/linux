@@ -31,7 +31,7 @@ ops = prog['scx_ops']
 enable_state = read_atomic("scx_enable_state_var")
 
 print(f'ops           : {ops.name.string_().decode()}')
-print(f'enabled       : {read_static_key("__scx_ops_enabled")}')
+print(f'enabled       : {read_static_key("__scx_enabled")}')
 print(f'switching_all : {read_int("scx_switching_all")}')
 print(f'switched_all  : {read_static_key("__scx_switched_all")}')
 print(f'enable_state  : {state_str(enable_state)} ({enable_state})')
