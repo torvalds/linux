@@ -31,6 +31,7 @@ enum string_size_units {
 int string_get_size(u64 size, u64 blk_size, const enum string_size_units units,
 		    char *buf, int len);
 
+int parse_int_array(const char *buf, size_t count, int **array);
 int parse_int_array_user(const char __user *from, size_t count, int **array);
 
 #define UNESCAPE_SPACE		BIT(0)
