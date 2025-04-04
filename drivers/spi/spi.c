@@ -4094,6 +4094,13 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 		if (__spi_validate_bits_per_word(ctlr, xfer->bits_per_word))
 			return -EINVAL;
 
+		/* DDR mode is supported only if controller has dtr_caps=true.
+		 * default considered as SDR mode for SPI and QSPI controller.
+		 * Note: This is applicable only to QSPI controller.
+		 */
+		if (xfer->dtr_mode && !ctlr->dtr_caps)
+			return -EINVAL;
+
 		/*
 		 * SPI transfer length should be multiple of SPI word size
 		 * where SPI word size should be power-of-two multiple.
