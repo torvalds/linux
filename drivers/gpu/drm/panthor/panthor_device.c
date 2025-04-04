@@ -171,10 +171,6 @@ int panthor_device_init(struct panthor_device *ptdev)
 	struct page *p;
 	int ret;
 
-	ret = panthor_gpu_coherency_init(ptdev);
-	if (ret)
-		return ret;
-
 	init_completion(&ptdev->unplug.done);
 	ret = drmm_mutex_init(&ptdev->base, &ptdev->unplug.lock);
 	if (ret)
@@ -246,6 +242,10 @@ int panthor_device_init(struct panthor_device *ptdev)
 	ret = panthor_gpu_init(ptdev);
 	if (ret)
 		goto err_rpm_put;
+
+	ret = panthor_gpu_coherency_init(ptdev);
+	if (ret)
+		return ret;
 
 	ret = panthor_mmu_init(ptdev);
 	if (ret)
