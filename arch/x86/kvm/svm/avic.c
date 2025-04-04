@@ -796,12 +796,15 @@ static int svm_ir_list_add(struct vcpu_svm *svm, struct amd_iommu_pi_data *pi)
 	struct amd_svm_iommu_ir *ir;
 	u64 entry;
 
+	if (WARN_ON_ONCE(!pi->ir_data))
+		return -EINVAL;
+
 	/**
 	 * In some cases, the existing irte is updated and re-set,
 	 * so we need to check here if it's already been * added
 	 * to the ir_list.
 	 */
-	if (pi->ir_data && (pi->prev_ga_tag != 0)) {
+	if (pi->prev_ga_tag) {
 		struct kvm *kvm = svm->vcpu.kvm;
 		u32 vcpu_id = AVIC_GATAG_TO_VCPUID(pi->prev_ga_tag);
 		struct kvm_vcpu *prev_vcpu = kvm_get_vcpu_by_id(kvm, vcpu_id);
