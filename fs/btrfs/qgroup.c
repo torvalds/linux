@@ -4232,8 +4232,9 @@ static int qgroup_reserve_data(struct btrfs_inode *inode,
 	reserved = *reserved_ret;
 	/* Record already reserved space */
 	orig_reserved = reserved->bytes_changed;
-	ret = set_record_extent_bits(&inode->io_tree, start,
-			start + len -1, EXTENT_QGROUP_RESERVED, reserved);
+	ret = btrfs_set_record_extent_bits(&inode->io_tree, start,
+					   start + len - 1, EXTENT_QGROUP_RESERVED,
+					   reserved);
 
 	/* Newly reserved space */
 	to_reserve = reserved->bytes_changed - orig_reserved;
@@ -4326,9 +4327,10 @@ static int qgroup_free_reserved_data(struct btrfs_inode *inode,
 		 * EXTENT_QGROUP_RESERVED, we won't double free.
 		 * So not need to rush.
 		 */
-		ret = clear_record_extent_bits(&inode->io_tree, free_start,
-				free_start + free_len - 1,
-				EXTENT_QGROUP_RESERVED, &changeset);
+		ret = btrfs_clear_record_extent_bits(&inode->io_tree, free_start,
+						     free_start + free_len - 1,
+						     EXTENT_QGROUP_RESERVED,
+						     &changeset);
 		if (ret < 0)
 			goto out;
 		freed += changeset.bytes_changed;
@@ -4352,9 +4354,9 @@ static int __btrfs_qgroup_release_data(struct btrfs_inode *inode,
 	int ret;
 
 	if (btrfs_qgroup_mode(inode->root->fs_info) == BTRFS_QGROUP_MODE_DISABLED) {
-		return clear_record_extent_bits(&inode->io_tree, start,
-						start + len - 1,
-						EXTENT_QGROUP_RESERVED, NULL);
+		return btrfs_clear_record_extent_bits(&inode->io_tree, start,
+						      start + len - 1,
+						      EXTENT_QGROUP_RESERVED, NULL);
 	}
 
 	/* In release case, we shouldn't have @reserved */
@@ -4362,8 +4364,8 @@ static int __btrfs_qgroup_release_data(struct btrfs_inode *inode,
 	if (free && reserved)
 		return qgroup_free_reserved_data(inode, reserved, start, len, released);
 	extent_changeset_init(&changeset);
-	ret = clear_record_extent_bits(&inode->io_tree, start, start + len -1,
-				       EXTENT_QGROUP_RESERVED, &changeset);
+	ret = btrfs_clear_record_extent_bits(&inode->io_tree, start, start + len - 1,
+					     EXTENT_QGROUP_RESERVED, &changeset);
 	if (ret < 0)
 		goto out;
 
@@ -4611,8 +4613,8 @@ void btrfs_qgroup_check_reserved_leak(struct btrfs_inode *inode)
 	int ret;
 
 	extent_changeset_init(&changeset);
-	ret = clear_record_extent_bits(&inode->io_tree, 0, (u64)-1,
-			EXTENT_QGROUP_RESERVED, &changeset);
+	ret = btrfs_clear_record_extent_bits(&inode->io_tree, 0, (u64)-1,
+					     EXTENT_QGROUP_RESERVED, &changeset);
 
 	WARN_ON(ret < 0);
 	if (WARN_ON(changeset.bytes_changed)) {

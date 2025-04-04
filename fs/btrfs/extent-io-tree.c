@@ -1280,9 +1280,9 @@ int btrfs_set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
  *
  * All allocations are done with GFP_NOFS.
  */
-int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		       u32 bits, u32 clear_bits,
-		       struct extent_state **cached_state)
+int btrfs_convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
+			     u32 bits, u32 clear_bits,
+			     struct extent_state **cached_state)
 {
 	struct extent_state *state;
 	struct extent_state *prealloc = NULL;
@@ -1805,8 +1805,8 @@ bool btrfs_test_range_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 b
 }
 
 /* Wrappers around set/clear extent bit */
-int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
-			   u32 bits, struct extent_changeset *changeset)
+int btrfs_set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
+				 u32 bits, struct extent_changeset *changeset)
 {
 	/*
 	 * We don't support EXTENT_LOCK_BITS yet, as current changeset will
@@ -1818,8 +1818,8 @@ int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 	return __set_extent_bit(tree, start, end, bits, NULL, NULL, NULL, changeset);
 }
 
-int clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
-			     u32 bits, struct extent_changeset *changeset)
+int btrfs_clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
+				   u32 bits, struct extent_changeset *changeset)
 {
 	/*
 	 * Don't support EXTENT_LOCK_BITS case, same reason as
@@ -1873,13 +1873,13 @@ int btrfs_lock_extent_bits(struct extent_io_tree *tree, u64 start, u64 end, u32 
 	return err;
 }
 
-void __cold extent_state_free_cachep(void)
+void __cold btrfs_extent_state_free_cachep(void)
 {
 	btrfs_extent_state_leak_debug_check();
 	kmem_cache_destroy(extent_state_cache);
 }
 
-int __init extent_state_init_cachep(void)
+int __init btrfs_extent_state_init_cachep(void)
 {
 	extent_state_cache = kmem_cache_create("btrfs_extent_state",
 					       sizeof(struct extent_state), 0, 0,

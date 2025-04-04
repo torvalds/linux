@@ -1132,9 +1132,9 @@ int btrfs_write_marked_extents(struct btrfs_fs_info *fs_info,
 					   mark, &cached_state)) {
 		bool wait_writeback = false;
 
-		ret = convert_extent_bit(dirty_pages, start, end,
-					 EXTENT_NEED_WAIT,
-					 mark, &cached_state);
+		ret = btrfs_convert_extent_bit(dirty_pages, start, end,
+					       EXTENT_NEED_WAIT,
+					       mark, &cached_state);
 		/*
 		 * convert_extent_bit can return -ENOMEM, which is most of the
 		 * time a temporary error. So when it happens, ignore the error

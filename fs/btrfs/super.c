@@ -2529,8 +2529,8 @@ static const struct init_sequence mod_init_seq[] = {
 		.init_func = btrfs_free_space_init,
 		.exit_func = btrfs_free_space_exit,
 	}, {
-		.init_func = extent_state_init_cachep,
-		.exit_func = extent_state_free_cachep,
+		.init_func = btrfs_extent_state_init_cachep,
+		.exit_func = btrfs_extent_state_free_cachep,
 	}, {
 		.init_func = extent_buffer_init_cachep,
 		.exit_func = extent_buffer_free_cachep,

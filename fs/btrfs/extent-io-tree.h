@@ -157,8 +157,8 @@ static inline bool btrfs_try_lock_extent(struct extent_io_tree *tree, u64 start,
 	return btrfs_try_lock_extent_bits(tree, start, end, EXTENT_LOCKED, cached);
 }
 
-int __init extent_state_init_cachep(void);
-void __cold extent_state_free_cachep(void);
+int __init btrfs_extent_state_init_cachep(void);
+void __cold btrfs_extent_state_free_cachep(void);
 
 u64 btrfs_count_range_bits(struct extent_io_tree *tree,
 			   u64 *start, u64 search_end,
@@ -171,8 +171,8 @@ bool btrfs_test_range_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 b
 bool btrfs_test_range_bit_exists(struct extent_io_tree *tree, u64 start, u64 end, u32 bit);
 void btrfs_get_range_bits(struct extent_io_tree *tree, u64 start, u64 end, u32 *bits,
 			  struct extent_state **cached_state);
-int clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
-			     u32 bits, struct extent_changeset *changeset);
+int btrfs_clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
+				   u32 bits, struct extent_changeset *changeset);
 int btrfs_clear_extent_bit_changeset(struct extent_io_tree *tree, u64 start, u64 end,
 				     u32 bits, struct extent_state **cached,
 				     struct extent_changeset *changeset);
@@ -197,8 +197,8 @@ static inline int btrfs_clear_extent_bits(struct extent_io_tree *tree, u64 start
 	return btrfs_clear_extent_bit(tree, start, end, bits, NULL);
 }
 
-int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
-			   u32 bits, struct extent_changeset *changeset);
+int btrfs_set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
+				 u32 bits, struct extent_changeset *changeset);
 int btrfs_set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 			 u32 bits, struct extent_state **cached_state);
 
@@ -210,9 +210,9 @@ static inline int btrfs_clear_extent_dirty(struct extent_io_tree *tree, u64 star
 				      EXTENT_DO_ACCOUNTING, cached);
 }
 
-int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		       u32 bits, u32 clear_bits,
-		       struct extent_state **cached_state);
+int btrfs_convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
+			     u32 bits, u32 clear_bits,
+			     struct extent_state **cached_state);
 
 bool btrfs_find_first_extent_bit(struct extent_io_tree *tree, u64 start,
 				 u64 *start_ret, u64 *end_ret, u32 bits,
