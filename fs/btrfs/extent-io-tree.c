@@ -1612,10 +1612,10 @@ out:
  * all given bits set. If the returned number of bytes is greater than zero
  * then @start is updated with the offset of the first byte with the bits set.
  */
-u64 count_range_bits(struct extent_io_tree *tree,
-		     u64 *start, u64 search_end, u64 max_bytes,
-		     u32 bits, int contig,
-		     struct extent_state **cached_state)
+u64 btrfs_count_range_bits(struct extent_io_tree *tree,
+			   u64 *start, u64 search_end, u64 max_bytes,
+			   u32 bits, int contig,
+			   struct extent_state **cached_state)
 {
 	struct extent_state *state = NULL;
 	struct extent_state *cached;
@@ -1700,7 +1700,7 @@ search:
 /*
  * Check if the single @bit exists in the given range.
  */
-bool test_range_bit_exists(struct extent_io_tree *tree, u64 start, u64 end, u32 bit)
+bool btrfs_test_range_bit_exists(struct extent_io_tree *tree, u64 start, u64 end, u32 bit)
 {
 	struct extent_state *state;
 	bool bitset = false;
@@ -1726,8 +1726,8 @@ bool test_range_bit_exists(struct extent_io_tree *tree, u64 start, u64 end, u32 
 	return bitset;
 }
 
-void get_range_bits(struct extent_io_tree *tree, u64 start, u64 end, u32 *bits,
-		    struct extent_state **cached_state)
+void btrfs_get_range_bits(struct extent_io_tree *tree, u64 start, u64 end, u32 *bits,
+			  struct extent_state **cached_state)
 {
 	struct extent_state *state;
 
@@ -1763,8 +1763,8 @@ void get_range_bits(struct extent_io_tree *tree, u64 start, u64 end, u32 *bits,
 /*
  * Check if the whole range [@start,@end) contains the single @bit set.
  */
-bool test_range_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bit,
-		    struct extent_state *cached)
+bool btrfs_test_range_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bit,
+			  struct extent_state *cached)
 {
 	struct extent_state *state;
 	bool bitset = true;

@@ -1742,8 +1742,8 @@ static int fallback_to_cow(struct btrfs_inode *inode,
 	 * when starting writeback.
 	 */
 	btrfs_lock_extent(io_tree, start, end, &cached_state);
-	count = count_range_bits(io_tree, &range_start, end, range_bytes,
-				 EXTENT_NORESERVE, 0, NULL);
+	count = btrfs_count_range_bits(io_tree, &range_start, end, range_bytes,
+				       EXTENT_NORESERVE, 0, NULL);
 	if (count > 0 || is_space_ino || is_reloc_ino) {
 		u64 bytes = count;
 		struct btrfs_fs_info *fs_info = inode->root->fs_info;
@@ -2309,7 +2309,7 @@ static bool should_nocow(struct btrfs_inode *inode, u64 start, u64 end)
 {
 	if (inode->flags & (BTRFS_INODE_NODATACOW | BTRFS_INODE_PREALLOC)) {
 		if (inode->defrag_bytes &&
-		    test_range_bit_exists(&inode->io_tree, start, end, EXTENT_DEFRAG))
+		    btrfs_test_range_bit_exists(&inode->io_tree, start, end, EXTENT_DEFRAG))
 			return false;
 		return true;
 	}
@@ -3377,8 +3377,8 @@ bool btrfs_data_csum_ok(struct btrfs_bio *bbio, struct btrfs_device *dev,
 		return true;
 
 	if (btrfs_is_data_reloc_root(inode->root) &&
-	    test_range_bit(&inode->io_tree, file_offset, end, EXTENT_NODATASUM,
-			   NULL)) {
+	    btrfs_test_range_bit(&inode->io_tree, file_offset, end, EXTENT_NODATASUM,
+				 NULL)) {
 		/* Skip the range without csum for data reloc inode */
 		btrfs_clear_extent_bits(&inode->io_tree, file_offset, end,
 					EXTENT_NODATASUM);
@@ -7155,7 +7155,8 @@ noinline int can_nocow_extent(struct btrfs_inode *inode, u64 offset, u64 *len,
 
 		range_end = round_up(offset + nocow_args.file_extent.num_bytes,
 				     root->fs_info->sectorsize) - 1;
-		ret = test_range_bit_exists(io_tree, offset, range_end, EXTENT_DELALLOC);
+		ret = btrfs_test_range_bit_exists(io_tree, offset, range_end,
+						  EXTENT_DELALLOC);
 		if (ret)
 			return -EAGAIN;
 	}

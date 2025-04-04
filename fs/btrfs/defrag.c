@@ -1024,8 +1024,8 @@ static int defrag_collect_targets(struct btrfs_inode *inode,
 		 *    very likely resulting in a larger extent after writeback is
 		 *    triggered (except in a case of free space fragmentation).
 		 */
-		if (test_range_bit_exists(&inode->io_tree, cur, cur + range_len - 1,
-					  EXTENT_DELALLOC))
+		if (btrfs_test_range_bit_exists(&inode->io_tree, cur, cur + range_len - 1,
+						EXTENT_DELALLOC))
 			goto next;
 
 		/*

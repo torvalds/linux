@@ -374,8 +374,8 @@ again:
 	btrfs_lock_extent(tree, delalloc_start, delalloc_end, &cached_state);
 
 	/* then test to make sure it is all still delalloc */
-	ret = test_range_bit(tree, delalloc_start, delalloc_end,
-			     EXTENT_DELALLOC, cached_state);
+	ret = btrfs_test_range_bit(tree, delalloc_start, delalloc_end,
+				   EXTENT_DELALLOC, cached_state);
 
 	btrfs_unlock_extent(tree, delalloc_start, delalloc_end, &cached_state);
 	if (!ret) {
@@ -2618,7 +2618,7 @@ static bool try_release_extent_state(struct extent_io_tree *tree,
 	bool ret = false;
 	int ret2;
 
-	get_range_bits(tree, start, end, &range_bits, &cached_state);
+	btrfs_get_range_bits(tree, start, end, &range_bits, &cached_state);
 
 	/*
 	 * We can release the folio if it's locked only for ordered extent
@@ -2678,8 +2678,8 @@ bool try_release_extent_mapping(struct folio *folio, gfp_t mask)
 			free_extent_map(em);
 			break;
 		}
-		if (test_range_bit_exists(io_tree, em->start,
-					  extent_map_end(em) - 1, EXTENT_LOCKED))
+		if (btrfs_test_range_bit_exists(io_tree, em->start,
+						extent_map_end(em) - 1, EXTENT_LOCKED))
 			goto next;
 		/*
 		 * If it's not in the list of modified extents, used by a fast

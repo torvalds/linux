@@ -160,17 +160,17 @@ static inline bool btrfs_try_lock_extent(struct extent_io_tree *tree, u64 start,
 int __init extent_state_init_cachep(void);
 void __cold extent_state_free_cachep(void);
 
-u64 count_range_bits(struct extent_io_tree *tree,
-		     u64 *start, u64 search_end,
-		     u64 max_bytes, u32 bits, int contig,
-		     struct extent_state **cached_state);
+u64 btrfs_count_range_bits(struct extent_io_tree *tree,
+			   u64 *start, u64 search_end,
+			   u64 max_bytes, u32 bits, int contig,
+			   struct extent_state **cached_state);
 
 void free_extent_state(struct extent_state *state);
-bool test_range_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bit,
-		    struct extent_state *cached_state);
-bool test_range_bit_exists(struct extent_io_tree *tree, u64 start, u64 end, u32 bit);
-void get_range_bits(struct extent_io_tree *tree, u64 start, u64 end, u32 *bits,
-		    struct extent_state **cached_state);
+bool btrfs_test_range_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bit,
+			  struct extent_state *cached_state);
+bool btrfs_test_range_bit_exists(struct extent_io_tree *tree, u64 start, u64 end, u32 bit);
+void btrfs_get_range_bits(struct extent_io_tree *tree, u64 start, u64 end, u32 *bits,
+			  struct extent_state **cached_state);
 int clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 			     u32 bits, struct extent_changeset *changeset);
 int btrfs_clear_extent_bit_changeset(struct extent_io_tree *tree, u64 start, u64 end,

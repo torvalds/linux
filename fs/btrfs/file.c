@@ -3252,10 +3252,10 @@ static bool find_delalloc_subrange(struct btrfs_inode *inode, u64 start, u64 end
 		if (inode->delalloc_bytes > 0) {
 			spin_unlock(&inode->lock);
 			*delalloc_start_ret = start;
-			delalloc_len = count_range_bits(&inode->io_tree,
-							delalloc_start_ret, end,
-							len, EXTENT_DELALLOC, 1,
-							cached_state);
+			delalloc_len = btrfs_count_range_bits(&inode->io_tree,
+							      delalloc_start_ret, end,
+							      len, EXTENT_DELALLOC, 1,
+							      cached_state);
 		} else {
 			spin_unlock(&inode->lock);
 		}
