@@ -15,6 +15,14 @@
 #define __array(name, val) typeof(val) *name[]
 #define __ulong(name, val) enum { ___bpf_concat(__unique_value, __COUNTER__) = val } name
 
+#ifndef likely
+#define likely(x)      (__builtin_expect(!!(x), 1))
+#endif
+
+#ifndef unlikely
+#define unlikely(x)    (__builtin_expect(!!(x), 0))
+#endif
+
 /*
  * Helper macro to place programs, maps, license in
  * different sections in elf_bpf file. Section names
