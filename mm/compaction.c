@@ -2249,10 +2249,11 @@ static unsigned int fragmentation_score_node(pg_data_t *pgdat)
 
 static unsigned int fragmentation_score_wmark(bool low)
 {
-	unsigned int wmark_low;
+	unsigned int wmark_low, leeway;
 
 	wmark_low = 100U - sysctl_compaction_proactiveness;
-	return low ? wmark_low : min(wmark_low + 10, 100U);
+	leeway = min(10U, wmark_low / 2);
+	return low ? wmark_low : min(wmark_low + leeway, 100U);
 }
 
 static bool should_proactive_compact_node(pg_data_t *pgdat)
