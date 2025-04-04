@@ -541,6 +541,7 @@ static int lola_create(struct snd_card *card, struct pci_dev *pci, int dev)
 	struct lola *chip = card->private_data;
 	int err;
 	unsigned int dever;
+	void __iomem *iomem;
 
 	err = pcim_enable_device(pci);
 	if (err < 0)
@@ -580,14 +581,19 @@ static int lola_create(struct snd_card *card, struct pci_dev *pci, int dev)
 		chip->sample_rate_min = 16000;
 	}
 
-	err = pcim_iomap_regions(pci, (1 << 0) | (1 << 2), DRVNAME);
-	if (err < 0)
-		return err;
+	iomem = pcim_iomap_region(pci, 0, DRVNAME);
+	if (IS_ERR(iomem))
+		return PTR_ERR(iomem);
 
+	chip->bar[0].remap_addr = iomem;
 	chip->bar[0].addr = pci_resource_start(pci, 0);
-	chip->bar[0].remap_addr = pcim_iomap_table(pci)[0];
+
+	iomem = pcim_iomap_region(pci, 2, DRVNAME);
+	if (IS_ERR(iomem))
+		return PTR_ERR(iomem);
+
+	chip->bar[1].remap_addr = iomem;
 	chip->bar[1].addr = pci_resource_start(pci, 2);
-	chip->bar[1].remap_addr = pcim_iomap_table(pci)[2];
 
 	pci_set_master(pci);
 
