@@ -916,8 +916,10 @@ static int bch2_move_data_phys(struct bch_fs *c,
 	bch2_trans_run(c, bch2_btree_write_buffer_flush_sync(trans));
 
 	bch2_moving_ctxt_init(&ctxt, c, rate, stats, wp, wait_on_copygc);
-	ctxt.stats->phys = true;
-	ctxt.stats->data_type = (int) DATA_PROGRESS_DATA_TYPE_phys;
+	if (ctxt.stats) {
+		ctxt.stats->phys = true;
+		ctxt.stats->data_type = (int) DATA_PROGRESS_DATA_TYPE_phys;
+	}
 
 	int ret = __bch2_move_data_phys(&ctxt, NULL, dev, start, end, data_types, pred, arg);
 	bch2_moving_ctxt_exit(&ctxt);
