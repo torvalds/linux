@@ -156,6 +156,11 @@ static int ufs_qcom_ice_init(struct ufs_qcom_host *host)
 	if (IS_ERR_OR_NULL(ice))
 		return PTR_ERR_OR_ZERO(ice);
 
+	if (qcom_ice_get_supported_key_type(ice) != BLK_CRYPTO_KEY_TYPE_RAW) {
+		dev_warn(dev, "Wrapped keys not supported. Disabling inline encryption support.\n");
+		return 0;
+	}
+
 	host->ice = ice;
 
 	/* Initialize the blk_crypto_profile */
