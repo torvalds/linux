@@ -45,9 +45,7 @@ asmlinkage void sha256_transform_ssse3(struct sha256_state *state,
 				       const u8 *data, int blocks);
 
 static const struct x86_cpu_id module_cpu_ids[] = {
-#ifdef CONFIG_AS_SHA256_NI
 	X86_MATCH_FEATURE(X86_FEATURE_SHA_NI, NULL),
-#endif
 	X86_MATCH_FEATURE(X86_FEATURE_AVX2, NULL),
 	X86_MATCH_FEATURE(X86_FEATURE_AVX, NULL),
 	X86_MATCH_FEATURE(X86_FEATURE_SSSE3, NULL),
@@ -329,7 +327,6 @@ static void unregister_sha256_avx2(void)
 				ARRAY_SIZE(sha256_avx2_algs));
 }
 
-#ifdef CONFIG_AS_SHA256_NI
 asmlinkage void sha256_ni_transform(struct sha256_state *digest,
 				    const u8 *data, int rounds);
 
@@ -403,11 +400,6 @@ static void unregister_sha256_ni(void)
 				ARRAY_SIZE(sha256_ni_algs));
 }
 
-#else
-static inline int register_sha256_ni(void) { return 0; }
-static inline void unregister_sha256_ni(void) { }
-#endif
-
 static int __init sha256_ssse3_mod_init(void)
 {
 	if (!x86_match_cpu(module_cpu_ids))
@@ -461,7 +453,5 @@ MODULE_ALIAS_CRYPTO("sha224");
 MODULE_ALIAS_CRYPTO("sha224-ssse3");
 MODULE_ALIAS_CRYPTO("sha224-avx");
 MODULE_ALIAS_CRYPTO("sha224-avx2");
-#ifdef CONFIG_AS_SHA256_NI
 MODULE_ALIAS_CRYPTO("sha256-ni");
 MODULE_ALIAS_CRYPTO("sha224-ni");
-#endif
