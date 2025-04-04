@@ -6,10 +6,11 @@
 #include <linux/notifier.h>
 #include <linux/rtnetlink.h>
 #include <net/net_namespace.h>
+#include <net/netdev_lock.h>
 #include <net/netns/generic.h>
 
-static int rtnl_net_debug_event(struct notifier_block *nb,
-				unsigned long event, void *ptr)
+int netdev_debug_event(struct notifier_block *nb, unsigned long event,
+		       void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
@@ -17,11 +18,13 @@ static int rtnl_net_debug_event(struct notifier_block *nb,
 
 	/* Keep enum and don't add default to trigger -Werror=switch */
 	switch (cmd) {
+	case NETDEV_REGISTER:
 	case NETDEV_UP:
+		netdev_ops_assert_locked(dev);
+		fallthrough;
 	case NETDEV_DOWN:
 	case NETDEV_REBOOT:
 	case NETDEV_CHANGE:
-	case NETDEV_REGISTER:
 	case NETDEV_UNREGISTER:
 	case NETDEV_CHANGEMTU:
 	case NETDEV_CHANGEADDR:
@@ -66,6 +69,7 @@ static int rtnl_net_debug_event(struct notifier_block *nb,
 
 	return NOTIFY_DONE;
 }
+EXPORT_SYMBOL_NS_GPL(netdev_debug_event, "NETDEV_INTERNAL");
 
 static int rtnl_net_debug_net_id;
 
@@ -74,7 +78,7 @@ static int __net_init rtnl_net_debug_net_init(struct net *net)
 	struct notifier_block *nb;
 
 	nb = net_generic(net, rtnl_net_debug_net_id);
-	nb->notifier_call = rtnl_net_debug_event;
+	nb->notifier_call = netdev_debug_event;
 
 	return register_netdevice_notifier_net(net, nb);
 }
@@ -95,14 +99,14 @@ static struct pernet_operations rtnl_net_debug_net_ops __net_initdata = {
 };
 
 static struct notifier_block rtnl_net_debug_block = {
-	.notifier_call = rtnl_net_debug_event,
+	.notifier_call = netdev_debug_event,
 };
 
 static int __init rtnl_net_debug_init(void)
 {
 	int ret;
 
-	ret = register_pernet_device(&rtnl_net_debug_net_ops);
+	ret = register_pernet_subsys(&rtnl_net_debug_net_ops);
 	if (ret)
 		return ret;
 

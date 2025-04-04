@@ -16,6 +16,9 @@ static void __setup_lo_intf(const char *lo_intf,
 
 	if (link_set_up(lo_intf))
 		test_error("Failed to bring %s up", lo_intf);
+
+	if (ip_route_add(lo_intf, TEST_FAMILY, local_addr, local_addr))
+		test_error("Failed to add a local route %s", lo_intf);
 }
 
 static void setup_lo_intf(const char *lo_intf)

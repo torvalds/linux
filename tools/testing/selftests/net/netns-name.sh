@@ -7,10 +7,12 @@ set -o pipefail
 DEV=dummy-dev0
 DEV2=dummy-dev1
 ALT_NAME=some-alt-name
+NSIM_ADDR=2025
 
 RET_CODE=0
 
 cleanup() {
+    cleanup_netdevsim $NSIM_ADDR
     cleanup_ns $NS $test_ns
 }
 
@@ -25,12 +27,15 @@ setup_ns NS test_ns
 
 #
 # Test basic move without a rename
+# Use netdevsim because it has extra asserts for notifiers.
 #
-ip -netns $NS link add name $DEV type dummy || fail
-ip -netns $NS link set dev $DEV netns $test_ns ||
+
+nsim=$(create_netdevsim $NSIM_ADDR $NS)
+ip -netns $NS link set dev $nsim netns $test_ns ||
     fail "Can't perform a netns move"
-ip -netns $test_ns link show dev $DEV >> /dev/null || fail "Device not found after move"
-ip -netns $test_ns link del $DEV || fail
+ip -netns $test_ns link show dev $nsim >> /dev/null ||
+    fail "Device not found after move"
+cleanup_netdevsim $NSIM_ADDR
 
 #
 # Test move with a conflict
