@@ -1292,6 +1292,8 @@ static void iavf_configure(struct iavf_adapter *adapter)
  **/
 static void iavf_up_complete(struct iavf_adapter *adapter)
 {
+	netdev_assert_locked(adapter->netdev);
+
 	iavf_change_state(adapter, __IAVF_RUNNING);
 	clear_bit(__IAVF_VSI_DOWN, adapter->vsi.state);
 
@@ -1416,6 +1418,8 @@ static void iavf_clear_adv_rss_conf(struct iavf_adapter *adapter)
 void iavf_down(struct iavf_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
+
+	netdev_assert_locked(netdev);
 
 	if (adapter->state <= __IAVF_DOWN_PENDING)
 		return;
@@ -3077,6 +3081,8 @@ static void iavf_disable_vf(struct iavf_adapter *adapter)
 	struct iavf_mac_filter *f, *ftmp;
 	struct iavf_vlan_filter *fv, *fvtmp;
 	struct iavf_cloud_filter *cf, *cftmp;
+
+	netdev_assert_locked(adapter->netdev);
 
 	adapter->flags |= IAVF_FLAG_PF_COMMS_FAILED;
 
@@ -5194,6 +5200,8 @@ iavf_shaper_set(struct net_shaper_binding *binding,
 	struct iavf_ring *tx_ring;
 	int ret = 0;
 
+	netdev_assert_locked(adapter->netdev);
+
 	mutex_lock(&adapter->crit_lock);
 	if (handle->id >= adapter->num_active_queues)
 		goto unlock;
@@ -5221,6 +5229,8 @@ static int iavf_shaper_del(struct net_shaper_binding *binding,
 {
 	struct iavf_adapter *adapter = netdev_priv(binding->netdev);
 	struct iavf_ring *tx_ring;
+
+	netdev_assert_locked(adapter->netdev);
 
 	mutex_lock(&adapter->crit_lock);
 	if (handle->id >= adapter->num_active_queues)
