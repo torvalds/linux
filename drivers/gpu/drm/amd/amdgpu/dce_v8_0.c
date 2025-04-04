@@ -271,7 +271,7 @@ static void dce_v8_0_hpd_int_ack(struct amdgpu_device *adev,
 	u32 tmp;
 
 	if (hpd >= adev->mode_info.num_hpd) {
-		DRM_DEBUG("invalid hdp %d\n", hpd);
+		DRM_DEBUG("invalid hpd %d\n", hpd);
 		return;
 	}
 
@@ -3029,7 +3029,7 @@ static int dce_v8_0_set_hpd_interrupt_state(struct amdgpu_device *adev,
 	u32 dc_hpd_int_cntl;
 
 	if (type >= adev->mode_info.num_hpd) {
-		DRM_DEBUG("invalid hdp %d\n", type);
+		DRM_DEBUG("invalid hpd %d\n", type);
 		return 0;
 	}
 

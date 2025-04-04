@@ -653,7 +653,7 @@ static bool construct_phy(struct dc_link *link,
 		}
 
 		/* Look for device tag that matches connector signal,
-		 * CRT for rgb, LCD for other supported signal tyes
+		 * CRT for rgb, LCD for other supported signal types
 		 */
 		if (!bp_funcs->is_device_id_supported(dc_ctx->dc_bios,
 						      link->device_tag.dev_id))

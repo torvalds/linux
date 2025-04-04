@@ -287,7 +287,7 @@ static void dce_v6_0_hpd_int_ack(struct amdgpu_device *adev,
 	u32 tmp;
 
 	if (hpd >= adev->mode_info.num_hpd) {
-		DRM_DEBUG("invalid hdp %d\n", hpd);
+		DRM_DEBUG("invalid hpd %d\n", hpd);
 		return;
 	}
 
@@ -3007,26 +3007,26 @@ static void dce_v6_0_set_crtc_vline_interrupt_state(struct amdgpu_device *adev,
 
 static int dce_v6_0_set_hpd_interrupt_state(struct amdgpu_device *adev,
 					    struct amdgpu_irq_src *src,
-					    unsigned type,
+					    unsigned hpd,
 					    enum amdgpu_interrupt_state state)
 {
 	u32 dc_hpd_int_cntl;
 
-	if (type >= adev->mode_info.num_hpd) {
-		DRM_DEBUG("invalid hdp %d\n", type);
+	if (hpd >= adev->mode_info.num_hpd) {
+		DRM_DEBUG("invalid hpd %d\n", hpd);
 		return 0;
 	}
 
 	switch (state) {
 	case AMDGPU_IRQ_STATE_DISABLE:
-		dc_hpd_int_cntl = RREG32(mmDC_HPD1_INT_CONTROL + hpd_offsets[type]);
+		dc_hpd_int_cntl = RREG32(mmDC_HPD1_INT_CONTROL + hpd_offsets[hpd]);
 		dc_hpd_int_cntl &= ~DC_HPD1_INT_CONTROL__DC_HPD1_INT_EN_MASK;
-		WREG32(mmDC_HPD1_INT_CONTROL + hpd_offsets[type], dc_hpd_int_cntl);
+		WREG32(mmDC_HPD1_INT_CONTROL + hpd_offsets[hpd], dc_hpd_int_cntl);
 		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
-		dc_hpd_int_cntl = RREG32(mmDC_HPD1_INT_CONTROL + hpd_offsets[type]);
+		dc_hpd_int_cntl = RREG32(mmDC_HPD1_INT_CONTROL + hpd_offsets[hpd]);
 		dc_hpd_int_cntl |= DC_HPD1_INT_CONTROL__DC_HPD1_INT_EN_MASK;
-		WREG32(mmDC_HPD1_INT_CONTROL + hpd_offsets[type], dc_hpd_int_cntl);
+		WREG32(mmDC_HPD1_INT_CONTROL + hpd_offsets[hpd], dc_hpd_int_cntl);
 		break;
 	default:
 		break;
