@@ -2221,25 +2221,28 @@ static void pwm_dbg_show(struct pwm_chip *chip, struct seq_file *s)
 
 	for (i = 0; i < chip->npwm; i++) {
 		struct pwm_device *pwm = &chip->pwms[i];
-		struct pwm_state state;
+		struct pwm_state state, hwstate;
 
 		pwm_get_state(pwm, &state);
+		pwm_get_state_hw(pwm, &hwstate);
 
 		seq_printf(s, " pwm-%-3d (%-20.20s):", i, pwm->label);
 
 		if (test_bit(PWMF_REQUESTED, &pwm->flags))
 			seq_puts(s, " requested");
 
-		if (state.enabled)
-			seq_puts(s, " enabled");
+		seq_puts(s, "\n");
 
-		seq_printf(s, " period: %llu ns", state.period);
-		seq_printf(s, " duty: %llu ns", state.duty_cycle);
-		seq_printf(s, " polarity: %s",
+		seq_printf(s, "  requested configuration: %3sabled, %llu/%llu ns, %s polarity",
+			   state.enabled ? "en" : "dis", state.duty_cycle, state.period,
 			   state.polarity ? "inverse" : "normal");
-
 		if (state.usage_power)
-			seq_puts(s, " usage_power");
+			seq_puts(s, ", usage_power");
+		seq_puts(s, "\n");
+
+		seq_printf(s, "  actual configuration:    %3sabled, %llu/%llu ns, %s polarity",
+			   hwstate.enabled ? "en" : "dis", hwstate.duty_cycle, hwstate.period,
+			   hwstate.polarity ? "inverse" : "normal");
 
 		seq_puts(s, "\n");
 	}
