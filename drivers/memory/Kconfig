@@ -32,7 +32,7 @@ config ARM_PL172_MPMC
 
 config ATMEL_EBI
 	bool "Atmel EBI driver"
-	default y if ARCH_AT91
+	default ARCH_AT91
 	depends on ARCH_AT91 || COMPILE_TEST
 	depends on OF
 	select MFD_SYSCON
@@ -147,7 +147,7 @@ config FPGA_DFL_EMIF
 
 config MVEBU_DEVBUS
 	bool "Marvell EBU Device Bus Controller"
-	default y if PLAT_ORION
+	default PLAT_ORION
 	depends on PLAT_ORION || COMPILE_TEST
 	depends on OF
 	help
@@ -198,7 +198,7 @@ config DA8XX_DDRCTL
 
 config PL353_SMC
 	tristate "ARM PL35X Static Memory Controller(SMC) driver"
-	default y if ARM
+	default ARM
 	depends on ARM || COMPILE_TEST
 	depends on ARM_AMBA
 	help
