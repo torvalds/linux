@@ -55,15 +55,16 @@ static inline size_t buf_pages(void *p, size_t len)
 			    PAGE_SIZE);
 }
 
-static inline void *bch2_kvmalloc(size_t n, gfp_t flags)
+static inline void *bch2_kvmalloc_noprof(size_t n, gfp_t flags)
 {
 	void *p = unlikely(n >= INT_MAX)
-		? vmalloc(n)
-		: kvmalloc(n, flags & ~__GFP_ZERO);
+		? vmalloc_noprof(n)
+		: kvmalloc_noprof(n, flags & ~__GFP_ZERO);
 	if (p && (flags & __GFP_ZERO))
 		memset(p, 0, n);
 	return p;
 }
+#define bch2_kvmalloc(...)			alloc_hooks(bch2_kvmalloc_noprof(__VA_ARGS__))
 
 #define init_heap(heap, _size, gfp)					\
 ({									\
