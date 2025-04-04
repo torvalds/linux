@@ -1,0 +1,13 @@
+[package]
+name = "bindings"
+version = "100.0.0"
+edition = "2021"
+
+[lib]
+path = "/home/julian/c/linux/rust/bindings/lib.rs"
+
+[lints.rust]
+unexpected_cfgs = "allow"
+
+[dependencies.ffi]
+path = "../ffi"

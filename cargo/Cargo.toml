@@ -1,0 +1,25 @@
+[workspace]
+resolver = "3"
+members = [
+    "ffi",
+    "compiler_builtins",
+    "macros",
+    "build_error",
+    "pin_init_internal",
+    "pin_init",
+    "bindings",
+    "uapi",
+    "kernel",
+    "rust_minimal",
+    "rust_driver_platform",
+    "rust_driver_pci",
+    "rust_print_main",
+    "rust_misc_device",
+    "rust_driver_faux",
+    "rust_dma",
+    "rnull",
+    "nova_core",
+    "drm_panic_qr",
+    "ax88796b_rust",
+    "qt2025",
+]

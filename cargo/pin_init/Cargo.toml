@@ -1,0 +1,16 @@
+[package]
+name = "pin_init"
+version = "100.0.0"
+edition = "2021"
+
+[lib]
+path = "/home/julian/c/linux/rust/pin-init/src/lib.rs"
+
+[lints.rust]
+unexpected_cfgs = "allow"
+
+[dependencies.macros]
+path = "../macros"
+
+[dependencies.pin_init_internal]
+path = "../pin_init_internal"

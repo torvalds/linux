@@ -1,0 +1,11 @@
+[package]
+name = "macros"
+version = "100.0.0"
+edition = "2021"
+
+[lib]
+proc-macro = true
+path = "/home/julian/c/linux/rust/macros/lib.rs"
+
+[lints.rust]
+unexpected_cfgs = "allow"

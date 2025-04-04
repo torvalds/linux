@@ -1,0 +1,37 @@
+[package]
+name = "qt2025"
+version = "100.0.0"
+edition = "2021"
+
+[lib]
+path = "/home/julian/c/linux/drivers/net/phy/qt2025.rs"
+
+[lints.rust]
+unexpected_cfgs = "allow"
+
+[dependencies.bindings]
+path = "../bindings"
+
+[dependencies.build_error]
+path = "../build_error"
+
+[dependencies.compiler_builtins]
+path = "../compiler_builtins"
+
+[dependencies.ffi]
+path = "../ffi"
+
+[dependencies.kernel]
+path = "../kernel"
+
+[dependencies.macros]
+path = "../macros"
+
+[dependencies.pin_init]
+path = "../pin_init"
+
+[dependencies.pin_init_internal]
+path = "../pin_init_internal"
+
+[dependencies.uapi]
+path = "../uapi"

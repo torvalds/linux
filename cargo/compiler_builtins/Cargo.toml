@@ -1,0 +1,10 @@
+[package]
+name = "compiler_builtins"
+version = "100.0.0"
+edition = "2021"
+
+[lib]
+path = "/home/julian/c/linux/rust/compiler_builtins.rs"
+
+[lints.rust]
+unexpected_cfgs = "allow"
