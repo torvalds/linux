@@ -1001,7 +1001,7 @@ config STM32_WATCHDOG
 	tristate "STM32 Independent WatchDoG (IWDG) support"
 	depends on ARCH_STM32 || COMPILE_TEST
 	select WATCHDOG_CORE
-	default y
+	default ARCH_STM32
 	help
 	  Say Y here to include support for the watchdog timer
 	  in stm32 SoCs.
@@ -1869,7 +1869,7 @@ config OCTEON_WDT
 config MARVELL_GTI_WDT
 	tristate "Marvell GTI Watchdog driver"
 	depends on ARCH_THUNDER || (COMPILE_TEST && 64BIT)
-	default y
+	default ARCH_THUNDER
 	select WATCHDOG_CORE
 	help
 	  Marvell GTI hardware supports watchdog timer. First timeout
@@ -2035,7 +2035,7 @@ config 8xxx_WDT
 config PIKA_WDT
 	tristate "PIKA FPGA Watchdog"
 	depends on WARP || (PPC64 && COMPILE_TEST)
-	default y
+	default WARP
 	help
 	  This enables the watchdog in the PIKA FPGA. Currently used on
 	  the Warp platform.
