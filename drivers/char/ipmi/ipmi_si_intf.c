@@ -2095,9 +2095,18 @@ static int try_smi_init(struct smi_info *new_smi)
 	return rv;
 }
 
+/*
+ * Devices in the same address space at the same address are the same.
+ */
+static bool __init ipmi_smi_info_same(struct smi_info *e1, struct smi_info *e2)
+{
+	return (e1->io.addr_space == e2->io.addr_space &&
+		e1->io.addr_data == e2->io.addr_data);
+}
+
 static int __init init_ipmi_si(void)
 {
-	struct smi_info *e;
+	struct smi_info *e, *e2;
 	enum ipmi_addr_src type = SI_INVALID;
 
 	if (initialized)
@@ -2113,37 +2122,70 @@ static int __init init_ipmi_si(void)
 
 	ipmi_si_parisc_init();
 
-	/* We prefer devices with interrupts, but in the case of a machine
-	   with multiple BMCs we assume that there will be several instances
-	   of a given type so if we succeed in registering a type then also
-	   try to register everything else of the same type */
 	mutex_lock(&smi_infos_lock);
+
+	/*
+	 * Scan through all the devices.  We prefer devices with
+	 * interrupts, so go through those first in case there are any
+	 * duplicates that don't have the interrupt set.
+	 */
 	list_for_each_entry(e, &smi_infos, link) {
-		/* Try to register a device if it has an IRQ and we either
-		   haven't successfully registered a device yet or this
-		   device has the same type as one we successfully registered */
-		if (e->io.irq && (!type || e->io.addr_source == type)) {
-			if (!try_smi_init(e)) {
-				type = e->io.addr_source;
+		bool dup = false;
+
+		/* Register ones with interrupts first. */
+		if (!e->io.irq)
+			continue;
+
+		/*
+		 * Go through the ones we have already seen to see if this
+		 * is a dup.
+		 */
+		list_for_each_entry(e2, &smi_infos, link) {
+			if (e2 == e)
+				break;
+			if (e2->io.irq && ipmi_smi_info_same(e, e2)) {
+				dup = true;
+				break;
 			}
 		}
+		if (!dup)
+			try_smi_init(e);
 	}
 
-	/* type will only have been set if we successfully registered an si */
-	if (type)
-		goto skip_fallback_noirq;
-
-	/* Fall back to the preferred device */
-
+	/*
+	 * Now try devices without interrupts.
+	 */
 	list_for_each_entry(e, &smi_infos, link) {
-		if (!e->io.irq && (!type || e->io.addr_source == type)) {
-			if (!try_smi_init(e)) {
-				type = e->io.addr_source;
+		bool dup = false;
+
+		if (e->io.irq)
+			continue;
+
+		/*
+		 * Go through the ones we have already seen to see if
+		 * this is a dup.  We have already looked at the ones
+		 * with interrupts.
+		 */
+		list_for_each_entry(e2, &smi_infos, link) {
+			if (!e2->io.irq)
+				continue;
+			if (ipmi_smi_info_same(e, e2)) {
+				dup = true;
+				break;
 			}
 		}
+		list_for_each_entry(e2, &smi_infos, link) {
+			if (e2 == e)
+				break;
+			if (ipmi_smi_info_same(e, e2)) {
+				dup = true;
+				break;
+			}
+		}
+		if (!dup)
+			try_smi_init(e);
 	}
 
-skip_fallback_noirq:
 	initialized = true;
 	mutex_unlock(&smi_infos_lock);
 
