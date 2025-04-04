@@ -347,6 +347,11 @@ static inline bool css_is_dying(struct cgroup_subsys_state *css)
 	return css->flags & CSS_DYING;
 }
 
+static inline bool css_is_cgroup(struct cgroup_subsys_state *css)
+{
+	return css->ss == NULL;
+}
+
 static inline void cgroup_get(struct cgroup *cgrp)
 {
 	css_get(&cgrp->self);
