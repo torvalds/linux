@@ -28,9 +28,7 @@
 #include <asm/simd.h>
 
 static const struct x86_cpu_id module_cpu_ids[] = {
-#ifdef CONFIG_AS_SHA1_NI
 	X86_MATCH_FEATURE(X86_FEATURE_SHA_NI, NULL),
-#endif
 	X86_MATCH_FEATURE(X86_FEATURE_AVX2, NULL),
 	X86_MATCH_FEATURE(X86_FEATURE_AVX, NULL),
 	X86_MATCH_FEATURE(X86_FEATURE_SSSE3, NULL),
@@ -256,7 +254,6 @@ static void unregister_sha1_avx2(void)
 		crypto_unregister_shash(&sha1_avx2_alg);
 }
 
-#ifdef CONFIG_AS_SHA1_NI
 asmlinkage void sha1_ni_transform(struct sha1_state *digest, const u8 *data,
 				  int rounds);
 
@@ -305,11 +302,6 @@ static void unregister_sha1_ni(void)
 	if (boot_cpu_has(X86_FEATURE_SHA_NI))
 		crypto_unregister_shash(&sha1_ni_alg);
 }
-
-#else
-static inline int register_sha1_ni(void) { return 0; }
-static inline void unregister_sha1_ni(void) { }
-#endif
 
 static int __init sha1_ssse3_mod_init(void)
 {
@@ -360,6 +352,4 @@ MODULE_ALIAS_CRYPTO("sha1");
 MODULE_ALIAS_CRYPTO("sha1-ssse3");
 MODULE_ALIAS_CRYPTO("sha1-avx");
 MODULE_ALIAS_CRYPTO("sha1-avx2");
-#ifdef CONFIG_AS_SHA1_NI
 MODULE_ALIAS_CRYPTO("sha1-ni");
-#endif
