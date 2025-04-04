@@ -2934,6 +2934,7 @@ static void iavf_watchdog_task(struct work_struct *work)
 			return;
 		}
 
+		msec_delay = 20;
 		goto restart_watchdog;
 	}
 
@@ -3053,10 +3054,13 @@ static void iavf_watchdog_task(struct work_struct *work)
 		adapter->current_op = VIRTCHNL_OP_UNKNOWN;
 		dev_err(&adapter->pdev->dev, "Hardware reset detected\n");
 		iavf_schedule_reset(adapter, IAVF_FLAG_RESET_PENDING);
-		msec_delay = 2000;
-		goto watchdog_done;
 	}
+	if (adapter->aq_required)
+		msec_delay = 20;
+	else
+		msec_delay = 2000;
 
+watchdog_done:
 	mutex_unlock(&adapter->crit_lock);
 restart_watchdog:
 	netdev_unlock(netdev);
@@ -3064,15 +3068,6 @@ restart_watchdog:
 	/* note that we schedule a different task */
 	if (adapter->state >= __IAVF_DOWN)
 		queue_work(adapter->wq, &adapter->adminq_task);
-	if (adapter->aq_required)
-		msec_delay = 20;
-	else
-		msec_delay = 2000;
-	goto skip_unlock;
-watchdog_done:
-	mutex_unlock(&adapter->crit_lock);
-	netdev_unlock(netdev);
-skip_unlock:
 
 	if (msec_delay != IAVF_NO_RESCHED)
 		queue_delayed_work(adapter->wq, &adapter->watchdog_task,
