@@ -87,7 +87,6 @@ FEATURE_TESTS_BASIC :=                  \
         libtracefs                      \
         libcpupower                     \
         libcrypto                       \
-        libunwind                       \
         pthread-attr-setaffinity-np     \
         pthread-barrier     		\
         reallocarray                    \
