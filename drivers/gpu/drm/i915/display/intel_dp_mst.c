@@ -105,6 +105,29 @@ static struct intel_dp *to_primary_dp(struct intel_encoder *encoder)
 	return &dig_port->dp;
 }
 
+static bool intel_dp_mst_dec_active_streams(struct intel_dp *intel_dp)
+{
+	struct intel_display *display = to_intel_display(intel_dp);
+
+	drm_dbg_kms(display->drm, "active MST streams %d -> %d\n",
+		    intel_dp->mst.active_links, intel_dp->mst.active_links - 1);
+
+	if (drm_WARN_ON(display->drm, intel_dp->mst.active_links == 0))
+		return true;
+
+	return --intel_dp->mst.active_links == 0;
+}
+
+static bool intel_dp_mst_inc_active_streams(struct intel_dp *intel_dp)
+{
+	struct intel_display *display = to_intel_display(intel_dp);
+
+	drm_dbg_kms(display->drm, "active MST streams %d -> %d\n",
+		    intel_dp->mst.active_links, intel_dp->mst.active_links + 1);
+
+	return intel_dp->mst.active_links++ == 0;
+}
+
 static int intel_dp_mst_max_dpt_bpp(const struct intel_crtc_state *crtc_state,
 				    bool dsc)
 {
@@ -1000,9 +1023,6 @@ static void mst_stream_disable(struct intel_atomic_state *state,
 		to_intel_connector(old_conn_state->connector);
 	enum transcoder trans = old_crtc_state->cpu_transcoder;
 
-	drm_dbg_kms(display->drm, "active links %d\n",
-		    intel_dp->mst.active_links);
-
 	if (intel_dp->mst.active_links == 1)
 		intel_dp->link.active = false;
 
@@ -1037,8 +1057,8 @@ static void mst_stream_post_disable(struct intel_atomic_state *state,
 	bool last_mst_stream;
 	int i;
 
-	intel_dp->mst.active_links--;
-	last_mst_stream = intel_dp->mst.active_links == 0;
+	last_mst_stream = intel_dp_mst_dec_active_streams(intel_dp);
+
 	drm_WARN_ON(display->drm, DISPLAY_VER(display) >= 12 && last_mst_stream &&
 		    !intel_dp_mst_is_master_trans(old_crtc_state));
 
@@ -1109,8 +1129,6 @@ static void mst_stream_post_disable(struct intel_atomic_state *state,
 		primary_encoder->post_disable(state, primary_encoder,
 					      old_crtc_state, NULL);
 
-	drm_dbg_kms(display->drm, "active links %d\n",
-		    intel_dp->mst.active_links);
 }
 
 static void mst_stream_post_pll_disable(struct intel_atomic_state *state,
@@ -1194,12 +1212,10 @@ static void mst_stream_pre_enable(struct intel_atomic_state *state,
 	 */
 	connector->encoder = encoder;
 	intel_mst->connector = connector;
-	first_mst_stream = intel_dp->mst.active_links == 0;
+
+	first_mst_stream = intel_dp_mst_inc_active_streams(intel_dp);
 	drm_WARN_ON(display->drm, DISPLAY_VER(display) >= 12 && first_mst_stream &&
 		    !intel_dp_mst_is_master_trans(pipe_config));
-
-	drm_dbg_kms(display->drm, "active links %d\n",
-		    intel_dp->mst.active_links);
 
 	if (first_mst_stream)
 		intel_dp_set_power(intel_dp, DP_SET_POWER_D0);
@@ -1214,8 +1230,6 @@ static void mst_stream_pre_enable(struct intel_atomic_state *state,
 
 		intel_mst_reprobe_topology(intel_dp, pipe_config);
 	}
-
-	intel_dp->mst.active_links++;
 
 	ret = drm_dp_add_payload_part1(&intel_dp->mst.mgr, mst_state,
 				       drm_atomic_get_mst_payload_state(mst_state, connector->mst.port));
@@ -1334,9 +1348,6 @@ static void mst_stream_enable(struct intel_atomic_state *state,
 
 	intel_de_rmw(display, TRANS_DDI_FUNC_CTL(display, trans), 0,
 		     TRANS_DDI_DP_VC_PAYLOAD_ALLOC);
-
-	drm_dbg_kms(display->drm, "active links %d\n",
-		    intel_dp->mst.active_links);
 
 	intel_ddi_wait_for_act_sent(encoder, pipe_config);
 	drm_dp_check_act_status(&intel_dp->mst.mgr);
