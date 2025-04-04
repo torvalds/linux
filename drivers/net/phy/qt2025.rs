@@ -9,6 +9,8 @@
 //!
 //! The QT2025 PHY integrates an Intel 8051 micro-controller.
 
+#![no_std]
+
 use kernel::c_str;
 use kernel::error::code;
 use kernel::firmware::Firmware;

@@ -2,6 +2,8 @@
 
 //! Rust minimal sample.
 
+#![no_std]
+
 use kernel::prelude::*;
 
 module! {

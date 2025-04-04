@@ -79,6 +79,12 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs):
     append_sysroot_crate("proc_macro", ["core", "std"])
 
     append_crate(
+        "ffi",
+        srctree / "rust" / "ffi.rs",
+        [],
+    )
+
+    append_crate(
         "compiler_builtins",
         srctree / "rust" / "compiler_builtins.rs",
         [],
@@ -131,8 +137,8 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs):
             "exclude_dirs": [],
         }
 
-    append_crate_with_generated("bindings", ["core"])
-    append_crate_with_generated("uapi", ["core"])
+    append_crate_with_generated("bindings", ["core", "ffi"])
+    append_crate_with_generated("uapi", ["core", "ffi"])
     append_crate_with_generated("kernel", ["core", "macros", "build_error", "pin_init", "bindings", "uapi"])
 
     def is_root_crate(build_file, target):

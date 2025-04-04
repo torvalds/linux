@@ -95,6 +95,8 @@
 //! }
 //! ```
 
+#![no_std]
+
 use core::pin::Pin;
 
 use kernel::{

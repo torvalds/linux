@@ -2,6 +2,8 @@
 
 //! Nova Core GPU Driver
 
+#![no_std]
+
 mod driver;
 mod firmware;
 mod gpu;

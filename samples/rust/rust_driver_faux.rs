@@ -2,6 +2,8 @@
 
 //! Rust faux device sample.
 
+#![no_std]
+
 use kernel::{c_str, faux, prelude::*, Module};
 
 module! {

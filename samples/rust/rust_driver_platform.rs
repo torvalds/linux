@@ -2,6 +2,8 @@
 
 //! Rust Platform driver sample.
 
+#![no_std]
+
 use kernel::{c_str, device::Core, of, platform, prelude::*, types::ARef};
 
 struct SampleDriver {

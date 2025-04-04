@@ -4,6 +4,8 @@
 //!
 //! To make this driver probe, QEMU must be run with `-device pci-testdev`.
 
+#![no_std]
+
 use kernel::{bindings, device::Core, dma::CoherentAllocation, pci, prelude::*, types::ARef};
 
 struct DmaSampleDriver {

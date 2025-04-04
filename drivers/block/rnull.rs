@@ -10,6 +10,8 @@
 //!
 //! The driver is not configurable.
 
+#![no_std]
+
 use kernel::{
     alloc::flags,
     block::mq::{
