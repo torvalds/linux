@@ -41,8 +41,7 @@ void blake2s_compress(struct blake2s_state *state, const u8 *block,
 					    SZ_4K / BLAKE2S_BLOCK_SIZE);
 
 		kernel_fpu_begin();
-		if (IS_ENABLED(CONFIG_AS_AVX512) &&
-		    static_branch_likely(&blake2s_use_avx512))
+		if (static_branch_likely(&blake2s_use_avx512))
 			blake2s_compress_avx512(state, block, blocks, inc);
 		else
 			blake2s_compress_ssse3(state, block, blocks, inc);
@@ -59,8 +58,7 @@ static int __init blake2s_mod_init(void)
 	if (boot_cpu_has(X86_FEATURE_SSSE3))
 		static_branch_enable(&blake2s_use_ssse3);
 
-	if (IS_ENABLED(CONFIG_AS_AVX512) &&
-	    boot_cpu_has(X86_FEATURE_AVX) &&
+	if (boot_cpu_has(X86_FEATURE_AVX) &&
 	    boot_cpu_has(X86_FEATURE_AVX2) &&
 	    boot_cpu_has(X86_FEATURE_AVX512F) &&
 	    boot_cpu_has(X86_FEATURE_AVX512VL) &&

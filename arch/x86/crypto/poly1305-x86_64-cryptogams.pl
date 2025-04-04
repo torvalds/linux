@@ -2811,17 +2811,9 @@ if ($avx>2) {
 # reason stack layout is kept identical to poly1305_blocks_avx2. If not
 # for this tail, we wouldn't have to even allocate stack frame...
 
-if($kernel) {
-	$code .= "#ifdef CONFIG_AS_AVX512\n";
-}
-
 &declare_function("poly1305_blocks_avx512", 32, 4);
 poly1305_blocks_avxN(1);
 &end_function("poly1305_blocks_avx512");
-
-if ($kernel) {
-	$code .= "#endif\n";
-}
 
 if (!$kernel && $avx>3) {
 ########################################################################

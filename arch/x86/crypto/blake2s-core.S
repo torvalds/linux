@@ -29,7 +29,6 @@ SIGMA:
 .byte 13,  7, 12,  3, 11, 14,  1,  9,  2,  5, 15,  8, 10,  0,  4,  6
 .byte  6, 14, 11,  0, 15,  9,  3,  8, 10, 12, 13,  1,  5,  2,  7,  4
 .byte 10,  8,  7,  1,  2,  4,  6,  5, 13, 15,  9,  3,  0, 11, 14, 12
-#ifdef CONFIG_AS_AVX512
 .section .rodata.cst64.BLAKE2S_SIGMA2, "aM", @progbits, 640
 .align 64
 SIGMA2:
@@ -43,7 +42,6 @@ SIGMA2:
 .long  6, 13,  0, 14, 12,  2,  1, 11, 15,  4,  5,  8,  7,  9,  3, 10
 .long 15,  5,  4, 13, 10,  7,  3, 11, 12,  2,  0,  6,  9,  8,  1, 14
 .long  8,  7, 14, 11, 13, 15,  0, 12, 10,  4,  5,  6,  3,  2,  1,  9
-#endif /* CONFIG_AS_AVX512 */
 
 .text
 SYM_FUNC_START(blake2s_compress_ssse3)
@@ -174,7 +172,6 @@ SYM_FUNC_START(blake2s_compress_ssse3)
 	RET
 SYM_FUNC_END(blake2s_compress_ssse3)
 
-#ifdef CONFIG_AS_AVX512
 SYM_FUNC_START(blake2s_compress_avx512)
 	vmovdqu		(%rdi),%xmm0
 	vmovdqu		0x10(%rdi),%xmm1
@@ -253,4 +250,3 @@ SYM_FUNC_START(blake2s_compress_avx512)
 	vzeroupper
 	RET
 SYM_FUNC_END(blake2s_compress_avx512)
-#endif /* CONFIG_AS_AVX512 */
