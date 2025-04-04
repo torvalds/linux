@@ -448,6 +448,7 @@ static int avs_register_i2s_board(struct avs_dev *adev, struct snd_soc_acpi_mach
 	int num_ssps;
 	char *name;
 	int ret;
+	int uid;
 
 	num_ssps = adev->hw_cfg.i2s_caps.ctrl_count;
 	if (fls(mach->mach_params.i2s_link_mask) > num_ssps) {
@@ -457,8 +458,11 @@ static int avs_register_i2s_board(struct avs_dev *adev, struct snd_soc_acpi_mach
 		return -ENODEV;
 	}
 
-	name = devm_kasprintf(adev->dev, GFP_KERNEL, "%s.%d-platform", mach->drv_name,
-			      mach->mach_params.i2s_link_mask);
+	uid = mach->mach_params.i2s_link_mask;
+	if (avs_mach_singular_ssp(mach))
+		uid = (uid << AVS_CHANNELS_MAX) + avs_mach_ssp_tdm(mach, avs_mach_ssp_port(mach));
+
+	name = devm_kasprintf(adev->dev, GFP_KERNEL, "%s.%d-platform", mach->drv_name, uid);
 	if (!name)
 		return -ENOMEM;
 
@@ -468,7 +472,7 @@ static int avs_register_i2s_board(struct avs_dev *adev, struct snd_soc_acpi_mach
 
 	mach->mach_params.platform = name;
 
-	board = platform_device_register_data(NULL, mach->drv_name, mach->mach_params.i2s_link_mask,
+	board = platform_device_register_data(NULL, mach->drv_name, uid,
 					      (const void *)mach, sizeof(*mach));
 	if (IS_ERR(board)) {
 		dev_err(adev->dev, "ssp board register failed\n");
