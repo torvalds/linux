@@ -536,7 +536,7 @@ struct cgroup {
 	/*
 	 * A singly-linked list of cgroup structures to be rstat flushed.
 	 * This is a scratch field to be used exclusively by
-	 * cgroup_rstat_flush_locked() and protected by cgroup_rstat_lock.
+	 * css_rstat_flush_locked() and protected by cgroup_rstat_lock.
 	 */
 	struct cgroup	*rstat_flush_next;
 
