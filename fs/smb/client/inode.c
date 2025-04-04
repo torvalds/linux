@@ -2901,23 +2901,6 @@ int cifs_fiemap(struct inode *inode, struct fiemap_extent_info *fei, u64 start,
 	return -EOPNOTSUPP;
 }
 
-int cifs_truncate_page(struct address_space *mapping, loff_t from)
-{
-	pgoff_t index = from >> PAGE_SHIFT;
-	unsigned offset = from & (PAGE_SIZE - 1);
-	struct page *page;
-	int rc = 0;
-
-	page = grab_cache_page(mapping, index);
-	if (!page)
-		return -ENOMEM;
-
-	zero_user_segment(page, offset, PAGE_SIZE);
-	unlock_page(page);
-	put_page(page);
-	return rc;
-}
-
 void cifs_setsize(struct inode *inode, loff_t offset)
 {
 	struct cifsInodeInfo *cifs_i = CIFS_I(inode);
@@ -3012,8 +2995,6 @@ set_size_out:
 		 */
 		attrs->ia_ctime = attrs->ia_mtime = current_time(inode);
 		attrs->ia_valid |= ATTR_CTIME | ATTR_MTIME;
-
-		cifs_truncate_page(inode->i_mapping, inode->i_size);
 	}
 
 	return rc;

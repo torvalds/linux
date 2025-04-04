@@ -894,6 +894,9 @@ cifs_sync_mid_result(struct mid_q_entry *mid, struct TCP_Server_Info *server)
 	case MID_SHUTDOWN:
 		rc = -EHOSTDOWN;
 		break;
+	case MID_RC:
+		rc = mid->mid_rc;
+		break;
 	default:
 		if (!(mid->mid_flags & MID_DELETED)) {
 			list_del_init(&mid->qhead);

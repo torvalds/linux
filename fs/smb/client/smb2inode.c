@@ -176,6 +176,7 @@ static int smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 			    struct kvec *out_iov, int *out_buftype, struct dentry *dentry)
 {
 
+	struct smb2_create_rsp *create_rsp = NULL;
 	struct smb2_query_info_rsp *qi_rsp = NULL;
 	struct smb2_compound_vars *vars = NULL;
 	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
@@ -265,7 +266,13 @@ replay_again:
 	num_rqst++;
 	rc = 0;
 
-	for (i = 0; i < num_cmds; i++) {
+	i = 0;
+
+	/* Skip the leading explicit OPEN operation */
+	if (num_cmds > 0 && cmds[0] == SMB2_OP_OPEN_QUERY)
+		i++;
+
+	for (; i < num_cmds; i++) {
 		/* Operation */
 		switch (cmds[i]) {
 		case SMB2_OP_QUERY_INFO:
@@ -640,6 +647,27 @@ finished:
 	}
 
 	tmp_rc = rc;
+
+	if (rc == 0 && num_cmds > 0 && cmds[0] == SMB2_OP_OPEN_QUERY) {
+		create_rsp = rsp_iov[0].iov_base;
+		idata = in_iov[0].iov_base;
+		idata->fi.CreationTime = create_rsp->CreationTime;
+		idata->fi.LastAccessTime = create_rsp->LastAccessTime;
+		idata->fi.LastWriteTime = create_rsp->LastWriteTime;
+		idata->fi.ChangeTime = create_rsp->ChangeTime;
+		idata->fi.Attributes = create_rsp->FileAttributes;
+		idata->fi.AllocationSize = create_rsp->AllocationSize;
+		idata->fi.EndOfFile = create_rsp->EndofFile;
+		if (le32_to_cpu(idata->fi.NumberOfLinks) == 0)
+			idata->fi.NumberOfLinks = cpu_to_le32(1); /* dummy value */
+		idata->fi.DeletePending = 0;
+		idata->fi.Directory = !!(le32_to_cpu(create_rsp->FileAttributes) & ATTR_DIRECTORY);
+
+		/* smb2_parse_contexts() fills idata->fi.IndexNumber */
+		rc = smb2_parse_contexts(server, &rsp_iov[0], &oparms->fid->epoch,
+					 oparms->fid->lease_key, &oplock, &idata->fi, NULL);
+	}
+
 	for (i = 0; i < num_cmds; i++) {
 		char *buf = rsp_iov[i + i].iov_base;
 
@@ -977,6 +1005,43 @@ int smb2_query_path_info(const unsigned int xid,
 	switch (rc) {
 	case 0:
 		rc = parse_create_response(data, cifs_sb, full_path, &out_iov[0]);
+		break;
+	case -EACCES:
+		/*
+		 * If SMB2_OP_QUERY_INFO (called when POSIX extensions are not used) failed with
+		 * STATUS_ACCESS_DENIED then it means that caller does not have permission to
+		 * open the path with FILE_READ_ATTRIBUTES access and therefore cannot issue
+		 * SMB2_OP_QUERY_INFO command.
+		 *
+		 * There is an alternative way how to query limited information about path but still
+		 * suitable for stat() syscall. SMB2 OPEN/CREATE operation returns in its successful
+		 * response subset of query information.
+		 *
+		 * So try to open the path without FILE_READ_ATTRIBUTES but with MAXIMUM_ALLOWED
+		 * access which will grant the maximum possible access to the file and the response
+		 * will contain required query information for stat() syscall.
+		 */
+
+		if (tcon->posix_extensions)
+			break;
+
+		num_cmds = 1;
+		cmds[0] = SMB2_OP_OPEN_QUERY;
+		in_iov[0].iov_base = data;
+		in_iov[0].iov_len = sizeof(*data);
+		oparms = CIFS_OPARMS(cifs_sb, tcon, full_path, MAXIMUM_ALLOWED,
+				     FILE_OPEN, create_options, ACL_NO_MODE);
+		free_rsp_iov(out_iov, out_buftype, ARRAY_SIZE(out_iov));
+		rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
+				      &oparms, in_iov, cmds, num_cmds,
+				      cfile, out_iov, out_buftype, NULL);
+
+		hdr = out_iov[0].iov_base;
+		if (!hdr || out_buftype[0] == CIFS_NO_BUFFER)
+			goto out;
+
+		if (!rc)
+			rc = parse_create_response(data, cifs_sb, full_path, &out_iov[0]);
 		break;
 	case -EOPNOTSUPP:
 		/*
