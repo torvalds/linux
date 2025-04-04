@@ -452,7 +452,7 @@ static int avs_updown_mix_create(struct avs_dev *adev, struct avs_path_module *m
 	cfg.base.audio_fmt = *t->in_fmt;
 	cfg.out_channel_config = t->cfg_ext->updown_mix.out_channel_config;
 	cfg.coefficients_select = t->cfg_ext->updown_mix.coefficients_select;
-	for (i = 0; i < AVS_CHANNELS_MAX; i++)
+	for (i = 0; i < AVS_COEFF_CHANNELS_MAX; i++)
 		cfg.coefficients[i] = t->cfg_ext->updown_mix.coefficients[i];
 	cfg.channel_map = t->cfg_ext->updown_mix.channel_map;
 
