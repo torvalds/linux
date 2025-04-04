@@ -102,7 +102,7 @@ struct btrfs_device *btrfs_alloc_dummy_device(struct btrfs_fs_info *fs_info)
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
-	extent_io_tree_init(fs_info, &dev->alloc_state, 0);
+	btrfs_extent_io_tree_init(fs_info, &dev->alloc_state, 0);
 	INIT_LIST_HEAD(&dev->dev_list);
 	list_add(&dev->dev_list, &fs_info->fs_devices->devices);
 
@@ -111,7 +111,7 @@ struct btrfs_device *btrfs_alloc_dummy_device(struct btrfs_fs_info *fs_info)
 
 static void btrfs_free_dummy_device(struct btrfs_device *dev)
 {
-	extent_io_tree_release(&dev->alloc_state);
+	btrfs_extent_io_tree_release(&dev->alloc_state);
 	kfree(dev);
 }
 

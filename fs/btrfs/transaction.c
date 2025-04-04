@@ -197,7 +197,7 @@ static noinline void switch_commit_roots(struct btrfs_trans_handle *trans)
 		list_del_init(&root->dirty_list);
 		free_extent_buffer(root->commit_root);
 		root->commit_root = btrfs_root_node(root);
-		extent_io_tree_release(&root->dirty_log_pages);
+		btrfs_extent_io_tree_release(&root->dirty_log_pages);
 		btrfs_qgroup_clean_swapped_blocks(root);
 	}
 
@@ -383,10 +383,10 @@ loop:
 	INIT_LIST_HEAD(&cur_trans->deleted_bgs);
 	spin_lock_init(&cur_trans->dropped_roots_lock);
 	list_add_tail(&cur_trans->list, &fs_info->trans_list);
-	extent_io_tree_init(fs_info, &cur_trans->dirty_pages,
-			IO_TREE_TRANS_DIRTY_PAGES);
-	extent_io_tree_init(fs_info, &cur_trans->pinned_extents,
-			IO_TREE_FS_PINNED_EXTENTS);
+	btrfs_extent_io_tree_init(fs_info, &cur_trans->dirty_pages,
+				  IO_TREE_TRANS_DIRTY_PAGES);
+	btrfs_extent_io_tree_init(fs_info, &cur_trans->pinned_extents,
+				  IO_TREE_FS_PINNED_EXTENTS);
 	btrfs_set_fs_generation(fs_info, fs_info->generation + 1);
 	cur_trans->transid = fs_info->generation;
 	fs_info->running_transaction = cur_trans;
@@ -1265,7 +1265,7 @@ static int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans)
 	blk_finish_plug(&plug);
 	ret2 = btrfs_wait_extents(fs_info, dirty_pages);
 
-	extent_io_tree_release(&trans->transaction->dirty_pages);
+	btrfs_extent_io_tree_release(&trans->transaction->dirty_pages);
 
 	if (ret)
 		return ret;

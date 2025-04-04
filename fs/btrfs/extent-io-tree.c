@@ -95,8 +95,8 @@ const struct btrfs_fs_info *btrfs_extent_io_tree_to_fs_info(const struct extent_
 	return tree->fs_info;
 }
 
-void extent_io_tree_init(struct btrfs_fs_info *fs_info,
-			 struct extent_io_tree *tree, unsigned int owner)
+void btrfs_extent_io_tree_init(struct btrfs_fs_info *fs_info,
+			       struct extent_io_tree *tree, unsigned int owner)
 {
 	tree->state = RB_ROOT;
 	spin_lock_init(&tree->lock);
@@ -111,7 +111,7 @@ void extent_io_tree_init(struct btrfs_fs_info *fs_info,
  * aren't any waiters on any extent state record (EXTENT_LOCK_BITS are never
  * set on any extent state when calling this function).
  */
-void extent_io_tree_release(struct extent_io_tree *tree)
+void btrfs_extent_io_tree_release(struct extent_io_tree *tree)
 {
 	struct rb_root root;
 	struct extent_state *state;

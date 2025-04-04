@@ -691,10 +691,10 @@ static void __setup_root(struct btrfs_root *root, struct btrfs_fs_info *fs_info,
 	btrfs_set_root_last_log_commit(root, 0);
 	root->anon_dev = 0;
 	if (!dummy) {
-		extent_io_tree_init(fs_info, &root->dirty_log_pages,
-				    IO_TREE_ROOT_DIRTY_LOG_PAGES);
-		extent_io_tree_init(fs_info, &root->log_csum_range,
-				    IO_TREE_LOG_CSUM_RANGE);
+		btrfs_extent_io_tree_init(fs_info, &root->dirty_log_pages,
+					  IO_TREE_ROOT_DIRTY_LOG_PAGES);
+		btrfs_extent_io_tree_init(fs_info, &root->log_csum_range,
+					  IO_TREE_LOG_CSUM_RANGE);
 	}
 
 	spin_lock_init(&root->root_item_lock);
@@ -1920,8 +1920,8 @@ static int btrfs_init_btree_inode(struct super_block *sb)
 	inode->i_mapping->a_ops = &btree_aops;
 	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
 
-	extent_io_tree_init(fs_info, &BTRFS_I(inode)->io_tree,
-			    IO_TREE_BTREE_INODE_IO);
+	btrfs_extent_io_tree_init(fs_info, &BTRFS_I(inode)->io_tree,
+				  IO_TREE_BTREE_INODE_IO);
 	extent_map_tree_init(&BTRFS_I(inode)->extent_tree);
 
 	BTRFS_I(inode)->root = btrfs_grab_root(fs_info->tree_root);
@@ -2855,8 +2855,8 @@ void btrfs_init_fs_info(struct btrfs_fs_info *fs_info)
 	rwlock_init(&fs_info->block_group_cache_lock);
 	fs_info->block_group_cache_tree = RB_ROOT_CACHED;
 
-	extent_io_tree_init(fs_info, &fs_info->excluded_extents,
-			    IO_TREE_FS_EXCLUDED_EXTENTS);
+	btrfs_extent_io_tree_init(fs_info, &fs_info->excluded_extents,
+				  IO_TREE_FS_EXCLUDED_EXTENTS);
 
 	mutex_init(&fs_info->ordered_operations_mutex);
 	mutex_init(&fs_info->tree_log_mutex);

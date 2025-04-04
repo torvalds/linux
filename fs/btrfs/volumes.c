@@ -404,7 +404,7 @@ static void btrfs_free_device(struct btrfs_device *device)
 {
 	WARN_ON(!list_empty(&device->post_commit_list));
 	rcu_string_free(device->name);
-	extent_io_tree_release(&device->alloc_state);
+	btrfs_extent_io_tree_release(&device->alloc_state);
 	btrfs_destroy_dev_zone_info(device);
 	kfree(device);
 }
@@ -1149,7 +1149,7 @@ static void btrfs_close_one_device(struct btrfs_device *device)
 
 	device->fs_info = NULL;
 	atomic_set(&device->dev_stats_ccnt, 0);
-	extent_io_tree_release(&device->alloc_state);
+	btrfs_extent_io_tree_release(&device->alloc_state);
 
 	/*
 	 * Reset the flush error record. We might have a transient flush error
@@ -6863,7 +6863,7 @@ struct btrfs_device *btrfs_alloc_device(struct btrfs_fs_info *fs_info,
 
 	atomic_set(&dev->dev_stats_ccnt, 0);
 	btrfs_device_data_ordered_init(dev);
-	extent_io_tree_init(fs_info, &dev->alloc_state, IO_TREE_DEVICE_ALLOC_STATE);
+	btrfs_extent_io_tree_init(fs_info, &dev->alloc_state, IO_TREE_DEVICE_ALLOC_STATE);
 
 	if (devid)
 		tmp = *devid;
