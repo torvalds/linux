@@ -772,8 +772,7 @@ static void __pci_setup_bridge(struct pci_bus *bus, unsigned long type)
 {
 	struct pci_dev *bridge = bus->self;
 
-	pci_info(bridge, "PCI bridge to %pR\n",
-		 &bus->busn_res);
+	pci_info(bridge, "PCI bridge to %pR\n", &bus->busn_res);
 
 	if (type & IORESOURCE_IO)
 		pci_setup_bridge_io(bridge);
