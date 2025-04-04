@@ -569,6 +569,10 @@ const struct io_issue_def io_issue_defs[] = {
 		.prep			= io_prep_writev_fixed,
 		.issue			= io_write,
 	},
+	[IORING_OP_PIPE] = {
+		.prep			= io_pipe_prep,
+		.issue			= io_pipe,
+	},
 };
 
 const struct io_cold_def io_cold_defs[] = {
@@ -814,6 +818,9 @@ const struct io_cold_def io_cold_defs[] = {
 		.name			= "WRITEV_FIXED",
 		.cleanup		= io_readv_writev_cleanup,
 		.fail			= io_rw_fail,
+	},
+	[IORING_OP_PIPE] = {
+		.name			= "PIPE",
 	},
 };
 

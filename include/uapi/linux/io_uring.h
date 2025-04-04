@@ -73,6 +73,7 @@ struct io_uring_sqe {
 		__u32		futex_flags;
 		__u32		install_fd_flags;
 		__u32		nop_flags;
+		__u32		pipe_flags;
 	};
 	__u64	user_data;	/* data to be passed back at completion time */
 	/* pack this to avoid bogus arm OABI complaints */
@@ -283,6 +284,7 @@ enum io_uring_op {
 	IORING_OP_EPOLL_WAIT,
 	IORING_OP_READV_FIXED,
 	IORING_OP_WRITEV_FIXED,
+	IORING_OP_PIPE,
 
 	/* this goes last, obviously */
 	IORING_OP_LAST,
