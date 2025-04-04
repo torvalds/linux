@@ -531,10 +531,8 @@ struct nf_conn *nf_ct_tmpl_alloc(struct net *net,
 
 		p = tmpl;
 		tmpl = (struct nf_conn *)NFCT_ALIGN((unsigned long)p);
-		if (tmpl != p) {
-			tmpl = (struct nf_conn *)NFCT_ALIGN((unsigned long)p);
+		if (tmpl != p)
 			tmpl->proto.tmpl_padto = (char *)tmpl - (char *)p;
-		}
 	} else {
 		tmpl = kzalloc(sizeof(*tmpl), flags);
 		if (!tmpl)
