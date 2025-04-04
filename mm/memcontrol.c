@@ -1871,30 +1871,10 @@ static void drain_local_stock(struct work_struct *dummy)
 	obj_cgroup_put(old);
 }
 
-/*
- * Cache charges(val) to local per_cpu area.
- * This will be consumed by consume_stock() function, later.
- */
-static void __refill_stock(struct mem_cgroup *memcg, unsigned int nr_pages)
+static void refill_stock(struct mem_cgroup *memcg, unsigned int nr_pages)
 {
 	struct memcg_stock_pcp *stock;
 	unsigned int stock_pages;
-
-	stock = this_cpu_ptr(&memcg_stock);
-	if (READ_ONCE(stock->cached) != memcg) { /* reset if necessary */
-		drain_stock(stock);
-		css_get(&memcg->css);
-		WRITE_ONCE(stock->cached, memcg);
-	}
-	stock_pages = READ_ONCE(stock->nr_pages) + nr_pages;
-	WRITE_ONCE(stock->nr_pages, stock_pages);
-
-	if (stock_pages > MEMCG_CHARGE_BATCH)
-		drain_stock(stock);
-}
-
-static void refill_stock(struct mem_cgroup *memcg, unsigned int nr_pages)
-{
 	unsigned long flags;
 
 	VM_WARN_ON_ONCE(mem_cgroup_is_root(memcg));
@@ -1907,7 +1887,19 @@ static void refill_stock(struct mem_cgroup *memcg, unsigned int nr_pages)
 		memcg_uncharge(memcg, nr_pages);
 		return;
 	}
-	__refill_stock(memcg, nr_pages);
+
+	stock = this_cpu_ptr(&memcg_stock);
+	if (READ_ONCE(stock->cached) != memcg) { /* reset if necessary */
+		drain_stock(stock);
+		css_get(&memcg->css);
+		WRITE_ONCE(stock->cached, memcg);
+	}
+	stock_pages = READ_ONCE(stock->nr_pages) + nr_pages;
+	WRITE_ONCE(stock->nr_pages, stock_pages);
+
+	if (stock_pages > MEMCG_CHARGE_BATCH)
+		drain_stock(stock);
+
 	local_unlock_irqrestore(&memcg_stock.stock_lock, flags);
 }
 
