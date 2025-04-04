@@ -748,7 +748,7 @@ void scx_idle_disable(void)
 static int validate_node(int node)
 {
 	if (!static_branch_likely(&scx_builtin_idle_per_node)) {
-		scx_ops_error("per-node idle tracking is disabled");
+		scx_error("per-node idle tracking is disabled");
 		return -EOPNOTSUPP;
 	}
 
@@ -758,13 +758,13 @@ static int validate_node(int node)
 
 	/* Make sure node is in a valid range */
 	if (node < 0 || node >= nr_node_ids) {
-		scx_ops_error("invalid node %d", node);
+		scx_error("invalid node %d", node);
 		return -EINVAL;
 	}
 
 	/* Make sure the node is part of the set of possible nodes */
 	if (!node_possible(node)) {
-		scx_ops_error("unavailable node %d", node);
+		scx_error("unavailable node %d", node);
 		return -EINVAL;
 	}
 
@@ -778,7 +778,7 @@ static bool check_builtin_idle_enabled(void)
 	if (static_branch_likely(&scx_builtin_idle_enabled))
 		return true;
 
-	scx_ops_error("built-in idle tracking is disabled");
+	scx_error("built-in idle tracking is disabled");
 	return false;
 }
 
@@ -848,7 +848,7 @@ prev_cpu:
  *
  * Returns an empty cpumask if idle tracking is not enabled, if @node is
  * not valid, or running on a UP kernel. In this case the actual error will
- * be reported to the BPF scheduler via scx_ops_error().
+ * be reported to the BPF scheduler via scx_error().
  */
 __bpf_kfunc const struct cpumask *scx_bpf_get_idle_cpumask_node(int node)
 {
@@ -873,7 +873,7 @@ __bpf_kfunc const struct cpumask *scx_bpf_get_idle_cpumask_node(int node)
 __bpf_kfunc const struct cpumask *scx_bpf_get_idle_cpumask(void)
 {
 	if (static_branch_unlikely(&scx_builtin_idle_per_node)) {
-		scx_ops_error("SCX_OPS_BUILTIN_IDLE_PER_NODE enabled");
+		scx_error("SCX_OPS_BUILTIN_IDLE_PER_NODE enabled");
 		return cpu_none_mask;
 	}
 
@@ -895,7 +895,7 @@ __bpf_kfunc const struct cpumask *scx_bpf_get_idle_cpumask(void)
  *
  * Returns an empty cpumask if idle tracking is not enabled, if @node is
  * not valid, or running on a UP kernel. In this case the actual error will
- * be reported to the BPF scheduler via scx_ops_error().
+ * be reported to the BPF scheduler via scx_error().
  */
 __bpf_kfunc const struct cpumask *scx_bpf_get_idle_smtmask_node(int node)
 {
@@ -924,7 +924,7 @@ __bpf_kfunc const struct cpumask *scx_bpf_get_idle_smtmask_node(int node)
 __bpf_kfunc const struct cpumask *scx_bpf_get_idle_smtmask(void)
 {
 	if (static_branch_unlikely(&scx_builtin_idle_per_node)) {
-		scx_ops_error("SCX_OPS_BUILTIN_IDLE_PER_NODE enabled");
+		scx_error("SCX_OPS_BUILTIN_IDLE_PER_NODE enabled");
 		return cpu_none_mask;
 	}
 
@@ -1032,7 +1032,7 @@ __bpf_kfunc s32 scx_bpf_pick_idle_cpu(const struct cpumask *cpus_allowed,
 				      u64 flags)
 {
 	if (static_branch_maybe(CONFIG_NUMA, &scx_builtin_idle_per_node)) {
-		scx_ops_error("per-node idle tracking is enabled");
+		scx_error("per-node idle tracking is enabled");
 		return -EBUSY;
 	}
 
@@ -1109,7 +1109,7 @@ __bpf_kfunc s32 scx_bpf_pick_any_cpu(const struct cpumask *cpus_allowed,
 	s32 cpu;
 
 	if (static_branch_maybe(CONFIG_NUMA, &scx_builtin_idle_per_node)) {
-		scx_ops_error("per-node idle tracking is enabled");
+		scx_error("per-node idle tracking is enabled");
 		return -EBUSY;
 	}
 
