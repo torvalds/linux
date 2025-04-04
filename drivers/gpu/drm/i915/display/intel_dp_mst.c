@@ -107,7 +107,7 @@ static struct intel_dp *to_primary_dp(struct intel_encoder *encoder)
 
 int intel_dp_mst_active_streams(struct intel_dp *intel_dp)
 {
-	return intel_dp->mst.active_links;
+	return intel_dp->mst.active_streams;
 }
 
 static bool intel_dp_mst_dec_active_streams(struct intel_dp *intel_dp)
@@ -115,12 +115,12 @@ static bool intel_dp_mst_dec_active_streams(struct intel_dp *intel_dp)
 	struct intel_display *display = to_intel_display(intel_dp);
 
 	drm_dbg_kms(display->drm, "active MST streams %d -> %d\n",
-		    intel_dp->mst.active_links, intel_dp->mst.active_links - 1);
+		    intel_dp->mst.active_streams, intel_dp->mst.active_streams - 1);
 
-	if (drm_WARN_ON(display->drm, intel_dp->mst.active_links == 0))
+	if (drm_WARN_ON(display->drm, intel_dp->mst.active_streams == 0))
 		return true;
 
-	return --intel_dp->mst.active_links == 0;
+	return --intel_dp->mst.active_streams == 0;
 }
 
 static bool intel_dp_mst_inc_active_streams(struct intel_dp *intel_dp)
@@ -128,9 +128,9 @@ static bool intel_dp_mst_inc_active_streams(struct intel_dp *intel_dp)
 	struct intel_display *display = to_intel_display(intel_dp);
 
 	drm_dbg_kms(display->drm, "active MST streams %d -> %d\n",
-		    intel_dp->mst.active_links, intel_dp->mst.active_links + 1);
+		    intel_dp->mst.active_streams, intel_dp->mst.active_streams + 1);
 
-	return intel_dp->mst.active_links++ == 0;
+	return intel_dp->mst.active_streams++ == 0;
 }
 
 static int intel_dp_mst_max_dpt_bpp(const struct intel_crtc_state *crtc_state,

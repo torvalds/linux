@@ -1739,7 +1739,7 @@ struct intel_dp {
 	struct {
 		struct intel_dp_mst_encoder *stream_encoders[I915_MAX_PIPES];
 		struct drm_dp_mst_topology_mgr mgr;
-		int active_links;
+		int active_streams;
 	} mst;
 
 	u32 (*get_aux_clock_divider)(struct intel_dp *dp, int index);
