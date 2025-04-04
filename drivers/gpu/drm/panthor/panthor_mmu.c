@@ -1710,6 +1710,13 @@ static void panthor_mmu_irq_handler(struct panthor_device *ptdev, u32 status)
 			access_type, access_type_name(ptdev, fault_status),
 			source_id);
 
+		/* We don't handle VM faults at the moment, so let's just clear the
+		 * interrupt and let the writer/reader crash.
+		 * Note that COMPLETED irqs are never cleared, but this is fine
+		 * because they are always masked.
+		 */
+		gpu_write(ptdev, MMU_INT_CLEAR, mask);
+
 		/* Ignore MMU interrupts on this AS until it's been
 		 * re-enabled.
 		 */
