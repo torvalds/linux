@@ -17244,7 +17244,6 @@ F:	Documentation/core-api/symbol-namespaces.rst
 F:	scripts/nsdeps
 
 NTB AMD DRIVER
-M:	Sanjay R Mehta <sanju.mehta@amd.com>
 M:	Shyam Sundar S K <Shyam-sundar.S-k@amd.com>
 L:	ntb@lists.linux.dev
 S:	Supported
