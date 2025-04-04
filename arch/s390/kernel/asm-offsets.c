@@ -5,15 +5,14 @@
  * and format the required data.
  */
 
-#define ASM_OFFSETS_C
-
 #include <linux/kbuild.h>
-#include <linux/kvm_host.h>
 #include <linux/sched.h>
 #include <linux/purgatory.h>
 #include <linux/pgtable.h>
-#include <linux/ftrace.h>
+#include <linux/ftrace_regs.h>
+#include <asm/kvm_host_types.h>
 #include <asm/stacktrace.h>
+#include <asm/ptrace.h>
 
 int main(void)
 {

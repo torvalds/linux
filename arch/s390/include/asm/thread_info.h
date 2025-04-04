@@ -9,9 +9,6 @@
 #define _ASM_THREAD_INFO_H
 
 #include <linux/bits.h>
-#ifndef ASM_OFFSETS_C
-#include <asm/asm-offsets.h>
-#endif
 
 /*
  * General size of kernel stacks
