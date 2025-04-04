@@ -5596,22 +5596,27 @@ static int iavf_suspend(struct device *dev_d)
 {
 	struct net_device *netdev = dev_get_drvdata(dev_d);
 	struct iavf_adapter *adapter = netdev_priv(netdev);
+	bool running;
 
 	netif_device_detach(netdev);
+
+	running = netif_running(netdev);
+	if (running)
+		rtnl_lock();
 
 	netdev_lock(netdev);
 	mutex_lock(&adapter->crit_lock);
 
-	if (netif_running(netdev)) {
-		rtnl_lock();
+	if (running)
 		iavf_down(adapter);
-		rtnl_unlock();
-	}
+
 	iavf_free_misc_irq(adapter);
 	iavf_reset_interrupt_capability(adapter);
 
 	mutex_unlock(&adapter->crit_lock);
 	netdev_unlock(netdev);
+	if (running)
+		rtnl_unlock();
 
 	return 0;
 }
