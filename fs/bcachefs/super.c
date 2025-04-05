@@ -567,7 +567,6 @@ static void __bch2_fs_free(struct bch_fs *c)
 	bch2_io_clock_exit(&c->io_clock[WRITE]);
 	bch2_io_clock_exit(&c->io_clock[READ]);
 	bch2_fs_compress_exit(c);
-	bch2_fs_btree_gc_exit(c);
 	bch2_journal_keys_put_initial(c);
 	bch2_find_btree_nodes_exit(&c->found_btree_nodes);
 	BUG_ON(atomic_read(&c->journal_keys.ref));
@@ -783,16 +782,21 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	bch2_fs_allocator_background_init(c);
 	bch2_fs_allocator_foreground_init(c);
 	bch2_fs_btree_cache_init_early(&c->btree_cache);
+	bch2_fs_btree_gc_init_early(c);
 	bch2_fs_btree_interior_update_init_early(c);
 	bch2_fs_btree_iter_init_early(c);
 	bch2_fs_btree_key_cache_init_early(&c->btree_key_cache);
+	bch2_fs_btree_write_buffer_init_early(c);
 	bch2_fs_copygc_init(c);
 	bch2_fs_ec_init_early(c);
+	bch2_fs_journal_init_early(&c->journal);
 	bch2_fs_journal_keys_init(c);
 	bch2_fs_move_init(c);
+	bch2_fs_nocow_locking_init_early(c);
 	bch2_fs_quota_init(c);
 	bch2_fs_rebalance_init(c);
 	bch2_fs_sb_errors_init_early(c);
+	bch2_fs_subvolumes_init_early(c);
 
 	INIT_LIST_HEAD(&c->list);
 
@@ -906,7 +910,6 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	ret =
 	    bch2_fs_btree_cache_init(c) ?:
-	    bch2_fs_btree_gc_init(c) ?:
 	    bch2_fs_btree_iter_init(c) ?:
 	    bch2_fs_btree_interior_update_init(c) ?:
 	    bch2_fs_btree_key_cache_init(&c->btree_key_cache) ?:
@@ -924,9 +927,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    bch2_fs_io_read_init(c) ?:
 	    bch2_fs_io_write_init(c) ?:
 	    bch2_fs_journal_init(&c->journal) ?:
-	    bch2_fs_nocow_locking_init(c) ?:
 	    bch2_fs_sb_errors_init(c) ?:
-	    bch2_fs_subvolumes_init(c) ?:
 	    bch2_fs_vfs_init(c);
 	if (ret)
 		goto err;

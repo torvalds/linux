@@ -1266,16 +1266,11 @@ void bch2_gc_gens_async(struct bch_fs *c)
 		bch2_write_ref_put(c, BCH_WRITE_REF_gc_gens);
 }
 
-void bch2_fs_btree_gc_exit(struct bch_fs *c)
-{
-}
-
-int bch2_fs_btree_gc_init(struct bch_fs *c)
+void bch2_fs_btree_gc_init_early(struct bch_fs *c)
 {
 	seqcount_init(&c->gc_pos_lock);
 	INIT_WORK(&c->gc_gens_work, bch2_gc_gens_work);
 
 	init_rwsem(&c->gc_lock);
 	mutex_init(&c->gc_gens_lock);
-	return 0;
 }

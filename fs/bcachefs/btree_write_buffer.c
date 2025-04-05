@@ -866,13 +866,18 @@ void bch2_fs_btree_write_buffer_exit(struct bch_fs *c)
 	darray_exit(&wb->inc.keys);
 }
 
-int bch2_fs_btree_write_buffer_init(struct bch_fs *c)
+void bch2_fs_btree_write_buffer_init_early(struct bch_fs *c)
 {
 	struct btree_write_buffer *wb = &c->btree_write_buffer;
 
 	mutex_init(&wb->inc.lock);
 	mutex_init(&wb->flushing.lock);
 	INIT_WORK(&wb->flush_work, bch2_btree_write_buffer_flush_work);
+}
+
+int bch2_fs_btree_write_buffer_init(struct bch_fs *c)
+{
+	struct btree_write_buffer *wb = &c->btree_write_buffer;
 
 	/* Will be resized by journal as needed: */
 	unsigned initial_size = 1 << 16;

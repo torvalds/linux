@@ -1588,7 +1588,7 @@ void bch2_fs_journal_exit(struct journal *j)
 	free_fifo(&j->pin);
 }
 
-int bch2_fs_journal_init(struct journal *j)
+void bch2_fs_journal_init_early(struct journal *j)
 {
 	static struct lock_class_key res_key;
 
@@ -1607,7 +1607,10 @@ int bch2_fs_journal_init(struct journal *j)
 	atomic64_set(&j->reservations.counter,
 		((union journal_res_state)
 		 { .cur_entry_offset = JOURNAL_ENTRY_CLOSED_VAL }).v);
+}
 
+int bch2_fs_journal_init(struct journal *j)
+{
 	j->free_buf_size = j->buf_size_want = JOURNAL_ENTRY_SIZE_MIN;
 	j->free_buf = kvmalloc(j->free_buf_size, GFP_KERNEL);
 	if (!j->free_buf)

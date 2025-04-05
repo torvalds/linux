@@ -86,6 +86,6 @@ int bch2_subvolume_create(struct btree_trans *, u64, u32, u32, u32 *, u32 *, boo
 int bch2_initialize_subvolumes(struct bch_fs *);
 int bch2_fs_upgrade_for_subvolumes(struct bch_fs *);
 
-int bch2_fs_subvolumes_init(struct bch_fs *);
+void bch2_fs_subvolumes_init_early(struct bch_fs *);
 
 #endif /* _BCACHEFS_SUBVOLUME_H */

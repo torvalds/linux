@@ -714,11 +714,10 @@ int bch2_fs_upgrade_for_subvolumes(struct bch_fs *c)
 	return ret;
 }
 
-int bch2_fs_subvolumes_init(struct bch_fs *c)
+void bch2_fs_subvolumes_init_early(struct bch_fs *c)
 {
 	INIT_WORK(&c->snapshot_delete_work, bch2_delete_dead_snapshots_work);
 	INIT_WORK(&c->snapshot_wait_for_pagecache_and_delete_work,
 		  bch2_subvolume_wait_for_pagecache_and_delete);
 	mutex_init(&c->snapshots_unlinked_lock);
-	return 0;
 }
