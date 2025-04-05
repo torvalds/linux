@@ -11,6 +11,7 @@ config DRM_ROCKCHIP
 	select DRM_DW_HDMI if ROCKCHIP_DW_HDMI
 	select DRM_DW_HDMI_QP if ROCKCHIP_DW_HDMI_QP
 	select DRM_DW_MIPI_DSI if ROCKCHIP_DW_MIPI_DSI
+	select DRM_DW_MIPI_DSI2 if ROCKCHIP_DW_MIPI_DSI2
 	select GENERIC_PHY if ROCKCHIP_DW_MIPI_DSI
 	select GENERIC_PHY_MIPI_DPHY if ROCKCHIP_DW_MIPI_DSI
 	select SND_SOC_HDMI_CODEC if ROCKCHIP_CDN_DP && SND_SOC
@@ -80,6 +81,15 @@ config ROCKCHIP_DW_MIPI_DSI
 	  This selects support for Rockchip SoC specific extensions
 	  for the Synopsys DesignWare dsi driver. If you want to
 	  enable MIPI DSI on RK3288 or RK3399 based SoC, you should
+	  select this option.
+
+config ROCKCHIP_DW_MIPI_DSI2
+	bool "Rockchip specific extensions for Synopsys DW MIPI DSI2"
+	select GENERIC_PHY_MIPI_DPHY
+	help
+	  This selects support for Rockchip SoC specific extensions
+	  for the Synopsys DesignWare DSI2 driver. If you want to
+	  enable MIPI DSI on RK3576 or RK3588 based SoC, you should
 	  select this option.
 
 config ROCKCHIP_INNO_HDMI

@@ -47,10 +47,12 @@ static bool stackinit_range_contains(char *haystack_start, size_t haystack_size,
 #define DO_NOTHING_TYPE_SCALAR(var_type)	var_type
 #define DO_NOTHING_TYPE_STRING(var_type)	void
 #define DO_NOTHING_TYPE_STRUCT(var_type)	void
+#define DO_NOTHING_TYPE_UNION(var_type)		void
 
 #define DO_NOTHING_RETURN_SCALAR(ptr)		*(ptr)
 #define DO_NOTHING_RETURN_STRING(ptr)		/**/
 #define DO_NOTHING_RETURN_STRUCT(ptr)		/**/
+#define DO_NOTHING_RETURN_UNION(ptr)		/**/
 
 #define DO_NOTHING_CALL_SCALAR(var, name)			\
 		(var) = do_nothing_ ## name(&(var))
@@ -58,10 +60,13 @@ static bool stackinit_range_contains(char *haystack_start, size_t haystack_size,
 		do_nothing_ ## name(var)
 #define DO_NOTHING_CALL_STRUCT(var, name)			\
 		do_nothing_ ## name(&(var))
+#define DO_NOTHING_CALL_UNION(var, name)			\
+		do_nothing_ ## name(&(var))
 
 #define FETCH_ARG_SCALAR(var)		&var
 #define FETCH_ARG_STRING(var)		var
 #define FETCH_ARG_STRUCT(var)		&var
+#define FETCH_ARG_UNION(var)		&var
 
 /*
  * On m68k, if the leaf function test variable is longer than 8 bytes,
@@ -70,13 +75,16 @@ static bool stackinit_range_contains(char *haystack_start, size_t haystack_size,
  */
 #ifdef CONFIG_M68K
 #define FILL_SIZE_STRING		8
+#define FILL_SIZE_ARRAY			2
 #else
 #define FILL_SIZE_STRING		16
+#define FILL_SIZE_ARRAY			8
 #endif
 
 #define INIT_CLONE_SCALAR		/**/
 #define INIT_CLONE_STRING		[FILL_SIZE_STRING]
 #define INIT_CLONE_STRUCT		/**/
+#define INIT_CLONE_UNION		/**/
 
 #define ZERO_CLONE_SCALAR(zero)		memset(&(zero), 0x00, sizeof(zero))
 #define ZERO_CLONE_STRING(zero)		memset(&(zero), 0x00, sizeof(zero))
@@ -92,6 +100,7 @@ static bool stackinit_range_contains(char *haystack_start, size_t haystack_size,
 		zero.three = 0;				\
 		zero.four = 0;				\
 	} while (0)
+#define ZERO_CLONE_UNION(zero)		ZERO_CLONE_STRUCT(zero)
 
 #define INIT_SCALAR_none(var_type)	/**/
 #define INIT_SCALAR_zero(var_type)	= 0
@@ -101,6 +110,7 @@ static bool stackinit_range_contains(char *haystack_start, size_t haystack_size,
 
 #define INIT_STRUCT_none(var_type)	/**/
 #define INIT_STRUCT_zero(var_type)	= { }
+#define INIT_STRUCT_old_zero(var_type)	= { 0 }
 
 
 #define __static_partial		{ .two = 0, }
@@ -145,6 +155,34 @@ static bool stackinit_range_contains(char *haystack_start, size_t haystack_size,
 
 #define INIT_STRUCT_assigned_copy(var_type)				\
 					; var = *(arg)
+
+/* Union initialization is the same as structs. */
+#define INIT_UNION_none(var_type)	INIT_STRUCT_none(var_type)
+#define INIT_UNION_zero(var_type)	INIT_STRUCT_zero(var_type)
+#define INIT_UNION_old_zero(var_type)	INIT_STRUCT_old_zero(var_type)
+
+#define INIT_UNION_static_partial(var_type)		\
+	INIT_STRUCT_static_partial(var_type)
+#define INIT_UNION_static_all(var_type)			\
+	INIT_STRUCT_static_all(var_type)
+#define INIT_UNION_dynamic_partial(var_type)		\
+	INIT_STRUCT_dynamic_partial(var_type)
+#define INIT_UNION_dynamic_all(var_type)		\
+	INIT_STRUCT_dynamic_all(var_type)
+#define INIT_UNION_runtime_partial(var_type)		\
+	INIT_STRUCT_runtime_partial(var_type)
+#define INIT_UNION_runtime_all(var_type)		\
+	INIT_STRUCT_runtime_all(var_type)
+#define INIT_UNION_assigned_static_partial(var_type)	\
+	INIT_STRUCT_assigned_static_partial(var_type)
+#define INIT_UNION_assigned_static_all(var_type)	\
+	INIT_STRUCT_assigned_static_all(var_type)
+#define INIT_UNION_assigned_dynamic_partial(var_type)	\
+	INIT_STRUCT_assigned_dynamic_partial(var_type)
+#define INIT_UNION_assigned_dynamic_all(var_type)	\
+	INIT_STRUCT_assigned_dynamic_all(var_type)
+#define INIT_UNION_assigned_copy(var_type)		\
+	INIT_STRUCT_assigned_copy(var_type)
 
 /*
  * @name: unique string name for the test
@@ -294,6 +332,33 @@ struct test_user {
 	unsigned long four;
 };
 
+/* No padding: all members are the same size. */
+union test_same_sizes {
+	unsigned long one;
+	unsigned long two;
+	unsigned long three;
+	unsigned long four;
+};
+
+/* Mismatched sizes, with one and two being small */
+union test_small_start {
+	char one:1;
+	char two;
+	short three;
+	unsigned long four;
+	struct big_struct {
+		unsigned long array[FILL_SIZE_ARRAY];
+	} big;
+};
+
+/* Mismatched sizes, with three and four being small */
+union test_small_end {
+	short one;
+	unsigned long two;
+	char three:1;
+	char four;
+};
+
 #define ALWAYS_PASS	WANT_SUCCESS
 #define ALWAYS_FAIL	XFAIL
 
@@ -332,6 +397,11 @@ struct test_user {
 			    struct test_ ## name, STRUCT, init, \
 			    xfail)
 
+#define DEFINE_UNION_TEST(name, init, xfail)			\
+		DEFINE_TEST(name ## _ ## init,			\
+			    union test_ ## name, STRUCT, init,	\
+			    xfail)
+
 #define DEFINE_STRUCT_TESTS(init, xfail)			\
 		DEFINE_STRUCT_TEST(small_hole, init, xfail);	\
 		DEFINE_STRUCT_TEST(big_hole, init, xfail);	\
@@ -343,9 +413,22 @@ struct test_user {
 				    xfail);			\
 		DEFINE_STRUCT_TESTS(base ## _ ## all, xfail)
 
+#define DEFINE_UNION_INITIALIZER_TESTS(base, xfail)		\
+		DEFINE_UNION_TESTS(base ## _ ## partial,	\
+				    xfail);			\
+		DEFINE_UNION_TESTS(base ## _ ## all, xfail)
+
+#define DEFINE_UNION_TESTS(init, xfail)				\
+		DEFINE_UNION_TEST(same_sizes, init, xfail);	\
+		DEFINE_UNION_TEST(small_start, init, xfail);	\
+		DEFINE_UNION_TEST(small_end, init, xfail);
+
 /* These should be fully initialized all the time! */
 DEFINE_SCALAR_TESTS(zero, ALWAYS_PASS);
 DEFINE_STRUCT_TESTS(zero, ALWAYS_PASS);
+DEFINE_STRUCT_TESTS(old_zero, ALWAYS_PASS);
+DEFINE_UNION_TESTS(zero, ALWAYS_PASS);
+DEFINE_UNION_TESTS(old_zero, ALWAYS_PASS);
 /* Struct initializers: padding may be left uninitialized. */
 DEFINE_STRUCT_INITIALIZER_TESTS(static, STRONG_PASS);
 DEFINE_STRUCT_INITIALIZER_TESTS(dynamic, STRONG_PASS);
@@ -353,6 +436,12 @@ DEFINE_STRUCT_INITIALIZER_TESTS(runtime, STRONG_PASS);
 DEFINE_STRUCT_INITIALIZER_TESTS(assigned_static, STRONG_PASS);
 DEFINE_STRUCT_INITIALIZER_TESTS(assigned_dynamic, STRONG_PASS);
 DEFINE_STRUCT_TESTS(assigned_copy, ALWAYS_FAIL);
+DEFINE_UNION_INITIALIZER_TESTS(static, STRONG_PASS);
+DEFINE_UNION_INITIALIZER_TESTS(dynamic, STRONG_PASS);
+DEFINE_UNION_INITIALIZER_TESTS(runtime, STRONG_PASS);
+DEFINE_UNION_INITIALIZER_TESTS(assigned_static, STRONG_PASS);
+DEFINE_UNION_INITIALIZER_TESTS(assigned_dynamic, STRONG_PASS);
+DEFINE_UNION_TESTS(assigned_copy, ALWAYS_FAIL);
 /* No initialization without compiler instrumentation. */
 DEFINE_SCALAR_TESTS(none, STRONG_PASS);
 DEFINE_STRUCT_TESTS(none, BYREF_PASS);
@@ -436,13 +525,23 @@ DEFINE_TEST_DRIVER(switch_2_none, uint64_t, SCALAR, ALWAYS_FAIL);
 		KUNIT_CASE(test_trailing_hole_ ## init),\
 		KUNIT_CASE(test_packed_ ## init)	\
 
+#define KUNIT_test_unions(init)				\
+		KUNIT_CASE(test_same_sizes_ ## init),	\
+		KUNIT_CASE(test_small_start_ ## init),	\
+		KUNIT_CASE(test_small_end_ ## init)	\
+
 static struct kunit_case stackinit_test_cases[] = {
 	/* These are explicitly initialized and should always pass. */
 	KUNIT_test_scalars(zero),
 	KUNIT_test_structs(zero),
+	KUNIT_test_structs(old_zero),
+	KUNIT_test_unions(zero),
+	KUNIT_test_unions(old_zero),
 	/* Padding here appears to be accidentally always initialized? */
 	KUNIT_test_structs(dynamic_partial),
 	KUNIT_test_structs(assigned_dynamic_partial),
+	KUNIT_test_unions(dynamic_partial),
+	KUNIT_test_unions(assigned_dynamic_partial),
 	/* Padding initialization depends on compiler behaviors. */
 	KUNIT_test_structs(static_partial),
 	KUNIT_test_structs(static_all),
@@ -452,8 +551,17 @@ static struct kunit_case stackinit_test_cases[] = {
 	KUNIT_test_structs(assigned_static_partial),
 	KUNIT_test_structs(assigned_static_all),
 	KUNIT_test_structs(assigned_dynamic_all),
+	KUNIT_test_unions(static_partial),
+	KUNIT_test_unions(static_all),
+	KUNIT_test_unions(dynamic_all),
+	KUNIT_test_unions(runtime_partial),
+	KUNIT_test_unions(runtime_all),
+	KUNIT_test_unions(assigned_static_partial),
+	KUNIT_test_unions(assigned_static_all),
+	KUNIT_test_unions(assigned_dynamic_all),
 	/* Everything fails this since it effectively performs a memcpy(). */
 	KUNIT_test_structs(assigned_copy),
+	KUNIT_test_unions(assigned_copy),
 	/* STRUCTLEAK_BYREF_ALL should cover everything from here down. */
 	KUNIT_test_scalars(none),
 	KUNIT_CASE(test_switch_1_none),

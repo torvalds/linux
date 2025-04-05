@@ -619,7 +619,6 @@ static void bcmasp_adj_link(struct net_device *dev)
 	struct phy_device *phydev = dev->phydev;
 	u32 cmd_bits = 0, reg;
 	int changed = 0;
-	bool active;
 
 	if (intf->old_link != phydev->link) {
 		changed = 1;
@@ -677,8 +676,13 @@ static void bcmasp_adj_link(struct net_device *dev)
 		}
 		umac_wl(intf, reg, UMC_CMD);
 
-		active = phy_init_eee(phydev, 0) >= 0;
-		bcmasp_eee_enable_set(intf, active);
+		umac_wl(intf, phydev->eee_cfg.tx_lpi_timer, UMC_EEE_LPI_TIMER);
+		reg = umac_rl(intf, UMC_EEE_CTRL);
+		if (phydev->enable_tx_lpi)
+			reg |= EEE_EN;
+		else
+			reg &= ~EEE_EN;
+		umac_wl(intf, reg, UMC_EEE_CTRL);
 	}
 
 	reg = rgmii_rl(intf, RGMII_OOB_CNTRL);
@@ -1055,6 +1059,9 @@ static int bcmasp_netif_init(struct net_device *dev, bool phy_connect)
 
 		/* Indicate that the MAC is responsible for PHY PM */
 		phydev->mac_managed_pm = true;
+
+		/* Set phylib's copy of the LPI timer */
+		phydev->eee_cfg.tx_lpi_timer = umac_rl(intf, UMC_EEE_LPI_TIMER);
 	}
 
 	umac_reset(intf);
@@ -1331,7 +1338,8 @@ static void bcmasp_suspend_to_wol(struct bcmasp_intf *intf)
 				     ASP_WAKEUP_INTR2_MASK_CLEAR);
 	}
 
-	if (intf->eee.eee_enabled && intf->parent->eee_fixup)
+	if (ndev->phydev && ndev->phydev->eee_cfg.eee_enabled &&
+	    intf->parent->eee_fixup)
 		intf->parent->eee_fixup(intf, true);
 
 	netif_dbg(intf, wol, ndev, "entered WOL mode\n");
@@ -1373,7 +1381,8 @@ static void bcmasp_resume_from_wol(struct bcmasp_intf *intf)
 {
 	u32 reg;
 
-	if (intf->eee.eee_enabled && intf->parent->eee_fixup)
+	if (intf->ndev->phydev && intf->ndev->phydev->eee_cfg.eee_enabled &&
+	    intf->parent->eee_fixup)
 		intf->parent->eee_fixup(intf, false);
 
 	reg = umac_rl(intf, UMC_MPD_CTRL);
@@ -1403,9 +1412,6 @@ int bcmasp_interface_resume(struct bcmasp_intf *intf)
 		goto out;
 
 	bcmasp_resume_from_wol(intf);
-
-	if (intf->eee.eee_enabled)
-		bcmasp_eee_enable_set(intf, true);
 
 	netif_device_attach(dev);
 

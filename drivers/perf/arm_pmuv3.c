@@ -1279,7 +1279,7 @@ static int armv8pmu_proc_user_access_handler(const struct ctl_table *table, int 
 	return 0;
 }
 
-static struct ctl_table armv8_pmu_sysctl_table[] = {
+static const struct ctl_table armv8_pmu_sysctl_table[] = {
 	{
 		.procname       = "perf_user_access",
 		.data		= &sysctl_perf_user_access,

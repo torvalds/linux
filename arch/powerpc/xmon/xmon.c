@@ -2623,9 +2623,9 @@ static void dump_one_paca(int cpu)
 
 	printf("paca for cpu 0x%x @ %px:\n", cpu, p);
 
-	printf(" %-*s = %s\n", 25, "possible", cpu_possible(cpu) ? "yes" : "no");
-	printf(" %-*s = %s\n", 25, "present", cpu_present(cpu) ? "yes" : "no");
-	printf(" %-*s = %s\n", 25, "online", cpu_online(cpu) ? "yes" : "no");
+	printf(" %-*s = %s\n", 25, "possible", str_yes_no(cpu_possible(cpu)));
+	printf(" %-*s = %s\n", 25, "present", str_yes_no(cpu_present(cpu)));
+	printf(" %-*s = %s\n", 25, "online", str_yes_no(cpu_online(cpu)));
 
 #define DUMP(paca, name, format)				\
 	printf(" %-*s = "format"\t(0x%lx)\n", 25, #name, 18, paca->name, \

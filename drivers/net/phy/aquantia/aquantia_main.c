@@ -1200,7 +1200,7 @@ static struct phy_driver aqr_driver[] = {
 
 module_phy_driver(aqr_driver);
 
-static struct mdio_device_id __maybe_unused aqr_tbl[] = {
+static const struct mdio_device_id __maybe_unused aqr_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(PHY_ID_AQ1202) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_AQ2104) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_AQR105) },

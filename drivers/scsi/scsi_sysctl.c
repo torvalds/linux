@@ -12,7 +12,7 @@
 #include "scsi_priv.h"
 
 
-static struct ctl_table scsi_table[] = {
+static const struct ctl_table scsi_table[] = {
 	{ .procname	= "logging_level",
 	  .data		= &scsi_logging_level,
 	  .maxlen	= sizeof(scsi_logging_level),

@@ -7,7 +7,6 @@ ALL_TESTS="standalone vlan_unaware_bridge vlan_aware_bridge test_vlan \
 NUM_NETIFS=2
 PING_COUNT=1
 REQUIRE_MTOOLS=yes
-REQUIRE_MZ=no
 
 source lib.sh
 

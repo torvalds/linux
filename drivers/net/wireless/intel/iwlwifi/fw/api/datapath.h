@@ -391,7 +391,7 @@ enum iwl_datapath_monitor_notif_type {
 
 struct iwl_datapath_monitor_notif {
 	__le32 type;
-	u8 mac_id;
+	u8 link_id;
 	u8 reserved[3];
 } __packed; /* MONITOR_NTF_API_S_VER_1 */
 

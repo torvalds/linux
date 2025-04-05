@@ -55,6 +55,7 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/crc32poly.h>
+#include <linux/dmi.h>
 
 #include <net/checksum.h>
 #include <net/gso.h>
@@ -7424,7 +7425,7 @@ static void tg3_napi_enable(struct tg3 *tp)
 
 	for (i = 0; i < tp->irq_cnt; i++) {
 		tnapi = &tp->napi[i];
-		napi_enable(&tnapi->napi);
+		napi_enable_locked(&tnapi->napi);
 		if (tnapi->tx_buffers) {
 			netif_queue_set_napi(tp->dev, txq_idx,
 					     NETDEV_QUEUE_TYPE_TX,
@@ -7445,9 +7446,10 @@ static void tg3_napi_init(struct tg3 *tp)
 	int i;
 
 	for (i = 0; i < tp->irq_cnt; i++) {
-		netif_napi_add(tp->dev, &tp->napi[i].napi,
-			       i ? tg3_poll_msix : tg3_poll);
-		netif_napi_set_irq(&tp->napi[i].napi, tp->napi[i].irq_vec);
+		netif_napi_add_locked(tp->dev, &tp->napi[i].napi,
+				      i ? tg3_poll_msix : tg3_poll);
+		netif_napi_set_irq_locked(&tp->napi[i].napi,
+					  tp->napi[i].irq_vec);
 	}
 }
 
@@ -11259,6 +11261,8 @@ static void tg3_timer_stop(struct tg3 *tp)
 static int tg3_restart_hw(struct tg3 *tp, bool reset_phy)
 	__releases(tp->lock)
 	__acquires(tp->lock)
+	__releases(tp->dev->lock)
+	__acquires(tp->dev->lock)
 {
 	int err;
 
@@ -11271,7 +11275,9 @@ static int tg3_restart_hw(struct tg3 *tp, bool reset_phy)
 		tg3_timer_stop(tp);
 		tp->irq_sync = 0;
 		tg3_napi_enable(tp);
+		netdev_unlock(tp->dev);
 		dev_close(tp->dev);
+		netdev_lock(tp->dev);
 		tg3_full_lock(tp, 0);
 	}
 	return err;
@@ -11299,6 +11305,7 @@ static void tg3_reset_task(struct work_struct *work)
 
 	tg3_netif_stop(tp);
 
+	netdev_lock(tp->dev);
 	tg3_full_lock(tp, 1);
 
 	if (tg3_flag(tp, TX_RECOVERY_PENDING)) {
@@ -11318,12 +11325,14 @@ static void tg3_reset_task(struct work_struct *work)
 		 * call cancel_work_sync() and wait forever.
 		 */
 		tg3_flag_clear(tp, RESET_TASK_PENDING);
+		netdev_unlock(tp->dev);
 		dev_close(tp->dev);
 		goto out;
 	}
 
 	tg3_netif_start(tp);
 	tg3_full_unlock(tp);
+	netdev_unlock(tp->dev);
 	tg3_phy_start(tp);
 	tg3_flag_clear(tp, RESET_TASK_PENDING);
 out:
@@ -11683,9 +11692,11 @@ static int tg3_start(struct tg3 *tp, bool reset_phy, bool test_irq,
 	if (err)
 		goto out_ints_fini;
 
+	netdev_lock(dev);
 	tg3_napi_init(tp);
 
 	tg3_napi_enable(tp);
+	netdev_unlock(dev);
 
 	for (i = 0; i < tp->irq_cnt; i++) {
 		err = tg3_request_irq(tp, i);
@@ -12569,6 +12580,7 @@ static int tg3_set_ringparam(struct net_device *dev,
 		irq_sync = 1;
 	}
 
+	netdev_lock(dev);
 	tg3_full_lock(tp, irq_sync);
 
 	tp->rx_pending = ering->rx_pending;
@@ -12597,6 +12609,7 @@ static int tg3_set_ringparam(struct net_device *dev,
 	}
 
 	tg3_full_unlock(tp);
+	netdev_unlock(dev);
 
 	if (irq_sync && !err)
 		tg3_phy_start(tp);
@@ -12678,6 +12691,7 @@ static int tg3_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam 
 			irq_sync = 1;
 		}
 
+		netdev_lock(dev);
 		tg3_full_lock(tp, irq_sync);
 
 		if (epause->autoneg)
@@ -12707,6 +12721,7 @@ static int tg3_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam 
 		}
 
 		tg3_full_unlock(tp);
+		netdev_unlock(dev);
 	}
 
 	tp->phy_flags |= TG3_PHYFLG_USER_CONFIGURED;
@@ -13911,6 +13926,7 @@ static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 			data[TG3_INTERRUPT_TEST] = 1;
 		}
 
+		netdev_lock(dev);
 		tg3_full_lock(tp, 0);
 
 		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
@@ -13922,6 +13938,7 @@ static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 		}
 
 		tg3_full_unlock(tp);
+		netdev_unlock(dev);
 
 		if (irq_sync && !err2)
 			tg3_phy_start(tp);
@@ -14365,6 +14382,7 @@ static int tg3_change_mtu(struct net_device *dev, int new_mtu)
 
 	tg3_set_mtu(dev, tp, new_mtu);
 
+	netdev_lock(dev);
 	tg3_full_lock(tp, 1);
 
 	tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
@@ -14384,6 +14402,7 @@ static int tg3_change_mtu(struct net_device *dev, int new_mtu)
 		tg3_netif_start(tp);
 
 	tg3_full_unlock(tp);
+	netdev_unlock(dev);
 
 	if (!err)
 		tg3_phy_start(tp);
@@ -18164,6 +18183,7 @@ static int tg3_resume(struct device *device)
 
 	netif_device_attach(dev);
 
+	netdev_lock(dev);
 	tg3_full_lock(tp, 0);
 
 	tg3_ape_driver_state_change(tp, RESET_KIND_INIT);
@@ -18180,6 +18200,7 @@ static int tg3_resume(struct device *device)
 
 out:
 	tg3_full_unlock(tp);
+	netdev_unlock(dev);
 
 	if (!err)
 		tg3_phy_start(tp);
@@ -18191,6 +18212,50 @@ unlock:
 #endif /* CONFIG_PM_SLEEP */
 
 static SIMPLE_DEV_PM_OPS(tg3_pm_ops, tg3_suspend, tg3_resume);
+
+/* Systems where ACPI _PTS (Prepare To Sleep) S5 will result in a fatal
+ * PCIe AER event on the tg3 device if the tg3 device is not, or cannot
+ * be, powered down.
+ */
+static const struct dmi_system_id tg3_restart_aer_quirk_table[] = {
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "PowerEdge R440"),
+		},
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "PowerEdge R540"),
+		},
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "PowerEdge R640"),
+		},
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "PowerEdge R650"),
+		},
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "PowerEdge R740"),
+		},
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "PowerEdge R750"),
+		},
+	},
+	{}
+};
 
 static void tg3_shutdown(struct pci_dev *pdev)
 {
@@ -18208,6 +18273,19 @@ static void tg3_shutdown(struct pci_dev *pdev)
 
 	if (system_state == SYSTEM_POWER_OFF)
 		tg3_power_down(tp);
+	else if (system_state == SYSTEM_RESTART &&
+		 dmi_first_match(tg3_restart_aer_quirk_table) &&
+		 pdev->current_state != PCI_D3cold &&
+		 pdev->current_state != PCI_UNKNOWN) {
+		/* Disable PCIe AER on the tg3 to avoid a fatal
+		 * error during this system restart.
+		 */
+		pcie_capability_clear_word(pdev, PCI_EXP_DEVCTL,
+					   PCI_EXP_DEVCTL_CERE |
+					   PCI_EXP_DEVCTL_NFERE |
+					   PCI_EXP_DEVCTL_FERE |
+					   PCI_EXP_DEVCTL_URRE);
+	}
 
 	rtnl_unlock();
 
@@ -18260,7 +18338,9 @@ static pci_ers_result_t tg3_io_error_detected(struct pci_dev *pdev,
 done:
 	if (state == pci_channel_io_perm_failure) {
 		if (netdev) {
+			netdev_lock(netdev);
 			tg3_napi_enable(tp);
+			netdev_unlock(netdev);
 			dev_close(netdev);
 		}
 		err = PCI_ERS_RESULT_DISCONNECT;
@@ -18314,7 +18394,9 @@ static pci_ers_result_t tg3_io_slot_reset(struct pci_dev *pdev)
 
 done:
 	if (rc != PCI_ERS_RESULT_RECOVERED && netdev && netif_running(netdev)) {
+		netdev_lock(netdev);
 		tg3_napi_enable(tp);
+		netdev_unlock(netdev);
 		dev_close(netdev);
 	}
 	rtnl_unlock();
@@ -18340,12 +18422,14 @@ static void tg3_io_resume(struct pci_dev *pdev)
 	if (!netdev || !netif_running(netdev))
 		goto done;
 
+	netdev_lock(netdev);
 	tg3_full_lock(tp, 0);
 	tg3_ape_driver_state_change(tp, RESET_KIND_INIT);
 	tg3_flag_set(tp, INIT_COMPLETE);
 	err = tg3_restart_hw(tp, true);
 	if (err) {
 		tg3_full_unlock(tp);
+		netdev_unlock(netdev);
 		netdev_err(netdev, "Cannot restart hardware after reset.\n");
 		goto done;
 	}
@@ -18357,6 +18441,7 @@ static void tg3_io_resume(struct pci_dev *pdev)
 	tg3_netif_start(tp);
 
 	tg3_full_unlock(tp);
+	netdev_unlock(netdev);
 
 	tg3_phy_start(tp);
 

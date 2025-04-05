@@ -1736,11 +1736,7 @@ static int aic31xx_i2c_probe(struct i2c_client *i2c)
 {
 	struct aic31xx_priv *aic31xx;
 	unsigned int micbias_value = MICBIAS_2_0V;
-	const struct i2c_device_id *id = i2c_match_id(aic31xx_i2c_id, i2c);
 	int i, ret;
-
-	dev_dbg(&i2c->dev, "## %s: %s codec_type = %d\n", __func__,
-		id->name, (int)id->driver_data);
 
 	aic31xx = devm_kzalloc(&i2c->dev, sizeof(*aic31xx), GFP_KERNEL);
 	if (!aic31xx)
@@ -1758,7 +1754,7 @@ static int aic31xx_i2c_probe(struct i2c_client *i2c)
 	aic31xx->dev = &i2c->dev;
 	aic31xx->irq = i2c->irq;
 
-	aic31xx->codec_type = id->driver_data;
+	aic31xx->codec_type = (uintptr_t)i2c_get_match_data(i2c);
 
 	dev_set_drvdata(aic31xx->dev, aic31xx);
 

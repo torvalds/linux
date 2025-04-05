@@ -199,13 +199,13 @@ parameters mentioned above use hyphens instead of underscores:
 
 Per-NAPI configuration can be done programmatically in a user application
 or by using a script included in the kernel source tree:
-``tools/net/ynl/cli.py``.
+``tools/net/ynl/pyynl/cli.py``.
 
 For example, using the script:
 
 .. code-block:: bash
 
-  $ kernel-source/tools/net/ynl/cli.py \
+  $ kernel-source/tools/net/ynl/pyynl/cli.py \
             --spec Documentation/netlink/specs/netdev.yaml \
             --do napi-set \
             --json='{"id": 345,
@@ -362,7 +362,7 @@ It is expected that ``irq-suspend-timeout`` will be set to a value much larger
 than ``gro_flush_timeout`` as ``irq-suspend-timeout`` should suspend IRQs for
 the duration of one userland processing cycle.
 
-While it is not stricly necessary to use ``napi_defer_hard_irqs`` and
+While it is not strictly necessary to use ``napi_defer_hard_irqs`` and
 ``gro_flush_timeout`` to use IRQ suspension, their use is strongly
 recommended.
 

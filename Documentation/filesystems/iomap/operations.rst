@@ -104,7 +104,7 @@ iomap calls these functions:
 
     For the pagecache, races can happen if writeback doesn't take
     ``i_rwsem`` or ``invalidate_lock`` and updates mapping information.
-    Races can also happen if the filesytem allows concurrent writes.
+    Races can also happen if the filesystem allows concurrent writes.
     For such files, the mapping *must* be revalidated after the folio
     lock has been taken so that iomap can manage the folio correctly.
 

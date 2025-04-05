@@ -1395,13 +1395,6 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	if (ret < 0) {
 		iwl_mvm_free_nd(mvm);
 
-		if (!unified_image) {
-			if (mvm->fw_restart > 0) {
-				mvm->fw_restart--;
-				ieee80211_restart_hw(mvm->hw);
-			}
-		}
-
 		clear_bit(IWL_MVM_STATUS_IN_D3, &mvm->status);
 	}
  out_noreset:
@@ -2498,12 +2491,6 @@ static void iwl_mvm_parse_wowlan_info_notif(struct iwl_mvm *mvm,
 	u32 expected_len = sizeof(*data) +
 		data->num_mlo_link_keys * sizeof(status->mlo_keys[0]);
 
-	if (!data) {
-		IWL_ERR(mvm, "iwl_wowlan_info_notif data is NULL\n");
-		status = NULL;
-		return;
-	}
-
 	if (len < expected_len) {
 		IWL_ERR(mvm, "Invalid WoWLAN info notification!\n");
 		status = NULL;
@@ -2555,12 +2542,6 @@ iwl_mvm_parse_wowlan_info_notif_v4(struct iwl_mvm *mvm,
 	u32 i;
 	u32 expected_len = sizeof(*data);
 
-	if (!data) {
-		IWL_ERR(mvm, "iwl_wowlan_info_notif data is NULL\n");
-		status = NULL;
-		return;
-	}
-
 	if (has_mlo_keys)
 		expected_len += (data->num_mlo_link_keys *
 				 sizeof(status->mlo_keys[0]));
@@ -2608,12 +2589,6 @@ iwl_mvm_parse_wowlan_info_notif_v2(struct iwl_mvm *mvm,
 				   u32 len)
 {
 	u32 i;
-
-	if (!data) {
-		IWL_ERR(mvm, "iwl_wowlan_info_notif data is NULL\n");
-		status = NULL;
-		return;
-	}
 
 	if (len < sizeof(*data)) {
 		IWL_ERR(mvm, "Invalid WoWLAN info notification!\n");
@@ -2954,6 +2929,7 @@ static void iwl_mvm_query_set_freqs(struct iwl_mvm *mvm,
 				    int idx)
 {
 	int i;
+	int n_channels = 0;
 
 	if (fw_has_api(&mvm->fw->ucode_capa,
 		       IWL_UCODE_TLV_API_SCAN_OFFLOAD_CHANS)) {
@@ -2962,7 +2938,7 @@ static void iwl_mvm_query_set_freqs(struct iwl_mvm *mvm,
 
 		for (i = 0; i < SCAN_OFFLOAD_MATCHING_CHANNELS_LEN * 8; i++)
 			if (matches[idx].matching_channels[i / 8] & (BIT(i % 8)))
-				match->channels[match->n_channels++] =
+				match->channels[n_channels++] =
 					mvm->nd_channels[i]->center_freq;
 	} else {
 		struct iwl_scan_offload_profile_match_v1 *matches =
@@ -2970,9 +2946,11 @@ static void iwl_mvm_query_set_freqs(struct iwl_mvm *mvm,
 
 		for (i = 0; i < SCAN_OFFLOAD_MATCHING_CHANNELS_LEN_V1 * 8; i++)
 			if (matches[idx].matching_channels[i / 8] & (BIT(i % 8)))
-				match->channels[match->n_channels++] =
+				match->channels[n_channels++] =
 					mvm->nd_channels[i]->center_freq;
 	}
+	/* We may have ended up with fewer channels than we allocated. */
+	match->n_channels = n_channels;
 }
 
 /**
@@ -3053,6 +3031,8 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 			     GFP_KERNEL);
 	if (!net_detect || !n_matches)
 		goto out_report_nd;
+	net_detect->n_matches = n_matches;
+	n_matches = 0;
 
 	for_each_set_bit(i, &matched_profiles, mvm->n_nd_match_sets) {
 		struct cfg80211_wowlan_nd_match *match;
@@ -3066,8 +3046,9 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 				GFP_KERNEL);
 		if (!match)
 			goto out_report_nd;
+		match->n_channels = n_channels;
 
-		net_detect->matches[net_detect->n_matches++] = match;
+		net_detect->matches[n_matches++] = match;
 
 		/* We inverted the order of the SSIDs in the scan
 		 * request, so invert the index here.
@@ -3082,6 +3063,8 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 
 		iwl_mvm_query_set_freqs(mvm, d3_data->nd_results, match, i);
 	}
+	/* We may have fewer matches than we allocated. */
+	net_detect->n_matches = n_matches;
 
 out_report_nd:
 	wakeup.net_detect = net_detect;
@@ -3533,6 +3516,7 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	iwl_fw_dbg_read_d3_debug_data(&mvm->fwrt);
 
 	if (iwl_mvm_check_rt_status(mvm, vif)) {
+		IWL_ERR(mvm, "FW Error occurred during suspend. Restarting.\n");
 		set_bit(STATUS_FW_ERROR, &mvm->trans->status);
 		iwl_mvm_dump_nic_error_log(mvm);
 		iwl_dbg_tlv_time_point(&mvm->fwrt,
@@ -3705,8 +3689,7 @@ int iwl_mvm_fast_resume(struct iwl_mvm *mvm)
 	iwl_fw_dbg_read_d3_debug_data(&mvm->fwrt);
 
 	if (iwl_mvm_check_rt_status(mvm, NULL)) {
-		IWL_ERR(mvm,
-			"iwl_mvm_check_rt_status failed, device is gone during suspend\n");
+		IWL_ERR(mvm, "FW Error occurred during suspend. Restarting.\n");
 		set_bit(STATUS_FW_ERROR, &mvm->trans->status);
 		iwl_mvm_dump_nic_error_log(mvm);
 		iwl_dbg_tlv_time_point(&mvm->fwrt,

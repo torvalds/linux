@@ -111,7 +111,7 @@ static struct phy_driver am79c_drivers[] = {
 
 module_phy_driver(am79c_drivers);
 
-static struct mdio_device_id __maybe_unused amd_tbl[] = {
+static const struct mdio_device_id __maybe_unused amd_tbl[] = {
 	{ PHY_ID_AC101L, 0xfffffff0 },
 	{ PHY_ID_AM79C874, 0xfffffff0 },
 	{ }

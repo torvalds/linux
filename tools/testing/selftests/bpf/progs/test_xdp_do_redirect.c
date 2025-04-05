@@ -98,6 +98,18 @@ int xdp_count_pkts(struct xdp_md *xdp)
 	return XDP_DROP;
 }
 
+SEC("xdp")
+int xdp_redirect_to_111(struct xdp_md *xdp)
+{
+	return bpf_redirect(111, 0);
+}
+
+SEC("xdp")
+int xdp_redirect_to_222(struct xdp_md *xdp)
+{
+	return bpf_redirect(222, 0);
+}
+
 SEC("tc")
 int tc_count_pkts(struct __sk_buff *skb)
 {

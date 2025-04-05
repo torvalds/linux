@@ -92,7 +92,6 @@ static const struct hw_sequencer_funcs dcn35_funcs = {
 	.enable_writeback = dcn30_enable_writeback,
 	.disable_writeback = dcn30_disable_writeback,
 	.update_writeback = dcn30_update_writeback,
-	.mmhubbub_warmup = dcn30_mmhubbub_warmup,
 	.dmdata_status_done = dcn20_dmdata_status_done,
 	.program_dmdata_engine = dcn30_program_dmdata_engine,
 	.set_dmdata_attributes = dcn20_set_dmdata_attributes,
@@ -123,6 +122,11 @@ static const struct hw_sequencer_funcs dcn35_funcs = {
 	.root_clock_control = dcn35_root_clock_control,
 	.set_long_vtotal = dcn35_set_long_vblank,
 	.calculate_pix_rate_divider = dcn32_calculate_pix_rate_divider,
+	.hardware_release = dcn35_hardware_release,
+	.detect_pipe_changes = dcn20_detect_pipe_changes,
+	.enable_plane = dcn20_enable_plane,
+	.update_dchubp_dpp = dcn20_update_dchubp_dpp,
+	.post_unlock_reset_opp = dcn20_post_unlock_reset_opp,
 };
 
 static const struct hwseq_private_funcs dcn35_private_funcs = {

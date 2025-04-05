@@ -96,7 +96,7 @@ __naked void arg_ptr_to_long_misaligned(void)
 
 SEC("cgroup/sysctl")
 __description("arg pointer to long size < sizeof(long)")
-__failure __msg("invalid indirect access to stack R4 off=-4 size=8")
+__failure __msg("invalid write to stack R4 off=-4 size=8")
 __naked void to_long_size_sizeof_long(void)
 {
 	asm volatile ("					\

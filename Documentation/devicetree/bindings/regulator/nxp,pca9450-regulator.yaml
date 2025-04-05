@@ -29,6 +29,7 @@ properties:
       - nxp,pca9450b
       - nxp,pca9450c
       - nxp,pca9451a
+      - nxp,pca9452
 
   reg:
     maxItems: 1

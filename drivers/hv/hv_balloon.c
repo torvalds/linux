@@ -28,7 +28,7 @@
 #include <linux/sizes.h>
 
 #include <linux/hyperv.h>
-#include <asm/hyperv-tlfs.h>
+#include <hyperv/hvhdk.h>
 
 #include <asm/mshyperv.h>
 
@@ -756,7 +756,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 		 * adding succeeded, it is ok to proceed even if the memory was
 		 * not onlined in time.
 		 */
-		wait_for_completion_timeout(&dm_device.ol_waitevent, 5 * HZ);
+		wait_for_completion_timeout(&dm_device.ol_waitevent, secs_to_jiffies(5));
 		post_status(&dm_device);
 	}
 }
@@ -766,16 +766,18 @@ static void hv_online_page(struct page *pg, unsigned int order)
 	struct hv_hotadd_state *has;
 	unsigned long pfn = page_to_pfn(pg);
 
-	guard(spinlock_irqsave)(&dm_device.ha_lock);
-	list_for_each_entry(has, &dm_device.ha_region_list, list) {
-		/* The page belongs to a different HAS. */
-		if (pfn < has->start_pfn ||
-		    (pfn + (1UL << order) > has->end_pfn))
-			continue;
+	scoped_guard(spinlock_irqsave, &dm_device.ha_lock) {
+		list_for_each_entry(has, &dm_device.ha_region_list, list) {
+			/* The page belongs to a different HAS. */
+			if (pfn < has->start_pfn ||
+				(pfn + (1UL << order) > has->end_pfn))
+				continue;
 
-		hv_bring_pgs_online(has, pfn, 1UL << order);
-		break;
+			hv_bring_pgs_online(has, pfn, 1UL << order);
+			return;
+		}
 	}
+	generic_online_page(pg, order);
 }
 
 static int pfn_covered(unsigned long start_pfn, unsigned long pfn_cnt)
@@ -1373,7 +1375,8 @@ static int dm_thread_func(void *dm_dev)
 	struct hv_dynmem_device *dm = dm_dev;
 
 	while (!kthread_should_stop()) {
-		wait_for_completion_interruptible_timeout(&dm_device.config_event, 1 * HZ);
+		wait_for_completion_interruptible_timeout(&dm_device.config_event,
+								secs_to_jiffies(1));
 		/*
 		 * The host expects us to post information on the memory
 		 * pressure every second.
@@ -1585,7 +1588,7 @@ static int hv_free_page_report(struct page_reporting_dev_info *pr_dev_info,
 		return -ENOSPC;
 	}
 
-	hint->type = HV_EXT_MEMORY_HEAT_HINT_TYPE_COLD_DISCARD;
+	hint->heat_type = HV_EXTMEM_HEAT_HINT_COLD_DISCARD;
 	hint->reserved = 0;
 	for_each_sg(sgl, sg, nents, i) {
 		union hv_gpa_page_range *range;
@@ -1748,7 +1751,7 @@ static int balloon_connect_vsp(struct hv_device *dev)
 	if (ret)
 		goto out;
 
-	t = wait_for_completion_timeout(&dm_device.host_event, 5 * HZ);
+	t = wait_for_completion_timeout(&dm_device.host_event, secs_to_jiffies(5));
 	if (t == 0) {
 		ret = -ETIMEDOUT;
 		goto out;
@@ -1806,7 +1809,7 @@ static int balloon_connect_vsp(struct hv_device *dev)
 	if (ret)
 		goto out;
 
-	t = wait_for_completion_timeout(&dm_device.host_event, 5 * HZ);
+	t = wait_for_completion_timeout(&dm_device.host_event, secs_to_jiffies(5));
 	if (t == 0) {
 		ret = -ETIMEDOUT;
 		goto out;

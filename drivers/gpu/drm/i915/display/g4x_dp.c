@@ -8,6 +8,7 @@
 #include <linux/string_helpers.h>
 
 #include "g4x_dp.h"
+#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_audio.h"
 #include "intel_backlight.h"
@@ -55,8 +56,8 @@ const struct dpll *vlv_get_dpll(struct drm_i915_private *i915)
 	return IS_CHERRYVIEW(i915) ? &chv_dpll[0] : &vlv_dpll[0];
 }
 
-void g4x_dp_set_clock(struct intel_encoder *encoder,
-		      struct intel_crtc_state *pipe_config)
+static void g4x_dp_set_clock(struct intel_encoder *encoder,
+			     struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	const struct dpll *divisor = NULL;
@@ -1223,6 +1224,25 @@ static bool ilk_digital_port_connected(struct intel_encoder *encoder)
 	return intel_de_read(display, DEISR) & bit;
 }
 
+static int g4x_dp_compute_config(struct intel_encoder *encoder,
+				 struct intel_crtc_state *crtc_state,
+				 struct drm_connector_state *conn_state)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	int ret;
+
+	if (HAS_PCH_SPLIT(i915) && encoder->port != PORT_A)
+		crtc_state->has_pch_encoder = true;
+
+	ret = intel_dp_compute_config(encoder, crtc_state, conn_state);
+	if (ret)
+		return ret;
+
+	g4x_dp_set_clock(encoder, crtc_state);
+
+	return 0;
+}
+
 static void g4x_dp_suspend_complete(struct intel_encoder *encoder)
 {
 	/*
@@ -1307,7 +1327,7 @@ bool g4x_dp_init(struct drm_i915_private *dev_priv,
 	intel_encoder_link_check_init(intel_encoder, intel_dp_link_check);
 
 	intel_encoder->hotplug = intel_dp_hotplug;
-	intel_encoder->compute_config = intel_dp_compute_config;
+	intel_encoder->compute_config = g4x_dp_compute_config;
 	intel_encoder->get_hw_state = intel_dp_get_hw_state;
 	intel_encoder->get_config = intel_dp_get_config;
 	intel_encoder->sync_state = intel_dp_sync_state;

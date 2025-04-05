@@ -1067,7 +1067,6 @@ static struct mlx5dr_cq *dr_create_cq(struct mlx5_core_dev *mdev,
 	int inlen, err, eqn;
 	void *cqc, *in;
 	__be64 *pas;
-	int vector;
 	u32 i;
 
 	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
@@ -1096,8 +1095,7 @@ static struct mlx5dr_cq *dr_create_cq(struct mlx5_core_dev *mdev,
 	if (!in)
 		goto err_cqwq;
 
-	vector = raw_smp_processor_id() % mlx5_comp_vectors_max(mdev);
-	err = mlx5_comp_eqn_get(mdev, vector, &eqn);
+	err = mlx5_comp_eqn_get(mdev, 0, &eqn);
 	if (err) {
 		kvfree(in);
 		goto err_cqwq;

@@ -11,8 +11,8 @@
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_managed.h>
@@ -45,7 +45,6 @@ static const struct drm_driver armada_drm_driver = {
 	.minor			= 0,
 	.name			= "armada-drm",
 	.desc			= "Armada SoC DRM",
-	.date			= "20120730",
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.ioctls			= armada_ioctls,
 	.num_ioctls = ARRAY_SIZE(armada_ioctls),

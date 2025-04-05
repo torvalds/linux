@@ -66,7 +66,7 @@ static u32 context_to_sid(struct sidtab *s, struct context *context, u32 hash)
 	hash_for_each_possible_rcu(s->context_to_sid, entry, list, hash) {
 		if (entry->hash != hash)
 			continue;
-		if (context_cmp(&entry->context, context)) {
+		if (context_equal(&entry->context, context)) {
 			sid = entry->sid;
 			break;
 		}
@@ -114,12 +114,12 @@ int sidtab_set_initial(struct sidtab *s, u32 sid, struct context *context)
 
 int sidtab_hash_stats(struct sidtab *sidtab, char *page)
 {
-	int i;
+	unsigned int i;
 	int chain_len = 0;
 	int slots_used = 0;
 	int entries = 0;
 	int max_chain_len = 0;
-	int cur_bucket = 0;
+	unsigned int cur_bucket = 0;
 	struct sidtab_entry *entry;
 
 	rcu_read_lock();

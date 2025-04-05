@@ -19,14 +19,12 @@
  * bit use   |D  |fou|FEOL|FEOL|FEOL|FEOL|  UUUU  |          |
  * bit number|0  |1-3|4-7 |8-11|  12-19  | 20-23  |  24-31   |
  *
- * device bits:	D = OCP error
+ * device bits:	D = Unused
  * WB bits:	f = frame done wb, o = wb buffer overflow,
  *		u = wb buffer uncomplete
  * vp bits:	F = frame done, E = vsync even, O = vsync odd, L = sync lost
  * plane bits:	U = fifo underflow
  */
-
-#define DSS_IRQ_DEVICE_OCP_ERR			BIT(0)
 
 #define DSS_IRQ_DEVICE_FRAMEDONEWB		BIT(1)
 #define DSS_IRQ_DEVICE_WBBUFFEROVERFLOW		BIT(2)

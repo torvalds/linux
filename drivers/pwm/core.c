@@ -242,6 +242,9 @@ int pwm_round_waveform_might_sleep(struct pwm_device *pwm, struct pwm_waveform *
 
 	BUG_ON(WFHWSIZE < ops->sizeof_wfhw);
 
+	if (!pwmchip_supports_waveform(chip))
+		return -EOPNOTSUPP;
+
 	if (!pwm_wf_valid(wf))
 		return -EINVAL;
 
@@ -294,6 +297,9 @@ int pwm_get_waveform_might_sleep(struct pwm_device *pwm, struct pwm_waveform *wf
 
 	BUG_ON(WFHWSIZE < ops->sizeof_wfhw);
 
+	if (!pwmchip_supports_waveform(chip) || !ops->read_waveform)
+		return -EOPNOTSUPP;
+
 	guard(pwmchip)(chip);
 
 	if (!chip->operational)
@@ -319,6 +325,9 @@ static int __pwm_set_waveform(struct pwm_device *pwm,
 	int err;
 
 	BUG_ON(WFHWSIZE < ops->sizeof_wfhw);
+
+	if (!pwmchip_supports_waveform(chip))
+		return -EOPNOTSUPP;
 
 	if (!pwm_wf_valid(wf))
 		return -EINVAL;
@@ -592,7 +601,7 @@ static int __pwm_apply(struct pwm_device *pwm, const struct pwm_state *state)
 	    state->usage_power == pwm->state.usage_power)
 		return 0;
 
-	if (ops->write_waveform) {
+	if (pwmchip_supports_waveform(chip)) {
 		struct pwm_waveform wf;
 		char wfhw[WFHWSIZE];
 
@@ -746,7 +755,7 @@ int pwm_get_state_hw(struct pwm_device *pwm, struct pwm_state *state)
 	if (!chip->operational)
 		return -ENODEV;
 
-	if (ops->read_waveform) {
+	if (pwmchip_supports_waveform(chip) && ops->read_waveform) {
 		char wfhw[WFHWSIZE];
 		struct pwm_waveform wf;
 
@@ -1276,7 +1285,7 @@ static int pwm_export_child(struct device *pwmchip_dev, struct pwm_device *pwm)
 	return 0;
 }
 
-static int pwm_unexport_match(struct device *pwm_dev, void *data)
+static int pwm_unexport_match(struct device *pwm_dev, const void *data)
 {
 	return pwm_from_dev(pwm_dev) == data;
 }

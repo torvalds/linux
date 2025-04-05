@@ -400,7 +400,8 @@
     */
    static int ips_biosparam(struct scsi_device *sdev, struct block_device *bdev,
 		sector_t capacity, int geom[]);
-   static int ips_slave_configure(struct scsi_device *SDptr);
+   static int ips_sdev_configure(struct scsi_device *SDptr,
+				 struct queue_limits *lim);
 
 /*
  * Raid Command Formats

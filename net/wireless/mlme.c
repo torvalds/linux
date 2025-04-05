@@ -352,6 +352,13 @@ cfg80211_mlme_check_mlo_compat(const struct ieee80211_multi_link_elem *mle_a,
 		return -EINVAL;
 	}
 
+	if (ieee80211_mle_get_ext_mld_capa_op((const u8 *)mle_a) !=
+	    ieee80211_mle_get_ext_mld_capa_op((const u8 *)mle_b)) {
+		NL_SET_ERR_MSG(extack,
+			       "extended link MLD capabilities/ops mismatch");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -627,10 +634,10 @@ void cfg80211_mgmt_registrations_update_wk(struct work_struct *wk)
 	rdev = container_of(wk, struct cfg80211_registered_device,
 			    mgmt_registrations_update_wk);
 
-	wiphy_lock(&rdev->wiphy);
+	guard(wiphy)(&rdev->wiphy);
+
 	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list)
 		cfg80211_mgmt_registrations_update(wdev);
-	wiphy_unlock(&rdev->wiphy);
 }
 
 int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
@@ -1193,10 +1200,10 @@ cfg80211_background_cac_event(struct cfg80211_registered_device *rdev,
 			      const struct cfg80211_chan_def *chandef,
 			      enum nl80211_radar_event event)
 {
-	wiphy_lock(&rdev->wiphy);
+	guard(wiphy)(&rdev->wiphy);
+
 	__cfg80211_background_cac_event(rdev, rdev->background_radar_wdev,
 					chandef, event);
-	wiphy_unlock(&rdev->wiphy);
 }
 
 void cfg80211_background_cac_done_wk(struct work_struct *work)
@@ -1287,3 +1294,80 @@ void cfg80211_stop_background_radar_detection(struct wireless_dev *wdev)
 					&rdev->background_radar_chandef,
 					NL80211_RADAR_CAC_ABORTED);
 }
+
+int cfg80211_assoc_ml_reconf(struct cfg80211_registered_device *rdev,
+			     struct net_device *dev,
+			     struct cfg80211_assoc_link *links,
+			     u16 rem_links)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	int err;
+
+	lockdep_assert_wiphy(wdev->wiphy);
+
+	err = rdev_assoc_ml_reconf(rdev, dev, links, rem_links);
+	if (!err) {
+		int link_id;
+
+		for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS;
+		     link_id++) {
+			if (!links[link_id].bss)
+				continue;
+
+			cfg80211_ref_bss(&rdev->wiphy, links[link_id].bss);
+			cfg80211_hold_bss(bss_from_pub(links[link_id].bss));
+		}
+	}
+
+	return err;
+}
+
+void cfg80211_mlo_reconf_add_done(struct net_device *dev,
+				  struct cfg80211_mlo_reconf_done_data *data)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct wiphy *wiphy = wdev->wiphy;
+	int link_id;
+
+	lockdep_assert_wiphy(wiphy);
+
+	trace_cfg80211_mlo_reconf_add_done(dev, data->added_links,
+					   data->buf, data->len);
+
+	if (WARN_ON(!wdev->valid_links))
+		return;
+
+	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION &&
+		    wdev->iftype != NL80211_IFTYPE_P2P_CLIENT))
+		return;
+
+	/* validate that a BSS is given for each added link */
+	for (link_id = 0; link_id < ARRAY_SIZE(data->links); link_id++) {
+		struct cfg80211_bss *bss = data->links[link_id].bss;
+
+		if (!(data->added_links & BIT(link_id)))
+			continue;
+
+		if (WARN_ON(!bss))
+			return;
+	}
+
+	for (link_id = 0; link_id < ARRAY_SIZE(data->links); link_id++) {
+		struct cfg80211_bss *bss = data->links[link_id].bss;
+
+		if (!bss)
+			continue;
+
+		if (data->added_links & BIT(link_id)) {
+			wdev->links[link_id].client.current_bss =
+				bss_from_pub(bss);
+		} else {
+			cfg80211_unhold_bss(bss_from_pub(bss));
+			cfg80211_put_bss(wiphy, bss);
+		}
+	}
+
+	wdev->valid_links |= data->added_links;
+	nl80211_mlo_reconf_add_done(dev, data);
+}
+EXPORT_SYMBOL(cfg80211_mlo_reconf_add_done);

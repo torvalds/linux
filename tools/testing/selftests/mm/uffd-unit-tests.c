@@ -1122,7 +1122,7 @@ uffd_move_test_common(uffd_test_args_t *targs, unsigned long chunk_size,
 	char c;
 	unsigned long long count;
 	struct uffd_args args = { 0 };
-	char *orig_area_src, *orig_area_dst;
+	char *orig_area_src = NULL, *orig_area_dst = NULL;
 	unsigned long step_size, step_count;
 	unsigned long src_offs = 0;
 	unsigned long dst_offs = 0;
@@ -1190,7 +1190,7 @@ uffd_move_test_common(uffd_test_args_t *targs, unsigned long chunk_size,
 				    nr, count, count_verify[src_offs + nr + i]);
 		}
 	}
-	if (step_size > page_size) {
+	if (chunk_size > page_size) {
 		area_src = orig_area_src;
 		area_dst = orig_area_dst;
 	}

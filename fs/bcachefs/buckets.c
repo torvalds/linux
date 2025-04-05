@@ -18,7 +18,9 @@
 #include "error.h"
 #include "inode.h"
 #include "movinggc.h"
+#include "rebalance.h"
 #include "recovery.h"
+#include "recovery_passes.h"
 #include "reflink.h"
 #include "replicas.h"
 #include "subvolume.h"
@@ -260,8 +262,6 @@ int bch2_check_fix_ptrs(struct btree_trans *trans,
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
-	percpu_down_read(&c->mark_lock);
-
 	bkey_for_each_ptr_decode(k.k, ptrs_c, p, entry_c) {
 		ret = bch2_check_fix_ptr(trans, k, p, entry_c, &do_update);
 		if (ret)
@@ -362,7 +362,6 @@ found:
 			bch_info(c, "new key %s", buf.buf);
 		}
 
-		percpu_up_read(&c->mark_lock);
 		struct btree_iter iter;
 		bch2_trans_node_iter_init(trans, &iter, btree, new->k.p, 0, level,
 					  BTREE_ITER_intent|BTREE_ITER_all_snapshots);
@@ -371,8 +370,6 @@ found:
 					  BTREE_UPDATE_internal_snapshot_node|
 					  BTREE_TRIGGER_norun);
 		bch2_trans_iter_exit(trans, &iter);
-		percpu_down_read(&c->mark_lock);
-
 		if (ret)
 			goto err;
 
@@ -380,7 +377,6 @@ found:
 			bch2_btree_node_update_key_early(trans, btree, level - 1, k, new);
 	}
 err:
-	percpu_up_read(&c->mark_lock);
 	printbuf_exit(&buf);
 	return ret;
 }
@@ -401,8 +397,8 @@ int bch2_bucket_ref_update(struct btree_trans *trans, struct bch_dev *ca,
 	BUG_ON(!sectors);
 
 	if (gen_after(ptr->gen, b_gen)) {
-		bch2_fsck_err(trans, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-			      ptr_gen_newer_than_bucket_gen,
+		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
+		log_fsck_err(trans, ptr_gen_newer_than_bucket_gen,
 			"bucket %u:%zu gen %u data type %s: ptr gen %u newer than bucket gen\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
@@ -415,8 +411,8 @@ int bch2_bucket_ref_update(struct btree_trans *trans, struct bch_dev *ca,
 	}
 
 	if (gen_cmp(b_gen, ptr->gen) > BUCKET_GC_GEN_MAX) {
-		bch2_fsck_err(trans, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-			      ptr_too_stale,
+		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
+		log_fsck_err(trans, ptr_too_stale,
 			"bucket %u:%zu gen %u data type %s: ptr gen %u too stale\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
@@ -435,8 +431,8 @@ int bch2_bucket_ref_update(struct btree_trans *trans, struct bch_dev *ca,
 	}
 
 	if (b_gen != ptr->gen) {
-		bch2_fsck_err(trans, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-			      stale_dirty_ptr,
+		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
+		log_fsck_err(trans, stale_dirty_ptr,
 			"bucket %u:%zu gen %u (mem gen %u) data type %s: stale dirty ptr (gen %u)\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
@@ -451,8 +447,8 @@ int bch2_bucket_ref_update(struct btree_trans *trans, struct bch_dev *ca,
 	}
 
 	if (bucket_data_type_mismatch(bucket_data_type, ptr_data_type)) {
-		bch2_fsck_err(trans, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-			      ptr_bucket_data_type_mismatch,
+		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
+		log_fsck_err(trans, ptr_bucket_data_type_mismatch,
 			"bucket %u:%zu gen %u different types of data in same bucket: %s, %s\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
@@ -466,8 +462,8 @@ int bch2_bucket_ref_update(struct btree_trans *trans, struct bch_dev *ca,
 	}
 
 	if ((u64) *bucket_sectors + sectors > U32_MAX) {
-		bch2_fsck_err(trans, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-			      bucket_sector_count_overflow,
+		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
+		log_fsck_err(trans, bucket_sector_count_overflow,
 			"bucket %u:%zu gen %u data type %s sector count overflow: %u + %lli > U32_MAX\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
@@ -485,7 +481,9 @@ out:
 	printbuf_exit(&buf);
 	return ret;
 err:
+fsck_err:
 	bch2_dump_trans_updates(trans);
+	bch2_inconsistent_error(c);
 	ret = -BCH_ERR_bucket_ref_update;
 	goto out;
 }
@@ -543,7 +541,8 @@ static int __mark_pointer(struct btree_trans *trans, struct bch_dev *ca,
 			  struct bkey_s_c k,
 			  const struct extent_ptr_decoded *p,
 			  s64 sectors, enum bch_data_type ptr_data_type,
-			  struct bch_alloc_v4 *a)
+			  struct bch_alloc_v4 *a,
+			  bool insert)
 {
 	u32 *dst_sectors = p->has_ec	? &a->stripe_sectors :
 		!p->ptr.cached		? &a->dirty_sectors :
@@ -553,8 +552,8 @@ static int __mark_pointer(struct btree_trans *trans, struct bch_dev *ca,
 
 	if (ret)
 		return ret;
-
-	alloc_data_type_set(a, ptr_data_type);
+	if (insert)
+		alloc_data_type_set(a, ptr_data_type);
 	return 0;
 }
 
@@ -570,8 +569,10 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
-	u64 abs_sectors = ptr_disk_sectors(level ? btree_sectors(c) : k.k->size, p);
-	*sectors = insert ? abs_sectors : -abs_sectors;
+	struct bkey_i_backpointer bp;
+	bch2_extent_ptr_to_bp(c, btree_id, level, k, p, entry, &bp);
+
+	*sectors = insert ? bp.v.bucket_len : -(s64) bp.v.bucket_len;
 
 	struct bch_dev *ca = bch2_dev_tryget(c, p.ptr.dev);
 	if (unlikely(!ca)) {
@@ -580,41 +581,36 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 		goto err;
 	}
 
-	struct bpos bucket;
-	struct bch_backpointer bp;
-	__bch2_extent_ptr_to_bp(trans->c, ca, btree_id, level, k, p, entry, &bucket, &bp, abs_sectors);
+	struct bpos bucket = PTR_BUCKET_POS(ca, &p.ptr);
 
 	if (flags & BTREE_TRIGGER_transactional) {
 		struct bkey_i_alloc_v4 *a = bch2_trans_start_alloc_update(trans, bucket, 0);
 		ret = PTR_ERR_OR_ZERO(a) ?:
-			__mark_pointer(trans, ca, k, &p, *sectors, bp.data_type, &a->v);
+			__mark_pointer(trans, ca, k, &p, *sectors, bp.v.data_type, &a->v, insert);
 		if (ret)
 			goto err;
 
 		if (!p.ptr.cached) {
-			ret = bch2_bucket_backpointer_mod(trans, ca, bucket, bp, k, insert);
+			ret = bch2_bucket_backpointer_mod(trans, k, &bp, insert);
 			if (ret)
 				goto err;
 		}
 	}
 
 	if (flags & BTREE_TRIGGER_gc) {
-		percpu_down_read(&c->mark_lock);
 		struct bucket *g = gc_bucket(ca, bucket.offset);
 		if (bch2_fs_inconsistent_on(!g, c, "reference to invalid bucket on device %u\n  %s",
 					    p.ptr.dev,
 					    (bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
 			ret = -BCH_ERR_trigger_pointer;
-			goto err_unlock;
+			goto err;
 		}
 
 		bucket_lock(g);
 		struct bch_alloc_v4 old = bucket_m_to_alloc(*g), new = old;
-		ret = __mark_pointer(trans, ca, k, &p, *sectors, bp.data_type, &new);
+		ret = __mark_pointer(trans, ca, k, &p, *sectors, bp.v.data_type, &new, insert);
 		alloc_to_bucket(g, new);
 		bucket_unlock(g);
-err_unlock:
-		percpu_up_read(&c->mark_lock);
 
 		if (!ret)
 			ret = bch2_alloc_key_to_dev_counters(trans, ca, &old, &new, flags);
@@ -951,6 +947,7 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 				    enum bch_data_type type,
 				    unsigned sectors)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	int ret = 0;
 
@@ -960,8 +957,8 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 		return PTR_ERR(a);
 
 	if (a->v.data_type && type && a->v.data_type != type) {
-		bch2_fsck_err(trans, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-			      bucket_metadata_type_mismatch,
+		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
+		log_fsck_err(trans, bucket_metadata_type_mismatch,
 			"bucket %llu:%llu gen %u different types of data in same bucket: %s, %s\n"
 			"while marking %s",
 			iter.pos.inode, iter.pos.offset, a->v.gen,
@@ -979,6 +976,7 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 		ret = bch2_trans_update(trans, &iter, &a->k_i, 0);
 	}
 err:
+fsck_err:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
@@ -990,11 +988,10 @@ static int bch2_mark_metadata_bucket(struct btree_trans *trans, struct bch_dev *
 	struct bch_fs *c = trans->c;
 	int ret = 0;
 
-	percpu_down_read(&c->mark_lock);
 	struct bucket *g = gc_bucket(ca, b);
 	if (bch2_fs_inconsistent_on(!g, c, "reference to invalid bucket on device %u when marking metadata type %s",
 				    ca->dev_idx, bch2_data_type_str(data_type)))
-		goto err_unlock;
+		goto err;
 
 	bucket_lock(g);
 	struct bch_alloc_v4 old = bucket_m_to_alloc(*g);
@@ -1004,26 +1001,24 @@ static int bch2_mark_metadata_bucket(struct btree_trans *trans, struct bch_dev *
 			"different types of data in same bucket: %s, %s",
 			bch2_data_type_str(g->data_type),
 			bch2_data_type_str(data_type)))
-		goto err;
+		goto err_unlock;
 
 	if (bch2_fs_inconsistent_on((u64) g->dirty_sectors + sectors > ca->mi.bucket_size, c,
 			"bucket %u:%llu gen %u data type %s sector count overflow: %u + %u > bucket size",
 			ca->dev_idx, b, g->gen,
 			bch2_data_type_str(g->data_type ?: data_type),
 			g->dirty_sectors, sectors))
-		goto err;
+		goto err_unlock;
 
 	g->data_type = data_type;
 	g->dirty_sectors += sectors;
 	struct bch_alloc_v4 new = bucket_m_to_alloc(*g);
 	bucket_unlock(g);
-	percpu_up_read(&c->mark_lock);
 	ret = bch2_alloc_key_to_dev_counters(trans, ca, &old, &new, flags);
 	return ret;
-err:
-	bucket_unlock(g);
 err_unlock:
-	percpu_up_read(&c->mark_lock);
+	bucket_unlock(g);
+err:
 	return -BCH_ERR_metadata_bucket_inconsistency;
 }
 
@@ -1155,6 +1150,31 @@ int bch2_trans_mark_dev_sbs(struct bch_fs *c)
 	return bch2_trans_mark_dev_sbs_flags(c, BTREE_TRIGGER_transactional);
 }
 
+bool bch2_is_superblock_bucket(struct bch_dev *ca, u64 b)
+{
+	struct bch_sb_layout *layout = &ca->disk_sb.sb->layout;
+	u64 b_offset	= bucket_to_sector(ca, b);
+	u64 b_end	= bucket_to_sector(ca, b + 1);
+	unsigned i;
+
+	if (!b)
+		return true;
+
+	for (i = 0; i < layout->nr_superblocks; i++) {
+		u64 offset = le64_to_cpu(layout->sb_offset[i]);
+		u64 end = offset + (1 << layout->sb_max_size_bits);
+
+		if (!(offset >= b_end || end <= b_offset))
+			return true;
+	}
+
+	for (i = 0; i < ca->journal.nr; i++)
+		if (b == ca->journal.buckets[i])
+			return true;
+
+	return false;
+}
+
 /* Disk reservations: */
 
 #define SECTORS_CACHE	1024
@@ -1238,7 +1258,7 @@ int bch2_buckets_nouse_alloc(struct bch_fs *c)
 	for_each_member_device(c, ca) {
 		BUG_ON(ca->buckets_nouse);
 
-		ca->buckets_nouse = kvmalloc(BITS_TO_LONGS(ca->mi.nbuckets) *
+		ca->buckets_nouse = bch2_kvmalloc(BITS_TO_LONGS(ca->mi.nbuckets) *
 					    sizeof(unsigned long),
 					    GFP_KERNEL|__GFP_ZERO);
 		if (!ca->buckets_nouse) {
@@ -1264,10 +1284,15 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	bool resize = ca->bucket_gens != NULL;
 	int ret;
 
-	BUG_ON(resize && ca->buckets_nouse);
+	if (resize)
+		lockdep_assert_held(&c->state_lock);
 
-	if (!(bucket_gens	= kvmalloc(sizeof(struct bucket_gens) + nbuckets,
-					   GFP_KERNEL|__GFP_ZERO))) {
+	if (resize && ca->buckets_nouse)
+		return -BCH_ERR_no_resize_with_buckets_nouse;
+
+	bucket_gens = bch2_kvmalloc(struct_size(bucket_gens, b, nbuckets),
+				    GFP_KERNEL|__GFP_ZERO);
+	if (!bucket_gens) {
 		ret = -BCH_ERR_ENOMEM_bucket_gens;
 		goto err;
 	}
@@ -1277,30 +1302,22 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	bucket_gens->nbuckets_minus_first =
 		bucket_gens->nbuckets - bucket_gens->first_bucket;
 
-	if (resize) {
-		down_write(&ca->bucket_lock);
-		percpu_down_write(&c->mark_lock);
-	}
-
 	old_bucket_gens = rcu_dereference_protected(ca->bucket_gens, 1);
 
 	if (resize) {
-		size_t n = min(bucket_gens->nbuckets, old_bucket_gens->nbuckets);
-
+		bucket_gens->nbuckets = min(bucket_gens->nbuckets,
+					    old_bucket_gens->nbuckets);
+		bucket_gens->nbuckets_minus_first =
+			bucket_gens->nbuckets - bucket_gens->first_bucket;
 		memcpy(bucket_gens->b,
 		       old_bucket_gens->b,
-		       n);
+		       bucket_gens->nbuckets);
 	}
 
 	rcu_assign_pointer(ca->bucket_gens, bucket_gens);
 	bucket_gens	= old_bucket_gens;
 
 	nbuckets = ca->mi.nbuckets;
-
-	if (resize) {
-		percpu_up_write(&c->mark_lock);
-		up_write(&ca->bucket_lock);
-	}
 
 	ret = 0;
 err:

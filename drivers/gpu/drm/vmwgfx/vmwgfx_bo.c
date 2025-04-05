@@ -228,7 +228,6 @@ int vmw_bo_pin_in_start_of_vram(struct vmw_private *dev_priv,
 			     VMW_BO_DOMAIN_VRAM,
 			     VMW_BO_DOMAIN_VRAM);
 	buf->places[0].lpfn = PFN_UP(bo->resource->size);
-	buf->busy_places[0].lpfn = PFN_UP(bo->resource->size);
 	ret = ttm_bo_validate(bo, &buf->placement, &ctx);
 
 	/* For some reason we didn't end up at the start of vram */
@@ -443,7 +442,8 @@ static int vmw_bo_init(struct vmw_private *dev_priv,
 
 	if (params->pin)
 		ttm_bo_pin(&vmw_bo->tbo);
-	ttm_bo_unreserve(&vmw_bo->tbo);
+	if (!params->keep_resv)
+		ttm_bo_unreserve(&vmw_bo->tbo);
 
 	return 0;
 }

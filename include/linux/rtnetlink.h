@@ -78,7 +78,7 @@ static inline bool lockdep_rtnl_is_held(void)
  * rtnl_dereference - fetch RCU pointer when updates are prevented by RTNL
  * @p: The pointer to read, prior to dereferencing
  *
- * Return the value of the specified RCU-protected pointer, but omit
+ * Return: the value of the specified RCU-protected pointer, but omit
  * the READ_ONCE(), because caller holds RTNL.
  */
 #define rtnl_dereference(p)					\
@@ -102,6 +102,7 @@ void __rtnl_net_unlock(struct net *net);
 void rtnl_net_lock(struct net *net);
 void rtnl_net_unlock(struct net *net);
 int rtnl_net_trylock(struct net *net);
+int rtnl_net_lock_killable(struct net *net);
 int rtnl_net_lock_cmp_fn(const struct lockdep_map *a, const struct lockdep_map *b);
 
 bool rtnl_net_is_locked(struct net *net);
@@ -136,6 +137,11 @@ static inline void rtnl_net_unlock(struct net *net)
 static inline int rtnl_net_trylock(struct net *net)
 {
 	return rtnl_trylock();
+}
+
+static inline int rtnl_net_lock_killable(struct net *net)
+{
+	return rtnl_lock_killable();
 }
 
 static inline void ASSERT_RTNL_NET(struct net *net)
@@ -177,6 +183,12 @@ void netdev_xmit_skip_txqueue(bool skip);
 void rtnetlink_init(void);
 void __rtnl_unlock(void);
 void rtnl_kfree_skbs(struct sk_buff *head, struct sk_buff *tail);
+
+/* Shared by rtnl_fdb_dump() and various ndo_fdb_dump() helpers. */
+struct ndo_fdb_dump_context {
+	unsigned long ifindex;
+	unsigned long fdb_idx;
+};
 
 extern int ndo_dflt_fdb_dump(struct sk_buff *skb,
 			     struct netlink_callback *cb,

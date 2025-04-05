@@ -52,7 +52,7 @@ static irqreturn_t itg3200_trigger_handler(int irq, void *p)
 	 */
 	struct {
 		__be16 buf[ITG3200_SCAN_ELEMENTS];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 
 	int ret = itg3200_read_all_channels(st->i2c, scan.buf);

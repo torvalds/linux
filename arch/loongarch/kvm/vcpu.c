@@ -1548,9 +1548,6 @@ static int _kvm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	/* Restore timer state regardless */
 	kvm_restore_timer(vcpu);
-
-	/* Control guest page CCA attribute */
-	change_csr_gcfg(CSR_GCFG_MATC_MASK, CSR_GCFG_MATC_ROOT);
 	kvm_make_request(KVM_REQ_STEAL_UPDATE, vcpu);
 
 	/* Restore hardware PMU CSRs */
@@ -1732,9 +1729,14 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		vcpu->mmio_needed = 0;
 	}
 
-	if (run->exit_reason == KVM_EXIT_LOONGARCH_IOCSR) {
+	switch (run->exit_reason) {
+	case KVM_EXIT_HYPERCALL:
+		kvm_complete_user_service(vcpu, run);
+		break;
+	case KVM_EXIT_LOONGARCH_IOCSR:
 		if (!run->iocsr_io.is_write)
 			kvm_complete_iocsr_read(vcpu, run);
+		break;
 	}
 
 	if (!vcpu->wants_to_run)

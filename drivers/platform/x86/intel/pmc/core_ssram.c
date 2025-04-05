@@ -269,8 +269,12 @@ pmc_core_ssram_get_pmc(struct pmc_dev *pmcdev, int pmc_idx, u32 offset)
 		/*
 		 * The secondary PMC BARS (which are behind hidden PCI devices)
 		 * are read from fixed offsets in MMIO of the primary PMC BAR.
+		 * If a device is not present, the value will be 0.
 		 */
 		ssram_base = get_base(tmp_ssram, offset);
+		if (!ssram_base)
+			return 0;
+
 		ssram = ioremap(ssram_base, SSRAM_HDR_SIZE);
 		if (!ssram)
 			return -ENOMEM;

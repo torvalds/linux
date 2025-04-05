@@ -20,7 +20,10 @@ enum tms9914_holdoff_mode {
 
 /* struct used to provide variables local to a tms9914 chip */
 struct tms9914_priv {
-	void *iobase;
+#ifdef CONFIG_HAS_IOPORT
+	u32 iobase;
+#endif
+	void __iomem *mmiobase;
 	unsigned int offset;	// offset between successive tms9914 io addresses
 	unsigned int dma_channel;
 	// software copy of bits written to interrupt mask registers

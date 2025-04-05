@@ -363,11 +363,15 @@ static void htable_selective_cleanup(struct xt_hashlimit_htable *ht, bool select
 	unsigned int i;
 
 	for (i = 0; i < ht->cfg.size; i++) {
+		struct hlist_head *head = &ht->hash[i];
 		struct dsthash_ent *dh;
 		struct hlist_node *n;
 
+		if (hlist_empty(head))
+			continue;
+
 		spin_lock_bh(&ht->lock);
-		hlist_for_each_entry_safe(dh, n, &ht->hash[i], node) {
+		hlist_for_each_entry_safe(dh, n, head, node) {
 			if (time_after_eq(jiffies, dh->expires) || select_all)
 				dsthash_free(ht, dh);
 		}

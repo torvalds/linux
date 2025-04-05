@@ -44,6 +44,7 @@
 #include "xe_memirq.h"
 #include "xe_mmio.h"
 #include "xe_module.h"
+#include "xe_oa.h"
 #include "xe_observation.h"
 #include "xe_pat.h"
 #include "xe_pcode.h"
@@ -55,6 +56,7 @@
 #include "xe_ttm_sys_mgr.h"
 #include "xe_vm.h"
 #include "xe_vram.h"
+#include "xe_vsec.h"
 #include "xe_wait_user_fence.h"
 #include "xe_wa.h"
 
@@ -269,7 +271,6 @@ static struct drm_driver driver = {
 	.fops = &xe_driver_fops,
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
@@ -324,7 +325,9 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 	xe->info.revid = pdev->revision;
 	xe->info.force_execlist = xe_modparam.force_execlist;
 
-	spin_lock_init(&xe->irq.lock);
+	err = xe_irq_init(xe);
+	if (err)
+		goto err;
 
 	init_waitqueue_head(&xe->ufence_wq);
 
@@ -365,6 +368,10 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 		err = -ENOMEM;
 		goto err;
 	}
+
+	err = drmm_mutex_init(&xe->drm, &xe->pmt.lock);
+	if (err)
+		goto err;
 
 	err = xe_display_create(xe);
 	if (WARN_ON(err))
@@ -514,7 +521,7 @@ static int wait_for_lmem_ready(struct xe_device *xe)
 	drm_dbg(&xe->drm, "Waiting for lmem initialization\n");
 
 	start = jiffies;
-	timeout = start + msecs_to_jiffies(60 * 1000); /* 60 sec! */
+	timeout = start + secs_to_jiffies(60); /* 60 sec! */
 
 	do {
 		if (signal_pending(current))
@@ -599,7 +606,7 @@ static int probe_has_flat_ccs(struct xe_device *xe)
 	u32 reg;
 
 	/* Always enabled/disabled, no runtime check to do */
-	if (GRAPHICS_VER(xe) < 20 || !xe->info.has_flat_ccs)
+	if (GRAPHICS_VER(xe) < 20 || !xe->info.has_flat_ccs || IS_SRIOV_VF(xe))
 		return 0;
 
 	gt = xe_root_mmio_gt(xe);
@@ -759,6 +766,8 @@ int xe_device_probe(struct xe_device *xe)
 
 	for_each_gt(gt, xe, id)
 		xe_gt_sanitize_freq(gt);
+
+	xe_vsec_init(xe);
 
 	return devm_add_action_or_reset(xe->drm.dev, xe_device_sanitize, xe);
 
@@ -990,7 +999,7 @@ static void xe_device_wedged_fini(struct drm_device *drm, void *arg)
  * xe_device_declare_wedged - Declare device wedged
  * @xe: xe device instance
  *
- * This is a final state that can only be cleared with a mudule
+ * This is a final state that can only be cleared with a module
  * re-probe (unbind + bind).
  * In this state every IOCTL will be blocked so the GT cannot be used.
  * In general it will be called upon any critical error such as gt reset

@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# perf_probe :: Basic perf probe functionality (exclusive)
 # SPDX-License-Identifier: GPL-2.0
 
 #
@@ -19,7 +19,7 @@ TEST_RESULT=0
 
 if ! check_kprobes_available; then
 	print_overall_skipped
-	exit 0
+	exit 2
 fi
 
 

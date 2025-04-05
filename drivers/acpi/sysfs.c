@@ -319,7 +319,7 @@ struct acpi_data_attr {
 };
 
 static ssize_t acpi_table_show(struct file *filp, struct kobject *kobj,
-			       struct bin_attribute *bin_attr, char *buf,
+			       const struct bin_attribute *bin_attr, char *buf,
 			       loff_t offset, size_t count)
 {
 	struct acpi_table_attr *table_attr =
@@ -372,7 +372,7 @@ static int acpi_table_attr_init(struct kobject *tables_obj,
 	}
 
 	table_attr->attr.size = table_header->length;
-	table_attr->attr.read = acpi_table_show;
+	table_attr->attr.read_new = acpi_table_show;
 	table_attr->attr.attr.name = table_attr->filename;
 	table_attr->attr.attr.mode = 0400;
 
@@ -412,7 +412,7 @@ acpi_status acpi_sysfs_table_handler(u32 event, void *table, void *context)
 }
 
 static ssize_t acpi_data_show(struct file *filp, struct kobject *kobj,
-			      struct bin_attribute *bin_attr, char *buf,
+			      const struct bin_attribute *bin_attr, char *buf,
 			      loff_t offset, size_t count)
 {
 	struct acpi_data_attr *data_attr;
@@ -495,7 +495,7 @@ static int acpi_table_data_init(struct acpi_table_header *th)
 			if (!data_attr)
 				return -ENOMEM;
 			sysfs_attr_init(&data_attr->attr.attr);
-			data_attr->attr.read = acpi_data_show;
+			data_attr->attr.read_new = acpi_data_show;
 			data_attr->attr.attr.mode = 0400;
 			return acpi_data_objs[i].fn(th, data_attr);
 		}

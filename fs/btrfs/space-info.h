@@ -79,6 +79,10 @@ enum btrfs_reserve_flush_enum {
 	BTRFS_RESERVE_FLUSH_EMERGENCY,
 };
 
+/*
+ * Please be aware that the order of enum values will be the order of the reclaim
+ * process in btrfs_async_reclaim_metadata_space().
+ */
 enum btrfs_flush_state {
 	FLUSH_DELAYED_ITEMS_NR	= 1,
 	FLUSH_DELAYED_ITEMS	= 2,
@@ -91,6 +95,7 @@ enum btrfs_flush_state {
 	ALLOC_CHUNK_FORCE	= 9,
 	RUN_DELAYED_IPUTS	= 10,
 	COMMIT_TRANS		= 11,
+	RESET_ZONES		= 12,
 };
 
 struct btrfs_space_info {
@@ -229,10 +234,10 @@ static inline bool btrfs_mixed_space_info(const struct btrfs_space_info *space_i
  */
 #define DECLARE_SPACE_INFO_UPDATE(name, trace_name)			\
 static inline void							\
-btrfs_space_info_update_##name(struct btrfs_fs_info *fs_info,		\
-			       struct btrfs_space_info *sinfo,		\
+btrfs_space_info_update_##name(struct btrfs_space_info *sinfo,		\
 			       s64 bytes)				\
 {									\
+	struct btrfs_fs_info *fs_info = sinfo->fs_info;			\
 	const u64 abs_bytes = (bytes < 0) ? -bytes : bytes;		\
 	lockdep_assert_held(&sinfo->lock);				\
 	trace_update_##name(fs_info, sinfo, sinfo->name, bytes);	\
@@ -275,13 +280,12 @@ int btrfs_can_overcommit(struct btrfs_fs_info *fs_info,
 			 enum btrfs_reserve_flush_enum flush);
 
 static inline void btrfs_space_info_free_bytes_may_use(
-				struct btrfs_fs_info *fs_info,
 				struct btrfs_space_info *space_info,
 				u64 num_bytes)
 {
 	spin_lock(&space_info->lock);
-	btrfs_space_info_update_bytes_may_use(fs_info, space_info, -num_bytes);
-	btrfs_try_granting_tickets(fs_info, space_info);
+	btrfs_space_info_update_bytes_may_use(space_info, -num_bytes);
+	btrfs_try_granting_tickets(space_info->fs_info, space_info);
 	spin_unlock(&space_info->lock);
 }
 int btrfs_reserve_data_bytes(struct btrfs_fs_info *fs_info, u64 bytes,
@@ -295,5 +299,6 @@ void btrfs_set_periodic_reclaim_ready(struct btrfs_space_info *space_info, bool 
 bool btrfs_should_periodic_reclaim(struct btrfs_space_info *space_info);
 int btrfs_calc_reclaim_threshold(const struct btrfs_space_info *space_info);
 void btrfs_reclaim_sweep(const struct btrfs_fs_info *fs_info);
+void btrfs_return_free_space(struct btrfs_space_info *space_info, u64 len);
 
 #endif /* BTRFS_SPACE_INFO_H */

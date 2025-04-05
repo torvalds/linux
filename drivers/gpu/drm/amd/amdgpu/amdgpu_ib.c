@@ -89,16 +89,14 @@ int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 /**
  * amdgpu_ib_free - free an IB (Indirect Buffer)
  *
- * @adev: amdgpu_device pointer
  * @ib: IB object to free
  * @f: the fence SA bo need wait on for the ib alloation
  *
  * Free an IB (all asics).
  */
-void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib,
-		    struct dma_fence *f)
+void amdgpu_ib_free(struct amdgpu_ib *ib, struct dma_fence *f)
 {
-	amdgpu_sa_bo_free(adev, &ib->sa_bo, f);
+	amdgpu_sa_bo_free(&ib->sa_bo, f);
 }
 
 /**
@@ -193,8 +191,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned int num_ibs,
 	need_ctx_switch = ring->current_ctx != fence_ctx;
 	if (ring->funcs->emit_pipeline_sync && job &&
 	    ((tmp = amdgpu_sync_get_fence(&job->explicit_sync)) ||
-	     (amdgpu_sriov_vf(adev) && need_ctx_switch) ||
-	     amdgpu_vm_need_pipeline_sync(ring, job))) {
+	     need_ctx_switch || amdgpu_vm_need_pipeline_sync(ring, job))) {
+
 		need_pipe_sync = true;
 
 		if (tmp)
@@ -299,7 +297,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned int num_ibs,
 	amdgpu_ring_patch_cond_exec(ring, cond_exec);
 
 	ring->current_ctx = fence_ctx;
-	if (vm && ring->funcs->emit_switch_buffer)
+	if (job && ring->funcs->emit_switch_buffer)
 		amdgpu_ring_emit_switch_buffer(ring);
 
 	if (ring->funcs->emit_wave_limit &&

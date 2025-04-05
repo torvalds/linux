@@ -381,17 +381,12 @@ static const char *const u3_phy_files[] = {
 static int u2_phy_params_show(struct seq_file *sf, void *unused)
 {
 	struct mtk_phy_instance *inst = sf->private;
-	const char *fname = file_dentry(sf->file)->d_iname;
 	struct u2phy_banks *u2_banks = &inst->u2_banks;
 	void __iomem *com = u2_banks->com;
 	u32 max = 0;
 	u32 tmp = 0;
 	u32 val = 0;
-	int ret;
-
-	ret = match_string(u2_phy_files, ARRAY_SIZE(u2_phy_files), fname);
-	if (ret < 0)
-		return ret;
+	int ret = debugfs_get_aux_num(sf->file);
 
 	switch (ret) {
 	case U2P_EYE_VRT:
@@ -438,7 +433,7 @@ static int u2_phy_params_show(struct seq_file *sf, void *unused)
 		break;
 	}
 
-	seq_printf(sf, "%s : %d [0, %d]\n", fname, val, max);
+	seq_printf(sf, "%s : %d [0, %d]\n", u2_phy_files[ret], val, max);
 
 	return 0;
 }
@@ -451,22 +446,17 @@ static int u2_phy_params_open(struct inode *inode, struct file *file)
 static ssize_t u2_phy_params_write(struct file *file, const char __user *ubuf,
 				   size_t count, loff_t *ppos)
 {
-	const char *fname = file_dentry(file)->d_iname;
 	struct seq_file *sf = file->private_data;
 	struct mtk_phy_instance *inst = sf->private;
 	struct u2phy_banks *u2_banks = &inst->u2_banks;
 	void __iomem *com = u2_banks->com;
 	ssize_t rc;
 	u32 val;
-	int ret;
+	int ret = debugfs_get_aux_num(file);
 
 	rc = kstrtouint_from_user(ubuf, USER_BUF_LEN(count), 0, &val);
 	if (rc)
 		return rc;
-
-	ret = match_string(u2_phy_files, ARRAY_SIZE(u2_phy_files), fname);
-	if (ret < 0)
-		return (ssize_t)ret;
 
 	switch (ret) {
 	case U2P_EYE_VRT:
@@ -516,23 +506,18 @@ static void u2_phy_dbgfs_files_create(struct mtk_phy_instance *inst)
 	int i;
 
 	for (i = 0; i < count; i++)
-		debugfs_create_file(u2_phy_files[i], 0644, inst->phy->debugfs,
-				    inst, &u2_phy_fops);
+		debugfs_create_file_aux_num(u2_phy_files[i], 0644, inst->phy->debugfs,
+				    inst, i,  &u2_phy_fops);
 }
 
 static int u3_phy_params_show(struct seq_file *sf, void *unused)
 {
 	struct mtk_phy_instance *inst = sf->private;
-	const char *fname = file_dentry(sf->file)->d_iname;
 	struct u3phy_banks *u3_banks = &inst->u3_banks;
 	u32 val = 0;
 	u32 max = 0;
 	u32 tmp;
-	int ret;
-
-	ret = match_string(u3_phy_files, ARRAY_SIZE(u3_phy_files), fname);
-	if (ret < 0)
-		return ret;
+	int ret = debugfs_get_aux_num(sf->file);
 
 	switch (ret) {
 	case U3P_EFUSE_EN:
@@ -564,7 +549,7 @@ static int u3_phy_params_show(struct seq_file *sf, void *unused)
 		break;
 	}
 
-	seq_printf(sf, "%s : %d [0, %d]\n", fname, val, max);
+	seq_printf(sf, "%s : %d [0, %d]\n", u3_phy_files[ret], val, max);
 
 	return 0;
 }
@@ -577,22 +562,17 @@ static int u3_phy_params_open(struct inode *inode, struct file *file)
 static ssize_t u3_phy_params_write(struct file *file, const char __user *ubuf,
 				   size_t count, loff_t *ppos)
 {
-	const char *fname = file_dentry(file)->d_iname;
 	struct seq_file *sf = file->private_data;
 	struct mtk_phy_instance *inst = sf->private;
 	struct u3phy_banks *u3_banks = &inst->u3_banks;
 	void __iomem *phyd = u3_banks->phyd;
 	ssize_t rc;
 	u32 val;
-	int ret;
+	int ret = debugfs_get_aux_num(sf->file);
 
 	rc = kstrtouint_from_user(ubuf, USER_BUF_LEN(count), 0, &val);
 	if (rc)
 		return rc;
-
-	ret = match_string(u3_phy_files, ARRAY_SIZE(u3_phy_files), fname);
-	if (ret < 0)
-		return (ssize_t)ret;
 
 	switch (ret) {
 	case U3P_EFUSE_EN:
@@ -636,8 +616,8 @@ static void u3_phy_dbgfs_files_create(struct mtk_phy_instance *inst)
 	int i;
 
 	for (i = 0; i < count; i++)
-		debugfs_create_file(u3_phy_files[i], 0644, inst->phy->debugfs,
-				    inst, &u3_phy_fops);
+		debugfs_create_file_aux_num(u3_phy_files[i], 0644, inst->phy->debugfs,
+				    inst, i, &u3_phy_fops);
 }
 
 static int phy_type_show(struct seq_file *sf, void *unused)

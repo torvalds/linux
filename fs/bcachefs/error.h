@@ -45,32 +45,11 @@ int bch2_topology_error(struct bch_fs *);
 	bch2_inconsistent_error(c);					\
 })
 
-#define bch2_fs_inconsistent_on(cond, c, ...)				\
+#define bch2_fs_inconsistent_on(cond, ...)				\
 ({									\
 	bool _ret = unlikely(!!(cond));					\
-									\
 	if (_ret)							\
-		bch2_fs_inconsistent(c, __VA_ARGS__);			\
-	_ret;								\
-})
-
-/*
- * Later we might want to mark only the particular device inconsistent, not the
- * entire filesystem:
- */
-
-#define bch2_dev_inconsistent(ca, ...)					\
-do {									\
-	bch_err(ca, __VA_ARGS__);					\
-	bch2_inconsistent_error((ca)->fs);				\
-} while (0)
-
-#define bch2_dev_inconsistent_on(cond, ca, ...)				\
-({									\
-	bool _ret = unlikely(!!(cond));					\
-									\
-	if (_ret)							\
-		bch2_dev_inconsistent(ca, __VA_ARGS__);			\
+		bch2_fs_inconsistent(__VA_ARGS__);			\
 	_ret;								\
 })
 
@@ -123,9 +102,9 @@ int __bch2_fsck_err(struct bch_fs *, struct btree_trans *,
 
 void bch2_flush_fsck_errs(struct bch_fs *);
 
-#define __fsck_err(c, _flags, _err_type, ...)				\
+#define fsck_err_wrap(_do)						\
 ({									\
-	int _ret = bch2_fsck_err(c, _flags, _err_type, __VA_ARGS__);	\
+	int _ret = _do;							\
 	if (_ret != -BCH_ERR_fsck_fix &&				\
 	    _ret != -BCH_ERR_fsck_ignore) {				\
 		ret = _ret;						\
@@ -134,6 +113,8 @@ void bch2_flush_fsck_errs(struct bch_fs *);
 									\
 	_ret == -BCH_ERR_fsck_fix;					\
 })
+
+#define __fsck_err(...)		fsck_err_wrap(bch2_fsck_err(__VA_ARGS__))
 
 /* These macros return true if error should be fixed: */
 
@@ -149,12 +130,6 @@ void bch2_flush_fsck_errs(struct bch_fs *);
 	(unlikely(cond) ? __fsck_err(c, _flags, _err_type, __VA_ARGS__) : false);\
 })
 
-#define need_fsck_err_on(cond, c, _err_type, ...)				\
-	__fsck_err_on(cond, c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK, _err_type, __VA_ARGS__)
-
-#define need_fsck_err(c, _err_type, ...)				\
-	__fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK, _err_type, __VA_ARGS__)
-
 #define mustfix_fsck_err(c, _err_type, ...)				\
 	__fsck_err(c, FSCK_CAN_FIX, _err_type, __VA_ARGS__)
 
@@ -167,11 +142,22 @@ void bch2_flush_fsck_errs(struct bch_fs *);
 #define fsck_err_on(cond, c, _err_type, ...)				\
 	__fsck_err_on(cond, c, FSCK_CAN_FIX|FSCK_CAN_IGNORE, _err_type, __VA_ARGS__)
 
+#define log_fsck_err(c, _err_type, ...)					\
+	__fsck_err(c, FSCK_CAN_IGNORE, _err_type, __VA_ARGS__)
+
+#define log_fsck_err_on(cond, ...)					\
+({									\
+	bool _ret = unlikely(!!(cond));					\
+	if (_ret)							\
+		log_fsck_err(__VA_ARGS__);				\
+	_ret;								\
+})
+
 enum bch_validate_flags;
 __printf(5, 6)
 int __bch2_bkey_fsck_err(struct bch_fs *,
 			 struct bkey_s_c,
-			 enum bch_validate_flags,
+			 struct bkey_validate_context from,
 			 enum bch_sb_error_id,
 			 const char *, ...);
 
@@ -181,7 +167,7 @@ int __bch2_bkey_fsck_err(struct bch_fs *,
  */
 #define bkey_fsck_err(c, _err_type, _err_msg, ...)			\
 do {									\
-	int _ret = __bch2_bkey_fsck_err(c, k, flags,			\
+	int _ret = __bch2_bkey_fsck_err(c, k, from,			\
 				BCH_FSCK_ERR_##_err_type,		\
 				_err_msg, ##__VA_ARGS__);		\
 	if (_ret != -BCH_ERR_fsck_fix &&				\
@@ -251,5 +237,11 @@ void bch2_io_error(struct bch_dev *, enum bch_member_error_type);
 	}								\
 	_ret;								\
 })
+
+int bch2_inum_err_msg_trans(struct btree_trans *, struct printbuf *, subvol_inum);
+int bch2_inum_offset_err_msg_trans(struct btree_trans *, struct printbuf *, subvol_inum, u64);
+
+void bch2_inum_err_msg(struct bch_fs *, struct printbuf *, subvol_inum);
+void bch2_inum_offset_err_msg(struct bch_fs *, struct printbuf *, subvol_inum, u64);
 
 #endif /* _BCACHEFS_ERROR_H */

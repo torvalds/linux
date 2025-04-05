@@ -123,12 +123,12 @@ pub fn module(ts: TokenStream) -> TokenStream {
 /// used on the Rust side, it should not be possible to call the default
 /// implementation. This is done to ensure that we call the vtable methods
 /// through the C vtable, and not through the Rust vtable. Therefore, the
-/// default implementation should call `kernel::build_error`, which prevents
+/// default implementation should call `build_error!`, which prevents
 /// calls to this function at compile time:
 ///
 /// ```compile_fail
 /// # // Intentionally missing `use`s to simplify `rusttest`.
-/// kernel::build_error(VTABLE_DEFAULT_ERROR)
+/// build_error!(VTABLE_DEFAULT_ERROR)
 /// ```
 ///
 /// Note that you might need to import [`kernel::error::VTABLE_DEFAULT_ERROR`].
@@ -145,11 +145,11 @@ pub fn module(ts: TokenStream) -> TokenStream {
 /// #[vtable]
 /// pub trait Operations: Send + Sync + Sized {
 ///     fn foo(&self) -> Result<()> {
-///         kernel::build_error(VTABLE_DEFAULT_ERROR)
+///         build_error!(VTABLE_DEFAULT_ERROR)
 ///     }
 ///
 ///     fn bar(&self) -> Result<()> {
-///         kernel::build_error(VTABLE_DEFAULT_ERROR)
+///         build_error!(VTABLE_DEFAULT_ERROR)
 ///     }
 /// }
 ///

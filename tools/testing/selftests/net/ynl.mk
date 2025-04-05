@@ -31,7 +31,8 @@ $(OUTPUT)/libynl.a: $(YNL_SPECS) $(OUTPUT)/.libynl-$(YNL_GENS_HASH).sig
 	$(Q)cp $(top_srcdir)/tools/net/ynl/libynl.a $(OUTPUT)/libynl.a
 
 EXTRA_CLEAN += \
-	$(top_srcdir)/tools/net/ynl/lib/__pycache__ \
+	$(top_srcdir)/tools/net/ynl/pyynl/__pycache__ \
+	$(top_srcdir)/tools/net/ynl/pyynl/lib/__pycache__ \
 	$(top_srcdir)/tools/net/ynl/lib/*.[ado] \
 	$(OUTPUT)/.libynl-*.sig \
 	$(OUTPUT)/libynl.a

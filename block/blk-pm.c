@@ -89,7 +89,7 @@ int blk_pre_runtime_suspend(struct request_queue *q)
 	if (percpu_ref_is_zero(&q->q_usage_counter))
 		ret = 0;
 	/* Switch q_usage_counter back to per-cpu mode. */
-	blk_mq_unfreeze_queue(q);
+	blk_mq_unfreeze_queue_nomemrestore(q);
 
 	if (ret < 0) {
 		spin_lock_irq(&q->queue_lock);

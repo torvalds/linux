@@ -700,6 +700,8 @@ struct x86_cpu_id {
 #define X86_FAMILY_ANY 0
 #define X86_MODEL_ANY  0
 #define X86_STEPPING_ANY 0
+#define X86_STEP_MIN 0
+#define X86_STEP_MAX 0xf
 #define X86_FEATURE_ANY 0	/* Same as FPU, you can't test for that */
 
 /*

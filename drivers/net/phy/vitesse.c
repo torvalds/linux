@@ -674,7 +674,7 @@ static struct phy_driver vsc82xx_driver[] = {
 
 module_phy_driver(vsc82xx_driver);
 
-static struct mdio_device_id __maybe_unused vitesse_tbl[] = {
+static const struct mdio_device_id __maybe_unused vitesse_tbl[] = {
 	{ PHY_ID_VSC8234, 0x000ffff0 },
 	{ PHY_ID_VSC8244, 0x000fffc0 },
 	{ PHY_ID_VSC8572, 0x000ffff0 },

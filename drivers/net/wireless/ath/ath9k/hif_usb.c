@@ -1198,7 +1198,7 @@ static int ath9k_hif_request_firmware(struct hif_device_usb *hif_dev,
 			filename = FIRMWARE_AR9271;
 
 		/* expected fw locations:
-		 * - htc_9271.fw   (stable version 1.3, depricated)
+		 * - htc_9271.fw   (stable version 1.3, deprecated)
 		 */
 		snprintf(hif_dev->fw_name, sizeof(hif_dev->fw_name),
 			 "%s", filename);

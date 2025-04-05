@@ -82,16 +82,15 @@ static inline void bucket_lock(struct bucket *b)
 
 static inline struct bucket *gc_bucket(struct bch_dev *ca, size_t b)
 {
-	return genradix_ptr(&ca->buckets_gc, b);
+	return bucket_valid(ca, b)
+		? genradix_ptr(&ca->buckets_gc, b)
+		: NULL;
 }
 
 static inline struct bucket_gens *bucket_gens(struct bch_dev *ca)
 {
 	return rcu_dereference_check(ca->bucket_gens,
-				     !ca->fs ||
-				     percpu_rwsem_is_held(&ca->fs->mark_lock) ||
-				     lockdep_is_held(&ca->fs->state_lock) ||
-				     lockdep_is_held(&ca->bucket_lock));
+				     lockdep_is_held(&ca->fs->state_lock));
 }
 
 static inline u8 *bucket_gen(struct bch_dev *ca, size_t b)
@@ -308,26 +307,7 @@ int bch2_trans_mark_dev_sbs_flags(struct bch_fs *,
 				    enum btree_iter_update_trigger_flags);
 int bch2_trans_mark_dev_sbs(struct bch_fs *);
 
-static inline bool is_superblock_bucket(struct bch_dev *ca, u64 b)
-{
-	struct bch_sb_layout *layout = &ca->disk_sb.sb->layout;
-	u64 b_offset	= bucket_to_sector(ca, b);
-	u64 b_end	= bucket_to_sector(ca, b + 1);
-	unsigned i;
-
-	if (!b)
-		return true;
-
-	for (i = 0; i < layout->nr_superblocks; i++) {
-		u64 offset = le64_to_cpu(layout->sb_offset[i]);
-		u64 end = offset + (1 << layout->sb_max_size_bits);
-
-		if (!(offset >= b_end || end <= b_offset))
-			return true;
-	}
-
-	return false;
-}
+bool bch2_is_superblock_bucket(struct bch_dev *, u64);
 
 static inline const char *bch2_data_type_str(enum bch_data_type type)
 {

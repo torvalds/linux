@@ -11,10 +11,6 @@
 #include "dccp.h"
 #include "feat.h"
 
-#ifndef CONFIG_SYSCTL
-#error This file should not be compiled without CONFIG_SYSCTL defined
-#endif
-
 /* Boundary values */
 static int		u8_max   = 0xFF;
 static unsigned long	seqw_min = DCCPF_SEQ_WMIN,

@@ -137,6 +137,7 @@ struct six_lock {
 	atomic_t		state;
 	u32			seq;
 	unsigned		intent_lock_recurse;
+	unsigned		write_lock_recurse;
 	struct task_struct	*owner;
 	unsigned __percpu	*readers;
 	raw_spinlock_t		wait_lock;

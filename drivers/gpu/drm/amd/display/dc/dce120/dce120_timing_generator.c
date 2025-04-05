@@ -1100,45 +1100,79 @@ static bool dce120_configure_crc(struct timing_generator *tg,
 	if (!dce120_is_tg_enabled(tg))
 		return false;
 
-	/* First, disable CRC before we configure it. */
-	dm_write_reg_soc15(tg->ctx, mmCRTC0_CRTC_CRC_CNTL,
-			   tg110->offsets.crtc, 0);
+	if (!params->enable || params->reset)
+		/* First, disable CRC before we configure it. */
+		dm_write_reg_soc15(tg->ctx, mmCRTC0_CRTC_CRC_CNTL,
+				   tg110->offsets.crtc, 0);
 
 	if (!params->enable)
 		return true;
 
 	/* Program frame boundaries */
-	/* Window A x axis start and end. */
-	CRTC_REG_UPDATE_2(CRTC0_CRTC_CRC0_WINDOWA_X_CONTROL,
-			  CRTC_CRC0_WINDOWA_X_START, params->windowa_x_start,
-			  CRTC_CRC0_WINDOWA_X_END, params->windowa_x_end);
+	switch (params->crc_eng_inst) {
+	case 0:
+		/* Window A x axis start and end. */
+		CRTC_REG_UPDATE_2(CRTC0_CRTC_CRC0_WINDOWA_X_CONTROL,
+				  CRTC_CRC0_WINDOWA_X_START, params->windowa_x_start,
+				  CRTC_CRC0_WINDOWA_X_END, params->windowa_x_end);
 
-	/* Window A y axis start and end. */
-	CRTC_REG_UPDATE_2(CRTC0_CRTC_CRC0_WINDOWA_Y_CONTROL,
-			  CRTC_CRC0_WINDOWA_Y_START, params->windowa_y_start,
-			  CRTC_CRC0_WINDOWA_Y_END, params->windowa_y_end);
+		/* Window A y axis start and end. */
+		CRTC_REG_UPDATE_2(CRTC0_CRTC_CRC0_WINDOWA_Y_CONTROL,
+				  CRTC_CRC0_WINDOWA_Y_START, params->windowa_y_start,
+				  CRTC_CRC0_WINDOWA_Y_END, params->windowa_y_end);
 
-	/* Window B x axis start and end. */
-	CRTC_REG_UPDATE_2(CRTC0_CRTC_CRC0_WINDOWB_X_CONTROL,
-			  CRTC_CRC0_WINDOWB_X_START, params->windowb_x_start,
-			  CRTC_CRC0_WINDOWB_X_END, params->windowb_x_end);
+		/* Window B x axis start and end. */
+		CRTC_REG_UPDATE_2(CRTC0_CRTC_CRC0_WINDOWB_X_CONTROL,
+				  CRTC_CRC0_WINDOWB_X_START, params->windowb_x_start,
+				  CRTC_CRC0_WINDOWB_X_END, params->windowb_x_end);
 
-	/* Window B y axis start and end. */
-	CRTC_REG_UPDATE_2(CRTC0_CRTC_CRC0_WINDOWB_Y_CONTROL,
-			  CRTC_CRC0_WINDOWB_Y_START, params->windowb_y_start,
-			  CRTC_CRC0_WINDOWB_Y_END, params->windowb_y_end);
+		/* Window B y axis start and end. */
+		CRTC_REG_UPDATE_2(CRTC0_CRTC_CRC0_WINDOWB_Y_CONTROL,
+				  CRTC_CRC0_WINDOWB_Y_START, params->windowb_y_start,
+				  CRTC_CRC0_WINDOWB_Y_END, params->windowb_y_end);
 
-	/* Set crc mode and selection, and enable. Only using CRC0*/
-	CRTC_REG_UPDATE_3(CRTC0_CRTC_CRC_CNTL,
-			  CRTC_CRC_EN, params->continuous_mode ? 1 : 0,
-			  CRTC_CRC0_SELECT, params->selection,
-			  CRTC_CRC_EN, 1);
+		/* Set crc mode and selection, and enable.*/
+		CRTC_REG_UPDATE_3(CRTC0_CRTC_CRC_CNTL,
+				  CRTC_CRC_CONT_EN, params->continuous_mode ? 1 : 0,
+				  CRTC_CRC0_SELECT, params->selection,
+				  CRTC_CRC_EN, 1);
+		break;
+	case 1:
+		/* Window A x axis start and end. */
+		CRTC_REG_UPDATE_2(CRTC0_CRTC_CRC1_WINDOWA_X_CONTROL,
+				  CRTC_CRC1_WINDOWA_X_START, params->windowa_x_start,
+				  CRTC_CRC1_WINDOWA_X_END, params->windowa_x_end);
+
+		/* Window A y axis start and end. */
+		CRTC_REG_UPDATE_2(CRTC0_CRTC_CRC1_WINDOWA_Y_CONTROL,
+				  CRTC_CRC1_WINDOWA_Y_START, params->windowa_y_start,
+				  CRTC_CRC1_WINDOWA_Y_END, params->windowa_y_end);
+
+		/* Window B x axis start and end. */
+		CRTC_REG_UPDATE_2(CRTC0_CRTC_CRC1_WINDOWB_X_CONTROL,
+				  CRTC_CRC1_WINDOWB_X_START, params->windowb_x_start,
+				  CRTC_CRC1_WINDOWB_X_END, params->windowb_x_end);
+
+		/* Window B y axis start and end. */
+		CRTC_REG_UPDATE_2(CRTC0_CRTC_CRC1_WINDOWB_Y_CONTROL,
+				  CRTC_CRC1_WINDOWB_Y_START, params->windowb_y_start,
+				  CRTC_CRC1_WINDOWB_Y_END, params->windowb_y_end);
+
+		/* Set crc mode and selection, and enable */
+		CRTC_REG_UPDATE_3(CRTC0_CRTC_CRC_CNTL,
+				  CRTC_CRC_CONT_EN, params->continuous_mode ? 1 : 0,
+				  CRTC_CRC1_SELECT, params->selection,
+				  CRTC_CRC_EN, 1);
+		break;
+	default:
+		return false;
+	}
 
 	return true;
 }
 
-static bool dce120_get_crc(struct timing_generator *tg, uint32_t *r_cr,
-			   uint32_t *g_y, uint32_t *b_cb)
+static bool dce120_get_crc(struct timing_generator *tg, uint8_t idx,
+			uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb)
 {
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
 	uint32_t value, field;
@@ -1151,14 +1185,30 @@ static bool dce120_get_crc(struct timing_generator *tg, uint32_t *r_cr,
 	if (!field)
 		return false;
 
-	value = dm_read_reg_soc15(tg->ctx, mmCRTC0_CRTC_CRC0_DATA_RG,
-				  tg110->offsets.crtc);
-	*r_cr = get_reg_field_value(value, CRTC0_CRTC_CRC0_DATA_RG, CRC0_R_CR);
-	*g_y = get_reg_field_value(value, CRTC0_CRTC_CRC0_DATA_RG, CRC0_G_Y);
+	switch (idx) {
+	case 0:
+		value = dm_read_reg_soc15(tg->ctx, mmCRTC0_CRTC_CRC0_DATA_RG,
+					  tg110->offsets.crtc);
+		*r_cr = get_reg_field_value(value, CRTC0_CRTC_CRC0_DATA_RG, CRC0_R_CR);
+		*g_y = get_reg_field_value(value, CRTC0_CRTC_CRC0_DATA_RG, CRC0_G_Y);
 
-	value = dm_read_reg_soc15(tg->ctx, mmCRTC0_CRTC_CRC0_DATA_B,
-				  tg110->offsets.crtc);
-	*b_cb = get_reg_field_value(value, CRTC0_CRTC_CRC0_DATA_B, CRC0_B_CB);
+		value = dm_read_reg_soc15(tg->ctx, mmCRTC0_CRTC_CRC0_DATA_B,
+					  tg110->offsets.crtc);
+		*b_cb = get_reg_field_value(value, CRTC0_CRTC_CRC0_DATA_B, CRC0_B_CB);
+		break;
+	case 1:
+		value = dm_read_reg_soc15(tg->ctx, mmCRTC0_CRTC_CRC1_DATA_RG,
+					  tg110->offsets.crtc);
+		*r_cr = get_reg_field_value(value, CRTC0_CRTC_CRC1_DATA_RG, CRC1_R_CR);
+		*g_y = get_reg_field_value(value, CRTC0_CRTC_CRC1_DATA_RG, CRC1_G_Y);
+
+		value = dm_read_reg_soc15(tg->ctx, mmCRTC0_CRTC_CRC1_DATA_B,
+					  tg110->offsets.crtc);
+		*b_cb = get_reg_field_value(value, CRTC0_CRTC_CRC1_DATA_B, CRC1_B_CB);
+		break;
+	default:
+		return false;
+	}
 
 	return true;
 }

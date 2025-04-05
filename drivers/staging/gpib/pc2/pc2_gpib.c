@@ -238,116 +238,116 @@ static void pc2_return_to_local(gpib_board_t *board)
 	nec7210_return_to_local(board, &priv->nec7210_priv);
 }
 
-gpib_interface_t pc2_interface = {
-name:	"pcII",
-attach :	pc2_attach,
-detach :	pc2_detach,
-read :	pc2_read,
-write :	pc2_write,
-command :	pc2_command,
-take_control :	pc2_take_control,
-go_to_standby :	pc2_go_to_standby,
-request_system_control :	pc2_request_system_control,
-interface_clear :	pc2_interface_clear,
-remote_enable :	pc2_remote_enable,
-enable_eos :	pc2_enable_eos,
-disable_eos :	pc2_disable_eos,
-parallel_poll :	pc2_parallel_poll,
-parallel_poll_configure :	pc2_parallel_poll_configure,
-parallel_poll_response :	pc2_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status :	NULL,
-update_status :	pc2_update_status,
-primary_address :	pc2_primary_address,
-secondary_address :	pc2_secondary_address,
-serial_poll_response :	pc2_serial_poll_response,
-serial_poll_status :	pc2_serial_poll_status,
-t1_delay : pc2_t1_delay,
-return_to_local : pc2_return_to_local,
+static gpib_interface_t pc2_interface = {
+	.name =	"pcII",
+	.attach =	pc2_attach,
+	.detach =	pc2_detach,
+	.read =	pc2_read,
+	.write =	pc2_write,
+	.command =	pc2_command,
+	.take_control =	pc2_take_control,
+	.go_to_standby =	pc2_go_to_standby,
+	.request_system_control =	pc2_request_system_control,
+	.interface_clear =	pc2_interface_clear,
+	.remote_enable =	pc2_remote_enable,
+	.enable_eos =	pc2_enable_eos,
+	.disable_eos =	pc2_disable_eos,
+	.parallel_poll =	pc2_parallel_poll,
+	.parallel_poll_configure =	pc2_parallel_poll_configure,
+	.parallel_poll_response =	pc2_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status =	NULL,
+	.update_status =	pc2_update_status,
+	.primary_address =	pc2_primary_address,
+	.secondary_address =	pc2_secondary_address,
+	.serial_poll_response =	pc2_serial_poll_response,
+	.serial_poll_status =	pc2_serial_poll_status,
+	.t1_delay = pc2_t1_delay,
+	.return_to_local = pc2_return_to_local,
 };
 
-gpib_interface_t pc2a_interface = {
-name:	"pcIIa",
-attach :	pc2a_attach,
-detach :	pc2a_detach,
-read :	pc2_read,
-write :	pc2_write,
-command :	pc2_command,
-take_control :	pc2_take_control,
-go_to_standby :	pc2_go_to_standby,
-request_system_control :	pc2_request_system_control,
-interface_clear :	pc2_interface_clear,
-remote_enable :	pc2_remote_enable,
-enable_eos :	pc2_enable_eos,
-disable_eos :	pc2_disable_eos,
-parallel_poll :	pc2_parallel_poll,
-parallel_poll_configure :	pc2_parallel_poll_configure,
-parallel_poll_response :	pc2_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status :	NULL,
-update_status :	pc2_update_status,
-primary_address :	pc2_primary_address,
-secondary_address :	pc2_secondary_address,
-serial_poll_response :	pc2_serial_poll_response,
-serial_poll_status :	pc2_serial_poll_status,
-t1_delay : pc2_t1_delay,
-return_to_local : pc2_return_to_local,
+static gpib_interface_t pc2a_interface = {
+	.name =	"pcIIa",
+	.attach =	pc2a_attach,
+	.detach =	pc2a_detach,
+	.read =	pc2_read,
+	.write =	pc2_write,
+	.command =	pc2_command,
+	.take_control =	pc2_take_control,
+	.go_to_standby =	pc2_go_to_standby,
+	.request_system_control =	pc2_request_system_control,
+	.interface_clear =	pc2_interface_clear,
+	.remote_enable =	pc2_remote_enable,
+	.enable_eos =	pc2_enable_eos,
+	.disable_eos =	pc2_disable_eos,
+	.parallel_poll =	pc2_parallel_poll,
+	.parallel_poll_configure =	pc2_parallel_poll_configure,
+	.parallel_poll_response =	pc2_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status =	NULL,
+	.update_status =	pc2_update_status,
+	.primary_address =	pc2_primary_address,
+	.secondary_address =	pc2_secondary_address,
+	.serial_poll_response =	pc2_serial_poll_response,
+	.serial_poll_status =	pc2_serial_poll_status,
+	.t1_delay = pc2_t1_delay,
+	.return_to_local = pc2_return_to_local,
 };
 
-gpib_interface_t pc2a_cb7210_interface = {
-name:	"pcIIa_cb7210",
-attach :	pc2a_cb7210_attach,
-detach :	pc2a_detach,
-read :	pc2_read,
-write :	pc2_write,
-command :	pc2_command,
-take_control :	pc2_take_control,
-go_to_standby :	pc2_go_to_standby,
-request_system_control :	pc2_request_system_control,
-interface_clear :	pc2_interface_clear,
-remote_enable :	pc2_remote_enable,
-enable_eos :	pc2_enable_eos,
-disable_eos :	pc2_disable_eos,
-parallel_poll :	pc2_parallel_poll,
-parallel_poll_configure :	pc2_parallel_poll_configure,
-parallel_poll_response :	pc2_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status :	NULL, //XXX
-update_status :	pc2_update_status,
-primary_address :	pc2_primary_address,
-secondary_address :	pc2_secondary_address,
-serial_poll_response :	pc2_serial_poll_response,
-serial_poll_status :	pc2_serial_poll_status,
-t1_delay : pc2_t1_delay,
-return_to_local : pc2_return_to_local,
+static gpib_interface_t pc2a_cb7210_interface = {
+	.name =	"pcIIa_cb7210",
+	.attach =	pc2a_cb7210_attach,
+	.detach =	pc2a_detach,
+	.read =	pc2_read,
+	.write =	pc2_write,
+	.command =	pc2_command,
+	.take_control =	pc2_take_control,
+	.go_to_standby =	pc2_go_to_standby,
+	.request_system_control =	pc2_request_system_control,
+	.interface_clear =	pc2_interface_clear,
+	.remote_enable =	pc2_remote_enable,
+	.enable_eos =	pc2_enable_eos,
+	.disable_eos =	pc2_disable_eos,
+	.parallel_poll =	pc2_parallel_poll,
+	.parallel_poll_configure =	pc2_parallel_poll_configure,
+	.parallel_poll_response =	pc2_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status =	NULL, //XXX
+	.update_status =	pc2_update_status,
+	.primary_address =	pc2_primary_address,
+	.secondary_address =	pc2_secondary_address,
+	.serial_poll_response =	pc2_serial_poll_response,
+	.serial_poll_status =	pc2_serial_poll_status,
+	.t1_delay = pc2_t1_delay,
+	.return_to_local = pc2_return_to_local,
 };
 
-gpib_interface_t pc2_2a_interface = {
-name:	"pcII_IIa",
-attach :	pc2_2a_attach,
-detach :	pc2_2a_detach,
-read :	pc2_read,
-write :	pc2_write,
-command :	pc2_command,
-take_control :	pc2_take_control,
-go_to_standby :	pc2_go_to_standby,
-request_system_control :	pc2_request_system_control,
-interface_clear :	pc2_interface_clear,
-remote_enable :	pc2_remote_enable,
-enable_eos :	pc2_enable_eos,
-disable_eos :	pc2_disable_eos,
-parallel_poll :	pc2_parallel_poll,
-parallel_poll_configure :	pc2_parallel_poll_configure,
-parallel_poll_response :	pc2_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status :	NULL,
-update_status :	pc2_update_status,
-primary_address :	pc2_primary_address,
-secondary_address :	pc2_secondary_address,
-serial_poll_response :	pc2_serial_poll_response,
-serial_poll_status :	pc2_serial_poll_status,
-t1_delay : pc2_t1_delay,
-return_to_local : pc2_return_to_local,
+static gpib_interface_t pc2_2a_interface = {
+	.name =	"pcII_IIa",
+	.attach =	pc2_2a_attach,
+	.detach =	pc2_2a_detach,
+	.read =	pc2_read,
+	.write =	pc2_write,
+	.command =	pc2_command,
+	.take_control =	pc2_take_control,
+	.go_to_standby =	pc2_go_to_standby,
+	.request_system_control =	pc2_request_system_control,
+	.interface_clear =	pc2_interface_clear,
+	.remote_enable =	pc2_remote_enable,
+	.enable_eos =	pc2_enable_eos,
+	.disable_eos =	pc2_disable_eos,
+	.parallel_poll =	pc2_parallel_poll,
+	.parallel_poll_configure =	pc2_parallel_poll_configure,
+	.parallel_poll_response =	pc2_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status =	NULL,
+	.update_status =	pc2_update_status,
+	.primary_address =	pc2_primary_address,
+	.secondary_address =	pc2_secondary_address,
+	.serial_poll_response =	pc2_serial_poll_response,
+	.serial_poll_status =	pc2_serial_poll_status,
+	.t1_delay = pc2_t1_delay,
+	.return_to_local = pc2_return_to_local,
 };
 
 static int allocate_private(gpib_board_t *board)
@@ -426,7 +426,7 @@ int pc2_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	nec_priv = &pc2_priv->nec7210_priv;
 	nec_priv->offset = pc2_reg_offset;
 
-	if (request_region((unsigned long)config->ibbase, pc2_iosize, "pc2") == 0) {
+	if (!request_region(config->ibbase, pc2_iosize, "pc2")) {
 		pr_err("gpib: ioports are already in use\n");
 		return -1;
 	}
@@ -471,7 +471,7 @@ void pc2_detach(gpib_board_t *board)
 			free_irq(pc2_priv->irq, board);
 		if (nec_priv->iobase) {
 			nec7210_board_reset(nec_priv, board);
-			release_region((unsigned long)(nec_priv->iobase), pc2_iosize);
+			release_region(nec_priv->iobase, pc2_iosize);
 		}
 		if (nec_priv->dma_buffer) {
 			dma_free_coherent(board->dev, nec_priv->dma_buffer_length,
@@ -498,14 +498,14 @@ static int pc2a_common_attach(gpib_board_t *board, const gpib_board_config_t *co
 	nec_priv = &pc2_priv->nec7210_priv;
 	nec_priv->offset = pc2a_reg_offset;
 
-	switch ((unsigned long)(config->ibbase)) {
+	switch (config->ibbase) {
 	case 0x02e1:
 	case 0x22e1:
 	case 0x42e1:
 	case 0x62e1:
 		break;
 	default:
-		pr_err("PCIIa base range invalid, must be one of 0x[0246]2e1, but is 0x%p\n",
+		pr_err("PCIIa base range invalid, must be one of 0x[0246]2e1, but is 0x%d\n",
 		       config->ibbase);
 		return -1;
 	}
@@ -522,7 +522,7 @@ static int pc2a_common_attach(gpib_board_t *board, const gpib_board_config_t *co
 	unsigned int err = 0;
 
 	for (i = 0; i < num_registers; i++) {
-		if (check_region((unsigned long)config->ibbase + i * pc2a_reg_offset, 1))
+		if (check_region(config->ibbase + i * pc2a_reg_offset, 1))
 			err++;
 	}
 	if (config->ibirq && check_region(pc2a_clear_intr_iobase + config->ibirq, 1))
@@ -533,11 +533,11 @@ static int pc2a_common_attach(gpib_board_t *board, const gpib_board_config_t *co
 	}
 #endif
 	for (i = 0; i < num_registers; i++) {
-		if (!request_region((unsigned long)config->ibbase +
+		if (!request_region(config->ibbase +
 					i * pc2a_reg_offset, 1, "pc2a")) {
 			pr_err("gpib: ioports are already in use");
 			for (j = 0; j < i; j++)
-				release_region((unsigned long)(config->ibbase) +
+				release_region(config->ibbase +
 					j * pc2a_reg_offset, 1);
 			return -1;
 		}
@@ -608,7 +608,7 @@ static void pc2a_common_detach(gpib_board_t *board, unsigned int num_registers)
 		if (nec_priv->iobase) {
 			nec7210_board_reset(nec_priv, board);
 			for (i = 0; i < num_registers; i++)
-				release_region((unsigned long)nec_priv->iobase +
+				release_region(nec_priv->iobase +
 					       i * pc2a_reg_offset, 1);
 		}
 		if (pc2_priv->clear_intr_addr)
@@ -635,12 +635,42 @@ void pc2_2a_detach(gpib_board_t *board)
 
 static int __init pc2_init_module(void)
 {
-	gpib_register_driver(&pc2_interface, THIS_MODULE);
-	gpib_register_driver(&pc2a_interface, THIS_MODULE);
-	gpib_register_driver(&pc2a_cb7210_interface, THIS_MODULE);
-	gpib_register_driver(&pc2_2a_interface, THIS_MODULE);
+	int ret;
+
+	ret = gpib_register_driver(&pc2_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("pc2_gpib: gpib_register_driver failed: error = %d\n", ret);
+		return ret;
+	}
+
+	ret = gpib_register_driver(&pc2a_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("pc2_gpib: gpib_register_driver failed: error = %d\n", ret);
+		goto err_pc2a;
+	}
+
+	ret = gpib_register_driver(&pc2a_cb7210_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("pc2_gpib: gpib_register_driver failed: error = %d\n", ret);
+		goto err_cb7210;
+	}
+
+	ret = gpib_register_driver(&pc2_2a_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("pc2_gpib: gpib_register_driver failed: error = %d\n", ret);
+		goto err_pc2_2a;
+	}
 
 	return 0;
+
+err_pc2_2a:
+	gpib_unregister_driver(&pc2a_cb7210_interface);
+err_cb7210:
+	gpib_unregister_driver(&pc2a_interface);
+err_pc2a:
+	gpib_unregister_driver(&pc2_interface);
+
+	return ret;
 }
 
 static void __exit pc2_exit_module(void)

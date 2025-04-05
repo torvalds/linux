@@ -5,11 +5,7 @@
 #ifndef INTEL_SCALER_H
 #define INTEL_SCALER_H
 
-#include <linux/types.h>
-
-enum drm_scaling_filter;
-enum pipe;
-struct drm_i915_private;
+struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
 struct intel_plane;
@@ -20,9 +16,8 @@ int skl_update_scaler_crtc(struct intel_crtc_state *crtc_state);
 int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 			    struct intel_plane_state *plane_state);
 
-int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
-			       struct intel_crtc *intel_crtc,
-			       struct intel_crtc_state *crtc_state);
+int intel_atomic_setup_scalers(struct intel_atomic_state *state,
+			       struct intel_crtc *crtc);
 
 void skl_pfit_enable(const struct intel_crtc_state *crtc_state);
 

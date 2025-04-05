@@ -1,0 +1,183 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for White Hawk (Single) board with ARD-AUDIO-DA7212 board
+ *
+ * You can find and buy "ARD-AUDIO-DA7212" at Digi-Key
+ *
+ *	https://www.digikey.jp/en/products/detail/ARD-AUDIO-DA7212/1564-1021-ND/5456357
+ *
+ * Copyright (C) 2022 Renesas Electronics Corp.
+ *
+ *
+ * [Connection]
+ *
+ * White Hawk				ARD-AUDIO-DA7212
+ * +----------------------------+
+ * |CPU board			|
+ * |				|
+ * |CN40 (IO PIN HEADER)	|
+ * |	AUDIO_CLKIN_V	  pin1  |<--\	+---------------+
+ * |(*) GP1_25/SL_SW2_V	  pin2  |<--/	|J2		|
+ * |	AUDIO_CLKOUT_V	  pin5  |<----->| pin7  MCLK	|
+ * |	SSI_SCK_V	  pin9  |<----->| pin1  BCLK	|
+ * |	SSI_WS_V	  pin13 |<----->| pin3  WCLK	|
+ * |	SSI_SD_V	  pin15 |<----->| pin5  DATIN	| (@)
+ * |				|   \-->| pin15 DATOUT	| [CAPTURE]
+ * +----------------------------+	+---------------+
+ * +----------------------------+
+ * |Breakout board		|
+ * |				|	+---------------+
+ * |CN(30)34 (I2C CN)		|	|J1		|
+ * |	I2C0_SCL	   pin3 |<----->| pin20 SCL	|
+ * |	I2C0_SDA	   pin5 |<----->| pin18 SDA	|
+ * |				|	+---------------+
+ * |				|	+-----------------------+
+ * |CN(300)4 (Power)	        |	|J7			|
+ * |	3v3 (v)		   pin9 |<----->| pin4  / pin8  3.3v	|
+ * |	GND (v)	    pin3 / pin4 |<----->| pin12 / pin14 GND	|
+ * +----------------------------+	+-----------------------+
+ * (*)	GP1_25/SL_SW2_V is used as TPU
+ * (@)	Connect to pin5 (DATIN = playback) or pin15 (DATOUT = capture)
+ * (v)	These are just sample pins. You can find many 3v3 / GND pins on
+ *	White Hawk board, not only CN4. You can use other pins for it.
+ *
+ * [How to enable]
+ *
+ * You need these configs
+ *
+ *	CONFIG_PWM
+ *	CONFIG_PWM_RENESAS_TPU
+ *	CONFIG_COMMON_CLK_PWM
+ *	CONFIG_SND_SOC_DA7213
+ *
+ * [How to use]
+ *
+ * 44.1kHz groups sound is available by default.
+ * You need to update audio_clkin settings to switch to 48kHz groups sound.
+ * see
+ *	[(C) clock]
+ *
+ * You can use capture if you change the settings
+ * see
+ *	[CAPTURE]
+ *
+ * You need to setup Headphone
+ *
+ *	> amixer set "Headphone" 40%
+ *	> amixer set "Headphone" on
+ *	> amixer set "Mixout Left DAC Left" on
+ *	> amixer set "Mixout Right DAC Right" on
+ */
+
+/dts-v1/;
+/plugin/;
+#include <dt-bindings/clock/r8a779g0-cpg-mssr.h>
+
+&{/} {
+	sound_card: sound {
+		compatible = "audio-graph-card";
+		label = "rcar-sound";
+
+		dais = <&rsnd_port>;	/* DA7212 Audio Codec */
+	};
+
+	tpu_clk: tpu-clk {
+		compatible = "pwm-clock";
+		#clock-cells = <0>;
+
+		/* 44.1kHz groups [(C) clock] */
+		clock-frequency = <11289600>;
+		pwms = <&tpu 0 88 0>;	/* 1000000000 / 88 =~ 11289600 */
+
+		/* 48  kHz groups [(C) clock] */
+//		clock-frequency = <12288000>;
+//		pwms = <&tpu 0 81 0>;	/* 1000000000 / 81 =~ 12288000 */
+	};
+
+};
+
+&pfc {
+	sound_pins: sound {
+		groups = "ssi_ctrl", "ssi_data";
+		function = "ssi";
+	};
+
+	sound_clk_pins: sound-clk {
+		groups = "audio_clkin", "audio_clkout";
+		function = "audio_clk";
+	};
+
+	tpu0_pins: tpu0 {
+		groups = "tpu_to0_a";
+		function = "tpu";
+	};
+};
+
+&tpu {
+	pinctrl-0 = <&tpu0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&i2c0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	codec@1a {
+		compatible = "dlg,da7212";
+
+		#sound-dai-cells = <0>;
+		reg = <0x1a>;
+
+		clocks = <&rcar_sound>;
+		clock-names = "mclk";
+
+		dlg,micbias1-lvl = <2500>;
+		dlg,micbias2-lvl = <2500>;
+		dlg,dmic-data-sel = "lrise_rfall";
+		dlg,dmic-samplephase = "between_clkedge";
+		dlg,dmic-clkrate = <3000000>;
+
+		VDDA-supply   = <&reg_1p8v>;
+		VDDMIC-supply = <&reg_3p3v>;
+		VDDIO-supply  = <&reg_3p3v>;
+
+		port {
+			da7212_endpoint: endpoint {
+				remote-endpoint = <&rsnd_endpoint>;
+			};
+		};
+	};
+};
+
+&rcar_sound {
+	pinctrl-0 = <&sound_clk_pins>, <&sound_pins>;
+	pinctrl-names = "default";
+
+	/* audio_clkout */
+	clock-frequency = <5644800>; /* 44.1kHz groups [(C) clock] */
+//	clock-frequency = <6144000>; /* 48  kHz groups [(C) clock] */
+
+	status = "okay";
+
+	/* Update <clkin> to <tpu_clk> */
+	clocks = <&cpg CPG_MOD 2926>, <&cpg CPG_MOD 2927>, <&tpu_clk>;
+
+	ports {
+		rsnd_port: port {
+			rsnd_endpoint: endpoint {
+				remote-endpoint = <&da7212_endpoint>;
+
+				dai-format = "i2s";
+				bitclock-master = <&rsnd_endpoint>;
+				frame-master = <&rsnd_endpoint>;
+
+				/* Mutually exclusive with 'capture' */
+				playback = <&ssi0>;
+				/* [CAPTURE] */
+				/* capture = <&ssi0>; */
+			};
+		};
+	};
+};

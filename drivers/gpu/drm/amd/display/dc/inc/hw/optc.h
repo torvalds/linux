@@ -210,7 +210,7 @@ void optc1_enable_crtc_reset(struct timing_generator *optc,
 
 bool optc1_configure_crc(struct timing_generator *optc, const struct crc_params *params);
 
-bool optc1_get_crc(struct timing_generator *optc,
+bool optc1_get_crc(struct timing_generator *optc, uint8_t idx,
 		   uint32_t *r_cr,
 		   uint32_t *g_y,
 		   uint32_t *b_cb);

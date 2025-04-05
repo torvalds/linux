@@ -113,11 +113,13 @@ int bch2_extent_fallocate(struct btree_trans *trans,
 err:
 	if (!ret && sectors_allocated)
 		bch2_increment_clock(c, sectors_allocated, WRITE);
-	if (should_print_err(ret))
-		bch_err_inum_offset_ratelimited(c,
-			inum.inum,
-			iter->pos.offset << 9,
-			"%s(): error: %s", __func__, bch2_err_str(ret));
+	if (should_print_err(ret)) {
+		struct printbuf buf = PRINTBUF;
+		bch2_inum_offset_err_msg_trans(trans, &buf, inum, iter->pos.offset << 9);
+		prt_printf(&buf, "fallocate error: %s", bch2_err_str(ret));
+		bch_err_ratelimited(c, "%s", buf.buf);
+		printbuf_exit(&buf);
+	}
 err_noprint:
 	bch2_open_buckets_put(c, &open_buckets);
 	bch2_disk_reservation_put(c, &disk_res);
@@ -164,9 +166,9 @@ int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
 		bch2_btree_iter_set_snapshot(iter, snapshot);
 
 		/*
-		 * peek_upto() doesn't have ideal semantics for extents:
+		 * peek_max() doesn't have ideal semantics for extents:
 		 */
-		k = bch2_btree_iter_peek_upto(iter, end_pos);
+		k = bch2_btree_iter_peek_max(iter, end_pos);
 		if (!k.k)
 			break;
 
@@ -426,8 +428,8 @@ case LOGGED_OP_FINSERT_shift_extents:
 		bch2_btree_iter_set_pos(&iter, SPOS(inum.inum, pos, snapshot));
 
 		k = insert
-			? bch2_btree_iter_peek_prev(&iter)
-			: bch2_btree_iter_peek_upto(&iter, POS(inum.inum, U64_MAX));
+			? bch2_btree_iter_peek_prev_min(&iter, POS(inum.inum, 0))
+			: bch2_btree_iter_peek_max(&iter, POS(inum.inum, U64_MAX));
 		if ((ret = bkey_err(k)))
 			goto btree_err;
 
@@ -461,7 +463,7 @@ case LOGGED_OP_FINSERT_shift_extents:
 
 		op->v.pos = cpu_to_le64(insert ? bkey_start_offset(&delete.k) : delete.k.p.offset);
 
-		ret =   bch2_bkey_set_needs_rebalance(c, copy, &opts) ?:
+		ret =   bch2_bkey_set_needs_rebalance(c, &opts, copy) ?:
 			bch2_btree_insert_trans(trans, BTREE_ID_extents, &delete, 0) ?:
 			bch2_btree_insert_trans(trans, BTREE_ID_extents, copy, 0) ?:
 			bch2_logged_op_update(trans, &op->k_i) ?:

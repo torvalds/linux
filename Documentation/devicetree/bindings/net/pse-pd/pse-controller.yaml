@@ -81,7 +81,7 @@ properties:
               List of phandles, each pointing to the power supply for the
               corresponding pairset named in 'pairset-names'. This property
               aligns with IEEE 802.3-2022, Section 33.2.3 and 145.2.4.
-              PSE Pinout Alternatives (as per IEEE 802.3-2022 Table 145\u20133)
+              PSE Pinout Alternatives (as per IEEE 802.3-2022 Table 145-3)
               |-----------|---------------|---------------|---------------|---------------|
               | Conductor | Alternative A | Alternative A | Alternative B | Alternative B |
               |           |    (MDI-X)    |     (MDI)     |      (X)      |      (S)      |

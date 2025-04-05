@@ -409,6 +409,10 @@
 		      <J7200_SERDES0_LANE2_QSGMII_LANE1>, <J7200_SERDES0_LANE3_IP4_UNUSED>;
 };
 
+&mcu_spi1 {
+	mux-controls = <&spi1_linkdis 0>;
+};
+
 &usb_serdes_mux {
 	idle-states = <1>; /* USB0 to SERDES lane 3 */
 	bootph-all;

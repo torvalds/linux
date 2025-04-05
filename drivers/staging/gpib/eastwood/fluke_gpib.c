@@ -720,31 +720,31 @@ static int fluke_accel_read(gpib_board_t *board, uint8_t *buffer, size_t length,
 	return retval;
 }
 
-gpib_interface_t fluke_unaccel_interface = {
-name: "fluke_unaccel",
-attach : fluke_attach_holdoff_all,
-detach : fluke_detach,
-read : fluke_read,
-write : fluke_write,
-command : fluke_command,
-take_control : fluke_take_control,
-go_to_standby : fluke_go_to_standby,
-request_system_control : fluke_request_system_control,
-interface_clear : fluke_interface_clear,
-remote_enable : fluke_remote_enable,
-enable_eos : fluke_enable_eos,
-disable_eos : fluke_disable_eos,
-parallel_poll : fluke_parallel_poll,
-parallel_poll_configure : fluke_parallel_poll_configure,
-parallel_poll_response : fluke_parallel_poll_response,
-line_status : fluke_line_status,
-update_status : fluke_update_status,
-primary_address : fluke_primary_address,
-secondary_address : fluke_secondary_address,
-serial_poll_response : fluke_serial_poll_response,
-serial_poll_status : fluke_serial_poll_status,
-t1_delay : fluke_t1_delay,
-return_to_local : fluke_return_to_local,
+static gpib_interface_t fluke_unaccel_interface = {
+	.name = "fluke_unaccel",
+	.attach = fluke_attach_holdoff_all,
+	.detach = fluke_detach,
+	.read = fluke_read,
+	.write = fluke_write,
+	.command = fluke_command,
+	.take_control = fluke_take_control,
+	.go_to_standby = fluke_go_to_standby,
+	.request_system_control = fluke_request_system_control,
+	.interface_clear = fluke_interface_clear,
+	.remote_enable = fluke_remote_enable,
+	.enable_eos = fluke_enable_eos,
+	.disable_eos = fluke_disable_eos,
+	.parallel_poll = fluke_parallel_poll,
+	.parallel_poll_configure = fluke_parallel_poll_configure,
+	.parallel_poll_response = fluke_parallel_poll_response,
+	.line_status = fluke_line_status,
+	.update_status = fluke_update_status,
+	.primary_address = fluke_primary_address,
+	.secondary_address = fluke_secondary_address,
+	.serial_poll_response = fluke_serial_poll_response,
+	.serial_poll_status = fluke_serial_poll_status,
+	.t1_delay = fluke_t1_delay,
+	.return_to_local = fluke_return_to_local,
 };
 
 /* fluke_hybrid uses dma for writes but not for reads.  Added
@@ -755,58 +755,58 @@ return_to_local : fluke_return_to_local,
  * register just as the dma controller is also doing a read.
  */
 
-gpib_interface_t fluke_hybrid_interface = {
-name: "fluke_hybrid",
-attach : fluke_attach_holdoff_all,
-detach : fluke_detach,
-read : fluke_read,
-write : fluke_accel_write,
-command : fluke_command,
-take_control : fluke_take_control,
-go_to_standby : fluke_go_to_standby,
-request_system_control : fluke_request_system_control,
-interface_clear : fluke_interface_clear,
-remote_enable : fluke_remote_enable,
-enable_eos : fluke_enable_eos,
-disable_eos : fluke_disable_eos,
-parallel_poll : fluke_parallel_poll,
-parallel_poll_configure : fluke_parallel_poll_configure,
-parallel_poll_response : fluke_parallel_poll_response,
-line_status : fluke_line_status,
-update_status : fluke_update_status,
-primary_address : fluke_primary_address,
-secondary_address : fluke_secondary_address,
-serial_poll_response : fluke_serial_poll_response,
-serial_poll_status : fluke_serial_poll_status,
-t1_delay : fluke_t1_delay,
-return_to_local : fluke_return_to_local,
+static gpib_interface_t fluke_hybrid_interface = {
+	.name = "fluke_hybrid",
+	.attach = fluke_attach_holdoff_all,
+	.detach = fluke_detach,
+	.read = fluke_read,
+	.write = fluke_accel_write,
+	.command = fluke_command,
+	.take_control = fluke_take_control,
+	.go_to_standby = fluke_go_to_standby,
+	.request_system_control = fluke_request_system_control,
+	.interface_clear = fluke_interface_clear,
+	.remote_enable = fluke_remote_enable,
+	.enable_eos = fluke_enable_eos,
+	.disable_eos = fluke_disable_eos,
+	.parallel_poll = fluke_parallel_poll,
+	.parallel_poll_configure = fluke_parallel_poll_configure,
+	.parallel_poll_response = fluke_parallel_poll_response,
+	.line_status = fluke_line_status,
+	.update_status = fluke_update_status,
+	.primary_address = fluke_primary_address,
+	.secondary_address = fluke_secondary_address,
+	.serial_poll_response = fluke_serial_poll_response,
+	.serial_poll_status = fluke_serial_poll_status,
+	.t1_delay = fluke_t1_delay,
+	.return_to_local = fluke_return_to_local,
 };
 
-gpib_interface_t fluke_interface = {
-name: "fluke",
-attach : fluke_attach_holdoff_end,
-detach : fluke_detach,
-read : fluke_accel_read,
-write : fluke_accel_write,
-command : fluke_command,
-take_control : fluke_take_control,
-go_to_standby : fluke_go_to_standby,
-request_system_control : fluke_request_system_control,
-interface_clear : fluke_interface_clear,
-remote_enable : fluke_remote_enable,
-enable_eos : fluke_enable_eos,
-disable_eos : fluke_disable_eos,
-parallel_poll : fluke_parallel_poll,
-parallel_poll_configure : fluke_parallel_poll_configure,
-parallel_poll_response : fluke_parallel_poll_response,
-line_status : fluke_line_status,
-update_status : fluke_update_status,
-primary_address : fluke_primary_address,
-secondary_address : fluke_secondary_address,
-serial_poll_response : fluke_serial_poll_response,
-serial_poll_status : fluke_serial_poll_status,
-t1_delay : fluke_t1_delay,
-return_to_local : fluke_return_to_local,
+static gpib_interface_t fluke_interface = {
+	.name = "fluke",
+	.attach = fluke_attach_holdoff_end,
+	.detach = fluke_detach,
+	.read = fluke_accel_read,
+	.write = fluke_accel_write,
+	.command = fluke_command,
+	.take_control = fluke_take_control,
+	.go_to_standby = fluke_go_to_standby,
+	.request_system_control = fluke_request_system_control,
+	.interface_clear = fluke_interface_clear,
+	.remote_enable = fluke_remote_enable,
+	.enable_eos = fluke_enable_eos,
+	.disable_eos = fluke_disable_eos,
+	.parallel_poll = fluke_parallel_poll,
+	.parallel_poll_configure = fluke_parallel_poll_configure,
+	.parallel_poll_response = fluke_parallel_poll_response,
+	.line_status = fluke_line_status,
+	.update_status = fluke_update_status,
+	.primary_address = fluke_primary_address,
+	.secondary_address = fluke_secondary_address,
+	.serial_poll_response = fluke_serial_poll_response,
+	.serial_poll_status = fluke_serial_poll_status,
+	.t1_delay = fluke_t1_delay,
+	.return_to_local = fluke_return_to_local,
 };
 
 irqreturn_t fluke_gpib_internal_interrupt(gpib_board_t *board)
@@ -1011,12 +1011,12 @@ static int fluke_attach_impl(gpib_board_t *board, const gpib_board_config_t *con
 	}
 	e_priv->gpib_iomem_res = res;
 
-	nec_priv->iobase = ioremap(e_priv->gpib_iomem_res->start,
+	nec_priv->mmiobase = ioremap(e_priv->gpib_iomem_res->start,
 				   resource_size(e_priv->gpib_iomem_res));
-	pr_info("gpib: iobase %lx remapped to %p, length=%d\n",
-		(unsigned long)e_priv->gpib_iomem_res->start,
-		nec_priv->iobase, (int)resource_size(e_priv->gpib_iomem_res));
-	if (!nec_priv->iobase) {
+	pr_info("gpib: mmiobase %llx remapped to %p, length=%d\n",
+		(u64)e_priv->gpib_iomem_res->start,
+		nec_priv->mmiobase, (int)resource_size(e_priv->gpib_iomem_res));
+	if (!nec_priv->mmiobase) {
 		dev_err(&fluke_gpib_pdev->dev, "Could not map I/O memory\n");
 		return -ENOMEM;
 	}
@@ -1107,7 +1107,7 @@ void fluke_detach(gpib_board_t *board)
 		gpib_free_pseudo_irq(board);
 		nec_priv = &e_priv->nec7210_priv;
 
-		if (nec_priv->iobase) {
+		if (nec_priv->mmiobase) {
 			fluke_paged_write_byte(e_priv, 0, ISR0_IMR0, ISR0_IMR0_PAGE);
 			nec7210_board_reset(nec_priv, board);
 		}
@@ -1155,16 +1155,38 @@ static int __init fluke_init_module(void)
 
 	result = platform_driver_register(&fluke_gpib_platform_driver);
 	if (result) {
-		pr_err("fluke_gpib: platform_driver_register failed!\n");
+		pr_err("fluke_gpib: platform_driver_register failed: error = %d\n", result);
 		return result;
 	}
 
-	gpib_register_driver(&fluke_unaccel_interface, THIS_MODULE);
-	gpib_register_driver(&fluke_hybrid_interface, THIS_MODULE);
-	gpib_register_driver(&fluke_interface, THIS_MODULE);
+	result = gpib_register_driver(&fluke_unaccel_interface, THIS_MODULE);
+	if (result) {
+		pr_err("fluke_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_unaccel;
+	}
 
-	pr_info("fluke_gpib\n");
+	result = gpib_register_driver(&fluke_hybrid_interface, THIS_MODULE);
+	if (result) {
+		pr_err("fluke_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_hybrid;
+	}
+
+	result = gpib_register_driver(&fluke_interface, THIS_MODULE);
+	if (result) {
+		pr_err("fluke_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_interface;
+	}
+
 	return 0;
+
+err_interface:
+	gpib_unregister_driver(&fluke_hybrid_interface);
+err_hybrid:
+	gpib_unregister_driver(&fluke_unaccel_interface);
+err_unaccel:
+	platform_driver_unregister(&fluke_gpib_platform_driver);
+
+	return result;
 }
 
 static void __exit fluke_exit_module(void)

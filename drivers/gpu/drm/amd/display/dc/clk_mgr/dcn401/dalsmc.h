@@ -43,7 +43,9 @@
 #define DALSMC_MSG_ActiveUclkFclk                 0x18
 #define DALSMC_MSG_IdleUclkFclk                   0x19
 #define DALSMC_MSG_SetUclkPstateAllow             0x1A
-#define DALSMC_Message_Count                      0x1B
+#define DALSMC_MSG_SubvpUclkFclk                  0x1B
+#define DALSMC_MSG_GetNumUmcChannels              0x1C
+#define DALSMC_Message_Count                      0x1D
 
 typedef enum {
   FCLK_SWITCH_DISALLOW,

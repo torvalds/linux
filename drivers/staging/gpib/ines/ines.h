@@ -35,13 +35,6 @@ struct ines_priv {
 	u8 extend_mode_bits;
 };
 
-// interfaces
-extern gpib_interface_t ines_pci_interface;
-extern gpib_interface_t ines_pci_accel_interface;
-extern gpib_interface_t ines_pcmcia_interface;
-extern gpib_interface_t ines_pcmcia_accel_interface;
-extern gpib_interface_t ines_pcmcia_unaccel_interface;
-
 // interface functions
 int ines_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end, size_t *bytes_read);
 int ines_write(gpib_board_t *board, uint8_t *buffer, size_t length,
@@ -83,14 +76,14 @@ void ines_set_xfer_counter(struct ines_priv *priv, unsigned int count);
 /* inb/outb wrappers */
 static inline unsigned int ines_inb(struct ines_priv *priv, unsigned int register_number)
 {
-	return inb((unsigned long)(priv->nec7210_priv.iobase) +
+	return inb(priv->nec7210_priv.iobase +
 		   register_number * priv->nec7210_priv.offset);
 }
 
 static inline void ines_outb(struct ines_priv *priv, unsigned int value,
 			     unsigned int register_number)
 {
-	outb(value, (unsigned long)(priv->nec7210_priv.iobase) +
+	outb(value, priv->nec7210_priv.iobase +
 	     register_number * priv->nec7210_priv.offset);
 }
 

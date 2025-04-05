@@ -180,10 +180,7 @@ int __init early_init_dt_scan_recoverable_ranges(unsigned long node,
 	/*
 	 * Allocate a buffer to hold the MC recoverable ranges.
 	 */
-	mc_recoverable_range = memblock_alloc(size, __alignof__(u64));
-	if (!mc_recoverable_range)
-		panic("%s: Failed to allocate %u bytes align=0x%lx\n",
-		      __func__, size, __alignof__(u64));
+	mc_recoverable_range = memblock_alloc_or_panic(size, __alignof__(u64));
 
 	for (i = 0; i < mc_recoverable_range_len; i++) {
 		mc_recoverable_range[i].start_addr =
@@ -818,7 +815,7 @@ static int opal_add_one_export(struct kobject *parent, const char *export_name,
 	sysfs_bin_attr_init(attr);
 	attr->attr.name = name;
 	attr->attr.mode = 0400;
-	attr->read = sysfs_bin_attr_simple_read;
+	attr->read_new = sysfs_bin_attr_simple_read;
 	attr->private = __va(vals[0]);
 	attr->size = vals[1];
 

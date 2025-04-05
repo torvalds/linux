@@ -1000,6 +1000,20 @@ tcp_tw_reuse - INTEGER
 
 	Default: 2
 
+tcp_tw_reuse_delay - UNSIGNED INTEGER
+        The delay in milliseconds before a TIME-WAIT socket can be reused by a
+        new connection, if TIME-WAIT socket reuse is enabled. The actual reuse
+        threshold is within [N, N+1] range, where N is the requested delay in
+        milliseconds, to ensure the delay interval is never shorter than the
+        configured value.
+
+        This setting contains an assumption about the other TCP timestamp clock
+        tick interval. It should not be set to a value lower than the peer's
+        clock tick for PAWS (Protection Against Wrapped Sequence numbers)
+        mechanism work correctly for the reused connection.
+
+        Default: 1000 (milliseconds)
+
 tcp_window_scaling - BOOLEAN
 	Enable window scaling as defined in RFC1323.
 

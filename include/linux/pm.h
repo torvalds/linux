@@ -384,12 +384,8 @@ const struct dev_pm_ops name = { \
 
 #ifdef CONFIG_PM
 #define _EXPORT_DEV_PM_OPS(name, license, ns)		_EXPORT_PM_OPS(name, license, ns)
-#define EXPORT_PM_FN_GPL(name)				EXPORT_SYMBOL_GPL(name)
-#define EXPORT_PM_FN_NS_GPL(name, ns)			EXPORT_SYMBOL_NS_GPL(name, "ns")
 #else
 #define _EXPORT_DEV_PM_OPS(name, license, ns)		_DISCARD_PM_OPS(name, license, ns)
-#define EXPORT_PM_FN_GPL(name)
-#define EXPORT_PM_FN_NS_GPL(name, ns)
 #endif
 
 #ifdef CONFIG_PM_SLEEP
@@ -570,7 +566,8 @@ const struct dev_pm_ops name = { \
 					{ .event = PM_EVENT_AUTO_RESUME, })
 
 #define PMSG_IS_AUTO(msg)	(((msg).event & PM_EVENT_AUTO) != 0)
-
+#define PMSG_NO_WAKEUP(msg)	(((msg).event & \
+				(PM_EVENT_FREEZE | PM_EVENT_QUIESCE)) != 0)
 /*
  * Device run-time power management status.
  *
@@ -683,6 +680,7 @@ struct dev_pm_info {
 	bool			no_pm_callbacks:1;	/* Owned by the PM core */
 	bool			async_in_progress:1;	/* Owned by the PM core */
 	bool			must_resume:1;		/* Owned by the PM core */
+	bool			set_active:1;		/* Owned by the PM core */
 	bool			may_skip_resume:1;	/* Set by subsystems */
 #else
 	bool			should_wakeup:1;

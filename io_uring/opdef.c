@@ -7,6 +7,7 @@
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/io_uring.h>
+#include <linux/io_uring/cmd.h>
 
 #include "io_uring.h"
 #include "opdef.h"
@@ -414,7 +415,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.plug			= 1,
 		.iopoll			= 1,
 		.iopoll_queue		= 1,
-		.async_size		= 2 * sizeof(struct io_uring_sqe),
+		.async_size		= sizeof(struct io_uring_cmd_data),
 		.prep			= io_uring_cmd_prep,
 		.issue			= io_uring_cmd,
 	},

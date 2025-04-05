@@ -1694,10 +1694,7 @@ static int __init vector_setup(char *str)
 				 str, error);
 		return 1;
 	}
-	new = memblock_alloc(sizeof(*new), SMP_CACHE_BYTES);
-	if (!new)
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      sizeof(*new));
+	new = memblock_alloc_or_panic(sizeof(*new), SMP_CACHE_BYTES);
 	INIT_LIST_HEAD(&new->list);
 	new->unit = n;
 	new->arguments = str;

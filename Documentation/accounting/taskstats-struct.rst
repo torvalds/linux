@@ -47,7 +47,7 @@ should not change the relative position of each field within the struct.
 1) Common and basic accounting fields::
 
 	/* The version number of this struct. This field is always set to
-	 * TAKSTATS_VERSION, which is defined in <linux/taskstats.h>.
+	 * TASKSTATS_VERSION, which is defined in <linux/taskstats.h>.
 	 * Each time the struct is changed, the value should be incremented.
 	 */
 	__u16	version;

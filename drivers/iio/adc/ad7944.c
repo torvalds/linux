@@ -75,7 +75,7 @@ struct ad7944_adc {
 			u16 u16;
 			u32 u32;
 		} raw;
-		u64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	 } sample __aligned(IIO_DMA_MINALIGN);
 };
 

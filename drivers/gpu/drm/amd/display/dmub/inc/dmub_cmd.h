@@ -431,7 +431,68 @@ union replay_debug_flags {
 		 */
 		uint32_t enable_ips_residency_profiling : 1;
 
-		uint32_t reserved : 20;
+		/**
+		 * 0x1000 (bit 12)
+		 * @enable_coasting_vtotal_check: Enable Coasting_vtotal_check
+		 */
+		uint32_t enable_coasting_vtotal_check : 1;
+		/**
+		 * 0x2000 (bit 13)
+		 * @enable_visual_confirm_debug: Enable Visual Confirm Debug
+		 */
+		uint32_t enable_visual_confirm_debug : 1;
+
+		uint32_t reserved : 18;
+	} bitfields;
+
+	uint32_t u32All;
+};
+
+/**
+ * Flags record error state.
+ */
+union replay_visual_confirm_error_state_flags {
+	struct {
+		/**
+		 * 0x1 (bit 0) - Desync Error flag.
+		 */
+		uint32_t desync_error : 1;
+
+		/**
+		 * 0x2 (bit 1) - State Transition Error flag.
+		 */
+		uint32_t state_transition_error : 1;
+
+		/**
+		 * 0x4 (bit 2) - Crc Error flag
+		 */
+		uint32_t crc_error : 1;
+
+		/**
+		 * 0x8 (bit 3) - Reserved
+		 */
+		uint32_t reserved_3 : 1;
+
+		/**
+		 * 0x10 (bit 4) - Incorrect Coasting vtotal checking --> use debug flag to control DPCD write.
+		 * Added new debug flag to control DPCD.
+		 */
+		uint32_t incorrect_vtotal_in_static_screen : 1;
+
+		/**
+		 * 0x20 (bit 5) - No doubled Refresh Rate.
+		 */
+		uint32_t no_double_rr : 1;
+
+		/**
+		 * Reserved bit 6-7
+		 */
+		uint32_t reserved_6_7 : 2;
+
+		/**
+		 * Reserved bit 9-31
+		 */
+		uint32_t reserved_9_31 : 24;
 	} bitfields;
 
 	uint32_t u32All;
@@ -475,9 +536,21 @@ union replay_hw_flags {
 		 * Use TPS3 signal when restore main link.
 		 */
 		uint32_t force_wakeup_by_tps3 : 1;
+		/**
+		 * @is_alpm_initialized: Indicates whether ALPM is initialized
+		 */
+		uint32_t is_alpm_initialized : 1;
 	} bitfields;
 
 	uint32_t u32All;
+};
+
+union fw_assisted_mclk_switch_version {
+	struct {
+		uint8_t minor : 5;
+		uint8_t major : 3;
+	};
+	uint8_t ver;
 };
 
 /**
@@ -1823,52 +1896,11 @@ enum fams2_stream_type {
 	FAMS2_STREAM_TYPE_SUBVP = 4,
 };
 
-/* dynamic stream state */
-struct dmub_fams2_legacy_stream_dynamic_state {
-	uint8_t force_allow_at_vblank;
-	uint8_t pad[3];
-};
-
-struct dmub_fams2_subvp_stream_dynamic_state {
-	uint16_t viewport_start_hubp_vline;
-	uint16_t viewport_height_hubp_vlines;
-	uint16_t viewport_start_c_hubp_vline;
-	uint16_t viewport_height_c_hubp_vlines;
-	uint16_t phantom_viewport_height_hubp_vlines;
-	uint16_t phantom_viewport_height_c_hubp_vlines;
-	uint16_t microschedule_start_otg_vline;
-	uint16_t mall_start_otg_vline;
-	uint16_t mall_start_hubp_vline;
-	uint16_t mall_start_c_hubp_vline;
-	uint8_t force_allow_at_vblank_only;
-	uint8_t pad[3];
-};
-
-struct dmub_fams2_drr_stream_dynamic_state {
-	uint16_t stretched_vtotal;
-	uint8_t use_cur_vtotal;
-	uint8_t pad;
-};
-
-struct dmub_fams2_stream_dynamic_state {
-	uint64_t ref_tick;
-	uint32_t cur_vtotal;
-	uint16_t adjusted_allow_end_otg_vline;
-	uint8_t pad[2];
-	struct dmub_optc_position ref_otg_pos;
-	struct dmub_optc_position target_otg_pos;
-	union {
-		struct dmub_fams2_legacy_stream_dynamic_state legacy;
-		struct dmub_fams2_subvp_stream_dynamic_state subvp;
-		struct dmub_fams2_drr_stream_dynamic_state drr;
-	} sub_state;
-};
-
 /* static stream state */
 struct dmub_fams2_legacy_stream_static_state {
 	uint8_t vactive_det_fill_delay_otg_vlines;
 	uint8_t programming_delay_otg_vlines;
-};
+}; //v0
 
 struct dmub_fams2_subvp_stream_static_state {
 	uint16_t vratio_numerator;
@@ -1887,14 +1919,59 @@ struct dmub_fams2_subvp_stream_static_state {
 	uint8_t phantom_otg_inst;
 	uint8_t phantom_pipe_mask;
 	uint8_t phantom_plane_pipe_masks[DMUB_MAX_PHANTOM_PLANES]; // phantom pipe mask per plane (for flip passthrough)
-};
+}; //v0
 
 struct dmub_fams2_drr_stream_static_state {
 	uint16_t nom_stretched_vtotal;
 	uint8_t programming_delay_otg_vlines;
 	uint8_t only_stretch_if_required;
 	uint8_t pad[2];
-};
+}; //v0
+
+struct dmub_fams2_cmd_legacy_stream_static_state {
+	uint16_t vactive_det_fill_delay_otg_vlines;
+	uint16_t programming_delay_otg_vlines;
+}; //v1
+
+struct dmub_fams2_cmd_subvp_stream_static_state {
+	uint16_t vratio_numerator;
+	uint16_t vratio_denominator;
+	uint16_t phantom_vtotal;
+	uint16_t phantom_vactive;
+	uint16_t programming_delay_otg_vlines;
+	uint16_t prefetch_to_mall_otg_vlines;
+	union {
+		struct {
+			uint8_t is_multi_planar : 1;
+			uint8_t is_yuv420 : 1;
+		} bits;
+		uint8_t all;
+	} config;
+	uint8_t phantom_otg_inst;
+	uint8_t phantom_pipe_mask;
+	uint8_t pad0;
+	uint8_t phantom_plane_pipe_masks[DMUB_MAX_PHANTOM_PLANES]; // phantom pipe mask per plane (for flip passthrough)
+	uint8_t pad1[4 - (DMUB_MAX_PHANTOM_PLANES % 4)];
+}; //v1
+
+struct dmub_fams2_cmd_drr_stream_static_state {
+	uint16_t nom_stretched_vtotal;
+	uint16_t programming_delay_otg_vlines;
+	uint8_t only_stretch_if_required;
+	uint8_t pad[3];
+}; //v1
+
+union dmub_fams2_stream_static_sub_state {
+	struct dmub_fams2_legacy_stream_static_state legacy;
+	struct dmub_fams2_subvp_stream_static_state subvp;
+	struct dmub_fams2_drr_stream_static_state drr;
+}; //v0
+
+union dmub_fams2_cmd_stream_static_sub_state {
+	struct dmub_fams2_cmd_legacy_stream_static_state legacy;
+	struct dmub_fams2_cmd_subvp_stream_static_state subvp;
+	struct dmub_fams2_cmd_drr_stream_static_state drr;
+}; //v1
 
 struct dmub_fams2_stream_static_state {
 	enum fams2_stream_type type;
@@ -1924,13 +2001,45 @@ struct dmub_fams2_stream_static_state {
 	uint8_t pipe_mask; // pipe mask for the whole config
 	uint8_t num_planes;
 	uint8_t plane_pipe_masks[DMUB_MAX_PLANES]; // pipe mask per plane (for flip passthrough)
-	uint8_t pad[DMUB_MAX_PLANES % 4];
+	uint8_t pad[4 - (DMUB_MAX_PLANES % 4)];
+	union dmub_fams2_stream_static_sub_state sub_state;
+}; //v0
+
+struct dmub_fams2_cmd_stream_static_base_state {
+	enum fams2_stream_type type;
+	uint32_t otg_vline_time_ns;
+	uint32_t otg_vline_time_ticks;
+	uint16_t htotal;
+	uint16_t vtotal; // nominal vtotal
+	uint16_t vblank_start;
+	uint16_t vblank_end;
+	uint16_t max_vtotal;
+	uint16_t allow_start_otg_vline;
+	uint16_t allow_end_otg_vline;
+	uint16_t drr_keepout_otg_vline; // after this vline, vtotal cannot be changed
+	uint16_t scheduling_delay_otg_vlines; // min time to budget for ready to microschedule start
+	uint16_t contention_delay_otg_vlines; // time to budget for contention on execution
+	uint16_t vline_int_ack_delay_otg_vlines; // min time to budget for vertical interrupt firing
+	uint16_t allow_to_target_delay_otg_vlines; // time from allow vline to target vline
 	union {
-		struct dmub_fams2_legacy_stream_static_state legacy;
-		struct dmub_fams2_subvp_stream_static_state subvp;
-		struct dmub_fams2_drr_stream_static_state drr;
-	} sub_state;
-};
+		struct {
+			uint8_t is_drr : 1; // stream is DRR enabled
+			uint8_t clamp_vtotal_min : 1; // clamp vtotal to min instead of nominal
+			uint8_t min_ttu_vblank_usable : 1; // if min ttu vblank is above wm, no force pstate is needed in blank
+		} bits;
+		uint8_t all;
+	} config;
+	uint8_t otg_inst;
+	uint8_t pipe_mask; // pipe mask for the whole config
+	uint8_t num_planes;
+	uint8_t plane_pipe_masks[DMUB_MAX_PLANES]; // pipe mask per plane (for flip passthrough)
+	uint8_t pad[4 - (DMUB_MAX_PLANES % 4)];
+}; //v1
+
+struct dmub_fams2_stream_static_state_v1 {
+	struct dmub_fams2_cmd_stream_static_base_state base;
+	union dmub_fams2_cmd_stream_static_sub_state sub_state;
+}; //v1
 
 /**
  * enum dmub_fams2_allow_delay_check_mode - macroscheduler mode for breaking on excessive
@@ -1970,7 +2079,11 @@ struct dmub_cmd_fams2_global_config {
 
 union dmub_cmd_fams2_config {
 	struct dmub_cmd_fams2_global_config global;
-	struct dmub_fams2_stream_static_state stream;
+	struct dmub_fams2_stream_static_state stream; //v0
+	union {
+		struct dmub_fams2_cmd_stream_static_base_state base;
+		union dmub_fams2_cmd_stream_static_sub_state sub_state;
+	} stream_v1; //v1
 };
 
 /**
@@ -3592,6 +3705,8 @@ enum dmub_cmd_replay_general_subtype {
 	 */
 	REPLAY_GENERAL_CMD_DISABLED_ADAPTIVE_SYNC_SDP,
 	REPLAY_GENERAL_CMD_DISABLED_DESYNC_ERROR_DETECTION,
+	REPLAY_GENERAL_CMD_UPDATE_ERROR_STATUS,
+	REPLAY_GENERAL_CMD_SET_LOW_RR_ACTIVATE,
 };
 
 /**

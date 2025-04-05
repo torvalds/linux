@@ -25,21 +25,37 @@ enum rcu_pending_special {
 #define RCU_PENDING_KVFREE_FN		((rcu_pending_process_fn) (ulong) RCU_PENDING_KVFREE)
 #define RCU_PENDING_CALL_RCU_FN		((rcu_pending_process_fn) (ulong) RCU_PENDING_CALL_RCU)
 
-static inline unsigned long __get_state_synchronize_rcu(struct srcu_struct *ssp)
+#ifdef __KERNEL__
+typedef unsigned long			rcu_gp_poll_state_t;
+
+static inline bool rcu_gp_poll_cookie_eq(rcu_gp_poll_state_t l, rcu_gp_poll_state_t r)
+{
+	return l == r;
+}
+#else
+typedef struct urcu_gp_poll_state	rcu_gp_poll_state_t;
+
+static inline bool rcu_gp_poll_cookie_eq(rcu_gp_poll_state_t l, rcu_gp_poll_state_t r)
+{
+	return l.grace_period_id == r.grace_period_id;
+}
+#endif
+
+static inline rcu_gp_poll_state_t __get_state_synchronize_rcu(struct srcu_struct *ssp)
 {
 	return ssp
 		? get_state_synchronize_srcu(ssp)
 		: get_state_synchronize_rcu();
 }
 
-static inline unsigned long __start_poll_synchronize_rcu(struct srcu_struct *ssp)
+static inline rcu_gp_poll_state_t __start_poll_synchronize_rcu(struct srcu_struct *ssp)
 {
 	return ssp
 		? start_poll_synchronize_srcu(ssp)
 		: start_poll_synchronize_rcu();
 }
 
-static inline bool __poll_state_synchronize_rcu(struct srcu_struct *ssp, unsigned long cookie)
+static inline bool __poll_state_synchronize_rcu(struct srcu_struct *ssp, rcu_gp_poll_state_t cookie)
 {
 	return ssp
 		? poll_state_synchronize_srcu(ssp, cookie)
@@ -71,13 +87,13 @@ struct rcu_pending_seq {
 	GENRADIX(struct rcu_head *)	objs;
 	size_t				nr;
 	struct rcu_head			**cursor;
-	unsigned long			seq;
+	rcu_gp_poll_state_t		seq;
 };
 
 struct rcu_pending_list {
 	struct rcu_head			*head;
 	struct rcu_head			*tail;
-	unsigned long			seq;
+	rcu_gp_poll_state_t		seq;
 };
 
 struct rcu_pending_pcpu {
@@ -316,10 +332,10 @@ static void rcu_pending_rcu_cb(struct rcu_head *rcu)
 }
 
 static __always_inline struct rcu_pending_seq *
-get_object_radix(struct rcu_pending_pcpu *p, unsigned long seq)
+get_object_radix(struct rcu_pending_pcpu *p, rcu_gp_poll_state_t seq)
 {
 	darray_for_each_reverse(p->objs, objs)
-		if (objs->seq == seq)
+		if (rcu_gp_poll_cookie_eq(objs->seq, seq))
 			return objs;
 
 	if (darray_push_gfp(&p->objs, ((struct rcu_pending_seq) { .seq = seq }), GFP_ATOMIC))
@@ -329,7 +345,7 @@ get_object_radix(struct rcu_pending_pcpu *p, unsigned long seq)
 }
 
 static noinline bool
-rcu_pending_enqueue_list(struct rcu_pending_pcpu *p, unsigned long seq,
+rcu_pending_enqueue_list(struct rcu_pending_pcpu *p, rcu_gp_poll_state_t seq,
 			 struct rcu_head *head, void *ptr,
 			 unsigned long *flags)
 {
@@ -364,7 +380,7 @@ rcu_pending_enqueue_list(struct rcu_pending_pcpu *p, unsigned long seq,
 again:
 	for (struct rcu_pending_list *i = p->lists;
 	     i < p->lists + NUM_ACTIVE_RCU_POLL_OLDSTATE; i++) {
-		if (i->seq == seq) {
+		if (rcu_gp_poll_cookie_eq(i->seq, seq)) {
 			rcu_pending_list_add(i, head);
 			return false;
 		}
@@ -408,7 +424,7 @@ __rcu_pending_enqueue(struct rcu_pending *pending, struct rcu_head *head,
 	struct rcu_pending_pcpu *p;
 	struct rcu_pending_seq *objs;
 	struct genradix_node *new_node = NULL;
-	unsigned long seq, flags;
+	unsigned long flags;
 	bool start_gp = false;
 
 	BUG_ON((ptr != NULL) != (pending->process == RCU_PENDING_KVFREE_FN));
@@ -416,7 +432,7 @@ __rcu_pending_enqueue(struct rcu_pending *pending, struct rcu_head *head,
 	local_irq_save(flags);
 	p = this_cpu_ptr(pending->p);
 	spin_lock(&p->lock);
-	seq = __get_state_synchronize_rcu(pending->srcu);
+	rcu_gp_poll_state_t seq = __get_state_synchronize_rcu(pending->srcu);
 restart:
 	if (may_sleep &&
 	    unlikely(process_finished_items(pending, p, flags)))

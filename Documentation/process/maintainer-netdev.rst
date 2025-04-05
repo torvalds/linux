@@ -470,6 +470,52 @@ in a way which would break what would normally be considered uAPI.
 new ``netdevsim`` features must be accompanied by selftests under
 ``tools/testing/selftests/``.
 
+Supported status for drivers
+----------------------------
+
+.. note: The following requirements apply only to Ethernet NIC drivers.
+
+Netdev defines additional requirements for drivers which want to acquire
+the ``Supported`` status in the MAINTAINERS file. ``Supported`` drivers must
+be running all upstream driver tests and reporting the results twice a day.
+Drivers which do not comply with this requirement should use the ``Maintained``
+status. There is currently no difference in how ``Supported`` and ``Maintained``
+drivers are treated upstream.
+
+The exact rules a driver must follow to acquire the ``Supported`` status:
+
+1. Must run all tests under ``drivers/net`` and ``drivers/net/hw`` targets
+   of Linux selftests. Running and reporting private / internal tests is
+   also welcome, but upstream tests are a must.
+
+2. The minimum run frequency is once every 12 hours. Must test the
+   designated branch from the selected branch feed. Note that branches
+   are auto-constructed and exposed to intentional malicious patch posting,
+   so the test systems must be isolated.
+
+3. Drivers supporting multiple generations of devices must test at
+   least one device from each generation. A testbed manifest (exact
+   format TBD) should describe the device models tested.
+
+4. The tests must run reliably, if multiple branches are skipped or tests
+   are failing due to execution environment problems the ``Supported``
+   status will be withdrawn.
+
+5. Test failures due to bugs either in the driver or the test itself,
+   or lack of support for the feature the test is targgeting are
+   *not* a basis for losing the ``Supported`` status.
+
+netdev CI will maintain an official page of supported devices, listing their
+recent test results.
+
+The driver maintainer may arrange for someone else to run the test,
+there is no requirement for the person listed as maintainer (or their
+employer) to be responsible for running the tests. Collaboration between
+vendors, hosting GH CI, other repos under linux-netdev, etc. is most welcome.
+
+See https://github.com/linux-netdev/nipa/wiki for more information about
+netdev CI. Feel free to reach out to maintainers or the list with any questions.
+
 Reviewer guidance
 -----------------
 

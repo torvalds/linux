@@ -125,8 +125,6 @@ void flexcop_dma_free(struct flexcop_dma *dma);
 
 int flexcop_dma_control_timer_irq(struct flexcop_device *fc,
 		flexcop_dma_index_t no, int onoff);
-int flexcop_dma_control_size_irq(struct flexcop_device *fc,
-		flexcop_dma_index_t no, int onoff);
 int flexcop_dma_config(struct flexcop_device *fc, struct flexcop_dma *dma,
 		flexcop_dma_index_t dma_idx);
 int flexcop_dma_xfer_control(struct flexcop_device *fc,
@@ -170,8 +168,6 @@ int flexcop_sram_init(struct flexcop_device *fc);
 void flexcop_determine_revision(struct flexcop_device *fc);
 void flexcop_device_name(struct flexcop_device *fc,
 		const char *prefix, const char *suffix);
-void flexcop_dump_reg(struct flexcop_device *fc,
-		flexcop_ibi_register reg, int num);
 
 /* from flexcop-hw-filter.c */
 int flexcop_pid_feed_control(struct flexcop_device *fc,

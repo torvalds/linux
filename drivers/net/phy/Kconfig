@@ -287,8 +287,15 @@ config MICROCHIP_PHY
 
 config MICROCHIP_T1_PHY
 	tristate "Microchip T1 PHYs"
+	select MICROCHIP_PHY_RDS_PTP if NETWORK_PHY_TIMESTAMPING
+	depends on PTP_1588_CLOCK_OPTIONAL
 	help
-	  Supports the LAN87XX PHYs.
+	  Supports the LAN8XXX PHYs.
+
+config MICROCHIP_PHY_RDS_PTP
+	tristate
+	help
+	  Currently supports LAN887X T1 PHY
 
 config MICROSEMI_PHY
 	tristate "Microsemi PHYs"
@@ -343,10 +350,7 @@ config QSEMI_PHY
 	help
 	  Currently supports the qs6612
 
-config REALTEK_PHY
-	tristate "Realtek PHYs"
-	help
-	  Supports the Realtek 821x PHY.
+source "drivers/net/phy/realtek/Kconfig"
 
 config RENESAS_PHY
 	tristate "Renesas PHYs"

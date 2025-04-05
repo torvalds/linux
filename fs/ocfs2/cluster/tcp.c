@@ -5,13 +5,13 @@
  *
  * ----
  *
- * Callers for this were originally written against a very simple synchronus
+ * Callers for this were originally written against a very simple synchronous
  * API.  This implementation reflects those simple callers.  Some day I'm sure
  * we'll need to move to a more robust posting/callback mechanism.
  *
  * Transmit calls pass in kernel virtual addresses and block copying this into
  * the socket's tx buffers via a usual blocking sendmsg.  They'll block waiting
- * for a failed socket to timeout.  TX callers can also pass in a poniter to an
+ * for a failed socket to timeout.  TX callers can also pass in a pointer to an
  * 'int' which gets filled with an errno off the wire in response to the
  * message they send.
  *
@@ -101,7 +101,7 @@ static struct socket *o2net_listen_sock;
  * o2net_wq.  teardown detaches the callbacks before destroying the workqueue.
  * quorum work is queued as sock containers are shutdown.. stop_listening
  * tears down all the node's sock containers, preventing future shutdowns
- * and queued quroum work, before canceling delayed quorum work and
+ * and queued quorum work, before canceling delayed quorum work and
  * destroying the work queue.
  */
 static struct workqueue_struct *o2net_wq;
@@ -1419,7 +1419,7 @@ out:
 	return ret;
 }
 
-/* this work func is triggerd by data ready.  it reads until it can read no
+/* this work func is triggered by data ready.  it reads until it can read no
  * more.  it interprets 0, eof, as fatal.  if data_ready hits while we're doing
  * our work the work struct will be marked and we'll be called again. */
 static void o2net_rx_until_empty(struct work_struct *work)

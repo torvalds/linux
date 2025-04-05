@@ -170,8 +170,7 @@ static void __init time_init_deferred(void)
 
 	ce_dev->cpumask = cpu_all_mask;
 
-	if (!resource)
-		resource = rtos_timer_device.resource;
+	resource = rtos_timer_device.resource;
 
 	/*  ioremap here means this has to run later, after paging init  */
 	rtos_timer = ioremap(resource->start, resource_size(resource));

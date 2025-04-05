@@ -1313,7 +1313,7 @@ int ata_scsi_change_queue_depth(struct scsi_device *sdev, int queue_depth)
 EXPORT_SYMBOL_GPL(ata_scsi_change_queue_depth);
 
 /**
- *	ata_sas_device_configure - Default device_configure routine for libata
+ *	ata_sas_sdev_configure - Default sdev_configure routine for libata
  *				   devices
  *	@sdev: SCSI device to configure
  *	@lim: queue limits
@@ -1323,14 +1323,14 @@ EXPORT_SYMBOL_GPL(ata_scsi_change_queue_depth);
  *	Zero.
  */
 
-int ata_sas_device_configure(struct scsi_device *sdev, struct queue_limits *lim,
-		struct ata_port *ap)
+int ata_sas_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim,
+			   struct ata_port *ap)
 {
 	ata_scsi_sdev_config(sdev);
 
 	return ata_scsi_dev_config(sdev, lim, ap->link.device);
 }
-EXPORT_SYMBOL_GPL(ata_sas_device_configure);
+EXPORT_SYMBOL_GPL(ata_sas_sdev_configure);
 
 /**
  *	ata_sas_queuecmd - Issue SCSI cdb to libata-managed device

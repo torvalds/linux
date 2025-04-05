@@ -437,8 +437,6 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	trace_wake_queue(local, queue, reason);
-
 	if (WARN_ON(queue >= hw->queues))
 		return;
 
@@ -455,6 +453,9 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 
 	if (local->q_stop_reasons[queue][reason] == 0)
 		__clear_bit(reason, &local->queue_stop_reasons[queue]);
+
+	trace_wake_queue(local, queue, reason,
+			 local->q_stop_reasons[queue][reason]);
 
 	if (local->queue_stop_reasons[queue] != 0)
 		/* someone still has this queue stopped */
@@ -502,8 +503,6 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	trace_stop_queue(local, queue, reason);
-
 	if (WARN_ON(queue >= hw->queues))
 		return;
 
@@ -511,6 +510,9 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 		local->q_stop_reasons[queue][reason] = 1;
 	else
 		local->q_stop_reasons[queue][reason]++;
+
+	trace_stop_queue(local, queue, reason,
+			 local->q_stop_reasons[queue][reason]);
 
 	set_bit(reason, &local->queue_stop_reasons[queue]);
 }
@@ -2748,6 +2750,7 @@ u8 *ieee80211_ie_build_he_oper(u8 *pos, const struct cfg80211_chan_def *chandef)
 {
 	struct ieee80211_he_operation *he_oper;
 	struct ieee80211_he_6ghz_oper *he_6ghz_op;
+	struct cfg80211_chan_def he_chandef;
 	u32 he_oper_params;
 	u8 ie_len = 1 + sizeof(struct ieee80211_he_operation);
 
@@ -2779,27 +2782,33 @@ u8 *ieee80211_ie_build_he_oper(u8 *pos, const struct cfg80211_chan_def *chandef)
 	if (chandef->chan->band != NL80211_BAND_6GHZ)
 		goto out;
 
+	cfg80211_chandef_create(&he_chandef, chandef->chan, NL80211_CHAN_NO_HT);
+	he_chandef.center_freq1 = chandef->center_freq1;
+	he_chandef.center_freq2 = chandef->center_freq2;
+	he_chandef.width = chandef->width;
+
 	/* TODO add VHT operational */
 	he_6ghz_op = (struct ieee80211_he_6ghz_oper *)pos;
 	he_6ghz_op->minrate = 6; /* 6 Mbps */
 	he_6ghz_op->primary =
-		ieee80211_frequency_to_channel(chandef->chan->center_freq);
+		ieee80211_frequency_to_channel(he_chandef.chan->center_freq);
 	he_6ghz_op->ccfs0 =
-		ieee80211_frequency_to_channel(chandef->center_freq1);
-	if (chandef->center_freq2)
+		ieee80211_frequency_to_channel(he_chandef.center_freq1);
+	if (he_chandef.center_freq2)
 		he_6ghz_op->ccfs1 =
-			ieee80211_frequency_to_channel(chandef->center_freq2);
+			ieee80211_frequency_to_channel(he_chandef.center_freq2);
 	else
 		he_6ghz_op->ccfs1 = 0;
 
-	switch (chandef->width) {
+	switch (he_chandef.width) {
 	case NL80211_CHAN_WIDTH_320:
-		/*
-		 * TODO: mesh operation is not defined over 6GHz 320 MHz
-		 * channels.
+		/* Downgrade EHT 320 MHz BW to 160 MHz for HE and set new
+		 * center_freq1
 		 */
-		WARN_ON(1);
-		break;
+		ieee80211_chandef_downgrade(&he_chandef, NULL);
+		he_6ghz_op->ccfs0 =
+			ieee80211_frequency_to_channel(he_chandef.center_freq1);
+		fallthrough;
 	case NL80211_CHAN_WIDTH_160:
 		/* Convert 160 MHz channel width to new style as interop
 		 * workaround.
@@ -2807,7 +2816,7 @@ u8 *ieee80211_ie_build_he_oper(u8 *pos, const struct cfg80211_chan_def *chandef)
 		he_6ghz_op->control =
 			IEEE80211_HE_6GHZ_OPER_CTRL_CHANWIDTH_160MHZ;
 		he_6ghz_op->ccfs1 = he_6ghz_op->ccfs0;
-		if (chandef->chan->center_freq < chandef->center_freq1)
+		if (he_chandef.chan->center_freq < he_chandef.center_freq1)
 			he_6ghz_op->ccfs0 -= 8;
 		else
 			he_6ghz_op->ccfs0 += 8;
@@ -3645,31 +3654,6 @@ again:
 		goto again;
 
 	WARN_ON_ONCE(!cfg80211_chandef_valid(c));
-}
-
-/*
- * Returns true if smps_mode_new is strictly more restrictive than
- * smps_mode_old.
- */
-bool ieee80211_smps_is_restrictive(enum ieee80211_smps_mode smps_mode_old,
-				   enum ieee80211_smps_mode smps_mode_new)
-{
-	if (WARN_ON_ONCE(smps_mode_old == IEEE80211_SMPS_AUTOMATIC ||
-			 smps_mode_new == IEEE80211_SMPS_AUTOMATIC))
-		return false;
-
-	switch (smps_mode_old) {
-	case IEEE80211_SMPS_STATIC:
-		return false;
-	case IEEE80211_SMPS_DYNAMIC:
-		return smps_mode_new == IEEE80211_SMPS_STATIC;
-	case IEEE80211_SMPS_OFF:
-		return smps_mode_new != IEEE80211_SMPS_OFF;
-	default:
-		WARN_ON(1);
-	}
-
-	return false;
 }
 
 int ieee80211_send_action_csa(struct ieee80211_sub_if_data *sdata,

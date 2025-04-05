@@ -104,9 +104,9 @@ static const struct wiphy_vendor_command iwl_mvm_vendor_commands[] = {
 };
 
 enum iwl_mvm_vendor_events_idx {
-        /* 0x0 - 0x3 are deprecated */
-        IWL_MVM_VENDOR_EVENT_IDX_ROAMING_FORBIDDEN = 4,
-        NUM_IWL_MVM_VENDOR_EVENT_IDX
+	/* 0x0 - 0x3 are deprecated */
+	IWL_MVM_VENDOR_EVENT_IDX_ROAMING_FORBIDDEN = 4,
+	NUM_IWL_MVM_VENDOR_EVENT_IDX
 };
 
 static const struct nl80211_vendor_cmd_info

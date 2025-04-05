@@ -10,6 +10,7 @@
 #include <linux/anon_inodes.h>
 #include <linux/build_bug.h>
 #include <linux/capability.h>
+#include <linux/cleanup.h>
 #include <linux/compiler_types.h>
 #include <linux/dcache.h>
 #include <linux/err.h>
@@ -398,8 +399,7 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
 		const enum landlock_rule_type, rule_type,
 		const void __user *const, rule_attr, const __u32, flags)
 {
-	struct landlock_ruleset *ruleset;
-	int err;
+	struct landlock_ruleset *ruleset __free(landlock_put_ruleset) = NULL;
 
 	if (!is_initialized())
 		return -EOPNOTSUPP;
@@ -415,17 +415,12 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
 
 	switch (rule_type) {
 	case LANDLOCK_RULE_PATH_BENEATH:
-		err = add_rule_path_beneath(ruleset, rule_attr);
-		break;
+		return add_rule_path_beneath(ruleset, rule_attr);
 	case LANDLOCK_RULE_NET_PORT:
-		err = add_rule_net_port(ruleset, rule_attr);
-		break;
+		return add_rule_net_port(ruleset, rule_attr);
 	default:
-		err = -EINVAL;
-		break;
+		return -EINVAL;
 	}
-	landlock_put_ruleset(ruleset);
-	return err;
 }
 
 /* Enforcement */
@@ -456,10 +451,10 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
 SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
 		flags)
 {
-	struct landlock_ruleset *new_dom, *ruleset;
+	struct landlock_ruleset *new_dom,
+		*ruleset __free(landlock_put_ruleset) = NULL;
 	struct cred *new_cred;
 	struct landlock_cred_security *new_llcred;
-	int err;
 
 	if (!is_initialized())
 		return -EOPNOTSUPP;
@@ -483,10 +478,9 @@ SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
 
 	/* Prepares new credentials. */
 	new_cred = prepare_creds();
-	if (!new_cred) {
-		err = -ENOMEM;
-		goto out_put_ruleset;
-	}
+	if (!new_cred)
+		return -ENOMEM;
+
 	new_llcred = landlock_cred(new_cred);
 
 	/*
@@ -495,21 +489,12 @@ SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
 	 */
 	new_dom = landlock_merge_ruleset(new_llcred->domain, ruleset);
 	if (IS_ERR(new_dom)) {
-		err = PTR_ERR(new_dom);
-		goto out_put_creds;
+		abort_creds(new_cred);
+		return PTR_ERR(new_dom);
 	}
 
 	/* Replaces the old (prepared) domain. */
 	landlock_put_ruleset(new_llcred->domain);
 	new_llcred->domain = new_dom;
-
-	landlock_put_ruleset(ruleset);
 	return commit_creds(new_cred);
-
-out_put_creds:
-	abort_creds(new_cred);
-
-out_put_ruleset:
-	landlock_put_ruleset(ruleset);
-	return err;
 }

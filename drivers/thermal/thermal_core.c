@@ -453,23 +453,23 @@ static void move_to_trips_invalid(struct thermal_zone_device *tz,
 static void thermal_governor_trip_crossed(struct thermal_governor *governor,
 					  struct thermal_zone_device *tz,
 					  const struct thermal_trip *trip,
-					  bool crossed_up)
+					  bool upward)
 {
 	if (trip->type == THERMAL_TRIP_HOT || trip->type == THERMAL_TRIP_CRITICAL)
 		return;
 
 	if (governor->trip_crossed)
-		governor->trip_crossed(tz, trip, crossed_up);
+		governor->trip_crossed(tz, trip, upward);
 }
 
 static void thermal_trip_crossed(struct thermal_zone_device *tz,
 				 struct thermal_trip_desc *td,
 				 struct thermal_governor *governor,
-				 bool crossed_up)
+				 bool upward)
 {
 	const struct thermal_trip *trip = &td->trip;
 
-	if (crossed_up) {
+	if (upward) {
 		if (trip->type == THERMAL_TRIP_PASSIVE)
 			tz->passive++;
 		else if (trip->type == THERMAL_TRIP_CRITICAL ||
@@ -486,7 +486,7 @@ static void thermal_trip_crossed(struct thermal_zone_device *tz,
 		thermal_notify_tz_trip_down(tz, trip);
 		thermal_debug_tz_trip_down(tz, trip);
 	}
-	thermal_governor_trip_crossed(governor, tz, trip, crossed_up);
+	thermal_governor_trip_crossed(governor, tz, trip, upward);
 }
 
 void thermal_zone_set_trip_hyst(struct thermal_zone_device *tz,

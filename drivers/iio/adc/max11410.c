@@ -143,7 +143,7 @@ struct max11410_state {
 	int irq;
 	struct {
 		u32 data __aligned(IIO_DMA_MINALIGN);
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 };
 

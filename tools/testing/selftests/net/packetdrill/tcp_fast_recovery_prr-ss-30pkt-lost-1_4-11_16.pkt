@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test PRR-slowstart implementation. The sender sends 20 packets. Packet
+// 1 to 4, and 11 to 16 are dropped.
+`./defaults.sh`
+
+// Establish a connection.
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+
+ +.01 < . 1:1(0) ack 1 win 320
+   +0 accept(3, ..., ...) = 4
+
+// Write 20 data segments.
+   +0 write(4, ..., 20000) = 20000
+   +0 > P. 1:10001(10000) ack 1
+
+// Receive first DUPACK, entering PRR part
+ +.01 < . 1:1(0) ack 1 win 320 <sack 4001:5001,nop,nop>
+   +0 > . 10001:11001(1000) ack 1
++.002 < . 1:1(0) ack 1 win 320 <sack 4001:6001,nop,nop>
+   +0 > . 11001:12001(1000) ack 1
++.002 < . 1:1(0) ack 1 win 320 <sack 4001:7001,nop,nop>
+   +0 > . 1:1001(1000) ack 1
++.002 < . 1:1(0) ack 1 win 320 <sack 4001:8001,nop,nop>
+   +0 > . 1001:2001(1000) ack 1
++.002 < . 1:1(0) ack 1 win 320 <sack 4001:9001,nop,nop>
+   +0 > . 2001:3001(1000) ack 1
++.002 < . 1:1(0) ack 1 win 320 <sack 4001:10001,nop,nop>
+   +0 > . 3001:4001(1000) ack 1
+// Enter PRR CRB
++.002 < . 1:1(0) ack 1 win 320 <sack 4001:11001,nop,nop>
+   +0 > . 12001:13001(1000) ack 1
++.002 < . 1:1(0) ack 1 win 320 <sack 4001:12001,nop,nop>
+   +0 > . 13001:14001(1000) ack 1
+// Enter PRR slow start
+ +.01 < . 1:1(0) ack 1001 win 320 <sack 4001:12001,nop,nop>
+   +0 > P. 14001:16001(2000) ack 1
++.002 < . 1:1(0) ack 1001 win 320 <sack 2001:12001,nop,nop>
+   +0 > . 1001:2001(1000) ack 1
+   +0 > . 16001:17001(1000) ack 1
+// inflight reaches ssthresh, goes into packet conservation mode
++.002 < . 1:1(0) ack 1001 win 320 <sack 2001:13001,nop,nop>
+   +0 > . 17001:18001(1000) ack 1
++.002 < . 1:1(0) ack 1001 win 320 <sack 2001:14001,nop,nop>
+   +0 > . 18001:19001(1000) ack 1

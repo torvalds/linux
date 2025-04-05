@@ -638,8 +638,6 @@ void intel_dmc_disable_program(struct intel_display *display)
 	pipedmc_clock_gating_wa(display, true);
 	disable_all_event_handlers(display);
 	pipedmc_clock_gating_wa(display, false);
-
-	intel_dmc_wl_disable(display);
 }
 
 void assert_dmc_loaded(struct intel_display *display)
@@ -1145,8 +1143,6 @@ void intel_dmc_suspend(struct intel_display *display)
 
 	if (dmc)
 		flush_work(&dmc->work);
-
-	intel_dmc_wl_disable(display);
 
 	/* Drop the reference held in case DMC isn't loaded. */
 	if (!intel_dmc_has_payload(display))

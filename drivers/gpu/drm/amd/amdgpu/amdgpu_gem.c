@@ -42,6 +42,7 @@
 #include "amdgpu_dma_buf.h"
 #include "amdgpu_hmm.h"
 #include "amdgpu_xgmi.h"
+#include "amdgpu_vm.h"
 
 static vm_fault_t amdgpu_gem_fault(struct vm_fault *vmf)
 {
@@ -87,10 +88,8 @@ static void amdgpu_gem_object_free(struct drm_gem_object *gobj)
 {
 	struct amdgpu_bo *aobj = gem_to_amdgpu_bo(gobj);
 
-	if (aobj) {
-		amdgpu_hmm_unregister(aobj);
-		ttm_bo_put(&aobj->tbo);
-	}
+	amdgpu_hmm_unregister(aobj);
+	ttm_bo_put(&aobj->tbo);
 }
 
 int amdgpu_gem_object_create(struct amdgpu_device *adev, unsigned long size,
@@ -179,6 +178,7 @@ static int amdgpu_gem_object_open(struct drm_gem_object *obj,
 	if (r)
 		return r;
 
+	amdgpu_vm_bo_update_shared(abo);
 	bo_va = amdgpu_vm_bo_find(vm, abo);
 	if (!bo_va)
 		bo_va = amdgpu_vm_bo_add(adev, vm, abo);
@@ -252,6 +252,7 @@ static void amdgpu_gem_object_close(struct drm_gem_object *obj,
 		goto out_unlock;
 
 	amdgpu_vm_bo_del(adev, bo_va);
+	amdgpu_vm_bo_update_shared(bo);
 	if (!amdgpu_vm_ready(vm))
 		goto out_unlock;
 
@@ -839,7 +840,6 @@ error:
 int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *filp)
 {
-	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct drm_amdgpu_gem_op *args = data;
 	struct drm_gem_object *gobj;
 	struct amdgpu_vm_bo_base *base;
@@ -899,7 +899,7 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 			robj->allowed_domains |= AMDGPU_GEM_DOMAIN_GTT;
 
 		if (robj->flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID)
-			amdgpu_vm_bo_invalidate(adev, robj, true);
+			amdgpu_vm_bo_invalidate(robj, true);
 
 		amdgpu_bo_unreserve(robj);
 		break;

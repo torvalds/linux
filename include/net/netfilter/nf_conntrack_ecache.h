@@ -12,6 +12,7 @@
 #include <linux/netfilter/nf_conntrack_common.h>
 #include <linux/netfilter/nf_conntrack_tuple_common.h>
 #include <net/netfilter/nf_conntrack_extend.h>
+#include <asm/local64.h>
 
 enum nf_ct_ecache_state {
 	NFCT_ECACHE_DESTROY_FAIL,	/* tried but failed to send destroy event */
@@ -20,6 +21,9 @@ enum nf_ct_ecache_state {
 
 struct nf_conntrack_ecache {
 	unsigned long cache;		/* bitops want long */
+#ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
+	local64_t timestamp;		/* event timestamp, in nanoseconds */
+#endif
 	u16 ctmask;			/* bitmask of ct events to be delivered */
 	u16 expmask;			/* bitmask of expect events to be delivered */
 	u32 missed;			/* missed events */
@@ -107,6 +111,14 @@ nf_conntrack_event_cache(enum ip_conntrack_events event, struct nf_conn *ct)
 	e = nf_ct_ecache_find(ct);
 	if (e == NULL)
 		return;
+
+#ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
+	/* renew only if this is the first cached event, so that the
+	 * timestamp reflects the first, not the last, generated event.
+	 */
+	if (local64_read(&e->timestamp) && READ_ONCE(e->cache) == 0)
+		local64_set(&e->timestamp, ktime_get_real_ns());
+#endif
 
 	set_bit(event, &e->cache);
 #endif

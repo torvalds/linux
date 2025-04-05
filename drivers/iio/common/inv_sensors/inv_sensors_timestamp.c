@@ -109,8 +109,8 @@ static bool inv_update_chip_period(struct inv_sensors_timestamp *ts,
 
 static void inv_align_timestamp_it(struct inv_sensors_timestamp *ts)
 {
-	const int64_t period_min = ts->min_period * ts->mult;
-	const int64_t period_max = ts->max_period * ts->mult;
+	const int64_t period_min = (int64_t)ts->min_period * ts->mult;
+	const int64_t period_max = (int64_t)ts->max_period * ts->mult;
 	int64_t add_max, sub_max;
 	int64_t delta, jitter;
 	int64_t adjust;

@@ -1,4 +1,4 @@
 ccflags-$(CONFIG_GPIB_PCMCIA) := -DGPIB_PCMCIA
-obj-m += cb7210.o
+obj-$(CONFIG_GPIB_CB7210) += cb7210.o
 
 

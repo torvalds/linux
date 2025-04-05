@@ -3742,10 +3742,7 @@ static int skge_device_event(struct notifier_block *unused,
 	skge = netdev_priv(dev);
 	switch (event) {
 	case NETDEV_CHANGENAME:
-		if (skge->debugfs)
-			skge->debugfs = debugfs_rename(skge_debug,
-						       skge->debugfs,
-						       skge_debug, dev->name);
+		debugfs_change_name(skge->debugfs, "%s", dev->name);
 		break;
 
 	case NETDEV_GOING_DOWN:

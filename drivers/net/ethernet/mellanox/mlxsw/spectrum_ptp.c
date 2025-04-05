@@ -1353,6 +1353,10 @@ struct mlxsw_sp_ptp_state *mlxsw_sp2_ptp_init(struct mlxsw_sp *mlxsw_sp)
 	struct mlxsw_sp2_ptp_state *ptp_state;
 	int err;
 
+	/* Max FID will be used in data path, check validity as part of init. */
+	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, FID))
+		return ERR_PTR(-EIO);
+
 	ptp_state = kzalloc(sizeof(*ptp_state), GFP_KERNEL);
 	if (!ptp_state)
 		return ERR_PTR(-ENOMEM);
@@ -1678,44 +1682,4 @@ int mlxsw_sp2_ptp_get_ts_info(struct mlxsw_sp *mlxsw_sp,
 			   BIT(HWTSTAMP_FILTER_PTP_V2_EVENT);
 
 	return 0;
-}
-
-int mlxsw_sp_ptp_txhdr_construct(struct mlxsw_core *mlxsw_core,
-				 struct mlxsw_sp_port *mlxsw_sp_port,
-				 struct sk_buff *skb,
-				 const struct mlxsw_tx_info *tx_info)
-{
-	if (skb_cow_head(skb, MLXSW_TXHDR_LEN)) {
-		this_cpu_inc(mlxsw_sp_port->pcpu_stats->tx_dropped);
-		dev_kfree_skb_any(skb);
-		return -ENOMEM;
-	}
-
-	mlxsw_sp_txhdr_construct(skb, tx_info);
-	return 0;
-}
-
-int mlxsw_sp2_ptp_txhdr_construct(struct mlxsw_core *mlxsw_core,
-				  struct mlxsw_sp_port *mlxsw_sp_port,
-				  struct sk_buff *skb,
-				  const struct mlxsw_tx_info *tx_info)
-{
-	/* In Spectrum-2 and Spectrum-3, in order for PTP event packets to have
-	 * their correction field correctly set on the egress port they must be
-	 * transmitted as data packets. Such packets ingress the ASIC via the
-	 * CPU port and must have a VLAN tag, as the CPU port is not configured
-	 * with a PVID. Push the default VLAN (4095), which is configured as
-	 * egress untagged on all the ports.
-	 */
-	if (!skb_vlan_tagged(skb)) {
-		skb = vlan_insert_tag_set_proto(skb, htons(ETH_P_8021Q),
-						MLXSW_SP_DEFAULT_VID);
-		if (!skb) {
-			this_cpu_inc(mlxsw_sp_port->pcpu_stats->tx_dropped);
-			return -ENOMEM;
-		}
-	}
-
-	return mlxsw_sp_txhdr_ptp_data_construct(mlxsw_core, mlxsw_sp_port, skb,
-						 tx_info);
 }

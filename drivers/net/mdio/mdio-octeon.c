@@ -17,37 +17,20 @@ static int octeon_mdiobus_probe(struct platform_device *pdev)
 {
 	struct cavium_mdiobus *bus;
 	struct mii_bus *mii_bus;
-	struct resource *res_mem;
-	resource_size_t mdio_phys;
-	resource_size_t regsize;
 	union cvmx_smix_en smi_en;
-	int err = -ENOENT;
+	int err;
 
 	mii_bus = devm_mdiobus_alloc_size(&pdev->dev, sizeof(*bus));
 	if (!mii_bus)
 		return -ENOMEM;
 
-	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res_mem == NULL) {
-		dev_err(&pdev->dev, "found no memory resource\n");
-		return -ENXIO;
-	}
-
 	bus = mii_bus->priv;
 	bus->mii_bus = mii_bus;
-	mdio_phys = res_mem->start;
-	regsize = resource_size(res_mem);
 
-	if (!devm_request_mem_region(&pdev->dev, mdio_phys, regsize,
-				     res_mem->name)) {
-		dev_err(&pdev->dev, "request_mem_region failed\n");
-		return -ENXIO;
-	}
-
-	bus->register_base = devm_ioremap(&pdev->dev, mdio_phys, regsize);
-	if (!bus->register_base) {
+	bus->register_base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(bus->register_base)) {
 		dev_err(&pdev->dev, "dev_ioremap failed\n");
-		return -ENOMEM;
+		return PTR_ERR(bus->register_base);
 	}
 
 	smi_en.u64 = 0;

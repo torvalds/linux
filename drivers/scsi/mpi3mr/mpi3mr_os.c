@@ -4042,7 +4042,7 @@ static void mpi3mr_map_queues(struct Scsi_Host *shost)
 		 */
 		map->queue_offset = qoff;
 		if (i != HCTX_TYPE_POLL)
-			blk_mq_pci_map_queues(map, mrioc->pdev, offset);
+			blk_mq_map_hw_queues(map, &mrioc->pdev->dev, offset);
 		else
 			blk_mq_map_queues(map);
 
@@ -4465,14 +4465,14 @@ static int mpi3mr_scan_finished(struct Scsi_Host *shost,
 }
 
 /**
- * mpi3mr_slave_destroy - Slave destroy callback handler
+ * mpi3mr_sdev_destroy - Slave destroy callback handler
  * @sdev: SCSI device reference
  *
  * Cleanup and free per device(lun) private data.
  *
  * Return: Nothing.
  */
-static void mpi3mr_slave_destroy(struct scsi_device *sdev)
+static void mpi3mr_sdev_destroy(struct scsi_device *sdev)
 {
 	struct Scsi_Host *shost;
 	struct mpi3mr_ioc *mrioc;
@@ -4552,7 +4552,7 @@ static void mpi3mr_target_destroy(struct scsi_target *starget)
 }
 
 /**
- * mpi3mr_device_configure - Slave configure callback handler
+ * mpi3mr_sdev_configure - Slave configure callback handler
  * @sdev: SCSI device reference
  * @lim: queue limits
  *
@@ -4561,8 +4561,8 @@ static void mpi3mr_target_destroy(struct scsi_target *starget)
  *
  * Return: 0 always.
  */
-static int mpi3mr_device_configure(struct scsi_device *sdev,
-		struct queue_limits *lim)
+static int mpi3mr_sdev_configure(struct scsi_device *sdev,
+				 struct queue_limits *lim)
 {
 	struct scsi_target *starget;
 	struct Scsi_Host *shost;
@@ -4599,14 +4599,14 @@ static int mpi3mr_device_configure(struct scsi_device *sdev,
 }
 
 /**
- * mpi3mr_slave_alloc -Slave alloc callback handler
+ * mpi3mr_sdev_init -Slave alloc callback handler
  * @sdev: SCSI device reference
  *
  * Allocate per device(lun) private data and initialize it.
  *
  * Return: 0 on success -ENOMEM on memory allocation failure.
  */
-static int mpi3mr_slave_alloc(struct scsi_device *sdev)
+static int mpi3mr_sdev_init(struct scsi_device *sdev)
 {
 	struct Scsi_Host *shost;
 	struct mpi3mr_ioc *mrioc;
@@ -5062,10 +5062,10 @@ static const struct scsi_host_template mpi3mr_driver_template = {
 	.proc_name			= MPI3MR_DRIVER_NAME,
 	.queuecommand			= mpi3mr_qcmd,
 	.target_alloc			= mpi3mr_target_alloc,
-	.slave_alloc			= mpi3mr_slave_alloc,
-	.device_configure		= mpi3mr_device_configure,
+	.sdev_init			= mpi3mr_sdev_init,
+	.sdev_configure			= mpi3mr_sdev_configure,
 	.target_destroy			= mpi3mr_target_destroy,
-	.slave_destroy			= mpi3mr_slave_destroy,
+	.sdev_destroy			= mpi3mr_sdev_destroy,
 	.scan_finished			= mpi3mr_scan_finished,
 	.scan_start			= mpi3mr_scan_start,
 	.change_queue_depth		= mpi3mr_change_queue_depth,

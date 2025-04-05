@@ -1099,5 +1099,6 @@ unsigned int kmem_cache_size(struct kmem_cache *s);
 size_t kmalloc_size_roundup(size_t size);
 
 void __init kmem_cache_init_late(void);
+void __init kvfree_rcu_init(void);
 
 #endif	/* _LINUX_SLAB_H */

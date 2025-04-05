@@ -586,8 +586,7 @@ void nvmet_bdev_execute_zone_append(struct nvmet_req *req)
 	for_each_sg(req->sg, sg, req->sg_cnt, sg_cnt) {
 		unsigned int len = sg->length;
 
-		if (bio_add_pc_page(bdev_get_queue(bio->bi_bdev), bio,
-				sg_page(sg), len, sg->offset) != len) {
+		if (bio_add_page(bio, sg_page(sg), len, sg->offset) != len) {
 			status = NVME_SC_INTERNAL;
 			goto out_put_bio;
 		}

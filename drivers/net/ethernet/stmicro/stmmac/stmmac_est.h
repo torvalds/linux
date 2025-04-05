@@ -62,3 +62,5 @@
 #define EST_SRWO			BIT(0)
 
 #define EST_GCL_DATA			0x00000034
+
+extern const struct stmmac_est_ops dwmac510_est_ops;

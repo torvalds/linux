@@ -78,6 +78,8 @@ static struct pci_device_id idxd_pci_tbl[] = {
 	{ PCI_DEVICE_DATA(INTEL, IAX_SPR0, &idxd_driver_data[IDXD_TYPE_IAX]) },
 	/* IAA on DMR platforms */
 	{ PCI_DEVICE_DATA(INTEL, IAA_DMR, &idxd_driver_data[IDXD_TYPE_IAX]) },
+	/* IAA PTL platforms */
+	{ PCI_DEVICE_DATA(INTEL, IAA_PTL, &idxd_driver_data[IDXD_TYPE_IAX]) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, idxd_pci_tbl);
@@ -723,67 +725,464 @@ static void idxd_cleanup(struct idxd_device *idxd)
 		idxd_disable_sva(idxd->pdev);
 }
 
-static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+/*
+ * Attach IDXD device to IDXD driver.
+ */
+static int idxd_bind(struct device_driver *drv, const char *buf)
 {
-	struct device *dev = &pdev->dev;
-	struct idxd_device *idxd;
-	struct idxd_driver_data *data = (struct idxd_driver_data *)id->driver_data;
+	const struct bus_type *bus = drv->bus;
+	struct device *dev;
+	int err = -ENODEV;
+
+	dev = bus_find_device_by_name(bus, NULL, buf);
+	if (dev)
+		err = device_driver_attach(drv, dev);
+
+	put_device(dev);
+
+	return err;
+}
+
+/*
+ * Detach IDXD device from driver.
+ */
+static void idxd_unbind(struct device_driver *drv, const char *buf)
+{
+	const struct bus_type *bus = drv->bus;
+	struct device *dev;
+
+	dev = bus_find_device_by_name(bus, NULL, buf);
+	if (dev && dev->driver == drv)
+		device_release_driver(dev);
+
+	put_device(dev);
+}
+
+#define idxd_free_saved_configs(saved_configs, count)	\
+	do {						\
+		int i;					\
+							\
+		for (i = 0; i < (count); i++)		\
+			kfree(saved_configs[i]);	\
+	} while (0)
+
+static void idxd_free_saved(struct idxd_group **saved_groups,
+			    struct idxd_engine **saved_engines,
+			    struct idxd_wq **saved_wqs,
+			    struct idxd_device *idxd)
+{
+	if (saved_groups)
+		idxd_free_saved_configs(saved_groups, idxd->max_groups);
+	if (saved_engines)
+		idxd_free_saved_configs(saved_engines, idxd->max_engines);
+	if (saved_wqs)
+		idxd_free_saved_configs(saved_wqs, idxd->max_wqs);
+}
+
+/*
+ * Save IDXD device configurations including engines, groups, wqs etc.
+ * The saved configurations can be restored when needed.
+ */
+static int idxd_device_config_save(struct idxd_device *idxd,
+				   struct idxd_saved_states *idxd_saved)
+{
+	struct device *dev = &idxd->pdev->dev;
+	int i;
+
+	memcpy(&idxd_saved->saved_idxd, idxd, sizeof(*idxd));
+
+	if (idxd->evl) {
+		memcpy(&idxd_saved->saved_evl, idxd->evl,
+		       sizeof(struct idxd_evl));
+	}
+
+	struct idxd_group **saved_groups __free(kfree) =
+			kcalloc_node(idxd->max_groups,
+				     sizeof(struct idxd_group *),
+				     GFP_KERNEL, dev_to_node(dev));
+	if (!saved_groups)
+		return -ENOMEM;
+
+	for (i = 0; i < idxd->max_groups; i++) {
+		struct idxd_group *saved_group __free(kfree) =
+			kzalloc_node(sizeof(*saved_group), GFP_KERNEL,
+				     dev_to_node(dev));
+
+		if (!saved_group) {
+			/* Free saved groups */
+			idxd_free_saved(saved_groups, NULL, NULL, idxd);
+
+			return -ENOMEM;
+		}
+
+		memcpy(saved_group, idxd->groups[i], sizeof(*saved_group));
+		saved_groups[i] = no_free_ptr(saved_group);
+	}
+
+	struct idxd_engine **saved_engines =
+			kcalloc_node(idxd->max_engines,
+				     sizeof(struct idxd_engine *),
+				     GFP_KERNEL, dev_to_node(dev));
+	if (!saved_engines) {
+		/* Free saved groups */
+		idxd_free_saved(saved_groups, NULL, NULL, idxd);
+
+		return -ENOMEM;
+	}
+	for (i = 0; i < idxd->max_engines; i++) {
+		struct idxd_engine *saved_engine __free(kfree) =
+				kzalloc_node(sizeof(*saved_engine), GFP_KERNEL,
+					     dev_to_node(dev));
+		if (!saved_engine) {
+			/* Free saved groups and engines */
+			idxd_free_saved(saved_groups, saved_engines, NULL,
+					idxd);
+
+			return -ENOMEM;
+		}
+
+		memcpy(saved_engine, idxd->engines[i], sizeof(*saved_engine));
+		saved_engines[i] = no_free_ptr(saved_engine);
+	}
+
+	unsigned long *saved_wq_enable_map __free(bitmap) =
+			bitmap_zalloc_node(idxd->max_wqs, GFP_KERNEL,
+					   dev_to_node(dev));
+	if (!saved_wq_enable_map) {
+		/* Free saved groups and engines */
+		idxd_free_saved(saved_groups, saved_engines, NULL, idxd);
+
+		return -ENOMEM;
+	}
+
+	bitmap_copy(saved_wq_enable_map, idxd->wq_enable_map, idxd->max_wqs);
+
+	struct idxd_wq **saved_wqs __free(kfree) =
+			kcalloc_node(idxd->max_wqs, sizeof(struct idxd_wq *),
+				     GFP_KERNEL, dev_to_node(dev));
+	if (!saved_wqs) {
+		/* Free saved groups and engines */
+		idxd_free_saved(saved_groups, saved_engines, NULL, idxd);
+
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < idxd->max_wqs; i++) {
+		struct idxd_wq *saved_wq __free(kfree) =
+			kzalloc_node(sizeof(*saved_wq), GFP_KERNEL,
+				     dev_to_node(dev));
+		struct idxd_wq *wq;
+
+		if (!saved_wq) {
+			/* Free saved groups, engines, and wqs */
+			idxd_free_saved(saved_groups, saved_engines, saved_wqs,
+					idxd);
+
+			return -ENOMEM;
+		}
+
+		if (!test_bit(i, saved_wq_enable_map))
+			continue;
+
+		wq = idxd->wqs[i];
+		mutex_lock(&wq->wq_lock);
+		memcpy(saved_wq, wq, sizeof(*saved_wq));
+		saved_wqs[i] = no_free_ptr(saved_wq);
+		mutex_unlock(&wq->wq_lock);
+	}
+
+	/* Save configurations */
+	idxd_saved->saved_groups = no_free_ptr(saved_groups);
+	idxd_saved->saved_engines = no_free_ptr(saved_engines);
+	idxd_saved->saved_wq_enable_map = no_free_ptr(saved_wq_enable_map);
+	idxd_saved->saved_wqs = no_free_ptr(saved_wqs);
+
+	return 0;
+}
+
+/*
+ * Restore IDXD device configurations including engines, groups, wqs etc
+ * that were saved before.
+ */
+static void idxd_device_config_restore(struct idxd_device *idxd,
+				       struct idxd_saved_states *idxd_saved)
+{
+	struct idxd_evl *saved_evl = &idxd_saved->saved_evl;
+	int i;
+
+	idxd->rdbuf_limit = idxd_saved->saved_idxd.rdbuf_limit;
+
+	if (saved_evl)
+		idxd->evl->size = saved_evl->size;
+
+	for (i = 0; i < idxd->max_groups; i++) {
+		struct idxd_group *saved_group, *group;
+
+		saved_group = idxd_saved->saved_groups[i];
+		group = idxd->groups[i];
+
+		group->rdbufs_allowed = saved_group->rdbufs_allowed;
+		group->rdbufs_reserved = saved_group->rdbufs_reserved;
+		group->tc_a = saved_group->tc_a;
+		group->tc_b = saved_group->tc_b;
+		group->use_rdbuf_limit = saved_group->use_rdbuf_limit;
+
+		kfree(saved_group);
+	}
+	kfree(idxd_saved->saved_groups);
+
+	for (i = 0; i < idxd->max_engines; i++) {
+		struct idxd_engine *saved_engine, *engine;
+
+		saved_engine = idxd_saved->saved_engines[i];
+		engine = idxd->engines[i];
+
+		engine->group = saved_engine->group;
+
+		kfree(saved_engine);
+	}
+	kfree(idxd_saved->saved_engines);
+
+	bitmap_copy(idxd->wq_enable_map, idxd_saved->saved_wq_enable_map,
+		    idxd->max_wqs);
+	bitmap_free(idxd_saved->saved_wq_enable_map);
+
+	for (i = 0; i < idxd->max_wqs; i++) {
+		struct idxd_wq *saved_wq, *wq;
+		size_t len;
+
+		if (!test_bit(i, idxd->wq_enable_map))
+			continue;
+
+		saved_wq = idxd_saved->saved_wqs[i];
+		wq = idxd->wqs[i];
+
+		mutex_lock(&wq->wq_lock);
+
+		wq->group = saved_wq->group;
+		wq->flags = saved_wq->flags;
+		wq->threshold = saved_wq->threshold;
+		wq->size = saved_wq->size;
+		wq->priority = saved_wq->priority;
+		wq->type = saved_wq->type;
+		len = strlen(saved_wq->name) + 1;
+		strscpy(wq->name, saved_wq->name, len);
+		wq->max_xfer_bytes = saved_wq->max_xfer_bytes;
+		wq->max_batch_size = saved_wq->max_batch_size;
+		wq->enqcmds_retries = saved_wq->enqcmds_retries;
+		wq->descs = saved_wq->descs;
+		wq->idxd_chan = saved_wq->idxd_chan;
+		len = strlen(saved_wq->driver_name) + 1;
+		strscpy(wq->driver_name, saved_wq->driver_name, len);
+
+		mutex_unlock(&wq->wq_lock);
+
+		kfree(saved_wq);
+	}
+
+	kfree(idxd_saved->saved_wqs);
+}
+
+static void idxd_reset_prepare(struct pci_dev *pdev)
+{
+	struct idxd_device *idxd = pci_get_drvdata(pdev);
+	struct device *dev = &idxd->pdev->dev;
+	const char *idxd_name;
 	int rc;
 
+	dev = &idxd->pdev->dev;
+	idxd_name = dev_name(idxd_confdev(idxd));
+
+	struct idxd_saved_states *idxd_saved __free(kfree) =
+			kzalloc_node(sizeof(*idxd_saved), GFP_KERNEL,
+				     dev_to_node(&pdev->dev));
+	if (!idxd_saved) {
+		dev_err(dev, "HALT: no memory\n");
+
+		return;
+	}
+
+	/* Save IDXD configurations. */
+	rc = idxd_device_config_save(idxd, idxd_saved);
+	if (rc < 0) {
+		dev_err(dev, "HALT: cannot save %s configs\n", idxd_name);
+
+		return;
+	}
+
+	idxd->idxd_saved = no_free_ptr(idxd_saved);
+
+	/* Save PCI device state. */
+	pci_save_state(idxd->pdev);
+}
+
+static void idxd_reset_done(struct pci_dev *pdev)
+{
+	struct idxd_device *idxd = pci_get_drvdata(pdev);
+	const char *idxd_name;
+	struct device *dev;
+	int rc, i;
+
+	if (!idxd->idxd_saved)
+		return;
+
+	dev = &idxd->pdev->dev;
+	idxd_name = dev_name(idxd_confdev(idxd));
+
+	/* Restore PCI device state. */
+	pci_restore_state(idxd->pdev);
+
+	/* Unbind idxd device from driver. */
+	idxd_unbind(&idxd_drv.drv, idxd_name);
+
+	/*
+	 * Probe PCI device without allocating or changing
+	 * idxd software data which keeps the same as before FLR.
+	 */
+	idxd_pci_probe_alloc(idxd, NULL, NULL);
+
+	/* Restore IDXD configurations. */
+	idxd_device_config_restore(idxd, idxd->idxd_saved);
+
+	/* Re-configure IDXD device if allowed. */
+	if (test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags)) {
+		rc = idxd_device_config(idxd);
+		if (rc < 0) {
+			dev_err(dev, "HALT: %s config fails\n", idxd_name);
+			goto out;
+		}
+	}
+
+	/* Bind IDXD device to driver. */
+	rc = idxd_bind(&idxd_drv.drv, idxd_name);
+	if (rc < 0) {
+		dev_err(dev, "HALT: binding %s to driver fails\n", idxd_name);
+		goto out;
+	}
+
+	/* Bind enabled wq in the IDXD device to driver. */
+	for (i = 0; i < idxd->max_wqs; i++) {
+		if (test_bit(i, idxd->wq_enable_map)) {
+			struct idxd_wq *wq = idxd->wqs[i];
+			char wq_name[32];
+
+			wq->state = IDXD_WQ_DISABLED;
+			sprintf(wq_name, "wq%d.%d", idxd->id, wq->id);
+			/*
+			 * Bind to user driver depending on wq type.
+			 *
+			 * Currently only support user type WQ. Will support
+			 * kernel type WQ in the future.
+			 */
+			if (wq->type == IDXD_WQT_USER)
+				rc = idxd_bind(&idxd_user_drv.drv, wq_name);
+			else
+				rc = -EINVAL;
+			if (rc < 0) {
+				clear_bit(i, idxd->wq_enable_map);
+				dev_err(dev,
+					"HALT: unable to re-enable wq %s\n",
+					dev_name(wq_confdev(wq)));
+			}
+		}
+	}
+out:
+	kfree(idxd->idxd_saved);
+}
+
+static const struct pci_error_handlers idxd_error_handler = {
+	.reset_prepare	= idxd_reset_prepare,
+	.reset_done	= idxd_reset_done,
+};
+
+/*
+ * Probe idxd PCI device.
+ * If idxd is not given, need to allocate idxd and set up its data.
+ *
+ * If idxd is given, idxd was allocated and setup already. Just need to
+ * configure device without re-allocating and re-configuring idxd data.
+ * This is useful for recovering from FLR.
+ */
+int idxd_pci_probe_alloc(struct idxd_device *idxd, struct pci_dev *pdev,
+			 const struct pci_device_id *id)
+{
+	bool alloc_idxd = idxd ? false : true;
+	struct idxd_driver_data *data;
+	struct device *dev;
+	int rc;
+
+	pdev = idxd ? idxd->pdev : pdev;
+	dev = &pdev->dev;
+	data = id ? (struct idxd_driver_data *)id->driver_data : NULL;
 	rc = pci_enable_device(pdev);
 	if (rc)
 		return rc;
 
-	dev_dbg(dev, "Alloc IDXD context\n");
-	idxd = idxd_alloc(pdev, data);
-	if (!idxd) {
-		rc = -ENOMEM;
-		goto err_idxd_alloc;
-	}
+	if (alloc_idxd) {
+		dev_dbg(dev, "Alloc IDXD context\n");
+		idxd = idxd_alloc(pdev, data);
+		if (!idxd) {
+			rc = -ENOMEM;
+			goto err_idxd_alloc;
+		}
 
-	dev_dbg(dev, "Mapping BARs\n");
-	idxd->reg_base = pci_iomap(pdev, IDXD_MMIO_BAR, 0);
-	if (!idxd->reg_base) {
-		rc = -ENOMEM;
-		goto err_iomap;
-	}
+		dev_dbg(dev, "Mapping BARs\n");
+		idxd->reg_base = pci_iomap(pdev, IDXD_MMIO_BAR, 0);
+		if (!idxd->reg_base) {
+			rc = -ENOMEM;
+			goto err_iomap;
+		}
 
-	dev_dbg(dev, "Set DMA masks\n");
-	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
-	if (rc)
-		goto err;
+		dev_dbg(dev, "Set DMA masks\n");
+		rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+		if (rc)
+			goto err;
+	}
 
 	dev_dbg(dev, "Set PCI master\n");
 	pci_set_master(pdev);
 	pci_set_drvdata(pdev, idxd);
 
-	idxd->hw.version = ioread32(idxd->reg_base + IDXD_VER_OFFSET);
-	rc = idxd_probe(idxd);
-	if (rc) {
-		dev_err(dev, "Intel(R) IDXD DMA Engine init failed\n");
-		goto err;
-	}
+	if (alloc_idxd) {
+		idxd->hw.version = ioread32(idxd->reg_base + IDXD_VER_OFFSET);
+		rc = idxd_probe(idxd);
+		if (rc) {
+			dev_err(dev, "Intel(R) IDXD DMA Engine init failed\n");
+			goto err;
+		}
 
-	if (data->load_device_defaults) {
-		rc = data->load_device_defaults(idxd);
+		if (data->load_device_defaults) {
+			rc = data->load_device_defaults(idxd);
+			if (rc)
+				dev_warn(dev, "IDXD loading device defaults failed\n");
+		}
+
+		rc = idxd_register_devices(idxd);
+		if (rc) {
+			dev_err(dev, "IDXD sysfs setup failed\n");
+			goto err_dev_register;
+		}
+
+		rc = idxd_device_init_debugfs(idxd);
 		if (rc)
-			dev_warn(dev, "IDXD loading device defaults failed\n");
+			dev_warn(dev, "IDXD debugfs failed to setup\n");
 	}
 
-	rc = idxd_register_devices(idxd);
-	if (rc) {
-		dev_err(dev, "IDXD sysfs setup failed\n");
-		goto err_dev_register;
-	}
+	if (!alloc_idxd) {
+		/* Release interrupts in the IDXD device. */
+		idxd_cleanup_interrupts(idxd);
 
-	rc = idxd_device_init_debugfs(idxd);
-	if (rc)
-		dev_warn(dev, "IDXD debugfs failed to setup\n");
+		/* Re-enable interrupts in the IDXD device. */
+		rc = idxd_setup_interrupts(idxd);
+		if (rc)
+			dev_warn(dev, "IDXD interrupts failed to setup\n");
+	}
 
 	dev_info(&pdev->dev, "Intel(R) Accelerator Device (v%x)\n",
 		 idxd->hw.version);
 
-	idxd->user_submission_safe = data->user_submission_safe;
+	if (data)
+		idxd->user_submission_safe = data->user_submission_safe;
 
 	return 0;
 
@@ -796,6 +1195,11 @@ static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
  err_idxd_alloc:
 	pci_disable_device(pdev);
 	return rc;
+}
+
+static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+{
+	return idxd_pci_probe_alloc(NULL, pdev, id);
 }
 
 void idxd_wqs_quiesce(struct idxd_device *idxd)
@@ -864,6 +1268,7 @@ static struct pci_driver idxd_pci_driver = {
 	.probe		= idxd_pci_probe,
 	.remove		= idxd_remove,
 	.shutdown	= idxd_shutdown,
+	.err_handler	= &idxd_error_handler,
 };
 
 static int __init idxd_init_module(void)

@@ -15,7 +15,7 @@ extern struct static_call_site __start_static_call_sites[],
 extern struct static_call_tramp_key __start_static_call_tramp_key[],
 				    __stop_static_call_tramp_key[];
 
-static int static_call_initialized;
+int static_call_initialized;
 
 /*
  * Must be called before early_initcall() to be effective.

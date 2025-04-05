@@ -492,36 +492,4 @@ config CRYPTO_GHASH_CLMUL_NI_INTEL
 	  Architecture: x86_64 using:
 	  - CLMUL-NI (carry-less multiplication new instructions)
 
-config CRYPTO_CRC32C_INTEL
-	tristate "CRC32c (SSE4.2/PCLMULQDQ)"
-	depends on X86
-	select CRYPTO_HASH
-	help
-	  CRC32c CRC algorithm with the iSCSI polynomial (RFC 3385 and RFC 3720)
-
-	  Architecture: x86 (32-bit and 64-bit) using:
-	  - SSE4.2 (Streaming SIMD Extensions 4.2) CRC32 instruction
-	  - PCLMULQDQ (carry-less multiplication)
-
-config CRYPTO_CRC32_PCLMUL
-	tristate "CRC32 (PCLMULQDQ)"
-	depends on X86
-	select CRYPTO_HASH
-	select CRC32
-	help
-	  CRC32 CRC algorithm (IEEE 802.3)
-
-	  Architecture: x86 (32-bit and 64-bit) using:
-	  - PCLMULQDQ (carry-less multiplication)
-
-config CRYPTO_CRCT10DIF_PCLMUL
-	tristate "CRCT10DIF (PCLMULQDQ)"
-	depends on X86 && 64BIT && CRC_T10DIF
-	select CRYPTO_HASH
-	help
-	  CRC16 CRC algorithm used for the T10 (SCSI) Data Integrity Field (DIF)
-
-	  Architecture: x86_64 using:
-	  - PCLMULQDQ (carry-less multiplication)
-
 endmenu

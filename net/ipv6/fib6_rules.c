@@ -26,6 +26,8 @@ struct fib6_rule {
 	struct fib_rule		common;
 	struct rt6key		src;
 	struct rt6key		dst;
+	__be32			flowlabel;
+	__be32			flowlabel_mask;
 	dscp_t			dscp;
 	u8			dscp_full:1;	/* DSCP or TOS selector */
 };
@@ -34,7 +36,7 @@ static bool fib6_rule_matchall(const struct fib_rule *rule)
 {
 	struct fib6_rule *r = container_of(rule, struct fib6_rule, common);
 
-	if (r->dst.plen || r->src.plen || r->dscp)
+	if (r->dst.plen || r->src.plen || r->dscp || r->flowlabel_mask)
 		return false;
 	return fib_rule_matchall(rule);
 }
@@ -332,6 +334,9 @@ INDIRECT_CALLABLE_SCOPE int fib6_rule_match(struct fib_rule *rule,
 	if (r->dscp && r->dscp != ip6_dscp(fl6->flowlabel))
 		return 0;
 
+	if ((r->flowlabel ^ flowi6_get_flowlabel(fl6)) & r->flowlabel_mask)
+		return 0;
+
 	if (rule->ip_proto && (rule->ip_proto != fl6->flowi6_proto))
 		return 0;
 
@@ -360,6 +365,35 @@ static int fib6_nl2rule_dscp(const struct nlattr *nla, struct fib6_rule *rule6,
 	return 0;
 }
 
+static int fib6_nl2rule_flowlabel(struct nlattr **tb, struct fib6_rule *rule6,
+				  struct netlink_ext_ack *extack)
+{
+	__be32 flowlabel, flowlabel_mask;
+
+	if (NL_REQ_ATTR_CHECK(extack, NULL, tb, FRA_FLOWLABEL) ||
+	    NL_REQ_ATTR_CHECK(extack, NULL, tb, FRA_FLOWLABEL_MASK))
+		return -EINVAL;
+
+	flowlabel = nla_get_be32(tb[FRA_FLOWLABEL]);
+	flowlabel_mask = nla_get_be32(tb[FRA_FLOWLABEL_MASK]);
+
+	if (flowlabel_mask & ~IPV6_FLOWLABEL_MASK) {
+		NL_SET_ERR_MSG_ATTR(extack, tb[FRA_FLOWLABEL_MASK],
+				    "Invalid flow label mask");
+		return -EINVAL;
+	}
+
+	if (flowlabel & ~flowlabel_mask) {
+		NL_SET_ERR_MSG(extack, "Flow label and mask do not match");
+		return -EINVAL;
+	}
+
+	rule6->flowlabel = flowlabel;
+	rule6->flowlabel_mask = flowlabel_mask;
+
+	return 0;
+}
+
 static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 			       struct fib_rule_hdr *frh,
 			       struct nlattr **tb,
@@ -377,6 +411,10 @@ static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 	rule6->dscp = inet_dsfield_to_dscp(frh->tos);
 
 	if (tb[FRA_DSCP] && fib6_nl2rule_dscp(tb[FRA_DSCP], rule6, extack) < 0)
+		goto errout;
+
+	if ((tb[FRA_FLOWLABEL] || tb[FRA_FLOWLABEL_MASK]) &&
+	    fib6_nl2rule_flowlabel(tb, rule6, extack) < 0)
 		goto errout;
 
 	if (rule->action == FR_ACT_TO_TBL && !rule->l3mdev) {
@@ -444,6 +482,14 @@ static int fib6_rule_compare(struct fib_rule *rule, struct fib_rule_hdr *frh,
 			return 0;
 	}
 
+	if (tb[FRA_FLOWLABEL] &&
+	    nla_get_be32(tb[FRA_FLOWLABEL]) != rule6->flowlabel)
+		return 0;
+
+	if (tb[FRA_FLOWLABEL_MASK] &&
+	    nla_get_be32(tb[FRA_FLOWLABEL_MASK]) != rule6->flowlabel_mask)
+		return 0;
+
 	if (frh->src_len &&
 	    nla_memcmp(tb[FRA_SRC], &rule6->src.addr, sizeof(struct in6_addr)))
 		return 0;
@@ -472,6 +518,11 @@ static int fib6_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 		frh->tos = inet_dscp_to_dsfield(rule6->dscp);
 	}
 
+	if (rule6->flowlabel_mask &&
+	    (nla_put_be32(skb, FRA_FLOWLABEL, rule6->flowlabel) ||
+	     nla_put_be32(skb, FRA_FLOWLABEL_MASK, rule6->flowlabel_mask)))
+		goto nla_put_failure;
+
 	if ((rule6->dst.plen &&
 	     nla_put_in6_addr(skb, FRA_DST, &rule6->dst.addr)) ||
 	    (rule6->src.plen &&
@@ -487,7 +538,9 @@ static size_t fib6_rule_nlmsg_payload(struct fib_rule *rule)
 {
 	return nla_total_size(16) /* dst */
 	       + nla_total_size(16) /* src */
-	       + nla_total_size(1); /* dscp */
+	       + nla_total_size(1) /* dscp */
+	       + nla_total_size(4) /* flowlabel */
+	       + nla_total_size(4); /* flowlabel mask */
 }
 
 static void fib6_rule_flush_cache(struct fib_rules_ops *ops)

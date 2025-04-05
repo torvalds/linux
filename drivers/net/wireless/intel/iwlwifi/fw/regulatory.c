@@ -39,6 +39,7 @@ IWL_BIOS_TABLE_LOADER_DATA(pwr_limit, u64);
 IWL_BIOS_TABLE_LOADER_DATA(mcc, char);
 IWL_BIOS_TABLE_LOADER_DATA(eckv, u32);
 IWL_BIOS_TABLE_LOADER_DATA(wbem, u32);
+IWL_BIOS_TABLE_LOADER_DATA(dsbr, u32);
 
 
 static const struct dmi_system_id dmi_ppag_approved_list[] = {
@@ -98,6 +99,11 @@ static const struct dmi_system_id dmi_ppag_approved_list[] = {
 	{ .ident = "Honor",
 	  .matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "HONOR"),
+		},
+	},
+	{ .ident = "WIKO",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "WIKO"),
 		},
 	},
 	{}
@@ -424,25 +430,31 @@ bool iwl_is_tas_approved(void)
 }
 IWL_EXPORT_SYMBOL(iwl_is_tas_approved);
 
-int iwl_parse_tas_selection(struct iwl_fw_runtime *fwrt,
-			    struct iwl_tas_data *tas_data,
-			    const u32 tas_selection)
+struct iwl_tas_selection_data
+iwl_parse_tas_selection(const u32 tas_selection_in, const u8 tbl_rev)
 {
-	u8 override_iec = u32_get_bits(tas_selection,
+	struct iwl_tas_selection_data tas_selection_out = {};
+	u8 override_iec = u32_get_bits(tas_selection_in,
 				       IWL_WTAS_OVERRIDE_IEC_MSK);
-	u8 enabled_iec = u32_get_bits(tas_selection, IWL_WTAS_ENABLE_IEC_MSK);
-	u8 usa_tas_uhb = u32_get_bits(tas_selection, IWL_WTAS_USA_UHB_MSK);
-	int enabled = tas_selection & IWL_WTAS_ENABLED_MSK;
+	u8 canada_tas_uhb = u32_get_bits(tas_selection_in,
+					 IWL_WTAS_CANADA_UHB_MSK);
+	u8 enabled_iec = u32_get_bits(tas_selection_in,
+				      IWL_WTAS_ENABLE_IEC_MSK);
+	u8 usa_tas_uhb = u32_get_bits(tas_selection_in,
+				      IWL_WTAS_USA_UHB_MSK);
 
-	IWL_DEBUG_RADIO(fwrt, "TAS selection as read from BIOS: 0x%x\n",
-			tas_selection);
+	if (tbl_rev > 0) {
+		tas_selection_out.usa_tas_uhb_allowed = usa_tas_uhb;
+		tas_selection_out.override_tas_iec = override_iec;
+		tas_selection_out.enable_tas_iec = enabled_iec;
+	}
 
-	tas_data->usa_tas_uhb_allowed = usa_tas_uhb;
-	tas_data->override_tas_iec = override_iec;
-	tas_data->enable_tas_iec = enabled_iec;
+	if (tbl_rev > 1)
+		tas_selection_out.canada_tas_uhb_allowed = canada_tas_uhb;
 
-	return enabled;
+	return tas_selection_out;
 }
+IWL_EXPORT_SYMBOL(iwl_parse_tas_selection);
 
 static __le32 iwl_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 {
@@ -552,10 +564,16 @@ int iwl_fill_lari_config(struct iwl_fw_runtime *fwrt,
 
 	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_ENABLE_UNII4_CHAN, &value);
 	if (!ret) {
-		if (cmd_ver < 9)
-			value &= DSM_UNII4_ALLOW_BITMAP_CMD_V8;
-		else
-			value &= DSM_UNII4_ALLOW_BITMAP;
+		value &= DSM_UNII4_ALLOW_BITMAP;
+
+		/* Since version 9, bits 4 and 5 are supported
+		 * regardless of this capability.
+		 */
+		if (cmd_ver < 9 &&
+		    !fw_has_capa(&fwrt->fw->ucode_capa,
+				 IWL_UCODE_TLV_CAPA_BIOS_OVERRIDE_5G9_FOR_CA))
+			value &= ~(DSM_VALUE_UNII4_CANADA_OVERRIDE_MSK |
+				   DSM_VALUE_UNII4_CANADA_EN_MSK);
 
 		cmd->oem_unii4_allow_bitmap = cpu_to_le32(value);
 	}
@@ -564,7 +582,13 @@ int iwl_fill_lari_config(struct iwl_fw_runtime *fwrt,
 	if (!ret) {
 		if (cmd_ver < 8)
 			value &= ~ACTIVATE_5G2_IN_WW_MASK;
-		if (cmd_ver < 12)
+
+		/* Since version 12, bits 5 and 6 are supported
+		 * regardless of this capability.
+		 */
+		if (cmd_ver < 12 &&
+		    !fw_has_capa(&fwrt->fw->ucode_capa,
+				 IWL_UCODE_TLV_CAPA_BIOS_OVERRIDE_UNII4_US_CA))
 			value &= CHAN_STATE_ACTIVE_BITMAP_CMD_V11;
 
 		cmd->chan_state_active_bitmap = cpu_to_le32(value);

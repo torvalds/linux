@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/dmi.h>
 #include <linux/dma-mapping.h>
 
@@ -4523,7 +4524,7 @@ static int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
 	hlpm_addr = ports[port_num]->addr + PORTHLPMC;
 
 	xhci_dbg(xhci, "%s port %d USB2 hardware LPM\n",
-			enable ? "enable" : "disable", port_num + 1);
+		 str_enable_disable(enable), port_num + 1);
 
 	if (enable) {
 		/* Host supports BESL timeout instead of HIRD */

@@ -8,7 +8,6 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_probe_helper.h>
 
-#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_ddi.h"
 #include "intel_de.h"

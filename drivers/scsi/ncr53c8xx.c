@@ -7786,7 +7786,7 @@ static void __init ncr_getclock (struct ncb *np, int mult)
 
 /*===================== LINUX ENTRY POINTS SECTION ==========================*/
 
-static int ncr53c8xx_slave_alloc(struct scsi_device *device)
+static int ncr53c8xx_sdev_init(struct scsi_device *device)
 {
 	struct Scsi_Host *host = device->host;
 	struct ncb *np = ((struct host_data *) host->hostdata)->ncb;
@@ -7796,7 +7796,8 @@ static int ncr53c8xx_slave_alloc(struct scsi_device *device)
 	return 0;
 }
 
-static int ncr53c8xx_slave_configure(struct scsi_device *device)
+static int ncr53c8xx_sdev_configure(struct scsi_device *device,
+				    struct queue_limits *lim)
 {
 	struct Scsi_Host *host = device->host;
 	struct ncb *np = ((struct host_data *) host->hostdata)->ncb;
@@ -8093,8 +8094,8 @@ struct Scsi_Host * __init ncr_attach(struct scsi_host_template *tpnt,
 		tpnt->shost_groups = ncr53c8xx_host_groups;
 
 	tpnt->queuecommand	= ncr53c8xx_queue_command;
-	tpnt->slave_configure	= ncr53c8xx_slave_configure;
-	tpnt->slave_alloc	= ncr53c8xx_slave_alloc;
+	tpnt->sdev_configure	= ncr53c8xx_sdev_configure;
+	tpnt->sdev_init		= ncr53c8xx_sdev_init;
 	tpnt->eh_bus_reset_handler = ncr53c8xx_bus_reset;
 	tpnt->can_queue		= SCSI_NCR_CAN_QUEUE;
 	tpnt->this_id		= 7;

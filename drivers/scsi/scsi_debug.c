@@ -5879,23 +5879,24 @@ static struct sdebug_dev_info *find_build_dev_info(struct scsi_device *sdev)
 	return open_devip;
 }
 
-static int scsi_debug_slave_alloc(struct scsi_device *sdp)
+static int scsi_debug_sdev_init(struct scsi_device *sdp)
 {
 	if (sdebug_verbose)
-		pr_info("slave_alloc <%u %u %u %llu>\n",
+		pr_info("sdev_init <%u %u %u %llu>\n",
 		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
 
 	return 0;
 }
 
-static int scsi_debug_slave_configure(struct scsi_device *sdp)
+static int scsi_debug_sdev_configure(struct scsi_device *sdp,
+				     struct queue_limits *lim)
 {
 	struct sdebug_dev_info *devip =
 			(struct sdebug_dev_info *)sdp->hostdata;
 	struct dentry *dentry;
 
 	if (sdebug_verbose)
-		pr_info("slave_configure <%u %u %u %llu>\n",
+		pr_info("sdev_configure <%u %u %u %llu>\n",
 		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
 	if (sdp->host->max_cmd_len != SDEBUG_MAX_CMD_LEN)
 		sdp->host->max_cmd_len = SDEBUG_MAX_CMD_LEN;
@@ -5927,14 +5928,14 @@ static int scsi_debug_slave_configure(struct scsi_device *sdp)
 	return 0;
 }
 
-static void scsi_debug_slave_destroy(struct scsi_device *sdp)
+static void scsi_debug_sdev_destroy(struct scsi_device *sdp)
 {
 	struct sdebug_dev_info *devip =
 		(struct sdebug_dev_info *)sdp->hostdata;
 	struct sdebug_err_inject *err;
 
 	if (sdebug_verbose)
-		pr_info("slave_destroy <%u %u %u %llu>\n",
+		pr_info("sdev_destroy <%u %u %u %llu>\n",
 		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
 
 	if (!devip)
@@ -8706,15 +8707,15 @@ static int sdebug_init_cmd_priv(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
 	return 0;
 }
 
-static struct scsi_host_template sdebug_driver_template = {
+static const struct scsi_host_template sdebug_driver_template = {
 	.show_info =		scsi_debug_show_info,
 	.write_info =		scsi_debug_write_info,
 	.proc_name =		sdebug_proc_name,
 	.name =			"SCSI DEBUG",
 	.info =			scsi_debug_info,
-	.slave_alloc =		scsi_debug_slave_alloc,
-	.slave_configure =	scsi_debug_slave_configure,
-	.slave_destroy =	scsi_debug_slave_destroy,
+	.sdev_init =		scsi_debug_sdev_init,
+	.sdev_configure =	scsi_debug_sdev_configure,
+	.sdev_destroy =		scsi_debug_sdev_destroy,
 	.ioctl =		scsi_debug_ioctl,
 	.queuecommand =		scsi_debug_queuecommand,
 	.change_queue_depth =	sdebug_change_qdepth,
@@ -8732,6 +8733,7 @@ static struct scsi_host_template sdebug_driver_template = {
 	.max_sectors =		-1U,
 	.max_segment_size =	-1U,
 	.module =		THIS_MODULE,
+	.skip_settle_delay =	1,
 	.track_queue_depth =	1,
 	.cmd_size = sizeof(struct sdebug_scsi_cmd),
 	.init_cmd_priv = sdebug_init_cmd_priv,
@@ -8748,17 +8750,17 @@ static int sdebug_driver_probe(struct device *dev)
 
 	sdbg_host = dev_to_sdebug_host(dev);
 
-	sdebug_driver_template.can_queue = sdebug_max_queue;
-	sdebug_driver_template.cmd_per_lun = sdebug_max_queue;
-	if (!sdebug_clustering)
-		sdebug_driver_template.dma_boundary = PAGE_SIZE - 1;
-
 	hpnt = scsi_host_alloc(&sdebug_driver_template, 0);
 	if (NULL == hpnt) {
 		pr_err("scsi_host_alloc failed\n");
 		error = -ENODEV;
 		return error;
 	}
+	hpnt->can_queue = sdebug_max_queue;
+	hpnt->cmd_per_lun = sdebug_max_queue;
+	if (!sdebug_clustering)
+		hpnt->dma_boundary = PAGE_SIZE - 1;
+
 	if (submit_queues > nr_cpu_ids) {
 		pr_warn("%s: trim submit_queues (was %d) to nr_cpu_ids=%u\n",
 			my_name, submit_queues, nr_cpu_ids);

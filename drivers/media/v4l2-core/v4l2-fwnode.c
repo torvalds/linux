@@ -127,7 +127,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 {
 	struct v4l2_mbus_config_mipi_csi2 *bus = &vep->bus.mipi_csi2;
 	bool have_clk_lane = false, have_data_lanes = false,
-		have_lane_polarities = false;
+		have_lane_polarities = false, have_line_orders = false;
 	unsigned int flags = 0, lanes_used = 0;
 	u32 array[1 + V4L2_MBUS_CSI2_MAX_DATA_LANES];
 	u32 clock_lane = 0;
@@ -197,6 +197,17 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 		have_lane_polarities = true;
 	}
 
+	rval = fwnode_property_count_u32(fwnode, "line-orders");
+	if (rval > 0) {
+		if (rval != num_data_lanes) {
+			pr_warn("invalid number of line-orders entries (need %u, got %u)\n",
+				num_data_lanes, rval);
+			return -EINVAL;
+		}
+
+		have_line_orders = true;
+	}
+
 	if (!fwnode_property_read_u32(fwnode, "clock-lanes", &v)) {
 		clock_lane = v;
 		pr_debug("clock lane position %u\n", v);
@@ -249,6 +260,36 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 			}
 		} else {
 			pr_debug("no lane polarities defined, assuming not inverted\n");
+		}
+
+		if (have_line_orders) {
+			fwnode_property_read_u32_array(fwnode,
+						       "line-orders", array,
+						       num_data_lanes);
+
+			for (i = 0; i < num_data_lanes; i++) {
+				static const char * const orders[] = {
+					"ABC", "ACB", "BAC", "BCA", "CAB", "CBA"
+				};
+
+				if (array[i] >= ARRAY_SIZE(orders)) {
+					pr_warn("lane %u invalid line-order assuming ABC (got %u)\n",
+						i, array[i]);
+					bus->line_orders[i] =
+						V4L2_MBUS_CSI2_CPHY_LINE_ORDER_ABC;
+					continue;
+				}
+
+				bus->line_orders[i] = array[i];
+				pr_debug("lane %u line order %s", i,
+					 orders[array[i]]);
+			}
+		} else {
+			for (i = 0; i < num_data_lanes; i++)
+				bus->line_orders[i] =
+					V4L2_MBUS_CSI2_CPHY_LINE_ORDER_ABC;
+
+			pr_debug("no line orders defined, assuming ABC\n");
 		}
 	}
 

@@ -101,6 +101,7 @@ sesInfoFree(struct cifs_ses *buf_to_free)
 	kfree_sensitive(buf_to_free->password2);
 	kfree(buf_to_free->user_name);
 	kfree(buf_to_free->domainName);
+	kfree(buf_to_free->dns_dom);
 	kfree_sensitive(buf_to_free->auth_key.response);
 	spin_lock(&buf_to_free->iface_lock);
 	list_for_each_entry_safe(iface, niface, &buf_to_free->iface_list,
@@ -908,9 +909,9 @@ parse_dfs_referrals(struct get_dfs_referral_rsp *rsp, u32 rsp_size,
 	*num_of_nodes = le16_to_cpu(rsp->NumberOfReferrals);
 
 	if (*num_of_nodes < 1) {
-		cifs_dbg(VFS, "num_referrals: must be at least > 0, but we get num_referrals = %d\n",
-			 *num_of_nodes);
-		rc = -EINVAL;
+		cifs_dbg(VFS | ONCE, "%s: [path=%s] num_referrals must be at least > 0, but we got %d\n",
+			 __func__, searchName, *num_of_nodes);
+		rc = -ENOENT;
 		goto parse_DFS_referrals_exit;
 	}
 
@@ -1171,33 +1172,25 @@ void cifs_put_tcp_super(struct super_block *sb)
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
 int match_target_ip(struct TCP_Server_Info *server,
-		    const char *share, size_t share_len,
+		    const char *host, size_t hostlen,
 		    bool *result)
 {
-	int rc;
-	char *target;
 	struct sockaddr_storage ss;
+	int rc;
+
+	cifs_dbg(FYI, "%s: hostname=%.*s\n", __func__, (int)hostlen, host);
 
 	*result = false;
 
-	target = kzalloc(share_len + 3, GFP_KERNEL);
-	if (!target)
-		return -ENOMEM;
-
-	scnprintf(target, share_len + 3, "\\\\%.*s", (int)share_len, share);
-
-	cifs_dbg(FYI, "%s: target name: %s\n", __func__, target + 2);
-
-	rc = dns_resolve_server_name_to_ip(target, (struct sockaddr *)&ss, NULL);
-	kfree(target);
-
+	rc = dns_resolve_name(server->dns_dom, host, hostlen,
+			      (struct sockaddr *)&ss);
 	if (rc < 0)
 		return rc;
 
 	spin_lock(&server->srv_lock);
 	*result = cifs_match_ipaddr((struct sockaddr *)&server->dstaddr, (struct sockaddr *)&ss);
 	spin_unlock(&server->srv_lock);
-	cifs_dbg(FYI, "%s: ip addresses match: %u\n", __func__, *result);
+	cifs_dbg(FYI, "%s: ip addresses matched: %s\n", __func__, str_yes_no(*result));
 	return 0;
 }
 

@@ -206,12 +206,6 @@
 	};
 };
 
-&i2c2 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2m0_xfer>;
-};
-
 &i2c3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c3m0_xfer>;
@@ -355,6 +349,19 @@
 	vmmc-supply = <&p3v3>;
 	vqmmc-supply = <&vcc_sd>;
 	status = "okay";
+};
+
+&spi0 {
+	/* use hardware chipselect on cs0 (cs1 unconnected) */
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0m0_pins>, <&spi0m0_cs0>;
+	status = "okay";
+
+	fram@0 {
+		compatible = "fujitsu,mb85rs128ty";
+		reg = <0>;
+		spi-max-frequency = <33000000>;
+	};
 };
 
 &tsadc {

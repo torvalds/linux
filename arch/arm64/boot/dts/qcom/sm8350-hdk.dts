@@ -925,3 +925,10 @@
 		};
 	};
 };
+
+&ipa {
+	qcom,gsi-loader = "self";
+	memory-region = <&pil_ipa_fw_mem>;
+	status = "okay";
+	firmware-name = "qcom/sm8350/ipa_fws.mbn";
+};

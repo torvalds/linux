@@ -7,7 +7,6 @@
 #define BTRFS_CTREE_H
 
 #include "linux/cleanup.h"
-#include <linux/pagemap.h>
 #include <linux/spinlock.h>
 #include <linux/rbtree.h>
 #include <linux/mutex.h>
@@ -371,6 +370,25 @@ static inline void btrfs_set_root_last_trans(struct btrfs_root *root, u64 transi
 }
 
 /*
+ * Return the generation this root started with.
+ *
+ * Every normal root that is created with root->root_key.offset set to it's
+ * originating generation.  If it is a snapshot it is the generation when the
+ * snapshot was created.
+ *
+ * However for TREE_RELOC roots root_key.offset is the objectid of the owning
+ * tree root.  Thankfully we copy the root item of the owning tree root, which
+ * has it's last_snapshot set to what we would have root_key.offset set to, so
+ * return that if this is a TREE_RELOC root.
+ */
+static inline u64 btrfs_root_origin_generation(const struct btrfs_root *root)
+{
+	if (btrfs_root_id(root) == BTRFS_TREE_RELOC_OBJECTID)
+		return btrfs_root_last_snapshot(&root->root_item);
+	return root->root_key.offset;
+}
+
+/*
  * Structure that conveys information about an extent that is going to replace
  * all the extents in a file range.
  */
@@ -487,20 +505,6 @@ static inline u32 BTRFS_MAX_XATTR_SIZE(const struct btrfs_fs_info *info)
 	return BTRFS_MAX_ITEM_SIZE(info) - sizeof(struct btrfs_dir_item);
 }
 
-#define BTRFS_BYTES_TO_BLKS(fs_info, bytes) \
-				((bytes) >> (fs_info)->sectorsize_bits)
-
-static inline gfp_t btrfs_alloc_write_mask(struct address_space *mapping)
-{
-	return mapping_gfp_constraint(mapping, ~__GFP_FS);
-}
-
-void btrfs_error_unpin_extent_range(struct btrfs_fs_info *fs_info, u64 start, u64 end);
-int btrfs_discard_extent(struct btrfs_fs_info *fs_info, u64 bytenr,
-			 u64 num_bytes, u64 *actual_bytes);
-int btrfs_trim_fs(struct btrfs_fs_info *fs_info, struct fstrim_range *range);
-
-/* ctree.c */
 int __init btrfs_ctree_init(void);
 void __cold btrfs_ctree_exit(void);
 
@@ -736,19 +740,5 @@ static inline bool btrfs_is_data_reloc_root(const struct btrfs_root *root)
 {
 	return root->root_key.objectid == BTRFS_DATA_RELOC_TREE_OBJECTID;
 }
-
-u16 btrfs_csum_type_size(u16 type);
-int btrfs_super_csum_size(const struct btrfs_super_block *s);
-const char *btrfs_super_csum_name(u16 csum_type);
-const char *btrfs_super_csum_driver(u16 csum_type);
-size_t __attribute_const__ btrfs_get_num_csums(void);
-
-/*
- * We use folio flag owner_2 to indicate there is an ordered extent with
- * unfinished IO.
- */
-#define folio_test_ordered(folio)	folio_test_owner_2(folio)
-#define folio_set_ordered(folio)	folio_set_owner_2(folio)
-#define folio_clear_ordered(folio)	folio_clear_owner_2(folio)
 
 #endif

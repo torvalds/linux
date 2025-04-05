@@ -529,6 +529,7 @@ struct xhci_command {
 	/* Input context for changing device state */
 	struct xhci_container_ctx	*in_ctx;
 	u32				status;
+	u32				comp_param;
 	int				slot_id;
 	/* If completion is null, no one is waiting on this command
 	 * and the structure can be freed after the command completes.
@@ -958,6 +959,9 @@ struct xhci_event_cmd {
 	__le32 status;
 	__le32 flags;
 };
+
+/* status bitmasks */
+#define COMP_PARAM(p)	((p) & 0xffffff) /* Command Completion Parameter */
 
 /* Address device - disable SetAddress */
 #define TRB_BSR		(1<<9)

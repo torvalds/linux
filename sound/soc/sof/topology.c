@@ -407,6 +407,10 @@ static const struct sof_topology_token stream_tokens[] = {
 		offsetof(struct snd_sof_pcm, stream[0].d0i3_compatible)},
 	{SOF_TKN_STREAM_CAPTURE_COMPATIBLE_D0I3, SND_SOC_TPLG_TUPLE_TYPE_BOOL, get_token_u16,
 		offsetof(struct snd_sof_pcm, stream[1].d0i3_compatible)},
+	{SOF_TKN_STREAM_PLAYBACK_PAUSE_SUPPORTED, SND_SOC_TPLG_TUPLE_TYPE_BOOL, get_token_u16,
+		offsetof(struct snd_sof_pcm, stream[0].pause_supported)},
+	{SOF_TKN_STREAM_CAPTURE_PAUSE_SUPPORTED, SND_SOC_TPLG_TUPLE_TYPE_BOOL, get_token_u16,
+		offsetof(struct snd_sof_pcm, stream[1].pause_supported)},
 };
 
 /* Leds */

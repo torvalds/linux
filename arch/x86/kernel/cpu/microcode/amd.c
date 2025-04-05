@@ -283,13 +283,13 @@ __verify_patch_section(const u8 *buf, size_t buf_size, u32 *sh_psize)
  * exceed the per-family maximum). @sh_psize is the size read from the section
  * header.
  */
-static unsigned int __verify_patch_size(u32 sh_psize, size_t buf_size)
+static bool __verify_patch_size(u32 sh_psize, size_t buf_size)
 {
 	u8 family = x86_family(bsp_cpuid_1_eax);
 	u32 max_size;
 
 	if (family >= 0x15)
-		return min_t(u32, sh_psize, buf_size);
+		goto ret;
 
 #define F1XH_MPB_MAX_SIZE 2048
 #define F14H_MPB_MAX_SIZE 1824
@@ -303,13 +303,15 @@ static unsigned int __verify_patch_size(u32 sh_psize, size_t buf_size)
 		break;
 	default:
 		WARN(1, "%s: WTF family: 0x%x\n", __func__, family);
-		return 0;
+		return false;
 	}
 
-	if (sh_psize > min_t(u32, buf_size, max_size))
-		return 0;
+	if (sh_psize > max_size)
+		return false;
 
-	return sh_psize;
+ret:
+	/* Working with the whole buffer so < is ok. */
+	return sh_psize <= buf_size;
 }
 
 /*
@@ -324,7 +326,6 @@ static int verify_patch(const u8 *buf, size_t buf_size, u32 *patch_size)
 {
 	u8 family = x86_family(bsp_cpuid_1_eax);
 	struct microcode_header_amd *mc_hdr;
-	unsigned int ret;
 	u32 sh_psize;
 	u16 proc_id;
 	u8 patch_fam;
@@ -348,8 +349,7 @@ static int verify_patch(const u8 *buf, size_t buf_size, u32 *patch_size)
 		return -1;
 	}
 
-	ret = __verify_patch_size(sh_psize, buf_size);
-	if (!ret) {
+	if (!__verify_patch_size(sh_psize, buf_size)) {
 		pr_debug("Per-family patch size mismatch.\n");
 		return -1;
 	}
@@ -381,8 +381,8 @@ static bool mc_patch_matches(struct microcode_amd *mc, u16 eq_id)
 
 /*
  * This scans the ucode blob for the proper container as we can have multiple
- * containers glued together. Returns the equivalence ID from the equivalence
- * table or 0 if none found.
+ * containers glued together.
+ *
  * Returns the amount of bytes consumed while scanning. @desc contains all the
  * data we're going to use in later stages of the application.
  */
@@ -484,7 +484,7 @@ static void scan_containers(u8 *ucode, size_t size, struct cont_desc *desc)
 	}
 }
 
-static int __apply_microcode_amd(struct microcode_amd *mc, unsigned int psize)
+static bool __apply_microcode_amd(struct microcode_amd *mc, unsigned int psize)
 {
 	unsigned long p_addr = (unsigned long)&mc->hdr.data_code;
 	u32 rev, dummy;
@@ -508,9 +508,9 @@ static int __apply_microcode_amd(struct microcode_amd *mc, unsigned int psize)
 	native_rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
 
 	if (rev != mc->hdr.patch_id)
-		return -1;
+		return false;
 
-	return 0;
+	return true;
 }
 
 /*
@@ -528,13 +528,12 @@ static bool early_apply_microcode(u32 old_rev, void *ucode, size_t size)
 {
 	struct cont_desc desc = { 0 };
 	struct microcode_amd *mc;
-	bool ret = false;
 
 	scan_containers(ucode, size, &desc);
 
 	mc = desc.mc;
 	if (!mc)
-		return ret;
+		return false;
 
 	/*
 	 * Allow application of the same revision to pick up SMT-specific
@@ -542,9 +541,9 @@ static bool early_apply_microcode(u32 old_rev, void *ucode, size_t size)
 	 * up-to-date.
 	 */
 	if (old_rev > mc->hdr.patch_id)
-		return ret;
+		return false;
 
-	return !__apply_microcode_amd(mc, desc.psize);
+	return __apply_microcode_amd(mc, desc.psize);
 }
 
 static bool get_builtin_microcode(struct cpio_data *cp)
@@ -569,14 +568,19 @@ static bool get_builtin_microcode(struct cpio_data *cp)
 	return false;
 }
 
-static void __init find_blobs_in_containers(struct cpio_data *ret)
+static bool __init find_blobs_in_containers(struct cpio_data *ret)
 {
 	struct cpio_data cp;
+	bool found;
 
 	if (!get_builtin_microcode(&cp))
 		cp = find_microcode_in_initrd(ucode_path);
 
-	*ret = cp;
+	found = cp.data && cp.size;
+	if (found)
+		*ret = cp;
+
+	return found;
 }
 
 void __init load_ucode_amd_bsp(struct early_load_data *ed, unsigned int cpuid_1_eax)
@@ -591,8 +595,7 @@ void __init load_ucode_amd_bsp(struct early_load_data *ed, unsigned int cpuid_1_
 	/* Needed in load_microcode_amd() */
 	ucode_cpu_info[0].cpu_sig.sig = cpuid_1_eax;
 
-	find_blobs_in_containers(&cp);
-	if (!(cp.data && cp.size))
+	if (!find_blobs_in_containers(&cp))
 		return;
 
 	if (early_apply_microcode(ed->old_rev, cp.data, cp.size))
@@ -612,8 +615,7 @@ static int __init save_microcode_in_initrd(void)
 	if (dis_ucode_ldr || c->x86_vendor != X86_VENDOR_AMD || c->x86 < 0x10)
 		return 0;
 
-	find_blobs_in_containers(&cp);
-	if (!(cp.data && cp.size))
+	if (!find_blobs_in_containers(&cp))
 		return -EINVAL;
 
 	scan_containers(cp.data, cp.size, &desc);
@@ -760,7 +762,7 @@ void reload_ucode_amd(unsigned int cpu)
 	rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
 
 	if (rev < mc->hdr.patch_id) {
-		if (!__apply_microcode_amd(mc, p->size))
+		if (__apply_microcode_amd(mc, p->size))
 			pr_info_once("reload revision: 0x%08x\n", mc->hdr.patch_id);
 	}
 }
@@ -813,7 +815,7 @@ static enum ucode_state apply_microcode_amd(int cpu)
 		goto out;
 	}
 
-	if (__apply_microcode_amd(mc_amd, p->size)) {
+	if (!__apply_microcode_amd(mc_amd, p->size)) {
 		pr_err("CPU%d: update failed for patch_level=0x%08x\n",
 			cpu, mc_amd->hdr.patch_id);
 		return UCODE_ERROR;

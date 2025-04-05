@@ -6,86 +6,75 @@
  * https://www.mipi.org/mipi-sdca-v1-0-download
  */
 
+#define dev_fmt(fmt) "%s: " fmt, __func__
+
 #include <linux/acpi.h>
+#include <linux/device.h>
+#include <linux/module.h>
+#include <linux/property.h>
 #include <linux/soundwire/sdw.h>
+#include <linux/types.h>
 #include <sound/sdca.h>
 #include <sound/sdca_function.h>
 
-static int patch_sdca_function_type(struct device *dev,
-				    u32 interface_revision,
-				    u32 *function_type,
-				    const char **function_name)
+static int patch_sdca_function_type(u32 interface_revision, u32 *function_type)
 {
-	unsigned long function_type_patch = 0;
-
 	/*
 	 * Unfortunately early SDCA specifications used different indices for Functions,
 	 * for backwards compatibility we have to reorder the values found
 	 */
-	if (interface_revision >= 0x0801)
-		goto skip_early_draft_order;
-
-	switch (*function_type) {
-	case 1:
-		function_type_patch = SDCA_FUNCTION_TYPE_SMART_AMP;
-		break;
-	case 2:
-		function_type_patch = SDCA_FUNCTION_TYPE_SMART_MIC;
-		break;
-	case 3:
-		function_type_patch = SDCA_FUNCTION_TYPE_SPEAKER_MIC;
-		break;
-	case 4:
-		function_type_patch = SDCA_FUNCTION_TYPE_UAJ;
-		break;
-	case 5:
-		function_type_patch = SDCA_FUNCTION_TYPE_RJ;
-		break;
-	case 6:
-		function_type_patch = SDCA_FUNCTION_TYPE_HID;
-		break;
-	default:
-		dev_warn(dev, "%s: SDCA version %#x unsupported function type %d, skipped\n",
-			 __func__, interface_revision, *function_type);
-		return -EINVAL;
+	if (interface_revision < 0x0801) {
+		switch (*function_type) {
+		case 1:
+			*function_type = SDCA_FUNCTION_TYPE_SMART_AMP;
+			break;
+		case 2:
+			*function_type = SDCA_FUNCTION_TYPE_SMART_MIC;
+			break;
+		case 3:
+			*function_type = SDCA_FUNCTION_TYPE_SPEAKER_MIC;
+			break;
+		case 4:
+			*function_type = SDCA_FUNCTION_TYPE_UAJ;
+			break;
+		case 5:
+			*function_type = SDCA_FUNCTION_TYPE_RJ;
+			break;
+		case 6:
+			*function_type = SDCA_FUNCTION_TYPE_HID;
+			break;
+		default:
+			return -EINVAL;
+		}
 	}
-
-skip_early_draft_order:
-	if (function_type_patch)
-		*function_type = function_type_patch;
-
-	/* now double-check the values */
-	switch (*function_type) {
-	case SDCA_FUNCTION_TYPE_SMART_AMP:
-		*function_name = SDCA_FUNCTION_TYPE_SMART_AMP_NAME;
-		break;
-	case SDCA_FUNCTION_TYPE_SMART_MIC:
-		*function_name = SDCA_FUNCTION_TYPE_SMART_MIC_NAME;
-		break;
-	case SDCA_FUNCTION_TYPE_UAJ:
-		*function_name = SDCA_FUNCTION_TYPE_UAJ_NAME;
-		break;
-	case SDCA_FUNCTION_TYPE_HID:
-		*function_name = SDCA_FUNCTION_TYPE_HID_NAME;
-		break;
-	case SDCA_FUNCTION_TYPE_SIMPLE_AMP:
-	case SDCA_FUNCTION_TYPE_SIMPLE_MIC:
-	case SDCA_FUNCTION_TYPE_SPEAKER_MIC:
-	case SDCA_FUNCTION_TYPE_RJ:
-	case SDCA_FUNCTION_TYPE_IMP_DEF:
-		dev_warn(dev, "%s: found unsupported SDCA function type %d, skipped\n",
-			 __func__, *function_type);
-		return -EINVAL;
-	default:
-		dev_err(dev, "%s: found invalid SDCA function type %d, skipped\n",
-			__func__, *function_type);
-		return -EINVAL;
-	}
-
-	dev_info(dev, "%s: found SDCA function %s (type %d)\n",
-		 __func__, *function_name, *function_type);
 
 	return 0;
+}
+
+static const char *get_sdca_function_name(u32 function_type)
+{
+	switch (function_type) {
+	case SDCA_FUNCTION_TYPE_SMART_AMP:
+		return SDCA_FUNCTION_TYPE_SMART_AMP_NAME;
+	case SDCA_FUNCTION_TYPE_SMART_MIC:
+		return SDCA_FUNCTION_TYPE_SMART_MIC_NAME;
+	case SDCA_FUNCTION_TYPE_UAJ:
+		return SDCA_FUNCTION_TYPE_UAJ_NAME;
+	case SDCA_FUNCTION_TYPE_HID:
+		return SDCA_FUNCTION_TYPE_HID_NAME;
+	case SDCA_FUNCTION_TYPE_SIMPLE_AMP:
+		return SDCA_FUNCTION_TYPE_SIMPLE_AMP_NAME;
+	case SDCA_FUNCTION_TYPE_SIMPLE_MIC:
+		return SDCA_FUNCTION_TYPE_SIMPLE_MIC_NAME;
+	case SDCA_FUNCTION_TYPE_SPEAKER_MIC:
+		return SDCA_FUNCTION_TYPE_SPEAKER_MIC_NAME;
+	case SDCA_FUNCTION_TYPE_RJ:
+		return SDCA_FUNCTION_TYPE_RJ_NAME;
+	case SDCA_FUNCTION_TYPE_IMP_DEF:
+		return SDCA_FUNCTION_TYPE_IMP_DEF_NAME;
+	default:
+		return NULL;
+	}
 }
 
 static int find_sdca_function(struct acpi_device *adev, void *data)
@@ -101,21 +90,16 @@ static int find_sdca_function(struct acpi_device *adev, void *data)
 	int ret;
 
 	if (sdca_data->num_functions >= SDCA_MAX_FUNCTION_COUNT) {
-		dev_err(dev, "%s: maximum number of functions exceeded\n", __func__);
+		dev_err(dev, "maximum number of functions exceeded\n");
 		return -EINVAL;
 	}
 
-	/*
-	 * The number of functions cannot exceed 8, we could use
-	 * acpi_get_local_address() but the value is stored as u64 so
-	 * we might as well avoid casts and intermediate levels
-	 */
 	ret = acpi_get_local_u64_address(adev->handle, &addr);
 	if (ret < 0)
 		return ret;
 
-	if (!addr) {
-		dev_err(dev, "%s: no addr\n", __func__);
+	if (!addr || addr > 0x7) {
+		dev_err(dev, "invalid addr: 0x%llx\n", addr);
 		return -ENODEV;
 	}
 
@@ -140,15 +124,25 @@ static int find_sdca_function(struct acpi_device *adev, void *data)
 	fwnode_handle_put(control5);
 
 	if (ret < 0) {
-		dev_err(dev, "%s: the function type can only be determined from ACPI information\n",
-			__func__);
+		dev_err(dev, "function type only supported as DisCo constant\n");
 		return ret;
 	}
 
-	ret = patch_sdca_function_type(dev, sdca_data->interface_revision,
-				       &function_type, &function_name);
-	if (ret < 0)
+	ret = patch_sdca_function_type(sdca_data->interface_revision, &function_type);
+	if (ret < 0) {
+		dev_err(dev, "SDCA version %#x invalid function type %d\n",
+			sdca_data->interface_revision, function_type);
 		return ret;
+	}
+
+	function_name = get_sdca_function_name(function_type);
+	if (!function_name) {
+		dev_err(dev, "invalid SDCA function type %d\n", function_type);
+		return -EINVAL;
+	}
+
+	dev_info(dev, "SDCA function %s (type %d) at 0x%llx\n",
+		 function_name, function_type, addr);
 
 	/* store results */
 	func_index = sdca_data->num_functions;

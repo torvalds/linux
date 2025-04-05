@@ -143,11 +143,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   " DIV:\t\t%s\n"
 		   " BMX:\t\t%s\n"
 		   " CDX:\t\t%s\n",
-		   cpuinfo.has_mul ? "yes" : "no",
-		   cpuinfo.has_mulx ? "yes" : "no",
-		   cpuinfo.has_div ? "yes" : "no",
-		   cpuinfo.has_bmx ? "yes" : "no",
-		   cpuinfo.has_cdx ? "yes" : "no");
+		   str_yes_no(cpuinfo.has_mul),
+		   str_yes_no(cpuinfo.has_mulx),
+		   str_yes_no(cpuinfo.has_div),
+		   str_yes_no(cpuinfo.has_bmx),
+		   str_yes_no(cpuinfo.has_cdx));
 
 	seq_printf(m,
 		   "Icache:\t\t%ukB, line length: %u\n",

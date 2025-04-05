@@ -1457,7 +1457,11 @@ void intel_hpd_enable_detection(struct intel_encoder *encoder)
 
 void intel_hpd_irq_setup(struct drm_i915_private *i915)
 {
-	if (i915->display.irq.display_irqs_enabled && i915->display.funcs.hotplug)
+	if ((IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) &&
+	    !i915->display.irq.vlv_display_irqs_enabled)
+		return;
+
+	if (i915->display.funcs.hotplug)
 		i915->display.funcs.hotplug->hpd_irq_setup(i915);
 }
 

@@ -207,7 +207,8 @@
 	/*F0-F7*/	"","","rtc-battery-voltage-read-enable","reset-cause-pinhole","","",
 			"factory-reset-toggle","",
 	/*G0-G7*/	"","","","","","","","",
-	/*H0-H7*/	"","bmc-ingraham0","rear-enc-id0","rear-enc-fault0","","","","",
+	/*H0-H7*/	"","led-bmc-ingraham0","led-rear-enc-id0","led-rear-enc-fault0","","","",
+			"",
 	/*I0-I7*/	"","","","","","","bmc-secure-boot","",
 	/*J0-J7*/	"","","","","","","","",
 	/*K0-K7*/	"","","","","","","","",
@@ -215,7 +216,7 @@
 	/*M0-M7*/	"","","","","","","","",
 	/*N0-N7*/	"","","","","","","","",
 	/*O0-O7*/	"","","","usb-power","","","","",
-	/*P0-P7*/	"","","","","pcieslot-power","","","",
+	/*P0-P7*/	"","","","","led-pcieslot-power","","","",
 	/*Q0-Q7*/	"cfam-reset","","regulator-standby-faulted","","","","","",
 	/*R0-R7*/	"bmc-tpm-reset","power-chassis-control","power-chassis-good","","","","",
 			"",
@@ -739,7 +740,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@10 {
+		led@a {
 			reg = <10>;
 			default-state = "keep";
 			label = "ddimm10";
@@ -747,7 +748,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@11 {
+		led@b {
 			reg = <11>;
 			default-state = "keep";
 			label = "ddimm11";
@@ -755,7 +756,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@12 {
+		led@c {
 			reg = <12>;
 			default-state = "keep";
 			label = "ddimm12";
@@ -763,7 +764,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@13 {
+		led@d {
 			reg = <13>;
 			default-state = "keep";
 			label = "ddimm13";
@@ -771,7 +772,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@14 {
+		led@e {
 			reg = <14>;
 			default-state = "keep";
 			label = "ddimm14";
@@ -779,7 +780,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@15 {
+		led@f {
 			reg = <15>;
 			default-state = "keep";
 			label = "ddimm15";
@@ -876,7 +877,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@10 {
+		led@a {
 			reg = <10>;
 			default-state = "keep";
 			label = "ddimm26";
@@ -884,7 +885,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@11 {
+		led@b {
 			reg = <11>;
 			default-state = "keep";
 			label = "ddimm27";
@@ -892,7 +893,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@12 {
+		led@c {
 			reg = <12>;
 			default-state = "keep";
 			label = "ddimm28";
@@ -900,7 +901,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@13 {
+		led@d {
 			reg = <13>;
 			default-state = "keep";
 			label = "ddimm29";
@@ -908,7 +909,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@14 {
+		led@e {
 			reg = <14>;
 			default-state = "keep";
 			label = "ddimm30";
@@ -916,7 +917,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@15 {
+		led@f {
 			reg = <15>;
 			default-state = "keep";
 			label = "ddimm31";
@@ -1005,7 +1006,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@10 {
+		led@a {
 			reg = <10>;
 			default-state = "keep";
 			label = "pcieslot7";
@@ -1013,7 +1014,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@11 {
+		led@b {
 			reg = <11>;
 			default-state = "keep";
 			label = "pcieslot8";
@@ -1021,7 +1022,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@12 {
+		led@c {
 			reg = <12>;
 			default-state = "keep";
 			label = "pcieslot9";
@@ -1029,7 +1030,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@13 {
+		led@d {
 			reg = <13>;
 			default-state = "keep";
 			label = "pcieslot10";
@@ -1037,7 +1038,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@14 {
+		led@e {
 			reg = <14>;
 			default-state = "keep";
 			label = "pcieslot11";
@@ -1045,7 +1046,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@15 {
+		led@f {
 			reg = <15>;
 			default-state = "keep";
 			label = "tpm-wilson";
@@ -1231,8 +1232,9 @@
 		#gpio-cells = <2>;
 
 		gpio-line-names =
-			"", "", "", "", "", "", "", "",
-			"", "", "", "", "", "", "power-config-full-load", "";
+			"", "", "", "", "", "", "P10_DCM0_PRES", "P10_DCM1_PRES",
+			"", "", "", "", "PRESENT_VRM_DCM0_N", "PRESENT_VRM_DCM1_N",
+			"power-config-full-load", "";
 	};
 
 	led-controller@61 {

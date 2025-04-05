@@ -425,6 +425,8 @@ FANOTIFY_PE(struct fanotify_event *event)
 struct fanotify_perm_event {
 	struct fanotify_event fae;
 	struct path path;
+	const loff_t *ppos;		/* optional file range info */
+	size_t count;
 	u32 response;			/* userspace answer to the event */
 	unsigned short state;		/* state of the event */
 	int fd;		/* fd we passed to userspace for this event */
@@ -444,6 +446,14 @@ static inline bool fanotify_is_perm_event(u32 mask)
 {
 	return IS_ENABLED(CONFIG_FANOTIFY_ACCESS_PERMISSIONS) &&
 		mask & FANOTIFY_PERM_EVENTS;
+}
+
+static inline bool fanotify_event_has_access_range(struct fanotify_event *event)
+{
+	if (!(event->mask & FANOTIFY_PRE_CONTENT_EVENTS))
+		return false;
+
+	return FANOTIFY_PERM(event)->ppos;
 }
 
 static inline struct fanotify_event *FANOTIFY_E(struct fsnotify_event *fse)
@@ -517,4 +527,9 @@ static inline unsigned int fanotify_mark_user_flags(struct fsnotify_mark *mark)
 		mflags |= FAN_MARK_IGNORE;
 
 	return mflags;
+}
+
+static inline u32 fanotify_get_response_errno(int res)
+{
+	return (res >> FAN_ERRNO_SHIFT) & FAN_ERRNO_MASK;
 }

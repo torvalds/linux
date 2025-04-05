@@ -344,7 +344,7 @@ void mlx5hws_arg_write(struct mlx5hws_send_engine *queue,
 		mlx5hws_send_engine_post_req_wqe(&ctrl, (void *)&wqe_ctrl, &wqe_len);
 		memset(wqe_ctrl, 0, wqe_len);
 		mlx5hws_send_engine_post_req_wqe(&ctrl, (void *)&wqe_arg, &wqe_len);
-		memcpy(wqe_arg, arg_data, wqe_len);
+		memcpy(wqe_arg, arg_data, MLX5HWS_ARG_DATA_SIZE);
 		send_attr.id = arg_idx++;
 		mlx5hws_send_engine_post_end(&ctrl, &send_attr);
 

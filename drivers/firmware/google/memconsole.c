@@ -14,7 +14,7 @@
 #include "memconsole.h"
 
 static ssize_t memconsole_read(struct file *filp, struct kobject *kobp,
-			       struct bin_attribute *bin_attr, char *buf,
+			       const struct bin_attribute *bin_attr, char *buf,
 			       loff_t pos, size_t count)
 {
 	ssize_t (*memconsole_read_func)(char *, loff_t, size_t);
@@ -28,7 +28,7 @@ static ssize_t memconsole_read(struct file *filp, struct kobject *kobp,
 
 static struct bin_attribute memconsole_bin_attr = {
 	.attr = {.name = "log", .mode = 0444},
-	.read = memconsole_read,
+	.read_new = memconsole_read,
 };
 
 void memconsole_setup(ssize_t (*read_func)(char *, loff_t, size_t))

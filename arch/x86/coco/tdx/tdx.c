@@ -32,9 +32,6 @@
 #define VE_GET_PORT_NUM(e)	((e) >> 16)
 #define VE_IS_IO_STRING(e)	((e) & BIT(4))
 
-#define ATTR_DEBUG		BIT(0)
-#define ATTR_SEPT_VE_DISABLE	BIT(28)
-
 /* TDX Module call error codes */
 #define TDCALL_RETURN_CODE(a)	((a) >> 32)
 #define TDCALL_INVALID_OPERAND	0xc0000100
@@ -200,14 +197,14 @@ static void __noreturn tdx_panic(const char *msg)
  *
  * TDX 1.0 does not allow the guest to disable SEPT #VE on its own. The VMM
  * controls if the guest will receive such #VE with TD attribute
- * ATTR_SEPT_VE_DISABLE.
+ * TDX_ATTR_SEPT_VE_DISABLE.
  *
  * Newer TDX modules allow the guest to control if it wants to receive SEPT
  * violation #VEs.
  *
  * Check if the feature is available and disable SEPT #VE if possible.
  *
- * If the TD is allowed to disable/enable SEPT #VEs, the ATTR_SEPT_VE_DISABLE
+ * If the TD is allowed to disable/enable SEPT #VEs, the TDX_ATTR_SEPT_VE_DISABLE
  * attribute is no longer reliable. It reflects the initial state of the
  * control for the TD, but it will not be updated if someone (e.g. bootloader)
  * changes it before the kernel starts. Kernel must check TDCS_TD_CTLS bit to
@@ -216,14 +213,14 @@ static void __noreturn tdx_panic(const char *msg)
 static void disable_sept_ve(u64 td_attr)
 {
 	const char *msg = "TD misconfiguration: SEPT #VE has to be disabled";
-	bool debug = td_attr & ATTR_DEBUG;
+	bool debug = td_attr & TDX_ATTR_DEBUG;
 	u64 config, controls;
 
 	/* Is this TD allowed to disable SEPT #VE */
 	tdg_vm_rd(TDCS_CONFIG_FLAGS, &config);
 	if (!(config & TDCS_CONFIG_FLEXIBLE_PENDING_VE)) {
 		/* No SEPT #VE controls for the guest: check the attribute */
-		if (td_attr & ATTR_SEPT_VE_DISABLE)
+		if (td_attr & TDX_ATTR_SEPT_VE_DISABLE)
 			return;
 
 		/* Relax SEPT_VE_DISABLE check for debug TD for backtraces */
@@ -274,6 +271,20 @@ static void enable_cpu_topology_enumeration(void)
 	tdg_vm_wr(TDCS_TD_CTLS, TD_CTLS_ENUM_TOPOLOGY, TD_CTLS_ENUM_TOPOLOGY);
 }
 
+static void reduce_unnecessary_ve(void)
+{
+	u64 err = tdg_vm_wr(TDCS_TD_CTLS, TD_CTLS_REDUCE_VE, TD_CTLS_REDUCE_VE);
+
+	if (err == TDX_SUCCESS)
+		return;
+
+	/*
+	 * Enabling REDUCE_VE includes ENUM_TOPOLOGY. Only try to
+	 * enable ENUM_TOPOLOGY if REDUCE_VE was not successful.
+	 */
+	enable_cpu_topology_enumeration();
+}
+
 static void tdx_setup(u64 *cc_mask)
 {
 	struct tdx_module_args args = {};
@@ -305,7 +316,8 @@ static void tdx_setup(u64 *cc_mask)
 	tdg_vm_wr(TDCS_NOTIFY_ENABLES, 0, -1ULL);
 
 	disable_sept_ve(td_attr);
-	enable_cpu_topology_enumeration();
+
+	reduce_unnecessary_ve();
 }
 
 /*
@@ -1025,6 +1037,20 @@ static void tdx_kexec_finish(void)
 	}
 }
 
+static __init void tdx_announce(void)
+{
+	struct tdx_module_args args = {};
+	u64 controls;
+
+	pr_info("Guest detected\n");
+
+	tdcall(TDG_VP_INFO, &args);
+	tdx_dump_attributes(args.rdx);
+
+	tdg_vm_rd(TDCS_TD_CTLS, &controls);
+	tdx_dump_td_ctls(controls);
+}
+
 void __init tdx_early_init(void)
 {
 	u64 cc_mask;
@@ -1094,5 +1120,5 @@ void __init tdx_early_init(void)
 	 */
 	x86_cpuinit.parallel_bringup = false;
 
-	pr_info("Guest detected\n");
+	tdx_announce();
 }

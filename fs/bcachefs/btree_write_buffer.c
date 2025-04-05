@@ -19,8 +19,6 @@
 static int bch2_btree_write_buffer_journal_flush(struct journal *,
 				struct journal_entry_pin *, u64);
 
-static int bch2_journal_keys_to_write_buffer(struct bch_fs *, struct journal_buf *);
-
 static inline bool __wb_key_ref_cmp(const struct wb_key_ref *l, const struct wb_key_ref *r)
 {
 	return (cmp_int(l->hi, r->hi) ?:
@@ -314,6 +312,8 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 	darray_for_each(wb->sorted, i) {
 		struct btree_write_buffered_key *k = &wb->flushing.keys.data[i->idx];
 
+		BUG_ON(!btree_type_uses_write_buffer(k->btree));
+
 		for (struct wb_key_ref *n = i + 1; n < min(i + 4, &darray_top(wb->sorted)); n++)
 			prefetch(&wb->flushing.keys.data[n->idx]);
 
@@ -481,21 +481,55 @@ err:
 	return ret;
 }
 
-static int fetch_wb_keys_from_journal(struct bch_fs *c, u64 seq)
+static int bch2_journal_keys_to_write_buffer(struct bch_fs *c, struct journal_buf *buf)
+{
+	struct journal_keys_to_wb dst;
+	int ret = 0;
+
+	bch2_journal_keys_to_write_buffer_start(c, &dst, le64_to_cpu(buf->data->seq));
+
+	for_each_jset_entry_type(entry, buf->data, BCH_JSET_ENTRY_write_buffer_keys) {
+		jset_entry_for_each_key(entry, k) {
+			ret = bch2_journal_key_to_wb(c, &dst, entry->btree_id, k);
+			if (ret)
+				goto out;
+		}
+
+		entry->type = BCH_JSET_ENTRY_btree_keys;
+	}
+out:
+	ret = bch2_journal_keys_to_write_buffer_end(c, &dst) ?: ret;
+	return ret;
+}
+
+static int fetch_wb_keys_from_journal(struct bch_fs *c, u64 max_seq)
 {
 	struct journal *j = &c->journal;
 	struct journal_buf *buf;
+	bool blocked;
 	int ret = 0;
 
-	while (!ret && (buf = bch2_next_write_buffer_flush_journal_buf(j, seq))) {
+	while (!ret && (buf = bch2_next_write_buffer_flush_journal_buf(j, max_seq, &blocked))) {
 		ret = bch2_journal_keys_to_write_buffer(c, buf);
+
+		if (!blocked && !ret) {
+			spin_lock(&j->lock);
+			buf->need_flush_to_write_buffer = false;
+			spin_unlock(&j->lock);
+		}
+
 		mutex_unlock(&j->buf_lock);
+
+		if (blocked) {
+			bch2_journal_unblock(j);
+			break;
+		}
 	}
 
 	return ret;
 }
 
-static int btree_write_buffer_flush_seq(struct btree_trans *trans, u64 seq,
+static int btree_write_buffer_flush_seq(struct btree_trans *trans, u64 max_seq,
 					bool *did_work)
 {
 	struct bch_fs *c = trans->c;
@@ -505,7 +539,7 @@ static int btree_write_buffer_flush_seq(struct btree_trans *trans, u64 seq,
 	do {
 		bch2_trans_unlock(trans);
 
-		fetch_from_journal_err = fetch_wb_keys_from_journal(c, seq);
+		fetch_from_journal_err = fetch_wb_keys_from_journal(c, max_seq);
 
 		*did_work |= wb->inc.keys.nr || wb->flushing.keys.nr;
 
@@ -518,8 +552,8 @@ static int btree_write_buffer_flush_seq(struct btree_trans *trans, u64 seq,
 		mutex_unlock(&wb->flushing.lock);
 	} while (!ret &&
 		 (fetch_from_journal_err ||
-		  (wb->inc.pin.seq && wb->inc.pin.seq <= seq) ||
-		  (wb->flushing.pin.seq && wb->flushing.pin.seq <= seq)));
+		  (wb->inc.pin.seq && wb->inc.pin.seq <= max_seq) ||
+		  (wb->flushing.pin.seq && wb->flushing.pin.seq <= max_seq)));
 
 	return ret;
 }
@@ -600,6 +634,14 @@ int bch2_btree_write_buffer_maybe_flush(struct btree_trans *trans,
 	bch2_bkey_buf_init(&tmp);
 
 	if (!bkey_and_val_eq(referring_k, bkey_i_to_s_c(last_flushed->k))) {
+		if (trace_write_buffer_maybe_flush_enabled()) {
+			struct printbuf buf = PRINTBUF;
+
+			bch2_bkey_val_to_text(&buf, c, referring_k);
+			trace_write_buffer_maybe_flush(trans, _RET_IP_, buf.buf);
+			printbuf_exit(&buf);
+		}
+
 		bch2_bkey_buf_reassemble(&tmp, c, referring_k);
 
 		if (bkey_is_btree_ptr(referring_k.k)) {
@@ -768,31 +810,6 @@ int bch2_journal_keys_to_write_buffer_end(struct bch_fs *c, struct journal_keys_
 		mutex_unlock(&wb->flushing.lock);
 	mutex_unlock(&wb->inc.lock);
 
-	return ret;
-}
-
-static int bch2_journal_keys_to_write_buffer(struct bch_fs *c, struct journal_buf *buf)
-{
-	struct journal_keys_to_wb dst;
-	int ret = 0;
-
-	bch2_journal_keys_to_write_buffer_start(c, &dst, le64_to_cpu(buf->data->seq));
-
-	for_each_jset_entry_type(entry, buf->data, BCH_JSET_ENTRY_write_buffer_keys) {
-		jset_entry_for_each_key(entry, k) {
-			ret = bch2_journal_key_to_wb(c, &dst, entry->btree_id, k);
-			if (ret)
-				goto out;
-		}
-
-		entry->type = BCH_JSET_ENTRY_btree_keys;
-	}
-
-	spin_lock(&c->journal.lock);
-	buf->need_flush_to_write_buffer = false;
-	spin_unlock(&c->journal.lock);
-out:
-	ret = bch2_journal_keys_to_write_buffer_end(c, &dst) ?: ret;
 	return ret;
 }
 

@@ -16,7 +16,8 @@ extern const char * const bch2_version_upgrade_opts[];
 extern const char * const bch2_sb_features[];
 extern const char * const bch2_sb_compat[];
 extern const char * const __bch2_btree_ids[];
-extern const char * const bch2_csum_opts[];
+extern const char * const __bch2_csum_opts[];
+extern const char * const __bch2_compression_types[];
 extern const char * const bch2_compression_opts[];
 extern const char * const __bch2_str_hash_types[];
 extern const char * const bch2_str_hash_opts[];
@@ -27,6 +28,7 @@ extern const char * const bch2_d_types[];
 void bch2_prt_jset_entry_type(struct printbuf *,	enum bch_jset_entry_type);
 void bch2_prt_fs_usage_type(struct printbuf *,		enum bch_fs_usage_type);
 void bch2_prt_data_type(struct printbuf *,		enum bch_data_type);
+void bch2_prt_csum_opt(struct printbuf *,		enum bch_csum_opt);
 void bch2_prt_csum_type(struct printbuf *,		enum bch_csum_type);
 void bch2_prt_compression_type(struct printbuf *,	enum bch_compression_type);
 void bch2_prt_str_hash_type(struct printbuf *,		enum bch_str_hash_type);
@@ -171,12 +173,12 @@ enum fsck_err_opts {
 	  "size",	"Maximum size of checksummed/compressed extents")\
 	x(metadata_checksum,		u8,				\
 	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
-	  OPT_STR(bch2_csum_opts),					\
+	  OPT_STR(__bch2_csum_opts),					\
 	  BCH_SB_META_CSUM_TYPE,	BCH_CSUM_OPT_crc32c,		\
 	  NULL,		NULL)						\
 	x(data_checksum,		u8,				\
 	  OPT_FS|OPT_INODE|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,		\
-	  OPT_STR(bch2_csum_opts),					\
+	  OPT_STR(__bch2_csum_opts),					\
 	  BCH_SB_DATA_CSUM_TYPE,	BCH_CSUM_OPT_crc32c,		\
 	  NULL,		NULL)						\
 	x(compression,			u8,				\
@@ -220,14 +222,14 @@ enum fsck_err_opts {
 	  BCH_SB_ERASURE_CODE,		false,				\
 	  NULL,		"Enable erasure coding (DO NOT USE YET)")	\
 	x(inodes_32bit,			u8,				\
-	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
+	  OPT_FS|OPT_INODE|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,		\
 	  OPT_BOOL(),							\
 	  BCH_SB_INODE_32BIT,		true,				\
 	  NULL,		"Constrain inode numbers to 32 bits")		\
-	x(shard_inode_numbers,		u8,				\
-	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
-	  OPT_BOOL(),							\
-	  BCH_SB_SHARD_INUMS,		true,				\
+	x(shard_inode_numbers_bits,	u8,				\
+	  OPT_FS|OPT_FORMAT,						\
+	  OPT_UINT(0, 8),						\
+	  BCH_SB_SHARD_INUMS_NBITS,	0,				\
 	  NULL,		"Shard new inode numbers by CPU id")		\
 	x(inodes_use_key_cache,	u8,					\
 	  OPT_FS|OPT_FORMAT|OPT_MOUNT,					\
@@ -473,6 +475,18 @@ enum fsck_err_opts {
 	  BCH2_NO_SB_OPT,			true,			\
 	  NULL,		"Enable nocow mode: enables runtime locking in\n"\
 			"data move path needed if nocow will ever be in use\n")\
+	x(copygc_enabled,		u8,				\
+	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
+	  OPT_BOOL(),							\
+	  BCH2_NO_SB_OPT,			true,			\
+	  NULL,		"Enable copygc: disable for debugging, or to\n"\
+			"quiet the system when doing performance testing\n")\
+	x(rebalance_enabled,		u8,				\
+	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
+	  OPT_BOOL(),							\
+	  BCH2_NO_SB_OPT,			true,			\
+	  NULL,		"Enable rebalance: disable for debugging, or to\n"\
+			"quiet the system when doing performance testing\n")\
 	x(no_data_io,			u8,				\
 	  OPT_MOUNT,							\
 	  OPT_BOOL(),							\
@@ -488,7 +502,7 @@ enum fsck_err_opts {
 	  OPT_DEVICE,							\
 	  OPT_UINT(0, S64_MAX),						\
 	  BCH2_NO_SB_OPT,		0,				\
-	  "size",	"Size of filesystem on device")			\
+	  "size",	"Specifies the bucket size; must be greater than the btree node size")\
 	x(durability,			u8,				\
 	  OPT_DEVICE|OPT_SB_FIELD_ONE_BIAS,				\
 	  OPT_UINT(0, BCH_REPLICAS_MAX),				\
@@ -624,11 +638,22 @@ struct bch_io_opts {
 #define x(_name, _bits)	u##_bits _name;
 	BCH_INODE_OPTS()
 #undef x
+#define x(_name, _bits)	u64 _name##_from_inode:1;
+	BCH_INODE_OPTS()
+#undef x
 };
 
-static inline unsigned background_compression(struct bch_io_opts opts)
+static inline void bch2_io_opts_fixups(struct bch_io_opts *opts)
 {
-	return opts.background_compression ?: opts.compression;
+	if (!opts->background_target)
+		opts->background_target = opts->foreground_target;
+	if (!opts->background_compression)
+		opts->background_compression = opts->compression;
+	if (opts->nocow) {
+		opts->compression = opts->background_compression = 0;
+		opts->data_checksum = 0;
+		opts->erasure_code = 0;
+	}
 }
 
 struct bch_io_opts bch2_opts_to_inode_opts(struct bch_opts);

@@ -96,9 +96,6 @@ struct btrfs_root *btrfs_alloc_dummy_root(struct btrfs_fs_info *fs_info);
 /*
  * This function is used to grab the root, and avoid it is freed when we
  * access it. But it doesn't ensure that the tree is not dropped.
- *
- * If you want to ensure the whole tree is safe, you should use
- * 	fs_info->subvol_srcu
  */
 static inline struct btrfs_root *btrfs_grab_root(struct btrfs_root *root)
 {

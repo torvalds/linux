@@ -308,10 +308,9 @@ SYM_CODE_END(xen_error_entry)
 		movq	$-1, ORIG_RAX(%rsp)	/* no syscall to restart */
 	.endif
 
-	call	\cfunc
-
 	/* For some configurations \cfunc ends up being a noreturn. */
-	REACHABLE
+	ANNOTATE_REACHABLE
+	call	\cfunc
 
 	jmp	error_return
 .endm
@@ -529,10 +528,10 @@ SYM_CODE_START(\asmsym)
 	movq	%rsp, %rdi		/* pt_regs pointer into first argument */
 	movq	ORIG_RAX(%rsp), %rsi	/* get error code into 2nd argument*/
 	movq	$-1, ORIG_RAX(%rsp)	/* no syscall to restart */
-	call	\cfunc
 
 	/* For some configurations \cfunc ends up being a noreturn. */
-	REACHABLE
+	ANNOTATE_REACHABLE
+	call	\cfunc
 
 	jmp	paranoid_exit
 

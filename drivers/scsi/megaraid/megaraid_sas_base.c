@@ -37,7 +37,6 @@
 #include <linux/poll.h>
 #include <linux/vmalloc.h>
 #include <linux/irq_poll.h>
-#include <linux/blk-mq-pci.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -147,7 +146,7 @@ megasas_set_ld_removed_by_fw(struct megasas_instance *instance);
 /*
  * PCI ID table for all supported controllers
  */
-static struct pci_device_id megasas_pci_table[] = {
+static const struct pci_device_id megasas_pci_table[] = {
 
 	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_SAS1064R)},
 	/* xscale IOP */
@@ -2068,8 +2067,8 @@ static void megasas_set_static_target_properties(struct scsi_device *sdev,
 }
 
 
-static int megasas_device_configure(struct scsi_device *sdev,
-		struct queue_limits *lim)
+static int megasas_sdev_configure(struct scsi_device *sdev,
+				  struct queue_limits *lim)
 {
 	u16 pd_index = 0;
 	struct megasas_instance *instance;
@@ -2109,7 +2108,7 @@ static int megasas_device_configure(struct scsi_device *sdev,
 	return 0;
 }
 
-static int megasas_slave_alloc(struct scsi_device *sdev)
+static int megasas_sdev_init(struct scsi_device *sdev)
 {
 	u16 pd_index = 0, ld_tgt_id;
 	struct megasas_instance *instance ;
@@ -2154,7 +2153,7 @@ scan_target:
 	return 0;
 }
 
-static void megasas_slave_destroy(struct scsi_device *sdev)
+static void megasas_sdev_destroy(struct scsi_device *sdev)
 {
 	u16 ld_tgt_id;
 	struct megasas_instance *instance;
@@ -3193,7 +3192,7 @@ static void megasas_map_queues(struct Scsi_Host *shost)
 	map = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
 	map->nr_queues = instance->msix_vectors - offset;
 	map->queue_offset = 0;
-	blk_mq_pci_map_queues(map, instance->pdev, offset);
+	blk_mq_map_hw_queues(map, &instance->pdev->dev, offset);
 	qoff += map->nr_queues;
 	offset += map->nr_queues;
 
@@ -3510,9 +3509,9 @@ static const struct scsi_host_template megasas_template = {
 	.module = THIS_MODULE,
 	.name = "Avago SAS based MegaRAID driver",
 	.proc_name = "megaraid_sas",
-	.device_configure = megasas_device_configure,
-	.slave_alloc = megasas_slave_alloc,
-	.slave_destroy = megasas_slave_destroy,
+	.sdev_configure = megasas_sdev_configure,
+	.sdev_init = megasas_sdev_init,
+	.sdev_destroy = megasas_sdev_destroy,
 	.queuecommand = megasas_queue_command,
 	.eh_target_reset_handler = megasas_reset_target,
 	.eh_abort_handler = megasas_task_abort,

@@ -24,6 +24,7 @@ static DEFINE_MUTEX(arm_pmus_lock);
 
 static void kvm_pmu_create_perf_event(struct kvm_pmc *pmc);
 static void kvm_pmu_release_perf_event(struct kvm_pmc *pmc);
+static bool kvm_pmu_counter_is_enabled(struct kvm_pmc *pmc);
 
 static struct kvm_vcpu *kvm_pmc_to_vcpu(const struct kvm_pmc *pmc)
 {
@@ -327,48 +328,25 @@ u64 kvm_pmu_implemented_counter_mask(struct kvm_vcpu *vcpu)
 		return GENMASK(val - 1, 0) | BIT(ARMV8_PMU_CYCLE_IDX);
 }
 
-/**
- * kvm_pmu_enable_counter_mask - enable selected PMU counters
- * @vcpu: The vcpu pointer
- * @val: the value guest writes to PMCNTENSET register
- *
- * Call perf_event_enable to start counting the perf event
- */
-void kvm_pmu_enable_counter_mask(struct kvm_vcpu *vcpu, u64 val)
+static void kvm_pmc_enable_perf_event(struct kvm_pmc *pmc)
 {
-	int i;
-	if (!kvm_vcpu_has_pmu(vcpu))
+	if (!pmc->perf_event) {
+		kvm_pmu_create_perf_event(pmc);
 		return;
-
-	if (!(kvm_vcpu_read_pmcr(vcpu) & ARMV8_PMU_PMCR_E) || !val)
-		return;
-
-	for (i = 0; i < KVM_ARMV8_PMU_MAX_COUNTERS; i++) {
-		struct kvm_pmc *pmc;
-
-		if (!(val & BIT(i)))
-			continue;
-
-		pmc = kvm_vcpu_idx_to_pmc(vcpu, i);
-
-		if (!pmc->perf_event) {
-			kvm_pmu_create_perf_event(pmc);
-		} else {
-			perf_event_enable(pmc->perf_event);
-			if (pmc->perf_event->state != PERF_EVENT_STATE_ACTIVE)
-				kvm_debug("fail to enable perf event\n");
-		}
 	}
+
+	perf_event_enable(pmc->perf_event);
+	if (pmc->perf_event->state != PERF_EVENT_STATE_ACTIVE)
+		kvm_debug("fail to enable perf event\n");
 }
 
-/**
- * kvm_pmu_disable_counter_mask - disable selected PMU counters
- * @vcpu: The vcpu pointer
- * @val: the value guest writes to PMCNTENCLR register
- *
- * Call perf_event_disable to stop counting the perf event
- */
-void kvm_pmu_disable_counter_mask(struct kvm_vcpu *vcpu, u64 val)
+static void kvm_pmc_disable_perf_event(struct kvm_pmc *pmc)
+{
+	if (pmc->perf_event)
+		perf_event_disable(pmc->perf_event);
+}
+
+void kvm_pmu_reprogram_counter_mask(struct kvm_vcpu *vcpu, u64 val)
 {
 	int i;
 
@@ -376,16 +354,18 @@ void kvm_pmu_disable_counter_mask(struct kvm_vcpu *vcpu, u64 val)
 		return;
 
 	for (i = 0; i < KVM_ARMV8_PMU_MAX_COUNTERS; i++) {
-		struct kvm_pmc *pmc;
+		struct kvm_pmc *pmc = kvm_vcpu_idx_to_pmc(vcpu, i);
 
 		if (!(val & BIT(i)))
 			continue;
 
-		pmc = kvm_vcpu_idx_to_pmc(vcpu, i);
-
-		if (pmc->perf_event)
-			perf_event_disable(pmc->perf_event);
+		if (kvm_pmu_counter_is_enabled(pmc))
+			kvm_pmc_enable_perf_event(pmc);
+		else
+			kvm_pmc_disable_perf_event(pmc);
 	}
+
+	kvm_vcpu_pmu_restore_guest(vcpu);
 }
 
 /*
@@ -626,27 +606,28 @@ void kvm_pmu_handle_pmcr(struct kvm_vcpu *vcpu, u64 val)
 	if (!kvm_has_feat(vcpu->kvm, ID_AA64DFR0_EL1, PMUVer, V3P5))
 		val &= ~ARMV8_PMU_PMCR_LP;
 
+	/* Request a reload of the PMU to enable/disable affected counters */
+	if ((__vcpu_sys_reg(vcpu, PMCR_EL0) ^ val) & ARMV8_PMU_PMCR_E)
+		kvm_make_request(KVM_REQ_RELOAD_PMU, vcpu);
+
 	/* The reset bits don't indicate any state, and shouldn't be saved. */
 	__vcpu_sys_reg(vcpu, PMCR_EL0) = val & ~(ARMV8_PMU_PMCR_C | ARMV8_PMU_PMCR_P);
-
-	if (val & ARMV8_PMU_PMCR_E) {
-		kvm_pmu_enable_counter_mask(vcpu,
-		       __vcpu_sys_reg(vcpu, PMCNTENSET_EL0));
-	} else {
-		kvm_pmu_disable_counter_mask(vcpu,
-		       __vcpu_sys_reg(vcpu, PMCNTENSET_EL0));
-	}
 
 	if (val & ARMV8_PMU_PMCR_C)
 		kvm_pmu_set_counter_value(vcpu, ARMV8_PMU_CYCLE_IDX, 0);
 
 	if (val & ARMV8_PMU_PMCR_P) {
-		unsigned long mask = kvm_pmu_accessible_counter_mask(vcpu);
-		mask &= ~BIT(ARMV8_PMU_CYCLE_IDX);
+		/*
+		 * Unlike other PMU sysregs, the controls in PMCR_EL0 always apply
+		 * to the 'guest' range of counters and never the 'hyp' range.
+		 */
+		unsigned long mask = kvm_pmu_implemented_counter_mask(vcpu) &
+				     ~kvm_pmu_hyp_counter_mask(vcpu) &
+				     ~BIT(ARMV8_PMU_CYCLE_IDX);
+
 		for_each_set_bit(i, &mask, 32)
 			kvm_pmu_set_pmc_value(kvm_vcpu_idx_to_pmc(vcpu, i), 0, true);
 	}
-	kvm_vcpu_pmu_restore_guest(vcpu);
 }
 
 static bool kvm_pmu_counter_is_enabled(struct kvm_pmc *pmc)
@@ -910,11 +891,11 @@ void kvm_vcpu_reload_pmu(struct kvm_vcpu *vcpu)
 {
 	u64 mask = kvm_pmu_implemented_counter_mask(vcpu);
 
-	kvm_pmu_handle_pmcr(vcpu, kvm_vcpu_read_pmcr(vcpu));
-
 	__vcpu_sys_reg(vcpu, PMOVSSET_EL0) &= mask;
 	__vcpu_sys_reg(vcpu, PMINTENSET_EL1) &= mask;
 	__vcpu_sys_reg(vcpu, PMCNTENSET_EL0) &= mask;
+
+	kvm_pmu_reprogram_counter_mask(vcpu, mask);
 }
 
 int kvm_arm_pmu_v3_enable(struct kvm_vcpu *vcpu)

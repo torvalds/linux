@@ -1,5 +1,5 @@
 #!/bin/sh
-# probe libc's inet_pton & backtrace it with ping
+# probe libc's inet_pton & backtrace it with ping (exclusive)
 
 # Installs a probe on libc's inet_pton function, that will use uprobes,
 # then use 'perf trace' on a ping to localhost asking for just one packet
@@ -43,17 +43,8 @@ trace_libc_inet_pton_backtrace() {
 		echo "((__GI_)?getaddrinfo|text_to_binary_address)\+0x[[:xdigit:]]+[[:space:]]\($libc|inlined\)$" >> $expected
 		echo "(gaih_inet|main)\+0x[[:xdigit:]]+[[:space:]]\(inlined|.*/bin/ping.*\)$" >> $expected
 		;;
-	ppc64|ppc64le)
-		eventattr='max-stack=4'
-		# Add gaih_inet to expected backtrace only if it is part of libc.
-		if nm $libc | grep -F -q gaih_inet.; then
-			echo "gaih_inet.*\+0x[[:xdigit:]]+[[:space:]]\($libc\)$" >> $expected
-		fi
-		echo "getaddrinfo\+0x[[:xdigit:]]+[[:space:]]\($libc\)$" >> $expected
-		echo ".*(\+0x[[:xdigit:]]+|\[unknown\])[[:space:]]\(.*/bin/ping.*\)$" >> $expected
-		;;
 	*)
-		eventattr='max-stack=3'
+		eventattr='max-stack=4'
 		echo ".*(\+0x[[:xdigit:]]+|\[unknown\])[[:space:]]\(.*/bin/ping.*\)$" >> $expected
 		;;
 	esac
@@ -76,14 +67,25 @@ trace_libc_inet_pton_backtrace() {
 	fi
 	perf script -i $perf_data | tac | grep -m1 ^ping -B9 | tac > $perf_script
 
-	exec 3<$perf_script
 	exec 4<$expected
-	while read line <&3 && read -r pattern <&4; do
+	while read -r pattern <&4; do
+		echo "Pattern: $pattern"
 		[ -z "$pattern" ] && break
-		echo $line
-		echo "$line" | grep -E -q "$pattern"
-		if [ $? -ne 0 ] ; then
-			printf "FAIL: expected backtrace entry \"%s\" got \"%s\"\n" "$pattern" "$line"
+
+		found=0
+
+		# Search lines in the perf script result
+		exec 3<$perf_script
+		while read line <&3; do
+			[ -z "$line" ] && break
+			echo "  Matching: $line"
+			! echo "$line" | grep -E -q "$pattern"
+			found=$?
+			[ $found -eq 1 ] && break
+		done
+
+		if [ $found -ne 1 ] ; then
+			printf "FAIL: Didn't find the expected backtrace entry \"%s\"\n" "$pattern"
 			return 1
 		fi
 	done

@@ -1609,7 +1609,7 @@ int proc_do_static_key(const struct ctl_table *table, int write,
 	return ret;
 }
 
-static struct ctl_table kern_table[] = {
+static const struct ctl_table kern_table[] = {
 	{
 		.procname	= "panic",
 		.data		= &panic_timeout,
@@ -1803,15 +1803,6 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 #endif
-	{
-		.procname	= "pid_max",
-		.data		= &pid_max,
-		.maxlen		= sizeof (int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &pid_max_min,
-		.extra2		= &pid_max_max,
-	},
 	{
 		.procname	= "panic_on_oops",
 		.data		= &panic_on_oops,
@@ -2030,7 +2021,7 @@ static struct ctl_table kern_table[] = {
 #endif
 };
 
-static struct ctl_table vm_table[] = {
+static const struct ctl_table vm_table[] = {
 	{
 		.procname	= "overcommit_memory",
 		.data		= &sysctl_overcommit_memory,

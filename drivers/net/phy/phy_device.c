@@ -32,6 +32,7 @@
 #include <linux/phy_link_topology.h>
 #include <linux/pse-pd/pse.h>
 #include <linux/property.h>
+#include <linux/ptp_clock_kernel.h>
 #include <linux/rtnetlink.h>
 #include <linux/sfp.h>
 #include <linux/skbuff.h>
@@ -59,14 +60,8 @@ EXPORT_SYMBOL_GPL(phy_gbit_features);
 __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_gbit_fibre_features) __ro_after_init;
 EXPORT_SYMBOL_GPL(phy_gbit_fibre_features);
 
-__ETHTOOL_DECLARE_LINK_MODE_MASK(phy_gbit_all_ports_features) __ro_after_init;
-EXPORT_SYMBOL_GPL(phy_gbit_all_ports_features);
-
 __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_features) __ro_after_init;
 EXPORT_SYMBOL_GPL(phy_10gbit_features);
-
-__ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_fec_features) __ro_after_init;
-EXPORT_SYMBOL_GPL(phy_10gbit_fec_features);
 
 const int phy_basic_ports_array[3] = {
 	ETHTOOL_LINK_MODE_Autoneg_BIT,
@@ -75,12 +70,7 @@ const int phy_basic_ports_array[3] = {
 };
 EXPORT_SYMBOL_GPL(phy_basic_ports_array);
 
-const int phy_fibre_port_array[1] = {
-	ETHTOOL_LINK_MODE_FIBRE_BIT,
-};
-EXPORT_SYMBOL_GPL(phy_fibre_port_array);
-
-const int phy_all_ports_features_array[7] = {
+static const int phy_all_ports_features_array[7] = {
 	ETHTOOL_LINK_MODE_Autoneg_BIT,
 	ETHTOOL_LINK_MODE_TP_BIT,
 	ETHTOOL_LINK_MODE_MII_BIT,
@@ -89,7 +79,6 @@ const int phy_all_ports_features_array[7] = {
 	ETHTOOL_LINK_MODE_BNC_BIT,
 	ETHTOOL_LINK_MODE_Backplane_BIT,
 };
-EXPORT_SYMBOL_GPL(phy_all_ports_features_array);
 
 const int phy_10_100_features_array[4] = {
 	ETHTOOL_LINK_MODE_10baseT_Half_BIT,
@@ -122,20 +111,6 @@ const int phy_10gbit_features_array[1] = {
 	ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
 };
 EXPORT_SYMBOL_GPL(phy_10gbit_features_array);
-
-static const int phy_10gbit_fec_features_array[1] = {
-	ETHTOOL_LINK_MODE_10000baseR_FEC_BIT,
-};
-
-__ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_full_features) __ro_after_init;
-EXPORT_SYMBOL_GPL(phy_10gbit_full_features);
-
-static const int phy_10gbit_full_features_array[] = {
-	ETHTOOL_LINK_MODE_10baseT_Full_BIT,
-	ETHTOOL_LINK_MODE_100baseT_Full_BIT,
-	ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
-	ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
-};
 
 static const int phy_eee_cap1_features_array[] = {
 	ETHTOOL_LINK_MODE_100baseT_Full_BIT,
@@ -198,20 +173,7 @@ static void features_init(void)
 	linkmode_set_bit_array(phy_gbit_features_array,
 			       ARRAY_SIZE(phy_gbit_features_array),
 			       phy_gbit_fibre_features);
-	linkmode_set_bit_array(phy_fibre_port_array,
-			       ARRAY_SIZE(phy_fibre_port_array),
-			       phy_gbit_fibre_features);
-
-	/* 10/100 half/full + 1000 half/full + TP/MII/FIBRE/AUI/BNC/Backplane*/
-	linkmode_set_bit_array(phy_all_ports_features_array,
-			       ARRAY_SIZE(phy_all_ports_features_array),
-			       phy_gbit_all_ports_features);
-	linkmode_set_bit_array(phy_10_100_features_array,
-			       ARRAY_SIZE(phy_10_100_features_array),
-			       phy_gbit_all_ports_features);
-	linkmode_set_bit_array(phy_gbit_features_array,
-			       ARRAY_SIZE(phy_gbit_features_array),
-			       phy_gbit_all_ports_features);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_FIBRE_BIT, phy_gbit_fibre_features);
 
 	/* 10/100 half/full + 1000 half/full + 10G full*/
 	linkmode_set_bit_array(phy_all_ports_features_array,
@@ -227,17 +189,6 @@ static void features_init(void)
 			       ARRAY_SIZE(phy_10gbit_features_array),
 			       phy_10gbit_features);
 
-	/* 10/100/1000/10G full */
-	linkmode_set_bit_array(phy_all_ports_features_array,
-			       ARRAY_SIZE(phy_all_ports_features_array),
-			       phy_10gbit_full_features);
-	linkmode_set_bit_array(phy_10gbit_full_features_array,
-			       ARRAY_SIZE(phy_10gbit_full_features_array),
-			       phy_10gbit_full_features);
-	/* 10G FEC only */
-	linkmode_set_bit_array(phy_10gbit_fec_features_array,
-			       ARRAY_SIZE(phy_10gbit_fec_features_array),
-			       phy_10gbit_fec_features);
 	linkmode_set_bit_array(phy_eee_cap1_features_array,
 			       ARRAY_SIZE(phy_eee_cap1_features_array),
 			       phy_eee_cap1_features);
@@ -1998,6 +1949,15 @@ void phy_detach(struct phy_device *phydev)
 
 	phy_suspend(phydev);
 	if (dev) {
+		struct hwtstamp_provider *hwprov;
+
+		hwprov = rtnl_dereference(dev->hwprov);
+		/* Disable timestamp if it is the one selected */
+		if (hwprov && hwprov->phydev == phydev) {
+			rcu_assign_pointer(dev->hwprov, NULL);
+			kfree_rcu(hwprov, rcu_head);
+		}
+
 		phydev->attached_dev->phydev = NULL;
 		phydev->attached_dev = NULL;
 		phy_link_topo_del_phy(dev, phydev);
@@ -2994,6 +2954,23 @@ void phy_support_eee(struct phy_device *phydev)
 EXPORT_SYMBOL(phy_support_eee);
 
 /**
+ * phy_disable_eee - Disable EEE for the PHY
+ * @phydev: Target phy_device struct
+ *
+ * This function is used by MAC drivers for MAC's which don't support EEE.
+ * It disables EEE on the PHY layer.
+ */
+void phy_disable_eee(struct phy_device *phydev)
+{
+	linkmode_zero(phydev->advertising_eee);
+	phydev->eee_cfg.tx_lpi_enabled = false;
+	phydev->eee_cfg.eee_enabled = false;
+	/* don't let userspace re-enable EEE advertisement */
+	linkmode_fill(phydev->eee_broken_modes);
+}
+EXPORT_SYMBOL_GPL(phy_disable_eee);
+
+/**
  * phy_support_sym_pause - Enable support of symmetrical pause
  * @phydev: target phy_device struct
  *
@@ -3773,6 +3750,8 @@ static const struct ethtool_phy_ops phy_ethtool_phy_ops = {
 static const struct phylib_stubs __phylib_stubs = {
 	.hwtstamp_get = __phy_hwtstamp_get,
 	.hwtstamp_set = __phy_hwtstamp_set,
+	.get_phy_stats = __phy_ethtool_get_phy_stats,
+	.get_link_ext_stats = __phy_ethtool_get_link_ext_stats,
 };
 
 static void phylib_register_stubs(void)

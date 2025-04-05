@@ -69,6 +69,9 @@
 
 #define DMUB_PC_SNAPSHOT_COUNT 10
 
+/* Default tracebuffer size if meta is absent. */
+#define DMUB_TRACE_BUFFER_SIZE (64 * 1024)
+
 /* Forward declarations */
 struct dmub_srv;
 struct dmub_srv_common_regs;

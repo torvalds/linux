@@ -209,7 +209,7 @@ static int __symbol__account_cycles(struct cyc_hist *ch,
 }
 
 static int __symbol__inc_addr_samples(struct map_symbol *ms,
-				      struct annotated_source *src, int evidx, u64 addr,
+				      struct annotated_source *src, struct evsel *evsel, u64 addr,
 				      struct perf_sample *sample)
 {
 	struct symbol *sym = ms->sym;
@@ -228,14 +228,14 @@ static int __symbol__inc_addr_samples(struct map_symbol *ms,
 	}
 
 	offset = addr - sym->start;
-	h = annotated_source__histogram(src, evidx);
+	h = annotated_source__histogram(src, evsel);
 	if (h == NULL) {
 		pr_debug("%s(%d): ENOMEM! sym->name=%s, start=%#" PRIx64 ", addr=%#" PRIx64 ", end=%#" PRIx64 ", func: %d\n",
 			 __func__, __LINE__, sym->name, sym->start, addr, sym->end, sym->type == STT_FUNC);
 		return -ENOMEM;
 	}
 
-	hash_key = offset << 16 | evidx;
+	hash_key = offset << 16 | evsel->core.idx;
 	if (!hashmap__find(src->samples, hash_key, &entry)) {
 		entry = zalloc(sizeof(*entry));
 		if (entry == NULL)
@@ -252,7 +252,7 @@ static int __symbol__inc_addr_samples(struct map_symbol *ms,
 
 	pr_debug3("%#" PRIx64 " %s: period++ [addr: %#" PRIx64 ", %#" PRIx64
 		  ", evidx=%d] => nr_samples: %" PRIu64 ", period: %" PRIu64 "\n",
-		  sym->start, sym->name, addr, addr - sym->start, evidx,
+		  sym->start, sym->name, addr, addr - sym->start, evsel->core.idx,
 		  entry->nr_samples, entry->period);
 	return 0;
 }
@@ -323,7 +323,7 @@ static int symbol__inc_addr_samples(struct map_symbol *ms,
 	if (sym == NULL)
 		return 0;
 	src = symbol__hists(sym, evsel->evlist->core.nr_entries);
-	return src ? __symbol__inc_addr_samples(ms, src, evsel->core.idx, addr, sample) : 0;
+	return src ? __symbol__inc_addr_samples(ms, src, evsel, addr, sample) : 0;
 }
 
 static int symbol__account_br_cntr(struct annotated_branch *branch,
@@ -861,15 +861,14 @@ static void calc_percent(struct annotation *notes,
 			 s64 offset, s64 end)
 {
 	struct hists *hists = evsel__hists(evsel);
-	int evidx = evsel->core.idx;
-	struct sym_hist *sym_hist = annotation__histogram(notes, evidx);
+	struct sym_hist *sym_hist = annotation__histogram(notes, evsel);
 	unsigned int hits = 0;
 	u64 period = 0;
 
 	while (offset < end) {
 		struct sym_hist_entry *entry;
 
-		entry = annotated_source__hist_entry(notes->src, evidx, offset);
+		entry = annotated_source__hist_entry(notes->src, evsel, offset);
 		if (entry) {
 			hits   += entry->nr_samples;
 			period += entry->period;
@@ -1140,15 +1139,14 @@ static void print_summary(struct rb_root *root, const char *filename)
 
 static void symbol__annotate_hits(struct symbol *sym, struct evsel *evsel)
 {
-	int evidx = evsel->core.idx;
 	struct annotation *notes = symbol__annotation(sym);
-	struct sym_hist *h = annotation__histogram(notes, evidx);
+	struct sym_hist *h = annotation__histogram(notes, evsel);
 	u64 len = symbol__size(sym), offset;
 
 	for (offset = 0; offset < len; ++offset) {
 		struct sym_hist_entry *entry;
 
-		entry = annotated_source__hist_entry(notes->src, evidx, offset);
+		entry = annotated_source__hist_entry(notes->src, evsel, offset);
 		if (entry && entry->nr_samples != 0)
 			printf("%*" PRIx64 ": %" PRIu64 "\n", BITS_PER_LONG / 2,
 			       sym->start + offset, entry->nr_samples);
@@ -1178,7 +1176,7 @@ int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel)
 	const char *d_filename;
 	const char *evsel_name = evsel__name(evsel);
 	struct annotation *notes = symbol__annotation(sym);
-	struct sym_hist *h = annotation__histogram(notes, evsel->core.idx);
+	struct sym_hist *h = annotation__histogram(notes, evsel);
 	struct annotation_line *pos, *queue = NULL;
 	struct annotation_options *opts = &annotate_opts;
 	u64 start = map__rip_2objdump(map, sym->start);
@@ -1364,18 +1362,18 @@ out_free_filename:
 	return err;
 }
 
-void symbol__annotate_zero_histogram(struct symbol *sym, int evidx)
+void symbol__annotate_zero_histogram(struct symbol *sym, struct evsel *evsel)
 {
 	struct annotation *notes = symbol__annotation(sym);
-	struct sym_hist *h = annotation__histogram(notes, evidx);
+	struct sym_hist *h = annotation__histogram(notes, evsel);
 
 	memset(h, 0, sizeof(*notes->src->histograms) * notes->src->nr_histograms);
 }
 
-void symbol__annotate_decay_histogram(struct symbol *sym, int evidx)
+void symbol__annotate_decay_histogram(struct symbol *sym, struct evsel *evsel)
 {
 	struct annotation *notes = symbol__annotation(sym);
-	struct sym_hist *h = annotation__histogram(notes, evidx);
+	struct sym_hist *h = annotation__histogram(notes, evsel);
 	struct annotation_line *al;
 
 	h->nr_samples = 0;
@@ -1385,7 +1383,7 @@ void symbol__annotate_decay_histogram(struct symbol *sym, int evidx)
 		if (al->offset == -1)
 			continue;
 
-		entry = annotated_source__hist_entry(notes->src, evidx, al->offset);
+		entry = annotated_source__hist_entry(notes->src, evsel, al->offset);
 		if (entry == NULL)
 			continue;
 
@@ -2102,6 +2100,57 @@ int symbol__annotate2(struct map_symbol *ms, struct evsel *evsel,
 	return 0;
 }
 
+const char * const perf_disassembler__strs[] = {
+	[PERF_DISASM_UNKNOWN]  = "unknown",
+	[PERF_DISASM_LLVM]     = "llvm",
+	[PERF_DISASM_CAPSTONE] = "capstone",
+	[PERF_DISASM_OBJDUMP]  = "objdump",
+};
+
+
+static void annotation_options__add_disassembler(struct annotation_options *options,
+						 enum perf_disassembler dis)
+{
+	for (u8 i = 0; i < ARRAY_SIZE(options->disassemblers); i++) {
+		if (options->disassemblers[i] == dis) {
+			/* Disassembler is already present then don't add again. */
+			return;
+		}
+		if (options->disassemblers[i] == PERF_DISASM_UNKNOWN) {
+			/* Found a free slot. */
+			options->disassemblers[i] = dis;
+			return;
+		}
+	}
+	pr_err("Failed to add disassembler %d\n", dis);
+}
+
+static int annotation_options__add_disassemblers_str(struct annotation_options *options,
+						const char *str)
+{
+	while (str && *str != '\0') {
+		const char *comma = strchr(str, ',');
+		int len = comma ? comma - str : (int)strlen(str);
+		bool match = false;
+
+		for (u8 i = 0; i < ARRAY_SIZE(perf_disassembler__strs); i++) {
+			const char *dis_str = perf_disassembler__strs[i];
+
+			if (len == (int)strlen(dis_str) && !strncmp(str, dis_str, len)) {
+				annotation_options__add_disassembler(options, i);
+				match = true;
+				break;
+			}
+		}
+		if (!match) {
+			pr_err("Invalid disassembler '%.*s'\n", len, str);
+			return -1;
+		}
+		str = comma ? comma + 1 : NULL;
+	}
+	return 0;
+}
+
 static int annotation__config(const char *var, const char *value, void *data)
 {
 	struct annotation_options *opt = data;
@@ -2117,11 +2166,10 @@ static int annotation__config(const char *var, const char *value, void *data)
 		else if (opt->offset_level < ANNOTATION__MIN_OFFSET_LEVEL)
 			opt->offset_level = ANNOTATION__MIN_OFFSET_LEVEL;
 	} else if (!strcmp(var, "annotate.disassemblers")) {
-		opt->disassemblers_str = strdup(value);
-		if (!opt->disassemblers_str) {
-			pr_err("Not enough memory for annotate.disassemblers\n");
-			return -1;
-		}
+		int err = annotation_options__add_disassemblers_str(opt, value);
+
+		if (err)
+			return err;
 	} else if (!strcmp(var, "annotate.hide_src_code")) {
 		opt->hide_src_code = perf_config_bool("hide_src_code", value);
 	} else if (!strcmp(var, "annotate.jump_arrows")) {
@@ -2187,9 +2235,25 @@ void annotation_options__exit(void)
 	zfree(&annotate_opts.objdump_path);
 }
 
+static void annotation_options__default_init_disassemblers(struct annotation_options *options)
+{
+	if (options->disassemblers[0] != PERF_DISASM_UNKNOWN) {
+		/* Already initialized. */
+		return;
+	}
+#ifdef HAVE_LIBLLVM_SUPPORT
+	annotation_options__add_disassembler(options, PERF_DISASM_LLVM);
+#endif
+#ifdef HAVE_LIBCAPSTONE_SUPPORT
+	annotation_options__add_disassembler(options, PERF_DISASM_CAPSTONE);
+#endif
+	annotation_options__add_disassembler(options, PERF_DISASM_OBJDUMP);
+}
+
 void annotation_config__init(void)
 {
 	perf_config(annotation__config, &annotate_opts);
+	annotation_options__default_init_disassemblers(&annotate_opts);
 }
 
 static unsigned int parse_percent_type(char *str1, char *str2)

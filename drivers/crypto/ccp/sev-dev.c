@@ -249,7 +249,7 @@ static struct file *open_file_as_root(const char *filename, int flags, umode_t m
 	fp = file_open_root(&root, filename, flags, mode);
 	path_put(&root);
 
-	revert_creds(old_cred);
+	put_cred(revert_creds(old_cred));
 
 	return fp;
 }

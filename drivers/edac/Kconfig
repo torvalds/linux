@@ -78,6 +78,7 @@ config EDAC_GHES
 config EDAC_AMD64
 	tristate "AMD64 (Opteron, Athlon64)"
 	depends on AMD_NB && EDAC_DECODE_MCE
+	depends on AMD_NODE
 	imply AMD_ATL
 	help
 	  Support for error detection and correction of DRAM ECC errors on
@@ -302,14 +303,6 @@ config EDAC_PASEMI
 	help
 	  Support for error detection and correction on PA Semi
 	  PWRficient.
-
-config EDAC_CELL
-	tristate "Cell Broadband Engine memory controller"
-	depends on PPC_CELL_COMMON
-	help
-	  Support for error detection and correction on the
-	  Cell Broadband Engine internal memory controller
-	  on platform without a hypervisor
 
 config EDAC_CPC925
 	tristate "IBM CPC925 Memory Controller (PPC970FX)"
@@ -546,5 +539,13 @@ config EDAC_VERSAL
 	  Support injecting both correctable and uncorrectable errors
 	  for debugging purposes.
 
+config EDAC_LOONGSON
+	tristate "Loongson Memory Controller"
+	depends on LOONGARCH && ACPI
+	help
+	  Support for error detection and correction on the Loongson
+	  family memory controller. This driver reports single bit
+	  errors (CE) only. Loongson-3A5000/3C5000/3D5000/3A6000/3C6000
+	  are compatible.
 
 endif # EDAC

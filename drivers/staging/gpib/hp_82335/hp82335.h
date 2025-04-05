@@ -17,9 +17,6 @@ struct hp82335_priv  {
 	unsigned long raw_iobase;
 };
 
-// interfaces
-extern gpib_interface_t hp82335_interface;
-
 // interface functions
 int hp82335_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end, size_t *bytes_read);
 int hp82335_write(gpib_board_t *board, uint8_t *buffer, size_t length,

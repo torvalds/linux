@@ -4802,7 +4802,7 @@ err_unlock:
 	return ret;
 }
 
-static struct ctl_table oa_table[] = {
+static const struct ctl_table oa_table[] = {
 	{
 	 .procname = "perf_stream_paranoid",
 	 .data = &i915_perf_stream_paranoid,

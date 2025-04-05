@@ -888,7 +888,7 @@ static struct phy_driver tja11xx_driver[] = {
 
 module_phy_driver(tja11xx_driver);
 
-static struct mdio_device_id __maybe_unused tja11xx_tbl[] = {
+static const struct mdio_device_id __maybe_unused tja11xx_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(PHY_ID_TJA1100) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_TJA1101) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_TJA1102) },

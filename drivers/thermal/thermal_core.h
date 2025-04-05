@@ -56,7 +56,7 @@ struct thermal_governor {
 	void (*unbind_from_tz)(struct thermal_zone_device *tz);
 	void (*trip_crossed)(struct thermal_zone_device *tz,
 			     const struct thermal_trip *trip,
-			     bool crossed_up);
+			     bool upward);
 	void (*manage)(struct thermal_zone_device *tz);
 	void (*update_tz)(struct thermal_zone_device *tz,
 			  enum thermal_notify_event reason);

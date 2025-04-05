@@ -293,6 +293,13 @@ properties:
       PD negotiation till BC1.2 detection completes.
     default: 0
 
+  pd-revision:
+    description: Specifies the maximum USB PD revision and version supported by
+      the connector. This property is specified in the following order;
+      <revision_major, revision_minor, version_major, version_minor>.
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+    maxItems: 4
+
 dependencies:
   sink-vdos-v1: [ sink-vdos ]
   sink-vdos: [ sink-vdos-v1 ]

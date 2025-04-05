@@ -269,24 +269,21 @@ static void hisi_pa_pmu_clear_int_status(struct hisi_pmu *pa_pmu, int idx)
 static int hisi_pa_pmu_init_data(struct platform_device *pdev,
 				   struct hisi_pmu *pa_pmu)
 {
+	hisi_uncore_pmu_init_topology(pa_pmu, &pdev->dev);
+
 	/*
 	 * As PA PMU is in a SICL, use the SICL_ID and the index ID
 	 * to identify the PA PMU.
 	 */
-	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
-				     &pa_pmu->sicl_id)) {
+	if (pa_pmu->topo.sicl_id < 0) {
 		dev_err(&pdev->dev, "Cannot read sicl-id!\n");
 		return -EINVAL;
 	}
 
-	if (device_property_read_u32(&pdev->dev, "hisilicon,idx-id",
-				     &pa_pmu->index_id)) {
+	if (pa_pmu->topo.index_id < 0) {
 		dev_err(&pdev->dev, "Cannot read idx-id!\n");
 		return -EINVAL;
 	}
-
-	pa_pmu->ccl_id = -1;
-	pa_pmu->sccl_id = -1;
 
 	pa_pmu->dev_info = device_get_match_data(&pdev->dev);
 	if (!pa_pmu->dev_info)
@@ -356,29 +353,6 @@ static const struct attribute_group hisi_h60pa_pmu_events_group = {
 	.attrs = hisi_h60pa_pmu_events_attr,
 };
 
-static DEVICE_ATTR(cpumask, 0444, hisi_cpumask_sysfs_show, NULL);
-
-static struct attribute *hisi_pa_pmu_cpumask_attrs[] = {
-	&dev_attr_cpumask.attr,
-	NULL
-};
-
-static const struct attribute_group hisi_pa_pmu_cpumask_attr_group = {
-	.attrs = hisi_pa_pmu_cpumask_attrs,
-};
-
-static struct device_attribute hisi_pa_pmu_identifier_attr =
-	__ATTR(identifier, 0444, hisi_uncore_pmu_identifier_attr_show, NULL);
-
-static struct attribute *hisi_pa_pmu_identifier_attrs[] = {
-	&hisi_pa_pmu_identifier_attr.attr,
-	NULL
-};
-
-static const struct attribute_group hisi_pa_pmu_identifier_group = {
-	.attrs = hisi_pa_pmu_identifier_attrs,
-};
-
 static struct hisi_pa_pmu_int_regs hisi_pa_pmu_regs = {
 	.mask_offset = PA_INT_MASK,
 	.clear_offset = PA_INT_CLEAR,
@@ -388,8 +362,8 @@ static struct hisi_pa_pmu_int_regs hisi_pa_pmu_regs = {
 static const struct attribute_group *hisi_pa_pmu_v2_attr_groups[] = {
 	&hisi_pa_pmu_v2_format_group,
 	&hisi_pa_pmu_v2_events_group,
-	&hisi_pa_pmu_cpumask_attr_group,
-	&hisi_pa_pmu_identifier_group,
+	&hisi_pmu_cpumask_attr_group,
+	&hisi_pmu_identifier_group,
 	NULL
 };
 
@@ -402,8 +376,8 @@ static const struct hisi_pmu_dev_info hisi_h32pa_v2 = {
 static const struct attribute_group *hisi_pa_pmu_v3_attr_groups[] = {
 	&hisi_pa_pmu_v2_format_group,
 	&hisi_pa_pmu_v3_events_group,
-	&hisi_pa_pmu_cpumask_attr_group,
-	&hisi_pa_pmu_identifier_group,
+	&hisi_pmu_cpumask_attr_group,
+	&hisi_pmu_identifier_group,
 	NULL
 };
 
@@ -422,8 +396,8 @@ static struct hisi_pa_pmu_int_regs hisi_h60pa_pmu_regs = {
 static const struct attribute_group *hisi_h60pa_pmu_attr_groups[] = {
 	&hisi_pa_pmu_v2_format_group,
 	&hisi_h60pa_pmu_events_group,
-	&hisi_pa_pmu_cpumask_attr_group,
-	&hisi_pa_pmu_identifier_group,
+	&hisi_pmu_cpumask_attr_group,
+	&hisi_pmu_identifier_group,
 	NULL
 };
 
@@ -488,9 +462,9 @@ static int hisi_pa_pmu_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sicl%d_%s%u",
-			      pa_pmu->sicl_id, pa_pmu->dev_info->name,
-			      pa_pmu->index_id);
+	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sicl%d_%s%d",
+			      pa_pmu->topo.sicl_id, pa_pmu->dev_info->name,
+			      pa_pmu->topo.index_id);
 	if (!name)
 		return -ENOMEM;
 
@@ -569,6 +543,7 @@ static void __exit hisi_pa_pmu_module_exit(void)
 }
 module_exit(hisi_pa_pmu_module_exit);
 
+MODULE_IMPORT_NS("HISI_PMU");
 MODULE_DESCRIPTION("HiSilicon Protocol Adapter uncore PMU driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Shaokun Zhang <zhangshaokun@hisilicon.com>");

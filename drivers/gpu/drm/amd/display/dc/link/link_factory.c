@@ -101,6 +101,7 @@ static void construct_link_service_validation(struct link_service *link_srv)
 	link_srv->validate_mode_timing = link_validate_mode_timing;
 	link_srv->dp_link_bandwidth_kbps = dp_link_bandwidth_kbps;
 	link_srv->validate_dpia_bandwidth = link_validate_dpia_bandwidth;
+	link_srv->dp_required_hblank_size_bytes = dp_required_hblank_size_bytes;
 }
 
 /* link dpms owns the programming sequence of stream's dpms state associated
@@ -698,7 +699,7 @@ static bool construct_phy(struct dc_link *link,
 						  link->chip_caps);
 				}
 
-				if (link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) {
+				if ((link->chip_caps & AMD_EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK) == AMD_EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) {
 					link->bios_forced_drive_settings.VOLTAGE_SWING =
 						(bios->integrated_info->ext_disp_conn_info.fixdpvoltageswing & 0x3);
 					link->bios_forced_drive_settings.PRE_EMPHASIS =

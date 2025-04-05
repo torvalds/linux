@@ -45,17 +45,9 @@
 		};
 	};
 
-	/*
-	 * RAM: 4 GiB (eMCP):
-	 *   - 2 GiB at 0x80000000
-	 *   - 2 GiB at 0x880000000
-	 *
-	 * 0xbab00000..0xbfffffff: secure memory (85 MiB).
-	 */
 	memory@80000000 {
 		device_type = "memory";
-		reg = <0x0 0x80000000 0x3ab00000>,
-		      <0x0 0xc0000000 0x40000000>,
+		reg = <0x0 0x80000000 0x80000000>,
 		      <0x8 0x80000000 0x80000000>;
 	};
 
@@ -145,6 +137,11 @@
 		#address-cells = <2>;
 		#size-cells = <1>;
 		ranges;
+
+		secure_mem: memory@bab00000 {
+			reg = <0x0 0xbab00000 0x5500000>;
+			no-map;
+		};
 
 		ramoops@f0000000 {
 			compatible = "ramoops";

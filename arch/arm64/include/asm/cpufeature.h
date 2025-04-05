@@ -671,6 +671,7 @@ static inline bool supports_clearbhb(int scope)
 }
 
 const struct cpumask *system_32bit_el0_cpumask(void);
+const struct cpumask *fallback_32bit_el0_cpumask(void);
 DECLARE_STATIC_KEY_FALSE(arm64_mismatched_32bit_el0);
 
 static inline bool system_supports_32bit_el0(void)
@@ -852,8 +853,7 @@ static inline bool system_supports_gcs(void)
 
 static inline bool system_supports_haft(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_HAFT) &&
-		cpus_have_final_cap(ARM64_HAFT);
+	return cpus_have_final_cap(ARM64_HAFT);
 }
 
 static __always_inline bool system_supports_mpam(void)

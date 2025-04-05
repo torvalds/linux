@@ -195,7 +195,7 @@ static bool __ast_dp_wait_enable(struct ast_device *ast, bool enabled)
 	if (enabled)
 		vgacrdf_test |= AST_IO_VGACRDF_DP_VIDEO_ENABLE;
 
-	for (i = 0; i < 200; ++i) {
+	for (i = 0; i < 1000; ++i) {
 		if (i)
 			mdelay(1);
 		vgacrdf = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xdf,

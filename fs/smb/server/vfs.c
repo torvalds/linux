@@ -1264,6 +1264,8 @@ int ksmbd_vfs_kern_path_locked(struct ksmbd_work *work, char *name,
 					      filepath,
 					      flags,
 					      path);
+			if (!is_last)
+				next[0] = '/';
 			if (err)
 				goto out2;
 			else if (is_last)
@@ -1271,7 +1273,6 @@ int ksmbd_vfs_kern_path_locked(struct ksmbd_work *work, char *name,
 			path_put(parent_path);
 			*parent_path = *path;
 
-			next[0] = '/';
 			remain_len -= filename_len + 1;
 		}
 
@@ -1853,13 +1854,6 @@ int ksmbd_vfs_copy_file_ranges(struct ksmbd_work *work,
 void ksmbd_vfs_posix_lock_wait(struct file_lock *flock)
 {
 	wait_event(flock->c.flc_wait, !flock->c.flc_blocker);
-}
-
-int ksmbd_vfs_posix_lock_wait_timeout(struct file_lock *flock, long timeout)
-{
-	return wait_event_interruptible_timeout(flock->c.flc_wait,
-						!flock->c.flc_blocker,
-						timeout);
 }
 
 void ksmbd_vfs_posix_lock_unblock(struct file_lock *flock)

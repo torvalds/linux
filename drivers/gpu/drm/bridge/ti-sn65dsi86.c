@@ -1970,9 +1970,9 @@ static int ti_sn65dsi86_probe(struct i2c_client *client)
 	return ti_sn65dsi86_add_aux_device(pdata, &pdata->aux_aux, "aux");
 }
 
-static struct i2c_device_id ti_sn65dsi86_id[] = {
-	{ "ti,sn65dsi86", 0},
-	{},
+static const struct i2c_device_id ti_sn65dsi86_id[] = {
+	{ "ti,sn65dsi86" },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, ti_sn65dsi86_id);
 

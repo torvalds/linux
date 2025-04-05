@@ -1855,6 +1855,9 @@ struct ieee80211_channel_switch {
  *	operation on this interface and request a channel context without
  *	the AP definition. Use this e.g. because the device is able to
  *	handle OFDMA (downlink and trigger for uplink) on a per-AP basis.
+ * @IEEE80211_VIF_REMOVE_AP_AFTER_DISASSOC: indicates that the AP sta should
+ *	be removed only after setting the vif as unassociated, and not the
+ *	opposite. Only relevant for STA vifs.
  */
 enum ieee80211_vif_flags {
 	IEEE80211_VIF_BEACON_FILTER		= BIT(0),
@@ -1863,6 +1866,7 @@ enum ieee80211_vif_flags {
 	IEEE80211_VIF_GET_NOA_UPDATE		= BIT(3),
 	IEEE80211_VIF_EML_ACTIVE	        = BIT(4),
 	IEEE80211_VIF_IGNORE_OFDMA_WIDER_BW	= BIT(5),
+	IEEE80211_VIF_REMOVE_AP_AFTER_DISASSOC	= BIT(6),
 };
 
 
@@ -2216,7 +2220,7 @@ enum ieee80211_key_flags {
  * @tx_pn: PN used for TX keys, may be used by the driver as well if it
  *	needs to do software PN assignment by itself (e.g. due to TSO)
  * @flags: key flags, see &enum ieee80211_key_flags.
- * @keyidx: the key index (0-3)
+ * @keyidx: the key index (0-7)
  * @keylen: key material length
  * @key: key material. For ALG_TKIP the key is encoded as a 256-bit (32 byte)
  * 	data block:
@@ -2225,7 +2229,7 @@ enum ieee80211_key_flags {
  * 	- Temporal Authenticator Rx MIC Key (64 bits)
  * @icv_len: The ICV length for this key type
  * @iv_len: The IV length for this key type
- * @link_id: the link ID for MLO, or -1 for non-MLO or pairwise keys
+ * @link_id: the link ID, 0 for non-MLO, or -1 for pairwise keys
  */
 struct ieee80211_key_conf {
 	atomic64_t tx_pn;
@@ -2335,6 +2339,8 @@ enum ieee80211_sta_rx_bandwidth {
 	IEEE80211_STA_RX_BW_160,
 	IEEE80211_STA_RX_BW_320,
 };
+
+#define IEEE80211_STA_RX_BW_MAX	IEEE80211_STA_RX_BW_320
 
 /**
  * struct ieee80211_sta_rates - station rate selection table
@@ -4762,7 +4768,7 @@ struct ieee80211_ops {
 	u32 (*get_expected_throughput)(struct ieee80211_hw *hw,
 				       struct ieee80211_sta *sta);
 	int (*get_txpower)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			   int *dbm);
+			   unsigned int link_id, int *dbm);
 
 	int (*tdls_channel_switch)(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
@@ -7733,6 +7739,50 @@ ieee80211_chan_width_to_rx_bw(enum nl80211_chan_width width)
 		return IEEE80211_STA_RX_BW_320;
 	}
 }
+
+/**
+ * ieee80211_prepare_rx_omi_bw - prepare for sending BW RX OMI
+ * @link_sta: the link STA the OMI is going to be sent to
+ * @bw: the bandwidth requested
+ *
+ * When the driver decides to do RX OMI to change bandwidth with a STA
+ * it calls this function to prepare, then sends the OMI, and finally
+ * calls ieee80211_finalize_rx_omi_bw().
+ *
+ * Note that the (link) STA rate control is updated accordingly as well,
+ * but the chanctx might not be updated if there are other users.
+ * If the intention is to reduce the listen bandwidth, the driver must
+ * ensure there are no TDLS stations nor other uses of the chanctx.
+ *
+ * Also note that in order to sequence correctly, narrowing bandwidth
+ * will only happen in ieee80211_finalize_rx_omi_bw(), whereas widening
+ * again (e.g. going back to normal) will happen here.
+ *
+ * Note that we treat this symmetrically, so if the driver calls this
+ * and tells the peer to only send with a lower bandwidth, we assume
+ * that the driver also wants to only send at that lower bandwidth, to
+ * allow narrowing of the chanctx request for this station/interface.
+ *
+ * Finally, the driver must ensure that if the function returned %true,
+ * ieee80211_finalize_rx_omi_bw() is also called, even for example in
+ * case of HW restart.
+ *
+ * Context: Must be called with wiphy mutex held, and will call back
+ *	    into the driver, so ensure no driver locks are held.
+ *
+ * Return: %true if changes are going to be made, %false otherwise
+ */
+bool ieee80211_prepare_rx_omi_bw(struct ieee80211_link_sta *link_sta,
+				 enum ieee80211_sta_rx_bandwidth bw);
+
+/**
+ * ieee80211_finalize_rx_omi_bw - finalize BW RX OMI update
+ * @link_sta: the link STA the OMI was sent to
+ *
+ * See ieee80211_client_prepare_rx_omi_bw(). Context is the same here
+ * as well.
+ */
+void ieee80211_finalize_rx_omi_bw(struct ieee80211_link_sta *link_sta);
 
 /* for older drivers - let's not document these ... */
 int ieee80211_emulate_add_chanctx(struct ieee80211_hw *hw,

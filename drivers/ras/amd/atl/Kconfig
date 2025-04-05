@@ -10,6 +10,7 @@
 config AMD_ATL
 	tristate "AMD Address Translation Library"
 	depends on AMD_NB && X86_64 && RAS
+	depends on AMD_NODE
 	depends on MEMORY_FAILURE
 	default N
 	help

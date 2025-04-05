@@ -35,6 +35,7 @@ Security-related interfaces
    mfd_noexec
    spec_ctrl
    tee
+   check_exec
 
 Devices and I/O
 ===============
@@ -63,6 +64,7 @@ Everything else
    vduse
    futex2
    perf_ring_buffer
+   ntsync
 
 .. only::  subproject and html
 

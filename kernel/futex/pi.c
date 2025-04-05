@@ -982,7 +982,7 @@ retry_private:
 	/*
 	 * Only actually queue now that the atomic ops are done:
 	 */
-	__futex_queue(&q, hb);
+	__futex_queue(&q, hb, current);
 
 	if (trylock) {
 		ret = rt_mutex_futex_trylock(&q.pi_state->pi_mutex);
@@ -1020,10 +1020,7 @@ retry_private:
 	 * it sees the futex_q::pi_state.
 	 */
 	ret = __rt_mutex_start_proxy_lock(&q.pi_state->pi_mutex, &rt_waiter, current, &wake_q);
-	preempt_disable();
-	raw_spin_unlock_irq(&q.pi_state->pi_mutex.wait_lock);
-	wake_up_q(&wake_q);
-	preempt_enable();
+	raw_spin_unlock_irq_wake(&q.pi_state->pi_mutex.wait_lock, &wake_q);
 
 	if (ret) {
 		if (ret == 1)

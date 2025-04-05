@@ -239,7 +239,7 @@ examples:
 
                 qcom,gsi-loader = "self";
                 memory-region = <&ipa_fw_mem>;
-                firmware-name = "qcom/sc7180-trogdor/modem/modem.mdt";
+                firmware-name = "qcom/sc7180-trogdor/modem/modem.mbn";
 
                 iommus = <&apps_smmu 0x440 0x0>,
                          <&apps_smmu 0x442 0x0>;

@@ -66,7 +66,7 @@ config DRM_XE_DEBUG_MEM
 	bool "Enable passing SYS/VRAM addresses to user space"
 	default n
 	help
-	  Pass object location trough uapi. Intended for extended
+	  Pass object location through uapi. Intended for extended
 	  testing and development only.
 
 	  Recommended for driver developers only.
@@ -104,5 +104,5 @@ config DRM_XE_USERPTR_INVAL_INJECT
          Choose this option when debugging error paths that
 	 are hit during checks for userptr invalidations.
 
-	 Recomended for driver developers only.
+	 Recommended for driver developers only.
 	 If in doubt, say "N".

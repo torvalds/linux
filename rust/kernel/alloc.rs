@@ -123,7 +123,7 @@ pub mod flags {
 /// [`Allocator`] is designed to be implemented as a ZST; [`Allocator`] functions do not operate on
 /// an object instance.
 ///
-/// In order to be able to support `#[derive(SmartPointer)]` later on, we need to avoid a design
+/// In order to be able to support `#[derive(CoercePointee)]` later on, we need to avoid a design
 /// that requires an `Allocator` to be instantiated, hence its functions must not contain any kind
 /// of `self` parameter.
 ///

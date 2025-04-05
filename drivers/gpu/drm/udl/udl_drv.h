@@ -26,7 +26,6 @@ struct drm_mode_create_dumb;
 
 #define DRIVER_NAME		"udl"
 #define DRIVER_DESC		"DisplayLink"
-#define DRIVER_DATE		"20120220"
 
 #define DRIVER_MAJOR		0
 #define DRIVER_MINOR		0

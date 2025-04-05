@@ -695,7 +695,7 @@ int ibwait(gpib_board_t *board, int wait_mask, int clear_mask, int set_mask,
 
 	/* make sure we only clear status bits that we are reporting */
 	if (*status & clear_mask || set_mask)
-		general_ibstatus(board, status_queue, *status & clear_mask, set_mask, 0);
+		general_ibstatus(board, status_queue, *status & clear_mask, set_mask, NULL);
 
 	return 0;
 }

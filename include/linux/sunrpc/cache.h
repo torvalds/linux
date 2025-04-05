@@ -222,6 +222,8 @@ static inline bool cache_is_expired(struct cache_detail *detail, struct cache_he
 	return detail->flush_time >= h->last_refresh;
 }
 
+extern int cache_check_rcu(struct cache_detail *detail,
+		       struct cache_head *h, struct cache_req *rqstp);
 extern int cache_check(struct cache_detail *detail,
 		       struct cache_head *h, struct cache_req *rqstp);
 extern void cache_flush(void);

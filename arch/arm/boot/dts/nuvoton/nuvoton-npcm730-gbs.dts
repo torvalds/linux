@@ -661,7 +661,7 @@
 	clock-frequency = <100000>;
 	status = "okay";
 
-	mb_fru@50 {
+	eeprom@50 {
 		compatible = "atmel,24c64";
 		reg = <0x50>;
 	};
@@ -704,7 +704,7 @@
 				reg = <0x5d>;
 				status = "okay";
 			};
-			fan_fru@51 {
+			eeprom@51 {
 				compatible = "atmel,24c64";
 				reg = <0x51>;
 			};
@@ -714,7 +714,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <3>;
-			hsbp_fru@52 {
+			eeprom@52 {
 				compatible = "atmel,24c64";
 				reg = <0x52>;
 				status = "okay";

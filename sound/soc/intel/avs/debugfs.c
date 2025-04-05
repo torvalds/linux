@@ -10,6 +10,7 @@
 #include <linux/kfifo.h>
 #include <linux/wait.h>
 #include <linux/sched/signal.h>
+#include <linux/string_helpers.h>
 #include <sound/soc.h>
 #include "avs.h"
 #include "messages.h"

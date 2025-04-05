@@ -1,0 +1,173 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/mbvl,gpex40-pcie.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Mobiveil AXI PCIe Host Bridge
+
+maintainers:
+  - Frank Li <Frank Li@nxp.com>
+
+description:
+  Mobiveil's GPEX 4.0 is a PCIe Gen4 host bridge IP. This configurable IP
+  has up to 8 outbound and inbound windows for address translation.
+
+  NXP Layerscape PCIe Gen4 controller (Deprecated) base on Mobiveil's GPEX 4.0.
+
+properties:
+  compatible:
+    enum:
+      - fsl,lx2160a-pcie
+      - mbvl,gpex40-pcie
+
+  reg:
+    items:
+      - description: PCIe controller registers
+      - description: Bridge config registers
+      - description: GPIO registers to control slot power
+      - description: MSI registers
+    minItems: 2
+
+  reg-names:
+    items:
+      - const: csr_axi_slave
+      - const: config_axi_slave
+      - const: gpio_slave
+      - const: apb_csr
+    minItems: 2
+
+  apio-wins:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      number of requested APIO outbound windows
+        1. Config window
+        2. Memory window
+    default: 2
+    maximum: 256
+
+  ppio-wins:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: number of requested PPIO inbound windows
+    default: 1
+    maximum: 256
+
+  interrupt-controller: true
+
+  "#interrupt-cells":
+    const: 1
+
+  interrupts:
+    minItems: 1
+    maxItems: 3
+
+  interrupt-names:
+    minItems: 1
+    maxItems: 3
+
+  dma-coherent: true
+
+  msi-parent: true
+
+required:
+  - compatible
+  - reg
+  - reg-names
+
+allOf:
+  - $ref: /schemas/pci/pci-host-bridge.yaml#
+  - if:
+      properties:
+        compatible:
+          enum:
+            - fsl,lx2160a-pcie
+    then:
+      properties:
+        reg:
+          maxItems: 2
+
+        reg-names:
+          maxItems: 2
+
+        interrupts:
+          minItems: 3
+
+        interrupt-names:
+          items:
+            - const: aer
+            - const: pme
+            - const: intr
+    else:
+      properties:
+        dma-coherent: false
+        msi-parent: false
+        interrupts:
+          maxItems: 1
+        interrupt-names: false
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    pcie@b0000000 {
+        compatible = "mbvl,gpex40-pcie";
+        reg = <0xb0000000 0x00010000>,
+              <0xa0000000 0x00001000>,
+              <0xff000000 0x00200000>,
+              <0xb0010000 0x00001000>;
+        reg-names = "csr_axi_slave",
+                    "config_axi_slave",
+                    "gpio_slave",
+                    "apb_csr";
+        ranges = <0x83000000 0 0x00000000 0xa8000000 0 0x8000000>;
+        #address-cells = <3>;
+        #size-cells = <2>;
+        device_type = "pci";
+        apio-wins = <2>;
+        ppio-wins = <1>;
+        bus-range = <0x00 0xff>;
+        interrupt-controller;
+        #interrupt-cells = <1>;
+        interrupt-parent = <&gic>;
+        interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-map-mask = <0 0 0 7>;
+        interrupt-map = <0 0 0 0 &pci_express 0>,
+                        <0 0 0 1 &pci_express 1>,
+                        <0 0 0 2 &pci_express 2>,
+                        <0 0 0 3 &pci_express 3>;
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+        pcie@3400000 {
+            compatible = "fsl,lx2160a-pcie";
+            reg = <0x00 0x03400000 0x0 0x00100000   /* controller registers */
+                   0x80 0x00000000 0x0 0x00001000>; /* configuration space */
+            reg-names = "csr_axi_slave", "config_axi_slave";
+            ranges = <0x82000000 0x0 0x40000000 0x80 0x40000000 0x0 0x40000000>;
+            interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>, /* AER interrupt */
+                         <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>, /* PME interrupt */
+                         <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>; /* controller interrupt */
+            interrupt-names = "aer", "pme", "intr";
+            #address-cells = <3>;
+            #size-cells = <2>;
+            device_type = "pci";
+            apio-wins = <8>;
+            ppio-wins = <8>;
+            dma-coherent;
+            bus-range = <0x00 0xff>;
+            msi-parent = <&its>;
+            #interrupt-cells = <1>;
+            interrupt-map-mask = <0 0 0 7>;
+            interrupt-map = <0000 0 0 1 &gic 0 0 GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>,
+                            <0000 0 0 2 &gic 0 0 GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>,
+                            <0000 0 0 3 &gic 0 0 GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>,
+                            <0000 0 0 4 &gic 0 0 GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
+        };
+    };

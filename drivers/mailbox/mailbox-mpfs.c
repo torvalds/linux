@@ -251,7 +251,7 @@ static inline int mpfs_mbox_syscon_probe(struct mpfs_mbox *mbox, struct platform
 		return PTR_ERR(mbox->sysreg_scb);
 
 	mbox->mbox_base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(mbox->ctrl_base))
+	if (IS_ERR(mbox->mbox_base))
 		return PTR_ERR(mbox->mbox_base);
 
 	return 0;

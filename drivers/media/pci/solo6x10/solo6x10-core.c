@@ -362,7 +362,7 @@ static ssize_t sdram_offsets_show(struct device *dev,
 }
 
 static ssize_t sdram_show(struct file *file, struct kobject *kobj,
-			  struct bin_attribute *a, char *buf,
+			  const struct bin_attribute *a, char *buf,
 			  loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -432,7 +432,7 @@ static int solo_sysfs_init(struct solo_dev *solo_dev)
 	sysfs_attr_init(&sdram_attr->attr);
 	sdram_attr->attr.name = "sdram";
 	sdram_attr->attr.mode = 0440;
-	sdram_attr->read = sdram_show;
+	sdram_attr->read_new = sdram_show;
 	sdram_attr->size = solo_dev->sdram_size;
 
 	if (device_create_bin_file(dev, sdram_attr)) {

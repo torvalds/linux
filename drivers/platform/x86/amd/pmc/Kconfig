@@ -5,7 +5,7 @@
 
 config AMD_PMC
 	tristate "AMD SoC PMC driver"
-	depends on ACPI && PCI && RTC_CLASS && AMD_NB
+	depends on ACPI && PCI && RTC_CLASS && AMD_NODE
 	depends on SUSPEND
 	select SERIO
 	help

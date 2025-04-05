@@ -464,7 +464,43 @@ static vm_fault_t vas_mmap_fault(struct vm_fault *vmf)
 	return VM_FAULT_SIGBUS;
 }
 
+/*
+ * During mmap() paste address, mapping VMA is saved in VAS window
+ * struct which is used to unmap during migration if the window is
+ * still open. But the user space can remove this mapping with
+ * munmap() before closing the window and the VMA address will
+ * be invalid. Set VAS window VMA to NULL in this function which
+ * is called before VMA free.
+ */
+static void vas_mmap_close(struct vm_area_struct *vma)
+{
+	struct file *fp = vma->vm_file;
+	struct coproc_instance *cp_inst = fp->private_data;
+	struct vas_window *txwin;
+
+	/* Should not happen */
+	if (!cp_inst || !cp_inst->txwin) {
+		pr_err("No attached VAS window for the paste address mmap\n");
+		return;
+	}
+
+	txwin = cp_inst->txwin;
+	/*
+	 * task_ref.vma is set in coproc_mmap() during mmap paste
+	 * address. So it has to be the same VMA that is getting freed.
+	 */
+	if (WARN_ON(txwin->task_ref.vma != vma)) {
+		pr_err("Invalid paste address mmaping\n");
+		return;
+	}
+
+	mutex_lock(&txwin->task_ref.mmap_mutex);
+	txwin->task_ref.vma = NULL;
+	mutex_unlock(&txwin->task_ref.mmap_mutex);
+}
+
 static const struct vm_operations_struct vas_vm_ops = {
+	.close = vas_mmap_close,
 	.fault = vas_mmap_fault,
 };
 

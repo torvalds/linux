@@ -257,10 +257,29 @@ config DPM_WATCHDOG
 	  boot session.
 
 config DPM_WATCHDOG_TIMEOUT
-	int "Watchdog timeout in seconds"
+	int "Watchdog timeout to panic in seconds"
 	range 1 120
 	default 120
 	depends on DPM_WATCHDOG
+
+config DPM_WATCHDOG_WARNING_TIMEOUT
+	int "Watchdog timeout to warn in seconds"
+	range 1 DPM_WATCHDOG_TIMEOUT
+	default DPM_WATCHDOG_TIMEOUT
+	depends on DPM_WATCHDOG
+	help
+	  If the DPM watchdog warning timeout and main timeout are
+	  different then a non-fatal warning (with a stack trace of
+	  the stuck suspend routine) will be printed when the warning
+	  timeout expires. If the suspend routine gets un-stuck
+	  before the main timeout expires then no other action is
+	  taken. If the routine continues to be stuck and the main
+	  timeout expires then an emergency-level message and stack
+	  trace will be printed and the system will panic.
+
+	  If the warning timeout is equal to the main timeout (the
+	  default) then the warning will never happen and the system
+	  will jump straight to panic when the main timeout expires.
 
 config PM_TRACE
 	bool

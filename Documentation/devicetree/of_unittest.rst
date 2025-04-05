@@ -50,15 +50,13 @@ from 'scripts/dtc/of_unittest_expect --help'.
 
 The Device Tree Source file (drivers/of/unittest-data/testcases.dts) contains
 the test data required for executing the unit tests automated in
-drivers/of/unittest.c. Currently, following Device Tree Source Include files
-(.dtsi) are included in testcases.dts::
+drivers/of/unittest.c. See the content of the folder::
 
-    drivers/of/unittest-data/tests-interrupts.dtsi
-    drivers/of/unittest-data/tests-platform.dtsi
-    drivers/of/unittest-data/tests-phandle.dtsi
-    drivers/of/unittest-data/tests-match.dtsi
+    drivers/of/unittest-data/tests-*.dtsi
 
-When the kernel is build with OF_SELFTEST enabled, then the following make
+for the Device Tree Source Include files (.dtsi) included in testcases.dts.
+
+When the kernel is build with CONFIG_OF_UNITTEST enabled, then the following make
 rule::
 
     $(obj)/%.dtb: $(src)/%.dts FORCE

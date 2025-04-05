@@ -71,7 +71,7 @@ static void watch_queue_pipe_buf_release(struct pipe_inode_info *pipe,
 	bit /= WATCH_QUEUE_NOTE_SIZE;
 
 	page = buf->page;
-	bit += page->index;
+	bit += page->private;
 
 	set_bit(bit, wqueue->notes_bitmap);
 	generic_pipe_buf_release(pipe, buf);
@@ -278,7 +278,7 @@ long watch_queue_set_size(struct pipe_inode_info *pipe, unsigned int nr_notes)
 		pages[i] = alloc_page(GFP_KERNEL);
 		if (!pages[i])
 			goto error_p;
-		pages[i]->index = i * WATCH_QUEUE_NOTES_PER_PAGE;
+		pages[i]->private = i * WATCH_QUEUE_NOTES_PER_PAGE;
 	}
 
 	bitmap = bitmap_alloc(nr_notes, GFP_KERNEL);

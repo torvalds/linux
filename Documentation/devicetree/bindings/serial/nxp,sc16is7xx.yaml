@@ -23,6 +23,8 @@ properties:
     maxItems: 1
 
   interrupts:
+    description:
+      When missing, device driver uses polling instead.
     maxItems: 1
 
   clocks:
@@ -76,7 +78,6 @@ properties:
 required:
   - compatible
   - reg
-  - interrupts
 
 allOf:
   - $ref: /schemas/spi/spi-peripheral-props.yaml#

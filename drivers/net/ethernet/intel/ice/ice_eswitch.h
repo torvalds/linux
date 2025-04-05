@@ -5,7 +5,7 @@
 #define _ICE_ESWITCH_H_
 
 #include <net/devlink.h>
-#include "devlink/devlink_port.h"
+#include "devlink/port.h"
 
 #ifdef CONFIG_ICE_SWITCHDEV
 void ice_eswitch_detach_vf(struct ice_pf *pf, struct ice_vf *vf);

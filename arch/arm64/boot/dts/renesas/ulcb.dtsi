@@ -4,6 +4,11 @@
  *
  * Copyright (C) 2016 Renesas Electronics Corp.
  * Copyright (C) 2016 Cogent Embedded, Inc.
+ *
+ * Sample Audio settings:
+ *
+ *	> amixer set "DVC Out" 1%
+ *	> amixer set "DVC In"  20%
  */
 
 #include <dt-bindings/gpio/gpio.h>

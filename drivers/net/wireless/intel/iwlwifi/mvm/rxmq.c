@@ -636,15 +636,21 @@ static void iwl_mvm_release_frames_from_notif(struct iwl_mvm *mvm,
 	IWL_DEBUG_HT(mvm, "Frame release notification for BAID %u, NSSN %d\n",
 		     baid, nssn);
 
-	if (WARN_ON_ONCE(baid == IWL_RX_REORDER_DATA_INVALID_BAID ||
-			 baid >= ARRAY_SIZE(mvm->baid_map)))
+	if (IWL_FW_CHECK(mvm,
+			 baid == IWL_RX_REORDER_DATA_INVALID_BAID ||
+			 baid >= ARRAY_SIZE(mvm->baid_map),
+			 "invalid BAID from FW: %d\n", baid))
 		return;
 
 	rcu_read_lock();
 
 	ba_data = rcu_dereference(mvm->baid_map[baid]);
-	if (WARN(!ba_data, "BAID %d not found in map\n", baid))
+	if (!ba_data) {
+		IWL_DEBUG_RX(mvm,
+			     "Got valid BAID %d but not allocated, invalid frame release!\n",
+			     baid);
 		goto out;
+	}
 
 	/* pick any STA ID to find the pointer */
 	sta_id = ffs(ba_data->sta_mask) - 1;
@@ -2506,18 +2512,23 @@ void iwl_mvm_rx_bar_frame_release(struct iwl_mvm *mvm, struct napi_struct *napi,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_bar_frame_release *release = (void *)pkt->data;
-	unsigned int baid = le32_get_bits(release->ba_info,
-					  IWL_BAR_FRAME_RELEASE_BAID_MASK);
-	unsigned int nssn = le32_get_bits(release->ba_info,
-					  IWL_BAR_FRAME_RELEASE_NSSN_MASK);
-	unsigned int sta_id = le32_get_bits(release->sta_tid,
-					    IWL_BAR_FRAME_RELEASE_STA_MASK);
-	unsigned int tid = le32_get_bits(release->sta_tid,
-					 IWL_BAR_FRAME_RELEASE_TID_MASK);
 	struct iwl_mvm_baid_data *baid_data;
+	u32 pkt_len = iwl_rx_packet_payload_len(pkt);
+	unsigned int baid, nssn, sta_id, tid;
 
-	if (unlikely(iwl_rx_packet_payload_len(pkt) < sizeof(*release)))
+	if (IWL_FW_CHECK(mvm, pkt_len < sizeof(*release),
+			 "Unexpected frame release notif size %d (expected %zu)\n",
+			 pkt_len, sizeof(*release)))
 		return;
+
+	baid = le32_get_bits(release->ba_info,
+			     IWL_BAR_FRAME_RELEASE_BAID_MASK);
+	nssn = le32_get_bits(release->ba_info,
+			     IWL_BAR_FRAME_RELEASE_NSSN_MASK);
+	sta_id = le32_get_bits(release->sta_tid,
+			       IWL_BAR_FRAME_RELEASE_STA_MASK);
+	tid = le32_get_bits(release->sta_tid,
+			    IWL_BAR_FRAME_RELEASE_TID_MASK);
 
 	if (WARN_ON_ONCE(baid == IWL_RX_REORDER_DATA_INVALID_BAID ||
 			 baid >= ARRAY_SIZE(mvm->baid_map)))

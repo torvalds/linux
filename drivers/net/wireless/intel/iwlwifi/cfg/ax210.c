@@ -31,40 +31,21 @@
 #define IWL_SO_A_GF_A_FW_PRE		"iwlwifi-so-a0-gf-a0"
 #define IWL_TY_A_GF_A_FW_PRE		"iwlwifi-ty-a0-gf-a0"
 #define IWL_SO_A_GF4_A_FW_PRE		"iwlwifi-so-a0-gf4-a0"
-#define IWL_SO_A_MR_A_FW_PRE		"iwlwifi-so-a0-mr-a0"
 #define IWL_MA_A_HR_B_FW_PRE		"iwlwifi-ma-a0-hr-b0"
 #define IWL_MA_A_GF_A_FW_PRE		"iwlwifi-ma-a0-gf-a0"
 #define IWL_MA_A_GF4_A_FW_PRE		"iwlwifi-ma-a0-gf4-a0"
-#define IWL_MA_A_MR_A_FW_PRE		"iwlwifi-ma-a0-mr-a0"
 #define IWL_MA_B_HR_B_FW_PRE		"iwlwifi-ma-b0-hr-b0"
 #define IWL_MA_B_GF_A_FW_PRE		"iwlwifi-ma-b0-gf-a0"
 #define IWL_MA_B_GF4_A_FW_PRE		"iwlwifi-ma-b0-gf4-a0"
-#define IWL_MA_B_MR_A_FW_PRE		"iwlwifi-ma-b0-mr-a0"
 
 #define IWL_SO_A_JF_B_MODULE_FIRMWARE(api) \
 	IWL_SO_A_JF_B_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_SO_A_HR_B_MODULE_FIRMWARE(api) \
 	IWL_SO_A_HR_B_FW_PRE "-" __stringify(api) ".ucode"
-#define IWL_SO_A_GF_A_MODULE_FIRMWARE(api) \
-	IWL_SO_A_GF_A_FW_PRE "-" __stringify(api) ".ucode"
-#define IWL_TY_A_GF_A_MODULE_FIRMWARE(api) \
-	IWL_TY_A_GF_A_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_MA_A_HR_B_FW_MODULE_FIRMWARE(api)		\
 	IWL_MA_A_HR_B_FW_PRE "-" __stringify(api) ".ucode"
-#define IWL_MA_A_GF_A_FW_MODULE_FIRMWARE(api)		\
-	IWL_MA_A_GF_A_FW_PRE "-" __stringify(api) ".ucode"
-#define IWL_MA_A_GF4_A_FW_MODULE_FIRMWARE(api)		\
-	IWL_MA_A_GF4_A_FW_PRE "-" __stringify(api) ".ucode"
-#define IWL_MA_A_MR_A_FW_MODULE_FIRMWARE(api) \
-	IWL_MA_A_MR_A_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_MA_B_HR_B_FW_MODULE_FIRMWARE(api)		\
 	IWL_MA_B_HR_B_FW_PRE "-" __stringify(api) ".ucode"
-#define IWL_MA_B_GF_A_FW_MODULE_FIRMWARE(api)		\
-	IWL_MA_B_GF_A_FW_PRE "-" __stringify(api) ".ucode"
-#define IWL_MA_B_GF4_A_FW_MODULE_FIRMWARE(api)		\
-	IWL_MA_B_GF4_A_FW_PRE "-" __stringify(api) ".ucode"
-#define IWL_MA_B_MR_A_FW_MODULE_FIRMWARE(api) \
-	IWL_MA_B_MR_A_FW_PRE "-" __stringify(api) ".ucode"
 
 static const struct iwl_base_params iwl_ax210_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
@@ -267,13 +248,6 @@ const struct iwl_cfg iwlax411_2ax_cfg_so_gf4_a0_long = {
 	.trans.low_latency_xtal = true,
 };
 
-const struct iwl_cfg iwl_cfg_so_a0_ms_a0 = {
-	.fw_name_pre = IWL_SO_A_MR_A_FW_PRE,
-	.uhb_supported = false,
-	IWL_DEVICE_AX210,
-	.num_rbds = IWL_NUM_RBDS_AX210_HE,
-};
-
 const struct iwl_cfg iwl_cfg_ma = {
 	.fw_name_mac = "ma",
 	.uhb_supported = true,
@@ -289,19 +263,11 @@ const struct iwl_cfg iwl_cfg_so_a0_hr_a0 = {
 
 MODULE_FIRMWARE(IWL_SO_A_JF_B_MODULE_FIRMWARE(IWL_AX210_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_SO_A_HR_B_MODULE_FIRMWARE(IWL_AX210_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL_SO_A_GF_A_MODULE_FIRMWARE(IWL_AX210_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL_TY_A_GF_A_MODULE_FIRMWARE(IWL_AX210_UCODE_API_MAX));
+IWL_FW_AND_PNVM(IWL_SO_A_GF_A_FW_PRE, IWL_AX210_UCODE_API_MAX);
+IWL_FW_AND_PNVM(IWL_TY_A_GF_A_FW_PRE, IWL_AX210_UCODE_API_MAX);
 MODULE_FIRMWARE(IWL_MA_A_HR_B_FW_MODULE_FIRMWARE(IWL_AX210_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL_MA_A_GF_A_FW_MODULE_FIRMWARE(IWL_AX210_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL_MA_A_GF4_A_FW_MODULE_FIRMWARE(IWL_AX210_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL_MA_A_MR_A_FW_MODULE_FIRMWARE(IWL_AX210_UCODE_API_MAX));
+IWL_FW_AND_PNVM(IWL_MA_A_GF_A_FW_PRE, IWL_AX210_UCODE_API_MAX);
+IWL_FW_AND_PNVM(IWL_MA_A_GF4_A_FW_PRE, IWL_AX210_UCODE_API_MAX);
 MODULE_FIRMWARE(IWL_MA_B_HR_B_FW_MODULE_FIRMWARE(IWL_AX210_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL_MA_B_GF_A_FW_MODULE_FIRMWARE(IWL_AX210_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL_MA_B_GF4_A_FW_MODULE_FIRMWARE(IWL_AX210_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL_MA_B_MR_A_FW_MODULE_FIRMWARE(IWL_AX210_UCODE_API_MAX));
-
-MODULE_FIRMWARE("iwlwifi-so-a0-gf-a0.pnvm");
-MODULE_FIRMWARE("iwlwifi-so-a0-gf4-a0.pnvm");
-MODULE_FIRMWARE("iwlwifi-ty-a0-gf-a0.pnvm");
-MODULE_FIRMWARE("iwlwifi-ma-b0-gf-a0.pnvm");
-MODULE_FIRMWARE("iwlwifi-ma-b0-gf4-a0.pnvm");
+IWL_FW_AND_PNVM(IWL_MA_B_GF_A_FW_PRE, IWL_AX210_UCODE_API_MAX);
+IWL_FW_AND_PNVM(IWL_MA_B_GF4_A_FW_PRE, IWL_AX210_UCODE_API_MAX);

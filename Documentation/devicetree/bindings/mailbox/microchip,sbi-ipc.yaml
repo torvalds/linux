@@ -1,0 +1,123 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mailbox/microchip,sbi-ipc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip Inter-processor communication (IPC) mailbox controller
+
+maintainers:
+  - Valentina Fernandez <valentina.fernandezalanis@microchip.com>
+
+description:
+  The Microchip Inter-processor Communication (IPC) facilitates
+  message passing between processors using an interrupt signaling
+  mechanism.
+
+properties:
+  compatible:
+    oneOf:
+      - description:
+          Intended for use by software running in supervisor privileged
+          mode (s-mode). This SBI interface is compatible with the Mi-V
+          Inter-hart Communication (IHC) IP.
+        const: microchip,sbi-ipc
+
+      - description:
+          Intended for use by the SBI implementation in machine mode
+          (m-mode), this compatible string is for the MIV_IHC Soft-IP.
+        const: microchip,miv-ihc-rtl-v2
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    minItems: 1
+    maxItems: 5
+
+  interrupt-names:
+    minItems: 1
+    maxItems: 5
+    items:
+      enum:
+        - hart-0
+        - hart-1
+        - hart-2
+        - hart-3
+        - hart-4
+        - hart-5
+
+  "#mbox-cells":
+    description: >
+      For "microchip,sbi-ipc", the cell represents the global "logical"
+      channel IDs. The meaning of channel IDs are platform firmware dependent.
+
+      For "microchip,miv-ihc-rtl-v2", the cell represents the physical
+      channel and does not vary based on the platform firmware.
+    const: 1
+
+  microchip,ihc-chan-disabled-mask:
+    description: >
+      Represents the enable/disable state of the bi-directional IHC
+      channels within the MIV-IHC IP configuration.
+
+      A bit set to '1' indicates that the corresponding channel is disabled,
+      and any read or write operations to that channel will return zero.
+
+      A bit set to '0' indicates that the corresponding channel is enabled
+      and will be accessible through its dedicated address range registers.
+
+      The actual enable/disable state of each channel is determined by the
+      IP block’s configuration.
+    $ref: /schemas/types.yaml#/definitions/uint16
+    maximum: 0x7fff
+    default: 0
+
+required:
+  - compatible
+  - interrupts
+  - interrupt-names
+  - "#mbox-cells"
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: microchip,sbi-ipc
+    then:
+      properties:
+        reg:
+          not: {}
+          description:
+            The 'microchip,sbi-ipc' operates in a programming model
+            that does not require memory-mapped I/O (MMIO) registers
+            since it uses SBI ecalls provided by the m-mode/firmware
+            SBI implementation to access hardware registers.
+        microchip,ihc-chan-disabled-mask: false
+    else:
+      required:
+        - reg
+        - microchip,ihc-chan-disabled-mask
+
+additionalProperties: false
+
+examples:
+  - |
+    mailbox {
+      compatible = "microchip,sbi-ipc";
+      interrupt-parent = <&plic>;
+      interrupts = <180>, <179>, <178>;
+      interrupt-names = "hart-1", "hart-2", "hart-3";
+      #mbox-cells = <1>;
+    };
+  - |
+    mailbox@50000000 {
+      compatible = "microchip,miv-ihc-rtl-v2";
+      microchip,ihc-chan-disabled-mask = /bits/ 16 <0>;
+      reg = <0x50000000 0x1c000>;
+      interrupt-parent = <&plic>;
+      interrupts = <180>, <179>, <178>;
+      interrupt-names = "hart-1", "hart-2", "hart-3";
+      #mbox-cells = <1>;
+    };

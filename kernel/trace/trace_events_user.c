@@ -2899,7 +2899,7 @@ static int set_max_user_events_sysctl(const struct ctl_table *table, int write,
 	return ret;
 }
 
-static struct ctl_table user_event_sysctls[] = {
+static const struct ctl_table user_event_sysctls[] = {
 	{
 		.procname	= "user_events_max",
 		.data		= &max_user_events,

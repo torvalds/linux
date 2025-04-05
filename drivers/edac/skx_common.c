@@ -19,6 +19,7 @@
 #include <linux/adxl.h>
 #include <acpi/nfit.h>
 #include <asm/mce.h>
+#include <asm/uv/uv.h>
 #include "edac_module.h"
 #include "skx_common.h"
 
@@ -221,9 +222,41 @@ void skx_set_decode(skx_decode_f decode, skx_show_retry_log_f show_retry_log)
 }
 EXPORT_SYMBOL_GPL(skx_set_decode);
 
+static int skx_get_pkg_id(struct skx_dev *d, u8 *id)
+{
+	int node;
+	int cpu;
+
+	node = pcibus_to_node(d->util_all->bus);
+	if (numa_valid_node(node)) {
+		for_each_cpu(cpu, cpumask_of_pcibus(d->util_all->bus)) {
+			struct cpuinfo_x86 *c = &cpu_data(cpu);
+
+			if (c->initialized && cpu_to_node(cpu) == node) {
+				*id = c->topo.pkg_id;
+				return 0;
+			}
+		}
+	}
+
+	skx_printk(KERN_ERR, "Failed to get package ID from NUMA information\n");
+	return -ENODEV;
+}
+
 int skx_get_src_id(struct skx_dev *d, int off, u8 *id)
 {
 	u32 reg;
+
+	/*
+	 * The 3-bit source IDs in PCI configuration space registers are limited
+	 * to 8 unique IDs, and each ID is local to a UPI/QPI domain.
+	 *
+	 * Source IDs cannot be used to map devices to sockets on UV systems
+	 * because they can exceed 8 sockets and have multiple UPI/QPI domains
+	 * with identical, repeating source IDs.
+	 */
+	if (is_uv_system())
+		return skx_get_pkg_id(d, id);
 
 	if (pci_read_config_dword(d->util_all, off, &reg)) {
 		skx_printk(KERN_ERR, "Failed to read src id\n");
@@ -234,20 +267,6 @@ int skx_get_src_id(struct skx_dev *d, int off, u8 *id)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(skx_get_src_id);
-
-int skx_get_node_id(struct skx_dev *d, u8 *id)
-{
-	u32 reg;
-
-	if (pci_read_config_dword(d->util_all, 0xf4, &reg)) {
-		skx_printk(KERN_ERR, "Failed to read node id\n");
-		return -ENODEV;
-	}
-
-	*id = GET_BITFIELD(reg, 0, 2);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(skx_get_node_id);
 
 static int get_width(u32 mtr)
 {
@@ -507,7 +526,7 @@ int skx_register_mci(struct skx_imc *imc, struct pci_dev *pdev,
 	pvt->imc = imc;
 
 	mci->ctl_name = kasprintf(GFP_KERNEL, "%s#%d IMC#%d", ctl_name,
-				  imc->node_id, imc->lmc);
+				  imc->src_id, imc->lmc);
 	if (!mci->ctl_name) {
 		rc = -ENOMEM;
 		goto fail0;

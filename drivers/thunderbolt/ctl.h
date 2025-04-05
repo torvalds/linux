@@ -140,5 +140,4 @@ int tb_cfg_write(struct tb_ctl *ctl, const void *buffer, u64 route, u32 port,
 		 enum tb_cfg_space space, u32 offset, u32 length);
 int tb_cfg_get_upstream_port(struct tb_ctl *ctl, u64 route);
 
-
 #endif

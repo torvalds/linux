@@ -142,108 +142,21 @@ int dml21_find_dc_pipes_for_plane(const struct dc *in_dc,
 	return num_pipes;
 }
 
-
-void dml21_update_pipe_ctx_dchub_regs(struct dml2_display_rq_regs *rq_regs,
-	struct dml2_display_dlg_regs *disp_dlg_regs,
-	struct dml2_display_ttu_regs *disp_ttu_regs,
-	struct pipe_ctx *out)
+void dml21_pipe_populate_global_sync(struct dml2_context *dml_ctx,
+	struct dc_state *context,
+	struct pipe_ctx *pipe_ctx,
+	struct dml2_per_stream_programming *stream_programming)
 {
-	memset(&out->rq_regs, 0, sizeof(out->rq_regs));
-	out->rq_regs.rq_regs_l.chunk_size = rq_regs->rq_regs_l.chunk_size;
-	out->rq_regs.rq_regs_l.min_chunk_size = rq_regs->rq_regs_l.min_chunk_size;
-	//out->rq_regs.rq_regs_l.meta_chunk_size = rq_regs->rq_regs_l.meta_chunk_size;
-	//out->rq_regs.rq_regs_l.min_meta_chunk_size = rq_regs->rq_regs_l.min_meta_chunk_size;
-	out->rq_regs.rq_regs_l.dpte_group_size = rq_regs->rq_regs_l.dpte_group_size;
-	out->rq_regs.rq_regs_l.mpte_group_size = rq_regs->rq_regs_l.mpte_group_size;
-	out->rq_regs.rq_regs_l.swath_height = rq_regs->rq_regs_l.swath_height;
-	out->rq_regs.rq_regs_l.pte_row_height_linear = rq_regs->rq_regs_l.pte_row_height_linear;
+	union dml2_global_sync_programming *global_sync = &stream_programming->global_sync;
 
-	out->rq_regs.rq_regs_c.chunk_size = rq_regs->rq_regs_c.chunk_size;
-	out->rq_regs.rq_regs_c.min_chunk_size = rq_regs->rq_regs_c.min_chunk_size;
-	//out->rq_regs.rq_regs_c.meta_chunk_size = rq_regs->rq_regs_c.meta_chunk_size;
-	//out->rq_regs.rq_regs_c.min_meta_chunk_size = rq_regs->rq_regs_c.min_meta_chunk_size;
-	out->rq_regs.rq_regs_c.dpte_group_size = rq_regs->rq_regs_c.dpte_group_size;
-	out->rq_regs.rq_regs_c.mpte_group_size = rq_regs->rq_regs_c.mpte_group_size;
-	out->rq_regs.rq_regs_c.swath_height = rq_regs->rq_regs_c.swath_height;
-	out->rq_regs.rq_regs_c.pte_row_height_linear = rq_regs->rq_regs_c.pte_row_height_linear;
+	if (dml_ctx->config.svp_pstate.callbacks.get_pipe_subvp_type(context, pipe_ctx) == SUBVP_PHANTOM) {
+		/* phantom has its own global sync */
+		global_sync = &stream_programming->phantom_stream.global_sync;
+	}
 
-	out->rq_regs.drq_expansion_mode = rq_regs->drq_expansion_mode;
-	out->rq_regs.prq_expansion_mode = rq_regs->prq_expansion_mode;
-	//out->rq_regs.mrq_expansion_mode = rq_regs->mrq_expansion_mode;
-	out->rq_regs.crq_expansion_mode = rq_regs->crq_expansion_mode;
-	out->rq_regs.plane1_base_address = rq_regs->plane1_base_address;
-	out->unbounded_req = rq_regs->unbounded_request_enabled;
-
-	memset(&out->dlg_regs, 0, sizeof(out->dlg_regs));
-	out->dlg_regs.refcyc_h_blank_end = disp_dlg_regs->refcyc_h_blank_end;
-	out->dlg_regs.dlg_vblank_end = disp_dlg_regs->dlg_vblank_end;
-	out->dlg_regs.min_dst_y_next_start = disp_dlg_regs->min_dst_y_next_start;
-	out->dlg_regs.refcyc_per_htotal = disp_dlg_regs->refcyc_per_htotal;
-	out->dlg_regs.refcyc_x_after_scaler = disp_dlg_regs->refcyc_x_after_scaler;
-	out->dlg_regs.dst_y_after_scaler = disp_dlg_regs->dst_y_after_scaler;
-	out->dlg_regs.dst_y_prefetch = disp_dlg_regs->dst_y_prefetch;
-	out->dlg_regs.dst_y_per_vm_vblank = disp_dlg_regs->dst_y_per_vm_vblank;
-	out->dlg_regs.dst_y_per_row_vblank = disp_dlg_regs->dst_y_per_row_vblank;
-	out->dlg_regs.dst_y_per_vm_flip = disp_dlg_regs->dst_y_per_vm_flip;
-	out->dlg_regs.dst_y_per_row_flip = disp_dlg_regs->dst_y_per_row_flip;
-	out->dlg_regs.ref_freq_to_pix_freq = disp_dlg_regs->ref_freq_to_pix_freq;
-	out->dlg_regs.vratio_prefetch = disp_dlg_regs->vratio_prefetch;
-	out->dlg_regs.vratio_prefetch_c = disp_dlg_regs->vratio_prefetch_c;
-	out->dlg_regs.refcyc_per_tdlut_group = disp_dlg_regs->refcyc_per_tdlut_group;
-	out->dlg_regs.refcyc_per_pte_group_vblank_l = disp_dlg_regs->refcyc_per_pte_group_vblank_l;
-	out->dlg_regs.refcyc_per_pte_group_vblank_c = disp_dlg_regs->refcyc_per_pte_group_vblank_c;
-	//out->dlg_regs.refcyc_per_meta_chunk_vblank_l = disp_dlg_regs->refcyc_per_meta_chunk_vblank_l;
-	//out->dlg_regs.refcyc_per_meta_chunk_vblank_c = disp_dlg_regs->refcyc_per_meta_chunk_vblank_c;
-	out->dlg_regs.refcyc_per_pte_group_flip_l = disp_dlg_regs->refcyc_per_pte_group_flip_l;
-	out->dlg_regs.refcyc_per_pte_group_flip_c = disp_dlg_regs->refcyc_per_pte_group_flip_c;
-	//out->dlg_regs.refcyc_per_meta_chunk_flip_l = disp_dlg_regs->refcyc_per_meta_chunk_flip_l;
-	//out->dlg_regs.refcyc_per_meta_chunk_flip_c = disp_dlg_regs->refcyc_per_meta_chunk_flip_c;
-	out->dlg_regs.dst_y_per_pte_row_nom_l = disp_dlg_regs->dst_y_per_pte_row_nom_l;
-	out->dlg_regs.dst_y_per_pte_row_nom_c = disp_dlg_regs->dst_y_per_pte_row_nom_c;
-	out->dlg_regs.refcyc_per_pte_group_nom_l = disp_dlg_regs->refcyc_per_pte_group_nom_l;
-	out->dlg_regs.refcyc_per_pte_group_nom_c = disp_dlg_regs->refcyc_per_pte_group_nom_c;
-	//out->dlg_regs.dst_y_per_meta_row_nom_l = disp_dlg_regs->dst_y_per_meta_row_nom_l;
-	//out->dlg_regs.dst_y_per_meta_row_nom_c = disp_dlg_regs->dst_y_per_meta_row_nom_c;
-	//out->dlg_regs.refcyc_per_meta_chunk_nom_l = disp_dlg_regs->refcyc_per_meta_chunk_nom_l;
-	//out->dlg_regs.refcyc_per_meta_chunk_nom_c = disp_dlg_regs->refcyc_per_meta_chunk_nom_c;
-	out->dlg_regs.refcyc_per_line_delivery_pre_l = disp_dlg_regs->refcyc_per_line_delivery_pre_l;
-	out->dlg_regs.refcyc_per_line_delivery_pre_c = disp_dlg_regs->refcyc_per_line_delivery_pre_c;
-	out->dlg_regs.refcyc_per_line_delivery_l = disp_dlg_regs->refcyc_per_line_delivery_l;
-	out->dlg_regs.refcyc_per_line_delivery_c = disp_dlg_regs->refcyc_per_line_delivery_c;
-	out->dlg_regs.refcyc_per_vm_group_vblank = disp_dlg_regs->refcyc_per_vm_group_vblank;
-	out->dlg_regs.refcyc_per_vm_group_flip = disp_dlg_regs->refcyc_per_vm_group_flip;
-	out->dlg_regs.refcyc_per_vm_req_vblank = disp_dlg_regs->refcyc_per_vm_req_vblank;
-	out->dlg_regs.refcyc_per_vm_req_flip = disp_dlg_regs->refcyc_per_vm_req_flip;
-	out->dlg_regs.dst_y_offset_cur0 = disp_dlg_regs->dst_y_offset_cur0;
-	out->dlg_regs.chunk_hdl_adjust_cur0 = disp_dlg_regs->chunk_hdl_adjust_cur0;
-	//out->dlg_regs.dst_y_offset_cur1 = disp_dlg_regs->dst_y_offset_cur1;
-	//out->dlg_regs.chunk_hdl_adjust_cur1 = disp_dlg_regs->chunk_hdl_adjust_cur1;
-	out->dlg_regs.vready_after_vcount0 = disp_dlg_regs->vready_after_vcount0;
-	out->dlg_regs.dst_y_delta_drq_limit = disp_dlg_regs->dst_y_delta_drq_limit;
-	out->dlg_regs.refcyc_per_vm_dmdata = disp_dlg_regs->refcyc_per_vm_dmdata;
-	out->dlg_regs.dmdata_dl_delta = disp_dlg_regs->dmdata_dl_delta;
-
-	memset(&out->ttu_regs, 0, sizeof(out->ttu_regs));
-	out->ttu_regs.qos_level_low_wm = disp_ttu_regs->qos_level_low_wm;
-	out->ttu_regs.qos_level_high_wm = disp_ttu_regs->qos_level_high_wm;
-	out->ttu_regs.min_ttu_vblank = disp_ttu_regs->min_ttu_vblank;
-	out->ttu_regs.qos_level_flip = disp_ttu_regs->qos_level_flip;
-	out->ttu_regs.refcyc_per_req_delivery_l = disp_ttu_regs->refcyc_per_req_delivery_l;
-	out->ttu_regs.refcyc_per_req_delivery_c = disp_ttu_regs->refcyc_per_req_delivery_c;
-	out->ttu_regs.refcyc_per_req_delivery_cur0 = disp_ttu_regs->refcyc_per_req_delivery_cur0;
-	//out->ttu_regs.refcyc_per_req_delivery_cur1 = disp_ttu_regs->refcyc_per_req_delivery_cur1;
-	out->ttu_regs.refcyc_per_req_delivery_pre_l = disp_ttu_regs->refcyc_per_req_delivery_pre_l;
-	out->ttu_regs.refcyc_per_req_delivery_pre_c = disp_ttu_regs->refcyc_per_req_delivery_pre_c;
-	out->ttu_regs.refcyc_per_req_delivery_pre_cur0 = disp_ttu_regs->refcyc_per_req_delivery_pre_cur0;
-	//out->ttu_regs.refcyc_per_req_delivery_pre_cur1 = disp_ttu_regs->refcyc_per_req_delivery_pre_cur1;
-	out->ttu_regs.qos_level_fixed_l = disp_ttu_regs->qos_level_fixed_l;
-	out->ttu_regs.qos_level_fixed_c = disp_ttu_regs->qos_level_fixed_c;
-	out->ttu_regs.qos_level_fixed_cur0 = disp_ttu_regs->qos_level_fixed_cur0;
-	//out->ttu_regs.qos_level_fixed_cur1 = disp_ttu_regs->qos_level_fixed_cur1;
-	out->ttu_regs.qos_ramp_disable_l = disp_ttu_regs->qos_ramp_disable_l;
-	out->ttu_regs.qos_ramp_disable_c = disp_ttu_regs->qos_ramp_disable_c;
-	out->ttu_regs.qos_ramp_disable_cur0 = disp_ttu_regs->qos_ramp_disable_cur0;
-	//out->ttu_regs.qos_ramp_disable_cur1 = disp_ttu_regs->qos_ramp_disable_cur1;
+	memcpy(&pipe_ctx->global_sync,
+		global_sync,
+		sizeof(union dml2_global_sync_programming));
 }
 
 void dml21_populate_mall_allocation_size(struct dc_state *context,
@@ -301,28 +214,16 @@ void dml21_program_dc_pipe(struct dml2_context *dml_ctx, struct dc_state *contex
 {
 	unsigned int pipe_reg_index = 0;
 
-	dml21_populate_pipe_ctx_dlg_params(dml_ctx, context, pipe_ctx, stream_prog);
+	dml21_pipe_populate_global_sync(dml_ctx, context, pipe_ctx, stream_prog);
 	find_pipe_regs_idx(dml_ctx, pipe_ctx, &pipe_reg_index);
 
 	if (dml_ctx->config.svp_pstate.callbacks.get_pipe_subvp_type(context, pipe_ctx) == SUBVP_PHANTOM) {
 		memcpy(&pipe_ctx->hubp_regs, pln_prog->phantom_plane.pipe_regs[pipe_reg_index], sizeof(struct dml2_dchub_per_pipe_register_set));
 		pipe_ctx->unbounded_req = false;
-
-		/* legacy only, should be removed later */
-		dml21_update_pipe_ctx_dchub_regs(&pln_prog->phantom_plane.pipe_regs[pipe_reg_index]->rq_regs,
-				&pln_prog->phantom_plane.pipe_regs[pipe_reg_index]->dlg_regs,
-				&pln_prog->phantom_plane.pipe_regs[pipe_reg_index]->ttu_regs, pipe_ctx);
-
 		pipe_ctx->det_buffer_size_kb = 0;
 	} else {
 		memcpy(&pipe_ctx->hubp_regs, pln_prog->pipe_regs[pipe_reg_index], sizeof(struct dml2_dchub_per_pipe_register_set));
 		pipe_ctx->unbounded_req = pln_prog->pipe_regs[pipe_reg_index]->rq_regs.unbounded_request_enabled;
-
-		/* legacy only, should be removed later */
-		dml21_update_pipe_ctx_dchub_regs(&pln_prog->pipe_regs[pipe_reg_index]->rq_regs,
-				&pln_prog->pipe_regs[pipe_reg_index]->dlg_regs,
-				&pln_prog->pipe_regs[pipe_reg_index]->ttu_regs, pipe_ctx);
-
 		pipe_ctx->det_buffer_size_kb = pln_prog->pipe_regs[pipe_reg_index]->det_size * 64;
 	}
 
@@ -482,7 +383,8 @@ void dml21_build_fams2_programming(const struct dc *dc,
 	unsigned int num_fams2_streams = 0;
 
 	/* reset fams2 data */
-	memset(&context->bw_ctx.bw.dcn.fams2_stream_params, 0, sizeof(struct dmub_fams2_stream_static_state) * DML2_MAX_PLANES);
+	memset(&context->bw_ctx.bw.dcn.fams2_stream_base_params, 0, sizeof(union dmub_cmd_fams2_config) * DML2_MAX_PLANES);
+	memset(&context->bw_ctx.bw.dcn.fams2_stream_sub_params, 0, sizeof(union dmub_cmd_fams2_config) * DML2_MAX_PLANES);
 	memset(&context->bw_ctx.bw.dcn.fams2_global_config, 0, sizeof(struct dmub_cmd_fams2_global_config));
 
 	if (dml_ctx->v21.mode_programming.programming->fams2_required) {
@@ -490,8 +392,10 @@ void dml21_build_fams2_programming(const struct dc *dc,
 			int dml_stream_idx;
 			struct dc_stream_state *phantom_stream;
 			struct dc_stream_status *phantom_status;
+			enum fams2_stream_type type = 0;
 
-			struct dmub_fams2_stream_static_state *static_state = &context->bw_ctx.bw.dcn.fams2_stream_params[num_fams2_streams];
+			union dmub_cmd_fams2_config *static_base_state = &context->bw_ctx.bw.dcn.fams2_stream_base_params[num_fams2_streams];
+			union dmub_cmd_fams2_config *static_sub_state = &context->bw_ctx.bw.dcn.fams2_stream_sub_params[num_fams2_streams];
 
 			struct dc_stream_state *stream = context->streams[i];
 
@@ -508,28 +412,38 @@ void dml21_build_fams2_programming(const struct dc *dc,
 			}
 
 			/* copy static state from PMO */
-			memcpy(static_state,
-					&dml_ctx->v21.mode_programming.programming->stream_programming[dml_stream_idx].fams2_params,
-					sizeof(struct dmub_fams2_stream_static_state));
+			memcpy(static_base_state,
+					&dml_ctx->v21.mode_programming.programming->stream_programming[dml_stream_idx].fams2_base_params,
+					sizeof(union dmub_cmd_fams2_config));
+			memcpy(static_sub_state,
+					&dml_ctx->v21.mode_programming.programming->stream_programming[dml_stream_idx].fams2_sub_params,
+					sizeof(union dmub_cmd_fams2_config));
 
-			/* get information from context */
-			static_state->num_planes = context->stream_status[i].plane_count;
-			static_state->otg_inst = context->stream_status[i].primary_otg_inst;
+			switch (dc->debug.fams_version.minor) {
+			case 1:
+			default:
+				type = static_base_state->stream_v1.base.type;
 
-			/* populate pipe masks for planes */
-			for (j = 0; j < context->stream_status[i].plane_count; j++) {
-				for (k = 0; k < dc->res_pool->pipe_count; k++) {
-					if (context->res_ctx.pipe_ctx[k].stream &&
-							context->res_ctx.pipe_ctx[k].stream->stream_id == stream->stream_id &&
-							context->res_ctx.pipe_ctx[k].plane_state == context->stream_status[i].plane_states[j]) {
-						static_state->pipe_mask |= (1 << k);
-						static_state->plane_pipe_masks[j] |= (1 << k);
+				/* get information from context */
+				static_base_state->stream_v1.base.num_planes = context->stream_status[i].plane_count;
+				static_base_state->stream_v1.base.otg_inst = context->stream_status[i].primary_otg_inst;
+
+				/* populate pipe masks for planes */
+				for (j = 0; j < context->stream_status[i].plane_count; j++) {
+					for (k = 0; k < dc->res_pool->pipe_count; k++) {
+						if (context->res_ctx.pipe_ctx[k].stream &&
+								context->res_ctx.pipe_ctx[k].stream->stream_id == stream->stream_id &&
+								context->res_ctx.pipe_ctx[k].plane_state == context->stream_status[i].plane_states[j]) {
+							static_base_state->stream_v1.base.pipe_mask |= (1 << k);
+							static_base_state->stream_v1.base.plane_pipe_masks[j] |= (1 << k);
+						}
 					}
 				}
 			}
 
+
 			/* get per method programming */
-			switch (static_state->type) {
+			switch (type) {
 			case FAMS2_STREAM_TYPE_VBLANK:
 			case FAMS2_STREAM_TYPE_VACTIVE:
 			case FAMS2_STREAM_TYPE_DRR:
@@ -543,16 +457,27 @@ void dml21_build_fams2_programming(const struct dc *dc,
 
 				/* phantom status should always be present */
 				ASSERT(phantom_status);
-				static_state->sub_state.subvp.phantom_otg_inst = phantom_status->primary_otg_inst;
+				if (!phantom_status)
+					break;
 
-				/* populate pipe masks for phantom planes */
-				for (j = 0; j < phantom_status->plane_count; j++) {
-					for (k = 0; k < dc->res_pool->pipe_count; k++) {
-						if (context->res_ctx.pipe_ctx[k].stream &&
-								context->res_ctx.pipe_ctx[k].stream->stream_id == phantom_stream->stream_id &&
-								context->res_ctx.pipe_ctx[k].plane_state == phantom_status->plane_states[j]) {
-							static_state->sub_state.subvp.phantom_pipe_mask |= (1 << k);
-							static_state->sub_state.subvp.phantom_plane_pipe_masks[j] |= (1 << k);
+				switch (dc->debug.fams_version.minor) {
+				case 1:
+				default:
+					static_sub_state->stream_v1.sub_state.subvp.phantom_otg_inst = phantom_status->primary_otg_inst;
+
+					/* populate pipe masks for phantom planes */
+					for (j = 0; j < phantom_status->plane_count; j++) {
+						for (k = 0; k < dc->res_pool->pipe_count; k++) {
+							if (context->res_ctx.pipe_ctx[k].stream &&
+									context->res_ctx.pipe_ctx[k].stream->stream_id == phantom_stream->stream_id &&
+									context->res_ctx.pipe_ctx[k].plane_state == phantom_status->plane_states[j]) {
+								switch (dc->debug.fams_version.minor) {
+								case 1:
+								default:
+									static_sub_state->stream_v1.sub_state.subvp.phantom_pipe_mask |= (1 << k);
+									static_sub_state->stream_v1.sub_state.subvp.phantom_plane_pipe_masks[j] |= (1 << k);
+								}
+							}
 						}
 					}
 				}

@@ -20,7 +20,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
-#include <asm/amd_nb.h>
+#include <asm/amd_node.h>
 #include <asm/processor.h>
 
 MODULE_DESCRIPTION("AMD Family 10h+ CPU core temperature monitor");
@@ -148,6 +148,11 @@ static void read_tempreg_nb_f15(struct pci_dev *pdev, u32 *regval)
 {
 	amd_nb_index_read(pdev, PCI_DEVFN(0, 0), 0xb8,
 			  F15H_M60H_REPORTED_TEMP_CTRL_OFFSET, regval);
+}
+
+static u16 amd_pci_dev_to_node_id(struct pci_dev *pdev)
+{
+	return PCI_SLOT(pdev->devfn) - AMD_NODE0_PCI_SLOT;
 }
 
 static void read_tempreg_nb_zen(struct pci_dev *pdev, u32 *regval)

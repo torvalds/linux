@@ -486,8 +486,8 @@ static void tda9950_remove(struct i2c_client *client)
 }
 
 static struct i2c_device_id tda9950_ids[] = {
-	{ "tda9950", 0 },
-	{ },
+	{ "tda9950" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tda9950_ids);
 

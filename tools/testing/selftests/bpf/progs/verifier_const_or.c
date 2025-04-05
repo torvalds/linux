@@ -25,7 +25,7 @@ __naked void constant_should_keep_constant_type(void)
 
 SEC("tracepoint")
 __description("constant register |= constant should not bypass stack boundary checks")
-__failure __msg("invalid indirect access to stack R1 off=-48 size=58")
+__failure __msg("invalid write to stack R1 off=-48 size=58")
 __naked void not_bypass_stack_boundary_checks_1(void)
 {
 	asm volatile ("					\
@@ -62,7 +62,7 @@ __naked void register_should_keep_constant_type(void)
 
 SEC("tracepoint")
 __description("constant register |= constant register should not bypass stack boundary checks")
-__failure __msg("invalid indirect access to stack R1 off=-48 size=58")
+__failure __msg("invalid write to stack R1 off=-48 size=58")
 __naked void not_bypass_stack_boundary_checks_2(void)
 {
 	asm volatile ("					\

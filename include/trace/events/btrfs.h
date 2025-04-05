@@ -100,7 +100,8 @@ struct find_free_extent_ctl;
 	EM( ALLOC_CHUNK,		"ALLOC_CHUNK")			\
 	EM( ALLOC_CHUNK_FORCE,		"ALLOC_CHUNK_FORCE")		\
 	EM( RUN_DELAYED_IPUTS,		"RUN_DELAYED_IPUTS")		\
-	EMe(COMMIT_TRANS,		"COMMIT_TRANS")
+	EM( COMMIT_TRANS,		"COMMIT_TRANS")			\
+	EMe(RESET_ZONES,		"RESET_ZONES")
 
 /*
  * First define the enums in the above macros to be exported to userspace via

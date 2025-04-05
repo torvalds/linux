@@ -29,7 +29,7 @@ int bch2_filemap_get_contig_folios_d(struct address_space *mapping,
 			break;
 
 		f = __filemap_get_folio(mapping, pos >> PAGE_SHIFT, fgp_flags, gfp);
-		if (IS_ERR_OR_NULL(f))
+		if (IS_ERR(f))
 			break;
 
 		BUG_ON(fs->nr && folio_pos(f) != pos);
@@ -199,7 +199,7 @@ int bch2_folio_set(struct bch_fs *c, subvol_inum inum,
 	unsigned folio_idx = 0;
 
 	return bch2_trans_run(c,
-		for_each_btree_key_in_subvolume_upto(trans, iter, BTREE_ID_extents,
+		for_each_btree_key_in_subvolume_max(trans, iter, BTREE_ID_extents,
 				   POS(inum.inum, offset),
 				   POS(inum.inum, U64_MAX),
 				   inum.subvol, BTREE_ITER_slots, k, ({

@@ -765,7 +765,7 @@ static void sym_tune_dev_queuing(struct sym_tcb *tp, int lun, u_short reqtags)
 	}
 }
 
-static int sym53c8xx_slave_alloc(struct scsi_device *sdev)
+static int sym53c8xx_sdev_init(struct scsi_device *sdev)
 {
 	struct sym_hcb *np = sym_get_hcb(sdev->host);
 	struct sym_tcb *tp = &np->target[sdev->id];
@@ -825,7 +825,8 @@ out:
 /*
  * Linux entry point for device queue sizing.
  */
-static int sym53c8xx_slave_configure(struct scsi_device *sdev)
+static int sym53c8xx_sdev_configure(struct scsi_device *sdev,
+				    struct queue_limits *lim)
 {
 	struct sym_hcb *np = sym_get_hcb(sdev->host);
 	struct sym_tcb *tp = &np->target[sdev->id];
@@ -861,14 +862,14 @@ static int sym53c8xx_slave_configure(struct scsi_device *sdev)
 	return 0;
 }
 
-static void sym53c8xx_slave_destroy(struct scsi_device *sdev)
+static void sym53c8xx_sdev_destroy(struct scsi_device *sdev)
 {
 	struct sym_hcb *np = sym_get_hcb(sdev->host);
 	struct sym_tcb *tp = &np->target[sdev->id];
 	struct sym_lcb *lp = sym_lp(tp, sdev->lun);
 	unsigned long flags;
 
-	/* if slave_alloc returned before allocating a sym_lcb, return */
+	/* if sdev_init returned before allocating a sym_lcb, return */
 	if (!lp)
 		return;
 
@@ -1684,9 +1685,9 @@ static const struct scsi_host_template sym2_template = {
 	.info			= sym53c8xx_info, 
 	.cmd_size		= sizeof(struct sym_ucmd),
 	.queuecommand		= sym53c8xx_queue_command,
-	.slave_alloc		= sym53c8xx_slave_alloc,
-	.slave_configure	= sym53c8xx_slave_configure,
-	.slave_destroy		= sym53c8xx_slave_destroy,
+	.sdev_init		= sym53c8xx_sdev_init,
+	.sdev_configure		= sym53c8xx_sdev_configure,
+	.sdev_destroy		= sym53c8xx_sdev_destroy,
 	.eh_abort_handler	= sym53c8xx_eh_abort_handler,
 	.eh_target_reset_handler = sym53c8xx_eh_target_reset_handler,
 	.eh_bus_reset_handler	= sym53c8xx_eh_bus_reset_handler,
@@ -2030,7 +2031,7 @@ static struct spi_function_template sym2_transport_functions = {
 	.get_signalling	= sym2_get_signalling,
 };
 
-static struct pci_device_id sym2_id_table[] = {
+static const struct pci_device_id sym2_id_table[] = {
 	{ PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_NCR_53C810,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 	{ PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_NCR_53C820,

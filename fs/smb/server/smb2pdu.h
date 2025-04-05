@@ -502,4 +502,14 @@ static inline void *smb2_get_msg(void *buf)
 	return buf + 4;
 }
 
+#define POSIX_TYPE_FILE		0
+#define POSIX_TYPE_DIR		1
+#define POSIX_TYPE_SYMLINK	2
+#define POSIX_TYPE_CHARDEV	3
+#define POSIX_TYPE_BLKDEV	4
+#define POSIX_TYPE_FIFO		5
+#define POSIX_TYPE_SOCKET	6
+
+#define POSIX_FILETYPE_SHIFT	12
+
 #endif	/* _SMB2PDU_H */

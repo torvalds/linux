@@ -148,6 +148,10 @@ struct link_service {
 			const struct dc_stream_state *stream,
 			const unsigned int num_streams);
 
+	uint32_t (*dp_required_hblank_size_bytes)(
+		const struct dc_link *link,
+		struct dp_audio_bandwidth_params *audio_params);
+
 
 	/*************************** DPMS *************************************/
 	void (*set_dpms_on)(struct dc_state *state, struct pipe_ctx *pipe_ctx);

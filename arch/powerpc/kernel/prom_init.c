@@ -2792,7 +2792,6 @@ static void __init flatten_device_tree(void)
 		    dt_struct_start, dt_struct_end);
 }
 
-#ifdef CONFIG_PPC_CHRP
 /*
  * Pegasos and BriQ lacks the "ranges" property in the isa node
  * Pegasos needs decimal IRQ 14/15, not hexadecimal
@@ -2843,11 +2842,7 @@ static void __init fixup_device_tree_chrp(void)
 		}
 	}
 }
-#else
-#define fixup_device_tree_chrp()
-#endif
 
-#if defined(CONFIG_PPC64) && defined(CONFIG_PPC_PMAC)
 static void __init fixup_device_tree_pmac64(void)
 {
 	phandle u3, i2c, mpic;
@@ -2887,11 +2882,7 @@ static void __init fixup_device_tree_pmac64(void)
 	prom_setprop(i2c, "/u3@0,f8000000/i2c@f8001000", "interrupt-parent",
 		     &parent, sizeof(parent));
 }
-#else
-#define fixup_device_tree_pmac64()
-#endif
 
-#ifdef CONFIG_PPC_PMAC
 static void __init fixup_device_tree_pmac(void)
 {
 	__be32 val = 1;
@@ -2911,11 +2902,7 @@ static void __init fixup_device_tree_pmac(void)
 		prom_setprop(node, NULL, "#size-cells", &val, sizeof(val));
 	}
 }
-#else
-static inline void fixup_device_tree_pmac(void) { }
-#endif
 
-#ifdef CONFIG_PPC_EFIKA
 /*
  * The MPC5200 FEC driver requires an phy-handle property to tell it how
  * to talk to the phy.  If the phy-handle property is missing, then this
@@ -3047,11 +3034,7 @@ static void __init fixup_device_tree_efika(void)
 	/* Make sure ethernet phy-handle property exists */
 	fixup_device_tree_efika_add_phy();
 }
-#else
-#define fixup_device_tree_efika()
-#endif
 
-#ifdef CONFIG_PPC_PASEMI_NEMO
 /*
  * CFE supplied on Nemo is broken in several ways, biggest
  * problem is that it reassigns ISA interrupts to unused mpic ints.
@@ -3127,17 +3110,23 @@ static void __init fixup_device_tree_pasemi(void)
 
 	prom_setprop(iob, name, "device_type", "isa", sizeof("isa"));
 }
-#else	/* !CONFIG_PPC_PASEMI_NEMO */
-static inline void fixup_device_tree_pasemi(void) { }
-#endif
 
 static void __init fixup_device_tree(void)
 {
-	fixup_device_tree_chrp();
-	fixup_device_tree_pmac();
-	fixup_device_tree_pmac64();
-	fixup_device_tree_efika();
-	fixup_device_tree_pasemi();
+	if (IS_ENABLED(CONFIG_PPC_CHRP))
+		fixup_device_tree_chrp();
+
+	if (IS_ENABLED(CONFIG_PPC_PMAC))
+		fixup_device_tree_pmac();
+
+	if (IS_ENABLED(CONFIG_PPC_PMAC) && IS_ENABLED(CONFIG_PPC64))
+		fixup_device_tree_pmac64();
+
+	if (IS_ENABLED(CONFIG_PPC_EFIKA))
+		fixup_device_tree_efika();
+
+	if (IS_ENABLED(CONFIG_PPC_PASEMI_NEMO))
+		fixup_device_tree_pasemi();
 }
 
 static void __init prom_find_boot_cpu(void)

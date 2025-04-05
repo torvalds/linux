@@ -149,6 +149,7 @@ static inline long scx_hotplug_seq(void)
 	__skel = __scx_name##__open();						\
 	SCX_BUG_ON(!__skel, "Could not open " #__scx_name);			\
 	__skel->struct_ops.__ops_name->hotplug_seq = scx_hotplug_seq();		\
+	SCX_ENUM_INIT(__skel);							\
 	__skel; 								\
 })
 

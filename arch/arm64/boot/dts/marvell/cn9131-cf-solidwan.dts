@@ -435,7 +435,7 @@
 	managed = "in-band-status";
 	phy-mode = "sgmii";
 	phy = <&cp1_phy0>;
-	phys = <&cp0_comphy3 1>;
+	phys = <&cp1_comphy3 1>;
 	status = "okay";
 };
 
@@ -444,7 +444,7 @@
 	managed = "in-band-status";
 	phy-mode = "sgmii";
 	phy = <&cp1_phy1>;
-	phys = <&cp0_comphy5 2>;
+	phys = <&cp1_comphy5 2>;
 	status = "okay";
 };
 

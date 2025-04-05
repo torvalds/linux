@@ -12,7 +12,7 @@
 static void tdp_iter_refresh_sptep(struct tdp_iter *iter)
 {
 	iter->sptep = iter->pt_path[iter->level - 1] +
-		SPTE_INDEX(iter->gfn << PAGE_SHIFT, iter->level);
+		SPTE_INDEX((iter->gfn | iter->gfn_bits) << PAGE_SHIFT, iter->level);
 	iter->old_spte = kvm_tdp_mmu_read_spte(iter->sptep);
 }
 
@@ -37,15 +37,17 @@ void tdp_iter_restart(struct tdp_iter *iter)
  * rooted at root_pt, starting with the walk to translate next_last_level_gfn.
  */
 void tdp_iter_start(struct tdp_iter *iter, struct kvm_mmu_page *root,
-		    int min_level, gfn_t next_last_level_gfn)
+		    int min_level, gfn_t next_last_level_gfn, gfn_t gfn_bits)
 {
 	if (WARN_ON_ONCE(!root || (root->role.level < 1) ||
-			 (root->role.level > PT64_ROOT_MAX_LEVEL))) {
+			 (root->role.level > PT64_ROOT_MAX_LEVEL) ||
+			 (gfn_bits && next_last_level_gfn >= gfn_bits))) {
 		iter->valid = false;
 		return;
 	}
 
 	iter->next_last_level_gfn = next_last_level_gfn;
+	iter->gfn_bits = gfn_bits;
 	iter->root_level = root->role.level;
 	iter->min_level = min_level;
 	iter->pt_path[iter->root_level - 1] = (tdp_ptep_t)root->spt;
@@ -113,7 +115,7 @@ static bool try_step_side(struct tdp_iter *iter)
 	 * Check if the iterator is already at the end of the current page
 	 * table.
 	 */
-	if (SPTE_INDEX(iter->gfn << PAGE_SHIFT, iter->level) ==
+	if (SPTE_INDEX((iter->gfn | iter->gfn_bits) << PAGE_SHIFT, iter->level) ==
 	    (SPTE_ENT_PER_PAGE - 1))
 		return false;
 

@@ -1882,9 +1882,9 @@ static void rtw8852c_rfk_track(struct rtw89_dev *rtwdev)
 }
 
 static u32 rtw8852c_bb_cal_txpwr_ref(struct rtw89_dev *rtwdev,
-				     enum rtw89_phy_idx phy_idx, s16 ref)
+				     enum rtw89_phy_idx phy_idx,
+				     s16 ref, u16 pwr_ofst_decrease)
 {
-	s8 ofst_int = 0;
 	u8 base_cw_0db = 0x27;
 	u16 tssi_16dbm_cw = 0x12c;
 	s16 pwr_s10_3 = 0;
@@ -1893,13 +1893,14 @@ static u32 rtw8852c_bb_cal_txpwr_ref(struct rtw89_dev *rtwdev,
 	u32 pwr_cw = 0;
 	u32 tssi_ofst_cw = 0;
 
-	pwr_s10_3 = (ref << 1) + (s16)(ofst_int) + (s16)(base_cw_0db << 3);
+	pwr_s10_3 = (ref << 1) + (s16)(base_cw_0db << 3) - pwr_ofst_decrease;
 	bb_pwr_cw = FIELD_GET(GENMASK(2, 0), pwr_s10_3);
 	rf_pwr_cw = FIELD_GET(GENMASK(8, 3), pwr_s10_3);
 	rf_pwr_cw = clamp_t(s16, rf_pwr_cw, 15, 63);
 	pwr_cw = (rf_pwr_cw << 3) | bb_pwr_cw;
 
-	tssi_ofst_cw = (u32)((s16)tssi_16dbm_cw + (ref << 1) - (16 << 3));
+	tssi_ofst_cw = (u32)((s16)tssi_16dbm_cw + (ref << 1) - (16 << 3)) -
+		       pwr_ofst_decrease;
 	rtw89_debug(rtwdev, RTW89_DBG_TXPWR,
 		    "[TXPWR] tssi_ofst_cw=%d rf_cw=0x%x bb_cw=0x%x\n",
 		    tssi_ofst_cw, rf_pwr_cw, bb_pwr_cw);
@@ -1943,9 +1944,10 @@ void rtw8852c_set_txpwr_ul_tb_offset(struct rtw89_dev *rtwdev,
 }
 
 static void rtw8852c_set_txpwr_ref(struct rtw89_dev *rtwdev,
-				   enum rtw89_phy_idx phy_idx)
+				   enum rtw89_phy_idx phy_idx, s16 pwr_ofst)
 {
 	static const u32 addr[RF_PATH_NUM_8852C] = {0x5800, 0x7800};
+	u16 ofst_dec[RF_PATH_NUM_8852C];
 	const u32 mask = 0x7FFFFFF;
 	const u8 ofst_ofdm = 0x4;
 	const u8 ofst_cck = 0x8;
@@ -1959,19 +1961,20 @@ static void rtw8852c_set_txpwr_ref(struct rtw89_dev *rtwdev,
 	rtw89_mac_txpwr_write32_mask(rtwdev, phy_idx, R_AX_PWR_RATE_CTRL,
 				     GENMASK(27, 10), 0x0);
 
-	rtw89_debug(rtwdev, RTW89_DBG_TXPWR, "[TXPWR] set bb ofdm txpwr ref\n");
-	val = rtw8852c_bb_cal_txpwr_ref(rtwdev, phy_idx, ref_ofdm);
+	ofst_dec[RF_PATH_A] = pwr_ofst > 0 ? 0 : abs(pwr_ofst);
+	ofst_dec[RF_PATH_B] = pwr_ofst > 0 ? pwr_ofst : 0;
 
-	for (i = 0; i < RF_PATH_NUM_8852C; i++)
-		rtw89_phy_write32_idx(rtwdev, addr[i] + ofst_ofdm, mask, val,
-				      phy_idx);
+	rtw89_debug(rtwdev, RTW89_DBG_TXPWR, "[TXPWR] set bb ofdm txpwr ref\n");
+	for (i = 0; i < RF_PATH_NUM_8852C; i++) {
+		val = rtw8852c_bb_cal_txpwr_ref(rtwdev, phy_idx, ref_ofdm, ofst_dec[i]);
+		rtw89_phy_write32_idx(rtwdev, addr[i] + ofst_ofdm, mask, val, phy_idx);
+	}
 
 	rtw89_debug(rtwdev, RTW89_DBG_TXPWR, "[TXPWR] set bb cck txpwr ref\n");
-	val = rtw8852c_bb_cal_txpwr_ref(rtwdev, phy_idx, ref_cck);
-
-	for (i = 0; i < RF_PATH_NUM_8852C; i++)
-		rtw89_phy_write32_idx(rtwdev, addr[i] + ofst_cck, mask, val,
-				      phy_idx);
+	for (i = 0; i < RF_PATH_NUM_8852C; i++) {
+		val = rtw8852c_bb_cal_txpwr_ref(rtwdev, phy_idx, ref_cck, ofst_dec[i]);
+		rtw89_phy_write32_idx(rtwdev, addr[i] + ofst_cck, mask, val, phy_idx);
+	}
 }
 
 static void rtw8852c_bb_set_tx_shape_dfir(struct rtw89_dev *rtwdev,
@@ -2052,6 +2055,16 @@ static void rtw8852c_set_tx_shape(struct rtw89_dev *rtwdev,
 			      B_P1_DAC_COMP_POST_DPD_EN);
 }
 
+static void rtw8852c_set_txpwr_diff(struct rtw89_dev *rtwdev,
+				    const struct rtw89_chan *chan,
+				    enum rtw89_phy_idx phy_idx)
+{
+	s16 pwr_ofst;
+
+	pwr_ofst = rtw89_phy_ant_gain_pwr_offset(rtwdev, chan);
+	rtw8852c_set_txpwr_ref(rtwdev, phy_idx, pwr_ofst);
+}
+
 static void rtw8852c_set_txpwr(struct rtw89_dev *rtwdev,
 			       const struct rtw89_chan *chan,
 			       enum rtw89_phy_idx phy_idx)
@@ -2061,12 +2074,13 @@ static void rtw8852c_set_txpwr(struct rtw89_dev *rtwdev,
 	rtw8852c_set_tx_shape(rtwdev, chan, phy_idx);
 	rtw89_phy_set_txpwr_limit(rtwdev, chan, phy_idx);
 	rtw89_phy_set_txpwr_limit_ru(rtwdev, chan, phy_idx);
+	rtw8852c_set_txpwr_diff(rtwdev, chan, phy_idx);
 }
 
 static void rtw8852c_set_txpwr_ctrl(struct rtw89_dev *rtwdev,
 				    enum rtw89_phy_idx phy_idx)
 {
-	rtw8852c_set_txpwr_ref(rtwdev, phy_idx);
+	rtw8852c_set_txpwr_ref(rtwdev, phy_idx, 0);
 }
 
 static void
@@ -2793,7 +2807,10 @@ static void rtw8852c_query_ppdu(struct rtw89_dev *rtwdev,
 	u8 path;
 	u8 *rx_power = phy_ppdu->rssi;
 
-	status->signal = RTW89_RSSI_RAW_TO_DBM(max(rx_power[RF_PATH_A], rx_power[RF_PATH_B]));
+	if (!status->signal)
+		status->signal = RTW89_RSSI_RAW_TO_DBM(max(rx_power[RF_PATH_A],
+							   rx_power[RF_PATH_B]));
+
 	for (path = 0; path < rtwdev->chip->rf_path_num; path++) {
 		status->chains |= BIT(path);
 		status->chain_signal[path] = RTW89_RSSI_RAW_TO_DBM(rx_power[path]);
@@ -2893,6 +2910,7 @@ static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 	.ctrl_btg_bt_rx		= rtw8852c_ctrl_btg_bt_rx,
 	.query_ppdu		= rtw8852c_query_ppdu,
 	.convert_rpl_to_rssi	= NULL,
+	.phy_rpt_to_rssi	= NULL,
 	.ctrl_nbtg_bt_tx	= rtw8852c_ctrl_nbtg_bt_tx,
 	.cfg_txrx_path		= rtw8852c_bb_cfg_txrx_path,
 	.set_txpwr_ul_tb_offset	= rtw8852c_set_txpwr_ul_tb_offset,
@@ -2959,6 +2977,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.dflt_parms		= &rtw89_8852c_dflt_parms,
 	.rfe_parms_conf		= NULL,
 	.chanctx_listener	= &rtw8852c_chanctx_listener,
+	.txpwr_factor_bb	= 3,
 	.txpwr_factor_rf	= 2,
 	.txpwr_factor_mac	= 1,
 	.dig_table		= NULL,
@@ -2976,6 +2995,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 				  BIT(NL80211_CHAN_WIDTH_80) |
 				  BIT(NL80211_CHAN_WIDTH_160),
 	.support_unii4		= true,
+	.support_ant_gain	= true,
 	.ul_tb_waveform_ctrl	= false,
 	.ul_tb_pwr_diff		= true,
 	.hw_sec_hdr		= true,

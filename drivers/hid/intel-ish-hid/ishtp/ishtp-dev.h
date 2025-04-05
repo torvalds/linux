@@ -57,7 +57,6 @@ enum ishtp_dev_state {
 	ISHTP_DEV_POWER_DOWN,
 	ISHTP_DEV_POWER_UP
 };
-const char *ishtp_dev_state_str(int state);
 
 struct ishtp_cl;
 
@@ -254,6 +253,8 @@ struct ishtp_device {
 	unsigned int	ipc_tx_cnt;
 	unsigned long long	ipc_tx_bytes_cnt;
 
+	/* Time of the last clock sync */
+	unsigned long prev_sync;
 	const struct ishtp_hw_ops *ops;
 	size_t	mtu;
 	uint32_t	ishtp_msg_hdr;

@@ -118,7 +118,7 @@ static int ipmi_pci_probe(struct pci_dev *pdev,
 	if (io.irq)
 		io.irq_setup = ipmi_std_irq_setup;
 
-	dev_info(&pdev->dev, "%pR regsize %d spacing %d irq %d\n",
+	dev_info(&pdev->dev, "%pR regsize %u spacing %u irq %d\n",
 		 &pdev->resource[0], io.regsize, io.regspacing, io.irq);
 
 	return ipmi_si_add_smi(&io);

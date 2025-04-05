@@ -164,7 +164,7 @@ int bch2_sum_sector_overwrites(struct btree_trans *trans,
 
 	bch2_trans_copy_iter(&iter, extent_iter);
 
-	for_each_btree_key_upto_continue_norestart(iter,
+	for_each_btree_key_max_continue_norestart(iter,
 				new->k.p, BTREE_ITER_slots, old, ret) {
 		s64 sectors = min(new->k.p.offset, old.k->p.offset) -
 			max(bkey_start_offset(&new->k),
@@ -216,6 +216,7 @@ static inline int bch2_extent_update_i_size_sectors(struct btree_trans *trans,
 			      SPOS(0,
 				   extent_iter->pos.inode,
 				   extent_iter->snapshot),
+			      BTREE_ITER_intent|
 			      BTREE_ITER_cached);
 	int ret = bkey_err(k);
 	if (unlikely(ret))
@@ -369,7 +370,7 @@ static int bch2_write_index_default(struct bch_write_op *op)
 				     bkey_start_pos(&sk.k->k),
 				     BTREE_ITER_slots|BTREE_ITER_intent);
 
-		ret =   bch2_bkey_set_needs_rebalance(c, sk.k, &op->opts) ?:
+		ret =   bch2_bkey_set_needs_rebalance(c, &op->opts, sk.k) ?:
 			bch2_extent_update(trans, inum, &iter, sk.k,
 					&op->res,
 					op->new_i_size, &op->i_sectors_delta,
@@ -394,6 +395,31 @@ static int bch2_write_index_default(struct bch_write_op *op)
 }
 
 /* Writes */
+
+static void __bch2_write_op_error(struct printbuf *out, struct bch_write_op *op,
+				  u64 offset)
+{
+	bch2_inum_offset_err_msg(op->c, out,
+				 (subvol_inum) { op->subvol, op->pos.inode, },
+				 offset << 9);
+	prt_printf(out, "write error%s: ",
+		   op->flags & BCH_WRITE_MOVE ? "(internal move)" : "");
+}
+
+void bch2_write_op_error(struct printbuf *out, struct bch_write_op *op)
+{
+	__bch2_write_op_error(out, op, op->pos.offset);
+}
+
+static void bch2_write_op_error_trans(struct btree_trans *trans, struct printbuf *out,
+				      struct bch_write_op *op, u64 offset)
+{
+	bch2_inum_offset_err_msg_trans(trans, out,
+				       (subvol_inum) { op->subvol, op->pos.inode, },
+				       offset << 9);
+	prt_printf(out, "write error%s: ",
+		   op->flags & BCH_WRITE_MOVE ? "(internal move)" : "");
+}
 
 void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
 			       enum bch_data_type type,
@@ -531,14 +557,14 @@ static void __bch2_write_index(struct bch_write_op *op)
 
 		op->written += sectors_start - keylist_sectors(keys);
 
-		if (ret && !bch2_err_matches(ret, EROFS)) {
+		if (unlikely(ret && !bch2_err_matches(ret, EROFS))) {
 			struct bkey_i *insert = bch2_keylist_front(&op->insert_keys);
 
-			bch_err_inum_offset_ratelimited(c,
-				insert->k.p.inode, insert->k.p.offset << 9,
-				"%s write error while doing btree update: %s",
-				op->flags & BCH_WRITE_MOVE ? "move" : "user",
-				bch2_err_str(ret));
+			struct printbuf buf = PRINTBUF;
+			__bch2_write_op_error(&buf, op, bkey_start_offset(&insert->k));
+			prt_printf(&buf, "btree update error: %s", bch2_err_str(ret));
+			bch_err_ratelimited(c, "%s", buf.buf);
+			printbuf_exit(&buf);
 		}
 
 		if (ret)
@@ -621,9 +647,7 @@ void bch2_write_point_do_index_updates(struct work_struct *work)
 
 	while (1) {
 		spin_lock_irq(&wp->writes_lock);
-		op = list_first_entry_or_null(&wp->writes, struct bch_write_op, wp_list);
-		if (op)
-			list_del(&op->wp_list);
+		op = list_pop_entry(&wp->writes, struct bch_write_op, wp_list);
 		wp_update_state(wp, op != NULL);
 		spin_unlock_irq(&wp->writes_lock);
 
@@ -859,7 +883,7 @@ static enum prep_encoded_ret {
 		if (bch2_crc_cmp(op->crc.csum, csum) && !c->opts.no_data_io)
 			return PREP_ENCODED_CHECKSUM_ERR;
 
-		if (bch2_bio_uncompress_inplace(c, bio, &op->crc))
+		if (bch2_bio_uncompress_inplace(op, bio))
 			return PREP_ENCODED_ERR;
 	}
 
@@ -1080,11 +1104,14 @@ do_write:
 	*_dst = dst;
 	return more;
 csum_err:
-	bch_err_inum_offset_ratelimited(c,
-		op->pos.inode,
-		op->pos.offset << 9,
-		"%s write error: error verifying existing checksum while rewriting existing data (memory corruption?)",
-		op->flags & BCH_WRITE_MOVE ? "move" : "user");
+	{
+		struct printbuf buf = PRINTBUF;
+		bch2_write_op_error(&buf, op);
+		prt_printf(&buf, "error verifying existing checksum while rewriting existing data (memory corruption?)");
+		bch_err_ratelimited(c, "%s", buf.buf);
+		printbuf_exit(&buf);
+	}
+
 	ret = -EIO;
 err:
 	if (to_wbio(dst)->bounce)
@@ -1165,7 +1192,7 @@ static void bch2_nocow_write_convert_unwritten(struct bch_write_op *op)
 	struct btree_trans *trans = bch2_trans_get(c);
 
 	for_each_keylist_key(&op->insert_keys, orig) {
-		int ret = for_each_btree_key_upto_commit(trans, iter, BTREE_ID_extents,
+		int ret = for_each_btree_key_max_commit(trans, iter, BTREE_ID_extents,
 				     bkey_start_pos(&orig->k), orig->k.p,
 				     BTREE_ITER_intent, k,
 				     NULL, NULL, BCH_TRANS_COMMIT_no_enospc, ({
@@ -1175,11 +1202,11 @@ static void bch2_nocow_write_convert_unwritten(struct bch_write_op *op)
 		if (ret && !bch2_err_matches(ret, EROFS)) {
 			struct bkey_i *insert = bch2_keylist_front(&op->insert_keys);
 
-			bch_err_inum_offset_ratelimited(c,
-				insert->k.p.inode, insert->k.p.offset << 9,
-				"%s write error while doing btree update: %s",
-				op->flags & BCH_WRITE_MOVE ? "move" : "user",
-				bch2_err_str(ret));
+			struct printbuf buf = PRINTBUF;
+			bch2_write_op_error_trans(trans, &buf, op, bkey_start_offset(&insert->k));
+			prt_printf(&buf, "btree update error: %s", bch2_err_str(ret));
+			bch_err_ratelimited(c, "%s", buf.buf);
+			printbuf_exit(&buf);
 		}
 
 		if (ret) {
@@ -1339,16 +1366,18 @@ err:
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		goto retry;
 
+	bch2_trans_put(trans);
+	darray_exit(&buckets);
+
 	if (ret) {
-		bch_err_inum_offset_ratelimited(c,
-			op->pos.inode, op->pos.offset << 9,
-			"%s: btree lookup error %s", __func__, bch2_err_str(ret));
+		struct printbuf buf = PRINTBUF;
+		bch2_write_op_error(&buf, op);
+		prt_printf(&buf, "%s(): btree lookup error: %s", __func__, bch2_err_str(ret));
+		bch_err_ratelimited(c, "%s", buf.buf);
+		printbuf_exit(&buf);
 		op->error = ret;
 		op->flags |= BCH_WRITE_SUBMITTED;
 	}
-
-	bch2_trans_put(trans);
-	darray_exit(&buckets);
 
 	/* fallback to cow write path? */
 	if (!(op->flags & BCH_WRITE_SUBMITTED)) {
@@ -1462,14 +1491,14 @@ err:
 		if (ret <= 0) {
 			op->flags |= BCH_WRITE_SUBMITTED;
 
-			if (ret < 0) {
-				if (!(op->flags & BCH_WRITE_ALLOC_NOWAIT))
-					bch_err_inum_offset_ratelimited(c,
-						op->pos.inode,
-						op->pos.offset << 9,
-						"%s(): %s error: %s", __func__,
-						op->flags & BCH_WRITE_MOVE ? "move" : "user",
-						bch2_err_str(ret));
+			if (unlikely(ret < 0)) {
+				if (!(op->flags & BCH_WRITE_ALLOC_NOWAIT)) {
+					struct printbuf buf = PRINTBUF;
+					bch2_write_op_error(&buf, op);
+					prt_printf(&buf, "%s(): %s", __func__, bch2_err_str(ret));
+					bch_err_ratelimited(c, "%s", buf.buf);
+					printbuf_exit(&buf);
+				}
 				op->error = ret;
 				break;
 			}
@@ -1595,12 +1624,11 @@ CLOSURE_CALLBACK(bch2_write)
 	bch2_keylist_init(&op->insert_keys, op->inline_keys);
 	wbio_init(bio)->put_bio = false;
 
-	if (bio->bi_iter.bi_size & (c->opts.block_size - 1)) {
-		bch_err_inum_offset_ratelimited(c,
-			op->pos.inode,
-			op->pos.offset << 9,
-			"%s write error: misaligned write",
-			op->flags & BCH_WRITE_MOVE ? "move" : "user");
+	if (unlikely(bio->bi_iter.bi_size & (c->opts.block_size - 1))) {
+		struct printbuf buf = PRINTBUF;
+		bch2_write_op_error(&buf, op);
+		prt_printf(&buf, "misaligned write");
+		printbuf_exit(&buf);
 		op->error = -EIO;
 		goto err;
 	}

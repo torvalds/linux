@@ -1731,7 +1731,6 @@ MODULE_DEVICE_TABLE(i2c, max98088_i2c_id);
 static int max98088_i2c_probe(struct i2c_client *i2c)
 {
 	struct max98088_priv *max98088;
-	const struct i2c_device_id *id;
 
 	max98088 = devm_kzalloc(&i2c->dev, sizeof(struct max98088_priv),
 				GFP_KERNEL);
@@ -1747,8 +1746,7 @@ static int max98088_i2c_probe(struct i2c_client *i2c)
 		if (PTR_ERR(max98088->mclk) == -EPROBE_DEFER)
 			return PTR_ERR(max98088->mclk);
 
-	id = i2c_match_id(max98088_i2c_id, i2c);
-	max98088->devtype = id->driver_data;
+	max98088->devtype = (uintptr_t)i2c_get_match_data(i2c);
 
 	i2c_set_clientdata(i2c, max98088);
 	max98088->pdata = i2c->dev.platform_data;

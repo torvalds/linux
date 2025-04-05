@@ -314,6 +314,7 @@
 #define SC16IS7XX_FIFO_SIZE		(64)
 #define SC16IS7XX_GPIOS_PER_BANK	4
 
+#define SC16IS7XX_POLL_PERIOD_MS	10
 #define SC16IS7XX_RECONF_MD		BIT(0)
 #define SC16IS7XX_RECONF_IER		BIT(1)
 #define SC16IS7XX_RECONF_RS485		BIT(2)
@@ -348,6 +349,8 @@ struct sc16is7xx_port {
 	u8				mctrl_mask;
 	struct kthread_worker		kworker;
 	struct task_struct		*kworker_task;
+	struct kthread_delayed_work	poll_work;
+	bool				polling;
 	struct sc16is7xx_one		p[];
 };
 
@@ -861,6 +864,18 @@ static irqreturn_t sc16is7xx_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void sc16is7xx_poll_proc(struct kthread_work *ws)
+{
+	struct sc16is7xx_port *s = container_of(ws, struct sc16is7xx_port, poll_work.work);
+
+	/* Reuse standard IRQ handler. Interrupt ID is unused in this context. */
+	sc16is7xx_irq(0, s);
+
+	/* Setup delay based on SC16IS7XX_POLL_PERIOD_MS */
+	kthread_queue_delayed_work(&s->kworker, &s->poll_work,
+				   msecs_to_jiffies(SC16IS7XX_POLL_PERIOD_MS));
+}
+
 static void sc16is7xx_tx_proc(struct kthread_work *ws)
 {
 	struct uart_port *port = &(to_sc16is7xx_one(ws, tx_work)->port);
@@ -1149,6 +1164,7 @@ static int sc16is7xx_config_rs485(struct uart_port *port, struct ktermios *termi
 static int sc16is7xx_startup(struct uart_port *port)
 {
 	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
+	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
 	unsigned int val;
 	unsigned long flags;
 
@@ -1211,6 +1227,10 @@ static int sc16is7xx_startup(struct uart_port *port)
 	sc16is7xx_enable_ms(port);
 	uart_port_unlock_irqrestore(port, flags);
 
+	if (s->polling)
+		kthread_queue_delayed_work(&s->kworker, &s->poll_work,
+					   msecs_to_jiffies(SC16IS7XX_POLL_PERIOD_MS));
+
 	return 0;
 }
 
@@ -1231,6 +1251,9 @@ static void sc16is7xx_shutdown(struct uart_port *port)
 			      SC16IS7XX_EFCR_TXDISABLE_BIT);
 
 	sc16is7xx_power(port, 0);
+
+	if (s->polling)
+		kthread_cancel_delayed_work_sync(&s->poll_work);
 
 	kthread_flush_worker(&s->kworker);
 }
@@ -1538,6 +1561,11 @@ int sc16is7xx_probe(struct device *dev, const struct sc16is7xx_devtype *devtype,
 	/* Always ask for fixed clock rate from a property. */
 	device_property_read_u32(dev, "clock-frequency", &uartclk);
 
+	s->polling = (irq <= 0);
+	if (s->polling)
+		dev_dbg(dev,
+			"No interrupt pin definition, falling back to polling mode\n");
+
 	s->clk = devm_clk_get_optional(dev, NULL);
 	if (IS_ERR(s->clk))
 		return PTR_ERR(s->clk);
@@ -1665,6 +1693,12 @@ int sc16is7xx_probe(struct device *dev, const struct sc16is7xx_devtype *devtype,
 		goto out_ports;
 #endif
 
+	if (s->polling) {
+		/* Initialize kernel thread for polling */
+		kthread_init_delayed_work(&s->poll_work, sc16is7xx_poll_proc);
+		return 0;
+	}
+
 	/*
 	 * Setup interrupt. We first try to acquire the IRQ line as level IRQ.
 	 * If that succeeds, we can allow sharing the interrupt as well.
@@ -1723,6 +1757,9 @@ void sc16is7xx_remove(struct device *dev)
 		uart_remove_one_port(&sc16is7xx_uart, &s->p[i].port);
 		sc16is7xx_power(&s->p[i].port, 0);
 	}
+
+	if (s->polling)
+		kthread_cancel_delayed_work_sync(&s->poll_work);
 
 	kthread_flush_worker(&s->kworker);
 	kthread_stop(s->kworker_task);

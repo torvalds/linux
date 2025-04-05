@@ -28,6 +28,41 @@ endef
 #   the rule that uses them - an example for that is the 'bionic'
 #   feature check. ]
 #
+# These + the ones in FEATURE_TESTS_EXTRA are included in
+# tools/build/feature/test-all.c and we try to build it all together
+# then setting all those features to '1' meaning they are all enabled.
+#
+# There are things like fortify-source that will be set to 1 because test-all
+# is built with the flags needed to test if its enabled, resulting in
+#
+#   $ rm -rf /tmp/b ; mkdir /tmp/b ; make -C tools/perf O=/tmp/b feature-dump
+#   $ grep fortify-source /tmp/b/FEATURE-DUMP
+#   feature-fortify-source=1
+#   $
+#
+#   All the others should have lines in tools/build/feature/test-all.c like:
+#
+#    #define main main_test_disassembler_init_styled
+#    # include "test-disassembler-init-styled.c"
+#    #undef main
+#
+#    #define main main_test_libzstd
+#    # include "test-libzstd.c"
+#    #undef main
+#
+#    int main(int argc, char *argv[])
+#    {
+#      main_test_disassembler_four_args();
+#      main_test_libzstd();
+#      return 0;
+#    }
+#
+#    If the sample above works, then we end up with these lines in the FEATURE-DUMP
+#    file:
+#
+#    feature-disassembler-four-args=1
+#    feature-libzstd=1
+#
 FEATURE_TESTS_BASIC :=                  \
         backtrace                       \
         libdw                           \
@@ -38,17 +73,16 @@ FEATURE_TESTS_BASIC :=                  \
         glibc                           \
         libbfd                          \
         libbfd-buildid			\
-        libcap                          \
         libelf                          \
         libelf-getphdrnum               \
         libelf-gelf_getnote             \
         libelf-getshdrstrndx            \
+        libelf-zstd                     \
         libnuma                         \
         numa_num_possible_cpus          \
         libperl                         \
         libpython                       \
         libslang                        \
-        libslang-include-subdir         \
         libtraceevent                   \
         libtracefs                      \
         libcpupower                     \
@@ -89,13 +123,6 @@ FEATURE_TESTS_EXTRA :=                  \
          libbfd-liberty                 \
          libbfd-liberty-z               \
          libopencsd                     \
-         libunwind-x86                  \
-         libunwind-x86_64               \
-         libunwind-arm                  \
-         libunwind-aarch64              \
-         libunwind-debug-frame          \
-         libunwind-debug-frame-arm      \
-         libunwind-debug-frame-aarch64  \
          cxx                            \
          llvm                           \
          clang                          \
@@ -122,7 +149,6 @@ FEATURE_DISPLAY ?=              \
          glibc                  \
          libbfd                 \
          libbfd-buildid		\
-         libcap                 \
          libelf                 \
          libnuma                \
          numa_num_possible_cpus \

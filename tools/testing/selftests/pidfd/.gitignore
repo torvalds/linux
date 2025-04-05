@@ -6,3 +6,5 @@ pidfd_wait
 pidfd_fdinfo_test
 pidfd_getfd_test
 pidfd_setns_test
+pidfd_file_handle_test
+pidfd_bind_mount

@@ -298,3 +298,9 @@ uint64_t amdgpu_ih_decode_iv_ts_helper(struct amdgpu_ih_ring *ih, u32 rptr,
 	dw2 = le32_to_cpu(ih->ring[ring_index + 2]);
 	return dw1 | ((u64)(dw2 & 0xffff) << 32);
 }
+
+const char *amdgpu_ih_ring_name(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih)
+{
+	return ih == &adev->irq.ih ? "ih" : ih == &adev->irq.ih_soft ? "sw ih" :
+	       ih == &adev->irq.ih1 ? "ih1" : ih == &adev->irq.ih2 ? "ih2" : "unknown";
+}

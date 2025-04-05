@@ -64,6 +64,7 @@ enum {
 
 /* Transport Type codes for Discovery Log Page entry TRTYPE field */
 enum {
+	NVMF_TRTYPE_PCI		= 0,	/* PCI */
 	NVMF_TRTYPE_RDMA	= 1,	/* RDMA */
 	NVMF_TRTYPE_FC		= 2,	/* Fibre Channel */
 	NVMF_TRTYPE_TCP		= 3,	/* TCP/IP */
@@ -198,28 +199,54 @@ enum {
 #define NVME_NVM_IOSQES		6
 #define NVME_NVM_IOCQES		4
 
+/*
+ * Controller Configuration (CC) register (Offset 14h)
+ */
 enum {
+	/* Enable (EN): bit 0 */
 	NVME_CC_ENABLE		= 1 << 0,
 	NVME_CC_EN_SHIFT	= 0,
+
+	/* Bits 03:01 are reserved (NVMe Base Specification rev 2.1) */
+
+	/* I/O Command Set Selected (CSS): bits 06:04 */
 	NVME_CC_CSS_SHIFT	= 4,
-	NVME_CC_MPS_SHIFT	= 7,
-	NVME_CC_AMS_SHIFT	= 11,
-	NVME_CC_SHN_SHIFT	= 14,
-	NVME_CC_IOSQES_SHIFT	= 16,
-	NVME_CC_IOCQES_SHIFT	= 20,
+	NVME_CC_CSS_MASK	= 7 << NVME_CC_CSS_SHIFT,
 	NVME_CC_CSS_NVM		= 0 << NVME_CC_CSS_SHIFT,
 	NVME_CC_CSS_CSI		= 6 << NVME_CC_CSS_SHIFT,
-	NVME_CC_CSS_MASK	= 7 << NVME_CC_CSS_SHIFT,
+
+	/* Memory Page Size (MPS): bits 10:07 */
+	NVME_CC_MPS_SHIFT	= 7,
+	NVME_CC_MPS_MASK	= 0xf << NVME_CC_MPS_SHIFT,
+
+	/* Arbitration Mechanism Selected (AMS): bits 13:11 */
+	NVME_CC_AMS_SHIFT	= 11,
+	NVME_CC_AMS_MASK	= 7 << NVME_CC_AMS_SHIFT,
 	NVME_CC_AMS_RR		= 0 << NVME_CC_AMS_SHIFT,
 	NVME_CC_AMS_WRRU	= 1 << NVME_CC_AMS_SHIFT,
 	NVME_CC_AMS_VS		= 7 << NVME_CC_AMS_SHIFT,
+
+	/* Shutdown Notification (SHN): bits 15:14 */
+	NVME_CC_SHN_SHIFT	= 14,
+	NVME_CC_SHN_MASK	= 3 << NVME_CC_SHN_SHIFT,
 	NVME_CC_SHN_NONE	= 0 << NVME_CC_SHN_SHIFT,
 	NVME_CC_SHN_NORMAL	= 1 << NVME_CC_SHN_SHIFT,
 	NVME_CC_SHN_ABRUPT	= 2 << NVME_CC_SHN_SHIFT,
-	NVME_CC_SHN_MASK	= 3 << NVME_CC_SHN_SHIFT,
+
+	/* I/O Submission Queue Entry Size (IOSQES): bits 19:16 */
+	NVME_CC_IOSQES_SHIFT	= 16,
+	NVME_CC_IOSQES_MASK	= 0xf << NVME_CC_IOSQES_SHIFT,
 	NVME_CC_IOSQES		= NVME_NVM_IOSQES << NVME_CC_IOSQES_SHIFT,
+
+	/* I/O Completion Queue Entry Size (IOCQES): bits 23:20 */
+	NVME_CC_IOCQES_SHIFT	= 20,
+	NVME_CC_IOCQES_MASK	= 0xf << NVME_CC_IOCQES_SHIFT,
 	NVME_CC_IOCQES		= NVME_NVM_IOCQES << NVME_CC_IOCQES_SHIFT,
+
+	/* Controller Ready Independent of Media Enable (CRIME): bit 24 */
 	NVME_CC_CRIME		= 1 << 24,
+
+	/* Bits 25:31 are reserved (NVMe Base Specification rev 2.1) */
 };
 
 enum {
@@ -275,6 +302,7 @@ enum nvme_ctrl_attr {
 	NVME_CTRL_ATTR_HID_128_BIT	= (1 << 0),
 	NVME_CTRL_ATTR_TBKAS		= (1 << 6),
 	NVME_CTRL_ATTR_ELBAS		= (1 << 15),
+	NVME_CTRL_ATTR_RHII		= (1 << 18),
 };
 
 struct nvme_id_ctrl {
@@ -1894,6 +1922,46 @@ struct nvme_command {
 static inline bool nvme_is_fabrics(const struct nvme_command *cmd)
 {
 	return cmd->common.opcode == nvme_fabrics_command;
+}
+
+#ifdef CONFIG_NVME_VERBOSE_ERRORS
+const char *nvme_get_error_status_str(u16 status);
+const char *nvme_get_opcode_str(u8 opcode);
+const char *nvme_get_admin_opcode_str(u8 opcode);
+const char *nvme_get_fabrics_opcode_str(u8 opcode);
+#else /* CONFIG_NVME_VERBOSE_ERRORS */
+static inline const char *nvme_get_error_status_str(u16 status)
+{
+	return "I/O Error";
+}
+static inline const char *nvme_get_opcode_str(u8 opcode)
+{
+	return "I/O Cmd";
+}
+static inline const char *nvme_get_admin_opcode_str(u8 opcode)
+{
+	return "Admin Cmd";
+}
+
+static inline const char *nvme_get_fabrics_opcode_str(u8 opcode)
+{
+	return "Fabrics Cmd";
+}
+#endif /* CONFIG_NVME_VERBOSE_ERRORS */
+
+static inline const char *nvme_opcode_str(int qid, u8 opcode)
+{
+	return qid ? nvme_get_opcode_str(opcode) :
+		nvme_get_admin_opcode_str(opcode);
+}
+
+static inline const char *nvme_fabrics_opcode_str(
+		int qid, const struct nvme_command *cmd)
+{
+	if (nvme_is_fabrics(cmd))
+		return nvme_get_fabrics_opcode_str(cmd->fabrics.fctype);
+
+	return nvme_opcode_str(qid, cmd->common.opcode);
 }
 
 struct nvme_error_slot {

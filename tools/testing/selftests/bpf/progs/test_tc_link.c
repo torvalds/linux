@@ -8,6 +8,7 @@
 #include <linux/if_packet.h>
 #include <bpf/bpf_endian.h>
 #include <bpf/bpf_helpers.h>
+#include <bpf/bpf_core_read.h>
 
 char LICENSE[] SEC("license") = "GPL";
 
@@ -27,6 +28,7 @@ bool seen_host;
 bool seen_mcast;
 
 int mark, prio;
+unsigned short headroom, tailroom;
 
 SEC("tc/ingress")
 int tc1(struct __sk_buff *skb)
@@ -104,11 +106,24 @@ out:
 	return TCX_PASS;
 }
 
+struct sk_buff {
+	struct net_device *dev;
+};
+
+struct net_device {
+	unsigned short needed_headroom;
+	unsigned short needed_tailroom;
+};
+
 SEC("tc/egress")
 int tc8(struct __sk_buff *skb)
 {
+	struct net_device *dev = BPF_CORE_READ((struct sk_buff *)skb, dev);
+
 	seen_tc8 = true;
 	mark = skb->mark;
 	prio = skb->priority;
+	headroom = BPF_CORE_READ(dev, needed_headroom);
+	tailroom = BPF_CORE_READ(dev, needed_tailroom);
 	return TCX_PASS;
 }

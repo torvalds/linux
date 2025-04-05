@@ -55,16 +55,18 @@ unevaluatedProperties: false
 
 examples:
   - |
-   #include <dt-bindings/gpio/gpio.h>
-   i2c {
-     #address-cells = <1>;
-     #size-cells = <0>;
-     audio-codec@2a {
-       compatible = "neofidelity,ntp8918";
-       #sound-dai-cells = <0>;
-       reg = <0x2a>;
-       clocks = <&clkc 150>, <&clkc 151>, <&clkc 152>;
-       clock-names =  "wck", "scl", "bck";
-       reset-gpios = <&gpio 5 GPIO_ACTIVE_LOW>;
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        audio-codec@2a {
+            compatible = "neofidelity,ntp8918";
+            #sound-dai-cells = <0>;
+            reg = <0x2a>;
+            clocks = <&clkc 150>, <&clkc 151>, <&clkc 152>;
+            clock-names =  "wck", "scl", "bck";
+            reset-gpios = <&gpio 5 GPIO_ACTIVE_LOW>;
+        };
     };
-   };

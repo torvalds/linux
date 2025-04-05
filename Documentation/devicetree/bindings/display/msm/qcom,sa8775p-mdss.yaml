@@ -78,7 +78,6 @@ examples:
                              "mdp1-mem",
                              "cpu-cfg";
 
-
         resets = <&dispcc_core_bcr>;
         power-domains = <&dispcc_gdsc>;
 
@@ -129,7 +128,7 @@ examples:
                 port@0 {
                     reg = <0>;
                     dpu_intf0_out: endpoint {
-                         remote-endpoint = <&mdss0_dp0_in>;
+                        remote-endpoint = <&mdss0_dp0_in>;
                     };
                 };
             };
@@ -168,7 +167,8 @@ examples:
             reg = <0xaf54000 0x104>,
                   <0xaf54200 0x0c0>,
                   <0xaf55000 0x770>,
-                  <0xaf56000 0x09c>;
+                  <0xaf56000 0x09c>,
+                  <0xaf57000 0x09c>;
 
             interrupt-parent = <&mdss0>;
             interrupts = <12>;
@@ -208,8 +208,8 @@ examples:
                 };
 
                 port@1 {
-                   reg = <1>;
-                   mdss0_dp_out: endpoint { };
+                    reg = <1>;
+                    mdss0_dp_out: endpoint { };
                 };
             };
 

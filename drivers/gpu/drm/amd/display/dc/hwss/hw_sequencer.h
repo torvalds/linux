@@ -194,7 +194,6 @@ enum block_sequence_func {
 	DMUB_SUBVP_SAVE_SURF_ADDR,
 	HUBP_WAIT_FOR_DCC_META_PROP,
 	DMUB_FAMS2_GLOBAL_CONTROL_LOCK_FAST,
-
 };
 
 struct block_sequence {
@@ -331,10 +330,6 @@ struct hw_sequencer_funcs {
 	void (*disable_writeback)(struct dc *dc,
 			unsigned int dwb_pipe_inst);
 
-	bool (*mmhubbub_warmup)(struct dc *dc,
-			unsigned int num_dwb,
-			struct dc_writeback_info *wb_info);
-
 	/* Clock Related */
 	enum dc_status (*set_clock)(struct dc *dc,
 			enum dc_clock_type clock_type,
@@ -462,6 +457,18 @@ struct hw_sequencer_funcs {
 			struct dc_state *context);
 	void (*setup_hpo_hw_control)(const struct dce_hwseq *hws, bool enable);
 	void (*wait_for_all_pending_updates)(const struct pipe_ctx *pipe_ctx);
+	void (*detect_pipe_changes)(struct dc_state *old_state,
+			struct dc_state *new_state,
+			struct pipe_ctx *old_pipe,
+			struct pipe_ctx *new_pipe);
+	void (*enable_plane)(struct dc *dc,
+			struct pipe_ctx *pipe_ctx,
+			struct dc_state *context);
+	void (*update_dchubp_dpp)(struct dc *dc,
+			struct pipe_ctx *pipe_ctx,
+			struct dc_state *context);
+	void (*post_unlock_reset_opp)(struct dc *dc,
+			struct pipe_ctx *opp_head);
 };
 
 void color_space_to_black_color(
@@ -489,11 +496,12 @@ void get_hdr_visual_confirm_color(
 void get_mpctree_visual_confirm_color(
 		struct pipe_ctx *pipe_ctx,
 		struct tg_color *color);
-
+void get_vabc_visual_confirm_color(
+	struct pipe_ctx *pipe_ctx,
+	struct tg_color *color);
 void get_subvp_visual_confirm_color(
 	struct pipe_ctx *pipe_ctx,
 	struct tg_color *color);
-
 void get_fams2_visual_confirm_color(
 	struct dc *dc,
 	struct dc_state *context,

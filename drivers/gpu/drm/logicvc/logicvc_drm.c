@@ -15,8 +15,8 @@
 #include <linux/regmap.h>
 #include <linux/types.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_dma.h>
 #include <drm/drm_fourcc.h>
@@ -52,7 +52,6 @@ static struct drm_driver logicvc_drm_driver = {
 	.fops				= &logicvc_drm_fops,
 	.name				= "logicvc-drm",
 	.desc				= "Xylon LogiCVC DRM driver",
-	.date				= "20200403",
 	.major				= 1,
 	.minor				= 0,
 

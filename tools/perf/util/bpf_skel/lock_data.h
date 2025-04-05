@@ -32,7 +32,15 @@ struct contention_task_data {
 #define LCD_F_MMAP_LOCK		(1U << 31)
 #define LCD_F_SIGHAND_LOCK	(1U << 30)
 
-#define LCB_F_MAX_FLAGS		(1U << 7)
+#define LCB_F_SLAB_ID_SHIFT	16
+#define LCB_F_SLAB_ID_START	(1U << 16)
+#define LCB_F_SLAB_ID_END	(1U << 26)
+#define LCB_F_SLAB_ID_MASK	0x03FF0000U
+
+#define LCB_F_TYPE_MAX		(1U << 7)
+#define LCB_F_TYPE_MASK		0x0000007FU
+
+#define SLAB_NAME_MAX  28
 
 struct contention_data {
 	u64 total_time;
@@ -52,6 +60,11 @@ enum lock_aggr_mode {
 enum lock_class_sym {
 	LOCK_CLASS_NONE,
 	LOCK_CLASS_RQLOCK,
+};
+
+struct slab_cache_data {
+	u32 id;
+	char name[SLAB_NAME_MAX];
 };
 
 #endif /* UTIL_BPF_SKEL_LOCK_DATA_H */

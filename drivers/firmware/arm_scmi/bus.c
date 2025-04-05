@@ -238,10 +238,10 @@ static int scmi_dev_match(struct device *dev, const struct device_driver *drv)
 	return 0;
 }
 
-static int scmi_match_by_id_table(struct device *dev, void *data)
+static int scmi_match_by_id_table(struct device *dev, const void *data)
 {
 	struct scmi_device *sdev = to_scmi_dev(dev);
-	struct scmi_device_id *id_table = data;
+	const struct scmi_device_id *id_table = data;
 
 	return sdev->protocol_id == id_table->protocol_id &&
 		(id_table->name && !strcmp(sdev->name, id_table->name));

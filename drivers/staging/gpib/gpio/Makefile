@@ -1,4 +1,4 @@
 
-obj-m += gpib_bitbang.o
+obj-$(CONFIG_GPIB_GPIO) += gpib_bitbang.o
 
 

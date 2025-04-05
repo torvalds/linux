@@ -173,156 +173,96 @@ static void umc_v12_0_query_ras_error_count(struct amdgpu_device *adev,
 	umc_v12_0_reset_error_count(adev);
 }
 
-static void umc_v12_0_convert_error_address(struct amdgpu_device *adev,
+static int umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 					struct ras_err_data *err_data,
-					struct ta_ras_query_address_input *addr_in)
+					struct ta_ras_query_address_input *addr_in,
+					struct ta_ras_query_address_output *addr_out,
+					bool dump_addr)
 {
-	uint32_t col, row, row_xor, bank, channel_index;
-	uint64_t soc_pa, retired_page, column, err_addr;
-	struct ta_ras_query_address_output addr_out;
+	uint32_t col, col_lower, row, row_lower, bank;
+	uint32_t channel_index = 0, umc_inst = 0;
+	uint32_t i, loop_bits[UMC_V12_0_RETIRE_LOOP_BITS];
+	uint64_t soc_pa, column, err_addr;
+	struct ta_ras_query_address_output addr_out_tmp;
+	struct ta_ras_query_address_output *paddr_out;
+	enum amdgpu_memory_partition nps = AMDGPU_NPS1_PARTITION_MODE;
+	int ret = 0;
 
-	err_addr = addr_in->ma.err_addr;
-	addr_in->addr_type = TA_RAS_MCA_TO_PA;
-	if (psp_ras_query_address(&adev->psp, addr_in, &addr_out)) {
-		dev_warn(adev->dev, "Failed to query RAS physical address for 0x%llx",
-			err_addr);
+	if (!addr_out)
+		paddr_out = &addr_out_tmp;
+	else
+		paddr_out = addr_out;
 
-		return;
+	err_addr = bank = 0;
+	if (addr_in) {
+		err_addr = addr_in->ma.err_addr;
+		addr_in->addr_type = TA_RAS_MCA_TO_PA;
+		ret = psp_ras_query_address(&adev->psp, addr_in, paddr_out);
+		if (ret) {
+			dev_warn(adev->dev, "Failed to query RAS physical address for 0x%llx",
+				err_addr);
+
+			goto out;
+		}
+
+		bank = paddr_out->pa.bank;
+		/* no need to care about umc inst if addr_in is NULL */
+		umc_inst = addr_in->ma.umc_inst;
 	}
 
-	soc_pa = addr_out.pa.pa;
-	bank = addr_out.pa.bank;
-	channel_index = addr_out.pa.channel_idx;
+	loop_bits[0] = UMC_V12_0_PA_C2_BIT;
+	loop_bits[1] = UMC_V12_0_PA_C3_BIT;
+	loop_bits[2] = UMC_V12_0_PA_C4_BIT;
+	loop_bits[3] = UMC_V12_0_PA_R13_BIT;
 
-	col = (err_addr >> 1) & 0x1fULL;
-	row = (err_addr >> 10) & 0x3fffULL;
-	row_xor = row ^ (0x1ULL << 13);
-	/* clear [C3 C2] in soc physical address */
-	soc_pa &= ~(0x3ULL << UMC_V12_0_PA_C2_BIT);
-	/* clear [C4] in soc physical address */
-	soc_pa &= ~(0x1ULL << UMC_V12_0_PA_C4_BIT);
+	if (adev->gmc.gmc_funcs->query_mem_partition_mode)
+		nps = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
 
-	/* loop for all possibilities of [C4 C3 C2] */
-	for (column = 0; column < UMC_V12_0_NA_MAP_PA_NUM; column++) {
-		retired_page = soc_pa | ((column & 0x3) << UMC_V12_0_PA_C2_BIT);
-		retired_page |= (((column & 0x4) >> 2) << UMC_V12_0_PA_C4_BIT);
-		/* include column bit 0 and 1 */
-		col &= 0x3;
-		col |= (column << 2);
-		dev_info(adev->dev,
-			"Error Address(PA):0x%-10llx Row:0x%-4x Col:0x%-2x Bank:0x%x Channel:0x%x\n",
-			retired_page, row, col, bank, channel_index);
-		amdgpu_umc_fill_error_record(err_data, err_addr,
-			retired_page, channel_index, addr_in->ma.umc_inst);
-
-		/* shift R13 bit */
-		retired_page ^= (0x1ULL << UMC_V12_0_PA_R13_BIT);
-		dev_info(adev->dev,
-			"Error Address(PA):0x%-10llx Row:0x%-4x Col:0x%-2x Bank:0x%x Channel:0x%x\n",
-			retired_page, row_xor, col, bank, channel_index);
-		amdgpu_umc_fill_error_record(err_data, err_addr,
-			retired_page, channel_index, addr_in->ma.umc_inst);
-	}
-}
-
-static void umc_v12_0_dump_addr_info(struct amdgpu_device *adev,
-				struct ta_ras_query_address_output *addr_out,
-				uint64_t err_addr)
-{
-	uint32_t col, row, row_xor, bank, channel_index;
-	uint64_t soc_pa, retired_page, column;
-
-	soc_pa = addr_out->pa.pa;
-	bank = addr_out->pa.bank;
-	channel_index = addr_out->pa.channel_idx;
-
-	col = (err_addr >> 1) & 0x1fULL;
-	row = (err_addr >> 10) & 0x3fffULL;
-	row_xor = row ^ (0x1ULL << 13);
-	/* clear [C3 C2] in soc physical address */
-	soc_pa &= ~(0x3ULL << UMC_V12_0_PA_C2_BIT);
-	/* clear [C4] in soc physical address */
-	soc_pa &= ~(0x1ULL << UMC_V12_0_PA_C4_BIT);
-
-	/* loop for all possibilities of [C4 C3 C2] */
-	for (column = 0; column < UMC_V12_0_NA_MAP_PA_NUM; column++) {
-		retired_page = soc_pa | ((column & 0x3) << UMC_V12_0_PA_C2_BIT);
-		retired_page |= (((column & 0x4) >> 2) << UMC_V12_0_PA_C4_BIT);
-		/* include column bit 0 and 1 */
-		col &= 0x3;
-		col |= (column << 2);
-		dev_info(adev->dev,
-			"Error Address(PA):0x%-10llx Row:0x%-4x Col:0x%-2x Bank:0x%x Channel:0x%x\n",
-			retired_page, row, col, bank, channel_index);
-
-		/* shift R13 bit */
-		retired_page ^= (0x1ULL << UMC_V12_0_PA_R13_BIT);
-		dev_info(adev->dev,
-			"Error Address(PA):0x%-10llx Row:0x%-4x Col:0x%-2x Bank:0x%x Channel:0x%x\n",
-			retired_page, row_xor, col, bank, channel_index);
-	}
-}
-
-static int umc_v12_0_lookup_bad_pages_in_a_row(struct amdgpu_device *adev,
-			uint64_t pa_addr, uint64_t *pfns, int len)
-{
-	uint64_t soc_pa, retired_page, column;
-	uint32_t pos = 0;
-
-	soc_pa = pa_addr;
-	/* clear [C3 C2] in soc physical address */
-	soc_pa &= ~(0x3ULL << UMC_V12_0_PA_C2_BIT);
-	/* clear [C4] in soc physical address */
-	soc_pa &= ~(0x1ULL << UMC_V12_0_PA_C4_BIT);
-
-	/* loop for all possibilities of [C4 C3 C2] */
-	for (column = 0; column < UMC_V12_0_NA_MAP_PA_NUM; column++) {
-		retired_page = soc_pa | ((column & 0x3) << UMC_V12_0_PA_C2_BIT);
-		retired_page |= (((column & 0x4) >> 2) << UMC_V12_0_PA_C4_BIT);
-
-		if (pos >= len)
-			return 0;
-		pfns[pos++] = retired_page >> AMDGPU_GPU_PAGE_SHIFT;
-
-		/* shift R13 bit */
-		retired_page ^= (0x1ULL << UMC_V12_0_PA_R13_BIT);
-
-		if (pos >= len)
-			return 0;
-		pfns[pos++] = retired_page >> AMDGPU_GPU_PAGE_SHIFT;
-
+	/* other nps modes are taken as nps1 */
+	if (nps == AMDGPU_NPS4_PARTITION_MODE) {
+		loop_bits[0] = UMC_V12_0_PA_CH4_BIT;
+		loop_bits[1] = UMC_V12_0_PA_CH5_BIT;
+		loop_bits[2] = UMC_V12_0_PA_B0_BIT;
+		loop_bits[3] = UMC_V12_0_PA_R11_BIT;
 	}
 
-	return pos;
-}
+	soc_pa = paddr_out->pa.pa;
+	channel_index = paddr_out->pa.channel_idx;
+	/* clear loop bits in soc physical address */
+	for (i = 0; i < UMC_V12_0_RETIRE_LOOP_BITS; i++)
+		soc_pa &= ~BIT_ULL(loop_bits[i]);
 
-static int umc_v12_0_convert_mca_to_addr(struct amdgpu_device *adev,
-			uint64_t err_addr, uint32_t ch, uint32_t umc,
-			uint32_t node, uint32_t socket,
-			uint64_t *addr, bool dump_addr)
-{
-	struct ta_ras_query_address_input addr_in;
-	struct ta_ras_query_address_output addr_out;
+	paddr_out->pa.pa = soc_pa;
+	/* get column bit 0 and 1 in mca address */
+	col_lower = (err_addr >> 1) & 0x3ULL;
+	/* MA_R13_BIT will be handled later */
+	row_lower = (err_addr >> UMC_V12_0_MA_R0_BIT) & 0x1fffULL;
 
-	memset(&addr_in, 0, sizeof(addr_in));
-	addr_in.ma.err_addr = err_addr;
-	addr_in.ma.ch_inst = ch;
-	addr_in.ma.umc_inst = umc;
-	addr_in.ma.node_inst = node;
-	addr_in.ma.socket_id = socket;
-	addr_in.addr_type = TA_RAS_MCA_TO_PA;
-	if (psp_ras_query_address(&adev->psp, &addr_in, &addr_out)) {
-		dev_warn(adev->dev, "Failed to query RAS physical address for 0x%llx",
-			err_addr);
-		return -EINVAL;
+	if (!err_data && !dump_addr)
+		goto out;
+
+	/* loop for all possibilities of retired bits */
+	for (column = 0; column < UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL; column++) {
+		soc_pa = paddr_out->pa.pa;
+		for (i = 0; i < UMC_V12_0_RETIRE_LOOP_BITS; i++)
+			soc_pa |= (((column >> i) & 0x1ULL) << loop_bits[i]);
+
+		col = ((column & 0x7) << 2) | col_lower;
+		/* add row bit 13 */
+		row = ((column >> 3) << 13) | row_lower;
+
+		if (dump_addr)
+			dev_info(adev->dev,
+				"Error Address(PA):0x%-10llx Row:0x%-4x Col:0x%-2x Bank:0x%x Channel:0x%x\n",
+				soc_pa, row, col, bank, channel_index);
+
+		if (err_data)
+			amdgpu_umc_fill_error_record(err_data, err_addr,
+				soc_pa, channel_index, umc_inst);
 	}
 
-	if (dump_addr)
-		umc_v12_0_dump_addr_info(adev, &addr_out, err_addr);
-
-	*addr = addr_out.pa.pa;
-
-	return 0;
+out:
+	return ret;
 }
 
 static int umc_v12_0_query_error_address(struct amdgpu_device *adev,
@@ -374,7 +314,7 @@ static int umc_v12_0_query_error_address(struct amdgpu_device *adev,
 		addr_in.ma.umc_inst = umc_inst;
 		addr_in.ma.node_inst = node_inst;
 
-		umc_v12_0_convert_error_address(adev, err_data, &addr_in);
+		umc_v12_0_convert_error_address(adev, err_data, &addr_in, NULL, true);
 	}
 
 	/* clear umc status */
@@ -526,6 +466,9 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	uint64_t page_pfn[UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL];
 	uint64_t err_addr, pa_addr = 0;
 	struct ras_ecc_err *ecc_err;
+	struct ta_ras_query_address_output addr_out;
+	enum amdgpu_memory_partition nps = AMDGPU_NPS1_PARTITION_MODE;
+	uint32_t shift_bit = UMC_V12_0_PA_C4_BIT;
 	int count, ret, i;
 
 	hwid = REG_GET_FIELD(ipid, MCMP1_IPIDT0, HardwareID);
@@ -552,10 +495,10 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 		MCA_IPID_2_UMC_CH(ipid),
 		err_addr);
 
-	ret = umc_v12_0_convert_mca_to_addr(adev,
+	ret = amdgpu_umc_mca_to_addr(adev,
 			err_addr, MCA_IPID_2_UMC_CH(ipid),
 			MCA_IPID_2_UMC_INST(ipid), MCA_IPID_2_DIE_ID(ipid),
-			MCA_IPID_2_SOCKET_ID(ipid), &pa_addr, true);
+			MCA_IPID_2_SOCKET_ID(ipid), &addr_out, true);
 	if (ret)
 		return ret;
 
@@ -563,14 +506,21 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	if (!ecc_err)
 		return -ENOMEM;
 
+	pa_addr = addr_out.pa.pa;
 	ecc_err->status = status;
 	ecc_err->ipid = ipid;
 	ecc_err->addr = addr;
-	ecc_err->pa_pfn = UMC_V12_ADDR_MASK_BAD_COLS(pa_addr) >> AMDGPU_GPU_PAGE_SHIFT;
+	ecc_err->pa_pfn = pa_addr >> AMDGPU_GPU_PAGE_SHIFT;
+	ecc_err->channel_idx = addr_out.pa.channel_idx;
+
+	if (adev->gmc.gmc_funcs->query_mem_partition_mode)
+		nps = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
+	if (nps == AMDGPU_NPS4_PARTITION_MODE)
+		shift_bit = UMC_V12_0_PA_B0_BIT;
 
 	/* If converted pa_pfn is 0, use pa C4 pfn. */
 	if (!ecc_err->pa_pfn)
-		ecc_err->pa_pfn = BIT_ULL(UMC_V12_0_PA_C4_BIT) >> AMDGPU_GPU_PAGE_SHIFT;
+		ecc_err->pa_pfn = BIT_ULL(shift_bit) >> AMDGPU_GPU_PAGE_SHIFT;
 
 	ret = amdgpu_umc_logs_ecc_err(adev, &con->umc_ecc_log.de_page_tree, ecc_err);
 	if (ret) {
@@ -586,7 +536,7 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	con->umc_ecc_log.de_queried_count++;
 
 	memset(page_pfn, 0, sizeof(page_pfn));
-	count = umc_v12_0_lookup_bad_pages_in_a_row(adev,
+	count = amdgpu_umc_lookup_bad_pages_in_a_row(adev,
 				pa_addr,
 				page_pfn, ARRAY_SIZE(page_pfn));
 	if (count <= 0) {
@@ -629,7 +579,7 @@ static int umc_v12_0_fill_error_record(struct amdgpu_device *adev,
 		return -EINVAL;
 
 	memset(page_pfn, 0, sizeof(page_pfn));
-	count = umc_v12_0_lookup_bad_pages_in_a_row(adev,
+	count = amdgpu_umc_lookup_bad_pages_in_a_row(adev,
 				ecc_err->pa_pfn << AMDGPU_GPU_PAGE_SHIFT,
 				page_pfn, ARRAY_SIZE(page_pfn));
 
@@ -637,7 +587,7 @@ static int umc_v12_0_fill_error_record(struct amdgpu_device *adev,
 		ret = amdgpu_umc_fill_error_record(err_data,
 				ecc_err->addr,
 				page_pfn[i] << AMDGPU_GPU_PAGE_SHIFT,
-				MCA_IPID_2_UMC_CH(ecc_err->ipid),
+				ecc_err->channel_idx,
 				MCA_IPID_2_UMC_INST(ecc_err->ipid));
 		if (ret)
 			break;
@@ -676,6 +626,31 @@ static void umc_v12_0_query_ras_ecc_err_addr(struct amdgpu_device *adev,
 	mutex_unlock(&con->umc_ecc_log.lock);
 }
 
+static uint32_t umc_v12_0_get_die_id(struct amdgpu_device *adev,
+		uint64_t mca_addr, uint64_t retired_page)
+{
+	uint32_t die = 0;
+
+	/* we only calculate die id for nps1 mode right now */
+	die += ((((retired_page >> 12) & 0x1ULL)^
+	    ((retired_page >> 20) & 0x1ULL) ^
+	    ((retired_page >> 27) & 0x1ULL) ^
+	    ((retired_page >> 34) & 0x1ULL) ^
+	    ((retired_page >> 41) & 0x1ULL)) << 0);
+
+	/* the original PA_C4 and PA_R13 may be cleared in retired_page, so
+	 * get them from mca_addr.
+	 */
+	die += ((((retired_page >> 13) & 0x1ULL) ^
+	    ((mca_addr >> 5) & 0x1ULL) ^
+	    ((retired_page >> 28) & 0x1ULL) ^
+	    ((mca_addr >> 23) & 0x1ULL) ^
+	    ((retired_page >> 42) & 0x1ULL)) << 1);
+	die &= 3;
+
+	return die;
+}
+
 struct amdgpu_umc_ras umc_v12_0_ras = {
 	.ras_block = {
 		.hw_ops = &umc_v12_0_ras_hw_ops,
@@ -686,5 +661,7 @@ struct amdgpu_umc_ras umc_v12_0_ras = {
 	.ecc_info_query_ras_error_address = umc_v12_0_query_ras_ecc_err_addr,
 	.check_ecc_err_status = umc_v12_0_check_ecc_err_status,
 	.update_ecc_status = umc_v12_0_update_ecc_status,
+	.convert_ras_err_addr = umc_v12_0_convert_error_address,
+	.get_die_id_from_pa = umc_v12_0_get_die_id,
 };
 

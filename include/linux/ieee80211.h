@@ -1532,6 +1532,17 @@ struct ieee80211_mgmt {
 				struct {
 					u8 action_code;
 				} __packed ttlm_tear_down;
+				struct {
+					u8 action_code;
+					u8 dialog_token;
+					u8 variable[];
+				} __packed ml_reconf_req;
+				struct {
+					u8 action_code;
+					u8 dialog_token;
+					u8 count;
+					u8 variable[];
+				} __packed ml_reconf_resp;
 			} u;
 		} __packed action;
 		DECLARE_FLEX_ARRAY(u8, body); /* Generic frame body */
@@ -1542,10 +1553,12 @@ struct ieee80211_mgmt {
 #define BSS_MEMBERSHIP_SELECTOR_HT_PHY	127
 #define BSS_MEMBERSHIP_SELECTOR_VHT_PHY	126
 #define BSS_MEMBERSHIP_SELECTOR_GLK	125
-#define BSS_MEMBERSHIP_SELECTOR_EPS	124
+#define BSS_MEMBERSHIP_SELECTOR_EPD	124
 #define BSS_MEMBERSHIP_SELECTOR_SAE_H2E 123
 #define BSS_MEMBERSHIP_SELECTOR_HE_PHY	122
 #define BSS_MEMBERSHIP_SELECTOR_EHT_PHY	121
+
+#define BSS_MEMBERSHIP_SELECTOR_MIN	BSS_MEMBERSHIP_SELECTOR_EHT_PHY
 
 /* mgmt header + 1 byte category code */
 #define IEEE80211_MIN_ACTION_SIZE offsetof(struct ieee80211_mgmt, u.action.u)
@@ -3883,6 +3896,16 @@ enum ieee80211_protected_eht_actioncode {
 	WLAN_PROTECTED_EHT_ACTION_TTLM_REQ = 0,
 	WLAN_PROTECTED_EHT_ACTION_TTLM_RES = 1,
 	WLAN_PROTECTED_EHT_ACTION_TTLM_TEARDOWN = 2,
+	WLAN_PROTECTED_EHT_ACTION_EPCS_ENABLE_REQ = 3,
+	WLAN_PROTECTED_EHT_ACTION_EPCS_ENABLE_RESP = 4,
+	WLAN_PROTECTED_EHT_ACTION_EPCS_ENABLE_TEARDOWN = 5,
+	WLAN_PROTECTED_EHT_ACTION_EML_OP_MODE_NOTIF = 6,
+	WLAN_PROTECTED_EHT_ACTION_LINK_RECOMMEND = 7,
+	WLAN_PROTECTED_EHT_ACTION_ML_OP_UPDATE_REQ = 8,
+	WLAN_PROTECTED_EHT_ACTION_ML_OP_UPDATE_RESP = 9,
+	WLAN_PROTECTED_EHT_ACTION_LINK_RECONFIG_NOTIF = 10,
+	WLAN_PROTECTED_EHT_ACTION_LINK_RECONFIG_REQ = 11,
+	WLAN_PROTECTED_EHT_ACTION_LINK_RECONFIG_RESP = 12,
 };
 
 /* Security key length */
@@ -4961,6 +4984,7 @@ struct ieee80211_multi_link_elem {
 #define IEEE80211_MLC_BASIC_PRES_EML_CAPA		0x0080
 #define IEEE80211_MLC_BASIC_PRES_MLD_CAPA_OP		0x0100
 #define IEEE80211_MLC_BASIC_PRES_MLD_ID			0x0200
+#define IEEE80211_MLC_BASIC_PRES_EXT_MLD_CAPA_OP	0x0400
 
 #define IEEE80211_MED_SYNC_DELAY_DURATION		0x00ff
 #define IEEE80211_MED_SYNC_DELAY_SYNC_OFDM_ED_THRESH	0x0f00
@@ -5018,6 +5042,8 @@ struct ieee80211_multi_link_elem {
 #define IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_SUPP_DIFF	3
 #define IEEE80211_MLD_CAP_OP_FREQ_SEP_TYPE_IND		0x0f80
 #define IEEE80211_MLD_CAP_OP_AAR_SUPPORT		0x1000
+#define IEEE80211_MLD_CAP_OP_LINK_RECONF_SUPPORT	0x2000
+#define IEEE80211_MLD_CAP_OP_ALIGNED_TWT_SUPPORT	0x4000
 
 struct ieee80211_mle_basic_common_info {
 	u8 len;
@@ -5033,6 +5059,9 @@ struct ieee80211_mle_preq_common_info {
 } __packed;
 
 #define IEEE80211_MLC_RECONF_PRES_MLD_MAC_ADDR		0x0010
+#define IEEE80211_MLC_RECONF_PRES_EML_CAPA		0x0020
+#define IEEE80211_MLC_RECONF_PRES_MLD_CAPA_OP		0x0040
+#define IEEE80211_MLC_RECONF_PRES_EXT_MLD_CAPA_OP	0x0080
 
 /* no fixed fields in RECONF */
 
@@ -5055,28 +5084,24 @@ static inline u8 ieee80211_mle_common_size(const u8 *data)
 {
 	const struct ieee80211_multi_link_elem *mle = (const void *)data;
 	u16 control = le16_to_cpu(mle->control);
-	u8 common = 0;
 
 	switch (u16_get_bits(control, IEEE80211_ML_CONTROL_TYPE)) {
 	case IEEE80211_ML_CONTROL_TYPE_BASIC:
 	case IEEE80211_ML_CONTROL_TYPE_PREQ:
 	case IEEE80211_ML_CONTROL_TYPE_TDLS:
 	case IEEE80211_ML_CONTROL_TYPE_RECONF:
+	case IEEE80211_ML_CONTROL_TYPE_PRIO_ACCESS:
 		/*
 		 * The length is the first octet pointed by mle->variable so no
 		 * need to add anything
 		 */
 		break;
-	case IEEE80211_ML_CONTROL_TYPE_PRIO_ACCESS:
-		if (control & IEEE80211_MLC_PRIO_ACCESS_PRES_AP_MLD_MAC_ADDR)
-			common += ETH_ALEN;
-		return common;
 	default:
 		WARN_ON(1);
 		return 0;
 	}
 
-	return sizeof(*mle) + common + mle->variable[0];
+	return sizeof(*mle) + mle->variable[0];
 }
 
 /**
@@ -5227,6 +5252,47 @@ static inline u16 ieee80211_mle_get_mld_capa_op(const u8 *data)
 }
 
 /**
+ * ieee80211_mle_get_ext_mld_capa_op - returns the extended MLD capabilities
+ *	and operations.
+ * @data: pointer to the multi-link element
+ * Return: the extended MLD capabilities and operations field value from
+ *	the multi-link element, or 0 if not present
+ *
+ * The element is assumed to be of the correct type (BASIC) and big enough,
+ * this must be checked using ieee80211_mle_type_ok().
+ */
+static inline u16 ieee80211_mle_get_ext_mld_capa_op(const u8 *data)
+{
+	const struct ieee80211_multi_link_elem *mle = (const void *)data;
+	u16 control = le16_to_cpu(mle->control);
+	const u8 *common = mle->variable;
+
+	/*
+	 * common points now at the beginning of
+	 * ieee80211_mle_basic_common_info
+	 */
+	common += sizeof(struct ieee80211_mle_basic_common_info);
+
+	if (!(control & IEEE80211_MLC_BASIC_PRES_EXT_MLD_CAPA_OP))
+		return 0;
+
+	if (control & IEEE80211_MLC_BASIC_PRES_LINK_ID)
+		common += 1;
+	if (control & IEEE80211_MLC_BASIC_PRES_BSS_PARAM_CH_CNT)
+		common += 1;
+	if (control & IEEE80211_MLC_BASIC_PRES_MED_SYNC_DELAY)
+		common += 2;
+	if (control & IEEE80211_MLC_BASIC_PRES_EML_CAPA)
+		common += 2;
+	if (control & IEEE80211_MLC_BASIC_PRES_MLD_CAPA_OP)
+		common += 2;
+	if (control & IEEE80211_MLC_BASIC_PRES_MLD_ID)
+		common += 1;
+
+	return get_unaligned_le16(common);
+}
+
+/**
  * ieee80211_mle_get_mld_id - returns the MLD ID
  * @data: pointer to the multi-link element
  * Return: The MLD ID in the given multi-link element, or 0 if not present
@@ -5298,6 +5364,8 @@ static inline bool ieee80211_mle_size_ok(const u8 *data, size_t len)
 			common += 2;
 		if (control & IEEE80211_MLC_BASIC_PRES_MLD_ID)
 			common += 1;
+		if (control & IEEE80211_MLC_BASIC_PRES_EXT_MLD_CAPA_OP)
+			common += 2;
 		break;
 	case IEEE80211_ML_CONTROL_TYPE_PREQ:
 		common += sizeof(struct ieee80211_mle_preq_common_info);
@@ -5308,14 +5376,19 @@ static inline bool ieee80211_mle_size_ok(const u8 *data, size_t len)
 	case IEEE80211_ML_CONTROL_TYPE_RECONF:
 		if (control & IEEE80211_MLC_RECONF_PRES_MLD_MAC_ADDR)
 			common += ETH_ALEN;
+		if (control & IEEE80211_MLC_RECONF_PRES_EML_CAPA)
+			common += 2;
+		if (control & IEEE80211_MLC_RECONF_PRES_MLD_CAPA_OP)
+			common += 2;
+		if (control & IEEE80211_MLC_RECONF_PRES_EXT_MLD_CAPA_OP)
+			common += 2;
 		break;
 	case IEEE80211_ML_CONTROL_TYPE_TDLS:
 		common += sizeof(struct ieee80211_mle_tdls_common_info);
 		check_common_len = true;
 		break;
 	case IEEE80211_ML_CONTROL_TYPE_PRIO_ACCESS:
-		if (control & IEEE80211_MLC_PRIO_ACCESS_PRES_AP_MLD_MAC_ADDR)
-			common += ETH_ALEN;
+		common = ETH_ALEN + 1;
 		break;
 	default:
 		/* we don't know this type */
@@ -5458,8 +5531,13 @@ ieee80211_mle_basic_sta_prof_bss_param_ch_cnt(const struct ieee80211_mle_per_sta
 #define IEEE80211_MLE_STA_RECONF_CONTROL_COMPLETE_PROFILE		0x0010
 #define IEEE80211_MLE_STA_RECONF_CONTROL_STA_MAC_ADDR_PRESENT		0x0020
 #define IEEE80211_MLE_STA_RECONF_CONTROL_AP_REM_TIMER_PRESENT		0x0040
-#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_UPDATE_TYPE		0x0780
-#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_PARAMS_PRESENT	0x0800
+#define	IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_TYPE                 0x0780
+#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_TYPE_AP_REM          0
+#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_TYPE_OP_PARAM_UPDATE 1
+#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_TYPE_ADD_LINK        2
+#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_TYPE_DEL_LINK        3
+#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_TYPE_NSTR_STATUS     4
+#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_PARAMS_PRESENT       0x0800
 
 /**
  * ieee80211_mle_reconf_sta_prof_size_ok - validate reconfiguration multi-link

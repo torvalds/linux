@@ -160,6 +160,102 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
  * in exit.c or in signal.c.
  */
 
+struct pt_regs_offset {
+	const char *name;
+	int offset;
+};
+
+#define REG_OFFSET_NAME(r) {.name = #r, .offset = offsetof(struct pt_regs, r)}
+#define REG_OFFSET_END {.name = NULL, .offset = 0}
+
+static const struct pt_regs_offset regoffset_table[] = {
+	REG_OFFSET_NAME(sr),
+	REG_OFFSET_NAME(sp),
+	REG_OFFSET_NAME(gpr2),
+	REG_OFFSET_NAME(gpr3),
+	REG_OFFSET_NAME(gpr4),
+	REG_OFFSET_NAME(gpr5),
+	REG_OFFSET_NAME(gpr6),
+	REG_OFFSET_NAME(gpr7),
+	REG_OFFSET_NAME(gpr8),
+	REG_OFFSET_NAME(gpr9),
+	REG_OFFSET_NAME(gpr10),
+	REG_OFFSET_NAME(gpr11),
+	REG_OFFSET_NAME(gpr12),
+	REG_OFFSET_NAME(gpr13),
+	REG_OFFSET_NAME(gpr14),
+	REG_OFFSET_NAME(gpr15),
+	REG_OFFSET_NAME(gpr16),
+	REG_OFFSET_NAME(gpr17),
+	REG_OFFSET_NAME(gpr18),
+	REG_OFFSET_NAME(gpr19),
+	REG_OFFSET_NAME(gpr20),
+	REG_OFFSET_NAME(gpr21),
+	REG_OFFSET_NAME(gpr22),
+	REG_OFFSET_NAME(gpr23),
+	REG_OFFSET_NAME(gpr24),
+	REG_OFFSET_NAME(gpr25),
+	REG_OFFSET_NAME(gpr26),
+	REG_OFFSET_NAME(gpr27),
+	REG_OFFSET_NAME(gpr28),
+	REG_OFFSET_NAME(gpr29),
+	REG_OFFSET_NAME(gpr30),
+	REG_OFFSET_NAME(gpr31),
+	REG_OFFSET_NAME(pc),
+	REG_OFFSET_NAME(orig_gpr11),
+	REG_OFFSET_END,
+};
+
+/**
+ * regs_query_register_offset() - query register offset from its name
+ * @name:	the name of a register
+ *
+ * regs_query_register_offset() returns the offset of a register in struct
+ * pt_regs from its name. If the name is invalid, this returns -EINVAL;
+ */
+int regs_query_register_offset(const char *name)
+{
+	const struct pt_regs_offset *roff;
+
+	for (roff = regoffset_table; roff->name != NULL; roff++)
+		if (!strcmp(roff->name, name))
+			return roff->offset;
+	return -EINVAL;
+}
+
+/**
+ * regs_within_kernel_stack() - check the address in the stack
+ * @regs:      pt_regs which contains kernel stack pointer.
+ * @addr:      address which is checked.
+ *
+ * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
+ * If @addr is within the kernel stack, it returns true. If not, returns false.
+ */
+static bool regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr)
+{
+	return (addr & ~(THREAD_SIZE - 1))  ==
+		(kernel_stack_pointer(regs) & ~(THREAD_SIZE - 1));
+}
+
+/**
+ * regs_get_kernel_stack_nth() - get Nth entry of the stack
+ * @regs:	pt_regs which contains kernel stack pointer.
+ * @n:		stack entry number.
+ *
+ * regs_get_kernel_stack_nth() returns @n th entry of the kernel stack which
+ * is specified by @regs. If the @n th entry is NOT in the kernel stack,
+ * this returns 0.
+ */
+unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n)
+{
+	unsigned long *addr = (unsigned long *)kernel_stack_pointer(regs);
+
+	addr += n;
+	if (regs_within_kernel_stack(regs, (unsigned long)addr))
+		return *addr;
+	else
+		return 0;
+}
 
 /*
  * Called by kernel/ptrace.c when detaching..

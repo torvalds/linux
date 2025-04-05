@@ -799,6 +799,12 @@ static int ipvlan_device_event(struct notifier_block *unused,
 	case NETDEV_PRE_TYPE_CHANGE:
 		/* Forbid underlying device to change its type. */
 		return NOTIFY_BAD;
+
+	case NETDEV_NOTIFY_PEERS:
+	case NETDEV_BONDING_FAILOVER:
+	case NETDEV_RESEND_IGMP:
+		list_for_each_entry(ipvlan, &port->ipvlans, pnode)
+			call_netdevice_notifiers(event, ipvlan->dev);
 	}
 	return NOTIFY_DONE;
 }

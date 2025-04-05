@@ -6,7 +6,6 @@
 
 struct found_btree_node {
 	bool			range_updated:1;
-	bool			overwritten:1;
 	u8			btree_id;
 	u8			level;
 	unsigned		sectors_written;

@@ -327,7 +327,8 @@ static void print_instructions(struct perf_stat_config *config,
 			     "insn per cycle", 0);
 	}
 	if (max_stalled && instructions) {
-		out->new_line(config, ctxp);
+		if (out->new_line)
+			out->new_line(config, ctxp);
 		print_metric(config, ctxp, METRIC_THRESHOLD_UNKNOWN, "%7.2f ",
 			     "stalled cycles per insn", max_stalled / instructions);
 	}
@@ -670,7 +671,7 @@ void *perf_stat__print_shadow_stats_metricgroup(struct perf_stat_config *config,
 			}
 		}
 
-		if ((*num)++ > 0)
+		if ((*num)++ > 0 && out->new_line)
 			out->new_line(config, ctxp);
 		generic_metric(config, mexp, evsel, aggr_idx, out);
 	}

@@ -113,11 +113,13 @@ static int wakeup_display_graph(struct trace_array *tr, int set)
 }
 
 static int wakeup_graph_entry(struct ftrace_graph_ent *trace,
-			      struct fgraph_ops *gops)
+			      struct fgraph_ops *gops,
+			      struct ftrace_regs *fregs)
 {
 	struct trace_array *tr = wakeup_trace;
 	struct trace_array_cpu *data;
 	unsigned int trace_ctx;
+	u64 *calltime;
 	int ret = 0;
 
 	if (ftrace_graph_ignore_func(gops, trace))
@@ -135,6 +137,12 @@ static int wakeup_graph_entry(struct ftrace_graph_ent *trace,
 	if (!func_prolog_preempt_disable(tr, &data, &trace_ctx))
 		return 0;
 
+	calltime = fgraph_reserve_data(gops->idx, sizeof(*calltime));
+	if (!calltime)
+		return 0;
+
+	*calltime = trace_clock_local();
+
 	ret = __trace_graph_entry(tr, trace, trace_ctx);
 	atomic_dec(&data->disabled);
 	preempt_enable_notrace();
@@ -143,18 +151,28 @@ static int wakeup_graph_entry(struct ftrace_graph_ent *trace,
 }
 
 static void wakeup_graph_return(struct ftrace_graph_ret *trace,
-				struct fgraph_ops *gops)
+				struct fgraph_ops *gops,
+				struct ftrace_regs *fregs)
 {
 	struct trace_array *tr = wakeup_trace;
 	struct trace_array_cpu *data;
 	unsigned int trace_ctx;
+	u64 *calltime;
+	u64 rettime;
+	int size;
 
 	ftrace_graph_addr_finish(gops, trace);
 
 	if (!func_prolog_preempt_disable(tr, &data, &trace_ctx))
 		return;
 
-	__trace_graph_return(tr, trace, trace_ctx);
+	rettime = trace_clock_local();
+
+	calltime = fgraph_retrieve_data(gops->idx, &size);
+	if (!calltime)
+		return;
+
+	__trace_graph_return(tr, trace, trace_ctx, *calltime, rettime);
 	atomic_dec(&data->disabled);
 
 	preempt_enable_notrace();

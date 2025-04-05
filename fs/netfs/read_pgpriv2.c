@@ -14,52 +14,11 @@
 #include "internal.h"
 
 /*
- * [DEPRECATED] Mark page as requiring copy-to-cache using PG_private_2.  The
- * third mark in the folio queue is used to indicate that this folio needs
- * writing.
- */
-void netfs_pgpriv2_mark_copy_to_cache(struct netfs_io_subrequest *subreq,
-				      struct netfs_io_request *rreq,
-				      struct folio_queue *folioq,
-				      int slot)
-{
-	struct folio *folio = folioq_folio(folioq, slot);
-
-	trace_netfs_folio(folio, netfs_folio_trace_copy_to_cache);
-	folio_start_private_2(folio);
-	folioq_mark3(folioq, slot);
-}
-
-/*
- * [DEPRECATED] Cancel PG_private_2 on all marked folios in the event of an
- * unrecoverable error.
- */
-static void netfs_pgpriv2_cancel(struct folio_queue *folioq)
-{
-	struct folio *folio;
-	int slot;
-
-	while (folioq) {
-		if (!folioq->marks3) {
-			folioq = folioq->next;
-			continue;
-		}
-
-		slot = __ffs(folioq->marks3);
-		folio = folioq_folio(folioq, slot);
-
-		trace_netfs_folio(folio, netfs_folio_trace_cancel_copy);
-		folio_end_private_2(folio);
-		folioq_unmark3(folioq, slot);
-	}
-}
-
-/*
  * [DEPRECATED] Copy a folio to the cache with PG_private_2 set.
  */
-static int netfs_pgpriv2_copy_folio(struct netfs_io_request *wreq, struct folio *folio)
+static void netfs_pgpriv2_copy_folio(struct netfs_io_request *creq, struct folio *folio)
 {
-	struct netfs_io_stream *cache  = &wreq->io_streams[1];
+	struct netfs_io_stream *cache = &creq->io_streams[1];
 	size_t fsize = folio_size(folio), flen = fsize;
 	loff_t fpos = folio_pos(folio), i_size;
 	bool to_eof = false;
@@ -70,17 +29,17 @@ static int netfs_pgpriv2_copy_folio(struct netfs_io_request *wreq, struct folio 
 	 * of the page to beyond it, but cannot move i_size into or through the
 	 * page since we have it locked.
 	 */
-	i_size = i_size_read(wreq->inode);
+	i_size = i_size_read(creq->inode);
 
 	if (fpos >= i_size) {
 		/* mmap beyond eof. */
 		_debug("beyond eof");
 		folio_end_private_2(folio);
-		return 0;
+		return;
 	}
 
-	if (fpos + fsize > wreq->i_size)
-		wreq->i_size = i_size;
+	if (fpos + fsize > creq->i_size)
+		creq->i_size = i_size;
 
 	if (flen > i_size - fpos) {
 		flen = i_size - fpos;
@@ -94,8 +53,10 @@ static int netfs_pgpriv2_copy_folio(struct netfs_io_request *wreq, struct folio 
 	trace_netfs_folio(folio, netfs_folio_trace_store_copy);
 
 	/* Attach the folio to the rolling buffer. */
-	if (netfs_buffer_append_folio(wreq, folio, false) < 0)
-		return -ENOMEM;
+	if (rolling_buffer_append(&creq->buffer, folio, 0) < 0) {
+		clear_bit(NETFS_RREQ_FOLIO_COPY_TO_CACHE, &creq->flags);
+		return;
+	}
 
 	cache->submit_extendable_to = fsize;
 	cache->submit_off = 0;
@@ -109,11 +70,11 @@ static int netfs_pgpriv2_copy_folio(struct netfs_io_request *wreq, struct folio 
 	do {
 		ssize_t part;
 
-		wreq->io_iter.iov_offset = cache->submit_off;
+		creq->buffer.iter.iov_offset = cache->submit_off;
 
-		atomic64_set(&wreq->issued_to, fpos + cache->submit_off);
+		atomic64_set(&creq->issued_to, fpos + cache->submit_off);
 		cache->submit_extendable_to = fsize - cache->submit_off;
-		part = netfs_advance_write(wreq, cache, fpos + cache->submit_off,
+		part = netfs_advance_write(creq, cache, fpos + cache->submit_off,
 					   cache->submit_len, to_eof);
 		cache->submit_off += part;
 		if (part > cache->submit_len)
@@ -122,94 +83,95 @@ static int netfs_pgpriv2_copy_folio(struct netfs_io_request *wreq, struct folio 
 			cache->submit_len -= part;
 	} while (cache->submit_len > 0);
 
-	wreq->io_iter.iov_offset = 0;
-	iov_iter_advance(&wreq->io_iter, fsize);
-	atomic64_set(&wreq->issued_to, fpos + fsize);
+	creq->buffer.iter.iov_offset = 0;
+	rolling_buffer_advance(&creq->buffer, fsize);
+	atomic64_set(&creq->issued_to, fpos + fsize);
 
 	if (flen < fsize)
-		netfs_issue_write(wreq, cache);
-
-	_leave(" = 0");
-	return 0;
+		netfs_issue_write(creq, cache);
 }
 
 /*
- * [DEPRECATED] Go through the buffer and write any folios that are marked with
- * the third mark to the cache.
+ * [DEPRECATED] Set up copying to the cache.
  */
-void netfs_pgpriv2_write_to_the_cache(struct netfs_io_request *rreq)
+static struct netfs_io_request *netfs_pgpriv2_begin_copy_to_cache(
+	struct netfs_io_request *rreq, struct folio *folio)
 {
-	struct netfs_io_request *wreq;
-	struct folio_queue *folioq;
-	struct folio *folio;
-	int error = 0;
-	int slot = 0;
-
-	_enter("");
+	struct netfs_io_request *creq;
 
 	if (!fscache_resources_valid(&rreq->cache_resources))
-		goto couldnt_start;
+		goto cancel;
 
-	/* Need the first folio to be able to set up the op. */
-	for (folioq = rreq->buffer; folioq; folioq = folioq->next) {
-		if (folioq->marks3) {
-			slot = __ffs(folioq->marks3);
-			break;
-		}
-	}
-	if (!folioq)
-		return;
-	folio = folioq_folio(folioq, slot);
-
-	wreq = netfs_create_write_req(rreq->mapping, NULL, folio_pos(folio),
+	creq = netfs_create_write_req(rreq->mapping, NULL, folio_pos(folio),
 				      NETFS_PGPRIV2_COPY_TO_CACHE);
-	if (IS_ERR(wreq)) {
-		kleave(" [create %ld]", PTR_ERR(wreq));
-		goto couldnt_start;
-	}
+	if (IS_ERR(creq))
+		goto cancel;
 
-	trace_netfs_write(wreq, netfs_write_trace_copy_to_cache);
+	if (!creq->io_streams[1].avail)
+		goto cancel_put;
+
+	trace_netfs_write(creq, netfs_write_trace_copy_to_cache);
 	netfs_stat(&netfs_n_wh_copy_to_cache);
+	rreq->copy_to_cache = creq;
+	return creq;
 
-	for (;;) {
-		error = netfs_pgpriv2_copy_folio(wreq, folio);
-		if (error < 0)
-			break;
+cancel_put:
+	netfs_put_request(creq, false, netfs_rreq_trace_put_return);
+cancel:
+	rreq->copy_to_cache = ERR_PTR(-ENOBUFS);
+	clear_bit(NETFS_RREQ_FOLIO_COPY_TO_CACHE, &rreq->flags);
+	return ERR_PTR(-ENOBUFS);
+}
 
-		folioq_unmark3(folioq, slot);
-		if (!folioq->marks3) {
-			folioq = folioq->next;
-			if (!folioq)
-				break;
-		}
+/*
+ * [DEPRECATED] Mark page as requiring copy-to-cache using PG_private_2 and add
+ * it to the copy write request.
+ */
+void netfs_pgpriv2_copy_to_cache(struct netfs_io_request *rreq, struct folio *folio)
+{
+	struct netfs_io_request *creq = rreq->copy_to_cache;
 
-		slot = __ffs(folioq->marks3);
-		folio = folioq_folio(folioq, slot);
-	}
+	if (!creq)
+		creq = netfs_pgpriv2_begin_copy_to_cache(rreq, folio);
+	if (IS_ERR(creq))
+		return;
 
-	netfs_issue_write(wreq, &wreq->io_streams[1]);
+	trace_netfs_folio(folio, netfs_folio_trace_copy_to_cache);
+	folio_start_private_2(folio);
+	netfs_pgpriv2_copy_folio(creq, folio);
+}
+
+/*
+ * [DEPRECATED] End writing to the cache, flushing out any outstanding writes.
+ */
+void netfs_pgpriv2_end_copy_to_cache(struct netfs_io_request *rreq)
+{
+	struct netfs_io_request *creq = rreq->copy_to_cache;
+
+	if (IS_ERR_OR_NULL(creq))
+		return;
+
+	netfs_issue_write(creq, &creq->io_streams[1]);
 	smp_wmb(); /* Write lists before ALL_QUEUED. */
-	set_bit(NETFS_RREQ_ALL_QUEUED, &wreq->flags);
+	set_bit(NETFS_RREQ_ALL_QUEUED, &creq->flags);
 
-	netfs_put_request(wreq, false, netfs_rreq_trace_put_return);
-	_leave(" = %d", error);
-couldnt_start:
-	netfs_pgpriv2_cancel(rreq->buffer);
+	netfs_put_request(creq, false, netfs_rreq_trace_put_return);
+	creq->copy_to_cache = NULL;
 }
 
 /*
  * [DEPRECATED] Remove the PG_private_2 mark from any folios we've finished
  * copying.
  */
-bool netfs_pgpriv2_unlock_copied_folios(struct netfs_io_request *wreq)
+bool netfs_pgpriv2_unlock_copied_folios(struct netfs_io_request *creq)
 {
-	struct folio_queue *folioq = wreq->buffer;
-	unsigned long long collected_to = wreq->collected_to;
-	unsigned int slot = wreq->buffer_head_slot;
+	struct folio_queue *folioq = creq->buffer.tail;
+	unsigned long long collected_to = creq->collected_to;
+	unsigned int slot = creq->buffer.first_tail_slot;
 	bool made_progress = false;
 
 	if (slot >= folioq_nr_slots(folioq)) {
-		folioq = netfs_delete_buffer_head(wreq);
+		folioq = rolling_buffer_delete_spent(&creq->buffer);
 		slot = 0;
 	}
 
@@ -221,16 +183,16 @@ bool netfs_pgpriv2_unlock_copied_folios(struct netfs_io_request *wreq)
 		folio = folioq_folio(folioq, slot);
 		if (WARN_ONCE(!folio_test_private_2(folio),
 			      "R=%08x: folio %lx is not marked private_2\n",
-			      wreq->debug_id, folio->index))
+			      creq->debug_id, folio->index))
 			trace_netfs_folio(folio, netfs_folio_trace_not_under_wback);
 
 		fpos = folio_pos(folio);
 		fsize = folio_size(folio);
 		flen = fsize;
 
-		fend = min_t(unsigned long long, fpos + flen, wreq->i_size);
+		fend = min_t(unsigned long long, fpos + flen, creq->i_size);
 
-		trace_netfs_collect_folio(wreq, folio, fend, collected_to);
+		trace_netfs_collect_folio(creq, folio, fend, collected_to);
 
 		/* Unlock any folio we've transferred all of. */
 		if (collected_to < fend)
@@ -238,7 +200,7 @@ bool netfs_pgpriv2_unlock_copied_folios(struct netfs_io_request *wreq)
 
 		trace_netfs_folio(folio, netfs_folio_trace_end_copy);
 		folio_end_private_2(folio);
-		wreq->cleaned_to = fpos + fsize;
+		creq->cleaned_to = fpos + fsize;
 		made_progress = true;
 
 		/* Clean up the head folioq.  If we clear an entire folioq, then
@@ -248,9 +210,9 @@ bool netfs_pgpriv2_unlock_copied_folios(struct netfs_io_request *wreq)
 		folioq_clear(folioq, slot);
 		slot++;
 		if (slot >= folioq_nr_slots(folioq)) {
-			if (READ_ONCE(wreq->buffer_tail) == folioq)
-				break;
-			folioq = netfs_delete_buffer_head(wreq);
+			folioq = rolling_buffer_delete_spent(&creq->buffer);
+			if (!folioq)
+				goto done;
 			slot = 0;
 		}
 
@@ -258,7 +220,8 @@ bool netfs_pgpriv2_unlock_copied_folios(struct netfs_io_request *wreq)
 			break;
 	}
 
-	wreq->buffer = folioq;
-	wreq->buffer_head_slot = slot;
+	creq->buffer.tail = folioq;
+done:
+	creq->buffer.first_tail_slot = slot;
 	return made_progress;
 }

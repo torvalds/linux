@@ -35,6 +35,7 @@ struct mdp_cmdq_cmd {
 	struct mdp_comp *comps;
 	void *mdp_ctx;
 	u8 num_comps;
+	u8 pp_idx;
 };
 
 struct mdp_dev;

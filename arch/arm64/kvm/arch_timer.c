@@ -30,6 +30,7 @@ static u32 host_vtimer_irq_flags;
 static u32 host_ptimer_irq_flags;
 
 static DEFINE_STATIC_KEY_FALSE(has_gic_active_state);
+DEFINE_STATIC_KEY_FALSE(broken_cntvoff_key);
 
 static const u8 default_ppi[] = {
 	[TIMER_PTIMER]  = 30,
@@ -99,21 +100,6 @@ u64 timer_get_cval(struct arch_timer_context *ctxt)
 		WARN_ON(1);
 		return 0;
 	}
-}
-
-static u64 timer_get_offset(struct arch_timer_context *ctxt)
-{
-	u64 offset = 0;
-
-	if (!ctxt)
-		return 0;
-
-	if (ctxt->offset.vm_offset)
-		offset += *ctxt->offset.vm_offset;
-	if (ctxt->offset.vcpu_offset)
-		offset += *ctxt->offset.vcpu_offset;
-
-	return offset;
 }
 
 static void timer_set_ctl(struct arch_timer_context *ctxt, u32 ctl)
@@ -441,22 +427,39 @@ void kvm_timer_update_run(struct kvm_vcpu *vcpu)
 		regs->device_irq_level |= KVM_ARM_DEV_EL1_PTIMER;
 }
 
+static void kvm_timer_update_status(struct arch_timer_context *ctx, bool level)
+{
+	/*
+	 * Paper over NV2 brokenness by publishing the interrupt status
+	 * bit. This still results in a poor quality of emulation (guest
+	 * writes will have no effect until the next exit).
+	 *
+	 * But hey, it's fast, right?
+	 */
+	if (is_hyp_ctxt(ctx->vcpu) &&
+	    (ctx == vcpu_vtimer(ctx->vcpu) || ctx == vcpu_ptimer(ctx->vcpu))) {
+		unsigned long val = timer_get_ctl(ctx);
+		__assign_bit(__ffs(ARCH_TIMER_CTRL_IT_STAT), &val, level);
+		timer_set_ctl(ctx, val);
+	}
+}
+
 static void kvm_timer_update_irq(struct kvm_vcpu *vcpu, bool new_level,
 				 struct arch_timer_context *timer_ctx)
 {
-	int ret;
+	kvm_timer_update_status(timer_ctx, new_level);
 
 	timer_ctx->irq.level = new_level;
 	trace_kvm_timer_update_irq(vcpu->vcpu_id, timer_irq(timer_ctx),
 				   timer_ctx->irq.level);
 
-	if (!userspace_irqchip(vcpu->kvm)) {
-		ret = kvm_vgic_inject_irq(vcpu->kvm, vcpu,
-					  timer_irq(timer_ctx),
-					  timer_ctx->irq.level,
-					  timer_ctx);
-		WARN_ON(ret);
-	}
+	if (userspace_irqchip(vcpu->kvm))
+		return;
+
+	kvm_vgic_inject_irq(vcpu->kvm, vcpu,
+			    timer_irq(timer_ctx),
+			    timer_ctx->irq.level,
+			    timer_ctx);
 }
 
 /* Only called for a fully emulated timer */
@@ -466,10 +469,10 @@ static void timer_emulate(struct arch_timer_context *ctx)
 
 	trace_kvm_timer_emulate(ctx, should_fire);
 
-	if (should_fire != ctx->irq.level) {
+	if (should_fire != ctx->irq.level)
 		kvm_timer_update_irq(ctx->vcpu, should_fire, ctx);
-		return;
-	}
+
+	kvm_timer_update_status(ctx, should_fire);
 
 	/*
 	 * If the timer can fire now, we don't need to have a soft timer
@@ -513,7 +516,12 @@ static void timer_save_state(struct arch_timer_context *ctx)
 	case TIMER_VTIMER:
 	case TIMER_HVTIMER:
 		timer_set_ctl(ctx, read_sysreg_el0(SYS_CNTV_CTL));
-		timer_set_cval(ctx, read_sysreg_el0(SYS_CNTV_CVAL));
+		cval = read_sysreg_el0(SYS_CNTV_CVAL);
+
+		if (has_broken_cntvoff())
+			cval -= timer_get_offset(ctx);
+
+		timer_set_cval(ctx, cval);
 
 		/* Disable the timer */
 		write_sysreg_el0(0, SYS_CNTV_CTL);
@@ -618,8 +626,15 @@ static void timer_restore_state(struct arch_timer_context *ctx)
 
 	case TIMER_VTIMER:
 	case TIMER_HVTIMER:
-		set_cntvoff(timer_get_offset(ctx));
-		write_sysreg_el0(timer_get_cval(ctx), SYS_CNTV_CVAL);
+		cval = timer_get_cval(ctx);
+		offset = timer_get_offset(ctx);
+		if (has_broken_cntvoff()) {
+			set_cntvoff(0);
+			cval += offset;
+		} else {
+			set_cntvoff(offset);
+		}
+		write_sysreg_el0(cval, SYS_CNTV_CVAL);
 		isb();
 		write_sysreg_el0(timer_get_ctl(ctx), SYS_CNTV_CTL);
 		break;
@@ -742,27 +757,12 @@ static void kvm_timer_vcpu_load_nested_switch(struct kvm_vcpu *vcpu,
 					    timer_irq(map->direct_ptimer),
 					    &arch_timer_irq_ops);
 		WARN_ON_ONCE(ret);
-
-		/*
-		 * The virtual offset behaviour is "interesting", as it
-		 * always applies when HCR_EL2.E2H==0, but only when
-		 * accessed from EL1 when HCR_EL2.E2H==1. So make sure we
-		 * track E2H when putting the HV timer in "direct" mode.
-		 */
-		if (map->direct_vtimer == vcpu_hvtimer(vcpu)) {
-			struct arch_timer_offset *offs = &map->direct_vtimer->offset;
-
-			if (vcpu_el2_e2h_is_set(vcpu))
-				offs->vcpu_offset = NULL;
-			else
-				offs->vcpu_offset = &__vcpu_sys_reg(vcpu, CNTVOFF_EL2);
-		}
 	}
 }
 
 static void timer_set_traps(struct kvm_vcpu *vcpu, struct timer_map *map)
 {
-	bool tpt, tpc;
+	bool tvt, tpt, tvc, tpc, tvt02, tpt02;
 	u64 clr, set;
 
 	/*
@@ -777,7 +777,29 @@ static void timer_set_traps(struct kvm_vcpu *vcpu, struct timer_map *map)
 	 * within this function, reality kicks in and we start adding
 	 * traps based on emulation requirements.
 	 */
-	tpt = tpc = false;
+	tvt = tpt = tvc = tpc = false;
+	tvt02 = tpt02 = false;
+
+	/*
+	 * NV2 badly breaks the timer semantics by redirecting accesses to
+	 * the EL1 timer state to memory, so let's call ECV to the rescue if
+	 * available: we trap all CNT{P,V}_{CTL,CVAL,TVAL}_EL0 accesses.
+	 *
+	 * The treatment slightly varies depending whether we run a nVHE or
+	 * VHE guest: nVHE will use the _EL0 registers directly, while VHE
+	 * will use the _EL02 accessors. This translates in different trap
+	 * bits.
+	 *
+	 * None of the trapping is required when running in non-HYP context,
+	 * unless required by the L1 hypervisor settings once we advertise
+	 * ECV+NV in the guest, or that we need trapping for other reasons.
+	 */
+	if (cpus_have_final_cap(ARM64_HAS_ECV) && is_hyp_ctxt(vcpu)) {
+		if (vcpu_el2_e2h_is_set(vcpu))
+			tvt02 = tpt02 = true;
+		else
+			tvt = tpt = true;
+	}
 
 	/*
 	 * We have two possibility to deal with a physical offset:
@@ -793,9 +815,20 @@ static void timer_set_traps(struct kvm_vcpu *vcpu, struct timer_map *map)
 		tpt = tpc = true;
 
 	/*
+	 * For the poor sods that could not correctly substract one value
+	 * from another, trap the full virtual timer and counter.
+	 */
+	if (has_broken_cntvoff() && timer_get_offset(map->direct_vtimer))
+		tvt = tvc = true;
+
+	/*
 	 * Apply the enable bits that the guest hypervisor has requested for
 	 * its own guest. We can only add traps that wouldn't have been set
 	 * above.
+	 * Implementation choices: we do not support NV when E2H=0 in the
+	 * guest, and we don't support configuration where E2H is writable
+	 * by the guest (either FEAT_VHE or FEAT_E2H0 is implemented, but
+	 * not both). This simplifies the handling of the EL1NV* bits.
 	 */
 	if (vcpu_has_nv(vcpu) && !is_hyp_ctxt(vcpu)) {
 		u64 val = __vcpu_sys_reg(vcpu, CNTHCTL_EL2);
@@ -806,6 +839,9 @@ static void timer_set_traps(struct kvm_vcpu *vcpu, struct timer_map *map)
 
 		tpt |= !(val & (CNTHCTL_EL1PCEN << 10));
 		tpc |= !(val & (CNTHCTL_EL1PCTEN << 10));
+
+		tpt02 |= (val & CNTHCTL_EL1NVPCT);
+		tvt02 |= (val & CNTHCTL_EL1NVVCT);
 	}
 
 	/*
@@ -817,6 +853,10 @@ static void timer_set_traps(struct kvm_vcpu *vcpu, struct timer_map *map)
 
 	assign_clear_set_bit(tpt, CNTHCTL_EL1PCEN << 10, set, clr);
 	assign_clear_set_bit(tpc, CNTHCTL_EL1PCTEN << 10, set, clr);
+	assign_clear_set_bit(tvt, CNTHCTL_EL1TVT, clr, set);
+	assign_clear_set_bit(tvc, CNTHCTL_EL1TVCT, clr, set);
+	assign_clear_set_bit(tvt02, CNTHCTL_EL1NVVCT, clr, set);
+	assign_clear_set_bit(tpt02, CNTHCTL_EL1NVPCT, clr, set);
 
 	/* This only happens on VHE, so use the CNTHCTL_EL2 accessor. */
 	sysreg_clear_set(cnthctl_el2, clr, set);
@@ -903,6 +943,44 @@ void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu)
 
 	if (kvm_vcpu_is_blocking(vcpu))
 		kvm_timer_blocking(vcpu);
+}
+
+void kvm_timer_sync_nested(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * When NV2 is on, guest hypervisors have their EL1 timer register
+	 * accesses redirected to the VNCR page. Any guest action taken on
+	 * the timer is postponed until the next exit, leading to a very
+	 * poor quality of emulation.
+	 *
+	 * This is an unmitigated disaster, only papered over by FEAT_ECV,
+	 * which allows trapping of the timer registers even with NV2.
+	 * Still, this is still worse than FEAT_NV on its own. Meh.
+	 */
+	if (!cpus_have_final_cap(ARM64_HAS_ECV)) {
+		/*
+		 * For a VHE guest hypervisor, the EL2 state is directly
+		 * stored in the host EL1 timers, while the emulated EL1
+		 * state is stored in the VNCR page. The latter could have
+		 * been updated behind our back, and we must reset the
+		 * emulation of the timers.
+		 *
+		 * A non-VHE guest hypervisor doesn't have any direct access
+		 * to its timers: the EL2 registers trap despite being
+		 * notionally direct (we use the EL1 HW, as for VHE), while
+		 * the EL1 registers access memory.
+		 *
+		 * In both cases, process the emulated timers on each guest
+		 * exit. Boo.
+		 */
+		struct timer_map map;
+		get_timer_map(vcpu, &map);
+
+		soft_timer_cancel(&map.emul_vtimer->hrtimer);
+		soft_timer_cancel(&map.emul_ptimer->hrtimer);
+		timer_emulate(map.emul_vtimer);
+		timer_emulate(map.emul_ptimer);
+	}
 }
 
 /*
@@ -1363,6 +1441,37 @@ static int kvm_irq_init(struct arch_timer_kvm_info *info)
 	return 0;
 }
 
+static void kvm_timer_handle_errata(void)
+{
+	u64 mmfr0, mmfr1, mmfr4;
+
+	/*
+	 * CNTVOFF_EL2 is broken on some implementations. For those, we trap
+	 * all virtual timer/counter accesses, requiring FEAT_ECV.
+	 *
+	 * However, a hypervisor supporting nesting is likely to mitigate the
+	 * erratum at L0, and not require other levels to mitigate it (which
+	 * would otherwise be a terrible performance sink due to trap
+	 * amplification).
+	 *
+	 * Given that the affected HW implements both FEAT_VHE and FEAT_E2H0,
+	 * and that NV is likely not to (because of limitations of the
+	 * architecture), only enable the workaround when FEAT_VHE and
+	 * FEAT_E2H0 are both detected. Time will tell if this actually holds.
+	 */
+	mmfr0 = read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1);
+	mmfr1 = read_sanitised_ftr_reg(SYS_ID_AA64MMFR1_EL1);
+	mmfr4 = read_sanitised_ftr_reg(SYS_ID_AA64MMFR4_EL1);
+	if (SYS_FIELD_GET(ID_AA64MMFR1_EL1, VH, mmfr1)		&&
+	    !SYS_FIELD_GET(ID_AA64MMFR4_EL1, E2H0, mmfr4)	&&
+	    SYS_FIELD_GET(ID_AA64MMFR0_EL1, ECV, mmfr0)		&&
+	    (has_vhe() || has_hvhe())				&&
+	    cpus_have_final_cap(ARM64_WORKAROUND_QCOM_ORYON_CNTVOFF)) {
+		static_branch_enable(&broken_cntvoff_key);
+		kvm_info("Broken CNTVOFF_EL2, trapping virtual timer\n");
+	}
+}
+
 int __init kvm_timer_hyp_init(bool has_gic)
 {
 	struct arch_timer_kvm_info *info;
@@ -1431,6 +1540,7 @@ int __init kvm_timer_hyp_init(bool has_gic)
 		goto out_free_vtimer_irq;
 	}
 
+	kvm_timer_handle_errata();
 	return 0;
 
 out_free_ptimer_irq:

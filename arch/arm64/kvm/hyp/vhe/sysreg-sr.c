@@ -216,7 +216,7 @@ void __vcpu_load_switch_sysregs(struct kvm_vcpu *vcpu)
 	__sysreg32_restore_state(vcpu);
 	__sysreg_restore_user_state(guest_ctxt);
 
-	if (unlikely(__is_hyp_ctxt(guest_ctxt))) {
+	if (unlikely(is_hyp_ctxt(vcpu))) {
 		__sysreg_restore_vel2_state(vcpu);
 	} else {
 		if (vcpu_has_nv(vcpu)) {
@@ -260,7 +260,7 @@ void __vcpu_put_switch_sysregs(struct kvm_vcpu *vcpu)
 
 	host_ctxt = host_data_ptr(host_ctxt);
 
-	if (unlikely(__is_hyp_ctxt(guest_ctxt)))
+	if (unlikely(is_hyp_ctxt(vcpu)))
 		__sysreg_save_vel2_state(vcpu);
 	else
 		__sysreg_save_el1_state(guest_ctxt);

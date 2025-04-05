@@ -169,6 +169,20 @@ enum rtw89_mac_ax_l0_to_l1_event {
 	MAC_AX_L0_TO_L1_EVENT_MAX = 15,
 };
 
+enum rtw89_mac_phy_rpt_size {
+	MAC_AX_PHY_RPT_SIZE_0 = 0,
+	MAC_AX_PHY_RPT_SIZE_8 = 1,
+	MAC_AX_PHY_RPT_SIZE_16 = 2,
+	MAC_AX_PHY_RPT_SIZE_24 = 3,
+};
+
+enum rtw89_mac_hdr_cnv_size {
+	MAC_AX_HDR_CNV_SIZE_0 = 0,
+	MAC_AX_HDR_CNV_SIZE_32 = 1,
+	MAC_AX_HDR_CNV_SIZE_64 = 2,
+	MAC_AX_HDR_CNV_SIZE_96 = 3,
+};
+
 enum rtw89_mac_wow_fw_status {
 	WOWLAN_NOT_READY = 0x00,
 	WOWLAN_SLEEP_READY = 0x01,
@@ -426,6 +440,12 @@ enum rtw89_mac_c2h_wow_func {
 	NUM_OF_RTW89_MAC_C2H_FUNC_WOW,
 };
 
+enum rtw89_mac_c2h_ap_func {
+	RTW89_MAC_C2H_FUNC_PWR_INT_NOTIFY = 0,
+
+	NUM_OF_RTW89_MAC_C2H_FUNC_AP,
+};
+
 enum rtw89_mac_c2h_class {
 	RTW89_MAC_C2H_CLASS_INFO = 0x0,
 	RTW89_MAC_C2H_CLASS_OFLD = 0x1,
@@ -434,6 +454,7 @@ enum rtw89_mac_c2h_class {
 	RTW89_MAC_C2H_CLASS_MCC = 0x4,
 	RTW89_MAC_C2H_CLASS_FWDBG = 0x5,
 	RTW89_MAC_C2H_CLASS_MRC = 0xe,
+	RTW89_MAC_C2H_CLASS_AP = 0x18,
 	RTW89_MAC_C2H_CLASS_MAX,
 };
 
@@ -961,6 +982,7 @@ struct rtw89_mac_gen_def {
 			    enum rtw89_mac_fwd_target fwd_target,
 			    u8 mac_idx);
 	int (*cfg_ppdu_status)(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable);
+	void (*cfg_phy_rpt)(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable);
 
 	int (*dle_mix_cfg)(struct rtw89_dev *rtwdev, const struct rtw89_dle_mem *cfg);
 	int (*chk_dle_rdy)(struct rtw89_dev *rtwdev, bool wde_or_ple);
@@ -1216,6 +1238,27 @@ int rtw89_mac_stop_sch_tx_v2(struct rtw89_dev *rtwdev, u8 mac_idx,
 int rtw89_mac_resume_sch_tx(struct rtw89_dev *rtwdev, u8 mac_idx, u32 tx_en);
 int rtw89_mac_resume_sch_tx_v1(struct rtw89_dev *rtwdev, u8 mac_idx, u32 tx_en);
 int rtw89_mac_resume_sch_tx_v2(struct rtw89_dev *rtwdev, u8 mac_idx, u32 tx_en);
+void rtw89_mac_cfg_phy_rpt_be(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable);
+
+static inline
+void rtw89_mac_cfg_phy_rpt(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+
+	if (mac->cfg_phy_rpt)
+		mac->cfg_phy_rpt(rtwdev, mac_idx, enable);
+}
+
+static inline
+void rtw89_mac_cfg_phy_rpt_bands(struct rtw89_dev *rtwdev, bool enable)
+{
+	rtw89_mac_cfg_phy_rpt(rtwdev, RTW89_MAC_0, enable);
+
+	if (!rtwdev->dbcc_en)
+		return;
+
+	rtw89_mac_cfg_phy_rpt(rtwdev, RTW89_MAC_1, enable);
+}
 
 static inline
 int rtw89_mac_cfg_ppdu_status(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable)

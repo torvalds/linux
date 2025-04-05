@@ -77,7 +77,7 @@ Protocol 2.14	BURNT BY INCORRECT COMMIT
 Protocol 2.15	(Kernel 5.5) Added the kernel_info and kernel_info.setup_type_max.
 =============	============================================================
 
-  .. note::
+.. note::
      The protocol version number should be changed only if the setup header
      is changed. There is no need to update the version number if boot_params
      or kernel_info are changed. Additionally, it is recommended to use
@@ -95,27 +95,27 @@ Memory Layout
 The traditional memory map for the kernel loader, used for Image or
 zImage kernels, typically looks like::
 
-		|			 |
-	0A0000	+------------------------+
-		|  Reserved for BIOS	 |	Do not use.  Reserved for BIOS EBDA.
-	09A000	+------------------------+
-		|  Command line		 |
-		|  Stack/heap		 |	For use by the kernel real-mode code.
-	098000	+------------------------+
-		|  Kernel setup		 |	The kernel real-mode code.
-	090200	+------------------------+
-		|  Kernel boot sector	 |	The kernel legacy boot sector.
-	090000	+------------------------+
-		|  Protected-mode kernel |	The bulk of the kernel image.
-	010000	+------------------------+
-		|  Boot loader		 |	<- Boot sector entry point 0000:7C00
-	001000	+------------------------+
-		|  Reserved for MBR/BIOS |
-	000800	+------------------------+
-		|  Typically used by MBR |
-	000600	+------------------------+
-		|  BIOS use only	 |
-	000000	+------------------------+
+  		|  			 |
+  0A0000	+------------------------+
+  		|  Reserved for BIOS	 |	Do not use.  Reserved for BIOS EBDA.
+  09A000	+------------------------+
+  		|  Command line		 |
+  		|  Stack/heap		 |	For use by the kernel real-mode code.
+  098000	+------------------------+
+  		|  Kernel setup		 |	The kernel real-mode code.
+  090200	+------------------------+
+  		|  Kernel boot sector	 |	The kernel legacy boot sector.
+  090000	+------------------------+
+  		|  Protected-mode kernel |	The bulk of the kernel image.
+  010000	+------------------------+
+  		|  Boot loader		 |	<- Boot sector entry point 0000:7C00
+  001000	+------------------------+
+  		|  Reserved for MBR/BIOS |
+  000800	+------------------------+
+  		|  Typically used by MBR |
+  000600	+------------------------+
+  		|  BIOS use only	 |
+  000000	+------------------------+
 
 When using bzImage, the protected-mode kernel was relocated to
 0x100000 ("high memory"), and the kernel real-mode block (boot sector,
@@ -142,28 +142,28 @@ above the 0x9A000 point; too many BIOSes will break above that point.
 For a modern bzImage kernel with boot protocol version >= 2.02, a
 memory layout like the following is suggested::
 
-		~                        ~
-		|  Protected-mode kernel |
-	100000  +------------------------+
-		|  I/O memory hole	 |
-	0A0000	+------------------------+
-		|  Reserved for BIOS	 |	Leave as much as possible unused
-		~                        ~
-		|  Command line		 |	(Can also be below the X+10000 mark)
-	X+10000	+------------------------+
-		|  Stack/heap		 |	For use by the kernel real-mode code.
-	X+08000	+------------------------+
-		|  Kernel setup		 |	The kernel real-mode code.
-		|  Kernel boot sector	 |	The kernel legacy boot sector.
-	X       +------------------------+
-		|  Boot loader		 |	<- Boot sector entry point 0000:7C00
-	001000	+------------------------+
-		|  Reserved for MBR/BIOS |
-	000800	+------------------------+
-		|  Typically used by MBR |
-	000600	+------------------------+
-		|  BIOS use only	 |
-	000000	+------------------------+
+  		~  			 ~
+  		|  Protected-mode kernel |
+  100000	+------------------------+
+  		|  I/O memory hole	 |
+  0A0000	+------------------------+
+  		|  Reserved for BIOS	 |	Leave as much as possible unused
+  		~  			 ~
+  		|  Command line		 |	(Can also be below the X+10000 mark)
+  X+10000	+------------------------+
+  		|  Stack/heap		 |	For use by the kernel real-mode code.
+  X+08000	+------------------------+
+  		|  Kernel setup		 |	The kernel real-mode code.
+  		|  Kernel boot sector	 |	The kernel legacy boot sector.
+  X		+------------------------+
+  		|  Boot loader		 |	<- Boot sector entry point 0000:7C00
+  001000	+------------------------+
+  		|  Reserved for MBR/BIOS |
+  000800	+------------------------+
+  		|  Typically used by MBR |
+  000600	+------------------------+
+  		|  BIOS use only	 |
+  000000	+------------------------+
 
   ... where the address X is as low as the design of the boot loader permits.
 
@@ -229,22 +229,22 @@ Offset/Size	Proto		Name			Meaning
 ===========	========	=====================	============================================
 
 .. note::
-  (1) For backwards compatibility, if the setup_sects field contains 0, the
-      real value is 4.
+     (1) For backwards compatibility, if the setup_sects field contains 0,
+         the real value is 4.
 
-  (2) For boot protocol prior to 2.04, the upper two bytes of the syssize
-      field are unusable, which means the size of a bzImage kernel
-      cannot be determined.
+     (2) For boot protocol prior to 2.04, the upper two bytes of the syssize
+         field are unusable, which means the size of a bzImage kernel
+         cannot be determined.
 
-  (3) Ignored, but safe to set, for boot protocols 2.02-2.09.
+     (3) Ignored, but safe to set, for boot protocols 2.02-2.09.
 
 If the "HdrS" (0x53726448) magic number is not found at offset 0x202,
 the boot protocol version is "old".  Loading an old kernel, the
 following parameters should be assumed::
 
-	Image type = zImage
-	initrd not supported
-	Real-mode kernel must be located at 0x90000.
+  Image type = zImage
+  initrd not supported
+  Real-mode kernel must be located at 0x90000.
 
 Otherwise, the "version" field contains the protocol version,
 e.g. protocol version 2.01 will contain 0x0201 in this field.  When
@@ -265,7 +265,7 @@ All general purpose boot loaders should write the fields marked
 nonstandard address should fill in the fields marked (reloc); other
 boot loaders can ignore those fields.
 
-The byte order of all fields is littleendian (this is x86, after all.)
+The byte order of all fields is little endian (this is x86, after all.)
 
 ============	===========
 Field name:	setup_sects
@@ -365,7 +365,7 @@ Offset/size:	0x206/2
 Protocol:	2.00+
 ============	=======
 
-  Contains the boot protocol version, in (major << 8)+minor format,
+  Contains the boot protocol version, in (major << 8) + minor format,
   e.g. 0x0204 for version 2.04, and 0x0a11 for a hypothetical version
   10.17.
 
@@ -397,17 +397,17 @@ Protocol:	2.00+
   If set to a nonzero value, contains a pointer to a NUL-terminated
   human-readable kernel version number string, less 0x200.  This can
   be used to display the kernel version to the user.  This value
-  should be less than (0x200*setup_sects).
+  should be less than (0x200 * setup_sects).
 
   For example, if this value is set to 0x1c00, the kernel version
   number string can be found at offset 0x1e00 in the kernel file.
   This is a valid value if and only if the "setup_sects" field
   contains the value 15 or higher, as::
 
-	0x1c00  < 15*0x200 (= 0x1e00) but
-	0x1c00 >= 14*0x200 (= 0x1c00)
+   0x1c00  < 15 * 0x200 (= 0x1e00) but
+   0x1c00 >= 14 * 0x200 (= 0x1c00)
 
-	0x1c00 >> 9 = 14, So the minimum value for setup_secs is 15.
+   0x1c00 >> 9 = 14, So the minimum value for setup_secs is 15.
 
 ============	==================
 Field name:	type_of_loader
@@ -427,9 +427,9 @@ Protocol:	2.00+
 
   For example, for T = 0x15, V = 0x234, write::
 
-	type_of_loader  <- 0xE4
-	ext_loader_type <- 0x05
-	ext_loader_ver  <- 0x23
+   type_of_loader  <- 0xE4
+   ext_loader_type <- 0x05
+   ext_loader_ver  <- 0x23
 
   Assigned boot loader ids (hexadecimal):
 
@@ -686,7 +686,7 @@ Protocol:	2.10+
   If a boot loader makes use of this field, it should update the
   kernel_alignment field with the alignment unit desired; typically::
 
-	kernel_alignment = 1 << min_alignment
+   kernel_alignment = 1 << min_alignment;
 
   There may be a considerable performance cost with an excessively
   misaligned kernel.  Therefore, a loader should typically try each
@@ -754,7 +754,7 @@ Protocol:	2.07+
   0x00000000	The default x86/PC environment
   0x00000001	lguest
   0x00000002	Xen
-  0x00000003	Moorestown MID
+  0x00000003	Intel MID (Moorestown, CloverTrail, Merrifield, Moorefield)
   0x00000004	CE4100 TV Platform
   ==========	==============================
 
@@ -808,13 +808,13 @@ Protocol:	2.09+
   parameters passing mechanism. The definition of struct setup_data is
   as follow::
 
-	struct setup_data {
-		u64 next;
-		u32 type;
-		u32 len;
-		u8  data[0];
-	};
-
+   struct setup_data {
+   	__u64 next;
+   	__u32 type;
+   	__u32 len;
+   	__u8 data[];
+   }
+   
   Where, the next is a 64-bit physical pointer to the next node of
   linked list, the next field of the last node is 0; the type is used
   to identify the contents of data; the len is the length of data
@@ -834,12 +834,12 @@ Protocol:	2.09+
   Thus setup_indirect struct and SETUP_INDIRECT type were introduced in
   protocol 2.15::
 
-    struct setup_indirect {
-      __u32 type;
-      __u32 reserved;  /* Reserved, must be set to zero. */
-      __u64 len;
-      __u64 addr;
-    };
+   struct setup_indirect {
+   	__u32 type;
+   	__u32 reserved;		/* Reserved, must be set to zero. */
+   	__u64 len;
+   	__u64 addr;
+   };
 
   The type member is a SETUP_INDIRECT | SETUP_* type. However, it cannot be
   SETUP_INDIRECT itself since making the setup_indirect a tree structure
@@ -849,17 +849,17 @@ Protocol:	2.09+
   Let's give an example how to point to SETUP_E820_EXT data using setup_indirect.
   In this case setup_data and setup_indirect will look like this::
 
-    struct setup_data {
-      __u64 next = 0 or <addr_of_next_setup_data_struct>;
-      __u32 type = SETUP_INDIRECT;
-      __u32 len = sizeof(setup_indirect);
-      __u8 data[sizeof(setup_indirect)] = struct setup_indirect {
-        __u32 type = SETUP_INDIRECT | SETUP_E820_EXT;
-        __u32 reserved = 0;
-        __u64 len = <len_of_SETUP_E820_EXT_data>;
-        __u64 addr = <addr_of_SETUP_E820_EXT_data>;
-      }
-    }
+   struct setup_data {
+   	.next = 0,	/* or <addr_of_next_setup_data_struct> */
+   	.type = SETUP_INDIRECT,
+   	.len = sizeof(setup_indirect),
+   	.data[sizeof(setup_indirect)] = (struct setup_indirect) {
+   		.type = SETUP_INDIRECT | SETUP_E820_EXT,
+   		.reserved = 0,
+   		.len = <len_of_SETUP_E820_EXT_data>,
+   		.addr = <addr_of_SETUP_E820_EXT_data>,
+   	},
+   }
 
 .. note::
      SETUP_INDIRECT | SETUP_NONE objects cannot be properly distinguished
@@ -896,19 +896,19 @@ Offset/size:	0x260/4
 
   The kernel runtime start address is determined by the following algorithm::
 
-   	if (relocatable_kernel) {
-   		if (load_address < pref_address)
-   			load_address = pref_address;
-   		runtime_start = align_up(load_address, kernel_alignment);
-   	} else {
-   		runtime_start = pref_address;
-   	}
+   if (relocatable_kernel) {
+    	if (load_address < pref_address)
+    		load_address = pref_address;
+    	runtime_start = align_up(load_address, kernel_alignment);
+   } else {
+    	runtime_start = pref_address;
+   }
 
 Hence the necessary memory window location and size can be estimated by
 a boot loader as::
 
-   	memory_window_start = runtime_start;
-   	memory_window_size = init_size;
+   memory_window_start = runtime_start;
+   memory_window_size = init_size;
 
 ============	===============
 Field name:	handover_offset
@@ -938,12 +938,12 @@ The kernel_info
 ===============
 
 The relationships between the headers are analogous to the various data
-sections:
+sections::
 
   setup_header = .data
   boot_params/setup_data = .bss
 
-What is missing from the above list? That's right:
+What is missing from the above list? That's right::
 
   kernel_info = .rodata
 
@@ -975,22 +975,22 @@ after kernel_info_var_len_data label. Each chunk of variable size data has to
 be prefixed with header/magic and its size, e.g.::
 
   kernel_info:
-          .ascii  "LToP"          /* Header, Linux top (structure). */
-          .long   kernel_info_var_len_data - kernel_info
-          .long   kernel_info_end - kernel_info
-          .long   0x01234567      /* Some fixed size data for the bootloaders. */
+  	.ascii  "LToP"		/* Header, Linux top (structure). */
+  	.long   kernel_info_var_len_data - kernel_info
+  	.long   kernel_info_end - kernel_info
+  	.long   0x01234567	/* Some fixed size data for the bootloaders. */
   kernel_info_var_len_data:
-  example_struct:                 /* Some variable size data for the bootloaders. */
-          .ascii  "0123"          /* Header/Magic. */
-          .long   example_struct_end - example_struct
-          .ascii  "Struct"
-          .long   0x89012345
+  example_struct:		/* Some variable size data for the bootloaders. */
+  	.ascii  "0123"		/* Header/Magic. */
+  	.long   example_struct_end - example_struct
+  	.ascii  "Struct"
+  	.long   0x89012345
   example_struct_end:
-  example_strings:                /* Some variable size data for the bootloaders. */
-          .ascii  "ABCD"          /* Header/Magic. */
-          .long   example_strings_end - example_strings
-          .asciz  "String_0"
-          .asciz  "String_1"
+  example_strings:		/* Some variable size data for the bootloaders. */
+  	.ascii  "ABCD"		/* Header/Magic. */
+  	.long   example_strings_end - example_strings
+  	.asciz  "String_0"
+  	.asciz  "String_1"
   example_strings_end:
   kernel_info_end:
 
@@ -1139,67 +1139,63 @@ mode segment.
 
 Such a boot loader should enter the following fields in the header::
 
-	unsigned long base_ptr;	/* base address for real-mode segment */
+  unsigned long base_ptr;	/* base address for real-mode segment */
 
-	if ( setup_sects == 0 ) {
-		setup_sects = 4;
-	}
+  if (setup_sects == 0)
+  	setup_sects = 4;
 
-	if ( protocol >= 0x0200 ) {
-		type_of_loader = <type code>;
-		if ( loading_initrd ) {
-			ramdisk_image = <initrd_address>;
-			ramdisk_size = <initrd_size>;
-		}
+  if (protocol >= 0x0200) {
+  	type_of_loader = <type code>;
+  	if (loading_initrd) {
+  		ramdisk_image = <initrd_address>;
+  		ramdisk_size = <initrd_size>;
+  	}
 
-		if ( protocol >= 0x0202 && loadflags & 0x01 )
-			heap_end = 0xe000;
-		else
-			heap_end = 0x9800;
+  	if (protocol >= 0x0202 && loadflags & 0x01)
+  		heap_end = 0xe000;
+  	else
+  		heap_end = 0x9800;
 
-		if ( protocol >= 0x0201 ) {
-			heap_end_ptr = heap_end - 0x200;
-			loadflags |= 0x80; /* CAN_USE_HEAP */
-		}
+  	if (protocol >= 0x0201) {
+  		heap_end_ptr = heap_end - 0x200;
+  		loadflags |= 0x80;		/* CAN_USE_HEAP */
+  	}
 
-		if ( protocol >= 0x0202 ) {
-			cmd_line_ptr = base_ptr + heap_end;
-			strcpy(cmd_line_ptr, cmdline);
-		} else {
-			cmd_line_magic	= 0xA33F;
-			cmd_line_offset = heap_end;
-			setup_move_size = heap_end + strlen(cmdline)+1;
-			strcpy(base_ptr+cmd_line_offset, cmdline);
-		}
-	} else {
-		/* Very old kernel */
+  	if (protocol >= 0x0202) {
+  		cmd_line_ptr = base_ptr + heap_end;
+  		strcpy(cmd_line_ptr, cmdline);
+  	} else {
+  		cmd_line_magic	= 0xA33F;
+  		cmd_line_offset = heap_end;
+  		setup_move_size = heap_end + strlen(cmdline) + 1;
+  		strcpy(base_ptr + cmd_line_offset, cmdline);
+  	}
+  } else {
+  	/* Very old kernel */
 
-		heap_end = 0x9800;
+  	heap_end = 0x9800;
 
-		cmd_line_magic	= 0xA33F;
-		cmd_line_offset = heap_end;
+  	cmd_line_magic	= 0xA33F;
+  	cmd_line_offset = heap_end;
 
-		/* A very old kernel MUST have its real-mode code
-		   loaded at 0x90000 */
+  	/* A very old kernel MUST have its real-mode code loaded at 0x90000 */
+  	if (base_ptr != 0x90000) {
+  		/* Copy the real-mode kernel */
+  		memcpy(0x90000, base_ptr, (setup_sects + 1) * 512);
+  		base_ptr = 0x90000;		 /* Relocated */
+  	}
 
-		if ( base_ptr != 0x90000 ) {
-			/* Copy the real-mode kernel */
-			memcpy(0x90000, base_ptr, (setup_sects+1)*512);
-			base_ptr = 0x90000;		 /* Relocated */
-		}
+  	strcpy(0x90000 + cmd_line_offset, cmdline);
 
-		strcpy(0x90000+cmd_line_offset, cmdline);
-
-		/* It is recommended to clear memory up to the 32K mark */
-		memset(0x90000 + (setup_sects+1)*512, 0,
-		       (64-(setup_sects+1))*512);
-	}
+  	/* It is recommended to clear memory up to the 32K mark */
+  	memset(0x90000 + (setup_sects + 1) * 512, 0, (64 - (setup_sects + 1)) * 512);
+  }
 
 
 Loading The Rest of The Kernel
 ==============================
 
-The 32-bit (non-real-mode) kernel starts at offset (setup_sects+1)*512
+The 32-bit (non-real-mode) kernel starts at offset (setup_sects + 1) * 512
 in the kernel file (again, if setup_sects == 0 the real value is 4.)
 It should be loaded at address 0x10000 for Image/zImage kernels and
 0x100000 for bzImage kernels.
@@ -1207,13 +1203,14 @@ It should be loaded at address 0x10000 for Image/zImage kernels and
 The kernel is a bzImage kernel if the protocol >= 2.00 and the 0x01
 bit (LOAD_HIGH) in the loadflags field is set::
 
-	is_bzImage = (protocol >= 0x0200) && (loadflags & 0x01);
-	load_address = is_bzImage ? 0x100000 : 0x10000;
+  is_bzImage = (protocol >= 0x0200) && (loadflags & 0x01);
+  load_address = is_bzImage ? 0x100000 : 0x10000;
 
-Note that Image/zImage kernels can be up to 512K in size, and thus use
-the entire 0x10000-0x90000 range of memory.  This means it is pretty
-much a requirement for these kernels to load the real-mode part at
-0x90000.  bzImage kernels allow much more flexibility.
+.. note::
+     Image/zImage kernels can be up to 512K in size, and thus use the entire
+     0x10000-0x90000 range of memory.  This means it is pretty much a
+     requirement for these kernels to load the real-mode part at 0x90000.
+     bzImage kernels allow much more flexibility.
 
 Special Command Line Options
 ============================
@@ -1282,19 +1279,20 @@ es = ss.
 
 In our example from above, we would do::
 
-	/* Note: in the case of the "old" kernel protocol, base_ptr must
-	   be == 0x90000 at this point; see the previous sample code */
+  /*
+   * Note: in the case of the "old" kernel protocol, base_ptr must
+   * be == 0x90000 at this point; see the previous sample code.
+   */
+  seg = base_ptr >> 4;
 
-	seg = base_ptr >> 4;
+  cli();			/* Enter with interrupts disabled! */
 
-	cli();	/* Enter with interrupts disabled! */
+  /* Set up the real-mode kernel stack */
+  _SS = seg;
+  _SP = heap_end;
 
-	/* Set up the real-mode kernel stack */
-	_SS = seg;
-	_SP = heap_end;
-
-	_DS = _ES = _FS = _GS = seg;
-	jmp_far(seg+0x20, 0);	/* Run the kernel */
+  _DS = _ES = _FS = _GS = seg;
+  jmp_far(seg + 0x20, 0);	/* Run the kernel */
 
 If your boot sector accesses a floppy drive, it is recommended to
 switch off the floppy motor before running the kernel, since the
@@ -1349,7 +1347,7 @@ from offset 0x01f1 of kernel image on should be loaded into struct
 boot_params and examined. The end of setup header can be calculated as
 follow::
 
-	0x0202 + byte value at offset 0x0201
+  0x0202 + byte value at offset 0x0201
 
 In addition to read/modify/write the setup header of the struct
 boot_params as that of 16-bit boot protocol, the boot loader should
@@ -1385,7 +1383,7 @@ Then, the setup header at offset 0x01f1 of kernel image on should be
 loaded into struct boot_params and examined. The end of setup header
 can be calculated as follows::
 
-	0x0202 + byte value at offset 0x0201
+  0x0202 + byte value at offset 0x0201
 
 In addition to read/modify/write the setup header of the struct
 boot_params as that of 16-bit boot protocol, the boot loader should
@@ -1427,7 +1425,7 @@ execution context provided by the EFI firmware.
 
 The function prototype for the handover entry point looks like this::
 
-    efi_stub_entry(void *handle, efi_system_table_t *table, struct boot_params *bp)
+  void efi_stub_entry(void *handle, efi_system_table_t *table, struct boot_params *bp);
 
 'handle' is the EFI image handle passed to the boot loader by the EFI
 firmware, 'table' is the EFI system table - these are the first two
@@ -1442,12 +1440,13 @@ The boot loader *must* fill out the following fields in bp::
 
 All other fields should be zero.
 
-NOTE: The EFI Handover Protocol is deprecated in favour of the ordinary PE/COFF
-      entry point, combined with the LINUX_EFI_INITRD_MEDIA_GUID based initrd
-      loading protocol (refer to [0] for an example of the bootloader side of
-      this), which removes the need for any knowledge on the part of the EFI
-      bootloader regarding the internal representation of boot_params or any
-      requirements/limitations regarding the placement of the command line
-      and ramdisk in memory, or the placement of the kernel image itself.
+.. note::
+     The EFI Handover Protocol is deprecated in favour of the ordinary PE/COFF
+     entry point, combined with the LINUX_EFI_INITRD_MEDIA_GUID based initrd
+     loading protocol (refer to [0] for an example of the bootloader side of
+     this), which removes the need for any knowledge on the part of the EFI
+     bootloader regarding the internal representation of boot_params or any
+     requirements/limitations regarding the placement of the command line
+     and ramdisk in memory, or the placement of the kernel image itself.
 
 [0] https://github.com/u-boot/u-boot/commit/ec80b4735a593961fe701cc3a5d717d4739b0fd0

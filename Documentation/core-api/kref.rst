@@ -3,7 +3,7 @@ Adding reference counters (krefs) to kernel objects
 ===================================================
 
 :Author: Corey Minyard <minyard@acm.org>
-:Author: Thomas Hellstrom <thellstrom@vmware.com>
+:Author: Thomas Hellström <thomas.hellstrom@linux.intel.com>
 
 A lot of this was lifted from Greg Kroah-Hartman's 2004 OLS paper and
 presentation on krefs, which can be found at:
@@ -321,3 +321,8 @@ rcu grace period after release_entry_rcu was called. That can be accomplished
 by using kfree_rcu(entry, rhead) as done above, or by calling synchronize_rcu()
 before using kfree, but note that synchronize_rcu() may sleep for a
 substantial amount of time.
+
+Functions and structures
+========================
+
+.. kernel-doc:: include/linux/kref.h

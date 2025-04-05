@@ -1656,9 +1656,9 @@ static int __init mana_driver_init(void)
 
 static void __exit mana_driver_exit(void)
 {
-	debugfs_remove(mana_debugfs_root);
-
 	pci_unregister_driver(&mana_driver);
+
+	debugfs_remove(mana_debugfs_root);
 }
 
 module_init(mana_driver_init);

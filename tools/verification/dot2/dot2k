@@ -21,25 +21,24 @@ if __name__ == '__main__':
     parser.add_argument('-t', "--monitor_type", dest="monitor_type", required=True)
     parser.add_argument('-n', "--model_name", dest="model_name", required=False)
     parser.add_argument("-D", "--description", dest="description", required=False)
+    parser.add_argument("-a", "--auto_patch", dest="auto_patch",
+                        action="store_true", required=False,
+                        help="Patch the kernel in place")
     params = parser.parse_args()
 
     print("Opening and parsing the dot file %s" % params.dot_file)
     try:
-        monitor=dot2k(params.dot_file, params.monitor_type)
+        monitor=dot2k(params.dot_file, params.monitor_type, vars(params))
     except Exception as e:
         print('Error: '+ str(e))
         print("Sorry : :-(")
         sys.exit(1)
 
-    # easier than using argparse action.
-    if params.model_name != None:
-        print(params.model_name)
-
     print("Writing the monitor into the directory %s" % monitor.name)
     monitor.print_files()
     print("Almost done, checklist")
     print("  - Edit the %s/%s.c to add the instrumentation" % (monitor.name, monitor.name))
-    print("  - Edit include/trace/events/rv.h to add the tracepoint entry")
-    print("  - Move it to the kernel's monitor directory")
-    print("  - Edit kernel/trace/rv/Makefile")
-    print("  - Edit kernel/trace/rv/Kconfig")
+    print(monitor.fill_tracepoint_tooltip())
+    print(monitor.fill_makefile_tooltip())
+    print(monitor.fill_kconfig_tooltip())
+    print(monitor.fill_monitor_tooltip())

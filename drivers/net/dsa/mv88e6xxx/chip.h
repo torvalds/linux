@@ -144,6 +144,7 @@ struct mv88e6xxx_info {
 	unsigned int age_time_coeff;
 	unsigned int g1_irqs;
 	unsigned int g2_irqs;
+	int stats_type;
 	bool pvt;
 
 	/* Mark certain ports as invalid. This is required for example for the

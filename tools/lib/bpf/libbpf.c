@@ -1731,12 +1731,24 @@ static int sys_memfd_create(const char *name, unsigned flags)
 #ifndef MFD_CLOEXEC
 #define MFD_CLOEXEC 0x0001U
 #endif
+#ifndef MFD_NOEXEC_SEAL
+#define MFD_NOEXEC_SEAL 0x0008U
+#endif
 
 static int create_placeholder_fd(void)
 {
+	unsigned int flags = MFD_CLOEXEC | MFD_NOEXEC_SEAL;
+	const char *name = "libbpf-placeholder-fd";
 	int fd;
 
-	fd = ensure_good_fd(sys_memfd_create("libbpf-placeholder-fd", MFD_CLOEXEC));
+	fd = ensure_good_fd(sys_memfd_create(name, flags));
+	if (fd >= 0)
+		return fd;
+	else if (errno != EINVAL)
+		return -errno;
+
+	/* Possibly running on kernel without MFD_NOEXEC_SEAL */
+	fd = ensure_good_fd(sys_memfd_create(name, flags & ~MFD_NOEXEC_SEAL));
 	if (fd < 0)
 		return -errno;
 	return fd;
@@ -11375,8 +11387,32 @@ static int avail_kallsyms_cb(unsigned long long sym_addr, char sym_type,
 	struct kprobe_multi_resolve *res = data->res;
 	int err;
 
-	if (!bsearch(&sym_name, data->syms, data->cnt, sizeof(*data->syms), avail_func_cmp))
+	if (!glob_match(sym_name, res->pattern))
 		return 0;
+
+	if (!bsearch(&sym_name, data->syms, data->cnt, sizeof(*data->syms), avail_func_cmp)) {
+		/* Some versions of kernel strip out .llvm.<hash> suffix from
+		 * function names reported in available_filter_functions, but
+		 * don't do so for kallsyms. While this is clearly a kernel
+		 * bug (fixed by [0]) we try to accommodate that in libbpf to
+		 * make multi-kprobe usability a bit better: if no match is
+		 * found, we will strip .llvm. suffix and try one more time.
+		 *
+		 *   [0] fb6a421fb615 ("kallsyms: Match symbols exactly with CONFIG_LTO_CLANG")
+		 */
+		char sym_trim[256], *psym_trim = sym_trim, *sym_sfx;
+
+		if (!(sym_sfx = strstr(sym_name, ".llvm.")))
+			return 0;
+
+		/* psym_trim vs sym_trim dance is done to avoid pointer vs array
+		 * coercion differences and get proper `const char **` pointer
+		 * which avail_func_cmp() expects
+		 */
+		snprintf(sym_trim, sizeof(sym_trim), "%.*s", (int)(sym_sfx - sym_name), sym_name);
+		if (!bsearch(&psym_trim, data->syms, data->cnt, sizeof(*data->syms), avail_func_cmp))
+			return 0;
+	}
 
 	err = libbpf_ensure_mem((void **)&res->addrs, &res->cap, sizeof(*res->addrs), res->cnt + 1);
 	if (err)
@@ -11522,7 +11558,7 @@ bpf_program__attach_kprobe_multi_opts(const struct bpf_program *prog,
 	struct bpf_link *link = NULL;
 	const unsigned long *addrs;
 	int err, link_fd, prog_fd;
-	bool retprobe, session;
+	bool retprobe, session, unique_match;
 	const __u64 *cookies;
 	const char **syms;
 	size_t cnt;
@@ -11541,12 +11577,15 @@ bpf_program__attach_kprobe_multi_opts(const struct bpf_program *prog,
 	addrs   = OPTS_GET(opts, addrs, false);
 	cnt     = OPTS_GET(opts, cnt, false);
 	cookies = OPTS_GET(opts, cookies, false);
+	unique_match = OPTS_GET(opts, unique_match, false);
 
 	if (!pattern && !addrs && !syms)
 		return libbpf_err_ptr(-EINVAL);
 	if (pattern && (addrs || syms || cookies || cnt))
 		return libbpf_err_ptr(-EINVAL);
 	if (!pattern && !cnt)
+		return libbpf_err_ptr(-EINVAL);
+	if (!pattern && unique_match)
 		return libbpf_err_ptr(-EINVAL);
 	if (addrs && syms)
 		return libbpf_err_ptr(-EINVAL);
@@ -11558,6 +11597,14 @@ bpf_program__attach_kprobe_multi_opts(const struct bpf_program *prog,
 			err = libbpf_available_kallsyms_parse(&res);
 		if (err)
 			goto error;
+
+		if (unique_match && res.cnt != 1) {
+			pr_warn("prog '%s': failed to find a unique match for '%s' (%zu matches)\n",
+				prog->name, pattern, res.cnt);
+			err = -EINVAL;
+			goto error;
+		}
+
 		addrs = res.addrs;
 		cnt = res.cnt;
 	}

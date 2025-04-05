@@ -19,6 +19,7 @@
 #include <linux/netdevice.h>
 
 #include <net/flow.h>
+#include <net/inet_dscp.h>
 #include <net/sock.h>
 #include <net/request_sock.h>
 #include <net/netns/hash.h>
@@ -172,7 +173,7 @@ struct inet_cork {
 	u8			tx_flags;
 	__u8			ttl;
 	__s16			tos;
-	char			priority;
+	u32			priority;
 	__u16			gso_size;
 	u32			ts_opt_id;
 	u64			transmit_time;
@@ -300,6 +301,11 @@ enum {
 static inline unsigned long inet_cmsg_flags(const struct inet_sock *inet)
 {
 	return READ_ONCE(inet->inet_flags) & IP_CMSG_ALL;
+}
+
+static inline dscp_t inet_sk_dscp(const struct inet_sock *inet)
+{
+	return inet_dsfield_to_dscp(READ_ONCE(inet->tos));
 }
 
 #define inet_test_bit(nr, sk)			\

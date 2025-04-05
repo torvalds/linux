@@ -58,10 +58,14 @@ Groups:
     Enables async page faults for the guest. So in case of a major page fault
     the host is allowed to handle this async and continues the guest.
 
+    -EINVAL is returned when called on the FLIC of a ucontrol VM.
+
   KVM_DEV_FLIC_APF_DISABLE_WAIT
     Disables async page faults for the guest and waits until already pending
     async page faults are done. This is necessary to trigger a completion interrupt
     for every init interrupt before migrating the interrupt list.
+
+    -EINVAL is returned when called on the FLIC of a ucontrol VM.
 
   KVM_DEV_FLIC_ADAPTER_REGISTER
     Register an I/O adapter interrupt source. Takes a kvm_s390_io_adapter

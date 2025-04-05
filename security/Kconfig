@@ -64,6 +64,11 @@ config SECURITY
 
 	  If you are unsure how to answer this question, answer N.
 
+config HAS_SECURITY_AUDIT
+	def_bool y
+	depends on AUDIT
+	depends on SECURITY
+
 config SECURITYFS
 	bool "Enable the securityfs filesystem"
 	help

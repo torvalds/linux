@@ -33,7 +33,7 @@ enum consts {
 
 char _license[] SEC("license") = "GPL";
 
-const volatile u64 slice_ns = SCX_SLICE_DFL;
+const volatile u64 slice_ns;
 const volatile u32 stall_user_nth;
 const volatile u32 stall_kernel_nth;
 const volatile u32 dsp_inf_loop_after;

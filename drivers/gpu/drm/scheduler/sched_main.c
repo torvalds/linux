@@ -1355,7 +1355,8 @@ EXPORT_SYMBOL(drm_sched_init);
  * drm_sched_backend_ops.run_job(). Consequently, drm_sched_backend_ops.free_job()
  * will not be called for all jobs still in drm_gpu_scheduler.pending_list.
  * There is no solution for this currently. Thus, it is up to the driver to make
- * sure that
+ * sure that:
+ *
  *  a) drm_sched_fini() is only called after for all submitted jobs
  *     drm_sched_backend_ops.free_job() has been called or that
  *  b) the jobs for which drm_sched_backend_ops.free_job() has not been called

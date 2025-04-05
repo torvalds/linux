@@ -34,6 +34,9 @@ int					/* error */
 xfs_rtmount_inodes(
 	struct xfs_mount	*mp);	/* file system mount structure */
 
+void xfs_rt_resv_free(struct xfs_mount *mp);
+int xfs_rt_resv_init(struct xfs_mount *mp);
+
 /*
  * Grow the realtime area of the filesystem.
  */
@@ -43,6 +46,8 @@ xfs_growfs_rt(
 	xfs_growfs_rt_t		*in);	/* user supplied growfs struct */
 
 int xfs_rtalloc_reinit_frextents(struct xfs_mount *mp);
+int xfs_growfs_check_rtgeom(const struct xfs_mount *mp, xfs_rfsblock_t dblocks,
+		xfs_rfsblock_t rblocks, xfs_agblock_t rextsize);
 #else
 # define xfs_growfs_rt(mp,in)				(-ENOSYS)
 # define xfs_rtalloc_reinit_frextents(m)		(0)
@@ -60,6 +65,21 @@ xfs_rtmount_init(
 }
 # define xfs_rtmount_inodes(m)  (((mp)->m_sb.sb_rblocks == 0)? 0 : (-ENOSYS))
 # define xfs_rtunmount_inodes(m)
+# define xfs_rt_resv_free(mp)				((void)0)
+# define xfs_rt_resv_init(mp)				(0)
+
+static inline int
+xfs_growfs_check_rtgeom(const struct xfs_mount *mp,
+		xfs_rfsblock_t dblocks, xfs_rfsblock_t rblocks,
+		xfs_extlen_t rextsize)
+{
+	return 0;
+}
 #endif	/* CONFIG_XFS_RT */
+
+int xfs_rtallocate_rtgs(struct xfs_trans *tp, xfs_fsblock_t bno_hint,
+		xfs_rtxlen_t minlen, xfs_rtxlen_t maxlen, xfs_rtxlen_t prod,
+		bool wasdel, bool initial_user_data, xfs_rtblock_t *bno,
+		xfs_extlen_t *blen);
 
 #endif	/* __XFS_RTALLOC_H__ */

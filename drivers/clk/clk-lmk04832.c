@@ -375,7 +375,7 @@ static unsigned long lmk04832_vco_recalc_rate(struct clk_hw *hw,
 					      unsigned long prate)
 {
 	struct lmk04832 *lmk = container_of(hw, struct lmk04832, vco);
-	const unsigned int pll2_p[] = {8, 2, 2, 3, 4, 5, 6, 7};
+	static const unsigned int pll2_p[] = {8, 2, 2, 3, 4, 5, 6, 7};
 	unsigned int pll2_n, p, pll2_r;
 	unsigned int pll2_misc;
 	unsigned long vco_rate;
@@ -637,7 +637,7 @@ static int lmk04832_register_vco(struct lmk04832 *lmk)
 
 static int lmk04832_clkout_set_ddly(struct lmk04832 *lmk, int id)
 {
-	const int dclk_div_adj[] = {0, 0, -2, -2, 0, 3, -1, 0};
+	static const int dclk_div_adj[] = {0, 0, -2, -2, 0, 3, -1, 0};
 	unsigned int sclkx_y_ddly = 10;
 	unsigned int dclkx_y_ddly;
 	unsigned int dclkx_y_div;

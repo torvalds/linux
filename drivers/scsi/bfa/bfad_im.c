@@ -25,7 +25,7 @@ struct scsi_transport_template *bfad_im_scsi_transport_template;
 struct scsi_transport_template *bfad_im_scsi_vport_transport_template;
 static void bfad_im_itnim_work_handler(struct work_struct *work);
 static int bfad_im_queuecommand(struct Scsi_Host *h, struct scsi_cmnd *cmnd);
-static int bfad_im_slave_alloc(struct scsi_device *sdev);
+static int bfad_im_sdev_init(struct scsi_device *sdev);
 static void bfad_im_fc_rport_add(struct bfad_im_port_s  *im_port,
 				struct bfad_itnim_s *itnim);
 
@@ -404,10 +404,10 @@ bfad_im_reset_target_handler(struct scsi_cmnd *cmnd)
 }
 
 /*
- * Scsi_Host template entry slave_destroy.
+ * Scsi_Host template entry sdev_destroy.
  */
 static void
-bfad_im_slave_destroy(struct scsi_device *sdev)
+bfad_im_sdev_destroy(struct scsi_device *sdev)
 {
 	sdev->hostdata = NULL;
 	return;
@@ -783,7 +783,7 @@ bfad_thread_workq(struct bfad_s *bfad)
  * Return non-zero if fails.
  */
 static int
-bfad_im_slave_configure(struct scsi_device *sdev)
+bfad_im_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 {
 	scsi_change_queue_depth(sdev, bfa_lun_queue_depth);
 	return 0;
@@ -800,9 +800,9 @@ struct scsi_host_template bfad_im_scsi_host_template = {
 	.eh_device_reset_handler = bfad_im_reset_lun_handler,
 	.eh_target_reset_handler = bfad_im_reset_target_handler,
 
-	.slave_alloc = bfad_im_slave_alloc,
-	.slave_configure = bfad_im_slave_configure,
-	.slave_destroy = bfad_im_slave_destroy,
+	.sdev_init = bfad_im_sdev_init,
+	.sdev_configure = bfad_im_sdev_configure,
+	.sdev_destroy = bfad_im_sdev_destroy,
 
 	.this_id = -1,
 	.sg_tablesize = BFAD_IO_MAX_SGE,
@@ -823,9 +823,9 @@ struct scsi_host_template bfad_im_vport_template = {
 	.eh_device_reset_handler = bfad_im_reset_lun_handler,
 	.eh_target_reset_handler = bfad_im_reset_target_handler,
 
-	.slave_alloc = bfad_im_slave_alloc,
-	.slave_configure = bfad_im_slave_configure,
-	.slave_destroy = bfad_im_slave_destroy,
+	.sdev_init = bfad_im_sdev_init,
+	.sdev_configure = bfad_im_sdev_configure,
+	.sdev_destroy = bfad_im_sdev_destroy,
 
 	.this_id = -1,
 	.sg_tablesize = BFAD_IO_MAX_SGE,
@@ -915,7 +915,7 @@ bfad_get_itnim(struct bfad_im_port_s *im_port, int id)
 }
 
 /*
- * Function is invoked from the SCSI Host Template slave_alloc() entry point.
+ * Function is invoked from the SCSI Host Template sdev_init() entry point.
  * Has the logic to query the LUN Mask database to check if this LUN needs to
  * be made visible to the SCSI mid-layer or not.
  *
@@ -946,10 +946,10 @@ bfad_im_check_if_make_lun_visible(struct scsi_device *sdev,
 }
 
 /*
- * Scsi_Host template entry slave_alloc
+ * Scsi_Host template entry sdev_init
  */
 static int
-bfad_im_slave_alloc(struct scsi_device *sdev)
+bfad_im_sdev_init(struct scsi_device *sdev)
 {
 	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
 	struct bfad_itnim_data_s *itnim_data;

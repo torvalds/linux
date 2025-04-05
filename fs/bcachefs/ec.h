@@ -6,9 +6,8 @@
 #include "buckets_types.h"
 #include "extents_types.h"
 
-enum bch_validate_flags;
-
-int bch2_stripe_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
+int bch2_stripe_validate(struct bch_fs *, struct bkey_s_c,
+			 struct bkey_validate_context);
 void bch2_stripe_to_text(struct printbuf *, struct bch_fs *,
 			 struct bkey_s_c);
 int bch2_trigger_stripe(struct btree_trans *, enum btree_id, unsigned,

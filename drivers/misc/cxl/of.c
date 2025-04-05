@@ -295,6 +295,8 @@ int cxl_of_probe(struct platform_device *pdev)
 	int ret;
 	int slice = 0, slice_ok = 0;
 
+	dev_err_once(&pdev->dev, "DEPRECATION: cxl is deprecated and will be removed in a future kernel release\n");
+
 	pr_devel("in %s\n", __func__);
 
 	np = pdev->dev.of_node;

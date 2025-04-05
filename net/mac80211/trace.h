@@ -2173,13 +2173,14 @@ DEFINE_EVENT(chanswitch_evt, drv_channel_switch_rx_beacon,
 TRACE_EVENT(drv_get_txpower,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
-		 int dbm, int ret),
+		 unsigned int link_id, int dbm, int ret),
 
-	TP_ARGS(local, sdata, dbm, ret),
+	TP_ARGS(local, sdata, link_id, dbm, ret),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
 		VIF_ENTRY
+		__field(unsigned int, link_id)
 		__field(int, dbm)
 		__field(int, ret)
 	),
@@ -2187,13 +2188,14 @@ TRACE_EVENT(drv_get_txpower,
 	TP_fast_assign(
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
+		__entry->link_id = link_id;
 		__entry->dbm = dbm;
 		__entry->ret = ret;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT VIF_PR_FMT " dbm:%d ret:%d",
-		LOCAL_PR_ARG, VIF_PR_ARG, __entry->dbm, __entry->ret
+		LOCAL_PR_FMT VIF_PR_FMT " link_id:%d dbm:%d ret:%d",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->link_id, __entry->dbm, __entry->ret
 	)
 );
 
@@ -2587,6 +2589,45 @@ TRACE_EVENT(drv_change_sta_links,
 /*
  * Tracing for API calls that drivers call.
  */
+
+TRACE_EVENT(api_return_bool,
+	TP_PROTO(struct ieee80211_local *local, bool result),
+
+	TP_ARGS(local, result),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(bool, result)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->result = result;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " result=%d",
+		LOCAL_PR_ARG, __entry->result
+	)
+);
+
+TRACE_EVENT(api_return_void,
+	TP_PROTO(struct ieee80211_local *local),
+
+	TP_ARGS(local),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT, LOCAL_PR_ARG
+	)
+);
 
 TRACE_EVENT(api_start_tx_ba_session,
 	TP_PROTO(struct ieee80211_sta *sta, u16 tid),
@@ -3052,6 +3093,65 @@ TRACE_EVENT(api_request_smps,
 	)
 );
 
+TRACE_EVENT(api_prepare_rx_omi_bw,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct link_sta_info *link_sta,
+		 enum ieee80211_sta_rx_bandwidth bw),
+
+	TP_ARGS(local, sdata, link_sta, bw),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		STA_ENTRY
+		__field(int, link_id)
+		__field(u32, bw)
+		__field(bool, result)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		STA_NAMED_ASSIGN(link_sta->sta);
+		__entry->link_id = link_sta->link_id;
+		__entry->bw = bw;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " " VIF_PR_FMT " " STA_PR_FMT " link:%d, bw:%d",
+		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG,
+		__entry->link_id, __entry->bw
+	)
+);
+
+TRACE_EVENT(api_finalize_rx_omi_bw,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct link_sta_info *link_sta),
+
+	TP_ARGS(local, sdata, link_sta),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		STA_ENTRY
+		__field(int, link_id)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		STA_NAMED_ASSIGN(link_sta->sta);
+		__entry->link_id = link_sta->link_id;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " " VIF_PR_FMT " " STA_PR_FMT " link:%d",
+		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG, __entry->link_id
+	)
+);
+
 /*
  * Tracing for internal functions
  * (which may also be called in response to driver calls)
@@ -3059,49 +3159,55 @@ TRACE_EVENT(api_request_smps,
 
 TRACE_EVENT(wake_queue,
 	TP_PROTO(struct ieee80211_local *local, u16 queue,
-		 enum queue_stop_reason reason),
+		 enum queue_stop_reason reason, int refcount),
 
-	TP_ARGS(local, queue, reason),
+	TP_ARGS(local, queue, reason, refcount),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
 		__field(u16, queue)
 		__field(u32, reason)
+		__field(int, refcount)
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
 		__entry->queue = queue;
 		__entry->reason = reason;
+		__entry->refcount = refcount;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT " queue:%d, reason:%d",
-		LOCAL_PR_ARG, __entry->queue, __entry->reason
+		LOCAL_PR_FMT " queue:%d, reason:%d, refcount: %d",
+		LOCAL_PR_ARG, __entry->queue, __entry->reason,
+		__entry->refcount
 	)
 );
 
 TRACE_EVENT(stop_queue,
 	TP_PROTO(struct ieee80211_local *local, u16 queue,
-		 enum queue_stop_reason reason),
+		 enum queue_stop_reason reason, int refcount),
 
-	TP_ARGS(local, queue, reason),
+	TP_ARGS(local, queue, reason, refcount),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
 		__field(u16, queue)
 		__field(u32, reason)
+		__field(int, refcount)
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
 		__entry->queue = queue;
 		__entry->reason = reason;
+		__entry->refcount = refcount;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT " queue:%d, reason:%d",
-		LOCAL_PR_ARG, __entry->queue, __entry->reason
+		LOCAL_PR_FMT " queue:%d, reason:%d, refcount: %d",
+		LOCAL_PR_ARG, __entry->queue, __entry->reason,
+		__entry->refcount
 	)
 );
 

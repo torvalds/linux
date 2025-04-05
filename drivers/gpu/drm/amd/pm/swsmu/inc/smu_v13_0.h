@@ -107,6 +107,7 @@ struct smu_13_0_dpm_context {
 	struct smu_13_0_dpm_tables  dpm_tables;
 	uint32_t                    workload_policy_mask;
 	uint32_t                    dcef_min_ds_clk;
+	uint64_t                    caps;
 };
 
 enum smu_13_0_power_state {
@@ -303,5 +304,7 @@ int smu_v13_0_set_wbrf_exclusion_ranges(struct smu_context *smu,
 int smu_v13_0_get_boot_freq_by_index(struct smu_context *smu,
 				     enum smu_clk_type clk_type,
 				     uint32_t *value);
+
+void smu_v13_0_interrupt_work(struct smu_context *smu);
 #endif
 #endif

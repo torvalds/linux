@@ -3,3 +3,21 @@
 config FW_CS_DSP
 	tristate
 	default n
+
+config FW_CS_DSP_KUNIT_TEST_UTILS
+	tristate
+	depends on KUNIT && REGMAP
+	select FW_CS_DSP
+
+config FW_CS_DSP_KUNIT_TEST
+	tristate "KUnit tests for Cirrus Logic cs_dsp" if !KUNIT_ALL_TESTS
+	depends on KUNIT && REGMAP
+	default KUNIT_ALL_TESTS
+	select FW_CS_DSP
+	select FW_CS_DSP_KUNIT_TEST_UTILS
+	help
+	  This builds KUnit tests for cs_dsp.
+	  For more information on KUnit and unit tests in general,
+	  please refer to the KUnit documentation in
+	  Documentation/dev-tools/kunit/.
+	  If in doubt, say "N".

@@ -16,15 +16,12 @@ struct swap_slots_cache {
 	swp_entry_t	*slots;
 	int		nr;
 	int		cur;
-	spinlock_t	free_lock;  /* protects slots_ret, n_ret */
-	swp_entry_t	*slots_ret;
 	int		n_ret;
 };
 
 void disable_swap_slots_cache_lock(void);
 void reenable_swap_slots_cache_unlock(void);
 void enable_swap_slots_cache(void);
-void free_swap_slot(swp_entry_t entry);
 
 extern bool swap_slot_cache_enabled;
 

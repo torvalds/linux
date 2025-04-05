@@ -16,25 +16,12 @@
 #include <linux/string.h>
 #include <linux/dma-direct.h> /* for bus_dma_region */
 
+#include <kunit/visibility.h>
+
+/* Uncomment me to enable of_dump_addr() debugging output */
+// #define DEBUG
+
 #include "of_private.h"
-
-/* Max address size we deal with */
-#define OF_MAX_ADDR_CELLS	4
-#define OF_CHECK_ADDR_COUNT(na)	((na) > 0 && (na) <= OF_MAX_ADDR_CELLS)
-#define OF_CHECK_COUNTS(na, ns)	(OF_CHECK_ADDR_COUNT(na) && (ns) > 0)
-
-/* Debug utility */
-#ifdef DEBUG
-static void of_dump_addr(const char *s, const __be32 *addr, int na)
-{
-	pr_debug("%s", s);
-	while (na--)
-		pr_cont(" %08x", be32_to_cpu(*(addr++)));
-	pr_cont("\n");
-}
-#else
-static void of_dump_addr(const char *s, const __be32 *addr, int na) { }
-#endif
 
 /* Callbacks for bus specific translators */
 struct of_bus {
@@ -198,22 +185,21 @@ static u64 of_bus_pci_map(__be32 *addr, const __be32 *range, int na, int ns,
 
 #endif /* CONFIG_PCI */
 
-static int __of_address_resource_bounds(struct resource *r, u64 start, u64 size)
+VISIBLE_IF_KUNIT int __of_address_resource_bounds(struct resource *r, u64 start, u64 size)
 {
-	u64 end = start;
-
 	if (overflows_type(start, r->start))
-		return -EOVERFLOW;
-	if (size && check_add_overflow(end, size - 1, &end))
-		return -EOVERFLOW;
-	if (overflows_type(end, r->end))
 		return -EOVERFLOW;
 
 	r->start = start;
-	r->end = end;
+
+	if (!size)
+		r->end = wrapping_sub(typeof(r->end), r->start, 1);
+	else if (size && check_add_overflow(r->start, size - 1, &r->end))
+		return -EOVERFLOW;
 
 	return 0;
 }
+EXPORT_SYMBOL_IF_KUNIT(__of_address_resource_bounds);
 
 /*
  * of_pci_range_to_resource - Create a resource from an of_pci_range
@@ -340,6 +326,15 @@ static int of_bus_default_flags_match(struct device_node *np)
 	return of_property_present(np, "#address-cells") && (of_bus_n_addr_cells(np) == 3);
 }
 
+static int of_bus_default_match(struct device_node *np)
+{
+	/*
+	 * Check for presence first since of_bus_n_addr_cells() will warn when
+	 * walking parent nodes.
+	 */
+	return of_property_present(np, "#address-cells");
+}
+
 /*
  * Array of bus specific translators
  */
@@ -384,7 +379,7 @@ static const struct of_bus of_busses[] = {
 	{
 		.name = "default",
 		.addresses = "reg",
-		.match = NULL,
+		.match = of_bus_default_match,
 		.count_cells = of_bus_default_count_cells,
 		.map = of_bus_default_map,
 		.translate = of_bus_default_translate,
@@ -399,7 +394,6 @@ static const struct of_bus *of_match_bus(struct device_node *np)
 	for (i = 0; i < ARRAY_SIZE(of_busses); i++)
 		if (!of_busses[i].match || of_busses[i].match(np))
 			return &of_busses[i];
-	BUG();
 	return NULL;
 }
 
@@ -459,7 +453,8 @@ static int of_translate_one(const struct device_node *parent, const struct of_bu
 	}
 	if (ranges == NULL || rlen == 0) {
 		offset = of_read_number(addr, na);
-		memset(addr, 0, pna * 4);
+		/* set address to zero, pass flags through */
+		memset(addr + pbus->flag_cells, 0, (pna - pbus->flag_cells) * 4);
 		pr_debug("empty ranges; 1:1 translation\n");
 		goto finish;
 	}
@@ -520,6 +515,8 @@ static u64 __of_translate_address(struct device_node *node,
 	if (parent == NULL)
 		return OF_BAD_ADDR;
 	bus = of_match_bus(parent);
+	if (!bus)
+		return OF_BAD_ADDR;
 
 	/* Count address cells & copy address locally */
 	bus->count_cells(dev, &na, &ns);
@@ -563,6 +560,8 @@ static u64 __of_translate_address(struct device_node *node,
 
 		/* Get new parent bus and counts */
 		pbus = of_match_bus(parent);
+		if (!pbus)
+			return OF_BAD_ADDR;
 		pbus->count_cells(dev, &pna, &pns);
 		if (!OF_CHECK_COUNTS(pna, pns)) {
 			pr_err("Bad cell count for %pOF\n", dev);
@@ -619,7 +618,7 @@ struct device_node *__of_get_dma_parent(const struct device_node *np)
 	if (ret < 0)
 		return of_get_parent(np);
 
-	return of_node_get(args.np);
+	return args.np;
 }
 #endif
 
@@ -702,7 +701,7 @@ const __be32 *__of_get_address(struct device_node *dev, int index, int bar_no,
 
 	/* match the parent's bus type */
 	bus = of_match_bus(parent);
-	if (strcmp(bus->name, "pci") && (bar_no >= 0))
+	if (!bus || (strcmp(bus->name, "pci") && (bar_no >= 0)))
 		return NULL;
 
 	/* Get "reg" or "assigned-addresses" property */
@@ -815,6 +814,8 @@ struct of_pci_range *of_pci_range_parser_one(struct of_pci_range_parser *parser,
 	else
 		range->cpu_addr = of_translate_address(parser->node,
 				parser->range + na);
+
+	range->parent_bus_addr = of_read_number(parser->range + na, parser->pna);
 	range->size = of_read_number(parser->range + parser->pna + na, ns);
 
 	parser->range += np;

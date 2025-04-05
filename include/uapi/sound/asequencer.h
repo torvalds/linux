@@ -10,7 +10,7 @@
 #include <sound/asound.h>
 
 /** version of the sequencer */
-#define SNDRV_SEQ_VERSION SNDRV_PROTOCOL_VERSION(1, 0, 4)
+#define SNDRV_SEQ_VERSION SNDRV_PROTOCOL_VERSION(1, 0, 5)
 
 /**
  * definition of sequencer event types
@@ -91,6 +91,9 @@
  */
 #define SNDRV_SEQ_EVENT_PORT_SUBSCRIBED	66	/* ports connected */
 #define SNDRV_SEQ_EVENT_PORT_UNSUBSCRIBED 67	/* ports disconnected */
+
+#define SNDRV_SEQ_EVENT_UMP_EP_CHANGE	68	/* UMP EP info has changed */
+#define SNDRV_SEQ_EVENT_UMP_BLOCK_CHANGE 69	/* UMP block info has changed */
 
 /* 70-89:  synthesizer events - obsoleted */
 
@@ -253,6 +256,12 @@ struct snd_seq_ev_quote {
 	struct snd_seq_event *event;		/* quoted event */
 } __packed;
 
+	/* UMP info change notify */
+struct snd_seq_ev_ump_notify {
+	unsigned char client;	/**< Client number */
+	unsigned char block;	/**< Block number (optional) */
+};
+
 union snd_seq_event_data { /* event data... */
 	struct snd_seq_ev_note note;
 	struct snd_seq_ev_ctrl control;
@@ -265,6 +274,7 @@ union snd_seq_event_data { /* event data... */
 	struct snd_seq_connect connect;
 	struct snd_seq_result result;
 	struct snd_seq_ev_quote quote;
+	struct snd_seq_ev_ump_notify ump_notify;
 };
 
 	/* sequencer event */

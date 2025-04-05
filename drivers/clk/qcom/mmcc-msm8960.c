@@ -37,6 +37,7 @@ enum {
 	P_DSI2_PLL_DSICLK,
 	P_DSI1_PLL_BYTECLK,
 	P_DSI2_PLL_BYTECLK,
+	P_LVDS_PLL,
 };
 
 #define F_MN(f, s, _m, _n) { .freq = f, .src = s, .m = _m, .n = _n }
@@ -140,6 +141,20 @@ static const struct parent_map mmcc_pxo_dsi2_dsi1_map[] = {
 static const struct clk_parent_data mmcc_pxo_dsi2_dsi1[] = {
 	{ .fw_name = "pxo", .name = "pxo_board" },
 	{ .fw_name = "dsi2pll", .name = "dsi2pll" },
+	{ .fw_name = "dsi1pll", .name = "dsi1pll" },
+};
+
+static const struct parent_map mmcc_pxo_dsi2_dsi1_lvds_map[] = {
+	{ P_PXO, 0 },
+	{ P_DSI2_PLL_DSICLK, 1 },
+	{ P_LVDS_PLL, 2 },
+	{ P_DSI1_PLL_DSICLK, 3 },
+};
+
+static const struct clk_parent_data mmcc_pxo_dsi2_dsi1_lvds[] = {
+	{ .fw_name = "pxo", .name = "pxo_board" },
+	{ .fw_name = "dsi2pll", .name = "dsi2pll" },
+	{ .fw_name = "lvdspll", .name = "mpd4_lvds_pll" },
 	{ .fw_name = "dsi1pll", .name = "dsi1pll" },
 };
 
@@ -2439,16 +2454,32 @@ static struct clk_rcg dsi2_pixel_src = {
 	},
 	.s = {
 		.src_sel_shift = 0,
-		.parent_map = mmcc_pxo_dsi2_dsi1_map,
+		.parent_map = mmcc_pxo_dsi2_dsi1_lvds_map,
 	},
 	.clkr = {
 		.enable_reg = 0x0094,
 		.enable_mask = BIT(2),
 		.hw.init = &(struct clk_init_data){
 			.name = "dsi2_pixel_src",
-			.parent_data = mmcc_pxo_dsi2_dsi1,
-			.num_parents = ARRAY_SIZE(mmcc_pxo_dsi2_dsi1),
+			.parent_data = mmcc_pxo_dsi2_dsi1_lvds,
+			.num_parents = ARRAY_SIZE(mmcc_pxo_dsi2_dsi1_lvds),
 			.ops = &clk_rcg_pixel_ops,
+		},
+	},
+};
+
+static struct clk_branch dsi2_pixel_lvds_src = {
+	.clkr = {
+		.enable_reg = 0x0094,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "dsi2_pixel_lvds_src",
+			.parent_hws = (const struct clk_hw*[]){
+				&dsi2_pixel_src.clkr.hw
+			},
+			.num_parents = 1,
+			.ops = &clk_branch_simple_ops,
+			.flags = CLK_SET_RATE_PARENT,
 		},
 	},
 };
@@ -2458,11 +2489,29 @@ static struct clk_branch dsi2_pixel_clk = {
 	.halt_bit = 19,
 	.clkr = {
 		.enable_reg = 0x0094,
-		.enable_mask = BIT(0),
+		.enable_mask = 0,
 		.hw.init = &(struct clk_init_data){
 			.name = "mdp_pclk2_clk",
 			.parent_hws = (const struct clk_hw*[]){
 				&dsi2_pixel_src.clkr.hw
+			},
+			.num_parents = 1,
+			.ops = &clk_branch_ops,
+			.flags = CLK_SET_RATE_PARENT,
+		},
+	},
+};
+
+static struct clk_branch lvds_clk = {
+	.halt_reg = 0x024c,
+	.halt_bit = 6,
+	.clkr = {
+		.enable_reg = 0x0264,
+		.enable_mask = BIT(1),
+		.hw.init = &(struct clk_init_data){
+			.name = "mdp_lvds_clk",
+			.parent_hws = (const struct clk_hw*[]){
+				&dsi2_pixel_lvds_src.clkr.hw
 			},
 			.num_parents = 1,
 			.ops = &clk_branch_ops,
@@ -2799,6 +2848,8 @@ static struct clk_regmap *mmcc_msm8960_clks[] = {
 	[CSIPHY1_TIMER_CLK] = &csiphy1_timer_clk.clkr,
 	[CSIPHY0_TIMER_CLK] = &csiphy0_timer_clk.clkr,
 	[PLL2] = &pll2.clkr,
+	[DSI2_PIXEL_LVDS_SRC] = &dsi2_pixel_lvds_src.clkr,
+	[LVDS_CLK] = &lvds_clk.clkr,
 };
 
 static const struct qcom_reset_map mmcc_msm8960_resets[] = {
@@ -2983,6 +3034,8 @@ static struct clk_regmap *mmcc_apq8064_clks[] = {
 	[VCAP_CLK] = &vcap_clk.clkr,
 	[VCAP_NPL_CLK] = &vcap_npl_clk.clkr,
 	[PLL15] = &pll15.clkr,
+	[DSI2_PIXEL_LVDS_SRC] = &dsi2_pixel_lvds_src.clkr,
+	[LVDS_CLK] = &lvds_clk.clkr,
 };
 
 static const struct qcom_reset_map mmcc_apq8064_resets[] = {

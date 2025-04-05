@@ -781,10 +781,6 @@ int __ksmbd_override_fsids(struct ksmbd_work *work,
 
 	WARN_ON(work->saved_cred);
 	work->saved_cred = override_creds(cred);
-	if (!work->saved_cred) {
-		abort_creds(cred);
-		return -EINVAL;
-	}
 	return 0;
 }
 
@@ -796,13 +792,11 @@ int ksmbd_override_fsids(struct ksmbd_work *work)
 void ksmbd_revert_fsids(struct ksmbd_work *work)
 {
 	const struct cred *cred;
-
 	WARN_ON(!work->saved_cred);
 
-	cred = current_cred();
-	revert_creds(work->saved_cred);
-	put_cred(cred);
+	cred = revert_creds(work->saved_cred);
 	work->saved_cred = NULL;
+	put_cred(cred);
 }
 
 __le32 smb_map_generic_desired_access(__le32 daccess)

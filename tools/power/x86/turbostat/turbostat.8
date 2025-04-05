@@ -136,7 +136,7 @@ displays the statistics gathered since it was forked.
 The system configuration dump (if --quiet is not used) is followed by statistics.  The first row of the statistics labels the content of each column (below).  The second row of statistics is the system summary line.  The system summary line has a '-' in the columns for the Package, Core, and CPU.  The contents of the system summary line depends on the type of column.  Columns that count items (eg. IRQ) show the sum across all CPUs in the system.  Columns that show a percentage show the average across all CPUs in the system.  Columns that dump raw MSR values simply show 0 in the summary.  After the system summary row, each row describes a specific Package/Core/CPU.  Note that if the --cpu parameter is used to limit which specific CPUs are displayed, turbostat will still collect statistics for all CPUs in the system and will still show the system summary for all CPUs in the system.
 .SH COLUMN DESCRIPTIONS
 .PP
-\fBusec\fP For each CPU, the number of microseconds elapsed during counter collection, including thread migration -- if any.  This counter is disabled by default, and is enabled with "--enable usec", or --debug.  On the summary row, usec refers to the total elapsed time to collect the counters on all cpus.
+\fBusec\fP For each CPU, the number of microseconds elapsed during counter collection, including thread migration -- if any.  This counter is disabled by default, and is enabled with "--enable usec", or --debug.  On the summary row, usec refers to the total elapsed time to snapshot the procfs/sysfs and collect the counters on all cpus.
 .PP
 \fBTime_Of_Day_Seconds\fP For each CPU, the gettimeofday(2) value (seconds.subsec since Epoch) when the counters ending the measurement interval were collected.  This column is disabled by default, and can be enabled with "--enable Time_Of_Day_Seconds" or "--debug".  On the summary row, Time_Of_Day_Seconds refers to the timestamp following collection of counters on the last CPU.
 .PP
@@ -190,7 +190,7 @@ The system configuration dump (if --quiet is not used) is followed by statistics
 .PP
 \fBRAMWatt\fP Watts consumed by the DRAM DIMMS -- available only on server processors.
 .PP
-\fBSysWatt\fP Watts consumed by the whole platform (RAPL PSYS). Disabled by default.  Enable with --enable SysWatt.
+\fBSysWatt\fP Watts consumed by the whole platform (RAPL PSYS).
 .PP
 \fBPKG_%\fP percent of the interval that RAPL throttling was active on the Package.  Note that the system summary is the sum of the package throttling time, and thus may be higher than 100% on a multi-package system.  Note that the meaning of this field is model specific.  For example, some hardware increments this counter when RAPL responds to thermal limits, but does not increment this counter when RAPL responds to power limits.  Comparing PkgWatt and PkgTmp to system limits is necessary.
 .PP
@@ -516,14 +516,40 @@ that they count at TSC rate, which is true on all processors tested to date.
 Volume 3B: System Programming Guide"
 https://www.intel.com/products/processor/manuals/
 
+.SH RUN THE LATEST VERSION
+If turbostat complains that it doesn't recognize your processor,
+please try the latest version.
+
+The latest version of turbostat does not require the latest version of the Linux kernel.
+However, some features, such as perf(1) counters, do require kernel support.
+
+The latest turbostat release is available in the upstream Linux Kernel source tree.
+eg. "git pull https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git"
+and run make in tools/power/x86/turbostat/.
+
+n.b. "make install" will update your system manually, but a distro update may subsequently downgrade your turbostat to an older version.
+For this reason, manually installing to /usr/local/bin may be what you want.
+
+Note that turbostat/Makefile has a "make snapshot" target, which will create a tar file
+that can build without a local kernel source tree.
+
+If the upstream version isn't new enough, the development tree can be found here:
+"git pull https://git.kernel.org/pub/scm/linux/kernel/git/lenb/linux.git turbostat"
+
+If the development tree doesn't work, please contact the author via chat,
+or via email with the word "turbostat" on the Subject line.
+
 .SH FILES
 .ta
 .nf
+/sys/bus/event_source/devices/
 /dev/cpu/*/msr
+/sys/class/intel_pmt/
+/sys/devices/system/cpu/
 .fi
 
 .SH "SEE ALSO"
-msr(4), vmstat(8)
+perf(1), msr(4), vmstat(8)
 .PP
 .SH AUTHOR
 .nf

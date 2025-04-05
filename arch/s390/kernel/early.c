@@ -50,6 +50,7 @@ decompressor_handled_param(facilities);
 decompressor_handled_param(nokaslr);
 decompressor_handled_param(cmma);
 decompressor_handled_param(relocate_lowcore);
+decompressor_handled_param(bootdebug);
 #if IS_ENABLED(CONFIG_KVM)
 decompressor_handled_param(prot_virt);
 #endif
@@ -58,7 +59,7 @@ static void __init kasan_early_init(void)
 {
 #ifdef CONFIG_KASAN
 	init_task.kasan_depth = 0;
-	sclp_early_printk("KernelAddressSanitizer initialized\n");
+	pr_info("KernelAddressSanitizer initialized\n");
 #endif
 }
 

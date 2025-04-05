@@ -35,6 +35,7 @@ void nilfs_init_btnc_inode(struct inode *btnc_inode)
 	ii->i_flags = 0;
 	memset(&ii->i_bmap_data, 0, sizeof(struct nilfs_bmap));
 	mapping_set_gfp_mask(btnc_inode->i_mapping, GFP_NOFS);
+	btnc_inode->i_mapping->a_ops = &nilfs_buffer_cache_aops;
 }
 
 void nilfs_btnode_cache_clear(struct address_space *btnc)
@@ -200,7 +201,8 @@ void nilfs_btnode_delete(struct buffer_head *bh)
  * Note that the current implementation does not support folio sizes larger
  * than the page size.
  *
- * Return: 0 on success, or the following negative error code on failure.
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
  * * %-EIO	- I/O error (metadata corruption).
  * * %-ENOMEM	- Insufficient memory available.
  */

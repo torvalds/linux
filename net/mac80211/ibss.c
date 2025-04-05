@@ -245,6 +245,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		sdata->vif.cfg.ibss_creator = false;
 		sdata->vif.bss_conf.enable_beacon = false;
 		netif_carrier_off(sdata->dev);
+		synchronize_net();
 		ieee80211_bss_info_change_notify(sdata,
 						 BSS_CHANGED_IBSS |
 						 BSS_CHANGED_BEACON_ENABLED);
@@ -1826,8 +1827,8 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 
-	ieee80211_ibss_disconnect(sdata);
 	ifibss->ssid_len = 0;
+	ieee80211_ibss_disconnect(sdata);
 	eth_zero_addr(ifibss->bssid);
 
 	/* remove beacon */

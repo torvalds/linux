@@ -106,7 +106,7 @@ static const struct kernel_param_ops lt_bind_ops = {
 module_param_cb(bind_readers, &lt_bind_ops, &bind_readers, 0644);
 module_param_cb(bind_writers, &lt_bind_ops, &bind_writers, 0644);
 
-long torture_sched_setaffinity(pid_t pid, const struct cpumask *in_mask);
+long torture_sched_setaffinity(pid_t pid, const struct cpumask *in_mask, bool dowarn);
 
 static struct task_struct *stats_task;
 static struct task_struct **writer_tasks;
@@ -1358,7 +1358,7 @@ static int __init lock_torture_init(void)
 		if (torture_init_error(firsterr))
 			goto unwind;
 		if (cpumask_nonempty(bind_writers))
-			torture_sched_setaffinity(writer_tasks[i]->pid, bind_writers);
+			torture_sched_setaffinity(writer_tasks[i]->pid, bind_writers, true);
 
 	create_reader:
 		if (cxt.cur_ops->readlock == NULL || (j >= cxt.nrealreaders_stress))
@@ -1369,7 +1369,7 @@ static int __init lock_torture_init(void)
 		if (torture_init_error(firsterr))
 			goto unwind;
 		if (cpumask_nonempty(bind_readers))
-			torture_sched_setaffinity(reader_tasks[j]->pid, bind_readers);
+			torture_sched_setaffinity(reader_tasks[j]->pid, bind_readers, true);
 	}
 	if (stat_interval > 0) {
 		firsterr = torture_create_kthread(lock_torture_stats, NULL,

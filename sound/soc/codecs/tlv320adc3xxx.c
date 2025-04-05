@@ -1401,7 +1401,6 @@ static int adc3xxx_i2c_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	struct adc3xxx *adc3xxx = NULL;
-	const struct i2c_device_id *id;
 	int ret;
 
 	adc3xxx = devm_kzalloc(dev, sizeof(struct adc3xxx), GFP_KERNEL);
@@ -1466,8 +1465,7 @@ static int adc3xxx_i2c_probe(struct i2c_client *i2c)
 
 	i2c_set_clientdata(i2c, adc3xxx);
 
-	id = i2c_match_id(adc3xxx_i2c_id, i2c);
-	adc3xxx->type = id->driver_data;
+	adc3xxx->type = (uintptr_t)i2c_get_match_data(i2c);
 
 	/* Reset codec chip */
 	gpiod_set_value_cansleep(adc3xxx->rst_pin, 1);

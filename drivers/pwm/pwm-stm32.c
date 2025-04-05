@@ -84,7 +84,7 @@ static int stm32_pwm_round_waveform_tohw(struct pwm_chip *chip,
 
 	wfhw->ccer = TIM_CCER_CCxE(ch + 1);
 	if (priv->have_complementary_output)
-		wfhw->ccer = TIM_CCER_CCxNE(ch + 1);
+		wfhw->ccer |= TIM_CCER_CCxNE(ch + 1);
 
 	rate = clk_get_rate(priv->clk);
 
@@ -858,8 +858,11 @@ static int stm32_pwm_probe(struct platform_device *pdev)
 	chip->ops = &stm32pwm_ops;
 
 	/* Initialize clock refcount to number of enabled PWM channels. */
-	for (i = 0; i < num_enabled; i++)
-		clk_enable(priv->clk);
+	for (i = 0; i < num_enabled; i++) {
+		ret = clk_enable(priv->clk);
+		if (ret)
+			return ret;
+	}
 
 	ret = devm_pwmchip_add(dev, chip);
 	if (ret < 0)

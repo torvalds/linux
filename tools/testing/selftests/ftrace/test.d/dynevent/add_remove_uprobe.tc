@@ -6,8 +6,10 @@
 echo 0 > events/enable
 echo > dynamic_events
 
+REALBIN=`readlink -f /bin/sh`
+
 echo 'cat /proc/$$/maps' | /bin/sh | \
-	grep "r-xp .*/bin/.*sh$" | \
+	grep "r-xp .*${REALBIN}$" | \
 	awk '{printf "p:myevent %s:0x%s\n", $6,$3 }' >> uprobe_events
 
 grep -q myevent uprobe_events

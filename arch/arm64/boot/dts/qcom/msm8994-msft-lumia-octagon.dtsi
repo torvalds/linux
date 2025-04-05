@@ -387,11 +387,6 @@
 
 		interrupts = <&tlmm 96 IRQ_TYPE_EDGE_FALLING>;
 
-		button_num = <8>;
-		touchpad_num = <0>;
-		wheel_num = <0>;
-		slider_num = <0>;
-
 		vcc-supply = <&vreg_l18a_2p85>;
 	};
 

@@ -21,12 +21,7 @@
 
 extern void __bad_pte(pmd_t *pmd);
 
-static inline pgd_t *get_pgd(void)
-{
-	return (pgd_t *)__get_free_pages(GFP_KERNEL|__GFP_ZERO, 0);
-}
-
-#define pgd_alloc(mm)		get_pgd()
+#define pgd_alloc(mm)		__pgd_alloc(mm, 0)
 
 extern pte_t *pte_alloc_one_kernel(struct mm_struct *mm);
 

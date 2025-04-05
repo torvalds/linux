@@ -88,6 +88,8 @@
 #include <linux/byteorder/generic.h>
 
 #include <net/net_namespace.h>
+#include <net/netlink.h>
+#include <net/addrconf.h>
 #include <net/arp.h>
 #include <net/ip.h>
 #include <net/protocol.h>
@@ -1430,6 +1432,65 @@ static void ip_mc_hash_remove(struct in_device *in_dev,
 	*mc_hash = im->next_hash;
 }
 
+static int inet_fill_ifmcaddr(struct sk_buff *skb, struct net_device *dev,
+			      const struct ip_mc_list *im, int event)
+{
+	struct ifa_cacheinfo ci;
+	struct ifaddrmsg *ifm;
+	struct nlmsghdr *nlh;
+
+	nlh = nlmsg_put(skb, 0, 0, event, sizeof(struct ifaddrmsg), 0);
+	if (!nlh)
+		return -EMSGSIZE;
+
+	ifm = nlmsg_data(nlh);
+	ifm->ifa_family = AF_INET;
+	ifm->ifa_prefixlen = 32;
+	ifm->ifa_flags = IFA_F_PERMANENT;
+	ifm->ifa_scope = RT_SCOPE_UNIVERSE;
+	ifm->ifa_index = dev->ifindex;
+
+	ci.cstamp = (READ_ONCE(im->mca_cstamp) - INITIAL_JIFFIES) * 100UL / HZ;
+	ci.tstamp = ci.cstamp;
+	ci.ifa_prefered = INFINITY_LIFE_TIME;
+	ci.ifa_valid = INFINITY_LIFE_TIME;
+
+	if (nla_put_in_addr(skb, IFA_MULTICAST, im->multiaddr) < 0 ||
+	    nla_put(skb, IFA_CACHEINFO, sizeof(ci), &ci) < 0) {
+		nlmsg_cancel(skb, nlh);
+		return -EMSGSIZE;
+	}
+
+	nlmsg_end(skb, nlh);
+	return 0;
+}
+
+static void inet_ifmcaddr_notify(struct net_device *dev,
+				 const struct ip_mc_list *im, int event)
+{
+	struct net *net = dev_net(dev);
+	struct sk_buff *skb;
+	int err = -ENOMEM;
+
+	skb = nlmsg_new(NLMSG_ALIGN(sizeof(struct ifaddrmsg)) +
+			nla_total_size(sizeof(__be32)) +
+			nla_total_size(sizeof(struct ifa_cacheinfo)),
+			GFP_KERNEL);
+	if (!skb)
+		goto error;
+
+	err = inet_fill_ifmcaddr(skb, dev, im, event);
+	if (err < 0) {
+		WARN_ON_ONCE(err == -EMSGSIZE);
+		nlmsg_free(skb);
+		goto error;
+	}
+
+	rtnl_notify(skb, net, 0, RTNLGRP_IPV4_MCADDR, NULL, GFP_KERNEL);
+	return;
+error:
+	rtnl_set_sk_err(net, RTNLGRP_IPV4_MCADDR, err);
+}
 
 /*
  *	A socket has joined a multicast group on device dev.
@@ -1473,6 +1534,8 @@ static void ____ip_mc_inc_group(struct in_device *in_dev, __be32 addr,
 	im->interface = in_dev;
 	in_dev_hold(in_dev);
 	im->multiaddr = addr;
+	im->mca_cstamp = jiffies;
+	im->mca_tstamp = im->mca_cstamp;
 	/* initial mode is (EX, empty) */
 	im->sfmode = mode;
 	im->sfcount[mode] = 1;
@@ -1492,6 +1555,7 @@ static void ____ip_mc_inc_group(struct in_device *in_dev, __be32 addr,
 	igmpv3_del_delrec(in_dev, im);
 #endif
 	igmp_group_added(im);
+	inet_ifmcaddr_notify(in_dev->dev, im, RTM_NEWMULTICAST);
 	if (!in_dev->dead)
 		ip_rt_multicast_event(in_dev);
 out:
@@ -1705,6 +1769,8 @@ void __ip_mc_dec_group(struct in_device *in_dev, __be32 addr, gfp_t gfp)
 				*ip = i->next_rcu;
 				in_dev->mc_count--;
 				__igmp_group_dropped(i, gfp);
+				inet_ifmcaddr_notify(in_dev->dev, i,
+						     RTM_DELMULTICAST);
 				ip_mc_clear_src(i);
 
 				if (!in_dev->dead)

@@ -124,7 +124,7 @@ const struct attribute_group memory_failure_attr_group = {
 	.attrs = memory_failure_attr,
 };
 
-static struct ctl_table memory_failure_table[] = {
+static const struct ctl_table memory_failure_table[] = {
 	{
 		.procname	= "memory_failure_early_kill",
 		.data		= &sysctl_memory_failure_early_kill,

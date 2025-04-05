@@ -1074,26 +1074,18 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 	regs = &rtc->data->regs;
 
 	if (rtc->data->need_dbp) {
-		rtc->dbp = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
-							   "st,syscfg");
+		unsigned int args[2];
+
+		rtc->dbp = syscon_regmap_lookup_by_phandle_args(pdev->dev.of_node,
+								"st,syscfg",
+								2, args);
 		if (IS_ERR(rtc->dbp)) {
 			dev_err(&pdev->dev, "no st,syscfg\n");
 			return PTR_ERR(rtc->dbp);
 		}
 
-		ret = of_property_read_u32_index(pdev->dev.of_node, "st,syscfg",
-						 1, &rtc->dbp_reg);
-		if (ret) {
-			dev_err(&pdev->dev, "can't read DBP register offset\n");
-			return ret;
-		}
-
-		ret = of_property_read_u32_index(pdev->dev.of_node, "st,syscfg",
-						 2, &rtc->dbp_mask);
-		if (ret) {
-			dev_err(&pdev->dev, "can't read DBP register mask\n");
-			return ret;
-		}
+		rtc->dbp_reg = args[0];
+		rtc->dbp_mask = args[1];
 	}
 
 	if (!rtc->data->has_pclk) {

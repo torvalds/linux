@@ -23,7 +23,7 @@ TRACE_EVENT(hugetlbfs_alloc_inode,
 	TP_fast_assign(
 		__entry->dev		= inode->i_sb->s_dev;
 		__entry->ino		= inode->i_ino;
-		__entry->dir		= dir->i_ino;
+		__entry->dir		= dir ? dir->i_ino : 0;
 		__entry->mode		= mode;
 	),
 

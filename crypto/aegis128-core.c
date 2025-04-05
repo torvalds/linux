@@ -516,7 +516,6 @@ static struct aead_alg crypto_aegis128_alg_generic = {
 
 	.base.cra_blocksize	= 1,
 	.base.cra_ctxsize	= sizeof(struct aegis_ctx),
-	.base.cra_alignmask	= 0,
 	.base.cra_priority	= 100,
 	.base.cra_name		= "aegis128",
 	.base.cra_driver_name	= "aegis128-generic",
@@ -535,7 +534,6 @@ static struct aead_alg crypto_aegis128_alg_simd = {
 
 	.base.cra_blocksize	= 1,
 	.base.cra_ctxsize	= sizeof(struct aegis_ctx),
-	.base.cra_alignmask	= 0,
 	.base.cra_priority	= 200,
 	.base.cra_name		= "aegis128",
 	.base.cra_driver_name	= "aegis128-simd",

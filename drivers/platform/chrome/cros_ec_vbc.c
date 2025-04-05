@@ -15,7 +15,7 @@
 #define DRV_NAME "cros-ec-vbc"
 
 static ssize_t vboot_context_read(struct file *filp, struct kobject *kobj,
-				  struct bin_attribute *att, char *buf,
+				  const struct bin_attribute *att, char *buf,
 				  loff_t pos, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -59,7 +59,7 @@ static ssize_t vboot_context_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t vboot_context_write(struct file *filp, struct kobject *kobj,
-				   struct bin_attribute *attr, char *buf,
+				   const struct bin_attribute *attr, char *buf,
 				   loff_t pos, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -99,16 +99,16 @@ static ssize_t vboot_context_write(struct file *filp, struct kobject *kobj,
 	return data_sz;
 }
 
-static BIN_ATTR_RW(vboot_context, 16);
+static const BIN_ATTR_RW(vboot_context, 16);
 
-static struct bin_attribute *cros_ec_vbc_bin_attrs[] = {
+static const struct bin_attribute *const cros_ec_vbc_bin_attrs[] = {
 	&bin_attr_vboot_context,
 	NULL
 };
 
 static const struct attribute_group cros_ec_vbc_attr_group = {
 	.name = "vbc",
-	.bin_attrs = cros_ec_vbc_bin_attrs,
+	.bin_attrs_new = cros_ec_vbc_bin_attrs,
 };
 
 static int cros_ec_vbc_probe(struct platform_device *pd)

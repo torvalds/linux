@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "builtin.h"
+#include "perf.h"
 
 #include <subcmd/parse-options.h>
 #include "util/auxtrace.h"

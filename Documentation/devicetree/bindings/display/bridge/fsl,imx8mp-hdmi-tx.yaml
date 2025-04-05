@@ -82,21 +82,21 @@ examples:
         power-domains = <&hdmi_blk_ctrl IMX8MP_HDMIBLK_PD_HDMI_TX>;
         reg-io-width = <1>;
         ports {
-           #address-cells = <1>;
-           #size-cells = <0>;
-           port@0 {
-             reg = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            port@0 {
+                reg = <0>;
 
-             hdmi_tx_from_pvi: endpoint {
-               remote-endpoint = <&pvi_to_hdmi_tx>;
-             };
-          };
+                endpoint {
+                    remote-endpoint = <&pvi_to_hdmi_tx>;
+                };
+            };
 
-          port@1 {
-            reg = <1>;
-              hdmi_tx_out: endpoint {
-                remote-endpoint = <&hdmi0_con>;
-              };
-          };
+            port@1 {
+                reg = <1>;
+                endpoint {
+                    remote-endpoint = <&hdmi0_con>;
+                };
+            };
         };
     };

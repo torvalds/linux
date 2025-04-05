@@ -313,7 +313,7 @@ done.
 
 **mandatory**
 
-block truncatation on error exit from ->write_begin, and ->direct_IO
+block truncation on error exit from ->write_begin, and ->direct_IO
 moved from generic methods (block_write_begin, cont_write_begin,
 nobh_write_begin, blockdev_direct_IO*) to callers.  Take a look at
 ext2_write_failed and callers for an example.
@@ -1141,3 +1141,19 @@ pointer are gone.
 
 set_blocksize() takes opened struct file instead of struct block_device now
 and it *must* be opened exclusive.
+
+---
+
+** mandatory**
+
+->d_revalidate() gets two extra arguments - inode of parent directory and
+name our dentry is expected to have.  Both are stable (dir is pinned in
+non-RCU case and will stay around during the call in RCU case, and name
+is guaranteed to stay unchanging).  Your instance doesn't have to use
+either, but it often helps to avoid a lot of painful boilerplate.
+Note that while name->name is stable and NUL-terminated, it may (and
+often will) have name->name[name->len] equal to '/' rather than '\0' -
+in normal case it points into the pathname being looked up.
+NOTE: if you need something like full path from the root of filesystem,
+you are still on your own - this assists with simple cases, but it's not
+magic.

@@ -115,10 +115,9 @@ struct ad5686_chip_info {
 };
 
 /**
- * struct ad5446_state - driver instance specific data
+ * struct ad5686_state - driver instance specific data
  * @spi:		spi_device
  * @chip_info:		chip model specific constants, available modes etc
- * @reg:		supply regulator
  * @vref_mv:		actual reference voltage used
  * @pwr_down_mask:	power down mask
  * @pwr_down_mode:	current power down mode
@@ -130,7 +129,6 @@ struct ad5686_chip_info {
 struct ad5686_state {
 	struct device			*dev;
 	const struct ad5686_chip_info	*chip_info;
-	struct regulator		*reg;
 	unsigned short			vref_mv;
 	unsigned int			pwr_down_mask;
 	unsigned int			pwr_down_mode;
@@ -156,8 +154,6 @@ int ad5686_probe(struct device *dev,
 		 enum ad5686_supported_device_ids chip_type,
 		 const char *name, ad5686_write_func write,
 		 ad5686_read_func read);
-
-void ad5686_remove(struct device *dev);
 
 
 #endif /* __DRIVERS_IIO_DAC_AD5686_H__ */

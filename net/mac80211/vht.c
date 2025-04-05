@@ -350,9 +350,9 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 }
 
 /* FIXME: move this to some better location - parses HE/EHT now */
-enum ieee80211_sta_rx_bandwidth
-_ieee80211_sta_cap_rx_bw(struct link_sta_info *link_sta,
-			 struct cfg80211_chan_def *chandef)
+static enum ieee80211_sta_rx_bandwidth
+__ieee80211_sta_cap_rx_bw(struct link_sta_info *link_sta,
+			  struct cfg80211_chan_def *chandef)
 {
 	unsigned int link_id = link_sta->link_id;
 	struct ieee80211_sub_if_data *sdata = link_sta->sta->sdata;
@@ -421,6 +421,28 @@ _ieee80211_sta_cap_rx_bw(struct link_sta_info *link_sta,
 		return IEEE80211_STA_RX_BW_160;
 
 	return IEEE80211_STA_RX_BW_80;
+}
+
+enum ieee80211_sta_rx_bandwidth
+_ieee80211_sta_cap_rx_bw(struct link_sta_info *link_sta,
+			 struct cfg80211_chan_def *chandef)
+{
+	/*
+	 * With RX OMI, also pretend that the STA's capability changed.
+	 * Of course this isn't really true, it didn't change, only our
+	 * RX capability was changed by notifying RX OMI to the STA.
+	 * The purpose, however, is to save power, and that requires
+	 * changing also transmissions to the AP and the chanctx. The
+	 * transmissions depend on link_sta->bandwidth which is set in
+	 * _ieee80211_sta_cur_vht_bw() below, but the chanctx depends
+	 * on the result of this function which is also called by
+	 * _ieee80211_sta_cur_vht_bw(), so we need to do that here as
+	 * well. This is sufficient for the steady state, but during
+	 * the transition we already need to change TX/RX separately,
+	 * so _ieee80211_sta_cur_vht_bw() below applies the _tx one.
+	 */
+	return min(__ieee80211_sta_cap_rx_bw(link_sta, chandef),
+		   link_sta->rx_omi_bw_rx);
 }
 
 enum nl80211_chan_width
@@ -503,8 +525,11 @@ _ieee80211_sta_cur_vht_bw(struct link_sta_info *link_sta,
 		rcu_read_unlock();
 	}
 
-	bw = _ieee80211_sta_cap_rx_bw(link_sta, chandef);
+	/* intentionally do not take rx_bw_omi_rx into account */
+	bw = __ieee80211_sta_cap_rx_bw(link_sta, chandef);
 	bw = min(bw, link_sta->cur_max_bandwidth);
+	/* but do apply rx_omi_bw_tx */
+	bw = min(bw, link_sta->rx_omi_bw_tx);
 
 	/* Don't consider AP's bandwidth for TDLS peers, section 11.23.1 of
 	 * IEEE80211-2016 specification makes higher bandwidth operation

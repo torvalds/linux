@@ -50,7 +50,13 @@ static int led_pwm_mc_set(struct led_classdev *cdev,
 			duty = priv->leds[i].state.period - duty;
 
 		priv->leds[i].state.duty_cycle = duty;
-		priv->leds[i].state.enabled = duty > 0;
+		/*
+		 * Disabling a PWM doesn't guarantee that it emits the inactive level.
+		 * So keep it on. Only for suspending the PWM should be disabled because
+		 * otherwise it refuses to suspend. The possible downside is that the
+		 * LED might stay (or even go) on.
+		 */
+		priv->leds[i].state.enabled = !(cdev->flags & LED_SUSPENDED);
 		ret = pwm_apply_might_sleep(priv->leds[i].pwm,
 					    &priv->leds[i].state);
 		if (ret)

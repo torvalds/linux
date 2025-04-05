@@ -114,6 +114,19 @@ static void hbg_mdio_init_hw(struct hbg_priv *priv)
 	hbg_mdio_set_command(mac, cmd);
 }
 
+static void hbg_flowctrl_cfg(struct hbg_priv *priv)
+{
+	struct phy_device *phydev = priv->mac.phydev;
+	bool rx_pause;
+	bool tx_pause;
+
+	if (!priv->mac.pause_autoneg)
+		return;
+
+	phy_get_pause(phydev, &tx_pause, &rx_pause);
+	hbg_hw_set_pause_enable(priv, tx_pause, rx_pause);
+}
+
 static void hbg_phy_adjust_link(struct net_device *netdev)
 {
 	struct hbg_priv *priv = netdev_priv(netdev);
@@ -140,6 +153,7 @@ static void hbg_phy_adjust_link(struct net_device *netdev)
 			priv->mac.duplex = phydev->duplex;
 			priv->mac.autoneg = phydev->autoneg;
 			hbg_hw_adjust_link(priv, speed, phydev->duplex);
+			hbg_flowctrl_cfg(priv);
 		}
 
 		priv->mac.link_status = phydev->link;
@@ -168,6 +182,7 @@ static int hbg_phy_connect(struct hbg_priv *priv)
 		return ret;
 
 	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
+	phy_support_asym_pause(phydev);
 	phy_attached_info(phydev);
 
 	return 0;

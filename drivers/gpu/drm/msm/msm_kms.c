@@ -244,7 +244,6 @@ int msm_drm_kms_init(struct device *dev, const struct drm_driver *drv)
 	ret = priv->kms_init(ddev);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "failed to load kms\n");
-		priv->kms = NULL;
 		return ret;
 	}
 
@@ -269,7 +268,7 @@ int msm_drm_kms_init(struct device *dev, const struct drm_driver *drv)
 		/* initialize event thread */
 		ev_thread = &priv->event_thread[drm_crtc_index(crtc)];
 		ev_thread->dev = ddev;
-		ev_thread->worker = kthread_create_worker(0, "crtc_event:%d", crtc->base.id);
+		ev_thread->worker = kthread_run_worker(0, "crtc_event:%d", crtc->base.id);
 		if (IS_ERR(ev_thread->worker)) {
 			ret = PTR_ERR(ev_thread->worker);
 			DRM_DEV_ERROR(dev, "failed to create crtc_event kthread\n");

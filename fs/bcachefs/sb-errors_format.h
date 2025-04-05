@@ -5,9 +5,8 @@
 enum bch_fsck_flags {
 	FSCK_CAN_FIX		= 1 << 0,
 	FSCK_CAN_IGNORE		= 1 << 1,
-	FSCK_NEED_FSCK		= 1 << 2,
-	FSCK_NO_RATELIMIT	= 1 << 3,
-	FSCK_AUTOFIX		= 1 << 4,
+	FSCK_NO_RATELIMIT	= 1 << 2,
+	FSCK_AUTOFIX		= 1 << 3,
 };
 
 #define BCH_SB_ERRS()									\
@@ -58,8 +57,8 @@ enum bch_fsck_flags {
 	x(bset_wrong_sector_offset,				 44,	0)		\
 	x(bset_empty,						 45,	0)		\
 	x(bset_bad_seq,						 46,	0)		\
-	x(bset_blacklisted_journal_seq,				 47,	0)		\
-	x(first_bset_blacklisted_journal_seq,			 48,	0)		\
+	x(bset_blacklisted_journal_seq,				 47,	FSCK_AUTOFIX)	\
+	x(first_bset_blacklisted_journal_seq,			 48,	FSCK_AUTOFIX)	\
 	x(btree_node_bad_btree,					 49,	0)		\
 	x(btree_node_bad_level,					 50,	0)		\
 	x(btree_node_bad_min_key,				 51,	0)		\
@@ -68,17 +67,17 @@ enum bch_fsck_flags {
 	x(btree_node_bkey_past_bset_end,			 54,	0)		\
 	x(btree_node_bkey_bad_format,				 55,	0)		\
 	x(btree_node_bad_bkey,					 56,	0)		\
-	x(btree_node_bkey_out_of_order,				 57,	0)		\
-	x(btree_root_bkey_invalid,				 58,	0)		\
-	x(btree_root_read_error,				 59,	0)		\
+	x(btree_node_bkey_out_of_order,				 57,	FSCK_AUTOFIX)	\
+	x(btree_root_bkey_invalid,				 58,	FSCK_AUTOFIX)	\
+	x(btree_root_read_error,				 59,	FSCK_AUTOFIX)	\
 	x(btree_root_bad_min_key,				 60,	0)		\
 	x(btree_root_bad_max_key,				 61,	0)		\
-	x(btree_node_read_error,				 62,	0)		\
-	x(btree_node_topology_bad_min_key,			 63,	0)		\
-	x(btree_node_topology_bad_max_key,			 64,	0)		\
-	x(btree_node_topology_overwritten_by_prev_node,		 65,	0)		\
-	x(btree_node_topology_overwritten_by_next_node,		 66,	0)		\
-	x(btree_node_topology_interior_node_empty,		 67,	0)		\
+	x(btree_node_read_error,				 62,	FSCK_AUTOFIX)	\
+	x(btree_node_topology_bad_min_key,			 63,	FSCK_AUTOFIX)	\
+	x(btree_node_topology_bad_max_key,			 64,	FSCK_AUTOFIX)	\
+	x(btree_node_topology_overwritten_by_prev_node,		 65,	FSCK_AUTOFIX)	\
+	x(btree_node_topology_overwritten_by_next_node,		 66,	FSCK_AUTOFIX)	\
+	x(btree_node_topology_interior_node_empty,		 67,	FSCK_AUTOFIX)	\
 	x(fs_usage_hidden_wrong,				 68,	FSCK_AUTOFIX)	\
 	x(fs_usage_btree_wrong,					 69,	FSCK_AUTOFIX)	\
 	x(fs_usage_data_wrong,					 70,	FSCK_AUTOFIX)	\
@@ -123,11 +122,12 @@ enum bch_fsck_flags {
 	x(alloc_key_cached_sectors_wrong,			109,	FSCK_AUTOFIX)	\
 	x(alloc_key_stripe_wrong,				110,	FSCK_AUTOFIX)	\
 	x(alloc_key_stripe_redundancy_wrong,			111,	FSCK_AUTOFIX)	\
+	x(alloc_key_journal_seq_in_future,			298,	FSCK_AUTOFIX)	\
 	x(bucket_sector_count_overflow,				112,	0)		\
 	x(bucket_metadata_type_mismatch,			113,	0)		\
-	x(need_discard_key_wrong,				114,	0)		\
-	x(freespace_key_wrong,					115,	0)		\
-	x(freespace_hole_missing,				116,	0)		\
+	x(need_discard_key_wrong,				114,	FSCK_AUTOFIX)	\
+	x(freespace_key_wrong,					115,	FSCK_AUTOFIX)	\
+	x(freespace_hole_missing,				116,	FSCK_AUTOFIX)	\
 	x(bucket_gens_val_size_bad,				117,	0)		\
 	x(bucket_gens_key_wrong,				118,	FSCK_AUTOFIX)	\
 	x(bucket_gens_hole_wrong,				119,	FSCK_AUTOFIX)	\
@@ -139,9 +139,10 @@ enum bch_fsck_flags {
 	x(discarding_bucket_not_in_need_discard_btree,		291,	0)		\
 	x(backpointer_bucket_offset_wrong,			125,	0)		\
 	x(backpointer_level_bad,				294,	0)		\
-	x(backpointer_to_missing_device,			126,	0)		\
-	x(backpointer_to_missing_alloc,				127,	0)		\
-	x(backpointer_to_missing_ptr,				128,	0)		\
+	x(backpointer_dev_bad,					297,	0)		\
+	x(backpointer_to_missing_device,			126,	FSCK_AUTOFIX)	\
+	x(backpointer_to_missing_alloc,				127,	FSCK_AUTOFIX)	\
+	x(backpointer_to_missing_ptr,				128,	FSCK_AUTOFIX)	\
 	x(lru_entry_at_time_0,					129,	FSCK_AUTOFIX)	\
 	x(lru_entry_to_invalid_bucket,				130,	FSCK_AUTOFIX)	\
 	x(lru_entry_bad,					131,	FSCK_AUTOFIX)	\
@@ -167,20 +168,21 @@ enum bch_fsck_flags {
 	x(ptr_to_incorrect_stripe,				151,	0)		\
 	x(ptr_gen_newer_than_bucket_gen,			152,	0)		\
 	x(ptr_too_stale,					153,	0)		\
-	x(stale_dirty_ptr,					154,	0)		\
+	x(stale_dirty_ptr,					154,	FSCK_AUTOFIX)	\
 	x(ptr_bucket_data_type_mismatch,			155,	0)		\
 	x(ptr_cached_and_erasure_coded,				156,	0)		\
 	x(ptr_crc_uncompressed_size_too_small,			157,	0)		\
+	x(ptr_crc_uncompressed_size_too_big,			161,	0)		\
+	x(ptr_crc_uncompressed_size_mismatch,			300,	0)		\
 	x(ptr_crc_csum_type_unknown,				158,	0)		\
 	x(ptr_crc_compression_type_unknown,			159,	0)		\
 	x(ptr_crc_redundant,					160,	0)		\
-	x(ptr_crc_uncompressed_size_too_big,			161,	0)		\
 	x(ptr_crc_nonce_mismatch,				162,	0)		\
 	x(ptr_stripe_redundant,					163,	0)		\
 	x(reservation_key_nr_replicas_invalid,			164,	0)		\
-	x(reflink_v_refcount_wrong,				165,	0)		\
+	x(reflink_v_refcount_wrong,				165,	FSCK_AUTOFIX)	\
 	x(reflink_v_pos_bad,					292,	0)		\
-	x(reflink_p_to_missing_reflink_v,			166,	0)		\
+	x(reflink_p_to_missing_reflink_v,			166,	FSCK_AUTOFIX)	\
 	x(reflink_refcount_underflow,				293,	0)		\
 	x(stripe_pos_bad,					167,	0)		\
 	x(stripe_val_size_bad,					168,	0)		\
@@ -209,6 +211,7 @@ enum bch_fsck_flags {
 	x(bkey_in_missing_snapshot,				190,	0)		\
 	x(inode_pos_inode_nonzero,				191,	0)		\
 	x(inode_pos_blockdev_range,				192,	0)		\
+	x(inode_alloc_cursor_inode_bad,				301,	0)		\
 	x(inode_unpack_error,					193,	0)		\
 	x(inode_str_hash_invalid,				194,	0)		\
 	x(inode_v3_fields_start_bad,				195,	0)		\
@@ -232,6 +235,7 @@ enum bch_fsck_flags {
 	x(inode_wrong_nlink,					209,	FSCK_AUTOFIX)	\
 	x(inode_has_child_snapshots_wrong,			287,	0)		\
 	x(inode_unreachable,					210,	FSCK_AUTOFIX)	\
+	x(inode_journal_seq_in_future,				299,	FSCK_AUTOFIX)	\
 	x(deleted_inode_but_clean,				211,	FSCK_AUTOFIX)	\
 	x(deleted_inode_missing,				212,	FSCK_AUTOFIX)	\
 	x(deleted_inode_is_dir,					213,	FSCK_AUTOFIX)	\
@@ -252,6 +256,7 @@ enum bch_fsck_flags {
 	x(dirent_in_missing_dir_inode,				227,	0)		\
 	x(dirent_in_non_dir_inode,				228,	0)		\
 	x(dirent_to_missing_inode,				229,	0)		\
+	x(dirent_to_overwritten_inode,				302,	0)		\
 	x(dirent_to_missing_subvol,				230,	0)		\
 	x(dirent_to_itself,					231,	0)		\
 	x(quota_type_invalid,					232,	0)		\
@@ -288,7 +293,7 @@ enum bch_fsck_flags {
 	x(btree_root_unreadable_and_scan_found_nothing,		263,	0)		\
 	x(snapshot_node_missing,				264,	0)		\
 	x(dup_backpointer_to_bad_csum_extent,			265,	0)		\
-	x(btree_bitmap_not_marked,				266,	0)		\
+	x(btree_bitmap_not_marked,				266,	FSCK_AUTOFIX)	\
 	x(sb_clean_entry_overrun,				267,	0)		\
 	x(btree_ptr_v2_written_0,				268,	0)		\
 	x(subvol_snapshot_bad,					269,	0)		\
@@ -306,7 +311,10 @@ enum bch_fsck_flags {
 	x(accounting_key_replicas_devs_unsorted,		280,	FSCK_AUTOFIX)	\
 	x(accounting_key_version_0,				282,	FSCK_AUTOFIX)	\
 	x(logged_op_but_clean,					283,	FSCK_AUTOFIX)	\
-	x(MAX,							295,	0)
+	x(compression_opt_not_marked_in_sb,			295,	FSCK_AUTOFIX)	\
+	x(compression_type_not_marked_in_sb,			296,	FSCK_AUTOFIX)	\
+	x(directory_size_mismatch,				303,	FSCK_AUTOFIX)	\
+	x(MAX,							304,	0)
 
 enum bch_sb_error_id {
 #define x(t, n, ...) BCH_FSCK_ERR_##t = n,

@@ -154,6 +154,13 @@ static int choose_best_symbol(struct symbol *syma, struct symbol *symb)
 	else if ((a == 0) && (b > 0))
 		return SYMBOL_B;
 
+	if (syma->type != symb->type) {
+		if (syma->type == STT_NOTYPE)
+			return SYMBOL_B;
+		if (symb->type == STT_NOTYPE)
+			return SYMBOL_A;
+	}
+
 	/* Prefer a non weak symbol over a weak one */
 	a = syma->binding == STB_WEAK;
 	b = symb->binding == STB_WEAK;
@@ -257,7 +264,7 @@ void symbols__fixup_end(struct rb_root_cached *symbols, bool is_kallsyms)
 		 * like in:
 		 *   ffffffffc1937000 T hdmi_driver_init  [snd_hda_codec_hdmi]
 		 */
-		if (prev->end == prev->start && prev->type != STT_NOTYPE) {
+		if (prev->end == prev->start) {
 			const char *prev_mod;
 			const char *curr_mod;
 

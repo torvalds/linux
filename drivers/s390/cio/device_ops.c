@@ -445,7 +445,7 @@ struct ciw *ccw_device_get_ciw(struct ccw_device *cdev, __u32 ct)
 		return NULL;
 	for (ciw_cnt = 0; ciw_cnt < MAX_CIWS; ciw_cnt++)
 		if (cdev->private->dma_area->senseid.ciw[ciw_cnt].ct == ct)
-			return cdev->private->dma_area->senseid.ciw + ciw_cnt;
+			return &cdev->private->dma_area->senseid.ciw[ciw_cnt];
 	return NULL;
 }
 

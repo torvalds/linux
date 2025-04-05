@@ -73,8 +73,9 @@ struct chip_data {
 #define LPSS_CAPS_CS_EN_MASK			(0xf << LPSS_CAPS_CS_EN_SHIFT)
 
 #define LPSS_PRIV_CLOCK_GATE 0x38
-#define LPSS_PRIV_CLOCK_GATE_CLK_CTL_MASK 0x3
-#define LPSS_PRIV_CLOCK_GATE_CLK_CTL_FORCE_ON 0x3
+#define LPSS_PRIV_CLOCK_GATE_CLK_CTL_MASK	0x3
+#define LPSS_PRIV_CLOCK_GATE_CLK_CTL_FORCE_ON	0x3
+#define LPSS_PRIV_CLOCK_GATE_CLK_CTL_FORCE_OFF	0x0
 
 struct lpss_config {
 	/* LPSS offset from drv_data->ioaddr */
@@ -321,6 +322,20 @@ static void __lpss_ssp_write_priv(struct driver_data *drv_data,
 	writel(value, drv_data->lpss_base + offset);
 }
 
+static bool __lpss_ssp_update_priv(struct driver_data *drv_data, unsigned int offset,
+				   u32 mask, u32 value)
+{
+	u32 new, curr;
+
+	curr = __lpss_ssp_read_priv(drv_data, offset);
+	new = (curr & ~mask) | (value & mask);
+	if (new == curr)
+		return false;
+
+	__lpss_ssp_write_priv(drv_data, offset, new);
+	return true;
+}
+
 /*
  * lpss_ssp_setup - perform LPSS SSP specific setup
  * @drv_data: pointer to the driver private data
@@ -337,21 +352,16 @@ static void lpss_ssp_setup(struct driver_data *drv_data)
 	drv_data->lpss_base = drv_data->ssp->mmio_base + config->offset;
 
 	/* Enable software chip select control */
-	value = __lpss_ssp_read_priv(drv_data, config->reg_cs_ctrl);
-	value &= ~(LPSS_CS_CONTROL_SW_MODE | LPSS_CS_CONTROL_CS_HIGH);
-	value |= LPSS_CS_CONTROL_SW_MODE | LPSS_CS_CONTROL_CS_HIGH;
-	__lpss_ssp_write_priv(drv_data, config->reg_cs_ctrl, value);
+	value = LPSS_CS_CONTROL_SW_MODE | LPSS_CS_CONTROL_CS_HIGH;
+	__lpss_ssp_update_priv(drv_data, config->reg_cs_ctrl, value, value);
 
 	/* Enable multiblock DMA transfers */
 	if (drv_data->controller_info->enable_dma) {
-		__lpss_ssp_write_priv(drv_data, config->reg_ssp, 1);
+		__lpss_ssp_update_priv(drv_data, config->reg_ssp, BIT(0), BIT(0));
 
 		if (config->reg_general >= 0) {
-			value = __lpss_ssp_read_priv(drv_data,
-						     config->reg_general);
-			value |= LPSS_GENERAL_REG_RXTO_HOLDOFF_DISABLE;
-			__lpss_ssp_write_priv(drv_data,
-					      config->reg_general, value);
+			value = LPSS_GENERAL_REG_RXTO_HOLDOFF_DISABLE;
+			__lpss_ssp_update_priv(drv_data, config->reg_general, value, value);
 		}
 	}
 }
@@ -361,30 +371,19 @@ static void lpss_ssp_select_cs(struct spi_device *spi,
 {
 	struct driver_data *drv_data =
 		spi_controller_get_devdata(spi->controller);
-	u32 value, cs;
+	u32 cs;
 
-	if (!config->cs_sel_mask)
+	cs = spi_get_chipselect(spi, 0) << config->cs_sel_shift;
+	if (!__lpss_ssp_update_priv(drv_data, config->reg_cs_ctrl, config->cs_sel_mask, cs))
 		return;
 
-	value = __lpss_ssp_read_priv(drv_data, config->reg_cs_ctrl);
-
-	cs = spi_get_chipselect(spi, 0);
-	cs <<= config->cs_sel_shift;
-	if (cs != (value & config->cs_sel_mask)) {
-		/*
-		 * When switching another chip select output active the
-		 * output must be selected first and wait 2 ssp_clk cycles
-		 * before changing state to active. Otherwise a short
-		 * glitch will occur on the previous chip select since
-		 * output select is latched but state control is not.
-		 */
-		value &= ~config->cs_sel_mask;
-		value |= cs;
-		__lpss_ssp_write_priv(drv_data,
-				      config->reg_cs_ctrl, value);
-		ndelay(1000000000 /
-		       (drv_data->controller->max_speed_hz / 2));
-	}
+	/*
+	 * When switching another chip select output active the output must be
+	 * selected first and wait 2 ssp_clk cycles before changing state to
+	 * active. Otherwise a short glitch will occur on the previous chip
+	 * select since output select is latched but state control is not.
+	 */
+	ndelay(1000000000 / (drv_data->controller->max_speed_hz / 2));
 }
 
 static void lpss_ssp_cs_control(struct spi_device *spi, bool enable)
@@ -392,34 +391,27 @@ static void lpss_ssp_cs_control(struct spi_device *spi, bool enable)
 	struct driver_data *drv_data =
 		spi_controller_get_devdata(spi->controller);
 	const struct lpss_config *config;
-	u32 value;
+	u32 mask;
 
 	config = lpss_get_config(drv_data);
 
 	if (enable)
 		lpss_ssp_select_cs(spi, config);
 
-	value = __lpss_ssp_read_priv(drv_data, config->reg_cs_ctrl);
-	if (enable)
-		value &= ~LPSS_CS_CONTROL_CS_HIGH;
-	else
-		value |= LPSS_CS_CONTROL_CS_HIGH;
-	__lpss_ssp_write_priv(drv_data, config->reg_cs_ctrl, value);
+	mask = LPSS_CS_CONTROL_CS_HIGH;
+	__lpss_ssp_update_priv(drv_data, config->reg_cs_ctrl, mask, enable ? 0 : mask);
 	if (config->cs_clk_stays_gated) {
-		u32 clkgate;
-
 		/*
 		 * Changing CS alone when dynamic clock gating is on won't
 		 * actually flip CS at that time. This ruins SPI transfers
 		 * that specify delays, or have no data. Toggle the clock mode
 		 * to force on briefly to poke the CS pin to move.
 		 */
-		clkgate = __lpss_ssp_read_priv(drv_data, LPSS_PRIV_CLOCK_GATE);
-		value = (clkgate & ~LPSS_PRIV_CLOCK_GATE_CLK_CTL_MASK) |
-			LPSS_PRIV_CLOCK_GATE_CLK_CTL_FORCE_ON;
-
-		__lpss_ssp_write_priv(drv_data, LPSS_PRIV_CLOCK_GATE, value);
-		__lpss_ssp_write_priv(drv_data, LPSS_PRIV_CLOCK_GATE, clkgate);
+		mask = LPSS_PRIV_CLOCK_GATE_CLK_CTL_MASK;
+		if (__lpss_ssp_update_priv(drv_data, LPSS_PRIV_CLOCK_GATE, mask,
+					   LPSS_PRIV_CLOCK_GATE_CLK_CTL_FORCE_ON))
+			__lpss_ssp_update_priv(drv_data, LPSS_PRIV_CLOCK_GATE, mask,
+					       LPSS_PRIV_CLOCK_GATE_CLK_CTL_FORCE_OFF);
 	}
 }
 

@@ -18,6 +18,7 @@
 #include <asm/physmem_info.h>
 #include <asm/maccess.h>
 #include <asm/asm-offsets.h>
+#include <asm/sections.h>
 #include <asm/ipl.h>
 
 /*

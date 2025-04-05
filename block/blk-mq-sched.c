@@ -351,8 +351,7 @@ bool blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
 	ctx = blk_mq_get_ctx(q);
 	hctx = blk_mq_map_queue(q, bio->bi_opf, ctx);
 	type = hctx->type;
-	if (!(hctx->flags & BLK_MQ_F_SHOULD_MERGE) ||
-	    list_empty_careful(&ctx->rq_lists[type]))
+	if (list_empty_careful(&ctx->rq_lists[type]))
 		goto out_put;
 
 	/* default per sw-queue merge */

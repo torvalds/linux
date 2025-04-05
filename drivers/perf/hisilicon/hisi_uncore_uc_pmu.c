@@ -11,7 +11,6 @@
 #include <linux/irq.h>
 #include <linux/list.h>
 #include <linux/mod_devicetable.h>
-#include <linux/property.h>
 
 #include "hisi_uncore_pmu.h"
 
@@ -366,25 +365,24 @@ static void hisi_uc_pmu_clear_int_status(struct hisi_pmu *uc_pmu, int idx)
 static int hisi_uc_pmu_init_data(struct platform_device *pdev,
 				 struct hisi_pmu *uc_pmu)
 {
+	hisi_uncore_pmu_init_topology(uc_pmu, &pdev->dev);
+
 	/*
 	 * Use SCCL (Super CPU Cluster) ID and CCL (CPU Cluster) ID to
 	 * identify the topology information of UC PMU devices in the chip.
 	 * They have some CCLs per SCCL and then 4 UC PMU per CCL.
 	 */
-	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
-				     &uc_pmu->sccl_id)) {
+	if (uc_pmu->topo.sccl_id < 0) {
 		dev_err(&pdev->dev, "Can not read uc sccl-id!\n");
 		return -EINVAL;
 	}
 
-	if (device_property_read_u32(&pdev->dev, "hisilicon,ccl-id",
-				     &uc_pmu->ccl_id)) {
+	if (uc_pmu->topo.ccl_id < 0) {
 		dev_err(&pdev->dev, "Can not read uc ccl-id!\n");
 		return -EINVAL;
 	}
 
-	if (device_property_read_u32(&pdev->dev, "hisilicon,sub-id",
-				     &uc_pmu->sub_id)) {
+	if (uc_pmu->topo.sub_id < 0) {
 		dev_err(&pdev->dev, "Can not read sub-id!\n");
 		return -EINVAL;
 	}
@@ -439,34 +437,11 @@ static const struct attribute_group hisi_uc_pmu_events_group = {
 	.attrs = hisi_uc_pmu_events_attr,
 };
 
-static DEVICE_ATTR(cpumask, 0444, hisi_cpumask_sysfs_show, NULL);
-
-static struct attribute *hisi_uc_pmu_cpumask_attrs[] = {
-	&dev_attr_cpumask.attr,
-	NULL,
-};
-
-static const struct attribute_group hisi_uc_pmu_cpumask_attr_group = {
-	.attrs = hisi_uc_pmu_cpumask_attrs,
-};
-
-static struct device_attribute hisi_uc_pmu_identifier_attr =
-	__ATTR(identifier, 0444, hisi_uncore_pmu_identifier_attr_show, NULL);
-
-static struct attribute *hisi_uc_pmu_identifier_attrs[] = {
-	&hisi_uc_pmu_identifier_attr.attr,
-	NULL
-};
-
-static const struct attribute_group hisi_uc_pmu_identifier_group = {
-	.attrs = hisi_uc_pmu_identifier_attrs,
-};
-
 static const struct attribute_group *hisi_uc_pmu_attr_groups[] = {
 	&hisi_uc_pmu_format_group,
 	&hisi_uc_pmu_events_group,
-	&hisi_uc_pmu_cpumask_attr_group,
-	&hisi_uc_pmu_identifier_group,
+	&hisi_pmu_cpumask_attr_group,
+	&hisi_pmu_identifier_group,
 	NULL
 };
 
@@ -538,8 +513,9 @@ static int hisi_uc_pmu_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sccl%d_uc%d_%u",
-			      uc_pmu->sccl_id, uc_pmu->ccl_id, uc_pmu->sub_id);
+	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sccl%d_uc%d_%d",
+			      uc_pmu->topo.sccl_id, uc_pmu->topo.ccl_id,
+			      uc_pmu->topo.sub_id);
 	if (!name)
 		return -ENOMEM;
 
@@ -613,6 +589,7 @@ static void __exit hisi_uc_pmu_module_exit(void)
 }
 module_exit(hisi_uc_pmu_module_exit);
 
+MODULE_IMPORT_NS("HISI_PMU");
 MODULE_DESCRIPTION("HiSilicon SoC UC uncore PMU driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Junhao He <hejunhao3@huawei.com>");

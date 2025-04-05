@@ -33,6 +33,8 @@
 #include "xfs_rtbitmap.h"
 #include "xfs_metafile.h"
 #include "xfs_metadir.h"
+#include "xfs_rtrmap_btree.h"
+#include "xfs_rtrefcount_btree.h"
 
 /* Find the first usable fsblock in this rtgroup. */
 static inline uint32_t
@@ -197,11 +199,17 @@ xfs_rtgroup_lock(
 		 * Lock both realtime free space metadata inodes for a freespace
 		 * update.
 		 */
-		xfs_ilock(rtg->rtg_inodes[XFS_RTGI_BITMAP], XFS_ILOCK_EXCL);
-		xfs_ilock(rtg->rtg_inodes[XFS_RTGI_SUMMARY], XFS_ILOCK_EXCL);
+		xfs_ilock(rtg_bitmap(rtg), XFS_ILOCK_EXCL);
+		xfs_ilock(rtg_summary(rtg), XFS_ILOCK_EXCL);
 	} else if (rtglock_flags & XFS_RTGLOCK_BITMAP_SHARED) {
-		xfs_ilock(rtg->rtg_inodes[XFS_RTGI_BITMAP], XFS_ILOCK_SHARED);
+		xfs_ilock(rtg_bitmap(rtg), XFS_ILOCK_SHARED);
 	}
+
+	if ((rtglock_flags & XFS_RTGLOCK_RMAP) && rtg_rmap(rtg))
+		xfs_ilock(rtg_rmap(rtg), XFS_ILOCK_EXCL);
+
+	if ((rtglock_flags & XFS_RTGLOCK_REFCOUNT) && rtg_refcount(rtg))
+		xfs_ilock(rtg_refcount(rtg), XFS_ILOCK_EXCL);
 }
 
 /* Unlock metadata inodes associated with this rt group. */
@@ -214,11 +222,17 @@ xfs_rtgroup_unlock(
 	ASSERT(!(rtglock_flags & XFS_RTGLOCK_BITMAP_SHARED) ||
 	       !(rtglock_flags & XFS_RTGLOCK_BITMAP));
 
+	if ((rtglock_flags & XFS_RTGLOCK_REFCOUNT) && rtg_refcount(rtg))
+		xfs_iunlock(rtg_refcount(rtg), XFS_ILOCK_EXCL);
+
+	if ((rtglock_flags & XFS_RTGLOCK_RMAP) && rtg_rmap(rtg))
+		xfs_iunlock(rtg_rmap(rtg), XFS_ILOCK_EXCL);
+
 	if (rtglock_flags & XFS_RTGLOCK_BITMAP) {
-		xfs_iunlock(rtg->rtg_inodes[XFS_RTGI_SUMMARY], XFS_ILOCK_EXCL);
-		xfs_iunlock(rtg->rtg_inodes[XFS_RTGI_BITMAP], XFS_ILOCK_EXCL);
+		xfs_iunlock(rtg_summary(rtg), XFS_ILOCK_EXCL);
+		xfs_iunlock(rtg_bitmap(rtg), XFS_ILOCK_EXCL);
 	} else if (rtglock_flags & XFS_RTGLOCK_BITMAP_SHARED) {
-		xfs_iunlock(rtg->rtg_inodes[XFS_RTGI_BITMAP], XFS_ILOCK_SHARED);
+		xfs_iunlock(rtg_bitmap(rtg), XFS_ILOCK_SHARED);
 	}
 }
 
@@ -236,11 +250,15 @@ xfs_rtgroup_trans_join(
 	ASSERT(!(rtglock_flags & XFS_RTGLOCK_BITMAP_SHARED));
 
 	if (rtglock_flags & XFS_RTGLOCK_BITMAP) {
-		xfs_trans_ijoin(tp, rtg->rtg_inodes[XFS_RTGI_BITMAP],
-				XFS_ILOCK_EXCL);
-		xfs_trans_ijoin(tp, rtg->rtg_inodes[XFS_RTGI_SUMMARY],
-				XFS_ILOCK_EXCL);
+		xfs_trans_ijoin(tp, rtg_bitmap(rtg), XFS_ILOCK_EXCL);
+		xfs_trans_ijoin(tp, rtg_summary(rtg), XFS_ILOCK_EXCL);
 	}
+
+	if ((rtglock_flags & XFS_RTGLOCK_RMAP) && rtg_rmap(rtg))
+		xfs_trans_ijoin(tp, rtg_rmap(rtg), XFS_ILOCK_EXCL);
+
+	if ((rtglock_flags & XFS_RTGLOCK_REFCOUNT) && rtg_refcount(rtg))
+		xfs_trans_ijoin(tp, rtg_refcount(rtg), XFS_ILOCK_EXCL);
 }
 
 /* Retrieve rt group geometry. */
@@ -284,7 +302,8 @@ xfs_rtginode_ilock_print_fn(
 	const struct xfs_inode *ip =
 		container_of(m, struct xfs_inode, i_lock.dep_map);
 
-	printk(KERN_CONT " rgno=%u", ip->i_projid);
+	printk(KERN_CONT " rgno=%u metatype=%s", ip->i_projid,
+			xfs_metafile_type_str(ip->i_metatype));
 }
 
 /*
@@ -316,8 +335,10 @@ struct xfs_rtginode_ops {
 
 	unsigned int		sick;	/* rtgroup sickness flag */
 
+	unsigned int		fmt_mask; /* all valid data fork formats */
+
 	/* Does the fs have this feature? */
-	bool			(*enabled)(struct xfs_mount *mp);
+	bool			(*enabled)(const struct xfs_mount *mp);
 
 	/* Create this rtgroup metadata inode and initialize it. */
 	int			(*create)(struct xfs_rtgroup *rtg,
@@ -331,13 +352,39 @@ static const struct xfs_rtginode_ops xfs_rtginode_ops[XFS_RTGI_MAX] = {
 		.name		= "bitmap",
 		.metafile_type	= XFS_METAFILE_RTBITMAP,
 		.sick		= XFS_SICK_RG_BITMAP,
+		.fmt_mask	= (1U << XFS_DINODE_FMT_EXTENTS) |
+				  (1U << XFS_DINODE_FMT_BTREE),
 		.create		= xfs_rtbitmap_create,
 	},
 	[XFS_RTGI_SUMMARY] = {
 		.name		= "summary",
 		.metafile_type	= XFS_METAFILE_RTSUMMARY,
 		.sick		= XFS_SICK_RG_SUMMARY,
+		.fmt_mask	= (1U << XFS_DINODE_FMT_EXTENTS) |
+				  (1U << XFS_DINODE_FMT_BTREE),
 		.create		= xfs_rtsummary_create,
+	},
+	[XFS_RTGI_RMAP] = {
+		.name		= "rmap",
+		.metafile_type	= XFS_METAFILE_RTRMAP,
+		.sick		= XFS_SICK_RG_RMAPBT,
+		.fmt_mask	= 1U << XFS_DINODE_FMT_META_BTREE,
+		/*
+		 * growfs must create the rtrmap inodes before adding a
+		 * realtime volume to the filesystem, so we cannot use the
+		 * rtrmapbt predicate here.
+		 */
+		.enabled	= xfs_has_rmapbt,
+		.create		= xfs_rtrmapbt_create,
+	},
+	[XFS_RTGI_REFCOUNT] = {
+		.name		= "refcount",
+		.metafile_type	= XFS_METAFILE_RTREFCOUNT,
+		.sick		= XFS_SICK_RG_REFCNTBT,
+		.fmt_mask	= 1U << XFS_DINODE_FMT_META_BTREE,
+		/* same comment about growfs and rmap inodes applies here */
+		.enabled	= xfs_has_reflink,
+		.create		= xfs_rtrefcountbt_create,
 	},
 };
 
@@ -435,8 +482,7 @@ xfs_rtginode_load(
 		return error;
 	}
 
-	if (XFS_IS_CORRUPT(mp, ip->i_df.if_format != XFS_DINODE_FMT_EXTENTS &&
-			       ip->i_df.if_format != XFS_DINODE_FMT_BTREE)) {
+	if (XFS_IS_CORRUPT(mp, !((1U << ip->i_df.if_format) & ops->fmt_mask))) {
 		xfs_irele(ip);
 		xfs_rtginode_mark_sick(rtg, type);
 		return -EFSCORRUPTED;

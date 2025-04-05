@@ -340,7 +340,7 @@ static struct phy_driver adin_driver[] = {
 
 module_phy_driver(adin_driver);
 
-static struct mdio_device_id __maybe_unused adin_tbl[] = {
+static const struct mdio_device_id __maybe_unused adin_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(PHY_ID_ADIN1100) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_ADIN1110) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_ADIN2111) },

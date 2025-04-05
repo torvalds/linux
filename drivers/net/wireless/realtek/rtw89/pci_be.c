@@ -691,5 +691,6 @@ const struct rtw89_pci_gen_def rtw89_pci_gen_be = {
 	.l1ss_set = rtw89_pci_l1ss_set_be,
 
 	.disable_eq = rtw89_pci_disable_eq_be,
+	.power_wake = _patch_pcie_power_wake_be,
 };
 EXPORT_SYMBOL(rtw89_pci_gen_be);

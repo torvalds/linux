@@ -140,7 +140,7 @@ void hubp1_vready_workaround(struct hubp *hubp,
 
 void hubp1_program_tiling(
 	struct hubp *hubp,
-	const union dc_tiling_info *info,
+	const struct dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format)
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
@@ -518,6 +518,20 @@ bool hubp1_program_surface_flip_and_addr(
 	return true;
 }
 
+void hubp1_clear_tiling(struct hubp *hubp)
+{
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
+
+	REG_UPDATE(DCHUBP_REQ_SIZE_CONFIG, SWATH_HEIGHT, 0);
+	REG_UPDATE(DCSURF_TILING_CONFIG, SW_MODE, DC_SW_LINEAR);
+
+	REG_UPDATE_4(DCSURF_SURFACE_CONTROL,
+		     PRIMARY_SURFACE_DCC_EN, 0,
+		     PRIMARY_SURFACE_DCC_IND_64B_BLK, 0,
+		     SECONDARY_SURFACE_DCC_EN, 0,
+		     SECONDARY_SURFACE_DCC_IND_64B_BLK, 0);
+}
+
 void hubp1_dcc_control(struct hubp *hubp, bool enable,
 		enum hubp_ind_block_size independent_64b_blks)
 {
@@ -532,10 +546,16 @@ void hubp1_dcc_control(struct hubp *hubp, bool enable,
 			SECONDARY_SURFACE_DCC_IND_64B_BLK, dcc_ind_64b_blk);
 }
 
+void hubp_reset(struct hubp *hubp)
+{
+	memset(&hubp->pos, 0, sizeof(hubp->pos));
+	memset(&hubp->att, 0, sizeof(hubp->att));
+}
+
 void hubp1_program_surface_config(
 	struct hubp *hubp,
 	enum surface_pixel_format format,
-	union dc_tiling_info *tiling_info,
+	struct dc_tiling_info *tiling_info,
 	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
@@ -1337,8 +1357,9 @@ static void hubp1_wait_pipe_read_start(struct hubp *hubp)
 
 void hubp1_init(struct hubp *hubp)
 {
-	//do nothing
+	hubp_reset(hubp);
 }
+
 static const struct hubp_funcs dcn10_hubp_funcs = {
 	.hubp_program_surface_flip_and_addr =
 			hubp1_program_surface_flip_and_addr,
@@ -1351,6 +1372,7 @@ static const struct hubp_funcs dcn10_hubp_funcs = {
 	.hubp_set_vm_context0_settings = hubp1_set_vm_context0_settings,
 	.set_blank = hubp1_set_blank,
 	.dcc_control = hubp1_dcc_control,
+	.hubp_reset = hubp_reset,
 	.mem_program_viewport = min_set_viewport,
 	.set_hubp_blank_en = hubp1_set_hubp_blank_en,
 	.set_cursor_attributes	= hubp1_cursor_set_attributes,
@@ -1363,6 +1385,7 @@ static const struct hubp_funcs dcn10_hubp_funcs = {
 	.hubp_disable_control =  hubp1_disable_control,
 	.hubp_get_underflow_status = hubp1_get_underflow_status,
 	.hubp_init = hubp1_init,
+	.hubp_clear_tiling = hubp1_clear_tiling,
 
 	.dmdata_set_attributes = NULL,
 	.dmdata_load = NULL,

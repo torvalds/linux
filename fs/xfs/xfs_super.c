@@ -819,20 +819,76 @@ xfs_fs_sync_fs(
 	return 0;
 }
 
+static xfs_extlen_t
+xfs_internal_log_size(
+	struct xfs_mount	*mp)
+{
+	if (!mp->m_sb.sb_logstart)
+		return 0;
+	return mp->m_sb.sb_logblocks;
+}
+
+static void
+xfs_statfs_data(
+	struct xfs_mount	*mp,
+	struct kstatfs		*st)
+{
+	int64_t			fdblocks =
+		percpu_counter_sum(&mp->m_fdblocks);
+
+	/* make sure st->f_bfree does not underflow */
+	st->f_bfree = max(0LL, fdblocks - xfs_fdblocks_unavailable(mp));
+	/*
+	 * sb_dblocks can change during growfs, but nothing cares about reporting
+	 * the old or new value during growfs.
+	 */
+	st->f_blocks = mp->m_sb.sb_dblocks - xfs_internal_log_size(mp);
+}
+
+/*
+ * When stat(v)fs is called on a file with the realtime bit set or a directory
+ * with the rtinherit bit, report freespace information for the RT device
+ * instead of the main data device.
+ */
+static void
+xfs_statfs_rt(
+	struct xfs_mount	*mp,
+	struct kstatfs		*st)
+{
+	st->f_bfree = xfs_rtbxlen_to_blen(mp,
+			percpu_counter_sum_positive(&mp->m_frextents));
+	st->f_blocks = mp->m_sb.sb_rblocks;
+}
+
+static void
+xfs_statfs_inodes(
+	struct xfs_mount	*mp,
+	struct kstatfs		*st)
+{
+	uint64_t		icount = percpu_counter_sum(&mp->m_icount);
+	uint64_t		ifree = percpu_counter_sum(&mp->m_ifree);
+	uint64_t		fakeinos = XFS_FSB_TO_INO(mp, st->f_bfree);
+
+	st->f_files = min(icount + fakeinos, (uint64_t)XFS_MAXINUMBER);
+	if (M_IGEO(mp)->maxicount)
+		st->f_files = min_t(typeof(st->f_files), st->f_files,
+					M_IGEO(mp)->maxicount);
+
+	/* If sb_icount overshot maxicount, report actual allocation */
+	st->f_files = max_t(typeof(st->f_files), st->f_files,
+			mp->m_sb.sb_icount);
+
+	/* Make sure st->f_ffree does not underflow */
+	st->f_ffree = max_t(int64_t, 0, st->f_files - (icount - ifree));
+}
+
 STATIC int
 xfs_fs_statfs(
 	struct dentry		*dentry,
-	struct kstatfs		*statp)
+	struct kstatfs		*st)
 {
 	struct xfs_mount	*mp = XFS_M(dentry->d_sb);
-	xfs_sb_t		*sbp = &mp->m_sb;
 	struct xfs_inode	*ip = XFS_I(d_inode(dentry));
-	uint64_t		fakeinos, id;
-	uint64_t		icount;
-	uint64_t		ifree;
-	uint64_t		fdblocks;
-	xfs_extlen_t		lsize;
-	int64_t			ffree;
 
 	/*
 	 * Expedite background inodegc but don't wait. We do not want to block
@@ -840,58 +896,28 @@ xfs_fs_statfs(
 	 */
 	xfs_inodegc_push(mp);
 
-	statp->f_type = XFS_SUPER_MAGIC;
-	statp->f_namelen = MAXNAMELEN - 1;
+	st->f_type = XFS_SUPER_MAGIC;
+	st->f_namelen = MAXNAMELEN - 1;
+	st->f_bsize = mp->m_sb.sb_blocksize;
+	st->f_fsid = u64_to_fsid(huge_encode_dev(mp->m_ddev_targp->bt_dev));
 
-	id = huge_encode_dev(mp->m_ddev_targp->bt_dev);
-	statp->f_fsid = u64_to_fsid(id);
-
-	icount = percpu_counter_sum(&mp->m_icount);
-	ifree = percpu_counter_sum(&mp->m_ifree);
-	fdblocks = percpu_counter_sum(&mp->m_fdblocks);
-
-	spin_lock(&mp->m_sb_lock);
-	statp->f_bsize = sbp->sb_blocksize;
-	lsize = sbp->sb_logstart ? sbp->sb_logblocks : 0;
-	statp->f_blocks = sbp->sb_dblocks - lsize;
-	spin_unlock(&mp->m_sb_lock);
-
-	/* make sure statp->f_bfree does not underflow */
-	statp->f_bfree = max_t(int64_t, 0,
-				fdblocks - xfs_fdblocks_unavailable(mp));
-	statp->f_bavail = statp->f_bfree;
-
-	fakeinos = XFS_FSB_TO_INO(mp, statp->f_bfree);
-	statp->f_files = min(icount + fakeinos, (uint64_t)XFS_MAXINUMBER);
-	if (M_IGEO(mp)->maxicount)
-		statp->f_files = min_t(typeof(statp->f_files),
-					statp->f_files,
-					M_IGEO(mp)->maxicount);
-
-	/* If sb_icount overshot maxicount, report actual allocation */
-	statp->f_files = max_t(typeof(statp->f_files),
-					statp->f_files,
-					sbp->sb_icount);
-
-	/* make sure statp->f_ffree does not underflow */
-	ffree = statp->f_files - (icount - ifree);
-	statp->f_ffree = max_t(int64_t, ffree, 0);
+	xfs_statfs_data(mp, st);
+	xfs_statfs_inodes(mp, st);
 
 	if (XFS_IS_REALTIME_MOUNT(mp) &&
-	    (ip->i_diflags & (XFS_DIFLAG_RTINHERIT | XFS_DIFLAG_REALTIME))) {
-		s64	freertx;
-
-		statp->f_blocks = sbp->sb_rblocks;
-		freertx = percpu_counter_sum_positive(&mp->m_frextents);
-		statp->f_bavail = statp->f_bfree =
-			xfs_rtbxlen_to_blen(mp, freertx);
-	}
+	    (ip->i_diflags & (XFS_DIFLAG_RTINHERIT | XFS_DIFLAG_REALTIME)))
+		xfs_statfs_rt(mp, st);
 
 	if ((ip->i_diflags & XFS_DIFLAG_PROJINHERIT) &&
 	    ((mp->m_qflags & (XFS_PQUOTA_ACCT|XFS_PQUOTA_ENFD))) ==
 			      (XFS_PQUOTA_ACCT|XFS_PQUOTA_ENFD))
-		xfs_qm_statvfs(ip, statp);
+		xfs_qm_statvfs(ip, st);
 
+	/*
+	 * XFS does not distinguish between blocks available to privileged and
+	 * unprivileged users.
+	 */
+	st->f_bavail = st->f_bfree;
 	return 0;
 }
 
@@ -1635,8 +1661,12 @@ xfs_fs_fill_super(
 #endif
 	}
 
-	/* Filesystem claims it needs repair, so refuse the mount. */
-	if (xfs_has_needsrepair(mp)) {
+	/*
+	 * Filesystem claims it needs repair, so refuse the mount unless
+	 * norecovery is also specified, in which case the filesystem can
+	 * be mounted with no risk of further damage.
+	 */
+	if (xfs_has_needsrepair(mp) && !xfs_has_norecovery(mp)) {
 		xfs_warn(mp, "Filesystem needs repair.  Please run xfs_repair.");
 		error = -EFSCORRUPTED;
 		goto out_free_sb;
@@ -1730,7 +1760,7 @@ xfs_fs_fill_super(
 		sb->s_time_max = XFS_LEGACY_TIME_MAX;
 	}
 	trace_xfs_inode_timestamp_range(mp, sb->s_time_min, sb->s_time_max);
-	sb->s_iflags |= SB_I_CGROUPWB;
+	sb->s_iflags |= SB_I_CGROUPWB | SB_I_ALLOW_HSM;
 
 	set_posix_acl_flag(sb);
 
@@ -1754,9 +1784,11 @@ xfs_fs_fill_super(
 		xfs_warn_experimental(mp, XFS_EXPERIMENTAL_METADIR);
 
 	if (xfs_has_reflink(mp)) {
-		if (mp->m_sb.sb_rblocks) {
+		if (xfs_has_realtime(mp) &&
+		    !xfs_reflink_supports_rextsize(mp, mp->m_sb.sb_rextsize)) {
 			xfs_alert(mp,
-	"reflink not compatible with realtime device!");
+	"reflink not compatible with realtime extent size %u!",
+					mp->m_sb.sb_rextsize);
 			error = -EINVAL;
 			goto out_filestream_unmount;
 		}
@@ -1767,12 +1799,6 @@ xfs_fs_fill_super(
 		}
 	}
 
-	if (xfs_has_rmapbt(mp) && mp->m_sb.sb_rblocks) {
-		xfs_alert(mp,
-	"reverse mapping btree not compatible with realtime device!");
-		error = -EINVAL;
-		goto out_filestream_unmount;
-	}
 
 	if (xfs_has_exchange_range(mp))
 		xfs_warn_experimental(mp, XFS_EXPERIMENTAL_EXCHRANGE);

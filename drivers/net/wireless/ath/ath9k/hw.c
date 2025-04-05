@@ -1847,20 +1847,11 @@ fail:
 	return -EINVAL;
 }
 
-u32 ath9k_hw_get_tsf_offset(struct timespec64 *last, struct timespec64 *cur)
+u32 ath9k_hw_get_tsf_offset(ktime_t last, ktime_t cur)
 {
-	struct timespec64 ts;
-	s64 usec;
-
-	if (!cur) {
-		ktime_get_raw_ts64(&ts);
-		cur = &ts;
-	}
-
-	usec = cur->tv_sec * 1000000ULL + cur->tv_nsec / 1000;
-	usec -= last->tv_sec * 1000000ULL + last->tv_nsec / 1000;
-
-	return (u32) usec;
+	if (cur == 0)
+		cur = ktime_get_raw();
+	return ktime_us_delta(cur, last);
 }
 EXPORT_SYMBOL(ath9k_hw_get_tsf_offset);
 
@@ -1871,7 +1862,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	u32 saveLedState;
 	u32 saveDefAntenna;
 	u32 macStaId1;
-	struct timespec64 tsf_ts;
+	ktime_t tsf_ts;
 	u32 tsf_offset;
 	u64 tsf = 0;
 	int r;
@@ -1917,7 +1908,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	macStaId1 = REG_READ(ah, AR_STA_ID1) & AR_STA_ID1_BASE_RATE_11B;
 
 	/* Save TSF before chip reset, a cold reset clears it */
-	ktime_get_raw_ts64(&tsf_ts);
+	tsf_ts = ktime_get_raw();
 	tsf = ath9k_hw_gettsf64(ah);
 
 	saveLedState = REG_READ(ah, AR_CFG_LED) &
@@ -1951,7 +1942,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	}
 
 	/* Restore TSF */
-	tsf_offset = ath9k_hw_get_tsf_offset(&tsf_ts, NULL);
+	tsf_offset = ath9k_hw_get_tsf_offset(tsf_ts, 0);
 	ath9k_hw_settsf64(ah, tsf + tsf_offset);
 
 	if (AR_SREV_9280_20_OR_LATER(ah))
@@ -1975,7 +1966,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	 * value after the initvals have been applied.
 	 */
 	if (AR_SREV_9100(ah) && (ath9k_hw_gettsf64(ah) < tsf)) {
-		tsf_offset = ath9k_hw_get_tsf_offset(&tsf_ts, NULL);
+		tsf_offset = ath9k_hw_get_tsf_offset(tsf_ts, 0);
 		ath9k_hw_settsf64(ah, tsf + tsf_offset);
 	}
 
@@ -2149,7 +2140,7 @@ static void ath9k_set_power_network_sleep(struct ath_hw *ah)
 
 		/* When chip goes into network sleep, it could be waken
 		 * up by MCI_INT interrupt caused by BT's HW messages
-		 * (LNA_xxx, CONT_xxx) which chould be in a very fast
+		 * (LNA_xxx, CONT_xxx) which could be in a very fast
 		 * rate (~100us). This will cause chip to leave and
 		 * re-enter network sleep mode frequently, which in
 		 * consequence will have WLAN MCI HW to generate lots of
@@ -2544,7 +2535,7 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 
 	pCap->tx_chainmask = ah->eep_ops->get_eeprom(ah, EEP_TX_MASK);
 	/*
-	 * For AR9271 we will temporarilly uses the rx chainmax as read from
+	 * For AR9271 we will temporarily use the rx chainmax as read from
 	 * the EEPROM.
 	 */
 	if ((ah->hw_version.devid == AR5416_DEVID_PCI) &&

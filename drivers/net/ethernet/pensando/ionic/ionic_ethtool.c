@@ -158,6 +158,20 @@ static int ionic_get_link_ksettings(struct net_device *netdev,
 						     25000baseCR_Full);
 		copper_seen++;
 		break;
+	case IONIC_XCVR_PID_QSFP_50G_CR2_FC:
+	case IONIC_XCVR_PID_QSFP_50G_CR2:
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     50000baseCR2_Full);
+		copper_seen++;
+		break;
+	case IONIC_XCVR_PID_QSFP_200G_CR4:
+		ethtool_link_ksettings_add_link_mode(ks, supported, 200000baseCR4_Full);
+		copper_seen++;
+		break;
+	case IONIC_XCVR_PID_QSFP_400G_CR4:
+		ethtool_link_ksettings_add_link_mode(ks, supported, 400000baseCR4_Full);
+		copper_seen++;
+		break;
 	case IONIC_XCVR_PID_SFP_10GBASE_AOC:
 	case IONIC_XCVR_PID_SFP_10GBASE_CU:
 		ethtool_link_ksettings_add_link_mode(ks, supported,
@@ -195,6 +209,31 @@ static int ionic_get_link_ksettings(struct net_device *netdev,
 	case IONIC_XCVR_PID_SFP_25GBASE_ACC:
 		ethtool_link_ksettings_add_link_mode(ks, supported,
 						     25000baseSR_Full);
+		break;
+	case IONIC_XCVR_PID_QSFP_200G_AOC:
+	case IONIC_XCVR_PID_QSFP_200G_SR4:
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     200000baseSR4_Full);
+		break;
+	case IONIC_XCVR_PID_QSFP_200G_FR4:
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     200000baseLR4_ER4_FR4_Full);
+		break;
+	case IONIC_XCVR_PID_QSFP_200G_DR4:
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     200000baseDR4_Full);
+		break;
+	case IONIC_XCVR_PID_QSFP_400G_FR4:
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     400000baseLR4_ER4_FR4_Full);
+		break;
+	case IONIC_XCVR_PID_QSFP_400G_DR4:
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     400000baseDR4_Full);
+		break;
+	case IONIC_XCVR_PID_QSFP_400G_SR4:
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     400000baseSR4_Full);
 		break;
 	case IONIC_XCVR_PID_SFP_10GBASE_SR:
 		ethtool_link_ksettings_add_link_mode(ks, supported,
@@ -929,6 +968,7 @@ static int ionic_get_module_info(struct net_device *netdev,
 		break;
 	case SFF8024_ID_QSFP_8436_8636:
 	case SFF8024_ID_QSFP28_8636:
+	case SFF8024_ID_QSFP_PLUS_CMIS:
 		modinfo->type = ETH_MODULE_SFF_8436;
 		modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
 		break;
@@ -961,8 +1001,8 @@ static int ionic_get_module_eeprom(struct net_device *netdev,
 	len = min_t(u32, sizeof(xcvr->sprom), ee->len);
 
 	do {
-		memcpy(data, xcvr->sprom, len);
-		memcpy(tbuf, xcvr->sprom, len);
+		memcpy(data, &xcvr->sprom[ee->offset], len);
+		memcpy(tbuf, &xcvr->sprom[ee->offset], len);
 
 		/* Let's make sure we got a consistent copy */
 		if (!memcmp(data, tbuf, len))

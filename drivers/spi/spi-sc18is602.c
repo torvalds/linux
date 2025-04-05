@@ -7,13 +7,15 @@
 
 #include <linux/kernel.h>
 #include <linux/err.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
-#include <linux/of.h>
 #include <linux/platform_data/sc18is602.h>
+#include <linux/property.h>
+
 #include <linux/gpio/consumer.h>
 
 enum chips { sc18is602, sc18is602b, sc18is603 };
@@ -236,9 +238,7 @@ static int sc18is602_setup(struct spi_device *spi)
 
 static int sc18is602_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
-	struct device_node *np = dev->of_node;
 	struct sc18is602_platform_data *pdata = dev_get_platdata(dev);
 	struct sc18is602 *hw;
 	struct spi_controller *host;
@@ -251,8 +251,9 @@ static int sc18is602_probe(struct i2c_client *client)
 	if (!host)
 		return -ENOMEM;
 
+	device_set_node(&host->dev, dev_fwnode(dev));
+
 	hw = spi_controller_get_devdata(host);
-	i2c_set_clientdata(client, hw);
 
 	/* assert reset and then release */
 	hw->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
@@ -265,11 +266,7 @@ static int sc18is602_probe(struct i2c_client *client)
 	hw->dev = dev;
 	hw->ctrl = 0xff;
 
-	if (client->dev.of_node)
-		hw->id = (uintptr_t)of_device_get_match_data(&client->dev);
-	else
-		hw->id = id->driver_data;
-
+	hw->id = (uintptr_t)i2c_get_match_data(client);
 	switch (hw->id) {
 	case sc18is602:
 	case sc18is602b:
@@ -278,28 +275,21 @@ static int sc18is602_probe(struct i2c_client *client)
 		break;
 	case sc18is603:
 		host->num_chipselect = 2;
-		if (pdata) {
+		if (pdata)
 			hw->freq = pdata->clock_frequency;
-		} else {
-			const __be32 *val;
-			int len;
-
-			val = of_get_property(np, "clock-frequency", &len);
-			if (val && len >= sizeof(__be32))
-				hw->freq = be32_to_cpup(val);
-		}
+		else
+			device_property_read_u32(dev, "clock-frequency", &hw->freq);
 		if (!hw->freq)
 			hw->freq = SC18IS602_CLOCK;
 		break;
 	}
-	host->bus_num = np ? -1 : client->adapter->nr;
+	host->bus_num = dev_fwnode(dev) ? -1 : client->adapter->nr;
 	host->mode_bits = SPI_CPHA | SPI_CPOL | SPI_LSB_FIRST;
 	host->bits_per_word_mask = SPI_BPW_MASK(8);
 	host->setup = sc18is602_setup;
 	host->transfer_one_message = sc18is602_transfer_one;
 	host->max_transfer_size = sc18is602_max_transfer_size;
 	host->max_message_size = sc18is602_max_transfer_size;
-	host->dev.of_node = np;
 	host->min_speed_hz = hw->freq / 128;
 	host->max_speed_hz = hw->freq / 4;
 
@@ -314,7 +304,7 @@ static const struct i2c_device_id sc18is602_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, sc18is602_id);
 
-static const struct of_device_id sc18is602_of_match[] __maybe_unused = {
+static const struct of_device_id sc18is602_of_match[] = {
 	{
 		.compatible = "nxp,sc18is602",
 		.data = (void *)sc18is602
@@ -334,7 +324,7 @@ MODULE_DEVICE_TABLE(of, sc18is602_of_match);
 static struct i2c_driver sc18is602_driver = {
 	.driver = {
 		.name = "sc18is602",
-		.of_match_table = of_match_ptr(sc18is602_of_match),
+		.of_match_table = sc18is602_of_match,
 	},
 	.probe = sc18is602_probe,
 	.id_table = sc18is602_id,

@@ -34,6 +34,7 @@
 #include <linux/mlx5/fs.h>
 #include "mlx5_core.h"
 #include "fs_core.h"
+#include "fs_pool.h"
 #include "fs_cmd.h"
 
 #define MLX5_FC_STATS_PERIOD msecs_to_jiffies(1000)
@@ -42,33 +43,6 @@
 #define MLX5_INIT_COUNTERS_BULK 8
 #define MLX5_FC_POOL_MAX_THRESHOLD BIT(18)
 #define MLX5_FC_POOL_USED_BUFF_RATIO 10
-
-struct mlx5_fc_cache {
-	u64 packets;
-	u64 bytes;
-	u64 lastuse;
-};
-
-struct mlx5_fc {
-	u32 id;
-	bool aging;
-	struct mlx5_fc_bulk *bulk;
-	struct mlx5_fc_cache cache;
-	/* last{packets,bytes} are used for calculating deltas since last reading. */
-	u64 lastpackets;
-	u64 lastbytes;
-};
-
-struct mlx5_fc_pool {
-	struct mlx5_core_dev *dev;
-	struct mutex pool_lock; /* protects pool lists */
-	struct list_head fully_used;
-	struct list_head partially_used;
-	struct list_head unused;
-	int available_fcs;
-	int used_fcs;
-	int threshold;
-};
 
 struct mlx5_fc_stats {
 	struct xarray counters;
@@ -80,13 +54,13 @@ struct mlx5_fc_stats {
 	int bulk_query_len;
 	bool bulk_query_alloc_failed;
 	unsigned long next_bulk_query_alloc;
-	struct mlx5_fc_pool fc_pool;
+	struct mlx5_fs_pool fc_pool;
 };
 
-static void mlx5_fc_pool_init(struct mlx5_fc_pool *fc_pool, struct mlx5_core_dev *dev);
-static void mlx5_fc_pool_cleanup(struct mlx5_fc_pool *fc_pool);
-static struct mlx5_fc *mlx5_fc_pool_acquire_counter(struct mlx5_fc_pool *fc_pool);
-static void mlx5_fc_pool_release_counter(struct mlx5_fc_pool *fc_pool, struct mlx5_fc *fc);
+static void mlx5_fc_pool_init(struct mlx5_fs_pool *fc_pool, struct mlx5_core_dev *dev);
+static void mlx5_fc_pool_cleanup(struct mlx5_fs_pool *fc_pool);
+static struct mlx5_fc *mlx5_fc_pool_acquire_counter(struct mlx5_fs_pool *fc_pool);
+static void mlx5_fc_pool_release_counter(struct mlx5_fs_pool *fc_pool, struct mlx5_fc *fc);
 
 static int get_init_bulk_query_len(struct mlx5_core_dev *dev)
 {
@@ -185,6 +159,9 @@ static void mlx5_fc_free(struct mlx5_core_dev *dev, struct mlx5_fc *counter)
 static void mlx5_fc_release(struct mlx5_core_dev *dev, struct mlx5_fc *counter)
 {
 	struct mlx5_fc_stats *fc_stats = dev->priv.fc_stats;
+
+	if (WARN_ON(counter->type == MLX5_FC_TYPE_LOCAL))
+		return;
 
 	if (counter->bulk)
 		mlx5_fc_pool_release_counter(&fc_stats->fc_pool, counter);
@@ -435,15 +412,7 @@ void mlx5_fc_update_sampling_interval(struct mlx5_core_dev *dev,
 					    fc_stats->sampling_interval);
 }
 
-/* Flow counter bluks */
-
-struct mlx5_fc_bulk {
-	struct list_head pool_list;
-	u32 base_id;
-	int bulk_len;
-	unsigned long *bitmask;
-	struct mlx5_fc fcs[] __counted_by(bulk_len);
-};
+/* Flow counter bulks */
 
 static void mlx5_fc_init(struct mlx5_fc *counter, struct mlx5_fc_bulk *bulk,
 			 u32 id)
@@ -452,16 +421,16 @@ static void mlx5_fc_init(struct mlx5_fc *counter, struct mlx5_fc_bulk *bulk,
 	counter->id = id;
 }
 
-static int mlx5_fc_bulk_get_free_fcs_amount(struct mlx5_fc_bulk *bulk)
+u32 mlx5_fc_get_base_id(struct mlx5_fc *counter)
 {
-	return bitmap_weight(bulk->bitmask, bulk->bulk_len);
+	return counter->bulk->base_id;
 }
 
-static struct mlx5_fc_bulk *mlx5_fc_bulk_create(struct mlx5_core_dev *dev)
+static struct mlx5_fs_bulk *mlx5_fc_bulk_create(struct mlx5_core_dev *dev,
+						void *pool_ctx)
 {
 	enum mlx5_fc_bulk_alloc_bitmask alloc_bitmask;
-	struct mlx5_fc_bulk *bulk;
-	int err = -ENOMEM;
+	struct mlx5_fc_bulk *fc_bulk;
 	int bulk_len;
 	u32 base_id;
 	int i;
@@ -469,207 +438,141 @@ static struct mlx5_fc_bulk *mlx5_fc_bulk_create(struct mlx5_core_dev *dev)
 	alloc_bitmask = MLX5_CAP_GEN(dev, flow_counter_bulk_alloc);
 	bulk_len = alloc_bitmask > 0 ? MLX5_FC_BULK_NUM_FCS(alloc_bitmask) : 1;
 
-	bulk = kvzalloc(struct_size(bulk, fcs, bulk_len), GFP_KERNEL);
-	if (!bulk)
-		goto err_alloc_bulk;
+	fc_bulk = kvzalloc(struct_size(fc_bulk, fcs, bulk_len), GFP_KERNEL);
+	if (!fc_bulk)
+		return NULL;
 
-	bulk->bitmask = kvcalloc(BITS_TO_LONGS(bulk_len), sizeof(unsigned long),
-				 GFP_KERNEL);
-	if (!bulk->bitmask)
-		goto err_alloc_bitmask;
+	if (mlx5_fs_bulk_init(dev, &fc_bulk->fs_bulk, bulk_len))
+		goto fc_bulk_free;
 
-	err = mlx5_cmd_fc_bulk_alloc(dev, alloc_bitmask, &base_id);
-	if (err)
-		goto err_mlx5_cmd_bulk_alloc;
+	if (mlx5_cmd_fc_bulk_alloc(dev, alloc_bitmask, &base_id))
+		goto fs_bulk_cleanup;
+	fc_bulk->base_id = base_id;
+	for (i = 0; i < bulk_len; i++)
+		mlx5_fc_init(&fc_bulk->fcs[i], fc_bulk, base_id + i);
 
-	bulk->base_id = base_id;
-	bulk->bulk_len = bulk_len;
-	for (i = 0; i < bulk_len; i++) {
-		mlx5_fc_init(&bulk->fcs[i], bulk, base_id + i);
-		set_bit(i, bulk->bitmask);
-	}
+	refcount_set(&fc_bulk->hws_data.hws_action_refcount, 0);
+	mutex_init(&fc_bulk->hws_data.lock);
+	return &fc_bulk->fs_bulk;
 
-	return bulk;
-
-err_mlx5_cmd_bulk_alloc:
-	kvfree(bulk->bitmask);
-err_alloc_bitmask:
-	kvfree(bulk);
-err_alloc_bulk:
-	return ERR_PTR(err);
+fs_bulk_cleanup:
+	mlx5_fs_bulk_cleanup(&fc_bulk->fs_bulk);
+fc_bulk_free:
+	kvfree(fc_bulk);
+	return NULL;
 }
 
 static int
-mlx5_fc_bulk_destroy(struct mlx5_core_dev *dev, struct mlx5_fc_bulk *bulk)
+mlx5_fc_bulk_destroy(struct mlx5_core_dev *dev, struct mlx5_fs_bulk *fs_bulk)
 {
-	if (mlx5_fc_bulk_get_free_fcs_amount(bulk) < bulk->bulk_len) {
+	struct mlx5_fc_bulk *fc_bulk = container_of(fs_bulk,
+						    struct mlx5_fc_bulk,
+						    fs_bulk);
+
+	if (mlx5_fs_bulk_get_free_amount(fs_bulk) < fs_bulk->bulk_len) {
 		mlx5_core_err(dev, "Freeing bulk before all counters were released\n");
 		return -EBUSY;
 	}
 
-	mlx5_cmd_fc_free(dev, bulk->base_id);
-	kvfree(bulk->bitmask);
-	kvfree(bulk);
+	mlx5_cmd_fc_free(dev, fc_bulk->base_id);
+	mlx5_fs_bulk_cleanup(fs_bulk);
+	kvfree(fc_bulk);
 
 	return 0;
 }
 
-static struct mlx5_fc *mlx5_fc_bulk_acquire_fc(struct mlx5_fc_bulk *bulk)
+static void mlx5_fc_pool_update_threshold(struct mlx5_fs_pool *fc_pool)
 {
-	int free_fc_index = find_first_bit(bulk->bitmask, bulk->bulk_len);
-
-	if (free_fc_index >= bulk->bulk_len)
-		return ERR_PTR(-ENOSPC);
-
-	clear_bit(free_fc_index, bulk->bitmask);
-	return &bulk->fcs[free_fc_index];
-}
-
-static int mlx5_fc_bulk_release_fc(struct mlx5_fc_bulk *bulk, struct mlx5_fc *fc)
-{
-	int fc_index = fc->id - bulk->base_id;
-
-	if (test_bit(fc_index, bulk->bitmask))
-		return -EINVAL;
-
-	set_bit(fc_index, bulk->bitmask);
-	return 0;
+	fc_pool->threshold = min_t(int, MLX5_FC_POOL_MAX_THRESHOLD,
+				   fc_pool->used_units / MLX5_FC_POOL_USED_BUFF_RATIO);
 }
 
 /* Flow counters pool API */
 
-static void mlx5_fc_pool_init(struct mlx5_fc_pool *fc_pool, struct mlx5_core_dev *dev)
-{
-	fc_pool->dev = dev;
-	mutex_init(&fc_pool->pool_lock);
-	INIT_LIST_HEAD(&fc_pool->fully_used);
-	INIT_LIST_HEAD(&fc_pool->partially_used);
-	INIT_LIST_HEAD(&fc_pool->unused);
-	fc_pool->available_fcs = 0;
-	fc_pool->used_fcs = 0;
-	fc_pool->threshold = 0;
-}
-
-static void mlx5_fc_pool_cleanup(struct mlx5_fc_pool *fc_pool)
-{
-	struct mlx5_core_dev *dev = fc_pool->dev;
-	struct mlx5_fc_bulk *bulk;
-	struct mlx5_fc_bulk *tmp;
-
-	list_for_each_entry_safe(bulk, tmp, &fc_pool->fully_used, pool_list)
-		mlx5_fc_bulk_destroy(dev, bulk);
-	list_for_each_entry_safe(bulk, tmp, &fc_pool->partially_used, pool_list)
-		mlx5_fc_bulk_destroy(dev, bulk);
-	list_for_each_entry_safe(bulk, tmp, &fc_pool->unused, pool_list)
-		mlx5_fc_bulk_destroy(dev, bulk);
-}
-
-static void mlx5_fc_pool_update_threshold(struct mlx5_fc_pool *fc_pool)
-{
-	fc_pool->threshold = min_t(int, MLX5_FC_POOL_MAX_THRESHOLD,
-				   fc_pool->used_fcs / MLX5_FC_POOL_USED_BUFF_RATIO);
-}
-
-static struct mlx5_fc_bulk *
-mlx5_fc_pool_alloc_new_bulk(struct mlx5_fc_pool *fc_pool)
-{
-	struct mlx5_core_dev *dev = fc_pool->dev;
-	struct mlx5_fc_bulk *new_bulk;
-
-	new_bulk = mlx5_fc_bulk_create(dev);
-	if (!IS_ERR(new_bulk))
-		fc_pool->available_fcs += new_bulk->bulk_len;
-	mlx5_fc_pool_update_threshold(fc_pool);
-	return new_bulk;
-}
+static const struct mlx5_fs_pool_ops mlx5_fc_pool_ops = {
+	.bulk_destroy = mlx5_fc_bulk_destroy,
+	.bulk_create = mlx5_fc_bulk_create,
+	.update_threshold = mlx5_fc_pool_update_threshold,
+};
 
 static void
-mlx5_fc_pool_free_bulk(struct mlx5_fc_pool *fc_pool, struct mlx5_fc_bulk *bulk)
+mlx5_fc_pool_init(struct mlx5_fs_pool *fc_pool, struct mlx5_core_dev *dev)
 {
-	struct mlx5_core_dev *dev = fc_pool->dev;
+	mlx5_fs_pool_init(fc_pool, dev, &mlx5_fc_pool_ops, NULL);
+}
 
-	fc_pool->available_fcs -= bulk->bulk_len;
-	mlx5_fc_bulk_destroy(dev, bulk);
-	mlx5_fc_pool_update_threshold(fc_pool);
+static void mlx5_fc_pool_cleanup(struct mlx5_fs_pool *fc_pool)
+{
+	mlx5_fs_pool_cleanup(fc_pool);
 }
 
 static struct mlx5_fc *
-mlx5_fc_pool_acquire_from_list(struct list_head *src_list,
-			       struct list_head *next_list,
-			       bool move_non_full_bulk)
+mlx5_fc_pool_acquire_counter(struct mlx5_fs_pool *fc_pool)
 {
-	struct mlx5_fc_bulk *bulk;
-	struct mlx5_fc *fc;
+	struct mlx5_fs_pool_index pool_index = {};
+	struct mlx5_fc_bulk *fc_bulk;
+	int err;
 
-	if (list_empty(src_list))
-		return ERR_PTR(-ENODATA);
-
-	bulk = list_first_entry(src_list, struct mlx5_fc_bulk, pool_list);
-	fc = mlx5_fc_bulk_acquire_fc(bulk);
-	if (move_non_full_bulk || mlx5_fc_bulk_get_free_fcs_amount(bulk) == 0)
-		list_move(&bulk->pool_list, next_list);
-	return fc;
-}
-
-static struct mlx5_fc *
-mlx5_fc_pool_acquire_counter(struct mlx5_fc_pool *fc_pool)
-{
-	struct mlx5_fc_bulk *new_bulk;
-	struct mlx5_fc *fc;
-
-	mutex_lock(&fc_pool->pool_lock);
-
-	fc = mlx5_fc_pool_acquire_from_list(&fc_pool->partially_used,
-					    &fc_pool->fully_used, false);
-	if (IS_ERR(fc))
-		fc = mlx5_fc_pool_acquire_from_list(&fc_pool->unused,
-						    &fc_pool->partially_used,
-						    true);
-	if (IS_ERR(fc)) {
-		new_bulk = mlx5_fc_pool_alloc_new_bulk(fc_pool);
-		if (IS_ERR(new_bulk)) {
-			fc = ERR_CAST(new_bulk);
-			goto out;
-		}
-		fc = mlx5_fc_bulk_acquire_fc(new_bulk);
-		list_add(&new_bulk->pool_list, &fc_pool->partially_used);
-	}
-	fc_pool->available_fcs--;
-	fc_pool->used_fcs++;
-
-out:
-	mutex_unlock(&fc_pool->pool_lock);
-	return fc;
+	err = mlx5_fs_pool_acquire_index(fc_pool, &pool_index);
+	if (err)
+		return ERR_PTR(err);
+	fc_bulk = container_of(pool_index.fs_bulk, struct mlx5_fc_bulk, fs_bulk);
+	return &fc_bulk->fcs[pool_index.index];
 }
 
 static void
-mlx5_fc_pool_release_counter(struct mlx5_fc_pool *fc_pool, struct mlx5_fc *fc)
+mlx5_fc_pool_release_counter(struct mlx5_fs_pool *fc_pool, struct mlx5_fc *fc)
 {
+	struct mlx5_fs_bulk *fs_bulk = &fc->bulk->fs_bulk;
+	struct mlx5_fs_pool_index pool_index = {};
 	struct mlx5_core_dev *dev = fc_pool->dev;
-	struct mlx5_fc_bulk *bulk = fc->bulk;
-	int bulk_free_fcs_amount;
 
-	mutex_lock(&fc_pool->pool_lock);
-
-	if (mlx5_fc_bulk_release_fc(bulk, fc)) {
+	pool_index.fs_bulk = fs_bulk;
+	pool_index.index = fc->id - fc->bulk->base_id;
+	if (mlx5_fs_pool_release_index(fc_pool, &pool_index))
 		mlx5_core_warn(dev, "Attempted to release a counter which is not acquired\n");
-		goto unlock;
-	}
-
-	fc_pool->available_fcs++;
-	fc_pool->used_fcs--;
-
-	bulk_free_fcs_amount = mlx5_fc_bulk_get_free_fcs_amount(bulk);
-	if (bulk_free_fcs_amount == 1)
-		list_move_tail(&bulk->pool_list, &fc_pool->partially_used);
-	if (bulk_free_fcs_amount == bulk->bulk_len) {
-		list_del(&bulk->pool_list);
-		if (fc_pool->available_fcs > fc_pool->threshold)
-			mlx5_fc_pool_free_bulk(fc_pool, bulk);
-		else
-			list_add(&bulk->pool_list, &fc_pool->unused);
-	}
-
-unlock:
-	mutex_unlock(&fc_pool->pool_lock);
 }
+
+/**
+ * mlx5_fc_local_create - Allocate mlx5_fc struct for a counter which
+ * was already acquired using its counter id and bulk data.
+ *
+ * @counter_id: counter acquired counter id
+ * @offset: counter offset from bulk base
+ * @bulk_size: counter's bulk size as was allocated
+ *
+ * Return: Pointer to mlx5_fc on success, ERR_PTR otherwise.
+ */
+struct mlx5_fc *
+mlx5_fc_local_create(u32 counter_id, u32 offset, u32 bulk_size)
+{
+	struct mlx5_fc_bulk *fc_bulk;
+	struct mlx5_fc *counter;
+
+	counter = kzalloc(sizeof(*counter), GFP_KERNEL);
+	if (!counter)
+		return ERR_PTR(-ENOMEM);
+	fc_bulk = kzalloc(sizeof(*fc_bulk), GFP_KERNEL);
+	if (!fc_bulk) {
+		kfree(counter);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	counter->type = MLX5_FC_TYPE_LOCAL;
+	counter->id = counter_id;
+	fc_bulk->base_id = counter_id - offset;
+	fc_bulk->fs_bulk.bulk_len = bulk_size;
+	counter->bulk = fc_bulk;
+	return counter;
+}
+EXPORT_SYMBOL(mlx5_fc_local_create);
+
+void mlx5_fc_local_destroy(struct mlx5_fc *counter)
+{
+	if (!counter || counter->type != MLX5_FC_TYPE_LOCAL)
+		return;
+
+	kfree(counter->bulk);
+	kfree(counter);
+}
+EXPORT_SYMBOL(mlx5_fc_local_destroy);

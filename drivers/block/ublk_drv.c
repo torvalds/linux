@@ -1618,6 +1618,21 @@ static void ublk_unquiesce_dev(struct ublk_device *ub)
 	blk_mq_kick_requeue_list(ub->ub_disk->queue);
 }
 
+static struct gendisk *ublk_detach_disk(struct ublk_device *ub)
+{
+	struct gendisk *disk;
+
+	/* Sync with ublk_abort_queue() by holding the lock */
+	spin_lock(&ub->lock);
+	disk = ub->ub_disk;
+	ub->dev_info.state = UBLK_S_DEV_DEAD;
+	ub->dev_info.ublksrv_pid = -1;
+	ub->ub_disk = NULL;
+	spin_unlock(&ub->lock);
+
+	return disk;
+}
+
 static void ublk_stop_dev(struct ublk_device *ub)
 {
 	struct gendisk *disk;
@@ -1631,14 +1646,7 @@ static void ublk_stop_dev(struct ublk_device *ub)
 		ublk_unquiesce_dev(ub);
 	}
 	del_gendisk(ub->ub_disk);
-
-	/* Sync with ublk_abort_queue() by holding the lock */
-	spin_lock(&ub->lock);
-	disk = ub->ub_disk;
-	ub->dev_info.state = UBLK_S_DEV_DEAD;
-	ub->dev_info.ublksrv_pid = -1;
-	ub->ub_disk = NULL;
-	spin_unlock(&ub->lock);
+	disk = ublk_detach_disk(ub);
 	put_disk(disk);
  unlock:
 	mutex_unlock(&ub->mutex);
@@ -2205,7 +2213,6 @@ static int ublk_add_tag_set(struct ublk_device *ub)
 	ub->tag_set.queue_depth = ub->dev_info.queue_depth;
 	ub->tag_set.numa_node = NUMA_NO_NODE;
 	ub->tag_set.cmd_size = sizeof(struct ublk_rq_data);
-	ub->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 	ub->tag_set.driver_data = ub;
 	return blk_mq_alloc_tag_set(&ub->tag_set);
 }
@@ -2336,7 +2343,7 @@ static int ublk_ctrl_start_dev(struct ublk_device *ub, struct io_uring_cmd *cmd)
 
 out_put_cdev:
 	if (ret) {
-		ub->dev_info.state = UBLK_S_DEV_DEAD;
+		ublk_detach_disk(ub);
 		ublk_put_device(ub);
 	}
 	if (ret)

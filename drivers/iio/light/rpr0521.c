@@ -203,7 +203,7 @@ struct rpr0521_data {
 	struct {
 		__le16 channels[3];
 		u8 garbage;
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 };
 

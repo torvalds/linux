@@ -391,7 +391,7 @@ unsigned int __pure cpumask_next_wrap(int n, const struct cpumask *mask, int sta
 	for_each_set_bit_from(cpu, cpumask_bits(mask), small_cpumask_bits)
 
 /**
- * cpumask_any_but - return a "random" in a cpumask, but not this one.
+ * cpumask_any_but - return an arbitrary cpu in a cpumask, but not this one.
  * @mask: the cpumask to search
  * @cpu: the cpu to ignore.
  *
@@ -411,7 +411,7 @@ unsigned int cpumask_any_but(const struct cpumask *mask, unsigned int cpu)
 }
 
 /**
- * cpumask_any_and_but - pick a "random" cpu from *mask1 & *mask2, but not this one.
+ * cpumask_any_and_but - pick an arbitrary cpu from *mask1 & *mask2, but not this one.
  * @mask1: the first input cpumask
  * @mask2: the second input cpumask
  * @cpu: the cpu to ignore
@@ -840,7 +840,7 @@ void cpumask_copy(struct cpumask *dstp, const struct cpumask *srcp)
 }
 
 /**
- * cpumask_any - pick a "random" cpu from *srcp
+ * cpumask_any - pick an arbitrary cpu from *srcp
  * @srcp: the input cpumask
  *
  * Return: >= nr_cpu_ids if no cpus set.
@@ -848,7 +848,7 @@ void cpumask_copy(struct cpumask *dstp, const struct cpumask *srcp)
 #define cpumask_any(srcp) cpumask_first(srcp)
 
 /**
- * cpumask_any_and - pick a "random" cpu from *mask1 & *mask2
+ * cpumask_any_and - pick an arbitrary cpu from *mask1 & *mask2
  * @mask1: the first input cpumask
  * @mask2: the second input cpumask
  *
@@ -1043,7 +1043,6 @@ extern const DECLARE_BITMAP(cpu_all_bits, NR_CPUS);
 /* Wrappers for arch boot code to manipulate normally-constant masks */
 void init_cpu_present(const struct cpumask *src);
 void init_cpu_possible(const struct cpumask *src);
-void init_cpu_online(const struct cpumask *src);
 
 #define assign_cpu(cpu, mask, val)	\
 	assign_bit(cpumask_check(cpu), cpumask_bits(mask), (val))

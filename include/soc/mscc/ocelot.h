@@ -759,6 +759,14 @@ struct ocelot_mm_state {
 	u8 active_preemptible_tcs;
 };
 
+struct ocelot_ts_stats {
+	u64 pkts;
+	u64 onestep_pkts_unconfirmed;
+	u64 lost;
+	u64 err;
+	struct u64_stats_sync syncp;
+};
+
 struct ocelot_port;
 
 struct ocelot_port {
@@ -778,6 +786,7 @@ struct ocelot_port {
 
 	phy_interface_t			phy_mode;
 
+	struct ocelot_ts_stats		*ts_stats;
 	struct sk_buff_head		tx_skbs;
 
 	unsigned int			trap_proto;
@@ -1023,6 +1032,8 @@ void ocelot_port_get_eth_mac_stats(struct ocelot *ocelot, int port,
 				   struct ethtool_eth_mac_stats *mac_stats);
 void ocelot_port_get_eth_phy_stats(struct ocelot *ocelot, int port,
 				   struct ethtool_eth_phy_stats *phy_stats);
+void ocelot_port_get_ts_stats(struct ocelot *ocelot, int port,
+			      struct ethtool_ts_stats *ts_stats);
 int ocelot_get_ts_info(struct ocelot *ocelot, int port,
 		       struct kernel_ethtool_ts_info *info);
 void ocelot_set_ageing_time(struct ocelot *ocelot, unsigned int msecs);
