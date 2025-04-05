@@ -77,7 +77,7 @@
 #include "access-helper.h"
 
 extern void check_wait(void);
-extern asmlinkage void rollback_handle_int(void);
+extern asmlinkage void skipover_handle_int(void);
 extern asmlinkage void handle_int(void);
 extern asmlinkage void handle_adel(void);
 extern asmlinkage void handle_ades(void);
@@ -2066,7 +2066,7 @@ void *set_vi_handler(int n, vi_handler_t addr)
 {
 	extern const u8 except_vec_vi[];
 	extern const u8 except_vec_vi_ori[], except_vec_vi_end[];
-	extern const u8 rollback_except_vec_vi[];
+	extern const u8 skipover_except_vec_vi[];
 	unsigned long handler;
 	unsigned long old_handler = vi_handlers[n];
 	int srssets = current_cpu_data.srsets;
@@ -2095,7 +2095,7 @@ void *set_vi_handler(int n, vi_handler_t addr)
 			change_c0_srsmap(0xf << n*4, 0 << n*4);
 	}
 
-	vec_start = using_rollback_handler() ? rollback_except_vec_vi :
+	vec_start = using_skipover_handler() ? skipover_except_vec_vi :
 					       except_vec_vi;
 #if defined(CONFIG_CPU_MICROMIPS) || defined(CONFIG_CPU_BIG_ENDIAN)
 	ori_offset = except_vec_vi_ori - vec_start + 2;
@@ -2426,8 +2426,8 @@ void __init trap_init(void)
 	if (board_be_init)
 		board_be_init();
 
-	set_except_vector(EXCCODE_INT, using_rollback_handler() ?
-					rollback_handle_int : handle_int);
+	set_except_vector(EXCCODE_INT, using_skipover_handler() ?
+					skipover_handle_int : handle_int);
 	set_except_vector(EXCCODE_MOD, handle_tlbm);
 	set_except_vector(EXCCODE_TLBL, handle_tlbl);
 	set_except_vector(EXCCODE_TLBS, handle_tlbs);

@@ -116,7 +116,7 @@ LEAF(r4k_wait)
 	 * If an interrupt lands here, before going idle on the next
 	 * instruction, we must *NOT* go idle since the interrupt could
 	 * have set TIF_NEED_RESCHED or caused a timer to need resched.
-	 * Fall through -- see rollback_handler below -- and have the
+	 * Fall through -- see skipover_handler below -- and have the
 	 * idle loop take care of things.
 	 */
 1:	.fill	0
@@ -139,8 +139,8 @@ r4k_wait_exit:
 	END(r4k_wait)
 	.previous
 
-	.macro	BUILD_ROLLBACK_PROLOGUE handler
-	FEXPORT(rollback_\handler)
+	.macro	BUILD_SKIPOVER_PROLOGUE handler
+	FEXPORT(skipover_\handler)
 	.set	push
 	.set	noat
 	MFC0	k0, CP0_EPC
@@ -156,7 +156,7 @@ r4k_wait_exit:
 	.endm
 
 	.align	5
-BUILD_ROLLBACK_PROLOGUE handle_int
+BUILD_SKIPOVER_PROLOGUE handle_int
 NESTED(handle_int, PT_SIZE, sp)
 	.cfi_signal_frame
 #ifdef CONFIG_TRACE_IRQFLAGS
@@ -276,7 +276,7 @@ NESTED(except_vec_ejtag_debug, 0, sp)
  * This prototype is copied to ebase + n*IntCtl.VS and patched
  * to invoke the handler
  */
-BUILD_ROLLBACK_PROLOGUE except_vec_vi
+BUILD_SKIPOVER_PROLOGUE except_vec_vi
 NESTED(except_vec_vi, 0, sp)
 	SAVE_SOME docfi=1
 	SAVE_AT docfi=1
