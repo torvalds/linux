@@ -88,7 +88,7 @@ static int stm32_pwm_round_waveform_tohw(struct pwm_chip *chip,
 
 	rate = clk_get_rate(priv->clk);
 
-	if (active_channels(priv) & ~(1 << ch * 4)) {
+	if (active_channels(priv) & ~TIM_CCER_CCxE(ch + 1)) {
 		u64 arr;
 
 		/*
