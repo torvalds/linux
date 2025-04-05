@@ -183,6 +183,7 @@ static int bch2_dev_alloc(struct bch_fs *, unsigned);
 static int bch2_dev_sysfs_online(struct bch_fs *, struct bch_dev *);
 static void bch2_dev_io_ref_stop(struct bch_dev *, int);
 static void __bch2_dev_read_only(struct bch_fs *, struct bch_dev *);
+static int bch2_fs_init_rw(struct bch_fs *);
 
 struct bch_fs *bch2_dev_to_fs(dev_t dev)
 {
@@ -438,6 +439,10 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 		return 0;
 
 	bch_info(c, "going read-write");
+
+	ret = bch2_fs_init_rw(c);
+	if (ret)
+		goto err;
 
 	ret = bch2_sb_members_v2_init(c);
 	if (ret)
@@ -736,6 +741,35 @@ err:
 	return ret;
 }
 
+static int bch2_fs_init_rw(struct bch_fs *c)
+{
+	if (test_bit(BCH_FS_rw_init_done, &c->flags))
+		return 0;
+
+	if (!(c->btree_update_wq = alloc_workqueue("bcachefs",
+				WQ_HIGHPRI|WQ_FREEZABLE|WQ_MEM_RECLAIM|WQ_UNBOUND, 512)) ||
+	    !(c->btree_write_complete_wq = alloc_workqueue("bcachefs_btree_write_complete",
+				WQ_HIGHPRI|WQ_FREEZABLE|WQ_MEM_RECLAIM, 1)) ||
+	    !(c->copygc_wq = alloc_workqueue("bcachefs_copygc",
+				WQ_HIGHPRI|WQ_FREEZABLE|WQ_MEM_RECLAIM|WQ_CPU_INTENSIVE, 1)) ||
+	    !(c->btree_write_submit_wq = alloc_workqueue("bcachefs_btree_write_sumit",
+				WQ_HIGHPRI|WQ_FREEZABLE|WQ_MEM_RECLAIM, 1)) ||
+	    !(c->write_ref_wq = alloc_workqueue("bcachefs_write_ref",
+				WQ_FREEZABLE, 0)))
+		return -BCH_ERR_ENOMEM_fs_other_alloc;
+
+	int ret = bch2_fs_btree_interior_update_init(c) ?:
+		bch2_fs_btree_write_buffer_init(c) ?:
+		bch2_fs_fs_io_buffered_init(c) ?:
+		bch2_fs_io_write_init(c) ?:
+		bch2_fs_journal_init(&c->journal);
+	if (ret)
+		return ret;
+
+	set_bit(BCH_FS_rw_init_done, &c->flags);
+	return 0;
+}
+
 static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 {
 	struct bch_fs *c;
@@ -877,18 +911,8 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 		(btree_blocks(c) + 1) * 2 *
 		sizeof(struct sort_iter_set);
 
-	if (!(c->btree_update_wq = alloc_workqueue("bcachefs",
-				WQ_HIGHPRI|WQ_FREEZABLE|WQ_MEM_RECLAIM|WQ_UNBOUND, 512)) ||
-	    !(c->btree_write_complete_wq = alloc_workqueue("bcachefs_btree_write",
-				WQ_HIGHPRI|WQ_FREEZABLE|WQ_MEM_RECLAIM, 1)) ||
-	    !(c->copygc_wq = alloc_workqueue("bcachefs_copygc",
-				WQ_HIGHPRI|WQ_FREEZABLE|WQ_MEM_RECLAIM|WQ_CPU_INTENSIVE, 1)) ||
-	    !(c->btree_read_complete_wq = alloc_workqueue("bcachefs_btree_read_complete",
+	if (!(c->btree_read_complete_wq = alloc_workqueue("bcachefs_btree_read_complete",
 				WQ_HIGHPRI|WQ_FREEZABLE|WQ_MEM_RECLAIM, 512)) ||
-	    !(c->btree_write_submit_wq = alloc_workqueue("bcachefs_btree_write_sumit",
-				WQ_HIGHPRI|WQ_FREEZABLE|WQ_MEM_RECLAIM, 1)) ||
-	    !(c->write_ref_wq = alloc_workqueue("bcachefs_write_ref",
-				WQ_FREEZABLE, 0)) ||
 #ifndef BCH_WRITE_REF_DEBUG
 	    percpu_ref_init(&c->writes, bch2_writes_disabled,
 			    PERCPU_REF_INIT_DEAD, GFP_KERNEL) ||
@@ -911,9 +935,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	ret =
 	    bch2_fs_btree_cache_init(c) ?:
 	    bch2_fs_btree_iter_init(c) ?:
-	    bch2_fs_btree_interior_update_init(c) ?:
 	    bch2_fs_btree_key_cache_init(&c->btree_key_cache) ?:
-	    bch2_fs_btree_write_buffer_init(c) ?:
 	    bch2_fs_buckets_waiting_for_journal_init(c) ?:
 	    bch2_io_clock_init(&c->io_clock[READ]) ?:
 	    bch2_io_clock_init(&c->io_clock[WRITE]) ?:
@@ -922,11 +944,8 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    bch2_fs_ec_init(c) ?:
 	    bch2_fs_encryption_init(c) ?:
 	    bch2_fs_fsio_init(c) ?:
-	    bch2_fs_fs_io_buffered_init(c) ?:
 	    bch2_fs_fs_io_direct_init(c) ?:
 	    bch2_fs_io_read_init(c) ?:
-	    bch2_fs_io_write_init(c) ?:
-	    bch2_fs_journal_init(&c->journal) ?:
 	    bch2_fs_sb_errors_init(c) ?:
 	    bch2_fs_vfs_init(c);
 	if (ret)

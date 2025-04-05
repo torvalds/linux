@@ -614,6 +614,7 @@ struct bch_dev {
 	x(accounting_replay_done)	\
 	x(may_go_rw)			\
 	x(rw)				\
+	x(rw_init_done)			\
 	x(was_rw)			\
 	x(stopping)			\
 	x(emergency_ro)			\

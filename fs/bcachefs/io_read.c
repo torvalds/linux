@@ -1490,10 +1490,18 @@ void bch2_fs_io_read_exit(struct bch_fs *c)
 		rhashtable_destroy(&c->promote_table);
 	bioset_exit(&c->bio_read_split);
 	bioset_exit(&c->bio_read);
+	mempool_exit(&c->bio_bounce_pages);
 }
 
 int bch2_fs_io_read_init(struct bch_fs *c)
 {
+	if (mempool_init_page_pool(&c->bio_bounce_pages,
+				   max_t(unsigned,
+					 c->opts.btree_node_size,
+					 c->opts.encoded_extent_max) /
+				   PAGE_SIZE, 0))
+		return -BCH_ERR_ENOMEM_bio_bounce_pages_init;
+
 	if (bioset_init(&c->bio_read, 1, offsetof(struct bch_read_bio, bio),
 			BIOSET_NEED_BVECS))
 		return -BCH_ERR_ENOMEM_bio_read_init;
