@@ -181,7 +181,7 @@ static void io_zcrx_free_area(struct io_zcrx_area *area)
 	kvfree(area->nia.niovs);
 	kvfree(area->user_refs);
 	if (area->pages) {
-		unpin_user_pages(area->pages, area->nia.num_niovs);
+		unpin_user_pages(area->pages, area->nr_folios);
 		kvfree(area->pages);
 	}
 	kfree(area);
@@ -192,7 +192,7 @@ static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 			       struct io_uring_zcrx_area_reg *area_reg)
 {
 	struct io_zcrx_area *area;
-	int i, ret, nr_pages;
+	int i, ret, nr_pages, nr_iovs;
 	struct iovec iov;
 
 	if (area_reg->flags || area_reg->rq_area_token)
@@ -220,27 +220,28 @@ static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 		area->pages = NULL;
 		goto err;
 	}
-	area->nia.num_niovs = nr_pages;
+	area->nr_folios = nr_iovs = nr_pages;
+	area->nia.num_niovs = nr_iovs;
 
-	area->nia.niovs = kvmalloc_array(nr_pages, sizeof(area->nia.niovs[0]),
+	area->nia.niovs = kvmalloc_array(nr_iovs, sizeof(area->nia.niovs[0]),
 					 GFP_KERNEL | __GFP_ZERO);
 	if (!area->nia.niovs)
 		goto err;
 
-	area->freelist = kvmalloc_array(nr_pages, sizeof(area->freelist[0]),
+	area->freelist = kvmalloc_array(nr_iovs, sizeof(area->freelist[0]),
 					GFP_KERNEL | __GFP_ZERO);
 	if (!area->freelist)
 		goto err;
 
-	for (i = 0; i < nr_pages; i++)
+	for (i = 0; i < nr_iovs; i++)
 		area->freelist[i] = i;
 
-	area->user_refs = kvmalloc_array(nr_pages, sizeof(area->user_refs[0]),
+	area->user_refs = kvmalloc_array(nr_iovs, sizeof(area->user_refs[0]),
 					GFP_KERNEL | __GFP_ZERO);
 	if (!area->user_refs)
 		goto err;
 
-	for (i = 0; i < nr_pages; i++) {
+	for (i = 0; i < nr_iovs; i++) {
 		struct net_iov *niov = &area->nia.niovs[i];
 
 		niov->owner = &area->nia;
@@ -248,7 +249,7 @@ static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 		atomic_set(&area->user_refs[i], 0);
 	}
 
-	area->free_count = nr_pages;
+	area->free_count = nr_iovs;
 	area->ifq = ifq;
 	/* we're only supporting one area per ifq for now */
 	area->area_id = 0;

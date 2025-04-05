@@ -15,6 +15,7 @@ struct io_zcrx_area {
 	bool			is_mapped;
 	u16			area_id;
 	struct page		**pages;
+	unsigned long		nr_folios;
 
 	/* freelist */
 	spinlock_t		freelist_lock ____cacheline_aligned_in_smp;
