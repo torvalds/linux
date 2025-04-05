@@ -26,11 +26,11 @@ struct io_zcrx_ifq {
 	struct io_ring_ctx		*ctx;
 	struct io_zcrx_area		*area;
 
+	spinlock_t			rq_lock ____cacheline_aligned_in_smp;
 	struct io_uring			*rq_ring;
 	struct io_uring_zcrx_rqe	*rqes;
-	u32				rq_entries;
 	u32				cached_rq_head;
-	spinlock_t			rq_lock;
+	u32				rq_entries;
 
 	u32				if_rxq;
 	struct device			*dev;
