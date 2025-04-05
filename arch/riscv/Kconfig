@@ -1108,6 +1108,7 @@ config RELOCATABLE
 	bool "Build a relocatable kernel"
 	depends on !XIP_KERNEL
 	select MODULE_SECTIONS if MODULES
+	select ARCH_VMLINUX_NEEDS_RELOCS
 	help
           This builds a kernel as a Position Independent Executable (PIE),
           which retains all relocation metadata required to relocate the

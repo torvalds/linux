@@ -335,12 +335,12 @@ config DEBUG_INFO_COMPRESSED_ZLIB
 	  Compress the debug information using zlib.  Requires GCC 5.0+ or Clang
 	  5.0+, binutils 2.26+, and zlib.
 
-	  Users of dpkg-deb via scripts/package/builddeb may find an increase in
+	  Users of dpkg-deb via debian/rules may find an increase in
 	  size of their debug .deb packages with this config set, due to the
 	  debug info being compressed with zlib, then the object files being
 	  recompressed with a different compression scheme. But this is still
-	  preferable to setting $KDEB_COMPRESS to "none" which would be even
-	  larger.
+	  preferable to setting KDEB_COMPRESS or DPKG_DEB_COMPRESSOR_TYPE to
+	  "none" which would be even larger.
 
 config DEBUG_INFO_COMPRESSED_ZSTD
 	bool "Compress debugging information with zstd"
@@ -473,7 +473,6 @@ config READABLE_ASM
 
 config HEADERS_INSTALL
 	bool "Install uapi headers to usr/include"
-	depends on !UML
 	help
 	  This option will install uapi headers (headers exported to user-space)
 	  into the usr/include directory for use during the kernel build.
