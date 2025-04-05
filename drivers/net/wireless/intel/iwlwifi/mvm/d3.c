@@ -120,19 +120,17 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104: { /* hack it for now */
-		struct {
-			struct iwl_mvm_wep_key_cmd wep_key_cmd;
-			struct iwl_mvm_wep_key wep_key;
-		} __packed wkc = {
-			.wep_key_cmd.mac_id_n_color =
-				cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id,
-								mvmvif->color)),
-			.wep_key_cmd.num_keys = 1,
-			/* firmware sets STA_KEY_FLG_WEP_13BYTES */
-			.wep_key_cmd.decryption_type = STA_KEY_FLG_WEP,
-			.wep_key.key_index = key->keyidx,
-			.wep_key.key_size = key->keylen,
-		};
+		DEFINE_RAW_FLEX(struct iwl_mvm_wep_key_cmd, wkc, wep_key, 1);
+		struct iwl_mvm_wep_key *wep_key = wkc->wep_key;
+
+		wkc->mac_id_n_color =
+			cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id,
+							mvmvif->color));
+		wkc->num_keys = 1;
+		/* firmware sets STA_KEY_FLG_WEP_13BYTES */
+		wkc->decryption_type = STA_KEY_FLG_WEP;
+		wep_key->key_index = key->keyidx;
+		wep_key->key_size = key->keylen;
 
 		/*
 		 * This will fail -- the key functions don't set support
@@ -142,18 +140,19 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 		if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
 			break;
 
-		memcpy(&wkc.wep_key.key[3], key->key, key->keylen);
+		memcpy(&wep_key->key[3], key->key, key->keylen);
 		if (key->keyidx == mvmvif->tx_key_idx) {
 			/* TX key must be at offset 0 */
-			wkc.wep_key.key_offset = 0;
+			wep_key->key_offset = 0;
 		} else {
 			/* others start at 1 */
 			data->wep_key_idx++;
-			wkc.wep_key.key_offset = data->wep_key_idx;
+			wep_key->key_offset = data->wep_key_idx;
 		}
 
 		mutex_lock(&mvm->mutex);
-		ret = iwl_mvm_send_cmd_pdu(mvm, WEP_KEY, 0, sizeof(wkc), &wkc);
+		ret = iwl_mvm_send_cmd_pdu(mvm, WEP_KEY, 0,
+					   __struct_size(wkc), wkc);
 		data->error = ret != 0;
 
 		mvm->ptk_ivlen = key->iv_len;
@@ -2061,10 +2060,8 @@ static bool iwl_mvm_mlo_gtk_rekey(struct iwl_wowlan_status_data *status,
 		struct iwl_wowlan_mlo_gtk *mlo_key = &status->mlo_keys[i];
 		struct ieee80211_key_conf *key, *old_key;
 		struct ieee80211_key_seq seq;
-		struct {
-			struct ieee80211_key_conf conf;
-			u8 key[32];
-		} conf = {};
+		DEFINE_RAW_FLEX(struct ieee80211_key_conf, conf, key,
+				WOWLAN_KEY_MAX_SIZE);
 		u16 flags = le16_to_cpu(mlo_key->flags);
 		int j, link_id, key_id, key_type;
 
@@ -2081,40 +2078,40 @@ static bool iwl_mvm_mlo_gtk_rekey(struct iwl_wowlan_status_data *status,
 			    key_type >= WOWLAN_MLO_GTK_KEY_NUM_TYPES))
 			continue;
 
-		conf.conf.cipher = old_keys->cipher[link_id][key_type];
+		conf->cipher = old_keys->cipher[link_id][key_type];
 		/* WARN_ON? */
-		if (!conf.conf.cipher)
+		if (!conf->cipher)
 			continue;
 
-		conf.conf.keylen = 0;
-		switch (conf.conf.cipher) {
+		conf->keylen = 0;
+		switch (conf->cipher) {
 		case WLAN_CIPHER_SUITE_CCMP:
 		case WLAN_CIPHER_SUITE_GCMP:
-			conf.conf.keylen = WLAN_KEY_LEN_CCMP;
+			conf->keylen = WLAN_KEY_LEN_CCMP;
 			break;
 		case WLAN_CIPHER_SUITE_GCMP_256:
-			conf.conf.keylen = WLAN_KEY_LEN_GCMP_256;
+			conf->keylen = WLAN_KEY_LEN_GCMP_256;
 			break;
 		case WLAN_CIPHER_SUITE_BIP_GMAC_128:
-			conf.conf.keylen = WLAN_KEY_LEN_BIP_GMAC_128;
+			conf->keylen = WLAN_KEY_LEN_BIP_GMAC_128;
 			break;
 		case WLAN_CIPHER_SUITE_BIP_GMAC_256:
-			conf.conf.keylen = WLAN_KEY_LEN_BIP_GMAC_256;
+			conf->keylen = WLAN_KEY_LEN_BIP_GMAC_256;
 			break;
 		case WLAN_CIPHER_SUITE_AES_CMAC:
-			conf.conf.keylen = WLAN_KEY_LEN_AES_CMAC;
+			conf->keylen = WLAN_KEY_LEN_AES_CMAC;
 			break;
 		case WLAN_CIPHER_SUITE_BIP_CMAC_256:
-			conf.conf.keylen = WLAN_KEY_LEN_BIP_CMAC_256;
+			conf->keylen = WLAN_KEY_LEN_BIP_CMAC_256;
 			break;
 		}
 
-		if (WARN_ON(!conf.conf.keylen ||
-			    conf.conf.keylen > sizeof(conf.key)))
+		if (WARN_ON(!conf->keylen ||
+			    conf->keylen > WOWLAN_KEY_MAX_SIZE))
 			continue;
 
-		memcpy(conf.conf.key, mlo_key->key, conf.conf.keylen);
-		conf.conf.keyidx = key_id;
+		memcpy(conf->key, mlo_key->key, conf->keylen);
+		conf->keyidx = key_id;
 
 		old_key = old_keys->key[link_id][key_id];
 		if (old_key) {
@@ -2126,7 +2123,7 @@ static bool iwl_mvm_mlo_gtk_rekey(struct iwl_wowlan_status_data *status,
 
 		IWL_DEBUG_WOWLAN(mvm, "Add MLO key id %d, link id %d\n",
 				 key_id, link_id);
-		key = ieee80211_gtk_rekey_add(vif, &conf.conf, link_id);
+		key = ieee80211_gtk_rekey_add(vif, conf, link_id);
 		if (WARN_ON(IS_ERR(key))) {
 			ret = false;
 			goto out;
@@ -2156,30 +2153,28 @@ static bool iwl_mvm_gtk_rekey(struct iwl_wowlan_status_data *status,
 {
 	int i, j;
 	struct ieee80211_key_conf *key;
-	struct {
-		struct ieee80211_key_conf conf;
-		u8 key[32];
-	} conf = {
-		.conf.cipher = gtk_cipher,
-	};
+	DEFINE_RAW_FLEX(struct ieee80211_key_conf, conf, key,
+			WOWLAN_KEY_MAX_SIZE);
 	int link_id = vif->active_links ? __ffs(vif->active_links) : -1;
 
+	conf->cipher = gtk_cipher;
+
 	BUILD_BUG_ON(WLAN_KEY_LEN_CCMP != WLAN_KEY_LEN_GCMP);
-	BUILD_BUG_ON(sizeof(conf.key) < WLAN_KEY_LEN_CCMP);
-	BUILD_BUG_ON(sizeof(conf.key) < WLAN_KEY_LEN_GCMP_256);
-	BUILD_BUG_ON(sizeof(conf.key) < WLAN_KEY_LEN_TKIP);
-	BUILD_BUG_ON(sizeof(conf.key) < sizeof(status->gtk[0].key));
+	BUILD_BUG_ON(WOWLAN_KEY_MAX_SIZE < WLAN_KEY_LEN_CCMP);
+	BUILD_BUG_ON(WOWLAN_KEY_MAX_SIZE < WLAN_KEY_LEN_GCMP_256);
+	BUILD_BUG_ON(WOWLAN_KEY_MAX_SIZE < WLAN_KEY_LEN_TKIP);
+	BUILD_BUG_ON(WOWLAN_KEY_MAX_SIZE < sizeof(status->gtk[0].key));
 
 	switch (gtk_cipher) {
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_GCMP:
-		conf.conf.keylen = WLAN_KEY_LEN_CCMP;
+		conf->keylen = WLAN_KEY_LEN_CCMP;
 		break;
 	case WLAN_CIPHER_SUITE_GCMP_256:
-		conf.conf.keylen = WLAN_KEY_LEN_GCMP_256;
+		conf->keylen = WLAN_KEY_LEN_GCMP_256;
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
-		conf.conf.keylen = WLAN_KEY_LEN_TKIP;
+		conf->keylen = WLAN_KEY_LEN_TKIP;
 		break;
 	default:
 		WARN_ON(1);
@@ -2189,14 +2184,14 @@ static bool iwl_mvm_gtk_rekey(struct iwl_wowlan_status_data *status,
 		if (!status->gtk[i].len)
 			continue;
 
-		conf.conf.keyidx = status->gtk[i].id;
+		conf->keyidx = status->gtk[i].id;
 		IWL_DEBUG_WOWLAN(mvm,
 				 "Received from FW GTK cipher %d, key index %d\n",
-				 conf.conf.cipher, conf.conf.keyidx);
-		memcpy(conf.conf.key, status->gtk[i].key,
+				 conf->cipher, conf->keyidx);
+		memcpy(conf->key, status->gtk[i].key,
 		       sizeof(status->gtk[i].key));
 
-		key = ieee80211_gtk_rekey_add(vif, &conf.conf, link_id);
+		key = ieee80211_gtk_rekey_add(vif, conf, link_id);
 		if (IS_ERR(key))
 			return false;
 
@@ -2218,42 +2213,40 @@ iwl_mvm_d3_igtk_bigtk_rekey_add(struct iwl_wowlan_status_data *status,
 				struct ieee80211_vif *vif, u32 cipher,
 				struct iwl_multicast_key_data *key_data)
 {
+	DEFINE_RAW_FLEX(struct ieee80211_key_conf, conf, key,
+			WOWLAN_KEY_MAX_SIZE);
 	struct ieee80211_key_conf *key_config;
-	struct {
-		struct ieee80211_key_conf conf;
-		u8 key[WOWLAN_KEY_MAX_SIZE];
-	} conf = {
-		.conf.cipher = cipher,
-		.conf.keyidx = key_data->id,
-	};
 	struct ieee80211_key_seq seq;
 	int link_id = vif->active_links ? __ffs(vif->active_links) : -1;
+
+	conf->cipher = cipher;
+	conf->keyidx = key_data->id;
 
 	if (!key_data->len)
 		return true;
 
-	iwl_mvm_d3_set_igtk_bigtk_ipn(key_data, &seq, conf.conf.cipher);
+	iwl_mvm_d3_set_igtk_bigtk_ipn(key_data, &seq, conf->cipher);
 
 	switch (cipher) {
 	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
-		conf.conf.keylen = WLAN_KEY_LEN_BIP_GMAC_128;
+		conf->keylen = WLAN_KEY_LEN_BIP_GMAC_128;
 		break;
 	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
-		conf.conf.keylen = WLAN_KEY_LEN_BIP_GMAC_256;
+		conf->keylen = WLAN_KEY_LEN_BIP_GMAC_256;
 		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
-		conf.conf.keylen = WLAN_KEY_LEN_AES_CMAC;
+		conf->keylen = WLAN_KEY_LEN_AES_CMAC;
 		break;
 	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
-		conf.conf.keylen = WLAN_KEY_LEN_BIP_CMAC_256;
+		conf->keylen = WLAN_KEY_LEN_BIP_CMAC_256;
 		break;
 	default:
 		WARN_ON(1);
 	}
-	BUILD_BUG_ON(sizeof(conf.key) < sizeof(key_data->key));
-	memcpy(conf.conf.key, key_data->key, conf.conf.keylen);
+	BUILD_BUG_ON(WOWLAN_KEY_MAX_SIZE < sizeof(key_data->key));
+	memcpy(conf->key, key_data->key, conf->keylen);
 
-	key_config = ieee80211_gtk_rekey_add(vif, &conf.conf, link_id);
+	key_config = ieee80211_gtk_rekey_add(vif, conf, link_id);
 	if (IS_ERR(key_config))
 		return false;
 	ieee80211_set_key_rx_seq(key_config, 0, &seq);
