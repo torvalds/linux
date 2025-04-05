@@ -100,6 +100,17 @@
 	// exists when there's a carry out of the low 64 bits of the tweak.
 	.quad	0x87, 1
 
+	// These are the shift amounts that are needed when multiplying by [x^0,
+	// x^1, x^2, x^3] to compute the first vector of tweaks when VL=64.
+	//
+	// The right shifts by 64 are expected to zeroize the destination.
+	// 'vpsrlvq' is indeed defined to do that; i.e. it doesn't truncate the
+	// amount to 64 & 63 = 0 like the 'shr' scalar shift instruction would.
+.Lrshift_amounts:
+	.byte	64, 64, 63, 63, 62, 62, 61, 61
+.Llshift_amounts:
+	.byte	0, 0, 1, 1, 2, 2, 3, 3
+
 	// This table contains constants for vpshufb and vpblendvb, used to
 	// handle variable byte shifts and blending during ciphertext stealing
 	// on CPUs that don't support AVX512-style masking.
@@ -294,52 +305,75 @@
 // Given the first XTS tweak at (TWEAK), compute the first set of tweaks and
 // store them in the vector registers TWEAK0-TWEAK3.  Clobbers V0-V5.
 .macro	_compute_first_set_of_tweaks
-	vmovdqu		(TWEAK), TWEAK0_XMM
-	_vbroadcast128	.Lgf_poly(%rip), GF_POLY
 .if VL == 16
-	// With VL=16, multiplying by x serially is fastest.
+	vmovdqu		(TWEAK), TWEAK0_XMM
+	vmovdqu		.Lgf_poly(%rip), GF_POLY
 	_next_tweak	TWEAK0, %xmm0, TWEAK1
 	_next_tweak	TWEAK1, %xmm0, TWEAK2
 	_next_tweak	TWEAK2, %xmm0, TWEAK3
-.else
-.if VL == 32
-	// Compute the second block of TWEAK0.
+.elseif VL == 32
+	vmovdqu		(TWEAK), TWEAK0_XMM
+	vbroadcasti128	.Lgf_poly(%rip), GF_POLY
+
+	// Compute the first vector of tweaks.
 	_next_tweak	TWEAK0_XMM, %xmm0, %xmm1
 	vinserti128	$1, %xmm1, TWEAK0, TWEAK0
-.elseif VL == 64
-	// Compute the remaining blocks of TWEAK0.
-	_next_tweak	TWEAK0_XMM, %xmm0, %xmm1
-	_next_tweak	%xmm1, %xmm0, %xmm2
-	_next_tweak	%xmm2, %xmm0, %xmm3
-	vinserti32x4	$1, %xmm1, TWEAK0, TWEAK0
-	vinserti32x4	$2, %xmm2, TWEAK0, TWEAK0
-	vinserti32x4	$3, %xmm3, TWEAK0, TWEAK0
-.endif
-	// Compute TWEAK[1-3] from TWEAK0.
-	vpsrlq		$64 - 1*VL/16, TWEAK0, V0
-	vpsrlq		$64 - 2*VL/16, TWEAK0, V2
-	vpsrlq		$64 - 3*VL/16, TWEAK0, V4
+
+	// Compute the next three vectors of tweaks:
+	//	TWEAK1 = TWEAK0 * [x^2, x^2]
+	//	TWEAK2 = TWEAK0 * [x^4, x^4]
+	//	TWEAK3 = TWEAK0 * [x^6, x^6]
+	vpsrlq		$64 - 2, TWEAK0, V0
+	vpsrlq		$64 - 4, TWEAK0, V2
+	vpsrlq		$64 - 6, TWEAK0, V4
 	vpclmulqdq	$0x01, GF_POLY, V0, V1
 	vpclmulqdq	$0x01, GF_POLY, V2, V3
 	vpclmulqdq	$0x01, GF_POLY, V4, V5
 	vpslldq		$8, V0, V0
 	vpslldq		$8, V2, V2
 	vpslldq		$8, V4, V4
-	vpsllq		$1*VL/16, TWEAK0, TWEAK1
-	vpsllq		$2*VL/16, TWEAK0, TWEAK2
-	vpsllq		$3*VL/16, TWEAK0, TWEAK3
-.if USE_AVX512
-	vpternlogd	$0x96, V0, V1, TWEAK1
-	vpternlogd	$0x96, V2, V3, TWEAK2
-	vpternlogd	$0x96, V4, V5, TWEAK3
-.else
+	vpsllq		$2, TWEAK0, TWEAK1
+	vpsllq		$4, TWEAK0, TWEAK2
+	vpsllq		$6, TWEAK0, TWEAK3
 	vpxor		V0, TWEAK1, TWEAK1
 	vpxor		V2, TWEAK2, TWEAK2
 	vpxor		V4, TWEAK3, TWEAK3
 	vpxor		V1, TWEAK1, TWEAK1
 	vpxor		V3, TWEAK2, TWEAK2
 	vpxor		V5, TWEAK3, TWEAK3
-.endif
+.else
+	vbroadcasti32x4	(TWEAK), TWEAK0
+	vbroadcasti32x4	.Lgf_poly(%rip), GF_POLY
+
+	// Compute the first vector of tweaks:
+	//	TWEAK0 = broadcast128(TWEAK) * [x^0, x^1, x^2, x^3]
+	vpmovzxbq	.Lrshift_amounts(%rip), V4
+	vpsrlvq		V4, TWEAK0, V0
+	vpclmulqdq	$0x01, GF_POLY, V0, V1
+	vpmovzxbq	.Llshift_amounts(%rip), V4
+	vpslldq		$8, V0, V0
+	vpsllvq		V4, TWEAK0, TWEAK0
+	vpternlogd	$0x96, V0, V1, TWEAK0
+
+	// Compute the next three vectors of tweaks:
+	//	TWEAK1 = TWEAK0 * [x^4, x^4, x^4, x^4]
+	//	TWEAK2 = TWEAK0 * [x^8, x^8, x^8, x^8]
+	//	TWEAK3 = TWEAK0 * [x^12, x^12, x^12, x^12]
+	// x^8 only needs byte-aligned shifts, so optimize accordingly.
+	vpsrlq		$64 - 4, TWEAK0, V0
+	vpsrldq		$(64 - 8) / 8, TWEAK0, V2
+	vpsrlq		$64 - 12, TWEAK0, V4
+	vpclmulqdq	$0x01, GF_POLY, V0, V1
+	vpclmulqdq	$0x01, GF_POLY, V2, V3
+	vpclmulqdq	$0x01, GF_POLY, V4, V5
+	vpslldq		$8, V0, V0
+	vpslldq		$8, V4, V4
+	vpsllq		$4, TWEAK0, TWEAK1
+	vpslldq		$8 / 8, TWEAK0, TWEAK2
+	vpsllq		$12, TWEAK0, TWEAK3
+	vpternlogd	$0x96, V0, V1, TWEAK1
+	vpxord		V3, TWEAK2, TWEAK2
+	vpternlogd	$0x96, V4, V5, TWEAK3
 .endif
 .endm
 
