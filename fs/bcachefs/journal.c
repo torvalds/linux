@@ -1429,13 +1429,11 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 	 */
 	nr += nr / 4;
 
-	if (nr + 1 > j->pin.size) {
-		free_fifo(&j->pin);
-		init_fifo(&j->pin, roundup_pow_of_two(nr + 1), GFP_KERNEL);
-		if (!j->pin.data) {
-			bch_err(c, "error reallocating journal fifo (%llu open entries)", nr);
-			return -BCH_ERR_ENOMEM_journal_pin_fifo;
-		}
+	nr = max(nr, JOURNAL_PIN);
+	init_fifo(&j->pin, roundup_pow_of_two(nr), GFP_KERNEL);
+	if (!j->pin.data) {
+		bch_err(c, "error reallocating journal fifo (%llu open entries)", nr);
+		return -BCH_ERR_ENOMEM_journal_pin_fifo;
 	}
 
 	j->replay_journal_seq	= last_seq;
@@ -1610,9 +1608,6 @@ int bch2_fs_journal_init(struct journal *j)
 		((union journal_res_state)
 		 { .cur_entry_offset = JOURNAL_ENTRY_CLOSED_VAL }).v);
 
-	if (!(init_fifo(&j->pin, JOURNAL_PIN, GFP_KERNEL)))
-		return -BCH_ERR_ENOMEM_journal_pin_fifo;
-
 	j->free_buf_size = j->buf_size_want = JOURNAL_ENTRY_SIZE_MIN;
 	j->free_buf = kvmalloc(j->free_buf_size, GFP_KERNEL);
 	if (!j->free_buf)
@@ -1620,8 +1615,6 @@ int bch2_fs_journal_init(struct journal *j)
 
 	for (unsigned i = 0; i < ARRAY_SIZE(j->buf); i++)
 		j->buf[i].idx = i;
-
-	j->pin.front = j->pin.back = 1;
 
 	j->wq = alloc_workqueue("bcachefs_journal",
 				WQ_HIGHPRI|WQ_FREEZABLE|WQ_UNBOUND|WQ_MEM_RECLAIM, 512);
