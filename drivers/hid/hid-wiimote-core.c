@@ -1171,7 +1171,7 @@ static void wiimote_init_hotplug(struct wiimote_data *wdata)
 		wiimote_cmd_release(wdata);
 
 		/* delete MP hotplug timer */
-		del_timer_sync(&wdata->timer);
+		timer_delete_sync(&wdata->timer);
 	} else {
 		/* reschedule MP hotplug timer */
 		if (!(flags & WIIPROTO_FLAG_BUILTIN_MP) &&

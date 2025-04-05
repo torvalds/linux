@@ -201,7 +201,7 @@ static void dsps_musb_disable(struct musb *musb)
 	musb_writel(reg_base, wrp->coreintr_clear, wrp->usb_bitmap);
 	musb_writel(reg_base, wrp->epintr_clear,
 			 wrp->txep_bitmap | wrp->rxep_bitmap);
-	del_timer_sync(&musb->dev_timer);
+	timer_delete_sync(&musb->dev_timer);
 }
 
 /* Caller must take musb->lock */
@@ -215,7 +215,7 @@ static int dsps_check_status(struct musb *musb, void *unused)
 	int skip_session = 0;
 
 	if (glue->vbus_irq)
-		del_timer(&musb->dev_timer);
+		timer_delete(&musb->dev_timer);
 
 	/*
 	 * We poll because DSPS IP's won't expose several OTG-critical
@@ -499,7 +499,7 @@ static int dsps_musb_exit(struct musb *musb)
 	struct device *dev = musb->controller;
 	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
 
-	del_timer_sync(&musb->dev_timer);
+	timer_delete_sync(&musb->dev_timer);
 	phy_power_off(musb->phy);
 	phy_exit(musb->phy);
 	debugfs_remove_recursive(glue->dbgfs_root);
@@ -983,7 +983,7 @@ static int dsps_suspend(struct device *dev)
 		return ret;
 	}
 
-	del_timer_sync(&musb->dev_timer);
+	timer_delete_sync(&musb->dev_timer);
 
 	mbase = musb->ctrl_base;
 	glue->context.control = musb_readl(mbase, wrp->control);

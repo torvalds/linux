@@ -177,7 +177,7 @@ srmcons_close(struct tty_struct *tty, struct file *filp)
 
 	if (tty->count == 1) {
 		port->tty = NULL;
-		del_timer(&srmconsp->timer);
+		timer_delete(&srmconsp->timer);
 	}
 
 	spin_unlock_irqrestore(&port->lock, flags);

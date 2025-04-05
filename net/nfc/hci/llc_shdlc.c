@@ -198,7 +198,7 @@ static void llc_shdlc_reset_t2(struct llc_shdlc *shdlc, int y_nr)
 
 	if (skb_queue_empty(&shdlc->ack_pending_q)) {
 		if (shdlc->t2_active) {
-			del_timer_sync(&shdlc->t2_timer);
+			timer_delete_sync(&shdlc->t2_timer);
 			shdlc->t2_active = false;
 
 			pr_debug("All sent frames acked. Stopped T2(retransmit)\n");
@@ -289,7 +289,7 @@ static void llc_shdlc_rcv_rej(struct llc_shdlc *shdlc, int y_nr)
 
 	if (llc_shdlc_x_lteq_y_lt_z(shdlc->dnr, y_nr, shdlc->ns)) {
 		if (shdlc->t2_active) {
-			del_timer_sync(&shdlc->t2_timer);
+			timer_delete_sync(&shdlc->t2_timer);
 			shdlc->t2_active = false;
 			pr_debug("Stopped T2(retransmit)\n");
 		}
@@ -342,7 +342,7 @@ static void llc_shdlc_connect_complete(struct llc_shdlc *shdlc, int r)
 {
 	pr_debug("result=%d\n", r);
 
-	del_timer_sync(&shdlc->connect_timer);
+	timer_delete_sync(&shdlc->connect_timer);
 
 	if (r == 0) {
 		shdlc->ns = 0;
@@ -526,7 +526,7 @@ static void llc_shdlc_handle_send_queue(struct llc_shdlc *shdlc)
 	       (shdlc->rnr == false)) {
 
 		if (shdlc->t1_active) {
-			del_timer_sync(&shdlc->t1_timer);
+			timer_delete_sync(&shdlc->t1_timer);
 			shdlc->t1_active = false;
 			pr_debug("Stopped T1(send ack)\n");
 		}

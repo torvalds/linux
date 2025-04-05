@@ -471,7 +471,7 @@ static int cadet_release(struct file *file)
 
 	mutex_lock(&dev->lock);
 	if (v4l2_fh_is_singular_file(file) && dev->rdsstat) {
-		del_timer_sync(&dev->readtimer);
+		timer_delete_sync(&dev->readtimer);
 		dev->rdsstat = 0;
 	}
 	v4l2_fh_release(file);

@@ -119,7 +119,7 @@ int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
 	}
 
 	/* Now we got response from FW, cancel the command timer */
-	del_timer(&priv->command_timer);
+	timer_delete(&priv->command_timer);
 	priv->cmd_timed_out = 0;
 
 	if (respcmd == CMD_RET(CMD_802_11_PS_MODE)) {

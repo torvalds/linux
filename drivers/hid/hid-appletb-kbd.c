@@ -448,7 +448,7 @@ static void appletb_kbd_remove(struct hid_device *hdev)
 	appletb_kbd_set_mode(kbd, APPLETB_KBD_MODE_OFF);
 
 	input_unregister_handler(&kbd->inp_handler);
-	del_timer_sync(&kbd->inactivity_timer);
+	timer_delete_sync(&kbd->inactivity_timer);
 
 	hid_hw_close(hdev);
 	hid_hw_stop(hdev);

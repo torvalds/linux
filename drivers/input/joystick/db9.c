@@ -531,7 +531,7 @@ static void db9_close(struct input_dev *dev)
 	guard(mutex)(&db9->mutex);
 
 	if (!--db9->used) {
-		del_timer_sync(&db9->timer);
+		timer_delete_sync(&db9->timer);
 		parport_write_control(port, 0x00);
 		parport_data_forward(port);
 		parport_release(db9->pd);

@@ -640,7 +640,7 @@ int wb_domain_init(struct wb_domain *dom, gfp_t gfp)
 #ifdef CONFIG_CGROUP_WRITEBACK
 void wb_domain_exit(struct wb_domain *dom)
 {
-	del_timer_sync(&dom->period_timer);
+	timer_delete_sync(&dom->period_timer);
 	fprop_global_destroy(&dom->completions);
 }
 #endif
@@ -2229,7 +2229,7 @@ void laptop_sync_completion(void)
 	rcu_read_lock();
 
 	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list)
-		del_timer(&bdi->laptop_mode_wb_timer);
+		timer_delete(&bdi->laptop_mode_wb_timer);
 
 	rcu_read_unlock();
 }

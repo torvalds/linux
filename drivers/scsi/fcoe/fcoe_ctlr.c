@@ -302,7 +302,7 @@ void fcoe_ctlr_destroy(struct fcoe_ctlr *fip)
 	fcoe_ctlr_set_state(fip, FIP_ST_DISABLED);
 	fcoe_ctlr_reset_fcfs(fip);
 	mutex_unlock(&fip->ctlr_mutex);
-	del_timer_sync(&fip->timer);
+	timer_delete_sync(&fip->timer);
 	cancel_work_sync(&fip->timer_work);
 }
 EXPORT_SYMBOL(fcoe_ctlr_destroy);
@@ -478,7 +478,7 @@ EXPORT_SYMBOL(fcoe_ctlr_link_up);
 static void fcoe_ctlr_reset(struct fcoe_ctlr *fip)
 {
 	fcoe_ctlr_reset_fcfs(fip);
-	del_timer(&fip->timer);
+	timer_delete(&fip->timer);
 	fip->ctlr_ka_time = 0;
 	fip->port_ka_time = 0;
 	fip->sol_time = 0;

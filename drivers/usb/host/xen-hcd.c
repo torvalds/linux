@@ -327,7 +327,7 @@ static int xenhcd_bus_suspend(struct usb_hcd *hcd)
 	}
 	spin_unlock_irq(&info->lock);
 
-	del_timer_sync(&info->watchdog);
+	timer_delete_sync(&info->watchdog);
 
 	return ret;
 }
@@ -1307,7 +1307,7 @@ static void xenhcd_stop(struct usb_hcd *hcd)
 {
 	struct xenhcd_info *info = xenhcd_hcd_to_info(hcd);
 
-	del_timer_sync(&info->watchdog);
+	timer_delete_sync(&info->watchdog);
 	spin_lock_irq(&info->lock);
 	/* cancel all urbs */
 	hcd->state = HC_STATE_HALT;

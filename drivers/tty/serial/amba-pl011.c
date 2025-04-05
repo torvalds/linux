@@ -1084,7 +1084,7 @@ static void pl011_dma_rx_poll(struct timer_list *t)
 
 		uap->dmarx.running = false;
 		dmaengine_terminate_all(rxchan);
-		del_timer(&uap->dmarx.timer);
+		timer_delete(&uap->dmarx.timer);
 	} else {
 		mod_timer(&uap->dmarx.timer,
 			  jiffies + msecs_to_jiffies(uap->dmarx.poll_rate));
@@ -1199,7 +1199,7 @@ static void pl011_dma_shutdown(struct uart_amba_port *uap)
 		pl011_dmabuf_free(uap->dmarx.chan, &uap->dmarx.dbuf_a, DMA_FROM_DEVICE);
 		pl011_dmabuf_free(uap->dmarx.chan, &uap->dmarx.dbuf_b, DMA_FROM_DEVICE);
 		if (uap->dmarx.poll_rate)
-			del_timer_sync(&uap->dmarx.timer);
+			timer_delete_sync(&uap->dmarx.timer);
 		uap->using_rx_dma = false;
 	}
 }

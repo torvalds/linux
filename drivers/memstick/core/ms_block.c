@@ -1510,7 +1510,7 @@ static void msb_cache_discard(struct msb_data *msb)
 	if (msb->cache_block_lba == MS_BLOCK_INVALID)
 		return;
 
-	del_timer_sync(&msb->cache_flush_timer);
+	timer_delete_sync(&msb->cache_flush_timer);
 
 	dbg_verbose("Discarding the write cache");
 	msb->cache_block_lba = MS_BLOCK_INVALID;
@@ -2027,7 +2027,7 @@ static void msb_stop(struct memstick_dev *card)
 	msb->io_queue_stopped = true;
 	spin_unlock_irqrestore(&msb->q_lock, flags);
 
-	del_timer_sync(&msb->cache_flush_timer);
+	timer_delete_sync(&msb->cache_flush_timer);
 	flush_workqueue(msb->io_queue);
 
 	spin_lock_irqsave(&msb->q_lock, flags);

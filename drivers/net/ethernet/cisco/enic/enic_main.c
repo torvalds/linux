@@ -1787,7 +1787,7 @@ static int enic_stop(struct net_device *netdev)
 
 	enic_synchronize_irqs(enic);
 
-	del_timer_sync(&enic->notify_timer);
+	timer_delete_sync(&enic->notify_timer);
 	enic_rfs_flw_tbl_free(enic);
 
 	enic_dev_disable(enic);

@@ -518,7 +518,7 @@ static void snd_card_asihpi_pcm_timer_stop(struct snd_pcm_substream *substream)
 	struct snd_card_asihpi_pcm *dpcm = runtime->private_data;
 
 	dpcm->respawn_timer = 0;
-	del_timer(&dpcm->timer);
+	timer_delete(&dpcm->timer);
 }
 
 static void snd_card_asihpi_pcm_int_start(struct snd_pcm_substream *substream)

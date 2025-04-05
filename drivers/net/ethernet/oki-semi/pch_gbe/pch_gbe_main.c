@@ -1916,7 +1916,7 @@ void pch_gbe_down(struct pch_gbe_adapter *adapter)
 	pch_gbe_irq_disable(adapter);
 	pch_gbe_free_irq(adapter);
 
-	del_timer_sync(&adapter->watchdog_timer);
+	timer_delete_sync(&adapter->watchdog_timer);
 
 	netdev->tx_queue_len = adapter->tx_queue_len;
 	netif_carrier_off(netdev);

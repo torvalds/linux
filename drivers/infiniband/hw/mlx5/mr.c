@@ -1026,7 +1026,7 @@ void mlx5_mkey_cache_cleanup(struct mlx5_ib_dev *dev)
 	mlx5r_destroy_cache_entries(dev);
 
 	destroy_workqueue(dev->cache.wq);
-	del_timer_sync(&dev->delay_timer);
+	timer_delete_sync(&dev->delay_timer);
 }
 
 struct ib_mr *mlx5_ib_get_dma_mr(struct ib_pd *pd, int acc)

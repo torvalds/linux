@@ -700,7 +700,7 @@ void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 	ata_eh_acquire(ap);
  repeat:
 	/* kill fast drain timer */
-	del_timer_sync(&ap->fastdrain_timer);
+	timer_delete_sync(&ap->fastdrain_timer);
 
 	/* process port resume request */
 	ata_eh_handle_port_resume(ap);

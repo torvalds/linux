@@ -563,7 +563,7 @@ void pstore_unregister(struct pstore_info *psi)
 		pstore_unregister_kmsg();
 
 	/* Stop timer and make sure all work has finished. */
-	del_timer_sync(&pstore_timer);
+	timer_delete_sync(&pstore_timer);
 	flush_work(&pstore_work);
 
 	/* Remove all backend records from filesystem tree. */

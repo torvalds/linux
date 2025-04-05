@@ -1261,7 +1261,7 @@ static void wbsd_free_mmc(struct device *dev)
 	host = mmc_priv(mmc);
 	BUG_ON(host == NULL);
 
-	del_timer_sync(&host->ignore_timer);
+	timer_delete_sync(&host->ignore_timer);
 
 	mmc_free_host(mmc);
 }

@@ -2067,7 +2067,7 @@ static void artpec6_crypto_process_queue(struct artpec6_crypto *ac,
 	if (ac->pending_count)
 		mod_timer(&ac->timer, jiffies + msecs_to_jiffies(100));
 	else
-		del_timer(&ac->timer);
+		timer_delete(&ac->timer);
 }
 
 static void artpec6_crypto_timeout(struct timer_list *t)
@@ -2963,7 +2963,7 @@ static void artpec6_crypto_remove(struct platform_device *pdev)
 	tasklet_disable(&ac->task);
 	devm_free_irq(&pdev->dev, irq, ac);
 	tasklet_kill(&ac->task);
-	del_timer_sync(&ac->timer);
+	timer_delete_sync(&ac->timer);
 
 	artpec6_crypto_disable_hw(ac);
 

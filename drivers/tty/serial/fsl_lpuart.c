@@ -1433,7 +1433,7 @@ static void lpuart_dma_rx_free(struct uart_port *port)
 
 	dmaengine_terminate_sync(chan);
 	if (!sport->dma_idle_int)
-		del_timer_sync(&sport->lpuart_timer);
+		timer_delete_sync(&sport->lpuart_timer);
 
 	dma_unmap_sg(chan->device->dev, &sport->rx_sgl, 1, DMA_FROM_DEVICE);
 	kfree(sport->rx_ring.buf);
@@ -2071,7 +2071,7 @@ lpuart_set_termios(struct uart_port *port, struct ktermios *termios,
 	 * baud rate and restart Rx DMA path.
 	 *
 	 * Since timer function acqures port->lock, need to stop before
-	 * acquring same lock because otherwise del_timer_sync() can deadlock.
+	 * acquring same lock because otherwise timer_delete_sync() can deadlock.
 	 */
 	if (old && sport->lpuart_dma_rx_use)
 		lpuart_dma_rx_free(port);
@@ -2316,7 +2316,7 @@ lpuart32_set_termios(struct uart_port *port, struct ktermios *termios,
 	 * baud rate and restart Rx DMA path.
 	 *
 	 * Since timer function acqures port->lock, need to stop before
-	 * acquring same lock because otherwise del_timer_sync() can deadlock.
+	 * acquring same lock because otherwise timer_delete_sync() can deadlock.
 	 */
 	if (old && sport->lpuart_dma_rx_use)
 		lpuart_dma_rx_free(port);

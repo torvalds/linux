@@ -161,7 +161,7 @@ static void rps_start_timer(struct intel_rps *rps)
 
 static void rps_stop_timer(struct intel_rps *rps)
 {
-	del_timer_sync(&rps->timer);
+	timer_delete_sync(&rps->timer);
 	rps->pm_timestamp = ktime_sub(ktime_get(), rps->pm_timestamp);
 	cancel_work_sync(&rps->work);
 }

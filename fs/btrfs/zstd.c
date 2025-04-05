@@ -225,7 +225,7 @@ void zstd_cleanup_workspace_manager(void)
 	}
 	spin_unlock_bh(&wsm.lock);
 
-	del_timer_sync(&wsm.timer);
+	timer_delete_sync(&wsm.timer);
 }
 
 /*

@@ -1429,7 +1429,7 @@ static __always_inline bool is_migration_base(struct hrtimer_clock_base *base)
  * running.
  *
  * This prevents priority inversion: if the soft irq thread is preempted
- * in the middle of a timer callback, then calling del_timer_sync() can
+ * in the middle of a timer callback, then calling hrtimer_cancel() can
  * lead to two issues:
  *
  *  - If the caller is on a remote CPU then it has to spin wait for the timer

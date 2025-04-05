@@ -327,7 +327,7 @@ mptcp_pm_del_add_timer(struct mptcp_sock *msk,
 		list_del(&entry->list);
 	spin_unlock_bh(&msk->pm.lock);
 
-	/* no lock, because sk_stop_timer_sync() is calling del_timer_sync() */
+	/* no lock, because sk_stop_timer_sync() is calling timer_delete_sync() */
 	if (add_timer)
 		sk_stop_timer_sync(sk, add_timer);
 

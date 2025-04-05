@@ -271,7 +271,7 @@ static void iommu_dma_free_fq(struct iommu_dma_cookie *cookie)
 	if (!cookie->fq_domain)
 		return;
 
-	del_timer_sync(&cookie->fq_timer);
+	timer_delete_sync(&cookie->fq_timer);
 	if (cookie->options.qt == IOMMU_DMA_OPTS_SINGLE_QUEUE)
 		iommu_dma_free_fq_single(cookie->single_fq);
 	else

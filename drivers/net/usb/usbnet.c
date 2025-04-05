@@ -860,7 +860,7 @@ int usbnet_stop (struct net_device *net)
 
 	/* deferred work (timer, softirq, task) must also stop */
 	dev->flags = 0;
-	del_timer_sync(&dev->delay);
+	timer_delete_sync(&dev->delay);
 	tasklet_kill(&dev->bh);
 	cancel_work_sync(&dev->kevent);
 
@@ -869,7 +869,7 @@ int usbnet_stop (struct net_device *net)
 	 * we have a flag
 	 */
 	tasklet_kill(&dev->bh);
-	del_timer_sync(&dev->delay);
+	timer_delete_sync(&dev->delay);
 	cancel_work_sync(&dev->kevent);
 
 	if (!pm)
@@ -1882,7 +1882,7 @@ out1:
 	 */
 	usbnet_mark_going_away(dev);
 	cancel_work_sync(&dev->kevent);
-	del_timer_sync(&dev->delay);
+	timer_delete_sync(&dev->delay);
 	free_netdev(net);
 out:
 	return status;

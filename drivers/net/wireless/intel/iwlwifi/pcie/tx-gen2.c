@@ -911,7 +911,7 @@ static void iwl_txq_gen2_free(struct iwl_trans *trans, int txq_id)
 			kfree_sensitive(txq->entries[i].cmd);
 			kfree_sensitive(txq->entries[i].free_buf);
 		}
-	del_timer_sync(&txq->stuck_timer);
+	timer_delete_sync(&txq->stuck_timer);
 
 	iwl_txq_gen2_free_memory(trans, txq);
 

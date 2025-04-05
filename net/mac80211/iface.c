@@ -526,7 +526,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 		netif_addr_unlock_bh(sdata->dev);
 	}
 
-	del_timer_sync(&local->dynamic_ps_timer);
+	timer_delete_sync(&local->dynamic_ps_timer);
 	wiphy_work_cancel(local->hw.wiphy, &local->dynamic_ps_enable_work);
 
 	WARN(ieee80211_vif_is_mld(&sdata->vif),

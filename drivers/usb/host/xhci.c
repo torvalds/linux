@@ -627,7 +627,7 @@ void xhci_stop(struct usb_hcd *hcd)
 	/* Deleting Compliance Mode Recovery Timer */
 	if ((xhci->quirks & XHCI_COMP_MODE_QUIRK) &&
 			(!(xhci_all_ports_seen_u0(xhci)))) {
-		del_timer_sync(&xhci->comp_mode_recovery_timer);
+		timer_delete_sync(&xhci->comp_mode_recovery_timer);
 		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
 				"%s: compliance mode recovery timer deleted",
 				__func__);
@@ -672,11 +672,11 @@ void xhci_shutdown(struct usb_hcd *hcd)
 	xhci_dbg(xhci, "%s: stopping usb%d port polling.\n",
 			__func__, hcd->self.busnum);
 	clear_bit(HCD_FLAG_POLL_RH, &hcd->flags);
-	del_timer_sync(&hcd->rh_timer);
+	timer_delete_sync(&hcd->rh_timer);
 
 	if (xhci->shared_hcd) {
 		clear_bit(HCD_FLAG_POLL_RH, &xhci->shared_hcd->flags);
-		del_timer_sync(&xhci->shared_hcd->rh_timer);
+		timer_delete_sync(&xhci->shared_hcd->rh_timer);
 	}
 
 	spin_lock_irq(&xhci->lock);
@@ -908,10 +908,10 @@ int xhci_suspend(struct xhci_hcd *xhci, bool do_wakeup)
 	xhci_dbg(xhci, "%s: stopping usb%d port polling.\n",
 		 __func__, hcd->self.busnum);
 	clear_bit(HCD_FLAG_POLL_RH, &hcd->flags);
-	del_timer_sync(&hcd->rh_timer);
+	timer_delete_sync(&hcd->rh_timer);
 	if (xhci->shared_hcd) {
 		clear_bit(HCD_FLAG_POLL_RH, &xhci->shared_hcd->flags);
-		del_timer_sync(&xhci->shared_hcd->rh_timer);
+		timer_delete_sync(&xhci->shared_hcd->rh_timer);
 	}
 
 	if (xhci->quirks & XHCI_SUSPEND_DELAY)
@@ -978,7 +978,7 @@ int xhci_suspend(struct xhci_hcd *xhci, bool do_wakeup)
 	 */
 	if ((xhci->quirks & XHCI_COMP_MODE_QUIRK) &&
 			(!(xhci_all_ports_seen_u0(xhci)))) {
-		del_timer_sync(&xhci->comp_mode_recovery_timer);
+		timer_delete_sync(&xhci->comp_mode_recovery_timer);
 		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
 				"%s: compliance mode recovery timer deleted",
 				__func__);
@@ -1071,7 +1071,7 @@ int xhci_resume(struct xhci_hcd *xhci, bool power_lost, bool is_auto_resume)
 	if (power_lost) {
 		if ((xhci->quirks & XHCI_COMP_MODE_QUIRK) &&
 				!(xhci_all_ports_seen_u0(xhci))) {
-			del_timer_sync(&xhci->comp_mode_recovery_timer);
+			timer_delete_sync(&xhci->comp_mode_recovery_timer);
 			xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
 				"Compliance Mode Recovery Timer deleted!");
 		}

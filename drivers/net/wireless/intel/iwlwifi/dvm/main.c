@@ -1082,8 +1082,8 @@ void iwl_cancel_deferred_work(struct iwl_priv *priv)
 	cancel_work_sync(&priv->bt_full_concurrency);
 	cancel_work_sync(&priv->bt_runtime_config);
 
-	del_timer_sync(&priv->statistics_periodic);
-	del_timer_sync(&priv->ucode_trace);
+	timer_delete_sync(&priv->statistics_periodic);
+	timer_delete_sync(&priv->ucode_trace);
 }
 
 static int iwl_init_drv(struct iwl_priv *priv)

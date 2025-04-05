@@ -1515,7 +1515,7 @@ static int pn533_poll_complete(struct pn533 *dev, void *arg,
 	cur_mod = dev->poll_mod_active[dev->poll_mod_curr];
 
 	if (cur_mod->len == 0) { /* Target mode */
-		del_timer(&dev->listen_timer);
+		timer_delete(&dev->listen_timer);
 		rc = pn533_init_target_complete(dev, resp);
 		goto done;
 	}
@@ -1749,7 +1749,7 @@ static void pn533_stop_poll(struct nfc_dev *nfc_dev)
 {
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
 
-	del_timer(&dev->listen_timer);
+	timer_delete(&dev->listen_timer);
 
 	if (!dev->poll_mod_count) {
 		dev_dbg(dev->dev,

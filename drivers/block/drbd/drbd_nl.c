@@ -1033,7 +1033,7 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
 		/* We do some synchronous IO below, which may take some time.
 		 * Clear the timer, to avoid scary "timer expired!" messages,
 		 * "Superblock" is written out at least twice below, anyways. */
-		del_timer(&device->md_sync_timer);
+		timer_delete(&device->md_sync_timer);
 
 		/* We won't change the "al-extents" setting, we just may need
 		 * to move the on-disk location of the activity log ringbuffer.

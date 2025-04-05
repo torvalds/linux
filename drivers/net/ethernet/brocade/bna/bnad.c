@@ -1837,7 +1837,7 @@ bnad_stats_timer_stop(struct bnad *bnad)
 		to_del = 1;
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 	if (to_del)
-		del_timer_sync(&bnad->stats_timer);
+		timer_delete_sync(&bnad->stats_timer);
 }
 
 /* Utilities */
@@ -2160,7 +2160,7 @@ bnad_destroy_rx(struct bnad *bnad, u32 rx_id)
 		}
 		spin_unlock_irqrestore(&bnad->bna_lock, flags);
 		if (to_del)
-			del_timer_sync(&bnad->dim_timer);
+			timer_delete_sync(&bnad->dim_timer);
 	}
 
 	init_completion(&bnad->bnad_completions.rx_comp);
@@ -3726,9 +3726,9 @@ probe_uninit:
 	bnad_res_free(bnad, &bnad->mod_res_info[0], BNA_MOD_RES_T_MAX);
 disable_ioceth:
 	bnad_ioceth_disable(bnad);
-	del_timer_sync(&bnad->bna.ioceth.ioc.ioc_timer);
-	del_timer_sync(&bnad->bna.ioceth.ioc.sem_timer);
-	del_timer_sync(&bnad->bna.ioceth.ioc.hb_timer);
+	timer_delete_sync(&bnad->bna.ioceth.ioc.ioc_timer);
+	timer_delete_sync(&bnad->bna.ioceth.ioc.sem_timer);
+	timer_delete_sync(&bnad->bna.ioceth.ioc.hb_timer);
 	spin_lock_irqsave(&bnad->bna_lock, flags);
 	bna_uninit(bna);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
@@ -3769,9 +3769,9 @@ bnad_pci_remove(struct pci_dev *pdev)
 
 	mutex_lock(&bnad->conf_mutex);
 	bnad_ioceth_disable(bnad);
-	del_timer_sync(&bnad->bna.ioceth.ioc.ioc_timer);
-	del_timer_sync(&bnad->bna.ioceth.ioc.sem_timer);
-	del_timer_sync(&bnad->bna.ioceth.ioc.hb_timer);
+	timer_delete_sync(&bnad->bna.ioceth.ioc.ioc_timer);
+	timer_delete_sync(&bnad->bna.ioceth.ioc.sem_timer);
+	timer_delete_sync(&bnad->bna.ioceth.ioc.hb_timer);
 	spin_lock_irqsave(&bnad->bna_lock, flags);
 	bna_uninit(bna);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
