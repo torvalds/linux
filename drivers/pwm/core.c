@@ -270,10 +270,10 @@ int pwm_round_waveform_might_sleep(struct pwm_device *pwm, struct pwm_waveform *
 			wf_req.duty_length_ns, wf_req.period_length_ns, wf_req.duty_offset_ns, ret_tohw);
 
 	if (IS_ENABLED(CONFIG_PWM_DEBUG) &&
-	    ret_tohw == 0 && !pwm_check_rounding(&wf_req, wf))
-		dev_err(&chip->dev, "Wrong rounding: requested %llu/%llu [+%llu], result %llu/%llu [+%llu]\n",
+	    (ret_tohw == 0) != pwm_check_rounding(&wf_req, wf))
+		dev_err(&chip->dev, "Wrong rounding: requested %llu/%llu [+%llu], result %llu/%llu [+%llu], ret: %d\n",
 			wf_req.duty_length_ns, wf_req.period_length_ns, wf_req.duty_offset_ns,
-			wf->duty_length_ns, wf->period_length_ns, wf->duty_offset_ns);
+			wf->duty_length_ns, wf->period_length_ns, wf->duty_offset_ns, ret_tohw);
 
 	return ret_tohw;
 }
@@ -341,10 +341,10 @@ static int __pwm_set_waveform(struct pwm_device *pwm,
 		if (err)
 			return err;
 
-		if (IS_ENABLED(CONFIG_PWM_DEBUG) && ret_tohw == 0 && !pwm_check_rounding(wf, &wf_rounded))
-			dev_err(&chip->dev, "Wrong rounding: requested %llu/%llu [+%llu], result %llu/%llu [+%llu]\n",
+		if (IS_ENABLED(CONFIG_PWM_DEBUG) && (ret_tohw == 0) != pwm_check_rounding(wf, &wf_rounded))
+			dev_err(&chip->dev, "Wrong rounding: requested %llu/%llu [+%llu], result %llu/%llu [+%llu], ret: %d\n",
 				wf->duty_length_ns, wf->period_length_ns, wf->duty_offset_ns,
-				wf_rounded.duty_length_ns, wf_rounded.period_length_ns, wf_rounded.duty_offset_ns);
+				wf_rounded.duty_length_ns, wf_rounded.period_length_ns, wf_rounded.duty_offset_ns, ret_tohw);
 
 		if (exact && pwmwfcmp(wf, &wf_rounded)) {
 			dev_dbg(&chip->dev, "Requested no rounding, but %llu/%llu [+%llu] -> %llu/%llu [+%llu]\n",
