@@ -99,4 +99,13 @@ static inline void chacha20_crypt(u32 *state, u8 *dst, const u8 *src,
 	chacha_crypt(state, dst, src, bytes, 20);
 }
 
+#if IS_ENABLED(CONFIG_CRYPTO_ARCH_HAVE_LIB_CHACHA)
+bool chacha_is_arch_optimized(void);
+#else
+static inline bool chacha_is_arch_optimized(void)
+{
+	return false;
+}
+#endif
+
 #endif /* _CRYPTO_CHACHA_H */

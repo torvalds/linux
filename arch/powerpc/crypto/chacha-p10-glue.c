@@ -189,6 +189,12 @@ static struct skcipher_alg algs[] = {
 	}
 };
 
+bool chacha_is_arch_optimized(void)
+{
+	return static_key_enabled(&have_p10);
+}
+EXPORT_SYMBOL(chacha_is_arch_optimized);
+
 static int __init chacha_p10_init(void)
 {
 	if (!cpu_has_feature(CPU_FTR_ARCH_31))
@@ -207,7 +213,7 @@ static void __exit chacha_p10_exit(void)
 	crypto_unregister_skciphers(algs, ARRAY_SIZE(algs));
 }
 
-module_init(chacha_p10_init);
+arch_initcall(chacha_p10_init);
 module_exit(chacha_p10_exit);
 
 MODULE_DESCRIPTION("ChaCha and XChaCha stream ciphers (P10 accelerated)");

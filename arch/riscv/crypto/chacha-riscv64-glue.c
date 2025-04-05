@@ -49,6 +49,12 @@ void chacha_crypt_arch(u32 *state, u8 *dst, const u8 *src, unsigned int bytes,
 }
 EXPORT_SYMBOL(chacha_crypt_arch);
 
+bool chacha_is_arch_optimized(void)
+{
+	return static_key_enabled(&use_zvkb);
+}
+EXPORT_SYMBOL(chacha_is_arch_optimized);
+
 static int __init riscv64_chacha_mod_init(void)
 {
 	if (riscv_isa_extension_available(NULL, ZVKB) &&
@@ -56,7 +62,7 @@ static int __init riscv64_chacha_mod_init(void)
 		static_branch_enable(&use_zvkb);
 	return 0;
 }
-module_init(riscv64_chacha_mod_init);
+arch_initcall(riscv64_chacha_mod_init);
 
 MODULE_DESCRIPTION("ChaCha stream cipher (RISC-V optimized)");
 MODULE_AUTHOR("Jerry Shih <jerry.shih@sifive.com>");

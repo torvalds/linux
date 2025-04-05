@@ -247,6 +247,12 @@ static struct skcipher_alg algs[] = {
 	},
 };
 
+bool chacha_is_arch_optimized(void)
+{
+	return static_key_enabled(&chacha_use_simd);
+}
+EXPORT_SYMBOL(chacha_is_arch_optimized);
+
 static int __init chacha_simd_mod_init(void)
 {
 	if (!boot_cpu_has(X86_FEATURE_SSSE3))
@@ -271,7 +277,7 @@ static void __exit chacha_simd_mod_fini(void)
 		crypto_unregister_skciphers(algs, ARRAY_SIZE(algs));
 }
 
-module_init(chacha_simd_mod_init);
+arch_initcall(chacha_simd_mod_init);
 module_exit(chacha_simd_mod_fini);
 
 MODULE_LICENSE("GPL");

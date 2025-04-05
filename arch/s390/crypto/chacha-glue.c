@@ -103,6 +103,12 @@ static struct skcipher_alg chacha_algs[] = {
 	}
 };
 
+bool chacha_is_arch_optimized(void)
+{
+	return cpu_has_vx();
+}
+EXPORT_SYMBOL(chacha_is_arch_optimized);
+
 static int __init chacha_mod_init(void)
 {
 	return IS_REACHABLE(CONFIG_CRYPTO_SKCIPHER) ?
@@ -115,7 +121,7 @@ static void __exit chacha_mod_fini(void)
 		crypto_unregister_skciphers(chacha_algs, ARRAY_SIZE(chacha_algs));
 }
 
-module_cpu_feature_match(S390_CPU_FEATURE_VXRS, chacha_mod_init);
+arch_initcall(chacha_mod_init);
 module_exit(chacha_mod_fini);
 
 MODULE_DESCRIPTION("ChaCha20 stream cipher");

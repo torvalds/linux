@@ -287,6 +287,13 @@ static struct skcipher_alg neon_algs[] = {
 	}
 };
 
+bool chacha_is_arch_optimized(void)
+{
+	/* We always can use at least the ARM scalar implementation. */
+	return true;
+}
+EXPORT_SYMBOL(chacha_is_arch_optimized);
+
 static int __init chacha_simd_mod_init(void)
 {
 	int err = 0;
@@ -333,7 +340,7 @@ static void __exit chacha_simd_mod_fini(void)
 	}
 }
 
-module_init(chacha_simd_mod_init);
+arch_initcall(chacha_simd_mod_init);
 module_exit(chacha_simd_mod_fini);
 
 MODULE_DESCRIPTION("ChaCha and XChaCha stream ciphers (scalar and NEON accelerated)");
