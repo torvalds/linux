@@ -10,26 +10,6 @@ config LKL
        select NO_HZ_IDLE
        select NO_PREEMPT
        select ARCH_WANT_FRAME_POINTERS
-       select NET
-       select MULTIUSER
-       select INET
-       select IPV6
-       select IP_PNP
-       select IP_PNP_DHCP
-       select TCP_CONG_ADVANCED
-       select TCP_CONG_BBR
-       select HIGH_RES_TIMERS
-       select NET_SCHED
-       select NET_SCH_FQ
-       select IP_MULTICAST
-       select IPV6_MULTICAST
-       select IP_MULTIPLE_TABLES
-       select IPV6_MULTIPLE_TABLES
-       select IP_ROUTE_MULTIPATH
-       select IPV6_ROUTE_MULTIPATH
-       select IP_ADVANCED_ROUTER
-       select IPV6_ADVANCED_ROUTER
-       select BLK_DEV_NVME
        select UACCESS_MEMCPY
        select GENERIC_STRNCPY_FROM_USER
        select GENERIC_STRNLEN_USER
