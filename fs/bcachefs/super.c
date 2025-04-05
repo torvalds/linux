@@ -601,8 +601,8 @@ static void __bch2_fs_free(struct bch_fs *c)
 		destroy_workqueue(c->btree_read_complete_wq);
 	if (c->copygc_wq)
 		destroy_workqueue(c->copygc_wq);
-	if (c->btree_io_complete_wq)
-		destroy_workqueue(c->btree_io_complete_wq);
+	if (c->btree_write_complete_wq)
+		destroy_workqueue(c->btree_write_complete_wq);
 	if (c->btree_update_wq)
 		destroy_workqueue(c->btree_update_wq);
 
@@ -876,7 +876,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	if (!(c->btree_update_wq = alloc_workqueue("bcachefs",
 				WQ_HIGHPRI|WQ_FREEZABLE|WQ_MEM_RECLAIM|WQ_UNBOUND, 512)) ||
-	    !(c->btree_io_complete_wq = alloc_workqueue("bcachefs_btree_io",
+	    !(c->btree_write_complete_wq = alloc_workqueue("bcachefs_btree_write",
 				WQ_HIGHPRI|WQ_FREEZABLE|WQ_MEM_RECLAIM, 1)) ||
 	    !(c->copygc_wq = alloc_workqueue("bcachefs_copygc",
 				WQ_HIGHPRI|WQ_FREEZABLE|WQ_MEM_RECLAIM|WQ_CPU_INTENSIVE, 1)) ||

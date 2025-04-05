@@ -877,7 +877,7 @@ struct bch_fs {
 	struct btree_write_buffer btree_write_buffer;
 
 	struct workqueue_struct	*btree_update_wq;
-	struct workqueue_struct	*btree_io_complete_wq;
+	struct workqueue_struct	*btree_write_complete_wq;
 	/* copygc needs its own workqueue for index updates.. */
 	struct workqueue_struct	*copygc_wq;
 	/*
