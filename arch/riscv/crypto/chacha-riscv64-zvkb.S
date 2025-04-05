@@ -46,11 +46,11 @@
 .text
 .option arch, +zvkb
 
-#define KEYP		a0
+#define STATEP		a0
 #define INP		a1
 #define OUTP		a2
-#define LEN		a3
-#define IVP		a4
+#define NBLOCKS		a3
+#define NROUNDS		a4
 
 #define CONSTS0		a5
 #define CONSTS1		a6
@@ -59,7 +59,7 @@
 #define TMP		t1
 #define VL		t2
 #define STRIDE		t3
-#define NROUNDS		t4
+#define ROUND_CTR	t4
 #define KEY0		s0
 #define KEY1		s1
 #define KEY2		s2
@@ -132,14 +132,16 @@
 	vror.vi		\b3, \b3, 32 - 7
 .endm
 
-// void chacha20_zvkb(const u32 key[8], const u8 *in, u8 *out, size_t len,
-//		      const u32 iv[4]);
+// void chacha_zvkb(u32 state[16], const u8 *in, u8 *out, size_t nblocks,
+//		    int nrounds);
 //
-// |len| must be nonzero and a multiple of 64 (CHACHA_BLOCK_SIZE).
-// The counter is treated as 32-bit, following the RFC7539 convention.
-SYM_FUNC_START(chacha20_zvkb)
-	srli		LEN, LEN, 6	// Bytes to blocks
-
+// |nblocks| is the number of 64-byte blocks to process, and must be nonzero.
+//
+// |state| gives the ChaCha state matrix, including the 32-bit counter in
+// state[12] following the RFC7539 convention; note that this differs from the
+// original Salsa20 paper which uses a 64-bit counter in state[12..13].  The
+// updated 32-bit counter is written back to state[12] before returning.
+SYM_FUNC_START(chacha_zvkb)
 	addi		sp, sp, -96
 	sd		s0, 0(sp)
 	sd		s1, 8(sp)
@@ -157,26 +159,26 @@ SYM_FUNC_START(chacha20_zvkb)
 	li		STRIDE, 64
 
 	// Set up the initial state matrix in scalar registers.
-	li		CONSTS0, 0x61707865	// "expa" little endian
-	li		CONSTS1, 0x3320646e	// "nd 3" little endian
-	li		CONSTS2, 0x79622d32	// "2-by" little endian
-	li		CONSTS3, 0x6b206574	// "te k" little endian
-	lw		KEY0, 0(KEYP)
-	lw		KEY1, 4(KEYP)
-	lw		KEY2, 8(KEYP)
-	lw		KEY3, 12(KEYP)
-	lw		KEY4, 16(KEYP)
-	lw		KEY5, 20(KEYP)
-	lw		KEY6, 24(KEYP)
-	lw		KEY7, 28(KEYP)
-	lw		COUNTER, 0(IVP)
-	lw		NONCE0, 4(IVP)
-	lw		NONCE1, 8(IVP)
-	lw		NONCE2, 12(IVP)
+	lw		CONSTS0, 0(STATEP)
+	lw		CONSTS1, 4(STATEP)
+	lw		CONSTS2, 8(STATEP)
+	lw		CONSTS3, 12(STATEP)
+	lw		KEY0, 16(STATEP)
+	lw		KEY1, 20(STATEP)
+	lw		KEY2, 24(STATEP)
+	lw		KEY3, 28(STATEP)
+	lw		KEY4, 32(STATEP)
+	lw		KEY5, 36(STATEP)
+	lw		KEY6, 40(STATEP)
+	lw		KEY7, 44(STATEP)
+	lw		COUNTER, 48(STATEP)
+	lw		NONCE0, 52(STATEP)
+	lw		NONCE1, 56(STATEP)
+	lw		NONCE2, 60(STATEP)
 
 .Lblock_loop:
 	// Set vl to the number of blocks to process in this iteration.
-	vsetvli		VL, LEN, e32, m1, ta, ma
+	vsetvli		VL, NBLOCKS, e32, m1, ta, ma
 
 	// Set up the initial state matrix for the next VL blocks in v0-v15.
 	// v{i} holds the i'th 32-bit word of the state matrix for all blocks.
@@ -203,16 +205,16 @@ SYM_FUNC_START(chacha20_zvkb)
 	// v{16+i} holds the i'th 32-bit word for all blocks.
 	vlsseg8e32.v	v16, (INP), STRIDE
 
-	li		NROUNDS, 20
+	mv		ROUND_CTR, NROUNDS
 .Lnext_doubleround:
-	addi		NROUNDS, NROUNDS, -2
+	addi		ROUND_CTR, ROUND_CTR, -2
 	// column round
 	chacha_round	v0, v4, v8, v12, v1, v5, v9, v13, \
 			v2, v6, v10, v14, v3, v7, v11, v15
 	// diagonal round
 	chacha_round	v0, v5, v10, v15, v1, v6, v11, v12, \
 			v2, v7, v8, v13, v3, v4, v9, v14
-	bnez		NROUNDS, .Lnext_doubleround
+	bnez		ROUND_CTR, .Lnext_doubleround
 
 	// Load the second half of the input data for each block into v24-v31.
 	// v{24+i} holds the {8+i}'th 32-bit word for all blocks.
@@ -271,12 +273,13 @@ SYM_FUNC_START(chacha20_zvkb)
 	// Update the counter, the remaining number of blocks, and the input and
 	// output pointers according to the number of blocks processed (VL).
 	add		COUNTER, COUNTER, VL
-	sub		LEN, LEN, VL
+	sub		NBLOCKS, NBLOCKS, VL
 	slli		TMP, VL, 6
 	add		OUTP, OUTP, TMP
 	add		INP, INP, TMP
-	bnez		LEN, .Lblock_loop
+	bnez		NBLOCKS, .Lblock_loop
 
+	sw		COUNTER, 48(STATEP)
 	ld		s0, 0(sp)
 	ld		s1, 8(sp)
 	ld		s2, 16(sp)
@@ -291,4 +294,4 @@ SYM_FUNC_START(chacha20_zvkb)
 	ld		s11, 88(sp)
 	addi		sp, sp, 96
 	ret
-SYM_FUNC_END(chacha20_zvkb)
+SYM_FUNC_END(chacha_zvkb)
