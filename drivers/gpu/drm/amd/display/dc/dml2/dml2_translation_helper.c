@@ -590,11 +590,11 @@ void dml2_init_soc_states(struct dml2_context *dml2, const struct dc *in_dc,
 			p->out_states->state_array[i].dtbclk_mhz = max_dtbclk_mhz;
 			p->out_states->state_array[i].phyclk_mhz = max_phyclk_mhz;
 
+			p->out_states->state_array[i].dscclk_mhz = max_dispclk_mhz / 3.0;
 			p->out_states->state_array[i].phyclk_mhz = max_phyclk_mhz;
 			p->out_states->state_array[i].dtbclk_mhz = max_dtbclk_mhz;
 
 			/* Dependent states. */
-			p->out_states->state_array[i].dscclk_mhz = p->in_states->state_array[i].dscclk_mhz;
 			p->out_states->state_array[i].dram_speed_mts = p->in_states->state_array[i].dram_speed_mts;
 			p->out_states->state_array[i].fabricclk_mhz = p->in_states->state_array[i].fabricclk_mhz;
 			p->out_states->state_array[i].socclk_mhz = p->in_states->state_array[i].socclk_mhz;

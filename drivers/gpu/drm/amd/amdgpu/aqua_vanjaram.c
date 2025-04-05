@@ -473,7 +473,8 @@ static int aqua_vanjaram_get_xcp_res_info(struct amdgpu_xcp_mgr *xcp_mgr,
 		break;
 	case AMDGPU_DPX_PARTITION_MODE:
 		num_xcp = 2;
-		nps_modes = BIT(AMDGPU_NPS1_PARTITION_MODE);
+		nps_modes = BIT(AMDGPU_NPS1_PARTITION_MODE) |
+			    BIT(AMDGPU_NPS2_PARTITION_MODE);
 		break;
 	case AMDGPU_TPX_PARTITION_MODE:
 		num_xcp = 3;
