@@ -214,15 +214,8 @@ config CRYPTO_AES_ARM_CE
 
 config CRYPTO_CHACHA20_NEON
 	tristate
-	select CRYPTO_SKCIPHER
 	select CRYPTO_ARCH_HAVE_LIB_CHACHA
 	default CRYPTO_LIB_CHACHA_INTERNAL
-	help
-	  Length-preserving ciphers: ChaCha20, XChaCha20, and XChaCha12
-	  stream cipher algorithms
-
-	  Architecture: arm using:
-	  - NEON (Advanced SIMD) extensions
 
 endmenu
 
