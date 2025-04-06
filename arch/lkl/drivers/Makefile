@@ -1,2 +1,3 @@
+# SPDX-License-Identifier: GPL-2.0
 
-obj-y = pci.o
+obj-$(CONFIG_PCI) += pci.o

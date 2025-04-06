@@ -10,8 +10,6 @@ config LKL
        select NO_HZ_IDLE
        select NO_PREEMPT
        select ARCH_WANT_FRAME_POINTERS
-       select HAS_DMA
-       select DMA_OPS
        select NET
        select MULTIUSER
        select INET
@@ -146,6 +144,8 @@ config PCI
 	bool "PCI support"
 	select NO_GENERIC_PCI_IOPORT_MAP
 	select GENERIC_PCI_IOMAP
+	select HAS_DMA
+	select DMA_OPS
 	default y
 
 config RAID6_PQ_BENCHMARK
