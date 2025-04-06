@@ -153,7 +153,7 @@ struct msr_counter bic[] = {
 	{ 0x0, "TSC_MHz", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "IRQ", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "SMI", NULL, 32, 0, FORMAT_DELTA, NULL, 0 },
-	{ 0x0, "sysfs", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "cpuidle", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "CPU%c1", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "CPU%c3", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "CPU%c6", NULL, 0, 0, 0, NULL, 0 },
@@ -206,6 +206,7 @@ struct msr_counter bic[] = {
 	{ 0x0, "Sys_J", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "NMI", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "CPU%c1e", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "pct_idle", NULL, 0, 0, 0, NULL, 0 },
 };
 
 #define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
@@ -219,7 +220,7 @@ struct msr_counter bic[] = {
 #define	BIC_TSC_MHz	(1ULL << 7)
 #define	BIC_IRQ		(1ULL << 8)
 #define	BIC_SMI		(1ULL << 9)
-#define	BIC_sysfs	(1ULL << 10)
+#define	BIC_cpuidle	(1ULL << 10)
 #define	BIC_CPU_c1	(1ULL << 11)
 #define	BIC_CPU_c3	(1ULL << 12)
 #define	BIC_CPU_c6	(1ULL << 13)
@@ -272,17 +273,20 @@ struct msr_counter bic[] = {
 #define	BIC_Sys_J		(1ULL << 60)
 #define	BIC_NMI			(1ULL << 61)
 #define	BIC_CPU_c1e		(1ULL << 62)
+#define	BIC_pct_idle		(1ULL << 63)
 
 #define BIC_GROUP_TOPOLOGY (BIC_Package | BIC_Node | BIC_CoreCnt | BIC_PkgCnt | BIC_Core | BIC_CPU | BIC_Die)
 #define BIC_GROUP_THERMAL_PWR (BIC_CoreTmp | BIC_PkgTmp | BIC_PkgWatt | BIC_CorWatt | BIC_GFXWatt | BIC_RAMWatt | BIC_PKG__ | BIC_RAM__ | BIC_SysWatt)
 #define BIC_GROUP_FREQUENCY (BIC_Avg_MHz | BIC_Busy | BIC_Bzy_MHz | BIC_TSC_MHz | BIC_GFXMHz | BIC_GFXACTMHz | BIC_SAMMHz | BIC_SAMACTMHz | BIC_UNCORE_MHZ)
-#define BIC_GROUP_IDLE (BIC_Busy | BIC_sysfs | BIC_CPU_c1 | BIC_CPU_c3 | BIC_CPU_c6 | BIC_CPU_c7 | BIC_GFX_rc6 | BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_CPU_LPI | BIC_SYS_LPI | BIC_Mod_c6 | BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX | BIC_SAM_mc6 | BIC_Diec6)
+#define BIC_GROUP_HW_IDLE (BIC_Busy | BIC_CPU_c1 | BIC_CPU_c3 | BIC_CPU_c6 | BIC_CPU_c7 | BIC_GFX_rc6 | BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_CPU_LPI | BIC_SYS_LPI | BIC_Mod_c6 | BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX | BIC_SAM_mc6 | BIC_Diec6)
+#define BIC_GROUP_SW_IDLE (BIC_Busy | BIC_cpuidle | BIC_pct_idle )
+#define BIC_GROUP_IDLE (BIC_GROUP_HW_IDLE | BIC_pct_idle) 
 #define BIC_OTHER (BIC_IRQ | BIC_NMI | BIC_SMI | BIC_ThreadC | BIC_CoreTmp | BIC_IPC)
 
-#define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD | BIC_APIC | BIC_X2APIC)
+#define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD | BIC_APIC | BIC_X2APIC | BIC_cpuidle)
 
 unsigned long long bic_enabled = (0xFFFFFFFFFFFFFFFFULL & ~BIC_DISABLED_BY_DEFAULT);
-unsigned long long bic_present = BIC_USEC | BIC_TOD | BIC_sysfs | BIC_APIC | BIC_X2APIC;
+unsigned long long bic_present = BIC_USEC | BIC_TOD | BIC_cpuidle | BIC_pct_idle | BIC_APIC | BIC_X2APIC;
 
 #define DO_BIC(COUNTER_NAME) (bic_enabled & bic_present & COUNTER_NAME)
 #define DO_BIC_READ(COUNTER_NAME) (bic_present & COUNTER_NAME)
@@ -2362,6 +2366,15 @@ unsigned long long bic_lookup(char *name_list, enum show_hide_mode mode)
 			} else if (!strcmp(name_list, "idle")) {
 				retval |= BIC_GROUP_IDLE;
 				break;
+			} else if (!strcmp(name_list, "swidle")) {
+				retval |= BIC_GROUP_SW_IDLE;
+				break;
+			} else if (!strcmp(name_list, "sysfs")) {	/* legacy compatibility */
+				retval |= BIC_GROUP_SW_IDLE;
+				break;
+			} else if (!strcmp(name_list, "hwidle")) {
+				retval |= BIC_GROUP_HW_IDLE;
+				break;
 			} else if (!strcmp(name_list, "frequency")) {
 				retval |= BIC_GROUP_FREQUENCY;
 				break;
@@ -2372,6 +2385,7 @@ unsigned long long bic_lookup(char *name_list, enum show_hide_mode mode)
 
 		}
 		if (i == MAX_BIC) {
+			fprintf(stderr, "deferred %s\n", name_list);
 			if (mode == SHOW_LIST) {
 				deferred_add_names[deferred_add_index++] = name_list;
 				if (deferred_add_index >= MAX_DEFERRED) {
@@ -10269,6 +10283,9 @@ void probe_cpuidle_residency(void)
 	int min_state = 1024, max_state = 0;
 	char *sp;
 
+	if (!DO_BIC(BIC_pct_idle))
+		return;
+
 	for (state = 10; state >= 0; --state) {
 
 		sprintf(path, "/sys/devices/system/cpu/cpu%d/cpuidle/state%d/name", base_cpu, state);
@@ -10291,7 +10308,7 @@ void probe_cpuidle_residency(void)
 
 		sprintf(path, "cpuidle/state%d/time", state);
 
-		if (!DO_BIC(BIC_sysfs) && !is_deferred_add(name_buf))
+		if (!DO_BIC(BIC_pct_idle) && !is_deferred_add(name_buf))
 			continue;
 
 		if (is_deferred_skip(name_buf))
@@ -10315,6 +10332,9 @@ void probe_cpuidle_counts(void)
 	int min_state = 1024, max_state = 0;
 	char *sp;
 
+	if (!DO_BIC(BIC_cpuidle))
+		return;
+
 	for (state = 10; state >= 0; --state) {
 
 		sprintf(path, "/sys/devices/system/cpu/cpu%d/cpuidle/state%d/name", base_cpu, state);
@@ -10327,7 +10347,7 @@ void probe_cpuidle_counts(void)
 
 		remove_underbar(name_buf);
 
-		if (!DO_BIC(BIC_sysfs) && !is_deferred_add(name_buf))
+		if (!DO_BIC(BIC_cpuidle) && !is_deferred_add(name_buf))
 			continue;
 
 		if (is_deferred_skip(name_buf))
