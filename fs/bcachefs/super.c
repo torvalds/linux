@@ -1002,12 +1002,6 @@ static void print_mount_opts(struct bch_fs *c)
 	prt_str(&p, "starting version ");
 	bch2_version_to_text(&p, c->sb.version);
 
-	if (c->opts.read_only) {
-		prt_str(&p, " opts=");
-		first = false;
-		prt_printf(&p, "ro");
-	}
-
 	for (i = 0; i < bch2_opts_nr; i++) {
 		const struct bch_option *opt = &bch2_opt_table[i];
 		u64 v = bch2_opt_get_by_id(&c->opts, i);
