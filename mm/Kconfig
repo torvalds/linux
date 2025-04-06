@@ -201,7 +201,7 @@ config KVFREE_RCU_BATCHED
 
 config SLUB_TINY
 	bool "Configure for minimal memory footprint"
-	depends on EXPERT
+	depends on EXPERT && !COMPILE_TEST
 	select SLAB_MERGE_DEFAULT
 	help
 	   Configures the slab allocator in a way to achieve minimal memory

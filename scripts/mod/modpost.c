@@ -1603,7 +1603,7 @@ static void read_symbols(const char *modname)
 		}
 
 		if (!get_modinfo(&info, "description"))
-			error("missing MODULE_DESCRIPTION() in %s\n", modname);
+			warn("missing MODULE_DESCRIPTION() in %s\n", modname);
 	}
 
 	for (sym = info.symtab_start; sym < info.symtab_stop; sym++) {
