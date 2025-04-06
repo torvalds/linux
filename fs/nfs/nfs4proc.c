@@ -671,6 +671,15 @@ nfs4_async_handle_exception(struct rpc_task *task, struct nfs_server *server,
 	struct nfs_client *clp = server->nfs_client;
 	int ret;
 
+	if ((task->tk_rpc_status == -ENETDOWN ||
+	     task->tk_rpc_status == -ENETUNREACH) &&
+	    task->tk_flags & RPC_TASK_NETUNREACH_FATAL) {
+		exception->delay = 0;
+		exception->recovering = 0;
+		exception->retry = 0;
+		return -EIO;
+	}
+
 	ret = nfs4_do_handle_exception(server, errorcode, exception);
 	if (exception->delay) {
 		int ret2 = nfs4_exception_should_retrans(server, exception);
