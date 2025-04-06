@@ -494,7 +494,7 @@ static inline void start_timeout(void)
 
 static inline void stop_timeout(void)
 {
-	del_timer(&timeout_timer);
+	timer_delete(&timeout_timer);
 }
 
 /* Select the side to use. */
@@ -784,7 +784,7 @@ static int do_format(int drive, int type, struct atari_format_descr *desc)
 	   contents become invalid! */
 	BufferDrive = -1;
 	/* stop deselect timer */
-	del_timer( &motor_off_timer );
+	timer_delete(&motor_off_timer);
 
 	FILL( 60 * (nsect / 9), 0x4e );
 	for( sect = 0; sect < nsect; ++sect ) {
@@ -1138,7 +1138,7 @@ static void fd_rwsec_done( int status )
 	DPRINT(("fd_rwsec_done()\n"));
 
 	if (read_track) {
-		del_timer(&readtrack_timer);
+		timer_delete(&readtrack_timer);
 		if (!MultReadInProgress)
 			return;
 		MultReadInProgress = 0;
@@ -1356,7 +1356,7 @@ static void fd_times_out(struct timer_list *unused)
 	/* If the timeout occurred while the readtrack_check timer was
 	 * active, we need to cancel it, else bad things will happen */
 	if (UseTrackbuffer)
-		del_timer( &readtrack_timer );
+		timer_delete(&readtrack_timer);
 	FDC_WRITE( FDCREG_CMD, FDCCMD_FORCI );
 	udelay( 25 );
 	
@@ -1566,7 +1566,7 @@ static blk_status_t ataflop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	}
 
 	/* stop deselect timer */
-	del_timer( &motor_off_timer );
+	timer_delete(&motor_off_timer);
 		
 	ReqCnt = 0;
 	ReqCmd = rq_data_dir(fd_request);
@@ -2055,7 +2055,7 @@ static void atari_floppy_cleanup(void)
 		blk_mq_free_tag_set(&unit[i].tag_set);
 	}
 
-	del_timer_sync(&fd_timer);
+	timer_delete_sync(&fd_timer);
 	atari_stram_free(DMABuffer);
 }
 

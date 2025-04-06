@@ -1984,9 +1984,9 @@ void t1_sge_stop(struct sge *sge)
 	readl(sge->adapter->regs + A_SG_CONTROL); /* flush */
 
 	if (is_T2(sge->adapter))
-		del_timer_sync(&sge->espibug_timer);
+		timer_delete_sync(&sge->espibug_timer);
 
-	del_timer_sync(&sge->tx_reclaim_timer);
+	timer_delete_sync(&sge->tx_reclaim_timer);
 	if (sge->tx_sched)
 		tx_sched_stop(sge);
 

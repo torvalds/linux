@@ -118,7 +118,7 @@ fail:
 void sctp_transport_free(struct sctp_transport *transport)
 {
 	/* Try to delete the heartbeat timer.  */
-	if (del_timer(&transport->hb_timer))
+	if (timer_delete(&transport->hb_timer))
 		sctp_transport_put(transport);
 
 	/* Delete the T3_rtx timer if it's active.
@@ -126,17 +126,17 @@ void sctp_transport_free(struct sctp_transport *transport)
 	 * structure hang around in memory since we know
 	 * the transport is going away.
 	 */
-	if (del_timer(&transport->T3_rtx_timer))
+	if (timer_delete(&transport->T3_rtx_timer))
 		sctp_transport_put(transport);
 
-	if (del_timer(&transport->reconf_timer))
+	if (timer_delete(&transport->reconf_timer))
 		sctp_transport_put(transport);
 
-	if (del_timer(&transport->probe_timer))
+	if (timer_delete(&transport->probe_timer))
 		sctp_transport_put(transport);
 
 	/* Delete the ICMP proto unreachable timer if it's active. */
-	if (del_timer(&transport->proto_unreach_timer))
+	if (timer_delete(&transport->proto_unreach_timer))
 		sctp_transport_put(transport);
 
 	sctp_transport_put(transport);
@@ -829,7 +829,7 @@ void sctp_transport_reset(struct sctp_transport *t)
 void sctp_transport_immediate_rtx(struct sctp_transport *t)
 {
 	/* Stop pending T3_rtx_timer */
-	if (del_timer(&t->T3_rtx_timer))
+	if (timer_delete(&t->T3_rtx_timer))
 		sctp_transport_put(t);
 
 	sctp_retransmit(&t->asoc->outqueue, t, SCTP_RTXR_T3_RTX);

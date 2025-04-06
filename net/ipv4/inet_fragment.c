@@ -133,7 +133,7 @@ static void inet_frags_free_cb(void *ptr, void *arg)
 	struct inet_frag_queue *fq = ptr;
 	int count;
 
-	count = del_timer_sync(&fq->timer) ? 1 : 0;
+	count = timer_delete_sync(&fq->timer) ? 1 : 0;
 
 	spin_lock_bh(&fq->lock);
 	fq->flags |= INET_FRAG_DROP;
@@ -227,7 +227,7 @@ EXPORT_SYMBOL(fqdir_exit);
 
 void inet_frag_kill(struct inet_frag_queue *fq, int *refs)
 {
-	if (del_timer(&fq->timer))
+	if (timer_delete(&fq->timer))
 		(*refs)++;
 
 	if (!(fq->flags & INET_FRAG_COMPLETE)) {
@@ -297,7 +297,7 @@ void inet_frag_destroy(struct inet_frag_queue *q)
 	reason = (q->flags & INET_FRAG_DROP) ?
 			SKB_DROP_REASON_FRAG_REASM_TIMEOUT :
 			SKB_CONSUMED;
-	WARN_ON(del_timer(&q->timer) != 0);
+	WARN_ON(timer_delete(&q->timer) != 0);
 
 	/* Release all fragment data. */
 	fqdir = q->fqdir;

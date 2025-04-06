@@ -1303,7 +1303,7 @@ void shutdown_led_override(struct hfi1_pportdata *ppd)
 	 */
 	smp_rmb();
 	if (atomic_read(&ppd->led_override_timer_active)) {
-		del_timer_sync(&ppd->led_override_timer);
+		timer_delete_sync(&ppd->led_override_timer);
 		atomic_set(&ppd->led_override_timer_active, 0);
 		/* Ensure the atomic_set is visible to all CPUs */
 		smp_wmb();

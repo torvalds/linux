@@ -619,7 +619,7 @@ static inline void clocksource_stop_watchdog(void)
 {
 	if (!watchdog_running || (watchdog && !list_empty(&watchdog_list)))
 		return;
-	del_timer(&watchdog_timer);
+	timer_delete(&watchdog_timer);
 	watchdog_running = 0;
 }
 

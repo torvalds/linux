@@ -1786,13 +1786,13 @@ void mce_timer_kick(bool storm)
 		__this_cpu_write(mce_next_interval, check_interval * HZ);
 }
 
-/* Must not be called in IRQ context where del_timer_sync() can deadlock */
+/* Must not be called in IRQ context where timer_delete_sync() can deadlock */
 static void mce_timer_delete_all(void)
 {
 	int cpu;
 
 	for_each_online_cpu(cpu)
-		del_timer_sync(&per_cpu(mce_timer, cpu));
+		timer_delete_sync(&per_cpu(mce_timer, cpu));
 }
 
 static void __mcheck_cpu_mce_banks_init(void)
@@ -2820,7 +2820,7 @@ static int mce_cpu_pre_down(unsigned int cpu)
 	struct timer_list *t = this_cpu_ptr(&mce_timer);
 
 	mce_disable_cpu();
-	del_timer_sync(t);
+	timer_delete_sync(t);
 	mce_threshold_remove_device(cpu);
 	mce_device_remove(cpu);
 	return 0;

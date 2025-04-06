@@ -1302,7 +1302,7 @@ lec_arp_remove(struct lec_priv *priv, struct lec_arp_table *to_remove)
 		return -1;
 
 	hlist_del(&to_remove->next);
-	del_timer(&to_remove->timer);
+	timer_delete(&to_remove->timer);
 
 	/*
 	 * If this is the only MAC connected to this VCC,
@@ -1482,7 +1482,7 @@ static void lec_arp_destroy(struct lec_priv *priv)
 
 	hlist_for_each_entry_safe(entry, next,
 				  &priv->lec_arp_empty_ones, next) {
-		del_timer_sync(&entry->timer);
+		timer_delete_sync(&entry->timer);
 		lec_arp_clear_vccs(entry);
 		hlist_del(&entry->next);
 		lec_arp_put(entry);
@@ -1491,7 +1491,7 @@ static void lec_arp_destroy(struct lec_priv *priv)
 
 	hlist_for_each_entry_safe(entry, next,
 				  &priv->lec_no_forward, next) {
-		del_timer_sync(&entry->timer);
+		timer_delete_sync(&entry->timer);
 		lec_arp_clear_vccs(entry);
 		hlist_del(&entry->next);
 		lec_arp_put(entry);
@@ -1575,7 +1575,7 @@ static void lec_arp_expire_vcc(struct timer_list *t)
 	struct lec_arp_table *to_remove = from_timer(to_remove, t, timer);
 	struct lec_priv *priv = to_remove->priv;
 
-	del_timer(&to_remove->timer);
+	timer_delete(&to_remove->timer);
 
 	pr_debug("%p %p: vpi:%d vci:%d\n",
 		 to_remove, priv,
@@ -1843,16 +1843,16 @@ lec_arp_update(struct lec_priv *priv, const unsigned char *mac_addr,
 					  &priv->lec_arp_empty_ones, next) {
 			if (memcmp(entry->atm_addr, atm_addr, ATM_ESA_LEN) == 0) {
 				hlist_del(&entry->next);
-				del_timer(&entry->timer);
+				timer_delete(&entry->timer);
 				tmp = lec_arp_find(priv, mac_addr);
 				if (tmp) {
-					del_timer(&tmp->timer);
+					timer_delete(&tmp->timer);
 					tmp->status = ESI_FORWARD_DIRECT;
 					memcpy(tmp->atm_addr, atm_addr, ATM_ESA_LEN);
 					tmp->vcc = entry->vcc;
 					tmp->old_push = entry->old_push;
 					tmp->last_used = jiffies;
-					del_timer(&entry->timer);
+					timer_delete(&entry->timer);
 					lec_arp_put(entry);
 					entry = tmp;
 				} else {
@@ -1883,7 +1883,7 @@ lec_arp_update(struct lec_priv *priv, const unsigned char *mac_addr,
 		/* Temporary, changes before end of function */
 	}
 	memcpy(entry->atm_addr, atm_addr, ATM_ESA_LEN);
-	del_timer(&entry->timer);
+	timer_delete(&entry->timer);
 	for (i = 0; i < LEC_ARP_TABLE_SIZE; i++) {
 		hlist_for_each_entry(tmp,
 				     &priv->lec_arp_tables[i], next) {
@@ -1946,7 +1946,7 @@ lec_vcc_added(struct lec_priv *priv, const struct atmlec_ioc *ioc_data,
 		entry = make_entry(priv, bus_mac);
 		if (entry == NULL)
 			goto out;
-		del_timer(&entry->timer);
+		timer_delete(&entry->timer);
 		memcpy(entry->atm_addr, ioc_data->atm_addr, ATM_ESA_LEN);
 		entry->recv_vcc = vcc;
 		entry->old_recv_push = old_push;
@@ -1988,7 +1988,7 @@ lec_vcc_added(struct lec_priv *priv, const struct atmlec_ioc *ioc_data,
 					 entry->recv_vcc ? entry->recv_vcc->
 					 vci : 0);
 				found_entry = 1;
-				del_timer(&entry->timer);
+				timer_delete(&entry->timer);
 				entry->vcc = vcc;
 				entry->old_push = old_push;
 				if (entry->status == ESI_VC_PENDING) {
@@ -2172,7 +2172,7 @@ static void lec_vcc_close(struct lec_priv *priv, struct atm_vcc *vcc)
 				  &priv->lec_arp_empty_ones, next) {
 		if (entry->vcc == vcc) {
 			lec_arp_clear_vccs(entry);
-			del_timer(&entry->timer);
+			timer_delete(&entry->timer);
 			hlist_del(&entry->next);
 			lec_arp_put(entry);
 		}
@@ -2182,7 +2182,7 @@ static void lec_vcc_close(struct lec_priv *priv, struct atm_vcc *vcc)
 				  &priv->lec_no_forward, next) {
 		if (entry->recv_vcc == vcc) {
 			lec_arp_clear_vccs(entry);
-			del_timer(&entry->timer);
+			timer_delete(&entry->timer);
 			hlist_del(&entry->next);
 			lec_arp_put(entry);
 		}
@@ -2215,7 +2215,7 @@ lec_arp_check_empties(struct lec_priv *priv,
 	hlist_for_each_entry_safe(entry, next,
 				  &priv->lec_arp_empty_ones, next) {
 		if (vcc == entry->vcc) {
-			del_timer(&entry->timer);
+			timer_delete(&entry->timer);
 			ether_addr_copy(entry->mac_addr, src);
 			entry->status = ESI_FORWARD_DIRECT;
 			entry->last_used = jiffies;

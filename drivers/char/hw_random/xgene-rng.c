@@ -93,7 +93,7 @@ static void xgene_rng_expired_timer(struct timer_list *t)
 	/* Clear failure counter as timer expired */
 	disable_irq(ctx->irq);
 	ctx->failure_cnt = 0;
-	del_timer(&ctx->failure_timer);
+	timer_delete(&ctx->failure_timer);
 	enable_irq(ctx->irq);
 }
 

@@ -1295,7 +1295,7 @@ static void tun_flow_init(struct tun_struct *tun)
 
 static void tun_flow_uninit(struct tun_struct *tun)
 {
-	del_timer_sync(&tun->flow_gc_timer);
+	timer_delete_sync(&tun->flow_gc_timer);
 	tun_flow_flush(tun);
 }
 

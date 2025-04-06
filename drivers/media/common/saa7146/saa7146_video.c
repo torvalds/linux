@@ -668,7 +668,7 @@ static void stop_streaming(struct vb2_queue *q)
 	struct saa7146_dev *dev = vb2_get_drv_priv(q);
 	struct saa7146_dmaqueue *dq = &dev->vv_data->video_dmaq;
 
-	del_timer(&dq->timeout);
+	timer_delete(&dq->timeout);
 	video_end(dev);
 	return_buffers(q, VB2_BUF_STATE_ERROR);
 }

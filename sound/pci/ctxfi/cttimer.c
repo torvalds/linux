@@ -112,7 +112,7 @@ static void ct_systimer_stop(struct ct_timer_instance *ti)
 
 	spin_lock_irqsave(&ti->lock, flags);
 	ti->running = 0;
-	del_timer(&ti->timer);
+	timer_delete(&ti->timer);
 	spin_unlock_irqrestore(&ti->lock, flags);
 }
 

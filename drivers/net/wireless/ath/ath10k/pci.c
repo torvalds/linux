@@ -619,7 +619,7 @@ static void ath10k_pci_sleep_sync(struct ath10k *ar)
 		return;
 	}
 
-	del_timer_sync(&ar_pci->ps_timer);
+	timer_delete_sync(&ar_pci->ps_timer);
 
 	spin_lock_irqsave(&ar_pci->ps_lock, flags);
 	WARN_ON(ar_pci->ps_wake_refcount > 0);
@@ -1817,7 +1817,7 @@ static void ath10k_pci_rx_retry_sync(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 
-	del_timer_sync(&ar_pci->rx_post_retry);
+	timer_delete_sync(&ar_pci->rx_post_retry);
 }
 
 int ath10k_pci_hif_map_service_to_pipe(struct ath10k *ar, u16 service_id,

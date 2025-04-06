@@ -930,7 +930,7 @@ isar_pump_statev_fax(struct isar_ch *ch, u8 devt) {
 				/* 1s (200 ms) Flags before data */
 				if (test_and_set_bit(FLG_FTI_RUN,
 						     &ch->bch.Flags))
-					del_timer(&ch->ftimer);
+					timer_delete(&ch->ftimer);
 				ch->ftimer.expires =
 					jiffies + ((delay * HZ) / 1000);
 				test_and_set_bit(FLG_LL_CONN,
@@ -1603,8 +1603,8 @@ free_isar(struct isar_hw *isar)
 {
 	modeisar(&isar->ch[0], ISDN_P_NONE);
 	modeisar(&isar->ch[1], ISDN_P_NONE);
-	del_timer(&isar->ch[0].ftimer);
-	del_timer(&isar->ch[1].ftimer);
+	timer_delete(&isar->ch[0].ftimer);
+	timer_delete(&isar->ch[1].ftimer);
 	test_and_clear_bit(FLG_INITIALIZED, &isar->ch[0].bch.Flags);
 	test_and_clear_bit(FLG_INITIALIZED, &isar->ch[1].bch.Flags);
 }

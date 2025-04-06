@@ -3223,9 +3223,9 @@ void t3_stop_sge_timers(struct adapter *adap)
 		struct sge_qset *q = &adap->sge.qs[i];
 
 		if (q->tx_reclaim_timer.function)
-			del_timer_sync(&q->tx_reclaim_timer);
+			timer_delete_sync(&q->tx_reclaim_timer);
 		if (q->rx_reclaim_timer.function)
-			del_timer_sync(&q->rx_reclaim_timer);
+			timer_delete_sync(&q->rx_reclaim_timer);
 	}
 }
 

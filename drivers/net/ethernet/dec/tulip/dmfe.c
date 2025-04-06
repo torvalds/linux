@@ -745,7 +745,7 @@ static int dmfe_stop(struct net_device *dev)
 	netif_stop_queue(dev);
 
 	/* deleted timer */
-	del_timer_sync(&db->timer);
+	timer_delete_sync(&db->timer);
 
 	/* Reset & stop DM910X board */
 	dw32(DCR0, DM910X_RESET);

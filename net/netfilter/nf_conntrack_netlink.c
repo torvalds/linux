@@ -3448,7 +3448,7 @@ static int ctnetlink_del_expect(struct sk_buff *skb,
 
 		/* after list removal, usage count == 1 */
 		spin_lock_bh(&nf_conntrack_expect_lock);
-		if (del_timer(&exp->timeout)) {
+		if (timer_delete(&exp->timeout)) {
 			nf_ct_unlink_expect_report(exp, NETLINK_CB(skb).portid,
 						   nlmsg_report(info->nlh));
 			nf_ct_expect_put(exp);
@@ -3477,7 +3477,7 @@ ctnetlink_change_expect(struct nf_conntrack_expect *x,
 			const struct nlattr * const cda[])
 {
 	if (cda[CTA_EXPECT_TIMEOUT]) {
-		if (!del_timer(&x->timeout))
+		if (!timer_delete(&x->timeout))
 			return -ETIME;
 
 		x->timeout.expires = jiffies +

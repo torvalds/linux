@@ -415,7 +415,7 @@ static void ad7877_disable(void *data)
 		ts->disabled = true;
 		disable_irq(ts->spi->irq);
 
-		if (del_timer_sync(&ts->timer))
+		if (timer_delete_sync(&ts->timer))
 			ad7877_ts_event_release(ts);
 	}
 

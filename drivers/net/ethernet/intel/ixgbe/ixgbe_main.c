@@ -6538,7 +6538,7 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	adapter->flags2 &= ~IXGBE_FLAG2_FDIR_REQUIRES_REINIT;
 	adapter->flags &= ~IXGBE_FLAG_NEED_LINK_UPDATE;
 
-	del_timer_sync(&adapter->service_timer);
+	timer_delete_sync(&adapter->service_timer);
 
 	if (adapter->num_vfs) {
 		/* Clear EITR Select mapping */

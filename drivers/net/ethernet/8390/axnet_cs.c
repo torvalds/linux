@@ -504,7 +504,7 @@ static int axnet_close(struct net_device *dev)
     
     link->open--;
     netif_stop_queue(dev);
-    del_timer_sync(&info->watchdog);
+    timer_delete_sync(&info->watchdog);
 
     return 0;
 } /* axnet_close */

@@ -246,7 +246,7 @@ static void mlx5_stop_sync_reset_poll(struct mlx5_core_dev *dev)
 {
 	struct mlx5_fw_reset *fw_reset = dev->priv.fw_reset;
 
-	del_timer_sync(&fw_reset->timer);
+	timer_delete_sync(&fw_reset->timer);
 }
 
 static int mlx5_sync_reset_clear_reset_requested(struct mlx5_core_dev *dev, bool poll_health)

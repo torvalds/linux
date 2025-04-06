@@ -327,7 +327,7 @@ bfad_sm_failed(struct bfad_s *bfad, enum bfad_sm_event event)
 	case BFAD_E_EXIT_COMP:
 		bfa_sm_set_state(bfad, bfad_sm_uninit);
 		bfad_remove_intr(bfad);
-		del_timer_sync(&bfad->hal_tmo);
+		timer_delete_sync(&bfad->hal_tmo);
 		break;
 
 	default:
@@ -376,7 +376,7 @@ bfad_sm_stopping(struct bfad_s *bfad, enum bfad_sm_event event)
 	case BFAD_E_EXIT_COMP:
 		bfa_sm_set_state(bfad, bfad_sm_uninit);
 		bfad_remove_intr(bfad);
-		del_timer_sync(&bfad->hal_tmo);
+		timer_delete_sync(&bfad->hal_tmo);
 		bfad_im_probe_undo(bfad);
 		bfad->bfad_flags &= ~BFAD_FC4_PROBE_DONE;
 		bfad_uncfg_pport(bfad);
@@ -1421,7 +1421,7 @@ bfad_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 		/* Suspend/fail all bfa operations */
 		bfa_ioc_suspend(&bfad->bfa.ioc);
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		del_timer_sync(&bfad->hal_tmo);
+		timer_delete_sync(&bfad->hal_tmo);
 		ret = PCI_ERS_RESULT_CAN_RECOVER;
 		break;
 	case pci_channel_io_frozen: /* fatal error */
@@ -1435,7 +1435,7 @@ bfad_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 		wait_for_completion(&bfad->comp);
 
 		bfad_remove_intr(bfad);
-		del_timer_sync(&bfad->hal_tmo);
+		timer_delete_sync(&bfad->hal_tmo);
 		pci_disable_device(pdev);
 		ret = PCI_ERS_RESULT_NEED_RESET;
 		break;
@@ -1566,7 +1566,7 @@ bfad_pci_mmio_enabled(struct pci_dev *pdev)
 	wait_for_completion(&bfad->comp);
 
 	bfad_remove_intr(bfad);
-	del_timer_sync(&bfad->hal_tmo);
+	timer_delete_sync(&bfad->hal_tmo);
 	pci_disable_device(pdev);
 
 	return PCI_ERS_RESULT_NEED_RESET;

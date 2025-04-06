@@ -364,7 +364,7 @@ static void stop_voice(struct snd_emu8k_pcm *rec, int ch)
 	/* stop timer */
 	spin_lock_irqsave(&rec->timer_lock, flags);
 	if (rec->timer_running) {
-		del_timer(&rec->timer);
+		timer_delete(&rec->timer);
 		rec->timer_running = 0;
 	}
 	spin_unlock_irqrestore(&rec->timer_lock, flags);

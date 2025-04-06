@@ -4064,7 +4064,7 @@ level_store(struct mddev *mddev, const char *buf, size_t len)
 		 * it must always be in_sync
 		 */
 		mddev->in_sync = 1;
-		del_timer_sync(&mddev->safemode_timer);
+		timer_delete_sync(&mddev->safemode_timer);
 	}
 	pers->run(mddev);
 	set_bit(MD_SB_CHANGE_DEVS, &mddev->sb_flags);
@@ -6405,7 +6405,7 @@ static void md_clean(struct mddev *mddev)
 
 static void __md_stop_writes(struct mddev *mddev)
 {
-	del_timer_sync(&mddev->safemode_timer);
+	timer_delete_sync(&mddev->safemode_timer);
 
 	if (mddev->pers && mddev->pers->quiesce) {
 		mddev->pers->quiesce(mddev, 1);

@@ -2372,18 +2372,18 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 	case STAT_IO_COMPLETE:
 		/* internal abort command complete */
 		ts->stat = TMF_RESP_FUNC_SUCC;
-		del_timer_sync(&slot->internal_abort_timer);
+		timer_delete_sync(&slot->internal_abort_timer);
 		goto out;
 	case STAT_IO_NO_DEVICE:
 		ts->stat = TMF_RESP_FUNC_COMPLETE;
-		del_timer_sync(&slot->internal_abort_timer);
+		timer_delete_sync(&slot->internal_abort_timer);
 		goto out;
 	case STAT_IO_NOT_VALID:
 		/* abort single io, controller don't find
 		 * the io need to abort
 		 */
 		ts->stat = TMF_RESP_FUNC_FAILED;
-		del_timer_sync(&slot->internal_abort_timer);
+		timer_delete_sync(&slot->internal_abort_timer);
 		goto out;
 	default:
 		break;
@@ -2654,7 +2654,7 @@ static int phy_up_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 	if (is_sata_phy_v2_hw(hisi_hba, phy_no))
 		goto end;
 
-	del_timer(&phy->timer);
+	timer_delete(&phy->timer);
 
 	if (phy_no == 8) {
 		u32 port_state = hisi_sas_read32(hisi_hba, PORT_STATE);
@@ -2730,7 +2730,7 @@ static int phy_down_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 	struct hisi_sas_port *port = phy->port;
 	struct device *dev = hisi_hba->dev;
 
-	del_timer(&phy->timer);
+	timer_delete(&phy->timer);
 	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_NOT_RDY_MSK, 1);
 
 	phy_state = hisi_sas_read32(hisi_hba, PHY_STATE);
@@ -2744,7 +2744,7 @@ static int phy_down_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 	if (port && !get_wideport_bitmap_v2_hw(hisi_hba, port->id))
 		if (!check_any_wideports_v2_hw(hisi_hba) &&
 				timer_pending(&hisi_hba->timer))
-			del_timer(&hisi_hba->timer);
+			timer_delete(&hisi_hba->timer);
 
 	txid_auto = hisi_sas_phy_read32(hisi_hba, phy_no, TXID_AUTO);
 	hisi_sas_phy_write32(hisi_hba, phy_no, TXID_AUTO,
@@ -3204,7 +3204,7 @@ static irqreturn_t sata_int_v2_hw(int irq_no, void *p)
 	u8 attached_sas_addr[SAS_ADDR_SIZE] = {0};
 	int phy_no, offset;
 
-	del_timer(&phy->timer);
+	timer_delete(&phy->timer);
 
 	phy_no = sas_phy->id;
 	initial_fis = &hisi_hba->initial_fis[phy_no];

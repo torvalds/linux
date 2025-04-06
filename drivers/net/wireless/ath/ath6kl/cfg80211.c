@@ -149,7 +149,7 @@ static bool __ath6kl_cfg80211_sscan_stop(struct ath6kl_vif *vif)
 	if (!test_and_clear_bit(SCHED_SCANNING, &vif->flags))
 		return false;
 
-	del_timer_sync(&vif->sched_scan_timer);
+	timer_delete_sync(&vif->sched_scan_timer);
 
 	if (ar->state == ATH6KL_STATE_RECOVERY)
 		return true;
@@ -1200,7 +1200,7 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	if (((vif->auth_mode == WPA_PSK_AUTH) ||
 	     (vif->auth_mode == WPA2_PSK_AUTH)) &&
 	    (key_usage & GROUP_USAGE))
-		del_timer(&vif->disconnect_timer);
+		timer_delete(&vif->disconnect_timer);
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
 		   "%s: index %d, key_len %d, key_type 0x%x, key_usage 0x%x, seq_len %d\n",
@@ -3612,7 +3612,7 @@ void ath6kl_cfg80211_vif_stop(struct ath6kl_vif *vif, bool wmi_ready)
 		discon_issued = test_bit(CONNECTED, &vif->flags) ||
 				test_bit(CONNECT_PEND, &vif->flags);
 		ath6kl_disconnect(vif);
-		del_timer(&vif->disconnect_timer);
+		timer_delete(&vif->disconnect_timer);
 
 		if (discon_issued)
 			ath6kl_disconnect_event(vif, DISCONNECT_CMD,

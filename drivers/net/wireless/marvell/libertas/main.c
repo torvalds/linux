@@ -202,7 +202,7 @@ int lbs_stop_iface(struct lbs_private *priv)
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	cancel_work_sync(&priv->mcast_work);
-	del_timer_sync(&priv->tx_lockup_timer);
+	timer_delete_sync(&priv->tx_lockup_timer);
 
 	/* Disable command processing, and wait for all commands to complete */
 	lbs_deb_main("waiting for commands to complete\n");
@@ -250,7 +250,7 @@ void lbs_host_to_card_done(struct lbs_private *priv)
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
-	del_timer(&priv->tx_lockup_timer);
+	timer_delete(&priv->tx_lockup_timer);
 
 	priv->dnld_sent = DNLD_RES_RECEIVED;
 
@@ -594,8 +594,8 @@ static int lbs_thread(void *data)
 		spin_unlock_irq(&priv->driver_lock);
 	}
 
-	del_timer(&priv->command_timer);
-	del_timer(&priv->tx_lockup_timer);
+	timer_delete(&priv->command_timer);
+	timer_delete(&priv->tx_lockup_timer);
 
 	return 0;
 }
@@ -798,8 +798,8 @@ static void lbs_free_adapter(struct lbs_private *priv)
 {
 	lbs_free_cmd_buffer(priv);
 	kfifo_free(&priv->event_fifo);
-	del_timer(&priv->command_timer);
-	del_timer(&priv->tx_lockup_timer);
+	timer_delete(&priv->command_timer);
+	timer_delete(&priv->tx_lockup_timer);
 }
 
 static const struct net_device_ops lbs_netdev_ops = {

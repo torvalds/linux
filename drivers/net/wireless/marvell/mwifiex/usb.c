@@ -877,7 +877,7 @@ static int mwifiex_usb_prepare_tx_aggr_skb(struct mwifiex_adapter *adapter,
 	 * write complete, delete the tx_aggr timer
 	 */
 	if (port->tx_aggr.timer_cnxt.is_hold_timer_set) {
-		del_timer(&port->tx_aggr.timer_cnxt.hold_timer);
+		timer_delete(&port->tx_aggr.timer_cnxt.hold_timer);
 		port->tx_aggr.timer_cnxt.is_hold_timer_set = false;
 		port->tx_aggr.timer_cnxt.hold_tmo_msecs = 0;
 	}
@@ -1354,7 +1354,7 @@ static void mwifiex_usb_cleanup_tx_aggr(struct mwifiex_adapter *adapter)
 				mwifiex_write_data_complete(adapter, skb_tmp,
 							    0, -1);
 		if (port->tx_aggr.timer_cnxt.hold_timer.function)
-			del_timer_sync(&port->tx_aggr.timer_cnxt.hold_timer);
+			timer_delete_sync(&port->tx_aggr.timer_cnxt.hold_timer);
 		port->tx_aggr.timer_cnxt.is_hold_timer_set = false;
 		port->tx_aggr.timer_cnxt.hold_tmo_msecs = 0;
 	}
@@ -1557,7 +1557,7 @@ static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
 {
 	/* Simulation of HS_AWAKE event */
 	adapter->pm_wakeup_fw_try = false;
-	del_timer(&adapter->wakeup_timer);
+	timer_delete(&adapter->wakeup_timer);
 	adapter->pm_wakeup_card_req = false;
 	adapter->ps_state = PS_STATE_AWAKE;
 

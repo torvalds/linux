@@ -1379,7 +1379,7 @@ static int tsi108_close(struct net_device *dev)
 	netif_stop_queue(dev);
 	napi_disable(&data->napi);
 
-	del_timer_sync(&data->timer);
+	timer_delete_sync(&data->timer);
 
 	tsi108_stop_ethernet(dev);
 	tsi108_kill_phy(dev);

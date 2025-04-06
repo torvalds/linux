@@ -2630,7 +2630,7 @@ static int pcnet32_close(struct net_device *dev)
 	struct pcnet32_private *lp = netdev_priv(dev);
 	unsigned long flags;
 
-	del_timer_sync(&lp->watchdog_timer);
+	timer_delete_sync(&lp->watchdog_timer);
 
 	netif_stop_queue(dev);
 	napi_disable(&lp->napi);

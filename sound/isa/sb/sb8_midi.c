@@ -125,7 +125,7 @@ static int snd_sb8dsp_midi_output_close(struct snd_rawmidi_substream *substream)
 	struct snd_sb *chip;
 
 	chip = substream->rmidi->private_data;
-	del_timer_sync(&chip->midi_timer);
+	timer_delete_sync(&chip->midi_timer);
 	spin_lock_irqsave(&chip->open_lock, flags);
 	chip->open &= ~(SB_OPEN_MIDI_OUTPUT | SB_OPEN_MIDI_OUTPUT_TRIGGER);
 	chip->midi_substream_output = NULL;
@@ -174,7 +174,7 @@ static void snd_sb8dsp_midi_output_write(struct snd_rawmidi_substream *substream
 		spin_lock_irqsave(&chip->open_lock, flags);
 		if (snd_rawmidi_transmit_peek(substream, &byte, 1) != 1) {
 			chip->open &= ~SB_OPEN_MIDI_OUTPUT_TRIGGER;
-			del_timer(&chip->midi_timer);
+			timer_delete(&chip->midi_timer);
 			spin_unlock_irqrestore(&chip->open_lock, flags);
 			break;
 		}

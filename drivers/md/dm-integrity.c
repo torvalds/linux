@@ -2707,7 +2707,7 @@ static void integrity_commit(struct work_struct *w)
 	unsigned int i, j, n;
 	struct bio *flushes;
 
-	del_timer(&ic->autocommit_timer);
+	timer_delete(&ic->autocommit_timer);
 
 	if (ic->mode == 'I')
 		return;
@@ -3606,7 +3606,7 @@ static void dm_integrity_postsuspend(struct dm_target *ti)
 
 	WARN_ON(unregister_reboot_notifier(&ic->reboot_notifier));
 
-	del_timer_sync(&ic->autocommit_timer);
+	timer_delete_sync(&ic->autocommit_timer);
 
 	if (ic->recalc_wq)
 		drain_workqueue(ic->recalc_wq);

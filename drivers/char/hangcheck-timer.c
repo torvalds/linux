@@ -167,7 +167,7 @@ static int __init hangcheck_init(void)
 
 static void __exit hangcheck_exit(void)
 {
-	del_timer_sync(&hangcheck_ticktock);
+	timer_delete_sync(&hangcheck_ticktock);
         printk("Hangcheck: Stopped hangcheck timer.\n");
 }
 

@@ -16382,7 +16382,7 @@ static int i40e_io_suspend(struct i40e_pf *pf)
 	set_bit(__I40E_DOWN, pf->state);
 
 	/* Ensure service task will not be running */
-	del_timer_sync(&pf->service_timer);
+	timer_delete_sync(&pf->service_timer);
 	cancel_work_sync(&pf->service_task);
 
 	/* Client close must be called explicitly here because the timer
@@ -16581,7 +16581,7 @@ static void i40e_shutdown(struct pci_dev *pdev)
 	set_bit(__I40E_SUSPENDED, pf->state);
 	set_bit(__I40E_DOWN, pf->state);
 
-	del_timer_sync(&pf->service_timer);
+	timer_delete_sync(&pf->service_timer);
 	cancel_work_sync(&pf->service_task);
 	i40e_cloud_filter_exit(pf);
 	i40e_fdir_teardown(pf);
