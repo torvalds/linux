@@ -241,7 +241,7 @@ int vfs_getattr(const struct path *path, struct kstat *stat,
 	int retval;
 
 	retval = security_inode_getattr(path);
-	if (retval)
+	if (unlikely(retval))
 		return retval;
 	return vfs_getattr_nosec(path, stat, request_mask, query_flags);
 }
@@ -421,7 +421,7 @@ SYSCALL_DEFINE2(stat, const char __user *, filename,
 	int error;
 
 	error = vfs_stat(filename, &stat);
-	if (error)
+	if (unlikely(error))
 		return error;
 
 	return cp_old_stat(&stat, statbuf);
@@ -434,7 +434,7 @@ SYSCALL_DEFINE2(lstat, const char __user *, filename,
 	int error;
 
 	error = vfs_lstat(filename, &stat);
-	if (error)
+	if (unlikely(error))
 		return error;
 
 	return cp_old_stat(&stat, statbuf);
@@ -443,12 +443,13 @@ SYSCALL_DEFINE2(lstat, const char __user *, filename,
 SYSCALL_DEFINE2(fstat, unsigned int, fd, struct __old_kernel_stat __user *, statbuf)
 {
 	struct kstat stat;
-	int error = vfs_fstat(fd, &stat);
+	int error;
 
-	if (!error)
-		error = cp_old_stat(&stat, statbuf);
+	error = vfs_fstat(fd, &stat);
+	if (unlikely(error))
+		return error;
 
-	return error;
+	return cp_old_stat(&stat, statbuf);
 }
 
 #endif /* __ARCH_WANT_OLD_STAT */
@@ -502,10 +503,12 @@ SYSCALL_DEFINE2(newstat, const char __user *, filename,
 		struct stat __user *, statbuf)
 {
 	struct kstat stat;
-	int error = vfs_stat(filename, &stat);
+	int error;
 
-	if (error)
+	error = vfs_stat(filename, &stat);
+	if (unlikely(error))
 		return error;
+
 	return cp_new_stat(&stat, statbuf);
 }
 
@@ -516,7 +519,7 @@ SYSCALL_DEFINE2(newlstat, const char __user *, filename,
 	int error;
 
 	error = vfs_lstat(filename, &stat);
-	if (error)
+	if (unlikely(error))
 		return error;
 
 	return cp_new_stat(&stat, statbuf);
@@ -530,8 +533,9 @@ SYSCALL_DEFINE4(newfstatat, int, dfd, const char __user *, filename,
 	int error;
 
 	error = vfs_fstatat(dfd, filename, &stat, flag);
-	if (error)
+	if (unlikely(error))
 		return error;
+
 	return cp_new_stat(&stat, statbuf);
 }
 #endif
@@ -539,12 +543,13 @@ SYSCALL_DEFINE4(newfstatat, int, dfd, const char __user *, filename,
 SYSCALL_DEFINE2(newfstat, unsigned int, fd, struct stat __user *, statbuf)
 {
 	struct kstat stat;
-	int error = vfs_fstat(fd, &stat);
+	int error;
 
-	if (!error)
-		error = cp_new_stat(&stat, statbuf);
+	error = vfs_fstat(fd, &stat);
+	if (unlikely(error))
+		return error;
 
-	return error;
+	return cp_new_stat(&stat, statbuf);
 }
 #endif
 
