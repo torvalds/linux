@@ -273,10 +273,10 @@ struct msr_counter bic[] = {
 #define	BIC_NMI			(1ULL << 61)
 #define	BIC_CPU_c1e		(1ULL << 62)
 
-#define BIC_TOPOLOGY (BIC_Package | BIC_Node | BIC_CoreCnt | BIC_PkgCnt | BIC_Core | BIC_CPU | BIC_Die)
-#define BIC_THERMAL_PWR (BIC_CoreTmp | BIC_PkgTmp | BIC_PkgWatt | BIC_CorWatt | BIC_GFXWatt | BIC_RAMWatt | BIC_PKG__ | BIC_RAM__ | BIC_SysWatt)
-#define BIC_FREQUENCY (BIC_Avg_MHz | BIC_Busy | BIC_Bzy_MHz | BIC_TSC_MHz | BIC_GFXMHz | BIC_GFXACTMHz | BIC_SAMMHz | BIC_SAMACTMHz | BIC_UNCORE_MHZ)
-#define BIC_IDLE (BIC_Busy | BIC_sysfs | BIC_CPU_c1 | BIC_CPU_c3 | BIC_CPU_c6 | BIC_CPU_c7 | BIC_GFX_rc6 | BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_CPU_LPI | BIC_SYS_LPI | BIC_Mod_c6 | BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX | BIC_SAM_mc6 | BIC_Diec6)
+#define BIC_GROUP_TOPOLOGY (BIC_Package | BIC_Node | BIC_CoreCnt | BIC_PkgCnt | BIC_Core | BIC_CPU | BIC_Die)
+#define BIC_GROUP_THERMAL_PWR (BIC_CoreTmp | BIC_PkgTmp | BIC_PkgWatt | BIC_CorWatt | BIC_GFXWatt | BIC_RAMWatt | BIC_PKG__ | BIC_RAM__ | BIC_SysWatt)
+#define BIC_GROUP_FREQUENCY (BIC_Avg_MHz | BIC_Busy | BIC_Bzy_MHz | BIC_TSC_MHz | BIC_GFXMHz | BIC_GFXACTMHz | BIC_SAMMHz | BIC_SAMACTMHz | BIC_UNCORE_MHZ)
+#define BIC_GROUP_IDLE (BIC_Busy | BIC_sysfs | BIC_CPU_c1 | BIC_CPU_c3 | BIC_CPU_c6 | BIC_CPU_c7 | BIC_GFX_rc6 | BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_CPU_LPI | BIC_SYS_LPI | BIC_Mod_c6 | BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX | BIC_SAM_mc6 | BIC_Diec6)
 #define BIC_OTHER (BIC_IRQ | BIC_NMI | BIC_SMI | BIC_ThreadC | BIC_CoreTmp | BIC_IPC)
 
 #define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD | BIC_APIC | BIC_X2APIC)
@@ -2354,16 +2354,16 @@ unsigned long long bic_lookup(char *name_list, enum show_hide_mode mode)
 				retval |= ~0;
 				break;
 			} else if (!strcmp(name_list, "topology")) {
-				retval |= BIC_TOPOLOGY;
+				retval |= BIC_GROUP_TOPOLOGY;
 				break;
 			} else if (!strcmp(name_list, "power")) {
-				retval |= BIC_THERMAL_PWR;
+				retval |= BIC_GROUP_THERMAL_PWR;
 				break;
 			} else if (!strcmp(name_list, "idle")) {
-				retval |= BIC_IDLE;
+				retval |= BIC_GROUP_IDLE;
 				break;
 			} else if (!strcmp(name_list, "frequency")) {
-				retval |= BIC_FREQUENCY;
+				retval |= BIC_GROUP_FREQUENCY;
 				break;
 			} else if (!strcmp(name_list, "other")) {
 				retval |= BIC_OTHER;
@@ -10260,7 +10260,7 @@ int is_deferred_skip(char *name)
 	return 0;
 }
 
-void probe_sysfs(void)
+void probe_cpuidle_residency(void)
 {
 	char path[64];
 	char name_buf[16];
@@ -10304,6 +10304,16 @@ void probe_sysfs(void)
 		if (state < min_state)
 			min_state = state;
 	}
+}
+
+void probe_cpuidle_counts(void)
+{
+	char path[64];
+	char name_buf[16];
+	FILE *input;
+	int state;
+	int min_state = 1024, max_state = 0;
+	char *sp;
 
 	for (state = 10; state >= 0; --state) {
 
@@ -10602,7 +10612,8 @@ skip_cgroup_setting:
 		print_bootcmd();
 	}
 
-	probe_sysfs();
+	probe_cpuidle_residency();
+	probe_cpuidle_counts();
 
 	if (!getuid())
 		set_rlimit();
