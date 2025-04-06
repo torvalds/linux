@@ -8,6 +8,7 @@
 /* use __mem* names to avoid conflict with KASAN's mem* functions. */
 
 #define __HAVE_ARCH_MEMCPY
+extern void *memcpy(void *dest, const void *src, size_t count);
 static inline void *__memcpy(void *dest, const void *src, size_t count)
 {
 	char *tmp = dest;
@@ -24,6 +25,7 @@ static inline void *__memcpy(void *dest, const void *src, size_t count)
 }
 
 #define __HAVE_ARCH_MEMSET
+extern void *memset(void *s, int c, size_t count);
 static inline void *__memset(void *s, int c, size_t count)
 {
 	char *xs = s;
@@ -39,6 +41,7 @@ static inline void *__memset(void *s, int c, size_t count)
 }
 
 #define __HAVE_ARCH_MEMMOVE
+extern void *memmove(void *dest, const void *src, size_t count);
 static inline void *__memmove(void *dest, const void *src, size_t count)
 {
 	char *tmp;
@@ -86,9 +89,6 @@ static inline void *__memmove(void *dest, const void *src, size_t count)
 #undef memcpy
 #undef memset
 #undef memmove
-extern void *memset(void *dst, int c, __kernel_size_t count);
-extern void *memcpy(void *dst, const void *src, __kernel_size_t count);
-extern void *memmove(void *dest, const void *src, size_t count);
 
 #endif /* __SANITIZE_ADDRESS__ */
 
