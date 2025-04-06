@@ -127,6 +127,26 @@
 	};
 };
 
+&i2c_6 {
+	status = "okay";
+
+	aw8898: audio-amplifier@34 {
+		compatible = "awinic,aw8898";
+		reg = <0x34>;
+
+		reset-gpios = <&tlmm 21 GPIO_ACTIVE_LOW>;
+		interrupts-extended = <&tlmm 20 IRQ_TYPE_LEVEL_HIGH>;
+
+		dvdd-supply = <&pm8953_l5>;
+		vddio-supply = <&pm8953_l5>;
+		vdd-supply = <&vph_pwr>;
+
+		#sound-dai-cells = <0>;
+	};
+
+	/* Fairphone 3+ only: Speaker amp TAS2557 @ 4c */
+};
+
 &lpass {
 	firmware-name = "qcom/msm8953/fairphone/fp3/adsp.mbn";
 
