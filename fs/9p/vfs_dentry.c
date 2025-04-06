@@ -97,7 +97,7 @@ static int __v9fs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 
 		if (retval == -ENOENT)
 			return 0;
-		if (!cached && v9inode->cache_validity & V9FS_INO_INVALID_ATTR)
+		if (v9inode->cache_validity & V9FS_INO_INVALID_ATTR)
 			return 0;
 		if (retval < 0)
 			return retval;
