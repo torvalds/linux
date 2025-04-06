@@ -768,6 +768,20 @@
 				bias-disable;
 			};
 
+			uart_5_default: uart-5-default-state {
+				pins = "gpio16", "gpio17", "gpio18", "gpio19";
+				function = "blsp_uart5";
+				drive-strength = <16>;
+				bias-disable;
+			};
+
+			uart_5_sleep: uart-5-sleep-state {
+				pins = "gpio16", "gpio17", "gpio18", "gpio19";
+				function = "gpio";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
 			wcnss_pin_a: wcnss-active-state {
 
 				wcss-wlan2-pins {
@@ -1591,6 +1605,24 @@
 			qcom,ee = <0>;
 			qcom,num-ees = <4>;
 			qcom,controlled-remotely;
+		};
+
+		uart_5: serial@7aef000 {
+			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
+			reg = <0x07aef000 0x200>;
+			interrupts = <GIC_SPI 306 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP2_UART1_APPS_CLK>,
+				 <&gcc GCC_BLSP2_AHB_CLK>;
+			clock-names = "core",
+				      "iface";
+			dmas = <&blsp2_dma 0>, <&blsp2_dma 1>;
+			dma-names = "tx", "rx";
+
+			pinctrl-0 = <&uart_5_default>;
+			pinctrl-1 = <&uart_5_sleep>;
+			pinctrl-names = "default", "sleep";
+
+			status = "disabled";
 		};
 
 		i2c_5: i2c@7af5000 {
