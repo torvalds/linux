@@ -1040,19 +1040,18 @@ static void print_mount_opts(struct bch_fs *c)
 static bool bch2_fs_may_start(struct bch_fs *c)
 {
 	struct bch_dev *ca;
-	unsigned i, flags = 0;
+	unsigned flags = 0;
 
-	if (c->opts.very_degraded)
+	switch (c->opts.degraded) {
+	case BCH_DEGRADED_very:
 		flags |= BCH_FORCE_IF_DEGRADED|BCH_FORCE_IF_LOST;
-
-	if (c->opts.degraded)
+		break;
+	case BCH_DEGRADED_yes:
 		flags |= BCH_FORCE_IF_DEGRADED;
-
-	if (!c->opts.degraded &&
-	    !c->opts.very_degraded) {
+		break;
+	default:
 		mutex_lock(&c->sb_lock);
-
-		for (i = 0; i < c->disk_sb.sb->nr_devices; i++) {
+		for (unsigned i = 0; i < c->disk_sb.sb->nr_devices; i++) {
 			if (!bch2_member_exists(c->disk_sb.sb, i))
 				continue;
 
@@ -1066,6 +1065,7 @@ static bool bch2_fs_may_start(struct bch_fs *c)
 			}
 		}
 		mutex_unlock(&c->sb_lock);
+		break;
 	}
 
 	return bch2_have_enough_devs(c, bch2_online_devs(c), flags, true);

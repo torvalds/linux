@@ -1022,7 +1022,7 @@ int bch2_write_super(struct bch_fs *c)
 
 	trace_and_count(c, write_super, c, _RET_IP_);
 
-	if (c->opts.very_degraded)
+	if (c->opts.degraded == BCH_DEGRADED_very)
 		degraded_flags |= BCH_FORCE_IF_LOST;
 
 	lockdep_assert_held(&c->sb_lock);

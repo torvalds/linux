@@ -867,6 +867,7 @@ LE64_BITMASK(BCH_SB_VERSION_INCOMPAT_ALLOWED,
 LE64_BITMASK(BCH_SB_SHARD_INUMS_NBITS,	struct bch_sb, flags[6],  0,  4);
 LE64_BITMASK(BCH_SB_WRITE_ERROR_TIMEOUT,struct bch_sb, flags[6],  4, 14);
 LE64_BITMASK(BCH_SB_CSUM_ERR_RETRY_NR,	struct bch_sb, flags[6], 14, 20);
+LE64_BITMASK(BCH_SB_DEGRADED_ACTION,	struct bch_sb, flags[6], 20, 22);
 LE64_BITMASK(BCH_SB_CASEFOLD,		struct bch_sb, flags[6], 22, 23);
 
 static inline __u64 BCH_SB_COMPRESSION_TYPE(const struct bch_sb *sb)
@@ -987,6 +988,19 @@ enum bch_error_actions {
 	BCH_ERROR_ACTIONS()
 #undef x
 	BCH_ON_ERROR_NR
+};
+
+#define BCH_DEGRADED_ACTIONS()		\
+	x(ask,			0)	\
+	x(yes,			1)	\
+	x(very,			2)	\
+	x(no,			3)
+
+enum bch_degraded_actions {
+#define x(t, n) BCH_DEGRADED_##t = n,
+	BCH_DEGRADED_ACTIONS()
+#undef x
+	BCH_DEGRADED_ACTIONS_NR
 };
 
 #define BCH_STR_HASH_TYPES()		\
