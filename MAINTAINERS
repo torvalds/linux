@@ -18686,6 +18686,16 @@ F:	include/asm-generic/pci*
 F:	include/linux/of_pci.h
 F:	include/linux/pci*
 F:	include/uapi/linux/pci*
+
+PCI SUBSYSTEM [RUST]
+M:	Danilo Krummrich <dakr@kernel.org>
+R:	Bjorn Helgaas <bhelgaas@google.com>
+R:	Krzysztof Wilczyński <kwilczynski@kernel.org>
+L:	linux-pci@vger.kernel.org
+S:	Maintained
+C:	irc://irc.oftc.net/linux-pci
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pci/pci.git
+F:	rust/helpers/pci.c
 F:	rust/kernel/pci.rs
 F:	samples/rust/rust_driver_pci.rs
 
