@@ -569,7 +569,7 @@ static struct vfsmount *pidfs_mnt __ro_after_init;
 static int pidfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 			 struct iattr *attr)
 {
-	return -EOPNOTSUPP;
+	return anon_inode_setattr(idmap, dentry, attr);
 }
 
 static int pidfs_getattr(struct mnt_idmap *idmap, const struct path *path,
