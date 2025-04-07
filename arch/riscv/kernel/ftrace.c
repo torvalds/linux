@@ -24,23 +24,13 @@ unsigned long arch_ftrace_get_symaddr(unsigned long fentry_ip)
 	return fentry_ip - MCOUNT_AUIPC_SIZE;
 }
 
-void ftrace_arch_code_modify_prepare(void) __acquires(&text_mutex)
+void arch_ftrace_update_code(int command)
 {
 	mutex_lock(&text_mutex);
-
-	/*
-	 * The code sequences we use for ftrace can't be patched while the
-	 * kernel is running, so we need to use stop_machine() to modify them
-	 * for now.  This doesn't play nice with text_mutex, we use this flag
-	 * to elide the check.
-	 */
-	riscv_patch_in_stop_machine = true;
-}
-
-void ftrace_arch_code_modify_post_process(void) __releases(&text_mutex)
-{
-	riscv_patch_in_stop_machine = false;
+	command |= FTRACE_MAY_SLEEP;
+	ftrace_modify_all_code(command);
 	mutex_unlock(&text_mutex);
+	flush_icache_all();
 }
 
 static int __ftrace_modify_call(unsigned long source, unsigned long target, bool validate)
@@ -129,51 +119,17 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	 * before the write to function_trace_op later in the generic ftrace.
 	 * If the sequence is not enforced, then an old ftrace_call_dest may
 	 * race loading a new function_trace_op set in ftrace_modify_all_code
-	 *
-	 * If we are in stop_machine, then we don't need to call remote fence
-	 * as there is no concurrent read-side of ftrace_call_dest.
 	 */
 	smp_wmb();
-	if (!irqs_disabled())
-		smp_call_function(ftrace_sync_ipi, NULL, 1);
+	/*
+	 * Updating ftrace dpes not take stop_machine path, so irqs should not
+	 * be disabled.
+	 */
+	WARN_ON(irqs_disabled());
+	smp_call_function(ftrace_sync_ipi, NULL, 1);
 	return 0;
 }
 
-struct ftrace_modify_param {
-	int command;
-	atomic_t cpu_count;
-};
-
-static int __ftrace_modify_code(void *data)
-{
-	struct ftrace_modify_param *param = data;
-
-	if (atomic_inc_return(&param->cpu_count) == num_online_cpus()) {
-		ftrace_modify_all_code(param->command);
-		/*
-		 * Make sure the patching store is effective *before* we
-		 * increment the counter which releases all waiting CPUs
-		 * by using the release variant of atomic increment. The
-		 * release pairs with the call to local_flush_icache_all()
-		 * on the waiting CPU.
-		 */
-		atomic_inc_return_release(&param->cpu_count);
-	} else {
-		while (atomic_read(&param->cpu_count) <= num_online_cpus())
-			cpu_relax();
-
-		local_flush_icache_all();
-	}
-
-	return 0;
-}
-
-void arch_ftrace_update_code(int command)
-{
-	struct ftrace_modify_param param = { command, ATOMIC_INIT(0) };
-
-	stop_machine(__ftrace_modify_code, &param, cpu_online_mask);
-}
 #else /* CONFIG_DYNAMIC_FTRACE */
 unsigned long ftrace_call_adjust(unsigned long addr)
 {
