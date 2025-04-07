@@ -253,7 +253,8 @@ int cs35l56_firmware_shutdown(struct cs35l56_base *cs35l56_base)
 	if (ret)
 		return ret;
 
-	ret = regmap_read_poll_timeout(cs35l56_base->regmap,  CS35L56_DSP1_PM_CUR_STATE,
+	ret = regmap_read_poll_timeout(cs35l56_base->regmap,
+				       cs35l56_base->fw_reg->pm_cur_stat,
 				       val, (val == CS35L56_HALO_STATE_SHUTDOWN),
 				       CS35L56_HALO_STATE_POLL_US,
 				       CS35L56_HALO_STATE_TIMEOUT_US);
@@ -278,7 +279,9 @@ int cs35l56_wait_for_firmware_boot(struct cs35l56_base *cs35l56_base)
 				     CS35L56_HALO_STATE_POLL_US,
 				     CS35L56_HALO_STATE_TIMEOUT_US,
 				     false,
-				     cs35l56_base->regmap, CS35L56_DSP1_HALO_STATE, &val);
+				     cs35l56_base->regmap,
+				     cs35l56_base->fw_reg->halo_state,
+				     &val);
 
 	if (poll_ret) {
 		dev_err(cs35l56_base->dev, "Firmware boot timed out(%d): HALO_STATE=%#x\n",
@@ -395,9 +398,17 @@ void cs35l56_system_reset(struct cs35l56_base *cs35l56_base, bool is_soundwire)
 		return;
 	}
 
-	regmap_multi_reg_write_bypassed(cs35l56_base->regmap,
-					cs35l56_system_reset_seq,
-					ARRAY_SIZE(cs35l56_system_reset_seq));
+	switch (cs35l56_base->type) {
+	case 0x54:
+	case 0x56:
+	case 0x57:
+		regmap_multi_reg_write_bypassed(cs35l56_base->regmap,
+						cs35l56_system_reset_seq,
+						ARRAY_SIZE(cs35l56_system_reset_seq));
+		break;
+	default:
+		break;
+	}
 
 	/* On SoundWire the registers won't be accessible until it re-enumerates. */
 	if (is_soundwire)
@@ -514,7 +525,9 @@ int cs35l56_is_fw_reload_needed(struct cs35l56_base *cs35l56_base)
 		return ret;
 	}
 
-	ret = regmap_read(cs35l56_base->regmap, CS35L56_PROTECTION_STATUS, &val);
+	ret = regmap_read(cs35l56_base->regmap,
+			  cs35l56_base->fw_reg->prot_sts,
+			  &val);
 	if (ret)
 		dev_err(cs35l56_base->dev, "Failed to read PROTECTION_STATUS: %d\n", ret);
 	else
@@ -562,7 +575,7 @@ int cs35l56_runtime_suspend_common(struct cs35l56_base *cs35l56_base)
 
 	/* Firmware must have entered a power-save state */
 	ret = regmap_read_poll_timeout(cs35l56_base->regmap,
-				       CS35L56_TRANSDUCER_ACTUAL_PS,
+				       cs35l56_base->fw_reg->transducer_actual_ps,
 				       val, (val >= CS35L56_PS3),
 				       CS35L56_PS3_POLL_US,
 				       CS35L56_PS3_TIMEOUT_US);
@@ -752,7 +765,8 @@ int cs35l56_read_prot_status(struct cs35l56_base *cs35l56_base,
 	unsigned int prot_status;
 	int ret;
 
-	ret = regmap_read(cs35l56_base->regmap, CS35L56_PROTECTION_STATUS, &prot_status);
+	ret = regmap_read(cs35l56_base->regmap,
+			  cs35l56_base->fw_reg->prot_sts, &prot_status);
 	if (ret) {
 		dev_err(cs35l56_base->dev, "Get PROTECTION_STATUS failed: %d\n", ret);
 		return ret;
@@ -760,7 +774,8 @@ int cs35l56_read_prot_status(struct cs35l56_base *cs35l56_base,
 
 	*fw_missing = !!(prot_status & CS35L56_FIRMWARE_MISSING);
 
-	ret = regmap_read(cs35l56_base->regmap, CS35L56_DSP1_FW_VER, fw_version);
+	ret = regmap_read(cs35l56_base->regmap,
+			  cs35l56_base->fw_reg->fw_ver, fw_version);
 	if (ret) {
 		dev_err(cs35l56_base->dev, "Get FW VER failed: %d\n", ret);
 		return ret;
@@ -1044,6 +1059,15 @@ const struct regmap_config cs35l56_regmap_sdw = {
 	.cache_type = REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_NS_GPL(cs35l56_regmap_sdw, "SND_SOC_CS35L56_SHARED");
+
+const struct cs35l56_fw_reg cs35l56_fw_reg = {
+	.fw_ver = CS35L56_DSP1_FW_VER,
+	.halo_state = CS35L56_DSP1_HALO_STATE,
+	.pm_cur_stat = CS35L56_DSP1_PM_CUR_STATE,
+	.prot_sts = CS35L56_PROTECTION_STATUS,
+	.transducer_actual_ps = CS35L56_TRANSDUCER_ACTUAL_PS,
+};
+EXPORT_SYMBOL_NS_GPL(cs35l56_fw_reg, "SND_SOC_CS35L56_SHARED");
 
 MODULE_DESCRIPTION("ASoC CS35L56 Shared");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");

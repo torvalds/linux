@@ -68,7 +68,7 @@ static void cs35l56_hda_play(struct cs35l56_hda *cs35l56)
 	if (ret == 0) {
 		/* Wait for firmware to enter PS0 power state */
 		ret = regmap_read_poll_timeout(cs35l56->base.regmap,
-					       CS35L56_TRANSDUCER_ACTUAL_PS,
+					       cs35l56->base.fw_reg->transducer_actual_ps,
 					       val, (val == CS35L56_PS0),
 					       CS35L56_PS0_POLL_US,
 					       CS35L56_PS0_TIMEOUT_US);
@@ -665,7 +665,8 @@ static void cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 
 	regcache_sync(cs35l56->base.regmap);
 
-	regmap_clear_bits(cs35l56->base.regmap, CS35L56_PROTECTION_STATUS,
+	regmap_clear_bits(cs35l56->base.regmap,
+			  cs35l56->base.fw_reg->prot_sts,
 			  CS35L56_FIRMWARE_MISSING);
 	cs35l56->base.fw_patched = true;
 

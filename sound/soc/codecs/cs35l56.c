@@ -174,7 +174,7 @@ static int cs35l56_play_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		/* Wait for firmware to enter PS0 power state */
 		ret = regmap_read_poll_timeout(cs35l56->base.regmap,
-					       CS35L56_TRANSDUCER_ACTUAL_PS,
+					       cs35l56->base.fw_reg->transducer_actual_ps,
 					       val, (val == CS35L56_PS0),
 					       CS35L56_PS0_POLL_US,
 					       CS35L56_PS0_TIMEOUT_US);
@@ -760,7 +760,8 @@ static void cs35l56_patch(struct cs35l56_private *cs35l56, bool firmware_missing
 		goto err_unlock;
 	}
 
-	regmap_clear_bits(cs35l56->base.regmap, CS35L56_PROTECTION_STATUS,
+	regmap_clear_bits(cs35l56->base.regmap,
+			  cs35l56->base.fw_reg->prot_sts,
 			  CS35L56_FIRMWARE_MISSING);
 	cs35l56->base.fw_patched = true;
 

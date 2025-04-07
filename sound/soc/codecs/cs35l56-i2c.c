@@ -35,6 +35,7 @@ static int cs35l56_i2c_probe(struct i2c_client *client)
 	switch (id) {
 	case 0x3556:
 		regmap_config = &cs35l56_regmap_i2c;
+		cs35l56->base.fw_reg = &cs35l56_fw_reg;
 		break;
 	default:
 		return -ENODEV;

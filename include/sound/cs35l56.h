@@ -267,6 +267,14 @@ struct cs35l56_spi_payload {
 } __packed;
 static_assert(sizeof(struct cs35l56_spi_payload) == 10);
 
+struct cs35l56_fw_reg {
+	unsigned int fw_ver;
+	unsigned int halo_state;
+	unsigned int pm_cur_stat;
+	unsigned int prot_sts;
+	unsigned int transducer_actual_ps;
+};
+
 struct cs35l56_base {
 	struct device *dev;
 	struct regmap *regmap;
@@ -283,6 +291,7 @@ struct cs35l56_base {
 	struct cirrus_amp_cal_data cal_data;
 	struct gpio_desc *reset_gpio;
 	struct cs35l56_spi_payload *spi_payload_buf;
+	const struct cs35l56_fw_reg *fw_reg;
 };
 
 static inline bool cs35l56_is_otp_register(unsigned int reg)
@@ -310,6 +319,8 @@ static inline bool cs35l56_is_spi(struct cs35l56_base *cs35l56)
 extern const struct regmap_config cs35l56_regmap_i2c;
 extern const struct regmap_config cs35l56_regmap_spi;
 extern const struct regmap_config cs35l56_regmap_sdw;
+
+extern const struct cs35l56_fw_reg cs35l56_fw_reg;
 
 extern const struct cirrus_amp_cal_controls cs35l56_calibration_controls;
 
