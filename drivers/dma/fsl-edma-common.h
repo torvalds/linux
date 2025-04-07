@@ -71,6 +71,18 @@
 #define EDMA_V3_CH_ES_ERR          BIT(31)
 #define EDMA_V3_MP_ES_VLD          BIT(31)
 
+#define EDMA_V3_CH_ERR_DBE	BIT(0)
+#define EDMA_V3_CH_ERR_SBE	BIT(1)
+#define EDMA_V3_CH_ERR_SGE	BIT(2)
+#define EDMA_V3_CH_ERR_NCE	BIT(3)
+#define EDMA_V3_CH_ERR_DOE	BIT(4)
+#define EDMA_V3_CH_ERR_DAE	BIT(5)
+#define EDMA_V3_CH_ERR_SOE	BIT(6)
+#define EDMA_V3_CH_ERR_SAE	BIT(7)
+#define EDMA_V3_CH_ERR_ECX	BIT(8)
+#define EDMA_V3_CH_ERR_UCE	BIT(9)
+#define EDMA_V3_CH_ERR		BIT(31)
+
 enum fsl_edma_pm_state {
 	RUNNING = 0,
 	SUSPENDED,
@@ -162,6 +174,7 @@ struct fsl_edma_chan {
 	u32				dma_dev_size;
 	enum dma_data_direction		dma_dir;
 	char				chan_name[32];
+	char				errirq_name[36];
 	void __iomem			*tcd;
 	void __iomem			*mux_addr;
 	u32				real_count;
@@ -174,7 +187,9 @@ struct fsl_edma_chan {
 	int                             priority;
 	int				hw_chanid;
 	int				txirq;
+	int				errirq;
 	irqreturn_t			(*irq_handler)(int irq, void *dev_id);
+	irqreturn_t			(*errirq_handler)(int irq, void *dev_id);
 	bool				is_rxchan;
 	bool				is_remote;
 	bool				is_multi_fifo;
@@ -208,6 +223,9 @@ struct fsl_edma_desc {
 /* Need clean CHn_CSR DONE before enable TCD's MAJORELINK */
 #define FSL_EDMA_DRV_CLEAR_DONE_E_LINK	BIT(14)
 #define FSL_EDMA_DRV_TCD64		BIT(15)
+/* All channel ERR IRQ share one IRQ line */
+#define FSL_EDMA_DRV_ERRIRQ_SHARE       BIT(16)
+
 
 #define FSL_EDMA_DRV_EDMA3	(FSL_EDMA_DRV_SPLIT_REG |	\
 				 FSL_EDMA_DRV_BUS_8BYTE |	\
