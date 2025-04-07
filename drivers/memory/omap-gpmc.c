@@ -2385,17 +2385,6 @@ static int gpmc_gpio_direction_input(struct gpio_chip *chip,
 	return 0;	/* we're input only */
 }
 
-static int gpmc_gpio_direction_output(struct gpio_chip *chip,
-				      unsigned int offset, int value)
-{
-	return -EINVAL;	/* we're input only */
-}
-
-static void gpmc_gpio_set(struct gpio_chip *chip, unsigned int offset,
-			  int value)
-{
-}
-
 static int gpmc_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	u32 reg;
@@ -2417,8 +2406,6 @@ static int gpmc_gpio_init(struct gpmc_device *gpmc)
 	gpmc->gpio_chip.ngpio = gpmc_nr_waitpins;
 	gpmc->gpio_chip.get_direction = gpmc_gpio_get_direction;
 	gpmc->gpio_chip.direction_input = gpmc_gpio_direction_input;
-	gpmc->gpio_chip.direction_output = gpmc_gpio_direction_output;
-	gpmc->gpio_chip.set = gpmc_gpio_set;
 	gpmc->gpio_chip.get = gpmc_gpio_get;
 	gpmc->gpio_chip.base = -1;
 
