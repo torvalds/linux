@@ -42,8 +42,8 @@ struct gpio_aggregator {
 static DEFINE_MUTEX(gpio_aggregator_lock);	/* protects idr */
 static DEFINE_IDR(gpio_aggregator_idr);
 
-static int aggr_add_gpio(struct gpio_aggregator *aggr, const char *key,
-			 int hwnum, unsigned int *n)
+static int gpio_aggregator_add_gpio(struct gpio_aggregator *aggr,
+				    const char *key, int hwnum, unsigned int *n)
 {
 	struct gpiod_lookup_table *lookups;
 
@@ -398,7 +398,7 @@ static struct gpiochip_fwd *gpiochip_fwd_create(struct device *dev,
 /*
  * Sysfs interface
  */
-static int aggr_parse(struct gpio_aggregator *aggr)
+static int gpio_aggregator_parse(struct gpio_aggregator *aggr)
 {
 	char *args = skip_spaces(aggr->args);
 	char *name, *offsets, *p;
@@ -417,7 +417,7 @@ static int aggr_parse(struct gpio_aggregator *aggr)
 		p = get_options(offsets, 0, &error);
 		if (error == 0 || *p) {
 			/* Named GPIO line */
-			error = aggr_add_gpio(aggr, name, U16_MAX, &n);
+			error = gpio_aggregator_add_gpio(aggr, name, U16_MAX, &n);
 			if (error)
 				return error;
 
@@ -433,7 +433,7 @@ static int aggr_parse(struct gpio_aggregator *aggr)
 		}
 
 		for_each_set_bit(i, bitmap, AGGREGATOR_MAX_GPIOS) {
-			error = aggr_add_gpio(aggr, name, i, &n);
+			error = gpio_aggregator_add_gpio(aggr, name, i, &n);
 			if (error)
 				return error;
 		}
@@ -449,8 +449,8 @@ static int aggr_parse(struct gpio_aggregator *aggr)
 	return 0;
 }
 
-static ssize_t new_device_store(struct device_driver *driver, const char *buf,
-				size_t count)
+static ssize_t gpio_aggregator_new_device_store(struct device_driver *driver,
+						const char *buf, size_t count)
 {
 	struct gpio_aggregator *aggr;
 	struct platform_device *pdev;
@@ -490,7 +490,7 @@ static ssize_t new_device_store(struct device_driver *driver, const char *buf,
 		goto remove_idr;
 	}
 
-	res = aggr_parse(aggr);
+	res = gpio_aggregator_parse(aggr);
 	if (res)
 		goto free_dev_id;
 
@@ -523,9 +523,10 @@ put_module:
 	return res;
 }
 
-static DRIVER_ATTR_WO(new_device);
+static struct driver_attribute driver_attr_gpio_aggregator_new_device =
+	__ATTR(new_device, 0200, NULL, gpio_aggregator_new_device_store);
 
-static void gpio_aggregator_free(struct gpio_aggregator *aggr)
+static void gpio_aggregator_destroy(struct gpio_aggregator *aggr)
 {
 	platform_device_unregister(aggr->pdev);
 	gpiod_remove_lookup_table(aggr->lookups);
@@ -534,8 +535,8 @@ static void gpio_aggregator_free(struct gpio_aggregator *aggr)
 	kfree(aggr);
 }
 
-static ssize_t delete_device_store(struct device_driver *driver,
-				   const char *buf, size_t count)
+static ssize_t gpio_aggregator_delete_device_store(struct device_driver *driver,
+						   const char *buf, size_t count)
 {
 	struct gpio_aggregator *aggr;
 	unsigned int id;
@@ -559,15 +560,17 @@ static ssize_t delete_device_store(struct device_driver *driver,
 		return -ENOENT;
 	}
 
-	gpio_aggregator_free(aggr);
+	gpio_aggregator_destroy(aggr);
 	module_put(THIS_MODULE);
 	return count;
 }
-static DRIVER_ATTR_WO(delete_device);
+
+static struct driver_attribute driver_attr_gpio_aggregator_delete_device =
+	__ATTR(delete_device, 0200, NULL, gpio_aggregator_delete_device_store);
 
 static struct attribute *gpio_aggregator_attrs[] = {
-	&driver_attr_new_device.attr,
-	&driver_attr_delete_device.attr,
+	&driver_attr_gpio_aggregator_new_device.attr,
+	&driver_attr_gpio_aggregator_delete_device.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(gpio_aggregator);
@@ -632,7 +635,7 @@ static struct platform_driver gpio_aggregator_driver = {
 
 static int __exit gpio_aggregator_idr_remove(int id, void *p, void *data)
 {
-	gpio_aggregator_free(p);
+	gpio_aggregator_destroy(p);
 	return 0;
 }
 
