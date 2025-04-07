@@ -33,9 +33,7 @@ struct crypto_scomp;
 enum {
 	ACOMP_WALK_SLEEP = 1 << 0,
 	ACOMP_WALK_SRC_LINEAR = 1 << 1,
-	ACOMP_WALK_SRC_FOLIO = 1 << 2,
-	ACOMP_WALK_DST_LINEAR = 1 << 3,
-	ACOMP_WALK_DST_FOLIO = 1 << 4,
+	ACOMP_WALK_DST_LINEAR = 1 << 2,
 };
 
 static const struct crypto_type crypto_acomp_type;
@@ -195,12 +193,8 @@ static void acomp_reqchain_virt(struct acomp_req *req)
 
 	if (state->flags & CRYPTO_ACOMP_REQ_SRC_VIRT)
 		acomp_request_set_src_dma(req, state->src, slen);
-	else if (state->flags & CRYPTO_ACOMP_REQ_SRC_FOLIO)
-		acomp_request_set_src_folio(req, state->sfolio, req->soff, slen);
 	if (state->flags & CRYPTO_ACOMP_REQ_DST_VIRT)
 		acomp_request_set_dst_dma(req, state->dst, dlen);
-	else if (state->flags & CRYPTO_ACOMP_REQ_DST_FOLIO)
-		acomp_request_set_dst_folio(req, state->dfolio, req->doff, dlen);
 }
 
 static void acomp_virt_to_sg(struct acomp_req *req)
@@ -208,9 +202,7 @@ static void acomp_virt_to_sg(struct acomp_req *req)
 	struct acomp_req_chain *state = &req->chain;
 
 	state->flags = req->base.flags & (CRYPTO_ACOMP_REQ_SRC_VIRT |
-					  CRYPTO_ACOMP_REQ_DST_VIRT |
-					  CRYPTO_ACOMP_REQ_SRC_FOLIO |
-					  CRYPTO_ACOMP_REQ_DST_FOLIO);
+					  CRYPTO_ACOMP_REQ_DST_VIRT);
 
 	if (acomp_request_src_isvirt(req)) {
 		unsigned int slen = req->slen;
@@ -218,16 +210,6 @@ static void acomp_virt_to_sg(struct acomp_req *req)
 
 		state->src = svirt;
 		sg_init_one(&state->ssg, svirt, slen);
-		acomp_request_set_src_sg(req, &state->ssg, slen);
-	} else if (acomp_request_src_isfolio(req)) {
-		struct folio *folio = req->sfolio;
-		unsigned int slen = req->slen;
-		size_t off = req->soff;
-
-		state->sfolio = folio;
-		sg_init_table(&state->ssg, 1);
-		sg_set_page(&state->ssg, folio_page(folio, off / PAGE_SIZE),
-			    slen, off % PAGE_SIZE);
 		acomp_request_set_src_sg(req, &state->ssg, slen);
 	}
 
@@ -238,16 +220,6 @@ static void acomp_virt_to_sg(struct acomp_req *req)
 		state->dst = dvirt;
 		sg_init_one(&state->dsg, dvirt, dlen);
 		acomp_request_set_dst_sg(req, &state->dsg, dlen);
-	} else if (acomp_request_dst_isfolio(req)) {
-		struct folio *folio = req->dfolio;
-		unsigned int dlen = req->dlen;
-		size_t off = req->doff;
-
-		state->dfolio = folio;
-		sg_init_table(&state->dsg, 1);
-		sg_set_page(&state->dsg, folio_page(folio, off / PAGE_SIZE),
-			    dlen, off % PAGE_SIZE);
-		acomp_request_set_src_sg(req, &state->dsg, dlen);
 	}
 }
 
@@ -579,18 +551,8 @@ int acomp_walk_virt(struct acomp_walk *__restrict walk,
 		walk->flags |= ACOMP_WALK_SLEEP;
 	if ((req->base.flags & CRYPTO_ACOMP_REQ_SRC_VIRT))
 		walk->flags |= ACOMP_WALK_SRC_LINEAR;
-	else if ((req->base.flags & CRYPTO_ACOMP_REQ_SRC_FOLIO)) {
-		src = &req->chain.ssg;
-		sg_init_table(src, 1);
-		sg_set_folio(src, req->sfolio, walk->slen, req->soff);
-	}
 	if ((req->base.flags & CRYPTO_ACOMP_REQ_DST_VIRT))
 		walk->flags |= ACOMP_WALK_DST_LINEAR;
-	else if ((req->base.flags & CRYPTO_ACOMP_REQ_DST_FOLIO)) {
-		dst = &req->chain.dsg;
-		sg_init_table(dst, 1);
-		sg_set_folio(dst, req->dfolio, walk->dlen, req->doff);
-	}
 
 	if ((walk->flags & ACOMP_WALK_SRC_LINEAR)) {
 		walk->in.sg = (void *)req->svirt;

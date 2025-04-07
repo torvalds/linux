@@ -32,17 +32,10 @@
 /* Set this bit for if virtual address destination cannot be used for DMA. */
 #define CRYPTO_ACOMP_REQ_DST_NONDMA	0x00000010
 
-/* Set this bit if source is a folio. */
-#define CRYPTO_ACOMP_REQ_SRC_FOLIO	0x00000020
-
-/* Set this bit if destination is a folio. */
-#define CRYPTO_ACOMP_REQ_DST_FOLIO	0x00000040
-
 /* Private flags that should not be touched by the user. */
 #define CRYPTO_ACOMP_REQ_PRIVATE \
 	(CRYPTO_ACOMP_REQ_SRC_VIRT | CRYPTO_ACOMP_REQ_SRC_NONDMA | \
-	 CRYPTO_ACOMP_REQ_DST_VIRT | CRYPTO_ACOMP_REQ_DST_NONDMA | \
-	 CRYPTO_ACOMP_REQ_SRC_FOLIO | CRYPTO_ACOMP_REQ_DST_FOLIO)
+	 CRYPTO_ACOMP_REQ_DST_VIRT | CRYPTO_ACOMP_REQ_DST_NONDMA)
 
 #define CRYPTO_ACOMP_DST_MAX		131072
 
@@ -84,10 +77,6 @@ struct acomp_req_chain {
  * @dst:	Destination scatterlist
  * @svirt:	Source virtual address
  * @dvirt:	Destination virtual address
- * @sfolio:	Source folio
- * @soff:	Source folio offset
- * @dfolio:	Destination folio
- * @doff:	Destination folio offset
  * @slen:	Size of the input buffer
  * @dlen:	Size of the output buffer and number of bytes produced
  * @chain:	Private API code data, do not use
@@ -98,15 +87,11 @@ struct acomp_req {
 	union {
 		struct scatterlist *src;
 		const u8 *svirt;
-		struct folio *sfolio;
 	};
 	union {
 		struct scatterlist *dst;
 		u8 *dvirt;
-		struct folio *dfolio;
 	};
-	size_t soff;
-	size_t doff;
 	unsigned int slen;
 	unsigned int dlen;
 
@@ -373,8 +358,6 @@ static inline void acomp_request_set_params(struct acomp_req *req,
 
 	req->base.flags &= ~(CRYPTO_ACOMP_REQ_SRC_VIRT |
 			     CRYPTO_ACOMP_REQ_SRC_NONDMA |
-			     CRYPTO_ACOMP_REQ_SRC_FOLIO |
-			     CRYPTO_ACOMP_REQ_DST_FOLIO |
 			     CRYPTO_ACOMP_REQ_DST_VIRT |
 			     CRYPTO_ACOMP_REQ_DST_NONDMA);
 }
@@ -397,7 +380,6 @@ static inline void acomp_request_set_src_sg(struct acomp_req *req,
 
 	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_NONDMA;
 	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_VIRT;
-	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_FOLIO;
 }
 
 /**
@@ -417,7 +399,6 @@ static inline void acomp_request_set_src_dma(struct acomp_req *req,
 	req->slen = slen;
 
 	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_NONDMA;
-	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_FOLIO;
 	req->base.flags |= CRYPTO_ACOMP_REQ_SRC_VIRT;
 }
 
@@ -438,7 +419,6 @@ static inline void acomp_request_set_src_nondma(struct acomp_req *req,
 	req->svirt = src;
 	req->slen = slen;
 
-	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_FOLIO;
 	req->base.flags |= CRYPTO_ACOMP_REQ_SRC_NONDMA;
 	req->base.flags |= CRYPTO_ACOMP_REQ_SRC_VIRT;
 }
@@ -457,13 +437,9 @@ static inline void acomp_request_set_src_folio(struct acomp_req *req,
 					       struct folio *folio, size_t off,
 					       unsigned int len)
 {
-	req->sfolio = folio;
-	req->soff = off;
-	req->slen = len;
-
-	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_NONDMA;
-	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_VIRT;
-	req->base.flags |= CRYPTO_ACOMP_REQ_SRC_FOLIO;
+	sg_init_table(&req->chain.ssg, 1);
+	sg_set_folio(&req->chain.ssg, folio, len, off);
+	acomp_request_set_src_sg(req, &req->chain.ssg, len);
 }
 
 /**
@@ -484,7 +460,6 @@ static inline void acomp_request_set_dst_sg(struct acomp_req *req,
 
 	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_NONDMA;
 	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_VIRT;
-	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_FOLIO;
 }
 
 /**
@@ -504,7 +479,6 @@ static inline void acomp_request_set_dst_dma(struct acomp_req *req,
 	req->dlen = dlen;
 
 	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_NONDMA;
-	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_FOLIO;
 	req->base.flags |= CRYPTO_ACOMP_REQ_DST_VIRT;
 }
 
@@ -524,7 +498,6 @@ static inline void acomp_request_set_dst_nondma(struct acomp_req *req,
 	req->dvirt = dst;
 	req->dlen = dlen;
 
-	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_FOLIO;
 	req->base.flags |= CRYPTO_ACOMP_REQ_DST_NONDMA;
 	req->base.flags |= CRYPTO_ACOMP_REQ_DST_VIRT;
 }
@@ -543,13 +516,9 @@ static inline void acomp_request_set_dst_folio(struct acomp_req *req,
 					       struct folio *folio, size_t off,
 					       unsigned int len)
 {
-	req->dfolio = folio;
-	req->doff = off;
-	req->dlen = len;
-
-	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_NONDMA;
-	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_VIRT;
-	req->base.flags |= CRYPTO_ACOMP_REQ_DST_FOLIO;
+	sg_init_table(&req->chain.dsg, 1);
+	sg_set_folio(&req->chain.dsg, folio, len, off);
+	acomp_request_set_dst_sg(req, &req->chain.dsg, len);
 }
 
 /**

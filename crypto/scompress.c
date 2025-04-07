@@ -193,10 +193,7 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 	if (dst_isvirt)
 		dst = req->dvirt;
 	else {
-		if (acomp_request_dst_isfolio(req)) {
-			dpage = folio_page(req->dfolio, 0);
-			doff = req->doff;
-		} else if (dlen <= req->dst->length) {
+		if (dlen <= req->dst->length) {
 			dpage = sg_page(req->dst);
 			doff = req->dst->offset;
 		} else
@@ -218,10 +215,7 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 	else {
 		src = NULL;
 		do {
-			if (acomp_request_src_isfolio(req)) {
-				spage = folio_page(req->sfolio, 0);
-				soff = req->soff;
-			} else if (slen <= req->src->length) {
+			if (slen <= req->src->length) {
 				spage = sg_page(req->src);
 				soff = req->src->offset;
 			} else
