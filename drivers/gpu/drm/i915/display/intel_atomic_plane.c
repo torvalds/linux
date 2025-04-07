@@ -174,8 +174,12 @@ bool intel_plane_needs_physical(struct intel_plane *plane)
 		DISPLAY_INFO(display)->cursor_needs_physical;
 }
 
-bool intel_plane_can_async_flip(struct intel_plane *plane, u64 modifier)
+bool intel_plane_can_async_flip(struct intel_plane *plane, u32 format,
+				u64 modifier)
 {
+	if (intel_format_info_is_yuv_semiplanar(drm_format_info(format), modifier))
+		return false;
+
 	return plane->can_async_flip && plane->can_async_flip(modifier);
 }
 
