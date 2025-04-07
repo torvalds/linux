@@ -185,7 +185,7 @@ static const struct of_device_id adc128_of_match[] = {
 	{ .compatible = "ti,adc124s021", .data = &adc128_config[2] },
 	{ .compatible = "ti,adc124s051", .data = &adc128_config[2] },
 	{ .compatible = "ti,adc124s101", .data = &adc128_config[2] },
-	{ /* sentinel */ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, adc128_of_match);
 
