@@ -5038,7 +5038,7 @@ static bool skb_flow_limit(struct sk_buff *skb, unsigned int qlen)
 	rcu_read_lock();
 	fl = rcu_dereference(sd->flow_limit);
 	if (fl) {
-		new_flow = skb_get_hash(skb) & (fl->num_buckets - 1);
+		new_flow = hash_32(skb_get_hash(skb), fl->log_buckets);
 		old_flow = fl->history[fl->history_head];
 		fl->history[fl->history_head] = new_flow;
 
