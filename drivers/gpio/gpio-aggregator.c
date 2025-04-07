@@ -36,11 +36,40 @@
 struct gpio_aggregator {
 	struct gpiod_lookup_table *lookups;
 	struct platform_device *pdev;
+	int id;
 	char args[];
 };
 
 static DEFINE_MUTEX(gpio_aggregator_lock);	/* protects idr */
 static DEFINE_IDR(gpio_aggregator_idr);
+
+static int gpio_aggregator_alloc(struct gpio_aggregator **aggr, size_t arg_size)
+{
+	int ret;
+
+	struct gpio_aggregator *new __free(kfree) = kzalloc(
+					sizeof(*new) + arg_size, GFP_KERNEL);
+	if (!new)
+		return -ENOMEM;
+
+	scoped_guard(mutex, &gpio_aggregator_lock)
+		ret = idr_alloc(&gpio_aggregator_idr, new, 0, 0, GFP_KERNEL);
+
+	if (ret < 0)
+		return ret;
+
+	new->id = ret;
+	*aggr = no_free_ptr(new);
+	return 0;
+}
+
+static void gpio_aggregator_free(struct gpio_aggregator *aggr)
+{
+	scoped_guard(mutex, &gpio_aggregator_lock)
+		idr_remove(&gpio_aggregator_idr, aggr->id);
+
+	kfree(aggr);
+}
 
 static int gpio_aggregator_add_gpio(struct gpio_aggregator *aggr,
 				    const char *key, int hwnum, unsigned int *n)
@@ -454,17 +483,15 @@ static ssize_t gpio_aggregator_new_device_store(struct device_driver *driver,
 {
 	struct gpio_aggregator *aggr;
 	struct platform_device *pdev;
-	int res, id;
+	int res;
 
 	if (!try_module_get(THIS_MODULE))
 		return -ENOENT;
 
 	/* kernfs guarantees string termination, so count + 1 is safe */
-	aggr = kzalloc(sizeof(*aggr) + count + 1, GFP_KERNEL);
-	if (!aggr) {
-		res = -ENOMEM;
+	res = gpio_aggregator_alloc(&aggr, count + 1);
+	if (res)
 		goto put_module;
-	}
 
 	memcpy(aggr->args, buf, count + 1);
 
@@ -475,19 +502,10 @@ static ssize_t gpio_aggregator_new_device_store(struct device_driver *driver,
 		goto free_ga;
 	}
 
-	mutex_lock(&gpio_aggregator_lock);
-	id = idr_alloc(&gpio_aggregator_idr, aggr, 0, 0, GFP_KERNEL);
-	mutex_unlock(&gpio_aggregator_lock);
-
-	if (id < 0) {
-		res = id;
-		goto free_table;
-	}
-
-	aggr->lookups->dev_id = kasprintf(GFP_KERNEL, "%s.%d", DRV_NAME, id);
+	aggr->lookups->dev_id = kasprintf(GFP_KERNEL, "%s.%d", DRV_NAME, aggr->id);
 	if (!aggr->lookups->dev_id) {
 		res = -ENOMEM;
-		goto remove_idr;
+		goto free_table;
 	}
 
 	res = gpio_aggregator_parse(aggr);
@@ -496,7 +514,7 @@ static ssize_t gpio_aggregator_new_device_store(struct device_driver *driver,
 
 	gpiod_add_lookup_table(aggr->lookups);
 
-	pdev = platform_device_register_simple(DRV_NAME, id, NULL, 0);
+	pdev = platform_device_register_simple(DRV_NAME, aggr->id, NULL, 0);
 	if (IS_ERR(pdev)) {
 		res = PTR_ERR(pdev);
 		goto remove_table;
@@ -510,14 +528,10 @@ remove_table:
 	gpiod_remove_lookup_table(aggr->lookups);
 free_dev_id:
 	kfree(aggr->lookups->dev_id);
-remove_idr:
-	mutex_lock(&gpio_aggregator_lock);
-	idr_remove(&gpio_aggregator_idr, id);
-	mutex_unlock(&gpio_aggregator_lock);
 free_table:
 	kfree(aggr->lookups);
 free_ga:
-	kfree(aggr);
+	gpio_aggregator_free(aggr);
 put_module:
 	module_put(THIS_MODULE);
 	return res;
