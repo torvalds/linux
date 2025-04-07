@@ -915,7 +915,8 @@ static void sm501_gpio_ensure_gpio(struct sm501_gpio_chip *smchip,
 	}
 }
 
-static void sm501_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+static int sm501_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			  int value)
 
 {
 	struct sm501_gpio_chip *smchip = gpiochip_get_data(chip);
@@ -939,6 +940,8 @@ static void sm501_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	sm501_gpio_ensure_gpio(smchip, bit);
 
 	spin_unlock_irqrestore(&smgpio->lock, save);
+
+	return 0;
 }
 
 static int sm501_gpio_input(struct gpio_chip *chip, unsigned offset)
@@ -1005,7 +1008,7 @@ static const struct gpio_chip gpio_chip_template = {
 	.ngpio			= 32,
 	.direction_input	= sm501_gpio_input,
 	.direction_output	= sm501_gpio_output,
-	.set			= sm501_gpio_set,
+	.set_rv			= sm501_gpio_set,
 	.get			= sm501_gpio_get,
 };
 
