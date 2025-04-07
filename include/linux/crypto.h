@@ -300,17 +300,8 @@ struct cipher_alg {
  *	   by @cra_type and @cra_flags above, the associated structure must be
  *	   filled with callbacks. This field might be empty. This is the case
  *	   for ahash, shash.
- * @cra_init: Initialize the cryptographic transformation object. This function
- *	      is used to initialize the cryptographic transformation object.
- *	      This function is called only once at the instantiation time, right
- *	      after the transformation context was allocated. In case the
- *	      cryptographic hardware has some special requirements which need to
- *	      be handled by software, this function shall check for the precise
- *	      requirement of the transformation and put any software fallbacks
- *	      in place.
- * @cra_exit: Deinitialize the cryptographic transformation object. This is a
- *	      counterpart to @cra_init, used to remove various changes set in
- *	      @cra_init.
+ * @cra_init: Deprecated, do not use.
+ * @cra_exit: Deprecated, do not use.
  * @cra_u.cipher: Union member which contains a single-block symmetric cipher
  *		  definition. See @struct @cipher_alg.
  * @cra_module: Owner of this transformation implementation. Set to THIS_MODULE
