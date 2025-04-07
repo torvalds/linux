@@ -1505,8 +1505,7 @@ out:
 		tasdevice_dsp_remove(tas_priv);
 	}
 	mutex_unlock(&tas_priv->codec_lock);
-	if (fmw)
-		release_firmware(fmw);
+	release_firmware(fmw);
 }
 
 static int tasdevice_dapm_event(struct snd_soc_dapm_widget *w,
