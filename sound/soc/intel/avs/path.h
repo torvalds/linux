@@ -69,6 +69,11 @@ int avs_path_reset(struct avs_path *path);
 int avs_path_pause(struct avs_path *path);
 int avs_path_run(struct avs_path *path, int trigger);
 
+int avs_path_set_constraint(struct avs_dev *adev, struct avs_tplg_path_template *template,
+			    struct snd_pcm_hw_constraint_list *rate_list,
+			    struct snd_pcm_hw_constraint_list *channels_list,
+			    struct snd_pcm_hw_constraint_list *sample_bits_list);
+
 int avs_peakvol_set_volume(struct avs_dev *adev, struct avs_path_module *mod,
 			   struct soc_mixer_control *mc, long *input);
 int avs_peakvol_set_mute(struct avs_dev *adev, struct avs_path_module *mod,
