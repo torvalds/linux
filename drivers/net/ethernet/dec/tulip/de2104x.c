@@ -1428,7 +1428,7 @@ static int de_close (struct net_device *dev)
 
 	netif_dbg(de, ifdown, dev, "disabling interface\n");
 
-	del_timer_sync(&de->media_timer);
+	timer_delete_sync(&de->media_timer);
 
 	spin_lock_irqsave(&de->lock, flags);
 	de_stop_hw(de);
@@ -1452,7 +1452,7 @@ static void de_tx_timeout (struct net_device *dev, unsigned int txqueue)
 		   dr32(MacStatus), dr32(MacMode), dr32(SIAStatus),
 		   de->rx_tail, de->tx_head, de->tx_tail);
 
-	del_timer_sync(&de->media_timer);
+	timer_delete_sync(&de->media_timer);
 
 	disable_irq(irq);
 	spin_lock_irq(&de->lock);
@@ -2126,7 +2126,7 @@ static int __maybe_unused de_suspend(struct device *dev_d)
 	if (netif_running (dev)) {
 		const int irq = pdev->irq;
 
-		del_timer_sync(&de->media_timer);
+		timer_delete_sync(&de->media_timer);
 
 		disable_irq(irq);
 		spin_lock_irq(&de->lock);

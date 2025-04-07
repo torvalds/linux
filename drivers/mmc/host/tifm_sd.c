@@ -735,7 +735,7 @@ static void tifm_sd_end_cmd(struct work_struct *t)
 
 	spin_lock_irqsave(&sock->lock, flags);
 
-	del_timer(&host->timer);
+	timer_delete(&host->timer);
 	mrq = host->req;
 	host->req = NULL;
 

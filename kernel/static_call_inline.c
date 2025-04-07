@@ -206,7 +206,7 @@ void __static_call_update(struct static_call_key *key, void *tramp, void *func)
 				continue;
 			}
 
-			arch_static_call_transform(site_addr, NULL, func,
+			arch_static_call_transform(site_addr, tramp, func,
 						   static_call_is_tail(site));
 		}
 	}
@@ -325,13 +325,12 @@ static int __static_call_mod_text_reserved(void *start, void *end)
 	struct module *mod;
 	int ret;
 
-	preempt_disable();
-	mod = __module_text_address((unsigned long)start);
-	WARN_ON_ONCE(__module_text_address((unsigned long)end) != mod);
-	if (!try_module_get(mod))
-		mod = NULL;
-	preempt_enable();
-
+	scoped_guard(rcu) {
+		mod = __module_text_address((unsigned long)start);
+		WARN_ON_ONCE(__module_text_address((unsigned long)end) != mod);
+		if (!try_module_get(mod))
+			mod = NULL;
+	}
 	if (!mod)
 		return 0;
 

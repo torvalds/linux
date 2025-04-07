@@ -758,7 +758,7 @@ static irqreturn_t sis190_irq(int irq, void *__dev)
 
 	if (status & LinkChange) {
 		netif_info(tp, intr, dev, "link change\n");
-		del_timer(&tp->timer);
+		timer_delete(&tp->timer);
 		schedule_work(&tp->phy_task);
 	}
 
@@ -1034,7 +1034,7 @@ static inline void sis190_delete_timer(struct net_device *dev)
 {
 	struct sis190_private *tp = netdev_priv(dev);
 
-	del_timer_sync(&tp->timer);
+	timer_delete_sync(&tp->timer);
 }
 
 static inline void sis190_request_timer(struct net_device *dev)

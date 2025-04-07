@@ -347,3 +347,28 @@ filesystems:
 ``/proc/sys/fs/fuse/max_pages_limit`` is a read/write file for
 setting/getting the maximum number of pages that can be used for servicing
 requests in FUSE.
+
+``/proc/sys/fs/fuse/default_request_timeout`` is a read/write file for
+setting/getting the default timeout (in seconds) for a fuse server to
+reply to a kernel-issued request in the event where the server did not
+specify a timeout at mount. If the server set a timeout,
+then default_request_timeout will be ignored.  The default
+"default_request_timeout" is set to 0. 0 indicates no default timeout.
+The maximum value that can be set is 65535.
+
+``/proc/sys/fs/fuse/max_request_timeout`` is a read/write file for
+setting/getting the maximum timeout (in seconds) for a fuse server to
+reply to a kernel-issued request. A value greater than 0 automatically opts
+the server into a timeout that will be set to at most "max_request_timeout",
+even if the server did not specify a timeout and default_request_timeout is
+set to 0. If max_request_timeout is greater than 0 and the server set a timeout
+greater than max_request_timeout or default_request_timeout is set to a value
+greater than max_request_timeout, the system will use max_request_timeout as the
+timeout. 0 indicates no max request timeout. The maximum value that can be set
+is 65535.
+
+For timeouts, if the server does not respond to the request by the time
+the set timeout elapses, then the connection to the fuse server will be aborted.
+Please note that the timeouts are not 100% precise (eg you may set 60 seconds but
+the timeout may kick in after 70 seconds). The upper margin of error for the
+timeout is roughly FUSE_TIMEOUT_TIMER_FREQ seconds.

@@ -457,6 +457,38 @@ DEFINE_EVENT(amdgpu_pasid, amdgpu_pasid_freed,
 	    TP_ARGS(pasid)
 );
 
+TRACE_EVENT(amdgpu_isolation,
+	    TP_PROTO(void *prev, void *next),
+	    TP_ARGS(prev, next),
+	    TP_STRUCT__entry(
+			     __field(void *, prev)
+			     __field(void *, next)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->prev = prev;
+			   __entry->next = next;
+			   ),
+	    TP_printk("prev=%p, next=%p",
+		      __entry->prev,
+		      __entry->next)
+);
+
+TRACE_EVENT(amdgpu_cleaner_shader,
+	    TP_PROTO(struct amdgpu_ring *ring, struct dma_fence *fence),
+	    TP_ARGS(ring, fence),
+	    TP_STRUCT__entry(
+			     __string(ring, ring->name)
+			     __field(u64, seqno)
+			     ),
+
+	    TP_fast_assign(
+			   __assign_str(ring);
+			   __entry->seqno = fence->seqno;
+			   ),
+	    TP_printk("ring=%s, seqno=%Lu", __get_str(ring), __entry->seqno)
+);
+
 TRACE_EVENT(amdgpu_bo_list_set,
 	    TP_PROTO(struct amdgpu_bo_list *list, struct amdgpu_bo *bo),
 	    TP_ARGS(list, bo),

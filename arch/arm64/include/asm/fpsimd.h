@@ -80,7 +80,6 @@ extern void fpsimd_signal_preserve_current_state(void);
 extern void fpsimd_preserve_current_state(void);
 extern void fpsimd_restore_current_state(void);
 extern void fpsimd_update_current_state(struct user_fpsimd_state const *state);
-extern void fpsimd_kvm_prepare(void);
 
 struct cpu_fp_state {
 	struct user_fpsimd_state *st;

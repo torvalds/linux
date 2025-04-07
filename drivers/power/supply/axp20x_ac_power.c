@@ -364,7 +364,7 @@ static int axp20x_ac_power_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, power);
 
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.fwnode = dev_fwnode(&pdev->dev);
 	psy_cfg.drv_data = power;
 
 	power->supply = devm_power_supply_register(&pdev->dev,

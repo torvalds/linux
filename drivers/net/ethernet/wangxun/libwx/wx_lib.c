@@ -13,6 +13,7 @@
 
 #include "wx_type.h"
 #include "wx_lib.h"
+#include "wx_ptp.h"
 #include "wx_hw.h"
 
 /* Lookup table mapping the HW PTYPE to the bit field for decoding */
@@ -597,8 +598,17 @@ static void wx_process_skb_fields(struct wx_ring *rx_ring,
 				  union wx_rx_desc *rx_desc,
 				  struct sk_buff *skb)
 {
+	struct wx *wx = netdev_priv(rx_ring->netdev);
+
 	wx_rx_hash(rx_ring, rx_desc, skb);
 	wx_rx_checksum(rx_ring, rx_desc, skb);
+
+	if (unlikely(test_bit(WX_FLAG_RX_HWTSTAMP_ENABLED, wx->flags)) &&
+	    unlikely(wx_test_staterr(rx_desc, WX_RXD_STAT_TS))) {
+		wx_ptp_rx_hwtstamp(rx_ring->q_vector->wx, skb);
+		rx_ring->last_rx_timestamp = jiffies;
+	}
+
 	wx_rx_vlan(rx_ring, rx_desc, skb);
 	skb_record_rx_queue(skb, rx_ring->queue_index);
 	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
@@ -705,6 +715,7 @@ static bool wx_clean_tx_irq(struct wx_q_vector *q_vector,
 {
 	unsigned int budget = q_vector->wx->tx_work_limit;
 	unsigned int total_bytes = 0, total_packets = 0;
+	struct wx *wx = netdev_priv(tx_ring->netdev);
 	unsigned int i = tx_ring->next_to_clean;
 	struct wx_tx_buffer *tx_buffer;
 	union wx_tx_desc *tx_desc;
@@ -736,6 +747,11 @@ static bool wx_clean_tx_irq(struct wx_q_vector *q_vector,
 		/* update the statistics for this packet */
 		total_bytes += tx_buffer->bytecount;
 		total_packets += tx_buffer->gso_segs;
+
+		/* schedule check for Tx timestamp */
+		if (unlikely(test_bit(WX_STATE_PTP_TX_IN_PROGRESS, wx->state)) &&
+		    skb_shinfo(tx_buffer->skb)->tx_flags & SKBTX_IN_PROGRESS)
+			ptp_schedule_worker(wx->ptp_clock, 0);
 
 		/* free the skb */
 		napi_consume_skb(tx_buffer->skb, napi_budget);
@@ -932,9 +948,9 @@ static void wx_tx_olinfo_status(union wx_tx_desc *tx_desc,
 	tx_desc->read.olinfo_status = cpu_to_le32(olinfo_status);
 }
 
-static void wx_tx_map(struct wx_ring *tx_ring,
-		      struct wx_tx_buffer *first,
-		      const u8 hdr_len)
+static int wx_tx_map(struct wx_ring *tx_ring,
+		     struct wx_tx_buffer *first,
+		     const u8 hdr_len)
 {
 	struct sk_buff *skb = first->skb;
 	struct wx_tx_buffer *tx_buffer;
@@ -1013,6 +1029,8 @@ static void wx_tx_map(struct wx_ring *tx_ring,
 
 	netdev_tx_sent_queue(wx_txring_txq(tx_ring), first->bytecount);
 
+	/* set the timestamp */
+	first->time_stamp = jiffies;
 	skb_tx_timestamp(skb);
 
 	/* Force memory writes to complete before letting h/w know there
@@ -1038,7 +1056,7 @@ static void wx_tx_map(struct wx_ring *tx_ring,
 	if (netif_xmit_stopped(wx_txring_txq(tx_ring)) || !netdev_xmit_more())
 		writel(i, tx_ring->tail);
 
-	return;
+	return 0;
 dma_error:
 	dev_err(tx_ring->dev, "TX DMA map failed\n");
 
@@ -1062,6 +1080,8 @@ dma_error:
 	first->skb = NULL;
 
 	tx_ring->next_to_use = i;
+
+	return -ENOMEM;
 }
 
 static void wx_tx_ctxtdesc(struct wx_ring *tx_ring, u32 vlan_macip_lens,
@@ -1082,26 +1102,6 @@ static void wx_tx_ctxtdesc(struct wx_ring *tx_ring, u32 vlan_macip_lens,
 	context_desc->mss_l4len_idx     = cpu_to_le32(mss_l4len_idx);
 }
 
-static void wx_get_ipv6_proto(struct sk_buff *skb, int offset, u8 *nexthdr)
-{
-	struct ipv6hdr *hdr = (struct ipv6hdr *)(skb->data + offset);
-
-	*nexthdr = hdr->nexthdr;
-	offset += sizeof(struct ipv6hdr);
-	while (ipv6_ext_hdr(*nexthdr)) {
-		struct ipv6_opt_hdr _hdr, *hp;
-
-		if (*nexthdr == NEXTHDR_NONE)
-			return;
-		hp = skb_header_pointer(skb, offset, sizeof(_hdr), &_hdr);
-		if (!hp)
-			return;
-		if (*nexthdr == NEXTHDR_FRAGMENT)
-			break;
-		*nexthdr = hp->nexthdr;
-	}
-}
-
 union network_header {
 	struct iphdr *ipv4;
 	struct ipv6hdr *ipv6;
@@ -1112,6 +1112,8 @@ static u8 wx_encode_tx_desc_ptype(const struct wx_tx_buffer *first)
 {
 	u8 tun_prot = 0, l4_prot = 0, ptype = 0;
 	struct sk_buff *skb = first->skb;
+	unsigned char *exthdr, *l4_hdr;
+	__be16 frag_off;
 
 	if (skb->encapsulation) {
 		union network_header hdr;
@@ -1122,14 +1124,18 @@ static u8 wx_encode_tx_desc_ptype(const struct wx_tx_buffer *first)
 			ptype = WX_PTYPE_TUN_IPV4;
 			break;
 		case htons(ETH_P_IPV6):
-			wx_get_ipv6_proto(skb, skb_network_offset(skb), &tun_prot);
+			l4_hdr = skb_transport_header(skb);
+			exthdr = skb_network_header(skb) + sizeof(struct ipv6hdr);
+			tun_prot = ipv6_hdr(skb)->nexthdr;
+			if (l4_hdr != exthdr)
+				ipv6_skip_exthdr(skb, exthdr - skb->data, &tun_prot, &frag_off);
 			ptype = WX_PTYPE_TUN_IPV6;
 			break;
 		default:
 			return ptype;
 		}
 
-		if (tun_prot == IPPROTO_IPIP) {
+		if (tun_prot == IPPROTO_IPIP || tun_prot == IPPROTO_IPV6) {
 			hdr.raw = (void *)inner_ip_hdr(skb);
 			ptype |= WX_PTYPE_PKT_IPIP;
 		} else if (tun_prot == IPPROTO_UDP) {
@@ -1166,7 +1172,11 @@ static u8 wx_encode_tx_desc_ptype(const struct wx_tx_buffer *first)
 			l4_prot = hdr.ipv4->protocol;
 			break;
 		case 6:
-			wx_get_ipv6_proto(skb, skb_inner_network_offset(skb), &l4_prot);
+			l4_hdr = skb_inner_transport_header(skb);
+			exthdr = skb_inner_network_header(skb) + sizeof(struct ipv6hdr);
+			l4_prot = inner_ipv6_hdr(skb)->nexthdr;
+			if (l4_hdr != exthdr)
+				ipv6_skip_exthdr(skb, exthdr - skb->data, &l4_prot, &frag_off);
 			ptype |= WX_PTYPE_PKT_IPV6;
 			break;
 		default:
@@ -1179,7 +1189,11 @@ static u8 wx_encode_tx_desc_ptype(const struct wx_tx_buffer *first)
 			ptype = WX_PTYPE_PKT_IP;
 			break;
 		case htons(ETH_P_IPV6):
-			wx_get_ipv6_proto(skb, skb_network_offset(skb), &l4_prot);
+			l4_hdr = skb_transport_header(skb);
+			exthdr = skb_network_header(skb) + sizeof(struct ipv6hdr);
+			l4_prot = ipv6_hdr(skb)->nexthdr;
+			if (l4_hdr != exthdr)
+				ipv6_skip_exthdr(skb, exthdr - skb->data, &l4_prot, &frag_off);
 			ptype = WX_PTYPE_PKT_IP | WX_PTYPE_PKT_IPV6;
 			break;
 		default:
@@ -1269,13 +1283,20 @@ static int wx_tso(struct wx_ring *tx_ring, struct wx_tx_buffer *first,
 
 	/* vlan_macip_lens: HEADLEN, MACLEN, VLAN tag */
 	if (enc) {
+		unsigned char *exthdr, *l4_hdr;
+		__be16 frag_off;
+
 		switch (first->protocol) {
 		case htons(ETH_P_IP):
 			tun_prot = ip_hdr(skb)->protocol;
 			first->tx_flags |= WX_TX_FLAGS_OUTER_IPV4;
 			break;
 		case htons(ETH_P_IPV6):
+			l4_hdr = skb_transport_header(skb);
+			exthdr = skb_network_header(skb) + sizeof(struct ipv6hdr);
 			tun_prot = ipv6_hdr(skb)->nexthdr;
+			if (l4_hdr != exthdr)
+				ipv6_skip_exthdr(skb, exthdr - skb->data, &tun_prot, &frag_off);
 			break;
 		default:
 			break;
@@ -1298,6 +1319,7 @@ static int wx_tso(struct wx_ring *tx_ring, struct wx_tx_buffer *first,
 						WX_TXD_TUNNEL_LEN_SHIFT);
 			break;
 		case IPPROTO_IPIP:
+		case IPPROTO_IPV6:
 			tunhdr_eiplen_tunlen = (((char *)inner_ip_hdr(skb) -
 						(char *)ip_hdr(skb)) >> 2) <<
 						WX_TXD_OUTER_IPLEN_SHIFT;
@@ -1335,12 +1357,15 @@ static void wx_tx_csum(struct wx_ring *tx_ring, struct wx_tx_buffer *first,
 	u8 tun_prot = 0;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
+csum_failed:
 		if (!(first->tx_flags & WX_TX_FLAGS_HW_VLAN) &&
 		    !(first->tx_flags & WX_TX_FLAGS_CC))
 			return;
 		vlan_macip_lens = skb_network_offset(skb) <<
 				  WX_TXD_MACLEN_SHIFT;
 	} else {
+		unsigned char *exthdr, *l4_hdr;
+		__be16 frag_off;
 		u8 l4_prot = 0;
 		union {
 			struct iphdr *ipv4;
@@ -1362,7 +1387,12 @@ static void wx_tx_csum(struct wx_ring *tx_ring, struct wx_tx_buffer *first,
 				tun_prot = ip_hdr(skb)->protocol;
 				break;
 			case htons(ETH_P_IPV6):
+				l4_hdr = skb_transport_header(skb);
+				exthdr = skb_network_header(skb) + sizeof(struct ipv6hdr);
 				tun_prot = ipv6_hdr(skb)->nexthdr;
+				if (l4_hdr != exthdr)
+					ipv6_skip_exthdr(skb, exthdr - skb->data,
+							 &tun_prot, &frag_off);
 				break;
 			default:
 				return;
@@ -1386,6 +1416,7 @@ static void wx_tx_csum(struct wx_ring *tx_ring, struct wx_tx_buffer *first,
 							  WX_TXD_TUNNEL_LEN_SHIFT);
 				break;
 			case IPPROTO_IPIP:
+			case IPPROTO_IPV6:
 				tunhdr_eiplen_tunlen = (((char *)inner_ip_hdr(skb) -
 							(char *)ip_hdr(skb)) >> 2) <<
 							WX_TXD_OUTER_IPLEN_SHIFT;
@@ -1408,7 +1439,10 @@ static void wx_tx_csum(struct wx_ring *tx_ring, struct wx_tx_buffer *first,
 			break;
 		case 6:
 			vlan_macip_lens |= (transport_hdr.raw - network_hdr.raw) >> 1;
+			exthdr = network_hdr.raw + sizeof(struct ipv6hdr);
 			l4_prot = network_hdr.ipv6->nexthdr;
+			if (transport_hdr.raw != exthdr)
+				ipv6_skip_exthdr(skb, exthdr - skb->data, &l4_prot, &frag_off);
 			break;
 		default:
 			break;
@@ -1428,7 +1462,8 @@ static void wx_tx_csum(struct wx_ring *tx_ring, struct wx_tx_buffer *first,
 					WX_TXD_L4LEN_SHIFT;
 			break;
 		default:
-			break;
+			skb_checksum_help(skb);
+			goto csum_failed;
 		}
 
 		/* update TX checksum flag */
@@ -1486,6 +1521,20 @@ static netdev_tx_t wx_xmit_frame_ring(struct sk_buff *skb,
 		tx_flags |= WX_TX_FLAGS_HW_VLAN;
 	}
 
+	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
+	    wx->ptp_clock) {
+		if (wx->tstamp_config.tx_type == HWTSTAMP_TX_ON &&
+		    !test_and_set_bit_lock(WX_STATE_PTP_TX_IN_PROGRESS,
+					   wx->state)) {
+			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+			tx_flags |= WX_TX_FLAGS_TSTAMP;
+			wx->ptp_tx_skb = skb_get(skb);
+			wx->ptp_tx_start = jiffies;
+		} else {
+			wx->tx_hwtstamp_skipped++;
+		}
+	}
+
 	/* record initial flags and protocol */
 	first->tx_flags = tx_flags;
 	first->protocol = vlan_get_protocol(skb);
@@ -1501,12 +1550,20 @@ static netdev_tx_t wx_xmit_frame_ring(struct sk_buff *skb,
 	if (test_bit(WX_FLAG_FDIR_CAPABLE, wx->flags) && tx_ring->atr_sample_rate)
 		wx->atr(tx_ring, first, ptype);
 
-	wx_tx_map(tx_ring, first, hdr_len);
+	if (wx_tx_map(tx_ring, first, hdr_len))
+		goto cleanup_tx_tstamp;
 
 	return NETDEV_TX_OK;
 out_drop:
 	dev_kfree_skb_any(first->skb);
 	first->skb = NULL;
+cleanup_tx_tstamp:
+	if (unlikely(tx_flags & WX_TX_FLAGS_TSTAMP)) {
+		dev_kfree_skb_any(wx->ptp_tx_skb);
+		wx->ptp_tx_skb = NULL;
+		wx->tx_hwtstamp_errors++;
+		clear_bit_unlock(WX_STATE_PTP_TX_IN_PROGRESS, wx->state);
+	}
 
 	return NETDEV_TX_OK;
 }
@@ -1781,10 +1838,16 @@ static int wx_alloc_q_vector(struct wx *wx,
 	/* initialize pointer to rings */
 	ring = q_vector->ring;
 
-	if (wx->mac.type == wx_mac_sp)
+	switch (wx->mac.type) {
+	case wx_mac_sp:
+	case wx_mac_aml:
 		default_itr = WX_12K_ITR;
-	else
+		break;
+	default:
 		default_itr = WX_7K_ITR;
+		break;
+	}
+
 	/* initialize ITR */
 	if (txr_count && !rxr_count)
 		/* tx only vector */
@@ -2140,10 +2203,17 @@ void wx_write_eitr(struct wx_q_vector *q_vector)
 	int v_idx = q_vector->v_idx;
 	u32 itr_reg;
 
-	if (wx->mac.type == wx_mac_sp)
+	switch (wx->mac.type) {
+	case wx_mac_sp:
 		itr_reg = q_vector->itr & WX_SP_MAX_EITR;
-	else
+		break;
+	case wx_mac_aml:
+		itr_reg = (q_vector->itr >> 3) & WX_AML_MAX_EITR;
+		break;
+	default:
 		itr_reg = q_vector->itr & WX_EM_MAX_EITR;
+		break;
+	}
 
 	itr_reg |= WX_PX_ITR_CNT_WDIS;
 
@@ -2719,7 +2789,7 @@ int wx_set_features(struct net_device *netdev, netdev_features_t features)
 
 	netdev->features = features;
 
-	if (wx->mac.type == wx_mac_sp && changed & NETIF_F_HW_VLAN_CTAG_RX)
+	if (changed & NETIF_F_HW_VLAN_CTAG_RX && wx->do_reset)
 		wx->do_reset(netdev);
 	else if (changed & (NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_FILTER))
 		wx_set_rx_mode(netdev);
@@ -2751,7 +2821,7 @@ int wx_set_features(struct net_device *netdev, netdev_features_t features)
 		break;
 	}
 
-	if (need_reset)
+	if (need_reset && wx->do_reset)
 		wx->do_reset(netdev);
 
 	return 0;

@@ -13,26 +13,26 @@
 #include <asm/cpufeatures.h>
 #include <asm/alternative.h>
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 #define ASM_CLAC \
-	ALTERNATIVE "", "clac", X86_FEATURE_SMAP
+	ALTERNATIVE __stringify(ANNOTATE_IGNORE_ALTERNATIVE), "clac", X86_FEATURE_SMAP
 
 #define ASM_STAC \
-	ALTERNATIVE "", "stac", X86_FEATURE_SMAP
+	ALTERNATIVE __stringify(ANNOTATE_IGNORE_ALTERNATIVE), "stac", X86_FEATURE_SMAP
 
-#else /* __ASSEMBLY__ */
+#else /* __ASSEMBLER__ */
 
 static __always_inline void clac(void)
 {
 	/* Note: a barrier is implicit in alternative() */
-	alternative("", "clac", X86_FEATURE_SMAP);
+	alternative(ANNOTATE_IGNORE_ALTERNATIVE "", "clac", X86_FEATURE_SMAP);
 }
 
 static __always_inline void stac(void)
 {
 	/* Note: a barrier is implicit in alternative() */
-	alternative("", "stac", X86_FEATURE_SMAP);
+	alternative(ANNOTATE_IGNORE_ALTERNATIVE "", "stac", X86_FEATURE_SMAP);
 }
 
 static __always_inline unsigned long smap_save(void)
@@ -40,7 +40,8 @@ static __always_inline unsigned long smap_save(void)
 	unsigned long flags;
 
 	asm volatile ("# smap_save\n\t"
-		      ALTERNATIVE("", "pushf; pop %0; " "clac" "\n\t",
+		      ALTERNATIVE(ANNOTATE_IGNORE_ALTERNATIVE
+				  "", "pushf; pop %0; clac",
 				  X86_FEATURE_SMAP)
 		      : "=rm" (flags) : : "memory", "cc");
 
@@ -50,17 +51,23 @@ static __always_inline unsigned long smap_save(void)
 static __always_inline void smap_restore(unsigned long flags)
 {
 	asm volatile ("# smap_restore\n\t"
-		      ALTERNATIVE("", "push %0; popf\n\t",
+		      ALTERNATIVE(ANNOTATE_IGNORE_ALTERNATIVE
+				  "", "push %0; popf",
 				  X86_FEATURE_SMAP)
 		      : : "g" (flags) : "memory", "cc");
 }
 
 /* These macros can be used in asm() statements */
 #define ASM_CLAC \
-	ALTERNATIVE("", "clac", X86_FEATURE_SMAP)
+	ALTERNATIVE(ANNOTATE_IGNORE_ALTERNATIVE "", "clac", X86_FEATURE_SMAP)
 #define ASM_STAC \
-	ALTERNATIVE("", "stac", X86_FEATURE_SMAP)
+	ALTERNATIVE(ANNOTATE_IGNORE_ALTERNATIVE "", "stac", X86_FEATURE_SMAP)
 
-#endif /* __ASSEMBLY__ */
+#define ASM_CLAC_UNSAFE \
+	ALTERNATIVE("", ANNOTATE_IGNORE_ALTERNATIVE "clac", X86_FEATURE_SMAP)
+#define ASM_STAC_UNSAFE \
+	ALTERNATIVE("", ANNOTATE_IGNORE_ALTERNATIVE "stac", X86_FEATURE_SMAP)
+
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_X86_SMAP_H */

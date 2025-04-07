@@ -1108,7 +1108,7 @@ __tape_do_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 				 struct tape_request, list);
 		if (req->status == TAPE_REQUEST_LONG_BUSY) {
 			DBF_EVENT(3, "(%08x): del timer\n", device->cdev_id);
-			if (del_timer(&device->lb_timeout)) {
+			if (timer_delete(&device->lb_timeout)) {
 				tape_put_device(device);
 				__tape_start_next_request(device);
 			}

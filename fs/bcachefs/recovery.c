@@ -13,12 +13,12 @@
 #include "disk_accounting.h"
 #include "errcode.h"
 #include "error.h"
-#include "fs-common.h"
 #include "journal_io.h"
 #include "journal_reclaim.h"
 #include "journal_seq_blacklist.h"
 #include "logged_ops.h"
 #include "move.h"
+#include "namei.h"
 #include "quota.h"
 #include "rebalance.h"
 #include "recovery.h"
@@ -198,7 +198,7 @@ static int bch2_journal_replay_accounting_key(struct btree_trans *trans,
 	bch2_trans_node_iter_init(trans, &iter, k->btree_id, k->k->k.p,
 				  BTREE_MAX_DEPTH, k->level,
 				  BTREE_ITER_intent);
-	int ret = bch2_btree_iter_traverse(&iter);
+	int ret = bch2_btree_iter_traverse(trans, &iter);
 	if (ret)
 		goto out;
 
@@ -261,7 +261,7 @@ static int bch2_journal_replay_key(struct btree_trans *trans,
 	bch2_trans_node_iter_init(trans, &iter, k->btree_id, k->k->k.p,
 				  BTREE_MAX_DEPTH, k->level,
 				  iter_flags);
-	ret = bch2_btree_iter_traverse(&iter);
+	ret = bch2_btree_iter_traverse(trans, &iter);
 	if (ret)
 		goto out;
 
@@ -270,7 +270,7 @@ static int bch2_journal_replay_key(struct btree_trans *trans,
 		bch2_trans_iter_exit(trans, &iter);
 		bch2_trans_node_iter_init(trans, &iter, k->btree_id, k->k->k.p,
 					  BTREE_MAX_DEPTH, 0, iter_flags);
-		ret =   bch2_btree_iter_traverse(&iter) ?:
+		ret =   bch2_btree_iter_traverse(trans, &iter) ?:
 			bch2_btree_increase_depth(trans, iter.path, 0) ?:
 			-BCH_ERR_transaction_restart_nested;
 		goto out;
@@ -899,7 +899,7 @@ use_clean:
 	 * journal sequence numbers:
 	 */
 	if (!c->sb.clean)
-		journal_seq += 8;
+		journal_seq += JOURNAL_BUF_NR * 4;
 
 	if (blacklist_seq != journal_seq) {
 		ret =   bch2_journal_log_msg(c, "blacklisting entries %llu-%llu",

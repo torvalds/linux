@@ -660,8 +660,8 @@ static void sixpack_close(struct tty_struct *tty)
 
 	unregister_netdev(sp->dev);
 
-	del_timer_sync(&sp->tx_t);
-	del_timer_sync(&sp->resync_t);
+	timer_delete_sync(&sp->tx_t);
+	timer_delete_sync(&sp->resync_t);
 
 	/* Free all 6pack frame buffers after unreg. */
 	kfree(sp->xbuff);
@@ -937,7 +937,7 @@ sixpack_decode(struct sixpack *sp, const u8 *pre_rbuff, size_t count)
 		inbyte = pre_rbuff[count1];
 		if (inbyte == SIXP_FOUND_TNC) {
 			tnc_set_sync_state(sp, TNC_IN_SYNC);
-			del_timer(&sp->resync_t);
+			timer_delete(&sp->resync_t);
 		}
 		if ((inbyte & SIXP_PRIO_CMD_MASK) != 0)
 			decode_prio_command(sp, inbyte);

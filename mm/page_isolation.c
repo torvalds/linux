@@ -83,7 +83,14 @@ static struct page *has_unmovable_pages(unsigned long start_pfn, unsigned long e
 			unsigned int skip_pages;
 
 			if (PageHuge(page)) {
-				if (!hugepage_migration_supported(folio_hstate(folio)))
+				struct hstate *h;
+
+				/*
+				 * The huge page may be freed so can not
+				 * use folio_hstate() directly.
+				 */
+				h = size_to_hstate(folio_size(folio));
+				if (h && !hugepage_migration_supported(h))
 					return page;
 			} else if (!folio_test_lru(folio) && !__folio_test_movable(folio)) {
 				return page;
@@ -606,6 +613,16 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
 	struct page *page;
 	struct zone *zone;
 	int ret;
+
+	/*
+	 * Due to the deferred freeing of hugetlb folios, the hugepage folios may
+	 * not immediately release to the buddy system. This can cause PageBuddy()
+	 * to fail in __test_page_isolated_in_pageblock(). To ensure that the
+	 * hugetlb folios are properly released back to the buddy system, we
+	 * invoke the wait_for_freed_hugetlb_folios() function to wait for the
+	 * release to complete.
+	 */
+	wait_for_freed_hugetlb_folios();
 
 	/*
 	 * Note: pageblock_nr_pages != MAX_PAGE_ORDER. Then, chunks of free

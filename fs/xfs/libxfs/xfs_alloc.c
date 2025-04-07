@@ -33,8 +33,6 @@ struct kmem_cache	*xfs_extfree_item_cache;
 
 struct workqueue_struct *xfs_alloc_wq;
 
-#define XFS_ABSDIFF(a,b)	(((a) <= (b)) ? ((b) - (a)) : ((a) - (b)))
-
 #define	XFSA_FIXUP_BNO_OK	1
 #define	XFSA_FIXUP_CNT_OK	2
 
@@ -410,8 +408,8 @@ xfs_alloc_compute_diff(
 		if (newbno1 != NULLAGBLOCK && newbno2 != NULLAGBLOCK) {
 			if (newlen1 < newlen2 ||
 			    (newlen1 == newlen2 &&
-			     XFS_ABSDIFF(newbno1, wantbno) >
-			     XFS_ABSDIFF(newbno2, wantbno)))
+			     abs_diff(newbno1, wantbno) >
+			     abs_diff(newbno2, wantbno)))
 				newbno1 = newbno2;
 		} else if (newbno2 != NULLAGBLOCK)
 			newbno1 = newbno2;
@@ -427,7 +425,7 @@ xfs_alloc_compute_diff(
 	} else
 		newbno1 = freeend - wantlen;
 	*newbnop = newbno1;
-	return newbno1 == NULLAGBLOCK ? 0 : XFS_ABSDIFF(newbno1, wantbno);
+	return newbno1 == NULLAGBLOCK ? 0 : abs_diff(newbno1, wantbno);
 }
 
 /*

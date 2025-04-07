@@ -123,7 +123,7 @@ void bch_cache_accounting_destroy(struct cache_accounting *acc)
 	kobject_put(&acc->day.kobj);
 
 	atomic_set(&acc->closing, 1);
-	if (del_timer_sync(&acc->timer))
+	if (timer_delete_sync(&acc->timer))
 		closure_return(&acc->cl);
 }
 

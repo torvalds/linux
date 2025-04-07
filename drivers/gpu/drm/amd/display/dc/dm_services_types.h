@@ -275,4 +275,30 @@ enum dm_dmub_wait_type {
 	DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY,
 };
 
+enum dm_acpi_transition_link_type {
+	hdmi_tmds,
+	hdmi_frl,
+	dp_8b_10b,
+	dp_128b_132b,
+	none
+};
+
+struct dm_process_phy_transition_init_params {
+	uint32_t phy_id;
+	uint8_t action;
+	uint32_t sym_clock_10khz;
+	enum signal_type signal;
+	enum dc_lane_count display_port_lanes_count;
+	enum dc_link_rate display_port_link_rate;
+	uint32_t transition_bitmask;
+	uint8_t hdmi_frl_num_lanes;
+};
+
+struct dm_process_phy_transition_input_params {
+	uint32_t phy_id;
+	uint32_t transition_id;
+	uint32_t phy_configuration;
+	uint32_t data_rate;
+};
+
 #endif

@@ -34,12 +34,9 @@ static inline void rcu_virt_note_context_switch(void)
 }
 
 void synchronize_rcu_expedited(void);
-void kvfree_call_rcu(struct rcu_head *head, void *ptr);
-void kvfree_rcu_barrier(void);
 
 void rcu_barrier(void);
 void rcu_momentary_eqs(void);
-void kfree_rcu_scheduler_running(void);
 
 struct rcu_gp_oldstate {
 	unsigned long rgos_norm;
@@ -103,7 +100,7 @@ extern int rcu_scheduler_active;
 void rcu_end_inkernel_boot(void);
 bool rcu_inkernel_boot_has_ended(void);
 bool rcu_is_watching(void);
-#ifndef CONFIG_PREEMPTION
+#ifndef CONFIG_PREEMPT_RCU
 void rcu_all_qs(void);
 #endif
 

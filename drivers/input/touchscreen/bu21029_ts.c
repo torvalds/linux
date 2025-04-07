@@ -325,7 +325,7 @@ static void bu21029_stop_chip(struct input_dev *dev)
 	struct bu21029_ts_data *bu21029 = input_get_drvdata(dev);
 
 	disable_irq(bu21029->client->irq);
-	del_timer_sync(&bu21029->timer);
+	timer_delete_sync(&bu21029->timer);
 
 	bu21029_put_chip_in_reset(bu21029);
 	regulator_disable(bu21029->vdd);

@@ -1144,7 +1144,7 @@ and it *must* be opened exclusive.
 
 ---
 
-** mandatory**
+**mandatory**
 
 ->d_revalidate() gets two extra arguments - inode of parent directory and
 name our dentry is expected to have.  Both are stable (dir is pinned in
@@ -1157,3 +1157,49 @@ in normal case it points into the pathname being looked up.
 NOTE: if you need something like full path from the root of filesystem,
 you are still on your own - this assists with simple cases, but it's not
 magic.
+
+---
+
+**recommended**
+
+kern_path_locked() and user_path_locked() no longer return a negative
+dentry so this doesn't need to be checked.  If the name cannot be found,
+ERR_PTR(-ENOENT) is returned.
+
+---
+
+**recommended**
+
+lookup_one_qstr_excl() is changed to return errors in more cases, so
+these conditions don't require explicit checks:
+
+ - if LOOKUP_CREATE is NOT given, then the dentry won't be negative,
+   ERR_PTR(-ENOENT) is returned instead
+ - if LOOKUP_EXCL IS given, then the dentry won't be positive,
+   ERR_PTR(-EEXIST) is rreturned instread
+
+LOOKUP_EXCL now means "target must not exist".  It can be combined with
+LOOK_CREATE or LOOKUP_RENAME_TARGET.
+
+---
+
+**mandatory**
+invalidate_inodes() is gone use evict_inodes() instead.
+
+---
+
+**mandatory**
+
+->mkdir() now returns a dentry.  If the created inode is found to
+already be in cache and have a dentry (often IS_ROOT()), it will need to
+be spliced into the given name in place of the given dentry. That dentry
+now needs to be returned.  If the original dentry is used, NULL should
+be returned.  Any error should be returned with ERR_PTR().
+
+In general, filesystems which use d_instantiate_new() to install the new
+inode can safely return NULL.  Filesystems which may not have an I_NEW inode
+should use d_drop();d_splice_alias() and return the result of the latter.
+
+If a positive dentry cannot be returned for some reason, in-kernel
+clients such as cachefiles, nfsd, smb/server may not perform ideally but
+will fail-safe.

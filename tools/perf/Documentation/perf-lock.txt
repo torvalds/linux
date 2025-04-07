@@ -179,8 +179,9 @@ CONTENTION OPTIONS
 
 -o::
 --lock-owner::
-	Show lock contention stat by owners.  Implies --threads and
-	requires --use-bpf.
+	Show lock contention stat by owners. This option can be combined with -t,
+	which shows owner's per thread lock stats, or -v, which shows owner's
+	stacktrace. Requires --use-bpf.
 
 -Y::
 --type-filter=<value>::

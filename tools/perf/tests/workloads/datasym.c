@@ -1,3 +1,6 @@
+#include <stdlib.h>
+#include <signal.h>
+#include <unistd.h>
 #include <linux/compiler.h>
 #include "../tests.h"
 
@@ -7,16 +10,33 @@ typedef struct _buf {
 	char data2;
 } buf __attribute__((aligned(64)));
 
-static buf buf1 = {
+/* volatile to try to avoid the compiler seeing reserved as unused. */
+static volatile buf workload_datasym_buf1 = {
 	/* to have this in the data section */
 	.reserved[0] = 1,
 };
 
-static int datasym(int argc __maybe_unused, const char **argv __maybe_unused)
+static volatile sig_atomic_t done;
+
+static void sighandler(int sig __maybe_unused)
 {
-	for (;;) {
-		buf1.data1++;
-		if (buf1.data1 == 123) {
+	done = 1;
+}
+
+static int datasym(int argc, const char **argv)
+{
+	int sec = 1;
+
+	if (argc > 0)
+		sec = atoi(argv[0]);
+
+	signal(SIGINT, sighandler);
+	signal(SIGALRM, sighandler);
+	alarm(sec);
+
+	while (!done) {
+		workload_datasym_buf1.data1++;
+		if (workload_datasym_buf1.data1 == 123) {
 			/*
 			 * Add some 'noise' in the loop to work around errata
 			 * 1694299 on Arm N1.
@@ -30,9 +50,9 @@ static int datasym(int argc __maybe_unused, const char **argv __maybe_unused)
 			 * longer a continuous repeating pattern that interacts
 			 * badly with the bias.
 			 */
-			buf1.data1++;
+			workload_datasym_buf1.data1++;
 		}
-		buf1.data2 += buf1.data1;
+		workload_datasym_buf1.data2 += workload_datasym_buf1.data1;
 	}
 	return 0;
 }

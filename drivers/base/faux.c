@@ -102,7 +102,9 @@ static void faux_device_release(struct device *dev)
  *
  * Note, when this function is called, the functions specified in struct
  * faux_ops can be called before the function returns, so be prepared for
- * everything to be properly initialized before that point in time.
+ * everything to be properly initialized before that point in time.  If the
+ * probe callback (if one is present) does NOT succeed, the creation of the
+ * device will fail and NULL will be returned.
  *
  * Return:
  * * NULL if an error happened with creating the device
@@ -145,6 +147,17 @@ struct faux_device *faux_device_create_with_groups(const char *name,
 		       __func__, name, ret);
 		put_device(dev);
 		return NULL;
+	}
+
+	/*
+	 * Verify that we did bind the driver to the device (i.e. probe worked),
+	 * if not, let's fail the creation as trying to guess if probe was
+	 * successful is almost impossible to determine by the caller.
+	 */
+	if (!dev->driver) {
+		dev_err(dev, "probe did not succeed, tearing down the device\n");
+		faux_device_destroy(faux_dev);
+		faux_dev = NULL;
 	}
 
 	return faux_dev;

@@ -1619,7 +1619,7 @@ csio_mb_cancel_all(struct csio_hw *hw, struct list_head *cbfn_q)
 		mbp = mbm->mcurrent;
 
 		/* Stop mailbox completion timer */
-		del_timer_sync(&mbm->timer);
+		timer_delete_sync(&mbm->timer);
 
 		/* Add completion to tail of cbfn queue */
 		list_add_tail(&mbp->list, cbfn_q);
@@ -1682,7 +1682,7 @@ csio_mbm_init(struct csio_mbm *mbm, struct csio_hw *hw,
 void
 csio_mbm_exit(struct csio_mbm *mbm)
 {
-	del_timer_sync(&mbm->timer);
+	timer_delete_sync(&mbm->timer);
 
 	CSIO_DB_ASSERT(mbm->mcurrent == NULL);
 	CSIO_DB_ASSERT(list_empty(&mbm->req_q));

@@ -4,7 +4,6 @@
 #include <linux/slab.h>
 #include <linux/mmzone.h>
 #include <linux/vmalloc.h>
-#include <asm/io-workarounds.h>
 
 unsigned long ioremap_bot;
 EXPORT_SYMBOL(ioremap_bot);
@@ -14,8 +13,6 @@ void __iomem *ioremap(phys_addr_t addr, unsigned long size)
 	pgprot_t prot = pgprot_noncached(PAGE_KERNEL);
 	void *caller = __builtin_return_address(0);
 
-	if (iowa_is_active())
-		return iowa_ioremap(addr, size, prot, caller);
 	return __ioremap_caller(addr, size, prot, caller);
 }
 EXPORT_SYMBOL(ioremap);
@@ -25,8 +22,6 @@ void __iomem *ioremap_wc(phys_addr_t addr, unsigned long size)
 	pgprot_t prot = pgprot_noncached_wc(PAGE_KERNEL);
 	void *caller = __builtin_return_address(0);
 
-	if (iowa_is_active())
-		return iowa_ioremap(addr, size, prot, caller);
 	return __ioremap_caller(addr, size, prot, caller);
 }
 EXPORT_SYMBOL(ioremap_wc);
@@ -36,22 +31,18 @@ void __iomem *ioremap_coherent(phys_addr_t addr, unsigned long size)
 	pgprot_t prot = pgprot_cached(PAGE_KERNEL);
 	void *caller = __builtin_return_address(0);
 
-	if (iowa_is_active())
-		return iowa_ioremap(addr, size, prot, caller);
 	return __ioremap_caller(addr, size, prot, caller);
 }
 
-void __iomem *ioremap_prot(phys_addr_t addr, size_t size, unsigned long flags)
+void __iomem *ioremap_prot(phys_addr_t addr, size_t size, pgprot_t prot)
 {
-	pte_t pte = __pte(flags);
+	pte_t pte = __pte(pgprot_val(prot));
 	void *caller = __builtin_return_address(0);
 
 	/* writeable implies dirty for kernel addresses */
 	if (pte_write(pte))
 		pte = pte_mkdirty(pte);
 
-	if (iowa_is_active())
-		return iowa_ioremap(addr, size, pte_pgprot(pte), caller);
 	return __ioremap_caller(addr, size, pte_pgprot(pte), caller);
 }
 EXPORT_SYMBOL(ioremap_prot);

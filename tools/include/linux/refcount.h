@@ -60,6 +60,11 @@ static inline void refcount_set(refcount_t *r, unsigned int n)
 	atomic_set(&r->refs, n);
 }
 
+static inline void refcount_set_release(refcount_t *r, unsigned int n)
+{
+	atomic_set(&r->refs, n);
+}
+
 static inline unsigned int refcount_read(const refcount_t *r)
 {
 	return atomic_read(&r->refs);

@@ -45,7 +45,7 @@ static void subtest_basic_usdt(void)
 	LIBBPF_OPTS(bpf_usdt_opts, opts);
 	struct test_usdt *skel;
 	struct test_usdt__bss *bss;
-	int err;
+	int err, i;
 
 	skel = test_usdt__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "skel_open"))
@@ -75,6 +75,7 @@ static void subtest_basic_usdt(void)
 	ASSERT_EQ(bss->usdt0_cookie, 0xcafedeadbeeffeed, "usdt0_cookie");
 	ASSERT_EQ(bss->usdt0_arg_cnt, 0, "usdt0_arg_cnt");
 	ASSERT_EQ(bss->usdt0_arg_ret, -ENOENT, "usdt0_arg_ret");
+	ASSERT_EQ(bss->usdt0_arg_size, -ENOENT, "usdt0_arg_size");
 
 	/* auto-attached usdt3 gets default zero cookie value */
 	ASSERT_EQ(bss->usdt3_cookie, 0, "usdt3_cookie");
@@ -86,6 +87,9 @@ static void subtest_basic_usdt(void)
 	ASSERT_EQ(bss->usdt3_args[0], 1, "usdt3_arg1");
 	ASSERT_EQ(bss->usdt3_args[1], 42, "usdt3_arg2");
 	ASSERT_EQ(bss->usdt3_args[2], (uintptr_t)&bla, "usdt3_arg3");
+	ASSERT_EQ(bss->usdt3_arg_sizes[0], 4, "usdt3_arg1_size");
+	ASSERT_EQ(bss->usdt3_arg_sizes[1], 8, "usdt3_arg2_size");
+	ASSERT_EQ(bss->usdt3_arg_sizes[2], 8, "usdt3_arg3_size");
 
 	/* auto-attached usdt12 gets default zero cookie value */
 	ASSERT_EQ(bss->usdt12_cookie, 0, "usdt12_cookie");
@@ -103,6 +107,11 @@ static void subtest_basic_usdt(void)
 	ASSERT_EQ(bss->usdt12_args[9], nums[1], "usdt12_arg10");
 	ASSERT_EQ(bss->usdt12_args[10], nums[idx], "usdt12_arg11");
 	ASSERT_EQ(bss->usdt12_args[11], t1.y, "usdt12_arg12");
+
+	int usdt12_expected_arg_sizes[12] = { 4, 4, 8, 8, 4, 8, 8, 8, 4, 2, 2, 1 };
+
+	for (i = 0; i < 12; i++)
+		ASSERT_EQ(bss->usdt12_arg_sizes[i], usdt12_expected_arg_sizes[i], "usdt12_arg_size");
 
 	/* trigger_func() is marked __always_inline, so USDT invocations will be
 	 * inlined in two different places, meaning that each USDT will have

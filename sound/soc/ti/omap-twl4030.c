@@ -42,12 +42,12 @@ static int omap_twl4030_hw_params(struct snd_pcm_substream *substream,
 	case 2: /* Stereo I2S mode */
 		fmt =	SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBM_CFM;
+			SND_SOC_DAIFMT_CBP_CFP;
 		break;
 	case 4: /* Four channel TDM mode */
 		fmt =	SND_SOC_DAIFMT_DSP_A |
 			SND_SOC_DAIFMT_IB_NF |
-			SND_SOC_DAIFMT_CBM_CFM;
+			SND_SOC_DAIFMT_CBP_CFP;
 		break;
 	default:
 		return -EINVAL;
@@ -218,7 +218,7 @@ static struct snd_soc_dai_link omap_twl4030_dai_links[] = {
 		.name = "TWL4030 Voice",
 		.stream_name = "TWL4030 Voice",
 		.dai_fmt = SND_SOC_DAIFMT_DSP_A | SND_SOC_DAIFMT_IB_NF |
-			   SND_SOC_DAIFMT_CBM_CFM,
+			   SND_SOC_DAIFMT_CBP_CFP,
 		SND_SOC_DAILINK_REG(voice),
 	},
 };

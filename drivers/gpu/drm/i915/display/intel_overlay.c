@@ -42,11 +42,13 @@
 #include "intel_frontbuffer.h"
 #include "intel_overlay.h"
 #include "intel_pci_config.h"
+#include "intel_pfit_regs.h"
 
 /* Limits for overlay size. According to intel doc, the real limits are:
  * Y width: 4095, UV width (planar): 2047, Y height: 2047,
  * UV width (planar): * 1023. But the xorg thinks 2048 for height and width. Use
- * the mininum of both.  */
+ * the minimum of both.
+ */
 #define IMAGE_MAX_WIDTH		2048
 #define IMAGE_MAX_HEIGHT	2046 /* 2 * 1023 */
 /* on 830 and 845 these large limits result in the card hanging */
@@ -408,10 +410,12 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 
 	drm_WARN_ON(display->drm, !overlay->active);
 
-	/* According to intel docs the overlay hw may hang (when switching
+	/*
+	 * According to intel docs the overlay hw may hang (when switching
 	 * off) without loading the filter coeffs. It is however unclear whether
 	 * this applies to the disabling of the overlay or to the switching off
-	 * of the hw. Do it in both cases */
+	 * of the hw. Do it in both cases.
+	 */
 	flip_addr |= OFC_UPDATE;
 
 	rq = alloc_request(overlay, intel_overlay_off_tail);
@@ -442,16 +446,19 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	return i915_active_wait(&overlay->last_flip);
 }
 
-/* recover from an interruption due to a signal
- * We have to be careful not to repeat work forever an make forward progess. */
+/*
+ * Recover from an interruption due to a signal.
+ * We have to be careful not to repeat work forever an make forward progress.
+ */
 static int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay)
 {
 	return i915_active_wait(&overlay->last_flip);
 }
 
-/* Wait for pending overlay flip and release old frame.
+/*
+ * Wait for pending overlay flip and release old frame.
  * Needs to be called before the overlay register are changed
- * via intel_overlay_(un)map_regs
+ * via intel_overlay_(un)map_regs.
  */
 static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 {
@@ -772,7 +779,7 @@ static struct i915_vma *intel_overlay_pin_fb(struct drm_i915_gem_object *new_bo)
 retry:
 	ret = i915_gem_object_lock(new_bo, &ww);
 	if (!ret) {
-		vma = i915_gem_object_pin_to_display_plane(new_bo, &ww, 0,
+		vma = i915_gem_object_pin_to_display_plane(new_bo, &ww, 0, 0,
 							   NULL, PIN_MAPPABLE);
 		ret = PTR_ERR_OR_ZERO(vma);
 	}
@@ -793,7 +800,6 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 				      struct drm_intel_overlay_put_image *params)
 {
 	struct intel_display *display = overlay->display;
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct overlay_registers __iomem *regs = overlay->regs;
 	u32 swidth, swidthsw, sheight, ostride;
 	enum pipe pipe = overlay->crtc->pipe;
@@ -808,7 +814,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	if (ret != 0)
 		return ret;
 
-	atomic_inc(&dev_priv->gpu_error.pending_fb_pin);
+	atomic_inc(&display->restore.pending_fb_pin);
 
 	vma = intel_overlay_pin_fb(new_bo);
 	if (IS_ERR(vma)) {
@@ -896,7 +902,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 out_unpin:
 	i915_vma_unpin(vma);
 out_pin_section:
-	atomic_dec(&dev_priv->gpu_error.pending_fb_pin);
+	atomic_dec(&display->restore.pending_fb_pin);
 
 	return ret;
 }

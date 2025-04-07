@@ -44,9 +44,9 @@ static int __ioremap_check_ram(unsigned long start_pfn, unsigned long nr_pages,
  * ioremap_prot gives the caller control over cache coherency attributes (CCA)
  */
 void __iomem *ioremap_prot(phys_addr_t phys_addr, unsigned long size,
-		unsigned long prot_val)
+			   pgprot_t prot)
 {
-	unsigned long flags = prot_val & _CACHE_MASK;
+	unsigned long flags = pgprot_val(prot) & _CACHE_MASK;
 	unsigned long offset, pfn, last_pfn;
 	struct vm_struct *area;
 	phys_addr_t last_addr;

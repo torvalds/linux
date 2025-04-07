@@ -110,6 +110,7 @@ static enum link_training_result dpia_configure_link(
 
 	dp_decide_training_settings(
 		link,
+		link_res,
 		link_setting,
 		lt_settings);
 
@@ -129,11 +130,14 @@ static enum link_training_result dpia_configure_link(
 	if (status != DC_OK && link->is_hpd_pending)
 		return LINK_TRAINING_ABORT;
 
-	if (link->preferred_training_settings.fec_enable != NULL)
-		fec_enable = *link->preferred_training_settings.fec_enable;
-	else
-		fec_enable = true;
-	status = dp_set_fec_ready(link, link_res, fec_enable);
+	if (link_dp_get_encoding_format(link_setting) == DP_8b_10b_ENCODING) {
+		if (link->preferred_training_settings.fec_enable != NULL)
+			fec_enable = *link->preferred_training_settings.fec_enable;
+		else
+			fec_enable = true;
+		status = dp_set_fec_ready(link, link_res, fec_enable);
+	}
+
 	if (status != DC_OK && link->is_hpd_pending)
 		return LINK_TRAINING_ABORT;
 

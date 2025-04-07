@@ -5,6 +5,8 @@
 
 #include <linux/dmi.h>
 
+#include <drm/drm_print.h>
+
 #include "intel_display_core.h"
 #include "intel_display_types.h"
 #include "intel_quirks.h"

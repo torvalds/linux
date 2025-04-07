@@ -52,7 +52,6 @@ static DEVICE_ATTR_RO(mio_enabled);
 
 static int _do_recover(struct pci_dev *pdev, struct zpci_dev *zdev)
 {
-	u8 status;
 	int ret;
 
 	pci_stop_and_remove_bus_device(pdev);
@@ -70,16 +69,8 @@ static int _do_recover(struct pci_dev *pdev, struct zpci_dev *zdev)
 			return ret;
 	}
 
-	ret = zpci_enable_device(zdev);
-	if (ret)
-		return ret;
+	ret = zpci_reenable_device(zdev);
 
-	if (zdev->dma_table) {
-		ret = zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
-					 virt_to_phys(zdev->dma_table), &status);
-		if (ret)
-			zpci_disable_device(zdev);
-	}
 	return ret;
 }
 

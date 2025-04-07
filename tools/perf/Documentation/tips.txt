@@ -62,3 +62,7 @@ To show context switches in perf report sample context add --switch-events to pe
 To show time in nanoseconds in record/report add --ns
 To compare hot regions in two workloads use perf record -b -o file ... ; perf diff --stream file1 file2
 To compare scalability of two workload samples use perf diff -c ratio file1 file2
+For latency profiling, try: perf record/report --latency
+For parallelism histogram, try: perf report --hierarchy --sort latency,parallelism,comm,symbol
+To analyze particular parallelism levels, try: perf report --latency --parallelism=32-64
+To see how parallelism changes over time, try: perf report -F time,latency,parallelism --time-quantum=1s

@@ -3755,7 +3755,7 @@ enum mrq_pwr_limit_cmd {
  * @defgroup bpmp_pwr_limit_type PWR_LIMIT TYPEs
  * @{
  */
-/** @brief Limit value specifies traget cap */
+/** @brief Limit value specifies target cap */
 #define PWR_LIMIT_TYPE_TARGET_CAP		0U
 /** @brief Limit value specifies maximum possible target cap */
 #define PWR_LIMIT_TYPE_BOUND_MAX		1U

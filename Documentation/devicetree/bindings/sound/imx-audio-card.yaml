@@ -46,6 +46,14 @@ patternProperties:
         description: see tdm-slot.txt.
         $ref: /schemas/types.yaml#/definitions/uint32
 
+      playback-only:
+        description: link is used only for playback
+        $ref: /schemas/types.yaml#/definitions/flag
+
+      capture-only:
+        description: link is used only for capture
+        $ref: /schemas/types.yaml#/definitions/flag
+
       cpu:
         description: Holds subnode which indicates cpu dai.
         type: object
@@ -70,6 +78,12 @@ patternProperties:
     required:
       - link-name
       - cpu
+
+    allOf:
+      - not:
+          required:
+            - playback-only
+            - capture-only
 
     additionalProperties: false
 

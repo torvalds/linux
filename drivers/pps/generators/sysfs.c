@@ -19,7 +19,7 @@ static ssize_t system_show(struct device *dev, struct device_attribute *attr,
 {
 	struct pps_gen_device *pps_gen = dev_get_drvdata(dev);
 
-	return sysfs_emit(buf, "%d\n", pps_gen->info.use_system_clock);
+	return sysfs_emit(buf, "%d\n", pps_gen->info->use_system_clock);
 }
 static DEVICE_ATTR_RO(system);
 
@@ -30,7 +30,7 @@ static ssize_t time_show(struct device *dev, struct device_attribute *attr,
 	struct timespec64 time;
 	int ret;
 
-	ret = pps_gen->info.get_time(pps_gen, &time);
+	ret = pps_gen->info->get_time(pps_gen, &time);
 	if (ret)
 		return ret;
 
@@ -49,7 +49,7 @@ static ssize_t enable_store(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	ret = pps_gen->info.enable(pps_gen, status);
+	ret = pps_gen->info->enable(pps_gen, status);
 	if (ret)
 		return ret;
 	pps_gen->enabled = status;

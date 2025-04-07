@@ -20,6 +20,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "audit.h"
 #include "common.h"
 #include "scoped_common.h"
 
@@ -259,6 +260,116 @@ TEST_F(scoped_domains, connect_to_child)
 	}
 	ASSERT_EQ(1, write(pipe_parent[1], ".", 1));
 	EXPECT_EQ(0, close(stream_client));
+	EXPECT_EQ(0, close(dgram_client));
+
+	ASSERT_EQ(child, waitpid(child, &status, 0));
+	if (WIFSIGNALED(status) || !WIFEXITED(status) ||
+	    WEXITSTATUS(status) != EXIT_SUCCESS)
+		_metadata->exit_code = KSFT_FAIL;
+}
+
+FIXTURE(scoped_audit)
+{
+	struct service_fixture dgram_address;
+	struct audit_filter audit_filter;
+	int audit_fd;
+};
+
+FIXTURE_SETUP(scoped_audit)
+{
+	disable_caps(_metadata);
+
+	memset(&self->dgram_address, 0, sizeof(self->dgram_address));
+	set_unix_address(&self->dgram_address, 1);
+
+	set_cap(_metadata, CAP_AUDIT_CONTROL);
+	self->audit_fd = audit_init_with_exe_filter(&self->audit_filter);
+	EXPECT_LE(0, self->audit_fd);
+	drop_caps(_metadata);
+}
+
+FIXTURE_TEARDOWN_PARENT(scoped_audit)
+{
+	EXPECT_EQ(0, audit_cleanup(-1, NULL));
+}
+
+/* python -c 'print(b"\0selftests-landlock-abstract-unix-".hex().upper())' */
+#define ABSTRACT_SOCKET_PATH_PREFIX \
+	"0073656C6674657374732D6C616E646C6F636B2D61627374726163742D756E69782D"
+
+/*
+ * Simpler version of scoped_domains.connect_to_child, but with audit tests.
+ */
+TEST_F(scoped_audit, connect_to_child)
+{
+	pid_t child;
+	int err_dgram, status;
+	int pipe_child[2], pipe_parent[2];
+	char buf;
+	int dgram_client;
+	struct audit_records records;
+
+	/* Makes sure there is no superfluous logged records. */
+	EXPECT_EQ(0, audit_count_records(self->audit_fd, &records));
+	EXPECT_EQ(0, records.access);
+	EXPECT_EQ(0, records.domain);
+
+	ASSERT_EQ(0, pipe2(pipe_child, O_CLOEXEC));
+	ASSERT_EQ(0, pipe2(pipe_parent, O_CLOEXEC));
+
+	child = fork();
+	ASSERT_LE(0, child);
+	if (child == 0) {
+		int dgram_server;
+
+		EXPECT_EQ(0, close(pipe_parent[1]));
+		EXPECT_EQ(0, close(pipe_child[0]));
+
+		/* Waits for the parent to be in a domain. */
+		ASSERT_EQ(1, read(pipe_parent[0], &buf, 1));
+
+		dgram_server = socket(AF_UNIX, SOCK_DGRAM, 0);
+		ASSERT_LE(0, dgram_server);
+		ASSERT_EQ(0, bind(dgram_server, &self->dgram_address.unix_addr,
+				  self->dgram_address.unix_addr_len));
+
+		/* Signals to the parent that child is listening. */
+		ASSERT_EQ(1, write(pipe_child[1], ".", 1));
+
+		/* Waits to connect. */
+		ASSERT_EQ(1, read(pipe_parent[0], &buf, 1));
+		EXPECT_EQ(0, close(dgram_server));
+		_exit(_metadata->exit_code);
+		return;
+	}
+	EXPECT_EQ(0, close(pipe_child[1]));
+	EXPECT_EQ(0, close(pipe_parent[0]));
+
+	create_scoped_domain(_metadata, LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET);
+
+	/* Signals that the parent is in a domain, if any. */
+	ASSERT_EQ(1, write(pipe_parent[1], ".", 1));
+
+	dgram_client = socket(AF_UNIX, SOCK_DGRAM, 0);
+	ASSERT_LE(0, dgram_client);
+
+	/* Waits for the child to listen */
+	ASSERT_EQ(1, read(pipe_child[0], &buf, 1));
+	err_dgram = connect(dgram_client, &self->dgram_address.unix_addr,
+			    self->dgram_address.unix_addr_len);
+	EXPECT_EQ(-1, err_dgram);
+	EXPECT_EQ(EPERM, errno);
+
+	EXPECT_EQ(
+		0,
+		audit_match_record(
+			self->audit_fd, AUDIT_LANDLOCK_ACCESS,
+			REGEX_LANDLOCK_PREFIX
+			" blockers=scope\\.abstract_unix_socket path=" ABSTRACT_SOCKET_PATH_PREFIX
+			"[0-9A-F]\\+$",
+			NULL));
+
+	ASSERT_EQ(1, write(pipe_parent[1], ".", 1));
 	EXPECT_EQ(0, close(dgram_client));
 
 	ASSERT_EQ(child, waitpid(child, &status, 0));

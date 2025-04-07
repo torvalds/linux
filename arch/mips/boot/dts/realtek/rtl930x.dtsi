@@ -1,9 +1,22 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR BSD-2-Clause
 
-#include "rtl83xx.dtsi"
-
 / {
 	compatible = "realtek,rtl9302-soc";
+
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+	};
+
+	cpuintc: cpuintc {
+		compatible = "mti,cpu-interrupt-controller";
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
+	};
 
 	cpus {
 		#address-cells = <1>;
@@ -13,8 +26,7 @@
 			device_type = "cpu";
 			compatible = "mips,mips34Kc";
 			reg = <0>;
-			clocks = <&baseclk 0>;
-			clock-names = "cpu";
+			clocks = <&baseclk>;
 		};
 	};
 
@@ -58,64 +70,84 @@
 			status = "disabled";
 		};
 	};
-};
 
-&soc {
-	ranges = <0x0 0x18000000 0x20000>;
-
-	intc: interrupt-controller@3000 {
-		compatible = "realtek,rtl9300-intc", "realtek,rtl-intc";
-		reg = <0x3000 0x18>, <0x3018 0x18>;
-		interrupt-controller;
-		#interrupt-cells = <1>;
-
-		interrupt-parent = <&cpuintc>;
-		interrupts = <2>, <3>, <4>, <5>, <6>, <7>;
-	};
-
-	spi0: spi@1200 {
-		compatible = "realtek,rtl8380-spi";
-		reg = <0x1200 0x100>;
-
+	soc: soc@18000000 {
+		compatible = "simple-bus";
 		#address-cells = <1>;
-		#size-cells = <0>;
-	};
+		#size-cells = <1>;
+		ranges = <0x0 0x18000000 0x20000>;
 
-	timer0: timer@3200 {
-		compatible = "realtek,rtl9302-timer", "realtek,otto-timer";
-		reg = <0x3200 0x10>, <0x3210 0x10>, <0x3220 0x10>,
-		    <0x3230 0x10>, <0x3240 0x10>;
+		intc: interrupt-controller@3000 {
+			compatible = "realtek,rtl9300-intc", "realtek,rtl-intc";
+			reg = <0x3000 0x18>, <0x3018 0x18>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
 
-		interrupt-parent = <&intc>;
-		interrupts = <7>, <8>, <9>, <10>, <11>;
-		clocks = <&lx_clk>;
-	};
+			interrupt-parent = <&cpuintc>;
+			interrupts = <2>, <3>, <4>, <5>, <6>, <7>;
+		};
 
-	snand: spi@1a400 {
-		compatible = "realtek,rtl9301-snand";
-		reg = <0x1a400 0x44>;
-		interrupt-parent = <&intc>;
-		interrupts = <19>;
-		clocks = <&lx_clk>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		status = "disabled";
+		spi0: spi@1200 {
+			compatible = "realtek,rtl8380-spi";
+			reg = <0x1200 0x100>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		timer0: timer@3200 {
+			compatible = "realtek,rtl9302-timer", "realtek,otto-timer";
+			reg = <0x3200 0x10>, <0x3210 0x10>, <0x3220 0x10>,
+			    <0x3230 0x10>, <0x3240 0x10>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <7>, <8>, <9>, <10>, <11>;
+			clocks = <&lx_clk>;
+		};
+
+		snand: spi@1a400 {
+			compatible = "realtek,rtl9301-snand";
+			reg = <0x1a400 0x44>;
+			interrupt-parent = <&intc>;
+			interrupts = <19>;
+			clocks = <&lx_clk>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		uart0: serial@2000 {
+			compatible = "ns16550a";
+			reg = <0x2000 0x100>;
+
+			clocks = <&lx_clk>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <30>;
+
+			reg-io-width = <1>;
+			reg-shift = <2>;
+			fifo-size = <1>;
+			no-loopback-test;
+
+			status = "disabled";
+		};
+
+		uart1: serial@2100 {
+			compatible = "ns16550a";
+			reg = <0x2100 0x100>;
+
+			clocks = <&lx_clk>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <31>;
+
+			reg-io-width = <1>;
+			reg-shift = <2>;
+			fifo-size = <1>;
+			no-loopback-test;
+
+			status = "disabled";
+		};
 	};
 };
-
-&uart0 {
-	/delete-property/ clock-frequency;
-	clocks = <&lx_clk>;
-
-	interrupt-parent = <&intc>;
-	interrupts = <30>;
-};
-
-&uart1 {
-	/delete-property/ clock-frequency;
-	clocks = <&lx_clk>;
-
-	interrupt-parent = <&intc>;
-	interrupts = <31>;
-};
-

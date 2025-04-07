@@ -143,7 +143,7 @@ reading multiple stats as it internally performs a full dump of
 and reports only the stat corresponding to the accessed file.
 
 Sysfs files are documented in
-`Documentation/ABI/testing/sysfs-class-net-statistics`.
+Documentation/ABI/testing/sysfs-class-net-statistics.
 
 
 netlink

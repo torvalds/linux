@@ -2,7 +2,7 @@
 #ifndef _ASM_PGTABLE_INVERT_H
 #define _ASM_PGTABLE_INVERT_H 1
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /*
  * A clear pte value is special, and doesn't get inverted.
@@ -36,6 +36,6 @@ static inline u64 flip_protnone_guard(u64 oldval, u64 val, u64 mask)
 	return val;
 }
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif

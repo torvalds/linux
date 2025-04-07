@@ -776,8 +776,8 @@ at86rf230_setup_spi_messages(struct at86rf230_local *lp,
 	state->trx.tx_buf = state->buf;
 	state->trx.rx_buf = state->buf;
 	spi_message_add_tail(&state->trx, &state->msg);
-	hrtimer_init(&state->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	state->timer.function = at86rf230_async_state_timer;
+	hrtimer_setup(&state->timer, at86rf230_async_state_timer, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL);
 }
 
 static irqreturn_t at86rf230_isr(int irq, void *data)

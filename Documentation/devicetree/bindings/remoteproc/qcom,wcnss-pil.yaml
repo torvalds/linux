@@ -69,9 +69,11 @@ properties:
       CX regulator to be held on behalf of the booting of the WCNSS core.
 
   power-domains:
+    minItems: 1
     maxItems: 2
 
   power-domain-names:
+    minItems: 1
     items:
       - const: cx
       - const: mx
@@ -187,22 +189,43 @@ allOf:
               - qcom,pronto-v1-pil
               - qcom,pronto-v2-pil
     then:
-      properties:
-        vddmx-supply:
-          deprecated: true
-          description: Deprecated for qcom,pronto-v1/2-pil
-
-        vddcx-supply:
-          deprecated: true
-          description: Deprecated for qcom,pronto-v1/2-pil
-
+      # CX and MX must be present either as power domains or regulators
       oneOf:
+        # Both CX and MX represented as power domains
         - required:
             - power-domains
             - power-domain-names
+          properties:
+            power-domains:
+              minItems: 2
+            power-domain-names:
+              minItems: 2
+            vddmx-supply: false
+            vddcx-supply: false
+        # CX represented as power domain, MX as regulator
+        - required:
+            - power-domains
+            - power-domain-names
+            - vddmx-supply
+          properties:
+            power-domains:
+              maxItems: 1
+            power-domain-names:
+              maxItems: 1
+            vddcx-supply: false
+        # Both CX and MX represented as regulators
         - required:
             - vddmx-supply
             - vddcx-supply
+          properties:
+            power-domains: false
+            power-domain-names: false
+            vddmx-supply:
+              deprecated: true
+              description: Deprecated for qcom,pronto-v1/2-pil
+            vddcx-supply:
+              deprecated: true
+              description: Deprecated for qcom,pronto-v1/2-pil
 
   - if:
       properties:
@@ -212,6 +235,10 @@ allOf:
               - qcom,pronto-v3-pil
     then:
       properties:
+        power-domains:
+          minItems: 2
+        power-domain-names:
+          minItems: 2
         vddmx-supply: false
         vddcx-supply: false
 

@@ -1,0 +1,206 @@
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX
+Date:		March 2025
+KernelVersion:	6.15
+Contact:	linux-edac@vger.kernel.org
+Description:
+		The sysfs EDAC bus devices /<dev-name>/mem_repairX subdirectory
+		pertains to the memory media repair features control, such as
+		PPR (Post Package Repair), memory sparing etc, where <dev-name>
+		directory corresponds to a device registered with the EDAC
+		device driver for the memory repair features.
+
+		Post Package Repair is a maintenance operation requests the memory
+		device to perform a repair operation on its media. It is a memory
+		self-healing feature that fixes a failing memory location by
+		replacing it with a spare row in a DRAM device. For example, a
+		CXL memory device with DRAM components that support PPR features may
+		implement PPR maintenance operations. DRAM components may support
+		two types of PPR functions: hard PPR, for a permanent row repair, and
+		soft PPR, for a temporary row repair. Soft PPR may be much faster
+		than hard PPR, but the repair is lost with a power cycle.
+
+		The sysfs attributes nodes for a repair feature are only
+		present if the parent driver has implemented the corresponding
+		attr callback function and provided the necessary operations
+		to the EDAC device driver during registration.
+
+		In some states of system configuration (e.g. before address
+		decoders have been configured), memory devices (e.g. CXL)
+		may not have an active mapping in the main host address
+		physical address map. As such, the memory to repair must be
+		identified by a device specific physical addressing scheme
+		using a device physical address(DPA). The DPA and other control
+		attributes to use will be presented in related error records.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/repair_type
+Date:		March 2025
+KernelVersion:	6.15
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(RO) Memory repair type. For eg. post package repair,
+		memory sparing etc. Valid values are:
+
+		- ppr - Post package repair.
+
+		- cacheline-sparing
+
+		- row-sparing
+
+		- bank-sparing
+
+		- rank-sparing
+
+		- All other values are reserved.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/persist_mode
+Date:		March 2025
+KernelVersion:	6.15
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(RW) Get/Set the current persist repair mode set for a
+		repair function. Persist repair modes supported in the
+		device, based on a memory repair function, either is temporary,
+		which is lost with a power cycle or permanent. Valid values are:
+
+		- 0 - Soft memory repair (temporary repair).
+
+		- 1 - Hard memory repair (permanent repair).
+
+		- All other values are reserved.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/repair_safe_when_in_use
+Date:		March 2025
+KernelVersion:	6.15
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(RO) True if memory media is accessible and data is retained
+		during the memory repair operation.
+		The data may not be retained and memory requests may not be
+		correctly processed during a repair operation. In such case
+		repair operation can not be executed at runtime. The memory
+		must be taken offline.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/hpa
+Date:		March 2025
+KernelVersion:	6.15
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(RW) Host Physical Address (HPA) of the memory to repair.
+		The HPA to use will be provided in related error records.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/dpa
+Date:		March 2025
+KernelVersion:	6.15
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(RW) Device Physical Address (DPA) of the memory to repair.
+		The specific DPA to use will be provided in related error
+		records.
+
+		In some states of system configuration (e.g. before address
+		decoders have been configured), memory devices (e.g. CXL)
+		may not have an active mapping in the main host address
+		physical address map. As such, the memory to repair must be
+		identified by a device specific physical addressing scheme
+		using a DPA. The device physical address(DPA) to use will be
+		presented in related error records.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/nibble_mask
+Date:		March 2025
+KernelVersion:	6.15
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(RW) Read/Write Nibble mask of the memory to repair.
+		Nibble mask identifies one or more nibbles in error on the
+		memory bus that produced the error event. Nibble Mask bit 0
+		shall be set if nibble 0 on the memory bus produced the
+		event, etc. For example, CXL PPR and sparing, a nibble mask
+		bit set to 1 indicates the request to perform repair
+		operation in the specific device. All nibble mask bits set
+		to 1 indicates the request to perform the operation in all
+		devices. Eg. for CXL memory repair, the specific value of
+		nibble mask to use will be provided in related error records.
+		For more details, See nibble mask field in CXL spec ver 3.1,
+		section 8.2.9.7.1.2 Table 8-103 soft PPR and section
+		8.2.9.7.1.3 Table 8-104 hard PPR, section 8.2.9.7.1.4
+		Table 8-105 memory sparing.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/min_hpa
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/max_hpa
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/min_dpa
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/max_dpa
+Date:		March 2025
+KernelVersion:	6.15
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(RW) The supported range of memory address that is to be
+		repaired. The memory device may give the supported range of
+		attributes to use and it will depend on the memory device
+		and the portion of memory to repair.
+		The userspace may receive the specific value of attributes
+		to use for a repair operation from the memory device via
+		related error records and trace events, for eg. CXL DRAM
+		and CXL general media error records in CXL memory devices.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/bank_group
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/bank
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/rank
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/row
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/column
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/channel
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/sub_channel
+Date:		March 2025
+KernelVersion:	6.15
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(RW) The control attributes for the memory to be repaired.
+		The specific value of attributes to use depends on the
+		portion of memory to repair and will be reported to the host
+		in related error records and be available to userspace
+		in trace events, such as CXL DRAM and CXL general media
+		error records of CXL memory devices.
+
+		When readng back these attributes, it returns the current
+		value of memory requested to be repaired.
+
+		bank_group - The bank group of the memory to repair.
+
+		bank - The bank number of the memory to repair.
+
+		rank - The rank of the memory to repair. Rank is defined as a
+		set of memory devices on a channel that together execute a
+		transaction.
+
+		row - The row number of the memory to repair.
+
+		column - The column number of the memory to repair.
+
+		channel - The channel of the memory to repair. Channel is
+		defined as an interface that can be independently accessed
+		for a transaction.
+
+		sub_channel - The subchannel of the memory to repair.
+
+		The requirement to set these attributes varies based on the
+		repair function. The attributes in sysfs are not present
+		unless required for a repair function.
+
+		For example, CXL spec ver 3.1, Section 8.2.9.7.1.2 Table 8-103
+		soft PPR and Section 8.2.9.7.1.3 Table 8-104 hard PPR operations,
+		these attributes are not required to set. CXL spec ver 3.1,
+		Section 8.2.9.7.1.4 Table 8-105 memory sparing, these attributes
+		are required to set based on memory sparing granularity.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/repair
+Date:		March 2025
+KernelVersion:	6.15
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(WO) Issue the memory repair operation for the specified
+		memory repair attributes. The operation may fail if resources
+		are insufficient based on the requirements of the memory
+		device and repair function.
+
+		- 1 - Issue the repair operation.
+
+		- All other values are reserved.

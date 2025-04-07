@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * mac80211 - channel management
- * Copyright 2020 - 2024 Intel Corporation
+ * Copyright 2020 - 2025 Intel Corporation
  */
 
 #include <linux/nl80211.h>
@@ -2178,3 +2178,21 @@ void ieee80211_iter_chan_contexts_atomic(
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(ieee80211_iter_chan_contexts_atomic);
+
+void ieee80211_iter_chan_contexts_mtx(
+	struct ieee80211_hw *hw,
+	void (*iter)(struct ieee80211_hw *hw,
+		     struct ieee80211_chanctx_conf *chanctx_conf,
+		     void *data),
+	void *iter_data)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_chanctx *ctx;
+
+	lockdep_assert_wiphy(hw->wiphy);
+
+	list_for_each_entry(ctx, &local->chanctx_list, list)
+		if (ctx->driver_present)
+			iter(hw, &ctx->conf, iter_data);
+}
+EXPORT_SYMBOL_GPL(ieee80211_iter_chan_contexts_mtx);

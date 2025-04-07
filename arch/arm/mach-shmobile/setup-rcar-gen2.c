@@ -8,19 +8,15 @@
  */
 
 #include <linux/clocksource.h>
-#include <linux/device.h>
-#include <linux/dma-map-ops.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/memblock.h>
 #include <linux/of.h>
 #include <linux/of_clk.h>
-#include <linux/of_fdt.h>
 #include <linux/psci.h>
 #include <asm/mach/arch.h>
 #include <asm/secure_cntvoff.h>
 #include "common.h"
-#include "rcar-gen2.h"
 
 static const struct of_device_id cpg_matches[] __initconst = {
 	{ .compatible = "renesas,r8a7742-cpg-mssr", .data = "extal" },
@@ -122,76 +118,6 @@ skip_update:
 	timer_probe();
 }
 
-struct memory_reserve_config {
-	u64 reserved;
-	u64 base, size;
-};
-
-static int __init rcar_gen2_scan_mem(unsigned long node, const char *uname,
-				     int depth, void *data)
-{
-	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-	const __be32 *reg, *endp;
-	int l;
-	struct memory_reserve_config *mrc = data;
-	u64 lpae_start = 1ULL << 32;
-
-	/* We are scanning "memory" nodes only */
-	if (type == NULL || strcmp(type, "memory"))
-		return 0;
-
-	reg = of_get_flat_dt_prop(node, "linux,usable-memory", &l);
-	if (reg == NULL)
-		reg = of_get_flat_dt_prop(node, "reg", &l);
-	if (reg == NULL)
-		return 0;
-
-	endp = reg + (l / sizeof(__be32));
-	while ((endp - reg) >= (dt_root_addr_cells + dt_root_size_cells)) {
-		u64 base, size;
-
-		base = dt_mem_next_cell(dt_root_addr_cells, &reg);
-		size = dt_mem_next_cell(dt_root_size_cells, &reg);
-
-		if (base >= lpae_start)
-			continue;
-
-		if ((base + size) >= lpae_start)
-			size = lpae_start - base;
-
-		if (size < mrc->reserved)
-			continue;
-
-		if (base < mrc->base)
-			continue;
-
-		/* keep the area at top near the 32-bit legacy limit */
-		mrc->base = base + size - mrc->reserved;
-		mrc->size = mrc->reserved;
-	}
-
-	return 0;
-}
-
-static void __init rcar_gen2_reserve(void)
-{
-	struct memory_reserve_config mrc;
-
-	/* reserve 256 MiB at the top of the physical legacy 32-bit space */
-	memset(&mrc, 0, sizeof(mrc));
-	mrc.reserved = SZ_256M;
-
-	of_scan_flat_dt(rcar_gen2_scan_mem, &mrc);
-#ifdef CONFIG_DMA_CMA
-	if (mrc.size && memblock_is_region_memory(mrc.base, mrc.size)) {
-		static struct cma *rcar_gen2_dma_contiguous;
-
-		dma_contiguous_reserve_area(mrc.size, mrc.base, 0,
-					    &rcar_gen2_dma_contiguous, true);
-	}
-#endif
-}
-
 static const char * const rcar_gen2_boards_compat_dt[] __initconst = {
 	"renesas,r8a7790",
 	"renesas,r8a7791",
@@ -204,7 +130,6 @@ static const char * const rcar_gen2_boards_compat_dt[] __initconst = {
 DT_MACHINE_START(RCAR_GEN2_DT, "Generic R-Car Gen2 (Flattened Device Tree)")
 	.init_late	= shmobile_init_late,
 	.init_time	= rcar_gen2_timer_init,
-	.reserve	= rcar_gen2_reserve,
 	.dt_compat	= rcar_gen2_boards_compat_dt,
 MACHINE_END
 
@@ -220,6 +145,5 @@ static const char * const rz_g1_boards_compat_dt[] __initconst = {
 DT_MACHINE_START(RZ_G1_DT, "Generic RZ/G1 (Flattened Device Tree)")
 	.init_late	= shmobile_init_late,
 	.init_time	= rcar_gen2_timer_init,
-	.reserve	= rcar_gen2_reserve,
 	.dt_compat	= rz_g1_boards_compat_dt,
 MACHINE_END

@@ -236,7 +236,8 @@ static void _sigio_handler(struct uml_pt_regs *regs,
 		free_irqs();
 }
 
-void sigio_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
+void sigio_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs,
+		   void *mc)
 {
 	preempt_disable();
 	_sigio_handler(regs, irqs_suspended);

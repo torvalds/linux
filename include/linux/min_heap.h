@@ -218,7 +218,7 @@ static size_t parent(size_t i, unsigned int lsbit, size_t size)
 
 /* Initialize a min-heap. */
 static __always_inline
-void __min_heap_init_inline(min_heap_char *heap, void *data, int size)
+void __min_heap_init_inline(min_heap_char *heap, void *data, size_t size)
 {
 	heap->nr = 0;
 	heap->size = size;
@@ -254,7 +254,7 @@ bool __min_heap_full_inline(min_heap_char *heap)
 
 /* Sift the element at pos down the heap. */
 static __always_inline
-void __min_heap_sift_down_inline(min_heap_char *heap, int pos, size_t elem_size,
+void __min_heap_sift_down_inline(min_heap_char *heap, size_t pos, size_t elem_size,
 				 const struct min_heap_callbacks *func, void *args)
 {
 	const unsigned long lsbit = elem_size & -elem_size;
@@ -324,7 +324,7 @@ static __always_inline
 void __min_heapify_all_inline(min_heap_char *heap, size_t elem_size,
 			      const struct min_heap_callbacks *func, void *args)
 {
-	int i;
+	ssize_t i;
 
 	for (i = heap->nr / 2 - 1; i >= 0; i--)
 		__min_heap_sift_down_inline(heap, i, elem_size, func, args);
@@ -379,7 +379,7 @@ bool __min_heap_push_inline(min_heap_char *heap, const void *element, size_t ele
 			    const struct min_heap_callbacks *func, void *args)
 {
 	void *data = heap->data;
-	int pos;
+	size_t pos;
 
 	if (WARN_ONCE(heap->nr >= heap->size, "Pushing on a full heap"))
 		return false;
@@ -428,10 +428,10 @@ bool __min_heap_del_inline(min_heap_char *heap, size_t elem_size, size_t idx,
 	__min_heap_del_inline(container_of(&(_heap)->nr, min_heap_char, nr),	\
 			      __minheap_obj_size(_heap), _idx, _func, _args)
 
-void __min_heap_init(min_heap_char *heap, void *data, int size);
+void __min_heap_init(min_heap_char *heap, void *data, size_t size);
 void *__min_heap_peek(struct min_heap_char *heap);
 bool __min_heap_full(min_heap_char *heap);
-void __min_heap_sift_down(min_heap_char *heap, int pos, size_t elem_size,
+void __min_heap_sift_down(min_heap_char *heap, size_t pos, size_t elem_size,
 			  const struct min_heap_callbacks *func, void *args);
 void __min_heap_sift_up(min_heap_char *heap, size_t elem_size, size_t idx,
 			const struct min_heap_callbacks *func, void *args);

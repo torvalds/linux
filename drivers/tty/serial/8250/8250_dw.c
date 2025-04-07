@@ -107,11 +107,23 @@ static inline int dw8250_modify_msr(struct uart_port *p, int offset, int value)
 	return value;
 }
 
+/*
+ * This function is being called as part of the uart_port::serial_out()
+ * routine. Hence, it must not call serial_port_out() or serial_out()
+ * against the modified registers here, i.e. LCR.
+ */
 static void dw8250_force_idle(struct uart_port *p)
 {
 	struct uart_8250_port *up = up_to_u8250p(p);
 	unsigned int lsr;
 
+	/*
+	 * The following call currently performs serial_out()
+	 * against the FCR register. Because it differs to LCR
+	 * there will be no infinite loop, but if it ever gets
+	 * modified, we might need a new custom version of it
+	 * that avoids infinite recursion.
+	 */
 	serial8250_clear_and_reinit_fifos(up);
 
 	/*
@@ -120,14 +132,19 @@ static void dw8250_force_idle(struct uart_port *p)
 	 * enabled.
 	 */
 	if (up->fcr & UART_FCR_ENABLE_FIFO) {
-		lsr = p->serial_in(p, UART_LSR);
+		lsr = serial_port_in(p, UART_LSR);
 		if (!(lsr & UART_LSR_DR))
 			return;
 	}
 
-	(void)p->serial_in(p, UART_RX);
+	serial_port_in(p, UART_RX);
 }
 
+/*
+ * This function is being called as part of the uart_port::serial_out()
+ * routine. Hence, it must not call serial_port_out() or serial_out()
+ * against the modified registers here, i.e. LCR.
+ */
 static void dw8250_check_lcr(struct uart_port *p, int offset, int value)
 {
 	struct dw8250_data *d = to_dw8250_data(p->private_data);
@@ -139,7 +156,7 @@ static void dw8250_check_lcr(struct uart_port *p, int offset, int value)
 
 	/* Make sure LCR write wasn't ignored */
 	while (tries--) {
-		unsigned int lcr = p->serial_in(p, offset);
+		unsigned int lcr = serial_port_in(p, offset);
 
 		if ((value & ~UART_LCR_SPAR) == (lcr & ~UART_LCR_SPAR))
 			return;
@@ -260,7 +277,7 @@ static int dw8250_handle_irq(struct uart_port *p)
 {
 	struct uart_8250_port *up = up_to_u8250p(p);
 	struct dw8250_data *d = to_dw8250_data(p->private_data);
-	unsigned int iir = p->serial_in(p, UART_IIR);
+	unsigned int iir = serial_port_in(p, UART_IIR);
 	bool rx_timeout = (iir & 0x3f) == UART_IIR_RX_TIMEOUT;
 	unsigned int quirks = d->pdata->quirks;
 	unsigned int status;
@@ -281,7 +298,7 @@ static int dw8250_handle_irq(struct uart_port *p)
 		status = serial_lsr_in(up);
 
 		if (!(status & (UART_LSR_DR | UART_LSR_BI)))
-			(void) p->serial_in(p, UART_RX);
+			serial_port_in(p, UART_RX);
 
 		uart_port_unlock_irqrestore(p, flags);
 	}
@@ -303,7 +320,7 @@ static int dw8250_handle_irq(struct uart_port *p)
 
 	if ((iir & UART_IIR_BUSY) == UART_IIR_BUSY) {
 		/* Clear the USR */
-		(void)p->serial_in(p, d->pdata->usr_reg);
+		serial_port_in(p, d->pdata->usr_reg);
 
 		return 1;
 	}
@@ -390,7 +407,7 @@ static void dw8250_set_termios(struct uart_port *p, struct ktermios *termios,
 static void dw8250_set_ldisc(struct uart_port *p, struct ktermios *termios)
 {
 	struct uart_8250_port *up = up_to_u8250p(p);
-	unsigned int mcr = p->serial_in(p, UART_MCR);
+	unsigned int mcr = serial_port_in(p, UART_MCR);
 
 	if (up->capabilities & UART_CAP_IRDA) {
 		if (termios->c_line == N_IRDA)
@@ -398,7 +415,7 @@ static void dw8250_set_ldisc(struct uart_port *p, struct ktermios *termios)
 		else
 			mcr &= ~DW_UART_MCR_SIRE;
 
-		p->serial_out(p, UART_MCR, mcr);
+		serial_port_out(p, UART_MCR, mcr);
 	}
 	serial8250_do_set_ldisc(p, termios);
 }
@@ -419,6 +436,18 @@ static bool dw8250_fallback_dma_filter(struct dma_chan *chan, void *param)
 static bool dw8250_idma_filter(struct dma_chan *chan, void *param)
 {
 	return param == chan->device->dev;
+}
+
+static void dw8250_setup_dma_filter(struct uart_port *p, struct dw8250_data *data)
+{
+	/* Platforms with iDMA 64-bit */
+	if (platform_get_resource_byname(to_platform_device(p->dev), IORESOURCE_MEM, "lpss_priv")) {
+		data->data.dma.rx_param = p->dev->parent;
+		data->data.dma.tx_param = p->dev->parent;
+		data->data.dma.fn = dw8250_idma_filter;
+	} else {
+		data->data.dma.fn = dw8250_fallback_dma_filter;
+	}
 }
 
 static u32 dw8250_rzn1_get_dmacr_burst(int max_burst)
@@ -459,8 +488,8 @@ static void dw8250_prepare_rx_dma(struct uart_8250_port *p)
 
 static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 {
-	unsigned int quirks = data->pdata ? data->pdata->quirks : 0;
-	u32 cpr_value = data->pdata ? data->pdata->cpr_value : 0;
+	unsigned int quirks = data->pdata->quirks;
+	u32 cpr_value = data->pdata->cpr_value;
 
 	if (quirks & DW_UART_QUIRK_CPR_VALUE)
 		data->data.cpr_value = cpr_value;
@@ -491,14 +520,6 @@ static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 		p->serial_in = dw8250_serial_in32;
 		data->uart_16550_compatible = true;
 	}
-
-	/* Platforms with iDMA 64-bit */
-	if (platform_get_resource_byname(to_platform_device(p->dev),
-					 IORESOURCE_MEM, "lpss_priv")) {
-		data->data.dma.rx_param = p->dev->parent;
-		data->data.dma.tx_param = p->dev->parent;
-		data->data.dma.fn = dw8250_idma_filter;
-	}
 }
 
 static void dw8250_reset_control_assert(void *data)
@@ -520,7 +541,6 @@ static int dw8250_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, -EINVAL, "no registers defined\n");
 
 	spin_lock_init(&p->lock);
-	p->handle_irq	= dw8250_handle_irq;
 	p->pm		= dw8250_do_pm;
 	p->type		= PORT_8250;
 	p->flags	= UPF_FIXED_PORT;
@@ -532,12 +552,7 @@ static int dw8250_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
-	data->data.dma.fn = dw8250_fallback_dma_filter;
-	data->pdata = device_get_match_data(p->dev);
 	p->private_data = &data->data;
-
-	data->uart_16550_compatible = device_property_read_bool(dev,
-						"snps,uart-16550-compatible");
 
 	p->mapbase = regs->start;
 	p->mapsize = resource_size(regs);
@@ -626,11 +641,19 @@ static int dw8250_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	dw8250_quirks(p, data);
+	data->uart_16550_compatible = device_property_read_bool(dev, "snps,uart-16550-compatible");
+
+	data->pdata = device_get_match_data(p->dev);
+	if (data->pdata)
+		dw8250_quirks(p, data);
 
 	/* If the Busy Functionality is not implemented, don't handle it */
 	if (data->uart_16550_compatible)
 		p->handle_irq = NULL;
+	else if (data->pdata)
+		p->handle_irq = dw8250_handle_irq;
+
+	dw8250_setup_dma_filter(p, data);
 
 	if (!data->skip_autocfg)
 		dw8250_setup_port(p);

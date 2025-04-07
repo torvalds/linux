@@ -258,5 +258,38 @@
         "SampleAfterValue": "1000003",
         "UMask": "0x90",
         "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event MEM_UOPS_RETIRED.STLB_MISS",
+        "Counter": "0,1,2,3,4,5",
+        "Data_LA": "1",
+        "Deprecated": "1",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.DTLB_MISS",
+        "SampleAfterValue": "200003",
+        "UMask": "0x13",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event MEM_UOPS_RETIRED.STLB_MISS_LOADS",
+        "Counter": "0,1,2,3,4,5",
+        "Data_LA": "1",
+        "Deprecated": "1",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.DTLB_MISS_LOADS",
+        "SampleAfterValue": "200003",
+        "UMask": "0x11",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event MEM_UOPS_RETIRED.STLB_MISS_STORES",
+        "Counter": "0,1,2,3,4,5",
+        "Data_LA": "1",
+        "Deprecated": "1",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.DTLB_MISS_STORES",
+        "SampleAfterValue": "200003",
+        "UMask": "0x12",
+        "Unit": "cpu_atom"
     }
 ]

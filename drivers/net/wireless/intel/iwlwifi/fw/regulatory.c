@@ -456,7 +456,25 @@ iwl_parse_tas_selection(const u32 tas_selection_in, const u8 tbl_rev)
 }
 IWL_EXPORT_SYMBOL(iwl_parse_tas_selection);
 
-static __le32 iwl_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
+bool iwl_add_mcc_to_tas_block_list(u16 *list, u8 *size, u16 mcc)
+{
+	for (int i = 0; i < *size; i++) {
+		if (list[i] == mcc)
+			return true;
+	}
+
+	/* Verify that there is room for another country
+	 * If *size == IWL_WTAS_BLACK_LIST_MAX, then the table is full.
+	 */
+	if (*size >= IWL_WTAS_BLACK_LIST_MAX)
+		return false;
+
+	list[*size++] = mcc;
+	return true;
+}
+IWL_EXPORT_SYMBOL(iwl_add_mcc_to_tas_block_list);
+
+__le32 iwl_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 {
 	int ret;
 	u32 val;
@@ -503,6 +521,7 @@ static __le32 iwl_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 
 	return config_bitmap;
 }
+IWL_EXPORT_SYMBOL(iwl_get_lari_config_bitmap);
 
 static size_t iwl_get_lari_config_cmd_size(u8 cmd_ver)
 {
@@ -552,6 +571,10 @@ int iwl_fill_lari_config(struct iwl_fw_runtime *fwrt,
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(fwrt->fw,
 					   WIDE_ID(REGULATORY_AND_NVM_GROUP,
 						   LARI_CONFIG_CHANGE), 1);
+
+	if (WARN_ONCE(cmd_ver > 12,
+		      "Don't add newer versions to this function\n"))
+		return -EINVAL;
 
 	memset(cmd, 0, sizeof(*cmd));
 	*cmd_size = iwl_get_lari_config_cmd_size(cmd_ver);
@@ -674,3 +697,34 @@ bool iwl_puncturing_is_allowed_in_bios(u32 puncturing, u16 mcc)
 	}
 }
 IWL_EXPORT_SYMBOL(iwl_puncturing_is_allowed_in_bios);
+
+bool iwl_rfi_is_enabled_in_bios(struct iwl_fw_runtime *fwrt)
+{
+	/* default behaviour is disabled */
+	u32 value = 0;
+	int ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_RFI_CONFIG, &value);
+
+	if (ret < 0) {
+		IWL_DEBUG_RADIO(fwrt, "Failed to get DSM RFI, ret=%d\n", ret);
+		return false;
+	}
+
+	value &= DSM_VALUE_RFI_DISABLE;
+	/* RFI BIOS CONFIG value can be 0 or 3 only.
+	 * i.e 0 means DDR and DLVR enabled. 3 means DDR and DLVR disabled.
+	 * 1 and 2 are invalid BIOS configurations, So, it's not possible to
+	 * disable ddr/dlvr separately.
+	 */
+	if (!value) {
+		IWL_DEBUG_RADIO(fwrt, "DSM RFI is evaluated to enable\n");
+		return true;
+	} else if (value == DSM_VALUE_RFI_DISABLE) {
+		IWL_DEBUG_RADIO(fwrt, "DSM RFI is evaluated to disable\n");
+	} else {
+		IWL_DEBUG_RADIO(fwrt,
+				"DSM RFI got invalid value, value=%d\n", value);
+	}
+
+	return false;
+}
+IWL_EXPORT_SYMBOL(iwl_rfi_is_enabled_in_bios);

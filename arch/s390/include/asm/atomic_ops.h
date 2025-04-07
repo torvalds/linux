@@ -163,10 +163,10 @@ __ATOMIC64_OPS(__atomic64_xor, "xgr")
 
 #undef __ATOMIC64_OPS
 
-#define __atomic_add_const(val, ptr)		__atomic_add(val, ptr)
-#define __atomic_add_const_barrier(val, ptr)	__atomic_add(val, ptr)
-#define __atomic64_add_const(val, ptr)		__atomic64_add(val, ptr)
-#define __atomic64_add_const_barrier(val, ptr)	__atomic64_add(val, ptr)
+#define __atomic_add_const(val, ptr)		((void)__atomic_add(val, ptr))
+#define __atomic_add_const_barrier(val, ptr)	((void)__atomic_add(val, ptr))
+#define __atomic64_add_const(val, ptr)		((void)__atomic64_add(val, ptr))
+#define __atomic64_add_const_barrier(val, ptr)	((void)__atomic64_add(val, ptr))
 
 #endif /* MARCH_HAS_Z196_FEATURES */
 

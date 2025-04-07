@@ -192,7 +192,33 @@ static void __split_lock_reenable(struct work_struct *work)
 {
 	sld_update_msr(true);
 }
-static DECLARE_DELAYED_WORK(sl_reenable, __split_lock_reenable);
+/*
+ * In order for each CPU to schedule its delayed work independently of the
+ * others, delayed work struct must be per-CPU. This is not required when
+ * sysctl_sld_mitigate is enabled because of the semaphore that limits
+ * the number of simultaneously scheduled delayed works to 1.
+ */
+static DEFINE_PER_CPU(struct delayed_work, sl_reenable);
+
+/*
+ * Per-CPU delayed_work can't be statically initialized properly because
+ * the struct address is unknown. Thus per-CPU delayed_work structures
+ * have to be initialized during kernel initialization and after calling
+ * setup_per_cpu_areas().
+ */
+static int __init setup_split_lock_delayed_work(void)
+{
+	unsigned int cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct delayed_work *work = per_cpu_ptr(&sl_reenable, cpu);
+
+		INIT_DELAYED_WORK(work, __split_lock_reenable);
+	}
+
+	return 0;
+}
+pure_initcall(setup_split_lock_delayed_work);
 
 /*
  * If a CPU goes offline with pending delayed work to re-enable split lock
@@ -215,13 +241,14 @@ static void split_lock_warn(unsigned long ip)
 {
 	struct delayed_work *work;
 	int cpu;
+	unsigned int saved_sld_mitigate = READ_ONCE(sysctl_sld_mitigate);
 
 	if (!current->reported_split_lock)
 		pr_warn_ratelimited("#AC: %s/%d took a split_lock trap at address: 0x%lx\n",
 				    current->comm, current->pid, ip);
 	current->reported_split_lock = 1;
 
-	if (sysctl_sld_mitigate) {
+	if (saved_sld_mitigate) {
 		/*
 		 * misery factor #1:
 		 * sleep 10ms before trying to execute split lock.
@@ -234,12 +261,10 @@ static void split_lock_warn(unsigned long ip)
 		 */
 		if (down_interruptible(&buslock_sem) == -EINTR)
 			return;
-		work = &sl_reenable_unlock;
-	} else {
-		work = &sl_reenable;
 	}
 
 	cpu = get_cpu();
+	work = saved_sld_mitigate ? &sl_reenable_unlock : per_cpu_ptr(&sl_reenable, cpu);
 	schedule_delayed_work_on(cpu, work, 2);
 
 	/* Disable split lock detection on this CPU to make progress */

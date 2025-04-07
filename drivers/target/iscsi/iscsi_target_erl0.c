@@ -810,7 +810,7 @@ int iscsit_stop_time2retain_timer(struct iscsit_session *sess)
 	sess->time2retain_timer_flags |= ISCSI_TF_STOP;
 	spin_unlock(&se_tpg->session_lock);
 
-	del_timer_sync(&sess->time2retain_timer);
+	timer_delete_sync(&sess->time2retain_timer);
 
 	spin_lock(&se_tpg->session_lock);
 	sess->time2retain_timer_flags &= ~ISCSI_TF_RUNNING;

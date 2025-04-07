@@ -10,7 +10,7 @@
 #ifndef __X86_MEM_ENCRYPT_H__
 #define __X86_MEM_ENCRYPT_H__
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/init.h>
 #include <linux/cc_platform.h>
@@ -114,6 +114,6 @@ void add_encrypt_protection_map(void);
 
 extern char __start_bss_decrypted[], __end_bss_decrypted[], __start_bss_decrypted_unused[];
 
-#endif	/* __ASSEMBLY__ */
+#endif	/* __ASSEMBLER__ */
 
 #endif	/* __X86_MEM_ENCRYPT_H__ */

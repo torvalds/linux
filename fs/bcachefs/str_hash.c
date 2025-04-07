@@ -50,7 +50,7 @@ static noinline int fsck_rename_dirent(struct btree_trans *trans,
 	for (unsigned i = 0; i < 1000; i++) {
 		unsigned len = sprintf(new->v.d_name, "%.*s.fsck_renamed-%u",
 				       old_name.len, old_name.name, i);
-		unsigned u64s = BKEY_U64s + dirent_val_u64s(len);
+		unsigned u64s = BKEY_U64s + dirent_val_u64s(len, 0);
 
 		if (u64s > U8_MAX)
 			return -EINVAL;
@@ -195,7 +195,7 @@ int __bch2_str_hash_check_key(struct btree_trans *trans,
 			      struct btree_iter *k_iter, struct bkey_s_c hash_k)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter iter = { NULL };
+	struct btree_iter iter = {};
 	struct printbuf buf = PRINTBUF;
 	struct bkey_s_c k;
 	int ret = 0;
@@ -232,7 +232,7 @@ bad_hash:
 		goto out;
 
 	if (fsck_err(trans, hash_table_key_wrong_offset,
-		     "hash table key at wrong offset: btree %s inode %llu offset %llu, hashed to %llu\n  %s",
+		     "hash table key at wrong offset: btree %s inode %llu offset %llu, hashed to %llu\n%s",
 		     bch2_btree_id_str(desc->btree_id), hash_k.k->p.inode, hash_k.k->p.offset, hash,
 		     (printbuf_reset(&buf),
 		      bch2_bkey_val_to_text(&buf, c, hash_k), buf.buf))) {

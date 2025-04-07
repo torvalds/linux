@@ -212,7 +212,7 @@ static inline struct mctp_skb_cb *mctp_cb(struct sk_buff *skb)
 
 	BUILD_BUG_ON(sizeof(struct mctp_skb_cb) > sizeof(skb->cb));
 	WARN_ON(cb->magic != 0x4d435450);
-	return (void *)(skb->cb);
+	return cb;
 }
 
 /* If CONFIG_MCTP_FLOWS, we may add one of these as a SKB extension,

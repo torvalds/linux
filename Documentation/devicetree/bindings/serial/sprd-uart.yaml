@@ -17,13 +17,18 @@ properties:
     oneOf:
       - items:
           - enum:
-              - sprd,sc9632-uart
+              - sprd,ums9632-uart
+          - const: sprd,sc9632-uart
+      - items:
+          - enum:
               - sprd,sc9860-uart
               - sprd,sc9863a-uart
               - sprd,ums512-uart
               - sprd,ums9620-uart
           - const: sprd,sc9836-uart
-      - const: sprd,sc9836-uart
+      - enum:
+          - sprd,sc9632-uart
+          - sprd,sc9836-uart
 
   reg:
     maxItems: 1

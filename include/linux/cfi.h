@@ -11,6 +11,8 @@
 #include <linux/module.h>
 #include <asm/cfi.h>
 
+extern bool cfi_warn;
+
 #ifndef cfi_get_offset
 static inline int cfi_get_offset(void)
 {

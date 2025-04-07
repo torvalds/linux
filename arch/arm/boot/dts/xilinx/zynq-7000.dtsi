@@ -8,6 +8,13 @@
 	#size-cells = <1>;
 	compatible = "xlnx,zynq-7000";
 
+	options {
+		u-boot {
+			compatible = "u-boot,config";
+			bootscr-address = /bits/ 64 <0x3000000>;
+		};
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -34,7 +41,7 @@
 		};
 	};
 
-	fpga_full: fpga-full {
+	fpga_full: fpga-region {
 		compatible = "fpga-region";
 		fpga-mgr = <&devcfg>;
 		#address-cells = <1>;
@@ -93,6 +100,7 @@
 	};
 
 	amba: axi {
+		bootph-all;
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -190,6 +198,17 @@
 			reg = <0xf8006000 0x1000>;
 		};
 
+		ocm: sram@fffc0000 {
+			compatible = "mmio-sram";
+			reg = <0xfffc0000 0x10000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0xfffc0000 0x10000>;
+			ocm-sram@0 {
+				reg = <0x0 0x10000>;
+			};
+		};
+
 		uart0: serial@e0000000 {
 			compatible = "xlnx,xuartps", "cdns,uart-r1p8";
 			status = "disabled";
@@ -277,13 +296,18 @@
 				  0x2 0x0 0xe4000000 0x2000000>; /* SRAM/NOR CS1 region */
 			#address-cells = <2>;
 			#size-cells = <1>;
+			interrupt-parent = <&intc>;
+			interrupts = <0 18 4>;
 
 			nfc0: nand-controller@0,0 {
 				compatible = "arm,pl353-nand-r2p1";
 				reg = <0 0 0x1000000>;
 				status = "disabled";
-				#address-cells = <1>;
-				#size-cells = <0>;
+			};
+			nor0: flash@1,0 {
+				status = "disabled";
+				compatible = "cfi-flash";
+				reg = <1 0 0x2000000>;
 			};
 		};
 
@@ -308,12 +332,14 @@
 		};
 
 		slcr: slcr@f8000000 {
+			bootph-all;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "xlnx,zynq-slcr", "syscon", "simple-mfd";
 			reg = <0xF8000000 0x1000>;
 			ranges;
 			clkc: clkc@100 {
+				bootph-all;
 				#clock-cells = <1>;
 				compatible = "xlnx,ps7-clkc";
 				fclk-enable = <0>;
@@ -398,6 +424,7 @@
 		};
 
 		scutimer: timer@f8f00600 {
+			bootph-all;
 			interrupt-parent = <&intc>;
 			interrupts = <1 13 0x301>;
 			compatible = "arm,cortex-a9-twd-timer";

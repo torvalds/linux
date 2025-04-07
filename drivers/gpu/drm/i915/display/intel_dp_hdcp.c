@@ -705,10 +705,10 @@ int intel_dp_hdcp_get_remote_capability(struct intel_connector *connector,
 
 	*hdcp_capable = false;
 	*hdcp2_capable = false;
-	if (!connector->mst_port)
+	if (!connector->mst.dp)
 		return -EINVAL;
 
-	aux = &connector->port->aux;
+	aux = &connector->mst.port->aux;
 	ret =  _intel_dp_hdcp2_get_capability(aux, hdcp2_capable);
 	if (ret)
 		drm_dbg_kms(display->drm,
@@ -799,7 +799,7 @@ intel_dp_mst_hdcp2_stream_encryption(struct intel_connector *connector,
 {
 	struct intel_display *display = to_intel_display(connector);
 	struct intel_digital_port *dig_port = intel_attached_dig_port(connector);
-	struct hdcp_port_data *data = &dig_port->hdcp_port_data;
+	struct hdcp_port_data *data = &dig_port->hdcp.port_data;
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	enum transcoder cpu_transcoder = hdcp->stream_transcoder;
 	enum pipe pipe = (enum pipe)cpu_transcoder;
@@ -883,7 +883,7 @@ int intel_dp_hdcp_init(struct intel_digital_port *dig_port,
 	if (!is_hdcp_supported(display, port))
 		return 0;
 
-	if (intel_connector->mst_port)
+	if (intel_connector->mst.dp)
 		return intel_hdcp_init(intel_connector, dig_port,
 				       &intel_dp_mst_hdcp_shim);
 	else if (!intel_dp_is_edp(intel_dp))

@@ -107,7 +107,7 @@ static int quickspi_get_device_descriptor(struct quickspi_device *qsdev)
 		return 0;
 	}
 
-	dev_err_once(qsdev->dev, "Unexpected intput report type: %d\n", input_rep_type);
+	dev_err_once(qsdev->dev, "Unexpected input report type: %d\n", input_rep_type);
 	return -EINVAL;
 }
 
@@ -333,7 +333,7 @@ int reset_tic(struct quickspi_device *qsdev)
 		return -EINVAL;
 	}
 
-	qsdev->state = QUICKSPI_RESETED;
+	qsdev->state = QUICKSPI_RESET;
 
 	ret = quickspi_get_device_descriptor(qsdev);
 	if (ret)

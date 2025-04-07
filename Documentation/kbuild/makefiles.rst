@@ -318,9 +318,6 @@ ccflags-y, asflags-y and ldflags-y
   These three flags apply only to the kbuild makefile in which they
   are assigned. They are used for all the normal cc, as and ld
   invocations happening during a recursive build.
-  Note: Flags with the same behaviour were previously named:
-  EXTRA_CFLAGS, EXTRA_AFLAGS and EXTRA_LDFLAGS.
-  They are still supported but their usage is deprecated.
 
   ccflags-y specifies options for compiling with $(CC).
 
@@ -669,6 +666,20 @@ cc-cross-prefix
                     CROSS_COMPILE := $(call cc-cross-prefix, m68k-linux-gnu-)
             endif
     endif
+
+$(RUSTC) support functions
+--------------------------
+
+rustc-min-version
+  rustc-min-version tests if the value of $(CONFIG_RUSTC_VERSION) is greater
+  than or equal to the provided value and evaluates to y if so.
+
+  Example::
+
+    rustflags-$(call rustc-min-version, 108500) := -Cfoo
+
+  In this example, rustflags-y will be assigned the value -Cfoo if
+  $(CONFIG_RUSTC_VERSION) is >= 1.85.0.
 
 $(LD) support functions
 -----------------------

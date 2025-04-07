@@ -346,9 +346,9 @@ static int ppl_log_stripe(struct ppl_log *log, struct stripe_head *sh)
 	if (!test_bit(STRIPE_FULL_WRITE, &sh->state)) {
 		le32_add_cpu(&e->pp_size, PAGE_SIZE);
 		io->pp_size += PAGE_SIZE;
-		e->checksum = cpu_to_le32(crc32c_le(le32_to_cpu(e->checksum),
-						    page_address(sh->ppl_page),
-						    PAGE_SIZE));
+		e->checksum = cpu_to_le32(crc32c(le32_to_cpu(e->checksum),
+						 page_address(sh->ppl_page),
+						 PAGE_SIZE));
 	}
 
 	list_add_tail(&sh->log_list, &io->stripe_list);
@@ -454,7 +454,7 @@ static void ppl_submit_iounit(struct ppl_io_unit *io)
 	}
 
 	pplhdr->entries_count = cpu_to_le32(io->entries_count);
-	pplhdr->checksum = cpu_to_le32(~crc32c_le(~0, pplhdr, PPL_HEADER_SIZE));
+	pplhdr->checksum = cpu_to_le32(~crc32c(~0, pplhdr, PPL_HEADER_SIZE));
 
 	/* Rewind the buffer if current PPL is larger then remaining space */
 	if (log->use_multippl &&
@@ -998,7 +998,7 @@ static int ppl_recover(struct ppl_log *log, struct ppl_header *pplhdr,
 				goto out;
 			}
 
-			crc = crc32c_le(crc, page_address(page), s);
+			crc = crc32c(crc, page_address(page), s);
 
 			pp_size -= s;
 			sector += s >> 9;
@@ -1052,7 +1052,7 @@ static int ppl_write_empty_header(struct ppl_log *log)
 			    log->rdev->ppl.size, GFP_NOIO, 0);
 	memset(pplhdr->reserved, 0xff, PPL_HDR_RESERVED);
 	pplhdr->signature = cpu_to_le32(log->ppl_conf->signature);
-	pplhdr->checksum = cpu_to_le32(~crc32c_le(~0, pplhdr, PAGE_SIZE));
+	pplhdr->checksum = cpu_to_le32(~crc32c(~0, pplhdr, PAGE_SIZE));
 
 	if (!sync_page_io(rdev, rdev->ppl.sector - rdev->data_offset,
 			  PPL_HEADER_SIZE, page, REQ_OP_WRITE | REQ_SYNC |
@@ -1106,7 +1106,7 @@ static int ppl_load_distributed(struct ppl_log *log)
 		/* check header validity */
 		crc_stored = le32_to_cpu(pplhdr->checksum);
 		pplhdr->checksum = 0;
-		crc = ~crc32c_le(~0, pplhdr, PAGE_SIZE);
+		crc = ~crc32c(~0, pplhdr, PAGE_SIZE);
 
 		if (crc_stored != crc) {
 			pr_debug("%s: ppl header crc does not match: stored: 0x%x calculated: 0x%x (offset: %llu)\n",
@@ -1390,7 +1390,7 @@ int ppl_init_log(struct r5conf *conf)
 	spin_lock_init(&ppl_conf->no_mem_stripes_lock);
 
 	if (!mddev->external) {
-		ppl_conf->signature = ~crc32c_le(~0, mddev->uuid, sizeof(mddev->uuid));
+		ppl_conf->signature = ~crc32c(~0, mddev->uuid, sizeof(mddev->uuid));
 		ppl_conf->block_size = 512;
 	} else {
 		ppl_conf->block_size =

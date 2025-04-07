@@ -69,10 +69,12 @@ void intel_display_rps_boost_after_vblank(struct drm_crtc *crtc,
 	add_wait_queue(drm_crtc_vblank_waitqueue(crtc), &wait->wait);
 }
 
-void intel_display_rps_mark_interactive(struct drm_i915_private *i915,
+void intel_display_rps_mark_interactive(struct intel_display *display,
 					struct intel_atomic_state *state,
 					bool interactive)
 {
+	struct drm_i915_private *i915 = to_i915(display->drm);
+
 	if (state->rps_interactive == interactive)
 		return;
 

@@ -3408,7 +3408,7 @@ static int ucc_geth_parse_clock(struct device_node *np, const char *which,
 	return 0;
 }
 
-struct phylink_mac_ops ugeth_mac_ops = {
+static const struct phylink_mac_ops ugeth_mac_ops = {
 	.mac_link_up = ugeth_mac_link_up,
 	.mac_link_down = ugeth_mac_link_down,
 	.mac_config = ugeth_mac_config,

@@ -20,6 +20,7 @@ properties:
               - qcom,ipq5332-trng
               - qcom,ipq5424-trng
               - qcom,ipq9574-trng
+              - qcom,qcs615-trng
               - qcom,qcs8300-trng
               - qcom,sa8255p-trng
               - qcom,sa8775p-trng

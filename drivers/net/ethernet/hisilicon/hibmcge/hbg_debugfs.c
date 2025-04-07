@@ -67,10 +67,11 @@ static int hbg_dbg_irq_info(struct seq_file *s, void *unused)
 	for (i = 0; i < priv->vectors.info_array_len; i++) {
 		info = &priv->vectors.info_array[i];
 		seq_printf(s,
-			   "%-20s: enabled: %-5s, logged: %-5s, count: %llu\n",
+			   "%-20s: enabled: %-5s, reset: %-5s, logged: %-5s, count: %llu\n",
 			   info->name,
 			   str_true_false(hbg_hw_irq_is_enabled(priv,
 								info->mask)),
+			   str_true_false(info->need_reset),
 			   str_true_false(info->need_print),
 			   info->count);
 	}
@@ -114,6 +115,10 @@ static int hbg_dbg_nic_state(struct seq_file *s, void *unused)
 		   state_str_true_false(priv, HBG_NIC_STATE_RESET_FAIL));
 	seq_printf(s, "last reset type: %s\n",
 		   reset_type_str[priv->reset_type]);
+	seq_printf(s, "need reset state: %s\n",
+		   state_str_true_false(priv, HBG_NIC_STATE_NEED_RESET));
+	seq_printf(s, "np_link fail state: %s\n",
+		   state_str_true_false(priv, HBG_NIC_STATE_NP_LINK_FAIL));
 
 	return 0;
 }

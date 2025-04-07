@@ -34,8 +34,9 @@ static const char *const cv1800b_power_domain_desc[] = {
 	[VDDIO_SD0_SPI]			= "VDDIO_SD0_SPI",
 };
 
-static int cv1800b_get_pull_up(struct cv1800_pin *pin, const u32 *psmap)
+static int cv1800b_get_pull_up(const struct sophgo_pin *sp, const u32 *psmap)
 {
+	const struct cv1800_pin *pin = sophgo_to_cv1800_pin(sp);
 	u32 pstate = psmap[pin->power_domain];
 	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
 
@@ -54,8 +55,9 @@ static int cv1800b_get_pull_up(struct cv1800_pin *pin, const u32 *psmap)
 	return -ENOTSUPP;
 }
 
-static int cv1800b_get_pull_down(struct cv1800_pin *pin, const u32 *psmap)
+static int cv1800b_get_pull_down(const struct sophgo_pin *sp, const u32 *psmap)
 {
+	const struct cv1800_pin *pin = sophgo_to_cv1800_pin(sp);
 	u32 pstate = psmap[pin->power_domain];
 	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
 
@@ -108,9 +110,10 @@ static const u32 cv1800b_eth_oc_map[] = {
 	17800
 };
 
-static int cv1800b_get_oc_map(struct cv1800_pin *pin, const u32 *psmap,
+static int cv1800b_get_oc_map(const struct sophgo_pin *sp, const u32 *psmap,
 			      const u32 **map)
 {
+	const struct cv1800_pin *pin = sophgo_to_cv1800_pin(sp);
 	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
 	u32 pstate = psmap[pin->power_domain];
 
@@ -153,9 +156,10 @@ static const u32 cv1800b_18od33_3v3_schmitt_map[] = {
 	1100000
 };
 
-static int cv1800b_get_schmitt_map(struct cv1800_pin *pin, const u32 *psmap,
+static int cv1800b_get_schmitt_map(const struct sophgo_pin *sp, const u32 *psmap,
 				   const u32 **map)
 {
+	const struct cv1800_pin *pin = sophgo_to_cv1800_pin(sp);
 	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
 	u32 pstate = psmap[pin->power_domain];
 
@@ -177,11 +181,11 @@ static int cv1800b_get_schmitt_map(struct cv1800_pin *pin, const u32 *psmap,
 	return -ENOTSUPP;
 }
 
-static const struct cv1800_vddio_cfg_ops cv1800b_vddio_cfg_ops = {
+static const struct sophgo_vddio_cfg_ops cv1800b_vddio_cfg_ops = {
 	.get_pull_up		= cv1800b_get_pull_up,
 	.get_pull_down		= cv1800b_get_pull_down,
 	.get_oc_map		= cv1800b_get_oc_map,
-	.get_schmitt_map		= cv1800b_get_schmitt_map,
+	.get_schmitt_map	= cv1800b_get_schmitt_map,
 };
 
 static const struct pinctrl_pin_desc cv1800b_pins[] = {
@@ -433,13 +437,18 @@ static const struct cv1800_pin cv1800b_pin_data[ARRAY_SIZE(cv1800b_pins)] = {
 			CV1800_PINCONF_AREA_SYS, 0x120, 5),
 };
 
-static const struct cv1800_pinctrl_data cv1800b_pindata = {
+static const struct sophgo_pinctrl_data cv1800b_pindata = {
 	.pins		= cv1800b_pins,
 	.pindata	= cv1800b_pin_data,
 	.pdnames	= cv1800b_power_domain_desc,
 	.vddio_ops	= &cv1800b_vddio_cfg_ops,
+	.cfg_ops	= &cv1800_cfg_ops,
+	.pctl_ops	= &cv1800_pctrl_ops,
+	.pmx_ops	= &cv1800_pmx_ops,
+	.pconf_ops	= &cv1800_pconf_ops,
 	.npins		= ARRAY_SIZE(cv1800b_pins),
-	.npd		= ARRAY_SIZE(cv1800b_power_domain_desc),
+	.npds		= ARRAY_SIZE(cv1800b_power_domain_desc),
+	.pinsize	= sizeof(struct cv1800_pin),
 };
 
 static const struct of_device_id cv1800b_pinctrl_ids[] = {
@@ -449,7 +458,7 @@ static const struct of_device_id cv1800b_pinctrl_ids[] = {
 MODULE_DEVICE_TABLE(of, cv1800b_pinctrl_ids);
 
 static struct platform_driver cv1800b_pinctrl_driver = {
-	.probe	= cv1800_pinctrl_probe,
+	.probe	= sophgo_pinctrl_probe,
 	.driver	= {
 		.name			= "cv1800b-pinctrl",
 		.suppress_bind_attrs	= true,

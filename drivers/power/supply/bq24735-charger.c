@@ -402,7 +402,7 @@ static int bq24735_charger_probe(struct i2c_client *client)
 
 	psy_cfg.supplied_to = charger->pdata->supplied_to;
 	psy_cfg.num_supplicants = charger->pdata->num_supplicants;
-	psy_cfg.of_node = client->dev.of_node;
+	psy_cfg.fwnode = dev_fwnode(&client->dev);
 	psy_cfg.drv_data = charger;
 
 	i2c_set_clientdata(client, charger);

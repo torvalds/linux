@@ -262,11 +262,11 @@ void ax25_disconnect(ax25_cb *ax25, int reason)
 	ax25_clear_queues(ax25);
 
 	if (reason == ENETUNREACH) {
-		del_timer_sync(&ax25->timer);
-		del_timer_sync(&ax25->t1timer);
-		del_timer_sync(&ax25->t2timer);
-		del_timer_sync(&ax25->t3timer);
-		del_timer_sync(&ax25->idletimer);
+		timer_delete_sync(&ax25->timer);
+		timer_delete_sync(&ax25->t1timer);
+		timer_delete_sync(&ax25->t2timer);
+		timer_delete_sync(&ax25->t3timer);
+		timer_delete_sync(&ax25->idletimer);
 	} else {
 		if (ax25->sk && !sock_flag(ax25->sk, SOCK_DESTROY))
 			ax25_stop_heartbeat(ax25);

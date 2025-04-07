@@ -19,7 +19,6 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/dma-mapping.h>
-#include <linux/fb.h>
 #include <linux/gfp.h>
 #include <linux/mmc/host.h>
 #include <linux/ioport.h>

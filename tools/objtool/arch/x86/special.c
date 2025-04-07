@@ -3,11 +3,9 @@
 
 #include <objtool/special.h>
 #include <objtool/builtin.h>
+#include <objtool/warn.h>
 
-#define X86_FEATURE_POPCNT (4 * 32 + 23)
-#define X86_FEATURE_SMAP   (9 * 32 + 20)
-
-void arch_handle_alternative(unsigned short feature, struct special_alt *alt)
+void arch_handle_alternative(struct special_alt *alt)
 {
 	static struct special_alt *group, *prev;
 
@@ -31,34 +29,6 @@ void arch_handle_alternative(unsigned short feature, struct special_alt *alt)
 	} else group = alt;
 
 	prev = alt;
-
-	switch (feature) {
-	case X86_FEATURE_SMAP:
-		/*
-		 * If UACCESS validation is enabled; force that alternative;
-		 * otherwise force it the other way.
-		 *
-		 * What we want to avoid is having both the original and the
-		 * alternative code flow at the same time, in that case we can
-		 * find paths that see the STAC but take the NOP instead of
-		 * CLAC and the other way around.
-		 */
-		if (opts.uaccess)
-			alt->skip_orig = true;
-		else
-			alt->skip_alt = true;
-		break;
-	case X86_FEATURE_POPCNT:
-		/*
-		 * It has been requested that we don't validate the !POPCNT
-		 * feature path which is a "very very small percentage of
-		 * machines".
-		 */
-		alt->skip_orig = true;
-		break;
-	default:
-		break;
-	}
 }
 
 bool arch_support_alt_relocation(struct special_alt *special_alt,
@@ -156,8 +126,10 @@ struct reloc *arch_find_switch_table(struct objtool_file *file,
 	 * indicates a rare GCC quirk/bug which can leave dead
 	 * code behind.
 	 */
-	if (reloc_type(text_reloc) == R_X86_64_PC32)
+	if (reloc_type(text_reloc) == R_X86_64_PC32) {
+		WARN_INSN(insn, "ignoring unreachables due to jump table quirk");
 		file->ignore_unreachables = true;
+	}
 
 	*table_size = 0;
 	return rodata_reloc;

@@ -17,6 +17,8 @@
 #include <linux/gpio/driver.h>
 #include <linux/gpio/regmap.h>
 
+#include "gpiolib.h"
+
 struct gpio_regmap {
 	struct device *parent;
 	struct regmap *regmap;
@@ -81,33 +83,43 @@ static int gpio_regmap_get(struct gpio_chip *chip, unsigned int offset)
 	return !!(val & mask);
 }
 
-static void gpio_regmap_set(struct gpio_chip *chip, unsigned int offset,
-			    int val)
+static int gpio_regmap_set(struct gpio_chip *chip, unsigned int offset,
+			   int val)
 {
 	struct gpio_regmap *gpio = gpiochip_get_data(chip);
 	unsigned int base = gpio_regmap_addr(gpio->reg_set_base);
 	unsigned int reg, mask;
+	int ret;
 
-	gpio->reg_mask_xlate(gpio, base, offset, &reg, &mask);
+	ret = gpio->reg_mask_xlate(gpio, base, offset, &reg, &mask);
+	if (ret)
+		return ret;
+
 	if (val)
-		regmap_update_bits(gpio->regmap, reg, mask, mask);
+		ret = regmap_update_bits(gpio->regmap, reg, mask, mask);
 	else
-		regmap_update_bits(gpio->regmap, reg, mask, 0);
+		ret = regmap_update_bits(gpio->regmap, reg, mask, 0);
+
+	return ret;
 }
 
-static void gpio_regmap_set_with_clear(struct gpio_chip *chip,
-				       unsigned int offset, int val)
+static int gpio_regmap_set_with_clear(struct gpio_chip *chip,
+				      unsigned int offset, int val)
 {
 	struct gpio_regmap *gpio = gpiochip_get_data(chip);
 	unsigned int base, reg, mask;
+	int ret;
 
 	if (val)
 		base = gpio_regmap_addr(gpio->reg_set_base);
 	else
 		base = gpio_regmap_addr(gpio->reg_clr_base);
 
-	gpio->reg_mask_xlate(gpio, base, offset, &reg, &mask);
-	regmap_write(gpio->regmap, reg, mask);
+	ret = gpio->reg_mask_xlate(gpio, base, offset, &reg, &mask);
+	if (ret)
+		return ret;
+
+	return regmap_write(gpio->regmap, reg, mask);
 }
 
 static int gpio_regmap_get_direction(struct gpio_chip *chip,
@@ -210,9 +222,6 @@ struct gpio_regmap *gpio_regmap_register(const struct gpio_regmap_config *config
 	if (!config->parent)
 		return ERR_PTR(-EINVAL);
 
-	if (!config->ngpio)
-		return ERR_PTR(-EINVAL);
-
 	/* we need at least one */
 	if (!config->reg_dat_base && !config->reg_set_base)
 		return ERR_PTR(-EINVAL);
@@ -233,31 +242,16 @@ struct gpio_regmap *gpio_regmap_register(const struct gpio_regmap_config *config
 	gpio->parent = config->parent;
 	gpio->driver_data = config->drvdata;
 	gpio->regmap = config->regmap;
-	gpio->ngpio_per_reg = config->ngpio_per_reg;
-	gpio->reg_stride = config->reg_stride;
-	gpio->reg_mask_xlate = config->reg_mask_xlate;
 	gpio->reg_dat_base = config->reg_dat_base;
 	gpio->reg_set_base = config->reg_set_base;
 	gpio->reg_clr_base = config->reg_clr_base;
 	gpio->reg_dir_in_base = config->reg_dir_in_base;
 	gpio->reg_dir_out_base = config->reg_dir_out_base;
 
-	/* if not set, assume there is only one register */
-	if (!gpio->ngpio_per_reg)
-		gpio->ngpio_per_reg = config->ngpio;
-
-	/* if not set, assume they are consecutive */
-	if (!gpio->reg_stride)
-		gpio->reg_stride = 1;
-
-	if (!gpio->reg_mask_xlate)
-		gpio->reg_mask_xlate = gpio_regmap_simple_xlate;
-
 	chip = &gpio->gpio_chip;
 	chip->parent = config->parent;
 	chip->fwnode = config->fwnode;
 	chip->base = -1;
-	chip->ngpio = config->ngpio;
 	chip->names = config->names;
 	chip->label = config->label ?: dev_name(config->parent);
 	chip->can_sleep = regmap_might_sleep(config->regmap);
@@ -266,15 +260,36 @@ struct gpio_regmap *gpio_regmap_register(const struct gpio_regmap_config *config
 	chip->free = gpiochip_generic_free;
 	chip->get = gpio_regmap_get;
 	if (gpio->reg_set_base && gpio->reg_clr_base)
-		chip->set = gpio_regmap_set_with_clear;
+		chip->set_rv = gpio_regmap_set_with_clear;
 	else if (gpio->reg_set_base)
-		chip->set = gpio_regmap_set;
+		chip->set_rv = gpio_regmap_set;
 
 	chip->get_direction = gpio_regmap_get_direction;
 	if (gpio->reg_dir_in_base || gpio->reg_dir_out_base) {
 		chip->direction_input = gpio_regmap_direction_input;
 		chip->direction_output = gpio_regmap_direction_output;
 	}
+
+	chip->ngpio = config->ngpio;
+	if (!chip->ngpio) {
+		ret = gpiochip_get_ngpios(chip, chip->parent);
+		if (ret)
+			return ERR_PTR(ret);
+	}
+
+	/* if not set, assume there is only one register */
+	gpio->ngpio_per_reg = config->ngpio_per_reg;
+	if (!gpio->ngpio_per_reg)
+		gpio->ngpio_per_reg = config->ngpio;
+
+	/* if not set, assume they are consecutive */
+	gpio->reg_stride = config->reg_stride;
+	if (!gpio->reg_stride)
+		gpio->reg_stride = 1;
+
+	gpio->reg_mask_xlate = config->reg_mask_xlate;
+	if (!gpio->reg_mask_xlate)
+		gpio->reg_mask_xlate = gpio_regmap_simple_xlate;
 
 	ret = gpiochip_add_data(chip, gpio);
 	if (ret < 0)

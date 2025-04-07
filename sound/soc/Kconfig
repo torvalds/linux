@@ -81,6 +81,13 @@ config SND_SOC_UTILS_KUNIT_TEST
 	help
 	  If you want to perform tests on ALSA SoC utils library say Y here.
 
+config SND_SOC_OPS_KUNIT_TEST
+	tristate "KUnit tests for SoC ops"
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  If you want to perform tests on ALSA SoC ops library say Y here.
+
 config SND_SOC_ACPI
 	tristate
 

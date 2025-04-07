@@ -1019,14 +1019,9 @@ static const struct snd_kcontrol_new sma1307_aif_out1_source_control = {
 	.private_value = (unsigned long)&sma1307_aif_out_source_enum
 };
 
-static const struct snd_kcontrol_new sma1307_sdo_control = {
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "Switch",
-	.info = snd_soc_info_volsw,
-	.get = sma1307_dapm_sdo_enable_get,
-	.put = sma1307_dapm_sdo_enable_put,
-	.private_value = SOC_SINGLE_VALUE(SND_SOC_NOPM, 0, 1, 0, 0)
-};
+static const struct snd_kcontrol_new sma1307_sdo_control =
+	SOC_SINGLE_EXT("Switch", SND_SOC_NOPM, 0, 1, 0,
+		       sma1307_dapm_sdo_enable_get, sma1307_dapm_sdo_enable_put);
 
 static const struct snd_kcontrol_new sma1307_enable_control =
 	SOC_DAPM_SINGLE("Switch", SMA1307_00_SYSTEM_CTRL, 0, 1, 0);
@@ -1710,7 +1705,7 @@ static void sma1307_check_fault_worker(struct work_struct *work)
 static void sma1307_setting_loaded(struct sma1307_priv *sma1307, const char *file)
 {
 	const struct firmware *fw;
-	int *data, size, offset, num_mode;
+	int size, offset, num_mode;
 	int ret;
 
 	ret = request_firmware(&fw, file, sma1307->dev);
@@ -1727,7 +1722,12 @@ static void sma1307_setting_loaded(struct sma1307_priv *sma1307, const char *fil
 		return;
 	}
 
-	data = kzalloc(fw->size, GFP_KERNEL);
+	int *data __free(kfree) = kzalloc(fw->size, GFP_KERNEL);
+	if (!data) {
+		release_firmware(fw);
+		sma1307->set.status = false;
+		return;
+	}
 	size = fw->size >> 2;
 	memcpy(data, fw->data, fw->size);
 
@@ -1741,6 +1741,11 @@ static void sma1307_setting_loaded(struct sma1307_priv *sma1307, const char *fil
 	sma1307->set.header = devm_kzalloc(sma1307->dev,
 					   sma1307->set.header_size,
 					   GFP_KERNEL);
+	if (!sma1307->set.header) {
+		sma1307->set.status = false;
+		return;
+	}
+
 	memcpy(sma1307->set.header, data,
 	       sma1307->set.header_size * sizeof(int));
 
@@ -1756,6 +1761,11 @@ static void sma1307_setting_loaded(struct sma1307_priv *sma1307, const char *fil
 	sma1307->set.def
 	    = devm_kzalloc(sma1307->dev,
 			   sma1307->set.def_size * sizeof(int), GFP_KERNEL);
+	if (!sma1307->set.def) {
+		sma1307->set.status = false;
+		return;
+	}
+
 	memcpy(sma1307->set.def,
 	       &data[sma1307->set.header_size],
 	       sma1307->set.def_size * sizeof(int));
@@ -1768,6 +1778,13 @@ static void sma1307_setting_loaded(struct sma1307_priv *sma1307, const char *fil
 		    = devm_kzalloc(sma1307->dev,
 				   sma1307->set.mode_size * 2 * sizeof(int),
 				   GFP_KERNEL);
+		if (!sma1307->set.mode_set[i]) {
+			for (int j = 0; j < i; j++)
+				kfree(sma1307->set.mode_set[j]);
+			sma1307->set.status = false;
+			return;
+		}
+
 		for (int j = 0; j < sma1307->set.mode_size; j++) {
 			sma1307->set.mode_set[i][2 * j]
 			    = data[offset + ((num_mode + 1) * j)];
@@ -1776,7 +1793,6 @@ static void sma1307_setting_loaded(struct sma1307_priv *sma1307, const char *fil
 		}
 	}
 
-	kfree(data);
 	sma1307->set.status = true;
 
 }

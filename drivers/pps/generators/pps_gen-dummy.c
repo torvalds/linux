@@ -52,7 +52,7 @@ static int pps_gen_dummy_enable(struct pps_gen_device *pps_gen, bool enable)
 	if (enable)
 		mod_timer(&ktimer, jiffies + get_random_delay());
 	else
-		del_timer_sync(&ktimer);
+		timer_delete_sync(&ktimer);
 
 	return 0;
 }
@@ -61,7 +61,7 @@ static int pps_gen_dummy_enable(struct pps_gen_device *pps_gen, bool enable)
  * The PPS info struct
  */
 
-static struct pps_gen_source_info pps_gen_dummy_info = {
+static const struct pps_gen_source_info pps_gen_dummy_info = {
 	.use_system_clock	= true,
 	.get_time		= pps_gen_dummy_get_time,
 	.enable			= pps_gen_dummy_enable,
@@ -73,7 +73,7 @@ static struct pps_gen_source_info pps_gen_dummy_info = {
 
 static void __exit pps_gen_dummy_exit(void)
 {
-	del_timer_sync(&ktimer);
+	timer_delete_sync(&ktimer);
 	pps_gen_unregister_source(pps_gen);
 }
 

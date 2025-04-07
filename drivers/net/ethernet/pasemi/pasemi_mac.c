@@ -1288,7 +1288,7 @@ static int pasemi_mac_close(struct net_device *dev)
 		phy_disconnect(dev->phydev);
 	}
 
-	del_timer_sync(&mac->tx->clean_timer);
+	timer_delete_sync(&mac->tx->clean_timer);
 
 	netif_stop_queue(dev);
 	napi_disable(&mac->napi);

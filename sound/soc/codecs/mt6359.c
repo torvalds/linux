@@ -2867,9 +2867,12 @@ static int mt6359_parse_dt(struct mt6359_priv *priv)
 	struct device *dev = priv->dev;
 	struct device_node *np;
 
-	np = of_get_child_by_name(dev->parent->of_node, "mt6359codec");
-	if (!np)
-		return -EINVAL;
+	np = of_get_child_by_name(dev->parent->of_node, "audio-codec");
+	if (!np) {
+		np = of_get_child_by_name(dev->parent->of_node, "mt6359codec");
+		if (!np)
+			return -EINVAL;
+	}
 
 	ret = of_property_read_u32(np, "mediatek,dmic-mode",
 				   &priv->dmic_one_wire_mode);

@@ -42,8 +42,8 @@
 #define ISP410_I2C0_OFFSET 0x66400
 #define ISP410_I2C0_SIZE 0x100
 
-#define ISP410_GPIO_SENSOR0_OFFSET 0x6613C
-#define ISP410_GPIO_SENSOR0_SIZE 0x4
+#define ISP410_GPIO_SENSOR_OFFSET 0x6613C
+#define ISP410_GPIO_SENSOR_SIZE 0x54
 
 void isp_v4_1_0_set_isp_funcs(struct amdgpu_isp *isp);
 

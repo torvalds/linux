@@ -14,6 +14,7 @@
 #include <linux/rcupdate.h>
 #include <linux/lockd/lockd.h>
 
+#include "internal.h"
 #include "nfs4_fs.h"
 #include "netns.h"
 #include "sysfs.h"
@@ -228,6 +229,25 @@ static void shutdown_client(struct rpc_clnt *clnt)
 	rpc_cancel_tasks(clnt, -EIO, shutdown_match_client, NULL);
 }
 
+/*
+ * Shut down the nfs_client only once all the superblocks
+ * have been shut down.
+ */
+static void shutdown_nfs_client(struct nfs_client *clp)
+{
+	struct nfs_server *server;
+	rcu_read_lock();
+	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
+		if (!(server->flags & NFS_MOUNT_SHUTDOWN)) {
+			rcu_read_unlock();
+			return;
+		}
+	}
+	rcu_read_unlock();
+	nfs_mark_client_ready(clp, -EIO);
+	shutdown_client(clp->cl_rpcclient);
+}
+
 static ssize_t
 shutdown_show(struct kobject *kobj, struct kobj_attribute *attr,
 				char *buf)
@@ -259,7 +279,6 @@ shutdown_store(struct kobject *kobj, struct kobj_attribute *attr,
 
 	server->flags |= NFS_MOUNT_SHUTDOWN;
 	shutdown_client(server->client);
-	shutdown_client(server->nfs_client->cl_rpcclient);
 
 	if (!IS_ERR(server->client_acl))
 		shutdown_client(server->client_acl);
@@ -267,10 +286,43 @@ shutdown_store(struct kobject *kobj, struct kobj_attribute *attr,
 	if (server->nlm_host)
 		shutdown_client(server->nlm_host->h_rpcclnt);
 out:
+	shutdown_nfs_client(server->nfs_client);
 	return count;
 }
 
 static struct kobj_attribute nfs_sysfs_attr_shutdown = __ATTR_RW(shutdown);
+
+#if IS_ENABLED(CONFIG_NFS_V4_1)
+static ssize_t
+implid_domain_show(struct kobject *kobj, struct kobj_attribute *attr,
+				char *buf)
+{
+	struct nfs_server *server = container_of(kobj, struct nfs_server, kobj);
+	struct nfs41_impl_id *impl_id = server->nfs_client->cl_implid;
+
+	if (!impl_id || strlen(impl_id->domain) == 0)
+		return 0; //sysfs_emit(buf, "");
+	return sysfs_emit(buf, "%s\n", impl_id->domain);
+}
+
+static struct kobj_attribute nfs_sysfs_attr_implid_domain = __ATTR_RO(implid_domain);
+
+
+static ssize_t
+implid_name_show(struct kobject *kobj, struct kobj_attribute *attr,
+				char *buf)
+{
+	struct nfs_server *server = container_of(kobj, struct nfs_server, kobj);
+	struct nfs41_impl_id *impl_id = server->nfs_client->cl_implid;
+
+	if (!impl_id || strlen(impl_id->name) == 0)
+		return 0; //sysfs_emit(buf, "");
+	return sysfs_emit(buf, "%s\n", impl_id->name);
+}
+
+static struct kobj_attribute nfs_sysfs_attr_implid_name = __ATTR_RO(implid_name);
+
+#endif /* IS_ENABLED(CONFIG_NFS_V4_1) */
 
 #define RPC_CLIENT_NAME_SIZE 64
 
@@ -309,6 +361,32 @@ static struct kobj_type nfs_sb_ktype = {
 	.child_ns_type = nfs_netns_object_child_ns_type,
 };
 
+#if IS_ENABLED(CONFIG_NFS_V4_1)
+static void nfs_sysfs_add_nfsv41_server(struct nfs_server *server)
+{
+	int ret;
+
+	if (!server->nfs_client->cl_implid)
+		return;
+
+	ret = sysfs_create_file_ns(&server->kobj, &nfs_sysfs_attr_implid_domain.attr,
+					   nfs_netns_server_namespace(&server->kobj));
+	if (ret < 0)
+		pr_warn("NFS: sysfs_create_file_ns for server-%d failed (%d)\n",
+			server->s_sysfs_id, ret);
+
+	ret = sysfs_create_file_ns(&server->kobj, &nfs_sysfs_attr_implid_name.attr,
+				   nfs_netns_server_namespace(&server->kobj));
+	if (ret < 0)
+		pr_warn("NFS: sysfs_create_file_ns for server-%d failed (%d)\n",
+			server->s_sysfs_id, ret);
+}
+#else /* CONFIG_NFS_V4_1 */
+static inline void nfs_sysfs_add_nfsv41_server(struct nfs_server *server)
+{
+}
+#endif /* CONFIG_NFS_V4_1 */
+
 void nfs_sysfs_add_server(struct nfs_server *server)
 {
 	int ret;
@@ -325,6 +403,8 @@ void nfs_sysfs_add_server(struct nfs_server *server)
 	if (ret < 0)
 		pr_warn("NFS: sysfs_create_file_ns for server-%d failed (%d)\n",
 			server->s_sysfs_id, ret);
+
+	nfs_sysfs_add_nfsv41_server(server);
 }
 EXPORT_SYMBOL_GPL(nfs_sysfs_add_server);
 

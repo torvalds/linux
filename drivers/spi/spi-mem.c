@@ -377,6 +377,17 @@ int spi_mem_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	/* Make sure the operation frequency is correct before going futher */
 	spi_mem_adjust_op_freq(mem, (struct spi_mem_op *)op);
 
+	dev_vdbg(&mem->spi->dev, "[cmd: 0x%02x][%dB addr: %#8llx][%2dB dummy][%4dB data %s] %d%c-%d%c-%d%c-%d%c @ %uHz\n",
+		 op->cmd.opcode,
+		 op->addr.nbytes, (op->addr.nbytes ? op->addr.val : 0),
+		 op->dummy.nbytes,
+		 op->data.nbytes, (op->data.nbytes ? (op->data.dir == SPI_MEM_DATA_IN ? " read" : "write") : "     "),
+		 op->cmd.buswidth, op->cmd.dtr ? 'D' : 'S',
+		 op->addr.buswidth, op->addr.dtr ? 'D' : 'S',
+		 op->dummy.buswidth, op->dummy.dtr ? 'D' : 'S',
+		 op->data.buswidth, op->data.dtr ? 'D' : 'S',
+		 op->max_freq ? op->max_freq : mem->spi->max_speed_hz);
+
 	ret = spi_mem_check_op(op);
 	if (ret)
 		return ret;

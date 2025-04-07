@@ -309,18 +309,35 @@ with specified IO tag in the command data:
   ``UBLK_IO_COMMIT_AND_FETCH_REQ`` to the server, ublkdrv needs to copy
   the server buffer (pages) read to the IO request pages.
 
-Future development
-==================
-
 Zero copy
 ---------
 
-Zero copy is a generic requirement for nbd, fuse or similar drivers. A
-problem [#xiaoguang]_ Xiaoguang mentioned is that pages mapped to userspace
-can't be remapped any more in kernel with existing mm interfaces. This can
-occurs when destining direct IO to ``/dev/ublkb*``. Also, he reported that
-big requests (IO size >= 256 KB) may benefit a lot from zero copy.
+ublk zero copy relies on io_uring's fixed kernel buffer, which provides
+two APIs: `io_buffer_register_bvec()` and `io_buffer_unregister_bvec`.
 
+ublk adds IO command of `UBLK_IO_REGISTER_IO_BUF` to call
+`io_buffer_register_bvec()` for ublk server to register client request
+buffer into io_uring buffer table, then ublk server can submit io_uring
+IOs with the registered buffer index. IO command of `UBLK_IO_UNREGISTER_IO_BUF`
+calls `io_buffer_unregister_bvec()` to unregister the buffer, which is
+guaranteed to be live between calling `io_buffer_register_bvec()` and
+`io_buffer_unregister_bvec()`. Any io_uring operation which supports this
+kind of kernel buffer will grab one reference of the buffer until the
+operation is completed.
+
+ublk server implementing zero copy or user copy has to be CAP_SYS_ADMIN and
+be trusted, because it is ublk server's responsibility to make sure IO buffer
+filled with data for handling read command, and ublk server has to return
+correct result to ublk driver when handling READ command, and the result
+has to match with how many bytes filled to the IO buffer. Otherwise,
+uninitialized kernel IO buffer will be exposed to client application.
+
+ublk server needs to align the parameter of `struct ublk_param_dma_align`
+with backend for zero copy to work correctly.
+
+For reaching best IO performance, ublk server should align its segment
+parameter of `struct ublk_param_segment` with backend for avoiding
+unnecessary IO split, which usually hurts io_uring performance.
 
 References
 ==========
@@ -332,5 +349,3 @@ References
 .. [#userspace_nbdublk] https://gitlab.com/rwmjones/libnbd/-/tree/nbdublk
 
 .. [#userspace_readme] https://github.com/ming1/ubdsrv/blob/master/README
-
-.. [#xiaoguang] https://lore.kernel.org/linux-block/YoOr6jBfgVm8GvWg@stefanha-x1.localdomain/

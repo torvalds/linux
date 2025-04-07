@@ -34,6 +34,12 @@
 #include <linux/random.h>
 #include <linux/sched/mm.h>
 
+#ifdef CONFIG_BCACHEFS_DEBUG
+static unsigned bch2_write_corrupt_ratio;
+module_param_named(write_corrupt_ratio, bch2_write_corrupt_ratio, uint, 0644);
+MODULE_PARM_DESC(write_corrupt_ratio, "");
+#endif
+
 #ifndef CONFIG_BCACHEFS_NO_LATENCY_ACCT
 
 static inline void bch2_congested_acct(struct bch_dev *ca, u64 io_latency,
@@ -162,9 +168,9 @@ int bch2_sum_sector_overwrites(struct btree_trans *trans,
 	*i_sectors_delta	= 0;
 	*disk_sectors_delta	= 0;
 
-	bch2_trans_copy_iter(&iter, extent_iter);
+	bch2_trans_copy_iter(trans, &iter, extent_iter);
 
-	for_each_btree_key_max_continue_norestart(iter,
+	for_each_btree_key_max_continue_norestart(trans, iter,
 				new->k.p, BTREE_ITER_slots, old, ret) {
 		s64 sectors = min(new->k.p.offset, old.k->p.offset) -
 			max(bkey_start_offset(&new->k),
@@ -286,7 +292,7 @@ int bch2_extent_update(struct btree_trans *trans,
 	 * path already traversed at iter->pos because
 	 * bch2_trans_extent_update() will use it to attempt extent merging
 	 */
-	ret = __bch2_btree_iter_traverse(iter);
+	ret = __bch2_btree_iter_traverse(trans, iter);
 	if (ret)
 		return ret;
 
@@ -331,7 +337,7 @@ int bch2_extent_update(struct btree_trans *trans,
 
 	if (i_sectors_delta_total)
 		*i_sectors_delta_total += i_sectors_delta;
-	bch2_btree_iter_set_pos(iter, next_pos);
+	bch2_btree_iter_set_pos(trans, iter, next_pos);
 	return 0;
 }
 
@@ -374,7 +380,7 @@ static int bch2_write_index_default(struct bch_write_op *op)
 			bch2_extent_update(trans, inum, &iter, sk.k,
 					&op->res,
 					op->new_i_size, &op->i_sectors_delta,
-					op->flags & BCH_WRITE_CHECK_ENOSPC);
+					op->flags & BCH_WRITE_check_enospc);
 		bch2_trans_iter_exit(trans, &iter);
 
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
@@ -396,29 +402,36 @@ static int bch2_write_index_default(struct bch_write_op *op)
 
 /* Writes */
 
-static void __bch2_write_op_error(struct printbuf *out, struct bch_write_op *op,
-				  u64 offset)
+void bch2_write_op_error(struct bch_write_op *op, u64 offset, const char *fmt, ...)
 {
-	bch2_inum_offset_err_msg(op->c, out,
-				 (subvol_inum) { op->subvol, op->pos.inode, },
-				 offset << 9);
-	prt_printf(out, "write error%s: ",
-		   op->flags & BCH_WRITE_MOVE ? "(internal move)" : "");
-}
+	struct printbuf buf = PRINTBUF;
 
-void bch2_write_op_error(struct printbuf *out, struct bch_write_op *op)
-{
-	__bch2_write_op_error(out, op, op->pos.offset);
-}
+	if (op->subvol) {
+		bch2_inum_offset_err_msg(op->c, &buf,
+					 (subvol_inum) { op->subvol, op->pos.inode, },
+					 offset << 9);
+	} else {
+		struct bpos pos = op->pos;
+		pos.offset = offset;
+		bch2_inum_snap_offset_err_msg(op->c, &buf, pos);
+	}
 
-static void bch2_write_op_error_trans(struct btree_trans *trans, struct printbuf *out,
-				      struct bch_write_op *op, u64 offset)
-{
-	bch2_inum_offset_err_msg_trans(trans, out,
-				       (subvol_inum) { op->subvol, op->pos.inode, },
-				       offset << 9);
-	prt_printf(out, "write error%s: ",
-		   op->flags & BCH_WRITE_MOVE ? "(internal move)" : "");
+	prt_str(&buf, "write error: ");
+
+	va_list args;
+	va_start(args, fmt);
+	prt_vprintf(&buf, fmt, args);
+	va_end(args);
+
+	if (op->flags & BCH_WRITE_move) {
+		struct data_update *u = container_of(op, struct data_update, op);
+
+		prt_printf(&buf, "\n  from internal move ");
+		bch2_bkey_val_to_text(&buf, op->c, bkey_i_to_s_c(u->k.k));
+	}
+
+	bch_err_ratelimited(op->c, "%s", buf.buf);
+	printbuf_exit(&buf);
 }
 
 void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
@@ -432,6 +445,11 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
 	BUG_ON(c->opts.nochanges);
 
 	bkey_for_each_ptr(ptrs, ptr) {
+		/*
+		 * XXX: btree writes should be using io_ref[WRITE], but we
+		 * aren't retrying failed btree writes yet (due to device
+		 * removal/ro):
+		 */
 		struct bch_dev *ca = nocow
 			? bch2_dev_have_ref(c, ptr->dev)
 			: bch2_dev_get_ioref(c, ptr->dev, type == BCH_DATA_btree ? READ : WRITE);
@@ -493,7 +511,7 @@ static void bch2_write_done(struct closure *cl)
 	bch2_time_stats_update(&c->times[BCH_TIME_data_write], op->start_time);
 	bch2_disk_reservation_put(c, &op->res);
 
-	if (!(op->flags & BCH_WRITE_MOVE))
+	if (!(op->flags & BCH_WRITE_move))
 		bch2_write_ref_put(c, BCH_WRITE_REF_write);
 	bch2_keylist_free(&op->insert_keys, op->inline_keys);
 
@@ -516,7 +534,7 @@ static noinline int bch2_write_drop_io_error_ptrs(struct bch_write_op *op)
 					    test_bit(ptr->dev, op->failed.d));
 
 			if (!bch2_bkey_nr_ptrs(bkey_i_to_s_c(src)))
-				return -EIO;
+				return -BCH_ERR_data_write_io;
 		}
 
 		if (dst != src)
@@ -539,7 +557,7 @@ static void __bch2_write_index(struct bch_write_op *op)
 	unsigned dev;
 	int ret = 0;
 
-	if (unlikely(op->flags & BCH_WRITE_IO_ERROR)) {
+	if (unlikely(op->flags & BCH_WRITE_io_error)) {
 		ret = bch2_write_drop_io_error_ptrs(op);
 		if (ret)
 			goto err;
@@ -548,7 +566,7 @@ static void __bch2_write_index(struct bch_write_op *op)
 	if (!bch2_keylist_empty(keys)) {
 		u64 sectors_start = keylist_sectors(keys);
 
-		ret = !(op->flags & BCH_WRITE_MOVE)
+		ret = !(op->flags & BCH_WRITE_move)
 			? bch2_write_index_default(op)
 			: bch2_data_update_index_update(op);
 
@@ -560,11 +578,8 @@ static void __bch2_write_index(struct bch_write_op *op)
 		if (unlikely(ret && !bch2_err_matches(ret, EROFS))) {
 			struct bkey_i *insert = bch2_keylist_front(&op->insert_keys);
 
-			struct printbuf buf = PRINTBUF;
-			__bch2_write_op_error(&buf, op, bkey_start_offset(&insert->k));
-			prt_printf(&buf, "btree update error: %s", bch2_err_str(ret));
-			bch_err_ratelimited(c, "%s", buf.buf);
-			printbuf_exit(&buf);
+			bch2_write_op_error(op, bkey_start_offset(&insert->k),
+					    "btree update error: %s", bch2_err_str(ret));
 		}
 
 		if (ret)
@@ -573,21 +588,29 @@ static void __bch2_write_index(struct bch_write_op *op)
 out:
 	/* If some a bucket wasn't written, we can't erasure code it: */
 	for_each_set_bit(dev, op->failed.d, BCH_SB_MEMBERS_MAX)
-		bch2_open_bucket_write_error(c, &op->open_buckets, dev);
+		bch2_open_bucket_write_error(c, &op->open_buckets, dev, -BCH_ERR_data_write_io);
 
 	bch2_open_buckets_put(c, &op->open_buckets);
 	return;
 err:
 	keys->top = keys->keys;
 	op->error = ret;
-	op->flags |= BCH_WRITE_SUBMITTED;
+	op->flags |= BCH_WRITE_submitted;
 	goto out;
 }
 
 static inline void __wp_update_state(struct write_point *wp, enum write_point_state state)
 {
 	if (state != wp->state) {
+		struct task_struct *p = current;
 		u64 now = ktime_get_ns();
+		u64 runtime = p->se.sum_exec_runtime +
+			(now - p->se.exec_start);
+
+		if (state == WRITE_POINT_runnable)
+			wp->last_runtime = runtime;
+		else if (wp->state == WRITE_POINT_runnable)
+			wp->time[WRITE_POINT_running] += runtime - wp->last_runtime;
 
 		if (wp->last_state_change &&
 		    time_after64(now, wp->last_state_change))
@@ -601,7 +624,7 @@ static inline void wp_update_state(struct write_point *wp, bool running)
 {
 	enum write_point_state state;
 
-	state = running			 ? WRITE_POINT_running :
+	state = running			 ? WRITE_POINT_runnable:
 		!list_empty(&wp->writes) ? WRITE_POINT_waiting_io
 					 : WRITE_POINT_stopped;
 
@@ -615,8 +638,8 @@ static CLOSURE_CALLBACK(bch2_write_index)
 	struct workqueue_struct *wq = index_update_wq(op);
 	unsigned long flags;
 
-	if ((op->flags & BCH_WRITE_SUBMITTED) &&
-	    (op->flags & BCH_WRITE_MOVE))
+	if ((op->flags & BCH_WRITE_submitted) &&
+	    (op->flags & BCH_WRITE_move))
 		bch2_bio_free_pages_pool(op->c, &op->wbio.bio);
 
 	spin_lock_irqsave(&wp->writes_lock, flags);
@@ -654,11 +677,11 @@ void bch2_write_point_do_index_updates(struct work_struct *work)
 		if (!op)
 			break;
 
-		op->flags |= BCH_WRITE_IN_WORKER;
+		op->flags |= BCH_WRITE_in_worker;
 
 		__bch2_write_index(op);
 
-		if (!(op->flags & BCH_WRITE_SUBMITTED))
+		if (!(op->flags & BCH_WRITE_submitted))
 			__bch2_write(op);
 		else
 			bch2_write_done(&op->cl);
@@ -676,13 +699,24 @@ static void bch2_write_endio(struct bio *bio)
 		? bch2_dev_have_ref(c, wbio->dev)
 		: NULL;
 
-	if (bch2_dev_inum_io_err_on(bio->bi_status, ca, BCH_MEMBER_ERROR_write,
-				    op->pos.inode,
-				    wbio->inode_offset << 9,
-				    "data write error: %s",
-				    bch2_blk_status_to_str(bio->bi_status))) {
+	bch2_account_io_completion(ca, BCH_MEMBER_ERROR_write,
+				   wbio->submit_time, !bio->bi_status);
+
+	if (unlikely(bio->bi_status)) {
+		if (ca)
+			bch_err_inum_offset_ratelimited(ca,
+					    op->pos.inode,
+					    wbio->inode_offset << 9,
+					    "data write error: %s",
+					    bch2_blk_status_to_str(bio->bi_status));
+		else
+			bch_err_inum_offset_ratelimited(c,
+					    op->pos.inode,
+					    wbio->inode_offset << 9,
+					    "data write error: %s",
+					    bch2_blk_status_to_str(bio->bi_status));
 		set_bit(wbio->dev, op->failed.d);
-		op->flags |= BCH_WRITE_IO_ERROR;
+		op->flags |= BCH_WRITE_io_error;
 	}
 
 	if (wbio->nocow) {
@@ -692,10 +726,8 @@ static void bch2_write_endio(struct bio *bio)
 		set_bit(wbio->dev, op->devs_need_flush->d);
 	}
 
-	if (wbio->have_ioref) {
-		bch2_latency_acct(ca, wbio->submit_time, WRITE);
-		percpu_ref_put(&ca->io_ref);
-	}
+	if (wbio->have_ioref)
+		percpu_ref_put(&ca->io_ref[WRITE]);
 
 	if (wbio->bounce)
 		bch2_bio_free_pages_pool(c, bio);
@@ -729,7 +761,7 @@ static void init_append_extent(struct bch_write_op *op,
 		bch2_extent_crc_append(&e->k_i, crc);
 
 	bch2_alloc_sectors_append_ptrs_inlined(op->c, wp, &e->k_i, crc.compressed_size,
-				       op->flags & BCH_WRITE_CACHED);
+				       op->flags & BCH_WRITE_cached);
 
 	bch2_keylist_push(&op->insert_keys);
 }
@@ -789,7 +821,6 @@ static int bch2_write_rechecksum(struct bch_fs *c,
 {
 	struct bio *bio = &op->wbio.bio;
 	struct bch_extent_crc_unpacked new_crc;
-	int ret;
 
 	/* bch2_rechecksum_bio() can't encrypt or decrypt data: */
 
@@ -797,10 +828,10 @@ static int bch2_write_rechecksum(struct bch_fs *c,
 	    bch2_csum_type_is_encryption(new_csum_type))
 		new_csum_type = op->crc.csum_type;
 
-	ret = bch2_rechecksum_bio(c, bio, op->version, op->crc,
-				  NULL, &new_crc,
-				  op->crc.offset, op->crc.live_size,
-				  new_csum_type);
+	int ret = bch2_rechecksum_bio(c, bio, op->version, op->crc,
+				      NULL, &new_crc,
+				      op->crc.offset, op->crc.live_size,
+				      new_csum_type);
 	if (ret)
 		return ret;
 
@@ -810,44 +841,12 @@ static int bch2_write_rechecksum(struct bch_fs *c,
 	return 0;
 }
 
-static int bch2_write_decrypt(struct bch_write_op *op)
-{
-	struct bch_fs *c = op->c;
-	struct nonce nonce = extent_nonce(op->version, op->crc);
-	struct bch_csum csum;
-	int ret;
-
-	if (!bch2_csum_type_is_encryption(op->crc.csum_type))
-		return 0;
-
-	/*
-	 * If we need to decrypt data in the write path, we'll no longer be able
-	 * to verify the existing checksum (poly1305 mac, in this case) after
-	 * it's decrypted - this is the last point we'll be able to reverify the
-	 * checksum:
-	 */
-	csum = bch2_checksum_bio(c, op->crc.csum_type, nonce, &op->wbio.bio);
-	if (bch2_crc_cmp(op->crc.csum, csum) && !c->opts.no_data_io)
-		return -EIO;
-
-	ret = bch2_encrypt_bio(c, op->crc.csum_type, nonce, &op->wbio.bio);
-	op->crc.csum_type = 0;
-	op->crc.csum = (struct bch_csum) { 0, 0 };
-	return ret;
-}
-
-static enum prep_encoded_ret {
-	PREP_ENCODED_OK,
-	PREP_ENCODED_ERR,
-	PREP_ENCODED_CHECKSUM_ERR,
-	PREP_ENCODED_DO_WRITE,
-} bch2_write_prep_encoded_data(struct bch_write_op *op, struct write_point *wp)
+static noinline int bch2_write_prep_encoded_data(struct bch_write_op *op, struct write_point *wp)
 {
 	struct bch_fs *c = op->c;
 	struct bio *bio = &op->wbio.bio;
-
-	if (!(op->flags & BCH_WRITE_DATA_ENCODED))
-		return PREP_ENCODED_OK;
+	struct bch_csum csum;
+	int ret = 0;
 
 	BUG_ON(bio_sectors(bio) != op->crc.compressed_size);
 
@@ -858,12 +857,13 @@ static enum prep_encoded_ret {
 	    (op->crc.compression_type == bch2_compression_opt_to_type(op->compression_opt) ||
 	     op->incompressible)) {
 		if (!crc_is_compressed(op->crc) &&
-		    op->csum_type != op->crc.csum_type &&
-		    bch2_write_rechecksum(c, op, op->csum_type) &&
-		    !c->opts.no_data_io)
-			return PREP_ENCODED_CHECKSUM_ERR;
+		    op->csum_type != op->crc.csum_type) {
+			ret = bch2_write_rechecksum(c, op, op->csum_type);
+			if (ret)
+				return ret;
+		}
 
-		return PREP_ENCODED_DO_WRITE;
+		return 1;
 	}
 
 	/*
@@ -871,20 +871,24 @@ static enum prep_encoded_ret {
 	 * is, we have to decompress it:
 	 */
 	if (crc_is_compressed(op->crc)) {
-		struct bch_csum csum;
-
-		if (bch2_write_decrypt(op))
-			return PREP_ENCODED_CHECKSUM_ERR;
-
 		/* Last point we can still verify checksum: */
-		csum = bch2_checksum_bio(c, op->crc.csum_type,
-					 extent_nonce(op->version, op->crc),
-					 bio);
+		struct nonce nonce = extent_nonce(op->version, op->crc);
+		csum = bch2_checksum_bio(c, op->crc.csum_type, nonce, bio);
 		if (bch2_crc_cmp(op->crc.csum, csum) && !c->opts.no_data_io)
-			return PREP_ENCODED_CHECKSUM_ERR;
+			goto csum_err;
 
-		if (bch2_bio_uncompress_inplace(op, bio))
-			return PREP_ENCODED_ERR;
+		if (bch2_csum_type_is_encryption(op->crc.csum_type)) {
+			ret = bch2_encrypt_bio(c, op->crc.csum_type, nonce, bio);
+			if (ret)
+				return ret;
+
+			op->crc.csum_type = 0;
+			op->crc.csum = (struct bch_csum) { 0, 0 };
+		}
+
+		ret = bch2_bio_uncompress_inplace(op, bio);
+		if (ret)
+			return ret;
 	}
 
 	/*
@@ -896,22 +900,44 @@ static enum prep_encoded_ret {
 	 * If the data is checksummed and we're only writing a subset,
 	 * rechecksum and adjust bio to point to currently live data:
 	 */
-	if ((op->crc.live_size != op->crc.uncompressed_size ||
-	     op->crc.csum_type != op->csum_type) &&
-	    bch2_write_rechecksum(c, op, op->csum_type) &&
-	    !c->opts.no_data_io)
-		return PREP_ENCODED_CHECKSUM_ERR;
+	if (op->crc.live_size != op->crc.uncompressed_size ||
+	    op->crc.csum_type != op->csum_type) {
+		ret = bch2_write_rechecksum(c, op, op->csum_type);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * If we want to compress the data, it has to be decrypted:
 	 */
-	if ((op->compression_opt ||
-	     bch2_csum_type_is_encryption(op->crc.csum_type) !=
-	     bch2_csum_type_is_encryption(op->csum_type)) &&
-	    bch2_write_decrypt(op))
-		return PREP_ENCODED_CHECKSUM_ERR;
+	if (bch2_csum_type_is_encryption(op->crc.csum_type) &&
+	    (op->compression_opt || op->crc.csum_type != op->csum_type)) {
+		struct nonce nonce = extent_nonce(op->version, op->crc);
+		csum = bch2_checksum_bio(c, op->crc.csum_type, nonce, bio);
+		if (bch2_crc_cmp(op->crc.csum, csum) && !c->opts.no_data_io)
+			goto csum_err;
 
-	return PREP_ENCODED_OK;
+		ret = bch2_encrypt_bio(c, op->crc.csum_type, nonce, bio);
+		if (ret)
+			return ret;
+
+		op->crc.csum_type = 0;
+		op->crc.csum = (struct bch_csum) { 0, 0 };
+	}
+
+	return 0;
+csum_err:
+	bch2_write_op_error(op, op->pos.offset,
+		"error verifying existing checksum while moving existing data (memory corruption?)\n"
+		"  expected %0llx:%0llx got %0llx:%0llx type %s",
+		op->crc.csum.hi,
+		op->crc.csum.lo,
+		csum.hi,
+		csum.lo,
+		op->crc.csum_type < BCH_CSUM_NR
+		? __bch2_csum_types[op->crc.csum_type]
+		: "(unknown)");
+	return -BCH_ERR_data_write_csum;
 }
 
 static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
@@ -926,43 +952,51 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 	bool page_alloc_failed = false;
 	int ret, more = 0;
 
+	if (op->incompressible)
+		op->compression_opt = 0;
+
 	BUG_ON(!bio_sectors(src));
 
 	ec_buf = bch2_writepoint_ec_buf(c, wp);
 
-	switch (bch2_write_prep_encoded_data(op, wp)) {
-	case PREP_ENCODED_OK:
-		break;
-	case PREP_ENCODED_ERR:
-		ret = -EIO;
-		goto err;
-	case PREP_ENCODED_CHECKSUM_ERR:
-		goto csum_err;
-	case PREP_ENCODED_DO_WRITE:
-		/* XXX look for bug here */
-		if (ec_buf) {
-			dst = bch2_write_bio_alloc(c, wp, src,
-						   &page_alloc_failed,
-						   ec_buf);
-			bio_copy_data(dst, src);
-			bounce = true;
+	if (unlikely(op->flags & BCH_WRITE_data_encoded)) {
+		ret = bch2_write_prep_encoded_data(op, wp);
+		if (ret < 0)
+			goto err;
+		if (ret) {
+			if (ec_buf) {
+				dst = bch2_write_bio_alloc(c, wp, src,
+							   &page_alloc_failed,
+							   ec_buf);
+				bio_copy_data(dst, src);
+				bounce = true;
+			}
+			init_append_extent(op, wp, op->version, op->crc);
+			goto do_write;
 		}
-		init_append_extent(op, wp, op->version, op->crc);
-		goto do_write;
 	}
 
 	if (ec_buf ||
 	    op->compression_opt ||
 	    (op->csum_type &&
-	     !(op->flags & BCH_WRITE_PAGES_STABLE)) ||
+	     !(op->flags & BCH_WRITE_pages_stable)) ||
 	    (bch2_csum_type_is_encryption(op->csum_type) &&
-	     !(op->flags & BCH_WRITE_PAGES_OWNED))) {
+	     !(op->flags & BCH_WRITE_pages_owned))) {
 		dst = bch2_write_bio_alloc(c, wp, src,
 					   &page_alloc_failed,
 					   ec_buf);
 		bounce = true;
 	}
 
+#ifdef CONFIG_BCACHEFS_DEBUG
+	unsigned write_corrupt_ratio = READ_ONCE(bch2_write_corrupt_ratio);
+	if (!bounce && write_corrupt_ratio) {
+		dst = bch2_write_bio_alloc(c, wp, src,
+					   &page_alloc_failed,
+					   ec_buf);
+		bounce = true;
+	}
+#endif
 	saved_iter = dst->bi_iter;
 
 	do {
@@ -976,7 +1010,7 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 			break;
 
 		BUG_ON(op->compression_opt &&
-		       (op->flags & BCH_WRITE_DATA_ENCODED) &&
+		       (op->flags & BCH_WRITE_data_encoded) &&
 		       bch2_csum_type_is_encryption(op->crc.csum_type));
 		BUG_ON(op->compression_opt && !bounce);
 
@@ -1014,7 +1048,7 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 			}
 		}
 
-		if ((op->flags & BCH_WRITE_DATA_ENCODED) &&
+		if ((op->flags & BCH_WRITE_data_encoded) &&
 		    !crc_is_compressed(crc) &&
 		    bch2_csum_type_is_encryption(op->crc.csum_type) ==
 		    bch2_csum_type_is_encryption(op->csum_type)) {
@@ -1032,12 +1066,13 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 			 * data can't be modified (by userspace) while it's in
 			 * flight.
 			 */
-			if (bch2_rechecksum_bio(c, src, version, op->crc,
+			ret = bch2_rechecksum_bio(c, src, version, op->crc,
 					&crc, &op->crc,
 					src_len >> 9,
 					bio_sectors(src) - (src_len >> 9),
-					op->csum_type))
-				goto csum_err;
+					op->csum_type);
+			if (ret)
+				goto err;
 			/*
 			 * rchecksum_bio sets compression_type on crc from op->crc,
 			 * this isn't always correct as sometimes we're changing
@@ -1046,13 +1081,13 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 			crc.compression_type = compression_type;
 			crc.nonce = nonce;
 		} else {
-			if ((op->flags & BCH_WRITE_DATA_ENCODED) &&
-			    bch2_rechecksum_bio(c, src, version, op->crc,
+			if ((op->flags & BCH_WRITE_data_encoded) &&
+			    (ret = bch2_rechecksum_bio(c, src, version, op->crc,
 					NULL, &op->crc,
 					src_len >> 9,
 					bio_sectors(src) - (src_len >> 9),
-					op->crc.csum_type))
-				goto csum_err;
+					op->crc.csum_type)))
+				goto err;
 
 			crc.compressed_size	= dst_len >> 9;
 			crc.uncompressed_size	= src_len >> 9;
@@ -1071,6 +1106,14 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 		}
 
 		init_append_extent(op, wp, version, crc);
+
+#ifdef CONFIG_BCACHEFS_DEBUG
+		if (write_corrupt_ratio) {
+			swap(dst->bi_iter.bi_size, dst_len);
+			bch2_maybe_corrupt_bio(dst, write_corrupt_ratio);
+			swap(dst->bi_iter.bi_size, dst_len);
+		}
+#endif
 
 		if (dst != src)
 			bio_advance(dst, dst_len);
@@ -1103,16 +1146,6 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 do_write:
 	*_dst = dst;
 	return more;
-csum_err:
-	{
-		struct printbuf buf = PRINTBUF;
-		bch2_write_op_error(&buf, op);
-		prt_printf(&buf, "error verifying existing checksum while rewriting existing data (memory corruption?)");
-		bch_err_ratelimited(c, "%s", buf.buf);
-		printbuf_exit(&buf);
-	}
-
-	ret = -EIO;
 err:
 	if (to_wbio(dst)->bounce)
 		bch2_bio_free_pages_pool(c, dst);
@@ -1190,39 +1223,36 @@ static void bch2_nocow_write_convert_unwritten(struct bch_write_op *op)
 {
 	struct bch_fs *c = op->c;
 	struct btree_trans *trans = bch2_trans_get(c);
+	int ret = 0;
 
 	for_each_keylist_key(&op->insert_keys, orig) {
-		int ret = for_each_btree_key_max_commit(trans, iter, BTREE_ID_extents,
+		ret = for_each_btree_key_max_commit(trans, iter, BTREE_ID_extents,
 				     bkey_start_pos(&orig->k), orig->k.p,
 				     BTREE_ITER_intent, k,
 				     NULL, NULL, BCH_TRANS_COMMIT_no_enospc, ({
 			bch2_nocow_write_convert_one_unwritten(trans, &iter, orig, k, op->new_i_size);
 		}));
-
-		if (ret && !bch2_err_matches(ret, EROFS)) {
-			struct bkey_i *insert = bch2_keylist_front(&op->insert_keys);
-
-			struct printbuf buf = PRINTBUF;
-			bch2_write_op_error_trans(trans, &buf, op, bkey_start_offset(&insert->k));
-			prt_printf(&buf, "btree update error: %s", bch2_err_str(ret));
-			bch_err_ratelimited(c, "%s", buf.buf);
-			printbuf_exit(&buf);
-		}
-
-		if (ret) {
-			op->error = ret;
+		if (ret)
 			break;
-		}
 	}
 
 	bch2_trans_put(trans);
+
+	if (ret && !bch2_err_matches(ret, EROFS)) {
+		struct bkey_i *insert = bch2_keylist_front(&op->insert_keys);
+		bch2_write_op_error(op, bkey_start_offset(&insert->k),
+				    "btree update error: %s", bch2_err_str(ret));
+	}
+
+	if (ret)
+		op->error = ret;
 }
 
 static void __bch2_nocow_write_done(struct bch_write_op *op)
 {
-	if (unlikely(op->flags & BCH_WRITE_IO_ERROR)) {
-		op->error = -EIO;
-	} else if (unlikely(op->flags & BCH_WRITE_CONVERT_UNWRITTEN))
+	if (unlikely(op->flags & BCH_WRITE_io_error)) {
+		op->error = -BCH_ERR_data_write_io;
+	} else if (unlikely(op->flags & BCH_WRITE_convert_unwritten))
 		bch2_nocow_write_convert_unwritten(op);
 }
 
@@ -1251,7 +1281,7 @@ static void bch2_nocow_write(struct bch_write_op *op)
 	struct bucket_to_lock *stale_at;
 	int stale, ret;
 
-	if (op->flags & BCH_WRITE_MOVE)
+	if (op->flags & BCH_WRITE_move)
 		return;
 
 	darray_init(&buckets);
@@ -1275,7 +1305,7 @@ retry:
 		if (ret)
 			break;
 
-		k = bch2_btree_iter_peek_slot(&iter);
+		k = bch2_btree_iter_peek_slot(trans, &iter);
 		ret = bkey_err(k);
 		if (ret)
 			break;
@@ -1309,7 +1339,7 @@ retry:
 						   }), GFP_KERNEL|__GFP_NOFAIL);
 
 			if (ptr->unwritten)
-				op->flags |= BCH_WRITE_CONVERT_UNWRITTEN;
+				op->flags |= BCH_WRITE_convert_unwritten;
 		}
 
 		/* Unlock before taking nocow locks, doing IO: */
@@ -1317,7 +1347,7 @@ retry:
 		bch2_trans_unlock(trans);
 
 		bch2_cut_front(op->pos, op->insert_keys.top);
-		if (op->flags & BCH_WRITE_CONVERT_UNWRITTEN)
+		if (op->flags & BCH_WRITE_convert_unwritten)
 			bch2_cut_back(POS(op->pos.inode, op->pos.offset + bio_sectors(bio)), op->insert_keys.top);
 
 		darray_for_each(buckets, i) {
@@ -1342,7 +1372,7 @@ retry:
 			wbio_init(bio)->put_bio = true;
 			bio->bi_opf = op->wbio.bio.bi_opf;
 		} else {
-			op->flags |= BCH_WRITE_SUBMITTED;
+			op->flags |= BCH_WRITE_submitted;
 		}
 
 		op->pos.offset += bio_sectors(bio);
@@ -1352,13 +1382,14 @@ retry:
 		bio->bi_private	= &op->cl;
 		bio->bi_opf |= REQ_OP_WRITE;
 		closure_get(&op->cl);
+
 		bch2_submit_wbio_replicas(to_wbio(bio), c, BCH_DATA_user,
 					  op->insert_keys.top, true);
 
 		bch2_keylist_push(&op->insert_keys);
-		if (op->flags & BCH_WRITE_SUBMITTED)
+		if (op->flags & BCH_WRITE_submitted)
 			break;
-		bch2_btree_iter_advance(&iter);
+		bch2_btree_iter_advance(trans, &iter);
 	}
 out:
 	bch2_trans_iter_exit(trans, &iter);
@@ -1370,21 +1401,18 @@ err:
 	darray_exit(&buckets);
 
 	if (ret) {
-		struct printbuf buf = PRINTBUF;
-		bch2_write_op_error(&buf, op);
-		prt_printf(&buf, "%s(): btree lookup error: %s", __func__, bch2_err_str(ret));
-		bch_err_ratelimited(c, "%s", buf.buf);
-		printbuf_exit(&buf);
+		bch2_write_op_error(op, op->pos.offset,
+				    "%s(): btree lookup error: %s", __func__, bch2_err_str(ret));
 		op->error = ret;
-		op->flags |= BCH_WRITE_SUBMITTED;
+		op->flags |= BCH_WRITE_submitted;
 	}
 
 	/* fallback to cow write path? */
-	if (!(op->flags & BCH_WRITE_SUBMITTED)) {
+	if (!(op->flags & BCH_WRITE_submitted)) {
 		closure_sync(&op->cl);
 		__bch2_nocow_write_done(op);
 		op->insert_keys.top = op->insert_keys.keys;
-	} else if (op->flags & BCH_WRITE_SYNC) {
+	} else if (op->flags & BCH_WRITE_sync) {
 		closure_sync(&op->cl);
 		bch2_nocow_write_done(&op->cl.work);
 	} else {
@@ -1398,7 +1426,7 @@ err:
 	return;
 err_get_ioref:
 	darray_for_each(buckets, i)
-		percpu_ref_put(&bch2_dev_have_ref(c, i->b.inode)->io_ref);
+		percpu_ref_put(&bch2_dev_have_ref(c, i->b.inode)->io_ref[WRITE]);
 
 	/* Fall back to COW path: */
 	goto out;
@@ -1414,7 +1442,7 @@ err_bucket_stale:
 				    "pointer to invalid bucket in nocow path on device %llu\n  %s",
 				    stale_at->b.inode,
 				    (bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
-		ret = -EIO;
+		ret = -BCH_ERR_data_write_invalid_ptr;
 	} else {
 		/* We can retry this: */
 		ret = -BCH_ERR_transaction_restart;
@@ -1436,7 +1464,7 @@ static void __bch2_write(struct bch_write_op *op)
 
 	if (unlikely(op->opts.nocow && c->opts.nocow_enabled)) {
 		bch2_nocow_write(op);
-		if (op->flags & BCH_WRITE_SUBMITTED)
+		if (op->flags & BCH_WRITE_submitted)
 			goto out_nofs_restore;
 	}
 again:
@@ -1466,7 +1494,7 @@ again:
 		ret = bch2_trans_run(c, lockrestart_do(trans,
 			bch2_alloc_sectors_start_trans(trans,
 				op->target,
-				op->opts.erasure_code && !(op->flags & BCH_WRITE_CACHED),
+				op->opts.erasure_code && !(op->flags & BCH_WRITE_cached),
 				op->write_point,
 				&op->devs_have,
 				op->nr_replicas,
@@ -1489,16 +1517,12 @@ again:
 		bch2_alloc_sectors_done_inlined(c, wp);
 err:
 		if (ret <= 0) {
-			op->flags |= BCH_WRITE_SUBMITTED;
+			op->flags |= BCH_WRITE_submitted;
 
 			if (unlikely(ret < 0)) {
-				if (!(op->flags & BCH_WRITE_ALLOC_NOWAIT)) {
-					struct printbuf buf = PRINTBUF;
-					bch2_write_op_error(&buf, op);
-					prt_printf(&buf, "%s(): %s", __func__, bch2_err_str(ret));
-					bch_err_ratelimited(c, "%s", buf.buf);
-					printbuf_exit(&buf);
-				}
+				if (!(op->flags & BCH_WRITE_alloc_nowait))
+					bch2_write_op_error(op, op->pos.offset,
+							    "%s(): %s", __func__, bch2_err_str(ret));
 				op->error = ret;
 				break;
 			}
@@ -1524,14 +1548,14 @@ err:
 	 * synchronously here if we weren't able to submit all of the IO at
 	 * once, as that signals backpressure to the caller.
 	 */
-	if ((op->flags & BCH_WRITE_SYNC) ||
-	    (!(op->flags & BCH_WRITE_SUBMITTED) &&
-	     !(op->flags & BCH_WRITE_IN_WORKER))) {
+	if ((op->flags & BCH_WRITE_sync) ||
+	    (!(op->flags & BCH_WRITE_submitted) &&
+	     !(op->flags & BCH_WRITE_in_worker))) {
 		bch2_wait_on_allocator(c, &op->cl);
 
 		__bch2_write_index(op);
 
-		if (!(op->flags & BCH_WRITE_SUBMITTED))
+		if (!(op->flags & BCH_WRITE_submitted))
 			goto again;
 		bch2_write_done(&op->cl);
 	} else {
@@ -1552,8 +1576,8 @@ static void bch2_write_data_inline(struct bch_write_op *op, unsigned data_len)
 
 	memset(&op->failed, 0, sizeof(op->failed));
 
-	op->flags |= BCH_WRITE_WROTE_DATA_INLINE;
-	op->flags |= BCH_WRITE_SUBMITTED;
+	op->flags |= BCH_WRITE_wrote_data_inline;
+	op->flags |= BCH_WRITE_submitted;
 
 	bch2_check_set_feature(op->c, BCH_FEATURE_inline_data);
 
@@ -1616,8 +1640,8 @@ CLOSURE_CALLBACK(bch2_write)
 	BUG_ON(!op->write_point.v);
 	BUG_ON(bkey_eq(op->pos, POS_MAX));
 
-	if (op->flags & BCH_WRITE_ONLY_SPECIFIED_DEVS)
-		op->flags |= BCH_WRITE_ALLOC_NOWAIT;
+	if (op->flags & BCH_WRITE_only_specified_devs)
+		op->flags |= BCH_WRITE_alloc_nowait;
 
 	op->nr_replicas_required = min_t(unsigned, op->nr_replicas_required, op->nr_replicas);
 	op->start_time = local_clock();
@@ -1625,11 +1649,8 @@ CLOSURE_CALLBACK(bch2_write)
 	wbio_init(bio)->put_bio = false;
 
 	if (unlikely(bio->bi_iter.bi_size & (c->opts.block_size - 1))) {
-		struct printbuf buf = PRINTBUF;
-		bch2_write_op_error(&buf, op);
-		prt_printf(&buf, "misaligned write");
-		printbuf_exit(&buf);
-		op->error = -EIO;
+		bch2_write_op_error(op, op->pos.offset, "misaligned write");
+		op->error = -BCH_ERR_data_write_misaligned;
 		goto err;
 	}
 
@@ -1638,13 +1659,14 @@ CLOSURE_CALLBACK(bch2_write)
 		goto err;
 	}
 
-	if (!(op->flags & BCH_WRITE_MOVE) &&
+	if (!(op->flags & BCH_WRITE_move) &&
 	    !bch2_write_ref_tryget(c, BCH_WRITE_REF_write)) {
 		op->error = -BCH_ERR_erofs_no_writes;
 		goto err;
 	}
 
-	this_cpu_add(c->counters[BCH_COUNTER_io_write], bio_sectors(bio));
+	if (!(op->flags & BCH_WRITE_move))
+		this_cpu_add(c->counters[BCH_COUNTER_io_write], bio_sectors(bio));
 	bch2_increment_clock(c, bio_sectors(bio), WRITE);
 
 	data_len = min_t(u64, bio->bi_iter.bi_size,
@@ -1675,20 +1697,26 @@ static const char * const bch2_write_flags[] = {
 
 void bch2_write_op_to_text(struct printbuf *out, struct bch_write_op *op)
 {
-	prt_str(out, "pos: ");
+	if (!out->nr_tabstops)
+		printbuf_tabstop_push(out, 32);
+
+	prt_printf(out, "pos:\t");
 	bch2_bpos_to_text(out, op->pos);
 	prt_newline(out);
 	printbuf_indent_add(out, 2);
 
-	prt_str(out, "started: ");
+	prt_printf(out, "started:\t");
 	bch2_pr_time_units(out, local_clock() - op->start_time);
 	prt_newline(out);
 
-	prt_str(out, "flags: ");
+	prt_printf(out, "flags:\t");
 	prt_bitflags(out, bch2_write_flags, op->flags);
 	prt_newline(out);
 
-	prt_printf(out, "ref: %u\n", closure_nr_remaining(&op->cl));
+	prt_printf(out, "nr_replicas:\t%u\n", op->nr_replicas);
+	prt_printf(out, "nr_replicas_required:\t%u\n", op->nr_replicas_required);
+
+	prt_printf(out, "ref:\t%u\n", closure_nr_remaining(&op->cl));
 
 	printbuf_indent_sub(out, 2);
 }

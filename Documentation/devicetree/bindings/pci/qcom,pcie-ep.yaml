@@ -14,6 +14,7 @@ properties:
     oneOf:
       - enum:
           - qcom,sa8775p-pcie-ep
+          - qcom,sar2130p-pcie-ep
           - qcom,sdx55-pcie-ep
           - qcom,sm8450-pcie-ep
       - items:
@@ -44,11 +45,11 @@ properties:
 
   clocks:
     minItems: 5
-    maxItems: 8
+    maxItems: 9
 
   clock-names:
     minItems: 5
-    maxItems: 8
+    maxItems: 9
 
   qcom,perst-regs:
     description: Reference to a syscon representing TCSR followed by the two
@@ -75,6 +76,9 @@ properties:
       - const: doorbell
       - const: dma
 
+  iommus:
+    maxItems: 1
+
   reset-gpios:
     description: GPIO used as PERST# input signal
     maxItems: 1
@@ -90,6 +94,8 @@ properties:
     items:
       - const: pcie-mem
       - const: cpu-pcie
+
+  dma-coherent: true
 
   resets:
     maxItems: 1
@@ -126,6 +132,38 @@ required:
 
 allOf:
   - $ref: pci-ep.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sar2130p-pcie-ep
+    then:
+      properties:
+        clocks:
+          items:
+            - description: PCIe Auxiliary clock
+            - description: PCIe CFG AHB clock
+            - description: PCIe Master AXI clock
+            - description: PCIe Slave AXI clock
+            - description: PCIe Slave Q2A AXI clock
+            - description: PCIe DDRSS SF TBU clock
+            - description: PCIe AGGRE NOC AXI clock
+            - description: PCIe CFG NOC AXI clock
+            - description: PCIe QMIP AHB clock
+        clock-names:
+          items:
+            - const: aux
+            - const: cfg
+            - const: bus_master
+            - const: bus_slave
+            - const: slave_q2a
+            - const: ddrss_sf_tbu
+            - const: aggre_noc_axi
+            - const: cnoc_sf_axi
+            - const: qmip_pcie_ahb
+
   - if:
       properties:
         compatible:
@@ -135,9 +173,43 @@ allOf:
     then:
       properties:
         reg:
+          minItems: 6
           maxItems: 6
         reg-names:
+          minItems: 6
           maxItems: 6
+        interrupts:
+          minItems: 2
+          maxItems: 2
+        interrupt-names:
+          minItems: 2
+          maxItems: 2
+        iommus: false
+    else:
+      properties:
+        reg:
+          minItems: 7
+          maxItems: 7
+        reg-names:
+          minItems: 7
+          maxItems: 7
+        interrupts:
+          minItems: 3
+          maxItems: 3
+        interrupt-names:
+          minItems: 3
+          maxItems: 3
+      required:
+        - iommus
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sdx55-pcie-ep
+    then:
+      properties:
         clocks:
           items:
             - description: PCIe Auxiliary clock
@@ -156,10 +228,6 @@ allOf:
             - const: slave_q2a
             - const: sleep
             - const: ref
-        interrupts:
-          maxItems: 2
-        interrupt-names:
-          maxItems: 2
 
   - if:
       properties:
@@ -169,10 +237,6 @@ allOf:
               - qcom,sm8450-pcie-ep
     then:
       properties:
-        reg:
-          maxItems: 6
-        reg-names:
-          maxItems: 6
         clocks:
           items:
             - description: PCIe Auxiliary clock
@@ -193,10 +257,6 @@ allOf:
             - const: ref
             - const: ddrss_sf_tbu
             - const: aggre_noc_axi
-        interrupts:
-          maxItems: 2
-        interrupt-names:
-          maxItems: 2
 
   - if:
       properties:
@@ -206,12 +266,6 @@ allOf:
               - qcom,sa8775p-pcie-ep
     then:
       properties:
-        reg:
-          minItems: 7
-          maxItems: 7
-        reg-names:
-          minItems: 7
-          maxItems: 7
         clocks:
           items:
             - description: PCIe Auxiliary clock
@@ -226,12 +280,6 @@ allOf:
             - const: bus_master
             - const: bus_slave
             - const: slave_q2a
-        interrupts:
-          minItems: 3
-          maxItems: 3
-        interrupt-names:
-          minItems: 3
-          maxItems: 3
 
 unevaluatedProperties: false
 

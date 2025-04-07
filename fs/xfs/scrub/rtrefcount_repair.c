@@ -697,32 +697,6 @@ err_cur:
 	return error;
 }
 
-/*
- * Now that we've logged the roots of the new btrees, invalidate all of the
- * old blocks and free them.
- */
-STATIC int
-xrep_rtrefc_remove_old_tree(
-	struct xrep_rtrefc	*rr)
-{
-	int			error;
-
-	/*
-	 * Free all the extents that were allocated to the former rtrefcountbt
-	 * and aren't cross-linked with something else.
-	 */
-	error = xrep_reap_metadir_fsblocks(rr->sc,
-			&rr->old_rtrefcountbt_blocks);
-	if (error)
-		return error;
-
-	/*
-	 * Ensure the proper reservation for the rtrefcount inode so that we
-	 * don't fail to expand the btree.
-	 */
-	return xrep_reset_metafile_resv(rr->sc);
-}
-
 /* Rebuild the rt refcount btree. */
 int
 xrep_rtrefcountbt(
@@ -769,8 +743,12 @@ xrep_rtrefcountbt(
 	if (error)
 		goto out_bitmap;
 
-	/* Kill the old tree. */
-	error = xrep_rtrefc_remove_old_tree(rr);
+	/*
+	 * Free all the extents that were allocated to the former rtrefcountbt
+	 * and aren't cross-linked with something else.
+	 */
+	error = xrep_reap_metadir_fsblocks(rr->sc,
+			&rr->old_rtrefcountbt_blocks);
 	if (error)
 		goto out_bitmap;
 

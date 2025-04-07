@@ -80,7 +80,10 @@ required:
   - fsl,asrc-rate
   - fsl,asrc-format
 
-additionalProperties: false
+allOf:
+  - $ref: dai-common.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

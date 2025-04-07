@@ -114,34 +114,10 @@ static inline bool fbnic_tlv_attr_get_bool(struct fbnic_tlv_msg *attr)
 	return !!attr;
 }
 
-u64 fbnic_tlv_attr_get_unsigned(struct fbnic_tlv_msg *attr);
-s64 fbnic_tlv_attr_get_signed(struct fbnic_tlv_msg *attr);
-size_t fbnic_tlv_attr_get_string(struct fbnic_tlv_msg *attr, char *str,
-				 size_t max_size);
-
-#define get_unsigned_result(id, location) \
-do { \
-	struct fbnic_tlv_msg *result = results[id]; \
-	if (result) \
-		location = fbnic_tlv_attr_get_unsigned(result); \
-} while (0)
-
-#define get_signed_result(id, location) \
-do { \
-	struct fbnic_tlv_msg *result = results[id]; \
-	if (result) \
-		location = fbnic_tlv_attr_get_signed(result); \
-} while (0)
-
-#define get_string_result(id, size, str, max_size) \
-do { \
-	struct fbnic_tlv_msg *result = results[id]; \
-	if (result) \
-		size = fbnic_tlv_attr_get_string(result, str, max_size); \
-} while (0)
-
-#define get_bool(id) (!!(results[id]))
-
+u64 fbnic_tlv_attr_get_unsigned(struct fbnic_tlv_msg *attr, u64 def);
+s64 fbnic_tlv_attr_get_signed(struct fbnic_tlv_msg *attr, s64 def);
+ssize_t fbnic_tlv_attr_get_string(struct fbnic_tlv_msg *attr, char *dst,
+				  size_t dstsize);
 struct fbnic_tlv_msg *fbnic_tlv_msg_alloc(u16 msg_id);
 int fbnic_tlv_attr_put_flag(struct fbnic_tlv_msg *msg, const u16 attr_id);
 int fbnic_tlv_attr_put_value(struct fbnic_tlv_msg *msg, const u16 attr_id,
@@ -169,6 +145,13 @@ int fbnic_tlv_attr_parse(struct fbnic_tlv_msg *attr, int len,
 int fbnic_tlv_msg_parse(void *opaque, struct fbnic_tlv_msg *msg,
 			const struct fbnic_tlv_parser *parser);
 int fbnic_tlv_parser_error(void *opaque, struct fbnic_tlv_msg **results);
+
+#define fta_get_uint(_results, _id) \
+	fbnic_tlv_attr_get_unsigned(_results[_id], 0)
+#define fta_get_sint(_results, _id) \
+	fbnic_tlv_attr_get_signed(_results[_id], 0)
+#define fta_get_str(_results, _id, _dst, _dstsize) \
+	fbnic_tlv_attr_get_string(_results[_id], _dst, _dstsize)
 
 #define FBNIC_TLV_MSG_ERROR \
 	FBNIC_TLV_PARSER(UNKNOWN, NULL, fbnic_tlv_parser_error)

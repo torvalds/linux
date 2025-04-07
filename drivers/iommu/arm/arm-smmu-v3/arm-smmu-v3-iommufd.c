@@ -43,6 +43,8 @@ static void arm_smmu_make_nested_cd_table_ste(
 	target->data[0] |= nested_domain->ste[0] &
 			   ~cpu_to_le64(STRTAB_STE_0_CFG);
 	target->data[1] |= nested_domain->ste[1];
+	/* Merge events for DoS mitigations on eventq */
+	target->data[1] |= cpu_to_le64(STRTAB_STE_1_MEV);
 }
 
 /*
@@ -83,6 +85,47 @@ static void arm_smmu_make_nested_domain_ste(
 		arm_smmu_make_abort_ste(target);
 		break;
 	}
+}
+
+int arm_smmu_attach_prepare_vmaster(struct arm_smmu_attach_state *state,
+				    struct arm_smmu_nested_domain *nested_domain)
+{
+	struct arm_smmu_vmaster *vmaster;
+	unsigned long vsid;
+	int ret;
+
+	iommu_group_mutex_assert(state->master->dev);
+
+	ret = iommufd_viommu_get_vdev_id(&nested_domain->vsmmu->core,
+					 state->master->dev, &vsid);
+	if (ret)
+		return ret;
+
+	vmaster = kzalloc(sizeof(*vmaster), GFP_KERNEL);
+	if (!vmaster)
+		return -ENOMEM;
+	vmaster->vsmmu = nested_domain->vsmmu;
+	vmaster->vsid = vsid;
+	state->vmaster = vmaster;
+
+	return 0;
+}
+
+void arm_smmu_attach_commit_vmaster(struct arm_smmu_attach_state *state)
+{
+	struct arm_smmu_master *master = state->master;
+
+	mutex_lock(&master->smmu->streams_mutex);
+	kfree(master->vmaster);
+	master->vmaster = state->vmaster;
+	mutex_unlock(&master->smmu->streams_mutex);
+}
+
+void arm_smmu_master_clear_vmaster(struct arm_smmu_master *master)
+{
+	struct arm_smmu_attach_state state = { .master = master };
+
+	arm_smmu_attach_commit_vmaster(&state);
 }
 
 static int arm_smmu_attach_dev_nested(struct iommu_domain *domain,
@@ -390,6 +433,23 @@ struct iommufd_viommu *arm_vsmmu_alloc(struct device *dev,
 	vsmmu->vmid = s2_parent->s2_cfg.vmid;
 
 	return &vsmmu->core;
+}
+
+int arm_vmaster_report_event(struct arm_smmu_vmaster *vmaster, u64 *evt)
+{
+	struct iommu_vevent_arm_smmuv3 vevt;
+	int i;
+
+	lockdep_assert_held(&vmaster->vsmmu->smmu->streams_mutex);
+
+	vevt.evt[0] = cpu_to_le64((evt[0] & ~EVTQ_0_SID) |
+				  FIELD_PREP(EVTQ_0_SID, vmaster->vsid));
+	for (i = 1; i < EVTQ_ENT_DWORDS; i++)
+		vevt.evt[i] = cpu_to_le64(evt[i]);
+
+	return iommufd_viommu_report_event(&vmaster->vsmmu->core,
+					   IOMMU_VEVENTQ_TYPE_ARM_SMMUV3, &vevt,
+					   sizeof(vevt));
 }
 
 MODULE_IMPORT_NS("IOMMUFD");

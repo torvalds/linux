@@ -123,24 +123,6 @@ static const void *find_guid_context(struct wmi_block *wblock,
 	return NULL;
 }
 
-static acpi_status wmi_method_enable(struct wmi_block *wblock, bool enable)
-{
-	struct guid_block *block;
-	char method[5];
-	acpi_status status;
-	acpi_handle handle;
-
-	block = &wblock->gblock;
-	handle = wblock->acpi_device->handle;
-
-	snprintf(method, 5, "WE%02X", block->notify_id);
-	status = acpi_execute_simple_method(handle, method, enable);
-	if (status == AE_NOT_FOUND)
-		return AE_OK;
-
-	return status;
-}
-
 #define WMI_ACPI_METHOD_NAME_SIZE 5
 
 static inline void get_acpi_method_name(const struct wmi_block *wblock,
@@ -183,6 +165,44 @@ static int wmidev_match_guid(struct device *dev, const void *data)
 }
 
 static const struct bus_type wmi_bus_type;
+
+static const struct device_type wmi_type_event;
+
+static const struct device_type wmi_type_method;
+
+static int wmi_device_enable(struct wmi_device *wdev, bool enable)
+{
+	struct wmi_block *wblock = container_of(wdev, struct wmi_block, dev);
+	char method[WMI_ACPI_METHOD_NAME_SIZE];
+	acpi_handle handle;
+	acpi_status status;
+
+	if (!(wblock->gblock.flags & ACPI_WMI_EXPENSIVE))
+		return 0;
+
+	if (wblock->dev.dev.type == &wmi_type_method)
+		return 0;
+
+	if (wblock->dev.dev.type == &wmi_type_event)
+		snprintf(method, sizeof(method), "WE%02X", wblock->gblock.notify_id);
+	else
+		get_acpi_method_name(wblock, 'C', method);
+
+	/*
+	 * Not all WMI devices marked as expensive actually implement the
+	 * necessary ACPI method. Ignore this missing ACPI method to match
+	 * the behaviour of the Windows driver.
+	 */
+	status = acpi_get_handle(wblock->acpi_device->handle, method, &handle);
+	if (ACPI_FAILURE(status))
+		return 0;
+
+	status = acpi_execute_simple_method(handle, NULL, enable);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	return 0;
+}
 
 static struct wmi_device *wmi_find_device_by_guid(const char *guid_string)
 {
@@ -337,10 +357,8 @@ static acpi_status __query_block(struct wmi_block *wblock, u8 instance,
 {
 	struct guid_block *block;
 	acpi_handle handle;
-	acpi_status status, wc_status = AE_ERROR;
 	struct acpi_object_list input;
 	union acpi_object wq_params[1];
-	char wc_method[WMI_ACPI_METHOD_NAME_SIZE];
 	char method[WMI_ACPI_METHOD_NAME_SIZE];
 
 	if (!out)
@@ -364,40 +382,9 @@ static acpi_status __query_block(struct wmi_block *wblock, u8 instance,
 	if (instance == 0 && test_bit(WMI_READ_TAKES_NO_ARGS, &wblock->flags))
 		input.count = 0;
 
-	/*
-	 * If ACPI_WMI_EXPENSIVE, call the relevant WCxx method first to
-	 * enable collection.
-	 */
-	if (block->flags & ACPI_WMI_EXPENSIVE) {
-		get_acpi_method_name(wblock, 'C', wc_method);
-
-		/*
-		 * Some GUIDs break the specification by declaring themselves
-		 * expensive, but have no corresponding WCxx method. So we
-		 * should not fail if this happens.
-		 */
-		wc_status = acpi_execute_simple_method(handle, wc_method, 1);
-	}
-
 	get_acpi_method_name(wblock, 'Q', method);
-	status = acpi_evaluate_object(handle, method, &input, out);
 
-	/*
-	 * If ACPI_WMI_EXPENSIVE, call the relevant WCxx method, even if
-	 * the WQxx method failed - we should disable collection anyway.
-	 */
-	if ((block->flags & ACPI_WMI_EXPENSIVE) && ACPI_SUCCESS(wc_status)) {
-		/*
-		 * Ignore whether this WCxx call succeeds or not since
-		 * the previously executed WQxx method call might have
-		 * succeeded, and returning the failing status code
-		 * of this call would throw away the result of the WQxx
-		 * call, potentially leaking memory.
-		 */
-		acpi_execute_simple_method(handle, wc_method, 0);
-	}
-
-	return status;
+	return acpi_evaluate_object(handle, method, &input, out);
 }
 
 /**
@@ -421,8 +408,14 @@ acpi_status wmi_query_block(const char *guid_string, u8 instance,
 	if (IS_ERR(wdev))
 		return AE_ERROR;
 
+	if (wmi_device_enable(wdev, true) < 0)
+		dev_warn(&wdev->dev, "Failed to enable device\n");
+
 	wblock = container_of(wdev, struct wmi_block, dev);
 	status = __query_block(wblock, instance, out);
+
+	if (wmi_device_enable(wdev, false) < 0)
+		dev_warn(&wdev->dev, "Failed to disable device\n");
 
 	wmi_device_put(wdev);
 
@@ -470,7 +463,14 @@ acpi_status wmi_set_block(const char *guid_string, u8 instance, const struct acp
 	if (IS_ERR(wdev))
 		return AE_ERROR;
 
+	if (wmi_device_enable(wdev, true) < 0)
+		dev_warn(&wdev->dev, "Failed to enable device\n");
+
 	status =  wmidev_block_set(wdev, instance, in);
+
+	if (wmi_device_enable(wdev, false) < 0)
+		dev_warn(&wdev->dev, "Failed to disable device\n");
+
 	wmi_device_put(wdev);
 
 	return status;
@@ -551,7 +551,7 @@ acpi_status wmi_install_notify_handler(const char *guid,
 		wblock->handler = handler;
 		wblock->handler_data = data;
 
-		if (ACPI_FAILURE(wmi_method_enable(wblock, true)))
+		if (wmi_device_enable(wdev, true) < 0)
 			dev_warn(&wblock->dev.dev, "Failed to enable device\n");
 
 		status = AE_OK;
@@ -588,7 +588,7 @@ acpi_status wmi_remove_notify_handler(const char *guid)
 	if (!wblock->handler) {
 		status = AE_NULL_ENTRY;
 	} else {
-		if (ACPI_FAILURE(wmi_method_enable(wblock, false)))
+		if (wmi_device_enable(wdev, false) < 0)
 			dev_warn(&wblock->dev.dev, "Failed to disable device\n");
 
 		wblock->handler = NULL;
@@ -821,11 +821,19 @@ static int wmi_dev_match(struct device *dev, const struct device_driver *driver)
 	return 0;
 }
 
+static void wmi_dev_disable(void *data)
+{
+	struct device *dev = data;
+
+	if (wmi_device_enable(to_wmi_device(dev), false) < 0)
+		dev_warn(dev, "Failed to disable device\n");
+}
+
 static int wmi_dev_probe(struct device *dev)
 {
 	struct wmi_block *wblock = dev_to_wblock(dev);
 	struct wmi_driver *wdriver = to_wmi_driver(dev->driver);
-	int ret = 0;
+	int ret;
 
 	/* Some older WMI drivers will break if instantiated multiple times,
 	 * so they are blocked from probing WMI devices with a duplicated GUID.
@@ -844,18 +852,22 @@ static int wmi_dev_probe(struct device *dev)
 			return -ENODEV;
 	}
 
-	if (ACPI_FAILURE(wmi_method_enable(wblock, true)))
+	if (wmi_device_enable(to_wmi_device(dev), true) < 0)
 		dev_warn(dev, "failed to enable device -- probing anyway\n");
+
+	/*
+	 * We have to make sure that all devres-managed resources are released first because
+	 * some might still want to access the underlying WMI device.
+	 */
+	ret = devm_add_action_or_reset(dev, wmi_dev_disable, dev);
+	if (ret < 0)
+		return ret;
 
 	if (wdriver->probe) {
 		ret = wdriver->probe(to_wmi_device(dev),
 				find_guid_context(wblock, wdriver));
-		if (ret) {
-			if (ACPI_FAILURE(wmi_method_enable(wblock, false)))
-				dev_warn(dev, "Failed to disable device\n");
-
+		if (ret)
 			return ret;
-		}
 	}
 
 	down_write(&wblock->notify_lock);
@@ -876,9 +888,6 @@ static void wmi_dev_remove(struct device *dev)
 
 	if (wdriver->remove)
 		wdriver->remove(to_wmi_device(dev));
-
-	if (ACPI_FAILURE(wmi_method_enable(wblock, false)))
-		dev_warn(dev, "failed to disable device\n");
 }
 
 static void wmi_dev_shutdown(struct device *dev)
@@ -902,7 +911,11 @@ static void wmi_dev_shutdown(struct device *dev)
 		if (wdriver->shutdown)
 			wdriver->shutdown(to_wmi_device(dev));
 
-		if (ACPI_FAILURE(wmi_method_enable(wblock, false)))
+		/*
+		 * We still need to disable the WMI device here since devres-managed resources
+		 * like wmi_dev_disable() will not be release during shutdown.
+		 */
+		if (wmi_device_enable(to_wmi_device(dev), false) < 0)
 			dev_warn(dev, "Failed to disable device\n");
 	}
 }

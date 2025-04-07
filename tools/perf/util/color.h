@@ -30,11 +30,6 @@
 extern int perf_use_color_default;
 
 
-/*
- * Use this instead of perf_default_config if you need the value of color.ui.
- */
-int perf_color_default_config(const char *var, const char *value, void *cb);
-
 int perf_config_colorbool(const char *var, const char *value, int stdout_is_tty);
 int color_vsnprintf(char *bf, size_t size, const char *color,
 		    const char *fmt, va_list args);

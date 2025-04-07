@@ -392,7 +392,7 @@ int efx_mcdi_log_ctrl(struct efx_nic *efx, bool evq, bool uart, u32 dest_evq);
 int efx_mcdi_nvram_types(struct efx_nic *efx, u32 *nvram_types_out);
 int efx_mcdi_nvram_info(struct efx_nic *efx, unsigned int type,
 			size_t *size_out, size_t *erase_size_out,
-			bool *protected_out);
+			size_t *write_size_out, bool *protected_out);
 int efx_new_mcdi_nvram_test_all(struct efx_nic *efx);
 int efx_mcdi_nvram_metadata(struct efx_nic *efx, unsigned int type,
 			    u32 *subtype, u16 version[4], char *desc,
@@ -423,6 +423,26 @@ void efx_mcdi_mon_remove(struct efx_nic *efx);
 static inline int efx_mcdi_mon_probe(struct efx_nic *efx) { return 0; }
 static inline void efx_mcdi_mon_remove(struct efx_nic *efx) {}
 #endif
+
+int efx_mcdi_nvram_update_start(struct efx_nic *efx, unsigned int type);
+int efx_mcdi_nvram_write(struct efx_nic *efx, unsigned int type,
+			 loff_t offset, const u8 *buffer, size_t length);
+int efx_mcdi_nvram_erase(struct efx_nic *efx, unsigned int type,
+			 loff_t offset, size_t length);
+int efx_mcdi_nvram_metadata(struct efx_nic *efx, unsigned int type,
+			    u32 *subtype, u16 version[4], char *desc,
+			    size_t descsize);
+
+enum efx_update_finish_mode {
+	EFX_UPDATE_FINISH_WAIT,
+	EFX_UPDATE_FINISH_BACKGROUND,
+	EFX_UPDATE_FINISH_POLL,
+	EFX_UPDATE_FINISH_ABORT,
+};
+
+int efx_mcdi_nvram_update_finish(struct efx_nic *efx, unsigned int type,
+				 enum efx_update_finish_mode mode);
+int efx_mcdi_nvram_update_finish_polled(struct efx_nic *efx, unsigned int type);
 
 #ifdef CONFIG_SFC_MTD
 int efx_mcdi_mtd_read(struct mtd_info *mtd, loff_t start, size_t len,

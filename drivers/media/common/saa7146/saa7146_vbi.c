@@ -322,8 +322,8 @@ static void vbi_stop(struct saa7146_dev *dev)
 	/* shut down dma 3 transfers */
 	saa7146_write(dev, MC1, MASK_20);
 
-	del_timer(&vv->vbi_dmaq.timeout);
-	del_timer(&vv->vbi_read_timeout);
+	timer_delete(&vv->vbi_dmaq.timeout);
+	timer_delete(&vv->vbi_read_timeout);
 
 	spin_unlock_irqrestore(&dev->slock, flags);
 }

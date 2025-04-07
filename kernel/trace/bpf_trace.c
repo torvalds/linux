@@ -392,7 +392,7 @@ static const struct bpf_func_proto bpf_trace_printk_proto = {
 	.arg2_type	= ARG_CONST_SIZE,
 };
 
-static void __set_printk_clr_event(void)
+static void __set_printk_clr_event(struct work_struct *work)
 {
 	/*
 	 * This program might be calling bpf_trace_printk,
@@ -405,10 +405,11 @@ static void __set_printk_clr_event(void)
 	if (trace_set_clr_event("bpf_trace", "bpf_trace_printk", 1))
 		pr_warn_ratelimited("could not enable bpf_trace_printk events");
 }
+static DECLARE_WORK(set_printk_work, __set_printk_clr_event);
 
 const struct bpf_func_proto *bpf_get_trace_printk_proto(void)
 {
-	__set_printk_clr_event();
+	schedule_work(&set_printk_work);
 	return &bpf_trace_printk_proto;
 }
 
@@ -451,7 +452,7 @@ static const struct bpf_func_proto bpf_trace_vprintk_proto = {
 
 const struct bpf_func_proto *bpf_get_trace_vprintk_proto(void)
 {
-	__set_printk_clr_event();
+	schedule_work(&set_printk_work);
 	return &bpf_trace_vprintk_proto;
 }
 
@@ -605,6 +606,11 @@ static const struct bpf_func_proto bpf_perf_event_read_value_proto = {
 	.arg3_type	= ARG_PTR_TO_UNINIT_MEM,
 	.arg4_type	= ARG_CONST_SIZE,
 };
+
+const struct bpf_func_proto *bpf_get_perf_event_read_value_proto(void)
+{
+	return &bpf_perf_event_read_value_proto;
+}
 
 static __always_inline u64
 __bpf_perf_event_output(struct pt_regs *regs, struct bpf_map *map,
@@ -843,7 +849,7 @@ static int bpf_send_signal_common(u32 sig, enum pid_type type, struct task_struc
 	if (unlikely(is_global_init(task)))
 		return -EPERM;
 
-	if (!preemptible()) {
+	if (preempt_count() != 0 || irqs_disabled()) {
 		/* Do an early check on signal validity. Otherwise,
 		 * the error is lost in deferred irq_work.
 		 */
@@ -1038,27 +1044,14 @@ static const struct bpf_func_proto bpf_get_func_ip_proto_tracing = {
 	.arg1_type	= ARG_PTR_TO_CTX,
 };
 
-#ifdef CONFIG_X86_KERNEL_IBT
-static unsigned long get_entry_ip(unsigned long fentry_ip)
+static inline unsigned long get_entry_ip(unsigned long fentry_ip)
 {
-	u32 instr;
-
-	/* We want to be extra safe in case entry ip is on the page edge,
-	 * but otherwise we need to avoid get_kernel_nofault()'s overhead.
-	 */
-	if ((fentry_ip & ~PAGE_MASK) < ENDBR_INSN_SIZE) {
-		if (get_kernel_nofault(instr, (u32 *)(fentry_ip - ENDBR_INSN_SIZE)))
-			return fentry_ip;
-	} else {
-		instr = *(u32 *)(fentry_ip - ENDBR_INSN_SIZE);
-	}
-	if (is_endbr(instr))
+#ifdef CONFIG_X86_KERNEL_IBT
+	if (is_endbr((void *)(fentry_ip - ENDBR_INSN_SIZE)))
 		fentry_ip -= ENDBR_INSN_SIZE;
+#endif
 	return fentry_ip;
 }
-#else
-#define get_entry_ip(fentry_ip) fentry_ip
-#endif
 
 BPF_CALL_1(bpf_get_func_ip_kprobe, struct pt_regs *, regs)
 {
@@ -2345,10 +2338,9 @@ void bpf_put_raw_tracepoint(struct bpf_raw_event_map *btp)
 {
 	struct module *mod;
 
-	preempt_disable();
+	guard(rcu)();
 	mod = __module_address((unsigned long)btp);
 	module_put(mod);
-	preempt_enable();
 }
 
 static __always_inline
@@ -2932,18 +2924,21 @@ static int get_modules_for_addrs(struct module ***mods, unsigned long *addrs, u3
 	u32 i, err = 0;
 
 	for (i = 0; i < addrs_cnt; i++) {
+		bool skip_add = false;
 		struct module *mod;
 
-		preempt_disable();
-		mod = __module_address(addrs[i]);
-		/* Either no module or we it's already stored  */
-		if (!mod || has_module(&arr, mod)) {
-			preempt_enable();
-			continue;
+		scoped_guard(rcu) {
+			mod = __module_address(addrs[i]);
+			/* Either no module or it's already stored  */
+			if (!mod || has_module(&arr, mod)) {
+				skip_add = true;
+				break; /* scoped_guard */
+			}
+			if (!try_module_get(mod))
+				err = -EINVAL;
 		}
-		if (!try_module_get(mod))
-			err = -EINVAL;
-		preempt_enable();
+		if (skip_add)
+			continue;
 		if (err)
 			break;
 		err = add_module(&arr, mod);

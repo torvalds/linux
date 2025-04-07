@@ -1287,17 +1287,14 @@ static struct device_node *rswitch_get_port_node(struct rswitch_device *rdev)
 	if (!ports)
 		return NULL;
 
-	for_each_child_of_node(ports, port) {
+	for_each_available_child_of_node(ports, port) {
 		err = of_property_read_u32(port, "reg", &index);
 		if (err < 0) {
 			port = NULL;
 			goto out;
 		}
-		if (index == rdev->etha->index) {
-			if (!of_device_is_available(port))
-				port = NULL;
+		if (index == rdev->etha->index)
 			break;
-		}
 	}
 
 out:

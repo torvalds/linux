@@ -13,7 +13,9 @@
 #include <linux/reboot.h>
 #include <linux/ftrace.h>
 #include <linux/debug_locks.h>
+#include <linux/cpufeature.h>
 #include <asm/guarded_storage.h>
+#include <asm/machine.h>
 #include <asm/pfault.h>
 #include <asm/cio.h>
 #include <asm/fpu.h>
@@ -94,7 +96,7 @@ static noinline void __machine_kdump(void *image)
 	mcesa = __va(get_lowcore()->mcesad & MCESA_ORIGIN_MASK);
 	if (cpu_has_vx())
 		save_vx_regs((__vector128 *) mcesa->vector_save_area);
-	if (MACHINE_HAS_GS) {
+	if (cpu_has_gs()) {
 		local_ctl_store(2, &cr2_old.reg);
 		cr2_new = cr2_old;
 		cr2_new.gse = 1;
@@ -178,7 +180,7 @@ void arch_kexec_unprotect_crashkres(void)
 static int machine_kexec_prepare_kdump(void)
 {
 #ifdef CONFIG_CRASH_DUMP
-	if (MACHINE_IS_VM)
+	if (machine_is_vm())
 		diag10_range(PFN_DOWN(crashk_res.start),
 			     PFN_DOWN(crashk_res.end - crashk_res.start + 1));
 	return 0;

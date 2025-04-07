@@ -94,6 +94,7 @@ do {									\
 #define printbuf_tabstop_push(_buf, _n)	bch2_printbuf_tabstop_push(_buf, _n)
 
 #define printbuf_indent_add(_out, _n)	bch2_printbuf_indent_add(_out, _n)
+#define printbuf_indent_add_nextline(_out, _n)	bch2_printbuf_indent_add_nextline(_out, _n)
 #define printbuf_indent_sub(_out, _n)	bch2_printbuf_indent_sub(_out, _n)
 
 #define prt_newline(_out)		bch2_prt_newline(_out)
@@ -401,10 +402,22 @@ do {									\
 	_ret;								\
 })
 
-size_t bch2_rand_range(size_t);
+u64 bch2_get_random_u64_below(u64);
 
 void memcpy_to_bio(struct bio *, struct bvec_iter, const void *);
 void memcpy_from_bio(void *, struct bio *, struct bvec_iter);
+
+#ifdef CONFIG_BCACHEFS_DEBUG
+void bch2_corrupt_bio(struct bio *);
+
+static inline void bch2_maybe_corrupt_bio(struct bio *bio, unsigned ratio)
+{
+	if (ratio && !get_random_u32_below(ratio))
+		bch2_corrupt_bio(bio);
+}
+#else
+#define bch2_maybe_corrupt_bio(...)	do {} while (0)
+#endif
 
 static inline void memcpy_u64s_small(void *dst, const void *src,
 				     unsigned u64s)
@@ -419,7 +432,7 @@ static inline void memcpy_u64s_small(void *dst, const void *src,
 static inline void __memcpy_u64s(void *dst, const void *src,
 				 unsigned u64s)
 {
-#ifdef CONFIG_X86_64
+#if defined(CONFIG_X86_64) && !defined(CONFIG_KMSAN)
 	long d0, d1, d2;
 
 	asm volatile("rep ; movsq"
@@ -496,7 +509,7 @@ static inline void __memmove_u64s_up(void *_dst, const void *_src,
 	u64 *dst = (u64 *) _dst + u64s - 1;
 	u64 *src = (u64 *) _src + u64s - 1;
 
-#ifdef CONFIG_X86_64
+#if defined(CONFIG_X86_64) && !defined(CONFIG_KMSAN)
 	long d0, d1, d2;
 
 	asm volatile("std ;\n"
@@ -609,7 +622,7 @@ do {									\
 
 #define per_cpu_sum(_p)							\
 ({									\
-	typeof(*_p) _ret = 0;						\
+	TYPEOF_UNQUAL(*_p) _ret = 0;					\
 									\
 	int cpu;							\
 	for_each_possible_cpu(cpu)					\

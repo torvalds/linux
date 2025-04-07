@@ -195,7 +195,7 @@ static inline int __diag204(unsigned long *subcode, unsigned long size, void *ad
 {
 	union register_pair rp = { .even = *subcode, .odd = size };
 
-	asm volatile(
+	asm_inline volatile(
 		"	diag	%[addr],%[rp],0x204\n"
 		"0:	nopr	%%r7\n"
 		EX_TABLE(0b,0b)
@@ -286,7 +286,7 @@ int diag224(void *ptr)
 	int rc = -EOPNOTSUPP;
 
 	diag_stat_inc(DIAG_STAT_X224);
-	asm volatile("\n"
+	asm_inline volatile("\n"
 		"	diag	%[type],%[addr],0x224\n"
 		"0:	lhi	%[rc],0\n"
 		"1:\n"

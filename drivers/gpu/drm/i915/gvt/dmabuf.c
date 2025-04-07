@@ -436,7 +436,7 @@ int intel_vgpu_query_plane(struct intel_vgpu *vgpu, void *args)
 			dmabuf_obj_get(dmabuf_obj);
 		}
 		ret = 0;
-		gvt_dbg_dpy("vgpu%d: re-use dmabuf_obj ref %d, id %d\n",
+		gvt_dbg_dpy("vgpu%d: reuse dmabuf_obj ref %d, id %d\n",
 			    vgpu->id, kref_read(&dmabuf_obj->kref),
 			    gfx_plane_info->dmabuf_id);
 		mutex_unlock(&vgpu->dmabuf_lock);

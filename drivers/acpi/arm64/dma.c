@@ -26,6 +26,11 @@ void acpi_arch_dma_setup(struct device *dev)
 	else
 		end = (1ULL << 32) - 1;
 
+	if (dev->dma_range_map) {
+		dev_dbg(dev, "dma_range_map already set\n");
+		return;
+	}
+
 	ret = acpi_dma_get_range(dev, &map);
 	if (!ret && map) {
 		end = dma_range_map_max(map);

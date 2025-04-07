@@ -1,6 +1,6 @@
 obj-$(CONFIG_HP_BIOSCFG) := hp-bioscfg.o
 
-hp-bioscfg-objs := bioscfg.o	\
+hp-bioscfg-y := bioscfg.o	\
 	biosattr-interface.o	\
 	enum-attributes.o	\
 	int-attributes.o	\

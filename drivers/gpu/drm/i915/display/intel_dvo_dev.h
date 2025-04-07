@@ -57,7 +57,7 @@ struct intel_dvo_dev_ops {
 	 * Turn on/off output.
 	 *
 	 * Because none of our dvo drivers support an intermediate power levels,
-	 * we don't expose this in the interfac.
+	 * we don't expose this in the interface.
 	 */
 	void (*dpms)(struct intel_dvo_device *dvo, bool enable);
 

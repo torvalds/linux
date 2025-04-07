@@ -52,7 +52,7 @@ static ssize_t size_show(struct kobject *kobj, struct kobj_attribute *attr,
 }
 
 static ssize_t data_read(struct file *filep, struct kobject *kobj,
-			 struct bin_attribute *attr, char *buf, loff_t off,
+			 const struct bin_attribute *attr, char *buf, loff_t off,
 			 size_t count)
 {
 	char *data;
@@ -85,7 +85,7 @@ data_fail:
 }
 
 static ssize_t update_write(struct file *filep, struct kobject *kobj,
-			    struct bin_attribute *attr, char *buf, loff_t off,
+			    const struct bin_attribute *attr, char *buf, loff_t off,
 			    size_t count)
 {
 	int rc;
@@ -104,11 +104,11 @@ static struct kobj_attribute format_attr = __ATTR_RO(format);
 
 static struct kobj_attribute size_attr = __ATTR_RO(size);
 
-static struct bin_attribute data_attr = __BIN_ATTR_RO(data, 0);
+static struct bin_attribute data_attr __ro_after_init = __BIN_ATTR_RO(data, 0);
 
-static struct bin_attribute update_attr = __BIN_ATTR_WO(update, 0);
+static struct bin_attribute update_attr __ro_after_init = __BIN_ATTR_WO(update, 0);
 
-static struct bin_attribute *secvar_bin_attrs[] = {
+static const struct bin_attribute *const secvar_bin_attrs[] = {
 	&data_attr,
 	&update_attr,
 	NULL,
@@ -121,7 +121,7 @@ static struct attribute *secvar_attrs[] = {
 
 static const struct attribute_group secvar_attr_group = {
 	.attrs = secvar_attrs,
-	.bin_attrs = secvar_bin_attrs,
+	.bin_attrs_new = secvar_bin_attrs,
 };
 __ATTRIBUTE_GROUPS(secvar_attr);
 
@@ -130,7 +130,7 @@ static const struct kobj_type secvar_ktype = {
 	.default_groups = secvar_attr_groups,
 };
 
-static int update_kobj_size(void)
+static __init int update_kobj_size(void)
 {
 
 	u64 varsize;
@@ -145,7 +145,7 @@ static int update_kobj_size(void)
 	return 0;
 }
 
-static int secvar_sysfs_config(struct kobject *kobj)
+static __init int secvar_sysfs_config(struct kobject *kobj)
 {
 	struct attribute_group config_group = {
 		.name = "config",
@@ -158,7 +158,7 @@ static int secvar_sysfs_config(struct kobject *kobj)
 	return 0;
 }
 
-static int add_var(const char *name)
+static __init int add_var(const char *name)
 {
 	struct kobject *kobj;
 	int rc;
@@ -181,7 +181,7 @@ static int add_var(const char *name)
 	return 0;
 }
 
-static int secvar_sysfs_load(void)
+static __init int secvar_sysfs_load(void)
 {
 	u64 namesize = 0;
 	char *name;
@@ -209,7 +209,7 @@ static int secvar_sysfs_load(void)
 	return rc;
 }
 
-static int secvar_sysfs_load_static(void)
+static __init int secvar_sysfs_load_static(void)
 {
 	const char * const *name_ptr = secvar_ops->var_names;
 	int rc;
@@ -224,7 +224,7 @@ static int secvar_sysfs_load_static(void)
 	return 0;
 }
 
-static int secvar_sysfs_init(void)
+static __init int secvar_sysfs_init(void)
 {
 	u64 max_size;
 	int rc;

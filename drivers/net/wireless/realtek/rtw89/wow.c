@@ -604,6 +604,8 @@ static struct ieee80211_key_conf *rtw89_wow_gtk_rekey(struct rtw89_dev *rtwdev,
 	struct ieee80211_key_conf *key;
 	u8 sz;
 
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
+
 	cipher_info = rtw89_cipher_alg_recognize(cipher);
 	sz = struct_size(rekey_conf, key, cipher_info->len);
 	rekey_conf = kmalloc(sz, GFP_KERNEL);
@@ -616,15 +618,10 @@ static struct ieee80211_key_conf *rtw89_wow_gtk_rekey(struct rtw89_dev *rtwdev,
 	memcpy(rekey_conf->key, gtk,
 	       flex_array_size(rekey_conf, key, cipher_info->len));
 
-	/* ieee80211_gtk_rekey_add() will call set_key(), therefore we
-	 * need to unlock mutex
-	 */
-	mutex_unlock(&rtwdev->mutex);
 	if (ieee80211_vif_is_mld(wow_vif))
 		key = ieee80211_gtk_rekey_add(wow_vif, rekey_conf, rtwvif_link->link_id);
 	else
 		key = ieee80211_gtk_rekey_add(wow_vif, rekey_conf, -1);
-	mutex_lock(&rtwdev->mutex);
 
 	kfree(rekey_conf);
 	if (IS_ERR(key)) {

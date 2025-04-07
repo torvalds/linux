@@ -83,8 +83,6 @@ static const char * const ov2740_supply_name[] = {
 	"DVDD",
 };
 
-#define OV2740_NUM_SUPPLIES ARRAY_SIZE(ov2740_supply_name)
-
 struct nvm_data {
 	struct nvmem_device *nvmem;
 	struct regmap *regmap;
@@ -536,7 +534,7 @@ struct ov2740 {
 	struct gpio_desc *reset_gpio;
 	struct gpio_desc *powerdown_gpio;
 	struct clk *clk;
-	struct regulator_bulk_data supplies[OV2740_NUM_SUPPLIES];
+	struct regulator_bulk_data supplies[ARRAY_SIZE(ov2740_supply_name)];
 
 	/* Current mode */
 	const struct ov2740_mode *cur_mode;
@@ -655,7 +653,7 @@ static int ov2740_identify_module(struct ov2740 *ov2740)
 		return -ENXIO;
 	}
 
-	dev_dbg(&client->dev, "chip id: %x\n", val);
+	dev_dbg(&client->dev, "chip id: 0x%x\n", val);
 
 	ov2740->identified = true;
 
@@ -828,8 +826,10 @@ static int ov2740_init_controls(struct ov2740 *ov2740)
 				     0, 0, ov2740_test_pattern_menu);
 
 	ret = v4l2_fwnode_device_parse(&client->dev, &props);
-	if (ret)
+	if (ret) {
+		v4l2_ctrl_handler_free(ctrl_hdlr);
 		return ret;
+	}
 
 	v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &ov2740_ctrl_ops, &props);
 
@@ -1319,7 +1319,8 @@ static int ov2740_suspend(struct device *dev)
 	gpiod_set_value_cansleep(ov2740->reset_gpio, 1);
 	gpiod_set_value_cansleep(ov2740->powerdown_gpio, 1);
 	clk_disable_unprepare(ov2740->clk);
-	regulator_bulk_disable(OV2740_NUM_SUPPLIES, ov2740->supplies);
+	regulator_bulk_disable(ARRAY_SIZE(ov2740_supply_name),
+			       ov2740->supplies);
 	return 0;
 }
 
@@ -1329,13 +1330,15 @@ static int ov2740_resume(struct device *dev)
 	struct ov2740 *ov2740 = to_ov2740(sd);
 	int ret;
 
-	ret = regulator_bulk_enable(OV2740_NUM_SUPPLIES, ov2740->supplies);
+	ret = regulator_bulk_enable(ARRAY_SIZE(ov2740_supply_name),
+				    ov2740->supplies);
 	if (ret)
 		return ret;
 
 	ret = clk_prepare_enable(ov2740->clk);
 	if (ret) {
-		regulator_bulk_disable(OV2740_NUM_SUPPLIES, ov2740->supplies);
+		regulator_bulk_disable(ARRAY_SIZE(ov2740_supply_name),
+				       ov2740->supplies);
 		return ret;
 	}
 
@@ -1351,7 +1354,8 @@ static int ov2740_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	struct ov2740 *ov2740;
 	bool full_power;
-	int i, ret;
+	unsigned int i;
+	int ret;
 
 	ov2740 = devm_kzalloc(&client->dev, sizeof(*ov2740), GFP_KERNEL);
 	if (!ov2740)
@@ -1389,10 +1393,11 @@ static int ov2740_probe(struct i2c_client *client)
 		return dev_err_probe(dev, PTR_ERR(ov2740->clk),
 				     "failed to get clock\n");
 
-	for (i = 0; i < OV2740_NUM_SUPPLIES; i++)
+	for (i = 0; i < ARRAY_SIZE(ov2740_supply_name); i++)
 		ov2740->supplies[i].supply = ov2740_supply_name[i];
 
-	ret = devm_regulator_bulk_get(dev, OV2740_NUM_SUPPLIES, ov2740->supplies);
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(ov2740_supply_name),
+				      ov2740->supplies);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to get regulators\n");
 

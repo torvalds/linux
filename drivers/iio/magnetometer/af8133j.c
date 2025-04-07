@@ -383,7 +383,6 @@ static const struct regmap_config af8133j_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = AF8133J_REG_SWR,
-	.cache_type = REGCACHE_NONE,
 };
 
 static void af8133j_power_down_action(void *ptr)

@@ -104,6 +104,7 @@ obj-$(CONFIG_DRM_PANEL_BACKLIGHT_QUIRKS) += drm_panel_backlight_quirks.o
 #
 obj-$(CONFIG_DRM_EXEC) += drm_exec.o
 obj-$(CONFIG_DRM_GPUVM) += drm_gpuvm.o
+obj-$(CONFIG_DRM_GPUSVM) += drm_gpusvm.o
 
 obj-$(CONFIG_DRM_BUDDY) += drm_buddy.o
 

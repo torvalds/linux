@@ -711,24 +711,11 @@ int vdo_configure_slab(block_count_t slab_size, block_count_t slab_journal_block
 	ref_blocks = vdo_get_saved_reference_count_size(slab_size - slab_journal_blocks);
 	meta_blocks = (ref_blocks + slab_journal_blocks);
 
-	/* Make sure test code hasn't configured slabs to be too small. */
+	/* Make sure configured slabs are not too small. */
 	if (meta_blocks >= slab_size)
 		return VDO_BAD_CONFIGURATION;
 
-	/*
-	 * If the slab size is very small, assume this must be a unit test and override the number
-	 * of data blocks to be a power of two (wasting blocks in the slab). Many tests need their
-	 * data_blocks fields to be the exact capacity of the configured volume, and that used to
-	 * fall out since they use a power of two for the number of data blocks, the slab size was
-	 * a power of two, and every block in a slab was a data block.
-	 *
-	 * TODO: Try to figure out some way of structuring testParameters and unit tests so this
-	 * hack isn't needed without having to edit several unit tests every time the metadata size
-	 * changes by one block.
-	 */
 	data_blocks = slab_size - meta_blocks;
-	if ((slab_size < 1024) && !is_power_of_2(data_blocks))
-		data_blocks = ((block_count_t) 1 << ilog2(data_blocks));
 
 	/*
 	 * Configure the slab journal thresholds. The flush threshold is 168 of 224 blocks in
@@ -1218,11 +1205,6 @@ int vdo_validate_config(const struct vdo_config *config,
 	result = VDO_ASSERT(config->slab_size <= (1 << MAX_VDO_SLAB_BITS),
 			    "slab size must be less than or equal to 2^%d",
 			    MAX_VDO_SLAB_BITS);
-	if (result != VDO_SUCCESS)
-		return result;
-
-	result = VDO_ASSERT(config->slab_journal_blocks >= MINIMUM_VDO_SLAB_JOURNAL_BLOCKS,
-			    "slab journal size meets minimum size");
 	if (result != VDO_SUCCESS)
 		return result;
 

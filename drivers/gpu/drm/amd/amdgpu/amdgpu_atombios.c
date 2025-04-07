@@ -36,13 +36,6 @@
 #include "atombios_encoders.h"
 #include "bif/bif_4_1_d.h"
 
-static void amdgpu_atombios_lookup_i2c_gpio_quirks(struct amdgpu_device *adev,
-					  ATOM_GPIO_I2C_ASSIGMENT *gpio,
-					  u8 index)
-{
-
-}
-
 static struct amdgpu_i2c_bus_rec amdgpu_atombios_get_bus_rec_for_i2c_gpio(ATOM_GPIO_I2C_ASSIGMENT *gpio)
 {
 	struct amdgpu_i2c_bus_rec i2c;
@@ -108,9 +101,6 @@ struct amdgpu_i2c_bus_rec amdgpu_atombios_lookup_i2c_gpio(struct amdgpu_device *
 
 		gpio = &i2c_info->asGPIO_Info[0];
 		for (i = 0; i < num_indices; i++) {
-
-			amdgpu_atombios_lookup_i2c_gpio_quirks(adev, gpio, i);
-
 			if (gpio->sucI2cId.ucAccess == id) {
 				i2c = amdgpu_atombios_get_bus_rec_for_i2c_gpio(gpio);
 				break;
@@ -142,13 +132,43 @@ void amdgpu_atombios_i2c_init(struct amdgpu_device *adev)
 
 		gpio = &i2c_info->asGPIO_Info[0];
 		for (i = 0; i < num_indices; i++) {
-			amdgpu_atombios_lookup_i2c_gpio_quirks(adev, gpio, i);
-
 			i2c = amdgpu_atombios_get_bus_rec_for_i2c_gpio(gpio);
 
 			if (i2c.valid) {
 				sprintf(stmp, "0x%x", i2c.i2c_id);
 				adev->i2c_bus[i] = amdgpu_i2c_create(adev_to_drm(adev), &i2c, stmp);
+			}
+			gpio = (ATOM_GPIO_I2C_ASSIGMENT *)
+				((u8 *)gpio + sizeof(ATOM_GPIO_I2C_ASSIGMENT));
+		}
+	}
+}
+
+void amdgpu_atombios_oem_i2c_init(struct amdgpu_device *adev, u8 i2c_id)
+{
+	struct atom_context *ctx = adev->mode_info.atom_context;
+	ATOM_GPIO_I2C_ASSIGMENT *gpio;
+	struct amdgpu_i2c_bus_rec i2c;
+	int index = GetIndexIntoMasterTable(DATA, GPIO_I2C_Info);
+	struct _ATOM_GPIO_I2C_INFO *i2c_info;
+	uint16_t data_offset, size;
+	int i, num_indices;
+	char stmp[32];
+
+	if (amdgpu_atom_parse_data_header(ctx, index, &size, NULL, NULL, &data_offset)) {
+		i2c_info = (struct _ATOM_GPIO_I2C_INFO *)(ctx->bios + data_offset);
+
+		num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+			sizeof(ATOM_GPIO_I2C_ASSIGMENT);
+
+		gpio = &i2c_info->asGPIO_Info[0];
+		for (i = 0; i < num_indices; i++) {
+			i2c = amdgpu_atombios_get_bus_rec_for_i2c_gpio(gpio);
+
+			if (i2c.valid && i2c.i2c_id == i2c_id) {
+				sprintf(stmp, "OEM 0x%x", i2c.i2c_id);
+				adev->i2c_bus[i] = amdgpu_i2c_create(adev_to_drm(adev), &i2c, stmp);
+				break;
 			}
 			gpio = (ATOM_GPIO_I2C_ASSIGMENT *)
 				((u8 *)gpio + sizeof(ATOM_GPIO_I2C_ASSIGMENT));

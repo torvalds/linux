@@ -67,17 +67,6 @@ static inline void set_io_port_base(unsigned long base)
 }
 
 /*
- * Provide the necessary definitions for generic iomap. We make use of
- * mips_io_port_base for iomap(), but we don't reserve any low addresses for
- * use with I/O ports.
- */
-
-#define HAVE_ARCH_PIO_SIZE
-#define PIO_OFFSET	mips_io_port_base
-#define PIO_MASK	IO_SPACE_LIMIT
-#define PIO_RESERVED	0x0UL
-
-/*
  * Enforce in-order execution of data I/O.  In the MIPS architecture
  * these are equivalent to corresponding platform-specific memory
  * barriers defined in <asm/barrier.h>.  API pinched from PowerPC,
@@ -126,7 +115,7 @@ static inline unsigned long isa_virt_to_bus(volatile void *address)
 }
 
 void __iomem *ioremap_prot(phys_addr_t offset, unsigned long size,
-		unsigned long prot_val);
+			   pgprot_t prot);
 void iounmap(const volatile void __iomem *addr);
 
 /*
@@ -141,7 +130,7 @@ void iounmap(const volatile void __iomem *addr);
  * address.
  */
 #define ioremap(offset, size)						\
-	ioremap_prot((offset), (size), _CACHE_UNCACHED)
+	ioremap_prot((offset), (size), __pgprot(_CACHE_UNCACHED))
 
 /*
  * ioremap_cache -	map bus memory into CPU space
@@ -159,7 +148,7 @@ void iounmap(const volatile void __iomem *addr);
  * memory-like regions on I/O busses.
  */
 #define ioremap_cache(offset, size)					\
-	ioremap_prot((offset), (size), _page_cachable_default)
+	ioremap_prot((offset), (size), __pgprot(_page_cachable_default))
 
 /*
  * ioremap_wc     -   map bus memory into CPU space
@@ -180,7 +169,7 @@ void iounmap(const volatile void __iomem *addr);
  * _CACHE_UNCACHED option (see cpu_probe() method).
  */
 #define ioremap_wc(offset, size)					\
-	ioremap_prot((offset), (size), boot_cpu_data.writecombine)
+	ioremap_prot((offset), (size), __pgprot(boot_cpu_data.writecombine))
 
 #if defined(CONFIG_CPU_CAVIUM_OCTEON)
 #define war_io_reorder_wmb()		wmb()
@@ -397,8 +386,8 @@ static inline void writes##bwlq(volatile void __iomem *mem,		\
 	}								\
 }									\
 									\
-static inline void reads##bwlq(volatile void __iomem *mem, void *addr,	\
-			       unsigned int count)			\
+static inline void reads##bwlq(const volatile void __iomem *mem,	\
+			       void *addr, unsigned int count)		\
 {									\
 	volatile type *__addr = addr;					\
 									\
@@ -554,6 +543,16 @@ extern void (*_dma_cache_inv)(unsigned long start, unsigned long size);
 #define outsl outsl
 
 void __ioread64_copy(void *to, const void __iomem *from, size_t count);
+
+#if defined(CONFIG_PCI) && defined(CONFIG_PCI_DRIVERS_LEGACY)
+struct pci_dev;
+void pci_iounmap(struct pci_dev *dev, void __iomem *addr);
+#define pci_iounmap pci_iounmap
+#endif
+
+#ifndef PCI_IOBASE
+#define PCI_IOBASE ((void __iomem *)mips_io_port_base)
+#endif
 
 #include <asm-generic/io.h>
 

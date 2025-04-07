@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * AMD Pink Sardine ACP PCI Driver
+ * AMD common ACP PCI driver for ACP6.3, ACP7.0 & ACP7.1 platforms.
  *
- * Copyright 2022 Advanced Micro Devices, Inc.
+ * Copyright 2022, 2025 Advanced Micro Devices, Inc.
  */
 
 #include <linux/pci.h>
@@ -21,109 +21,168 @@
 
 #include "acp63.h"
 
-static int acp63_power_on(void __iomem *acp_base)
+static void handle_acp70_sdw_wake_event(struct acp63_dev_data *adata)
 {
-	u32 val;
+	struct amd_sdw_manager *amd_manager;
 
-	val = readl(acp_base + ACP_PGFSM_STATUS);
-
-	if (!val)
-		return val;
-
-	if ((val & ACP_PGFSM_STATUS_MASK) != ACP_POWER_ON_IN_PROGRESS)
-		writel(ACP_PGFSM_CNTL_POWER_ON_MASK, acp_base + ACP_PGFSM_CONTROL);
-
-	return readl_poll_timeout(acp_base + ACP_PGFSM_STATUS, val, !val, DELAY_US, ACP_TIMEOUT);
-}
-
-static int acp63_reset(void __iomem *acp_base)
-{
-	u32 val;
-	int ret;
-
-	writel(1, acp_base + ACP_SOFT_RESET);
-
-	ret = readl_poll_timeout(acp_base + ACP_SOFT_RESET, val,
-				 val & ACP_SOFT_RESET_SOFTRESET_AUDDONE_MASK,
-				 DELAY_US, ACP_TIMEOUT);
-	if (ret)
-		return ret;
-
-	writel(0, acp_base + ACP_SOFT_RESET);
-
-	return readl_poll_timeout(acp_base + ACP_SOFT_RESET, val, !val, DELAY_US, ACP_TIMEOUT);
-}
-
-static void acp63_enable_interrupts(void __iomem *acp_base)
-{
-	writel(1, acp_base + ACP_EXTERNAL_INTR_ENB);
-	writel(ACP_ERROR_IRQ, acp_base + ACP_EXTERNAL_INTR_CNTL);
-}
-
-static void acp63_disable_interrupts(void __iomem *acp_base)
-{
-	writel(ACP_EXT_INTR_STAT_CLEAR_MASK, acp_base + ACP_EXTERNAL_INTR_STAT);
-	writel(0, acp_base + ACP_EXTERNAL_INTR_CNTL);
-	writel(0, acp_base + ACP_EXTERNAL_INTR_ENB);
-}
-
-static int acp63_init(void __iomem *acp_base, struct device *dev)
-{
-	int ret;
-
-	ret = acp63_power_on(acp_base);
-	if (ret) {
-		dev_err(dev, "ACP power on failed\n");
-		return ret;
+	if (adata->acp70_sdw0_wake_event) {
+		amd_manager = dev_get_drvdata(&adata->sdw->pdev[0]->dev);
+		if (amd_manager)
+			pm_request_resume(amd_manager->dev);
+		adata->acp70_sdw0_wake_event = 0;
 	}
-	writel(0x01, acp_base + ACP_CONTROL);
-	ret = acp63_reset(acp_base);
-	if (ret) {
-		dev_err(dev, "ACP reset failed\n");
-		return ret;
+
+	if (adata->acp70_sdw1_wake_event) {
+		amd_manager = dev_get_drvdata(&adata->sdw->pdev[1]->dev);
+		if (amd_manager)
+			pm_request_resume(amd_manager->dev);
+		adata->acp70_sdw1_wake_event = 0;
 	}
-	acp63_enable_interrupts(acp_base);
-	writel(0, acp_base + ACP_ZSC_DSP_CTRL);
-	return 0;
 }
 
-static int acp63_deinit(void __iomem *acp_base, struct device *dev)
+static short int check_and_handle_acp70_sdw_wake_irq(struct acp63_dev_data *adata)
 {
-	int ret;
+	u32 ext_intr_stat1;
+	int irq_flag = 0;
+	bool sdw_wake_irq = false;
 
-	acp63_disable_interrupts(acp_base);
-	ret = acp63_reset(acp_base);
-	if (ret) {
-		dev_err(dev, "ACP reset failed\n");
-		return ret;
+	ext_intr_stat1 = readl(adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
+	if (ext_intr_stat1 & ACP70_SDW0_HOST_WAKE_STAT) {
+		writel(ACP70_SDW0_HOST_WAKE_STAT, adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
+		adata->acp70_sdw0_wake_event = true;
+		sdw_wake_irq = true;
 	}
-	writel(0, acp_base + ACP_CONTROL);
-	writel(1, acp_base + ACP_ZSC_DSP_CTRL);
-	return 0;
+
+	if (ext_intr_stat1 & ACP70_SDW1_HOST_WAKE_STAT) {
+		writel(ACP70_SDW1_HOST_WAKE_STAT, adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
+		adata->acp70_sdw1_wake_event = true;
+		sdw_wake_irq = true;
+	}
+
+	if (ext_intr_stat1 & ACP70_SDW0_PME_STAT) {
+		writel(0, adata->acp63_base + ACP_SW0_WAKE_EN);
+		writel(ACP70_SDW0_PME_STAT, adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
+		adata->acp70_sdw0_wake_event = true;
+		sdw_wake_irq = true;
+	}
+
+	if (ext_intr_stat1 & ACP70_SDW1_PME_STAT) {
+		writel(0, adata->acp63_base + ACP_SW1_WAKE_EN);
+		writel(ACP70_SDW1_PME_STAT, adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
+		adata->acp70_sdw1_wake_event = true;
+		sdw_wake_irq = true;
+	}
+
+	if (sdw_wake_irq) {
+		handle_acp70_sdw_wake_event(adata);
+		irq_flag = 1;
+	}
+	return irq_flag;
+}
+
+static short int check_and_handle_sdw_dma_irq(struct acp63_dev_data *adata, u32 ext_intr_stat,
+					      u32 ext_intr_stat1)
+{
+	u32 stream_id = 0;
+	u16 sdw_dma_irq_flag = 0;
+	u16 index;
+
+	if (ext_intr_stat & ACP63_SDW_DMA_IRQ_MASK) {
+		for (index = ACP_AUDIO2_RX_THRESHOLD; index <= ACP_AUDIO0_TX_THRESHOLD; index++) {
+			if (ext_intr_stat & BIT(index)) {
+				writel(BIT(index), adata->acp63_base + ACP_EXTERNAL_INTR_STAT);
+				switch (index) {
+				case ACP_AUDIO0_TX_THRESHOLD:
+					stream_id = ACP63_SDW0_AUDIO0_TX;
+					break;
+				case ACP_AUDIO1_TX_THRESHOLD:
+					stream_id = ACP63_SDW0_AUDIO1_TX;
+					break;
+				case ACP_AUDIO2_TX_THRESHOLD:
+					stream_id = ACP63_SDW0_AUDIO2_TX;
+					break;
+				case ACP_AUDIO0_RX_THRESHOLD:
+					stream_id = ACP63_SDW0_AUDIO0_RX;
+					break;
+				case ACP_AUDIO1_RX_THRESHOLD:
+					stream_id = ACP63_SDW0_AUDIO1_RX;
+					break;
+				case ACP_AUDIO2_RX_THRESHOLD:
+					stream_id = ACP63_SDW0_AUDIO2_RX;
+					break;
+				}
+				switch (adata->acp_rev) {
+				case ACP63_PCI_REV:
+					adata->acp63_sdw0_dma_intr_stat[stream_id] = 1;
+					break;
+				case ACP70_PCI_REV:
+				case ACP71_PCI_REV:
+					adata->acp70_sdw0_dma_intr_stat[stream_id] = 1;
+					break;
+				}
+				sdw_dma_irq_flag = 1;
+			}
+		}
+	}
+	switch (adata->acp_rev) {
+	case ACP63_PCI_REV:
+		if (ext_intr_stat1 & ACP63_P1_AUDIO1_RX_THRESHOLD) {
+			writel(ACP63_P1_AUDIO1_RX_THRESHOLD,
+			       adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
+			adata->acp63_sdw1_dma_intr_stat[ACP63_SDW1_AUDIO1_RX] = 1;
+			sdw_dma_irq_flag = 1;
+		}
+		if (ext_intr_stat1 & ACP63_P1_AUDIO1_TX_THRESHOLD) {
+			writel(ACP63_P1_AUDIO1_TX_THRESHOLD,
+			       adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
+			adata->acp63_sdw1_dma_intr_stat[ACP63_SDW1_AUDIO1_TX] = 1;
+			sdw_dma_irq_flag = 1;
+		}
+		break;
+	case ACP70_PCI_REV:
+	case ACP71_PCI_REV:
+		if (ext_intr_stat1 & ACP70_P1_SDW_DMA_IRQ_MASK) {
+			for (index = ACP70_P1_AUDIO2_RX_THRESHOLD;
+			     index <= ACP70_P1_AUDIO0_TX_THRESHOLD; index++) {
+				if (ext_intr_stat1 & BIT(index)) {
+					writel(BIT(index),
+					       adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
+					switch (index) {
+					case ACP70_P1_AUDIO0_TX_THRESHOLD:
+						stream_id = ACP70_SDW_AUDIO0_TX;
+						break;
+					case ACP70_P1_AUDIO1_TX_THRESHOLD:
+						stream_id = ACP70_SDW_AUDIO1_TX;
+						break;
+					case ACP70_P1_AUDIO2_TX_THRESHOLD:
+						stream_id = ACP70_SDW_AUDIO2_TX;
+						break;
+					case ACP70_P1_AUDIO0_RX_THRESHOLD:
+						stream_id = ACP70_SDW_AUDIO0_RX;
+						break;
+					case ACP70_P1_AUDIO1_RX_THRESHOLD:
+						 stream_id = ACP70_SDW_AUDIO1_RX;
+						break;
+					case ACP70_P1_AUDIO2_RX_THRESHOLD:
+						stream_id = ACP70_SDW_AUDIO2_RX;
+						break;
+					}
+
+					adata->acp70_sdw1_dma_intr_stat[stream_id] = 1;
+					sdw_dma_irq_flag = 1;
+				}
+			}
+		}
+		break;
+	}
+	return sdw_dma_irq_flag;
 }
 
 static irqreturn_t acp63_irq_thread(int irq, void *context)
 {
-	struct sdw_dma_dev_data *sdw_dma_data;
 	struct acp63_dev_data *adata = context;
-	u32 stream_index;
 
-	sdw_dma_data = dev_get_drvdata(&adata->sdw_dma_dev->dev);
-
-	for (stream_index = 0; stream_index < ACP63_SDW0_DMA_MAX_STREAMS; stream_index++) {
-		if (adata->sdw0_dma_intr_stat[stream_index]) {
-			if (sdw_dma_data->sdw0_dma_stream[stream_index])
-				snd_pcm_period_elapsed(sdw_dma_data->sdw0_dma_stream[stream_index]);
-			adata->sdw0_dma_intr_stat[stream_index] = 0;
-		}
-	}
-	for (stream_index = 0; stream_index < ACP63_SDW1_DMA_MAX_STREAMS; stream_index++) {
-		if (adata->sdw1_dma_intr_stat[stream_index]) {
-			if (sdw_dma_data->sdw1_dma_stream[stream_index])
-				snd_pcm_period_elapsed(sdw_dma_data->sdw1_dma_stream[stream_index]);
-			adata->sdw1_dma_intr_stat[stream_index] = 0;
-		}
-	}
+	acp_hw_sdw_dma_irq_thread(adata);
 	return IRQ_HANDLED;
 }
 
@@ -133,10 +192,8 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 	struct pdm_dev_data *ps_pdm_data;
 	struct amd_sdw_manager *amd_manager;
 	u32 ext_intr_stat, ext_intr_stat1;
-	u32 stream_id = 0;
 	u16 irq_flag = 0;
 	u16 sdw_dma_irq_flag = 0;
-	u16 index;
 
 	adata = dev_id;
 	if (!adata)
@@ -173,6 +230,9 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 		irq_flag = 1;
 	}
 
+	if (adata->acp_rev >= ACP70_PCI_REV)
+		irq_flag = check_and_handle_acp70_sdw_wake_irq(adata);
+
 	if (ext_intr_stat & BIT(PDM_DMA_STAT)) {
 		ps_pdm_data = dev_get_drvdata(&adata->pdm_dev->dev);
 		writel(BIT(PDM_DMA_STAT), adata->acp63_base + ACP_EXTERNAL_INTR_STAT);
@@ -180,51 +240,8 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 			snd_pcm_period_elapsed(ps_pdm_data->capture_stream);
 		irq_flag = 1;
 	}
-	if (ext_intr_stat & ACP_SDW_DMA_IRQ_MASK) {
-		for (index = ACP_AUDIO2_RX_THRESHOLD; index <= ACP_AUDIO0_TX_THRESHOLD; index++) {
-			if (ext_intr_stat & BIT(index)) {
-				writel(BIT(index), adata->acp63_base + ACP_EXTERNAL_INTR_STAT);
-				switch (index) {
-				case ACP_AUDIO0_TX_THRESHOLD:
-					stream_id = ACP_SDW0_AUDIO0_TX;
-					break;
-				case ACP_AUDIO1_TX_THRESHOLD:
-					stream_id = ACP_SDW0_AUDIO1_TX;
-					break;
-				case ACP_AUDIO2_TX_THRESHOLD:
-					stream_id = ACP_SDW0_AUDIO2_TX;
-					break;
-				case ACP_AUDIO0_RX_THRESHOLD:
-					stream_id = ACP_SDW0_AUDIO0_RX;
-					break;
-				case ACP_AUDIO1_RX_THRESHOLD:
-					stream_id = ACP_SDW0_AUDIO1_RX;
-					break;
-				case ACP_AUDIO2_RX_THRESHOLD:
-					stream_id = ACP_SDW0_AUDIO2_RX;
-					break;
-				}
 
-				adata->sdw0_dma_intr_stat[stream_id] = 1;
-				sdw_dma_irq_flag = 1;
-			}
-		}
-	}
-
-	if (ext_intr_stat1 & ACP_P1_AUDIO1_RX_THRESHOLD) {
-		writel(ACP_P1_AUDIO1_RX_THRESHOLD,
-		       adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
-		adata->sdw1_dma_intr_stat[ACP_SDW1_AUDIO1_RX] = 1;
-		sdw_dma_irq_flag = 1;
-	}
-
-	if (ext_intr_stat1 & ACP_P1_AUDIO1_TX_THRESHOLD) {
-		writel(ACP_P1_AUDIO1_TX_THRESHOLD,
-		       adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
-		adata->sdw1_dma_intr_stat[ACP_SDW1_AUDIO1_TX] = 1;
-		sdw_dma_irq_flag = 1;
-	}
-
+	sdw_dma_irq_flag = check_and_handle_sdw_dma_irq(adata, ext_intr_stat, ext_intr_stat1);
 	if (sdw_dma_irq_flag)
 		return IRQ_WAKE_THREAD;
 
@@ -380,7 +397,6 @@ static int get_acp63_device_config(struct pci_dev *pci, struct acp63_dev_data *a
 	const union acpi_object *obj;
 	acpi_handle handle;
 	acpi_integer dmic_status;
-	u32 config;
 	bool is_dmic_dev = false;
 	bool is_sdw_dev = false;
 	bool wov_en, dmic_en;
@@ -390,30 +406,7 @@ static int get_acp63_device_config(struct pci_dev *pci, struct acp63_dev_data *a
 	wov_en = true;
 	dmic_en = false;
 
-	config = readl(acp_data->acp63_base + ACP_PIN_CONFIG);
-	switch (config) {
-	case ACP_CONFIG_4:
-	case ACP_CONFIG_5:
-	case ACP_CONFIG_10:
-	case ACP_CONFIG_11:
-		acp_data->is_pdm_config = true;
-		break;
-	case ACP_CONFIG_2:
-	case ACP_CONFIG_3:
-		acp_data->is_sdw_config = true;
-		break;
-	case ACP_CONFIG_6:
-	case ACP_CONFIG_7:
-	case ACP_CONFIG_12:
-	case ACP_CONFIG_8:
-	case ACP_CONFIG_13:
-	case ACP_CONFIG_14:
-		acp_data->is_pdm_config = true;
-		acp_data->is_sdw_config = true;
-		break;
-	default:
-		break;
-	}
+	acp_hw_get_config(pci, acp_data);
 
 	if (acp_data->is_pdm_config) {
 		pdm_dev = acpi_find_child_device(ACPI_COMPANION(&pci->dev), ACP63_DMIC_ADDR, 0);
@@ -540,9 +533,31 @@ unregister_dmic_codec_dev:
 unregister_pdm_dev:
 		platform_device_unregister(adata->pdm_dev);
 de_init:
-	if (acp63_deinit(adata->acp63_base, &pci->dev))
+	if (acp_hw_deinit(adata, &pci->dev))
 		dev_err(&pci->dev, "ACP de-init failed\n");
 	return ret;
+}
+
+static int acp_hw_init_ops(struct acp63_dev_data *adata, struct pci_dev *pci)
+{
+	adata->hw_ops = devm_kzalloc(&pci->dev, sizeof(struct acp_hw_ops),
+				     GFP_KERNEL);
+	if (!adata->hw_ops)
+		return -ENOMEM;
+
+	switch (adata->acp_rev) {
+	case ACP63_PCI_REV:
+		acp63_hw_init_ops(adata->hw_ops);
+		break;
+	case ACP70_PCI_REV:
+	case ACP71_PCI_REV:
+		acp70_hw_init_ops(adata->hw_ops);
+		break;
+	default:
+		dev_err(&pci->dev, "ACP device not found\n");
+		return -ENODEV;
+	}
+	return 0;
 }
 
 static int snd_acp63_probe(struct pci_dev *pci,
@@ -560,12 +575,14 @@ static int snd_acp63_probe(struct pci_dev *pci,
 	if (flag)
 		return -ENODEV;
 
-	/* Pink Sardine device check */
+	/* ACP PCI revision id check for ACP6.3, ACP7.0 & ACP7.1 platforms */
 	switch (pci->revision) {
-	case 0x63:
+	case ACP63_PCI_REV:
+	case ACP70_PCI_REV:
+	case ACP71_PCI_REV:
 		break;
 	default:
-		dev_dbg(&pci->dev, "acp63 pci device not found\n");
+		dev_dbg(&pci->dev, "acp63/acp70/acp71 pci device not found\n");
 		return -ENODEV;
 	}
 	if (pci_enable_device(pci)) {
@@ -598,7 +615,12 @@ static int snd_acp63_probe(struct pci_dev *pci,
 	pci_set_master(pci);
 	pci_set_drvdata(pci, adata);
 	mutex_init(&adata->acp_lock);
-	ret = acp63_init(adata->acp63_base, &pci->dev);
+	ret = acp_hw_init_ops(adata, pci);
+	if (ret) {
+		dev_err(&pci->dev, "ACP hw ops init failed\n");
+		goto release_regions;
+	}
+	ret = acp_hw_init(adata, &pci->dev);
 	if (ret)
 		goto release_regions;
 	ret = devm_request_threaded_irq(&pci->dev, pci->irq, acp63_irq_handler,
@@ -618,7 +640,11 @@ static int snd_acp63_probe(struct pci_dev *pci,
 		dev_err(&pci->dev, "ACP platform devices creation failed\n");
 		goto de_init;
 	}
-	adata->machines = snd_soc_acpi_amd_acp63_sdw_machines;
+	if (adata->acp_rev >= ACP70_PCI_REV)
+		adata->machines = snd_soc_acpi_amd_acp70_sdw_machines;
+	else
+		adata->machines = snd_soc_acpi_amd_acp63_sdw_machines;
+
 	ret = acp63_machine_register(&pci->dev);
 	if (ret) {
 		dev_err(&pci->dev, "ACP machine register failed\n");
@@ -632,7 +658,7 @@ skip_pdev_creation:
 	pm_runtime_allow(&pci->dev);
 	return 0;
 de_init:
-	if (acp63_deinit(adata->acp63_base, &pci->dev))
+	if (acp_hw_deinit(adata, &pci->dev))
 		dev_err(&pci->dev, "ACP de-init failed\n");
 release_regions:
 	pci_release_regions(pci);
@@ -642,90 +668,24 @@ disable_pci:
 	return ret;
 }
 
-static bool check_acp_sdw_enable_status(struct acp63_dev_data *adata)
+static int snd_acp_suspend(struct device *dev)
 {
-	u32 sdw0_en, sdw1_en;
-
-	sdw0_en = readl(adata->acp63_base + ACP_SW0_EN);
-	sdw1_en = readl(adata->acp63_base + ACP_SW1_EN);
-	return (sdw0_en || sdw1_en);
+	return acp_hw_suspend(dev);
 }
 
-static void handle_acp63_sdw_pme_event(struct acp63_dev_data *adata)
+static int snd_acp_runtime_resume(struct device *dev)
 {
-	u32 val;
-
-	val = readl(adata->acp63_base + ACP_SW0_WAKE_EN);
-	if (val && adata->sdw->pdev[0])
-		pm_request_resume(&adata->sdw->pdev[0]->dev);
-
-	val = readl(adata->acp63_base + ACP_SW1_WAKE_EN);
-	if (val && adata->sdw->pdev[1])
-		pm_request_resume(&adata->sdw->pdev[1]->dev);
+	return acp_hw_runtime_resume(dev);
 }
 
-static int __maybe_unused snd_acp63_suspend(struct device *dev)
+static int snd_acp_resume(struct device *dev)
 {
-	struct acp63_dev_data *adata;
-	int ret;
-
-	adata = dev_get_drvdata(dev);
-	if (adata->is_sdw_dev) {
-		adata->sdw_en_stat = check_acp_sdw_enable_status(adata);
-		if (adata->sdw_en_stat) {
-			writel(1, adata->acp63_base + ACP_ZSC_DSP_CTRL);
-			return 0;
-		}
-	}
-	ret = acp63_deinit(adata->acp63_base, dev);
-	if (ret)
-		dev_err(dev, "ACP de-init failed\n");
-
-	return ret;
-}
-
-static int __maybe_unused snd_acp63_runtime_resume(struct device *dev)
-{
-	struct acp63_dev_data *adata;
-	int ret;
-
-	adata = dev_get_drvdata(dev);
-	if (adata->sdw_en_stat) {
-		writel(0, adata->acp63_base + ACP_ZSC_DSP_CTRL);
-		return 0;
-	}
-	ret = acp63_init(adata->acp63_base, dev);
-	if (ret) {
-		dev_err(dev, "ACP init failed\n");
-		return ret;
-	}
-
-	if (!adata->sdw_en_stat)
-		handle_acp63_sdw_pme_event(adata);
-	return 0;
-}
-
-static int __maybe_unused snd_acp63_resume(struct device *dev)
-{
-	struct acp63_dev_data *adata;
-	int ret;
-
-	adata = dev_get_drvdata(dev);
-	if (adata->sdw_en_stat) {
-		writel(0, adata->acp63_base + ACP_ZSC_DSP_CTRL);
-		return 0;
-	}
-
-	ret = acp63_init(adata->acp63_base, dev);
-	if (ret)
-		dev_err(dev, "ACP init failed\n");
-
-	return ret;
+	return acp_hw_resume(dev);
 }
 
 static const struct dev_pm_ops acp63_pm_ops = {
-	SET_RUNTIME_PM_OPS(snd_acp63_suspend, snd_acp63_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(snd_acp63_suspend, snd_acp63_resume)
+	RUNTIME_PM_OPS(snd_acp_suspend, snd_acp_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(snd_acp_suspend, snd_acp_resume)
 };
 
 static void snd_acp63_remove(struct pci_dev *pci)
@@ -744,7 +704,7 @@ static void snd_acp63_remove(struct pci_dev *pci)
 	}
 	if (adata->mach_dev)
 		platform_device_unregister(adata->mach_dev);
-	ret = acp63_deinit(adata->acp63_base, &pci->dev);
+	ret = acp_hw_deinit(adata, &pci->dev);
 	if (ret)
 		dev_err(&pci->dev, "ACP de-init failed\n");
 	pm_runtime_forbid(&pci->dev);
@@ -767,7 +727,7 @@ static struct pci_driver ps_acp63_driver  = {
 	.probe = snd_acp63_probe,
 	.remove = snd_acp63_remove,
 	.driver = {
-		.pm = &acp63_pm_ops,
+		.pm = pm_ptr(&acp63_pm_ops),
 	}
 };
 
@@ -775,7 +735,7 @@ module_pci_driver(ps_acp63_driver);
 
 MODULE_AUTHOR("Vijendar.Mukunda@amd.com");
 MODULE_AUTHOR("Syed.SabaKareem@amd.com");
-MODULE_DESCRIPTION("AMD ACP Pink Sardine PCI driver");
+MODULE_DESCRIPTION("AMD common ACP PCI driver for ACP6.3, ACP7.0 & ACP7.1 platforms");
 MODULE_IMPORT_NS("SOUNDWIRE_AMD_INIT");
 MODULE_IMPORT_NS("SND_AMD_SOUNDWIRE_ACPI");
 MODULE_LICENSE("GPL v2");

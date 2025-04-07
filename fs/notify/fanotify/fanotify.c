@@ -166,6 +166,8 @@ static bool fanotify_should_merge(struct fanotify_event *old,
 	case FANOTIFY_EVENT_TYPE_FS_ERROR:
 		return fanotify_error_event_equal(FANOTIFY_EE(old),
 						  FANOTIFY_EE(new));
+	case FANOTIFY_EVENT_TYPE_MNT:
+		return false;
 	default:
 		WARN_ON_ONCE(1);
 	}
@@ -312,7 +314,10 @@ static u32 fanotify_group_event_mask(struct fsnotify_group *group,
 	pr_debug("%s: report_mask=%x mask=%x data=%p data_type=%d\n",
 		 __func__, iter_info->report_mask, event_mask, data, data_type);
 
-	if (!fid_mode) {
+	if (FAN_GROUP_FLAG(group, FAN_REPORT_MNT)) {
+		if (data_type != FSNOTIFY_EVENT_MNT)
+			return 0;
+	} else if (!fid_mode) {
 		/* Do we have path to open a file descriptor? */
 		if (!path)
 			return 0;
@@ -557,6 +562,20 @@ static struct fanotify_event *fanotify_alloc_path_event(const struct path *path,
 	return &pevent->fae;
 }
 
+static struct fanotify_event *fanotify_alloc_mnt_event(u64 mnt_id, gfp_t gfp)
+{
+	struct fanotify_mnt_event *pevent;
+
+	pevent = kmem_cache_alloc(fanotify_mnt_event_cachep, gfp);
+	if (!pevent)
+		return NULL;
+
+	pevent->fae.type = FANOTIFY_EVENT_TYPE_MNT;
+	pevent->mnt_id = mnt_id;
+
+	return &pevent->fae;
+}
+
 static struct fanotify_event *fanotify_alloc_perm_event(const void *data,
 							int data_type,
 							gfp_t gfp)
@@ -731,6 +750,7 @@ static struct fanotify_event *fanotify_alloc_event(
 					      fid_mode);
 	struct inode *dirid = fanotify_dfid_inode(mask, data, data_type, dir);
 	const struct path *path = fsnotify_data_path(data, data_type);
+	u64 mnt_id = fsnotify_data_mnt_id(data, data_type);
 	struct mem_cgroup *old_memcg;
 	struct dentry *moved = NULL;
 	struct inode *child = NULL;
@@ -826,8 +846,12 @@ static struct fanotify_event *fanotify_alloc_event(
 						  moved, &hash, gfp);
 	} else if (fid_mode) {
 		event = fanotify_alloc_fid_event(id, fsid, &hash, gfp);
-	} else {
+	} else if (path) {
 		event = fanotify_alloc_path_event(path, &hash, gfp);
+	} else if (mnt_id) {
+		event = fanotify_alloc_mnt_event(mnt_id, gfp);
+	} else {
+		WARN_ON_ONCE(1);
 	}
 
 	if (!event)
@@ -927,7 +951,7 @@ static int fanotify_handle_event(struct fsnotify_group *group, u32 mask,
 	BUILD_BUG_ON(FAN_RENAME != FS_RENAME);
 	BUILD_BUG_ON(FAN_PRE_ACCESS != FS_PRE_ACCESS);
 
-	BUILD_BUG_ON(HWEIGHT32(ALL_FANOTIFY_EVENT_BITS) != 22);
+	BUILD_BUG_ON(HWEIGHT32(ALL_FANOTIFY_EVENT_BITS) != 24);
 
 	mask = fanotify_group_event_mask(group, iter_info, &match_mask,
 					 mask, data, data_type, dir);
@@ -1028,6 +1052,11 @@ static void fanotify_free_error_event(struct fsnotify_group *group,
 	mempool_free(fee, &group->fanotify_data.error_events_pool);
 }
 
+static void fanotify_free_mnt_event(struct fanotify_event *event)
+{
+	kmem_cache_free(fanotify_mnt_event_cachep, FANOTIFY_ME(event));
+}
+
 static void fanotify_free_event(struct fsnotify_group *group,
 				struct fsnotify_event *fsn_event)
 {
@@ -1053,6 +1082,9 @@ static void fanotify_free_event(struct fsnotify_group *group,
 		break;
 	case FANOTIFY_EVENT_TYPE_FS_ERROR:
 		fanotify_free_error_event(group, event);
+		break;
+	case FANOTIFY_EVENT_TYPE_MNT:
+		fanotify_free_mnt_event(event);
 		break;
 	default:
 		WARN_ON_ONCE(1);

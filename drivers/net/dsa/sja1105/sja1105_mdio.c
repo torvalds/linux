@@ -468,12 +468,9 @@ int sja1105_mdiobus_register(struct dsa_switch *ds)
 	if (rc)
 		return rc;
 
-	mdio_node = of_get_child_by_name(switch_node, "mdios");
+	mdio_node = of_get_available_child_by_name(switch_node, "mdios");
 	if (!mdio_node)
 		return 0;
-
-	if (!of_device_is_available(mdio_node))
-		goto out_put_mdio_node;
 
 	if (regs->mdio_100base_tx != SJA1105_RSV_ADDR) {
 		rc = sja1105_mdiobus_base_tx_register(priv, mdio_node);
@@ -487,7 +484,6 @@ int sja1105_mdiobus_register(struct dsa_switch *ds)
 			goto err_free_base_tx_mdiobus;
 	}
 
-out_put_mdio_node:
 	of_node_put(mdio_node);
 
 	return 0;

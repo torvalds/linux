@@ -30,6 +30,9 @@ properties:
   interrupts:
     maxItems: 1
 
+  vbus-supply:
+    description: VBUS power supply
+
   wakeup-source:
     type: boolean
 

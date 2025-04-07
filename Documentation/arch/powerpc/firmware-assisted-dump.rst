@@ -120,6 +120,28 @@ to ensure that crash data is preserved to process later.
    e.g.
      # echo 1 > /sys/firmware/opal/mpipl/release_core
 
+-- Support for Additional Kernel Arguments in Fadump
+   Fadump has a feature that allows passing additional kernel arguments
+   to the fadump kernel. This feature was primarily designed to disable
+   kernel functionalities that are not required for the fadump kernel
+   and to reduce its memory footprint while collecting the dump.
+
+  Command to Add Additional Kernel Parameters to Fadump:
+  e.g.
+  # echo "nr_cpus=16" > /sys/kernel/fadump/bootargs_append
+
+  The above command is sufficient to add additional arguments to fadump.
+  An explicit service restart is not required.
+
+  Command to Retrieve the Additional Fadump Arguments:
+  e.g.
+  # cat /sys/kernel/fadump/bootargs_append
+
+Note: Additional kernel arguments for fadump with HASH MMU is only
+      supported if the RMA size is greater than 768 MB. If the RMA
+      size is less than 768 MB, the kernel does not export the
+      /sys/kernel/fadump/bootargs_append sysfs node.
+
 Implementation details:
 -----------------------
 

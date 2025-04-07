@@ -347,6 +347,7 @@ struct core_reloc_nesting___err_too_deep {
  */
 struct core_reloc_arrays_output {
 	int a2;
+	int a3;
 	char b123;
 	int c1c;
 	int d00d;
@@ -453,6 +454,15 @@ struct core_reloc_arrays___err_bad_zero_sz_arr {
 	char b[2][3][4];
 	struct core_reloc_arrays_substruct c[3];
 	struct core_reloc_arrays_substruct d[1][2];
+};
+
+struct core_reloc_arrays___err_bad_signed_arr_elem_sz {
+	/* int -> short (signed!): not supported case */
+	short a[5];
+	char b[2][3][4];
+	struct core_reloc_arrays_substruct c[3];
+	struct core_reloc_arrays_substruct d[1][2];
+	struct core_reloc_arrays_substruct f[][2];
 };
 
 /*

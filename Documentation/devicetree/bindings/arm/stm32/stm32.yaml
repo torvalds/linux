@@ -51,9 +51,16 @@ properties:
               - st,stm32mp135f-dk
           - const: st,stm32mp135
 
+      - description: ST STM32MP133 based Boards
+        items:
+          - enum:
+              - pri,prihmb   # Priva E-Measuringbox board
+          - const: st,stm32mp133
+
       - description: ST STM32MP151 based Boards
         items:
           - enum:
+              - ply,plyaqm   # Plymovent AQM board
               - prt,mecio1r0 # Protonic MECIO1r0
               - prt,mect1s   # Protonic MECT1S
               - prt,prtt1a   # Protonic PRTT1A
@@ -94,6 +101,8 @@ properties:
       - description: Octavo OSD32MP153 System-in-Package based boards
         items:
           - enum:
+              - lxa,stm32mp153c-fairytux2-gen1 # Linux Automation FairyTux 2 (Generation 1)
+              - lxa,stm32mp153c-fairytux2-gen2 # Linux Automation FairyTux 2 (Generation 2)
               - lxa,stm32mp153c-tac-gen3 # Linux Automation TAC (Generation 3)
           - const: oct,stm32mp153x-osd32
           - const: st,stm32mp153
@@ -178,8 +187,21 @@ properties:
       - description: ST STM32MP257 based Boards
         items:
           - enum:
+              - st,stm32mp257f-dk
               - st,stm32mp257f-ev1
           - const: st,stm32mp257
+
+      - description: ST STM32MP235 based Boards
+        items:
+          - enum:
+              - st,stm32mp235f-dk
+          - const: st,stm32mp235
+
+      - description: ST STM32MP215 based Boards
+        items:
+          - enum:
+              - st,stm32mp215f-dk
+          - const: st,stm32mp215
 
 additionalProperties: true
 

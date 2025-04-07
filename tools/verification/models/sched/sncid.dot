@@ -1,0 +1,18 @@
+digraph state_automaton {
+	center = true;
+	size = "7,11";
+	{node [shape = plaintext, style=invis, label=""] "__init_can_sched"};
+	{node [shape = ellipse] "can_sched"};
+	{node [shape = plaintext] "can_sched"};
+	{node [shape = plaintext] "cant_sched"};
+	"__init_can_sched" -> "can_sched";
+	"can_sched" [label = "can_sched", color = green3];
+	"can_sched" -> "can_sched" [ label = "schedule_entry\nschedule_exit" ];
+	"can_sched" -> "cant_sched" [ label = "irq_disable" ];
+	"cant_sched" [label = "cant_sched"];
+	"cant_sched" -> "can_sched" [ label = "irq_enable" ];
+	{ rank = min ;
+		"__init_can_sched";
+		"can_sched";
+	}
+}

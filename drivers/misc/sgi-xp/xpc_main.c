@@ -202,7 +202,7 @@ xpc_start_hb_beater(void)
 static void
 xpc_stop_hb_beater(void)
 {
-	del_timer_sync(&xpc_hb_timer);
+	timer_delete_sync(&xpc_hb_timer);
 	xpc_arch_ops.heartbeat_exit();
 }
 

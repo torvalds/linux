@@ -38,12 +38,14 @@
  * in the corresponding device tree properties.
  */
 
+#include <linux/cleanup.h>
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/delay.h>
 
 #include "gpiolib.h"
@@ -71,46 +73,46 @@ static int gpio_latch_get_direction(struct gpio_chip *gc, unsigned int offset)
 	return GPIO_LINE_DIRECTION_OUT;
 }
 
-static void gpio_latch_set_unlocked(struct gpio_latch_priv *priv,
-				    void (*set)(struct gpio_desc *desc, int value),
-				    unsigned int offset, bool val)
+static int gpio_latch_set_unlocked(struct gpio_latch_priv *priv,
+				   int (*set)(struct gpio_desc *desc, int value),
+				   unsigned int offset, bool val)
 {
-	int latch = offset / priv->n_latched_gpios;
-	int i;
+	int latch = offset / priv->n_latched_gpios, i, ret;
 
 	assign_bit(offset, priv->shadow, val);
 
-	for (i = 0; i < priv->n_latched_gpios; i++)
-		set(priv->latched_gpios->desc[i],
-		    test_bit(latch * priv->n_latched_gpios + i, priv->shadow));
+	for (i = 0; i < priv->n_latched_gpios; i++) {
+		ret = set(priv->latched_gpios->desc[i],
+			  test_bit(latch * priv->n_latched_gpios + i,
+				   priv->shadow));
+		if (ret)
+			return ret;
+	}
 
 	ndelay(priv->setup_duration_ns);
 	set(priv->clk_gpios->desc[latch], 1);
 	ndelay(priv->clock_duration_ns);
 	set(priv->clk_gpios->desc[latch], 0);
+
+	return 0;
 }
 
-static void gpio_latch_set(struct gpio_chip *gc, unsigned int offset, int val)
-{
-	struct gpio_latch_priv *priv = gpiochip_get_data(gc);
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->spinlock, flags);
-
-	gpio_latch_set_unlocked(priv, gpiod_set_value, offset, val);
-
-	spin_unlock_irqrestore(&priv->spinlock, flags);
-}
-
-static void gpio_latch_set_can_sleep(struct gpio_chip *gc, unsigned int offset, int val)
+static int gpio_latch_set(struct gpio_chip *gc, unsigned int offset, int val)
 {
 	struct gpio_latch_priv *priv = gpiochip_get_data(gc);
 
-	mutex_lock(&priv->mutex);
+	guard(spinlock_irqsave)(&priv->spinlock);
 
-	gpio_latch_set_unlocked(priv, gpiod_set_value_cansleep, offset, val);
+	return gpio_latch_set_unlocked(priv, gpiod_set_value, offset, val);
+}
 
-	mutex_unlock(&priv->mutex);
+static int gpio_latch_set_can_sleep(struct gpio_chip *gc, unsigned int offset, int val)
+{
+	struct gpio_latch_priv *priv = gpiochip_get_data(gc);
+
+	guard(mutex)(&priv->mutex);
+
+	return gpio_latch_set_unlocked(priv, gpiod_set_value_cansleep, offset, val);
 }
 
 static bool gpio_latch_can_sleep(struct gpio_latch_priv *priv, unsigned int n_latches)
@@ -138,50 +140,52 @@ static bool gpio_latch_can_sleep(struct gpio_latch_priv *priv, unsigned int n_la
 
 static int gpio_latch_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct gpio_latch_priv *priv;
 	unsigned int n_latches;
-	struct device_node *np = pdev->dev.of_node;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	priv->clk_gpios = devm_gpiod_get_array(&pdev->dev, "clk", GPIOD_OUT_LOW);
+	priv->clk_gpios = devm_gpiod_get_array(dev, "clk", GPIOD_OUT_LOW);
 	if (IS_ERR(priv->clk_gpios))
 		return PTR_ERR(priv->clk_gpios);
 
-	priv->latched_gpios = devm_gpiod_get_array(&pdev->dev, "latched", GPIOD_OUT_LOW);
+	priv->latched_gpios = devm_gpiod_get_array(dev, "latched", GPIOD_OUT_LOW);
 	if (IS_ERR(priv->latched_gpios))
 		return PTR_ERR(priv->latched_gpios);
 
 	n_latches = priv->clk_gpios->ndescs;
 	priv->n_latched_gpios = priv->latched_gpios->ndescs;
 
-	priv->shadow = devm_bitmap_zalloc(&pdev->dev, n_latches * priv->n_latched_gpios,
+	priv->shadow = devm_bitmap_zalloc(dev, n_latches * priv->n_latched_gpios,
 					  GFP_KERNEL);
 	if (!priv->shadow)
 		return -ENOMEM;
 
 	if (gpio_latch_can_sleep(priv, n_latches)) {
 		priv->gc.can_sleep = true;
-		priv->gc.set = gpio_latch_set_can_sleep;
+		priv->gc.set_rv = gpio_latch_set_can_sleep;
 		mutex_init(&priv->mutex);
 	} else {
 		priv->gc.can_sleep = false;
-		priv->gc.set = gpio_latch_set;
+		priv->gc.set_rv = gpio_latch_set;
 		spin_lock_init(&priv->spinlock);
 	}
 
-	of_property_read_u32(np, "setup-duration-ns", &priv->setup_duration_ns);
+	device_property_read_u32(dev, "setup-duration-ns",
+				 &priv->setup_duration_ns);
 	if (priv->setup_duration_ns > DURATION_NS_MAX) {
-		dev_warn(&pdev->dev, "setup-duration-ns too high, limit to %d\n",
+		dev_warn(dev, "setup-duration-ns too high, limit to %d\n",
 			 DURATION_NS_MAX);
 		priv->setup_duration_ns = DURATION_NS_MAX;
 	}
 
-	of_property_read_u32(np, "clock-duration-ns", &priv->clock_duration_ns);
+	device_property_read_u32(dev, "clock-duration-ns",
+				 &priv->clock_duration_ns);
 	if (priv->clock_duration_ns > DURATION_NS_MAX) {
-		dev_warn(&pdev->dev, "clock-duration-ns too high, limit to %d\n",
+		dev_warn(dev, "clock-duration-ns too high, limit to %d\n",
 			 DURATION_NS_MAX);
 		priv->clock_duration_ns = DURATION_NS_MAX;
 	}
@@ -190,11 +194,11 @@ static int gpio_latch_probe(struct platform_device *pdev)
 	priv->gc.ngpio = n_latches * priv->n_latched_gpios;
 	priv->gc.owner = THIS_MODULE;
 	priv->gc.base = -1;
-	priv->gc.parent = &pdev->dev;
+	priv->gc.parent = dev;
 
 	platform_set_drvdata(pdev, priv);
 
-	return devm_gpiochip_add_data(&pdev->dev, &priv->gc, priv);
+	return devm_gpiochip_add_data(dev, &priv->gc, priv);
 }
 
 static const struct of_device_id gpio_latch_ids[] = {

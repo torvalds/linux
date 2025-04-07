@@ -227,7 +227,6 @@ static struct cpufreq_driver p4clockmod_driver = {
 	.init		= cpufreq_p4_cpu_init,
 	.get		= cpufreq_p4_get,
 	.name		= "p4-clockmod",
-	.attr		= cpufreq_generic_attr,
 };
 
 static const struct x86_cpu_id cpufreq_p4_id[] = {

@@ -12,8 +12,6 @@
 #include <asm/asm-offsets.h>
 #include <asm/ftrace.h>
 
-#define ABI_SIZE_ON_STACK	80
-
 	.text
 
 	.macro SAVE_ABI_STATE
@@ -28,12 +26,12 @@
 	 * register if a0 was not saved.
 	 */
 	.macro SAVE_RET_ABI_STATE
-	addi	sp, sp, -ABI_SIZE_ON_STACK
-	REG_S	ra, 1*SZREG(sp)
-	REG_S	s0, 8*SZREG(sp)
-	REG_S	a0, 10*SZREG(sp)
-	REG_S	a1, 11*SZREG(sp)
-	addi	s0, sp, ABI_SIZE_ON_STACK
+	addi	sp, sp, -FREGS_SIZE_ON_STACK
+	REG_S	ra, FREGS_RA(sp)
+	REG_S	s0, FREGS_S0(sp)
+	REG_S	a0, FREGS_A0(sp)
+	REG_S	a1, FREGS_A1(sp)
+	addi	s0, sp, FREGS_SIZE_ON_STACK
 	.endm
 
 	.macro RESTORE_ABI_STATE
@@ -43,11 +41,11 @@
 	.endm
 
 	.macro RESTORE_RET_ABI_STATE
-	REG_L	ra, 1*SZREG(sp)
-	REG_L	s0, 8*SZREG(sp)
-	REG_L	a0, 10*SZREG(sp)
-	REG_L	a1, 11*SZREG(sp)
-	addi	sp, sp, ABI_SIZE_ON_STACK
+	REG_L	ra, FREGS_RA(sp)
+	REG_L	s0, FREGS_S0(sp)
+	REG_L	a0, FREGS_A0(sp)
+	REG_L	a1, FREGS_A1(sp)
+	addi	sp, sp, FREGS_SIZE_ON_STACK
 	.endm
 
 SYM_TYPED_FUNC_START(ftrace_stub)

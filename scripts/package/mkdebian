@@ -77,6 +77,8 @@ set_debarch() {
 			debarch=i386
 		fi
 		;;
+	loongarch64)
+		debarch=loong64 ;;
 	esac
 	if [ -z "$debarch" ]; then
 		debarch=$(dpkg-architecture -qDEB_HOST_ARCH)
@@ -155,11 +157,12 @@ while [ $# -gt 0 ]; do
 done
 
 # Some variables and settings used throughout the script
-version=$KERNELRELEASE
 if [ "${KDEB_PKGVERSION:+set}" ]; then
 	packageversion=$KDEB_PKGVERSION
 else
-	packageversion=$(${srctree}/scripts/setlocalversion --no-local ${srctree})-$($srctree/scripts/build-version)
+	upstream_version=$("${srctree}/scripts/setlocalversion" --no-local "${srctree}" | sed 's/-\(rc[1-9]\)/~\1/')
+	debian_revision=$("${srctree}/scripts/build-version")
+	packageversion=${upstream_version}-${debian_revision}
 fi
 sourcename=${KDEB_SOURCENAME:-linux-upstream}
 
@@ -212,11 +215,11 @@ Build-Depends-Arch: bc, bison, flex,
  python3:native, rsync
 Homepage: https://www.kernel.org/
 
-Package: $packagename-$version
+Package: $packagename-${KERNELRELEASE}
 Architecture: $debarch
-Description: Linux kernel, version $version
+Description: Linux kernel, version ${KERNELRELEASE}
  This package contains the Linux kernel, modules and corresponding other
- files, version: $version.
+ files, version: ${KERNELRELEASE}.
 EOF
 
 if [ "${SRCARCH}" != um ]; then
@@ -235,11 +238,11 @@ EOF
 if is_enabled CONFIG_MODULES; then
 cat <<EOF >> debian/control
 
-Package: linux-headers-$version
+Package: linux-headers-${KERNELRELEASE}
 Architecture: $debarch
 Build-Profiles: <!pkg.${sourcename}.nokernelheaders>
-Description: Linux kernel headers for $version on $debarch
- This package provides kernel header files for $version on $debarch
+Description: Linux kernel headers for ${KERNELRELEASE} on $debarch
+ This package provides kernel header files for ${KERNELRELEASE} on $debarch
  .
  This is useful for people who need to build external modules
 EOF
@@ -249,11 +252,11 @@ fi
 if is_enabled CONFIG_DEBUG_INFO; then
 cat <<EOF >> debian/control
 
-Package: linux-image-$version-dbg
+Package: linux-image-${KERNELRELEASE}-dbg
 Section: debug
 Architecture: $debarch
 Build-Profiles: <!pkg.${sourcename}.nokerneldbg>
-Description: Linux kernel debugging symbols for $version
+Description: Linux kernel debugging symbols for ${KERNELRELEASE}
  This package will come in handy if you need to debug the kernel. It provides
  all the necessary debug symbols for the kernel and its modules.
 EOF

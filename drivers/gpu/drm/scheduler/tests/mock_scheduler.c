@@ -125,8 +125,8 @@ drm_mock_sched_job_new(struct kunit *test,
 	init_completion(&job->done);
 	spin_lock_init(&job->lock);
 	INIT_LIST_HEAD(&job->link);
-	hrtimer_init(&job->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	job->timer.function = drm_mock_sched_job_signal_timer;
+	hrtimer_setup(&job->timer, drm_mock_sched_job_signal_timer,
+		      CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 
 	return job;
 }

@@ -233,7 +233,7 @@ static int __init xilinx_intc_of_init(struct device_node *intc,
 		}
 	} else {
 		primary_intc = irqc;
-		irq_set_default_host(primary_intc->root_domain);
+		irq_set_default_domain(primary_intc->root_domain);
 		set_handle_irq(xil_intc_handle_irq);
 	}
 

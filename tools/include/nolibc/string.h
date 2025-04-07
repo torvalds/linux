@@ -32,6 +32,7 @@ int memcmp(const void *s1, const void *s2, size_t n)
 /* might be ignored by the compiler without -ffreestanding, then found as
  * missing.
  */
+void *memmove(void *dst, const void *src, size_t len);
 __attribute__((weak,unused,section(".text.nolibc_memmove")))
 void *memmove(void *dst, const void *src, size_t len)
 {
@@ -56,6 +57,7 @@ void *memmove(void *dst, const void *src, size_t len)
 
 #ifndef NOLIBC_ARCH_HAS_MEMCPY
 /* must be exported, as it's used by libgcc on ARM */
+void *memcpy(void *dst, const void *src, size_t len);
 __attribute__((weak,unused,section(".text.nolibc_memcpy")))
 void *memcpy(void *dst, const void *src, size_t len)
 {
@@ -73,6 +75,7 @@ void *memcpy(void *dst, const void *src, size_t len)
 /* might be ignored by the compiler without -ffreestanding, then found as
  * missing.
  */
+void *memset(void *dst, int b, size_t len);
 __attribute__((weak,unused,section(".text.nolibc_memset")))
 void *memset(void *dst, int b, size_t len)
 {
@@ -124,6 +127,7 @@ char *strcpy(char *dst, const char *src)
  * thus itself, hence the asm() statement below that's meant to disable this
  * confusing practice.
  */
+size_t strlen(const char *str);
 __attribute__((weak,unused,section(".text.nolibc_strlen")))
 size_t strlen(const char *str)
 {

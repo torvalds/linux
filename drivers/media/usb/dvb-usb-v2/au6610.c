@@ -115,7 +115,7 @@ static u32 au6610_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm au6610_i2c_algo = {
+static const struct i2c_algorithm au6610_i2c_algo = {
 	.master_xfer   = au6610_i2c_xfer,
 	.functionality = au6610_i2c_func,
 };

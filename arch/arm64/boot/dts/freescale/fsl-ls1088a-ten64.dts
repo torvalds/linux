@@ -87,6 +87,22 @@
 		los-gpios = <&sfpgpio 7 GPIO_ACTIVE_HIGH>;
 		maximum-power-milliwatt = <2000>;
 	};
+
+	usb1v2_supply: regulator-usbhub-1v2 {
+		compatible = "regulator-fixed";
+		regulator-name = "usbhub_1v2";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-always-on;
+	};
+
+	system3v3_supply: regulator-system-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "system_3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
 };
 
 /* XG1 - Upper SFP */
@@ -231,6 +247,12 @@
 		compatible = "atmel,at97sc3204t";
 		reg = <0x29>;
 	};
+
+	usbhub: usb-hub@2d {
+		compatible = "microchip,usb5744";
+		reg = <0x2d>;
+	};
+
 };
 
 &i2c2 {
@@ -378,10 +400,32 @@
 	};
 };
 
+/* LS1088A USB Port 0 - direct to bottom USB-A port */
 &usb0 {
 	status = "okay";
 };
 
+/* LS1088A USB Port 1 - to Microchip USB5744 USB Hub */
 &usb1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
 	status = "okay";
+
+	hub_2_0: hub@1 {
+		compatible = "usb424,2744";
+		reg = <1>;
+		peer-hub = <&hub_3_0>;
+		i2c-bus = <&usbhub>;
+		vdd-supply = <&system3v3_supply>;
+		vdd2-supply = <&usb1v2_supply>;
+	};
+
+	hub_3_0: hub@2 {
+		compatible = "usb424,5744";
+		reg = <2>;
+		peer-hub = <&hub_2_0>;
+		i2c-bus = <&usbhub>;
+		vdd-supply = <&system3v3_supply>;
+		vdd2-supply = <&usb1v2_supply>;
+	};
 };

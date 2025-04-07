@@ -1,0 +1,40 @@
+[
+    {
+        "ArchStdEvent": "CPU_CYCLES",
+        "PublicDescription": "Counts CPU clock cycles (not timer cycles). The clock measured by this event is defined as the physical clock driving the CPU logic."
+    },
+    {
+        "PublicDescription": "Count of RXDAT or RXRSP responses received with indication completer fullness indicator set to 0",
+        "EventCode": "0x198",
+        "EventName": "L2_CHI_CBUSY0",
+        "BriefDescription": "Number of RXDAT or RXRSP response received with CBusy of 0"
+    },
+    {
+        "PublicDescription": "Count of RXDAT or RXRSP responses received with indication completer fullness indicator set to 1",
+        "EventCode": "0x199",
+        "EventName": "L2_CHI_CBUSY1",
+        "BriefDescription": "Number of RXDAT or RXRSP response received with CBusy of 1"
+    },
+    {
+        "PublicDescription": "Count of RXDAT or RXRSP responses received with indication completer fullness indicator set to 2",
+        "EventCode": "0x19A",
+        "EventName": "L2_CHI_CBUSY2",
+        "BriefDescription": "Number of RXDAT or RXRSP response received with CBusy of 2"
+    },
+    {
+        "PublicDescription": "Count of RXDAT or RXRSP responses received with indication completer fullness indicator set to 3",
+        "EventCode": "0x19B",
+        "EventName": "L2_CHI_CBUSY3",
+        "BriefDescription": "Number of RXDAT or RXRSP response received with CBusy of 3"
+    },
+    {
+        "PublicDescription": "Count of RXDAT or RXRSP responses received with indication completer indicating multiple cores actively making requests",
+        "EventCode": "0x19C",
+        "EventName": "L2_CHI_CBUSY_MT",
+        "BriefDescription": "Number of RXDAT or RXRSP response received with CBusy Multi-threaded set"
+    },
+    {
+        "ArchStdEvent": "CNT_CYCLES",
+        "PublicDescription": "Increments at a constant frequency equal to the rate of increment of the System Counter, CNTPCT_EL0."
+    }
+]
