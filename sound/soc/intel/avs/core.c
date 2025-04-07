@@ -54,14 +54,17 @@ void avs_hda_power_gating_enable(struct avs_dev *adev, bool enable)
 {
 	u32 value = enable ? 0 : pgctl_mask;
 
-	avs_hda_update_config_dword(&adev->base.core, AZX_PCIREG_PGCTL, pgctl_mask, value);
+	if (!avs_platattr_test(adev, ACE))
+		avs_hda_update_config_dword(&adev->base.core, AZX_PCIREG_PGCTL, pgctl_mask, value);
 }
 
 static void avs_hdac_clock_gating_enable(struct hdac_bus *bus, bool enable)
 {
+	struct avs_dev *adev = hdac_to_avs(bus);
 	u32 value = enable ? cgctl_mask : 0;
 
-	avs_hda_update_config_dword(bus, AZX_PCIREG_CGCTL, cgctl_mask, value);
+	if (!avs_platattr_test(adev, ACE))
+		avs_hda_update_config_dword(bus, AZX_PCIREG_CGCTL, cgctl_mask, value);
 }
 
 void avs_hda_clock_gating_enable(struct avs_dev *adev, bool enable)
@@ -71,6 +74,8 @@ void avs_hda_clock_gating_enable(struct avs_dev *adev, bool enable)
 
 void avs_hda_l1sen_enable(struct avs_dev *adev, bool enable)
 {
+	if (avs_platattr_test(adev, ACE))
+		return;
 	if (enable) {
 		if (atomic_inc_and_test(&adev->l1sen_counter))
 			snd_hdac_chip_updatel(&adev->base.core, VS_EM2, AZX_VS_EM2_L1SEN,
@@ -99,6 +104,7 @@ static int avs_hdac_bus_init_streams(struct hdac_bus *bus)
 
 static bool avs_hdac_bus_init_chip(struct hdac_bus *bus, bool full_reset)
 {
+	struct avs_dev *adev = hdac_to_avs(bus);
 	struct hdac_ext_link *hlink;
 	bool ret;
 
@@ -114,7 +120,8 @@ static bool avs_hdac_bus_init_chip(struct hdac_bus *bus, bool full_reset)
 	/* Set DUM bit to address incorrect position reporting for capture
 	 * streams. In order to do so, CTRL needs to be out of reset state
 	 */
-	snd_hdac_chip_updatel(bus, VS_EM2, AZX_VS_EM2_DUM, AZX_VS_EM2_DUM);
+	if (!avs_platattr_test(adev, ACE))
+		snd_hdac_chip_updatel(bus, VS_EM2, AZX_VS_EM2_DUM, AZX_VS_EM2_DUM);
 
 	return ret;
 }
