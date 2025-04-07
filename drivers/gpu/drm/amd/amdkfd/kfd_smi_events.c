@@ -345,6 +345,27 @@ void kfd_smi_event_unmap_from_gpu(struct kfd_node *node, pid_t pid,
 			  pid, address, last - address + 1, node->id, trigger));
 }
 
+void kfd_smi_event_process(struct kfd_process_device *pdd, bool start)
+{
+	struct amdgpu_task_info *task_info;
+	struct amdgpu_vm *avm;
+
+	if (pdd->drm_priv)
+		return;
+
+	avm = drm_priv_to_vm(pdd->drm_priv);
+	task_info = amdgpu_vm_get_task_info_vm(avm);
+
+	if (task_info) {
+		kfd_smi_event_add(0, pdd->dev,
+				  start ? KFD_SMI_EVENT_PROCESS_START :
+				  KFD_SMI_EVENT_PROCESS_END,
+				  KFD_EVENT_FMT_PROCESS(task_info->pid,
+				  task_info->task_name));
+		amdgpu_vm_put_task_info(task_info);
+	}
+}
+
 int kfd_smi_event_open(struct kfd_node *dev, uint32_t *fd)
 {
 	struct kfd_smi_client *client;

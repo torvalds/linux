@@ -1054,6 +1054,8 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 	for (i = 0; i < p->n_pdds; i++) {
 		struct kfd_process_device *pdd = p->pdds[i];
 
+		kfd_smi_event_process(pdd, false);
+
 		pr_debug("Releasing pdd (topology id %d, for pid %d)\n",
 			pdd->dev->id, p->lead_thread->pid);
 		kfd_process_device_destroy_cwsr_dgpu(pdd);
@@ -1714,6 +1716,8 @@ int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 
 	pdd->pasid = avm->pasid;
 	pdd->drm_file = drm_file;
+
+	kfd_smi_event_process(pdd, true);
 
 	return 0;
 
