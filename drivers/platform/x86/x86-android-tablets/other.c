@@ -599,6 +599,66 @@ const struct x86_dev_info whitelabel_tm800a550l_info __initconst = {
 };
 
 /*
+ * Vexia EDU ATLA 10 tablet 5V, Android 4.4 + Guadalinex Ubuntu tablet
+ * distributed to schools in the Spanish Andalucía region.
+ */
+static const struct property_entry vexia_edu_atla10_5v_touchscreen_props[] = {
+	PROPERTY_ENTRY_U32("hid-descr-addr", 0x0000),
+	PROPERTY_ENTRY_U32("post-reset-deassert-delay-ms", 120),
+	{ }
+};
+
+static const struct software_node vexia_edu_atla10_5v_touchscreen_node = {
+	.properties = vexia_edu_atla10_5v_touchscreen_props,
+};
+
+static const struct x86_i2c_client_info vexia_edu_atla10_5v_i2c_clients[] __initconst = {
+	{
+		/* kxcjk1013 accelerometer */
+		.board_info = {
+			.type = "kxcjk1013",
+			.addr = 0x0f,
+			.dev_name = "kxcjk1013",
+		},
+		.adapter_path = "\\_SB_.I2C3",
+	}, {
+		/*  touchscreen controller */
+		.board_info = {
+			.type = "hid-over-i2c",
+			.addr = 0x38,
+			.dev_name = "FTSC1000",
+			.swnode = &vexia_edu_atla10_5v_touchscreen_node,
+		},
+		.adapter_path = "\\_SB_.I2C4",
+		.irq_data = {
+			.type = X86_ACPI_IRQ_TYPE_APIC,
+			.index = 0x44,
+			.trigger = ACPI_LEVEL_SENSITIVE,
+			.polarity = ACPI_ACTIVE_HIGH,
+		},
+	}
+};
+
+static struct gpiod_lookup_table vexia_edu_atla10_5v_ft5416_gpios = {
+	.dev_id = "i2c-FTSC1000",
+	.table = {
+		GPIO_LOOKUP("INT33FC:01", 26, "reset", GPIO_ACTIVE_LOW),
+		{ }
+	},
+};
+
+static struct gpiod_lookup_table * const vexia_edu_atla10_5v_gpios[] = {
+	&vexia_edu_atla10_5v_ft5416_gpios,
+	NULL
+};
+
+const struct x86_dev_info vexia_edu_atla10_5v_info __initconst = {
+	.i2c_client_info = vexia_edu_atla10_5v_i2c_clients,
+	.i2c_client_count = ARRAY_SIZE(vexia_edu_atla10_5v_i2c_clients),
+	.gpiod_lookup_tables = vexia_edu_atla10_5v_gpios,
+};
+
+/*
  * Vexia EDU ATLA 10 tablet 9V, Android 4.2 + Guadalinex Ubuntu tablet
  * distributed to schools in the Spanish Andalucía region.
  */
