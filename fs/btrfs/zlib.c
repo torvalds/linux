@@ -203,7 +203,6 @@ int zlib_compress_folios(struct list_head *ws, struct address_space *mapping,
 				workspace->strm.next_in = workspace->buf;
 				workspace->strm.avail_in = copy_length;
 			} else {
-				unsigned int pg_off;
 				unsigned int cur_len;
 
 				if (data_in) {
@@ -215,9 +214,9 @@ int zlib_compress_folios(struct list_head *ws, struct address_space *mapping,
 						start, &in_folio);
 				if (ret < 0)
 					goto out;
-				pg_off = offset_in_page(start);
-				cur_len = btrfs_calc_input_length(orig_end, start);
-				data_in = kmap_local_folio(in_folio, pg_off);
+				cur_len = btrfs_calc_input_length(in_folio, orig_end, start);
+				data_in = kmap_local_folio(in_folio,
+							   offset_in_folio(in_folio, start));
 				start += cur_len;
 				workspace->strm.next_in = data_in;
 				workspace->strm.avail_in = cur_len;

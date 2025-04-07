@@ -11,7 +11,9 @@
 #include <linux/list.h>
 #include <linux/workqueue.h>
 #include <linux/wait.h>
+#include <linux/pagemap.h>
 #include "bio.h"
+#include "messages.h"
 
 struct address_space;
 struct page;
@@ -73,11 +75,14 @@ struct compressed_bio {
 };
 
 /* @range_end must be exclusive. */
-static inline u32 btrfs_calc_input_length(u64 range_end, u64 cur)
+static inline u32 btrfs_calc_input_length(struct folio *folio, u64 range_end, u64 cur)
 {
-	u64 page_end = round_down(cur, PAGE_SIZE) + PAGE_SIZE;
+	const u64 folio_end = folio_pos(folio) + folio_size(folio);
 
-	return min(range_end, page_end) - cur;
+	/* @cur must be inside the folio. */
+	ASSERT(folio_pos(folio) <= cur);
+	ASSERT(cur < folio_end);
+	return min(range_end, folio_end) - cur;
 }
 
 int __init btrfs_init_compress(void);
