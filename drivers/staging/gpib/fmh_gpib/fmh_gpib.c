@@ -1426,10 +1426,8 @@ static int fmh_gpib_attach_impl(struct gpib_board *board, const struct gpib_boar
 		(unsigned long)resource_size(e_priv->dma_port_res));
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(board->dev, "request for IRQ failed\n");
+	if (irq < 0)
 		return -EBUSY;
-	}
 	retval = request_irq(irq, fmh_gpib_interrupt, IRQF_SHARED, pdev->name, board);
 	if (retval) {
 		dev_err(board->dev,
