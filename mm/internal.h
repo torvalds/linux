@@ -910,7 +910,7 @@ static inline void init_cma_pageblock(struct page *page)
 
 
 int find_suitable_fallback(struct free_area *area, unsigned int order,
-			int migratetype, bool claim_only, bool *claim_block);
+			   int migratetype, bool claimable);
 
 static inline bool free_area_empty(struct free_area *area, int migratetype)
 {
