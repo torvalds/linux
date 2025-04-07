@@ -101,5 +101,5 @@
 };
 
 &wifi {
-	qcom,ath10k-calibration-variant = "Lenovo_Miix630";
+	qcom,calibration-variant = "Lenovo_Miix630";
 };

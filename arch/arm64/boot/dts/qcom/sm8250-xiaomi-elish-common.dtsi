@@ -699,7 +699,7 @@
 		vddpcie0p9-supply = <&vreg_pmu_pcie_0p9>;
 		vddpcie1p8-supply = <&vreg_pmu_pcie_1p8>;
 
-		qcom,ath11k-calibration-variant = "Xiaomi_Pad_5Pro";
+		qcom,calibration-variant = "Xiaomi_Pad_5Pro";
 	};
 };
 

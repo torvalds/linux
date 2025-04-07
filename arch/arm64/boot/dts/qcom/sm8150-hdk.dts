@@ -719,5 +719,5 @@
 	vdd-1.3-rfa-supply = <&vreg_l2c_1p3>;
 	vdd-3.3-ch0-supply = <&vreg_l11c_3p3>;
 
-	qcom,ath10k-calibration-variant = "Qualcomm_sm8150hdk";
+	qcom,calibration-variant = "Qualcomm_sm8150hdk";
 };
