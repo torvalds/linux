@@ -928,12 +928,15 @@ out:
  * contiguous area for given bits.  We will search to the first bit we find, and
  * then walk down the tree until we find a non-contiguous area.  The area
  * returned will be the full contiguous area with the bits set.
+ *
+ * Returns true if we found a range with the given bits set, in which case
+ * @start_ret and @end_ret are updated, or false if no range was found.
  */
-int btrfs_find_contiguous_extent_bit(struct extent_io_tree *tree, u64 start,
-				     u64 *start_ret, u64 *end_ret, u32 bits)
+bool btrfs_find_contiguous_extent_bit(struct extent_io_tree *tree, u64 start,
+				      u64 *start_ret, u64 *end_ret, u32 bits)
 {
 	struct extent_state *state;
-	int ret = 1;
+	bool ret = false;
 
 	ASSERT(!btrfs_fs_incompat(btrfs_extent_io_tree_to_fs_info(tree), NO_HOLES));
 
@@ -947,7 +950,7 @@ int btrfs_find_contiguous_extent_bit(struct extent_io_tree *tree, u64 start,
 				break;
 			*end_ret = state->end;
 		}
-		ret = 0;
+		ret = true;
 	}
 	spin_unlock(&tree->lock);
 	return ret;
