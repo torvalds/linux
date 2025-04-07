@@ -292,61 +292,11 @@ out:
 	return ret;
 }
 
-static const struct reg_default lp8860_reg_defs[] = {
-	{ LP8860_DISP_CL1_BRT_MSB, 0x00},
-	{ LP8860_DISP_CL1_BRT_LSB, 0x00},
-	{ LP8860_DISP_CL1_CURR_MSB, 0x00},
-	{ LP8860_DISP_CL1_CURR_LSB, 0x00},
-	{ LP8860_CL2_BRT_MSB, 0x00},
-	{ LP8860_CL2_BRT_LSB, 0x00},
-	{ LP8860_CL2_CURRENT, 0x00},
-	{ LP8860_CL3_BRT_MSB, 0x00},
-	{ LP8860_CL3_BRT_LSB, 0x00},
-	{ LP8860_CL3_CURRENT, 0x00},
-	{ LP8860_CL4_BRT_MSB, 0x00},
-	{ LP8860_CL4_BRT_LSB, 0x00},
-	{ LP8860_CL4_CURRENT, 0x00},
-	{ LP8860_CONFIG, 0x00},
-	{ LP8860_FAULT_CLEAR, 0x00},
-	{ LP8860_EEPROM_CNTRL, 0x80},
-	{ LP8860_EEPROM_UNLOCK, 0x00},
-};
-
 static const struct regmap_config lp8860_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
 	.max_register = LP8860_EEPROM_UNLOCK,
-	.reg_defaults = lp8860_reg_defs,
-	.num_reg_defaults = ARRAY_SIZE(lp8860_reg_defs),
-};
-
-static const struct reg_default lp8860_eeprom_defs[] = {
-	{ LP8860_EEPROM_REG_0, 0x00 },
-	{ LP8860_EEPROM_REG_1, 0x00 },
-	{ LP8860_EEPROM_REG_2, 0x00 },
-	{ LP8860_EEPROM_REG_3, 0x00 },
-	{ LP8860_EEPROM_REG_4, 0x00 },
-	{ LP8860_EEPROM_REG_5, 0x00 },
-	{ LP8860_EEPROM_REG_6, 0x00 },
-	{ LP8860_EEPROM_REG_7, 0x00 },
-	{ LP8860_EEPROM_REG_8, 0x00 },
-	{ LP8860_EEPROM_REG_9, 0x00 },
-	{ LP8860_EEPROM_REG_10, 0x00 },
-	{ LP8860_EEPROM_REG_11, 0x00 },
-	{ LP8860_EEPROM_REG_12, 0x00 },
-	{ LP8860_EEPROM_REG_13, 0x00 },
-	{ LP8860_EEPROM_REG_14, 0x00 },
-	{ LP8860_EEPROM_REG_15, 0x00 },
-	{ LP8860_EEPROM_REG_16, 0x00 },
-	{ LP8860_EEPROM_REG_17, 0x00 },
-	{ LP8860_EEPROM_REG_18, 0x00 },
-	{ LP8860_EEPROM_REG_19, 0x00 },
-	{ LP8860_EEPROM_REG_20, 0x00 },
-	{ LP8860_EEPROM_REG_21, 0x00 },
-	{ LP8860_EEPROM_REG_22, 0x00 },
-	{ LP8860_EEPROM_REG_23, 0x00 },
-	{ LP8860_EEPROM_REG_24, 0x00 },
 };
 
 static const struct regmap_config lp8860_eeprom_regmap_config = {
@@ -354,8 +304,6 @@ static const struct regmap_config lp8860_eeprom_regmap_config = {
 	.val_bits = 8,
 
 	.max_register = LP8860_EEPROM_REG_24,
-	.reg_defaults = lp8860_eeprom_defs,
-	.num_reg_defaults = ARRAY_SIZE(lp8860_eeprom_defs),
 };
 
 static int lp8860_probe(struct i2c_client *client)
