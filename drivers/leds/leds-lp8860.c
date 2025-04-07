@@ -135,7 +135,7 @@ static int lp8860_unlock_eeprom(struct lp8860_led *led, int lock)
 {
 	int ret;
 
-	mutex_lock(&led->lock);
+	guard(mutex)(&led->lock);
 
 	if (lock == LP8860_UNLOCK_EEPROM) {
 		ret = regmap_write(led->regmap,
@@ -143,7 +143,7 @@ static int lp8860_unlock_eeprom(struct lp8860_led *led, int lock)
 			LP8860_EEPROM_CODE_1);
 		if (ret) {
 			dev_err(&led->client->dev, "EEPROM Unlock failed\n");
-			goto out;
+			return ret;
 		}
 
 		ret = regmap_write(led->regmap,
@@ -151,14 +151,14 @@ static int lp8860_unlock_eeprom(struct lp8860_led *led, int lock)
 			LP8860_EEPROM_CODE_2);
 		if (ret) {
 			dev_err(&led->client->dev, "EEPROM Unlock failed\n");
-			goto out;
+			return ret;
 		}
 		ret = regmap_write(led->regmap,
 			LP8860_EEPROM_UNLOCK,
 			LP8860_EEPROM_CODE_3);
 		if (ret) {
 			dev_err(&led->client->dev, "EEPROM Unlock failed\n");
-			goto out;
+			return ret;
 		}
 	} else {
 		ret = regmap_write(led->regmap,
@@ -166,8 +166,6 @@ static int lp8860_unlock_eeprom(struct lp8860_led *led, int lock)
 			LP8860_LOCK_EEPROM);
 	}
 
-out:
-	mutex_unlock(&led->lock);
 	return ret;
 }
 
@@ -204,30 +202,29 @@ static int lp8860_brightness_set(struct led_classdev *led_cdev,
 	int disp_brightness = brt_val * 255;
 	int ret;
 
-	mutex_lock(&led->lock);
+	guard(mutex)(&led->lock);
 
 	ret = lp8860_fault_check(led);
 	if (ret) {
 		dev_err(&led->client->dev, "Cannot read/clear faults\n");
-		goto out;
+		return ret;
 	}
 
 	ret = regmap_write(led->regmap, LP8860_DISP_CL1_BRT_MSB,
 			(disp_brightness & 0xff00) >> 8);
 	if (ret) {
 		dev_err(&led->client->dev, "Cannot write CL1 MSB\n");
-		goto out;
+		return ret;
 	}
 
 	ret = regmap_write(led->regmap, LP8860_DISP_CL1_BRT_LSB,
 			disp_brightness & 0xff);
 	if (ret) {
 		dev_err(&led->client->dev, "Cannot write CL1 LSB\n");
-		goto out;
+		return ret;
 	}
-out:
-	mutex_unlock(&led->lock);
-	return ret;
+
+	return 0;
 }
 
 static int lp8860_init(struct lp8860_led *led)
@@ -392,7 +389,7 @@ static int lp8860_probe(struct i2c_client *client)
 	led->client = client;
 	led->led_dev.brightness_set_blocking = lp8860_brightness_set;
 
-	mutex_init(&led->lock);
+	devm_mutex_init(&client->dev, &led->lock);
 
 	i2c_set_clientdata(client, led);
 
@@ -443,8 +440,6 @@ static void lp8860_remove(struct i2c_client *client)
 			dev_err(&led->client->dev,
 				"Failed to disable regulator\n");
 	}
-
-	mutex_destroy(&led->lock);
 }
 
 static const struct i2c_device_id lp8860_id[] = {
