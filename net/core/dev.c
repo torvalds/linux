@@ -4953,7 +4953,8 @@ static void rps_trigger_softirq(void *data)
 	struct softnet_data *sd = data;
 
 	____napi_schedule(sd, &sd->backlog);
-	sd->received_rps++;
+	/* Pairs with READ_ONCE() in softnet_seq_show() */
+	WRITE_ONCE(sd->received_rps, sd->received_rps + 1);
 }
 
 #endif /* CONFIG_RPS */
@@ -7523,7 +7524,8 @@ start:
 		 */
 		if (unlikely(budget <= 0 ||
 			     time_after_eq(jiffies, time_limit))) {
-			sd->time_squeeze++;
+			/* Pairs with READ_ONCE() in softnet_seq_show() */
+			WRITE_ONCE(sd->time_squeeze, sd->time_squeeze + 1);
 			break;
 		}
 	}
