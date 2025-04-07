@@ -208,5 +208,6 @@ int iio_gts_all_avail_scales(struct iio_gts *gts, const int **vals, int *type,
 			     int *length);
 int iio_gts_avail_scales_for_time(struct iio_gts *gts, int time,
 				  const int **vals, int *type, int *length);
+int iio_gts_get_total_gain(struct iio_gts *gts, int gain, int time);
 
 #endif

@@ -369,7 +369,7 @@ unsafe impl<T: ?Sized, const ID: u64> Sync for Work<T, ID> {}
 impl<T: ?Sized, const ID: u64> Work<T, ID> {
     /// Creates a new instance of [`Work`].
     #[inline]
-    pub fn new(name: &'static CStr, key: &'static LockClassKey) -> impl PinInit<Self>
+    pub fn new(name: &'static CStr, key: Pin<&'static LockClassKey>) -> impl PinInit<Self>
     where
         T: WorkItem<ID>,
     {
@@ -702,4 +702,22 @@ pub fn system_power_efficient() -> &'static Queue {
 pub fn system_freezable_power_efficient() -> &'static Queue {
     // SAFETY: `system_freezable_power_efficient_wq` is a C global, always available.
     unsafe { Queue::from_raw(bindings::system_freezable_power_efficient_wq) }
+}
+
+/// Returns the system bottom halves work queue (`system_bh_wq`).
+///
+/// It is similar to the one returned by [`system`] but for work items which
+/// need to run from a softirq context.
+pub fn system_bh() -> &'static Queue {
+    // SAFETY: `system_bh_wq` is a C global, always available.
+    unsafe { Queue::from_raw(bindings::system_bh_wq) }
+}
+
+/// Returns the system bottom halves high-priority work queue (`system_bh_highpri_wq`).
+///
+/// It is similar to the one returned by [`system_bh`] but for work items which
+/// require higher scheduling priority.
+pub fn system_bh_highpri() -> &'static Queue {
+    // SAFETY: `system_bh_highpri_wq` is a C global, always available.
+    unsafe { Queue::from_raw(bindings::system_bh_highpri_wq) }
 }

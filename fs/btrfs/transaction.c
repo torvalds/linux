@@ -160,7 +160,13 @@ void btrfs_put_transaction(struct btrfs_transaction *transaction)
 			cache = list_first_entry(&transaction->deleted_bgs,
 						 struct btrfs_block_group,
 						 bg_list);
+			/*
+			 * Not strictly necessary to lock, as no other task will be using a
+			 * block_group on the deleted_bgs list during a transaction abort.
+			 */
+			spin_lock(&transaction->fs_info->unused_bgs_lock);
 			list_del_init(&cache->bg_list);
+			spin_unlock(&transaction->fs_info->unused_bgs_lock);
 			btrfs_unfreeze_block_group(cache);
 			btrfs_put_block_group(cache);
 		}
@@ -1635,7 +1641,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	struct btrfs_root *root = pending->root;
 	struct btrfs_root *parent_root;
 	struct btrfs_block_rsv *rsv;
-	struct inode *parent_inode = &pending->dir->vfs_inode;
+	struct btrfs_inode *parent_inode = pending->dir;
 	struct btrfs_path *path;
 	struct btrfs_dir_item *dir_item;
 	struct extent_buffer *tmp;
@@ -1661,7 +1667,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	 * filesystem.
 	 */
 	nofs_flags = memalloc_nofs_save();
-	pending->error = fscrypt_setup_filename(parent_inode,
+	pending->error = fscrypt_setup_filename(&parent_inode->vfs_inode,
 						&pending->dentry->d_name, 0,
 						&fname);
 	memalloc_nofs_restore(nofs_flags);
@@ -1690,8 +1696,8 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	}
 
 	key.objectid = objectid;
-	key.offset = (u64)-1;
 	key.type = BTRFS_ROOT_ITEM_KEY;
+	key.offset = (u64)-1;
 
 	rsv = trans->block_rsv;
 	trans->block_rsv = &pending->block_rsv;
@@ -1699,16 +1705,16 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	trace_btrfs_space_reservation(fs_info, "transaction",
 				      trans->transid,
 				      trans->bytes_reserved, 1);
-	parent_root = BTRFS_I(parent_inode)->root;
+	parent_root = parent_inode->root;
 	ret = record_root_in_trans(trans, parent_root, 0);
 	if (ret)
 		goto fail;
-	cur_time = current_time(parent_inode);
+	cur_time = current_time(&parent_inode->vfs_inode);
 
 	/*
 	 * insert the directory item
 	 */
-	ret = btrfs_set_inode_index(BTRFS_I(parent_inode), &index);
+	ret = btrfs_set_inode_index(parent_inode, &index);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
@@ -1716,7 +1722,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 
 	/* check if there is a file/dir which has the same name. */
 	dir_item = btrfs_lookup_dir_item(NULL, parent_root, path,
-					 btrfs_ino(BTRFS_I(parent_inode)),
+					 btrfs_ino(parent_inode),
 					 &fname.disk_name, 0);
 	if (dir_item != NULL && !IS_ERR(dir_item)) {
 		pending->error = -EEXIST;
@@ -1817,7 +1823,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	 */
 	ret = btrfs_add_root_ref(trans, objectid,
 				 btrfs_root_id(parent_root),
-				 btrfs_ino(BTRFS_I(parent_inode)), index,
+				 btrfs_ino(parent_inode), index,
 				 &fname.disk_name);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
@@ -1855,18 +1861,18 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		goto fail;
 
 	ret = btrfs_insert_dir_item(trans, &fname.disk_name,
-				    BTRFS_I(parent_inode), &key, BTRFS_FT_DIR,
+				    parent_inode, &key, BTRFS_FT_DIR,
 				    index);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
 	}
 
-	btrfs_i_size_write(BTRFS_I(parent_inode), parent_inode->i_size +
+	btrfs_i_size_write(parent_inode, parent_inode->vfs_inode.i_size +
 						  fname.disk_name.len * 2);
-	inode_set_mtime_to_ts(parent_inode,
-			      inode_set_ctime_current(parent_inode));
-	ret = btrfs_update_inode_fallback(trans, BTRFS_I(parent_inode));
+	inode_set_mtime_to_ts(&parent_inode->vfs_inode,
+			      inode_set_ctime_current(&parent_inode->vfs_inode));
+	ret = btrfs_update_inode_fallback(trans, parent_inode);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
@@ -2096,7 +2102,14 @@ static void btrfs_cleanup_pending_block_groups(struct btrfs_trans_handle *trans)
 
        list_for_each_entry_safe(block_group, tmp, &trans->new_bgs, bg_list) {
                btrfs_dec_delayed_refs_rsv_bg_inserts(fs_info);
+		/*
+		* Not strictly necessary to lock, as no other task will be using a
+		* block_group on the new_bgs list during a transaction abort.
+		*/
+	       spin_lock(&fs_info->unused_bgs_lock);
                list_del_init(&block_group->bg_list);
+	       btrfs_put_block_group(block_group);
+	       spin_unlock(&fs_info->unused_bgs_lock);
        }
 }
 

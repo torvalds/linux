@@ -1789,7 +1789,7 @@ static int tegra_sor_connector_get_modes(struct drm_connector *connector)
 
 static enum drm_mode_status
 tegra_sor_connector_mode_valid(struct drm_connector *connector,
-			       struct drm_display_mode *mode)
+			       const struct drm_display_mode *mode)
 {
 	return MODE_OK;
 }

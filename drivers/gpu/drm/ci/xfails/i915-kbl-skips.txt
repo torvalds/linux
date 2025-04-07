@@ -37,3 +37,115 @@ tools_test.*
 # GPU hang
 sysfs_timeslice_.*
 sysfs_heartbeat_.*
+
+device_reset@unbind-reset-rebind
+# [IGT] device_reset: starting subtest unbind-reset-rebind
+# i915 0000:00:02.0: [drm] Found kabylake (device ID 5917) display version 9.00 stepping C0
+# i915 0000:00:02.0: vgaarb: deactivate vga console
+# i915 0000:00:02.0: [drm] *ERROR* DPLL0 not locked
+# ------------[ cut here ]------------
+# i915 0000:00:02.0: [drm] drm_WARN_ON((val & (1 << 30)) == 0)
+# WARNING: CPU: 4 PID: 472 at drivers/gpu/drm/i915/display/intel_cdclk.c:944 skl_get_cdclk+0x1ca/0x360
+# Modules linked in:
+# CPU: 4 UID: 0 PID: 472 Comm: device_reset Not tainted 6.13.0-rc2-ge95c88d68ac3 #1
+# Hardware name: HP Nami/Nami, BIOS  09/19/2019
+# RIP: 0010:skl_get_cdclk+0x1ca/0x360
+# Code: 67 50 4d 85 e4 0f 84 89 01 00 00 e8 e0 16 13 00 48 c7 c1 a0 71 5f 9a 4c 89 e2 48 c7 c7 67 56 69 9a 48 89 c6 e8 67 a1 72 ff 90 <0f> 0b 90 90 8b 43 08 8b 53 04 89 43 0c 89 03 85 d2 0f 85 26 ff ff
+# RSP: 0018:ffffacba40f5fbd0 EFLAGS: 00010282
+# RAX: 0000000000000000 RBX: ffff953182571058 RCX: 00000000ffffdfff
+# RDX: 0000000000000000 RSI: ffffacba40f5fa80 RDI: 0000000000000001
+# RBP: ffff953182570d68 R08: 0000000000009ffb R09: 00000000ffffdfff
+# R10: 00000000ffffdfff R11: ffffffff9a88c8a0 R12: ffff953180d3f4a0
+# R13: 0000000000000000 R14: ffff953182570d68 R15: 0000000000000000
+# FS:  00007f74989c46c0(0000) GS:ffff9534eed00000(0000) knlGS:0000000000000000
+# CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+# CR2: 00007f1df530eff8 CR3: 0000000102302002 CR4: 00000000003706f0
+# DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+# DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+# Call Trace:
+#  <TASK>
+#  intel_update_cdclk+0x1c/0x90
+#  intel_cdclk_init_hw+0x46e/0x4c0
+#  intel_power_domains_init_hw+0x3eb/0x770
+#  intel_display_driver_probe_noirq+0x85/0x230
+#  i915_driver_probe+0x66d/0xc60
+#  local_pci_probe+0x3a/0x90
+#  pci_device_probe+0xb5/0x180
+#  really_probe+0xc9/0x2b0
+#  __driver_probe_device+0x6e/0x110
+#  device_driver_attach+0x42/0xa0
+#  bind_store+0x71/0xc0
+#  kernfs_fop_write_iter+0x121/0x1c0
+#  vfs_write+0x2a8/0x530
+#  ksys_write+0x6f/0xf0
+#  do_syscall_64+0xbb/0x1d0
+#  entry_SYSCALL_64_after_hwframe+0x77/0x7f
+# RIP: 0033:0x7f7499e662c0
+# Code: 40 00 48 8b 15 41 9b 0d 00 f7 d8 64 89 02 48 c7 c0 ff ff ff ff eb b7 0f 1f 00 80 3d 21 23 0e 00 00 74 17 b8 01 00 00 00 0f 05 <48> 3d 00 f0 ff ff 77 58 c3 0f 1f 80 00 00 00 00 48 83 ec 28 48 89
+# RSP: 002b:00007ffffaf36a68 EFLAGS: 00000202 ORIG_RAX: 0000000000000001
+# RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 00007f7499e662c0
+# RDX: 000000000000000c RSI: 00007ffffaf36b50 RDI: 0000000000000003
+# RBP: 000000000000000c R08: 0000000000000007 R09: 000055b37d0964a0
+# R10: 0000000000000000 R11: 0000000000000202 R12: 00007ffffaf36b50
+# R13: 0000000000000003 R14: 000055b3526a7220 R15: 00007f749a0dc020
+#  </TASK>
+# irq event stamp: 28591
+# hardirqs last  enabled at (28625): [<ffffffff98da3e4d>] __up_console_sem+0x4d/0x60
+# hardirqs last disabled at (28658): [<ffffffff98da3e32>] __up_console_sem+0x32/0x60
+# softirqs last  enabled at (28688): [<ffffffff98d17980>] handle_softirqs+0x310/0x3f0
+# softirqs last disabled at (28701): [<ffffffff98d17bc1>] __irq_exit_rcu+0xa1/0xc0
+# ---[ end trace 0000000000000000 ]---
+# ------------[ cut here ]------------
+# i915 0000:00:02.0: [drm] drm_WARN_ON((val & (1 << 30)) == 0)
+# WARNING: CPU: 1 PID: 472 at drivers/gpu/drm/i915/display/intel_cdclk.c:944 skl_get_cdclk+0x1ca/0x360
+# Modules linked in:
+# CPU: 1 UID: 0 PID: 472 Comm: device_reset Tainted: G        W          6.13.0-rc2-ge95c88d68ac3 #1
+# Tainted: [W]=WARN
+# Hardware name: HP Nami/Nami, BIOS  09/19/2019
+# RIP: 0010:skl_get_cdclk+0x1ca/0x360
+# Code: 67 50 4d 85 e4 0f 84 89 01 00 00 e8 e0 16 13 00 48 c7 c1 a0 71 5f 9a 4c 89 e2 48 c7 c7 67 56 69 9a 48 89 c6 e8 67 a1 72 ff 90 <0f> 0b 90 90 8b 43 08 8b 53 04 89 43 0c 89 03 85 d2 0f 85 26 ff ff
+# RSP: 0018:ffffacba40f5fb98 EFLAGS: 00010286
+# RAX: 0000000000000000 RBX: ffffacba40f5fbbc RCX: 00000000ffffdfff
+# RDX: 0000000000000000 RSI: ffffacba40f5fa48 RDI: 0000000000000001
+# RBP: ffff953182570d68 R08: 0000000000009ffb R09: 00000000ffffdfff
+# R10: 00000000ffffdfff R11: ffffffff9a88c8a0 R12: ffff953180d3f4a0
+# R13: ffff953182573208 R14: ffff953182570d68 R15: 0000000000000000
+# FS:  00007f74989c46c0(0000) GS:ffff9534eec40000(0000) knlGS:0000000000000000
+# CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+# CR2: 00007f2b6598ee00 CR3: 0000000102302001 CR4: 00000000003706f0
+# DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+# DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+# Call Trace:
+#  <TASK>
+#  gen9_disable_dc_states+0x86/0x300
+#  intel_power_well_enable+0x56/0x70
+#  __intel_display_power_get_domain.part.0+0x4d/0x70
+#  intel_power_domains_init_hw+0x95/0x770
+#  intel_display_driver_probe_noirq+0x85/0x230
+#  i915_driver_probe+0x66d/0xc60
+#  local_pci_probe+0x3a/0x90
+#  pci_device_probe+0xb5/0x180
+#  really_probe+0xc9/0x2b0
+#  __driver_probe_device+0x6e/0x110
+#  device_driver_attach+0x42/0xa0
+#  bind_store+0x71/0xc0
+#  kernfs_fop_write_iter+0x121/0x1c0
+#  vfs_write+0x2a8/0x530
+#  ksys_write+0x6f/0xf0
+#  do_syscall_64+0xbb/0x1d0
+#  entry_SYSCALL_64_after_hwframe+0x77/0x7f
+# RIP: 0033:0x7f7499e662c0
+# Code: 40 00 48 8b 15 41 9b 0d 00 f7 d8 64 89 02 48 c7 c0 ff ff ff ff eb b7 0f 1f 00 80 3d 21 23 0e 00 00 74 17 b8 01 00 00 00 0f 05 <48> 3d 00 f0 ff ff 77 58 c3 0f 1f 80 00 00 00 00 48 83 ec 28 48 89
+# RSP: 002b:00007ffffaf36a68 EFLAGS: 00000202 ORIG_RAX: 0000000000000001
+# RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 00007f7499e662c0
+# RDX: 000000000000000c RSI: 00007ffffaf36b50 RDI: 0000000000000003
+# RBP: 000000000000000c R08: 0000000000000007 R09: 000055b37d0964a0
+# R10: 0000000000000000 R11: 0000000000000202 R12: 00007ffffaf36b50
+# R13: 0000000000000003 R14: 000055b3526a7220 R15: 00007f749a0dc020
+#  </TASK>
+# irq event stamp: 29605
+# hardirqs last  enabled at (29617): [<ffffffff98da3e4d>] __up_console_sem+0x4d/0x60
+# hardirqs last disabled at (29634): [<ffffffff98da3e32>] __up_console_sem+0x32/0x60
+# softirqs last  enabled at (29630): [<ffffffff98d17980>] handle_softirqs+0x310/0x3f0
+# softirqs last disabled at (29625): [<ffffffff98d17bc1>] __irq_exit_rcu+0xa1/0xc0
+# ---[ end trace 0000000000000000 ]---

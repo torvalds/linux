@@ -479,19 +479,25 @@ static int process_sample_event(struct machine *machine,
 	struct thread *thread;
 	int ret;
 
-	if (evlist__parse_sample(evlist, event, &sample)) {
+	perf_sample__init(&sample, /*all=*/false);
+	ret = evlist__parse_sample(evlist, event, &sample);
+	if (ret) {
 		pr_debug("evlist__parse_sample failed\n");
-		return -1;
+		ret = -1;
+		goto out;
 	}
 
 	thread = machine__findnew_thread(machine, sample.pid, sample.tid);
 	if (!thread) {
 		pr_debug("machine__findnew_thread failed\n");
-		return -1;
+		ret = -1;
+		goto out;
 	}
 
 	ret = read_object_code(sample.ip, READLEN, sample.cpumode, thread, state);
 	thread__put(thread);
+out:
+	perf_sample__exit(&sample);
 	return ret;
 }
 

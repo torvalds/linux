@@ -19,14 +19,19 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
+#include <linux/iio/buffer-dmaengine.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/minmax.h>
+#include <linux/mutex.h>
 #include <linux/property.h>
+#include <linux/pwm.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/spi/offload/consumer.h>
+#include <linux/spi/offload/provider.h>
 #include <linux/spi/spi.h>
 #include <linux/units.h>
 
@@ -66,12 +71,15 @@
 #define AD4695_REG_STD_SEQ_CONFIG			0x0024
 #define AD4695_REG_GPIO_CTRL				0x0026
 #define AD4695_REG_GP_MODE				0x0027
+#define   AD4695_REG_GP_MODE_BUSY_GP_SEL		  BIT(5)
+#define   AD4695_REG_GP_MODE_BUSY_GP_EN			  BIT(1)
 #define AD4695_REG_TEMP_CTRL				0x0029
 #define   AD4695_REG_TEMP_CTRL_TEMP_EN			  BIT(0)
 #define AD4695_REG_CONFIG_IN(n)				(0x0030 | (n))
 #define   AD4695_REG_CONFIG_IN_MODE			  BIT(6)
 #define   AD4695_REG_CONFIG_IN_PAIR			  GENMASK(5, 4)
 #define   AD4695_REG_CONFIG_IN_AINHIGHZ_EN		  BIT(3)
+#define   AD4695_REG_CONFIG_IN_OSR_SET			  GENMASK(1, 0)
 #define AD4695_REG_UPPER_IN(n)				(0x0040 | (2 * (n)))
 #define AD4695_REG_LOWER_IN(n)				(0x0060 | (2 * (n)))
 #define AD4695_REG_HYST_IN(n)				(0x0080 | (2 * (n)))
@@ -92,6 +100,8 @@
 #define AD4695_T_REFBUF_MS		100
 #define AD4695_T_REGCONFIG_NS		20
 #define AD4695_T_SCK_CNV_DELAY_NS	80
+#define AD4695_T_CNVL_NS		80
+#define AD4695_T_CNVH_NS		10
 #define AD4695_REG_ACCESS_SCLK_HZ	(10 * MEGA)
 
 /* Max number of voltage input channels. */
@@ -118,17 +128,27 @@ struct ad4695_channel_config {
 	bool bipolar;
 	enum ad4695_in_pair pin_pairing;
 	unsigned int common_mode_mv;
+	unsigned int oversampling_ratio;
 };
 
 struct ad4695_state {
 	struct spi_device *spi;
+	struct spi_offload *offload;
+	struct spi_offload_trigger *offload_trigger;
 	struct regmap *regmap;
 	struct regmap *regmap16;
 	struct gpio_desc *reset_gpio;
+	/* currently PWM CNV only supported with SPI offload use */
+	struct pwm_device *cnv_pwm;
+	/* protects against concurrent use of cnv_pwm */
+	struct mutex cnv_pwm_lock;
+	/* offload also requires separate gpio to manually control CNV */
+	struct gpio_desc *cnv_gpio;
 	/* voltages channels plus temperature and timestamp */
 	struct iio_chan_spec iio_chan[AD4695_MAX_CHANNELS + 2];
 	struct ad4695_channel_config channels_cfg[AD4695_MAX_CHANNELS];
 	const struct ad4695_chip_info *chip_info;
+	int sample_freq_range[3];
 	/* Reference voltage. */
 	unsigned int vref_mv;
 	/* Common mode input pin voltage. */
@@ -148,6 +168,8 @@ struct ad4695_state {
 	/* Commands to send for single conversion. */
 	u16 cnv_cmd;
 	u8 cnv_cmd2;
+	/* Buffer for storing data from regmap bus reads/writes */
+	u8 regmap_bus_data[4];
 };
 
 static const struct regmap_range ad4695_regmap_rd_ranges[] = {
@@ -192,7 +214,6 @@ static const struct regmap_config ad4695_regmap_config = {
 	.max_register = AD4695_REG_AS_SLOT(127),
 	.rd_table = &ad4695_regmap_rd_table,
 	.wr_table = &ad4695_regmap_wr_table,
-	.can_multi_write = true,
 };
 
 static const struct regmap_range ad4695_regmap16_rd_ranges[] = {
@@ -224,7 +245,126 @@ static const struct regmap_config ad4695_regmap16_config = {
 	.max_register = AD4695_REG_GAIN_IN(15),
 	.rd_table = &ad4695_regmap16_rd_table,
 	.wr_table = &ad4695_regmap16_wr_table,
-	.can_multi_write = true,
+};
+
+static int ad4695_regmap_bus_reg_write(void *context, const void *data,
+				       size_t count)
+{
+	struct ad4695_state *st = context;
+	struct spi_transfer xfer = {
+			.speed_hz = AD4695_REG_ACCESS_SCLK_HZ,
+			.len = count,
+			.tx_buf = st->regmap_bus_data,
+	};
+
+	if (count > ARRAY_SIZE(st->regmap_bus_data))
+		return -EINVAL;
+
+	memcpy(st->regmap_bus_data, data, count);
+
+	return spi_sync_transfer(st->spi, &xfer, 1);
+}
+
+static int ad4695_regmap_bus_reg_read(void *context, const void *reg,
+				      size_t reg_size, void *val,
+				      size_t val_size)
+{
+	struct ad4695_state *st = context;
+	struct spi_transfer xfers[] = {
+		{
+			.speed_hz = AD4695_REG_ACCESS_SCLK_HZ,
+			.len = reg_size,
+			.tx_buf = &st->regmap_bus_data[0],
+		}, {
+			.speed_hz = AD4695_REG_ACCESS_SCLK_HZ,
+			.len = val_size,
+			.rx_buf = &st->regmap_bus_data[2],
+		},
+	};
+	int ret;
+
+	if (reg_size > 2)
+		return -EINVAL;
+
+	if (val_size > 2)
+		return -EINVAL;
+
+	memcpy(&st->regmap_bus_data[0], reg, reg_size);
+
+	ret = spi_sync_transfer(st->spi, xfers, ARRAY_SIZE(xfers));
+	if (ret)
+		return ret;
+
+	memcpy(val, &st->regmap_bus_data[2], val_size);
+
+	return 0;
+}
+
+static const struct regmap_bus ad4695_regmap_bus = {
+	.write = ad4695_regmap_bus_reg_write,
+	.read = ad4695_regmap_bus_reg_read,
+	.read_flag_mask = 0x80,
+	.reg_format_endian_default = REGMAP_ENDIAN_BIG,
+	.val_format_endian_default = REGMAP_ENDIAN_BIG,
+};
+
+enum {
+	AD4695_SCAN_TYPE_OSR_1,
+	AD4695_SCAN_TYPE_OSR_4,
+	AD4695_SCAN_TYPE_OSR_16,
+	AD4695_SCAN_TYPE_OSR_64,
+};
+
+static const struct iio_scan_type ad4695_scan_type_offload_u[] = {
+	[AD4695_SCAN_TYPE_OSR_1] = {
+		.sign = 'u',
+		.realbits = 16,
+		.shift = 3,
+		.storagebits = 32,
+	},
+	[AD4695_SCAN_TYPE_OSR_4] = {
+		.sign = 'u',
+		.realbits = 17,
+		.shift = 2,
+		.storagebits = 32,
+	},
+	[AD4695_SCAN_TYPE_OSR_16] = {
+		.sign = 'u',
+		.realbits = 18,
+		.shift = 1,
+		.storagebits = 32,
+	},
+	[AD4695_SCAN_TYPE_OSR_64] = {
+		.sign = 'u',
+		.realbits = 19,
+		.storagebits = 32,
+	},
+};
+
+static const struct iio_scan_type ad4695_scan_type_offload_s[] = {
+	[AD4695_SCAN_TYPE_OSR_1] = {
+		.sign = 's',
+		.realbits = 16,
+		.shift = 3,
+		.storagebits = 32,
+	},
+	[AD4695_SCAN_TYPE_OSR_4] = {
+		.sign = 's',
+		.realbits = 17,
+		.shift = 2,
+		.storagebits = 32,
+	},
+	[AD4695_SCAN_TYPE_OSR_16] = {
+		.sign = 's',
+		.realbits = 18,
+		.shift = 1,
+		.storagebits = 32,
+	},
+	[AD4695_SCAN_TYPE_OSR_64] = {
+		.sign = 's',
+		.realbits = 19,
+		.storagebits = 32,
+	},
 };
 
 static const struct iio_chan_spec ad4695_channel_template = {
@@ -264,6 +404,10 @@ static const char * const ad4695_power_supplies[] = {
 	"avdd", "vio"
 };
 
+static const int ad4695_oversampling_ratios[] = {
+	1, 4, 16, 64,
+};
+
 static const struct ad4695_chip_info ad4695_chip_info = {
 	.name = "ad4695",
 	.max_sample_rate = 500 * KILO,
@@ -291,6 +435,13 @@ static const struct ad4695_chip_info ad4698_chip_info = {
 	.t_acq_ns = 715,
 	.num_voltage_inputs = 8,
 };
+
+static void ad4695_cnv_manual_trigger(struct ad4695_state *st)
+{
+	gpiod_set_value_cansleep(st->cnv_gpio, 1);
+	ndelay(10);
+	gpiod_set_value_cansleep(st->cnv_gpio, 0);
+}
 
 /**
  * ad4695_set_single_cycle_mode - Set the device in single cycle mode
@@ -364,11 +515,31 @@ static int ad4695_enter_advanced_sequencer_mode(struct ad4695_state *st, u32 n)
  */
 static int ad4695_exit_conversion_mode(struct ad4695_state *st)
 {
-	struct spi_transfer xfer = {
-		.tx_buf = &st->cnv_cmd2,
-		.len = 1,
-		.delay.value = AD4695_T_REGCONFIG_NS,
-		.delay.unit = SPI_DELAY_UNIT_NSECS,
+	/*
+	 * An extra transfer is needed to trigger a conversion here so
+	 * that we can be 100% sure the command will be processed by the
+	 * ADC, rather than relying on it to be in the correct state
+	 * when this function is called (this chip has a quirk where the
+	 * command only works when reading a conversion, and if the
+	 * previous conversion was already read then it won't work). The
+	 * actual conversion command is then run at the slower
+	 * AD4695_REG_ACCESS_SCLK_HZ speed to guarantee this works.
+	 */
+	struct spi_transfer xfers[] = {
+		{
+			.delay.value = AD4695_T_CNVL_NS,
+			.delay.unit = SPI_DELAY_UNIT_NSECS,
+			.cs_change = 1,
+			.cs_change_delay.value = AD4695_T_CNVH_NS,
+			.cs_change_delay.unit = SPI_DELAY_UNIT_NSECS,
+		},
+		{
+			.speed_hz = AD4695_REG_ACCESS_SCLK_HZ,
+			.tx_buf = &st->cnv_cmd2,
+			.len = 1,
+			.delay.value = AD4695_T_REGCONFIG_NS,
+			.delay.unit = SPI_DELAY_UNIT_NSECS,
+		},
 	};
 
 	/*
@@ -377,7 +548,18 @@ static int ad4695_exit_conversion_mode(struct ad4695_state *st)
 	 */
 	st->cnv_cmd2 = AD4695_CMD_EXIT_CNV_MODE << 3;
 
-	return spi_sync_transfer(st->spi, &xfer, 1);
+	if (st->cnv_gpio) {
+		ad4695_cnv_manual_trigger(st);
+
+		/*
+		 * In this case, CNV is not connected to CS, so we don't need
+		 * the extra CS toggle to trigger the conversion and toggling
+		 * CS would have no effect.
+		 */
+		return spi_sync_transfer(st->spi, &xfers[1], 1);
+	}
+
+	return spi_sync_transfer(st->spi, xfers, ARRAY_SIZE(xfers));
 }
 
 static int ad4695_set_ref_voltage(struct ad4695_state *st, int vref_mv)
@@ -400,6 +582,29 @@ static int ad4695_set_ref_voltage(struct ad4695_state *st, int vref_mv)
 	return regmap_update_bits(st->regmap, AD4695_REG_REF_CTRL,
 				  AD4695_REG_REF_CTRL_VREF_SET,
 				  FIELD_PREP(AD4695_REG_REF_CTRL_VREF_SET, val));
+}
+
+/**
+ * ad4695_osr_to_regval - convert ratio to OSR register value
+ * @ratio: ratio to check
+ *
+ * Check if ratio is present in the list of available ratios and return
+ * the corresponding value that needs to be written to the register to
+ * select that ratio.
+ *
+ * Returns: register value (0 to 3) or -EINVAL if there is not an exact
+ * match
+ */
+static int ad4695_osr_to_regval(int ratio)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ad4695_oversampling_ratios); i++) {
+		if (ratio == ad4695_oversampling_ratios[i])
+			return i;
+	}
+
+	return -EINVAL;
 }
 
 static int ad4695_write_chn_cfg(struct ad4695_state *st,
@@ -604,6 +809,161 @@ out:
 	return IRQ_HANDLED;
 }
 
+static int ad4695_offload_buffer_postenable(struct iio_dev *indio_dev)
+{
+	struct ad4695_state *st = iio_priv(indio_dev);
+	struct spi_offload_trigger_config config = {
+		.type = SPI_OFFLOAD_TRIGGER_DATA_READY,
+	};
+	struct spi_transfer *xfer = &st->buf_read_xfer[0];
+	struct pwm_state state;
+	u8 temp_chan_bit = st->chip_info->num_voltage_inputs;
+	u8 num_slots = 0;
+	u8 temp_en = 0;
+	unsigned int bit;
+	int ret;
+
+	iio_for_each_active_channel(indio_dev, bit) {
+		if (bit == temp_chan_bit) {
+			temp_en = 1;
+			continue;
+		}
+
+		ret = regmap_write(st->regmap, AD4695_REG_AS_SLOT(num_slots),
+				   FIELD_PREP(AD4695_REG_AS_SLOT_INX, bit));
+		if (ret)
+			return ret;
+
+		num_slots++;
+	}
+
+	/*
+	 * For non-offload, we could discard data to work around this
+	 * restriction, but with offload, that is not possible.
+	 */
+	if (num_slots < 2) {
+		dev_err(&st->spi->dev,
+			"At least two voltage channels must be enabled.\n");
+		return -EINVAL;
+	}
+
+	ret = regmap_update_bits(st->regmap, AD4695_REG_TEMP_CTRL,
+				 AD4695_REG_TEMP_CTRL_TEMP_EN,
+				 FIELD_PREP(AD4695_REG_TEMP_CTRL_TEMP_EN,
+					    temp_en));
+	if (ret)
+		return ret;
+
+	/* Each BUSY event means just one sample for one channel is ready. */
+	memset(xfer, 0, sizeof(*xfer));
+	xfer->offload_flags = SPI_OFFLOAD_XFER_RX_STREAM;
+	/* Using 19 bits per word to allow for possible oversampling */
+	xfer->bits_per_word = 19;
+	xfer->len = 4;
+
+	spi_message_init_with_transfers(&st->buf_read_msg, xfer, 1);
+	st->buf_read_msg.offload = st->offload;
+
+	ret = spi_optimize_message(st->spi, &st->buf_read_msg);
+	if (ret)
+		return ret;
+
+	/*
+	 * NB: technically, this is part the SPI offload trigger enable, but it
+	 * doesn't work to call it from the offload trigger enable callback
+	 * because it requires accessing the SPI bus. Calling it from the
+	 * trigger enable callback could cause a deadlock.
+	 */
+	ret = regmap_set_bits(st->regmap, AD4695_REG_GP_MODE,
+			      AD4695_REG_GP_MODE_BUSY_GP_EN);
+	if (ret)
+		goto err_unoptimize_message;
+
+	ret = spi_offload_trigger_enable(st->offload, st->offload_trigger,
+					 &config);
+	if (ret)
+		goto err_disable_busy_output;
+
+	ret = ad4695_enter_advanced_sequencer_mode(st, num_slots);
+	if (ret)
+		goto err_offload_trigger_disable;
+
+	mutex_lock(&st->cnv_pwm_lock);
+	pwm_get_state(st->cnv_pwm, &state);
+	/*
+	 * PWM subsystem generally rounds down, so requesting 2x minimum high
+	 * time ensures that we meet the minimum high time in any case.
+	 */
+	state.duty_cycle = AD4695_T_CNVH_NS * 2;
+	ret = pwm_apply_might_sleep(st->cnv_pwm, &state);
+	mutex_unlock(&st->cnv_pwm_lock);
+	if (ret)
+		goto err_offload_exit_conversion_mode;
+
+	return 0;
+
+err_offload_exit_conversion_mode:
+	/*
+	 * We have to unwind in a different order to avoid triggering offload.
+	 * ad4695_exit_conversion_mode() triggers a conversion, so it has to be
+	 * done after spi_offload_trigger_disable().
+	 */
+	spi_offload_trigger_disable(st->offload, st->offload_trigger);
+	ad4695_exit_conversion_mode(st);
+	goto err_disable_busy_output;
+
+err_offload_trigger_disable:
+	spi_offload_trigger_disable(st->offload, st->offload_trigger);
+
+err_disable_busy_output:
+	regmap_clear_bits(st->regmap, AD4695_REG_GP_MODE,
+			  AD4695_REG_GP_MODE_BUSY_GP_EN);
+
+err_unoptimize_message:
+	spi_unoptimize_message(&st->buf_read_msg);
+
+	return ret;
+}
+
+static int ad4695_offload_buffer_predisable(struct iio_dev *indio_dev)
+{
+	struct ad4695_state *st = iio_priv(indio_dev);
+	struct pwm_state state;
+	int ret;
+
+	scoped_guard(mutex, &st->cnv_pwm_lock) {
+		pwm_get_state(st->cnv_pwm, &state);
+		state.duty_cycle = 0;
+		ret = pwm_apply_might_sleep(st->cnv_pwm, &state);
+		if (ret)
+			return ret;
+	}
+
+	spi_offload_trigger_disable(st->offload, st->offload_trigger);
+
+	/*
+	 * ad4695_exit_conversion_mode() triggers a conversion, so it has to be
+	 * done after spi_offload_trigger_disable().
+	 */
+	ret = ad4695_exit_conversion_mode(st);
+	if (ret)
+		return ret;
+
+	ret = regmap_clear_bits(st->regmap, AD4695_REG_GP_MODE,
+				AD4695_REG_GP_MODE_BUSY_GP_EN);
+	if (ret)
+		return ret;
+
+	spi_unoptimize_message(&st->buf_read_msg);
+
+	return 0;
+}
+
+static const struct iio_buffer_setup_ops ad4695_offload_buffer_setup_ops = {
+	.postenable = ad4695_offload_buffer_postenable,
+	.predisable = ad4695_offload_buffer_predisable,
+};
+
 /**
  * ad4695_read_one_sample - Read a single sample using single-cycle mode
  * @st: The AD4695 state
@@ -636,6 +996,13 @@ static int ad4695_read_one_sample(struct ad4695_state *st, unsigned int address)
 		return ret;
 
 	/*
+	 * If CNV is connected to CS, the previous function will have triggered
+	 * the conversion, otherwise, we do it manually.
+	 */
+	if (st->cnv_gpio)
+		ad4695_cnv_manual_trigger(st);
+
+	/*
 	 * Setting the first channel to the temperature channel isn't supported
 	 * in single-cycle mode, so we have to do an extra conversion to read
 	 * the temperature.
@@ -646,6 +1013,13 @@ static int ad4695_read_one_sample(struct ad4695_state *st, unsigned int address)
 		ret = spi_sync_transfer(st->spi, xfers, ARRAY_SIZE(xfers));
 		if (ret)
 			return ret;
+
+		/*
+		 * If CNV is connected to CS, the previous function will have
+		 * triggered the conversion, otherwise, we do it manually.
+		 */
+		if (st->cnv_gpio)
+			ad4695_cnv_manual_trigger(st);
 	}
 
 	/* Then read the result and exit conversion mode. */
@@ -655,36 +1029,58 @@ static int ad4695_read_one_sample(struct ad4695_state *st, unsigned int address)
 	return spi_sync_transfer(st->spi, xfers, ARRAY_SIZE(xfers));
 }
 
+static int __ad4695_read_info_raw(struct ad4695_state *st,
+				  struct iio_chan_spec const *chan,
+				  int *val)
+{
+	u8 realbits = chan->scan_type.realbits;
+	int ret;
+
+	ret = ad4695_read_one_sample(st, chan->address);
+	if (ret)
+		return ret;
+
+	if (chan->scan_type.sign == 's')
+		*val = sign_extend32(st->raw_data, realbits - 1);
+	else
+		*val = st->raw_data;
+
+	return IIO_VAL_INT;
+}
+
 static int ad4695_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val, int *val2, long mask)
 {
 	struct ad4695_state *st = iio_priv(indio_dev);
-	struct ad4695_channel_config *cfg = &st->channels_cfg[chan->scan_index];
-	u8 realbits = chan->scan_type.realbits;
+	const struct iio_scan_type *scan_type;
+	struct ad4695_channel_config *cfg;
 	unsigned int reg_val;
 	int ret, tmp;
+	u8 realbits;
+
+	if (chan->type == IIO_VOLTAGE)
+		cfg = &st->channels_cfg[chan->scan_index];
+
+	scan_type = iio_get_current_scan_type(indio_dev, chan);
+	if (IS_ERR(scan_type))
+		return PTR_ERR(scan_type);
+
+	realbits = scan_type->realbits;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-			ret = ad4695_read_one_sample(st, chan->address);
-			if (ret)
-				return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
-			if (chan->scan_type.sign == 's')
-				*val = sign_extend32(st->raw_data, realbits - 1);
-			else
-				*val = st->raw_data;
-
-			return IIO_VAL_INT;
-		}
-		unreachable();
+		ret = __ad4695_read_info_raw(st, chan, val);
+		iio_device_release_direct(indio_dev);
+		return ret;
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
 			*val = st->vref_mv;
-			*val2 = chan->scan_type.realbits;
+			*val2 = realbits;
 			return IIO_VAL_FRACTIONAL_LOG2;
 		case IIO_TEMP:
 			/* T_scale (°C) = raw * V_REF (mV) / (-1.8 mV/°C * 2^16) */
@@ -717,48 +1113,228 @@ static int ad4695_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_CALIBSCALE:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
-			iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-				ret = regmap_read(st->regmap16,
-					AD4695_REG_GAIN_IN(chan->scan_index),
-					&reg_val);
-				if (ret)
-					return ret;
+			if (!iio_device_claim_direct(indio_dev))
+				return -EBUSY;
+			ret = regmap_read(st->regmap16,
+					  AD4695_REG_GAIN_IN(chan->scan_index),
+					  &reg_val);
+			iio_device_release_direct(indio_dev);
+			if (ret)
+				return ret;
+			*val = reg_val;
+			*val2 = 15;
 
-				*val = reg_val;
-				*val2 = 15;
+			return IIO_VAL_FRACTIONAL_LOG2;
+		default:
+			return -EINVAL;
+		}
+	case IIO_CHAN_INFO_CALIBBIAS:
+		switch (chan->type)
+		case IIO_VOLTAGE: {
+			if (!iio_device_claim_direct(indio_dev))
+				return -EBUSY;
+			ret = regmap_read(st->regmap16,
+					  AD4695_REG_OFFSET_IN(chan->scan_index),
+					  &reg_val);
+			iio_device_release_direct(indio_dev);
+			if (ret)
+				return ret;
 
-				return IIO_VAL_FRACTIONAL_LOG2;
+			tmp = sign_extend32(reg_val, 15);
+
+			switch (cfg->oversampling_ratio) {
+			case 1:
+				*val = tmp / 4;
+				*val2 = abs(tmp) % 4 * MICRO / 4;
+				break;
+			case 4:
+				*val = tmp / 2;
+				*val2 = abs(tmp) % 2 * MICRO / 2;
+				break;
+			case 16:
+				*val = tmp;
+				*val2 = 0;
+				break;
+			case 64:
+				*val = tmp * 2;
+				*val2 = 0;
+				break;
+			default:
+				return -EINVAL;
 			}
-			unreachable();
+
+			if (tmp < 0 && *val2) {
+				*val *= -1;
+				*val2 *= -1;
+			}
+
+			return IIO_VAL_INT_PLUS_MICRO;
+		default:
+			return -EINVAL;
+		}
+	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		switch (chan->type) {
+		case IIO_VOLTAGE:
+			*val = cfg->oversampling_ratio;
+			return IIO_VAL_INT;
+		default:
+			return -EINVAL;
+		}
+	case IIO_CHAN_INFO_SAMP_FREQ: {
+		struct pwm_state state;
+		unsigned int osr = 1;
+
+		if (chan->type == IIO_VOLTAGE)
+			osr = cfg->oversampling_ratio;
+
+		ret = pwm_get_state_hw(st->cnv_pwm, &state);
+		if (ret)
+			return ret;
+
+		/*
+		 * The effective sampling frequency for a channel is the input
+		 * frequency divided by the channel's OSR value.
+		 */
+		*val = DIV_ROUND_UP_ULL(NSEC_PER_SEC, state.period * osr);
+
+		return IIO_VAL_INT;
+	}
+	default:
+		return -EINVAL;
+	}
+}
+
+static int ad4695_write_raw_get_fmt(struct iio_dev *indio_dev,
+				    struct iio_chan_spec const *chan,
+				    long mask)
+{
+	switch (mask) {
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		return IIO_VAL_INT;
+	default:
+		return IIO_VAL_INT_PLUS_MICRO;
+	}
+}
+
+static int ad4695_set_osr_val(struct ad4695_state *st,
+			      struct iio_chan_spec const *chan,
+			      int val)
+{
+	int osr = ad4695_osr_to_regval(val);
+
+	if (osr < 0)
+		return osr;
+
+	switch (chan->type) {
+	case IIO_VOLTAGE:
+		st->channels_cfg[chan->scan_index].oversampling_ratio = val;
+		return regmap_update_bits(st->regmap,
+				AD4695_REG_CONFIG_IN(chan->scan_index),
+				AD4695_REG_CONFIG_IN_OSR_SET,
+				FIELD_PREP(AD4695_REG_CONFIG_IN_OSR_SET, osr));
+	default:
+		return -EINVAL;
+	}
+}
+
+static unsigned int ad4695_get_calibbias(int val, int val2, int osr)
+{
+	int val_calc, scale;
+
+	switch (osr) {
+	case 4:
+		scale = 4;
+		break;
+	case 16:
+		scale = 2;
+		break;
+	case 64:
+		scale = 1;
+		break;
+	default:
+		scale = 8;
+		break;
+	}
+
+	val = clamp_t(int, val, S32_MIN / 8, S32_MAX / 8);
+
+	/* val2 range is (-MICRO, MICRO) if val == 0, otherwise [0, MICRO) */
+	if (val < 0)
+		val_calc = val * scale - val2 * scale / MICRO;
+	else if (val2 < 0)
+		/* if val2 < 0 then val == 0 */
+		val_calc = val2 * scale / (int)MICRO;
+	else
+		val_calc = val * scale + val2 * scale / MICRO;
+
+	val_calc /= 2;
+
+	return clamp_t(int, val_calc, S16_MIN, S16_MAX);
+}
+
+static int __ad4695_write_raw(struct iio_dev *indio_dev,
+			      struct iio_chan_spec const *chan,
+			      int val, int val2, long mask)
+{
+	struct ad4695_state *st = iio_priv(indio_dev);
+	unsigned int reg_val;
+	unsigned int osr = 1;
+
+	if (chan->type == IIO_VOLTAGE)
+		osr = st->channels_cfg[chan->scan_index].oversampling_ratio;
+
+	switch (mask) {
+	case IIO_CHAN_INFO_CALIBSCALE:
+		switch (chan->type) {
+		case IIO_VOLTAGE:
+			if (val < 0 || val2 < 0)
+				reg_val = 0;
+			else if (val > 1)
+				reg_val = U16_MAX;
+			else
+				reg_val = (val * (1 << 16) +
+					   mul_u64_u32_div(val2, 1 << 16,
+							   MICRO)) / 2;
+
+			return regmap_write(st->regmap16,
+					    AD4695_REG_GAIN_IN(chan->scan_index),
+					    reg_val);
 		default:
 			return -EINVAL;
 		}
 	case IIO_CHAN_INFO_CALIBBIAS:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
-			iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-				ret = regmap_read(st->regmap16,
-					AD4695_REG_OFFSET_IN(chan->scan_index),
-					&reg_val);
-				if (ret)
-					return ret;
-
-				tmp = sign_extend32(reg_val, 15);
-
-				*val = tmp / 4;
-				*val2 = abs(tmp) % 4 * MICRO / 4;
-
-				if (tmp < 0 && *val2) {
-					*val *= -1;
-					*val2 *= -1;
-				}
-
-				return IIO_VAL_INT_PLUS_MICRO;
-			}
-			unreachable();
+			reg_val = ad4695_get_calibbias(val, val2, osr);
+			return regmap_write(st->regmap16,
+					    AD4695_REG_OFFSET_IN(chan->scan_index),
+					    reg_val);
 		default:
 			return -EINVAL;
 		}
+	case IIO_CHAN_INFO_SAMP_FREQ: {
+		struct pwm_state state;
+		/*
+		 * Limit the maximum acceptable sample rate according to
+		 * the channel's oversampling ratio.
+		 */
+		u64 max_osr_rate = DIV_ROUND_UP_ULL(st->chip_info->max_sample_rate,
+						    osr);
+
+		if (val <= 0 || val > max_osr_rate)
+			return -EINVAL;
+
+		guard(mutex)(&st->cnv_pwm_lock);
+		pwm_get_state(st->cnv_pwm, &state);
+		/*
+		 * The required sample frequency for a given OSR is the
+		 * input frequency multiplied by it.
+		 */
+		state.period = DIV_ROUND_UP_ULL(NSEC_PER_SEC, val * osr);
+		return pwm_apply_might_sleep(st->cnv_pwm, &state);
+	}
+	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		return ad4695_set_osr_val(st, chan, val);
 	default:
 		return -EINVAL;
 	}
@@ -768,60 +1344,14 @@ static int ad4695_write_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
 			    int val, int val2, long mask)
 {
-	struct ad4695_state *st = iio_priv(indio_dev);
-	unsigned int reg_val;
+	int ret;
 
-	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-		switch (mask) {
-		case IIO_CHAN_INFO_CALIBSCALE:
-			switch (chan->type) {
-			case IIO_VOLTAGE:
-				if (val < 0 || val2 < 0)
-					reg_val = 0;
-				else if (val > 1)
-					reg_val = U16_MAX;
-				else
-					reg_val = (val * (1 << 16) +
-						   mul_u64_u32_div(val2, 1 << 16,
-								   MICRO)) / 2;
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+	ret = __ad4695_write_raw(indio_dev, chan, val, val2, mask);
+	iio_device_release_direct(indio_dev);
 
-				return regmap_write(st->regmap16,
-					AD4695_REG_GAIN_IN(chan->scan_index),
-					reg_val);
-			default:
-				return -EINVAL;
-			}
-		case IIO_CHAN_INFO_CALIBBIAS:
-			switch (chan->type) {
-			case IIO_VOLTAGE:
-				if (val2 >= 0 && val > S16_MAX / 4)
-					reg_val = S16_MAX;
-				else if ((val2 < 0 ? -val : val) < S16_MIN / 4)
-					reg_val = S16_MIN;
-				else if (val2 < 0)
-					reg_val = clamp_t(int,
-						-(val * 4 + -val2 * 4 / MICRO),
-						S16_MIN, S16_MAX);
-				else if (val < 0)
-					reg_val = clamp_t(int,
-						val * 4 - val2 * 4 / MICRO,
-						S16_MIN, S16_MAX);
-				else
-					reg_val = clamp_t(int,
-						val * 4 + val2 * 4 / MICRO,
-						S16_MIN, S16_MAX);
-
-				return regmap_write(st->regmap16,
-					AD4695_REG_OFFSET_IN(chan->scan_index),
-					reg_val);
-			default:
-				return -EINVAL;
-			}
-		default:
-			return -EINVAL;
-		}
-	}
-	unreachable();
+	return ret;
 }
 
 static int ad4695_read_avail(struct iio_dev *indio_dev,
@@ -829,17 +1359,43 @@ static int ad4695_read_avail(struct iio_dev *indio_dev,
 			     const int **vals, int *type, int *length,
 			     long mask)
 {
+	int ret;
 	static const int ad4695_calibscale_available[6] = {
 		/* Range of 0 (inclusive) to 2 (exclusive) */
 		0, 15, 1, 15, U16_MAX, 15
 	};
-	static const int ad4695_calibbias_available[6] = {
+	static const int ad4695_calibbias_available[4][6] = {
 		/*
 		 * Datasheet says FSR/8 which translates to signed/4. The step
-		 * depends on oversampling ratio which is always 1 for now.
+		 * depends on oversampling ratio, so we need four different
+		 * ranges to select from.
 		 */
-		S16_MIN / 4, 0, 0, MICRO / 4, S16_MAX / 4, S16_MAX % 4 * MICRO / 4
+		{
+			S16_MIN / 4, 0,
+			0, MICRO / 4,
+			S16_MAX / 4, S16_MAX % 4 * MICRO / 4
+		},
+		{
+			S16_MIN / 2, 0,
+			0, MICRO / 2,
+			S16_MAX / 2, S16_MAX % 2 * MICRO / 2,
+		},
+		{
+			S16_MIN, 0,
+			1, 0,
+			S16_MAX, 0,
+		},
+		{
+			S16_MIN * 2, 0,
+			2, 0,
+			S16_MAX * 2, 0,
+		},
 	};
+	struct ad4695_state *st = iio_priv(indio_dev);
+	unsigned int osr = 1;
+
+	if (chan->type == IIO_VOLTAGE)
+		osr = st->channels_cfg[chan->scan_index].oversampling_ratio;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBSCALE:
@@ -854,9 +1410,33 @@ static int ad4695_read_avail(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_CALIBBIAS:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
-			*vals = ad4695_calibbias_available;
+			ret = ad4695_osr_to_regval(osr);
+			if (ret < 0)
+				return ret;
+			/*
+			 * Select the appropriate calibbias array based on the
+			 * OSR value in the register.
+			 */
+			*vals = ad4695_calibbias_available[ret];
 			*type = IIO_VAL_INT_PLUS_MICRO;
 			return IIO_AVAIL_RANGE;
+		default:
+			return -EINVAL;
+		}
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		/* Max sample rate for the channel depends on OSR */
+		st->sample_freq_range[2] =
+			DIV_ROUND_UP_ULL(st->chip_info->max_sample_rate, osr);
+		*vals = st->sample_freq_range;
+		*type = IIO_VAL_INT;
+		return IIO_AVAIL_RANGE;
+	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		switch (chan->type) {
+		case IIO_VOLTAGE:
+			*vals = ad4695_oversampling_ratios;
+			*length = ARRAY_SIZE(ad4695_oversampling_ratios);
+			*type = IIO_VAL_INT;
+			return IIO_AVAIL_LIST;
 		default:
 			return -EINVAL;
 		}
@@ -871,31 +1451,64 @@ static int ad4695_debugfs_reg_access(struct iio_dev *indio_dev,
 				     unsigned int *readval)
 {
 	struct ad4695_state *st = iio_priv(indio_dev);
+	int ret = -EINVAL;
 
-	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-		if (readval) {
-			if (regmap_check_range_table(st->regmap, reg,
-						     &ad4695_regmap_rd_table))
-				return regmap_read(st->regmap, reg, readval);
-			if (regmap_check_range_table(st->regmap16, reg,
-						     &ad4695_regmap16_rd_table))
-				return regmap_read(st->regmap16, reg, readval);
-		} else {
-			if (regmap_check_range_table(st->regmap, reg,
-						     &ad4695_regmap_wr_table))
-				return regmap_write(st->regmap, reg, writeval);
-			if (regmap_check_range_table(st->regmap16, reg,
-						     &ad4695_regmap16_wr_table))
-				return regmap_write(st->regmap16, reg, writeval);
-		}
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
+	if (readval) {
+		if (regmap_check_range_table(st->regmap, reg,
+					     &ad4695_regmap_rd_table))
+			ret = regmap_read(st->regmap, reg, readval);
+		if (regmap_check_range_table(st->regmap16, reg,
+					     &ad4695_regmap16_rd_table))
+			ret = regmap_read(st->regmap16, reg, readval);
+	} else {
+		if (regmap_check_range_table(st->regmap, reg,
+					     &ad4695_regmap_wr_table))
+			ret = regmap_write(st->regmap, reg, writeval);
+		if (regmap_check_range_table(st->regmap16, reg,
+					     &ad4695_regmap16_wr_table))
+			ret = regmap_write(st->regmap16, reg, writeval);
 	}
+	iio_device_release_direct(indio_dev);
 
-	return -EINVAL;
+	return ret;
+}
+
+static int ad4695_get_current_scan_type(const struct iio_dev *indio_dev,
+					const struct iio_chan_spec *chan)
+{
+	struct ad4695_state *st = iio_priv(indio_dev);
+	unsigned int osr = st->channels_cfg[chan->scan_index].oversampling_ratio;
+
+	switch (osr) {
+	case 1:
+		return AD4695_SCAN_TYPE_OSR_1;
+	case 4:
+		return AD4695_SCAN_TYPE_OSR_4;
+	case 16:
+		return AD4695_SCAN_TYPE_OSR_16;
+	case 64:
+		return AD4695_SCAN_TYPE_OSR_64;
+	default:
+		return -EINVAL;
+	}
 }
 
 static const struct iio_info ad4695_info = {
 	.read_raw = &ad4695_read_raw,
+	.write_raw_get_fmt = &ad4695_write_raw_get_fmt,
 	.write_raw = &ad4695_write_raw,
+	.read_avail = &ad4695_read_avail,
+	.debugfs_reg_access = &ad4695_debugfs_reg_access,
+};
+
+static const struct iio_info ad4695_offload_info = {
+	.read_raw = &ad4695_read_raw,
+	.write_raw_get_fmt = &ad4695_write_raw_get_fmt,
+	.write_raw = &ad4695_write_raw,
+	.get_current_scan_type = &ad4695_get_current_scan_type,
 	.read_avail = &ad4695_read_avail,
 	.debugfs_reg_access = &ad4695_debugfs_reg_access,
 };
@@ -914,6 +1527,9 @@ static int ad4695_parse_channel_cfg(struct ad4695_state *st)
 
 		chan_cfg->highz_en = true;
 		chan_cfg->channel = i;
+
+		/* This is the default OSR after reset */
+		chan_cfg->oversampling_ratio = 1;
 
 		*iio_chan = ad4695_channel_template;
 		iio_chan->channel = i;
@@ -1008,25 +1624,187 @@ static int ad4695_parse_channel_cfg(struct ad4695_state *st)
 	return 0;
 }
 
+static bool ad4695_offload_trigger_match(struct spi_offload_trigger *trigger,
+					 enum spi_offload_trigger_type type,
+					 u64 *args, u32 nargs)
+{
+	if (type != SPI_OFFLOAD_TRIGGER_DATA_READY)
+		return false;
+
+	/*
+	 * Requires 2 args:
+	 * args[0] is the trigger event.
+	 * args[1] is the GPIO pin number.
+	 */
+	if (nargs != 2 || args[0] != AD4695_TRIGGER_EVENT_BUSY)
+		return false;
+
+	return true;
+}
+
+static int ad4695_offload_trigger_request(struct spi_offload_trigger *trigger,
+					  enum spi_offload_trigger_type type,
+					  u64 *args, u32 nargs)
+{
+	struct ad4695_state *st = spi_offload_trigger_get_priv(trigger);
+
+	/* Should already be validated by match, but just in case. */
+	if (nargs != 2)
+		return -EINVAL;
+
+	/* DT tells us if BUSY event uses GP0 or GP3. */
+	if (args[1] == AD4695_TRIGGER_PIN_GP3)
+		return regmap_set_bits(st->regmap, AD4695_REG_GP_MODE,
+				       AD4695_REG_GP_MODE_BUSY_GP_SEL);
+
+	return regmap_clear_bits(st->regmap, AD4695_REG_GP_MODE,
+				 AD4695_REG_GP_MODE_BUSY_GP_SEL);
+}
+
+static int
+ad4695_offload_trigger_validate(struct spi_offload_trigger *trigger,
+				struct spi_offload_trigger_config *config)
+{
+	if (config->type != SPI_OFFLOAD_TRIGGER_DATA_READY)
+		return -EINVAL;
+
+	return 0;
+}
+
+/*
+ * NB: There are no enable/disable callbacks here due to requiring a SPI
+ * message to enable or disable the BUSY output on the ADC.
+ */
+static const struct spi_offload_trigger_ops ad4695_offload_trigger_ops = {
+	.match = ad4695_offload_trigger_match,
+	.request = ad4695_offload_trigger_request,
+	.validate = ad4695_offload_trigger_validate,
+};
+
+static void ad4695_pwm_disable(void *pwm)
+{
+	pwm_disable(pwm);
+}
+
+static int ad4695_probe_spi_offload(struct iio_dev *indio_dev,
+				    struct ad4695_state *st)
+{
+	struct device *dev = &st->spi->dev;
+	struct spi_offload_trigger_info trigger_info = {
+		.fwnode = dev_fwnode(dev),
+		.ops = &ad4695_offload_trigger_ops,
+		.priv = st,
+	};
+	struct pwm_state pwm_state;
+	struct dma_chan *rx_dma;
+	int ret, i;
+
+	indio_dev->info = &ad4695_offload_info;
+	indio_dev->num_channels = st->chip_info->num_voltage_inputs + 1;
+	indio_dev->setup_ops = &ad4695_offload_buffer_setup_ops;
+
+	if (!st->cnv_gpio)
+		return dev_err_probe(dev, -ENODEV,
+				     "CNV GPIO is required for SPI offload\n");
+
+	ret = devm_spi_offload_trigger_register(dev, &trigger_info);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "failed to register offload trigger\n");
+
+	st->offload_trigger = devm_spi_offload_trigger_get(dev, st->offload,
+		SPI_OFFLOAD_TRIGGER_DATA_READY);
+	if (IS_ERR(st->offload_trigger))
+		return dev_err_probe(dev, PTR_ERR(st->offload_trigger),
+				     "failed to get offload trigger\n");
+
+	ret = devm_mutex_init(dev, &st->cnv_pwm_lock);
+	if (ret)
+		return ret;
+
+	st->cnv_pwm = devm_pwm_get(dev, NULL);
+	if (IS_ERR(st->cnv_pwm))
+		return dev_err_probe(dev, PTR_ERR(st->cnv_pwm),
+				     "failed to get CNV PWM\n");
+
+	pwm_init_state(st->cnv_pwm, &pwm_state);
+
+	/* If firmware didn't provide default rate, use 10kHz (arbitrary). */
+	if (pwm_state.period == 0)
+		pwm_state.period = 100 * MILLI;
+
+	pwm_state.enabled = true;
+
+	ret = pwm_apply_might_sleep(st->cnv_pwm, &pwm_state);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to apply CNV PWM\n");
+
+	ret = devm_add_action_or_reset(dev, ad4695_pwm_disable, st->cnv_pwm);
+	if (ret)
+		return ret;
+
+	rx_dma = devm_spi_offload_rx_stream_request_dma_chan(dev, st->offload);
+	if (IS_ERR(rx_dma))
+		return dev_err_probe(dev, PTR_ERR(rx_dma),
+				     "failed to get offload RX DMA\n");
+
+	for (i = 0; i < indio_dev->num_channels; i++) {
+		struct iio_chan_spec *chan = &st->iio_chan[i];
+		struct ad4695_channel_config *cfg;
+
+		/*
+		 * NB: When using offload support, all channels need to have the
+		 * same bits_per_word because they all use the same SPI message
+		 * for reading one sample. In order to prevent breaking
+		 * userspace in the future when oversampling support is added,
+		 * all channels are set read 19 bits with a shift of 3 to mask
+		 * out the extra bits even though we currently only support 16
+		 * bit samples (oversampling ratio == 1).
+		 */
+		chan->scan_type.shift = 3;
+		chan->scan_type.storagebits = 32;
+		/* add sample frequency for PWM CNV trigger */
+		chan->info_mask_separate |= BIT(IIO_CHAN_INFO_SAMP_FREQ);
+		chan->info_mask_separate_available |= BIT(IIO_CHAN_INFO_SAMP_FREQ);
+
+		/* Add the oversampling properties only for voltage channels */
+		if (chan->type != IIO_VOLTAGE)
+			continue;
+
+		cfg = &st->channels_cfg[i];
+
+		chan->info_mask_separate |= BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO);
+		chan->info_mask_separate_available |=
+			BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO);
+		chan->has_ext_scan_type = 1;
+		if (cfg->bipolar) {
+			chan->ext_scan_type = ad4695_scan_type_offload_s;
+			chan->num_ext_scan_type =
+				ARRAY_SIZE(ad4695_scan_type_offload_s);
+		} else {
+			chan->ext_scan_type = ad4695_scan_type_offload_u;
+			chan->num_ext_scan_type =
+				ARRAY_SIZE(ad4695_scan_type_offload_u);
+		}
+	}
+
+	return devm_iio_dmaengine_buffer_setup_with_handle(dev, indio_dev,
+		rx_dma, IIO_BUFFER_DIRECTION_IN);
+}
+
+static const struct spi_offload_config ad4695_spi_offload_config = {
+	.capability_flags = SPI_OFFLOAD_CAP_TRIGGER |
+			    SPI_OFFLOAD_CAP_RX_STREAM_DMA,
+};
+
 static int ad4695_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
 	struct ad4695_state *st;
 	struct iio_dev *indio_dev;
-	struct gpio_desc *cnv_gpio;
 	bool use_internal_ldo_supply;
 	bool use_internal_ref_buffer;
 	int ret;
-
-	cnv_gpio = devm_gpiod_get_optional(dev, "cnv", GPIOD_OUT_LOW);
-	if (IS_ERR(cnv_gpio))
-		return dev_err_probe(dev, PTR_ERR(cnv_gpio),
-				     "Failed to get CNV GPIO\n");
-
-	/* Driver currently requires CNV pin to be connected to SPI CS */
-	if (cnv_gpio)
-		return dev_err_probe(dev, -ENODEV,
-				     "CNV GPIO is not supported\n");
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
@@ -1039,18 +1817,26 @@ static int ad4695_probe(struct spi_device *spi)
 	if (!st->chip_info)
 		return -EINVAL;
 
-	/* Registers cannot be read at the max allowable speed */
-	spi->max_speed_hz = AD4695_REG_ACCESS_SCLK_HZ;
+	st->sample_freq_range[0] = 1; /* min */
+	st->sample_freq_range[1] = 1; /* step */
+	st->sample_freq_range[2] = st->chip_info->max_sample_rate; /* max */
 
-	st->regmap = devm_regmap_init_spi(spi, &ad4695_regmap_config);
+	st->regmap = devm_regmap_init(dev, &ad4695_regmap_bus, st,
+				      &ad4695_regmap_config);
 	if (IS_ERR(st->regmap))
 		return dev_err_probe(dev, PTR_ERR(st->regmap),
 				     "Failed to initialize regmap\n");
 
-	st->regmap16 = devm_regmap_init_spi(spi, &ad4695_regmap16_config);
+	st->regmap16 = devm_regmap_init(dev, &ad4695_regmap_bus, st,
+					&ad4695_regmap16_config);
 	if (IS_ERR(st->regmap16))
 		return dev_err_probe(dev, PTR_ERR(st->regmap16),
 				     "Failed to initialize regmap16\n");
+
+	st->cnv_gpio = devm_gpiod_get_optional(dev, "cnv", GPIOD_OUT_LOW);
+	if (IS_ERR(st->cnv_gpio))
+		return dev_err_probe(dev, PTR_ERR(st->cnv_gpio),
+				     "Failed to get CNV GPIO\n");
 
 	ret = devm_regulator_bulk_get_enable(dev,
 					     ARRAY_SIZE(ad4695_power_supplies),
@@ -1179,12 +1965,31 @@ static int ad4695_probe(struct spi_device *spi)
 	indio_dev->channels = st->iio_chan;
 	indio_dev->num_channels = st->chip_info->num_voltage_inputs + 2;
 
-	ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
-					      iio_pollfunc_store_time,
-					      ad4695_trigger_handler,
-					      &ad4695_buffer_setup_ops);
-	if (ret)
-		return ret;
+	st->offload = devm_spi_offload_get(dev, spi, &ad4695_spi_offload_config);
+	ret = PTR_ERR_OR_ZERO(st->offload);
+	if (ret && ret != -ENODEV)
+		return dev_err_probe(dev, ret, "failed to get SPI offload\n");
+
+	/* If no SPI offload, fall back to low speed usage. */
+	if (ret == -ENODEV) {
+		/* Driver currently requires CNV pin to be connected to SPI CS */
+		if (st->cnv_gpio)
+			return dev_err_probe(dev, -EINVAL,
+					     "CNV GPIO is not supported\n");
+
+		indio_dev->num_channels = st->chip_info->num_voltage_inputs + 2;
+
+		ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
+						      iio_pollfunc_store_time,
+						      ad4695_trigger_handler,
+						      &ad4695_buffer_setup_ops);
+		if (ret)
+			return ret;
+	} else {
+		ret = ad4695_probe_spi_offload(indio_dev, st);
+		if (ret)
+			return ret;
+	}
 
 	return devm_iio_device_register(dev, indio_dev);
 }
@@ -1221,3 +2026,4 @@ MODULE_AUTHOR("Ramona Gradinariu <ramona.gradinariu@analog.com>");
 MODULE_AUTHOR("David Lechner <dlechner@baylibre.com>");
 MODULE_DESCRIPTION("Analog Devices AD4695 ADC driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS("IIO_DMAENGINE_BUFFER");

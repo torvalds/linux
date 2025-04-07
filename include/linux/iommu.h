@@ -41,9 +41,12 @@ struct iommu_dirty_ops;
 struct notifier_block;
 struct iommu_sva;
 struct iommu_dma_cookie;
+struct iommu_dma_msi_cookie;
 struct iommu_fault_param;
 struct iommufd_ctx;
 struct iommufd_viommu;
+struct msi_desc;
+struct msi_msg;
 
 #define IOMMU_FAULT_PERM_READ	(1 << 0) /* read */
 #define IOMMU_FAULT_PERM_WRITE	(1 << 1) /* write */
@@ -163,6 +166,15 @@ struct iommu_domain_geometry {
 	bool force_aperture;       /* DMA only allowed in mappable range? */
 };
 
+enum iommu_domain_cookie_type {
+	IOMMU_COOKIE_NONE,
+	IOMMU_COOKIE_DMA_IOVA,
+	IOMMU_COOKIE_DMA_MSI,
+	IOMMU_COOKIE_FAULT_HANDLER,
+	IOMMU_COOKIE_SVA,
+	IOMMU_COOKIE_IOMMUFD,
+};
+
 /* Domain feature flags */
 #define __IOMMU_DOMAIN_PAGING	(1U << 0)  /* Support for iommu_map/unmap */
 #define __IOMMU_DOMAIN_DMA_API	(1U << 1)  /* Domain for use in DMA-API
@@ -209,15 +221,18 @@ struct iommu_domain_geometry {
 
 struct iommu_domain {
 	unsigned type;
+	enum iommu_domain_cookie_type cookie_type;
 	const struct iommu_domain_ops *ops;
 	const struct iommu_dirty_ops *dirty_ops;
 	const struct iommu_ops *owner; /* Whose domain_alloc we came from */
 	unsigned long pgsize_bitmap;	/* Bitmap of page sizes in use */
 	struct iommu_domain_geometry geometry;
-	struct iommu_dma_cookie *iova_cookie;
 	int (*iopf_handler)(struct iopf_group *group);
-	void *fault_data;
-	union {
+
+	union { /* cookie */
+		struct iommu_dma_cookie *iova_cookie;
+		struct iommu_dma_msi_cookie *msi_cookie;
+		struct iommufd_hw_pagetable *iommufd_hwpt;
 		struct {
 			iommu_fault_handler_t handler;
 			void *handler_token;
@@ -1079,7 +1094,6 @@ struct iommu_mm_data {
 };
 
 int iommu_fwspec_init(struct device *dev, struct fwnode_handle *iommu_fwnode);
-void iommu_fwspec_free(struct device *dev);
 int iommu_fwspec_add_ids(struct device *dev, const u32 *ids, int num_ids);
 
 static inline struct iommu_fwspec *dev_iommu_fwspec_get(struct device *dev)
@@ -1390,10 +1404,6 @@ static inline int iommu_fwspec_init(struct device *dev,
 	return -ENODEV;
 }
 
-static inline void iommu_fwspec_free(struct device *dev)
-{
-}
-
 static inline int iommu_fwspec_add_ids(struct device *dev, u32 *ids,
 				       int num_ids)
 {
@@ -1470,6 +1480,18 @@ static inline ioasid_t iommu_alloc_global_pasid(struct device *dev)
 static inline void iommu_free_global_pasid(ioasid_t pasid) {}
 #endif /* CONFIG_IOMMU_API */
 
+#ifdef CONFIG_IRQ_MSI_IOMMU
+#ifdef CONFIG_IOMMU_API
+int iommu_dma_prepare_msi(struct msi_desc *desc, phys_addr_t msi_addr);
+#else
+static inline int iommu_dma_prepare_msi(struct msi_desc *desc,
+					phys_addr_t msi_addr)
+{
+	return 0;
+}
+#endif /* CONFIG_IOMMU_API */
+#endif /* CONFIG_IRQ_MSI_IOMMU */
+
 #if IS_ENABLED(CONFIG_LOCKDEP) && IS_ENABLED(CONFIG_IOMMU_API)
 void iommu_group_mutex_assert(struct device *dev);
 #else
@@ -1503,32 +1525,12 @@ static inline void iommu_debugfs_setup(void) {}
 #endif
 
 #ifdef CONFIG_IOMMU_DMA
-#include <linux/msi.h>
-
 int iommu_get_msi_cookie(struct iommu_domain *domain, dma_addr_t base);
-
-int iommu_dma_prepare_msi(struct msi_desc *desc, phys_addr_t msi_addr);
-void iommu_dma_compose_msi_msg(struct msi_desc *desc, struct msi_msg *msg);
-
 #else /* CONFIG_IOMMU_DMA */
-
-struct msi_desc;
-struct msi_msg;
-
 static inline int iommu_get_msi_cookie(struct iommu_domain *domain, dma_addr_t base)
 {
 	return -ENODEV;
 }
-
-static inline int iommu_dma_prepare_msi(struct msi_desc *desc, phys_addr_t msi_addr)
-{
-	return 0;
-}
-
-static inline void iommu_dma_compose_msi_msg(struct msi_desc *desc, struct msi_msg *msg)
-{
-}
-
 #endif	/* CONFIG_IOMMU_DMA */
 
 /*

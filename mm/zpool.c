@@ -95,7 +95,7 @@ static void zpool_put_driver(struct zpool_driver *driver)
 
 /**
  * zpool_has_pool() - Check if the pool driver is available
- * @type:	The type of the zpool to check (e.g. zbud, zsmalloc)
+ * @type:	The type of the zpool to check (e.g. zsmalloc)
  *
  * This checks if the @type pool driver is available.  This will try to load
  * the requested module, if needed, but there is no guarantee the module will
@@ -130,7 +130,7 @@ EXPORT_SYMBOL(zpool_has_pool);
 
 /**
  * zpool_create_pool() - Create a new zpool
- * @type:	The type of the zpool to create (e.g. zbud, zsmalloc)
+ * @type:	The type of the zpool to create (e.g. zsmalloc)
  * @name:	The name of the zpool (e.g. zram0, zswap)
  * @gfp:	The GFP flags to use when allocating the pool.
  *
@@ -221,22 +221,6 @@ const char *zpool_get_type(struct zpool *zpool)
 }
 
 /**
- * zpool_malloc_support_movable() - Check if the zpool supports
- *	allocating movable memory
- * @zpool:	The zpool to check
- *
- * This returns if the zpool supports allocating movable memory.
- *
- * Implementations must guarantee this to be thread-safe.
- *
- * Returns: true if the zpool supports allocating movable memory, false if not
- */
-bool zpool_malloc_support_movable(struct zpool *zpool)
-{
-	return zpool->driver->malloc_support_movable;
-}
-
-/**
  * zpool_malloc() - Allocate memory
  * @zpool:	The zpool to allocate from.
  * @size:	The amount of memory to allocate.
@@ -278,46 +262,51 @@ void zpool_free(struct zpool *zpool, unsigned long handle)
 }
 
 /**
- * zpool_map_handle() - Map a previously allocated handle into memory
+ * zpool_obj_read_begin() - Start reading from a previously allocated handle.
  * @zpool:	The zpool that the handle was allocated from
- * @handle:	The handle to map
- * @mapmode:	How the memory should be mapped
+ * @handle:	The handle to read from
+ * @local_copy:	A local buffer to use if needed.
  *
- * This maps a previously allocated handle into memory.  The @mapmode
- * param indicates to the implementation how the memory will be
- * used, i.e. read-only, write-only, read-write.  If the
- * implementation does not support it, the memory will be treated
- * as read-write.
+ * This starts a read operation of a previously allocated handle. The passed
+ * @local_copy buffer may be used if needed by copying the memory into.
+ * zpool_obj_read_end() MUST be called after the read is completed to undo any
+ * actions taken (e.g. release locks).
  *
- * This may hold locks, disable interrupts, and/or preemption,
- * and the zpool_unmap_handle() must be called to undo those
- * actions.  The code that uses the mapped handle should complete
- * its operations on the mapped handle memory quickly and unmap
- * as soon as possible.  As the implementation may use per-cpu
- * data, multiple handles should not be mapped concurrently on
- * any cpu.
- *
- * Returns: A pointer to the handle's mapped memory area.
+ * Returns: A pointer to the handle memory to be read, if @local_copy is used,
+ * the returned pointer is @local_copy.
  */
-void *zpool_map_handle(struct zpool *zpool, unsigned long handle,
-			enum zpool_mapmode mapmode)
+void *zpool_obj_read_begin(struct zpool *zpool, unsigned long handle,
+			   void *local_copy)
 {
-	return zpool->driver->map(zpool->pool, handle, mapmode);
+	return zpool->driver->obj_read_begin(zpool->pool, handle, local_copy);
 }
 
 /**
- * zpool_unmap_handle() - Unmap a previously mapped handle
+ * zpool_obj_read_end() - Finish reading from a previously allocated handle.
  * @zpool:	The zpool that the handle was allocated from
- * @handle:	The handle to unmap
+ * @handle:	The handle to read from
+ * @handle_mem:	The pointer returned by zpool_obj_read_begin()
  *
- * This unmaps a previously mapped handle.  Any locks or other
- * actions that the implementation took in zpool_map_handle()
- * will be undone here.  The memory area returned from
- * zpool_map_handle() should no longer be used after this.
+ * Finishes a read operation previously started by zpool_obj_read_begin().
  */
-void zpool_unmap_handle(struct zpool *zpool, unsigned long handle)
+void zpool_obj_read_end(struct zpool *zpool, unsigned long handle,
+			void *handle_mem)
 {
-	zpool->driver->unmap(zpool->pool, handle);
+	zpool->driver->obj_read_end(zpool->pool, handle, handle_mem);
+}
+
+/**
+ * zpool_obj_write() - Write to a previously allocated handle.
+ * @zpool:	The zpool that the handle was allocated from
+ * @handle:	The handle to read from
+ * @handle_mem:	The memory to copy from into the handle.
+ * @mem_len:	The length of memory to be written.
+ *
+ */
+void zpool_obj_write(struct zpool *zpool, unsigned long handle,
+		     void *handle_mem, size_t mem_len)
+{
+	zpool->driver->obj_write(zpool->pool, handle, handle_mem, mem_len);
 }
 
 /**
@@ -331,24 +320,6 @@ void zpool_unmap_handle(struct zpool *zpool, unsigned long handle)
 u64 zpool_get_total_pages(struct zpool *zpool)
 {
 	return zpool->driver->total_pages(zpool->pool);
-}
-
-/**
- * zpool_can_sleep_mapped - Test if zpool can sleep when do mapped.
- * @zpool:	The zpool to test
- *
- * Some allocators enter non-preemptible context in ->map() callback (e.g.
- * disable pagefaults) and exit that context in ->unmap(), which limits what
- * we can do with the mapped object. For instance, we cannot wait for
- * asynchronous crypto API to decompress such an object or take mutexes
- * since those will call into the scheduler. This function tells us whether
- * we use such an allocator.
- *
- * Returns: true if zpool can sleep; false otherwise.
- */
-bool zpool_can_sleep_mapped(struct zpool *zpool)
-{
-	return zpool->driver->sleep_mapped;
 }
 
 MODULE_AUTHOR("Dan Streetman <ddstreet@ieee.org>");

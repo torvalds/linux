@@ -1118,7 +1118,7 @@ static inline void ext4_set_block_group_nr(struct super_block *sb, char *data,
 	struct ext4_super_block *es = (struct ext4_super_block *) data;
 
 	es->s_block_group_nr = cpu_to_le16(group);
-	if (ext4_has_metadata_csum(sb))
+	if (ext4_has_feature_metadata_csum(sb))
 		es->s_checksum = ext4_superblock_csum(sb, es);
 }
 
@@ -1315,7 +1315,7 @@ static int ext4_set_bitmap_checksums(struct super_block *sb,
 {
 	struct buffer_head *bh;
 
-	if (!ext4_has_metadata_csum(sb))
+	if (!ext4_has_feature_metadata_csum(sb))
 		return 0;
 
 	bh = ext4_get_bitmap(sb, group_data->inode_bitmap);

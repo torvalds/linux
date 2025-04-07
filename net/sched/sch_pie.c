@@ -545,7 +545,7 @@ static void pie_destroy(struct Qdisc *sch)
 	struct pie_sched_data *q = qdisc_priv(sch);
 
 	q->params.tupdate = 0;
-	del_timer_sync(&q->adapt_timer);
+	timer_delete_sync(&q->adapt_timer);
 }
 
 static struct Qdisc_ops pie_qdisc_ops __read_mostly = {

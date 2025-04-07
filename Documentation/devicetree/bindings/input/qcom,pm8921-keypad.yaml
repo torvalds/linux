@@ -62,28 +62,28 @@ unevaluatedProperties: false
 
 examples:
   - |
-   #include <dt-bindings/input/input.h>
-   #include <dt-bindings/interrupt-controller/irq.h>
-   pmic {
-       #address-cells = <1>;
-       #size-cells = <0>;
+    #include <dt-bindings/input/input.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    pmic {
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-       keypad@148 {
-           compatible = "qcom,pm8921-keypad";
-           reg = <0x148>;
-           interrupt-parent = <&pmicintc>;
-           interrupts = <74 IRQ_TYPE_EDGE_RISING>, <75 IRQ_TYPE_EDGE_RISING>;
-           linux,keymap = <
-               MATRIX_KEY(0, 0, KEY_VOLUMEUP)
-               MATRIX_KEY(0, 1, KEY_VOLUMEDOWN)
-               MATRIX_KEY(0, 2, KEY_CAMERA_FOCUS)
-               MATRIX_KEY(0, 3, KEY_CAMERA)
-           >;
-           keypad,num-rows = <1>;
-           keypad,num-columns = <5>;
-           debounce = <15>;
-           scan-delay = <32>;
-           row-hold = <91500>;
-       };
-   };
+        keypad@148 {
+            compatible = "qcom,pm8921-keypad";
+            reg = <0x148>;
+            interrupt-parent = <&pmicintc>;
+            interrupts = <74 IRQ_TYPE_EDGE_RISING>, <75 IRQ_TYPE_EDGE_RISING>;
+            linux,keymap = <
+                MATRIX_KEY(0, 0, KEY_VOLUMEUP)
+                MATRIX_KEY(0, 1, KEY_VOLUMEDOWN)
+                MATRIX_KEY(0, 2, KEY_CAMERA_FOCUS)
+                MATRIX_KEY(0, 3, KEY_CAMERA)
+            >;
+            keypad,num-rows = <1>;
+            keypad,num-columns = <5>;
+            debounce = <15>;
+            scan-delay = <32>;
+            row-hold = <91500>;
+        };
+    };
 ...

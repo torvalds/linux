@@ -1385,7 +1385,7 @@ static void hub_quiesce(struct usb_hub *hub, enum hub_quiescing_type type)
 	}
 
 	/* Stop hub_wq and related activity */
-	del_timer_sync(&hub->irq_urb_retry);
+	timer_delete_sync(&hub->irq_urb_retry);
 	usb_kill_urb(hub->urb);
 	if (hub->has_indicators)
 		cancel_delayed_work_sync(&hub->leds);
@@ -4708,8 +4708,6 @@ void usb_ep0_reinit(struct usb_device *udev)
 }
 EXPORT_SYMBOL_GPL(usb_ep0_reinit);
 
-#define usb_sndaddr0pipe()	(PIPE_CONTROL << 30)
-
 static int hub_set_address(struct usb_device *udev, int devnum)
 {
 	int retval;
@@ -4733,7 +4731,7 @@ static int hub_set_address(struct usb_device *udev, int devnum)
 	if (hcd->driver->address_device)
 		retval = hcd->driver->address_device(hcd, udev, timeout_ms);
 	else
-		retval = usb_control_msg(udev, usb_sndaddr0pipe(),
+		retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				USB_REQ_SET_ADDRESS, 0, devnum, 0,
 				NULL, 0, timeout_ms);
 	if (retval == 0) {

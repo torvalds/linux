@@ -91,10 +91,10 @@ static noinline void print_chain(struct printbuf *out, struct lock_graph *g)
 	struct trans_waiting_for_lock *i;
 
 	for (i = g->g; i != g->g + g->nr; i++) {
-		struct task_struct *task = i->trans->locking_wait.task;
+		struct task_struct *task = READ_ONCE(i->trans->locking_wait.task);
 		if (i != g->g)
 			prt_str(out, "<- ");
-		prt_printf(out, "%u ", task ?task->pid : 0);
+		prt_printf(out, "%u ", task ? task->pid : 0);
 	}
 	prt_newline(out);
 }
@@ -172,7 +172,9 @@ static int abort_lock(struct lock_graph *g, struct trans_waiting_for_lock *i)
 {
 	if (i == g->g) {
 		trace_would_deadlock(g, i->trans);
-		return btree_trans_restart(i->trans, BCH_ERR_transaction_restart_would_deadlock);
+		return btree_trans_restart_foreign_task(i->trans,
+					BCH_ERR_transaction_restart_would_deadlock,
+					_THIS_IP_);
 	} else {
 		i->trans->lock_must_abort = true;
 		wake_up_process(i->trans->locking_wait.task);

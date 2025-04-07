@@ -3,6 +3,7 @@
 
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
+#include <net/ipv6.h>
 
 #include "fbnic.h"
 #include "fbnic_netdev.h"
@@ -60,7 +61,7 @@ void fbnic_rss_disable_hw(struct fbnic_dev *fbd)
 #define FBNIC_FH_2_RSSEM_BIT(_fh, _rssem, _val)		\
 	FIELD_PREP(FBNIC_RPC_ACT_TBL1_RSS_ENA_##_rssem,	\
 		   FIELD_GET(RXH_##_fh, _val))
-static u16 fbnic_flow_hash_2_rss_en_mask(struct fbnic_net *fbn, int flow_type)
+u16 fbnic_flow_hash_2_rss_en_mask(struct fbnic_net *fbn, int flow_type)
 {
 	u32 flow_hash = fbn->rss_flow_hash[flow_type];
 	u32 rss_en_mask = 0;
@@ -696,6 +697,359 @@ void fbnic_write_tce_tcam(struct fbnic_dev *fbd)
 		__fbnic_write_tce_tcam_rev(fbd);
 	else
 		__fbnic_write_tce_tcam(fbd);
+}
+
+struct fbnic_ip_addr *__fbnic_ip4_sync(struct fbnic_dev *fbd,
+				       struct fbnic_ip_addr *ip_addr,
+				       const struct in_addr *addr,
+				       const struct in_addr *mask)
+{
+	struct fbnic_ip_addr *avail_addr = NULL;
+	unsigned int i;
+
+	/* Scan from top of list to bottom, filling bottom up. */
+	for (i = 0; i < FBNIC_RPC_TCAM_IP_ADDR_NUM_ENTRIES; i++, ip_addr++) {
+		struct in6_addr *m = &ip_addr->mask;
+
+		if (ip_addr->state == FBNIC_TCAM_S_DISABLED) {
+			avail_addr = ip_addr;
+			continue;
+		}
+
+		if (ip_addr->version != 4)
+			continue;
+
+		/* Drop avail_addr if mask is a subset of our current mask,
+		 * This prevents us from inserting a longer prefix behind a
+		 * shorter one.
+		 *
+		 * The mask is stored inverted value so as an example:
+		 * m	ffff ffff ffff ffff ffff ffff ffff 0000 0000
+		 * mask 0000 0000 0000 0000 0000 0000 0000 ffff ffff
+		 *
+		 * "m" and "mask" represent typical IPv4 mask stored in
+		 * the TCAM and those provided by the stack. The code below
+		 * should return a non-zero result if there is a 0 stored
+		 * anywhere in "m" where "mask" has a 0.
+		 */
+		if (~m->s6_addr32[3] & ~mask->s_addr) {
+			avail_addr = NULL;
+			continue;
+		}
+
+		/* Check to see if the mask actually contains fewer bits than
+		 * our new mask "m". The XOR below should only result in 0 if
+		 * "m" is masking a bit that we are looking for in our new
+		 * "mask", we eliminated the 0^0 case with the check above.
+		 *
+		 * If it contains fewer bits we need to stop here, otherwise
+		 * we might be adding an unreachable rule.
+		 */
+		if (~(m->s6_addr32[3] ^ mask->s_addr))
+			break;
+
+		if (ip_addr->value.s6_addr32[3] == addr->s_addr) {
+			avail_addr = ip_addr;
+			break;
+		}
+	}
+
+	if (avail_addr && avail_addr->state == FBNIC_TCAM_S_DISABLED) {
+		ipv6_addr_set(&avail_addr->value, 0, 0, 0, addr->s_addr);
+		ipv6_addr_set(&avail_addr->mask, htonl(~0), htonl(~0),
+			      htonl(~0), ~mask->s_addr);
+		avail_addr->version = 4;
+
+		avail_addr->state = FBNIC_TCAM_S_ADD;
+	}
+
+	return avail_addr;
+}
+
+struct fbnic_ip_addr *__fbnic_ip6_sync(struct fbnic_dev *fbd,
+				       struct fbnic_ip_addr *ip_addr,
+				       const struct in6_addr *addr,
+				       const struct in6_addr *mask)
+{
+	struct fbnic_ip_addr *avail_addr = NULL;
+	unsigned int i;
+
+	ip_addr = &ip_addr[FBNIC_RPC_TCAM_IP_ADDR_NUM_ENTRIES - 1];
+
+	/* Scan from bottom of list to top, filling top down. */
+	for (i = FBNIC_RPC_TCAM_IP_ADDR_NUM_ENTRIES; i--; ip_addr--) {
+		struct in6_addr *m = &ip_addr->mask;
+
+		if (ip_addr->state == FBNIC_TCAM_S_DISABLED) {
+			avail_addr = ip_addr;
+			continue;
+		}
+
+		if (ip_addr->version != 6)
+			continue;
+
+		/* Drop avail_addr if mask is a superset of our current mask.
+		 * This prevents us from inserting a longer prefix behind a
+		 * shorter one.
+		 *
+		 * The mask is stored inverted value so as an example:
+		 * m	0000 0000 0000 0000 0000 0000 0000 0000 0000
+		 * mask ffff ffff ffff ffff ffff ffff ffff ffff ffff
+		 *
+		 * "m" and "mask" represent typical IPv6 mask stored in
+		 * the TCAM and those provided by the stack. The code below
+		 * should return a non-zero result which will cause us
+		 * to drop the avail_addr value that might be cached
+		 * to prevent us from dropping a v6 address behind it.
+		 */
+		if ((m->s6_addr32[0] & mask->s6_addr32[0]) |
+		    (m->s6_addr32[1] & mask->s6_addr32[1]) |
+		    (m->s6_addr32[2] & mask->s6_addr32[2]) |
+		    (m->s6_addr32[3] & mask->s6_addr32[3])) {
+			avail_addr = NULL;
+			continue;
+		}
+
+		/* The previous test eliminated any overlap between the
+		 * two values so now we need to check for gaps.
+		 *
+		 * If the mask is equal to our current mask then it should
+		 * result with m ^ mask = ffff ffff, if however the value
+		 * stored in m is bigger then we should see a 0 appear
+		 * somewhere in the mask.
+		 */
+		if (~(m->s6_addr32[0] ^ mask->s6_addr32[0]) |
+		    ~(m->s6_addr32[1] ^ mask->s6_addr32[1]) |
+		    ~(m->s6_addr32[2] ^ mask->s6_addr32[2]) |
+		    ~(m->s6_addr32[3] ^ mask->s6_addr32[3]))
+			break;
+
+		if (ipv6_addr_cmp(&ip_addr->value, addr))
+			continue;
+
+		avail_addr = ip_addr;
+		break;
+	}
+
+	if (avail_addr && avail_addr->state == FBNIC_TCAM_S_DISABLED) {
+		memcpy(&avail_addr->value, addr, sizeof(*addr));
+		ipv6_addr_set(&avail_addr->mask,
+			      ~mask->s6_addr32[0], ~mask->s6_addr32[1],
+			      ~mask->s6_addr32[2], ~mask->s6_addr32[3]);
+		avail_addr->version = 6;
+
+		avail_addr->state = FBNIC_TCAM_S_ADD;
+	}
+
+	return avail_addr;
+}
+
+int __fbnic_ip_unsync(struct fbnic_ip_addr *ip_addr, unsigned int tcam_idx)
+{
+	if (!test_and_clear_bit(tcam_idx, ip_addr->act_tcam))
+		return -ENOENT;
+
+	if (bitmap_empty(ip_addr->act_tcam, FBNIC_RPC_TCAM_ACT_NUM_ENTRIES))
+		ip_addr->state = FBNIC_TCAM_S_DELETE;
+
+	return 0;
+}
+
+static void fbnic_clear_ip_src_entry(struct fbnic_dev *fbd, unsigned int idx)
+{
+	int i;
+
+	/* Invalidate entry and clear addr state info */
+	for (i = 0; i <= FBNIC_RPC_TCAM_IP_ADDR_WORD_LEN; i++)
+		wr32(fbd, FBNIC_RPC_TCAM_IPSRC(idx, i), 0);
+}
+
+static void fbnic_clear_ip_dst_entry(struct fbnic_dev *fbd, unsigned int idx)
+{
+	int i;
+
+	/* Invalidate entry and clear addr state info */
+	for (i = 0; i <= FBNIC_RPC_TCAM_IP_ADDR_WORD_LEN; i++)
+		wr32(fbd, FBNIC_RPC_TCAM_IPDST(idx, i), 0);
+}
+
+static void fbnic_clear_ip_outer_src_entry(struct fbnic_dev *fbd,
+					   unsigned int idx)
+{
+	int i;
+
+	/* Invalidate entry and clear addr state info */
+	for (i = 0; i <= FBNIC_RPC_TCAM_IP_ADDR_WORD_LEN; i++)
+		wr32(fbd, FBNIC_RPC_TCAM_OUTER_IPSRC(idx, i), 0);
+}
+
+static void fbnic_clear_ip_outer_dst_entry(struct fbnic_dev *fbd,
+					   unsigned int idx)
+{
+	int i;
+
+	/* Invalidate entry and clear addr state info */
+	for (i = 0; i <= FBNIC_RPC_TCAM_IP_ADDR_WORD_LEN; i++)
+		wr32(fbd, FBNIC_RPC_TCAM_OUTER_IPDST(idx, i), 0);
+}
+
+static void fbnic_write_ip_src_entry(struct fbnic_dev *fbd, unsigned int idx,
+				     struct fbnic_ip_addr *ip_addr)
+{
+	__be16 *mask, *value;
+	int i;
+
+	mask = &ip_addr->mask.s6_addr16[FBNIC_RPC_TCAM_IP_ADDR_WORD_LEN - 1];
+	value = &ip_addr->value.s6_addr16[FBNIC_RPC_TCAM_IP_ADDR_WORD_LEN - 1];
+
+	for (i = 0; i < FBNIC_RPC_TCAM_IP_ADDR_WORD_LEN; i++)
+		wr32(fbd, FBNIC_RPC_TCAM_IPSRC(idx, i),
+		     FIELD_PREP(FBNIC_RPC_TCAM_IP_ADDR_MASK, ntohs(*mask--)) |
+		     FIELD_PREP(FBNIC_RPC_TCAM_IP_ADDR_VALUE, ntohs(*value--)));
+	wrfl(fbd);
+
+	/* Bit 129 is used to flag for v4/v6 */
+	wr32(fbd, FBNIC_RPC_TCAM_IPSRC(idx, i),
+	     (ip_addr->version == 6) | FBNIC_RPC_TCAM_VALIDATE);
+}
+
+static void fbnic_write_ip_dst_entry(struct fbnic_dev *fbd, unsigned int idx,
+				     struct fbnic_ip_addr *ip_addr)
+{
+	__be16 *mask, *value;
+	int i;
+
+	mask = &ip_addr->mask.s6_addr16[FBNIC_RPC_TCAM_IP_ADDR_WORD_LEN - 1];
+	value = &ip_addr->value.s6_addr16[FBNIC_RPC_TCAM_IP_ADDR_WORD_LEN - 1];
+
+	for (i = 0; i < FBNIC_RPC_TCAM_IP_ADDR_WORD_LEN; i++)
+		wr32(fbd, FBNIC_RPC_TCAM_IPDST(idx, i),
+		     FIELD_PREP(FBNIC_RPC_TCAM_IP_ADDR_MASK, ntohs(*mask--)) |
+		     FIELD_PREP(FBNIC_RPC_TCAM_IP_ADDR_VALUE, ntohs(*value--)));
+	wrfl(fbd);
+
+	/* Bit 129 is used to flag for v4/v6 */
+	wr32(fbd, FBNIC_RPC_TCAM_IPDST(idx, i),
+	     (ip_addr->version == 6) | FBNIC_RPC_TCAM_VALIDATE);
+}
+
+static void fbnic_write_ip_outer_src_entry(struct fbnic_dev *fbd,
+					   unsigned int idx,
+					   struct fbnic_ip_addr *ip_addr)
+{
+	__be16 *mask, *value;
+	int i;
+
+	mask = &ip_addr->mask.s6_addr16[FBNIC_RPC_TCAM_IP_ADDR_WORD_LEN - 1];
+	value = &ip_addr->value.s6_addr16[FBNIC_RPC_TCAM_IP_ADDR_WORD_LEN - 1];
+
+	for (i = 0; i < FBNIC_RPC_TCAM_IP_ADDR_WORD_LEN; i++)
+		wr32(fbd, FBNIC_RPC_TCAM_OUTER_IPSRC(idx, i),
+		     FIELD_PREP(FBNIC_RPC_TCAM_IP_ADDR_MASK, ntohs(*mask--)) |
+		     FIELD_PREP(FBNIC_RPC_TCAM_IP_ADDR_VALUE, ntohs(*value--)));
+	wrfl(fbd);
+
+	wr32(fbd, FBNIC_RPC_TCAM_OUTER_IPSRC(idx, i), FBNIC_RPC_TCAM_VALIDATE);
+}
+
+static void fbnic_write_ip_outer_dst_entry(struct fbnic_dev *fbd,
+					   unsigned int idx,
+					   struct fbnic_ip_addr *ip_addr)
+{
+	__be16 *mask, *value;
+	int i;
+
+	mask = &ip_addr->mask.s6_addr16[FBNIC_RPC_TCAM_IP_ADDR_WORD_LEN - 1];
+	value = &ip_addr->value.s6_addr16[FBNIC_RPC_TCAM_IP_ADDR_WORD_LEN - 1];
+
+	for (i = 0; i < FBNIC_RPC_TCAM_IP_ADDR_WORD_LEN; i++)
+		wr32(fbd, FBNIC_RPC_TCAM_OUTER_IPDST(idx, i),
+		     FIELD_PREP(FBNIC_RPC_TCAM_IP_ADDR_MASK, ntohs(*mask--)) |
+		     FIELD_PREP(FBNIC_RPC_TCAM_IP_ADDR_VALUE, ntohs(*value--)));
+	wrfl(fbd);
+
+	wr32(fbd, FBNIC_RPC_TCAM_OUTER_IPDST(idx, i), FBNIC_RPC_TCAM_VALIDATE);
+}
+
+void fbnic_write_ip_addr(struct fbnic_dev *fbd)
+{
+	int idx;
+
+	for (idx = ARRAY_SIZE(fbd->ip_src); idx--;) {
+		struct fbnic_ip_addr *ip_addr = &fbd->ip_src[idx];
+
+		/* Check if update flag is set else skip. */
+		if (!(ip_addr->state & FBNIC_TCAM_S_UPDATE))
+			continue;
+
+		/* Clear by writing 0s. */
+		if (ip_addr->state == FBNIC_TCAM_S_DELETE) {
+			/* Invalidate entry and clear addr state info */
+			fbnic_clear_ip_src_entry(fbd, idx);
+			memset(ip_addr, 0, sizeof(*ip_addr));
+
+			continue;
+		}
+
+		fbnic_write_ip_src_entry(fbd, idx, ip_addr);
+
+		ip_addr->state = FBNIC_TCAM_S_VALID;
+	}
+
+	/* Repeat process for other IP TCAMs */
+	for (idx = ARRAY_SIZE(fbd->ip_dst); idx--;) {
+		struct fbnic_ip_addr *ip_addr = &fbd->ip_dst[idx];
+
+		if (!(ip_addr->state & FBNIC_TCAM_S_UPDATE))
+			continue;
+
+		if (ip_addr->state == FBNIC_TCAM_S_DELETE) {
+			fbnic_clear_ip_dst_entry(fbd, idx);
+			memset(ip_addr, 0, sizeof(*ip_addr));
+
+			continue;
+		}
+
+		fbnic_write_ip_dst_entry(fbd, idx, ip_addr);
+
+		ip_addr->state = FBNIC_TCAM_S_VALID;
+	}
+
+	for (idx = ARRAY_SIZE(fbd->ipo_src); idx--;) {
+		struct fbnic_ip_addr *ip_addr = &fbd->ipo_src[idx];
+
+		if (!(ip_addr->state & FBNIC_TCAM_S_UPDATE))
+			continue;
+
+		if (ip_addr->state == FBNIC_TCAM_S_DELETE) {
+			fbnic_clear_ip_outer_src_entry(fbd, idx);
+			memset(ip_addr, 0, sizeof(*ip_addr));
+
+			continue;
+		}
+
+		fbnic_write_ip_outer_src_entry(fbd, idx, ip_addr);
+
+		ip_addr->state = FBNIC_TCAM_S_VALID;
+	}
+
+	for (idx = ARRAY_SIZE(fbd->ipo_dst); idx--;) {
+		struct fbnic_ip_addr *ip_addr = &fbd->ipo_dst[idx];
+
+		if (!(ip_addr->state & FBNIC_TCAM_S_UPDATE))
+			continue;
+
+		if (ip_addr->state == FBNIC_TCAM_S_DELETE) {
+			fbnic_clear_ip_outer_dst_entry(fbd, idx);
+			memset(ip_addr, 0, sizeof(*ip_addr));
+
+			continue;
+		}
+
+		fbnic_write_ip_outer_dst_entry(fbd, idx, ip_addr);
+
+		ip_addr->state = FBNIC_TCAM_S_VALID;
+	}
 }
 
 void fbnic_clear_rules(struct fbnic_dev *fbd)

@@ -101,13 +101,7 @@ static int z_erofs_deflate_decompress(struct z_erofs_decompress_req *rq,
 				      struct page **pgpl)
 {
 	struct super_block *sb = rq->sb;
-	struct z_erofs_stream_dctx dctx = {
-		.rq = rq,
-		.inpages = PAGE_ALIGN(rq->inputsize) >> PAGE_SHIFT,
-		.outpages = PAGE_ALIGN(rq->pageofs_out + rq->outputsize)
-				>> PAGE_SHIFT,
-		.no = -1, .ni = 0,
-	};
+	struct z_erofs_stream_dctx dctx = { .rq = rq, .no = -1, .ni = 0 };
 	struct z_erofs_deflate *strm;
 	int zerr, err;
 

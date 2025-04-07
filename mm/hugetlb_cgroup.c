@@ -101,10 +101,9 @@ static void hugetlb_cgroup_init(struct hugetlb_cgroup *h_cgroup,
 	int idx;
 
 	for (idx = 0; idx < HUGE_MAX_HSTATE; idx++) {
-		struct page_counter *fault_parent = NULL;
-		struct page_counter *rsvd_parent = NULL;
+		struct page_counter *fault, *fault_parent = NULL;
+		struct page_counter *rsvd, *rsvd_parent = NULL;
 		unsigned long limit;
-		int ret;
 
 		if (parent_h_cgroup) {
 			fault_parent = hugetlb_cgroup_counter_from_cgroup(
@@ -112,24 +111,22 @@ static void hugetlb_cgroup_init(struct hugetlb_cgroup *h_cgroup,
 			rsvd_parent = hugetlb_cgroup_counter_from_cgroup_rsvd(
 				parent_h_cgroup, idx);
 		}
-		page_counter_init(hugetlb_cgroup_counter_from_cgroup(h_cgroup,
-								     idx),
-				  fault_parent, false);
-		page_counter_init(
-			hugetlb_cgroup_counter_from_cgroup_rsvd(h_cgroup, idx),
-			rsvd_parent, false);
+		fault = hugetlb_cgroup_counter_from_cgroup(h_cgroup, idx);
+		rsvd = hugetlb_cgroup_counter_from_cgroup_rsvd(h_cgroup, idx);
+
+		page_counter_init(fault, fault_parent, false);
+		page_counter_init(rsvd, rsvd_parent, false);
+
+		if (!cgroup_subsys_on_dfl(hugetlb_cgrp_subsys)) {
+			fault->track_failcnt = true;
+			rsvd->track_failcnt = true;
+		}
 
 		limit = round_down(PAGE_COUNTER_MAX,
 				   pages_per_huge_page(&hstates[idx]));
 
-		ret = page_counter_set_max(
-			hugetlb_cgroup_counter_from_cgroup(h_cgroup, idx),
-			limit);
-		VM_BUG_ON(ret);
-		ret = page_counter_set_max(
-			hugetlb_cgroup_counter_from_cgroup_rsvd(h_cgroup, idx),
-			limit);
-		VM_BUG_ON(ret);
+		VM_BUG_ON(page_counter_set_max(fault, limit));
+		VM_BUG_ON(page_counter_set_max(rsvd, limit));
 	}
 }
 

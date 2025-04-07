@@ -1843,7 +1843,7 @@ void i9xx_enable_pll(const struct intel_crtc_state *crtc_state)
 	enum pipe pipe = crtc->pipe;
 	int i;
 
-	assert_transcoder_disabled(dev_priv, crtc_state->cpu_transcoder);
+	assert_transcoder_disabled(display, crtc_state->cpu_transcoder);
 
 	/* PLL is protected by panel, make sure we can write it */
 	if (i9xx_has_pps(dev_priv))
@@ -2024,7 +2024,7 @@ void vlv_enable_pll(const struct intel_crtc_state *crtc_state)
 	const struct i9xx_dpll_hw_state *hw_state = &crtc_state->dpll_hw_state.i9xx;
 	enum pipe pipe = crtc->pipe;
 
-	assert_transcoder_disabled(dev_priv, crtc_state->cpu_transcoder);
+	assert_transcoder_disabled(display, crtc_state->cpu_transcoder);
 
 	/* PLL is protected by panel, make sure we can write it */
 	assert_pps_unlocked(display, pipe);
@@ -2171,7 +2171,7 @@ void chv_enable_pll(const struct intel_crtc_state *crtc_state)
 	const struct i9xx_dpll_hw_state *hw_state = &crtc_state->dpll_hw_state.i9xx;
 	enum pipe pipe = crtc->pipe;
 
-	assert_transcoder_disabled(dev_priv, crtc_state->cpu_transcoder);
+	assert_transcoder_disabled(display, crtc_state->cpu_transcoder);
 
 	/* PLL is protected by panel, make sure we can write it */
 	assert_pps_unlocked(display, pipe);
@@ -2253,36 +2253,38 @@ int vlv_force_pll_on(struct drm_i915_private *dev_priv, enum pipe pipe,
 
 void vlv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
+	struct intel_display *display = &dev_priv->display;
 	u32 val;
 
 	/* Make sure the pipe isn't still relying on us */
-	assert_transcoder_disabled(dev_priv, (enum transcoder)pipe);
+	assert_transcoder_disabled(display, (enum transcoder)pipe);
 
 	val = DPLL_INTEGRATED_REF_CLK_VLV |
 		DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
 	if (pipe != PIPE_A)
 		val |= DPLL_INTEGRATED_CRI_CLK_VLV;
 
-	intel_de_write(dev_priv, DPLL(dev_priv, pipe), val);
-	intel_de_posting_read(dev_priv, DPLL(dev_priv, pipe));
+	intel_de_write(display, DPLL(display, pipe), val);
+	intel_de_posting_read(display, DPLL(display, pipe));
 }
 
 void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
+	struct intel_display *display = &dev_priv->display;
 	enum dpio_channel ch = vlv_pipe_to_channel(pipe);
 	enum dpio_phy phy = vlv_pipe_to_phy(pipe);
 	u32 val;
 
 	/* Make sure the pipe isn't still relying on us */
-	assert_transcoder_disabled(dev_priv, (enum transcoder)pipe);
+	assert_transcoder_disabled(display, (enum transcoder)pipe);
 
 	val = DPLL_SSC_REF_CLK_CHV |
 		DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
 	if (pipe != PIPE_A)
 		val |= DPLL_INTEGRATED_CRI_CLK_VLV;
 
-	intel_de_write(dev_priv, DPLL(dev_priv, pipe), val);
-	intel_de_posting_read(dev_priv, DPLL(dev_priv, pipe));
+	intel_de_write(display, DPLL(display, pipe), val);
+	intel_de_posting_read(display, DPLL(display, pipe));
 
 	vlv_dpio_get(dev_priv);
 
@@ -2296,19 +2298,19 @@ void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 
 void i9xx_disable_pll(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
 	/* Don't disable pipe or pipe PLLs if needed */
-	if (IS_I830(dev_priv))
+	if (display->platform.i830)
 		return;
 
 	/* Make sure the pipe isn't still relying on us */
-	assert_transcoder_disabled(dev_priv, crtc_state->cpu_transcoder);
+	assert_transcoder_disabled(display, crtc_state->cpu_transcoder);
 
-	intel_de_write(dev_priv, DPLL(dev_priv, pipe), DPLL_VGA_MODE_DIS);
-	intel_de_posting_read(dev_priv, DPLL(dev_priv, pipe));
+	intel_de_write(display, DPLL(display, pipe), DPLL_VGA_MODE_DIS);
+	intel_de_posting_read(display, DPLL(display, pipe));
 }
 
 
@@ -2329,10 +2331,9 @@ void vlv_force_pll_off(struct drm_i915_private *dev_priv, enum pipe pipe)
 }
 
 /* Only for pre-ILK configs */
-static void assert_pll(struct drm_i915_private *dev_priv,
+static void assert_pll(struct intel_display *display,
 		       enum pipe pipe, bool state)
 {
-	struct intel_display *display = &dev_priv->display;
 	bool cur_state;
 
 	cur_state = intel_de_read(display, DPLL(display, pipe)) & DPLL_VCO_ENABLE;
@@ -2341,12 +2342,12 @@ static void assert_pll(struct drm_i915_private *dev_priv,
 				 str_on_off(state), str_on_off(cur_state));
 }
 
-void assert_pll_enabled(struct drm_i915_private *i915, enum pipe pipe)
+void assert_pll_enabled(struct intel_display *display, enum pipe pipe)
 {
-	assert_pll(i915, pipe, true);
+	assert_pll(display, pipe, true);
 }
 
-void assert_pll_disabled(struct drm_i915_private *i915, enum pipe pipe)
+void assert_pll_disabled(struct intel_display *display, enum pipe pipe)
 {
-	assert_pll(i915, pipe, false);
+	assert_pll(display, pipe, false);
 }

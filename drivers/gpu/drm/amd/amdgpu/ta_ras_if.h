@@ -92,6 +92,9 @@ enum ta_ras_block {
 	TA_RAS_BLOCK__MCA,
 	TA_RAS_BLOCK__VCN,
 	TA_RAS_BLOCK__JPEG,
+	TA_RAS_BLOCK__IH,
+	TA_RAS_BLOCK__MPIO,
+	TA_RAS_BLOCK__MMSCH,
 	TA_NUM_BLOCK_MAX
 };
 
@@ -151,6 +154,7 @@ struct ta_ras_init_flags {
 	uint16_t xcc_mask;
 	uint8_t channel_dis_num;
 	uint8_t nps_mode;
+	uint32_t active_umc_mask;
 };
 
 struct ta_ras_mca_addr {

@@ -2514,7 +2514,7 @@ void ixgbevf_down(struct ixgbevf_adapter *adapter)
 
 	ixgbevf_napi_disable_all(adapter);
 
-	del_timer_sync(&adapter->service_timer);
+	timer_delete_sync(&adapter->service_timer);
 
 	/* disable transmits in the hardware now that interrupts are off */
 	for (i = 0; i < adapter->num_tx_queues; i++) {

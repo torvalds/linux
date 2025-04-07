@@ -454,7 +454,7 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 
 static void qed_free_cdev(struct qed_dev *cdev)
 {
-	kfree((void *)cdev);
+	kfree(cdev);
 }
 
 static struct qed_dev *qed_alloc_cdev(struct pci_dev *pdev)

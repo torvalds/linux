@@ -69,7 +69,7 @@ static void amd_asf_process_target(struct work_struct *work)
 	/* Check if no error bits are set in target status register */
 	if (reg & ASF_ERROR_STATUS) {
 		/* Set bank as full */
-		cmd = 0;
+		cmd = 1;
 		reg |= GENMASK(3, 2);
 		outb_p(reg, ASFDATABNKSEL);
 	} else {
@@ -272,9 +272,9 @@ static u32 amd_asf_func(struct i2c_adapter *adapter)
 }
 
 static const struct i2c_algorithm amd_asf_smbus_algorithm = {
-	.master_xfer = amd_asf_xfer,
-	.reg_slave = amd_asf_reg_target,
-	.unreg_slave = amd_asf_unreg_target,
+	.xfer = amd_asf_xfer,
+	.reg_target = amd_asf_reg_target,
+	.unreg_target = amd_asf_unreg_target,
 	.functionality = amd_asf_func,
 };
 

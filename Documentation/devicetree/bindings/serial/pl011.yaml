@@ -92,6 +92,9 @@ properties:
       3000ms.
     default: 3000
 
+  power-domains:
+    maxItems: 1
+
   resets:
     maxItems: 1
 

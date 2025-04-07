@@ -2876,7 +2876,7 @@ MODULE_DEVICE_TABLE(pci, qedi_pci_tbl);
 
 static enum cpuhp_state qedi_cpuhp_state;
 
-static struct pci_error_handlers qedi_err_handler = {
+static const struct pci_error_handlers qedi_err_handler = {
 	.error_detected = qedi_io_error_detected,
 };
 

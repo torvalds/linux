@@ -83,7 +83,14 @@ static struct page *has_unmovable_pages(unsigned long start_pfn, unsigned long e
 			unsigned int skip_pages;
 
 			if (PageHuge(page)) {
-				if (!hugepage_migration_supported(folio_hstate(folio)))
+				struct hstate *h;
+
+				/*
+				 * The huge page may be freed so can not
+				 * use folio_hstate() directly.
+				 */
+				h = size_to_hstate(folio_size(folio));
+				if (h && !hugepage_migration_supported(h))
 					return page;
 			} else if (!folio_test_lru(folio) && !__folio_test_movable(folio)) {
 				return page;

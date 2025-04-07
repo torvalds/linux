@@ -638,7 +638,7 @@ static int bluecard_hci_close(struct hci_dev *hdev)
 	bluecard_hci_flush(hdev);
 
 	/* Stop LED timer */
-	del_timer_sync(&(info->timer));
+	timer_delete_sync(&(info->timer));
 
 	/* Disable power LED */
 	outb(0x00, iobase + 0x30);
@@ -885,7 +885,7 @@ static void bluecard_release(struct pcmcia_device *link)
 
 	bluecard_close(info);
 
-	del_timer_sync(&(info->timer));
+	timer_delete_sync(&(info->timer));
 
 	pcmcia_disable_device(link);
 }

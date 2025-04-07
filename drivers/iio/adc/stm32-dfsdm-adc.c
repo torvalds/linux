@@ -1275,9 +1275,8 @@ static int stm32_dfsdm_write_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
 		ret = stm32_dfsdm_compute_all_osrs(indio_dev, val);
 		if (!ret) {
@@ -1287,23 +1286,54 @@ static int stm32_dfsdm_write_raw(struct iio_dev *indio_dev,
 			adc->oversamp = val;
 			adc->sample_freq = spi_freq / val;
 		}
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 		return ret;
 
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		if (!val)
 			return -EINVAL;
 
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
 		ret = dfsdm_adc_set_samp_freq(indio_dev, val, spi_freq);
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 		return ret;
 	}
 
 	return -EINVAL;
+}
+
+static int __stm32_dfsdm_read_info_raw(struct iio_dev *indio_dev,
+				       struct iio_chan_spec const *chan,
+				       int *val)
+{
+	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
+	int ret = 0;
+
+	if (adc->hwc)
+		ret = iio_hw_consumer_enable(adc->hwc);
+	if (adc->backend)
+		ret = iio_backend_enable(adc->backend[chan->scan_index]);
+	if (ret < 0) {
+		dev_err(&indio_dev->dev,
+			"%s: IIO enable failed (channel %d)\n",
+			__func__, chan->channel);
+		return ret;
+	}
+	ret = stm32_dfsdm_single_conv(indio_dev, chan, val);
+	if (adc->hwc)
+		iio_hw_consumer_disable(adc->hwc);
+	if (adc->backend)
+		iio_backend_disable(adc->backend[chan->scan_index]);
+	if (ret < 0) {
+		dev_err(&indio_dev->dev,
+			"%s: Conversion failed (channel %d)\n",
+			__func__, chan->channel);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int stm32_dfsdm_read_raw(struct iio_dev *indio_dev,
@@ -1323,33 +1353,13 @@ static int stm32_dfsdm_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(indio_dev);
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+
+		ret = __stm32_dfsdm_read_info_raw(indio_dev, chan, val);
+		iio_device_release_direct(indio_dev);
 		if (ret)
 			return ret;
-		if (adc->hwc)
-			ret = iio_hw_consumer_enable(adc->hwc);
-		if (adc->backend)
-			ret = iio_backend_enable(adc->backend[idx]);
-		if (ret < 0) {
-			dev_err(&indio_dev->dev,
-				"%s: IIO enable failed (channel %d)\n",
-				__func__, chan->channel);
-			iio_device_release_direct_mode(indio_dev);
-			return ret;
-		}
-		ret = stm32_dfsdm_single_conv(indio_dev, chan, val);
-		if (adc->hwc)
-			iio_hw_consumer_disable(adc->hwc);
-		if (adc->backend)
-			iio_backend_disable(adc->backend[idx]);
-		if (ret < 0) {
-			dev_err(&indio_dev->dev,
-				"%s: Conversion failed (channel %d)\n",
-				__func__, chan->channel);
-			iio_device_release_direct_mode(indio_dev);
-			return ret;
-		}
-		iio_device_release_direct_mode(indio_dev);
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:

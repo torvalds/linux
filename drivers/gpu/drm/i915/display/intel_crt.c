@@ -54,6 +54,7 @@
 #include "intel_load_detect.h"
 #include "intel_pch_display.h"
 #include "intel_pch_refclk.h"
+#include "intel_pfit.h"
 
 /* Here's the desired hotplug mode */
 #define ADPA_HOTPLUG_BITS (ADPA_CRT_HOTPLUG_ENABLE |			\
@@ -108,19 +109,18 @@ static bool intel_crt_get_hw_state(struct intel_encoder *encoder,
 				   enum pipe *pipe)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
 	intel_wakeref_t wakeref;
 	bool ret;
 
-	wakeref = intel_display_power_get_if_enabled(dev_priv,
+	wakeref = intel_display_power_get_if_enabled(display,
 						     encoder->power_domain);
 	if (!wakeref)
 		return false;
 
 	ret = intel_crt_port_enabled(display, crt->adpa_reg, pipe);
 
-	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
+	intel_display_power_put(display, encoder->power_domain, wakeref);
 
 	return ret;
 }
@@ -251,11 +251,10 @@ static void hsw_disable_crt(struct intel_atomic_state *state,
 			    const struct drm_connector_state *old_conn_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	drm_WARN_ON(display->drm, !old_crtc_state->has_pch_encoder);
 
-	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
+	intel_set_pch_fifo_underrun_reporting(display, PIPE_A, false);
 }
 
 static void hsw_post_disable_crt(struct intel_atomic_state *state,
@@ -265,7 +264,6 @@ static void hsw_post_disable_crt(struct intel_atomic_state *state,
 {
 	struct intel_display *display = to_intel_display(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	intel_crtc_vblank_off(old_crtc_state);
 
@@ -285,7 +283,7 @@ static void hsw_post_disable_crt(struct intel_atomic_state *state,
 
 	drm_WARN_ON(display->drm, !old_crtc_state->has_pch_encoder);
 
-	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
+	intel_set_pch_fifo_underrun_reporting(display, PIPE_A, true);
 }
 
 static void hsw_pre_pll_enable_crt(struct intel_atomic_state *state,
@@ -294,11 +292,10 @@ static void hsw_pre_pll_enable_crt(struct intel_atomic_state *state,
 				   const struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	drm_WARN_ON(display->drm, !crtc_state->has_pch_encoder);
 
-	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
+	intel_set_pch_fifo_underrun_reporting(display, PIPE_A, false);
 }
 
 static void hsw_pre_enable_crt(struct intel_atomic_state *state,
@@ -307,13 +304,12 @@ static void hsw_pre_enable_crt(struct intel_atomic_state *state,
 			       const struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum pipe pipe = crtc->pipe;
 
 	drm_WARN_ON(display->drm, !crtc_state->has_pch_encoder);
 
-	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
+	intel_set_cpu_fifo_underrun_reporting(display, pipe, false);
 
 	hsw_fdi_link_train(encoder, crtc_state);
 
@@ -326,7 +322,6 @@ static void hsw_enable_crt(struct intel_atomic_state *state,
 			   const struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum pipe pipe = crtc->pipe;
 
@@ -344,8 +339,8 @@ static void hsw_enable_crt(struct intel_atomic_state *state,
 
 	intel_crtc_wait_for_next_vblank(crtc);
 	intel_crtc_wait_for_next_vblank(crtc);
-	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
-	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
+	intel_set_cpu_fifo_underrun_reporting(display, pipe, true);
+	intel_set_pch_fifo_underrun_reporting(display, PIPE_A, true);
 }
 
 static void intel_enable_crt(struct intel_atomic_state *state,
@@ -358,7 +353,7 @@ static void intel_enable_crt(struct intel_atomic_state *state,
 
 static enum drm_mode_status
 intel_crt_mode_valid(struct drm_connector *connector,
-		     struct drm_display_mode *mode)
+		     const struct drm_display_mode *mode)
 {
 	struct intel_display *display = to_intel_display(connector->dev);
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
@@ -366,7 +361,7 @@ intel_crt_mode_valid(struct drm_connector *connector,
 	enum drm_mode_status status;
 	int max_clock;
 
-	status = intel_cpu_transcoder_mode_valid(dev_priv, mode);
+	status = intel_cpu_transcoder_mode_valid(display, mode);
 	if (status != MODE_OK)
 		return status;
 
@@ -745,8 +740,10 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 			       transconf | TRANSCONF_FORCE_BORDER);
 		intel_de_posting_read(display,
 				      TRANSCONF(display, cpu_transcoder));
-		/* Wait for next Vblank to substitue
-		 * border color for Color info */
+		/*
+		 * Wait for next Vblank to substitute
+		 * border color for Color info.
+		 */
 		intel_crtc_wait_for_next_vblank(intel_crtc_for_pipe(display, pipe));
 		st00 = intel_de_read8(display, _VGA_MSR_WRITE);
 		status = ((st00 & (1 << 4)) != 0) ?
@@ -856,7 +853,6 @@ intel_crt_detect(struct drm_connector *connector,
 		 bool force)
 {
 	struct intel_display *display = to_intel_display(connector->dev);
-	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct intel_encoder *encoder = &crt->base;
 	struct drm_atomic_state *state;
@@ -874,7 +870,7 @@ intel_crt_detect(struct drm_connector *connector,
 		return connector->status;
 
 	if (display->params.load_detect_test) {
-		wakeref = intel_display_power_get(dev_priv, encoder->power_domain);
+		wakeref = intel_display_power_get(display, encoder->power_domain);
 		goto load_detect;
 	}
 
@@ -882,7 +878,7 @@ intel_crt_detect(struct drm_connector *connector,
 	if (dmi_check_system(intel_spurious_crt_detect))
 		return connector_status_disconnected;
 
-	wakeref = intel_display_power_get(dev_priv, encoder->power_domain);
+	wakeref = intel_display_power_get(display, encoder->power_domain);
 
 	if (I915_HAS_HOTPLUG(display)) {
 		/* We can not rely on the HPD pin always being correctly wired
@@ -939,7 +935,7 @@ load_detect:
 	}
 
 out:
-	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
+	intel_display_power_put(display, encoder->power_domain, wakeref);
 
 	return status;
 }
@@ -957,7 +953,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 	if (!intel_display_driver_check_access(display))
 		return drm_edid_connector_add_modes(connector);
 
-	wakeref = intel_display_power_get(dev_priv, encoder->power_domain);
+	wakeref = intel_display_power_get(display, encoder->power_domain);
 
 	ret = intel_crt_ddc_get_modes(connector, connector->ddc);
 	if (ret || !IS_G4X(dev_priv))
@@ -968,7 +964,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 	ret = intel_crt_ddc_get_modes(connector, ddc);
 
 out:
-	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
+	intel_display_power_put(display, encoder->power_domain, wakeref);
 
 	return ret;
 }
@@ -1099,7 +1095,7 @@ void intel_crt_init(struct intel_display *display)
 	connector->base.polled = connector->polled;
 
 	if (HAS_DDI(display)) {
-		assert_port_valid(dev_priv, PORT_E);
+		assert_port_valid(display, PORT_E);
 
 		crt->base.port = PORT_E;
 		crt->base.get_config = hsw_crt_get_config;

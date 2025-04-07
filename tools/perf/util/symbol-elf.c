@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <inttypes.h>
 
+#include "compress.h"
 #include "dso.h"
 #include "map.h"
 #include "maps.h"
@@ -1173,33 +1174,6 @@ out:
 
 #endif
 
-static int dso__swap_init(struct dso *dso, unsigned char eidata)
-{
-	static unsigned int const endian = 1;
-
-	dso__set_needs_swap(dso, DSO_SWAP__NO);
-
-	switch (eidata) {
-	case ELFDATA2LSB:
-		/* We are big endian, DSO is little endian. */
-		if (*(unsigned char const *)&endian != 1)
-			dso__set_needs_swap(dso, DSO_SWAP__YES);
-		break;
-
-	case ELFDATA2MSB:
-		/* We are little endian, DSO is big endian. */
-		if (*(unsigned char const *)&endian != 0)
-			dso__set_needs_swap(dso, DSO_SWAP__YES);
-		break;
-
-	default:
-		pr_err("unrecognized DSO data encoding %d\n", eidata);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 bool symsrc__possibly_runtime(struct symsrc *ss)
 {
 	return ss->dynsym || ss->opdsec;
@@ -1228,6 +1202,81 @@ bool elf__needs_adjust_symbols(GElf_Ehdr ehdr)
 	       ehdr.e_type == ET_DYN;
 }
 
+static Elf *read_gnu_debugdata(struct dso *dso, Elf *elf, const char *name, int *fd_ret)
+{
+	Elf *elf_embedded;
+	GElf_Ehdr ehdr;
+	GElf_Shdr shdr;
+	Elf_Scn *scn;
+	Elf_Data *scn_data;
+	FILE *wrapped;
+	size_t shndx;
+	char temp_filename[] = "/tmp/perf.gnu_debugdata.elf.XXXXXX";
+	int ret, temp_fd;
+
+	if (gelf_getehdr(elf, &ehdr) == NULL) {
+		pr_debug("%s: cannot read %s ELF file.\n", __func__, name);
+		*dso__load_errno(dso) = DSO_LOAD_ERRNO__INVALID_ELF;
+		return NULL;
+	}
+
+	scn = elf_section_by_name(elf, &ehdr, &shdr, ".gnu_debugdata", &shndx);
+	if (!scn) {
+		*dso__load_errno(dso) = -ENOENT;
+		return NULL;
+	}
+
+	if (shdr.sh_type == SHT_NOBITS) {
+		pr_debug("%s: .gnu_debugdata of ELF file %s has no data.\n", __func__, name);
+		*dso__load_errno(dso) = DSO_LOAD_ERRNO__INVALID_ELF;
+		return NULL;
+	}
+
+	scn_data = elf_rawdata(scn, NULL);
+	if (!scn_data) {
+		pr_debug("%s: error reading .gnu_debugdata of %s: %s\n", __func__,
+			 name, elf_errmsg(-1));
+		*dso__load_errno(dso) = DSO_LOAD_ERRNO__INVALID_ELF;
+		return NULL;
+	}
+
+	wrapped = fmemopen(scn_data->d_buf, scn_data->d_size, "r");
+	if (!wrapped) {
+		pr_debug("%s: fmemopen: %s\n", __func__, strerror(errno));
+		*dso__load_errno(dso) = -errno;
+		return NULL;
+	}
+
+	temp_fd = mkstemp(temp_filename);
+	if (temp_fd < 0) {
+		pr_debug("%s: mkstemp: %s\n", __func__, strerror(errno));
+		*dso__load_errno(dso) = -errno;
+		fclose(wrapped);
+		return NULL;
+	}
+	unlink(temp_filename);
+
+	ret = lzma_decompress_stream_to_file(wrapped, temp_fd);
+	fclose(wrapped);
+	if (ret < 0) {
+		*dso__load_errno(dso) = -errno;
+		close(temp_fd);
+		return NULL;
+	}
+
+	elf_embedded = elf_begin(temp_fd, PERF_ELF_C_READ_MMAP, NULL);
+	if (!elf_embedded) {
+		pr_debug("%s: error reading .gnu_debugdata of %s: %s\n", __func__,
+			 name, elf_errmsg(-1));
+		*dso__load_errno(dso) = DSO_LOAD_ERRNO__INVALID_ELF;
+		close(temp_fd);
+		return NULL;
+	}
+	pr_debug("%s: using .gnu_debugdata of %s\n", __func__, name);
+	*fd_ret = temp_fd;
+	return elf_embedded;
+}
+
 int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 		 enum dso_binary_type type)
 {
@@ -1254,6 +1303,19 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 		pr_debug("%s: cannot read %s ELF file.\n", __func__, name);
 		*dso__load_errno(dso) = DSO_LOAD_ERRNO__INVALID_ELF;
 		goto out_close;
+	}
+
+	if (type == DSO_BINARY_TYPE__GNU_DEBUGDATA) {
+		int new_fd;
+		Elf *embedded = read_gnu_debugdata(dso, elf, name, &new_fd);
+
+		if (!embedded)
+			goto out_close;
+
+		elf_end(elf);
+		close(fd);
+		fd = new_fd;
+		elf = embedded;
 	}
 
 	if (gelf_getehdr(elf, &ehdr) == NULL) {
@@ -1854,10 +1916,23 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 					     kmodule, 1);
 		if (err < 0)
 			return err;
-		err += nr;
+		nr += err;
 	}
 
-	return err;
+	/*
+	 * The .gnu_debugdata is a special situation: it contains a symbol
+	 * table, but the runtime file may also contain dynsym entries which are
+	 * not present there. We need to load both.
+	 */
+	if (syms_ss->type == DSO_BINARY_TYPE__GNU_DEBUGDATA && runtime_ss->dynsym) {
+		err = dso__load_sym_internal(dso, map, runtime_ss, runtime_ss,
+					     kmodule, 1);
+		if (err < 0)
+			return err;
+		nr += err;
+	}
+
+	return nr;
 }
 
 static int elf_read_maps(Elf *elf, bool exe, mapfn_t mapfn, void *data)

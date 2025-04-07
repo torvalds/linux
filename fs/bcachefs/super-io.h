@@ -21,13 +21,13 @@ static inline bool bch2_version_compatible(u16 version)
 void bch2_version_to_text(struct printbuf *, enum bcachefs_metadata_version);
 enum bcachefs_metadata_version bch2_latest_compatible_version(enum bcachefs_metadata_version);
 
-bool bch2_set_version_incompat(struct bch_fs *, enum bcachefs_metadata_version);
+int bch2_set_version_incompat(struct bch_fs *, enum bcachefs_metadata_version);
 
-static inline bool bch2_request_incompat_feature(struct bch_fs *c,
-						 enum bcachefs_metadata_version version)
+static inline int bch2_request_incompat_feature(struct bch_fs *c,
+						enum bcachefs_metadata_version version)
 {
 	return likely(version <= c->sb.version_incompat)
-		? true
+		? 0
 		: bch2_set_version_incompat(c, version);
 }
 
@@ -91,6 +91,8 @@ int bch2_sb_from_fs(struct bch_fs *, struct bch_dev *);
 
 void bch2_free_super(struct bch_sb_handle *);
 int bch2_sb_realloc(struct bch_sb_handle *, unsigned);
+
+int bch2_sb_validate(struct bch_sb *, u64, enum bch_validate_flags, struct printbuf *);
 
 int bch2_read_super(const char *, struct bch_opts *, struct bch_sb_handle *);
 int bch2_read_super_silent(const char *, struct bch_opts *, struct bch_sb_handle *);

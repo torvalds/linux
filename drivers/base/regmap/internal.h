@@ -73,12 +73,12 @@ struct regmap {
 	void *bus_context;
 	const char *name;
 
-	bool async;
 	spinlock_t async_lock;
 	wait_queue_head_t async_waitq;
 	struct list_head async_list;
 	struct list_head async_free;
 	int async_ret;
+	bool async;
 
 #ifdef CONFIG_DEBUG_FS
 	bool debugfs_disable;
@@ -117,8 +117,6 @@ struct regmap {
 		    void *val_buf, size_t val_size);
 	int (*write)(void *context, const void *data, size_t count);
 
-	bool defer_caching;
-
 	unsigned long read_flag_mask;
 	unsigned long write_flag_mask;
 
@@ -126,6 +124,8 @@ struct regmap {
 	int reg_shift;
 	int reg_stride;
 	int reg_stride_order;
+
+	bool defer_caching;
 
 	/* If set, will always write field to HW. */
 	bool force_write_field;
@@ -161,6 +161,9 @@ struct regmap {
 	struct reg_sequence *patch;
 	int patch_regs;
 
+	/* if set, the regmap core can sleep */
+	bool can_sleep;
+
 	/* if set, converts bulk read to single read */
 	bool use_single_read;
 	/* if set, converts bulk write to single write */
@@ -176,9 +179,6 @@ struct regmap {
 	void *selector_work_buf;	/* Scratch buffer used for selector */
 
 	struct hwspinlock *hwlock;
-
-	/* if set, the regmap core can sleep */
-	bool can_sleep;
 };
 
 struct regcache_ops {

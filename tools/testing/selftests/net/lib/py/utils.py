@@ -2,8 +2,10 @@
 
 import errno
 import json as _json
+import os
 import random
 import re
+import select
 import socket
 import subprocess
 import time
@@ -15,21 +17,56 @@ class CmdExitFailure(Exception):
         self.cmd = cmd_obj
 
 
+def fd_read_timeout(fd, timeout):
+    rlist, _, _ = select.select([fd], [], [], timeout)
+    if rlist:
+        return os.read(fd, 1024)
+    else:
+        raise TimeoutError("Timeout waiting for fd read")
+
+
 class cmd:
-    def __init__(self, comm, shell=True, fail=True, ns=None, background=False, host=None, timeout=5):
+    """
+    Execute a command on local or remote host.
+
+    Use bkg() instead to run a command in the background.
+    """
+    def __init__(self, comm, shell=True, fail=True, ns=None, background=False,
+                 host=None, timeout=5, ksft_wait=None):
         if ns:
             comm = f'ip netns exec {ns} ' + comm
 
         self.stdout = None
         self.stderr = None
         self.ret = None
+        self.ksft_term_fd = None
 
         self.comm = comm
         if host:
             self.proc = host.cmd(comm)
         else:
+            # ksft_wait lets us wait for the background process to fully start,
+            # we pass an FD to the child process, and wait for it to write back.
+            # Similarly term_fd tells child it's time to exit.
+            pass_fds = ()
+            env = os.environ.copy()
+            if ksft_wait is not None:
+                rfd, ready_fd = os.pipe()
+                wait_fd, self.ksft_term_fd = os.pipe()
+                pass_fds = (ready_fd, wait_fd, )
+                env["KSFT_READY_FD"] = str(ready_fd)
+                env["KSFT_WAIT_FD"]  = str(wait_fd)
+
             self.proc = subprocess.Popen(comm, shell=shell, stdout=subprocess.PIPE,
-                                         stderr=subprocess.PIPE)
+                                         stderr=subprocess.PIPE, pass_fds=pass_fds,
+                                         env=env)
+            if ksft_wait is not None:
+                os.close(ready_fd)
+                os.close(wait_fd)
+                msg = fd_read_timeout(rfd, ksft_wait)
+                os.close(rfd)
+                if not msg:
+                    raise Exception("Did not receive ready message")
         if not background:
             self.process(terminate=False, fail=fail, timeout=timeout)
 
@@ -37,6 +74,8 @@ class cmd:
         if fail is None:
             fail = not terminate
 
+        if self.ksft_term_fd:
+            os.write(self.ksft_term_fd, b"1")
         if terminate:
             self.proc.terminate()
         stdout, stderr = self.proc.communicate(timeout)
@@ -54,12 +93,35 @@ class cmd:
 
 
 class bkg(cmd):
+    """
+    Run a command in the background.
+
+    Examples usage:
+
+    Run a command on remote host, and wait for it to finish.
+    This is usually paired with wait_port_listen() to make sure
+    the command has initialized:
+
+        with bkg("socat ...", exit_wait=True, host=cfg.remote) as nc:
+            ...
+
+    Run a command and expect it to let us know that it's ready
+    by writing to a special file descriptor passed via KSFT_READY_FD.
+    Command will be terminated when we exit the context manager:
+
+        with bkg("my_binary", ksft_wait=5):
+    """
     def __init__(self, comm, shell=True, fail=None, ns=None, host=None,
-                 exit_wait=False):
+                 exit_wait=False, ksft_wait=None):
         super().__init__(comm, background=True,
-                         shell=shell, fail=fail, ns=ns, host=host)
-        self.terminate = not exit_wait
+                         shell=shell, fail=fail, ns=ns, host=host,
+                         ksft_wait=ksft_wait)
+        self.terminate = not exit_wait and not ksft_wait
         self.check_fail = fail
+
+        if shell and self.terminate:
+            print("# Warning: combining shell and terminate is risky!")
+            print("#          SIGTERM may not reach the child on zsh/ksh!")
 
     def __enter__(self):
         return self
@@ -123,20 +185,13 @@ def ethtool(args, json=None, ns=None, host=None):
     return tool('ethtool', args, json=json, ns=ns, host=host)
 
 
-def rand_port():
+def rand_port(type=socket.SOCK_STREAM):
     """
-    Get a random unprivileged port, try to make sure it's not already used.
+    Get a random unprivileged port.
     """
-    for _ in range(1000):
-        port = random.randint(10000, 65535)
-        try:
-            with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
-                s.bind(("", port))
-            return port
-        except OSError as e:
-            if e.errno != errno.EADDRINUSE:
-                raise
-    raise Exception("Can't find any free unprivileged port")
+    with socket.socket(socket.AF_INET6, type) as s:
+        s.bind(("", 0))
+        return s.getsockname()[1]
 
 
 def wait_port_listen(port, proto="tcp", ns=None, host=None, sleep=0.005, deadline=5):

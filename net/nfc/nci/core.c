@@ -565,8 +565,8 @@ static int nci_close_device(struct nci_dev *ndev)
 		 * there is a queued/running cmd_work
 		 */
 		flush_workqueue(ndev->cmd_wq);
-		del_timer_sync(&ndev->cmd_timer);
-		del_timer_sync(&ndev->data_timer);
+		timer_delete_sync(&ndev->cmd_timer);
+		timer_delete_sync(&ndev->data_timer);
 		mutex_unlock(&ndev->req_lock);
 		return 0;
 	}
@@ -597,7 +597,7 @@ static int nci_close_device(struct nci_dev *ndev)
 	/* Flush cmd wq */
 	flush_workqueue(ndev->cmd_wq);
 
-	del_timer_sync(&ndev->cmd_timer);
+	timer_delete_sync(&ndev->cmd_timer);
 
 	/* Clear flags except NCI_UNREG */
 	ndev->flags &= BIT(NCI_UNREG);

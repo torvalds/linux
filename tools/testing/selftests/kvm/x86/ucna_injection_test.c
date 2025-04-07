@@ -86,7 +86,7 @@ static void ucna_injection_guest_code(void)
 	wrmsr(MSR_IA32_MCx_CTL2(UCNA_BANK), ctl2 | MCI_CTL2_CMCI_EN);
 
 	/* Enables interrupt in guest. */
-	asm volatile("sti");
+	sti();
 
 	/* Let user space inject the first UCNA */
 	GUEST_SYNC(SYNC_FIRST_UCNA);

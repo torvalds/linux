@@ -3388,7 +3388,7 @@ static bool iwl_mvm_wait_d3_notif(struct iwl_notif_wait_data *notif_wait,
 		break;
 	}
 	case WIDE_ID(PROT_OFFLOAD_GROUP, D3_END_NOTIFICATION): {
-		struct iwl_mvm_d3_end_notif *notif = (void *)pkt->data;
+		struct iwl_d3_end_notif *notif = (void *)pkt->data;
 
 		d3_data->d3_end_flags = __le32_to_cpu(notif->flags);
 		d3_data->notif_received |= IWL_D3_NOTIF_D3_END_NOTIF;

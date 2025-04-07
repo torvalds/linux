@@ -433,7 +433,7 @@ static void hidp_set_timer(struct hidp_session *session)
 static void hidp_del_timer(struct hidp_session *session)
 {
 	if (session->idle_to > 0)
-		del_timer_sync(&session->timer);
+		timer_delete_sync(&session->timer);
 }
 
 static void hidp_process_report(struct hidp_session *session, int type,

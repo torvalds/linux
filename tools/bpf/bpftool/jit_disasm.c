@@ -343,7 +343,8 @@ int disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
 {
 	const struct bpf_line_info *linfo = NULL;
 	unsigned int nr_skip = 0;
-	int count, i, pc = 0;
+	int count, i;
+	unsigned int pc = 0;
 	disasm_ctx_t ctx;
 
 	if (!len)

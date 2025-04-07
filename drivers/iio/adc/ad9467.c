@@ -813,6 +813,18 @@ static int ad9467_read_raw(struct iio_dev *indio_dev,
 	}
 }
 
+static int __ad9467_update_clock(struct ad9467_state *st, long r_clk)
+{
+	int ret;
+
+	ret = clk_set_rate(st->clk, r_clk);
+	if (ret)
+		return ret;
+
+	guard(mutex)(&st->lock);
+	return ad9467_calibrate(st);
+}
+
 static int ad9467_write_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
 			    int val, int val2, long mask)
@@ -842,14 +854,11 @@ static int ad9467_write_raw(struct iio_dev *indio_dev,
 		if (sample_rate == r_clk)
 			return 0;
 
-		iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-			ret = clk_set_rate(st->clk, r_clk);
-			if (ret)
-				return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
-			guard(mutex)(&st->lock);
-			ret = ad9467_calibrate(st);
-		}
+		ret = __ad9467_update_clock(st, r_clk);
+		iio_device_release_direct(indio_dev);
 		return ret;
 	default:
 		return -EINVAL;

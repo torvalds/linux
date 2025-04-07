@@ -36,33 +36,89 @@
 
 #include "ast_drv.h"
 
+/* Try to detect WSXGA+ on Gen2+ */
+static bool __ast_2100_detect_wsxga_p(struct ast_device *ast)
+{
+	u8 vgacrd0 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd0);
+
+	if (!(vgacrd0 & AST_IO_VGACRD0_VRAM_INIT_BY_BMC))
+		return true;
+	if (vgacrd0 & AST_IO_VGACRD0_IKVM_WIDESCREEN)
+		return true;
+
+	return false;
+}
+
+/* Try to detect WUXGA on Gen2+ */
+static bool __ast_2100_detect_wuxga(struct ast_device *ast)
+{
+	u8 vgacrd1;
+
+	if (ast->support_fullhd) {
+		vgacrd1 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd1);
+		if (!(vgacrd1 & AST_IO_VGACRD1_SUPPORTS_WUXGA))
+			return true;
+	}
+
+	return false;
+}
+
 static void ast_detect_widescreen(struct ast_device *ast)
 {
-	u8 jreg;
+	ast->support_wsxga_p = false;
+	ast->support_fullhd = false;
+	ast->support_wuxga = false;
 
-	/* Check if we support wide screen */
-	switch (AST_GEN(ast)) {
-	case 1:
-		ast->support_wide_screen = false;
-		break;
-	default:
-		jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd0, 0xff);
-		if (!(jreg & 0x80))
-			ast->support_wide_screen = true;
-		else if (jreg & 0x01)
-			ast->support_wide_screen = true;
-		else {
-			ast->support_wide_screen = false;
-			if (ast->chip == AST1300)
-				ast->support_wide_screen = true;
-			if (ast->chip == AST1400)
-				ast->support_wide_screen = true;
-			if (ast->chip == AST2510)
-				ast->support_wide_screen = true;
-			if (IS_AST_GEN7(ast))
-				ast->support_wide_screen = true;
+	if (AST_GEN(ast) >= 7) {
+		ast->support_wsxga_p = true;
+		ast->support_fullhd = true;
+		if (__ast_2100_detect_wuxga(ast))
+			ast->support_wuxga = true;
+	} else if (AST_GEN(ast) >= 6) {
+		if (__ast_2100_detect_wsxga_p(ast))
+			ast->support_wsxga_p = true;
+		else if (ast->chip == AST2510)
+			ast->support_wsxga_p = true;
+		if (ast->support_wsxga_p)
+			ast->support_fullhd = true;
+		if (__ast_2100_detect_wuxga(ast))
+			ast->support_wuxga = true;
+	} else if (AST_GEN(ast) >= 5) {
+		if (__ast_2100_detect_wsxga_p(ast))
+			ast->support_wsxga_p = true;
+		else if (ast->chip == AST1400)
+			ast->support_wsxga_p = true;
+		if (ast->support_wsxga_p)
+			ast->support_fullhd = true;
+		if (__ast_2100_detect_wuxga(ast))
+			ast->support_wuxga = true;
+	} else if (AST_GEN(ast) >= 4) {
+		if (__ast_2100_detect_wsxga_p(ast))
+			ast->support_wsxga_p = true;
+		else if (ast->chip == AST1300)
+			ast->support_wsxga_p = true;
+		if (ast->support_wsxga_p)
+			ast->support_fullhd = true;
+		if (__ast_2100_detect_wuxga(ast))
+			ast->support_wuxga = true;
+	} else if (AST_GEN(ast) >= 3) {
+		if (__ast_2100_detect_wsxga_p(ast))
+			ast->support_wsxga_p = true;
+		if (ast->support_wsxga_p) {
+			if (ast->chip == AST2200)
+				ast->support_fullhd = true;
 		}
-		break;
+		if (__ast_2100_detect_wuxga(ast))
+			ast->support_wuxga = true;
+	} else if (AST_GEN(ast) >= 2) {
+		if (__ast_2100_detect_wsxga_p(ast))
+			ast->support_wsxga_p = true;
+		if (ast->support_wsxga_p) {
+			if (ast->chip == AST2100)
+				ast->support_fullhd = true;
+		}
+		if (__ast_2100_detect_wuxga(ast))
+			ast->support_wuxga = true;
 	}
 }
 
@@ -76,49 +132,37 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 	};
 
 	struct drm_device *dev = &ast->base;
-	u8 jreg, vgacrd1;
-
-	/*
-	 * Several of the listed TX chips are not explicitly supported
-	 * by the ast driver. If these exist in real-world devices, they
-	 * are most likely reported as VGA or SIL164 outputs. We warn here
-	 * to get bug reports for these devices. If none come in for some
-	 * time, we can begin to fail device probing on these values.
-	 */
-	vgacrd1 = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1, AST_IO_VGACRD1_TX_TYPE_MASK);
-	drm_WARN(dev, vgacrd1 == AST_IO_VGACRD1_TX_ITE66121_VBIOS,
-		 "ITE IT66121 detected, 0x%x, Gen%lu\n", vgacrd1, AST_GEN(ast));
-	drm_WARN(dev, vgacrd1 == AST_IO_VGACRD1_TX_CH7003_VBIOS,
-		 "Chrontel CH7003 detected, 0x%x, Gen%lu\n", vgacrd1, AST_GEN(ast));
-	drm_WARN(dev, vgacrd1 == AST_IO_VGACRD1_TX_ANX9807_VBIOS,
-		 "Analogix ANX9807 detected, 0x%x, Gen%lu\n", vgacrd1, AST_GEN(ast));
+	u8 vgacra3, vgacrd1;
 
 	/* Check 3rd Tx option (digital output afaik) */
 	ast->tx_chip = AST_TX_NONE;
 
-	/*
-	 * VGACRA3 Enhanced Color Mode Register, check if DVO is already
-	 * enabled, in that case, assume we have a SIL164 TMDS transmitter
-	 *
-	 * Don't make that assumption if we the chip wasn't enabled and
-	 * is at power-on reset, otherwise we'll incorrectly "detect" a
-	 * SIL164 when there is none.
-	 */
-	if (!need_post) {
-		jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xff);
-		if (jreg & 0x80)
-			ast->tx_chip = AST_TX_SIL164;
-	}
-
-	if (IS_AST_GEN4(ast) || IS_AST_GEN5(ast) || IS_AST_GEN6(ast)) {
+	if (AST_GEN(ast) <= 3) {
 		/*
-		 * On AST GEN4+, look the configuration set by the SoC in
+		 * VGACRA3 Enhanced Color Mode Register, check if DVO is already
+		 * enabled, in that case, assume we have a SIL164 TMDS transmitter
+		 *
+		 * Don't make that assumption if we the chip wasn't enabled and
+		 * is at power-on reset, otherwise we'll incorrectly "detect" a
+		 * SIL164 when there is none.
+		 */
+		if (!need_post) {
+			vgacra3 = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xff);
+			if (vgacra3 & AST_IO_VGACRA3_DVO_ENABLED)
+				ast->tx_chip = AST_TX_SIL164;
+		}
+	} else {
+		/*
+		 * On AST GEN4+, look at the configuration set by the SoC in
 		 * the SOC scratch register #1 bits 11:8 (interestingly marked
 		 * as "reserved" in the spec)
 		 */
-		jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1,
-					      AST_IO_VGACRD1_TX_TYPE_MASK);
-		switch (jreg) {
+		vgacrd1 = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1,
+						 AST_IO_VGACRD1_TX_TYPE_MASK);
+		switch (vgacrd1) {
+		/*
+		 * GEN4 to GEN6
+		 */
 		case AST_IO_VGACRD1_TX_SIL164_VBIOS:
 			ast->tx_chip = AST_TX_SIL164;
 			break;
@@ -134,14 +178,32 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 			fallthrough;
 		case AST_IO_VGACRD1_TX_FW_EMBEDDED_FW:
 			ast->tx_chip = AST_TX_DP501;
-		}
-	} else if (IS_AST_GEN7(ast)) {
-		if (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1, AST_IO_VGACRD1_TX_TYPE_MASK) ==
-		    AST_IO_VGACRD1_TX_ASTDP) {
-			int ret = ast_dp_launch(ast);
-
-			if (!ret)
-				ast->tx_chip = AST_TX_ASTDP;
+			break;
+		/*
+		 * GEN7+
+		 */
+		case AST_IO_VGACRD1_TX_ASTDP:
+			ast->tx_chip = AST_TX_ASTDP;
+			break;
+		/*
+		 * Several of the listed TX chips are not explicitly supported
+		 * by the ast driver. If these exist in real-world devices, they
+		 * are most likely reported as VGA or SIL164 outputs. We warn here
+		 * to get bug reports for these devices. If none come in for some
+		 * time, we can begin to fail device probing on these values.
+		 */
+		case AST_IO_VGACRD1_TX_ITE66121_VBIOS:
+			drm_warn(dev, "ITE IT66121 detected, 0x%x, Gen%lu\n",
+				 vgacrd1, AST_GEN(ast));
+			break;
+		case AST_IO_VGACRD1_TX_CH7003_VBIOS:
+			drm_warn(dev, "Chrontel CH7003 detected, 0x%x, Gen%lu\n",
+				 vgacrd1, AST_GEN(ast));
+			break;
+		case AST_IO_VGACRD1_TX_ANX9807_VBIOS:
+			drm_warn(dev, "Analogix ANX9807 detected, 0x%x, Gen%lu\n",
+				 vgacrd1, AST_GEN(ast));
+			break;
 		}
 	}
 
@@ -290,18 +352,25 @@ struct drm_device *ast_device_create(struct pci_dev *pdev,
 	ast->regs = regs;
 	ast->ioregs = ioregs;
 
-	ast_detect_widescreen(ast);
-	ast_detect_tx_chip(ast, need_post);
-
 	ret = ast_get_dram_info(ast);
 	if (ret)
 		return ERR_PTR(ret);
-
 	drm_info(dev, "dram MCLK=%u Mhz type=%d bus_width=%d\n",
 		 ast->mclk, ast->dram_type, ast->dram_bus_width);
 
-	if (need_post)
-		ast_post_gpu(ast);
+	ast_detect_tx_chip(ast, need_post);
+	switch (ast->tx_chip) {
+	case AST_TX_ASTDP:
+		ret = ast_post_gpu(ast);
+		break;
+	default:
+		ret = 0;
+		if (need_post)
+			ret = ast_post_gpu(ast);
+		break;
+	}
+	if (ret)
+		return ERR_PTR(ret);
 
 	ret = ast_mm_init(ast);
 	if (ret)
@@ -314,6 +383,8 @@ struct drm_device *ast_device_create(struct pci_dev *pdev,
 		if (!ast->dp501_fw_buf)
 			drm_info(dev, "failed to map reserved buffer!\n");
 	}
+
+	ast_detect_widescreen(ast);
 
 	ret = ast_mode_config_init(ast);
 	if (ret)

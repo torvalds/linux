@@ -20,6 +20,7 @@ xe_module_load.*
 api_intel_allocator.*
 kms_cursor_legacy.*
 i915_pm_rpm.*
+kms_flip.*
 
 # Kernel panic
 drm_fdinfo.*

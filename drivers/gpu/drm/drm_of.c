@@ -268,9 +268,9 @@ int drm_of_find_panel_or_bridge(const struct device_node *np,
 			*panel = NULL;
 	}
 
-	/* No panel found yet, check for a bridge next. */
 	if (bridge) {
 		if (ret) {
+			/* No panel found yet, check for a bridge next. */
 			*bridge = of_drm_find_bridge(remote);
 			if (*bridge)
 				ret = 0;

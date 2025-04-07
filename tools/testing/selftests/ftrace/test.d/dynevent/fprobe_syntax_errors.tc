@@ -27,6 +27,7 @@ check_error 'f:^foo.1/bar vfs_read'	# BAD_GROUP_NAME
 check_error 'f:^ vfs_read'		# NO_EVENT_NAME
 check_error 'f:foo/^12345678901234567890123456789012345678901234567890123456789012345 vfs_read'	# EVENT_TOO_LONG
 check_error 'f:foo/^bar.1 vfs_read'	# BAD_EVENT_NAME
+check_error 't kmem^/kfree'       # BAD_TP_NAME
 
 check_error 'f vfs_read ^$stack10000'	# BAD_STACK_NUM
 

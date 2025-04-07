@@ -39,7 +39,7 @@
 static int try_cancel_split_timeout(struct fw_transaction *t)
 {
 	if (t->is_split_transaction)
-		return del_timer(&t->split_timeout_timer);
+		return timer_delete(&t->split_timeout_timer);
 	else
 		return 1;
 }

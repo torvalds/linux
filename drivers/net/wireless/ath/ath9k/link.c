@@ -472,7 +472,7 @@ void ath_stop_ani(struct ath_softc *sc)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
 	ath_dbg(common, ANI, "Stopping ANI\n");
-	del_timer_sync(&common->ani.timer);
+	timer_delete_sync(&common->ani.timer);
 }
 
 void ath_check_ani(struct ath_softc *sc)

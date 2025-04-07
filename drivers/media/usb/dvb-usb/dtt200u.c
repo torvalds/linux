@@ -171,7 +171,7 @@ enum {
 	MIGLIA_WT220U_ZAP250_COLD,
 };
 
-static struct usb_device_id dtt200u_usb_table[] = {
+static const struct usb_device_id dtt200u_usb_table[] = {
 	DVB_USB_DEV(WIDEVIEW, WIDEVIEW_DTT200U_COLD),
 	DVB_USB_DEV(WIDEVIEW, WIDEVIEW_DTT200U_WARM),
 	DVB_USB_DEV(WIDEVIEW, WIDEVIEW_WT220U_COLD),

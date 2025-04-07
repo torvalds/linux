@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -51,7 +51,7 @@ enum iwl_debug_cmds {
 	/**
 	 * @GET_TAS_STATUS:
 	 * sends command to fw to get TAS status
-	 * the response is &struct iwl_mvm_tas_status_resp
+	 * the response is &struct iwl_tas_status_resp
 	 */
 	GET_TAS_STATUS = 0xA,
 	/**
@@ -439,25 +439,20 @@ struct iwl_dbg_dump_complete_cmd {
 	__le32 tp_data;
 } __packed; /* FW_DUMP_COMPLETE_CMD_API_S_VER_1 */
 
-#define TAS_LMAC_BAND_HB       0
-#define TAS_LMAC_BAND_LB       1
-#define TAS_LMAC_BAND_UHB      2
-#define TAS_LMAC_BAND_INVALID  3
-
 /**
- * struct iwl_mvm_tas_status_per_mac - tas status per lmac
+ * struct iwl_tas_status_per_mac - tas status per lmac
  * @static_status: tas statically enabled or disabled per lmac - TRUE/FALSE
  * @static_dis_reason: TAS static disable reason, uses
- *	&enum iwl_mvm_tas_statically_disabled_reason
+ *	&enum iwl_tas_statically_disabled_reason
  * @dynamic_status: Current TAS  status. uses
- *	&enum iwl_mvm_tas_dyna_status
+ *	&enum iwl_tas_dyna_status
  * @near_disconnection: is TAS currently near disconnection per lmac? - TRUE/FALSE
  * @max_reg_pwr_limit: Regulatory power limits in dBm
  * @sar_limit: SAR limits per lmac in dBm
  * @band: Band per lmac
  * @reserved: reserved
  */
-struct iwl_mvm_tas_status_per_mac {
+struct iwl_tas_status_per_mac {
 	u8 static_status;
 	u8 static_dis_reason;
 	u8 dynamic_status;
@@ -466,35 +461,35 @@ struct iwl_mvm_tas_status_per_mac {
 	__le16 sar_limit;
 	u8 band;
 	u8 reserved[3];
-} __packed; /*DEBUG_GET_TAS_STATUS_PER_MAC_S_VER_1*/
+} __packed; /* DEBUG_GET_TAS_STATUS_PER_MAC_S_VER_1 */
 
 /**
- * struct iwl_mvm_tas_status_resp - Response to GET_TAS_STATUS
+ * struct iwl_tas_status_resp - Response to GET_TAS_STATUS
  * @tas_fw_version: TAS FW version
  * @is_uhb_for_usa_enable: is UHB enabled in USA? - TRUE/FALSE
  * @curr_mcc: current mcc
  * @block_list: country block list
  * @tas_status_mac: TAS status per lmac, uses
- *	&struct iwl_mvm_tas_status_per_mac
+ *	&struct iwl_tas_status_per_mac
  * @in_dual_radio: is TAS in dual radio? - TRUE/FALSE
  * @uhb_allowed_flags: see &enum iwl_tas_uhb_allowed_flags.
  *	This member is valid only when fw has
  *	%IWL_UCODE_TLV_CAPA_UHB_CANADA_TAS_SUPPORT capability.
  * @reserved: reserved
  */
-struct iwl_mvm_tas_status_resp {
+struct iwl_tas_status_resp {
 	u8 tas_fw_version;
 	u8 is_uhb_for_usa_enable;
 	__le16 curr_mcc;
 	__le16 block_list[16];
-	struct iwl_mvm_tas_status_per_mac tas_status_mac[2];
+	struct iwl_tas_status_per_mac tas_status_mac[2];
 	u8 in_dual_radio;
 	u8 uhb_allowed_flags;
 	u8 reserved[2];
-} __packed; /*DEBUG_GET_TAS_STATUS_RSP_API_S_VER_3*/
+} __packed; /* DEBUG_GET_TAS_STATUS_RSP_API_S_VER_3 */
 
 /**
- * enum iwl_mvm_tas_dyna_status - TAS current running status
+ * enum iwl_tas_dyna_status - TAS current running status
  * @TAS_DYNA_INACTIVE: TAS status is inactive
  * @TAS_DYNA_INACTIVE_MVM_MODE: TAS is disabled due because FW is in MVM mode
  *	or is in softap mode.
@@ -507,7 +502,7 @@ struct iwl_mvm_tas_status_resp {
  * @TAS_DYNA_ACTIVE: TAS is currently active
  * @TAS_DYNA_STATUS_MAX: TAS status max value
  */
-enum iwl_mvm_tas_dyna_status {
+enum iwl_tas_dyna_status {
 	TAS_DYNA_INACTIVE,
 	TAS_DYNA_INACTIVE_MVM_MODE,
 	TAS_DYNA_INACTIVE_TRIGGER_MODE,
@@ -516,19 +511,22 @@ enum iwl_mvm_tas_dyna_status {
 	TAS_DYNA_ACTIVE,
 
 	TAS_DYNA_STATUS_MAX,
-}; /*_TAS_DYNA_STATUS_E*/
+};
 
 /**
- * enum iwl_mvm_tas_statically_disabled_reason - TAS statically disabled reason
+ * enum iwl_tas_statically_disabled_reason - TAS statically disabled reason
  * @TAS_DISABLED_DUE_TO_BIOS: TAS is disabled because TAS is disabled in BIOS
  * @TAS_DISABLED_DUE_TO_SAR_6DBM: TAS is disabled because SAR limit is less than 6 Dbm
  * @TAS_DISABLED_REASON_INVALID: TAS disable reason is invalid
+ * @TAS_DISABLED_DUE_TO_TABLE_SOURCE_INVALID: TAS is disabled due to
+ *	table source invalid
  * @TAS_DISABLED_REASON_MAX: TAS disable reason max value
  */
-enum iwl_mvm_tas_statically_disabled_reason {
+enum iwl_tas_statically_disabled_reason {
 	TAS_DISABLED_DUE_TO_BIOS,
 	TAS_DISABLED_DUE_TO_SAR_6DBM,
 	TAS_DISABLED_REASON_INVALID,
+	TAS_DISABLED_DUE_TO_TABLE_SOURCE_INVALID,
 
 	TAS_DISABLED_REASON_MAX,
 }; /*_TAS_STATICALLY_DISABLED_REASON_E*/

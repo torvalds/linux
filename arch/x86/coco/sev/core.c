@@ -9,8 +9,6 @@
 
 #define pr_fmt(fmt)	"SEV: " fmt
 
-#define DISABLE_BRANCH_PROFILING
-
 #include <linux/sched/debug.h>	/* For show_regs() */
 #include <linux/percpu-defs.h>
 #include <linux/cc_platform.h>
@@ -1482,8 +1480,7 @@ static enum es_result vc_handle_msr(struct ghcb *ghcb, struct es_em_ctxt *ctxt)
 	case MSR_AMD64_GUEST_TSC_FREQ:
 		if (sev_status & MSR_AMD64_SNP_SECURE_TSC)
 			return __vc_handle_secure_tsc_msrs(regs, write);
-		else
-			break;
+		break;
 	default:
 		break;
 	}

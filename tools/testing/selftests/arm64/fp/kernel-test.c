@@ -46,7 +46,6 @@ static void handle_kick_signal(int sig, siginfo_t *info, void *context)
 }
 
 static char *drivers[] = {
-	"crct10dif-arm64",
 	"sha1-ce",
 	"sha224-arm64",
 	"sha224-arm64-neon",

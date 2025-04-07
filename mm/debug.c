@@ -79,12 +79,17 @@ static void __dump_folio(struct folio *folio, struct page *page,
 			folio_ref_count(folio), mapcount, mapping,
 			folio->index + idx, pfn);
 	if (folio_test_large(folio)) {
+		int pincount = 0;
+
+		if (folio_has_pincount(folio))
+			pincount = atomic_read(&folio->_pincount);
+
 		pr_warn("head: order:%u mapcount:%d entire_mapcount:%d nr_pages_mapped:%d pincount:%d\n",
 				folio_order(folio),
 				folio_mapcount(folio),
 				folio_entire_mapcount(folio),
 				folio_nr_pages_mapped(folio),
-				atomic_read(&folio->_pincount));
+				pincount);
 	}
 
 #ifdef CONFIG_MEMCG
@@ -146,6 +151,9 @@ again:
 	if (idx < MAX_FOLIO_NR_PAGES) {
 		memcpy(&folio, foliop, 2 * sizeof(struct page));
 		nr_pages = folio_nr_pages(&folio);
+		if (nr_pages > 1)
+			memcpy(&folio.__page_2, &foliop->__page_2,
+			       sizeof(struct page));
 		foliop = &folio;
 	}
 
@@ -165,7 +173,7 @@ dump:
 void dump_page(const struct page *page, const char *reason)
 {
 	if (PagePoisoned(page))
-		pr_warn("page:%p is uninitialized and poisoned", page);
+		pr_warn("page:%p is uninitialized and poisoned\n", page);
 	else
 		__dump_page(page);
 	if (reason)
@@ -181,11 +189,17 @@ void dump_vma(const struct vm_area_struct *vma)
 	pr_emerg("vma %px start %px end %px mm %px\n"
 		"prot %lx anon_vma %px vm_ops %px\n"
 		"pgoff %lx file %px private_data %px\n"
+#ifdef CONFIG_PER_VMA_LOCK
+		"refcnt %x\n"
+#endif
 		"flags: %#lx(%pGv)\n",
 		vma, (void *)vma->vm_start, (void *)vma->vm_end, vma->vm_mm,
 		(unsigned long)pgprot_val(vma->vm_page_prot),
 		vma->anon_vma, vma->vm_ops, vma->vm_pgoff,
 		vma->vm_file, vma->vm_private_data,
+#ifdef CONFIG_PER_VMA_LOCK
+		refcount_read(&vma->vm_refcnt),
+#endif
 		vma->vm_flags, &vma->vm_flags);
 }
 EXPORT_SYMBOL(dump_vma);
@@ -261,16 +275,19 @@ void dump_vmg(const struct vma_merge_struct *vmg, const char *reason)
 
 	pr_warn("vmg %px state: mm %px pgoff %lx\n"
 		"vmi %px [%lx,%lx)\n"
-		"prev %px next %px vma %px\n"
+		"prev %px middle %px next %px target %px\n"
 		"start %lx end %lx flags %lx\n"
 		"file %px anon_vma %px policy %px\n"
 		"uffd_ctx %px\n"
 		"anon_name %px\n"
-		"merge_flags %x state %x\n",
+		"state %x\n"
+		"just_expand %d\n"
+		"__adjust_middle_start %d __adjust_next_start %d\n"
+		"__remove_middle %d __remove_next %d\n",
 		vmg, vmg->mm, vmg->pgoff,
 		vmg->vmi, vmg->vmi ? vma_iter_addr(vmg->vmi) : 0,
 		vmg->vmi ? vma_iter_end(vmg->vmi) : 0,
-		vmg->prev, vmg->next, vmg->vma,
+		vmg->prev, vmg->middle, vmg->next, vmg->target,
 		vmg->start, vmg->end, vmg->flags,
 		vmg->file, vmg->anon_vma, vmg->policy,
 #ifdef CONFIG_USERFAULTFD
@@ -279,7 +296,10 @@ void dump_vmg(const struct vma_merge_struct *vmg, const char *reason)
 		(void *)0,
 #endif
 		vmg->anon_name,
-		(int)vmg->merge_flags, (int)vmg->state);
+		(int)vmg->state,
+		vmg->just_expand,
+		vmg->__adjust_middle_start, vmg->__adjust_next_start,
+		vmg->__remove_middle, vmg->__remove_next);
 
 	if (vmg->mm) {
 		pr_warn("vmg %px mm:\n", vmg);
@@ -288,18 +308,18 @@ void dump_vmg(const struct vma_merge_struct *vmg, const char *reason)
 		pr_warn("vmg %px mm: (NULL)\n", vmg);
 	}
 
-	if (vmg->vma) {
-		pr_warn("vmg %px vma:\n", vmg);
-		dump_vma(vmg->vma);
-	} else {
-		pr_warn("vmg %px vma: (NULL)\n", vmg);
-	}
-
 	if (vmg->prev) {
 		pr_warn("vmg %px prev:\n", vmg);
 		dump_vma(vmg->prev);
 	} else {
 		pr_warn("vmg %px prev: (NULL)\n", vmg);
+	}
+
+	if (vmg->middle) {
+		pr_warn("vmg %px middle:\n", vmg);
+		dump_vma(vmg->middle);
+	} else {
+		pr_warn("vmg %px middle: (NULL)\n", vmg);
 	}
 
 	if (vmg->next) {

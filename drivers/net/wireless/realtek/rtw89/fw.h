@@ -664,6 +664,11 @@ struct rtw89_fw_mss_pool_hdr {
 
 union rtw89_fw_section_mssc_content {
 	struct {
+		u8 pad[0x20];
+		u8 bit_in_chip_list;
+		u8 ver;
+	} __packed blacklist;
+	struct {
 		u8 pad[58];
 		__le32 v;
 	} __packed sb_sel_ver;
@@ -672,6 +677,13 @@ union rtw89_fw_section_mssc_content {
 		__le16 v;
 	} __packed key_sign_len;
 } __packed;
+
+struct rtw89_fw_blacklist {
+	u8 ver;
+	u8 list[32];
+};
+
+extern const struct rtw89_fw_blacklist rtw89_fw_blacklist_default;
 
 static inline void SET_CTRL_INFO_MACID(void *table, u32 val)
 {
@@ -1579,25 +1591,17 @@ struct rtw89_h2c_bcn_upd_be {
 #define RTW89_H2C_BCN_UPD_BE_W7_ECSA_OFST GENMASK(30, 16)
 #define RTW89_H2C_BCN_UPD_BE_W7_PROTECTION_KEY_ID BIT(31)
 
-static inline void SET_FWROLE_MAINTAIN_MACID(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(7, 0));
-}
+struct rtw89_h2c_role_maintain {
+	__le32 w0;
+};
 
-static inline void SET_FWROLE_MAINTAIN_SELF_ROLE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(9, 8));
-}
-
-static inline void SET_FWROLE_MAINTAIN_UPD_MODE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(12, 10));
-}
-
-static inline void SET_FWROLE_MAINTAIN_WIFI_ROLE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(16, 13));
-}
+#define RTW89_H2C_ROLE_MAINTAIN_W0_MACID GENMASK(7, 0)
+#define RTW89_H2C_ROLE_MAINTAIN_W0_SELF_ROLE GENMASK(9, 8)
+#define RTW89_H2C_ROLE_MAINTAIN_W0_UPD_MODE GENMASK(12, 10)
+#define RTW89_H2C_ROLE_MAINTAIN_W0_WIFI_ROLE GENMASK(16, 13)
+#define RTW89_H2C_ROLE_MAINTAIN_W0_BAND GENMASK(18, 17)
+#define RTW89_H2C_ROLE_MAINTAIN_W0_PORT GENMASK(21, 19)
+#define RTW89_H2C_ROLE_MAINTAIN_W0_MACID_EXT GENMASK(31, 24)
 
 enum rtw89_fw_sta_type { /* value of RTW89_H2C_JOININFO_W1_STA_TYPE */
 	RTW89_FW_N_AC_STA = 0,
@@ -1801,17 +1805,21 @@ struct rtw89_h2c_lps_ch_info {
 
 struct rtw89_h2c_lps_ml_cmn_info {
 	u8 fmt_id;
-	u8 rsvd0[3];
+	u8 rfe_type;
+	u8 rsvd0[2];
 	__le32 mlo_dbcc_mode;
-	u8 central_ch[RTW89_PHY_MAX];
-	u8 pri_ch[RTW89_PHY_MAX];
-	u8 bw[RTW89_PHY_MAX];
-	u8 band[RTW89_PHY_MAX];
-	u8 bcn_rate_type[RTW89_PHY_MAX];
+	u8 central_ch[RTW89_PHY_NUM];
+	u8 pri_ch[RTW89_PHY_NUM];
+	u8 bw[RTW89_PHY_NUM];
+	u8 band[RTW89_PHY_NUM];
+	u8 bcn_rate_type[RTW89_PHY_NUM];
 	u8 rsvd1[2];
-	__le16 tia_gain[RTW89_PHY_MAX][TIA_GAIN_NUM];
-	u8 lna_gain[RTW89_PHY_MAX][LNA_GAIN_NUM];
+	__le16 tia_gain[RTW89_PHY_NUM][TIA_GAIN_NUM];
+	u8 lna_gain[RTW89_PHY_NUM][LNA_GAIN_NUM];
 	u8 rsvd2[2];
+	u8 tia_lna_op1db[RTW89_PHY_NUM][LNA_GAIN_NUM + 1];
+	u8 lna_op1db[RTW89_PHY_NUM][LNA_GAIN_NUM];
+	u8 dup_bcn_ofst[RTW89_PHY_NUM];
 } __packed;
 
 static inline void RTW89_SET_FWCMD_CPU_EXCEPTION_TYPE(void *cmd, u32 val)
@@ -3882,6 +3890,7 @@ enum rtw89_fw_element_id {
 	RTW89_FW_ELEMENT_ID_TX_SHAPE_LMT_RU = 17,
 	RTW89_FW_ELEMENT_ID_TXPWR_TRK = 18,
 	RTW89_FW_ELEMENT_ID_RFKLOG_FMT = 19,
+	RTW89_FW_ELEMENT_ID_REGD = 20,
 
 	RTW89_FW_ELEMENT_ID_NUM,
 };
@@ -3920,6 +3929,15 @@ struct __rtw89_fw_txpwr_element {
 	u8 rsvd0;
 	u8 rsvd1;
 	u8 rfe_type;
+	u8 ent_sz;
+	__le32 num_ents;
+	u8 content[];
+} __packed;
+
+struct __rtw89_fw_regd_element {
+	u8 rsvd0;
+	u8 rsvd1;
+	u8 rsvd2;
 	u8 ent_sz;
 	__le32 num_ents;
 	u8 content[];
@@ -4016,6 +4034,7 @@ struct rtw89_fw_element_hdr {
 			__le16 offset[];
 		} __packed rfk_log_fmt;
 		struct __rtw89_fw_txpwr_element txpwr;
+		struct __rtw89_fw_regd_element regd;
 	} __packed u;
 } __packed;
 
@@ -4524,6 +4543,12 @@ struct rtw89_c2h_rfk_report {
 	u8 version;
 } __packed;
 
+struct rtw89_c2h_rf_tas_info {
+	struct rtw89_c2h_hdr hdr;
+	__le32 cur_idx;
+	__le16 txpwr_history[20];
+} __packed;
+
 #define RTW89_FW_RSVD_PLE_SIZE 0x800
 
 #define RTW89_FW_BACKTRACE_INFO_SIZE 8
@@ -4573,6 +4598,8 @@ int rtw89_fw_h2c_ampdu_cmac_tbl_g7(struct rtw89_dev *rtwdev,
 				   struct rtw89_sta_link *rtwsta_link);
 int rtw89_fw_h2c_txtime_cmac_tbl(struct rtw89_dev *rtwdev,
 				 struct rtw89_sta_link *rtwsta_link);
+int rtw89_fw_h2c_txtime_cmac_tbl_g7(struct rtw89_dev *rtwdev,
+				    struct rtw89_sta_link *rtwsta_link);
 int rtw89_fw_h2c_txpath_cmac_tbl(struct rtw89_dev *rtwdev,
 				 struct rtw89_sta_link *rtwsta_link);
 int rtw89_fw_h2c_update_beacon(struct rtw89_dev *rtwdev,
@@ -4588,7 +4615,7 @@ int rtw89_fw_h2c_dctl_sec_cam_v2(struct rtw89_dev *rtwdev,
 				 struct rtw89_vif_link *rtwvif_link,
 				 struct rtw89_sta_link *rtwsta_link);
 void rtw89_fw_c2h_irqsafe(struct rtw89_dev *rtwdev, struct sk_buff *c2h);
-void rtw89_fw_c2h_work(struct work_struct *work);
+void rtw89_fw_c2h_work(struct wiphy *wiphy, struct wiphy_work *work);
 int rtw89_fw_h2c_role_maintain(struct rtw89_dev *rtwdev,
 			       struct rtw89_vif_link *rtwvif_link,
 			       struct rtw89_sta_link *rtwsta_link,
@@ -4654,6 +4681,7 @@ int rtw89_fw_h2c_raw_with_hdr(struct rtw89_dev *rtwdev,
 			      bool rack, bool dack);
 int rtw89_fw_h2c_raw(struct rtw89_dev *rtwdev, const u8 *buf, u16 len);
 void rtw89_fw_send_all_early_h2c(struct rtw89_dev *rtwdev);
+void __rtw89_fw_free_all_early_h2c(struct rtw89_dev *rtwdev);
 void rtw89_fw_free_all_early_h2c(struct rtw89_dev *rtwdev);
 int rtw89_fw_h2c_general_pkt(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
 			     u8 macid);
@@ -4854,6 +4882,15 @@ static inline int rtw89_chip_h2c_ampdu_cmac_tbl(struct rtw89_dev *rtwdev,
 }
 
 static inline
+int rtw89_chip_h2c_txtime_cmac_tbl(struct rtw89_dev *rtwdev,
+				   struct rtw89_sta_link *rtwsta_link)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	return chip->ops->h2c_txtime_cmac_tbl(rtwdev, rtwsta_link);
+}
+
+static inline
 int rtw89_chip_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 			  bool valid, struct ieee80211_ampdu_params *params)
 {
@@ -4873,6 +4910,18 @@ int rtw89_chip_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 
 	return 0;
 }
+
+/* Must consider compatibility; don't insert new in the mid.
+ * Fill each field's default value in rtw89_regd_entcpy().
+ */
+struct rtw89_fw_regd_entry {
+	u8 alpha2_0;
+	u8 alpha2_1;
+	u8 rule_2ghz;
+	u8 rule_5ghz;
+	u8 rule_6ghz;
+	__le32 fmap;
+} __packed;
 
 /* must consider compatibility; don't insert new in the mid */
 struct rtw89_fw_txpwr_byrate_entry {

@@ -493,7 +493,7 @@ static void bl_cmd_timeout(struct timer_list *t)
 	struct rsi_hw *adapter = from_timer(adapter, t, bl_cmd_timer);
 
 	adapter->blcmd_timer_expired = true;
-	del_timer(&adapter->bl_cmd_timer);
+	timer_delete(&adapter->bl_cmd_timer);
 }
 
 static int bl_start_cmd_timer(struct rsi_hw *adapter, u32 timeout)
@@ -511,7 +511,7 @@ static int bl_stop_cmd_timer(struct rsi_hw *adapter)
 {
 	adapter->blcmd_timer_expired = false;
 	if (timer_pending(&adapter->bl_cmd_timer))
-		del_timer(&adapter->bl_cmd_timer);
+		timer_delete(&adapter->bl_cmd_timer);
 
 	return 0;
 }

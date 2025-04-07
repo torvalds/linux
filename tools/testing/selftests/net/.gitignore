@@ -21,6 +21,7 @@ msg_oob
 msg_zerocopy
 netlink-dumps
 nettest
+proc_net_pktgen
 psock_fanout
 psock_snd
 psock_tpacket
@@ -42,6 +43,7 @@ socket
 so_incoming_cpu
 so_netns_cookie
 so_txtime
+so_rcv_listener
 stress_reuseport_listen
 tap
 tcp_fastopen_backup_key

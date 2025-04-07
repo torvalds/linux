@@ -26,9 +26,8 @@
 
 /* bch_extent_rebalance: */
 
-static const struct bch_extent_rebalance *bch2_bkey_rebalance_opts(struct bkey_s_c k)
+static const struct bch_extent_rebalance *bch2_bkey_ptrs_rebalance_opts(struct bkey_ptrs_c ptrs)
 {
-	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
 
 	bkey_extent_entry_for_each(ptrs, entry)
@@ -36,6 +35,11 @@ static const struct bch_extent_rebalance *bch2_bkey_rebalance_opts(struct bkey_s
 			return &entry->rebalance;
 
 	return NULL;
+}
+
+static const struct bch_extent_rebalance *bch2_bkey_rebalance_opts(struct bkey_s_c k)
+{
+	return bch2_bkey_ptrs_rebalance_opts(bch2_bkey_ptrs_c(k));
 }
 
 static inline unsigned bch2_bkey_ptrs_need_compress(struct bch_fs *c,
@@ -97,11 +101,12 @@ static unsigned bch2_bkey_ptrs_need_rebalance(struct bch_fs *c,
 
 u64 bch2_bkey_sectors_need_rebalance(struct bch_fs *c, struct bkey_s_c k)
 {
-	const struct bch_extent_rebalance *opts = bch2_bkey_rebalance_opts(k);
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+
+	const struct bch_extent_rebalance *opts = bch2_bkey_ptrs_rebalance_opts(ptrs);
 	if (!opts)
 		return 0;
 
-	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
 	u64 sectors = 0;
@@ -228,7 +233,7 @@ int bch2_set_rebalance_needs_scan_trans(struct btree_trans *trans, u64 inum)
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_rebalance_work,
 			     SPOS(inum, REBALANCE_WORK_SCAN_OFFSET, U32_MAX),
 			     BTREE_ITER_intent);
-	k = bch2_btree_iter_peek_slot(&iter);
+	k = bch2_btree_iter_peek_slot(trans, &iter);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
@@ -276,7 +281,7 @@ static int bch2_clear_rebalance_needs_scan(struct btree_trans *trans, u64 inum, 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_rebalance_work,
 			     SPOS(inum, REBALANCE_WORK_SCAN_OFFSET, U32_MAX),
 			     BTREE_ITER_intent);
-	k = bch2_btree_iter_peek_slot(&iter);
+	k = bch2_btree_iter_peek_slot(trans, &iter);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
@@ -296,7 +301,7 @@ static struct bkey_s_c next_rebalance_entry(struct btree_trans *trans,
 					    struct btree_iter *work_iter)
 {
 	return !kthread_should_stop()
-		? bch2_btree_iter_peek(work_iter)
+		? bch2_btree_iter_peek(trans, work_iter)
 		: bkey_s_c_null;
 }
 
@@ -330,7 +335,7 @@ static struct bkey_s_c next_rebalance_extent(struct btree_trans *trans,
 			     work_pos.inode ? BTREE_ID_extents : BTREE_ID_reflink,
 			     work_pos,
 			     BTREE_ITER_all_snapshots);
-	struct bkey_s_c k = bch2_btree_iter_peek_slot(extent_iter);
+	struct bkey_s_c k = bch2_btree_iter_peek_slot(trans, extent_iter);
 	if (bkey_err(k))
 		return k;
 
@@ -341,7 +346,7 @@ static struct bkey_s_c next_rebalance_extent(struct btree_trans *trans,
 	memset(data_opts, 0, sizeof(*data_opts));
 	data_opts->rewrite_ptrs		= bch2_bkey_ptrs_need_rebalance(c, io_opts, k);
 	data_opts->target		= io_opts->background_target;
-	data_opts->write_flags		|= BCH_WRITE_ONLY_SPECIFIED_DEVS;
+	data_opts->write_flags		|= BCH_WRITE_only_specified_devs;
 
 	if (!data_opts->rewrite_ptrs) {
 		/*
@@ -449,7 +454,7 @@ static bool rebalance_pred(struct bch_fs *c, void *arg,
 {
 	data_opts->rewrite_ptrs		= bch2_bkey_ptrs_need_rebalance(c, io_opts, k);
 	data_opts->target		= io_opts->background_target;
-	data_opts->write_flags		|= BCH_WRITE_ONLY_SPECIFIED_DEVS;
+	data_opts->write_flags		|= BCH_WRITE_only_specified_devs;
 	return data_opts->rewrite_ptrs != 0;
 }
 
@@ -506,7 +511,7 @@ static int do_rebalance(struct moving_context *ctxt)
 	struct btree_trans *trans = ctxt->trans;
 	struct bch_fs *c = trans->c;
 	struct bch_fs_rebalance *r = &c->rebalance;
-	struct btree_iter rebalance_work_iter, extent_iter = { NULL };
+	struct btree_iter rebalance_work_iter, extent_iter = {};
 	struct bkey_s_c k;
 	int ret = 0;
 
@@ -547,7 +552,7 @@ static int do_rebalance(struct moving_context *ctxt)
 		if (ret)
 			break;
 
-		bch2_btree_iter_advance(&rebalance_work_iter);
+		bch2_btree_iter_advance(trans, &rebalance_work_iter);
 	}
 
 	bch2_trans_iter_exit(trans, &extent_iter);
@@ -590,7 +595,19 @@ static int bch2_rebalance_thread(void *arg)
 
 void bch2_rebalance_status_to_text(struct printbuf *out, struct bch_fs *c)
 {
+	printbuf_tabstop_push(out, 32);
+
 	struct bch_fs_rebalance *r = &c->rebalance;
+
+	/* print pending work */
+	struct disk_accounting_pos acc;
+	disk_accounting_key_init(acc, rebalance_work);
+	u64 v;
+	bch2_accounting_mem_read(c, disk_accounting_pos_to_bpos(&acc), &v, 1);
+
+	prt_printf(out, "pending work:\t");
+	prt_human_readable_u64(out, v << 9);
+	prt_printf(out, "\n\n");
 
 	prt_str(out, bch2_rebalance_state_strs[r->state]);
 	prt_newline(out);
@@ -600,15 +617,15 @@ void bch2_rebalance_status_to_text(struct printbuf *out, struct bch_fs *c)
 	case BCH_REBALANCE_waiting: {
 		u64 now = atomic64_read(&c->io_clock[WRITE].now);
 
-		prt_str(out, "io wait duration:  ");
+		prt_printf(out, "io wait duration:\t");
 		bch2_prt_human_readable_s64(out, (r->wait_iotime_end - r->wait_iotime_start) << 9);
 		prt_newline(out);
 
-		prt_str(out, "io wait remaining: ");
+		prt_printf(out, "io wait remaining:\t");
 		bch2_prt_human_readable_s64(out, (r->wait_iotime_end - now) << 9);
 		prt_newline(out);
 
-		prt_str(out, "duration waited:   ");
+		prt_printf(out, "duration waited:\t");
 		bch2_pr_time_units(out, ktime_get_real_ns() - r->wait_wallclock_start);
 		prt_newline(out);
 		break;
@@ -621,6 +638,18 @@ void bch2_rebalance_status_to_text(struct printbuf *out, struct bch_fs *c)
 		break;
 	}
 	prt_newline(out);
+
+	rcu_read_lock();
+	struct task_struct *t = rcu_dereference(c->rebalance.thread);
+	if (t)
+		get_task_struct(t);
+	rcu_read_unlock();
+
+	if (t) {
+		bch2_prt_task_backtrace(out, t, 0, GFP_KERNEL);
+		put_task_struct(t);
+	}
+
 	printbuf_indent_sub(out, 2);
 }
 

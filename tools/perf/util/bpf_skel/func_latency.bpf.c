@@ -50,6 +50,7 @@ const volatile int use_nsec = 0;
 const volatile unsigned int bucket_range;
 const volatile unsigned int min_latency;
 const volatile unsigned int max_latency;
+const volatile unsigned int bucket_num = NUM_BUCKET;
 
 SEC("kprobe/func")
 int BPF_PROG(func_begin)
@@ -101,6 +102,7 @@ int BPF_PROG(func_end)
 	start = bpf_map_lookup_elem(&functime, &tid);
 	if (start) {
 		__s64 delta = bpf_ktime_get_ns() - *start;
+		__u64 val = delta;
 		__u32 key = 0;
 		__u64 *hist;
 
@@ -110,30 +112,27 @@ int BPF_PROG(func_end)
 			return 0;
 
 		if (bucket_range != 0) {
-			delta /= cmp_base;
+			val = delta / cmp_base;
 
 			if (min_latency > 0) {
-				if (delta > min_latency)
-					delta -= min_latency;
+				if (val > min_latency)
+					val -= min_latency;
 				else
 					goto do_lookup;
 			}
 
 			// Less than 1 unit (ms or ns), or, in the future,
 			// than the min latency desired.
-			if (delta > 0) { // 1st entry: [ 1 unit .. bucket_range units )
-				// clang 12 doesn't like s64 / u32 division
-				key = (__u64)delta / bucket_range + 1;
-				if (key >= NUM_BUCKET ||
-					delta >= max_latency - min_latency)
-					key = NUM_BUCKET - 1;
+			if (val > 0) { // 1st entry: [ 1 unit .. bucket_range units )
+				key = val / bucket_range + 1;
+				if (key >= bucket_num)
+					key = bucket_num - 1;
 			}
 
-			delta += min_latency;
 			goto do_lookup;
 		}
 		// calculate index using delta
-		for (key = 0; key < (NUM_BUCKET - 1); key++) {
+		for (key = 0; key < (bucket_num - 1); key++) {
 			if (delta < (cmp_base << key))
 				break;
 		}
@@ -143,12 +142,9 @@ do_lookup:
 		if (!hist)
 			return 0;
 
-		*hist += 1;
+		__sync_fetch_and_add(hist, 1);
 
-		if (bucket_range == 0)
-			delta /= cmp_base;
-
-		__sync_fetch_and_add(&total, delta);
+		__sync_fetch_and_add(&total, delta); // always in nsec
 		__sync_fetch_and_add(&count, 1);
 
 		if (delta > max)

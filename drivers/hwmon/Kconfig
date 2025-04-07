@@ -463,6 +463,16 @@ config SENSORS_BT1_PVT_ALARMS
 	  the data conversion will be periodically performed and the data will be
 	  saved in the internal driver cache.
 
+config SENSORS_CGBC
+	tristate "Congatec Board Controller Sensors"
+	depends on MFD_CGBC
+	help
+	  Enable sensors support for the Congatec Board Controller. It has
+	  temperature, voltage, current and fan sensors.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called cgbc-hwmon.
+
 config SENSORS_CHIPCAP2
 	tristate "Amphenol ChipCap 2 relative humidity and temperature sensor"
 	depends on I2C
@@ -788,6 +798,17 @@ config SENSORS_HS3001
 
 	  This driver can also be built as a module. If so, the module
 	  will be called hs3001.
+
+config SENSORS_HTU31
+	tristate "Measurement Specialties HTU31 humidity and temperature sensor"
+	depends on I2C
+	select CRC8
+	help
+	  If you say yes here you get support for the HTU31 humidity
+	  and temperature sensors.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called htu31.
 
 config SENSORS_IBMAEM
 	tristate "IBM Active Energy Manager temperature/power sensors and control"
@@ -1519,7 +1540,7 @@ config SENSORS_LM90
 	  MAX6657, MAX6658, MAX6659, MAX6680, MAX6681, MAX6692, MAX6695,
 	  MAX6696,
 	  ON Semiconductor NCT1008, NCT210, NCT72, NCT214, NCT218,
-	  Winbond/Nuvoton W83L771W/G/AWG/ASG,
+	  Winbond/Nuvoton W83L771W/G/AWG/ASG, NCT7716, NCT7717 and NCT7718,
 	  Philips NE1618, SA56004, GMT G781, Texas Instruments TMP451 and TMP461
 	  sensor chips.
 
@@ -1625,7 +1646,7 @@ config SENSORS_NTC_THERMISTOR
 	  B57891S0103 from EPCOS.
 
 	  This driver can also be built as a module. If so, the module
-	  will be called ntc-thermistor.
+	  will be called ntc_thermistor.
 
 config SENSORS_NCT6683
 	tristate "Nuvoton NCT6683D"

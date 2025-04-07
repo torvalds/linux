@@ -41,7 +41,7 @@ static int chacha20_s390(struct skcipher_request *req)
 	int rc;
 
 	rc = skcipher_walk_virt(&walk, req, false);
-	chacha_init_generic(state, ctx->key, req->iv);
+	chacha_init(state, ctx->key, req->iv);
 
 	while (walk.nbytes > 0) {
 		nbytes = walk.nbytes;
@@ -68,12 +68,6 @@ void hchacha_block_arch(const u32 *state, u32 *stream, int nrounds)
 	hchacha_block_generic(state, stream, nrounds);
 }
 EXPORT_SYMBOL(hchacha_block_arch);
-
-void chacha_init_arch(u32 *state, const u32 *key, const u8 *iv)
-{
-	chacha_init_generic(state, key, iv);
-}
-EXPORT_SYMBOL(chacha_init_arch);
 
 void chacha_crypt_arch(u32 *state, u8 *dst, const u8 *src,
 		       unsigned int bytes, int nrounds)

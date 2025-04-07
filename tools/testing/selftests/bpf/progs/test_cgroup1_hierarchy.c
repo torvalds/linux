@@ -51,13 +51,13 @@ out:
 }
 
 SEC("lsm/bpf")
-int BPF_PROG(lsm_run, int cmd, union bpf_attr *attr, unsigned int size)
+int BPF_PROG(lsm_run, int cmd, union bpf_attr *attr, unsigned int size, bool kernel)
 {
 	return bpf_link_create_verify(cmd);
 }
 
 SEC("lsm.s/bpf")
-int BPF_PROG(lsm_s_run, int cmd, union bpf_attr *attr, unsigned int size)
+int BPF_PROG(lsm_s_run, int cmd, union bpf_attr *attr, unsigned int size, bool kernel)
 {
 	return bpf_link_create_verify(cmd);
 }

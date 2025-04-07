@@ -10,3 +10,14 @@ config PCI_PWRCTL_PWRSEQ
 	tristate
 	select POWER_SEQUENCING
 	select PCI_PWRCTL
+
+config PCI_PWRCTL_SLOT
+	tristate "PCI Power Control driver for PCI slots"
+	select PCI_PWRCTL
+	help
+	  Say Y here to enable the PCI Power Control driver to control the power
+	  state of PCI slots.
+
+	  This is a generic driver that controls the power state of different
+	  PCI slots. The voltage regulators powering the rails of the PCI slots
+	  are expected to be defined in the devicetree node of the PCI bridge.

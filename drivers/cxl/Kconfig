@@ -7,6 +7,7 @@ menuconfig CXL_BUS
 	select PCI_DOE
 	select FIRMWARE_TABLE
 	select NUMA_KEEP_MEMINFO if NUMA_MEMBLKS
+	select FWCTL if CXL_FEATURES
 	help
 	  CXL is a bus that is electrically compatible with PCI Express, but
 	  layers three protocols on that signalling (CXL.io, CXL.cache, and
@@ -102,6 +103,17 @@ config CXL_MEM
 
 	  If unsure say 'm'.
 
+config CXL_FEATURES
+	bool "CXL: Features"
+	depends on CXL_PCI
+	help
+	  Enable support for CXL Features. A CXL device that includes a mailbox
+	  supports commands that allows listing, getting, and setting of
+	  optionally defined features such as memory sparing or post package
+	  sparing. Vendors may define custom features for the device.
+
+	  If unsure say 'n'
+
 config CXL_PORT
 	default CXL_BUS
 	tristate
@@ -145,5 +157,9 @@ config CXL_REGION_INVALIDATION_TEST
 
 	  If unsure, or if this kernel is meant for production environments,
 	  say N.
+
+config CXL_MCE
+	def_bool y
+	depends on X86_MCE && MEMORY_FAILURE
 
 endif

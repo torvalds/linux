@@ -1900,7 +1900,7 @@ void hfi1_unregister_ib_device(struct hfi1_devdata *dd)
 	if (!list_empty(&dev->memwait))
 		dd_dev_err(dd, "memwait list not empty!\n");
 
-	del_timer_sync(&dev->mem_timer);
+	timer_delete_sync(&dev->mem_timer);
 	verbs_txreq_exit(dev);
 
 	kfree(dev_cntr_descs);

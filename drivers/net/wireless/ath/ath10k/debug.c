@@ -1751,7 +1751,7 @@ void ath10k_debug_stop(struct ath10k *ar)
 
 	/* Must not use _sync to avoid deadlock, we do that in
 	 * ath10k_debug_destroy(). The check for htt_stats_mask is to avoid
-	 * warning from del_timer().
+	 * warning from timer_delete().
 	 */
 	if (ar->debug.htt_stats_mask != 0)
 		cancel_delayed_work(&ar->debug.htt_stats_dwork);

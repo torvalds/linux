@@ -266,11 +266,7 @@ int t_sdata_init(struct kunit_resource *resource, void *ctx)
 				cpu_to_le16(IEEE80211_VHT_MCS_SUPPORT_0_9 << 0 |
 					    IEEE80211_VHT_MCS_SUPPORT_0_9 << 2 |
 					    IEEE80211_VHT_MCS_SUPPORT_0_9 << 4 |
-					    IEEE80211_VHT_MCS_SUPPORT_0_9 << 6 |
-					    IEEE80211_VHT_MCS_SUPPORT_0_9 << 8 |
-					    IEEE80211_VHT_MCS_SUPPORT_0_9 << 10 |
-					    IEEE80211_VHT_MCS_SUPPORT_0_9 << 12 |
-					    IEEE80211_VHT_MCS_SUPPORT_0_9 << 14);
+					    IEEE80211_VHT_MCS_SUPPORT_0_9 << 6);
 			sband->vht_cap.vht_mcs.tx_mcs_map =
 				sband->vht_cap.vht_mcs.rx_mcs_map;
 			break;

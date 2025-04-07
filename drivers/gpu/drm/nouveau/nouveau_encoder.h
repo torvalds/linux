@@ -31,7 +31,8 @@
 
 #include <drm/display/drm_dp_helper.h>
 #include <drm/display/drm_dp_mst_helper.h>
-#include <drm/drm_encoder_slave.h>
+
+#include <dispnv04/i2c/encoder_i2c.h>
 
 #include "dispnv04/disp.h"
 
@@ -43,7 +44,7 @@ struct nouveau_connector;
 struct nvkm_i2c_port;
 
 struct nouveau_encoder {
-	struct drm_encoder_slave base;
+	struct nouveau_i2c_encoder base;
 
 	struct dcb_output *dcb;
 	struct nvif_outp outp;
@@ -137,7 +138,7 @@ find_encoder(struct drm_connector *connector, int type);
 
 static inline struct nouveau_encoder *nouveau_encoder(struct drm_encoder *enc)
 {
-	struct drm_encoder_slave *slave = to_encoder_slave(enc);
+	struct nouveau_i2c_encoder *slave = to_encoder_i2c(enc);
 
 	return container_of(slave, struct nouveau_encoder, base);
 }
@@ -145,12 +146,6 @@ static inline struct nouveau_encoder *nouveau_encoder(struct drm_encoder *enc)
 static inline struct drm_encoder *to_drm_encoder(struct nouveau_encoder *enc)
 {
 	return &enc->base.base;
-}
-
-static inline const struct drm_encoder_slave_funcs *
-get_slave_funcs(struct drm_encoder *enc)
-{
-	return to_encoder_slave(enc)->slave_funcs;
 }
 
 /* nouveau_dp.c */

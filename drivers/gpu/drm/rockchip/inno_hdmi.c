@@ -471,7 +471,7 @@ static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 }
 
 static enum drm_mode_status inno_hdmi_display_mode_valid(struct inno_hdmi *hdmi,
-							 struct drm_display_mode *mode)
+							 const struct drm_display_mode *mode)
 {
 	unsigned long mpixelclk, max_tolerance;
 	long rounded_refclk;
@@ -577,7 +577,7 @@ static int inno_hdmi_connector_get_modes(struct drm_connector *connector)
 
 static enum drm_mode_status
 inno_hdmi_connector_mode_valid(struct drm_connector *connector,
-			       struct drm_display_mode *mode)
+			       const struct drm_display_mode *mode)
 {
 	struct inno_hdmi *hdmi = connector_to_inno_hdmi(connector);
 

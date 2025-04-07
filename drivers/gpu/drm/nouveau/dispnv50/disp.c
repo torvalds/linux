@@ -1141,7 +1141,7 @@ nv50_mstc_atomic_best_encoder(struct drm_connector *connector,
 
 static enum drm_mode_status
 nv50_mstc_mode_valid(struct drm_connector *connector,
-		     struct drm_display_mode *mode)
+		     const struct drm_display_mode *mode)
 {
 	struct nv50_mstc *mstc = nv50_mstc(connector);
 	struct nouveau_encoder *outp = mstc->mstm->outp;

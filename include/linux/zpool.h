@@ -4,34 +4,14 @@
  *
  * Copyright (C) 2014 Dan Streetman
  *
- * This is a common frontend for the zbud and zsmalloc memory
- * storage pool implementations.  Typically, this is used to
- * store compressed memory.
+ * This is a common frontend for the zswap compressed memory storage
+ * implementations.
  */
 
 #ifndef _ZPOOL_H_
 #define _ZPOOL_H_
 
 struct zpool;
-
-/*
- * Control how a handle is mapped.  It will be ignored if the
- * implementation does not support it.  Its use is optional.
- * Note that this does not refer to memory protection, it
- * refers to how the memory will be copied in/out if copying
- * is necessary during mapping; read-write is the safest as
- * it copies the existing memory in on map, and copies the
- * changed memory back out on unmap.  Write-only does not copy
- * in the memory and should only be used for initialization.
- * If in doubt, use ZPOOL_MM_DEFAULT which is read-write.
- */
-enum zpool_mapmode {
-	ZPOOL_MM_RW, /* normal read-write mapping */
-	ZPOOL_MM_RO, /* read-only (no copy-out at unmap time) */
-	ZPOOL_MM_WO, /* write-only (no copy-in at map time) */
-
-	ZPOOL_MM_DEFAULT = ZPOOL_MM_RW
-};
 
 bool zpool_has_pool(char *type);
 
@@ -41,17 +21,19 @@ const char *zpool_get_type(struct zpool *pool);
 
 void zpool_destroy_pool(struct zpool *pool);
 
-bool zpool_malloc_support_movable(struct zpool *pool);
-
 int zpool_malloc(struct zpool *pool, size_t size, gfp_t gfp,
 			unsigned long *handle);
 
 void zpool_free(struct zpool *pool, unsigned long handle);
 
-void *zpool_map_handle(struct zpool *pool, unsigned long handle,
-			enum zpool_mapmode mm);
+void *zpool_obj_read_begin(struct zpool *zpool, unsigned long handle,
+			   void *local_copy);
 
-void zpool_unmap_handle(struct zpool *pool, unsigned long handle);
+void zpool_obj_read_end(struct zpool *zpool, unsigned long handle,
+			void *handle_mem);
+
+void zpool_obj_write(struct zpool *zpool, unsigned long handle,
+		     void *handle_mem, size_t mem_len);
 
 u64 zpool_get_total_pages(struct zpool *pool);
 
@@ -81,15 +63,16 @@ struct zpool_driver {
 	void *(*create)(const char *name, gfp_t gfp);
 	void (*destroy)(void *pool);
 
-	bool malloc_support_movable;
 	int (*malloc)(void *pool, size_t size, gfp_t gfp,
 				unsigned long *handle);
 	void (*free)(void *pool, unsigned long handle);
 
-	bool sleep_mapped;
-	void *(*map)(void *pool, unsigned long handle,
-				enum zpool_mapmode mm);
-	void (*unmap)(void *pool, unsigned long handle);
+	void *(*obj_read_begin)(void *pool, unsigned long handle,
+				void *local_copy);
+	void (*obj_read_end)(void *pool, unsigned long handle,
+			     void *handle_mem);
+	void (*obj_write)(void *pool, unsigned long handle,
+			  void *handle_mem, size_t mem_len);
 
 	u64 (*total_pages)(void *pool);
 };

@@ -216,7 +216,7 @@ void t21142_lnk_change(struct net_device *dev, int csr5)
 		    (csr12 & 2) == 2) ||
 		   (tp->nway && (csr5 & (TPLnkFail)))) {
 		/* Link blew? Maybe restart NWay. */
-		del_timer_sync(&tp->timer);
+		timer_delete_sync(&tp->timer);
 		t21142_start_nway(dev);
 		tp->timer.expires = RUN_AT(3*HZ);
 		add_timer(&tp->timer);
@@ -226,7 +226,7 @@ void t21142_lnk_change(struct net_device *dev, int csr5)
 				 medianame[dev->if_port],
 				 (csr12 & 2) ? "failed" : "good");
 		if ((csr12 & 2)  &&  ! tp->medialock) {
-			del_timer_sync(&tp->timer);
+			timer_delete_sync(&tp->timer);
 			t21142_start_nway(dev);
 			tp->timer.expires = RUN_AT(3*HZ);
 			add_timer(&tp->timer);

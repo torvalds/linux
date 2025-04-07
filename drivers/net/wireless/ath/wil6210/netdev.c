@@ -200,8 +200,8 @@ static void wil_dev_setup(struct net_device *dev)
 
 static void wil_vif_deinit(struct wil6210_vif *vif)
 {
-	del_timer_sync(&vif->scan_timer);
-	del_timer_sync(&vif->p2p.discovery_timer);
+	timer_delete_sync(&vif->scan_timer);
+	timer_delete_sync(&vif->p2p.discovery_timer);
 	cancel_work_sync(&vif->disconnect_worker);
 	cancel_work_sync(&vif->p2p.discovery_expired_work);
 	cancel_work_sync(&vif->p2p.delayed_listen_work);
@@ -533,7 +533,7 @@ void wil_vif_remove(struct wil6210_priv *wil, u8 mid)
 	mutex_unlock(&wil->vif_mutex);
 
 	flush_work(&wil->wmi_event_worker);
-	del_timer_sync(&vif->connect_timer);
+	timer_delete_sync(&vif->connect_timer);
 	cancel_work_sync(&vif->disconnect_worker);
 	wil_probe_client_flush(vif);
 	cancel_work_sync(&vif->probe_client_worker);

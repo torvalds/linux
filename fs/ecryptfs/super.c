@@ -172,7 +172,6 @@ const struct super_operations ecryptfs_sops = {
 	.destroy_inode = ecryptfs_destroy_inode,
 	.free_inode = ecryptfs_free_inode,
 	.statfs = ecryptfs_statfs,
-	.remount_fs = NULL,
 	.evict_inode = ecryptfs_evict_inode,
 	.show_options = ecryptfs_show_options
 };

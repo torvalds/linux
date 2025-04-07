@@ -333,7 +333,7 @@ int reset_tic(struct quickspi_device *qsdev)
 		return -EINVAL;
 	}
 
-	qsdev->state = QUICKSPI_RESETED;
+	qsdev->state = QUICKSPI_RESET;
 
 	ret = quickspi_get_device_descriptor(qsdev);
 	if (ret)

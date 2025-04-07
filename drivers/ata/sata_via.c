@@ -25,6 +25,7 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
+#include <linux/string_choices.h>
 
 #define DRV_NAME	"sata_via"
 #define DRV_VERSION	"2.6"
@@ -359,7 +360,7 @@ static int vt6420_prereset(struct ata_link *link, unsigned long deadline)
 
 	ata_port_info(ap,
 		      "SATA link %s 1.5 Gbps (SStatus %X SControl %X)\n",
-		      online ? "up" : "down", sstatus, scontrol);
+		      str_up_down(online), sstatus, scontrol);
 
 	/* SStatus is read one more time */
 	svia_scr_read(link, SCR_STATUS, &sstatus);

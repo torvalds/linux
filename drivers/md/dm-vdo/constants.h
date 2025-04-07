@@ -44,9 +44,6 @@ enum {
 	/* The default size of each slab journal, in blocks */
 	DEFAULT_VDO_SLAB_JOURNAL_SIZE = 224,
 
-	/* Unit test minimum */
-	MINIMUM_VDO_SLAB_JOURNAL_BLOCKS = 2,
-
 	/*
 	 * The initial size of lbn_operations and pbn_operations, which is based upon the expected
 	 * maximum number of outstanding VIOs. This value was chosen to make it highly unlikely

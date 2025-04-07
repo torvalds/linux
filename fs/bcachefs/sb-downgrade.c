@@ -90,7 +90,13 @@
 	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
 	  BCH_FSCK_ERR_accounting_mismatch,			\
 	  BCH_FSCK_ERR_accounting_key_replicas_nr_devs_0,	\
-	  BCH_FSCK_ERR_accounting_key_junk_at_end)
+	  BCH_FSCK_ERR_accounting_key_junk_at_end)		\
+	x(cached_backpointers,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_extents_to_backpointers),\
+	  BCH_FSCK_ERR_ptr_to_missing_backpointer)		\
+	x(stripe_backpointers,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_extents_to_backpointers),\
+	  BCH_FSCK_ERR_ptr_to_missing_backpointer)
 
 #define DOWNGRADE_TABLE()					\
 	x(bucket_stripe_sectors,				\

@@ -77,9 +77,8 @@ repeat:
 		if (unlikely(chain > 1)) {
 			struct crw tmp_crw;
 
-			printk(KERN_WARNING"%s: Code does not support more "
-			       "than two chained crws; please report to "
-			       "linux390@de.ibm.com!\n", __func__);
+			printk(KERN_WARNING "%s: Code does not support more than two chained crws\n",
+			       __func__);
 			ccode = stcrw(&tmp_crw);
 			printk(KERN_WARNING"%s: crw reports slct=%d, oflw=%d, "
 			       "chn=%d, rsc=%X, anc=%d, erc=%X, rsid=%X\n",

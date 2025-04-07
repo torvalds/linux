@@ -1108,7 +1108,7 @@ static int ips_monitor(void *data)
 			last_sample_period = 1;
 	} while (!kthread_should_stop());
 
-	del_timer_sync(&ips->timer);
+	timer_delete_sync(&ips->timer);
 
 	dev_dbg(ips->dev, "ips-monitor thread stopped\n");
 

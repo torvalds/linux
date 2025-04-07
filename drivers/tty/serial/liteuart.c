@@ -96,7 +96,7 @@ static void liteuart_stop_rx(struct uart_port *port)
 	struct liteuart_port *uart = to_liteuart_port(port);
 
 	/* just delete timer */
-	del_timer(&uart->timer);
+	timer_delete(&uart->timer);
 }
 
 static void liteuart_rx_chars(struct uart_port *port)
@@ -220,7 +220,7 @@ static void liteuart_shutdown(struct uart_port *port)
 	if (port->irq)
 		free_irq(port->irq, port);
 	else
-		del_timer_sync(&uart->timer);
+		timer_delete_sync(&uart->timer);
 }
 
 static void liteuart_set_termios(struct uart_port *port, struct ktermios *new,

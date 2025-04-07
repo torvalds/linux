@@ -101,6 +101,6 @@ Modem control lines via GPIO
 Some helpers are provided in order to set/get modem control lines via GPIO.
 
 .. kernel-doc:: drivers/tty/serial/serial_mctrl_gpio.c
-   :identifiers: mctrl_gpio_init mctrl_gpio_free mctrl_gpio_to_gpiod
+   :identifiers: mctrl_gpio_init mctrl_gpio_to_gpiod
            mctrl_gpio_set mctrl_gpio_get mctrl_gpio_enable_ms
-           mctrl_gpio_disable_ms
+           mctrl_gpio_disable_ms_sync mctrl_gpio_disable_ms_no_sync

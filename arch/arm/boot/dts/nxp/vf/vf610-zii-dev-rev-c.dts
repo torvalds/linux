@@ -392,7 +392,7 @@
 };
 
 &gpio0 {
-	eth0_intrp {
+	eth0-intrp-hog {
 		gpio-hog;
 		gpios = <23 GPIO_ACTIVE_HIGH>;
 		input;
@@ -401,7 +401,7 @@
 };
 
 &gpio3 {
-	eth0_intrp {
+	eth0-intrp-hog {
 		gpio-hog;
 		gpios = <2 GPIO_ACTIVE_HIGH>;
 		input;

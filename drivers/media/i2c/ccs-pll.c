@@ -75,11 +75,11 @@ static const char *pll_string(unsigned int which)
 
 #define PLL_FL(f) CCS_PLL_FLAG_##f
 
-static void print_pll(struct device *dev, struct ccs_pll *pll)
+static void print_pll(struct device *dev, const struct ccs_pll *pll)
 {
 	const struct {
-		struct ccs_pll_branch_fr *fr;
-		struct ccs_pll_branch_bk *bk;
+		const struct ccs_pll_branch_fr *fr;
+		const struct ccs_pll_branch_bk *bk;
 		unsigned int which;
 	} branches[] = {
 		{ &pll->vt_fr, &pll->vt_bk, PLL_VT },
@@ -150,10 +150,10 @@ static u32 op_pix_ddr(u32 flags)
 
 static int check_fr_bounds(struct device *dev,
 			   const struct ccs_pll_limits *lim,
-			   struct ccs_pll *pll, unsigned int which)
+			   const struct ccs_pll *pll, unsigned int which)
 {
 	const struct ccs_pll_branch_limits_fr *lim_fr;
-	struct ccs_pll_branch_fr *pll_fr;
+	const struct ccs_pll_branch_fr *pll_fr;
 	const char *s = pll_string(which);
 	int rval;
 
@@ -190,10 +190,10 @@ static int check_fr_bounds(struct device *dev,
 
 static int check_bk_bounds(struct device *dev,
 			   const struct ccs_pll_limits *lim,
-			   struct ccs_pll *pll, unsigned int which)
+			   const struct ccs_pll *pll, unsigned int which)
 {
 	const struct ccs_pll_branch_limits_bk *lim_bk;
-	struct ccs_pll_branch_bk *pll_bk;
+	const struct ccs_pll_branch_bk *pll_bk;
 	const char *s = pll_string(which);
 	int rval;
 
@@ -230,7 +230,7 @@ static int check_bk_bounds(struct device *dev,
 	return rval;
 }
 
-static int check_ext_bounds(struct device *dev, struct ccs_pll *pll)
+static int check_ext_bounds(struct device *dev, const struct ccs_pll *pll)
 {
 	if (!(pll->flags & CCS_PLL_FLAG_FIFO_DERATING) &&
 	    pll->pixel_rate_pixel_array > pll->pixel_rate_csi) {

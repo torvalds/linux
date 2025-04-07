@@ -22,7 +22,9 @@ Global (PCI card) parameters
 
     | 0 - No module present
     | 1 - FPDL3
-    | 2 - GMSL
+    | 2 - GMSL (one serializer, two daisy chained deserializers)
+    | 3 - GMSL (one serializer, two deserializers)
+    | 4 - GMSL (two deserializers with two daisy chain outputs)
 
 **module_version** (R):
     Module version number. Zero in case of a missing module.

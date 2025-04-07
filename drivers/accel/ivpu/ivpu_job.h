@@ -30,8 +30,8 @@ struct ivpu_cmdq {
 	u32 entry_count;
 	u32 id;
 	u32 db_id;
-	bool db_registered;
 	u8 priority;
+	bool is_legacy;
 };
 
 /**
@@ -51,6 +51,7 @@ struct ivpu_job {
 	struct ivpu_file_priv *file_priv;
 	struct dma_fence *done_fence;
 	u64 cmd_buf_vpu_addr;
+	u32 cmdq_id;
 	u32 job_id;
 	u32 engine_idx;
 	size_t bo_count;
@@ -58,14 +59,19 @@ struct ivpu_job {
 };
 
 int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
+int ivpu_cmdq_create_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
+int ivpu_cmdq_destroy_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
+int ivpu_cmdq_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
 
 void ivpu_context_abort_locked(struct ivpu_file_priv *file_priv);
 
 void ivpu_cmdq_release_all_locked(struct ivpu_file_priv *file_priv);
 void ivpu_cmdq_reset_all_contexts(struct ivpu_device *vdev);
+void ivpu_cmdq_abort_all_jobs(struct ivpu_device *vdev, u32 ctx_id, u32 cmdq_id);
 
 void ivpu_job_done_consumer_init(struct ivpu_device *vdev);
 void ivpu_job_done_consumer_fini(struct ivpu_device *vdev);
+void ivpu_context_abort_work_fn(struct work_struct *work);
 
 void ivpu_jobs_abort_all(struct ivpu_device *vdev);
 

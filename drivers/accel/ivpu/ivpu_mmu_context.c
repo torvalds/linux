@@ -635,16 +635,3 @@ void ivpu_mmu_reserved_context_fini(struct ivpu_device *vdev)
 	ivpu_mmu_cd_clear(vdev, vdev->rctx.id);
 	ivpu_mmu_context_fini(vdev, &vdev->rctx);
 }
-
-void ivpu_mmu_user_context_mark_invalid(struct ivpu_device *vdev, u32 ssid)
-{
-	struct ivpu_file_priv *file_priv;
-
-	xa_lock(&vdev->context_xa);
-
-	file_priv = xa_load(&vdev->context_xa, ssid);
-	if (file_priv)
-		file_priv->has_mmu_faults = true;
-
-	xa_unlock(&vdev->context_xa);
-}

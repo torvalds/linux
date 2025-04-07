@@ -287,7 +287,8 @@ static int lowlevel_hole(struct i915_address_space *vm,
 		GEM_BUG_ON(count * BIT_ULL(aligned_size) > vm->total);
 		GEM_BUG_ON(hole_start + count * BIT_ULL(aligned_size) > hole_end);
 
-		/* Ignore allocation failures (i.e. don't report them as
+		/*
+		 * Ignore allocation failures (i.e. don't report them as
 		 * a test failure) as we are purposefully allocating very
 		 * large objects without checking that we have sufficient
 		 * memory. We expect to hit -ENOMEM.
@@ -446,7 +447,8 @@ static int fill_hole(struct i915_address_space *vm,
 
 			list_add(&obj->st_link, &objects);
 
-			/* Align differing sized objects against the edges, and
+			/*
+			 * Align differing sized objects against the edges, and
 			 * check we don't walk off into the void when binding
 			 * them into the GTT.
 			 */
@@ -831,7 +833,8 @@ static int drunk_hole(struct i915_address_space *vm,
 			return -ENOMEM;
 		GEM_BUG_ON(!order);
 
-		/* Ignore allocation failures (i.e. don't report them as
+		/*
+		 * Ignore allocation failures (i.e. don't report them as
 		 * a test failure) as we are purposefully allocating very
 		 * large objects without checking that we have sufficient
 		 * memory. We expect to hit -ENOMEM.
@@ -964,7 +967,7 @@ static int __shrink_hole(struct i915_address_space *vm,
 			break;
 
 		if (igt_timeout(end_time,
-				"%s timed out at ofset %llx [%llx - %llx]\n",
+				"%s timed out at offset %llx [%llx - %llx]\n",
 				__func__, addr, hole_start, hole_end)) {
 			err = -EINTR;
 			break;
@@ -1011,7 +1014,7 @@ static int shrink_boom(struct i915_address_space *vm,
 	/*
 	 * Catch the case which shrink_hole seems to miss. The setup here
 	 * requires invoking the shrinker as we do the alloc_pt/alloc_pd, while
-	 * ensuring that all vma assiocated with the respective pd/pdp are
+	 * ensuring that all vma associated with the respective pd/pdp are
 	 * unpinned at the time.
 	 */
 
@@ -1537,9 +1540,10 @@ static int igt_gtt_reserve(void *arg)
 	u64 total;
 	int err = -ENODEV;
 
-	/* i915_gem_gtt_reserve() tries to reserve the precise range
+	/*
+	 * i915_gem_gtt_reserve() tries to reserve the precise range
 	 * for the node, and evicts if it has to. So our test checks that
-	 * it can give us the requsted space and prevent overlaps.
+	 * it can give us the requested space and prevent overlaps.
 	 */
 
 	/* Start by filling the GGTT */
@@ -1743,7 +1747,8 @@ static int igt_gtt_insert(void *arg)
 	u64 total;
 	int err = -ENODEV;
 
-	/* i915_gem_gtt_insert() tries to allocate some free space in the GTT
+	/*
+	 * i915_gem_gtt_insert() tries to allocate some free space in the GTT
 	 * to the node, evicting if required.
 	 */
 

@@ -55,27 +55,6 @@ static inline bool xfs_buf_is_uncached(struct xfs_buf *bp)
 	return bp->b_rhash_key == XFS_BUF_DADDR_NULL;
 }
 
-static inline int
-xfs_buf_is_vmapped(
-	struct xfs_buf	*bp)
-{
-	/*
-	 * Return true if the buffer is vmapped.
-	 *
-	 * b_addr is null if the buffer is not mapped, but the code is clever
-	 * enough to know it doesn't have to map a single page, so the check has
-	 * to be both for b_addr and bp->b_page_count > 1.
-	 */
-	return bp->b_addr && bp->b_page_count > 1;
-}
-
-static inline int
-xfs_buf_vmap_len(
-	struct xfs_buf	*bp)
-{
-	return (bp->b_page_count * PAGE_SIZE);
-}
-
 /*
  * When we mark a buffer stale, we remove the buffer from the LRU and clear the
  * b_lru_ref count so that the buffer is freed immediately when the buffer
@@ -109,38 +88,168 @@ xfs_buf_stale(
 	spin_unlock(&bp->b_lock);
 }
 
-static int
-xfs_buf_get_maps(
-	struct xfs_buf		*bp,
-	int			map_count)
+static void
+xfs_buf_free_callback(
+	struct callback_head	*cb)
 {
-	ASSERT(bp->b_maps == NULL);
-	bp->b_map_count = map_count;
+	struct xfs_buf		*bp = container_of(cb, struct xfs_buf, b_rcu);
 
-	if (map_count == 1) {
-		bp->b_maps = &bp->__b_map;
-		return 0;
-	}
-
-	bp->b_maps = kzalloc(map_count * sizeof(struct xfs_buf_map),
-			GFP_KERNEL | __GFP_NOLOCKDEP | __GFP_NOFAIL);
-	if (!bp->b_maps)
-		return -ENOMEM;
-	return 0;
+	if (bp->b_maps != &bp->__b_map)
+		kfree(bp->b_maps);
+	kmem_cache_free(xfs_buf_cache, bp);
 }
 
 static void
-xfs_buf_free_maps(
-	struct xfs_buf	*bp)
+xfs_buf_free(
+	struct xfs_buf		*bp)
 {
-	if (bp->b_maps != &bp->__b_map) {
-		kfree(bp->b_maps);
-		bp->b_maps = NULL;
-	}
+	unsigned int		size = BBTOB(bp->b_length);
+
+	trace_xfs_buf_free(bp, _RET_IP_);
+
+	ASSERT(list_empty(&bp->b_lru));
+
+	if (!xfs_buftarg_is_mem(bp->b_target) && size >= PAGE_SIZE)
+		mm_account_reclaimed_pages(howmany(size, PAGE_SHIFT));
+
+	if (is_vmalloc_addr(bp->b_addr))
+		vfree(bp->b_addr);
+	else if (bp->b_flags & _XBF_KMEM)
+		kfree(bp->b_addr);
+	else
+		folio_put(virt_to_folio(bp->b_addr));
+
+	call_rcu(&bp->b_rcu, xfs_buf_free_callback);
 }
 
 static int
-_xfs_buf_alloc(
+xfs_buf_alloc_kmem(
+	struct xfs_buf		*bp,
+	size_t			size,
+	gfp_t			gfp_mask)
+{
+	ASSERT(is_power_of_2(size));
+	ASSERT(size < PAGE_SIZE);
+
+	bp->b_addr = kmalloc(size, gfp_mask | __GFP_NOFAIL);
+	if (!bp->b_addr)
+		return -ENOMEM;
+
+	/*
+	 * Slab guarantees that we get back naturally aligned allocations for
+	 * power of two sizes.  Keep this check as the canary in the coal mine
+	 * if anything changes in slab.
+	 */
+	if (WARN_ON_ONCE(!IS_ALIGNED((unsigned long)bp->b_addr, size))) {
+		kfree(bp->b_addr);
+		bp->b_addr = NULL;
+		return -ENOMEM;
+	}
+	bp->b_flags |= _XBF_KMEM;
+	trace_xfs_buf_backing_kmem(bp, _RET_IP_);
+	return 0;
+}
+
+/*
+ * Allocate backing memory for a buffer.
+ *
+ * For tmpfs-backed buffers used by in-memory btrees this directly maps the
+ * tmpfs page cache folios.
+ *
+ * For real file system buffers there are three different kinds backing memory:
+ *
+ * The first type backs the buffer by a kmalloc allocation.  This is done for
+ * less than PAGE_SIZE allocations to avoid wasting memory.
+ *
+ * The second type is a single folio buffer - this may be a high order folio or
+ * just a single page sized folio, but either way they get treated the same way
+ * by the rest of the code - the buffer memory spans a single contiguous memory
+ * region that we don't have to map and unmap to access the data directly.
+ *
+ * The third type of buffer is the vmalloc()d buffer. This provides the buffer
+ * with the required contiguous memory region but backed by discontiguous
+ * physical pages.
+ */
+static int
+xfs_buf_alloc_backing_mem(
+	struct xfs_buf	*bp,
+	xfs_buf_flags_t	flags)
+{
+	size_t		size = BBTOB(bp->b_length);
+	gfp_t		gfp_mask = GFP_KERNEL | __GFP_NOLOCKDEP | __GFP_NOWARN;
+	struct folio	*folio;
+
+	if (xfs_buftarg_is_mem(bp->b_target))
+		return xmbuf_map_backing_mem(bp);
+
+	/* Assure zeroed buffer for non-read cases. */
+	if (!(flags & XBF_READ))
+		gfp_mask |= __GFP_ZERO;
+
+	if (flags & XBF_READ_AHEAD)
+		gfp_mask |= __GFP_NORETRY;
+
+	/*
+	 * For buffers smaller than PAGE_SIZE use a kmalloc allocation if that
+	 * is properly aligned.  The slab allocator now guarantees an aligned
+	 * allocation for all power of two sizes, which matches most of the
+	 * smaller than PAGE_SIZE buffers used by XFS.
+	 */
+	if (size < PAGE_SIZE && is_power_of_2(size))
+		return xfs_buf_alloc_kmem(bp, size, gfp_mask);
+
+	/*
+	 * Don't bother with the retry loop for single PAGE allocations: vmalloc
+	 * won't do any better.
+	 */
+	if (size <= PAGE_SIZE)
+		gfp_mask |= __GFP_NOFAIL;
+
+	/*
+	 * Optimistically attempt a single high order folio allocation for
+	 * larger than PAGE_SIZE buffers.
+	 *
+	 * Allocating a high order folio makes the assumption that buffers are a
+	 * power-of-2 size, matching the power-of-2 folios sizes available.
+	 *
+	 * The exception here are user xattr data buffers, which can be arbitrarily
+	 * sized up to 64kB plus structure metadata, skip straight to the vmalloc
+	 * path for them instead of wasting memory here.
+	 */
+	if (size > PAGE_SIZE) {
+		if (!is_power_of_2(size))
+			goto fallback;
+		gfp_mask &= ~__GFP_DIRECT_RECLAIM;
+		gfp_mask |= __GFP_NORETRY;
+	}
+	folio = folio_alloc(gfp_mask, get_order(size));
+	if (!folio) {
+		if (size <= PAGE_SIZE)
+			return -ENOMEM;
+		trace_xfs_buf_backing_fallback(bp, _RET_IP_);
+		goto fallback;
+	}
+	bp->b_addr = folio_address(folio);
+	trace_xfs_buf_backing_folio(bp, _RET_IP_);
+	return 0;
+
+fallback:
+	for (;;) {
+		bp->b_addr = __vmalloc(size, gfp_mask);
+		if (bp->b_addr)
+			break;
+		if (flags & XBF_READ_AHEAD)
+			return -ENOMEM;
+		XFS_STATS_INC(bp->b_mount, xb_page_retries);
+		memalloc_retry_wait(gfp_mask);
+	}
+
+	trace_xfs_buf_backing_vmalloc(bp, _RET_IP_);
+	return 0;
+}
+
+static int
+xfs_buf_alloc(
 	struct xfs_buftarg	*target,
 	struct xfs_buf_map	*map,
 	int			nmaps,
@@ -159,7 +268,7 @@ _xfs_buf_alloc(
 	 * We don't want certain flags to appear in b_flags unless they are
 	 * specifically set by later operations on the buffer.
 	 */
-	flags &= ~(XBF_UNMAPPED | XBF_TRYLOCK | XBF_ASYNC | XBF_READ_AHEAD);
+	flags &= ~(XBF_TRYLOCK | XBF_ASYNC | XBF_READ_AHEAD);
 
 	/*
 	 * A new buffer is held and locked by the owner.  This ensures that the
@@ -179,15 +288,14 @@ _xfs_buf_alloc(
 	bp->b_target = target;
 	bp->b_mount = target->bt_mount;
 	bp->b_flags = flags;
-
-	error = xfs_buf_get_maps(bp, nmaps);
-	if (error)  {
-		kmem_cache_free(xfs_buf_cache, bp);
-		return error;
-	}
-
 	bp->b_rhash_key = map[0].bm_bn;
 	bp->b_length = 0;
+	bp->b_map_count = nmaps;
+	if (nmaps == 1)
+		bp->b_maps = &bp->__b_map;
+	else
+		bp->b_maps = kcalloc(nmaps, sizeof(struct xfs_buf_map),
+				GFP_KERNEL | __GFP_NOLOCKDEP | __GFP_NOFAIL);
 	for (i = 0; i < nmaps; i++) {
 		bp->b_maps[i].bm_bn = map[i].bm_bn;
 		bp->b_maps[i].bm_len = map[i].bm_len;
@@ -200,195 +308,13 @@ _xfs_buf_alloc(
 	XFS_STATS_INC(bp->b_mount, xb_create);
 	trace_xfs_buf_init(bp, _RET_IP_);
 
+	error = xfs_buf_alloc_backing_mem(bp, flags);
+	if (error) {
+		xfs_buf_free(bp);
+		return error;
+	}
+
 	*bpp = bp;
-	return 0;
-}
-
-static void
-xfs_buf_free_pages(
-	struct xfs_buf	*bp)
-{
-	uint		i;
-
-	ASSERT(bp->b_flags & _XBF_PAGES);
-
-	if (xfs_buf_is_vmapped(bp))
-		vm_unmap_ram(bp->b_addr, bp->b_page_count);
-
-	for (i = 0; i < bp->b_page_count; i++) {
-		if (bp->b_pages[i])
-			__free_page(bp->b_pages[i]);
-	}
-	mm_account_reclaimed_pages(bp->b_page_count);
-
-	if (bp->b_pages != bp->b_page_array)
-		kfree(bp->b_pages);
-	bp->b_pages = NULL;
-	bp->b_flags &= ~_XBF_PAGES;
-}
-
-static void
-xfs_buf_free_callback(
-	struct callback_head	*cb)
-{
-	struct xfs_buf		*bp = container_of(cb, struct xfs_buf, b_rcu);
-
-	xfs_buf_free_maps(bp);
-	kmem_cache_free(xfs_buf_cache, bp);
-}
-
-static void
-xfs_buf_free(
-	struct xfs_buf		*bp)
-{
-	trace_xfs_buf_free(bp, _RET_IP_);
-
-	ASSERT(list_empty(&bp->b_lru));
-
-	if (xfs_buftarg_is_mem(bp->b_target))
-		xmbuf_unmap_page(bp);
-	else if (bp->b_flags & _XBF_PAGES)
-		xfs_buf_free_pages(bp);
-	else if (bp->b_flags & _XBF_KMEM)
-		kfree(bp->b_addr);
-
-	call_rcu(&bp->b_rcu, xfs_buf_free_callback);
-}
-
-static int
-xfs_buf_alloc_kmem(
-	struct xfs_buf	*bp,
-	xfs_buf_flags_t	flags)
-{
-	gfp_t		gfp_mask = GFP_KERNEL | __GFP_NOLOCKDEP | __GFP_NOFAIL;
-	size_t		size = BBTOB(bp->b_length);
-
-	/* Assure zeroed buffer for non-read cases. */
-	if (!(flags & XBF_READ))
-		gfp_mask |= __GFP_ZERO;
-
-	bp->b_addr = kmalloc(size, gfp_mask);
-	if (!bp->b_addr)
-		return -ENOMEM;
-
-	if (((unsigned long)(bp->b_addr + size - 1) & PAGE_MASK) !=
-	    ((unsigned long)bp->b_addr & PAGE_MASK)) {
-		/* b_addr spans two pages - use alloc_page instead */
-		kfree(bp->b_addr);
-		bp->b_addr = NULL;
-		return -ENOMEM;
-	}
-	bp->b_offset = offset_in_page(bp->b_addr);
-	bp->b_pages = bp->b_page_array;
-	bp->b_pages[0] = kmem_to_page(bp->b_addr);
-	bp->b_page_count = 1;
-	bp->b_flags |= _XBF_KMEM;
-	return 0;
-}
-
-static int
-xfs_buf_alloc_pages(
-	struct xfs_buf	*bp,
-	xfs_buf_flags_t	flags)
-{
-	gfp_t		gfp_mask = GFP_KERNEL | __GFP_NOLOCKDEP | __GFP_NOWARN;
-	long		filled = 0;
-
-	if (flags & XBF_READ_AHEAD)
-		gfp_mask |= __GFP_NORETRY;
-
-	/* Make sure that we have a page list */
-	bp->b_page_count = DIV_ROUND_UP(BBTOB(bp->b_length), PAGE_SIZE);
-	if (bp->b_page_count <= XB_PAGES) {
-		bp->b_pages = bp->b_page_array;
-	} else {
-		bp->b_pages = kzalloc(sizeof(struct page *) * bp->b_page_count,
-					gfp_mask);
-		if (!bp->b_pages)
-			return -ENOMEM;
-	}
-	bp->b_flags |= _XBF_PAGES;
-
-	/* Assure zeroed buffer for non-read cases. */
-	if (!(flags & XBF_READ))
-		gfp_mask |= __GFP_ZERO;
-
-	/*
-	 * Bulk filling of pages can take multiple calls. Not filling the entire
-	 * array is not an allocation failure, so don't back off if we get at
-	 * least one extra page.
-	 */
-	for (;;) {
-		long	last = filled;
-
-		filled = alloc_pages_bulk(gfp_mask, bp->b_page_count,
-					  bp->b_pages);
-		if (filled == bp->b_page_count) {
-			XFS_STATS_INC(bp->b_mount, xb_page_found);
-			break;
-		}
-
-		if (filled != last)
-			continue;
-
-		if (flags & XBF_READ_AHEAD) {
-			xfs_buf_free_pages(bp);
-			return -ENOMEM;
-		}
-
-		XFS_STATS_INC(bp->b_mount, xb_page_retries);
-		memalloc_retry_wait(gfp_mask);
-	}
-	return 0;
-}
-
-/*
- *	Map buffer into kernel address-space if necessary.
- */
-STATIC int
-_xfs_buf_map_pages(
-	struct xfs_buf		*bp,
-	xfs_buf_flags_t		flags)
-{
-	ASSERT(bp->b_flags & _XBF_PAGES);
-	if (bp->b_page_count == 1) {
-		/* A single page buffer is always mappable */
-		bp->b_addr = page_address(bp->b_pages[0]);
-	} else if (flags & XBF_UNMAPPED) {
-		bp->b_addr = NULL;
-	} else {
-		int retried = 0;
-		unsigned nofs_flag;
-
-		/*
-		 * vm_map_ram() will allocate auxiliary structures (e.g.
-		 * pagetables) with GFP_KERNEL, yet we often under a scoped nofs
-		 * context here. Mixing GFP_KERNEL with GFP_NOFS allocations
-		 * from the same call site that can be run from both above and
-		 * below memory reclaim causes lockdep false positives. Hence we
-		 * always need to force this allocation to nofs context because
-		 * we can't pass __GFP_NOLOCKDEP down to auxillary structures to
-		 * prevent false positive lockdep reports.
-		 *
-		 * XXX(dgc): I think dquot reclaim is the only place we can get
-		 * to this function from memory reclaim context now. If we fix
-		 * that like we've fixed inode reclaim to avoid writeback from
-		 * reclaim, this nofs wrapping can go away.
-		 */
-		nofs_flag = memalloc_nofs_save();
-		do {
-			bp->b_addr = vm_map_ram(bp->b_pages, bp->b_page_count,
-						-1);
-			if (bp->b_addr)
-				break;
-			vm_unmap_aliases();
-		} while (retried++ <= 1);
-		memalloc_nofs_restore(nofs_flag);
-
-		if (!bp->b_addr)
-			return -ENOMEM;
-	}
-
 	return 0;
 }
 
@@ -507,7 +433,7 @@ xfs_buf_find_lock(
 			return -ENOENT;
 		}
 		ASSERT((bp->b_flags & _XBF_DELWRI_Q) == 0);
-		bp->b_flags &= _XBF_KMEM | _XBF_PAGES;
+		bp->b_flags &= _XBF_KMEM;
 		bp->b_ops = NULL;
 	}
 	return 0;
@@ -575,24 +501,9 @@ xfs_buf_find_insert(
 	struct xfs_buf		*bp;
 	int			error;
 
-	error = _xfs_buf_alloc(btp, map, nmaps, flags, &new_bp);
+	error = xfs_buf_alloc(btp, map, nmaps, flags, &new_bp);
 	if (error)
 		goto out_drop_pag;
-
-	if (xfs_buftarg_is_mem(new_bp->b_target)) {
-		error = xmbuf_map_page(new_bp);
-	} else if (BBTOB(new_bp->b_length) >= PAGE_SIZE ||
-		   xfs_buf_alloc_kmem(new_bp, flags) < 0) {
-		/*
-		 * For buffers that fit entirely within a single page, first
-		 * attempt to allocate the memory from the heap to minimise
-		 * memory usage. If we can't get heap memory for these small
-		 * buffers, we fall back to using the page allocator.
-		 */
-		error = xfs_buf_alloc_pages(new_bp, flags);
-	}
-	if (error)
-		goto out_free_buf;
 
 	/* The new buffer keeps the perag reference until it is freed. */
 	new_bp->b_pag = pag;
@@ -702,18 +613,6 @@ xfs_buf_get_map(
 		XFS_STATS_INC(btp->bt_mount, xb_get_locked);
 		if (pag)
 			xfs_perag_put(pag);
-	}
-
-	/* We do not hold a perag reference anymore. */
-	if (!bp->b_addr) {
-		error = _xfs_buf_map_pages(bp, flags);
-		if (unlikely(error)) {
-			xfs_warn_ratelimited(btp->bt_mount,
-				"%s: failed to map %u pages", __func__,
-				bp->b_page_count);
-			xfs_buf_relse(bp);
-			return error;
-		}
 	}
 
 	/*
@@ -903,7 +802,6 @@ xfs_buf_read_uncached(
 	struct xfs_buftarg	*target,
 	xfs_daddr_t		daddr,
 	size_t			numblks,
-	xfs_buf_flags_t		flags,
 	struct xfs_buf		**bpp,
 	const struct xfs_buf_ops *ops)
 {
@@ -912,7 +810,7 @@ xfs_buf_read_uncached(
 
 	*bpp = NULL;
 
-	error = xfs_buf_get_uncached(target, numblks, flags, &bp);
+	error = xfs_buf_get_uncached(target, numblks, &bp);
 	if (error)
 		return error;
 
@@ -938,42 +836,14 @@ int
 xfs_buf_get_uncached(
 	struct xfs_buftarg	*target,
 	size_t			numblks,
-	xfs_buf_flags_t		flags,
 	struct xfs_buf		**bpp)
 {
 	int			error;
-	struct xfs_buf		*bp;
 	DEFINE_SINGLE_BUF_MAP(map, XFS_BUF_DADDR_NULL, numblks);
 
-	/* there are currently no valid flags for xfs_buf_get_uncached */
-	ASSERT(flags == 0);
-
-	*bpp = NULL;
-
-	error = _xfs_buf_alloc(target, &map, 1, flags, &bp);
-	if (error)
-		return error;
-
-	if (xfs_buftarg_is_mem(bp->b_target))
-		error = xmbuf_map_page(bp);
-	else
-		error = xfs_buf_alloc_pages(bp, flags);
-	if (error)
-		goto fail_free_buf;
-
-	error = _xfs_buf_map_pages(bp, 0);
-	if (unlikely(error)) {
-		xfs_warn(target->bt_mount,
-			"%s: failed to map pages", __func__);
-		goto fail_free_buf;
-	}
-
-	trace_xfs_buf_get_uncached(bp, _RET_IP_);
-	*bpp = bp;
-	return 0;
-
-fail_free_buf:
-	xfs_buf_free(bp);
+	error = xfs_buf_alloc(target, &map, 1, 0, bpp);
+	if (!error)
+		trace_xfs_buf_get_uncached(*bpp, _RET_IP_);
 	return error;
 }
 
@@ -1299,9 +1169,9 @@ __xfs_buf_ioend(
 	trace_xfs_buf_iodone(bp, _RET_IP_);
 
 	if (bp->b_flags & XBF_READ) {
-		if (!bp->b_error && xfs_buf_is_vmapped(bp))
+		if (!bp->b_error && is_vmalloc_addr(bp->b_addr))
 			invalidate_kernel_vmap_range(bp->b_addr,
-					xfs_buf_vmap_len(bp));
+				roundup(BBTOB(bp->b_length), PAGE_SIZE));
 		if (!bp->b_error && bp->b_ops)
 			bp->b_ops->verify_read(bp);
 		if (!bp->b_error)
@@ -1462,28 +1332,47 @@ static void
 xfs_buf_submit_bio(
 	struct xfs_buf		*bp)
 {
-	unsigned int		size = BBTOB(bp->b_length);
-	unsigned int		map = 0, p;
+	unsigned int		map = 0;
 	struct blk_plug		plug;
 	struct bio		*bio;
 
-	bio = bio_alloc(bp->b_target->bt_bdev, bp->b_page_count,
-			xfs_buf_bio_op(bp), GFP_NOIO);
+	if (is_vmalloc_addr(bp->b_addr)) {
+		unsigned int	size = BBTOB(bp->b_length);
+		unsigned int	alloc_size = roundup(size, PAGE_SIZE);
+		void		*data = bp->b_addr;
+
+		bio = bio_alloc(bp->b_target->bt_bdev, alloc_size >> PAGE_SHIFT,
+				xfs_buf_bio_op(bp), GFP_NOIO);
+
+		do {
+			unsigned int	len = min(size, PAGE_SIZE);
+
+			ASSERT(offset_in_page(data) == 0);
+			__bio_add_page(bio, vmalloc_to_page(data), len, 0);
+			data += len;
+			size -= len;
+		} while (size);
+
+		flush_kernel_vmap_range(bp->b_addr, alloc_size);
+	} else {
+		/*
+		 * Single folio or slab allocation.  Must be contiguous and thus
+		 * only a single bvec is needed.
+		 *
+		 * This uses the page based bio add helper for now as that is
+		 * the lowest common denominator between folios and slab
+		 * allocations.  To be replaced with a better block layer
+		 * helper soon (hopefully).
+		 */
+		bio = bio_alloc(bp->b_target->bt_bdev, 1, xfs_buf_bio_op(bp),
+				GFP_NOIO);
+		__bio_add_page(bio, virt_to_page(bp->b_addr),
+				BBTOB(bp->b_length),
+				offset_in_page(bp->b_addr));
+	}
+
 	bio->bi_private = bp;
 	bio->bi_end_io = xfs_buf_bio_end_io;
-
-	if (bp->b_flags & _XBF_KMEM) {
-		__bio_add_page(bio, virt_to_page(bp->b_addr), size,
-				bp->b_offset);
-	} else {
-		for (p = 0; p < bp->b_page_count; p++)
-			__bio_add_page(bio, bp->b_pages[p], PAGE_SIZE, 0);
-		bio->bi_iter.bi_size = size; /* limit to the actual size used */
-
-		if (xfs_buf_is_vmapped(bp))
-			flush_kernel_vmap_range(bp->b_addr,
-					xfs_buf_vmap_len(bp));
-	}
 
 	/*
 	 * If there is more than one map segment, split out a new bio for each
@@ -1609,47 +1498,6 @@ xfs_buf_submit(
 	}
 
 	xfs_buf_submit_bio(bp);
-}
-
-void *
-xfs_buf_offset(
-	struct xfs_buf		*bp,
-	size_t			offset)
-{
-	struct page		*page;
-
-	if (bp->b_addr)
-		return bp->b_addr + offset;
-
-	page = bp->b_pages[offset >> PAGE_SHIFT];
-	return page_address(page) + (offset & (PAGE_SIZE-1));
-}
-
-void
-xfs_buf_zero(
-	struct xfs_buf		*bp,
-	size_t			boff,
-	size_t			bsize)
-{
-	size_t			bend;
-
-	bend = boff + bsize;
-	while (boff < bend) {
-		struct page	*page;
-		int		page_index, page_offset, csize;
-
-		page_index = (boff + bp->b_offset) >> PAGE_SHIFT;
-		page_offset = (boff + bp->b_offset) & ~PAGE_MASK;
-		page = bp->b_pages[page_index];
-		csize = min_t(size_t, PAGE_SIZE - page_offset,
-				      BBTOB(bp->b_length) - boff);
-
-		ASSERT((csize + page_offset) <= PAGE_SIZE);
-
-		memset(page_address(page) + page_offset, 0, csize);
-
-		boff += csize;
-	}
 }
 
 /*

@@ -218,10 +218,8 @@ struct link_service {
 
 
 	/*************************** DP DPIA/PHY ******************************/
-	int (*dpia_handle_usb4_bandwidth_allocation_for_link)(
+	void (*dpia_handle_usb4_bandwidth_allocation_for_link)(
 			struct dc_link *link, int peak_bw);
-	void (*dpia_handle_bw_alloc_response)(
-			struct dc_link *link, uint8_t bw, uint8_t result);
 	void (*dp_set_drive_settings)(
 		struct dc_link *link,
 		const struct link_resource *link_res,

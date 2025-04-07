@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <linux/string.h>
@@ -23,6 +24,9 @@ static size_t callchain__fprintf_left_margin(FILE *fp, int left_margin)
 {
 	int i;
 	int ret = fprintf(fp, "            ");
+
+	if (left_margin > USHRT_MAX)
+		left_margin = USHRT_MAX;
 
 	for (i = 0; i < left_margin; i++)
 		ret += fprintf(fp, " ");

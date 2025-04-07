@@ -334,7 +334,9 @@ unsigned long hugetlb_mask_last_page(struct hstate *h)
 	switch (hp_size) {
 #ifndef __PAGETABLE_PMD_FOLDED
 	case PUD_SIZE:
-		return PGDIR_SIZE - PUD_SIZE;
+		if (pud_sect_supported())
+			return PGDIR_SIZE - PUD_SIZE;
+		break;
 #endif
 	case CONT_PMD_SIZE:
 		return PUD_SIZE - CONT_PMD_SIZE;
@@ -356,23 +358,21 @@ pte_t arch_make_huge_pte(pte_t entry, unsigned int shift, vm_flags_t flags)
 	switch (pagesize) {
 #ifndef __PAGETABLE_PMD_FOLDED
 	case PUD_SIZE:
-		entry = pud_pte(pud_mkhuge(pte_pud(entry)));
+		if (pud_sect_supported())
+			return pud_pte(pud_mkhuge(pte_pud(entry)));
 		break;
 #endif
 	case CONT_PMD_SIZE:
-		entry = pmd_pte(pmd_mkcont(pte_pmd(entry)));
-		fallthrough;
+		return pmd_pte(pmd_mkhuge(pmd_mkcont(pte_pmd(entry))));
 	case PMD_SIZE:
-		entry = pmd_pte(pmd_mkhuge(pte_pmd(entry)));
-		break;
+		return pmd_pte(pmd_mkhuge(pte_pmd(entry)));
 	case CONT_PTE_SIZE:
-		entry = pte_mkcont(entry);
-		break;
+		return pte_mkcont(entry);
 	default:
-		pr_warn("%s: unrecognized huge page size 0x%lx\n",
-			__func__, pagesize);
 		break;
 	}
+	pr_warn("%s: unrecognized huge page size 0x%lx\n",
+		__func__, pagesize);
 	return entry;
 }
 

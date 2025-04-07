@@ -28,7 +28,6 @@
 #include "amdgpu.h"
 #include "amdgpu_vm.h"
 #include "amdgpu_res_cursor.h"
-#include "amdgpu_atomfirmware.h"
 #include "atom.h"
 
 #define AMDGPU_MAX_SG_SEGMENT_SIZE	(2UL << 30)

@@ -24,6 +24,7 @@
 #ifndef __KFD_TOPOLOGY_H__
 #define __KFD_TOPOLOGY_H__
 
+#include <linux/dmi.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/kfd_sysfs.h>
@@ -50,6 +51,7 @@ struct kfd_node_properties {
 	uint32_t cpu_core_id_base;
 	uint32_t simd_id_base;
 	uint32_t capability;
+	uint32_t capability2;
 	uint64_t debug_prop;
 	uint32_t max_waves_per_simd;
 	uint32_t lds_size_in_kb;
@@ -178,6 +180,22 @@ struct kfd_system_properties {
 	struct attribute	attr_genid;
 	struct attribute	attr_props;
 };
+
+struct dmi_mem_device {
+	struct dmi_header header;
+	u16 physical_handle;
+	u16 error_handle;
+	u16 total_width;
+	u16 data_width;
+	u16 size;
+	u8 form_factor;
+	u8 device_set;
+	u8 device_locator;
+	u8 bank_locator;
+	u8 memory_type;
+	u16 type_detail;
+	u16 speed;
+} __packed;
 
 struct kfd_topology_device *kfd_create_topology_device(
 		struct list_head *device_list);

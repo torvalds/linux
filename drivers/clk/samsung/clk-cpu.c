@@ -133,7 +133,7 @@ static void wait_until_divider_stable(void __iomem *div_reg, unsigned long mask)
 	if (!(readl(div_reg) & mask))
 		return;
 
-	pr_err("%s: timeout in divider stablization\n", __func__);
+	pr_err("%s: timeout in divider stabilization\n", __func__);
 }
 
 /*

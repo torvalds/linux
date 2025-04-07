@@ -163,7 +163,7 @@ void intel_wakeref_auto(struct intel_wakeref_auto *wf, unsigned long timeout)
 	unsigned long flags;
 
 	if (!timeout) {
-		if (del_timer_sync(&wf->timer))
+		if (timer_delete_sync(&wf->timer))
 			wakeref_auto_timeout(&wf->timer);
 		return;
 	}

@@ -4,7 +4,6 @@
 #define BTRFS_EXTENT_TREE_H
 
 #include <linux/types.h>
-#include "misc.h"
 #include "block-group.h"
 #include "locking.h"
 

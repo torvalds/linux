@@ -631,9 +631,6 @@ int siw_destroy_qp(struct ib_qp *base_qp, struct ib_udata *udata)
 	}
 	up_write(&qp->state_lock);
 
-	kfree(qp->tx_ctx.mpa_crc_hd);
-	kfree(qp->rx_stream.mpa_crc_hd);
-
 	qp->scq = qp->rcq = NULL;
 
 	siw_qp_put(qp);

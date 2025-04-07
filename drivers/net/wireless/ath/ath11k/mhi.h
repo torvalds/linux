@@ -26,5 +26,6 @@ void ath11k_mhi_clear_vector(struct ath11k_base *ab);
 
 int ath11k_mhi_suspend(struct ath11k_pci *ar_pci);
 int ath11k_mhi_resume(struct ath11k_pci *ar_pci);
+void ath11k_mhi_coredump(struct mhi_controller *mhi_ctrl, bool in_panic);
 
 #endif

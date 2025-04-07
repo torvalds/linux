@@ -1080,8 +1080,8 @@ static ssize_t cyapa_update_fw_store(struct device *dev,
 	char fw_name[NAME_MAX];
 	int ret, error;
 
-	if (count >= NAME_MAX) {
-		dev_err(dev, "File name too long\n");
+	if (!count || count >= NAME_MAX) {
+		dev_err(dev, "Bad file name size\n");
 		return -EINVAL;
 	}
 

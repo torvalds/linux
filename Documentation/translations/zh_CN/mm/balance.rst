@@ -64,7 +64,7 @@ kswapd并不真正需要平衡高内存区，因为中断上下文并不请求�
 如果从进程内存和shm中偷取页面可以减轻该页面节点中任何区的内存压力，而该区的内存压力
 已经低于其水位，则会进行偷取。
 
-watemark[WMARK_MIN/WMARK_LOW/WMARK_HIGH]/low_on_memory/zone_wake_kswapd：
+watermark[WMARK_MIN/WMARK_LOW/WMARK_HIGH]/low_on_memory/zone_wake_kswapd：
 这些是每个区的字段，用于确定一个区何时需要平衡。当页面数低于水位[WMARK_MIN]时，
 hysteric 的字段low_on_memory被设置。这个字段会一直被设置，直到空闲页数变成水位
 [WMARK_HIGH]。当low_on_memory被设置时，页面分配请求将尝试释放该区域的一些页面（如果

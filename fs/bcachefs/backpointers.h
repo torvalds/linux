@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _BCACHEFS_BACKPOINTERS_BACKGROUND_H
-#define _BCACHEFS_BACKPOINTERS_BACKGROUND_H
+#ifndef _BCACHEFS_BACKPOINTERS_H
+#define _BCACHEFS_BACKPOINTERS_H
 
 #include "btree_cache.h"
 #include "btree_iter.h"
@@ -123,7 +123,12 @@ static inline enum bch_data_type bch2_bkey_ptr_data_type(struct bkey_s_c k,
 		return BCH_DATA_btree;
 	case KEY_TYPE_extent:
 	case KEY_TYPE_reflink_v:
-		return p.has_ec ? BCH_DATA_stripe : BCH_DATA_user;
+		if (p.has_ec)
+			return BCH_DATA_stripe;
+		if (p.ptr.cached)
+			return BCH_DATA_cached;
+		else
+			return BCH_DATA_user;
 	case KEY_TYPE_stripe: {
 		const struct bch_extent_ptr *ptr = &entry->ptr;
 		struct bkey_s_c_stripe s = bkey_s_c_to_stripe(k);
@@ -147,7 +152,20 @@ static inline void bch2_extent_ptr_to_bp(struct bch_fs *c,
 			   struct bkey_i_backpointer *bp)
 {
 	bkey_backpointer_init(&bp->k_i);
-	bp->k.p = POS(p.ptr.dev, ((u64) p.ptr.offset << MAX_EXTENT_COMPRESS_RATIO_SHIFT) + p.crc.offset);
+	bp->k.p.inode = p.ptr.dev;
+
+	if (k.k->type != KEY_TYPE_stripe)
+		bp->k.p.offset = ((u64) p.ptr.offset << MAX_EXTENT_COMPRESS_RATIO_SHIFT) + p.crc.offset;
+	else {
+		/*
+		 * Put stripe backpointers where they won't collide with the
+		 * extent backpointers within the stripe:
+		 */
+		struct bkey_s_c_stripe s = bkey_s_c_to_stripe(k);
+		bp->k.p.offset = ((u64) (p.ptr.offset + le16_to_cpu(s.v->sectors)) <<
+				  MAX_EXTENT_COMPRESS_RATIO_SHIFT) - 1;
+	}
+
 	bp->v	= (struct bch_backpointer) {
 		.btree_id	= btree_id,
 		.level		= level,

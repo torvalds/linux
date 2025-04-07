@@ -46,8 +46,8 @@ static int ae4_get_irqs(struct ae4_device *ae4)
 
 	} else {
 		ae4_msix->msix_count = ret;
-		for (i = 0; i < MAX_AE4_HW_QUEUES; i++)
-			ae4->ae4_irq[i] = ae4_msix->msix_entry[i].vector;
+		for (i = 0; i < ae4_msix->msix_count; i++)
+			ae4->ae4_irq[i] = pci_irq_vector(pdev, i);
 	}
 
 	return ret;
@@ -137,8 +137,6 @@ static void ae4_pci_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id ae4_pci_table[] = {
-	{ PCI_VDEVICE(AMD, 0x14C8), },
-	{ PCI_VDEVICE(AMD, 0x14DC), },
 	{ PCI_VDEVICE(AMD, 0x149B), },
 	/* Last entry must be zero */
 	{ 0, }

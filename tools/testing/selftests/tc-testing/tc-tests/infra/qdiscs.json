@@ -126,5 +126,37 @@
             "$TC qdisc del dev $DUMMY root handle 1: drr",
             "$IP addr del 10.10.10.10/24 dev $DUMMY"
         ]
-   }
+    },
+    {
+        "id": "c024",
+        "name": "Test TBF with SKBPRIO - catch qlen corner cases",
+        "category": [
+            "qdisc",
+            "tbf",
+            "skbprio"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$IP link set dev $DUMMY up || true",
+            "$IP addr add 10.10.10.10/24 dev $DUMMY || true",
+            "$TC qdisc add dev $DUMMY handle 1: root tbf rate 100bit burst 2000 limit 1000",
+            "$TC qdisc add dev $DUMMY parent 1: handle 10: skbprio limit 1",
+            "ping -c 1 -W 0.1 -Q 0x00 -s 1400 -I $DUMMY 10.10.10.1 > /dev/null || true",
+            "ping -c 1 -W 0.1 -Q 0x1c -s 1400 -I $DUMMY 10.10.10.1 > /dev/null || true",
+            "ping -c 1 -W 0.1 -Q 0x00 -s 1400 -I $DUMMY 10.10.10.1 > /dev/null || true",
+            "ping -c 1 -W 0.1 -Q 0x1c -s 1400 -I $DUMMY 10.10.10.1 > /dev/null || true",
+            "sleep 0.5"
+        ],
+        "cmdUnderTest": "$TC -s qdisc show dev $DUMMY",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -s qdisc show dev $DUMMY | grep -A 5 'qdisc skbprio'",
+        "matchPattern": "dropped [1-9][0-9]*",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root",
+            "$IP addr del 10.10.10.10/24 dev $DUMMY || true"
+        ]
+    }
 ]

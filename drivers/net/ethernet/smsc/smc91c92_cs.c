@@ -1105,7 +1105,7 @@ static int smc_close(struct net_device *dev)
     outw(CTL_POWERDOWN, ioaddr + CONTROL );
 
     link->open--;
-    del_timer_sync(&smc->media);
+    timer_delete_sync(&smc->media);
 
     return 0;
 } /* smc_close */

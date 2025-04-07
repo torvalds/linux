@@ -323,7 +323,7 @@ void pnic2_lnk_change(struct net_device *dev, int csr5)
 		if (tulip_debug > 2)
 			netdev_dbg(dev, "Ugh! Link blew?\n");
 
-		del_timer_sync(&tp->timer);
+		timer_delete_sync(&tp->timer);
 		pnic2_start_nway(dev);
 		tp->timer.expires = RUN_AT(3*HZ);
 		add_timer(&tp->timer);
@@ -348,7 +348,7 @@ void pnic2_lnk_change(struct net_device *dev, int csr5)
 
                 /* if failed then try doing an nway to get in sync */
 		if ((csr12 & 2)  &&  ! tp->medialock) {
-			del_timer_sync(&tp->timer);
+			timer_delete_sync(&tp->timer);
 			pnic2_start_nway(dev);
 			tp->timer.expires = RUN_AT(3*HZ);
 			add_timer(&tp->timer);
@@ -372,7 +372,7 @@ void pnic2_lnk_change(struct net_device *dev, int csr5)
 
                 /* if failed, try doing an nway to get in sync */
 		if ((csr12 & 4)  &&  ! tp->medialock) {
-			del_timer_sync(&tp->timer);
+			timer_delete_sync(&tp->timer);
 			pnic2_start_nway(dev);
 			tp->timer.expires = RUN_AT(3*HZ);
 			add_timer(&tp->timer);

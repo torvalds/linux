@@ -854,6 +854,7 @@ static const struct attribute_group ideapad_attribute_group = {
 	.is_visible = ideapad_is_visible,
 	.attrs = ideapad_attributes
 };
+__ATTRIBUTE_GROUPS(ideapad_attribute);
 
 /*
  * DYTC Platform profile
@@ -1242,21 +1243,6 @@ static void ideapad_unregister_rfkill(struct ideapad_private *priv, int dev)
 
 	rfkill_unregister(priv->rfk[dev]);
 	rfkill_destroy(priv->rfk[dev]);
-}
-
-/*
- * Platform device
- */
-static int ideapad_sysfs_init(struct ideapad_private *priv)
-{
-	return device_add_group(&priv->platform_device->dev,
-				&ideapad_attribute_group);
-}
-
-static void ideapad_sysfs_exit(struct ideapad_private *priv)
-{
-	device_remove_group(&priv->platform_device->dev,
-			    &ideapad_attribute_group);
 }
 
 /*
@@ -2175,10 +2161,6 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 
 	ideapad_check_features(priv);
 
-	err = ideapad_sysfs_init(priv);
-	if (err)
-		return err;
-
 	ideapad_debugfs_init(priv);
 
 	err = ideapad_input_init(priv);
@@ -2265,7 +2247,6 @@ backlight_failed:
 
 input_failed:
 	ideapad_debugfs_exit(priv);
-	ideapad_sysfs_exit(priv);
 
 	return err;
 }
@@ -2293,7 +2274,6 @@ static void ideapad_acpi_remove(struct platform_device *pdev)
 	ideapad_kbd_bl_exit(priv);
 	ideapad_input_exit(priv);
 	ideapad_debugfs_exit(priv);
-	ideapad_sysfs_exit(priv);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -2325,6 +2305,7 @@ static struct platform_driver ideapad_acpi_driver = {
 		.name   = "ideapad_acpi",
 		.pm     = &ideapad_pm,
 		.acpi_match_table = ACPI_PTR(ideapad_device_ids),
+		.dev_groups = ideapad_attribute_groups,
 	},
 };
 

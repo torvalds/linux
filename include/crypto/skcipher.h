@@ -214,16 +214,17 @@ struct lskcipher_alg {
 
 #define MAX_SYNC_SKCIPHER_REQSIZE      384
 /*
- * This performs a type-check against the "tfm" argument to make sure
+ * This performs a type-check against the "_tfm" argument to make sure
  * all users have the correct skcipher tfm for doing on-stack requests.
  */
-#define SYNC_SKCIPHER_REQUEST_ON_STACK(name, tfm) \
+#define SYNC_SKCIPHER_REQUEST_ON_STACK(name, _tfm) \
 	char __##name##_desc[sizeof(struct skcipher_request) + \
-			     MAX_SYNC_SKCIPHER_REQSIZE + \
-			     (!(sizeof((struct crypto_sync_skcipher *)1 == \
-				       (typeof(tfm))1))) \
+			     MAX_SYNC_SKCIPHER_REQSIZE \
 			    ] CRYPTO_MINALIGN_ATTR; \
-	struct skcipher_request *name = (void *)__##name##_desc
+	struct skcipher_request *name = \
+		(((struct skcipher_request *)__##name##_desc)->base.tfm = \
+			crypto_sync_skcipher_tfm((_tfm)), \
+		 (void *)__##name##_desc)
 
 /**
  * DOC: Symmetric Key Cipher API
@@ -309,6 +310,12 @@ static inline struct crypto_tfm *crypto_lskcipher_tfm(
 	struct crypto_lskcipher *tfm)
 {
 	return &tfm->base;
+}
+
+static inline struct crypto_tfm *crypto_sync_skcipher_tfm(
+	struct crypto_sync_skcipher *tfm)
+{
+	return crypto_skcipher_tfm(&tfm->base);
 }
 
 /**

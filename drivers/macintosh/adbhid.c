@@ -724,7 +724,7 @@ adb_message_handler(struct notifier_block *this, unsigned long code, void *x)
 			int i;
 			for (i = 1; i < 16; i++) {
 				if (adbhid[i])
-					del_timer_sync(&adbhid[i]->input->timer);
+					timer_delete_sync(&adbhid[i]->input->timer);
 			}
 		}
 

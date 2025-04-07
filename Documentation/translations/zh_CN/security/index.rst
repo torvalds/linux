@@ -15,20 +15,20 @@
 .. toctree::
    :maxdepth: 1
 
+   credentials
+   snp-tdx-threat-model
    lsm
    sak
+   self-protection
    siphash
+   tpm/index
    digsig
    landlock
 
 TODOLIST:
-* credentials
-* snp-tdx-threat-model
 * IMA-templates
 * keys/index
 * lsm-development
 * SCTP
-* self-protection
-* tpm/index
 * secrets/index
 * ipe

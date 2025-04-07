@@ -23,7 +23,7 @@ struct dlm_config_node {
 
 extern const struct rhashtable_params dlm_rhash_rsb_params;
 
-#define DLM_MAX_ADDR_COUNT 3
+#define DLM_MAX_ADDR_COUNT 8
 
 #define DLM_PROTO_TCP	0
 #define DLM_PROTO_SCTP	1

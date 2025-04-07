@@ -53,7 +53,7 @@ static void serve_interfered(int sk)
 	ssize_t test_quota = packet_size * packets_nr * 10;
 	uint64_t dest_unreach_a, dest_unreach_b;
 	uint64_t icmp_ignored_a, icmp_ignored_b;
-	struct tcp_ao_counters ao_cnt1, ao_cnt2;
+	struct tcp_counters cnt1, cnt2;
 	bool counter_not_found;
 	struct netstat *ns_after, *ns_before;
 	ssize_t bytes;
@@ -61,16 +61,16 @@ static void serve_interfered(int sk)
 	ns_before = netstat_read();
 	dest_unreach_a = netstat_get(ns_before, dst_unreach, NULL);
 	icmp_ignored_a = netstat_get(ns_before, tcpao_icmps, NULL);
-	if (test_get_tcp_ao_counters(sk, &ao_cnt1))
-		test_error("test_get_tcp_ao_counters()");
+	if (test_get_tcp_counters(sk, &cnt1))
+		test_error("test_get_tcp_counters()");
 	bytes = test_server_run(sk, test_quota, 0);
 	ns_after = netstat_read();
 	netstat_print_diff(ns_before, ns_after);
 	dest_unreach_b = netstat_get(ns_after, dst_unreach, NULL);
 	icmp_ignored_b = netstat_get(ns_after, tcpao_icmps,
 					&counter_not_found);
-	if (test_get_tcp_ao_counters(sk, &ao_cnt2))
-		test_error("test_get_tcp_ao_counters()");
+	if (test_get_tcp_counters(sk, &cnt2))
+		test_error("test_get_tcp_counters()");
 
 	netstat_free(ns_before);
 	netstat_free(ns_after);
@@ -91,9 +91,9 @@ static void serve_interfered(int sk)
 		return;
 	}
 #ifdef TEST_ICMPS_ACCEPT
-	test_tcp_ao_counters_cmp(NULL, &ao_cnt1, &ao_cnt2, TEST_CNT_GOOD);
+	test_assert_counters(NULL, &cnt1, &cnt2, TEST_CNT_GOOD);
 #else
-	test_tcp_ao_counters_cmp(NULL, &ao_cnt1, &ao_cnt2, TEST_CNT_GOOD | TEST_CNT_AO_DROPPED_ICMP);
+	test_assert_counters(NULL, &cnt1, &cnt2, TEST_CNT_GOOD | TEST_CNT_AO_DROPPED_ICMP);
 #endif
 	if (icmp_ignored_a >= icmp_ignored_b) {
 		test_icmps_fail("%s counter didn't change: %" PRIu64 " >= %" PRIu64,
@@ -395,7 +395,6 @@ static void icmp_interfere(const size_t nr, uint32_t rcv_nxt, void *src, void *d
 
 static void send_interfered(int sk)
 {
-	const unsigned int timeout = TEST_TIMEOUT_SEC;
 	struct sockaddr_in6 src, dst;
 	socklen_t addr_sz;
 
@@ -409,7 +408,7 @@ static void send_interfered(int sk)
 	while (1) {
 		uint32_t rcv_nxt;
 
-		if (test_client_verify(sk, packet_size, packets_nr, timeout)) {
+		if (test_client_verify(sk, packet_size, packets_nr)) {
 			test_fail("client: connection is broken");
 			return;
 		}

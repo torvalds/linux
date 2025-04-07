@@ -27,9 +27,10 @@ static int __hpp__fmt_print(struct perf_hpp *hpp, struct hists *hists, u64 val,
 			    int nr_samples, const char *fmt, int len,
 			    hpp_snprint_fn print_fn, enum perf_hpp_fmt_type fmtype)
 {
-	if (fmtype == PERF_HPP_FMT_TYPE__PERCENT) {
+	if (fmtype == PERF_HPP_FMT_TYPE__PERCENT || fmtype == PERF_HPP_FMT_TYPE__LATENCY) {
 		double percent = 0.0;
-		u64 total = hists__total_period(hists);
+		u64 total = fmtype == PERF_HPP_FMT_TYPE__PERCENT ? hists__total_period(hists) :
+			hists__total_latency(hists);
 
 		if (total)
 			percent = 100.0 * val / total;
@@ -128,7 +129,7 @@ int hpp__fmt(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 				  print_fn, fmtype);
 	}
 
-	if (fmtype == PERF_HPP_FMT_TYPE__PERCENT)
+	if (fmtype == PERF_HPP_FMT_TYPE__PERCENT || fmtype == PERF_HPP_FMT_TYPE__LATENCY)
 		len -= 2; /* 2 for a space and a % sign */
 	else
 		len -= 1;
@@ -356,7 +357,7 @@ static int hpp_entry_scnprintf(struct perf_hpp *hpp, const char *fmt, ...)
 	return (ret >= ssize) ? (ssize - 1) : ret;
 }
 
-#define __HPP_COLOR_PERCENT_FN(_type, _field)					\
+#define __HPP_COLOR_PERCENT_FN(_type, _field, _fmttype)				\
 static u64 he_get_##_field(struct hist_entry *he)				\
 {										\
 	return he->stat._field;							\
@@ -366,15 +367,15 @@ static int hpp__color_##_type(struct perf_hpp_fmt *fmt,				\
 			      struct perf_hpp *hpp, struct hist_entry *he) 	\
 {										\
 	return hpp__fmt(fmt, hpp, he, he_get_##_field, " %*.2f%%",		\
-			hpp_color_scnprintf, PERF_HPP_FMT_TYPE__PERCENT);	\
+			hpp_color_scnprintf, _fmttype);				\
 }
 
-#define __HPP_ENTRY_PERCENT_FN(_type, _field)					\
+#define __HPP_ENTRY_PERCENT_FN(_type, _field, _fmttype)				\
 static int hpp__entry_##_type(struct perf_hpp_fmt *fmt,				\
 			      struct perf_hpp *hpp, struct hist_entry *he) 	\
 {										\
 	return hpp__fmt(fmt, hpp, he, he_get_##_field, " %*.2f%%",		\
-			hpp_entry_scnprintf, PERF_HPP_FMT_TYPE__PERCENT);	\
+			hpp_entry_scnprintf, _fmttype);	\
 }
 
 #define __HPP_SORT_FN(_type, _field)						\
@@ -384,7 +385,7 @@ static int64_t hpp__sort_##_type(struct perf_hpp_fmt *fmt __maybe_unused, 	\
 	return __hpp__sort(a, b, he_get_##_field);				\
 }
 
-#define __HPP_COLOR_ACC_PERCENT_FN(_type, _field)				\
+#define __HPP_COLOR_ACC_PERCENT_FN(_type, _field, _fmttype)			\
 static u64 he_get_acc_##_field(struct hist_entry *he)				\
 {										\
 	return he->stat_acc->_field;						\
@@ -394,15 +395,15 @@ static int hpp__color_##_type(struct perf_hpp_fmt *fmt,				\
 			      struct perf_hpp *hpp, struct hist_entry *he) 	\
 {										\
 	return hpp__fmt_acc(fmt, hpp, he, he_get_acc_##_field, " %*.2f%%", 	\
-			    hpp_color_scnprintf, PERF_HPP_FMT_TYPE__PERCENT);	\
+			    hpp_color_scnprintf, _fmttype);			\
 }
 
-#define __HPP_ENTRY_ACC_PERCENT_FN(_type, _field)				\
+#define __HPP_ENTRY_ACC_PERCENT_FN(_type, _field, _fmttype)			\
 static int hpp__entry_##_type(struct perf_hpp_fmt *fmt,				\
 			      struct perf_hpp *hpp, struct hist_entry *he) 	\
 {										\
 	return hpp__fmt_acc(fmt, hpp, he, he_get_acc_##_field, " %*.2f%%",	\
-			    hpp_entry_scnprintf, PERF_HPP_FMT_TYPE__PERCENT);	\
+			    hpp_entry_scnprintf, _fmttype);			\
 }
 
 #define __HPP_SORT_ACC_FN(_type, _field)					\
@@ -453,14 +454,14 @@ static int64_t hpp__sort_##_type(struct perf_hpp_fmt *fmt __maybe_unused, 	\
 }
 
 
-#define HPP_PERCENT_FNS(_type, _field)					\
-__HPP_COLOR_PERCENT_FN(_type, _field)					\
-__HPP_ENTRY_PERCENT_FN(_type, _field)					\
+#define HPP_PERCENT_FNS(_type, _field, _fmttype)			\
+__HPP_COLOR_PERCENT_FN(_type, _field, _fmttype)				\
+__HPP_ENTRY_PERCENT_FN(_type, _field, _fmttype)				\
 __HPP_SORT_FN(_type, _field)
 
-#define HPP_PERCENT_ACC_FNS(_type, _field)				\
-__HPP_COLOR_ACC_PERCENT_FN(_type, _field)				\
-__HPP_ENTRY_ACC_PERCENT_FN(_type, _field)				\
+#define HPP_PERCENT_ACC_FNS(_type, _field, _fmttype)			\
+__HPP_COLOR_ACC_PERCENT_FN(_type, _field, _fmttype)			\
+__HPP_ENTRY_ACC_PERCENT_FN(_type, _field, _fmttype)			\
 __HPP_SORT_ACC_FN(_type, _field)
 
 #define HPP_RAW_FNS(_type, _field)					\
@@ -471,12 +472,14 @@ __HPP_SORT_RAW_FN(_type, _field)
 __HPP_ENTRY_AVERAGE_FN(_type, _field)					\
 __HPP_SORT_AVERAGE_FN(_type, _field)
 
-HPP_PERCENT_FNS(overhead, period)
-HPP_PERCENT_FNS(overhead_sys, period_sys)
-HPP_PERCENT_FNS(overhead_us, period_us)
-HPP_PERCENT_FNS(overhead_guest_sys, period_guest_sys)
-HPP_PERCENT_FNS(overhead_guest_us, period_guest_us)
-HPP_PERCENT_ACC_FNS(overhead_acc, period)
+HPP_PERCENT_FNS(overhead, period, PERF_HPP_FMT_TYPE__PERCENT)
+HPP_PERCENT_FNS(latency, latency, PERF_HPP_FMT_TYPE__LATENCY)
+HPP_PERCENT_FNS(overhead_sys, period_sys, PERF_HPP_FMT_TYPE__PERCENT)
+HPP_PERCENT_FNS(overhead_us, period_us, PERF_HPP_FMT_TYPE__PERCENT)
+HPP_PERCENT_FNS(overhead_guest_sys, period_guest_sys, PERF_HPP_FMT_TYPE__PERCENT)
+HPP_PERCENT_FNS(overhead_guest_us, period_guest_us, PERF_HPP_FMT_TYPE__PERCENT)
+HPP_PERCENT_ACC_FNS(overhead_acc, period, PERF_HPP_FMT_TYPE__PERCENT)
+HPP_PERCENT_ACC_FNS(latency_acc, latency, PERF_HPP_FMT_TYPE__LATENCY)
 
 HPP_RAW_FNS(samples, nr_events)
 HPP_RAW_FNS(period, period)
@@ -548,11 +551,13 @@ static bool hpp__equal(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b)
 
 struct perf_hpp_fmt perf_hpp__format[] = {
 	HPP__COLOR_PRINT_FNS("Overhead", overhead, OVERHEAD),
+	HPP__COLOR_PRINT_FNS("Latency", latency, LATENCY),
 	HPP__COLOR_PRINT_FNS("sys", overhead_sys, OVERHEAD_SYS),
 	HPP__COLOR_PRINT_FNS("usr", overhead_us, OVERHEAD_US),
 	HPP__COLOR_PRINT_FNS("guest sys", overhead_guest_sys, OVERHEAD_GUEST_SYS),
 	HPP__COLOR_PRINT_FNS("guest usr", overhead_guest_us, OVERHEAD_GUEST_US),
 	HPP__COLOR_ACC_PRINT_FNS("Children", overhead_acc, OVERHEAD_ACC),
+	HPP__COLOR_ACC_PRINT_FNS("Latency", latency_acc, LATENCY_ACC),
 	HPP__PRINT_FNS("Samples", samples, SAMPLES),
 	HPP__PRINT_FNS("Period", period, PERIOD),
 	HPP__PRINT_FNS("Weight1", weight1, WEIGHT1),
@@ -601,6 +606,11 @@ static void fmt_free(struct perf_hpp_fmt *fmt)
 		fmt->free(fmt);
 }
 
+static bool fmt_equal(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b)
+{
+	return a->equal && a->equal(a, b);
+}
+
 void perf_hpp__init(void)
 {
 	int i;
@@ -621,28 +631,48 @@ void perf_hpp__init(void)
 	if (is_strict_order(field_order))
 		return;
 
+	/*
+	 * Overhead and latency columns are added in setup_overhead(),
+	 * so they are added implicitly here only if they were added
+	 * by setup_overhead() before (have was_taken flag set).
+	 * This is required because setup_overhead() has more complex
+	 * logic, in particular it does not add "overhead" if user
+	 * specified "latency" in sort order, and vise versa.
+	 */
 	if (symbol_conf.cumulate_callchain) {
-		hpp_dimension__add_output(PERF_HPP__OVERHEAD_ACC);
+		/*
+		 * Addition of fields is idempotent, so we add latency
+		 * column twice to get desired order with simpler logic.
+		 */
+		if (symbol_conf.prefer_latency)
+			hpp_dimension__add_output(PERF_HPP__LATENCY_ACC, true);
+		hpp_dimension__add_output(PERF_HPP__OVERHEAD_ACC, true);
+		if (symbol_conf.enable_latency)
+			hpp_dimension__add_output(PERF_HPP__LATENCY_ACC, true);
 		perf_hpp__format[PERF_HPP__OVERHEAD].name = "Self";
 	}
 
-	hpp_dimension__add_output(PERF_HPP__OVERHEAD);
+	if (symbol_conf.prefer_latency)
+		hpp_dimension__add_output(PERF_HPP__LATENCY, true);
+	hpp_dimension__add_output(PERF_HPP__OVERHEAD, true);
+	if (symbol_conf.enable_latency)
+		hpp_dimension__add_output(PERF_HPP__LATENCY, true);
 
 	if (symbol_conf.show_cpu_utilization) {
-		hpp_dimension__add_output(PERF_HPP__OVERHEAD_SYS);
-		hpp_dimension__add_output(PERF_HPP__OVERHEAD_US);
+		hpp_dimension__add_output(PERF_HPP__OVERHEAD_SYS, false);
+		hpp_dimension__add_output(PERF_HPP__OVERHEAD_US, false);
 
 		if (perf_guest) {
-			hpp_dimension__add_output(PERF_HPP__OVERHEAD_GUEST_SYS);
-			hpp_dimension__add_output(PERF_HPP__OVERHEAD_GUEST_US);
+			hpp_dimension__add_output(PERF_HPP__OVERHEAD_GUEST_SYS, false);
+			hpp_dimension__add_output(PERF_HPP__OVERHEAD_GUEST_US, false);
 		}
 	}
 
 	if (symbol_conf.show_nr_samples)
-		hpp_dimension__add_output(PERF_HPP__SAMPLES);
+		hpp_dimension__add_output(PERF_HPP__SAMPLES, false);
 
 	if (symbol_conf.show_total_period)
-		hpp_dimension__add_output(PERF_HPP__PERIOD);
+		hpp_dimension__add_output(PERF_HPP__PERIOD, false);
 }
 
 void perf_hpp_list__column_register(struct perf_hpp_list *list,
@@ -671,28 +701,42 @@ static void perf_hpp__column_unregister(struct perf_hpp_fmt *format)
 
 void perf_hpp__cancel_cumulate(void)
 {
-	struct perf_hpp_fmt *fmt, *acc, *ovh, *tmp;
+	struct perf_hpp_fmt *fmt, *acc, *ovh, *acc_lat, *tmp;
 
 	if (is_strict_order(field_order))
 		return;
 
 	ovh = &perf_hpp__format[PERF_HPP__OVERHEAD];
 	acc = &perf_hpp__format[PERF_HPP__OVERHEAD_ACC];
+	acc_lat = &perf_hpp__format[PERF_HPP__LATENCY_ACC];
 
 	perf_hpp_list__for_each_format_safe(&perf_hpp_list, fmt, tmp) {
-		if (acc->equal(acc, fmt)) {
+		if (fmt_equal(acc, fmt) || fmt_equal(acc_lat, fmt)) {
 			perf_hpp__column_unregister(fmt);
 			continue;
 		}
 
-		if (ovh->equal(ovh, fmt))
+		if (fmt_equal(ovh, fmt))
 			fmt->name = "Overhead";
 	}
 }
 
-static bool fmt_equal(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b)
+void perf_hpp__cancel_latency(void)
 {
-	return a->equal && a->equal(a, b);
+	struct perf_hpp_fmt *fmt, *lat, *acc, *tmp;
+
+	if (is_strict_order(field_order))
+		return;
+	if (sort_order && strstr(sort_order, "latency"))
+		return;
+
+	lat = &perf_hpp__format[PERF_HPP__LATENCY];
+	acc = &perf_hpp__format[PERF_HPP__LATENCY_ACC];
+
+	perf_hpp_list__for_each_format_safe(&perf_hpp_list, fmt, tmp) {
+		if (fmt_equal(lat, fmt) || fmt_equal(acc, fmt))
+			perf_hpp__column_unregister(fmt);
+	}
 }
 
 void perf_hpp__setup_output_field(struct perf_hpp_list *list)
@@ -819,6 +863,7 @@ void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists)
 
 	switch (fmt->idx) {
 	case PERF_HPP__OVERHEAD:
+	case PERF_HPP__LATENCY:
 	case PERF_HPP__OVERHEAD_SYS:
 	case PERF_HPP__OVERHEAD_US:
 	case PERF_HPP__OVERHEAD_ACC:

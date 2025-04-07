@@ -149,7 +149,7 @@ Linux內核6.x版本 <http://kernel.org/>
 
      "make xconfig"     基於Qt的配置工具。
 
-     "make gconfig"     基於GTK+的配置工具。
+     "make gconfig"     基於GTK的配置工具。
 
      "make oldconfig"   基於現有的 ./.config 文件選擇所有選項，並詢問
                         新配置選項。

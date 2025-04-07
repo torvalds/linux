@@ -1035,34 +1035,6 @@ struct buffer_head *ntfs_bread(struct super_block *sb, sector_t block)
 	return NULL;
 }
 
-int ntfs_sb_read(struct super_block *sb, u64 lbo, size_t bytes, void *buffer)
-{
-	struct block_device *bdev = sb->s_bdev;
-	u32 blocksize = sb->s_blocksize;
-	u64 block = lbo >> sb->s_blocksize_bits;
-	u32 off = lbo & (blocksize - 1);
-	u32 op = blocksize - off;
-
-	for (; bytes; block += 1, off = 0, op = blocksize) {
-		struct buffer_head *bh = __bread(bdev, block, blocksize);
-
-		if (!bh)
-			return -EIO;
-
-		if (op > bytes)
-			op = bytes;
-
-		memcpy(buffer, bh->b_data + off, op);
-
-		put_bh(bh);
-
-		bytes -= op;
-		buffer = Add2Ptr(buffer, op);
-	}
-
-	return 0;
-}
-
 int ntfs_sb_write(struct super_block *sb, u64 lbo, size_t bytes,
 		  const void *buf, int wait)
 {

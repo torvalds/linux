@@ -184,14 +184,6 @@ function that provides capabilities information. Bus needs to know a set of
 Slave capabilities to program Slave registers and to control the Bus
 reconfigurations.
 
-Future enhancements to be done
-==============================
-
- (1) Bulk Register Access (BRA) transfers.
-
-
- (2) Multiple data lane support.
-
 Links
 =====
 

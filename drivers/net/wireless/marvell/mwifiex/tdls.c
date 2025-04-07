@@ -1490,7 +1490,7 @@ void mwifiex_clean_auto_tdls(struct mwifiex_private *priv)
 	    priv->adapter->auto_tdls &&
 	    priv->bss_type == MWIFIEX_BSS_TYPE_STA) {
 		priv->auto_tdls_timer_active = false;
-		del_timer(&priv->auto_tdls_timer);
+		timer_delete(&priv->auto_tdls_timer);
 		mwifiex_flush_auto_tdls_list(priv);
 	}
 }

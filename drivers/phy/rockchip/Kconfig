@@ -83,6 +83,18 @@ config PHY_ROCKCHIP_PCIE
 	help
 	  Enable this to support the Rockchip PCIe PHY.
 
+config PHY_ROCKCHIP_SAMSUNG_DCPHY
+	tristate "Rockchip Samsung MIPI DCPHY driver"
+	depends on (ARCH_ROCKCHIP || COMPILE_TEST)
+	select GENERIC_PHY
+	select GENERIC_PHY_MIPI_DPHY
+	help
+	  Enable this to support the Rockchip MIPI DCPHY with
+	  Samsung IP block.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called phy-rockchip-samsung-dcphy
+
 config PHY_ROCKCHIP_SAMSUNG_HDPTX
 	tristate "Rockchip Samsung HDMI/eDP Combo PHY driver"
 	depends on (ARCH_ROCKCHIP || COMPILE_TEST) && OF

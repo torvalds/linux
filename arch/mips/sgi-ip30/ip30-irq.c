@@ -313,7 +313,7 @@ void __init arch_init_irq(void)
 	if (!domain)
 		return;
 
-	irq_set_default_host(domain);
+	irq_set_default_domain(domain);
 
 	irq_set_percpu_devid(IP30_HEART_L0_IRQ);
 	irq_set_chained_handler_and_data(IP30_HEART_L0_IRQ, ip30_normal_irq,

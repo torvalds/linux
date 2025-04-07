@@ -337,7 +337,6 @@ static int ioam6_do_encap(struct net *net, struct sk_buff *skb,
 static int ioam6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb), *cache_dst = NULL;
-	struct in6_addr orig_daddr;
 	struct ioam6_lwt *ilwt;
 	int err = -EINVAL;
 	u32 pkt_cnt;
@@ -351,8 +350,6 @@ static int ioam6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 	pkt_cnt = atomic_fetch_inc(&ilwt->pkt_cnt);
 	if (pkt_cnt % ilwt->freq.n >= ilwt->freq.k)
 		goto out;
-
-	orig_daddr = ipv6_hdr(skb)->daddr;
 
 	local_bh_disable();
 	cache_dst = dst_cache_get(&ilwt->cache);
@@ -422,7 +419,10 @@ do_encap:
 			goto drop;
 	}
 
-	if (!ipv6_addr_equal(&orig_daddr, &ipv6_hdr(skb)->daddr)) {
+	/* avoid lwtunnel_output() reentry loop when destination is the same
+	 * after transformation (e.g., with the inline mode)
+	 */
+	if (dst->lwtstate != cache_dst->lwtstate) {
 		skb_dst_drop(skb);
 		skb_dst_set(skb, cache_dst);
 		return dst_output(net, sk, skb);

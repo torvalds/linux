@@ -54,7 +54,7 @@ int usb_stor_ucr61s2b_init(struct us_data *us)
 	struct bulk_cs_wrap *bcs = (struct bulk_cs_wrap*) us->iobuf;
 	int res;
 	unsigned int partial;
-	static char init_string[] = "\xec\x0a\x06\x00$PCCHIPS";
+	static const char init_string[] = "\xec\x0a\x06\x00$PCCHIPS";
 
 	usb_stor_dbg(us, "Sending UCR-61S2B initialization packet...\n");
 

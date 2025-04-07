@@ -25,11 +25,4 @@ static inline void put_abs_lowcore(struct lowcore *lc)
 	put_cpu();
 }
 
-extern int relocate_lowcore;
-
-static inline int have_relocated_lowcore(void)
-{
-	return relocate_lowcore;
-}
-
 #endif /* _ASM_S390_ABS_LOWCORE_H */
