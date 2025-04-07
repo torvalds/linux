@@ -24102,6 +24102,12 @@ M:	Robert Richter <rric@kernel.org>
 S:	Odd Fixes
 F:	drivers/gpio/gpio-thunderx.c
 
+TI ADC12xs and ROHM BD79104 ADC driver
+M:	Matti Vaittinen <mazziesaccount@gmail.com>
+S:	Maintained
+F:	drivers/iio/adc/ti-adc128s052.c
+L:	linux-iio@vger.kernel.org
+
 TI ADS1119 ADC DRIVER
 M:	Francesco Dolcini <francesco@dolcini.it>
 M:	João Paulo Gonçalves <jpaulo.silvagoncalves@gmail.com>
