@@ -421,6 +421,9 @@ config BLK_DEV_ZONED_LOOP
 	  echo "add id=0,zone_size_mb=256,capacity_mb=16384,conv_zones=11" > \
 		/dev/zloop-control
 
+	  See Documentation/admin-guide/blockdev/zoned_loop.rst for usage
+	  details.
+
 	  If unsure, say N.
 
 endif # BLK_DEV

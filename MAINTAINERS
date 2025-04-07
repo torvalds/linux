@@ -26728,6 +26728,7 @@ M:	Damien Le Moal <dlemoal@kernel.org>
 R:	Christoph Hellwig <hch@lst.de>
 L:	linux-block@vger.kernel.org
 S:	Maintained
+F:	Documentation/admin-guide/blockdev/zoned_loop.rst
 F:	drivers/block/zloop.c
 
 ZONEFS FILESYSTEM
