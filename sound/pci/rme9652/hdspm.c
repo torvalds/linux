@@ -6558,13 +6558,12 @@ static int snd_hdspm_create(struct snd_card *card,
 
 	pci_set_master(hdspm->pci);
 
-	err = pcim_iomap_regions(pci, 1 << 0, "hdspm");
-	if (err < 0)
-		return err;
+	hdspm->iobase = pcim_iomap_region(pci, 0, "hdspm");
+	if (IS_ERR(hdspm->iobase))
+		return PTR_ERR(hdspm->iobase);
 
 	hdspm->port = pci_resource_start(pci, 0);
 	io_extent = pci_resource_len(pci, 0);
-	hdspm->iobase = pcim_iomap_table(pci)[0];
 	dev_dbg(card->dev, "remapped region (0x%lx) 0x%lx-0x%lx\n",
 			(unsigned long)hdspm->iobase, hdspm->port,
 			hdspm->port + io_extent - 1);

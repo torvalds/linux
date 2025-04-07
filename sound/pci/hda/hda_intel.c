@@ -1877,12 +1877,11 @@ static int azx_first_init(struct azx *chip)
 			chip->jackpoll_interval = msecs_to_jiffies(1500);
 	}
 
-	err = pcim_iomap_regions(pci, 1 << 0, "ICH HD audio");
-	if (err < 0)
-		return err;
+	bus->remap_addr = pcim_iomap_region(pci, 0, "ICH HD audio");
+	if (IS_ERR(bus->remap_addr))
+		return PTR_ERR(bus->remap_addr);
 
 	bus->addr = pci_resource_start(pci, 0);
-	bus->remap_addr = pcim_iomap_table(pci)[0];
 
 	if (chip->driver_type == AZX_DRIVER_SKL)
 		snd_hdac_bus_parse_capabilities(bus);

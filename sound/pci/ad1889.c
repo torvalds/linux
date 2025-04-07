@@ -810,12 +810,11 @@ snd_ad1889_create(struct snd_card *card, struct pci_dev *pci)
 	chip->irq = -1;
 
 	/* (1) PCI resource allocation */
-	err = pcim_iomap_regions(pci, 1 << 0, card->driver);
-	if (err < 0)
-		return err;
+	chip->iobase = pcim_iomap_region(pci, 0, card->driver);
+	if (IS_ERR(chip->iobase))
+		return PTR_ERR(chip->iobase);
 
 	chip->bar = pci_resource_start(pci, 0);
-	chip->iobase = pcim_iomap_table(pci)[0];
 	
 	pci_set_master(pci);
 
