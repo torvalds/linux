@@ -710,7 +710,7 @@ static int usbhs_probe(struct platform_device *pdev)
 		goto probe_fail_clks;
 
 	/*
-	 * deviece reset here because
+	 * device reset here because
 	 * USB device might be used in boot loader.
 	 */
 	usbhs_sys_clock_ctrl(priv, 0);
