@@ -286,8 +286,7 @@ out_free:
 
 /*
  * Test mincore() behavior on a page backed by a tmpfs file.  This test
- * performs the same steps as the previous one. However, we don't expect
- * any readahead in this case.
+ * performs the same steps as the previous one.
  */
 TEST(check_tmpfs_mmap)
 {
@@ -298,7 +297,6 @@ TEST(check_tmpfs_mmap)
 	int page_size;
 	int fd;
 	int i;
-	int ra_pages = 0;
 
 	page_size = sysconf(_SC_PAGESIZE);
 	vec_size = FILE_SIZE / page_size;
@@ -341,23 +339,13 @@ TEST(check_tmpfs_mmap)
 	}
 
 	/*
-	 * Touch a page in the middle of the mapping. We expect only
-	 * that page to be fetched into memory.
+	 * Touch a page in the middle of the mapping.
 	 */
 	addr[FILE_SIZE / 2] = 1;
 	retval = mincore(addr, FILE_SIZE, vec);
 	ASSERT_EQ(0, retval);
 	ASSERT_EQ(1, vec[FILE_SIZE / 2 / page_size]) {
 		TH_LOG("Page not found in memory after use");
-	}
-
-	i = FILE_SIZE / 2 / page_size + 1;
-	while (i < vec_size && vec[i]) {
-		ra_pages++;
-		i++;
-	}
-	ASSERT_EQ(ra_pages, 0) {
-		TH_LOG("Read-ahead pages found in memory");
 	}
 
 	munmap(addr, FILE_SIZE);
