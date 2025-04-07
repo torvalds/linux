@@ -28,6 +28,9 @@
 #define EISA_CONFIG_ENABLED         1
 #define EISA_CONFIG_FORCED          2
 
+/* Chosen to hold the longest string in eisa.ids. */
+#define EISA_DEVICE_INFO_NAME_SIZE 74
+
 /* There is not much we can say about an EISA device, apart from
  * signature, slot number, and base address. dma_mask is set by
  * default to parent device mask..*/
@@ -41,7 +44,7 @@ struct eisa_device {
 	u64                   dma_mask;
 	struct device         dev; /* generic device */
 #ifdef CONFIG_EISA_NAMES
-	char		      pretty_name[50];
+	char		      pretty_name[EISA_DEVICE_INFO_NAME_SIZE];
 #endif
 };
 
