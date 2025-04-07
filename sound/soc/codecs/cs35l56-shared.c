@@ -38,7 +38,9 @@ static const struct reg_sequence cs35l56_patch[] = {
 	{ CS35L56_SWIRE_DP3_CH3_INPUT,		0x00000029 },
 	{ CS35L56_SWIRE_DP3_CH4_INPUT,		0x00000028 },
 	{ CS35L56_IRQ1_MASK_18,			0x1f7df0ff },
+};
 
+static const struct reg_sequence cs35l56_patch_fw[] = {
 	/* These are not reset by a soft-reset, so patch to defaults. */
 	{ CS35L56_MAIN_RENDER_USER_MUTE,	0x00000000 },
 	{ CS35L56_MAIN_RENDER_USER_VOLUME,	0x00000000 },
@@ -47,8 +49,26 @@ static const struct reg_sequence cs35l56_patch[] = {
 
 int cs35l56_set_patch(struct cs35l56_base *cs35l56_base)
 {
-	return regmap_register_patch(cs35l56_base->regmap, cs35l56_patch,
+	int ret;
+
+	ret = regmap_register_patch(cs35l56_base->regmap, cs35l56_patch,
 				     ARRAY_SIZE(cs35l56_patch));
+	if (ret)
+		return ret;
+
+
+	switch (cs35l56_base->type) {
+	case 0x54:
+	case 0x56:
+	case 0x57:
+		ret = regmap_register_patch(cs35l56_base->regmap, cs35l56_patch_fw,
+					    ARRAY_SIZE(cs35l56_patch_fw));
+		break;
+	default:
+		break;
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_set_patch, "SND_SOC_CS35L56_SHARED");
 
@@ -1066,6 +1086,9 @@ const struct cs35l56_fw_reg cs35l56_fw_reg = {
 	.pm_cur_stat = CS35L56_DSP1_PM_CUR_STATE,
 	.prot_sts = CS35L56_PROTECTION_STATUS,
 	.transducer_actual_ps = CS35L56_TRANSDUCER_ACTUAL_PS,
+	.user_mute = CS35L56_MAIN_RENDER_USER_MUTE,
+	.user_volume = CS35L56_MAIN_RENDER_USER_VOLUME,
+	.posture_number = CS35L56_MAIN_POSTURE_NUMBER,
 };
 EXPORT_SYMBOL_NS_GPL(cs35l56_fw_reg, "SND_SOC_CS35L56_SHARED");
 

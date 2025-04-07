@@ -273,6 +273,9 @@ struct cs35l56_fw_reg {
 	unsigned int pm_cur_stat;
 	unsigned int prot_sts;
 	unsigned int transducer_actual_ps;
+	unsigned int user_mute;
+	unsigned int user_volume;
+	unsigned int posture_number;
 };
 
 struct cs35l56_base {
