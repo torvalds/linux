@@ -205,6 +205,7 @@ static int software_key_query(const struct kernel_pkey_params *params,
 			goto error_free_tfm;
 
 		len = crypto_sig_keysize(sig);
+		info->key_size = len;
 		info->max_sig_size = crypto_sig_maxsize(sig);
 		info->max_data_size = crypto_sig_digestsize(sig);
 
@@ -213,8 +214,8 @@ static int software_key_query(const struct kernel_pkey_params *params,
 			info->supported_ops |= KEYCTL_SUPPORTS_SIGN;
 
 		if (strcmp(params->encoding, "pkcs1") == 0) {
-			info->max_enc_size = len;
-			info->max_dec_size = len;
+			info->max_enc_size = len / BITS_PER_BYTE;
+			info->max_dec_size = len / BITS_PER_BYTE;
 
 			info->supported_ops |= KEYCTL_SUPPORTS_ENCRYPT;
 			if (pkey->key_is_private)
@@ -235,6 +236,7 @@ static int software_key_query(const struct kernel_pkey_params *params,
 			goto error_free_tfm;
 
 		len = crypto_akcipher_maxsize(tfm);
+		info->key_size = len * BITS_PER_BYTE;
 		info->max_sig_size = len;
 		info->max_data_size = len;
 		info->max_enc_size = len;
@@ -244,8 +246,6 @@ static int software_key_query(const struct kernel_pkey_params *params,
 		if (pkey->key_is_private)
 			info->supported_ops |= KEYCTL_SUPPORTS_DECRYPT;
 	}
-
-	info->key_size = len * 8;
 
 	ret = 0;
 
