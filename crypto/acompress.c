@@ -109,7 +109,7 @@ static int crypto_acomp_init_tfm(struct crypto_tfm *tfm)
 
 	acomp->compress = alg->compress;
 	acomp->decompress = alg->decompress;
-	acomp->reqsize = alg->reqsize;
+	acomp->reqsize = alg->base.cra_reqsize ?: alg->reqsize;
 
 	acomp->base.exit = crypto_acomp_exit_tfm;
 
