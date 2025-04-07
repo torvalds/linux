@@ -25,6 +25,7 @@
 #include <linux/pm_domain.h>
 #include <linux/refcount.h>
 #include <linux/reset-controller.h>
+#include <linux/string_choices.h>
 
 #include <dt-bindings/clock/renesas-cpg-mssr.h>
 
@@ -592,7 +593,7 @@ static int rzv2h_mod_clock_endisable(struct clk_hw *hw, bool enable)
 	int error;
 
 	dev_dbg(dev, "CLK_ON 0x%x/%pC %s\n", reg, hw->clk,
-		enable ? "ON" : "OFF");
+		str_on_off(enable));
 
 	if (enabled == enable)
 		return 0;
