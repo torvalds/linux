@@ -4,6 +4,9 @@
 #define __NX_H__
 
 #include <crypto/ctr.h>
+#include <crypto/internal/aead.h>
+#include <crypto/internal/hash.h>
+#include <crypto/internal/skcipher.h>
 
 #define NX_NAME		"nx-crypto"
 #define NX_STRING	"IBM Power7+ Nest Accelerator Crypto Driver"
@@ -139,7 +142,7 @@ struct nx_crypto_ctx {
 	} priv;
 };
 
-struct crypto_aead;
+struct scatterlist;
 
 /* prototypes */
 int nx_crypto_ctx_aes_ccm_init(struct crypto_aead *tfm);

@@ -7,11 +7,11 @@
  * Author: Kent Yoder <yoder1@us.ibm.com>
  */
 
+#include <crypto/aes.h>
 #include <crypto/internal/aead.h>
 #include <crypto/internal/hash.h>
-#include <crypto/aes.h>
+#include <crypto/internal/skcipher.h>
 #include <crypto/sha2.h>
-#include <crypto/algapi.h>
 #include <crypto/scatterwalk.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
