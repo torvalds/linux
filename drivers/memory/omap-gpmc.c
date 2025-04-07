@@ -2376,7 +2376,7 @@ static void gpmc_probe_dt_children(struct platform_device *pdev)
 
 static int gpmc_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
-	return 1;	/* we're input only */
+	return GPIO_LINE_DIRECTION_IN; /* we're input only */
 }
 
 static int gpmc_gpio_direction_input(struct gpio_chip *chip,
