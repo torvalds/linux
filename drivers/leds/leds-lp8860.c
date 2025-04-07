@@ -91,7 +91,6 @@
  * @regmap: Devices register map
  * @eeprom_regmap: EEPROM register map
  * @enable_gpio: VDDIO/EN gpio to enable communication interface
- * @regulator: LED supply regulator pointer
  */
 struct lp8860_led {
 	struct mutex lock;
@@ -100,7 +99,6 @@ struct lp8860_led {
 	struct regmap *regmap;
 	struct regmap *eeprom_regmap;
 	struct gpio_desc *enable_gpio;
-	struct regulator *regulator;
 };
 
 static const struct reg_sequence lp8860_eeprom_disp_regs[] = {
@@ -232,15 +230,6 @@ static int lp8860_init(struct lp8860_led *led)
 	unsigned int read_buf;
 	int ret, reg_count;
 
-	if (led->regulator) {
-		ret = regulator_enable(led->regulator);
-		if (ret) {
-			dev_err(&led->client->dev,
-				"Failed to enable regulator\n");
-			return ret;
-		}
-	}
-
 	gpiod_direction_output(led->enable_gpio, 1);
 
 	ret = lp8860_fault_check(led);
@@ -281,13 +270,6 @@ static int lp8860_init(struct lp8860_led *led)
 out:
 	if (ret)
 		gpiod_direction_output(led->enable_gpio, 0);
-
-	if (led->regulator) {
-		ret = regulator_disable(led->regulator);
-		if (ret)
-			dev_err(&led->client->dev,
-				"Failed to disable regulator\n");
-	}
 
 	return ret;
 }
@@ -330,9 +312,10 @@ static int lp8860_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	led->regulator = devm_regulator_get(&client->dev, "vled");
-	if (IS_ERR(led->regulator))
-		led->regulator = NULL;
+	ret = devm_regulator_get_enable_optional(&client->dev, "vled");
+	if (ret && ret != -ENODEV)
+		return dev_err_probe(&client->dev, ret,
+				     "Failed to enable vled regulator\n");
 
 	led->client = client;
 	led->led_dev.brightness_set_blocking = lp8860_brightness_set;
@@ -381,13 +364,6 @@ static void lp8860_remove(struct i2c_client *client)
 	int ret;
 
 	gpiod_direction_output(led->enable_gpio, 0);
-
-	if (led->regulator) {
-		ret = regulator_disable(led->regulator);
-		if (ret)
-			dev_err(&led->client->dev,
-				"Failed to disable regulator\n");
-	}
 }
 
 static const struct i2c_device_id lp8860_id[] = {
