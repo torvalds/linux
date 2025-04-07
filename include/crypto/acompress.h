@@ -38,6 +38,12 @@
 /* Set this bit if destination is a folio. */
 #define CRYPTO_ACOMP_REQ_DST_FOLIO	0x00000040
 
+/* Private flags that should not be touched by the user. */
+#define CRYPTO_ACOMP_REQ_PRIVATE \
+	(CRYPTO_ACOMP_REQ_SRC_VIRT | CRYPTO_ACOMP_REQ_SRC_NONDMA | \
+	 CRYPTO_ACOMP_REQ_DST_VIRT | CRYPTO_ACOMP_REQ_DST_NONDMA | \
+	 CRYPTO_ACOMP_REQ_SRC_FOLIO | CRYPTO_ACOMP_REQ_DST_FOLIO)
+
 #define CRYPTO_ACOMP_DST_MAX		131072
 
 #define	MAX_SYNC_COMP_REQSIZE		0
@@ -201,7 +207,7 @@ static inline unsigned int crypto_acomp_reqsize(struct crypto_acomp *tfm)
 static inline void acomp_request_set_tfm(struct acomp_req *req,
 					 struct crypto_acomp *tfm)
 {
-	req->base.tfm = crypto_acomp_tfm(tfm);
+	crypto_request_set_tfm(&req->base, crypto_acomp_tfm(tfm));
 }
 
 static inline bool acomp_is_async(struct crypto_acomp *tfm)
@@ -298,6 +304,11 @@ static inline void *acomp_request_extra(struct acomp_req *req)
 	return (void *)((char *)req + len);
 }
 
+static inline bool acomp_req_on_stack(struct acomp_req *req)
+{
+	return crypto_req_on_stack(&req->base);
+}
+
 /**
  * acomp_request_free() -- zeroize and free asynchronous (de)compression
  *			   request as well as the output buffer if allocated
@@ -307,7 +318,7 @@ static inline void *acomp_request_extra(struct acomp_req *req)
  */
 static inline void acomp_request_free(struct acomp_req *req)
 {
-	if (!req || (req->base.flags & CRYPTO_TFM_REQ_ON_STACK))
+	if (!req || acomp_req_on_stack(req))
 		return;
 	kfree_sensitive(req);
 }
@@ -328,15 +339,9 @@ static inline void acomp_request_set_callback(struct acomp_req *req,
 					      crypto_completion_t cmpl,
 					      void *data)
 {
-	u32 keep = CRYPTO_ACOMP_REQ_SRC_VIRT | CRYPTO_ACOMP_REQ_SRC_NONDMA |
-		   CRYPTO_ACOMP_REQ_DST_VIRT | CRYPTO_ACOMP_REQ_DST_NONDMA |
-		   CRYPTO_ACOMP_REQ_SRC_FOLIO | CRYPTO_ACOMP_REQ_DST_FOLIO |
-		   CRYPTO_TFM_REQ_ON_STACK;
-
-	req->base.complete = cmpl;
-	req->base.data = data;
-	req->base.flags &= keep;
-	req->base.flags |= flgs & ~keep;
+	flgs &= ~CRYPTO_ACOMP_REQ_PRIVATE;
+	flgs |= req->base.flags & CRYPTO_ACOMP_REQ_PRIVATE;
+	crypto_request_set_callback(&req->base, flgs, cmpl, data);
 }
 
 /**

@@ -229,4 +229,10 @@ static inline bool acomp_walk_more_src(const struct acomp_walk *walk, int cur)
 {
 	return walk->slen != cur;
 }
+
+static inline u32 acomp_request_flags(struct acomp_req *req)
+{
+	return crypto_request_flags(&req->base) & ~CRYPTO_ACOMP_REQ_PRIVATE;
+}
+
 #endif
