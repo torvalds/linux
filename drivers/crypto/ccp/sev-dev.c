@@ -1964,14 +1964,14 @@ static int sev_ioctl_do_pdh_export(struct sev_issue_cmd *argp, bool writable)
 
 	memset(&data, 0, sizeof(data));
 
+	input_pdh_cert_address = (void __user *)input.pdh_cert_address;
+	input_cert_chain_address = (void __user *)input.cert_chain_address;
+
 	/* Userspace wants to query the certificate length. */
 	if (!input.pdh_cert_address ||
 	    !input.pdh_cert_len ||
 	    !input.cert_chain_address)
 		goto cmd;
-
-	input_pdh_cert_address = (void __user *)input.pdh_cert_address;
-	input_cert_chain_address = (void __user *)input.cert_chain_address;
 
 	/* Allocate a physically contiguous buffer to store the PDH blob. */
 	if (input.pdh_cert_len > SEV_FW_BLOB_MAX_SIZE)
