@@ -132,8 +132,9 @@ static int softnet_seq_show(struct seq_file *seq, void *v)
 
 	rcu_read_lock();
 	fl = rcu_dereference(sd->flow_limit);
+	/* Pairs with WRITE_ONCE() in skb_flow_limit() */
 	if (fl)
-		flow_limit_count = fl->count;
+		flow_limit_count = READ_ONCE(fl->count);
 	rcu_read_unlock();
 #endif
 

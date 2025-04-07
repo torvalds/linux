@@ -5049,7 +5049,8 @@ static bool skb_flow_limit(struct sk_buff *skb, unsigned int qlen)
 			fl->buckets[old_flow]--;
 
 		if (++fl->buckets[new_flow] > (FLOW_LIMIT_HISTORY >> 1)) {
-			fl->count++;
+			/* Pairs with READ_ONCE() in softnet_seq_show() */
+			WRITE_ONCE(fl->count, fl->count + 1);
 			rcu_read_unlock();
 			return true;
 		}

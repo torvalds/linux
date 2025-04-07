@@ -15,7 +15,7 @@ struct cpumask;
 /* Random bits of netdevice that don't need to be exposed */
 #define FLOW_LIMIT_HISTORY	(1 << 7)  /* must be ^2 and !overflow buckets */
 struct sd_flow_limit {
-	u64			count;
+	unsigned int		count;
 	u8			log_buckets;
 	unsigned int		history_head;
 	u16			history[FLOW_LIMIT_HISTORY];
