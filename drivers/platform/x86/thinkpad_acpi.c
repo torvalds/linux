@@ -836,9 +836,9 @@ static int __init setup_acpi_notify(struct ibm_struct *ibm)
 	}
 
 	ibm->acpi->device->driver_data = ibm;
-	sprintf(acpi_device_class(ibm->acpi->device), "%s/%s",
-		TPACPI_ACPI_EVENT_PREFIX,
-		ibm->name);
+	scnprintf(acpi_device_class(ibm->acpi->device),
+		  sizeof(acpi_device_class(ibm->acpi->device)),
+		  "%s/%s", TPACPI_ACPI_EVENT_PREFIX, ibm->name);
 
 	status = acpi_install_notify_handler(*ibm->acpi->handle,
 			ibm->acpi->type, dispatch_acpi_notify, ibm);

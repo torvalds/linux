@@ -84,7 +84,6 @@ static int ebook_switch_add(struct acpi_device *device)
 	const struct acpi_device_id *id;
 	struct ebook_switch *button;
 	struct input_dev *input;
-	char *name, *class;
 	int error;
 
 	button = kzalloc(sizeof(struct ebook_switch), GFP_KERNEL);
@@ -99,9 +98,6 @@ static int ebook_switch_add(struct acpi_device *device)
 		goto err_free_button;
 	}
 
-	name = acpi_device_name(device);
-	class = acpi_device_class(device);
-
 	id = acpi_match_acpi_device(ebook_device_ids, device);
 	if (!id) {
 		dev_err(&device->dev, "Unsupported hid\n");
@@ -109,12 +105,12 @@ static int ebook_switch_add(struct acpi_device *device)
 		goto err_free_input;
 	}
 
-	strcpy(name, XO15_EBOOK_DEVICE_NAME);
-	sprintf(class, "%s/%s", XO15_EBOOK_CLASS, XO15_EBOOK_SUBCLASS);
+	strscpy(acpi_device_name(device), XO15_EBOOK_DEVICE_NAME);
+	strscpy(acpi_device_class(device), XO15_EBOOK_CLASS "/" XO15_EBOOK_SUBCLASS);
 
 	snprintf(button->phys, sizeof(button->phys), "%s/button/input0", id->id);
 
-	input->name = name;
+	input->name = acpi_device_name(device);
 	input->phys = button->phys;
 	input->id.bustype = BUS_HOST;
 	input->dev.parent = &device->dev;

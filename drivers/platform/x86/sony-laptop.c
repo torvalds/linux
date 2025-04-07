@@ -3157,7 +3157,7 @@ static int sony_nc_add(struct acpi_device *device)
 	struct sony_nc_value *item;
 
 	sony_nc_acpi_device = device;
-	strcpy(acpi_device_class(device), "sony/hotkey");
+	strscpy(acpi_device_class(device), "sony/hotkey");
 
 	sony_nc_acpi_handle = device->handle;
 
@@ -4679,7 +4679,7 @@ static int sony_pic_add(struct acpi_device *device)
 	struct sony_pic_irq *irq, *tmp_irq;
 
 	spic_dev.acpi_dev = device;
-	strcpy(acpi_device_class(device), "sony/hotkey");
+	strscpy(acpi_device_class(device), "sony/hotkey");
 	sony_pic_detect_device_type(&spic_dev);
 	mutex_init(&spic_dev.lock);
 
