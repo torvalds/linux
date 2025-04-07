@@ -148,7 +148,7 @@ macro_rules! dbg {
     };
     ($val:expr $(,)?) => {
         // Use of `match` here is intentional because it affects the lifetimes
-        // of temporaries - https://stackoverflow.com/a/48732525/1063961
+        // of temporaries - <https://stackoverflow.com/a/48732525/1063961>
         match $val {
             tmp => {
                 $crate::pr_info!("[{}:{}:{}] {} = {:#?}\n",

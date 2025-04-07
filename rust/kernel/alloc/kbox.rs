@@ -101,7 +101,7 @@ pub type VBox<T> = Box<T, super::allocator::Vmalloc>;
 pub type KVBox<T> = Box<T, super::allocator::KVmalloc>;
 
 // SAFETY: All zeros is equivalent to `None` (option layout optimization guarantee:
-// https://doc.rust-lang.org/stable/std/option/index.html#representation).
+// <https://doc.rust-lang.org/stable/std/option/index.html#representation>).
 unsafe impl<T, A: Allocator> ZeroableOption for Box<T, A> {}
 
 // SAFETY: `Box` is `Send` if `T` is `Send` because the `Box` owns a `T`.

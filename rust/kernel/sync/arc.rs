@@ -135,7 +135,7 @@ pub struct Arc<T: ?Sized> {
     // meaningful with respect to dropck - but this may change in the future so this is left here
     // out of an abundance of caution.
     //
-    // See https://doc.rust-lang.org/nomicon/phantom-data.html#generic-parameters-and-drop-checking
+    // See <https://doc.rust-lang.org/nomicon/phantom-data.html#generic-parameters-and-drop-checking>
     // for more detail on the semantics of dropck in the presence of `PhantomData`.
     _p: PhantomData<ArcInner<T>>,
 }
