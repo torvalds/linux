@@ -22,5 +22,18 @@ TEST(anon_inode_no_chown)
 	EXPECT_EQ(close(fd_context), 0);
 }
 
+TEST(anon_inode_no_chmod)
+{
+	int fd_context;
+
+	fd_context = sys_fsopen("tmpfs", 0);
+	ASSERT_GE(fd_context, 0);
+
+	ASSERT_LT(fchmod(fd_context, 0777), 0);
+	ASSERT_EQ(errno, EOPNOTSUPP);
+
+	EXPECT_EQ(close(fd_context), 0);
+}
+
 TEST_HARNESS_MAIN
 
