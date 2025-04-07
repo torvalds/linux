@@ -93,8 +93,8 @@ static int exar_get_value(struct gpio_chip *chip, unsigned int offset)
 	return !!(regmap_test_bits(exar_gpio->regmap, addr, BIT(bit)));
 }
 
-static void exar_set_value(struct gpio_chip *chip, unsigned int offset,
-			   int value)
+static int exar_set_value(struct gpio_chip *chip, unsigned int offset,
+			  int value)
 {
 	struct exar_gpio_chip *exar_gpio = gpiochip_get_data(chip);
 	unsigned int addr = exar_offset_to_lvl_addr(exar_gpio, offset);
@@ -105,7 +105,7 @@ static void exar_set_value(struct gpio_chip *chip, unsigned int offset,
 	 * regmap_write_bits() forces value to be written when an external
 	 * pull up/down might otherwise indicate value was already set.
 	 */
-	regmap_write_bits(exar_gpio->regmap, addr, BIT(bit), bit_value);
+	return regmap_write_bits(exar_gpio->regmap, addr, BIT(bit), bit_value);
 }
 
 static int exar_direction_output(struct gpio_chip *chip, unsigned int offset,
@@ -114,11 +114,13 @@ static int exar_direction_output(struct gpio_chip *chip, unsigned int offset,
 	struct exar_gpio_chip *exar_gpio = gpiochip_get_data(chip);
 	unsigned int addr = exar_offset_to_sel_addr(exar_gpio, offset);
 	unsigned int bit = exar_offset_to_bit(exar_gpio, offset);
+	int ret;
 
-	exar_set_value(chip, offset, value);
-	regmap_clear_bits(exar_gpio->regmap, addr, BIT(bit));
+	ret = exar_set_value(chip, offset, value);
+	if (ret)
+		return ret;
 
-	return 0;
+	return regmap_clear_bits(exar_gpio->regmap, addr, BIT(bit));
 }
 
 static int exar_direction_input(struct gpio_chip *chip, unsigned int offset)
@@ -209,7 +211,7 @@ static int gpio_exar_probe(struct platform_device *pdev)
 	exar_gpio->gpio_chip.direction_input = exar_direction_input;
 	exar_gpio->gpio_chip.get_direction = exar_get_direction;
 	exar_gpio->gpio_chip.get = exar_get_value;
-	exar_gpio->gpio_chip.set = exar_set_value;
+	exar_gpio->gpio_chip.set_rv = exar_set_value;
 	exar_gpio->gpio_chip.base = -1;
 	exar_gpio->gpio_chip.ngpio = ngpios;
 	exar_gpio->index = index;
