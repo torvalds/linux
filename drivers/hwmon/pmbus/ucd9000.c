@@ -212,8 +212,8 @@ static int ucd9000_gpio_get(struct gpio_chip *gc, unsigned int offset)
 	return !!(ret & UCD9000_GPIO_CONFIG_STATUS);
 }
 
-static void ucd9000_gpio_set(struct gpio_chip *gc, unsigned int offset,
-			     int value)
+static int ucd9000_gpio_set(struct gpio_chip *gc, unsigned int offset,
+			    int value)
 {
 	struct i2c_client *client = gpiochip_get_data(gc);
 	int ret;
@@ -222,17 +222,17 @@ static void ucd9000_gpio_set(struct gpio_chip *gc, unsigned int offset,
 	if (ret < 0) {
 		dev_dbg(&client->dev, "failed to read GPIO %d config: %d\n",
 			offset, ret);
-		return;
+		return ret;
 	}
 
 	if (value) {
 		if (ret & UCD9000_GPIO_CONFIG_STATUS)
-			return;
+			return 0;
 
 		ret |= UCD9000_GPIO_CONFIG_STATUS;
 	} else {
 		if (!(ret & UCD9000_GPIO_CONFIG_STATUS))
-			return;
+			return 0;
 
 		ret &= ~UCD9000_GPIO_CONFIG_STATUS;
 	}
@@ -244,7 +244,7 @@ static void ucd9000_gpio_set(struct gpio_chip *gc, unsigned int offset,
 	if (ret < 0) {
 		dev_dbg(&client->dev, "Failed to write GPIO %d config: %d\n",
 			offset, ret);
-		return;
+		return ret;
 	}
 
 	ret &= ~UCD9000_GPIO_CONFIG_ENABLE;
@@ -253,6 +253,8 @@ static void ucd9000_gpio_set(struct gpio_chip *gc, unsigned int offset,
 	if (ret < 0)
 		dev_dbg(&client->dev, "Failed to write GPIO %d config: %d\n",
 			offset, ret);
+
+	return ret;
 }
 
 static int ucd9000_gpio_get_direction(struct gpio_chip *gc,
@@ -362,7 +364,7 @@ static void ucd9000_probe_gpio(struct i2c_client *client,
 	data->gpio.direction_input = ucd9000_gpio_direction_input;
 	data->gpio.direction_output = ucd9000_gpio_direction_output;
 	data->gpio.get = ucd9000_gpio_get;
-	data->gpio.set = ucd9000_gpio_set;
+	data->gpio.set_rv = ucd9000_gpio_set;
 	data->gpio.can_sleep = true;
 	data->gpio.base = -1;
 	data->gpio.parent = &client->dev;
