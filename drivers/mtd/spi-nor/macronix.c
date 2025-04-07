@@ -58,6 +58,31 @@ macronix_qpp4b_post_sfdp_fixups(struct spi_nor *nor)
 	return 0;
 }
 
+static int
+mx25l3255e_late_init_fixups(struct spi_nor *nor)
+{
+	struct spi_nor_flash_parameter *params = nor->params;
+
+	/*
+	 * SFDP of MX25L3255E is JESD216, which does not include the Quad
+	 * Enable bit Requirement in BFPT. As a result, during BFPT parsing,
+	 * the quad_enable method is not set to spi_nor_sr1_bit6_quad_enable.
+	 * Therefore, it is necessary to correct this setting by late_init.
+	 */
+	params->quad_enable = spi_nor_sr1_bit6_quad_enable;
+
+	/*
+	 * In addition, MX25L3255E also supports 1-4-4 page program in 3-byte
+	 * address mode. However, since the 3-byte address 1-4-4 page program
+	 * is not defined in SFDP, it needs to be configured in late_init.
+	 */
+	params->hwcaps.mask |= SNOR_HWCAPS_PP_1_4_4;
+	spi_nor_set_pp_settings(&params->page_programs[SNOR_CMD_PP_1_4_4],
+				SPINOR_OP_PP_1_4_4, SNOR_PROTO_1_4_4);
+
+	return 0;
+}
+
 static const struct spi_nor_fixups mx25l25635_fixups = {
 	.post_bfpt = mx25l25635_post_bfpt_fixups,
 	.post_sfdp = macronix_qpp4b_post_sfdp_fixups,
@@ -65,6 +90,10 @@ static const struct spi_nor_fixups mx25l25635_fixups = {
 
 static const struct spi_nor_fixups macronix_qpp4b_fixups = {
 	.post_sfdp = macronix_qpp4b_post_sfdp_fixups,
+};
+
+static const struct spi_nor_fixups mx25l3255e_fixups = {
+	.late_init = mx25l3255e_late_init_fixups,
 };
 
 static const struct flash_info macronix_nor_parts[] = {
@@ -199,6 +228,7 @@ static const struct flash_info macronix_nor_parts[] = {
 	}, {
 		/* MX25L3255E */
 		.id = SNOR_ID(0xc2, 0x9e, 0x16),
+		.fixups = &mx25l3255e_fixups,
 	},
 	/*
 	 * This spares us of adding new flash entries for flashes that can be
