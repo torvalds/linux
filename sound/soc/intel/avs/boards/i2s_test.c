@@ -56,6 +56,7 @@ static int avs_i2s_test_probe(struct platform_device *pdev)
 {
 	struct snd_soc_dai_link *dai_link;
 	struct snd_soc_acpi_mach *mach;
+	struct avs_mach_pdata *pdata;
 	struct snd_soc_card *card;
 	struct device *dev = &pdev->dev;
 	const char *pname;
@@ -63,6 +64,7 @@ static int avs_i2s_test_probe(struct platform_device *pdev)
 
 	mach = dev_get_platdata(dev);
 	pname = mach->mach_params.platform;
+	pdata = mach->pdata;
 
 	if (!avs_mach_singular_ssp(mach)) {
 		dev_err(dev, "Invalid SSP configuration\n");
@@ -80,8 +82,15 @@ static int avs_i2s_test_probe(struct platform_device *pdev)
 	if (!card)
 		return -ENOMEM;
 
-	card->name = devm_kasprintf(dev, GFP_KERNEL,
-				    AVS_STRING_FMT("ssp", "-loopback", ssp_port, tdm_slot));
+	if (pdata->obsolete_card_names) {
+		card->name = devm_kasprintf(dev, GFP_KERNEL,
+					    AVS_STRING_FMT("ssp", "-loopback", ssp_port, tdm_slot));
+	} else {
+		card->driver_name = "avs_i2s_test";
+		card->long_name = card->name = devm_kasprintf(dev, GFP_KERNEL,
+							      AVS_STRING_FMT("AVS I2S TEST-", "",
+									     ssp_port, tdm_slot));
+	}
 	if (!card->name)
 		return -ENOMEM;
 
