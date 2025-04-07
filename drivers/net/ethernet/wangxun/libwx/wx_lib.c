@@ -546,7 +546,8 @@ static void wx_rx_checksum(struct wx_ring *ring,
 		return;
 
 	/* Hardware can't guarantee csum if IPv6 Dest Header found */
-	if (dptype.prot != WX_DEC_PTYPE_PROT_SCTP && WX_RXD_IPV6EX(rx_desc))
+	if (dptype.prot != WX_DEC_PTYPE_PROT_SCTP &&
+	    wx_test_staterr(rx_desc, WX_RXD_STAT_IPV6EX))
 		return;
 
 	/* if L4 checksum error */
