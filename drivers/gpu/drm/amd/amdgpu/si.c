@@ -1278,24 +1278,24 @@ static bool si_read_disabled_bios(struct amdgpu_device *adev)
 	u32 rom_cntl;
 	bool r;
 
-	bus_cntl = RREG32(R600_BUS_CNTL);
+	bus_cntl = RREG32(mmBUS_CNTL);
 	if (adev->mode_info.num_crtc) {
-		d1vga_control = RREG32(AVIVO_D1VGA_CONTROL);
-		d2vga_control = RREG32(AVIVO_D2VGA_CONTROL);
+		d1vga_control = RREG32(mmD1VGA_CONTROL);
+		d2vga_control = RREG32(mmD2VGA_CONTROL);
 		vga_render_control = RREG32(mmVGA_RENDER_CONTROL);
 	}
 	rom_cntl = RREG32(R600_ROM_CNTL);
 
 	/* enable the rom */
-	WREG32(R600_BUS_CNTL, (bus_cntl & ~R600_BIOS_ROM_DIS));
+	WREG32(mmBUS_CNTL, (bus_cntl & ~BUS_CNTL__BIOS_ROM_DIS_MASK));
 	if (adev->mode_info.num_crtc) {
 		/* Disable VGA mode */
-		WREG32(AVIVO_D1VGA_CONTROL,
-		       (d1vga_control & ~(AVIVO_DVGA_CONTROL_MODE_ENABLE |
-					  AVIVO_DVGA_CONTROL_TIMING_SELECT)));
-		WREG32(AVIVO_D2VGA_CONTROL,
-		       (d2vga_control & ~(AVIVO_DVGA_CONTROL_MODE_ENABLE |
-					  AVIVO_DVGA_CONTROL_TIMING_SELECT)));
+		WREG32(mmD1VGA_CONTROL,
+		       (d1vga_control & ~(D1VGA_CONTROL__D1VGA_MODE_ENABLE_MASK |
+					  D1VGA_CONTROL__D1VGA_TIMING_SELECT_MASK)));
+		WREG32(mmD2VGA_CONTROL,
+		       (d2vga_control & ~(D1VGA_CONTROL__D1VGA_MODE_ENABLE_MASK |
+					  D1VGA_CONTROL__D1VGA_TIMING_SELECT_MASK)));
 		WREG32(mmVGA_RENDER_CONTROL,
 		       (vga_render_control & ~VGA_RENDER_CONTROL__VGA_VSTATUS_CNTL_MASK));
 	}
@@ -1304,10 +1304,10 @@ static bool si_read_disabled_bios(struct amdgpu_device *adev)
 	r = amdgpu_read_bios(adev);
 
 	/* restore regs */
-	WREG32(R600_BUS_CNTL, bus_cntl);
+	WREG32(mmBUS_CNTL, bus_cntl);
 	if (adev->mode_info.num_crtc) {
-		WREG32(AVIVO_D1VGA_CONTROL, d1vga_control);
-		WREG32(AVIVO_D2VGA_CONTROL, d2vga_control);
+		WREG32(mmD1VGA_CONTROL, d1vga_control);
+		WREG32(mmD2VGA_CONTROL, d2vga_control);
 		WREG32(mmVGA_RENDER_CONTROL, vga_render_control);
 	}
 	WREG32(R600_ROM_CNTL, rom_cntl);

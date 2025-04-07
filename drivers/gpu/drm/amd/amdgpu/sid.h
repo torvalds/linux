@@ -81,11 +81,6 @@
 #define		MC_CG_ENABLE				(1 << 18)
 #define		MC_LS_ENABLE				(1 << 19)
 
-#define MC_SHARED_CHMAP						0x801
-#define		NOOFCHAN_SHIFT					12
-#define		NOOFCHAN_MASK					0x0000f000
-#define MC_SHARED_CHREMAP					0x802
-
 #define	MC_VM_FB_LOCATION				0x809
 #define	MC_VM_AGP_TOP					0x80A
 #define	MC_VM_AGP_BOT					0x80B
@@ -664,17 +659,6 @@
 #define CURSOR_WIDTH 64
 #define CURSOR_HEIGHT 64
 
-#define AVIVO_D1VGA_CONTROL					0x00cc
-#       define AVIVO_DVGA_CONTROL_MODE_ENABLE            (1 << 0)
-#       define AVIVO_DVGA_CONTROL_TIMING_SELECT          (1 << 8)
-#       define AVIVO_DVGA_CONTROL_SYNC_POLARITY_SELECT   (1 << 9)
-#       define AVIVO_DVGA_CONTROL_OVERSCAN_TIMING_SELECT (1 << 10)
-#       define AVIVO_DVGA_CONTROL_OVERSCAN_COLOR_EN      (1 << 16)
-#       define AVIVO_DVGA_CONTROL_ROTATE                 (1 << 24)
-#define AVIVO_D2VGA_CONTROL					0x00ce
-
-#define R600_BUS_CNTL                                           0x1508
-#       define R600_BIOS_ROM_DIS                                (1 << 1)
 
 #define R600_ROM_CNTL                              0x580
 #       define R600_SCK_OVERWRITE                  (1 << 1)
