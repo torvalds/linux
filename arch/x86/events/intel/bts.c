@@ -80,54 +80,54 @@ static void *
 bts_buffer_setup_aux(struct perf_event *event, void **pages,
 		     int nr_pages, bool overwrite)
 {
-	struct bts_buffer *buf;
+	struct bts_buffer *bb;
 	struct page *page;
 	int cpu = event->cpu;
 	int node = (cpu == -1) ? cpu : cpu_to_node(cpu);
 	unsigned long offset;
 	size_t size = nr_pages << PAGE_SHIFT;
-	int pg, nbuf, pad;
+	int pg, nr_buf, pad;
 
 	/* count all the high order buffers */
-	for (pg = 0, nbuf = 0; pg < nr_pages;) {
+	for (pg = 0, nr_buf = 0; pg < nr_pages;) {
 		page = virt_to_page(pages[pg]);
 		pg += buf_nr_pages(page);
-		nbuf++;
+		nr_buf++;
 	}
 
 	/*
 	 * to avoid interrupts in overwrite mode, only allow one physical
 	 */
-	if (overwrite && nbuf > 1)
+	if (overwrite && nr_buf > 1)
 		return NULL;
 
-	buf = kzalloc_node(offsetof(struct bts_buffer, buf[nbuf]), GFP_KERNEL, node);
-	if (!buf)
+	bb = kzalloc_node(offsetof(struct bts_buffer, buf[nr_buf]), GFP_KERNEL, node);
+	if (!bb)
 		return NULL;
 
-	buf->nr_pages = nr_pages;
-	buf->nr_bufs = nbuf;
-	buf->snapshot = overwrite;
-	buf->data_pages = pages;
-	buf->real_size = size - size % BTS_RECORD_SIZE;
+	bb->nr_pages = nr_pages;
+	bb->nr_bufs = nr_buf;
+	bb->snapshot = overwrite;
+	bb->data_pages = pages;
+	bb->real_size = size - size % BTS_RECORD_SIZE;
 
-	for (pg = 0, nbuf = 0, offset = 0, pad = 0; nbuf < buf->nr_bufs; nbuf++) {
+	for (pg = 0, nr_buf = 0, offset = 0, pad = 0; nr_buf < bb->nr_bufs; nr_buf++) {
 		unsigned int __nr_pages;
 
 		page = virt_to_page(pages[pg]);
 		__nr_pages = buf_nr_pages(page);
-		buf->buf[nbuf].page = page;
-		buf->buf[nbuf].offset = offset;
-		buf->buf[nbuf].displacement = (pad ? BTS_RECORD_SIZE - pad : 0);
-		buf->buf[nbuf].size = buf_size(page) - buf->buf[nbuf].displacement;
-		pad = buf->buf[nbuf].size % BTS_RECORD_SIZE;
-		buf->buf[nbuf].size -= pad;
+		bb->buf[nr_buf].page = page;
+		bb->buf[nr_buf].offset = offset;
+		bb->buf[nr_buf].displacement = (pad ? BTS_RECORD_SIZE - pad : 0);
+		bb->buf[nr_buf].size = buf_size(page) - bb->buf[nr_buf].displacement;
+		pad = bb->buf[nr_buf].size % BTS_RECORD_SIZE;
+		bb->buf[nr_buf].size -= pad;
 
 		pg += __nr_pages;
 		offset += __nr_pages << PAGE_SHIFT;
 	}
 
-	return buf;
+	return bb;
 }
 
 static void bts_buffer_free_aux(void *data)
@@ -135,25 +135,25 @@ static void bts_buffer_free_aux(void *data)
 	kfree(data);
 }
 
-static unsigned long bts_buffer_offset(struct bts_buffer *buf, unsigned int idx)
+static unsigned long bts_buffer_offset(struct bts_buffer *bb, unsigned int idx)
 {
-	return buf->buf[idx].offset + buf->buf[idx].displacement;
+	return bb->buf[idx].offset + bb->buf[idx].displacement;
 }
 
 static void
-bts_config_buffer(struct bts_buffer *buf)
+bts_config_buffer(struct bts_buffer *bb)
 {
 	int cpu = raw_smp_processor_id();
 	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
-	struct bts_phys *phys = &buf->buf[buf->cur_buf];
+	struct bts_phys *phys = &bb->buf[bb->cur_buf];
 	unsigned long index, thresh = 0, end = phys->size;
 	struct page *page = phys->page;
 
-	index = local_read(&buf->head);
+	index = local_read(&bb->head);
 
-	if (!buf->snapshot) {
-		if (buf->end < phys->offset + buf_size(page))
-			end = buf->end - phys->offset - phys->displacement;
+	if (!bb->snapshot) {
+		if (bb->end < phys->offset + buf_size(page))
+			end = bb->end - phys->offset - phys->displacement;
 
 		index -= phys->offset + phys->displacement;
 
@@ -168,7 +168,7 @@ bts_config_buffer(struct bts_buffer *buf)
 	ds->bts_buffer_base = (u64)(long)page_address(page) + phys->displacement;
 	ds->bts_index = ds->bts_buffer_base + index;
 	ds->bts_absolute_maximum = ds->bts_buffer_base + end;
-	ds->bts_interrupt_threshold = !buf->snapshot
+	ds->bts_interrupt_threshold = !bb->snapshot
 		? ds->bts_buffer_base + thresh
 		: ds->bts_absolute_maximum + BTS_RECORD_SIZE;
 }
@@ -184,16 +184,16 @@ static void bts_update(struct bts_ctx *bts)
 {
 	int cpu = raw_smp_processor_id();
 	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
-	struct bts_buffer *buf = perf_get_aux(&bts->handle);
+	struct bts_buffer *bb = perf_get_aux(&bts->handle);
 	unsigned long index = ds->bts_index - ds->bts_buffer_base, old, head;
 
-	if (!buf)
+	if (!bb)
 		return;
 
-	head = index + bts_buffer_offset(buf, buf->cur_buf);
-	old = local_xchg(&buf->head, head);
+	head = index + bts_buffer_offset(bb, bb->cur_buf);
+	old = local_xchg(&bb->head, head);
 
-	if (!buf->snapshot) {
+	if (!bb->snapshot) {
 		if (old == head)
 			return;
 
@@ -205,9 +205,9 @@ static void bts_update(struct bts_ctx *bts)
 		 * old and head are always in the same physical buffer, so we
 		 * can subtract them to get the data size.
 		 */
-		local_add(head - old, &buf->data_size);
+		local_add(head - old, &bb->data_size);
 	} else {
-		local_set(&buf->data_size, head);
+		local_set(&bb->data_size, head);
 	}
 
 	/*
@@ -218,7 +218,7 @@ static void bts_update(struct bts_ctx *bts)
 }
 
 static int
-bts_buffer_reset(struct bts_buffer *buf, struct perf_output_handle *handle);
+bts_buffer_reset(struct bts_buffer *bb, struct perf_output_handle *handle);
 
 /*
  * Ordering PMU callbacks wrt themselves and the PMI is done by means
@@ -232,17 +232,17 @@ bts_buffer_reset(struct bts_buffer *buf, struct perf_output_handle *handle);
 static void __bts_event_start(struct perf_event *event)
 {
 	struct bts_ctx *bts = this_cpu_ptr(bts_ctx);
-	struct bts_buffer *buf = perf_get_aux(&bts->handle);
+	struct bts_buffer *bb = perf_get_aux(&bts->handle);
 	u64 config = 0;
 
-	if (!buf->snapshot)
+	if (!bb->snapshot)
 		config |= ARCH_PERFMON_EVENTSEL_INT;
 	if (!event->attr.exclude_kernel)
 		config |= ARCH_PERFMON_EVENTSEL_OS;
 	if (!event->attr.exclude_user)
 		config |= ARCH_PERFMON_EVENTSEL_USR;
 
-	bts_config_buffer(buf);
+	bts_config_buffer(bb);
 
 	/*
 	 * local barrier to make sure that ds configuration made it
@@ -261,13 +261,13 @@ static void bts_event_start(struct perf_event *event, int flags)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct bts_ctx *bts = this_cpu_ptr(bts_ctx);
-	struct bts_buffer *buf;
+	struct bts_buffer *bb;
 
-	buf = perf_aux_output_begin(&bts->handle, event);
-	if (!buf)
+	bb = perf_aux_output_begin(&bts->handle, event);
+	if (!bb)
 		goto fail_stop;
 
-	if (bts_buffer_reset(buf, &bts->handle))
+	if (bts_buffer_reset(bb, &bts->handle))
 		goto fail_end_stop;
 
 	bts->ds_back.bts_buffer_base = cpuc->ds->bts_buffer_base;
@@ -306,27 +306,27 @@ static void bts_event_stop(struct perf_event *event, int flags)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct bts_ctx *bts = this_cpu_ptr(bts_ctx);
-	struct bts_buffer *buf = NULL;
+	struct bts_buffer *bb = NULL;
 	int state = READ_ONCE(bts->state);
 
 	if (state == BTS_STATE_ACTIVE)
 		__bts_event_stop(event, BTS_STATE_STOPPED);
 
 	if (state != BTS_STATE_STOPPED)
-		buf = perf_get_aux(&bts->handle);
+		bb = perf_get_aux(&bts->handle);
 
 	event->hw.state |= PERF_HES_STOPPED;
 
 	if (flags & PERF_EF_UPDATE) {
 		bts_update(bts);
 
-		if (buf) {
-			if (buf->snapshot)
+		if (bb) {
+			if (bb->snapshot)
 				bts->handle.head =
-					local_xchg(&buf->data_size,
-						   buf->nr_pages << PAGE_SHIFT);
+					local_xchg(&bb->data_size,
+						   bb->nr_pages << PAGE_SHIFT);
 			perf_aux_output_end(&bts->handle,
-			                    local_xchg(&buf->data_size, 0));
+					    local_xchg(&bb->data_size, 0));
 		}
 
 		cpuc->ds->bts_index = bts->ds_back.bts_buffer_base;
@@ -382,19 +382,19 @@ void intel_bts_disable_local(void)
 }
 
 static int
-bts_buffer_reset(struct bts_buffer *buf, struct perf_output_handle *handle)
+bts_buffer_reset(struct bts_buffer *bb, struct perf_output_handle *handle)
 {
 	unsigned long head, space, next_space, pad, gap, skip, wakeup;
 	unsigned int next_buf;
 	struct bts_phys *phys, *next_phys;
 	int ret;
 
-	if (buf->snapshot)
+	if (bb->snapshot)
 		return 0;
 
-	head = handle->head & ((buf->nr_pages << PAGE_SHIFT) - 1);
+	head = handle->head & ((bb->nr_pages << PAGE_SHIFT) - 1);
 
-	phys = &buf->buf[buf->cur_buf];
+	phys = &bb->buf[bb->cur_buf];
 	space = phys->offset + phys->displacement + phys->size - head;
 	pad = space;
 	if (space > handle->size) {
@@ -403,10 +403,10 @@ bts_buffer_reset(struct bts_buffer *buf, struct perf_output_handle *handle)
 	}
 	if (space <= BTS_SAFETY_MARGIN) {
 		/* See if next phys buffer has more space */
-		next_buf = buf->cur_buf + 1;
-		if (next_buf >= buf->nr_bufs)
+		next_buf = bb->cur_buf + 1;
+		if (next_buf >= bb->nr_bufs)
 			next_buf = 0;
-		next_phys = &buf->buf[next_buf];
+		next_phys = &bb->buf[next_buf];
 		gap = buf_size(phys->page) - phys->displacement - phys->size +
 		      next_phys->displacement;
 		skip = pad + gap;
@@ -431,8 +431,8 @@ bts_buffer_reset(struct bts_buffer *buf, struct perf_output_handle *handle)
 				 * anymore, so we must not be racing with
 				 * bts_update().
 				 */
-				buf->cur_buf = next_buf;
-				local_set(&buf->head, head);
+				bb->cur_buf = next_buf;
+				local_set(&bb->head, head);
 			}
 		}
 	}
@@ -445,7 +445,7 @@ bts_buffer_reset(struct bts_buffer *buf, struct perf_output_handle *handle)
 		space -= space % BTS_RECORD_SIZE;
 	}
 
-	buf->end = head + space;
+	bb->end = head + space;
 
 	/*
 	 * If we have no space, the lost notification would have been sent when
@@ -462,7 +462,7 @@ int intel_bts_interrupt(void)
 	struct debug_store *ds = this_cpu_ptr(&cpu_hw_events)->ds;
 	struct bts_ctx *bts;
 	struct perf_event *event;
-	struct bts_buffer *buf;
+	struct bts_buffer *bb;
 	s64 old_head;
 	int err = -ENOSPC, handled = 0;
 
@@ -485,8 +485,8 @@ int intel_bts_interrupt(void)
 	if (READ_ONCE(bts->state) == BTS_STATE_STOPPED)
 		return handled;
 
-	buf = perf_get_aux(&bts->handle);
-	if (!buf)
+	bb = perf_get_aux(&bts->handle);
+	if (!bb)
 		return handled;
 
 	/*
@@ -494,26 +494,26 @@ int intel_bts_interrupt(void)
 	 * there's no other way of telling, because the pointer will
 	 * keep moving
 	 */
-	if (buf->snapshot)
+	if (bb->snapshot)
 		return 0;
 
-	old_head = local_read(&buf->head);
+	old_head = local_read(&bb->head);
 	bts_update(bts);
 
 	/* no new data */
-	if (old_head == local_read(&buf->head))
+	if (old_head == local_read(&bb->head))
 		return handled;
 
-	perf_aux_output_end(&bts->handle, local_xchg(&buf->data_size, 0));
+	perf_aux_output_end(&bts->handle, local_xchg(&bb->data_size, 0));
 
-	buf = perf_aux_output_begin(&bts->handle, event);
-	if (buf)
-		err = bts_buffer_reset(buf, &bts->handle);
+	bb = perf_aux_output_begin(&bts->handle, event);
+	if (bb)
+		err = bts_buffer_reset(bb, &bts->handle);
 
 	if (err) {
 		WRITE_ONCE(bts->state, BTS_STATE_STOPPED);
 
-		if (buf) {
+		if (bb) {
 			/*
 			 * BTS_STATE_STOPPED should be visible before
 			 * cleared handle::event
