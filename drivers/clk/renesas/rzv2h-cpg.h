@@ -37,12 +37,15 @@ struct pll {
  * @shift: position of the divider bit
  * @width: width of the divider
  * @monbit: monitor bit in CPG_CLKSTATUS0 register
+ * @no_rmw: flag to indicate if the register is read-modify-write
+ *        (1: no RMW, 0: RMW)
  */
 struct ddiv {
 	unsigned int offset:11;
 	unsigned int shift:4;
 	unsigned int width:4;
 	unsigned int monbit:5;
+	unsigned int no_rmw:1;
 };
 
 /*
@@ -59,6 +62,15 @@ struct ddiv {
 		.shift = _shift, \
 		.width = _width, \
 		.monbit = _monbit \
+	})
+
+#define DDIV_PACK_NO_RMW(_offset, _shift, _width, _monbit) \
+	((struct ddiv){ \
+		.offset = (_offset), \
+		.shift = (_shift), \
+		.width = (_width), \
+		.monbit = (_monbit), \
+		.no_rmw = 1 \
 	})
 
 /**
