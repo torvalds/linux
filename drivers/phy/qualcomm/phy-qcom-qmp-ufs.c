@@ -1754,7 +1754,8 @@ static void qmp_ufs_init_registers(struct qmp_ufs *qmp, const struct qmp_phy_cfg
 		qmp_ufs_init_all(qmp, &cfg->tbls_hs_overlay[i]);
 	}
 
-	qmp_ufs_init_all(qmp, &cfg->tbls_hs_b);
+	if (qmp->mode == PHY_MODE_UFS_HS_B)
+		qmp_ufs_init_all(qmp, &cfg->tbls_hs_b);
 }
 
 static int qmp_ufs_com_init(struct qmp_ufs *qmp)
