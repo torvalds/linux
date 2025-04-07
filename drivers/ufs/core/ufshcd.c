@@ -8717,6 +8717,7 @@ static void ufshcd_config_mcq(struct ufs_hba *hba)
 	u32 intrs;
 
 	ret = ufshcd_mcq_vops_config_esi(hba);
+	hba->mcq_esi_enabled = !ret;
 	dev_info(hba->dev, "ESI %sconfigured\n", ret ? "is not " : "");
 
 	intrs = UFSHCD_ENABLE_MCQ_INTRS;

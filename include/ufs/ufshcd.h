@@ -954,6 +954,7 @@ enum ufshcd_mcq_opr {
  *	ufshcd_resume_complete()
  * @mcq_sup: is mcq supported by UFSHC
  * @mcq_enabled: is mcq ready to accept requests
+ * @mcq_esi_enabled: is mcq ESI configured
  * @res: array of resource info of MCQ registers
  * @mcq_base: Multi circular queue registers base address
  * @uhq: array of supported hardware queues
@@ -1122,6 +1123,7 @@ struct ufs_hba {
 	bool mcq_sup;
 	bool lsdb_sup;
 	bool mcq_enabled;
+	bool mcq_esi_enabled;
 	struct ufshcd_res_info res[RES_MAX];
 	void __iomem *mcq_base;
 	struct ufs_hw_queue *uhq;
