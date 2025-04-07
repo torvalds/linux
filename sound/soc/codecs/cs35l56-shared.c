@@ -214,6 +214,8 @@ static bool cs35l56_readable_reg(struct device *dev, unsigned int reg)
 	case CS35L56_DSP_VIRTUAL1_MBOX_6:
 	case CS35L56_DSP_VIRTUAL1_MBOX_7:
 	case CS35L56_DSP_VIRTUAL1_MBOX_8:
+	case CS35L56_DIE_STS1:
+	case CS35L56_DIE_STS2:
 	case CS35L56_DSP_RESTRICT_STS1:
 	case CS35L56_DSP1_SYS_INFO_ID ... CS35L56_DSP1_SYS_INFO_END:
 	case CS35L56_DSP1_AHBM_WINDOW_DEBUG_0:
@@ -802,9 +804,25 @@ static int cs35l56_read_silicon_uid(struct cs35l56_base *cs35l56_base, u64 *uid)
 	unique_id |= (u32)pte.x | ((u32)pte.y << 8) | ((u32)pte.wafer_id << 16) |
 		     ((u32)pte.dvs << 24);
 
-	dev_dbg(cs35l56_base->dev, "UniqueID = %#llx\n", unique_id);
-
 	*uid = unique_id;
+
+	return 0;
+}
+
+static int cs35l63_read_silicon_uid(struct cs35l56_base *cs35l56_base, u64 *uid)
+{
+	u32 tmp[2];
+	int ret;
+
+	ret = regmap_bulk_read(cs35l56_base->regmap, CS35L56_DIE_STS1, tmp, ARRAY_SIZE(tmp));
+	if (ret) {
+		dev_err(cs35l56_base->dev, "Cannot obtain CS35L56_DIE_STS: %d\n", ret);
+		return ret;
+	}
+
+	*uid = tmp[1];
+	*uid <<= 32;
+	*uid |= tmp[0];
 
 	return 0;
 }
@@ -829,9 +847,24 @@ int cs35l56_get_calibration(struct cs35l56_base *cs35l56_base)
 	if (cs35l56_base->secured)
 		return 0;
 
-	ret = cs35l56_read_silicon_uid(cs35l56_base, &silicon_uid);
+	switch (cs35l56_base->type) {
+	case 0x54:
+	case 0x56:
+	case 0x57:
+		ret = cs35l56_read_silicon_uid(cs35l56_base, &silicon_uid);
+		break;
+	case 0x63:
+		ret = cs35l63_read_silicon_uid(cs35l56_base, &silicon_uid);
+		break;
+	default:
+		ret = -ENODEV;
+		break;
+	}
+
 	if (ret < 0)
 		return ret;
+
+	dev_dbg(cs35l56_base->dev, "UniqueID = %#llx\n", silicon_uid);
 
 	ret = cs_amp_get_efi_calibration_data(cs35l56_base->dev, silicon_uid,
 					      cs35l56_base->cal_index,
