@@ -47,6 +47,13 @@ static const struct reg_sequence cs35l56_patch_fw[] = {
 	{ CS35L56_MAIN_POSTURE_NUMBER,		0x00000000 },
 };
 
+static const struct reg_sequence cs35l63_patch_fw[] = {
+	/* These are not reset by a soft-reset, so patch to defaults. */
+	{ CS35L63_MAIN_RENDER_USER_MUTE,	0x00000000 },
+	{ CS35L63_MAIN_RENDER_USER_VOLUME,	0x00000000 },
+	{ CS35L63_MAIN_POSTURE_NUMBER,		0x00000000 },
+};
+
 int cs35l56_set_patch(struct cs35l56_base *cs35l56_base)
 {
 	int ret;
@@ -63,6 +70,10 @@ int cs35l56_set_patch(struct cs35l56_base *cs35l56_base)
 	case 0x57:
 		ret = regmap_register_patch(cs35l56_base->regmap, cs35l56_patch_fw,
 					    ARRAY_SIZE(cs35l56_patch_fw));
+		break;
+	case 0x63:
+		ret = regmap_register_patch(cs35l56_base->regmap, cs35l63_patch_fw,
+					    ARRAY_SIZE(cs35l63_patch_fw));
 		break;
 	default:
 		break;
@@ -100,6 +111,36 @@ static const struct reg_default cs35l56_reg_defaults[] = {
 	{ CS35L56_MAIN_RENDER_USER_MUTE,	0x00000000 },
 	{ CS35L56_MAIN_RENDER_USER_VOLUME,	0x00000000 },
 	{ CS35L56_MAIN_POSTURE_NUMBER,		0x00000000 },
+};
+
+static const struct reg_default cs35l63_reg_defaults[] = {
+	/* no defaults for OTP_MEM - first read populates cache */
+
+	{ CS35L56_ASP1_ENABLES1,		0x00000000 },
+	{ CS35L56_ASP1_CONTROL1,		0x00000028 },
+	{ CS35L56_ASP1_CONTROL2,		0x18180200 },
+	{ CS35L56_ASP1_CONTROL3,		0x00000002 },
+	{ CS35L56_ASP1_FRAME_CONTROL1,		0x03020100 },
+	{ CS35L56_ASP1_FRAME_CONTROL5,		0x00020100 },
+	{ CS35L56_ASP1_DATA_CONTROL1,		0x00000018 },
+	{ CS35L56_ASP1_DATA_CONTROL5,		0x00000018 },
+	{ CS35L56_ASP1TX1_INPUT,		0x00000000 },
+	{ CS35L56_ASP1TX2_INPUT,		0x00000000 },
+	{ CS35L56_ASP1TX3_INPUT,		0x00000000 },
+	{ CS35L56_ASP1TX4_INPUT,		0x00000000 },
+	{ CS35L56_SWIRE_DP3_CH1_INPUT,		0x00000018 },
+	{ CS35L56_SWIRE_DP3_CH2_INPUT,		0x00000019 },
+	{ CS35L56_SWIRE_DP3_CH3_INPUT,		0x00000029 },
+	{ CS35L56_SWIRE_DP3_CH4_INPUT,		0x00000028 },
+	{ CS35L56_IRQ1_MASK_1,			0x8003ffff },
+	{ CS35L56_IRQ1_MASK_2,			0xffff7fff },
+	{ CS35L56_IRQ1_MASK_4,			0xe0ffffff },
+	{ CS35L56_IRQ1_MASK_8,			0x8c000fff },
+	{ CS35L56_IRQ1_MASK_18,			0x0760f000 },
+	{ CS35L56_IRQ1_MASK_20,			0x15c00000 },
+	{ CS35L63_MAIN_RENDER_USER_MUTE,	0x00000000 },
+	{ CS35L63_MAIN_RENDER_USER_VOLUME,	0x00000000 },
+	{ CS35L63_MAIN_POSTURE_NUMBER,		0x00000000 },
 };
 
 static bool cs35l56_is_dsp_memory(unsigned int reg)
@@ -199,7 +240,7 @@ static bool cs35l56_precious_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static bool cs35l56_volatile_reg(struct device *dev, unsigned int reg)
+static bool cs35l56_common_volatile_reg(unsigned int reg)
 {
 	switch (reg) {
 	case CS35L56_DEVID:
@@ -237,12 +278,32 @@ static bool cs35l56_volatile_reg(struct device *dev, unsigned int reg)
 	case CS35L56_DSP1_SCRATCH3:
 	case CS35L56_DSP1_SCRATCH4:
 		return true;
+	default:
+		return cs35l56_is_dsp_memory(reg);
+	}
+}
+
+static bool cs35l56_volatile_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
 	case CS35L56_MAIN_RENDER_USER_MUTE:
 	case CS35L56_MAIN_RENDER_USER_VOLUME:
 	case CS35L56_MAIN_POSTURE_NUMBER:
 		return false;
 	default:
-		return cs35l56_is_dsp_memory(reg);
+		return cs35l56_common_volatile_reg(reg);
+	}
+}
+
+static bool cs35l63_volatile_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case CS35L63_MAIN_RENDER_USER_MUTE:
+	case CS35L63_MAIN_RENDER_USER_VOLUME:
+	case CS35L63_MAIN_POSTURE_NUMBER:
+		return false;
+	default:
+		return cs35l56_common_volatile_reg(reg);
 	}
 }
 
@@ -405,6 +466,11 @@ static const struct reg_sequence cs35l56_system_reset_seq[] = {
 	REG_SEQ0(CS35L56_DSP_VIRTUAL1_MBOX_1, CS35L56_MBOX_CMD_SYSTEM_RESET),
 };
 
+static const struct reg_sequence cs35l63_system_reset_seq[] = {
+	REG_SEQ0(CS35L63_DSP1_HALO_STATE, 0),
+	REG_SEQ0(CS35L56_DSP_VIRTUAL1_MBOX_1, CS35L56_MBOX_CMD_SYSTEM_RESET),
+};
+
 void cs35l56_system_reset(struct cs35l56_base *cs35l56_base, bool is_soundwire)
 {
 	/*
@@ -425,6 +491,11 @@ void cs35l56_system_reset(struct cs35l56_base *cs35l56_base, bool is_soundwire)
 		regmap_multi_reg_write_bypassed(cs35l56_base->regmap,
 						cs35l56_system_reset_seq,
 						ARRAY_SIZE(cs35l56_system_reset_seq));
+		break;
+	case 0x63:
+		regmap_multi_reg_write_bypassed(cs35l56_base->regmap,
+						cs35l63_system_reset_seq,
+						ARRAY_SIZE(cs35l63_system_reset_seq));
 		break;
 	default:
 		break;
@@ -844,6 +915,9 @@ int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 	case 0x35A56:
 	case 0x35A57:
 		break;
+	case 0x35A630:
+		devid = devid >> 4;
+		break;
 	default:
 		dev_err(cs35l56_base->dev, "Unknown device %x\n", devid);
 		return ret;
@@ -1080,6 +1154,39 @@ const struct regmap_config cs35l56_regmap_sdw = {
 };
 EXPORT_SYMBOL_NS_GPL(cs35l56_regmap_sdw, "SND_SOC_CS35L56_SHARED");
 
+const struct regmap_config cs35l63_regmap_i2c = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.reg_base = 0x8000,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
+	.max_register = CS35L56_DSP1_PMEM_5114,
+	.reg_defaults = cs35l63_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(cs35l63_reg_defaults),
+	.volatile_reg = cs35l63_volatile_reg,
+	.readable_reg = cs35l56_readable_reg,
+	.precious_reg = cs35l56_precious_reg,
+	.cache_type = REGCACHE_MAPLE,
+};
+EXPORT_SYMBOL_NS_GPL(cs35l63_regmap_i2c, "SND_SOC_CS35L56_SHARED");
+
+const struct regmap_config cs35l63_regmap_sdw = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.reg_format_endian = REGMAP_ENDIAN_LITTLE,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
+	.max_register = CS35L56_DSP1_PMEM_5114,
+	.reg_defaults = cs35l63_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(cs35l63_reg_defaults),
+	.volatile_reg = cs35l63_volatile_reg,
+	.readable_reg = cs35l56_readable_reg,
+	.precious_reg = cs35l56_precious_reg,
+	.cache_type = REGCACHE_MAPLE,
+};
+EXPORT_SYMBOL_NS_GPL(cs35l63_regmap_sdw, "SND_SOC_CS35L56_SHARED");
+
 const struct cs35l56_fw_reg cs35l56_fw_reg = {
 	.fw_ver = CS35L56_DSP1_FW_VER,
 	.halo_state = CS35L56_DSP1_HALO_STATE,
@@ -1091,6 +1198,18 @@ const struct cs35l56_fw_reg cs35l56_fw_reg = {
 	.posture_number = CS35L56_MAIN_POSTURE_NUMBER,
 };
 EXPORT_SYMBOL_NS_GPL(cs35l56_fw_reg, "SND_SOC_CS35L56_SHARED");
+
+const struct cs35l56_fw_reg cs35l63_fw_reg = {
+	.fw_ver = CS35L63_DSP1_FW_VER,
+	.halo_state = CS35L63_DSP1_HALO_STATE,
+	.pm_cur_stat = CS35L63_DSP1_PM_CUR_STATE,
+	.prot_sts = CS35L63_PROTECTION_STATUS,
+	.transducer_actual_ps = CS35L63_TRANSDUCER_ACTUAL_PS,
+	.user_mute = CS35L63_MAIN_RENDER_USER_MUTE,
+	.user_volume = CS35L63_MAIN_RENDER_USER_VOLUME,
+	.posture_number = CS35L63_MAIN_POSTURE_NUMBER,
+};
+EXPORT_SYMBOL_NS_GPL(cs35l63_fw_reg, "SND_SOC_CS35L56_SHARED");
 
 MODULE_DESCRIPTION("ASoC CS35L56 Shared");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");

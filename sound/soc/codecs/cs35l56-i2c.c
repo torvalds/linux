@@ -37,6 +37,10 @@ static int cs35l56_i2c_probe(struct i2c_client *client)
 		regmap_config = &cs35l56_regmap_i2c;
 		cs35l56->base.fw_reg = &cs35l56_fw_reg;
 		break;
+	case 0x3563:
+		regmap_config = &cs35l63_regmap_i2c;
+		cs35l56->base.fw_reg = &cs35l63_fw_reg;
+		break;
 	default:
 		return -ENODEV;
 	}
@@ -69,6 +73,7 @@ static void cs35l56_i2c_remove(struct i2c_client *client)
 
 static const struct i2c_device_id cs35l56_id_i2c[] = {
 	{ "cs35l56", 0x3556 },
+	{ "cs35l63", 0x3563 },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, cs35l56_id_i2c);
@@ -76,6 +81,7 @@ MODULE_DEVICE_TABLE(i2c, cs35l56_id_i2c);
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id cs35l56_asoc_acpi_match[] = {
 	{ "CSC355C", 0x3556 },
+	{ "CSC356C", 0x3563 },
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, cs35l56_asoc_acpi_match);

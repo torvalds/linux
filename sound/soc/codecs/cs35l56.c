@@ -84,6 +84,25 @@ static const struct snd_kcontrol_new cs35l56_controls[] = {
 		       cs35l56_dspwait_get_volsw, cs35l56_dspwait_put_volsw),
 };
 
+static const struct snd_kcontrol_new cs35l63_controls[] = {
+	SOC_SINGLE_EXT("Speaker Switch",
+		       CS35L63_MAIN_RENDER_USER_MUTE, 0, 1, 1,
+		       cs35l56_dspwait_get_volsw, cs35l56_dspwait_put_volsw),
+	SOC_SINGLE_S_EXT_TLV("Speaker Volume",
+			     CS35L63_MAIN_RENDER_USER_VOLUME,
+			     CS35L56_MAIN_RENDER_USER_VOLUME_SHIFT,
+			     CS35L56_MAIN_RENDER_USER_VOLUME_MIN,
+			     CS35L56_MAIN_RENDER_USER_VOLUME_MAX,
+			     CS35L56_MAIN_RENDER_USER_VOLUME_SIGNBIT,
+			     0,
+			     cs35l56_dspwait_get_volsw,
+			     cs35l56_dspwait_put_volsw,
+			     vol_tlv),
+	SOC_SINGLE_EXT("Posture Number", CS35L63_MAIN_POSTURE_NUMBER,
+		       0, 255, 0,
+		       cs35l56_dspwait_get_volsw, cs35l56_dspwait_put_volsw),
+};
+
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_asp1tx1_enum,
 				  CS35L56_ASP1TX1_INPUT,
 				  0, CS35L56_ASP_TXn_SRC_MASK,
@@ -885,6 +904,10 @@ static int cs35l56_component_probe(struct snd_soc_component *component)
 	case 0x57:
 		ret = snd_soc_add_component_controls(component, cs35l56_controls,
 						     ARRAY_SIZE(cs35l56_controls));
+		break;
+	case 0x63:
+		ret = snd_soc_add_component_controls(component, cs35l63_controls,
+						     ARRAY_SIZE(cs35l63_controls));
 		break;
 	default:
 		ret = -ENODEV;
