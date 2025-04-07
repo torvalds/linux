@@ -51,8 +51,17 @@
 #define ACOMP_REQUEST_ALLOC(name, tfm, gfp) \
         char __##name##_req[sizeof(struct acomp_req) + \
                             MAX_SYNC_COMP_REQSIZE] CRYPTO_MINALIGN_ATTR; \
+        struct acomp_req *name = acomp_request_alloc_init( \
+                __##name##_req, (tfm), (gfp))
+
+#define ACOMP_REQUEST_ON_STACK(name, tfm) \
+        char __##name##_req[sizeof(struct acomp_req) + \
+                            MAX_SYNC_COMP_REQSIZE] CRYPTO_MINALIGN_ATTR; \
         struct acomp_req *name = acomp_request_on_stack_init( \
-                __##name##_req, (tfm), (gfp), false)
+                __##name##_req, (tfm))
+
+#define ACOMP_REQUEST_CLONE(name, gfp) \
+	acomp_request_clone(name, sizeof(__##name##_req), gfp)
 
 struct acomp_req;
 struct folio;
@@ -571,12 +580,12 @@ int crypto_acomp_compress(struct acomp_req *req);
  */
 int crypto_acomp_decompress(struct acomp_req *req);
 
-static inline struct acomp_req *acomp_request_on_stack_init(
-	char *buf, struct crypto_acomp *tfm, gfp_t gfp, bool stackonly)
+static inline struct acomp_req *acomp_request_alloc_init(
+	char *buf, struct crypto_acomp *tfm, gfp_t gfp)
 {
 	struct acomp_req *req;
 
-	if (!stackonly && (req = acomp_request_alloc(tfm, gfp)))
+	if ((req = acomp_request_alloc(tfm, gfp)))
 		return req;
 
 	req = (void *)buf;
@@ -585,5 +594,18 @@ static inline struct acomp_req *acomp_request_on_stack_init(
 
 	return req;
 }
+
+static inline struct acomp_req *acomp_request_on_stack_init(
+	char *buf, struct crypto_acomp *tfm)
+{
+	struct acomp_req *req = (void *)buf;
+
+	acomp_request_set_tfm(req, tfm);
+	req->base.flags = CRYPTO_TFM_REQ_ON_STACK;
+	return req;
+}
+
+struct acomp_req *acomp_request_clone(struct acomp_req *req,
+				      size_t total, gfp_t gfp);
 
 #endif

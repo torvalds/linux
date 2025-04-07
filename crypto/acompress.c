@@ -316,6 +316,8 @@ int crypto_acomp_compress(struct acomp_req *req)
 {
 	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
 
+	if (acomp_req_on_stack(req) && acomp_is_async(tfm))
+		return -EAGAIN;
 	if (crypto_acomp_req_chain(tfm) || acomp_request_issg(req))
 		crypto_acomp_reqtfm(req)->compress(req);
 	return acomp_do_req_chain(req, true);
@@ -326,6 +328,8 @@ int crypto_acomp_decompress(struct acomp_req *req)
 {
 	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
 
+	if (acomp_req_on_stack(req) && acomp_is_async(tfm))
+		return -EAGAIN;
 	if (crypto_acomp_req_chain(tfm) || acomp_request_issg(req))
 		crypto_acomp_reqtfm(req)->decompress(req);
 	return acomp_do_req_chain(req, false);
@@ -602,6 +606,25 @@ int acomp_walk_virt(struct acomp_walk *__restrict walk,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(acomp_walk_virt);
+
+struct acomp_req *acomp_request_clone(struct acomp_req *req,
+				      size_t total, gfp_t gfp)
+{
+	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
+	struct acomp_req *nreq;
+
+	nreq = kmalloc(total, gfp);
+	if (!nreq) {
+		acomp_request_set_tfm(req, tfm->fb);
+		req->base.flags = CRYPTO_TFM_REQ_ON_STACK;
+		return req;
+	}
+
+	memcpy(nreq, req, total);
+	acomp_request_set_tfm(req, tfm);
+	return req;
+}
+EXPORT_SYMBOL_GPL(acomp_request_clone);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Asynchronous compression type");
