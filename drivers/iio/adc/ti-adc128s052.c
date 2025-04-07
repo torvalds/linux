@@ -9,6 +9,7 @@
  * https://www.ti.com/lit/ds/symlink/adc124s021.pdf
  */
 
+#include <linux/cleanup.h>
 #include <linux/err.h>
 #include <linux/iio/iio.h>
 #include <linux/mod_devicetable.h>
@@ -26,6 +27,10 @@ struct adc128 {
 	struct spi_device *spi;
 
 	struct regulator *reg;
+	/*
+	 * Serialize the SPI 'write-channel + read data' accesses and protect
+	 * the shared buffer.
+	 */
 	struct mutex lock;
 
 	union {
@@ -38,19 +43,16 @@ static int adc128_adc_conversion(struct adc128 *adc, u8 channel)
 {
 	int ret;
 
-	mutex_lock(&adc->lock);
+	guard(mutex)(&adc->lock);
 
 	adc->buffer[0] = channel << 3;
 	adc->buffer[1] = 0;
 
 	ret = spi_write(adc->spi, &adc->buffer, sizeof(adc->buffer));
-	if (ret < 0) {
-		mutex_unlock(&adc->lock);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = spi_read(adc->spi, &adc->buffer16, sizeof(adc->buffer16));
-	mutex_unlock(&adc->lock);
 	if (ret < 0)
 		return ret;
 
