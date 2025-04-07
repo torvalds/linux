@@ -40,7 +40,6 @@
  *		counterpart to @init, used to remove various changes set in
  *		@init.
  *
- * @reqsize:	Context size for (de)compression requests
  * @base:	Common crypto API algorithm data structure
  * @calg:	Cmonn algorithm data structure shared with scomp
  */
@@ -49,8 +48,6 @@ struct acomp_alg {
 	int (*decompress)(struct acomp_req *req);
 	int (*init)(struct crypto_acomp *tfm);
 	void (*exit)(struct crypto_acomp *tfm);
-
-	unsigned int reqsize;
 
 	union {
 		struct COMP_ALG_COMMON;
