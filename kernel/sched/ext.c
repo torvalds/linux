@@ -3899,35 +3899,6 @@ bool scx_can_stop_tick(struct rq *rq)
 
 DEFINE_STATIC_PERCPU_RWSEM(scx_cgroup_rwsem);
 static bool scx_cgroup_enabled;
-static bool cgroup_warned_missing_weight;
-static bool cgroup_warned_missing_idle;
-
-static void scx_cgroup_warn_missing_weight(struct task_group *tg)
-{
-	if (scx_ops_enable_state() == SCX_OPS_DISABLED ||
-	    cgroup_warned_missing_weight)
-		return;
-
-	if ((scx_ops.flags & SCX_OPS_HAS_CGROUP_WEIGHT) || !tg->css.parent)
-		return;
-
-	pr_warn("sched_ext: \"%s\" does not implement cgroup cpu.weight\n",
-		scx_ops.name);
-	cgroup_warned_missing_weight = true;
-}
-
-static void scx_cgroup_warn_missing_idle(struct task_group *tg)
-{
-	if (!scx_cgroup_enabled || cgroup_warned_missing_idle)
-		return;
-
-	if (!tg->idle)
-		return;
-
-	pr_warn("sched_ext: \"%s\" does not implement cgroup cpu.idle\n",
-		scx_ops.name);
-	cgroup_warned_missing_idle = true;
-}
 
 int scx_tg_online(struct task_group *tg)
 {
@@ -3936,8 +3907,6 @@ int scx_tg_online(struct task_group *tg)
 	WARN_ON_ONCE(tg->scx_flags & (SCX_TG_ONLINE | SCX_TG_INITED));
 
 	percpu_down_read(&scx_cgroup_rwsem);
-
-	scx_cgroup_warn_missing_weight(tg);
 
 	if (scx_cgroup_enabled) {
 		if (SCX_HAS_OP(cgroup_init)) {
@@ -4076,9 +4045,7 @@ void scx_group_set_weight(struct task_group *tg, unsigned long weight)
 
 void scx_group_set_idle(struct task_group *tg, bool idle)
 {
-	percpu_down_read(&scx_cgroup_rwsem);
-	scx_cgroup_warn_missing_idle(tg);
-	percpu_up_read(&scx_cgroup_rwsem);
+	/* TODO: Implement ops->cgroup_set_idle() */
 }
 
 static void scx_cgroup_lock(void)
@@ -4272,9 +4239,6 @@ static int scx_cgroup_init(void)
 
 	percpu_rwsem_assert_held(&scx_cgroup_rwsem);
 
-	cgroup_warned_missing_weight = false;
-	cgroup_warned_missing_idle = false;
-
 	/*
 	 * scx_tg_on/offline() are excluded through scx_cgroup_rwsem. If we walk
 	 * cgroups and init, all online cgroups are initialized.
@@ -4283,9 +4247,6 @@ static int scx_cgroup_init(void)
 	css_for_each_descendant_pre(css, &root_task_group.css) {
 		struct task_group *tg = css_tg(css);
 		struct scx_cgroup_init_args args = { .weight = tg->scx_weight };
-
-		scx_cgroup_warn_missing_weight(tg);
-		scx_cgroup_warn_missing_idle(tg);
 
 		if ((tg->scx_flags &
 		     (SCX_TG_ONLINE | SCX_TG_INITED)) != SCX_TG_ONLINE)
