@@ -18,7 +18,7 @@ static inline int note_kasan_page_table(struct mm_walk *walk,
 {
 	struct ptdump_state *st = walk->private;
 
-	st->note_page(st, addr, 4, pte_val(kasan_early_shadow_pte[0]));
+	st->note_page_pte(st, addr, kasan_early_shadow_pte[0]);
 
 	walk->action = ACTION_CONTINUE;
 
@@ -42,7 +42,7 @@ static int ptdump_pgd_entry(pgd_t *pgd, unsigned long addr,
 		st->effective_prot(st, 0, pgd_val(val));
 
 	if (pgd_leaf(val)) {
-		st->note_page(st, addr, 0, pgd_val(val));
+		st->note_page_pgd(st, addr, val);
 		walk->action = ACTION_CONTINUE;
 	}
 
@@ -65,7 +65,7 @@ static int ptdump_p4d_entry(p4d_t *p4d, unsigned long addr,
 		st->effective_prot(st, 1, p4d_val(val));
 
 	if (p4d_leaf(val)) {
-		st->note_page(st, addr, 1, p4d_val(val));
+		st->note_page_p4d(st, addr, val);
 		walk->action = ACTION_CONTINUE;
 	}
 
@@ -88,7 +88,7 @@ static int ptdump_pud_entry(pud_t *pud, unsigned long addr,
 		st->effective_prot(st, 2, pud_val(val));
 
 	if (pud_leaf(val)) {
-		st->note_page(st, addr, 2, pud_val(val));
+		st->note_page_pud(st, addr, val);
 		walk->action = ACTION_CONTINUE;
 	}
 
@@ -109,7 +109,7 @@ static int ptdump_pmd_entry(pmd_t *pmd, unsigned long addr,
 	if (st->effective_prot)
 		st->effective_prot(st, 3, pmd_val(val));
 	if (pmd_leaf(val)) {
-		st->note_page(st, addr, 3, pmd_val(val));
+		st->note_page_pmd(st, addr, val);
 		walk->action = ACTION_CONTINUE;
 	}
 
@@ -125,7 +125,7 @@ static int ptdump_pte_entry(pte_t *pte, unsigned long addr,
 	if (st->effective_prot)
 		st->effective_prot(st, 4, pte_val(val));
 
-	st->note_page(st, addr, 4, pte_val(val));
+	st->note_page_pte(st, addr, val);
 
 	return 0;
 }
@@ -134,9 +134,31 @@ static int ptdump_hole(unsigned long addr, unsigned long next,
 		       int depth, struct mm_walk *walk)
 {
 	struct ptdump_state *st = walk->private;
+	pte_t pte_zero = {0};
+	pmd_t pmd_zero = {0};
+	pud_t pud_zero = {0};
+	p4d_t p4d_zero = {0};
+	pgd_t pgd_zero = {0};
 
-	st->note_page(st, addr, depth, 0);
-
+	switch (depth) {
+	case 4:
+		st->note_page_pte(st, addr, pte_zero);
+		break;
+	case 3:
+		st->note_page_pmd(st, addr, pmd_zero);
+		break;
+	case 2:
+		st->note_page_pud(st, addr, pud_zero);
+		break;
+	case 1:
+		st->note_page_p4d(st, addr, p4d_zero);
+		break;
+	case 0:
+		st->note_page_pgd(st, addr, pgd_zero);
+		break;
+	default:
+		break;
+	}
 	return 0;
 }
 
@@ -162,7 +184,7 @@ void ptdump_walk_pgd(struct ptdump_state *st, struct mm_struct *mm, pgd_t *pgd)
 	mmap_write_unlock(mm);
 
 	/* Flush out the last page */
-	st->note_page(st, 0, -1, 0);
+	st->note_page_flush(st);
 }
 
 static int check_wx_show(struct seq_file *m, void *v)

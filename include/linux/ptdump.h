@@ -11,9 +11,12 @@ struct ptdump_range {
 };
 
 struct ptdump_state {
-	/* level is 0:PGD to 4:PTE, or -1 if unknown */
-	void (*note_page)(struct ptdump_state *st, unsigned long addr,
-			  int level, u64 val);
+	void (*note_page_pte)(struct ptdump_state *st, unsigned long addr, pte_t pte);
+	void (*note_page_pmd)(struct ptdump_state *st, unsigned long addr, pmd_t pmd);
+	void (*note_page_pud)(struct ptdump_state *st, unsigned long addr, pud_t pud);
+	void (*note_page_p4d)(struct ptdump_state *st, unsigned long addr, p4d_t p4d);
+	void (*note_page_pgd)(struct ptdump_state *st, unsigned long addr, pgd_t pgd);
+	void (*note_page_flush)(struct ptdump_state *st);
 	void (*effective_prot)(struct ptdump_state *st, int level, u64 val);
 	const struct ptdump_range *range;
 };
