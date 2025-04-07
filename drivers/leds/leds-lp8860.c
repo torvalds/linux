@@ -103,12 +103,7 @@ struct lp8860_led {
 	struct regulator *regulator;
 };
 
-struct lp8860_eeprom_reg {
-	uint8_t reg;
-	uint8_t value;
-};
-
-static struct lp8860_eeprom_reg lp8860_eeprom_disp_regs[] = {
+static const struct reg_sequence lp8860_eeprom_disp_regs[] = {
 	{ LP8860_EEPROM_REG_0, 0xed },
 	{ LP8860_EEPROM_REG_1, 0xdf },
 	{ LP8860_EEPROM_REG_2, 0xdc },
@@ -238,7 +233,7 @@ out:
 static int lp8860_init(struct lp8860_led *led)
 {
 	unsigned int read_buf;
-	int ret, i, reg_count;
+	int ret, reg_count;
 
 	if (led->regulator) {
 		ret = regulator_enable(led->regulator);
@@ -266,14 +261,10 @@ static int lp8860_init(struct lp8860_led *led)
 	}
 
 	reg_count = ARRAY_SIZE(lp8860_eeprom_disp_regs);
-	for (i = 0; i < reg_count; i++) {
-		ret = regmap_write(led->eeprom_regmap,
-				lp8860_eeprom_disp_regs[i].reg,
-				lp8860_eeprom_disp_regs[i].value);
-		if (ret) {
-			dev_err(&led->client->dev, "Failed writing EEPROM\n");
-			goto out;
-		}
+	ret = regmap_multi_reg_write(led->eeprom_regmap, lp8860_eeprom_disp_regs, reg_count);
+	if (ret) {
+		dev_err(&led->client->dev, "Failed writing EEPROM\n");
+		goto out;
 	}
 
 	ret = lp8860_unlock_eeprom(led, LP8860_LOCK_EEPROM);
