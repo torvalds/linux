@@ -139,10 +139,34 @@
 
 	.macro PREPARE_ARGS
 	addi	a0, t0, -MCOUNT_JALR_SIZE	// ip (callsite's jalr insn)
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS
+	/*
+	 * When CALL_OPS is enabled (2 or 4) nops [8B] are placed before the
+	 * function entry, these are later overwritten with the pointer to the
+	 * associated struct ftrace_ops.
+	 *
+	 * -8: &ftrace_ops of the associated tracer function.
+	 *<ftrace enable>:
+	 *  0: auipc  t0/ra, 0x?
+	 *  4: jalr   t0/ra, ?(t0/ra)
+	 *
+	 * -8: &ftrace_nop_ops
+	 *<ftrace disable>:
+	 *  0: nop
+	 *  4: nop
+	 *
+	 * t0 is set to ip+8 after the jalr is executed at the callsite,
+	 * so we find the associated op at t0-16.
+	 */
+	mv 	a1, ra				// parent_ip
+	REG_L   a2, -16(t0)			// op
+	REG_L   ra, FTRACE_OPS_FUNC(a2)		// op->func
+#else
 	la	a1, function_trace_op
-	REG_L	a2, 0(a1)
-	mv	a1, ra
-	mv	a3, sp
+	REG_L	a2, 0(a1)			// op
+	mv	a1, ra				// parent_ip
+#endif
+	mv	a3, sp				// regs
 	.endm
 
 SYM_FUNC_START(ftrace_caller)
@@ -150,10 +174,13 @@ SYM_FUNC_START(ftrace_caller)
 	SAVE_ABI_REGS
 	PREPARE_ARGS
 
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS
+	jalr	ra
+#else
 SYM_INNER_LABEL(ftrace_call, SYM_L_GLOBAL)
 	REG_L	ra, ftrace_call_dest
 	jalr	ra, 0(ra)
-
+#endif
 	RESTORE_ABI_REGS
 	bnez	t1, .Ldirect
 	jr	t0
