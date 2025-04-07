@@ -196,17 +196,18 @@ static int bd79124gpo_direction_get(struct gpio_chip *gc, unsigned int offset)
 	return GPIO_LINE_DIRECTION_OUT;
 }
 
-static void bd79124gpo_set(struct gpio_chip *gc, unsigned int offset, int value)
+static int bd79124gpo_set(struct gpio_chip *gc, unsigned int offset, int value)
 {
 	struct bd79124_data *data = gpiochip_get_data(gc);
 
-	regmap_assign_bits(data->map, BD79124_REG_GPO_VAL, BIT(offset), value);
+	return regmap_assign_bits(data->map, BD79124_REG_GPO_VAL, BIT(offset),
+				  value);
 }
 
-static void bd79124gpo_set_multiple(struct gpio_chip *gc, unsigned long *mask,
+static int bd79124gpo_set_multiple(struct gpio_chip *gc, unsigned long *mask,
 				    unsigned long *bits)
 {
-	unsigned int all_gpos, set_gpos;
+	unsigned int all_gpos;
 	int ret;
 	struct bd79124_data *data = gpiochip_get_data(gc);
 
@@ -219,17 +220,15 @@ static void bd79124gpo_set_multiple(struct gpio_chip *gc, unsigned long *mask,
 	 */
 	ret = regmap_read(data->map, BD79124_REG_PINCFG, &all_gpos);
 	if (ret)
-		return;
+		return ret;
 
 	if (all_gpos ^ *mask) {
 		dev_dbg(data->dev, "Invalid mux config. Can't set value.\n");
-		/* Do not set value for pins configured as ADC inputs */
-		set_gpos = *mask & all_gpos;
-	} else {
-		set_gpos = *mask;
+
+		return -EINVAL;
 	}
 
-	regmap_update_bits(data->map, BD79124_REG_GPO_VAL, set_gpos, *bits);
+	return regmap_update_bits(data->map, BD79124_REG_GPO_VAL, *mask, *bits);
 }
 
 static int bd79124_init_valid_mask(struct gpio_chip *gc,
@@ -247,8 +246,8 @@ static int bd79124_init_valid_mask(struct gpio_chip *gc,
 static const struct gpio_chip bd79124gpo_chip = {
 	.label			= "bd79124-gpo",
 	.get_direction		= bd79124gpo_direction_get,
-	.set			= bd79124gpo_set,
-	.set_multiple		= bd79124gpo_set_multiple,
+	.set_rv			= bd79124gpo_set,
+	.set_multiple_rv	= bd79124gpo_set_multiple,
 	.init_valid_mask	= bd79124_init_valid_mask,
 	.can_sleep		= true,
 	.ngpio			= 8,
