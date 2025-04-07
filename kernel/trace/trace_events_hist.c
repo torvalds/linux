@@ -114,6 +114,7 @@ enum hist_field_fn {
 	HIST_FIELD_FN_BUCKET,
 	HIST_FIELD_FN_TIMESTAMP,
 	HIST_FIELD_FN_CPU,
+	HIST_FIELD_FN_COMM,
 	HIST_FIELD_FN_STRING,
 	HIST_FIELD_FN_DYNSTRING,
 	HIST_FIELD_FN_RELDYNSTRING,
@@ -506,6 +507,7 @@ enum hist_field_flags {
 	HIST_FIELD_FL_CONST		= 1 << 18,
 	HIST_FIELD_FL_PERCENT		= 1 << 19,
 	HIST_FIELD_FL_GRAPH		= 1 << 20,
+	HIST_FIELD_FL_COMM		= 1 << 21,
 };
 
 struct var_defs {
@@ -883,6 +885,15 @@ static u64 hist_field_cpu(struct hist_field *hist_field,
 	int cpu = smp_processor_id();
 
 	return cpu;
+}
+
+static u64 hist_field_comm(struct hist_field *hist_field,
+			  struct tracing_map_elt *elt,
+			  struct trace_buffer *buffer,
+			  struct ring_buffer_event *rbe,
+			  void *event)
+{
+	return (u64)(unsigned long)current->comm;
 }
 
 /**
@@ -1338,6 +1349,8 @@ static const char *hist_field_name(struct hist_field *field,
 		field_name = hist_field_name(field->operands[0], ++level);
 	else if (field->flags & HIST_FIELD_FL_CPU)
 		field_name = "common_cpu";
+	else if (field->flags & HIST_FIELD_FL_COMM)
+		field_name = "common_comm";
 	else if (field->flags & HIST_FIELD_FL_EXPR ||
 		 field->flags & HIST_FIELD_FL_VAR_REF) {
 		if (field->system) {
@@ -2015,6 +2028,13 @@ static struct hist_field *create_hist_field(struct hist_trigger_data *hist_data,
 		goto out;
 	}
 
+	if (flags & HIST_FIELD_FL_COMM) {
+		hist_field->fn_num = HIST_FIELD_FN_COMM;
+		hist_field->size = MAX_FILTER_STR_VAL;
+		hist_field->type = "char[]";
+		goto out;
+	}
+
 	if (WARN_ON_ONCE(!field))
 		goto out;
 
@@ -2359,9 +2379,11 @@ parse_field(struct hist_trigger_data *hist_data, struct trace_event_file *file,
 			hist_data->attrs->ts_in_usecs = true;
 	} else if (strcmp(field_name, "common_stacktrace") == 0) {
 		*flags |= HIST_FIELD_FL_STACKTRACE;
-	} else if (strcmp(field_name, "common_cpu") == 0)
+	} else if (strcmp(field_name, "common_cpu") == 0) {
 		*flags |= HIST_FIELD_FL_CPU;
-	else if (strcmp(field_name, "hitcount") == 0)
+	} else if (strcmp(field_name, "common_comm") == 0) {
+		*flags |= HIST_FIELD_FL_COMM | HIST_FIELD_FL_STRING;
+	} else if (strcmp(field_name, "hitcount") == 0)
 		*flags |= HIST_FIELD_FL_HITCOUNT;
 	else {
 		field = trace_find_event_field(file->event_call, field_name);
@@ -2377,6 +2399,8 @@ parse_field(struct hist_trigger_data *hist_data, struct trace_event_file *file,
 				*flags |= HIST_FIELD_FL_CPU;
 			} else if (field && field->filter_type == FILTER_STACKTRACE) {
 				*flags |= HIST_FIELD_FL_STACKTRACE;
+			} else if (field && field->filter_type == FILTER_COMM) {
+				*flags |= HIST_FIELD_FL_COMM | HIST_FIELD_FL_STRING;
 			} else {
 				hist_err(tr, HIST_ERR_FIELD_NOT_FOUND,
 					 errpos(field_name));
@@ -4327,6 +4351,8 @@ static u64 hist_fn_call(struct hist_field *hist_field,
 		return hist_field_timestamp(hist_field, elt, buffer, rbe, event);
 	case HIST_FIELD_FN_CPU:
 		return hist_field_cpu(hist_field, elt, buffer, rbe, event);
+	case HIST_FIELD_FN_COMM:
+		return hist_field_comm(hist_field, elt, buffer, rbe, event);
 	case HIST_FIELD_FN_STRING:
 		return hist_field_string(hist_field, elt, buffer, rbe, event);
 	case HIST_FIELD_FN_DYNSTRING:
@@ -5212,14 +5238,19 @@ static inline void add_to_key(char *compound_key, void *key,
 	size_t size = key_field->size;
 
 	if (key_field->flags & HIST_FIELD_FL_STRING) {
-		struct ftrace_event_field *field;
 
-		field = key_field->field;
-		if (field->filter_type == FILTER_DYN_STRING ||
-		    field->filter_type == FILTER_RDYN_STRING)
-			size = *(u32 *)(rec + field->offset) >> 16;
-		else if (field->filter_type == FILTER_STATIC_STRING)
-			size = field->size;
+		if (key_field->flags & HIST_FIELD_FL_COMM) {
+			size = strlen((char *)key);
+		} else {
+			struct ftrace_event_field *field;
+
+			field = key_field->field;
+			if (field->filter_type == FILTER_DYN_STRING ||
+			    field->filter_type == FILTER_RDYN_STRING)
+				size = *(u32 *)(rec + field->offset) >> 16;
+			else if (field->filter_type == FILTER_STATIC_STRING)
+				size = field->size;
+		}
 
 		/* ensure NULL-termination */
 		if (size > key_field->size - 1)
@@ -6097,6 +6128,8 @@ static void hist_field_print(struct seq_file *m, struct hist_field *hist_field)
 
 	if (hist_field->flags & HIST_FIELD_FL_CPU)
 		seq_puts(m, "common_cpu");
+	if (hist_field->flags & HIST_FIELD_FL_COMM)
+		seq_puts(m, "common_comm");
 	else if (hist_field->flags & HIST_FIELD_FL_CONST)
 		seq_printf(m, "%llu", hist_field->constant);
 	else if (field_name) {
