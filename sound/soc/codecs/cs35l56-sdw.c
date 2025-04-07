@@ -509,6 +509,7 @@ static int cs35l56_sdw_probe(struct sdw_slave *peripheral, const struct sdw_devi
 {
 	struct device *dev = &peripheral->dev;
 	struct cs35l56_private *cs35l56;
+	const struct regmap_config *regmap_config;
 	int ret;
 
 	cs35l56 = devm_kzalloc(dev, sizeof(*cs35l56), GFP_KERNEL);
@@ -521,8 +522,17 @@ static int cs35l56_sdw_probe(struct sdw_slave *peripheral, const struct sdw_devi
 
 	dev_set_drvdata(dev, cs35l56);
 
+	switch ((unsigned int)id->driver_data) {
+	case 0x3556:
+	case 0x3557:
+		regmap_config = &cs35l56_regmap_sdw;
+		break;
+	default:
+		return -ENODEV;
+	}
+
 	cs35l56->base.regmap = devm_regmap_init(dev, &cs35l56_regmap_bus_sdw,
-					   peripheral, &cs35l56_regmap_sdw);
+					   peripheral, regmap_config);
 	if (IS_ERR(cs35l56->base.regmap)) {
 		ret = PTR_ERR(cs35l56->base.regmap);
 		return dev_err_probe(dev, ret, "Failed to allocate register map\n");
@@ -562,8 +572,8 @@ static const struct dev_pm_ops cs35l56_sdw_pm = {
 };
 
 static const struct sdw_device_id cs35l56_sdw_id[] = {
-	SDW_SLAVE_ENTRY(0x01FA, 0x3556, 0),
-	SDW_SLAVE_ENTRY(0x01FA, 0x3557, 0),
+	SDW_SLAVE_ENTRY(0x01FA, 0x3556, 0x3556),
+	SDW_SLAVE_ENTRY(0x01FA, 0x3557, 0x3557),
 	{},
 };
 MODULE_DEVICE_TABLE(sdw, cs35l56_sdw_id);
