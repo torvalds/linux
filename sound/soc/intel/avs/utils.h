@@ -11,6 +11,14 @@
 
 #include <sound/soc-acpi.h>
 
+struct avs_mach_pdata {
+	struct hda_codec *codec;
+	unsigned long *tdms;
+	char *codec_name; /* DMIC only */
+
+	bool obsolete_card_names;
+};
+
 static inline bool avs_mach_singular_ssp(struct snd_soc_acpi_mach *mach)
 {
 	return hweight_long(mach->mach_params.i2s_link_mask) == 1;
@@ -23,14 +31,16 @@ static inline u32 avs_mach_ssp_port(struct snd_soc_acpi_mach *mach)
 
 static inline bool avs_mach_singular_tdm(struct snd_soc_acpi_mach *mach, u32 port)
 {
-	unsigned long *tdms = mach->pdata;
+	struct avs_mach_pdata *pdata = mach->pdata;
+	unsigned long *tdms = pdata->tdms;
 
 	return !tdms || (hweight_long(tdms[port]) == 1);
 }
 
 static inline u32 avs_mach_ssp_tdm(struct snd_soc_acpi_mach *mach, u32 port)
 {
-	unsigned long *tdms = mach->pdata;
+	struct avs_mach_pdata *pdata = mach->pdata;
+	unsigned long *tdms = pdata->tdms;
 
 	return tdms ? __ffs(tdms[port]) : 0;
 }

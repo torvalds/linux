@@ -17,10 +17,15 @@
 #include <sound/soc-acpi.h>
 #include <sound/soc-component.h>
 #include "avs.h"
+#include "utils.h"
 
 static bool i2s_test;
 module_param(i2s_test, bool, 0444);
 MODULE_PARM_DESC(i2s_test, "Probe I2S test-board and skip all other I2S boards");
+
+static bool obsolete_card_names = IS_ENABLED(CONFIG_SND_SOC_INTEL_AVS_CARDNAME_OBSOLETE);
+module_param_named(obsolete_card_names, obsolete_card_names, bool, 0444);
+MODULE_PARM_DESC(obsolete_card_names, "Use obsolete card names 0=no, 1=yes");
 
 static const struct dmi_system_id kbl_dmi_table[] = {
 	{
@@ -141,7 +146,7 @@ static struct snd_soc_acpi_mach avs_kbl_i2s_machines[] = {
 		.mach_params = {
 			.i2s_link_mask = AVS_SSP(0),
 		},
-		.pdata = (unsigned long[]){ 0x2, 0, 0, 0, 0, 0 }, /* SSP0 TDMs */
+		.pdata = (struct avs_mach_pdata[]){ { .tdms = (unsigned long[]){ 0x2 } } },
 		.tplg_filename = "rt5514-tplg.bin",
 	},
 	{
@@ -202,7 +207,9 @@ static struct snd_soc_acpi_mach avs_apl_i2s_machines[] = {
 		.mach_params = {
 			.i2s_link_mask = AVS_SSP_RANGE(0, 5),
 		},
-		.pdata = (unsigned long[]){ 0x1, 0x1, 0x14, 0x1, 0x1, 0x1 }, /* SSP2 TDMs */
+		.pdata = (struct avs_mach_pdata[]){ {
+			.tdms = (unsigned long[]){ 0x1, 0x1, 0x14, 0x1, 0x1, 0x1 }
+		} },
 		.tplg_filename = "tdf8532-tplg.bin",
 	},
 	{
@@ -445,6 +452,7 @@ static int avs_register_dmic_board(struct avs_dev *adev)
 {
 	struct platform_device *codec, *board;
 	struct snd_soc_acpi_mach mach = {{0}};
+	struct avs_mach_pdata *pdata;
 	int ret;
 
 	if (!acpi_nhlt_find_endpoint(ACPI_NHLT_LINKTYPE_PDM, -1, -1, -1)) {
@@ -468,6 +476,11 @@ static int avs_register_dmic_board(struct avs_dev *adev)
 	if (ret < 0)
 		return ret;
 
+	pdata = devm_kzalloc(adev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+	pdata->obsolete_card_names = obsolete_card_names;
+	mach.pdata = pdata;
 	mach.tplg_filename = "dmic-tplg.bin";
 	mach.mach_params.platform = "dmic-platform";
 
@@ -490,6 +503,7 @@ static int avs_register_dmic_board(struct avs_dev *adev)
 static int avs_register_i2s_board(struct avs_dev *adev, struct snd_soc_acpi_mach *mach)
 {
 	struct platform_device *board;
+	struct avs_mach_pdata *pdata;
 	int num_ssps;
 	char *name;
 	int ret;
@@ -507,7 +521,15 @@ static int avs_register_i2s_board(struct avs_dev *adev, struct snd_soc_acpi_mach
 	if (!name)
 		return -ENOMEM;
 
-	ret = avs_i2s_platform_register(adev, name, mach->mach_params.i2s_link_mask, mach->pdata);
+	pdata = mach->pdata;
+	if (!pdata)
+		pdata = devm_kzalloc(adev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+	pdata->obsolete_card_names = obsolete_card_names;
+	mach->pdata = pdata;
+
+	ret = avs_i2s_platform_register(adev, name, mach->mach_params.i2s_link_mask, pdata->tdms);
 	if (ret < 0)
 		return ret;
 
@@ -584,6 +606,7 @@ static int avs_register_hda_board(struct avs_dev *adev, struct hda_codec *codec)
 {
 	struct snd_soc_acpi_mach mach = {{0}};
 	struct platform_device *board;
+	struct avs_mach_pdata *pdata;
 	struct hdac_device *hdev = &codec->core;
 	char *pname;
 	int ret, id;
@@ -592,11 +615,17 @@ static int avs_register_hda_board(struct avs_dev *adev, struct hda_codec *codec)
 	if (!pname)
 		return -ENOMEM;
 
+	pdata = devm_kzalloc(adev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+	pdata->obsolete_card_names = obsolete_card_names;
+	pdata->codec = codec;
+
 	ret = avs_hda_platform_register(adev, pname);
 	if (ret < 0)
 		return ret;
 
-	mach.pdata = codec;
+	mach.pdata = pdata;
 	mach.mach_params.platform = pname;
 	mach.tplg_filename = devm_kasprintf(adev->dev, GFP_KERNEL, "hda-%08x-tplg.bin",
 					    hdev->vendor_id);

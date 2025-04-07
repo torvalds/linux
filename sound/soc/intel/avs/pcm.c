@@ -18,6 +18,7 @@
 #include "path.h"
 #include "pcm.h"
 #include "topology.h"
+#include "utils.h"
 #include "../../codecs/hda.h"
 
 struct avs_dma_data {
@@ -1480,6 +1481,7 @@ static int avs_component_hda_probe(struct snd_soc_component *component)
 	struct snd_soc_dapm_context *dapm;
 	struct snd_soc_dai_driver *dais;
 	struct snd_soc_acpi_mach *mach;
+	struct avs_mach_pdata *pdata;
 	struct hda_codec *codec;
 	struct hda_pcm *pcm;
 	const char *cname;
@@ -1489,7 +1491,8 @@ static int avs_component_hda_probe(struct snd_soc_component *component)
 	if (!mach)
 		return -EINVAL;
 
-	codec = mach->pdata;
+	pdata = mach->pdata;
+	codec = pdata->codec;
 	if (list_empty(&codec->pcm_list_head))
 		return -EINVAL;
 	list_for_each_entry(pcm, &codec->pcm_list_head, list)
