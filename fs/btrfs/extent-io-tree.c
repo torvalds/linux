@@ -1022,11 +1022,11 @@ out:
  *
  * [start, end] is inclusive This takes the tree lock.
  */
-static int __set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-			    u32 bits, u64 *failed_start,
-			    struct extent_state **failed_state,
-			    struct extent_state **cached_state,
-			    struct extent_changeset *changeset)
+static int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
+			  u32 bits, u64 *failed_start,
+			  struct extent_state **failed_state,
+			  struct extent_state **cached_state,
+			  struct extent_changeset *changeset)
 {
 	struct extent_state *state;
 	struct extent_state *prealloc = NULL;
@@ -1258,8 +1258,7 @@ out:
 int btrfs_set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 			 u32 bits, struct extent_state **cached_state)
 {
-	return __set_extent_bit(tree, start, end, bits, NULL, NULL,
-				cached_state, NULL);
+	return set_extent_bit(tree, start, end, bits, NULL, NULL, cached_state, NULL);
 }
 
 /*
@@ -1815,7 +1814,7 @@ int btrfs_set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end
 	 */
 	ASSERT(!(bits & EXTENT_LOCK_BITS));
 
-	return __set_extent_bit(tree, start, end, bits, NULL, NULL, NULL, changeset);
+	return set_extent_bit(tree, start, end, bits, NULL, NULL, NULL, changeset);
 }
 
 int btrfs_clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
@@ -1836,8 +1835,8 @@ bool btrfs_try_lock_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 	int err;
 	u64 failed_start;
 
-	err = __set_extent_bit(tree, start, end, bits, &failed_start,
-			       NULL, cached, NULL);
+	err = set_extent_bit(tree, start, end, bits, &failed_start, NULL,
+			     cached, NULL);
 	if (err == -EEXIST) {
 		if (failed_start > start)
 			btrfs_clear_extent_bit(tree, start, failed_start - 1,
@@ -1858,17 +1857,16 @@ int btrfs_lock_extent_bits(struct extent_io_tree *tree, u64 start, u64 end, u32 
 	int err;
 	u64 failed_start;
 
-	err = __set_extent_bit(tree, start, end, bits, &failed_start,
-			       &failed_state, cached_state, NULL);
+	err = set_extent_bit(tree, start, end, bits, &failed_start,
+			     &failed_state, cached_state, NULL);
 	while (err == -EEXIST) {
 		if (failed_start != start)
 			btrfs_clear_extent_bit(tree, start, failed_start - 1,
 					       bits, cached_state);
 
 		wait_extent_bit(tree, failed_start, end, bits, &failed_state);
-		err = __set_extent_bit(tree, start, end, bits,
-				       &failed_start, &failed_state,
-				       cached_state, NULL);
+		err = set_extent_bit(tree, start, end, bits, &failed_start,
+				     &failed_state, cached_state, NULL);
 	}
 	return err;
 }
