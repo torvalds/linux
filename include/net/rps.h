@@ -57,9 +57,10 @@ struct rps_dev_flow_table {
  * meaning we use 32-6=26 bits for the hash.
  */
 struct rps_sock_flow_table {
-	u32	mask;
+	struct rcu_head	rcu;
+	u32		mask;
 
-	u32	ents[] ____cacheline_aligned_in_smp;
+	u32		ents[] ____cacheline_aligned_in_smp;
 };
 #define	RPS_SOCK_FLOW_TABLE_SIZE(_num) (offsetof(struct rps_sock_flow_table, ents[_num]))
 
