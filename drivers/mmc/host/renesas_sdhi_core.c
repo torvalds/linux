@@ -1166,12 +1166,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	if (ret)
 		goto efree;
 
-	rcfg.of_node = of_get_child_by_name(dev->of_node, "vqmmc-regulator");
-	if (!of_device_is_available(rcfg.of_node)) {
-		of_node_put(rcfg.of_node);
-		rcfg.of_node = NULL;
-	}
-
+	rcfg.of_node = of_get_available_child_by_name(dev->of_node, "vqmmc-regulator");
 	if (rcfg.of_node) {
 		rcfg.driver_data = priv->host;
 		rdev = devm_regulator_register(dev, &renesas_sdhi_vqmmc_regulator, &rcfg);
