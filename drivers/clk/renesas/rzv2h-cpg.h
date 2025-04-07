@@ -45,6 +45,14 @@ struct ddiv {
 	unsigned int monbit:5;
 };
 
+/*
+ * On RZ/V2H(P), the dynamic divider clock supports up to 19 monitor bits,
+ * while on RZ/G3E, it supports up to 16 monitor bits. Use the maximum value
+ * `0x1f` to indicate that monitor bits are not supported for static divider
+ * clocks.
+ */
+#define CSDIV_NO_MON	(0x1f)
+
 #define DDIV_PACK(_offset, _shift, _width, _monbit) \
 	((struct ddiv){ \
 		.offset = _offset, \
@@ -150,6 +158,8 @@ enum clk_types {
 		.parent = _parent, \
 		.dtable = _dtable, \
 		.flag = CLK_DIVIDER_HIWORD_MASK)
+#define DEF_CSDIV(_name, _id, _parent, _ddiv_packed, _dtable) \
+	DEF_DDIV(_name, _id, _parent, _ddiv_packed, _dtable)
 #define DEF_SMUX(_name, _id, _smux_packed, _parent_names) \
 	DEF_TYPE(_name, _id, CLK_TYPE_SMUX, \
 		 .cfg.smux = _smux_packed, \
