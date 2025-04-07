@@ -502,7 +502,6 @@ static const struct snd_soc_dai_ops avs_dai_hda_be_ops = {
 	.trigger = avs_dai_hda_be_trigger,
 };
 
-__maybe_unused
 static const struct snd_soc_dai_ops avs_dai_i2shda_be_ops = {
 	.startup = avs_dai_i2shda_be_startup,
 	.shutdown = avs_dai_althda_be_shutdown,
@@ -512,7 +511,6 @@ static const struct snd_soc_dai_ops avs_dai_i2shda_be_ops = {
 	.trigger = avs_dai_hda_be_trigger,
 };
 
-__maybe_unused
 static const struct snd_soc_dai_ops avs_dai_dmichda_be_ops = {
 	.startup = avs_dai_dmichda_be_startup,
 	.shutdown = avs_dai_althda_be_shutdown,
@@ -1359,7 +1357,6 @@ int avs_soc_component_register(struct device *dev, const char *name,
 static struct snd_soc_dai_driver dmic_cpu_dais[] = {
 {
 	.name = "DMIC Pin",
-	.ops = &avs_dai_nonhda_be_ops,
 	.capture = {
 		.stream_name	= "DMIC Rx",
 		.channels_min	= 1,
@@ -1370,7 +1367,6 @@ static struct snd_soc_dai_driver dmic_cpu_dais[] = {
 },
 {
 	.name = "DMIC WoV Pin",
-	.ops = &avs_dai_nonhda_be_ops,
 	.capture = {
 		.stream_name	= "DMIC WoV Rx",
 		.channels_min	= 1,
@@ -1383,12 +1379,20 @@ static struct snd_soc_dai_driver dmic_cpu_dais[] = {
 
 int avs_dmic_platform_register(struct avs_dev *adev, const char *name)
 {
+	const struct snd_soc_dai_ops *ops;
+
+	if (avs_platattr_test(adev, ALTHDA))
+		ops = &avs_dai_dmichda_be_ops;
+	else
+		ops = &avs_dai_nonhda_be_ops;
+
+	dmic_cpu_dais[0].ops = ops;
+	dmic_cpu_dais[1].ops = ops;
 	return avs_soc_component_register(adev->dev, name, &avs_component_driver, dmic_cpu_dais,
 					  ARRAY_SIZE(dmic_cpu_dais));
 }
 
 static const struct snd_soc_dai_driver i2s_dai_template = {
-	.ops = &avs_dai_nonhda_be_ops,
 	.playback = {
 		.channels_min	= 1,
 		.channels_max	= 8,
@@ -1421,10 +1425,15 @@ int avs_i2s_platform_register(struct avs_dev *adev, const char *name, unsigned l
 			      unsigned long *tdms)
 {
 	struct snd_soc_dai_driver *cpus, *dai;
+	const struct snd_soc_dai_ops *ops;
 	size_t ssp_count, cpu_count;
 	int i, j;
 
 	ssp_count = adev->hw_cfg.i2s_caps.ctrl_count;
+	if (avs_platattr_test(adev, ALTHDA))
+		ops = &avs_dai_i2shda_be_ops;
+	else
+		ops = &avs_dai_nonhda_be_ops;
 
 	cpu_count = 0;
 	for_each_set_bit(i, &port_mask, ssp_count)
@@ -1452,6 +1461,7 @@ int avs_i2s_platform_register(struct avs_dev *adev, const char *name, unsigned l
 
 			if (!dai->name || !dai->playback.stream_name || !dai->capture.stream_name)
 				return -ENOMEM;
+			dai->ops = ops;
 			dai++;
 		}
 	}
@@ -1472,6 +1482,7 @@ int avs_i2s_platform_register(struct avs_dev *adev, const char *name, unsigned l
 
 			if (!dai->name || !dai->playback.stream_name || !dai->capture.stream_name)
 				return -ENOMEM;
+			dai->ops = ops;
 			dai++;
 		}
 	}
