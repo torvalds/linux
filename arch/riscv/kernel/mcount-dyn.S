@@ -82,12 +82,9 @@
 *                       +++++++++
 **/
 	.macro SAVE_ABI_REGS
-	mv	t4, sp			// Save original SP in T4
 	addi	sp, sp, -FREGS_SIZE_ON_STACK
-
 	REG_S	t0,  FREGS_EPC(sp)
 	REG_S	x1,  FREGS_RA(sp)
-	REG_S	t4,  FREGS_SP(sp)	// Put original SP on stack
 #ifdef HAVE_FUNCTION_GRAPH_FP_TEST
 	REG_S	x8,  FREGS_S0(sp)
 #endif
@@ -108,9 +105,12 @@
 	REG_S	x15, FREGS_A5(sp)
 	REG_S	x16, FREGS_A6(sp)
 	REG_S	x17, FREGS_A7(sp)
+	mv	a0, sp
+	addi	a0, a0, FREGS_SIZE_ON_STACK
+	REG_S	a0, FREGS_SP(sp)	// Put original SP on stack
 	.endm
 
-	.macro RESTORE_ABI_REGS, all=0
+	.macro RESTORE_ABI_REGS
 	REG_L	t0, FREGS_EPC(sp)
 	REG_L	x1, FREGS_RA(sp)
 #ifdef HAVE_FUNCTION_GRAPH_FP_TEST
@@ -140,6 +140,19 @@
 	.macro PREPARE_ARGS
 	addi	a0, t0, -MCOUNT_JALR_SIZE	// ip (callsite's jalr insn)
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS
+	mv 	a1, ra				// parent_ip
+	REG_L   a2, -16(t0)			// op
+	REG_L   ra, FTRACE_OPS_FUNC(a2)		// op->func
+#else
+	la	a1, function_trace_op
+	REG_L	a2, 0(a1)			// op
+	mv	a1, ra				// parent_ip
+#endif
+	mv	a3, sp				// regs
+	.endm
+
+SYM_FUNC_START(ftrace_caller)
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS
 	/*
 	 * When CALL_OPS is enabled (2 or 4) nops [8B] are placed before the
 	 * function entry, these are later overwritten with the pointer to the
@@ -158,19 +171,17 @@
 	 * t0 is set to ip+8 after the jalr is executed at the callsite,
 	 * so we find the associated op at t0-16.
 	 */
-	mv 	a1, ra				// parent_ip
-	REG_L   a2, -16(t0)			// op
-	REG_L   ra, FTRACE_OPS_FUNC(a2)		// op->func
-#else
-	la	a1, function_trace_op
-	REG_L	a2, 0(a1)			// op
-	mv	a1, ra				// parent_ip
-#endif
-	mv	a3, sp				// regs
-	.endm
+	REG_L	t1, -16(t0) // op Should be SZ_REG instead of 16
 
-SYM_FUNC_START(ftrace_caller)
-	mv	t1, zero
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+	/*
+	 * If the op has a direct call, handle it immediately without
+	 * saving/restoring registers.
+	 */
+	REG_L	t1, FTRACE_OPS_DIRECT_CALL(t1)
+	bnez	t1, ftrace_caller_direct
+#endif
+#endif
 	SAVE_ABI_REGS
 	PREPARE_ARGS
 
@@ -182,10 +193,14 @@ SYM_INNER_LABEL(ftrace_call, SYM_L_GLOBAL)
 	jalr	ra, 0(ra)
 #endif
 	RESTORE_ABI_REGS
-	bnez	t1, .Ldirect
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+	bnez	t1, ftrace_caller_direct
+#endif
 	jr	t0
-.Ldirect:
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+SYM_INNER_LABEL(ftrace_caller_direct, SYM_L_LOCAL)
 	jr	t1
+#endif
 SYM_FUNC_END(ftrace_caller)
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS

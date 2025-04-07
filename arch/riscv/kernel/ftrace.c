@@ -17,7 +17,7 @@
 unsigned long ftrace_call_adjust(unsigned long addr)
 {
 	if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS))
-		return addr + 8;
+		return addr + 8 + MCOUNT_AUIPC_SIZE;
 
 	return addr + MCOUNT_AUIPC_SIZE;
 }
@@ -83,10 +83,9 @@ static const struct ftrace_ops *riscv64_rec_get_ops(struct dyn_ftrace *rec)
 	return ops;
 }
 
-static int ftrace_rec_set_ops(const struct dyn_ftrace *rec,
-			      const struct ftrace_ops *ops)
+static int ftrace_rec_set_ops(const struct dyn_ftrace *rec, const struct ftrace_ops *ops)
 {
-	unsigned long literal = rec->ip - 8;
+	unsigned long literal = ALIGN_DOWN(rec->ip - 12, 8);
 
 	return patch_text_nosync((void *)literal, &ops, sizeof(ops));
 }
@@ -117,7 +116,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	orig_addr = (unsigned long)&ftrace_caller;
 	distance = addr > orig_addr ? addr - orig_addr : orig_addr - addr;
 	if (distance > JALR_RANGE)
-		return -EINVAL;
+		addr = FTRACE_ADDR;
 
 	return __ftrace_modify_call(pc, addr, false);
 }
@@ -204,15 +203,13 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 		       unsigned long addr)
 {
 	unsigned long caller = rec->ip - MCOUNT_AUIPC_SIZE;
-	unsigned int call[2];
 	int ret;
 
-	make_call_t0(caller, old_addr, call);
 	ret = ftrace_rec_update_ops(rec);
 	if (ret)
 		return ret;
 
-	return __ftrace_modify_call(caller, addr, true);
+	return __ftrace_modify_call(caller, FTRACE_ADDR, true);
 }
 #endif
 
