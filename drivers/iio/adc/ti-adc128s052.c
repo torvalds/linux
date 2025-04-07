@@ -28,7 +28,10 @@ struct adc128 {
 	struct regulator *reg;
 	struct mutex lock;
 
-	u8 buffer[2] __aligned(IIO_DMA_MINALIGN);
+	union {
+		__be16 buffer16;
+		u8 buffer[2];
+	} __aligned(IIO_DMA_MINALIGN);
 };
 
 static int adc128_adc_conversion(struct adc128 *adc, u8 channel)
@@ -40,20 +43,18 @@ static int adc128_adc_conversion(struct adc128 *adc, u8 channel)
 	adc->buffer[0] = channel << 3;
 	adc->buffer[1] = 0;
 
-	ret = spi_write(adc->spi, &adc->buffer, 2);
+	ret = spi_write(adc->spi, &adc->buffer, sizeof(adc->buffer));
 	if (ret < 0) {
 		mutex_unlock(&adc->lock);
 		return ret;
 	}
 
-	ret = spi_read(adc->spi, &adc->buffer, 2);
-
+	ret = spi_read(adc->spi, &adc->buffer16, sizeof(adc->buffer16));
 	mutex_unlock(&adc->lock);
-
 	if (ret < 0)
 		return ret;
 
-	return ((adc->buffer[0] << 8 | adc->buffer[1]) & 0xFFF);
+	return be16_to_cpu(adc->buffer16) & 0xFFF;
 }
 
 static int adc128_read_raw(struct iio_dev *indio_dev,
