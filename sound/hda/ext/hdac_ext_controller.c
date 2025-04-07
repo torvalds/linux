@@ -98,6 +98,7 @@ int snd_hdac_ext_bus_get_ml_capabilities(struct hdac_bus *bus)
 					(AZX_ML_INTERVAL * idx);
 		hlink->lcaps  = readl(hlink->ml_addr + AZX_REG_ML_LCAP);
 		hlink->lsdiid = readw(hlink->ml_addr + AZX_REG_ML_LSDIID);
+		hlink->slcount = FIELD_GET(AZX_ML_HDA_LCAP_SLCOUNT, hlink->lcaps) + 1;
 
 		if (hdac_ext_link_alt(hlink)) {
 			leptr = readl(hlink->ml_addr + AZX_REG_ML_LEPTR);

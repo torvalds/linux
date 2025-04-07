@@ -99,6 +99,7 @@ struct hdac_ext_link {
 	u32 lcaps;   /* link capablities */
 	u16 lsdiid;  /* link sdi identifier */
 	u32 id;
+	u8 slcount;
 
 	int ref_count;
 
