@@ -3027,7 +3027,7 @@ static int do_setlink(const struct sk_buff *skb, struct net_device *dev,
 
 	err = validate_linkmsg(dev, tb, extack);
 	if (err < 0)
-		goto errout;
+		return err;
 
 	if (tb[IFLA_IFNAME])
 		nla_strscpy(ifname, tb[IFLA_IFNAME], IFNAMSIZ);
