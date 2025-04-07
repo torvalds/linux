@@ -177,7 +177,8 @@ bool intel_plane_needs_physical(struct intel_plane *plane)
 bool intel_plane_can_async_flip(struct intel_plane *plane, u32 format,
 				u64 modifier)
 {
-	if (intel_format_info_is_yuv_semiplanar(drm_format_info(format), modifier))
+	if (intel_format_info_is_yuv_semiplanar(drm_format_info(format), modifier) ||
+	    format == DRM_FORMAT_C8)
 		return false;
 
 	return plane->can_async_flip && plane->can_async_flip(modifier);
