@@ -204,13 +204,15 @@ static void __em_gio_set(struct gpio_chip *chip, unsigned int reg,
 		     (BIT(shift + 16)) | (value << shift));
 }
 
-static void em_gio_set(struct gpio_chip *chip, unsigned offset, int value)
+static int em_gio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	/* output is split into two registers */
 	if (offset < 16)
 		__em_gio_set(chip, GIO_OL, offset, value);
 	else
 		__em_gio_set(chip, GIO_OH, offset - 16, value);
+
+	return 0;
 }
 
 static int em_gio_direction_output(struct gpio_chip *chip, unsigned offset,
@@ -304,7 +306,7 @@ static int em_gio_probe(struct platform_device *pdev)
 	gpio_chip->direction_input = em_gio_direction_input;
 	gpio_chip->get = em_gio_get;
 	gpio_chip->direction_output = em_gio_direction_output;
-	gpio_chip->set = em_gio_set;
+	gpio_chip->set_rv = em_gio_set;
 	gpio_chip->to_irq = em_gio_to_irq;
 	gpio_chip->request = pinctrl_gpio_request;
 	gpio_chip->free = em_gio_free;
