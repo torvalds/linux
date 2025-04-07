@@ -241,13 +241,13 @@ static struct acomp_alg qat_acomp[] = { {
 		.cra_priority = 4001,
 		.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY,
 		.cra_ctxsize = sizeof(struct qat_compression_ctx),
+		.cra_reqsize = sizeof(struct qat_compression_req),
 		.cra_module = THIS_MODULE,
 	},
 	.init = qat_comp_alg_init_tfm,
 	.exit = qat_comp_alg_exit_tfm,
 	.compress = qat_comp_alg_compress,
 	.decompress = qat_comp_alg_decompress,
-	.reqsize = sizeof(struct qat_compression_req),
 }};
 
 int qat_comp_algs_register(void)
