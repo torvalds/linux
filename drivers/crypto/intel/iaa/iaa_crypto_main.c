@@ -999,12 +999,9 @@ out:
 
 static int deflate_generic_decompress(struct acomp_req *req)
 {
-	ACOMP_REQUEST_ON_STACK(fbreq, crypto_acomp_reqtfm(req));
+	ACOMP_FBREQ_ON_STACK(fbreq, req);
 	int ret;
 
-	acomp_request_set_callback(fbreq, 0, NULL, NULL);
-	acomp_request_set_params(fbreq, req->src, req->dst, req->slen,
-				 req->dlen);
 	ret = crypto_acomp_decompress(fbreq);
 	req->dlen = fbreq->dlen;
 
