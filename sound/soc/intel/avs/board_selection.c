@@ -23,7 +23,7 @@ static bool i2s_test;
 module_param(i2s_test, bool, 0444);
 MODULE_PARM_DESC(i2s_test, "Probe I2S test-board and skip all other I2S boards");
 
-static bool obsolete_card_names = IS_ENABLED(CONFIG_SND_SOC_INTEL_AVS_CARDNAME_OBSOLETE);
+bool obsolete_card_names = IS_ENABLED(CONFIG_SND_SOC_INTEL_AVS_CARDNAME_OBSOLETE);
 module_param_named(obsolete_card_names, obsolete_card_names, bool, 0444);
 MODULE_PARM_DESC(obsolete_card_names, "Use obsolete card names 0=no, 1=yes");
 

@@ -11,6 +11,8 @@
 
 #include <sound/soc-acpi.h>
 
+extern bool obsolete_card_names;
+
 struct avs_mach_pdata {
 	struct hda_codec *codec;
 	unsigned long *tdms;
