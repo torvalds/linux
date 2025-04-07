@@ -599,62 +599,62 @@ const struct x86_dev_info whitelabel_tm800a550l_info __initconst = {
 };
 
 /*
- * Vexia EDU ATLA 10 tablet, Android 4.2 / 4.4 + Guadalinex Ubuntu tablet
+ * Vexia EDU ATLA 10 tablet 9V, Android 4.2 + Guadalinex Ubuntu tablet
  * distributed to schools in the Spanish Andalucía region.
  */
 static const char * const crystal_cove_pwrsrc_psy[] = { "crystal_cove_pwrsrc" };
 
-static const struct property_entry vexia_edu_atla10_ulpmc_props[] = {
+static const struct property_entry vexia_edu_atla10_9v_ulpmc_props[] = {
 	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", crystal_cove_pwrsrc_psy),
 	{ }
 };
 
-static const struct software_node vexia_edu_atla10_ulpmc_node = {
-	.properties = vexia_edu_atla10_ulpmc_props,
+static const struct software_node vexia_edu_atla10_9v_ulpmc_node = {
+	.properties = vexia_edu_atla10_9v_ulpmc_props,
 };
 
-static const char * const vexia_edu_atla10_accel_mount_matrix[] = {
+static const char * const vexia_edu_atla10_9v_accel_mount_matrix[] = {
 	"0", "-1", "0",
 	"1", "0", "0",
 	"0", "0", "1"
 };
 
-static const struct property_entry vexia_edu_atla10_accel_props[] = {
-	PROPERTY_ENTRY_STRING_ARRAY("mount-matrix", vexia_edu_atla10_accel_mount_matrix),
+static const struct property_entry vexia_edu_atla10_9v_accel_props[] = {
+	PROPERTY_ENTRY_STRING_ARRAY("mount-matrix", vexia_edu_atla10_9v_accel_mount_matrix),
 	{ }
 };
 
-static const struct software_node vexia_edu_atla10_accel_node = {
-	.properties = vexia_edu_atla10_accel_props,
+static const struct software_node vexia_edu_atla10_9v_accel_node = {
+	.properties = vexia_edu_atla10_9v_accel_props,
 };
 
-static const struct property_entry vexia_edu_atla10_touchscreen_props[] = {
+static const struct property_entry vexia_edu_atla10_9v_touchscreen_props[] = {
 	PROPERTY_ENTRY_U32("hid-descr-addr", 0x0000),
 	PROPERTY_ENTRY_U32("post-reset-deassert-delay-ms", 120),
 	{ }
 };
 
-static const struct software_node vexia_edu_atla10_touchscreen_node = {
-	.properties = vexia_edu_atla10_touchscreen_props,
+static const struct software_node vexia_edu_atla10_9v_touchscreen_node = {
+	.properties = vexia_edu_atla10_9v_touchscreen_props,
 };
 
-static const struct property_entry vexia_edu_atla10_pmic_props[] = {
+static const struct property_entry vexia_edu_atla10_9v_pmic_props[] = {
 	PROPERTY_ENTRY_BOOL("linux,register-pwrsrc-power_supply"),
 	{ }
 };
 
-static const struct software_node vexia_edu_atla10_pmic_node = {
-	.properties = vexia_edu_atla10_pmic_props,
+static const struct software_node vexia_edu_atla10_9v_pmic_node = {
+	.properties = vexia_edu_atla10_9v_pmic_props,
 };
 
-static const struct x86_i2c_client_info vexia_edu_atla10_i2c_clients[] __initconst = {
+static const struct x86_i2c_client_info vexia_edu_atla10_9v_i2c_clients[] __initconst = {
 	{
 		/* I2C attached embedded controller, used to access fuel-gauge */
 		.board_info = {
 			.type = "vexia_atla10_ec",
 			.addr = 0x76,
 			.dev_name = "ulpmc",
-			.swnode = &vexia_edu_atla10_ulpmc_node,
+			.swnode = &vexia_edu_atla10_9v_ulpmc_node,
 		},
 		.adapter_path = "0000:00:18.1",
 	}, {
@@ -679,7 +679,7 @@ static const struct x86_i2c_client_info vexia_edu_atla10_i2c_clients[] __initcon
 			.type = "kxtj21009",
 			.addr = 0x0f,
 			.dev_name = "kxtj21009",
-			.swnode = &vexia_edu_atla10_accel_node,
+			.swnode = &vexia_edu_atla10_9v_accel_node,
 		},
 		.adapter_path = "0000:00:18.5",
 	}, {
@@ -688,7 +688,7 @@ static const struct x86_i2c_client_info vexia_edu_atla10_i2c_clients[] __initcon
 			.type = "hid-over-i2c",
 			.addr = 0x38,
 			.dev_name = "FTSC1000",
-			.swnode = &vexia_edu_atla10_touchscreen_node,
+			.swnode = &vexia_edu_atla10_9v_touchscreen_node,
 		},
 		.adapter_path = "0000:00:18.6",
 		.irq_data = {
@@ -703,7 +703,7 @@ static const struct x86_i2c_client_info vexia_edu_atla10_i2c_clients[] __initcon
 			.type = "intel_soc_pmic_crc",
 			.addr = 0x6e,
 			.dev_name = "intel_soc_pmic_crc",
-			.swnode = &vexia_edu_atla10_pmic_node,
+			.swnode = &vexia_edu_atla10_9v_pmic_node,
 		},
 		.adapter_path = "0000:00:18.7",
 		.irq_data = {
@@ -715,7 +715,7 @@ static const struct x86_i2c_client_info vexia_edu_atla10_i2c_clients[] __initcon
 	}
 };
 
-static const struct x86_serdev_info vexia_edu_atla10_serdevs[] __initconst = {
+static const struct x86_serdev_info vexia_edu_atla10_9v_serdevs[] __initconst = {
 	{
 		.ctrl.pci.devfn = PCI_DEVFN(0x1e, 3),
 		.ctrl_devname = "serial0",
@@ -723,7 +723,7 @@ static const struct x86_serdev_info vexia_edu_atla10_serdevs[] __initconst = {
 	},
 };
 
-static struct gpiod_lookup_table vexia_edu_atla10_ft5416_gpios = {
+static struct gpiod_lookup_table vexia_edu_atla10_9v_ft5416_gpios = {
 	.dev_id = "i2c-FTSC1000",
 	.table = {
 		GPIO_LOOKUP("INT33FC:00", 60, "reset", GPIO_ACTIVE_LOW),
@@ -731,12 +731,12 @@ static struct gpiod_lookup_table vexia_edu_atla10_ft5416_gpios = {
 	},
 };
 
-static struct gpiod_lookup_table * const vexia_edu_atla10_gpios[] = {
-	&vexia_edu_atla10_ft5416_gpios,
+static struct gpiod_lookup_table * const vexia_edu_atla10_9v_gpios[] = {
+	&vexia_edu_atla10_9v_ft5416_gpios,
 	NULL
 };
 
-static int __init vexia_edu_atla10_init(struct device *dev)
+static int __init vexia_edu_atla10_9v_init(struct device *dev)
 {
 	struct pci_dev *pdev;
 	int ret;
@@ -760,13 +760,13 @@ static int __init vexia_edu_atla10_init(struct device *dev)
 	return 0;
 }
 
-const struct x86_dev_info vexia_edu_atla10_info __initconst = {
-	.i2c_client_info = vexia_edu_atla10_i2c_clients,
-	.i2c_client_count = ARRAY_SIZE(vexia_edu_atla10_i2c_clients),
-	.serdev_info = vexia_edu_atla10_serdevs,
-	.serdev_count = ARRAY_SIZE(vexia_edu_atla10_serdevs),
-	.gpiod_lookup_tables = vexia_edu_atla10_gpios,
-	.init = vexia_edu_atla10_init,
+const struct x86_dev_info vexia_edu_atla10_9v_info __initconst = {
+	.i2c_client_info = vexia_edu_atla10_9v_i2c_clients,
+	.i2c_client_count = ARRAY_SIZE(vexia_edu_atla10_9v_i2c_clients),
+	.serdev_info = vexia_edu_atla10_9v_serdevs,
+	.serdev_count = ARRAY_SIZE(vexia_edu_atla10_9v_serdevs),
+	.gpiod_lookup_tables = vexia_edu_atla10_9v_gpios,
+	.init = vexia_edu_atla10_9v_init,
 	.use_pci = true,
 };
 

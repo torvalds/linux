@@ -187,7 +187,7 @@ const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 			/* Above strings are too generic, also match on BIOS date */
 			DMI_MATCH(DMI_BIOS_DATE, "08/25/2014"),
 		},
-		.driver_data = (void *)&vexia_edu_atla10_info,
+		.driver_data = (void *)&vexia_edu_atla10_9v_info,
 	},
 	{
 		/* Whitelabel (sold as various brands) TM800A550L */
