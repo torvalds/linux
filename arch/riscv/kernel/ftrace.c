@@ -16,6 +16,9 @@
 #ifdef CONFIG_DYNAMIC_FTRACE
 unsigned long ftrace_call_adjust(unsigned long addr)
 {
+	if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS))
+		return addr + 8;
+
 	return addr + MCOUNT_AUIPC_SIZE;
 }
 
@@ -64,9 +67,52 @@ static int __ftrace_modify_call(unsigned long source, unsigned long target, bool
 	return 0;
 }
 
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS
+static const struct ftrace_ops *riscv64_rec_get_ops(struct dyn_ftrace *rec)
+{
+	const struct ftrace_ops *ops = NULL;
+
+	if (rec->flags & FTRACE_FL_CALL_OPS_EN) {
+		ops = ftrace_find_unique_ops(rec);
+		WARN_ON_ONCE(!ops);
+	}
+
+	if (!ops)
+		ops = &ftrace_list_ops;
+
+	return ops;
+}
+
+static int ftrace_rec_set_ops(const struct dyn_ftrace *rec,
+			      const struct ftrace_ops *ops)
+{
+	unsigned long literal = rec->ip - 8;
+
+	return patch_text_nosync((void *)literal, &ops, sizeof(ops));
+}
+
+static int ftrace_rec_set_nop_ops(struct dyn_ftrace *rec)
+{
+	return ftrace_rec_set_ops(rec, &ftrace_nop_ops);
+}
+
+static int ftrace_rec_update_ops(struct dyn_ftrace *rec)
+{
+	return ftrace_rec_set_ops(rec, riscv64_rec_get_ops(rec));
+}
+#else
+static int ftrace_rec_set_nop_ops(struct dyn_ftrace *rec) { return 0; }
+static int ftrace_rec_update_ops(struct dyn_ftrace *rec) { return 0; }
+#endif
+
 int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned long distance, orig_addr, pc = rec->ip - MCOUNT_AUIPC_SIZE;
+	int ret;
+
+	ret = ftrace_rec_update_ops(rec);
+	if (ret)
+		return ret;
 
 	orig_addr = (unsigned long)&ftrace_caller;
 	distance = addr > orig_addr ? addr - orig_addr : orig_addr - addr;
@@ -79,6 +125,11 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec, unsigned long addr)
 {
 	u32 nop4 = RISCV_INSN_NOP4;
+	int ret;
+
+	ret = ftrace_rec_set_nop_ops(rec);
+	if (ret)
+		return ret;
 
 	if (patch_insn_write((void *)rec->ip, &nop4, MCOUNT_NOP4_SIZE))
 		return -EPERM;
@@ -99,6 +150,10 @@ int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
 	unsigned int nops[2], offset;
 	int ret;
 
+	ret = ftrace_rec_set_nop_ops(rec);
+	if (ret)
+		return ret;
+
 	offset = (unsigned long) &ftrace_caller - pc;
 	nops[0] = to_auipc_t0(offset);
 	nops[1] = RISCV_INSN_NOP4;
@@ -113,6 +168,13 @@ int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
 ftrace_func_t ftrace_call_dest = ftrace_stub;
 int ftrace_update_ftrace_func(ftrace_func_t func)
 {
+	/*
+	 * When using CALL_OPS, the function to call is associated with the
+	 * call site, and we don't have a global function pointer to update.
+	 */
+	if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS))
+		return 0;
+
 	WRITE_ONCE(ftrace_call_dest, func);
 	/*
 	 * The data fence ensure that the update to ftrace_call_dest happens
@@ -143,8 +205,13 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 {
 	unsigned long caller = rec->ip - MCOUNT_AUIPC_SIZE;
 	unsigned int call[2];
+	int ret;
 
 	make_call_t0(caller, old_addr, call);
+	ret = ftrace_rec_update_ops(rec);
+	if (ret)
+		return ret;
+
 	return __ftrace_modify_call(caller, addr, true);
 }
 #endif
