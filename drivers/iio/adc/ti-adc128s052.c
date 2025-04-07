@@ -172,7 +172,9 @@ static int adc128_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	mutex_init(&adc->lock);
+	ret = devm_mutex_init(&spi->dev, &adc->lock);
+	if (ret)
+		return ret;
 
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }
