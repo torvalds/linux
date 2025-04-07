@@ -56,8 +56,6 @@
 	addi	sp, sp, ABI_SIZE_ON_STACK
 	.endm
 
-#ifdef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
-
 /**
 * SAVE_ABI_REGS - save regs against the ftrace_regs struct
 *
@@ -149,36 +147,6 @@
 	mv	a3, sp
 	.endm
 
-#endif /* CONFIG_DYNAMIC_FTRACE_WITH_ARGS */
-
-#ifndef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
-SYM_FUNC_START(ftrace_caller)
-	SAVE_ABI
-
-	addi	a0, t0, -FENTRY_RA_OFFSET
-	la	a1, function_trace_op
-	REG_L	a2, 0(a1)
-	mv	a1, ra
-	mv	a3, sp
-
-SYM_INNER_LABEL(ftrace_call, SYM_L_GLOBAL)
-	call	ftrace_stub
-
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	addi	a0, sp, ABI_RA
-	REG_L	a1, ABI_T0(sp)
-	addi	a1, a1, -FENTRY_RA_OFFSET
-#ifdef HAVE_FUNCTION_GRAPH_FP_TEST
-	mv	a2, s0
-#endif
-SYM_INNER_LABEL(ftrace_graph_call, SYM_L_GLOBAL)
-	call	ftrace_stub
-#endif
-	RESTORE_ABI
-	jr	t0
-SYM_FUNC_END(ftrace_caller)
-
-#else /* CONFIG_DYNAMIC_FTRACE_WITH_ARGS */
 SYM_FUNC_START(ftrace_caller)
 	mv	t1, zero
 	SAVE_ABI_REGS
@@ -193,8 +161,6 @@ SYM_INNER_LABEL(ftrace_call, SYM_L_GLOBAL)
 .Ldirect:
 	jr	t1
 SYM_FUNC_END(ftrace_caller)
-
-#endif /* CONFIG_DYNAMIC_FTRACE_WITH_ARGS */
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 SYM_CODE_START(ftrace_stub_direct_tramp)
