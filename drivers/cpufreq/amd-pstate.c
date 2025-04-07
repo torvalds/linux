@@ -607,13 +607,16 @@ static void amd_pstate_update_min_max_limit(struct cpufreq_policy *policy)
 	union perf_cached perf = READ_ONCE(cpudata->perf);
 
 	perf.max_limit_perf = freq_to_perf(perf, cpudata->nominal_freq, policy->max);
-	perf.min_limit_perf = freq_to_perf(perf, cpudata->nominal_freq, policy->min);
-
-	if (cpudata->policy == CPUFREQ_POLICY_PERFORMANCE)
-		perf.min_limit_perf = min(perf.nominal_perf, perf.max_limit_perf);
-
 	WRITE_ONCE(cpudata->max_limit_freq, policy->max);
-	WRITE_ONCE(cpudata->min_limit_freq, policy->min);
+
+	if (cpudata->policy == CPUFREQ_POLICY_PERFORMANCE) {
+		perf.min_limit_perf = min(perf.nominal_perf, perf.max_limit_perf);
+		WRITE_ONCE(cpudata->min_limit_freq, min(cpudata->nominal_freq, cpudata->max_limit_freq));
+	} else {
+		perf.min_limit_perf = freq_to_perf(perf, cpudata->nominal_freq, policy->min);
+		WRITE_ONCE(cpudata->min_limit_freq, policy->min);
+	}
+
 	WRITE_ONCE(cpudata->perf, perf);
 }
 
