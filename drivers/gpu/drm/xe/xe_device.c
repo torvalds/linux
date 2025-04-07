@@ -712,7 +712,7 @@ int xe_device_probe_early(struct xe_device *xe)
 	sriov_update_device_info(xe);
 
 	err = xe_pcode_probe_early(xe);
-	if (err) {
+	if (err || xe_survivability_mode_is_requested(xe)) {
 		int save_err = err;
 
 		/*

@@ -164,6 +164,68 @@ static struct configfs_subsystem xe_configfs = {
 	},
 };
 
+static struct xe_config_device *configfs_find_group(struct pci_dev *pdev)
+{
+	struct config_item *item;
+	char name[64];
+
+	snprintf(name, sizeof(name), "%04x:%02x:%02x.%x", pci_domain_nr(pdev->bus),
+		 pdev->bus->number, PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
+
+	mutex_lock(&xe_configfs.su_mutex);
+	item = config_group_find_item(&xe_configfs.su_group, name);
+	mutex_unlock(&xe_configfs.su_mutex);
+
+	if (!item)
+		return NULL;
+
+	return to_xe_config_device(item);
+}
+
+/**
+ * xe_configfs_get_survivability_mode - get configfs survivability mode attribute
+ * @pdev: pci device
+ *
+ * find the configfs group that belongs to the pci device and return
+ * the survivability mode attribute
+ *
+ * Return: survivability mode if config group is found, false otherwise
+ */
+bool xe_configfs_get_survivability_mode(struct pci_dev *pdev)
+{
+	struct xe_config_device *dev = configfs_find_group(pdev);
+	bool mode;
+
+	if (!dev)
+		return false;
+
+	mode = dev->survivability_mode;
+	config_item_put(&dev->group.cg_item);
+
+	return mode;
+}
+
+/**
+ * xe_configfs_clear_survivability_mode - clear configfs survivability mode attribute
+ * @pdev: pci device
+ *
+ * find the configfs group that belongs to the pci device and clear survivability
+ * mode attribute
+ */
+void xe_configfs_clear_survivability_mode(struct pci_dev *pdev)
+{
+	struct xe_config_device *dev = configfs_find_group(pdev);
+
+	if (!dev)
+		return;
+
+	mutex_lock(&dev->lock);
+	dev->survivability_mode = 0;
+	mutex_unlock(&dev->lock);
+
+	config_item_put(&dev->group.cg_item);
+}
+
 int __init xe_configfs_init(void)
 {
 	struct config_group *root = &xe_configfs.su_group;
