@@ -1634,7 +1634,6 @@ MODULE_DEVICE_TABLE(of, fmh_gpib_of_match);
 static struct platform_driver fmh_gpib_platform_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = fmh_gpib_of_match,
 	},
 	.probe = &fmh_gpib_platform_probe
