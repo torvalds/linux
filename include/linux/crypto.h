@@ -276,6 +276,7 @@ struct cipher_alg {
  *		   to the alignmask of the algorithm being used, in order to
  *		   avoid the API having to realign them.  Note: the alignmask is
  *		   not supported for hash algorithms and is always 0 for them.
+ * @cra_reqsize: Size of the request context for this algorithm.
  * @cra_priority: Priority of this transformation implementation. In case
  *		  multiple transformations with same @cra_name are available to
  *		  the Crypto API, the kernel will use the one with highest
@@ -322,6 +323,7 @@ struct crypto_alg {
 	unsigned int cra_blocksize;
 	unsigned int cra_ctxsize;
 	unsigned int cra_alignmask;
+	unsigned int cra_reqsize;
 
 	int cra_priority;
 	refcount_t cra_refcnt;
@@ -439,6 +441,11 @@ static inline unsigned int crypto_tfm_alg_blocksize(struct crypto_tfm *tfm)
 static inline unsigned int crypto_tfm_alg_alignmask(struct crypto_tfm *tfm)
 {
 	return tfm->__crt_alg->cra_alignmask;
+}
+
+static inline unsigned int crypto_tfm_alg_reqsize(struct crypto_tfm *tfm)
+{
+	return tfm->__crt_alg->cra_reqsize;
 }
 
 static inline u32 crypto_tfm_get_flags(struct crypto_tfm *tfm)
