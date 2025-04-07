@@ -573,10 +573,13 @@ static int rzv2h_mod_clock_is_enabled(struct clk_hw *hw)
 	if (clock->mon_index >= 0) {
 		offset = GET_CLK_MON_OFFSET(clock->mon_index);
 		bitmask = BIT(clock->mon_bit);
-	} else {
-		offset = GET_CLK_ON_OFFSET(clock->on_index);
-		bitmask = BIT(clock->on_bit);
+
+		if (!(readl(priv->base + offset) & bitmask))
+			return 0;
 	}
+
+	offset = GET_CLK_ON_OFFSET(clock->on_index);
+	bitmask = BIT(clock->on_bit);
 
 	return readl(priv->base + offset) & bitmask;
 }
