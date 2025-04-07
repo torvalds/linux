@@ -53,6 +53,26 @@ struct ddiv {
 		.monbit = _monbit \
 	})
 
+/**
+ * struct smuxed - Structure for static muxed clocks
+ *
+ * @offset: register offset
+ * @shift: position of the divider field
+ * @width: width of the divider field
+ */
+struct smuxed {
+	unsigned int offset:11;
+	unsigned int shift:4;
+	unsigned int width:4;
+};
+
+#define SMUX_PACK(_offset, _shift, _width) \
+	((struct smuxed){ \
+		.offset = (_offset), \
+		.shift = (_shift), \
+		.width = (_width), \
+	})
+
 #define CPG_CDDIV0		(0x400)
 #define CPG_CDDIV1		(0x404)
 #define CPG_CDDIV3		(0x40C)
@@ -96,8 +116,12 @@ struct cpg_core_clk {
 		unsigned int conf;
 		struct ddiv ddiv;
 		struct pll pll;
+		struct smuxed smux;
 	} cfg;
 	const struct clk_div_table *dtable;
+	const char * const *parent_names;
+	unsigned int num_parents;
+	u8 mux_flags;
 	u32 flag;
 };
 
@@ -107,6 +131,7 @@ enum clk_types {
 	CLK_TYPE_FF,		/* Fixed Factor Clock */
 	CLK_TYPE_PLL,
 	CLK_TYPE_DDIV,		/* Dynamic Switching Divider */
+	CLK_TYPE_SMUX,		/* Static Mux */
 };
 
 #define DEF_TYPE(_name, _id, _type...) \
@@ -125,6 +150,13 @@ enum clk_types {
 		.parent = _parent, \
 		.dtable = _dtable, \
 		.flag = CLK_DIVIDER_HIWORD_MASK)
+#define DEF_SMUX(_name, _id, _smux_packed, _parent_names) \
+	DEF_TYPE(_name, _id, CLK_TYPE_SMUX, \
+		 .cfg.smux = _smux_packed, \
+		 .parent_names = _parent_names, \
+		 .num_parents = ARRAY_SIZE(_parent_names), \
+		 .flag = CLK_SET_RATE_PARENT, \
+		 .mux_flags = CLK_MUX_HIWORD_MASK)
 
 /**
  * struct rzv2h_mod_clk - Module Clocks definitions

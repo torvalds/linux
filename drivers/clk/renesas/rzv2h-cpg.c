@@ -393,6 +393,24 @@ rzv2h_cpg_ddiv_clk_register(const struct cpg_core_clk *core,
 	return div->hw.clk;
 }
 
+static struct clk * __init
+rzv2h_cpg_mux_clk_register(const struct cpg_core_clk *core,
+			   struct rzv2h_cpg_priv *priv)
+{
+	struct smuxed mux = core->cfg.smux;
+	const struct clk_hw *clk_hw;
+
+	clk_hw = devm_clk_hw_register_mux(priv->dev, core->name,
+					  core->parent_names, core->num_parents,
+					  core->flag, priv->base + mux.offset,
+					  mux.shift, mux.width,
+					  core->mux_flags, &priv->rmw_lock);
+	if (IS_ERR(clk_hw))
+		return ERR_CAST(clk_hw);
+
+	return clk_hw->clk;
+}
+
 static struct clk
 *rzv2h_cpg_clk_src_twocell_get(struct of_phandle_args *clkspec,
 			       void *data)
@@ -476,6 +494,9 @@ rzv2h_cpg_register_core_clk(const struct cpg_core_clk *core,
 		break;
 	case CLK_TYPE_DDIV:
 		clk = rzv2h_cpg_ddiv_clk_register(core, priv);
+		break;
+	case CLK_TYPE_SMUX:
+		clk = rzv2h_cpg_mux_clk_register(core, priv);
 		break;
 	default:
 		goto fail;
