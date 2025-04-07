@@ -28,20 +28,32 @@
  * This is implemented by loading the driver with bare minimum (no drm card) to allow the firmware
  * to be flashed through mei and collect telemetry. The driver's probe flow is modified
  * such that it enters survivability mode when pcode initialization is incomplete and boot status
- * denotes a failure. The driver then  populates the survivability_mode PCI sysfs indicating
- * survivability mode and provides additional information required for debug
+ * denotes a failure.
  *
- * KMD exposes below admin-only readable sysfs in survivability mode
+ * Survivability mode can also be entered manually using the survivability mode attribute available
+ * through configfs which is beneficial in several usecases. It can be used to address scenarios
+ * where pcode does not detect failure or for validation purposes. It can also be used in
+ * In-Field-Repair (IFR) to repair a single card without impacting the other cards in a node.
  *
- * device/survivability_mode: The presence of this file indicates that the card is in survivability
- *			      mode. Also, provides additional information on why the driver entered
- *			      survivability mode.
+ * Use below command enable survivability mode manually::
  *
- *			      Capability Information - Provides boot status
- *			      Postcode Information   - Provides information about the failure
- *			      Overflow Information   - Provides history of previous failures
- *			      Auxiliary Information  - Certain failures may have information in
- *						       addition to postcode information
+ *	# echo 1 > /sys/kernel/config/xe/0000:03:00.0/survivability_mode
+ *
+ * Refer :ref:`xe_configfs` for more details on how to use configfs
+ *
+ * Survivability mode is indicated by the below admin-only readable sysfs which provides additional
+ * debug information::
+ *
+ *	/sys/bus/pci/devices/<device>/surivability_mode
+ *
+ * Capability Information:
+ *	Provides boot status
+ * Postcode Information:
+ *	Provides information about the failure
+ * Overflow Information
+ *	Provides history of previous failures
+ * Auxiliary Information
+ *	Certain failures may have information in addition to postcode information
  */
 
 static u32 aux_history_offset(u32 reg_value)
