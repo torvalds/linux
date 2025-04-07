@@ -2074,8 +2074,7 @@ int tas2781_load_calibration(void *context, char *file_name,
 	}
 
 out:
-	if (fw_entry)
-		release_firmware(fw_entry);
+	release_firmware(fw_entry);
 
 	return ret;
 }
