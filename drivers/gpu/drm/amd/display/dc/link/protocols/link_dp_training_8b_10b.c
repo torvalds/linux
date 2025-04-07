@@ -35,6 +35,17 @@
 #define DC_LOGGER \
 	link->ctx->logger
 
+static void get_default_8b_10b_lttpr_aux_rd_interval(
+		union training_aux_rd_interval *training_rd_interval)
+{
+	/* LTTPR are required to program DPCD 0000Eh to 0x4 (16ms) upon AUX
+	 * read reply to this register. Since old sinks with DPCD rev 1.1
+	 * and earlier may not support this register, assume the mandatory
+	 * value is programmed by the LTTPR to avoid AUX timeout issues.
+	 */
+	training_rd_interval->raw = 0x4;
+}
+
 static int32_t get_cr_training_aux_rd_interval(struct dc_link *link,
 		const struct dc_link_settings *link_settings,
 		enum lttpr_mode lttpr_mode)
@@ -43,17 +54,22 @@ static int32_t get_cr_training_aux_rd_interval(struct dc_link *link,
 	uint32_t wait_in_micro_secs = 100;
 
 	memset(&training_rd_interval, 0, sizeof(training_rd_interval));
-	if (link_dp_get_encoding_format(link_settings) == DP_8b_10b_ENCODING &&
-			link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_12) {
-		core_link_read_dpcd(
-				link,
-				DP_TRAINING_AUX_RD_INTERVAL,
-				(uint8_t *)&training_rd_interval,
-				sizeof(training_rd_interval));
-		if (lttpr_mode != LTTPR_MODE_NON_TRANSPARENT)
-			wait_in_micro_secs = 400;
-		if (training_rd_interval.bits.TRAINIG_AUX_RD_INTERVAL)
-			wait_in_micro_secs = training_rd_interval.bits.TRAINIG_AUX_RD_INTERVAL * 4000;
+	if (link_dp_get_encoding_format(link_settings) == DP_8b_10b_ENCODING) {
+		if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_12)
+			core_link_read_dpcd(
+					link,
+					DP_TRAINING_AUX_RD_INTERVAL,
+					(uint8_t *)&training_rd_interval,
+					sizeof(training_rd_interval));
+		else if (dp_is_lttpr_present(link))
+			get_default_8b_10b_lttpr_aux_rd_interval(&training_rd_interval);
+
+		if (training_rd_interval.raw != 0) {
+			if (lttpr_mode != LTTPR_MODE_NON_TRANSPARENT)
+				wait_in_micro_secs = 400;
+			if (training_rd_interval.bits.TRAINIG_AUX_RD_INTERVAL)
+				wait_in_micro_secs = training_rd_interval.bits.TRAINIG_AUX_RD_INTERVAL * 4000;
+		}
 	}
 	return wait_in_micro_secs;
 }
@@ -71,13 +87,15 @@ static uint32_t get_eq_training_aux_rd_interval(
 				DP_128B132B_TRAINING_AUX_RD_INTERVAL,
 				(uint8_t *)&training_rd_interval,
 				sizeof(training_rd_interval));
-	} else if (link_dp_get_encoding_format(link_settings) == DP_8b_10b_ENCODING &&
-			link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_12) {
-		core_link_read_dpcd(
-				link,
-				DP_TRAINING_AUX_RD_INTERVAL,
-				(uint8_t *)&training_rd_interval,
-				sizeof(training_rd_interval));
+	} else if (link_dp_get_encoding_format(link_settings) == DP_8b_10b_ENCODING) {
+		if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_12)
+			core_link_read_dpcd(
+					link,
+					DP_TRAINING_AUX_RD_INTERVAL,
+					(uint8_t *)&training_rd_interval,
+					sizeof(training_rd_interval));
+		else if (dp_is_lttpr_present(link))
+			get_default_8b_10b_lttpr_aux_rd_interval(&training_rd_interval);
 	}
 
 	switch (training_rd_interval.bits.TRAINIG_AUX_RD_INTERVAL) {
