@@ -23,6 +23,12 @@
         struct acomp_req *name = acomp_request_on_stack_init( \
                 __##name##_req, (tfm), 0, true)
 
+#define ACOMP_FBREQ_ON_STACK(name, req) \
+        char __##name##_req[sizeof(struct acomp_req) + \
+                            MAX_SYNC_COMP_REQSIZE] CRYPTO_MINALIGN_ATTR; \
+        struct acomp_req *name = acomp_fbreq_on_stack_init( \
+                __##name##_req, (req))
+
 /**
  * struct acomp_alg - asynchronous compression algorithm
  *
@@ -233,6 +239,26 @@ static inline bool acomp_walk_more_src(const struct acomp_walk *walk, int cur)
 static inline u32 acomp_request_flags(struct acomp_req *req)
 {
 	return crypto_request_flags(&req->base) & ~CRYPTO_ACOMP_REQ_PRIVATE;
+}
+
+static inline struct acomp_req *acomp_fbreq_on_stack_init(
+	char *buf, struct acomp_req *old)
+{
+	struct crypto_acomp *tfm = crypto_acomp_reqtfm(old);
+	struct acomp_req *req;
+
+	req = acomp_request_on_stack_init(buf, tfm, 0, true);
+	acomp_request_set_callback(req, acomp_request_flags(old), NULL, NULL);
+	req->base.flags &= ~CRYPTO_ACOMP_REQ_PRIVATE;
+	req->base.flags |= old->base.flags & CRYPTO_ACOMP_REQ_PRIVATE;
+	req->src = old->src;
+	req->dst = old->dst;
+	req->slen = old->slen;
+	req->dlen = old->dlen;
+	req->soff = old->soff;
+	req->doff = old->doff;
+
+	return req;
 }
 
 #endif

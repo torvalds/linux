@@ -253,20 +253,8 @@ static void acomp_virt_to_sg(struct acomp_req *req)
 
 static int acomp_do_nondma(struct acomp_req *req, bool comp)
 {
-	u32 keep = CRYPTO_ACOMP_REQ_SRC_VIRT |
-		   CRYPTO_ACOMP_REQ_SRC_NONDMA |
-		   CRYPTO_ACOMP_REQ_DST_VIRT |
-		   CRYPTO_ACOMP_REQ_DST_NONDMA;
-	ACOMP_REQUEST_ON_STACK(fbreq, crypto_acomp_reqtfm(req));
+	ACOMP_FBREQ_ON_STACK(fbreq, req);
 	int err;
-
-	acomp_request_set_callback(fbreq, req->base.flags, NULL, NULL);
-	fbreq->base.flags &= ~keep;
-	fbreq->base.flags |= req->base.flags & keep;
-	fbreq->src = req->src;
-	fbreq->dst = req->dst;
-	fbreq->slen = req->slen;
-	fbreq->dlen = req->dlen;
 
 	if (comp)
 		err = crypto_acomp_compress(fbreq);
