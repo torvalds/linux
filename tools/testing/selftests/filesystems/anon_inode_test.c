@@ -48,5 +48,22 @@ TEST(anon_inode_no_exec)
 	EXPECT_EQ(close(fd_context), 0);
 }
 
+TEST(anon_inode_no_open)
+{
+	int fd_context;
+
+	fd_context = sys_fsopen("tmpfs", 0);
+	ASSERT_GE(fd_context, 0);
+
+	ASSERT_GE(dup2(fd_context, 500), 0);
+	ASSERT_EQ(close(fd_context), 0);
+	fd_context = 500;
+
+	ASSERT_LT(open("/proc/self/fd/500", 0), 0);
+	ASSERT_EQ(errno, ENXIO);
+
+	EXPECT_EQ(close(fd_context), 0);
+}
+
 TEST_HARNESS_MAIN
 
