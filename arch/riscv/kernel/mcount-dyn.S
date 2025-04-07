@@ -13,7 +13,6 @@
 
 	.text
 
-#define FENTRY_RA_OFFSET	8
 #define ABI_SIZE_ON_STACK	80
 #define ABI_A0			0
 #define ABI_A1			8
@@ -62,8 +61,7 @@
 * After the stack is established,
 *
 * 0(sp) stores the PC of the traced function which can be accessed
-* by &(fregs)->epc in tracing function. Note that the real
-* function entry address should be computed with -FENTRY_RA_OFFSET.
+* by &(fregs)->epc in tracing function.
 *
 * 8(sp) stores the function return address (i.e. parent IP) that
 * can be accessed by &(fregs)->ra in tracing function.
@@ -140,7 +138,7 @@
 	.endm
 
 	.macro PREPARE_ARGS
-	addi	a0, t0, -FENTRY_RA_OFFSET
+	addi	a0, t0, -MCOUNT_JALR_SIZE	// ip (callsite's jalr insn)
 	la	a1, function_trace_op
 	REG_L	a2, 0(a1)
 	mv	a1, ra
@@ -153,7 +151,8 @@ SYM_FUNC_START(ftrace_caller)
 	PREPARE_ARGS
 
 SYM_INNER_LABEL(ftrace_call, SYM_L_GLOBAL)
-	call	ftrace_stub
+	REG_L	ra, ftrace_call_dest
+	jalr	ra, 0(ra)
 
 	RESTORE_ABI_REGS
 	bnez	t1, .Ldirect
