@@ -244,11 +244,6 @@ struct simpledrm_device {
 	struct drm_connector connector;
 };
 
-static struct simpledrm_device *simpledrm_device_of_dev(struct drm_device *dev)
-{
-	return container_of(to_drm_sysfb_device(dev), struct simpledrm_device, sysfb);
-}
-
 /*
  * Hardware
  */
