@@ -1123,6 +1123,7 @@ struct ath12k_base {
 	struct ath12k_wsi_info wsi_info;
 	enum ath12k_firmware_mode fw_mode;
 	struct ath12k_ftm_event_obj ftm_event_obj;
+	bool hw_group_ref;
 
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
@@ -1375,20 +1376,6 @@ static inline void ath12k_ag_set_ah(struct ath12k_hw_group *ag, int idx,
 static inline struct ath12k_hw_group *ath12k_ab_to_ag(struct ath12k_base *ab)
 {
 	return ab->ag;
-}
-
-static inline void ath12k_core_started(struct ath12k_base *ab)
-{
-	lockdep_assert_held(&ab->ag->mutex);
-
-	ab->ag->num_started++;
-}
-
-static inline void ath12k_core_stopped(struct ath12k_base *ab)
-{
-	lockdep_assert_held(&ab->ag->mutex);
-
-	ab->ag->num_started--;
 }
 
 static inline struct ath12k_base *ath12k_ag_to_ab(struct ath12k_hw_group *ag,
