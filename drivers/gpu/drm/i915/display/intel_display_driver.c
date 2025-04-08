@@ -476,7 +476,7 @@ int intel_display_driver_probe_nogem(struct intel_display *display)
 	 * since the watermark calculation done here will use pstate->fb.
 	 */
 	if (!HAS_GMCH(display))
-		ilk_wm_sanitize(i915);
+		ilk_wm_sanitize(display);
 
 	return 0;
 

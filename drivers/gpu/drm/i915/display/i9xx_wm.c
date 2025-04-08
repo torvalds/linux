@@ -200,7 +200,7 @@ static bool _intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enabl
 
 /**
  * intel_set_memory_cxsr - Configure CxSR state
- * @dev_priv: i915 device
+ * @display: display device
  * @enable: Allow vs. disallow CxSR
  *
  * Allow or disallow the system to enter a special CxSR
@@ -235,8 +235,9 @@ static bool _intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enabl
  * the hardware w.r.t. HPLL SR when writing to plane registers.
  * Disallowing just CxSR is sufficient.
  */
-bool intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
+bool intel_set_memory_cxsr(struct intel_display *display, bool enable)
 {
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	bool ret;
 
 	mutex_lock(&dev_priv->display.wm.wm_mutex);
@@ -652,7 +653,7 @@ static void pnv_update_wm(struct intel_display *display)
 	latency = pnv_get_cxsr_latency(dev_priv);
 	if (!latency) {
 		drm_dbg_kms(&dev_priv->drm, "Unknown FSB/MEM, disabling CxSR\n");
-		intel_set_memory_cxsr(dev_priv, false);
+		intel_set_memory_cxsr(display, false);
 		return;
 	}
 
@@ -702,9 +703,9 @@ static void pnv_update_wm(struct intel_display *display)
 		intel_uncore_write(&dev_priv->uncore, DSPFW3(dev_priv), reg);
 		drm_dbg_kms(&dev_priv->drm, "DSPFW3 register is %x\n", reg);
 
-		intel_set_memory_cxsr(dev_priv, true);
+		intel_set_memory_cxsr(display, true);
 	} else {
-		intel_set_memory_cxsr(dev_priv, false);
+		intel_set_memory_cxsr(display, false);
 	}
 }
 
@@ -2177,7 +2178,7 @@ static void i965_update_wm(struct intel_display *display)
 	} else {
 		cxsr_enabled = false;
 		/* Turn off self refresh if both pipes are enabled */
-		intel_set_memory_cxsr(dev_priv, false);
+		intel_set_memory_cxsr(display, false);
 	}
 
 	drm_dbg_kms(&dev_priv->drm,
@@ -2198,7 +2199,7 @@ static void i965_update_wm(struct intel_display *display)
 			   FW_WM(cursor_sr, CURSOR_SR));
 
 	if (cxsr_enabled)
-		intel_set_memory_cxsr(dev_priv, true);
+		intel_set_memory_cxsr(display, true);
 }
 
 #undef FW_WM
@@ -2307,7 +2308,7 @@ static void i9xx_update_wm(struct intel_display *display)
 	cwm = 2;
 
 	/* Play safe and disable self-refresh before adjusting watermarks. */
-	intel_set_memory_cxsr(dev_priv, false);
+	intel_set_memory_cxsr(display, false);
 
 	/* Calc sr entries for one plane configs */
 	if (HAS_FW_BLC(dev_priv) && crtc) {
@@ -2359,7 +2360,7 @@ static void i9xx_update_wm(struct intel_display *display)
 	intel_uncore_write(&dev_priv->uncore, FW_BLC2, fwater_hi);
 
 	if (crtc)
-		intel_set_memory_cxsr(dev_priv, true);
+		intel_set_memory_cxsr(display, true);
 }
 
 static void i845_update_wm(struct intel_display *display)
@@ -3411,8 +3412,10 @@ static void ilk_write_wm_values(struct drm_i915_private *dev_priv,
 	dev_priv->display.wm.hw = *results;
 }
 
-bool ilk_disable_cxsr(struct drm_i915_private *dev_priv)
+bool ilk_disable_cxsr(struct intel_display *display)
 {
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
+
 	return _ilk_disable_lp_wm(dev_priv, WM_DIRTY_LP_ALL);
 }
 
@@ -3580,8 +3583,9 @@ static int ilk_sanitize_watermarks_add_affected(struct drm_atomic_state *state)
  * through the atomic check code to calculate new watermark values in the
  * state object.
  */
-void ilk_wm_sanitize(struct drm_i915_private *dev_priv)
+void ilk_wm_sanitize(struct intel_display *display)
 {
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct drm_atomic_state *state;
 	struct intel_atomic_state *intel_state;
 	struct intel_crtc *crtc;
@@ -4156,8 +4160,10 @@ static const struct intel_wm_funcs i845_wm_funcs = {
 static const struct intel_wm_funcs nop_funcs = {
 };
 
-void i9xx_wm_init(struct drm_i915_private *dev_priv)
+void i9xx_wm_init(struct intel_display *display)
 {
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
+
 	/* For FIFO watermark updates */
 	if (HAS_PCH_SPLIT(dev_priv)) {
 		ilk_setup_wm_latency(dev_priv);
@@ -4172,7 +4178,7 @@ void i9xx_wm_init(struct drm_i915_private *dev_priv)
 		if (!pnv_get_cxsr_latency(dev_priv)) {
 			drm_info(&dev_priv->drm, "Unknown FSB/MEM, disabling CxSR\n");
 			/* Disable CxSR and never update its watermark again */
-			intel_set_memory_cxsr(dev_priv, false);
+			intel_set_memory_cxsr(display, false);
 			dev_priv->display.funcs.wm = &nop_funcs;
 		} else {
 			dev_priv->display.funcs.wm = &pnv_wm_funcs;

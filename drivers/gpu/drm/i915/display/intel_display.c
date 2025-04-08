@@ -664,7 +664,6 @@ void intel_plane_disable_noatomic(struct intel_crtc *crtc,
 				  struct intel_plane *plane)
 {
 	struct intel_display *display = to_intel_display(crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_crtc_state *crtc_state =
 		to_intel_crtc_state(crtc->base.state);
 	struct intel_plane_state *plane_state =
@@ -697,7 +696,7 @@ void intel_plane_disable_noatomic(struct intel_crtc *crtc,
 	 * wait-for-vblank between disabling the plane and the pipe.
 	 */
 	if (HAS_GMCH(display) &&
-	    intel_set_memory_cxsr(dev_priv, false))
+	    intel_set_memory_cxsr(display, false))
 		intel_plane_initial_vblank_wait(crtc);
 
 	/*
@@ -1169,7 +1168,6 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 				   struct intel_crtc *crtc)
 {
 	struct intel_display *display = to_intel_display(state);
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
 	const struct intel_crtc_state *new_crtc_state =
@@ -1223,7 +1221,7 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 	 * wait-for-vblank between disabling the plane and the pipe.
 	 */
 	if (HAS_GMCH(display) && old_crtc_state->hw.active &&
-	    new_crtc_state->disable_cxsr && intel_set_memory_cxsr(dev_priv, false))
+	    new_crtc_state->disable_cxsr && intel_set_memory_cxsr(display, false))
 		intel_crtc_wait_for_next_vblank(crtc);
 
 	/*
@@ -1234,7 +1232,7 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 	 * WaCxSRDisabledForSpriteScaling:ivb
 	 */
 	if (!HAS_GMCH(display) && old_crtc_state->hw.active &&
-	    new_crtc_state->disable_cxsr && ilk_disable_cxsr(dev_priv))
+	    new_crtc_state->disable_cxsr && ilk_disable_cxsr(display))
 		intel_crtc_wait_for_next_vblank(crtc);
 
 	/*
