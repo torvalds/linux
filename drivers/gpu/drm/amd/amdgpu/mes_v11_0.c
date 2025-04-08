@@ -724,7 +724,7 @@ static int mes_v11_0_set_hw_resources(struct amdgpu_mes *mes)
 					mes->event_log_gpu_addr;
 	}
 
-	if (enforce_isolation)
+	if (adev->enforce_isolation[0])
 		mes_set_hw_res_pkt.limit_single_process = 1;
 
 	return mes_v11_0_submit_pkt_and_poll_completion(mes,
