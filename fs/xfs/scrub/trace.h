@@ -2042,6 +2042,7 @@ DEFINE_EVENT(xrep_reap_limits_class, name, \
 	TP_ARGS(tp, per_binval, max_binval, step_size, per_intent, max_deferred))
 DEFINE_REPAIR_REAP_LIMITS_EVENT(xreap_agextent_limits);
 DEFINE_REPAIR_REAP_LIMITS_EVENT(xreap_agcow_limits);
+DEFINE_REPAIR_REAP_LIMITS_EVENT(xreap_rgcow_limits);
 
 DECLARE_EVENT_CLASS(xrep_reap_find_class,
 	TP_PROTO(const struct xfs_group *xg, xfs_agblock_t agbno,

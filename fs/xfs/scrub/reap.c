@@ -984,7 +984,7 @@ xreap_rgextent_iter(
 	rtbno = xfs_rgbno_to_rtb(sc->sr.rtg, rgbno);
 
 	/*
-	 * If there are other rmappings, this block is cross linked and must
+	 * t1: There are other rmappings; this block is cross linked and must
 	 * not be freed.  Remove the forward and reverse mapping and move on.
 	 */
 	if (crosslinked) {
@@ -999,7 +999,7 @@ xreap_rgextent_iter(
 	trace_xreap_dispose_free_extent(rtg_group(sc->sr.rtg), rgbno, *rglenp);
 
 	/*
-	 * The CoW staging extent is not crosslinked.  Use deferred work items
+	 * t2: The CoW staging extent is not crosslinked.  Use deferred work
 	 * to remove the refcountbt records (which removes the rmap records)
 	 * and free the extent.  We're not worried about the system going down
 	 * here because log recovery walks the refcount btree to clean out the
@@ -1015,6 +1015,69 @@ xreap_rgextent_iter(
 
 	xreap_inc_defer(rs);
 	return 0;
+}
+
+/*
+ * Compute the maximum number of intent items that reaping can attach to the
+ * scrub transaction given the worst case log overhead of the intent items
+ * needed to reap a single CoW staging extent.  This is not for freeing
+ * metadata blocks.
+ */
+STATIC void
+xreap_configure_rgcow_limits(
+	struct xreap_state	*rs)
+{
+	struct xfs_scrub	*sc = rs->sc;
+	struct xfs_mount	*mp = sc->mp;
+
+	/*
+	 * In the worst case, relogging an intent item causes both an intent
+	 * item and a done item to be attached to a transaction for each extent
+	 * that we'd like to process.
+	 */
+	const unsigned int	efi = xfs_efi_log_space(1) +
+				      xfs_efd_log_space(1);
+	const unsigned int	rui = xfs_rui_log_space(1) +
+				      xfs_rud_log_space();
+	const unsigned int	cui = xfs_cui_log_space(1) +
+				      xfs_cud_log_space();
+
+	/*
+	 * Various things can happen when reaping non-CoW metadata blocks:
+	 *
+	 * t1: Unmapping crosslinked CoW blocks: deferred removal of refcount
+	 * record, which defers removal of rmap record
+	 *
+	 * t2: Freeing CoW blocks: deferred removal of refcount record, which
+	 * defers removal of rmap record; and deferred removal of the space
+	 *
+	 * For simplicity, we'll use the worst-case intents size to determine
+	 * the maximum number of deferred extents before we have to finish the
+	 * whole chain.  If we're trying to reap a btree larger than this size,
+	 * a crash midway through reaping can result in leaked blocks.
+	 */
+	const unsigned int	t1 = cui + rui;
+	const unsigned int	t2 = cui + rui + efi;
+	const unsigned int	per_intent = max(t1, t2);
+
+	/*
+	 * For each transaction in a reap chain, we must be able to take one
+	 * step in the defer item chain, which should only consist of CUI, EFI,
+	 * or RUI items.
+	 */
+	const unsigned int	f1 = xfs_calc_finish_rt_efi_reservation(mp, 1);
+	const unsigned int	f2 = xfs_calc_finish_rt_rui_reservation(mp, 1);
+	const unsigned int	f3 = xfs_calc_finish_rt_cui_reservation(mp, 1);
+	const unsigned int	step_size = max3(f1, f2, f3);
+
+	/*
+	 * The only buffer for the rt device is the rtgroup super, so we don't
+	 * need to save space for buffer invalidations.
+	 */
+	xreap_configure_limits(rs, step_size, per_intent, per_intent, 0);
+
+	trace_xreap_rgcow_limits(sc->tp, 0, 0, step_size, per_intent,
+			rs->max_deferred);
 }
 
 #define XREAP_RTGLOCK_ALL	(XFS_RTGLOCK_BITMAP | \
@@ -1100,14 +1163,14 @@ xrep_reap_rtblocks(
 		.sc			= sc,
 		.oinfo			= oinfo,
 		.resv			= XFS_AG_RESV_NONE,
-		.max_binval		= XREAP_MAX_BINVAL,
-		.max_deferred		= XREAP_MAX_DEFER_CHAIN,
 	};
 	int				error;
 
 	ASSERT(xfs_has_rmapbt(sc->mp));
 	ASSERT(sc->ip != NULL);
+	ASSERT(oinfo == &XFS_RMAP_OINFO_COW);
 
+	xreap_configure_rgcow_limits(&rs);
 	error = xrtb_bitmap_walk(bitmap, xreap_rtmeta_extent, &rs);
 	if (error)
 		return error;
