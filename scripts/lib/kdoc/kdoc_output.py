@@ -122,13 +122,13 @@ class OutputFormat:
         if self.no_doc_sections:
             return False
 
+        if name in self.nosymbol:
+            return False
+
         if self.out_mode == self.OUTPUT_ALL:
             return True
 
         if self.out_mode == self.OUTPUT_INCLUDE:
-            if name in self.nosymbol:
-                return False
-
             if name in self.function_table:
                 return True
 
@@ -153,15 +153,6 @@ class OutputFormat:
                 return True
 
         return False
-
-    def check_function(self, fname, name, args):
-        return True
-
-    def check_enum(self, fname, name, args):
-        return True
-
-    def check_typedef(self, fname, name, args):
-        return True
 
     def msg(self, fname, name, args):
         self.data = ""
@@ -306,7 +297,7 @@ class RestFormat(OutputFormat):
         for line in output.strip("\n").split("\n"):
             self.data += self.lineprefix + line + "\n"
 
-    def out_section(self, args, out_reference=False):
+    def out_section(self, args, out_docblock=False):
         """
         Outputs a block section.
 
@@ -325,7 +316,7 @@ class RestFormat(OutputFormat):
                 continue
 
             if not self.out_mode == self.OUTPUT_INCLUDE:
-                if out_reference:
+                if out_docblock:
                     self.data += f".. _{section}:\n\n"
 
                 if not self.symbol:
@@ -339,8 +330,7 @@ class RestFormat(OutputFormat):
     def out_doc(self, fname, name, args):
         if not self.check_doc(name):
             return
-
-        self.out_section(args, out_reference=True)
+        self.out_section(args, out_docblock=True)
 
     def out_function(self, fname, name, args):
 
@@ -583,8 +573,10 @@ class ManFormat(OutputFormat):
 
         for line in contents.strip("\n").split("\n"):
             line = Re(r"^\s*").sub("", line)
+            if not line:
+                continue
 
-            if line and line[0] == ".":
+            if line[0] == ".":
                 self.data += "\\&" + line + "\n"
             else:
                 self.data += line + "\n"
@@ -593,6 +585,9 @@ class ManFormat(OutputFormat):
         module = args.get('module')
         sectionlist = args.get('sectionlist', [])
         sections = args.get('sections', {})
+
+        if not self.check_doc(name):
+                return
 
         self.data += f'.TH "{module}" 9 "{module}" "{self.man_date}" "API Manual" LINUX' + "\n"
 

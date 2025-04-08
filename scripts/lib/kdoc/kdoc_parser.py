@@ -1198,6 +1198,7 @@ class KernelDoc:
             else:
                 self.entry.section = doc_block.group(1)
 
+            self.entry.identifier = self.entry.section
             self.state = self.STATE_DOCBLOCK
             return
 
@@ -1628,7 +1629,7 @@ class KernelDoc:
 
         if doc_end.search(line):
             self.dump_section()
-            self.output_declaration("doc", None,
+            self.output_declaration("doc", self.entry.identifier,
                                     sectionlist=self.entry.sectionlist,
                                     sections=self.entry.sections,
                                     section_start_lines=self.entry.section_start_lines,
