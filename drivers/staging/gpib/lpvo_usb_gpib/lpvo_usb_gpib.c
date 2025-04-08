@@ -384,7 +384,7 @@ static void set_timeout(struct gpib_board *board)
  * detach() will be called. Always.
  */
 
-static int usb_gpib_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int usb_gpib_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	int retval, j;
 	u32 base = config->ibbase;
