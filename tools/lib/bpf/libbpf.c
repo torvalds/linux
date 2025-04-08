@@ -9446,6 +9446,30 @@ int bpf_program__set_log_buf(struct bpf_program *prog, char *log_buf, size_t log
 	return 0;
 }
 
+struct bpf_func_info *bpf_program__func_info(const struct bpf_program *prog)
+{
+	if (prog->func_info_rec_size != sizeof(struct bpf_func_info))
+		return libbpf_err_ptr(-EOPNOTSUPP);
+	return prog->func_info;
+}
+
+__u32 bpf_program__func_info_cnt(const struct bpf_program *prog)
+{
+	return prog->func_info_cnt;
+}
+
+struct bpf_line_info *bpf_program__line_info(const struct bpf_program *prog)
+{
+	if (prog->line_info_rec_size != sizeof(struct bpf_line_info))
+		return libbpf_err_ptr(-EOPNOTSUPP);
+	return prog->line_info;
+}
+
+__u32 bpf_program__line_info_cnt(const struct bpf_program *prog)
+{
+	return prog->line_info_cnt;
+}
+
 #define SEC_DEF(sec_pfx, ptype, atype, flags, ...) {			    \
 	.sec = (char *)sec_pfx,						    \
 	.prog_type = BPF_PROG_TYPE_##ptype,				    \
