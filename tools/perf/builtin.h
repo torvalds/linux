@@ -14,6 +14,9 @@ struct feature_status {
 	.is_builtin = IS_BUILTIN(macro_) }
 
 extern struct feature_status supported_features[];
+
+void feature_status__printf(const struct feature_status *feature);
+
 struct cmdnames;
 
 void list_common_cmds_help(void);

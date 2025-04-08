@@ -66,21 +66,15 @@ static void on_off_print(const char *status)
 }
 
 /* Helper function to print status of a feature along with name/macro */
-static void status_print(const char *name, const char *macro,
-			 const char *status)
+void feature_status__printf(const struct feature_status *feature)
 {
+	const char *name = feature->name, *macro = feature->macro,
+		   *status = feature->is_builtin ? "on" : "OFF";
+
 	printf("%22s: ", name);
 	on_off_print(status);
 	printf("  # %s\n", macro);
 }
-
-#define STATUS(feature)                                           \
-do {                                                              \
-	if (feature.is_builtin)                                   \
-		status_print(feature.name, feature.macro, "on");  \
-	else                                                      \
-		status_print(feature.name, feature.macro, "OFF"); \
-} while (0)
 
 /**
  * check whether "feature" is built-in with perf
@@ -95,7 +89,7 @@ static int has_support(const char *feature)
 		if ((strcasecmp(feature, supported_features[i].name) == 0) ||
 		    (strcasecmp(feature, supported_features[i].macro) == 0)) {
 			if (!quiet)
-				STATUS(supported_features[i]);
+				feature_status__printf(&supported_features[i]);
 			return supported_features[i].is_builtin;
 		}
 	}
