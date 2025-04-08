@@ -1952,6 +1952,7 @@ enum netdev_reg_state {
  *	@priv_destructor:	Called from unregister
  *	@npinfo:		XXX: need comments on this one
  * 	@nd_net:		Network namespace this network device is inside
+ *				protected by @lock
  *
  * 	@ml_priv:	Mid-layer private
  *	@ml_priv_type:  Mid-layer private type
@@ -2359,6 +2360,9 @@ struct net_device {
 
 	bool dismantle;
 
+	/** @moving_ns: device is changing netns, protected by @lock */
+	bool moving_ns;
+
 	enum {
 		RTNL_LINK_INITIALIZED,
 		RTNL_LINK_INITIALIZING,
@@ -2521,7 +2525,7 @@ struct net_device {
 	 *	@net_shaper_hierarchy, @reg_state, @threaded
 	 *
 	 * Double protects:
-	 *	@up
+	 *	@up, @moving_ns, @nd_net
 	 *
 	 * Double ops protects:
 	 *	@real_num_rx_queues, @real_num_tx_queues

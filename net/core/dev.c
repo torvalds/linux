@@ -828,7 +828,7 @@ netdev_napi_by_id_lock(struct net *net, unsigned int napi_id)
 	dev_hold(dev);
 	rcu_read_unlock();
 
-	dev = __netdev_put_lock(dev);
+	dev = __netdev_put_lock(dev, net);
 	if (!dev)
 		return NULL;
 
@@ -1039,10 +1039,11 @@ struct net_device *dev_get_by_napi_id(unsigned int napi_id)
  * This helper is intended for locking net_device after it has been looked up
  * using a lockless lookup helper. Lock prevents the instance from going away.
  */
-struct net_device *__netdev_put_lock(struct net_device *dev)
+struct net_device *__netdev_put_lock(struct net_device *dev, struct net *net)
 {
 	netdev_lock(dev);
-	if (dev->reg_state > NETREG_REGISTERED) {
+	if (dev->reg_state > NETREG_REGISTERED ||
+	    dev->moving_ns || !net_eq(dev_net(dev), net)) {
 		netdev_unlock(dev);
 		dev_put(dev);
 		return NULL;
@@ -1070,7 +1071,7 @@ struct net_device *netdev_get_by_index_lock(struct net *net, int ifindex)
 	if (!dev)
 		return NULL;
 
-	return __netdev_put_lock(dev);
+	return __netdev_put_lock(dev, net);
 }
 
 struct net_device *
@@ -1090,7 +1091,7 @@ netdev_xa_find_lock(struct net *net, struct net_device *dev,
 		dev_hold(dev);
 		rcu_read_unlock();
 
-		dev = __netdev_put_lock(dev);
+		dev = __netdev_put_lock(dev, net);
 		if (dev)
 			return dev;
 
@@ -12157,7 +12158,11 @@ int __dev_change_net_namespace(struct net_device *dev, struct net *net,
 	netif_close(dev);
 	/* And unlink it from device chain */
 	unlist_netdevice(dev);
-	netdev_unlock_ops(dev);
+
+	if (!netdev_need_ops_lock(dev))
+		netdev_lock(dev);
+	dev->moving_ns = true;
+	netdev_unlock(dev);
 
 	synchronize_net();
 
@@ -12193,7 +12198,9 @@ int __dev_change_net_namespace(struct net_device *dev, struct net *net,
 	move_netdevice_notifiers_dev_net(dev, net);
 
 	/* Actually switch the network namespace */
+	netdev_lock(dev);
 	dev_net_set(dev, net);
+	netdev_unlock(dev);
 	dev->ifindex = new_ifindex;
 
 	if (new_name[0]) {
@@ -12219,7 +12226,11 @@ int __dev_change_net_namespace(struct net_device *dev, struct net *net,
 	err = netdev_change_owner(dev, net_old, net);
 	WARN_ON(err);
 
-	netdev_lock_ops(dev);
+	netdev_lock(dev);
+	dev->moving_ns = false;
+	if (!netdev_need_ops_lock(dev))
+		netdev_unlock(dev);
+
 	/* Add the device back in the hashes */
 	list_netdevice(dev);
 	/* Notify protocols, that a new device appeared. */
