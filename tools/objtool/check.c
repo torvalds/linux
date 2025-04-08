@@ -3685,14 +3685,19 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 			break;
 
 		case INSN_SYSCALL:
-		case INSN_SYSRET:
-			if (func) {
-				if (!next_insn || !next_insn->hint) {
-					WARN_INSN(insn, "unsupported instruction in callable function");
-					return 1;
-				}
-				break;
+			if (func && (!next_insn || !next_insn->hint)) {
+				WARN_INSN(insn, "unsupported instruction in callable function");
+				return 1;
 			}
+
+			break;
+
+		case INSN_SYSRET:
+			if (func && (!next_insn || !next_insn->hint)) {
+				WARN_INSN(insn, "unsupported instruction in callable function");
+				return 1;
+			}
+
 			return 0;
 
 		case INSN_STAC:
@@ -3888,9 +3893,9 @@ static int validate_unret(struct objtool_file *file, struct instruction *insn)
 			return 1;
 
 		case INSN_SYSCALL:
+			break;
+
 		case INSN_SYSRET:
-			if (insn_func(insn))
-				break;
 			return 0;
 
 		case INSN_NOP:
