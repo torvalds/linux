@@ -198,89 +198,89 @@ struct bd96801_irqinfo {
 
 static const struct bd96801_irqinfo buck1_irqinfo[] = {
 	BD96801_IRQINFO(BD96801_PROT_OCP, "buck1-over-curr-h", 500,
-			"bd96801-buck1-overcurr-h"),
+			"buck1-overcurr-h"),
 	BD96801_IRQINFO(BD96801_PROT_OCP, "buck1-over-curr-l", 500,
-			"bd96801-buck1-overcurr-l"),
+			"buck1-overcurr-l"),
 	BD96801_IRQINFO(BD96801_PROT_OCP, "buck1-over-curr-n", 500,
-			"bd96801-buck1-overcurr-n"),
+			"buck1-overcurr-n"),
 	BD96801_IRQINFO(BD96801_PROT_OVP, "buck1-over-voltage", 500,
-			"bd96801-buck1-overvolt"),
+			"buck1-overvolt"),
 	BD96801_IRQINFO(BD96801_PROT_UVP, "buck1-under-voltage", 500,
-			"bd96801-buck1-undervolt"),
+			"buck1-undervolt"),
 	BD96801_IRQINFO(BD96801_PROT_TEMP, "buck1-over-temp", 500,
-			"bd96801-buck1-thermal")
+			"buck1-thermal")
 };
 
 static const struct bd96801_irqinfo buck2_irqinfo[] = {
 	BD96801_IRQINFO(BD96801_PROT_OCP, "buck2-over-curr-h", 500,
-			"bd96801-buck2-overcurr-h"),
+			"buck2-overcurr-h"),
 	BD96801_IRQINFO(BD96801_PROT_OCP, "buck2-over-curr-l", 500,
-			"bd96801-buck2-overcurr-l"),
+			"buck2-overcurr-l"),
 	BD96801_IRQINFO(BD96801_PROT_OCP, "buck2-over-curr-n", 500,
-			"bd96801-buck2-overcurr-n"),
+			"buck2-overcurr-n"),
 	BD96801_IRQINFO(BD96801_PROT_OVP, "buck2-over-voltage", 500,
-			"bd96801-buck2-overvolt"),
+			"buck2-overvolt"),
 	BD96801_IRQINFO(BD96801_PROT_UVP, "buck2-under-voltage", 500,
-			"bd96801-buck2-undervolt"),
+			"buck2-undervolt"),
 	BD96801_IRQINFO(BD96801_PROT_TEMP, "buck2-over-temp", 500,
-			"bd96801-buck2-thermal")
+			"buck2-thermal")
 };
 
 static const struct bd96801_irqinfo buck3_irqinfo[] = {
 	BD96801_IRQINFO(BD96801_PROT_OCP, "buck3-over-curr-h", 500,
-			"bd96801-buck3-overcurr-h"),
+			"buck3-overcurr-h"),
 	BD96801_IRQINFO(BD96801_PROT_OCP, "buck3-over-curr-l", 500,
-			"bd96801-buck3-overcurr-l"),
+			"buck3-overcurr-l"),
 	BD96801_IRQINFO(BD96801_PROT_OCP, "buck3-over-curr-n", 500,
-			"bd96801-buck3-overcurr-n"),
+			"buck3-overcurr-n"),
 	BD96801_IRQINFO(BD96801_PROT_OVP, "buck3-over-voltage", 500,
-			"bd96801-buck3-overvolt"),
+			"buck3-overvolt"),
 	BD96801_IRQINFO(BD96801_PROT_UVP, "buck3-under-voltage", 500,
-			"bd96801-buck3-undervolt"),
+			"buck3-undervolt"),
 	BD96801_IRQINFO(BD96801_PROT_TEMP, "buck3-over-temp", 500,
-			"bd96801-buck3-thermal")
+			"buck3-thermal")
 };
 
 static const struct bd96801_irqinfo buck4_irqinfo[] = {
 	BD96801_IRQINFO(BD96801_PROT_OCP, "buck4-over-curr-h", 500,
-			"bd96801-buck4-overcurr-h"),
+			"buck4-overcurr-h"),
 	BD96801_IRQINFO(BD96801_PROT_OCP, "buck4-over-curr-l", 500,
-			"bd96801-buck4-overcurr-l"),
+			"buck4-overcurr-l"),
 	BD96801_IRQINFO(BD96801_PROT_OCP, "buck4-over-curr-n", 500,
-			"bd96801-buck4-overcurr-n"),
+			"buck4-overcurr-n"),
 	BD96801_IRQINFO(BD96801_PROT_OVP, "buck4-over-voltage", 500,
-			"bd96801-buck4-overvolt"),
+			"buck4-overvolt"),
 	BD96801_IRQINFO(BD96801_PROT_UVP, "buck4-under-voltage", 500,
-			"bd96801-buck4-undervolt"),
+			"buck4-undervolt"),
 	BD96801_IRQINFO(BD96801_PROT_TEMP, "buck4-over-temp", 500,
-			"bd96801-buck4-thermal")
+			"buck4-thermal")
 };
 
 static const struct bd96801_irqinfo ldo5_irqinfo[] = {
 	BD96801_IRQINFO(BD96801_PROT_OCP, "ldo5-overcurr", 500,
-			"bd96801-ldo5-overcurr"),
+			"ldo5-overcurr"),
 	BD96801_IRQINFO(BD96801_PROT_OVP, "ldo5-over-voltage", 500,
-			"bd96801-ldo5-overvolt"),
+			"ldo5-overvolt"),
 	BD96801_IRQINFO(BD96801_PROT_UVP, "ldo5-under-voltage", 500,
-			"bd96801-ldo5-undervolt"),
+			"ldo5-undervolt"),
 };
 
 static const struct bd96801_irqinfo ldo6_irqinfo[] = {
 	BD96801_IRQINFO(BD96801_PROT_OCP, "ldo6-overcurr", 500,
-			"bd96801-ldo6-overcurr"),
+			"ldo6-overcurr"),
 	BD96801_IRQINFO(BD96801_PROT_OVP, "ldo6-over-voltage", 500,
-			"bd96801-ldo6-overvolt"),
+			"ldo6-overvolt"),
 	BD96801_IRQINFO(BD96801_PROT_UVP, "ldo6-under-voltage", 500,
-			"bd96801-ldo6-undervolt"),
+			"ldo6-undervolt"),
 };
 
 static const struct bd96801_irqinfo ldo7_irqinfo[] = {
 	BD96801_IRQINFO(BD96801_PROT_OCP, "ldo7-overcurr", 500,
-			"bd96801-ldo7-overcurr"),
+			"ldo7-overcurr"),
 	BD96801_IRQINFO(BD96801_PROT_OVP, "ldo7-over-voltage", 500,
-			"bd96801-ldo7-overvolt"),
+			"ldo7-overvolt"),
 	BD96801_IRQINFO(BD96801_PROT_UVP, "ldo7-under-voltage", 500,
-			"bd96801-ldo7-undervolt"),
+			"ldo7-undervolt"),
 };
 
 struct bd96801_irq_desc {
@@ -741,8 +741,7 @@ static int bd96801_rdev_errb_irqs(struct platform_device *pdev,
 	int i;
 	void *retp;
 	static const char * const single_out_errb_irqs[] = {
-		"bd96801-%s-pvin-err", "bd96801-%s-ovp-err",
-		"bd96801-%s-uvp-err", "bd96801-%s-shdn-err",
+		"%s-pvin-err", "%s-ovp-err", "%s-uvp-err", "%s-shdn-err",
 	};
 
 	for (i = 0; i < ARRAY_SIZE(single_out_errb_irqs); i++) {
@@ -779,12 +778,10 @@ static int bd96801_global_errb_irqs(struct platform_device *pdev,
 	int i, num_irqs;
 	void *retp;
 	static const char * const global_errb_irqs[] = {
-		"bd96801-otp-err", "bd96801-dbist-err", "bd96801-eep-err",
-		"bd96801-abist-err", "bd96801-prstb-err", "bd96801-drmoserr1",
-		"bd96801-drmoserr2", "bd96801-slave-err", "bd96801-vref-err",
-		"bd96801-tsd", "bd96801-uvlo-err", "bd96801-ovlo-err",
-		"bd96801-osc-err", "bd96801-pon-err", "bd96801-poff-err",
-		"bd96801-cmd-shdn-err", "bd96801-int-shdn-err"
+		"otp-err", "dbist-err", "eep-err", "abist-err", "prstb-err",
+		"drmoserr1", "drmoserr2", "slave-err", "vref-err", "tsd",
+		"uvlo-err", "ovlo-err", "osc-err", "pon-err", "poff-err",
+		"cmd-shdn-err", "int-shdn-err"
 	};
 
 	num_irqs = ARRAY_SIZE(global_errb_irqs);
@@ -956,12 +953,12 @@ static int bd96801_probe(struct platform_device *pdev)
 	if (temp_notif_ldos) {
 		int irq;
 		struct regulator_irq_desc tw_desc = {
-			.name = "bd96801-core-thermal",
+			.name = "core-thermal",
 			.irq_off_ms = 500,
 			.map_event = ldo_map_notif,
 		};
 
-		irq = platform_get_irq_byname(pdev, "bd96801-core-thermal");
+		irq = platform_get_irq_byname(pdev, "core-thermal");
 		if (irq < 0)
 			return irq;
 
