@@ -24,7 +24,6 @@
 
 typedef struct gpib_interface_struct gpib_interface_t;
 struct gpib_board;
-typedef struct gpib_board_config gpib_board_config_t;
 
 /* config parameters that are only used by driver attach functions */
 struct gpib_board_config {
@@ -56,7 +55,7 @@ struct gpib_interface_struct {
 	/* name of board */
 	char *name;
 	/* attach() initializes board and allocates resources */
-	int (*attach)(struct gpib_board *board, const gpib_board_config_t *config);
+	int (*attach)(struct gpib_board *board, const struct gpib_board_config *config);
 	/* detach() shuts down board and frees resources */
 	void (*detach)(struct gpib_board *board);
 	/* read() should read at most 'length' bytes from the bus into
@@ -292,7 +291,7 @@ struct gpib_board {
 	struct gpib_pseudo_irq pseudo_irq;
 	/* error dong autopoll */
 	atomic_t stuck_srq;
-	gpib_board_config_t config;
+	struct gpib_board_config config;
 	/* Flag that indicates whether board is system controller of the bus */
 	unsigned master : 1;
 	/* individual status bit */
