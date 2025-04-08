@@ -283,9 +283,12 @@ def main():
 
     kfiles.parse()
 
-    kfiles.msg(enable_lineno=args.enable_lineno, export=args.export,
-               internal=args.internal, symbol=args.symbol,
-               nosymbol=args.nosymbol)
+    for t in kfiles.msg(enable_lineno=args.enable_lineno, export=args.export,
+                          internal=args.internal, symbol=args.symbol,
+                          nosymbol=args.nosymbol):
+        msg = t[1]
+        if msg:
+            print(msg)
 
 
 # Call main method

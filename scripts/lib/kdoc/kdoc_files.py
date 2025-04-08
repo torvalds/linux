@@ -229,9 +229,10 @@ class KernelFiles():
 
     def out_msg(self, fname, name, arg):
         """
-        Output messages from a file name using the output style filtering.
+        Return output messages from a file name using the output style
+        filtering.
 
-        If output type was not handled by the syler, return False.
+        If output type was not handled by the syler, return None.
         """
 
         # NOTE: we can add rules here to filter out unwanted parts,
@@ -242,7 +243,8 @@ class KernelFiles():
     def msg(self, enable_lineno=False, export=False, internal=False,
             symbol=None, nosymbol=None):
         """
-        Interacts over the kernel-doc results and output messages.
+        Interacts over the kernel-doc results and output messages,
+        returning kernel-doc markups on each interaction
         """
 
         function_table = self.config.function_table
@@ -261,10 +263,15 @@ class KernelFiles():
                                   function_table, enable_lineno)
 
         for fname, arg_tuple in self.results:
+            msg = ""
             for name, arg in arg_tuple:
-                if self.out_msg(fname, name, arg):
+                msg += self.out_msg(fname, name, arg)
+
+                if msg is None:
                     ln = arg.get("ln", 0)
                     dtype = arg.get('type', "")
 
                     self.config.log.warning("%s:%d Can't handle %s",
                                             fname, ln, dtype)
+            if msg:
+                yield fname, msg

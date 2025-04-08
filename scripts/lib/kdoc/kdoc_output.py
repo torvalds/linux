@@ -71,6 +71,8 @@ class OutputFormat:
         self.function_table = set()
         self.config = None
 
+        self.data = ""
+
     def set_config(self, config):
         self.config = config
 
@@ -157,37 +159,38 @@ class OutputFormat:
         return True
 
     def msg(self, fname, name, args):
+        self.data = ""
 
         dtype = args.get('type', "")
 
         if dtype == "doc":
             self.out_doc(fname, name, args)
-            return False
+            return self.data
 
         if not self.check_declaration(dtype, name):
-            return False
+            return self.data
 
         if dtype == "function":
             self.out_function(fname, name, args)
-            return False
+            return self.data
 
         if dtype == "enum":
             self.out_enum(fname, name, args)
-            return False
+            return self.data
 
         if dtype == "typedef":
             self.out_typedef(fname, name, args)
-            return False
+            return self.data
 
         if dtype in ["struct", "union"]:
             self.out_struct(fname, name, args)
-            return False
+            return self.data
 
         # Warn if some type requires an output logic
         self.config.log.warning("doesn't now how to output '%s' block",
                                 dtype)
 
-        return True
+        return None
 
     # Virtual methods to be overridden by inherited classes
     def out_doc(self, fname, name, args):
@@ -248,7 +251,7 @@ class RestFormat(OutputFormat):
         """Outputs a line number"""
 
         if self.enable_lineno and ln:
-            print(f".. LINENO {ln}")
+            self.data += f".. LINENO {ln}\n"
 
     def output_highlight(self, args):
         input_text = args
@@ -295,7 +298,7 @@ class RestFormat(OutputFormat):
 
         # Print the output with the line prefix
         for line in output.strip("\n").split("\n"):
-            print(self.lineprefix + line)
+            self.data += self.lineprefix + line + "\n"
 
     def out_section(self, args, out_reference=False):
         """
@@ -317,15 +320,15 @@ class RestFormat(OutputFormat):
 
             if not self.out_mode == self.OUTPUT_INCLUDE:
                 if out_reference:
-                    print(f".. _{section}:\n")
+                    self.data += f".. _{section}:\n\n"
 
                 if not self.symbol:
-                    print(f'{self.lineprefix}**{section}**\n')
+                    self.data += f'{self.lineprefix}**{section}**\n\n'
 
             self.print_lineno(section_start_lines.get(section, 0))
             self.output_highlight(sections[section])
-            print()
-        print()
+            self.data += "\n"
+        self.data += "\n"
 
     def out_doc(self, fname, name, args):
         if not self.check_doc(name):
@@ -368,42 +371,42 @@ class RestFormat(OutputFormat):
             signature += ")"
 
         if args.get('typedef') or not args.get('functiontype'):
-            print(f".. c:macro:: {args['function']}\n")
+            self.data += f".. c:macro:: {args['function']}\n\n"
 
             if args.get('typedef'):
                 self.print_lineno(ln)
-                print("   **Typedef**: ", end="")
+                self.data += "   **Typedef**: "
                 self.lineprefix = ""
                 self.output_highlight(args.get('purpose', ""))
-                print("\n\n**Syntax**\n")
-                print(f"  ``{signature}``\n")
+                self.data += "\n\n**Syntax**\n\n"
+                self.data += f"  ``{signature}``\n\n"
             else:
-                print(f"``{signature}``\n")
+                self.data += f"``{signature}``\n\n"
         else:
-            print(f".. c:function:: {signature}\n")
+            self.data += f".. c:function:: {signature}\n\n"
 
         if not args.get('typedef'):
             self.print_lineno(ln)
             self.lineprefix = "   "
             self.output_highlight(args.get('purpose', ""))
-            print()
+            self.data += "\n"
 
         # Put descriptive text into a container (HTML <div>) to help set
         # function prototypes apart
         self.lineprefix = "  "
 
         if parameterlist:
-            print(".. container:: kernelindent\n")
-            print(f"{self.lineprefix}**Parameters**\n")
+            self.data += ".. container:: kernelindent\n\n"
+            self.data += f"{self.lineprefix}**Parameters**\n\n"
 
         for parameter in parameterlist:
             parameter_name = Re(r'\[.*').sub('', parameter)
             dtype = args['parametertypes'].get(parameter, "")
 
             if dtype:
-                print(f"{self.lineprefix}``{dtype}``")
+                self.data += f"{self.lineprefix}``{dtype}``\n"
             else:
-                print(f"{self.lineprefix}``{parameter}``")
+                self.data += f"{self.lineprefix}``{parameter}``\n"
 
             self.print_lineno(parameterdesc_start_lines.get(parameter_name, 0))
 
@@ -412,9 +415,9 @@ class RestFormat(OutputFormat):
                parameterdescs[parameter_name] != KernelDoc.undescribed:
 
                 self.output_highlight(parameterdescs[parameter_name])
-                print()
+                self.data += "\n"
             else:
-                print(f"{self.lineprefix}*undescribed*\n")
+                self.data += f"{self.lineprefix}*undescribed*\n\n"
             self.lineprefix = "  "
 
         self.out_section(args)
@@ -428,26 +431,26 @@ class RestFormat(OutputFormat):
         parameterdescs = args.get('parameterdescs', {})
         ln = args.get('ln', 0)
 
-        print(f"\n\n.. c:enum:: {name}\n")
+        self.data += f"\n\n.. c:enum:: {name}\n\n"
 
         self.print_lineno(ln)
         self.lineprefix = "  "
         self.output_highlight(args.get('purpose', ''))
-        print()
+        self.data += "\n"
 
-        print(".. container:: kernelindent\n")
+        self.data += ".. container:: kernelindent\n\n"
         outer = self.lineprefix + "  "
         self.lineprefix = outer + "  "
-        print(f"{outer}**Constants**\n")
+        self.data += f"{outer}**Constants**\n\n"
 
         for parameter in parameterlist:
-            print(f"{outer}``{parameter}``")
+            self.data += f"{outer}``{parameter}``\n"
 
             if parameterdescs.get(parameter, '') != KernelDoc.undescribed:
                 self.output_highlight(parameterdescs[parameter])
             else:
-                print(f"{self.lineprefix}*undescribed*\n")
-            print()
+                self.data += f"{self.lineprefix}*undescribed*\n\n"
+            self.data += "\n"
 
         self.lineprefix = oldprefix
         self.out_section(args)
@@ -458,14 +461,14 @@ class RestFormat(OutputFormat):
         name = args.get('typedef', '')
         ln = args.get('ln', 0)
 
-        print(f"\n\n.. c:type:: {name}\n")
+        self.data += f"\n\n.. c:type:: {name}\n\n"
 
         self.print_lineno(ln)
         self.lineprefix = "   "
 
         self.output_highlight(args.get('purpose', ''))
 
-        print()
+        self.data += "\n"
 
         self.lineprefix = oldprefix
         self.out_section(args)
@@ -482,7 +485,7 @@ class RestFormat(OutputFormat):
         parameterdescs = args.get('parameterdescs', {})
         parameterdesc_start_lines = args.get('parameterdesc_start_lines', {})
 
-        print(f"\n\n.. c:{dtype}:: {name}\n")
+        self.data += f"\n\n.. c:{dtype}:: {name}\n\n"
 
         self.print_lineno(ln)
 
@@ -490,20 +493,20 @@ class RestFormat(OutputFormat):
         self.lineprefix += "  "
 
         self.output_highlight(purpose)
-        print()
+        self.data += "\n"
 
-        print(".. container:: kernelindent\n")
-        print(f"{self.lineprefix}**Definition**::\n")
+        self.data += ".. container:: kernelindent\n\n"
+        self.data += f"{self.lineprefix}**Definition**::\n\n"
 
         self.lineprefix = self.lineprefix + "  "
 
         declaration = declaration.replace("\t", self.lineprefix)
 
-        print(f"{self.lineprefix}{dtype} {name}" + ' {')
-        print(f"{declaration}{self.lineprefix}" + "};\n")
+        self.data += f"{self.lineprefix}{dtype} {name}" + ' {' + "\n"
+        self.data += f"{declaration}{self.lineprefix}" + "};\n\n"
 
         self.lineprefix = "  "
-        print(f"{self.lineprefix}**Members**\n")
+        self.data += f"{self.lineprefix}**Members**\n\n"
         for parameter in parameterlist:
             if not parameter or parameter.startswith("#"):
                 continue
@@ -515,15 +518,15 @@ class RestFormat(OutputFormat):
 
             self.print_lineno(parameterdesc_start_lines.get(parameter_name, 0))
 
-            print(f"{self.lineprefix}``{parameter}``")
+            self.data += f"{self.lineprefix}``{parameter}``\n"
 
             self.lineprefix = "    "
             self.output_highlight(parameterdescs[parameter_name])
             self.lineprefix = "  "
 
-            print()
+            self.data += "\n"
 
-        print()
+        self.data += "\n"
 
         self.lineprefix = oldprefix
         self.out_section(args)
@@ -576,19 +579,19 @@ class ManFormat(OutputFormat):
             line = Re(r"^\s*").sub("", line)
 
             if line and line[0] == ".":
-                print("\\&" + line)
+                self.data += "\\&" + line + "\n"
             else:
-                print(line)
+                self.data += line + "\n"
 
     def out_doc(self, fname, name, args):
         module = args.get('module')
         sectionlist = args.get('sectionlist', [])
         sections = args.get('sections', {})
 
-        print(f'.TH "{module}" 9 "{module}" "{self.man_date}" "API Manual" LINUX')
+        self.data += f'.TH "{module}" 9 "{module}" "{self.man_date}" "API Manual" LINUX' + "\n"
 
         for section in sectionlist:
-            print(f'.SH "{section}"')
+            self.data += f'.SH "{section}"' + "\n"
             self.output_highlight(sections.get(section))
 
     def out_function(self, fname, name, args):
@@ -599,16 +602,16 @@ class ManFormat(OutputFormat):
         sectionlist = args.get('sectionlist', [])
         sections = args.get('sections', {})
 
-        print(f'.TH "{args['function']}" 9 "{args['function']}" "{self.man_date}" "Kernel Hacker\'s Manual" LINUX')
+        self.data += f'.TH "{args['function']}" 9 "{args['function']}" "{self.man_date}" "Kernel Hacker\'s Manual" LINUX' + "\n"
 
-        print(".SH NAME")
-        print(f"{args['function']} \\- {args['purpose']}")
+        self.data += ".SH NAME\n"
+        self.data += f"{args['function']} \\- {args['purpose']}\n"
 
-        print(".SH SYNOPSIS")
+        self.data += ".SH SYNOPSIS\n"
         if args.get('functiontype', ''):
-            print(f'.B "{args['functiontype']}" {args['function']}')
+            self.data += f'.B "{args['functiontype']}" {args['function']}' + "\n"
         else:
-            print(f'.B "{args['function']}')
+            self.data += f'.B "{args['function']}' + "\n"
 
         count = 0
         parenth = "("
@@ -621,25 +624,25 @@ class ManFormat(OutputFormat):
             dtype = args['parametertypes'].get(parameter, "")
             if function_pointer.match(dtype):
                 # Pointer-to-function
-                print(f'".BI "{parenth}{function_pointer.group(1)}" " ") ({function_pointer.group(2)}){post}"')
+                self.data += f'".BI "{parenth}{function_pointer.group(1)}" " ") ({function_pointer.group(2)}){post}"' + "\n"
             else:
                 dtype = Re(r'([^\*])$').sub(r'\1 ', dtype)
 
-                print(f'.BI "{parenth}{dtype}"  "{post}"')
+                self.data += f'.BI "{parenth}{dtype}"  "{post}"' + "\n"
             count += 1
             parenth = ""
 
         if parameterlist:
-            print(".SH ARGUMENTS")
+            self.data += ".SH ARGUMENTS\n"
 
         for parameter in parameterlist:
             parameter_name = re.sub(r'\[.*', '', parameter)
 
-            print(f'.IP "{parameter}" 12')
+            self.data += f'.IP "{parameter}" 12' + "\n"
             self.output_highlight(parameterdescs.get(parameter_name, ""))
 
         for section in sectionlist:
-            print(f'.SH "{section.upper()}"')
+            self.data += f'.SH "{section.upper()}"' + "\n"
             self.output_highlight(sections[section])
 
     def out_enum(self, fname, name, args):
@@ -649,33 +652,33 @@ class ManFormat(OutputFormat):
         sectionlist = args.get('sectionlist', [])
         sections = args.get('sections', {})
 
-        print(f'.TH "{args['module']}" 9 "enum {args['enum']}" "{self.man_date}" "API Manual" LINUX')
+        self.data += f'.TH "{args['module']}" 9 "enum {args['enum']}" "{self.man_date}" "API Manual" LINUX' + "\n"
 
-        print(".SH NAME")
-        print(f"enum {args['enum']} \\- {args['purpose']}")
+        self.data += ".SH NAME\n"
+        self.data += f"enum {args['enum']} \\- {args['purpose']}\n"
 
-        print(".SH SYNOPSIS")
-        print(f"enum {args['enum']}" + " {")
+        self.data += ".SH SYNOPSIS\n"
+        self.data += f"enum {args['enum']}" + " {\n"
 
         count = 0
         for parameter in parameterlist:
-            print(f'.br\n.BI "    {parameter}"')
+            self.data += f'.br\n.BI "    {parameter}"' + "\n"
             if count == len(parameterlist) - 1:
-                print("\n};")
+                self.data += "\n};\n"
             else:
-                print(", \n.br")
+                self.data += ", \n.br\n"
 
             count += 1
 
-        print(".SH Constants")
+        self.data += ".SH Constants\n"
 
         for parameter in parameterlist:
             parameter_name = Re(r'\[.*').sub('', parameter)
-            print(f'.IP "{parameter}" 12')
+            self.data += f'.IP "{parameter}" 12' + "\n"
             self.output_highlight(args['parameterdescs'].get(parameter_name, ""))
 
         for section in sectionlist:
-            print(f'.SH "{section}"')
+            self.data += f'.SH "{section}"' + "\n"
             self.output_highlight(sections[section])
 
     def out_typedef(self, fname, name, args):
@@ -685,13 +688,13 @@ class ManFormat(OutputFormat):
         sectionlist = args.get('sectionlist', [])
         sections = args.get('sections', {})
 
-        print(f'.TH "{module}" 9 "{typedef}" "{self.man_date}" "API Manual" LINUX')
+        self.data += f'.TH "{module}" 9 "{typedef}" "{self.man_date}" "API Manual" LINUX' + "\n"
 
-        print(".SH NAME")
-        print(f"typedef {typedef} \\- {purpose}")
+        self.data += ".SH NAME\n"
+        self.data += f"typedef {typedef} \\- {purpose}\n"
 
         for section in sectionlist:
-            print(f'.SH "{section}"')
+            self.data += f'.SH "{section}"' + "\n"
             self.output_highlight(sections.get(section))
 
     def out_struct(self, fname, name, args):
@@ -705,20 +708,20 @@ class ManFormat(OutputFormat):
         sections = args.get('sections', {})
         parameterdescs = args.get('parameterdescs', {})
 
-        print(f'.TH "{module}" 9 "{struct_type} {struct_name}" "{self.man_date}" "API Manual" LINUX')
+        self.data += f'.TH "{module}" 9 "{struct_type} {struct_name}" "{self.man_date}" "API Manual" LINUX' + "\n"
 
-        print(".SH NAME")
-        print(f"{struct_type} {struct_name} \\- {purpose}")
+        self.data += ".SH NAME\n"
+        self.data += f"{struct_type} {struct_name} \\- {purpose}\n"
 
         # Replace tabs with two spaces and handle newlines
         declaration = definition.replace("\t", "  ")
         declaration = Re(r"\n").sub('"\n.br\n.BI "', declaration)
 
-        print(".SH SYNOPSIS")
-        print(f"{struct_type} {struct_name} " + "{" + "\n.br")
-        print(f'.BI "{declaration}\n' + "};\n.br\n")
+        self.data += ".SH SYNOPSIS\n"
+        self.data += f"{struct_type} {struct_name} " + "{" + "\n.br\n"
+        self.data += f'.BI "{declaration}\n' + "};\n.br\n\n"
 
-        print(".SH Members")
+        self.data += ".SH Members\n"
         for parameter in parameterlist:
             if parameter.startswith("#"):
                 continue
@@ -728,9 +731,9 @@ class ManFormat(OutputFormat):
             if parameterdescs.get(parameter_name) == KernelDoc.undescribed:
                 continue
 
-            print(f'.IP "{parameter}" 12')
+            self.data += f'.IP "{parameter}" 12' + "\n"
             self.output_highlight(parameterdescs.get(parameter_name))
 
         for section in sectionlist:
-            print(f'.SH "{section}"')
+            self.data += f'.SH "{section}"' + "\n"
             self.output_highlight(sections.get(section))
