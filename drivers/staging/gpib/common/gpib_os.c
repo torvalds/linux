@@ -826,9 +826,9 @@ static int board_type_ioctl(gpib_file_private_t *file_priv,
 
 	for (list_ptr = registered_drivers.next; list_ptr != &registered_drivers;
 	     list_ptr = list_ptr->next) {
-		gpib_interface_list_t *entry;
+		struct gpib_interface_list *entry;
 
-		entry = list_entry(list_ptr, gpib_interface_list_t, list);
+		entry = list_entry(list_ptr, struct gpib_interface_list, list);
 		if (strcmp(entry->interface->name, cmd.name) == 0) {
 			int i;
 			int had_module = file_priv->got_module;
@@ -2026,7 +2026,7 @@ void init_gpib_descriptor(gpib_descriptor_t *desc)
 
 int gpib_register_driver(gpib_interface_t *interface, struct module *provider_module)
 {
-	struct gpib_interface_list_struct *entry;
+	struct gpib_interface_list *entry;
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
@@ -2057,9 +2057,9 @@ void gpib_unregister_driver(gpib_interface_t *interface)
 		}
 	}
 	for (list_ptr = registered_drivers.next; list_ptr != &registered_drivers;) {
-		gpib_interface_list_t *entry;
+		struct gpib_interface_list *entry;
 
-		entry = list_entry(list_ptr, gpib_interface_list_t, list);
+		entry = list_entry(list_ptr, struct gpib_interface_list, list);
 		list_ptr = list_ptr->next;
 		if (entry->interface == interface) {
 			list_del(&entry->list);

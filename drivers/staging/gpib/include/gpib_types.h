@@ -210,11 +210,11 @@ static inline void init_gpib_pseudo_irq(struct gpib_pseudo_irq *pseudo_irq)
 }
 
 /* list so we can make a linked list of drivers */
-typedef struct gpib_interface_list_struct {
+struct gpib_interface_list {
 	struct list_head list;
 	gpib_interface_t *interface;
 	struct module *module;
-} gpib_interface_list_t;
+};
 
 /* One struct gpib_board is allocated for each physical board in the computer.
  * It provides storage for variables local to each board, and interface
