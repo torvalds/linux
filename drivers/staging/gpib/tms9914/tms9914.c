@@ -736,7 +736,7 @@ irqreturn_t tms9914_interrupt_have_status(struct gpib_board *board, struct tms99
 		unsigned short command_byte = read_byte(priv, CPTR) & gpib_command_mask;
 
 		switch (command_byte) {
-		case PPConfig:
+		case PP_CONFIG:
 			priv->ppoll_configure_state = 1;
 			/* AUX_PTS generates another UNC interrupt on the next command byte
 			 * if it is in the secondary address group (such as PPE and PPD).
@@ -764,7 +764,7 @@ irqreturn_t tms9914_interrupt_have_status(struct gpib_board *board, struct tms99
 			break;
 		}
 
-		if (in_primary_command_group(command_byte) && command_byte != PPConfig)
+		if (in_primary_command_group(command_byte) && command_byte != PP_CONFIG)
 			priv->ppoll_configure_state = 0;
 	}
 
