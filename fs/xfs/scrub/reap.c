@@ -95,17 +95,17 @@ struct xreap_state {
 	const struct xfs_owner_info	*oinfo;
 	enum xfs_ag_resv_type		resv;
 
-	/* If true, roll the transaction before reaping the next extent. */
-	bool				force_roll;
+	/* Number of invalidated buffers logged to the current transaction. */
+	unsigned int			nr_binval;
+
+	/* Maximum number of buffers we can invalidate in a single tx. */
+	unsigned int			max_binval;
 
 	/* Number of deferred reaps attached to the current transaction. */
-	unsigned int			deferred;
+	unsigned int			nr_deferred;
 
-	/* Number of invalidated buffers logged to the current transaction. */
-	unsigned int			invalidated;
-
-	/* Number of deferred reaps queued during the whole reap sequence. */
-	unsigned long long		total_deferred;
+	/* Maximum number of intents we can reap in a single transaction. */
+	unsigned int			max_deferred;
 };
 
 /* Put a block back on the AGFL. */
@@ -148,44 +148,36 @@ xreap_put_freelist(
 }
 
 /* Are there any uncommitted reap operations? */
-static inline bool xreap_dirty(const struct xreap_state *rs)
+static inline bool xreap_is_dirty(const struct xreap_state *rs)
 {
-	if (rs->force_roll)
-		return true;
-	if (rs->deferred)
-		return true;
-	if (rs->invalidated)
-		return true;
-	if (rs->total_deferred)
-		return true;
-	return false;
+	return rs->nr_binval > 0 || rs->nr_deferred > 0;
 }
 
 #define XREAP_MAX_BINVAL	(2048)
 
 /*
- * Decide if we want to roll the transaction after reaping an extent.  We don't
- * want to overrun the transaction reservation, so we prohibit more than
- * 128 EFIs per transaction.  For the same reason, we limit the number
- * of buffer invalidations to 2048.
+ * Decide if we need to roll the transaction to clear out the the log
+ * reservation that we allocated to buffer invalidations.
  */
-static inline bool xreap_want_roll(const struct xreap_state *rs)
+static inline bool xreap_want_binval_roll(const struct xreap_state *rs)
 {
-	if (rs->force_roll)
-		return true;
-	if (rs->deferred > XREP_MAX_ITRUNCATE_EFIS)
-		return true;
-	if (rs->invalidated > XREAP_MAX_BINVAL)
-		return true;
-	return false;
+	return rs->nr_binval >= rs->max_binval;
 }
 
-static inline void xreap_reset(struct xreap_state *rs)
+/* Reset the buffer invalidation count after rolling. */
+static inline void xreap_binval_reset(struct xreap_state *rs)
 {
-	rs->total_deferred += rs->deferred;
-	rs->deferred = 0;
-	rs->invalidated = 0;
-	rs->force_roll = false;
+	rs->nr_binval = 0;
+}
+
+/*
+ * Bump the number of invalidated buffers, and return true if we can continue,
+ * or false if we need to roll the transaction.
+ */
+static inline bool xreap_inc_binval(struct xreap_state *rs)
+{
+	rs->nr_binval++;
+	return rs->nr_binval < rs->max_binval;
 }
 
 #define XREAP_MAX_DEFER_CHAIN		(2048)
@@ -194,25 +186,36 @@ static inline void xreap_reset(struct xreap_state *rs)
  * Decide if we want to finish the deferred ops that are attached to the scrub
  * transaction.  We don't want to queue huge chains of deferred ops because
  * that can consume a lot of log space and kernel memory.  Hence we trigger a
- * xfs_defer_finish if there are more than 2048 deferred reap operations or the
- * caller did some real work.
+ * xfs_defer_finish if there are too many deferred reap operations or we've run
+ * out of space for invalidations.
  */
-static inline bool
-xreap_want_defer_finish(const struct xreap_state *rs)
+static inline bool xreap_want_defer_finish(const struct xreap_state *rs)
 {
-	if (rs->force_roll)
-		return true;
-	if (rs->total_deferred > XREAP_MAX_DEFER_CHAIN)
-		return true;
-	return false;
+	return rs->nr_deferred >= rs->max_deferred;
 }
 
+/*
+ * Reset the defer chain length and buffer invalidation count after finishing
+ * items.
+ */
 static inline void xreap_defer_finish_reset(struct xreap_state *rs)
 {
-	rs->total_deferred = 0;
-	rs->deferred = 0;
-	rs->invalidated = 0;
-	rs->force_roll = false;
+	rs->nr_deferred = 0;
+	rs->nr_binval = 0;
+}
+
+/*
+ * Bump the number of deferred extent reaps.
+ */
+static inline void xreap_inc_defer(struct xreap_state *rs)
+{
+	rs->nr_deferred++;
+}
+
+/* Force the caller to finish a deferred item chain. */
+static inline void xreap_force_defer_finish(struct xreap_state *rs)
+{
+	rs->nr_deferred = rs->max_deferred;
 }
 
 /*
@@ -297,14 +300,13 @@ xreap_agextent_binval(
 		while ((bp = xrep_bufscan_advance(mp, &scan)) != NULL) {
 			xfs_trans_bjoin(sc->tp, bp);
 			xfs_trans_binval(sc->tp, bp);
-			rs->invalidated++;
 
 			/*
 			 * Stop invalidating if we've hit the limit; we should
 			 * still have enough reservation left to free however
 			 * far we've gotten.
 			 */
-			if (rs->invalidated > XREAP_MAX_BINVAL) {
+			if (!xreap_inc_binval(rs)) {
 				*aglenp -= agbno_next - bno;
 				goto out;
 			}
@@ -424,13 +426,13 @@ xreap_agextent_iter(
 			 */
 			xfs_refcount_free_cow_extent(sc->tp, false, fsbno,
 					*aglenp);
-			rs->force_roll = true;
+			xreap_force_defer_finish(rs);
 			return 0;
 		}
 
 		xfs_rmap_free_extent(sc->tp, false, fsbno, *aglenp,
 				rs->oinfo->oi_owner);
-		rs->deferred++;
+		xreap_inc_defer(rs);
 		return 0;
 	}
 
@@ -444,7 +446,7 @@ xreap_agextent_iter(
 	 */
 	xreap_agextent_binval(rs, agbno, aglenp);
 	if (*aglenp == 0) {
-		ASSERT(xreap_want_roll(rs));
+		ASSERT(xreap_want_binval_roll(rs));
 		return 0;
 	}
 
@@ -464,7 +466,7 @@ xreap_agextent_iter(
 		if (error)
 			return error;
 
-		rs->force_roll = true;
+		xreap_force_defer_finish(rs);
 		return 0;
 	}
 
@@ -475,7 +477,7 @@ xreap_agextent_iter(
 		if (error)
 			return error;
 
-		rs->force_roll = true;
+		xreap_force_defer_finish(rs);
 		return 0;
 	}
 
@@ -490,8 +492,8 @@ xreap_agextent_iter(
 	if (error)
 		return error;
 
-	rs->deferred++;
-	if (rs->deferred % 2 == 0)
+	xreap_inc_defer(rs);
+	if (rs->nr_deferred % 2 == 0)
 		xfs_defer_add_barrier(sc->tp);
 	return 0;
 }
@@ -532,11 +534,11 @@ xreap_agmeta_extent(
 			if (error)
 				return error;
 			xreap_defer_finish_reset(rs);
-		} else if (xreap_want_roll(rs)) {
+		} else if (xreap_want_binval_roll(rs)) {
 			error = xrep_roll_ag_trans(sc);
 			if (error)
 				return error;
-			xreap_reset(rs);
+			xreap_binval_reset(rs);
 		}
 
 		agbno += aglen;
@@ -557,6 +559,8 @@ xrep_reap_agblocks(
 		.sc			= sc,
 		.oinfo			= oinfo,
 		.resv			= type,
+		.max_binval		= XREAP_MAX_BINVAL,
+		.max_deferred		= XREAP_MAX_DEFER_CHAIN,
 	};
 	int				error;
 
@@ -567,7 +571,7 @@ xrep_reap_agblocks(
 	if (error)
 		return error;
 
-	if (xreap_dirty(&rs))
+	if (xreap_is_dirty(&rs))
 		return xrep_defer_finish(sc);
 
 	return 0;
@@ -629,7 +633,7 @@ xreap_fsmeta_extent(
 			if (error)
 				goto out_agf;
 			xreap_defer_finish_reset(rs);
-		} else if (xreap_want_roll(rs)) {
+		} else if (xreap_want_binval_roll(rs)) {
 			/*
 			 * Hold the AGF buffer across the transaction roll so
 			 * that we don't have to reattach it to the scrub
@@ -640,7 +644,7 @@ xreap_fsmeta_extent(
 			xfs_trans_bjoin(sc->tp, sc->sa.agf_bp);
 			if (error)
 				goto out_agf;
-			xreap_reset(rs);
+			xreap_binval_reset(rs);
 		}
 
 		agbno += aglen;
@@ -669,6 +673,8 @@ xrep_reap_fsblocks(
 		.sc			= sc,
 		.oinfo			= oinfo,
 		.resv			= XFS_AG_RESV_NONE,
+		.max_binval		= XREAP_MAX_BINVAL,
+		.max_deferred		= XREAP_MAX_DEFER_CHAIN,
 	};
 	int				error;
 
@@ -679,7 +685,7 @@ xrep_reap_fsblocks(
 	if (error)
 		return error;
 
-	if (xreap_dirty(&rs))
+	if (xreap_is_dirty(&rs))
 		return xrep_defer_finish(sc);
 
 	return 0;
@@ -779,7 +785,7 @@ xreap_rgextent_iter(
 				*rglenp);
 
 		xfs_refcount_free_cow_extent(sc->tp, true, rtbno, *rglenp);
-		rs->deferred++;
+		xreap_inc_defer(rs);
 		return 0;
 	}
 
@@ -800,7 +806,7 @@ xreap_rgextent_iter(
 	if (error)
 		return error;
 
-	rs->deferred++;
+	xreap_inc_defer(rs);
 	return 0;
 }
 
@@ -856,11 +862,11 @@ xreap_rtmeta_extent(
 			if (error)
 				goto out_unlock;
 			xreap_defer_finish_reset(rs);
-		} else if (xreap_want_roll(rs)) {
+		} else if (xreap_want_binval_roll(rs)) {
 			error = xfs_trans_roll_inode(&sc->tp, sc->ip);
 			if (error)
 				goto out_unlock;
-			xreap_reset(rs);
+			xreap_binval_reset(rs);
 		}
 
 		rgbno += rglen;
@@ -887,6 +893,8 @@ xrep_reap_rtblocks(
 		.sc			= sc,
 		.oinfo			= oinfo,
 		.resv			= XFS_AG_RESV_NONE,
+		.max_binval		= XREAP_MAX_BINVAL,
+		.max_deferred		= XREAP_MAX_DEFER_CHAIN,
 	};
 	int				error;
 
@@ -897,7 +905,7 @@ xrep_reap_rtblocks(
 	if (error)
 		return error;
 
-	if (xreap_dirty(&rs))
+	if (xreap_is_dirty(&rs))
 		return xrep_defer_finish(sc);
 
 	return 0;
@@ -923,6 +931,8 @@ xrep_reap_metadir_fsblocks(
 		.sc			= sc,
 		.oinfo			= &oinfo,
 		.resv			= XFS_AG_RESV_NONE,
+		.max_binval		= XREAP_MAX_BINVAL,
+		.max_deferred		= XREAP_MAX_DEFER_CHAIN,
 	};
 	int				error;
 
@@ -931,12 +941,11 @@ xrep_reap_metadir_fsblocks(
 	ASSERT(xfs_is_metadir_inode(sc->ip));
 
 	xfs_rmap_ino_bmbt_owner(&oinfo, sc->ip->i_ino, XFS_DATA_FORK);
-
 	error = xfsb_bitmap_walk(bitmap, xreap_fsmeta_extent, &rs);
 	if (error)
 		return error;
 
-	if (xreap_dirty(&rs)) {
+	if (xreap_is_dirty(&rs)) {
 		error = xrep_defer_finish(sc);
 		if (error)
 			return error;
