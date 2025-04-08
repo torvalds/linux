@@ -66,7 +66,8 @@ EXPORT_SYMBOL_GPL(tms9914_take_control);
  * The rest of the tms9914 based drivers still use tms9914_take_control
  * directly (which does issue tcs).
  */
-int tms9914_take_control_workaround(struct gpib_board *board, struct tms9914_priv *priv, int synchronous)
+int tms9914_take_control_workaround(struct gpib_board *board,
+				    struct tms9914_priv *priv, int synchronous)
 {
 	if (synchronous)
 		return -ETIMEDOUT;
@@ -251,7 +252,8 @@ void tms9914_parallel_poll_response(struct gpib_board *board,
 }
 EXPORT_SYMBOL(tms9914_parallel_poll_response);
 
-void tms9914_serial_poll_response(struct gpib_board *board, struct tms9914_priv *priv, uint8_t status)
+void tms9914_serial_poll_response(struct gpib_board *board,
+				  struct tms9914_priv *priv, uint8_t status)
 {
 	unsigned long flags;
 
@@ -279,7 +281,8 @@ uint8_t tms9914_serial_poll_status(struct gpib_board *board, struct tms9914_priv
 }
 EXPORT_SYMBOL(tms9914_serial_poll_status);
 
-int tms9914_primary_address(struct gpib_board *board, struct tms9914_priv *priv, unsigned int address)
+int tms9914_primary_address(struct gpib_board *board,
+			    struct tms9914_priv *priv, unsigned int address)
 {
 	// put primary address in address0
 	write_byte(priv, address & ADDRESS_MASK, ADR);
@@ -449,7 +452,8 @@ static int wait_for_read_byte(struct gpib_board *board, struct tms9914_priv *pri
 	return 0;
 }
 
-static inline uint8_t tms9914_read_data_in(struct gpib_board *board, struct tms9914_priv *priv, int *end)
+static inline uint8_t tms9914_read_data_in(struct gpib_board *board,
+					   struct tms9914_priv *priv, int *end)
 {
 	unsigned long flags;
 	u8 data;
@@ -585,8 +589,8 @@ static int pio_write(struct gpib_board *board, struct tms9914_priv *priv, uint8_
 	return length;
 }
 
-int tms9914_write(struct gpib_board *board, struct tms9914_priv *priv, uint8_t *buffer, size_t length,
-		  int send_eoi, size_t *bytes_written)
+int tms9914_write(struct gpib_board *board, struct tms9914_priv *priv,
+		  uint8_t *buffer, size_t length, int send_eoi, size_t *bytes_written)
 {
 	ssize_t retval = 0;
 
@@ -620,7 +624,8 @@ int tms9914_write(struct gpib_board *board, struct tms9914_priv *priv, uint8_t *
 }
 EXPORT_SYMBOL(tms9914_write);
 
-static void check_my_address_state(struct gpib_board *board, struct tms9914_priv *priv, int cmd_byte)
+static void check_my_address_state(struct gpib_board *board,
+				   struct tms9914_priv *priv, int cmd_byte)
 {
 	if (cmd_byte == MLA(board->pad)) {
 		priv->primary_listen_addressed = 1;

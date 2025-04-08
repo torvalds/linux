@@ -110,7 +110,8 @@ void tms9914_parallel_poll_configure(struct gpib_board *board,
 				     struct tms9914_priv *priv, uint8_t config);
 void tms9914_parallel_poll_response(struct gpib_board *board,
 				    struct tms9914_priv *priv, int ist);
-void tms9914_serial_poll_response(struct gpib_board *board, struct tms9914_priv *priv, uint8_t status);
+void tms9914_serial_poll_response(struct gpib_board *board,
+				  struct tms9914_priv *priv, uint8_t status);
 uint8_t tms9914_serial_poll_status(struct gpib_board *board, struct tms9914_priv *priv);
 int tms9914_line_status(const struct gpib_board *board, struct tms9914_priv *priv);
 unsigned int tms9914_t1_delay(struct gpib_board *board, struct tms9914_priv *priv,
