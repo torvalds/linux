@@ -123,15 +123,6 @@ static inline void iommu_free_pages(void *virt)
 }
 
 /**
- * iommu_free_page - free page
- * @virt: virtual address of the page to be freed.
- */
-static inline void iommu_free_page(void *virt)
-{
-	iommu_free_pages(virt);
-}
-
-/**
  * iommu_put_pages_list - free a list of pages.
  * @page: the head of the lru list to be freed.
  *

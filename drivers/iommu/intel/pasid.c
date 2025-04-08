@@ -96,7 +96,7 @@ void intel_pasid_free_table(struct device *dev)
 	max_pde = pasid_table->max_pasid >> PASID_PDE_SHIFT;
 	for (i = 0; i < max_pde; i++) {
 		table = get_pasid_table_from_pde(&dir[i]);
-		iommu_free_page(table);
+		iommu_free_pages(table);
 	}
 
 	iommu_free_pages(pasid_table->table);
@@ -160,7 +160,7 @@ retry:
 		tmp = 0ULL;
 		if (!try_cmpxchg64(&dir[dir_index].val, &tmp,
 				   (u64)virt_to_phys(entries) | PASID_PTE_PRESENT)) {
-			iommu_free_page(entries);
+			iommu_free_pages(entries);
 			goto retry;
 		}
 		if (!ecap_coherent(info->iommu->ecap)) {

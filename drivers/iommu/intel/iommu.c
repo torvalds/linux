@@ -571,17 +571,17 @@ static void free_context_table(struct intel_iommu *iommu)
 	for (i = 0; i < ROOT_ENTRY_NR; i++) {
 		context = iommu_context_addr(iommu, i, 0, 0);
 		if (context)
-			iommu_free_page(context);
+			iommu_free_pages(context);
 
 		if (!sm_supported(iommu))
 			continue;
 
 		context = iommu_context_addr(iommu, i, 0x80, 0);
 		if (context)
-			iommu_free_page(context);
+			iommu_free_pages(context);
 	}
 
-	iommu_free_page(iommu->root_entry);
+	iommu_free_pages(iommu->root_entry);
 	iommu->root_entry = NULL;
 }
 
@@ -745,7 +745,7 @@ static struct dma_pte *pfn_to_dma_pte(struct dmar_domain *domain,
 			tmp = 0ULL;
 			if (!try_cmpxchg64(&pte->val, &tmp, pteval))
 				/* Someone else set it while we were thinking; use theirs. */
-				iommu_free_page(tmp_page);
+				iommu_free_pages(tmp_page);
 			else
 				domain_flush_cache(domain, pte, sizeof(*pte));
 		}
@@ -858,7 +858,7 @@ static void dma_pte_free_level(struct dmar_domain *domain, int level,
 		      last_pfn < level_pfn + level_size(level) - 1)) {
 			dma_clear_pte(pte);
 			domain_flush_cache(domain, pte, sizeof(*pte));
-			iommu_free_page(level_pte);
+			iommu_free_pages(level_pte);
 		}
 next:
 		pfn += level_size(level);
@@ -882,7 +882,7 @@ static void dma_pte_free_pagetable(struct dmar_domain *domain,
 
 	/* free pgd */
 	if (start_pfn == 0 && last_pfn == DOMAIN_MAX_PFN(domain->gaw)) {
-		iommu_free_page(domain->pgd);
+		iommu_free_pages(domain->pgd);
 		domain->pgd = NULL;
 	}
 }

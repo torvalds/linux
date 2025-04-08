@@ -1105,7 +1105,7 @@ static void riscv_iommu_pte_free(struct riscv_iommu_domain *domain,
 	if (freelist)
 		list_add_tail(&virt_to_page(ptr)->lru, freelist);
 	else
-		iommu_free_page(ptr);
+		iommu_free_pages(ptr);
 }
 
 static unsigned long *riscv_iommu_pte_alloc(struct riscv_iommu_domain *domain,
@@ -1148,7 +1148,7 @@ pte_retry:
 			old = pte;
 			pte = _io_pte_entry(virt_to_pfn(addr), _PAGE_TABLE);
 			if (cmpxchg_relaxed(ptr, old, pte) != old) {
-				iommu_free_page(addr);
+				iommu_free_pages(addr);
 				goto pte_retry;
 			}
 		}
@@ -1393,7 +1393,7 @@ static struct iommu_domain *riscv_iommu_alloc_paging_domain(struct device *dev)
 	domain->pscid = ida_alloc_range(&riscv_iommu_pscids, 1,
 					RISCV_IOMMU_MAX_PSCID, GFP_KERNEL);
 	if (domain->pscid < 0) {
-		iommu_free_page(domain->pgd_root);
+		iommu_free_pages(domain->pgd_root);
 		kfree(domain);
 		return ERR_PTR(-ENOMEM);
 	}
