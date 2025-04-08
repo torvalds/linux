@@ -157,7 +157,7 @@
 
 	sound {
 		compatible = "fsl,imx-audio-tlv320aic32x4";
-		model = "ls1021a-mbls1021a-tlv320aic32";
+		model = "tqm-tlv320aic32";
 		ssi-controller = <&sai1>;
 		audio-codec = <&tlv320aic32x4>;
 	};
