@@ -1444,9 +1444,9 @@ class KernelDoc:
 
         r = Re(r'long\s+(sys_.*?),')
         if r.search(proto):
-            proto = proto.replace(',', '(', count=1)
+            proto = Re(',').sub('(', proto, count=1)
         elif is_void:
-            proto = proto.replace(')', '(void)', count=1)
+            proto = Re(r'\)').sub('(void)', proto, count=1)
 
         # Now delete all of the odd-numbered commas in the proto
         # so that argument types & names don't have a comma between them
