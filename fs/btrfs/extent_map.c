@@ -136,8 +136,8 @@ static int tree_insert(struct rb_root *root, struct extent_map *em)
  * Search through the tree for an extent_map with a given offset.  If it can't
  * be found, try to find some neighboring extents
  */
-static struct rb_node *__tree_search(struct rb_root *root, u64 offset,
-				     struct rb_node **prev_or_next_ret)
+static struct rb_node *tree_search(struct rb_root *root, u64 offset,
+				   struct rb_node **prev_or_next_ret)
 {
 	struct rb_node *n = root->rb_node;
 	struct rb_node *prev = NULL;
@@ -516,7 +516,7 @@ static struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
 	struct rb_node *prev_or_next = NULL;
 	u64 end = range_end(start, len);
 
-	rb_node = __tree_search(&tree->root, start, &prev_or_next);
+	rb_node = tree_search(&tree->root, start, &prev_or_next);
 	if (!rb_node) {
 		if (prev_or_next)
 			rb_node = prev_or_next;
