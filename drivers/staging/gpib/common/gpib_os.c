@@ -50,9 +50,9 @@ static int sad_ioctl(struct gpib_board *board, gpib_file_private_t *file_priv,
 static int eos_ioctl(struct gpib_board *board, unsigned long arg);
 static int request_service_ioctl(struct gpib_board *board, unsigned long arg);
 static int request_service2_ioctl(struct gpib_board *board, unsigned long arg);
-static int iobase_ioctl(gpib_board_config_t *config, unsigned long arg);
-static int irq_ioctl(gpib_board_config_t *config, unsigned long arg);
-static int dma_ioctl(gpib_board_config_t *config, unsigned long arg);
+static int iobase_ioctl(struct gpib_board_config *config, unsigned long arg);
+static int irq_ioctl(struct gpib_board_config *config, unsigned long arg);
+static int dma_ioctl(struct gpib_board_config *config, unsigned long arg);
 static int autospoll_ioctl(struct gpib_board *board, gpib_file_private_t *file_priv,
 			   unsigned long arg);
 static int mutex_ioctl(struct gpib_board *board, gpib_file_private_t *file_priv,
@@ -65,8 +65,8 @@ static int set_local_ppoll_mode_ioctl(struct gpib_board *board, unsigned long ar
 static int get_local_ppoll_mode_ioctl(struct gpib_board *board, unsigned long arg);
 static int query_board_rsv_ioctl(struct gpib_board *board, unsigned long arg);
 static int interface_clear_ioctl(struct gpib_board *board, unsigned long arg);
-static int select_pci_ioctl(gpib_board_config_t *config, unsigned long arg);
-static int select_device_path_ioctl(gpib_board_config_t *config, unsigned long arg);
+static int select_pci_ioctl(struct gpib_board_config *config, unsigned long arg);
+static int select_device_path_ioctl(struct gpib_board_config *config, unsigned long arg);
 static int event_ioctl(struct gpib_board *board, unsigned long arg);
 static int request_system_control_ioctl(struct gpib_board *board, unsigned long arg);
 static int t1_delay_ioctl(struct gpib_board *board, unsigned long arg);
@@ -1542,7 +1542,7 @@ static int request_service2_ioctl(struct gpib_board *board, unsigned long arg)
 		      request_service2_cmd.new_reason_for_service);
 }
 
-static int iobase_ioctl(gpib_board_config_t *config, unsigned long arg)
+static int iobase_ioctl(struct gpib_board_config *config, unsigned long arg)
 {
 	u64 base_addr;
 	int retval;
@@ -1561,7 +1561,7 @@ static int iobase_ioctl(gpib_board_config_t *config, unsigned long arg)
 	return 0;
 }
 
-static int irq_ioctl(gpib_board_config_t *config, unsigned long arg)
+static int irq_ioctl(struct gpib_board_config *config, unsigned long arg)
 {
 	unsigned int irq;
 	int retval;
@@ -1578,7 +1578,7 @@ static int irq_ioctl(gpib_board_config_t *config, unsigned long arg)
 	return 0;
 }
 
-static int dma_ioctl(gpib_board_config_t *config, unsigned long arg)
+static int dma_ioctl(struct gpib_board_config *config, unsigned long arg)
 {
 	unsigned int dma_channel;
 	int retval;
@@ -1793,7 +1793,7 @@ static int interface_clear_ioctl(struct gpib_board *board, unsigned long arg)
 	return ibsic(board, usec_duration);
 }
 
-static int select_pci_ioctl(gpib_board_config_t *config, unsigned long arg)
+static int select_pci_ioctl(struct gpib_board_config *config, unsigned long arg)
 {
 	select_pci_ioctl_t selection;
 	int retval;
@@ -1811,7 +1811,7 @@ static int select_pci_ioctl(gpib_board_config_t *config, unsigned long arg)
 	return 0;
 }
 
-static int select_device_path_ioctl(gpib_board_config_t *config, unsigned long arg)
+static int select_device_path_ioctl(struct gpib_board_config *config, unsigned long arg)
 {
 	select_device_path_ioctl_t *selection;
 	int retval;
@@ -2069,9 +2069,9 @@ void gpib_unregister_driver(gpib_interface_t *interface)
 }
 EXPORT_SYMBOL(gpib_unregister_driver);
 
-static void init_gpib_board_config(gpib_board_config_t *config)
+static void init_gpib_board_config(struct gpib_board_config *config)
 {
-	memset(config, 0, sizeof(gpib_board_config_t));
+	memset(config, 0, sizeof(struct gpib_board_config));
 	config->pci_bus = -1;
 	config->pci_slot = -1;
 }
@@ -2212,7 +2212,7 @@ int gpib_match_device_path(struct device *dev, const char *device_path_in)
 }
 EXPORT_SYMBOL(gpib_match_device_path);
 
-struct pci_dev *gpib_pci_get_device(const gpib_board_config_t *config, unsigned int vendor_id,
+struct pci_dev *gpib_pci_get_device(const struct gpib_board_config *config, unsigned int vendor_id,
 				    unsigned int device_id, struct pci_dev *from)
 {
 	struct pci_dev *pci_device = from;
@@ -2231,7 +2231,7 @@ struct pci_dev *gpib_pci_get_device(const gpib_board_config_t *config, unsigned 
 }
 EXPORT_SYMBOL(gpib_pci_get_device);
 
-struct pci_dev *gpib_pci_get_subsys(const gpib_board_config_t *config, unsigned int vendor_id,
+struct pci_dev *gpib_pci_get_subsys(const struct gpib_board_config *config, unsigned int vendor_id,
 				    unsigned int device_id, unsigned int ss_vendor,
 				    unsigned int ss_device,
 				    struct pci_dev *from)
