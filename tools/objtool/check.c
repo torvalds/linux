@@ -3505,6 +3505,34 @@ next_orig:
 	return next_insn_same_sec(file, alt_group->orig_group->last_insn);
 }
 
+static bool skip_alt_group(struct instruction *insn)
+{
+	struct instruction *alt_insn = insn->alts ? insn->alts->insn : NULL;
+
+	/* ANNOTATE_IGNORE_ALTERNATIVE */
+	if (insn->alt_group && insn->alt_group->ignore)
+		return true;
+
+	/*
+	 * For NOP patched with CLAC/STAC, only follow the latter to avoid
+	 * impossible code paths combining patched CLAC with unpatched STAC
+	 * or vice versa.
+	 *
+	 * ANNOTATE_IGNORE_ALTERNATIVE could have been used here, but Linus
+	 * requested not to do that to avoid hurting .s file readability
+	 * around CLAC/STAC alternative sites.
+	 */
+
+	if (!alt_insn)
+		return false;
+
+	/* Don't override ASM_{CLAC,STAC}_UNSAFE */
+	if (alt_insn->alt_group && alt_insn->alt_group->ignore)
+		return false;
+
+	return alt_insn->type == INSN_CLAC || alt_insn->type == INSN_STAC;
+}
+
 /*
  * Follow the branch starting at the given instruction, and recursively follow
  * any other branches (jumps).  Meanwhile, track the frame pointer state at
@@ -3625,7 +3653,7 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 			}
 		}
 
-		if (insn->alt_group && insn->alt_group->ignore)
+		if (skip_alt_group(insn))
 			return 0;
 
 		if (handle_insn_ops(insn, next_insn, &state))
