@@ -2373,7 +2373,9 @@ static void sdma_v4_4_2_update_reset_mask(struct amdgpu_device *adev)
 			adev->sdma.supported_reset |= AMDGPU_RESET_TYPE_PER_QUEUE;
 		break;
 	case IP_VERSION(9, 5, 0):
-		/*TODO: enable the queue reset flag until fw supported */
+		if ((adev->gfx.mec_fw_version >= 0xf) && amdgpu_dpm_reset_sdma_is_supported(adev))
+			adev->sdma.supported_reset |= AMDGPU_RESET_TYPE_PER_QUEUE;
+		break;
 	default:
 		break;
 	}
