@@ -542,7 +542,7 @@ xreap_configure_limits(
 		return;
 	}
 
-	rs->max_deferred = res / variable_overhead;
+	rs->max_deferred = per_intent ? res / variable_overhead : 0;
 	res -= rs->max_deferred * per_intent;
 	rs->max_binval = per_binval ? res / per_binval : 0;
 }
@@ -1446,7 +1446,7 @@ xrep_reap_bmapi_iter(
 				imap->br_blockcount);
 
 		/*
-		 * Schedule removal of the mapping from the fork.  We use
+		 * t0: Schedule removal of the mapping from the fork.  We use
 		 * deferred log intents in this function to control the exact
 		 * sequence of metadata updates.
 		 */
@@ -1479,8 +1479,8 @@ xrep_reap_bmapi_iter(
 		return error;
 
 	/*
-	 * Schedule removal of the mapping from the fork.  We use deferred log
-	 * intents in this function to control the exact sequence of metadata
+	 * t1: Schedule removal of the mapping from the fork.  We use deferred
+	 * work in this function to control the exact sequence of metadata
 	 * updates.
 	 */
 	xfs_bmap_unmap_extent(sc->tp, rs->ip, rs->whichfork, imap);
@@ -1489,6 +1489,105 @@ xrep_reap_bmapi_iter(
 	return xfs_free_extent_later(sc->tp, imap->br_startblock,
 			imap->br_blockcount, NULL, XFS_AG_RESV_NONE,
 			XFS_FREE_EXTENT_SKIP_DISCARD);
+}
+
+/* Compute the maximum mapcount of a file buffer. */
+static unsigned int
+xreap_bmapi_binval_mapcount(
+	struct xfs_scrub	*sc)
+{
+	/* directory blocks can span multiple fsblocks and be discontiguous */
+	if (sc->sm->sm_type == XFS_SCRUB_TYPE_DIR)
+		return sc->mp->m_dir_geo->fsbcount;
+
+	/* all other file xattr/symlink blocks must be contiguous */
+	return 1;
+}
+
+/* Compute the maximum block size of a file buffer. */
+static unsigned int
+xreap_bmapi_binval_blocksize(
+	struct xfs_scrub	*sc)
+{
+	switch (sc->sm->sm_type) {
+	case XFS_SCRUB_TYPE_DIR:
+		return sc->mp->m_dir_geo->blksize;
+	case XFS_SCRUB_TYPE_XATTR:
+	case XFS_SCRUB_TYPE_PARENT:
+		/*
+		 * The xattr structure itself consists of single fsblocks, but
+		 * there could be remote xattr blocks to invalidate.
+		 */
+		return XFS_XATTR_SIZE_MAX;
+	}
+
+	/* everything else is a single block */
+	return sc->mp->m_sb.sb_blocksize;
+}
+
+/*
+ * Compute the maximum number of buffer invalidations that we can do while
+ * reaping a single extent from a file fork.
+ */
+STATIC void
+xreap_configure_bmapi_limits(
+	struct xreap_state	*rs)
+{
+	struct xfs_scrub	*sc = rs->sc;
+	struct xfs_mount	*mp = sc->mp;
+
+	/* overhead of invalidating a buffer */
+	const unsigned int	per_binval =
+		xfs_buf_inval_log_space(xreap_bmapi_binval_mapcount(sc),
+					    xreap_bmapi_binval_blocksize(sc));
+
+	/*
+	 * In the worst case, relogging an intent item causes both an intent
+	 * item and a done item to be attached to a transaction for each extent
+	 * that we'd like to process.
+	 */
+	const unsigned int	efi = xfs_efi_log_space(1) +
+				      xfs_efd_log_space(1);
+	const unsigned int	rui = xfs_rui_log_space(1) +
+				      xfs_rud_log_space();
+	const unsigned int	bui = xfs_bui_log_space(1) +
+				      xfs_bud_log_space();
+
+	/*
+	 * t1: Unmapping crosslinked file data blocks: one bmap deletion,
+	 * possibly an EFI for underfilled bmbt blocks, and an rmap deletion.
+	 *
+	 * t2: Freeing freeing file data blocks: one bmap deletion, possibly an
+	 * EFI for underfilled bmbt blocks, and another EFI for the space
+	 * itself.
+	 */
+	const unsigned int	t1 = (bui + efi) + rui;
+	const unsigned int	t2 = (bui + efi) + efi;
+	const unsigned int	per_intent = max(t1, t2);
+
+	/*
+	 * For each transaction in a reap chain, we must be able to take one
+	 * step in the defer item chain, which should only consist of CUI, EFI,
+	 * or RUI items.
+	 */
+	const unsigned int	f1 = xfs_calc_finish_efi_reservation(mp, 1);
+	const unsigned int	f2 = xfs_calc_finish_rui_reservation(mp, 1);
+	const unsigned int	f3 = xfs_calc_finish_bui_reservation(mp, 1);
+	const unsigned int	step_size = max3(f1, f2, f3);
+
+	/*
+	 * Each call to xreap_ifork_extent starts with a clean transaction and
+	 * operates on a single mapping by creating a chain of log intent items
+	 * for that mapping.  We need to leave enough reservation in the
+	 * transaction to log btree buffer and inode updates for each step in
+	 * the chain, and to relog the log intents.
+	 */
+	const unsigned int	per_extent_res = per_intent + step_size;
+
+	xreap_configure_limits(rs, per_extent_res, per_binval, 0, per_binval);
+
+	trace_xreap_bmapi_limits(sc->tp, per_binval, rs->max_binval,
+			step_size, per_intent, 1);
 }
 
 /*
@@ -1554,7 +1653,6 @@ xrep_reap_ifork(
 		.sc		= sc,
 		.ip		= ip,
 		.whichfork	= whichfork,
-		.max_binval	= XREAP_MAX_BINVAL,
 	};
 	xfs_fileoff_t		off = 0;
 	int			bmap_flags = xfs_bmapi_aflag(whichfork);
@@ -1564,6 +1662,7 @@ xrep_reap_ifork(
 	ASSERT(ip == sc->ip || ip == sc->tempip);
 	ASSERT(whichfork == XFS_ATTR_FORK || !XFS_IS_REALTIME_INODE(ip));
 
+	xreap_configure_bmapi_limits(&rs);
 	while (off < XFS_MAX_FILEOFF) {
 		struct xfs_bmbt_irec	imap;
 		int			nimaps = 1;
