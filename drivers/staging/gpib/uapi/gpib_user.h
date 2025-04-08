@@ -253,40 +253,39 @@ static inline int gpib_address_equal(unsigned int pad1, int sad1, unsigned int p
 }
 
 enum ibask_option {
-	IbaPAD = 0x1,
-	IbaSAD = 0x2,
-	IbaTMO = 0x3,
-	IbaEOT = 0x4,
-	IbaPPC = 0x5,	/* board only */
-	IbaREADDR = 0x6,	/* device only */
-	IbaAUTOPOLL = 0x7,	/* board only */
-	IbaCICPROT = 0x8,	/* board only */
-	IbaIRQ = 0x9,	/* board only */
-	IbaSC = 0xa,	/* board only */
-	IbaSRE = 0xb,	/* board only */
-	IbaEOSrd = 0xc,
-	IbaEOSwrt = 0xd,
-	IbaEOScmp = 0xe,
-	IbaEOSchar = 0xf,
-	IbaPP2 = 0x10,	/* board only */
-	IbaTIMING = 0x11,	/* board only */
-	IbaDMA = 0x12,	/* board only */
-	IbaReadAdjust = 0x13,
-	IbaWriteAdjust = 0x14,
-	IbaEventQueue = 0x15,	/* board only */
-	IbaSPollBit = 0x16,	/* board only */
-	IbaSpollBit = 0x16,	/* board only */
-	IbaSendLLO = 0x17,	/* board only */
-	IbaSPollTime = 0x18,	/* device only */
-	IbaPPollTime = 0x19,	/* board only */
-	IbaEndBitIsNormal = 0x1a,
-	IbaUnAddr = 0x1b,	/* device only */
-	IbaHSCableLength = 0x1f,	/* board only */
-	IbaIst = 0x20,	/* board only */
-	IbaRsv = 0x21,	/* board only */
-	IbaBNA = 0x200,	/* device only */
+	IBA_PAD = 0x1,
+	IBA_SAD = 0x2,
+	IBA_TMO = 0x3,
+	IBA_EOT = 0x4,
+	IBA_PPC = 0x5,	/* board only */
+	IBA_READ_DR = 0x6,	/* device only */
+	IBA_AUTOPOLL = 0x7,	/* board only */
+	IBA_CICPROT = 0x8,	/* board only */
+	IBA_IRQ = 0x9,	/* board only */
+	IBA_SC = 0xa,	/* board only */
+	IBA_SRE = 0xb,	/* board only */
+	IBA_EOS_RD = 0xc,
+	IBA_EOS_WRT = 0xd,
+	IBA_EOS_CMP = 0xe,
+	IBA_EOS_CHAR = 0xf,
+	IBA_PP2 = 0x10,	/* board only */
+	IBA_TIMING = 0x11,	/* board only */
+	IBA_DMA = 0x12,	/* board only */
+	IBA_READ_ADJUST = 0x13,
+	IBA_WRITE_ADJUST = 0x14,
+	IBA_EVENT_QUEUE = 0x15,	/* board only */
+	IBA_SPOLL_BIT = 0x16,	/* board only */
+	IBA_SEND_LLO = 0x17,	/* board only */
+	IBA_SPOLL_TIME = 0x18,	/* device only */
+	IBA_PPOLL_TIME = 0x19,	/* board only */
+	IBA_END_BIT_IS_NORMAL = 0x1a,
+	IBA_UN_ADDR = 0x1b,	/* device only */
+	IBA_HS_CABLE_LENGTH = 0x1f,	/* board only */
+	IBA_IST = 0x20,	/* board only */
+	IBA_RSV = 0x21,	/* board only */
+	IBA_BNA = 0x200,	/* device only */
 	/* linux-gpib extensions */
-	Iba7BitEOS = 0x1000	/* board only. Returns 1 if board supports 7 bit eos compares*/
+	IBA_7BitEOS = 0x1000	/* board only. Returns 1 if board supports 7 bit eos compares*/
 };
 
 enum ibconfig_option {
