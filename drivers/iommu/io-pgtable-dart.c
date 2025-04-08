@@ -111,7 +111,6 @@ static void *__dart_alloc_pages(size_t size, gfp_t gfp)
 {
 	int order = get_order(size);
 
-	VM_BUG_ON((gfp & __GFP_HIGHMEM));
 	return iommu_alloc_pages(gfp, order);
 }
 
