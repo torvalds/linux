@@ -40,7 +40,21 @@
 #include <linux/mfd/rohm-bd96801.h>
 #include <linux/mfd/rohm-generic.h>
 
-static const struct resource regulator_errb_irqs[] = {
+struct bd968xx {
+	const struct resource *errb_irqs;
+	const struct resource *intb_irqs;
+	int num_errb_irqs;
+	int num_intb_irqs;
+	const struct regmap_irq_chip *errb_irq_chip;
+	const struct regmap_irq_chip *intb_irq_chip;
+	const struct regmap_config *regmap_config;
+	struct mfd_cell *cells;
+	int num_cells;
+	int unlock_reg;
+	int unlock_val;
+};
+
+static const struct resource bd96801_reg_errb_irqs[] = {
 	DEFINE_RES_IRQ_NAMED(BD96801_OTP_ERR_STAT, "bd96801-otp-err"),
 	DEFINE_RES_IRQ_NAMED(BD96801_DBIST_ERR_STAT, "bd96801-dbist-err"),
 	DEFINE_RES_IRQ_NAMED(BD96801_EEP_ERR_STAT, "bd96801-eep-err"),
@@ -98,7 +112,7 @@ static const struct resource regulator_errb_irqs[] = {
 	DEFINE_RES_IRQ_NAMED(BD96801_LDO7_SHDN_ERR_STAT, "bd96801-ldo7-shdn-err"),
 };
 
-static const struct resource regulator_intb_irqs[] = {
+static const struct resource bd96801_reg_intb_irqs[] = {
 	DEFINE_RES_IRQ_NAMED(BD96801_TW_STAT, "bd96801-core-thermal"),
 
 	DEFINE_RES_IRQ_NAMED(BD96801_BUCK1_OCPH_STAT, "bd96801-buck1-overcurr-h"),
@@ -345,17 +359,43 @@ static const struct regmap_config bd96801_regmap_config = {
 	.cache_type = REGCACHE_MAPLE,
 };
 
+static const struct bd968xx bd96801_data = {
+	.errb_irqs = bd96801_reg_errb_irqs,
+	.intb_irqs = bd96801_reg_intb_irqs,
+	.num_errb_irqs = ARRAY_SIZE(bd96801_reg_errb_irqs),
+	.num_intb_irqs = ARRAY_SIZE(bd96801_reg_intb_irqs),
+	.errb_irq_chip = &bd96801_irq_chip_errb,
+	.intb_irq_chip = &bd96801_irq_chip_intb,
+	.regmap_config = &bd96801_regmap_config,
+	.cells = bd96801_cells,
+	.num_cells = ARRAY_SIZE(bd96801_cells),
+	.unlock_reg = BD96801_LOCK_REG,
+	.unlock_val = BD96801_UNLOCK,
+};
+
 static int bd96801_i2c_probe(struct i2c_client *i2c)
 {
 	struct regmap_irq_chip_data *intb_irq_data, *errb_irq_data;
 	struct irq_domain *intb_domain, *errb_domain;
+	const struct bd968xx *ddata;
 	const struct fwnode_handle *fwnode;
 	struct resource *regulator_res;
 	struct resource wdg_irq;
 	struct regmap *regmap;
-	int intb_irq, errb_irq, num_intb, num_errb = 0;
+	int intb_irq, errb_irq, num_errb = 0;
 	int num_regu_irqs, wdg_irq_no;
+	unsigned int chip_type;
 	int i, ret;
+
+	chip_type = (unsigned int)(uintptr_t)device_get_match_data(&i2c->dev);
+	switch (chip_type) {
+	case ROHM_CHIP_TYPE_BD96801:
+		ddata = &bd96801_data;
+		break;
+	default:
+		dev_err(&i2c->dev, "Unknown IC\n");
+		return -EINVAL;
+	}
 
 	fwnode = dev_fwnode(&i2c->dev);
 	if (!fwnode)
@@ -365,34 +405,32 @@ static int bd96801_i2c_probe(struct i2c_client *i2c)
 	if (intb_irq < 0)
 		return dev_err_probe(&i2c->dev, intb_irq, "INTB IRQ not configured\n");
 
-	num_intb =  ARRAY_SIZE(regulator_intb_irqs);
-
 	/* ERRB may be omitted if processor is powered by the PMIC */
 	errb_irq = fwnode_irq_get_byname(fwnode, "errb");
-	if (errb_irq < 0)
-		errb_irq = 0;
+	if (errb_irq == -EPROBE_DEFER)
+		return errb_irq;
 
-	if (errb_irq)
-		num_errb = ARRAY_SIZE(regulator_errb_irqs);
+	if (errb_irq > 0)
+		num_errb = ddata->num_errb_irqs;
 
-	num_regu_irqs = num_intb + num_errb;
+	num_regu_irqs = ddata->num_intb_irqs + num_errb;
 
 	regulator_res = devm_kcalloc(&i2c->dev, num_regu_irqs,
 				     sizeof(*regulator_res), GFP_KERNEL);
 	if (!regulator_res)
 		return -ENOMEM;
 
-	regmap = devm_regmap_init_i2c(i2c, &bd96801_regmap_config);
+	regmap = devm_regmap_init_i2c(i2c, ddata->regmap_config);
 	if (IS_ERR(regmap))
 		return dev_err_probe(&i2c->dev, PTR_ERR(regmap),
 				    "Regmap initialization failed\n");
 
-	ret = regmap_write(regmap, BD96801_LOCK_REG, BD96801_UNLOCK);
+	ret = regmap_write(regmap, ddata->unlock_reg, ddata->unlock_val);
 	if (ret)
 		return dev_err_probe(&i2c->dev, ret, "Failed to unlock PMIC\n");
 
 	ret = devm_regmap_add_irq_chip(&i2c->dev, regmap, intb_irq,
-				       IRQF_ONESHOT, 0, &bd96801_irq_chip_intb,
+				       IRQF_ONESHOT, 0, ddata->intb_irq_chip,
 				       &intb_irq_data);
 	if (ret)
 		return dev_err_probe(&i2c->dev, ret, "Failed to add INTB IRQ chip\n");
@@ -404,24 +442,25 @@ static int bd96801_i2c_probe(struct i2c_client *i2c)
 	 * has two domains so we do IRQ mapping here and provide the
 	 * already mapped IRQ numbers to sub-devices.
 	 */
-	for (i = 0; i < num_intb; i++) {
+	for (i = 0; i < ddata->num_intb_irqs; i++) {
 		struct resource *res = &regulator_res[i];
 
-		*res = regulator_intb_irqs[i];
+		*res = ddata->intb_irqs[i];
 		res->start = res->end = irq_create_mapping(intb_domain,
 							    res->start);
 	}
 
 	wdg_irq_no = irq_create_mapping(intb_domain, BD96801_WDT_ERR_STAT);
 	wdg_irq = DEFINE_RES_IRQ_NAMED(wdg_irq_no, "bd96801-wdg");
-	bd96801_cells[WDG_CELL].resources = &wdg_irq;
-	bd96801_cells[WDG_CELL].num_resources = 1;
+
+	ddata->cells[WDG_CELL].resources = &wdg_irq;
+	ddata->cells[WDG_CELL].num_resources = 1;
 
 	if (!num_errb)
 		goto skip_errb;
 
 	ret = devm_regmap_add_irq_chip(&i2c->dev, regmap, errb_irq, IRQF_ONESHOT,
-				       0, &bd96801_irq_chip_errb, &errb_irq_data);
+				       0, ddata->errb_irq_chip, &errb_irq_data);
 	if (ret)
 		return dev_err_probe(&i2c->dev, ret,
 				     "Failed to add ERRB IRQ chip\n");
@@ -429,18 +468,17 @@ static int bd96801_i2c_probe(struct i2c_client *i2c)
 	errb_domain = regmap_irq_get_domain(errb_irq_data);
 
 	for (i = 0; i < num_errb; i++) {
-		struct resource *res = &regulator_res[num_intb + i];
+		struct resource *res = &regulator_res[ddata->num_intb_irqs + i];
 
-		*res = regulator_errb_irqs[i];
+		*res = ddata->errb_irqs[i];
 		res->start = res->end = irq_create_mapping(errb_domain, res->start);
 	}
 
 skip_errb:
-	bd96801_cells[REGULATOR_CELL].resources = regulator_res;
-	bd96801_cells[REGULATOR_CELL].num_resources = num_regu_irqs;
-
-	ret = devm_mfd_add_devices(&i2c->dev, PLATFORM_DEVID_AUTO, bd96801_cells,
-				   ARRAY_SIZE(bd96801_cells), NULL, 0, NULL);
+	ddata->cells[REGULATOR_CELL].resources = regulator_res;
+	ddata->cells[REGULATOR_CELL].num_resources = num_regu_irqs;
+	ret = devm_mfd_add_devices(&i2c->dev, PLATFORM_DEVID_AUTO, ddata->cells,
+				   ddata->num_cells, NULL, 0, NULL);
 	if (ret)
 		dev_err_probe(&i2c->dev, ret, "Failed to create subdevices\n");
 
@@ -448,7 +486,7 @@ skip_errb:
 }
 
 static const struct of_device_id bd96801_of_match[] = {
-	{ .compatible = "rohm,bd96801",	},
+	{ .compatible = "rohm,bd96801", .data = (void *)ROHM_CHIP_TYPE_BD96801 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, bd96801_of_match);
