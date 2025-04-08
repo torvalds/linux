@@ -289,38 +289,37 @@ enum ibask_option {
 };
 
 enum ibconfig_option {
-	IbcPAD = 0x1,
-	IbcSAD = 0x2,
-	IbcTMO = 0x3,
-	IbcEOT = 0x4,
-	IbcPPC = 0x5,	/* board only */
-	IbcREADDR = 0x6,	/* device only */
-	IbcAUTOPOLL = 0x7,	/* board only */
-	IbcCICPROT = 0x8,	/* board only */
-	IbcIRQ = 0x9,	/* board only */
-	IbcSC = 0xa,	/* board only */
-	IbcSRE = 0xb,	/* board only */
-	IbcEOSrd = 0xc,
-	IbcEOSwrt = 0xd,
-	IbcEOScmp = 0xe,
-	IbcEOSchar = 0xf,
-	IbcPP2 = 0x10,	/* board only */
-	IbcTIMING = 0x11,	/* board only */
-	IbcDMA = 0x12,	/* board only */
-	IbcReadAdjust = 0x13,
-	IbcWriteAdjust = 0x14,
-	IbcEventQueue = 0x15,	/* board only */
-	IbcSPollBit = 0x16,	/* board only */
-	IbcSpollBit = 0x16,	/* board only */
-	IbcSendLLO = 0x17,	/* board only */
-	IbcSPollTime = 0x18,	/* device only */
-	IbcPPollTime = 0x19,	/* board only */
-	IbcEndBitIsNormal = 0x1a,
-	IbcUnAddr = 0x1b,	/* device only */
-	IbcHSCableLength = 0x1f,	/* board only */
-	IbcIst = 0x20,	/* board only */
-	IbcRsv = 0x21,	/* board only */
-	IbcBNA = 0x200	/* device only */
+	IBC_PAD = 0x1,
+	IBC_SAD = 0x2,
+	IBC_TMO = 0x3,
+	IBC_EOT = 0x4,
+	IBC_PPC = 0x5,	/* board only */
+	IBC_READDR = 0x6,	/* device only */
+	IBC_AUTOPOLL = 0x7,	/* board only */
+	IBC_CICPROT = 0x8,	/* board only */
+	IBC_IRQ = 0x9,	/* board only */
+	IBC_SC = 0xa,	/* board only */
+	IBC_SRE = 0xb,	/* board only */
+	IBC_EOS_RD = 0xc,
+	IBC_EOS_WRT = 0xd,
+	IBC_EOS_CMP = 0xe,
+	IBC_EOS_CHAR = 0xf,
+	IBC_PP2 = 0x10,	/* board only */
+	IBC_TIMING = 0x11,	/* board only */
+	IBC_DMA = 0x12,	/* board only */
+	IBC_READ_ADJUST = 0x13,
+	IBC_WRITE_ADJUST = 0x14,
+	IBC_EVENT_QUEUE = 0x15,	/* board only */
+	IBC_SPOLL_BIT = 0x16,	/* board only */
+	IBC_SEND_LLO = 0x17,	/* board only */
+	IBC_SPOLL_TIME = 0x18,	/* device only */
+	IBC_PPOLL_TIME = 0x19,	/* board only */
+	IBC_END_BIT_IS_NORMAL = 0x1a,
+	IBC_UN_ADDR = 0x1b,	/* device only */
+	IBC_HS_CABLE_LENGTH = 0x1f,	/* board only */
+	IBC_IST = 0x20,	/* board only */
+	IBC_RSV = 0x21,	/* board only */
+	IBC_BNA = 0x200	/* device only */
 };
 
 enum t1_delays {
