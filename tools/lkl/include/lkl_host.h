@@ -11,13 +11,6 @@ extern "C" {
 extern struct lkl_host_operations lkl_host_ops;
 extern void lkl_change_tls_mode(void);
 
-/**
- * lkl_printf - print a message via the host print operation
- *
- * @fmt: printf like format string
- */
-int lkl_printf(const char *fmt, ...);
-
 extern char lkl_virtio_devs[4096];
 
 #if defined(LKL_HOST_CONFIG_POSIX) || defined(__MSYS__)

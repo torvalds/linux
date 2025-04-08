@@ -1,3 +1,3 @@
 # SPDX-License-Identifier: GPL-2.0
 
-obj-y += string.o
+obj-y += host_ops.o string.o
