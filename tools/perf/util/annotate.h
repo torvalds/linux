@@ -44,6 +44,7 @@ enum perf_disassembler {
 
 struct annotation_options {
 	bool hide_src_code,
+	     hide_src_code_on_title,
 	     use_offset,
 	     jump_arrows,
 	     print_lines,

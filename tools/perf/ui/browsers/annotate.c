@@ -406,6 +406,9 @@ static bool annotate_browser__toggle_source(struct annotate_browser *browser)
 		browser->b.index = al->idx_asm;
 	}
 
+	if (annotate_opts.hide_src_code_on_title)
+		annotate_opts.hide_src_code_on_title = false;
+
 	return true;
 }
 
@@ -708,8 +711,12 @@ static int annotate__scnprintf_title(struct hists *hists, char *bf, size_t size)
 {
 	int printed = hists__scnprintf_title(hists, bf, size);
 
-	return printed + scnprintf(bf + printed, size - printed, " [source: %s]",
-				   annotate_opts.hide_src_code ? "OFF" : "On");
+	if (!annotate_opts.hide_src_code_on_title) {
+		printed += scnprintf(bf + printed, size - printed, " [source: %s]",
+				     annotate_opts.hide_src_code ? "OFF" : "On");
+	}
+
+	return printed;
 }
 
 static int annotate_browser__run(struct annotate_browser *browser,
