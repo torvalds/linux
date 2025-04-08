@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
+#include <linux/delay.h>
 #include "pmbus.h"
 
 enum chips {
@@ -23,6 +24,14 @@ enum chips {
 	max34460,
 	max34461,
 };
+
+/*
+ * Firmware is sometimes not ready if we try and read the
+ * data from the page immediately after setting. Maxim
+ * recommends 50us delay due to the chip failing to clock
+ * stretch long enough here.
+ */
+#define MAX34440_PAGE_CHANGE_DELAY 50
 
 #define MAX34440_MFR_VOUT_PEAK		0xd4
 #define MAX34440_MFR_IOUT_PEAK		0xd5
@@ -272,6 +281,7 @@ static int max34451_set_supported_funcs(struct i2c_client *client,
 
 	for (page = 0; page < 16; page++) {
 		rv = i2c_smbus_write_byte_data(client, PMBUS_PAGE, page);
+		fsleep(MAX34440_PAGE_CHANGE_DELAY);
 		if (rv < 0)
 			return rv;
 
@@ -395,6 +405,7 @@ static struct pmbus_driver_info max34440_info[] = {
 		.read_byte_data = max34440_read_byte_data,
 		.read_word_data = max34440_read_word_data,
 		.write_word_data = max34440_write_word_data,
+		.page_change_delay = MAX34440_PAGE_CHANGE_DELAY,
 	},
 	[max34441] = {
 		.pages = 12,
@@ -438,6 +449,7 @@ static struct pmbus_driver_info max34440_info[] = {
 		.read_byte_data = max34440_read_byte_data,
 		.read_word_data = max34440_read_word_data,
 		.write_word_data = max34440_write_word_data,
+		.page_change_delay = MAX34440_PAGE_CHANGE_DELAY,
 	},
 	[max34446] = {
 		.pages = 7,
@@ -475,6 +487,7 @@ static struct pmbus_driver_info max34440_info[] = {
 		.read_byte_data = max34440_read_byte_data,
 		.read_word_data = max34440_read_word_data,
 		.write_word_data = max34440_write_word_data,
+		.page_change_delay = MAX34440_PAGE_CHANGE_DELAY,
 	},
 	[max34451] = {
 		.pages = 21,
@@ -498,6 +511,7 @@ static struct pmbus_driver_info max34440_info[] = {
 		.func[20] = PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP,
 		.read_word_data = max34440_read_word_data,
 		.write_word_data = max34440_write_word_data,
+		.page_change_delay = MAX34440_PAGE_CHANGE_DELAY,
 	},
 	[max34460] = {
 		.pages = 18,
@@ -528,6 +542,7 @@ static struct pmbus_driver_info max34440_info[] = {
 		.func[17] = PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP,
 		.read_word_data = max34440_read_word_data,
 		.write_word_data = max34440_write_word_data,
+		.page_change_delay = MAX34440_PAGE_CHANGE_DELAY,
 	},
 	[max34461] = {
 		.pages = 23,
@@ -563,6 +578,7 @@ static struct pmbus_driver_info max34440_info[] = {
 		.func[21] = PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP,
 		.read_word_data = max34440_read_word_data,
 		.write_word_data = max34440_write_word_data,
+		.page_change_delay = MAX34440_PAGE_CHANGE_DELAY,
 	},
 };
 
