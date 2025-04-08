@@ -252,7 +252,7 @@ static void free_private(struct gpib_board *board)
 	board->private_data = NULL;
 }
 
-static int pc2_generic_attach(struct gpib_board *board, const gpib_board_config_t *config,
+static int pc2_generic_attach(struct gpib_board *board, const struct gpib_board_config *config,
 			      enum nec7210_chipset chipset)
 {
 	struct pc2_priv *pc2_priv;
@@ -295,7 +295,7 @@ static int pc2_generic_attach(struct gpib_board *board, const gpib_board_config_
 	return 0;
 }
 
-static int pc2_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int pc2_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	int isr_flags = 0;
 	struct pc2_priv *pc2_priv;
@@ -366,7 +366,7 @@ static void pc2_detach(struct gpib_board *board)
 	free_private(board);
 }
 
-static int pc2a_common_attach(struct gpib_board *board, const gpib_board_config_t *config,
+static int pc2a_common_attach(struct gpib_board *board, const struct gpib_board_config *config,
 			      unsigned int num_registers, enum nec7210_chipset chipset)
 {
 	unsigned int i, j;
@@ -460,17 +460,17 @@ static int pc2a_common_attach(struct gpib_board *board, const gpib_board_config_
 	return 0;
 }
 
-static int pc2a_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int pc2a_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	return pc2a_common_attach(board, config, pc2a_iosize, NEC7210);
 }
 
-static int pc2a_cb7210_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int pc2a_cb7210_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	return pc2a_common_attach(board, config, pc2a_iosize, CB7210);
 }
 
-static int pc2_2a_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int pc2_2a_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	return pc2a_common_attach(board, config, pc2_2a_iosize, NAT4882);
 }
