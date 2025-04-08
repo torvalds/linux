@@ -923,6 +923,19 @@ id_to_node(unsigned int id)
 	return &vmap_nodes[id % nr_vmap_nodes];
 }
 
+static inline unsigned int
+node_to_id(struct vmap_node *node)
+{
+	/* Pointer arithmetic. */
+	unsigned int id = node - vmap_nodes;
+
+	if (likely(id < nr_vmap_nodes))
+		return id;
+
+	WARN_ONCE(1, "An address 0x%p is out-of-bounds.\n", node);
+	return 0;
+}
+
 /*
  * We use the value 0 to represent "no node", that is why
  * an encoded value will be the node-id incremented by 1.
@@ -2259,9 +2272,7 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end,
 	 */
 	purge_nodes = CPU_MASK_NONE;
 
-	for (i = 0; i < nr_vmap_nodes; i++) {
-		vn = &vmap_nodes[i];
-
+	for_each_vmap_node(vn) {
 		INIT_LIST_HEAD(&vn->purge_list);
 		vn->skip_populate = full_pool_decay;
 		decay_va_pool_node(vn, full_pool_decay);
@@ -2280,7 +2291,7 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end,
 		end = max(end, list_last_entry(&vn->purge_list,
 			struct vmap_area, list)->va_end);
 
-		cpumask_set_cpu(i, &purge_nodes);
+		cpumask_set_cpu(node_to_id(vn), &purge_nodes);
 	}
 
 	nr_purge_nodes = cpumask_weight(&purge_nodes);
