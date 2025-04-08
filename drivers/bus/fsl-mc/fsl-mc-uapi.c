@@ -48,6 +48,7 @@ enum fsl_mc_cmd_index {
 	DPRC_GET_POOL,
 	DPRC_GET_POOL_COUNT,
 	DPRC_GET_CONNECTION,
+	DPRC_GET_MEM,
 	DPCI_GET_LINK_STATE,
 	DPCI_GET_PEER_ATTR,
 	DPAIOP_GET_SL_VERSION,
@@ -193,6 +194,12 @@ static struct fsl_mc_cmd_desc fsl_mc_accepted_cmds[] = {
 		.cmdid_mask = 0xFFF0,
 		.token = true,
 		.size = 32,
+	},
+	[DPRC_GET_MEM] = {
+		.cmdid_value = 0x16D0,
+		.cmdid_mask = 0xFFF0,
+		.token = true,
+		.size = 12,
 	},
 
 	[DPCI_GET_LINK_STATE] = {
