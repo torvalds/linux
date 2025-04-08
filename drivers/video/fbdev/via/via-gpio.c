@@ -81,8 +81,7 @@ struct viafb_gpio_cfg {
 /*
  * GPIO access functions
  */
-static void via_gpio_set(struct gpio_chip *chip, unsigned int nr,
-			 int value)
+static int via_gpio_set(struct gpio_chip *chip, unsigned int nr, int value)
 {
 	struct viafb_gpio_cfg *cfg = gpiochip_get_data(chip);
 	u8 reg;
@@ -99,13 +98,14 @@ static void via_gpio_set(struct gpio_chip *chip, unsigned int nr,
 		reg &= ~(0x10 << gpio->vg_mask_shift);
 	via_write_reg(VIASR, gpio->vg_port_index, reg);
 	spin_unlock_irqrestore(&cfg->vdev->reg_lock, flags);
+
+	return 0;
 }
 
 static int via_gpio_dir_out(struct gpio_chip *chip, unsigned int nr,
 			    int value)
 {
-	via_gpio_set(chip, nr, value);
-	return 0;
+	return via_gpio_set(chip, nr, value);
 }
 
 /*
@@ -146,7 +146,7 @@ static struct viafb_gpio_cfg viafb_gpio_config = {
 		.label = "VIAFB onboard GPIO",
 		.owner = THIS_MODULE,
 		.direction_output = via_gpio_dir_out,
-		.set = via_gpio_set,
+		.set_rv = via_gpio_set,
 		.direction_input = via_gpio_dir_input,
 		.get = via_gpio_get,
 		.base = -1,
