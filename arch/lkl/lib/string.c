@@ -14,22 +14,28 @@
 #undef memset
 #undef memmove
 
+#ifdef __HAVE_ARCH_MEMCPY
 __visible void *memcpy(void *dest, const void *src, size_t count)
 {
 	return __memcpy(dest, src, count);
 }
 EXPORT_SYMBOL(memcpy);
+#endif
 
+#ifdef __HAVE_ARCH_MEMSET
 __visible void *memset(void *s, int c, size_t count)
 {
 	return __memset(s, c, count);
 }
 EXPORT_SYMBOL(memset);
+#endif
 
+#ifdef __HAVE_ARCH_MEMMOVE
 __visible void *memmove(void *dest, const void *src, size_t count)
 {
 	return __memmove(dest, src, count);
 }
 EXPORT_SYMBOL(memmove);
+#endif
 
 #endif

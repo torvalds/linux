@@ -182,3 +182,24 @@ config BUILTIN_CMDLINE
 	  image and used at boot time. The command line provided to
 	  lkl_start_kernel is appended to this string to form the full
 	  command line.
+
+config LKL_HOST_MEMCPY
+	bool "Host provides memcpy"
+	default n
+	help
+	  This options should be set (in tools/lkl/Makefile.autoconf)
+	  if the host provides a memcpy implementation.
+
+config LKL_HOST_MEMSET
+	bool "Host provides memset"
+	default n
+	help
+	  This options should be set (in tools/lkl/Makefile.autoconf)
+	  if the host provides a memset implementation.
+
+config LKL_HOST_MEMMOVE
+	bool "Host provides memmove"
+	default n
+	help
+	  This options should be set (in tools/lkl/Makefile.autoconf)
+	  if the host provides a memmove implementation.

@@ -7,70 +7,35 @@
 
 /* use __mem* names to avoid conflict with KASAN's mem* functions. */
 
+#ifdef CONFIG_LKL_HOST_MEMCPY
 #define __HAVE_ARCH_MEMCPY
 extern void *memcpy(void *dest, const void *src, size_t count);
 static inline void *__memcpy(void *dest, const void *src, size_t count)
 {
-	char *tmp = dest;
-	const char *s = src;
-
-	if (lkl_ops->memcpy)
-		return lkl_ops->memcpy(dest, src, count);
-
-	/* from lib/string.c */
-
-	while (count--)
-		*tmp++ = *s++;
-	return dest;
+	return lkl_ops->memcpy(dest, src, count);
 }
+#define memcpy(dst, src, len) __memcpy(dst, src, len)
+#endif
 
+#ifdef CONFIG_LKL_HOST_MEMSET
 #define __HAVE_ARCH_MEMSET
 extern void *memset(void *s, int c, size_t count);
 static inline void *__memset(void *s, int c, size_t count)
 {
-	char *xs = s;
-
-	if (lkl_ops->memset)
-		return lkl_ops->memset(s, c, count);
-
-	/* from lib/string.c */
-
-	while (count--)
-		*xs++ = c;
-	return s;
+	return lkl_ops->memset(s, c, count);
 }
+#define memset(s, c, n) __memset(s, c, n)
+#endif
 
+#ifdef CONFIG_LKL_HOST_MEMSET
 #define __HAVE_ARCH_MEMMOVE
 extern void *memmove(void *dest, const void *src, size_t count);
 static inline void *__memmove(void *dest, const void *src, size_t count)
 {
-	char *tmp;
-	const char *s;
-
-	if (lkl_ops->memmove)
-		return lkl_ops->memmove(dest, src, count);
-
-	/* from lib/string.c */
-
-	if (dest <= src) {
-		tmp = dest;
-		s = src;
-		while (count--)
-			*tmp++ = *s++;
-	} else {
-		tmp = dest;
-		tmp += count;
-		s = src;
-		s += count;
-		while (count--)
-			*--tmp = *--s;
-	}
-	return dest;
+	return lkl_ops->memmove(dest, src, count);
 }
-
-#define memcpy(dst, src, len) __memcpy(dst, src, len)
-#define memset(s, c, n) __memset(s, c, n)
 #define memmove(dst, src, len) __memmove(dst, src, len)
+#endif
 
 #if defined(CONFIG_KASAN)
 
