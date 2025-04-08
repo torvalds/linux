@@ -2717,7 +2717,8 @@ int report_iommu_fault(struct iommu_domain *domain, struct device *dev,
 	 * if upper layers showed interest and installed a fault handler,
 	 * invoke it.
 	 */
-	if (domain->handler)
+	if (domain->cookie_type == IOMMU_COOKIE_FAULT_HANDLER &&
+	    domain->handler)
 		ret = domain->handler(domain, dev, iova, flags,
 						domain->handler_token);
 
