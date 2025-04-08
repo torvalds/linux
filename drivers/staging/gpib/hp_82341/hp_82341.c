@@ -250,7 +250,7 @@ static int hp_82341_accel_write(struct gpib_board *board, uint8_t *buffer, size_
 	return 0;
 }
 
-static int hp_82341_attach(struct gpib_board *board, const gpib_board_config_t *config);
+static int hp_82341_attach(struct gpib_board *board, const struct gpib_board_config *config);
 
 static void hp_82341_detach(struct gpib_board *board);
 
@@ -619,7 +619,8 @@ static int hp_82341_load_firmware_array(struct hp_82341_priv *hp_priv,
 	return 0;
 }
 
-static int hp_82341_load_firmware(struct hp_82341_priv *hp_priv, const gpib_board_config_t *config)
+static int hp_82341_load_firmware(struct hp_82341_priv *hp_priv,
+				  const struct gpib_board_config *config)
 {
 	if (config->init_data_length == 0) {
 		if (xilinx_done(hp_priv))
@@ -686,7 +687,7 @@ static int clear_xilinx(struct hp_82341_priv *hp_priv)
 	return 0;
 }
 
-static int hp_82341_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int hp_82341_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	struct hp_82341_priv *hp_priv;
 	struct tms9914_priv *tms_priv;
