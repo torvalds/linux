@@ -929,7 +929,7 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 {
 	struct ath11k_base *ab;
 	struct ath11k_pci *ab_pci;
-	u32 soc_hw_version_major, soc_hw_version_minor, addr;
+	u32 soc_hw_version_major, soc_hw_version_minor;
 	int ret;
 	u32 sub_version;
 
@@ -955,8 +955,7 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 	 * from DT. If memory is reserved from DT for FW, ath11k driver need not
 	 * allocate memory.
 	 */
-	ret = of_property_read_u32(ab->dev->of_node, "memory-region", &addr);
-	if (!ret)
+	if (of_property_present(ab->dev->of_node, "memory-region"))
 		set_bit(ATH11K_FLAG_FIXED_MEM_RGN, &ab->dev_flags);
 
 	ret = ath11k_pci_claim(ab_pci, pdev);
