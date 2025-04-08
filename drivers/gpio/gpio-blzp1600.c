@@ -10,9 +10,8 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_irq.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
@@ -217,7 +216,6 @@ static int blzp1600_gpio_set_config(struct gpio_chip *gc, unsigned int offset, u
 
 static int blzp1600_gpio_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
 	struct blzp1600_gpio *chip;
 	struct gpio_chip *gc;
 	int ret;
@@ -240,7 +238,7 @@ static int blzp1600_gpio_probe(struct platform_device *pdev)
 	gc = &chip->gc;
 	gc->set_config = blzp1600_gpio_set_config;
 
-	if (of_property_read_bool(node, "interrupt-controller")) {
+	if (device_property_present(&pdev->dev, "interrupt-controller")) {
 		struct gpio_irq_chip *girq;
 
 		chip->irq = platform_get_irq(pdev, 0);
