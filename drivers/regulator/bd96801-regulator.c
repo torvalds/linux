@@ -182,6 +182,10 @@ static const struct linear_range bd96805_buck_init_volts[] = {
 	REGULATOR_LINEAR_RANGE(3300000 - 310000, 0xed, 0xff, 0),
 };
 
+/* BD96806 uses same voltage ranges for bucks as BD96805 */
+#define bd96806_tune_volts bd96805_tune_volts
+#define bd96806_buck_init_volts bd96805_buck_init_volts
+
 static const struct linear_range bd96801_ldo_int_volts[] = {
 	REGULATOR_LINEAR_RANGE(300000, 0x00, 0x78, 25000),
 	REGULATOR_LINEAR_RANGE(3300000, 0x79, 0xff, 0),
@@ -966,6 +970,70 @@ static const struct bd96801_pmic_data bd96805_data = {
 	.num_regulators = 7,
 };
 
+static const struct bd96801_pmic_data bd96806_data = {
+	.regulator_data = {
+	{
+		.desc = {
+			.name = "buck1",
+			.of_match = of_match_ptr("buck1"),
+			.regulators_node = of_match_ptr("regulators"),
+			.id = BD96801_BUCK1,
+			.ops = &bd96801_buck_ops,
+			.type = REGULATOR_VOLTAGE,
+			.linear_ranges = bd96806_tune_volts,
+			.n_linear_ranges = ARRAY_SIZE(bd96806_tune_volts),
+			.n_voltages = BD96805_BUCK_VOLTS,
+			.enable_reg = BD96801_REG_ENABLE,
+			.enable_mask = BD96801_BUCK1_EN_MASK,
+			.enable_is_inverted = true,
+			.vsel_reg = BD96801_BUCK1_VSEL_REG,
+			.vsel_mask = BD96805_BUCK_VSEL_MASK,
+			.ramp_reg = BD96801_BUCK1_VSEL_REG,
+			.ramp_mask = BD96801_MASK_RAMP_DELAY,
+			.ramp_delay_table = &buck_ramp_table[0],
+			.n_ramp_values = ARRAY_SIZE(buck_ramp_table),
+			.owner = THIS_MODULE,
+		},
+		.init_ranges = bd96806_buck_init_volts,
+		.num_ranges = ARRAY_SIZE(bd96806_buck_init_volts),
+		.irq_desc = {
+			.irqinfo = (struct bd96801_irqinfo *)&buck1_irqinfo[0],
+			.num_irqs = ARRAY_SIZE(buck1_irqinfo),
+		},
+	},
+	{
+		.desc = {
+			.name = "buck2",
+			.of_match = of_match_ptr("buck2"),
+			.regulators_node = of_match_ptr("regulators"),
+			.id = BD96801_BUCK2,
+			.ops = &bd96801_buck_ops,
+			.type = REGULATOR_VOLTAGE,
+			.linear_ranges = bd96806_tune_volts,
+			.n_linear_ranges = ARRAY_SIZE(bd96806_tune_volts),
+			.n_voltages = BD96805_BUCK_VOLTS,
+			.enable_reg = BD96801_REG_ENABLE,
+			.enable_mask = BD96801_BUCK2_EN_MASK,
+			.enable_is_inverted = true,
+			.vsel_reg = BD96801_BUCK2_VSEL_REG,
+			.vsel_mask = BD96805_BUCK_VSEL_MASK,
+			.ramp_reg = BD96801_BUCK2_VSEL_REG,
+			.ramp_mask = BD96801_MASK_RAMP_DELAY,
+			.ramp_delay_table = &buck_ramp_table[0],
+			.n_ramp_values = ARRAY_SIZE(buck_ramp_table),
+			.owner = THIS_MODULE,
+		},
+		.irq_desc = {
+			.irqinfo = (struct bd96801_irqinfo *)&buck2_irqinfo[0],
+			.num_irqs = ARRAY_SIZE(buck2_irqinfo),
+		},
+		.init_ranges = bd96806_buck_init_volts,
+		.num_ranges = ARRAY_SIZE(bd96806_buck_init_volts),
+	},
+	},
+	.num_regulators = 2,
+};
+
 static int initialize_pmic_data(struct platform_device *pdev,
 				struct bd96801_pmic_data *pdata)
 {
@@ -1264,6 +1332,7 @@ static const struct platform_device_id bd96801_pmic_id[] = {
 	{ "bd96801-regulator", (kernel_ulong_t)&bd96801_data },
 	{ "bd96802-regulator", (kernel_ulong_t)&bd96802_data },
 	{ "bd96805-regulator", (kernel_ulong_t)&bd96805_data },
+	{ "bd96806-regulator", (kernel_ulong_t)&bd96806_data },
 	{ },
 };
 MODULE_DEVICE_TABLE(platform, bd96801_pmic_id);
