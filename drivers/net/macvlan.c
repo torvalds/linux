@@ -254,7 +254,7 @@ static u32 macvlan_hash_mix(const struct macvlan_dev *vlan)
 static unsigned int mc_hash(const struct macvlan_dev *vlan,
 			    const unsigned char *addr)
 {
-	u32 val = __get_unaligned_cpu32(addr + 2);
+	u32 val = get_unaligned((u32 *)(addr + 2));
 
 	val ^= macvlan_hash_mix(vlan);
 	return hash_32(val, MACVLAN_MC_FILTER_BITS);
