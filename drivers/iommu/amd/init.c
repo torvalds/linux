@@ -243,14 +243,6 @@ static void init_translation_status(struct amd_iommu *iommu)
 		iommu->flags |= AMD_IOMMU_FLAG_TRANS_PRE_ENABLED;
 }
 
-static inline unsigned long tbl_size(int entry_size, int last_bdf)
-{
-	unsigned shift = PAGE_SHIFT +
-			 get_order((last_bdf + 1) * entry_size);
-
-	return 1UL << shift;
-}
-
 int amd_iommu_get_num_iommus(void)
 {
 	return amd_iommus_present;
@@ -1595,7 +1587,9 @@ static struct amd_iommu_pci_seg *__init alloc_pci_segment(u16 id,
 
 	pci_seg->last_bdf = last_bdf;
 	DUMP_printk("PCI segment : 0x%0x, last bdf : 0x%04x\n", id, last_bdf);
-	pci_seg->dev_table_size     = tbl_size(DEV_TABLE_ENTRY_SIZE, last_bdf);
+	pci_seg->dev_table_size =
+		max(roundup_pow_of_two((last_bdf + 1) * DEV_TABLE_ENTRY_SIZE),
+		    SZ_4K);
 
 	pci_seg->id = id;
 	init_llist_head(&pci_seg->dev_data_list);
