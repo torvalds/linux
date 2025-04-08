@@ -230,7 +230,7 @@ extern int amdgpu_force_asic_type;
 extern int amdgpu_smartshift_bias;
 extern int amdgpu_use_xgmi_p2p;
 extern int amdgpu_mtype_local;
-extern bool enforce_isolation;
+extern int amdgpu_enforce_isolation;
 #ifdef CONFIG_HSA_AMD
 extern int sched_policy;
 extern bool debug_evictions;
@@ -873,6 +873,13 @@ struct amdgpu_init_level {
 struct amdgpu_reset_domain;
 struct amdgpu_fru_info;
 
+enum amdgpu_enforce_isolation_mode {
+	AMDGPU_ENFORCE_ISOLATION_DISABLE = 0,
+	AMDGPU_ENFORCE_ISOLATION_ENABLE = 1,
+	AMDGPU_ENFORCE_ISOLATION_ENABLE_LEGACY = 2,
+};
+
+
 /*
  * Non-zero (true) if the GPU has VRAM. Zero (false) otherwise.
  */
@@ -1225,7 +1232,7 @@ struct amdgpu_device {
 
 	/* Protection for the following isolation structure */
 	struct mutex                    enforce_isolation_mutex;
-	bool				enforce_isolation[MAX_XCP];
+	enum amdgpu_enforce_isolation_mode	enforce_isolation[MAX_XCP];
 	struct amdgpu_isolation {
 		void			*owner;
 		struct dma_fence	*spearhead;

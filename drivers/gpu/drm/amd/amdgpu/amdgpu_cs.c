@@ -296,7 +296,21 @@ static int amdgpu_cs_pass1(struct amdgpu_cs_parser *p,
 				       num_ibs[i], &p->jobs[i]);
 		if (ret)
 			goto free_all_kdata;
-		p->jobs[i]->enforce_isolation = p->adev->enforce_isolation[fpriv->xcp_id];
+		switch (p->adev->enforce_isolation[fpriv->xcp_id]) {
+		case AMDGPU_ENFORCE_ISOLATION_DISABLE:
+		default:
+			p->jobs[i]->enforce_isolation = false;
+			p->jobs[i]->run_cleaner_shader = false;
+			break;
+		case AMDGPU_ENFORCE_ISOLATION_ENABLE:
+			p->jobs[i]->enforce_isolation = true;
+			p->jobs[i]->run_cleaner_shader = true;
+			break;
+		case AMDGPU_ENFORCE_ISOLATION_ENABLE_LEGACY:
+			p->jobs[i]->enforce_isolation = true;
+			p->jobs[i]->run_cleaner_shader = false;
+			break;
+		}
 	}
 	p->gang_leader = p->jobs[p->gang_leader_idx];
 

@@ -1468,6 +1468,8 @@ static int amdgpu_gfx_run_cleaner_shader_job(struct amdgpu_ring *ring)
 		goto err;
 
 	job->enforce_isolation = true;
+	/* always run the cleaner shader */
+	job->run_cleaner_shader = true;
 
 	ib = &job->ibs[0];
 	for (i = 0; i <= ring->funcs->align_mask; ++i)
@@ -1599,7 +1601,7 @@ static ssize_t amdgpu_gfx_set_run_cleaner_shader(struct device *dev,
  * Provides the sysfs read interface to get the current settings of the 'enforce_isolation'
  * feature for each GPU partition. Reading from the 'enforce_isolation'
  * sysfs file returns the isolation settings for all partitions, where '0'
- * indicates disabled and '1' indicates enabled.
+ * indicates disabled, '1' indicates enabled, and '2' indicates enabled in legacy mode.
  *
  * Return: The number of bytes read from the sysfs file.
  */
@@ -1634,9 +1636,10 @@ static ssize_t amdgpu_gfx_get_enforce_isolation(struct device *dev,
  * @count: The size of the input data
  *
  * This function allows control over the 'enforce_isolation' feature, which
- * serializes access to the graphics engine. Writing '1' or '0' to the
- * 'enforce_isolation' sysfs file enables or disables process isolation for
- * each partition. The input should specify the setting for all partitions.
+ * serializes access to the graphics engine. Writing '1', '2', or '0' to the
+ * 'enforce_isolation' sysfs file enables (full or legacy) or disables process
+ * isolation for each partition. The input should specify the setting for all
+ * partitions.
  *
  * Return: The number of bytes written to the sysfs file.
  */
@@ -1673,13 +1676,29 @@ static ssize_t amdgpu_gfx_set_enforce_isolation(struct device *dev,
 		return -EINVAL;
 
 	for (i = 0; i < num_partitions; i++) {
-		if (partition_values[i] != 0 && partition_values[i] != 1)
+		if (partition_values[i] != 0 &&
+		    partition_values[i] != 1 &&
+		    partition_values[i] != 2)
 			return -EINVAL;
 	}
 
 	mutex_lock(&adev->enforce_isolation_mutex);
-	for (i = 0; i < num_partitions; i++)
-		adev->enforce_isolation[i] = partition_values[i];
+	for (i = 0; i < num_partitions; i++) {
+		switch (partition_values[i]) {
+		case 0:
+		default:
+			adev->enforce_isolation[i] = AMDGPU_ENFORCE_ISOLATION_DISABLE;
+			break;
+		case 1:
+			adev->enforce_isolation[i] =
+				AMDGPU_ENFORCE_ISOLATION_ENABLE;
+			break;
+		case 2:
+			adev->enforce_isolation[i] =
+				AMDGPU_ENFORCE_ISOLATION_ENABLE_LEGACY;
+			break;
+		}
+	}
 	mutex_unlock(&adev->enforce_isolation_mutex);
 
 	amdgpu_mes_update_enforce_isolation(adev);
@@ -2034,7 +2053,7 @@ amdgpu_gfx_enforce_isolation_wait_for_kfd(struct amdgpu_device *adev,
 	bool wait = false;
 
 	mutex_lock(&adev->enforce_isolation_mutex);
-	if (adev->enforce_isolation[idx]) {
+	if (adev->enforce_isolation[idx] == AMDGPU_ENFORCE_ISOLATION_ENABLE) {
 		/* set the initial values if nothing is set */
 		if (!adev->gfx.enforce_isolation_jiffies[idx]) {
 			adev->gfx.enforce_isolation_jiffies[idx] = jiffies;
@@ -2101,7 +2120,7 @@ void amdgpu_gfx_enforce_isolation_ring_begin_use(struct amdgpu_ring *ring)
 	amdgpu_gfx_enforce_isolation_wait_for_kfd(adev, idx);
 
 	mutex_lock(&adev->enforce_isolation_mutex);
-	if (adev->enforce_isolation[idx]) {
+	if (adev->enforce_isolation[idx] == AMDGPU_ENFORCE_ISOLATION_ENABLE) {
 		if (adev->kfd.init_complete)
 			sched_work = true;
 	}
@@ -2138,7 +2157,7 @@ void amdgpu_gfx_enforce_isolation_ring_end_use(struct amdgpu_ring *ring)
 		return;
 
 	mutex_lock(&adev->enforce_isolation_mutex);
-	if (adev->enforce_isolation[idx]) {
+	if (adev->enforce_isolation[idx] == AMDGPU_ENFORCE_ISOLATION_ENABLE) {
 		if (adev->kfd.init_complete)
 			sched_work = true;
 	}
