@@ -14,7 +14,7 @@ import re
 re_cache = {}
 
 
-class Re:
+class KernRe:
     """
     Helper class to simplify regex declaration and usage,
 
@@ -59,7 +59,7 @@ class Re:
         Allows adding two regular expressions into one.
         """
 
-        return Re(str(self) + str(other), cache=self.cache or other.cache,
+        return KernRe(str(self) + str(other), cache=self.cache or other.cache,
                   flags=self.regex.flags | other.regex.flags)
 
     def match(self, string):

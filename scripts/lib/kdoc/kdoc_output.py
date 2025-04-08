@@ -20,31 +20,31 @@ import re
 from datetime import datetime
 
 from kdoc_parser import KernelDoc, type_param
-from kdoc_re import Re
+from kdoc_re import KernRe
 
 
-function_pointer = Re(r"([^\(]*\(\*)\s*\)\s*\(([^\)]*)\)", cache=False)
+function_pointer = KernRe(r"([^\(]*\(\*)\s*\)\s*\(([^\)]*)\)", cache=False)
 
 # match expressions used to find embedded type information
-type_constant = Re(r"\b``([^\`]+)``\b", cache=False)
-type_constant2 = Re(r"\%([-_*\w]+)", cache=False)
-type_func = Re(r"(\w+)\(\)", cache=False)
-type_param_ref = Re(r"([\!~\*]?)\@(\w*((\.\w+)|(->\w+))*(\.\.\.)?)", cache=False)
+type_constant = KernRe(r"\b``([^\`]+)``\b", cache=False)
+type_constant2 = KernRe(r"\%([-_*\w]+)", cache=False)
+type_func = KernRe(r"(\w+)\(\)", cache=False)
+type_param_ref = KernRe(r"([\!~\*]?)\@(\w*((\.\w+)|(->\w+))*(\.\.\.)?)", cache=False)
 
 # Special RST handling for func ptr params
-type_fp_param = Re(r"\@(\w+)\(\)", cache=False)
+type_fp_param = KernRe(r"\@(\w+)\(\)", cache=False)
 
 # Special RST handling for structs with func ptr params
-type_fp_param2 = Re(r"\@(\w+->\S+)\(\)", cache=False)
+type_fp_param2 = KernRe(r"\@(\w+->\S+)\(\)", cache=False)
 
-type_env = Re(r"(\$\w+)", cache=False)
-type_enum = Re(r"\&(enum\s*([_\w]+))", cache=False)
-type_struct = Re(r"\&(struct\s*([_\w]+))", cache=False)
-type_typedef = Re(r"\&(typedef\s*([_\w]+))", cache=False)
-type_union = Re(r"\&(union\s*([_\w]+))", cache=False)
-type_member = Re(r"\&([_\w]+)(\.|->)([_\w]+)", cache=False)
-type_fallback = Re(r"\&([_\w]+)", cache=False)
-type_member_func = type_member + Re(r"\(\)", cache=False)
+type_env = KernRe(r"(\$\w+)", cache=False)
+type_enum = KernRe(r"\&(enum\s*([_\w]+))", cache=False)
+type_struct = KernRe(r"\&(struct\s*([_\w]+))", cache=False)
+type_typedef = KernRe(r"\&(typedef\s*([_\w]+))", cache=False)
+type_union = KernRe(r"\&(union\s*([_\w]+))", cache=False)
+type_member = KernRe(r"\&([_\w]+)(\.|->)([_\w]+)", cache=False)
+type_fallback = KernRe(r"\&([_\w]+)", cache=False)
+type_member_func = type_member + KernRe(r"\(\)", cache=False)
 
 
 class OutputFormat:
@@ -257,8 +257,8 @@ class RestFormat(OutputFormat):
     ]
     blankline = "\n"
 
-    sphinx_literal = Re(r'^[^.].*::$', cache=False)
-    sphinx_cblock = Re(r'^\.\.\ +code-block::', cache=False)
+    sphinx_literal = KernRe(r'^[^.].*::$', cache=False)
+    sphinx_cblock = KernRe(r'^\.\.\ +code-block::', cache=False)
 
     def __init__(self):
         """
@@ -299,14 +299,14 @@ class RestFormat(OutputFormat):
                     # If this is the first non-blank line in a literal block,
                     # figure out the proper indent.
                     if not litprefix:
-                        r = Re(r'^(\s*)')
+                        r = KernRe(r'^(\s*)')
                         if r.match(line):
                             litprefix = '^' + r.group(1)
                         else:
                             litprefix = ""
 
                         output += line + "\n"
-                    elif not Re(litprefix).match(line):
+                    elif not KernRe(litprefix).match(line):
                         in_literal = False
                     else:
                         output += line + "\n"
@@ -429,7 +429,7 @@ class RestFormat(OutputFormat):
             self.data += f"{self.lineprefix}**Parameters**\n\n"
 
         for parameter in parameterlist:
-            parameter_name = Re(r'\[.*').sub('', parameter)
+            parameter_name = KernRe(r'\[.*').sub('', parameter)
             dtype = args['parametertypes'].get(parameter, "")
 
             if dtype:
@@ -626,7 +626,7 @@ class ManFormat(OutputFormat):
             contents = "\n".join(contents)
 
         for line in contents.strip("\n").split("\n"):
-            line = Re(r"^\s*").sub("", line)
+            line = KernRe(r"^\s*").sub("", line)
             if not line:
                 continue
 
@@ -680,7 +680,7 @@ class ManFormat(OutputFormat):
                 # Pointer-to-function
                 self.data += f'".BI "{parenth}{function_pointer.group(1)}" " ") ({function_pointer.group(2)}){post}"' + "\n"
             else:
-                dtype = Re(r'([^\*])$').sub(r'\1 ', dtype)
+                dtype = KernRe(r'([^\*])$').sub(r'\1 ', dtype)
 
                 self.data += f'.BI "{parenth}{dtype}"  "{post}"' + "\n"
             count += 1
@@ -727,7 +727,7 @@ class ManFormat(OutputFormat):
         self.data += ".SH Constants\n"
 
         for parameter in parameterlist:
-            parameter_name = Re(r'\[.*').sub('', parameter)
+            parameter_name = KernRe(r'\[.*').sub('', parameter)
             self.data += f'.IP "{parameter}" 12' + "\n"
             self.output_highlight(args['parameterdescs'].get(parameter_name, ""))
 
@@ -769,7 +769,7 @@ class ManFormat(OutputFormat):
 
         # Replace tabs with two spaces and handle newlines
         declaration = definition.replace("\t", "  ")
-        declaration = Re(r"\n").sub('"\n.br\n.BI "', declaration)
+        declaration = KernRe(r"\n").sub('"\n.br\n.BI "', declaration)
 
         self.data += ".SH SYNOPSIS\n"
         self.data += f"{struct_type} {struct_name} " + "{" + "\n.br\n"
