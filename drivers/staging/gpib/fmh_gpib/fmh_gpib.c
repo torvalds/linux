@@ -32,13 +32,15 @@ MODULE_DESCRIPTION("GPIB Driver for fmh_gpib_core");
 MODULE_AUTHOR("Frank Mori Hess <fmh6jj@gmail.com>");
 
 static irqreturn_t fmh_gpib_interrupt(int irq, void *arg);
-static int fmh_gpib_attach_holdoff_all(struct gpib_board *board, const gpib_board_config_t *config);
-static int fmh_gpib_attach_holdoff_end(struct gpib_board *board, const gpib_board_config_t *config);
+static int fmh_gpib_attach_holdoff_all(struct gpib_board *board,
+				       const struct gpib_board_config *config);
+static int fmh_gpib_attach_holdoff_end(struct gpib_board *board,
+				       const struct gpib_board_config *config);
 static void fmh_gpib_detach(struct gpib_board *board);
 static int fmh_gpib_pci_attach_holdoff_all(struct gpib_board *board,
-					   const gpib_board_config_t *config);
+					   const struct gpib_board_config *config);
 static int fmh_gpib_pci_attach_holdoff_end(struct gpib_board *board,
-					   const gpib_board_config_t *config);
+					   const struct gpib_board_config *config);
 static void fmh_gpib_pci_detach(struct gpib_board *board);
 static int fmh_gpib_config_dma(struct gpib_board *board, int output);
 static irqreturn_t fmh_gpib_internal_interrupt(struct gpib_board *board);
@@ -1335,7 +1337,7 @@ static int fmh_gpib_init(struct fmh_priv *e_priv, struct gpib_board *board, int 
 /* Match callback for driver_find_device */
 static int fmh_gpib_device_match(struct device *dev, const void *data)
 {
-	const gpib_board_config_t *config = data;
+	const struct gpib_board_config *config = data;
 
 	if (dev_get_drvdata(dev))
 		return 0;
@@ -1351,7 +1353,7 @@ static int fmh_gpib_device_match(struct device *dev, const void *data)
 	return 1;
 }
 
-static int fmh_gpib_attach_impl(struct gpib_board *board, const gpib_board_config_t *config,
+static int fmh_gpib_attach_impl(struct gpib_board *board, const struct gpib_board_config *config,
 				unsigned int handshake_mode, int acquire_dma)
 {
 	struct fmh_priv *e_priv;
@@ -1454,12 +1456,12 @@ static int fmh_gpib_attach_impl(struct gpib_board *board, const gpib_board_confi
 	return fmh_gpib_init(e_priv, board, handshake_mode);
 }
 
-int fmh_gpib_attach_holdoff_all(struct gpib_board *board, const gpib_board_config_t *config)
+int fmh_gpib_attach_holdoff_all(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	return fmh_gpib_attach_impl(board, config, HR_HLDA, 0);
 }
 
-int fmh_gpib_attach_holdoff_end(struct gpib_board *board, const gpib_board_config_t *config)
+int fmh_gpib_attach_holdoff_end(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	return fmh_gpib_attach_impl(board, config, HR_HLDE, 1);
 }
@@ -1497,7 +1499,8 @@ void fmh_gpib_detach(struct gpib_board *board)
 	fmh_gpib_generic_detach(board);
 }
 
-static int fmh_gpib_pci_attach_impl(struct gpib_board *board, const gpib_board_config_t *config,
+static int fmh_gpib_pci_attach_impl(struct gpib_board *board,
+				    const struct gpib_board_config *config,
 				    unsigned int handshake_mode)
 {
 	struct fmh_priv *e_priv;
@@ -1570,12 +1573,14 @@ static int fmh_gpib_pci_attach_impl(struct gpib_board *board, const gpib_board_c
 	return fmh_gpib_init(e_priv, board, handshake_mode);
 }
 
-int fmh_gpib_pci_attach_holdoff_all(struct gpib_board *board, const gpib_board_config_t *config)
+int fmh_gpib_pci_attach_holdoff_all(struct gpib_board *board,
+				    const struct gpib_board_config *config)
 {
 	return fmh_gpib_pci_attach_impl(board, config, HR_HLDA);
 }
 
-int fmh_gpib_pci_attach_holdoff_end(struct gpib_board *board, const gpib_board_config_t *config)
+int fmh_gpib_pci_attach_holdoff_end(struct gpib_board *board,
+				    const struct gpib_board_config *config)
 {
 	int retval;
 	struct fmh_priv *e_priv;
