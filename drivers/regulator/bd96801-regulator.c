@@ -160,6 +160,9 @@ static const struct linear_range bd96801_buck_init_volts[] = {
 	REGULATOR_LINEAR_RANGE(3300000 - 150000, 0xed, 0xff, 0),
 };
 
+/* BD96802 uses same voltage ranges for bucks as BD96801 */
+#define bd96802_tune_volts bd96801_tune_volts
+#define bd96802_buck_init_volts bd96801_buck_init_volts
 static const struct linear_range bd96801_ldo_int_volts[] = {
 	REGULATOR_LINEAR_RANGE(300000, 0x00, 0x78, 25000),
 	REGULATOR_LINEAR_RANGE(3300000, 0x79, 0xff, 0),
@@ -302,6 +305,7 @@ struct bd96801_pmic_data {
 	struct bd96801_regulator_data regulator_data[BD96801_NUM_REGULATORS];
 	struct regmap *regmap;
 	int fatal_ind;
+	int num_regulators;
 };
 
 static int ldo_map_notif(int irq, struct regulator_irq_data *rid,
@@ -503,6 +507,70 @@ static int bd96801_walk_regulator_dt(struct device *dev, struct regmap *regmap,
  * case later. What we can easly do for preparing is to not use static global
  * data for regulators though.
  */
+static const struct bd96801_pmic_data bd96802_data = {
+	.regulator_data = {
+	{
+		.desc = {
+			.name = "buck1",
+			.of_match = of_match_ptr("buck1"),
+			.regulators_node = of_match_ptr("regulators"),
+			.id = BD96801_BUCK1,
+			.ops = &bd96801_buck_ops,
+			.type = REGULATOR_VOLTAGE,
+			.linear_ranges = bd96802_tune_volts,
+			.n_linear_ranges = ARRAY_SIZE(bd96802_tune_volts),
+			.n_voltages = BD96801_BUCK_VOLTS,
+			.enable_reg = BD96801_REG_ENABLE,
+			.enable_mask = BD96801_BUCK1_EN_MASK,
+			.enable_is_inverted = true,
+			.vsel_reg = BD96801_BUCK1_VSEL_REG,
+			.vsel_mask = BD96801_BUCK_VSEL_MASK,
+			.ramp_reg = BD96801_BUCK1_VSEL_REG,
+			.ramp_mask = BD96801_MASK_RAMP_DELAY,
+			.ramp_delay_table = &buck_ramp_table[0],
+			.n_ramp_values = ARRAY_SIZE(buck_ramp_table),
+			.owner = THIS_MODULE,
+		},
+		.init_ranges = bd96802_buck_init_volts,
+		.num_ranges = ARRAY_SIZE(bd96802_buck_init_volts),
+		.irq_desc = {
+			.irqinfo = (struct bd96801_irqinfo *)&buck1_irqinfo[0],
+			.num_irqs = ARRAY_SIZE(buck1_irqinfo),
+		},
+	},
+	{
+		.desc = {
+			.name = "buck2",
+			.of_match = of_match_ptr("buck2"),
+			.regulators_node = of_match_ptr("regulators"),
+			.id = BD96801_BUCK2,
+			.ops = &bd96801_buck_ops,
+			.type = REGULATOR_VOLTAGE,
+			.linear_ranges = bd96802_tune_volts,
+			.n_linear_ranges = ARRAY_SIZE(bd96802_tune_volts),
+			.n_voltages = BD96801_BUCK_VOLTS,
+			.enable_reg = BD96801_REG_ENABLE,
+			.enable_mask = BD96801_BUCK2_EN_MASK,
+			.enable_is_inverted = true,
+			.vsel_reg = BD96801_BUCK2_VSEL_REG,
+			.vsel_mask = BD96801_BUCK_VSEL_MASK,
+			.ramp_reg = BD96801_BUCK2_VSEL_REG,
+			.ramp_mask = BD96801_MASK_RAMP_DELAY,
+			.ramp_delay_table = &buck_ramp_table[0],
+			.n_ramp_values = ARRAY_SIZE(buck_ramp_table),
+			.owner = THIS_MODULE,
+		},
+		.irq_desc = {
+			.irqinfo = (struct bd96801_irqinfo *)&buck2_irqinfo[0],
+			.num_irqs = ARRAY_SIZE(buck2_irqinfo),
+		},
+		.init_ranges = bd96802_buck_init_volts,
+		.num_ranges = ARRAY_SIZE(bd96802_buck_init_volts),
+	},
+	},
+	.num_regulators = 2,
+};
+
 static const struct bd96801_pmic_data bd96801_data = {
 	.regulator_data = {
 	{
@@ -688,11 +756,13 @@ static const struct bd96801_pmic_data bd96801_data = {
 		.ldo_vol_lvl = BD96801_LDO7_VOL_LVL_REG,
 	},
 	},
+	.num_regulators = 7,
 };
 
-static int initialize_pmic_data(struct device *dev,
+static int initialize_pmic_data(struct platform_device *pdev,
 				struct bd96801_pmic_data *pdata)
 {
+	struct device *dev = &pdev->dev;
 	int r, i;
 
 	/*
@@ -700,7 +770,7 @@ static int initialize_pmic_data(struct device *dev,
 	 * wish to modify IRQ information independently for each driver
 	 * instance.
 	 */
-	for (r = 0; r < BD96801_NUM_REGULATORS; r++) {
+	for (r = 0; r < pdata->num_regulators; r++) {
 		const struct bd96801_irqinfo *template;
 		struct bd96801_irqinfo *new;
 		int num_infos;
@@ -866,6 +936,7 @@ static int bd96801_probe(struct platform_device *pdev)
 {
 	struct regulator_dev *ldo_errs_rdev_arr[BD96801_NUM_LDOS];
 	struct regulator_dev *all_rdevs[BD96801_NUM_REGULATORS];
+	struct bd96801_pmic_data *pdata_template;
 	struct bd96801_regulator_data *rdesc;
 	struct regulator_config config = {};
 	int ldo_errs_arr[BD96801_NUM_LDOS];
@@ -878,12 +949,16 @@ static int bd96801_probe(struct platform_device *pdev)
 
 	parent = pdev->dev.parent;
 
-	pdata = devm_kmemdup(&pdev->dev, &bd96801_data, sizeof(bd96801_data),
+	pdata_template = (struct bd96801_pmic_data *)platform_get_device_id(pdev)->driver_data;
+	if (!pdata_template)
+		return -ENODEV;
+
+	pdata = devm_kmemdup(&pdev->dev, pdata_template, sizeof(bd96801_data),
 			     GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 
-	if (initialize_pmic_data(&pdev->dev, pdata))
+	if (initialize_pmic_data(pdev, pdata))
 		return -ENOMEM;
 
 	pdata->regmap = dev_get_regmap(parent, NULL);
@@ -906,11 +981,11 @@ static int bd96801_probe(struct platform_device *pdev)
 		use_errb = true;
 
 	ret = bd96801_walk_regulator_dt(&pdev->dev, pdata->regmap, rdesc,
-					BD96801_NUM_REGULATORS);
+					pdata->num_regulators);
 	if (ret)
 		return ret;
 
-	for (i = 0; i < ARRAY_SIZE(pdata->regulator_data); i++) {
+	for (i = 0; i < pdata->num_regulators; i++) {
 		struct regulator_dev *rdev;
 		struct bd96801_irq_desc *idesc = &rdesc[i].irq_desc;
 		int j;
@@ -923,6 +998,7 @@ static int bd96801_probe(struct platform_device *pdev)
 				rdesc[i].desc.name);
 			return PTR_ERR(rdev);
 		}
+
 		all_rdevs[i] = rdev;
 		/*
 		 * LDOs don't have own temperature monitoring. If temperature
@@ -972,14 +1048,15 @@ static int bd96801_probe(struct platform_device *pdev)
 
 	if (use_errb)
 		return bd96801_global_errb_irqs(pdev, all_rdevs,
-						ARRAY_SIZE(all_rdevs));
+						pdata->num_regulators);
 
 	return 0;
 }
 
 static const struct platform_device_id bd96801_pmic_id[] = {
-	{ "bd96801-regulator", },
-	{ }
+	{ "bd96801-regulator", (kernel_ulong_t)&bd96801_data },
+	{ "bd96802-regulator", (kernel_ulong_t)&bd96802_data },
+	{ },
 };
 MODULE_DEVICE_TABLE(platform, bd96801_pmic_id);
 
