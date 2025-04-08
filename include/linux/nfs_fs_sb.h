@@ -125,6 +125,7 @@ struct nfs_client {
 	 */
 	char			cl_ipaddr[48];
 	struct net		*cl_net;
+	netns_tracker		cl_ns_tracker;
 	struct list_head	pending_cb_stateids;
 	struct rcu_head		rcu;
 
