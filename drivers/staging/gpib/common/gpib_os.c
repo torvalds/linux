@@ -26,7 +26,8 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GPIB base support");
 MODULE_ALIAS_CHARDEV_MAJOR(GPIB_CODE);
 
-static int board_type_ioctl(gpib_file_private_t *file_priv, struct gpib_board *board, unsigned long arg);
+static int board_type_ioctl(gpib_file_private_t *file_priv,
+			    struct gpib_board *board, unsigned long arg);
 static int read_ioctl(gpib_file_private_t *file_priv, struct gpib_board *board,
 		      unsigned long arg);
 static int write_ioctl(gpib_file_private_t *file_priv, struct gpib_board *board,
@@ -72,7 +73,8 @@ static int t1_delay_ioctl(struct gpib_board *board, unsigned long arg);
 
 static int cleanup_open_devices(gpib_file_private_t *file_priv, struct gpib_board *board);
 
-static int pop_gpib_event_nolock(struct gpib_board *board, gpib_event_queue_t *queue, short *event_type);
+static int pop_gpib_event_nolock(struct gpib_board *board,
+				 gpib_event_queue_t *queue, short *event_type);
 
 /*
  * Timer functions
@@ -258,8 +260,8 @@ gpib_status_queue_t *get_gpib_status_queue(struct gpib_board *board, unsigned in
 	return NULL;
 }
 
-int get_serial_poll_byte(struct gpib_board *board, unsigned int pad, int sad, unsigned int usec_timeout,
-			 uint8_t *poll_byte)
+int get_serial_poll_byte(struct gpib_board *board, unsigned int pad, int sad,
+			 unsigned int usec_timeout, uint8_t *poll_byte)
 {
 	gpib_status_queue_t *device;
 
@@ -806,7 +808,8 @@ done:
 	return retval;
 }
 
-static int board_type_ioctl(gpib_file_private_t *file_priv, struct gpib_board *board, unsigned long arg)
+static int board_type_ioctl(gpib_file_private_t *file_priv,
+			    struct gpib_board *board, unsigned long arg)
 {
 	struct list_head *list_ptr;
 	board_type_ioctl_t cmd;
@@ -1897,7 +1900,8 @@ int push_gpib_event(struct gpib_board *board, short event_type)
 }
 EXPORT_SYMBOL(push_gpib_event);
 
-static int pop_gpib_event_nolock(struct gpib_board *board, gpib_event_queue_t *queue, short *event_type)
+static int pop_gpib_event_nolock(struct gpib_board *board,
+				 gpib_event_queue_t *queue, short *event_type)
 {
 	struct list_head *head = &queue->event_head;
 	struct list_head *front = head->next;
