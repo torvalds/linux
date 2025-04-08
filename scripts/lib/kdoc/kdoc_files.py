@@ -124,7 +124,7 @@ class KernelFiles():
         self.config.log.error("Cannot find file %s", fname)
         self.config.errors += 1
 
-    def __init__(self, files=None, verbose=False, out_style=None,
+    def __init__(self, verbose=False, out_style=None,
                  werror=False, wreturn=False, wshort_desc=False,
                  wcontents_before_sections=False,
                  logger=None, modulename=None, export_file=None):
@@ -181,51 +181,48 @@ class KernelFiles():
         self.config.src_tree = os.environ.get("SRCTREE", None)
 
         self.out_style = out_style
-        self.export_file = export_file
 
         # Initialize internal variables
 
         self.config.errors = 0
         self.results = []
 
-        self.file_list = files
         self.files = set()
+        self.export_files = set()
 
-    def parse(self):
+    def parse(self, file_list, export_file=None):
         """
         Parse all files
         """
 
         glob = GlobSourceFiles(srctree=self.config.src_tree)
 
-        # Let's use a set here to avoid duplicating files
+        # Prevent parsing the same file twice to speedup parsing and
+        # avoid reporting errors multiple times
 
-        for fname in glob.parse_files(self.file_list, self.file_not_found_cb):
+        for fname in glob.parse_files(file_list, self.file_not_found_cb):
             if fname in self.files:
                 continue
 
+            res = self.parse_file(fname)
+
+            self.results.append((res.fname, res.entries))
             self.files.add(fname)
 
-            res = self.parse_file(fname)
-            self.results.append((res.fname, res.entries))
-
-        if not self.files:
-            sys.exit(1)
-
         # If a list of export files was provided, parse EXPORT_SYMBOL*
-        # from the ones not already parsed
+        # from files that weren't fully parsed
 
-        if self.export_file:
-            files = self.files
+        if not export_file:
+            return
 
-            glob = GlobSourceFiles(srctree=self.config.src_tree)
+        self.export_files |= self.files
 
-            for fname in glob.parse_files(self.export_file,
-                                          self.file_not_found_cb):
-                if fname not in files:
-                    files.add(fname)
+        glob = GlobSourceFiles(srctree=self.config.src_tree)
 
-                    self.process_export_file(fname)
+        for fname in glob.parse_files(export_file, self.file_not_found_cb):
+            if fname not in self.export_files:
+                self.process_export_file(fname)
+                self.export_files.add(fname)
 
     def out_msg(self, fname, name, arg):
         """

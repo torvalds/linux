@@ -274,14 +274,13 @@ def main():
     else:
         out_style = RestFormat()
 
-    kfiles = KernelFiles(files=args.files, verbose=args.verbose,
+    kfiles = KernelFiles(verbose=args.verbose,
                          out_style=out_style, werror=args.werror,
                          wreturn=args.wreturn, wshort_desc=args.wshort_desc,
                          wcontents_before_sections=args.wcontents_before_sections,
-                         modulename=args.modulename,
-                         export_file=args.export_file)
+                         modulename=args.modulename)
 
-    kfiles.parse()
+    kfiles.parse(args.files, export_file=args.export_file)
 
     for t in kfiles.msg(enable_lineno=args.enable_lineno, export=args.export,
                           internal=args.internal, symbol=args.symbol,
