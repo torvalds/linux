@@ -26,7 +26,7 @@ static struct usb_interface *agilent_82357a_driver_interfaces[MAX_NUM_82357A_INT
 static DEFINE_MUTEX(agilent_82357a_hotplug_lock); // protect board insertion and removal
 
 static unsigned int agilent_82357a_update_status(struct gpib_board *board,
-						unsigned int clear_mask);
+						 unsigned int clear_mask);
 
 static int agilent_82357a_take_control_internal(struct gpib_board *board, int synchronous);
 
