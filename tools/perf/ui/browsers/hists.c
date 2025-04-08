@@ -3308,6 +3308,8 @@ do_hotkey:		 // key came straight from options ui__popup_menu()
 			/* Fall thru */
 		default:
 			helpline = "Press '?' for help on key bindings";
+			ui_browser__warn_unhandled_hotkey(&browser->b, key, delay_secs,
+							  ", use 'h'/'?'/F1 to see actions");
 			continue;
 		}
 
@@ -3568,6 +3570,7 @@ browse_hists:
 		case CTRL('c'):
 			goto out;
 		default:
+			ui_browser__warn_unhandled_hotkey(&menu->b, key, delay_secs, NULL);
 			continue;
 		}
 	}
@@ -3693,7 +3696,7 @@ int block_hists_tui_browse(struct block_hist *bh, struct evsel *evsel,
 	struct popup_action action;
 	char *br_cntr_text = NULL;
 	static const char help[] =
-	" q             Quit \n"
+	" q/ESC         Quit \n"
 	" B             Branch counter abbr list (Optional)\n";
 
 	browser = hist_browser__new(hists);
@@ -3720,6 +3723,7 @@ int block_hists_tui_browse(struct block_hist *bh, struct evsel *evsel,
 
 		switch (key) {
 		case 'q':
+		case K_ESC:
 			goto out;
 		case '?':
 			ui_browser__help_window(&browser->b, help);
@@ -3746,7 +3750,9 @@ int block_hists_tui_browse(struct block_hist *bh, struct evsel *evsel,
 			}
 			continue;
 		default:
-			break;
+			ui_browser__warn_unhandled_hotkey(&browser->b, key, 0,
+							  ", use '?' to see actions");
+			continue;
 		}
 	}
 
