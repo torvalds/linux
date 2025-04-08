@@ -79,6 +79,8 @@ separated by spaces:
 	test prctl(PR_SET_MDWE, ...)
 - page_frag
 	test handling of page fragment allocation and freeing
+- vma_merge
+	test VMA merge cases behave as expected
 
 example: ./run_vmtests.sh -t "hmm mmap ksm"
 EOF
@@ -420,6 +422,8 @@ CATEGORY="madv_guard" run_test ./guard-regions
 
 # MADV_POPULATE_READ and MADV_POPULATE_WRITE tests
 CATEGORY="madv_populate" run_test ./madv_populate
+
+CATEGORY="vma_merge" run_test ./merge
 
 if [ -x ./memfd_secret ]
 then
