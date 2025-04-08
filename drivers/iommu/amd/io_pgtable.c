@@ -114,7 +114,7 @@ static bool increase_address_space(struct amd_io_pgtable *pgtable,
 	bool ret = true;
 	u64 *pte;
 
-	pte = iommu_alloc_page_node(cfg->amd.nid, gfp);
+	pte = iommu_alloc_pages_node_sz(cfg->amd.nid, gfp, SZ_4K);
 	if (!pte)
 		return false;
 
@@ -206,7 +206,8 @@ static u64 *alloc_pte(struct amd_io_pgtable *pgtable,
 
 		if (!IOMMU_PTE_PRESENT(__pte) ||
 		    pte_level == PAGE_MODE_NONE) {
-			page = iommu_alloc_page_node(cfg->amd.nid, gfp);
+			page = iommu_alloc_pages_node_sz(cfg->amd.nid, gfp,
+							 SZ_4K);
 
 			if (!page)
 				return NULL;
@@ -535,7 +536,8 @@ static struct io_pgtable *v1_alloc_pgtable(struct io_pgtable_cfg *cfg, void *coo
 {
 	struct amd_io_pgtable *pgtable = io_pgtable_cfg_to_data(cfg);
 
-	pgtable->root = iommu_alloc_page_node(cfg->amd.nid, GFP_KERNEL);
+	pgtable->root =
+		iommu_alloc_pages_node_sz(cfg->amd.nid, GFP_KERNEL, SZ_4K);
 	if (!pgtable->root)
 		return NULL;
 	pgtable->mode = PAGE_MODE_3_LEVEL;

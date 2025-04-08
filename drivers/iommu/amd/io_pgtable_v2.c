@@ -152,7 +152,7 @@ static u64 *v2_alloc_pte(int nid, u64 *pgd, unsigned long iova,
 		}
 
 		if (!IOMMU_PTE_PRESENT(__pte)) {
-			page = iommu_alloc_page_node(nid, gfp);
+			page = iommu_alloc_pages_node_sz(nid, gfp, SZ_4K);
 			if (!page)
 				return NULL;
 
@@ -346,7 +346,7 @@ static struct io_pgtable *v2_alloc_pgtable(struct io_pgtable_cfg *cfg, void *coo
 	struct amd_io_pgtable *pgtable = io_pgtable_cfg_to_data(cfg);
 	int ias = IOMMU_IN_ADDR_BIT_SIZE;
 
-	pgtable->pgd = iommu_alloc_page_node(cfg->amd.nid, GFP_KERNEL);
+	pgtable->pgd = iommu_alloc_pages_node_sz(cfg->amd.nid, GFP_KERNEL, SZ_4K);
 	if (!pgtable->pgd)
 		return NULL;
 

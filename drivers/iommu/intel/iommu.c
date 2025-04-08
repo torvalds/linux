@@ -397,7 +397,8 @@ struct context_entry *iommu_context_addr(struct intel_iommu *iommu, u8 bus,
 		if (!alloc)
 			return NULL;
 
-		context = iommu_alloc_page_node(iommu->node, GFP_ATOMIC);
+		context = iommu_alloc_pages_node_sz(iommu->node, GFP_ATOMIC,
+						    SZ_4K);
 		if (!context)
 			return NULL;
 
@@ -731,7 +732,8 @@ static struct dma_pte *pfn_to_dma_pte(struct dmar_domain *domain,
 		if (!dma_pte_present(pte)) {
 			uint64_t pteval, tmp;
 
-			tmp_page = iommu_alloc_page_node(domain->nid, gfp);
+			tmp_page = iommu_alloc_pages_node_sz(domain->nid, gfp,
+							     SZ_4K);
 
 			if (!tmp_page)
 				return NULL;
@@ -982,7 +984,7 @@ static int iommu_alloc_root_entry(struct intel_iommu *iommu)
 {
 	struct root_entry *root;
 
-	root = iommu_alloc_page_node(iommu->node, GFP_ATOMIC);
+	root = iommu_alloc_pages_node_sz(iommu->node, GFP_ATOMIC, SZ_4K);
 	if (!root) {
 		pr_err("Allocating root entry for %s failed\n",
 			iommu->name);
@@ -2026,7 +2028,8 @@ static int copy_context_table(struct intel_iommu *iommu,
 			if (!old_ce)
 				goto out;
 
-			new_ce = iommu_alloc_page_node(iommu->node, GFP_KERNEL);
+			new_ce = iommu_alloc_pages_node_sz(iommu->node,
+							   GFP_KERNEL, SZ_4K);
 			if (!new_ce)
 				goto out_unmap;
 
@@ -3359,7 +3362,7 @@ static struct dmar_domain *paging_domain_alloc(struct device *dev, bool first_st
 		domain->domain.geometry.aperture_end = __DOMAIN_MAX_ADDR(domain->gaw);
 
 	/* always allocate the top pgd */
-	domain->pgd = iommu_alloc_page_node(domain->nid, GFP_KERNEL);
+	domain->pgd = iommu_alloc_pages_node_sz(domain->nid, GFP_KERNEL, SZ_4K);
 	if (!domain->pgd) {
 		kfree(domain);
 		return ERR_PTR(-ENOMEM);

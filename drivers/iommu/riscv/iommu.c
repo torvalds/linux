@@ -1144,7 +1144,8 @@ pte_retry:
 		 * page table. This might race with other mappings, retry.
 		 */
 		if (_io_pte_none(pte)) {
-			addr = iommu_alloc_page_node(domain->numa_node, gfp);
+			addr = iommu_alloc_pages_node_sz(domain->numa_node, gfp,
+							 SZ_4K);
 			if (!addr)
 				return NULL;
 			old = pte;
@@ -1385,8 +1386,8 @@ static struct iommu_domain *riscv_iommu_alloc_paging_domain(struct device *dev)
 	domain->numa_node = dev_to_node(iommu->dev);
 	domain->amo_enabled = !!(iommu->caps & RISCV_IOMMU_CAPABILITIES_AMO_HWAD);
 	domain->pgd_mode = pgd_mode;
-	domain->pgd_root = iommu_alloc_page_node(domain->numa_node,
-						 GFP_KERNEL_ACCOUNT);
+	domain->pgd_root = iommu_alloc_pages_node_sz(domain->numa_node,
+						     GFP_KERNEL_ACCOUNT, SZ_4K);
 	if (!domain->pgd_root) {
 		kfree(domain);
 		return ERR_PTR(-ENOMEM);

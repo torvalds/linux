@@ -114,17 +114,4 @@ static inline void *iommu_alloc_pages_sz(gfp_t gfp, size_t size)
 	return iommu_alloc_pages_node_sz(NUMA_NO_NODE, gfp, size);
 }
 
-/**
- * iommu_alloc_page_node - allocate a zeroed page at specific NUMA node.
- * @nid: memory NUMA node id
- * @gfp: buddy allocator flags
- *
- * returns the virtual address of the allocated page
- * Prefer to use iommu_alloc_pages_node_lg2()
- */
-static inline void *iommu_alloc_page_node(int nid, gfp_t gfp)
-{
-	return iommu_alloc_pages_node_sz(nid, gfp, PAGE_SIZE);
-}
-
 #endif	/* __IOMMU_PAGES_H */

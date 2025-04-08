@@ -147,7 +147,8 @@ retry:
 	if (!entries) {
 		u64 tmp;
 
-		entries = iommu_alloc_page_node(info->iommu->node, GFP_ATOMIC);
+		entries = iommu_alloc_pages_node_sz(info->iommu->node,
+						    GFP_ATOMIC, SZ_4K);
 		if (!entries)
 			return NULL;
 
