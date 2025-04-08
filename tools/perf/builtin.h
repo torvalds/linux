@@ -5,6 +5,7 @@
 struct feature_status {
 	const char *name;
 	const char *macro;
+	const char *tip;
 	int is_builtin;
 };
 

@@ -27,6 +27,12 @@ static const char *check_feature_usage[] = {
 	.macro = #macro_,                  \
 	.is_builtin = IS_BUILTIN(macro_) }
 
+#define FEATURE_STATUS_TIP(name_, macro_, tip_) { \
+	.name = name_,				  \
+	.macro = #macro_,			  \
+	.tip = tip_,				  \
+	.is_builtin = IS_BUILTIN(macro_) }
+
 struct feature_status supported_features[] = {
 	FEATURE_STATUS("aio", HAVE_AIO_SUPPORT),
 	FEATURE_STATUS("bpf", HAVE_LIBBPF_SUPPORT),
@@ -48,7 +54,7 @@ struct feature_status supported_features[] = {
 	FEATURE_STATUS("libpython", HAVE_LIBPYTHON_SUPPORT),
 	FEATURE_STATUS("libslang", HAVE_SLANG_SUPPORT),
 	FEATURE_STATUS("libtraceevent", HAVE_LIBTRACEEVENT),
-	FEATURE_STATUS("libunwind", HAVE_LIBUNWIND_SUPPORT),
+	FEATURE_STATUS_TIP("libunwind", HAVE_LIBUNWIND_SUPPORT, "Deprecated, use LIBUNWIND=1 and install libunwind-dev[el] to build with it"),
 	FEATURE_STATUS("lzma", HAVE_LZMA_SUPPORT),
 	FEATURE_STATUS("numa_num_possible_cpus", HAVE_LIBNUMA_SUPPORT),
 	FEATURE_STATUS("zlib", HAVE_ZLIB_SUPPORT),
@@ -78,7 +84,12 @@ void feature_status__printf(const struct feature_status *feature)
 
 	printf("%22s: ", name);
 	on_off_print(status);
-	printf("  # %s\n", macro);
+	printf("  # %s", macro);
+
+	if (!feature->is_builtin && feature->tip)
+		printf(" ( tip: %s )", feature->tip);
+
+	putchar('\n');
 }
 
 /**
