@@ -24,8 +24,10 @@
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GPIB Driver for Fluke cda devices");
 
-static int fluke_attach_holdoff_all(struct gpib_board *board, const gpib_board_config_t *config);
-static int fluke_attach_holdoff_end(struct gpib_board *board, const gpib_board_config_t *config);
+static int fluke_attach_holdoff_all(struct gpib_board *board,
+				    const struct gpib_board_config *config);
+static int fluke_attach_holdoff_end(struct gpib_board *board,
+				    const struct gpib_board_config *config);
 static void fluke_detach(struct gpib_board *board);
 static int fluke_config_dma(struct gpib_board *board, int output);
 static irqreturn_t fluke_gpib_internal_interrupt(struct gpib_board *board);
@@ -943,7 +945,7 @@ static bool gpib_dma_channel_filter(struct dma_chan *chan, void *filter_param)
 	return chan->chan_id == 0;
 }
 
-static int fluke_attach_impl(struct gpib_board *board, const gpib_board_config_t *config,
+static int fluke_attach_impl(struct gpib_board *board, const struct gpib_board_config *config,
 			     unsigned int handshake_mode)
 {
 	struct fluke_priv *e_priv;
@@ -1049,12 +1051,12 @@ static int fluke_attach_impl(struct gpib_board *board, const gpib_board_config_t
 	return fluke_init(e_priv, board, handshake_mode);
 }
 
-int fluke_attach_holdoff_all(struct gpib_board *board, const gpib_board_config_t *config)
+int fluke_attach_holdoff_all(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	return fluke_attach_impl(board, config, HR_HLDA);
 }
 
-int fluke_attach_holdoff_end(struct gpib_board *board, const gpib_board_config_t *config)
+int fluke_attach_holdoff_end(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	return fluke_attach_impl(board, config, HR_HLDE);
 }
