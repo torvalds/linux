@@ -3684,7 +3684,8 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 
 			break;
 
-		case INSN_CONTEXT_SWITCH:
+		case INSN_SYSCALL:
+		case INSN_SYSRET:
 			if (func) {
 				if (!next_insn || !next_insn->hint) {
 					WARN_INSN(insn, "unsupported instruction in callable function");
@@ -3886,7 +3887,8 @@ static int validate_unret(struct objtool_file *file, struct instruction *insn)
 			WARN_INSN(insn, "RET before UNTRAIN");
 			return 1;
 
-		case INSN_CONTEXT_SWITCH:
+		case INSN_SYSCALL:
+		case INSN_SYSRET:
 			if (insn_func(insn))
 				break;
 			return 0;
