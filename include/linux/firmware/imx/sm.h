@@ -21,6 +21,11 @@
 int scmi_imx_misc_ctrl_get(u32 id, u32 *num, u32 *val);
 int scmi_imx_misc_ctrl_set(u32 id, u32 val);
 
+int scmi_imx_cpu_start(u32 cpuid, bool start);
+int scmi_imx_cpu_started(u32 cpuid, bool *started);
+int scmi_imx_cpu_reset_vector_set(u32 cpuid, u64 vector, bool start, bool boot,
+				  bool resume);
+
 enum scmi_imx_lmm_op {
 	SCMI_IMX_LMM_BOOT,
 	SCMI_IMX_LMM_POWER_ON,

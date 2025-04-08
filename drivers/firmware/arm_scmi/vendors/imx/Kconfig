@@ -15,6 +15,7 @@ config IMX_SCMI_BBM_EXT
 config IMX_SCMI_CPU_EXT
 	tristate "i.MX SCMI CPU EXTENSION"
 	depends on ARM_SCMI_PROTOCOL || (COMPILE_TEST && OF)
+	depends on IMX_SCMI_CPU_DRV
 	default y if ARCH_MXC
 	help
 	  This enables i.MX System CPU Protocol to manage cpu
