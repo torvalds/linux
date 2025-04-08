@@ -200,10 +200,10 @@ static int a030jtn01_probe(struct spi_device *spi)
 
 	spi->mode |= SPI_MODE_3 | SPI_3WIRE;
 
-	panel = devm_drm_panel_alloc(dev, struct a030jtn01, panel,
-				     &a030jtn01_funcs, DRM_MODE_CONNECTOR_DPI);
-	if (IS_ERR(panel))
-		return PTR_ERR(panel);
+	priv = devm_drm_panel_alloc(dev, struct a030jtn01, panel,
+				    &a030jtn01_funcs, DRM_MODE_CONNECTOR_DPI);
+	if (IS_ERR(priv))
+		return PTR_ERR(priv);
 
 	priv->spi = spi;
 	spi_set_drvdata(spi, priv);
