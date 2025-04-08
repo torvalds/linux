@@ -802,7 +802,7 @@ irqreturn_t fluke_gpib_internal_interrupt(struct gpib_board *board)
 	status2 = read_byte(nec_priv, ISR2);
 
 	if (status0 & FLUKE_IFCI_BIT) {
-		push_gpib_event(board, EventIFC);
+		push_gpib_event(board, EVENT_IFC);
 		retval = IRQ_HANDLED;
 	}
 

@@ -932,13 +932,13 @@ irqreturn_t nec7210_interrupt_have_status(struct gpib_board *board,
 
 		// ignore device clear events if we are controller in charge
 		if ((address_status_bits & HR_CIC) == 0) {
-			push_gpib_event(board, EventDevClr);
+			push_gpib_event(board, EVENT_DEV_CLR);
 			set_bit(DEV_CLEAR_BN, &priv->state);
 		}
 	}
 
 	if (status1 & HR_DET)
-		push_gpib_event(board, EventDevTrg);
+		push_gpib_event(board, EVENT_DEV_TRG);
 
 	// Addressing status has changed
 	if (status2 & HR_ADSC)

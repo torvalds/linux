@@ -1136,7 +1136,7 @@ irqreturn_t fmh_gpib_internal_interrupt(struct gpib_board *board)
 	fifo_status = fifos_read(priv, FIFO_CONTROL_STATUS_REG);
 
 	if (status0 & IFC_INTERRUPT_BIT) {
-		push_gpib_event(board, EventIFC);
+		push_gpib_event(board, EVENT_IFC);
 		retval = IRQ_HANDLED;
 	}
 

@@ -295,7 +295,7 @@ irqreturn_t ines_interrupt(struct gpib_board *board)
 	isr3_bits = ines_inb(priv, ISR3);
 	isr4_bits = ines_inb(priv, ISR4);
 	if (isr3_bits & IFC_ACTIVE_BIT)	{
-		push_gpib_event(board, EventIFC);
+		push_gpib_event(board, EVENT_IFC);
 		wake++;
 	}
 	if (isr3_bits & FIFO_ERROR_BIT)

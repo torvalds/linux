@@ -566,7 +566,7 @@ static irqreturn_t tnt4882_internal_interrupt(struct gpib_board *board)
 	imr3_bits = priv->imr3_bits;
 
 	if (isr0_bits & TNT_IFCI_BIT)
-		push_gpib_event(board, EventIFC);
+		push_gpib_event(board, EVENT_IFC);
 	//XXX don't need this wakeup, one below should do?
 //		wake_up_interruptible(&board->wait);
 

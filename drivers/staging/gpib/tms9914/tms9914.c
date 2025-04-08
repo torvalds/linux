@@ -774,18 +774,18 @@ irqreturn_t tms9914_interrupt_have_status(struct gpib_board *board, struct tms99
 	}
 
 	if (status1 & HR_IFC) {
-		push_gpib_event(board, EventIFC);
+		push_gpib_event(board, EVENT_IFC);
 		clear_bit(CIC_NUM, &board->status);
 	}
 
 	if (status1 & HR_GET) {
-		push_gpib_event(board, EventDevTrg);
+		push_gpib_event(board, EVENT_DEV_TRG);
 		// clear dac holdoff
 		write_byte(priv, AUX_VAL, AUXCR);
 	}
 
 	if (status1 & HR_DCAS) {
-		push_gpib_event(board, EventDevClr);
+		push_gpib_event(board, EVENT_DEV_CLR);
 		// clear dac holdoff
 		write_byte(priv, AUX_VAL, AUXCR);
 		set_bit(DEV_CLEAR_BN, &priv->state);

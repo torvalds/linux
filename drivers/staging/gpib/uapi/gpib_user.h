@@ -335,10 +335,10 @@ enum {
 };
 
 enum gpib_events {
-	EventNone = 0,
-	EventDevTrg = 1,
-	EventDevClr = 2,
-	EventIFC = 3
+	EVENT_NONE = 0,
+	EVENT_DEV_TRG = 1,
+	EVENT_DEV_CLR = 2,
+	EVENT_IFC = 3
 };
 
 enum gpib_stb {

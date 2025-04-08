@@ -1888,9 +1888,9 @@ int push_gpib_event(struct gpib_board *board, short event_type)
 	retval = push_gpib_event_nolock(board, event_type);
 	spin_unlock_irqrestore(&board->event_queue.lock, flags);
 
-	if (event_type == EventDevTrg)
+	if (event_type == EVENT_DEV_TRG)
 		board->status |= DTAS;
-	if (event_type == EventDevClr)
+	if (event_type == EVENT_DEV_CLR)
 		board->status |= DCAS;
 
 	return retval;
@@ -1904,7 +1904,7 @@ static int pop_gpib_event_nolock(struct gpib_board *board, gpib_event_queue_t *q
 	gpib_event_t *event;
 
 	if (num_gpib_events(queue) == 0) {
-		*event_type = EventNone;
+		*event_type = EVENT_NONE;
 		return 0;
 	}
 
