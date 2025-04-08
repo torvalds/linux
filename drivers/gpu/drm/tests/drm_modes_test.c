@@ -156,12 +156,16 @@ static void drm_test_modes_analog_tv_mono_576i(struct kunit *test)
 {
 	struct drm_test_modes_priv *priv = test->priv;
 	struct drm_display_mode *mode;
+	int ret;
 
 	mode = drm_analog_tv_mode(priv->drm,
 				  DRM_MODE_TV_MODE_MONOCHROME,
 				  13500 * HZ_PER_KHZ, 720, 576,
 				  true);
 	KUNIT_ASSERT_NOT_NULL(test, mode);
+
+	ret = drm_kunit_add_mode_destroy_action(test, mode);
+	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	KUNIT_EXPECT_EQ(test, drm_mode_vrefresh(mode), 50);
 	KUNIT_EXPECT_EQ(test, mode->hdisplay, 720);
