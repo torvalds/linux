@@ -30,7 +30,7 @@ static inline void ivpu_dbg_bo(struct ivpu_device *vdev, struct ivpu_bo *bo, con
 		 "%6s: bo %8p vpu_addr %9llx size %8zu ctx %d has_pages %d dma_mapped %d mmu_mapped %d wc %d imported %d\n",
 		 action, bo, bo->vpu_addr, ivpu_bo_size(bo), bo->ctx ? bo->ctx->id : 0,
 		 (bool)bo->base.pages, (bool)bo->base.sgt, bo->mmu_mapped, bo->base.map_wc,
-		 (bool)bo->base.base.import_attach);
+		 (bool)drm_gem_is_imported(&bo->base.base));
 }
 
 /*
@@ -122,7 +122,7 @@ static void ivpu_bo_unbind_locked(struct ivpu_bo *bo)
 		bo->ctx = NULL;
 	}
 
-	if (bo->base.base.import_attach)
+	if (drm_gem_is_imported(&bo->base.base))
 		return;
 
 	dma_resv_lock(bo->base.base.resv, NULL);
@@ -461,7 +461,7 @@ static void ivpu_bo_print_info(struct ivpu_bo *bo, struct drm_printer *p)
 	if (bo->mmu_mapped)
 		drm_printf(p, " mmu_mapped");
 
-	if (bo->base.base.import_attach)
+	if (drm_gem_is_imported(&bo->base.base))
 		drm_printf(p, " imported");
 
 	drm_printf(p, "\n");
