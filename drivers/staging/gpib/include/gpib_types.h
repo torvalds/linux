@@ -341,13 +341,13 @@ struct gpib_descriptor {
 	unsigned autopoll_enabled : 1;
 };
 
-typedef struct {
+struct gpib_file_private {
 	atomic_t holding_mutex;
 	struct gpib_descriptor *descriptors[GPIB_MAX_NUM_DESCRIPTORS];
 	/* locked while descriptors are being allocated/deallocated */
 	struct mutex descriptors_mutex;
 	unsigned got_module : 1;
-} gpib_file_private_t;
+};
 
 #endif	/* __KERNEL__ */
 
