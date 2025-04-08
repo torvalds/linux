@@ -376,7 +376,9 @@ static void fuse_send_one(struct fuse_iqueue *fiq, struct fuse_req *req)
 	req->in.h.len = sizeof(struct fuse_in_header) +
 		fuse_len_args(req->args->in_numargs,
 			      (struct fuse_arg *) req->args->in_args);
-	trace_fuse_request_send(req);
+
+	/* enqueue, as it is send to "fiq->ops queue" */
+	trace_fuse_request_enqueue(req);
 	fiq->ops->send_req(fiq, req);
 }
 
@@ -690,6 +692,8 @@ static int fuse_request_queue_background(struct fuse_req *req)
 		atomic_inc(&fc->num_waiting);
 	}
 	__set_bit(FR_ISREPLY, &req->flags);
+
+	trace_fuse_request_bg_enqueue(req);
 
 #ifdef CONFIG_FUSE_IO_URING
 	if (fuse_uring_ready(fc))
@@ -1425,6 +1429,7 @@ static ssize_t fuse_dev_do_read(struct fuse_dev *fud, struct file *file,
 	clear_bit(FR_PENDING, &req->flags);
 	list_del_init(&req->list);
 	spin_unlock(&fiq->lock);
+	trace_fuse_request_send(req);
 
 	args = req->args;
 	reqsize = req->in.h.len;

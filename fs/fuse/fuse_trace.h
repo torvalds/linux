@@ -77,29 +77,54 @@ OPCODES
 #define EM(a, b)	{a, b},
 #define EMe(a, b)	{a, b}
 
-TRACE_EVENT(fuse_request_send,
+#define FUSE_REQ_TRACE_FIELDS				\
+	__field(dev_t,			connection)	\
+	__field(uint64_t,		unique)		\
+	__field(enum fuse_opcode,	opcode)		\
+	__field(uint32_t,		len)		\
+
+#define FUSE_REQ_TRACE_ASSIGN(req)				\
+	do {							\
+		__entry->connection	= req->fm->fc->dev;	\
+		__entry->unique		= req->in.h.unique;	\
+		__entry->opcode		= req->in.h.opcode;	\
+		__entry->len		= req->in.h.len;	\
+	} while (0)
+
+
+TRACE_EVENT(fuse_request_enqueue,
 	TP_PROTO(const struct fuse_req *req),
-
 	TP_ARGS(req),
-
-	TP_STRUCT__entry(
-		__field(dev_t,			connection)
-		__field(uint64_t,		unique)
-		__field(enum fuse_opcode,	opcode)
-		__field(uint32_t,		len)
-	),
-
-	TP_fast_assign(
-		__entry->connection	=	req->fm->fc->dev;
-		__entry->unique		=	req->in.h.unique;
-		__entry->opcode		=	req->in.h.opcode;
-		__entry->len		=	req->in.h.len;
-	),
+	TP_STRUCT__entry(FUSE_REQ_TRACE_FIELDS),
+	TP_fast_assign(FUSE_REQ_TRACE_ASSIGN(req)),
 
 	TP_printk("connection %u req %llu opcode %u (%s) len %u ",
 		  __entry->connection, __entry->unique, __entry->opcode,
 		  __print_symbolic(__entry->opcode, OPCODES), __entry->len)
 );
+
+TRACE_EVENT(fuse_request_bg_enqueue,
+	TP_PROTO(const struct fuse_req *req),
+	TP_ARGS(req),
+	TP_STRUCT__entry(FUSE_REQ_TRACE_FIELDS),
+	TP_fast_assign(FUSE_REQ_TRACE_ASSIGN(req)),
+
+	TP_printk("connection %u req %llu opcode %u (%s) len %u ",
+		  __entry->connection, __entry->unique, __entry->opcode,
+		  __print_symbolic(__entry->opcode, OPCODES), __entry->len)
+);
+
+TRACE_EVENT(fuse_request_send,
+	TP_PROTO(const struct fuse_req *req),
+	TP_ARGS(req),
+	TP_STRUCT__entry(FUSE_REQ_TRACE_FIELDS),
+	TP_fast_assign(FUSE_REQ_TRACE_ASSIGN(req)),
+
+	TP_printk("connection %u req %llu opcode %u (%s) len %u ",
+		  __entry->connection, __entry->unique, __entry->opcode,
+		  __print_symbolic(__entry->opcode, OPCODES), __entry->len)
+);
+
 
 TRACE_EVENT(fuse_request_end,
 	TP_PROTO(const struct fuse_req *req),

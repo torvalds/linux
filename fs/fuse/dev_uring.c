@@ -7,6 +7,7 @@
 #include "fuse_i.h"
 #include "dev_uring_i.h"
 #include "fuse_dev_i.h"
+#include "fuse_trace.h"
 
 #include <linux/fs.h>
 #include <linux/io_uring/cmd.h>
@@ -704,6 +705,7 @@ static void fuse_uring_send(struct fuse_ring_ent *ent, struct io_uring_cmd *cmd,
 	ent->cmd = NULL;
 	spin_unlock(&queue->lock);
 
+	trace_fuse_request_send(ent->fuse_req);
 	io_uring_cmd_done(cmd, ret, 0, issue_flags);
 }
 
