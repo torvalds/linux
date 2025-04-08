@@ -171,8 +171,6 @@ static inline bool xreap_is_dirty(const struct xreap_state *rs)
 	return rs->nr_binval > 0 || rs->nr_deferred > 0;
 }
 
-#define XREAP_MAX_BINVAL	(2048)
-
 /*
  * Decide if we need to roll the transaction to clear out the the log
  * reservation that we allocated to buffer invalidations.
@@ -197,8 +195,6 @@ static inline bool xreap_inc_binval(struct xreap_state *rs)
 	rs->nr_binval++;
 	return rs->nr_binval < rs->max_binval;
 }
-
-#define XREAP_MAX_DEFER_CHAIN		(2048)
 
 /*
  * Decide if we want to finish the deferred ops that are attached to the scrub
