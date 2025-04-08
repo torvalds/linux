@@ -38,6 +38,7 @@
 #include <linux/types.h>
 
 #include <linux/mfd/rohm-bd96801.h>
+#include <linux/mfd/rohm-bd96802.h>
 #include <linux/mfd/rohm-generic.h>
 
 struct bd968xx {
@@ -113,6 +114,36 @@ static const struct resource bd96801_reg_errb_irqs[] = {
 	DEFINE_RES_IRQ_NAMED(BD96801_LDO7_SHDN_ERR_STAT, "ldo7-shdn-err"),
 };
 
+static const struct resource bd96802_reg_errb_irqs[] = {
+	DEFINE_RES_IRQ_NAMED(BD96802_OTP_ERR_STAT, "otp-err"),
+	DEFINE_RES_IRQ_NAMED(BD96802_DBIST_ERR_STAT, "dbist-err"),
+	DEFINE_RES_IRQ_NAMED(BD96802_EEP_ERR_STAT, "eep-err"),
+	DEFINE_RES_IRQ_NAMED(BD96802_ABIST_ERR_STAT, "abist-err"),
+	DEFINE_RES_IRQ_NAMED(BD96802_PRSTB_ERR_STAT, "prstb-err"),
+	DEFINE_RES_IRQ_NAMED(BD96802_DRMOS1_ERR_STAT, "drmoserr1"),
+	DEFINE_RES_IRQ_NAMED(BD96802_DRMOS1_ERR_STAT, "drmoserr2"),
+	DEFINE_RES_IRQ_NAMED(BD96802_SLAVE_ERR_STAT, "slave-err"),
+	DEFINE_RES_IRQ_NAMED(BD96802_VREF_ERR_STAT, "vref-err"),
+	DEFINE_RES_IRQ_NAMED(BD96802_TSD_ERR_STAT, "tsd"),
+	DEFINE_RES_IRQ_NAMED(BD96802_UVLO_ERR_STAT, "uvlo-err"),
+	DEFINE_RES_IRQ_NAMED(BD96802_OVLO_ERR_STAT, "ovlo-err"),
+	DEFINE_RES_IRQ_NAMED(BD96802_OSC_ERR_STAT, "osc-err"),
+	DEFINE_RES_IRQ_NAMED(BD96802_PON_ERR_STAT, "pon-err"),
+	DEFINE_RES_IRQ_NAMED(BD96802_POFF_ERR_STAT, "poff-err"),
+	DEFINE_RES_IRQ_NAMED(BD96802_CMD_SHDN_ERR_STAT, "cmd-shdn-err"),
+	DEFINE_RES_IRQ_NAMED(BD96802_INT_SHDN_ERR_STAT, "int-shdn-err"),
+
+	DEFINE_RES_IRQ_NAMED(BD96802_BUCK1_PVIN_ERR_STAT, "buck1-pvin-err"),
+	DEFINE_RES_IRQ_NAMED(BD96802_BUCK1_OVP_ERR_STAT, "buck1-ovp-err"),
+	DEFINE_RES_IRQ_NAMED(BD96802_BUCK1_UVP_ERR_STAT, "buck1-uvp-err"),
+	DEFINE_RES_IRQ_NAMED(BD96802_BUCK1_SHDN_ERR_STAT, "buck1-shdn-err"),
+
+	DEFINE_RES_IRQ_NAMED(BD96802_BUCK2_PVIN_ERR_STAT, "buck2-pvin-err"),
+	DEFINE_RES_IRQ_NAMED(BD96802_BUCK2_OVP_ERR_STAT, "buck2-ovp-err"),
+	DEFINE_RES_IRQ_NAMED(BD96802_BUCK2_UVP_ERR_STAT, "buck2-uvp-err"),
+	DEFINE_RES_IRQ_NAMED(BD96802_BUCK2_SHDN_ERR_STAT, "buck2-shdn-err"),
+};
+
 static const struct resource bd96801_reg_intb_irqs[] = {
 	DEFINE_RES_IRQ_NAMED(BD96801_TW_STAT, "core-thermal"),
 
@@ -157,6 +188,24 @@ static const struct resource bd96801_reg_intb_irqs[] = {
 	DEFINE_RES_IRQ_NAMED(BD96801_LDO7_UVD_STAT, "ldo7-undervolt"),
 };
 
+static const struct resource bd96802_reg_intb_irqs[] = {
+	DEFINE_RES_IRQ_NAMED(BD96802_TW_STAT, "core-thermal"),
+
+	DEFINE_RES_IRQ_NAMED(BD96802_BUCK1_OCPH_STAT, "buck1-overcurr-h"),
+	DEFINE_RES_IRQ_NAMED(BD96802_BUCK1_OCPL_STAT, "buck1-overcurr-l"),
+	DEFINE_RES_IRQ_NAMED(BD96802_BUCK1_OCPN_STAT, "buck1-overcurr-n"),
+	DEFINE_RES_IRQ_NAMED(BD96802_BUCK1_OVD_STAT, "buck1-overvolt"),
+	DEFINE_RES_IRQ_NAMED(BD96802_BUCK1_UVD_STAT, "buck1-undervolt"),
+	DEFINE_RES_IRQ_NAMED(BD96802_BUCK1_TW_CH_STAT, "buck1-thermal"),
+
+	DEFINE_RES_IRQ_NAMED(BD96802_BUCK2_OCPH_STAT, "buck2-overcurr-h"),
+	DEFINE_RES_IRQ_NAMED(BD96802_BUCK2_OCPL_STAT, "buck2-overcurr-l"),
+	DEFINE_RES_IRQ_NAMED(BD96802_BUCK2_OCPN_STAT, "buck2-overcurr-n"),
+	DEFINE_RES_IRQ_NAMED(BD96802_BUCK2_OVD_STAT, "buck2-overvolt"),
+	DEFINE_RES_IRQ_NAMED(BD96802_BUCK2_UVD_STAT, "buck2-undervolt"),
+	DEFINE_RES_IRQ_NAMED(BD96802_BUCK2_TW_CH_STAT, "buck2-thermal"),
+};
+
 enum {
 	WDG_CELL = 0,
 	REGULATOR_CELL,
@@ -165,6 +214,11 @@ enum {
 static struct mfd_cell bd96801_cells[] = {
 	[WDG_CELL] = { .name = "bd96801-wdt", },
 	[REGULATOR_CELL] = { .name = "bd96801-regulator", },
+};
+
+static struct mfd_cell bd96802_cells[] = {
+	[WDG_CELL] = { .name = "bd96801-wdt", },
+	[REGULATOR_CELL] = { .name = "bd96802-regulator", },
 };
 
 static const struct regmap_range bd96801_volatile_ranges[] = {
@@ -184,9 +238,26 @@ static const struct regmap_range bd96801_volatile_ranges[] = {
 	regmap_reg_range(BD96801_LDO5_VOL_LVL_REG, BD96801_LDO7_VOL_LVL_REG),
 };
 
-static const struct regmap_access_table volatile_regs = {
+static const struct regmap_range bd96802_volatile_ranges[] = {
+	/* Status regs */
+	regmap_reg_range(BD96801_REG_WD_FEED, BD96801_REG_WD_FAILCOUNT),
+	regmap_reg_range(BD96801_REG_WD_ASK, BD96801_REG_WD_ASK),
+	regmap_reg_range(BD96801_REG_WD_STATUS, BD96801_REG_WD_STATUS),
+	regmap_reg_range(BD96801_REG_PMIC_STATE, BD96801_REG_INT_BUCK2_ERRB),
+	regmap_reg_range(BD96801_REG_INT_SYS_INTB, BD96801_REG_INT_BUCK2_INTB),
+	/* Registers which do not update value unless PMIC is in STBY */
+	regmap_reg_range(BD96801_REG_SSCG_CTRL, BD96801_REG_SHD_INTB),
+	regmap_reg_range(BD96801_REG_BUCK_OVP, BD96801_REG_BOOT_OVERTIME),
+};
+
+static const struct regmap_access_table bd96801_volatile_regs = {
 	.yes_ranges = bd96801_volatile_ranges,
 	.n_yes_ranges = ARRAY_SIZE(bd96801_volatile_ranges),
+};
+
+static const struct regmap_access_table bd96802_volatile_regs = {
+	.yes_ranges = bd96802_volatile_ranges,
+	.n_yes_ranges = ARRAY_SIZE(bd96802_volatile_ranges),
 };
 
 /*
@@ -203,7 +274,7 @@ static unsigned int bit5_offsets[] = {7};	/* LDO 5 stat */
 static unsigned int bit6_offsets[] = {8};	/* LDO 6 stat */
 static unsigned int bit7_offsets[] = {9};	/* LDO 7 stat */
 
-static const struct regmap_irq_sub_irq_map errb_sub_irq_offsets[] = {
+static const struct regmap_irq_sub_irq_map bd96801_errb_sub_irq_offsets[] = {
 	REGMAP_IRQ_MAIN_REG_OFFSET(bit0_offsets),
 	REGMAP_IRQ_MAIN_REG_OFFSET(bit1_offsets),
 	REGMAP_IRQ_MAIN_REG_OFFSET(bit2_offsets),
@@ -212,6 +283,12 @@ static const struct regmap_irq_sub_irq_map errb_sub_irq_offsets[] = {
 	REGMAP_IRQ_MAIN_REG_OFFSET(bit5_offsets),
 	REGMAP_IRQ_MAIN_REG_OFFSET(bit6_offsets),
 	REGMAP_IRQ_MAIN_REG_OFFSET(bit7_offsets),
+};
+
+static const struct regmap_irq_sub_irq_map bd96802_errb_sub_irq_offsets[] = {
+	REGMAP_IRQ_MAIN_REG_OFFSET(bit0_offsets),
+	REGMAP_IRQ_MAIN_REG_OFFSET(bit1_offsets),
+	REGMAP_IRQ_MAIN_REG_OFFSET(bit2_offsets),
 };
 
 static const struct regmap_irq bd96801_errb_irqs[] = {
@@ -274,6 +351,39 @@ static const struct regmap_irq bd96801_errb_irqs[] = {
 	REGMAP_IRQ_REG(BD96801_LDO7_SHDN_ERR_STAT, 9, BD96801_OUT_SHDN_ERR_MASK),
 };
 
+static const struct regmap_irq bd96802_errb_irqs[] = {
+	/* Reg 0x52 Fatal ERRB1 */
+	REGMAP_IRQ_REG(BD96802_OTP_ERR_STAT, 0, BD96801_OTP_ERR_MASK),
+	REGMAP_IRQ_REG(BD96802_DBIST_ERR_STAT, 0, BD96801_DBIST_ERR_MASK),
+	REGMAP_IRQ_REG(BD96802_EEP_ERR_STAT, 0, BD96801_EEP_ERR_MASK),
+	REGMAP_IRQ_REG(BD96802_ABIST_ERR_STAT, 0, BD96801_ABIST_ERR_MASK),
+	REGMAP_IRQ_REG(BD96802_PRSTB_ERR_STAT, 0, BD96801_PRSTB_ERR_MASK),
+	REGMAP_IRQ_REG(BD96802_DRMOS1_ERR_STAT, 0, BD96801_DRMOS1_ERR_MASK),
+	REGMAP_IRQ_REG(BD96802_DRMOS2_ERR_STAT, 0, BD96801_DRMOS2_ERR_MASK),
+	REGMAP_IRQ_REG(BD96802_SLAVE_ERR_STAT, 0, BD96801_SLAVE_ERR_MASK),
+	/* 0x53 Fatal ERRB2 */
+	REGMAP_IRQ_REG(BD96802_VREF_ERR_STAT, 1, BD96801_VREF_ERR_MASK),
+	REGMAP_IRQ_REG(BD96802_TSD_ERR_STAT, 1, BD96801_TSD_ERR_MASK),
+	REGMAP_IRQ_REG(BD96802_UVLO_ERR_STAT, 1, BD96801_UVLO_ERR_MASK),
+	REGMAP_IRQ_REG(BD96802_OVLO_ERR_STAT, 1, BD96801_OVLO_ERR_MASK),
+	REGMAP_IRQ_REG(BD96802_OSC_ERR_STAT, 1, BD96801_OSC_ERR_MASK),
+	REGMAP_IRQ_REG(BD96802_PON_ERR_STAT, 1, BD96801_PON_ERR_MASK),
+	REGMAP_IRQ_REG(BD96802_POFF_ERR_STAT, 1, BD96801_POFF_ERR_MASK),
+	REGMAP_IRQ_REG(BD96802_CMD_SHDN_ERR_STAT, 1, BD96801_CMD_SHDN_ERR_MASK),
+	/* 0x54 Fatal INTB shadowed to ERRB */
+	REGMAP_IRQ_REG(BD96802_INT_SHDN_ERR_STAT, 2, BD96801_INT_SHDN_ERR_MASK),
+	/* Reg 0x55 BUCK1 ERR IRQs */
+	REGMAP_IRQ_REG(BD96802_BUCK1_PVIN_ERR_STAT, 3, BD96801_OUT_PVIN_ERR_MASK),
+	REGMAP_IRQ_REG(BD96802_BUCK1_OVP_ERR_STAT, 3, BD96801_OUT_OVP_ERR_MASK),
+	REGMAP_IRQ_REG(BD96802_BUCK1_UVP_ERR_STAT, 3, BD96801_OUT_UVP_ERR_MASK),
+	REGMAP_IRQ_REG(BD96802_BUCK1_SHDN_ERR_STAT, 3, BD96801_OUT_SHDN_ERR_MASK),
+	/* Reg 0x56 BUCK2 ERR IRQs */
+	REGMAP_IRQ_REG(BD96802_BUCK2_PVIN_ERR_STAT, 4, BD96801_OUT_PVIN_ERR_MASK),
+	REGMAP_IRQ_REG(BD96802_BUCK2_OVP_ERR_STAT, 4, BD96801_OUT_OVP_ERR_MASK),
+	REGMAP_IRQ_REG(BD96802_BUCK2_UVP_ERR_STAT, 4, BD96801_OUT_UVP_ERR_MASK),
+	REGMAP_IRQ_REG(BD96802_BUCK2_SHDN_ERR_STAT, 4, BD96801_OUT_SHDN_ERR_MASK),
+};
+
 static const struct regmap_irq bd96801_intb_irqs[] = {
 	/* STATUS SYSTEM INTB */
 	REGMAP_IRQ_REG(BD96801_TW_STAT, 0, BD96801_TW_STAT_MASK),
@@ -322,6 +432,69 @@ static const struct regmap_irq bd96801_intb_irqs[] = {
 	REGMAP_IRQ_REG(BD96801_LDO7_UVD_STAT, 7, BD96801_LDO_UVD_STAT_MASK),
 };
 
+static const struct regmap_irq bd96802_intb_irqs[] = {
+	/* STATUS SYSTEM INTB */
+	REGMAP_IRQ_REG(BD96802_TW_STAT, 0, BD96801_TW_STAT_MASK),
+	REGMAP_IRQ_REG(BD96802_WDT_ERR_STAT, 0, BD96801_WDT_ERR_STAT_MASK),
+	REGMAP_IRQ_REG(BD96802_I2C_ERR_STAT, 0, BD96801_I2C_ERR_STAT_MASK),
+	REGMAP_IRQ_REG(BD96802_CHIP_IF_ERR_STAT, 0, BD96801_CHIP_IF_ERR_STAT_MASK),
+	/* STATUS BUCK1 INTB */
+	REGMAP_IRQ_REG(BD96802_BUCK1_OCPH_STAT, 1, BD96801_BUCK_OCPH_STAT_MASK),
+	REGMAP_IRQ_REG(BD96802_BUCK1_OCPL_STAT, 1, BD96801_BUCK_OCPL_STAT_MASK),
+	REGMAP_IRQ_REG(BD96802_BUCK1_OCPN_STAT, 1, BD96801_BUCK_OCPN_STAT_MASK),
+	REGMAP_IRQ_REG(BD96802_BUCK1_OVD_STAT, 1, BD96801_BUCK_OVD_STAT_MASK),
+	REGMAP_IRQ_REG(BD96802_BUCK1_UVD_STAT, 1, BD96801_BUCK_UVD_STAT_MASK),
+	REGMAP_IRQ_REG(BD96802_BUCK1_TW_CH_STAT, 1, BD96801_BUCK_TW_CH_STAT_MASK),
+	/* BUCK 2 INTB */
+	REGMAP_IRQ_REG(BD96802_BUCK2_OCPH_STAT, 2, BD96801_BUCK_OCPH_STAT_MASK),
+	REGMAP_IRQ_REG(BD96802_BUCK2_OCPL_STAT, 2, BD96801_BUCK_OCPL_STAT_MASK),
+	REGMAP_IRQ_REG(BD96802_BUCK2_OCPN_STAT, 2, BD96801_BUCK_OCPN_STAT_MASK),
+	REGMAP_IRQ_REG(BD96802_BUCK2_OVD_STAT, 2, BD96801_BUCK_OVD_STAT_MASK),
+	REGMAP_IRQ_REG(BD96802_BUCK2_UVD_STAT, 2, BD96801_BUCK_UVD_STAT_MASK),
+	REGMAP_IRQ_REG(BD96802_BUCK2_TW_CH_STAT, 2, BD96801_BUCK_TW_CH_STAT_MASK),
+};
+
+/*
+ * The IRQ stuff is a bit hairy. The BD96801 / BD96802 provide two physical
+ * IRQ lines called INTB and ERRB. They share the same main status register.
+ *
+ * For ERRB, mapping from main status to sub-status is such that the
+ * 'global' faults are mapped to first 3 sub-status registers - and indicated
+ * by the first bit[0] in main status reg.
+ *
+ * Rest of the status registers are for indicating stuff for individual
+ * regulators, 1 sub register / regulator and 1 main status register bit /
+ * regulator, starting from bit[1].
+ *
+ * Eg, regulator specific stuff has 1 to 1 mapping from main-status to sub
+ * registers but 'global' ERRB IRQs require mapping from main status bit[0] to
+ * 3 status registers.
+ *
+ * Furthermore, the BD96801 has 7 regulators where the BD96802 has only 2.
+ *
+ * INTB has only 1 sub status register for 'global' events and then own sub
+ * status register for each of the regulators. So, for INTB we have direct
+ * 1 to 1 mapping - BD96801 just having 5 register and 5 main status bits
+ * more than the BD96802.
+ *
+ * Sharing the main status bits could be a problem if we had both INTB and
+ * ERRB IRQs asserted but for different sub-status offsets. This might lead
+ * IRQ controller code to go read a sub status register which indicates no
+ * active IRQs. I assume this occurring repeteadly might lead the IRQ to be
+ * disabled by core as a result of repeteadly returned IRQ_NONEs.
+ *
+ * I don't consider this as a fatal problem for now because:
+ *	a) Having ERRB asserted leads to PMIC fault state which will kill
+ *	   the SoC powered by the PMIC. (So, relevant only for potential
+ *	   case of not powering the processor with this PMIC).
+ *	b) Having ERRB set without having respective INTB is unlikely
+ *	   (haven't actually verified this).
+ *
+ * So, let's proceed with main status enabled for both INTB and ERRB. We can
+ * later disable main-status usage on systems where this ever proves to be
+ * a problem.
+ */
+
 static const struct regmap_irq_chip bd96801_irq_chip_errb = {
 	.name = "bd96801-irq-errb",
 	.domain_suffix = "errb",
@@ -335,7 +508,23 @@ static const struct regmap_irq_chip bd96801_irq_chip_errb = {
 	.init_ack_masked = true,
 	.num_regs = 10,
 	.irq_reg_stride = 1,
-	.sub_reg_offsets = &errb_sub_irq_offsets[0],
+	.sub_reg_offsets = &bd96801_errb_sub_irq_offsets[0],
+};
+
+static const struct regmap_irq_chip bd96802_irq_chip_errb = {
+	.name = "bd96802-irq-errb",
+	.domain_suffix = "errb",
+	.main_status = BD96801_REG_INT_MAIN,
+	.num_main_regs = 1,
+	.irqs = &bd96802_errb_irqs[0],
+	.num_irqs = ARRAY_SIZE(bd96802_errb_irqs),
+	.status_base = BD96801_REG_INT_SYS_ERRB1,
+	.mask_base = BD96801_REG_MASK_SYS_ERRB,
+	.ack_base = BD96801_REG_INT_SYS_ERRB1,
+	.init_ack_masked = true,
+	.num_regs = 5,
+	.irq_reg_stride = 1,
+	.sub_reg_offsets = &bd96802_errb_sub_irq_offsets[0],
 };
 
 static const struct regmap_irq_chip bd96801_irq_chip_intb = {
@@ -353,10 +542,32 @@ static const struct regmap_irq_chip bd96801_irq_chip_intb = {
 	.irq_reg_stride = 1,
 };
 
+static const struct regmap_irq_chip bd96802_irq_chip_intb = {
+	.name = "bd96802-irq-intb",
+	.domain_suffix = "intb",
+	.main_status = BD96801_REG_INT_MAIN,
+	.num_main_regs = 1,
+	.irqs = &bd96802_intb_irqs[0],
+	.num_irqs = ARRAY_SIZE(bd96802_intb_irqs),
+	.status_base = BD96801_REG_INT_SYS_INTB,
+	.mask_base = BD96801_REG_MASK_SYS_INTB,
+	.ack_base = BD96801_REG_INT_SYS_INTB,
+	.init_ack_masked = true,
+	.num_regs = 3,
+	.irq_reg_stride = 1,
+};
+
 static const struct regmap_config bd96801_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.volatile_table = &volatile_regs,
+	.volatile_table = &bd96801_volatile_regs,
+	.cache_type = REGCACHE_MAPLE,
+};
+
+static const struct regmap_config bd96802_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.volatile_table = &bd96802_volatile_regs,
 	.cache_type = REGCACHE_MAPLE,
 };
 
@@ -370,6 +581,20 @@ static const struct bd968xx bd96801_data = {
 	.regmap_config = &bd96801_regmap_config,
 	.cells = bd96801_cells,
 	.num_cells = ARRAY_SIZE(bd96801_cells),
+	.unlock_reg = BD96801_LOCK_REG,
+	.unlock_val = BD96801_UNLOCK,
+};
+
+static const struct bd968xx bd96802_data = {
+	.errb_irqs = bd96802_reg_errb_irqs,
+	.intb_irqs = bd96802_reg_intb_irqs,
+	.num_errb_irqs = ARRAY_SIZE(bd96802_reg_errb_irqs),
+	.num_intb_irqs = ARRAY_SIZE(bd96802_reg_intb_irqs),
+	.errb_irq_chip = &bd96802_irq_chip_errb,
+	.intb_irq_chip = &bd96802_irq_chip_intb,
+	.regmap_config = &bd96802_regmap_config,
+	.cells = bd96802_cells,
+	.num_cells = ARRAY_SIZE(bd96802_cells),
 	.unlock_reg = BD96801_LOCK_REG,
 	.unlock_val = BD96801_UNLOCK,
 };
@@ -392,6 +617,9 @@ static int bd96801_i2c_probe(struct i2c_client *i2c)
 	switch (chip_type) {
 	case ROHM_CHIP_TYPE_BD96801:
 		ddata = &bd96801_data;
+		break;
+	case ROHM_CHIP_TYPE_BD96802:
+		ddata = &bd96802_data;
 		break;
 	default:
 		dev_err(&i2c->dev, "Unknown IC\n");
@@ -488,6 +716,7 @@ skip_errb:
 
 static const struct of_device_id bd96801_of_match[] = {
 	{ .compatible = "rohm,bd96801", .data = (void *)ROHM_CHIP_TYPE_BD96801 },
+	{ .compatible = "rohm,bd96802", .data = (void *)ROHM_CHIP_TYPE_BD96802 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, bd96801_of_match);
@@ -515,5 +744,5 @@ static void __exit bd96801_i2c_exit(void)
 module_exit(bd96801_i2c_exit);
 
 MODULE_AUTHOR("Matti Vaittinen <matti.vaittinen@fi.rohmeurope.com>");
-MODULE_DESCRIPTION("ROHM BD96801 Power Management IC driver");
+MODULE_DESCRIPTION("ROHM BD9680X Power Management IC driver");
 MODULE_LICENSE("GPL");
