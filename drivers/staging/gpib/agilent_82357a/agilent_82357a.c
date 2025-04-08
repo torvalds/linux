@@ -34,7 +34,7 @@ static void agilent_82357a_bulk_complete(struct urb *urb)
 {
 	struct agilent_82357a_urb_ctx *context = urb->context;
 
-	up(&context->complete);
+	complete(&context->complete);
 }
 
 static void agilent_82357a_timeout_handler(struct timer_list *t)
@@ -43,7 +43,7 @@ static void agilent_82357a_timeout_handler(struct timer_list *t)
 	struct agilent_82357a_urb_ctx *context = &a_priv->context;
 
 	context->timed_out = 1;
-	up(&context->complete);
+	complete(&context->complete);
 }
 
 static int agilent_82357a_send_bulk_msg(struct agilent_82357a_priv *a_priv, void *data,
@@ -74,7 +74,7 @@ static int agilent_82357a_send_bulk_msg(struct agilent_82357a_priv *a_priv, void
 	}
 	usb_dev = interface_to_usbdev(a_priv->bus_interface);
 	out_pipe = usb_sndbulkpipe(usb_dev, a_priv->bulk_out_endpoint);
-	sema_init(&context->complete, 0);
+	init_completion(&context->complete);
 	context->timed_out = 0;
 	usb_fill_bulk_urb(a_priv->bulk_urb, usb_dev, out_pipe, data, data_length,
 			  &agilent_82357a_bulk_complete, context);
@@ -89,7 +89,7 @@ static int agilent_82357a_send_bulk_msg(struct agilent_82357a_priv *a_priv, void
 		goto cleanup;
 	}
 	mutex_unlock(&a_priv->bulk_alloc_lock);
-	if (down_interruptible(&context->complete)) {
+	if (wait_for_completion_interruptible(&context->complete)) {
 		retval = -ERESTARTSYS;
 		goto cleanup;
 	}
@@ -142,7 +142,7 @@ static int agilent_82357a_receive_bulk_msg(struct agilent_82357a_priv *a_priv, v
 	}
 	usb_dev = interface_to_usbdev(a_priv->bus_interface);
 	in_pipe = usb_rcvbulkpipe(usb_dev, AGILENT_82357_BULK_IN_ENDPOINT);
-	sema_init(&context->complete, 0);
+	init_completion(&context->complete);
 	context->timed_out = 0;
 	usb_fill_bulk_urb(a_priv->bulk_urb, usb_dev, in_pipe, data, data_length,
 			  &agilent_82357a_bulk_complete, context);
@@ -157,7 +157,7 @@ static int agilent_82357a_receive_bulk_msg(struct agilent_82357a_priv *a_priv, v
 		goto cleanup;
 	}
 	mutex_unlock(&a_priv->bulk_alloc_lock);
-	if (down_interruptible(&context->complete)) {
+	if (wait_for_completion_interruptible(&context->complete)) {
 		retval = -ERESTARTSYS;
 		goto cleanup;
 	}
