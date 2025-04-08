@@ -318,44 +318,6 @@ int drm_panel_get_modes(struct drm_panel *panel,
 }
 EXPORT_SYMBOL(drm_panel_get_modes);
 
-#ifdef CONFIG_OF
-/**
- * of_drm_find_panel - look up a panel using a device tree node
- * @np: device tree node of the panel
- *
- * Searches the set of registered panels for one that matches the given device
- * tree node. If a matching panel is found, return a pointer to it.
- *
- * Return: A pointer to the panel registered for the specified device tree
- * node or an ERR_PTR() if no panel matching the device tree node can be found.
- *
- * Possible error codes returned by this function:
- *
- * - EPROBE_DEFER: the panel device has not been probed yet, and the caller
- *   should retry later
- * - ENODEV: the device is not available (status != "okay" or "ok")
- */
-struct drm_panel *of_drm_find_panel(const struct device_node *np)
-{
-	struct drm_panel *panel;
-
-	if (!of_device_is_available(np))
-		return ERR_PTR(-ENODEV);
-
-	mutex_lock(&panel_lock);
-
-	list_for_each_entry(panel, &panel_list, list) {
-		if (panel->dev->of_node == np) {
-			mutex_unlock(&panel_lock);
-			return panel;
-		}
-	}
-
-	mutex_unlock(&panel_lock);
-	return ERR_PTR(-EPROBE_DEFER);
-}
-EXPORT_SYMBOL(of_drm_find_panel);
-
 static void __drm_panel_free(struct kref *kref)
 {
 	struct drm_panel *panel = container_of(kref, struct drm_panel, refcount);
@@ -442,6 +404,44 @@ void *__devm_drm_panel_alloc(struct device *dev, size_t size, size_t offset,
 	return container;
 }
 EXPORT_SYMBOL(__devm_drm_panel_alloc);
+
+#ifdef CONFIG_OF
+/**
+ * of_drm_find_panel - look up a panel using a device tree node
+ * @np: device tree node of the panel
+ *
+ * Searches the set of registered panels for one that matches the given device
+ * tree node. If a matching panel is found, return a pointer to it.
+ *
+ * Return: A pointer to the panel registered for the specified device tree
+ * node or an ERR_PTR() if no panel matching the device tree node can be found.
+ *
+ * Possible error codes returned by this function:
+ *
+ * - EPROBE_DEFER: the panel device has not been probed yet, and the caller
+ *   should retry later
+ * - ENODEV: the device is not available (status != "okay" or "ok")
+ */
+struct drm_panel *of_drm_find_panel(const struct device_node *np)
+{
+	struct drm_panel *panel;
+
+	if (!of_device_is_available(np))
+		return ERR_PTR(-ENODEV);
+
+	mutex_lock(&panel_lock);
+
+	list_for_each_entry(panel, &panel_list, list) {
+		if (panel->dev->of_node == np) {
+			mutex_unlock(&panel_lock);
+			return panel;
+		}
+	}
+
+	mutex_unlock(&panel_lock);
+	return ERR_PTR(-EPROBE_DEFER);
+}
+EXPORT_SYMBOL(of_drm_find_panel);
 
 /**
  * of_drm_get_panel_orientation - look up the orientation of the panel through
