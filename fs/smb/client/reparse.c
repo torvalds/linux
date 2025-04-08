@@ -542,12 +542,12 @@ static int wsl_set_reparse_buf(struct reparse_data_buffer **buf,
 			kfree(symname_utf16);
 			return -ENOMEM;
 		}
-		/* Flag 0x02000000 is unknown, but all wsl symlinks have this value */
-		symlink_buf->Flags = cpu_to_le32(0x02000000);
-		/* PathBuffer is in UTF-8 but without trailing null-term byte */
+		/* Version field must be set to 2 (MS-FSCC 2.1.2.7) */
+		symlink_buf->Version = cpu_to_le32(2);
+		/* Target for Version 2 is in UTF-8 but without trailing null-term byte */
 		symname_utf8_len = utf16s_to_utf8s((wchar_t *)symname_utf16, symname_utf16_len/2,
 						   UTF16_LITTLE_ENDIAN,
-						   symlink_buf->PathBuffer,
+						   symlink_buf->Target,
 						   symname_utf8_maxlen);
 		*buf = (struct reparse_data_buffer *)symlink_buf;
 		buf_len = sizeof(struct reparse_wsl_symlink_data_buffer) + symname_utf8_len;
@@ -1016,29 +1016,36 @@ static int parse_reparse_wsl_symlink(struct reparse_wsl_symlink_data_buffer *buf
 				     struct cifs_open_info_data *data)
 {
 	int len = le16_to_cpu(buf->ReparseDataLength);
+	int data_offset = offsetof(typeof(*buf), Target) - offsetof(typeof(*buf), Version);
 	int symname_utf8_len;
 	__le16 *symname_utf16;
 	int symname_utf16_len;
 
-	if (len <= sizeof(buf->Flags)) {
+	if (len <= data_offset) {
 		cifs_dbg(VFS, "srv returned malformed wsl symlink buffer\n");
 		return -EIO;
 	}
 
-	/* PathBuffer is in UTF-8 but without trailing null-term byte */
-	symname_utf8_len = len - sizeof(buf->Flags);
+	/* MS-FSCC 2.1.2.7 defines layout of the Target field only for Version 2. */
+	if (le32_to_cpu(buf->Version) != 2) {
+		cifs_dbg(VFS, "srv returned unsupported wsl symlink version %u\n", le32_to_cpu(buf->Version));
+		return -EIO;
+	}
+
+	/* Target for Version 2 is in UTF-8 but without trailing null-term byte */
+	symname_utf8_len = len - data_offset;
 	/*
 	 * Check that buffer does not contain null byte
 	 * because Linux cannot process symlink with null byte.
 	 */
-	if (strnlen(buf->PathBuffer, symname_utf8_len) != symname_utf8_len) {
+	if (strnlen(buf->Target, symname_utf8_len) != symname_utf8_len) {
 		cifs_dbg(VFS, "srv returned null byte in wsl symlink target location\n");
 		return -EIO;
 	}
 	symname_utf16 = kzalloc(symname_utf8_len * 2, GFP_KERNEL);
 	if (!symname_utf16)
 		return -ENOMEM;
-	symname_utf16_len = utf8s_to_utf16s(buf->PathBuffer, symname_utf8_len,
+	symname_utf16_len = utf8s_to_utf16s(buf->Target, symname_utf8_len,
 					    UTF16_LITTLE_ENDIAN,
 					    (wchar_t *) symname_utf16, symname_utf8_len * 2);
 	if (symname_utf16_len < 0) {
