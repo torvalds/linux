@@ -349,11 +349,11 @@ static int boe_th101mb31ig002_dsi_probe(struct mipi_dsi_device *dsi)
 	const struct panel_desc *desc;
 	int ret;
 
-	panel = devm_drm_panel_alloc(dev, struct panel_desc, panel,
-				     &boe_th101mb31ig002_funcs,
-				     DRM_MODE_CONNECTOR_DSI);
-	if (IS_ERR(panel))
-		return PTR_ERR(panel);
+	ctx = devm_drm_panel_alloc(&dsi->dev, struct boe_th101mb31ig002, panel,
+				   &boe_th101mb31ig002_funcs,
+				   DRM_MODE_CONNECTOR_DSI);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	mipi_dsi_set_drvdata(dsi, ctx);
 	ctx->dsi = dsi;
