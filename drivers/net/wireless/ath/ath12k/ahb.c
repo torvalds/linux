@@ -334,7 +334,7 @@ static void ath12k_ahb_stop(struct ath12k_base *ab)
 		ath12k_ahb_ce_irqs_disable(ab);
 	ath12k_ahb_sync_ce_irqs(ab);
 	ath12k_ahb_cancel_workqueue(ab);
-	del_timer_sync(&ab->rx_replenish_retry);
+	timer_delete_sync(&ab->rx_replenish_retry);
 	ath12k_ce_cleanup_pipes(ab);
 }
 
