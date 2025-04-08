@@ -1536,7 +1536,7 @@ config GPIO_TIMBERDALE
 
 config GPIO_TN48M_CPLD
 	tristate "Delta Networks TN48M switch CPLD GPIO driver"
-	depends on MFD_TN48M_CPLD
+	depends on MFD_TN48M_CPLD || COMPILE_TEST
 	select GPIO_REGMAP
 	help
 	  This enables support for the GPIOs found on the Delta
