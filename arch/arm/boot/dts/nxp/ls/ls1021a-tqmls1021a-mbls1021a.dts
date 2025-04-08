@@ -147,6 +147,7 @@
 	display: panel {
 		backlight = <&backlight_dcu>;
 		enable-gpios = <&pca9554_1 3 GPIO_ACTIVE_HIGH>;
+		power-supply = <&reg_3p3v>;
 		status = "disabled";
 
 		port {
