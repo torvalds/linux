@@ -1641,7 +1641,7 @@ class KernelDoc:
                     # Group continuation lines on prototypes
                     if self.state == self.STATE_PROTO:
                         if line.endswith("\\"):
-                            prev += line.removesuffix("\\")
+                            prev += line.rstrip("\\")
                             cont = True
 
                             if not prev_ln:
