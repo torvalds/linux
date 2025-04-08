@@ -692,9 +692,9 @@ static int btrfs_extract_ordered_extent(struct btrfs_bio *bbio,
 	 * a pre-existing one.
 	 */
 	if (!test_bit(BTRFS_ORDERED_NOCOW, &ordered->flags)) {
-		ret = split_extent_map(bbio->inode, bbio->file_offset,
-				       ordered->num_bytes, len,
-				       ordered->disk_bytenr);
+		ret = btrfs_split_extent_map(bbio->inode, bbio->file_offset,
+					     ordered->num_bytes, len,
+					     ordered->disk_bytenr);
 		if (ret)
 			return ret;
 	}

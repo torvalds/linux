@@ -1922,7 +1922,7 @@ static int btrfs_init_btree_inode(struct super_block *sb)
 
 	btrfs_extent_io_tree_init(fs_info, &BTRFS_I(inode)->io_tree,
 				  IO_TREE_BTREE_INODE_IO);
-	extent_map_tree_init(&BTRFS_I(inode)->extent_tree);
+	btrfs_extent_map_tree_init(&BTRFS_I(inode)->extent_tree);
 
 	BTRFS_I(inode)->root = btrfs_grab_root(fs_info->tree_root);
 	set_bit(BTRFS_INODE_DUMMY, &BTRFS_I(inode)->runtime_flags);

@@ -501,7 +501,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 		page_end = (pg_index << PAGE_SHIFT) + folio_size(folio) - 1;
 		btrfs_lock_extent(tree, cur, page_end, NULL);
 		read_lock(&em_tree->lock);
-		em = lookup_extent_mapping(em_tree, cur, page_end + 1 - cur);
+		em = btrfs_lookup_extent_mapping(em_tree, cur, page_end + 1 - cur);
 		read_unlock(&em_tree->lock);
 
 		/*
@@ -581,7 +581,7 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio)
 
 	/* we need the actual starting offset of this extent in the file */
 	read_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, file_offset, fs_info->sectorsize);
+	em = btrfs_lookup_extent_mapping(em_tree, file_offset, fs_info->sectorsize);
 	read_unlock(&em_tree->lock);
 	if (!em) {
 		ret = BLK_STS_IOERR;

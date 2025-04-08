@@ -1797,8 +1797,8 @@ static void btrfs_rewrite_logical_zoned(struct btrfs_ordered_extent *ordered,
 	ordered->disk_bytenr = logical;
 
 	write_lock(&em_tree->lock);
-	em = search_extent_mapping(em_tree, ordered->file_offset,
-				   ordered->num_bytes);
+	em = btrfs_search_extent_mapping(em_tree, ordered->file_offset,
+					 ordered->num_bytes);
 	/* The em should be a new COW extent, thus it should not have an offset. */
 	ASSERT(em->offset == 0);
 	em->disk_bytenr = logical;
@@ -1812,8 +1812,8 @@ static bool btrfs_zoned_split_ordered(struct btrfs_ordered_extent *ordered,
 	struct btrfs_ordered_extent *new;
 
 	if (!test_bit(BTRFS_ORDERED_NOCOW, &ordered->flags) &&
-	    split_extent_map(ordered->inode, ordered->file_offset,
-			     ordered->num_bytes, len, logical))
+	    btrfs_split_extent_map(ordered->inode, ordered->file_offset,
+				   ordered->num_bytes, len, logical))
 		return false;
 
 	new = btrfs_split_ordered_extent(ordered, len);

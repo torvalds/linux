@@ -167,21 +167,21 @@ static inline u64 btrfs_extent_map_end(const struct extent_map *em)
 	return em->start + em->len;
 }
 
-void extent_map_tree_init(struct extent_map_tree *tree);
-struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
-					 u64 start, u64 len);
-void remove_extent_mapping(struct btrfs_inode *inode, struct extent_map *em);
-int split_extent_map(struct btrfs_inode *inode, u64 start, u64 len, u64 pre,
-		     u64 new_logical);
+void btrfs_extent_map_tree_init(struct extent_map_tree *tree);
+struct extent_map *btrfs_lookup_extent_mapping(struct extent_map_tree *tree,
+					       u64 start, u64 len);
+void btrfs_remove_extent_mapping(struct btrfs_inode *inode, struct extent_map *em);
+int btrfs_split_extent_map(struct btrfs_inode *inode, u64 start, u64 len, u64 pre,
+			   u64 new_logical);
 
 struct extent_map *btrfs_alloc_extent_map(void);
 void btrfs_free_extent_map(struct extent_map *em);
-int __init extent_map_init(void);
-void __cold extent_map_exit(void);
-int unpin_extent_cache(struct btrfs_inode *inode, u64 start, u64 len, u64 gen);
-void clear_em_logging(struct btrfs_inode *inode, struct extent_map *em);
-struct extent_map *search_extent_mapping(struct extent_map_tree *tree,
-					 u64 start, u64 len);
+int __init btrfs_extent_map_init(void);
+void __cold btrfs_extent_map_exit(void);
+int btrfs_unpin_extent_cache(struct btrfs_inode *inode, u64 start, u64 len, u64 gen);
+void btrfs_clear_em_logging(struct btrfs_inode *inode, struct extent_map *em);
+struct extent_map *btrfs_search_extent_mapping(struct extent_map_tree *tree,
+					       u64 start, u64 len);
 int btrfs_add_extent_mapping(struct btrfs_inode *inode,
 			     struct extent_map **em_in, u64 start, u64 len);
 void btrfs_drop_extent_map_range(struct btrfs_inode *inode,

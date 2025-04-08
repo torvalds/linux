@@ -22,7 +22,7 @@ static int free_extent_map_tree(struct btrfs_inode *inode)
 	while (!RB_EMPTY_ROOT(&em_tree->root)) {
 		node = rb_first(&em_tree->root);
 		em = rb_entry(node, struct extent_map, rb_node);
-		remove_extent_mapping(inode, em);
+		btrfs_remove_extent_mapping(inode, em);
 
 #ifdef CONFIG_BTRFS_DEBUG
 		if (refcount_read(&em->refs) != 1) {
@@ -826,7 +826,7 @@ static int test_case_7(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 	/* Make sure our extent maps look sane. */
 	ret = -EINVAL;
 
-	em = lookup_extent_mapping(em_tree, 0, SZ_16K);
+	em = btrfs_lookup_extent_mapping(em_tree, 0, SZ_16K);
 	if (!em) {
 		test_err("didn't find an em at 0 as expected");
 		goto out;
@@ -845,7 +845,7 @@ static int test_case_7(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 	btrfs_free_extent_map(em);
 
 	read_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, SZ_16K, SZ_16K);
+	em = btrfs_lookup_extent_mapping(em_tree, SZ_16K, SZ_16K);
 	read_unlock(&em_tree->lock);
 	if (em) {
 		test_err("found an em when we weren't expecting one");
@@ -853,7 +853,7 @@ static int test_case_7(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 	}
 
 	read_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, SZ_32K, SZ_16K);
+	em = btrfs_lookup_extent_mapping(em_tree, SZ_32K, SZ_16K);
 	read_unlock(&em_tree->lock);
 	if (!em) {
 		test_err("didn't find an em at 32K as expected");
@@ -879,7 +879,7 @@ static int test_case_7(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 	btrfs_free_extent_map(em);
 
 	read_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, 48 * SZ_1K, (u64)-1);
+	em = btrfs_lookup_extent_mapping(em_tree, 48 * SZ_1K, (u64)-1);
 	read_unlock(&em_tree->lock);
 	if (em) {
 		test_err("found an unexpected em above 48K");
@@ -890,7 +890,7 @@ static int test_case_7(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 out:
 	btrfs_free_extent_map(em);
 	/* Unpin our extent to prevent warning when removing it below. */
-	ret2 = unpin_extent_cache(inode, 0, SZ_16K, 0);
+	ret2 = btrfs_unpin_extent_cache(inode, 0, SZ_16K, 0);
 	if (ret == 0)
 		ret = ret2;
 	ret2 = free_extent_map_tree(inode);

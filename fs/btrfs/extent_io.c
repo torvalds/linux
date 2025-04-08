@@ -2668,7 +2668,7 @@ bool try_release_extent_mapping(struct folio *folio, gfp_t mask)
 		struct extent_map *em;
 
 		write_lock(&extent_tree->lock);
-		em = lookup_extent_mapping(extent_tree, start, len);
+		em = btrfs_lookup_extent_mapping(extent_tree, start, len);
 		if (!em) {
 			write_unlock(&extent_tree->lock);
 			break;
@@ -2707,7 +2707,7 @@ remove_em:
 		 * fsync performance for workloads with a data size that exceeds
 		 * or is close to the system's memory).
 		 */
-		remove_extent_mapping(inode, em);
+		btrfs_remove_extent_mapping(inode, em);
 		/* Once for the inode's extent map tree. */
 		btrfs_free_extent_map(em);
 next:

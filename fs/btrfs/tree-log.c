@@ -4956,7 +4956,7 @@ process:
 		 * private list.
 		 */
 		if (ret) {
-			clear_em_logging(inode, em);
+			btrfs_clear_em_logging(inode, em);
 			btrfs_free_extent_map(em);
 			continue;
 		}
@@ -4965,7 +4965,7 @@ process:
 
 		ret = log_one_extent(trans, inode, em, path, ctx);
 		write_lock(&tree->lock);
-		clear_em_logging(inode, em);
+		btrfs_clear_em_logging(inode, em);
 		btrfs_free_extent_map(em);
 	}
 	WARN_ON(!list_empty(&extents));

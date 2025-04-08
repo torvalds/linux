@@ -2538,8 +2538,8 @@ static const struct init_sequence mod_init_seq[] = {
 		.init_func = btrfs_bioset_init,
 		.exit_func = btrfs_bioset_exit,
 	}, {
-		.init_func = extent_map_init,
-		.exit_func = extent_map_exit,
+		.init_func = btrfs_extent_map_init,
+		.exit_func = btrfs_extent_map_exit,
 #ifdef CONFIG_BTRFS_EXPERIMENTAL
 	}, {
 		.init_func = btrfs_read_policy_init,

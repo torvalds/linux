@@ -13,7 +13,7 @@
 
 static struct kmem_cache *extent_map_cache;
 
-int __init extent_map_init(void)
+int __init btrfs_extent_map_init(void)
 {
 	extent_map_cache = kmem_cache_create("btrfs_extent_map",
 					     sizeof(struct extent_map), 0, 0, NULL);
@@ -22,7 +22,7 @@ int __init extent_map_init(void)
 	return 0;
 }
 
-void __cold extent_map_exit(void)
+void __cold btrfs_extent_map_exit(void)
 {
 	kmem_cache_destroy(extent_map_cache);
 }
@@ -31,7 +31,7 @@ void __cold extent_map_exit(void)
  * Initialize the extent tree @tree.  Should be called for each new inode or
  * other user of the extent_map interface.
  */
-void extent_map_tree_init(struct extent_map_tree *tree)
+void btrfs_extent_map_tree_init(struct extent_map_tree *tree)
 {
 	tree->root = RB_ROOT;
 	INIT_LIST_HEAD(&tree->modified_extents);
@@ -409,7 +409,7 @@ static void try_merge_map(struct btrfs_inode *inode, struct extent_map *em)
  * 	    -ENOENT  when the extent is not found in the tree
  * 	    -EUCLEAN if the found extent does not match the expected start
  */
-int unpin_extent_cache(struct btrfs_inode *inode, u64 start, u64 len, u64 gen)
+int btrfs_unpin_extent_cache(struct btrfs_inode *inode, u64 start, u64 len, u64 gen)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct extent_map_tree *tree = &inode->extent_tree;
@@ -417,7 +417,7 @@ int unpin_extent_cache(struct btrfs_inode *inode, u64 start, u64 len, u64 gen)
 	struct extent_map *em;
 
 	write_lock(&tree->lock);
-	em = lookup_extent_mapping(tree, start, len);
+	em = btrfs_lookup_extent_mapping(tree, start, len);
 
 	if (WARN_ON(!em)) {
 		btrfs_warn(fs_info,
@@ -449,7 +449,7 @@ out:
 
 }
 
-void clear_em_logging(struct btrfs_inode *inode, struct extent_map *em)
+void btrfs_clear_em_logging(struct btrfs_inode *inode, struct extent_map *em)
 {
 	lockdep_assert_held_write(&inode->extent_tree.lock);
 
@@ -546,8 +546,8 @@ __lookup_extent_mapping(struct extent_map_tree *tree,
  * intersect, so check the object returned carefully to make sure that no
  * additional lookups are needed.
  */
-struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
-					 u64 start, u64 len)
+struct extent_map *btrfs_lookup_extent_mapping(struct extent_map_tree *tree,
+					       u64 start, u64 len)
 {
 	return __lookup_extent_mapping(tree, start, len, 1);
 }
@@ -564,8 +564,8 @@ struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
  *
  * If one can't be found, any nearby extent may be returned
  */
-struct extent_map *search_extent_mapping(struct extent_map_tree *tree,
-					 u64 start, u64 len)
+struct extent_map *btrfs_search_extent_mapping(struct extent_map_tree *tree,
+					       u64 start, u64 len)
 {
 	return __lookup_extent_mapping(tree, start, len, 0);
 }
@@ -579,7 +579,7 @@ struct extent_map *search_extent_mapping(struct extent_map_tree *tree,
  * Remove @em from the extent tree of @inode.  No reference counts are dropped,
  * and no checks are done to see if the range is in use.
  */
-void remove_extent_mapping(struct btrfs_inode *inode, struct extent_map *em)
+void btrfs_remove_extent_mapping(struct btrfs_inode *inode, struct extent_map *em)
 {
 	struct extent_map_tree *tree = &inode->extent_tree;
 
@@ -716,7 +716,7 @@ int btrfs_add_extent_mapping(struct btrfs_inode *inode,
 	if (ret == -EEXIST) {
 		struct extent_map *existing;
 
-		existing = search_extent_mapping(&inode->extent_tree, start, len);
+		existing = btrfs_search_extent_mapping(&inode->extent_tree, start, len);
 
 		trace_btrfs_handle_em_exist(fs_info, existing, em, start, len);
 
@@ -772,7 +772,7 @@ static void drop_all_extent_maps_fast(struct btrfs_inode *inode)
 
 		em = rb_entry(node, struct extent_map, rb_node);
 		em->flags &= ~(EXTENT_FLAG_PINNED | EXTENT_FLAG_LOGGING);
-		remove_extent_mapping(inode, em);
+		btrfs_remove_extent_mapping(inode, em);
 		btrfs_free_extent_map(em);
 
 		if (cond_resched_rwlock_write(&tree->lock))
@@ -830,7 +830,7 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 	split2 = btrfs_alloc_extent_map();
 
 	write_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, start, len);
+	em = btrfs_lookup_extent_mapping(em_tree, start, len);
 
 	while (em) {
 		/* extent_map_end() returns exclusive value (last byte + 1). */
@@ -965,7 +965,7 @@ remove_em:
 				ASSERT(!split);
 				btrfs_set_inode_full_sync(inode);
 			}
-			remove_extent_mapping(inode, em);
+			btrfs_remove_extent_mapping(inode, em);
 		}
 
 		/*
@@ -1033,8 +1033,8 @@ int btrfs_replace_extent_map_range(struct btrfs_inode *inode,
  *
  * This function is used when an ordered_extent needs to be split.
  */
-int split_extent_map(struct btrfs_inode *inode, u64 start, u64 len, u64 pre,
-		     u64 new_logical)
+int btrfs_split_extent_map(struct btrfs_inode *inode, u64 start, u64 len, u64 pre,
+			   u64 new_logical)
 {
 	struct extent_map_tree *em_tree = &inode->extent_tree;
 	struct extent_map *em;
@@ -1057,7 +1057,7 @@ int split_extent_map(struct btrfs_inode *inode, u64 start, u64 len, u64 pre,
 
 	btrfs_lock_extent(&inode->io_tree, start, start + len - 1, NULL);
 	write_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, start, len);
+	em = btrfs_lookup_extent_mapping(em_tree, start, len);
 	if (!em) {
 		ret = -EIO;
 		goto out_unlock;
@@ -1168,7 +1168,7 @@ static long btrfs_scan_inode(struct btrfs_inode *inode, struct btrfs_em_shrink_c
 		if (!list_empty(&em->list) && em->generation >= cur_fs_gen)
 			btrfs_set_inode_full_sync(inode);
 
-		remove_extent_mapping(inode, em);
+		btrfs_remove_extent_mapping(inode, em);
 		trace_btrfs_extent_map_shrinker_remove_em(inode, em);
 		/* Drop the reference for the tree. */
 		btrfs_free_extent_map(em);

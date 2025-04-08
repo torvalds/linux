@@ -753,7 +753,7 @@ static struct extent_map *defrag_lookup_extent(struct inode *inode, u64 start,
 	 * full extent lock.
 	 */
 	read_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, start, sectorsize);
+	em = btrfs_lookup_extent_mapping(em_tree, start, sectorsize);
 	read_unlock(&em_tree->lock);
 
 	/*
