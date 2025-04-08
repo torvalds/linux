@@ -19,8 +19,6 @@ import os
 import re
 from datetime import datetime
 
-from dateutil import tz
-
 from kdoc_parser import KernelDoc, type_param
 from kdoc_re import Re
 
@@ -586,6 +584,15 @@ class ManFormat(OutputFormat):
     )
     blankline = ""
 
+    date_formats = [
+        "%a %b %d %H:%M:%S %Z %Y",
+        "%a %b %d %H:%M:%S %Y",
+        "%Y-%m-%d",
+        "%b %d %Y",
+        "%B %d %Y",
+        "%m %d %Y",
+    ]
+
     def __init__(self, modulename):
         """
         Creates class variables.
@@ -597,11 +604,18 @@ class ManFormat(OutputFormat):
         super().__init__()
         self.modulename = modulename
 
-        dt = datetime.now()
-        if os.environ.get("KBUILD_BUILD_TIMESTAMP", None):
-            # use UTC TZ
-            to_zone = tz.gettz('UTC')
-            dt = dt.astimezone(to_zone)
+        dt = None
+        tstamp = os.environ.get("KBUILD_BUILD_TIMESTAMP")
+        if tstamp:
+            for fmt in self.date_formats:
+                try:
+                    dt = datetime.strptime(tstamp, fmt)
+                    break
+                except ValueError:
+                    pass
+
+        if not dt:
+            dt = datetime.now()
 
         self.man_date = dt.strftime("%B %Y")
 

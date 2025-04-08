@@ -13,9 +13,6 @@ import logging
 import os
 import re
 import sys
-from datetime import datetime
-
-from dateutil import tz
 
 from kdoc_parser import KernelDoc
 from kdoc_output import OutputFormat
@@ -136,12 +133,6 @@ class KernelFiles():
 
         if out_style is None:
             out_style = OutputFormat()
-
-        dt = datetime.now()
-        if os.environ.get("KBUILD_BUILD_TIMESTAMP", None):
-            # use UTC TZ
-            to_zone = tz.gettz('UTC')
-            dt = dt.astimezone(to_zone)
 
         if not werror:
             kcflags = os.environ.get("KCFLAGS", None)
