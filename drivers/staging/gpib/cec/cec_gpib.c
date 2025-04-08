@@ -40,7 +40,7 @@ static irqreturn_t cec_interrupt(int irq, void *arg)
 #define CEC_DEV_ID    0x5cec
 #define CEC_SUBID 0x9050
 
-static int cec_pci_attach(struct gpib_board *board, const gpib_board_config_t *config);
+static int cec_pci_attach(struct gpib_board *board, const struct gpib_board_config *config);
 
 static void cec_pci_detach(struct gpib_board *board);
 
@@ -265,7 +265,7 @@ static void cec_init(struct cec_priv *cec_priv, const struct gpib_board *board)
 	nec7210_board_online(nec_priv, board);
 }
 
-static int cec_pci_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int cec_pci_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	struct cec_priv *cec_priv;
 	struct nec7210_priv *nec_priv;
