@@ -8,8 +8,8 @@ config DRM_SYSFB_HELPER
 	depends on DRM
 
 config DRM_EFIDRM
-	bool "EFI framebuffer driver"
-	depends on (DRM=y) && MMU && EFI && (!SYSFB_SIMPLEFB || COMPILE_TEST)
+	tristate "EFI framebuffer driver"
+	depends on DRM && MMU && EFI && (!SYSFB_SIMPLEFB || COMPILE_TEST)
 	select APERTURE_HELPERS
 	select DRM_CLIENT_SELECTION
 	select DRM_GEM_SHMEM_HELPER
