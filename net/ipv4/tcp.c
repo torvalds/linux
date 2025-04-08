@@ -1160,6 +1160,8 @@ restart:
 		if (skb)
 			copy = size_goal - skb->len;
 
+		trace_tcp_sendmsg_locked(sk, msg, skb, size_goal);
+
 		if (copy <= 0 || !tcp_skb_can_collapse_to(skb)) {
 			bool first_skb;
 

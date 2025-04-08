@@ -259,6 +259,30 @@ TRACE_EVENT(tcp_retransmit_synack,
 		  __entry->saddr_v6, __entry->daddr_v6)
 );
 
+TRACE_EVENT(tcp_sendmsg_locked,
+	TP_PROTO(const struct sock *sk, const struct msghdr *msg,
+		 const struct sk_buff *skb, int size_goal),
+
+	TP_ARGS(sk, msg, skb, size_goal),
+
+	TP_STRUCT__entry(
+		__field(const void *, skb_addr)
+		__field(int, skb_len)
+		__field(int, msg_left)
+		__field(int, size_goal)
+	),
+
+	TP_fast_assign(
+		__entry->skb_addr = skb;
+		__entry->skb_len = skb ? skb->len : 0;
+		__entry->msg_left = msg_data_left(msg);
+		__entry->size_goal = size_goal;
+	),
+
+	TP_printk("skb_addr %p skb_len %d msg_left %d size_goal %d",
+		  __entry->skb_addr, __entry->skb_len, __entry->msg_left,
+		  __entry->size_goal));
+
 DECLARE_TRACE(tcp_cwnd_reduction_tp,
 	TP_PROTO(const struct sock *sk, int newly_acked_sacked,
 		 int newly_lost, int flag),
