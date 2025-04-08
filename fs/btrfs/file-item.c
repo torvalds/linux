@@ -1296,7 +1296,7 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 		em->disk_num_bytes = btrfs_file_extent_disk_num_bytes(leaf, fi);
 		em->offset = btrfs_file_extent_offset(leaf, fi);
 		if (compress_type != BTRFS_COMPRESS_NONE) {
-			extent_map_set_compression(em, compress_type);
+			btrfs_extent_map_set_compression(em, compress_type);
 		} else {
 			/*
 			 * Older kernels can create regular non-hole data
@@ -1316,7 +1316,7 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 		em->start = 0;
 		em->len = fs_info->sectorsize;
 		em->offset = 0;
-		extent_map_set_compression(em, compress_type);
+		btrfs_extent_map_set_compression(em, compress_type);
 	} else {
 		btrfs_err(fs_info,
 			  "unknown file extent item type %d, inode %llu, offset %llu, "

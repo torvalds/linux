@@ -597,9 +597,9 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("wrong offset, want 0, have %llu", em->offset);
 		goto out;
 	}
-	if (extent_map_compression(em) != BTRFS_COMPRESS_ZLIB) {
+	if (btrfs_extent_map_compression(em) != BTRFS_COMPRESS_ZLIB) {
 		test_err("unexpected compress type, wanted %d, got %d",
-			 BTRFS_COMPRESS_ZLIB, extent_map_compression(em));
+			 BTRFS_COMPRESS_ZLIB, btrfs_extent_map_compression(em));
 		goto out;
 	}
 	offset = em->start + em->len;
@@ -630,9 +630,9 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("wrong offset, want 0, have %llu", em->offset);
 		goto out;
 	}
-	if (extent_map_compression(em) != BTRFS_COMPRESS_ZLIB) {
+	if (btrfs_extent_map_compression(em) != BTRFS_COMPRESS_ZLIB) {
 		test_err("unexpected compress type, wanted %d, got %d",
-			 BTRFS_COMPRESS_ZLIB, extent_map_compression(em));
+			 BTRFS_COMPRESS_ZLIB, btrfs_extent_map_compression(em));
 		goto out;
 	}
 	disk_bytenr = extent_map_block_start(em);
@@ -692,9 +692,9 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 			 em->start, em->offset, orig_start);
 		goto out;
 	}
-	if (extent_map_compression(em) != BTRFS_COMPRESS_ZLIB) {
+	if (btrfs_extent_map_compression(em) != BTRFS_COMPRESS_ZLIB) {
 		test_err("unexpected compress type, wanted %d, got %d",
-			 BTRFS_COMPRESS_ZLIB, extent_map_compression(em));
+			 BTRFS_COMPRESS_ZLIB, btrfs_extent_map_compression(em));
 		goto out;
 	}
 	offset = em->start + em->len;

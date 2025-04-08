@@ -108,8 +108,8 @@ struct extent_map_tree {
 
 struct btrfs_inode;
 
-static inline void extent_map_set_compression(struct extent_map *em,
-					      enum btrfs_compression_type type)
+static inline void btrfs_extent_map_set_compression(struct extent_map *em,
+						    enum btrfs_compression_type type)
 {
 	if (type == BTRFS_COMPRESS_ZLIB)
 		em->flags |= EXTENT_FLAG_COMPRESS_ZLIB;
@@ -119,7 +119,8 @@ static inline void extent_map_set_compression(struct extent_map *em,
 		em->flags |= EXTENT_FLAG_COMPRESS_ZSTD;
 }
 
-static inline enum btrfs_compression_type extent_map_compression(const struct extent_map *em)
+static inline enum btrfs_compression_type btrfs_extent_map_compression(
+						       const struct extent_map *em)
 {
 	if (em->flags & EXTENT_FLAG_COMPRESS_ZLIB)
 		return BTRFS_COMPRESS_ZLIB;
@@ -137,7 +138,7 @@ static inline enum btrfs_compression_type extent_map_compression(const struct ex
  * More efficient way to determine if extent is compressed, instead of using
  * 'extent_map_compression() != BTRFS_COMPRESS_NONE'.
  */
-static inline bool extent_map_is_compressed(const struct extent_map *em)
+static inline bool btrfs_extent_map_is_compressed(const struct extent_map *em)
 {
 	return (em->flags & (EXTENT_FLAG_COMPRESS_ZLIB |
 			     EXTENT_FLAG_COMPRESS_LZO |
@@ -152,7 +153,7 @@ static inline int extent_map_in_tree(const struct extent_map *em)
 static inline u64 extent_map_block_start(const struct extent_map *em)
 {
 	if (em->disk_bytenr < EXTENT_MAP_LAST_BYTE) {
-		if (extent_map_is_compressed(em))
+		if (btrfs_extent_map_is_compressed(em))
 			return em->disk_bytenr;
 		return em->disk_bytenr + em->offset;
 	}

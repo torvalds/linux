@@ -4648,7 +4648,7 @@ static int log_extent_csums(struct btrfs_trans_handle *trans,
 		return 0;
 
 	/* If we're compressed we have to save the entire range of csums. */
-	if (extent_map_is_compressed(em)) {
+	if (btrfs_extent_map_is_compressed(em)) {
 		csum_offset = 0;
 		csum_len = em->disk_num_bytes;
 	} else {
@@ -4703,7 +4703,7 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 		btrfs_set_stack_file_extent_type(&fi, BTRFS_FILE_EXTENT_REG);
 
 	block_len = em->disk_num_bytes;
-	compress_type = extent_map_compression(em);
+	compress_type = btrfs_extent_map_compression(em);
 	if (compress_type != BTRFS_COMPRESS_NONE) {
 		btrfs_set_stack_file_extent_disk_bytenr(&fi, block_start);
 		btrfs_set_stack_file_extent_disk_num_bytes(&fi, block_len);

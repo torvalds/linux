@@ -791,7 +791,7 @@ static struct extent_map *defrag_lookup_extent(struct inode *inode, u64 start,
 static u32 get_extent_max_capacity(const struct btrfs_fs_info *fs_info,
 				   const struct extent_map *em)
 {
-	if (extent_map_is_compressed(em))
+	if (btrfs_extent_map_is_compressed(em))
 		return BTRFS_MAX_COMPRESSED;
 	return fs_info->max_extent_size;
 }

@@ -588,7 +588,7 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio)
 		goto out;
 	}
 
-	ASSERT(extent_map_is_compressed(em));
+	ASSERT(btrfs_extent_map_is_compressed(em));
 	compressed_len = em->disk_num_bytes;
 
 	cb = alloc_compressed_bio(inode, file_offset, REQ_OP_READ,
@@ -600,7 +600,7 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio)
 
 	cb->len = bbio->bio.bi_iter.bi_size;
 	cb->compressed_len = compressed_len;
-	cb->compress_type = extent_map_compression(em);
+	cb->compress_type = btrfs_extent_map_compression(em);
 	cb->orig_bbio = bbio;
 
 	free_extent_map(em);

@@ -972,7 +972,7 @@ static int btrfs_do_readpage(struct folio *folio, struct extent_map **em_cached,
 		BUG_ON(extent_map_end(em) <= cur);
 		BUG_ON(end < cur);
 
-		compress_type = extent_map_compression(em);
+		compress_type = btrfs_extent_map_compression(em);
 
 		if (compress_type != BTRFS_COMPRESS_NONE)
 			disk_bytenr = em->disk_bytenr;
@@ -1547,7 +1547,7 @@ static int submit_one_sector(struct btrfs_inode *inode,
 	block_start = extent_map_block_start(em);
 	disk_bytenr = extent_map_block_start(em) + extent_offset;
 
-	ASSERT(!extent_map_is_compressed(em));
+	ASSERT(!btrfs_extent_map_is_compressed(em));
 	ASSERT(block_start != EXTENT_MAP_HOLE);
 	ASSERT(block_start != EXTENT_MAP_INLINE);
 

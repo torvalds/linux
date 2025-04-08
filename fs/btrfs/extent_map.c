@@ -188,7 +188,7 @@ static struct rb_node *__tree_search(struct rb_root *root, u64 offset,
 
 static inline u64 extent_map_block_len(const struct extent_map *em)
 {
-	if (extent_map_is_compressed(em))
+	if (btrfs_extent_map_is_compressed(em))
 		return em->disk_num_bytes;
 	return em->len;
 }
@@ -210,7 +210,7 @@ static bool can_merge_extent_map(const struct extent_map *em)
 		return false;
 
 	/* Don't merge compressed extents, we need to know their actual size. */
-	if (extent_map_is_compressed(em))
+	if (btrfs_extent_map_is_compressed(em))
 		return false;
 
 	if (em->flags & EXTENT_FLAG_LOGGING)
@@ -270,8 +270,8 @@ static void merge_ondisk_extents(const struct extent_map *prev, const struct ext
 	u64 new_offset;
 
 	/* @prev and @next should not be compressed. */
-	ASSERT(!extent_map_is_compressed(prev));
-	ASSERT(!extent_map_is_compressed(next));
+	ASSERT(!btrfs_extent_map_is_compressed(prev));
+	ASSERT(!btrfs_extent_map_is_compressed(next));
 
 	/*
 	 * There are two different cases where @prev and @next can be merged.
@@ -327,9 +327,9 @@ static void validate_extent_map(struct btrfs_fs_info *fs_info, struct extent_map
 		if (em->offset + em->len > em->ram_bytes)
 			dump_extent_map(fs_info, "ram_bytes too small", em);
 		if (em->offset + em->len > em->disk_num_bytes &&
-		    !extent_map_is_compressed(em))
+		    !btrfs_extent_map_is_compressed(em))
 			dump_extent_map(fs_info, "disk_num_bytes too small", em);
-		if (!extent_map_is_compressed(em) &&
+		if (!btrfs_extent_map_is_compressed(em) &&
 		    em->ram_bytes != em->disk_num_bytes)
 			dump_extent_map(fs_info,
 		"ram_bytes mismatch with disk_num_bytes for non-compressed em",
@@ -1064,7 +1064,7 @@ int split_extent_map(struct btrfs_inode *inode, u64 start, u64 len, u64 pre,
 	}
 
 	ASSERT(em->len == len);
-	ASSERT(!extent_map_is_compressed(em));
+	ASSERT(!btrfs_extent_map_is_compressed(em));
 	ASSERT(em->disk_bytenr < EXTENT_MAP_LAST_BYTE);
 	ASSERT(em->flags & EXTENT_FLAG_PINNED);
 	ASSERT(!(em->flags & EXTENT_FLAG_LOGGING));
