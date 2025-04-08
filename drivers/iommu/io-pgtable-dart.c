@@ -107,13 +107,6 @@ static phys_addr_t iopte_to_paddr(dart_iopte pte,
 	return paddr;
 }
 
-static void *__dart_alloc_pages(size_t size, gfp_t gfp)
-{
-	int order = get_order(size);
-
-	return iommu_alloc_pages(gfp, order);
-}
-
 static int dart_init_pte(struct dart_io_pgtable *data,
 			     unsigned long iova, phys_addr_t paddr,
 			     dart_iopte prot, int num_entries,
@@ -255,7 +248,7 @@ static int dart_map_pages(struct io_pgtable_ops *ops, unsigned long iova,
 
 	/* no L2 table present */
 	if (!pte) {
-		cptep = __dart_alloc_pages(tblsz, gfp);
+		cptep = iommu_alloc_pages_sz(gfp, tblsz);
 		if (!cptep)
 			return -ENOMEM;
 
@@ -412,7 +405,8 @@ apple_dart_alloc_pgtable(struct io_pgtable_cfg *cfg, void *cookie)
 	cfg->apple_dart_cfg.n_ttbrs = 1 << data->tbl_bits;
 
 	for (i = 0; i < cfg->apple_dart_cfg.n_ttbrs; ++i) {
-		data->pgd[i] = __dart_alloc_pages(DART_GRANULE(data), GFP_KERNEL);
+		data->pgd[i] =
+			iommu_alloc_pages_sz(GFP_KERNEL, DART_GRANULE(data));
 		if (!data->pgd[i])
 			goto out_free_data;
 		cfg->apple_dart_cfg.ttbr[i] = virt_to_phys(data->pgd[i]);
