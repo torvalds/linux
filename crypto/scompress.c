@@ -111,6 +111,9 @@ static void scomp_free_streams(struct scomp_alg *alg)
 	struct crypto_acomp_stream __percpu *stream = alg->stream;
 	int i;
 
+	if (!stream)
+		return;
+
 	for_each_possible_cpu(i) {
 		struct crypto_acomp_stream *ps = per_cpu_ptr(stream, i);
 
