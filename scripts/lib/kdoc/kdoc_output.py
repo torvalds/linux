@@ -255,7 +255,8 @@ class RestFormat(OutputFormat):
     def print_lineno(self, ln):
         """Outputs a line number"""
 
-        if self.enable_lineno and ln:
+        if self.enable_lineno and ln is not None:
+            ln += 1
             self.data += f".. LINENO {ln}\n"
 
     def output_highlight(self, args):
@@ -358,7 +359,7 @@ class RestFormat(OutputFormat):
         parameterdescs = args.get('parameterdescs', {})
         parameterdesc_start_lines = args.get('parameterdesc_start_lines', {})
 
-        ln = args.get('ln', 0)
+        ln = args.get('declaration_start_line', 0)
 
         count = 0
         for parameter in parameterlist:
@@ -375,11 +376,11 @@ class RestFormat(OutputFormat):
         if not func_macro:
             signature += ")"
 
+        self.print_lineno(ln)
         if args.get('typedef') or not args.get('functiontype'):
             self.data += f".. c:macro:: {args['function']}\n\n"
 
             if args.get('typedef'):
-                self.print_lineno(ln)
                 self.data += "   **Typedef**: "
                 self.lineprefix = ""
                 self.output_highlight(args.get('purpose', ""))
@@ -434,7 +435,7 @@ class RestFormat(OutputFormat):
         name = args.get('enum', '')
         parameterlist = args.get('parameterlist', [])
         parameterdescs = args.get('parameterdescs', {})
-        ln = args.get('ln', 0)
+        ln = args.get('declaration_start_line', 0)
 
         self.data += f"\n\n.. c:enum:: {name}\n\n"
 
@@ -464,7 +465,7 @@ class RestFormat(OutputFormat):
 
         oldprefix = self.lineprefix
         name = args.get('typedef', '')
-        ln = args.get('ln', 0)
+        ln = args.get('declaration_start_line', 0)
 
         self.data += f"\n\n.. c:type:: {name}\n\n"
 
@@ -484,7 +485,7 @@ class RestFormat(OutputFormat):
         purpose = args.get('purpose', "")
         declaration = args.get('definition', "")
         dtype = args.get('type', "struct")
-        ln = args.get('ln', 0)
+        ln = args.get('declaration_start_line', 0)
 
         parameterlist = args.get('parameterlist', [])
         parameterdescs = args.get('parameterdescs', {})

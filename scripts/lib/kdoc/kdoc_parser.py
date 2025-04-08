@@ -276,7 +276,7 @@ class KernelDoc:
         self.entry.brcount = 0
 
         self.entry.in_doc_sect = False
-        self.entry.declaration_start_line = ln
+        self.entry.declaration_start_line = ln + 1
 
     def push_parameter(self, ln, decl_type, param, dtype,
                        org_arg, declaration_name):
@@ -806,8 +806,10 @@ class KernelDoc:
                                 parameterlist=self.entry.parameterlist,
                                 parameterdescs=self.entry.parameterdescs,
                                 parametertypes=self.entry.parametertypes,
+                                parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
                                 sectionlist=self.entry.sectionlist,
                                 sections=self.entry.sections,
+                                section_start_lines=self.entry.section_start_lines,
                                 purpose=self.entry.declaration_purpose)
 
     def dump_enum(self, ln, proto):
@@ -882,8 +884,10 @@ class KernelDoc:
                                 module=self.config.modulename,
                                 parameterlist=self.entry.parameterlist,
                                 parameterdescs=self.entry.parameterdescs,
+                                parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
                                 sectionlist=self.entry.sectionlist,
                                 sections=self.entry.sections,
+                                section_start_lines=self.entry.section_start_lines,
                                 purpose=self.entry.declaration_purpose)
 
     def dump_declaration(self, ln, prototype):
@@ -1054,8 +1058,10 @@ class KernelDoc:
                                     parameterlist=self.entry.parameterlist,
                                     parameterdescs=self.entry.parameterdescs,
                                     parametertypes=self.entry.parametertypes,
+                                    parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
                                     sectionlist=self.entry.sectionlist,
                                     sections=self.entry.sections,
+                                    section_start_lines=self.entry.section_start_lines,
                                     purpose=self.entry.declaration_purpose,
                                     func_macro=func_macro)
         else:
@@ -1067,8 +1073,10 @@ class KernelDoc:
                                     parameterlist=self.entry.parameterlist,
                                     parameterdescs=self.entry.parameterdescs,
                                     parametertypes=self.entry.parametertypes,
+                                    parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
                                     sectionlist=self.entry.sectionlist,
                                     sections=self.entry.sections,
+                                    section_start_lines=self.entry.section_start_lines,
                                     purpose=self.entry.declaration_purpose,
                                     func_macro=func_macro)
 
@@ -1112,8 +1120,10 @@ class KernelDoc:
                                     parameterlist=self.entry.parameterlist,
                                     parameterdescs=self.entry.parameterdescs,
                                     parametertypes=self.entry.parametertypes,
+                                    parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
                                     sectionlist=self.entry.sectionlist,
                                     sections=self.entry.sections,
+                                    section_start_lines=self.entry.section_start_lines,
                                     purpose=self.entry.declaration_purpose)
             return
 
@@ -1136,6 +1146,7 @@ class KernelDoc:
                                     module=self.entry.modulename,
                                     sectionlist=self.entry.sectionlist,
                                     sections=self.entry.sections,
+                                    section_start_lines=self.entry.section_start_lines,
                                     purpose=self.entry.declaration_purpose)
             return
 
@@ -1168,7 +1179,7 @@ class KernelDoc:
             return
 
         # start a new entry
-        self.reset_state(ln + 1)
+        self.reset_state(ln)
         self.entry.in_doc_sect = False
 
         # next line is always the function name
@@ -1281,7 +1292,7 @@ class KernelDoc:
             if r.match(line):
                 self.dump_section()
                 self.entry.section = self.section_default
-                self.entry.new_start_line = line
+                self.entry.new_start_line = ln
                 self.entry.contents = ""
 
         if doc_sect.search(line):
@@ -1619,7 +1630,9 @@ class KernelDoc:
             self.dump_section()
             self.output_declaration("doc", None,
                                     sectionlist=self.entry.sectionlist,
-                                    sections=self.entry.sections, module=self.config.modulename)
+                                    sections=self.entry.sections,
+                                    section_start_lines=self.entry.section_start_lines,
+                                    module=self.config.modulename)
             self.reset_state(ln)
 
         elif doc_content.search(line):
