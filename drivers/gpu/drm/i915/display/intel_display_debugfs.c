@@ -826,7 +826,6 @@ static const struct drm_info_list intel_display_debugfs_list[] = {
 
 void intel_display_debugfs_register(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct drm_minor *minor = display->drm->primary;
 
 	debugfs_create_file("i915_fifo_underrun_reset", 0644, minor->debugfs_root,
@@ -844,7 +843,7 @@ void intel_display_debugfs_register(struct intel_display *display)
 	intel_hpd_debugfs_register(display);
 	intel_opregion_debugfs_register(display);
 	intel_psr_debugfs_register(display);
-	intel_wm_debugfs_register(i915);
+	intel_wm_debugfs_register(display);
 	intel_display_debugfs_params(display);
 }
 

@@ -641,8 +641,9 @@ static struct intel_crtc *single_enabled_crtc(struct drm_i915_private *dev_priv)
 	return enabled;
 }
 
-static void pnv_update_wm(struct drm_i915_private *dev_priv)
+static void pnv_update_wm(struct intel_display *display)
 {
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_crtc *crtc;
 	const struct cxsr_latency *latency;
 	u32 reg;
@@ -2123,8 +2124,9 @@ static void vlv_optimize_watermarks(struct intel_atomic_state *state,
 	mutex_unlock(&dev_priv->display.wm.wm_mutex);
 }
 
-static void i965_update_wm(struct drm_i915_private *dev_priv)
+static void i965_update_wm(struct intel_display *display)
 {
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_crtc *crtc;
 	int srwm = 1;
 	int cursor_sr = 16;
@@ -2216,8 +2218,9 @@ static struct intel_crtc *intel_crtc_for_plane(struct drm_i915_private *i915,
 	return NULL;
 }
 
-static void i9xx_update_wm(struct drm_i915_private *dev_priv)
+static void i9xx_update_wm(struct intel_display *display)
 {
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	const struct intel_watermark_params *wm_info;
 	u32 fwater_lo;
 	u32 fwater_hi;
@@ -2359,8 +2362,9 @@ static void i9xx_update_wm(struct drm_i915_private *dev_priv)
 		intel_set_memory_cxsr(dev_priv, true);
 }
 
-static void i845_update_wm(struct drm_i915_private *dev_priv)
+static void i845_update_wm(struct intel_display *display)
 {
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_crtc *crtc;
 	u32 fwater_lo;
 	int planea_wm;
@@ -2813,6 +2817,7 @@ static bool ilk_increase_wm_latency(struct drm_i915_private *dev_priv,
 
 static void snb_wm_latency_quirk(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
 	bool changed;
 
 	/*
@@ -2828,13 +2833,14 @@ static void snb_wm_latency_quirk(struct drm_i915_private *dev_priv)
 
 	drm_dbg_kms(&dev_priv->drm,
 		    "WM latency values increased to avoid potential underruns\n");
-	intel_print_wm_latency(dev_priv, "Primary", dev_priv->display.wm.pri_latency);
-	intel_print_wm_latency(dev_priv, "Sprite", dev_priv->display.wm.spr_latency);
-	intel_print_wm_latency(dev_priv, "Cursor", dev_priv->display.wm.cur_latency);
+	intel_print_wm_latency(display, "Primary", dev_priv->display.wm.pri_latency);
+	intel_print_wm_latency(display, "Sprite", dev_priv->display.wm.spr_latency);
+	intel_print_wm_latency(display, "Cursor", dev_priv->display.wm.cur_latency);
 }
 
 static void snb_wm_lp3_irq_quirk(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
 	/*
 	 * On some SNB machines (Thinkpad X220 Tablet at least)
 	 * LP3 usage can cause vblank interrupts to be lost.
@@ -2857,13 +2863,15 @@ static void snb_wm_lp3_irq_quirk(struct drm_i915_private *dev_priv)
 
 	drm_dbg_kms(&dev_priv->drm,
 		    "LP3 watermarks disabled due to potential for lost interrupts\n");
-	intel_print_wm_latency(dev_priv, "Primary", dev_priv->display.wm.pri_latency);
-	intel_print_wm_latency(dev_priv, "Sprite", dev_priv->display.wm.spr_latency);
-	intel_print_wm_latency(dev_priv, "Cursor", dev_priv->display.wm.cur_latency);
+	intel_print_wm_latency(display, "Primary", dev_priv->display.wm.pri_latency);
+	intel_print_wm_latency(display, "Sprite", dev_priv->display.wm.spr_latency);
+	intel_print_wm_latency(display, "Cursor", dev_priv->display.wm.cur_latency);
 }
 
 static void ilk_setup_wm_latency(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
+
 	if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
 		hsw_read_wm_latency(dev_priv, dev_priv->display.wm.pri_latency);
 	else if (DISPLAY_VER(dev_priv) >= 6)
@@ -2879,9 +2887,9 @@ static void ilk_setup_wm_latency(struct drm_i915_private *dev_priv)
 	intel_fixup_spr_wm_latency(dev_priv, dev_priv->display.wm.spr_latency);
 	intel_fixup_cur_wm_latency(dev_priv, dev_priv->display.wm.cur_latency);
 
-	intel_print_wm_latency(dev_priv, "Primary", dev_priv->display.wm.pri_latency);
-	intel_print_wm_latency(dev_priv, "Sprite", dev_priv->display.wm.spr_latency);
-	intel_print_wm_latency(dev_priv, "Cursor", dev_priv->display.wm.cur_latency);
+	intel_print_wm_latency(display, "Primary", dev_priv->display.wm.pri_latency);
+	intel_print_wm_latency(display, "Sprite", dev_priv->display.wm.spr_latency);
+	intel_print_wm_latency(display, "Cursor", dev_priv->display.wm.cur_latency);
 
 	if (DISPLAY_VER(dev_priv) == 6) {
 		snb_wm_latency_quirk(dev_priv);
@@ -3759,8 +3767,9 @@ static void vlv_read_wm_values(struct drm_i915_private *dev_priv,
 #undef _FW_WM
 #undef _FW_WM_VLV
 
-static void g4x_wm_get_hw_state(struct drm_i915_private *dev_priv)
+static void g4x_wm_get_hw_state(struct intel_display *display)
 {
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct g4x_wm_values *wm = &dev_priv->display.wm.g4x;
 	struct intel_crtc *crtc;
 
@@ -3852,9 +3861,9 @@ static void g4x_wm_get_hw_state(struct drm_i915_private *dev_priv)
 		    str_yes_no(wm->fbc_en));
 }
 
-static void g4x_wm_sanitize(struct drm_i915_private *dev_priv)
+static void g4x_wm_sanitize(struct intel_display *display)
 {
-	struct intel_display *display = &dev_priv->display;
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_plane *plane;
 	struct intel_crtc *crtc;
 
@@ -3902,8 +3911,9 @@ static void g4x_wm_sanitize(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->display.wm.wm_mutex);
 }
 
-static void vlv_wm_get_hw_state(struct drm_i915_private *dev_priv)
+static void vlv_wm_get_hw_state(struct intel_display *display)
 {
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct vlv_wm_values *wm = &dev_priv->display.wm.vlv;
 	struct intel_crtc *crtc;
 	u32 val;
@@ -4002,9 +4012,9 @@ static void vlv_wm_get_hw_state(struct drm_i915_private *dev_priv)
 		    wm->sr.plane, wm->sr.cursor, wm->level, wm->cxsr);
 }
 
-static void vlv_wm_sanitize(struct drm_i915_private *dev_priv)
+static void vlv_wm_sanitize(struct intel_display *display)
 {
-	struct intel_display *display = &dev_priv->display;
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_plane *plane;
 	struct intel_crtc *crtc;
 
@@ -4065,8 +4075,9 @@ static void ilk_init_lp_watermarks(struct drm_i915_private *dev_priv)
 	 */
 }
 
-static void ilk_wm_get_hw_state(struct drm_i915_private *dev_priv)
+static void ilk_wm_get_hw_state(struct intel_display *display)
 {
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct ilk_wm_values *hw = &dev_priv->display.wm.hw;
 	struct intel_crtc *crtc;
 

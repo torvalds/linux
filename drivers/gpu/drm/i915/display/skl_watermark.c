@@ -3106,9 +3106,9 @@ static void skl_pipe_wm_get_hw_state(struct intel_crtc *crtc,
 	}
 }
 
-static void skl_wm_get_hw_state(struct drm_i915_private *i915)
+static void skl_wm_get_hw_state(struct intel_display *display)
 {
-	struct intel_display *display = &i915->display;
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_dbuf_state *dbuf_state =
 		to_intel_dbuf_state(i915->display.dbuf.obj.state);
 	struct intel_crtc *crtc;
@@ -3339,7 +3339,7 @@ static void skl_setup_wm_latency(struct drm_i915_private *i915)
 	else
 		skl_read_wm_latency(i915, display->wm.skl_latency);
 
-	intel_print_wm_latency(i915, "Gen9 Plane", display->wm.skl_latency);
+	intel_print_wm_latency(display, "Gen9 Plane", display->wm.skl_latency);
 }
 
 static struct intel_global_state *intel_dbuf_duplicate_state(struct intel_global_obj *obj)
@@ -3800,8 +3800,10 @@ static void skl_dbuf_sanitize(struct drm_i915_private *i915)
 	}
 }
 
-static void skl_wm_sanitize(struct drm_i915_private *i915)
+static void skl_wm_sanitize(struct intel_display *display)
 {
+	struct drm_i915_private *i915 = to_i915(display->drm);
+
 	skl_mbus_sanitize(i915);
 	skl_dbuf_sanitize(i915);
 }

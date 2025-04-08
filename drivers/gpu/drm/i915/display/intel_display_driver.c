@@ -422,7 +422,7 @@ int intel_display_driver_probe_nogem(struct intel_display *display)
 	if (!HAS_DISPLAY(display))
 		return 0;
 
-	intel_wm_init(i915);
+	intel_wm_init(display);
 
 	intel_panel_sanitize_ssc(display);
 

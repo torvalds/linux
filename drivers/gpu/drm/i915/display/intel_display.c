@@ -1054,7 +1054,7 @@ static void intel_post_plane_update(struct intel_atomic_state *state,
 	intel_frontbuffer_flip(dev_priv, new_crtc_state->fb_bits);
 
 	if (new_crtc_state->update_wm_post && new_crtc_state->hw.active)
-		intel_update_watermarks(dev_priv);
+		intel_update_watermarks(display);
 
 	intel_fbc_post_update(state, crtc);
 
@@ -1258,7 +1258,7 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 		 */
 		if (!intel_initial_watermarks(state, crtc))
 			if (new_crtc_state->update_wm_pre)
-				intel_update_watermarks(dev_priv);
+				intel_update_watermarks(display);
 	}
 
 	/*
@@ -2072,7 +2072,6 @@ static void i9xx_crtc_enable(struct intel_atomic_state *state,
 	struct intel_display *display = to_intel_display(crtc);
 	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
 	if (drm_WARN_ON(display->drm, crtc->active))
@@ -2096,7 +2095,7 @@ static void i9xx_crtc_enable(struct intel_atomic_state *state,
 	intel_color_modeset(new_crtc_state);
 
 	if (!intel_initial_watermarks(state, crtc))
-		intel_update_watermarks(dev_priv);
+		intel_update_watermarks(display);
 	intel_enable_transcoder(new_crtc_state);
 
 	intel_crtc_vblank_on(new_crtc_state);
@@ -2112,7 +2111,6 @@ static void i9xx_crtc_disable(struct intel_atomic_state *state,
 			      struct intel_crtc *crtc)
 {
 	struct intel_display *display = to_intel_display(state);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
 	enum pipe pipe = crtc->pipe;
@@ -2149,7 +2147,7 @@ static void i9xx_crtc_disable(struct intel_atomic_state *state,
 		intel_set_cpu_fifo_underrun_reporting(display, pipe, false);
 
 	if (!display->funcs.wm->initial_watermarks)
-		intel_update_watermarks(dev_priv);
+		intel_update_watermarks(display);
 
 	/* clock the pipe down to 640x480@60 to potentially save power */
 	if (display->platform.i830)

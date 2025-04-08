@@ -13,7 +13,7 @@
 
 /**
  * intel_update_watermarks - update FIFO watermark values based on current modes
- * @i915: i915 device
+ * @display: display device
  *
  * Calculate watermark values for the various WM regs based on current mode
  * and plane configuration.
@@ -44,10 +44,10 @@
  * We don't use the sprite, so we can ignore that.  And on Crestline we have
  * to set the non-SR watermarks to 8.
  */
-void intel_update_watermarks(struct drm_i915_private *i915)
+void intel_update_watermarks(struct intel_display *display)
 {
-	if (i915->display.funcs.wm->update_wm)
-		i915->display.funcs.wm->update_wm(i915);
+	if (display->funcs.wm->update_wm)
+		display->funcs.wm->update_wm(display);
 }
 
 int intel_wm_compute(struct intel_atomic_state *state,
@@ -102,16 +102,16 @@ int intel_compute_global_watermarks(struct intel_atomic_state *state)
 	return 0;
 }
 
-void intel_wm_get_hw_state(struct drm_i915_private *i915)
+void intel_wm_get_hw_state(struct intel_display *display)
 {
-	if (i915->display.funcs.wm->get_hw_state)
-		return i915->display.funcs.wm->get_hw_state(i915);
+	if (display->funcs.wm->get_hw_state)
+		return display->funcs.wm->get_hw_state(display);
 }
 
-void intel_wm_sanitize(struct drm_i915_private *i915)
+void intel_wm_sanitize(struct intel_display *display)
 {
-	if (i915->display.funcs.wm->sanitize)
-		return i915->display.funcs.wm->sanitize(i915);
+	if (display->funcs.wm->sanitize)
+		return display->funcs.wm->sanitize(display);
 }
 
 bool intel_wm_plane_visible(const struct intel_crtc_state *crtc_state,
@@ -137,16 +137,16 @@ bool intel_wm_plane_visible(const struct intel_crtc_state *crtc_state,
 		return plane_state->uapi.visible;
 }
 
-void intel_print_wm_latency(struct drm_i915_private *dev_priv,
+void intel_print_wm_latency(struct intel_display *display,
 			    const char *name, const u16 wm[])
 {
 	int level;
 
-	for (level = 0; level < dev_priv->display.wm.num_levels; level++) {
+	for (level = 0; level < display->wm.num_levels; level++) {
 		unsigned int latency = wm[level];
 
 		if (latency == 0) {
-			drm_dbg_kms(&dev_priv->drm,
+			drm_dbg_kms(display->drm,
 				    "%s WM%d latency not provided\n",
 				    name, level);
 			continue;
@@ -156,20 +156,22 @@ void intel_print_wm_latency(struct drm_i915_private *dev_priv,
 		 * - latencies are in us on gen9.
 		 * - before then, WM1+ latency values are in 0.5us units
 		 */
-		if (DISPLAY_VER(dev_priv) >= 9)
+		if (DISPLAY_VER(display) >= 9)
 			latency *= 10;
 		else if (level > 0)
 			latency *= 5;
 
-		drm_dbg_kms(&dev_priv->drm,
+		drm_dbg_kms(display->drm,
 			    "%s WM%d latency %u (%u.%u usec)\n", name, level,
 			    wm[level], latency / 10, latency % 10);
 	}
 }
 
-void intel_wm_init(struct drm_i915_private *i915)
+void intel_wm_init(struct intel_display *display)
 {
-	if (DISPLAY_VER(i915) >= 9)
+	struct drm_i915_private *i915 = to_i915(display->drm);
+
+	if (DISPLAY_VER(display) >= 9)
 		skl_wm_init(i915);
 	else
 		i9xx_wm_init(i915);
@@ -385,9 +387,10 @@ static const struct file_operations i915_cur_wm_latency_fops = {
 	.write = cur_wm_latency_write
 };
 
-void intel_wm_debugfs_register(struct drm_i915_private *i915)
+void intel_wm_debugfs_register(struct intel_display *display)
 {
-	struct drm_minor *minor = i915->drm.primary;
+	struct drm_i915_private *i915 = to_i915(display->drm);
+	struct drm_minor *minor = display->drm->primary;
 
 	debugfs_create_file("i915_pri_wm_latency", 0644, minor->debugfs_root,
 			    i915, &i915_pri_wm_latency_fops);

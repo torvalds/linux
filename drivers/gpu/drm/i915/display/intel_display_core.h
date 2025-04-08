@@ -80,7 +80,7 @@ struct intel_display_funcs {
 /* functions used for watermark calcs for display. */
 struct intel_wm_funcs {
 	/* update_wm is for legacy wm management */
-	void (*update_wm)(struct drm_i915_private *dev_priv);
+	void (*update_wm)(struct intel_display *display);
 	int (*compute_watermarks)(struct intel_atomic_state *state,
 				  struct intel_crtc *crtc);
 	void (*initial_watermarks)(struct intel_atomic_state *state,
@@ -90,8 +90,8 @@ struct intel_wm_funcs {
 	void (*optimize_watermarks)(struct intel_atomic_state *state,
 				    struct intel_crtc *crtc);
 	int (*compute_global_watermarks)(struct intel_atomic_state *state);
-	void (*get_hw_state)(struct drm_i915_private *i915);
-	void (*sanitize)(struct drm_i915_private *i915);
+	void (*get_hw_state)(struct intel_display *display);
+	void (*sanitize)(struct intel_display *display);
 };
 
 struct intel_audio_state {
