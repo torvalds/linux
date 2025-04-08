@@ -106,7 +106,8 @@ static int pc2_write(struct gpib_board *board, uint8_t *buffer, size_t length, i
 	return nec7210_write(board, &priv->nec7210_priv, buffer, length, send_eoi, bytes_written);
 }
 
-static int pc2_command(struct gpib_board *board, uint8_t *buffer, size_t length, size_t *bytes_written)
+static int pc2_command(struct gpib_board *board, uint8_t *buffer,
+		       size_t length, size_t *bytes_written)
 {
 	struct pc2_priv *priv = board->private_data;
 
