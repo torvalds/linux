@@ -2,9 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # Copyright(c) 2025: Mauro Carvalho Chehab <mchehab@kernel.org>.
 #
-# pylint: disable=C0301,R0911,R0912,R0913,R0914,R0915,R0917
-
-# TODO: implement warning filtering
+# pylint: disable=C0301,R0902,R0911,R0912,R0913,R0914,R0915,R0917
 
 """
 Implement output filters to print kernel-doc documentation.
@@ -52,6 +50,11 @@ type_member_func = type_member + Re(r"\(\)", cache=False)
 
 
 class OutputFormat:
+    """
+    Base class for OutputFormat. If used as-is, it means that only
+    warnings will be displayed.
+    """
+
     # output mode.
     OUTPUT_ALL          = 0 # output all symbols and doc sections
     OUTPUT_INCLUDE      = 1 # output only specified symbols
@@ -75,6 +78,10 @@ class OutputFormat:
         self.data = ""
 
     def set_config(self, config):
+        """
+        Setup global config variables used by both parser and output.
+        """
+
         self.config = config
 
     def set_filter(self, export, internal, symbol, nosymbol, function_table,
@@ -117,6 +124,10 @@ class OutputFormat:
         return block
 
     def out_warnings(self, args):
+        """
+        Output warnings for identifiers that will be displayed.
+        """
+
         warnings = args.get('warnings', [])
 
         for warning, log_msg in warnings:
@@ -146,6 +157,11 @@ class OutputFormat:
         return False
 
     def check_declaration(self, dtype, name, args):
+        """
+        Checks if a declaration should be output or not based on the
+        filtering criteria.
+        """
+
         if name in self.nosymbol:
             return False
 
@@ -169,6 +185,10 @@ class OutputFormat:
         return False
 
     def msg(self, fname, name, args):
+        """
+        Handles a single entry from kernel-doc parser
+        """
+
         self.data = ""
 
         dtype = args.get('type', "")
@@ -203,24 +223,25 @@ class OutputFormat:
         return None
 
     # Virtual methods to be overridden by inherited classes
+    # At the base class, those do nothing.
     def out_doc(self, fname, name, args):
-        pass
+        """Outputs a DOC block"""
 
     def out_function(self, fname, name, args):
-        pass
+        """Outputs a function"""
 
     def out_enum(self, fname, name, args):
-        pass
+        """Outputs an enum"""
 
     def out_typedef(self, fname, name, args):
-        pass
+        """Outputs a typedef"""
 
     def out_struct(self, fname, name, args):
-        pass
+        """Outputs a struct"""
 
 
 class RestFormat(OutputFormat):
-    # """Consts and functions used by ReST output"""
+    """Consts and functions used by ReST output"""
 
     highlights = [
         (type_constant, r"``\1``"),
@@ -265,6 +286,11 @@ class RestFormat(OutputFormat):
             self.data += f".. LINENO {ln}\n"
 
     def output_highlight(self, args):
+        """
+        Outputs a C symbol that may require being converted to ReST using
+        the self.highlights variable
+        """
+
         input_text = args
         output = ""
         in_literal = False
@@ -579,6 +605,10 @@ class ManFormat(OutputFormat):
         self.man_date = dt.strftime("%B %Y")
 
     def output_highlight(self, block):
+        """
+        Outputs a C symbol that may require being highlighted with
+        self.highlights variable using troff syntax
+        """
 
         contents = self.highlight_block(block)
 
@@ -601,7 +631,7 @@ class ManFormat(OutputFormat):
         sections = args.get('sections', {})
 
         if not self.check_doc(name, args):
-                return
+            return
 
         self.data += f'.TH "{module}" 9 "{module}" "{self.man_date}" "API Manual" LINUX' + "\n"
 

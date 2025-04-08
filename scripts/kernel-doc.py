@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # Copyright(c) 2025: Mauro Carvalho Chehab <mchehab@kernel.org>.
 #
-# pylint: disable=C0103
+# pylint: disable=C0103,R0915
 #
 # Converted from the kernel-doc script originally written in Perl
 # under GPLv2, copyrighted since 1998 by the following authors:
@@ -165,6 +165,8 @@ neither here nor at the original Perl script.
 
 
 class MsgFormatter(logging.Formatter):
+    """Helper class to format warnings on a similar way to kernel-doc.pl"""
+
     def format(self, record):
         record.levelname = record.levelname.capitalize()
         return logging.Formatter.format(self, record)
@@ -241,7 +243,7 @@ def main():
 
     # Those are valid for all 3 types of filter
     parser.add_argument("-n", "-nosymbol", "--nosymbol", action='append',
-                         help=NOSYMBOL_DESC)
+                        help=NOSYMBOL_DESC)
 
     parser.add_argument("-D", "-no-doc-sections", "--no-doc-sections",
                         action='store_true', help="Don't outputt DOC sections")
@@ -286,9 +288,9 @@ def main():
     kfiles.parse(args.files, export_file=args.export_file)
 
     for t in kfiles.msg(enable_lineno=args.enable_lineno, export=args.export,
-                          internal=args.internal, symbol=args.symbol,
-                          nosymbol=args.nosymbol,
-                          no_doc_sections=args.no_doc_sections):
+                        internal=args.internal, symbol=args.symbol,
+                        nosymbol=args.nosymbol,
+                        no_doc_sections=args.no_doc_sections):
         msg = t[1]
         if msg:
             print(msg)

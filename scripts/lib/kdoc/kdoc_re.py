@@ -131,7 +131,8 @@ class NestedMatch:
     will ignore the search string.
     """
 
-    # TODO:
+    # TODO: make NestedMatch handle multiple match groups
+    #
     # Right now, regular expressions to match it are defined only up to
     #       the start delimiter, e.g.:
     #

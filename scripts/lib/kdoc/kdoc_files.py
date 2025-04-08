@@ -4,8 +4,6 @@
 #
 # pylint: disable=R0903,R0913,R0914,R0917
 
-# TODO: implement warning filtering
-
 """
 Parse lernel-doc tags on multiple kernel source files.
 """
@@ -128,7 +126,7 @@ class KernelFiles():
     def __init__(self, verbose=False, out_style=None,
                  werror=False, wreturn=False, wshort_desc=False,
                  wcontents_before_sections=False,
-                 logger=None, modulename=None, export_file=None):
+                 logger=None, modulename=None):
         """
         Initialize startup variables and parse all files
         """

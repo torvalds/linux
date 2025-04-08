@@ -131,7 +131,7 @@ class KernelDoc:
         # Place all potential outputs into an array
         self.entries = []
 
-    # TODO: rename to emit_message
+    # TODO: rename to emit_message after removal of kernel-doc.pl
     def emit_warning(self, ln, msg, warning=True):
         """Emit a message"""
 
@@ -156,19 +156,6 @@ class KernelDoc:
 
         name = self.entry.section
         contents = self.entry.contents
-
-        # TODO: we can prevent dumping empty sections here with:
-        #
-        #    if self.entry.contents.strip("\n"):
-        #       if start_new:
-        #           self.entry.section = self.section_default
-        #           self.entry.contents = ""
-        #
-        #        return
-        #
-        # But, as we want to be producing the same output of the
-        # venerable kernel-doc Perl tool, let's just output everything,
-        # at least for now
 
         if type_param.match(name):
             name = type_param.group(1)
@@ -205,7 +192,7 @@ class KernelDoc:
             self.entry.section = self.section_default
             self.entry.contents = ""
 
-    # TODO: rename it to store_declaration
+    # TODO: rename it to store_declaration after removal of kernel-doc.pl
     def output_declaration(self, dtype, name, **args):
         """
         Stores the entry into an entry array.
@@ -225,13 +212,13 @@ class KernelDoc:
         args["type"] = dtype
         args["warnings"] = self.entry.warnings
 
-        # TODO: use colletions.OrderedDict
+        # TODO: use colletions.OrderedDict to remove sectionlist
 
         sections = args.get('sections', {})
         sectionlist = args.get('sectionlist', [])
 
         # Drop empty sections
-        # TODO: improve it to emit warnings
+        # TODO: improve empty sections logic to emit warnings
         for section in ["Description", "Return"]:
             if section in sectionlist:
                 if not sections[section].rstrip():
@@ -636,7 +623,9 @@ class KernelDoc:
 
             # Replace macros
             #
-            # TODO: it is better to also move those to the NestedMatch logic,
+            # TODO: use NestedMatch for FOO($1, $2, ...) matches
+            #
+            # it is better to also move those to the NestedMatch logic,
             # to ensure that parenthesis will be properly matched.
 
             (Re(r'__ETHTOOL_DECLARE_LINK_MODE_MASK\s*\(([^\)]+)\)', re.S), r'DECLARE_BITMAP(\1, __ETHTOOL_LINK_MODE_MASK_NBITS)'),
@@ -906,7 +895,6 @@ class KernelDoc:
             self.dump_struct(ln, prototype)
             return
 
-        # TODO: handle other types
         self.output_declaration(self.entry.decl_type, prototype,
                                 entry=self.entry)
 
@@ -1679,10 +1667,6 @@ class KernelDoc:
                                           ln, self.st_name[self.state],
                                           self.st_inline_name[self.inline_doc_state],
                                           line)
-
-                    # TODO: not all states allow EXPORT_SYMBOL*, so this
-                    # can be optimized later on to speedup parsing
-                    self.process_export(self.config.function_table, line)
 
                     # Hand this line to the appropriate state handler
                     if self.state == self.STATE_NORMAL:
