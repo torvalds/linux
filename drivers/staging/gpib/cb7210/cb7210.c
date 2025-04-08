@@ -533,8 +533,8 @@ static irqreturn_t cb7210_interrupt(int irq, void *arg)
 	return cb7210_internal_interrupt(arg);
 }
 
-static int cb_pci_attach(struct gpib_board *board, const gpib_board_config_t *config);
-static int cb_isa_attach(struct gpib_board *board, const gpib_board_config_t *config);
+static int cb_pci_attach(struct gpib_board *board, const struct gpib_board_config *config);
+static int cb_isa_attach(struct gpib_board *board, const struct gpib_board_config *config);
 
 static void cb_pci_detach(struct gpib_board *board);
 static void cb_isa_detach(struct gpib_board *board);
@@ -926,7 +926,7 @@ static int cb7210_init(struct cb7210_priv *cb_priv, struct gpib_board *board)
 	return 0;
 }
 
-static int cb_pci_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int cb_pci_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	struct cb7210_priv *cb_priv;
 	struct nec7210_priv *nec_priv;
@@ -1031,7 +1031,7 @@ static void cb_pci_detach(struct gpib_board *board)
 	cb7210_generic_detach(board);
 }
 
-static int cb_isa_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int cb_isa_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	int isr_flags = 0;
 	struct cb7210_priv *cb_priv;
@@ -1133,7 +1133,7 @@ static struct pci_driver cb7210_pci_driver = {
 
 static int cb_gpib_config(struct pcmcia_device	*link);
 static void cb_gpib_release(struct pcmcia_device  *link);
-static int cb_pcmcia_attach(struct gpib_board *board, const gpib_board_config_t *config);
+static int cb_pcmcia_attach(struct gpib_board *board, const struct gpib_board_config *config);
 static void cb_pcmcia_detach(struct gpib_board *board);
 
 /*
@@ -1417,7 +1417,7 @@ static gpib_interface_t cb_pcmcia_accel_interface = {
 	.return_to_local = cb7210_return_to_local,
 };
 
-static int cb_pcmcia_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int cb_pcmcia_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	struct cb7210_priv *cb_priv;
 	struct nec7210_priv *nec_priv;
