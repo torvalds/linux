@@ -145,12 +145,12 @@ static inline bool btrfs_extent_map_is_compressed(const struct extent_map *em)
 			     EXTENT_FLAG_COMPRESS_ZSTD)) != 0;
 }
 
-static inline int extent_map_in_tree(const struct extent_map *em)
+static inline int btrfs_extent_map_in_tree(const struct extent_map *em)
 {
 	return !RB_EMPTY_NODE(&em->rb_node);
 }
 
-static inline u64 extent_map_block_start(const struct extent_map *em)
+static inline u64 btrfs_extent_map_block_start(const struct extent_map *em)
 {
 	if (em->disk_bytenr < EXTENT_MAP_LAST_BYTE) {
 		if (btrfs_extent_map_is_compressed(em))
@@ -160,7 +160,7 @@ static inline u64 extent_map_block_start(const struct extent_map *em)
 	return em->disk_bytenr;
 }
 
-static inline u64 extent_map_end(const struct extent_map *em)
+static inline u64 btrfs_extent_map_end(const struct extent_map *em)
 {
 	if (em->start + em->len < em->start)
 		return (u64)-1;

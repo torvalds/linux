@@ -137,7 +137,7 @@ static int test_case_1(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 		ret = -ENOENT;
 		goto out;
 	}
-	if (em->start != 0 || extent_map_end(em) != SZ_16K ||
+	if (em->start != 0 || btrfs_extent_map_end(em) != SZ_16K ||
 	    em->disk_bytenr != 0 || em->disk_num_bytes != SZ_16K) {
 		test_err(
 "case1 [%llu %llu]: ret %d return a wrong em (start %llu len %llu disk_bytenr %llu disk_num_bytes %llu",
@@ -235,7 +235,7 @@ static int test_case_2(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 		ret = -ENOENT;
 		goto out;
 	}
-	if (em->start != 0 || extent_map_end(em) != SZ_1K ||
+	if (em->start != 0 || btrfs_extent_map_end(em) != SZ_1K ||
 	    em->disk_bytenr != EXTENT_MAP_INLINE) {
 		test_err(
 "case2 [0 1K]: ret %d return a wrong em (start %llu len %llu disk_bytenr %llu",
@@ -312,8 +312,8 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 	 * Since bytes within em are contiguous, em->block_start is identical to
 	 * em->start.
 	 */
-	if (start < em->start || start + len > extent_map_end(em) ||
-	    em->start != extent_map_block_start(em)) {
+	if (start < em->start || start + len > btrfs_extent_map_end(em) ||
+	    em->start != btrfs_extent_map_block_start(em)) {
 		test_err(
 "case3 [%llu %llu): ret %d em (start %llu len %llu disk_bytenr %llu block_len %llu)",
 			 start, start + len, ret, em->start, em->len,
@@ -438,7 +438,7 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 		ret = -ENOENT;
 		goto out;
 	}
-	if (start < em->start || start + len > extent_map_end(em)) {
+	if (start < em->start || start + len > btrfs_extent_map_end(em)) {
 		test_err(
 "case4 [%llu %llu): ret %d, added wrong em (start %llu len %llu disk_bytenr %llu disk_num_bytes %llu)",
 			 start, start + len, ret, em->start, em->len,
@@ -870,9 +870,9 @@ static int test_case_7(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 		goto out;
 	}
 
-	if (extent_map_block_start(em) != SZ_32K + SZ_4K) {
+	if (btrfs_extent_map_block_start(em) != SZ_32K + SZ_4K) {
 		test_err("em->block_start is %llu, expected 36K",
-				extent_map_block_start(em));
+			 btrfs_extent_map_block_start(em));
 		goto out;
 	}
 
