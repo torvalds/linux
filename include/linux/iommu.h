@@ -342,9 +342,9 @@ typedef unsigned int ioasid_t;
 #define IOMMU_DIRTY_NO_CLEAR (1 << 0)
 
 /*
- * Pages allocated through iommu_alloc_pages_node() can be placed on this list
- * using iommu_pages_list_add(). Note: ONLY pages from iommu_alloc_pages_node()
- * can be used this way!
+ * Pages allocated through iommu_alloc_pages_node_sz() can be placed on this
+ * list using iommu_pages_list_add(). Note: ONLY pages from
+ * iommu_alloc_pages_node_sz() can be used this way!
  */
 struct iommu_pages_list {
 	struct list_head pages;
