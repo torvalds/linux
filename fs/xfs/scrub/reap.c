@@ -36,6 +36,12 @@
 #include "xfs_metafile.h"
 #include "xfs_rtgroup.h"
 #include "xfs_rtrmap_btree.h"
+#include "xfs_extfree_item.h"
+#include "xfs_rmap_item.h"
+#include "xfs_refcount_item.h"
+#include "xfs_buf_item.h"
+#include "xfs_bmap_item.h"
+#include "xfs_bmap_btree.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -230,6 +236,15 @@ static inline void xreap_force_defer_finish(struct xreap_state *rs)
 	rs->nr_deferred = rs->max_deferred;
 }
 
+/* Maximum number of fsblocks that we might find in a buffer to invalidate. */
+static inline unsigned int
+xrep_binval_max_fsblocks(
+	struct xfs_mount	*mp)
+{
+	/* Remote xattr values are the largest buffers that we support. */
+	return xfs_attr3_max_rmt_blocks(mp);
+}
+
 /*
  * Compute the maximum length of a buffer cache scan (in units of sectors),
  * given a quantity of fs blocks.
@@ -239,12 +254,8 @@ xrep_bufscan_max_sectors(
 	struct xfs_mount	*mp,
 	xfs_extlen_t		fsblocks)
 {
-	int			max_fsbs;
-
-	/* Remote xattr values are the largest buffers that we support. */
-	max_fsbs = xfs_attr3_max_rmt_blocks(mp);
-
-	return XFS_FSB_TO_BB(mp, min_t(xfs_extlen_t, fsblocks, max_fsbs));
+	return XFS_FSB_TO_BB(mp, min_t(xfs_extlen_t, fsblocks,
+				       xrep_binval_max_fsblocks(mp)));
 }
 
 /*
@@ -442,6 +453,7 @@ xreap_agextent_iter(
 			return 0;
 		}
 
+		/* t1: unmap crosslinked metadata blocks */
 		xfs_rmap_free_extent(sc->tp, false, fsbno, *aglenp,
 				rs->oinfo->oi_owner);
 		xreap_inc_defer(rs);
@@ -482,7 +494,7 @@ xreap_agextent_iter(
 		return 0;
 	}
 
-	/* Put blocks back on the AGFL one at a time. */
+	/* t3: Put blocks back on the AGFL one at a time. */
 	if (rs->resv == XFS_AG_RESV_AGFL) {
 		ASSERT(*aglenp == 1);
 		error = xreap_put_freelist(sc, agbno);
@@ -494,7 +506,7 @@ xreap_agextent_iter(
 	}
 
 	/*
-	 * Use deferred frees to get rid of the old btree blocks to try to
+	 * t4: Use deferred frees to get rid of the old btree blocks to try to
 	 * minimize the window in which we could crash and lose the old blocks.
 	 * Add a defer ops barrier every other extent to avoid stressing the
 	 * system with large EFIs.
@@ -508,6 +520,110 @@ xreap_agextent_iter(
 	if (rs->nr_deferred % 2 == 0)
 		xfs_defer_add_barrier(sc->tp);
 	return 0;
+}
+
+/* Configure the deferral and invalidation limits */
+static inline void
+xreap_configure_limits(
+	struct xreap_state	*rs,
+	unsigned int		fixed_overhead,
+	unsigned int		variable_overhead,
+	unsigned int		per_intent,
+	unsigned int		per_binval)
+{
+	struct xfs_scrub	*sc = rs->sc;
+	unsigned int		res = sc->tp->t_log_res - fixed_overhead;
+
+	/* Don't underflow the reservation */
+	if (sc->tp->t_log_res < (fixed_overhead + variable_overhead)) {
+		ASSERT(sc->tp->t_log_res >=
+				(fixed_overhead + variable_overhead));
+		xfs_force_shutdown(sc->mp, SHUTDOWN_CORRUPT_INCORE);
+		return;
+	}
+
+	rs->max_deferred = res / variable_overhead;
+	res -= rs->max_deferred * per_intent;
+	rs->max_binval = per_binval ? res / per_binval : 0;
+}
+
+/*
+ * Compute the maximum number of intent items that reaping can attach to the
+ * scrub transaction given the worst case log overhead of the intent items
+ * needed to reap a single per-AG space extent.  This is not for freeing CoW
+ * staging extents.
+ */
+STATIC void
+xreap_configure_agextent_limits(
+	struct xreap_state	*rs)
+{
+	struct xfs_scrub	*sc = rs->sc;
+	struct xfs_mount	*mp = sc->mp;
+
+	/*
+	 * In the worst case, relogging an intent item causes both an intent
+	 * item and a done item to be attached to a transaction for each extent
+	 * that we'd like to process.
+	 */
+	const unsigned int	efi = xfs_efi_log_space(1) +
+				      xfs_efd_log_space(1);
+	const unsigned int	rui = xfs_rui_log_space(1) +
+				      xfs_rud_log_space();
+
+	/*
+	 * Various things can happen when reaping non-CoW metadata blocks:
+	 *
+	 * t1: Unmapping crosslinked metadata blocks: deferred removal of rmap
+	 * record.
+	 *
+	 * t3: Freeing to AGFL: roll and finish deferred items for every block.
+	 * Limits here do not matter.
+	 *
+	 * t4: Freeing metadata blocks: deferred freeing of the space, which
+	 * also removes the rmap record.
+	 *
+	 * For simplicity, we'll use the worst-case intents size to determine
+	 * the maximum number of deferred extents before we have to finish the
+	 * whole chain.  If we're trying to reap a btree larger than this size,
+	 * a crash midway through reaping can result in leaked blocks.
+	 */
+	const unsigned int	t1 = rui;
+	const unsigned int	t4 = rui + efi;
+	const unsigned int	per_intent = max(t1, t4);
+
+	/*
+	 * For each transaction in a reap chain, we must be able to take one
+	 * step in the defer item chain, which should only consist of EFI or
+	 * RUI items.
+	 */
+	const unsigned int	f1 = xfs_calc_finish_efi_reservation(mp, 1);
+	const unsigned int	f2 = xfs_calc_finish_rui_reservation(mp, 1);
+	const unsigned int	step_size = max(f1, f2);
+
+	/* Largest buffer size (in fsblocks) that can be invalidated. */
+	const unsigned int	max_binval = xrep_binval_max_fsblocks(mp);
+
+	/* Maximum overhead of invalidating one buffer. */
+	const unsigned int	per_binval =
+		xfs_buf_inval_log_space(1, XFS_B_TO_FSBT(mp, max_binval));
+
+	/*
+	 * For each transaction in a reap chain, we can delete some number of
+	 * extents and invalidate some number of blocks.  We assume that btree
+	 * blocks aren't usually contiguous; and that scrub likely pulled all
+	 * the buffers into memory.  From these assumptions, set the maximum
+	 * number of deferrals we can queue before flushing the defer chain,
+	 * and the number of invalidations we can queue before rolling to a
+	 * clean transaction (and possibly relogging some of the deferrals) to
+	 * the same quantity.
+	 */
+	const unsigned int	variable_overhead = per_intent + per_binval;
+
+	xreap_configure_limits(rs, step_size, variable_overhead, per_intent,
+			per_binval);
+
+	trace_xreap_agextent_limits(sc->tp, per_binval, rs->max_binval,
+			step_size, per_intent, rs->max_deferred);
 }
 
 /*
@@ -571,14 +687,13 @@ xrep_reap_agblocks(
 		.sc			= sc,
 		.oinfo			= oinfo,
 		.resv			= type,
-		.max_binval		= XREAP_MAX_BINVAL,
-		.max_deferred		= XREAP_MAX_DEFER_CHAIN,
 	};
 	int				error;
 
 	ASSERT(xfs_has_rmapbt(sc->mp));
 	ASSERT(sc->ip == NULL);
 
+	xreap_configure_agextent_limits(&rs);
 	error = xagb_bitmap_walk(bitmap, xreap_agmeta_extent, &rs);
 	if (error)
 		return error;
@@ -693,6 +808,8 @@ xrep_reap_fsblocks(
 	ASSERT(xfs_has_rmapbt(sc->mp));
 	ASSERT(sc->ip != NULL);
 
+	if (oinfo != &XFS_RMAP_OINFO_COW)
+		xreap_configure_agextent_limits(&rs);
 	error = xfsb_bitmap_walk(bitmap, xreap_fsmeta_extent, &rs);
 	if (error)
 		return error;
@@ -943,8 +1060,6 @@ xrep_reap_metadir_fsblocks(
 		.sc			= sc,
 		.oinfo			= &oinfo,
 		.resv			= XFS_AG_RESV_NONE,
-		.max_binval		= XREAP_MAX_BINVAL,
-		.max_deferred		= XREAP_MAX_DEFER_CHAIN,
 	};
 	int				error;
 
@@ -952,6 +1067,7 @@ xrep_reap_metadir_fsblocks(
 	ASSERT(sc->ip != NULL);
 	ASSERT(xfs_is_metadir_inode(sc->ip));
 
+	xreap_configure_agextent_limits(&rs);
 	xfs_rmap_ino_bmbt_owner(&oinfo, sc->ip->i_ino, XFS_DATA_FORK);
 	error = xfsb_bitmap_walk(bitmap, xreap_fsmeta_extent, &rs);
 	if (error)
