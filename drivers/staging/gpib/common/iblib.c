@@ -506,7 +506,7 @@ int ibstatus(struct gpib_board *board)
 	return general_ibstatus(board, NULL, 0, 0, NULL);
 }
 
-int general_ibstatus(struct gpib_board *board, const gpib_status_queue_t *device,
+int general_ibstatus(struct gpib_board *board, const struct gpib_status_queue *device,
 		     int clear_mask, int set_mask, gpib_descriptor_t *desc)
 {
 	int status = 0;
@@ -573,7 +573,7 @@ static void init_wait_info(struct wait_info *winfo)
 	timer_setup_on_stack(&winfo->timer, wait_timeout, 0);
 }
 
-static int wait_satisfied(struct wait_info *winfo, gpib_status_queue_t *status_queue,
+static int wait_satisfied(struct wait_info *winfo, struct gpib_status_queue *status_queue,
 			  int wait_mask, int *status, gpib_descriptor_t *desc)
 {
 	struct gpib_board *board = winfo->board;
@@ -626,7 +626,7 @@ int ibwait(struct gpib_board *board, int wait_mask, int clear_mask, int set_mask
 	   int *status, unsigned long usec_timeout, gpib_descriptor_t *desc)
 {
 	int retval = 0;
-	gpib_status_queue_t *status_queue;
+	struct gpib_status_queue *status_queue;
 	struct wait_info winfo;
 
 	if (desc->is_board)

@@ -172,7 +172,7 @@ EXPORT_SYMBOL(gpib_free_pseudo_irq);
 
 static const unsigned int serial_timeout = 1000000;
 
-unsigned int num_status_bytes(const gpib_status_queue_t *dev)
+unsigned int num_status_bytes(const struct gpib_status_queue *dev)
 {
 	if (!dev)
 		return 0;
@@ -180,7 +180,7 @@ unsigned int num_status_bytes(const gpib_status_queue_t *dev)
 }
 
 // push status byte onto back of status byte fifo
-int push_status_byte(struct gpib_board *board, gpib_status_queue_t *device, u8 poll_byte)
+int push_status_byte(struct gpib_board *board, struct gpib_status_queue *device, u8 poll_byte)
 {
 	struct list_head *head = &device->status_bytes;
 	status_byte_t *status;
@@ -214,7 +214,7 @@ int push_status_byte(struct gpib_board *board, gpib_status_queue_t *device, u8 p
 }
 
 // pop status byte from front of status byte fifo
-int pop_status_byte(struct gpib_board *board, gpib_status_queue_t *device, u8 *poll_byte)
+int pop_status_byte(struct gpib_board *board, struct gpib_status_queue *device, u8 *poll_byte)
 {
 	struct list_head *head = &device->status_bytes;
 	struct list_head *front = head->next;
@@ -245,14 +245,14 @@ int pop_status_byte(struct gpib_board *board, gpib_status_queue_t *device, u8 *p
 	return 0;
 }
 
-gpib_status_queue_t *get_gpib_status_queue(struct gpib_board *board, unsigned int pad, int sad)
+struct gpib_status_queue *get_gpib_status_queue(struct gpib_board *board, unsigned int pad, int sad)
 {
-	gpib_status_queue_t *device;
+	struct gpib_status_queue *device;
 	struct list_head *list_ptr;
 	const struct list_head *head = &board->device_list;
 
 	for (list_ptr = head->next; list_ptr != head; list_ptr = list_ptr->next) {
-		device = list_entry(list_ptr, gpib_status_queue_t, list);
+		device = list_entry(list_ptr, struct gpib_status_queue, list);
 		if (gpib_address_equal(device->pad, device->sad, pad, sad))
 			return device;
 	}
@@ -263,7 +263,7 @@ gpib_status_queue_t *get_gpib_status_queue(struct gpib_board *board, unsigned in
 int get_serial_poll_byte(struct gpib_board *board, unsigned int pad, int sad,
 			 unsigned int usec_timeout, uint8_t *poll_byte)
 {
-	gpib_status_queue_t *device;
+	struct gpib_status_queue *device;
 
 	device = get_gpib_status_queue(board, pad, sad);
 	if (num_status_bytes(device))
@@ -429,7 +429,7 @@ int serial_poll_all(struct gpib_board *board, unsigned int usec_timeout)
 	int retval = 0;
 	struct list_head *cur;
 	const struct list_head *head = NULL;
-	gpib_status_queue_t *device;
+	struct gpib_status_queue *device;
 	u8 result;
 	unsigned int num_bytes = 0;
 
@@ -442,7 +442,7 @@ int serial_poll_all(struct gpib_board *board, unsigned int usec_timeout)
 		return retval;
 
 	for (cur = head->next; cur != head; cur = cur->next) {
-		device = list_entry(cur, gpib_status_queue_t, list);
+		device = list_entry(cur, struct gpib_status_queue, list);
 		retval = read_serial_poll_byte(board,
 					       device->pad, device->sad, usec_timeout, &result);
 		if (retval < 0)
@@ -1092,7 +1092,7 @@ static int write_ioctl(gpib_file_private_t *file_priv, struct gpib_board *board,
 
 static int status_bytes_ioctl(struct gpib_board *board, unsigned long arg)
 {
-	gpib_status_queue_t *device;
+	struct gpib_status_queue *device;
 	spoll_bytes_ioctl_t cmd;
 	int retval;
 
@@ -1117,13 +1117,13 @@ static int increment_open_device_count(struct gpib_board *board, struct list_hea
 				       unsigned int pad, int sad)
 {
 	struct list_head *list_ptr;
-	gpib_status_queue_t *device;
+	struct gpib_status_queue *device;
 
 	/* first see if address has already been opened, then increment
 	 * open count
 	 */
 	for (list_ptr = head->next; list_ptr != head; list_ptr = list_ptr->next) {
-		device = list_entry(list_ptr, gpib_status_queue_t, list);
+		device = list_entry(list_ptr, struct gpib_status_queue, list);
 		if (gpib_address_equal(device->pad, device->sad, pad, sad)) {
 			dev_dbg(board->gpib_dev, "incrementing open count for pad %i, sad %i\n",
 				device->pad, device->sad);
@@ -1132,8 +1132,8 @@ static int increment_open_device_count(struct gpib_board *board, struct list_hea
 		}
 	}
 
-	/* otherwise we need to allocate a new gpib_status_queue_t */
-	device = kmalloc(sizeof(gpib_status_queue_t), GFP_ATOMIC);
+	/* otherwise we need to allocate a new struct gpib_status_queue */
+	device = kmalloc(sizeof(struct gpib_status_queue), GFP_ATOMIC);
 	if (!device)
 		return -ENOMEM;
 	init_gpib_status_queue(device);
@@ -1151,11 +1151,11 @@ static int increment_open_device_count(struct gpib_board *board, struct list_hea
 static int subtract_open_device_count(struct gpib_board *board, struct list_head *head,
 				      unsigned int pad, int sad, unsigned int count)
 {
-	gpib_status_queue_t *device;
+	struct gpib_status_queue *device;
 	struct list_head *list_ptr;
 
 	for (list_ptr = head->next; list_ptr != head; list_ptr = list_ptr->next) {
-		device = list_entry(list_ptr, gpib_status_queue_t, list);
+		device = list_entry(list_ptr, struct gpib_status_queue, list);
 		if (gpib_address_equal(device->pad, device->sad, pad, sad)) {
 			dev_dbg(board->gpib_dev, "decrementing open count for pad %i, sad %i\n",
 				device->pad, device->sad);
@@ -2147,7 +2147,7 @@ static void init_board_array(struct gpib_board *board_array, unsigned int length
 	}
 }
 
-void init_gpib_status_queue(gpib_status_queue_t *device)
+void init_gpib_status_queue(struct gpib_status_queue *device)
 {
 	INIT_LIST_HEAD(&device->list);
 	INIT_LIST_HEAD(&device->status_bytes);

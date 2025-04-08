@@ -41,7 +41,7 @@ int ibwait(struct gpib_board *board, int wait_mask, int clear_mask, int set_mask
 	   int *status, unsigned long usec_timeout, gpib_descriptor_t *desc);
 int ibwrt(struct gpib_board *board, uint8_t *buf, size_t cnt, int send_eoi, size_t *bytes_written);
 int ibstatus(struct gpib_board *board);
-int general_ibstatus(struct gpib_board *board, const gpib_status_queue_t *device,
+int general_ibstatus(struct gpib_board *board, const struct gpib_status_queue *device,
 		     int clear_mask, int set_mask, gpib_descriptor_t *desc);
 int io_timed_out(struct gpib_board *board);
 int ibppc(struct gpib_board *board, uint8_t configuration);
