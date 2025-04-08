@@ -76,10 +76,8 @@ static bool skl_needs_memory_bw_wa(struct drm_i915_private *i915)
 }
 
 bool
-intel_has_sagv(struct drm_i915_private *i915)
+intel_has_sagv(struct intel_display *display)
 {
-	struct intel_display *display = &i915->display;
-
 	return HAS_SAGV(display) && display->sagv.status != I915_SAGV_NOT_CONTROLLED;
 }
 
@@ -135,7 +133,7 @@ static void intel_sagv_init(struct drm_i915_private *i915)
 	display->sagv.block_time_us = intel_sagv_block_time(i915);
 
 	drm_dbg_kms(display->drm, "SAGV supported: %s, original SAGV block time: %u us\n",
-		    str_yes_no(intel_has_sagv(i915)), display->sagv.block_time_us);
+		    str_yes_no(intel_has_sagv(display)), display->sagv.block_time_us);
 
 	/* avoid overflow when adding with wm0 latency/etc. */
 	if (drm_WARN(display->drm, display->sagv.block_time_us > U16_MAX,
@@ -143,7 +141,7 @@ static void intel_sagv_init(struct drm_i915_private *i915)
 		     display->sagv.block_time_us))
 		display->sagv.block_time_us = 0;
 
-	if (!intel_has_sagv(i915))
+	if (!intel_has_sagv(display))
 		display->sagv.block_time_us = 0;
 }
 
@@ -160,9 +158,10 @@ static void intel_sagv_init(struct drm_i915_private *i915)
  */
 static void skl_sagv_enable(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	int ret;
 
-	if (!intel_has_sagv(i915))
+	if (!intel_has_sagv(display))
 		return;
 
 	if (i915->display.sagv.status == I915_SAGV_ENABLED)
@@ -192,9 +191,10 @@ static void skl_sagv_enable(struct drm_i915_private *i915)
 
 static void skl_sagv_disable(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	int ret;
 
-	if (!intel_has_sagv(i915))
+	if (!intel_has_sagv(display))
 		return;
 
 	if (i915->display.sagv.status == I915_SAGV_DISABLED)
@@ -224,6 +224,7 @@ static void skl_sagv_disable(struct drm_i915_private *i915)
 
 static void skl_sagv_pre_plane_update(struct intel_atomic_state *state)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	const struct intel_bw_state *new_bw_state =
 		intel_atomic_get_new_bw_state(state);
@@ -231,12 +232,13 @@ static void skl_sagv_pre_plane_update(struct intel_atomic_state *state)
 	if (!new_bw_state)
 		return;
 
-	if (!intel_can_enable_sagv(i915, new_bw_state))
+	if (!intel_can_enable_sagv(display, new_bw_state))
 		skl_sagv_disable(i915);
 }
 
 static void skl_sagv_post_plane_update(struct intel_atomic_state *state)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	const struct intel_bw_state *new_bw_state =
 		intel_atomic_get_new_bw_state(state);
@@ -244,7 +246,7 @@ static void skl_sagv_post_plane_update(struct intel_atomic_state *state)
 	if (!new_bw_state)
 		return;
 
-	if (intel_can_enable_sagv(i915, new_bw_state))
+	if (intel_can_enable_sagv(display, new_bw_state))
 		skl_sagv_enable(i915);
 }
 
@@ -316,6 +318,7 @@ static void icl_sagv_post_plane_update(struct intel_atomic_state *state)
 
 void intel_sagv_pre_plane_update(struct intel_atomic_state *state)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 
 	/*
@@ -325,7 +328,7 @@ void intel_sagv_pre_plane_update(struct intel_atomic_state *state)
 	 * disabled in a BIOS, we are not even allowed to send a PCode request,
 	 * as it will throw an error. So have to check it here.
 	 */
-	if (!intel_has_sagv(i915))
+	if (!intel_has_sagv(display))
 		return;
 
 	if (DISPLAY_VER(i915) >= 11)
@@ -336,6 +339,7 @@ void intel_sagv_pre_plane_update(struct intel_atomic_state *state)
 
 void intel_sagv_post_plane_update(struct intel_atomic_state *state)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 
 	/*
@@ -345,7 +349,7 @@ void intel_sagv_post_plane_update(struct intel_atomic_state *state)
 	 * disabled in a BIOS, we are not even allowed to send a PCode request,
 	 * as it will throw an error. So have to check it here.
 	 */
-	if (!intel_has_sagv(i915))
+	if (!intel_has_sagv(display))
 		return;
 
 	if (DISPLAY_VER(i915) >= 11)
@@ -356,12 +360,13 @@ void intel_sagv_post_plane_update(struct intel_atomic_state *state)
 
 static bool skl_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	enum plane_id plane_id;
 	int max_level = INT_MAX;
 
-	if (!intel_has_sagv(i915))
+	if (!intel_has_sagv(display))
 		return false;
 
 	if (!crtc_state->hw.active)
@@ -448,10 +453,10 @@ bool intel_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 		return skl_crtc_can_enable_sagv(crtc_state);
 }
 
-bool intel_can_enable_sagv(struct drm_i915_private *i915,
+bool intel_can_enable_sagv(struct intel_display *display,
 			   const struct intel_bw_state *bw_state)
 {
-	if (DISPLAY_VER(i915) < 11 &&
+	if (DISPLAY_VER(display) < 11 &&
 	    bw_state->active_pipes && !is_power_of_2(bw_state->active_pipes))
 		return false;
 
@@ -506,9 +511,10 @@ static unsigned int mbus_ddb_offset(struct drm_i915_private *i915, u8 slice_mask
 	return ddb.start;
 }
 
-u32 skl_ddb_dbuf_slice_mask(struct drm_i915_private *i915,
+u32 skl_ddb_dbuf_slice_mask(struct intel_display *display,
 			    const struct skl_ddb_entry *entry)
 {
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	int slice_size = intel_dbuf_slice_size(i915);
 	enum dbuf_slice start_slice, end_slice;
 	u8 slice_mask = 0;
@@ -674,6 +680,7 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 static unsigned int skl_wm_latency(struct drm_i915_private *i915, int level,
 				   const struct skl_wm_params *wp)
 {
+	struct intel_display *display = &i915->display;
 	unsigned int latency = i915->display.wm.skl_latency[level];
 
 	if (latency == 0)
@@ -684,7 +691,7 @@ static unsigned int skl_wm_latency(struct drm_i915_private *i915, int level,
 	 * Display WA #1141: kbl,cfl
 	 */
 	if ((IS_KABYLAKE(i915) || IS_COFFEELAKE(i915) || IS_COMETLAKE(i915)) &&
-	    skl_watermark_ipc_enabled(i915))
+	    skl_watermark_ipc_enabled(display))
 		latency += 4;
 
 	if (skl_needs_memory_bw_wa(i915) && wp && wp->x_tiled)
@@ -2050,11 +2057,12 @@ static void skl_compute_transition_wm(struct drm_i915_private *i915,
 				      const struct skl_wm_level *wm0,
 				      const struct skl_wm_params *wp)
 {
+	struct intel_display *display = &i915->display;
 	u16 trans_min, trans_amount, trans_y_tile_min;
 	u16 wm0_blocks, trans_offset, blocks;
 
 	/* Transition WM don't make any sense if ipc is disabled */
-	if (!skl_watermark_ipc_enabled(i915))
+	if (!skl_watermark_ipc_enabled(display))
 		return;
 
 	/*
@@ -2939,7 +2947,6 @@ void
 intel_program_dpkgc_latency(struct intel_atomic_state *state)
 {
 	struct intel_display *display = to_intel_display(state);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *new_crtc_state;
 	u32 latency = LNL_PKG_C_LATENCY_MASK;
@@ -2965,7 +2972,7 @@ intel_program_dpkgc_latency(struct intel_atomic_state *state)
 		added_wake_time = DSB_EXE_TIME +
 			display->sagv.block_time_us;
 
-		latency = skl_watermark_max_latency(i915, 1);
+		latency = skl_watermark_max_latency(display, 1);
 
 		/* Wa_22020432604 */
 		if ((DISPLAY_VER(display) == 20 || DISPLAY_VER(display) == 30) && !latency) {
@@ -3172,7 +3179,7 @@ static void skl_wm_get_hw_state(struct intel_display *display)
 
 		/* The slices actually used by the planes on the pipe */
 		dbuf_state->slices[pipe] =
-			skl_ddb_dbuf_slice_mask(i915, &crtc_state->wm.skl.ddb);
+			skl_ddb_dbuf_slice_mask(display, &crtc_state->wm.skl.ddb);
 
 		drm_dbg_kms(display->drm,
 			    "[CRTC:%d:%s] dbuf slices 0x%x, ddb (%d - %d), active pipes 0x%x, mbus joined: %s\n",
@@ -3185,18 +3192,18 @@ static void skl_wm_get_hw_state(struct intel_display *display)
 	dbuf_state->enabled_slices = display->dbuf.enabled_slices;
 }
 
-bool skl_watermark_ipc_enabled(struct drm_i915_private *i915)
+bool skl_watermark_ipc_enabled(struct intel_display *display)
 {
-	return i915->display.wm.ipc_enabled;
+	return display->wm.ipc_enabled;
 }
 
-void skl_watermark_ipc_update(struct drm_i915_private *i915)
+void skl_watermark_ipc_update(struct intel_display *display)
 {
-	if (!HAS_IPC(i915))
+	if (!HAS_IPC(display))
 		return;
 
-	intel_de_rmw(i915, DISP_ARB_CTL2, DISP_IPC_ENABLE,
-		     skl_watermark_ipc_enabled(i915) ? DISP_IPC_ENABLE : 0);
+	intel_de_rmw(display, DISP_ARB_CTL2, DISP_IPC_ENABLE,
+		     skl_watermark_ipc_enabled(display) ? DISP_IPC_ENABLE : 0);
 }
 
 static bool skl_watermark_ipc_can_enable(struct drm_i915_private *i915)
@@ -3214,14 +3221,16 @@ static bool skl_watermark_ipc_can_enable(struct drm_i915_private *i915)
 	return true;
 }
 
-void skl_watermark_ipc_init(struct drm_i915_private *i915)
+void skl_watermark_ipc_init(struct intel_display *display)
 {
-	if (!HAS_IPC(i915))
+	struct drm_i915_private *i915 = to_i915(display->drm);
+
+	if (!HAS_IPC(display))
 		return;
 
-	i915->display.wm.ipc_enabled = skl_watermark_ipc_can_enable(i915);
+	display->wm.ipc_enabled = skl_watermark_ipc_can_enable(i915);
 
-	skl_watermark_ipc_update(i915);
+	skl_watermark_ipc_update(display);
 }
 
 static void
@@ -3377,9 +3386,8 @@ intel_atomic_get_dbuf_state(struct intel_atomic_state *state)
 	return to_intel_dbuf_state(dbuf_state);
 }
 
-int intel_dbuf_init(struct drm_i915_private *i915)
+int intel_dbuf_init(struct intel_display *display)
 {
-	struct intel_display *display = &i915->display;
 	struct intel_dbuf_state *dbuf_state;
 
 	dbuf_state = kzalloc(sizeof(*dbuf_state), GFP_KERNEL);
@@ -3501,10 +3509,9 @@ int intel_dbuf_state_set_mdclk_cdclk_ratio(struct intel_atomic_state *state,
 	return intel_atomic_lock_global_state(&dbuf_state->base);
 }
 
-void intel_dbuf_mdclk_cdclk_ratio_update(struct drm_i915_private *i915,
+void intel_dbuf_mdclk_cdclk_ratio_update(struct intel_display *display,
 					 int ratio, bool joined_mbus)
 {
-	struct intel_display *display = &i915->display;
 	enum dbuf_slice slice;
 
 	if (!HAS_MBUS_JOINING(display))
@@ -3528,7 +3535,7 @@ void intel_dbuf_mdclk_cdclk_ratio_update(struct drm_i915_private *i915,
 
 static void intel_dbuf_mdclk_min_tracker_update(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_display *display = to_intel_display(state);
 	const struct intel_dbuf_state *old_dbuf_state =
 		intel_atomic_get_old_dbuf_state(state);
 	const struct intel_dbuf_state *new_dbuf_state =
@@ -3543,7 +3550,7 @@ static void intel_dbuf_mdclk_min_tracker_update(struct intel_atomic_state *state
 		mdclk_cdclk_ratio = new_dbuf_state->mdclk_cdclk_ratio;
 	}
 
-	intel_dbuf_mdclk_cdclk_ratio_update(i915, mdclk_cdclk_ratio,
+	intel_dbuf_mdclk_cdclk_ratio_update(display, mdclk_cdclk_ratio,
 					    new_dbuf_state->joined_mbus);
 }
 
@@ -3725,7 +3732,7 @@ static void skl_mbus_sanitize(struct drm_i915_private *i915)
 		    dbuf_state->active_pipes);
 
 	dbuf_state->joined_mbus = false;
-	intel_dbuf_mdclk_cdclk_ratio_update(i915,
+	intel_dbuf_mdclk_cdclk_ratio_update(display,
 					    dbuf_state->mdclk_cdclk_ratio,
 					    dbuf_state->joined_mbus);
 	pipe_mbus_dbox_ctl_update(i915, dbuf_state);
@@ -3983,21 +3990,24 @@ static const struct intel_wm_funcs skl_wm_funcs = {
 	.sanitize = skl_wm_sanitize,
 };
 
-void skl_wm_init(struct drm_i915_private *i915)
+void skl_wm_init(struct intel_display *display)
 {
+	struct drm_i915_private *i915 = to_i915(display->drm);
+
 	intel_sagv_init(i915);
 
 	skl_setup_wm_latency(i915);
 
-	i915->display.funcs.wm = &skl_wm_funcs;
+	display->funcs.wm = &skl_wm_funcs;
 }
 
 static int skl_watermark_ipc_status_show(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *i915 = m->private;
+	struct intel_display *display = &i915->display;
 
 	seq_printf(m, "Isochronous Priority Control: %s\n",
-		   str_yes_no(skl_watermark_ipc_enabled(i915)));
+		   str_yes_no(skl_watermark_ipc_enabled(display)));
 	return 0;
 }
 
@@ -4023,11 +4033,11 @@ static ssize_t skl_watermark_ipc_status_write(struct file *file,
 		return ret;
 
 	with_intel_display_rpm(display) {
-		if (!skl_watermark_ipc_enabled(i915) && enable)
+		if (!skl_watermark_ipc_enabled(display) && enable)
 			drm_info(display->drm,
 				 "Enabling IPC: WM will be proper only after next commit\n");
 		display->wm.ipc_enabled = enable;
-		skl_watermark_ipc_update(i915);
+		skl_watermark_ipc_update(display);
 	}
 
 	return len;
@@ -4045,6 +4055,7 @@ static const struct file_operations skl_watermark_ipc_status_fops = {
 static int intel_sagv_status_show(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *i915 = m->private;
+	struct intel_display *display = &i915->display;
 	static const char * const sagv_status[] = {
 		[I915_SAGV_UNKNOWN] = "unknown",
 		[I915_SAGV_DISABLED] = "disabled",
@@ -4052,7 +4063,7 @@ static int intel_sagv_status_show(struct seq_file *m, void *unused)
 		[I915_SAGV_NOT_CONTROLLED] = "not controlled",
 	};
 
-	seq_printf(m, "SAGV available: %s\n", str_yes_no(intel_has_sagv(i915)));
+	seq_printf(m, "SAGV available: %s\n", str_yes_no(intel_has_sagv(display)));
 	seq_printf(m, "SAGV modparam: %s\n",
 		   str_enabled_disabled(i915->display.params.enable_sagv));
 	seq_printf(m, "SAGV status: %s\n", sagv_status[i915->display.sagv.status]);
@@ -4063,9 +4074,9 @@ static int intel_sagv_status_show(struct seq_file *m, void *unused)
 
 DEFINE_SHOW_ATTRIBUTE(intel_sagv_status);
 
-void skl_watermark_debugfs_register(struct drm_i915_private *i915)
+void skl_watermark_debugfs_register(struct intel_display *display)
 {
-	struct intel_display *display = &i915->display;
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct drm_minor *minor = display->drm->primary;
 
 	if (HAS_IPC(display))
@@ -4077,11 +4088,12 @@ void skl_watermark_debugfs_register(struct drm_i915_private *i915)
 				    &intel_sagv_status_fops);
 }
 
-unsigned int skl_watermark_max_latency(struct drm_i915_private *i915, int initial_wm_level)
+unsigned int skl_watermark_max_latency(struct intel_display *display, int initial_wm_level)
 {
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	int level;
 
-	for (level = i915->display.wm.num_levels - 1; level >= initial_wm_level; level--) {
+	for (level = display->wm.num_levels - 1; level >= initial_wm_level; level--) {
 		unsigned int latency = skl_wm_latency(i915, level, NULL);
 
 		if (latency)

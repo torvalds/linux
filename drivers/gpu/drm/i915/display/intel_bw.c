@@ -976,7 +976,6 @@ static int mtl_find_qgv_points(struct intel_display *display,
 			       unsigned int num_active_planes,
 			       struct intel_bw_state *new_bw_state)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	unsigned int best_rate = UINT_MAX;
 	unsigned int num_qgv_points = display->bw.max[0].num_qgv_points;
 	unsigned int qgv_peak_bw  = 0;
@@ -992,7 +991,7 @@ static int mtl_find_qgv_points(struct intel_display *display,
 	 * for qgv peak bw in PM Demand request. So assign UINT_MAX if SAGV is
 	 * not enabled. PM Demand code will clamp the value for the register
 	 */
-	if (!intel_can_enable_sagv(i915, new_bw_state)) {
+	if (!intel_can_enable_sagv(display, new_bw_state)) {
 		new_bw_state->qgv_point_peakbw = U16_MAX;
 		drm_dbg_kms(display->drm, "No SAGV, use UINT_MAX as peak bw.");
 		return 0;
@@ -1049,7 +1048,6 @@ static int icl_find_qgv_points(struct intel_display *display,
 			       const struct intel_bw_state *old_bw_state,
 			       struct intel_bw_state *new_bw_state)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	unsigned int num_psf_gv_points = display->bw.max[0].num_psf_gv_points;
 	unsigned int num_qgv_points = display->bw.max[0].num_qgv_points;
 	u16 psf_points = 0;
@@ -1106,7 +1104,7 @@ static int icl_find_qgv_points(struct intel_display *display,
 	 * we can't enable SAGV due to the increased memory latency it may
 	 * cause.
 	 */
-	if (!intel_can_enable_sagv(i915, new_bw_state)) {
+	if (!intel_can_enable_sagv(display, new_bw_state)) {
 		qgv_points = icl_max_bw_qgv_point_mask(display, num_active_planes);
 		drm_dbg_kms(display->drm, "No SAGV, using single QGV point mask 0x%x\n",
 			    qgv_points);
@@ -1195,8 +1193,7 @@ static void skl_plane_calc_dbuf_bw(struct intel_dbuf_bw *dbuf_bw,
 				   unsigned int data_rate)
 {
 	struct intel_display *display = to_intel_display(crtc);
-	struct drm_i915_private *i915 = to_i915(display->drm);
-	unsigned int dbuf_mask = skl_ddb_dbuf_slice_mask(i915, ddb);
+	unsigned int dbuf_mask = skl_ddb_dbuf_slice_mask(display, ddb);
 	enum dbuf_slice slice;
 
 	/*
@@ -1446,7 +1443,6 @@ static int intel_bw_modeset_checks(struct intel_atomic_state *state)
 static int intel_bw_check_sagv_mask(struct intel_atomic_state *state)
 {
 	struct intel_display *display = to_intel_display(state);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	const struct intel_crtc_state *old_crtc_state;
 	const struct intel_crtc_state *new_crtc_state;
 	const struct intel_bw_state *old_bw_state = NULL;
@@ -1475,8 +1471,8 @@ static int intel_bw_check_sagv_mask(struct intel_atomic_state *state)
 	if (!new_bw_state)
 		return 0;
 
-	if (intel_can_enable_sagv(i915, new_bw_state) !=
-	    intel_can_enable_sagv(i915, old_bw_state)) {
+	if (intel_can_enable_sagv(display, new_bw_state) !=
+	    intel_can_enable_sagv(display, old_bw_state)) {
 		ret = intel_atomic_serialize_global_state(&new_bw_state->base);
 		if (ret)
 			return ret;
@@ -1492,13 +1488,12 @@ static int intel_bw_check_sagv_mask(struct intel_atomic_state *state)
 int intel_bw_atomic_check(struct intel_atomic_state *state, bool any_ms)
 {
 	struct intel_display *display = to_intel_display(state);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	bool changed = false;
 	struct intel_bw_state *new_bw_state;
 	const struct intel_bw_state *old_bw_state;
 	int ret;
 
-	if (DISPLAY_VER(i915) < 9)
+	if (DISPLAY_VER(display) < 9)
 		return 0;
 
 	if (any_ms) {
@@ -1523,8 +1518,8 @@ int intel_bw_atomic_check(struct intel_atomic_state *state, bool any_ms)
 	new_bw_state = intel_atomic_get_new_bw_state(state);
 
 	if (new_bw_state &&
-	    intel_can_enable_sagv(i915, old_bw_state) !=
-	    intel_can_enable_sagv(i915, new_bw_state))
+	    intel_can_enable_sagv(display, old_bw_state) !=
+	    intel_can_enable_sagv(display, new_bw_state))
 		changed = true;
 
 	/*
@@ -1628,7 +1623,6 @@ static const struct intel_global_state_funcs intel_bw_funcs = {
 
 int intel_bw_init(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_bw_state *state;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
@@ -1642,7 +1636,7 @@ int intel_bw_init(struct intel_display *display)
 	 * Limit this only if we have SAGV. And for Display version 14 onwards
 	 * sagv is handled though pmdemand requests
 	 */
-	if (intel_has_sagv(i915) && IS_DISPLAY_VER(display, 11, 13))
+	if (intel_has_sagv(display) && IS_DISPLAY_VER(display, 11, 13))
 		icl_force_disable_sagv(display, state);
 
 	return 0;

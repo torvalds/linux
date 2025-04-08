@@ -252,7 +252,7 @@ int intel_display_driver_probe_noirq(struct intel_display *display)
 	if (ret)
 		goto cleanup_vga_client_pw_domain_dmc;
 
-	ret = intel_dbuf_init(i915);
+	ret = intel_dbuf_init(display);
 	if (ret)
 		goto cleanup_vga_client_pw_domain_dmc;
 
@@ -491,7 +491,6 @@ err_mode_config:
 /* part #3: call after gem init */
 int intel_display_driver_probe(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	int ret;
 
 	if (!HAS_DISPLAY(display))
@@ -519,7 +518,7 @@ int intel_display_driver_probe(struct intel_display *display)
 	/* Only enable hotplug handling once the fbdev is fully set up. */
 	intel_hpd_init(display);
 
-	skl_watermark_ipc_init(i915);
+	skl_watermark_ipc_init(display);
 
 	return 0;
 }
@@ -726,7 +725,6 @@ __intel_display_driver_resume(struct intel_display *display,
 
 void intel_display_driver_resume(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct drm_atomic_state *state = display->restore.modeset_state;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
@@ -754,7 +752,7 @@ void intel_display_driver_resume(struct intel_display *display)
 	if (!ret)
 		ret = __intel_display_driver_resume(display, state, &ctx);
 
-	skl_watermark_ipc_update(i915);
+	skl_watermark_ipc_update(display);
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 

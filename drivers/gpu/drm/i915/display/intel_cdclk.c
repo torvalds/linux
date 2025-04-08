@@ -1972,9 +1972,7 @@ int intel_mdclk_cdclk_ratio(struct intel_display *display,
 static void xe2lpd_mdclk_cdclk_ratio_program(struct intel_display *display,
 					     const struct intel_cdclk_config *cdclk_config)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
-	intel_dbuf_mdclk_cdclk_ratio_update(i915,
+	intel_dbuf_mdclk_cdclk_ratio_update(display,
 					    intel_mdclk_cdclk_ratio(display, cdclk_config),
 					    cdclk_config->joined_mbus);
 }

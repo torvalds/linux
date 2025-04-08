@@ -172,7 +172,7 @@ void intel_wm_init(struct intel_display *display)
 	struct drm_i915_private *i915 = to_i915(display->drm);
 
 	if (DISPLAY_VER(display) >= 9)
-		skl_wm_init(i915);
+		skl_wm_init(display);
 	else
 		i9xx_wm_init(i915);
 }
@@ -389,7 +389,6 @@ static const struct file_operations i915_cur_wm_latency_fops = {
 
 void intel_wm_debugfs_register(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct drm_minor *minor = display->drm->primary;
 
 	debugfs_create_file("i915_pri_wm_latency", 0644, minor->debugfs_root,
@@ -401,5 +400,5 @@ void intel_wm_debugfs_register(struct intel_display *display)
 	debugfs_create_file("i915_cur_wm_latency", 0644, minor->debugfs_root,
 			    display, &i915_cur_wm_latency_fops);
 
-	skl_watermark_debugfs_register(i915);
+	skl_watermark_debugfs_register(display);
 }
