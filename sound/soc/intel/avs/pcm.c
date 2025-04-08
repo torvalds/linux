@@ -1398,7 +1398,7 @@ int avs_dmic_platform_register(struct avs_dev *adev, const char *name)
 static const struct snd_soc_dai_driver i2s_dai_template = {
 	.playback = {
 		.channels_min	= 1,
-		.channels_max	= 8,
+		.channels_max	= AVS_CHANNELS_MAX,
 		.rates		= SNDRV_PCM_RATE_8000_192000 |
 				  SNDRV_PCM_RATE_12000 |
 				  SNDRV_PCM_RATE_24000 |
@@ -1411,7 +1411,7 @@ static const struct snd_soc_dai_driver i2s_dai_template = {
 	},
 	.capture = {
 		.channels_min	= 1,
-		.channels_max	= 8,
+		.channels_max	= AVS_CHANNELS_MAX,
 		.rates		= SNDRV_PCM_RATE_8000_192000 |
 				  SNDRV_PCM_RATE_12000 |
 				  SNDRV_PCM_RATE_24000 |
@@ -1473,7 +1473,7 @@ int avs_i2s_platform_register(struct avs_dev *adev, const char *name, unsigned l
 		goto plat_register;
 
 	for_each_set_bit(i, &port_mask, ssp_count) {
-		for_each_set_bit(j, &tdms[i], ssp_count) {
+		for_each_set_bit(j, &tdms[i], AVS_CHANNELS_MAX) {
 			memcpy(dai, &i2s_dai_template, sizeof(*dai));
 
 			dai->name =
@@ -1499,7 +1499,7 @@ static const struct snd_soc_dai_driver hda_cpu_dai = {
 	.ops = &avs_dai_hda_be_ops,
 	.playback = {
 		.channels_min	= 1,
-		.channels_max	= 8,
+		.channels_max	= AVS_CHANNELS_MAX,
 		.rates		= SNDRV_PCM_RATE_8000_192000,
 		.formats	= SNDRV_PCM_FMTBIT_S16_LE |
 				  SNDRV_PCM_FMTBIT_S32_LE,
@@ -1509,7 +1509,7 @@ static const struct snd_soc_dai_driver hda_cpu_dai = {
 	},
 	.capture = {
 		.channels_min	= 1,
-		.channels_max	= 8,
+		.channels_max	= AVS_CHANNELS_MAX,
 		.rates		= SNDRV_PCM_RATE_8000_192000,
 		.formats	= SNDRV_PCM_FMTBIT_S16_LE |
 				  SNDRV_PCM_FMTBIT_S32_LE,

@@ -87,7 +87,7 @@ struct avs_tplg_modcfg_ext {
 		struct {
 			u32 out_channel_config;
 			u32 coefficients_select;
-			s32 coefficients[AVS_CHANNELS_MAX];
+			s32 coefficients[AVS_COEFF_CHANNELS_MAX];
 			u32 channel_map;
 		} updown_mix;
 		struct {

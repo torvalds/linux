@@ -699,8 +699,9 @@ enum avs_sample_type {
 	AVS_SAMPLE_TYPE_FLOAT = 4,
 };
 
-#define AVS_CHANNELS_MAX	8
+#define AVS_COEFF_CHANNELS_MAX	8
 #define AVS_ALL_CHANNELS_MASK	UINT_MAX
+#define AVS_CHANNELS_MAX	16
 
 struct avs_audio_format {
 	u32 sampling_freq;
@@ -875,7 +876,7 @@ struct avs_updown_mixer_cfg {
 	struct avs_modcfg_base base;
 	u32 out_channel_config;
 	u32 coefficients_select;
-	s32 coefficients[AVS_CHANNELS_MAX];
+	s32 coefficients[AVS_COEFF_CHANNELS_MAX];
 	u32 channel_map;
 } __packed;
 static_assert(sizeof(struct avs_updown_mixer_cfg) == 84);
