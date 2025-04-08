@@ -24,9 +24,10 @@
 
 typedef struct gpib_interface_struct gpib_interface_t;
 struct gpib_board;
+typedef struct gpib_board_config gpib_board_config_t;
 
 /* config parameters that are only used by driver attach functions */
-typedef struct {
+struct gpib_board_config {
 	/* firmware blob */
 	void *init_data;
 	int init_data_length;
@@ -49,7 +50,7 @@ typedef struct {
 	char *device_path;
 	/* serial number of hardware to attach */
 	char *serial_number;
-} gpib_board_config_t;
+};
 
 struct gpib_interface_struct {
 	/* name of board */
