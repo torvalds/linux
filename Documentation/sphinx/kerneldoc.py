@@ -43,6 +43,29 @@ from sphinx.util import logging
 
 __version__  = '1.0'
 
+def cmd_str(cmd):
+    """
+    Helper function to output a command line that can be used to produce
+    the same records via command line. Helpful to debug troubles at the
+    script.
+    """
+
+    cmd_line = ""
+
+    for w in cmd:
+        if w == "" or " " in w:
+            esc_cmd = "'" + w + "'"
+        else:
+            esc_cmd = w
+
+        if cmd_line:
+            cmd_line += " " + esc_cmd
+            continue
+        else:
+            cmd_line = esc_cmd
+
+    return cmd_line
+
 class KernelDocDirective(Directive):
     """Extract kernel-doc comments from the specified file"""
     required_argument = 1
@@ -57,6 +80,7 @@ class KernelDocDirective(Directive):
     }
     has_content = False
     logger = logging.getLogger('kerneldoc')
+    verbose = 0
 
     def run(self):
         env = self.state.document.settings.env
@@ -64,6 +88,13 @@ class KernelDocDirective(Directive):
 
         filename = env.config.kerneldoc_srctree + '/' + self.arguments[0]
         export_file_patterns = []
+
+        verbose = os.environ.get("V")
+        if verbose:
+            try:
+                self.verbose = int(verbose)
+            except ValueError:
+                pass
 
         # Tell sphinx of the dependency
         env.note_dependency(os.path.abspath(filename))
@@ -103,6 +134,9 @@ class KernelDocDirective(Directive):
                 cmd += ['-export-file', f]
 
         cmd += [filename]
+
+        if self.verbose >= 1:
+            print(cmd_str(cmd))
 
         try:
             self.logger.verbose("calling kernel-doc '%s'" % (" ".join(cmd)))
