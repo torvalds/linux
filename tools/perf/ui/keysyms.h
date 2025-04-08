@@ -27,4 +27,6 @@
 #define K_SWITCH_INPUT_DATA -4
 #define K_RELOAD -5
 
+const char *key_name(int key, char *bf, size_t size);
+
 #endif /* _PERF_KEYSYMS_H_ */
