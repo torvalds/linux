@@ -337,6 +337,9 @@ int bch2_opt_parse(struct bch_fs *c,
 {
 	ssize_t ret;
 
+	if (err)
+		printbuf_indent_add_nextline(err, 2);
+
 	switch (opt->type) {
 	case BCH_OPT_BOOL:
 		if (val) {
