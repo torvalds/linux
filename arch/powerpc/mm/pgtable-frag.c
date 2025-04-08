@@ -61,7 +61,7 @@ static pte_t *__alloc_for_ptecache(struct mm_struct *mm, int kernel)
 		ptdesc = pagetable_alloc(PGALLOC_GFP | __GFP_ACCOUNT, 0);
 		if (!ptdesc)
 			return NULL;
-		if (!pagetable_pte_ctor(ptdesc)) {
+		if (!pagetable_pte_ctor(mm, ptdesc)) {
 			pagetable_free(ptdesc);
 			return NULL;
 		}

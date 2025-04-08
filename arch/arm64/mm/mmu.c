@@ -494,9 +494,9 @@ static phys_addr_t pgd_pgtable_alloc(int shift)
 	 * folded, and if so pagetable_pte_ctor() becomes nop.
 	 */
 	if (shift == PAGE_SHIFT)
-		BUG_ON(!pagetable_pte_ctor(ptdesc));
+		BUG_ON(!pagetable_pte_ctor(NULL, ptdesc));
 	else if (shift == PMD_SHIFT)
-		BUG_ON(!pagetable_pmd_ctor(ptdesc));
+		BUG_ON(!pagetable_pmd_ctor(NULL, ptdesc));
 
 	return pa;
 }
