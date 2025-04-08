@@ -2336,11 +2336,7 @@ DEFINE_EVENT(btrfs_locking_events, name,			\
 
 DEFINE_BTRFS_LOCK_EVENT(btrfs_tree_unlock);
 DEFINE_BTRFS_LOCK_EVENT(btrfs_tree_read_unlock);
-DEFINE_BTRFS_LOCK_EVENT(btrfs_tree_read_unlock_blocking);
-DEFINE_BTRFS_LOCK_EVENT(btrfs_set_lock_blocking_read);
-DEFINE_BTRFS_LOCK_EVENT(btrfs_set_lock_blocking_write);
 DEFINE_BTRFS_LOCK_EVENT(btrfs_try_tree_read_lock);
-DEFINE_BTRFS_LOCK_EVENT(btrfs_tree_read_lock_atomic);
 
 DECLARE_EVENT_CLASS(btrfs__space_info_update,
 
