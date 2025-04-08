@@ -2715,6 +2715,11 @@ neither here nor at the original Perl script.
 """
 
 
+class MsgFormatter(logging.Formatter):
+    def format(self, record):
+        record.levelname = record.levelname.capitalize()
+        return logging.Formatter.format(self, record)
+
 def main():
     """Main program"""
 
@@ -2799,10 +2804,19 @@ def main():
         args.wshort_desc = True
         args.wcontents_before_sections = True
 
+    logger = logging.getLogger()
+
     if not args.debug:
-        level = logging.INFO
+        logger.setLevel(logging.INFO)
     else:
-        level = logging.DEBUG
+        logger.setLevel(logging.DEBUG)
+
+    formatter = MsgFormatter('%(levelname)s: %(message)s')
+
+    handler = logging.StreamHandler()
+    handler.setFormatter(formatter)
+
+    logger.addHandler(handler)
 
     if args.man:
         out_style = ManFormat()
@@ -2810,8 +2824,6 @@ def main():
         out_style = None
     else:
         out_style = RestFormat()
-
-    logging.basicConfig(level=level, format="%(levelname)s: %(message)s")
 
     kfiles = KernelFiles(files=args.files, verbose=args.verbose,
                          out_style=out_style, werror=args.werror,
