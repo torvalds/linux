@@ -457,6 +457,12 @@
 	type DSCRM_DSC_DOUBLE_BUFFER_REG_UPDATE_PENDING; \
 	type DSCRM_DSC_FORWARD_EN_STATUS
 
+enum dsc_bits_per_comp {
+	DSC_BPC_8 = 8,
+	DSC_BPC_10 = 10,
+	DSC_BPC_12 = 12,
+	DSC_BPC_UNKNOWN
+};
 
 struct dcn20_dsc_registers {
 	uint32_t DSC_TOP_CONTROL;
