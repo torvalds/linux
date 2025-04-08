@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
@@ -293,7 +294,10 @@ static int attiny_i2c_probe(struct i2c_client *i2c)
 	if (!state)
 		return -ENOMEM;
 
-	mutex_init(&state->lock);
+	ret = devm_mutex_init(&i2c->dev, &state->lock);
+	if (ret)
+		return ret;
+
 	i2c_set_clientdata(i2c, state);
 
 	regmap = devm_regmap_init_i2c(i2c, &attiny_regmap_config);
@@ -301,13 +305,13 @@ static int attiny_i2c_probe(struct i2c_client *i2c)
 		ret = PTR_ERR(regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
 			ret);
-		goto error;
+		return ret;
 	}
 
 	ret = attiny_i2c_read(i2c, REG_ID, &data);
 	if (ret < 0) {
 		dev_err(&i2c->dev, "Failed to read REG_ID reg: %d\n", ret);
-		goto error;
+		return ret;
 	}
 
 	switch (data) {
@@ -316,8 +320,7 @@ static int attiny_i2c_probe(struct i2c_client *i2c)
 		break;
 	default:
 		dev_err(&i2c->dev, "Unknown Atmel firmware revision: 0x%02x\n", data);
-		ret = -ENODEV;
-		goto error;
+		return -ENODEV;
 	}
 
 	regmap_write(regmap, REG_POWERON, 0);
@@ -333,8 +336,7 @@ static int attiny_i2c_probe(struct i2c_client *i2c)
 	rdev = devm_regulator_register(&i2c->dev, &attiny_regulator, &config);
 	if (IS_ERR(rdev)) {
 		dev_err(&i2c->dev, "Failed to register ATTINY regulator\n");
-		ret = PTR_ERR(rdev);
-		goto error;
+		return PTR_ERR(rdev);
 	}
 
 	props.type = BACKLIGHT_RAW;
@@ -345,10 +347,8 @@ static int attiny_i2c_probe(struct i2c_client *i2c)
 	bl = devm_backlight_device_register(&i2c->dev, dev_name(&i2c->dev),
 					    &i2c->dev, state, &attiny_bl,
 					    &props);
-	if (IS_ERR(bl)) {
-		ret = PTR_ERR(bl);
-		goto error;
-	}
+	if (IS_ERR(bl))
+		return PTR_ERR(bl);
 
 	bl->props.brightness = 0xff;
 
@@ -363,24 +363,10 @@ static int attiny_i2c_probe(struct i2c_client *i2c)
 	state->gc.can_sleep = true;
 
 	ret = devm_gpiochip_add_data(&i2c->dev, &state->gc, state);
-	if (ret) {
+	if (ret)
 		dev_err(&i2c->dev, "Failed to create gpiochip: %d\n", ret);
-		goto error;
-	}
-
-	return 0;
-
-error:
-	mutex_destroy(&state->lock);
 
 	return ret;
-}
-
-static void attiny_i2c_remove(struct i2c_client *client)
-{
-	struct attiny_lcd *state = i2c_get_clientdata(client);
-
-	mutex_destroy(&state->lock);
 }
 
 static const struct of_device_id attiny_dt_ids[] = {
@@ -396,7 +382,6 @@ static struct i2c_driver attiny_regulator_driver = {
 		.of_match_table = attiny_dt_ids,
 	},
 	.probe = attiny_i2c_probe,
-	.remove	= attiny_i2c_remove,
 };
 
 module_i2c_driver(attiny_regulator_driver);
