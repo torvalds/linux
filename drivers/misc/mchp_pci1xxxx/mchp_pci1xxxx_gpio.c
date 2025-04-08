@@ -114,8 +114,7 @@ static int pci1xxxx_gpio_direction_output(struct gpio_chip *gpio,
 	return 0;
 }
 
-static void pci1xxxx_gpio_set(struct gpio_chip *gpio,
-			      unsigned int nr, int val)
+static int pci1xxxx_gpio_set(struct gpio_chip *gpio, unsigned int nr, int val)
 {
 	struct pci1xxxx_gpio *priv = gpiochip_get_data(gpio);
 	unsigned long flags;
@@ -123,6 +122,8 @@ static void pci1xxxx_gpio_set(struct gpio_chip *gpio,
 	spin_lock_irqsave(&priv->lock, flags);
 	pci1xxx_assign_bit(priv->reg_base, OUT_OFFSET(nr), (nr % 32), val);
 	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
 }
 
 static int pci1xxxx_gpio_set_config(struct gpio_chip *gpio, unsigned int offset,
@@ -345,7 +346,7 @@ static int pci1xxxx_gpio_setup(struct pci1xxxx_gpio *priv, int irq)
 	gchip->direction_output = pci1xxxx_gpio_direction_output;
 	gchip->get_direction = pci1xxxx_gpio_get_direction;
 	gchip->get = pci1xxxx_gpio_get;
-	gchip->set = pci1xxxx_gpio_set;
+	gchip->set_rv = pci1xxxx_gpio_set;
 	gchip->set_config = pci1xxxx_gpio_set_config;
 	gchip->dbg_show = NULL;
 	gchip->base = -1;
