@@ -548,8 +548,7 @@ static int essiv_create(struct crypto_template *tmpl, struct rtattr **tb)
 	}
 
 	/* record the driver name so we can instantiate this exact algo later */
-	strscpy(ictx->shash_driver_name, hash_alg->base.cra_driver_name,
-		CRYPTO_MAX_ALG_NAME);
+	strscpy(ictx->shash_driver_name, hash_alg->base.cra_driver_name);
 
 	/* Instance fields */
 
