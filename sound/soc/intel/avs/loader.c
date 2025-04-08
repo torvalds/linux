@@ -310,7 +310,7 @@ avs_hda_init_rom(struct avs_dev *adev, unsigned int dma_id, bool purge)
 	}
 
 	/* await ROM init */
-	ret = snd_hdac_adsp_readl_poll(adev, spec->sram->rom_status_offset, reg,
+	ret = snd_hdac_adsp_readl_poll(adev, spec->hipc->sts_offset, reg,
 				       (reg & 0xF) == AVS_ROM_INIT_DONE ||
 				       (reg & 0xF) == APL_ROM_FW_ENTERED,
 				       AVS_ROM_INIT_POLLING_US, APL_ROM_INIT_TIMEOUT_US);
@@ -683,6 +683,7 @@ int avs_dsp_boot_firmware(struct avs_dev *adev, bool purge)
 
 static int avs_dsp_alloc_resources(struct avs_dev *adev)
 {
+	struct hdac_ext_link *link;
 	int ret, i;
 
 	ret = avs_ipc_get_hw_config(adev, &adev->hw_cfg);
@@ -692,6 +693,14 @@ static int avs_dsp_alloc_resources(struct avs_dev *adev)
 	ret = avs_ipc_get_fw_config(adev, &adev->fw_cfg);
 	if (ret)
 		return AVS_IPC_RET(ret);
+
+	/* If hw allows, read capabilities directly from it. */
+	if (avs_platattr_test(adev, ALTHDA)) {
+		link = snd_hdac_ext_bus_get_hlink_by_id(&adev->base.core,
+							AZX_REG_ML_LEPTR_ID_INTEL_SSP);
+		if (link)
+			adev->hw_cfg.i2s_caps.ctrl_count = link->slcount;
+	}
 
 	adev->core_refs = devm_kcalloc(adev->dev, adev->hw_cfg.dsp_cores,
 				       sizeof(*adev->core_refs), GFP_KERNEL);

@@ -9,6 +9,7 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
+#include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <sound/hda_register.h>
@@ -81,6 +82,7 @@ int snd_hdac_ext_bus_get_ml_capabilities(struct hdac_bus *bus)
 	int idx;
 	u32 link_count;
 	struct hdac_ext_link *hlink;
+	u32 leptr;
 
 	link_count = readl(bus->mlcap + AZX_REG_ML_MLCD) + 1;
 
@@ -96,6 +98,12 @@ int snd_hdac_ext_bus_get_ml_capabilities(struct hdac_bus *bus)
 					(AZX_ML_INTERVAL * idx);
 		hlink->lcaps  = readl(hlink->ml_addr + AZX_REG_ML_LCAP);
 		hlink->lsdiid = readw(hlink->ml_addr + AZX_REG_ML_LSDIID);
+		hlink->slcount = FIELD_GET(AZX_ML_HDA_LCAP_SLCOUNT, hlink->lcaps) + 1;
+
+		if (hdac_ext_link_alt(hlink)) {
+			leptr = readl(hlink->ml_addr + AZX_REG_ML_LEPTR);
+			hlink->id = FIELD_GET(AZX_REG_ML_LEPTR_ID, leptr);
+		}
 
 		/* since link in On, update the ref */
 		hlink->ref_count = 1;
@@ -124,6 +132,17 @@ void snd_hdac_ext_link_free_all(struct hdac_bus *bus)
 	}
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_link_free_all);
+
+struct hdac_ext_link *snd_hdac_ext_bus_get_hlink_by_id(struct hdac_bus *bus, u32 id)
+{
+	struct hdac_ext_link *hlink;
+
+	list_for_each_entry(hlink, &bus->hlink_list, list)
+		if (hdac_ext_link_alt(hlink) && hlink->id == id)
+			return hlink;
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_get_hlink_by_id);
 
 /**
  * snd_hdac_ext_bus_get_hlink_by_addr - get hlink at specified address

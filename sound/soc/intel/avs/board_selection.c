@@ -401,7 +401,8 @@ static const struct avs_acpi_boards i2s_boards[] = {
 	AVS_MACH_ENTRY(HDA_ADL_P,	avs_tgl_i2s_machines),
 	AVS_MACH_ENTRY(HDA_RPL_P_0,	avs_tgl_i2s_machines),
 	AVS_MACH_ENTRY(HDA_RPL_M,	avs_mbl_i2s_machines),
-	{}
+	AVS_MACH_ENTRY(HDA_FCL,		avs_tgl_i2s_machines),
+	{ },
 };
 
 static const struct avs_acpi_boards *avs_get_i2s_boards(struct avs_dev *adev)

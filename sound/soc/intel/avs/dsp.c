@@ -12,8 +12,6 @@
 #include "registers.h"
 #include "trace.h"
 
-#define AVS_ADSPCS_INTERVAL_US		500
-#define AVS_ADSPCS_TIMEOUT_US		50000
 #define AVS_ADSPCS_DELAY_US		1000
 
 int avs_dsp_core_power(struct avs_dev *adev, u32 core_mask, bool power)
