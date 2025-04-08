@@ -10865,6 +10865,16 @@ static const struct ieee80211_ops ath12k_ops = {
 #endif
 };
 
+void ath12k_mac_update_freq_range(struct ath12k *ar,
+				  u32 freq_low, u32 freq_high)
+{
+	if (!(freq_low && freq_high))
+		return;
+
+	ar->freq_range.start_freq = MHZ_TO_KHZ(freq_low);
+	ar->freq_range.end_freq = MHZ_TO_KHZ(freq_high);
+}
+
 static void ath12k_mac_update_ch_list(struct ath12k *ar,
 				      struct ieee80211_supported_band *band,
 				      u32 freq_low, u32 freq_high)
@@ -10879,9 +10889,6 @@ static void ath12k_mac_update_ch_list(struct ath12k *ar,
 		    band->channels[i].center_freq > freq_high)
 			band->channels[i].flags |= IEEE80211_CHAN_DISABLED;
 	}
-
-	ar->freq_range.start_freq = MHZ_TO_KHZ(freq_low);
-	ar->freq_range.end_freq = MHZ_TO_KHZ(freq_high);
 }
 
 static u32 ath12k_get_phy_id(struct ath12k *ar, u32 band)
@@ -10939,6 +10946,9 @@ static int ath12k_mac_setup_channels_rates(struct ath12k *ar,
 		ath12k_mac_update_ch_list(ar, band,
 					  reg_cap->low_2ghz_chan,
 					  reg_cap->high_2ghz_chan);
+
+		ath12k_mac_update_freq_range(ar, reg_cap->low_2ghz_chan,
+					     reg_cap->high_2ghz_chan);
 	}
 
 	if (supported_bands & WMI_HOST_WLAN_5GHZ_CAP) {
@@ -10961,6 +10971,9 @@ static int ath12k_mac_setup_channels_rates(struct ath12k *ar,
 			ath12k_mac_update_ch_list(ar, band,
 						  reg_cap->low_5ghz_chan,
 						  reg_cap->high_5ghz_chan);
+
+			ath12k_mac_update_freq_range(ar, reg_cap->low_5ghz_chan,
+						     reg_cap->high_5ghz_chan);
 			ah->use_6ghz_regd = true;
 		}
 
@@ -10990,6 +11003,9 @@ static int ath12k_mac_setup_channels_rates(struct ath12k *ar,
 			ath12k_mac_update_ch_list(ar, band,
 						  reg_cap->low_5ghz_chan,
 						  reg_cap->high_5ghz_chan);
+
+			ath12k_mac_update_freq_range(ar, reg_cap->low_5ghz_chan,
+						     reg_cap->high_5ghz_chan);
 		}
 	}
 
