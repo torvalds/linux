@@ -51,7 +51,9 @@ ret=0
 # All tests in this script. Can be overridden with -t option.
 TESTS="
 	neigh_suppress_arp
+	neigh_suppress_uc_arp
 	neigh_suppress_ns
+	neigh_suppress_uc_ns
 	neigh_vlan_suppress_arp
 	neigh_vlan_suppress_ns
 "
@@ -388,6 +390,52 @@ neigh_suppress_arp()
 	neigh_suppress_arp_common $vid $sip $tip
 }
 
+neigh_suppress_uc_arp_common()
+{
+	local vid=$1; shift
+	local sip=$1; shift
+	local tip=$1; shift
+	local tmac
+
+	echo
+	echo "Unicast ARP, per-port ARP suppression - VLAN $vid"
+	echo "-----------------------------------------------"
+
+	run_cmd "bridge -n $sw1 link set dev vx0 neigh_suppress on"
+	run_cmd "bridge -n $sw1 -d link show dev vx0 | grep \"neigh_suppress on\""
+	log_test $? 0 "\"neigh_suppress\" is on"
+
+	tmac=$(ip -n $h2 -j -p link show eth0.$vid | jq -r '.[]["address"]')
+	run_cmd "bridge -n $sw1 fdb replace $tmac dev vx0 master static vlan $vid"
+	run_cmd "ip -n $sw1 neigh replace $tip lladdr $tmac nud permanent dev br0.$vid"
+
+	run_cmd "tc -n $h1 qdisc replace dev eth0.$vid clsact"
+	run_cmd "tc -n $h1 filter replace dev eth0.$vid ingress pref 1 handle 101 proto arp flower arp_sip $tip arp_op reply action pass"
+
+	run_cmd "tc -n $h2 qdisc replace dev eth0.$vid clsact"
+	run_cmd "tc -n $h2 filter replace dev eth0.$vid egress pref 1 handle 101 proto arp flower arp_tip $sip arp_op reply action pass"
+
+	run_cmd "ip netns exec $h1 mausezahn eth0.$vid -c 1 -a own -b $tmac -t arp 'request sip=$sip, tip=$tip, tmac=$tmac' -q"
+	tc_check_packets $h1 "dev eth0.$vid ingress" 101 1
+	log_test $? 0 "Unicast ARP, suppression on, h1 filter"
+	tc_check_packets $h2 "dev eth0.$vid egress" 101 1
+	log_test $? 0 "Unicast ARP, suppression on, h2 filter"
+}
+
+neigh_suppress_uc_arp()
+{
+	local vid=10
+	local sip=192.0.2.1
+	local tip=192.0.2.2
+
+	neigh_suppress_uc_arp_common $vid $sip $tip
+
+	vid=20
+	sip=192.0.2.17
+	tip=192.0.2.18
+	neigh_suppress_uc_arp_common $vid $sip $tip
+}
+
 neigh_suppress_ns_common()
 {
 	local vid=$1; shift
@@ -492,6 +540,78 @@ neigh_suppress_ns()
 	maddr=ff02::1:ff00:2
 
 	neigh_suppress_ns_common $vid $saddr $daddr $maddr
+}
+
+icmpv6_header_get()
+{
+	local csum=$1; shift
+	local tip=$1; shift
+	local type
+	local p
+
+	# Type 135 (Neighbor Solicitation), hex format
+	type="87"
+	p=$(:
+		)"$type:"$(                     : ICMPv6.type
+		)"00:"$(                        : ICMPv6.code
+		)"$csum:"$(                     : ICMPv6.checksum
+		)"00:00:00:00:"$(               : Reserved
+	        )"$tip:"$(	                : Target Address
+		)
+	echo $p
+}
+
+neigh_suppress_uc_ns_common()
+{
+	local vid=$1; shift
+	local sip=$1; shift
+	local dip=$1; shift
+	local full_dip=$1; shift
+	local csum=$1; shift
+	local tmac
+
+	echo
+	echo "Unicast NS, per-port NS suppression - VLAN $vid"
+	echo "---------------------------------------------"
+
+	run_cmd "bridge -n $sw1 link set dev vx0 neigh_suppress on"
+	run_cmd "bridge -n $sw1 -d link show dev vx0 | grep \"neigh_suppress on\""
+	log_test $? 0 "\"neigh_suppress\" is on"
+
+	tmac=$(ip -n $h2 -j -p link show eth0.$vid | jq -r '.[]["address"]')
+	run_cmd "bridge -n $sw1 fdb replace $tmac dev vx0 master static vlan $vid"
+	run_cmd "ip -n $sw1 -6 neigh replace $dip lladdr $tmac nud permanent dev br0.$vid"
+
+	run_cmd "tc -n $h1 qdisc replace dev eth0.$vid clsact"
+	run_cmd "tc -n $h1 filter replace dev eth0.$vid ingress pref 1 handle 101 proto ipv6 flower ip_proto icmpv6 src_ip $dip type 136 code 0 action pass"
+
+	run_cmd "tc -n $h2 qdisc replace dev eth0.$vid clsact"
+	run_cmd "tc -n $h2 filter replace dev eth0.$vid egress pref 1 handle 101 proto ipv6 flower ip_proto icmpv6 dst_ip $sip type 136 code 0 action pass"
+
+	run_cmd "ip netns exec $h1 mausezahn -6 eth0.$vid -c 1 -a own -b $tmac -A $sip -B $dip -t ip hop=255,next=58,payload=$(icmpv6_header_get $csum $full_dip) -q"
+	tc_check_packets $h1 "dev eth0.$vid ingress" 101 1
+	log_test $? 0 "Unicast NS, suppression on, h1 filter"
+	tc_check_packets $h2 "dev eth0.$vid egress" 101 1
+	log_test $? 0 "Unicast NS, suppression on, h2 filter"
+}
+
+neigh_suppress_uc_ns()
+{
+	local vid=10
+	local saddr=2001:db8:1::1
+	local daddr=2001:db8:1::2
+	local full_daddr=20:01:0d:b8:00:01:00:00:00:00:00:00:00:00:00:02
+	local csum="ef:79"
+
+	neigh_suppress_uc_ns_common $vid $saddr $daddr $full_daddr $csum
+
+	vid=20
+	saddr=2001:db8:2::1
+	daddr=2001:db8:2::2
+	full_daddr=20:01:0d:b8:00:02:00:00:00:00:00:00:00:00:00:02
+	csum="ef:76"
+
+	neigh_suppress_uc_ns_common $vid $saddr $daddr $full_daddr $csum
 }
 
 neigh_vlan_suppress_arp()
@@ -822,6 +942,11 @@ fi
 
 if [ ! -x "$(command -v jq)" ]; then
 	echo "SKIP: Could not run test without jq tool"
+	exit $ksft_skip
+fi
+
+if [ ! -x "$(command -v mausezahn)" ]; then
+	echo "SKIP: Could not run test without mausezahn tool"
 	exit $ksft_skip
 fi
 
