@@ -20,6 +20,7 @@ from datetime import datetime
 from dateutil import tz
 
 from kdoc_parser import KernelDoc
+from kdoc_output import OutputFormat
 
 
 class GlobSourceFiles:
@@ -137,6 +138,9 @@ class KernelFiles():
 
         if not modulename:
             modulename = "Kernel API"
+
+        if out_style is None:
+            out_style = OutputFormat()
 
         dt = datetime.now()
         if os.environ.get("KBUILD_BUILD_TIMESTAMP", None):
