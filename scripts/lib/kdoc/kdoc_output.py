@@ -128,11 +128,9 @@ class OutputFormat:
 
         warnings = args.get('warnings', [])
 
-        for warning, log_msg in warnings:
-            if warning:
-                self.config.log.warning(log_msg)
-            else:
-                self.config.log.info(log_msg)
+        for log_msg in warnings:
+            self.config.log.warning(log_msg)
+            self.config.errors += 1
 
     def check_doc(self, name, args):
         """Check if DOC should be output"""

@@ -78,8 +78,6 @@
 #    Yacine Belkadi <yacine.belkadi.1@gmail.com>
 #    Yujie Liu <yujie.liu@intel.com>
 
-# TODO: implement warning filtering
-
 """
 kernel_doc
 ==========
@@ -294,6 +292,22 @@ def main():
         msg = t[1]
         if msg:
             print(msg)
+
+    error_count = kfiles.errors
+    if not error_count:
+        sys.exit(0)
+
+    if args.werror:
+        print(f"{error_count} warnings as errors")
+        sys.exit(error_count)
+
+    if args.verbose:
+        print(f"{error_count} errors")
+
+    if args.none:
+        sys.exit(0)
+
+    sys.exit(error_count)
 
 
 # Call main method

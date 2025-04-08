@@ -12,7 +12,6 @@ import argparse
 import logging
 import os
 import re
-import sys
 
 from kdoc_parser import KernelDoc
 from kdoc_output import OutputFormat
@@ -109,7 +108,7 @@ class KernelFiles():
                     KernelDoc.process_export(self.config.function_table, line)
 
         except IOError:
-            print(f"Error: Cannot open fname {fname}", fname=sys.stderr)
+            self.config.log.error("Error: Cannot open fname %s", fname)
             self.config.errors += 1
 
     def file_not_found_cb(self, fname):
@@ -262,3 +261,12 @@ class KernelFiles():
                                             fname, ln, dtype)
             if msg:
                 yield fname, msg
+
+    @property
+    def errors(self):
+        """
+        Return a count of the number of warnings found, including
+        the ones displayed while interacting over self.msg.
+        """
+
+        return self.config.errors

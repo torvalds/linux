@@ -137,17 +137,18 @@ class KernelDoc:
 
         log_msg = f"{self.fname}:{ln} {msg}"
 
+        if not warning:
+            self.config.log.info(log_msg)
+            return
+
         if self.entry:
             # Delegate warning output to output logic, as this way it
             # will report warnings/info only for symbols that are output
 
-            self.entry.warnings.append((warning, log_msg))
+            self.entry.warnings.append(log_msg)
             return
 
-        if warning:
-            self.config.log.warning(log_msg)
-        else:
-            self.config.log.info(log_msg)
+        self.config.log.warning(log_msg)
 
     def dump_section(self, start_new=True):
         """
@@ -556,7 +557,6 @@ class KernelDoc:
 
         if not members:
             self.emit_warning(ln, f"{proto} error: Cannot parse struct or union!")
-            self.config.errors += 1
             return
 
         if self.entry.identifier != declaration_name:
@@ -831,7 +831,6 @@ class KernelDoc:
 
         if not members:
             self.emit_warning(ln, f"{proto}: error: Cannot parse enum!")
-            self.config.errors += 1
             return
 
         if self.entry.identifier != declaration_name:
@@ -1132,7 +1131,6 @@ class KernelDoc:
             return
 
         self.emit_warning(ln, "error: Cannot parse typedef!")
-        self.config.errors += 1
 
     @staticmethod
     def process_export(function_table, line):
@@ -1677,4 +1675,3 @@ class KernelDoc:
                         self.process_docblock(ln, line)
         except OSError:
             self.config.log.error(f"Error: Cannot open file {self.fname}")
-            self.config.errors += 1
