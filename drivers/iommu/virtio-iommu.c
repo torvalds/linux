@@ -48,6 +48,7 @@ struct viommu_dev {
 	u64				pgsize_bitmap;
 	u32				first_domain;
 	u32				last_domain;
+	u32				identity_domain_id;
 	/* Supported MAP flags */
 	u32				map_flags;
 	u32				probe_size;
@@ -70,7 +71,6 @@ struct viommu_domain {
 	struct rb_root_cached		mappings;
 
 	unsigned long			nr_endpoints;
-	bool				bypass;
 };
 
 struct viommu_endpoint {
@@ -303,6 +303,22 @@ static int viommu_send_req_sync(struct viommu_dev *viommu, void *buf,
 out_unlock:
 	spin_unlock_irqrestore(&viommu->request_lock, flags);
 	return ret;
+}
+
+static int viommu_send_attach_req(struct viommu_dev *viommu, struct device *dev,
+				  struct virtio_iommu_req_attach *req)
+{
+	int ret;
+	unsigned int i;
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
+
+	for (i = 0; i < fwspec->num_ids; i++) {
+		req->endpoint = cpu_to_le32(fwspec->ids[i]);
+		ret = viommu_send_req_sync(viommu, req, sizeof(*req));
+		if (ret)
+			return ret;
+	}
+	return 0;
 }
 
 /*
@@ -687,12 +703,6 @@ static int viommu_domain_finalise(struct viommu_endpoint *vdev,
 	vdomain->viommu		= viommu;
 
 	if (domain->type == IOMMU_DOMAIN_IDENTITY) {
-		if (virtio_has_feature(viommu->vdev,
-				       VIRTIO_IOMMU_F_BYPASS_CONFIG)) {
-			vdomain->bypass = true;
-			return 0;
-		}
-
 		ret = viommu_domain_map_identity(vdev, vdomain);
 		if (ret) {
 			ida_free(&viommu->domain_ids, vdomain->id);
@@ -719,10 +729,8 @@ static void viommu_domain_free(struct iommu_domain *domain)
 
 static int viommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 {
-	int i;
 	int ret = 0;
 	struct virtio_iommu_req_attach req;
-	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct viommu_endpoint *vdev = dev_iommu_priv_get(dev);
 	struct viommu_domain *vdomain = to_viommu_domain(domain);
 
@@ -761,16 +769,9 @@ static int viommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 		.domain		= cpu_to_le32(vdomain->id),
 	};
 
-	if (vdomain->bypass)
-		req.flags |= cpu_to_le32(VIRTIO_IOMMU_ATTACH_F_BYPASS);
-
-	for (i = 0; i < fwspec->num_ids; i++) {
-		req.endpoint = cpu_to_le32(fwspec->ids[i]);
-
-		ret = viommu_send_req_sync(vdomain->viommu, &req, sizeof(req));
-		if (ret)
-			return ret;
-	}
+	ret = viommu_send_attach_req(vdomain->viommu, dev, &req);
+	if (ret)
+		return ret;
 
 	if (!vdomain->nr_endpoints) {
 		/*
@@ -787,6 +788,40 @@ static int viommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 
 	return 0;
 }
+
+static int viommu_attach_identity_domain(struct iommu_domain *domain,
+					 struct device *dev)
+{
+	int ret = 0;
+	struct virtio_iommu_req_attach req;
+	struct viommu_endpoint *vdev = dev_iommu_priv_get(dev);
+	struct viommu_domain *vdomain = to_viommu_domain(domain);
+
+	req = (struct virtio_iommu_req_attach) {
+		.head.type	= VIRTIO_IOMMU_T_ATTACH,
+		.domain		= cpu_to_le32(vdev->viommu->identity_domain_id),
+		.flags          = cpu_to_le32(VIRTIO_IOMMU_ATTACH_F_BYPASS),
+	};
+
+	ret = viommu_send_attach_req(vdev->viommu, dev, &req);
+	if (ret)
+		return ret;
+
+	if (vdev->vdomain)
+		vdev->vdomain->nr_endpoints--;
+	vdomain->nr_endpoints++;
+	vdev->vdomain = vdomain;
+	return 0;
+}
+
+static struct viommu_domain viommu_identity_domain = {
+	.domain = {
+		.type = IOMMU_DOMAIN_IDENTITY,
+		.ops = &(const struct iommu_domain_ops) {
+			.attach_dev = viommu_attach_identity_domain,
+		},
+	},
+};
 
 static void viommu_detach_dev(struct viommu_endpoint *vdev)
 {
@@ -1061,6 +1096,7 @@ static bool viommu_capable(struct device *dev, enum iommu_cap cap)
 }
 
 static struct iommu_ops viommu_ops = {
+	.identity_domain	= &viommu_identity_domain.domain,
 	.capable		= viommu_capable,
 	.domain_alloc		= viommu_domain_alloc,
 	.probe_device		= viommu_probe_device,
@@ -1183,6 +1219,18 @@ static int viommu_probe(struct virtio_device *vdev)
 
 	if (virtio_has_feature(vdev, VIRTIO_IOMMU_F_MMIO))
 		viommu->map_flags |= VIRTIO_IOMMU_MAP_F_MMIO;
+
+	/* Reserve an ID to use as the bypass domain */
+	if (virtio_has_feature(viommu->vdev, VIRTIO_IOMMU_F_BYPASS_CONFIG)) {
+		viommu->identity_domain_id = viommu->first_domain;
+		viommu->first_domain++;
+	} else {
+		/*
+		 * Assume the VMM is sensible and it either supports bypass on
+		 * all instances or no instances.
+		 */
+		viommu_ops.identity_domain = NULL;
+	}
 
 	viommu_ops.pgsize_bitmap = viommu->pgsize_bitmap;
 
