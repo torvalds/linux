@@ -222,7 +222,6 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct net *net,
 			cap_raise_nfsd_set(new->cap_effective,
 					   new->cap_permitted);
 		put_cred(override_creds(new));
-		put_cred(new);
 	} else {
 		error = nfsd_setuser_and_check_port(rqstp, cred, exp);
 		if (error)
@@ -381,6 +380,9 @@ __fh_verify(struct svc_rqst *rqstp,
 	error = check_nfsd_access(exp, rqstp, may_bypass_gss);
 	if (error)
 		goto out;
+	/* During LOCALIO call to fh_verify will be called with a NULL rqstp */
+	if (rqstp)
+		svc_xprt_set_valid(rqstp->rq_xprt);
 
 	/* Finally, check access permissions. */
 	error = nfsd_permission(cred, exp, dentry, access);

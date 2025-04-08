@@ -680,11 +680,11 @@ static void query_phy_status(struct rtw_dev *rtwdev, u8 *phy_status,
 }
 
 static void
-rtw8821c_set_tx_power_index_by_rate(struct rtw_dev *rtwdev, u8 path, u8 rs)
+rtw8821c_set_tx_power_index_by_rate(struct rtw_dev *rtwdev, u8 path,
+				    u8 rs, u32 *phy_pwr_idx)
 {
 	struct rtw_hal *hal = &rtwdev->hal;
 	static const u32 offset_txagc[2] = {0x1d00, 0x1d80};
-	static u32 phy_pwr_idx;
 	u8 rate, rate_idx, pwr_index, shift;
 	int j;
 
@@ -692,12 +692,12 @@ rtw8821c_set_tx_power_index_by_rate(struct rtw_dev *rtwdev, u8 path, u8 rs)
 		rate = rtw_rate_section[rs][j];
 		pwr_index = hal->tx_pwr_tbl[path][rate];
 		shift = rate & 0x3;
-		phy_pwr_idx |= ((u32)pwr_index << (shift * 8));
+		*phy_pwr_idx |= ((u32)pwr_index << (shift * 8));
 		if (shift == 0x3 || rate == DESC_RATEVHT1SS_MCS9) {
 			rate_idx = rate & 0xfc;
 			rtw_write32(rtwdev, offset_txagc[path] + rate_idx,
-				    phy_pwr_idx);
-			phy_pwr_idx = 0;
+				    *phy_pwr_idx);
+			*phy_pwr_idx = 0;
 		}
 	}
 }
@@ -705,14 +705,16 @@ rtw8821c_set_tx_power_index_by_rate(struct rtw_dev *rtwdev, u8 path, u8 rs)
 static void rtw8821c_set_tx_power_index(struct rtw_dev *rtwdev)
 {
 	struct rtw_hal *hal = &rtwdev->hal;
+	u32 phy_pwr_idx = 0;
 	int rs, path;
 
 	for (path = 0; path < hal->rf_path_num; path++) {
-		for (rs = 0; rs < RTW_RATE_SECTION_MAX; rs++) {
+		for (rs = 0; rs <= __RTW_RATE_SECTION_2SS_MAX; rs++) {
 			if (rs == RTW_RATE_SECTION_HT_2S ||
 			    rs == RTW_RATE_SECTION_VHT_2S)
 				continue;
-			rtw8821c_set_tx_power_index_by_rate(rtwdev, path, rs);
+			rtw8821c_set_tx_power_index_by_rate(rtwdev, path, rs,
+							    &phy_pwr_idx);
 		}
 	}
 }
@@ -1206,6 +1208,24 @@ static void rtw8821c_phy_cck_pd_set(struct rtw_dev *rtwdev, u8 new_lvl)
 			 dm_info->cck_pd_default + new_lvl * 2);
 }
 
+static void rtw8821c_led_set(struct led_classdev *led,
+			     enum led_brightness brightness)
+{
+	struct rtw_dev *rtwdev = container_of(led, struct rtw_dev, led_cdev);
+	u32 ledcfg;
+
+	ledcfg = rtw_read32(rtwdev, REG_LED_CFG);
+	u32p_replace_bits(&ledcfg, BIT_LED_MODE_SW_CTRL, BIT_LED2_CM);
+	ledcfg &= ~BIT_GPIO13_14_WL_CTRL_EN;
+
+	if (brightness == LED_OFF)
+		ledcfg |= BIT_LED2_SV;
+	else
+		ledcfg &= ~BIT_LED2_SV;
+
+	rtw_write32(rtwdev, REG_LED_CFG, ledcfg);
+}
+
 static void rtw8821c_fill_txdesc_checksum(struct rtw_dev *rtwdev,
 					  struct rtw_tx_pkt_info *pkt_info,
 					  u8 *txdesc)
@@ -1655,6 +1675,7 @@ static const struct rtw_chip_ops rtw8821c_ops = {
 	.config_bfee		= rtw8821c_bf_config_bfee,
 	.set_gid_table		= rtw_bf_set_gid_table,
 	.cfg_csi_rate		= rtw_bf_cfg_csi_rate,
+	.led_set		= rtw8821c_led_set,
 	.fill_txdesc_checksum	= rtw8821c_fill_txdesc_checksum,
 
 	.coex_set_init		= rtw8821c_coex_cfg_init,

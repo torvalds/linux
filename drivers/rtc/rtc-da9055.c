@@ -288,7 +288,7 @@ static int da9055_rtc_probe(struct platform_device *pdev)
 	if (ret & DA9055_RTC_ALM_EN)
 		rtc->alarm_enable = 1;
 
-	device_init_wakeup(&pdev->dev, 1);
+	device_init_wakeup(&pdev->dev, true);
 
 	rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 					&da9055_rtc_ops, THIS_MODULE);

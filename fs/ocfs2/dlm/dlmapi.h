@@ -118,7 +118,7 @@ struct dlm_lockstatus {
 #define LKM_VALBLK       0x00000100  /* lock value block request */
 #define LKM_NOQUEUE      0x00000200  /* non blocking request */
 #define LKM_CONVERT      0x00000400  /* conversion request */
-#define LKM_NODLCKWT     0x00000800  /* this lock wont deadlock (U) */
+#define LKM_NODLCKWT     0x00000800  /* this lock won't deadlock (U) */
 #define LKM_UNLOCK       0x00001000  /* deallocate this lock */
 #define LKM_CANCEL       0x00002000  /* cancel conversion request */
 #define LKM_DEQALL       0x00004000  /* remove all locks held by proc (U) */

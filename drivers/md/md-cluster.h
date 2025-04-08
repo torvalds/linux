@@ -10,6 +10,8 @@ struct mddev;
 struct md_rdev;
 
 struct md_cluster_operations {
+	struct md_submodule_head head;
+
 	int (*join)(struct mddev *mddev, int nodes);
 	int (*leave)(struct mddev *mddev);
 	int (*slot_number)(struct mddev *mddev);
@@ -34,5 +36,9 @@ struct md_cluster_operations {
 	void (*unlock_all_bitmaps)(struct mddev *mddev);
 	void (*update_size)(struct mddev *mddev, sector_t old_dev_sectors);
 };
+
+extern int md_setup_cluster(struct mddev *mddev, int nodes);
+extern void md_cluster_stop(struct mddev *mddev);
+extern void md_reload_sb(struct mddev *mddev, int raid_disk);
 
 #endif /* _MD_CLUSTER_H */

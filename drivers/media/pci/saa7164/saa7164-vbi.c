@@ -77,9 +77,7 @@ static int saa7164_vbi_buffers_alloc(struct saa7164_port *port)
 	/* TODO: NTSC SPECIFIC */
 	/* Init and establish defaults */
 	params->samplesperline = 1440;
-	params->numberoflines = 12;
 	params->numberoflines = 18;
-	params->pitch = 1600;
 	params->pitch = 1440;
 	params->numpagetables = 2 +
 		((params->numberoflines * params->pitch) / PAGE_SIZE);

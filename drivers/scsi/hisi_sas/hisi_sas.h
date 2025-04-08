@@ -9,7 +9,6 @@
 
 #include <linux/acpi.h>
 #include <linux/blk-mq.h>
-#include <linux/blk-mq-pci.h>
 #include <linux/clk.h>
 #include <linux/debugfs.h>
 #include <linux/dmapool.h>
@@ -634,8 +633,7 @@ extern struct dentry *hisi_sas_debugfs_dir;
 extern void hisi_sas_stop_phys(struct hisi_hba *hisi_hba);
 extern int hisi_sas_alloc(struct hisi_hba *hisi_hba);
 extern void hisi_sas_free(struct hisi_hba *hisi_hba);
-extern u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis,
-				int direction);
+extern u8 hisi_sas_get_ata_protocol(struct sas_task *task);
 extern struct hisi_sas_port *to_hisi_sas_port(struct asd_sas_port *sas_port);
 extern void hisi_sas_sata_done(struct sas_task *task,
 			    struct hisi_sas_slot *slot);
@@ -644,9 +642,8 @@ extern int hisi_sas_probe(struct platform_device *pdev,
 			  const struct hisi_sas_hw *ops);
 extern void hisi_sas_remove(struct platform_device *pdev);
 
-int hisi_sas_device_configure(struct scsi_device *sdev,
-		struct queue_limits *lim);
-extern int hisi_sas_slave_alloc(struct scsi_device *sdev);
+int hisi_sas_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim);
+extern int hisi_sas_sdev_init(struct scsi_device *sdev);
 extern int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time);
 extern void hisi_sas_scan_start(struct Scsi_Host *shost);
 extern int hisi_sas_host_reset(struct Scsi_Host *shost, int reset_type);

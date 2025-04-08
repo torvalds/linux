@@ -2,7 +2,7 @@
 /*
  * Portions of this file
  * Copyright(c) 2016-2017 Intel Deutschland GmbH
- * Copyright (C) 2018, 2021-2024 Intel Corporation
+ * Copyright (C) 2018, 2021-2025 Intel Corporation
  */
 #ifndef __CFG80211_RDEV_OPS
 #define __CFG80211_RDEV_OPS
@@ -600,11 +600,12 @@ static inline int rdev_set_tx_power(struct cfg80211_registered_device *rdev,
 }
 
 static inline int rdev_get_tx_power(struct cfg80211_registered_device *rdev,
-				    struct wireless_dev *wdev, int *dbm)
+				    struct wireless_dev *wdev, unsigned int link_id,
+				    int *dbm)
 {
 	int ret;
-	trace_rdev_get_tx_power(&rdev->wiphy, wdev);
-	ret = rdev->ops->get_tx_power(&rdev->wiphy, wdev, dbm);
+	trace_rdev_get_tx_power(&rdev->wiphy, wdev, link_id);
+	ret = rdev->ops->get_tx_power(&rdev->wiphy, wdev, link_id, dbm);
 	trace_rdev_return_int_int(&rdev->wiphy, ret, *dbm);
 	return ret;
 }
@@ -1546,4 +1547,36 @@ rdev_get_radio_mask(struct cfg80211_registered_device *rdev,
 
 	return rdev->ops->get_radio_mask(wiphy, dev);
 }
+
+static inline int
+rdev_assoc_ml_reconf(struct cfg80211_registered_device *rdev,
+		     struct net_device *dev,
+		     struct cfg80211_ml_reconf_req *req)
+{
+	struct wiphy *wiphy = &rdev->wiphy;
+	int ret = -EOPNOTSUPP;
+
+	trace_rdev_assoc_ml_reconf(wiphy, dev, req);
+	if (rdev->ops->assoc_ml_reconf)
+		ret = rdev->ops->assoc_ml_reconf(wiphy, dev, req);
+	trace_rdev_return_int(wiphy, ret);
+
+	return ret;
+}
+
+static inline int
+rdev_set_epcs(struct cfg80211_registered_device *rdev,
+	      struct net_device *dev, bool val)
+{
+	struct wiphy *wiphy = &rdev->wiphy;
+	int ret = -EOPNOTSUPP;
+
+	trace_rdev_set_epcs(wiphy, dev, val);
+	if (rdev->ops->set_epcs)
+		ret = rdev->ops->set_epcs(wiphy, dev, val);
+	trace_rdev_return_int(wiphy, ret);
+
+	return ret;
+}
+
 #endif /* __CFG80211_RDEV_OPS */

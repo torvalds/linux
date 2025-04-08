@@ -171,18 +171,30 @@ static const char *drm_dp_mst_sideband_tx_state_str(int state)
 	return sideband_reason_str[state];
 }
 
+static inline u8
+drm_dp_mst_get_ufp_num_at_lct_from_rad(u8 lct, const u8 *rad)
+{
+	int idx = (lct / 2) - 1;
+	int shift = (lct % 2) ? 0 : 4;
+	u8 ufp_num;
+
+	/* mst_primary, it's rad is unset*/
+	if (lct == 1)
+		return 0;
+
+	ufp_num = (rad[idx] >> shift) & 0xf;
+
+	return ufp_num;
+}
+
 static int
 drm_dp_mst_rad_to_str(const u8 rad[8], u8 lct, char *out, size_t len)
 {
 	int i;
-	u8 unpacked_rad[16];
+	u8 unpacked_rad[16] = {};
 
-	for (i = 0; i < lct; i++) {
-		if (i % 2)
-			unpacked_rad[i] = rad[i / 2] >> 4;
-		else
-			unpacked_rad[i] = rad[i / 2] & BIT_MASK(4);
-	}
+	for (i = 0; i < lct; i++)
+		unpacked_rad[i] = drm_dp_mst_get_ufp_num_at_lct_from_rad(i + 1, rad);
 
 	/* TODO: Eventually add something to printk so we can format the rad
 	 * like this: 1.2.3
@@ -2544,9 +2556,8 @@ static struct drm_dp_mst_branch *drm_dp_get_mst_branch_device(struct drm_dp_mst_
 	if (!mstb)
 		goto out;
 
-	for (i = 0; i < lct - 1; i++) {
-		int shift = (i % 2) ? 0 : 4;
-		int port_num = (rad[i / 2] >> shift) & 0xf;
+	for (i = 1; i < lct; i++) {
+		int port_num = drm_dp_mst_get_ufp_num_at_lct_from_rad(i + 1, rad);
 
 		list_for_each_entry(port, &mstb->ports, next) {
 			if (port->port_num == port_num) {

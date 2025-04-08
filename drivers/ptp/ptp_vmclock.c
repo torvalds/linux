@@ -414,16 +414,16 @@ static ssize_t vmclock_miscdev_read(struct file *fp, char __user *buf,
 }
 
 static const struct file_operations vmclock_miscdev_fops = {
+	.owner = THIS_MODULE,
 	.mmap = vmclock_miscdev_mmap,
 	.read = vmclock_miscdev_read,
 };
 
 /* module operations */
 
-static void vmclock_remove(struct platform_device *pdev)
+static void vmclock_remove(void *data)
 {
-	struct device *dev = &pdev->dev;
-	struct vmclock_state *st = dev_get_drvdata(dev);
+	struct vmclock_state *st = data;
 
 	if (st->ptp_clock)
 		ptp_clock_unregister(st->ptp_clock);
@@ -506,14 +506,13 @@ static int vmclock_probe(struct platform_device *pdev)
 
 	if (ret) {
 		dev_info(dev, "Failed to obtain physical address: %d\n", ret);
-		goto out;
+		return ret;
 	}
 
 	if (resource_size(&st->res) < VMCLOCK_MIN_SIZE) {
 		dev_info(dev, "Region too small (0x%llx)\n",
 			 resource_size(&st->res));
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 	st->clk = devm_memremap(dev, st->res.start, resource_size(&st->res),
 				MEMREMAP_WB | MEMREMAP_DEC);
@@ -521,31 +520,34 @@ static int vmclock_probe(struct platform_device *pdev)
 		ret = PTR_ERR(st->clk);
 		dev_info(dev, "failed to map shared memory\n");
 		st->clk = NULL;
-		goto out;
+		return ret;
 	}
 
 	if (le32_to_cpu(st->clk->magic) != VMCLOCK_MAGIC ||
 	    le32_to_cpu(st->clk->size) > resource_size(&st->res) ||
 	    le16_to_cpu(st->clk->version) != 1) {
 		dev_info(dev, "vmclock magic fields invalid\n");
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	ret = ida_alloc(&vmclock_ida, GFP_KERNEL);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	st->index = ret;
 	ret = devm_add_action_or_reset(&pdev->dev, vmclock_put_idx, st);
 	if (ret)
-		goto out;
+		return ret;
 
 	st->name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "vmclock%d", st->index);
-	if (!st->name) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!st->name)
+		return -ENOMEM;
+
+	st->miscdev.minor = MISC_DYNAMIC_MINOR;
+
+	ret = devm_add_action_or_reset(&pdev->dev, vmclock_remove, st);
+	if (ret)
+		return ret;
 
 	/*
 	 * If the structure is big enough, it can be mapped to userspace.
@@ -554,13 +556,12 @@ static int vmclock_probe(struct platform_device *pdev)
 	 * cross that bridge if/when we come to it.
 	 */
 	if (le32_to_cpu(st->clk->size) >= PAGE_SIZE) {
-		st->miscdev.minor = MISC_DYNAMIC_MINOR;
 		st->miscdev.fops = &vmclock_miscdev_fops;
 		st->miscdev.name = st->name;
 
 		ret = misc_register(&st->miscdev);
 		if (ret)
-			goto out;
+			return ret;
 	}
 
 	/* If there is valid clock information, register a PTP clock */
@@ -570,16 +571,14 @@ static int vmclock_probe(struct platform_device *pdev)
 		if (IS_ERR(st->ptp_clock)) {
 			ret = PTR_ERR(st->ptp_clock);
 			st->ptp_clock = NULL;
-			vmclock_remove(pdev);
-			goto out;
+			return ret;
 		}
 	}
 
 	if (!st->miscdev.minor && !st->ptp_clock) {
 		/* Neither miscdev nor PTP registered */
 		dev_info(dev, "vmclock: Neither miscdev nor PTP available; not registering\n");
-		ret = -ENODEV;
-		goto out;
+		return -ENODEV;
 	}
 
 	dev_info(dev, "%s: registered %s%s%s\n", st->name,
@@ -587,10 +586,7 @@ static int vmclock_probe(struct platform_device *pdev)
 		 (st->miscdev.minor && st->ptp_clock) ? ", " : "",
 		 st->ptp_clock ? "PTP" : "");
 
-	dev_set_drvdata(dev, st);
-
- out:
-	return ret;
+	return 0;
 }
 
 static const struct acpi_device_id vmclock_acpi_ids[] = {
@@ -601,7 +597,6 @@ MODULE_DEVICE_TABLE(acpi, vmclock_acpi_ids);
 
 static struct platform_driver vmclock_platform_driver = {
 	.probe		= vmclock_probe,
-	.remove		= vmclock_remove,
 	.driver	= {
 		.name	= "vmclock",
 		.acpi_match_table = vmclock_acpi_ids,

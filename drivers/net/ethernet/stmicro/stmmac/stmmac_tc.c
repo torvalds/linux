@@ -1284,14 +1284,3 @@ const struct stmmac_tc_ops dwmac510_tc_ops = {
 	.query_caps = tc_query_caps,
 	.setup_mqprio = tc_setup_dwmac510_mqprio,
 };
-
-const struct stmmac_tc_ops dwxgmac_tc_ops = {
-	.init = tc_init,
-	.setup_cls_u32 = tc_setup_cls_u32,
-	.setup_cbs = tc_setup_cbs,
-	.setup_cls = tc_setup_cls,
-	.setup_taprio = tc_setup_taprio,
-	.setup_etf = tc_setup_etf,
-	.query_caps = tc_query_caps,
-	.setup_mqprio = tc_setup_dwmac510_mqprio,
-};

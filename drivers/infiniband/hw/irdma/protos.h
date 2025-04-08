@@ -85,10 +85,6 @@ int irdma_process_cqp_cmd(struct irdma_sc_dev *dev,
 int irdma_process_bh(struct irdma_sc_dev *dev);
 int irdma_cqp_sds_cmd(struct irdma_sc_dev *dev,
 		      struct irdma_update_sds_info *info);
-int irdma_cqp_query_fpm_val_cmd(struct irdma_sc_dev *dev,
-				struct irdma_dma_mem *val_mem, u8 hmc_fn_id);
-int irdma_cqp_commit_fpm_val_cmd(struct irdma_sc_dev *dev,
-				 struct irdma_dma_mem *val_mem, u8 hmc_fn_id);
 int irdma_alloc_query_fpm_buf(struct irdma_sc_dev *dev,
 			      struct irdma_dma_mem *mem);
 int irdma_cqp_manage_hmc_fcn_cmd(struct irdma_sc_dev *dev,

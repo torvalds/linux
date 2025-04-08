@@ -13,10 +13,11 @@
 #include <linux/notifier.h>
 #include <linux/types.h>
 
-enum scmi_nxp_protocol {
-	SCMI_PROTOCOL_IMX_BBM = 0x81,
-	SCMI_PROTOCOL_IMX_MISC = 0x84,
-};
+#define	SCMI_PROTOCOL_IMX_BBM	0x81
+#define	SCMI_PROTOCOL_IMX_MISC	0x84
+
+#define SCMI_IMX_VENDOR		"NXP"
+#define SCMI_IMX_SUBVENDOR	"IMX"
 
 struct scmi_imx_bbm_proto_ops {
 	int (*rtc_time_set)(const struct scmi_protocol_handle *ph, u32 id,

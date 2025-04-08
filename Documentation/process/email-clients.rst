@@ -86,7 +86,7 @@ In the :menuselection:`Sending Preferences` section:
 - :menuselection:`Strip Whitespace Before Sending` must be ``disabled``
 
 When composing the message, the cursor should be placed where the patch
-should appear, and then pressing :kbd:`CTRL-R` let you specify the patch file
+should appear, and then pressing `CTRL-R` let you specify the patch file
 to insert into the message.
 
 Claws Mail (GUI)
@@ -94,7 +94,7 @@ Claws Mail (GUI)
 
 Works. Some people use this successfully for patches.
 
-To insert a patch use :menuselection:`Message-->Insert File` (:kbd:`CTRL-I`)
+To insert a patch use :menuselection:`Message-->Insert File` (`CTRL-I`)
 or an external editor.
 
 If the inserted patch has to be edited in the Claws composition window
@@ -108,11 +108,11 @@ Evolution (GUI)
 Some people use this successfully for patches.
 
 When composing mail select: Preformat
-  from :menuselection:`Format-->Paragraph Style-->Preformatted` (:kbd:`CTRL-7`)
+  from :menuselection:`Format-->Paragraph Style-->Preformatted` (`CTRL-7`)
   or the toolbar
 
 Then use:
-:menuselection:`Insert-->Text File...` (:kbd:`ALT-N x`)
+:menuselection:`Insert-->Text File...` (`ALT-N x`)
 to insert the patch.
 
 You can also ``diff -Nru old.c new.c | xclip``, select

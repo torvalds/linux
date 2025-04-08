@@ -4,7 +4,7 @@
  * Copyright (c) 2008, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2011, Javier Lopez <jlopex@gmail.com>
  * Copyright (c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2024 Intel Corporation
+ * Copyright (C) 2018 - 2025 Intel Corporation
  */
 
 /*
@@ -1983,11 +1983,13 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 			return;
 		}
 
-		if (sta && sta->mlo) {
-			if (WARN_ON(!link_sta)) {
-				ieee80211_free_txskb(hw, skb);
-				return;
-			}
+		/* Do address translations only between shared links. It is
+		 * possible that while an non-AP MLD station and an AP MLD
+		 * station have shared links, the frame is intended to be sent
+		 * on a link which is not shared (for example when sending a
+		 * probe response).
+		 */
+		if (sta && sta->mlo && link_sta) {
 			/* address translation to link addresses on TX */
 			ether_addr_copy(hdr->addr1, link_sta->addr);
 			ether_addr_copy(hdr->addr2, bss_conf->addr);
@@ -5048,6 +5050,45 @@ static const struct ieee80211_sband_iftype_data sband_capa_6ghz[] = {
 				.tx_mcs_80p80 = cpu_to_le16(0xfffa),
 			},
 		},
+		.eht_cap = {
+			.has_eht = true,
+			.eht_cap_elem = {
+				.mac_cap_info[0] = IEEE80211_EHT_MAC_CAP0_OM_CONTROL |
+						   IEEE80211_EHT_MAC_CAP0_TRIG_TXOP_SHARING_MODE1,
+				.phy_cap_info[0] = IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ,
+				/* Leave all the other PHY capability bytes
+				 * unset, as DCM, beam forming, RU and PPE
+				 * threshold information are not supported
+				 */
+			},
+			/* For all MCS and bandwidth, set 8 NSS for both Tx and
+			 * Rx
+			 */
+			.eht_mcs_nss_supp = {
+				/* As B1 and B2 are set in the supported
+				 * channel width set field in the HE PHY
+				 * capabilities information field and 320MHz in
+				 * 6GHz is supported include all the following
+				 * MCS/NSS.
+				 */
+				.bw._80 = {
+					.rx_tx_mcs9_max_nss = 0x88,
+					.rx_tx_mcs11_max_nss = 0x88,
+					.rx_tx_mcs13_max_nss = 0x88,
+				},
+				.bw._160 = {
+					.rx_tx_mcs9_max_nss = 0x88,
+					.rx_tx_mcs11_max_nss = 0x88,
+					.rx_tx_mcs13_max_nss = 0x88,
+				},
+				.bw._320 = {
+					.rx_tx_mcs9_max_nss = 0x88,
+					.rx_tx_mcs11_max_nss = 0x88,
+					.rx_tx_mcs13_max_nss = 0x88,
+				},
+			},
+			/* PPE threshold information is not supported */
+		},
 	},
 #endif
 };
@@ -5306,6 +5347,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
 	ieee80211_hw_set(hw, TDLS_WIDER_BW);
 	ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
+	ieee80211_hw_set(hw, STRICT);
 
 	if (param->mlo) {
 		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_MLO;
@@ -5509,10 +5551,8 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 
 	for (i = 0; i < ARRAY_SIZE(data->link_data); i++) {
-		hrtimer_init(&data->link_data[i].beacon_timer, CLOCK_MONOTONIC,
-			     HRTIMER_MODE_ABS_SOFT);
-		data->link_data[i].beacon_timer.function =
-			mac80211_hwsim_beacon;
+		hrtimer_setup(&data->link_data[i].beacon_timer, mac80211_hwsim_beacon,
+			      CLOCK_MONOTONIC, HRTIMER_MODE_ABS_SOFT);
 		data->link_data[i].link_id = i;
 	}
 

@@ -18,7 +18,7 @@ enum {
 };
 
 #define NO_THRESHOLD (-1)
-#define DFT_THRESHOLD (32)
+#define DEFAULT_THRESHOLD (32)
 
 struct btrfs_workqueue {
 	struct workqueue_struct *normal_wq;
@@ -94,9 +94,9 @@ struct btrfs_workqueue *btrfs_alloc_workqueue(struct btrfs_fs_info *fs_info,
 
 	ret->limit_active = limit_active;
 	if (thresh == 0)
-		thresh = DFT_THRESHOLD;
+		thresh = DEFAULT_THRESHOLD;
 	/* For low threshold, disabling threshold is a better choice */
-	if (thresh < DFT_THRESHOLD) {
+	if (thresh < DEFAULT_THRESHOLD) {
 		ret->current_active = limit_active;
 		ret->thresh = NO_THRESHOLD;
 	} else {
@@ -168,7 +168,7 @@ static inline void thresh_exec_hook(struct btrfs_workqueue *wq)
 {
 	int new_current_active;
 	long pending;
-	int need_change = 0;
+	bool need_change = false;
 
 	if (wq->thresh == NO_THRESHOLD)
 		return;
@@ -196,15 +196,14 @@ static inline void thresh_exec_hook(struct btrfs_workqueue *wq)
 		new_current_active--;
 	new_current_active = clamp_val(new_current_active, 1, wq->limit_active);
 	if (new_current_active != wq->current_active)  {
-		need_change = 1;
+		need_change = true;
 		wq->current_active = new_current_active;
 	}
 out:
 	spin_unlock(&wq->thres_lock);
 
-	if (need_change) {
+	if (need_change)
 		workqueue_set_max_active(wq->normal_wq, wq->current_active);
-	}
 }
 
 static void run_ordered_work(struct btrfs_workqueue *wq,
@@ -296,7 +295,7 @@ static void btrfs_work_helper(struct work_struct *normal_work)
 	struct btrfs_work *work = container_of(normal_work, struct btrfs_work,
 					       normal_work);
 	struct btrfs_workqueue *wq = work->wq;
-	int need_order = 0;
+	bool need_order = false;
 
 	/*
 	 * We should not touch things inside work in the following cases:
@@ -307,7 +306,7 @@ static void btrfs_work_helper(struct work_struct *normal_work)
 	 * So we save the needed things here.
 	 */
 	if (work->ordered_func)
-		need_order = 1;
+		need_order = true;
 
 	trace_btrfs_work_sched(work);
 	thresh_exec_hook(wq);

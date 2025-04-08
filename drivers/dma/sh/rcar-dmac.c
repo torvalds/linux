@@ -2023,6 +2023,10 @@ static const struct of_device_id rcar_dmac_of_ids[] = {
 		.compatible = "renesas,rcar-gen4-dmac",
 		.data = &rcar_gen4_dmac_data,
 	}, {
+		/*
+		 * Backward compatibility for between v5.12 - v5.19
+		 * which didn't combined with "renesas,rcar-gen4-dmac"
+		 */
 		.compatible = "renesas,dmac-r8a779a0",
 		.data = &rcar_gen4_dmac_data,
 	},

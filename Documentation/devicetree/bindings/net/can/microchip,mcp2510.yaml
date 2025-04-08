@@ -56,15 +56,15 @@ examples:
         #size-cells = <0>;
 
         can@1 {
-             compatible = "microchip,mcp2515";
-             reg = <1>;
-             clocks = <&clk24m>;
-             interrupt-parent = <&gpio4>;
-             interrupts = <13 IRQ_TYPE_LEVEL_LOW>;
-             vdd-supply = <&reg5v0>;
-             xceiver-supply = <&reg5v0>;
-             gpio-controller;
-             #gpio-cells = <2>;
+            compatible = "microchip,mcp2515";
+            reg = <1>;
+            clocks = <&clk24m>;
+            interrupt-parent = <&gpio4>;
+            interrupts = <13 IRQ_TYPE_LEVEL_LOW>;
+            vdd-supply = <&reg5v0>;
+            xceiver-supply = <&reg5v0>;
+            gpio-controller;
+            #gpio-cells = <2>;
         };
     };
 

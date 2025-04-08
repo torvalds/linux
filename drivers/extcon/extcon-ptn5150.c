@@ -338,7 +338,7 @@ static const struct of_device_id ptn5150_dt_match[] = {
 MODULE_DEVICE_TABLE(of, ptn5150_dt_match);
 
 static const struct i2c_device_id ptn5150_i2c_id[] = {
-	{ "ptn5150", 0 },
+	{ "ptn5150" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ptn5150_i2c_id);

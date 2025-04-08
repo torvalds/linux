@@ -623,7 +623,7 @@ static struct phy_driver icplus_driver[] = {
 
 module_phy_driver(icplus_driver);
 
-static struct mdio_device_id __maybe_unused icplus_tbl[] = {
+static const struct mdio_device_id __maybe_unused icplus_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(IP175C_PHY_ID) },
 	{ PHY_ID_MATCH_MODEL(IP1001_PHY_ID) },
 	{ PHY_ID_MATCH_EXACT(IP101A_PHY_ID) },

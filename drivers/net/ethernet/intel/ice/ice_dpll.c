@@ -95,7 +95,7 @@ ice_dpll_pin_freq_set(struct ice_pf *pf, struct ice_dpll_pin *pin,
 	}
 	if (ret) {
 		NL_SET_ERR_MSG_FMT(extack,
-				   "err:%d %s failed to set pin freq:%u on pin:%u\n",
+				   "err:%d %s failed to set pin freq:%u on pin:%u",
 				   ret,
 				   ice_aq_str(pf->hw.adminq.sq_last_status),
 				   freq, pin->idx);
@@ -322,7 +322,7 @@ ice_dpll_pin_enable(struct ice_hw *hw, struct ice_dpll_pin *pin,
 	}
 	if (ret)
 		NL_SET_ERR_MSG_FMT(extack,
-				   "err:%d %s failed to enable %s pin:%u\n",
+				   "err:%d %s failed to enable %s pin:%u",
 				   ret, ice_aq_str(hw->adminq.sq_last_status),
 				   pin_type_name[pin_type], pin->idx);
 
@@ -367,7 +367,7 @@ ice_dpll_pin_disable(struct ice_hw *hw, struct ice_dpll_pin *pin,
 	}
 	if (ret)
 		NL_SET_ERR_MSG_FMT(extack,
-				   "err:%d %s failed to disable %s pin:%u\n",
+				   "err:%d %s failed to disable %s pin:%u",
 				   ret, ice_aq_str(hw->adminq.sq_last_status),
 				   pin_type_name[pin_type], pin->idx);
 
@@ -479,7 +479,7 @@ ice_dpll_pin_state_update(struct ice_pf *pf, struct ice_dpll_pin *pin,
 err:
 	if (extack)
 		NL_SET_ERR_MSG_FMT(extack,
-				   "err:%d %s failed to update %s pin:%u\n",
+				   "err:%d %s failed to update %s pin:%u",
 				   ret,
 				   ice_aq_str(pf->hw.adminq.sq_last_status),
 				   pin_type_name[pin_type], pin->idx);
@@ -518,7 +518,7 @@ ice_dpll_hw_input_prio_set(struct ice_pf *pf, struct ice_dpll *dpll,
 				      (u8)prio);
 	if (ret)
 		NL_SET_ERR_MSG_FMT(extack,
-				   "err:%d %s failed to set pin prio:%u on pin:%u\n",
+				   "err:%d %s failed to set pin prio:%u on pin:%u",
 				   ret,
 				   ice_aq_str(pf->hw.adminq.sq_last_status),
 				   prio, pin->idx);
@@ -1004,7 +1004,7 @@ ice_dpll_pin_phase_adjust_set(const struct dpll_pin *pin, void *pin_priv,
 	mutex_unlock(&pf->dplls.lock);
 	if (ret)
 		NL_SET_ERR_MSG_FMT(extack,
-				   "err:%d %s failed to set pin phase_adjust:%d for pin:%u on dpll:%u\n",
+				   "err:%d %s failed to set pin phase_adjust:%d for pin:%u on dpll:%u",
 				   ret,
 				   ice_aq_str(pf->hw.adminq.sq_last_status),
 				   phase_adjust, p->idx, d->dpll_idx);
@@ -1362,7 +1362,7 @@ ice_dpll_rclk_state_on_pin_set(const struct dpll_pin *pin, void *pin_priv,
 					 &p->freq);
 	if (ret)
 		NL_SET_ERR_MSG_FMT(extack,
-				   "err:%d %s failed to set pin state:%u for pin:%u on parent:%u\n",
+				   "err:%d %s failed to set pin state:%u for pin:%u on parent:%u",
 				   ret,
 				   ice_aq_str(pf->hw.adminq.sq_last_status),
 				   state, p->idx, parent->idx);
@@ -2053,7 +2053,7 @@ static int ice_dpll_init_worker(struct ice_pf *pf)
 	struct kthread_worker *kworker;
 
 	kthread_init_delayed_work(&d->work, ice_dpll_periodic_work);
-	kworker = kthread_create_worker(0, "ice-dplls-%s",
+	kworker = kthread_run_worker(0, "ice-dplls-%s",
 					dev_name(ice_pf_to_dev(pf)));
 	if (IS_ERR(kworker))
 		return PTR_ERR(kworker);

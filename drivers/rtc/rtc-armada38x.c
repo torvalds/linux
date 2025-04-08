@@ -527,7 +527,7 @@ static __init int armada38x_rtc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rtc);
 
 	if (rtc->irq != -1)
-		device_init_wakeup(&pdev->dev, 1);
+		device_init_wakeup(&pdev->dev, true);
 	else
 		clear_bit(RTC_FEATURE_ALARM, rtc->rtc_dev->features);
 

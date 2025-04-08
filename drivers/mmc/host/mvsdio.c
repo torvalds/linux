@@ -464,7 +464,7 @@ static irqreturn_t mvsd_irq(int irq, void *dev)
 		struct mmc_command *cmd = mrq->cmd;
 		u32 err_status = 0;
 
-		del_timer(&host->timer);
+		timer_delete(&host->timer);
 		host->mrq = NULL;
 
 		host->intr_en &= MVSD_NOR_CARD_INT;
@@ -803,7 +803,7 @@ static void mvsd_remove(struct platform_device *pdev)
 	struct mvsd_host *host = mmc_priv(mmc);
 
 	mmc_remove_host(mmc);
-	del_timer_sync(&host->timer);
+	timer_delete_sync(&host->timer);
 	mvsd_power_down(host);
 
 	if (!IS_ERR(host->clk))

@@ -13,6 +13,7 @@ struct drm_i915_private;
 struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
+struct intel_display;
 struct intel_dpll_hw_state;
 enum pipe;
 
@@ -46,7 +47,7 @@ void i9xx_crtc_clock_get(struct intel_crtc_state *crtc_state);
 void vlv_crtc_clock_get(struct intel_crtc_state *crtc_state);
 void chv_crtc_clock_get(struct intel_crtc_state *crtc_state);
 
-void assert_pll_enabled(struct drm_i915_private *i915, enum pipe pipe);
-void assert_pll_disabled(struct drm_i915_private *i915, enum pipe pipe);
+void assert_pll_enabled(struct intel_display *display, enum pipe pipe);
+void assert_pll_disabled(struct intel_display *display, enum pipe pipe);
 
 #endif

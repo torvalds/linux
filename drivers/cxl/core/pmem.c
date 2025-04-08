@@ -51,17 +51,6 @@ struct cxl_nvdimm_bridge *to_cxl_nvdimm_bridge(struct device *dev)
 }
 EXPORT_SYMBOL_NS_GPL(to_cxl_nvdimm_bridge, "CXL");
 
-bool is_cxl_nvdimm_bridge(struct device *dev)
-{
-	return dev->type == &cxl_nvdimm_bridge_type;
-}
-EXPORT_SYMBOL_NS_GPL(is_cxl_nvdimm_bridge, "CXL");
-
-static int match_nvdimm_bridge(struct device *dev, void *data)
-{
-	return is_cxl_nvdimm_bridge(dev);
-}
-
 /**
  * cxl_find_nvdimm_bridge() - find a bridge device relative to a port
  * @port: any descendant port of an nvdimm-bridge associated
@@ -75,7 +64,9 @@ struct cxl_nvdimm_bridge *cxl_find_nvdimm_bridge(struct cxl_port *port)
 	if (!cxl_root)
 		return NULL;
 
-	dev = device_find_child(&cxl_root->port.dev, NULL, match_nvdimm_bridge);
+	dev = device_find_child(&cxl_root->port.dev,
+				&cxl_nvdimm_bridge_type,
+				device_match_type);
 
 	if (!dev)
 		return NULL;

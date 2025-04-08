@@ -1,0 +1,643 @@
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+
+name: conntrack
+protocol: netlink-raw
+protonum: 12
+
+doc:
+  Netfilter connection tracking subsystem over nfnetlink
+
+definitions:
+  -
+    name: nfgenmsg
+    type: struct
+    members:
+      -
+        name: nfgen-family
+        type: u8
+      -
+        name: version
+        type: u8
+      -
+        name: res-id
+        byte-order: big-endian
+        type: u16
+  -
+    name: nf-ct-tcp-flags-mask
+    type: struct
+    members:
+      -
+        name: flags
+        type: u8
+        enum: nf-ct-tcp-flags
+        enum-as-flags: true
+      -
+        name: mask
+        type: u8
+        enum: nf-ct-tcp-flags
+        enum-as-flags: true
+  -
+    name: nf-ct-tcp-flags
+    type: flags
+    entries:
+      - window-scale
+      - sack-perm
+      - close-init
+      - be-liberal
+      - unacked
+      - maxack
+      - challenge-ack
+      - simultaneous-open
+  -
+    name: nf-ct-tcp-state
+    type: enum
+    entries:
+      - none
+      - syn-sent
+      - syn-recv
+      - established
+      - fin-wait
+      - close-wait
+      - last-ack
+      - time-wait
+      - close
+      - syn-sent2
+      - max
+      - ignore
+      - retrans
+      - unack
+      - timeout-max
+  -
+    name: nf-ct-sctp-state
+    type: enum
+    entries:
+      - none
+      - cloned
+      - cookie-wait
+      - cookie-echoed
+      - established
+      - shutdown-sent
+      - shutdown-received
+      - shutdown-ack-sent
+      - shutdown-heartbeat-sent
+  -
+    name: nf-ct-status
+    type: flags
+    entries:
+      - expected
+      - seen-reply
+      - assured
+      - confirmed
+      - src-nat
+      - dst-nat
+      - seq-adj
+      - src-nat-done
+      - dst-nat-done
+      - dying
+      - fixed-timeout
+      - template
+      - nat-clash
+      - helper
+      - offload
+      - hw-offload
+
+attribute-sets:
+  -
+    name: counter-attrs
+    attributes:
+      -
+        name: packets
+        type: u64
+        byte-order: big-endian
+      -
+        name: bytes
+        type: u64
+        byte-order: big-endian
+      -
+        name: packets-old
+        type: u32
+      -
+        name: bytes-old
+        type: u32
+      -
+        name: pad
+        type: pad
+  -
+    name: tuple-proto-attrs
+    attributes:
+      -
+        name: proto-num
+        type: u8
+        doc: l4 protocol number
+      -
+        name: proto-src-port
+        type: u16
+        byte-order: big-endian
+        doc: l4 source port
+      -
+        name: proto-dst-port
+        type: u16
+        byte-order: big-endian
+        doc: l4 source port
+      -
+        name: proto-icmp-id
+        type: u16
+        byte-order: big-endian
+        doc: l4 icmp id
+      -
+        name: proto-icmp-type
+        type: u8
+      -
+        name: proto-icmp-code
+        type: u8
+      -
+        name: proto-icmpv6-id
+        type: u16
+        byte-order: big-endian
+        doc: l4 icmp id
+      -
+        name: proto-icmpv6-type
+        type: u8
+      -
+        name: proto-icmpv6-code
+        type: u8
+  -
+    name: tuple-ip-attrs
+    attributes:
+      -
+        name: ip-v4-src
+        type: u32
+        byte-order: big-endian
+        display-hint: ipv4
+        doc: ipv4 source address
+      -
+        name: ip-v4-dst
+        type: u32
+        byte-order: big-endian
+        display-hint: ipv4
+        doc: ipv4 destination address
+      -
+        name: ip-v6-src
+        type: binary
+        checks:
+          min-len: 16
+        byte-order: big-endian
+        display-hint: ipv6
+        doc: ipv6 source address
+      -
+        name: ip-v6-dst
+        type: binary
+        checks:
+          min-len: 16
+        byte-order: big-endian
+        display-hint: ipv6
+        doc: ipv6 destination address
+  -
+    name: tuple-attrs
+    attributes:
+    -
+        name: tuple-ip
+        type: nest
+        nested-attributes: tuple-ip-attrs
+        doc: conntrack l3 information
+    -
+        name: tuple-proto
+        type: nest
+        nested-attributes: tuple-proto-attrs
+        doc: conntrack l4 information
+    -
+        name: tuple-zone
+        type: u16
+        byte-order: big-endian
+        doc: conntrack zone id
+  -
+    name: protoinfo-tcp-attrs
+    attributes:
+    -
+        name: tcp-state
+        type: u8
+        enum: nf-ct-tcp-state
+        doc: tcp connection state
+    -
+        name: tcp-wscale-original
+        type: u8
+        doc: window scaling factor in original direction
+    -
+        name: tcp-wscale-reply
+        type: u8
+        doc: window scaling factor in reply direction
+    -
+        name: tcp-flags-original
+        type: binary
+        struct: nf-ct-tcp-flags-mask
+    -
+        name: tcp-flags-reply
+        type: binary
+        struct: nf-ct-tcp-flags-mask
+  -
+    name: protoinfo-dccp-attrs
+    attributes:
+    -
+        name: dccp-state
+        type: u8
+        doc: dccp connection state
+    -
+        name: dccp-role
+        type: u8
+    -
+        name: dccp-handshake-seq
+        type: u64
+        byte-order: big-endian
+    -
+        name: dccp-pad
+        type: pad
+  -
+    name: protoinfo-sctp-attrs
+    attributes:
+    -
+        name: sctp-state
+        type: u8
+        doc: sctp connection state
+        enum: nf-ct-sctp-state
+    -
+        name: vtag-original
+        type: u32
+        byte-order: big-endian
+    -
+        name: vtag-reply
+        type: u32
+        byte-order: big-endian
+  -
+    name: protoinfo-attrs
+    attributes:
+    -
+        name: protoinfo-tcp
+        type: nest
+        nested-attributes: protoinfo-tcp-attrs
+        doc: conntrack tcp state information
+    -
+        name: protoinfo-dccp
+        type: nest
+        nested-attributes: protoinfo-dccp-attrs
+        doc: conntrack dccp state information
+    -
+        name: protoinfo-sctp
+        type: nest
+        nested-attributes: protoinfo-sctp-attrs
+        doc: conntrack sctp state information
+  -
+    name: help-attrs
+    attributes:
+      -
+        name: help-name
+        type: string
+        doc: helper name
+  -
+    name: nat-proto-attrs
+    attributes:
+      -
+        name: nat-port-min
+        type: u16
+        byte-order: big-endian
+      -
+        name: nat-port-max
+        type: u16
+        byte-order: big-endian
+  -
+    name: nat-attrs
+    attributes:
+      -
+        name: nat-v4-minip
+        type: u32
+        byte-order: big-endian
+      -
+        name: nat-v4-maxip
+        type: u32
+        byte-order: big-endian
+      -
+        name: nat-v6-minip
+        type: binary
+      -
+        name: nat-v6-maxip
+        type: binary
+      -
+        name: nat-proto
+        type: nest
+        nested-attributes: nat-proto-attrs
+  -
+    name: seqadj-attrs
+    attributes:
+      -
+        name: correction-pos
+        type: u32
+        byte-order: big-endian
+      -
+        name: offset-before
+        type: u32
+        byte-order: big-endian
+      -
+        name: offset-after
+        type: u32
+        byte-order: big-endian
+  -
+    name: secctx-attrs
+    attributes:
+      -
+        name: secctx-name
+        type: string
+  -
+    name: synproxy-attrs
+    attributes:
+      -
+        name: isn
+        type: u32
+        byte-order: big-endian
+      -
+        name: its
+        type: u32
+        byte-order: big-endian
+      -
+        name: tsoff
+        type: u32
+        byte-order: big-endian
+  -
+    name: conntrack-attrs
+    attributes:
+      -
+        name: tuple-orig
+        type: nest
+        nested-attributes: tuple-attrs
+        doc: conntrack l3+l4 protocol information, original direction
+      -
+        name: tuple-reply
+        type: nest
+        nested-attributes: tuple-attrs
+        doc: conntrack l3+l4 protocol information, reply direction
+      -
+        name: status
+        type: u32
+        byte-order: big-endian
+        enum: nf-ct-status
+        enum-as-flags: true
+        doc: conntrack flag bits
+      -
+        name: protoinfo
+        type: nest
+        nested-attributes: protoinfo-attrs
+      -
+        name: help
+        type: nest
+        nested-attributes: help-attrs
+      -
+        name: nat-src
+        type: nest
+        nested-attributes: nat-attrs
+      -
+        name: timeout
+        type: u32
+        byte-order: big-endian
+      -
+        name: mark
+        type: u32
+        byte-order: big-endian
+      -
+        name: counters-orig
+        type: nest
+        nested-attributes: counter-attrs
+      -
+        name: counters-reply
+        type: nest
+        nested-attributes: counter-attrs
+      -
+        name: use
+        type: u32
+        byte-order: big-endian
+      -
+        name: id
+        type: u32
+        byte-order: big-endian
+      -
+        name: nat-dst
+        type: nest
+        nested-attributes: nat-attrs
+      -
+        name: tuple-master
+        type: nest
+        nested-attributes: tuple-attrs
+      -
+        name: seq-adj-orig
+        type: nest
+        nested-attributes: seqadj-attrs
+      -
+        name: seq-adj-reply
+        type: nest
+        nested-attributes: seqadj-attrs
+      -
+        name: secmark
+        type: binary
+        doc: obsolete
+      -
+        name: zone
+        type: u16
+        byte-order: big-endian
+        doc: conntrack zone id
+      -
+        name: secctx
+        type: nest
+        nested-attributes: secctx-attrs
+      -
+        name: timestamp
+        type: u64
+        byte-order: big-endian
+      -
+        name: mark-mask
+        type: u32
+        byte-order: big-endian
+      -
+        name: labels
+        type: binary
+      -
+        name: labels mask
+        type: binary
+      -
+        name: synproxy
+        type: nest
+        nested-attributes: synproxy-attrs
+      -
+        name: filter
+        type: nest
+        nested-attributes: tuple-attrs
+      -
+        name: status-mask
+        type: u32
+        byte-order: big-endian
+        enum: nf-ct-status
+        enum-as-flags: true
+        doc: conntrack flag bits to change
+      -
+        name: timestamp-event
+        type: u64
+        byte-order: big-endian
+  -
+    name: conntrack-stats-attrs
+    attributes:
+      -
+        name: searched
+        type: u32
+        byte-order: big-endian
+        doc: obsolete
+      -
+        name: found
+        type: u32
+        byte-order: big-endian
+      -
+        name: new
+        type: u32
+        byte-order: big-endian
+        doc: obsolete
+      -
+        name: invalid
+        type: u32
+        byte-order: big-endian
+        doc: obsolete
+      -
+        name: ignore
+        type: u32
+        byte-order: big-endian
+        doc: obsolete
+      -
+        name: delete
+        type: u32
+        byte-order: big-endian
+        doc: obsolete
+      -
+        name: delete-list
+        type: u32
+        byte-order: big-endian
+        doc: obsolete
+      -
+        name: insert
+        type: u32
+        byte-order: big-endian
+      -
+        name: insert-failed
+        type: u32
+        byte-order: big-endian
+      -
+        name: drop
+        type: u32
+        byte-order: big-endian
+      -
+        name: early-drop
+        type: u32
+        byte-order: big-endian
+      -
+        name: error
+        type: u32
+        byte-order: big-endian
+      -
+        name: search-restart
+        type: u32
+        byte-order: big-endian
+      -
+        name: clash-resolve
+        type: u32
+        byte-order: big-endian
+      -
+        name: chain-toolong
+        type: u32
+        byte-order: big-endian
+
+operations:
+  enum-model: directional
+  list:
+    -
+      name: get
+      doc: get / dump entries
+      attribute-set: conntrack-attrs
+      fixed-header: nfgenmsg
+      do:
+        request:
+          value: 0x101
+          attributes:
+            - tuple-orig
+            - tuple-reply
+            - zone
+        reply:
+          value: 0x100
+          attributes:
+            - tuple-orig
+            - tuple-reply
+            - status
+            - protoinfo
+            - help
+            - nat-src
+            - nat-dst
+            - timeout
+            - mark
+            - counter-orig
+            - counter-reply
+            - use
+            - id
+            - nat-dst
+            - tuple-master
+            - seq-adj-orig
+            - seq-adj-reply
+            - zone
+            - secctx
+            - labels
+            - synproxy
+      dump:
+        request:
+          value: 0x101
+          attributes:
+            - nfgen-family
+            - mark
+            - filter
+            - status
+            - zone
+        reply:
+          value: 0x100
+          attributes:
+            - tuple-orig
+            - tuple-reply
+            - status
+            - protoinfo
+            - help
+            - nat-src
+            - nat-dst
+            - timeout
+            - mark
+            - counter-orig
+            - counter-reply
+            - use
+            - id
+            - nat-dst
+            - tuple-master
+            - seq-adj-orig
+            - seq-adj-reply
+            - zone
+            - secctx
+            - labels
+            - synproxy
+    -
+      name: get-stats
+      doc: dump pcpu conntrack stats
+      attribute-set: conntrack-stats-attrs
+      fixed-header: nfgenmsg
+      dump:
+        request:
+          value: 0x104
+        reply:
+          value: 0x104
+          attributes:
+            - searched
+            - found
+            - insert
+            - insert-failed
+            - drop
+            - early-drop
+            - error
+            - search-restart
+            - clash-resolve
+            - chain-toolong

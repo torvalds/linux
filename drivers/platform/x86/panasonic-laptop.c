@@ -260,7 +260,7 @@ struct pcc_acpi {
  * keypress events over the PS/2 kbd interface, filter these out.
  */
 static bool panasonic_i8042_filter(unsigned char data, unsigned char str,
-				   struct serio *port)
+				   struct serio *port, void *context)
 {
 	static bool extended;
 
@@ -1100,7 +1100,7 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 		pcc->platform = NULL;
 	}
 
-	i8042_install_filter(panasonic_i8042_filter);
+	i8042_install_filter(panasonic_i8042_filter, NULL);
 	return 0;
 
 out_platform:

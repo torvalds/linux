@@ -28,6 +28,7 @@ static int tcp_adv_win_scale_max = 31;
 static int tcp_app_win_max = 31;
 static int tcp_min_snd_mss_min = TCP_MIN_SND_MSS;
 static int tcp_min_snd_mss_max = 65535;
+static int tcp_rto_max_max = TCP_RTO_MAX_SEC * MSEC_PER_SEC;
 static int ip_privileged_port_min;
 static int ip_privileged_port_max = 65535;
 static int ip_ttl_min = 1;
@@ -45,6 +46,7 @@ static unsigned int tcp_child_ehash_entries_max = 16 * 1024 * 1024;
 static unsigned int udp_child_hash_entries_max = UDP_HTABLE_SIZE_MAX;
 static int tcp_plb_max_rounds = 31;
 static int tcp_plb_max_cong_thresh = 256;
+static unsigned int tcp_tw_reuse_delay_max = TCP_PAWS_MSL * MSEC_PER_SEC;
 
 /* obsolete */
 static int sysctl_tcp_low_latency __read_mostly;
@@ -1066,6 +1068,15 @@ static struct ctl_table ipv4_net_table[] = {
 		.extra2		= SYSCTL_TWO,
 	},
 	{
+		.procname	= "tcp_tw_reuse_delay",
+		.data		= &init_net.ipv4.sysctl_tcp_tw_reuse_delay,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_douintvec_minmax,
+		.extra1		= SYSCTL_ONE,
+		.extra2		= &tcp_tw_reuse_delay_max,
+	},
+	{
 		.procname	= "tcp_max_syn_backlog",
 		.data		= &init_net.ipv4.sysctl_max_syn_backlog,
 		.maxlen		= sizeof(int),
@@ -1572,6 +1583,15 @@ static struct ctl_table ipv4_net_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ONE,
+	},
+	{
+		.procname	= "tcp_rto_max_ms",
+		.data		= &init_net.ipv4.sysctl_tcp_rto_max_ms,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ONE_THOUSAND,
+		.extra2		= &tcp_rto_max_max,
 	},
 };
 

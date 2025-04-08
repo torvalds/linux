@@ -15,12 +15,25 @@ description:
 
 properties:
   compatible:
-    enum:
-      - qcom,sa8775p-adsp-pas
-      - qcom,sa8775p-cdsp0-pas
-      - qcom,sa8775p-cdsp1-pas
-      - qcom,sa8775p-gpdsp0-pas
-      - qcom,sa8775p-gpdsp1-pas
+    oneOf:
+      - items:
+          - enum:
+              - qcom,qcs8300-adsp-pas
+          - const: qcom,sa8775p-adsp-pas
+      - items:
+          - enum:
+              - qcom,qcs8300-cdsp-pas
+          - const: qcom,sa8775p-cdsp0-pas
+      - items:
+          - enum:
+              - qcom,qcs8300-gpdsp-pas
+          - const: qcom,sa8775p-gpdsp0-pas
+      - enum:
+          - qcom,sa8775p-adsp-pas
+          - qcom,sa8775p-cdsp0-pas
+          - qcom,sa8775p-cdsp1-pas
+          - qcom,sa8775p-gpdsp0-pas
+          - qcom,sa8775p-gpdsp1-pas
 
   reg:
     maxItems: 1
@@ -63,8 +76,9 @@ allOf:
   - if:
       properties:
         compatible:
-          enum:
-            - qcom,sa8775p-adsp-pas
+          contains:
+            enum:
+              - qcom,sa8775p-adsp-pas
     then:
       properties:
         power-domains:
@@ -79,9 +93,10 @@ allOf:
   - if:
       properties:
         compatible:
-          enum:
-            - qcom,sa8775p-cdsp0-pas
-            - qcom,sa8775p-cdsp1-pas
+          contains:
+            enum:
+              - qcom,sa8775p-cdsp0-pas
+              - qcom,sa8775p-cdsp1-pas
     then:
       properties:
         power-domains:
@@ -98,9 +113,10 @@ allOf:
   - if:
       properties:
         compatible:
-          enum:
-            - qcom,sa8775p-gpdsp0-pas
-            - qcom,sa8775p-gpdsp1-pas
+          contains:
+            enum:
+              - qcom,sa8775p-gpdsp0-pas
+              - qcom,sa8775p-gpdsp1-pas
     then:
       properties:
         power-domains:

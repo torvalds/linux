@@ -11,7 +11,7 @@
 #ifndef _CONTROLW_H_
 #define _CONTROLW_H_
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 #define	_Const_(x)	$##x
 #else
 #define	_Const_(x)	x

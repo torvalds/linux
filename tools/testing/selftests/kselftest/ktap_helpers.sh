@@ -7,6 +7,7 @@
 KTAP_TESTNO=1
 KTAP_CNT_PASS=0
 KTAP_CNT_FAIL=0
+KTAP_CNT_XFAIL=0
 KTAP_CNT_SKIP=0
 
 KSFT_PASS=0
@@ -40,7 +41,7 @@ ktap_skip_all() {
 __ktap_test() {
 	result="$1"
 	description="$2"
-	directive="$3" # optional
+	directive="${3:-}" # optional
 
 	local directive_str=
 	[ ! -z "$directive" ] && directive_str="# $directive"
@@ -67,6 +68,16 @@ ktap_test_skip() {
 	__ktap_test "$result" "$description" "$directive"
 
 	KTAP_CNT_SKIP=$((KTAP_CNT_SKIP+1))
+}
+
+ktap_test_xfail() {
+	description="$1"
+
+	result="ok"
+	directive="XFAIL"
+	__ktap_test "$result" "$description" "$directive"
+
+	KTAP_CNT_XFAIL=$((KTAP_CNT_XFAIL+1))
 }
 
 ktap_test_fail() {
@@ -99,7 +110,7 @@ ktap_exit_fail_msg() {
 ktap_finished() {
 	ktap_print_totals
 
-	if [ $((KTAP_CNT_PASS + KTAP_CNT_SKIP)) -eq "$KSFT_NUM_TESTS" ]; then
+	if [ $((KTAP_CNT_PASS + KTAP_CNT_SKIP + KTAP_CNT_XFAIL)) -eq "$KSFT_NUM_TESTS" ]; then
 		exit "$KSFT_PASS"
 	else
 		exit "$KSFT_FAIL"
@@ -107,5 +118,9 @@ ktap_finished() {
 }
 
 ktap_print_totals() {
-	echo "# Totals: pass:$KTAP_CNT_PASS fail:$KTAP_CNT_FAIL xfail:0 xpass:0 skip:$KTAP_CNT_SKIP error:0"
+	if [ "$KTAP_CNT_SKIP" -gt 0 ]; then
+		echo "# $KTAP_CNT_SKIP skipped test(s) detected. " \
+			"Consider enabling relevant config options to improve coverage."
+	fi
+	echo "# Totals: pass:$KTAP_CNT_PASS fail:$KTAP_CNT_FAIL xfail:$KTAP_CNT_XFAIL xpass:0 skip:$KTAP_CNT_SKIP error:0"
 }

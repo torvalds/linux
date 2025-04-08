@@ -66,7 +66,7 @@ static struct esas2r_adapter *esas2r_adapter_from_kobj(struct kobject *kobj)
 }
 
 static ssize_t read_fw(struct file *file, struct kobject *kobj,
-		       struct bin_attribute *attr,
+		       const struct bin_attribute *attr,
 		       char *buf, loff_t off, size_t count)
 {
 	struct esas2r_adapter *a = esas2r_adapter_from_kobj(kobj);
@@ -75,7 +75,7 @@ static ssize_t read_fw(struct file *file, struct kobject *kobj,
 }
 
 static ssize_t write_fw(struct file *file, struct kobject *kobj,
-			struct bin_attribute *attr,
+			const struct bin_attribute *attr,
 			char *buf, loff_t off, size_t count)
 {
 	struct esas2r_adapter *a = esas2r_adapter_from_kobj(kobj);
@@ -84,7 +84,7 @@ static ssize_t write_fw(struct file *file, struct kobject *kobj,
 }
 
 static ssize_t read_fs(struct file *file, struct kobject *kobj,
-		       struct bin_attribute *attr,
+		       const struct bin_attribute *attr,
 		       char *buf, loff_t off, size_t count)
 {
 	struct esas2r_adapter *a = esas2r_adapter_from_kobj(kobj);
@@ -93,7 +93,7 @@ static ssize_t read_fs(struct file *file, struct kobject *kobj,
 }
 
 static ssize_t write_fs(struct file *file, struct kobject *kobj,
-			struct bin_attribute *attr,
+			const struct bin_attribute *attr,
 			char *buf, loff_t off, size_t count)
 {
 	struct esas2r_adapter *a = esas2r_adapter_from_kobj(kobj);
@@ -109,7 +109,7 @@ static ssize_t write_fs(struct file *file, struct kobject *kobj,
 }
 
 static ssize_t read_vda(struct file *file, struct kobject *kobj,
-			struct bin_attribute *attr,
+			const struct bin_attribute *attr,
 			char *buf, loff_t off, size_t count)
 {
 	struct esas2r_adapter *a = esas2r_adapter_from_kobj(kobj);
@@ -118,7 +118,7 @@ static ssize_t read_vda(struct file *file, struct kobject *kobj,
 }
 
 static ssize_t write_vda(struct file *file, struct kobject *kobj,
-			 struct bin_attribute *attr,
+			 const struct bin_attribute *attr,
 			 char *buf, loff_t off, size_t count)
 {
 	struct esas2r_adapter *a = esas2r_adapter_from_kobj(kobj);
@@ -127,7 +127,7 @@ static ssize_t write_vda(struct file *file, struct kobject *kobj,
 }
 
 static ssize_t read_live_nvram(struct file *file, struct kobject *kobj,
-			       struct bin_attribute *attr,
+			       const struct bin_attribute *attr,
 			       char *buf, loff_t off, size_t count)
 {
 	struct esas2r_adapter *a = esas2r_adapter_from_kobj(kobj);
@@ -138,7 +138,7 @@ static ssize_t read_live_nvram(struct file *file, struct kobject *kobj,
 }
 
 static ssize_t write_live_nvram(struct file *file, struct kobject *kobj,
-				struct bin_attribute *attr,
+				const struct bin_attribute *attr,
 				char *buf, loff_t off, size_t count)
 {
 	struct esas2r_adapter *a = esas2r_adapter_from_kobj(kobj);
@@ -158,7 +158,7 @@ static ssize_t write_live_nvram(struct file *file, struct kobject *kobj,
 }
 
 static ssize_t read_default_nvram(struct file *file, struct kobject *kobj,
-				  struct bin_attribute *attr,
+				  const struct bin_attribute *attr,
 				  char *buf, loff_t off, size_t count)
 {
 	struct esas2r_adapter *a = esas2r_adapter_from_kobj(kobj);
@@ -169,7 +169,7 @@ static ssize_t read_default_nvram(struct file *file, struct kobject *kobj,
 }
 
 static ssize_t read_hw(struct file *file, struct kobject *kobj,
-		       struct bin_attribute *attr,
+		       const struct bin_attribute *attr,
 		       char *buf, loff_t off, size_t count)
 {
 	struct esas2r_adapter *a = esas2r_adapter_from_kobj(kobj);
@@ -187,7 +187,7 @@ static ssize_t read_hw(struct file *file, struct kobject *kobj,
 }
 
 static ssize_t write_hw(struct file *file, struct kobject *kobj,
-			struct bin_attribute *attr,
+			const struct bin_attribute *attr,
 			char *buf, loff_t off, size_t count)
 {
 	struct esas2r_adapter *a = esas2r_adapter_from_kobj(kobj);
@@ -211,12 +211,12 @@ static ssize_t write_hw(struct file *file, struct kobject *kobj,
 }
 
 #define ESAS2R_RW_BIN_ATTR(_name) \
-	struct bin_attribute bin_attr_ ## _name = { \
+	const struct bin_attribute bin_attr_ ## _name = { \
 		.attr	= \
 		{ .name = __stringify(_name), .mode  = S_IRUSR | S_IWUSR }, \
 		.size	= 0, \
-		.read	= read_ ## _name, \
-		.write	= write_ ## _name }
+		.read_new	= read_ ## _name, \
+		.write_new	= write_ ## _name }
 
 ESAS2R_RW_BIN_ATTR(fw);
 ESAS2R_RW_BIN_ATTR(fs);
@@ -224,10 +224,10 @@ ESAS2R_RW_BIN_ATTR(vda);
 ESAS2R_RW_BIN_ATTR(hw);
 ESAS2R_RW_BIN_ATTR(live_nvram);
 
-struct bin_attribute bin_attr_default_nvram = {
+const struct bin_attribute bin_attr_default_nvram = {
 	.attr	= { .name = "default_nvram", .mode = S_IRUGO },
 	.size	= 0,
-	.read	= read_default_nvram,
+	.read_new	= read_default_nvram,
 	.write	= NULL
 };
 

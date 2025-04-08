@@ -368,13 +368,13 @@ static const struct snd_kcontrol_new nau8824_snd_controls[] = {
 	SOC_ENUM("DAC Oversampling Rate", nau8824_dac_oversampl_enum),
 
 	SOC_SINGLE_TLV("Speaker Right DACR Volume",
-		NAU8824_REG_CLASSD_GAIN_1, 8, 0x1f, 0, spk_vol_tlv),
+		NAU8824_REG_CLASSD_GAIN_1, 8, 0x19, 0, spk_vol_tlv),
 	SOC_SINGLE_TLV("Speaker Left DACL Volume",
-		NAU8824_REG_CLASSD_GAIN_2, 0, 0x1f, 0, spk_vol_tlv),
+		NAU8824_REG_CLASSD_GAIN_2, 0, 0x19, 0, spk_vol_tlv),
 	SOC_SINGLE_TLV("Speaker Left DACR Volume",
-		NAU8824_REG_CLASSD_GAIN_1, 0, 0x1f, 0, spk_vol_tlv),
+		NAU8824_REG_CLASSD_GAIN_1, 0, 0x19, 0, spk_vol_tlv),
 	SOC_SINGLE_TLV("Speaker Right DACL Volume",
-		NAU8824_REG_CLASSD_GAIN_2, 8, 0x1f, 0, spk_vol_tlv),
+		NAU8824_REG_CLASSD_GAIN_2, 8, 0x19, 0, spk_vol_tlv),
 
 	SOC_SINGLE_TLV("Headphone Right DACR Volume",
 		NAU8824_REG_ATT_PORT0, 8, 0x1f, 0, hp_vol_tlv),
@@ -1159,10 +1159,10 @@ static int nau8824_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	unsigned int ctrl1_val = 0, ctrl2_val = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		ctrl2_val |= NAU8824_I2S_MS_MASTER;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
 	default:
 		return -EINVAL;

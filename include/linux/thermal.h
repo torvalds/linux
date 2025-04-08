@@ -86,8 +86,6 @@ struct thermal_trip {
 #define THERMAL_TRIP_PRIV_TO_INT(_val_)	(uintptr_t)(_val_)
 #define THERMAL_INT_TO_TRIP_PRIV(_val_)	(void *)(uintptr_t)(_val_)
 
-struct thermal_zone_device;
-
 struct cooling_spec {
 	unsigned long upper;	/* Highest cooling state  */
 	unsigned long lower;	/* Lowest cooling state  */
@@ -293,6 +291,10 @@ static inline struct thermal_zone_device *thermal_tripless_zone_device_register(
 { return ERR_PTR(-ENODEV); }
 
 static inline void thermal_zone_device_unregister(struct thermal_zone_device *tz)
+{ }
+
+static inline void thermal_zone_device_update(struct thermal_zone_device *tz,
+					      enum thermal_notify_event event)
 { }
 
 static inline struct thermal_cooling_device *

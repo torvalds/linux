@@ -5,11 +5,16 @@
  * Copyright (C) 2015, Marvell International Ltd.
  */
 
-#include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/of_gpio.h>
+#include <linux/device.h>
+#include <linux/err.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/printk.h>
+
 #include <net/nfc/nci.h>
 #include <net/nfc/nci_core.h>
+
 #include "nfcmrvl.h"
 
 static unsigned int hci_muxed;

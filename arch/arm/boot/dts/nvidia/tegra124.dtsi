@@ -165,6 +165,22 @@
 			status = "disabled";
 		};
 
+		dsia: dsi@54300000 {
+			compatible = "nvidia,tegra124-dsi";
+			reg = <0x0 0x54300000 0x0 0x00040000>;
+			clocks = <&tegra_car TEGRA124_CLK_DSIA>,
+				 <&tegra_car TEGRA124_CLK_DSIALP>,
+				 <&tegra_car TEGRA124_CLK_PLL_D_OUT0>;
+			clock-names = "dsi", "lp", "parent";
+			resets = <&tegra_car 48>;
+			reset-names = "dsi";
+			nvidia,mipi-calibrate = <&mipi 0x060>; /* DSIA & DSIB pads */
+			status = "disabled";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
 		vic@54340000 {
 			compatible = "nvidia,tegra124-vic";
 			reg = <0x0 0x54340000 0x0 0x00040000>;
@@ -175,6 +191,22 @@
 			reset-names = "vic";
 
 			iommus = <&mc TEGRA_SWGROUP_VIC>;
+		};
+
+		dsib: dsi@54400000 {
+			compatible = "nvidia,tegra124-dsi";
+			reg = <0x0 0x54400000 0x0 0x00040000>;
+			clocks = <&tegra_car TEGRA124_CLK_DSIB>,
+				 <&tegra_car TEGRA124_CLK_DSIBLP>,
+				 <&tegra_car TEGRA124_CLK_PLL_D_OUT0>;
+			clock-names = "dsi", "lp", "parent";
+			resets = <&tegra_car 82>;
+			reset-names = "dsi";
+			nvidia,mipi-calibrate = <&mipi 0x180>; /* DSIC & DSID pads */
+			status = "disabled";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		sor@54540000 {
@@ -936,6 +968,14 @@
 				#cooling-cells = <2>;
 			};
 		};
+	};
+
+	mipi: mipi@700e3000 {
+		compatible = "nvidia,tegra124-mipi";
+		reg = <0x0 0x700e3000 0x0 0x100>;
+		clocks = <&tegra_car TEGRA124_CLK_MIPI_CAL>;
+		clock-names = "mipi-cal";
+		#nvidia,mipi-calibrate-cells = <1>;
 	};
 
 	dfll: clock@70110000 {

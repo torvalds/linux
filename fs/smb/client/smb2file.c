@@ -42,14 +42,14 @@ static struct smb2_symlink_err_rsp *symlink_data(const struct kvec *iov)
 		end = (struct smb2_error_context_rsp *)((u8 *)err + iov->iov_len);
 		do {
 			if (le32_to_cpu(p->ErrorId) == SMB2_ERROR_ID_DEFAULT) {
-				sym = (struct smb2_symlink_err_rsp *)&p->ErrorContextData;
+				sym = (struct smb2_symlink_err_rsp *)p->ErrorContextData;
 				break;
 			}
 			cifs_dbg(FYI, "%s: skipping unhandled error context: 0x%x\n",
 				 __func__, le32_to_cpu(p->ErrorId));
 
 			len = ALIGN(le32_to_cpu(p->ErrorDataLength), 8);
-			p = (struct smb2_error_context_rsp *)((u8 *)&p->ErrorContextData + len);
+			p = (struct smb2_error_context_rsp *)(p->ErrorContextData + len);
 		} while (p < end);
 	} else if (le32_to_cpu(err->ByteCount) >= sizeof(*sym) &&
 		   iov->iov_len >= SMB2_SYMLINK_STRUCT_SIZE) {
@@ -61,6 +61,52 @@ static struct smb2_symlink_err_rsp *symlink_data(const struct kvec *iov)
 		sym = ERR_PTR(-EINVAL);
 
 	return sym;
+}
+
+int smb2_fix_symlink_target_type(char **target, bool directory, struct cifs_sb_info *cifs_sb)
+{
+	char *buf;
+	int len;
+
+	/*
+	 * POSIX server does not distinguish between symlinks to file and
+	 * symlink directory. So nothing is needed to fix on the client side.
+	 */
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
+		return 0;
+
+	if (!*target)
+		return -EIO;
+
+	len = strlen(*target);
+	if (!len)
+		return -EIO;
+
+	/*
+	 * If this is directory symlink and it does not have trailing slash then
+	 * append it. Trailing slash simulates Windows/SMB behavior which do not
+	 * allow resolving directory symlink to file.
+	 */
+	if (directory && (*target)[len-1] != '/') {
+		buf = krealloc(*target, len+2, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+		buf[len] = '/';
+		buf[len+1] = '\0';
+		*target = buf;
+		len++;
+	}
+
+	/*
+	 * If this is a file (non-directory) symlink and it points to path name
+	 * with trailing slash then this is an invalid symlink because file name
+	 * cannot contain slash character. File name with slash is invalid on
+	 * both Windows and Linux systems. So return an error for such symlink.
+	 */
+	if (!directory && (*target)[len-1] == '/')
+		return -EIO;
+
+	return 0;
 }
 
 int smb2_parse_symlink_response(struct cifs_sb_info *cifs_sb, const struct kvec *iov,
@@ -89,7 +135,6 @@ int smb2_parse_symlink_response(struct cifs_sb_info *cifs_sb, const struct kvec 
 	return smb2_parse_native_symlink(path,
 					 (char *)sym->PathBuffer + sub_offs,
 					 sub_len,
-					 true,
 					 le32_to_cpu(sym->Flags) & SYMLINK_FLAG_RELATIVE,
 					 full_path,
 					 cifs_sb);
@@ -107,16 +152,35 @@ int smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms, __u32
 	int err_buftype = CIFS_NO_BUFFER;
 	struct cifs_fid *fid = oparms->fid;
 	struct network_resiliency_req nr_ioctl_req;
+	bool retry_without_read_attributes = false;
 
 	smb2_path = cifs_convert_path_to_utf16(oparms->path, oparms->cifs_sb);
 	if (smb2_path == NULL)
 		return -ENOMEM;
 
-	oparms->desired_access |= FILE_READ_ATTRIBUTES;
+	/*
+	 * GENERIC_READ, GENERIC_EXECUTE, GENERIC_ALL and MAXIMUM_ALLOWED
+	 * contains also FILE_READ_ATTRIBUTES access right. So do not append
+	 * FILE_READ_ATTRIBUTES when not needed and prevent calling code path
+	 * for retry_without_read_attributes.
+	 */
+	if (!(oparms->desired_access & FILE_READ_ATTRIBUTES) &&
+	    !(oparms->desired_access & GENERIC_READ) &&
+	    !(oparms->desired_access & GENERIC_EXECUTE) &&
+	    !(oparms->desired_access & GENERIC_ALL) &&
+	    !(oparms->desired_access & MAXIMUM_ALLOWED)) {
+		oparms->desired_access |= FILE_READ_ATTRIBUTES;
+		retry_without_read_attributes = true;
+	}
 	smb2_oplock = SMB2_OPLOCK_LEVEL_BATCH;
 
 	rc = SMB2_open(xid, oparms, smb2_path, &smb2_oplock, smb2_data, NULL, &err_iov,
 		       &err_buftype);
+	if (rc == -EACCES && retry_without_read_attributes) {
+		oparms->desired_access &= ~FILE_READ_ATTRIBUTES;
+		rc = SMB2_open(xid, oparms, smb2_path, &smb2_oplock, smb2_data, NULL, &err_iov,
+			       &err_buftype);
+	}
 	if (rc && data) {
 		struct smb2_hdr *hdr = err_iov.iov_base;
 
@@ -132,6 +196,11 @@ int smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms, __u32
 				rc = SMB2_open(xid, oparms, smb2_path, &smb2_oplock, smb2_data,
 					       NULL, NULL, NULL);
 				oparms->create_options &= ~OPEN_REPARSE_POINT;
+			}
+			if (!rc) {
+				bool directory = le32_to_cpu(data->fi.Attributes) & ATTR_DIRECTORY;
+				rc = smb2_fix_symlink_target_type(&data->symlink_target,
+								  directory, oparms->cifs_sb);
 			}
 		}
 	}

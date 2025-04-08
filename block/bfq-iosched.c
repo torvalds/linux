@@ -7315,9 +7315,8 @@ static int bfq_init_queue(struct request_queue *q, struct elevator_type *e)
 
 	INIT_LIST_HEAD(&bfqd->dispatch);
 
-	hrtimer_init(&bfqd->idle_slice_timer, CLOCK_MONOTONIC,
-		     HRTIMER_MODE_REL);
-	bfqd->idle_slice_timer.function = bfq_idle_slice_timer;
+	hrtimer_setup(&bfqd->idle_slice_timer, bfq_idle_slice_timer, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL);
 
 	bfqd->queue_weights_tree = RB_ROOT_CACHED;
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
@@ -7622,7 +7621,7 @@ static ssize_t bfq_low_latency_store(struct elevator_queue *e,
 #define BFQ_ATTR(name) \
 	__ATTR(name, 0644, bfq_##name##_show, bfq_##name##_store)
 
-static struct elv_fs_entry bfq_attrs[] = {
+static const struct elv_fs_entry bfq_attrs[] = {
 	BFQ_ATTR(fifo_expire_sync),
 	BFQ_ATTR(fifo_expire_async),
 	BFQ_ATTR(back_seek_max),

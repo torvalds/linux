@@ -93,7 +93,7 @@ int xpc_disengage_timelimit = XPC_DISENGAGE_DEFAULT_TIMELIMIT;
 static int xpc_disengage_min_timelimit;	/* = 0 */
 static int xpc_disengage_max_timelimit = 120;
 
-static struct ctl_table xpc_sys_xpc_hb[] = {
+static const struct ctl_table xpc_sys_xpc_hb[] = {
 	{
 	 .procname = "hb_interval",
 	 .data = &xpc_hb_interval,
@@ -111,7 +111,7 @@ static struct ctl_table xpc_sys_xpc_hb[] = {
 	 .extra1 = &xpc_hb_check_min_interval,
 	 .extra2 = &xpc_hb_check_max_interval},
 };
-static struct ctl_table xpc_sys_xpc[] = {
+static const struct ctl_table xpc_sys_xpc[] = {
 	{
 	 .procname = "disengage_timelimit",
 	 .data = &xpc_disengage_timelimit,
@@ -202,7 +202,7 @@ xpc_start_hb_beater(void)
 static void
 xpc_stop_hb_beater(void)
 {
-	del_timer_sync(&xpc_hb_timer);
+	timer_delete_sync(&xpc_hb_timer);
 	xpc_arch_ops.heartbeat_exit();
 }
 

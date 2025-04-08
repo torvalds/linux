@@ -81,13 +81,13 @@ static void v9fs_issue_read(struct netfs_io_subrequest *subreq)
 		__set_bit(NETFS_SREQ_CLEAR_TAIL, &subreq->flags);
 	if (pos + total >= i_size_read(rreq->inode))
 		__set_bit(NETFS_SREQ_HIT_EOF, &subreq->flags);
-
-	if (!err) {
+	if (!err && total) {
 		subreq->transferred += total;
 		__set_bit(NETFS_SREQ_MADE_PROGRESS, &subreq->flags);
 	}
 
-	netfs_read_subreq_terminated(subreq, err, false);
+	subreq->error = err;
+	netfs_read_subreq_terminated(subreq);
 }
 
 /**

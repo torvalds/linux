@@ -22,11 +22,12 @@ const char help_fmt[] =
 "\n"
 "  -t TEST       Only run tests whose name includes this string\n"
 "  -s            Include print output for skipped tests\n"
+"  -l            List all available tests\n"
 "  -q            Don't print the test descriptions during run\n"
 "  -h            Display this help and exit\n";
 
 static volatile int exit_req;
-static bool quiet, print_skipped;
+static bool quiet, print_skipped, list;
 
 #define MAX_SCX_TESTS 2048
 
@@ -133,13 +134,16 @@ int main(int argc, char **argv)
 
 	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
-	while ((opt = getopt(argc, argv, "qst:h")) != -1) {
+	while ((opt = getopt(argc, argv, "qslt:h")) != -1) {
 		switch (opt) {
 		case 'q':
 			quiet = true;
 			break;
 		case 's':
 			print_skipped = true;
+			break;
+		case 'l':
+			list = true;
 			break;
 		case 't':
 			filter = optarg;
@@ -153,6 +157,13 @@ int main(int argc, char **argv)
 	for (i = 0; i < __scx_num_tests; i++) {
 		enum scx_test_status status;
 		struct scx_test *test = &__scx_tests[i];
+
+		if (list) {
+			printf("%s\n", test->name);
+			if (i == (__scx_num_tests - 1))
+				return 0;
+			continue;
+		}
 
 		if (filter && should_skip_test(test, filter)) {
 			/*

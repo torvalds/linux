@@ -397,7 +397,7 @@ static int sc7180_adau7002_snd_startup(struct snd_pcm_substream *substream)
 	switch (cpu_dai->id) {
 	case MI2S_PRIMARY:
 		snd_soc_dai_set_fmt(codec_dai,
-				    SND_SOC_DAIFMT_CBS_CFS |
+				    SND_SOC_DAIFMT_CBC_CFC |
 				    SND_SOC_DAIFMT_NB_NF |
 				    SND_SOC_DAIFMT_I2S);
 		runtime->hw.formats = SNDRV_PCM_FMTBIT_S32_LE;
@@ -513,7 +513,7 @@ static int sc7180_snd_platform_probe(struct platform_device *pdev)
 	card->controls = sc7180_snd_controls;
 	card->num_controls = ARRAY_SIZE(sc7180_snd_controls);
 
-	if (of_property_read_bool(dev->of_node, "dmic-gpios")) {
+	if (of_property_present(dev->of_node, "dmic-gpios")) {
 		card->dapm_widgets = sc7180_snd_dual_mic_widgets,
 		card->num_dapm_widgets = ARRAY_SIZE(sc7180_snd_dual_mic_widgets),
 		card->controls = sc7180_snd_dual_mic_controls,

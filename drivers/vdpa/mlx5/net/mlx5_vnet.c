@@ -1952,7 +1952,7 @@ static int mlx5_vdpa_add_mac_vlan_rules(struct mlx5_vdpa_net *ndev, u8 *mac,
 		goto out_free;
 
 #if defined(CONFIG_MLX5_VDPA_STEERING_DEBUG)
-	dests[1].counter_id = mlx5_fc_id(node->ucast_counter.counter);
+	dests[1].counter = node->ucast_counter.counter;
 #endif
 	node->ucast_rule = mlx5_add_flow_rules(ndev->rxft, spec, &flow_act, dests, NUM_DESTS);
 	if (IS_ERR(node->ucast_rule)) {
@@ -1961,7 +1961,7 @@ static int mlx5_vdpa_add_mac_vlan_rules(struct mlx5_vdpa_net *ndev, u8 *mac,
 	}
 
 #if defined(CONFIG_MLX5_VDPA_STEERING_DEBUG)
-	dests[1].counter_id = mlx5_fc_id(node->mcast_counter.counter);
+	dests[1].counter = node->mcast_counter.counter;
 #endif
 
 	memset(dmac_c, 0, ETH_ALEN);
@@ -3884,6 +3884,9 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 	ndev->mvdev.max_vqs = max_vqs;
 	mvdev = &ndev->mvdev;
 	mvdev->mdev = mdev;
+	/* cpu_to_mlx5vdpa16() below depends on this flag */
+	mvdev->actual_features =
+			(device_features & BIT_ULL(VIRTIO_F_VERSION_1));
 
 	ndev->vqs = kcalloc(max_vqs, sizeof(*ndev->vqs), GFP_KERNEL);
 	ndev->event_cbs = kcalloc(max_vqs + 1, sizeof(*ndev->event_cbs), GFP_KERNEL);

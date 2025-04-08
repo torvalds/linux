@@ -8,13 +8,13 @@
  * Author: Shyam Sundar S K <Shyam-sundar.S-k@amd.com>
  */
 
-#include <asm/amd_nb.h>
 #include <linux/debugfs.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
+#include <asm/amd_node.h>
 #include "pmf.h"
 
 /* PMF-SMU communication registers */
@@ -127,7 +127,8 @@ static void amd_pmf_get_metrics(struct work_struct *work)
 	ktime_t time_elapsed_ms;
 	int socket_power;
 
-	mutex_lock(&dev->update_mutex);
+	guard(mutex)(&dev->update_mutex);
+
 	/* Transfer table contents */
 	memset(dev->buf, 0, sizeof(dev->m_table));
 	amd_pmf_send_cmd(dev, SET_TRANSFER_TABLE, 0, 7, NULL);
@@ -149,7 +150,6 @@ static void amd_pmf_get_metrics(struct work_struct *work)
 
 	dev->start_time = ktime_to_ms(ktime_get());
 	schedule_delayed_work(&dev->work_buffer, msecs_to_jiffies(metrics_table_loop_ms));
-	mutex_unlock(&dev->update_mutex);
 }
 
 static inline u32 amd_pmf_reg_read(struct amd_pmf_dev *dev, int reg_offset)
@@ -181,7 +181,7 @@ int amd_pmf_send_cmd(struct amd_pmf_dev *dev, u8 message, bool get, u32 arg, u32
 	int rc;
 	u32 val;
 
-	mutex_lock(&dev->lock);
+	guard(mutex)(&dev->lock);
 
 	/* Wait until we get a valid response */
 	rc = readx_poll_timeout(ioread32, dev->regbase + AMD_PMF_REGISTER_RESPONSE,
@@ -189,7 +189,7 @@ int amd_pmf_send_cmd(struct amd_pmf_dev *dev, u8 message, bool get, u32 arg, u32
 				PMF_MSG_DELAY_MIN_US * RESPONSE_REGISTER_LOOP_MAX);
 	if (rc) {
 		dev_err(dev->dev, "failed to talk to SMU\n");
-		goto out_unlock;
+		return rc;
 	}
 
 	/* Write zero to response register */
@@ -207,7 +207,7 @@ int amd_pmf_send_cmd(struct amd_pmf_dev *dev, u8 message, bool get, u32 arg, u32
 				PMF_MSG_DELAY_MIN_US * RESPONSE_REGISTER_LOOP_MAX);
 	if (rc) {
 		dev_err(dev->dev, "SMU response timed out\n");
-		goto out_unlock;
+		return rc;
 	}
 
 	switch (val) {
@@ -221,21 +221,19 @@ int amd_pmf_send_cmd(struct amd_pmf_dev *dev, u8 message, bool get, u32 arg, u32
 	case AMD_PMF_RESULT_CMD_REJECT_BUSY:
 		dev_err(dev->dev, "SMU not ready. err: 0x%x\n", val);
 		rc = -EBUSY;
-		goto out_unlock;
+		break;
 	case AMD_PMF_RESULT_CMD_UNKNOWN:
 		dev_err(dev->dev, "SMU cmd unknown. err: 0x%x\n", val);
 		rc = -EINVAL;
-		goto out_unlock;
+		break;
 	case AMD_PMF_RESULT_CMD_REJECT_PREREQ:
 	case AMD_PMF_RESULT_FAILED:
 	default:
 		dev_err(dev->dev, "SMU cmd failed. err: 0x%x\n", val);
 		rc = -EIO;
-		goto out_unlock;
+		break;
 	}
 
-out_unlock:
-	mutex_unlock(&dev->lock);
 	amd_pmf_dump_registers(dev);
 	return rc;
 }
@@ -373,7 +371,6 @@ static void amd_pmf_deinit_features(struct amd_pmf_dev *dev)
 	if (is_apmf_func_supported(dev, APMF_FUNC_STATIC_SLIDER_GRANULAR) ||
 	    is_apmf_func_supported(dev, APMF_FUNC_OS_POWER_SLIDER_UPDATE)) {
 		power_supply_unreg_notifier(&dev->pwr_src_notifier);
-		amd_pmf_deinit_sps(dev);
 	}
 
 	if (dev->smart_pc_enabled) {
@@ -455,8 +452,8 @@ static int amd_pmf_probe(struct platform_device *pdev)
 
 	mutex_init(&dev->lock);
 	mutex_init(&dev->update_mutex);
+	mutex_init(&dev->cb_mutex);
 
-	amd_pmf_quirks_init(dev);
 	apmf_acpi_init(dev);
 	platform_set_drvdata(pdev, dev);
 	amd_pmf_dbgfs_register(dev);
@@ -481,6 +478,7 @@ static void amd_pmf_remove(struct platform_device *pdev)
 	amd_pmf_dbgfs_unregister(dev);
 	mutex_destroy(&dev->lock);
 	mutex_destroy(&dev->update_mutex);
+	mutex_destroy(&dev->cb_mutex);
 	kfree(dev->buf);
 }
 

@@ -12,20 +12,6 @@
 #include <crypto/hash.h>
 
 struct ahash_request;
-struct scatterlist;
-
-struct crypto_hash_walk {
-	char *data;
-
-	unsigned int offset;
-	unsigned int flags;
-
-	struct page *pg;
-	unsigned int entrylen;
-
-	unsigned int total;
-	struct scatterlist *sg;
-};
 
 struct ahash_instance {
 	void (*free)(struct ahash_instance *inst);
@@ -56,15 +42,6 @@ struct crypto_ahash_spawn {
 struct crypto_shash_spawn {
 	struct crypto_spawn base;
 };
-
-int crypto_hash_walk_done(struct crypto_hash_walk *walk, int err);
-int crypto_hash_walk_first(struct ahash_request *req,
-			   struct crypto_hash_walk *walk);
-
-static inline int crypto_hash_walk_last(struct crypto_hash_walk *walk)
-{
-	return !(walk->entrylen | walk->total);
-}
 
 int crypto_register_ahash(struct ahash_alg *alg);
 void crypto_unregister_ahash(struct ahash_alg *alg);
@@ -268,6 +245,21 @@ static inline struct crypto_shash *crypto_spawn_shash(
 static inline struct crypto_shash *__crypto_shash_cast(struct crypto_tfm *tfm)
 {
 	return container_of(tfm, struct crypto_shash, base);
+}
+
+static inline bool ahash_request_chained(struct ahash_request *req)
+{
+	return crypto_request_chained(&req->base);
+}
+
+static inline bool ahash_request_isvirt(struct ahash_request *req)
+{
+	return req->base.flags & CRYPTO_AHASH_REQ_VIRT;
+}
+
+static inline bool crypto_ahash_req_chain(struct crypto_ahash *tfm)
+{
+	return crypto_tfm_req_chain(&tfm->base);
 }
 
 #endif	/* _CRYPTO_INTERNAL_HASH_H */

@@ -20,7 +20,7 @@ that litmus test to be exercised within the Linux kernel.
 REQUIREMENTS
 ============
 
-Version 7.52 or higher of the "herd7" and "klitmus7" tools must be
+Version 7.58 or higher of the "herd7" and "klitmus7" tools must be
 downloaded separately:
 
   https://github.com/herd/herdtools7
@@ -79,7 +79,7 @@ Several thousand more example litmus tests are available here:
 	https://git.kernel.org/pub/scm/linux/kernel/git/paulmck/perfbook.git/tree/CodeSamples/formal/herd
 	https://git.kernel.org/pub/scm/linux/kernel/git/paulmck/perfbook.git/tree/CodeSamples/formal/litmus
 
-Documentation describing litmus tests and now to use them may be found
+Documentation describing litmus tests and how to use them may be found
 here:
 
 	tools/memory-model/Documentation/litmus-tests.txt

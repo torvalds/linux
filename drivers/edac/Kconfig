@@ -75,9 +75,38 @@ config EDAC_GHES
 
 	  In doubt, say 'Y'.
 
+config EDAC_SCRUB
+	bool "EDAC scrub feature"
+	help
+	  The EDAC scrub feature is optional and is designed to control the
+	  memory scrubbers in the system. The common sysfs scrub interface
+	  abstracts the control of various arbitrary scrubbing functionalities
+	  into a unified set of functions.
+	  Say 'y/n' to enable/disable EDAC scrub feature.
+
+config EDAC_ECS
+	bool "EDAC ECS (Error Check Scrub) feature"
+	help
+	  The EDAC ECS feature is optional and is designed to control on-die
+	  error check scrub (e.g., DDR5 ECS) in the system. The common sysfs
+	  ECS interface abstracts the control of various ECS functionalities
+	  into a unified set of functions.
+	  Say 'y/n' to enable/disable EDAC ECS feature.
+
+config EDAC_MEM_REPAIR
+	bool "EDAC memory repair feature"
+	help
+	  The EDAC memory repair feature is optional and is designed to control
+	  the memory devices with repair features, such as Post Package Repair
+	  (PPR), memory sparing etc. The common sysfs memory repair interface
+	  abstracts the control of various memory repair functionalities into
+	  a unified set of functions.
+	  Say 'y/n' to enable/disable EDAC memory repair feature.
+
 config EDAC_AMD64
 	tristate "AMD64 (Opteron, Athlon64)"
 	depends on AMD_NB && EDAC_DECODE_MCE
+	depends on AMD_NODE
 	imply AMD_ATL
 	help
 	  Support for error detection and correction of DRAM ECC errors on
@@ -167,7 +196,7 @@ config EDAC_I3200
 
 config EDAC_IE31200
 	tristate "Intel e312xx"
-	depends on PCI && X86
+	depends on PCI && X86 && X86_MCE_INTEL
 	help
 	  Support for error detection and correction on the Intel
 	  E3-1200 based DRAM controllers.
@@ -302,14 +331,6 @@ config EDAC_PASEMI
 	help
 	  Support for error detection and correction on PA Semi
 	  PWRficient.
-
-config EDAC_CELL
-	tristate "Cell Broadband Engine memory controller"
-	depends on PPC_CELL_COMMON
-	help
-	  Support for error detection and correction on the
-	  Cell Broadband Engine internal memory controller
-	  on platform without a hypervisor
 
 config EDAC_CPC925
 	tristate "IBM CPC925 Memory Controller (PPC970FX)"
@@ -546,5 +567,13 @@ config EDAC_VERSAL
 	  Support injecting both correctable and uncorrectable errors
 	  for debugging purposes.
 
+config EDAC_LOONGSON
+	tristate "Loongson Memory Controller"
+	depends on LOONGARCH && ACPI
+	help
+	  Support for error detection and correction on the Loongson
+	  family memory controller. This driver reports single bit
+	  errors (CE) only. Loongson-3A5000/3C5000/3D5000/3A6000/3C6000
+	  are compatible.
 
 endif # EDAC

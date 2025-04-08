@@ -505,21 +505,6 @@ void xgbe_debugfs_exit(struct xgbe_prv_data *pdata)
 
 void xgbe_debugfs_rename(struct xgbe_prv_data *pdata)
 {
-	char *buf;
-
-	if (!pdata->xgbe_debugfs)
-		return;
-
-	buf = kasprintf(GFP_KERNEL, "amd-xgbe-%s", pdata->netdev->name);
-	if (!buf)
-		return;
-
-	if (!strcmp(pdata->xgbe_debugfs->d_name.name, buf))
-		goto out;
-
-	debugfs_rename(pdata->xgbe_debugfs->d_parent, pdata->xgbe_debugfs,
-		       pdata->xgbe_debugfs->d_parent, buf);
-
-out:
-	kfree(buf);
+	debugfs_change_name(pdata->xgbe_debugfs,
+			    "amd-xgbe-%s", pdata->netdev->name);
 }

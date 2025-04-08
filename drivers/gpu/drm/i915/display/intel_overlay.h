@@ -10,7 +10,6 @@
 
 struct drm_device;
 struct drm_file;
-struct drm_i915_private;
 struct drm_printer;
 struct intel_display;
 struct intel_overlay;

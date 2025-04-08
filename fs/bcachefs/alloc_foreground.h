@@ -20,7 +20,7 @@ void bch2_reset_alloc_cursors(struct bch_fs *);
 
 struct dev_alloc_list {
 	unsigned	nr;
-	u8		devs[BCH_SB_MEMBERS_MAX];
+	u8		data[BCH_SB_MEMBERS_MAX];
 };
 
 struct dev_alloc_list bch2_dev_alloc_list(struct bch_fs *,
@@ -28,11 +28,26 @@ struct dev_alloc_list bch2_dev_alloc_list(struct bch_fs *,
 					  struct bch_devs_mask *);
 void bch2_dev_stripe_increment(struct bch_dev *, struct dev_stripe_state *);
 
-long bch2_bucket_alloc_new_fs(struct bch_dev *);
-
 static inline struct bch_dev *ob_dev(struct bch_fs *c, struct open_bucket *ob)
 {
 	return bch2_dev_have_ref(c, ob->dev);
+}
+
+static inline unsigned bch2_open_buckets_reserved(enum bch_watermark watermark)
+{
+	switch (watermark) {
+	case BCH_WATERMARK_interior_updates:
+		return 0;
+	case BCH_WATERMARK_reclaim:
+		return OPEN_BUCKETS_COUNT / 6;
+	case BCH_WATERMARK_btree:
+	case BCH_WATERMARK_btree_copygc:
+		return OPEN_BUCKETS_COUNT / 4;
+	case BCH_WATERMARK_copygc:
+		return OPEN_BUCKETS_COUNT / 3;
+	default:
+		return OPEN_BUCKETS_COUNT / 2;
+	}
 }
 
 struct open_bucket *bch2_bucket_alloc(struct bch_fs *, struct bch_dev *,
@@ -67,7 +82,7 @@ static inline struct open_bucket *ec_open_bucket(struct bch_fs *c,
 }
 
 void bch2_open_bucket_write_error(struct bch_fs *,
-			struct open_buckets *, unsigned);
+			struct open_buckets *, unsigned, int);
 
 void __bch2_open_bucket_put(struct bch_fs *, struct open_bucket *);
 

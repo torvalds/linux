@@ -126,7 +126,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adf_init_hw_data_c3xxx(accel_dev->hw_device);
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &accel_pci_dev->revid);
 	pci_read_config_dword(pdev, ADF_DEVICE_FUSECTL_OFFSET,
-			      &hw_data->fuses);
+			      &hw_data->fuses[ADF_FUSECTL0]);
 	pci_read_config_dword(pdev, ADF_C3XXX_SOFTSTRAP_CSR_OFFSET,
 			      &hw_data->straps);
 

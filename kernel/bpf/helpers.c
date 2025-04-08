@@ -1284,8 +1284,7 @@ static int __bpf_async_init(struct bpf_async_kern *async, struct bpf_map *map, u
 
 		atomic_set(&t->cancelling, 0);
 		INIT_WORK(&t->cb.delete_work, bpf_timer_delete_work);
-		hrtimer_init(&t->timer, clockid, HRTIMER_MODE_REL_SOFT);
-		t->timer.function = bpf_timer_cb;
+		hrtimer_setup(&t->timer, bpf_timer_cb, clockid, HRTIMER_MODE_REL_SOFT);
 		cb->value = (void *)async - map->record->timer_off;
 		break;
 	case BPF_ASYNC_TYPE_WQ:
@@ -1593,10 +1592,24 @@ void bpf_timer_cancel_and_free(void *val)
 	 * To avoid these issues, punt to workqueue context when we are in a
 	 * timer callback.
 	 */
-	if (this_cpu_read(hrtimer_running))
+	if (this_cpu_read(hrtimer_running)) {
 		queue_work(system_unbound_wq, &t->cb.delete_work);
-	else
+		return;
+	}
+
+	if (IS_ENABLED(CONFIG_PREEMPT_RT)) {
+		/* If the timer is running on other CPU, also use a kworker to
+		 * wait for the completion of the timer instead of trying to
+		 * acquire a sleepable lock in hrtimer_cancel() to wait for its
+		 * completion.
+		 */
+		if (hrtimer_try_to_cancel(&t->timer) >= 0)
+			kfree_rcu(t, cb.rcu);
+		else
+			queue_work(system_unbound_wq, &t->cb.delete_work);
+	} else {
 		bpf_timer_delete_work(&t->cb.delete_work);
+	}
 }
 
 /* This function is called by map_delete/update_elem for individual element and
@@ -1745,8 +1758,8 @@ static const struct bpf_func_proto bpf_dynptr_from_mem_proto = {
 	.arg4_type	= ARG_PTR_TO_DYNPTR | DYNPTR_TYPE_LOCAL | MEM_UNINIT | MEM_WRITE,
 };
 
-BPF_CALL_5(bpf_dynptr_read, void *, dst, u32, len, const struct bpf_dynptr_kern *, src,
-	   u32, offset, u64, flags)
+static int __bpf_dynptr_read(void *dst, u32 len, const struct bpf_dynptr_kern *src,
+			     u32 offset, u64 flags)
 {
 	enum bpf_dynptr_type type;
 	int err;
@@ -1779,6 +1792,12 @@ BPF_CALL_5(bpf_dynptr_read, void *, dst, u32, len, const struct bpf_dynptr_kern 
 	}
 }
 
+BPF_CALL_5(bpf_dynptr_read, void *, dst, u32, len, const struct bpf_dynptr_kern *, src,
+	   u32, offset, u64, flags)
+{
+	return __bpf_dynptr_read(dst, len, src, offset, flags);
+}
+
 static const struct bpf_func_proto bpf_dynptr_read_proto = {
 	.func		= bpf_dynptr_read,
 	.gpl_only	= false,
@@ -1790,8 +1809,8 @@ static const struct bpf_func_proto bpf_dynptr_read_proto = {
 	.arg5_type	= ARG_ANYTHING,
 };
 
-BPF_CALL_5(bpf_dynptr_write, const struct bpf_dynptr_kern *, dst, u32, offset, void *, src,
-	   u32, len, u64, flags)
+static int __bpf_dynptr_write(const struct bpf_dynptr_kern *dst, u32 offset, void *src,
+			      u32 len, u64 flags)
 {
 	enum bpf_dynptr_type type;
 	int err;
@@ -1827,6 +1846,12 @@ BPF_CALL_5(bpf_dynptr_write, const struct bpf_dynptr_kern *, dst, u32, offset, v
 		WARN_ONCE(true, "bpf_dynptr_write: unknown dynptr type %d\n", type);
 		return -EFAULT;
 	}
+}
+
+BPF_CALL_5(bpf_dynptr_write, const struct bpf_dynptr_kern *, dst, u32, offset, void *, src,
+	   u32, len, u64, flags)
+{
+	return __bpf_dynptr_write(dst, offset, src, len, flags);
 }
 
 static const struct bpf_func_proto bpf_dynptr_write_proto = {
@@ -2030,6 +2055,8 @@ bpf_base_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_task_pt_regs_proto;
 	case BPF_FUNC_trace_vprintk:
 		return bpf_get_trace_vprintk_proto();
+	case BPF_FUNC_perf_event_read_value:
+		return bpf_get_perf_event_read_value_proto();
 	default:
 		return NULL;
 	}
@@ -2066,9 +2093,7 @@ unlock:
 		/* The contained type can also have resources, including a
 		 * bpf_list_head which needs to be freed.
 		 */
-		migrate_disable();
 		__bpf_obj_drop_impl(obj, field->graph_root.value_rec, false);
-		migrate_enable();
 	}
 }
 
@@ -2105,9 +2130,7 @@ void bpf_rb_root_free(const struct btf_field *field, void *rb_root,
 		obj -= field->graph_root.node_offset;
 
 
-		migrate_disable();
 		__bpf_obj_drop_impl(obj, field->graph_root.value_rec, false);
-		migrate_enable();
 	}
 }
 
@@ -2748,6 +2771,61 @@ __bpf_kfunc int bpf_dynptr_clone(const struct bpf_dynptr *p,
 	return 0;
 }
 
+/**
+ * bpf_dynptr_copy() - Copy data from one dynptr to another.
+ * @dst_ptr: Destination dynptr - where data should be copied to
+ * @dst_off: Offset into the destination dynptr
+ * @src_ptr: Source dynptr - where data should be copied from
+ * @src_off: Offset into the source dynptr
+ * @size: Length of the data to copy from source to destination
+ *
+ * Copies data from source dynptr to destination dynptr.
+ * Returns 0 on success; negative error, otherwise.
+ */
+__bpf_kfunc int bpf_dynptr_copy(struct bpf_dynptr *dst_ptr, u32 dst_off,
+				struct bpf_dynptr *src_ptr, u32 src_off, u32 size)
+{
+	struct bpf_dynptr_kern *dst = (struct bpf_dynptr_kern *)dst_ptr;
+	struct bpf_dynptr_kern *src = (struct bpf_dynptr_kern *)src_ptr;
+	void *src_slice, *dst_slice;
+	char buf[256];
+	u32 off;
+
+	src_slice = bpf_dynptr_slice(src_ptr, src_off, NULL, size);
+	dst_slice = bpf_dynptr_slice_rdwr(dst_ptr, dst_off, NULL, size);
+
+	if (src_slice && dst_slice) {
+		memmove(dst_slice, src_slice, size);
+		return 0;
+	}
+
+	if (src_slice)
+		return __bpf_dynptr_write(dst, dst_off, src_slice, size, 0);
+
+	if (dst_slice)
+		return __bpf_dynptr_read(dst_slice, size, src, src_off, 0);
+
+	if (bpf_dynptr_check_off_len(dst, dst_off, size) ||
+	    bpf_dynptr_check_off_len(src, src_off, size))
+		return -E2BIG;
+
+	off = 0;
+	while (off < size) {
+		u32 chunk_sz = min_t(u32, sizeof(buf), size - off);
+		int err;
+
+		err = __bpf_dynptr_read(buf, chunk_sz, src, src_off + off, 0);
+		if (err)
+			return err;
+		err = __bpf_dynptr_write(dst, dst_off + off, buf, chunk_sz, 0);
+		if (err)
+			return err;
+
+		off += chunk_sz;
+	}
+	return 0;
+}
+
 __bpf_kfunc void *bpf_cast_to_kern_ctx(void *obj)
 {
 	return obj;
@@ -3057,6 +3135,65 @@ __bpf_kfunc int bpf_copy_from_user_str(void *dst, u32 dst__sz, const void __user
 	return ret + 1;
 }
 
+/**
+ * bpf_copy_from_user_task_str() - Copy a string from an task's address space
+ * @dst:             Destination address, in kernel space.  This buffer must be
+ *                   at least @dst__sz bytes long.
+ * @dst__sz:         Maximum number of bytes to copy, includes the trailing NUL.
+ * @unsafe_ptr__ign: Source address in the task's address space.
+ * @tsk:             The task whose address space will be used
+ * @flags:           The only supported flag is BPF_F_PAD_ZEROS
+ *
+ * Copies a NUL terminated string from a task's address space to @dst__sz
+ * buffer. If user string is too long this will still ensure zero termination
+ * in the @dst__sz buffer unless buffer size is 0.
+ *
+ * If BPF_F_PAD_ZEROS flag is set, memset the tail of @dst__sz to 0 on success
+ * and memset all of @dst__sz on failure.
+ *
+ * Return: The number of copied bytes on success including the NUL terminator.
+ * A negative error code on failure.
+ */
+__bpf_kfunc int bpf_copy_from_user_task_str(void *dst, u32 dst__sz,
+					    const void __user *unsafe_ptr__ign,
+					    struct task_struct *tsk, u64 flags)
+{
+	int ret;
+
+	if (unlikely(flags & ~BPF_F_PAD_ZEROS))
+		return -EINVAL;
+
+	if (unlikely(dst__sz == 0))
+		return 0;
+
+	ret = copy_remote_vm_str(tsk, (unsigned long)unsafe_ptr__ign, dst, dst__sz, 0);
+	if (ret < 0) {
+		if (flags & BPF_F_PAD_ZEROS)
+			memset(dst, 0, dst__sz);
+		return ret;
+	}
+
+	if (flags & BPF_F_PAD_ZEROS)
+		memset(dst + ret, 0, dst__sz - ret);
+
+	return ret + 1;
+}
+
+/* Keep unsinged long in prototype so that kfunc is usable when emitted to
+ * vmlinux.h in BPF programs directly, but note that while in BPF prog, the
+ * unsigned long always points to 8-byte region on stack, the kernel may only
+ * read and write the 4-bytes on 32-bit.
+ */
+__bpf_kfunc void bpf_local_irq_save(unsigned long *flags__irq_flag)
+{
+	local_irq_save(*flags__irq_flag);
+}
+
+__bpf_kfunc void bpf_local_irq_restore(unsigned long *flags__irq_flag)
+{
+	local_irq_restore(*flags__irq_flag);
+}
+
 __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(generic_btf_ids)
@@ -3089,7 +3226,9 @@ BTF_ID_FLAGS(func, bpf_task_get_cgroup1, KF_ACQUIRE | KF_RCU | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_from_pid, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_from_vpid, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_throw)
+#ifdef CONFIG_BPF_EVENTS
 BTF_ID_FLAGS(func, bpf_send_signal_task, KF_TRUSTED_ARGS)
+#endif
 BTF_KFUNCS_END(generic_btf_ids)
 
 static const struct btf_kfunc_id_set generic_kfunc_set = {
@@ -3135,7 +3274,10 @@ BTF_ID_FLAGS(func, bpf_dynptr_is_null)
 BTF_ID_FLAGS(func, bpf_dynptr_is_rdonly)
 BTF_ID_FLAGS(func, bpf_dynptr_size)
 BTF_ID_FLAGS(func, bpf_dynptr_clone)
+BTF_ID_FLAGS(func, bpf_dynptr_copy)
+#ifdef CONFIG_NET
 BTF_ID_FLAGS(func, bpf_modify_return_test_tp)
+#endif
 BTF_ID_FLAGS(func, bpf_wq_init)
 BTF_ID_FLAGS(func, bpf_wq_set_callback_impl)
 BTF_ID_FLAGS(func, bpf_wq_start)
@@ -3145,10 +3287,13 @@ BTF_ID_FLAGS(func, bpf_iter_bits_new, KF_ITER_NEW)
 BTF_ID_FLAGS(func, bpf_iter_bits_next, KF_ITER_NEXT | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_iter_bits_destroy, KF_ITER_DESTROY)
 BTF_ID_FLAGS(func, bpf_copy_from_user_str, KF_SLEEPABLE)
+BTF_ID_FLAGS(func, bpf_copy_from_user_task_str, KF_SLEEPABLE)
 BTF_ID_FLAGS(func, bpf_get_kmem_cache)
 BTF_ID_FLAGS(func, bpf_iter_kmem_cache_new, KF_ITER_NEW | KF_SLEEPABLE)
 BTF_ID_FLAGS(func, bpf_iter_kmem_cache_next, KF_ITER_NEXT | KF_RET_NULL | KF_SLEEPABLE)
 BTF_ID_FLAGS(func, bpf_iter_kmem_cache_destroy, KF_ITER_DESTROY | KF_SLEEPABLE)
+BTF_ID_FLAGS(func, bpf_local_irq_save)
+BTF_ID_FLAGS(func, bpf_local_irq_restore)
 BTF_KFUNCS_END(common_btf_ids)
 
 static const struct btf_kfunc_id_set common_kfunc_set = {

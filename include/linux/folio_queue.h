@@ -15,6 +15,7 @@
 #define _LINUX_FOLIO_QUEUE_H
 
 #include <linux/pagevec.h>
+#include <linux/mm.h>
 
 /*
  * Segment in a queue of running buffers.  Each segment can hold a number of
@@ -37,16 +38,20 @@ struct folio_queue {
 #if PAGEVEC_SIZE > BITS_PER_LONG
 #error marks is not big enough
 #endif
+	unsigned int		rreq_id;
+	unsigned int		debug_id;
 };
 
 /**
  * folioq_init - Initialise a folio queue segment
  * @folioq: The segment to initialise
+ * @rreq_id: The request identifier to use in tracelines.
  *
- * Initialise a folio queue segment.  Note that the folio pointers are
- * left uninitialised.
+ * Initialise a folio queue segment and set an identifier to be used in traces.
+ *
+ * Note that the folio pointers are left uninitialised.
  */
-static inline void folioq_init(struct folio_queue *folioq)
+static inline void folioq_init(struct folio_queue *folioq, unsigned int rreq_id)
 {
 	folio_batch_init(&folioq->vec);
 	folioq->next = NULL;
@@ -54,6 +59,8 @@ static inline void folioq_init(struct folio_queue *folioq)
 	folioq->marks = 0;
 	folioq->marks2 = 0;
 	folioq->marks3 = 0;
+	folioq->rreq_id = rreq_id;
+	folioq->debug_id = 0;
 }
 
 /**
@@ -210,13 +217,6 @@ static inline void folioq_unmark3(struct folio_queue *folioq, unsigned int slot)
 	clear_bit(slot, &folioq->marks3);
 }
 
-static inline unsigned int __folio_order(struct folio *folio)
-{
-	if (!folio_test_large(folio))
-		return 0;
-	return folio->_flags_1 & 0xff;
-}
-
 /**
  * folioq_append: Add a folio to a folio queue segment
  * @folioq: The segment to add to
@@ -235,7 +235,7 @@ static inline unsigned int folioq_append(struct folio_queue *folioq, struct foli
 	unsigned int slot = folioq->vec.nr++;
 
 	folioq->vec.folios[slot] = folio;
-	folioq->orders[slot] = __folio_order(folio);
+	folioq->orders[slot] = folio_order(folio);
 	return slot;
 }
 
@@ -257,7 +257,7 @@ static inline unsigned int folioq_append_mark(struct folio_queue *folioq, struct
 	unsigned int slot = folioq->vec.nr++;
 
 	folioq->vec.folios[slot] = folio;
-	folioq->orders[slot] = __folio_order(folio);
+	folioq->orders[slot] = folio_order(folio);
 	folioq_mark(folioq, slot);
 	return slot;
 }

@@ -14,7 +14,7 @@
  * A perf sampling test to check bhrb filter
  * map. All the branch filters are not supported
  * in powerpc. Supported filters in:
- * power10: any, any_call, ind_call, cond
+ * power10/power11: any, any_call, ind_call, cond
  * power9: any, any_call
  *
  * Testcase checks event open for invalid bhrb filter
@@ -24,13 +24,13 @@
  */
 
 /* Invalid types for powerpc */
-/* Valid bhrb filters in power9/power10 */
+/* Valid bhrb filters in power9/power10/power11 */
 int bhrb_filter_map_valid_common[] = {
 	PERF_SAMPLE_BRANCH_ANY,
 	PERF_SAMPLE_BRANCH_ANY_CALL,
 };
 
-/* Valid bhrb filters in power10 */
+/* Valid bhrb filters in power10/power11 */
 int bhrb_filter_map_valid_p10[] = {
 	PERF_SAMPLE_BRANCH_IND_CALL,
 	PERF_SAMPLE_BRANCH_COND,
@@ -69,7 +69,7 @@ static int bhrb_filter_map_test(void)
 		FAIL_IF(!event_open(&event));
 	}
 
-	/* valid filter maps for power9/power10 which are expected to pass in event_open */
+	/* valid filter maps for power9/power10/power11 which are expected to pass in event_open */
 	for (i = 0; i < ARRAY_SIZE(bhrb_filter_map_valid_common); i++) {
 		event.attr.branch_sample_type = bhrb_filter_map_valid_common[i];
 		FAIL_IF(event_open(&event));
@@ -77,19 +77,22 @@ static int bhrb_filter_map_test(void)
 	}
 
 	/*
-	 * filter maps which are valid in power10 and invalid in power9.
+	 * filter maps which are valid in power10/power11 and invalid in power9.
 	 * PVR check is used here since PMU specific data like bhrb filter
 	 * alternative tests is handled by respective PMU driver code and
 	 * using PVR will work correctly for all cases including generic
 	 * compat mode.
 	 */
-	if (PVR_VER(mfspr(SPRN_PVR)) == POWER10) {
+	switch (PVR_VER(mfspr(SPRN_PVR))) {
+	case POWER11:
+	case POWER10:
 		for (i = 0; i < ARRAY_SIZE(bhrb_filter_map_valid_p10); i++) {
 			event.attr.branch_sample_type = bhrb_filter_map_valid_p10[i];
 			FAIL_IF(event_open(&event));
 			event_close(&event);
 		}
-	} else {
+		break;
+	default:
 		for (i = 0; i < ARRAY_SIZE(bhrb_filter_map_valid_p10); i++) {
 			event.attr.branch_sample_type = bhrb_filter_map_valid_p10[i];
 			FAIL_IF(!event_open(&event));

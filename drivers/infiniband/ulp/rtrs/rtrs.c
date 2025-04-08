@@ -584,6 +584,9 @@ static void dev_free(struct kref *ref)
 	list_del(&dev->entry);
 	mutex_unlock(&pool->mutex);
 
+	if (pool->ops && pool->ops->deinit)
+		pool->ops->deinit(dev);
+
 	ib_dealloc_pd(dev->ib_pd);
 	kfree(dev);
 }

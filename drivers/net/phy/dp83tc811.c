@@ -403,7 +403,7 @@ static struct phy_driver dp83811_driver[] = {
 };
 module_phy_driver(dp83811_driver);
 
-static struct mdio_device_id __maybe_unused dp83811_tbl[] = {
+static const struct mdio_device_id __maybe_unused dp83811_tbl[] = {
 	{ DP83TC811_PHY_ID, 0xfffffff0 },
 	{ },
 };

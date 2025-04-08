@@ -10,7 +10,10 @@
 #include <linux/blk-mq.h>
 #include <linux/blk_types.h>
 #include <linux/blkdev.h>
+#include <linux/cpumask.h>
 #include <linux/cred.h>
+#include <linux/device/faux.h>
+#include <linux/dma-mapping.h>
 #include <linux/errname.h>
 #include <linux/ethtool.h>
 #include <linux/file.h>
@@ -20,9 +23,13 @@
 #include <linux/jump_label.h>
 #include <linux/mdio.h>
 #include <linux/miscdevice.h>
+#include <linux/of_device.h>
+#include <linux/pci.h>
 #include <linux/phy.h>
 #include <linux/pid_namespace.h>
+#include <linux/platform_device.h>
 #include <linux/poll.h>
+#include <linux/property.h>
 #include <linux/refcount.h>
 #include <linux/sched.h>
 #include <linux/security.h>
@@ -31,6 +38,11 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <trace/events/rust_sample.h>
+
+#if defined(CONFIG_DRM_PANIC_SCREEN_QR_CODE)
+// Used by `#[export]` in `drivers/gpu/drm/drm_panic_qr.rs`.
+#include <drm/drm_panic.h>
+#endif
 
 /* `bindgen` gets confused at certain things. */
 const size_t RUST_CONST_HELPER_ARCH_SLAB_MINALIGN = ARCH_SLAB_MINALIGN;

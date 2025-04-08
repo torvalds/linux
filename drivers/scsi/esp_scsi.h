@@ -80,7 +80,7 @@
 
 /* ESP config register 4 read-write */
 #define ESP_CONFIG4_BBTE      0x01     /* Back-to-back transfers     (fsc)   */
-#define ESP_CONGIG4_TEST      0x02     /* Transfer counter test mode (fsc)   */
+#define ESP_CONFIG4_TEST      0x02     /* Transfer counter test mode (fsc)   */
 #define ESP_CONFIG4_RADE      0x04     /* Active negation   (am53c974/fsc)   */
 #define ESP_CONFIG4_RAE       0x08     /* Act. negation REQ/ACK (am53c974)   */
 #define ESP_CONFIG4_PWD       0x20     /* Reduced power feature (am53c974)   */

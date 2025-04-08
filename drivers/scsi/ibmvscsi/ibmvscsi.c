@@ -789,7 +789,7 @@ static void purge_requests(struct ibmvscsi_host_data *hostdata, int error_code)
 	while (!list_empty(&hostdata->sent)) {
 		evt = list_first_entry(&hostdata->sent, struct srp_event_struct, list);
 		list_del(&evt->list);
-		del_timer(&evt->timer);
+		timer_delete(&evt->timer);
 
 		spin_unlock_irqrestore(hostdata->host->host_lock, flags);
 		if (evt->cmnd) {
@@ -944,7 +944,7 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 			       be64_to_cpu(crq_as_u64[1]));
 	if (rc != 0) {
 		list_del(&evt_struct->list);
-		del_timer(&evt_struct->timer);
+		timer_delete(&evt_struct->timer);
 
 		/* If send_crq returns H_CLOSED, return SCSI_MLQUEUE_HOST_BUSY.
 		 * Firmware will send a CRQ with a transport event (0xFF) to
@@ -1840,7 +1840,7 @@ static void ibmvscsi_handle_crq(struct viosrp_crq *crq,
 		atomic_add(be32_to_cpu(evt_struct->xfer_iu->srp.rsp.req_lim_delta),
 			   &hostdata->request_limit);
 
-	del_timer(&evt_struct->timer);
+	timer_delete(&evt_struct->timer);
 
 	if ((crq->status != VIOSRP_OK && crq->status != VIOSRP_OK2) && evt_struct->cmnd)
 		evt_struct->cmnd->result = DID_ERROR << 16;
@@ -1860,14 +1860,16 @@ static void ibmvscsi_handle_crq(struct viosrp_crq *crq,
 }
 
 /**
- * ibmvscsi_slave_configure: Set the "allow_restart" flag for each disk.
+ * ibmvscsi_sdev_configure: Set the "allow_restart" flag for each disk.
  * @sdev:	struct scsi_device device to configure
+ * @lim:	Request queue limits
  *
  * Enable allow_restart for a device if it is a disk.  Adjust the
  * queue_depth here also as is required by the documentation for
  * struct scsi_host_template.
  */
-static int ibmvscsi_slave_configure(struct scsi_device *sdev)
+static int ibmvscsi_sdev_configure(struct scsi_device *sdev,
+				   struct queue_limits *lim)
 {
 	struct Scsi_Host *shost = sdev->host;
 	unsigned long lock_flags = 0;
@@ -2091,7 +2093,7 @@ static struct scsi_host_template driver_template = {
 	.eh_abort_handler = ibmvscsi_eh_abort_handler,
 	.eh_device_reset_handler = ibmvscsi_eh_device_reset_handler,
 	.eh_host_reset_handler = ibmvscsi_eh_host_reset_handler,
-	.slave_configure = ibmvscsi_slave_configure,
+	.sdev_configure = ibmvscsi_sdev_configure,
 	.change_queue_depth = ibmvscsi_change_queue_depth,
 	.host_reset = ibmvscsi_host_reset,
 	.cmd_per_lun = IBMVSCSI_CMDS_PER_LUN_DEFAULT,

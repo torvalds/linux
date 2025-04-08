@@ -51,7 +51,6 @@ static inline unsigned long mmap_base(unsigned long rnd,
 {
 	unsigned long gap = rlim_stack->rlim_cur;
 	unsigned long pad = stack_maxrandom_size() + stack_guard_gap;
-	unsigned long gap_min, gap_max;
 
 	/* Values close to RLIM_INFINITY can overflow. */
 	if (gap + pad > gap)
@@ -61,13 +60,7 @@ static inline unsigned long mmap_base(unsigned long rnd,
 	 * Top of mmap area (just below the process stack).
 	 * Leave at least a ~128 MB hole.
 	 */
-	gap_min = SZ_128M;
-	gap_max = (STACK_TOP / 6) * 5;
-
-	if (gap < gap_min)
-		gap = gap_min;
-	else if (gap > gap_max)
-		gap = gap_max;
+	gap = clamp(gap, SZ_128M, (STACK_TOP / 6) * 5);
 
 	return PAGE_ALIGN(STACK_TOP - gap - rnd);
 }
@@ -196,22 +189,28 @@ void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
 	}
 }
 
-static const pgprot_t protection_map[16] = {
-	[VM_NONE]					= PAGE_NONE,
-	[VM_READ]					= PAGE_RO,
-	[VM_WRITE]					= PAGE_RO,
-	[VM_WRITE | VM_READ]				= PAGE_RO,
-	[VM_EXEC]					= PAGE_RX,
-	[VM_EXEC | VM_READ]				= PAGE_RX,
-	[VM_EXEC | VM_WRITE]				= PAGE_RX,
-	[VM_EXEC | VM_WRITE | VM_READ]			= PAGE_RX,
-	[VM_SHARED]					= PAGE_NONE,
-	[VM_SHARED | VM_READ]				= PAGE_RO,
-	[VM_SHARED | VM_WRITE]				= PAGE_RW,
-	[VM_SHARED | VM_WRITE | VM_READ]		= PAGE_RW,
-	[VM_SHARED | VM_EXEC]				= PAGE_RX,
-	[VM_SHARED | VM_EXEC | VM_READ]			= PAGE_RX,
-	[VM_SHARED | VM_EXEC | VM_WRITE]		= PAGE_RWX,
-	[VM_SHARED | VM_EXEC | VM_WRITE | VM_READ]	= PAGE_RWX
-};
+static pgprot_t protection_map[16] __ro_after_init;
+
+void __init setup_protection_map(void)
+{
+	pgprot_t *pm = protection_map;
+
+	pm[VM_NONE]					= PAGE_NONE;
+	pm[VM_READ]					= PAGE_RO;
+	pm[VM_WRITE]					= PAGE_RO;
+	pm[VM_WRITE | VM_READ]				= PAGE_RO;
+	pm[VM_EXEC]					= PAGE_RX;
+	pm[VM_EXEC | VM_READ]				= PAGE_RX;
+	pm[VM_EXEC | VM_WRITE]				= PAGE_RX;
+	pm[VM_EXEC | VM_WRITE | VM_READ]		= PAGE_RX;
+	pm[VM_SHARED]					= PAGE_NONE;
+	pm[VM_SHARED | VM_READ]				= PAGE_RO;
+	pm[VM_SHARED | VM_WRITE]			= PAGE_RW;
+	pm[VM_SHARED | VM_WRITE | VM_READ]		= PAGE_RW;
+	pm[VM_SHARED | VM_EXEC]				= PAGE_RX;
+	pm[VM_SHARED | VM_EXEC | VM_READ]		= PAGE_RX;
+	pm[VM_SHARED | VM_EXEC | VM_WRITE]		= PAGE_RWX;
+	pm[VM_SHARED | VM_EXEC | VM_WRITE | VM_READ]	= PAGE_RWX;
+}
+
 DECLARE_VM_GET_PAGE_PROT

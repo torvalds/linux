@@ -14,6 +14,8 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <uapi/linux/btrfs_tree.h>
+#include "fs.h"
+#include "messages.h"
 
 struct btrfs_trans_handle;
 struct btrfs_fs_info;
@@ -402,6 +404,7 @@ struct btrfs_delayed_ref_head *btrfs_select_ref_head(
 		struct btrfs_delayed_ref_root *delayed_refs);
 void btrfs_unselect_ref_head(struct btrfs_delayed_ref_root *delayed_refs,
 			     struct btrfs_delayed_ref_head *head);
+struct btrfs_delayed_ref_node *btrfs_select_delayed_ref(struct btrfs_delayed_ref_head *head);
 
 int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info, u64 seq);
 

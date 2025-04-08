@@ -301,6 +301,7 @@ void build_unoptimized_policy_settings(enum dml_project_id project, struct dml_m
 	policy->AssumeModeSupportAtMaxPwrStateEvenDRAMClockChangeNotSupported = true; // TOREVIEW: What does this mean?
 	policy->AssumeModeSupportAtMaxPwrStateEvenFClockChangeNotSupported = true; // TOREVIEW: What does this mean?
 	if (project == dml_project_dcn35 ||
+		project == dml_project_dcn36 ||
 		project == dml_project_dcn351) {
 		policy->DCCProgrammingAssumesScanDirectionUnknownFinal = false;
 		policy->EnhancedPrefetchScheduleAccelerationFinal = 0;

@@ -1,5 +1,5 @@
 #!/bin/bash
-# perf script task-analyzer tests
+# perf script task-analyzer tests (exclusive)
 # SPDX-License-Identifier: GPL-2.0
 
 tmpdir=$(mktemp -d /tmp/perf-script-task-analyzer-XXXXX)

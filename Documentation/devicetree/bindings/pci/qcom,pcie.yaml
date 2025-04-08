@@ -32,6 +32,11 @@ properties:
           - qcom,pcie-sdm845
           - qcom,pcie-sdx55
       - items:
+          - enum:
+              - qcom,pcie-ipq5332
+              - qcom,pcie-ipq5424
+          - const: qcom,pcie-ipq9574
+      - items:
           - const: qcom,pcie-msm8998
           - const: qcom,pcie-msm8996
 
@@ -45,11 +50,11 @@ properties:
 
   interrupts:
     minItems: 1
-    maxItems: 8
+    maxItems: 9
 
   interrupt-names:
     minItems: 1
-    maxItems: 8
+    maxItems: 9
 
   iommu-map:
     minItems: 1
@@ -439,6 +444,7 @@ allOf:
         interrupts:
           minItems: 8
         interrupt-names:
+          minItems: 8
           items:
             - const: msi0
             - const: msi1
@@ -448,6 +454,7 @@ allOf:
             - const: msi5
             - const: msi6
             - const: msi7
+            - const: global
 
   - if:
       properties:
@@ -595,6 +602,7 @@ allOf:
         - properties:
             interrupts:
               minItems: 8
+              maxItems: 8
             interrupt-names:
               items:
                 - const: msi0

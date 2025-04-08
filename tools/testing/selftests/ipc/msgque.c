@@ -194,7 +194,7 @@ int fill_msgque(struct msgque_data *msgque)
 
 int main(int argc, char **argv)
 {
-	int msg, pid, err;
+	int err;
 	struct msgque_data msgque;
 
 	if (getuid() != 0)

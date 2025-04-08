@@ -112,7 +112,7 @@ static int w1_f1C_read(struct w1_slave *sl, int addr, int len, char *data)
 }
 
 static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
-			   struct bin_attribute *bin_attr, char *buf,
+			   const struct bin_attribute *bin_attr, char *buf,
 			   loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
@@ -223,7 +223,7 @@ static int w1_f1C_write(struct w1_slave *sl, int addr, int len, const u8 *data)
 }
 
 static ssize_t eeprom_write(struct file *filp, struct kobject *kobj,
-			    struct bin_attribute *bin_attr, char *buf,
+			    const struct bin_attribute *bin_attr, char *buf,
 			    loff_t off, size_t count)
 
 {
@@ -276,10 +276,10 @@ out_up:
 	return count;
 }
 
-static BIN_ATTR_RW(eeprom, W1_EEPROM_SIZE);
+static const BIN_ATTR_RW(eeprom, W1_EEPROM_SIZE);
 
 static ssize_t pio_read(struct file *filp, struct kobject *kobj,
-			struct bin_attribute *bin_attr, char *buf, loff_t off,
+			const struct bin_attribute *bin_attr, char *buf, loff_t off,
 			size_t count)
 
 {
@@ -298,8 +298,8 @@ static ssize_t pio_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t pio_write(struct file *filp, struct kobject *kobj,
-			 struct bin_attribute *bin_attr, char *buf, loff_t off,
-			 size_t count)
+			 const struct bin_attribute *bin_attr, char *buf,
+			 loff_t off, size_t count)
 
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
@@ -337,7 +337,7 @@ static ssize_t pio_write(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static BIN_ATTR_RW(pio, 1);
+static const BIN_ATTR_RW(pio, 1);
 
 static ssize_t crccheck_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
@@ -363,7 +363,7 @@ static struct attribute *w1_f1C_attrs[] = {
 	NULL,
 };
 
-static struct bin_attribute *w1_f1C_bin_attrs[] = {
+static const struct bin_attribute *const w1_f1C_bin_attrs[] = {
 	&bin_attr_eeprom,
 	&bin_attr_pio,
 	NULL,
@@ -371,7 +371,7 @@ static struct bin_attribute *w1_f1C_bin_attrs[] = {
 
 static const struct attribute_group w1_f1C_group = {
 	.attrs		= w1_f1C_attrs,
-	.bin_attrs	= w1_f1C_bin_attrs,
+	.bin_attrs_new	= w1_f1C_bin_attrs,
 };
 
 static const struct attribute_group *w1_f1C_groups[] = {

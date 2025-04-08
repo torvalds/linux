@@ -26,8 +26,6 @@ FILES=(
   "include/linux/hash.h"
   "include/linux/list-sort.h"
   "include/uapi/linux/hw_breakpoint.h"
-  "arch/x86/include/asm/disabled-features.h"
-  "arch/x86/include/asm/required-features.h"
   "arch/x86/include/asm/cpufeatures.h"
   "arch/x86/include/asm/inat_types.h"
   "arch/x86/include/asm/emulate_prefix.h"
@@ -71,6 +69,7 @@ FILES=(
   "include/uapi/asm-generic/ioctls.h"
   "include/uapi/asm-generic/mman-common.h"
   "include/uapi/asm-generic/unistd.h"
+  "scripts/syscall.tbl"
 )
 
 declare -a SYNC_CHECK_FILES
@@ -201,6 +200,14 @@ check_2 tools/perf/arch/x86/entry/syscalls/syscall_64.tbl arch/x86/entry/syscall
 check_2 tools/perf/arch/powerpc/entry/syscalls/syscall.tbl arch/powerpc/kernel/syscalls/syscall.tbl
 check_2 tools/perf/arch/s390/entry/syscalls/syscall.tbl arch/s390/kernel/syscalls/syscall.tbl
 check_2 tools/perf/arch/mips/entry/syscalls/syscall_n64.tbl arch/mips/kernel/syscalls/syscall_n64.tbl
+check_2 tools/perf/arch/arm/entry/syscalls/syscall.tbl arch/arm/tools/syscall.tbl
+check_2 tools/perf/arch/sh/entry/syscalls/syscall.tbl arch/sh/kernel/syscalls/syscall.tbl
+check_2 tools/perf/arch/sparc/entry/syscalls/syscall.tbl arch/sparc/kernel/syscalls/syscall.tbl
+check_2 tools/perf/arch/xtensa/entry/syscalls/syscall.tbl arch/xtensa/kernel/syscalls/syscall.tbl
+check_2 tools/perf/arch/alpha/entry/syscalls/syscall.tbl arch/alpha/entry/syscalls/syscall.tbl
+check_2 tools/perf/arch/parisc/entry/syscalls/syscall.tbl arch/parisc/entry/syscalls/syscall.tbl
+check_2 tools/perf/arch/arm64/entry/syscalls/syscall_32.tbl arch/arm64/entry/syscalls/syscall_32.tbl
+check_2 tools/perf/arch/arm64/entry/syscalls/syscall_64.tbl arch/arm64/entry/syscalls/syscall_64.tbl
 
 for i in "${BEAUTY_FILES[@]}"
 do

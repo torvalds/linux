@@ -226,10 +226,11 @@ aoedev_downdev(struct aoedev *d)
 	/* fast fail all pending I/O */
 	if (d->blkq) {
 		/* UP is cleared, freeze+quiesce to insure all are errored */
-		blk_mq_freeze_queue(d->blkq);
+		unsigned int memflags = blk_mq_freeze_queue(d->blkq);
+
 		blk_mq_quiesce_queue(d->blkq);
 		blk_mq_unquiesce_queue(d->blkq);
-		blk_mq_unfreeze_queue(d->blkq);
+		blk_mq_unfreeze_queue(d->blkq, memflags);
 	}
 
 	if (d->gd)
@@ -273,7 +274,7 @@ freedev(struct aoedev *d)
 	if (!freeing)
 		return;
 
-	del_timer_sync(&d->timer);
+	timer_delete_sync(&d->timer);
 	if (d->gd) {
 		aoedisk_rm_debugfs(d);
 		del_gendisk(d->gd);

@@ -148,6 +148,8 @@
 
 #define SCM_TS_OPT_ID		81
 
+#define SO_RCVPRIORITY		82
+
 #if !defined(__KERNEL__)
 
 #if __BITS_PER_LONG == 64

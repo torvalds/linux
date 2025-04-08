@@ -56,7 +56,7 @@ enum hs_plus_endpoint_addresses {
 };
 
 struct ni_usb_urb_ctx {
-	struct semaphore complete;
+	struct completion complete;
 	unsigned timed_out : 1;
 };
 

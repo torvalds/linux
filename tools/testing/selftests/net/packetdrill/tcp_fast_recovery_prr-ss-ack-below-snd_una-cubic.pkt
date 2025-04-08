@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test PRR-slowstart implementation.
+// In this variant we verify that the sender uses SACK info on an ACK
+// below snd_una.
+
+// Set up config.
+`./defaults.sh`
+
+// Establish a connection.
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 8>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+// RTT 10ms
+ +.01 < . 1:1(0) ack 1 win 320
+   +0 accept(3, ..., ...) = 4
+
+// Send 10 data segments.
+   +0 write(4, ..., 10000) = 10000
+   +0 > P. 1:10001(10000) ack 1
+
+// Lost packet 1:1001,4001:5001,7001:8001.
+ +.01 < . 1:1(0) ack 1 win 320 <sack 1001:2001,nop,nop>
+   +0 < . 1:1(0) ack 1 win 320 <sack 1001:3001,nop,nop>
+   +0 < . 1:1(0) ack 1 win 320 <sack 1001:3001 8001:9001,nop,nop>
+   +0 > . 1:1001(1000) ack 1
+
++.012 < . 1:1(0) ack 4001 win 320 <sack 8001:9001,nop,nop>
+   +0 > . 4001:7001(3000) ack 1
+
+   +0 write(4, ..., 10000) = 10000
+
+// The following ACK was reordered - delayed so that it arrives with
+// an ACK field below snd_una. Here we check that the newly-SACKed
+// 2MSS at 5001:7001 cause us to send out 2 more MSS.
++.002 < . 1:1(0) ack 3001 win 320 <sack 5001:7001,nop,nop>
+   +0 > . 7001:8001(1000) ack 1
+   +0 > . 10001:11001(1000) ack 1

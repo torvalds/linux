@@ -452,7 +452,6 @@
 		irq-gpio = <&tlmm 125 GPIO_TRANSITORY>;
 		touchscreen-size-x = <1080>;
 		touchscreen-size-y = <2160>;
-		focaltech,max-touch-number = <5>;
 	};
 };
 

@@ -36,7 +36,6 @@ struct img_ascii_lcd_config {
  * @base: the base address of the LCD registers
  * @regmap: the regmap through which LCD registers are accessed
  * @offset: the offset within regmap to the start of the LCD registers
- * @cfg: pointer to the LCD model configuration
  */
 struct img_ascii_lcd_ctx {
 	struct linedisp linedisp;
@@ -45,7 +44,6 @@ struct img_ascii_lcd_ctx {
 		struct regmap *regmap;
 	};
 	u32 offset;
-	const struct img_ascii_lcd_config *cfg;
 };
 
 /*
@@ -71,7 +69,7 @@ static void boston_update(struct linedisp *linedisp)
 #endif
 }
 
-static struct img_ascii_lcd_config boston_config = {
+static const struct img_ascii_lcd_config boston_config = {
 	.num_chars = 8,
 	.ops = {
 		.update = boston_update,
@@ -100,7 +98,7 @@ static void malta_update(struct linedisp *linedisp)
 		pr_err_ratelimited("Failed to update LCD display: %d\n", err);
 }
 
-static struct img_ascii_lcd_config malta_config = {
+static const struct img_ascii_lcd_config malta_config = {
 	.num_chars = 8,
 	.external_regmap = true,
 	.ops = {
@@ -202,7 +200,7 @@ static void sead3_update(struct linedisp *linedisp)
 		pr_err_ratelimited("Failed to update LCD display: %d\n", err);
 }
 
-static struct img_ascii_lcd_config sead3_config = {
+static const struct img_ascii_lcd_config sead3_config = {
 	.num_chars = 16,
 	.external_regmap = true,
 	.ops = {

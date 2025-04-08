@@ -316,6 +316,9 @@ extern void init_wait_entry(struct wait_queue_entry *wq_entry, int flags);
 		}								\
 										\
 		cmd;								\
+										\
+		if (condition)							\
+			break;							\
 	}									\
 	finish_wait(&wq_head, &__wq_entry);					\
 __out:	__ret;									\
@@ -1207,13 +1210,15 @@ int autoremove_wake_function(struct wait_queue_entry *wq_entry, unsigned mode, i
 
 #define DEFINE_WAIT(name) DEFINE_WAIT_FUNC(name, autoremove_wake_function)
 
-#define init_wait(wait)								\
+#define init_wait_func(wait, function)						\
 	do {									\
 		(wait)->private = current;					\
-		(wait)->func = autoremove_wake_function;			\
+		(wait)->func = function;					\
 		INIT_LIST_HEAD(&(wait)->entry);					\
 		(wait)->flags = 0;						\
 	} while (0)
+
+#define init_wait(wait)	init_wait_func(wait, autoremove_wake_function)
 
 typedef int (*task_call_f)(struct task_struct *p, void *arg);
 extern int task_call_func(struct task_struct *p, task_call_f func, void *arg);

@@ -628,12 +628,12 @@ static inline int is_prot_virt_host(void)
 }
 
 int uv_pin_shared(unsigned long paddr);
-int gmap_make_secure(struct gmap *gmap, unsigned long gaddr, void *uvcb);
-int gmap_destroy_page(struct gmap *gmap, unsigned long gaddr);
 int uv_destroy_folio(struct folio *folio);
 int uv_destroy_pte(pte_t pte);
 int uv_convert_from_secure_pte(pte_t pte);
-int gmap_convert_to_secure(struct gmap *gmap, unsigned long gaddr);
+int make_hva_secure(struct mm_struct *mm, unsigned long hva, struct uv_cb_header *uvcb);
+int uv_convert_from_secure(unsigned long paddr);
+int uv_convert_from_secure_folio(struct folio *folio);
 
 void setup_uv(void);
 

@@ -49,26 +49,26 @@ How do I use the magic SysRq key?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 On x86
-	You press the key combo :kbd:`ALT-SysRq-<command key>`.
+	You press the key combo `ALT-SysRq-<command key>`.
 
 	.. note::
 	   Some
            keyboards may not have a key labeled 'SysRq'. The 'SysRq' key is
            also known as the 'Print Screen' key. Also some keyboards cannot
 	   handle so many keys being pressed at the same time, so you might
-	   have better luck with press :kbd:`Alt`, press :kbd:`SysRq`,
-	   release :kbd:`SysRq`, press :kbd:`<command key>`, release everything.
+	   have better luck with press `Alt`, press `SysRq`,
+	   release `SysRq`, press `<command key>`, release everything.
 
 On SPARC
-	You press :kbd:`ALT-STOP-<command key>`, I believe.
+	You press `ALT-STOP-<command key>`, I believe.
 
 On the serial console (PC style standard serial ports only)
         You send a ``BREAK``, then within 5 seconds a command key. Sending
         ``BREAK`` twice is interpreted as a normal BREAK.
 
 On PowerPC
-	Press :kbd:`ALT - Print Screen` (or :kbd:`F13`) - :kbd:`<command key>`.
-        :kbd:`Print Screen` (or :kbd:`F13`) - :kbd:`<command key>` may suffice.
+	Press `ALT - Print Screen` (or `F13`) - `<command key>`.
+        `Print Screen` (or `F13`) - `<command key>` may suffice.
 
 On other
 	If you know of the key combos for other architectures, please
@@ -88,7 +88,7 @@ On all
 
 		echo _reisub > /proc/sysrq-trigger
 
-The :kbd:`<command key>` is case sensitive.
+The `<command key>` is case sensitive.
 
 What are the 'command' keys?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -225,9 +225,9 @@ Sometimes SysRq seems to get 'stuck' after using it, what can I do?
 
 When this happens, try tapping shift, alt and control on both sides of the
 keyboard, and hitting an invalid sysrq sequence again. (i.e., something like
-:kbd:`alt-sysrq-z`).
+`alt-sysrq-z`).
 
-Switching to another virtual console (:kbd:`ALT+Fn`) and then back again
+Switching to another virtual console (`ALT+Fn`) and then back again
 should also help.
 
 I hit SysRq, but nothing seems to happen, what's wrong?
@@ -290,7 +290,7 @@ exception the header line from the sysrq command is passed to all console
 consumers as if the current loglevel was maximum.  If only the header
 is emitted it is almost certain that the kernel loglevel is too low.
 Should you require the output on the console channel then you will need
-to temporarily up the console loglevel using :kbd:`alt-sysrq-8` or::
+to temporarily up the console loglevel using `alt-sysrq-8` or::
 
     echo 8 > /proc/sysrq-trigger
 

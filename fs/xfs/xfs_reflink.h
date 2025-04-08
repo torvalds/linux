@@ -25,7 +25,7 @@ xfs_can_free_cowblocks(struct xfs_inode *ip)
 	return true;
 }
 
-extern int xfs_reflink_trim_around_shared(struct xfs_inode *ip,
+int xfs_reflink_trim_around_shared(struct xfs_inode *ip,
 		struct xfs_bmbt_irec *irec, bool *shared);
 int xfs_bmap_trim_cow(struct xfs_inode *ip, struct xfs_bmbt_irec *imap,
 		bool *shared);
@@ -61,5 +61,7 @@ extern int xfs_reflink_remap_blocks(struct xfs_inode *src, loff_t pos_in,
 		loff_t *remapped);
 extern int xfs_reflink_update_dest(struct xfs_inode *dest, xfs_off_t newlen,
 		xfs_extlen_t cowextsize, unsigned int remap_flags);
+
+bool xfs_reflink_supports_rextsize(struct xfs_mount *mp, unsigned int rextsize);
 
 #endif /* __XFS_REFLINK_H */

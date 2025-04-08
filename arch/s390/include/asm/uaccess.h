@@ -13,6 +13,7 @@
 /*
  * User space memory access functions
  */
+#include <linux/pgtable.h>
 #include <asm/asm-extable.h>
 #include <asm/processor.h>
 #include <asm/extable.h>
@@ -22,16 +23,70 @@
 
 void debug_user_asce(int exit);
 
-unsigned long __must_check
-raw_copy_from_user(void *to, const void __user *from, unsigned long n);
+#ifdef CONFIG_KMSAN
+#define uaccess_kmsan_or_inline noinline __maybe_unused __no_sanitize_memory
+#else
+#define uaccess_kmsan_or_inline __always_inline
+#endif
 
-unsigned long __must_check
-raw_copy_to_user(void __user *to, const void *from, unsigned long n);
-
-#ifndef CONFIG_KASAN
 #define INLINE_COPY_FROM_USER
 #define INLINE_COPY_TO_USER
-#endif
+
+static uaccess_kmsan_or_inline __must_check unsigned long
+raw_copy_from_user(void *to, const void __user *from, unsigned long size)
+{
+	unsigned long osize;
+	int cc;
+
+	while (1) {
+		osize = size;
+		asm_inline volatile(
+			"	lhi	%%r0,%[spec]\n"
+			"0:	mvcos	%[to],%[from],%[size]\n"
+			"1:	nopr	%%r7\n"
+			CC_IPM(cc)
+			EX_TABLE_UA_MVCOS_FROM(0b, 0b)
+			EX_TABLE_UA_MVCOS_FROM(1b, 0b)
+			: CC_OUT(cc, cc), [size] "+d" (size), [to] "=Q" (*(char *)to)
+			: [spec] "I" (0x81), [from] "Q" (*(const char __user *)from)
+			: CC_CLOBBER_LIST("memory", "0"));
+		if (__builtin_constant_p(osize) && osize <= 4096)
+			return osize - size;
+		if (likely(CC_TRANSFORM(cc) == 0))
+			return osize - size;
+		size -= 4096;
+		to += 4096;
+		from += 4096;
+	}
+}
+
+static uaccess_kmsan_or_inline __must_check unsigned long
+raw_copy_to_user(void __user *to, const void *from, unsigned long size)
+{
+	unsigned long osize;
+	int cc;
+
+	while (1) {
+		osize = size;
+		asm_inline volatile(
+			"	llilh	%%r0,%[spec]\n"
+			"0:	mvcos	%[to],%[from],%[size]\n"
+			"1:	nopr	%%r7\n"
+			CC_IPM(cc)
+			EX_TABLE_UA_MVCOS_TO(0b, 0b)
+			EX_TABLE_UA_MVCOS_TO(1b, 0b)
+			: CC_OUT(cc, cc), [size] "+d" (size), [to] "=Q" (*(char __user *)to)
+			: [spec] "I" (0x81), [from] "Q" (*(const char *)from)
+			: CC_CLOBBER_LIST("memory", "0"));
+		if (__builtin_constant_p(osize) && osize <= 4096)
+			return osize - size;
+		if (likely(CC_TRANSFORM(cc) == 0))
+			return osize - size;
+		size -= 4096;
+		to += 4096;
+		from += 4096;
+	}
+}
 
 unsigned long __must_check
 _copy_from_user_key(void *to, const void __user *from, unsigned long n, unsigned long key);
@@ -55,63 +110,65 @@ copy_to_user_key(void __user *to, const void *from, unsigned long n, unsigned lo
 	return n;
 }
 
-union oac {
-	unsigned int val;
-	struct {
-		struct {
-			unsigned short key : 4;
-			unsigned short	   : 4;
-			unsigned short as  : 2;
-			unsigned short	   : 4;
-			unsigned short k   : 1;
-			unsigned short a   : 1;
-		} oac1;
-		struct {
-			unsigned short key : 4;
-			unsigned short	   : 4;
-			unsigned short as  : 2;
-			unsigned short	   : 4;
-			unsigned short k   : 1;
-			unsigned short a   : 1;
-		} oac2;
-	};
-};
-
 int __noreturn __put_user_bad(void);
 
-#ifdef CONFIG_KMSAN
-#define get_put_user_noinstr_attributes \
-	noinline __maybe_unused __no_sanitize_memory
-#else
-#define get_put_user_noinstr_attributes __always_inline
-#endif
+#ifdef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
 
-#define DEFINE_PUT_USER(type)						\
-static get_put_user_noinstr_attributes int				\
+#define DEFINE_PUT_USER_NOINSTR(type)					\
+static uaccess_kmsan_or_inline int					\
 __put_user_##type##_noinstr(unsigned type __user *to,			\
 			    unsigned type *from,			\
 			    unsigned long size)				\
 {									\
-	union oac __oac_spec = {					\
-		.oac1.as = PSW_BITS_AS_SECONDARY,			\
-		.oac1.a = 1,						\
-	};								\
+	asm goto(							\
+		"	llilh	%%r0,%[spec]\n"				\
+		"0:	mvcos	%[to],%[from],%[size]\n"		\
+		"1:	nopr	%%r7\n"					\
+		EX_TABLE(0b, %l[Efault])				\
+		EX_TABLE(1b, %l[Efault])				\
+		: [to] "+Q" (*to)					\
+		: [size] "d" (size), [from] "Q" (*from),		\
+		  [spec] "I" (0x81)					\
+		: "cc", "0"						\
+		: Efault						\
+		);							\
+	return 0;							\
+Efault:									\
+	return -EFAULT;							\
+}
+
+#else /* CONFIG_CC_HAS_ASM_GOTO_OUTPUT */
+
+#define DEFINE_PUT_USER_NOINSTR(type)					\
+static uaccess_kmsan_or_inline int					\
+__put_user_##type##_noinstr(unsigned type __user *to,			\
+			    unsigned type *from,			\
+			    unsigned long size)				\
+{									\
 	int rc;								\
 									\
-	asm volatile(							\
-		"	lr	0,%[spec]\n"				\
-		"0:	mvcos	%[_to],%[_from],%[_size]\n"		\
-		"1:	xr	%[rc],%[rc]\n"				\
+	asm_inline volatile(						\
+		"	llilh	%%r0,%[spec]\n"				\
+		"0:	mvcos	%[to],%[from],%[size]\n"		\
+		"1:	lhi	%[rc],0\n"				\
 		"2:\n"							\
-		EX_TABLE_UA_STORE(0b, 2b, %[rc])			\
-		EX_TABLE_UA_STORE(1b, 2b, %[rc])			\
-		: [rc] "=&d" (rc), [_to] "+Q" (*(to))			\
-		: [_size] "d" (size), [_from] "Q" (*(from)),		\
-		  [spec] "d" (__oac_spec.val)				\
+		EX_TABLE_UA_FAULT(0b, 2b, %[rc])			\
+		EX_TABLE_UA_FAULT(1b, 2b, %[rc])			\
+		: [rc] "=d" (rc), [to] "+Q" (*to)			\
+		: [size] "d" (size), [from] "Q" (*from),		\
+		  [spec] "I" (0x81)					\
 		: "cc", "0");						\
 	return rc;							\
-}									\
-									\
+}
+
+#endif /* CONFIG_CC_HAS_ASM_GOTO_OUTPUT */
+
+DEFINE_PUT_USER_NOINSTR(char);
+DEFINE_PUT_USER_NOINSTR(short);
+DEFINE_PUT_USER_NOINSTR(int);
+DEFINE_PUT_USER_NOINSTR(long);
+
+#define DEFINE_PUT_USER(type)						\
 static __always_inline int						\
 __put_user_##type(unsigned type __user *to, unsigned type *from,	\
 		  unsigned long size)					\
@@ -128,69 +185,111 @@ DEFINE_PUT_USER(short);
 DEFINE_PUT_USER(int);
 DEFINE_PUT_USER(long);
 
-static __always_inline int __put_user_fn(void *x, void __user *ptr, unsigned long size)
-{
-	int rc;
+#define __put_user(x, ptr)						\
+({									\
+	__typeof__(*(ptr)) __x = (x);					\
+	int __prc;							\
+									\
+	__chk_user_ptr(ptr);						\
+	switch (sizeof(*(ptr))) {					\
+	case 1:								\
+		__prc = __put_user_char((unsigned char __user *)(ptr),	\
+					(unsigned char *)&__x,		\
+					sizeof(*(ptr)));		\
+		break;							\
+	case 2:								\
+		__prc = __put_user_short((unsigned short __user *)(ptr),\
+					 (unsigned short *)&__x,	\
+					 sizeof(*(ptr)));		\
+		break;							\
+	case 4:								\
+		__prc = __put_user_int((unsigned int __user *)(ptr),	\
+				       (unsigned int *)&__x,		\
+				       sizeof(*(ptr)));			\
+		break;							\
+	case 8:								\
+		__prc = __put_user_long((unsigned long __user *)(ptr),	\
+					(unsigned long *)&__x,		\
+					sizeof(*(ptr)));		\
+		break;							\
+	default:							\
+		__prc = __put_user_bad();				\
+		break;							\
+	}								\
+	__builtin_expect(__prc, 0);					\
+})
 
-	switch (size) {
-	case 1:
-		rc = __put_user_char((unsigned char __user *)ptr,
-				     (unsigned char *)x,
-				     size);
-		break;
-	case 2:
-		rc = __put_user_short((unsigned short __user *)ptr,
-				      (unsigned short *)x,
-				      size);
-		break;
-	case 4:
-		rc = __put_user_int((unsigned int __user *)ptr,
-				    (unsigned int *)x,
-				    size);
-		break;
-	case 8:
-		rc = __put_user_long((unsigned long __user *)ptr,
-				     (unsigned long *)x,
-				     size);
-		break;
-	default:
-		__put_user_bad();
-		break;
-	}
-	return rc;
-}
+#define put_user(x, ptr)						\
+({									\
+	might_fault();							\
+	__put_user(x, ptr);						\
+})
 
 int __noreturn __get_user_bad(void);
 
-#define DEFINE_GET_USER(type)						\
-static get_put_user_noinstr_attributes int				\
+#ifdef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
+
+#define DEFINE_GET_USER_NOINSTR(type)					\
+static uaccess_kmsan_or_inline int					\
 __get_user_##type##_noinstr(unsigned type *to,				\
-			    unsigned type __user *from,			\
+			    const unsigned type __user *from,		\
 			    unsigned long size)				\
 {									\
-	union oac __oac_spec = {					\
-		.oac2.as = PSW_BITS_AS_SECONDARY,			\
-		.oac2.a = 1,						\
-	};								\
+	asm goto(							\
+		"	lhi	%%r0,%[spec]\n"				\
+		"0:	mvcos	%[to],%[from],%[size]\n"		\
+		"1:	nopr	%%r7\n"					\
+		EX_TABLE(0b, %l[Efault])				\
+		EX_TABLE(1b, %l[Efault])				\
+		: [to] "=Q" (*to)					\
+		: [size] "d" (size), [from] "Q" (*from),		\
+		  [spec] "I" (0x81)					\
+		: "cc", "0"						\
+		: Efault						\
+		);							\
+	return 0;							\
+Efault:									\
+	*to = 0;							\
+	return -EFAULT;							\
+}
+
+#else /* CONFIG_CC_HAS_ASM_GOTO_OUTPUT */
+
+#define DEFINE_GET_USER_NOINSTR(type)					\
+static uaccess_kmsan_or_inline int					\
+__get_user_##type##_noinstr(unsigned type *to,				\
+			    const unsigned type __user *from,		\
+			    unsigned long size)				\
+{									\
 	int rc;								\
 									\
-	asm volatile(							\
-		"	lr	0,%[spec]\n"				\
-		"0:	mvcos	0(%[_to]),%[_from],%[_size]\n"		\
-		"1:	xr	%[rc],%[rc]\n"				\
+	asm_inline volatile(						\
+		"	lhi	%%r0,%[spec]\n"				\
+		"0:	mvcos	%[to],%[from],%[size]\n"		\
+		"1:	lhi	%[rc],0\n"				\
 		"2:\n"							\
-		EX_TABLE_UA_LOAD_MEM(0b, 2b, %[rc], %[_to], %[_ksize])	\
-		EX_TABLE_UA_LOAD_MEM(1b, 2b, %[rc], %[_to], %[_ksize])	\
-		: [rc] "=&d" (rc), "=Q" (*(to))				\
-		: [_size] "d" (size), [_from] "Q" (*(from)),		\
-		  [spec] "d" (__oac_spec.val), [_to] "a" (to),		\
-		  [_ksize] "K" (size)					\
+		EX_TABLE_UA_FAULT(0b, 2b, %[rc])			\
+		EX_TABLE_UA_FAULT(1b, 2b, %[rc])			\
+		: [rc] "=d" (rc), [to] "=Q" (*to)			\
+		: [size] "d" (size), [from] "Q" (*from),		\
+		  [spec] "I" (0x81)					\
 		: "cc", "0");						\
+	if (likely(!rc))						\
+		return 0;						\
+	*to = 0;							\
 	return rc;							\
-}									\
-									\
+}
+
+#endif /* CONFIG_CC_HAS_ASM_GOTO_OUTPUT */
+
+DEFINE_GET_USER_NOINSTR(char);
+DEFINE_GET_USER_NOINSTR(short);
+DEFINE_GET_USER_NOINSTR(int);
+DEFINE_GET_USER_NOINSTR(long);
+
+#define DEFINE_GET_USER(type)						\
 static __always_inline int						\
-__get_user_##type(unsigned type *to, unsigned type __user *from,	\
+__get_user_##type(unsigned type *to, const unsigned type __user *from,	\
 		  unsigned long size)					\
 {									\
 	int rc;								\
@@ -205,107 +304,50 @@ DEFINE_GET_USER(short);
 DEFINE_GET_USER(int);
 DEFINE_GET_USER(long);
 
-static __always_inline int __get_user_fn(void *x, const void __user *ptr, unsigned long size)
-{
-	int rc;
-
-	switch (size) {
-	case 1:
-		rc = __get_user_char((unsigned char *)x,
-				     (unsigned char __user *)ptr,
-				     size);
-		break;
-	case 2:
-		rc = __get_user_short((unsigned short *)x,
-				      (unsigned short __user *)ptr,
-				      size);
-		break;
-	case 4:
-		rc = __get_user_int((unsigned int *)x,
-				    (unsigned int __user *)ptr,
-				    size);
-		break;
-	case 8:
-		rc = __get_user_long((unsigned long *)x,
-				     (unsigned long __user *)ptr,
-				     size);
-		break;
-	default:
-		__get_user_bad();
-		break;
-	}
-	return rc;
-}
-
-/*
- * These are the main single-value transfer routines.  They automatically
- * use the right size if we just have the right pointer type.
- */
-#define __put_user(x, ptr)						\
-({									\
-	__typeof__(*(ptr)) __x = (x);					\
-	int __pu_err = -EFAULT;						\
-									\
-	__chk_user_ptr(ptr);						\
-	switch (sizeof(*(ptr))) {					\
-	case 1:								\
-	case 2:								\
-	case 4:								\
-	case 8:								\
-		__pu_err = __put_user_fn(&__x, ptr, sizeof(*(ptr)));	\
-		break;							\
-	default:							\
-		__put_user_bad();					\
-		break;							\
-	}								\
-	__builtin_expect(__pu_err, 0);					\
-})
-
-#define put_user(x, ptr)						\
-({									\
-	might_fault();							\
-	__put_user(x, ptr);						\
-})
-
 #define __get_user(x, ptr)						\
 ({									\
-	int __gu_err = -EFAULT;						\
+	const __user void *____guptr = (ptr);				\
+	int __grc;							\
 									\
 	__chk_user_ptr(ptr);						\
 	switch (sizeof(*(ptr))) {					\
 	case 1: {							\
+		const unsigned char __user *__guptr = ____guptr;	\
 		unsigned char __x;					\
 									\
-		__gu_err = __get_user_fn(&__x, ptr, sizeof(*(ptr)));	\
+		__grc = __get_user_char(&__x, __guptr, sizeof(*(ptr)));	\
 		(x) = *(__force __typeof__(*(ptr)) *)&__x;		\
 		break;							\
 	};								\
 	case 2: {							\
+		const unsigned short __user *__guptr = ____guptr;	\
 		unsigned short __x;					\
 									\
-		__gu_err = __get_user_fn(&__x, ptr, sizeof(*(ptr)));	\
+		__grc = __get_user_short(&__x, __guptr, sizeof(*(ptr)));\
 		(x) = *(__force __typeof__(*(ptr)) *)&__x;		\
 		break;							\
 	};								\
 	case 4: {							\
+		const unsigned int __user *__guptr = ____guptr;		\
 		unsigned int __x;					\
 									\
-		__gu_err = __get_user_fn(&__x, ptr, sizeof(*(ptr)));	\
+		__grc = __get_user_int(&__x, __guptr, sizeof(*(ptr)));	\
 		(x) = *(__force __typeof__(*(ptr)) *)&__x;		\
 		break;							\
 	};								\
 	case 8: {							\
+		const unsigned long __user *__guptr = ____guptr;	\
 		unsigned long __x;					\
 									\
-		__gu_err = __get_user_fn(&__x, ptr, sizeof(*(ptr)));	\
+		__grc = __get_user_long(&__x, __guptr, sizeof(*(ptr)));	\
 		(x) = *(__force __typeof__(*(ptr)) *)&__x;		\
 		break;							\
 	};								\
 	default:							\
-		__get_user_bad();					\
+		__grc = __get_user_bad();				\
 		break;							\
 	}								\
-	__builtin_expect(__gu_err, 0);					\
+	__builtin_expect(__grc, 0);					\
 })
 
 #define get_user(x, ptr)						\
@@ -321,12 +363,34 @@ long __must_check strncpy_from_user(char *dst, const char __user *src, long coun
 
 long __must_check strnlen_user(const char __user *src, long count);
 
-/*
- * Zero Userspace
- */
-unsigned long __must_check __clear_user(void __user *to, unsigned long size);
+static uaccess_kmsan_or_inline __must_check unsigned long
+__clear_user(void __user *to, unsigned long size)
+{
+	unsigned long osize;
+	int cc;
 
-static inline unsigned long __must_check clear_user(void __user *to, unsigned long n)
+	while (1) {
+		osize = size;
+		asm_inline volatile(
+			"	llilh	%%r0,%[spec]\n"
+			"0:	mvcos	%[to],%[from],%[size]\n"
+			"1:	nopr	%%r7\n"
+			CC_IPM(cc)
+			EX_TABLE_UA_MVCOS_TO(0b, 0b)
+			EX_TABLE_UA_MVCOS_TO(1b, 0b)
+			: CC_OUT(cc, cc), [size] "+d" (size), [to] "=Q" (*(char __user *)to)
+			: [spec] "I" (0x81), [from] "Q" (*(const char *)empty_zero_page)
+			: CC_CLOBBER_LIST("memory", "0"));
+		if (__builtin_constant_p(osize) && osize <= 4096)
+			return osize - size;
+		if (CC_TRANSFORM(cc) == 0)
+			return osize - size;
+		size -= 4096;
+		to += 4096;
+	}
+}
+
+static __always_inline unsigned long __must_check clear_user(void __user *to, unsigned long n)
 {
 	might_fault();
 	return __clear_user(to, n);
@@ -341,108 +405,70 @@ static inline void *s390_kernel_write(void *dst, const void *src, size_t size)
 	return __s390_kernel_write(dst, src, size);
 }
 
-int __noreturn __put_kernel_bad(void);
+void __noreturn __mvc_kernel_nofault_bad(void);
 
-#define __put_kernel_asm(val, to, insn)					\
-({									\
-	int __rc;							\
-									\
-	asm volatile(							\
-		"0:   " insn "  %[_val],%[_to]\n"			\
-		"1:	xr	%[rc],%[rc]\n"				\
-		"2:\n"							\
-		EX_TABLE_UA_STORE(0b, 2b, %[rc])			\
-		EX_TABLE_UA_STORE(1b, 2b, %[rc])			\
-		: [rc] "=d" (__rc), [_to] "+Q" (*(to))			\
-		: [_val] "d" (val)					\
-		: "cc");						\
-	__rc;								\
-})
+#if defined(CONFIG_CC_HAS_ASM_GOTO_OUTPUT) && defined(CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS)
 
-#define __put_kernel_nofault(dst, src, type, err_label)			\
+#define __mvc_kernel_nofault(dst, src, type, err_label)			\
 do {									\
-	unsigned long __x = (unsigned long)(*((type *)(src)));		\
-	int __pk_err;							\
+	switch (sizeof(type)) {						\
+	case 1:								\
+	case 2:								\
+	case 4:								\
+	case 8:								\
+		asm goto(						\
+			"0:	mvc	%O[_dst](%[_len],%R[_dst]),%[_src]\n" \
+			"1:	nopr	%%r7\n"				\
+			EX_TABLE(0b, %l[err_label])			\
+			EX_TABLE(1b, %l[err_label])			\
+			: [_dst] "=Q" (*(type *)dst)			\
+			: [_src] "Q" (*(type *)(src)),			\
+			  [_len] "I" (sizeof(type))			\
+			:						\
+			: err_label);					\
+		break;							\
+	default:							\
+		__mvc_kernel_nofault_bad();				\
+		break;							\
+	}								\
+} while (0)
+
+#else /* CONFIG_CC_HAS_ASM_GOTO_OUTPUT) && CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS */
+
+#define __mvc_kernel_nofault(dst, src, type, err_label)			\
+do {									\
+	type *(__dst) = (type *)(dst);					\
+	int __rc;							\
 									\
 	switch (sizeof(type)) {						\
 	case 1:								\
-		__pk_err = __put_kernel_asm(__x, (type *)(dst), "stc"); \
-		break;							\
 	case 2:								\
-		__pk_err = __put_kernel_asm(__x, (type *)(dst), "sth"); \
-		break;							\
 	case 4:								\
-		__pk_err = __put_kernel_asm(__x, (type *)(dst), "st");	\
-		break;							\
 	case 8:								\
-		__pk_err = __put_kernel_asm(__x, (type *)(dst), "stg"); \
+		asm_inline volatile(					\
+			"0:	mvc	0(%[_len],%[_dst]),%[_src]\n"	\
+			"1:	lhi	%[_rc],0\n"			\
+			"2:\n"						\
+			EX_TABLE_UA_FAULT(0b, 2b, %[_rc])		\
+			EX_TABLE_UA_FAULT(1b, 2b, %[_rc])		\
+			: [_rc] "=d" (__rc),				\
+			  "=m" (*__dst)					\
+			: [_src] "Q" (*(type *)(src)),			\
+			[_dst] "a" (__dst),				\
+			[_len] "I" (sizeof(type)));			\
+		if (__rc)						\
+			goto err_label;					\
 		break;							\
 	default:							\
-		__pk_err = __put_kernel_bad();				\
+		__mvc_kernel_nofault_bad();				\
 		break;							\
 	}								\
-	if (unlikely(__pk_err))						\
-		goto err_label;						\
 } while (0)
 
-int __noreturn __get_kernel_bad(void);
+#endif /* CONFIG_CC_HAS_ASM_GOTO_OUTPUT && CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS */
 
-#define __get_kernel_asm(val, from, insn)				\
-({									\
-	int __rc;							\
-									\
-	asm volatile(							\
-		"0:   " insn "  %[_val],%[_from]\n"			\
-		"1:	xr	%[rc],%[rc]\n"				\
-		"2:\n"							\
-		EX_TABLE_UA_LOAD_REG(0b, 2b, %[rc], %[_val])		\
-		EX_TABLE_UA_LOAD_REG(1b, 2b, %[rc], %[_val])		\
-		: [rc] "=d" (__rc), [_val] "=d" (val)			\
-		: [_from] "Q" (*(from))					\
-		: "cc");						\
-	__rc;								\
-})
-
-#define __get_kernel_nofault(dst, src, type, err_label)			\
-do {									\
-	int __gk_err;							\
-									\
-	switch (sizeof(type)) {						\
-	case 1: {							\
-		unsigned char __x;					\
-									\
-		__gk_err = __get_kernel_asm(__x, (type *)(src), "ic");	\
-		*((type *)(dst)) = (type)__x;				\
-		break;							\
-	};								\
-	case 2: {							\
-		unsigned short __x;					\
-									\
-		__gk_err = __get_kernel_asm(__x, (type *)(src), "lh");	\
-		*((type *)(dst)) = (type)__x;				\
-		break;							\
-	};								\
-	case 4: {							\
-		unsigned int __x;					\
-									\
-		__gk_err = __get_kernel_asm(__x, (type *)(src), "l");	\
-		*((type *)(dst)) = (type)__x;				\
-		break;							\
-	};								\
-	case 8: {							\
-		unsigned long __x;					\
-									\
-		__gk_err = __get_kernel_asm(__x, (type *)(src), "lg");	\
-		*((type *)(dst)) = (type)__x;				\
-		break;							\
-	};								\
-	default:							\
-		__gk_err = __get_kernel_bad();				\
-		break;							\
-	}								\
-	if (unlikely(__gk_err))						\
-		goto err_label;						\
-} while (0)
+#define __get_kernel_nofault __mvc_kernel_nofault
+#define __put_kernel_nofault __mvc_kernel_nofault
 
 void __cmpxchg_user_key_called_with_bad_pointer(void);
 
@@ -464,7 +490,7 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 		_old = ((unsigned int)old & 0xff) << shift;
 		_new = ((unsigned int)new & 0xff) << shift;
 		mask = ~(0xff << shift);
-		asm volatile(
+		asm_inline volatile(
 			"	spka	0(%[key])\n"
 			"	sacf	256\n"
 			"	llill	%[count],%[max_loops]\n"
@@ -512,7 +538,7 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 		_old = ((unsigned int)old & 0xffff) << shift;
 		_new = ((unsigned int)new & 0xffff) << shift;
 		mask = ~(0xffff << shift);
-		asm volatile(
+		asm_inline volatile(
 			"	spka	0(%[key])\n"
 			"	sacf	256\n"
 			"	llill	%[count],%[max_loops]\n"
@@ -554,7 +580,7 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 	case 4:	{
 		unsigned int prev = old;
 
-		asm volatile(
+		asm_inline volatile(
 			"	spka	0(%[key])\n"
 			"	sacf	256\n"
 			"0:	cs	%[prev],%[new],%[address]\n"
@@ -575,7 +601,7 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 	case 8: {
 		unsigned long prev = old;
 
-		asm volatile(
+		asm_inline volatile(
 			"	spka	0(%[key])\n"
 			"	sacf	256\n"
 			"0:	csg	%[prev],%[new],%[address]\n"
@@ -596,7 +622,7 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 	case 16: {
 		__uint128_t prev = old;
 
-		asm volatile(
+		asm_inline volatile(
 			"	spka	0(%[key])\n"
 			"	sacf	256\n"
 			"0:	cdsg	%[prev],%[new],%[address]\n"

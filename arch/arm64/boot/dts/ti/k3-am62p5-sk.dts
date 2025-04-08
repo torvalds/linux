@@ -19,6 +19,7 @@
 
 	aliases {
 		serial0 = &wkup_uart0;
+		serial1 = &mcu_uart0;
 		serial2 = &main_uart0;
 		serial3 = &main_uart1;
 		mmc0 = &sdhci0;
@@ -310,7 +311,7 @@
 
 	main_usb1_pins_default: main-usb1-default-pins {
 		pinctrl-single,pins = <
-			AM62PX_IOPAD(0x0258, PIN_INPUT, 0) /* (G21) USB1_DRVVBUS */
+			AM62PX_IOPAD(0x0258, PIN_INPUT | PIN_DS_PULLUD_ENABLE | PIN_DS_PULL_UP, 0) /* (G21) USB1_DRVVBUS */
 		>;
 	};
 
@@ -519,6 +520,7 @@
 };
 
 &usb0 {
+	bootph-all;
 	usb-role-switch;
 
 	port {
@@ -621,6 +623,8 @@
 };
 
 &mailbox0_cluster0 {
+	status = "okay";
+
 	mbox_r5_0: mbox-r5-0 {
 		ti,mbox-rx = <0 0 0>;
 		ti,mbox-tx = <1 0 0>;
@@ -628,6 +632,8 @@
 };
 
 &mailbox0_cluster1 {
+	status = "okay";
+
 	mbox_mcu_r5_0: mbox-mcu-r5-0 {
 		ti,mbox-rx = <0 0 0>;
 		ti,mbox-tx = <1 0 0>;

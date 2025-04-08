@@ -11,8 +11,8 @@
 static ssize_t fnic_show_state(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
-	struct fc_lport *lp = shost_priv(class_to_shost(dev));
-	struct fnic *fnic = lport_priv(lp);
+	struct fnic *fnic =
+		*((struct fnic **) shost_priv(class_to_shost(dev)));
 
 	return sysfs_emit(buf, "%s\n", fnic_state_str[fnic->state]);
 }
@@ -26,9 +26,13 @@ static ssize_t fnic_show_drv_version(struct device *dev,
 static ssize_t fnic_show_link_state(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
-	struct fc_lport *lp = shost_priv(class_to_shost(dev));
+	struct fnic *fnic =
+		*((struct fnic **) shost_priv(class_to_shost(dev)));
 
-	return sysfs_emit(buf, "%s\n", (lp->link_up) ? "Link Up" : "Link Down");
+	return sysfs_emit(buf, "%s\n",
+					  ((fnic->iport.state != FNIC_IPORT_STATE_INIT) &&
+					   (fnic->iport.state != FNIC_IPORT_STATE_LINK_WAIT)) ?
+					  "Link Up" : "Link Down");
 }
 
 static DEVICE_ATTR(fnic_state, S_IRUGO, fnic_show_state, NULL);

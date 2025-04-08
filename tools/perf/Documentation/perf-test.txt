@@ -28,18 +28,22 @@ OPTIONS
 	Tests to skip (comma separated numeric list).
 
 -v::
+-vv::
+-vvv::
 --verbose::
-	Be more verbose.
+	With a single '-v', verbose level 1, only failing test output
+	is displayed. With '-vv' and higher all test output is shown.
 
 -S::
 --sequential::
-	Run tests one after the other, this is the default mode.
+	Run all tests one after the other. By default "exclusive"
+	tests are run sequentially, but other tests are run in
+	parallel to speed execution.
 
--p:: 
---parallel::
-	Run tests in parallel, speeds up the whole process but is not safe with
-	the current infrastructure, where some tests that compete for some resources,
-	for instance, 'perf probe' tests that add/remove probes or clean all probes, etc.
+-r::
+--runs-per-test::
+	Run each test the given number of times, by default once. This
+	option can be useful to determine if a test is flaky.
 
 -F::
 --dont-fork::

@@ -1,0 +1,52 @@
+[
+    {
+        "ArchStdEvent": "L1I_CACHE_REFILL",
+        "BriefDescription": "This event counts operations that cause a refill of the L1I cache. See L1I_CACHE_REFILL of ARMv9 Reference Manual for more information."
+    },
+    {
+        "ArchStdEvent": "L1I_CACHE",
+        "BriefDescription": "This event counts operations that cause a cache access to the L1I cache. See L1I_CACHE of ARMv9 Reference Manual for more information."
+    },
+    {
+        "EventCode": "0x0207",
+        "EventName": "L1I_CACHE_DM_RD",
+        "BriefDescription": "This event counts L1I_CACHE caused by demand read access."
+    },
+    {
+        "EventCode": "0x020F",
+        "EventName": "L1I_CACHE_REFILL_DM_RD",
+        "BriefDescription": "This event counts L1I_CACHE_REFILL caused by demand read access."
+    },
+    {
+        "ArchStdEvent": "L1I_CACHE_LMISS",
+        "BriefDescription": "This event counts operations that cause a refill of the L1I cache that incurs additional latency."
+    },
+    {
+        "ArchStdEvent": "L1I_CACHE_HWPRF",
+        "BriefDescription": "This event counts access counted by L1I_CACHE that is due to a hardware prefetch."
+    },
+    {
+        "ArchStdEvent": "L1I_CACHE_REFILL_HWPRF",
+        "BriefDescription": "This event counts hardware prefetch counted by L1I_CACHE_HWPRF that causes a refill of the Level 1 instruction cache from outside of the Level 1 instruction cache."
+    },
+    {
+        "ArchStdEvent": "L1I_CACHE_HIT_RD",
+        "BriefDescription": "This event counts demand fetch counted by L1I_CACHE_DM_RD that hits in the Level 1 instruction cache."
+    },
+    {
+        "ArchStdEvent": "L1I_CACHE_HIT",
+        "BriefDescription": "This event counts access counted by L1I_CACHE that hits in the Level 1 instruction cache."
+    },
+    {
+        "ArchStdEvent": "L1I_LFB_HIT_RD",
+        "BriefDescription": "This event counts demand access counted by L1I_CACHE_HIT_RD that hits a cache line that is in the process of being loaded into the Level 1 instruction cache."
+    },
+    {
+        "ArchStdEvent": "L1I_CACHE_REFILL_PRF",
+        "BriefDescription": "This event counts hardware prefetch counted by L1I_CACHE_PRF that causes a refill of the Level 1 instruction cache from outside of the Level 1 instruction cache."
+    },
+    {
+        "ArchStdEvent": "L1I_CACHE_REFILL_PERCYC",
+        "BriefDescription": "The counter counts by the number of cache refills counted by L1I_CACHE_REFILL in progress on each Processor cycle."
+    }
+]

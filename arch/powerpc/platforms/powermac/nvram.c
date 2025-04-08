@@ -514,10 +514,7 @@ static int __init core99_nvram_setup(struct device_node *dp, unsigned long addr)
 		printk(KERN_ERR "nvram: no address\n");
 		return -EINVAL;
 	}
-	nvram_image = memblock_alloc(NVRAM_SIZE, SMP_CACHE_BYTES);
-	if (!nvram_image)
-		panic("%s: Failed to allocate %u bytes\n", __func__,
-		      NVRAM_SIZE);
+	nvram_image = memblock_alloc_or_panic(NVRAM_SIZE, SMP_CACHE_BYTES);
 	nvram_data = ioremap(addr, NVRAM_SIZE*2);
 	nvram_naddrs = 1; /* Make sure we get the correct case */
 

@@ -185,9 +185,10 @@ static inline void setindex(int index)
 /* Check if the video mode is supported by the driver */
 static inline int check_mode_supported(const struct screen_info *si)
 {
+	unsigned int type = screen_info_video_type(si);
+
 	/* only EGA and VGA in 16 color graphic mode are supported */
-	if (si->orig_video_isVGA != VIDEO_TYPE_EGAC &&
-	    si->orig_video_isVGA != VIDEO_TYPE_VGAC)
+	if (type != VIDEO_TYPE_EGAC && type != VIDEO_TYPE_VGAC)
 		return -ENODEV;
 
 	if (si->orig_video_mode != 0x0D &&	/* 320x200/4 (EGA) */
@@ -1338,7 +1339,7 @@ static int vga16fb_probe(struct platform_device *dev)
 	printk(KERN_INFO "vga16fb: mapped to 0x%p\n", info->screen_base);
 	par = info->par;
 
-	par->isVGA = si->orig_video_isVGA == VIDEO_TYPE_VGAC;
+	par->isVGA = screen_info_video_type(si) == VIDEO_TYPE_VGAC;
 	par->palette_blanked = 0;
 	par->vesa_blanked = 0;
 

@@ -99,6 +99,11 @@ int of_dma_configure_id(struct device *dev, struct device_node *np,
 	bool coherent, set_map = false;
 	int ret;
 
+	if (dev->dma_range_map) {
+		dev_dbg(dev, "dma_range_map already set\n");
+		goto skip_map;
+	}
+
 	if (np == dev->of_node)
 		bus_np = __of_get_dma_parent(np);
 	else
@@ -119,7 +124,7 @@ int of_dma_configure_id(struct device *dev, struct device_node *np,
 		end = dma_range_map_max(map);
 		set_map = true;
 	}
-
+skip_map:
 	/*
 	 * If @dev is expected to be DMA-capable then the bus code that created
 	 * it should have initialised its dma_mask pointer by this point. For

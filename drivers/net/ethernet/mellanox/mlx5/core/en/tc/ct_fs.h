@@ -48,4 +48,14 @@ mlx5_ct_fs_smfs_ops_get(void)
 }
 #endif /* IS_ENABLED(CONFIG_MLX5_SW_STEERING) */
 
+#if IS_ENABLED(CONFIG_MLX5_HW_STEERING)
+struct mlx5_ct_fs_ops *mlx5_ct_fs_hmfs_ops_get(void);
+#else
+static inline struct mlx5_ct_fs_ops *
+mlx5_ct_fs_hmfs_ops_get(void)
+{
+	return NULL;
+}
+#endif /* IS_ENABLED(CONFIG_MLX5_SW_STEERING) */
+
 #endif /* __MLX5_EN_TC_CT_FS_H__ */

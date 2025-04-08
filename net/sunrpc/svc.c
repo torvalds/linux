@@ -651,8 +651,8 @@ svc_init_buffer(struct svc_rqst *rqstp, unsigned int size, int node)
 	if (pages > RPCSVC_MAXPAGES)
 		pages = RPCSVC_MAXPAGES;
 
-	ret = alloc_pages_bulk_array_node(GFP_KERNEL, node, pages,
-					  rqstp->rq_pages);
+	ret = alloc_pages_bulk_node(GFP_KERNEL, node, pages,
+				    rqstp->rq_pages);
 	return ret == pages;
 }
 

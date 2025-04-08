@@ -213,7 +213,7 @@ static irqreturn_t ms5611_trigger_handler(int irq, void *p)
 	/* Ensure buffer elements are naturally aligned */
 	struct {
 		s32 channels[2];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 	int ret;
 

@@ -22,7 +22,4 @@ void ib_copy_ah_attr_to_user(struct ib_device *device,
 void ib_copy_path_rec_to_user(struct ib_user_path_rec *dst,
 			      struct sa_path_rec *src);
 
-void ib_copy_path_rec_from_user(struct sa_path_rec *dst,
-				struct ib_user_path_rec *src);
-
 #endif /* IB_USER_MARSHALL_H */

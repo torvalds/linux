@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <errno.h>
+#include "enum_defs.autogen.h"
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -71,5 +72,11 @@ typedef int64_t s64;
 
 #include "user_exit_info.h"
 #include "compat.h"
+#include "enums.h"
+
+/* not available when building kernel tools/sched_ext */
+#if __has_include(<lib/sdt_task.h>)
+#include <lib/sdt_task.h>
+#endif
 
 #endif	/* __SCHED_EXT_COMMON_H */

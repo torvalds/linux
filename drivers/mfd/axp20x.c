@@ -224,6 +224,7 @@ static const struct regmap_range axp717_writeable_ranges[] = {
 	regmap_reg_range(AXP717_VSYS_V_POWEROFF, AXP717_VSYS_V_POWEROFF),
 	regmap_reg_range(AXP717_IRQ0_EN, AXP717_IRQ4_EN),
 	regmap_reg_range(AXP717_IRQ0_STATE, AXP717_IRQ4_STATE),
+	regmap_reg_range(AXP717_TS_PIN_CFG, AXP717_TS_PIN_CFG),
 	regmap_reg_range(AXP717_ICC_CHG_SET, AXP717_CV_CHG_SET),
 	regmap_reg_range(AXP717_DCDC_OUTPUT_CONTROL, AXP717_CPUSLDO_CONTROL),
 	regmap_reg_range(AXP717_ADC_CH_EN_CONTROL, AXP717_ADC_CH_EN_CONTROL),
@@ -1445,7 +1446,7 @@ int axp20x_device_probe(struct axp20x_dev *axp20x)
 		}
 	}
 
-	ret = mfd_add_devices(axp20x->dev, PLATFORM_DEVID_AUTO, axp20x->cells,
+	ret = mfd_add_devices(axp20x->dev, PLATFORM_DEVID_NONE, axp20x->cells,
 			      axp20x->nr_cells, NULL, 0, NULL);
 
 	if (ret) {
@@ -1455,10 +1456,7 @@ int axp20x_device_probe(struct axp20x_dev *axp20x)
 	}
 
 	if (axp20x->variant != AXP288_ID)
-		devm_register_sys_off_handler(axp20x->dev,
-					      SYS_OFF_MODE_POWER_OFF,
-					      SYS_OFF_PRIO_DEFAULT,
-					      axp20x_power_off, axp20x);
+		devm_register_power_off_handler(axp20x->dev, axp20x_power_off, axp20x);
 
 	dev_info(axp20x->dev, "AXP20X driver loaded\n");
 

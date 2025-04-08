@@ -151,6 +151,7 @@ static double find_stat(const struct evsel *evsel, int aggr_idx, enum stat_type 
 {
 	struct evsel *cur;
 	int evsel_ctx = evsel_context(evsel);
+	struct perf_pmu *evsel_pmu = evsel__find_pmu(evsel);
 
 	evlist__for_each_entry(evsel->evlist, cur) {
 		struct perf_stat_aggr *aggr;
@@ -177,7 +178,7 @@ static double find_stat(const struct evsel *evsel, int aggr_idx, enum stat_type 
 		 * Except the SW CLOCK events,
 		 * ignore if not the PMU we're looking for.
 		 */
-		if ((type != STAT_NSECS) && (evsel->pmu != cur->pmu))
+		if ((type != STAT_NSECS) && (evsel_pmu != evsel__find_pmu(cur)))
 			continue;
 
 		aggr = &cur->stats->aggr[aggr_idx];
@@ -327,7 +328,8 @@ static void print_instructions(struct perf_stat_config *config,
 			     "insn per cycle", 0);
 	}
 	if (max_stalled && instructions) {
-		out->new_line(config, ctxp);
+		if (out->new_line)
+			out->new_line(config, ctxp);
 		print_metric(config, ctxp, METRIC_THRESHOLD_UNKNOWN, "%7.2f ",
 			     "stalled cycles per insn", max_stalled / instructions);
 	}
@@ -670,7 +672,7 @@ void *perf_stat__print_shadow_stats_metricgroup(struct perf_stat_config *config,
 			}
 		}
 
-		if ((*num)++ > 0)
+		if ((*num)++ > 0 && out->new_line)
 			out->new_line(config, ctxp);
 		generic_metric(config, mexp, evsel, aggr_idx, out);
 	}

@@ -3,10 +3,12 @@
 menu "Accelerated Cryptographic Algorithms for CPU (x86)"
 
 config CRYPTO_CURVE25519_X86
-	tristate "Public key crypto: Curve25519 (ADX)"
+	tristate
 	depends on X86 && 64BIT
+	select CRYPTO_KPP
 	select CRYPTO_LIB_CURVE25519_GENERIC
 	select CRYPTO_ARCH_HAVE_LIB_CURVE25519
+	default CRYPTO_LIB_CURVE25519_INTERNAL
 	help
 	  Curve25519 algorithm
 
@@ -348,11 +350,12 @@ config CRYPTO_ARIA_GFNI_AVX512_X86_64
 	  Processes 64 blocks in parallel.
 
 config CRYPTO_CHACHA20_X86_64
-	tristate "Ciphers: ChaCha20, XChaCha20, XChaCha12 (SSSE3/AVX2/AVX-512VL)"
+	tristate
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_LIB_CHACHA_GENERIC
 	select CRYPTO_ARCH_HAVE_LIB_CHACHA
+	default CRYPTO_LIB_CHACHA_INTERNAL
 	help
 	  Length-preserving ciphers: ChaCha20, XChaCha20, and XChaCha12
 	  stream cipher algorithms
@@ -417,10 +420,12 @@ config CRYPTO_POLYVAL_CLMUL_NI
 	  - CLMUL-NI (carry-less multiplication new instructions)
 
 config CRYPTO_POLY1305_X86_64
-	tristate "Hash functions: Poly1305 (SSE2/AVX2)"
+	tristate
 	depends on X86 && 64BIT
+	select CRYPTO_HASH
 	select CRYPTO_LIB_POLY1305_GENERIC
 	select CRYPTO_ARCH_HAVE_LIB_POLY1305
+	default CRYPTO_LIB_POLY1305_INTERNAL
 	help
 	  Poly1305 authenticator algorithm (RFC7539)
 
@@ -491,37 +496,5 @@ config CRYPTO_GHASH_CLMUL_NI_INTEL
 
 	  Architecture: x86_64 using:
 	  - CLMUL-NI (carry-less multiplication new instructions)
-
-config CRYPTO_CRC32C_INTEL
-	tristate "CRC32c (SSE4.2/PCLMULQDQ)"
-	depends on X86
-	select CRYPTO_HASH
-	help
-	  CRC32c CRC algorithm with the iSCSI polynomial (RFC 3385 and RFC 3720)
-
-	  Architecture: x86 (32-bit and 64-bit) using:
-	  - SSE4.2 (Streaming SIMD Extensions 4.2) CRC32 instruction
-	  - PCLMULQDQ (carry-less multiplication)
-
-config CRYPTO_CRC32_PCLMUL
-	tristate "CRC32 (PCLMULQDQ)"
-	depends on X86
-	select CRYPTO_HASH
-	select CRC32
-	help
-	  CRC32 CRC algorithm (IEEE 802.3)
-
-	  Architecture: x86 (32-bit and 64-bit) using:
-	  - PCLMULQDQ (carry-less multiplication)
-
-config CRYPTO_CRCT10DIF_PCLMUL
-	tristate "CRCT10DIF (PCLMULQDQ)"
-	depends on X86 && 64BIT && CRC_T10DIF
-	select CRYPTO_HASH
-	help
-	  CRC16 CRC algorithm used for the T10 (SCSI) Data Integrity Field (DIF)
-
-	  Architecture: x86_64 using:
-	  - PCLMULQDQ (carry-less multiplication)
 
 endmenu

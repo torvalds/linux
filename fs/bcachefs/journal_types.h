@@ -9,7 +9,14 @@
 #include "super_types.h"
 #include "fifo.h"
 
-#define JOURNAL_BUF_BITS	2
+/* btree write buffer steals 8 bits for its own purposes: */
+#define JOURNAL_SEQ_MAX		((1ULL << 56) - 1)
+
+#define JOURNAL_STATE_BUF_BITS	2
+#define JOURNAL_STATE_BUF_NR	(1U << JOURNAL_STATE_BUF_BITS)
+#define JOURNAL_STATE_BUF_MASK	(JOURNAL_STATE_BUF_NR - 1)
+
+#define JOURNAL_BUF_BITS	4
 #define JOURNAL_BUF_NR		(1U << JOURNAL_BUF_BITS)
 #define JOURNAL_BUF_MASK	(JOURNAL_BUF_NR - 1)
 
@@ -50,15 +57,18 @@ struct journal_buf {
  */
 
 enum journal_pin_type {
-	JOURNAL_PIN_btree,
-	JOURNAL_PIN_key_cache,
-	JOURNAL_PIN_other,
-	JOURNAL_PIN_NR,
+	JOURNAL_PIN_TYPE_btree3,
+	JOURNAL_PIN_TYPE_btree2,
+	JOURNAL_PIN_TYPE_btree1,
+	JOURNAL_PIN_TYPE_btree0,
+	JOURNAL_PIN_TYPE_key_cache,
+	JOURNAL_PIN_TYPE_other,
+	JOURNAL_PIN_TYPE_NR,
 };
 
 struct journal_entry_pin_list {
-	struct list_head		list[JOURNAL_PIN_NR];
-	struct list_head		flushed;
+	struct list_head		unflushed[JOURNAL_PIN_TYPE_NR];
+	struct list_head		flushed[JOURNAL_PIN_TYPE_NR];
 	atomic_t			count;
 	struct bch_devs_list		devs;
 };
@@ -76,7 +86,6 @@ struct journal_entry_pin {
 
 struct journal_res {
 	bool			ref;
-	u8			idx;
 	u16			u64s;
 	u32			offset;
 	u64			seq;
@@ -92,9 +101,8 @@ union journal_res_state {
 	};
 
 	struct {
-		u64		cur_entry_offset:20,
+		u64		cur_entry_offset:22,
 				idx:2,
-				unwritten_idx:2,
 				buf0_count:10,
 				buf1_count:10,
 				buf2_count:10,
@@ -104,14 +112,15 @@ union journal_res_state {
 
 /* bytes: */
 #define JOURNAL_ENTRY_SIZE_MIN		(64U << 10) /* 64k */
-#define JOURNAL_ENTRY_SIZE_MAX		(4U  << 20) /* 4M */
+#define JOURNAL_ENTRY_SIZE_MAX		(4U  << 22) /* 16M */
 
 /*
  * We stash some journal state as sentinal values in cur_entry_offset:
  * note - cur_entry_offset is in units of u64s
  */
-#define JOURNAL_ENTRY_OFFSET_MAX	((1U << 20) - 1)
+#define JOURNAL_ENTRY_OFFSET_MAX	((1U << 22) - 1)
 
+#define JOURNAL_ENTRY_BLOCKED_VAL	(JOURNAL_ENTRY_OFFSET_MAX - 2)
 #define JOURNAL_ENTRY_CLOSED_VAL	(JOURNAL_ENTRY_OFFSET_MAX - 1)
 #define JOURNAL_ENTRY_ERROR_VAL		(JOURNAL_ENTRY_OFFSET_MAX)
 
@@ -142,28 +151,12 @@ enum journal_flags {
 #undef x
 };
 
-/* Reasons we may fail to get a journal reservation: */
-#define JOURNAL_ERRORS()		\
-	x(ok)				\
-	x(retry)			\
-	x(blocked)			\
-	x(max_in_flight)		\
-	x(journal_full)			\
-	x(journal_pin_full)		\
-	x(journal_stuck)		\
-	x(insufficient_devices)
-
-enum journal_errors {
-#define x(n)	JOURNAL_ERR_##n,
-	JOURNAL_ERRORS()
-#undef x
-};
-
 typedef DARRAY(u64)		darray_u64;
 
 struct journal_bio {
 	struct bch_dev		*ca;
 	unsigned		buf_idx;
+	u64			submit_time;
 
 	struct bio		bio;
 };
@@ -192,7 +185,8 @@ struct journal {
 	 * 0, or -ENOSPC if waiting on journal reclaim, or -EROFS if
 	 * insufficient devices:
 	 */
-	enum journal_errors	cur_entry_error;
+	int			cur_entry_error;
+	unsigned		cur_entry_offset_if_blocked;
 
 	unsigned		buf_size_want;
 	/*
@@ -212,6 +206,8 @@ struct journal {
 	 * other is possibly being written out.
 	 */
 	struct journal_buf	buf[JOURNAL_BUF_NR];
+	void			*free_buf;
+	unsigned		free_buf_size;
 
 	spinlock_t		lock;
 
@@ -221,6 +217,7 @@ struct journal {
 	/* Used when waiting because the journal was full */
 	wait_queue_head_t	wait;
 	struct closure_waitlist	async_wait;
+	struct closure_waitlist	reclaim_flush_wait;
 
 	struct delayed_work	write_work;
 	struct workqueue_struct *wq;
@@ -228,9 +225,11 @@ struct journal {
 	/* Sequence number of most recent journal entry (last entry in @pin) */
 	atomic64_t		seq;
 
+	u64			seq_write_started;
 	/* seq, last_seq from the most recent journal entry successfully written */
 	u64			seq_ondisk;
 	u64			flushed_seq_ondisk;
+	u64			flushing_seq;
 	u64			last_seq_ondisk;
 	u64			err_seq;
 	u64			last_empty_seq;

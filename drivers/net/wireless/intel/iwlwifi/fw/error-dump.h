@@ -169,7 +169,7 @@ struct iwl_fw_error_dump_info {
  * @fw_mon_wr_ptr: the position of the write pointer in the cyclic buffer
  * @fw_mon_base_ptr: base pointer of the data
  * @fw_mon_cycle_cnt: number of wraparounds
- * @fw_mon_base_high_ptr: used in AX210 devices, the base adderss is 64 bit
+ * @fw_mon_base_high_ptr: used in AX210 devices, the base address is 64 bit
  *	so fw_mon_base_ptr holds LSB 32 bits and fw_mon_base_high_ptr hold
  *	MSB 32 bits
  * @reserved: for future use

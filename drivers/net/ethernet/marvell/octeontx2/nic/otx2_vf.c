@@ -14,6 +14,7 @@
 #include "otx2_reg.h"
 #include "otx2_ptp.h"
 #include "cn10k.h"
+#include "cn10k_ipsec.h"
 
 #define DRV_NAME	"rvu_nicvf"
 #define DRV_STRING	"Marvell RVU NIC Virtual Function Driver"
@@ -693,10 +694,14 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			 pdev->bus->number, n);
 	}
 
+	err = cn10k_ipsec_init(netdev);
+	if (err)
+		goto err_ptp_destroy;
+
 	err = register_netdev(netdev);
 	if (err) {
 		dev_err(dev, "Failed to register netdevice\n");
-		goto err_ptp_destroy;
+		goto err_ipsec_clean;
 	}
 
 	err = otx2_vf_wq_init(vf);
@@ -717,19 +722,33 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_shutdown_tc;
 
+	vf->af_xdp_zc_qidx = bitmap_zalloc(qcount, GFP_KERNEL);
+	if (!vf->af_xdp_zc_qidx) {
+		err = -ENOMEM;
+		goto err_unreg_devlink;
+	}
+
 #ifdef CONFIG_DCB
 	err = otx2_dcbnl_set_ops(netdev);
 	if (err)
-		goto err_shutdown_tc;
+		goto err_free_zc_bmap;
 #endif
 	otx2_qos_init(vf, qos_txqs);
 
 	return 0;
 
+#ifdef CONFIG_DCB
+err_free_zc_bmap:
+	bitmap_free(vf->af_xdp_zc_qidx);
+#endif
+err_unreg_devlink:
+	otx2_unregister_dl(vf);
 err_shutdown_tc:
 	otx2_shutdown_tc(vf);
 err_unreg_netdev:
 	unregister_netdev(netdev);
+err_ipsec_clean:
+	cn10k_ipsec_clean(vf);
 err_ptp_destroy:
 	otx2_ptp_destroy(vf);
 err_detach_rsrc:
@@ -782,6 +801,7 @@ static void otx2vf_remove(struct pci_dev *pdev)
 	unregister_netdev(netdev);
 	if (vf->otx2_wq)
 		destroy_workqueue(vf->otx2_wq);
+	cn10k_ipsec_clean(vf);
 	otx2_ptp_destroy(vf);
 	otx2_mcam_flow_del(vf);
 	otx2_shutdown_tc(vf);

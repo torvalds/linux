@@ -1338,16 +1338,19 @@ overlay_rop3_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static const struct device_attribute overlay_sysfs_attrs[] = {
-	__ATTR(ovl_alpha, S_IRUGO|S_IWUSR,
-	       overlay_alpha_show, overlay_alpha_store),
-	__ATTR(ovl_mode, S_IRUGO|S_IWUSR,
-	       overlay_mode_show, overlay_mode_store),
-	__ATTR(ovl_position, S_IRUGO|S_IWUSR,
-	       overlay_position_show, overlay_position_store),
-	__ATTR(ovl_rop3, S_IRUGO|S_IWUSR,
-	       overlay_rop3_show, overlay_rop3_store),
+static DEVICE_ATTR_RW(overlay_alpha);
+static DEVICE_ATTR_RW(overlay_mode);
+static DEVICE_ATTR_RW(overlay_position);
+static DEVICE_ATTR_RW(overlay_rop3);
+
+static struct attribute *overlay_sysfs_attrs[] = {
+	&dev_attr_overlay_alpha.attr,
+	&dev_attr_overlay_mode.attr,
+	&dev_attr_overlay_position.attr,
+	&dev_attr_overlay_rop3.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(overlay_sysfs);
 
 static const struct fb_fix_screeninfo sh_mobile_lcdc_overlay_fix  = {
 	.id =		"SH Mobile LCDC",
@@ -1516,7 +1519,6 @@ sh_mobile_lcdc_overlay_fb_register(struct sh_mobile_lcdc_overlay *ovl)
 {
 	struct sh_mobile_lcdc_priv *lcdc = ovl->channel->lcdc;
 	struct fb_info *info = ovl->info;
-	unsigned int i;
 	int ret;
 
 	if (info == NULL)
@@ -1529,12 +1531,6 @@ sh_mobile_lcdc_overlay_fb_register(struct sh_mobile_lcdc_overlay *ovl)
 	dev_info(lcdc->dev, "registered %s/overlay %u as %dx%d %dbpp.\n",
 		 dev_name(lcdc->dev), ovl->index, info->var.xres,
 		 info->var.yres, info->var.bits_per_pixel);
-
-	for (i = 0; i < ARRAY_SIZE(overlay_sysfs_attrs); ++i) {
-		ret = device_create_file(info->dev, &overlay_sysfs_attrs[i]);
-		if (ret < 0)
-			return ret;
-	}
 
 	return 0;
 }
@@ -2123,11 +2119,7 @@ sh_mobile_lcdc_channel_fb_init(struct sh_mobile_lcdc_chan *ch,
 static int sh_mobile_lcdc_update_bl(struct backlight_device *bdev)
 {
 	struct sh_mobile_lcdc_chan *ch = bl_get_data(bdev);
-	int brightness = bdev->props.brightness;
-
-	if (bdev->props.power != BACKLIGHT_POWER_ON ||
-	    bdev->props.state & (BL_CORE_SUSPENDED | BL_CORE_FBBLANK))
-		brightness = 0;
+	int brightness = backlight_get_brightness(bdev);
 
 	ch->bl_brightness = brightness;
 	return ch->cfg->bl_info.set_brightness(brightness);
@@ -2645,6 +2637,7 @@ err1:
 static struct platform_driver sh_mobile_lcdc_driver = {
 	.driver		= {
 		.name		= "sh_mobile_lcdc_fb",
+		.dev_groups	= overlay_sysfs_groups,
 		.pm		= &sh_mobile_lcdc_dev_pm_ops,
 	},
 	.probe		= sh_mobile_lcdc_probe,

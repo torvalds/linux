@@ -21,6 +21,10 @@ ifneq ($(CONFIG_SND_SOC_UTILS_KUNIT_TEST),)
 obj-$(CONFIG_SND_SOC_UTILS_KUNIT_TEST) += soc-utils-test.o
 endif
 
+ifneq ($(CONFIG_SND_SOC_OPS_KUNIT_TEST),)
+obj-$(CONFIG_SND_SOC_OPS_KUNIT_TEST) += soc-ops-test.o
+endif
+
 ifneq ($(CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM),)
 snd-soc-core-y += soc-generic-dmaengine-pcm.o
 endif

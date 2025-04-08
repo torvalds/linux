@@ -25,15 +25,11 @@ enum {
 };
 #undef SD_FLAG
 
-#ifdef CONFIG_SCHED_DEBUG
-
 struct sd_flag_debug {
 	unsigned int meta_flags;
 	char *name;
 };
 extern const struct sd_flag_debug sd_flag_debug[];
-
-#endif
 
 #ifdef CONFIG_SCHED_SMT
 static inline int cpu_smt_flags(void)
@@ -114,7 +110,10 @@ struct sched_domain {
 	unsigned int lb_count[CPU_MAX_IDLE_TYPES];
 	unsigned int lb_failed[CPU_MAX_IDLE_TYPES];
 	unsigned int lb_balanced[CPU_MAX_IDLE_TYPES];
-	unsigned int lb_imbalance[CPU_MAX_IDLE_TYPES];
+	unsigned int lb_imbalance_load[CPU_MAX_IDLE_TYPES];
+	unsigned int lb_imbalance_util[CPU_MAX_IDLE_TYPES];
+	unsigned int lb_imbalance_task[CPU_MAX_IDLE_TYPES];
+	unsigned int lb_imbalance_misfit[CPU_MAX_IDLE_TYPES];
 	unsigned int lb_gained[CPU_MAX_IDLE_TYPES];
 	unsigned int lb_hot_gained[CPU_MAX_IDLE_TYPES];
 	unsigned int lb_nobusyg[CPU_MAX_IDLE_TYPES];
@@ -140,9 +139,7 @@ struct sched_domain {
 	unsigned int ttwu_move_affine;
 	unsigned int ttwu_move_balance;
 #endif
-#ifdef CONFIG_SCHED_DEBUG
 	char *name;
-#endif
 	union {
 		void *private;		/* used during construction */
 		struct rcu_head rcu;	/* used during destruction */
@@ -164,10 +161,6 @@ static inline struct cpumask *sched_domain_span(struct sched_domain *sd)
 {
 	return to_cpumask(sd->span);
 }
-
-extern void partition_sched_domains_locked(int ndoms_new,
-					   cpumask_var_t doms_new[],
-					   struct sched_domain_attr *dattr_new);
 
 extern void partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
 				    struct sched_domain_attr *dattr_new);
@@ -198,28 +191,16 @@ struct sched_domain_topology_level {
 	int		    flags;
 	int		    numa_level;
 	struct sd_data      data;
-#ifdef CONFIG_SCHED_DEBUG
 	char                *name;
-#endif
 };
 
 extern void __init set_sched_topology(struct sched_domain_topology_level *tl);
 
-#ifdef CONFIG_SCHED_DEBUG
 # define SD_INIT_NAME(type)		.name = #type
-#else
-# define SD_INIT_NAME(type)
-#endif
 
 #else /* CONFIG_SMP */
 
 struct sched_domain_attr;
-
-static inline void
-partition_sched_domains_locked(int ndoms_new, cpumask_var_t doms_new[],
-			       struct sched_domain_attr *dattr_new)
-{
-}
 
 static inline void
 partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],

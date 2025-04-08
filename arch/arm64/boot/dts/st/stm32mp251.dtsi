@@ -7,6 +7,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/reset/st,stm32mp25-rcc.h>
 #include <dt-bindings/regulator/st,stm32mp25-regulator.h>
+#include <dt-bindings/phy/phy.h>
 
 / {
 	#address-cells = <2>;
@@ -237,6 +238,21 @@
 			#access-controller-cells = <1>;
 			ranges;
 
+			i2s2: audio-controller@400b0000 {
+				compatible = "st,stm32mp25-i2s";
+				reg = <0x400b0000 0x400>;
+				#sound-dai-cells = <0>;
+				interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&rcc CK_BUS_SPI2>, <&rcc CK_KER_SPI2>;
+				clock-names = "pclk", "i2sclk";
+				resets = <&rcc SPI2_R>;
+				dmas = <&hpdma 51 0x43 0x12>,
+				       <&hpdma 52 0x43 0x21>;
+				dma-names = "rx", "tx";
+				access-controllers = <&rifsc 23>;
+				status = "disabled";
+			};
+
 			spi2: spi@400b0000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -252,6 +268,21 @@
 				status = "disabled";
 			};
 
+			i2s3: audio-controller@400c0000 {
+				compatible = "st,stm32mp25-i2s";
+				reg = <0x400c0000 0x400>;
+				#sound-dai-cells = <0>;
+				interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&rcc CK_BUS_SPI3>, <&rcc CK_KER_SPI3>;
+				clock-names = "pclk", "i2sclk";
+				resets = <&rcc SPI3_R>;
+				dmas = <&hpdma 53 0x43 0x12>,
+				       <&hpdma 54 0x43 0x21>;
+				dma-names = "rx", "tx";
+				access-controllers = <&rifsc 24>;
+				status = "disabled";
+			};
+
 			spi3: spi@400c0000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -264,6 +295,20 @@
 				       <&hpdma 54 0x20 0x3021>;
 				dma-names = "rx", "tx";
 				access-controllers = <&rifsc 24>;
+				status = "disabled";
+			};
+
+			spdifrx: audio-controller@400d0000 {
+				compatible = "st,stm32h7-spdifrx";
+				#sound-dai-cells = <0>;
+				reg = <0x400d0000 0x400>;
+				clocks = <&rcc CK_KER_SPDIFRX>;
+				clock-names = "kclk";
+				interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>;
+				dmas = <&hpdma 71 0x43 0x212>,
+				       <&hpdma 72 0x43 0x212>;
+				dma-names = "rx", "rx-ctrl";
+				access-controllers = <&rifsc 30>;
 				status = "disabled";
 			};
 
@@ -439,6 +484,21 @@
 				status = "disabled";
 			};
 
+			i2s1: audio-controller@40230000 {
+				compatible = "st,stm32mp25-i2s";
+				reg = <0x40230000 0x400>;
+				#sound-dai-cells = <0>;
+				interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&rcc CK_BUS_SPI1>, <&rcc CK_KER_SPI1>;
+				clock-names = "pclk", "i2sclk";
+				resets = <&rcc SPI1_R>;
+				dmas = <&hpdma 49 0x43 0x12>,
+				       <&hpdma 50 0x43 0x21>;
+				dma-names = "rx", "tx";
+				access-controllers = <&rifsc 22>;
+				status = "disabled";
+			};
+
 			spi1: spi@40230000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -484,6 +544,108 @@
 				status = "disabled";
 			};
 
+			sai1: sai@40290000 {
+				compatible = "st,stm32mp25-sai";
+				reg = <0x40290000 0x4>, <0x4029a3f0 0x10>;
+				ranges = <0 0x40290000 0x400>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				clocks = <&rcc CK_BUS_SAI1>;
+				clock-names = "pclk";
+				interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>;
+				resets = <&rcc SAI1_R>;
+				access-controllers = <&rifsc 49>;
+				status = "disabled";
+
+				sai1a: audio-controller@40290004 {
+					compatible = "st,stm32-sai-sub-a";
+					reg = <0x4 0x20>;
+					#sound-dai-cells = <0>;
+					clocks = <&rcc CK_KER_SAI1>;
+					clock-names = "sai_ck";
+					dmas = <&hpdma 73 0x43 0x21>;
+					status = "disabled";
+				};
+
+				sai1b: audio-controller@40290024 {
+					compatible = "st,stm32-sai-sub-b";
+					reg = <0x24 0x20>;
+					#sound-dai-cells = <0>;
+					clocks = <&rcc CK_KER_SAI1>;
+					clock-names = "sai_ck";
+					dmas = <&hpdma 74 0x43 0x12>;
+					status = "disabled";
+				};
+			};
+
+			sai2: sai@402a0000 {
+				compatible = "st,stm32mp25-sai";
+				reg = <0x402a0000 0x4>, <0x402aa3f0 0x10>;
+				ranges = <0 0x402a0000 0x400>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				clocks = <&rcc CK_BUS_SAI2>;
+				clock-names = "pclk";
+				interrupts = <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>;
+				resets = <&rcc SAI2_R>;
+				access-controllers = <&rifsc 50>;
+				status = "disabled";
+
+				sai2a: audio-controller@402a0004 {
+					compatible = "st,stm32-sai-sub-a";
+					reg = <0x4 0x20>;
+					#sound-dai-cells = <0>;
+					clocks = <&rcc CK_KER_SAI2>;
+					clock-names = "sai_ck";
+					dmas = <&hpdma 75 0x43 0x21>;
+					status = "disabled";
+				};
+
+				sai2b: audio-controller@402a0024 {
+					compatible = "st,stm32-sai-sub-b";
+					reg = <0x24 0x20>;
+					#sound-dai-cells = <0>;
+					clocks = <&rcc CK_KER_SAI2>;
+					clock-names = "sai_ck";
+					dmas = <&hpdma 76 0x43 0x12>;
+					status = "disabled";
+				};
+			};
+
+			sai3: sai@402b0000 {
+				compatible = "st,stm32mp25-sai";
+				reg = <0x402b0000 0x4>, <0x402ba3f0 0x10>;
+				ranges = <0 0x402b0000 0x400>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				clocks = <&rcc CK_BUS_SAI3>;
+				clock-names = "pclk";
+				interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>;
+				resets = <&rcc SAI3_R>;
+				access-controllers = <&rifsc 51>;
+				status = "disabled";
+
+				sai3a: audio-controller@402b0004 {
+					compatible = "st,stm32-sai-sub-a";
+					reg = <0x4 0x20>;
+					#sound-dai-cells = <0>;
+					clocks = <&rcc CK_KER_SAI3>;
+					clock-names = "sai_ck";
+					dmas = <&hpdma 77 0x43 0x21>;
+					status = "disabled";
+				};
+
+				sai3b: audio-controller@502b0024 {
+					compatible = "st,stm32-sai-sub-b";
+					reg = <0x24 0x20>;
+					#sound-dai-cells = <0>;
+					clocks = <&rcc CK_KER_SAI3>;
+					clock-names = "sai_ck";
+					dmas = <&hpdma 78 0x43 0x12>;
+					status = "disabled";
+				};
+			};
+
 			uart9: serial@402c0000 {
 				compatible = "st,stm32h7-uart";
 				reg = <0x402c0000 0x400>;
@@ -506,6 +668,40 @@
 				dma-names = "rx", "tx";
 				access-controllers = <&rifsc 31>;
 				status = "disabled";
+			};
+
+			sai4: sai@40340000 {
+				compatible = "st,stm32mp25-sai";
+				reg = <0x40340000 0x4>, <0x4034a3f0 0x10>;
+				ranges = <0 0x40340000 0x400>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				clocks = <&rcc CK_BUS_SAI4>;
+				clock-names = "pclk";
+				interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
+				resets = <&rcc SAI4_R>;
+				access-controllers = <&rifsc 52>;
+				status = "disabled";
+
+				sai4a: audio-controller@40340004 {
+					compatible = "st,stm32-sai-sub-a";
+					reg = <0x4 0x20>;
+					#sound-dai-cells = <0>;
+					clocks = <&rcc CK_KER_SAI4>;
+					clock-names = "sai_ck";
+					dmas = <&hpdma 79 0x63 0x21>;
+					status = "disabled";
+				};
+
+				sai4b: audio-controller@40340024 {
+					compatible = "st,stm32-sai-sub-b";
+					reg = <0x24 0x20>;
+					#sound-dai-cells = <0>;
+					clocks = <&rcc CK_KER_SAI4>;
+					clock-names = "sai_ck";
+					dmas = <&hpdma 80 0x43 0x12>;
+					status = "disabled";
+				};
 			};
 
 			spi6: spi@40350000 {
@@ -600,6 +796,44 @@
 				       <&hpdma 169 0x20 0x3021>;
 				dma-names = "rx", "tx";
 				access-controllers = <&rifsc 48>;
+				status = "disabled";
+			};
+
+			csi: csi@48020000 {
+				compatible = "st,stm32mp25-csi";
+				reg = <0x48020000 0x2000>;
+				interrupts = <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>;
+				resets = <&rcc CSI_R>;
+				clocks = <&rcc CK_KER_CSI>, <&rcc CK_KER_CSITXESC>,
+					 <&rcc CK_KER_CSIPHY>;
+				clock-names = "pclk", "txesc", "csi2phy";
+				access-controllers = <&rifsc 86>;
+				status = "disabled";
+			};
+
+			dcmipp: dcmipp@48030000 {
+				compatible = "st,stm32mp25-dcmipp";
+				reg = <0x48030000 0x1000>;
+				interrupts = <GIC_SPI 198 IRQ_TYPE_LEVEL_HIGH>;
+				resets = <&rcc DCMIPP_R>;
+				clocks = <&rcc CK_BUS_DCMIPP>, <&rcc CK_KER_CSI>;
+				clock-names = "kclk", "mclk";
+				access-controllers = <&rifsc 87>;
+				status = "disabled";
+			};
+
+			combophy: phy@480c0000 {
+				compatible = "st,stm32mp25-combophy";
+				reg = <0x480c0000 0x1000>;
+				#phy-cells = <1>;
+				clocks = <&rcc CK_BUS_USB3PCIEPHY>, <&rcc CK_KER_USB3PCIEPHY>;
+				clock-names = "apb", "ker";
+				resets = <&rcc USB3PCIEPHY_R>;
+				reset-names = "phy";
+				access-controllers = <&rifsc 67>;
+				power-domains = <&CLUSTER_PD>;
+				wakeup-source;
+				interrupts-extended = <&exti1 45 IRQ_TYPE_EDGE_FALLING>;
 				status = "disabled";
 			};
 

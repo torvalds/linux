@@ -1112,7 +1112,7 @@ static int vector_net_close(struct net_device *dev)
 	struct vector_private *vp = netdev_priv(dev);
 
 	netif_stop_queue(dev);
-	del_timer(&vp->tl);
+	timer_delete(&vp->tl);
 
 	vp->opened = false;
 
@@ -1694,10 +1694,7 @@ static int __init vector_setup(char *str)
 				 str, error);
 		return 1;
 	}
-	new = memblock_alloc(sizeof(*new), SMP_CACHE_BYTES);
-	if (!new)
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      sizeof(*new));
+	new = memblock_alloc_or_panic(sizeof(*new), SMP_CACHE_BYTES);
 	INIT_LIST_HEAD(&new->list);
 	new->unit = n;
 	new->arguments = str;

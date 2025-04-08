@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/dma/atmel,sama5d4-dma.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip AT91 Extensible Direct Memory Access Controller
+
+maintainers:
+  - Nicolas Ferre <nicolas.ferre@microchip.com>
+  - Charan Pedumuru <charan.pedumuru@microchip.com>
+
+description:
+  The DMA Controller (XDMAC) is a AHB-protocol central direct memory access
+  controller. It performs peripheral data transfer and memory move operations
+  over one or two bus ports through the unidirectional communication
+  channel. Each channel is fully programmable and provides both peripheral
+  or memory-to-memory transfers. The channel features are configurable at
+  implementation.
+
+allOf:
+  - $ref: dma-controller.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - atmel,sama5d4-dma
+          - microchip,sama7g5-dma
+      - items:
+          - enum:
+              - microchip,sam9x60-dma
+              - microchip,sam9x7-dma
+          - const: atmel,sama5d4-dma
+      - items:
+          - const: microchip,sama7d65-dma
+          - const: microchip,sama7g5-dma
+
+  "#dma-cells":
+    description: |
+      Represents the number of integer cells in the `dmas` property of client
+      devices. The single cell specifies the channel configuration register:
+        - bit 13: SIF (Source Interface Identifier) for memory interface.
+        - bit 14: DIF (Destination Interface Identifier) for peripheral interface.
+        - bit 30-24: PERID (Peripheral Identifier).
+    const: 1
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: dma_clk
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - "#dma-cells"
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/at91.h>
+    #include <dt-bindings/dma/at91.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    dma-controller@f0008000 {
+        compatible = "atmel,sama5d4-dma";
+        reg = <0xf0008000 0x1000>;
+        interrupts = <20 IRQ_TYPE_LEVEL_HIGH 0>;
+        #dma-cells = <1>;
+        clocks = <&pmc PMC_TYPE_PERIPHERAL 20>;
+        clock-names = "dma_clk";
+    };

@@ -43,7 +43,7 @@ int bch2_extent_fallocate(struct btree_trans *trans,
 	bch2_bkey_buf_init(&new);
 	closure_init_stack(&cl);
 
-	k = bch2_btree_iter_peek_slot(iter);
+	k = bch2_btree_iter_peek_slot(trans, iter);
 	ret = bkey_err(k);
 	if (ret)
 		return ret;
@@ -113,11 +113,14 @@ int bch2_extent_fallocate(struct btree_trans *trans,
 err:
 	if (!ret && sectors_allocated)
 		bch2_increment_clock(c, sectors_allocated, WRITE);
-	if (should_print_err(ret))
-		bch_err_inum_offset_ratelimited(c,
-			inum.inum,
-			iter->pos.offset << 9,
-			"%s(): error: %s", __func__, bch2_err_str(ret));
+	if (should_print_err(ret)) {
+		struct printbuf buf = PRINTBUF;
+		lockrestart_do(trans,
+			bch2_inum_offset_err_msg_trans(trans, &buf, inum, iter->pos.offset << 9));
+		prt_printf(&buf, "fallocate error: %s", bch2_err_str(ret));
+		bch_err_ratelimited(c, "%s", buf.buf);
+		printbuf_exit(&buf);
+	}
 err_noprint:
 	bch2_open_buckets_put(c, &open_buckets);
 	bch2_disk_reservation_put(c, &disk_res);
@@ -161,12 +164,12 @@ int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
 		if (ret)
 			continue;
 
-		bch2_btree_iter_set_snapshot(iter, snapshot);
+		bch2_btree_iter_set_snapshot(trans, iter, snapshot);
 
 		/*
-		 * peek_upto() doesn't have ideal semantics for extents:
+		 * peek_max() doesn't have ideal semantics for extents:
 		 */
-		k = bch2_btree_iter_peek_upto(iter, end_pos);
+		k = bch2_btree_iter_peek_max(trans, iter, end_pos);
 		if (!k.k)
 			break;
 
@@ -227,7 +230,7 @@ static int truncate_set_isize(struct btree_trans *trans,
 			      u64 new_i_size,
 			      bool warn)
 {
-	struct btree_iter iter = { NULL };
+	struct btree_iter iter = {};
 	struct bch_inode_unpacked inode_u;
 	int ret;
 
@@ -396,7 +399,7 @@ case LOGGED_OP_FINSERT_start:
 		if (ret)
 			goto err;
 	} else {
-		bch2_btree_iter_set_pos(&iter, POS(inum.inum, src_offset));
+		bch2_btree_iter_set_pos(trans, &iter, POS(inum.inum, src_offset));
 
 		ret = bch2_fpunch_at(trans, &iter, inum, src_offset + len, i_sectors_delta);
 		if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
@@ -422,12 +425,12 @@ case LOGGED_OP_FINSERT_shift_extents:
 		if (ret)
 			goto btree_err;
 
-		bch2_btree_iter_set_snapshot(&iter, snapshot);
-		bch2_btree_iter_set_pos(&iter, SPOS(inum.inum, pos, snapshot));
+		bch2_btree_iter_set_snapshot(trans, &iter, snapshot);
+		bch2_btree_iter_set_pos(trans, &iter, SPOS(inum.inum, pos, snapshot));
 
 		k = insert
-			? bch2_btree_iter_peek_prev(&iter)
-			: bch2_btree_iter_peek_upto(&iter, POS(inum.inum, U64_MAX));
+			? bch2_btree_iter_peek_prev_min(trans, &iter, POS(inum.inum, 0))
+			: bch2_btree_iter_peek_max(trans, &iter, POS(inum.inum, U64_MAX));
 		if ((ret = bkey_err(k)))
 			goto btree_err;
 
@@ -461,7 +464,7 @@ case LOGGED_OP_FINSERT_shift_extents:
 
 		op->v.pos = cpu_to_le64(insert ? bkey_start_offset(&delete.k) : delete.k.p.offset);
 
-		ret =   bch2_bkey_set_needs_rebalance(c, copy, &opts) ?:
+		ret =   bch2_bkey_set_needs_rebalance(c, &opts, copy) ?:
 			bch2_btree_insert_trans(trans, BTREE_ID_extents, &delete, 0) ?:
 			bch2_btree_insert_trans(trans, BTREE_ID_extents, copy, 0) ?:
 			bch2_logged_op_update(trans, &op->k_i) ?:

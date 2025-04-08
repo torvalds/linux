@@ -200,11 +200,6 @@ static void iscsit_clear_tpg_np_login_threads(
 	spin_unlock(&tpg->tpg_np_lock);
 }
 
-void iscsit_tpg_dump_params(struct iscsi_portal_group *tpg)
-{
-	iscsi_print_params(tpg->param_list);
-}
-
 static void iscsit_set_default_tpg_attribs(struct iscsi_portal_group *tpg)
 {
 	struct iscsi_tpg_attrib *a = &tpg->tpg_attrib;

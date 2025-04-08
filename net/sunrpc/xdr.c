@@ -1097,6 +1097,12 @@ out_overflow:
  * Checks that we have enough buffer space to encode 'nbytes' more
  * bytes of data. If so, update the total xdr_buf length, and
  * adjust the length of the current kvec.
+ *
+ * The returned pointer is valid only until the next call to
+ * xdr_reserve_space() or xdr_commit_encode() on @xdr. The current
+ * implementation of this API guarantees that space reserved for a
+ * four-byte data item remains valid until @xdr is destroyed, but
+ * that might not always be true in the future.
  */
 __be32 * xdr_reserve_space(struct xdr_stream *xdr, size_t nbytes)
 {

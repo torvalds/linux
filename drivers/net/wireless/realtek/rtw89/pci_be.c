@@ -666,7 +666,7 @@ SIMPLE_DEV_PM_OPS(rtw89_pm_ops_be, rtw89_pci_suspend_be, rtw89_pci_resume_be);
 EXPORT_SYMBOL(rtw89_pm_ops_be);
 
 const struct rtw89_pci_gen_def rtw89_pci_gen_be = {
-	.isr_rdu = B_BE_RDU_CH1_INT | B_BE_RDU_CH0_INT,
+	.isr_rdu = B_BE_RDU_CH1_INT_V1 | B_BE_RDU_CH0_INT_V1,
 	.isr_halt_c2h = B_BE_HALT_C2H_INT,
 	.isr_wdt_timeout = B_BE_WDT_TIMEOUT_INT,
 	.isr_clear_rpq = {R_BE_PCIE_DMA_ISR, B_BE_PCIE_RX_RPQ0_ISR_V1},
@@ -691,5 +691,6 @@ const struct rtw89_pci_gen_def rtw89_pci_gen_be = {
 	.l1ss_set = rtw89_pci_l1ss_set_be,
 
 	.disable_eq = rtw89_pci_disable_eq_be,
+	.power_wake = _patch_pcie_power_wake_be,
 };
 EXPORT_SYMBOL(rtw89_pci_gen_be);

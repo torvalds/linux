@@ -27,7 +27,9 @@
 
 #define MT792x_CHIP_CAP_CLC_EVT_EN BIT(0)
 #define MT792x_CHIP_CAP_RSSI_NOTIFY_EVT_EN BIT(1)
-#define MT792x_CHIP_CAP_MLO_EVT_EN BIT(2)
+#define MT792x_CHIP_CAP_WF_RF_PIN_CTRL_EVT_EN BIT(3)
+#define MT792x_CHIP_CAP_MLO_EN BIT(8)
+#define MT792x_CHIP_CAP_MLO_EML_EN BIT(9)
 
 /* NOTE: used to map mt76_rates. idx may change if firmware expands table */
 #define MT792x_BASIC_RATES_TBL	11
@@ -69,6 +71,7 @@ struct mt792x_fw_features {
 enum {
 	MT792x_CLC_POWER,
 	MT792x_CLC_POWER_EXT,
+	MT792x_CLC_BE_CTRL,
 	MT792x_CLC_MAX_NUM,
 };
 
@@ -78,6 +81,13 @@ enum mt792x_reg_power_type {
 	MT_AP_LPI,
 	MT_AP_SP,
 	MT_AP_VLP,
+};
+
+enum mt792x_mlo_pm_state {
+	MT792x_MLO_LINK_DISASSOC,
+	MT792x_MLO_LINK_ASSOC,
+	MT792x_MLO_CHANGED_PS_PENDING,
+	MT792x_MLO_CHANGED_PS,
 };
 
 DECLARE_EWMA(avg_signal, 10, 8)
@@ -116,7 +126,7 @@ struct mt792x_chanctx {
 };
 
 struct mt792x_bss_conf {
-	struct mt76_vif mt76; /* must be first */
+	struct mt76_vif_link mt76; /* must be first */
 	struct mt792x_vif *vif;
 	struct ewma_rssi rssi;
 	struct ieee80211_tx_queue_params queue_params[IEEE80211_NUM_ACS];
@@ -133,6 +143,10 @@ struct mt792x_vif {
 	struct mt792x_phy *phy;
 	u16 valid_links;
 	u8 deflink_id;
+	enum mt792x_mlo_pm_state mlo_pm_state;
+
+	struct work_struct csa_work;
+	struct timer_list csa_timer;
 };
 
 struct mt792x_phy {
@@ -206,6 +220,8 @@ struct mt792x_dev {
 		struct mt76_phy mphy;
 	};
 
+	struct mac_address macaddr_list[8];
+
 	const struct mt76_bus_ops *bus_ops;
 	struct mt792x_phy phy;
 
@@ -216,6 +232,10 @@ struct mt792x_dev {
 	bool has_eht:1;
 	bool regd_in_progress:1;
 	bool aspm_supported:1;
+	bool hif_idle:1;
+	bool hif_resumed:1;
+	bool sar_inited:1;
+	bool regd_change:1;
 	wait_queue_head_t wait;
 
 	struct work_struct init_work;
@@ -229,18 +249,22 @@ struct mt792x_dev {
 	const struct mt792x_irq_map *irq_map;
 
 	struct work_struct ipv6_ns_work;
+	struct delayed_work mlo_pm_work;
 	/* IPv6 addresses for WoWLAN */
 	struct sk_buff_head ipv6_ns_list;
 
 	enum environment_cap country_ie_env;
 	u32 backup_l1;
 	u32 backup_l2;
+
+	struct ieee80211_chanctx_conf *new_ctx;
 };
 
 static inline struct mt792x_bss_conf *
 mt792x_vif_to_link(struct mt792x_vif *mvif, u8 link_id)
 {
 	struct ieee80211_vif *vif;
+	struct mt792x_bss_conf *bss_conf;
 
 	vif = container_of((void *)mvif, struct ieee80211_vif, drv_priv);
 
@@ -248,8 +272,10 @@ mt792x_vif_to_link(struct mt792x_vif *mvif, u8 link_id)
 	    link_id >= IEEE80211_LINK_UNSPECIFIED)
 		return &mvif->bss_conf;
 
-	return rcu_dereference_protected(mvif->link_conf[link_id],
-		lockdep_is_held(&mvif->phy->dev->mt76.mutex));
+	bss_conf = rcu_dereference_protected(mvif->link_conf[link_id],
+					     lockdep_is_held(&mvif->phy->dev->mt76.mutex));
+
+	return bss_conf ? bss_conf : &mvif->bss_conf;
 }
 
 static inline struct mt792x_link_sta *
@@ -364,6 +390,7 @@ void mt792x_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		    u64 timestamp);
 void mt792x_tx_worker(struct mt76_worker *w);
 void mt792x_roc_timer(struct timer_list *timer);
+void mt792x_csa_timer(struct timer_list *timer);
 void mt792x_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		  u32 queues, bool drop);
 int mt792x_assign_vif_chanctx(struct ieee80211_hw *hw,
@@ -414,6 +441,7 @@ int mt792x_mcu_fw_pmctrl(struct mt792x_dev *dev);
 void mt792x_mac_link_bss_remove(struct mt792x_dev *dev,
 				struct mt792x_bss_conf *mconf,
 				struct mt792x_link_sta *mlink);
+void mt792x_config_mac_addr_list(struct mt792x_dev *dev);
 
 static inline char *mt792x_ram_name(struct mt792x_dev *dev)
 {
@@ -480,7 +508,7 @@ int mt792xe_mcu_fw_pmctrl(struct mt792x_dev *dev);
 int mt792x_init_acpi_sar(struct mt792x_dev *dev);
 int mt792x_init_acpi_sar_power(struct mt792x_phy *phy, bool set_default);
 u8 mt792x_acpi_get_flags(struct mt792x_phy *phy);
-u8 mt792x_acpi_get_mtcl_conf(struct mt792x_phy *phy, char *alpha2);
+u32 mt792x_acpi_get_mtcl_conf(struct mt792x_phy *phy, char *alpha2);
 #else
 static inline int mt792x_init_acpi_sar(struct mt792x_dev *dev)
 {
@@ -498,9 +526,9 @@ static inline u8 mt792x_acpi_get_flags(struct mt792x_phy *phy)
 	return 0;
 }
 
-static inline u8 mt792x_acpi_get_mtcl_conf(struct mt792x_phy *phy, char *alpha2)
+static inline u32 mt792x_acpi_get_mtcl_conf(struct mt792x_phy *phy, char *alpha2)
 {
-	return 0xf;
+	return MT792X_ACPI_MTCL_INVALID;
 }
 #endif
 

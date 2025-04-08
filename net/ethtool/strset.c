@@ -75,6 +75,11 @@ static const struct strset_info info_template[] = {
 		.count		= __HWTSTAMP_FILTER_CNT,
 		.strings	= ts_rx_filter_names,
 	},
+	[ETH_SS_TS_FLAGS] = {
+		.per_dev	= false,
+		.count		= __HWTSTAMP_FLAG_CNT,
+		.strings	= ts_flags_names,
+	},
 	[ETH_SS_UDP_TUNNEL_TYPES] = {
 		.per_dev	= false,
 		.count		= __ETHTOOL_UDP_TUNNEL_TYPE_CNT,
@@ -104,6 +109,11 @@ static const struct strset_info info_template[] = {
 		.per_dev	= false,
 		.count		= __ETHTOOL_A_STATS_RMON_CNT,
 		.strings	= stats_rmon_names,
+	},
+	[ETH_SS_STATS_PHY] = {
+		.per_dev	= false,
+		.count		= __ETHTOOL_A_STATS_PHY_CNT,
+		.strings	= stats_phy_names,
 	},
 };
 
@@ -299,7 +309,7 @@ static int strset_prepare_data(const struct ethnl_req_info *req_base,
 		return 0;
 	}
 
-	phydev = ethnl_req_get_phydev(req_base, tb[ETHTOOL_A_HEADER_FLAGS],
+	phydev = ethnl_req_get_phydev(req_base, tb, ETHTOOL_A_HEADER_FLAGS,
 				      info->extack);
 
 	/* phydev can be NULL, check for errors only */

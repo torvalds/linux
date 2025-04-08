@@ -538,7 +538,7 @@ const struct kernel_param_ops param_ops_string = {
 EXPORT_SYMBOL(param_ops_string);
 
 /* sysfs output in /sys/modules/XYZ/parameters/ */
-#define to_module_attr(n) container_of(n, struct module_attribute, attr)
+#define to_module_attr(n) container_of_const(n, struct module_attribute, attr)
 #define to_module_kobject(n) container_of(n, struct module_kobject, kobj)
 
 struct param_attribute
@@ -551,17 +551,17 @@ struct module_param_attrs
 {
 	unsigned int num;
 	struct attribute_group grp;
-	struct param_attribute attrs[];
+	struct param_attribute attrs[] __counted_by(num);
 };
 
 #ifdef CONFIG_SYSFS
-#define to_param_attr(n) container_of(n, struct param_attribute, mattr)
+#define to_param_attr(n) container_of_const(n, struct param_attribute, mattr)
 
-static ssize_t param_attr_show(struct module_attribute *mattr,
+static ssize_t param_attr_show(const struct module_attribute *mattr,
 			       struct module_kobject *mk, char *buf)
 {
 	int count;
-	struct param_attribute *attribute = to_param_attr(mattr);
+	const struct param_attribute *attribute = to_param_attr(mattr);
 
 	if (!attribute->param->ops->get)
 		return -EPERM;
@@ -573,12 +573,12 @@ static ssize_t param_attr_show(struct module_attribute *mattr,
 }
 
 /* sysfs always hands a nul-terminated string in buf.  We rely on that. */
-static ssize_t param_attr_store(struct module_attribute *mattr,
+static ssize_t param_attr_store(const struct module_attribute *mattr,
 				struct module_kobject *mk,
 				const char *buf, size_t len)
 {
  	int err;
-	struct param_attribute *attribute = to_param_attr(mattr);
+	const struct param_attribute *attribute = to_param_attr(mattr);
 
 	if (!attribute->param->ops->set)
 		return -EPERM;
@@ -651,35 +651,32 @@ static __modinit int add_sysfs_param(struct module_kobject *mk,
 	}
 
 	/* Enlarge allocations. */
-	new_mp = krealloc(mk->mp,
-			  sizeof(*mk->mp) +
-			  sizeof(mk->mp->attrs[0]) * (mk->mp->num + 1),
+	new_mp = krealloc(mk->mp, struct_size(mk->mp, attrs, mk->mp->num + 1),
 			  GFP_KERNEL);
 	if (!new_mp)
 		return -ENOMEM;
 	mk->mp = new_mp;
+	mk->mp->num++;
 
 	/* Extra pointer for NULL terminator */
-	new_attrs = krealloc(mk->mp->grp.attrs,
-			     sizeof(mk->mp->grp.attrs[0]) * (mk->mp->num + 2),
-			     GFP_KERNEL);
+	new_attrs = krealloc_array(mk->mp->grp.attrs, mk->mp->num + 1,
+				   sizeof(mk->mp->grp.attrs[0]), GFP_KERNEL);
 	if (!new_attrs)
 		return -ENOMEM;
 	mk->mp->grp.attrs = new_attrs;
 
 	/* Tack new one on the end. */
-	memset(&mk->mp->attrs[mk->mp->num], 0, sizeof(mk->mp->attrs[0]));
-	sysfs_attr_init(&mk->mp->attrs[mk->mp->num].mattr.attr);
-	mk->mp->attrs[mk->mp->num].param = kp;
-	mk->mp->attrs[mk->mp->num].mattr.show = param_attr_show;
+	memset(&mk->mp->attrs[mk->mp->num - 1], 0, sizeof(mk->mp->attrs[0]));
+	sysfs_attr_init(&mk->mp->attrs[mk->mp->num - 1].mattr.attr);
+	mk->mp->attrs[mk->mp->num - 1].param = kp;
+	mk->mp->attrs[mk->mp->num - 1].mattr.show = param_attr_show;
 	/* Do not allow runtime DAC changes to make param writable. */
 	if ((kp->perm & (S_IWUSR | S_IWGRP | S_IWOTH)) != 0)
-		mk->mp->attrs[mk->mp->num].mattr.store = param_attr_store;
+		mk->mp->attrs[mk->mp->num - 1].mattr.store = param_attr_store;
 	else
-		mk->mp->attrs[mk->mp->num].mattr.store = NULL;
-	mk->mp->attrs[mk->mp->num].mattr.attr.name = (char *)name;
-	mk->mp->attrs[mk->mp->num].mattr.attr.mode = kp->perm;
-	mk->mp->num++;
+		mk->mp->attrs[mk->mp->num - 1].mattr.store = NULL;
+	mk->mp->attrs[mk->mp->num - 1].mattr.attr.name = (char *)name;
+	mk->mp->attrs[mk->mp->num - 1].mattr.attr.mode = kp->perm;
 
 	/* Fix up all the pointers, since krealloc can move us */
 	for (i = 0; i < mk->mp->num; i++)
@@ -857,11 +854,11 @@ static void __init param_sysfs_builtin(void)
 	}
 }
 
-ssize_t __modver_version_show(struct module_attribute *mattr,
+ssize_t __modver_version_show(const struct module_attribute *mattr,
 			      struct module_kobject *mk, char *buf)
 {
-	struct module_version_attribute *vattr =
-		container_of(mattr, struct module_version_attribute, mattr);
+	const struct module_version_attribute *vattr =
+		container_of_const(mattr, struct module_version_attribute, mattr);
 
 	return scnprintf(buf, PAGE_SIZE, "%s\n", vattr->version);
 }
@@ -892,7 +889,7 @@ static ssize_t module_attr_show(struct kobject *kobj,
 				struct attribute *attr,
 				char *buf)
 {
-	struct module_attribute *attribute;
+	const struct module_attribute *attribute;
 	struct module_kobject *mk;
 	int ret;
 
@@ -911,7 +908,7 @@ static ssize_t module_attr_store(struct kobject *kobj,
 				struct attribute *attr,
 				const char *buf, size_t len)
 {
-	struct module_attribute *attribute;
+	const struct module_attribute *attribute;
 	struct module_kobject *mk;
 	int ret;
 

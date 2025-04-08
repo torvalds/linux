@@ -255,8 +255,6 @@
 
 		usb0: usb@c9040000 {
 			compatible = "snps,dwc2";
-			#address-cells = <1>;
-			#size-cells = <0>;
 			reg = <0xc9040000 0x40000>;
 			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 			phys = <&usb0_phy>;
@@ -270,8 +268,6 @@
 
 		usb1: usb@c90c0000 {
 			compatible = "snps,dwc2";
-			#address-cells = <1>;
-			#size-cells = <0>;
 			reg = <0xc90c0000 0x40000>;
 			interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 			phys = <&usb1_phy>;

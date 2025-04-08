@@ -637,6 +637,10 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 					   cifs_sb->ctx->dir_mode);
 	if (cifs_sb->ctx->iocharset)
 		seq_printf(s, ",iocharset=%s", cifs_sb->ctx->iocharset);
+	if (tcon->ses->unicode == 0)
+		seq_puts(s, ",nounicode");
+	else if (tcon->ses->unicode == 1)
+		seq_puts(s, ",unicode");
 	if (tcon->seal)
 		seq_puts(s, ",seal");
 	else if (tcon->ses->server->ignore_signature)
@@ -715,6 +719,12 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 					    cifs_sb->ctx->backupgid));
 	seq_show_option(s, "reparse",
 			cifs_reparse_type_str(cifs_sb->ctx->reparse_type));
+	if (cifs_sb->ctx->nonativesocket)
+		seq_puts(s, ",nonativesocket");
+	else
+		seq_puts(s, ",nativesocket");
+	seq_show_option(s, "symlink",
+			cifs_symlink_type_str(get_cifs_symlink_type(cifs_sb)));
 
 	seq_printf(s, ",rsize=%u", cifs_sb->ctx->rsize);
 	seq_printf(s, ",wsize=%u", cifs_sb->ctx->wsize);

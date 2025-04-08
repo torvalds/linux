@@ -459,7 +459,7 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 			if (adev->vcn.harvest_config & (1 << i))
 				continue;
 
-			for (j = 0; j < adev->vcn.num_enc_rings; j++)
+			for (j = 0; j < adev->vcn.inst[i].num_enc_rings; j++)
 				if (adev->vcn.inst[i].ring_enc[j].sched.ready)
 					++num_rings;
 		}
@@ -846,7 +846,7 @@ out:
 	case AMDGPU_INFO_DEV_INFO: {
 		struct drm_amdgpu_info_device *dev_info;
 		uint64_t vm_size;
-		uint32_t pcie_gen_mask;
+		uint32_t pcie_gen_mask, pcie_width_mask;
 
 		dev_info = kzalloc(sizeof(*dev_info), GFP_KERNEL);
 		if (!dev_info)
@@ -887,6 +887,15 @@ out:
 			dev_info->ids_flags |= AMDGPU_IDS_FLAGS_TMZ;
 		if (adev->gfx.config.ta_cntl2_truncate_coord_mode)
 			dev_info->ids_flags |= AMDGPU_IDS_FLAGS_CONFORMANT_TRUNC_COORD;
+
+		if (amdgpu_passthrough(adev))
+			dev_info->ids_flags |= (AMDGPU_IDS_FLAGS_MODE_PT <<
+						AMDGPU_IDS_FLAGS_MODE_SHIFT) &
+						AMDGPU_IDS_FLAGS_MODE_MASK;
+		else if (amdgpu_sriov_vf(adev))
+			dev_info->ids_flags |= (AMDGPU_IDS_FLAGS_MODE_VF <<
+						AMDGPU_IDS_FLAGS_MODE_SHIFT) &
+						AMDGPU_IDS_FLAGS_MODE_MASK;
 
 		vm_size = adev->vm_manager.max_pfn * AMDGPU_GPU_PAGE_SIZE;
 		vm_size -= AMDGPU_VA_RESERVED_TOP;
@@ -934,15 +943,18 @@ out:
 		dev_info->tcc_disabled_mask = adev->gfx.config.tcc_disabled_mask;
 
 		/* Combine the chip gen mask with the platform (CPU/mobo) mask. */
-		pcie_gen_mask = adev->pm.pcie_gen_mask & (adev->pm.pcie_gen_mask >> 16);
+		pcie_gen_mask = adev->pm.pcie_gen_mask &
+			(adev->pm.pcie_gen_mask >> CAIL_PCIE_LINK_SPEED_SUPPORT_SHIFT);
+		pcie_width_mask = adev->pm.pcie_mlw_mask &
+			(adev->pm.pcie_mlw_mask >> CAIL_PCIE_LINK_WIDTH_SUPPORT_SHIFT);
 		dev_info->pcie_gen = fls(pcie_gen_mask);
 		dev_info->pcie_num_lanes =
-			adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X32 ? 32 :
-			adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X16 ? 16 :
-			adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X12 ? 12 :
-			adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 ? 8 :
-			adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 ? 4 :
-			adev->pm.pcie_mlw_mask & CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 ? 2 : 1;
+			pcie_width_mask & CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X32 ? 32 :
+			pcie_width_mask & CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X16 ? 16 :
+			pcie_width_mask & CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X12 ? 12 :
+			pcie_width_mask & CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X8 ? 8 :
+			pcie_width_mask & CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X4 ? 4 :
+			pcie_width_mask & CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X2 ? 2 : 1;
 
 		dev_info->tcp_cache_size = adev->gfx.config.gc_tcp_l1_size;
 		dev_info->num_sqc_per_wgp = adev->gfx.config.gc_num_sqc_per_wgp;

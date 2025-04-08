@@ -135,7 +135,7 @@ struct xfs_btree_ops {
 	/* offset of btree stats array */
 	unsigned int		statoff;
 
-	/* sick mask for health reporting (only for XFS_BTREE_TYPE_AG) */
+	/* sick mask for health reporting (not for bmap btrees) */
 	unsigned int		sick_mask;
 
 	/* cursor operations */
@@ -213,11 +213,27 @@ struct xfs_btree_ops {
 			       const union xfs_btree_key *key1,
 			       const union xfs_btree_key *key2,
 			       const union xfs_btree_key *mask);
+
+	/*
+	 * Reallocate the space for if_broot to fit the number of records.
+	 * Move the records and pointers in if_broot to fit the new size.  When
+	 * shrinking this will eliminate holes between the records and pointers
+	 * created by the caller.  When growing this will create holes to be
+	 * filled in by the caller.
+	 *
+	 * The caller must not request to add more records than would fit in
+	 * the on-disk inode root.  If the if_broot is currently NULL, then if
+	 * we are adding records, one will be allocated.  The caller must also
+	 * not request that the number of records go below zero, although it
+	 * can go to zero.
+	 */
+	struct xfs_btree_block *(*broot_realloc)(struct xfs_btree_cur *cur,
+				unsigned int new_numrecs);
 };
 
 /* btree geometry flags */
 #define XFS_BTGEO_OVERLAPPING		(1U << 0) /* overlapping intervals */
-
+#define XFS_BTGEO_IROOT_RECORDS		(1U << 1) /* iroot can store records */
 
 union xfs_btree_irec {
 	struct xfs_alloc_rec_incore	a;
@@ -281,7 +297,7 @@ struct xfs_btree_cur
 		struct {
 			unsigned int	nr_ops;		/* # record updates */
 			unsigned int	shape_changes;	/* # of extent splits */
-		} bc_refc;	/* refcountbt */
+		} bc_refc;	/* refcountbt/rtrefcountbt */
 	};
 
 	/* Must be at the end of the struct! */
@@ -686,5 +702,11 @@ xfs_btree_at_iroot(
 	return cur->bc_ops->type == XFS_BTREE_TYPE_INODE &&
 	       level == cur->bc_nlevels - 1;
 }
+
+int xfs_btree_alloc_metafile_block(struct xfs_btree_cur *cur,
+		const union xfs_btree_ptr *start, union xfs_btree_ptr *newp,
+		int *stat);
+int xfs_btree_free_metafile_block(struct xfs_btree_cur *cur,
+		struct xfs_buf *bp);
 
 #endif	/* __XFS_BTREE_H__ */

@@ -73,7 +73,7 @@ static int ecb_crypt(struct skcipher_request *req, const u32 *expkey)
 	err = skcipher_walk_virt(&walk, req, false);
 
 	while ((nbytes = walk.nbytes)) {
-		u8 *wsrc = walk.src.virt.addr;
+		const u8 *wsrc = walk.src.virt.addr;
 		u8 *wdst = walk.dst.virt.addr;
 
 		/* Process four block batch */
@@ -291,7 +291,6 @@ static struct crypto_alg des3_ede_cipher = {
 	.cra_flags		= CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		= DES3_EDE_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct des3_ede_x86_ctx),
-	.cra_alignmask		= 0,
 	.cra_module		= THIS_MODULE,
 	.cra_u = {
 		.cipher = {

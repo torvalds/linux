@@ -11,12 +11,8 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/blkdev.h>
 #include <linux/blk-mq.h>
-#include <linux/mm.h>
-#include <linux/vmalloc.h>
-#include <linux/sched/mm.h>
 #include <linux/spinlock.h>
 #include <linux/refcount.h>
 #include <linux/mempool.h>
@@ -414,13 +410,14 @@ static bool disk_insert_zone_wplug(struct gendisk *disk,
 		}
 	}
 	hlist_add_head_rcu(&zwplug->node, &disk->zone_wplugs_hash[idx]);
+	atomic_inc(&disk->nr_zone_wplugs);
 	spin_unlock_irqrestore(&disk->zone_wplugs_lock, flags);
 
 	return true;
 }
 
-static struct blk_zone_wplug *disk_get_zone_wplug(struct gendisk *disk,
-						  sector_t sector)
+static struct blk_zone_wplug *disk_get_hashed_zone_wplug(struct gendisk *disk,
+							 sector_t sector)
 {
 	unsigned int zno = disk_zone_no(disk, sector);
 	unsigned int idx = hash_32(zno, disk->zone_wplugs_hash_bits);
@@ -439,6 +436,15 @@ static struct blk_zone_wplug *disk_get_zone_wplug(struct gendisk *disk,
 	rcu_read_unlock();
 
 	return NULL;
+}
+
+static inline struct blk_zone_wplug *disk_get_zone_wplug(struct gendisk *disk,
+							 sector_t sector)
+{
+	if (!atomic_read(&disk->nr_zone_wplugs))
+		return NULL;
+
+	return disk_get_hashed_zone_wplug(disk, sector);
 }
 
 static void disk_free_zone_wplug_rcu(struct rcu_head *rcu_head)
@@ -463,6 +469,8 @@ static inline void disk_put_zone_wplug(struct blk_zone_wplug *zwplug)
 static inline bool disk_should_remove_zone_wplug(struct gendisk *disk,
 						 struct blk_zone_wplug *zwplug)
 {
+	lockdep_assert_held(&zwplug->lock);
+
 	/* If the zone write plug was already removed, we are done. */
 	if (zwplug->flags & BLK_ZONE_WPLUG_UNHASHED)
 		return false;
@@ -505,6 +513,7 @@ static void disk_remove_zone_wplug(struct gendisk *disk,
 	zwplug->flags |= BLK_ZONE_WPLUG_UNHASHED;
 	spin_lock_irqsave(&disk->zone_wplugs_lock, flags);
 	hlist_del_init_rcu(&zwplug->node);
+	atomic_dec(&disk->nr_zone_wplugs);
 	spin_unlock_irqrestore(&disk->zone_wplugs_lock, flags);
 	disk_put_zone_wplug(zwplug);
 }
@@ -584,6 +593,7 @@ static inline void blk_zone_wplug_bio_io_error(struct blk_zone_wplug *zwplug,
 	bio_clear_flag(bio, BIO_ZONE_WRITE_PLUGGING);
 	bio_io_error(bio);
 	disk_put_zone_wplug(zwplug);
+	/* Drop the reference taken by disk_zone_wplug_add_bio(() */
 	blk_queue_exit(q);
 }
 
@@ -594,6 +604,11 @@ static void disk_zone_wplug_abort(struct blk_zone_wplug *zwplug)
 {
 	struct bio *bio;
 
+	if (bio_list_empty(&zwplug->bio_list))
+		return;
+
+	pr_warn_ratelimited("%s: zone %u: Aborting plugged BIOs\n",
+			    zwplug->disk->disk_name, zwplug->zone_no);
 	while ((bio = bio_list_pop(&zwplug->bio_list)))
 		blk_zone_wplug_bio_io_error(zwplug, bio);
 }
@@ -895,10 +910,7 @@ void blk_zone_write_plug_init_request(struct request *req)
 			break;
 		}
 
-		/*
-		 * Drop the extra reference on the queue usage we got when
-		 * plugging the BIO and advance the write pointer offset.
-		 */
+		/* Drop the reference taken by disk_zone_wplug_add_bio(). */
 		blk_queue_exit(q);
 		zwplug->wp_offset += bio_sectors(bio);
 
@@ -916,6 +928,8 @@ static bool blk_zone_wplug_prepare_bio(struct blk_zone_wplug *zwplug,
 				       struct bio *bio)
 {
 	struct gendisk *disk = bio->bi_bdev->bd_disk;
+
+	lockdep_assert_held(&zwplug->lock);
 
 	/*
 	 * If we lost track of the zone write pointer due to a write error,
@@ -1042,6 +1056,47 @@ plug:
 	return true;
 }
 
+static void blk_zone_wplug_handle_native_zone_append(struct bio *bio)
+{
+	struct gendisk *disk = bio->bi_bdev->bd_disk;
+	struct blk_zone_wplug *zwplug;
+	unsigned long flags;
+
+	/*
+	 * We have native support for zone append operations, so we are not
+	 * going to handle @bio through plugging. However, we may already have a
+	 * zone write plug for the target zone if that zone was previously
+	 * partially written using regular writes. In such case, we risk leaving
+	 * the plug in the disk hash table if the zone is fully written using
+	 * zone append operations. Avoid this by removing the zone write plug.
+	 */
+	zwplug = disk_get_zone_wplug(disk, bio->bi_iter.bi_sector);
+	if (likely(!zwplug))
+		return;
+
+	spin_lock_irqsave(&zwplug->lock, flags);
+
+	/*
+	 * We are about to remove the zone write plug. But if the user
+	 * (mistakenly) has issued regular writes together with native zone
+	 * append, we must aborts the writes as otherwise the plugged BIOs would
+	 * not be executed by the plug BIO work as disk_get_zone_wplug() will
+	 * return NULL after the plug is removed. Aborting the plugged write
+	 * BIOs is consistent with the fact that these writes will most likely
+	 * fail anyway as there is no ordering guarantees between zone append
+	 * operations and regular write operations.
+	 */
+	if (!bio_list_empty(&zwplug->bio_list)) {
+		pr_warn_ratelimited("%s: zone %u: Invalid mix of zone append and regular writes\n",
+				    disk->disk_name, zwplug->zone_no);
+		disk_zone_wplug_abort(zwplug);
+	}
+	disk_remove_zone_wplug(disk, zwplug);
+	spin_unlock_irqrestore(&zwplug->lock, flags);
+
+	disk_put_zone_wplug(zwplug);
+}
+
 /**
  * blk_zone_plug_bio - Handle a zone write BIO with zone write plugging
  * @bio: The BIO being submitted
@@ -1098,8 +1153,10 @@ bool blk_zone_plug_bio(struct bio *bio, unsigned int nr_segs)
 	 */
 	switch (bio_op(bio)) {
 	case REQ_OP_ZONE_APPEND:
-		if (!bdev_emulates_zone_append(bdev))
+		if (!bdev_emulates_zone_append(bdev)) {
+			blk_zone_wplug_handle_native_zone_append(bio);
 			return false;
+		}
 		fallthrough;
 	case REQ_OP_WRITE:
 	case REQ_OP_WRITE_ZEROES:
@@ -1286,6 +1343,7 @@ static int disk_alloc_zone_resources(struct gendisk *disk,
 {
 	unsigned int i;
 
+	atomic_set(&disk->nr_zone_wplugs, 0);
 	disk->zone_wplugs_hash_bits =
 		min(ilog2(pool_size) + 1, BLK_ZONE_WPLUG_MAX_HASH_BITS);
 
@@ -1340,6 +1398,7 @@ static void disk_destroy_zone_wplugs_hash_table(struct gendisk *disk)
 		}
 	}
 
+	WARN_ON_ONCE(atomic_read(&disk->nr_zone_wplugs));
 	kfree(disk->zone_wplugs_hash);
 	disk->zone_wplugs_hash = NULL;
 	disk->zone_wplugs_hash_bits = 0;
@@ -1446,7 +1505,6 @@ static int disk_update_zone_resources(struct gendisk *disk,
 	unsigned int nr_seq_zones, nr_conv_zones;
 	unsigned int pool_size;
 	struct queue_limits lim;
-	int ret;
 
 	disk->nr_zones = args->nr_zones;
 	disk->zone_capacity = args->zone_capacity;
@@ -1497,11 +1555,7 @@ static int disk_update_zone_resources(struct gendisk *disk,
 	}
 
 commit:
-	blk_mq_freeze_queue(q);
-	ret = queue_limits_commit_update(q, &lim);
-	blk_mq_unfreeze_queue(q);
-
-	return ret;
+	return queue_limits_commit_update_frozen(q, &lim);
 }
 
 static int blk_revalidate_conv_zone(struct blk_zone *zone, unsigned int idx,
@@ -1557,11 +1611,12 @@ static int blk_revalidate_seq_zone(struct blk_zone *zone, unsigned int idx,
 	}
 
 	/*
-	 * We need to track the write pointer of all zones that are not
-	 * empty nor full. So make sure we have a zone write plug for
-	 * such zone if the device has a zone write plug hash table.
+	 * If the device needs zone append emulation, we need to track the
+	 * write pointer of all zones that are not empty nor full. So make sure
+	 * we have a zone write plug for such zone if the device has a zone
+	 * write plug hash table.
 	 */
-	if (!disk->zone_wplugs_hash)
+	if (!queue_emulates_zone_append(disk->queue) || !disk->zone_wplugs_hash)
 		return 0;
 
 	disk_zone_wplug_sync_wp_offset(disk, zone);
@@ -1724,9 +1779,10 @@ int blk_revalidate_disk_zones(struct gendisk *disk)
 	else
 		pr_warn("%s: failed to revalidate zones\n", disk->disk_name);
 	if (ret) {
-		blk_mq_freeze_queue(q);
+		unsigned int memflags = blk_mq_freeze_queue(q);
+
 		disk_free_zone_resources(disk);
-		blk_mq_unfreeze_queue(q);
+		blk_mq_unfreeze_queue(q, memflags);
 	}
 
 	return ret;
@@ -1776,37 +1832,41 @@ int blk_zone_issue_zeroout(struct block_device *bdev, sector_t sector,
 EXPORT_SYMBOL_GPL(blk_zone_issue_zeroout);
 
 #ifdef CONFIG_BLK_DEBUG_FS
+static void queue_zone_wplug_show(struct blk_zone_wplug *zwplug,
+				  struct seq_file *m)
+{
+	unsigned int zwp_wp_offset, zwp_flags;
+	unsigned int zwp_zone_no, zwp_ref;
+	unsigned int zwp_bio_list_size;
+	unsigned long flags;
+
+	spin_lock_irqsave(&zwplug->lock, flags);
+	zwp_zone_no = zwplug->zone_no;
+	zwp_flags = zwplug->flags;
+	zwp_ref = refcount_read(&zwplug->ref);
+	zwp_wp_offset = zwplug->wp_offset;
+	zwp_bio_list_size = bio_list_size(&zwplug->bio_list);
+	spin_unlock_irqrestore(&zwplug->lock, flags);
+
+	seq_printf(m, "%u 0x%x %u %u %u\n", zwp_zone_no, zwp_flags, zwp_ref,
+		   zwp_wp_offset, zwp_bio_list_size);
+}
 
 int queue_zone_wplugs_show(void *data, struct seq_file *m)
 {
 	struct request_queue *q = data;
 	struct gendisk *disk = q->disk;
 	struct blk_zone_wplug *zwplug;
-	unsigned int zwp_wp_offset, zwp_flags;
-	unsigned int zwp_zone_no, zwp_ref;
-	unsigned int zwp_bio_list_size, i;
-	unsigned long flags;
+	unsigned int i;
 
 	if (!disk->zone_wplugs_hash)
 		return 0;
 
 	rcu_read_lock();
-	for (i = 0; i < disk_zone_wplugs_hash_size(disk); i++) {
-		hlist_for_each_entry_rcu(zwplug,
-					 &disk->zone_wplugs_hash[i], node) {
-			spin_lock_irqsave(&zwplug->lock, flags);
-			zwp_zone_no = zwplug->zone_no;
-			zwp_flags = zwplug->flags;
-			zwp_ref = refcount_read(&zwplug->ref);
-			zwp_wp_offset = zwplug->wp_offset;
-			zwp_bio_list_size = bio_list_size(&zwplug->bio_list);
-			spin_unlock_irqrestore(&zwplug->lock, flags);
-
-			seq_printf(m, "%u 0x%x %u %u %u\n",
-				   zwp_zone_no, zwp_flags, zwp_ref,
-				   zwp_wp_offset, zwp_bio_list_size);
-		}
-	}
+	for (i = 0; i < disk_zone_wplugs_hash_size(disk); i++)
+		hlist_for_each_entry_rcu(zwplug, &disk->zone_wplugs_hash[i],
+					 node)
+			queue_zone_wplug_show(zwplug, m);
 	rcu_read_unlock();
 
 	return 0;

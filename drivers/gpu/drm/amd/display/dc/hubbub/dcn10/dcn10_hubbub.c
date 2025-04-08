@@ -679,24 +679,6 @@ void hubbub1_update_dchub(
 	dh_data->dchub_info_valid = false;
 }
 
-void hubbub1_toggle_watermark_change_req(struct hubbub *hubbub)
-{
-	struct dcn10_hubbub *hubbub1 = TO_DCN10_HUBBUB(hubbub);
-
-	uint32_t watermark_change_req;
-
-	REG_GET(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL,
-			DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST, &watermark_change_req);
-
-	if (watermark_change_req)
-		watermark_change_req = 0;
-	else
-		watermark_change_req = 1;
-
-	REG_UPDATE(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL,
-			DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST, watermark_change_req);
-}
-
 void hubbub1_soft_reset(struct hubbub *hubbub, bool reset)
 {
 	struct dcn10_hubbub *hubbub1 = TO_DCN10_HUBBUB(hubbub);

@@ -64,6 +64,7 @@ struct dev_printk_info;
 
 extern struct printk_ringbuffer *prb;
 extern bool printk_kthreads_running;
+extern bool debug_non_panic_cpus;
 
 __printf(4, 0)
 int vprintk_store(int facility, int level,
@@ -337,4 +338,10 @@ bool printk_get_next_message(struct printk_message *pmsg, u64 seq,
 #ifdef CONFIG_PRINTK
 void console_prepend_dropped(struct printk_message *pmsg, unsigned long dropped);
 void console_prepend_replay(struct printk_message *pmsg);
+#endif
+
+#ifdef CONFIG_SMP
+bool is_printk_cpu_sync_owner(void);
+#else
+static inline bool is_printk_cpu_sync_owner(void) { return false; }
 #endif

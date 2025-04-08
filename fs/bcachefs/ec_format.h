@@ -20,6 +20,23 @@ struct bch_stripe {
 	 */
 	__u8			disk_label;
 
+	/*
+	 * Variable length sections:
+	 * - Pointers
+	 * - Checksums
+	 *   2D array of [stripe block/device][csum block], with checksum block
+	 *   size given by csum_granularity_bits
+	 * - Block sector counts: per-block array of u16s
+	 *
+	 * XXX:
+	 * Either checksums should have come last, or we should have included a
+	 * checksum_size field (the size in bytes of the checksum itself, not
+	 * the blocksize the checksum covers).
+	 *
+	 * Currently we aren't able to access the block sector counts if the
+	 * checksum type is unknown.
+	 */
+
 	struct bch_extent_ptr	ptrs[];
 } __packed __aligned(8);
 

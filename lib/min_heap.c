@@ -2,7 +2,7 @@
 #include <linux/export.h>
 #include <linux/min_heap.h>
 
-void __min_heap_init(min_heap_char *heap, void *data, int size)
+void __min_heap_init(min_heap_char *heap, void *data, size_t size)
 {
 	__min_heap_init_inline(heap, data, size);
 }
@@ -20,7 +20,7 @@ bool __min_heap_full(min_heap_char *heap)
 }
 EXPORT_SYMBOL(__min_heap_full);
 
-void __min_heap_sift_down(min_heap_char *heap, int pos, size_t elem_size,
+void __min_heap_sift_down(min_heap_char *heap, size_t pos, size_t elem_size,
 			  const struct min_heap_callbacks *func, void *args)
 {
 	__min_heap_sift_down_inline(heap, pos, elem_size, func, args);

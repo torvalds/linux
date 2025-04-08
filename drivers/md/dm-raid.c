@@ -3196,7 +3196,7 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		if (reshape_sectors || rs_is_raid1(rs)) {
 			/*
 			 * We can only prepare for a reshape here, because the
-			 * raid set needs to run to provide the repective reshape
+			 * raid set needs to run to provide the respective reshape
 			 * check functions via its MD personality instance.
 			 *
 			 * So do the reshape check after md_run() succeeded.

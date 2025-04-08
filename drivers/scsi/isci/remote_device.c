@@ -422,21 +422,6 @@ enum sci_status sci_remote_device_reset(struct isci_remote_device *idev)
 	}
 }
 
-enum sci_status sci_remote_device_reset_complete(struct isci_remote_device *idev)
-{
-	struct sci_base_state_machine *sm = &idev->sm;
-	enum sci_remote_device_states state = sm->current_state_id;
-
-	if (state != SCI_DEV_RESETTING) {
-		dev_warn(scirdev_to_dev(idev), "%s: in wrong state: %s\n",
-			 __func__, dev_state_name(state));
-		return SCI_FAILURE_INVALID_STATE;
-	}
-
-	sci_change_state(sm, SCI_DEV_READY);
-	return SCI_SUCCESS;
-}
-
 enum sci_status sci_remote_device_frame_handler(struct isci_remote_device *idev,
 						     u32 frame_index)
 {
@@ -1692,20 +1677,6 @@ enum sci_status sci_remote_device_abort_requests_pending_abort(
 	struct isci_remote_device *idev)
 {
 	return sci_remote_device_terminate_reqs_checkabort(idev, 1);
-}
-
-enum sci_status isci_remote_device_reset_complete(
-	struct isci_host *ihost,
-	struct isci_remote_device *idev)
-{
-	unsigned long flags;
-	enum sci_status status;
-
-	spin_lock_irqsave(&ihost->scic_lock, flags);
-	status = sci_remote_device_reset_complete(idev);
-	spin_unlock_irqrestore(&ihost->scic_lock, flags);
-
-	return status;
 }
 
 void isci_dev_set_hang_detection_timeout(

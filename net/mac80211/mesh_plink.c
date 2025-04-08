@@ -417,7 +417,7 @@ u64 mesh_plink_deactivate(struct sta_info *sta)
 	}
 	spin_unlock_bh(&sta->mesh->plink_lock);
 	if (!sdata->u.mesh.user_mpm)
-		del_timer_sync(&sta->mesh->plink_timer);
+		timer_delete_sync(&sta->mesh->plink_timer);
 	mesh_path_flush_by_nexthop(sta);
 
 	/* make sure no readers can access nexthop sta from here on */
@@ -432,15 +432,14 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
-	u32 rates, basic_rates = 0, changed = 0;
+	u32 rates, changed = 0;
 	enum ieee80211_sta_rx_bandwidth bw = sta->sta.deflink.bandwidth;
 
 	sband = ieee80211_get_sband(sdata);
 	if (!sband)
 		return;
 
-	rates = ieee80211_sta_get_rates(sdata, elems, sband->band,
-					&basic_rates);
+	rates = ieee80211_sta_get_rates(sdata, elems, sband->band, NULL);
 
 	spin_lock_bh(&sta->mesh->plink_lock);
 	sta->deflink.rx_stats.last_rx = jiffies;
@@ -667,7 +666,7 @@ void mesh_plink_timer(struct timer_list *t)
 
 	/*
 	 * This STA is valid because sta_info_destroy() will
-	 * del_timer_sync() this timer after having made sure
+	 * timer_delete_sync() this timer after having made sure
 	 * it cannot be re-added (by deleting the plink.)
 	 */
 	sta = mesh->plink_sta;
@@ -690,7 +689,7 @@ void mesh_plink_timer(struct timer_list *t)
 		return;
 	}
 
-	/* del_timer() and handler may race when entering these states */
+	/* timer_delete() and handler may race when entering these states */
 	if (sta->mesh->plink_state == NL80211_PLINK_LISTEN ||
 	    sta->mesh->plink_state == NL80211_PLINK_ESTAB) {
 		mpl_dbg(sta->sdata,
@@ -736,7 +735,7 @@ void mesh_plink_timer(struct timer_list *t)
 		break;
 	case NL80211_PLINK_HOLDING:
 		/* holding timer */
-		del_timer(&sta->mesh->plink_timer);
+		timer_delete(&sta->mesh->plink_timer);
 		mesh_plink_fsm_restart(sta);
 		break;
 	default:
@@ -849,7 +848,7 @@ static u64 mesh_plink_establish(struct ieee80211_sub_if_data *sdata,
 	struct mesh_config *mshcfg = &sdata->u.mesh.mshcfg;
 	u64 changed = 0;
 
-	del_timer(&sta->mesh->plink_timer);
+	timer_delete(&sta->mesh->plink_timer);
 	sta->mesh->plink_state = NL80211_PLINK_ESTAB;
 	changed |= mesh_plink_inc_estab_count(sdata);
 	changed |= mesh_set_ht_prot_mode(sdata);
@@ -976,7 +975,7 @@ static u64 mesh_plink_fsm(struct ieee80211_sub_if_data *sdata,
 	case NL80211_PLINK_HOLDING:
 		switch (event) {
 		case CLS_ACPT:
-			del_timer(&sta->mesh->plink_timer);
+			timer_delete(&sta->mesh->plink_timer);
 			mesh_plink_fsm_restart(sta);
 			break;
 		case OPN_ACPT:

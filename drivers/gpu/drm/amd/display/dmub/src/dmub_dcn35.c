@@ -88,7 +88,7 @@ static inline void dmub_dcn35_translate_addr(const union dmub_addr *addr_in,
 void dmub_dcn35_reset(struct dmub_srv *dmub)
 {
 	union dmub_gpint_data_register cmd;
-	const uint32_t timeout = 100;
+	const uint32_t timeout = 100000;
 	uint32_t in_reset, is_enabled, scratch, i, pwait_mode;
 
 	REG_GET(DMCUB_CNTL2, DMCUB_SOFT_RESET, &in_reset);
@@ -113,7 +113,7 @@ void dmub_dcn35_reset(struct dmub_srv *dmub)
 		}
 
 		for (i = 0; i < timeout; ++i) {
-			scratch = dmub->hw_funcs.get_gpint_response(dmub);
+			scratch = REG_READ(DMCUB_SCRATCH7);
 			if (scratch == DMUB_GPINT__STOP_FW_RESPONSE)
 				break;
 
@@ -462,66 +462,69 @@ uint32_t dmub_dcn35_get_current_time(struct dmub_srv *dmub)
 	return REG_READ(DMCUB_TIMER_CURRENT);
 }
 
-void dmub_dcn35_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnostic_data *diag_data)
+void dmub_dcn35_get_diagnostic_data(struct dmub_srv *dmub)
 {
 	uint32_t is_dmub_enabled, is_soft_reset;
 	uint32_t is_traceport_enabled, is_cw6_enabled;
+	struct dmub_timeout_info timeout = {0};
 
-	if (!dmub || !diag_data)
+	if (!dmub)
 		return;
 
-	memset(diag_data, 0, sizeof(*diag_data));
+	/* timeout data filled externally, cache before resetting memory */
+	timeout = dmub->debug.timeout_info;
+	memset(&dmub->debug, 0, sizeof(dmub->debug));
+	dmub->debug.timeout_info = timeout;
 
-	diag_data->dmcub_version = dmub->fw_version;
+	dmub->debug.dmcub_version = dmub->fw_version;
 
-	diag_data->scratch[0] = REG_READ(DMCUB_SCRATCH0);
-	diag_data->scratch[1] = REG_READ(DMCUB_SCRATCH1);
-	diag_data->scratch[2] = REG_READ(DMCUB_SCRATCH2);
-	diag_data->scratch[3] = REG_READ(DMCUB_SCRATCH3);
-	diag_data->scratch[4] = REG_READ(DMCUB_SCRATCH4);
-	diag_data->scratch[5] = REG_READ(DMCUB_SCRATCH5);
-	diag_data->scratch[6] = REG_READ(DMCUB_SCRATCH6);
-	diag_data->scratch[7] = REG_READ(DMCUB_SCRATCH7);
-	diag_data->scratch[8] = REG_READ(DMCUB_SCRATCH8);
-	diag_data->scratch[9] = REG_READ(DMCUB_SCRATCH9);
-	diag_data->scratch[10] = REG_READ(DMCUB_SCRATCH10);
-	diag_data->scratch[11] = REG_READ(DMCUB_SCRATCH11);
-	diag_data->scratch[12] = REG_READ(DMCUB_SCRATCH12);
-	diag_data->scratch[13] = REG_READ(DMCUB_SCRATCH13);
-	diag_data->scratch[14] = REG_READ(DMCUB_SCRATCH14);
-	diag_data->scratch[15] = REG_READ(DMCUB_SCRATCH15);
-	diag_data->scratch[16] = REG_READ(DMCUB_SCRATCH16);
+	dmub->debug.scratch[0] = REG_READ(DMCUB_SCRATCH0);
+	dmub->debug.scratch[1] = REG_READ(DMCUB_SCRATCH1);
+	dmub->debug.scratch[2] = REG_READ(DMCUB_SCRATCH2);
+	dmub->debug.scratch[3] = REG_READ(DMCUB_SCRATCH3);
+	dmub->debug.scratch[4] = REG_READ(DMCUB_SCRATCH4);
+	dmub->debug.scratch[5] = REG_READ(DMCUB_SCRATCH5);
+	dmub->debug.scratch[6] = REG_READ(DMCUB_SCRATCH6);
+	dmub->debug.scratch[7] = REG_READ(DMCUB_SCRATCH7);
+	dmub->debug.scratch[8] = REG_READ(DMCUB_SCRATCH8);
+	dmub->debug.scratch[9] = REG_READ(DMCUB_SCRATCH9);
+	dmub->debug.scratch[10] = REG_READ(DMCUB_SCRATCH10);
+	dmub->debug.scratch[11] = REG_READ(DMCUB_SCRATCH11);
+	dmub->debug.scratch[12] = REG_READ(DMCUB_SCRATCH12);
+	dmub->debug.scratch[13] = REG_READ(DMCUB_SCRATCH13);
+	dmub->debug.scratch[14] = REG_READ(DMCUB_SCRATCH14);
+	dmub->debug.scratch[15] = REG_READ(DMCUB_SCRATCH15);
+	dmub->debug.scratch[16] = REG_READ(DMCUB_SCRATCH16);
 
-	diag_data->undefined_address_fault_addr = REG_READ(DMCUB_UNDEFINED_ADDRESS_FAULT_ADDR);
-	diag_data->inst_fetch_fault_addr = REG_READ(DMCUB_INST_FETCH_FAULT_ADDR);
-	diag_data->data_write_fault_addr = REG_READ(DMCUB_DATA_WRITE_FAULT_ADDR);
+	dmub->debug.undefined_address_fault_addr = REG_READ(DMCUB_UNDEFINED_ADDRESS_FAULT_ADDR);
+	dmub->debug.inst_fetch_fault_addr = REG_READ(DMCUB_INST_FETCH_FAULT_ADDR);
+	dmub->debug.data_write_fault_addr = REG_READ(DMCUB_DATA_WRITE_FAULT_ADDR);
 
-	diag_data->inbox1_rptr = REG_READ(DMCUB_INBOX1_RPTR);
-	diag_data->inbox1_wptr = REG_READ(DMCUB_INBOX1_WPTR);
-	diag_data->inbox1_size = REG_READ(DMCUB_INBOX1_SIZE);
+	dmub->debug.inbox1_rptr = REG_READ(DMCUB_INBOX1_RPTR);
+	dmub->debug.inbox1_wptr = REG_READ(DMCUB_INBOX1_WPTR);
+	dmub->debug.inbox1_size = REG_READ(DMCUB_INBOX1_SIZE);
 
-	diag_data->inbox0_rptr = REG_READ(DMCUB_INBOX0_RPTR);
-	diag_data->inbox0_wptr = REG_READ(DMCUB_INBOX0_WPTR);
-	diag_data->inbox0_size = REG_READ(DMCUB_INBOX0_SIZE);
+	dmub->debug.inbox0_rptr = REG_READ(DMCUB_INBOX0_RPTR);
+	dmub->debug.inbox0_wptr = REG_READ(DMCUB_INBOX0_WPTR);
+	dmub->debug.inbox0_size = REG_READ(DMCUB_INBOX0_SIZE);
 
-	diag_data->outbox1_rptr = REG_READ(DMCUB_OUTBOX1_RPTR);
-	diag_data->outbox1_wptr = REG_READ(DMCUB_OUTBOX1_WPTR);
-	diag_data->outbox1_size = REG_READ(DMCUB_OUTBOX1_SIZE);
+	dmub->debug.outbox1_rptr = REG_READ(DMCUB_OUTBOX1_RPTR);
+	dmub->debug.outbox1_wptr = REG_READ(DMCUB_OUTBOX1_WPTR);
+	dmub->debug.outbox1_size = REG_READ(DMCUB_OUTBOX1_SIZE);
 
 	REG_GET(DMCUB_CNTL, DMCUB_ENABLE, &is_dmub_enabled);
-	diag_data->is_dmcub_enabled = is_dmub_enabled;
+	dmub->debug.is_dmcub_enabled = is_dmub_enabled;
 
 	REG_GET(DMCUB_CNTL2, DMCUB_SOFT_RESET, &is_soft_reset);
-	diag_data->is_dmcub_soft_reset = is_soft_reset;
+	dmub->debug.is_dmcub_soft_reset = is_soft_reset;
 
 	REG_GET(DMCUB_CNTL, DMCUB_TRACEPORT_EN, &is_traceport_enabled);
-	diag_data->is_traceport_en  = is_traceport_enabled;
+	dmub->debug.is_traceport_en  = is_traceport_enabled;
 
 	REG_GET(DMCUB_REGION3_CW6_TOP_ADDRESS, DMCUB_REGION3_CW6_ENABLE, &is_cw6_enabled);
-	diag_data->is_cw6_enabled = is_cw6_enabled;
+	dmub->debug.is_cw6_enabled = is_cw6_enabled;
 
-	diag_data->gpint_datain0 = REG_READ(DMCUB_GPINT_DATAIN0);
-	diag_data->timeout_info = dmub->debug;
+	dmub->debug.gpint_datain0 = REG_READ(DMCUB_GPINT_DATAIN0);
 }
 void dmub_dcn35_configure_dmub_in_system_memory(struct dmub_srv *dmub)
 {

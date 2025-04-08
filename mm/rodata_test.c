@@ -12,7 +12,8 @@
 #include <linux/mm.h>
 #include <asm/sections.h>
 
-static const int rodata_test_data = 0xC3;
+#define TEST_VALUE 0xC3
+static const int rodata_test_data = TEST_VALUE;
 
 void rodata_test(void)
 {
@@ -20,7 +21,7 @@ void rodata_test(void)
 
 	/* test 1: read the value */
 	/* If this test fails, some previous testrun has clobbered the state */
-	if (!rodata_test_data) {
+	if (unlikely(READ_ONCE(rodata_test_data) != TEST_VALUE)) {
 		pr_err("test 1 fails (start data)\n");
 		return;
 	}
@@ -33,7 +34,7 @@ void rodata_test(void)
 	}
 
 	/* test 3: check the value hasn't changed */
-	if (rodata_test_data == zero) {
+	if (unlikely(READ_ONCE(rodata_test_data) != TEST_VALUE)) {
 		pr_err("test data was changed\n");
 		return;
 	}

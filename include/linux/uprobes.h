@@ -16,6 +16,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/timer.h>
+#include <linux/seqlock.h>
 
 struct uprobe;
 struct vm_area_struct;
@@ -37,6 +38,8 @@ struct page;
 #define UPROBE_HANDLER_IGNORE		2
 
 #define MAX_URETPROBE_DEPTH		64
+
+#define UPROBE_NO_TRAMPOLINE_VADDR	(~0UL)
 
 struct uprobe_consumer {
 	/*
@@ -124,6 +127,10 @@ struct uprobe_task {
 	unsigned int			depth;
 	struct return_instance		*return_instances;
 
+	struct return_instance		*ri_pool;
+	struct timer_list		ri_timer;
+	seqcount_t			ri_seqcount;
+
 	union {
 		struct {
 			struct arch_uprobe_task	autask;
@@ -137,8 +144,8 @@ struct uprobe_task {
 	};
 
 	struct uprobe			*active_uprobe;
-	struct timer_list		ri_timer;
 	unsigned long			xol_vaddr;
+	bool				signal_denied;
 
 	struct arch_uprobe              *auprobe;
 };
@@ -154,12 +161,18 @@ struct return_instance {
 	unsigned long		stack;		/* stack pointer */
 	unsigned long		orig_ret_vaddr; /* original return address */
 	bool			chained;	/* true, if instance is nested */
-	int			consumers_cnt;
+	int			cons_cnt;	/* total number of session consumers */
 
 	struct return_instance	*next;		/* keep as stack */
 	struct rcu_head		rcu;
 
-	struct return_consumer	consumers[] __counted_by(consumers_cnt);
+	/* singular pre-allocated return_consumer instance for common case */
+	struct return_consumer	consumer;
+	/*
+	 * extra return_consumer instances for rare cases of multiple session consumers,
+	 * contains (cons_cnt - 1) elements
+	 */
+	struct return_consumer	*extra_consumers;
 } ____cacheline_aligned;
 
 enum rp_check {

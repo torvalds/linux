@@ -28,11 +28,12 @@ static int ucsi_cmd(void *data, u64 val)
 	ucsi->debugfs->status = 0;
 
 	switch (UCSI_COMMAND(val)) {
-	case UCSI_SET_UOM:
+	case UCSI_SET_CCOM:
 	case UCSI_SET_UOR:
 	case UCSI_SET_PDR:
 	case UCSI_CONNECTOR_RESET:
 	case UCSI_SET_SINK_PATH:
+	case UCSI_SET_NEW_CAM:
 		ret = ucsi_send_command(ucsi, val, NULL, 0);
 		break;
 	case UCSI_GET_CAPABILITY:
@@ -42,6 +43,9 @@ static int ucsi_cmd(void *data, u64 val)
 	case UCSI_GET_PDOS:
 	case UCSI_GET_CABLE_PROPERTY:
 	case UCSI_GET_CONNECTOR_STATUS:
+	case UCSI_GET_ERROR_STATUS:
+	case UCSI_GET_CAM_CS:
+	case UCSI_GET_LPM_PPM_INFO:
 		ret = ucsi_send_command(ucsi, val,
 					&ucsi->debugfs->response,
 					sizeof(ucsi->debugfs->response));

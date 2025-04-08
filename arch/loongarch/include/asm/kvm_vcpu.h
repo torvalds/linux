@@ -43,6 +43,7 @@ int  kvm_emu_mmio_read(struct kvm_vcpu *vcpu, larch_inst inst);
 int  kvm_emu_mmio_write(struct kvm_vcpu *vcpu, larch_inst inst);
 int  kvm_complete_mmio_read(struct kvm_vcpu *vcpu, struct kvm_run *run);
 int  kvm_complete_iocsr_read(struct kvm_vcpu *vcpu, struct kvm_run *run);
+int  kvm_complete_user_service(struct kvm_vcpu *vcpu, struct kvm_run *run);
 int  kvm_emu_idle(struct kvm_vcpu *vcpu);
 int  kvm_pending_timer(struct kvm_vcpu *vcpu);
 int  kvm_handle_fault(struct kvm_vcpu *vcpu, int fault);

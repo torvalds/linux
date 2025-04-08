@@ -117,9 +117,11 @@ struct jh71x0_clk_priv {
 	struct clk *original_clk;
 	struct notifier_block pll_clk_nb;
 	struct clk_hw *pll[3];
-	struct jh71x0_clk reg[];
+	unsigned int num_reg;
+	struct jh71x0_clk reg[] __counted_by(num_reg);
 };
 
 const struct clk_ops *starfive_jh71x0_clk_ops(u32 max);
+struct clk_hw *jh71x0_clk_get(struct of_phandle_args *clkspec, void *data);
 
 #endif

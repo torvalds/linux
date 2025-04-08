@@ -35,6 +35,9 @@
 #include "xfs_exchmaps.h"
 #include "xfs_rtbitmap.h"
 #include "xfs_rtgroup.h"
+#include "xfs_rtrmap_btree.h"
+#include "xfs_bmap_util.h"
+#include "xfs_rtrefcount_btree.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -719,20 +722,111 @@ xchk_rtgroup_init(
 	return 0;
 }
 
-void
+/* Lock all the rt group metadata inode ILOCKs and wait for intents. */
+int
 xchk_rtgroup_lock(
+	struct xfs_scrub	*sc,
 	struct xchk_rt		*sr,
 	unsigned int		rtglock_flags)
 {
-	xfs_rtgroup_lock(sr->rtg, rtglock_flags);
+	int			error = 0;
+
+	ASSERT(sr->rtg != NULL);
+
+	/*
+	 * If we're /only/ locking the rtbitmap in shared mode, then we're
+	 * obviously not trying to compare records in two metadata inodes.
+	 * There's no need to drain intents here because the caller (most
+	 * likely the rgsuper scanner) doesn't need that level of consistency.
+	 */
+	if (rtglock_flags == XFS_RTGLOCK_BITMAP_SHARED) {
+		xfs_rtgroup_lock(sr->rtg, rtglock_flags);
+		sr->rtlock_flags = rtglock_flags;
+		return 0;
+	}
+
+	do {
+		if (xchk_should_terminate(sc, &error))
+			return error;
+
+		xfs_rtgroup_lock(sr->rtg, rtglock_flags);
+
+		/*
+		 * If we've grabbed a non-metadata file for scrubbing, we
+		 * assume that holding its ILOCK will suffice to coordinate
+		 * with any rt intent chains involving this inode.
+		 */
+		if (sc->ip && !xfs_is_internal_inode(sc->ip))
+			break;
+
+		/*
+		 * Decide if the rt group is quiet enough for all metadata to
+		 * be consistent with each other.  Regular file IO doesn't get
+		 * to lock all the rt inodes at the same time, which means that
+		 * there could be other threads in the middle of processing a
+		 * chain of deferred ops.
+		 *
+		 * We just locked all the metadata inodes for this rt group;
+		 * now take a look to see if there are any intents in progress.
+		 * If there are, drop the rt group inode locks and wait for the
+		 * intents to drain.  Since we hold the rt group inode locks
+		 * for the duration of the scrub, this is the only time we have
+		 * to sample the intents counter; any threads increasing it
+		 * after this point can't possibly be in the middle of a chain
+		 * of rt metadata updates.
+		 *
+		 * Obviously, this should be slanted against scrub and in favor
+		 * of runtime threads.
+		 */
+		if (!xfs_group_intent_busy(rtg_group(sr->rtg)))
+			break;
+
+		xfs_rtgroup_unlock(sr->rtg, rtglock_flags);
+
+		if (!(sc->flags & XCHK_FSGATES_DRAIN))
+			return -ECHRNG;
+		error = xfs_group_intent_drain(rtg_group(sr->rtg));
+		if (error) {
+			if (error == -ERESTARTSYS)
+				error = -EINTR;
+			return error;
+		}
+	} while (1);
+
 	sr->rtlock_flags = rtglock_flags;
+
+	if (xfs_has_rtrmapbt(sc->mp) && (rtglock_flags & XFS_RTGLOCK_RMAP))
+		sr->rmap_cur = xfs_rtrmapbt_init_cursor(sc->tp, sr->rtg);
+
+	if (xfs_has_rtreflink(sc->mp) && (rtglock_flags & XFS_RTGLOCK_REFCOUNT))
+		sr->refc_cur = xfs_rtrefcountbt_init_cursor(sc->tp, sr->rtg);
+
+	return 0;
+}
+
+/*
+ * Free all the btree cursors and other incore data relating to the realtime
+ * group.  This has to be done /before/ committing (or cancelling) the scrub
+ * transaction.
+ */
+void
+xchk_rtgroup_btcur_free(
+	struct xchk_rt		*sr)
+{
+	if (sr->rmap_cur)
+		xfs_btree_del_cursor(sr->rmap_cur, XFS_BTREE_ERROR);
+	if (sr->refc_cur)
+		xfs_btree_del_cursor(sr->refc_cur, XFS_BTREE_ERROR);
+
+	sr->refc_cur = NULL;
+	sr->rmap_cur = NULL;
 }
 
 /*
  * Unlock the realtime group.  This must be done /after/ committing (or
  * cancelling) the scrub transaction.
  */
-static void
+void
 xchk_rtgroup_unlock(
 	struct xchk_rt		*sr)
 {
@@ -810,6 +904,14 @@ xchk_setup_fs(
 
 	resblks = xrep_calc_ag_resblks(sc);
 	return xchk_trans_alloc(sc, resblks);
+}
+
+/* Set us up with a transaction and an empty context to repair rt metadata. */
+int
+xchk_setup_rt(
+	struct xfs_scrub	*sc)
+{
+	return xchk_trans_alloc(sc, xrep_calc_rtgroup_resblks(sc));
 }
 
 /* Set us up with AG headers and btree cursors. */
@@ -1379,7 +1481,7 @@ xchk_fsgates_enable(
 	trace_xchk_fsgates_enable(sc, scrub_fsgates);
 
 	if (scrub_fsgates & XCHK_FSGATES_DRAIN)
-		xfs_drain_wait_enable();
+		xfs_defer_drain_wait_enable();
 
 	if (scrub_fsgates & XCHK_FSGATES_QUOTA)
 		xfs_dqtrx_hook_enable();
@@ -1572,4 +1674,64 @@ xchk_inode_rootdir_inum(const struct xfs_inode *ip)
 	if (xfs_is_metadir_inode(ip))
 		return mp->m_metadirip->i_ino;
 	return mp->m_rootip->i_ino;
+}
+
+static int
+xchk_meta_btree_count_blocks(
+	struct xfs_scrub	*sc,
+	xfs_extnum_t		*nextents,
+	xfs_filblks_t		*count)
+{
+	struct xfs_btree_cur	*cur;
+	int			error;
+
+	if (!sc->sr.rtg) {
+		ASSERT(0);
+		return -EFSCORRUPTED;
+	}
+
+	switch (sc->ip->i_metatype) {
+	case XFS_METAFILE_RTRMAP:
+		cur = xfs_rtrmapbt_init_cursor(sc->tp, sc->sr.rtg);
+		break;
+	case XFS_METAFILE_RTREFCOUNT:
+		cur = xfs_rtrefcountbt_init_cursor(sc->tp, sc->sr.rtg);
+		break;
+	default:
+		ASSERT(0);
+		return -EFSCORRUPTED;
+	}
+
+	error = xfs_btree_count_blocks(cur, count);
+	xfs_btree_del_cursor(cur, error);
+	if (!error) {
+		*nextents = 0;
+		(*count)--;	/* don't count the btree iroot */
+	}
+	return error;
+}
+
+/* Count the blocks used by a file, even if it's a metadata inode. */
+int
+xchk_inode_count_blocks(
+	struct xfs_scrub	*sc,
+	int			whichfork,
+	xfs_extnum_t		*nextents,
+	xfs_filblks_t		*count)
+{
+	struct xfs_ifork	*ifp = xfs_ifork_ptr(sc->ip, whichfork);
+
+	if (!ifp) {
+		*nextents = 0;
+		*count = 0;
+		return 0;
+	}
+
+	if (ifp->if_format == XFS_DINODE_FMT_META_BTREE) {
+		ASSERT(whichfork == XFS_DATA_FORK);
+		return xchk_meta_btree_count_blocks(sc, nextents, count);
+	}
+
+	return xfs_bmap_count_blocks(sc->tp, sc->ip, whichfork, nextents,
+			count);
 }

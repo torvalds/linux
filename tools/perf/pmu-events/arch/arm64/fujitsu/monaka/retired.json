@@ -1,0 +1,30 @@
+[
+    {
+        "ArchStdEvent": "SW_INCR",
+        "BriefDescription": "This event counts on writes to the PMSWINC register."
+    },
+    {
+        "ArchStdEvent": "INST_RETIRED",
+        "BriefDescription": "This event counts every architecturally executed instruction."
+    },
+    {
+        "ArchStdEvent": "CID_WRITE_RETIRED",
+        "BriefDescription": "This event counts every write to CONTEXTIDR."
+    },
+    {
+        "ArchStdEvent": "BR_RETIRED",
+        "BriefDescription": "This event counts architecturally executed branch instruction."
+    },
+    {
+        "ArchStdEvent": "BR_MIS_PRED_RETIRED",
+        "BriefDescription": "This event counts architecturally executed branch instruction which was mispredicted."
+    },
+    {
+        "ArchStdEvent": "OP_RETIRED",
+        "BriefDescription": "This event counts every architecturally executed micro-operation."
+    },
+    {
+        "ArchStdEvent": "UOP_RETIRED",
+        "BriefDescription": "This event counts micro-operation that would be executed in a Simple sequential execution of the program."
+    }
+]

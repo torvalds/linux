@@ -46,6 +46,7 @@
 #include <linux/in.h>
 #include <linux/sched.h>
 #include <linux/audit.h>
+#include <linux/parser.h>
 #include <linux/vmalloc.h>
 #include <linux/lsm_hooks.h>
 #include <net/netlabel.h>
@@ -952,7 +953,7 @@ static void avd_init(struct selinux_policy *policy, struct av_decision *avd)
 }
 
 static void update_xperms_extended_data(u8 specified,
-					struct extended_perms_data *from,
+					const struct extended_perms_data *from,
 					struct extended_perms_data *xp_data)
 {
 	unsigned int i;
@@ -973,6 +974,8 @@ static void update_xperms_extended_data(u8 specified,
 void services_compute_xperms_decision(struct extended_perms_decision *xpermd,
 					struct avtab_node *node)
 {
+	u16 specified;
+
 	switch (node->datum.u.xperms->specified) {
 	case AVTAB_XPERMS_IOCTLFUNCTION:
 		if (xpermd->base_perm != AVC_EXT_IOCTL ||
@@ -997,17 +1000,19 @@ void services_compute_xperms_decision(struct extended_perms_decision *xpermd,
 		return;
 	}
 
-	if (node->key.specified == AVTAB_XPERMS_ALLOWED) {
+	specified = node->key.specified & ~(AVTAB_ENABLED | AVTAB_ENABLED_OLD);
+
+	if (specified == AVTAB_XPERMS_ALLOWED) {
 		xpermd->used |= XPERMS_ALLOWED;
 		update_xperms_extended_data(node->datum.u.xperms->specified,
 					    &node->datum.u.xperms->perms,
 					    xpermd->allowed);
-	} else if (node->key.specified == AVTAB_XPERMS_AUDITALLOW) {
+	} else if (specified == AVTAB_XPERMS_AUDITALLOW) {
 		xpermd->used |= XPERMS_AUDITALLOW;
 		update_xperms_extended_data(node->datum.u.xperms->specified,
 					    &node->datum.u.xperms->perms,
 					    xpermd->auditallow);
-	} else if (node->key.specified == AVTAB_XPERMS_DONTAUDIT) {
+	} else if (specified == AVTAB_XPERMS_DONTAUDIT) {
 		xpermd->used |= XPERMS_DONTAUDIT;
 		update_xperms_extended_data(node->datum.u.xperms->specified,
 					    &node->datum.u.xperms->perms,
@@ -2568,13 +2573,14 @@ out:
  * @name: interface name
  * @if_sid: interface SID
  */
-int security_netif_sid(char *name, u32 *if_sid)
+int security_netif_sid(const char *name, u32 *if_sid)
 {
 	struct selinux_policy *policy;
 	struct policydb *policydb;
 	struct sidtab *sidtab;
 	int rc;
 	struct ocontext *c;
+	bool wildcard_support;
 
 	if (!selinux_initialized()) {
 		*if_sid = SECINITSID_NETIF;
@@ -2587,11 +2593,18 @@ retry:
 	policy = rcu_dereference(selinux_state.policy);
 	policydb = &policy->policydb;
 	sidtab = policy->sidtab;
+	wildcard_support = ebitmap_get_bit(&policydb->policycaps, POLICYDB_CAP_NETIF_WILDCARD);
 
 	c = policydb->ocontexts[OCON_NETIF];
 	while (c) {
-		if (strcmp(name, c->u.name) == 0)
-			break;
+		if (wildcard_support) {
+			if (match_wildcard(c->u.name, name))
+				break;
+		} else {
+			if (strcmp(c->u.name, name) == 0)
+				break;
+		}
+
 		c = c->next;
 	}
 
@@ -2611,17 +2624,15 @@ out:
 	return rc;
 }
 
-static int match_ipv6_addrmask(u32 *input, u32 *addr, u32 *mask)
+static bool match_ipv6_addrmask(const u32 input[4], const u32 addr[4], const u32 mask[4])
 {
-	int i, fail = 0;
+	int i;
 
 	for (i = 0; i < 4; i++)
-		if (addr[i] != (input[i] & mask[i])) {
-			fail = 1;
-			break;
-		}
+		if (addr[i] != (input[i] & mask[i]))
+			return false;
 
-	return !fail;
+	return true;
 }
 
 /**
@@ -2726,7 +2737,7 @@ out:
  */
 
 int security_get_user_sids(u32 fromsid,
-			   char *username,
+			   const char *username,
 			   u32 **sids,
 			   u32 *nel)
 {
@@ -3048,7 +3059,7 @@ err:
 }
 
 
-int security_set_bools(u32 len, int *values)
+int security_set_bools(u32 len, const int *values)
 {
 	struct selinux_state *state = &selinux_state;
 	struct selinux_policy *newpolicy, *oldpolicy;
@@ -3347,7 +3358,7 @@ int security_net_peersid_resolve(u32 nlbl_sid, u32 nlbl_type,
 		       __func__, xfrm_sid);
 		goto out;
 	}
-	rc = (mls_context_cmp(nlbl_ctx, xfrm_ctx) ? 0 : -EACCES);
+	rc = (mls_context_equal(nlbl_ctx, xfrm_ctx) ? 0 : -EACCES);
 	if (rc)
 		goto out;
 

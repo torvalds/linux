@@ -37,6 +37,7 @@ config NET_DSA_LANTIQ_GSWIP
 config NET_DSA_MT7530
 	tristate "MediaTek MT7530 and MT7531 Ethernet switch support"
 	select NET_DSA_TAG_MTK
+	select REGMAP_IRQ
 	imply NET_DSA_MT7530_MDIO
 	imply NET_DSA_MT7530_MMIO
 	help

@@ -57,7 +57,7 @@ int
 nvif_object_sclass_get(struct nvif_object *object, struct nvif_sclass **psclass)
 {
 	struct {
-		struct nvif_ioctl_v0 ioctl;
+		struct nvif_ioctl_v0_hdr ioctl;
 		struct nvif_ioctl_sclass_v0 sclass;
 	} *args = NULL;
 	int ret, cnt = 0, i;
@@ -101,7 +101,7 @@ int
 nvif_object_mthd(struct nvif_object *object, u32 mthd, void *data, u32 size)
 {
 	struct {
-		struct nvif_ioctl_v0 ioctl;
+		struct nvif_ioctl_v0_hdr ioctl;
 		struct nvif_ioctl_mthd_v0 mthd;
 	} *args;
 	u32 args_size;
@@ -135,7 +135,7 @@ void
 nvif_object_unmap_handle(struct nvif_object *object)
 {
 	struct {
-		struct nvif_ioctl_v0 ioctl;
+		struct nvif_ioctl_v0_hdr ioctl;
 		struct nvif_ioctl_unmap unmap;
 	} args = {
 		.ioctl.type = NVIF_IOCTL_V0_UNMAP,
@@ -149,7 +149,7 @@ nvif_object_map_handle(struct nvif_object *object, void *argv, u32 argc,
 		       u64 *handle, u64 *length)
 {
 	struct {
-		struct nvif_ioctl_v0 ioctl;
+		struct nvif_ioctl_v0_hdr ioctl;
 		struct nvif_ioctl_map_v0 map;
 	} *args;
 	u32 argn = sizeof(*args) + argc;
@@ -211,7 +211,7 @@ void
 nvif_object_dtor(struct nvif_object *object)
 {
 	struct {
-		struct nvif_ioctl_v0 ioctl;
+		struct nvif_ioctl_v0_hdr ioctl;
 		struct nvif_ioctl_del del;
 	} args = {
 		.ioctl.type = NVIF_IOCTL_V0_DEL,
@@ -230,7 +230,7 @@ nvif_object_ctor(struct nvif_object *parent, const char *name, u32 handle,
 		 s32 oclass, void *data, u32 size, struct nvif_object *object)
 {
 	struct {
-		struct nvif_ioctl_v0 ioctl;
+		struct nvif_ioctl_v0_hdr ioctl;
 		struct nvif_ioctl_new_v0 new;
 	} *args;
 	int ret = 0;

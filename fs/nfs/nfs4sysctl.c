@@ -17,7 +17,7 @@ static const int nfs_set_port_min;
 static const int nfs_set_port_max = 65535;
 static struct ctl_table_header *nfs4_callback_sysctl_table;
 
-static struct ctl_table nfs4_cb_sysctls[] = {
+static const struct ctl_table nfs4_cb_sysctls[] = {
 	{
 		.procname = "nfs_callback_tcpport",
 		.data = &nfs_callback_set_tcpport,

@@ -23,9 +23,11 @@
 #include "xe_gt_sriov_vf.h"
 #include "xe_gt_throttle.h"
 #include "xe_guc_ads.h"
+#include "xe_guc_buf.h"
 #include "xe_guc_capture.h"
 #include "xe_guc_ct.h"
 #include "xe_guc_db_mgr.h"
+#include "xe_guc_engine_activity.h"
 #include "xe_guc_hwconfig.h"
 #include "xe_guc_log.h"
 #include "xe_guc_pc.h"
@@ -740,6 +742,14 @@ int xe_guc_init_post_hwconfig(struct xe_guc *guc)
 		return ret;
 
 	ret = xe_guc_pc_init(&guc->pc);
+	if (ret)
+		return ret;
+
+	ret = xe_guc_engine_activity_init(guc);
+	if (ret)
+		return ret;
+
+	ret = xe_guc_buf_cache_init(&guc->buf);
 	if (ret)
 		return ret;
 
@@ -1486,14 +1496,6 @@ void xe_guc_stop(struct xe_guc *guc)
 
 int xe_guc_start(struct xe_guc *guc)
 {
-	if (!IS_SRIOV_VF(guc_to_xe(guc))) {
-		int err;
-
-		err = xe_guc_pc_start(&guc->pc);
-		xe_gt_WARN(guc_to_gt(guc), err, "Failed to start GuC PC: %pe\n",
-			   ERR_PTR(err));
-	}
-
 	return xe_guc_submit_start(guc);
 }
 

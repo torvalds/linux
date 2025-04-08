@@ -250,6 +250,8 @@ static const struct ec_sensor_info sensors_family_amd_600[] = {
 		EC_SENSOR("Water_In", hwmon_temp, 1, 0x01, 0x00),
 	[ec_sensor_temp_water_out] =
 		EC_SENSOR("Water_Out", hwmon_temp, 1, 0x01, 0x01),
+	[ec_sensor_fan_cpu_opt] =
+		EC_SENSOR("CPU_Opt", hwmon_fan, 2, 0x00, 0xb0),
 };
 
 static const struct ec_sensor_info sensors_family_intel_300[] = {
@@ -312,6 +314,14 @@ static const struct ec_board_info board_info_prime_x570_pro = {
 		SENSOR_TEMP_T_SENSOR | SENSOR_FAN_CHIPSET,
 	.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
 	.family = family_amd_500_series,
+};
+
+static const struct ec_board_info board_info_prime_x670e_pro_wifi = {
+	.sensors = SENSOR_TEMP_CPU | SENSOR_TEMP_CPU_PACKAGE |
+		SENSOR_TEMP_MB | SENSOR_TEMP_VRM |
+		SENSOR_TEMP_T_SENSOR | SENSOR_FAN_CPU_OPT,
+	.mutex_path = ACPI_GLOBAL_LOCK_PSEUDO_PATH,
+	.family = family_amd_600_series,
 };
 
 static const struct ec_board_info board_info_pro_art_x570_creator_wifi = {
@@ -477,6 +487,15 @@ static const struct ec_board_info board_info_zenith_ii_extreme = {
 	.family = family_amd_500_series,
 };
 
+static const struct ec_board_info board_info_tuf_gaming_x670e_plus = {
+	.sensors = SENSOR_TEMP_CPU | SENSOR_TEMP_CPU_PACKAGE |
+		SENSOR_TEMP_MB | SENSOR_TEMP_VRM |
+		SENSOR_TEMP_WATER_IN | SENSOR_TEMP_WATER_OUT |
+		SENSOR_FAN_CPU_OPT,
+	.mutex_path = ACPI_GLOBAL_LOCK_PSEUDO_PATH,
+	.family = family_amd_600_series,
+};
+
 #define DMI_EXACT_MATCH_ASUS_BOARD_NAME(name, board_info)                      \
 	{                                                                      \
 		.matches = {                                                   \
@@ -492,6 +511,8 @@ static const struct dmi_system_id dmi_table[] = {
 					&board_info_prime_x470_pro),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("PRIME X570-PRO",
 					&board_info_prime_x570_pro),
+	DMI_EXACT_MATCH_ASUS_BOARD_NAME("PRIME X670E-PRO WIFI",
+					&board_info_prime_x670e_pro_wifi),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ProArt X570-CREATOR WIFI",
 					&board_info_pro_art_x570_creator_wifi),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ProArt X670E-CREATOR WIFI",
@@ -538,6 +559,8 @@ static const struct dmi_system_id dmi_table[] = {
 					&board_info_zenith_ii_extreme),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG ZENITH II EXTREME ALPHA",
 					&board_info_zenith_ii_extreme),
+	DMI_EXACT_MATCH_ASUS_BOARD_NAME("TUF GAMING X670E-PLUS",
+					&board_info_tuf_gaming_x670e_plus),
 	{},
 };
 

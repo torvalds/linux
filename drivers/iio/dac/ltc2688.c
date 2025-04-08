@@ -842,7 +842,7 @@ static int ltc2688_channel_config(struct ltc2688_state *st)
 	return 0;
 }
 
-static int ltc2688_setup(struct ltc2688_state *st, struct regulator *vref)
+static int ltc2688_setup(struct ltc2688_state *st, bool has_external_vref)
 {
 	struct device *dev = &st->spi->dev;
 	struct gpio_desc *gpio;
@@ -881,16 +881,11 @@ static int ltc2688_setup(struct ltc2688_state *st, struct regulator *vref)
 	if (ret)
 		return ret;
 
-	if (!vref)
+	if (!has_external_vref)
 		return 0;
 
 	return regmap_set_bits(st->regmap, LTC2688_CMD_CONFIG,
 			       LTC2688_CONFIG_EXT_REF);
-}
-
-static void ltc2688_disable_regulator(void *regulator)
-{
-	regulator_disable(regulator);
 }
 
 static bool ltc2688_reg_readable(struct device *dev, unsigned int reg)
@@ -947,8 +942,8 @@ static int ltc2688_probe(struct spi_device *spi)
 	static const char * const regulators[] = { "vcc", "iovcc" };
 	struct ltc2688_state *st;
 	struct iio_dev *indio_dev;
-	struct regulator *vref_reg;
 	struct device *dev = &spi->dev;
+	bool has_external_vref;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
@@ -973,34 +968,15 @@ static int ltc2688_probe(struct spi_device *spi)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to enable regulators\n");
 
-	vref_reg = devm_regulator_get_optional(dev, "vref");
-	if (IS_ERR(vref_reg)) {
-		if (PTR_ERR(vref_reg) != -ENODEV)
-			return dev_err_probe(dev, PTR_ERR(vref_reg),
-					     "Failed to get vref regulator");
+	ret = devm_regulator_get_enable_read_voltage(dev, "vref");
+	if (ret < 0 && ret != -ENODEV)
+		return dev_err_probe(dev, ret,
+				     "Failed to get vref regulator voltage\n");
 
-		vref_reg = NULL;
-		/* internal reference */
-		st->vref = 4096;
-	} else {
-		ret = regulator_enable(vref_reg);
-		if (ret)
-			return dev_err_probe(dev, ret,
-					     "Failed to enable vref regulators\n");
+	has_external_vref = ret != -ENODEV;
+	st->vref = has_external_vref ? ret / 1000 : 0;
 
-		ret = devm_add_action_or_reset(dev, ltc2688_disable_regulator,
-					       vref_reg);
-		if (ret)
-			return ret;
-
-		ret = regulator_get_voltage(vref_reg);
-		if (ret < 0)
-			return dev_err_probe(dev, ret, "Failed to get vref\n");
-
-		st->vref = ret / 1000;
-	}
-
-	ret = ltc2688_setup(st, vref_reg);
+	ret = ltc2688_setup(st, has_external_vref);
 	if (ret)
 		return ret;
 

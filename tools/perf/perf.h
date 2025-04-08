@@ -3,7 +3,7 @@
 #define _PERF_PERF_H
 
 #ifndef MAX_NR_CPUS
-#define MAX_NR_CPUS			2048
+#define MAX_NR_CPUS			4096
 #endif
 
 enum perf_affinity {

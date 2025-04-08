@@ -38,6 +38,7 @@
 #include <linux/rhashtable.h>
 #include <linux/llist.h>
 #include <steering/sws/fs_dr.h>
+#include <steering/hws/fs_hws.h>
 
 #define FDB_TC_MAX_CHAIN 3
 #define FDB_FT_CHAIN (FDB_TC_MAX_CHAIN + 1)
@@ -64,6 +65,7 @@ struct mlx5_modify_hdr {
 	enum mlx5_flow_resource_owner owner;
 	union {
 		struct mlx5_fs_dr_action fs_dr_action;
+		struct mlx5_fs_hws_action fs_hws_action;
 		u32 id;
 	};
 };
@@ -74,6 +76,7 @@ struct mlx5_pkt_reformat {
 	enum mlx5_flow_resource_owner owner;
 	union {
 		struct mlx5_fs_dr_action fs_dr_action;
+		struct mlx5_fs_hws_action fs_hws_action;
 		u32 id;
 	};
 };
@@ -112,7 +115,9 @@ enum fs_flow_table_type {
 	FS_FT_PORT_SEL		= 0X9,
 	FS_FT_FDB_RX		= 0xa,
 	FS_FT_FDB_TX		= 0xb,
-	FS_FT_MAX_TYPE = FS_FT_FDB_TX,
+	FS_FT_RDMA_TRANSPORT_RX	= 0xd,
+	FS_FT_RDMA_TRANSPORT_TX	= 0xe,
+	FS_FT_MAX_TYPE = FS_FT_RDMA_TRANSPORT_TX,
 };
 
 enum fs_flow_table_op_mod {
@@ -126,7 +131,8 @@ enum fs_fte_status {
 
 enum mlx5_flow_steering_mode {
 	MLX5_FLOW_STEERING_MODE_DMFS,
-	MLX5_FLOW_STEERING_MODE_SMFS
+	MLX5_FLOW_STEERING_MODE_SMFS,
+	MLX5_FLOW_STEERING_MODE_HMFS,
 };
 
 enum mlx5_flow_steering_capabilty {
@@ -154,6 +160,10 @@ struct mlx5_flow_steering {
 	struct mlx5_flow_root_namespace	*port_sel_root_ns;
 	int esw_egress_acl_vports;
 	int esw_ingress_acl_vports;
+	struct mlx5_flow_root_namespace **rdma_transport_rx_root_ns;
+	struct mlx5_flow_root_namespace **rdma_transport_tx_root_ns;
+	int rdma_transport_rx_vports;
+	int rdma_transport_tx_vports;
 };
 
 struct fs_node {
@@ -190,7 +200,10 @@ struct mlx5_flow_handle {
 /* Type of children is mlx5_flow_group */
 struct mlx5_flow_table {
 	struct fs_node			node;
-	struct mlx5_fs_dr_table		fs_dr_table;
+	union {
+		struct mlx5_fs_dr_table		fs_dr_table;
+		struct mlx5_fs_hws_table	fs_hws_table;
+	};
 	u32				id;
 	u16				vport;
 	unsigned int			max_fte;
@@ -247,7 +260,10 @@ struct fs_fte_dup {
 /* Type of children is mlx5_flow_rule */
 struct fs_fte {
 	struct fs_node			node;
-	struct mlx5_fs_dr_rule		fs_dr_rule;
+	union {
+		struct mlx5_fs_dr_rule		fs_dr_rule;
+		struct mlx5_fs_hws_rule		fs_hws_rule;
+	};
 	u32				val[MLX5_ST_SZ_DW_MATCH_PARAM];
 	struct fs_fte_action		act_dests;
 	struct fs_fte_dup		*dup;
@@ -280,7 +296,10 @@ struct mlx5_flow_group_mask {
 /* Type of children is fs_fte */
 struct mlx5_flow_group {
 	struct fs_node			node;
-	struct mlx5_fs_dr_matcher	fs_dr_matcher;
+	union {
+		struct mlx5_fs_dr_matcher	fs_dr_matcher;
+		struct mlx5_fs_hws_matcher	fs_hws_matcher;
+	};
 	struct mlx5_flow_group_mask	mask;
 	u32				start_index;
 	u32				max_ftes;
@@ -293,7 +312,10 @@ struct mlx5_flow_group {
 struct mlx5_flow_root_namespace {
 	struct mlx5_flow_namespace	ns;
 	enum   mlx5_flow_steering_mode	mode;
-	struct mlx5_fs_dr_domain	fs_dr_domain;
+	union {
+		struct mlx5_fs_dr_domain	fs_dr_domain;
+		struct mlx5_fs_hws_context	fs_hws_context;
+	};
 	enum   fs_flow_table_type	table_type;
 	struct mlx5_core_dev		*dev;
 	struct mlx5_flow_table		*root_ft;
@@ -303,6 +325,36 @@ struct mlx5_flow_root_namespace {
 	const struct mlx5_flow_cmds	*cmds;
 };
 
+enum mlx5_fc_type {
+	MLX5_FC_TYPE_ACQUIRED = 0,
+	MLX5_FC_TYPE_LOCAL,
+};
+
+struct mlx5_fc_cache {
+	u64 packets;
+	u64 bytes;
+	u64 lastuse;
+};
+
+struct mlx5_fc {
+	u32 id;
+	bool aging;
+	enum mlx5_fc_type type;
+	struct mlx5_fc_bulk *bulk;
+	struct mlx5_fc_cache cache;
+	/* last{packets,bytes} are used for calculating deltas since last reading. */
+	u64 lastpackets;
+	u64 lastbytes;
+};
+
+struct mlx5_fc_bulk {
+	struct mlx5_fs_bulk fs_bulk;
+	u32 base_id;
+	struct mlx5_fs_hws_data hws_data;
+	struct mlx5_fc fcs[];
+};
+
+u32 mlx5_fc_get_base_id(struct mlx5_fc *counter);
 int mlx5_init_fc_stats(struct mlx5_core_dev *dev);
 void mlx5_cleanup_fc_stats(struct mlx5_core_dev *dev);
 void mlx5_fc_queue_stats_work(struct mlx5_core_dev *dev,
@@ -382,7 +434,9 @@ struct mlx5_flow_root_namespace *find_root(struct fs_node *node);
 	(type == FS_FT_PORT_SEL) ? MLX5_CAP_FLOWTABLE_PORT_SELECTION(mdev, cap) :      \
 	(type == FS_FT_FDB_RX) ? MLX5_CAP_ESW_FLOWTABLE_FDB(mdev, cap) :      \
 	(type == FS_FT_FDB_TX) ? MLX5_CAP_ESW_FLOWTABLE_FDB(mdev, cap) :      \
-	(BUILD_BUG_ON_ZERO(FS_FT_FDB_TX != FS_FT_MAX_TYPE))\
+	(type == FS_FT_RDMA_TRANSPORT_RX) ? MLX5_CAP_FLOWTABLE_RDMA_TRANSPORT_RX(mdev, cap) :      \
+	(type == FS_FT_RDMA_TRANSPORT_TX) ? MLX5_CAP_FLOWTABLE_RDMA_TRANSPORT_TX(mdev, cap) :      \
+	(BUILD_BUG_ON_ZERO(FS_FT_RDMA_TRANSPORT_TX != FS_FT_MAX_TYPE))\
 	)
 
 #endif

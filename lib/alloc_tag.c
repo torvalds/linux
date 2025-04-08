@@ -29,6 +29,8 @@ EXPORT_SYMBOL(_shared_alloc_tag);
 
 DEFINE_STATIC_KEY_MAYBE(CONFIG_MEM_ALLOC_PROFILING_ENABLED_BY_DEFAULT,
 			mem_alloc_profiling_key);
+EXPORT_SYMBOL(mem_alloc_profiling_key);
+
 DEFINE_STATIC_KEY_FALSE(mem_profiling_compressed);
 
 struct alloc_tag_kernel_section kernel_tags = { NULL, 0 };
@@ -172,7 +174,7 @@ void pgalloc_tag_split(struct folio *folio, int old_order, int new_order)
 	if (!mem_alloc_profiling_enabled())
 		return;
 
-	tag = pgalloc_tag_get(&folio->page);
+	tag = __pgalloc_tag_get(&folio->page);
 	if (!tag)
 		return;
 
@@ -198,10 +200,10 @@ void pgalloc_tag_swap(struct folio *new, struct folio *old)
 	if (!mem_alloc_profiling_enabled())
 		return;
 
-	tag_old = pgalloc_tag_get(&old->page);
+	tag_old = __pgalloc_tag_get(&old->page);
 	if (!tag_old)
 		return;
-	tag_new = pgalloc_tag_get(&new->page);
+	tag_new = __pgalloc_tag_get(&new->page);
 	if (!tag_new)
 		return;
 
@@ -423,8 +425,8 @@ static int vm_module_tags_populate(void)
 		unsigned long nr;
 
 		more_pages = ALIGN(new_end - phys_end, PAGE_SIZE) >> PAGE_SHIFT;
-		nr = alloc_pages_bulk_array_node(GFP_KERNEL | __GFP_NOWARN,
-						 NUMA_NO_NODE, more_pages, next_page);
+		nr = alloc_pages_bulk_node(GFP_KERNEL | __GFP_NOWARN,
+					   NUMA_NO_NODE, more_pages, next_page);
 		if (nr < more_pages ||
 		    vmap_pages_range(phys_end, phys_end + (nr << PAGE_SHIFT), PAGE_KERNEL,
 				     next_page, PAGE_SHIFT) < 0) {

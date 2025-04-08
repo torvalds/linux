@@ -5,6 +5,7 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/interconnect-provider.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -12,6 +13,7 @@
 #include <linux/regmap.h>
 
 #include <dt-bindings/clock/qcom,ipq5424-gcc.h>
+#include <dt-bindings/interconnect/qcom,ipq5424.h>
 #include <dt-bindings/reset/qcom,ipq5424-gcc.h>
 
 #include "clk-alpha-pll.h"
@@ -325,6 +327,24 @@ static struct clk_rcg2 gcc_xo_clk_src = {
 	},
 };
 
+static struct clk_branch gcc_xo_clk = {
+	.halt_reg = 0x34018,
+	.halt_check = BRANCH_HALT,
+	.clkr = {
+		.enable_reg = 0x34018,
+		.enable_mask = BIT(0),
+		.hw.init = &(const struct clk_init_data) {
+			.name = "gcc_xo_clk",
+			.parent_hws = (const struct clk_hw*[]) {
+				&gcc_xo_clk_src.clkr.hw,
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
 static struct clk_fixed_factor gcc_xo_div4_clk_src = {
 	.mult = 1,
 	.div = 4,
@@ -572,13 +592,19 @@ static struct clk_rcg2 gcc_qupv3_spi1_clk_src = {
 };
 
 static const struct freq_tbl ftbl_gcc_qupv3_uart0_clk_src[] = {
-	F(960000, P_XO, 10, 2, 5),
-	F(4800000, P_XO, 5, 0, 0),
-	F(9600000, P_XO, 2, 4, 5),
-	F(16000000, P_GPLL0_OUT_MAIN, 10, 1, 5),
+	F(3686400,  P_GCC_GPLL0_OUT_MAIN_DIV_CLK_SRC, 1, 144, 15625),
+	F(7372800,  P_GCC_GPLL0_OUT_MAIN_DIV_CLK_SRC, 1, 288, 15625),
+	F(14745600, P_GCC_GPLL0_OUT_MAIN_DIV_CLK_SRC, 1, 576, 15625),
 	F(24000000, P_XO, 1, 0, 0),
 	F(25000000, P_GPLL0_OUT_MAIN, 16, 1, 2),
-	F(50000000, P_GPLL0_OUT_MAIN, 16, 0, 0),
+	F(32000000, P_GPLL0_OUT_MAIN, 1, 1, 25),
+	F(40000000, P_GPLL0_OUT_MAIN, 1, 1, 20),
+	F(46400000, P_GPLL0_OUT_MAIN, 1, 29, 500),
+	F(48000000, P_GPLL0_OUT_MAIN, 1, 3, 50),
+	F(51200000, P_GPLL0_OUT_MAIN, 1, 8, 125),
+	F(56000000, P_GPLL0_OUT_MAIN, 1, 7, 100),
+	F(58982400, P_GPLL0_OUT_MAIN, 1, 1152, 15625),
+	F(60000000, P_GPLL0_OUT_MAIN, 1, 3, 40),
 	F(64000000, P_GPLL0_OUT_MAIN, 12.5, 0, 0),
 	{ }
 };
@@ -614,11 +640,11 @@ static struct clk_rcg2 gcc_qupv3_uart1_clk_src = {
 static const struct freq_tbl ftbl_gcc_sdcc1_apps_clk_src[] = {
 	F(144000, P_XO, 16, 12, 125),
 	F(400000, P_XO, 12, 1, 5),
-	F(24000000, P_XO, 1, 0, 0),
-	F(48000000, P_GPLL2_OUT_MAIN, 12, 1, 2),
-	F(96000000, P_GPLL2_OUT_MAIN, 6, 1, 2),
+	F(24000000, P_GPLL2_OUT_MAIN, 12, 1, 2),
+	F(48000000, P_GPLL2_OUT_MAIN, 12, 0, 0),
+	F(96000000, P_GPLL2_OUT_MAIN, 6, 0, 0),
 	F(177777778, P_GPLL0_OUT_MAIN, 4.5, 0, 0),
-	F(192000000, P_GPLL2_OUT_MAIN, 6, 0, 0),
+	F(192000000, P_GPLL2_OUT_MAIN, 3, 0, 0),
 	F(200000000, P_GPLL0_OUT_MAIN, 4, 0, 0),
 	{ }
 };
@@ -1089,24 +1115,6 @@ static struct clk_branch gcc_adss_pwm_clk = {
 			.name = "gcc_adss_pwm_clk",
 			.parent_hws = (const struct clk_hw*[]) {
 				&gcc_adss_pwm_clk_src.clkr.hw,
-			},
-			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
-
-static struct clk_branch gcc_apss_dbg_clk = {
-	.halt_reg = 0x2402c,
-	.halt_check = BRANCH_HALT_VOTED,
-	.clkr = {
-		.enable_reg = 0x2402c,
-		.enable_mask = BIT(0),
-		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_apss_dbg_clk",
-			.parent_hws = (const struct clk_hw*[]) {
-				&gcc_qdss_dap_sync_clk_src.hw
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2785,7 +2793,6 @@ static struct clk_branch gcc_pcie3_rchng_clk = {
 static struct clk_regmap *gcc_ipq5424_clocks[] = {
 	[GCC_ADSS_PWM_CLK] = &gcc_adss_pwm_clk.clkr,
 	[GCC_ADSS_PWM_CLK_SRC] = &gcc_adss_pwm_clk_src.clkr,
-	[GCC_APSS_DBG_CLK] = &gcc_apss_dbg_clk.clkr,
 	[GCC_CNOC_PCIE0_1LANE_S_CLK] = &gcc_cnoc_pcie0_1lane_s_clk.clkr,
 	[GCC_CNOC_PCIE1_1LANE_S_CLK] = &gcc_cnoc_pcie1_1lane_s_clk.clkr,
 	[GCC_CNOC_PCIE2_2LANE_S_CLK] = &gcc_cnoc_pcie2_2lane_s_clk.clkr,
@@ -2920,6 +2927,7 @@ static struct clk_regmap *gcc_ipq5424_clocks[] = {
 	[GCC_QPIC_CLK_SRC] = &gcc_qpic_clk_src.clkr,
 	[GCC_QPIC_AHB_CLK] = &gcc_qpic_ahb_clk.clkr,
 	[GCC_XO_CLK_SRC] = &gcc_xo_clk_src.clkr,
+	[GCC_XO_CLK] = &gcc_xo_clk.clkr,
 	[GCC_QDSS_DAP_CLK] = &gcc_qdss_dap_clk.clkr,
 	[GCC_QDSS_AT_CLK] = &gcc_qdss_at_clk.clkr,
 	[GPLL0] = &gpll0.clkr,
@@ -3230,6 +3238,20 @@ static const struct qcom_reset_map gcc_ipq5424_resets[] = {
 	[GCC_QUSB2_1_PHY_BCR] = { 0x3C030, 0 },
 };
 
+#define IPQ_APPS_ID			5424	/* some unique value */
+
+static const struct qcom_icc_hws_data icc_ipq5424_hws[] = {
+	{ MASTER_ANOC_PCIE0, SLAVE_ANOC_PCIE0, GCC_ANOC_PCIE0_1LANE_M_CLK },
+	{ MASTER_CNOC_PCIE0, SLAVE_CNOC_PCIE0, GCC_CNOC_PCIE0_1LANE_S_CLK },
+	{ MASTER_ANOC_PCIE1, SLAVE_ANOC_PCIE1, GCC_ANOC_PCIE1_1LANE_M_CLK },
+	{ MASTER_CNOC_PCIE1, SLAVE_CNOC_PCIE1, GCC_CNOC_PCIE1_1LANE_S_CLK },
+	{ MASTER_ANOC_PCIE2, SLAVE_ANOC_PCIE2, GCC_ANOC_PCIE2_2LANE_M_CLK },
+	{ MASTER_CNOC_PCIE2, SLAVE_CNOC_PCIE2, GCC_CNOC_PCIE2_2LANE_S_CLK },
+	{ MASTER_ANOC_PCIE3, SLAVE_ANOC_PCIE3, GCC_ANOC_PCIE3_2LANE_M_CLK },
+	{ MASTER_CNOC_PCIE3, SLAVE_CNOC_PCIE3, GCC_CNOC_PCIE3_2LANE_S_CLK },
+	{ MASTER_CNOC_USB, SLAVE_CNOC_USB, GCC_CNOC_USB_CLK },
+};
+
 static const struct of_device_id gcc_ipq5424_match_table[] = {
 	{ .compatible = "qcom,ipq5424-gcc" },
 	{ }
@@ -3260,6 +3282,8 @@ static const struct qcom_cc_desc gcc_ipq5424_desc = {
 	.num_resets = ARRAY_SIZE(gcc_ipq5424_resets),
 	.clk_hws = gcc_ipq5424_hws,
 	.num_clk_hws = ARRAY_SIZE(gcc_ipq5424_hws),
+	.icc_hws = icc_ipq5424_hws,
+	.num_icc_hws = ARRAY_SIZE(icc_ipq5424_hws),
 };
 
 static int gcc_ipq5424_probe(struct platform_device *pdev)
@@ -3272,6 +3296,7 @@ static struct platform_driver gcc_ipq5424_driver = {
 	.driver = {
 		.name   = "qcom,gcc-ipq5424",
 		.of_match_table = gcc_ipq5424_match_table,
+		.sync_state = icc_sync_state,
 	},
 };
 

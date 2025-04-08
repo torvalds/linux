@@ -19,6 +19,14 @@ Supported chips:
 
     Datasheet: www.analog.com/static/imported-files/data_sheets/ADM1272.pdf
 
+  * Analog Devices ADM1273
+
+    Prefix: 'adm1273'
+
+    Addresses scanned: -
+
+    Datasheet: Not yet publicly available
+
   * Analog Devices ADM1275
 
     Prefix: 'adm1275'
@@ -66,14 +74,14 @@ Description
 -----------
 
 This driver supports hardware monitoring for Analog Devices ADM1075, ADM1272,
-ADM1275, ADM1276, ADM1278, ADM1281, ADM1293, and ADM1294 Hot-Swap Controller and
-Digital Power Monitors.
+ADM1273, ADM1275, ADM1276, ADM1278, ADM1281, ADM1293, and ADM1294 Hot-Swap
+Controller and Digital Power Monitors.
 
-ADM1075, ADM1272, ADM1275, ADM1276, ADM1278, ADM1281, ADM1293, and ADM1294 are hot-swap
-controllers that allow a circuit board to be removed from or inserted into
-a live backplane. They also feature current and voltage readback via an
-integrated 12 bit analog-to-digital converter (ADC), accessed using a
-PMBus interface.
+ADM1075, ADM1272, ADM1273, ADM1275, ADM1276, ADM1278, ADM1281, ADM1293, and
+ADM1294 are hot-swap controllers that allow a circuit board to be removed from
+or inserted into a live backplane. They also feature current and voltage
+readback via an integrated 12 bit analog-to-digital converter (ADC), accessed
+using a PMBus interface.
 
 The driver is a client driver to the core PMBus driver. Please see
 Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
@@ -141,7 +149,7 @@ power1_input_highest	Highest observed input power.
 power1_reset_history	Write any value to reset history.
 
 			Power attributes are supported on ADM1075, ADM1272,
-			ADM1276, ADM1293, and ADM1294.
+			ADM1273, ADM1276, ADM1293, and ADM1294.
 
 temp1_input		Chip temperature.
 temp1_max		Maximum chip temperature.
@@ -151,6 +159,6 @@ temp1_crit_alarm	Critical temperature high alarm.
 temp1_highest		Highest observed temperature.
 temp1_reset_history	Write any value to reset history.
 
-			Temperature attributes are supported on ADM1272 and
-			ADM1278, and ADM1281.
+			Temperature attributes are supported on ADM1272,
+			ADM1273, ADM1278, and ADM1281.
 ======================= =======================================================

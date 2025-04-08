@@ -213,6 +213,9 @@ void mii_ethtool_get_link_ksettings(struct mii_if_info *mii,
 		lp_advertising = 0;
 	}
 
+	if (!(bmsr & BMSR_LSTATUS))
+		cmd->base.speed = SPEED_UNKNOWN;
+
 	mii->full_duplex = cmd->base.duplex;
 
 	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,

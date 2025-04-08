@@ -41,6 +41,12 @@ Device Drivers Base
 .. kernel-doc:: drivers/base/class.c
    :export:
 
+.. kernel-doc:: include/linux/device/faux.h
+   :internal:
+
+.. kernel-doc:: drivers/base/faux.c
+   :export:
+
 .. kernel-doc:: drivers/base/node.c
    :internal:
 

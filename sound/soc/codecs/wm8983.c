@@ -594,10 +594,10 @@ static int wm8983_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 			    WM8983_FMT_MASK, format << WM8983_FMT_SHIFT);
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		master = 1;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		master = 0;
 		break;
 	default:

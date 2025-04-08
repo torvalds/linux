@@ -6,16 +6,16 @@
 //!
 //! Reference: <https://docs.kernel.org/core-api/printk-basics.html>
 
-use core::{
+use crate::{
     ffi::{c_char, c_void},
-    fmt,
+    prelude::*,
+    str::RawFormatter,
 };
-
-use crate::str::RawFormatter;
+use core::fmt;
 
 // Called from `vsprintf` with format specifier `%pA`.
 #[expect(clippy::missing_safety_doc)]
-#[no_mangle]
+#[export]
 unsafe extern "C" fn rust_fmt_argument(
     buf: *mut c_char,
     end: *mut c_char,
@@ -107,7 +107,7 @@ pub unsafe fn call_printk(
     // SAFETY: TODO.
     unsafe {
         bindings::_printk(
-            format_string.as_ptr() as _,
+            format_string.as_ptr(),
             module_name.as_ptr(),
             &args as *const _ as *const c_void,
         );
@@ -128,7 +128,7 @@ pub fn call_printk_cont(args: fmt::Arguments<'_>) {
     #[cfg(CONFIG_PRINTK)]
     unsafe {
         bindings::_printk(
-            format_strings::CONT.as_ptr() as _,
+            format_strings::CONT.as_ptr(),
             &args as *const _ as *const c_void,
         );
     }

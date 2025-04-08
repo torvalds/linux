@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+config RV_MON_%%MODEL_NAME_UP%%
+	depends on RV
+%%MONITOR_DEPS%%
+	select %%MONITOR_CLASS_TYPE%%
+	bool "%%MODEL_NAME%% monitor"
+	help
+	  %%DESCRIPTION%%

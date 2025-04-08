@@ -1319,13 +1319,20 @@ int audit_compare_dname_path(const struct qstr *dname, const char *path, int par
 	if (pathlen < dlen)
 		return 1;
 
-	parentlen = parentlen == AUDIT_NAME_FULL ? parent_len(path) : parentlen;
-	if (pathlen - parentlen != dlen)
-		return 1;
+	if (parentlen == AUDIT_NAME_FULL)
+		parentlen = parent_len(path);
 
 	p = path + parentlen;
 
-	return strncmp(p, dname->name, dlen);
+	/* handle trailing slashes */
+	pathlen -= parentlen;
+	while (p[pathlen - 1] == '/')
+		pathlen--;
+
+	if (pathlen != dlen)
+		return 1;
+
+	return memcmp(p, dname->name, dlen);
 }
 
 int audit_filter(int msgtype, unsigned int listtype)

@@ -42,7 +42,9 @@ struct amd_mp2_sensor_info {
 
 struct sfh_dev_status {
 	bool is_hpd_present;
+	bool is_hpd_enabled;
 	bool is_als_present;
+	bool is_sra_present;
 };
 
 struct amd_mp2_dev {

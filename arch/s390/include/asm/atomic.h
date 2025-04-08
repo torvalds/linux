@@ -17,13 +17,13 @@
 
 static __always_inline int arch_atomic_read(const atomic_t *v)
 {
-	return __atomic_read(v);
+	return __atomic_read(&v->counter);
 }
 #define arch_atomic_read arch_atomic_read
 
 static __always_inline void arch_atomic_set(atomic_t *v, int i)
 {
-	__atomic_set(v, i);
+	__atomic_set(&v->counter, i);
 }
 #define arch_atomic_set arch_atomic_set
 
@@ -44,6 +44,36 @@ static __always_inline void arch_atomic_add(int i, atomic_t *v)
 	__atomic_add(i, &v->counter);
 }
 #define arch_atomic_add arch_atomic_add
+
+static __always_inline void arch_atomic_inc(atomic_t *v)
+{
+	__atomic_add_const(1, &v->counter);
+}
+#define arch_atomic_inc arch_atomic_inc
+
+static __always_inline void arch_atomic_dec(atomic_t *v)
+{
+	__atomic_add_const(-1, &v->counter);
+}
+#define arch_atomic_dec arch_atomic_dec
+
+static __always_inline bool arch_atomic_sub_and_test(int i, atomic_t *v)
+{
+	return __atomic_add_and_test_barrier(-i, &v->counter);
+}
+#define arch_atomic_sub_and_test arch_atomic_sub_and_test
+
+static __always_inline bool arch_atomic_dec_and_test(atomic_t *v)
+{
+	return __atomic_add_const_and_test_barrier(-1, &v->counter);
+}
+#define arch_atomic_dec_and_test arch_atomic_dec_and_test
+
+static __always_inline bool arch_atomic_inc_and_test(atomic_t *v)
+{
+	return __atomic_add_const_and_test_barrier(1, &v->counter);
+}
+#define arch_atomic_inc_and_test arch_atomic_inc_and_test
 
 #define arch_atomic_sub(_i, _v)		arch_atomic_add(-(int)(_i), _v)
 #define arch_atomic_sub_return(_i, _v)	arch_atomic_add_return(-(int)(_i), _v)
@@ -94,13 +124,13 @@ static __always_inline bool arch_atomic_try_cmpxchg(atomic_t *v, int *old, int n
 
 static __always_inline s64 arch_atomic64_read(const atomic64_t *v)
 {
-	return __atomic64_read(v);
+	return __atomic64_read((long *)&v->counter);
 }
 #define arch_atomic64_read arch_atomic64_read
 
 static __always_inline void arch_atomic64_set(atomic64_t *v, s64 i)
 {
-	__atomic64_set(v, i);
+	__atomic64_set((long *)&v->counter, i);
 }
 #define arch_atomic64_set arch_atomic64_set
 
@@ -121,6 +151,36 @@ static __always_inline void arch_atomic64_add(s64 i, atomic64_t *v)
 	__atomic64_add(i, (long *)&v->counter);
 }
 #define arch_atomic64_add arch_atomic64_add
+
+static __always_inline void arch_atomic64_inc(atomic64_t *v)
+{
+	__atomic64_add_const(1, (long *)&v->counter);
+}
+#define arch_atomic64_inc arch_atomic64_inc
+
+static __always_inline void arch_atomic64_dec(atomic64_t *v)
+{
+	__atomic64_add_const(-1, (long *)&v->counter);
+}
+#define arch_atomic64_dec arch_atomic64_dec
+
+static __always_inline bool arch_atomic64_sub_and_test(s64 i, atomic64_t *v)
+{
+	return __atomic64_add_and_test_barrier(-i, (long *)&v->counter);
+}
+#define arch_atomic64_sub_and_test arch_atomic64_sub_and_test
+
+static __always_inline bool arch_atomic64_dec_and_test(atomic64_t *v)
+{
+	return __atomic64_add_const_and_test_barrier(-1, (long *)&v->counter);
+}
+#define arch_atomic64_dec_and_test arch_atomic64_dec_and_test
+
+static __always_inline bool arch_atomic64_inc_and_test(atomic64_t *v)
+{
+	return __atomic64_add_const_and_test_barrier(1, (long *)&v->counter);
+}
+#define arch_atomic64_inc_and_test arch_atomic64_inc_and_test
 
 static __always_inline s64 arch_atomic64_xchg(atomic64_t *v, s64 new)
 {

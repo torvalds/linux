@@ -7,6 +7,27 @@
  *  Based on step_wise.c with following Copyrights:
  *  Copyright (C) 2012 Intel Corp
  *  Copyright (C) 2012 Durgadoss R <durgadoss.r@intel.com>
+ *
+ * Regulation Logic: a two point regulation, deliver cooling state depending
+ * on the previous state shown in this diagram:
+ *
+ *                Fan:   OFF    ON
+ *
+ *                              |
+ *                              |
+ *          trip_temp:    +---->+
+ *                        |     |        ^
+ *                        |     |        |
+ *                        |     |   Temperature
+ * (trip_temp - hyst):    +<----+
+ *                        |
+ *                        |
+ *                        |
+ *
+ *   * If the fan is not running and temperature exceeds trip_temp, the fan
+ *     gets turned on.
+ *   * In case the fan is running, temperature must fall below
+ *     (trip_temp - hyst) so that the fan gets turned off again.
  */
 
 #include <linux/thermal.h>
@@ -34,36 +55,14 @@ static void bang_bang_set_instance_target(struct thermal_instance *instance,
 }
 
 /**
- * bang_bang_control - controls devices associated with the given zone
+ * bang_bang_trip_crossed - controls devices associated with the given zone
  * @tz: thermal_zone_device
  * @trip: the trip point
- * @crossed_up: whether or not the trip has been crossed on the way up
- *
- * Regulation Logic: a two point regulation, deliver cooling state depending
- * on the previous state shown in this diagram:
- *
- *                Fan:   OFF    ON
- *
- *                              |
- *                              |
- *          trip_temp:    +---->+
- *                        |     |        ^
- *                        |     |        |
- *                        |     |   Temperature
- * (trip_temp - hyst):    +<----+
- *                        |
- *                        |
- *                        |
- *
- *   * If the fan is not running and temperature exceeds trip_temp, the fan
- *     gets turned on.
- *   * In case the fan is running, temperature must fall below
- *     (trip_temp - hyst) so that the fan gets turned off again.
- *
+ * @upward: whether or not the trip has been crossed on the way up
  */
-static void bang_bang_control(struct thermal_zone_device *tz,
-			      const struct thermal_trip *trip,
-			      bool crossed_up)
+static void bang_bang_trip_crossed(struct thermal_zone_device *tz,
+				   const struct thermal_trip *trip,
+				   bool upward)
 {
 	const struct thermal_trip_desc *td = trip_to_trip_desc(trip);
 	struct thermal_instance *instance;
@@ -75,7 +74,7 @@ static void bang_bang_control(struct thermal_zone_device *tz,
 		tz->temperature, trip->hysteresis);
 
 	list_for_each_entry(instance, &td->thermal_instances, trip_node)
-		bang_bang_set_instance_target(instance, crossed_up);
+		bang_bang_set_instance_target(instance, upward);
 }
 
 static void bang_bang_manage(struct thermal_zone_device *tz)
@@ -123,7 +122,7 @@ static void bang_bang_update_tz(struct thermal_zone_device *tz,
 
 static struct thermal_governor thermal_gov_bang_bang = {
 	.name		= "bang_bang",
-	.trip_crossed	= bang_bang_control,
+	.trip_crossed	= bang_bang_trip_crossed,
 	.manage		= bang_bang_manage,
 	.update_tz	= bang_bang_update_tz,
 };

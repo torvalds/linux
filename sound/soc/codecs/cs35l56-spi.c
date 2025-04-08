@@ -33,6 +33,9 @@ static int cs35l56_spi_probe(struct spi_device *spi)
 
 	cs35l56->base.dev = &spi->dev;
 	cs35l56->base.can_hibernate = true;
+	ret = cs35l56_init_config_for_spi(&cs35l56->base, spi);
+	if (ret)
+		return ret;
 
 	ret = cs35l56_common_probe(cs35l56);
 	if (ret != 0)

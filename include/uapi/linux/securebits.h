@@ -52,10 +52,32 @@
 #define SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED \
 			(issecure_mask(SECURE_NO_CAP_AMBIENT_RAISE_LOCKED))
 
+/* See Documentation/userspace-api/check_exec.rst */
+#define SECURE_EXEC_RESTRICT_FILE		8
+#define SECURE_EXEC_RESTRICT_FILE_LOCKED	9  /* make bit-8 immutable */
+
+#define SECBIT_EXEC_RESTRICT_FILE (issecure_mask(SECURE_EXEC_RESTRICT_FILE))
+#define SECBIT_EXEC_RESTRICT_FILE_LOCKED \
+			(issecure_mask(SECURE_EXEC_RESTRICT_FILE_LOCKED))
+
+/* See Documentation/userspace-api/check_exec.rst */
+#define SECURE_EXEC_DENY_INTERACTIVE		10
+#define SECURE_EXEC_DENY_INTERACTIVE_LOCKED	11  /* make bit-10 immutable */
+
+#define SECBIT_EXEC_DENY_INTERACTIVE \
+			(issecure_mask(SECURE_EXEC_DENY_INTERACTIVE))
+#define SECBIT_EXEC_DENY_INTERACTIVE_LOCKED \
+			(issecure_mask(SECURE_EXEC_DENY_INTERACTIVE_LOCKED))
+
 #define SECURE_ALL_BITS		(issecure_mask(SECURE_NOROOT) | \
 				 issecure_mask(SECURE_NO_SETUID_FIXUP) | \
 				 issecure_mask(SECURE_KEEP_CAPS) | \
-				 issecure_mask(SECURE_NO_CAP_AMBIENT_RAISE))
+				 issecure_mask(SECURE_NO_CAP_AMBIENT_RAISE) | \
+				 issecure_mask(SECURE_EXEC_RESTRICT_FILE) | \
+				 issecure_mask(SECURE_EXEC_DENY_INTERACTIVE))
 #define SECURE_ALL_LOCKS	(SECURE_ALL_BITS << 1)
+
+#define SECURE_ALL_UNPRIVILEGED (issecure_mask(SECURE_EXEC_RESTRICT_FILE) | \
+				 issecure_mask(SECURE_EXEC_DENY_INTERACTIVE))
 
 #endif /* _UAPI_LINUX_SECUREBITS_H */

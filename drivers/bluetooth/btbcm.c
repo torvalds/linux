@@ -553,6 +553,9 @@ static const char *btbcm_get_board_name(struct device *dev)
 
 	/* get rid of any '/' in the compatible string */
 	board_type = devm_kstrdup(dev, tmp, GFP_KERNEL);
+	if (!board_type)
+		return NULL;
+
 	strreplace(board_type, '/', '-');
 
 	return board_type;

@@ -4,8 +4,24 @@
  *
  * Copyright (C) 2017 Renesas Electronics Corp.
  * Copyright (C) 2017 Cogent Embedded, Inc.
+ *
+ * Sample Audio settings:
+ *
+ *	> amixer set "DVC Out" 1%
+ *	> amixer set "DVC In"  20%
+ *
+ *	// if you use xxxx-mix+split.dtsi
+ *	> amixer -D hw:1 set "pcm3168a DAC1" 50%
+ *	> amixer -D hw:1 set "pcm3168a DAC2" 50%
+ *	> amixer -D hw:1 set "pcm3168a DAC3" 50%
+ *	> amixer -D hw:1 set "pcm3168a DAC4" 50%
+ *
+ *	// else
+ *	> amixer -D hw:1 set "DAC1" 50%
+ *	> amixer -D hw:1 set "DAC2" 50%
+ *	> amixer -D hw:1 set "DAC3" 50%
+ *	> amixer -D hw:1 set "DAC4" 50%
  */
-
 / {
 	aliases {
 		serial1 = &hscif0;

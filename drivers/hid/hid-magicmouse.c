@@ -52,6 +52,7 @@ module_param(report_undeciphered, bool, 0644);
 MODULE_PARM_DESC(report_undeciphered, "Report undeciphered multi-touch state field using a MSC_RAW event");
 
 #define TRACKPAD2_2021_BT_VERSION 0x110
+#define TRACKPAD_2024_BT_VERSION 0x314
 
 #define TRACKPAD_REPORT_ID 0x28
 #define TRACKPAD2_USB_REPORT_ID 0x02
@@ -567,9 +568,12 @@ static int magicmouse_setup_input(struct input_dev *input, struct hid_device *hd
 		 */
 		if (hdev->vendor == BT_VENDOR_ID_APPLE) {
 			if (input->id.version == TRACKPAD2_2021_BT_VERSION)
+				input->name = "Apple Inc. Magic Trackpad 2021";
+			else if (input->id.version == TRACKPAD_2024_BT_VERSION) {
+				input->name = "Apple Inc. Magic Trackpad USB-C";
+			} else {
 				input->name = "Apple Inc. Magic Trackpad";
-			else
-				input->name = "Apple Inc. Magic Trackpad 2";
+			}
 		} else { /* USB_VENDOR_ID_APPLE */
 			input->name = hdev->name;
 		}
@@ -911,7 +915,7 @@ static int magicmouse_probe(struct hid_device *hdev,
 
 	return 0;
 err_stop_hw:
-	del_timer_sync(&msc->battery_timer);
+	timer_delete_sync(&msc->battery_timer);
 	hid_hw_stop(hdev);
 	return ret;
 }
@@ -922,7 +926,7 @@ static void magicmouse_remove(struct hid_device *hdev)
 
 	if (msc) {
 		cancel_delayed_work_sync(&msc->work);
-		del_timer_sync(&msc->battery_timer);
+		timer_delete_sync(&msc->battery_timer);
 	}
 
 	hid_hw_stop(hdev);

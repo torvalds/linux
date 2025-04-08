@@ -17,9 +17,9 @@
 #include <processor.h>
 
 /*
- * s390x needs at least 1MB alignment, and the x86_64 MOVE/DELETE tests need a
- * 2MB sized and aligned region so that the initial region corresponds to
- * exactly one large page.
+ * s390 needs at least 1MB alignment, and the x86 MOVE/DELETE tests need a 2MB
+ * sized and aligned region so that the initial region corresponds to exactly
+ * one large page.
  */
 #define MEM_REGION_SIZE		0x200000
 
@@ -235,7 +235,7 @@ static void guest_code_delete_memory_region(void)
 	 * in the guest will never succeed, and so isn't an option.
 	 */
 	memset(&idt, 0, sizeof(idt));
-	__asm__ __volatile__("lidt %0" :: "m"(idt));
+	set_idt(&idt);
 
 	GUEST_SYNC(0);
 
@@ -553,6 +553,56 @@ static void test_add_overlapping_private_memory_regions(void)
 	close(memfd);
 	kvm_vm_free(vm);
 }
+
+static void guest_code_mmio_during_vectoring(void)
+{
+	const struct desc_ptr idt_desc = {
+		.address = MEM_REGION_GPA,
+		.size = 0xFFF,
+	};
+
+	set_idt(&idt_desc);
+
+	/* Generate a #GP by dereferencing a non-canonical address */
+	*((uint8_t *)NONCANONICAL) = 0x1;
+
+	GUEST_ASSERT(0);
+}
+
+/*
+ * This test points the IDT descriptor base to an MMIO address. It should cause
+ * a KVM internal error when an event occurs in the guest.
+ */
+static void test_mmio_during_vectoring(void)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_run *run;
+	struct kvm_vm *vm;
+	u64 expected_gpa;
+
+	pr_info("Testing MMIO during vectoring error handling\n");
+
+	vm = vm_create_with_one_vcpu(&vcpu, guest_code_mmio_during_vectoring);
+	virt_map(vm, MEM_REGION_GPA, MEM_REGION_GPA, 1);
+
+	run = vcpu->run;
+
+	vcpu_run(vcpu);
+	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_INTERNAL_ERROR);
+	TEST_ASSERT(run->internal.suberror == KVM_INTERNAL_ERROR_DELIVERY_EV,
+		    "Unexpected suberror = %d", vcpu->run->internal.suberror);
+	TEST_ASSERT(run->internal.ndata != 4, "Unexpected internal error data array size = %d",
+		    run->internal.ndata);
+
+	/* The reported GPA should be IDT base + offset of the GP vector */
+	expected_gpa = MEM_REGION_GPA + GP_VECTOR * sizeof(struct idt_entry);
+
+	TEST_ASSERT(run->internal.data[3] == expected_gpa,
+		    "Unexpected GPA = %llx (expected %lx)",
+		    vcpu->run->internal.data[3], expected_gpa);
+
+	kvm_vm_free(vm);
+}
 #endif
 
 int main(int argc, char *argv[])
@@ -568,6 +618,7 @@ int main(int argc, char *argv[])
 	 * KVM_RUN fails with ENOEXEC or EFAULT.
 	 */
 	test_zero_memory_regions();
+	test_mmio_during_vectoring();
 #endif
 
 	test_invalid_memory_region_flags();

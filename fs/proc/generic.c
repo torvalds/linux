@@ -216,7 +216,8 @@ void proc_free_inum(unsigned int inum)
 	ida_free(&proc_inum_ida, inum - PROC_DYNAMIC_FIRST);
 }
 
-static int proc_misc_d_revalidate(struct dentry *dentry, unsigned int flags)
+static int proc_misc_d_revalidate(struct inode *dir, const struct qstr *name,
+				  struct dentry *dentry, unsigned int flags)
 {
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
@@ -343,7 +344,8 @@ static const struct file_operations proc_dir_operations = {
 	.iterate_shared		= proc_readdir,
 };
 
-static int proc_net_d_revalidate(struct dentry *dentry, unsigned int flags)
+static int proc_net_d_revalidate(struct inode *dir, const struct qstr *name,
+				 struct dentry *dentry, unsigned int flags)
 {
 	return 0;
 }
@@ -557,10 +559,16 @@ struct proc_dir_entry *proc_create_reg(const char *name, umode_t mode,
 	return p;
 }
 
-static inline void pde_set_flags(struct proc_dir_entry *pde)
+static void pde_set_flags(struct proc_dir_entry *pde)
 {
 	if (pde->proc_ops->proc_flags & PROC_ENTRY_PERMANENT)
 		pde->flags |= PROC_ENTRY_PERMANENT;
+	if (pde->proc_ops->proc_read_iter)
+		pde->flags |= PROC_ENTRY_proc_read_iter;
+#ifdef CONFIG_COMPAT
+	if (pde->proc_ops->proc_compat_ioctl)
+		pde->flags |= PROC_ENTRY_proc_compat_ioctl;
+#endif
 }
 
 struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
@@ -624,6 +632,7 @@ struct proc_dir_entry *proc_create_seq_private(const char *name, umode_t mode,
 	p->proc_ops = &proc_seq_ops;
 	p->seq_ops = ops;
 	p->state_size = state_size;
+	pde_set_flags(p);
 	return proc_register(parent, p);
 }
 EXPORT_SYMBOL(proc_create_seq_private);
@@ -654,6 +663,7 @@ struct proc_dir_entry *proc_create_single_data(const char *name, umode_t mode,
 		return NULL;
 	p->proc_ops = &proc_single_ops;
 	p->single_show = show;
+	pde_set_flags(p);
 	return proc_register(parent, p);
 }
 EXPORT_SYMBOL(proc_create_single_data);

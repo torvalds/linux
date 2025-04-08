@@ -961,8 +961,9 @@ static int nfs_generic_pg_pgios(struct nfs_pageio_descriptor *desc)
 		struct nfs_client *clp = NFS_SERVER(hdr->inode)->nfs_client;
 
 		struct nfsd_file *localio =
-			nfs_local_open_fh(clp, hdr->cred,
-					  hdr->args.fh, hdr->args.context->mode);
+			nfs_local_open_fh(clp, hdr->cred, hdr->args.fh,
+					  &hdr->args.context->nfl,
+					  hdr->args.context->mode);
 
 		if (NFS_SERVER(hdr->inode)->nfs_client->cl_minorversion)
 			task_flags = RPC_TASK_MOVEABLE;

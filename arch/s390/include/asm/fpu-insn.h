@@ -100,19 +100,12 @@ static __always_inline void fpu_lfpc(unsigned int *fpc)
  */
 static inline void fpu_lfpc_safe(unsigned int *fpc)
 {
-	u32 tmp;
-
 	instrument_read(fpc, sizeof(*fpc));
-	asm volatile("\n"
-		"0:	lfpc	%[fpc]\n"
-		"1:	nopr	%%r7\n"
-		".pushsection .fixup, \"ax\"\n"
-		"2:	lghi	%[tmp],0\n"
-		"	sfpc	%[tmp]\n"
-		"	jg	1b\n"
-		".popsection\n"
-		EX_TABLE(1b, 2b)
-		: [tmp] "=d" (tmp)
+	asm_inline volatile(
+		"	lfpc	%[fpc]\n"
+		"0:	nopr	%%r7\n"
+		EX_TABLE_FPC(0b, 0b)
+		:
 		: [fpc] "Q" (*fpc)
 		: "memory");
 }
@@ -183,21 +176,7 @@ static __always_inline void fpu_vgfmg(u8 v1, u8 v2, u8 v3)
 		     : "memory");
 }
 
-#ifdef CONFIG_CC_IS_CLANG
-
-static __always_inline void fpu_vl(u8 v1, const void *vxr)
-{
-	instrument_read(vxr, sizeof(__vector128));
-	asm volatile("\n"
-		"	la	1,%[vxr]\n"
-		"	VL	%[v1],0,,1\n"
-		:
-		: [vxr] "R" (*(__vector128 *)vxr),
-		  [v1] "I" (v1)
-		: "memory", "1");
-}
-
-#else /* CONFIG_CC_IS_CLANG */
+#ifdef CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS
 
 static __always_inline void fpu_vl(u8 v1, const void *vxr)
 {
@@ -209,7 +188,21 @@ static __always_inline void fpu_vl(u8 v1, const void *vxr)
 		     : "memory");
 }
 
-#endif /* CONFIG_CC_IS_CLANG */
+#else /* CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS */
+
+static __always_inline void fpu_vl(u8 v1, const void *vxr)
+{
+	instrument_read(vxr, sizeof(__vector128));
+	asm volatile(
+		"	la	1,%[vxr]\n"
+		"	VL	%[v1],0,,1\n"
+		:
+		: [vxr] "R" (*(__vector128 *)vxr),
+		  [v1] "I" (v1)
+		: "memory", "1");
+}
+
+#endif /* CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS */
 
 static __always_inline void fpu_vleib(u8 v, s16 val, u8 index)
 {
@@ -238,25 +231,7 @@ static __always_inline u64 fpu_vlgvf(u8 v, u16 index)
 	return val;
 }
 
-#ifdef CONFIG_CC_IS_CLANG
-
-static __always_inline void fpu_vll(u8 v1, u32 index, const void *vxr)
-{
-	unsigned int size;
-
-	size = min(index + 1, sizeof(__vector128));
-	instrument_read(vxr, size);
-	asm volatile("\n"
-		"	la	1,%[vxr]\n"
-		"	VLL	%[v1],%[index],0,1\n"
-		:
-		: [vxr] "R" (*(u8 *)vxr),
-		  [index] "d" (index),
-		  [v1] "I" (v1)
-		: "memory", "1");
-}
-
-#else /* CONFIG_CC_IS_CLANG */
+#ifdef CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS
 
 static __always_inline void fpu_vll(u8 v1, u32 index, const void *vxr)
 {
@@ -272,29 +247,27 @@ static __always_inline void fpu_vll(u8 v1, u32 index, const void *vxr)
 		     : "memory");
 }
 
-#endif /* CONFIG_CC_IS_CLANG */
+#else /* CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS */
 
-#ifdef CONFIG_CC_IS_CLANG
+static __always_inline void fpu_vll(u8 v1, u32 index, const void *vxr)
+{
+	unsigned int size;
 
-#define fpu_vlm(_v1, _v3, _vxrs)					\
-({									\
-	unsigned int size = ((_v3) - (_v1) + 1) * sizeof(__vector128);	\
-	struct {							\
-		__vector128 _v[(_v3) - (_v1) + 1];			\
-	} *_v = (void *)(_vxrs);					\
-									\
-	instrument_read(_v, size);					\
-	asm volatile("\n"						\
-		"	la	1,%[vxrs]\n"				\
-		"	VLM	%[v1],%[v3],0,1\n"			\
-		:							\
-		: [vxrs] "R" (*_v),					\
-		  [v1] "I" (_v1), [v3] "I" (_v3)			\
-		: "memory", "1");					\
-	(_v3) - (_v1) + 1;						\
-})
+	size = min(index + 1, sizeof(__vector128));
+	instrument_read(vxr, size);
+	asm volatile(
+		"	la	1,%[vxr]\n"
+		"	VLL	%[v1],%[index],0,1\n"
+		:
+		: [vxr] "R" (*(u8 *)vxr),
+		  [index] "d" (index),
+		  [v1] "I" (v1)
+		: "memory", "1");
+}
 
-#else /* CONFIG_CC_IS_CLANG */
+#endif /* CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS */
+
+#ifdef CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS
 
 #define fpu_vlm(_v1, _v3, _vxrs)					\
 ({									\
@@ -312,7 +285,27 @@ static __always_inline void fpu_vll(u8 v1, u32 index, const void *vxr)
 	(_v3) - (_v1) + 1;						\
 })
 
-#endif /* CONFIG_CC_IS_CLANG */
+#else /* CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS */
+
+#define fpu_vlm(_v1, _v3, _vxrs)					\
+({									\
+	unsigned int size = ((_v3) - (_v1) + 1) * sizeof(__vector128);	\
+	struct {							\
+		__vector128 _v[(_v3) - (_v1) + 1];			\
+	} *_v = (void *)(_vxrs);					\
+									\
+	instrument_read(_v, size);					\
+	asm volatile(							\
+		"	la	1,%[vxrs]\n"				\
+		"	VLM	%[v1],%[v3],0,1\n"			\
+		:							\
+		: [vxrs] "R" (*_v),					\
+		  [v1] "I" (_v1), [v3] "I" (_v3)			\
+		: "memory", "1");					\
+	(_v3) - (_v1) + 1;						\
+})
+
+#endif /* CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS */
 
 static __always_inline void fpu_vlr(u8 v1, u8 v2)
 {
@@ -362,20 +355,7 @@ static __always_inline void fpu_vsrlb(u8 v1, u8 v2, u8 v3)
 		     : "memory");
 }
 
-#ifdef CONFIG_CC_IS_CLANG
-
-static __always_inline void fpu_vst(u8 v1, const void *vxr)
-{
-	instrument_write(vxr, sizeof(__vector128));
-	asm volatile("\n"
-		"	la	1,%[vxr]\n"
-		"	VST	%[v1],0,,1\n"
-		: [vxr] "=R" (*(__vector128 *)vxr)
-		: [v1] "I" (v1)
-		: "memory", "1");
-}
-
-#else /* CONFIG_CC_IS_CLANG */
+#ifdef CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS
 
 static __always_inline void fpu_vst(u8 v1, const void *vxr)
 {
@@ -386,25 +366,22 @@ static __always_inline void fpu_vst(u8 v1, const void *vxr)
 		     : "memory");
 }
 
-#endif /* CONFIG_CC_IS_CLANG */
+#else /* CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS */
 
-#ifdef CONFIG_CC_IS_CLANG
-
-static __always_inline void fpu_vstl(u8 v1, u32 index, const void *vxr)
+static __always_inline void fpu_vst(u8 v1, const void *vxr)
 {
-	unsigned int size;
-
-	size = min(index + 1, sizeof(__vector128));
-	instrument_write(vxr, size);
-	asm volatile("\n"
+	instrument_write(vxr, sizeof(__vector128));
+	asm volatile(
 		"	la	1,%[vxr]\n"
-		"	VSTL	%[v1],%[index],0,1\n"
-		: [vxr] "=R" (*(u8 *)vxr)
-		: [index] "d" (index), [v1] "I" (v1)
+		"	VST	%[v1],0,,1\n"
+		: [vxr] "=R" (*(__vector128 *)vxr)
+		: [v1] "I" (v1)
 		: "memory", "1");
 }
 
-#else /* CONFIG_CC_IS_CLANG */
+#endif /* CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS */
+
+#ifdef CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS
 
 static __always_inline void fpu_vstl(u8 v1, u32 index, const void *vxr)
 {
@@ -418,28 +395,25 @@ static __always_inline void fpu_vstl(u8 v1, u32 index, const void *vxr)
 		     : "memory");
 }
 
-#endif /* CONFIG_CC_IS_CLANG */
+#else /* CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS */
 
-#ifdef CONFIG_CC_IS_CLANG
+static __always_inline void fpu_vstl(u8 v1, u32 index, const void *vxr)
+{
+	unsigned int size;
 
-#define fpu_vstm(_v1, _v3, _vxrs)					\
-({									\
-	unsigned int size = ((_v3) - (_v1) + 1) * sizeof(__vector128);	\
-	struct {							\
-		__vector128 _v[(_v3) - (_v1) + 1];			\
-	} *_v = (void *)(_vxrs);					\
-									\
-	instrument_write(_v, size);					\
-	asm volatile("\n"						\
-		"	la	1,%[vxrs]\n"				\
-		"	VSTM	%[v1],%[v3],0,1\n"			\
-		: [vxrs] "=R" (*_v)					\
-		: [v1] "I" (_v1), [v3] "I" (_v3)			\
-		: "memory", "1");					\
-	(_v3) - (_v1) + 1;						\
-})
+	size = min(index + 1, sizeof(__vector128));
+	instrument_write(vxr, size);
+	asm volatile(
+		"	la	1,%[vxr]\n"
+		"	VSTL	%[v1],%[index],0,1\n"
+		: [vxr] "=R" (*(u8 *)vxr)
+		: [index] "d" (index), [v1] "I" (v1)
+		: "memory", "1");
+}
 
-#else /* CONFIG_CC_IS_CLANG */
+#endif /* CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS */
+
+#ifdef CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS
 
 #define fpu_vstm(_v1, _v3, _vxrs)					\
 ({									\
@@ -456,7 +430,26 @@ static __always_inline void fpu_vstl(u8 v1, u32 index, const void *vxr)
 	(_v3) - (_v1) + 1;						\
 })
 
-#endif /* CONFIG_CC_IS_CLANG */
+#else /* CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS */
+
+#define fpu_vstm(_v1, _v3, _vxrs)					\
+({									\
+	unsigned int size = ((_v3) - (_v1) + 1) * sizeof(__vector128);	\
+	struct {							\
+		__vector128 _v[(_v3) - (_v1) + 1];			\
+	} *_v = (void *)(_vxrs);					\
+									\
+	instrument_write(_v, size);					\
+	asm volatile(							\
+		"	la	1,%[vxrs]\n"				\
+		"	VSTM	%[v1],%[v3],0,1\n"			\
+		: [vxrs] "=R" (*_v)					\
+		: [v1] "I" (_v1), [v3] "I" (_v3)			\
+		: "memory", "1");					\
+	(_v3) - (_v1) + 1;						\
+})
+
+#endif /* CONFIG_CC_HAS_ASM_AOR_FORMAT_FLAGS */
 
 static __always_inline void fpu_vupllf(u8 v1, u8 v2)
 {

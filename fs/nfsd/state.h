@@ -67,12 +67,15 @@ typedef struct {
 struct nfsd4_callback {
 	struct nfs4_client *cb_clp;
 	struct rpc_message cb_msg;
+#define NFSD4_CALLBACK_RUNNING		(0)
+#define NFSD4_CALLBACK_WAKE		(1)
+#define NFSD4_CALLBACK_REQUEUE		(2)
+	unsigned long cb_flags;
 	const struct nfsd4_callback_ops *cb_ops;
 	struct work_struct cb_work;
 	int cb_seq_status;
 	int cb_status;
 	int cb_held_slot;
-	bool cb_need_restart;
 };
 
 struct nfsd4_callback_ops {
@@ -159,15 +162,13 @@ struct nfs4_cb_fattr {
 	/* from CB_GETATTR reply */
 	u64 ncf_cb_change;
 	u64 ncf_cb_fsize;
+	struct timespec64 ncf_cb_mtime;
+	struct timespec64 ncf_cb_atime;
 
-	unsigned long ncf_cb_flags;
 	bool ncf_file_modified;
 	u64 ncf_initial_cinfo;
 	u64 ncf_cur_fsize;
 };
-
-/* bits for ncf_cb_flags */
-#define	CB_GETATTR_BUSY		0
 
 /*
  * Represents a delegation stateid. The nfs4_client holds references to these
@@ -196,8 +197,8 @@ struct nfs4_delegation {
 	struct list_head	dl_perclnt;
 	struct list_head	dl_recall_lru;  /* delegation recalled */
 	struct nfs4_clnt_odstate *dl_clnt_odstate;
-	u32			dl_type;
 	time64_t		dl_time;
+	u32			dl_type;
 /* For recall: */
 	int			dl_retries;
 	struct nfsd4_callback	dl_recall;
@@ -206,6 +207,22 @@ struct nfs4_delegation {
 	/* for CB_GETATTR */
 	struct nfs4_cb_fattr    dl_cb_fattr;
 };
+
+static inline bool deleg_is_read(u32 dl_type)
+{
+	return (dl_type == OPEN_DELEGATE_READ || dl_type == OPEN_DELEGATE_READ_ATTRS_DELEG);
+}
+
+static inline bool deleg_is_write(u32 dl_type)
+{
+	return (dl_type == OPEN_DELEGATE_WRITE || dl_type == OPEN_DELEGATE_WRITE_ATTRS_DELEG);
+}
+
+static inline bool deleg_attrs_deleg(u32 dl_type)
+{
+	return dl_type == OPEN_DELEGATE_READ_ATTRS_DELEG ||
+	       dl_type == OPEN_DELEGATE_WRITE_ATTRS_DELEG;
+}
 
 #define cb_to_delegation(cb) \
 	container_of(cb, struct nfs4_delegation, dl_recall)
@@ -227,8 +244,11 @@ static inline struct nfs4_delegation *delegstateid(struct nfs4_stid *s)
 	return container_of(s, struct nfs4_delegation, dl_stid);
 }
 
-/* Maximum number of slots per session. 160 is useful for long haul TCP */
-#define NFSD_MAX_SLOTS_PER_SESSION     160
+/* Maximum number of slots per session.  This is for sanity-check only.
+ * It could be increased if we had a mechanism to shutdown misbehaving clients.
+ * A large number can be needed to get good throughput on high-latency servers.
+ */
+#define NFSD_MAX_SLOTS_PER_SESSION	2048
 /* Maximum  session per slot cache size */
 #define NFSD_SLOT_CACHE_SIZE		2048
 /* Maximum number of NFSD_SLOT_CACHE_SIZE slots per session */
@@ -242,10 +262,12 @@ struct nfsd4_slot {
 	struct svc_cred sl_cred;
 	u32	sl_datalen;
 	u16	sl_opcnt;
+	u16	sl_generation;
 #define NFSD4_SLOT_INUSE	(1 << 0)
 #define NFSD4_SLOT_CACHETHIS	(1 << 1)
 #define NFSD4_SLOT_INITIALIZED	(1 << 2)
 #define NFSD4_SLOT_CACHED	(1 << 3)
+#define NFSD4_SLOT_REUSED	(1 << 4)
 	u8	sl_flags;
 	char	sl_data[];
 };
@@ -318,16 +340,19 @@ struct nfsd4_session {
 	u32			se_cb_slot_avail; /* bitmap of available slots */
 	u32			se_cb_highest_slot;	/* highest slot client wants */
 	u32			se_cb_prog;
-	bool			se_dead;
 	struct list_head	se_hash;	/* hash by sessionid */
 	struct list_head	se_perclnt;
+	struct list_head	se_all_sessions;/* global list of sessions */
 	struct nfs4_client	*se_client;
 	struct nfs4_sessionid	se_sessionid;
 	struct nfsd4_channel_attrs se_fchannel;
 	struct nfsd4_cb_sec	se_cb_sec;
 	struct list_head	se_conns;
 	u32			se_cb_seq_nr[NFSD_BC_SLOT_TABLE_SIZE];
-	struct nfsd4_slot	*se_slots[];	/* forward channel slots */
+	struct xarray		se_slots;	/* forward channel slots */
+	u16			se_slot_gen;
+	bool			se_dead;
+	u32			se_target_maxslots;
 };
 
 /* formatted contents of nfs4_sessionid */
@@ -426,7 +451,6 @@ struct nfs4_client {
 #define NFSD4_CLIENT_UPCALL_LOCK	(5)	/* upcall serialization */
 #define NFSD4_CLIENT_CB_FLAG_MASK	(1 << NFSD4_CLIENT_CB_UPDATE | \
 					 1 << NFSD4_CLIENT_CB_KILL)
-#define NFSD4_CLIENT_CB_RECALL_ANY	(6)
 	unsigned long		cl_flags;
 
 	struct workqueue_struct *cl_callback_wq;
@@ -472,7 +496,6 @@ struct nfs4_client {
 
 	struct nfsd4_cb_recall_any	*cl_ra;
 	time64_t		cl_ra_time;
-	struct list_head	cl_ra_cblist;
 };
 
 /* struct nfs4_client_reset
@@ -505,7 +528,7 @@ struct nfs4_replay {
 	unsigned int		rp_buflen;
 	char			*rp_buf;
 	struct knfsd_fh		rp_openfh;
-	atomic_t		rp_locked;
+	int			rp_locked;
 	char			rp_ibuf[NFSD4_REPLAY_ISIZE];
 };
 
@@ -754,6 +777,13 @@ extern void nfsd4_change_callback(struct nfs4_client *clp, struct nfs4_cb_conn *
 extern void nfsd4_init_cb(struct nfsd4_callback *cb, struct nfs4_client *clp,
 		const struct nfsd4_callback_ops *ops, enum nfsd4_cb_op op);
 extern bool nfsd4_run_cb(struct nfsd4_callback *cb);
+
+static inline void nfsd4_try_run_cb(struct nfsd4_callback *cb)
+{
+	if (!test_and_set_bit(NFSD4_CALLBACK_RUNNING, &cb->cb_flags))
+		WARN_ON_ONCE(!nfsd4_run_cb(cb));
+}
+
 extern void nfsd4_shutdown_callback(struct nfs4_client *);
 extern void nfsd4_shutdown_copy(struct nfs4_client *clp);
 void nfsd4_async_copy_reaper(struct nfsd_net *nn);

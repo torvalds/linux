@@ -67,22 +67,21 @@
  *
  *    See also MMU_GATHER_TABLE_FREE and MMU_GATHER_RCU_TABLE_FREE.
  *
- *  - tlb_remove_page() / __tlb_remove_page()
- *  - tlb_remove_page_size() / __tlb_remove_page_size()
- *  - __tlb_remove_folio_pages()
+ *  - tlb_remove_page() / tlb_remove_page_size()
+ *  - __tlb_remove_folio_pages() / __tlb_remove_page_size()
+ *  - __tlb_remove_folio_pages_size()
  *
- *    __tlb_remove_page_size() is the basic primitive that queues a page for
- *    freeing. __tlb_remove_page() assumes PAGE_SIZE. Both will return a
- *    boolean indicating if the queue is (now) full and a call to
- *    tlb_flush_mmu() is required.
+ *    __tlb_remove_folio_pages_size() is the basic primitive that queues pages
+ *    for freeing. It will return a boolean indicating if the queue is (now)
+ *    full and a call to tlb_flush_mmu() is required.
  *
  *    tlb_remove_page() and tlb_remove_page_size() imply the call to
  *    tlb_flush_mmu() when required and has no return value.
  *
- *    __tlb_remove_folio_pages() is similar to __tlb_remove_page(), however,
- *    instead of removing a single page, remove the given number of consecutive
- *    pages that are all part of the same (large) folio: just like calling
- *    __tlb_remove_page() on each page individually.
+ *    __tlb_remove_folio_pages() is similar to __tlb_remove_page_size(),
+ *    however, instead of removing a single page, assume PAGE_SIZE and remove
+ *    the given number of consecutive pages that are all part of the
+ *    same (large) folio.
  *
  *  - tlb_change_page_size()
  *
@@ -153,8 +152,9 @@
  *
  *  Useful if your architecture has non-page page directories.
  *
- *  When used, an architecture is expected to provide __tlb_remove_table()
- *  which does the actual freeing of these pages.
+ *  When used, an architecture is expected to provide __tlb_remove_table() or
+ *  use the generic __tlb_remove_table(), which does the actual freeing of these
+ *  pages.
  *
  *  MMU_GATHER_RCU_TABLE_FREE
  *
@@ -207,16 +207,31 @@ struct mmu_table_batch {
 #define MAX_TABLE_BATCH		\
 	((PAGE_SIZE - sizeof(struct mmu_table_batch)) / sizeof(void *))
 
+#ifndef __HAVE_ARCH_TLB_REMOVE_TABLE
+static inline void __tlb_remove_table(void *table)
+{
+	struct ptdesc *ptdesc = (struct ptdesc *)table;
+
+	pagetable_dtor_free(ptdesc);
+}
+#endif
+
 extern void tlb_remove_table(struct mmu_gather *tlb, void *table);
 
-#else /* !CONFIG_MMU_GATHER_HAVE_TABLE_FREE */
+#else /* !CONFIG_MMU_GATHER_TABLE_FREE */
 
+static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page);
 /*
  * Without MMU_GATHER_TABLE_FREE the architecture is assumed to have page based
  * page directories and we can use the normal page batching to free them.
  */
-#define tlb_remove_table(tlb, page) tlb_remove_page((tlb), (page))
+static inline void tlb_remove_table(struct mmu_gather *tlb, void *table)
+{
+	struct ptdesc *ptdesc = (struct ptdesc *)table;
 
+	pagetable_dtor(ptdesc);
+	tlb_remove_page(tlb, ptdesc_page(ptdesc));
+}
 #endif /* CONFIG_MMU_GATHER_TABLE_FREE */
 
 #ifdef CONFIG_MMU_GATHER_RCU_TABLE_FREE
@@ -473,30 +488,14 @@ static inline void tlb_remove_page_size(struct mmu_gather *tlb,
 		tlb_flush_mmu(tlb);
 }
 
-static __always_inline bool __tlb_remove_page(struct mmu_gather *tlb,
-		struct page *page, bool delay_rmap)
-{
-	return __tlb_remove_page_size(tlb, page, delay_rmap, PAGE_SIZE);
-}
-
-/* tlb_remove_page
- *	Similar to __tlb_remove_page but will call tlb_flush_mmu() itself when
- *	required.
- */
 static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
 {
 	return tlb_remove_page_size(tlb, page, PAGE_SIZE);
 }
 
-static inline void tlb_remove_ptdesc(struct mmu_gather *tlb, void *pt)
+static inline void tlb_remove_ptdesc(struct mmu_gather *tlb, struct ptdesc *pt)
 {
 	tlb_remove_table(tlb, pt);
-}
-
-/* Like tlb_remove_ptdesc, but for page-like page directories. */
-static inline void tlb_remove_page_ptdesc(struct mmu_gather *tlb, struct ptdesc *pt)
-{
-	tlb_remove_page(tlb, ptdesc_page(pt));
 }
 
 static inline void tlb_change_page_size(struct mmu_gather *tlb,

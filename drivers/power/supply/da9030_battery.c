@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
+#include <linux/string_choices.h>
 #include <linux/mfd/da903x.h>
 
 #include <linux/debugfs.h>
@@ -138,7 +139,7 @@ static int bat_debug_show(struct seq_file *s, void *data)
 {
 	struct da9030_charger *charger = s->private;
 
-	seq_printf(s, "charger is %s\n", charger->is_on ? "on" : "off");
+	seq_printf(s, "charger is %s\n", str_on_off(charger->is_on));
 	if (charger->chdet) {
 		seq_printf(s, "iset = %dmA, vset = %dmV\n",
 			   charger->mA, charger->mV);
@@ -501,8 +502,7 @@ static int da9030_battery_probe(struct platform_device *pdev)
 
 	/* 10 seconds between monitor runs unless platform defines other
 	   interval */
-	charger->interval = msecs_to_jiffies(
-		(pdata->batmon_interval ? : 10) * 1000);
+	charger->interval = secs_to_jiffies(pdata->batmon_interval ? : 10);
 
 	charger->charge_milliamp = pdata->charge_milliamp;
 	charger->charge_millivolt = pdata->charge_millivolt;

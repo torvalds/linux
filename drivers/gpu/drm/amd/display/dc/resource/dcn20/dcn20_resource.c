@@ -1220,7 +1220,7 @@ static void get_pixel_clock_parameters(
 	struct pipe_ctx *odm_pipe;
 	int opp_cnt = 1;
 	struct dc_link *link = stream->link;
-	struct link_encoder *link_enc = NULL;
+	struct link_encoder *link_enc = pipe_ctx->link_res.dio_link_enc;
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
 	struct dce_hwseq *hws = dc->hwseq;
 
@@ -1229,7 +1229,8 @@ static void get_pixel_clock_parameters(
 
 	pixel_clk_params->requested_pix_clk_100hz = stream->timing.pix_clk_100hz;
 
-	link_enc = link_enc_cfg_get_link_enc(link);
+	if (!dc->config.unify_link_enc_assignment)
+		link_enc = link_enc_cfg_get_link_enc(link);
 	if (link_enc)
 		pixel_clk_params->encoder_object_id = link_enc->id;
 

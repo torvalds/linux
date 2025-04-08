@@ -60,6 +60,7 @@ Storage interfaces
    cdrom/index
    scsi/index
    target/index
+   nvme/index
 
 Other subsystems
 ----------------
@@ -70,6 +71,7 @@ Other subsystems
 
    accounting/index
    cpu-freq/index
+   edac/index
    fpga/index
    i2c/index
    iio/index

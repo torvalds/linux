@@ -2043,6 +2043,7 @@ int enable_drhd_fault_handling(unsigned int cpu)
 	/*
 	 * Enable fault control interrupt.
 	 */
+	guard(rwsem_read)(&dmar_global_lock);
 	for_each_iommu(iommu, drhd) {
 		u32 fault_status;
 		int ret;

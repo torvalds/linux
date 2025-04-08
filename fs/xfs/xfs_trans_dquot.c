@@ -156,7 +156,8 @@ xfs_trans_mod_ino_dquot(
 	unsigned int			field,
 	int64_t				delta)
 {
-	ASSERT(!xfs_is_metadir_inode(ip) || XFS_IS_DQDETACHED(ip));
+	if (xfs_is_metadir_inode(ip))
+		return;
 
 	xfs_trans_mod_dquot(tp, dqp, field, delta);
 
@@ -246,10 +247,9 @@ xfs_trans_mod_dquot_byino(
 	xfs_mount_t	*mp = tp->t_mountp;
 
 	if (!XFS_IS_QUOTA_ON(mp) ||
-	    xfs_is_quota_inode(&mp->m_sb, ip->i_ino))
+	    xfs_is_quota_inode(&mp->m_sb, ip->i_ino) ||
+	    xfs_is_metadir_inode(ip))
 		return;
-
-	ASSERT(!xfs_is_metadir_inode(ip) || XFS_IS_DQDETACHED(ip));
 
 	if (XFS_IS_UQUOTA_ON(mp) && ip->i_udquot)
 		xfs_trans_mod_ino_dquot(tp, ip, ip->i_udquot, field, delta);

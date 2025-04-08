@@ -37,11 +37,11 @@ static bool allow_lun_scan = true;
 module_param(allow_lun_scan, bool, 0600);
 MODULE_PARM_DESC(allow_lun_scan, "For NPIV, scan and attach all storage LUNs");
 
-static void zfcp_scsi_slave_destroy(struct scsi_device *sdev)
+static void zfcp_scsi_sdev_destroy(struct scsi_device *sdev)
 {
 	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
 
-	/* if previous slave_alloc returned early, there is nothing to do */
+	/* if previous sdev_init returned early, there is nothing to do */
 	if (!zfcp_sdev->port)
 		return;
 
@@ -49,7 +49,8 @@ static void zfcp_scsi_slave_destroy(struct scsi_device *sdev)
 	put_device(&zfcp_sdev->port->dev);
 }
 
-static int zfcp_scsi_slave_configure(struct scsi_device *sdp)
+static int zfcp_scsi_sdev_configure(struct scsi_device *sdp,
+				    struct queue_limits *lim)
 {
 	if (sdp->tagged_supported)
 		scsi_change_queue_depth(sdp, default_depth);
@@ -110,7 +111,7 @@ int zfcp_scsi_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scpnt)
 	return ret;
 }
 
-static int zfcp_scsi_slave_alloc(struct scsi_device *sdev)
+static int zfcp_scsi_sdev_init(struct scsi_device *sdev)
 {
 	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
 	struct zfcp_adapter *adapter =
@@ -427,9 +428,9 @@ static const struct scsi_host_template zfcp_scsi_host_template = {
 	.eh_device_reset_handler = zfcp_scsi_eh_device_reset_handler,
 	.eh_target_reset_handler = zfcp_scsi_eh_target_reset_handler,
 	.eh_host_reset_handler	 = zfcp_scsi_eh_host_reset_handler,
-	.slave_alloc		 = zfcp_scsi_slave_alloc,
-	.slave_configure	 = zfcp_scsi_slave_configure,
-	.slave_destroy		 = zfcp_scsi_slave_destroy,
+	.sdev_init		 = zfcp_scsi_sdev_init,
+	.sdev_configure		 = zfcp_scsi_sdev_configure,
+	.sdev_destroy		 = zfcp_scsi_sdev_destroy,
 	.change_queue_depth	 = scsi_change_queue_depth,
 	.host_reset		 = zfcp_scsi_sysfs_host_reset,
 	.proc_name		 = "zfcp",

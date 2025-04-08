@@ -26,6 +26,9 @@ static inline int is_c_varname(const char *name)
 #include "dwarf-aux.h"
 #include "debuginfo.h"
 
+/* Check the language code is known C */
+bool is_known_C_lang(int lang);
+
 /* Find probe_trace_events specified by perf_probe_event from debuginfo */
 int debuginfo__find_trace_events(struct debuginfo *dbg,
 				 struct perf_probe_event *pev,
@@ -60,6 +63,7 @@ struct probe_finder {
 	const char		*fname;		/* Real file name */
 	Dwarf_Die		cu_die;		/* Current CU */
 	Dwarf_Die		sp_die;
+	Dwarf_Off		abstrace_dieoffset;
 	struct intlist		*lcache;	/* Line cache for lazy match */
 
 	/* For variable searching */
@@ -103,6 +107,8 @@ struct line_finder {
 	int			found;
 };
 
+#else
+#define is_known_C_lang(lang) (false)
 #endif /* HAVE_LIBDW_SUPPORT */
 
 #endif /*_PROBE_FINDER_H */

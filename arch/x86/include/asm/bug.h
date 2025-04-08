@@ -17,13 +17,17 @@
  * In clang we have UD1s reporting UBSAN failures on X86, 64 and 32bit.
  */
 #define INSN_ASOP		0x67
+#define INSN_LOCK		0xf0
 #define OPCODE_ESCAPE		0x0f
 #define SECOND_BYTE_OPCODE_UD1	0xb9
 #define SECOND_BYTE_OPCODE_UD2	0x0b
 
 #define BUG_NONE		0xffff
-#define BUG_UD1			0xfffe
-#define BUG_UD2			0xfffd
+#define BUG_UD2			0xfffe
+#define BUG_UD1			0xfffd
+#define BUG_UD1_UBSAN		0xfffc
+#define BUG_EA			0xffea
+#define BUG_LOCK		0xfff0
 
 #ifdef CONFIG_GENERIC_BUG
 
@@ -92,7 +96,7 @@ do {								\
 do {								\
 	__auto_type __flags = BUGFLAG_WARNING|(flags);		\
 	instrumentation_begin();				\
-	_BUG_FLAGS(ASM_UD2, __flags, ASM_REACHABLE);		\
+	_BUG_FLAGS(ASM_UD2, __flags, ANNOTATE_REACHABLE(1b));	\
 	instrumentation_end();					\
 } while (0)
 

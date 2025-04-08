@@ -52,7 +52,7 @@ static void drop_func(struct sk_buff *skb, void *ctx)
 {
 	struct Qdisc *sch = ctx;
 
-	kfree_skb(skb);
+	kfree_skb_reason(skb, SKB_DROP_REASON_QDISC_CONGESTED);
 	qdisc_qstats_drop(sch);
 }
 
@@ -89,7 +89,8 @@ static int codel_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	}
 	q = qdisc_priv(sch);
 	q->drop_overlimit++;
-	return qdisc_drop(skb, sch, to_free);
+	return qdisc_drop_reason(skb, sch, to_free,
+				 SKB_DROP_REASON_QDISC_OVERLIMIT);
 }
 
 static const struct nla_policy codel_policy[TCA_CODEL_MAX + 1] = {

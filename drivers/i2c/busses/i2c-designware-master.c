@@ -8,6 +8,9 @@
  * Copyright (C) 2007 MontaVista Software Inc.
  * Copyright (C) 2009 Provigent Ltd.
  */
+
+#define DEFAULT_SYMBOL_NAMESPACE	"I2C_DW"
+
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/errno.h>
@@ -21,8 +24,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
-
-#define DEFAULT_SYMBOL_NAMESPACE	"I2C_DW"
 
 #include "i2c-designware-core.h"
 
@@ -906,7 +907,7 @@ done_nolock:
 }
 
 static const struct i2c_algorithm i2c_dw_algo = {
-	.master_xfer = i2c_dw_xfer,
+	.xfer = i2c_dw_xfer,
 	.functionality = i2c_dw_func,
 };
 

@@ -91,7 +91,7 @@ struct Scsi_Host;
 
 struct sysfs_bin_attrs {
 	char *name;
-	struct bin_attribute *attr;
+	const struct bin_attribute *attr;
 };
 
 int qedi_create_sysfs_attr(struct Scsi_Host *shost,

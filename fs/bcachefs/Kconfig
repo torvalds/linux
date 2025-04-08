@@ -15,7 +15,8 @@ config BCACHEFS_FS
 	select ZLIB_INFLATE
 	select ZSTD_COMPRESS
 	select ZSTD_DECOMPRESS
-	select CRYPTO_SHA256
+	select CRYPTO
+	select CRYPTO_LIB_SHA256
 	select CRYPTO_CHACHA20
 	select CRYPTO_POLY1305
 	select KEYS
@@ -25,6 +26,7 @@ config BCACHEFS_FS
 	select SRCU
 	select SYMBOLIC_ERRNAME
 	select MIN_HEAP
+	select XARRAY_MULTI
 	help
 	The bcachefs filesystem - a modern, copy on write filesystem, with
 	support for multiple devices, compression, checksumming, etc.
@@ -60,6 +62,13 @@ config BCACHEFS_DEBUG
 	The resulting code will be significantly slower than normal; you
 	probably shouldn't select this option unless you're a developer.
 
+config BCACHEFS_INJECT_TRANSACTION_RESTARTS
+	bool "Randomly inject transaction restarts"
+	depends on BCACHEFS_DEBUG
+	help
+	Randomly inject transaction restarts in a few core paths - may have a
+	significant performance penalty
+
 config BCACHEFS_TESTS
 	bool "bcachefs unit and performance tests"
 	depends on BCACHEFS_FS
@@ -90,7 +99,7 @@ config BCACHEFS_SIX_OPTIMISTIC_SPIN
 
 config BCACHEFS_PATH_TRACEPOINTS
 	bool "Extra btree_path tracepoints"
-	depends on BCACHEFS_FS
+	depends on BCACHEFS_FS && TRACING
 	help
 	Enable extra tracepoints for debugging btree_path operations; we don't
 	normally want these enabled because they happen at very high rates.

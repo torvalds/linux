@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  */
 #include <linux/etherdevice.h>
 #include <linux/math64.h>
@@ -45,107 +45,6 @@ struct iwl_mvm_ftm_iter_data {
 	u8 *bssid;
 	u8 *tk;
 };
-
-int iwl_mvm_ftm_add_pasn_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			     u8 *addr, u32 cipher, u8 *tk, u32 tk_len,
-			     u8 *hltk, u32 hltk_len)
-{
-	struct iwl_mvm_ftm_pasn_entry *pasn = kzalloc(sizeof(*pasn),
-						      GFP_KERNEL);
-	u32 expected_tk_len;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	if (!pasn)
-		return -ENOBUFS;
-
-	iwl_mvm_ftm_remove_pasn_sta(mvm, addr);
-
-	pasn->cipher = iwl_mvm_cipher_to_location_cipher(cipher);
-
-	switch (pasn->cipher) {
-	case IWL_LOCATION_CIPHER_CCMP_128:
-	case IWL_LOCATION_CIPHER_GCMP_128:
-		expected_tk_len = WLAN_KEY_LEN_CCMP;
-		break;
-	case IWL_LOCATION_CIPHER_GCMP_256:
-		expected_tk_len = WLAN_KEY_LEN_GCMP_256;
-		break;
-	default:
-		goto out;
-	}
-
-	/*
-	 * If associated to this AP and already have security context,
-	 * the TK is already configured for this station, so it
-	 * shouldn't be set again here.
-	 */
-	if (vif->cfg.assoc) {
-		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-		struct ieee80211_bss_conf *link_conf;
-		unsigned int link_id;
-		struct ieee80211_sta *sta;
-		u8 sta_id;
-
-		rcu_read_lock();
-		for_each_vif_active_link(vif, link_conf, link_id) {
-			if (memcmp(addr, link_conf->bssid, ETH_ALEN))
-				continue;
-
-			sta_id = mvmvif->link[link_id]->ap_sta_id;
-			sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
-			if (!IS_ERR_OR_NULL(sta) && sta->mfp)
-				expected_tk_len = 0;
-			break;
-		}
-		rcu_read_unlock();
-	}
-
-	if (tk_len != expected_tk_len ||
-	    (hltk_len && hltk_len != sizeof(pasn->hltk))) {
-		IWL_ERR(mvm, "Invalid key length: tk_len=%u hltk_len=%u\n",
-			tk_len, hltk_len);
-		goto out;
-	}
-
-	if (!expected_tk_len && !hltk_len) {
-		IWL_ERR(mvm, "TK and HLTK not set\n");
-		goto out;
-	}
-
-	memcpy(pasn->addr, addr, sizeof(pasn->addr));
-
-	if (hltk_len) {
-		memcpy(pasn->hltk, hltk, sizeof(pasn->hltk));
-		pasn->flags |= IWL_MVM_PASN_FLAG_HAS_HLTK;
-	}
-
-	if (tk && tk_len)
-		memcpy(pasn->tk, tk, sizeof(pasn->tk));
-
-	list_add_tail(&pasn->list, &mvm->ftm_initiator.pasn_list);
-	return 0;
-out:
-	kfree(pasn);
-	return -EINVAL;
-}
-
-void iwl_mvm_ftm_remove_pasn_sta(struct iwl_mvm *mvm, u8 *addr)
-{
-	struct iwl_mvm_ftm_pasn_entry *entry, *prev;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	list_for_each_entry_safe(entry, prev, &mvm->ftm_initiator.pasn_list,
-				 list) {
-		if (memcmp(entry->addr, addr, sizeof(entry->addr)))
-			continue;
-
-		list_del(&entry->list);
-		kfree(entry);
-		return;
-	}
-}
 
 static void iwl_mvm_ftm_reset(struct iwl_mvm *mvm)
 {
@@ -773,7 +672,11 @@ iwl_mvm_ftm_set_secured_ranging(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 			target.bssid = bssid;
 			target.cipher = cipher;
+			target.tk = NULL;
 			ieee80211_iter_keys(mvm->hw, vif, iter, &target);
+
+			if (!WARN_ON(!target.tk))
+				memcpy(tk, target.tk, TK_11AZ_LEN);
 		} else {
 			memcpy(tk, entry->tk, sizeof(entry->tk));
 		}
@@ -949,7 +852,7 @@ static int iwl_mvm_ftm_start_v13(struct iwl_mvm *mvm,
 static int
 iwl_mvm_ftm_put_target_v10(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			   struct cfg80211_pmsr_request_peer *peer,
-			   struct iwl_tof_range_req_ap_entry_v10 *target)
+			   struct iwl_tof_range_req_ap_entry *target)
 {
 	u32 i2r_max_sts, flags;
 	int ret;
@@ -1021,7 +924,7 @@ static int iwl_mvm_ftm_start_v14(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif,
 				 struct cfg80211_pmsr_request *req)
 {
-	struct iwl_tof_range_req_cmd_v14 cmd;
+	struct iwl_tof_range_req_cmd cmd;
 	struct iwl_host_cmd hcmd = {
 		.id = WIDE_ID(LOCATION_GROUP, TOF_RANGE_REQ_CMD),
 		.dataflags[0] = IWL_HCMD_DFL_DUP,
@@ -1035,7 +938,7 @@ static int iwl_mvm_ftm_start_v14(struct iwl_mvm *mvm,
 
 	for (i = 0; i < cmd.num_of_ap; i++) {
 		struct cfg80211_pmsr_request_peer *peer = &req->peers[i];
-		struct iwl_tof_range_req_ap_entry_v10 *target = &cmd.ap[i];
+		struct iwl_tof_range_req_ap_entry *target = &cmd.ap[i];
 
 		err = iwl_mvm_ftm_put_target_v10(mvm, vif, peer, target);
 		if (err)
@@ -1301,7 +1204,7 @@ static void iwl_mvm_debug_range_resp(struct iwl_mvm *mvm, u8 index,
 
 static void
 iwl_mvm_ftm_pasn_update_pn(struct iwl_mvm *mvm,
-			   struct iwl_tof_range_rsp_ap_entry_ntfy_v6 *fw_ap)
+			   struct iwl_tof_range_rsp_ap_entry_ntfy *fw_ap)
 {
 	struct iwl_mvm_ftm_pasn_entry *entry;
 
@@ -1339,7 +1242,7 @@ static bool iwl_mvm_ftm_resp_size_validation(u8 ver, unsigned int pkt_len)
 	switch (ver) {
 	case 9:
 	case 8:
-		return pkt_len == sizeof(struct iwl_tof_range_rsp_ntfy_v8);
+		return pkt_len == sizeof(struct iwl_tof_range_rsp_ntfy);
 	case 7:
 		return pkt_len == sizeof(struct iwl_tof_range_rsp_ntfy_v7);
 	case 6:
@@ -1359,7 +1262,7 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	struct iwl_tof_range_rsp_ntfy_v5 *fw_resp_v5 = (void *)pkt->data;
 	struct iwl_tof_range_rsp_ntfy_v6 *fw_resp_v6 = (void *)pkt->data;
 	struct iwl_tof_range_rsp_ntfy_v7 *fw_resp_v7 = (void *)pkt->data;
-	struct iwl_tof_range_rsp_ntfy_v8 *fw_resp_v8 = (void *)pkt->data;
+	struct iwl_tof_range_rsp_ntfy *fw_resp_v8 = (void *)pkt->data;
 	int i;
 	bool new_api = fw_has_api(&mvm->fw->ucode_capa,
 				  IWL_UCODE_TLV_API_FTM_NEW_RANGE_REQ);
@@ -1395,9 +1298,9 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	IWL_DEBUG_INFO(mvm, "request id: %lld, num of entries: %u\n",
 		       mvm->ftm_initiator.req->cookie, num_of_aps);
 
-	for (i = 0; i < num_of_aps && i < IWL_MVM_TOF_MAX_APS; i++) {
+	for (i = 0; i < num_of_aps && i < IWL_TOF_MAX_APS; i++) {
 		struct cfg80211_pmsr_result result = {};
-		struct iwl_tof_range_rsp_ap_entry_ntfy_v6 *fw_ap;
+		struct iwl_tof_range_rsp_ap_entry_ntfy *fw_ap;
 		int peer_idx;
 
 		if (new_api) {

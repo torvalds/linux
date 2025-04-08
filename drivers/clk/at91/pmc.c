@@ -151,6 +151,7 @@ static struct syscore_ops pmc_syscore_ops = {
 static const struct of_device_id pmc_dt_ids[] = {
 	{ .compatible = "atmel,sama5d2-pmc" },
 	{ .compatible = "microchip,sama7g5-pmc", },
+	{ .compatible = "microchip,sama7d65-pmc", },
 	{ /* sentinel */ }
 };
 

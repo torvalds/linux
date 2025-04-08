@@ -1138,15 +1138,6 @@ static inline void clk_restore_context(void) {}
 
 #endif
 
-/* Deprecated. Use devm_clk_bulk_get_all_enabled() */
-static inline int __must_check
-devm_clk_bulk_get_all_enable(struct device *dev, struct clk_bulk_data **clks)
-{
-	int ret = devm_clk_bulk_get_all_enabled(dev, clks);
-
-	return ret > 0 ? 0 : ret;
-}
-
 /* clk_prepare_enable helps cases using clk_enable in non-atomic context. */
 static inline int clk_prepare_enable(struct clk *clk)
 {

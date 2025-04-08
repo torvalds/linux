@@ -1,4 +1,5 @@
-This directory attempts to document the ABI between the Linux kernel and
+This part of the documentation inside Documentation/ABI directory
+attempts to document the ABI between the Linux kernel and
 userspace, and the relative stability of these interfaces.  Due to the
 everchanging nature of Linux, and the differing maturity levels, these
 interfaces should be used by userspace programs in different ways.

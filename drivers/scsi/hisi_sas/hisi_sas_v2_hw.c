@@ -2372,18 +2372,18 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 	case STAT_IO_COMPLETE:
 		/* internal abort command complete */
 		ts->stat = TMF_RESP_FUNC_SUCC;
-		del_timer_sync(&slot->internal_abort_timer);
+		timer_delete_sync(&slot->internal_abort_timer);
 		goto out;
 	case STAT_IO_NO_DEVICE:
 		ts->stat = TMF_RESP_FUNC_COMPLETE;
-		del_timer_sync(&slot->internal_abort_timer);
+		timer_delete_sync(&slot->internal_abort_timer);
 		goto out;
 	case STAT_IO_NOT_VALID:
 		/* abort single io, controller don't find
 		 * the io need to abort
 		 */
 		ts->stat = TMF_RESP_FUNC_FAILED;
-		del_timer_sync(&slot->internal_abort_timer);
+		timer_delete_sync(&slot->internal_abort_timer);
 		goto out;
 	default:
 		break;
@@ -2538,9 +2538,7 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 			(task->ata_task.fis.control & ATA_SRST))
 		dw1 |= 1 << CMD_HDR_RESET_OFF;
 
-	dw1 |= (hisi_sas_get_ata_protocol(
-		&task->ata_task.fis, task->data_dir))
-		<< CMD_HDR_FRAME_TYPE_OFF;
+	dw1 |= (hisi_sas_get_ata_protocol(task)) << CMD_HDR_FRAME_TYPE_OFF;
 	dw1 |= sas_dev->device_id << CMD_HDR_DEV_ID_OFF;
 	hdr->dw1 = cpu_to_le32(dw1);
 
@@ -2656,7 +2654,7 @@ static int phy_up_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 	if (is_sata_phy_v2_hw(hisi_hba, phy_no))
 		goto end;
 
-	del_timer(&phy->timer);
+	timer_delete(&phy->timer);
 
 	if (phy_no == 8) {
 		u32 port_state = hisi_sas_read32(hisi_hba, PORT_STATE);
@@ -2732,7 +2730,7 @@ static int phy_down_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 	struct hisi_sas_port *port = phy->port;
 	struct device *dev = hisi_hba->dev;
 
-	del_timer(&phy->timer);
+	timer_delete(&phy->timer);
 	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_NOT_RDY_MSK, 1);
 
 	phy_state = hisi_sas_read32(hisi_hba, PHY_STATE);
@@ -2746,7 +2744,7 @@ static int phy_down_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 	if (port && !get_wideport_bitmap_v2_hw(hisi_hba, port->id))
 		if (!check_any_wideports_v2_hw(hisi_hba) &&
 				timer_pending(&hisi_hba->timer))
-			del_timer(&hisi_hba->timer);
+			timer_delete(&hisi_hba->timer);
 
 	txid_auto = hisi_sas_phy_read32(hisi_hba, phy_no, TXID_AUTO);
 	hisi_sas_phy_write32(hisi_hba, phy_no, TXID_AUTO,
@@ -3206,7 +3204,7 @@ static irqreturn_t sata_int_v2_hw(int irq_no, void *p)
 	u8 attached_sas_addr[SAS_ADDR_SIZE] = {0};
 	int phy_no, offset;
 
-	del_timer(&phy->timer);
+	timer_delete(&phy->timer);
 
 	phy_no = sas_phy->id;
 	initial_fis = &hisi_hba->initial_fis[phy_no];
@@ -3585,11 +3583,11 @@ static int check_fw_info_v2_hw(struct hisi_hba *hisi_hba)
 
 static const struct scsi_host_template sht_v2_hw = {
 	LIBSAS_SHT_BASE_NO_SLAVE_INIT
-	.device_configure	= hisi_sas_device_configure,
+	.sdev_configure		= hisi_sas_sdev_configure,
 	.scan_finished		= hisi_sas_scan_finished,
 	.scan_start		= hisi_sas_scan_start,
 	.sg_tablesize		= HISI_SAS_SGE_PAGE_CNT,
-	.slave_alloc		= hisi_sas_slave_alloc,
+	.sdev_init		= hisi_sas_sdev_init,
 	.shost_groups		= host_v2_hw_groups,
 	.sdev_groups		= sdev_groups_v2_hw,
 	.host_reset		= hisi_sas_host_reset,
@@ -3653,7 +3651,7 @@ static struct platform_driver hisi_sas_v2_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = sas_v2_of_match,
-		.acpi_match_table = ACPI_PTR(sas_v2_acpi_match),
+		.acpi_match_table = sas_v2_acpi_match,
 	},
 };
 

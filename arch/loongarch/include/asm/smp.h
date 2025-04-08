@@ -77,6 +77,8 @@ extern int __cpu_logical_map[NR_CPUS];
 #define SMP_IRQ_WORK		BIT(ACTION_IRQ_WORK)
 #define SMP_CLEAR_VECTOR	BIT(ACTION_CLEAR_VECTOR)
 
+struct seq_file;
+
 struct secondary_data {
 	unsigned long stack;
 	unsigned long thread_info;

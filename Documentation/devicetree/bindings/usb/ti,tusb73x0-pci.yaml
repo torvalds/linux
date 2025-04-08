@@ -48,8 +48,8 @@ examples:
         device_type = "pci";
 
         usb@0 {
-              compatible = "pci104c,8241";
-              reg = <0x0 0x0 0x0 0x0 0x0>;
-              ti,pwron-active-high;
+            compatible = "pci104c,8241";
+            reg = <0x0 0x0 0x0 0x0 0x0>;
+            ti,pwron-active-high;
         };
     };

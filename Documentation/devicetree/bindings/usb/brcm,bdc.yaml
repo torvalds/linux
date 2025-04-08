@@ -41,10 +41,10 @@ additionalProperties: false
 
 examples:
   - |
-        usb@f0b02000 {
-                compatible = "brcm,bdc-udc-v2";
-                reg = <0xf0b02000 0xfc4>;
-                interrupts = <0x0 0x60 0x0>;
-                phys = <&usbphy_0 0x0>;
-                clocks = <&sw_usbd>;
-        };
+    usb@f0b02000 {
+        compatible = "brcm,bdc-udc-v2";
+        reg = <0xf0b02000 0xfc4>;
+        interrupts = <0x0 0x60 0x0>;
+        phys = <&usbphy_0 0x0>;
+        clocks = <&sw_usbd>;
+    };

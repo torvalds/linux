@@ -266,7 +266,7 @@ struct iwl_reduce_tx_power_cmd {
 } __packed; /* TX_REDUCED_POWER_API_S_VER_1 */
 
 enum iwl_dev_tx_power_cmd_mode {
-	IWL_TX_POWER_MODE_SET_MAC = 0,
+	IWL_TX_POWER_MODE_SET_LINK = 0,
 	IWL_TX_POWER_MODE_SET_DEVICE = 1,
 	IWL_TX_POWER_MODE_SET_CHAINS = 2,
 	IWL_TX_POWER_MODE_SET_ACK = 3,
@@ -283,12 +283,14 @@ enum iwl_dev_tx_power_cmd_mode {
 /**
  * struct iwl_dev_tx_power_common - Common part of the TX power reduction cmd
  * @set_mode: see &enum iwl_dev_tx_power_cmd_mode
- * @mac_context_id: id of the mac ctx for which we are reducing TX power.
+ * @link_id: id of the link ctx for which we are reducing TX power.
+ *	For version 9 / 10, this is the link id. For earlier versions, it is
+ *	the mac id.
  * @pwr_restriction: TX power restriction in 1/8 dBms.
  */
 struct iwl_dev_tx_power_common {
 	__le32 set_mode;
-	__le32 mac_context_id;
+	__le32 link_id;
 	__le16 pwr_restriction;
 } __packed;
 

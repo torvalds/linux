@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 
+#include <asm/cpuid.h>
 #include <asm/perf_event.h>
 #include <asm/insn.h>
 #include <asm/io.h>
@@ -201,10 +202,10 @@ static int __init pt_pmu_hw_init(void)
 	 * otherwise, zero for numerator stands for "not enumerated"
 	 * as per SDM
 	 */
-	if (boot_cpu_data.cpuid_level >= CPUID_TSC_LEAF) {
+	if (boot_cpu_data.cpuid_level >= CPUID_LEAF_TSC) {
 		u32 eax, ebx, ecx, edx;
 
-		cpuid(CPUID_TSC_LEAF, &eax, &ebx, &ecx, &edx);
+		cpuid(CPUID_LEAF_TSC, &eax, &ebx, &ecx, &edx);
 
 		pt_pmu.tsc_art_num = ebx;
 		pt_pmu.tsc_art_den = eax;

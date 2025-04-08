@@ -65,7 +65,7 @@
 #define SM6350_MSS	4
 #define SM6350_MX	5
 
-/* SM6350 Power Domain Indexes */
+/* SM6375 Power Domain Indexes */
 #define SM6375_VDDCX		0
 #define SM6375_VDDCX_AO	1
 #define SM6375_VDDCX_VFL	2

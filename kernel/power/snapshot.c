@@ -1011,11 +1011,8 @@ void __init register_nosave_region(unsigned long start_pfn, unsigned long end_pf
 		}
 	}
 	/* This allocation cannot fail */
-	region = memblock_alloc(sizeof(struct nosave_region),
+	region = memblock_alloc_or_panic(sizeof(struct nosave_region),
 				SMP_CACHE_BYTES);
-	if (!region)
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      sizeof(struct nosave_region));
 	region->start_pfn = start_pfn;
 	region->end_pfn = end_pfn;
 	list_add_tail(&region->list, &nosave_regions);
@@ -2273,9 +2270,9 @@ int snapshot_read_next(struct snapshot_handle *handle)
 			 */
 			void *kaddr;
 
-			kaddr = kmap_atomic(page);
+			kaddr = kmap_local_page(page);
 			copy_page(buffer, kaddr);
-			kunmap_atomic(kaddr);
+			kunmap_local(kaddr);
 			handle->buffer = buffer;
 		} else {
 			handle->buffer = page_address(page);
@@ -2564,9 +2561,9 @@ static void copy_last_highmem_page(void)
 	if (last_highmem_page) {
 		void *dst;
 
-		dst = kmap_atomic(last_highmem_page);
+		dst = kmap_local_page(last_highmem_page);
 		copy_page(dst, buffer);
-		kunmap_atomic(dst);
+		kunmap_local(dst);
 		last_highmem_page = NULL;
 	}
 }
@@ -2884,13 +2881,13 @@ static inline void swap_two_pages_data(struct page *p1, struct page *p2,
 {
 	void *kaddr1, *kaddr2;
 
-	kaddr1 = kmap_atomic(p1);
-	kaddr2 = kmap_atomic(p2);
+	kaddr1 = kmap_local_page(p1);
+	kaddr2 = kmap_local_page(p2);
 	copy_page(buf, kaddr1);
 	copy_page(kaddr1, kaddr2);
 	copy_page(kaddr2, buf);
-	kunmap_atomic(kaddr2);
-	kunmap_atomic(kaddr1);
+	kunmap_local(kaddr2);
+	kunmap_local(kaddr1);
 }
 
 /**

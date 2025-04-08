@@ -69,6 +69,11 @@ properties:
          Should be generally avoided and be replaced by
          spi-cs-high + ACTIVE_HIGH.
 
+      The simplest way to obtain an active-high CS signal is to configure the
+      controller's cs-gpio property with the ACTIVE_HIGH flag and set the
+      peripheral's spi-cs-high property. See example below for a better
+      understanding.
+
   fifo-depth:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
@@ -187,5 +192,25 @@ examples:
             spi-max-frequency = <50000000>;
             reg = <2>, <3>;
             stacked-memories = /bits/ 64 <0x10000000 0x10000000>;
+        };
+    };
+
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    spi@20204000 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        compatible = "brcm,bcm2835-spi";
+        reg = <0x7e204000 0x1000>;
+        interrupts = <2 22>;
+        clocks = <&clk_spi>;
+        cs-gpios = <&gpio 8 GPIO_ACTIVE_HIGH>;
+
+        display@0 {
+            compatible = "lg,lg4573";
+            spi-max-frequency = <1000000>;
+            reg = <0>;
+            spi-cs-high;
         };
     };

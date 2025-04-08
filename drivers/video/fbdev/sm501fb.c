@@ -27,6 +27,7 @@
 #include <linux/clk.h>
 #include <linux/console.h>
 #include <linux/io.h>
+#include <linux/string_choices.h>
 
 #include <linux/uaccess.h>
 #include <asm/div64.h>
@@ -324,6 +325,13 @@ static int sm501fb_check_var(struct fb_var_screeninfo *var,
 	/* check the virtual size */
 
 	if (var->xres_virtual > 4096 || var->yres_virtual > 2048)
+		return -EINVAL;
+
+	/* geometry sanity checks */
+	if (var->xres + var->xoffset > var->xres_virtual)
+		return -EINVAL;
+
+	if (var->yres + var->yoffset > var->yres_virtual)
 		return -EINVAL;
 
 	/* can cope with 8,16 or 32bpp */
@@ -1712,8 +1720,8 @@ static int sm501fb_init_fb(struct fb_info *fb, enum sm501_controller head,
 		BUG();
 	}
 
-	dev_info(info->dev, "fb %s %sabled at start\n",
-		 fbname, enable ? "en" : "dis");
+	dev_info(info->dev, "fb %s %s at start\n",
+		 fbname, str_enabled_disabled(enable));
 
 	/* check to see if our routing allows this */
 

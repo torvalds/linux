@@ -24,6 +24,9 @@
 #undef PKEY_DISABLE_EXECUTE
 #define PKEY_DISABLE_EXECUTE	0x4
 
+#undef PKEY_UNRESTRICTED
+#define PKEY_UNRESTRICTED	0x0
+
 /* Older versions of libc do not define this */
 #ifndef SEGV_PKUERR
 #define SEGV_PKUERR	4
@@ -35,9 +38,17 @@
 #define __NR_pkey_alloc		384
 #define __NR_pkey_free		385
 
+#ifndef NT_PPC_PKEY
+#define NT_PPC_PKEY		0x110
+#endif
+
 #define PKEY_BITS_PER_PKEY	2
 #define NR_PKEYS		32
 #define PKEY_BITS_MASK		((1UL << PKEY_BITS_PER_PKEY) - 1)
+
+#define AMR_BITS_PER_PKEY 2
+#define PKEY_REG_BITS (sizeof(u64) * 8)
+#define pkeyshift(pkey) (PKEY_REG_BITS - ((pkey + 1) * AMR_BITS_PER_PKEY))
 
 inline unsigned long pkeyreg_get(void)
 {
@@ -85,7 +96,7 @@ int pkeys_unsupported(void)
 	SKIP_IF(!hash_mmu);
 
 	/* Check if the system call is supported */
-	pkey = sys_pkey_alloc(0, 0);
+	pkey = sys_pkey_alloc(0, PKEY_UNRESTRICTED);
 	SKIP_IF(pkey < 0);
 	sys_pkey_free(pkey);
 

@@ -246,6 +246,9 @@ static int rza2_gpio_register(struct rza2_pinctrl_priv *priv)
 	int ret;
 
 	chip.label = devm_kasprintf(priv->dev, GFP_KERNEL, "%pOFn", np);
+	if (!chip.label)
+		return -ENOMEM;
+
 	chip.parent = priv->dev;
 	chip.ngpio = priv->npins;
 
@@ -255,6 +258,8 @@ static int rza2_gpio_register(struct rza2_pinctrl_priv *priv)
 		dev_err(priv->dev, "Unable to parse gpio-ranges\n");
 		return ret;
 	}
+
+	of_node_put(of_args.np);
 
 	if ((of_args.args[0] != 0) ||
 	    (of_args.args[1] != 0) ||

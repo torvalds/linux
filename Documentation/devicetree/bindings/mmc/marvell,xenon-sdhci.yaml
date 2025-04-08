@@ -38,15 +38,9 @@ properties:
 
   reg:
     minItems: 1
-    maxItems: 2
-    description: |
-      For "marvell,armada-3700-sdhci", two register areas.  The first one
-      for Xenon IP register. The second one for the Armada 3700 SoC PHY PAD
-      Voltage Control register.  Please follow the examples with compatible
-      "marvell,armada-3700-sdhci" in below.
-      Please also check property marvell,pad-type in below.
-
-      For other compatible strings, one register area for Xenon IP.
+    items:
+      - description: Xenon IP registers
+      - description: Armada 3700 SoC PHY PAD Voltage Control register
 
   clocks:
     minItems: 1
@@ -60,6 +54,17 @@ properties:
 
   interrupts:
     maxItems: 1
+
+  marvell,pad-type:
+    $ref: /schemas/types.yaml#/definitions/string
+    enum:
+      - sd
+      - fixed-1-8v
+    description:
+      Type of Armada 3700 SoC PHY PAD Voltage Controller register. If "sd" is
+      selected, SoC PHY PAD is set as 3.3V at the beginning and is switched to
+      1.8V when later in higher speed mode. If "fixed-1-8v" is selected, SoC PHY
+      PAD is fixed 1.8V, such as for eMMC.
 
   marvell,xenon-sdhc-id:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -147,26 +152,17 @@ allOf:
     then:
       properties:
         reg:
-          items:
-            - description: Xenon IP registers
-            - description: Armada 3700 SoC PHY PAD Voltage Control register
-
-        marvell,pad-type:
-          $ref: /schemas/types.yaml#/definitions/string
-          enum:
-            - sd
-            - fixed-1-8v
-          description: |
-            Type of Armada 3700 SoC PHY PAD Voltage Controller register.
-            If "sd" is selected, SoC PHY PAD is set as 3.3V at the beginning
-            and is switched to 1.8V when later in higher speed mode.
-            If "fixed-1-8v" is selected, SoC PHY PAD is fixed 1.8V, such as for
-            eMMC.
-            Please follow the examples with compatible
-            "marvell,armada-3700-sdhci" in below.
+          minItems: 2
 
       required:
         - marvell,pad-type
+
+    else:
+      properties:
+        reg:
+          maxItems: 1
+
+        marvell,pad-type: false
 
   - if:
       properties:

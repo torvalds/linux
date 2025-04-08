@@ -2,7 +2,7 @@
 /*
 * Portions of this file
 * Copyright(c) 2016 Intel Deutschland GmbH
-* Copyright (C) 2018-2019, 2021-2024 Intel Corporation
+* Copyright (C) 2018-2019, 2021-2025 Intel Corporation
 */
 
 #ifndef __MAC80211_DRIVER_OPS
@@ -724,6 +724,9 @@ static inline void drv_flush_sta(struct ieee80211_local *local,
 	if (sdata && !check_sdata_in_driver(sdata))
 		return;
 
+	if (!sta->uploaded)
+		return;
+
 	trace_drv_flush_sta(local, sdata, &sta->sta);
 	if (local->ops->flush_sta)
 		local->ops->flush_sta(&local->hw, &sdata->vif, &sta->sta);
@@ -952,6 +955,7 @@ static inline void drv_mgd_complete_tx(struct ieee80211_local *local,
 		return;
 	WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_STATION);
 
+	info->link_id = info->link_id < 0 ? 0 : info->link_id;
 	trace_drv_mgd_complete_tx(local, sdata, info->duration,
 				  info->subtype, info->success);
 	if (local->ops->mgd_complete_tx)
@@ -1273,7 +1277,8 @@ static inline u32 drv_get_expected_throughput(struct ieee80211_local *local,
 }
 
 static inline int drv_get_txpower(struct ieee80211_local *local,
-				  struct ieee80211_sub_if_data *sdata, int *dbm)
+				  struct ieee80211_sub_if_data *sdata,
+				  unsigned int link_id, int *dbm)
 {
 	int ret;
 
@@ -1283,8 +1288,8 @@ static inline int drv_get_txpower(struct ieee80211_local *local,
 	if (!local->ops->get_txpower)
 		return -EOPNOTSUPP;
 
-	ret = local->ops->get_txpower(&local->hw, &sdata->vif, dbm);
-	trace_drv_get_txpower(local, sdata, *dbm, ret);
+	ret = local->ops->get_txpower(&local->hw, &sdata->vif, link_id, dbm);
+	trace_drv_get_txpower(local, sdata, link_id, *dbm, ret);
 
 	return ret;
 }

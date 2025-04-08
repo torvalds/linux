@@ -5,10 +5,12 @@
 #
 # Simple script to generate a deb package for a Linux kernel. All the
 # complexity of what to do with a kernel after it is installed or removed
-# is left to other scripts and packages: they can install scripts in the
-# /etc/kernel/{pre,post}{inst,rm}.d/ directories (or an alternative location
-# specified in KDEB_HOOKDIR) that will be called on package install and
-# removal.
+# is left to other scripts and packages. Scripts can be placed into the
+# preinst, postinst, prerm and postrm directories in /etc/kernel or
+# /usr/share/kernel. A different list of search directories can be given
+# via KDEB_HOOKDIR. Scripts in directories earlier in the list will
+# override scripts of the same name in later directories.  The script will
+# be called on package installation and removal.
 
 set -eu
 
@@ -74,10 +76,8 @@ install_maint_scripts () {
 	# kernel packages, as well as kernel packages built using make-kpkg.
 	# make-kpkg sets $INITRD to indicate whether an initramfs is wanted, and
 	# so do we; recent versions of dracut and initramfs-tools will obey this.
-	debhookdir=${KDEB_HOOKDIR:-/etc/kernel}
+	debhookdir=${KDEB_HOOKDIR:-/etc/kernel /usr/share/kernel}
 	for script in postinst postrm preinst prerm; do
-		mkdir -p "${pdir}${debhookdir}/${script}.d"
-
 		mkdir -p "${pdir}/DEBIAN"
 		cat <<-EOF > "${pdir}/DEBIAN/${script}"
 		#!/bin/sh
@@ -90,7 +90,15 @@ install_maint_scripts () {
 		# Tell initramfs builder whether it's wanted
 		export INITRD=$(if_enabled_echo CONFIG_BLK_DEV_INITRD Yes No)
 
-		test -d ${debhookdir}/${script}.d && run-parts --arg="${KERNELRELEASE}" --arg="/${installed_image_path}" ${debhookdir}/${script}.d
+		# run-parts will error out if one of its directory arguments does not
+		# exist, so filter the list of hook directories accordingly.
+		hookdirs=
+		for dir in ${debhookdir}; do
+			test -d "\$dir/${script}.d" || continue
+			hookdirs="\$hookdirs \$dir/${script}.d"
+		done
+		hookdirs="\${hookdirs# }"
+		test -n "\$hookdirs" && run-parts --arg="${KERNELRELEASE}" --arg="/${installed_image_path}" \$hookdirs
 		exit 0
 		EOF
 		chmod 755 "${pdir}/DEBIAN/${script}"

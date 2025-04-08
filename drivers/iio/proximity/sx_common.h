@@ -125,7 +125,7 @@ struct sx_common_data {
 	/* Ensure correct alignment of timestamp when present. */
 	struct {
 		__be16 channels[SX_COMMON_MAX_NUM_CHANNELS];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} buffer;
 
 	unsigned int suspend_ctrl;

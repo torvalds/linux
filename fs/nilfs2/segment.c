@@ -191,12 +191,10 @@ static int nilfs_prepare_segment_lock(struct super_block *sb,
  * When @vacancy_check flag is set, this function will check the amount of
  * free space, and will wait for the GC to reclaim disk space if low capacity.
  *
- * Return Value: On success, 0 is returned. On error, one of the following
- * negative error code is returned.
- *
- * %-ENOMEM - Insufficient memory available.
- *
- * %-ENOSPC - No space left on device
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
+ * * %-ENOMEM	- Insufficient memory available.
+ * * %-ENOSPC	- No space left on device (if checking free space).
  */
 int nilfs_transaction_begin(struct super_block *sb,
 			    struct nilfs_transaction_info *ti,
@@ -252,6 +250,8 @@ int nilfs_transaction_begin(struct super_block *sb,
  * nilfs_transaction_commit() sets a timer to start the segment
  * constructor.  If a sync flag is set, it starts construction
  * directly.
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_transaction_commit(struct super_block *sb)
 {
@@ -407,6 +407,8 @@ static void *nilfs_segctor_map_segsum_entry(struct nilfs_sc_info *sci,
 /**
  * nilfs_segctor_reset_segment_buffer - reset the current segment buffer
  * @sci: nilfs_sc_info
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 static int nilfs_segctor_reset_segment_buffer(struct nilfs_sc_info *sci)
 {
@@ -734,7 +736,6 @@ static size_t nilfs_lookup_dirty_data_buffers(struct inode *inode,
 		if (!head)
 			head = create_empty_buffers(folio,
 					i_blocksize(inode), 0);
-		folio_unlock(folio);
 
 		bh = head;
 		do {
@@ -744,11 +745,14 @@ static size_t nilfs_lookup_dirty_data_buffers(struct inode *inode,
 			list_add_tail(&bh->b_assoc_buffers, listp);
 			ndirties++;
 			if (unlikely(ndirties >= nlimit)) {
+				folio_unlock(folio);
 				folio_batch_release(&fbatch);
 				cond_resched();
 				return ndirties;
 			}
 		} while (bh = bh->b_this_page, bh != head);
+
+		folio_unlock(folio);
 	}
 	folio_batch_release(&fbatch);
 	cond_resched();
@@ -1118,7 +1122,8 @@ static int nilfs_segctor_scan_file_dsync(struct nilfs_sc_info *sci,
  * a super root block containing this sufile change is complete, and it can
  * be canceled with nilfs_sufile_cancel_freev() until then.
  *
- * Return: 0 on success, or the following negative error code on failure.
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
  * * %-EINVAL	- Invalid segment number.
  * * %-EIO	- I/O error (including metadata corruption).
  * * %-ENOMEM	- Insufficient memory available.
@@ -1315,6 +1320,8 @@ static int nilfs_segctor_collect_blocks(struct nilfs_sc_info *sci, int mode)
  * nilfs_segctor_begin_construction - setup segment buffer to make a new log
  * @sci: nilfs_sc_info
  * @nilfs: nilfs object
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 static int nilfs_segctor_begin_construction(struct nilfs_sc_info *sci,
 					    struct the_nilfs *nilfs)
@@ -2312,18 +2319,13 @@ static void nilfs_segctor_wakeup(struct nilfs_sc_info *sci, int err, bool force)
  * nilfs_construct_segment - construct a logical segment
  * @sb: super block
  *
- * Return Value: On success, 0 is returned. On errors, one of the following
- * negative error code is returned.
- *
- * %-EROFS - Read only filesystem.
- *
- * %-EIO - I/O error
- *
- * %-ENOSPC - No space left on device (only in a panic state).
- *
- * %-ERESTARTSYS - Interrupted.
- *
- * %-ENOMEM - Insufficient memory available.
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
+ * * %-EIO		- I/O error (including metadata corruption).
+ * * %-ENOMEM		- Insufficient memory available.
+ * * %-ENOSPC		- No space left on device (only in a panic state).
+ * * %-ERESTARTSYS	- Interrupted.
+ * * %-EROFS		- Read only filesystem.
  */
 int nilfs_construct_segment(struct super_block *sb)
 {
@@ -2347,18 +2349,13 @@ int nilfs_construct_segment(struct super_block *sb)
  * @start: start byte offset
  * @end: end byte offset (inclusive)
  *
- * Return Value: On success, 0 is returned. On errors, one of the following
- * negative error code is returned.
- *
- * %-EROFS - Read only filesystem.
- *
- * %-EIO - I/O error
- *
- * %-ENOSPC - No space left on device (only in a panic state).
- *
- * %-ERESTARTSYS - Interrupted.
- *
- * %-ENOMEM - Insufficient memory available.
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
+ * * %-EIO		- I/O error (including metadata corruption).
+ * * %-ENOMEM		- Insufficient memory available.
+ * * %-ENOSPC		- No space left on device (only in a panic state).
+ * * %-ERESTARTSYS	- Interrupted.
+ * * %-EROFS		- Read only filesystem.
  */
 int nilfs_construct_dsync_segment(struct super_block *sb, struct inode *inode,
 				  loff_t start, loff_t end)
@@ -2427,7 +2424,7 @@ static void nilfs_segctor_accept(struct nilfs_sc_info *sci)
 	 * the area protected by sc_state_lock.
 	 */
 	if (thread_is_alive)
-		del_timer_sync(&sci->sc_timer);
+		timer_delete_sync(&sci->sc_timer);
 }
 
 /**
@@ -2464,6 +2461,8 @@ static void nilfs_segctor_notify(struct nilfs_sc_info *sci, int mode, int err)
  * nilfs_segctor_construct - form logs and write them to disk
  * @sci: segment constructor object
  * @mode: mode of log forming
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 static int nilfs_segctor_construct(struct nilfs_sc_info *sci, int mode)
 {
@@ -2836,7 +2835,8 @@ static void nilfs_segctor_destroy(struct nilfs_sc_info *sci)
  * This allocates a log writer object, initializes it, and starts the
  * log writer.
  *
- * Return: 0 on success, or the following negative error code on failure.
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
  * * %-EINTR	- Log writer thread creation failed due to interruption.
  * * %-ENOMEM	- Insufficient memory available.
  */

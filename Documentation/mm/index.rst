@@ -62,5 +62,4 @@ documentation, or deleted if it has served its purpose.
    unevictable-lru
    vmalloced-kernel-stacks
    vmemmap_dedup
-   z3fold
    zsmalloc

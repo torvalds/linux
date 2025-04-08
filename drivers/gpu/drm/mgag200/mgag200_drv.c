@@ -214,6 +214,7 @@ static const struct pci_device_id mgag200_pciidlist[] = {
 	{ PCI_VENDOR_ID_MATROX, 0x534, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_ER },
 	{ PCI_VENDOR_ID_MATROX, 0x536, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_EW3 },
 	{ PCI_VENDOR_ID_MATROX, 0x538, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_EH3 },
+	{ PCI_VENDOR_ID_MATROX, 0x53a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_EH5 },
 	{0,}
 };
 
@@ -255,6 +256,9 @@ mgag200_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 	case G200_EH3:
 		mdev = mgag200_g200eh3_device_create(pdev, &mgag200_driver);
+		break;
+	case G200_EH5:
+		mdev = mgag200_g200eh5_device_create(pdev, &mgag200_driver);
 		break;
 	case G200_ER:
 		mdev = mgag200_g200er_device_create(pdev, &mgag200_driver);

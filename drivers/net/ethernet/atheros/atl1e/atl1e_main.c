@@ -232,7 +232,7 @@ static void atl1e_link_chg_event(struct atl1e_adapter *adapter)
 
 static void atl1e_del_timer(struct atl1e_adapter *adapter)
 {
-	del_timer_sync(&adapter->phy_config_timer);
+	timer_delete_sync(&adapter->phy_config_timer);
 }
 
 static void atl1e_cancel_work(struct atl1e_adapter *adapter)

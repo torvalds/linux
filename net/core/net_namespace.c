@@ -340,6 +340,8 @@ static __net_init void preinit_net(struct net *net, struct user_namespace *user_
 	lock_set_cmp_fn(&net->rtnl_mutex, rtnl_net_lock_cmp_fn, NULL);
 #endif
 
+	INIT_LIST_HEAD(&net->ptype_all);
+	INIT_LIST_HEAD(&net->ptype_specific);
 	preinit_net_sysctl(net);
 }
 
@@ -464,7 +466,7 @@ static void net_complete_free(void)
 
 }
 
-static void net_free(struct net *net)
+void net_passive_dec(struct net *net)
 {
 	if (refcount_dec_and_test(&net->passive)) {
 		kfree(rcu_access_pointer(net->gen));
@@ -482,7 +484,7 @@ void net_drop_ns(void *p)
 	struct net *net = (struct net *)p;
 
 	if (net)
-		net_free(net);
+		net_passive_dec(net);
 }
 
 struct net *copy_net_ns(unsigned long flags,
@@ -523,7 +525,7 @@ put_userns:
 		key_remove_domain(net->key_domain);
 #endif
 		put_user_ns(user_ns);
-		net_free(net);
+		net_passive_dec(net);
 dec_ucounts:
 		dec_net_namespaces(ucounts);
 		return ERR_PTR(rv);
@@ -588,6 +590,8 @@ static void unhash_nsid(struct net *net, struct net *last)
 
 static LLIST_HEAD(cleanup_list);
 
+struct task_struct *cleanup_net_task;
+
 static void cleanup_net(struct work_struct *work)
 {
 	const struct pernet_operations *ops;
@@ -595,6 +599,8 @@ static void cleanup_net(struct work_struct *work)
 	struct llist_node *net_kill_list;
 	LIST_HEAD(net_exit_list);
 	LIST_HEAD(dev_kill_list);
+
+	cleanup_net_task = current;
 
 	/* Atomically snapshot the list of namespaces to cleanup */
 	net_kill_list = llist_del_all(&cleanup_list);
@@ -668,8 +674,9 @@ static void cleanup_net(struct work_struct *work)
 		key_remove_domain(net->key_domain);
 #endif
 		put_user_ns(net->user_ns);
-		net_free(net);
+		net_passive_dec(net);
 	}
+	cleanup_net_task = NULL;
 }
 
 /**

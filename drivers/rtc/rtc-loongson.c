@@ -114,6 +114,13 @@ static irqreturn_t loongson_rtc_isr(int irq, void *id)
 	struct loongson_rtc_priv *priv = (struct loongson_rtc_priv *)id;
 
 	rtc_update_irq(priv->rtcdev, 1, RTC_AF | RTC_IRQF);
+
+	/*
+	 * The TOY_MATCH0_REG should be cleared 0 here,
+	 * otherwise the interrupt cannot be cleared.
+	 */
+	regmap_write(priv->regmap, TOY_MATCH0_REG, 0);
+
 	return IRQ_HANDLED;
 }
 
@@ -131,11 +138,7 @@ static u32 loongson_rtc_handler(void *id)
 	writel(RTC_STS, priv->pm_base + PM1_STS_REG);
 	spin_unlock(&priv->lock);
 
-	/*
-	 * The TOY_MATCH0_REG should be cleared 0 here,
-	 * otherwise the interrupt cannot be cleared.
-	 */
-	return regmap_write(priv->regmap, TOY_MATCH0_REG, 0);
+	return ACPI_INTERRUPT_HANDLED;
 }
 
 static int loongson_rtc_set_enabled(struct device *dev)
@@ -329,7 +332,7 @@ static int loongson_rtc_probe(struct platform_device *pdev)
 					     alarm_irq);
 
 		priv->pm_base = regs - priv->config->pm_offset;
-		device_init_wakeup(dev, 1);
+		device_init_wakeup(dev, true);
 
 		if (has_acpi_companion(dev))
 			acpi_install_fixed_event_handler(ACPI_EVENT_RTC,
@@ -360,7 +363,7 @@ static void loongson_rtc_remove(struct platform_device *pdev)
 		acpi_remove_fixed_event_handler(ACPI_EVENT_RTC,
 						loongson_rtc_handler);
 
-	device_init_wakeup(dev, 0);
+	device_init_wakeup(dev, false);
 	loongson_rtc_alarm_irq_enable(dev, 0);
 }
 

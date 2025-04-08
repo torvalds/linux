@@ -213,11 +213,8 @@ pci_create_OF_bus_map(void)
 	struct property* of_prop;
 	struct device_node *dn;
 
-	of_prop = memblock_alloc(sizeof(struct property) + 256,
+	of_prop = memblock_alloc_or_panic(sizeof(struct property) + 256,
 				 SMP_CACHE_BYTES);
-	if (!of_prop)
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      sizeof(struct property) + 256);
 	dn = of_find_node_by_path("/");
 	if (dn) {
 		memset(of_prop, -1, sizeof(struct property) + 256);

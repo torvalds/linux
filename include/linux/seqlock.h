@@ -272,7 +272,7 @@ SEQCOUNT_LOCKNAME(mutex,        struct mutex,    true,     mutex)
 ({									\
 	unsigned __seq;							\
 									\
-	while ((__seq = seqprop_sequence(s)) & 1)			\
+	while (unlikely((__seq = seqprop_sequence(s)) & 1))		\
 		cpu_relax();						\
 									\
 	kcsan_atomic_next(KCSAN_SEQLOCK_REGION_MAX);			\
@@ -316,6 +316,29 @@ SEQCOUNT_LOCKNAME(mutex,        struct mutex,    true,     mutex)
 									\
 	kcsan_atomic_next(KCSAN_SEQLOCK_REGION_MAX);			\
 	__seq;								\
+})
+
+/**
+ * raw_seqcount_try_begin() - begin a seqcount_t read critical section
+ *                            w/o lockdep and w/o counter stabilization
+ * @s: Pointer to seqcount_t or any of the seqcount_LOCKNAME_t variants
+ * @start: count to be passed to read_seqcount_retry()
+ *
+ * Similar to raw_seqcount_begin(), except it enables eliding the critical
+ * section entirely if odd, instead of doing the speculation knowing it will
+ * fail.
+ *
+ * Useful when counter stabilization is more or less equivalent to taking
+ * the lock and there is a slowpath that does that.
+ *
+ * If true, start will be set to the (even) sequence count read.
+ *
+ * Return: true when a read critical section is started.
+ */
+#define raw_seqcount_try_begin(s, start)				\
+({									\
+	start = raw_read_seqcount(s);					\
+	!(start & 1);							\
 })
 
 /**

@@ -141,6 +141,7 @@ struct object {
 };
 
 static int verbose;
+static int warnings;
 
 static int eprintf(int level, int var, const char *fmt, ...)
 {
@@ -604,6 +605,7 @@ static int symbols_resolve(struct object *obj)
 			if (id->id) {
 				pr_info("WARN: multiple IDs found for '%s': %d, %d - using %d\n",
 					str, id->id, type_id, id->id);
+				warnings++;
 			} else {
 				id->id = type_id;
 				(*nr)--;
@@ -625,8 +627,10 @@ static int id_patch(struct object *obj, struct btf_id *id)
 	int i;
 
 	/* For set, set8, id->id may be 0 */
-	if (!id->id && !id->is_set && !id->is_set8)
+	if (!id->id && !id->is_set && !id->is_set8) {
 		pr_err("WARN: resolve_btfids: unresolved symbol %s\n", id->name);
+		warnings++;
+	}
 
 	for (i = 0; i < id->addr_cnt; i++) {
 		unsigned long addr = id->addr[i];
@@ -782,6 +786,7 @@ int main(int argc, const char **argv)
 		.funcs    = RB_ROOT,
 		.sets     = RB_ROOT,
 	};
+	bool fatal_warnings = false;
 	struct option btfid_options[] = {
 		OPT_INCR('v', "verbose", &verbose,
 			 "be more verbose (show errors, etc)"),
@@ -789,6 +794,8 @@ int main(int argc, const char **argv)
 			   "BTF data"),
 		OPT_STRING('b', "btf_base", &obj.base_btf_path, "file",
 			   "path of file providing base BTF"),
+		OPT_BOOLEAN(0, "fatal_warnings", &fatal_warnings,
+			    "turn warnings into errors"),
 		OPT_END()
 	};
 	int err = -1;
@@ -823,7 +830,8 @@ int main(int argc, const char **argv)
 	if (symbols_patch(&obj))
 		goto out;
 
-	err = 0;
+	if (!(fatal_warnings && warnings))
+		err = 0;
 out:
 	if (obj.efile.elf) {
 		elf_end(obj.efile.elf);

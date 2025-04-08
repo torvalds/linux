@@ -256,6 +256,24 @@ fib_rule6_test()
 		fib_rule6_test_match_n_redirect "$match" "$match" \
 			"$getnomatch" "sport and dport redirect to table" \
 			"sport and dport no redirect to table"
+
+		match="sport 100-200 dport 300-400"
+		getmatch="sport 100 dport 400"
+		getnomatch="sport 100 dport 401"
+		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" \
+			"sport and dport range redirect to table" \
+			"sport and dport range no redirect to table"
+	fi
+
+	ip rule help 2>&1 | grep sport | grep -q MASK
+	if [ $? -eq 0 ]; then
+		match="sport 0x0f00/0xff00 dport 0x000f/0x00ff"
+		getmatch="sport 0x0f11 dport 0x220f"
+		getnomatch="sport 0x1f11 dport 0x221f"
+		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "sport and dport masked redirect to table" \
+			"sport and dport masked no redirect to table"
 	fi
 
 	fib_check_iproute_support "ipproto" "ipproto"
@@ -290,6 +308,56 @@ fib_rule6_test()
 		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
 			"$getnomatch" "iif dscp redirect to table" \
 			"iif dscp no redirect to table"
+	fi
+
+	ip rule help 2>&1 | grep -q "DSCP\[/MASK\]"
+	if [ $? -eq 0 ]; then
+		match="dscp 0x0f/0x0f"
+		tosmatch=$(printf 0x"%x" $((0x1f << 2)))
+		tosnomatch=$(printf 0x"%x" $((0x1e << 2)))
+		getmatch="tos $tosmatch"
+		getnomatch="tos $tosnomatch"
+		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "dscp masked redirect to table" \
+			"dscp masked no redirect to table"
+
+		match="dscp 0x0f/0x0f"
+		getmatch="from $SRC_IP6 iif $DEV tos $tosmatch"
+		getnomatch="from $SRC_IP6 iif $DEV tos $tosnomatch"
+		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "iif dscp masked redirect to table" \
+			"iif dscp masked no redirect to table"
+	fi
+
+	fib_check_iproute_support "flowlabel" "flowlabel"
+	if [ $? -eq 0 ]; then
+		match="flowlabel 0xfffff"
+		getmatch="flowlabel 0xfffff"
+		getnomatch="flowlabel 0xf"
+		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "flowlabel redirect to table" \
+			"flowlabel no redirect to table"
+
+		match="flowlabel 0xfffff"
+		getmatch="from $SRC_IP6 iif $DEV flowlabel 0xfffff"
+		getnomatch="from $SRC_IP6 iif $DEV flowlabel 0xf"
+		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "iif flowlabel redirect to table" \
+			"iif flowlabel no redirect to table"
+
+		match="flowlabel 0x08000/0x08000"
+		getmatch="flowlabel 0xfffff"
+		getnomatch="flowlabel 0xf7fff"
+		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "flowlabel masked redirect to table" \
+			"flowlabel masked no redirect to table"
+
+		match="flowlabel 0x08000/0x08000"
+		getmatch="from $SRC_IP6 iif $DEV flowlabel 0xfffff"
+		getnomatch="from $SRC_IP6 iif $DEV flowlabel 0xf7fff"
+		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "iif flowlabel masked redirect to table" \
+			"iif flowlabel masked no redirect to table"
 	fi
 }
 
@@ -494,6 +562,24 @@ fib_rule4_test()
 		fib_rule4_test_match_n_redirect "$match" "$match" \
 			"$getnomatch" "sport and dport redirect to table" \
 			"sport and dport no redirect to table"
+
+		match="sport 100-200 dport 300-400"
+		getmatch="sport 100 dport 400"
+		getnomatch="sport 100 dport 401"
+		fib_rule4_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" \
+			"sport and dport range redirect to table" \
+			"sport and dport range no redirect to table"
+	fi
+
+	ip rule help 2>&1 | grep sport | grep -q MASK
+	if [ $? -eq 0 ]; then
+		match="sport 0x0f00/0xff00 dport 0x000f/0x00ff"
+		getmatch="sport 0x0f11 dport 0x220f"
+		getnomatch="sport 0x1f11 dport 0x221f"
+		fib_rule4_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "sport and dport masked redirect to table" \
+			"sport and dport masked no redirect to table"
 	fi
 
 	fib_check_iproute_support "ipproto" "ipproto"
@@ -529,6 +615,25 @@ fib_rule4_test()
 		fib_rule4_test_match_n_redirect "$match" "$getmatch" \
 			"$getnomatch" "iif dscp redirect to table" \
 			"iif dscp no redirect to table"
+	fi
+
+	ip rule help 2>&1 | grep -q "DSCP\[/MASK\]"
+	if [ $? -eq 0 ]; then
+		match="dscp 0x0f/0x0f"
+		tosmatch=$(printf 0x"%x" $((0x1f << 2)))
+		tosnomatch=$(printf 0x"%x" $((0x1e << 2)))
+		getmatch="tos $tosmatch"
+		getnomatch="tos $tosnomatch"
+		fib_rule4_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "dscp masked redirect to table" \
+			"dscp masked no redirect to table"
+
+		match="dscp 0x0f/0x0f"
+		getmatch="from $SRC_IP iif $DEV tos $tosmatch"
+		getnomatch="from $SRC_IP iif $DEV tos $tosnomatch"
+		fib_rule4_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "iif dscp masked redirect to table" \
+			"iif dscp masked no redirect to table"
 	fi
 }
 

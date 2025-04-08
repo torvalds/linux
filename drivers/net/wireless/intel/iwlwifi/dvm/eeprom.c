@@ -676,12 +676,12 @@ static int iwl_eeprom_acquire_semaphore(struct iwl_trans *trans)
 	for (count = 0; count < IWL_EEPROM_SEM_RETRY_LIMIT; count++) {
 		/* Request semaphore */
 		iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-			    CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
+			    CSR_HW_IF_CONFIG_REG_EEPROM_OWN_SEM);
 
 		/* See if we got it */
 		ret = iwl_poll_bit(trans, CSR_HW_IF_CONFIG_REG,
-				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
-				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
+				CSR_HW_IF_CONFIG_REG_EEPROM_OWN_SEM,
+				CSR_HW_IF_CONFIG_REG_EEPROM_OWN_SEM,
 				IWL_EEPROM_SEM_TIMEOUT);
 		if (ret >= 0) {
 			IWL_DEBUG_EEPROM(trans->dev,
@@ -697,7 +697,7 @@ static int iwl_eeprom_acquire_semaphore(struct iwl_trans *trans)
 static void iwl_eeprom_release_semaphore(struct iwl_trans *trans)
 {
 	iwl_clear_bit(trans, CSR_HW_IF_CONFIG_REG,
-		      CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
+		      CSR_HW_IF_CONFIG_REG_EEPROM_OWN_SEM);
 }
 
 static int iwl_eeprom_verify_signature(struct iwl_trans *trans, bool nvm_is_otp)

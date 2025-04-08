@@ -405,7 +405,7 @@ mt76_connac_mutex_release(struct mt76_dev *dev, struct mt76_connac_pm *pm)
 	mutex_unlock(&dev->mutex);
 }
 
-void mt76_connac_gen_ppe_thresh(u8 *he_ppet, int nss);
+void mt76_connac_gen_ppe_thresh(u8 *he_ppet, int nss, enum nl80211_band band);
 int mt76_connac_init_tx_queues(struct mt76_phy *phy, int idx, int n_desc,
 			       int ring_base, void *wed, u32 flags);
 
@@ -427,7 +427,7 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
 				 struct ieee80211_key_conf *key, int pid,
 				 enum mt76_txq_id qid, u32 changed);
 u16 mt76_connac2_mac_tx_rate_val(struct mt76_phy *mphy,
-				 struct ieee80211_vif *vif,
+				 struct ieee80211_bss_conf *conf,
 				 bool beacon, bool mcast);
 bool mt76_connac2_mac_fill_txs(struct mt76_dev *dev, struct mt76_wcid *wcid,
 			       __le32 *txs_data);

@@ -1397,7 +1397,7 @@ static int rvin_set_stream(struct rvin_dev *vin, int on)
 
 	if (!on) {
 		video_device_pipeline_stop(&vin->vdev);
-		return v4l2_subdev_call(sd, video, s_stream, 0);
+		return v4l2_subdev_disable_streams(sd, pad->index, BIT_ULL(0));
 	}
 
 	ret = rvin_mc_validate_format(vin, sd, pad);
@@ -1408,7 +1408,7 @@ static int rvin_set_stream(struct rvin_dev *vin, int on)
 	if (ret)
 		return ret;
 
-	ret = v4l2_subdev_call(sd, video, s_stream, 1);
+	ret = v4l2_subdev_enable_streams(sd, pad->index, BIT_ULL(0));
 	if (ret == -ENOIOCTLCMD)
 		ret = 0;
 	if (ret)

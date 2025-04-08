@@ -339,8 +339,7 @@ struct idle_inject_device *idle_inject_register_full(struct cpumask *cpumask,
 		return NULL;
 
 	cpumask_copy(to_cpumask(ii_dev->cpumask), cpumask);
-	hrtimer_init(&ii_dev->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	ii_dev->timer.function = idle_inject_timer_fn;
+	hrtimer_setup(&ii_dev->timer, idle_inject_timer_fn, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	ii_dev->latency_us = UINT_MAX;
 	ii_dev->update = update;
 

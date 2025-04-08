@@ -1625,7 +1625,6 @@ void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 	const u16 *regs = dev->info->regs;
 	struct dsa_switch *ds = dev->ds;
 	const u32 *masks;
-	int queues;
 	u8 member;
 
 	masks = dev->info->masks;
@@ -1633,15 +1632,7 @@ void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 	/* enable broadcast storm limit */
 	ksz_port_cfg(dev, port, P_BCAST_STORM_CTRL, PORT_BROADCAST_STORM, true);
 
-	/* For KSZ88x3 enable only one queue by default, otherwise we won't
-	 * be able to get rid of PCP prios on Port 2.
-	 */
-	if (ksz_is_ksz88x3(dev))
-		queues = 1;
-	else
-		queues = dev->info->num_tx_queues;
-
-	ksz8_port_queue_split(dev, port, queues);
+	ksz8_port_queue_split(dev, port, dev->info->num_tx_queues);
 
 	/* replace priority */
 	ksz_port_cfg(dev, port, P_802_1P_CTRL,

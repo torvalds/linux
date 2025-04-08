@@ -578,4 +578,9 @@ int rtw89_cam_sec_key_del(struct rtw89_dev *rtwdev,
 void rtw89_cam_bssid_changed(struct rtw89_dev *rtwdev,
 			     struct rtw89_vif_link *rtwvif_link);
 void rtw89_cam_reset_keys(struct rtw89_dev *rtwdev);
+int rtw89_cam_attach_link_sec_cam(struct rtw89_dev *rtwdev,
+				  struct rtw89_vif_link *rtwvif_link,
+				  struct rtw89_sta_link *rtwsta_link,
+				  u8 sec_cam_idx);
+
 #endif

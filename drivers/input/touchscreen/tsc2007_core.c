@@ -142,8 +142,7 @@ static irqreturn_t tsc2007_soft_irq(int irq, void *handle)
 			rt = ts->max_rt - rt;
 
 			input_report_key(input, BTN_TOUCH, 1);
-			input_report_abs(input, ABS_X, tc.x);
-			input_report_abs(input, ABS_Y, tc.y);
+			touchscreen_report_pos(input, &ts->prop, tc.x, tc.y, false);
 			input_report_abs(input, ABS_PRESSURE, rt);
 
 			input_sync(input);
@@ -339,9 +338,9 @@ static int tsc2007_probe(struct i2c_client *client)
 	input_set_drvdata(input_dev, ts);
 
 	input_set_capability(input_dev, EV_KEY, BTN_TOUCH);
-
 	input_set_abs_params(input_dev, ABS_X, 0, MAX_12BIT, ts->fuzzx, 0);
 	input_set_abs_params(input_dev, ABS_Y, 0, MAX_12BIT, ts->fuzzy, 0);
+	touchscreen_parse_properties(input_dev, false, &ts->prop);
 	input_set_abs_params(input_dev, ABS_PRESSURE, 0, MAX_12BIT,
 			     ts->fuzzz, 0);
 

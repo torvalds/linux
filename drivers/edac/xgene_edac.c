@@ -15,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/regmap.h>
+#include <linux/string_choices.h>
 
 #include "edac_module.h"
 
@@ -1407,7 +1408,7 @@ static void xgene_edac_iob_gic_report(struct edac_device_ctl_info *edac_dev)
 		dev_err(edac_dev->dev, "Multiple XGIC write size error\n");
 	info = readl(ctx->dev_csr + XGICTRANSERRREQINFO);
 	dev_err(edac_dev->dev, "XGIC %s access @ 0x%08X (0x%08X)\n",
-		info & REQTYPE_MASK ? "read" : "write", ERRADDR_RD(info),
+		str_read_write(info & REQTYPE_MASK), ERRADDR_RD(info),
 		info);
 	writel(reg, ctx->dev_csr + XGICTRANSERRINTSTS);
 
@@ -1489,19 +1490,19 @@ static void xgene_edac_rb_report(struct edac_device_ctl_info *edac_dev)
 		if (reg & AGENT_OFFLINE_ERR_MASK)
 			dev_err(edac_dev->dev,
 				"IOB bus %s access to offline agent error\n",
-				write ? "write" : "read");
+				str_write_read(write));
 		if (reg & UNIMPL_RBPAGE_ERR_MASK)
 			dev_err(edac_dev->dev,
 				"IOB bus %s access to unimplemented page error\n",
-				write ? "write" : "read");
+				str_write_read(write));
 		if (reg & WORD_ALIGNED_ERR_MASK)
 			dev_err(edac_dev->dev,
 				"IOB bus %s word aligned access error\n",
-				write ? "write" : "read");
+				str_write_read(write));
 		if (reg & PAGE_ACCESS_ERR_MASK)
 			dev_err(edac_dev->dev,
 				"IOB bus %s to page out of range access error\n",
-				write ? "write" : "read");
+				str_write_read(write));
 		if (regmap_write(ctx->edac->rb_map, RBEIR, 0))
 			return;
 		if (regmap_write(ctx->edac->rb_map, RBCSR, 0))
@@ -1560,7 +1561,7 @@ rb_skip:
 	err_addr_lo = readl(ctx->dev_csr + IOBBATRANSERRREQINFOL);
 	err_addr_hi = readl(ctx->dev_csr + IOBBATRANSERRREQINFOH);
 	dev_err(edac_dev->dev, "IOB BA %s access at 0x%02X.%08X (0x%08X)\n",
-		REQTYPE_F2_RD(err_addr_hi) ? "read" : "write",
+		str_read_write(REQTYPE_F2_RD(err_addr_hi)),
 		ERRADDRH_F2_RD(err_addr_hi), err_addr_lo, err_addr_hi);
 	if (reg & WRERR_RESP_MASK)
 		dev_err(edac_dev->dev, "IOB BA requestor ID 0x%08X\n",
@@ -1611,7 +1612,7 @@ chk_iob_axi0:
 	dev_err(edac_dev->dev,
 		"%sAXI slave 0 illegal %s access @ 0x%02X.%08X (0x%08X)\n",
 		reg & IOBAXIS0_M_ILLEGAL_ACCESS_MASK ? "Multiple " : "",
-		REQTYPE_RD(err_addr_hi) ? "read" : "write",
+		str_read_write(REQTYPE_RD(err_addr_hi)),
 		ERRADDRH_RD(err_addr_hi), err_addr_lo, err_addr_hi);
 	writel(reg, ctx->dev_csr + IOBAXIS0TRANSERRINTSTS);
 
@@ -1625,7 +1626,7 @@ chk_iob_axi1:
 	dev_err(edac_dev->dev,
 		"%sAXI slave 1 illegal %s access @ 0x%02X.%08X (0x%08X)\n",
 		reg & IOBAXIS0_M_ILLEGAL_ACCESS_MASK ? "Multiple " : "",
-		REQTYPE_RD(err_addr_hi) ? "read" : "write",
+		str_read_write(REQTYPE_RD(err_addr_hi)),
 		ERRADDRH_RD(err_addr_hi), err_addr_lo, err_addr_hi);
 	writel(reg, ctx->dev_csr + IOBAXIS1TRANSERRINTSTS);
 }

@@ -31,6 +31,7 @@
 
 #define FRU_EEPROM_MADDR_6      0x60000
 #define FRU_EEPROM_MADDR_8      0x80000
+#define FRU_EEPROM_MADDR_INV    0xFFFFF
 
 static bool is_fru_eeprom_supported(struct amdgpu_device *adev, u32 *fru_addr)
 {
@@ -63,10 +64,10 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev, u32 *fru_addr)
 		switch (adev->asic_type) {
 		case CHIP_VEGA20:
 			/* D161 and D163 are the VG20 server SKUs */
-			if (strnstr(atom_ctx->vbios_pn, "D161",
-				    sizeof(atom_ctx->vbios_pn)) ||
-			    strnstr(atom_ctx->vbios_pn, "D163",
-				    sizeof(atom_ctx->vbios_pn))) {
+			if (atom_ctx && (strnstr(atom_ctx->vbios_pn, "D161",
+						 sizeof(atom_ctx->vbios_pn)) ||
+					 strnstr(atom_ctx->vbios_pn, "D163",
+						 sizeof(atom_ctx->vbios_pn)))) {
 				if (fru_addr)
 					*fru_addr = FRU_EEPROM_MADDR_6;
 				return true;
@@ -78,8 +79,8 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev, u32 *fru_addr)
 			return false;
 		}
 	case IP_VERSION(11, 0, 7):
-		if (strnstr(atom_ctx->vbios_pn, "D603",
-			    sizeof(atom_ctx->vbios_pn))) {
+		if (atom_ctx && strnstr(atom_ctx->vbios_pn, "D603",
+					sizeof(atom_ctx->vbios_pn))) {
 			if (strnstr(atom_ctx->vbios_pn, "D603GLXE",
 				    sizeof(atom_ctx->vbios_pn))) {
 				return false;
@@ -94,8 +95,8 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev, u32 *fru_addr)
 		}
 	case IP_VERSION(13, 0, 2):
 		/* All Aldebaran SKUs have an FRU */
-		if (!strnstr(atom_ctx->vbios_pn, "D673",
-			     sizeof(atom_ctx->vbios_pn)))
+		if (atom_ctx && !strnstr(atom_ctx->vbios_pn, "D673",
+					 sizeof(atom_ctx->vbios_pn)))
 			if (fru_addr)
 				*fru_addr = FRU_EEPROM_MADDR_6;
 		return true;
@@ -103,6 +104,10 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev, u32 *fru_addr)
 	case IP_VERSION(13, 0, 14):
 			if (fru_addr)
 				*fru_addr = FRU_EEPROM_MADDR_8;
+			return true;
+	case IP_VERSION(13, 0, 12):
+			if (fru_addr)
+				*fru_addr = FRU_EEPROM_MADDR_INV;
 			return true;
 	default:
 		return false;
@@ -118,6 +123,10 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 	u8 csum;
 
 	if (!is_fru_eeprom_supported(adev, &fru_addr))
+		return 0;
+
+	/* FRU data avaialble, but no direct EEPROM access */
+	if (fru_addr == FRU_EEPROM_MADDR_INV)
 		return 0;
 
 	if (!adev->fru_info) {

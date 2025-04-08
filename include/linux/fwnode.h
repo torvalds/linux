@@ -91,7 +91,7 @@ struct fwnode_endpoint {
 #define SWNODE_GRAPH_PORT_NAME_FMT		"port@%u"
 #define SWNODE_GRAPH_ENDPOINT_NAME_FMT		"endpoint@%u"
 
-#define NR_FWNODE_REFERENCE_ARGS	8
+#define NR_FWNODE_REFERENCE_ARGS	16
 
 /**
  * struct fwnode_reference_args - Fwnode reference with additional arguments
@@ -112,6 +112,7 @@ struct fwnode_reference_args {
  * @device_is_available: Return true if the device is available.
  * @device_get_match_data: Return the device driver match data.
  * @property_present: Return true if a property is present.
+ * @property_read_bool: Return a boolean property value.
  * @property_read_int_array: Read an array of integer properties. Return zero on
  *			     success, a negative error code otherwise.
  * @property_read_string_array: Read an array of string properties. Return zero
@@ -141,6 +142,8 @@ struct fwnode_operations {
 	(*device_get_dma_attr)(const struct fwnode_handle *fwnode);
 	bool (*property_present)(const struct fwnode_handle *fwnode,
 				 const char *propname);
+	bool (*property_read_bool)(const struct fwnode_handle *fwnode,
+				   const char *propname);
 	int (*property_read_int_array)(const struct fwnode_handle *fwnode,
 				       const char *propname,
 				       unsigned int elem_size, void *val,

@@ -3,9 +3,9 @@
 #include <ioremap.h>
 
 void __iomem *ioremap_prot(phys_addr_t offset, unsigned long size,
-		unsigned long prot_val)
+			   pgprot_t prot)
 {
-	unsigned long flags = prot_val & _CACHE_MASK;
+	unsigned long flags = pgprot_val(prot) & _CACHE_MASK;
 	u64 base = (flags == _CACHE_UNCACHED ? IO_BASE : UNCAC_BASE);
 	void __iomem *addr;
 

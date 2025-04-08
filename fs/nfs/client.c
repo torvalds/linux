@@ -38,7 +38,7 @@
 #include <linux/sunrpc/bc_xprt.h>
 #include <linux/nsproxy.h>
 #include <linux/pid_namespace.h>
-
+#include <linux/nfslocalio.h>
 
 #include "nfs4_fs.h"
 #include "callback.h"
@@ -186,7 +186,7 @@ struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
 	seqlock_init(&clp->cl_boot_lock);
 	ktime_get_real_ts64(&clp->cl_nfssvc_boot);
 	nfs_uuid_init(&clp->cl_uuid);
-	spin_lock_init(&clp->cl_localio_lock);
+	INIT_WORK(&clp->cl_local_probe_work, nfs_local_probe_async_work);
 #endif /* CONFIG_NFS_LOCALIO */
 
 	clp->cl_principal = "*";
@@ -244,7 +244,7 @@ static void pnfs_init_server(struct nfs_server *server)
  */
 void nfs_free_client(struct nfs_client *clp)
 {
-	nfs_local_disable(clp);
+	nfs_localio_disable_client(clp);
 
 	/* -EIO all pending I/O */
 	if (!IS_ERR(clp->cl_rpcclient))
@@ -546,6 +546,8 @@ int nfs_create_rpc_client(struct nfs_client *clp,
 		args.flags |= RPC_CLNT_CREATE_NOPING;
 	if (test_bit(NFS_CS_REUSEPORT, &clp->cl_flags))
 		args.flags |= RPC_CLNT_CREATE_REUSEPORT;
+	if (test_bit(NFS_CS_NETUNREACH_FATAL, &clp->cl_flags))
+		args.flags |= RPC_CLNT_CREATE_NETUNREACH_FATAL;
 
 	if (!IS_ERR(clp->cl_rpcclient))
 		return 0;
@@ -708,6 +710,9 @@ static int nfs_init_server(struct nfs_server *server,
 				ctx->timeo, ctx->retrans);
 	if (ctx->flags & NFS_MOUNT_NORESVPORT)
 		set_bit(NFS_CS_NORESVPORT, &cl_init.init_flags);
+
+	if (ctx->flags & NFS_MOUNT_NETUNREACH_FATAL)
+		__set_bit(NFS_CS_NETUNREACH_FATAL, &cl_init.init_flags);
 
 	/* Allocate or find a client reference we can use */
 	clp = nfs_get_client(&cl_init);

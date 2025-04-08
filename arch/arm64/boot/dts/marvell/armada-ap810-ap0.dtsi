@@ -10,10 +10,9 @@
 /dts-v1/;
 
 / {
-	model = "Marvell Armada AP810";
-	compatible = "marvell,armada-ap810";
 	#address-cells = <2>;
 	#size-cells = <2>;
+	interrupt-parent = <&gic>;
 
 	aliases {
 		serial0 = &uart0_ap0;
@@ -25,14 +24,21 @@
 		method = "smc";
 	};
 
-	ap810-ap0 {
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>,
+				<GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>,
+				<GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
+				<GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
+	};
+
+	soc {
 		#address-cells = <2>;
 		#size-cells = <2>;
 		compatible = "simple-bus";
-		interrupt-parent = <&gic>;
 		ranges;
 
-		config-space@e8000000 {
+		bus@e8000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "simple-bus";
@@ -60,14 +66,6 @@
 					#msi-cells = <1>;
 					reg = <0x3040000 0x20000>;
 				};
-			};
-
-			timer {
-				compatible = "arm,armv8-timer";
-				interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>,
-					     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>,
-					     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
-					     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
 			};
 
 			xor@400000 {

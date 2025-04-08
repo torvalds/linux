@@ -40,6 +40,7 @@ qnoc-sm8350-objs			:= sm8350.o
 qnoc-sm8450-objs			:= sm8450.o
 qnoc-sm8550-objs			:= sm8550.o
 qnoc-sm8650-objs			:= sm8650.o
+qnoc-sm8750-objs			:= sm8750.o
 qnoc-x1e80100-objs			:= x1e80100.o
 icc-smd-rpm-objs			:= smd-rpm.o icc-rpm.o icc-rpm-clocks.o
 
@@ -80,5 +81,6 @@ obj-$(CONFIG_INTERCONNECT_QCOM_SM8350) += qnoc-sm8350.o
 obj-$(CONFIG_INTERCONNECT_QCOM_SM8450) += qnoc-sm8450.o
 obj-$(CONFIG_INTERCONNECT_QCOM_SM8550) += qnoc-sm8550.o
 obj-$(CONFIG_INTERCONNECT_QCOM_SM8650) += qnoc-sm8650.o
+obj-$(CONFIG_INTERCONNECT_QCOM_SM8750) += qnoc-sm8750.o
 obj-$(CONFIG_INTERCONNECT_QCOM_X1E80100) += qnoc-x1e80100.o
 obj-$(CONFIG_INTERCONNECT_QCOM_SMD_RPM) += icc-smd-rpm.o

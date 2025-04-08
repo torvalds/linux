@@ -909,7 +909,7 @@ static const u32 hainan_mgcg_cgcg_init[] =
 
 /* XXX: update when we support VCE */
 #if 0
-/* tahiti, pitcarin, verde */
+/* tahiti, pitcairn, verde */
 static const struct amdgpu_video_codec_info tahiti_video_codecs_encode_array[] =
 {
 	{
@@ -940,7 +940,7 @@ static const struct amdgpu_video_codecs hainan_video_codecs_encode =
 	.codec_array = NULL,
 };
 
-/* tahiti, pitcarin, verde, oland */
+/* tahiti, pitcairn, verde, oland */
 static const struct amdgpu_video_codec_info tahiti_video_codecs_decode_array[] =
 {
 	{
@@ -1124,41 +1124,41 @@ static struct amdgpu_allowed_register_entry si_allowed_read_registers[] = {
 	{mmCP_STALLED_STAT3},
 	{GB_ADDR_CONFIG},
 	{MC_ARB_RAMCFG},
-	{GB_TILE_MODE0},
-	{GB_TILE_MODE1},
-	{GB_TILE_MODE2},
-	{GB_TILE_MODE3},
-	{GB_TILE_MODE4},
-	{GB_TILE_MODE5},
-	{GB_TILE_MODE6},
-	{GB_TILE_MODE7},
-	{GB_TILE_MODE8},
-	{GB_TILE_MODE9},
-	{GB_TILE_MODE10},
-	{GB_TILE_MODE11},
-	{GB_TILE_MODE12},
-	{GB_TILE_MODE13},
-	{GB_TILE_MODE14},
-	{GB_TILE_MODE15},
-	{GB_TILE_MODE16},
-	{GB_TILE_MODE17},
-	{GB_TILE_MODE18},
-	{GB_TILE_MODE19},
-	{GB_TILE_MODE20},
-	{GB_TILE_MODE21},
-	{GB_TILE_MODE22},
-	{GB_TILE_MODE23},
-	{GB_TILE_MODE24},
-	{GB_TILE_MODE25},
-	{GB_TILE_MODE26},
-	{GB_TILE_MODE27},
-	{GB_TILE_MODE28},
-	{GB_TILE_MODE29},
-	{GB_TILE_MODE30},
-	{GB_TILE_MODE31},
+	{mmGB_TILE_MODE0},
+	{mmGB_TILE_MODE1},
+	{mmGB_TILE_MODE2},
+	{mmGB_TILE_MODE3},
+	{mmGB_TILE_MODE4},
+	{mmGB_TILE_MODE5},
+	{mmGB_TILE_MODE6},
+	{mmGB_TILE_MODE7},
+	{mmGB_TILE_MODE8},
+	{mmGB_TILE_MODE9},
+	{mmGB_TILE_MODE10},
+	{mmGB_TILE_MODE11},
+	{mmGB_TILE_MODE12},
+	{mmGB_TILE_MODE13},
+	{mmGB_TILE_MODE14},
+	{mmGB_TILE_MODE15},
+	{mmGB_TILE_MODE16},
+	{mmGB_TILE_MODE17},
+	{mmGB_TILE_MODE18},
+	{mmGB_TILE_MODE19},
+	{mmGB_TILE_MODE20},
+	{mmGB_TILE_MODE21},
+	{mmGB_TILE_MODE22},
+	{mmGB_TILE_MODE23},
+	{mmGB_TILE_MODE24},
+	{mmGB_TILE_MODE25},
+	{mmGB_TILE_MODE26},
+	{mmGB_TILE_MODE27},
+	{mmGB_TILE_MODE28},
+	{mmGB_TILE_MODE29},
+	{mmGB_TILE_MODE30},
+	{mmGB_TILE_MODE31},
 	{CC_RB_BACKEND_DISABLE, true},
-	{GC_USER_RB_BACKEND_DISABLE, true},
-	{PA_SC_RASTER_CONFIG, true},
+	{mmGC_USER_RB_BACKEND_DISABLE, true},
+	{mmPA_SC_RASTER_CONFIG, true},
 };
 
 static uint32_t si_get_register_value(struct amdgpu_device *adev,
@@ -1888,7 +1888,7 @@ static int si_vce_send_vcepll_ctlreq(struct amdgpu_device *adev)
 	WREG32_SMC_P(CG_VCEPLL_FUNC_CNTL, 0, ~UPLL_CTLREQ_MASK);
 
 	if (i == SI_MAX_CTLACKS_ASSERTION_WAIT) {
-		DRM_ERROR("Timeout setting UVD clocks!\n");
+		DRM_ERROR("Timeout setting VCE clocks!\n");
 		return -ETIMEDOUT;
 	}
 
@@ -2644,7 +2644,7 @@ static int si_common_resume(struct amdgpu_ip_block *ip_block)
 	return si_common_hw_init(ip_block);
 }
 
-static bool si_common_is_idle(void *handle)
+static bool si_common_is_idle(struct amdgpu_ip_block *ip_block)
 {
 	return true;
 }

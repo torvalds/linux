@@ -19,6 +19,7 @@
 #include <linux/io.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+#include <linux/string_choices.h>
 #include "../acp-mach.h"
 #include "acp3x-es83xx.h"
 
@@ -241,9 +242,9 @@ static int acp3x_es83xx_configure_gpios(struct acp3x_es83xx_private *priv)
 
 	dev_info(priv->codec_dev, "speaker gpio %d active %s, headphone gpio %d active %s\n",
 		 priv->enable_spk_gpio.crs_entry_index,
-		 priv->enable_spk_gpio.active_low ? "low" : "high",
+		 str_low_high(priv->enable_spk_gpio.active_low),
 		 priv->enable_hp_gpio.crs_entry_index,
-		 priv->enable_hp_gpio.active_low ? "low" : "high");
+		 str_low_high(priv->enable_hp_gpio.active_low));
 	return 0;
 }
 

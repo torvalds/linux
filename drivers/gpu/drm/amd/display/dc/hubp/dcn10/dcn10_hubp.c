@@ -546,6 +546,12 @@ void hubp1_dcc_control(struct hubp *hubp, bool enable,
 			SECONDARY_SURFACE_DCC_IND_64B_BLK, dcc_ind_64b_blk);
 }
 
+void hubp_reset(struct hubp *hubp)
+{
+	memset(&hubp->pos, 0, sizeof(hubp->pos));
+	memset(&hubp->att, 0, sizeof(hubp->att));
+}
+
 void hubp1_program_surface_config(
 	struct hubp *hubp,
 	enum surface_pixel_format format,
@@ -1351,8 +1357,9 @@ static void hubp1_wait_pipe_read_start(struct hubp *hubp)
 
 void hubp1_init(struct hubp *hubp)
 {
-	//do nothing
+	hubp_reset(hubp);
 }
+
 static const struct hubp_funcs dcn10_hubp_funcs = {
 	.hubp_program_surface_flip_and_addr =
 			hubp1_program_surface_flip_and_addr,
@@ -1365,6 +1372,7 @@ static const struct hubp_funcs dcn10_hubp_funcs = {
 	.hubp_set_vm_context0_settings = hubp1_set_vm_context0_settings,
 	.set_blank = hubp1_set_blank,
 	.dcc_control = hubp1_dcc_control,
+	.hubp_reset = hubp_reset,
 	.mem_program_viewport = min_set_viewport,
 	.set_hubp_blank_en = hubp1_set_hubp_blank_en,
 	.set_cursor_attributes	= hubp1_cursor_set_attributes,

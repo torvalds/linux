@@ -103,13 +103,15 @@ extern const struct bch_sb_field_ops bch_sb_field_ops_crypt;
 int bch2_decrypt_sb_key(struct bch_fs *, struct bch_sb_field_crypt *,
 			struct bch_key *);
 
+#if 0
 int bch2_disable_encryption(struct bch_fs *);
 int bch2_enable_encryption(struct bch_fs *, bool);
+#endif
 
 void bch2_fs_encryption_exit(struct bch_fs *);
 int bch2_fs_encryption_init(struct bch_fs *);
 
-static inline enum bch_csum_type bch2_csum_opt_to_type(enum bch_csum_opts type,
+static inline enum bch_csum_type bch2_csum_opt_to_type(enum bch_csum_opt type,
 						       bool data)
 {
 	switch (type) {

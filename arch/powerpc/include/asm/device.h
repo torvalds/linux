@@ -38,9 +38,6 @@ struct dev_archdata {
 #ifdef CONFIG_FAIL_IOMMU
 	int fail_iommu;
 #endif
-#ifdef CONFIG_CXL_BASE
-	struct cxl_context	*cxl_ctx;
-#endif
 #ifdef CONFIG_PCI_IOV
 	void *iov_data;
 #endif

@@ -16,12 +16,12 @@ programs - the BPF scheduler.
 * The system integrity is maintained no matter what the BPF scheduler does.
   The default scheduling behavior is restored anytime an error is detected,
   a runnable task stalls, or on invoking the SysRq key sequence
-  :kbd:`SysRq-S`.
+  `SysRq-S`.
 
 * When the BPF scheduler triggers an error, debug information is dumped to
   aid debugging. The debug dump is passed to and printed out by the
   scheduler binary. The debug dump can also be accessed through the
-  `sched_ext_dump` tracepoint. The SysRq key sequence :kbd:`SysRq-D`
+  `sched_ext_dump` tracepoint. The SysRq key sequence `SysRq-D`
   triggers a debug dump. This doesn't terminate the BPF scheduler and can
   only be read through the tracepoint.
 
@@ -59,7 +59,7 @@ set in ``ops->flags``, only tasks with the ``SCHED_EXT`` policy are scheduled
 by sched_ext, while tasks with ``SCHED_NORMAL``, ``SCHED_BATCH`` and
 ``SCHED_IDLE`` policies are scheduled by CFS.
 
-Terminating the sched_ext scheduler program, triggering :kbd:`SysRq-S`, or
+Terminating the sched_ext scheduler program, triggering `SysRq-S`, or
 detection of any internal error including stalled runnable tasks aborts the
 BPF scheduler and reverts all tasks back to CFS.
 
@@ -107,8 +107,7 @@ detailed information:
     nr_rejected   : 0
     enable_seq    : 1
 
-If ``CONFIG_SCHED_DEBUG`` is set, whether a given task is on sched_ext can
-be determined as follows:
+Whether a given task is on sched_ext can be determined as follows:
 
 .. code-block:: none
 
@@ -242,9 +241,9 @@ The following briefly shows how a waking task is scheduled and executed.
    task was inserted directly from ``ops.select_cpu()``). ``ops.enqueue()``
    can make one of the following decisions:
 
-   * Immediately insert the task into either the global or local DSQ by
-     calling ``scx_bpf_dsq_insert()`` with ``SCX_DSQ_GLOBAL`` or
-     ``SCX_DSQ_LOCAL``, respectively.
+   * Immediately insert the task into either the global or a local DSQ by
+     calling ``scx_bpf_dsq_insert()`` with one of the following options:
+     ``SCX_DSQ_GLOBAL``, ``SCX_DSQ_LOCAL``, or ``SCX_DSQ_LOCAL_ON | cpu``.
 
    * Immediately insert the task into a custom DSQ by calling
      ``scx_bpf_dsq_insert()`` with a DSQ ID which is smaller than 2^63.
@@ -293,6 +292,42 @@ DSQs are executed automatically.
 dispatching, and must be dispatched to with ``scx_bpf_dsq_insert()``. See
 the function documentation and usage in ``tools/sched_ext/scx_simple.bpf.c``
 for more information.
+
+Task Lifecycle
+--------------
+
+The following pseudo-code summarizes the entire lifecycle of a task managed
+by a sched_ext scheduler:
+
+.. code-block:: c
+
+    ops.init_task();            /* A new task is created */
+    ops.enable();               /* Enable BPF scheduling for the task */
+
+    while (task in SCHED_EXT) {
+        if (task can migrate)
+            ops.select_cpu();   /* Called on wakeup (optimization) */
+
+        ops.runnable();         /* Task becomes ready to run */
+
+        while (task is runnable) {
+            if (task is not in a DSQ) {
+                ops.enqueue();  /* Task can be added to a DSQ */
+
+                /* A CPU becomes available */
+
+                ops.dispatch(); /* Task is moved to a local DSQ */
+            }
+            ops.running();      /* Task starts running on its assigned CPU */
+            ops.tick();         /* Called every 1/HZ seconds */
+            ops.stopping();     /* Task stops running (time slice expires or wait) */
+        }
+
+        ops.quiescent();        /* Task releases its assigned CPU (wait) */
+    }
+
+    ops.disable();              /* Disable BPF scheduling for the task */
+    ops.exit_task();            /* Task is destroyed */
 
 Where to Look
 =============

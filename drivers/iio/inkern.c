@@ -7,6 +7,7 @@
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/minmax.h>
+#include <linux/mm.h>
 #include <linux/mutex.h>
 #include <linux/property.h>
 #include <linux/slab.h>
@@ -989,6 +990,11 @@ ssize_t iio_read_channel_ext_info(struct iio_channel *chan,
 {
 	const struct iio_chan_spec_ext_info *ext_info;
 
+	if (!buf || offset_in_page(buf)) {
+		pr_err("iio: invalid ext_info read buffer\n");
+		return -EINVAL;
+	}
+
 	ext_info = iio_lookup_ext_info(chan, attr);
 	if (!ext_info)
 		return -EINVAL;
@@ -1014,6 +1020,11 @@ EXPORT_SYMBOL_GPL(iio_write_channel_ext_info);
 
 ssize_t iio_read_channel_label(struct iio_channel *chan, char *buf)
 {
+	if (!buf || offset_in_page(buf)) {
+		pr_err("iio: invalid label read buffer\n");
+		return -EINVAL;
+	}
+
 	return do_iio_read_channel_label(chan->indio_dev, chan->channel, buf);
 }
 EXPORT_SYMBOL_GPL(iio_read_channel_label);

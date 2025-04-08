@@ -222,6 +222,31 @@ setup_ns()
 	NS_LIST+=("${ns_list[@]}")
 }
 
+# Create netdevsim with given id and net namespace.
+create_netdevsim() {
+    local id="$1"
+    local ns="$2"
+
+    modprobe netdevsim &> /dev/null
+    udevadm settle
+
+    echo "$id 1" | ip netns exec $ns tee /sys/bus/netdevsim/new_device >/dev/null
+    local dev=$(ip netns exec $ns ls /sys/bus/netdevsim/devices/netdevsim$id/net)
+    ip -netns $ns link set dev $dev name nsim$id
+    ip -netns $ns link set dev nsim$id up
+
+    echo nsim$id
+}
+
+# Remove netdevsim with given id.
+cleanup_netdevsim() {
+    local id="$1"
+
+    if [ -d "/sys/bus/netdevsim/devices/netdevsim$id/net" ]; then
+        echo "$id" > /sys/bus/netdevsim/del_device
+    fi
+}
+
 tc_rule_stats_get()
 {
 	local dev=$1; shift
@@ -435,12 +460,38 @@ xfail_on_veth()
 	fi
 }
 
+mac_get()
+{
+	local if_name=$1
+
+	ip -j link show dev $if_name | jq -r '.[]["address"]'
+}
+
 kill_process()
 {
 	local pid=$1; shift
 
 	# Suppress noise from killing the process.
 	{ kill $pid && wait $pid; } 2>/dev/null
+}
+
+check_command()
+{
+	local cmd=$1; shift
+
+	if [[ ! -x "$(command -v "$cmd")" ]]; then
+		log_test_skip "$cmd not installed"
+		return $EXIT_STATUS
+	fi
+}
+
+require_command()
+{
+	local cmd=$1; shift
+
+	if ! check_command "$cmd"; then
+		exit $EXIT_STATUS
+	fi
 }
 
 ip_link_add()
@@ -451,11 +502,70 @@ ip_link_add()
 	defer ip link del dev "$name"
 }
 
-ip_link_master()
+ip_link_set_master()
 {
 	local member=$1; shift
 	local master=$1; shift
 
 	ip link set dev "$member" master "$master"
 	defer ip link set dev "$member" nomaster
+}
+
+ip_link_set_addr()
+{
+	local name=$1; shift
+	local addr=$1; shift
+
+	local old_addr=$(mac_get "$name")
+	ip link set dev "$name" address "$addr"
+	defer ip link set dev "$name" address "$old_addr"
+}
+
+ip_link_is_up()
+{
+	local name=$1; shift
+
+	local state=$(ip -j link show "$name" |
+		      jq -r '(.[].flags[] | select(. == "UP")) // "DOWN"')
+	[[ $state == "UP" ]]
+}
+
+ip_link_set_up()
+{
+	local name=$1; shift
+
+	if ! ip_link_is_up "$name"; then
+		ip link set dev "$name" up
+		defer ip link set dev "$name" down
+	fi
+}
+
+ip_link_set_down()
+{
+	local name=$1; shift
+
+	if ip_link_is_up "$name"; then
+		ip link set dev "$name" down
+		defer ip link set dev "$name" up
+	fi
+}
+
+ip_addr_add()
+{
+	local name=$1; shift
+
+	ip addr add dev "$name" "$@"
+	defer ip addr del dev "$name" "$@"
+}
+
+ip_route_add()
+{
+	ip route add "$@"
+	defer ip route del "$@"
+}
+
+bridge_vlan_add()
+{
+	bridge vlan add "$@"
+	defer bridge vlan del "$@"
 }

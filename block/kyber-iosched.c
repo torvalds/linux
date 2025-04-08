@@ -568,7 +568,7 @@ static bool kyber_bio_merge(struct request_queue *q, struct bio *bio,
 		unsigned int nr_segs)
 {
 	struct blk_mq_ctx *ctx = blk_mq_get_ctx(q);
-	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, bio->bi_opf, ctx);
+	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(bio->bi_opf, ctx);
 	struct kyber_hctx_data *khd = hctx->sched_data;
 	struct kyber_ctx_queue *kcq = &khd->kcqs[ctx->index_hw[hctx->type]];
 	unsigned int sched_domain = kyber_sched_domain(bio->bi_opf);
@@ -889,7 +889,7 @@ KYBER_LAT_SHOW_STORE(KYBER_WRITE, write);
 #undef KYBER_LAT_SHOW_STORE
 
 #define KYBER_LAT_ATTR(op) __ATTR(op##_lat_nsec, 0644, kyber_##op##_lat_show, kyber_##op##_lat_store)
-static struct elv_fs_entry kyber_sched_attrs[] = {
+static const struct elv_fs_entry kyber_sched_attrs[] = {
 	KYBER_LAT_ATTR(read),
 	KYBER_LAT_ATTR(write),
 	__ATTR_NULL

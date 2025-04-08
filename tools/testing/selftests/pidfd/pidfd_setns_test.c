@@ -16,55 +16,9 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <linux/ioctl.h>
 
 #include "pidfd.h"
-#include "../clone3/clone3_selftests.h"
 #include "../kselftest_harness.h"
-
-#ifndef PIDFS_IOCTL_MAGIC
-#define PIDFS_IOCTL_MAGIC 0xFF
-#endif
-
-#ifndef PIDFD_GET_CGROUP_NAMESPACE
-#define PIDFD_GET_CGROUP_NAMESPACE            _IO(PIDFS_IOCTL_MAGIC, 1)
-#endif
-
-#ifndef PIDFD_GET_IPC_NAMESPACE
-#define PIDFD_GET_IPC_NAMESPACE               _IO(PIDFS_IOCTL_MAGIC, 2)
-#endif
-
-#ifndef PIDFD_GET_MNT_NAMESPACE
-#define PIDFD_GET_MNT_NAMESPACE               _IO(PIDFS_IOCTL_MAGIC, 3)
-#endif
-
-#ifndef PIDFD_GET_NET_NAMESPACE
-#define PIDFD_GET_NET_NAMESPACE               _IO(PIDFS_IOCTL_MAGIC, 4)
-#endif
-
-#ifndef PIDFD_GET_PID_NAMESPACE
-#define PIDFD_GET_PID_NAMESPACE               _IO(PIDFS_IOCTL_MAGIC, 5)
-#endif
-
-#ifndef PIDFD_GET_PID_FOR_CHILDREN_NAMESPACE
-#define PIDFD_GET_PID_FOR_CHILDREN_NAMESPACE  _IO(PIDFS_IOCTL_MAGIC, 6)
-#endif
-
-#ifndef PIDFD_GET_TIME_NAMESPACE
-#define PIDFD_GET_TIME_NAMESPACE              _IO(PIDFS_IOCTL_MAGIC, 7)
-#endif
-
-#ifndef PIDFD_GET_TIME_FOR_CHILDREN_NAMESPACE
-#define PIDFD_GET_TIME_FOR_CHILDREN_NAMESPACE _IO(PIDFS_IOCTL_MAGIC, 8)
-#endif
-
-#ifndef PIDFD_GET_USER_NAMESPACE
-#define PIDFD_GET_USER_NAMESPACE              _IO(PIDFS_IOCTL_MAGIC, 9)
-#endif
-
-#ifndef PIDFD_GET_UTS_NAMESPACE
-#define PIDFD_GET_UTS_NAMESPACE               _IO(PIDFS_IOCTL_MAGIC, 10)
-#endif
 
 enum {
 	PIDFD_NS_USER,
@@ -118,22 +72,6 @@ FIXTURE(current_nsset)
 	int child_pidfd_derived_nsfds2[PIDFD_NS_MAX];
 };
 
-static int sys_waitid(int which, pid_t pid, int options)
-{
-	return syscall(__NR_waitid, which, pid, NULL, options, NULL);
-}
-
-pid_t create_child(int *pidfd, unsigned flags)
-{
-	struct __clone_args args = {
-		.flags		= CLONE_PIDFD | flags,
-		.exit_signal	= SIGCHLD,
-		.pidfd		= ptr_to_u64(pidfd),
-	};
-
-	return sys_clone3(&args, sizeof(struct clone_args));
-}
-
 static bool switch_timens(void)
 {
 	int fd, ret;
@@ -148,28 +86,6 @@ static bool switch_timens(void)
 	ret = setns(fd, CLONE_NEWTIME);
 	close(fd);
 	return ret == 0;
-}
-
-static ssize_t read_nointr(int fd, void *buf, size_t count)
-{
-	ssize_t ret;
-
-	do {
-		ret = read(fd, buf, count);
-	} while (ret < 0 && errno == EINTR);
-
-	return ret;
-}
-
-static ssize_t write_nointr(int fd, const void *buf, size_t count)
-{
-	ssize_t ret;
-
-	do {
-		ret = write(fd, buf, count);
-	} while (ret < 0 && errno == EINTR);
-
-	return ret;
 }
 
 FIXTURE_SETUP(current_nsset)
@@ -229,7 +145,7 @@ FIXTURE_SETUP(current_nsset)
 		_exit(EXIT_SUCCESS);
 	}
 
-	ASSERT_EQ(sys_waitid(P_PID, self->child_pid_exited, WEXITED | WNOWAIT), 0);
+	ASSERT_EQ(sys_waitid(P_PID, self->child_pid_exited, NULL, WEXITED | WNOWAIT), 0);
 
 	self->pidfd = sys_pidfd_open(self->pid, 0);
 	EXPECT_GE(self->pidfd, 0) {
@@ -432,9 +348,9 @@ FIXTURE_TEARDOWN(current_nsset)
 		EXPECT_EQ(0, close(self->child_pidfd1));
 	if (self->child_pidfd2 >= 0)
 		EXPECT_EQ(0, close(self->child_pidfd2));
-	ASSERT_EQ(sys_waitid(P_PID, self->child_pid_exited, WEXITED), 0);
-	ASSERT_EQ(sys_waitid(P_PID, self->child_pid1, WEXITED), 0);
-	ASSERT_EQ(sys_waitid(P_PID, self->child_pid2, WEXITED), 0);
+	ASSERT_EQ(sys_waitid(P_PID, self->child_pid_exited, NULL, WEXITED), 0);
+	ASSERT_EQ(sys_waitid(P_PID, self->child_pid1, NULL, WEXITED), 0);
+	ASSERT_EQ(sys_waitid(P_PID, self->child_pid2, NULL, WEXITED), 0);
 }
 
 static int preserve_ns(const int pid, const char *ns)

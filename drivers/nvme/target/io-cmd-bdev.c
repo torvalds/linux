@@ -272,6 +272,9 @@ static void nvmet_bdev_execute_rw(struct nvmet_req *req)
 		iter_flags = SG_MITER_FROM_SG;
 	}
 
+	if (req->cmd->rw.control & cpu_to_le16(NVME_RW_LR))
+		opf |= REQ_FAILFAST_DEV;
+
 	if (is_pci_p2pdma_page(sg_page(req->sg)))
 		opf |= REQ_NOMERGE;
 

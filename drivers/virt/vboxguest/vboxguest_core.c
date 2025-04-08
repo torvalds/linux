@@ -495,7 +495,7 @@ static int vbg_heartbeat_init(struct vbg_dev *gdev)
  */
 static void vbg_heartbeat_exit(struct vbg_dev *gdev)
 {
-	del_timer_sync(&gdev->heartbeat_timer);
+	timer_delete_sync(&gdev->heartbeat_timer);
 	vbg_heartbeat_host_config(gdev, false);
 	vbg_req_free(gdev->guest_heartbeat_req,
 		     sizeof(*gdev->guest_heartbeat_req));

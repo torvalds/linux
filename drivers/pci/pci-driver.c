@@ -812,8 +812,7 @@ static int pci_pm_suspend(struct device *dev)
 	 * suspend callbacks can cope with runtime-suspended devices, it is
 	 * better to resume the device from runtime suspend here.
 	 */
-	if (!dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND) ||
-	    pci_dev_need_resume(pci_dev)) {
+	if (!dev_pm_smart_suspend(dev) || pci_dev_need_resume(pci_dev)) {
 		pm_runtime_resume(dev);
 		pci_dev->state_saved = false;
 	} else {
@@ -1151,8 +1150,7 @@ static int pci_pm_poweroff(struct device *dev)
 	}
 
 	/* The reason to do that is the same as in pci_pm_suspend(). */
-	if (!dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND) ||
-	    pci_dev_need_resume(pci_dev)) {
+	if (!dev_pm_smart_suspend(dev) || pci_dev_need_resume(pci_dev)) {
 		pm_runtime_resume(dev);
 		pci_dev->state_saved = false;
 	} else {
@@ -1653,7 +1651,8 @@ static int pci_dma_configure(struct device *dev)
 
 	pci_put_host_bridge_device(bridge);
 
-	if (!ret && !driver->driver_managed_dma) {
+	/* @driver may not be valid when we're called from the IOMMU layer */
+	if (!ret && dev->driver && !driver->driver_managed_dma) {
 		ret = iommu_device_use_default_domain(dev);
 		if (ret)
 			arch_teardown_dma_ops(dev);
@@ -1670,6 +1669,19 @@ static void pci_dma_cleanup(struct device *dev)
 		iommu_device_unuse_default_domain(dev);
 }
 
+/*
+ * pci_device_irq_get_affinity - get IRQ affinity mask for device
+ * @dev: ptr to dev structure
+ * @irq_vec: interrupt vector number
+ *
+ * Return the CPU affinity mask for @dev and @irq_vec.
+ */
+static const struct cpumask *pci_device_irq_get_affinity(struct device *dev,
+					unsigned int irq_vec)
+{
+	return pci_irq_get_affinity(to_pci_dev(dev), irq_vec);
+}
+
 const struct bus_type pci_bus_type = {
 	.name		= "pci",
 	.match		= pci_bus_match,
@@ -1677,6 +1689,7 @@ const struct bus_type pci_bus_type = {
 	.probe		= pci_device_probe,
 	.remove		= pci_device_remove,
 	.shutdown	= pci_device_shutdown,
+	.irq_get_affinity = pci_device_irq_get_affinity,
 	.dev_groups	= pci_dev_groups,
 	.bus_groups	= pci_bus_groups,
 	.drv_groups	= pci_drv_groups,

@@ -29,20 +29,11 @@ int bch2_dev_resize(struct bch_fs *, struct bch_dev *, u64);
 struct bch_dev *bch2_dev_lookup(struct bch_fs *, const char *);
 
 bool bch2_fs_emergency_read_only(struct bch_fs *);
+bool bch2_fs_emergency_read_only_locked(struct bch_fs *);
 void bch2_fs_read_only(struct bch_fs *);
 
 int bch2_fs_read_write(struct bch_fs *);
 int bch2_fs_read_write_early(struct bch_fs *);
-
-/*
- * Only for use in the recovery/fsck path:
- */
-static inline void bch2_fs_lazy_rw(struct bch_fs *c)
-{
-	if (!test_bit(BCH_FS_rw, &c->flags) &&
-	    !test_bit(BCH_FS_was_rw, &c->flags))
-		bch2_fs_read_write_early(c);
-}
 
 void __bch2_fs_stop(struct bch_fs *);
 void bch2_fs_free(struct bch_fs *);
@@ -50,5 +41,7 @@ void bch2_fs_stop(struct bch_fs *);
 
 int bch2_fs_start(struct bch_fs *);
 struct bch_fs *bch2_fs_open(char * const *, unsigned, struct bch_opts);
+
+extern const struct blk_holder_ops bch2_sb_handle_bdev_ops;
 
 #endif /* _BCACHEFS_SUPER_H */

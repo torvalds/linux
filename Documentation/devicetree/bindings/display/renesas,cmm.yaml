@@ -58,10 +58,10 @@ examples:
     #include <dt-bindings/power/r8a7796-sysc.h>
 
     cmm0: cmm@fea40000 {
-         compatible = "renesas,r8a7796-cmm",
-                      "renesas,rcar-gen3-cmm";
-         reg = <0xfea40000 0x1000>;
-         power-domains = <&sysc R8A7796_PD_ALWAYS_ON>;
-         clocks = <&cpg CPG_MOD 711>;
-         resets = <&cpg 711>;
+        compatible = "renesas,r8a7796-cmm",
+                     "renesas,rcar-gen3-cmm";
+        reg = <0xfea40000 0x1000>;
+        power-domains = <&sysc R8A7796_PD_ALWAYS_ON>;
+        clocks = <&cpg CPG_MOD 711>;
+        resets = <&cpg 711>;
     };

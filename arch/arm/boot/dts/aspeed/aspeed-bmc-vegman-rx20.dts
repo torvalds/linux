@@ -154,7 +154,7 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <7>;
-					at24@50 {
+					eeprom@50 {
 						compatible = "atmel,24c64";
 						reg = <0x50>;
 						pagesize = <32>;
@@ -196,7 +196,7 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <7>;
-					at24@50 {
+					eeprom@50 {
 						compatible = "atmel,24c64";
 						reg = <0x50>;
 						pagesize = <32>;
@@ -205,7 +205,7 @@
 					};
 				};
 			};
-			at24@50 {
+			eeprom@50 {
 				compatible = "atmel,24c64";
 				reg = <0x50>;
 				pagesize = <32>;

@@ -61,13 +61,26 @@ properties:
       - description: serial audio input 2
         maxItems: 1
 
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    patternProperties:
+      '^port@[0-1]':
+        $ref: audio-graph-port.yaml#
+        unevaluatedProperties: false
+        description: Input port from SAI TX
+
+    properties:
+      port@2:
+        $ref: audio-graph-port.yaml#
+        unevaluatedProperties: false
+        description: Output port to SAI RX
+
 required:
   - compatible
   - reg
   - clocks
   - clock-names
   - power-domains
-  - dais
 
 unevaluatedProperties: false
 
@@ -80,4 +93,50 @@ examples:
       clock-names = "ipg";
       power-domains = <&pd_audmix>;
       dais = <&sai4>, <&sai5>;
+
+      ports {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        port@0 {
+          reg = <0>;
+          playback-only;
+
+          amix_endpoint0: endpoint {
+            dai-tdm-slot-num = <8>;
+            dai-tdm-slot-width = <32>;
+            dai-tdm-slot-width-map = <32 8 32>;
+            dai-format = "dsp_a";
+            remote-endpoint = <&be00_ep>;
+          };
+        };
+
+        port@1 {
+          reg = <1>;
+          playback-only;
+
+          amix_endpoint1: endpoint {
+            dai-tdm-slot-num = <8>;
+            dai-tdm-slot-width = <32>;
+            dai-tdm-slot-width-map = <32 8 32>;
+            dai-format = "dsp_a";
+            remote-endpoint = <&be01_ep>;
+          };
+        };
+
+        port@2 {
+          reg = <2>;
+          capture-only;
+
+          amix_endpoint2: endpoint {
+            dai-tdm-slot-num = <8>;
+            dai-tdm-slot-width = <32>;
+            dai-tdm-slot-width-map = <32 8 32>;
+            dai-format = "dsp_a";
+            bitclock-master;
+            frame-master;
+            remote-endpoint = <&be02_ep>;
+          };
+        };
+      };
     };

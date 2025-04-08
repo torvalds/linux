@@ -28,6 +28,7 @@ properties:
               - nvidia,tegra186-hda
               - nvidia,tegra210-hda
               - nvidia,tegra124-hda
+              - nvidia,tegra114-hda
           - const: nvidia,tegra30-hda
       - items:
           - const: nvidia,tegra132-hda

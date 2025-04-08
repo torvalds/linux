@@ -54,6 +54,11 @@ patternProperties:
           (i.e. idle states node with entry-method property is set to "psci")
           must specify this property.
 
+      idle-state-name:
+        $ref: /schemas/types.yaml#/definitions/string
+        description:
+          A string used as a descriptive name for the idle state.
+
     required:
       - compatible
       - entry-latency-us

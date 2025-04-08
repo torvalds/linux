@@ -7,6 +7,7 @@
 #include <linux/cpu.h>
 #include <linux/irq.h>
 
+#include <asm/cpuid.h>
 #include <asm/irq_remapping.h>
 #include <asm/hpet.h>
 #include <asm/time.h>
@@ -516,22 +517,14 @@ static int hpet_msi_init(struct irq_domain *domain,
 			 struct msi_domain_info *info, unsigned int virq,
 			 irq_hw_number_t hwirq, msi_alloc_info_t *arg)
 {
-	irq_set_status_flags(virq, IRQ_MOVE_PCNTXT);
 	irq_domain_set_info(domain, virq, arg->hwirq, info->chip, NULL,
 			    handle_edge_irq, arg->data, "edge");
 
 	return 0;
 }
 
-static void hpet_msi_free(struct irq_domain *domain,
-			  struct msi_domain_info *info, unsigned int virq)
-{
-	irq_clear_status_flags(virq, IRQ_MOVE_PCNTXT);
-}
-
 static struct msi_domain_ops hpet_msi_domain_ops = {
 	.msi_init	= hpet_msi_init,
-	.msi_free	= hpet_msi_free,
 };
 
 static struct msi_domain_info hpet_msi_domain_info = {
@@ -927,10 +920,7 @@ static bool __init mwait_pc10_supported(void)
 	if (!cpu_feature_enabled(X86_FEATURE_MWAIT))
 		return false;
 
-	if (boot_cpu_data.cpuid_level < CPUID_MWAIT_LEAF)
-		return false;
-
-	cpuid(CPUID_MWAIT_LEAF, &eax, &ebx, &ecx, &mwait_substates);
+	cpuid(CPUID_LEAF_MWAIT, &eax, &ebx, &ecx, &mwait_substates);
 
 	return (ecx & CPUID5_ECX_EXTENSIONS_SUPPORTED) &&
 	       (ecx & CPUID5_ECX_INTERRUPT_BREAK) &&
@@ -1391,12 +1381,6 @@ int hpet_set_periodic_freq(unsigned long freq)
 	return 1;
 }
 EXPORT_SYMBOL_GPL(hpet_set_periodic_freq);
-
-int hpet_rtc_dropped_irq(void)
-{
-	return is_hpet_enabled();
-}
-EXPORT_SYMBOL_GPL(hpet_rtc_dropped_irq);
 
 static void hpet_rtc_timer_reinit(void)
 {

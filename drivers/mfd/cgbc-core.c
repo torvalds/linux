@@ -96,7 +96,7 @@ static int cgbc_session_command(struct cgbc_device_data *cgbc, u8 cmd)
 
 static int cgbc_session_request(struct cgbc_device_data *cgbc)
 {
-	unsigned int ret;
+	int ret;
 
 	ret = cgbc_wait_device(cgbc);
 
@@ -236,6 +236,7 @@ static struct mfd_cell cgbc_devs[] = {
 	{ .name = "cgbc-gpio"	},
 	{ .name = "cgbc-i2c", .id = 1 },
 	{ .name = "cgbc-i2c", .id = 2 },
+	{ .name = "cgbc-hwmon"	},
 };
 
 static int cgbc_map(struct cgbc_device_data *cgbc)
@@ -382,6 +383,13 @@ static const struct dmi_system_id cgbc_dmi_table[] __initconst = {
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "congatec"),
 			DMI_MATCH(DMI_BOARD_NAME, "conga-SA7"),
+		},
+	},
+	{
+		.ident = "SA8",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "congatec"),
+			DMI_MATCH(DMI_BOARD_NAME, "conga-SA8"),
 		},
 	},
 	{}

@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/regulator/consumer.h>
+#include <linux/string_choices.h>
 #include <linux/usb/role.h>
 
 #define USB_GPIO_DEB_MS		20	/* ms */
@@ -111,7 +112,7 @@ static void usb_conn_detect_cable(struct work_struct *work)
 
 	if (info->vbus)
 		dev_dbg(info->dev, "vbus regulator is %s\n",
-			regulator_is_enabled(info->vbus) ? "enabled" : "disabled");
+			str_enabled_disabled(regulator_is_enabled(info->vbus)));
 
 	power_supply_changed(info->charger);
 }
@@ -157,7 +158,7 @@ static int usb_conn_psy_register(struct usb_conn_info *info)
 	struct device *dev = info->dev;
 	struct power_supply_desc *desc = &info->desc;
 	struct power_supply_config cfg = {
-		.of_node = dev->of_node,
+		.fwnode = dev_fwnode(dev),
 	};
 
 	desc->name = "usb-charger";

@@ -1599,7 +1599,7 @@ static void bnx2fc_interface_cleanup(struct bnx2fc_interface *interface)
 	struct bnx2fc_hba *hba = interface->hba;
 
 	/* Stop the transmit retry timer */
-	del_timer_sync(&port->timer);
+	timer_delete_sync(&port->timer);
 
 	/* Free existing transmit skbs */
 	fcoe_clean_pending_queue(lport);
@@ -1938,7 +1938,7 @@ static void bnx2fc_fw_destroy(struct bnx2fc_hba *hba)
 			if (signal_pending(current))
 				flush_signals(current);
 
-			del_timer_sync(&hba->destroy_timer);
+			timer_delete_sync(&hba->destroy_timer);
 		}
 		bnx2fc_unbind_adapter_devices(hba);
 	}
@@ -2610,14 +2610,11 @@ static int bnx2fc_cpu_online(unsigned int cpu)
 
 	p = &per_cpu(bnx2fc_percpu, cpu);
 
-	thread = kthread_create_on_node(bnx2fc_percpu_io_thread,
-					(void *)p, cpu_to_node(cpu),
-					"bnx2fc_thread/%d", cpu);
+	thread = kthread_create_on_cpu(bnx2fc_percpu_io_thread,
+				       (void *)p, cpu, "bnx2fc_thread/%d");
 	if (IS_ERR(thread))
 		return PTR_ERR(thread);
 
-	/* bind thread to the cpu */
-	kthread_bind(thread, cpu);
 	p->iothread = thread;
 	wake_up_process(thread);
 	return 0;
@@ -2652,7 +2649,8 @@ static int bnx2fc_cpu_offline(unsigned int cpu)
 	return 0;
 }
 
-static int bnx2fc_slave_configure(struct scsi_device *sdev)
+static int bnx2fc_sdev_configure(struct scsi_device *sdev,
+				 struct queue_limits *lim)
 {
 	if (!bnx2fc_queue_depth)
 		return 0;
@@ -2951,7 +2949,7 @@ static struct scsi_host_template bnx2fc_shost_template = {
 	.eh_device_reset_handler = bnx2fc_eh_device_reset, /* lun reset */
 	.eh_target_reset_handler = bnx2fc_eh_target_reset, /* tgt reset */
 	.eh_host_reset_handler	= fc_eh_host_reset,
-	.slave_alloc		= fc_slave_alloc,
+	.sdev_init		= fc_sdev_init,
 	.change_queue_depth	= scsi_change_queue_depth,
 	.this_id		= -1,
 	.cmd_per_lun		= 3,
@@ -2959,7 +2957,7 @@ static struct scsi_host_template bnx2fc_shost_template = {
 	.dma_boundary           = 0x7fff,
 	.max_sectors		= 0x3fbf,
 	.track_queue_depth	= 1,
-	.slave_configure	= bnx2fc_slave_configure,
+	.sdev_configure		= bnx2fc_sdev_configure,
 	.shost_groups		= bnx2fc_host_groups,
 	.cmd_size		= sizeof(struct bnx2fc_priv),
 };

@@ -4,6 +4,7 @@
  */
 
 #include <linux/debugfs.h>
+#include <linux/fault-inject.h>
 
 #include <drm/drm_debugfs.h>
 #include <drm/drm_file.h>
@@ -397,6 +398,88 @@ static int dct_active_set(void *data, u64 active_percent)
 
 DEFINE_DEBUGFS_ATTRIBUTE(ivpu_dct_fops, dct_active_get, dct_active_set, "%llu\n");
 
+static int priority_bands_show(struct seq_file *s, void *v)
+{
+	struct ivpu_device *vdev = s->private;
+	struct ivpu_hw_info *hw = vdev->hw;
+
+	for (int band = VPU_JOB_SCHEDULING_PRIORITY_BAND_IDLE;
+	     band < VPU_JOB_SCHEDULING_PRIORITY_BAND_COUNT; band++) {
+		switch (band) {
+		case VPU_JOB_SCHEDULING_PRIORITY_BAND_IDLE:
+			seq_puts(s, "Idle:     ");
+			break;
+
+		case VPU_JOB_SCHEDULING_PRIORITY_BAND_NORMAL:
+			seq_puts(s, "Normal:   ");
+			break;
+
+		case VPU_JOB_SCHEDULING_PRIORITY_BAND_FOCUS:
+			seq_puts(s, "Focus:    ");
+			break;
+
+		case VPU_JOB_SCHEDULING_PRIORITY_BAND_REALTIME:
+			seq_puts(s, "Realtime: ");
+			break;
+		}
+
+		seq_printf(s, "grace_period %9u process_grace_period %9u process_quantum %9u\n",
+			   hw->hws.grace_period[band], hw->hws.process_grace_period[band],
+			   hw->hws.process_quantum[band]);
+	}
+
+	return 0;
+}
+
+static int priority_bands_fops_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, priority_bands_show, inode->i_private);
+}
+
+static ssize_t
+priority_bands_fops_write(struct file *file, const char __user *user_buf, size_t size, loff_t *pos)
+{
+	struct seq_file *s = file->private_data;
+	struct ivpu_device *vdev = s->private;
+	char buf[64];
+	u32 grace_period;
+	u32 process_grace_period;
+	u32 process_quantum;
+	u32 band;
+	int ret;
+
+	if (size >= sizeof(buf))
+		return -EINVAL;
+
+	ret = simple_write_to_buffer(buf, sizeof(buf) - 1, pos, user_buf, size);
+	if (ret < 0)
+		return ret;
+
+	buf[size] = '\0';
+	ret = sscanf(buf, "%u %u %u %u", &band, &grace_period, &process_grace_period,
+		     &process_quantum);
+	if (ret != 4)
+		return -EINVAL;
+
+	if (band >= VPU_JOB_SCHEDULING_PRIORITY_BAND_COUNT)
+		return -EINVAL;
+
+	vdev->hw->hws.grace_period[band] = grace_period;
+	vdev->hw->hws.process_grace_period[band] = process_grace_period;
+	vdev->hw->hws.process_quantum[band] = process_quantum;
+
+	return size;
+}
+
+static const struct file_operations ivpu_hws_priority_bands_fops = {
+	.owner = THIS_MODULE,
+	.open = priority_bands_fops_open,
+	.write = priority_bands_fops_write,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 void ivpu_debugfs_init(struct ivpu_device *vdev)
 {
 	struct dentry *debugfs_root = vdev->drm.debugfs_root;
@@ -419,6 +502,8 @@ void ivpu_debugfs_init(struct ivpu_device *vdev)
 			    &fw_trace_hw_comp_mask_fops);
 	debugfs_create_file("fw_trace_level", 0200, debugfs_root, vdev,
 			    &fw_trace_level_fops);
+	debugfs_create_file("hws_priority_bands", 0200, debugfs_root, vdev,
+			    &ivpu_hws_priority_bands_fops);
 
 	debugfs_create_file("reset_engine", 0200, debugfs_root, vdev,
 			    &ivpu_reset_engine_fops);
@@ -430,4 +515,8 @@ void ivpu_debugfs_init(struct ivpu_device *vdev)
 				    debugfs_root, vdev, &fw_profiling_freq_fops);
 		debugfs_create_file("dct", 0644, debugfs_root, vdev, &ivpu_dct_fops);
 	}
+
+#ifdef CONFIG_FAULT_INJECTION
+	fault_create_debugfs_attr("fail_hw", debugfs_root, &ivpu_hw_failure);
+#endif
 }

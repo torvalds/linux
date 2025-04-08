@@ -77,39 +77,34 @@ static bool efivarfs_valid_name(const char *str, int len)
 static int efivarfs_create(struct mnt_idmap *idmap, struct inode *dir,
 			   struct dentry *dentry, umode_t mode, bool excl)
 {
-	struct efivarfs_fs_info *info = dir->i_sb->s_fs_info;
 	struct inode *inode = NULL;
 	struct efivar_entry *var;
 	int namelen, i = 0, err = 0;
 	bool is_removable = false;
+	efi_guid_t vendor;
 
 	if (!efivarfs_valid_name(dentry->d_name.name, dentry->d_name.len))
 		return -EINVAL;
 
-	var = kzalloc(sizeof(struct efivar_entry), GFP_KERNEL);
-	if (!var)
-		return -ENOMEM;
-
 	/* length of the variable name itself: remove GUID and separator */
 	namelen = dentry->d_name.len - EFI_VARIABLE_GUID_LEN - 1;
 
-	err = guid_parse(dentry->d_name.name + namelen + 1, &var->var.VendorGuid);
+	err = guid_parse(dentry->d_name.name + namelen + 1, &vendor);
 	if (err)
-		goto out;
-	if (guid_equal(&var->var.VendorGuid, &LINUX_EFI_RANDOM_SEED_TABLE_GUID)) {
-		err = -EPERM;
-		goto out;
-	}
+		return err;
+	if (guid_equal(&vendor, &LINUX_EFI_RANDOM_SEED_TABLE_GUID))
+		return -EPERM;
 
-	if (efivar_variable_is_removable(var->var.VendorGuid,
+	if (efivar_variable_is_removable(vendor,
 					 dentry->d_name.name, namelen))
 		is_removable = true;
 
 	inode = efivarfs_get_inode(dir->i_sb, dir, mode, 0, is_removable);
-	if (!inode) {
-		err = -ENOMEM;
-		goto out;
-	}
+	if (!inode)
+		return -ENOMEM;
+	var = efivar_entry(inode);
+
+	var->var.VendorGuid = vendor;
 
 	for (i = 0; i < namelen; i++)
 		var->var.VariableName[i] = dentry->d_name.name[i];
@@ -117,21 +112,11 @@ static int efivarfs_create(struct mnt_idmap *idmap, struct inode *dir,
 	var->var.VariableName[i] = '\0';
 
 	inode->i_private = var;
-	kmemleak_ignore(var);
-
-	err = efivar_entry_add(var, &info->efivarfs_list);
-	if (err)
-		goto out;
 
 	d_instantiate(dentry, inode);
 	dget(dentry);
-out:
-	if (err) {
-		kfree(var);
-		if (inode)
-			iput(inode);
-	}
-	return err;
+
+	return 0;
 }
 
 static int efivarfs_unlink(struct inode *dir, struct dentry *dentry)
@@ -187,7 +172,24 @@ efivarfs_fileattr_set(struct mnt_idmap *idmap,
 	return 0;
 }
 
+/* copy of simple_setattr except that it doesn't do i_size updates */
+static int efivarfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+		   struct iattr *iattr)
+{
+	struct inode *inode = d_inode(dentry);
+	int error;
+
+	error = setattr_prepare(idmap, dentry, iattr);
+	if (error)
+		return error;
+
+	setattr_copy(idmap, inode, iattr);
+	mark_inode_dirty(inode);
+	return 0;
+}
+
 static const struct inode_operations efivarfs_file_inode_operations = {
 	.fileattr_get = efivarfs_fileattr_get,
 	.fileattr_set = efivarfs_fileattr_set,
+	.setattr      = efivarfs_setattr,
 };

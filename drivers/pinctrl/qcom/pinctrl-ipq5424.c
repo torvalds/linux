@@ -233,7 +233,10 @@ enum ipq5424_functions {
 	msm_mux_sdc_clk,
 	msm_mux_sdc_cmd,
 	msm_mux_sdc_data,
-	msm_mux_spi0,
+	msm_mux_spi0_clk,
+	msm_mux_spi0_cs,
+	msm_mux_spi0_miso,
+	msm_mux_spi0_mosi,
 	msm_mux_spi1,
 	msm_mux_spi10,
 	msm_mux_spi11,
@@ -297,8 +300,8 @@ static const char * const qspi_clk_groups[] = {
 	"gpio5",
 };
 
-static const char * const spi0_groups[] = {
-	"gpio6", "gpio7", "gpio8", "gpio9",
+static const char * const spi0_clk_groups[] = {
+	"gpio6",
 };
 
 static const char * const pwm1_groups[] = {
@@ -315,12 +318,24 @@ static const char * const qdss_tracedata_a_groups[] = {
 	"gpio38", "gpio39",
 };
 
+static const char * const spi0_cs_groups[] = {
+	"gpio7",
+};
+
 static const char * const cri_trng1_groups[] = {
 	"gpio7",
 };
 
+static const char * const spi0_miso_groups[] = {
+	"gpio8",
+};
+
 static const char * const cri_trng2_groups[] = {
 	"gpio8",
+};
+
+static const char * const spi0_mosi_groups[] = {
+	"gpio9",
 };
 
 static const char * const cri_trng3_groups[] = {
@@ -680,7 +695,10 @@ static const struct pinfunction ipq5424_functions[] = {
 	MSM_PIN_FUNCTION(sdc_clk),
 	MSM_PIN_FUNCTION(sdc_cmd),
 	MSM_PIN_FUNCTION(sdc_data),
-	MSM_PIN_FUNCTION(spi0),
+	MSM_PIN_FUNCTION(spi0_clk),
+	MSM_PIN_FUNCTION(spi0_cs),
+	MSM_PIN_FUNCTION(spi0_miso),
+	MSM_PIN_FUNCTION(spi0_mosi),
 	MSM_PIN_FUNCTION(spi1),
 	MSM_PIN_FUNCTION(spi10),
 	MSM_PIN_FUNCTION(spi11),
@@ -700,10 +718,10 @@ static const struct msm_pingroup ipq5424_groups[] = {
 	PINGROUP(3, sdc_data, qspi_data, pwm2, _, _, _, _, _, _),
 	PINGROUP(4, sdc_cmd, qspi_cs, _, _, _, _, _, _, _),
 	PINGROUP(5, sdc_clk, qspi_clk, _, _, _, _, _, _, _),
-	PINGROUP(6, spi0, pwm1, _, cri_trng0, qdss_tracedata_a, _, _, _, _),
-	PINGROUP(7, spi0, pwm1, _, cri_trng1, qdss_tracedata_a, _, _, _, _),
-	PINGROUP(8, spi0, pwm1, wci_txd, wci_rxd, _, cri_trng2, qdss_tracedata_a, _, _),
-	PINGROUP(9, spi0, pwm1, _, cri_trng3, qdss_tracedata_a, _, _, _, _),
+	PINGROUP(6, spi0_clk, pwm1, _, cri_trng0, qdss_tracedata_a, _, _, _, _),
+	PINGROUP(7, spi0_cs, pwm1, _, cri_trng1, qdss_tracedata_a, _, _, _, _),
+	PINGROUP(8, spi0_miso, pwm1, wci_txd, wci_rxd, _, cri_trng2, qdss_tracedata_a, _, _),
+	PINGROUP(9, spi0_mosi, pwm1, _, cri_trng3, qdss_tracedata_a, _, _, _, _),
 	PINGROUP(10, uart0, pwm0, spi11, _, wci_txd, wci_rxd, _, qdss_tracedata_a, _),
 	PINGROUP(11, uart0, pwm0, spi1, _, wci_txd, wci_rxd, _, qdss_tracedata_a, _),
 	PINGROUP(12, uart0, pwm0, spi11, _, prng_rosc0, qdss_tracedata_a, _, _, _),

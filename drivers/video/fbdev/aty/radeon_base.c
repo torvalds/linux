@@ -1082,7 +1082,7 @@ int radeon_screen_blank(struct radeonfb_info *rinfo, int blank, int mode_switch)
 		}
 		break;
 	case MT_LCD:
-		del_timer_sync(&rinfo->lvds_timer);
+		timer_delete_sync(&rinfo->lvds_timer);
 		val = INREG(LVDS_GEN_CNTL);
 		if (unblank) {
 			u32 target_val = (val & ~LVDS_DISPLAY_DIS) | LVDS_BLON | LVDS_ON
@@ -2199,7 +2199,7 @@ static ssize_t radeon_show_one_edid(char *buf, loff_t off, size_t count, const u
 
 
 static ssize_t radeon_show_edid1(struct file *filp, struct kobject *kobj,
-				 struct bin_attribute *bin_attr,
+				 const struct bin_attribute *bin_attr,
 				 char *buf, loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -2211,7 +2211,7 @@ static ssize_t radeon_show_edid1(struct file *filp, struct kobject *kobj,
 
 
 static ssize_t radeon_show_edid2(struct file *filp, struct kobject *kobj,
-				 struct bin_attribute *bin_attr,
+				 const struct bin_attribute *bin_attr,
 				 char *buf, loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -2227,7 +2227,7 @@ static const struct bin_attribute edid1_attr = {
 		.mode	= 0444,
 	},
 	.size	= EDID_LENGTH,
-	.read	= radeon_show_edid1,
+	.read_new	= radeon_show_edid1,
 };
 
 static const struct bin_attribute edid2_attr = {
@@ -2236,7 +2236,7 @@ static const struct bin_attribute edid2_attr = {
 		.mode	= 0444,
 	},
 	.size	= EDID_LENGTH,
-	.read	= radeon_show_edid2,
+	.read_new	= radeon_show_edid2,
 };
 
 static int radeonfb_pci_register(struct pci_dev *pdev,
@@ -2516,7 +2516,7 @@ static void radeonfb_pci_unregister(struct pci_dev *pdev)
 	if (rinfo->mon2_EDID)
 		sysfs_remove_bin_file(&rinfo->pdev->dev.kobj, &edid2_attr);
 
-	del_timer_sync(&rinfo->lvds_timer);
+	timer_delete_sync(&rinfo->lvds_timer);
 	arch_phys_wc_del(rinfo->wc_cookie);
         radeonfb_bl_exit(rinfo);
 	unregister_framebuffer(info);

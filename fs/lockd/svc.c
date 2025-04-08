@@ -41,6 +41,7 @@
 
 #include "netns.h"
 #include "procfs.h"
+#include "netlink.h"
 
 #define NLMDBG_FACILITY		NLMDBG_SVC
 #define LOCKD_BUFSIZE		(1024 + NLMSVC_XDRSIZE)
@@ -70,9 +71,6 @@ static unsigned long		nlm_grace_period;
 unsigned long			nlm_timeout = LOCKD_DFLT_TIMEO;
 static int			nlm_udpport, nlm_tcpport;
 
-/* RLIM_NOFILE defaults to 1024. That seems like a reasonable default here. */
-static unsigned int		nlm_max_connections = 1024;
-
 /*
  * Constants needed for the sysctl interface.
  */
@@ -86,8 +84,14 @@ static const int		nlm_port_min = 0, nlm_port_max = 65535;
 static struct ctl_table_header * nlm_sysctl_table;
 #endif
 
-static unsigned long get_lockd_grace_period(void)
+static unsigned long get_lockd_grace_period(struct net *net)
 {
+	struct lockd_net *ln = net_generic(net, lockd_net_id);
+
+	/* Return the net-ns specific grace period, if there is one */
+	if (ln->gracetime)
+		return ln->gracetime * HZ;
+
 	/* Note: nlm_timeout should always be nonzero */
 	if (nlm_grace_period)
 		return roundup(nlm_grace_period, nlm_timeout) * HZ;
@@ -106,7 +110,7 @@ static void grace_ender(struct work_struct *grace)
 
 static void set_grace_period(struct net *net)
 {
-	unsigned long grace_period = get_lockd_grace_period();
+	unsigned long grace_period = get_lockd_grace_period(net);
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
 
 	locks_start_grace(net, &ln->lockd_manager);
@@ -136,9 +140,6 @@ lockd(void *vrqstp)
 	 * NFS mount or NFS daemon has gone away.
 	 */
 	while (!svc_thread_should_stop(rqstp)) {
-		/* update sv_maxconn if it has changed */
-		rqstp->rq_server->sv_maxconn = nlm_max_connections;
-
 		nlmsvc_retry_blocked(rqstp);
 		svc_recv(rqstp);
 	}
@@ -172,15 +173,16 @@ static int create_lockd_listener(struct svc_serv *serv, const char *name,
 static int create_lockd_family(struct svc_serv *serv, struct net *net,
 			       const int family, const struct cred *cred)
 {
+	struct lockd_net *ln = net_generic(net, lockd_net_id);
 	int err;
 
-	err = create_lockd_listener(serv, "udp", net, family, nlm_udpport,
-			cred);
+	err = create_lockd_listener(serv, "udp", net, family,
+				    ln->udp_port ? ln->udp_port : nlm_udpport, cred);
 	if (err < 0)
 		return err;
 
-	return create_lockd_listener(serv, "tcp", net, family, nlm_tcpport,
-			cred);
+	return create_lockd_listener(serv, "tcp", net, family,
+				     ln->tcp_port ? ln->tcp_port : nlm_tcpport, cred);
 }
 
 /*
@@ -340,7 +342,6 @@ static int lockd_get(void)
 		return -ENOMEM;
 	}
 
-	serv->sv_maxconn = nlm_max_connections;
 	error = svc_set_num_threads(serv, NULL, 1);
 	if (error < 0) {
 		svc_destroy(&serv);
@@ -419,7 +420,7 @@ EXPORT_SYMBOL_GPL(lockd_down);
  * Sysctl parameters (same as module parameters, different interface).
  */
 
-static struct ctl_table nlm_sysctls[] = {
+static const struct ctl_table nlm_sysctls[] = {
 	{
 		.procname	= "nlm_grace_period",
 		.data		= &nlm_grace_period,
@@ -466,9 +467,10 @@ static struct ctl_table nlm_sysctls[] = {
 	{
 		.procname	= "nsm_local_state",
 		.data		= &nsm_local_state,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(nsm_local_state),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.proc_handler	= proc_douintvec,
+		.extra1		= SYSCTL_ZERO,
 	},
 };
 
@@ -542,7 +544,6 @@ module_param_call(nlm_udpport, param_set_port, param_get_int,
 module_param_call(nlm_tcpport, param_set_port, param_get_int,
 		  &nlm_tcpport, 0644);
 module_param(nsm_use_hostnames, bool, 0644);
-module_param(nlm_max_connections, uint, 0644);
 
 static int lockd_init_net(struct net *net)
 {
@@ -596,6 +597,10 @@ static int __init init_nlm(void)
 	if (err)
 		goto err_pernet;
 
+	err = genl_register_family(&lockd_nl_family);
+	if (err)
+		goto err_netlink;
+
 	err = lockd_create_procfs();
 	if (err)
 		goto err_procfs;
@@ -603,6 +608,8 @@ static int __init init_nlm(void)
 	return 0;
 
 err_procfs:
+	genl_unregister_family(&lockd_nl_family);
+err_netlink:
 	unregister_pernet_subsys(&lockd_net_ops);
 err_pernet:
 #ifdef CONFIG_SYSCTL
@@ -616,6 +623,7 @@ static void __exit exit_nlm(void)
 {
 	/* FIXME: delete all NLM clients */
 	nlm_shutdown_hosts();
+	genl_unregister_family(&lockd_nl_family);
 	lockd_remove_procfs();
 	unregister_pernet_subsys(&lockd_net_ops);
 #ifdef CONFIG_SYSCTL
@@ -718,3 +726,94 @@ static struct svc_program	nlmsvc_program = {
 	.pg_init_request	= svc_generic_init_request,
 	.pg_rpcbind_set		= svc_generic_rpcbind_set,
 };
+
+/**
+ * lockd_nl_server_set_doit - set the lockd server parameters via netlink
+ * @skb: reply buffer
+ * @info: netlink metadata and command arguments
+ *
+ * This updates the per-net values. When updating the values in the init_net
+ * namespace, also update the "legacy" global values.
+ *
+ * Return 0 on success or a negative errno.
+ */
+int lockd_nl_server_set_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	struct net *net = genl_info_net(info);
+	struct lockd_net *ln = net_generic(net, lockd_net_id);
+	const struct nlattr *attr;
+
+	if (GENL_REQ_ATTR_CHECK(info, LOCKD_A_SERVER_GRACETIME))
+		return -EINVAL;
+
+	if (info->attrs[LOCKD_A_SERVER_GRACETIME] ||
+	    info->attrs[LOCKD_A_SERVER_TCP_PORT] ||
+	    info->attrs[LOCKD_A_SERVER_UDP_PORT]) {
+		attr = info->attrs[LOCKD_A_SERVER_GRACETIME];
+		if (attr) {
+			u32 gracetime = nla_get_u32(attr);
+
+			if (gracetime > nlm_grace_period_max)
+				return -EINVAL;
+
+			ln->gracetime = gracetime;
+
+			if (net == &init_net)
+				nlm_grace_period = gracetime;
+		}
+
+		attr = info->attrs[LOCKD_A_SERVER_TCP_PORT];
+		if (attr) {
+			ln->tcp_port = nla_get_u16(attr);
+			if (net == &init_net)
+				nlm_tcpport = ln->tcp_port;
+		}
+
+		attr = info->attrs[LOCKD_A_SERVER_UDP_PORT];
+		if (attr) {
+			ln->udp_port = nla_get_u16(attr);
+			if (net == &init_net)
+				nlm_udpport = ln->udp_port;
+		}
+	}
+	return 0;
+}
+
+/**
+ * lockd_nl_server_get_doit - get lockd server parameters via netlink
+ * @skb: reply buffer
+ * @info: netlink metadata and command arguments
+ *
+ * Return 0 on success or a negative errno.
+ */
+int lockd_nl_server_get_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	struct net *net = genl_info_net(info);
+	struct lockd_net *ln = net_generic(net, lockd_net_id);
+	void *hdr;
+	int err;
+
+	skb = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+
+	hdr = genlmsg_iput(skb, info);
+	if (!hdr) {
+		err = -EMSGSIZE;
+		goto err_free_msg;
+	}
+
+	err = nla_put_u32(skb, LOCKD_A_SERVER_GRACETIME, ln->gracetime) ||
+	      nla_put_u16(skb, LOCKD_A_SERVER_TCP_PORT, ln->tcp_port) ||
+	      nla_put_u16(skb, LOCKD_A_SERVER_UDP_PORT, ln->udp_port);
+	if (err)
+		goto err_free_msg;
+
+	genlmsg_end(skb, hdr);
+
+	return genlmsg_reply(skb, info);
+err_free_msg:
+	nlmsg_free(skb);
+
+	return err;
+}

@@ -126,15 +126,6 @@ static inline void debugfs_rx(struct ser_device *ser, const u8 *data, int size)
 	ser->rx_blob.data = ser->rx_data;
 	ser->rx_blob.size = size;
 }
-
-static inline void debugfs_tx(struct ser_device *ser, const u8 *data, int size)
-{
-	if (size > sizeof(ser->tx_data))
-		size = sizeof(ser->tx_data);
-	memcpy(ser->tx_data, data, size);
-	ser->tx_blob.data = ser->tx_data;
-	ser->tx_blob.size = size;
-}
 #else
 static inline void debugfs_init(struct ser_device *ser, struct tty_struct *tty)
 {
@@ -151,11 +142,6 @@ static inline void update_tty_status(struct ser_device *ser)
 static inline void debugfs_rx(struct ser_device *ser, const u8 *data, int size)
 {
 }
-
-static inline void debugfs_tx(struct ser_device *ser, const u8 *data, int size)
-{
-}
-
 #endif
 
 static void ldisc_receive(struct tty_struct *tty, const u8 *data,
@@ -344,7 +330,7 @@ static int ldisc_open(struct tty_struct *tty)
 	ser->tty = tty_kref_get(tty);
 	ser->dev = dev;
 	debugfs_init(ser, tty);
-	tty->receive_room = N_TTY_BUF_SIZE;
+	tty->receive_room = 4096;
 	tty->disc_data = ser;
 	set_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 	rtnl_lock();

@@ -87,7 +87,7 @@ int __init xtensa_pic_init_legacy(struct device_node *interrupt_parent)
 	struct irq_domain *root_domain =
 		irq_domain_add_legacy(NULL, NR_IRQS - 1, 1, 0,
 				&xtensa_irq_domain_ops, &xtensa_irq_chip);
-	irq_set_default_host(root_domain);
+	irq_set_default_domain(root_domain);
 	return 0;
 }
 
@@ -97,7 +97,7 @@ static int __init xtensa_pic_init(struct device_node *np,
 	struct irq_domain *root_domain =
 		irq_domain_add_linear(np, NR_IRQS, &xtensa_irq_domain_ops,
 				&xtensa_irq_chip);
-	irq_set_default_host(root_domain);
+	irq_set_default_domain(root_domain);
 	return 0;
 }
 IRQCHIP_DECLARE(xtensa_irq_chip, "cdns,xtensa-pic", xtensa_pic_init);

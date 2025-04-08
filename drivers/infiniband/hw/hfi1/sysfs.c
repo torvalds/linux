@@ -27,8 +27,8 @@ static struct hfi1_pportdata *hfi1_get_pportdata_kobj(struct kobject *kobj)
  * Congestion control table size followed by table entries
  */
 static ssize_t cc_table_bin_read(struct file *filp, struct kobject *kobj,
-				 struct bin_attribute *bin_attr, char *buf,
-				 loff_t pos, size_t count)
+				 const struct bin_attribute *bin_attr,
+				 char *buf, loff_t pos, size_t count)
 {
 	int ret;
 	struct hfi1_pportdata *ppd = hfi1_get_pportdata_kobj(kobj);
@@ -57,7 +57,7 @@ static ssize_t cc_table_bin_read(struct file *filp, struct kobject *kobj,
 
 	return count;
 }
-static BIN_ATTR_RO(cc_table_bin, PAGE_SIZE);
+static const BIN_ATTR_RO(cc_table_bin, PAGE_SIZE);
 
 /*
  * Congestion settings: port control, control map and an array of 16
@@ -65,7 +65,7 @@ static BIN_ATTR_RO(cc_table_bin, PAGE_SIZE);
  * trigger threshold and the minimum injection rate delay.
  */
 static ssize_t cc_setting_bin_read(struct file *filp, struct kobject *kobj,
-				   struct bin_attribute *bin_attr,
+				   const struct bin_attribute *bin_attr,
 				   char *buf, loff_t pos, size_t count)
 {
 	struct hfi1_pportdata *ppd = hfi1_get_pportdata_kobj(kobj);
@@ -93,9 +93,9 @@ static ssize_t cc_setting_bin_read(struct file *filp, struct kobject *kobj,
 
 	return count;
 }
-static BIN_ATTR_RO(cc_setting_bin, PAGE_SIZE);
+static const BIN_ATTR_RO(cc_setting_bin, PAGE_SIZE);
 
-static struct bin_attribute *port_cc_bin_attributes[] = {
+static const struct bin_attribute *const port_cc_bin_attributes[] = {
 	&bin_attr_cc_setting_bin,
 	&bin_attr_cc_table_bin,
 	NULL
@@ -134,7 +134,7 @@ static struct attribute *port_cc_attributes[] = {
 static const struct attribute_group port_cc_group = {
 	.name = "CCMgtA",
 	.attrs = port_cc_attributes,
-	.bin_attrs = port_cc_bin_attributes,
+	.bin_attrs_new = port_cc_bin_attributes,
 };
 
 /* Start sc2vl */

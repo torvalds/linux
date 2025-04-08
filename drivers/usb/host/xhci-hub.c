@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/unaligned.h>
 #include <linux/bitfield.h>
+#include <linux/pci.h>
 
 #include "xhci.h"
 #include "xhci-trace.h"
@@ -770,8 +771,15 @@ static int xhci_exit_test_mode(struct xhci_hcd *xhci)
 enum usb_link_tunnel_mode xhci_port_is_tunneled(struct xhci_hcd *xhci,
 						struct xhci_port *port)
 {
+	struct usb_hcd *hcd;
 	void __iomem *base;
 	u32 offset;
+
+	/* Don't try and probe this capability for non-Intel hosts */
+	hcd = xhci_to_hcd(xhci);
+	if (!dev_is_pci(hcd->self.controller) ||
+	    to_pci_dev(hcd->self.controller)->vendor != PCI_VENDOR_ID_INTEL)
+		return USB_LINK_UNKNOWN;
 
 	base = &xhci->cap_regs->hc_capbase;
 	offset = xhci_find_next_ext_cap(base, 0, XHCI_EXT_CAPS_INTEL_SPR_SHADOW);
@@ -918,7 +926,7 @@ static void xhci_del_comp_mod_timer(struct xhci_hcd *xhci, u32 status,
 	if ((xhci->port_status_u0 != all_ports_seen_u0) && port_in_u0) {
 		xhci->port_status_u0 |= 1 << wIndex;
 		if (xhci->port_status_u0 == all_ports_seen_u0) {
-			del_timer_sync(&xhci->comp_mode_recovery_timer);
+			timer_delete_sync(&xhci->comp_mode_recovery_timer);
 			xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
 				"All USB3 ports have entered U0 already!");
 			xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,

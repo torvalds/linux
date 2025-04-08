@@ -499,8 +499,6 @@ int lola_init_mixer_widget(struct lola *chip, int nid);
 void lola_free_mixer(struct lola *chip);
 int lola_create_mixer(struct lola *chip);
 int lola_setup_all_analog_gains(struct lola *chip, int dir, bool mute);
-void lola_save_mixer(struct lola *chip);
-void lola_restore_mixer(struct lola *chip);
 int lola_set_src_config(struct lola *chip, unsigned int src_mask, bool update);
 
 /* proc */

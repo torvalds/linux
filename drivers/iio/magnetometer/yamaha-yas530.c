@@ -236,7 +236,7 @@ struct yas5xx {
 	 */
 	struct {
 		s32 channels[4];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 };
 

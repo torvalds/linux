@@ -48,7 +48,6 @@ enum {
 	NFSD_Versions,
 	NFSD_Ports,
 	NFSD_MaxBlkSize,
-	NFSD_MaxConnections,
 	NFSD_Filecache,
 	NFSD_Leasetime,
 	NFSD_Gracetime,
@@ -68,7 +67,6 @@ static ssize_t write_pool_threads(struct file *file, char *buf, size_t size);
 static ssize_t write_versions(struct file *file, char *buf, size_t size);
 static ssize_t write_ports(struct file *file, char *buf, size_t size);
 static ssize_t write_maxblksize(struct file *file, char *buf, size_t size);
-static ssize_t write_maxconn(struct file *file, char *buf, size_t size);
 #ifdef CONFIG_NFSD_V4
 static ssize_t write_leasetime(struct file *file, char *buf, size_t size);
 static ssize_t write_gracetime(struct file *file, char *buf, size_t size);
@@ -87,7 +85,6 @@ static ssize_t (*const write_op[])(struct file *, char *, size_t) = {
 	[NFSD_Versions] = write_versions,
 	[NFSD_Ports] = write_ports,
 	[NFSD_MaxBlkSize] = write_maxblksize,
-	[NFSD_MaxConnections] = write_maxconn,
 #ifdef CONFIG_NFSD_V4
 	[NFSD_Leasetime] = write_leasetime,
 	[NFSD_Gracetime] = write_gracetime,
@@ -902,44 +899,6 @@ static ssize_t write_maxblksize(struct file *file, char *buf, size_t size)
 							nfsd_max_blksize);
 }
 
-/*
- * write_maxconn - Set or report the current max number of connections
- *
- * Input:
- *			buf:		ignored
- *			size:		zero
- * OR
- *
- * Input:
- *			buf:		C string containing an unsigned
- *					integer value representing the new
- *					number of max connections
- *			size:		non-zero length of C string in @buf
- * Output:
- *	On success:	passed-in buffer filled with '\n'-terminated C string
- *			containing numeric value of max_connections setting
- *			for this net namespace;
- *			return code is the size in bytes of the string
- *	On error:	return code is zero or a negative errno value
- */
-static ssize_t write_maxconn(struct file *file, char *buf, size_t size)
-{
-	char *mesg = buf;
-	struct nfsd_net *nn = net_generic(netns(file), nfsd_net_id);
-	unsigned int maxconn = nn->max_connections;
-
-	if (size > 0) {
-		int rv = get_uint(&mesg, &maxconn);
-
-		if (rv)
-			return rv;
-		trace_nfsd_ctl_maxconn(netns(file), maxconn);
-		nn->max_connections = maxconn;
-	}
-
-	return scnprintf(buf, SIMPLE_TRANSACTION_LIMIT, "%u\n", maxconn);
-}
-
 #ifdef CONFIG_NFSD_V4
 static ssize_t __nfsd4_write_time(struct file *file, char *buf, size_t size,
 				  time64_t *time, struct nfsd_net *nn)
@@ -1372,7 +1331,6 @@ static int nfsd_fill_super(struct super_block *sb, struct fs_context *fc)
 		[NFSD_Versions] = {"versions", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_Ports] = {"portlist", &transaction_ops, S_IWUSR|S_IRUGO},
 		[NFSD_MaxBlkSize] = {"max_block_size", &transaction_ops, S_IWUSR|S_IRUGO},
-		[NFSD_MaxConnections] = {"max_connections", &transaction_ops, S_IWUSR|S_IRUGO},
 		[NFSD_Filecache] = {"filecache", &nfsd_file_cache_stats_fops, S_IRUGO},
 #ifdef CONFIG_NFSD_V4
 		[NFSD_Leasetime] = {"nfsv4leasetime", &transaction_ops, S_IWUSR|S_IRUSR},
@@ -1959,6 +1917,7 @@ int nfsd_nl_listener_set_doit(struct sk_buff *skb, struct genl_info *info)
 	struct svc_serv *serv;
 	LIST_HEAD(permsocks);
 	struct nfsd_net *nn;
+	bool delete = false;
 	int err, rem;
 
 	mutex_lock(&nfsd_mutex);
@@ -2019,34 +1978,28 @@ int nfsd_nl_listener_set_doit(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
-	/* For now, no removing old sockets while server is running */
-	if (serv->sv_nrthreads && !list_empty(&permsocks)) {
+	/*
+	 * If there are listener transports remaining on the permsocks list,
+	 * it means we were asked to remove a listener.
+	 */
+	if (!list_empty(&permsocks)) {
 		list_splice_init(&permsocks, &serv->sv_permsocks);
-		spin_unlock_bh(&serv->sv_lock);
+		delete = true;
+	}
+	spin_unlock_bh(&serv->sv_lock);
+
+	/* Do not remove listeners while there are active threads. */
+	if (serv->sv_nrthreads) {
 		err = -EBUSY;
 		goto out_unlock_mtx;
 	}
 
-	/* Close the remaining sockets on the permsocks list */
-	while (!list_empty(&permsocks)) {
-		xprt = list_first_entry(&permsocks, struct svc_xprt, xpt_list);
-		list_move(&xprt->xpt_list, &serv->sv_permsocks);
-
-		/*
-		 * Newly-created sockets are born with the BUSY bit set. Clear
-		 * it if there are no threads, since nothing can pick it up
-		 * in that case.
-		 */
-		if (!serv->sv_nrthreads)
-			clear_bit(XPT_BUSY, &xprt->xpt_flags);
-
-		set_bit(XPT_CLOSE, &xprt->xpt_flags);
-		spin_unlock_bh(&serv->sv_lock);
-		svc_xprt_close(xprt);
-		spin_lock_bh(&serv->sv_lock);
-	}
-
-	spin_unlock_bh(&serv->sv_lock);
+	/*
+	 * Since we can't delete an arbitrary llist entry, destroy the
+	 * remaining listeners and recreate the list.
+	 */
+	if (delete)
+		svc_xprt_destroy_all(serv, net);
 
 	/* walk list of addrs again, open any that still don't exist */
 	nlmsg_for_each_attr(attr, info->nlhdr, GENL_HDRLEN, rem) {
@@ -2073,6 +2026,9 @@ int nfsd_nl_listener_set_doit(struct sk_buff *skb, struct genl_info *info)
 
 		xprt = svc_find_listener(serv, xcl_name, net, sa);
 		if (xprt) {
+			if (delete)
+				WARN_ONCE(1, "Transport type=%s already exists\n",
+					  xcl_name);
 			svc_xprt_put(xprt);
 			continue;
 		}
@@ -2246,8 +2202,14 @@ static __net_init int nfsd_net_init(struct net *net)
 					  NFSD_STATS_COUNTERS_NUM);
 	if (retval)
 		goto out_repcache_error;
+
 	memset(&nn->nfsd_svcstats, 0, sizeof(nn->nfsd_svcstats));
 	nn->nfsd_svcstats.program = &nfsd_programs[0];
+	if (!nfsd_proc_stat_init(net)) {
+		retval = -ENOMEM;
+		goto out_proc_error;
+	}
+
 	for (i = 0; i < sizeof(nn->nfsd_versions); i++)
 		nn->nfsd_versions[i] = nfsd_support_version(i);
 	for (i = 0; i < sizeof(nn->nfsd4_minorversions); i++)
@@ -2257,12 +2219,14 @@ static __net_init int nfsd_net_init(struct net *net)
 	nfsd4_init_leases_net(nn);
 	get_random_bytes(&nn->siphash_key, sizeof(nn->siphash_key));
 	seqlock_init(&nn->writeverf_lock);
-	nfsd_proc_stat_init(net);
 #if IS_ENABLED(CONFIG_NFS_LOCALIO)
+	spin_lock_init(&nn->local_clients_lock);
 	INIT_LIST_HEAD(&nn->local_clients);
 #endif
 	return 0;
 
+out_proc_error:
+	percpu_counter_destroy_many(nn->counter, NFSD_STATS_COUNTERS_NUM);
 out_repcache_error:
 	nfsd_idmap_shutdown(net);
 out_idmap_error:
@@ -2276,14 +2240,15 @@ out_export_error:
  * nfsd_net_pre_exit - Disconnect localio clients from net namespace
  * @net: a network namespace that is about to be destroyed
  *
- * This invalidated ->net pointers held by localio clients
+ * This invalidates ->net pointers held by localio clients
  * while they can still safely access nn->counter.
  */
 static __net_exit void nfsd_net_pre_exit(struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
-	nfs_uuid_invalidate_clients(&nn->local_clients);
+	nfs_localio_invalidate_clients(&nn->local_clients,
+				       &nn->local_clients_lock);
 }
 #endif
 

@@ -3,12 +3,22 @@
  * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  */
 
+#include <linux/device.h>
 #include <linux/dmaengine.h>
 #include <crypto/scatterwalk.h>
 
 #include "dma.h"
 
-int qce_dma_request(struct device *dev, struct qce_dma_data *dma)
+static void qce_dma_release(void *data)
+{
+	struct qce_dma_data *dma = data;
+
+	dma_release_channel(dma->txchan);
+	dma_release_channel(dma->rxchan);
+	kfree(dma->result_buf);
+}
+
+int devm_qce_dma_request(struct device *dev, struct qce_dma_data *dma)
 {
 	int ret;
 
@@ -31,19 +41,13 @@ int qce_dma_request(struct device *dev, struct qce_dma_data *dma)
 
 	dma->ignore_buf = dma->result_buf + QCE_RESULT_BUF_SZ;
 
-	return 0;
+	return devm_add_action_or_reset(dev, qce_dma_release, dma);
+
 error_nomem:
 	dma_release_channel(dma->rxchan);
 error_rx:
 	dma_release_channel(dma->txchan);
 	return ret;
-}
-
-void qce_dma_release(struct qce_dma_data *dma)
-{
-	dma_release_channel(dma->txchan);
-	dma_release_channel(dma->rxchan);
-	kfree(dma->result_buf);
 }
 
 struct scatterlist *

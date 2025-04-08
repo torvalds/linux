@@ -323,8 +323,12 @@ void class_dev_iter_init(struct class_dev_iter *iter, const struct class *class,
 	struct subsys_private *sp = class_to_subsys(class);
 	struct klist_node *start_knode = NULL;
 
-	if (!sp)
+	memset(iter, 0, sizeof(*iter));
+	if (!sp) {
+		pr_crit("%s: class %p was not registered yet\n",
+			__func__, class);
 		return;
+	}
 
 	if (start)
 		start_knode = &start->p->knode_class;
@@ -350,6 +354,9 @@ struct device *class_dev_iter_next(struct class_dev_iter *iter)
 {
 	struct klist_node *knode;
 	struct device *dev;
+
+	if (!iter->sp)
+		return NULL;
 
 	while (1) {
 		knode = klist_next(&iter->ki);
@@ -395,7 +402,7 @@ EXPORT_SYMBOL_GPL(class_dev_iter_exit);
  * code.  There's no locking restriction.
  */
 int class_for_each_device(const struct class *class, const struct device *start,
-			  void *data, int (*fn)(struct device *, void *))
+			  void *data, device_iter_t fn)
 {
 	struct subsys_private *sp = class_to_subsys(class);
 	struct class_dev_iter iter;
@@ -594,30 +601,10 @@ EXPORT_SYMBOL_GPL(class_compat_unregister);
  *			      a bus device
  * @cls: the compatibility class
  * @dev: the target bus device
- * @device_link: an optional device to which a "device" link should be created
  */
-int class_compat_create_link(struct class_compat *cls, struct device *dev,
-			     struct device *device_link)
+int class_compat_create_link(struct class_compat *cls, struct device *dev)
 {
-	int error;
-
-	error = sysfs_create_link(cls->kobj, &dev->kobj, dev_name(dev));
-	if (error)
-		return error;
-
-	/*
-	 * Optionally add a "device" link (typically to the parent), as a
-	 * class device would have one and we want to provide as much
-	 * backwards compatibility as possible.
-	 */
-	if (device_link) {
-		error = sysfs_create_link(&dev->kobj, &device_link->kobj,
-					  "device");
-		if (error)
-			sysfs_remove_link(cls->kobj, dev_name(dev));
-	}
-
-	return error;
+	return sysfs_create_link(cls->kobj, &dev->kobj, dev_name(dev));
 }
 EXPORT_SYMBOL_GPL(class_compat_create_link);
 
@@ -626,14 +613,9 @@ EXPORT_SYMBOL_GPL(class_compat_create_link);
  *			      a bus device
  * @cls: the compatibility class
  * @dev: the target bus device
- * @device_link: an optional device to which a "device" link was previously
- * 		 created
  */
-void class_compat_remove_link(struct class_compat *cls, struct device *dev,
-			      struct device *device_link)
+void class_compat_remove_link(struct class_compat *cls, struct device *dev)
 {
-	if (device_link)
-		sysfs_remove_link(&dev->kobj, "device");
 	sysfs_remove_link(cls->kobj, dev_name(dev));
 }
 EXPORT_SYMBOL_GPL(class_compat_remove_link);

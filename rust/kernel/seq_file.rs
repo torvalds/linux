@@ -18,7 +18,7 @@ impl SeqFile {
     ///
     /// # Safety
     ///
-    /// The caller must ensure that for the duration of 'a the following is satisfied:
+    /// The caller must ensure that for the duration of `'a` the following is satisfied:
     /// * The pointer points at a valid `struct seq_file`.
     /// * The `struct seq_file` is not accessed from any other thread.
     pub unsafe fn from_raw<'a>(ptr: *mut bindings::seq_file) -> &'a SeqFile {
@@ -30,13 +30,14 @@ impl SeqFile {
     }
 
     /// Used by the [`seq_print`] macro.
+    #[inline]
     pub fn call_printf(&self, args: core::fmt::Arguments<'_>) {
         // SAFETY: Passing a void pointer to `Arguments` is valid for `%pA`.
         unsafe {
             bindings::seq_printf(
                 self.inner.get(),
                 c_str!("%pA").as_char_ptr(),
-                &args as *const _ as *const core::ffi::c_void,
+                &args as *const _ as *const crate::ffi::c_void,
             );
         }
     }

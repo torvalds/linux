@@ -388,6 +388,11 @@ static ssize_t vfio_platform_read_mmio(struct vfio_platform_region *reg,
 {
 	unsigned int done = 0;
 
+	if (off >= reg->size)
+		return -EINVAL;
+
+	count = min_t(size_t, count, reg->size - off);
+
 	if (!reg->ioaddr) {
 		reg->ioaddr =
 			ioremap(reg->addr, reg->size);
@@ -466,6 +471,11 @@ static ssize_t vfio_platform_write_mmio(struct vfio_platform_region *reg,
 					loff_t off)
 {
 	unsigned int done = 0;
+
+	if (off >= reg->size)
+		return -EINVAL;
+
+	count = min_t(size_t, count, reg->size - off);
 
 	if (!reg->ioaddr) {
 		reg->ioaddr =

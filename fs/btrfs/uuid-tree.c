@@ -140,8 +140,6 @@ int btrfs_uuid_tree_add(struct btrfs_trans_handle *trans, const u8 *uuid, u8 typ
 	ret = 0;
 	subid_le = cpu_to_le64(subid_cpu);
 	write_extent_buffer(eb, &subid_le, offset, sizeof(subid_le));
-	btrfs_mark_buffer_dirty(trans, eb);
-
 out:
 	btrfs_free_path(path);
 	return ret;

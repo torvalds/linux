@@ -36,17 +36,17 @@ use core::{
 ///
 /// // Check the nodes we just inserted.
 /// {
-///     assert_eq!(tree.get(&10).unwrap(), &100);
-///     assert_eq!(tree.get(&20).unwrap(), &200);
-///     assert_eq!(tree.get(&30).unwrap(), &300);
+///     assert_eq!(tree.get(&10), Some(&100));
+///     assert_eq!(tree.get(&20), Some(&200));
+///     assert_eq!(tree.get(&30), Some(&300));
 /// }
 ///
 /// // Iterate over the nodes we just inserted.
 /// {
 ///     let mut iter = tree.iter();
-///     assert_eq!(iter.next().unwrap(), (&10, &100));
-///     assert_eq!(iter.next().unwrap(), (&20, &200));
-///     assert_eq!(iter.next().unwrap(), (&30, &300));
+///     assert_eq!(iter.next(), Some((&10, &100)));
+///     assert_eq!(iter.next(), Some((&20, &200)));
+///     assert_eq!(iter.next(), Some((&30, &300)));
 ///     assert!(iter.next().is_none());
 /// }
 ///
@@ -61,9 +61,9 @@ use core::{
 /// // Check that the tree reflects the replacement.
 /// {
 ///     let mut iter = tree.iter();
-///     assert_eq!(iter.next().unwrap(), (&10, &1000));
-///     assert_eq!(iter.next().unwrap(), (&20, &200));
-///     assert_eq!(iter.next().unwrap(), (&30, &300));
+///     assert_eq!(iter.next(), Some((&10, &1000)));
+///     assert_eq!(iter.next(), Some((&20, &200)));
+///     assert_eq!(iter.next(), Some((&30, &300)));
 ///     assert!(iter.next().is_none());
 /// }
 ///
@@ -73,9 +73,9 @@ use core::{
 /// // Check that the tree reflects the update.
 /// {
 ///     let mut iter = tree.iter();
-///     assert_eq!(iter.next().unwrap(), (&10, &1000));
-///     assert_eq!(iter.next().unwrap(), (&20, &200));
-///     assert_eq!(iter.next().unwrap(), (&30, &3000));
+///     assert_eq!(iter.next(), Some((&10, &1000)));
+///     assert_eq!(iter.next(), Some((&20, &200)));
+///     assert_eq!(iter.next(), Some((&30, &3000)));
 ///     assert!(iter.next().is_none());
 /// }
 ///
@@ -85,8 +85,8 @@ use core::{
 /// // Check that the tree reflects the removal.
 /// {
 ///     let mut iter = tree.iter();
-///     assert_eq!(iter.next().unwrap(), (&20, &200));
-///     assert_eq!(iter.next().unwrap(), (&30, &3000));
+///     assert_eq!(iter.next(), Some((&20, &200)));
+///     assert_eq!(iter.next(), Some((&30, &3000)));
 ///     assert!(iter.next().is_none());
 /// }
 ///
@@ -128,20 +128,20 @@ use core::{
 /// // Check the nodes we just inserted.
 /// {
 ///     let mut iter = tree.iter();
-///     assert_eq!(iter.next().unwrap(), (&10, &100));
-///     assert_eq!(iter.next().unwrap(), (&20, &200));
-///     assert_eq!(iter.next().unwrap(), (&30, &300));
+///     assert_eq!(iter.next(), Some((&10, &100)));
+///     assert_eq!(iter.next(), Some((&20, &200)));
+///     assert_eq!(iter.next(), Some((&30, &300)));
 ///     assert!(iter.next().is_none());
 /// }
 ///
 /// // Remove a node, getting back ownership of it.
-/// let existing = tree.remove(&30).unwrap();
+/// let existing = tree.remove(&30);
 ///
 /// // Check that the tree reflects the removal.
 /// {
 ///     let mut iter = tree.iter();
-///     assert_eq!(iter.next().unwrap(), (&10, &100));
-///     assert_eq!(iter.next().unwrap(), (&20, &200));
+///     assert_eq!(iter.next(), Some((&10, &100)));
+///     assert_eq!(iter.next(), Some((&20, &200)));
 ///     assert!(iter.next().is_none());
 /// }
 ///
@@ -155,9 +155,9 @@ use core::{
 /// // Check that the tree reflect the new insertion.
 /// {
 ///     let mut iter = tree.iter();
-///     assert_eq!(iter.next().unwrap(), (&10, &100));
-///     assert_eq!(iter.next().unwrap(), (&15, &150));
-///     assert_eq!(iter.next().unwrap(), (&20, &200));
+///     assert_eq!(iter.next(), Some((&10, &100)));
+///     assert_eq!(iter.next(), Some((&15, &150)));
+///     assert_eq!(iter.next(), Some((&20, &200)));
 ///     assert!(iter.next().is_none());
 /// }
 ///
@@ -886,7 +886,7 @@ impl<'a, K, V> Cursor<'a, K, V> {
     /// # Safety
     ///
     /// - `node` must be a valid pointer to a node in an [`RBTree`].
-    /// - The caller has immutable access to `node` for the duration of 'b.
+    /// - The caller has immutable access to `node` for the duration of `'b`.
     unsafe fn to_key_value<'b>(node: NonNull<bindings::rb_node>) -> (&'b K, &'b V) {
         // SAFETY: the caller guarantees that `node` is a valid pointer in an `RBTree`.
         let (k, v) = unsafe { Self::to_key_value_raw(node) };
@@ -897,7 +897,7 @@ impl<'a, K, V> Cursor<'a, K, V> {
     /// # Safety
     ///
     /// - `node` must be a valid pointer to a node in an [`RBTree`].
-    /// - The caller has mutable access to `node` for the duration of 'b.
+    /// - The caller has mutable access to `node` for the duration of `'b`.
     unsafe fn to_key_value_mut<'b>(node: NonNull<bindings::rb_node>) -> (&'b K, &'b mut V) {
         // SAFETY: the caller guarantees that `node` is a valid pointer in an `RBTree`.
         let (k, v) = unsafe { Self::to_key_value_raw(node) };
@@ -908,7 +908,7 @@ impl<'a, K, V> Cursor<'a, K, V> {
     /// # Safety
     ///
     /// - `node` must be a valid pointer to a node in an [`RBTree`].
-    /// - The caller has immutable access to the key for the duration of 'b.
+    /// - The caller has immutable access to the key for the duration of `'b`.
     unsafe fn to_key_value_raw<'b>(node: NonNull<bindings::rb_node>) -> (&'b K, *mut V) {
         // SAFETY: By the type invariant of `Self`, all non-null `rb_node` pointers stored in `self`
         // point to the links field of `Node<K, V>` objects.
@@ -1149,7 +1149,7 @@ pub struct VacantEntry<'a, K, V> {
 /// # Invariants
 /// - `parent` may be null if the new node becomes the root.
 /// - `child_field_of_parent` is a valid pointer to the left-child or right-child of `parent`. If `parent` is
-///     null, it is a pointer to the root of the [`RBTree`].
+///   null, it is a pointer to the root of the [`RBTree`].
 struct RawVacantEntry<'a, K, V> {
     rbtree: *mut RBTree<K, V>,
     /// The node that will become the parent of the new node if we insert one.
@@ -1168,12 +1168,12 @@ impl<'a, K, V> RawVacantEntry<'a, K, V> {
     fn insert(self, node: RBTreeNode<K, V>) -> &'a mut V {
         let node = KBox::into_raw(node.node);
 
-        // SAFETY: `node` is valid at least until we call `Box::from_raw`, which only happens when
+        // SAFETY: `node` is valid at least until we call `KBox::from_raw`, which only happens when
         // the node is removed or replaced.
         let node_links = unsafe { addr_of_mut!((*node).links) };
 
         // INVARIANT: We are linking in a new node, which is valid. It remains valid because we
-        // "forgot" it with `Box::into_raw`.
+        // "forgot" it with `KBox::into_raw`.
         // SAFETY: The type invariants of `RawVacantEntry` are exactly the safety requirements of `rb_link_node`.
         unsafe { bindings::rb_link_node(node_links, self.parent, self.child_field_of_parent) };
 
@@ -1259,7 +1259,7 @@ impl<'a, K, V> OccupiedEntry<'a, K, V> {
     fn replace(self, node: RBTreeNode<K, V>) -> RBTreeNode<K, V> {
         let node = KBox::into_raw(node.node);
 
-        // SAFETY: `node` is valid at least until we call `Box::from_raw`, which only happens when
+        // SAFETY: `node` is valid at least until we call `KBox::from_raw`, which only happens when
         // the node is removed or replaced.
         let new_node_links = unsafe { addr_of_mut!((*node).links) };
 

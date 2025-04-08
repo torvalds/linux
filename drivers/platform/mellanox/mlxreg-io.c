@@ -126,7 +126,7 @@ mlxreg_io_attr_show(struct device *dev, struct device_attribute *attr,
 
 	mutex_unlock(&priv->io_lock);
 
-	return sprintf(buf, "%u\n", regval);
+	return sysfs_emit(buf, "%u\n", regval);
 
 access_error:
 	mutex_unlock(&priv->io_lock);

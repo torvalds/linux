@@ -228,6 +228,63 @@ static void fbnic_mbx_process_tx_msgs(struct fbnic_dev *fbd)
 	tx_mbx->head = head;
 }
 
+static int fbnic_mbx_map_req_w_cmpl(struct fbnic_dev *fbd,
+				    struct fbnic_tlv_msg *msg,
+				    struct fbnic_fw_completion *cmpl_data)
+{
+	unsigned long flags;
+	int err;
+
+	spin_lock_irqsave(&fbd->fw_tx_lock, flags);
+
+	/* If we are already waiting on a completion then abort */
+	if (cmpl_data && fbd->cmpl_data) {
+		err = -EBUSY;
+		goto unlock_mbx;
+	}
+
+	/* Record completion location and submit request */
+	if (cmpl_data)
+		fbd->cmpl_data = cmpl_data;
+
+	err = fbnic_mbx_map_msg(fbd, FBNIC_IPC_MBX_TX_IDX, msg,
+				le16_to_cpu(msg->hdr.len) * sizeof(u32), 1);
+
+	/* If msg failed then clear completion data for next caller */
+	if (err && cmpl_data)
+		fbd->cmpl_data = NULL;
+
+unlock_mbx:
+	spin_unlock_irqrestore(&fbd->fw_tx_lock, flags);
+
+	return err;
+}
+
+static void fbnic_fw_release_cmpl_data(struct kref *kref)
+{
+	struct fbnic_fw_completion *cmpl_data;
+
+	cmpl_data = container_of(kref, struct fbnic_fw_completion,
+				 ref_count);
+	kfree(cmpl_data);
+}
+
+static struct fbnic_fw_completion *
+fbnic_fw_get_cmpl_by_type(struct fbnic_dev *fbd, u32 msg_type)
+{
+	struct fbnic_fw_completion *cmpl_data = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&fbd->fw_tx_lock, flags);
+	if (fbd->cmpl_data && fbd->cmpl_data->msg_type == msg_type) {
+		cmpl_data = fbd->cmpl_data;
+		kref_get(&fbd->cmpl_data->ref_count);
+	}
+	spin_unlock_irqrestore(&fbd->fw_tx_lock, flags);
+
+	return cmpl_data;
+}
+
 /**
  * fbnic_fw_xmit_simple_msg - Transmit a simple single TLV message w/o data
  * @fbd: FBNIC device structure
@@ -437,16 +494,13 @@ static int fbnic_fw_parse_bmc_addrs(u8 bmc_mac_addr[][ETH_ALEN],
 
 static int fbnic_fw_parse_cap_resp(void *opaque, struct fbnic_tlv_msg **results)
 {
-	u32 active_slot = 0, all_multi = 0;
+	u32 all_multi = 0, version = 0;
 	struct fbnic_dev *fbd = opaque;
-	u32 speed = 0, fec = 0;
-	size_t commit_size = 0;
 	bool bmc_present;
 	int err;
 
-	get_unsigned_result(FBNIC_FW_CAP_RESP_VERSION,
-			    fbd->fw_cap.running.mgmt.version);
-
+	version = fta_get_uint(results, FBNIC_FW_CAP_RESP_VERSION);
+	fbd->fw_cap.running.mgmt.version = version;
 	if (!fbd->fw_cap.running.mgmt.version)
 		return -EINVAL;
 
@@ -467,43 +521,41 @@ static int fbnic_fw_parse_cap_resp(void *opaque, struct fbnic_tlv_msg **results)
 		return -EINVAL;
 	}
 
-	get_string_result(FBNIC_FW_CAP_RESP_VERSION_COMMIT_STR, commit_size,
-			  fbd->fw_cap.running.mgmt.commit,
-			  FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE);
-	if (!commit_size)
+	if (fta_get_str(results, FBNIC_FW_CAP_RESP_VERSION_COMMIT_STR,
+			fbd->fw_cap.running.mgmt.commit,
+			FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE) <= 0)
 		dev_warn(fbd->dev, "Firmware did not send mgmt commit!\n");
 
-	get_unsigned_result(FBNIC_FW_CAP_RESP_STORED_VERSION,
-			    fbd->fw_cap.stored.mgmt.version);
-	get_string_result(FBNIC_FW_CAP_RESP_STORED_COMMIT_STR, commit_size,
-			  fbd->fw_cap.stored.mgmt.commit,
-			  FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE);
+	version = fta_get_uint(results, FBNIC_FW_CAP_RESP_STORED_VERSION);
+	fbd->fw_cap.stored.mgmt.version = version;
+	fta_get_str(results, FBNIC_FW_CAP_RESP_STORED_COMMIT_STR,
+		    fbd->fw_cap.stored.mgmt.commit,
+		    FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE);
 
-	get_unsigned_result(FBNIC_FW_CAP_RESP_CMRT_VERSION,
-			    fbd->fw_cap.running.bootloader.version);
-	get_string_result(FBNIC_FW_CAP_RESP_CMRT_COMMIT_STR, commit_size,
-			  fbd->fw_cap.running.bootloader.commit,
-			  FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE);
+	version = fta_get_uint(results, FBNIC_FW_CAP_RESP_CMRT_VERSION);
+	fbd->fw_cap.running.bootloader.version = version;
+	fta_get_str(results, FBNIC_FW_CAP_RESP_CMRT_COMMIT_STR,
+		    fbd->fw_cap.running.bootloader.commit,
+		    FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE);
 
-	get_unsigned_result(FBNIC_FW_CAP_RESP_STORED_CMRT_VERSION,
-			    fbd->fw_cap.stored.bootloader.version);
-	get_string_result(FBNIC_FW_CAP_RESP_STORED_CMRT_COMMIT_STR, commit_size,
-			  fbd->fw_cap.stored.bootloader.commit,
-			  FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE);
+	version = fta_get_uint(results, FBNIC_FW_CAP_RESP_STORED_CMRT_VERSION);
+	fbd->fw_cap.stored.bootloader.version = version;
+	fta_get_str(results, FBNIC_FW_CAP_RESP_STORED_CMRT_COMMIT_STR,
+		    fbd->fw_cap.stored.bootloader.commit,
+		    FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE);
 
-	get_unsigned_result(FBNIC_FW_CAP_RESP_UEFI_VERSION,
-			    fbd->fw_cap.stored.undi.version);
-	get_string_result(FBNIC_FW_CAP_RESP_UEFI_COMMIT_STR, commit_size,
-			  fbd->fw_cap.stored.undi.commit,
-			  FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE);
+	version = fta_get_uint(results, FBNIC_FW_CAP_RESP_UEFI_VERSION);
+	fbd->fw_cap.stored.undi.version = version;
+	fta_get_str(results, FBNIC_FW_CAP_RESP_UEFI_COMMIT_STR,
+		    fbd->fw_cap.stored.undi.commit,
+		    FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE);
 
-	get_unsigned_result(FBNIC_FW_CAP_RESP_ACTIVE_FW_SLOT, active_slot);
-	fbd->fw_cap.active_slot = active_slot;
-
-	get_unsigned_result(FBNIC_FW_CAP_RESP_FW_LINK_SPEED, speed);
-	get_unsigned_result(FBNIC_FW_CAP_RESP_FW_LINK_FEC, fec);
-	fbd->fw_cap.link_speed = speed;
-	fbd->fw_cap.link_fec = fec;
+	fbd->fw_cap.active_slot =
+		fta_get_uint(results, FBNIC_FW_CAP_RESP_ACTIVE_FW_SLOT);
+	fbd->fw_cap.link_speed =
+		fta_get_uint(results, FBNIC_FW_CAP_RESP_FW_LINK_SPEED);
+	fbd->fw_cap.link_fec =
+		fta_get_uint(results, FBNIC_FW_CAP_RESP_FW_LINK_FEC);
 
 	bmc_present = !!results[FBNIC_FW_CAP_RESP_BMC_PRESENT];
 	if (bmc_present) {
@@ -518,7 +570,8 @@ static int fbnic_fw_parse_cap_resp(void *opaque, struct fbnic_tlv_msg **results)
 		if (err)
 			return err;
 
-		get_unsigned_result(FBNIC_FW_CAP_RESP_BMC_ALL_MULTI, all_multi);
+		all_multi =
+			fta_get_uint(results, FBNIC_FW_CAP_RESP_BMC_ALL_MULTI);
 	} else {
 		memset(fbd->fw_cap.bmc_mac_addr, 0,
 		       sizeof(fbd->fw_cap.bmc_mac_addr));
@@ -651,6 +704,83 @@ void fbnic_fw_check_heartbeat(struct fbnic_dev *fbd)
 		dev_warn(fbd->dev, "Failed to send heartbeat message\n");
 }
 
+/**
+ * fbnic_fw_xmit_tsene_read_msg - Create and transmit a sensor read request
+ * @fbd: FBNIC device structure
+ * @cmpl_data: Completion data structure to store sensor response
+ *
+ * Asks the firmware to provide an update with the latest sensor data.
+ * The response will contain temperature and voltage readings.
+ *
+ * Return: 0 on success, negative error value on failure
+ */
+int fbnic_fw_xmit_tsene_read_msg(struct fbnic_dev *fbd,
+				 struct fbnic_fw_completion *cmpl_data)
+{
+	struct fbnic_tlv_msg *msg;
+	int err;
+
+	if (!fbnic_fw_present(fbd))
+		return -ENODEV;
+
+	msg = fbnic_tlv_msg_alloc(FBNIC_TLV_MSG_ID_TSENE_READ_REQ);
+	if (!msg)
+		return -ENOMEM;
+
+	err = fbnic_mbx_map_req_w_cmpl(fbd, msg, cmpl_data);
+	if (err)
+		goto free_message;
+
+	return 0;
+
+free_message:
+	free_page((unsigned long)msg);
+	return err;
+}
+
+static const struct fbnic_tlv_index fbnic_tsene_read_resp_index[] = {
+	FBNIC_TLV_ATTR_S32(FBNIC_FW_TSENE_THERM),
+	FBNIC_TLV_ATTR_S32(FBNIC_FW_TSENE_VOLT),
+	FBNIC_TLV_ATTR_S32(FBNIC_FW_TSENE_ERROR),
+	FBNIC_TLV_ATTR_LAST
+};
+
+static int fbnic_fw_parse_tsene_read_resp(void *opaque,
+					  struct fbnic_tlv_msg **results)
+{
+	struct fbnic_fw_completion *cmpl_data;
+	struct fbnic_dev *fbd = opaque;
+	s32 err_resp;
+	int err = 0;
+
+	/* Verify we have a completion pointer to provide with data */
+	cmpl_data = fbnic_fw_get_cmpl_by_type(fbd,
+					      FBNIC_TLV_MSG_ID_TSENE_READ_RESP);
+	if (!cmpl_data)
+		return -ENOSPC;
+
+	err_resp = fta_get_sint(results, FBNIC_FW_TSENE_ERROR);
+	if (err_resp)
+		goto msg_err;
+
+	if (!results[FBNIC_FW_TSENE_THERM] || !results[FBNIC_FW_TSENE_VOLT]) {
+		err = -EINVAL;
+		goto msg_err;
+	}
+
+	cmpl_data->u.tsene.millidegrees =
+		fta_get_sint(results, FBNIC_FW_TSENE_THERM);
+	cmpl_data->u.tsene.millivolts =
+		fta_get_sint(results, FBNIC_FW_TSENE_VOLT);
+
+msg_err:
+	cmpl_data->result = err_resp ? : err;
+	complete(&cmpl_data->done);
+	fbnic_fw_put_cmpl(cmpl_data);
+
+	return err;
+}
+
 static const struct fbnic_tlv_parser fbnic_fw_tlv_parser[] = {
 	FBNIC_TLV_PARSER(FW_CAP_RESP, fbnic_fw_cap_resp_index,
 			 fbnic_fw_parse_cap_resp),
@@ -658,6 +788,9 @@ static const struct fbnic_tlv_parser fbnic_fw_tlv_parser[] = {
 			 fbnic_fw_parse_ownership_resp),
 	FBNIC_TLV_PARSER(HEARTBEAT_RESP, fbnic_heartbeat_resp_index,
 			 fbnic_fw_parse_heartbeat_resp),
+	FBNIC_TLV_PARSER(TSENE_READ_RESP,
+			 fbnic_tsene_read_resp_index,
+			 fbnic_fw_parse_tsene_read_resp),
 	FBNIC_TLV_MSG_ERROR
 };
 
@@ -801,4 +934,26 @@ void fbnic_get_fw_ver_commit_str(struct fbnic_dev *fbd, char *fw_version,
 
 	fbnic_mk_full_fw_ver_str(mgmt->version, delim, mgmt->commit,
 				 fw_version, str_sz);
+}
+
+void fbnic_fw_init_cmpl(struct fbnic_fw_completion *fw_cmpl,
+			u32 msg_type)
+{
+	fw_cmpl->msg_type = msg_type;
+	init_completion(&fw_cmpl->done);
+	kref_init(&fw_cmpl->ref_count);
+}
+
+void fbnic_fw_clear_compl(struct fbnic_dev *fbd)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&fbd->fw_tx_lock, flags);
+	fbd->cmpl_data = NULL;
+	spin_unlock_irqrestore(&fbd->fw_tx_lock, flags);
+}
+
+void fbnic_fw_put_cmpl(struct fbnic_fw_completion *fw_cmpl)
+{
+	kref_put(&fw_cmpl->ref_count, fbnic_fw_release_cmpl_data);
 }

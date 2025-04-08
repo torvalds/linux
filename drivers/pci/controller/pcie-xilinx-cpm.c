@@ -30,11 +30,14 @@
 #define XILINX_CPM_PCIE_REG_IDRN_MASK	0x00000E3C
 #define XILINX_CPM_PCIE_MISC_IR_STATUS	0x00000340
 #define XILINX_CPM_PCIE_MISC_IR_ENABLE	0x00000348
-#define XILINX_CPM_PCIE_MISC_IR_LOCAL	BIT(1)
+#define XILINX_CPM_PCIE0_MISC_IR_LOCAL	BIT(1)
+#define XILINX_CPM_PCIE1_MISC_IR_LOCAL	BIT(2)
 
-#define XILINX_CPM_PCIE_IR_STATUS       0x000002A0
-#define XILINX_CPM_PCIE_IR_ENABLE       0x000002A8
-#define XILINX_CPM_PCIE_IR_LOCAL        BIT(0)
+#define XILINX_CPM_PCIE0_IR_STATUS	0x000002A0
+#define XILINX_CPM_PCIE1_IR_STATUS	0x000002B4
+#define XILINX_CPM_PCIE0_IR_ENABLE	0x000002A8
+#define XILINX_CPM_PCIE1_IR_ENABLE	0x000002BC
+#define XILINX_CPM_PCIE_IR_LOCAL	BIT(0)
 
 #define IMR(x) BIT(XILINX_PCIE_INTR_ ##x)
 
@@ -80,14 +83,22 @@
 enum xilinx_cpm_version {
 	CPM,
 	CPM5,
+	CPM5_HOST1,
+	CPM5NC_HOST,
 };
 
 /**
  * struct xilinx_cpm_variant - CPM variant information
  * @version: CPM version
+ * @ir_status: Offset for the error interrupt status register
+ * @ir_enable: Offset for the CPM5 local error interrupt enable register
+ * @ir_misc_value: A bitmask for the miscellaneous interrupt status
  */
 struct xilinx_cpm_variant {
 	enum xilinx_cpm_version version;
+	u32 ir_status;
+	u32 ir_enable;
+	u32 ir_misc_value;
 };
 
 /**
@@ -269,6 +280,7 @@ static void xilinx_cpm_pcie_event_flow(struct irq_desc *desc)
 {
 	struct xilinx_cpm_pcie *port = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
+	const struct xilinx_cpm_variant *variant = port->variant;
 	unsigned long val;
 	int i;
 
@@ -279,11 +291,11 @@ static void xilinx_cpm_pcie_event_flow(struct irq_desc *desc)
 		generic_handle_domain_irq(port->cpm_domain, i);
 	pcie_write(port, val, XILINX_CPM_PCIE_REG_IDR);
 
-	if (port->variant->version == CPM5) {
-		val = readl_relaxed(port->cpm_base + XILINX_CPM_PCIE_IR_STATUS);
+	if (variant->ir_status) {
+		val = readl_relaxed(port->cpm_base + variant->ir_status);
 		if (val)
 			writel_relaxed(val, port->cpm_base +
-					    XILINX_CPM_PCIE_IR_STATUS);
+				       variant->ir_status);
 	}
 
 	/*
@@ -465,6 +477,11 @@ static int xilinx_cpm_setup_irq(struct xilinx_cpm_pcie *port)
  */
 static void xilinx_cpm_pcie_init_port(struct xilinx_cpm_pcie *port)
 {
+	const struct xilinx_cpm_variant *variant = port->variant;
+
+	if (variant->version == CPM5NC_HOST)
+		return;
+
 	if (cpm_pcie_link_up(port))
 		dev_info(port->dev, "PCIe Link is UP\n");
 	else
@@ -483,15 +500,15 @@ static void xilinx_cpm_pcie_init_port(struct xilinx_cpm_pcie *port)
 	 * XILINX_CPM_PCIE_MISC_IR_ENABLE register is mapped to
 	 * CPM SLCR block.
 	 */
-	writel(XILINX_CPM_PCIE_MISC_IR_LOCAL,
+	writel(variant->ir_misc_value,
 	       port->cpm_base + XILINX_CPM_PCIE_MISC_IR_ENABLE);
 
-	if (port->variant->version == CPM5) {
+	if (variant->ir_enable) {
 		writel(XILINX_CPM_PCIE_IR_LOCAL,
-		       port->cpm_base + XILINX_CPM_PCIE_IR_ENABLE);
+		       port->cpm_base + variant->ir_enable);
 	}
 
-	/* Enable the Bridge enable bit */
+	/* Set Bridge enable bit */
 	pcie_write(port, pcie_read(port, XILINX_CPM_PCIE_REG_RPSC) |
 		   XILINX_CPM_PCIE_REG_RPSC_BEN,
 		   XILINX_CPM_PCIE_REG_RPSC);
@@ -525,7 +542,8 @@ static int xilinx_cpm_pcie_parse_dt(struct xilinx_cpm_pcie *port,
 	if (IS_ERR(port->cfg))
 		return PTR_ERR(port->cfg);
 
-	if (port->variant->version == CPM5) {
+	if (port->variant->version == CPM5 ||
+	    port->variant->version == CPM5_HOST1) {
 		port->reg_base = devm_platform_ioremap_resource_byname(pdev,
 								    "cpm_csr");
 		if (IS_ERR(port->reg_base))
@@ -565,28 +583,34 @@ static int xilinx_cpm_pcie_probe(struct platform_device *pdev)
 
 	port->dev = dev;
 
-	err = xilinx_cpm_pcie_init_irq_domain(port);
-	if (err)
-		return err;
+	port->variant = of_device_get_match_data(dev);
+
+	if (port->variant->version != CPM5NC_HOST) {
+		err = xilinx_cpm_pcie_init_irq_domain(port);
+		if (err)
+			return err;
+	}
 
 	bus = resource_list_first_type(&bridge->windows, IORESOURCE_BUS);
-	if (!bus)
-		return -ENODEV;
-
-	port->variant = of_device_get_match_data(dev);
+	if (!bus) {
+		err = -ENODEV;
+		goto err_free_irq_domains;
+	}
 
 	err = xilinx_cpm_pcie_parse_dt(port, bus->res);
 	if (err) {
 		dev_err(dev, "Parsing DT failed\n");
-		goto err_parse_dt;
+		goto err_free_irq_domains;
 	}
 
 	xilinx_cpm_pcie_init_port(port);
 
-	err = xilinx_cpm_setup_irq(port);
-	if (err) {
-		dev_err(dev, "Failed to set up interrupts\n");
-		goto err_setup_irq;
+	if (port->variant->version != CPM5NC_HOST) {
+		err = xilinx_cpm_setup_irq(port);
+		if (err) {
+			dev_err(dev, "Failed to set up interrupts\n");
+			goto err_setup_irq;
+		}
 	}
 
 	bridge->sysdata = port->cfg;
@@ -599,20 +623,37 @@ static int xilinx_cpm_pcie_probe(struct platform_device *pdev)
 	return 0;
 
 err_host_bridge:
-	xilinx_cpm_free_interrupts(port);
+	if (port->variant->version != CPM5NC_HOST)
+		xilinx_cpm_free_interrupts(port);
 err_setup_irq:
 	pci_ecam_free(port->cfg);
-err_parse_dt:
-	xilinx_cpm_free_irq_domains(port);
+err_free_irq_domains:
+	if (port->variant->version != CPM5NC_HOST)
+		xilinx_cpm_free_irq_domains(port);
 	return err;
 }
 
 static const struct xilinx_cpm_variant cpm_host = {
 	.version = CPM,
+	.ir_misc_value = XILINX_CPM_PCIE0_MISC_IR_LOCAL,
 };
 
 static const struct xilinx_cpm_variant cpm5_host = {
 	.version = CPM5,
+	.ir_misc_value = XILINX_CPM_PCIE0_MISC_IR_LOCAL,
+	.ir_status = XILINX_CPM_PCIE0_IR_STATUS,
+	.ir_enable = XILINX_CPM_PCIE0_IR_ENABLE,
+};
+
+static const struct xilinx_cpm_variant cpm5_host1 = {
+	.version = CPM5_HOST1,
+	.ir_misc_value = XILINX_CPM_PCIE1_MISC_IR_LOCAL,
+	.ir_status = XILINX_CPM_PCIE1_IR_STATUS,
+	.ir_enable = XILINX_CPM_PCIE1_IR_ENABLE,
+};
+
+static const struct xilinx_cpm_variant cpm5n_host = {
+	.version = CPM5NC_HOST,
 };
 
 static const struct of_device_id xilinx_cpm_pcie_of_match[] = {
@@ -623,6 +664,14 @@ static const struct of_device_id xilinx_cpm_pcie_of_match[] = {
 	{
 		.compatible = "xlnx,versal-cpm5-host",
 		.data = &cpm5_host,
+	},
+	{
+		.compatible = "xlnx,versal-cpm5-host1",
+		.data = &cpm5_host1,
+	},
+	{
+		.compatible = "xlnx,versal-cpm5nc-host",
+		.data = &cpm5n_host,
 	},
 	{}
 };

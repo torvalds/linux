@@ -157,30 +157,30 @@ additionalProperties: false
 
 examples:
   - |
-     pinctrl@4e000 {
-         compatible = "realtek,rtd1619b-pinctrl";
-         reg = <0x4e000 0x130>;
+    pinctrl@4e000 {
+        compatible = "realtek,rtd1619b-pinctrl";
+        reg = <0x4e000 0x130>;
 
-         emmc-hs200-pins {
-             pins = "emmc_clk",
-                    "emmc_cmd",
-                    "emmc_data_0",
-                    "emmc_data_1",
-                    "emmc_data_2",
-                    "emmc_data_3",
-                    "emmc_data_4",
-                    "emmc_data_5",
-                    "emmc_data_6",
-                    "emmc_data_7";
-             function = "emmc";
-             realtek,drive-strength-p = <0x2>;
-             realtek,drive-strength-n = <0x2>;
-         };
+        emmc-hs200-pins {
+            pins = "emmc_clk",
+                   "emmc_cmd",
+                   "emmc_data_0",
+                   "emmc_data_1",
+                   "emmc_data_2",
+                   "emmc_data_3",
+                   "emmc_data_4",
+                   "emmc_data_5",
+                   "emmc_data_6",
+                   "emmc_data_7";
+            function = "emmc";
+            realtek,drive-strength-p = <0x2>;
+            realtek,drive-strength-n = <0x2>;
+        };
 
-         i2c-0-pins {
-             pins = "gpio_12",
-                    "gpio_13";
-             function = "i2c0";
-             drive-strength = <4>;
-         };
-     };
+        i2c-0-pins {
+            pins = "gpio_12",
+                   "gpio_13";
+            function = "i2c0";
+            drive-strength = <4>;
+        };
+    };

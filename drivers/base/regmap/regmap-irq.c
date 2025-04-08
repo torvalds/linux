@@ -823,7 +823,7 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 		/* Ack masked but set interrupts */
 		if (d->chip->no_status) {
 			/* no status register so default to all active */
-			d->status_buf[i] = GENMASK(31, 0);
+			d->status_buf[i] = UINT_MAX;
 		} else {
 			reg = d->get_irq_reg(d, d->chip->status_base, i);
 			ret = regmap_read(map, reg, &d->status_buf[i]);
@@ -906,6 +906,7 @@ err_alloc:
 	kfree(d->wake_buf);
 	kfree(d->mask_buf_def);
 	kfree(d->mask_buf);
+	kfree(d->main_status_buf);
 	kfree(d->status_buf);
 	kfree(d->status_reg_buf);
 	if (d->config_buf) {
@@ -981,6 +982,7 @@ void regmap_del_irq_chip(int irq, struct regmap_irq_chip_data *d)
 	kfree(d->wake_buf);
 	kfree(d->mask_buf_def);
 	kfree(d->mask_buf);
+	kfree(d->main_status_buf);
 	kfree(d->status_reg_buf);
 	kfree(d->status_buf);
 	if (d->config_buf) {

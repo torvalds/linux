@@ -121,6 +121,76 @@
 	};
 };
 
+&adc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&adc1_ain_pins_a>;
+	vdd-supply = <&vdd>;
+	vdda-supply = <&vdda>;
+	vref-supply = <&vrefbuf>;
+	status = "okay";
+
+	adc1: adc@0 {
+		st,adc-channels = <0 1 2 5 9 10 13 15>;
+		st,min-sample-time-nsecs = <5000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+
+		channel@0 {
+			reg = <0>;
+			label = "HOST_2_CURR_FB";
+		};
+
+		channel@1 {
+			reg = <1>;
+			label = "HOST_3_CURR_FB";
+		};
+
+		channel@2 {
+			reg = <2>;
+			label = "OUT_0_FB";
+		};
+
+		channel@5 {
+			reg = <5>;
+			label = "IOBUS_CURR_FB";
+		};
+
+		channel@9 {
+			reg = <9>;
+			label = "IOBUS_VOLT_FB";
+		};
+
+		channel@10 {
+			reg = <10>;
+			label = "OUT_1_FB";
+		};
+
+		channel@13 {
+			reg = <13>;
+			label = "HOST_CURR_FB";
+		};
+
+		channel@15 {
+			reg = <15>;
+			label = "HOST_1_CURR_FB";
+		};
+	};
+
+	adc2: adc@100 {
+		st,adc-channels = <12>;
+		st,min-sample-time-nsecs = <500000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+
+		channel@12 {
+			reg = <12>;
+			label = "TEMP_INTERNAL";
+		};
+	};
+};
+
 &gpioa {
 	gpio-line-names = "", "", "DUT_PWR_EN", "", "STACK_CS3", /*  0 */
 	"ETH_GPIO1", "ETH_INT", "", "", "",                      /*  5 */
@@ -132,6 +202,20 @@
 	gpio-line-names = "", "DUT_PWR_DISCH", "", "", "", /*  0 */
 	"", "", "", "", "",                                /*  5 */
 	"", "";                                            /* 10 */
+};
+
+&gpioe {
+	gpio-line-names = "TP35", "", "", "", "CAN_1_120R", /*  0 */
+	"", "", "USER_BTN2", "TP48", "UART_TX_EN",          /*  5 */
+	"UART_RX_EN", "TP24", "", "TP25", "TP26",           /* 10 */
+	"TP27";                                             /* 15 */
+};
+
+&gpiog {
+	gpio-line-names = "ETH_RESET", "", "", "", "",               /*  0 */
+	"IOBUS_FLT_FB", "", "USER_LED2", "ETH1_PPS_A", "CAN_0_120R", /*  5 */
+	"TP49", "", "", "", "",                                      /* 10 */
+	"";                                                          /* 15 */
 };
 
 &gpu {

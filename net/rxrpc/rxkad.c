@@ -148,14 +148,14 @@ error:
 static struct rxrpc_txbuf *rxkad_alloc_txbuf(struct rxrpc_call *call, size_t remain, gfp_t gfp)
 {
 	struct rxrpc_txbuf *txb;
-	size_t shdr, space;
+	size_t shdr, alloc, limit, part;
 
-	remain = min(remain, 65535 - sizeof(struct rxrpc_wire_header));
+	remain = umin(remain, 65535 - sizeof(struct rxrpc_wire_header));
 
 	switch (call->conn->security_level) {
 	default:
-		space = min_t(size_t, remain, RXRPC_JUMBO_DATALEN);
-		return rxrpc_alloc_data_txbuf(call, space, 1, gfp);
+		alloc = umin(remain, RXRPC_JUMBO_DATALEN);
+		return rxrpc_alloc_data_txbuf(call, alloc, 1, gfp);
 	case RXRPC_SECURITY_AUTH:
 		shdr = sizeof(struct rxkad_level1_hdr);
 		break;
@@ -164,15 +164,21 @@ static struct rxrpc_txbuf *rxkad_alloc_txbuf(struct rxrpc_call *call, size_t rem
 		break;
 	}
 
-	space = min_t(size_t, round_down(RXRPC_JUMBO_DATALEN, RXKAD_ALIGN), remain + shdr);
-	space = round_up(space, RXKAD_ALIGN);
+	limit = round_down(RXRPC_JUMBO_DATALEN, RXKAD_ALIGN) - shdr;
+	if (remain < limit) {
+		part = remain;
+		alloc = round_up(shdr + part, RXKAD_ALIGN);
+	} else {
+		part = limit;
+		alloc = RXRPC_JUMBO_DATALEN;
+	}
 
-	txb = rxrpc_alloc_data_txbuf(call, space, RXKAD_ALIGN, gfp);
+	txb = rxrpc_alloc_data_txbuf(call, alloc, RXKAD_ALIGN, gfp);
 	if (!txb)
 		return NULL;
 
 	txb->offset += shdr;
-	txb->space -= shdr;
+	txb->space = part;
 	return txb;
 }
 
@@ -251,8 +257,7 @@ static int rxkad_secure_packet_auth(const struct rxrpc_call *call,
 				    struct rxrpc_txbuf *txb,
 				    struct skcipher_request *req)
 {
-	struct rxrpc_wire_header *whdr = txb->kvec[0].iov_base;
-	struct rxkad_level1_hdr *hdr = (void *)(whdr + 1);
+	struct rxkad_level1_hdr *hdr = txb->data;
 	struct rxrpc_crypt iv;
 	struct scatterlist sg;
 	size_t pad;
@@ -263,13 +268,13 @@ static int rxkad_secure_packet_auth(const struct rxrpc_call *call,
 	check = txb->seq ^ call->call_id;
 	hdr->data_size = htonl((u32)check << 16 | txb->len);
 
-	txb->len += sizeof(struct rxkad_level1_hdr);
-	pad = txb->len;
+	txb->pkt_len = sizeof(struct rxkad_level1_hdr) + txb->len;
+	pad = txb->pkt_len;
 	pad = RXKAD_ALIGN - pad;
 	pad &= RXKAD_ALIGN - 1;
 	if (pad) {
-		memset(txb->kvec[0].iov_base + txb->offset, 0, pad);
-		txb->len += pad;
+		memset(txb->data + txb->offset, 0, pad);
+		txb->pkt_len += pad;
 	}
 
 	/* start the encryption afresh */
@@ -294,11 +299,10 @@ static int rxkad_secure_packet_encrypt(const struct rxrpc_call *call,
 				       struct skcipher_request *req)
 {
 	const struct rxrpc_key_token *token;
-	struct rxrpc_wire_header *whdr = txb->kvec[0].iov_base;
-	struct rxkad_level2_hdr *rxkhdr = (void *)(whdr + 1);
+	struct rxkad_level2_hdr *rxkhdr = txb->data;
 	struct rxrpc_crypt iv;
 	struct scatterlist sg;
-	size_t pad;
+	size_t content, pad;
 	u16 check;
 	int ret;
 
@@ -309,23 +313,20 @@ static int rxkad_secure_packet_encrypt(const struct rxrpc_call *call,
 	rxkhdr->data_size = htonl(txb->len | (u32)check << 16);
 	rxkhdr->checksum = 0;
 
-	txb->len += sizeof(struct rxkad_level2_hdr);
-	pad = txb->len;
-	pad = RXKAD_ALIGN - pad;
-	pad &= RXKAD_ALIGN - 1;
-	if (pad) {
-		memset(txb->kvec[0].iov_base + txb->offset, 0, pad);
-		txb->len += pad;
-	}
+	content = sizeof(struct rxkad_level2_hdr) + txb->len;
+	txb->pkt_len = round_up(content, RXKAD_ALIGN);
+	pad = txb->pkt_len - content;
+	if (pad)
+		memset(txb->data + txb->offset, 0, pad);
 
 	/* encrypt from the session key */
 	token = call->conn->key->payload.data[0];
 	memcpy(&iv, token->kad->session_key, sizeof(iv));
 
-	sg_init_one(&sg, rxkhdr, txb->len);
+	sg_init_one(&sg, rxkhdr, txb->pkt_len);
 	skcipher_request_set_sync_tfm(req, call->conn->rxkad.cipher);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
-	skcipher_request_set_crypt(req, &sg, &sg, txb->len, iv.x);
+	skcipher_request_set_crypt(req, &sg, &sg, txb->pkt_len, iv.x);
 	ret = crypto_skcipher_encrypt(req);
 	skcipher_request_zero(req);
 	return ret;
@@ -384,17 +385,30 @@ static int rxkad_secure_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 
 	switch (call->conn->security_level) {
 	case RXRPC_SECURITY_PLAIN:
+		txb->pkt_len = txb->len;
 		ret = 0;
 		break;
 	case RXRPC_SECURITY_AUTH:
 		ret = rxkad_secure_packet_auth(call, txb, req);
+		if (txb->alloc_size == RXRPC_JUMBO_DATALEN)
+			txb->jumboable = true;
 		break;
 	case RXRPC_SECURITY_ENCRYPT:
 		ret = rxkad_secure_packet_encrypt(call, txb, req);
+		if (txb->alloc_size == RXRPC_JUMBO_DATALEN)
+			txb->jumboable = true;
 		break;
 	default:
 		ret = -EPERM;
 		break;
+	}
+
+	/* Clear excess space in the packet */
+	if (txb->pkt_len < txb->alloc_size) {
+		size_t gap = txb->alloc_size - txb->pkt_len;
+		void *p = txb->data;
+
+		memset(p + txb->pkt_len, 0, gap);
 	}
 
 	skcipher_request_free(req);

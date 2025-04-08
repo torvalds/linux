@@ -141,17 +141,10 @@ static int keystone_irq_probe(struct platform_device *pdev)
 	if (!kirq)
 		return -ENOMEM;
 
-	kirq->devctrl_regs =
-		syscon_regmap_lookup_by_phandle(np, "ti,syscon-dev");
+	kirq->devctrl_regs = syscon_regmap_lookup_by_phandle_args(np, "ti,syscon-dev",
+								  1, &kirq->devctrl_offset);
 	if (IS_ERR(kirq->devctrl_regs))
 		return PTR_ERR(kirq->devctrl_regs);
-
-	ret = of_property_read_u32_index(np, "ti,syscon-dev", 1,
-					 &kirq->devctrl_offset);
-	if (ret) {
-		dev_err(dev, "couldn't read the devctrl_offset offset!\n");
-		return ret;
-	}
 
 	kirq->irq = platform_get_irq(pdev, 0);
 	if (kirq->irq < 0)

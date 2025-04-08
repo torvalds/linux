@@ -29,6 +29,10 @@
 #include "xfs_dir2_priv.h"
 #include "xfs_parent.h"
 #include "xfs_health.h"
+#include "xfs_errortag.h"
+#include "xfs_error.h"
+#include "xfs_btree.h"
+#include "xfs_alloc.h"
 
 /*
  * Metadata Directory Tree

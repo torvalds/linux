@@ -156,7 +156,7 @@ static ssize_t led_invert_show(struct device *dev,
 {
 	struct activity_data *activity_data = led_trigger_get_drvdata(dev);
 
-	return sprintf(buf, "%u\n", activity_data->invert);
+	return sprintf(buf, "%d\n", activity_data->invert);
 }
 
 static ssize_t led_invert_store(struct device *dev,

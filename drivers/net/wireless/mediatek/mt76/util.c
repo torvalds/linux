@@ -64,7 +64,7 @@ int mt76_wcid_alloc(u32 *mask, int size)
 }
 EXPORT_SYMBOL_GPL(mt76_wcid_alloc);
 
-int mt76_get_min_avg_rssi(struct mt76_dev *dev, bool ext_phy)
+int mt76_get_min_avg_rssi(struct mt76_dev *dev, u8 phy_idx)
 {
 	struct mt76_wcid *wcid;
 	int i, j, min_rssi = 0;
@@ -75,20 +75,16 @@ int mt76_get_min_avg_rssi(struct mt76_dev *dev, bool ext_phy)
 
 	for (i = 0; i < ARRAY_SIZE(dev->wcid_mask); i++) {
 		u32 mask = dev->wcid_mask[i];
-		u32 phy_mask = dev->wcid_phy_mask[i];
 
 		if (!mask)
 			continue;
 
-		for (j = i * 32; mask; j++, mask >>= 1, phy_mask >>= 1) {
+		for (j = i * 32; mask; j++, mask >>= 1) {
 			if (!(mask & 1))
 				continue;
 
-			if (!!(phy_mask & 1) != ext_phy)
-				continue;
-
 			wcid = rcu_dereference(dev->wcid[j]);
-			if (!wcid)
+			if (!wcid || wcid->phy_idx != phy_idx)
 				continue;
 
 			spin_lock(&dev->rx_lock);

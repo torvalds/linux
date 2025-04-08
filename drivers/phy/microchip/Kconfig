@@ -15,6 +15,7 @@ config PHY_SPARX5_SERDES
 config PHY_LAN966X_SERDES
 	tristate "SerDes PHY driver for Microchip LAN966X"
 	select GENERIC_PHY
+	depends on SOC_LAN966 || MCHP_LAN966X_PCI || COMPILE_TEST
 	depends on OF
 	depends on MFD_SYSCON
 	help

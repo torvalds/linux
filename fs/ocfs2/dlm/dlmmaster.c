@@ -21,7 +21,7 @@
 #include <linux/inet.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
-
+#include <linux/string_choices.h>
 
 #include "../cluster/heartbeat.h"
 #include "../cluster/nodemanager.h"
@@ -2859,7 +2859,7 @@ static int dlm_mark_lockres_migrating(struct dlm_ctxt *dlm,
 	dlm_lockres_release_ast(dlm, res);
 
 	mlog(0, "about to wait on migration_wq, dirty=%s\n",
-	       res->state & DLM_LOCK_RES_DIRTY ? "yes" : "no");
+	       str_yes_no(res->state & DLM_LOCK_RES_DIRTY));
 	/* if the extra ref we just put was the final one, this
 	 * will pass thru immediately.  otherwise, we need to wait
 	 * for the last ast to finish. */
@@ -2869,12 +2869,12 @@ again:
 		   msecs_to_jiffies(1000));
 	if (ret < 0) {
 		mlog(0, "woken again: migrating? %s, dead? %s\n",
-		       res->state & DLM_LOCK_RES_MIGRATING ? "yes":"no",
-		       test_bit(target, dlm->domain_map) ? "no":"yes");
+		       str_yes_no(res->state & DLM_LOCK_RES_MIGRATING),
+		       str_no_yes(test_bit(target, dlm->domain_map)));
 	} else {
 		mlog(0, "all is well: migrating? %s, dead? %s\n",
-		       res->state & DLM_LOCK_RES_MIGRATING ? "yes":"no",
-		       test_bit(target, dlm->domain_map) ? "no":"yes");
+		       str_yes_no(res->state & DLM_LOCK_RES_MIGRATING),
+		       str_no_yes(test_bit(target, dlm->domain_map)));
 	}
 	if (!dlm_migration_can_proceed(dlm, res, target)) {
 		mlog(0, "trying again...\n");

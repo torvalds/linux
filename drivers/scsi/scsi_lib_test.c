@@ -67,6 +67,13 @@ static void scsi_lib_test_multiple_sense(struct kunit *test)
 	};
 	int i;
 
+	/* Success */
+	sc.result = 0;
+	KUNIT_EXPECT_EQ(test, 0, scsi_check_passthrough(&sc, &failures));
+	KUNIT_EXPECT_EQ(test, 0, scsi_check_passthrough(&sc, NULL));
+	/* Command failed but caller did not pass in a failures array */
+	scsi_build_sense(&sc, 0, ILLEGAL_REQUEST, 0x91, 0x36);
+	KUNIT_EXPECT_EQ(test, 0, scsi_check_passthrough(&sc, NULL));
 	/* Match end of array */
 	scsi_build_sense(&sc, 0, ILLEGAL_REQUEST, 0x91, 0x36);
 	KUNIT_EXPECT_EQ(test, -EAGAIN, scsi_check_passthrough(&sc, &failures));

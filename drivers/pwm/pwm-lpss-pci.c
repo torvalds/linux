@@ -18,6 +18,7 @@ static int pwm_lpss_probe_pci(struct pci_dev *pdev,
 			      const struct pci_device_id *id)
 {
 	const struct pwm_lpss_boardinfo *info;
+	void __iomem *io_base;
 	struct pwm_chip *chip;
 	int err;
 
@@ -25,12 +26,12 @@ static int pwm_lpss_probe_pci(struct pci_dev *pdev,
 	if (err < 0)
 		return err;
 
-	err = pcim_iomap_regions(pdev, BIT(0), pci_name(pdev));
-	if (err)
-		return err;
+	io_base = pcim_iomap_region(pdev, 0, "pwm-lpss");
+	if (IS_ERR(io_base))
+		return PTR_ERR(io_base);
 
 	info = (struct pwm_lpss_boardinfo *)id->driver_data;
-	chip = devm_pwm_lpss_probe(&pdev->dev, pcim_iomap_table(pdev)[0], info);
+	chip = devm_pwm_lpss_probe(&pdev->dev, io_base, info);
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 

@@ -25,7 +25,7 @@ static void netfs_prepare_dio_read_iterator(struct netfs_io_subrequest *subreq)
 	subreq->len = rsize;
 
 	if (unlikely(rreq->io_streams[0].sreq_max_segs)) {
-		size_t limit = netfs_limit_iter(&rreq->iter, 0, rsize,
+		size_t limit = netfs_limit_iter(&rreq->buffer.iter, 0, rsize,
 						rreq->io_streams[0].sreq_max_segs);
 
 		if (limit < rsize) {
@@ -36,9 +36,9 @@ static void netfs_prepare_dio_read_iterator(struct netfs_io_subrequest *subreq)
 
 	trace_netfs_sreq(subreq, netfs_sreq_trace_prepare);
 
-	subreq->io_iter	= rreq->iter;
+	subreq->io_iter	= rreq->buffer.iter;
 	iov_iter_truncate(&subreq->io_iter, subreq->len);
-	iov_iter_advance(&rreq->iter, subreq->len);
+	iov_iter_advance(&rreq->buffer.iter, subreq->len);
 }
 
 /*
@@ -47,11 +47,10 @@ static void netfs_prepare_dio_read_iterator(struct netfs_io_subrequest *subreq)
  */
 static int netfs_dispatch_unbuffered_reads(struct netfs_io_request *rreq)
 {
+	struct netfs_io_stream *stream = &rreq->io_streams[0];
 	unsigned long long start = rreq->start;
 	ssize_t size = rreq->len;
 	int ret = 0;
-
-	atomic_set(&rreq->nr_outstanding, 1);
 
 	do {
 		struct netfs_io_subrequest *subreq;
@@ -67,19 +66,25 @@ static int netfs_dispatch_unbuffered_reads(struct netfs_io_request *rreq)
 		subreq->start	= start;
 		subreq->len	= size;
 
-		atomic_inc(&rreq->nr_outstanding);
-		spin_lock_bh(&rreq->lock);
-		list_add_tail(&subreq->rreq_link, &rreq->subrequests);
-		subreq->prev_donated = rreq->prev_donated;
-		rreq->prev_donated = 0;
+		__set_bit(NETFS_SREQ_IN_PROGRESS, &subreq->flags);
+
+		spin_lock(&rreq->lock);
+		list_add_tail(&subreq->rreq_link, &stream->subrequests);
+		if (list_is_first(&subreq->rreq_link, &stream->subrequests)) {
+			stream->front = subreq;
+			if (!stream->active) {
+				stream->collected_to = stream->front->start;
+				/* Store list pointers before active flag */
+				smp_store_release(&stream->active, true);
+			}
+		}
 		trace_netfs_sreq(subreq, netfs_sreq_trace_added);
-		spin_unlock_bh(&rreq->lock);
+		spin_unlock(&rreq->lock);
 
 		netfs_stat(&netfs_n_rh_download);
 		if (rreq->netfs_ops->prepare_read) {
 			ret = rreq->netfs_ops->prepare_read(subreq);
 			if (ret < 0) {
-				atomic_dec(&rreq->nr_outstanding);
 				netfs_put_subrequest(subreq, false, netfs_sreq_trace_put_cancel);
 				break;
 			}
@@ -87,20 +92,32 @@ static int netfs_dispatch_unbuffered_reads(struct netfs_io_request *rreq)
 
 		netfs_prepare_dio_read_iterator(subreq);
 		slice = subreq->len;
-		rreq->netfs_ops->issue_read(subreq);
-
 		size -= slice;
 		start += slice;
 		rreq->submitted += slice;
+		if (size <= 0) {
+			smp_wmb(); /* Write lists before ALL_QUEUED. */
+			set_bit(NETFS_RREQ_ALL_QUEUED, &rreq->flags);
+		}
 
+		rreq->netfs_ops->issue_read(subreq);
+
+		if (test_bit(NETFS_RREQ_PAUSE, &rreq->flags))
+			netfs_wait_for_pause(rreq);
+		if (test_bit(NETFS_RREQ_FAILED, &rreq->flags))
+			break;
 		if (test_bit(NETFS_RREQ_BLOCKED, &rreq->flags) &&
 		    test_bit(NETFS_RREQ_NONBLOCK, &rreq->flags))
 			break;
 		cond_resched();
 	} while (size > 0);
 
-	if (atomic_dec_and_test(&rreq->nr_outstanding))
-		netfs_rreq_terminated(rreq, false);
+	if (unlikely(size > 0)) {
+		smp_wmb(); /* Write lists before ALL_QUEUED. */
+		set_bit(NETFS_RREQ_ALL_QUEUED, &rreq->flags);
+		netfs_wake_read_collector(rreq);
+	}
+
 	return ret;
 }
 
@@ -108,9 +125,9 @@ static int netfs_dispatch_unbuffered_reads(struct netfs_io_request *rreq)
  * Perform a read to an application buffer, bypassing the pagecache and the
  * local disk cache.
  */
-static int netfs_unbuffered_read(struct netfs_io_request *rreq, bool sync)
+static ssize_t netfs_unbuffered_read(struct netfs_io_request *rreq, bool sync)
 {
-	int ret;
+	ssize_t ret;
 
 	_enter("R=%x %llx-%llx",
 	       rreq->debug_id, rreq->start, rreq->start + rreq->len - 1);
@@ -133,23 +150,12 @@ static int netfs_unbuffered_read(struct netfs_io_request *rreq, bool sync)
 		goto out;
 	}
 
-	if (sync) {
-		trace_netfs_rreq(rreq, netfs_rreq_trace_wait_ip);
-		wait_on_bit(&rreq->flags, NETFS_RREQ_IN_PROGRESS,
-			    TASK_UNINTERRUPTIBLE);
-
-		ret = rreq->error;
-		if (ret == 0 && rreq->submitted < rreq->len &&
-		    rreq->origin != NETFS_DIO_READ) {
-			trace_netfs_failure(rreq, NULL, ret, netfs_fail_short_read);
-			ret = -EIO;
-		}
-	} else {
+	if (sync)
+		ret = netfs_wait_for_read(rreq);
+	else
 		ret = -EIOCBQUEUED;
-	}
-
 out:
-	_leave(" = %d", ret);
+	_leave(" = %zd", ret);
 	return ret;
 }
 
@@ -199,15 +205,15 @@ ssize_t netfs_unbuffered_read_iter_locked(struct kiocb *iocb, struct iov_iter *i
 	 * the request.
 	 */
 	if (user_backed_iter(iter)) {
-		ret = netfs_extract_user_iter(iter, rreq->len, &rreq->iter, 0);
+		ret = netfs_extract_user_iter(iter, rreq->len, &rreq->buffer.iter, 0);
 		if (ret < 0)
 			goto out;
-		rreq->direct_bv = (struct bio_vec *)rreq->iter.bvec;
+		rreq->direct_bv = (struct bio_vec *)rreq->buffer.iter.bvec;
 		rreq->direct_bv_count = ret;
 		rreq->direct_bv_unpin = iov_iter_extract_will_pin(iter);
-		rreq->len = iov_iter_count(&rreq->iter);
+		rreq->len = iov_iter_count(&rreq->buffer.iter);
 	} else {
-		rreq->iter = *iter;
+		rreq->buffer.iter = *iter;
 		rreq->len = orig_count;
 		rreq->direct_bv_unpin = false;
 		iov_iter_advance(iter, orig_count);
@@ -215,8 +221,10 @@ ssize_t netfs_unbuffered_read_iter_locked(struct kiocb *iocb, struct iov_iter *i
 
 	// TODO: Set up bounce buffer if needed
 
-	if (!sync)
+	if (!sync) {
 		rreq->iocb = iocb;
+		__set_bit(NETFS_RREQ_OFFLOAD_COLLECTION, &rreq->flags);
+	}
 
 	ret = netfs_unbuffered_read(rreq, sync);
 	if (ret < 0)

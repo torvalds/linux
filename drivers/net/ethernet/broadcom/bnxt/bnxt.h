@@ -34,6 +34,9 @@
 #include <linux/firmware/broadcom/tee_bnxt_fw.h>
 #endif
 
+#define BNXT_DEFAULT_RX_COPYBREAK 256
+#define BNXT_MAX_RX_COPYBREAK 1024
+
 extern struct list_head bnxt_block_cb_list;
 
 struct page_pool;
@@ -78,6 +81,12 @@ struct tx_bd {
 				 TX_OPAQUE_BDS_SHIFT)
 #define TX_OPAQUE_PROD(bp, opq)	((TX_OPAQUE_IDX(opq) + TX_OPAQUE_BDS(opq)) &\
 				 (bp)->tx_ring_mask)
+
+#define TX_BD_CNT(n)	(((n) << TX_BD_FLAGS_BD_CNT_SHIFT) & TX_BD_FLAGS_BD_CNT)
+
+#define TX_MAX_BD_CNT	32
+
+#define TX_MAX_FRAGS		(TX_MAX_BD_CNT - 2)
 
 struct tx_bd_ext {
 	__le32 tx_bd_hsize_lflags;
@@ -1231,6 +1240,11 @@ struct bnxt_irq {
 	u8		have_cpumask:1;
 	char		name[IFNAMSIZ + BNXT_IRQ_NAME_EXTRA];
 	cpumask_var_t	cpu_mask;
+
+	struct bnxt	*bp;
+	int		msix_nr;
+	int		ring_nr;
+	struct irq_affinity_notify affinity_notify;
 };
 
 #define HWRM_RING_ALLOC_TX	0x1
@@ -2241,8 +2255,6 @@ struct bnxt {
 	#define BNXT_FLAG_TPA		(BNXT_FLAG_LRO | BNXT_FLAG_GRO)
 	#define BNXT_FLAG_JUMBO		0x10
 	#define BNXT_FLAG_STRIP_VLAN	0x20
-	#define BNXT_FLAG_AGG_RINGS	(BNXT_FLAG_JUMBO | BNXT_FLAG_GRO | \
-					 BNXT_FLAG_LRO)
 	#define BNXT_FLAG_RFS		0x100
 	#define BNXT_FLAG_SHARED_RINGS	0x200
 	#define BNXT_FLAG_PORT_STATS	0x400
@@ -2263,6 +2275,9 @@ struct bnxt {
 	#define BNXT_FLAG_ROCE_MIRROR_CAP	0x4000000
 	#define BNXT_FLAG_TX_COAL_CMPL	0x8000000
 	#define BNXT_FLAG_PORT_STATS_EXT	0x10000000
+	#define BNXT_FLAG_HDS		0x20000000
+	#define BNXT_FLAG_AGG_RINGS	(BNXT_FLAG_JUMBO | BNXT_FLAG_GRO | \
+					 BNXT_FLAG_LRO | BNXT_FLAG_HDS)
 
 	#define BNXT_FLAG_ALL_CONFIG_FEATS (BNXT_FLAG_TPA |		\
 					    BNXT_FLAG_RFS |		\
@@ -2270,6 +2285,11 @@ struct bnxt {
 
 #define BNXT_PF(bp)		(!((bp)->flags & BNXT_FLAG_VF))
 #define BNXT_VF(bp)		((bp)->flags & BNXT_FLAG_VF)
+#ifdef CONFIG_BNXT_SRIOV
+#define	BNXT_VF_IS_TRUSTED(bp)	((bp)->vf.flags & BNXT_VF_TRUST)
+#else
+#define	BNXT_VF_IS_TRUSTED(bp)	0
+#endif
 #define BNXT_NPAR(bp)		((bp)->port_partition_type)
 #define BNXT_MH(bp)		((bp)->flags & BNXT_FLAG_MULTI_HOST)
 #define BNXT_SINGLE_PF(bp)	(BNXT_PF(bp) && !BNXT_NPAR(bp) && !BNXT_MH(bp))
@@ -2342,7 +2362,7 @@ struct bnxt {
 	enum dma_data_direction	rx_dir;
 	u32			rx_ring_size;
 	u32			rx_agg_ring_size;
-	u32			rx_copy_thresh;
+	u32			rx_copybreak;
 	u32			rx_ring_mask;
 	u32			rx_agg_ring_mask;
 	int			rx_nr_pages;
@@ -2400,6 +2420,8 @@ struct bnxt {
 	u8			q_ids[BNXT_MAX_QUEUE];
 	u8			max_q;
 	u8			num_tc;
+
+	u8			tph_mode;
 
 	unsigned int		current_interval;
 #define BNXT_TIMER_INTERVAL	HZ
@@ -2482,6 +2504,8 @@ struct bnxt {
 	#define BNXT_FW_CAP_CFA_NTUPLE_RX_EXT_IP_PROTO	BIT_ULL(38)
 	#define BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX_V3	BIT_ULL(39)
 	#define BNXT_FW_CAP_VNIC_RE_FLUSH		BIT_ULL(40)
+	#define BNXT_FW_CAP_SW_MAX_RESOURCE_LIMITS	BIT_ULL(41)
+	#define BNXT_FW_CAP_NPAR_1_2			BIT_ULL(42)
 
 	u32			fw_dbg_cap;
 
@@ -2501,6 +2525,8 @@ struct bnxt {
 	((bp)->fw_cap & BNXT_FW_CAP_ENABLE_RDMA_SRIOV)
 #define BNXT_ROCE_VF_RESC_CAP(bp)	\
 	((bp)->fw_cap & BNXT_FW_CAP_ROCE_VF_RESC_MGMT_SUPPORTED)
+#define BNXT_SW_RES_LMT(bp)		\
+	((bp)->fw_cap & BNXT_FW_CAP_SW_MAX_RESOURCE_LIMITS)
 
 	u32			hwrm_spec_code;
 	u16			hwrm_cmd_seq;
@@ -2660,6 +2686,11 @@ struct bnxt {
 #define BNXT_PHY_FL_BANK_SEL		(PORT_PHY_QCAPS_RESP_FLAGS2_BANK_ADDR_SUPPORTED << 8)
 #define BNXT_PHY_FL_SPEEDS2		(PORT_PHY_QCAPS_RESP_FLAGS2_SPEEDS2_SUPPORTED << 8)
 
+	/* copied from flags in hwrm_port_mac_qcaps_output */
+	u8			mac_flags;
+#define BNXT_MAC_FL_NO_MAC_LPBK		\
+	PORT_MAC_QCAPS_RESP_FLAGS_LOCAL_LPBK_NOT_SUPPORTED
+
 	u8			num_tests;
 	struct bnxt_test_info	*test_info;
 
@@ -2672,6 +2703,7 @@ struct bnxt {
 #define BNXT_DUMP_LIVE		0
 #define BNXT_DUMP_CRASH		1
 #define BNXT_DUMP_DRIVER	2
+#define BNXT_DUMP_LIVE_WITH_CTX_L1_CACHE	3
 
 	struct bpf_prog		*xdp_prog;
 
@@ -2761,6 +2793,8 @@ struct bnxt {
 #define SFF_MODULE_ID_QSFP_PLUS			0xd
 #define SFF_MODULE_ID_QSFP28			0x11
 #define BNXT_MAX_PHY_I2C_RESP_SIZE		64
+
+#define BNXT_HDS_THRESHOLD_MAX			1023
 
 static inline u32 bnxt_tx_avail(struct bnxt *bp,
 				const struct bnxt_tx_ring_info *txr)

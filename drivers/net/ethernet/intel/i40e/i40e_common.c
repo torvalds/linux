@@ -1805,37 +1805,6 @@ int i40e_aq_set_vsi_broadcast(struct i40e_hw *hw,
 }
 
 /**
- * i40e_aq_set_vsi_vlan_promisc - control the VLAN promiscuous setting
- * @hw: pointer to the hw struct
- * @seid: vsi number
- * @enable: set MAC L2 layer unicast promiscuous enable/disable for a given VLAN
- * @cmd_details: pointer to command details structure or NULL
- **/
-int i40e_aq_set_vsi_vlan_promisc(struct i40e_hw *hw,
-				 u16 seid, bool enable,
-				 struct i40e_asq_cmd_details *cmd_details)
-{
-	struct i40e_aq_desc desc;
-	struct i40e_aqc_set_vsi_promiscuous_modes *cmd =
-		(struct i40e_aqc_set_vsi_promiscuous_modes *)&desc.params.raw;
-	u16 flags = 0;
-	int status;
-
-	i40e_fill_default_direct_cmd_desc(&desc,
-					i40e_aqc_opc_set_vsi_promiscuous_modes);
-	if (enable)
-		flags |= I40E_AQC_SET_VSI_PROMISC_VLAN;
-
-	cmd->promiscuous_flags = cpu_to_le16(flags);
-	cmd->valid_flags = cpu_to_le16(I40E_AQC_SET_VSI_PROMISC_VLAN);
-	cmd->seid = cpu_to_le16(seid);
-
-	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
-
-	return status;
-}
-
-/**
  * i40e_aq_get_vsi_params - get VSI configuration info
  * @hw: pointer to the hw struct
  * @vsi_ctx: pointer to a vsi context struct
@@ -2433,136 +2402,6 @@ i40e_aq_remove_macvlan_v2(struct i40e_hw *hw, u16 seid,
 
 	return i40e_asq_send_command_atomic_v2(hw, &desc, mv_list, buf_size,
 						 cmd_details, true, aq_status);
-}
-
-/**
- * i40e_mirrorrule_op - Internal helper function to add/delete mirror rule
- * @hw: pointer to the hw struct
- * @opcode: AQ opcode for add or delete mirror rule
- * @sw_seid: Switch SEID (to which rule refers)
- * @rule_type: Rule Type (ingress/egress/VLAN)
- * @id: Destination VSI SEID or Rule ID
- * @count: length of the list
- * @mr_list: list of mirrored VSI SEIDs or VLAN IDs
- * @cmd_details: pointer to command details structure or NULL
- * @rule_id: Rule ID returned from FW
- * @rules_used: Number of rules used in internal switch
- * @rules_free: Number of rules free in internal switch
- *
- * Add/Delete a mirror rule to a specific switch. Mirror rules are supported for
- * VEBs/VEPA elements only
- **/
-static int i40e_mirrorrule_op(struct i40e_hw *hw,
-			      u16 opcode, u16 sw_seid, u16 rule_type, u16 id,
-			      u16 count, __le16 *mr_list,
-			      struct i40e_asq_cmd_details *cmd_details,
-			      u16 *rule_id, u16 *rules_used, u16 *rules_free)
-{
-	struct i40e_aq_desc desc;
-	struct i40e_aqc_add_delete_mirror_rule *cmd =
-		(struct i40e_aqc_add_delete_mirror_rule *)&desc.params.raw;
-	struct i40e_aqc_add_delete_mirror_rule_completion *resp =
-	(struct i40e_aqc_add_delete_mirror_rule_completion *)&desc.params.raw;
-	u16 buf_size;
-	int status;
-
-	buf_size = count * sizeof(*mr_list);
-
-	/* prep the rest of the request */
-	i40e_fill_default_direct_cmd_desc(&desc, opcode);
-	cmd->seid = cpu_to_le16(sw_seid);
-	cmd->rule_type = cpu_to_le16(rule_type &
-				     I40E_AQC_MIRROR_RULE_TYPE_MASK);
-	cmd->num_entries = cpu_to_le16(count);
-	/* Dest VSI for add, rule_id for delete */
-	cmd->destination = cpu_to_le16(id);
-	if (mr_list) {
-		desc.flags |= cpu_to_le16((u16)(I40E_AQ_FLAG_BUF |
-						I40E_AQ_FLAG_RD));
-		if (buf_size > I40E_AQ_LARGE_BUF)
-			desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_LB);
-	}
-
-	status = i40e_asq_send_command(hw, &desc, mr_list, buf_size,
-				       cmd_details);
-	if (!status ||
-	    hw->aq.asq_last_status == I40E_AQ_RC_ENOSPC) {
-		if (rule_id)
-			*rule_id = le16_to_cpu(resp->rule_id);
-		if (rules_used)
-			*rules_used = le16_to_cpu(resp->mirror_rules_used);
-		if (rules_free)
-			*rules_free = le16_to_cpu(resp->mirror_rules_free);
-	}
-	return status;
-}
-
-/**
- * i40e_aq_add_mirrorrule - add a mirror rule
- * @hw: pointer to the hw struct
- * @sw_seid: Switch SEID (to which rule refers)
- * @rule_type: Rule Type (ingress/egress/VLAN)
- * @dest_vsi: SEID of VSI to which packets will be mirrored
- * @count: length of the list
- * @mr_list: list of mirrored VSI SEIDs or VLAN IDs
- * @cmd_details: pointer to command details structure or NULL
- * @rule_id: Rule ID returned from FW
- * @rules_used: Number of rules used in internal switch
- * @rules_free: Number of rules free in internal switch
- *
- * Add mirror rule. Mirror rules are supported for VEBs or VEPA elements only
- **/
-int i40e_aq_add_mirrorrule(struct i40e_hw *hw, u16 sw_seid,
-			   u16 rule_type, u16 dest_vsi, u16 count,
-			   __le16 *mr_list,
-			   struct i40e_asq_cmd_details *cmd_details,
-			   u16 *rule_id, u16 *rules_used, u16 *rules_free)
-{
-	if (!(rule_type == I40E_AQC_MIRROR_RULE_TYPE_ALL_INGRESS ||
-	    rule_type == I40E_AQC_MIRROR_RULE_TYPE_ALL_EGRESS)) {
-		if (count == 0 || !mr_list)
-			return -EINVAL;
-	}
-
-	return i40e_mirrorrule_op(hw, i40e_aqc_opc_add_mirror_rule, sw_seid,
-				  rule_type, dest_vsi, count, mr_list,
-				  cmd_details, rule_id, rules_used, rules_free);
-}
-
-/**
- * i40e_aq_delete_mirrorrule - delete a mirror rule
- * @hw: pointer to the hw struct
- * @sw_seid: Switch SEID (to which rule refers)
- * @rule_type: Rule Type (ingress/egress/VLAN)
- * @count: length of the list
- * @rule_id: Rule ID that is returned in the receive desc as part of
- *		add_mirrorrule.
- * @mr_list: list of mirrored VLAN IDs to be removed
- * @cmd_details: pointer to command details structure or NULL
- * @rules_used: Number of rules used in internal switch
- * @rules_free: Number of rules free in internal switch
- *
- * Delete a mirror rule. Mirror rules are supported for VEBs/VEPA elements only
- **/
-int i40e_aq_delete_mirrorrule(struct i40e_hw *hw, u16 sw_seid,
-			      u16 rule_type, u16 rule_id, u16 count,
-			      __le16 *mr_list,
-			      struct i40e_asq_cmd_details *cmd_details,
-			      u16 *rules_used, u16 *rules_free)
-{
-	/* Rule ID has to be valid except rule_type: INGRESS VLAN mirroring */
-	if (rule_type == I40E_AQC_MIRROR_RULE_TYPE_VLAN) {
-		/* count and mr_list shall be valid for rule_type INGRESS VLAN
-		 * mirroring. For other rule_type, count and rule_type should
-		 * not matter.
-		 */
-		if (count == 0 || !mr_list)
-			return -EINVAL;
-	}
-
-	return i40e_mirrorrule_op(hw, i40e_aqc_opc_delete_mirror_rule, sw_seid,
-				  rule_type, rule_id, count, mr_list,
-				  cmd_details, NULL, rules_used, rules_free);
 }
 
 /**
@@ -3180,41 +3019,6 @@ i40e_aq_update_nvm_exit:
 }
 
 /**
- * i40e_aq_rearrange_nvm
- * @hw: pointer to the hw struct
- * @rearrange_nvm: defines direction of rearrangement
- * @cmd_details: pointer to command details structure or NULL
- *
- * Rearrange NVM structure, available only for transition FW
- **/
-int i40e_aq_rearrange_nvm(struct i40e_hw *hw,
-			  u8 rearrange_nvm,
-			  struct i40e_asq_cmd_details *cmd_details)
-{
-	struct i40e_aqc_nvm_update *cmd;
-	struct i40e_aq_desc desc;
-	int status;
-
-	cmd = (struct i40e_aqc_nvm_update *)&desc.params.raw;
-
-	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_nvm_update);
-
-	rearrange_nvm &= (I40E_AQ_NVM_REARRANGE_TO_FLAT |
-			 I40E_AQ_NVM_REARRANGE_TO_STRUCT);
-
-	if (!rearrange_nvm) {
-		status = -EINVAL;
-		goto i40e_aq_rearrange_nvm_exit;
-	}
-
-	cmd->command_flags |= rearrange_nvm;
-	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
-
-i40e_aq_rearrange_nvm_exit:
-	return status;
-}
-
-/**
  * i40e_aq_get_lldp_mib
  * @hw: pointer to the hw struct
  * @bridge_type: type of bridge requested
@@ -3330,44 +3134,6 @@ int i40e_aq_cfg_lldp_mib_change_event(struct i40e_hw *hw,
 		cmd->command |= I40E_AQ_LLDP_MIB_UPDATE_DISABLE;
 
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
-
-	return status;
-}
-
-/**
- * i40e_aq_restore_lldp
- * @hw: pointer to the hw struct
- * @setting: pointer to factory setting variable or NULL
- * @restore: True if factory settings should be restored
- * @cmd_details: pointer to command details structure or NULL
- *
- * Restore LLDP Agent factory settings if @restore set to True. In other case
- * only returns factory setting in AQ response.
- **/
-int
-i40e_aq_restore_lldp(struct i40e_hw *hw, u8 *setting, bool restore,
-		     struct i40e_asq_cmd_details *cmd_details)
-{
-	struct i40e_aq_desc desc;
-	struct i40e_aqc_lldp_restore *cmd =
-		(struct i40e_aqc_lldp_restore *)&desc.params.raw;
-	int status;
-
-	if (!test_bit(I40E_HW_CAP_FW_LLDP_PERSISTENT, hw->caps)) {
-		i40e_debug(hw, I40E_DEBUG_ALL,
-			   "Restore LLDP not supported by current FW version.\n");
-		return -ENODEV;
-	}
-
-	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_lldp_restore);
-
-	if (restore)
-		cmd->command |= I40E_AQ_LLDP_AGENT_RESTORE;
-
-	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
-
-	if (setting)
-		*setting = cmd->command & 1;
 
 	return status;
 }
@@ -4570,84 +4336,6 @@ phy_write_end:
 }
 
 /**
- * i40e_write_phy_register
- * @hw: pointer to the HW structure
- * @page: registers page number
- * @reg: register address in the page
- * @phy_addr: PHY address on MDIO interface
- * @value: PHY register value
- *
- * Writes value to specified PHY register
- **/
-int i40e_write_phy_register(struct i40e_hw *hw,
-			    u8 page, u16 reg, u8 phy_addr, u16 value)
-{
-	int status;
-
-	switch (hw->device_id) {
-	case I40E_DEV_ID_1G_BASE_T_X722:
-		status = i40e_write_phy_register_clause22(hw, reg, phy_addr,
-							  value);
-		break;
-	case I40E_DEV_ID_1G_BASE_T_BC:
-	case I40E_DEV_ID_5G_BASE_T_BC:
-	case I40E_DEV_ID_10G_BASE_T:
-	case I40E_DEV_ID_10G_BASE_T4:
-	case I40E_DEV_ID_10G_BASE_T_BC:
-	case I40E_DEV_ID_10G_BASE_T_X722:
-	case I40E_DEV_ID_25G_B:
-	case I40E_DEV_ID_25G_SFP28:
-		status = i40e_write_phy_register_clause45(hw, page, reg,
-							  phy_addr, value);
-		break;
-	default:
-		status = -EIO;
-		break;
-	}
-
-	return status;
-}
-
-/**
- * i40e_read_phy_register
- * @hw: pointer to the HW structure
- * @page: registers page number
- * @reg: register address in the page
- * @phy_addr: PHY address on MDIO interface
- * @value: PHY register value
- *
- * Reads specified PHY register value
- **/
-int i40e_read_phy_register(struct i40e_hw *hw,
-			   u8 page, u16 reg, u8 phy_addr, u16 *value)
-{
-	int status;
-
-	switch (hw->device_id) {
-	case I40E_DEV_ID_1G_BASE_T_X722:
-		status = i40e_read_phy_register_clause22(hw, reg, phy_addr,
-							 value);
-		break;
-	case I40E_DEV_ID_1G_BASE_T_BC:
-	case I40E_DEV_ID_5G_BASE_T_BC:
-	case I40E_DEV_ID_10G_BASE_T:
-	case I40E_DEV_ID_10G_BASE_T4:
-	case I40E_DEV_ID_10G_BASE_T_BC:
-	case I40E_DEV_ID_10G_BASE_T_X722:
-	case I40E_DEV_ID_25G_B:
-	case I40E_DEV_ID_25G_SFP28:
-		status = i40e_read_phy_register_clause45(hw, page, reg,
-							 phy_addr, value);
-		break;
-	default:
-		status = -EIO;
-		break;
-	}
-
-	return status;
-}
-
-/**
  * i40e_get_phy_address
  * @hw: pointer to the HW structure
  * @dev_num: PHY port num that address we want
@@ -4660,80 +4348,6 @@ u8 i40e_get_phy_address(struct i40e_hw *hw, u8 dev_num)
 	u32 reg_val = rd32(hw, I40E_GLGEN_MDIO_I2C_SEL(port_num));
 
 	return (u8)(reg_val >> ((dev_num + 1) * 5)) & 0x1f;
-}
-
-/**
- * i40e_blink_phy_link_led
- * @hw: pointer to the HW structure
- * @time: time how long led will blinks in secs
- * @interval: gap between LED on and off in msecs
- *
- * Blinks PHY link LED
- **/
-int i40e_blink_phy_link_led(struct i40e_hw *hw,
-			    u32 time, u32 interval)
-{
-	u16 led_addr = I40E_PHY_LED_PROV_REG_1;
-	u16 gpio_led_port;
-	u8 phy_addr = 0;
-	int status = 0;
-	u16 led_ctl;
-	u8 port_num;
-	u16 led_reg;
-	u32 i;
-
-	i = rd32(hw, I40E_PFGEN_PORTNUM);
-	port_num = (u8)(i & I40E_PFGEN_PORTNUM_PORT_NUM_MASK);
-	phy_addr = i40e_get_phy_address(hw, port_num);
-
-	for (gpio_led_port = 0; gpio_led_port < 3; gpio_led_port++,
-	     led_addr++) {
-		status = i40e_read_phy_register_clause45(hw,
-							 I40E_PHY_COM_REG_PAGE,
-							 led_addr, phy_addr,
-							 &led_reg);
-		if (status)
-			goto phy_blinking_end;
-		led_ctl = led_reg;
-		if (led_reg & I40E_PHY_LED_LINK_MODE_MASK) {
-			led_reg = 0;
-			status = i40e_write_phy_register_clause45(hw,
-							 I40E_PHY_COM_REG_PAGE,
-							 led_addr, phy_addr,
-							 led_reg);
-			if (status)
-				goto phy_blinking_end;
-			break;
-		}
-	}
-
-	if (time > 0 && interval > 0) {
-		for (i = 0; i < time * 1000; i += interval) {
-			status = i40e_read_phy_register_clause45(hw,
-						I40E_PHY_COM_REG_PAGE,
-						led_addr, phy_addr, &led_reg);
-			if (status)
-				goto restore_config;
-			if (led_reg & I40E_PHY_LED_MANUAL_ON)
-				led_reg = 0;
-			else
-				led_reg = I40E_PHY_LED_MANUAL_ON;
-			status = i40e_write_phy_register_clause45(hw,
-						I40E_PHY_COM_REG_PAGE,
-						led_addr, phy_addr, led_reg);
-			if (status)
-				goto restore_config;
-			msleep(interval);
-		}
-	}
-
-restore_config:
-	status = i40e_write_phy_register_clause45(hw,
-						  I40E_PHY_COM_REG_PAGE,
-						  led_addr, phy_addr, led_ctl);
-
-phy_blinking_end:
-	return status;
 }
 
 /**
@@ -5269,39 +4883,6 @@ i40e_find_segment_in_package(u32 segment_type,
 	(struct i40e_profile_section_header *)((u8 *)(profile) + (offset))
 
 /**
- * i40e_find_section_in_profile
- * @section_type: the section type to search for (i.e., SECTION_TYPE_NOTE)
- * @profile: pointer to the i40e segment header to be searched
- *
- * This function searches i40e segment for a particular section type. On
- * success it returns a pointer to the section header, otherwise it will
- * return NULL.
- **/
-struct i40e_profile_section_header *
-i40e_find_section_in_profile(u32 section_type,
-			     struct i40e_profile_segment *profile)
-{
-	struct i40e_profile_section_header *sec;
-	struct i40e_section_table *sec_tbl;
-	u32 sec_off;
-	u32 i;
-
-	if (profile->header.type != SEGMENT_TYPE_I40E)
-		return NULL;
-
-	I40E_SECTION_TABLE(profile, sec_tbl);
-
-	for (i = 0; i < sec_tbl->section_count; i++) {
-		sec_off = sec_tbl->section_offset[i];
-		sec = I40E_SECTION_HEADER(profile, sec_off);
-		if (sec->section.type == section_type)
-			return sec;
-	}
-
-	return NULL;
-}
-
-/**
  * i40e_ddp_exec_aq_section - Execute generic AQ for DDP
  * @hw: pointer to the hw struct
  * @aq: command buffer containing all data to execute AQ
@@ -5520,45 +5101,6 @@ i40e_rollback_profile(struct i40e_hw *hw, struct i40e_profile_segment *profile,
 			break;
 		}
 	}
-	return status;
-}
-
-/**
- * i40e_add_pinfo_to_list
- * @hw: pointer to the hardware structure
- * @profile: pointer to the profile segment of the package
- * @profile_info_sec: buffer for information section
- * @track_id: package tracking id
- *
- * Register a profile to the list of loaded profiles.
- */
-int
-i40e_add_pinfo_to_list(struct i40e_hw *hw,
-		       struct i40e_profile_segment *profile,
-		       u8 *profile_info_sec, u32 track_id)
-{
-	struct i40e_profile_section_header *sec = NULL;
-	struct i40e_profile_info *pinfo;
-	u32 offset = 0, info = 0;
-	int status = 0;
-
-	sec = (struct i40e_profile_section_header *)profile_info_sec;
-	sec->tbl_size = 1;
-	sec->data_end = sizeof(struct i40e_profile_section_header) +
-			sizeof(struct i40e_profile_info);
-	sec->section.type = SECTION_TYPE_INFO;
-	sec->section.offset = sizeof(struct i40e_profile_section_header);
-	sec->section.size = sizeof(struct i40e_profile_info);
-	pinfo = (struct i40e_profile_info *)(profile_info_sec +
-					     sec->section.offset);
-	pinfo->track_id = track_id;
-	pinfo->version = profile->version;
-	pinfo->op = I40E_DDP_ADD_TRACKID;
-	memcpy(pinfo->name, profile->name, I40E_DDP_NAME_SIZE);
-
-	status = i40e_aq_write_ddp(hw, (void *)sec, sec->data_end,
-				   track_id, &offset, &info, NULL);
-
 	return status;
 }
 

@@ -43,9 +43,22 @@ enum {
 
 enum cifs_reparse_parm {
 	Opt_reparse_default,
+	Opt_reparse_none,
 	Opt_reparse_nfs,
 	Opt_reparse_wsl,
 	Opt_reparse_err
+};
+
+enum cifs_symlink_parm {
+	Opt_symlink_default,
+	Opt_symlink_none,
+	Opt_symlink_native,
+	Opt_symlink_unix,
+	Opt_symlink_mfsymlinks,
+	Opt_symlink_sfu,
+	Opt_symlink_nfs,
+	Opt_symlink_wsl,
+	Opt_symlink_err
 };
 
 enum cifs_sec_param {
@@ -122,6 +135,7 @@ enum cifs_param {
 	Opt_witness,
 	Opt_is_upcall_target_mount,
 	Opt_is_upcall_target_application,
+	Opt_unicode,
 
 	/* Mount options which take numeric value */
 	Opt_backupuid,
@@ -160,12 +174,16 @@ enum cifs_param {
 	Opt_iocharset,
 	Opt_netbiosname,
 	Opt_servern,
+	Opt_nbsessinit,
 	Opt_ver,
 	Opt_vers,
 	Opt_sec,
 	Opt_cache,
 	Opt_reparse,
 	Opt_upcalltarget,
+	Opt_nativesocket,
+	Opt_symlink,
+	Opt_symlinkroot,
 
 	/* Mount options to be ignored */
 	Opt_ignore,
@@ -199,6 +217,7 @@ struct smb3_fs_context {
 	char *iocharset;  /* local code page for mapping to and from Unicode */
 	char source_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* clnt nb name */
 	char target_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* srvr nb name */
+	int rfc1001_sessinit;
 	kuid_t cred_uid;
 	kuid_t linux_uid;
 	kgid_t linux_gid;
@@ -263,6 +282,9 @@ struct smb3_fs_context {
 	bool use_client_guid:1;
 	/* reuse existing guid for multichannel */
 	u8 client_guid[SMB2_CLIENT_GUID_SIZE];
+	/* User-specified original r/wsize value */
+	unsigned int vol_rsize;
+	unsigned int vol_wsize;
 	unsigned int bsize;
 	unsigned int rasize;
 	unsigned int rsize;
@@ -290,14 +312,21 @@ struct smb3_fs_context {
 	bool compress; /* enable SMB2 messages (READ/WRITE) de/compression */
 	bool rootfs:1; /* if it's a SMB root file system */
 	bool witness:1; /* use witness protocol */
+	int unicode;
 	char *leaf_fullpath;
 	struct cifs_ses *dfs_root_ses;
 	bool dfs_automount:1; /* set for dfs automount only */
 	enum cifs_reparse_type reparse_type;
+	enum cifs_symlink_type symlink_type;
+	bool nonativesocket:1;
 	bool dfs_conn:1; /* set for dfs mounts */
+	char *dns_dom;
+	char *symlinkroot; /* top level directory for native SMB symlinks in absolute format */
 };
 
 extern const struct fs_parameter_spec smb3_fs_parameters[];
+
+extern enum cifs_symlink_type get_cifs_symlink_type(struct cifs_sb_info *cifs_sb);
 
 extern int smb3_init_fs_context(struct fs_context *fc);
 extern void smb3_cleanup_fs_context_contents(struct smb3_fs_context *ctx);

@@ -263,13 +263,13 @@ static void perf_top__show_details(struct perf_top *top)
 	printf("Showing %s for %s\n", evsel__name(top->sym_evsel), symbol->name);
 	printf("  Events  Pcnt (>=%d%%)\n", annotate_opts.min_pcnt);
 
-	more = symbol__annotate_printf(&he->ms, top->sym_evsel);
+	more = hist_entry__annotate_printf(he, top->sym_evsel);
 
 	if (top->evlist->enabled) {
 		if (top->zero)
-			symbol__annotate_zero_histogram(symbol, top->sym_evsel->core.idx);
+			symbol__annotate_zero_histogram(symbol, top->sym_evsel);
 		else
-			symbol__annotate_decay_histogram(symbol, top->sym_evsel->core.idx);
+			symbol__annotate_decay_histogram(symbol, top->sym_evsel);
 	}
 	if (more != 0)
 		printf("%d lines not displayed, maybe increase display entries [e]\n", more);
@@ -809,7 +809,7 @@ static void perf_event__process_sample(const struct perf_tool *tool,
 		 * invalid --vmlinux ;-)
 		 */
 		if (!machine->kptr_restrict_warned && !top->vmlinux_warned &&
-		    __map__is_kernel(al.map) && map__has_symbols(al.map)) {
+		    __map__is_kernel(al.map) && !map__has_symbols(al.map)) {
 			if (symbol_conf.vmlinux_name) {
 				char serr[256];
 
@@ -1157,6 +1157,7 @@ static int deliver_event(struct ordered_events *qe,
 		return 0;
 	}
 
+	perf_sample__init(&sample, /*all=*/false);
 	ret = evlist__parse_sample(evlist, event, &sample);
 	if (ret) {
 		pr_err("Can't parse sample, err = %d\n", ret);
@@ -1167,8 +1168,10 @@ static int deliver_event(struct ordered_events *qe,
 	assert(evsel != NULL);
 
 	if (event->header.type == PERF_RECORD_SAMPLE) {
-		if (evswitch__discard(&top->evswitch, evsel))
-			return 0;
+		if (evswitch__discard(&top->evswitch, evsel)) {
+			ret = 0;
+			goto next_event;
+		}
 		++top->samples;
 	}
 
@@ -1219,6 +1222,7 @@ static int deliver_event(struct ordered_events *qe,
 
 	ret = 0;
 next_event:
+	perf_sample__exit(&sample);
 	return ret;
 }
 
@@ -1817,6 +1821,9 @@ int cmd_top(int argc, const char **argv)
 		top.session = NULL;
 		goto out_delete_evlist;
 	}
+
+	if (!evlist__needs_bpf_sb_event(top.evlist))
+		top.record_opts.no_bpf_event = true;
 
 #ifdef HAVE_LIBBPF_SUPPORT
 	if (!top.record_opts.no_bpf_event) {

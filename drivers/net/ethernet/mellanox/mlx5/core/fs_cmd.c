@@ -217,7 +217,8 @@ static int mlx5_cmd_update_root_ft(struct mlx5_flow_root_namespace *ns,
 	int err;
 
 	if ((MLX5_CAP_GEN(dev, port_type) == MLX5_CAP_PORT_TYPE_IB) &&
-	    underlay_qpn == 0)
+	    underlay_qpn == 0 &&
+	    (ft->type != FS_FT_RDMA_RX && ft->type != FS_FT_RDMA_TX))
 		return 0;
 
 	if (ft->type == FS_FT_FDB &&
@@ -718,7 +719,7 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 				continue;
 
 			MLX5_SET(flow_counter_list, in_dests, flow_counter_id,
-				 dst->dest_attr.counter_id);
+				 mlx5_fc_id(dst->dest_attr.counter));
 			in_dests += dst_cnt_size;
 			list_size++;
 		}
@@ -1141,6 +1142,8 @@ const struct mlx5_flow_cmds *mlx5_fs_cmd_get_default(enum fs_flow_table_type typ
 	case FS_FT_RDMA_RX:
 	case FS_FT_RDMA_TX:
 	case FS_FT_PORT_SEL:
+	case FS_FT_RDMA_TRANSPORT_RX:
+	case FS_FT_RDMA_TRANSPORT_TX:
 		return mlx5_fs_cmd_get_fw_cmds();
 	default:
 		return mlx5_fs_cmd_get_stub_cmds();

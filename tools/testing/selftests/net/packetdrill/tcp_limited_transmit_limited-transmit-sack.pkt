@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test RFC 3042 "Limited Transmit": "sending a new data segment in
+// response to each of the first two duplicate acknowledgments that
+// arrive at the sender".
+// This variation tests a receiver that supports SACK.
+
+`./defaults.sh`
+
+// Establish a connection.
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+  +.1 < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+  +.1 < . 1:1(0) ack 1 win 320
+   +0 accept(3, ..., ...) = 4
+
+// Write some data, and send the initial congestion window.
+   +0 write(4, ..., 15000) = 15000
+   +0 > P. 1:10001(10000) ack 1
+
+// Limited transmit: on first dupack, send a new data segment.
+ +.11 < . 1:1(0) ack 1 win 320 <sack 1001:2001,nop,nop>
+   +0 > . 10001:11001(1000) ack 1
+
+// Limited transmit: on second dupack, send a new data segment.
+ +.01 < . 1:1(0) ack 1 win 320 <sack 1001:3001,nop,nop>
+   +0 > . 11001:12001(1000) ack 1
+
+// It turned out to be reordering, not loss.
+ +.01 < . 1:1(0) ack 3001 win 320
+   +0 > P. 12001:14001(2000) ack 1
+
+ +.02 < . 1:1(0) ack 5001 win 320
+   +0 > P. 14001:15001(1000) ack 1
+
+// Client gradually ACKs all data.
+ +.02 < . 1:1(0) ack 7001 win 320
+ +.02 < . 1:1(0) ack 9001 win 320
+ +.02 < . 1:1(0) ack 11001 win 320
+ +.02 < . 1:1(0) ack 13001 win 320
+ +.02 < . 1:1(0) ack 15001 win 320
+
+// Clean up.
+ +.17 close(4) = 0
+   +0 > F. 15001:15001(0) ack 1
+  +.1 < F. 1:1(0) ack 15002 win 257
+   +0 > . 15002:15002(0) ack 2

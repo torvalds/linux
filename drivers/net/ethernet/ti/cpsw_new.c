@@ -293,6 +293,7 @@ static void cpsw_rx_handler(void *token, int len, int status)
 	struct page_pool *pool;
 	struct sk_buff *skb;
 	struct xdp_buff xdp;
+	u32 metasize = 0;
 	int ret = 0;
 	dma_addr_t dma;
 
@@ -345,13 +346,14 @@ static void cpsw_rx_handler(void *token, int len, int status)
 			size -= CPSW_RX_VLAN_ENCAP_HDR_SIZE;
 		}
 
-		xdp_prepare_buff(&xdp, pa, headroom, size, false);
+		xdp_prepare_buff(&xdp, pa, headroom, size, true);
 
 		ret = cpsw_run_xdp(priv, ch, &xdp, page, priv->emac_port, &len);
 		if (ret != CPSW_XDP_PASS)
 			goto requeue;
 
 		headroom = xdp.data - xdp.data_hard_start;
+		metasize = xdp.data - xdp.data_meta;
 
 		/* XDP prog can modify vlan tag, so can't use encap header */
 		status &= ~CPDMA_RX_VLAN_ENCAP;
@@ -368,6 +370,8 @@ static void cpsw_rx_handler(void *token, int len, int status)
 	skb->offload_fwd_mark = priv->offload_fwd_mark;
 	skb_reserve(skb, headroom);
 	skb_put(skb, len);
+	if (metasize)
+		skb_metadata_set(skb, metasize);
 	skb->dev = ndev;
 	if (status & CPDMA_RX_VLAN_ENCAP)
 		cpsw_rx_vlan_encap(skb);
@@ -554,7 +558,7 @@ static void cpsw_init_host_port(struct cpsw_priv *priv)
 	soft_reset("cpsw", &cpsw->regs->soft_reset);
 	cpsw_ale_start(cpsw->ale);
 
-	/* switch to vlan unaware mode */
+	/* switch to vlan aware mode */
 	cpsw_ale_control_set(cpsw->ale, HOST_PORT_NUM, ALE_VLAN_AWARE,
 			     CPSW_ALE_VLAN_AWARE);
 	control_reg = readl(&cpsw->regs->control);
@@ -777,6 +781,8 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 	phy->mac_managed_pm = true;
 
 	slave->phy = phy;
+
+	phy_disable_eee(slave->phy);
 
 	phy_attached_info(slave->phy);
 
@@ -1209,7 +1215,6 @@ static const struct ethtool_ops cpsw_ethtool_ops = {
 	.get_link_ksettings	= cpsw_get_link_ksettings,
 	.set_link_ksettings	= cpsw_set_link_ksettings,
 	.get_eee		= cpsw_get_eee,
-	.set_eee		= cpsw_set_eee,
 	.nway_reset		= cpsw_nway_reset,
 	.get_ringparam		= cpsw_get_ringparam,
 	.set_ringparam		= cpsw_set_ringparam,
@@ -1408,7 +1413,7 @@ static int cpsw_create_ports(struct cpsw_common *cpsw)
 
 		ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER |
 				  NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_TC;
-		ndev->netns_local = true;
+		ndev->netns_immutable = true;
 
 		ndev->xdp_features = NETDEV_XDP_ACT_BASIC |
 				     NETDEV_XDP_ACT_REDIRECT |
@@ -1417,6 +1422,7 @@ static int cpsw_create_ports(struct cpsw_common *cpsw)
 		ndev->netdev_ops = &cpsw_netdev_ops;
 		ndev->ethtool_ops = &cpsw_ethtool_ops;
 		SET_NETDEV_DEV(ndev, dev);
+		ndev->dev.of_node = slave_data->slave_node;
 
 		if (!napi_ndev) {
 			/* CPSW Host port CPDMA interface is shared between

@@ -44,6 +44,7 @@ static u8 dist_prio_nmi __ro_after_init = GICV3_PRIO_NMI;
 #define FLAGS_WORKAROUND_GICR_WAKER_MSM8996	(1ULL << 0)
 #define FLAGS_WORKAROUND_CAVIUM_ERRATUM_38539	(1ULL << 1)
 #define FLAGS_WORKAROUND_ASR_ERRATUM_8601001	(1ULL << 2)
+#define FLAGS_WORKAROUND_INSECURE		(1ULL << 3)
 
 #define GIC_IRQ_TYPE_PARTITION	(GIC_IRQ_TYPE_LPI + 1)
 
@@ -82,6 +83,8 @@ static DEFINE_STATIC_KEY_TRUE(supports_deactivate_key);
 #define GIC_ID_NR	(1U << GICD_TYPER_ID_BITS(gic_data.rdists.gicd_typer))
 #define GIC_LINE_NR	min(GICD_TYPER_SPIS(gic_data.rdists.gicd_typer), 1020U)
 #define GIC_ESPI_NR	GICD_TYPER_ESPIS(gic_data.rdists.gicd_typer)
+
+static bool nmi_support_forbidden;
 
 /*
  * There are 16 SGIs, though we only actually use 8 in Linux. The other 8 SGIs
@@ -163,21 +166,27 @@ static void __init gic_prio_init(void)
 {
 	bool ds;
 
+	cpus_have_group0 = gic_has_group0();
+
 	ds = gic_dist_security_disabled();
-	if (!ds) {
-		u32 val;
+	if ((gic_data.flags & FLAGS_WORKAROUND_INSECURE) && !ds) {
+		if (cpus_have_group0) {
+			u32 val;
 
-		val = readl_relaxed(gic_data.dist_base + GICD_CTLR);
-		val |= GICD_CTLR_DS;
-		writel_relaxed(val, gic_data.dist_base + GICD_CTLR);
+			val = readl_relaxed(gic_data.dist_base + GICD_CTLR);
+			val |= GICD_CTLR_DS;
+			writel_relaxed(val, gic_data.dist_base + GICD_CTLR);
 
-		ds = gic_dist_security_disabled();
-		if (ds)
-			pr_warn("Broken GIC integration, security disabled");
+			ds = gic_dist_security_disabled();
+			if (ds)
+				pr_warn("Broken GIC integration, security disabled\n");
+		} else {
+			pr_warn("Broken GIC integration, pNMI forbidden\n");
+			nmi_support_forbidden = true;
+		}
 	}
 
 	cpus_have_security_disabled = ds;
-	cpus_have_group0 = gic_has_group0();
 
 	/*
 	 * How priority values are used by the GIC depends on two things:
@@ -209,7 +218,7 @@ static void __init gic_prio_init(void)
 	 * be in the non-secure range, we program the non-secure values into
 	 * the distributor to match the PMR values we want.
 	 */
-	if (cpus_have_group0 & !cpus_have_security_disabled) {
+	if (cpus_have_group0 && !cpus_have_security_disabled) {
 		dist_prio_irq = __gicv3_prio_to_ns(dist_prio_irq);
 		dist_prio_nmi = __gicv3_prio_to_ns(dist_prio_nmi);
 	}
@@ -1922,6 +1931,18 @@ static bool gic_enable_quirk_arm64_2941627(void *data)
 	return true;
 }
 
+static bool gic_enable_quirk_rk3399(void *data)
+{
+	struct gic_chip_data *d = data;
+
+	if (of_machine_is_compatible("rockchip,rk3399")) {
+		d->flags |= FLAGS_WORKAROUND_INSECURE;
+		return true;
+	}
+
+	return false;
+}
+
 static bool rd_set_non_coherent(void *data)
 {
 	struct gic_chip_data *d = data;
@@ -1997,6 +2018,12 @@ static const struct gic_quirk gic_quirks[] = {
 		.init   = rd_set_non_coherent,
 	},
 	{
+		.desc	= "GICv3: Insecure RK3399 integration",
+		.iidr	= 0x0000043b,
+		.mask	= 0xff000fff,
+		.init	= gic_enable_quirk_rk3399,
+	},
+	{
 	}
 };
 
@@ -2004,7 +2031,7 @@ static void gic_enable_nmi_support(void)
 {
 	int i;
 
-	if (!gic_prio_masking_enabled())
+	if (!gic_prio_masking_enabled() || nmi_support_forbidden)
 		return;
 
 	rdist_nmi_refs = kcalloc(gic_data.ppi_nr + SGI_NR,

@@ -139,6 +139,8 @@ static __always_inline unsigned long __kern_hyp_va(unsigned long v)
 
 #define kern_hyp_va(v) 	((typeof(v))(__kern_hyp_va((unsigned long)(v))))
 
+extern u32 __hyp_va_bits;
+
 /*
  * We currently support using a VM-specified IPA size. For backward
  * compatibility, the default IPA size is fixed to 40bits.
@@ -351,6 +353,22 @@ static inline bool kvm_is_nested_s2_mmu(struct kvm *kvm, struct kvm_s2_mmu *mmu)
 	 * *any* of its fields.
 	 */
 	return &kvm->arch.mmu != mmu;
+}
+
+static inline void kvm_fault_lock(struct kvm *kvm)
+{
+	if (is_protected_kvm_enabled())
+		write_lock(&kvm->mmu_lock);
+	else
+		read_lock(&kvm->mmu_lock);
+}
+
+static inline void kvm_fault_unlock(struct kvm *kvm)
+{
+	if (is_protected_kvm_enabled())
+		write_unlock(&kvm->mmu_lock);
+	else
+		read_unlock(&kvm->mmu_lock);
 }
 
 #ifdef CONFIG_PTDUMP_STAGE2_DEBUGFS

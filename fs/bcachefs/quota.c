@@ -60,7 +60,7 @@ const struct bch_sb_field_ops bch_sb_field_ops_quota = {
 };
 
 int bch2_quota_validate(struct bch_fs *c, struct bkey_s_c k,
-			enum bch_validate_flags flags)
+			struct bkey_validate_context from)
 {
 	int ret = 0;
 
@@ -516,7 +516,7 @@ static int bch2_fs_quota_read_inode(struct btree_trans *trans,
 	bch2_quota_acct(c, bch_qid(&u), Q_INO, 1,
 			KEY_TYPE_QUOTA_NOCHECK);
 advance:
-	bch2_btree_iter_set_pos(iter, bpos_nosnap_successor(iter->pos));
+	bch2_btree_iter_set_pos(trans, iter, bpos_nosnap_successor(iter->pos));
 	return 0;
 }
 

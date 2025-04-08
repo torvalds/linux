@@ -16,10 +16,15 @@
 #include "fbnic_mac.h"
 #include "fbnic_rpc.h"
 
+struct fbnic_napi_vector;
+
+#define FBNIC_MAX_NAPI_VECTORS		128u
+
 struct fbnic_dev {
 	struct device *dev;
 	struct net_device *netdev;
 	struct dentry *dbg_fbd;
+	struct device *hwmon;
 
 	u32 __iomem *uc_addr0;
 	u32 __iomem *uc_addr4;
@@ -28,10 +33,16 @@ struct fbnic_dev {
 	unsigned int pcs_msix_vector;
 	unsigned short num_irqs;
 
+	struct {
+		u8 users;
+		char name[IFNAMSIZ + 9];
+	} napi_irq[FBNIC_MAX_NAPI_VECTORS];
+
 	struct delayed_work service_task;
 
 	struct fbnic_fw_mbx mbx[FBNIC_IPC_MBX_INDICES];
 	struct fbnic_fw_cap fw_cap;
+	struct fbnic_fw_completion *cmpl_data;
 	/* Lock protecting Tx Mailbox queue to prevent possible races */
 	spinlock_t fw_tx_lock;
 
@@ -48,6 +59,12 @@ struct fbnic_dev {
 	struct fbnic_mac_addr mac_addr[FBNIC_RPC_TCAM_MACDA_NUM_ENTRIES];
 	u8 mac_addr_boundary;
 	u8 tce_tcam_last;
+
+	/* IP TCAM */
+	struct fbnic_ip_addr ip_src[FBNIC_RPC_TCAM_IP_ADDR_NUM_ENTRIES];
+	struct fbnic_ip_addr ip_dst[FBNIC_RPC_TCAM_IP_ADDR_NUM_ENTRIES];
+	struct fbnic_ip_addr ipo_src[FBNIC_RPC_TCAM_IP_ADDR_NUM_ENTRIES];
+	struct fbnic_ip_addr ipo_dst[FBNIC_RPC_TCAM_IP_ADDR_NUM_ENTRIES];
 
 	/* Number of TCQs/RCQs available on hardware */
 	u16 max_num_queues;
@@ -140,9 +157,18 @@ void fbnic_devlink_unregister(struct fbnic_dev *fbd);
 int fbnic_fw_enable_mbx(struct fbnic_dev *fbd);
 void fbnic_fw_disable_mbx(struct fbnic_dev *fbd);
 
+void fbnic_hwmon_register(struct fbnic_dev *fbd);
+void fbnic_hwmon_unregister(struct fbnic_dev *fbd);
+
 int fbnic_pcs_irq_enable(struct fbnic_dev *fbd);
 void fbnic_pcs_irq_disable(struct fbnic_dev *fbd);
 
+void fbnic_napi_name_irqs(struct fbnic_dev *fbd);
+int fbnic_napi_request_irq(struct fbnic_dev *fbd,
+			   struct fbnic_napi_vector *nv);
+void fbnic_napi_free_irq(struct fbnic_dev *fbd,
+			 struct fbnic_napi_vector *nv);
+void fbnic_synchronize_irq(struct fbnic_dev *fbd, int nr);
 int fbnic_request_irq(struct fbnic_dev *dev, int nr, irq_handler_t handler,
 		      unsigned long flags, const char *name, void *data);
 void fbnic_free_irq(struct fbnic_dev *dev, int nr, void *data);
@@ -159,6 +185,9 @@ void fbnic_dbg_exit(void);
 
 void fbnic_csr_get_regs(struct fbnic_dev *fbd, u32 *data, u32 *regs_version);
 int fbnic_csr_regs_len(struct fbnic_dev *fbd);
+
+void fbnic_config_txrx_usecs(struct fbnic_napi_vector *nv, u32 arm);
+void fbnic_config_rx_frames(struct fbnic_napi_vector *nv);
 
 enum fbnic_boards {
 	fbnic_board_asic

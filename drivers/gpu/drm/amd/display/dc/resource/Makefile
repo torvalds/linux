@@ -198,6 +198,14 @@ AMD_DISPLAY_FILES += $(AMD_DAL_RESOURCE_DCN351)
 
 ###############################################################################
 
+RESOURCE_DCN36 = dcn36_resource.o
+
+AMD_DAL_RESOURCE_DCN36 = $(addprefix $(AMDDALPATH)/dc/resource/dcn36/,$(RESOURCE_DCN36))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_RESOURCE_DCN36)
+
+###############################################################################
+
 RESOURCE_DCN401 = dcn401_resource.o
 
 AMD_DAL_RESOURCE_DCN401 = $(addprefix $(AMDDALPATH)/dc/resource/dcn401/,$(RESOURCE_DCN401))

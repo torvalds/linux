@@ -171,7 +171,7 @@ EXPORT_SYMBOL_GPL(cgrp_dfl_root);
  * The default hierarchy always exists but is hidden until mounted for the
  * first time.  This is for backward compatibility.
  */
-static bool cgrp_dfl_visible;
+bool cgrp_dfl_visible;
 
 /* some controllers are not supported in the default hierarchy */
 static u16 cgrp_dfl_inhibit_ss_mask;
@@ -633,9 +633,22 @@ int cgroup_task_count(const struct cgroup *cgrp)
 	return count;
 }
 
+static struct cgroup *kn_priv(struct kernfs_node *kn)
+{
+	struct kernfs_node *parent;
+	/*
+	 * The parent can not be replaced due to KERNFS_ROOT_INVARIANT_PARENT.
+	 * Therefore it is always safe to dereference this pointer outside of a
+	 * RCU section.
+	 */
+	parent = rcu_dereference_check(kn->__parent,
+				       kernfs_root_flags(kn) & KERNFS_ROOT_INVARIANT_PARENT);
+	return parent->priv;
+}
+
 struct cgroup_subsys_state *of_css(struct kernfs_open_file *of)
 {
-	struct cgroup *cgrp = of->kn->parent->priv;
+	struct cgroup *cgrp = kn_priv(of->kn);
 	struct cftype *cft = of_cft(of);
 
 	/*
@@ -1612,7 +1625,7 @@ void cgroup_kn_unlock(struct kernfs_node *kn)
 	if (kernfs_type(kn) == KERNFS_DIR)
 		cgrp = kn->priv;
 	else
-		cgrp = kn->parent->priv;
+		cgrp = kn_priv(kn);
 
 	cgroup_unlock();
 
@@ -1644,7 +1657,7 @@ struct cgroup *cgroup_kn_lock_live(struct kernfs_node *kn, bool drain_offline)
 	if (kernfs_type(kn) == KERNFS_DIR)
 		cgrp = kn->priv;
 	else
-		cgrp = kn->parent->priv;
+		cgrp = kn_priv(kn);
 
 	/*
 	 * We're gonna grab cgroup_mutex which nests outside kernfs
@@ -1682,7 +1695,7 @@ static void cgroup_rm_file(struct cgroup *cgrp, const struct cftype *cft)
 		cfile->kn = NULL;
 		spin_unlock_irq(&cgroup_file_kn_lock);
 
-		del_timer_sync(&cfile->notify_timer);
+		timer_delete_sync(&cfile->notify_timer);
 	}
 
 	kernfs_remove_by_name(cgrp->kn, cgroup_file_name(cgrp, cft, name));
@@ -2118,7 +2131,8 @@ int cgroup_setup_root(struct cgroup_root *root, u16 ss_mask)
 	root->kf_root = kernfs_create_root(kf_sops,
 					   KERNFS_ROOT_CREATE_DEACTIVATED |
 					   KERNFS_ROOT_SUPPORT_EXPORTOP |
-					   KERNFS_ROOT_SUPPORT_USER_XATTR,
+					   KERNFS_ROOT_SUPPORT_USER_XATTR |
+					   KERNFS_ROOT_INVARIANT_PARENT,
 					   root_cgrp);
 	if (IS_ERR(root->kf_root)) {
 		ret = PTR_ERR(root->kf_root);
@@ -4013,7 +4027,7 @@ static void __cgroup_kill(struct cgroup *cgrp)
 	lockdep_assert_held(&cgroup_mutex);
 
 	spin_lock_irq(&css_set_lock);
-	set_bit(CGRP_KILL, &cgrp->flags);
+	cgrp->kill_seq++;
 	spin_unlock_irq(&css_set_lock);
 
 	css_task_iter_start(&cgrp->self, CSS_TASK_ITER_PROCS | CSS_TASK_ITER_THREADED, &it);
@@ -4029,10 +4043,6 @@ static void __cgroup_kill(struct cgroup *cgrp)
 		send_sig(SIGKILL, task, 0);
 	}
 	css_task_iter_end(&it);
-
-	spin_lock_irq(&css_set_lock);
-	clear_bit(CGRP_KILL, &cgrp->flags);
-	spin_unlock_irq(&css_set_lock);
 }
 
 static void cgroup_kill(struct cgroup *cgrp)
@@ -4119,7 +4129,7 @@ static ssize_t cgroup_file_write(struct kernfs_open_file *of, char *buf,
 				 size_t nbytes, loff_t off)
 {
 	struct cgroup_file_ctx *ctx = of->priv;
-	struct cgroup *cgrp = of->kn->parent->priv;
+	struct cgroup *cgrp = kn_priv(of->kn);
 	struct cftype *cft = of_cft(of);
 	struct cgroup_subsys_state *css;
 	int ret;
@@ -4451,7 +4461,7 @@ int cgroup_rm_cftypes(struct cftype *cfts)
  * function currently returns 0 as long as @cfts registration is successful
  * even if some file creation attempts on existing cgroups fail.
  */
-static int cgroup_add_cftypes(struct cgroup_subsys *ss, struct cftype *cfts)
+int cgroup_add_cftypes(struct cgroup_subsys *ss, struct cftype *cfts)
 {
 	int ret;
 
@@ -5835,7 +5845,7 @@ int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name, umode_t mode)
 	}
 
 	/*
-	 * This extra ref will be put in cgroup_free_fn() and guarantees
+	 * This extra ref will be put in css_free_rwork_fn() and guarantees
 	 * that @cgrp->kn is always accessible.
 	 */
 	kernfs_get(cgrp->kn);
@@ -6488,6 +6498,10 @@ static int cgroup_css_set_fork(struct kernel_clone_args *kargs)
 	spin_lock_irq(&css_set_lock);
 	cset = task_css_set(current);
 	get_css_set(cset);
+	if (kargs->cgrp)
+		kargs->kill_seq = kargs->cgrp->kill_seq;
+	else
+		kargs->kill_seq = cset->dfl_cgrp->kill_seq;
 	spin_unlock_irq(&css_set_lock);
 
 	if (!(kargs->flags & CLONE_INTO_CGROUP)) {
@@ -6668,6 +6682,7 @@ void cgroup_post_fork(struct task_struct *child,
 		      struct kernel_clone_args *kargs)
 	__releases(&cgroup_threadgroup_rwsem) __releases(&cgroup_mutex)
 {
+	unsigned int cgrp_kill_seq = 0;
 	unsigned long cgrp_flags = 0;
 	bool kill = false;
 	struct cgroup_subsys *ss;
@@ -6681,10 +6696,13 @@ void cgroup_post_fork(struct task_struct *child,
 
 	/* init tasks are special, only link regular threads */
 	if (likely(child->pid)) {
-		if (kargs->cgrp)
+		if (kargs->cgrp) {
 			cgrp_flags = kargs->cgrp->flags;
-		else
+			cgrp_kill_seq = kargs->cgrp->kill_seq;
+		} else {
 			cgrp_flags = cset->dfl_cgrp->flags;
+			cgrp_kill_seq = cset->dfl_cgrp->kill_seq;
+		}
 
 		WARN_ON_ONCE(!list_empty(&child->cg_list));
 		cset->nr_tasks++;
@@ -6719,7 +6737,7 @@ void cgroup_post_fork(struct task_struct *child,
 		 * child down right after we finished preparing it for
 		 * userspace.
 		 */
-		kill = test_bit(CGRP_KILL, &cgrp_flags);
+		kill = kargs->kill_seq != cgrp_kill_seq;
 	}
 
 	spin_unlock_irq(&css_set_lock);

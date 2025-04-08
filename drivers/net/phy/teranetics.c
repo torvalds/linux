@@ -87,7 +87,7 @@ static struct phy_driver teranetics_driver[] = {
 
 module_phy_driver(teranetics_driver);
 
-static struct mdio_device_id __maybe_unused teranetics_tbl[] = {
+static const struct mdio_device_id __maybe_unused teranetics_tbl[] = {
 	{ PHY_ID_TN2020, 0xffffffff },
 	{ }
 };

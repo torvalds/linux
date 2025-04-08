@@ -246,8 +246,16 @@ static void __tlb_remove_table_free(struct mmu_table_batch *batch)
  * IRQs delays the completion of the TLB flush we can never observe an already
  * freed page.
  *
- * Architectures that do not have this (PPC) need to delay the freeing by some
- * other means, this is that means.
+ * Not all systems IPI every CPU for this purpose:
+ *
+ * - Some architectures have HW support for cross-CPU synchronisation of TLB
+ *   flushes, so there's no IPI at all.
+ *
+ * - Paravirt guests can do this TLB flushing in the hypervisor, or coordinate
+ *   with the hypervisor to defer flushing on preempted vCPUs.
+ *
+ * Such systems need to delay the freeing by some other means, this is that
+ * means.
  *
  * What we do is batch the freed directory pages (tables) and RCU free them.
  * We use the sched RCU variant, as that guarantees that IRQ/preempt disabling
@@ -311,10 +319,33 @@ static inline void tlb_table_invalidate(struct mmu_gather *tlb)
 	}
 }
 
-static void tlb_remove_table_one(void *table)
+#ifdef CONFIG_PT_RECLAIM
+static inline void __tlb_remove_table_one_rcu(struct rcu_head *head)
+{
+	struct ptdesc *ptdesc;
+
+	ptdesc = container_of(head, struct ptdesc, pt_rcu_head);
+	__tlb_remove_table(ptdesc);
+}
+
+static inline void __tlb_remove_table_one(void *table)
+{
+	struct ptdesc *ptdesc;
+
+	ptdesc = table;
+	call_rcu(&ptdesc->pt_rcu_head, __tlb_remove_table_one_rcu);
+}
+#else
+static inline void __tlb_remove_table_one(void *table)
 {
 	tlb_remove_table_sync_one();
 	__tlb_remove_table(table);
+}
+#endif /* CONFIG_PT_RECLAIM */
+
+static void tlb_remove_table_one(void *table)
+{
+	__tlb_remove_table_one(table);
 }
 
 static void tlb_table_flush(struct mmu_gather *tlb)

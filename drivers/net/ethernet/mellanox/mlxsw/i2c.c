@@ -516,7 +516,7 @@ static bool mlxsw_i2c_skb_transmit_busy(void *bus_priv,
 }
 
 static int mlxsw_i2c_skb_transmit(void *bus_priv, struct sk_buff *skb,
-				  const struct mlxsw_tx_info *tx_info)
+				  const struct mlxsw_txhdr_info *txhdr_info)
 {
 	return 0;
 }

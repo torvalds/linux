@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
+
+#include <linux/string_choices.h>
+
 #include "edac_module.h"
 
 static struct dentry *edac_debugfs;
@@ -22,7 +25,7 @@ static ssize_t edac_fake_inject_write(struct file *file,
 	       "Generating %d %s fake error%s to %d.%d.%d to test core handling. NOTE: this won't test the driver-specific decoding logic.\n",
 		errcount,
 		(type == HW_EVENT_ERR_UNCORRECTED) ? "UE" : "CE",
-		errcount > 1 ? "s" : "",
+		str_plural(errcount),
 		mci->fake_inject_layer[0],
 		mci->fake_inject_layer[1],
 		mci->fake_inject_layer[2]

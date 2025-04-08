@@ -63,13 +63,13 @@ static inline unsigned long __untagged_addr_remote(struct mm_struct *mm,
  */
 static inline void __user *mask_user_address(const void __user *ptr)
 {
-	unsigned long mask;
+	void __user *ret;
 	asm("cmp %1,%0\n\t"
-	    "sbb %0,%0"
-		:"=r" (mask)
-		:"r" (ptr),
-		 "0" (runtime_const_ptr(USER_PTR_MAX)));
-	return (__force void __user *)(mask | (__force unsigned long)ptr);
+	    "cmova %1,%0"
+		:"=r" (ret)
+		:"r" (runtime_const_ptr(USER_PTR_MAX)),
+		 "0" (ptr));
+	return ret;
 }
 #define masked_user_access_begin(x) ({				\
 	__auto_type __masked_ptr = (x);				\

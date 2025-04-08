@@ -50,7 +50,6 @@
 #include <linux/memfd.h>
 #include <linux/dma-buf.h>
 #include <linux/udmabuf.h>
-#include <libmnl/libmnl.h>
 #include <linux/types.h>
 #include <linux/netlink.h>
 #include <linux/genetlink.h>
@@ -615,9 +614,6 @@ int do_server(struct memory_buffer *mem)
 	}
 
 	fprintf(stderr, "%s: ok\n", TEST_PREFIX);
-
-	fprintf(stderr, "page_aligned_frags=%lu, non_page_aligned_frags=%lu\n",
-		page_aligned_frags, non_page_aligned_frags);
 
 	fprintf(stderr, "page_aligned_frags=%lu, non_page_aligned_frags=%lu\n",
 		page_aligned_frags, non_page_aligned_frags);

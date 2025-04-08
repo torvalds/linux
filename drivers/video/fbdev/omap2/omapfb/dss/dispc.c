@@ -2659,13 +2659,8 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 	row_inc = 0;
 	pix_inc = 0;
 
-	if (plane == OMAP_DSS_WB) {
-		frame_width = out_width;
-		frame_height = out_height;
-	} else {
-		frame_width = in_width;
-		frame_height = height;
-	}
+	frame_width = in_width;
+	frame_height = height;
 
 	if (rotation_type == OMAP_DSS_ROT_TILER)
 		calc_tiler_rotation_offset(screen_width, frame_width,
@@ -2738,9 +2733,13 @@ int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
 		bool mem_to_mem)
 {
 	int r;
-	enum omap_overlay_caps caps = dss_feat_get_overlay_caps(plane);
+	enum omap_overlay_caps caps;
 	enum omap_channel channel;
 
+	if (plane == OMAP_DSS_WB)
+		return -EINVAL;
+
+	caps = dss_feat_get_overlay_caps(plane);
 	channel = dispc_ovl_get_channel_out(plane);
 
 	DSSDBG("dispc_ovl_setup %d, pa %pad, pa_uv %pad, sw %d, %d,%d, %dx%d ->"
@@ -3933,17 +3932,12 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 		return -ENODEV;
 	}
 
-	if (np && of_property_read_bool(np, "syscon-pol")) {
-		dispc.syscon_pol = syscon_regmap_lookup_by_phandle(np, "syscon-pol");
+	if (np && of_property_present(np, "syscon-pol")) {
+		dispc.syscon_pol = syscon_regmap_lookup_by_phandle_args(np, "syscon-pol",
+									1, &dispc.syscon_pol_offset);
 		if (IS_ERR(dispc.syscon_pol)) {
 			dev_err(&pdev->dev, "failed to get syscon-pol regmap\n");
 			return PTR_ERR(dispc.syscon_pol);
-		}
-
-		if (of_property_read_u32_index(np, "syscon-pol", 1,
-				&dispc.syscon_pol_offset)) {
-			dev_err(&pdev->dev, "failed to get syscon-pol offset\n");
-			return -EINVAL;
 		}
 	}
 

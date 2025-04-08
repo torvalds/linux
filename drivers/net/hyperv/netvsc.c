@@ -866,7 +866,8 @@ static void netvsc_send_completion(struct net_device *ndev,
 
 	case NVSP_MSG1_TYPE_SEND_RECV_BUF_COMPLETE:
 		if (msglen < sizeof(struct nvsp_message_header) +
-				sizeof(struct nvsp_1_message_send_receive_buffer_complete)) {
+				struct_size_t(struct nvsp_1_message_send_receive_buffer_complete,
+					      sections, 1)) {
 			netdev_err(ndev, "nvsp_msg1 length too small: %u\n",
 				   msglen);
 			return;

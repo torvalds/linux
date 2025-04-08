@@ -473,22 +473,6 @@ unlock_and_exit:
 }
 DEFINE_SHOW_STORE_ATTRIBUTE(tl_control);
 
-static int get_rp_index_from_file(const struct file *f, u8 *rp_id, u8 rp_num)
-{
-	char alpha;
-	u8 index;
-	int ret;
-
-	ret = sscanf(f->f_path.dentry->d_name.name, ADF_TL_RP_REGS_FNAME, &alpha);
-	if (ret != 1)
-		return -EINVAL;
-
-	index = ADF_TL_DBG_RP_INDEX_ALPHA(alpha);
-	*rp_id = index;
-
-	return 0;
-}
-
 static int adf_tl_dbg_change_rp_index(struct adf_accel_dev *accel_dev,
 				      unsigned int new_rp_num,
 				      unsigned int rp_regs_index)
@@ -611,18 +595,11 @@ static int tl_rp_data_show(struct seq_file *s, void *unused)
 {
 	struct adf_accel_dev *accel_dev = s->private;
 	u8 rp_regs_index;
-	u8 max_rp;
-	int ret;
 
 	if (!accel_dev)
 		return -EINVAL;
 
-	max_rp = GET_TL_DATA(accel_dev).max_rp;
-	ret = get_rp_index_from_file(s->file, &rp_regs_index, max_rp);
-	if (ret) {
-		dev_dbg(&GET_DEV(accel_dev), "invalid RP data file name\n");
-		return ret;
-	}
+	rp_regs_index = debugfs_get_aux_num(s->file);
 
 	return tl_print_rp_data(accel_dev, s, rp_regs_index);
 }
@@ -635,7 +612,6 @@ static ssize_t tl_rp_data_write(struct file *file, const char __user *userbuf,
 	struct adf_telemetry *telemetry;
 	unsigned int new_rp_num;
 	u8 rp_regs_index;
-	u8 max_rp;
 	int ret;
 
 	accel_dev = seq_f->private;
@@ -643,15 +619,10 @@ static ssize_t tl_rp_data_write(struct file *file, const char __user *userbuf,
 		return -EINVAL;
 
 	telemetry = accel_dev->telemetry;
-	max_rp = GET_TL_DATA(accel_dev).max_rp;
 
 	mutex_lock(&telemetry->wr_lock);
 
-	ret = get_rp_index_from_file(file, &rp_regs_index, max_rp);
-	if (ret) {
-		dev_dbg(&GET_DEV(accel_dev), "invalid RP data file name\n");
-		goto unlock_and_exit;
-	}
+	rp_regs_index = debugfs_get_aux_num(file);
 
 	ret = kstrtou32_from_user(userbuf, count, 10, &new_rp_num);
 	if (ret)
@@ -689,7 +660,8 @@ void adf_tl_dbgfs_add(struct adf_accel_dev *accel_dev)
 	for (i = 0; i < max_rp; i++) {
 		snprintf(name, sizeof(name), ADF_TL_RP_REGS_FNAME,
 			 ADF_TL_DBG_RP_ALPHA_INDEX(i));
-		debugfs_create_file(name, 0644, dir, accel_dev, &tl_rp_data_fops);
+		debugfs_create_file_aux_num(name, 0644, dir, accel_dev, i,
+					    &tl_rp_data_fops);
 	}
 }
 

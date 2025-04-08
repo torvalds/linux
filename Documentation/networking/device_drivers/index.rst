@@ -9,7 +9,6 @@ Contents:
    :maxdepth: 2
 
    atm/index
-   cable/index
    can/index
    cellular/index
    ethernet/index

@@ -61,6 +61,7 @@
 static symbol_t *macro_symbol;
 
 static void add_macro_arg(const char *argtext, int position);
+int mmlex();
 void mmerror(const char *string);
 
 %}

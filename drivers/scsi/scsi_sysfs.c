@@ -898,7 +898,7 @@ static DEVICE_ATTR(queue_type, S_IRUGO | S_IWUSR, show_queue_type_field,
 #define sdev_vpd_pg_attr(_page)						\
 static ssize_t							\
 show_vpd_##_page(struct file *filp, struct kobject *kobj,	\
-		 struct bin_attribute *bin_attr,			\
+		 const struct bin_attribute *bin_attr,			\
 		 char *buf, loff_t off, size_t count)			\
 {									\
 	struct device *dev = kobj_to_dev(kobj);				\
@@ -914,10 +914,10 @@ show_vpd_##_page(struct file *filp, struct kobject *kobj,	\
 	rcu_read_unlock();						\
 	return ret;							\
 }									\
-static struct bin_attribute dev_attr_vpd_##_page = {		\
+static const struct bin_attribute dev_attr_vpd_##_page = {		\
 	.attr =	{.name = __stringify(vpd_##_page), .mode = S_IRUGO },	\
 	.size = 0,							\
-	.read = show_vpd_##_page,					\
+	.read_new = show_vpd_##_page,					\
 };
 
 sdev_vpd_pg_attr(pg83);
@@ -930,7 +930,7 @@ sdev_vpd_pg_attr(pgb7);
 sdev_vpd_pg_attr(pg0);
 
 static ssize_t show_inquiry(struct file *filep, struct kobject *kobj,
-			    struct bin_attribute *bin_attr,
+			    const struct bin_attribute *bin_attr,
 			    char *buf, loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -943,13 +943,13 @@ static ssize_t show_inquiry(struct file *filep, struct kobject *kobj,
 				       sdev->inquiry_len);
 }
 
-static struct bin_attribute dev_attr_inquiry = {
+static const struct bin_attribute dev_attr_inquiry = {
 	.attr = {
 		.name = "inquiry",
 		.mode = S_IRUGO,
 	},
 	.size = 0,
-	.read = show_inquiry,
+	.read_new = show_inquiry,
 };
 
 static ssize_t
@@ -1348,7 +1348,7 @@ static struct attribute *scsi_sdev_attrs[] = {
 	NULL
 };
 
-static struct bin_attribute *scsi_sdev_bin_attrs[] = {
+static const struct bin_attribute *const scsi_sdev_bin_attrs[] = {
 	&dev_attr_vpd_pg0,
 	&dev_attr_vpd_pg83,
 	&dev_attr_vpd_pg80,
@@ -1362,7 +1362,7 @@ static struct bin_attribute *scsi_sdev_bin_attrs[] = {
 };
 static struct attribute_group scsi_sdev_attr_group = {
 	.attrs =	scsi_sdev_attrs,
-	.bin_attrs =	scsi_sdev_bin_attrs,
+	.bin_attrs_new = scsi_sdev_bin_attrs,
 	.is_visible =	scsi_sdev_attr_is_visible,
 	.is_bin_visible = scsi_sdev_bin_attr_is_visible,
 };
@@ -1513,8 +1513,8 @@ void __scsi_remove_device(struct scsi_device *sdev)
 	kref_put(&sdev->host->tagset_refcnt, scsi_mq_free_tags);
 	cancel_work_sync(&sdev->requeue_work);
 
-	if (sdev->host->hostt->slave_destroy)
-		sdev->host->hostt->slave_destroy(sdev);
+	if (sdev->host->hostt->sdev_destroy)
+		sdev->host->hostt->sdev_destroy(sdev);
 	transport_destroy_device(dev);
 
 	/*

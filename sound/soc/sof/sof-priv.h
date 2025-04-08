@@ -76,14 +76,6 @@ bool sof_debug_check_flag(int mask);
 #define SOF_IPC_DSP_REPLY		0
 #define SOF_IPC_HOST_REPLY		1
 
-/* convenience constructor for DAI driver streams */
-#define SOF_DAI_STREAM(sname, scmin, scmax, srates, sfmt) \
-	{.stream_name = sname, .channels_min = scmin, .channels_max = scmax, \
-	 .rates = srates, .formats = sfmt}
-
-#define SOF_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | \
-	SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_FLOAT)
-
 /* So far the primary core on all DSPs has ID 0 */
 #define SOF_DSP_PRIMARY_CORE 0
 

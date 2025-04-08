@@ -495,7 +495,7 @@ As of kernel 2.6.22, the following members are defined:
 		int (*link) (struct dentry *,struct inode *,struct dentry *);
 		int (*unlink) (struct inode *,struct dentry *);
 		int (*symlink) (struct mnt_idmap *, struct inode *,struct dentry *,const char *);
-		int (*mkdir) (struct mnt_idmap *, struct inode *,struct dentry *,umode_t);
+		struct dentry *(*mkdir) (struct mnt_idmap *, struct inode *,struct dentry *,umode_t);
 		int (*rmdir) (struct inode *,struct dentry *);
 		int (*mknod) (struct mnt_idmap *, struct inode *,struct dentry *,umode_t,dev_t);
 		int (*rename) (struct mnt_idmap *, struct inode *, struct dentry *,
@@ -562,7 +562,26 @@ otherwise noted.
 ``mkdir``
 	called by the mkdir(2) system call.  Only required if you want
 	to support creating subdirectories.  You will probably need to
-	call d_instantiate() just as you would in the create() method
+	call d_instantiate_new() just as you would in the create() method.
+
+	If d_instantiate_new() is not used and if the fh_to_dentry()
+	export operation is provided, or if the storage might be
+	accessible by another path (e.g. with a network filesystem)
+	then more care may be needed.  Importantly d_instantate()
+	should not be used with an inode that is no longer I_NEW if there
+	any chance that the inode could already be attached to a dentry.
+	This is because of a hard rule in the VFS that a directory must
+	only ever have one dentry.
+
+	For example, if an NFS filesystem is mounted twice the new directory
+	could be visible on the other mount before it is on the original
+	mount, and a pair of name_to_handle_at(), open_by_handle_at()
+	calls could instantiate the directory inode with an IS_ROOT()
+	dentry before the first mkdir returns.
+
+	If there is any chance this could happen, then the new inode
+	should be d_drop()ed and attached with d_splice_alias().  The
+	returned dentry (if any) should be returned by ->mkdir().
 
 ``rmdir``
 	called by the rmdir(2) system call.  Only required if you want
@@ -1251,7 +1270,8 @@ defined:
 .. code-block:: c
 
 	struct dentry_operations {
-		int (*d_revalidate)(struct dentry *, unsigned int);
+		int (*d_revalidate)(struct inode *, const struct qstr *,
+				    struct dentry *, unsigned int);
 		int (*d_weak_revalidate)(struct dentry *, unsigned int);
 		int (*d_hash)(const struct dentry *, struct qstr *);
 		int (*d_compare)(const struct dentry *,
@@ -1264,6 +1284,8 @@ defined:
 		struct vfsmount *(*d_automount)(struct path *);
 		int (*d_manage)(const struct path *, bool);
 		struct dentry *(*d_real)(struct dentry *, enum d_real_type type);
+		bool (*d_unalias_trylock)(const struct dentry *);
+		void (*d_unalias_unlock)(const struct dentry *);
 	};
 
 ``d_revalidate``
@@ -1426,6 +1448,25 @@ defined:
 	hosting the file's data or metadata respectively.
 
 	For non-regular files, the 'dentry' argument is returned.
+
+``d_unalias_trylock``
+	if present, will be called by d_splice_alias() before moving a
+	preexisting attached alias.  Returning false prevents __d_move(),
+	making d_splice_alias() fail with -ESTALE.
+
+	Rationale: setting FS_RENAME_DOES_D_MOVE will prevent d_move()
+	and d_exchange() calls from the outside of filesystem methods;
+	however, it does not guarantee that attached dentries won't
+	be renamed or moved by d_splice_alias() finding a preexisting
+	alias for a directory inode.  Normally we would not care;
+	however, something that wants to stabilize the entire path to
+	root over a blocking operation might need that.  See 9p for one
+	(and hopefully only) example.
+
+``d_unalias_unlock``
+	should be paired with ``d_unalias_trylock``; that one is called after
+	__d_move() call in __d_unalias().
+
 
 Each dentry has a pointer to its parent dentry, as well as a hash list
 of child dentries.  Child dentries are basically like files in a

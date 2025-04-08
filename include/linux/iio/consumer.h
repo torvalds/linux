@@ -418,7 +418,7 @@ unsigned int iio_get_channel_ext_info_count(struct iio_channel *chan);
  * @chan:		The channel being queried.
  * @attr:		The ext_info attribute to read.
  * @buf:		Where to store the attribute value. Assumed to hold
- *			at least PAGE_SIZE bytes.
+ *			at least PAGE_SIZE bytes and to be aligned at PAGE_SIZE.
  *
  * Returns the number of bytes written to buf (perhaps w/o zero termination;
  * it need not even be a string), or an error code.
@@ -445,7 +445,7 @@ ssize_t iio_write_channel_ext_info(struct iio_channel *chan, const char *attr,
  * iio_read_channel_label() - read label for a given channel
  * @chan:		The channel being queried.
  * @buf:		Where to store the attribute value. Assumed to hold
- *			at least PAGE_SIZE bytes.
+ *			at least PAGE_SIZE bytes and to be aligned at PAGE_SIZE.
  *
  * Returns the number of bytes written to buf, or an error code.
  */

@@ -38,6 +38,16 @@ lib-$(CONFIG_RANDOMIZE_BASE) += kaslr.o
 lib-$(CONFIG_FUNCTION_ERROR_INJECTION)	+= error-inject.o
 lib-$(CONFIG_MITIGATION_RETPOLINE) += retpoline.o
 
+obj-$(CONFIG_CRC32_ARCH) += crc32-x86.o
+crc32-x86-y := crc32-glue.o crc32-pclmul.o
+crc32-x86-$(CONFIG_64BIT) += crc32c-3way.o
+
+obj-$(CONFIG_CRC64_ARCH) += crc64-x86.o
+crc64-x86-y := crc64-glue.o crc64-pclmul.o
+
+obj-$(CONFIG_CRC_T10DIF_ARCH) += crc-t10dif-x86.o
+crc-t10dif-x86-y := crc-t10dif-glue.o crc16-msb-pclmul.o
+
 obj-y += msr.o msr-reg.o msr-reg-export.o hweight.o
 obj-y += iomem.o
 
@@ -49,7 +59,7 @@ ifeq ($(CONFIG_X86_32),y)
         lib-y += string_32.o
         lib-y += memmove_32.o
         lib-y += cmpxchg8b_emu.o
-ifneq ($(CONFIG_X86_CMPXCHG64),y)
+ifneq ($(CONFIG_X86_CX8),y)
         lib-y += atomic64_386_32.o
 endif
 else
@@ -59,5 +69,6 @@ endif
         lib-y += clear_page_64.o copy_page_64.o
         lib-y += memmove_64.o memset_64.o
         lib-y += copy_user_64.o copy_user_uncached_64.o
-	lib-y += cmpxchg16b_emu.o
+        lib-y += cmpxchg16b_emu.o
+        lib-y += bhi.o
 endif

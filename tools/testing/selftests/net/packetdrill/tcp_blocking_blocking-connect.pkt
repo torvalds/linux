@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test for blocking connect.
+
+`./defaults.sh`
+
+// Establish a connection.
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+
+  +.1...0.200 connect(3, ..., ...) = 0
+
+   +0 > S 0:0(0) <mss 1460,sackOK,TS val 100 ecr 0,nop,wscale 8>
+  +.1 < S. 0:0(0) ack 1 win 5792 <mss 1460,nop,wscale 2,nop,nop,sackOK>
+   +0 > . 1:1(0) ack 1

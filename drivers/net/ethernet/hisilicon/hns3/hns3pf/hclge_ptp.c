@@ -2,6 +2,7 @@
 // Copyright (c) 2021 Hisilicon Limited.
 
 #include <linux/skbuff.h>
+#include <linux/string_choices.h>
 #include "hclge_main.h"
 #include "hnae3.h"
 
@@ -226,7 +227,7 @@ static int hclge_ptp_int_en(struct hclge_dev *hdev, bool en)
 	if (ret)
 		dev_err(&hdev->pdev->dev,
 			"failed to %s ptp interrupt, ret = %d\n",
-			en ? "enable" : "disable", ret);
+			str_enable_disable(en), ret);
 
 	return ret;
 }
@@ -483,7 +484,7 @@ int hclge_ptp_init(struct hclge_dev *hdev)
 
 		ret = hclge_ptp_get_cycle(hdev);
 		if (ret)
-			return ret;
+			goto out;
 	}
 
 	ret = hclge_ptp_int_en(hdev, true);

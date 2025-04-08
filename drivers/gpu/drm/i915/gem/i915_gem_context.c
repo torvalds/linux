@@ -238,7 +238,7 @@ static int proto_context_set_persistence(struct drm_i915_private *i915,
 		 *
 		 * However, if we cannot reset an engine by itself, we cannot
 		 * cleanup a hanging persistent context without causing
-		 * colateral damage, and we should not pretend we can by
+		 * collateral damage, and we should not pretend we can by
 		 * exposing the interface.
 		 */
 		if (!intel_has_reset_engine(to_gt(i915)))
@@ -1589,7 +1589,7 @@ static int __context_set_persistence(struct i915_gem_context *ctx, bool state)
 		 *
 		 * However, if we cannot reset an engine by itself, we cannot
 		 * cleanup a hanging persistent context without causing
-		 * colateral damage, and we should not pretend we can by
+		 * collateral damage, and we should not pretend we can by
 		 * exposing the interface.
 		 */
 		if (!intel_has_reset_engine(to_gt(ctx->i915)))
@@ -2328,7 +2328,7 @@ finalize_create_context_locked(struct drm_i915_file_private *file_priv,
 
 	/*
 	 * One for the xarray and one for the caller.  We need to grab
-	 * the reference *prior* to making the ctx visble to userspace
+	 * the reference *prior* to making the ctx visible to userspace
 	 * in gem_context_register(), as at any point after that
 	 * userspace can try to race us with another thread destroying
 	 * the context under our feet.

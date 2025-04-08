@@ -1430,9 +1430,9 @@ static int sdma_v7_0_resume(struct amdgpu_ip_block *ip_block)
 	return sdma_v7_0_hw_init(ip_block);
 }
 
-static bool sdma_v7_0_is_idle(void *handle)
+static bool sdma_v7_0_is_idle(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 i;
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
@@ -1592,7 +1592,7 @@ static int sdma_v7_0_set_powergating_state(struct amdgpu_ip_block *ip_block,
 	return 0;
 }
 
-static void sdma_v7_0_get_clockgating_state(void *handle, u64 *flags)
+static void sdma_v7_0_get_clockgating_state(struct amdgpu_ip_block *ip_block, u64 *flags)
 {
 }
 
@@ -1741,11 +1741,12 @@ static void sdma_v7_0_emit_copy_buffer(struct amdgpu_ib *ib,
 				       uint32_t byte_count,
 				       uint32_t copy_flags)
 {
-	uint32_t num_type, data_format, max_com;
+	uint32_t num_type, data_format, max_com, write_cm;
 
 	max_com = AMDGPU_COPY_FLAGS_GET(copy_flags, MAX_COMPRESSED);
 	data_format = AMDGPU_COPY_FLAGS_GET(copy_flags, DATA_FORMAT);
 	num_type = AMDGPU_COPY_FLAGS_GET(copy_flags, NUMBER_TYPE);
+	write_cm = AMDGPU_COPY_FLAGS_GET(copy_flags, WRITE_COMPRESS_DISABLE) ? 2 : 1;
 
 	ib->ptr[ib->length_dw++] = SDMA_PKT_COPY_LINEAR_HEADER_OP(SDMA_OP_COPY) |
 		SDMA_PKT_COPY_LINEAR_HEADER_SUB_OP(SDMA_SUBOP_COPY_LINEAR) |
@@ -1762,7 +1763,7 @@ static void sdma_v7_0_emit_copy_buffer(struct amdgpu_ib *ib,
 	if ((copy_flags & (AMDGPU_COPY_FLAGS_READ_DECOMPRESSED | AMDGPU_COPY_FLAGS_WRITE_COMPRESSED)))
 		ib->ptr[ib->length_dw++] = SDMA_DCC_DATA_FORMAT(data_format) | SDMA_DCC_NUM_TYPE(num_type) |
 			((copy_flags & AMDGPU_COPY_FLAGS_READ_DECOMPRESSED) ? SDMA_DCC_READ_CM(2) : 0) |
-			((copy_flags & AMDGPU_COPY_FLAGS_WRITE_COMPRESSED) ? SDMA_DCC_WRITE_CM(1) : 0) |
+			((copy_flags & AMDGPU_COPY_FLAGS_WRITE_COMPRESSED) ? SDMA_DCC_WRITE_CM(write_cm) : 0) |
 			SDMA_DCC_MAX_COM(max_com) | SDMA_DCC_MAX_UCOM(1);
 	else
 		ib->ptr[ib->length_dw++] = 0;

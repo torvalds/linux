@@ -5,35 +5,7 @@
  * Copyright (C) 2015 Advanced Micro Devices, Inc.
  */
 
-	xgmacclk0_dma_250mhz: clk250mhz_0 {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <250000000>;
-		clock-output-names = "xgmacclk0_dma_250mhz";
-	};
-
-	xgmacclk0_ptp_250mhz: clk250mhz_1 {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <250000000>;
-		clock-output-names = "xgmacclk0_ptp_250mhz";
-	};
-
-	xgmacclk1_dma_250mhz: clk250mhz_2 {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <250000000>;
-		clock-output-names = "xgmacclk1_dma_250mhz";
-	};
-
-	xgmacclk1_ptp_250mhz: clk250mhz_3 {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <250000000>;
-		clock-output-names = "xgmacclk1_ptp_250mhz";
-	};
-
-	xgmac0: xgmac@e0700000 {
+	xgmac0: ethernet@e0700000 {
 		compatible = "amd,xgbe-seattle-v1a";
 		reg = <0 0xe0700000 0 0x80000>,
 		      <0 0xe0780000 0 0x80000>,
@@ -59,7 +31,7 @@
 		dma-coherent;
 	};
 
-	xgmac1: xgmac@e0900000 {
+	xgmac1: ethernet@e0900000 {
 		compatible = "amd,xgbe-seattle-v1a";
 		reg = <0 0xe0900000 0 0x80000>,
 		      <0 0xe0980000 0 0x80000>,

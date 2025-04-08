@@ -269,7 +269,7 @@ static const struct scsi_host_template fcoe_shost_template = {
 	.eh_abort_handler = fc_eh_abort,
 	.eh_device_reset_handler = fc_eh_device_reset,
 	.eh_host_reset_handler = fc_eh_host_reset,
-	.slave_alloc = fc_slave_alloc,
+	.sdev_init = fc_sdev_init,
 	.change_queue_depth = scsi_change_queue_depth,
 	.this_id = -1,
 	.cmd_per_lun = 3,
@@ -1013,7 +1013,7 @@ static void fcoe_if_destroy(struct fc_lport *lport)
 	fc_lport_destroy(lport);
 
 	/* Stop the transmit retry timer */
-	del_timer_sync(&port->timer);
+	timer_delete_sync(&port->timer);
 
 	/* Free existing transmit skbs */
 	fcoe_clean_pending_queue(lport);

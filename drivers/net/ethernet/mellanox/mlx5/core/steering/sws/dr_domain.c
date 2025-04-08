@@ -8,7 +8,7 @@
 #define DR_DOMAIN_SW_STEERING_SUPPORTED(dmn, dmn_type)	\
 	((dmn)->info.caps.dmn_type##_sw_owner ||	\
 	 ((dmn)->info.caps.dmn_type##_sw_owner_v2 &&	\
-	  (dmn)->info.caps.sw_format_ver <= MLX5_STEERING_FORMAT_CONNECTX_7))
+	  (dmn)->info.caps.sw_format_ver <= MLX5_STEERING_FORMAT_CONNECTX_8))
 
 bool mlx5dr_domain_is_support_ptrn_arg(struct mlx5dr_domain *dmn)
 {
@@ -514,30 +514,6 @@ def_xa_destroy:
 	xa_destroy(&dmn->definers_xa);
 	kfree(dmn);
 	return NULL;
-}
-
-/* Assure synchronization of the device steering tables with updates made by SW
- * insertion.
- */
-int mlx5dr_domain_sync(struct mlx5dr_domain *dmn, u32 flags)
-{
-	int ret = 0;
-
-	if (flags & MLX5DR_DOMAIN_SYNC_FLAGS_SW) {
-		mlx5dr_domain_lock(dmn);
-		ret = mlx5dr_send_ring_force_drain(dmn);
-		mlx5dr_domain_unlock(dmn);
-		if (ret) {
-			mlx5dr_err(dmn, "Force drain failed flags: %d, ret: %d\n",
-				   flags, ret);
-			return ret;
-		}
-	}
-
-	if (flags & MLX5DR_DOMAIN_SYNC_FLAGS_HW)
-		ret = mlx5dr_cmd_sync_steering(dmn->mdev);
-
-	return ret;
 }
 
 int mlx5dr_domain_destroy(struct mlx5dr_domain *dmn)

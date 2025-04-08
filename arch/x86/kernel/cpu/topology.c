@@ -428,7 +428,7 @@ void __init topology_apply_cmdline_limits_early(void)
 {
 	unsigned int possible = nr_cpu_ids;
 
-	/* 'maxcpus=0' 'nosmp' 'nolapic' 'disableapic' */
+	/* 'maxcpus=0' 'nosmp' 'nolapic' */
 	if (!setup_max_cpus || apic_is_disabled)
 		possible = 1;
 

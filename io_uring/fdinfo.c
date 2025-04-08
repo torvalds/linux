@@ -211,10 +211,11 @@ __cold void io_uring_show_fdinfo(struct seq_file *m, struct file *file)
 
 		if (ctx->file_table.data.nodes[i])
 			f = io_slot_file(ctx->file_table.data.nodes[i]);
-		if (f)
-			seq_printf(m, "%5u: %s\n", i, file_dentry(f)->d_iname);
-		else
-			seq_printf(m, "%5u: <none>\n", i);
+		if (f) {
+			seq_printf(m, "%5u: ", i);
+			seq_file_path(m, f, " \t\n\\");
+			seq_puts(m, "\n");
+		}
 	}
 	seq_printf(m, "UserBufs:\t%u\n", ctx->buf_table.nr);
 	for (i = 0; has_lock && i < ctx->buf_table.nr; i++) {

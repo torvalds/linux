@@ -72,6 +72,14 @@ static inline unsigned long __owner_flags(unsigned long owner)
 	return owner & MUTEX_FLAGS;
 }
 
+/* Do not use the return value as a pointer directly. */
+unsigned long mutex_get_owner(struct mutex *lock)
+{
+	unsigned long owner = atomic_long_read(&lock->owner);
+
+	return (unsigned long)__owner_task(owner);
+}
+
 /*
  * Returns: __mutex_owner(lock) on failure or NULL on success.
  */
@@ -143,6 +151,8 @@ static __always_inline bool __mutex_trylock_fast(struct mutex *lock)
 	unsigned long curr = (unsigned long)current;
 	unsigned long zero = 0UL;
 
+	MUTEX_WARN_ON(lock->magic != lock);
+
 	if (atomic_long_try_cmpxchg_acquire(&lock->owner, &zero, curr))
 		return true;
 
@@ -180,6 +190,9 @@ static void
 __mutex_add_waiter(struct mutex *lock, struct mutex_waiter *waiter,
 		   struct list_head *list)
 {
+#ifdef CONFIG_DETECT_HUNG_TASK_BLOCKER
+	WRITE_ONCE(current->blocker_mutex, lock);
+#endif
 	debug_mutex_add_waiter(lock, waiter, current);
 
 	list_add_tail(&waiter->list, list);
@@ -195,6 +208,9 @@ __mutex_remove_waiter(struct mutex *lock, struct mutex_waiter *waiter)
 		__mutex_clear_flag(lock, MUTEX_FLAGS);
 
 	debug_mutex_remove_waiter(lock, waiter, current);
+#ifdef CONFIG_DETECT_HUNG_TASK_BLOCKER
+	WRITE_ONCE(current->blocker_mutex, NULL);
+#endif
 }
 
 /*
@@ -657,10 +673,7 @@ __mutex_lock_common(struct mutex *lock, unsigned int state, unsigned int subclas
 				goto err;
 		}
 
-		raw_spin_unlock_irqrestore(&lock->wait_lock, flags);
-		/* Make sure we do wakeups before calling schedule */
-		wake_up_q(&wake_q);
-		wake_q_init(&wake_q);
+		raw_spin_unlock_irqrestore_wake(&lock->wait_lock, flags, &wake_q);
 
 		schedule_preempt_disabled();
 
@@ -710,8 +723,7 @@ skip_wait:
 	if (ww_ctx)
 		ww_mutex_lock_acquired(ww, ww_ctx);
 
-	raw_spin_unlock_irqrestore(&lock->wait_lock, flags);
-	wake_up_q(&wake_q);
+	raw_spin_unlock_irqrestore_wake(&lock->wait_lock, flags, &wake_q);
 	preempt_enable();
 	return 0;
 
@@ -720,10 +732,9 @@ err:
 	__mutex_remove_waiter(lock, &waiter);
 err_early_kill:
 	trace_contention_end(lock, ret);
-	raw_spin_unlock_irqrestore(&lock->wait_lock, flags);
+	raw_spin_unlock_irqrestore_wake(&lock->wait_lock, flags, &wake_q);
 	debug_mutex_free_waiter(&waiter);
 	mutex_release(&lock->dep_map, ip);
-	wake_up_q(&wake_q);
 	preempt_enable();
 	return ret;
 }
@@ -935,10 +946,7 @@ static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigne
 	if (owner & MUTEX_FLAG_HANDOFF)
 		__mutex_handoff(lock, next);
 
-	preempt_disable();
-	raw_spin_unlock_irqrestore(&lock->wait_lock, flags);
-	wake_up_q(&wake_q);
-	preempt_enable();
+	raw_spin_unlock_irqrestore_wake(&lock->wait_lock, flags, &wake_q);
 }
 
 #ifndef CONFIG_DEBUG_LOCK_ALLOC

@@ -5,7 +5,7 @@ config INFINIBAND_ERDMA
 	depends on INFINIBAND_ADDR_TRANS
 	depends on INFINIBAND_USER_ACCESS
 	help
-	  This is a RDMA/iWarp driver for Alibaba Elastic RDMA Adapter(ERDMA),
+	  This is a RDMA driver for Alibaba Elastic RDMA Adapter(ERDMA),
 	  which supports RDMA features in Alibaba cloud environment.
 
 	  To compile this driver as module, choose M here. The module will be

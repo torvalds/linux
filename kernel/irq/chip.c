@@ -232,6 +232,21 @@ __irq_startup_managed(struct irq_desc *desc, const struct cpumask *aff,
 }
 #endif
 
+static void irq_enable(struct irq_desc *desc)
+{
+	if (!irqd_irq_disabled(&desc->irq_data)) {
+		unmask_irq(desc);
+	} else {
+		irq_state_clr_disabled(desc);
+		if (desc->irq_data.chip->irq_enable) {
+			desc->irq_data.chip->irq_enable(&desc->irq_data);
+			irq_state_clr_masked(desc);
+		} else {
+			unmask_irq(desc);
+		}
+	}
+}
+
 static int __irq_startup(struct irq_desc *desc)
 {
 	struct irq_data *d = irq_desc_get_irq_data(desc);
@@ -330,21 +345,6 @@ void irq_shutdown_and_deactivate(struct irq_desc *desc)
 	 * it's safe to call it unconditionally.
 	 */
 	irq_domain_deactivate_irq(&desc->irq_data);
-}
-
-void irq_enable(struct irq_desc *desc)
-{
-	if (!irqd_irq_disabled(&desc->irq_data)) {
-		unmask_irq(desc);
-	} else {
-		irq_state_clr_disabled(desc);
-		if (desc->irq_data.chip->irq_enable) {
-			desc->irq_data.chip->irq_enable(&desc->irq_data);
-			irq_state_clr_masked(desc);
-		} else {
-			unmask_irq(desc);
-		}
-	}
 }
 
 static void __irq_disable(struct irq_desc *desc, bool mask)
@@ -838,53 +838,6 @@ out_unlock:
 }
 EXPORT_SYMBOL(handle_edge_irq);
 
-#ifdef CONFIG_IRQ_EDGE_EOI_HANDLER
-/**
- *	handle_edge_eoi_irq - edge eoi type IRQ handler
- *	@desc:	the interrupt description structure for this irq
- *
- * Similar as the above handle_edge_irq, but using eoi and w/o the
- * mask/unmask logic.
- */
-void handle_edge_eoi_irq(struct irq_desc *desc)
-{
-	struct irq_chip *chip = irq_desc_get_chip(desc);
-
-	raw_spin_lock(&desc->lock);
-
-	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
-
-	if (!irq_may_run(desc)) {
-		desc->istate |= IRQS_PENDING;
-		goto out_eoi;
-	}
-
-	/*
-	 * If its disabled or no action available then mask it and get
-	 * out of here.
-	 */
-	if (irqd_irq_disabled(&desc->irq_data) || !desc->action) {
-		desc->istate |= IRQS_PENDING;
-		goto out_eoi;
-	}
-
-	kstat_incr_irqs_this_cpu(desc);
-
-	do {
-		if (unlikely(!desc->action))
-			goto out_eoi;
-
-		handle_irq_event(desc);
-
-	} while ((desc->istate & IRQS_PENDING) &&
-		 !irqd_irq_disabled(&desc->irq_data));
-
-out_eoi:
-	chip->irq_eoi(&desc->irq_data);
-	raw_spin_unlock(&desc->lock);
-}
-#endif
-
 /**
  *	handle_percpu_irq - Per CPU local irq handler
  *	@desc:	the interrupt description structure for this irq
@@ -1114,13 +1067,11 @@ void irq_modify_status(unsigned int irq, unsigned long clr, unsigned long set)
 	trigger = irqd_get_trigger_type(&desc->irq_data);
 
 	irqd_clear(&desc->irq_data, IRQD_NO_BALANCING | IRQD_PER_CPU |
-		   IRQD_TRIGGER_MASK | IRQD_LEVEL | IRQD_MOVE_PCNTXT);
+		   IRQD_TRIGGER_MASK | IRQD_LEVEL);
 	if (irq_settings_has_no_balance_set(desc))
 		irqd_set(&desc->irq_data, IRQD_NO_BALANCING);
 	if (irq_settings_is_per_cpu(desc))
 		irqd_set(&desc->irq_data, IRQD_PER_CPU);
-	if (irq_settings_can_move_pcntxt(desc))
-		irqd_set(&desc->irq_data, IRQD_MOVE_PCNTXT);
 	if (irq_settings_is_level(desc))
 		irqd_set(&desc->irq_data, IRQD_LEVEL);
 

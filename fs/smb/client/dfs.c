@@ -9,6 +9,8 @@
 #include "fs_context.h"
 #include "dfs.h"
 
+#define DFS_DOM(ctx) (ctx->dfs_root_ses ? ctx->dfs_root_ses->dns_dom : NULL)
+
 /**
  * dfs_parse_target_referral - set fs context for dfs target referral
  *
@@ -46,8 +48,8 @@ int dfs_parse_target_referral(const char *full_path, const struct dfs_info3_para
 	if (rc)
 		goto out;
 
-	rc = dns_resolve_server_name_to_ip(path, (struct sockaddr *)&ctx->dstaddr, NULL);
-
+	rc = dns_resolve_unc(DFS_DOM(ctx), path,
+			     (struct sockaddr *)&ctx->dstaddr);
 out:
 	kfree(path);
 	return rc;
@@ -59,8 +61,9 @@ static int get_session(struct cifs_mount_ctx *mnt_ctx, const char *full_path)
 	int rc;
 
 	ctx->leaf_fullpath = (char *)full_path;
+	ctx->dns_dom = DFS_DOM(ctx);
 	rc = cifs_mount_get_session(mnt_ctx);
-	ctx->leaf_fullpath = NULL;
+	ctx->leaf_fullpath = ctx->dns_dom = NULL;
 
 	return rc;
 }
@@ -95,14 +98,15 @@ static inline int parse_dfs_target(struct smb3_fs_context *ctx,
 	return rc;
 }
 
-static int setup_dfs_ref(struct cifs_mount_ctx *mnt_ctx,
-			 struct dfs_info3_param *tgt,
-			 struct dfs_ref_walk *rw)
+static int setup_dfs_ref(struct dfs_info3_param *tgt, struct dfs_ref_walk *rw)
 {
-	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
-	struct cifs_sb_info *cifs_sb = mnt_ctx->cifs_sb;
+	struct cifs_sb_info *cifs_sb = rw->mnt_ctx->cifs_sb;
+	struct smb3_fs_context *ctx = rw->mnt_ctx->fs_ctx;
 	char *ref_path, *full_path;
 	int rc;
+
+	set_root_smb_session(rw->mnt_ctx);
+	ref_walk_ses(rw) = ctx->dfs_root_ses;
 
 	full_path = smb3_fs_context_fullpath(ctx, CIFS_DIR_SEP(cifs_sb));
 	if (IS_ERR(full_path))
@@ -120,35 +124,22 @@ static int setup_dfs_ref(struct cifs_mount_ctx *mnt_ctx,
 	}
 	ref_walk_path(rw) = ref_path;
 	ref_walk_fpath(rw) = full_path;
-	ref_walk_ses(rw) = ctx->dfs_root_ses;
-	return 0;
+
+	return dfs_get_referral(rw->mnt_ctx,
+				ref_walk_path(rw) + 1,
+				ref_walk_tl(rw));
 }
 
-static int __dfs_referral_walk(struct cifs_mount_ctx *mnt_ctx,
-			       struct dfs_ref_walk *rw)
+static int __dfs_referral_walk(struct dfs_ref_walk *rw)
 {
-	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
+	struct smb3_fs_context *ctx = rw->mnt_ctx->fs_ctx;
+	struct cifs_mount_ctx *mnt_ctx = rw->mnt_ctx;
 	struct dfs_info3_param tgt = {};
 	int rc = -ENOENT;
 
 again:
 	do {
 		ctx->dfs_root_ses = ref_walk_ses(rw);
-		if (ref_walk_empty(rw)) {
-			rc = dfs_get_referral(mnt_ctx, ref_walk_path(rw) + 1,
-					      NULL, ref_walk_tl(rw));
-			if (rc) {
-				rc = cifs_mount_get_tcon(mnt_ctx);
-				if (!rc)
-					rc = cifs_is_path_remote(mnt_ctx);
-				continue;
-			}
-			if (!ref_walk_num_tgts(rw)) {
-				rc = -ENOENT;
-				continue;
-			}
-		}
-
 		while (ref_walk_next_tgt(rw)) {
 			rc = parse_dfs_target(ctx, rw, &tgt);
 			if (rc)
@@ -159,32 +150,31 @@ again:
 			if (rc)
 				continue;
 
-			ref_walk_set_tgt_hint(rw);
-			if (tgt.flags & DFSREF_STORAGE_SERVER) {
-				rc = cifs_mount_get_tcon(mnt_ctx);
-				if (!rc)
-					rc = cifs_is_path_remote(mnt_ctx);
-				if (!rc)
-					break;
-				if (rc != -EREMOTE)
-					continue;
-			}
-
-			set_root_smb_session(mnt_ctx);
-			rc = ref_walk_advance(rw);
-			if (!rc) {
-				rc = setup_dfs_ref(mnt_ctx, &tgt, rw);
-				if (!rc) {
+			rc = cifs_mount_get_tcon(mnt_ctx);
+			if (rc) {
+				if (tgt.server_type == DFS_TYPE_LINK &&
+				    DFS_INTERLINK(tgt.flags))
 					rc = -EREMOTE;
+			} else {
+				rc = cifs_is_path_remote(mnt_ctx);
+				if (!rc) {
+					ref_walk_set_tgt_hint(rw);
+					break;
+				}
+			}
+			if (rc == -EREMOTE) {
+				rc = ref_walk_advance(rw);
+				if (!rc) {
+					rc = setup_dfs_ref(&tgt, rw);
+					if (rc)
+						break;
+					ref_walk_mark_end(rw);
 					goto again;
 				}
 			}
-			if (rc != -ELOOP)
-				goto out;
 		}
 	} while (rc && ref_walk_descend(rw));
 
-out:
 	free_dfs_info_param(&tgt);
 	return rc;
 }
@@ -201,10 +191,10 @@ static int dfs_referral_walk(struct cifs_mount_ctx *mnt_ctx,
 		return rc;
 	}
 
-	ref_walk_init(*rw);
-	rc = setup_dfs_ref(mnt_ctx, NULL, *rw);
+	ref_walk_init(*rw, mnt_ctx);
+	rc = setup_dfs_ref(NULL, *rw);
 	if (!rc)
-		rc = __dfs_referral_walk(mnt_ctx, *rw);
+		rc = __dfs_referral_walk(*rw);
 	return rc;
 }
 
@@ -264,7 +254,7 @@ static int update_fs_context_dstaddr(struct smb3_fs_context *ctx)
 	int rc = 0;
 
 	if (!ctx->nodfs && ctx->dfs_automount) {
-		rc = dns_resolve_server_name_to_ip(ctx->source, addr, NULL);
+		rc = dns_resolve_unc(NULL, ctx->source, addr);
 		if (!rc)
 			cifs_set_port(addr, ctx->port);
 		ctx->dfs_automount = false;
@@ -294,7 +284,7 @@ int dfs_mount_share(struct cifs_mount_ctx *mnt_ctx)
 	 * to respond with PATH_NOT_COVERED to requests that include the prefix.
 	 */
 	if (!nodfs) {
-		rc = dfs_get_referral(mnt_ctx, ctx->UNC + 1, NULL, NULL);
+		rc = dfs_get_referral(mnt_ctx, ctx->UNC + 1, NULL);
 		if (rc) {
 			cifs_dbg(FYI, "%s: no dfs referral for %s: %d\n",
 				 __func__, ctx->UNC + 1, rc);
@@ -314,10 +304,8 @@ int dfs_mount_share(struct cifs_mount_ctx *mnt_ctx)
 		cifs_mount_put_conns(mnt_ctx);
 		rc = get_session(mnt_ctx, NULL);
 	}
-	if (!rc) {
-		set_root_smb_session(mnt_ctx);
+	if (!rc)
 		rc = __dfs_mount_share(mnt_ctx);
-	}
 	return rc;
 }
 

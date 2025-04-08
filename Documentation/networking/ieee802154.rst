@@ -72,7 +72,8 @@ exports a management (e.g. MLME) and data API.
 possibly with some kinds of acceleration like automatic CRC computation and
 comparison, automagic ACK handling, address matching, etc.
 
-Those types of devices require different approach to be hooked into Linux kernel.
+Each type of device requires a different approach to be hooked into the Linux
+kernel.
 
 HardMAC
 -------
@@ -81,10 +82,10 @@ See the header include/net/ieee802154_netdev.h. You have to implement Linux
 net_device, with .type = ARPHRD_IEEE802154. Data is exchanged with socket family
 code via plain sk_buffs. On skb reception skb->cb must contain additional
 info as described in the struct ieee802154_mac_cb. During packet transmission
-the skb->cb is used to provide additional data to device's header_ops->create
-function. Be aware that this data can be overridden later (when socket code
-submits skb to qdisc), so if you need something from that cb later, you should
-store info in the skb->data on your own.
+the skb->cb is used to provide additional data to the device's
+header_ops->create function. Be aware that this data can be overridden later
+(when socket code submits skb to qdisc), so if you need something from that cb
+later, you should store info in the skb->data on your own.
 
 To hook the MLME interface you have to populate the ml_priv field of your
 net_device with a pointer to struct ieee802154_mlme_ops instance. The fields
@@ -94,8 +95,9 @@ All other fields are required.
 SoftMAC
 -------
 
-The MAC is the middle layer in the IEEE 802.15.4 Linux stack. This moment it
-provides interface for drivers registration and management of slave interfaces.
+The MAC is the middle layer in the IEEE 802.15.4 Linux stack. At the moment, it
+provides an interface for driver registration and management of slave
+interfaces.
 
 NOTE: Currently the only monitor device type is supported - it's IEEE 802.15.4
 stack interface for network sniffers (e.g. WireShark).

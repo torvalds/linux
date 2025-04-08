@@ -58,7 +58,7 @@ struct kmem_cache *inotify_inode_mark_cachep __ro_after_init;
 static long it_zero = 0;
 static long it_int_max = INT_MAX;
 
-static struct ctl_table inotify_table[] = {
+static const struct ctl_table inotify_table[] = {
 	{
 		.procname	= "max_user_instances",
 		.data		= &init_user_ns.ucount_max[UCOUNT_INOTIFY_INSTANCES],

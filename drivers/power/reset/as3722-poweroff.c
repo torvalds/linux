@@ -57,8 +57,6 @@ static int as3722_poweroff_probe(struct platform_device *pdev)
 					     SYS_OFF_PRIO_DEFAULT,
 					     as3722_pm_power_off,
 					     as3722_poweroff);
-
-	return 0;
 }
 
 static struct platform_driver as3722_poweroff_driver = {

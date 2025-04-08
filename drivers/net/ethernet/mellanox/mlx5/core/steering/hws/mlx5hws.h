@@ -70,7 +70,6 @@ enum mlx5hws_send_queue_actions {
 struct mlx5hws_context_attr {
 	u16 queues;
 	u16 queue_size;
-	bool bwc; /* add support for backward compatible API*/
 };
 
 struct mlx5hws_table_attr {

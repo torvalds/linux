@@ -111,7 +111,7 @@ static bool s1pie_enabled(struct kvm_vcpu *vcpu, enum trans_regime regime)
 		return vcpu_read_sys_reg(vcpu, TCR2_EL2) & TCR2_EL2_PIE;
 	case TR_EL10:
 		return  (__vcpu_sys_reg(vcpu, HCRX_EL2) & HCRX_EL2_TCR2En) &&
-			(__vcpu_sys_reg(vcpu, TCR2_EL1) & TCR2_EL1x_PIE);
+			(__vcpu_sys_reg(vcpu, TCR2_EL1) & TCR2_EL1_PIE);
 	default:
 		BUG();
 	}
@@ -140,8 +140,8 @@ static void compute_s1poe(struct kvm_vcpu *vcpu, struct s1_walk_info *wi)
 		}
 
 		val = __vcpu_sys_reg(vcpu, TCR2_EL1);
-		wi->poe = val & TCR2_EL1x_POE;
-		wi->e0poe = val & TCR2_EL1x_E0POE;
+		wi->poe = val & TCR2_EL1_POE;
+		wi->e0poe = val & TCR2_EL1_E0POE;
 	}
 }
 
@@ -1090,22 +1090,22 @@ static void compute_s1_overlay_permissions(struct kvm_vcpu *vcpu,
 		break;
 	}
 
-	if (pov_perms & ~POE_RXW)
+	if (pov_perms & ~POE_RWX)
 		pov_perms = POE_NONE;
 
 	if (wi->poe && wr->pov) {
 		wr->pr &= pov_perms & POE_R;
-		wr->px &= pov_perms & POE_X;
 		wr->pw &= pov_perms & POE_W;
+		wr->px &= pov_perms & POE_X;
 	}
 
-	if (uov_perms & ~POE_RXW)
+	if (uov_perms & ~POE_RWX)
 		uov_perms = POE_NONE;
 
 	if (wi->e0poe && wr->uov) {
 		wr->ur &= uov_perms & POE_R;
-		wr->ux &= uov_perms & POE_X;
 		wr->uw &= uov_perms & POE_W;
+		wr->ux &= uov_perms & POE_X;
 	}
 }
 

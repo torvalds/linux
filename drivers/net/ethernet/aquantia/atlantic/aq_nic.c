@@ -1389,13 +1389,13 @@ int aq_nic_stop(struct aq_nic_s *self)
 	netif_tx_disable(self->ndev);
 	netif_carrier_off(self->ndev);
 
-	del_timer_sync(&self->service_timer);
+	timer_delete_sync(&self->service_timer);
 	cancel_work_sync(&self->service_task);
 
 	self->aq_hw_ops->hw_irq_disable(self->aq_hw, AQ_CFG_IRQ_MASK);
 
 	if (self->aq_nic_cfg.is_polling)
-		del_timer_sync(&self->polling_timer);
+		timer_delete_sync(&self->polling_timer);
 	else
 		aq_pci_func_free_irqs(self);
 
@@ -1441,7 +1441,9 @@ void aq_nic_deinit(struct aq_nic_s *self, bool link_down)
 	aq_ptp_ring_free(self);
 	aq_ptp_free(self);
 
-	if (likely(self->aq_fw_ops->deinit) && link_down) {
+	/* May be invoked during hot unplug. */
+	if (pci_device_is_present(self->pdev) &&
+	    likely(self->aq_fw_ops->deinit) && link_down) {
 		mutex_lock(&self->fwreq_mutex);
 		self->aq_fw_ops->deinit(self->aq_hw);
 		mutex_unlock(&self->fwreq_mutex);

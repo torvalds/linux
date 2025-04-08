@@ -6,7 +6,7 @@
 #include <asm/page_types.h>
 #include <uapi/asm/ptrace.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #ifdef __i386__
 
 struct pt_regs {
@@ -469,5 +469,5 @@ extern int do_set_thread_area(struct task_struct *p, int idx,
 # define do_set_thread_area_64(p, s, t)	(0)
 #endif
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 #endif /* _ASM_X86_PTRACE_H */

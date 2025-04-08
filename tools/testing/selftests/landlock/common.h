@@ -9,17 +9,16 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
-#include <linux/landlock.h>
 #include <linux/securebits.h>
 #include <sys/capability.h>
+#include <sys/prctl.h>
 #include <sys/socket.h>
-#include <sys/syscall.h>
-#include <sys/types.h>
 #include <sys/un.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
 #include "../kselftest_harness.h"
+#include "wrappers.h"
 
 #define TMP_DIR "tmp"
 
@@ -30,33 +29,9 @@
 /* TEST_F_FORK() should not be used for new tests. */
 #define TEST_F_FORK(fixture_name, test_name) TEST_F(fixture_name, test_name)
 
-#ifndef landlock_create_ruleset
-static inline int
-landlock_create_ruleset(const struct landlock_ruleset_attr *const attr,
-			const size_t size, const __u32 flags)
-{
-	return syscall(__NR_landlock_create_ruleset, attr, size, flags);
-}
-#endif
-
-#ifndef landlock_add_rule
-static inline int landlock_add_rule(const int ruleset_fd,
-				    const enum landlock_rule_type rule_type,
-				    const void *const rule_attr,
-				    const __u32 flags)
-{
-	return syscall(__NR_landlock_add_rule, ruleset_fd, rule_type, rule_attr,
-		       flags);
-}
-#endif
-
-#ifndef landlock_restrict_self
-static inline int landlock_restrict_self(const int ruleset_fd,
-					 const __u32 flags)
-{
-	return syscall(__NR_landlock_restrict_self, ruleset_fd, flags);
-}
-#endif
+static const char bin_sandbox_and_launch[] = "./sandbox-and-launch";
+static const char bin_wait_pipe[] = "./wait-pipe";
+static const char bin_wait_pipe_sandbox[] = "./wait-pipe-sandbox";
 
 static void _init_caps(struct __test_metadata *const _metadata, bool drop_all)
 {
@@ -64,10 +39,12 @@ static void _init_caps(struct __test_metadata *const _metadata, bool drop_all)
 	/* Only these three capabilities are useful for the tests. */
 	const cap_value_t caps[] = {
 		/* clang-format off */
+		CAP_AUDIT_CONTROL,
 		CAP_DAC_OVERRIDE,
 		CAP_MKNOD,
 		CAP_NET_ADMIN,
 		CAP_NET_BIND_SERVICE,
+		CAP_SETUID,
 		CAP_SYS_ADMIN,
 		CAP_SYS_CHROOT,
 		/* clang-format on */
@@ -231,9 +208,26 @@ enforce_ruleset(struct __test_metadata *const _metadata, const int ruleset_fd)
 	}
 }
 
+static void __maybe_unused
+drop_access_rights(struct __test_metadata *const _metadata,
+		   const struct landlock_ruleset_attr *const ruleset_attr)
+{
+	int ruleset_fd;
+
+	ruleset_fd =
+		landlock_create_ruleset(ruleset_attr, sizeof(*ruleset_attr), 0);
+	EXPECT_LE(0, ruleset_fd)
+	{
+		TH_LOG("Failed to create a ruleset: %s", strerror(errno));
+	}
+	enforce_ruleset(_metadata, ruleset_fd);
+	EXPECT_EQ(0, close(ruleset_fd));
+}
+
 struct protocol_variant {
 	int domain;
 	int type;
+	int protocol;
 };
 
 struct service_fixture {
@@ -249,11 +243,6 @@ struct service_fixture {
 		};
 	};
 };
-
-static pid_t __maybe_unused sys_gettid(void)
-{
-	return syscall(__NR_gettid);
-}
 
 static void __maybe_unused set_unix_address(struct service_fixture *const srv,
 					    const unsigned short index)

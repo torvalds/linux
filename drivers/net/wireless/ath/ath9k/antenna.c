@@ -193,7 +193,7 @@ static void ath_lnaconf_alt_good_scan(struct ath_ant_comb *antcomb,
 static void ath_ant_set_alt_ratio(struct ath_ant_comb *antcomb,
 				  struct ath_hw_antcomb_conf *conf)
 {
-	/* set alt to the conf with maximun ratio */
+	/* set alt to the conf with maximum ratio */
 	if (antcomb->first_ratio && antcomb->second_ratio) {
 		if (antcomb->rssi_second > antcomb->rssi_third) {
 			/* first alt*/

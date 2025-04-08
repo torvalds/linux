@@ -25,6 +25,7 @@ properties:
           - fsl,imx8mm-micfil
           - fsl,imx8mp-micfil
           - fsl,imx93-micfil
+          - fsl,imx943-micfil
 
   reg:
     maxItems: 1

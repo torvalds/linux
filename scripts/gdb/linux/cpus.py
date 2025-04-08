@@ -46,7 +46,7 @@ def per_cpu(var_ptr, cpu):
             # !CONFIG_SMP case
             offset = 0
     pointer = var_ptr.cast(utils.get_long_type()) + offset
-    return pointer.cast(var_ptr.type).dereference()
+    return pointer.cast(var_ptr.type)
 
 
 cpu_mask = {}
@@ -149,10 +149,28 @@ Note that VAR has to be quoted as string."""
         super(PerCpu, self).__init__("lx_per_cpu")
 
     def invoke(self, var, cpu=-1):
-        return per_cpu(var.address, cpu)
+        return per_cpu(var.address, cpu).dereference()
 
 
 PerCpu()
+
+
+class PerCpuPtr(gdb.Function):
+    """Return per-cpu pointer.
+
+$lx_per_cpu_ptr("VAR"[, CPU]): Return the per-cpu pointer called VAR for the
+given CPU number. If CPU is omitted, the CPU of the current context is used.
+Note that VAR has to be quoted as string."""
+
+    def __init__(self):
+        super(PerCpuPtr, self).__init__("lx_per_cpu_ptr")
+
+    def invoke(self, var, cpu=-1):
+        return per_cpu(var, cpu)
+
+
+PerCpuPtr()
+
 
 def get_current_task(cpu):
     task_ptr_type = task_type.get_type().pointer()
@@ -164,10 +182,10 @@ def get_current_task(cpu):
             var_ptr = gdb.parse_and_eval("(struct task_struct *)cpu_tasks[0].task")
             return var_ptr.dereference()
         else:
-            var_ptr = gdb.parse_and_eval("&pcpu_hot.current_task")
+            var_ptr = gdb.parse_and_eval("&current_task")
             return per_cpu(var_ptr, cpu).dereference()
     elif utils.is_target_arch("aarch64"):
-        current_task_addr = gdb.parse_and_eval("$SP_EL0")
+        current_task_addr = gdb.parse_and_eval("(unsigned long)$SP_EL0")
         if (current_task_addr >> 63) != 0:
             current_task = current_task_addr.cast(task_ptr_type)
             return current_task.dereference()

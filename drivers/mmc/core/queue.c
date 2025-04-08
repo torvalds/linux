@@ -441,7 +441,7 @@ struct gendisk *mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 	else
 		mq->tag_set.queue_depth = MMC_QUEUE_DEPTH;
 	mq->tag_set.numa_node = NUMA_NO_NODE;
-	mq->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING;
+	mq->tag_set.flags = BLK_MQ_F_BLOCKING;
 	mq->tag_set.nr_hw_queues = 1;
 	mq->tag_set.cmd_size = sizeof(struct mmc_queue_req);
 	mq->tag_set.driver_data = mq;
@@ -523,5 +523,5 @@ unsigned int mmc_queue_map_sg(struct mmc_queue *mq, struct mmc_queue_req *mqrq)
 {
 	struct request *req = mmc_queue_req_to_req(mqrq);
 
-	return blk_rq_map_sg(mq->queue, req, mqrq->sg);
+	return blk_rq_map_sg(req, mqrq->sg);
 }

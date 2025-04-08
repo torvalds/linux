@@ -115,16 +115,9 @@ static int ge_b850v3_lvds_get_modes(struct drm_connector *connector)
 	return num_modes;
 }
 
-static enum drm_mode_status ge_b850v3_lvds_mode_valid(
-		struct drm_connector *connector, struct drm_display_mode *mode)
-{
-	return MODE_OK;
-}
-
 static const struct
 drm_connector_helper_funcs ge_b850v3_lvds_connector_helper_funcs = {
 	.get_modes = ge_b850v3_lvds_get_modes,
-	.mode_valid = ge_b850v3_lvds_mode_valid,
 };
 
 static enum drm_connector_status ge_b850v3_lvds_bridge_detect(struct drm_bridge *bridge)

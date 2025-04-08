@@ -997,13 +997,14 @@ static int smc_llc_cli_conf_link(struct smc_link *link,
 }
 
 static void smc_llc_save_add_link_rkeys(struct smc_link *link,
-					struct smc_link *link_new)
+					struct smc_link *link_new,
+					u8 *llc_msg)
 {
 	struct smc_llc_msg_add_link_v2_ext *ext;
 	struct smc_link_group *lgr = link->lgr;
 	int max, i;
 
-	ext = (struct smc_llc_msg_add_link_v2_ext *)((u8 *)lgr->wr_rx_buf_v2 +
+	ext = (struct smc_llc_msg_add_link_v2_ext *)(llc_msg +
 						     SMC_WR_TX_SIZE);
 	max = min_t(u8, ext->num_rkeys, SMC_LLC_RKEYS_PER_MSG_V2);
 	down_write(&lgr->rmbs_lock);
@@ -1098,7 +1099,9 @@ int smc_llc_cli_add_link(struct smc_link *link, struct smc_llc_qentry *qentry)
 	if (rc)
 		goto out_clear_lnk;
 	if (lgr->smc_version == SMC_V2) {
-		smc_llc_save_add_link_rkeys(link, lnk_new);
+		u8 *llc_msg = smc_link_shared_v2_rxbuf(link) ?
+			(u8 *)lgr->wr_rx_buf_v2 : (u8 *)llc;
+		smc_llc_save_add_link_rkeys(link, lnk_new, llc_msg);
 	} else {
 		rc = smc_llc_cli_rkey_exchange(link, lnk_new);
 		if (rc) {
@@ -1498,7 +1501,9 @@ int smc_llc_srv_add_link(struct smc_link *link,
 	if (rc)
 		goto out_err;
 	if (lgr->smc_version == SMC_V2) {
-		smc_llc_save_add_link_rkeys(link, link_new);
+		u8 *llc_msg = smc_link_shared_v2_rxbuf(link) ?
+			(u8 *)lgr->wr_rx_buf_v2 : (u8 *)add_llc;
+		smc_llc_save_add_link_rkeys(link, link_new, llc_msg);
 	} else {
 		rc = smc_llc_srv_rkey_exchange(link, link_new);
 		if (rc)
@@ -1807,8 +1812,12 @@ static void smc_llc_rmt_delete_rkey(struct smc_link_group *lgr)
 	if (lgr->smc_version == SMC_V2) {
 		struct smc_llc_msg_delete_rkey_v2 *llcv2;
 
-		memcpy(lgr->wr_rx_buf_v2, llc, sizeof(*llc));
-		llcv2 = (struct smc_llc_msg_delete_rkey_v2 *)lgr->wr_rx_buf_v2;
+		if (smc_link_shared_v2_rxbuf(link)) {
+			memcpy(lgr->wr_rx_buf_v2, llc, sizeof(*llc));
+			llcv2 = (struct smc_llc_msg_delete_rkey_v2 *)lgr->wr_rx_buf_v2;
+		} else {
+			llcv2 = (struct smc_llc_msg_delete_rkey_v2 *)llc;
+		}
 		llcv2->num_inval_rkeys = 0;
 
 		max = min_t(u8, llcv2->num_rkeys, SMC_LLC_RKEYS_PER_MSG_V2);

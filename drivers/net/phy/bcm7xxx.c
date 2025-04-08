@@ -929,7 +929,7 @@ static struct phy_driver bcm7xxx_driver[] = {
 	BCM7XXX_16NM_EPHY(PHY_ID_BCM7712, "Broadcom BCM7712"),
 };
 
-static struct mdio_device_id __maybe_unused bcm7xxx_tbl[] = {
+static const struct mdio_device_id __maybe_unused bcm7xxx_tbl[] = {
 	{ PHY_ID_BCM72113, 0xfffffff0 },
 	{ PHY_ID_BCM72116, 0xfffffff0, },
 	{ PHY_ID_BCM72165, 0xfffffff0, },

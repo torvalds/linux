@@ -1,7 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause
 /* ******************************************************************
  * hist : Histogram functions
  * part of Finite State Entropy project
- * Copyright (c) Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  *  You can contact the author at :
  *  - FSE source repository : https://github.com/Cyan4973/FiniteStateEntropy
@@ -26,6 +27,16 @@ unsigned HIST_isError(size_t code) { return ERR_isError(code); }
 /*-**************************************************************
  *  Histogram functions
  ****************************************************************/
+void HIST_add(unsigned* count, const void* src, size_t srcSize)
+{
+    const BYTE* ip = (const BYTE*)src;
+    const BYTE* const end = ip + srcSize;
+
+    while (ip<end) {
+        count[*ip++]++;
+    }
+}
+
 unsigned HIST_count_simple(unsigned* count, unsigned* maxSymbolValuePtr,
                            const void* src, size_t srcSize)
 {

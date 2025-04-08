@@ -53,6 +53,7 @@ Library functionality that is used throughout the kernel.
    floating-point
    union_find
    min_heap
+   parser
 
 Low level entry and exit
 ========================

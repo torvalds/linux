@@ -10,11 +10,13 @@
 #include <linux/export.h>
 #include <linux/spinlock.h>
 #include <linux/jiffies.h>
+#include <linux/sysctl.h>
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/percpu.h>
 #include <linux/io.h>
 #include <asm/alternative.h>
+#include <asm/machine.h>
 #include <asm/asm.h>
 
 int spin_retry = -1;
@@ -36,6 +38,23 @@ static int __init spin_retry_setup(char *str)
 	return 1;
 }
 __setup("spin_retry=", spin_retry_setup);
+
+static const struct ctl_table s390_spin_sysctl_table[] = {
+	{
+		.procname	= "spin_retry",
+		.data		= &spin_retry,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+};
+
+static int __init init_s390_spin_sysctls(void)
+{
+	register_sysctl_init("kernel", s390_spin_sysctl_table);
+	return 0;
+}
+arch_initcall(init_s390_spin_sysctls);
 
 struct spin_wait {
 	struct spin_wait *next, *prev;
@@ -141,7 +160,7 @@ static inline void arch_spin_lock_queued(arch_spinlock_t *lp)
 
 	ix = get_lowcore()->spinlock_index++;
 	barrier();
-	lockval = SPINLOCK_LOCKVAL;	/* cpu + 1 */
+	lockval = spinlock_lockval();	/* cpu + 1 */
 	node = this_cpu_ptr(&spin_wait[ix]);
 	node->prev = node->next = NULL;
 	node_id = node->node_id;
@@ -212,7 +231,7 @@ static inline void arch_spin_lock_queued(arch_spinlock_t *lp)
 		if (count-- >= 0)
 			continue;
 		count = spin_retry;
-		if (!MACHINE_IS_LPAR || arch_vcpu_is_preempted(owner - 1))
+		if (!machine_is_lpar() || arch_vcpu_is_preempted(owner - 1))
 			smp_yield_cpu(owner - 1);
 	}
 
@@ -232,7 +251,7 @@ static inline void arch_spin_lock_classic(arch_spinlock_t *lp)
 {
 	int lockval, old, new, owner, count;
 
-	lockval = SPINLOCK_LOCKVAL;	/* cpu + 1 */
+	lockval = spinlock_lockval();	/* cpu + 1 */
 
 	/* Pass the virtual CPU to the lock holder if it is not running */
 	owner = arch_spin_yield_target(READ_ONCE(lp->lock), NULL);
@@ -255,7 +274,7 @@ static inline void arch_spin_lock_classic(arch_spinlock_t *lp)
 		if (count-- >= 0)
 			continue;
 		count = spin_retry;
-		if (!MACHINE_IS_LPAR || arch_vcpu_is_preempted(owner - 1))
+		if (!machine_is_lpar() || arch_vcpu_is_preempted(owner - 1))
 			smp_yield_cpu(owner - 1);
 	}
 }
@@ -271,7 +290,7 @@ EXPORT_SYMBOL(arch_spin_lock_wait);
 
 int arch_spin_trylock_retry(arch_spinlock_t *lp)
 {
-	int cpu = SPINLOCK_LOCKVAL;
+	int cpu = spinlock_lockval();
 	int owner, count;
 
 	for (count = spin_retry; count > 0; count--) {
@@ -337,7 +356,7 @@ void arch_spin_relax(arch_spinlock_t *lp)
 	cpu = READ_ONCE(lp->lock) & _Q_LOCK_CPU_MASK;
 	if (!cpu)
 		return;
-	if (MACHINE_IS_LPAR && !arch_vcpu_is_preempted(cpu - 1))
+	if (machine_is_lpar() && !arch_vcpu_is_preempted(cpu - 1))
 		return;
 	smp_yield_cpu(cpu - 1);
 }

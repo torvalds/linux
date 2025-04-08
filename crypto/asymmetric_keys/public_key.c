@@ -267,7 +267,6 @@ static int software_key_eds_op(struct kernel_pkey_params *params,
 	struct crypto_sig *sig;
 	char *key, *ptr;
 	bool issig;
-	int ksz;
 	int ret;
 
 	pr_devel("==>%s()\n", __func__);
@@ -302,8 +301,6 @@ static int software_key_eds_op(struct kernel_pkey_params *params,
 			ret = crypto_sig_set_pubkey(sig, key, pkey->keylen);
 		if (ret)
 			goto error_free_tfm;
-
-		ksz = crypto_sig_keysize(sig);
 	} else {
 		tfm = crypto_alloc_akcipher(alg_name, 0, 0);
 		if (IS_ERR(tfm)) {
@@ -317,8 +314,6 @@ static int software_key_eds_op(struct kernel_pkey_params *params,
 			ret = crypto_akcipher_set_pub_key(tfm, key, pkey->keylen);
 		if (ret)
 			goto error_free_tfm;
-
-		ksz = crypto_akcipher_maxsize(tfm);
 	}
 
 	ret = -EINVAL;
@@ -347,8 +342,8 @@ static int software_key_eds_op(struct kernel_pkey_params *params,
 		BUG();
 	}
 
-	if (ret == 0)
-		ret = ksz;
+	if (!issig && ret == 0)
+		ret = crypto_akcipher_maxsize(tfm);
 
 error_free_tfm:
 	if (issig)

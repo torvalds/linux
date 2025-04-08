@@ -51,6 +51,7 @@ MODULE_FIRMWARE("amdgpu/sdma_6_0_3.bin");
 MODULE_FIRMWARE("amdgpu/sdma_6_1_0.bin");
 MODULE_FIRMWARE("amdgpu/sdma_6_1_1.bin");
 MODULE_FIRMWARE("amdgpu/sdma_6_1_2.bin");
+MODULE_FIRMWARE("amdgpu/sdma_6_1_3.bin");
 
 #define SDMA1_REG_OFFSET 0x600
 #define SDMA0_HYP_DEC_REG_START 0x5880
@@ -1428,9 +1429,9 @@ static int sdma_v6_0_resume(struct amdgpu_ip_block *ip_block)
 	return sdma_v6_0_hw_init(ip_block);
 }
 
-static bool sdma_v6_0_is_idle(void *handle)
+static bool sdma_v6_0_is_idle(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 i;
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
@@ -1613,7 +1614,7 @@ static int sdma_v6_0_set_powergating_state(struct amdgpu_ip_block *ip_block,
 	return 0;
 }
 
-static void sdma_v6_0_get_clockgating_state(void *handle, u64 *flags)
+static void sdma_v6_0_get_clockgating_state(struct amdgpu_ip_block *ip_block, u64 *flags)
 {
 }
 

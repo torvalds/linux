@@ -546,12 +546,10 @@ static void cs35l56_hda_release_firmware_files(const struct firmware *wmfw_firmw
 					       const struct firmware *coeff_firmware,
 					       char *coeff_filename)
 {
-	if (wmfw_firmware)
-		release_firmware(wmfw_firmware);
+	release_firmware(wmfw_firmware);
 	kfree(wmfw_filename);
 
-	if (coeff_firmware)
-		release_firmware(coeff_firmware);
+	release_firmware(coeff_firmware);
 	kfree(coeff_filename);
 }
 

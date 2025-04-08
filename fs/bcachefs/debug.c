@@ -7,6 +7,7 @@
  */
 
 #include "bcachefs.h"
+#include "alloc_foreground.h"
 #include "bkey_methods.h"
 #include "btree_cache.h"
 #include "btree_io.h"
@@ -20,6 +21,7 @@
 #include "extents.h"
 #include "fsck.h"
 #include "inode.h"
+#include "journal_reclaim.h"
 #include "super.h"
 
 #include <linux/console.h>
@@ -55,7 +57,7 @@ static bool bch2_btree_verify_replica(struct bch_fs *c, struct btree *b,
 	submit_bio_wait(bio);
 
 	bio_put(bio);
-	percpu_ref_put(&ca->io_ref);
+	percpu_ref_put(&ca->io_ref[READ]);
 
 	memcpy(n_ondisk, n_sorted, btree_buf_bytes(b));
 
@@ -189,7 +191,7 @@ void bch2_btree_node_ondisk_to_text(struct printbuf *out, struct bch_fs *c,
 	unsigned offset = 0;
 	int ret;
 
-	if (bch2_bkey_pick_read_device(c, bkey_i_to_s_c(&b->key), NULL, &pick) <= 0) {
+	if (bch2_bkey_pick_read_device(c, bkey_i_to_s_c(&b->key), NULL, &pick, -1) <= 0) {
 		prt_printf(out, "error getting device to read from: invalid device\n");
 		return;
 	}
@@ -295,7 +297,7 @@ out:
 	if (bio)
 		bio_put(bio);
 	kvfree(n_ondisk);
-	percpu_ref_put(&ca->io_ref);
+	percpu_ref_put(&ca->io_ref[READ]);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -472,7 +474,9 @@ static void bch2_cached_btree_node_to_text(struct printbuf *out, struct bch_fs *
 	if (!out->nr_tabstops)
 		printbuf_tabstop_push(out, 32);
 
-	prt_printf(out, "%px btree=%s l=%u\n", b, bch2_btree_id_str(b->c.btree_id), b->c.level);
+	prt_printf(out, "%px ", b);
+	bch2_btree_id_level_to_text(out, b->c.btree_id, b->c.level);
+	prt_printf(out, "\n");
 
 	printbuf_indent_add(out, 2);
 
@@ -841,8 +845,11 @@ restart:
 	seqmutex_unlock(&c->btree_trans_lock);
 }
 
-static ssize_t bch2_btree_deadlock_read(struct file *file, char __user *buf,
-					    size_t size, loff_t *ppos)
+typedef void (*fs_to_text_fn)(struct printbuf *, struct bch_fs *);
+
+static ssize_t bch2_simple_print(struct file *file, char __user *buf,
+				 size_t size, loff_t *ppos,
+				 fs_to_text_fn fn)
 {
 	struct dump_iter *i = file->private_data;
 	struct bch_fs *c = i->c;
@@ -853,7 +860,7 @@ static ssize_t bch2_btree_deadlock_read(struct file *file, char __user *buf,
 	i->ret	= 0;
 
 	if (!i->iter) {
-		btree_deadlock_to_text(&i->buf, c);
+		fn(&i->buf, c);
 		i->iter++;
 	}
 
@@ -866,11 +873,30 @@ static ssize_t bch2_btree_deadlock_read(struct file *file, char __user *buf,
 	return ret ?: i->ret;
 }
 
+static ssize_t bch2_btree_deadlock_read(struct file *file, char __user *buf,
+					size_t size, loff_t *ppos)
+{
+	return bch2_simple_print(file, buf, size, ppos, btree_deadlock_to_text);
+}
+
 static const struct file_operations btree_deadlock_ops = {
 	.owner		= THIS_MODULE,
 	.open		= bch2_dump_open,
 	.release	= bch2_dump_release,
 	.read		= bch2_btree_deadlock_read,
+};
+
+static ssize_t bch2_write_points_read(struct file *file, char __user *buf,
+				     size_t size, loff_t *ppos)
+{
+	return bch2_simple_print(file, buf, size, ppos, bch2_write_points_to_text);
+}
+
+static const struct file_operations write_points_ops = {
+	.owner		= THIS_MODULE,
+	.open		= bch2_dump_open,
+	.release	= bch2_dump_release,
+	.read		= bch2_write_points_read,
 };
 
 void bch2_fs_debug_exit(struct bch_fs *c)
@@ -923,6 +949,9 @@ void bch2_fs_debug_init(struct bch_fs *c)
 
 	debugfs_create_file("btree_deadlock", 0400, c->fs_debug_dir,
 			    c->btree_debug, &btree_deadlock_ops);
+
+	debugfs_create_file("write_points", 0400, c->fs_debug_dir,
+			    c->btree_debug, &write_points_ops);
 
 	c->btree_debug_dir = debugfs_create_dir("btrees", c->fs_debug_dir);
 	if (IS_ERR_OR_NULL(c->btree_debug_dir))

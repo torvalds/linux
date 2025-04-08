@@ -51,6 +51,13 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 		}
 	}
 
+	if (is_vlan_dev(dev)) {
+		struct net_device *real_dev = vlan_dev_real_dev(dev);
+
+		if (netif_is_bridge_master(real_dev))
+			br_vlan_vlan_upper_event(real_dev, dev, event);
+	}
+
 	/* not a port of a bridge */
 	p = br_port_get_rtnl(dev);
 	if (!p)

@@ -122,7 +122,7 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_io_data_size);
 
 	par = fec_read_parity(v, rsb, block_offset, &offset,
-			      par_buf_offset, &buf, bio_prio(bio));
+			      par_buf_offset, &buf, bio->bi_ioprio);
 	if (IS_ERR(par))
 		return PTR_ERR(par);
 
@@ -164,7 +164,7 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 			dm_bufio_release(buf);
 
 			par = fec_read_parity(v, rsb, block_offset, &offset,
-					      par_buf_offset, &buf, bio_prio(bio));
+					      par_buf_offset, &buf, bio->bi_ioprio);
 			if (IS_ERR(par))
 				return PTR_ERR(par);
 		}
@@ -254,7 +254,7 @@ static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
 			bufio = v->bufio;
 		}
 
-		bbuf = dm_bufio_read_with_ioprio(bufio, block, &buf, bio_prio(bio));
+		bbuf = dm_bufio_read_with_ioprio(bufio, block, &buf, bio->bi_ioprio);
 		if (IS_ERR(bbuf)) {
 			DMWARN_LIMIT("%s: FEC %llu: read failed (%llu): %ld",
 				     v->data_dev->name,

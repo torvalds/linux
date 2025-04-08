@@ -199,7 +199,7 @@ __naked void pass_pointer_to_helper_function(void)
 SEC("socket")
 __description("unpriv: indirectly pass pointer on stack to helper function")
 __success __failure_unpriv
-__msg_unpriv("invalid indirect read from stack R2 off -8+0 size 8")
+__msg_unpriv("invalid read from stack R2 off -8+0 size 8")
 __retval(0)
 __naked void on_stack_to_helper_function(void)
 {

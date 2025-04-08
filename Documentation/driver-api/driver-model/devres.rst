@@ -404,7 +404,6 @@ PHY
   devm_usb_get_phy()
   devm_usb_get_phy_by_node()
   devm_usb_get_phy_by_phandle()
-  devm_usb_put_phy()
 
 PINCTRL
   devm_pinctrl_get()

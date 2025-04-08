@@ -5,7 +5,7 @@
  * Copyright 2007-2009	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright 2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2023 Intel Corporation
+ * Copyright (C) 2018-2023, 2025 Intel Corporation
  */
 #include <linux/export.h>
 #include <linux/bitops.h>
@@ -2572,7 +2572,6 @@ int cfg80211_get_station(struct net_device *dev, const u8 *mac_addr,
 {
 	struct cfg80211_registered_device *rdev;
 	struct wireless_dev *wdev;
-	int ret;
 
 	wdev = dev->ieee80211_ptr;
 	if (!wdev)
@@ -2584,11 +2583,9 @@ int cfg80211_get_station(struct net_device *dev, const u8 *mac_addr,
 
 	memset(sinfo, 0, sizeof(*sinfo));
 
-	wiphy_lock(&rdev->wiphy);
-	ret = rdev_get_station(rdev, dev, mac_addr, sinfo);
-	wiphy_unlock(&rdev->wiphy);
+	guard(wiphy)(&rdev->wiphy);
 
-	return ret;
+	return rdev_get_station(rdev, dev, mac_addr, sinfo);
 }
 EXPORT_SYMBOL(cfg80211_get_station);
 
@@ -2911,7 +2908,7 @@ bool cfg80211_radio_chandef_valid(const struct wiphy_radio *radio,
 	u32 freq, width;
 
 	freq = ieee80211_chandef_to_khz(chandef);
-	width = nl80211_chan_width_to_mhz(chandef->width);
+	width = cfg80211_chandef_get_width(chandef);
 	if (!ieee80211_radio_freq_range_valid(radio, freq, width))
 		return false;
 

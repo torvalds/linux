@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test ECN: verify that Linux TCP ECN sending code uses ECT0 (not ECT1).
+//
+`./defaults.sh
+sysctl -q net.ipv4.tcp_ecn=1  # fully enabled
+`
+
+// Initialize connection
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 4
+
+// ECN handshake: send EW flags in SYN packet, E flag in SYN-ACK response
++.002 ... 0.004 connect(4, ..., ...) = 0
+
+   +0 > SEW 0:0(0) <mss 1460,sackOK,TS val 100 ecr 0,nop,wscale 8>
++.002 < SE. 0:0(0) ack 1 win 32767 <mss 1000,nop,wscale 6,nop,nop,sackOK>
+   +0 > . 1:1(0) ack 1
+
+// Write 1 MSS.
++.002 write(4, ..., 1000) = 1000
+// Send 1 MSS with ect0.
+   +0 > [ect0] P. 1:1001(1000) ack 1

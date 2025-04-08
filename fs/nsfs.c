@@ -37,7 +37,6 @@ static char *ns_dname(struct dentry *dentry, char *buffer, int buflen)
 }
 
 const struct dentry_operations ns_dentry_operations = {
-	.d_delete	= always_delete_dentry,
 	.d_dname	= ns_dname,
 	.d_prune	= stashed_dentry_prune,
 };
@@ -152,19 +151,49 @@ static int copy_ns_info_to_user(const struct mnt_namespace *mnt_ns,
 	return 0;
 }
 
+static bool nsfs_ioctl_valid(unsigned int cmd)
+{
+	switch (cmd) {
+	case NS_GET_USERNS:
+	case NS_GET_PARENT:
+	case NS_GET_NSTYPE:
+	case NS_GET_OWNER_UID:
+	case NS_GET_MNTNS_ID:
+	case NS_GET_PID_FROM_PIDNS:
+	case NS_GET_TGID_FROM_PIDNS:
+	case NS_GET_PID_IN_PIDNS:
+	case NS_GET_TGID_IN_PIDNS:
+		return (_IOC_TYPE(cmd) == _IOC_TYPE(cmd));
+	}
+
+	/* Extensible ioctls require some extra handling. */
+	switch (_IOC_NR(cmd)) {
+	case _IOC_NR(NS_MNT_GET_INFO):
+	case _IOC_NR(NS_MNT_GET_NEXT):
+	case _IOC_NR(NS_MNT_GET_PREV):
+		return (_IOC_TYPE(cmd) == _IOC_TYPE(cmd));
+	}
+
+	return false;
+}
+
 static long ns_ioctl(struct file *filp, unsigned int ioctl,
 			unsigned long arg)
 {
 	struct user_namespace *user_ns;
 	struct pid_namespace *pid_ns;
 	struct task_struct *tsk;
-	struct ns_common *ns = get_proc_ns(file_inode(filp));
+	struct ns_common *ns;
 	struct mnt_namespace *mnt_ns;
 	bool previous = false;
 	uid_t __user *argp;
 	uid_t uid;
 	int ret;
 
+	if (!nsfs_ioctl_valid(ioctl))
+		return -ENOIOCTLCMD;
+
+	ns = get_proc_ns(file_inode(filp));
 	switch (ioctl) {
 	case NS_GET_USERNS:
 		return open_related_ns(ns, ns_get_owner);
@@ -274,10 +303,7 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 		if (usize < MNT_NS_INFO_SIZE_VER0)
 			return -EINVAL;
 
-		if (previous)
-			mnt_ns = lookup_prev_mnt_ns(to_mnt_ns(ns));
-		else
-			mnt_ns = lookup_next_mnt_ns(to_mnt_ns(ns));
+		mnt_ns = get_sequential_mnt_ns(to_mnt_ns(ns), previous);
 		if (IS_ERR(mnt_ns))
 			return PTR_ERR(mnt_ns);
 

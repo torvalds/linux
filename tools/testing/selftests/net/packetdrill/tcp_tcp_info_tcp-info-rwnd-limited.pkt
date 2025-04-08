@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test rwnd limited time in tcp_info for client side.
+
+`./defaults.sh`
+
+// Create a socket and set it to non-blocking.
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 fcntl(3, F_GETFL) = 0x2 (flags O_RDWR)
+   +0 fcntl(3, F_SETFL, O_RDWR|O_NONBLOCK) = 0
+
+   +0 connect(3, ..., ...) = -1 EINPROGRESS (Operation now in progress)
+   +0 > S 0:0(0) <mss 1460,sackOK,TS val 100 ecr 0,nop,wscale 8>
+
+// Server advertises 0 receive window.
+ +.01 < S. 0:0(0) ack 1 win 0 <mss 1000,nop,nop,sackOK>
+
+   +0 > . 1:1(0) ack 1
+   +0 getsockopt(3, SOL_SOCKET, SO_ERROR, [0], [4]) = 0
+   +0 fcntl(3, F_SETFL, O_RDWR) = 0   // set back to blocking
+
+// Make sure that initial rwnd limited time is 0.
+   +0 %{ assert tcpi_rwnd_limited == 0, tcpi_rwnd_limited }%
+
+// Receive window limited time starts here.
+   +0 write(3, ..., 1000) = 1000
+
+// Check that rwnd limited time in tcp_info is around 0.1s.
+  +.1 %{ assert 98000 <= tcpi_rwnd_limited <= 110000, tcpi_rwnd_limited }%
+
+// Server opens the receive window.
+  +.1 < . 1:1(0) ack 1 win 2000
+
+// Check that rwnd limited time in tcp_info is around 0.2s.
+   +0 %{ assert 198000 <= tcpi_rwnd_limited <= 210000, tcpi_rwnd_limited }%
+
+   +0 > P. 1:1001(1000) ack 1
+
+// Server advertises a very small receive window.
+ +.03 < . 1:1(0) ack 1001 win 10
+
+// Receive window limited time starts again.
+   +0 write(3, ..., 1000) = 1000
+
+// Server opens the receive window again.
+  +.1 < . 1:1(0) ack 1001 win 2000
+// Check that rwnd limited time in tcp_info is around 0.3s
+// and busy time is 0.3 + 0.03 (server opened small window temporarily).
+   +0 %{ assert 298000 <= tcpi_rwnd_limited <= 310000, tcpi_rwnd_limited;\
+         assert 328000 <= tcpi_busy_time <= 340000, tcpi_busy_time;\
+}%
+
+   +0 > P. 1001:2001(1000) ack 1
+ +.02 < . 1:1(0) ack 2001 win 2000
+   +0 %{ assert 348000 <= tcpi_busy_time <= 360000, tcpi_busy_time }%

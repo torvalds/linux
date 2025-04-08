@@ -12,6 +12,7 @@
 
 #define pr_fmt(fmt) "PM: " fmt
 
+#include <crypto/acompress.h>
 #include <linux/module.h>
 #include <linux/file.h>
 #include <linux/delay.h>
@@ -635,7 +636,8 @@ static int crc32_threadfn(void *data)
  */
 struct cmp_data {
 	struct task_struct *thr;                  /* thread */
-	struct crypto_comp *cc;                   /* crypto compressor stream */
+	struct crypto_acomp *cc;		  /* crypto compressor */
+	struct acomp_req *cr;			  /* crypto request */
 	atomic_t ready;                           /* ready to start flag */
 	atomic_t stop;                            /* ready to stop flag */
 	int ret;                                  /* return code */
@@ -656,7 +658,6 @@ static atomic_t compressed_size = ATOMIC_INIT(0);
 static int compress_threadfn(void *data)
 {
 	struct cmp_data *d = data;
-	unsigned int cmp_len = 0;
 
 	while (1) {
 		wait_event(d->go, atomic_read_acquire(&d->ready) ||
@@ -670,11 +671,13 @@ static int compress_threadfn(void *data)
 		}
 		atomic_set(&d->ready, 0);
 
-		cmp_len = CMP_SIZE - CMP_HEADER;
-		d->ret = crypto_comp_compress(d->cc, d->unc, d->unc_len,
-					      d->cmp + CMP_HEADER,
-					      &cmp_len);
-		d->cmp_len = cmp_len;
+		acomp_request_set_callback(d->cr, CRYPTO_TFM_REQ_MAY_SLEEP,
+					   NULL, NULL);
+		acomp_request_set_src_nondma(d->cr, d->unc, d->unc_len);
+		acomp_request_set_dst_nondma(d->cr, d->cmp + CMP_HEADER,
+					     CMP_SIZE - CMP_HEADER);
+		d->ret = crypto_acomp_compress(d->cr);
+		d->cmp_len = d->cr->dlen;
 
 		atomic_set(&compressed_size, atomic_read(&compressed_size) + d->cmp_len);
 		atomic_set_release(&d->stop, 1);
@@ -745,10 +748,17 @@ static int save_compressed_image(struct swap_map_handle *handle,
 		init_waitqueue_head(&data[thr].go);
 		init_waitqueue_head(&data[thr].done);
 
-		data[thr].cc = crypto_alloc_comp(hib_comp_algo, 0, 0);
+		data[thr].cc = crypto_alloc_acomp(hib_comp_algo, 0, CRYPTO_ALG_ASYNC);
 		if (IS_ERR_OR_NULL(data[thr].cc)) {
 			pr_err("Could not allocate comp stream %ld\n", PTR_ERR(data[thr].cc));
 			ret = -EFAULT;
+			goto out_clean;
+		}
+
+		data[thr].cr = acomp_request_alloc(data[thr].cc);
+		if (!data[thr].cr) {
+			pr_err("Could not allocate comp request\n");
+			ret = -ENOMEM;
 			goto out_clean;
 		}
 
@@ -899,8 +909,8 @@ out_clean:
 		for (thr = 0; thr < nr_threads; thr++) {
 			if (data[thr].thr)
 				kthread_stop(data[thr].thr);
-			if (data[thr].cc)
-				crypto_free_comp(data[thr].cc);
+			acomp_request_free(data[thr].cr);
+			crypto_free_acomp(data[thr].cc);
 		}
 		vfree(data);
 	}
@@ -1142,7 +1152,8 @@ static int load_image(struct swap_map_handle *handle,
  */
 struct dec_data {
 	struct task_struct *thr;                  /* thread */
-	struct crypto_comp *cc;                   /* crypto compressor stream */
+	struct crypto_acomp *cc;		  /* crypto compressor */
+	struct acomp_req *cr;			  /* crypto request */
 	atomic_t ready;                           /* ready to start flag */
 	atomic_t stop;                            /* ready to stop flag */
 	int ret;                                  /* return code */
@@ -1160,7 +1171,6 @@ struct dec_data {
 static int decompress_threadfn(void *data)
 {
 	struct dec_data *d = data;
-	unsigned int unc_len = 0;
 
 	while (1) {
 		wait_event(d->go, atomic_read_acquire(&d->ready) ||
@@ -1174,10 +1184,13 @@ static int decompress_threadfn(void *data)
 		}
 		atomic_set(&d->ready, 0);
 
-		unc_len = UNC_SIZE;
-		d->ret = crypto_comp_decompress(d->cc, d->cmp + CMP_HEADER, d->cmp_len,
-						d->unc, &unc_len);
-		d->unc_len = unc_len;
+		acomp_request_set_callback(d->cr, CRYPTO_TFM_REQ_MAY_SLEEP,
+					   NULL, NULL);
+		acomp_request_set_src_nondma(d->cr, d->cmp + CMP_HEADER,
+					     d->cmp_len);
+		acomp_request_set_dst_nondma(d->cr, d->unc, UNC_SIZE);
+		d->ret = crypto_acomp_decompress(d->cr);
+		d->unc_len = d->cr->dlen;
 
 		if (clean_pages_on_decompress)
 			flush_icache_range((unsigned long)d->unc,
@@ -1254,10 +1267,17 @@ static int load_compressed_image(struct swap_map_handle *handle,
 		init_waitqueue_head(&data[thr].go);
 		init_waitqueue_head(&data[thr].done);
 
-		data[thr].cc = crypto_alloc_comp(hib_comp_algo, 0, 0);
+		data[thr].cc = crypto_alloc_acomp(hib_comp_algo, 0, CRYPTO_ALG_ASYNC);
 		if (IS_ERR_OR_NULL(data[thr].cc)) {
 			pr_err("Could not allocate comp stream %ld\n", PTR_ERR(data[thr].cc));
 			ret = -EFAULT;
+			goto out_clean;
+		}
+
+		data[thr].cr = acomp_request_alloc(data[thr].cc);
+		if (!data[thr].cr) {
+			pr_err("Could not allocate comp request\n");
+			ret = -ENOMEM;
 			goto out_clean;
 		}
 
@@ -1507,8 +1527,8 @@ out_clean:
 		for (thr = 0; thr < nr_threads; thr++) {
 			if (data[thr].thr)
 				kthread_stop(data[thr].thr);
-			if (data[thr].cc)
-				crypto_free_comp(data[thr].cc);
+			acomp_request_free(data[thr].cr);
+			crypto_free_acomp(data[thr].cc);
 		}
 		vfree(data);
 	}

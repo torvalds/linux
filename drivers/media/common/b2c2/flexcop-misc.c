@@ -70,16 +70,3 @@ void flexcop_device_name(struct flexcop_device *fc,
 			flexcop_bus_names[fc->bus_type],
 			flexcop_revision_names[fc->rev], suffix);
 }
-
-void flexcop_dump_reg(struct flexcop_device *fc,
-		flexcop_ibi_register reg, int num)
-{
-	flexcop_ibi_value v;
-	int i;
-	for (i = 0; i < num; i++) {
-		v = fc->read_ibi_reg(fc, reg+4*i);
-		deb_rdump("0x%03x: %08x, ", reg+4*i, v.raw);
-	}
-	deb_rdump("\n");
-}
-EXPORT_SYMBOL(flexcop_dump_reg);

@@ -765,7 +765,7 @@ static void waiting_process_next(struct AdapterCtlBlk *acb)
 		return;
 
 	if (timer_pending(&acb->waiting_timer))
-		del_timer(&acb->waiting_timer);
+		timer_delete(&acb->waiting_timer);
 
 	if (list_empty(dcb_list_head))
 		return;
@@ -1153,7 +1153,7 @@ static int __dc395x_eh_bus_reset(struct scsi_cmnd *cmd)
 		cmd, cmd->device->id, (u8)cmd->device->lun, cmd);
 
 	if (timer_pending(&acb->waiting_timer))
-		del_timer(&acb->waiting_timer);
+		timer_delete(&acb->waiting_timer);
 
 	/*
 	 * disable interrupt    
@@ -1561,7 +1561,7 @@ static void dc395x_handle_interrupt(struct AdapterCtlBlk *acb,
 	/*dprintkl(KERN_DEBUG, "handle_interrupt: intstatus = 0x%02x ", scsi_intstatus); */
 
 	if (timer_pending(&acb->selto_timer))
-		del_timer(&acb->selto_timer);
+		timer_delete(&acb->selto_timer);
 
 	if (scsi_intstatus & (INT_SELTIMEOUT | INT_DISCONNECT)) {
 		disconnect(acb);	/* bus free interrupt  */
@@ -3454,7 +3454,7 @@ static void scsi_reset_detect(struct AdapterCtlBlk *acb)
 	dprintkl(KERN_INFO, "scsi_reset_detect: acb=%p\n", acb);
 	/* delay half a second */
 	if (timer_pending(&acb->waiting_timer))
-		del_timer(&acb->waiting_timer);
+		timer_delete(&acb->waiting_timer);
 
 	DC395x_write8(acb, TRM_S1040_SCSI_CONTROL, DO_RSTMODULE);
 	DC395x_write8(acb, TRM_S1040_DMA_CONTROL, DMARESETMODULE);
@@ -3715,13 +3715,13 @@ static void adapter_remove_and_free_all_devices(struct AdapterCtlBlk* acb)
 
 
 /**
- * dc395x_slave_alloc - Called by the scsi mid layer to tell us about a new
+ * dc395x_sdev_init - Called by the scsi mid layer to tell us about a new
  * scsi device that we need to deal with. We allocate a new device and then
  * insert that device into the adapters device list.
  *
  * @scsi_device: The new scsi device that we need to handle.
  **/
-static int dc395x_slave_alloc(struct scsi_device *scsi_device)
+static int dc395x_sdev_init(struct scsi_device *scsi_device)
 {
 	struct AdapterCtlBlk *acb = (struct AdapterCtlBlk *)scsi_device->host->hostdata;
 	struct DeviceCtlBlk *dcb;
@@ -3736,12 +3736,12 @@ static int dc395x_slave_alloc(struct scsi_device *scsi_device)
 
 
 /**
- * dc395x_slave_destroy - Called by the scsi mid layer to tell us about a
+ * dc395x_sdev_destroy - Called by the scsi mid layer to tell us about a
  * device that is going away.
  *
  * @scsi_device: The new scsi device that we need to handle.
  **/
-static void dc395x_slave_destroy(struct scsi_device *scsi_device)
+static void dc395x_sdev_destroy(struct scsi_device *scsi_device)
 {
 	struct AdapterCtlBlk *acb = (struct AdapterCtlBlk *)scsi_device->host->hostdata;
 	struct DeviceCtlBlk *dcb = find_dcb(acb, scsi_device->id, scsi_device->lun);
@@ -4415,9 +4415,9 @@ static void adapter_uninit(struct AdapterCtlBlk *acb)
 
 	/* remove timers */
 	if (timer_pending(&acb->waiting_timer))
-		del_timer(&acb->waiting_timer);
+		timer_delete(&acb->waiting_timer);
 	if (timer_pending(&acb->selto_timer))
-		del_timer(&acb->selto_timer);
+		timer_delete(&acb->selto_timer);
 
 	adapter_uninit_chip(acb);
 	adapter_remove_and_free_all_devices(acb);
@@ -4547,8 +4547,8 @@ static const struct scsi_host_template dc395x_driver_template = {
 	.show_info              = dc395x_show_info,
 	.name                   = DC395X_BANNER " " DC395X_VERSION,
 	.queuecommand           = dc395x_queue_command,
-	.slave_alloc            = dc395x_slave_alloc,
-	.slave_destroy          = dc395x_slave_destroy,
+	.sdev_init              = dc395x_sdev_init,
+	.sdev_destroy           = dc395x_sdev_destroy,
 	.can_queue              = DC395x_MAX_CAN_QUEUE,
 	.this_id                = 7,
 	.sg_tablesize           = DC395x_MAX_SG_TABLESIZE,
@@ -4668,7 +4668,7 @@ static void dc395x_remove_one(struct pci_dev *dev)
 }
 
 
-static struct pci_device_id dc395x_pci_table[] = {
+static const struct pci_device_id dc395x_pci_table[] = {
 	{
 		.vendor		= PCI_VENDOR_ID_TEKRAM,
 		.device		= PCI_DEVICE_ID_TEKRAM_TRMS1040,

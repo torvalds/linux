@@ -29,9 +29,6 @@
 #include "core_types.h"
 #include "dcn20/dcn20_optc.h"
 
-void optc3_fpu_set_vrr_m_const(struct timing_generator *optc,
-		double vtotal_avg);
-
 void dcn30_fpu_populate_dml_writeback_from_context(
 		struct dc *dc, struct resource_context *res_ctx, display_e2e_pipe_params_st *pipes);
 

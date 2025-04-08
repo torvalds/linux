@@ -125,7 +125,6 @@ struct intel_uncore_pmu {
 	struct pmu			pmu;
 	char				name[UNCORE_PMU_NAME_LEN];
 	int				pmu_idx;
-	int				func_id;
 	bool				registered;
 	atomic_t			activeboxes;
 	cpumask_t			cpu_mask;

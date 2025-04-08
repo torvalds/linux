@@ -48,7 +48,7 @@ static int call__scnprintf(struct ins *ins, char *bf, size_t size,
 
 static void ins__sort(struct arch *arch);
 static int disasm_line__parse(char *line, const char **namep, char **rawp);
-static int disasm_line__parse_powerpc(struct disasm_line *dl);
+static int disasm_line__parse_powerpc(struct disasm_line *dl, struct annotate_args *args);
 static char *expand_tabs(char *line, char **storage, size_t *storage_len);
 
 static __attribute__((constructor)) void symbol__init_regexpr(void)
@@ -968,24 +968,25 @@ out:
 #define	PPC_OP(op)	(((op) >> 26) & 0x3F)
 #define	RAW_BYTES	11
 
-static int disasm_line__parse_powerpc(struct disasm_line *dl)
+static int disasm_line__parse_powerpc(struct disasm_line *dl, struct annotate_args *args)
 {
 	char *line = dl->al.line;
 	const char **namep = &dl->ins.name;
 	char **rawp = &dl->ops.raw;
 	char *tmp_raw_insn, *name_raw_insn = skip_spaces(line);
 	char *name = skip_spaces(name_raw_insn + RAW_BYTES);
-	int objdump = 0;
+	int disasm = 0;
+	int ret = 0;
 
-	if (strlen(line) > RAW_BYTES)
-		objdump = 1;
+	if (args->options->disassembler_used)
+		disasm = 1;
 
 	if (name_raw_insn[0] == '\0')
 		return -1;
 
-	if (objdump) {
-		disasm_line__parse(name, namep, rawp);
-	} else
+	if (disasm)
+		ret = disasm_line__parse(name, namep, rawp);
+	else
 		*namep = "";
 
 	tmp_raw_insn = strndup(name_raw_insn, 11);
@@ -995,10 +996,10 @@ static int disasm_line__parse_powerpc(struct disasm_line *dl)
 	remove_spaces(tmp_raw_insn);
 
 	sscanf(tmp_raw_insn, "%x", &dl->raw.raw_insn);
-	if (objdump)
+	if (disasm)
 		dl->raw.raw_insn = be32_to_cpu(dl->raw.raw_insn);
 
-	return 0;
+	return ret;
 }
 
 static void annotation_line__init(struct annotation_line *al,
@@ -1054,7 +1055,7 @@ struct disasm_line *disasm_line__new(struct annotate_args *args)
 
 	if (args->offset != -1) {
 		if (arch__is(args->arch, "powerpc")) {
-			if (disasm_line__parse_powerpc(dl) < 0)
+			if (disasm_line__parse_powerpc(dl, args) < 0)
 				goto out_free_line;
 		} else if (disasm_line__parse(dl->al.line, &dl->ins.name, &dl->ops.raw) < 0)
 			goto out_free_line;
@@ -1244,6 +1245,9 @@ int symbol__strerror_disassemble(struct map_symbol *ms, int errnum, char *buf, s
 	case SYMBOL_ANNOTATE_ERRNO__BPF_MISSING_BTF:
 		scnprintf(buf, buflen, "The %s BPF file has no BTF section, compile with -g or use pahole -J.",
 			  dso__long_name(dso));
+		break;
+	case SYMBOL_ANNOTATE_ERRNO__COULDNT_DETERMINE_FILE_TYPE:
+		scnprintf(buf, buflen, "Couldn't determine the file %s type.", dso__long_name(dso));
 		break;
 	default:
 		scnprintf(buf, buflen, "Internal error: Invalid %d error code\n", errnum);
@@ -2213,56 +2217,6 @@ out_free_command:
 	return err;
 }
 
-static int annotation_options__init_disassemblers(struct annotation_options *options)
-{
-	char *disassembler;
-
-	if (options->disassemblers_str == NULL) {
-		const char *default_disassemblers_str =
-#ifdef HAVE_LIBLLVM_SUPPORT
-				"llvm,"
-#endif
-#ifdef HAVE_LIBCAPSTONE_SUPPORT
-				"capstone,"
-#endif
-				"objdump";
-
-		options->disassemblers_str = strdup(default_disassemblers_str);
-		if (!options->disassemblers_str)
-			goto out_enomem;
-	}
-
-	disassembler = strdup(options->disassemblers_str);
-	if (disassembler == NULL)
-		goto out_enomem;
-
-	while (1) {
-		char *comma = strchr(disassembler, ',');
-
-		if (comma != NULL)
-			*comma = '\0';
-
-		options->disassemblers[options->nr_disassemblers++] = strim(disassembler);
-
-		if (comma == NULL)
-			break;
-
-		disassembler = comma + 1;
-
-		if (options->nr_disassemblers >= MAX_DISASSEMBLERS) {
-			pr_debug("annotate.disassemblers can have at most %d entries, ignoring \"%s\"\n",
-				 MAX_DISASSEMBLERS, disassembler);
-			break;
-		}
-	}
-
-	return 0;
-
-out_enomem:
-	pr_err("Not enough memory for annotate.disassemblers\n");
-	return -1;
-}
-
 int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 {
 	struct annotation_options *options = args->options;
@@ -2271,7 +2225,6 @@ int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 	char symfs_filename[PATH_MAX];
 	bool delete_extract = false;
 	struct kcore_extract kce;
-	const char *disassembler;
 	bool decomp = false;
 	int err = dso__disassemble_filename(dso, symfs_filename, sizeof(symfs_filename));
 
@@ -2289,7 +2242,7 @@ int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 	} else if (dso__binary_type(dso) == DSO_BINARY_TYPE__BPF_IMAGE) {
 		return symbol__disassemble_bpf_image(sym, args);
 	} else if (dso__binary_type(dso) == DSO_BINARY_TYPE__NOT_FOUND) {
-		return -1;
+		return SYMBOL_ANNOTATE_ERRNO__COULDNT_DETERMINE_FILE_TYPE;
 	} else if (dso__is_kcore(dso)) {
 		kce.addr = map__rip_2objdump(map, sym->start);
 		kce.kcore_filename = symfs_filename;
@@ -2331,28 +2284,30 @@ int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 		}
 	}
 
-	err = annotation_options__init_disassemblers(options);
-	if (err)
-		goto out_remove_tmp;
-
 	err = -1;
+	for (u8 i = 0; i < ARRAY_SIZE(options->disassemblers) && err != 0; i++) {
+		enum perf_disassembler dis = options->disassemblers[i];
 
-	for (int i = 0; i < options->nr_disassemblers && err != 0; ++i) {
-		disassembler = options->disassemblers[i];
-
-		if (!strcmp(disassembler, "llvm"))
+		switch (dis) {
+		case PERF_DISASM_LLVM:
+			args->options->disassembler_used = PERF_DISASM_LLVM;
 			err = symbol__disassemble_llvm(symfs_filename, sym, args);
-		else if (!strcmp(disassembler, "capstone"))
+			break;
+		case PERF_DISASM_CAPSTONE:
+			args->options->disassembler_used = PERF_DISASM_CAPSTONE;
 			err = symbol__disassemble_capstone(symfs_filename, sym, args);
-		else if (!strcmp(disassembler, "objdump"))
+			break;
+		case PERF_DISASM_OBJDUMP:
+			args->options->disassembler_used = PERF_DISASM_OBJDUMP;
 			err = symbol__disassemble_objdump(symfs_filename, sym, args);
-		else
-			pr_debug("Unknown disassembler %s, skipping...\n", disassembler);
-	}
-
-	if (err == 0) {
-		pr_debug("Disassembled with %s\nannotate.disassemblers=%s\n",
-			 disassembler, options->disassemblers_str);
+			break;
+		case PERF_DISASM_UNKNOWN: /* End of disassemblers. */
+		default:
+			args->options->disassembler_used = PERF_DISASM_UNKNOWN;
+			goto out_remove_tmp;
+		}
+		if (err == 0)
+			pr_debug("Disassembled with %s\n", perf_disassembler__strs[dis]);
 	}
 out_remove_tmp:
 	if (decomp)

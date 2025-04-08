@@ -6,6 +6,7 @@ mgag200-y := \
 	mgag200_g200.o \
 	mgag200_g200eh.o \
 	mgag200_g200eh3.o \
+	mgag200_g200eh5.o \
 	mgag200_g200er.o \
 	mgag200_g200ev.o \
 	mgag200_g200ew3.o \

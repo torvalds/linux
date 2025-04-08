@@ -707,7 +707,7 @@ static int sja1105_connect(struct dsa_switch *ds)
 
 	spin_lock_init(&priv->meta_lock);
 
-	xmit_worker = kthread_create_worker(0, "dsa%d:%d_xmit",
+	xmit_worker = kthread_run_worker(0, "dsa%d:%d_xmit",
 					    ds->dst->index, ds->index);
 	if (IS_ERR(xmit_worker)) {
 		err = PTR_ERR(xmit_worker);

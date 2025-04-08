@@ -77,7 +77,7 @@ struct bio_slab {
 	struct kmem_cache *slab;
 	unsigned int slab_ref;
 	unsigned int slab_size;
-	char name[8];
+	char name[12];
 };
 static DEFINE_MUTEX(bio_slab_lock);
 static DEFINE_XARRAY(bio_slabs);
@@ -946,8 +946,11 @@ static bool bvec_try_merge_page(struct bio_vec *bv, struct page *page,
 
 /*
  * Try to merge a page into a segment, while obeying the hardware segment
- * size limit.  This is not for normal read/write bios, but for passthrough
- * or Zone Append operations that we can't split.
+ * size limit.
+ *
+ * This is kept around for the integrity metadata, which is still tries
+ * to build the initial bio to the hardware limit and doesn't have proper
+ * helpers to split.  Hopefully this will go away soon.
  */
 bool bvec_try_merge_hw_page(struct request_queue *q, struct bio_vec *bv,
 		struct page *page, unsigned len, unsigned offset,
@@ -963,106 +966,6 @@ bool bvec_try_merge_hw_page(struct request_queue *q, struct bio_vec *bv,
 		return false;
 	return bvec_try_merge_page(bv, page, len, offset, same_page);
 }
-
-/**
- * bio_add_hw_page - attempt to add a page to a bio with hw constraints
- * @q: the target queue
- * @bio: destination bio
- * @page: page to add
- * @len: vec entry length
- * @offset: vec entry offset
- * @max_sectors: maximum number of sectors that can be added
- * @same_page: return if the segment has been merged inside the same page
- *
- * Add a page to a bio while respecting the hardware max_sectors, max_segment
- * and gap limitations.
- */
-int bio_add_hw_page(struct request_queue *q, struct bio *bio,
-		struct page *page, unsigned int len, unsigned int offset,
-		unsigned int max_sectors, bool *same_page)
-{
-	unsigned int max_size = max_sectors << SECTOR_SHIFT;
-
-	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
-		return 0;
-
-	len = min3(len, max_size, queue_max_segment_size(q));
-	if (len > max_size - bio->bi_iter.bi_size)
-		return 0;
-
-	if (bio->bi_vcnt > 0) {
-		struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt - 1];
-
-		if (bvec_try_merge_hw_page(q, bv, page, len, offset,
-				same_page)) {
-			bio->bi_iter.bi_size += len;
-			return len;
-		}
-
-		if (bio->bi_vcnt >=
-		    min(bio->bi_max_vecs, queue_max_segments(q)))
-			return 0;
-
-		/*
-		 * If the queue doesn't support SG gaps and adding this segment
-		 * would create a gap, disallow it.
-		 */
-		if (bvec_gap_to_prev(&q->limits, bv, offset))
-			return 0;
-	}
-
-	bvec_set_page(&bio->bi_io_vec[bio->bi_vcnt], page, len, offset);
-	bio->bi_vcnt++;
-	bio->bi_iter.bi_size += len;
-	return len;
-}
-
-/**
- * bio_add_hw_folio - attempt to add a folio to a bio with hw constraints
- * @q: the target queue
- * @bio: destination bio
- * @folio: folio to add
- * @len: vec entry length
- * @offset: vec entry offset in the folio
- * @max_sectors: maximum number of sectors that can be added
- * @same_page: return if the segment has been merged inside the same folio
- *
- * Add a folio to a bio while respecting the hardware max_sectors, max_segment
- * and gap limitations.
- */
-int bio_add_hw_folio(struct request_queue *q, struct bio *bio,
-		struct folio *folio, size_t len, size_t offset,
-		unsigned int max_sectors, bool *same_page)
-{
-	if (len > UINT_MAX || offset > UINT_MAX)
-		return 0;
-	return bio_add_hw_page(q, bio, folio_page(folio, 0), len, offset,
-			       max_sectors, same_page);
-}
-
-/**
- * bio_add_pc_page	- attempt to add page to passthrough bio
- * @q: the target queue
- * @bio: destination bio
- * @page: page to add
- * @len: vec entry length
- * @offset: vec entry offset
- *
- * Attempt to add a page to the bio_vec maplist. This can fail for a
- * number of reasons, such as the bio being full or target block device
- * limitations. The target block device must allow bio's up to PAGE_SIZE,
- * so it is always possible to add a single page to an empty bio.
- *
- * This should only be used by passthrough bios.
- */
-int bio_add_pc_page(struct request_queue *q, struct bio *bio,
-		struct page *page, unsigned int len, unsigned int offset)
-{
-	bool same_page = false;
-	return bio_add_hw_page(q, bio, page, len, offset,
-			queue_max_hw_sectors(q), &same_page);
-}
-EXPORT_SYMBOL(bio_add_pc_page);
 
 /**
  * __bio_add_page - add page(s) to a bio in a new segment
@@ -1123,9 +1026,10 @@ EXPORT_SYMBOL(bio_add_page);
 void bio_add_folio_nofail(struct bio *bio, struct folio *folio, size_t len,
 			  size_t off)
 {
+	unsigned long nr = off / PAGE_SIZE;
+
 	WARN_ON_ONCE(len > UINT_MAX);
-	WARN_ON_ONCE(off > UINT_MAX);
-	__bio_add_page(bio, &folio->page, len, off);
+	__bio_add_page(bio, folio_page(folio, nr), len, off % PAGE_SIZE);
 }
 EXPORT_SYMBOL_GPL(bio_add_folio_nofail);
 
@@ -1146,9 +1050,11 @@ EXPORT_SYMBOL_GPL(bio_add_folio_nofail);
 bool bio_add_folio(struct bio *bio, struct folio *folio, size_t len,
 		   size_t off)
 {
-	if (len > UINT_MAX || off > UINT_MAX)
+	unsigned long nr = off / PAGE_SIZE;
+
+	if (len > UINT_MAX)
 		return false;
-	return bio_add_page(bio, &folio->page, len, off) > 0;
+	return bio_add_page(bio, folio_page(folio, nr), len, off % PAGE_SIZE) > 0;
 }
 EXPORT_SYMBOL(bio_add_folio);
 
@@ -1707,6 +1613,10 @@ EXPORT_SYMBOL(bio_split);
  */
 void bio_trim(struct bio *bio, sector_t offset, sector_t size)
 {
+	/* We should never trim an atomic write */
+	if (WARN_ON_ONCE(bio->bi_opf & REQ_ATOMIC && size))
+		return;
+
 	if (WARN_ON_ONCE(offset > BIO_MAX_SECTORS || size > BIO_MAX_SECTORS ||
 			 offset + size > bio_sectors(bio)))
 		return;
@@ -1750,7 +1660,6 @@ void bioset_exit(struct bio_set *bs)
 	mempool_exit(&bs->bio_pool);
 	mempool_exit(&bs->bvec_pool);
 
-	bioset_integrity_free(bs);
 	if (bs->bio_slab)
 		bio_put_slab(bs);
 	bs->bio_slab = NULL;
@@ -1830,8 +1739,6 @@ static int __init init_bio(void)
 
 	BUILD_BUG_ON(BIO_FLAG_LAST > 8 * sizeof_field(struct bio, bi_flags));
 
-	bio_integrity_init();
-
 	for (i = 0; i < ARRAY_SIZE(bvec_slabs); i++) {
 		struct biovec_slab *bvs = bvec_slabs + i;
 
@@ -1846,9 +1753,6 @@ static int __init init_bio(void)
 	if (bioset_init(&fs_bio_set, BIO_POOL_SIZE, 0,
 			BIOSET_NEED_BVECS | BIOSET_PERCPU_CACHE))
 		panic("bio: can't allocate bios\n");
-
-	if (bioset_integrity_create(&fs_bio_set, BIO_POOL_SIZE))
-		panic("bio: can't create integrity pool\n");
 
 	return 0;
 }

@@ -618,7 +618,7 @@ static struct spi_controller *fsl_spi_probe(struct device *dev,
 	if (ret < 0)
 		goto err_probe;
 
-	dev_info(dev, "at 0x%p (irq = %d), %s mode\n", reg_base,
+	dev_info(dev, "at MMIO %pa (irq = %d), %s mode\n", &mem->start,
 		 mpc8xxx_spi->irq, mpc8xxx_spi_strmode(mpc8xxx_spi->flags));
 
 	return host;

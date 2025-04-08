@@ -305,7 +305,8 @@ static int cros_ec_i2c_probe(struct i2c_client *client)
 	ec_dev->phys_name = client->adapter->name;
 	ec_dev->din_size = sizeof(struct ec_host_response_i2c) +
 			   sizeof(struct ec_response_get_protocol_info);
-	ec_dev->dout_size = sizeof(struct ec_host_request_i2c);
+	ec_dev->dout_size = sizeof(struct ec_host_request_i2c) +
+			    sizeof(struct ec_params_rwsig_action);
 
 	err = cros_ec_register(ec_dev);
 	if (err) {

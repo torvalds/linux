@@ -92,6 +92,16 @@ properties:
     description: |
       This property is as per sci-pm-domain.txt.
 
+  clocks:
+    items:
+      - description: ICSSG_CORE Clock
+      - description: ICSSG_IEP Clock
+      - description: ICSSG_RGMII_MHZ_250 Clock
+      - description: ICSSG_RGMII_MHZ_50 Clock
+      - description: ICSSG_RGMII_MHZ_5 Clock
+      - description: ICSSG_UART Clock
+      - description: ICSSG_ICLK Clock
+
 patternProperties:
 
   memories@[a-f0-9]+$:

@@ -23,6 +23,7 @@
 #include <linux/memblock.h>
 #include <linux/compat.h>
 
+#include <asm/machine.h>
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
 #include <asm/ebcdic.h>
@@ -792,7 +793,7 @@ static void tty3270_deactivate(struct raw3270_view *view)
 {
 	struct tty3270 *tp = container_of(view, struct tty3270, view);
 
-	del_timer(&tp->timer);
+	timer_delete(&tp->timer);
 }
 
 static void tty3270_irq(struct tty3270 *tp, struct raw3270_request *rq, struct irb *irb)
@@ -1059,7 +1060,7 @@ static void tty3270_free(struct raw3270_view *view)
 {
 	struct tty3270 *tp = container_of(view, struct tty3270, view);
 
-	del_timer_sync(&tp->timer);
+	timer_delete_sync(&tp->timer);
 	tty3270_free_screen(tp->screen, tp->allocated_lines);
 	free_page((unsigned long)tp->converted_line);
 	kfree(tp->input);
@@ -2156,7 +2157,7 @@ con3270_init(void)
 		return -ENODEV;
 
 	/* Set the console mode for VM */
-	if (MACHINE_IS_VM) {
+	if (machine_is_vm()) {
 		cpcmd("TERM CONMODE 3270", NULL, 0, NULL);
 		cpcmd("TERM AUTOCR OFF", NULL, 0, NULL);
 	}

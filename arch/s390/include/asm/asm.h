@@ -28,7 +28,7 @@
  * [var] also contains the program mask. CC_TRANSFORM() moves the condition
  * code to the two least significant bits and sets all other bits to zero.
  */
-#if defined(__GCC_ASM_FLAG_OUTPUTS__) && !(IS_ENABLED(CONFIG_GCC_ASM_FLAG_OUTPUT_BROKEN))
+#if defined(__GCC_ASM_FLAG_OUTPUTS__) && !(IS_ENABLED(CONFIG_CC_ASM_FLAG_OUTPUT_BROKEN))
 
 #define __HAVE_ASM_FLAG_OUTPUTS__
 

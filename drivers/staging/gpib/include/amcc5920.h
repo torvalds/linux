@@ -22,7 +22,7 @@ static const int bits_per_region = 8;
 
 static inline uint32_t amcc_wait_state_bits(unsigned int region, unsigned int num_wait_states)
 {
-	return (num_wait_states & 0x7) << (-region * bits_per_region);
+	return (num_wait_states & 0x7) << (--region * bits_per_region);
 };
 
 enum amcc_prefetch_bits {

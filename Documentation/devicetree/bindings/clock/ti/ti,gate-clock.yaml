@@ -1,0 +1,125 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/ti/ti,gate-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments gate clock
+
+maintainers:
+  - Tero Kristo <kristo@kernel.org>
+
+description: |
+  *Deprecated design pattern: one node per clock*
+
+  This clock is quite much similar to the basic gate-clock [1], however,
+  it supports a number of additional features. If no register
+  is provided for this clock, the code assumes that a clockdomain
+  will be controlled instead and the corresponding hw-ops for
+  that is used.
+
+  [1] Documentation/devicetree/bindings/clock/gpio-gate-clock.yaml
+  [2] Documentation/devicetree/bindings/clock/ti/clockdomain.txt
+
+properties:
+  compatible:
+    enum:
+      - ti,gate-clock           # basic gate clock
+      - ti,wait-gate-clock      # gate clock which waits until clock is
+                                # active before returning from clk_enable()
+      - ti,dss-gate-clock       # gate clock with DSS specific hardware
+                                # handling
+      - ti,am35xx-gate-clock    # gate clock with AM35xx specific hardware
+                                # handling
+      - ti,clkdm-gate-clock     # clockdomain gate clock, which derives its
+                                # functional clock directly from a
+                                # clockdomain, see [2] how to map
+                                # clockdomains properly
+      - ti,hsdiv-gate-clock     # gate clock with OMAP36xx specific hardware
+                                # handling, required for a hardware errata
+      - ti,composite-gate-clock # composite gate clock, to be part of
+                                # composite clock
+      - ti,composite-no-wait-gate-clock # composite gate clock that does not
+                                        # wait for clock to be active before
+                                        # returning from clk_enable()
+  "#clock-cells":
+    const: 0
+
+  clocks: true
+
+  clock-output-names:
+    maxItems: 1
+
+  reg:
+    maxItems: 1
+
+  ti,bit-shift:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Number of bits to shift the bit-mask
+    maximum: 31
+    default: 0
+
+  ti,set-bit-to-disable:
+    type: boolean
+    description:
+      Inverts default gate programming. Setting the bit
+      gates the clock and clearing the bit ungates the clock.
+
+  ti,set-rate-parent:
+    type: boolean
+    description:
+      clk_set_rate is propagated to parent clock,
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: ti,clkdm-gate-clock
+then:
+  properties:
+    reg: false
+  required:
+    - compatible
+    - "#clock-cells"
+    - clocks
+else:
+  required:
+    - compatible
+    - "#clock-cells"
+    - clocks
+    - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    bus {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      clock-controller@a00 {
+        #clock-cells = <0>;
+        compatible = "ti,gate-clock";
+        clocks = <&core_96m_fck>;
+        reg = <0x0a00>;
+        ti,bit-shift = <25>;
+      };
+
+      clock-controller@d00 {
+        compatible = "ti,hsdiv-gate-clock";
+        reg = <0x0d00>;
+        #clock-cells = <0>;
+        clocks = <&dpll4_m2x2_mul_ck>;
+        ti,bit-shift = <0x1b>;
+        ti,set-bit-to-disable;
+      };
+    };
+
+  - |
+    clock-controller {
+      #clock-cells = <0>;
+      compatible = "ti,clkdm-gate-clock";
+      clocks = <&emu_src_mux_ck>;
+    };
+

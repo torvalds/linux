@@ -2,7 +2,7 @@
 #include <test_progs.h>
 #include "cgroup_helpers.h"
 
-#include <linux/tcp.h>
+#include <netinet/tcp.h>
 #include <linux/netlink.h>
 #include "sockopt_sk.skel.h"
 

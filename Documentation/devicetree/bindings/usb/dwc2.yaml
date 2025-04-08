@@ -192,7 +192,7 @@ unevaluatedProperties: false
 
 examples:
   - |
-      usb@101c0000 {
+    usb@101c0000 {
         compatible = "rockchip,rk3066-usb", "snps,dwc2";
         reg = <0x10180000 0x40000>;
         interrupts = <18>;
@@ -200,6 +200,6 @@ examples:
         clock-names = "otg";
         phys = <&usbphy>;
         phy-names = "usb2-phy";
-      };
+    };
 
 ...

@@ -166,12 +166,16 @@
 #include "helper.h"
 
 #include "mixer_scarlett2.h"
+#include "fcp.h"
 
 /* device_setup value to allow turning MSD mode back on */
 #define SCARLETT2_MSD_ENABLE 0x02
 
 /* device_setup value to disable this mixer driver */
 #define SCARLETT2_DISABLE 0x04
+
+/* device_setup value to use the FCP driver instead */
+#define SCARLETT2_USE_FCP_DRIVER 0x08
 
 /* some gui mixers can't handle negative ctl values */
 #define SCARLETT2_VOLUME_BIAS 127
@@ -9701,6 +9705,10 @@ int snd_scarlett2_init(struct usb_mixer_interface *mixer)
 	/* only use UAC_VERSION_2 */
 	if (!mixer->protocol)
 		return 0;
+
+	/* check if the user wants to use the FCP driver instead */
+	if (chip->setup & SCARLETT2_USE_FCP_DRIVER)
+		return snd_fcp_init(mixer);
 
 	/* find entry in scarlett2_devices */
 	entry = get_scarlett2_device_entry(mixer);

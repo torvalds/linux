@@ -994,7 +994,7 @@ __acpi_find_gpio(struct fwnode_handle *fwnode, const char *con_id, unsigned int 
 			desc = acpi_get_gpiod_from_data(fwnode,
 							propname, idx, info);
 		if (PTR_ERR(desc) == -EPROBE_DEFER)
-			return ERR_CAST(desc);
+			return desc;
 
 		if (!IS_ERR(desc))
 			return desc;
@@ -1687,6 +1687,20 @@ static const struct dmi_system_id gpiolib_acpi_quirks[] __initconst = {
 		},
 		.driver_data = &(struct acpi_gpiolib_dmi_quirk) {
 			.ignore_wake = "PNP0C50:00@8",
+		},
+	},
+	{
+		/*
+		 * Spurious wakeups from GPIO 11
+		 * Found in BIOS 1.04
+		 * https://gitlab.freedesktop.org/drm/amd/-/issues/3954
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "Acer Nitro V 14"),
+		},
+		.driver_data = &(struct acpi_gpiolib_dmi_quirk) {
+			.ignore_interrupt = "AMDI0030:00@11",
 		},
 	},
 	{} /* Terminating entry */

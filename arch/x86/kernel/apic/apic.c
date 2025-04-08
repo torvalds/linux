@@ -509,19 +509,19 @@ static struct clock_event_device lapic_clockevent = {
 static DEFINE_PER_CPU(struct clock_event_device, lapic_events);
 
 static const struct x86_cpu_id deadline_match[] __initconst = {
-	X86_MATCH_VFM_STEPPINGS(INTEL_HASWELL_X, X86_STEPPINGS(0x2, 0x2), 0x3a), /* EP */
-	X86_MATCH_VFM_STEPPINGS(INTEL_HASWELL_X, X86_STEPPINGS(0x4, 0x4), 0x0f), /* EX */
+	X86_MATCH_VFM_STEPS(INTEL_HASWELL_X,   0x2, 0x2, 0x3a), /* EP */
+	X86_MATCH_VFM_STEPS(INTEL_HASWELL_X,   0x4, 0x4, 0x0f), /* EX */
 
 	X86_MATCH_VFM(INTEL_BROADWELL_X,	0x0b000020),
 
-	X86_MATCH_VFM_STEPPINGS(INTEL_BROADWELL_D, X86_STEPPINGS(0x2, 0x2), 0x00000011),
-	X86_MATCH_VFM_STEPPINGS(INTEL_BROADWELL_D, X86_STEPPINGS(0x3, 0x3), 0x0700000e),
-	X86_MATCH_VFM_STEPPINGS(INTEL_BROADWELL_D, X86_STEPPINGS(0x4, 0x4), 0x0f00000c),
-	X86_MATCH_VFM_STEPPINGS(INTEL_BROADWELL_D, X86_STEPPINGS(0x5, 0x5), 0x0e000003),
+	X86_MATCH_VFM_STEPS(INTEL_BROADWELL_D, 0x2, 0x2, 0x00000011),
+	X86_MATCH_VFM_STEPS(INTEL_BROADWELL_D, 0x3, 0x3, 0x0700000e),
+	X86_MATCH_VFM_STEPS(INTEL_BROADWELL_D, 0x4, 0x4, 0x0f00000c),
+	X86_MATCH_VFM_STEPS(INTEL_BROADWELL_D, 0x5, 0x5, 0x0e000003),
 
-	X86_MATCH_VFM_STEPPINGS(INTEL_SKYLAKE_X, X86_STEPPINGS(0x3, 0x3), 0x01000136),
-	X86_MATCH_VFM_STEPPINGS(INTEL_SKYLAKE_X, X86_STEPPINGS(0x4, 0x4), 0x02000014),
-	X86_MATCH_VFM_STEPPINGS(INTEL_SKYLAKE_X, X86_STEPPINGS(0x5, 0xf), 0),
+	X86_MATCH_VFM_STEPS(INTEL_SKYLAKE_X,   0x3, 0x3, 0x01000136),
+	X86_MATCH_VFM_STEPS(INTEL_SKYLAKE_X,   0x4, 0x4, 0x02000014),
+	X86_MATCH_VFM_STEPS(INTEL_SKYLAKE_X,   0x5, 0xf, 0),
 
 	X86_MATCH_VFM(INTEL_HASWELL,		0x22),
 	X86_MATCH_VFM(INTEL_HASWELL_L,		0x20),
@@ -1371,8 +1371,6 @@ void __init apic_intr_mode_init(void)
 
 	x86_64_probe_apic();
 
-	x86_32_install_bigsmp();
-
 	if (x86_platform.apic_post_init)
 		x86_platform.apic_post_init();
 
@@ -1674,7 +1672,6 @@ static __init void apic_read_boot_cpu_id(bool x2apic)
 		boot_cpu_apic_version = GET_APIC_VERSION(apic_read(APIC_LVR));
 	}
 	topology_register_boot_apic(boot_cpu_physical_apicid);
-	x86_32_probe_bigsmp_early();
 }
 
 #ifdef CONFIG_X86_X2APIC
@@ -2014,8 +2011,8 @@ static bool __init detect_init_APIC(void)
 	case X86_VENDOR_HYGON:
 		break;
 	case X86_VENDOR_INTEL:
-		if (boot_cpu_data.x86 == 6 || boot_cpu_data.x86 == 15 ||
-		    (boot_cpu_data.x86 == 5 && boot_cpu_has(X86_FEATURE_APIC)))
+		if ((boot_cpu_data.x86 == 5 && boot_cpu_has(X86_FEATURE_APIC)) ||
+		    boot_cpu_data.x86_vfm >= INTEL_PENTIUM_PRO)
 			break;
 		goto no_apic;
 	default:
@@ -2582,18 +2579,11 @@ int apic_is_clustered_box(void)
 /*
  * APIC command line parameters
  */
-static int __init setup_disableapic(char *arg)
+static int __init setup_nolapic(char *arg)
 {
 	apic_is_disabled = true;
 	setup_clear_cpu_cap(X86_FEATURE_APIC);
 	return 0;
-}
-early_param("disableapic", setup_disableapic);
-
-/* same as disableapic, for compatibility */
-static int __init setup_nolapic(char *arg)
-{
-	return setup_disableapic(arg);
 }
 early_param("nolapic", setup_nolapic);
 

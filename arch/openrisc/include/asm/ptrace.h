@@ -17,6 +17,7 @@
 
 #include <asm/spr_defs.h>
 #include <uapi/asm/ptrace.h>
+#include <linux/compiler.h>
 
 /*
  * Make kernel PTrace/register structures opaque to userspace... userspace can
@@ -42,6 +43,36 @@ struct pt_regs {
 			/* Named registers */
 			long  sr;	/* Stored in place of r0 */
 			long  sp;	/* r1 */
+			long  gpr2;
+			long  gpr3;
+			long  gpr4;
+			long  gpr5;
+			long  gpr6;
+			long  gpr7;
+			long  gpr8;
+			long  gpr9;
+			long  gpr10;
+			long  gpr11;
+			long  gpr12;
+			long  gpr13;
+			long  gpr14;
+			long  gpr15;
+			long  gpr16;
+			long  gpr17;
+			long  gpr18;
+			long  gpr19;
+			long  gpr20;
+			long  gpr21;
+			long  gpr22;
+			long  gpr23;
+			long  gpr24;
+			long  gpr25;
+			long  gpr26;
+			long  gpr27;
+			long  gpr28;
+			long  gpr29;
+			long  gpr30;
+			long  gpr31;
 		};
 		struct {
 			/* Old style */
@@ -66,14 +97,54 @@ struct pt_regs {
 /* TODO: Rename this to REDZONE because that's what it is */
 #define STACK_FRAME_OVERHEAD  128  /* size of minimum stack frame */
 
-#define instruction_pointer(regs)	((regs)->pc)
+#define MAX_REG_OFFSET offsetof(struct pt_regs, orig_gpr11)
+
+/* Helpers for working with the instruction pointer */
+static inline unsigned long instruction_pointer(struct pt_regs *regs)
+{
+	return (unsigned long)regs->pc;
+}
+static inline void instruction_pointer_set(struct pt_regs *regs,
+					   unsigned long val)
+{
+	regs->pc = val;
+}
+
 #define user_mode(regs)			(((regs)->sr & SPR_SR_SM) == 0)
 #define user_stack_pointer(regs)	((unsigned long)(regs)->sp)
 #define profile_pc(regs)		instruction_pointer(regs)
 
+/* Valid only for Kernel mode traps. */
+static inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
+{
+	return (unsigned long)regs->sp;
+}
+
 static inline long regs_return_value(struct pt_regs *regs)
 {
 	return regs->gpr[11];
+}
+
+extern int regs_query_register_offset(const char *name);
+extern unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
+					       unsigned int n);
+
+/**
+ * regs_get_register() - get register value from its offset
+ * @regs:	pt_regs from which register value is gotten
+ * @offset:	offset of the register.
+ *
+ * regs_get_register returns the value of a register whose offset from @regs.
+ * The @offset is the offset of the register in struct pt_regs.
+ * If @offset is bigger than MAX_REG_OFFSET, this returns 0.
+ */
+static inline unsigned long regs_get_register(struct pt_regs *regs,
+					      unsigned int offset)
+{
+	if (unlikely(offset > MAX_REG_OFFSET))
+		return 0;
+
+	return *(unsigned long *)((unsigned long)regs + offset);
 }
 
 #endif /* __ASSEMBLY__ */

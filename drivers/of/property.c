@@ -32,6 +32,32 @@
 #include "of_private.h"
 
 /**
+ * of_property_read_bool - Find a property
+ * @np:		device node from which the property value is to be read.
+ * @propname:	name of the property to be searched.
+ *
+ * Search for a boolean property in a device node. Usage on non-boolean
+ * property types is deprecated.
+ *
+ * Return: true if the property exists false otherwise.
+ */
+bool of_property_read_bool(const struct device_node *np, const char *propname)
+{
+	struct property *prop = of_find_property(np, propname, NULL);
+
+	/*
+	 * Boolean properties should not have a value. Testing for property
+	 * presence should either use of_property_present() or just read the
+	 * property value and check the returned error code.
+	 */
+	if (prop && prop->length)
+		pr_warn("%pOF: Read of boolean property '%s' with a value.\n", np, propname);
+
+	return prop ? true : false;
+}
+EXPORT_SYMBOL(of_property_read_bool);
+
+/**
  * of_graph_is_present() - check graph's presence
  * @node: pointer to device_node containing graph port
  *
@@ -120,6 +146,39 @@ static void *of_find_property_value_of_size(const struct device_node *np,
 
 	return prop->value;
 }
+
+/**
+ * of_property_read_u16_index - Find and read a u16 from a multi-value property.
+ *
+ * @np:		device node from which the property value is to be read.
+ * @propname:	name of the property to be searched.
+ * @index:	index of the u16 in the list of values
+ * @out_value:	pointer to return value, modified only if no error.
+ *
+ * Search for a property in a device node and read nth 16-bit value from
+ * it.
+ *
+ * Return: 0 on success, -EINVAL if the property does not exist,
+ * -ENODATA if property does not have a value, and -EOVERFLOW if the
+ * property data isn't large enough.
+ *
+ * The out_value is modified only if a valid u16 value can be decoded.
+ */
+int of_property_read_u16_index(const struct device_node *np,
+				       const char *propname,
+				       u32 index, u16 *out_value)
+{
+	const u16 *val = of_find_property_value_of_size(np, propname,
+					((index + 1) * sizeof(*out_value)),
+					0, NULL);
+
+	if (IS_ERR(val))
+		return PTR_ERR(val);
+
+	*out_value = be16_to_cpup(((__be16 *)val) + index);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(of_property_read_u16_index);
 
 /**
  * of_property_read_u32_index - Find and read a u32 from a multi-value property.
@@ -966,6 +1025,12 @@ of_fwnode_device_get_dma_attr(const struct fwnode_handle *fwnode)
 static bool of_fwnode_property_present(const struct fwnode_handle *fwnode,
 				       const char *propname)
 {
+	return of_property_present(to_of_node(fwnode), propname);
+}
+
+static bool of_fwnode_property_read_bool(const struct fwnode_handle *fwnode,
+					 const char *propname)
+{
 	return of_property_read_bool(to_of_node(fwnode), propname);
 }
 
@@ -1390,9 +1455,9 @@ static struct device_node *parse_interrupt_map(struct device_node *np,
 	addrcells = of_bus_n_addr_cells(np);
 
 	imap = of_get_property(np, "interrupt-map", &imaplen);
-	imaplen /= sizeof(*imap);
 	if (!imap)
 		return NULL;
+	imaplen /= sizeof(*imap);
 
 	imap_end = imap + imaplen;
 
@@ -1560,6 +1625,7 @@ const struct fwnode_operations of_fwnode_ops = {
 	.device_dma_supported = of_fwnode_device_dma_supported,
 	.device_get_dma_attr = of_fwnode_device_get_dma_attr,
 	.property_present = of_fwnode_property_present,
+	.property_read_bool = of_fwnode_property_read_bool,
 	.property_read_int_array = of_fwnode_property_read_int_array,
 	.property_read_string_array = of_fwnode_property_read_string_array,
 	.get_name = of_fwnode_get_name,

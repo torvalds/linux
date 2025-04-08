@@ -315,7 +315,7 @@ static int ohci_bus_suspend (struct usb_hcd *hcd)
 	spin_unlock_irq (&ohci->lock);
 
 	if (rc == 0) {
-		del_timer_sync(&ohci->io_watchdog);
+		timer_delete_sync(&ohci->io_watchdog);
 		ohci->prev_frame_no = IO_WATCHDOG_OFF;
 	}
 	return rc;

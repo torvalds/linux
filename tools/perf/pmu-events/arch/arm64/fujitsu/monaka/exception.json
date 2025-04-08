@@ -1,0 +1,42 @@
+[
+    {
+        "ArchStdEvent": "EXC_TAKEN",
+        "BriefDescription": "This event counts each exception taken."
+    },
+    {
+        "ArchStdEvent": "EXC_RETURN",
+        "BriefDescription": "This event counts each executed exception return instruction."
+    },
+    {
+        "ArchStdEvent": "EXC_UNDEF",
+        "BriefDescription": "This event counts only other synchronous exceptions that are taken locally."
+    },
+    {
+        "ArchStdEvent": "EXC_SVC",
+        "BriefDescription": "This event counts only Supervisor Call exceptions that are taken locally."
+    },
+    {
+        "ArchStdEvent": "EXC_PABORT",
+        "BriefDescription": "This event counts only Instruction Abort exceptions that are taken locally."
+    },
+    {
+        "ArchStdEvent": "EXC_DABORT",
+        "BriefDescription": "This event counts only Data Abort or SError interrupt exceptions that are taken locally."
+    },
+    {
+        "ArchStdEvent": "EXC_IRQ",
+        "BriefDescription": "This event counts only IRQ exceptions that are taken locally, including Virtual IRQ exceptions."
+    },
+    {
+        "ArchStdEvent": "EXC_FIQ",
+        "BriefDescription": "This event counts only FIQ exceptions that are taken locally, including Virtual FIQ exceptions."
+    },
+    {
+        "ArchStdEvent": "EXC_SMC",
+        "BriefDescription": "This event counts only Secure Monitor Call exceptions. The counter does not increment on SMC instructions trapped as a Hyp Trap exception."
+    },
+    {
+        "ArchStdEvent": "EXC_HVC",
+        "BriefDescription": "This event counts for both Hypervisor Call exceptions taken locally in the hypervisor and those taken as an exception from Non-secure EL1."
+    }
+]

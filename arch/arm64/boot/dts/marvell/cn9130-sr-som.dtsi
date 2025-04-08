@@ -7,9 +7,6 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "SolidRun CN9130 SoM";
-	compatible = "solidrun,cn9130-sr-som", "marvell,cn9130";
-
 	aliases {
 		ethernet0 = &cp0_eth0;
 		ethernet1 = &cp0_eth1;

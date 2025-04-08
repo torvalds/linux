@@ -1617,7 +1617,7 @@ static int had_create_jack(struct snd_intelhad *ctx,
  * PM callbacks
  */
 
-static int __maybe_unused hdmi_lpe_audio_suspend(struct device *dev)
+static int hdmi_lpe_audio_suspend(struct device *dev)
 {
 	struct snd_intelhad_card *card_ctx = dev_get_drvdata(dev);
 
@@ -1626,7 +1626,7 @@ static int __maybe_unused hdmi_lpe_audio_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused hdmi_lpe_audio_resume(struct device *dev)
+static int hdmi_lpe_audio_resume(struct device *dev)
 {
 	struct snd_intelhad_card *card_ctx = dev_get_drvdata(dev);
 
@@ -1833,13 +1833,13 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 }
 
 static const struct dev_pm_ops hdmi_lpe_audio_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(hdmi_lpe_audio_suspend, hdmi_lpe_audio_resume)
+	SYSTEM_SLEEP_PM_OPS(hdmi_lpe_audio_suspend, hdmi_lpe_audio_resume)
 };
 
 static struct platform_driver hdmi_lpe_audio_driver = {
 	.driver		= {
 		.name  = "hdmi-lpe-audio",
-		.pm = &hdmi_lpe_audio_pm,
+		.pm = pm_ptr(&hdmi_lpe_audio_pm),
 	},
 	.probe          = hdmi_lpe_audio_probe,
 };

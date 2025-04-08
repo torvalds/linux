@@ -571,11 +571,6 @@ static void rxe_port_event(struct rxe_dev *rxe,
 /* Caller must hold net_info_lock */
 void rxe_port_up(struct rxe_dev *rxe)
 {
-	struct rxe_port *port;
-
-	port = &rxe->port;
-	port->attr.state = IB_PORT_ACTIVE;
-
 	rxe_port_event(rxe, IB_EVENT_PORT_ACTIVE);
 	dev_info(&rxe->ib_dev.dev, "set active\n");
 }
@@ -583,11 +578,6 @@ void rxe_port_up(struct rxe_dev *rxe)
 /* Caller must hold net_info_lock */
 void rxe_port_down(struct rxe_dev *rxe)
 {
-	struct rxe_port *port;
-
-	port = &rxe->port;
-	port->attr.state = IB_PORT_DOWN;
-
 	rxe_port_event(rxe, IB_EVENT_PORT_ERR);
 	rxe_counter_inc(rxe, RXE_CNT_LINK_DOWNED);
 	dev_info(&rxe->ib_dev.dev, "set down\n");
@@ -601,7 +591,7 @@ void rxe_set_port_state(struct rxe_dev *rxe)
 	if (!ndev)
 		return;
 
-	if (netif_running(ndev) && netif_carrier_ok(ndev))
+	if (ib_get_curr_port_state(ndev) == IB_PORT_ACTIVE)
 		rxe_port_up(rxe);
 	else
 		rxe_port_down(rxe);
@@ -623,18 +613,14 @@ static int rxe_notify(struct notifier_block *not_blk,
 	case NETDEV_UNREGISTER:
 		ib_unregister_device_queued(&rxe->ib_dev);
 		break;
-	case NETDEV_UP:
-		rxe_port_up(rxe);
-		break;
-	case NETDEV_DOWN:
-		rxe_port_down(rxe);
-		break;
 	case NETDEV_CHANGEMTU:
 		rxe_dbg_dev(rxe, "%s changed mtu to %d\n", ndev->name, ndev->mtu);
 		rxe_set_mtu(rxe, ndev->mtu);
 		break;
+	case NETDEV_DOWN:
 	case NETDEV_CHANGE:
-		rxe_set_port_state(rxe);
+		if (ib_get_curr_port_state(ndev) == IB_PORT_DOWN)
+			rxe_counter_inc(rxe, RXE_CNT_LINK_DOWNED);
 		break;
 	case NETDEV_REBOOT:
 	case NETDEV_GOING_DOWN:

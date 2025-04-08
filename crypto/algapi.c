@@ -407,6 +407,7 @@ EXPORT_SYMBOL_GPL(crypto_remove_final);
 int crypto_register_alg(struct crypto_alg *alg)
 {
 	struct crypto_larval *larval;
+	bool test_started = false;
 	LIST_HEAD(algs_to_put);
 	int err;
 
@@ -418,17 +419,19 @@ int crypto_register_alg(struct crypto_alg *alg)
 	down_write(&crypto_alg_sem);
 	larval = __crypto_register_alg(alg, &algs_to_put);
 	if (!IS_ERR_OR_NULL(larval)) {
-		bool test_started = crypto_boot_test_finished();
-
+		test_started = crypto_boot_test_finished();
 		larval->test_started = test_started;
-		if (test_started)
-			crypto_schedule_test(larval);
 	}
 	up_write(&crypto_alg_sem);
 
 	if (IS_ERR(larval))
 		return PTR_ERR(larval);
-	crypto_remove_final(&algs_to_put);
+
+	if (test_started)
+		crypto_schedule_test(larval);
+	else
+		crypto_remove_final(&algs_to_put);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(crypto_register_alg);
@@ -461,8 +464,7 @@ void crypto_unregister_alg(struct crypto_alg *alg)
 	if (WARN_ON(refcount_read(&alg->cra_refcnt) != 1))
 		return;
 
-	if (alg->cra_destroy)
-		alg->cra_destroy(alg);
+	crypto_alg_put(alg);
 
 	crypto_remove_final(&list);
 }
@@ -642,10 +644,8 @@ int crypto_register_instance(struct crypto_template *tmpl,
 	larval = __crypto_register_alg(&inst->alg, &algs_to_put);
 	if (IS_ERR(larval))
 		goto unlock;
-	else if (larval) {
+	else if (larval)
 		larval->test_started = true;
-		crypto_schedule_test(larval);
-	}
 
 	hlist_add_head(&inst->list, &tmpl->instances);
 	inst->tmpl = tmpl;
@@ -655,7 +655,12 @@ unlock:
 
 	if (IS_ERR(larval))
 		return PTR_ERR(larval);
-	crypto_remove_final(&algs_to_put);
+
+	if (larval)
+		crypto_schedule_test(larval);
+	else
+		crypto_remove_final(&algs_to_put);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(crypto_register_instance);
@@ -949,7 +954,7 @@ struct crypto_async_request *crypto_dequeue_request(struct crypto_queue *queue)
 		queue->backlog = queue->backlog->next;
 
 	request = queue->list.next;
-	list_del(request);
+	list_del_init(request);
 
 	return list_entry(request, struct crypto_async_request, list);
 }
@@ -1016,6 +1021,8 @@ static void __init crypto_start_tests(void)
 	if (IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS))
 		return;
 
+	set_crypto_boot_test_finished();
+
 	for (;;) {
 		struct crypto_larval *larval = NULL;
 		struct crypto_alg *q;
@@ -1038,7 +1045,6 @@ static void __init crypto_start_tests(void)
 
 			l->test_started = true;
 			larval = l;
-			crypto_schedule_test(larval);
 			break;
 		}
 
@@ -1046,9 +1052,9 @@ static void __init crypto_start_tests(void)
 
 		if (!larval)
 			break;
-	}
 
-	set_crypto_boot_test_finished();
+		crypto_schedule_test(larval);
+	}
 }
 
 static int __init crypto_algapi_init(void)

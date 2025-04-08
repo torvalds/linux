@@ -21,15 +21,15 @@
  */
 void xe_call_for_each_graphics_ip(xe_graphics_fn xe_fn)
 {
-	const struct xe_graphics_desc *ip, *last = NULL;
+	const struct xe_graphics_desc *desc, *last = NULL;
 
-	for (int i = 0; i < ARRAY_SIZE(graphics_ip_map); i++) {
-		ip = graphics_ip_map[i].ip;
-		if (ip == last)
+	for (int i = 0; i < ARRAY_SIZE(graphics_ips); i++) {
+		desc = graphics_ips[i].desc;
+		if (desc == last)
 			continue;
 
-		xe_fn(ip);
-		last = ip;
+		xe_fn(desc);
+		last = desc;
 	}
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_call_for_each_graphics_ip);
@@ -43,15 +43,15 @@ EXPORT_SYMBOL_IF_KUNIT(xe_call_for_each_graphics_ip);
  */
 void xe_call_for_each_media_ip(xe_media_fn xe_fn)
 {
-	const struct xe_media_desc *ip, *last = NULL;
+	const struct xe_media_desc *desc, *last = NULL;
 
-	for (int i = 0; i < ARRAY_SIZE(media_ip_map); i++) {
-		ip = media_ip_map[i].ip;
-		if (ip == last)
+	for (int i = 0; i < ARRAY_SIZE(media_ips); i++) {
+		desc = media_ips[i].desc;
+		if (desc == last)
 			continue;
 
-		xe_fn(ip);
-		last = ip;
+		xe_fn(desc);
+		last = desc;
 	}
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_call_for_each_media_ip);
@@ -110,7 +110,7 @@ done:
 	kunit_activate_static_stub(test, read_gmdid, fake_read_gmdid);
 
 	xe_info_init_early(xe, desc, subplatform_desc);
-	xe_info_init(xe, desc->graphics, desc->media);
+	xe_info_init(xe, desc);
 
 	return 0;
 }

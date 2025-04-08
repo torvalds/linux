@@ -7,6 +7,8 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/module.h>
+#include <linux/property.h>
 #include <linux/soundwire/sdw.h>
 #include <sound/sdca.h>
 #include <sound/sdca_function.h>
@@ -46,8 +48,7 @@ static bool sdca_device_quirk_rt712_vb(struct sdw_slave *slave)
 		return false;
 
 	for (i = 0; i < slave->sdca_data.num_functions; i++) {
-		if (slave->sdca_data.sdca_func[i].type ==
-		    SDCA_FUNCTION_TYPE_SMART_MIC)
+		if (slave->sdca_data.function[i].type == SDCA_FUNCTION_TYPE_SMART_MIC)
 			return true;
 	}
 

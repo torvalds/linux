@@ -697,6 +697,10 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 		DMERR("%s: zero-length target", dm_device_name(t->md));
 		return -EINVAL;
 	}
+	if (start + len < start || start + len > LLONG_MAX >> SECTOR_SHIFT) {
+		DMERR("%s: too large device", dm_device_name(t->md));
+		return -EINVAL;
+	}
 
 	ti->type = dm_get_target_type(type);
 	if (!ti->type) {
@@ -1081,14 +1085,8 @@ static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *
 		__alignof__(struct dm_io)) + DM_IO_BIO_OFFSET;
 	if (bioset_init(&pools->io_bs, pool_size, io_front_pad, bioset_flags))
 		goto out_free_pools;
-	if (mempool_needs_integrity &&
-	    bioset_integrity_create(&pools->io_bs, pool_size))
-		goto out_free_pools;
 init_bs:
 	if (bioset_init(&pools->bs, pool_size, front_pad, 0))
-		goto out_free_pools;
-	if (mempool_needs_integrity &&
-	    bioset_integrity_create(&pools->bs, pool_size))
 		goto out_free_pools;
 
 	t->mempools = pools;
@@ -1250,6 +1248,7 @@ static int dm_table_construct_crypto_profile(struct dm_table *t)
 	profile->max_dun_bytes_supported = UINT_MAX;
 	memset(profile->modes_supported, 0xFF,
 	       sizeof(profile->modes_supported));
+	profile->key_types_supported = ~0;
 
 	for (i = 0; i < t->num_targets; i++) {
 		struct dm_target *ti = dm_table_get_target(t, i);
@@ -1806,6 +1805,32 @@ static bool dm_table_supports_secure_erase(struct dm_table *t)
 	return true;
 }
 
+static int device_not_atomic_write_capable(struct dm_target *ti,
+			struct dm_dev *dev, sector_t start,
+			sector_t len, void *data)
+{
+	return !bdev_can_atomic_write(dev->bdev);
+}
+
+static bool dm_table_supports_atomic_writes(struct dm_table *t)
+{
+	for (unsigned int i = 0; i < t->num_targets; i++) {
+		struct dm_target *ti = dm_table_get_target(t, i);
+
+		if (!dm_target_supports_atomic_writes(ti->type))
+			return false;
+
+		if (!ti->type->iterate_devices)
+			return false;
+
+		if (ti->type->iterate_devices(ti,
+			device_not_atomic_write_capable, NULL)) {
+			return false;
+		}
+	}
+	return true;
+}
+
 int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 			      struct queue_limits *limits)
 {
@@ -1853,6 +1878,9 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 		if (r)
 			return r;
 	}
+
+	if (dm_table_supports_atomic_writes(t))
+		limits->features |= BLK_FEAT_ATOMIC_WRITES;
 
 	r = queue_limits_set(q, limits);
 	if (r)

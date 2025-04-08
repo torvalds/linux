@@ -86,7 +86,7 @@ static struct snd_soc_dai_link osk_dai = {
 	.name = "TLV320AIC23",
 	.stream_name = "AIC23",
 	.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_NB_NF |
-		   SND_SOC_DAIFMT_CBM_CFM,
+		   SND_SOC_DAIFMT_CBP_CFP,
 	.ops = &osk_ops,
 	SND_SOC_DAILINK_REG(aic23),
 };

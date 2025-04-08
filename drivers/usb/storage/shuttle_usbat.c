@@ -32,6 +32,7 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/cdrom.h>
 
 #include <scsi/scsi.h>
@@ -651,8 +652,7 @@ static int usbat_hp8200e_rw_block_test(struct us_data *us,
 				return USB_STOR_TRANSPORT_FAILED;
 
 			usb_stor_dbg(us, "Redoing %s\n",
-				     direction == DMA_TO_DEVICE
-				     ? "write" : "read");
+				     str_write_read(direction == DMA_TO_DEVICE));
 
 		} else if (result != USB_STOR_XFER_GOOD)
 			return USB_STOR_TRANSPORT_ERROR;
@@ -1683,7 +1683,7 @@ static int usbat_flash_transport(struct scsi_cmnd * srb, struct us_data *us)
 	struct usbat_info *info = (struct usbat_info *) (us->extra);
 	unsigned long block, blocks;
 	unsigned char *ptr = us->iobuf;
-	static unsigned char inquiry_response[36] = {
+	static const unsigned char inquiry_response[36] = {
 		0x00, 0x80, 0x00, 0x01, 0x1F, 0x00, 0x00, 0x00
 	};
 

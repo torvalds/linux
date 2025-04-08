@@ -470,7 +470,7 @@ struct skb_shared_hwtstamps {
 /* Definitions for tx_flags in struct skb_shared_info */
 enum {
 	/* generate hardware time stamp */
-	SKBTX_HW_TSTAMP = 1 << 0,
+	SKBTX_HW_TSTAMP_NOBPF = 1 << 0,
 
 	/* generate software time stamp when queueing packet to NIC */
 	SKBTX_SW_TSTAMP = 1 << 1,
@@ -478,8 +478,8 @@ enum {
 	/* device driver is going to provide hardware time stamp */
 	SKBTX_IN_PROGRESS = 1 << 2,
 
-	/* generate hardware time stamp based on cycles if supported */
-	SKBTX_HW_TSTAMP_USE_CYCLES = 1 << 3,
+	/* generate software time stamp on packet tx completion */
+	SKBTX_COMPLETION_TSTAMP = 1 << 3,
 
 	/* generate wifi status information (where possible) */
 	SKBTX_WIFI_STATUS = 1 << 4,
@@ -489,12 +489,18 @@ enum {
 
 	/* generate software time stamp when entering packet scheduling */
 	SKBTX_SCHED_TSTAMP = 1 << 6,
+
+	/* used for bpf extension when a bpf program is loaded */
+	SKBTX_BPF = 1 << 7,
 };
 
+#define SKBTX_HW_TSTAMP		(SKBTX_HW_TSTAMP_NOBPF | SKBTX_BPF)
+
 #define SKBTX_ANY_SW_TSTAMP	(SKBTX_SW_TSTAMP    | \
-				 SKBTX_SCHED_TSTAMP)
+				 SKBTX_SCHED_TSTAMP | \
+				 SKBTX_BPF          | \
+				 SKBTX_COMPLETION_TSTAMP)
 #define SKBTX_ANY_TSTAMP	(SKBTX_HW_TSTAMP | \
-				 SKBTX_HW_TSTAMP_USE_CYCLES | \
 				 SKBTX_ANY_SW_TSTAMP)
 
 /* Definitions for flags in struct skb_shared_info */
@@ -608,11 +614,19 @@ struct skb_shared_info {
 	 * Warning : all fields before dataref are cleared in __alloc_skb()
 	 */
 	atomic_t	dataref;
-	unsigned int	xdp_frags_size;
 
-	/* Intermediate layers must ensure that destructor_arg
-	 * remains valid until skb destructor */
-	void *		destructor_arg;
+	union {
+		struct {
+			u32		xdp_frags_size;
+			u32		xdp_frags_truesize;
+		};
+
+		/*
+		 * Intermediate layers must ensure that destructor_arg
+		 * remains valid until skb destructor.
+		 */
+		void		*destructor_arg;
+	};
 
 	/* must be last field, see pskb_expand_head() */
 	skb_frag_t	frags[MAX_SKB_FRAGS];
@@ -695,6 +709,8 @@ enum {
 	SKB_GSO_UDP_L4 = 1 << 17,
 
 	SKB_GSO_FRAGLIST = 1 << 18,
+
+	SKB_GSO_TCP_ACCECN = 1 << 19,
 };
 
 #if BITS_PER_LONG > 32
@@ -1134,7 +1150,7 @@ static inline bool skb_pfmemalloc(const struct sk_buff *skb)
  * skb_dst - returns skb dst_entry
  * @skb: buffer
  *
- * Returns skb dst_entry, regardless of reference taken or not.
+ * Returns: skb dst_entry, regardless of reference taken or not.
  */
 static inline struct dst_entry *skb_dst(const struct sk_buff *skb)
 {
@@ -1222,7 +1238,7 @@ static inline bool skb_wifi_acked_valid(const struct sk_buff *skb)
  * skb_unref - decrement the skb's reference count
  * @skb: buffer
  *
- * Returns true if we can free the skb.
+ * Returns: true if we can free the skb.
  */
 static inline bool skb_unref(struct sk_buff *skb)
 {
@@ -1307,6 +1323,7 @@ struct sk_buff *build_skb_around(struct sk_buff *skb,
 				 void *data, unsigned int frag_size);
 void skb_attempt_defer_free(struct sk_buff *skb);
 
+u32 napi_skb_cache_get_bulk(void **skbs, u32 n);
 struct sk_buff *napi_build_skb(void *data, unsigned int frag_size);
 struct sk_buff *slab_build_skb(void *data);
 
@@ -1344,7 +1361,7 @@ struct sk_buff_fclones {
  *	@sk: socket
  *	@skb: buffer
  *
- * Returns true if skb is a fast clone, and its clone is not freed.
+ * Returns: true if skb is a fast clone, and its clone is not freed.
  * Some drivers call skb_orphan() in their ndo_start_xmit(),
  * so we also check that didn't happen.
  */
@@ -1519,14 +1536,8 @@ void __skb_get_hash_net(const struct net *net, struct sk_buff *skb);
 u32 skb_get_poff(const struct sk_buff *skb);
 u32 __skb_get_poff(const struct sk_buff *skb, const void *data,
 		   const struct flow_keys_basic *keys, int hlen);
-__be32 __skb_flow_get_ports(const struct sk_buff *skb, int thoff, u8 ip_proto,
-			    const void *data, int hlen_proto);
-
-static inline __be32 skb_flow_get_ports(const struct sk_buff *skb,
-					int thoff, u8 ip_proto)
-{
-	return __skb_flow_get_ports(skb, thoff, ip_proto, NULL, 0);
-}
+__be32 skb_flow_get_ports(const struct sk_buff *skb, int thoff, u8 ip_proto,
+			  const void *data, int hlen_proto);
 
 void skb_flow_dissector_init(struct flow_dissector *flow_dissector,
 			     const struct flow_dissector_key *key,
@@ -3516,7 +3527,7 @@ static inline struct page *__dev_alloc_page_noprof(gfp_t gfp_mask)
  * A page shouldn't be considered for reusing/recycling if it was allocated
  * under memory pressure or at a distant memory node.
  *
- * Returns false if this page should be returned to page allocator, true
+ * Returns: false if this page should be returned to page allocator, true
  * otherwise.
  */
 static inline bool dev_page_is_reusable(const struct page *page)
@@ -3627,13 +3638,13 @@ static inline netmem_ref skb_frag_netmem(const skb_frag_t *frag)
 int skb_pp_cow_data(struct page_pool *pool, struct sk_buff **pskb,
 		    unsigned int headroom);
 int skb_cow_data_for_xdp(struct page_pool *pool, struct sk_buff **pskb,
-			 struct bpf_prog *prog);
+			 const struct bpf_prog *prog);
 
 /**
  * skb_frag_address - gets the address of the data contained in a paged fragment
  * @frag: the paged fragment buffer
  *
- * Returns the address of the data within @frag. The page must already
+ * Returns: the address of the data within @frag. The page must already
  * be mapped.
  */
 static inline void *skb_frag_address(const skb_frag_t *frag)
@@ -3648,7 +3659,7 @@ static inline void *skb_frag_address(const skb_frag_t *frag)
  * skb_frag_address_safe - gets the address of the data contained in a paged fragment
  * @frag: the paged fragment buffer
  *
- * Returns the address of the data within @frag. Checks that the page
+ * Returns: the address of the data within @frag. Checks that the page
  * is mapped and returns %NULL otherwise.
  */
 static inline void *skb_frag_address_safe(const skb_frag_t *frag)
@@ -3674,7 +3685,7 @@ static inline void skb_frag_page_copy(skb_frag_t *fragto,
 bool skb_page_frag_refill(unsigned int sz, struct page_frag *pfrag, gfp_t prio);
 
 /**
- * skb_frag_dma_map - maps a paged fragment via the DMA API
+ * __skb_frag_dma_map - maps a paged fragment via the DMA API
  * @dev: the device to map the fragment to
  * @frag: the paged fragment to map
  * @offset: the offset within the fragment (starting at the
@@ -3684,14 +3695,35 @@ bool skb_page_frag_refill(unsigned int sz, struct page_frag *pfrag, gfp_t prio);
  *
  * Maps the page associated with @frag to @device.
  */
-static inline dma_addr_t skb_frag_dma_map(struct device *dev,
-					  const skb_frag_t *frag,
-					  size_t offset, size_t size,
-					  enum dma_data_direction dir)
+static inline dma_addr_t __skb_frag_dma_map(struct device *dev,
+					    const skb_frag_t *frag,
+					    size_t offset, size_t size,
+					    enum dma_data_direction dir)
 {
 	return dma_map_page(dev, skb_frag_page(frag),
 			    skb_frag_off(frag) + offset, size, dir);
 }
+
+#define skb_frag_dma_map(dev, frag, ...)				\
+	CONCATENATE(_skb_frag_dma_map,					\
+		    COUNT_ARGS(__VA_ARGS__))(dev, frag, ##__VA_ARGS__)
+
+#define __skb_frag_dma_map1(dev, frag, offset, uf, uo) ({		\
+	const skb_frag_t *uf = (frag);					\
+	size_t uo = (offset);						\
+									\
+	__skb_frag_dma_map(dev, uf, uo, skb_frag_size(uf) - uo,		\
+			   DMA_TO_DEVICE);				\
+})
+#define _skb_frag_dma_map1(dev, frag, offset)				\
+	__skb_frag_dma_map1(dev, frag, offset, __UNIQUE_ID(frag_),	\
+			    __UNIQUE_ID(offset_))
+#define _skb_frag_dma_map0(dev, frag)					\
+	_skb_frag_dma_map1(dev, frag, 0)
+#define _skb_frag_dma_map2(dev, frag, offset, size)			\
+	__skb_frag_dma_map(dev, frag, offset, size, DMA_TO_DEVICE)
+#define _skb_frag_dma_map3(dev, frag, offset, size, dir)		\
+	__skb_frag_dma_map(dev, frag, offset, size, dir)
 
 static inline struct sk_buff *pskb_copy(struct sk_buff *skb,
 					gfp_t gfp_mask)
@@ -3836,25 +3868,6 @@ static inline int __must_check skb_put_padto(struct sk_buff *skb, unsigned int l
 bool csum_and_copy_from_iter_full(void *addr, size_t bytes, __wsum *csum, struct iov_iter *i)
 	__must_check;
 
-static inline int skb_add_data(struct sk_buff *skb,
-			       struct iov_iter *from, int copy)
-{
-	const int off = skb->len;
-
-	if (skb->ip_summed == CHECKSUM_NONE) {
-		__wsum csum = 0;
-		if (csum_and_copy_from_iter_full(skb_put(skb, copy), copy,
-					         &csum, from)) {
-			skb->csum = csum_block_add(skb->csum, csum, off);
-			return 0;
-		}
-	} else if (copy_from_iter_full(skb_put(skb, copy), copy, from))
-		return 0;
-
-	__skb_trim(skb, off);
-	return -EFAULT;
-}
-
 static inline bool skb_can_coalesce(struct sk_buff *skb, int i,
 				    const struct page *page, int off)
 {
@@ -3890,7 +3903,7 @@ static inline int skb_linearize(struct sk_buff *skb)
  * skb_has_shared_frag - can any frag be overwritten
  * @skb: buffer to test
  *
- * Return true if the skb has at least one frag that might be modified
+ * Return: true if the skb has at least one frag that might be modified
  * by an external entity (as in vmsplice()/sendfile())
  */
 static inline bool skb_has_shared_frag(const struct sk_buff *skb)
@@ -4535,7 +4548,7 @@ void skb_tstamp_tx(struct sk_buff *orig_skb,
 static inline void skb_tx_timestamp(struct sk_buff *skb)
 {
 	skb_clone_tx_timestamp(skb);
-	if (skb_shinfo(skb)->tx_flags & SKBTX_SW_TSTAMP)
+	if (skb_shinfo(skb)->tx_flags & (SKBTX_SW_TSTAMP | SKBTX_BPF))
 		skb_tstamp_tx(skb, NULL);
 }
 
@@ -4612,7 +4625,7 @@ static inline void __skb_reset_checksum_unnecessary(struct sk_buff *skb)
 
 /* Check if we need to perform checksum complete validation.
  *
- * Returns true if checksum complete is needed, false otherwise
+ * Returns: true if checksum complete is needed, false otherwise
  * (either checksum is unnecessary or zero checksum is allowed).
  */
 static inline bool __skb_checksum_validate_needed(struct sk_buff *skb,

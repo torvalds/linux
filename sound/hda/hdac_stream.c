@@ -492,32 +492,21 @@ static int setup_bdle(struct hdac_bus *bus,
 }
 
 /**
- * snd_hdac_stream_setup_periods - set up BDL entries
+ * snd_hdac_stream_setup_bdle - set up BDL entries
  * @azx_dev: HD-audio core stream to set up
+ * @dmab: allocated DMA buffer
+ * @runtime: substream runtime, optional
  *
  * Set up the buffer descriptor table of the given stream based on the
  * period and buffer sizes of the assigned PCM substream.
  */
-int snd_hdac_stream_setup_periods(struct hdac_stream *azx_dev)
+static int snd_hdac_stream_setup_bdle(struct hdac_stream *azx_dev, struct snd_dma_buffer *dmab,
+				      struct snd_pcm_runtime *runtime)
 {
 	struct hdac_bus *bus = azx_dev->bus;
-	struct snd_pcm_substream *substream = azx_dev->substream;
-	struct snd_compr_stream *cstream = azx_dev->cstream;
-	struct snd_pcm_runtime *runtime = NULL;
-	struct snd_dma_buffer *dmab;
-	__le32 *bdl;
 	int i, ofs, periods, period_bytes;
 	int pos_adj, pos_align;
-
-	if (substream) {
-		runtime = substream->runtime;
-		dmab = snd_pcm_get_dma_buf(substream);
-	} else if (cstream) {
-		dmab = snd_pcm_get_dma_buf(cstream);
-	} else {
-		WARN(1, "No substream or cstream assigned\n");
-		return -EINVAL;
-	}
+	__le32 *bdl;
 
 	/* reset BDL address */
 	snd_hdac_stream_writel(azx_dev, SD_BDLPL, 0);
@@ -570,6 +559,33 @@ int snd_hdac_stream_setup_periods(struct hdac_stream *azx_dev)
 	dev_dbg(bus->dev, "Too many BDL entries: buffer=%d, period=%d\n",
 		azx_dev->bufsize, period_bytes);
 	return -EINVAL;
+}
+
+/**
+ * snd_hdac_stream_setup_periods - set up BDL entries
+ * @azx_dev: HD-audio core stream to set up
+ *
+ * Set up the buffer descriptor table of the given stream based on the
+ * period and buffer sizes of the assigned PCM substream.
+ */
+int snd_hdac_stream_setup_periods(struct hdac_stream *azx_dev)
+{
+	struct snd_pcm_substream *substream = azx_dev->substream;
+	struct snd_compr_stream *cstream = azx_dev->cstream;
+	struct snd_pcm_runtime *runtime = NULL;
+	struct snd_dma_buffer *dmab;
+
+	if (substream) {
+		runtime = substream->runtime;
+		dmab = snd_pcm_get_dma_buf(substream);
+	} else if (cstream) {
+		dmab = snd_pcm_get_dma_buf(cstream);
+	} else {
+		WARN(1, "No substream or cstream assigned\n");
+		return -EINVAL;
+	}
+
+	return snd_hdac_stream_setup_bdle(azx_dev, dmab, runtime);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_stream_setup_periods);
 
@@ -923,7 +939,6 @@ int snd_hdac_dsp_prepare(struct hdac_stream *azx_dev, unsigned int format,
 			 unsigned int byte_size, struct snd_dma_buffer *bufp)
 {
 	struct hdac_bus *bus = azx_dev->bus;
-	__le32 *bdl;
 	int err;
 
 	snd_hdac_dsp_lock(azx_dev);
@@ -943,18 +958,14 @@ int snd_hdac_dsp_prepare(struct hdac_stream *azx_dev, unsigned int format,
 
 	azx_dev->substream = NULL;
 	azx_dev->bufsize = byte_size;
-	azx_dev->period_bytes = byte_size;
+	/* It is recommended to transfer the firmware in two or more chunks. */
+	azx_dev->period_bytes = byte_size / 2;
 	azx_dev->format_val = format;
+	azx_dev->no_period_wakeup = 1;
 
 	snd_hdac_stream_reset(azx_dev);
 
-	/* reset BDL address */
-	snd_hdac_stream_writel(azx_dev, SD_BDLPL, 0);
-	snd_hdac_stream_writel(azx_dev, SD_BDLPU, 0);
-
-	azx_dev->frags = 0;
-	bdl = (__le32 *)azx_dev->bdl.area;
-	err = setup_bdle(bus, bufp, azx_dev, &bdl, 0, byte_size, 0);
+	err = snd_hdac_stream_setup_bdle(azx_dev, bufp, NULL);
 	if (err < 0)
 		goto error;
 

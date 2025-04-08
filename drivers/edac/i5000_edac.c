@@ -338,11 +338,11 @@ struct i5000_pvt {
 
 	u16 mir0, mir1, mir2;
 
-	u16 b0_mtr[NUM_MTRS];	/* Memory Technlogy Reg */
+	u16 b0_mtr[NUM_MTRS];	/* Memory Technology Reg */
 	u16 b0_ambpresent0;	/* Branch 0, Channel 0 */
-	u16 b0_ambpresent1;	/* Brnach 0, Channel 1 */
+	u16 b0_ambpresent1;	/* Branch 0, Channel 1 */
 
-	u16 b1_mtr[NUM_MTRS];	/* Memory Technlogy Reg */
+	u16 b1_mtr[NUM_MTRS];	/* Memory Technology Reg */
 	u16 b1_ambpresent0;	/* Branch 1, Channel 8 */
 	u16 b1_ambpresent1;	/* Branch 1, Channel 1 */
 
@@ -1210,7 +1210,7 @@ static void i5000_get_mc_regs(struct mem_ctl_info *mci)
 			&pvt->b0_ambpresent1);
 	edac_dbg(2, "\t\tAMB-Branch 0-present1 0x%x:\n", pvt->b0_ambpresent1);
 
-	/* Only if we have 2 branchs (4 channels) */
+	/* Only if we have 2 branches (4 channels) */
 	if (pvt->maxch < CHANNELS_PER_BRANCH) {
 		pvt->b1_ambpresent0 = 0;
 		pvt->b1_ambpresent1 = 0;

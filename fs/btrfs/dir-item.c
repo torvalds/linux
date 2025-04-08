@@ -92,7 +92,6 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
 
 	write_extent_buffer(leaf, name, name_ptr, name_len);
 	write_extent_buffer(leaf, data, data_ptr, data_len);
-	btrfs_mark_buffer_dirty(trans, path->nodes[0]);
 
 	return ret;
 }
@@ -152,7 +151,6 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans,
 	name_ptr = (unsigned long)(dir_item + 1);
 
 	write_extent_buffer(leaf, name->name, name_ptr, name->len);
-	btrfs_mark_buffer_dirty(trans, leaf);
 
 second_insert:
 	/* FIXME, use some real flag for selecting the extra index */
@@ -238,7 +236,7 @@ int btrfs_check_dir_item_collision(struct btrfs_root *root, u64 dir,
 	int data_size;
 	struct extent_buffer *leaf;
 	int slot;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -253,20 +251,17 @@ int btrfs_check_dir_item_collision(struct btrfs_root *root, u64 dir,
 	if (IS_ERR(di)) {
 		ret = PTR_ERR(di);
 		/* Nothing found, we're safe */
-		if (ret == -ENOENT) {
-			ret = 0;
-			goto out;
-		}
+		if (ret == -ENOENT)
+			return 0;
 
 		if (ret < 0)
-			goto out;
+			return ret;
 	}
 
 	/* we found an item, look for our name in the item */
 	if (di) {
 		/* our exact name was found */
-		ret = -EEXIST;
-		goto out;
+		return -EEXIST;
 	}
 
 	/* See if there is room in the item to insert this name. */
@@ -275,14 +270,11 @@ int btrfs_check_dir_item_collision(struct btrfs_root *root, u64 dir,
 	slot = path->slots[0];
 	if (data_size + btrfs_item_size(leaf, slot) +
 	    sizeof(struct btrfs_item) > BTRFS_LEAF_DATA_SIZE(root->fs_info)) {
-		ret = -EOVERFLOW;
-	} else {
-		/* plenty of insertion room */
-		ret = 0;
+		return -EOVERFLOW;
 	}
-out:
-	btrfs_free_path(path);
-	return ret;
+
+	/* Plenty of insertion room. */
+	return 0;
 }
 
 /*

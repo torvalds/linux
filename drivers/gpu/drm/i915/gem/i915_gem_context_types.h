@@ -245,9 +245,9 @@ struct i915_gem_context {
 	 * Execbuf uses the I915_EXEC_RING_MASK as an index into this
 	 * array to select which HW context + engine to execute on. For
 	 * the default array, the user_ring_map[] is used to translate
-	 * the legacy uABI onto the approprate index (e.g. both
+	 * the legacy uABI onto the appropriate index (e.g. both
 	 * I915_EXEC_DEFAULT and I915_EXEC_RENDER select the same
-	 * context, and I915_EXEC_BSD is weird). For a use defined
+	 * context, and I915_EXEC_BSD is weird). For a user defined
 	 * array, execbuf uses I915_EXEC_RING_MASK as a plain index.
 	 *
 	 * User defined by I915_CONTEXT_PARAM_ENGINE (when the
@@ -276,7 +276,7 @@ struct i915_gem_context {
 	 * @vm: unique address space (GTT)
 	 *
 	 * In full-ppgtt mode, each context has its own address space ensuring
-	 * complete seperation of one client from all others.
+	 * complete separation of one client from all others.
 	 *
 	 * In other modes, this is a NULL pointer with the expectation that
 	 * the caller uses the shared global GTT.

@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2020, 2022 Intel Corporation
+ * Copyright (C) 2018-2020, 2022, 2024 Intel Corporation
  */
 #ifndef __iwl_context_info_file_h__
 #define __iwl_context_info_file_h__
 
-/* maximmum number of DRAM map entries supported by FW */
+/* maximum number of DRAM map entries supported by FW */
 #define IWL_MAX_DRAM_ENTRY	64
 #define CSR_CTXT_INFO_BA	0x40
 
@@ -53,11 +53,12 @@ enum iwl_context_info_flags {
 	IWL_CTXT_INFO_RB_SIZE_32K	= 0xe,
 };
 
-/*
+/**
  * struct iwl_context_info_version - version structure
  * @mac_id: SKU and revision id
  * @version: context information version id
  * @size: the size of the context information in DWs
+ * @reserved: (reserved)
  */
 struct iwl_context_info_version {
 	__le16 mac_id;
@@ -66,16 +67,17 @@ struct iwl_context_info_version {
 	__le16 reserved;
 } __packed;
 
-/*
+/**
  * struct iwl_context_info_control - version structure
  * @control_flags: context information flags see &enum iwl_context_info_flags
+ * @reserved: (reserved)
  */
 struct iwl_context_info_control {
 	__le32 control_flags;
 	__le32 reserved;
 } __packed;
 
-/*
+/**
  * struct iwl_context_info_dram - images DRAM map
  * each entry in the map represents a DRAM chunk of up to 32 KB
  * @umac_img: UMAC image DRAM map
@@ -88,7 +90,7 @@ struct iwl_context_info_dram {
 	__le64 virtual_img[IWL_MAX_DRAM_ENTRY];
 } __packed;
 
-/*
+/**
  * struct iwl_context_info_rbd_cfg - RBDs configuration
  * @free_rbd_addr: default queue free RB CB base address
  * @used_rbd_addr: default queue used RB CB base address
@@ -100,10 +102,11 @@ struct iwl_context_info_rbd_cfg {
 	__le64 status_wr_ptr;
 } __packed;
 
-/*
+/**
  * struct iwl_context_info_hcmd_cfg  - command queue configuration
  * @cmd_queue_addr: address of command queue
  * @cmd_queue_size: number of entries
+ * @reserved: (reserved)
  */
 struct iwl_context_info_hcmd_cfg {
 	__le64 cmd_queue_addr;
@@ -111,10 +114,11 @@ struct iwl_context_info_hcmd_cfg {
 	u8 reserved[7];
 } __packed;
 
-/*
+/**
  * struct iwl_context_info_dump_cfg - Core Dump configuration
  * @core_dump_addr: core dump (debug DRAM address) start address
  * @core_dump_size: size, in DWs
+ * @reserved: (reserved)
  */
 struct iwl_context_info_dump_cfg {
 	__le64 core_dump_addr;
@@ -122,10 +126,11 @@ struct iwl_context_info_dump_cfg {
 	__le32 reserved;
 } __packed;
 
-/*
+/**
  * struct iwl_context_info_pnvm_cfg - platform NVM data configuration
  * @platform_nvm_addr: Platform NVM data start address
  * @platform_nvm_size: size in DWs
+ * @reserved: (reserved)
  */
 struct iwl_context_info_pnvm_cfg {
 	__le64 platform_nvm_addr;
@@ -133,11 +138,12 @@ struct iwl_context_info_pnvm_cfg {
 	__le32 reserved;
 } __packed;
 
-/*
+/**
  * struct iwl_context_info_early_dbg_cfg - early debug configuration for
  *	dumping DRAM addresses
  * @early_debug_addr: early debug start address
  * @early_debug_size: size in DWs
+ * @reserved: (reserved)
  */
 struct iwl_context_info_early_dbg_cfg {
 	__le64 early_debug_addr;
@@ -145,16 +151,20 @@ struct iwl_context_info_early_dbg_cfg {
 	__le32 reserved;
 } __packed;
 
-/*
+/**
  * struct iwl_context_info - device INIT configuration
  * @version: version information of context info and HW
  * @control: control flags of FH configurations
+ * @reserved0: (reserved)
  * @rbd_cfg: default RX queue configuration
  * @hcmd_cfg: command queue configuration
+ * @reserved1: (reserved)
  * @dump_cfg: core dump data
  * @edbg_cfg: early debug configuration
  * @pnvm_cfg: platform nvm configuration
+ * @reserved2: (reserved)
  * @dram: firmware image addresses in DRAM
+ * @reserved3: (reserved)
  */
 struct iwl_context_info {
 	struct iwl_context_info_version version;

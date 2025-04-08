@@ -211,12 +211,10 @@ static int event_trigger_regex_open(struct inode *inode, struct file *file)
 	if (ret)
 		return ret;
 
-	mutex_lock(&event_mutex);
+	guard(mutex)(&event_mutex);
 
-	if (unlikely(!event_file_file(file))) {
-		mutex_unlock(&event_mutex);
+	if (unlikely(!event_file_file(file)))
 		return -ENODEV;
-	}
 
 	if ((file->f_mode & FMODE_WRITE) &&
 	    (file->f_flags & O_TRUNC)) {
@@ -239,8 +237,6 @@ static int event_trigger_regex_open(struct inode *inode, struct file *file)
 		}
 	}
 
-	mutex_unlock(&event_mutex);
-
 	return ret;
 }
 
@@ -248,7 +244,6 @@ int trigger_process_regex(struct trace_event_file *file, char *buff)
 {
 	char *command, *next;
 	struct event_command *p;
-	int ret = -EINVAL;
 
 	next = buff = skip_spaces(buff);
 	command = strsep(&next, ": \t");
@@ -259,17 +254,14 @@ int trigger_process_regex(struct trace_event_file *file, char *buff)
 	}
 	command = (command[0] != '!') ? command : command + 1;
 
-	mutex_lock(&trigger_cmd_mutex);
-	list_for_each_entry(p, &trigger_commands, list) {
-		if (strcmp(p->name, command) == 0) {
-			ret = p->parse(p, file, buff, command, next);
-			goto out_unlock;
-		}
-	}
- out_unlock:
-	mutex_unlock(&trigger_cmd_mutex);
+	guard(mutex)(&trigger_cmd_mutex);
 
-	return ret;
+	list_for_each_entry(p, &trigger_commands, list) {
+		if (strcmp(p->name, command) == 0)
+			return p->parse(p, file, buff, command, next);
+	}
+
+	return -EINVAL;
 }
 
 static ssize_t event_trigger_regex_write(struct file *file,
@@ -278,7 +270,7 @@ static ssize_t event_trigger_regex_write(struct file *file,
 {
 	struct trace_event_file *event_file;
 	ssize_t ret;
-	char *buf;
+	char *buf __free(kfree) = NULL;
 
 	if (!cnt)
 		return 0;
@@ -292,24 +284,18 @@ static ssize_t event_trigger_regex_write(struct file *file,
 
 	strim(buf);
 
-	mutex_lock(&event_mutex);
-	event_file = event_file_file(file);
-	if (unlikely(!event_file)) {
-		mutex_unlock(&event_mutex);
-		kfree(buf);
-		return -ENODEV;
-	}
-	ret = trigger_process_regex(event_file, buf);
-	mutex_unlock(&event_mutex);
+	guard(mutex)(&event_mutex);
 
-	kfree(buf);
+	event_file = event_file_file(file);
+	if (unlikely(!event_file))
+		return -ENODEV;
+
+	ret = trigger_process_regex(event_file, buf);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	*ppos += cnt;
-	ret = cnt;
- out:
-	return ret;
+	return cnt;
 }
 
 static int event_trigger_regex_release(struct inode *inode, struct file *file)
@@ -359,20 +345,16 @@ const struct file_operations event_trigger_fops = {
 __init int register_event_command(struct event_command *cmd)
 {
 	struct event_command *p;
-	int ret = 0;
 
-	mutex_lock(&trigger_cmd_mutex);
+	guard(mutex)(&trigger_cmd_mutex);
+
 	list_for_each_entry(p, &trigger_commands, list) {
-		if (strcmp(cmd->name, p->name) == 0) {
-			ret = -EBUSY;
-			goto out_unlock;
-		}
+		if (strcmp(cmd->name, p->name) == 0)
+			return -EBUSY;
 	}
 	list_add(&cmd->list, &trigger_commands);
- out_unlock:
-	mutex_unlock(&trigger_cmd_mutex);
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -382,20 +364,17 @@ __init int register_event_command(struct event_command *cmd)
 __init int unregister_event_command(struct event_command *cmd)
 {
 	struct event_command *p, *n;
-	int ret = -ENODEV;
 
-	mutex_lock(&trigger_cmd_mutex);
+	guard(mutex)(&trigger_cmd_mutex);
+
 	list_for_each_entry_safe(p, n, &trigger_commands, list) {
 		if (strcmp(cmd->name, p->name) == 0) {
-			ret = 0;
 			list_del_init(&p->list);
-			goto out_unlock;
+			return 0;
 		}
 	}
- out_unlock:
-	mutex_unlock(&trigger_cmd_mutex);
 
-	return ret;
+	return -ENODEV;
 }
 
 /**
@@ -846,7 +825,7 @@ struct event_trigger_data *event_trigger_alloc(struct event_command *cmd_ops,
 					       void *private_data)
 {
 	struct event_trigger_data *trigger_data;
-	struct event_trigger_ops *trigger_ops;
+	const struct event_trigger_ops *trigger_ops;
 
 	trigger_ops = cmd_ops->get_trigger_ops(cmd, param);
 
@@ -1388,38 +1367,38 @@ traceoff_trigger_print(struct seq_file *m, struct event_trigger_data *data)
 				   data->filter_str);
 }
 
-static struct event_trigger_ops traceon_trigger_ops = {
+static const struct event_trigger_ops traceon_trigger_ops = {
 	.trigger		= traceon_trigger,
 	.print			= traceon_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_trigger_free,
 };
 
-static struct event_trigger_ops traceon_count_trigger_ops = {
+static const struct event_trigger_ops traceon_count_trigger_ops = {
 	.trigger		= traceon_count_trigger,
 	.print			= traceon_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_trigger_free,
 };
 
-static struct event_trigger_ops traceoff_trigger_ops = {
+static const struct event_trigger_ops traceoff_trigger_ops = {
 	.trigger		= traceoff_trigger,
 	.print			= traceoff_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_trigger_free,
 };
 
-static struct event_trigger_ops traceoff_count_trigger_ops = {
+static const struct event_trigger_ops traceoff_count_trigger_ops = {
 	.trigger		= traceoff_count_trigger,
 	.print			= traceoff_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_trigger_free,
 };
 
-static struct event_trigger_ops *
+static const struct event_trigger_ops *
 onoff_get_trigger_ops(char *cmd, char *param)
 {
-	struct event_trigger_ops *ops;
+	const struct event_trigger_ops *ops;
 
 	/* we register both traceon and traceoff to this callback */
 	if (strcmp(cmd, "traceon") == 0)
@@ -1512,21 +1491,21 @@ snapshot_trigger_print(struct seq_file *m, struct event_trigger_data *data)
 				   data->filter_str);
 }
 
-static struct event_trigger_ops snapshot_trigger_ops = {
+static const struct event_trigger_ops snapshot_trigger_ops = {
 	.trigger		= snapshot_trigger,
 	.print			= snapshot_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_trigger_free,
 };
 
-static struct event_trigger_ops snapshot_count_trigger_ops = {
+static const struct event_trigger_ops snapshot_count_trigger_ops = {
 	.trigger		= snapshot_count_trigger,
 	.print			= snapshot_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_trigger_free,
 };
 
-static struct event_trigger_ops *
+static const struct event_trigger_ops *
 snapshot_get_trigger_ops(char *cmd, char *param)
 {
 	return param ? &snapshot_count_trigger_ops : &snapshot_trigger_ops;
@@ -1607,21 +1586,21 @@ stacktrace_trigger_print(struct seq_file *m, struct event_trigger_data *data)
 				   data->filter_str);
 }
 
-static struct event_trigger_ops stacktrace_trigger_ops = {
+static const struct event_trigger_ops stacktrace_trigger_ops = {
 	.trigger		= stacktrace_trigger,
 	.print			= stacktrace_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_trigger_free,
 };
 
-static struct event_trigger_ops stacktrace_count_trigger_ops = {
+static const struct event_trigger_ops stacktrace_count_trigger_ops = {
 	.trigger		= stacktrace_count_trigger,
 	.print			= stacktrace_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_trigger_free,
 };
 
-static struct event_trigger_ops *
+static const struct event_trigger_ops *
 stacktrace_get_trigger_ops(char *cmd, char *param)
 {
 	return param ? &stacktrace_count_trigger_ops : &stacktrace_trigger_ops;
@@ -1732,28 +1711,28 @@ void event_enable_trigger_free(struct event_trigger_data *data)
 	}
 }
 
-static struct event_trigger_ops event_enable_trigger_ops = {
+static const struct event_trigger_ops event_enable_trigger_ops = {
 	.trigger		= event_enable_trigger,
 	.print			= event_enable_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_enable_trigger_free,
 };
 
-static struct event_trigger_ops event_enable_count_trigger_ops = {
+static const struct event_trigger_ops event_enable_count_trigger_ops = {
 	.trigger		= event_enable_count_trigger,
 	.print			= event_enable_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_enable_trigger_free,
 };
 
-static struct event_trigger_ops event_disable_trigger_ops = {
+static const struct event_trigger_ops event_disable_trigger_ops = {
 	.trigger		= event_enable_trigger,
 	.print			= event_enable_trigger_print,
 	.init			= event_trigger_init,
 	.free			= event_enable_trigger_free,
 };
 
-static struct event_trigger_ops event_disable_count_trigger_ops = {
+static const struct event_trigger_ops event_disable_count_trigger_ops = {
 	.trigger		= event_enable_count_trigger,
 	.print			= event_enable_trigger_print,
 	.init			= event_trigger_init,
@@ -1937,10 +1916,10 @@ void event_enable_unregister_trigger(char *glob,
 		data->ops->free(data);
 }
 
-static struct event_trigger_ops *
+static const struct event_trigger_ops *
 event_enable_get_trigger_ops(char *cmd, char *param)
 {
-	struct event_trigger_ops *ops;
+	const struct event_trigger_ops *ops;
 	bool enable;
 
 #ifdef CONFIG_HIST_TRIGGERS

@@ -8,6 +8,7 @@
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_type.h>
+#include <linux/string_choices.h>
 #include "bus.h"
 #include "irq.h"
 #include "sysfs_local.h"
@@ -277,7 +278,7 @@ static int sdw_transfer_unlocked(struct sdw_bus *bus, struct sdw_msg *msg)
 	if (ret != 0 && ret != -ENODATA)
 		dev_err(bus->dev, "trf on Slave %d failed:%d %s addr %x count %d\n",
 			msg->dev_num, ret,
-			(msg->flags & SDW_MSG_FLAG_WRITE) ? "write" : "read",
+			str_write_read(msg->flags & SDW_MSG_FLAG_WRITE),
 			msg->addr, msg->len);
 
 	return ret;
@@ -813,6 +814,16 @@ void sdw_extract_slave_id(struct sdw_bus *bus,
 }
 EXPORT_SYMBOL(sdw_extract_slave_id);
 
+bool is_clock_scaling_supported_by_slave(struct sdw_slave *slave)
+{
+	/*
+	 * Dynamic scaling is a defined by SDCA. However, some devices expose the class ID but
+	 * can't support dynamic scaling. We might need a quirk to handle such devices.
+	 */
+	return slave->id.class_id;
+}
+EXPORT_SYMBOL(is_clock_scaling_supported_by_slave);
+
 static int sdw_program_device_num(struct sdw_bus *bus, bool *programmed)
 {
 	u8 buf[SDW_NUM_DEV_ID_REGISTERS] = {0};
@@ -1253,7 +1264,7 @@ int sdw_configure_dpn_intr(struct sdw_slave *slave,
 
 	if (slave->bus->params.s_data_mode != SDW_PORT_DATA_MODE_NORMAL) {
 		dev_dbg(&slave->dev, "TEST FAIL interrupt %s\n",
-			enable ? "on" : "off");
+			str_on_off(enable));
 		mask |= SDW_DPN_INT_TEST_FAIL;
 	}
 
@@ -1276,23 +1287,12 @@ int sdw_configure_dpn_intr(struct sdw_slave *slave,
 	return ret;
 }
 
-static int sdw_slave_set_frequency(struct sdw_slave *slave)
+int sdw_slave_get_scale_index(struct sdw_slave *slave, u8 *base)
 {
 	u32 mclk_freq = slave->bus->prop.mclk_freq;
 	u32 curr_freq = slave->bus->params.curr_dr_freq >> 1;
 	unsigned int scale;
 	u8 scale_index;
-	u8 base;
-	int ret;
-
-	/*
-	 * frequency base and scale registers are required for SDCA
-	 * devices. They may also be used for 1.2+/non-SDCA devices.
-	 * Driver can set the property, we will need a DisCo property
-	 * to discover this case from platform firmware.
-	 */
-	if (!slave->id.class_id && !slave->prop.clock_reg_supported)
-		return 0;
 
 	if (!mclk_freq) {
 		dev_err(&slave->dev,
@@ -1311,19 +1311,19 @@ static int sdw_slave_set_frequency(struct sdw_slave *slave)
 	 */
 	if (!(19200000 % mclk_freq)) {
 		mclk_freq = 19200000;
-		base = SDW_SCP_BASE_CLOCK_19200000_HZ;
+		*base = SDW_SCP_BASE_CLOCK_19200000_HZ;
 	} else if (!(22579200 % mclk_freq)) {
 		mclk_freq = 22579200;
-		base = SDW_SCP_BASE_CLOCK_22579200_HZ;
+		*base = SDW_SCP_BASE_CLOCK_22579200_HZ;
 	} else if (!(24576000 % mclk_freq)) {
 		mclk_freq = 24576000;
-		base = SDW_SCP_BASE_CLOCK_24576000_HZ;
+		*base = SDW_SCP_BASE_CLOCK_24576000_HZ;
 	} else if (!(32000000 % mclk_freq)) {
 		mclk_freq = 32000000;
-		base = SDW_SCP_BASE_CLOCK_32000000_HZ;
+		*base = SDW_SCP_BASE_CLOCK_32000000_HZ;
 	} else if (!(96000000 % mclk_freq)) {
 		mclk_freq = 24000000;
-		base = SDW_SCP_BASE_CLOCK_24000000_HZ;
+		*base = SDW_SCP_BASE_CLOCK_24000000_HZ;
 	} else {
 		dev_err(&slave->dev,
 			"Unsupported clock base, mclk %d\n",
@@ -1354,6 +1354,34 @@ static int sdw_slave_set_frequency(struct sdw_slave *slave)
 	}
 	scale_index++;
 
+	dev_dbg(&slave->dev,
+		"Configured bus base %d, scale %d, mclk %d, curr_freq %d\n",
+		*base, scale_index, mclk_freq, curr_freq);
+
+	return scale_index;
+}
+EXPORT_SYMBOL(sdw_slave_get_scale_index);
+
+static int sdw_slave_set_frequency(struct sdw_slave *slave)
+{
+	int scale_index;
+	u8 base;
+	int ret;
+
+	/*
+	 * frequency base and scale registers are required for SDCA
+	 * devices. They may also be used for 1.2+/non-SDCA devices.
+	 * Driver can set the property directly, for now there's no
+	 * DisCo property to discover support for the scaling registers
+	 * from platform firmware.
+	 */
+	if (!slave->id.class_id && !slave->prop.clock_reg_supported)
+		return 0;
+
+	scale_index = sdw_slave_get_scale_index(slave, &base);
+	if (scale_index < 0)
+		return scale_index;
+
 	ret = sdw_write_no_pm(slave, SDW_SCP_BUS_CLOCK_BASE, base);
 	if (ret < 0) {
 		dev_err(&slave->dev,
@@ -1372,10 +1400,6 @@ static int sdw_slave_set_frequency(struct sdw_slave *slave)
 	if (ret < 0)
 		dev_err(&slave->dev,
 			"SDW_SCP_BUSCLOCK_SCALE_B1 write failed:%d\n", ret);
-
-	dev_dbg(&slave->dev,
-		"Configured bus base %d, scale %d, mclk %d, curr_freq %d\n",
-		base, scale_index, mclk_freq, curr_freq);
 
 	return ret;
 }
@@ -2015,3 +2039,46 @@ void sdw_clear_slave_status(struct sdw_bus *bus, u32 request)
 	}
 }
 EXPORT_SYMBOL(sdw_clear_slave_status);
+
+int sdw_bpt_send_async(struct sdw_bus *bus, struct sdw_slave *slave, struct sdw_bpt_msg *msg)
+{
+	if (msg->len > SDW_BPT_MSG_MAX_BYTES) {
+		dev_err(bus->dev, "Invalid BPT message length %d\n", msg->len);
+		return -EINVAL;
+	}
+
+	/* check device is enumerated */
+	if (slave->dev_num == SDW_ENUM_DEV_NUM ||
+	    slave->dev_num > SDW_MAX_DEVICES) {
+		dev_err(&slave->dev, "Invalid device number %d\n", slave->dev_num);
+		return -ENODEV;
+	}
+
+	/* make sure all callbacks are defined */
+	if (!bus->ops->bpt_send_async ||
+	    !bus->ops->bpt_wait) {
+		dev_err(bus->dev, "BPT callbacks not defined\n");
+		return -EOPNOTSUPP;
+	}
+
+	return bus->ops->bpt_send_async(bus, slave, msg);
+}
+EXPORT_SYMBOL(sdw_bpt_send_async);
+
+int sdw_bpt_wait(struct sdw_bus *bus, struct sdw_slave *slave, struct sdw_bpt_msg *msg)
+{
+	return bus->ops->bpt_wait(bus, slave, msg);
+}
+EXPORT_SYMBOL(sdw_bpt_wait);
+
+int sdw_bpt_send_sync(struct sdw_bus *bus, struct sdw_slave *slave, struct sdw_bpt_msg *msg)
+{
+	int ret;
+
+	ret = sdw_bpt_send_async(bus, slave, msg);
+	if (ret < 0)
+		return ret;
+
+	return sdw_bpt_wait(bus, slave, msg);
+}
+EXPORT_SYMBOL(sdw_bpt_send_sync);

@@ -21,7 +21,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	cpus {
+	cpus: cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -29,6 +29,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a35";
 			reg = <0>;
+			enable-method = "psci";
 			next-level-cache = <&L2_0>;
 		};
 	};

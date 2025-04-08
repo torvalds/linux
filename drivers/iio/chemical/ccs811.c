@@ -81,7 +81,7 @@ struct ccs811_data {
 	/* Ensures correct alignment of timestamp if present */
 	struct {
 		s16 channels[2];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 };
 

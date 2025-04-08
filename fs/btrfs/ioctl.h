@@ -9,6 +9,8 @@ struct file;
 struct dentry;
 struct mnt_idmap;
 struct fileattr;
+struct io_uring_cmd;
+struct btrfs_inode;
 struct btrfs_fs_info;
 struct btrfs_ioctl_balance_args;
 
@@ -18,8 +20,7 @@ int btrfs_fileattr_get(struct dentry *dentry, struct fileattr *fa);
 int btrfs_fileattr_set(struct mnt_idmap *idmap,
 		       struct dentry *dentry, struct fileattr *fa);
 int btrfs_ioctl_get_supported_features(void __user *arg);
-void btrfs_sync_inode_flags_to_i_flags(struct inode *inode);
-int __pure btrfs_is_empty_uuid(const u8 *uuid);
+void btrfs_sync_inode_flags_to_i_flags(struct btrfs_inode *inode);
 void btrfs_update_ioctl_balance_args(struct btrfs_fs_info *fs_info,
 				     struct btrfs_ioctl_balance_args *bargs);
 int btrfs_uring_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags);

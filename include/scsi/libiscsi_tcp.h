@@ -15,7 +15,6 @@
 struct iscsi_tcp_conn;
 struct iscsi_segment;
 struct sk_buff;
-struct ahash_request;
 
 typedef int iscsi_segment_done_fn_t(struct iscsi_tcp_conn *,
 				    struct iscsi_segment *);
@@ -27,7 +26,7 @@ struct iscsi_segment {
 	unsigned int		total_size;
 	unsigned int		total_copied;
 
-	struct ahash_request	*hash;
+	u32			*crcp;
 	unsigned char		padbuf[ISCSI_PAD_LEN];
 	unsigned char		recv_digest[ISCSI_DIGEST_SIZE];
 	unsigned char		digest[ISCSI_DIGEST_SIZE];
@@ -61,8 +60,8 @@ struct iscsi_tcp_conn {
 						 * stop to terminate */
 	/* control data */
 	struct iscsi_tcp_recv	in;		/* TCP receive context */
-	/* CRC32C (Rx) LLD should set this is they do not offload */
-	struct ahash_request	*rx_hash;
+	/* CRC32C (Rx) LLD should set this if they do not offload */
+	u32			*rx_crcp;
 };
 
 struct iscsi_tcp_task {
@@ -99,18 +98,15 @@ extern void iscsi_tcp_segment_unmap(struct iscsi_segment *segment);
 
 extern void iscsi_segment_init_linear(struct iscsi_segment *segment,
 				      void *data, size_t size,
-				      iscsi_segment_done_fn_t *done,
-				      struct ahash_request *hash);
+				      iscsi_segment_done_fn_t *done, u32 *crcp);
 extern int
 iscsi_segment_seek_sg(struct iscsi_segment *segment,
 		      struct scatterlist *sg_list, unsigned int sg_count,
 		      unsigned int offset, size_t size,
-		      iscsi_segment_done_fn_t *done,
-		      struct ahash_request *hash);
+		      iscsi_segment_done_fn_t *done, u32 *crcp);
 
 /* digest helpers */
-extern void iscsi_tcp_dgst_header(struct ahash_request *hash, const void *hdr,
-				  size_t hdrlen,
+extern void iscsi_tcp_dgst_header(const void *hdr, size_t hdrlen,
 				  unsigned char digest[ISCSI_DIGEST_SIZE]);
 extern struct iscsi_cls_conn *
 iscsi_tcp_conn_setup(struct iscsi_cls_session *cls_session, int dd_data_size,

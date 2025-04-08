@@ -45,18 +45,6 @@ static DEFINE_MUTEX(ipc_m1_lock);
 static DECLARE_COMPLETION(ipc_completion);
 static ATOMIC_NOTIFIER_HEAD(ipc_notifier);
 
-static inline void set_destination(int source, int mbox)
-{
-	writel_relaxed(CHAN_MASK(source), ipc_base + IPCMxDSET(mbox));
-	writel_relaxed(CHAN_MASK(source), ipc_base + IPCMxMSET(mbox));
-}
-
-static inline void clear_destination(int source, int mbox)
-{
-	writel_relaxed(CHAN_MASK(source), ipc_base + IPCMxDCLEAR(mbox));
-	writel_relaxed(CHAN_MASK(source), ipc_base + IPCMxMCLEAR(mbox));
-}
-
 static void __ipc_send(int mbox, u32 *data)
 {
 	int i;
@@ -164,7 +152,7 @@ err:
 	return ret;
 }
 
-static struct amba_id pl320_ids[] = {
+static const struct amba_id pl320_ids[] = {
 	{
 		.id	= 0x00041320,
 		.mask	= 0x000fffff,

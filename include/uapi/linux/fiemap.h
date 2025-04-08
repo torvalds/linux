@@ -14,37 +14,56 @@
 
 #include <linux/types.h>
 
+/**
+ * struct fiemap_extent - description of one fiemap extent
+ * @fe_logical: byte offset of the extent in the file
+ * @fe_physical: byte offset of extent on disk
+ * @fe_length: length in bytes for this extent
+ * @fe_flags: FIEMAP_EXTENT_* flags for this extent
+ */
 struct fiemap_extent {
-	__u64 fe_logical;  /* logical offset in bytes for the start of
-			    * the extent from the beginning of the file */
-	__u64 fe_physical; /* physical offset in bytes for the start
-			    * of the extent from the beginning of the disk */
-	__u64 fe_length;   /* length in bytes for this extent */
+	__u64 fe_logical;
+	__u64 fe_physical;
+	__u64 fe_length;
+	/* private: */
 	__u64 fe_reserved64[2];
-	__u32 fe_flags;    /* FIEMAP_EXTENT_* flags for this extent */
+	/* public: */
+	__u32 fe_flags;
+	/* private: */
 	__u32 fe_reserved[3];
 };
 
+/**
+ * struct fiemap - file extent mappings
+ * @fm_start: byte offset (inclusive) at which to start mapping (in)
+ * @fm_length: logical length of mapping which userspace wants (in)
+ * @fm_flags: FIEMAP_FLAG_* flags for request (in/out)
+ * @fm_mapped_extents: number of extents that were mapped (out)
+ * @fm_extent_count: size of fm_extents array (in)
+ * @fm_extents: array of mapped extents (out)
+ */
 struct fiemap {
-	__u64 fm_start;		/* logical offset (inclusive) at
-				 * which to start mapping (in) */
-	__u64 fm_length;	/* logical length of mapping which
-				 * userspace wants (in) */
-	__u32 fm_flags;		/* FIEMAP_FLAG_* flags for request (in/out) */
-	__u32 fm_mapped_extents;/* number of extents that were mapped (out) */
-	__u32 fm_extent_count;  /* size of fm_extents array (in) */
+	__u64 fm_start;
+	__u64 fm_length;
+	__u32 fm_flags;
+	__u32 fm_mapped_extents;
+	__u32 fm_extent_count;
+	/* private: */
 	__u32 fm_reserved;
-	struct fiemap_extent fm_extents[]; /* array of mapped extents (out) */
+	/* public: */
+	struct fiemap_extent fm_extents[];
 };
 
 #define FIEMAP_MAX_OFFSET	(~0ULL)
 
+/* flags used in fm_flags: */
 #define FIEMAP_FLAG_SYNC	0x00000001 /* sync file data before map */
 #define FIEMAP_FLAG_XATTR	0x00000002 /* map extended attribute tree */
 #define FIEMAP_FLAG_CACHE	0x00000004 /* request caching of the extents */
 
 #define FIEMAP_FLAGS_COMPAT	(FIEMAP_FLAG_SYNC | FIEMAP_FLAG_XATTR)
 
+/* flags used in fe_flags: */
 #define FIEMAP_EXTENT_LAST		0x00000001 /* Last extent in file. */
 #define FIEMAP_EXTENT_UNKNOWN		0x00000002 /* Data location unknown. */
 #define FIEMAP_EXTENT_DELALLOC		0x00000004 /* Location still pending.

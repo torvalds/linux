@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+/dts-v1/;
+
+#include "rk3566-bigtreetech-cb2.dtsi"
+
+/ {
+	model = "BigTreeTech CB2";
+	compatible = "bigtreetech,cb2-manta", "bigtreetech,cb2", "rockchip,rk3566";
+};

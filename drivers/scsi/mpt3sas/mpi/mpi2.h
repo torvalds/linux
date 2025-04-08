@@ -125,6 +125,12 @@
  * 06-24-19  02.00.55  Bumped MPI2_HEADER_VERSION_UNIT
  * 08-01-19  02.00.56  Bumped MPI2_HEADER_VERSION_UNIT
  * 10-02-19  02.00.57  Bumped MPI2_HEADER_VERSION_UNIT
+ * 07-20-20  02.00.58  Bumped MPI2_HEADER_VERSION_UNIT
+ * 03-30-21  02.00.59  Bumped MPI2_HEADER_VERSION_UNIT
+ * 06-03-22  02.00.60  Bumped MPI2_HEADER_VERSION_UNIT
+ * 09-20-23  02.00.61  Bumped MPI2_HEADER_VERSION_UNIT
+ * 09-13-24  02.00.62  Bumped MPI2_HEADER_VERSION_UNIT
+ *                     Added MPI2_FUNCTION_MCTP_PASSTHROUGH
  *  --------------------------------------------------------------------------
  */
 
@@ -165,7 +171,7 @@
 
 
 /* Unit and Dev versioning for this MPI header set */
-#define MPI2_HEADER_VERSION_UNIT            (0x39)
+#define MPI2_HEADER_VERSION_UNIT            (0x3E)
 #define MPI2_HEADER_VERSION_DEV             (0x00)
 #define MPI2_HEADER_VERSION_UNIT_MASK       (0xFF00)
 #define MPI2_HEADER_VERSION_UNIT_SHIFT      (8)
@@ -669,6 +675,7 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION {
 #define MPI2_FUNCTION_PWR_MGMT_CONTROL              (0x30)
 #define MPI2_FUNCTION_SEND_HOST_MESSAGE             (0x31)
 #define MPI2_FUNCTION_NVME_ENCAPSULATED             (0x33)
+#define MPI2_FUNCTION_MCTP_PASSTHROUGH              (0x34)
 #define MPI2_FUNCTION_MIN_PRODUCT_SPECIFIC          (0xF0)
 #define MPI2_FUNCTION_MAX_PRODUCT_SPECIFIC          (0xFF)
 

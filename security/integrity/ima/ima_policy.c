@@ -148,7 +148,8 @@ static struct ima_rule_entry dont_measure_rules[] __ro_after_init = {
 	{.action = DONT_MEASURE, .fsmagic = PROC_SUPER_MAGIC, .flags = IMA_FSMAGIC},
 	{.action = DONT_MEASURE, .fsmagic = SYSFS_MAGIC, .flags = IMA_FSMAGIC},
 	{.action = DONT_MEASURE, .fsmagic = DEBUGFS_MAGIC, .flags = IMA_FSMAGIC},
-	{.action = DONT_MEASURE, .fsmagic = TMPFS_MAGIC, .flags = IMA_FSMAGIC},
+	{.action = DONT_MEASURE, .fsmagic = TMPFS_MAGIC, .func = FILE_CHECK,
+	 .flags = IMA_FSMAGIC | IMA_FUNC},
 	{.action = DONT_MEASURE, .fsmagic = DEVPTS_SUPER_MAGIC, .flags = IMA_FSMAGIC},
 	{.action = DONT_MEASURE, .fsmagic = BINFMTFS_MAGIC, .flags = IMA_FSMAGIC},
 	{.action = DONT_MEASURE, .fsmagic = SECURITYFS_MAGIC, .flags = IMA_FSMAGIC},
@@ -1431,7 +1432,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 		int token;
 		unsigned long lnum;
 
-		if (result < 0)
+		if (result < 0 || *p == '#')  /* ignore suffixed comment */
 			break;
 		if ((*p == '\0') || (*p == ' ') || (*p == '\t'))
 			continue;

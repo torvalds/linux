@@ -11,7 +11,6 @@ enum {
 	_IRQ_NOREQUEST		= IRQ_NOREQUEST,
 	_IRQ_NOTHREAD		= IRQ_NOTHREAD,
 	_IRQ_NOAUTOEN		= IRQ_NOAUTOEN,
-	_IRQ_MOVE_PCNTXT	= IRQ_MOVE_PCNTXT,
 	_IRQ_NO_BALANCING	= IRQ_NO_BALANCING,
 	_IRQ_NESTED_THREAD	= IRQ_NESTED_THREAD,
 	_IRQ_PER_CPU_DEVID	= IRQ_PER_CPU_DEVID,
@@ -140,11 +139,6 @@ static inline void irq_settings_clr_noprobe(struct irq_desc *desc)
 static inline void irq_settings_set_noprobe(struct irq_desc *desc)
 {
 	desc->status_use_accessors |= _IRQ_NOPROBE;
-}
-
-static inline bool irq_settings_can_move_pcntxt(struct irq_desc *desc)
-{
-	return desc->status_use_accessors & _IRQ_MOVE_PCNTXT;
 }
 
 static inline bool irq_settings_can_autoenable(struct irq_desc *desc)

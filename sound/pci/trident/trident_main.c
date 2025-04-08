@@ -3278,9 +3278,9 @@ static void snd_trident_proc_read(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "Spurious IRQs    : %d\n", trident->spurious_irq_count);
 	snd_iprintf(buffer, "Spurious IRQ dlta: %d\n", trident->spurious_irq_max_delta);
 	if (trident->device == TRIDENT_DEVICE_ID_NX || trident->device == TRIDENT_DEVICE_ID_SI7018)
-		snd_iprintf(buffer, "IEC958 Mixer Out : %s\n", trident->spdif_ctrl == 0x28 ? "on" : "off");
+		snd_iprintf(buffer, "IEC958 Mixer Out : %s\n", str_on_off(trident->spdif_ctrl == 0x28));
 	if (trident->device == TRIDENT_DEVICE_ID_NX) {
-		snd_iprintf(buffer, "Rear Speakers    : %s\n", trident->ac97_ctrl & 0x00000010 ? "on" : "off");
+		snd_iprintf(buffer, "Rear Speakers    : %s\n", str_on_off(trident->ac97_ctrl & 0x00000010));
 		if (trident->tlb.entries) {
 			snd_iprintf(buffer,"\nVirtual Memory\n");
 			snd_iprintf(buffer, "Memory Maximum : %d\n", trident->tlb.memhdr->size);

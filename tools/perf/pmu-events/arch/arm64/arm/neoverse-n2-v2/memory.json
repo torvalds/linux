@@ -33,7 +33,7 @@
     },
     {
         "ArchStdEvent": "MEM_ACCESS_CHECKED",
-        "PublicDescription": "Counts the number of memory read and write accesses in a cycle that are tag checked by the Memory Tagging Extension (MTE)."
+        "PublicDescription": "Counts the number of memory read and write accesses counted by MEM_ACCESS that are tag checked by the Memory Tagging Extension (MTE). This event is implemented as the sum of MEM_ACCESS_CHECKED_RD and MEM_ACCESS_CHECKED_WR"
     },
     {
         "ArchStdEvent": "MEM_ACCESS_CHECKED_RD",

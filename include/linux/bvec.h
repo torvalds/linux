@@ -184,6 +184,12 @@ static inline void bvec_iter_advance_single(const struct bio_vec *bv,
 		((bvl = bvec_iter_bvec((bio_vec), (iter))), 1);	\
 	     bvec_iter_advance_single((bio_vec), &(iter), (bvl).bv_len))
 
+#define for_each_mp_bvec(bvl, bio_vec, iter, start)			\
+	for (iter = (start);						\
+	     (iter).bi_size &&						\
+		((bvl = mp_bvec_iter_bvec((bio_vec), (iter))), 1);	\
+	     bvec_iter_advance_single((bio_vec), &(iter), (bvl).bv_len))
+
 /* for iterating one bio from start to end */
 #define BVEC_ITER_ALL_INIT (struct bvec_iter)				\
 {									\
@@ -286,12 +292,7 @@ static inline void *bvec_virt(struct bio_vec *bvec)
  */
 static inline phys_addr_t bvec_phys(const struct bio_vec *bvec)
 {
-	/*
-	 * Note this open codes page_to_phys because page_to_phys is defined in
-	 * <asm/io.h>, which we don't want to pull in here.  If it ever moves to
-	 * a sensible place we should start using it.
-	 */
-	return PFN_PHYS(page_to_pfn(bvec->bv_page)) + bvec->bv_offset;
+	return page_to_phys(bvec->bv_page) + bvec->bv_offset;
 }
 
 #endif /* __LINUX_BVEC_H */

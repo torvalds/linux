@@ -149,16 +149,12 @@ struct xe_guc_log_snapshot *xe_guc_log_snapshot_capture(struct xe_guc_log *log, 
 	size_t remain;
 	int i;
 
-	if (!log->bo) {
-		xe_gt_err(gt, "GuC log buffer not allocated\n");
+	if (!log->bo)
 		return NULL;
-	}
 
 	snapshot = xe_guc_log_snapshot_alloc(log, atomic);
-	if (!snapshot) {
-		xe_gt_err(gt, "GuC log snapshot not allocated\n");
+	if (!snapshot)
 		return NULL;
-	}
 
 	remain = snapshot->size;
 	for (i = 0; i < snapshot->num_chunks; i++) {
@@ -208,11 +204,14 @@ void xe_guc_log_snapshot_print(struct xe_guc_log_snapshot *snapshot, struct drm_
 	drm_printf(p, "GuC timestamp: 0x%08llX [%llu]\n", snapshot->stamp, snapshot->stamp);
 	drm_printf(p, "Log level: %u\n", snapshot->level);
 
+	drm_printf(p, "[LOG].length: 0x%zx\n", snapshot->size);
 	remain = snapshot->size;
 	for (i = 0; i < snapshot->num_chunks; i++) {
 		size_t size = min(GUC_LOG_CHUNK_SIZE, remain);
+		const char *prefix = i ? NULL : "[LOG].data";
+		char suffix = i == snapshot->num_chunks - 1 ? '\n' : 0;
 
-		xe_print_blob_ascii85(p, i ? NULL : "Log data", snapshot->copy[i], 0, size);
+		xe_print_blob_ascii85(p, prefix, suffix, snapshot->copy[i], 0, size);
 		remain -= size;
 	}
 }

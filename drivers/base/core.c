@@ -2079,6 +2079,7 @@ static bool __fw_devlink_relax_cycles(struct fwnode_handle *con_handle,
 out:
 	sup_handle->flags &= ~FWNODE_FLAG_VISITED;
 	put_device(sup_dev);
+	put_device(con_dev);
 	put_device(par_dev);
 	return ret;
 }
@@ -3980,7 +3981,7 @@ const char *device_get_devnode(const struct device *dev,
  * other than 0, we break out and return that value.
  */
 int device_for_each_child(struct device *parent, void *data,
-			  int (*fn)(struct device *dev, void *data))
+			  device_iter_t fn)
 {
 	struct klist_iter i;
 	struct device *child;
@@ -4010,7 +4011,7 @@ EXPORT_SYMBOL_GPL(device_for_each_child);
  * other than 0, we break out and return that value.
  */
 int device_for_each_child_reverse(struct device *parent, void *data,
-				  int (*fn)(struct device *dev, void *data))
+				  device_iter_t fn)
 {
 	struct klist_iter i;
 	struct device *child;
@@ -4043,14 +4044,14 @@ EXPORT_SYMBOL_GPL(device_for_each_child_reverse);
  * device_for_each_child_reverse_from();
  */
 int device_for_each_child_reverse_from(struct device *parent,
-				       struct device *from, const void *data,
-				       int (*fn)(struct device *, const void *))
+				       struct device *from, void *data,
+				       device_iter_t fn)
 {
 	struct klist_iter i;
 	struct device *child;
 	int error = 0;
 
-	if (!parent->p)
+	if (!parent || !parent->p)
 		return 0;
 
 	klist_iter_init_node(&parent->p->klist_children, &i,
@@ -4079,8 +4080,8 @@ EXPORT_SYMBOL_GPL(device_for_each_child_reverse_from);
  *
  * NOTE: you will need to drop the reference with put_device() after use.
  */
-struct device *device_find_child(struct device *parent, void *data,
-				 int (*match)(struct device *dev, void *data))
+struct device *device_find_child(struct device *parent, const void *data,
+				 device_match_t match)
 {
 	struct klist_iter i;
 	struct device *child;
@@ -4089,61 +4090,16 @@ struct device *device_find_child(struct device *parent, void *data,
 		return NULL;
 
 	klist_iter_init(&parent->p->klist_children, &i);
-	while ((child = next_device(&i)))
-		if (match(child, data) && get_device(child))
+	while ((child = next_device(&i))) {
+		if (match(child, data)) {
+			get_device(child);
 			break;
+		}
+	}
 	klist_iter_exit(&i);
 	return child;
 }
 EXPORT_SYMBOL_GPL(device_find_child);
-
-/**
- * device_find_child_by_name - device iterator for locating a child device.
- * @parent: parent struct device
- * @name: name of the child device
- *
- * This is similar to the device_find_child() function above, but it
- * returns a reference to a device that has the name @name.
- *
- * NOTE: you will need to drop the reference with put_device() after use.
- */
-struct device *device_find_child_by_name(struct device *parent,
-					 const char *name)
-{
-	struct klist_iter i;
-	struct device *child;
-
-	if (!parent)
-		return NULL;
-
-	klist_iter_init(&parent->p->klist_children, &i);
-	while ((child = next_device(&i)))
-		if (sysfs_streq(dev_name(child), name) && get_device(child))
-			break;
-	klist_iter_exit(&i);
-	return child;
-}
-EXPORT_SYMBOL_GPL(device_find_child_by_name);
-
-static int match_any(struct device *dev, void *unused)
-{
-	return 1;
-}
-
-/**
- * device_find_any_child - device iterator for locating a child device, if any.
- * @parent: parent struct device
- *
- * This is similar to the device_find_child() function above, but it
- * returns a reference to a child device, if any.
- *
- * NOTE: you will need to drop the reference with put_device() after use.
- */
-struct device *device_find_any_child(struct device *parent)
-{
-	return device_find_child(parent, NULL, match_any);
-}
-EXPORT_SYMBOL_GPL(device_find_any_child);
 
 int __init devices_init(void)
 {
@@ -5216,6 +5172,67 @@ void set_secondary_fwnode(struct device *dev, struct fwnode_handle *fwnode)
 EXPORT_SYMBOL_GPL(set_secondary_fwnode);
 
 /**
+ * device_remove_of_node - Remove an of_node from a device
+ * @dev: device whose device tree node is being removed
+ */
+void device_remove_of_node(struct device *dev)
+{
+	dev = get_device(dev);
+	if (!dev)
+		return;
+
+	if (!dev->of_node)
+		goto end;
+
+	if (dev->fwnode == of_fwnode_handle(dev->of_node))
+		dev->fwnode = NULL;
+
+	of_node_put(dev->of_node);
+	dev->of_node = NULL;
+
+end:
+	put_device(dev);
+}
+EXPORT_SYMBOL_GPL(device_remove_of_node);
+
+/**
+ * device_add_of_node - Add an of_node to an existing device
+ * @dev: device whose device tree node is being added
+ * @of_node: of_node to add
+ *
+ * Return: 0 on success or error code on failure.
+ */
+int device_add_of_node(struct device *dev, struct device_node *of_node)
+{
+	int ret;
+
+	if (!of_node)
+		return -EINVAL;
+
+	dev = get_device(dev);
+	if (!dev)
+		return -EINVAL;
+
+	if (dev->of_node) {
+		dev_err(dev, "Cannot replace node %pOF with %pOF\n",
+			dev->of_node, of_node);
+		ret = -EBUSY;
+		goto end;
+	}
+
+	dev->of_node = of_node_get(of_node);
+
+	if (!dev->fwnode)
+		dev->fwnode = of_fwnode_handle(of_node);
+
+	ret = 0;
+end:
+	put_device(dev);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(device_add_of_node);
+
+/**
  * device_set_of_node_from_dev - reuse device-tree node of another device
  * @dev: device whose device-tree node is being set
  * @dev2: device whose device-tree node is being reused
@@ -5244,15 +5261,21 @@ int device_match_name(struct device *dev, const void *name)
 }
 EXPORT_SYMBOL_GPL(device_match_name);
 
+int device_match_type(struct device *dev, const void *type)
+{
+	return dev->type == type;
+}
+EXPORT_SYMBOL_GPL(device_match_type);
+
 int device_match_of_node(struct device *dev, const void *np)
 {
-	return dev->of_node == np;
+	return np && dev->of_node == np;
 }
 EXPORT_SYMBOL_GPL(device_match_of_node);
 
 int device_match_fwnode(struct device *dev, const void *fwnode)
 {
-	return dev_fwnode(dev) == fwnode;
+	return fwnode && dev_fwnode(dev) == fwnode;
 }
 EXPORT_SYMBOL_GPL(device_match_fwnode);
 
@@ -5264,13 +5287,13 @@ EXPORT_SYMBOL_GPL(device_match_devt);
 
 int device_match_acpi_dev(struct device *dev, const void *adev)
 {
-	return ACPI_COMPANION(dev) == adev;
+	return adev && ACPI_COMPANION(dev) == adev;
 }
 EXPORT_SYMBOL(device_match_acpi_dev);
 
 int device_match_acpi_handle(struct device *dev, const void *handle)
 {
-	return ACPI_HANDLE(dev) == handle;
+	return handle && ACPI_HANDLE(dev) == handle;
 }
 EXPORT_SYMBOL(device_match_acpi_handle);
 

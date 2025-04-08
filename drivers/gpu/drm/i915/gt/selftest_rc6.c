@@ -222,7 +222,7 @@ int live_rc6_ctx_wa(void *arg)
 				i915_reset_engine_count(error, engine);
 			const u32 *res;
 
-			/* Use a sacrifical context */
+			/* Use a sacrificial context */
 			ce = intel_context_create(engine);
 			if (IS_ERR(ce)) {
 				err = PTR_ERR(ce);

@@ -1,0 +1,43 @@
+What:		/sys/class/pps-gen/
+Date:		February 2025
+KernelVersion:  6.13
+Contact:	Rodolfo Giometti <giometti@enneenne.com>
+Description:
+		The /sys/class/pps-gen/ directory contains files and
+		directories that provide a unified interface to the PPS
+		generators.
+
+What:		/sys/class/pps-gen/pps-genX/
+Date:		February 2025
+KernelVersion:  6.13
+Contact:	Rodolfo Giometti <giometti@enneenne.com>
+Description:
+		The /sys/class/pps-gen/pps-genX/ directory is related to X-th
+		PPS generator in the system. Each directory contain files to
+		manage and control its PPS generator.
+
+What:		/sys/class/pps-gen/pps-genX/enable
+Date:		February 2025
+KernelVersion:  6.13
+Contact:	Rodolfo Giometti <giometti@enneenne.com>
+Description:
+		This write-only file enables or disables generation of the
+		PPS signal.
+
+What:		/sys/class/pps-gen/pps-genX/system
+Date:		February 2025
+KernelVersion:  6.13
+Contact:	Rodolfo Giometti <giometti@enneenne.com>
+Description:
+		This read-only file returns "1" if the generator takes the
+		timing from the system clock, while it returns "0" if not
+		(i.e. from a peripheral device clock).
+
+What:		/sys/class/pps-gen/pps-genX/time
+Date:		February 2025
+KernelVersion:  6.13
+Contact:	Rodolfo Giometti <giometti@enneenne.com>
+Description:
+		This read-only file contains the current time stored into the
+		generator clock as two integers representing the current time
+		seconds and nanoseconds.

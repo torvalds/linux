@@ -1110,7 +1110,7 @@ static void ibmvfc_fail_request(struct ibmvfc_event *evt, int error_code)
 	} else
 		evt->xfer_iu->mad_common.status = cpu_to_be16(IBMVFC_MAD_DRIVER_FAILED);
 
-	del_timer(&evt->timer);
+	timer_delete(&evt->timer);
 }
 
 /**
@@ -1754,7 +1754,7 @@ static int ibmvfc_send_event(struct ibmvfc_event *evt,
 		atomic_set(&evt->active, 0);
 		list_del(&evt->queue_list);
 		spin_unlock_irqrestore(&evt->queue->l_lock, flags);
-		del_timer(&evt->timer);
+		timer_delete(&evt->timer);
 
 		/* If send_crq returns H_CLOSED, return SCSI_MLQUEUE_HOST_BUSY.
 		 * Firmware will send a CRQ with a transport event (0xFF) to
@@ -3393,7 +3393,7 @@ static int ibmvfc_scan_finished(struct Scsi_Host *shost, unsigned long time)
 }
 
 /**
- * ibmvfc_slave_alloc - Setup the device's task set value
+ * ibmvfc_sdev_init - Setup the device's task set value
  * @sdev:	struct scsi_device device to configure
  *
  * Set the device's task set value so that error handling works as
@@ -3402,7 +3402,7 @@ static int ibmvfc_scan_finished(struct Scsi_Host *shost, unsigned long time)
  * Returns:
  *	0 on success / -ENXIO if device does not exist
  **/
-static int ibmvfc_slave_alloc(struct scsi_device *sdev)
+static int ibmvfc_sdev_init(struct scsi_device *sdev)
 {
 	struct Scsi_Host *shost = sdev->host;
 	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
@@ -3441,8 +3441,9 @@ static int ibmvfc_target_alloc(struct scsi_target *starget)
 }
 
 /**
- * ibmvfc_slave_configure - Configure the device
+ * ibmvfc_sdev_configure - Configure the device
  * @sdev:	struct scsi_device device to configure
+ * @lim:	Request queue limits
  *
  * Enable allow_restart for a device if it is a disk. Adjust the
  * queue_depth here also.
@@ -3450,7 +3451,8 @@ static int ibmvfc_target_alloc(struct scsi_target *starget)
  * Returns:
  *	0
  **/
-static int ibmvfc_slave_configure(struct scsi_device *sdev)
+static int ibmvfc_sdev_configure(struct scsi_device *sdev,
+				 struct queue_limits *lim)
 {
 	struct Scsi_Host *shost = sdev->host;
 	unsigned long flags = 0;
@@ -3639,7 +3641,7 @@ static DEVICE_ATTR(nr_scsi_channels, S_IRUGO | S_IWUSR,
  *	number of bytes printed to buffer
  **/
 static ssize_t ibmvfc_read_trace(struct file *filp, struct kobject *kobj,
-				 struct bin_attribute *bin_attr,
+				 const struct bin_attribute *bin_attr,
 				 char *buf, loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -3662,13 +3664,13 @@ static ssize_t ibmvfc_read_trace(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute ibmvfc_trace_attr = {
+static const struct bin_attribute ibmvfc_trace_attr = {
 	.attr =	{
 		.name = "trace",
 		.mode = S_IRUGO,
 	},
 	.size = 0,
-	.read = ibmvfc_read_trace,
+	.read_new = ibmvfc_read_trace,
 };
 #endif
 
@@ -3696,8 +3698,8 @@ static const struct scsi_host_template driver_template = {
 	.eh_device_reset_handler = ibmvfc_eh_device_reset_handler,
 	.eh_target_reset_handler = ibmvfc_eh_target_reset_handler,
 	.eh_host_reset_handler = ibmvfc_eh_host_reset_handler,
-	.slave_alloc = ibmvfc_slave_alloc,
-	.slave_configure = ibmvfc_slave_configure,
+	.sdev_init = ibmvfc_sdev_init,
+	.sdev_configure = ibmvfc_sdev_configure,
 	.target_alloc = ibmvfc_target_alloc,
 	.scan_finished = ibmvfc_scan_finished,
 	.change_queue_depth = ibmvfc_change_queue_depth,
@@ -3830,7 +3832,7 @@ static void ibmvfc_tasklet(void *data)
 	spin_unlock_irqrestore(vhost->host->host_lock, flags);
 
 	list_for_each_entry_safe(evt, temp, &evt_doneq, queue_list) {
-		del_timer(&evt->timer);
+		timer_delete(&evt->timer);
 		list_del(&evt->queue_list);
 		ibmvfc_trc_end(evt);
 		evt->done(evt);
@@ -3936,7 +3938,7 @@ static void ibmvfc_drain_sub_crq(struct ibmvfc_queue *scrq)
 	spin_unlock_irqrestore(scrq->q_lock, flags);
 
 	list_for_each_entry_safe(evt, temp, &evt_doneq, queue_list) {
-		del_timer(&evt->timer);
+		timer_delete(&evt->timer);
 		list_del(&evt->queue_list);
 		ibmvfc_trc_end(evt);
 		evt->done(evt);
@@ -4540,7 +4542,7 @@ static void ibmvfc_tgt_adisc_done(struct ibmvfc_event *evt)
 
 	vhost->discovery_threads--;
 	ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_NONE);
-	del_timer(&tgt->timer);
+	timer_delete(&tgt->timer);
 
 	switch (status) {
 	case IBMVFC_MAD_SUCCESS:
@@ -4739,7 +4741,7 @@ static void ibmvfc_tgt_adisc(struct ibmvfc_target *tgt)
 	ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_INIT_WAIT);
 	if (ibmvfc_send_event(evt, vhost, IBMVFC_ADISC_PLUS_CANCEL_TIMEOUT)) {
 		vhost->discovery_threads--;
-		del_timer(&tgt->timer);
+		timer_delete(&tgt->timer);
 		ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_NONE);
 		kref_put(&tgt->kref, ibmvfc_release_tgt);
 	} else
@@ -5517,7 +5519,7 @@ static void ibmvfc_tgt_add_rport(struct ibmvfc_target *tgt)
 		ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DELETED_RPORT);
 		spin_unlock_irqrestore(vhost->host->host_lock, flags);
 		fc_remote_port_delete(rport);
-		del_timer_sync(&tgt->timer);
+		timer_delete_sync(&tgt->timer);
 		kref_put(&tgt->kref, ibmvfc_release_tgt);
 		return;
 	} else if (rport && tgt->action == IBMVFC_TGT_ACTION_DEL_AND_LOGOUT_RPORT) {
@@ -5670,7 +5672,7 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 				spin_unlock_irqrestore(vhost->host->host_lock, flags);
 				if (rport)
 					fc_remote_port_delete(rport);
-				del_timer_sync(&tgt->timer);
+				timer_delete_sync(&tgt->timer);
 				kref_put(&tgt->kref, ibmvfc_release_tgt);
 				return;
 			} else if (tgt->action == IBMVFC_TGT_ACTION_DEL_AND_LOGOUT_RPORT) {

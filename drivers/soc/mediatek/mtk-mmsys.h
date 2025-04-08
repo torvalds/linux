@@ -80,6 +80,20 @@
 
 #define MMSYS_RST_NR(bank, bit) (((bank) * 32) + (bit))
 
+/*
+ * This macro adds a compile time check to make sure that the in/out
+ * selection bit(s) fit in the register mask, similar to bitfield
+ * macros, but this does not transform the value.
+ */
+#define MMSYS_ROUTE(from, to, reg_addr, reg_mask, selection)		\
+	{ DDP_COMPONENT_##from, DDP_COMPONENT_##to, reg_addr, reg_mask,	\
+	  (__BUILD_BUG_ON_ZERO_MSG((reg_mask) == 0, "Invalid mask") +	\
+	   __BUILD_BUG_ON_ZERO_MSG(~(reg_mask) & (selection),		\
+				   #selection " does not fit in "	\
+				   #reg_mask) +				\
+	   (selection))							\
+	}
+
 struct mtk_mmsys_routes {
 	u32 from_comp;
 	u32 to_comp;

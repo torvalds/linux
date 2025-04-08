@@ -121,7 +121,7 @@ void bch2_kthread_io_clock_wait(struct io_clock *clock,
 	} while (0);
 
 	__set_current_state(TASK_RUNNING);
-	del_timer_sync(&wait.cpu_timer);
+	timer_delete_sync(&wait.cpu_timer);
 	destroy_timer_on_stack(&wait.cpu_timer);
 	bch2_io_timer_del(clock, &wait.io_timer);
 }

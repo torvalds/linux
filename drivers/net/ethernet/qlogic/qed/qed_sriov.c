@@ -3033,7 +3033,7 @@ static void qed_iov_vf_mbx_vport_update(struct qed_hwfn *p_hwfn,
 	u16 length;
 	int rc;
 
-	/* Valiate PF can send such a request */
+	/* Validate PF can send such a request */
 	if (!vf->vport_instance) {
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_IOV,
@@ -3312,7 +3312,7 @@ static void qed_iov_vf_mbx_ucast_filter(struct qed_hwfn *p_hwfn,
 		goto out;
 	}
 
-	/* Determine if the unicast filtering is acceptible by PF */
+	/* Determine if the unicast filtering is acceptable by PF */
 	if ((p_bulletin->valid_bitmap & BIT(VLAN_ADDR_FORCED)) &&
 	    (params.type == QED_FILTER_VLAN ||
 	     params.type == QED_FILTER_MAC_VLAN)) {
@@ -3729,7 +3729,7 @@ qed_iov_execute_vf_flr_cleanup(struct qed_hwfn *p_hwfn,
 
 		rc = qed_iov_enable_vf_access(p_hwfn, p_ptt, p_vf);
 		if (rc) {
-			DP_ERR(p_hwfn, "Failed to re-enable VF[%d] acces\n",
+			DP_ERR(p_hwfn, "Failed to re-enable VF[%d] access\n",
 			       vfid);
 			return rc;
 		}
@@ -4480,7 +4480,7 @@ int qed_sriov_disable(struct qed_dev *cdev, bool pci_enabled)
 		struct qed_ptt *ptt = qed_ptt_acquire(hwfn);
 
 		/* Failure to acquire the ptt in 100g creates an odd error
-		 * where the first engine has already relased IOV.
+		 * where the first engine has already released IOV.
 		 */
 		if (!ptt) {
 			DP_ERR(hwfn, "Failed to acquire ptt\n");

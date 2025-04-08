@@ -23,10 +23,12 @@
 #include <linux/spi/flash.h>
 #include <linux/spi/spi.h>
 #include <linux/of.h>
+#include <linux/string_choices.h>
 
 struct mchp48_caps {
 	unsigned int size;
 	unsigned int page_size;
+	bool auto_disable_wel;
 };
 
 struct mchp48l640_flash {
@@ -127,11 +129,11 @@ static int mchp48l640_write_prepare(struct mchp48l640_flash *flash, bool enable)
 	mutex_unlock(&flash->lock);
 
 	if (ret)
-		dev_err(&flash->spi->dev, "write %sable failed ret: %d",
-			(enable ? "en" : "dis"), ret);
+		dev_err(&flash->spi->dev, "write %s failed ret: %d",
+			str_enable_disable(enable), ret);
 
-	dev_dbg(&flash->spi->dev, "write %sable success ret: %d",
-		(enable ? "en" : "dis"), ret);
+	dev_dbg(&flash->spi->dev, "write %s success ret: %d",
+		str_enable_disable(enable), ret);
 	if (enable)
 		return mchp48l640_waitforbit(flash, MCHP48L640_STATUS_WEL, true);
 
@@ -194,9 +196,15 @@ static int mchp48l640_write_page(struct mtd_info *mtd, loff_t to, size_t len,
 	else
 		goto fail;
 
-	ret = mchp48l640_waitforbit(flash, MCHP48L640_STATUS_WEL, false);
-	if (ret)
-		goto fail;
+	if (flash->caps->auto_disable_wel) {
+		ret = mchp48l640_waitforbit(flash, MCHP48L640_STATUS_WEL, false);
+		if (ret)
+			goto fail;
+	} else {
+		ret = mchp48l640_write_prepare(flash, false);
+		if (ret)
+			goto fail;
+	}
 
 	kfree(cmd);
 	return 0;
@@ -293,6 +301,13 @@ static int mchp48l640_read(struct mtd_info *mtd, loff_t from, size_t len,
 static const struct mchp48_caps mchp48l640_caps = {
 	.size = SZ_8K,
 	.page_size = 32,
+	.auto_disable_wel = true,
+};
+
+static const struct mchp48_caps mb85rs128ty_caps = {
+	.size = SZ_16K,
+	.page_size = 256,
+	.auto_disable_wel = false,
 };
 
 static int mchp48l640_probe(struct spi_device *spi)
@@ -353,6 +368,10 @@ static const struct of_device_id mchp48l640_of_table[] = {
 		.compatible = "microchip,48l640",
 		.data = &mchp48l640_caps,
 	},
+	{
+		.compatible = "fujitsu,mb85rs128ty",
+		.data = &mb85rs128ty_caps,
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(of, mchp48l640_of_table);
@@ -361,6 +380,10 @@ static const struct spi_device_id mchp48l640_spi_ids[] = {
 	{
 		.name = "48l640",
 		.driver_data = (kernel_ulong_t)&mchp48l640_caps,
+	},
+	{
+		.name = "mb85rs128ty",
+		.driver_data = (kernel_ulong_t)&mb85rs128ty_caps,
 	},
 	{}
 };

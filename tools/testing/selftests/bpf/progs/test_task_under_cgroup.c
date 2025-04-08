@@ -49,7 +49,7 @@ out:
 }
 
 SEC("lsm.s/bpf")
-int BPF_PROG(lsm_run, int cmd, union bpf_attr *attr, unsigned int size)
+int BPF_PROG(lsm_run, int cmd, union bpf_attr *attr, unsigned int size, bool kernel)
 {
 	struct cgroup *cgrp = NULL;
 	struct task_struct *task;

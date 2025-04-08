@@ -137,9 +137,8 @@ However, these ioctls have some limitations:
 - In general, decrypted contents and filenames in the kernel VFS
   caches are freed but not wiped.  Therefore, portions thereof may be
   recoverable from freed memory, even after the corresponding key(s)
-  were wiped.  To partially solve this, you can set
-  CONFIG_PAGE_POISONING=y in your kernel config and add page_poison=1
-  to your kernel command line.  However, this has a performance cost.
+  were wiped.  To partially solve this, you can add init_on_free=1 to
+  your kernel command line.  However, this has a performance cost.
 
 - Secret keys might still exist in CPU registers, in crypto
   accelerator hardware (if used by the crypto API to implement any of
@@ -428,11 +427,8 @@ API, but the filenames mode still does.
     - Mandatory:
         - CONFIG_CRYPTO_ADIANTUM
     - Recommended:
-        - arm32: CONFIG_CRYPTO_CHACHA20_NEON
         - arm32: CONFIG_CRYPTO_NHPOLY1305_NEON
-        - arm64: CONFIG_CRYPTO_CHACHA20_NEON
         - arm64: CONFIG_CRYPTO_NHPOLY1305_NEON
-        - x86: CONFIG_CRYPTO_CHACHA20_X86_64
         - x86: CONFIG_CRYPTO_NHPOLY1305_SSE2
         - x86: CONFIG_CRYPTO_NHPOLY1305_AVX2
 

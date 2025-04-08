@@ -341,6 +341,7 @@ fail_drop:
 	trace_f2fs_new_inode(inode, err);
 	dquot_drop(inode);
 	inode->i_flags |= S_NOQUOTA;
+	make_bad_inode(inode);
 	if (nid_free)
 		set_inode_flag(inode, FI_FREE_NID);
 	clear_nlink(inode);
@@ -499,6 +500,14 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		goto out;
+	}
+
+	if (inode->i_nlink == 0) {
+		f2fs_warn(F2FS_I_SB(inode), "%s: inode (ino=%lx) has zero i_nlink",
+			  __func__, inode->i_ino);
+		err = -EFSCORRUPTED;
+		set_sbi_flag(F2FS_I_SB(inode), SBI_NEED_FSCK);
+		goto out_iput;
 	}
 
 	if (IS_ENCRYPTED(dir) &&
@@ -683,23 +692,23 @@ out_free_encrypted_link:
 	return err;
 }
 
-static int f2fs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
-		      struct dentry *dentry, umode_t mode)
+static struct dentry *f2fs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+				 struct dentry *dentry, umode_t mode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
 	struct inode *inode;
 	int err;
 
 	if (unlikely(f2fs_cp_error(sbi)))
-		return -EIO;
+		return ERR_PTR(-EIO);
 
 	err = f2fs_dquot_initialize(dir);
 	if (err)
-		return err;
+		return ERR_PTR(err);
 
 	inode = f2fs_new_inode(idmap, dir, S_IFDIR | mode, NULL);
 	if (IS_ERR(inode))
-		return PTR_ERR(inode);
+		return ERR_CAST(inode);
 
 	inode->i_op = &f2fs_dir_inode_operations;
 	inode->i_fop = &f2fs_dir_operations;
@@ -721,12 +730,12 @@ static int f2fs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 		f2fs_sync_fs(sbi->sb, 1);
 
 	f2fs_balance_fs(sbi, true);
-	return 0;
+	return NULL;
 
 out_fail:
 	clear_inode_flag(inode, FI_INC_LINK);
 	f2fs_handle_failed_inode(inode);
-	return err;
+	return ERR_PTR(err);
 }
 
 static int f2fs_rmdir(struct inode *dir, struct dentry *dentry)

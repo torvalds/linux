@@ -79,8 +79,9 @@
 	x(crc64,		2)		\
 	x(crc128,		3)		\
 	x(stripe_ptr,		4)		\
-	x(rebalance,		5)
-#define BCH_EXTENT_ENTRY_MAX	6
+	x(rebalance,		5)		\
+	x(flags,		6)
+#define BCH_EXTENT_ENTRY_MAX	7
 
 enum bch_extent_entry_type {
 #define x(f, n) BCH_EXTENT_ENTRY_##f = n,
@@ -201,19 +202,27 @@ struct bch_extent_stripe_ptr {
 #endif
 };
 
-struct bch_extent_rebalance {
+#define BCH_EXTENT_FLAGS()		\
+	x(poisoned,		0)
+
+enum bch_extent_flags_e {
+#define x(n, v)	BCH_EXTENT_FLAG_##n = v,
+	BCH_EXTENT_FLAGS()
+#undef x
+};
+
+struct bch_extent_flags {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
-	__u64			type:6,
-				unused:34,
-				compression:8, /* enum bch_compression_opt */
-				target:16;
+	__u64			type:7,
+				flags:57;
 #elif defined (__BIG_ENDIAN_BITFIELD)
-	__u64			target:16,
-				compression:8,
-				unused:34,
-				type:6;
+	__u64			flags:57,
+				type:7;
 #endif
 };
+
+/* bch_extent_rebalance: */
+#include "rebalance_format.h"
 
 union bch_extent_entry {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__ ||  __BITS_PER_LONG == 64

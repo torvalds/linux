@@ -193,14 +193,8 @@ void __init mem_init(void)
 {
 	BUG_ON(!mem_map);
 
-	max_mapnr = max_low_pfn;
-	high_memory = (void *)__va(max_low_pfn * PAGE_SIZE);
-
 	/* clear the zero-page */
 	memset((void *)empty_zero_page, 0, PAGE_SIZE);
-
-	/* this will put all low memory onto the freelists */
-	memblock_free_all();
 
 	printk("mem_init_done ...........................................\n");
 	mem_init_done = 1;

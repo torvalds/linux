@@ -22,6 +22,10 @@ properties:
           - const: fsl,imx8ulp-wdt
           - const: fsl,imx7ulp-wdt
       - const: fsl,imx93-wdt
+      - items:
+          - enum:
+              - fsl,imx94-wdt
+          - const: fsl,imx93-wdt
 
   reg:
     maxItems: 1

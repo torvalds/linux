@@ -66,10 +66,6 @@ extern int gpmc_calc_timings(struct gpmc_timings *gpmc_t,
 
 struct device_node;
 
-extern int gpmc_get_client_irq(unsigned irq_config);
-
-extern unsigned int gpmc_ticks_to_ns(unsigned int ticks);
-
 extern void gpmc_cs_write_reg(int cs, int idx, u32 val);
 extern int gpmc_calc_divider(unsigned int sync_clk);
 extern int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t,

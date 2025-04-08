@@ -277,6 +277,25 @@ void bch2_printbuf_indent_add(struct printbuf *buf, unsigned spaces)
 }
 
 /**
+ * bch2_printbuf_indent_add_nextline() - add to the current indent level for
+ * subsequent lines
+ *
+ * @buf: printbuf to control
+ * @spaces: number of spaces to add to the current indent level
+ *
+ * Subsequent lines - not the current line - will be indented by @spaces more
+ * spaces.
+ */
+void bch2_printbuf_indent_add_nextline(struct printbuf *buf, unsigned spaces)
+{
+	if (WARN_ON_ONCE(buf->indent + spaces < buf->indent))
+		spaces = 0;
+
+	buf->indent += spaces;
+	buf->has_indent_or_tabstops = true;
+}
+
+/**
  * bch2_printbuf_indent_sub() - subtract from the current indent level
  *
  * @buf: printbuf to control

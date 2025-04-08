@@ -412,12 +412,37 @@ static bool rt6_check_expired(const struct rt6_info *rt)
 	return false;
 }
 
+static struct fib6_info *
+rt6_multipath_first_sibling_rcu(const struct fib6_info *rt)
+{
+	struct fib6_info *iter;
+	struct fib6_node *fn;
+
+	fn = rcu_dereference(rt->fib6_node);
+	if (!fn)
+		goto out;
+	iter = rcu_dereference(fn->leaf);
+	if (!iter)
+		goto out;
+
+	while (iter) {
+		if (iter->fib6_metric == rt->fib6_metric &&
+		    rt6_qualify_for_ecmp(iter))
+			return iter;
+		iter = rcu_dereference(iter->fib6_next);
+	}
+
+out:
+	return NULL;
+}
+
 void fib6_select_path(const struct net *net, struct fib6_result *res,
 		      struct flowi6 *fl6, int oif, bool have_oif_match,
 		      const struct sk_buff *skb, int strict)
 {
-	struct fib6_info *match = res->f6i;
+	struct fib6_info *first, *match = res->f6i;
 	struct fib6_info *sibling;
+	int hash;
 
 	if (!match->nh && (!match->fib6_nsiblings || have_oif_match))
 		goto out;
@@ -440,16 +465,25 @@ void fib6_select_path(const struct net *net, struct fib6_result *res,
 		return;
 	}
 
-	if (fl6->mp_hash <= atomic_read(&match->fib6_nh->fib_nh_upper_bound))
+	first = rt6_multipath_first_sibling_rcu(match);
+	if (!first)
 		goto out;
 
-	list_for_each_entry_rcu(sibling, &match->fib6_siblings,
+	hash = fl6->mp_hash;
+	if (hash <= atomic_read(&first->fib6_nh->fib_nh_upper_bound) &&
+	    rt6_score_route(first->fib6_nh, first->fib6_flags, oif,
+			    strict) >= 0) {
+		match = first;
+		goto out;
+	}
+
+	list_for_each_entry_rcu(sibling, &first->fib6_siblings,
 				fib6_siblings) {
 		const struct fib6_nh *nh = sibling->fib6_nh;
 		int nh_upper_bound;
 
 		nh_upper_bound = atomic_read(&nh->fib_nh_upper_bound);
-		if (fl6->mp_hash > nh_upper_bound)
+		if (hash > nh_upper_bound)
 			continue;
 		if (rt6_score_route(nh, sibling->fib6_flags, oif, strict) < 0)
 			break;
@@ -3196,12 +3230,17 @@ static unsigned int ip6_default_advmss(const struct dst_entry *dst)
 {
 	struct net_device *dev = dst->dev;
 	unsigned int mtu = dst_mtu(dst);
-	struct net *net = dev_net(dev);
+	struct net *net;
 
 	mtu -= sizeof(struct ipv6hdr) + sizeof(struct tcphdr);
 
+	rcu_read_lock();
+
+	net = dev_net_rcu(dev);
 	if (mtu < net->ipv6.sysctl.ip6_rt_min_advmss)
 		mtu = net->ipv6.sysctl.ip6_rt_min_advmss;
+
+	rcu_read_unlock();
 
 	/*
 	 * Maximal non-jumbo IPv6 payload is IPV6_MAXPLEN and
@@ -3639,7 +3678,8 @@ out:
 		in6_dev_put(idev);
 
 	if (err) {
-		lwtstate_put(fib6_nh->fib_nh_lws);
+		fib_nh_common_release(&fib6_nh->nh_common);
+		fib6_nh->nh_common.nhc_pcpu_rth_output = NULL;
 		fib6_nh->fib_nh_lws = NULL;
 		netdev_put(dev, dev_tracker);
 	}
@@ -3797,10 +3837,12 @@ static struct fib6_info *ip6_route_info_create(struct fib6_config *cfg,
 	if (nh) {
 		if (rt->fib6_src.plen) {
 			NL_SET_ERR_MSG(extack, "Nexthops can not be used with source routing");
+			err = -EINVAL;
 			goto out_free;
 		}
 		if (!nexthop_get(nh)) {
 			NL_SET_ERR_MSG(extack, "Nexthop has been deleted");
+			err = -ENOENT;
 			goto out_free;
 		}
 		rt->nh = nh;
@@ -5005,6 +5047,7 @@ static const struct nla_policy rtm_ipv6_policy[RTA_MAX+1] = {
 	[RTA_SPORT]		= { .type = NLA_U16 },
 	[RTA_DPORT]		= { .type = NLA_U16 },
 	[RTA_NH_ID]		= { .type = NLA_U32 },
+	[RTA_FLOWLABEL]		= { .type = NLA_BE32 },
 };
 
 static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
@@ -5027,6 +5070,12 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (rtm->rtm_tos) {
 		NL_SET_ERR_MSG(extack,
 			       "Invalid dsfield (tos): option not available for IPv6");
+		goto errout;
+	}
+
+	if (tb[RTA_FLOWLABEL]) {
+		NL_SET_ERR_MSG_ATTR(extack, tb[RTA_FLOWLABEL],
+				    "Flow label cannot be specified for this operation");
 		goto errout;
 	}
 
@@ -5116,7 +5165,8 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 		cfg->fc_mp_len = nla_len(tb[RTA_MULTIPATH]);
 
 		err = lwtunnel_valid_encap_type_attr(cfg->fc_mp,
-						     cfg->fc_mp_len, extack);
+						     cfg->fc_mp_len,
+						     extack, true);
 		if (err < 0)
 			goto errout;
 	}
@@ -5135,7 +5185,8 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (tb[RTA_ENCAP_TYPE]) {
 		cfg->fc_encap_type = nla_get_u16(tb[RTA_ENCAP_TYPE]);
 
-		err = lwtunnel_valid_encap_type(cfg->fc_encap_type, extack);
+		err = lwtunnel_valid_encap_type(cfg->fc_encap_type,
+						extack, true);
 		if (err < 0)
 			goto errout;
 	}
@@ -6013,6 +6064,13 @@ static int inet6_rtm_valid_getroute_req(struct sk_buff *skb,
 		return -EINVAL;
 	}
 
+	if (tb[RTA_FLOWLABEL] &&
+	    (nla_get_be32(tb[RTA_FLOWLABEL]) & ~IPV6_FLOWLABEL_MASK)) {
+		NL_SET_ERR_MSG_ATTR(extack, tb[RTA_FLOWLABEL],
+				    "Invalid flow label");
+		return -EINVAL;
+	}
+
 	for (i = 0; i <= RTA_MAX; i++) {
 		if (!tb[i])
 			continue;
@@ -6027,6 +6085,7 @@ static int inet6_rtm_valid_getroute_req(struct sk_buff *skb,
 		case RTA_SPORT:
 		case RTA_DPORT:
 		case RTA_IP_PROTO:
+		case RTA_FLOWLABEL:
 			break;
 		default:
 			NL_SET_ERR_MSG_MOD(extack, "Unsupported attribute in get route request");
@@ -6049,6 +6108,7 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	struct sk_buff *skb;
 	struct rtmsg *rtm;
 	struct flowi6 fl6 = {};
+	__be32 flowlabel;
 	bool fibmatch;
 
 	err = inet6_rtm_valid_getroute_req(in_skb, nlh, tb, extack);
@@ -6057,7 +6117,6 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 
 	err = -EINVAL;
 	rtm = nlmsg_data(nlh);
-	fl6.flowlabel = ip6_make_flowinfo(rtm->rtm_tos, 0);
 	fibmatch = !!(rtm->rtm_flags & RTM_F_FIB_MATCH);
 
 	if (tb[RTA_SRC]) {
@@ -6102,6 +6161,9 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		if (err)
 			goto errout;
 	}
+
+	flowlabel = nla_get_be32_default(tb[RTA_FLOWLABEL], 0);
+	fl6.flowlabel = ip6_make_flowinfo(rtm->rtm_tos, flowlabel);
 
 	if (iif) {
 		struct net_device *dev;

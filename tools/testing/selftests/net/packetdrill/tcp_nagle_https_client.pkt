@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: GPL-2.0
+// This is a test inspired by an Android client app using SSL. This
+// test verifies using TCP_NODELAY would save application latency
+// (Perhaps even better with TCP_NAGLE).
+//
+`./defaults.sh
+ethtool -K tun0 tso off gso off
+./set_sysctls.py /proc/sys/net/ipv4/tcp_timestamps=0`
+
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 4
+   +0 fcntl(4, F_SETFL, O_RDWR|O_NONBLOCK) = 0
+   +0 setsockopt(4, SOL_TCP, TCP_NODELAY, [1], 4) = 0
+
+   +0 connect(4, ..., ...) = -1 EINPROGRESS (Operation now in progress)
+   +0 > S 0:0(0) <mss 1460,nop,nop,sackOK,nop,wscale 8>
+  +.1 < S. 0:0(0) ack 1 win 5792 <mss 974,nop,nop,sackOK,nop,wscale 7>
+   +0 > . 1:1(0) ack 1
+
+// SSL handshake (resumed session)
+   +0 write(4, ..., 517) = 517
+   +0 > P. 1:518(517) ack 1
+  +.1 < . 1:1(0) ack 518 win 229
+
+   +0 < P. 1:144(143) ack 1 win 229
+   +0 > . 518:518(0) ack 144
+   +0 read(4, ..., 1000) = 143
+
+// Application POST header (51B) and body (2002B)
+   +0 write(4, ..., 51) = 51
+   +0 > P. 518:569(51) ack 144
+ +.03 write(4, ..., 2002) = 2002
+   +0 > . 569:1543(974) ack 144
+   +0 > P. 1543:2517(974) ack 144
+// Without disabling Nagle, this packet will not happen until the remote ACK.
+   +0 > P. 2517:2571(54) ack 144
+
+  +.1 < . 1:1(0) ack 2571 win 229
+
+// Reset sysctls
+`/tmp/sysctl_restore_${PPID}.sh`

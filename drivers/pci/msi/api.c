@@ -162,7 +162,7 @@ struct msi_map pci_msix_alloc_irq_at(struct pci_dev *dev, unsigned int index,
 EXPORT_SYMBOL_GPL(pci_msix_alloc_irq_at);
 
 /**
- * pci_msix_free_irq - Free an interrupt on a PCI/MSIX interrupt domain
+ * pci_msix_free_irq - Free an interrupt on a PCI/MSI-X interrupt domain
  *
  * @dev:	The PCI device to operate on
  * @map:	A struct msi_map describing the interrupt to free

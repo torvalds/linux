@@ -41,7 +41,7 @@ static const __u8 fixed_rdesc[] = {
 	0x15, 0x00,                    //   Logical Minimum (0)               22
 	0x25, 0x01,                    //   Logical Maximum (1)               24
 	0x75, 0x01,                    //   Report Size (1)                   26
-	0x95, 0x05,                    //   Report Count (5)                  28 /* changed (was 5) */
+	0x95, 0x05,                    //   Report Count (5)                  28 /* changed (was 6) */
 	0x81, 0x02,                    //   Input (Data,Var,Abs)              30
 	0x05, 0x09,                    //   Usage Page (Button)                  /* inserted */
 	0x09, 0x4a,                    //   Usage (0x4a)                         /* inserted to be translated as input usage 0x149: BTN_STYLUS3 */
@@ -189,7 +189,67 @@ static const __u8 fixed_rdesc[] = {
 	0x96, 0x00, 0x01,              //  Report Count (256)                 322
 	0xb1, 0x02,                    //  Feature (Data,Var,Abs)             325
 	0xc0,                          // End Collection                      327
+	/* New in Firmware Version: HUION_M220_240524 */
+	0x05, 0x01,                    // Usage Page (Generic Desktop)            328
+	0x09, 0x01,                    // Usage (Pointer)                         330
+	0xa1, 0x01,                    // Collection (Application)                332
+	0x09, 0x01,                    //   Usage (Pointer)                       334
+	0xa1, 0x00,                    //   Collection (Physical)                 336
+	0x05, 0x09,                    //     Usage Page (Button)                 338
+	0x19, 0x01,                    //     UsageMinimum (1)                    340
+	0x29, 0x03,                    //     UsageMaximum (3)                    342
+	0x15, 0x00,                    //     Logical Minimum (0)                 344
+	0x25, 0x01,                    //     Logical Maximum (1)                 346
+	0x85, 0x02,                    //     Report ID (2)                       348
+	0x95, 0x03,                    //     Report Count (3)                    350
+	0x75, 0x01,                    //     Report Size (1)                     352
+	0x81, 0x02,                    //     Input (Data,Var,Abs)                354
+	0x95, 0x01,                    //     Report Count (1)                    356
+	0x75, 0x05,                    //     Report Size (5)                     358
+	0x81, 0x01,                    //     Input (Cnst,Arr,Abs)                360
+	0x05, 0x01,                    //     Usage Page (Generic Desktop)        362
+	0x09, 0x30,                    //     Usage (X)                           364
+	0x09, 0x31,                    //     Usage (Y)                           366
+	0x15, 0x81,                    //     Logical Minimum (-127)              368
+	0x25, 0x7f,                    //     Logical Maximum (127)               370
+	0x75, 0x08,                    //     Report Size (8)                     372
+	0x95, 0x02,                    //     Report Count (2)                    374
+	0x81, 0x06,                    //     Input (Data,Var,Rel)                376
+	0x95, 0x04,                    //     Report Count (4)                    378
+	0x75, 0x08,                    //     Report Size (8)                     380
+	0x81, 0x01,                    //     Input (Cnst,Arr,Abs)                382
+	0xc0,                          //   End Collection                        384
+	0xc0,                          // End Collection                          385
+	0x05, 0x0d,                    // Usage Page (Digitizers)                 386
+	0x09, 0x05,                    // Usage (Touch Pad)                       388
+	0xa1, 0x01,                    // Collection (Application)                390
+	0x06, 0x00, 0xff,              //   Usage Page (Vendor Defined Page FF00) 392
+	0x09, 0x0c,                    //   Usage (Vendor Usage 0x0c)             395
+	0x15, 0x00,                    //   Logical Minimum (0)                   397
+	0x26, 0xff, 0x00,              //   Logical Maximum (255)                 399
+	0x75, 0x08,                    //   Report Size (8)                       402
+	0x95, 0x10,                    //   Report Count (16)                     404
+	0x85, 0x3f,                    //   Report ID (63)                        406
+	0x81, 0x22,                    //   Input (Data,Var,Abs,NoPref)           408
+	0xc0,                          // End Collection                          410
+	0x06, 0x00, 0xff,              // Usage Page (Vendor Defined Page FF00)   411
+	0x09, 0x0c,                    // Usage (Vendor Usage 0x0c)               414
+	0xa1, 0x01,                    // Collection (Application)                416
+	0x06, 0x00, 0xff,              //   Usage Page (Vendor Defined Page FF00) 418
+	0x09, 0x0c,                    //   Usage (Vendor Usage 0x0c)             421
+	0x15, 0x00,                    //   Logical Minimum (0)                   423
+	0x26, 0xff, 0x00,              //   Logical Maximum (255)                 425
+	0x85, 0x44,                    //   Report ID (68)                        428
+	0x75, 0x08,                    //   Report Size (8)                       430
+	0x96, 0x6b, 0x05,              //   Report Count (1387)                   432
+	0x81, 0x00,                    //   Input (Data,Arr,Abs)                  435
+	0xc0,                          // End Collection                          437
 };
+
+#define PRE_240524_RDESC_SIZE 328
+#define PRE_240524_RDESC_FIXED_SIZE 338 /* The original bits of the descriptor */
+#define FW_240524_RDESC_SIZE 438
+#define FW_240524_RDESC_FIXED_SIZE sizeof(fixed_rdesc)
 
 SEC(HID_BPF_RDESC_FIXUP)
 int BPF_PROG(hid_fix_rdesc_huion_kamvas_pro_19, struct hid_bpf_ctx *hctx)
@@ -199,9 +259,14 @@ int BPF_PROG(hid_fix_rdesc_huion_kamvas_pro_19, struct hid_bpf_ctx *hctx)
 	if (!data)
 		return 0; /* EPERM check */
 
-	__builtin_memcpy(data, fixed_rdesc, sizeof(fixed_rdesc));
+	if (hctx->size == FW_240524_RDESC_SIZE) {
+		__builtin_memcpy(data, fixed_rdesc, FW_240524_RDESC_FIXED_SIZE);
+		return sizeof(fixed_rdesc);
+	}
 
-	return sizeof(fixed_rdesc);
+	__builtin_memcpy(data, fixed_rdesc, PRE_240524_RDESC_FIXED_SIZE);
+
+	return PRE_240524_RDESC_FIXED_SIZE;
 }
 
 /*
@@ -263,7 +328,9 @@ HID_BPF_OPS(huion_Kamvas_pro_19) = {
 SEC("syscall")
 int probe(struct hid_bpf_probe_args *ctx)
 {
-	ctx->retval = ctx->rdesc_size != 328;
+
+	ctx->retval = !((ctx->rdesc_size == PRE_240524_RDESC_SIZE) ||
+			(ctx->rdesc_size == FW_240524_RDESC_SIZE));
 	if (ctx->retval)
 		ctx->retval = -EINVAL;
 

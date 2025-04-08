@@ -4964,7 +4964,6 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	rbd_dev->tag_set.ops = &rbd_mq_ops;
 	rbd_dev->tag_set.queue_depth = rbd_dev->opts->queue_depth;
 	rbd_dev->tag_set.numa_node = NUMA_NO_NODE;
-	rbd_dev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 	rbd_dev->tag_set.nr_hw_queues = num_present_cpus();
 	rbd_dev->tag_set.cmd_size = sizeof(struct rbd_img_request);
 
@@ -7282,9 +7281,10 @@ static ssize_t do_rbd_remove(const char *buf, size_t count)
 		 * Prevent new IO from being queued and wait for existing
 		 * IO to complete/fail.
 		 */
-		blk_mq_freeze_queue(rbd_dev->disk->queue);
+		unsigned int memflags = blk_mq_freeze_queue(rbd_dev->disk->queue);
+
 		blk_mark_disk_dead(rbd_dev->disk);
-		blk_mq_unfreeze_queue(rbd_dev->disk->queue);
+		blk_mq_unfreeze_queue(rbd_dev->disk->queue, memflags);
 	}
 
 	del_gendisk(rbd_dev->disk);

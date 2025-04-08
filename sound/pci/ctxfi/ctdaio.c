@@ -159,7 +159,7 @@ static int dao_set_left_input(struct dao *dao, struct rsc *input)
 	struct daio *daio = &dao->daio;
 	int i;
 
-	entry = kzalloc((sizeof(*entry) * daio->rscl.msr), GFP_KERNEL);
+	entry = kcalloc(daio->rscl.msr, sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
 
@@ -188,7 +188,7 @@ static int dao_set_right_input(struct dao *dao, struct rsc *input)
 	struct daio *daio = &dao->daio;
 	int i;
 
-	entry = kzalloc((sizeof(*entry) * daio->rscr.msr), GFP_KERNEL);
+	entry = kcalloc(daio->rscr.msr, sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
 
@@ -211,52 +211,30 @@ static int dao_set_right_input(struct dao *dao, struct rsc *input)
 	return 0;
 }
 
-static int dao_clear_left_input(struct dao *dao)
+static int dao_clear_input(struct dao *dao, unsigned int start, unsigned int end)
 {
-	struct imapper *entry;
-	struct daio *daio = &dao->daio;
-	int i;
+	unsigned int i;
 
-	if (!dao->imappers[0])
+	if (!dao->imappers[start])
 		return 0;
-
-	entry = dao->imappers[0];
-	dao->mgr->imap_delete(dao->mgr, entry);
-	/* Program conjugate resources */
-	for (i = 1; i < daio->rscl.msr; i++) {
-		entry = dao->imappers[i];
-		dao->mgr->imap_delete(dao->mgr, entry);
+	for (i = start; i < end; i++) {
+		dao->mgr->imap_delete(dao->mgr, dao->imappers[i]);
 		dao->imappers[i] = NULL;
 	}
-
-	kfree(dao->imappers[0]);
-	dao->imappers[0] = NULL;
 
 	return 0;
 }
 
+
+static int dao_clear_left_input(struct dao *dao)
+{
+	return dao_clear_input(dao, 0, dao->daio.rscl.msr);
+}
+
 static int dao_clear_right_input(struct dao *dao)
 {
-	struct imapper *entry;
-	struct daio *daio = &dao->daio;
-	int i;
-
-	if (!dao->imappers[daio->rscl.msr])
-		return 0;
-
-	entry = dao->imappers[daio->rscl.msr];
-	dao->mgr->imap_delete(dao->mgr, entry);
-	/* Program conjugate resources */
-	for (i = 1; i < daio->rscr.msr; i++) {
-		entry = dao->imappers[daio->rscl.msr + i];
-		dao->mgr->imap_delete(dao->mgr, entry);
-		dao->imappers[daio->rscl.msr + i] = NULL;
-	}
-
-	kfree(dao->imappers[daio->rscl.msr]);
-	dao->imappers[daio->rscl.msr] = NULL;
-
-	return 0;
+	return dao_clear_input(dao, dao->daio.rscl.msr,
+			dao->daio.rscl.msr + dao->daio.rscr.msr);
 }
 
 static const struct dao_rsc_ops dao_ops = {

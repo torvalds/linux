@@ -1,0 +1,113 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2024 Heiko Schocher <hs@denx.de>
+ */
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/pwm/pwm.h>
+
+/dts-v1/;
+/plugin/;
+
+&{/} {
+	model = "Aristainetos3 helios carrier with LVDS";
+	compatible = "abb,imx8mp-aristanetos3-helios",
+		     "abb,imx8mp-aristanetos3-som",
+		     "fsl,imx8mp";
+
+	panel_lvds: panel-lvds {
+		compatible = "lg,lb070wv8";
+		power-supply = <&reg_vcc_disp>;
+		backlight = <&lvds_backlight>;
+
+		port {
+			in_lvds0: endpoint {
+				remote-endpoint = <&ldb_lvds_ch0>;
+			};
+		};
+	};
+
+	reg_vcc_disp: regulator-disp {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_lcd0_vcc_en>;
+		compatible = "regulator-fixed";
+		regulator-name = "disp_power_en_2v8";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		gpio = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+};
+
+&gpio3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpio3_hog>;
+
+	lvdssel-hog {
+		gpio-hog;
+		gpios = <23 GPIO_ACTIVE_HIGH>;
+		output-low;
+		line-name = "LVDSSEL";
+	};
+};
+
+&hdmi_blk_ctrl {
+	status = "disabled";
+};
+
+&hdmi_pvi {
+	status = "disabled";
+};
+
+&hdmi_tx {
+	status = "disabled";
+};
+
+&hdmi_tx_phy {
+	status = "disabled";
+};
+
+&irqsteer_hdmi {
+	status = "disabled";
+};
+
+&ldb_lvds_ch0 {
+	remote-endpoint = <&in_lvds0>;
+};
+
+&lcdif1 {
+	status = "disabled";
+};
+
+&lcdif2 {
+	status = "okay";
+};
+
+&lcdif3 {
+	status = "disabled";
+};
+
+&lvds_backlight {
+	status = "okay";
+};
+
+&lvds_bridge {
+	/* IMX8MP_CLK_MEDIA_LDB = IMX8MP_CLK_MEDIA_DISP2_PIX * 7 */
+	assigned-clock-rates = <232820000>;
+	status = "okay";
+};
+
+&media_blk_ctrl {
+	/*
+	 * currently it is not possible to let display clocks configure
+	 * automatically, so we need to set them manually
+	 */
+	assigned-clock-rates = <500000000>, <200000000>, <0>,
+		/* IMX8MP_CLK_MEDIA_DISP2_PIX = pixelclk of lvds panel */
+		<33260000>, <0>,
+		/* IMX8MP_VIDEO_PLL1 = IMX8MP_CLK_MEDIA_LDB * 2 */
+		<465640000>;
+};

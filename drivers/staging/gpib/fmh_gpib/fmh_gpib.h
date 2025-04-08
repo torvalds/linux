@@ -33,7 +33,7 @@ struct fmh_priv {
 	u8 *dma_buffer;
 	int dma_buffer_size;
 	int dma_burst_length;
-	void *fifo_base;
+	void __iomem *fifo_base;
 	unsigned supports_fifo_interrupts : 1;
 };
 

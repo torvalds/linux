@@ -4,6 +4,11 @@
  *
  * Copyright (C) 2016 Renesas Electronics Corp.
  * Copyright (C) 2016 Cogent Embedded, Inc.
+ *
+ * Sample Audio settings:
+ *
+ *	> amixer set "DVC Out" 1%
+ *	> amixer set "DVC In"  20%
  */
 
 #include <dt-bindings/gpio/gpio.h>
@@ -443,6 +448,7 @@
 &scif2 {
 	pinctrl-0 = <&scif2_pins>;
 	pinctrl-names = "default";
+	bootph-all;
 
 	status = "okay";
 };

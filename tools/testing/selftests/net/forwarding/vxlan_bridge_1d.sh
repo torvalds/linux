@@ -428,6 +428,14 @@ __test_flood()
 test_flood()
 {
 	__test_flood de:ad:be:ef:13:37 192.0.2.100 "flood"
+
+	# Add an entry with arbitrary destination IP. Verify that packets are
+	# not duplicated (this can happen if hardware floods the packets, and
+	# then traps them due to misconfiguration, so software data path repeats
+	# flooding and resends packets).
+	bridge fdb append dev vx1 00:00:00:00:00:00 dst 198.51.100.1 self
+	__test_flood de:ad:be:ef:13:37 192.0.2.100 "flood, unresolved FDB entry"
+	bridge fdb del dev vx1 00:00:00:00:00:00 dst 198.51.100.1 self
 }
 
 vxlan_fdb_add_del()
@@ -740,6 +748,8 @@ test_learning()
 
 	vxlan_flood_test $mac $dst 0 10 0
 
+	# The entry should age out when it only forwards traffic
+	$MZ $h1 -c 50 -d 1sec -p 64 -b $mac -B $dst -t icmp -q &
 	sleep 60
 
 	bridge fdb show brport vx1 | grep $mac | grep -q self

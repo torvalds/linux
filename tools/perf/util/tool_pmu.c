@@ -62,7 +62,8 @@ int tool_pmu__num_skip_events(void)
 
 const char *tool_pmu__event_to_str(enum tool_pmu_event ev)
 {
-	if (ev > TOOL_PMU__EVENT_NONE && ev < TOOL_PMU__EVENT_MAX)
+	if ((ev > TOOL_PMU__EVENT_NONE && ev < TOOL_PMU__EVENT_MAX) &&
+	    !tool_pmu__skip_event(tool_pmu__event_names[ev]))
 		return tool_pmu__event_names[ev];
 
 	return NULL;
@@ -354,6 +355,7 @@ bool tool_pmu__read_event(enum tool_pmu_event ev, u64 *result)
 
 		if (online) {
 			*result = perf_cpu_map__nr(online);
+			perf_cpu_map__put(online);
 			return true;
 		}
 		return false;
@@ -489,17 +491,24 @@ int evsel__tool_pmu_read(struct evsel *evsel, int cpu_map_idx, int thread)
 	return 0;
 }
 
-struct perf_pmu *perf_pmus__tool_pmu(void)
+struct perf_pmu *tool_pmu__new(void)
 {
-	static struct perf_pmu tool = {
-		.name = "tool",
-		.type = PERF_PMU_TYPE_TOOL,
-		.aliases = LIST_HEAD_INIT(tool.aliases),
-		.caps = LIST_HEAD_INIT(tool.caps),
-		.format = LIST_HEAD_INIT(tool.format),
-	};
-	if (!tool.events_table)
-		tool.events_table = find_core_events_table("common", "common");
+	struct perf_pmu *tool = zalloc(sizeof(struct perf_pmu));
 
-	return &tool;
+	if (!tool)
+		goto out;
+	tool->name = strdup("tool");
+	if (!tool->name) {
+		zfree(&tool);
+		goto out;
+	}
+
+	tool->type = PERF_PMU_TYPE_TOOL;
+	INIT_LIST_HEAD(&tool->aliases);
+	INIT_LIST_HEAD(&tool->caps);
+	INIT_LIST_HEAD(&tool->format);
+	tool->events_table = find_core_events_table("common", "common");
+
+out:
+	return tool;
 }

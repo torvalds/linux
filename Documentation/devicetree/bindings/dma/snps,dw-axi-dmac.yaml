@@ -59,6 +59,8 @@ properties:
     minimum: 1
     maximum: 8
 
+  dma-noncoherent: true
+
   resets:
     minItems: 1
     maxItems: 2

@@ -42,29 +42,6 @@ struct hns_mac_cb;
 
 #define HNS_MAX_WAIT_CNT 10000
 
-enum dsaf_roce_port_mode {
-	DSAF_ROCE_6PORT_MODE,
-	DSAF_ROCE_4PORT_MODE,
-	DSAF_ROCE_2PORT_MODE,
-	DSAF_ROCE_CHAN_MODE_NUM,
-};
-
-enum dsaf_roce_port_num {
-	DSAF_ROCE_PORT_0,
-	DSAF_ROCE_PORT_1,
-	DSAF_ROCE_PORT_2,
-	DSAF_ROCE_PORT_3,
-	DSAF_ROCE_PORT_4,
-	DSAF_ROCE_PORT_5,
-};
-
-enum dsaf_roce_qos_sl {
-	DSAF_ROCE_SL_0,
-	DSAF_ROCE_SL_1,
-	DSAF_ROCE_SL_2,
-	DSAF_ROCE_SL_3,
-};
-
 #define DSAF_STATS_READ(p, offset) (*((u64 *)((u8 *)(p) + (offset))))
 #define HNS_DSAF_IS_DEBUG(dev) ((dev)->dsaf_mode == DSAF_MODE_DISABLE_SP)
 
@@ -307,9 +284,6 @@ struct dsaf_misc_op {
 	void (*ge_srst)(struct dsaf_device *dsaf_dev, u32 port, bool dereset);
 	void (*ppe_srst)(struct dsaf_device *dsaf_dev, u32 port, bool dereset);
 	void (*ppe_comm_srst)(struct dsaf_device *dsaf_dev, bool dereset);
-	void (*hns_dsaf_srst_chns)(struct dsaf_device *dsaf_dev, u32 msk,
-				   bool dereset);
-	void (*hns_dsaf_roce_srst)(struct dsaf_device *dsaf_dev, bool dereset);
 
 	phy_interface_t (*get_phy_if)(struct hns_mac_cb *mac_cb);
 	int (*get_sfp_prsnt)(struct hns_mac_cb *mac_cb, int *sfp_prsnt);
@@ -462,7 +436,5 @@ int hns_dsaf_rm_mac_addr(
 int hns_dsaf_clr_mac_mc_port(struct dsaf_device *dsaf_dev,
 			     u8 mac_id, u8 port_num);
 int hns_dsaf_wait_pkt_clean(struct dsaf_device *dsaf_dev, int port);
-
-int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool dereset);
 
 #endif /* __HNS_DSAF_MAIN_H__ */

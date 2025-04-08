@@ -127,6 +127,7 @@ choice
 		  repeating for all types and padding except float and double
 		  which use 0xFF repeating (-NaN). Clang on 32-bit uses 0xFF
 		  repeating for all types and padding.
+		  GCC uses 0xFE repeating for all types, and zero for padding.
 
 	config INIT_STACK_ALL_ZERO
 		bool "zero-init everything (strongest and safest)"
@@ -276,6 +277,39 @@ config ZERO_CALL_USED_REGS
 	  workloads. Image size growth depends on architecture, and should
 	  be evaluated for suitability. For example, x86_64 grows by less
 	  than 1%, and arm64 grows by about 5%.
+
+endmenu
+
+menu "Bounds checking"
+
+config FORTIFY_SOURCE
+	bool "Harden common str/mem functions against buffer overflows"
+	depends on ARCH_HAS_FORTIFY_SOURCE
+	# https://github.com/llvm/llvm-project/issues/53645
+	depends on !X86_32 || !CC_IS_CLANG || CLANG_VERSION >= 160000
+	help
+	  Detect overflows of buffers in common string and memory functions
+	  where the compiler can determine and validate the buffer sizes.
+
+config HARDENED_USERCOPY
+	bool "Harden memory copies between kernel and userspace"
+	imply STRICT_DEVMEM
+	help
+	  This option checks for obviously wrong memory regions when
+	  copying memory to/from the kernel (via copy_to_user() and
+	  copy_from_user() functions) by rejecting memory ranges that
+	  are larger than the specified heap object, span multiple
+	  separately allocated pages, are not on the process stack,
+	  or are part of the kernel text. This prevents entire classes
+	  of heap overflow exploits and similar kernel memory exposures.
+
+config HARDENED_USERCOPY_DEFAULT_ON
+	bool "Harden memory copies by default"
+	depends on HARDENED_USERCOPY
+	default HARDENED_USERCOPY
+	help
+	  This has the effect of setting "hardened_usercopy=on" on the kernel
+	  command line. This can be disabled with "hardened_usercopy=off".
 
 endmenu
 

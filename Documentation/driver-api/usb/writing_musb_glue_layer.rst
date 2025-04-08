@@ -613,7 +613,7 @@ endpoints configuration from the hardware, so we use line 12 instruction
 to bypass reading the configuration from silicon, and rely on a
 hard-coded table that describes the endpoints configuration instead::
 
-    static struct musb_fifo_cfg jz4740_musb_fifo_cfg[] = {
+    static const struct musb_fifo_cfg jz4740_musb_fifo_cfg[] = {
 	{ .hw_ep_num = 1, .style = FIFO_TX, .maxpacket = 512, },
 	{ .hw_ep_num = 1, .style = FIFO_RX, .maxpacket = 512, },
 	{ .hw_ep_num = 2, .style = FIFO_TX, .maxpacket = 64, },

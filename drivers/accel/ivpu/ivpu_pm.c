@@ -177,16 +177,11 @@ void ivpu_pm_trigger_recovery(struct ivpu_device *vdev, const char *reason)
 		return;
 	}
 
-	if (ivpu_is_fpga(vdev)) {
-		ivpu_err(vdev, "Recovery not available on FPGA\n");
-		return;
-	}
-
 	/* Trigger recovery if it's not in progress */
 	if (atomic_cmpxchg(&vdev->pm->reset_pending, 0, 1) == 0) {
 		ivpu_hw_diagnose_failure(vdev);
 		ivpu_hw_irq_disable(vdev); /* Disable IRQ early to protect from IRQ storm */
-		queue_work(system_long_wq, &vdev->pm->recovery_work);
+		queue_work(system_unbound_wq, &vdev->pm->recovery_work);
 	}
 }
 
@@ -462,8 +457,9 @@ int ivpu_pm_dct_disable(struct ivpu_device *vdev)
 	return 0;
 }
 
-void ivpu_pm_dct_irq_thread_handler(struct ivpu_device *vdev)
+void ivpu_pm_irq_dct_work_fn(struct work_struct *work)
 {
+	struct ivpu_device *vdev = container_of(work, struct ivpu_device, irq_dct_work);
 	bool enable;
 	int ret;
 

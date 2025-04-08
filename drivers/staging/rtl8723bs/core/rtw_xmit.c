@@ -1467,7 +1467,8 @@ struct xmit_buf *rtw_alloc_xmitbuf_ext(struct xmit_priv *pxmitpriv)
 		pxmitbuf->priv_data = NULL;
 
 		pxmitbuf->len = 0;
-		pxmitbuf->pdata = pxmitbuf->ptail = pxmitbuf->phead;
+		pxmitbuf->pdata = pxmitbuf->phead;
+		pxmitbuf->ptail = pxmitbuf->phead;
 		pxmitbuf->agg_num = 1;
 
 		if (pxmitbuf->sctx)
@@ -1526,7 +1527,8 @@ struct xmit_buf *rtw_alloc_xmitbuf(struct xmit_priv *pxmitpriv)
 		pxmitbuf->priv_data = NULL;
 
 		pxmitbuf->len = 0;
-		pxmitbuf->pdata = pxmitbuf->ptail = pxmitbuf->phead;
+		pxmitbuf->pdata = pxmitbuf->phead;
+		pxmitbuf->ptail = pxmitbuf->phead;
 		pxmitbuf->agg_num = 0;
 		pxmitbuf->pg_num = 0;
 

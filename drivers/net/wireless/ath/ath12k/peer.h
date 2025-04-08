@@ -19,6 +19,8 @@ struct ppdu_user_delayba {
 	u32 resp_rate_flags;
 };
 
+#define ATH12K_PEER_ML_ID_VALID         BIT(13)
+
 struct ath12k_peer {
 	struct list_head list;
 	struct ieee80211_sta *sta;
@@ -44,9 +46,28 @@ struct ath12k_peer {
 	struct ppdu_user_delayba ppdu_stats_delayba;
 	bool delayba_flag;
 	bool is_authorized;
-
+	bool mlo;
 	/* protected by ab->data_lock */
 	bool dp_setup_done;
+
+	u16 ml_id;
+
+	/* any other ML info common for all partners can be added
+	 * here and would be same for all partner peers.
+	 */
+	u8 ml_addr[ETH_ALEN];
+
+	/* To ensure only certain work related to dp is done once */
+	bool primary_link;
+
+	/* for reference to ath12k_link_sta */
+	u8 link_id;
+};
+
+struct ath12k_ml_peer {
+	struct list_head list;
+	u8 addr[ETH_ALEN];
+	u16 id;
 };
 
 void ath12k_peer_unmap_event(struct ath12k_base *ab, u16 peer_id);
@@ -66,5 +87,8 @@ int ath12k_wait_for_peer_delete_done(struct ath12k *ar, u32 vdev_id,
 				     const u8 *addr);
 bool ath12k_peer_exist_by_vdev_id(struct ath12k_base *ab, int vdev_id);
 struct ath12k_peer *ath12k_peer_find_by_ast(struct ath12k_base *ab, int ast_hash);
+int ath12k_peer_ml_create(struct ath12k_hw *ah, struct ieee80211_sta *sta);
+int ath12k_peer_ml_delete(struct ath12k_hw *ah, struct ieee80211_sta *sta);
+int ath12k_peer_mlo_link_peers_delete(struct ath12k_vif *ahvif, struct ath12k_sta *ahsta);
 
 #endif /* _PEER_H_ */

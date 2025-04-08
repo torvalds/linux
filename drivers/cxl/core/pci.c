@@ -252,9 +252,9 @@ static int devm_cxl_enable_mem(struct device *host, struct cxl_dev_state *cxlds)
 }
 
 /* require dvsec ranges to be covered by a locked platform window */
-static int dvsec_range_allowed(struct device *dev, void *arg)
+static int dvsec_range_allowed(struct device *dev, const void *arg)
 {
-	struct range *dev_range = arg;
+	const struct range *dev_range = arg;
 	struct cxl_decoder *cxld;
 
 	if (!is_root_decoder(dev))
@@ -291,11 +291,11 @@ static int devm_cxl_enable_hdm(struct device *host, struct cxl_hdm *cxlhdm)
 	return devm_add_action_or_reset(host, disable_hdm, cxlhdm);
 }
 
-int cxl_dvsec_rr_decode(struct device *dev, struct cxl_port *port,
+int cxl_dvsec_rr_decode(struct cxl_dev_state *cxlds,
 			struct cxl_endpoint_dvsec_info *info)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct cxl_dev_state *cxlds = pci_get_drvdata(pdev);
+	struct pci_dev *pdev = to_pci_dev(cxlds->dev);
+	struct device *dev = cxlds->dev;
 	int hdm_count, rc, i, ranges = 0;
 	int d = cxlds->cxl_dvsec;
 	u16 cap, ctrl;
@@ -1051,6 +1051,103 @@ int cxl_pci_get_bandwidth(struct pci_dev *pdev, struct access_coordinate *c)
 		c[i].read_bandwidth = bw;
 		c[i].write_bandwidth = bw;
 	}
+
+	return 0;
+}
+
+/*
+ * Set max timeout such that platforms will optimize GPF flow to avoid
+ * the implied worst-case scenario delays. On a sane platform, all
+ * devices should always complete GPF within the energy budget of
+ * the GPF flow. The kernel does not have enough information to pick
+ * anything better than "maximize timeouts and hope it works".
+ *
+ * A misbehaving device could block forward progress of GPF for all
+ * the other devices, exhausting the energy budget of the platform.
+ * However, the spec seems to assume that moving on from slow to respond
+ * devices is a virtue. It is not possible to know that, in actuality,
+ * the slow to respond device is *the* most critical device in the
+ * system to wait.
+ */
+#define GPF_TIMEOUT_BASE_MAX 2
+#define GPF_TIMEOUT_SCALE_MAX 7 /* 10 seconds */
+
+u16 cxl_gpf_get_dvsec(struct device *dev, bool is_port)
+{
+	u16 dvsec;
+
+	if (!dev_is_pci(dev))
+		return 0;
+
+	dvsec = pci_find_dvsec_capability(to_pci_dev(dev), PCI_VENDOR_ID_CXL,
+			is_port ? CXL_DVSEC_PORT_GPF : CXL_DVSEC_DEVICE_GPF);
+	if (!dvsec)
+		dev_warn(dev, "%s GPF DVSEC not present\n",
+			 is_port ? "Port" : "Device");
+	return dvsec;
+}
+EXPORT_SYMBOL_NS_GPL(cxl_gpf_get_dvsec, "CXL");
+
+static int update_gpf_port_dvsec(struct pci_dev *pdev, int dvsec, int phase)
+{
+	u64 base, scale;
+	int rc, offset;
+	u16 ctrl;
+
+	switch (phase) {
+	case 1:
+		offset = CXL_DVSEC_PORT_GPF_PHASE_1_CONTROL_OFFSET;
+		base = CXL_DVSEC_PORT_GPF_PHASE_1_TMO_BASE_MASK;
+		scale = CXL_DVSEC_PORT_GPF_PHASE_1_TMO_SCALE_MASK;
+		break;
+	case 2:
+		offset = CXL_DVSEC_PORT_GPF_PHASE_2_CONTROL_OFFSET;
+		base = CXL_DVSEC_PORT_GPF_PHASE_2_TMO_BASE_MASK;
+		scale = CXL_DVSEC_PORT_GPF_PHASE_2_TMO_SCALE_MASK;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	rc = pci_read_config_word(pdev, dvsec + offset, &ctrl);
+	if (rc)
+		return rc;
+
+	if (FIELD_GET(base, ctrl) == GPF_TIMEOUT_BASE_MAX &&
+	    FIELD_GET(scale, ctrl) == GPF_TIMEOUT_SCALE_MAX)
+		return 0;
+
+	ctrl = FIELD_PREP(base, GPF_TIMEOUT_BASE_MAX);
+	ctrl |= FIELD_PREP(scale, GPF_TIMEOUT_SCALE_MAX);
+
+	rc = pci_write_config_word(pdev, dvsec + offset, ctrl);
+	if (!rc)
+		pci_dbg(pdev, "Port GPF phase %d timeout: %d0 secs\n",
+			phase, GPF_TIMEOUT_BASE_MAX);
+
+	return rc;
+}
+
+int cxl_gpf_port_setup(struct device *dport_dev, struct cxl_port *port)
+{
+	struct pci_dev *pdev;
+
+	if (!port)
+		return -EINVAL;
+
+	if (!port->gpf_dvsec) {
+		int dvsec;
+
+		dvsec = cxl_gpf_get_dvsec(dport_dev, true);
+		if (!dvsec)
+			return -EINVAL;
+
+		port->gpf_dvsec = dvsec;
+	}
+
+	pdev = to_pci_dev(dport_dev);
+	update_gpf_port_dvsec(pdev, port->gpf_dvsec, 1);
+	update_gpf_port_dvsec(pdev, port->gpf_dvsec, 2);
 
 	return 0;
 }

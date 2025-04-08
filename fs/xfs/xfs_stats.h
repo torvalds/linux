@@ -127,6 +127,9 @@ struct __xfsstats {
 	uint32_t		xs_refcbt_2[__XBTS_MAX];
 	uint32_t		xs_rmap_mem_2[__XBTS_MAX];
 	uint32_t		xs_rcbag_2[__XBTS_MAX];
+	uint32_t		xs_rtrmap_2[__XBTS_MAX];
+	uint32_t		xs_rtrmap_mem_2[__XBTS_MAX];
+	uint32_t		xs_rtrefcbt_2[__XBTS_MAX];
 	uint32_t		xs_qm_dqreclaims;
 	uint32_t		xs_qm_dqreclaim_misses;
 	uint32_t		xs_qm_dquot_dups;

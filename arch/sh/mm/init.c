@@ -137,10 +137,7 @@ static pmd_t * __init one_md_table_init(pud_t *pud)
 	if (pud_none(*pud)) {
 		pmd_t *pmd;
 
-		pmd = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
-		if (!pmd)
-			panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
-			      __func__, PAGE_SIZE, PAGE_SIZE);
+		pmd = memblock_alloc_or_panic(PAGE_SIZE, PAGE_SIZE);
 		pud_populate(&init_mm, pud, pmd);
 		BUG_ON(pmd != pmd_offset(pud, 0));
 	}
@@ -153,10 +150,7 @@ static pte_t * __init one_page_table_init(pmd_t *pmd)
 	if (pmd_none(*pmd)) {
 		pte_t *pte;
 
-		pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
-		if (!pte)
-			panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
-			      __func__, PAGE_SIZE, PAGE_SIZE);
+		pte = memblock_alloc_or_panic(PAGE_SIZE, PAGE_SIZE);
 		pmd_populate_kernel(&init_mm, pmd, pte);
 		BUG_ON(pte != pte_offset_kernel(pmd, 0));
 	}
@@ -296,7 +290,6 @@ void __init paging_init(void)
 	 */
 	max_low_pfn = max_pfn = memblock_end_of_DRAM() >> PAGE_SHIFT;
 	min_low_pfn = __MEMORY_START >> PAGE_SHIFT;
-	set_max_mapnr(max_low_pfn - min_low_pfn);
 
 	nodes_clear(node_online_map);
 
@@ -337,15 +330,6 @@ unsigned int mem_init_done = 0;
 
 void __init mem_init(void)
 {
-	pg_data_t *pgdat;
-
-	high_memory = NULL;
-	for_each_online_pgdat(pgdat)
-		high_memory = max_t(void *, high_memory,
-				    __va(pgdat_end_pfn(pgdat) << PAGE_SHIFT));
-
-	memblock_free_all();
-
 	/* Set this up early, so we can take care of the zero page */
 	cpu_cache_init();
 

@@ -458,7 +458,7 @@ static void zfcp_fsf_req_complete(struct zfcp_fsf_req *req)
 		return;
 	}
 
-	del_timer_sync(&req->timer);
+	timer_delete_sync(&req->timer);
 	zfcp_fsf_protstatus_eval(req);
 	zfcp_fsf_fsfstatus_eval(req);
 	req->handler(req);
@@ -891,7 +891,7 @@ static int zfcp_fsf_req_send(struct zfcp_fsf_req *req)
 	req->qdio_req.qdio_outb_usage = atomic_read(&qdio->req_q_free);
 	req->issued = get_tod_clock();
 	if (zfcp_qdio_send(qdio, &req->qdio_req)) {
-		del_timer_sync(&req->timer);
+		timer_delete_sync(&req->timer);
 
 		/* lookup request again, list might have changed */
 		if (zfcp_reqlist_find_rm(adapter->req_list, req_id) == NULL)
@@ -1218,7 +1218,7 @@ static int zfcp_fsf_setup_ct_els(struct zfcp_fsf_req *req,
 /**
  * zfcp_fsf_send_ct - initiate a Generic Service request (FC-GS)
  * @wka_port: pointer to zfcp WKA port to send CT/GS to
- * @ct: pointer to struct zfcp_send_ct with data for request
+ * @ct: pointer to struct zfcp_fsf_ct_els with data for CT request
  * @pool: if non-null this mempool is used to allocate struct zfcp_fsf_req
  * @timeout: timeout that hardware should use, and a later software timeout
  */
@@ -1316,7 +1316,7 @@ skip_fsfstatus:
  * zfcp_fsf_send_els - initiate an ELS command (FC-FS)
  * @adapter: pointer to zfcp adapter
  * @d_id: N_Port_ID to send ELS to
- * @els: pointer to struct zfcp_send_els with data for the command
+ * @els: pointer to struct zfcp_fsf_ct_els with data for the ELS command
  * @timeout: timeout that hardware should use, and a later software timeout
  */
 int zfcp_fsf_send_els(struct zfcp_adapter *adapter, u32 d_id,

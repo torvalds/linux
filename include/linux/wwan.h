@@ -97,7 +97,7 @@ struct wwan_port_caps {
  *
  * This function must be balanced with a call to wwan_remove_port().
  *
- * Returns a valid pointer to wwan_port on success or PTR_ERR on failure
+ * Returns: a valid pointer to wwan_port on success or PTR_ERR on failure
  */
 struct wwan_port *wwan_create_port(struct device *parent,
 				   enum wwan_port_type type,

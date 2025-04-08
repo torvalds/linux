@@ -370,6 +370,7 @@ static const struct afs_call_type afs_RXVLGetCapabilities = {
 	.name		= "VL.GetCapabilities",
 	.op		= afs_VL_GetCapabilities,
 	.deliver	= afs_deliver_vl_get_capabilities,
+	.immediate_cancel = afs_vlserver_probe_result,
 	.done		= afs_vlserver_probe_result,
 	.destructor	= afs_destroy_vl_get_capabilities,
 };

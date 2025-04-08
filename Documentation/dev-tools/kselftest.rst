@@ -347,7 +347,7 @@ kselftest.  We use kselftests for lib/ as an example.
 1. Create the test module
 
 2. Create the test script that will run (load/unload) the module
-   e.g. ``tools/testing/selftests/lib/printf.sh``
+   e.g. ``tools/testing/selftests/lib/bitmap.sh``
 
 3. Add line to config file e.g. ``tools/testing/selftests/lib/config``
 

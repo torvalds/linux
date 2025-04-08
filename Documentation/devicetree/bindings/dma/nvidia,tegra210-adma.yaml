@@ -13,9 +13,6 @@ description: |
 maintainers:
   - Jon Hunter <jonathanh@nvidia.com>
 
-allOf:
-  - $ref: dma-controller.yaml#
-
 properties:
   compatible:
     oneOf:
@@ -29,7 +26,19 @@ properties:
           - const: nvidia,tegra186-adma
 
   reg:
-    maxItems: 1
+    description:
+      The 'page' region describes the address space of the page
+      used for accessing the DMA channel registers. The 'global'
+      region describes the address space of the global DMA registers.
+      In the absence of the 'reg-names' property, there must be a
+      single entry that covers the address space of the global DMA
+      registers and the DMA channel registers.
+    minItems: 1
+    maxItems: 2
+
+  reg-names:
+    minItems: 1
+    maxItems: 2
 
   interrupts:
     description: |
@@ -62,6 +71,49 @@ required:
   - interrupts
   - clocks
   - clock-names
+
+allOf:
+  - $ref: dma-controller.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra210-adma
+    then:
+      properties:
+        reg:
+          items:
+            - description: Full address space range of DMA registers.
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra186-adma
+    then:
+      anyOf:
+        - properties:
+            reg:
+              items:
+                - description: Full address space range of DMA registers.
+        - properties:
+            reg:
+              items:
+                - description: Channel Page address space range of DMA registers.
+            reg-names:
+              items:
+                - const: page
+        - properties:
+            reg:
+              items:
+                - description: Channel Page address space range of DMA registers.
+                - description: Global Page address space range of DMA registers.
+            reg-names:
+              items:
+                - const: page
+                - const: global
 
 additionalProperties: false
 

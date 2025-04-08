@@ -374,6 +374,51 @@
 			};
 		};
 
+		edma0: dma-controller@40144000 {
+			compatible = "nxp,s32g3-edma", "nxp,s32g2-edma";
+			reg = <0x40144000 0x24000>,
+			      <0x4012c000 0x3000>,
+			      <0x40130000 0x3000>;
+			#dma-cells = <2>;
+			dma-channels = <32>;
+			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tx-0-15",
+					  "tx-16-31",
+					  "err";
+			clocks = <&clks 63>, <&clks 64>;
+			clock-names = "dmamux0", "dmamux1";
+		};
+
+		can0: can@401b4000 {
+			compatible = "nxp,s32g3-flexcan",
+					   "nxp,s32g2-flexcan";
+			reg = <0x401b4000 0xa000>;
+			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "mb-0", "state", "berr", "mb-1";
+			clocks = <&clks 9>, <&clks 11>;
+			clock-names = "ipg", "per";
+			status = "disabled";
+		};
+
+		can1: can@401be000 {
+			compatible = "nxp,s32g3-flexcan",
+					   "nxp,s32g2-flexcan";
+			reg = <0x401be000 0xa000>;
+			interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "mb-0", "state", "berr", "mb-1";
+			clocks = <&clks 9>, <&clks 11>;
+			clock-names = "ipg", "per";
+			status = "disabled";
+		};
+
 		uart0: serial@401c8000 {
 			compatible = "nxp,s32g3-linflexuart",
 				     "fsl,s32v234-linflexuart";
@@ -390,11 +435,116 @@
 			status = "disabled";
 		};
 
+		i2c0: i2c@401e4000 {
+			compatible = "nxp,s32g3-i2c",
+				     "nxp,s32g2-i2c";
+			reg = <0x401e4000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks 40>;
+			clock-names = "ipg";
+			status = "disabled";
+		};
+
+		i2c1: i2c@401e8000 {
+			compatible = "nxp,s32g3-i2c",
+				     "nxp,s32g2-i2c";
+			reg = <0x401e8000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks 40>;
+			clock-names = "ipg";
+			status = "disabled";
+		};
+
+		i2c2: i2c@401ec000 {
+			compatible = "nxp,s32g3-i2c",
+				     "nxp,s32g2-i2c";
+			reg = <0x401ec000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks 40>;
+			clock-names = "ipg";
+			status = "disabled";
+		};
+
+		edma1: dma-controller@40244000 {
+			compatible = "nxp,s32g3-edma", "nxp,s32g2-edma";
+			reg = <0x40244000 0x24000>,
+			      <0x4022c000 0x3000>,
+			      <0x40230000 0x3000>;
+			#dma-cells = <2>;
+			dma-channels = <32>;
+			interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tx-0-15",
+					  "tx-16-31",
+					  "err";
+			clocks = <&clks 63>, <&clks 64>;
+			clock-names = "dmamux0", "dmamux1";
+		};
+
+		can2: can@402a8000 {
+			compatible = "nxp,s32g3-flexcan",
+					   "nxp,s32g2-flexcan";
+			reg = <0x402a8000 0xa000>;
+			interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "mb-0", "state", "berr", "mb-1";
+			clocks = <&clks 9>, <&clks 11>;
+			clock-names = "ipg", "per";
+			status = "disabled";
+		};
+
+		can3: can@402b2000 {
+			compatible = "nxp,s32g3-flexcan",
+					   "nxp,s32g2-flexcan";
+			reg = <0x402b2000 0xa000>;
+			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "mb-0", "state", "berr", "mb-1";
+			clocks = <&clks 9>, <&clks 11>;
+			clock-names = "ipg", "per";
+			status = "disabled";
+		};
+
 		uart2: serial@402bc000 {
 			compatible = "nxp,s32g3-linflexuart",
 				     "fsl,s32v234-linflexuart";
 			reg = <0x402bc000 0x3000>;
 			interrupts = <GIC_SPI 84 IRQ_TYPE_EDGE_RISING>;
+			status = "disabled";
+		};
+
+		i2c3: i2c@402d8000 {
+			compatible = "nxp,s32g3-i2c",
+				     "nxp,s32g2-i2c";
+			reg = <0x402d8000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks 40>;
+			clock-names = "ipg";
+			status = "disabled";
+		};
+
+		i2c4: i2c@402dc000 {
+			compatible = "nxp,s32g3-i2c",
+				     "nxp,s32g2-i2c";
+			reg = <0x402dc000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks 40>;
+			clock-names = "ipg";
 			status = "disabled";
 		};
 

@@ -97,33 +97,17 @@ static struct btrfs_bio *btrfs_split_bio(struct btrfs_fs_info *fs_info,
 	return bbio;
 }
 
-/* Free a bio that was never submitted to the underlying device. */
-static void btrfs_cleanup_bio(struct btrfs_bio *bbio)
-{
-	if (bbio_has_ordered_extent(bbio))
-		btrfs_put_ordered_extent(bbio->ordered);
-	bio_put(&bbio->bio);
-}
-
-static void __btrfs_bio_end_io(struct btrfs_bio *bbio)
-{
-	if (bbio_has_ordered_extent(bbio)) {
-		struct btrfs_ordered_extent *ordered = bbio->ordered;
-
-		bbio->end_io(bbio);
-		btrfs_put_ordered_extent(ordered);
-	} else {
-		bbio->end_io(bbio);
-	}
-}
-
 void btrfs_bio_end_io(struct btrfs_bio *bbio, blk_status_t status)
 {
 	bbio->bio.bi_status = status;
 	if (bbio->bio.bi_pool == &btrfs_clone_bioset) {
 		struct btrfs_bio *orig_bbio = bbio->private;
 
-		btrfs_cleanup_bio(bbio);
+		/* Free bio that was never submitted to the underlying device. */
+		if (bbio_has_ordered_extent(bbio))
+			btrfs_put_ordered_extent(bbio->ordered);
+		bio_put(&bbio->bio);
+
 		bbio = orig_bbio;
 	}
 
@@ -138,7 +122,15 @@ void btrfs_bio_end_io(struct btrfs_bio *bbio, blk_status_t status)
 		/* Load split bio's error which might be set above. */
 		if (status == BLK_STS_OK)
 			bbio->bio.bi_status = READ_ONCE(bbio->status);
-		__btrfs_bio_end_io(bbio);
+
+		if (bbio_has_ordered_extent(bbio)) {
+			struct btrfs_ordered_extent *ordered = bbio->ordered;
+
+			bbio->end_io(bbio);
+			btrfs_put_ordered_extent(ordered);
+		} else {
+			bbio->end_io(bbio);
+		}
 	}
 }
 
@@ -453,6 +445,14 @@ static void btrfs_submit_dev_bio(struct btrfs_device *dev, struct bio *bio)
 		(unsigned long)dev->bdev->bd_dev, btrfs_dev_name(dev),
 		dev->devid, bio->bi_iter.bi_size);
 
+	/*
+	 * Track reads if tracking is enabled; ignore I/O operations before the
+	 * filesystem is fully initialized.
+	 */
+	if (dev->fs_devices->collect_fs_stats && bio_op(bio) == REQ_OP_READ && dev->fs_info)
+		percpu_counter_add(&dev->fs_info->stats_read_blocks,
+				   bio->bi_iter.bi_size >> dev->fs_info->sectorsize_bits);
+
 	if (bio->bi_opf & REQ_BTRFS_CGROUP_PUNT)
 		blkcg_punt_bio_submit(bio);
 	else
@@ -573,7 +573,7 @@ static void run_one_async_done(struct btrfs_work *work, bool do_free)
 
 	/* If an error occurred we just want to clean up the bio and move on. */
 	if (bio->bi_status) {
-		btrfs_bio_end_io(async->bbio, async->bbio->bio.bi_status);
+		btrfs_bio_end_io(async->bbio, bio->bi_status);
 		return;
 	}
 
@@ -725,8 +725,7 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 			bio->bi_opf |= REQ_OP_ZONE_APPEND;
 		}
 
-		if (is_data_bbio(bbio) && bioc &&
-		    btrfs_need_stripe_tree_update(bioc->fs_info, bioc->map_type)) {
+		if (is_data_bbio(bbio) && bioc && bioc->use_rst) {
 			/*
 			 * No locking for the list update, as we only add to
 			 * the list in the I/O submission path, and list

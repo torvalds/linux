@@ -8,17 +8,29 @@
 #include <linux/poll.h>
 #include <linux/io_uring_types.h>
 #include <uapi/linux/eventpoll.h>
+#include "alloc_cache.h"
 #include "io-wq.h"
 #include "slist.h"
 #include "filetable.h"
+#include "opdef.h"
 
 #ifndef CREATE_TRACE_POINTS
 #include <trace/events/io_uring.h>
 #endif
 
 enum {
-	IOU_OK			= 0,
+	IOU_OK			= 0, /* deprecated, use IOU_COMPLETE */
+	IOU_COMPLETE		= 0,
+
 	IOU_ISSUE_SKIP_COMPLETE	= -EIOCBQUEUED,
+
+	/*
+	 * The request has more work to do and should be retried. io_uring will
+	 * attempt to wait on the file for eligible opcodes, but otherwise
+	 * it'll be handed to iowq for blocking execution. It works for normal
+	 * requests as well as for the multi shot mode.
+	 */
+	IOU_RETRY		= -EAGAIN,
 
 	/*
 	 * Requeue the task_work to restart operations on this request. The
@@ -26,13 +38,6 @@ enum {
 	 * valid error code, yet less than -MAX_ERRNO and valid internally.
 	 */
 	IOU_REQUEUE		= -3072,
-
-	/*
-	 * Intended only when both IO_URING_F_MULTISHOT is passed
-	 * to indicate to the poll runner that multishot should be
-	 * removed and the result is set on req->cqe.res.
-	 */
-	IOU_STOP_MULTISHOT	= -ECANCELED,
 };
 
 struct io_wait_queue {
@@ -84,13 +89,11 @@ struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 			       unsigned issue_flags);
 
 void __io_req_task_work_add(struct io_kiocb *req, unsigned flags);
-void io_req_task_work_add_remote(struct io_kiocb *req, struct io_ring_ctx *ctx,
-				 unsigned flags);
-bool io_alloc_async_data(struct io_kiocb *req);
+void io_req_task_work_add_remote(struct io_kiocb *req, unsigned flags);
 void io_req_task_queue(struct io_kiocb *req);
-void io_req_task_complete(struct io_kiocb *req, struct io_tw_state *ts);
+void io_req_task_complete(struct io_kiocb *req, io_tw_token_t tw);
 void io_req_task_queue_fail(struct io_kiocb *req, int ret);
-void io_req_task_submit(struct io_kiocb *req, struct io_tw_state *ts);
+void io_req_task_submit(struct io_kiocb *req, io_tw_token_t tw);
 struct llist_node *io_handle_tw_list(struct llist_node *node, unsigned int *count, unsigned int max_entries);
 struct llist_node *tctx_task_work_run(struct io_uring_task *tctx, unsigned int max_entries, unsigned int *count);
 void tctx_task_work(struct callback_head *cb);
@@ -102,7 +105,7 @@ int io_ring_add_registered_file(struct io_uring_task *tctx, struct file *file,
 				     int start, int end);
 void io_req_queue_iowq(struct io_kiocb *req);
 
-int io_poll_issue(struct io_kiocb *req, struct io_tw_state *ts);
+int io_poll_issue(struct io_kiocb *req, io_tw_token_t tw);
 int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr);
 int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin);
 void __io_submit_flush_completions(struct io_ring_ctx *ctx);
@@ -145,6 +148,11 @@ static inline void io_lockdep_assert_cq_locked(struct io_ring_ctx *ctx)
 #endif
 }
 
+static inline bool io_is_compat(struct io_ring_ctx *ctx)
+{
+	return IS_ENABLED(CONFIG_COMPAT) && unlikely(ctx->compat);
+}
+
 static inline void io_req_task_work_add(struct io_kiocb *req)
 {
 	__io_req_task_work_add(req, 0);
@@ -181,6 +189,16 @@ static inline bool io_get_cqe_overflow(struct io_ring_ctx *ctx,
 static inline bool io_get_cqe(struct io_ring_ctx *ctx, struct io_uring_cqe **ret)
 {
 	return io_get_cqe_overflow(ctx, ret, false);
+}
+
+static inline bool io_defer_get_uncommited_cqe(struct io_ring_ctx *ctx,
+					       struct io_uring_cqe **cqe_ret)
+{
+	io_lockdep_assert_cq_locked(ctx);
+
+	ctx->cq_extra++;
+	ctx->submit_state.cq_flush = true;
+	return io_get_cqe(ctx, cqe_ret);
 }
 
 static __always_inline bool io_fill_cqe_req(struct io_ring_ctx *ctx,
@@ -221,6 +239,22 @@ static inline void io_req_set_res(struct io_kiocb *req, s32 res, u32 cflags)
 {
 	req->cqe.res = res;
 	req->cqe.flags = cflags;
+}
+
+static inline void *io_uring_alloc_async_data(struct io_alloc_cache *cache,
+					      struct io_kiocb *req)
+{
+	if (cache) {
+		req->async_data = io_cache_alloc(cache, GFP_KERNEL);
+	} else {
+		const struct io_issue_def *def = &io_issue_defs[req->opcode];
+
+		WARN_ON_ONCE(!def->async_size);
+		req->async_data = kmalloc(def->async_size, GFP_KERNEL);
+	}
+	if (req->async_data)
+		req->flags |= REQ_F_ASYNC_DATA;
+	return req->async_data;
 }
 
 static inline bool req_has_async_data(struct io_kiocb *req)
@@ -358,7 +392,7 @@ static inline bool io_task_work_pending(struct io_ring_ctx *ctx)
 	return task_work_pending(current) || io_local_work_pending(ctx);
 }
 
-static inline void io_tw_lock(struct io_ring_ctx *ctx, struct io_tw_state *ts)
+static inline void io_tw_lock(struct io_ring_ctx *ctx, io_tw_token_t tw)
 {
 	lockdep_assert_held(&ctx->uring_lock);
 }
@@ -400,7 +434,6 @@ static inline bool io_req_cache_empty(struct io_ring_ctx *ctx)
 }
 
 extern struct kmem_cache *req_cachep;
-extern struct kmem_cache *io_buf_cachep;
 
 static inline struct io_kiocb *io_extract_req(struct io_ring_ctx *ctx)
 {

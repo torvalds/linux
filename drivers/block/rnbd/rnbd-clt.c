@@ -1010,7 +1010,7 @@ static int rnbd_client_xfer_request(struct rnbd_clt_dev *dev,
 	 * See queue limits.
 	 */
 	if ((req_op(rq) != REQ_OP_DISCARD) && (req_op(rq) != REQ_OP_WRITE_ZEROES))
-		sg_cnt = blk_rq_map_sg(dev->queue, rq, iu->sgt.sgl);
+		sg_cnt = blk_rq_map_sg(rq, iu->sgt.sgl);
 
 	if (sg_cnt == 0)
 		sg_mark_end(&iu->sgt.sgl[0]);
@@ -1209,8 +1209,7 @@ static int setup_mq_tags(struct rnbd_clt_session *sess)
 	tag_set->ops		= &rnbd_mq_ops;
 	tag_set->queue_depth	= sess->queue_depth;
 	tag_set->numa_node		= NUMA_NO_NODE;
-	tag_set->flags		= BLK_MQ_F_SHOULD_MERGE |
-				  BLK_MQ_F_TAG_QUEUE_SHARED;
+	tag_set->flags		= BLK_MQ_F_TAG_QUEUE_SHARED;
 	tag_set->cmd_size	= sizeof(struct rnbd_iu) + RNBD_RDMA_SGL_SIZE;
 
 	/* for HCTX_TYPE_DEFAULT, HCTX_TYPE_READ, HCTX_TYPE_POLL */

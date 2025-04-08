@@ -5,10 +5,11 @@
  *  Copyright (C) 2015-2023  Red Hat, Inc.
  */
 
-#include <asm-generic/unistd.h>
 #include "uffd-common.h"
 
 #include "../../../../mm/gup_test.h"
+
+#ifdef __NR_userfaultfd
 
 /* The unit test doesn't need a large or random size, make it 32MB for now */
 #define  UFFD_TEST_MEM_SIZE               (32UL << 20)
@@ -24,6 +25,8 @@
 
 #define ALIGN_UP(x, align_to) \
 	((__typeof__(x))((((unsigned long)(x)) + ((align_to)-1)) & ~((align_to)-1)))
+
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
 struct mem_type {
 	const char *name;
@@ -195,9 +198,10 @@ uffd_setup_environment(uffd_test_args_t *args, uffd_test_case_t *test,
 	else
 		page_size = psize();
 
-	nr_pages = UFFD_TEST_MEM_SIZE / page_size;
+	/* Ensure we have at least 2 pages */
+	nr_pages = MAX(UFFD_TEST_MEM_SIZE, page_size * 2) / page_size;
 	/* TODO: remove this global var.. it's so ugly */
-	nr_cpus = 1;
+	nr_parallel = 1;
 
 	/* Initialize test arguments */
 	args->mem_type = mem_type;
@@ -1122,7 +1126,7 @@ uffd_move_test_common(uffd_test_args_t *targs, unsigned long chunk_size,
 	char c;
 	unsigned long long count;
 	struct uffd_args args = { 0 };
-	char *orig_area_src, *orig_area_dst;
+	char *orig_area_src = NULL, *orig_area_dst = NULL;
 	unsigned long step_size, step_count;
 	unsigned long src_offs = 0;
 	unsigned long dst_offs = 0;
@@ -1190,7 +1194,7 @@ uffd_move_test_common(uffd_test_args_t *targs, unsigned long chunk_size,
 				    nr, count, count_verify[src_offs + nr + i]);
 		}
 	}
-	if (step_size > page_size) {
+	if (chunk_size > page_size) {
 		area_src = orig_area_src;
 		area_dst = orig_area_dst;
 	}
@@ -1558,3 +1562,14 @@ int main(int argc, char *argv[])
 	return ksft_get_fail_cnt() ? KSFT_FAIL : KSFT_PASS;
 }
 
+#else /* __NR_userfaultfd */
+
+#warning "missing __NR_userfaultfd definition"
+
+int main(void)
+{
+	printf("Skipping %s (missing __NR_userfaultfd)\n", __file__);
+	return KSFT_SKIP;
+}
+
+#endif /* __NR_userfaultfd */

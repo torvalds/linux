@@ -6,6 +6,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/hwmon.h>
 #include <linux/types.h>
+#include <linux/units.h>
 
 #include <drm/drm_managed.h>
 #include "regs/xe_gt_regs.h"
@@ -20,6 +21,7 @@
 #include "xe_pm.h"
 
 enum xe_hwmon_reg {
+	REG_TEMP,
 	REG_PKG_RAPL_LIMIT,
 	REG_PKG_POWER_SKU,
 	REG_PKG_POWER_SKU_UNIT,
@@ -36,6 +38,7 @@ enum xe_hwmon_reg_operation {
 enum xe_hwmon_channel {
 	CHANNEL_CARD,
 	CHANNEL_PKG,
+	CHANNEL_VRAM,
 	CHANNEL_MAX,
 };
 
@@ -84,6 +87,19 @@ static struct xe_reg xe_hwmon_get_reg(struct xe_hwmon *hwmon, enum xe_hwmon_reg 
 	struct xe_device *xe = hwmon->xe;
 
 	switch (hwmon_reg) {
+	case REG_TEMP:
+		if (xe->info.platform == XE_BATTLEMAGE) {
+			if (channel == CHANNEL_PKG)
+				return BMG_PACKAGE_TEMPERATURE;
+			else if (channel == CHANNEL_VRAM)
+				return BMG_VRAM_TEMPERATURE;
+		} else if (xe->info.platform == XE_DG2) {
+			if (channel == CHANNEL_PKG)
+				return PCU_CR_PACKAGE_TEMPERATURE;
+			else if (channel == CHANNEL_VRAM)
+				return BMG_VRAM_TEMPERATURE;
+		}
+		break;
 	case REG_PKG_RAPL_LIMIT:
 		if (xe->info.platform == XE_BATTLEMAGE) {
 			if (channel == CHANNEL_PKG)
@@ -431,6 +447,8 @@ static const struct attribute_group *hwmon_groups[] = {
 };
 
 static const struct hwmon_channel_info * const hwmon_info[] = {
+	HWMON_CHANNEL_INFO(temp, HWMON_T_LABEL, HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL),
 	HWMON_CHANNEL_INFO(power, HWMON_P_MAX | HWMON_P_RATED_MAX | HWMON_P_LABEL,
 			   HWMON_P_MAX | HWMON_P_RATED_MAX | HWMON_P_CRIT | HWMON_P_LABEL),
 	HWMON_CHANNEL_INFO(curr, HWMON_C_LABEL, HWMON_C_CRIT | HWMON_C_LABEL),
@@ -504,6 +522,36 @@ static void xe_hwmon_get_voltage(struct xe_hwmon *hwmon, int channel, long *valu
 	reg_val = xe_mmio_read32(mmio, xe_hwmon_get_reg(hwmon, REG_GT_PERF_STATUS, channel));
 	/* HW register value in units of 2.5 millivolt */
 	*value = DIV_ROUND_CLOSEST(REG_FIELD_GET(VOLTAGE_MASK, reg_val) * 2500, SF_VOLTAGE);
+}
+
+static umode_t
+xe_hwmon_temp_is_visible(struct xe_hwmon *hwmon, u32 attr, int channel)
+{
+	switch (attr) {
+	case hwmon_temp_input:
+	case hwmon_temp_label:
+		return xe_reg_is_valid(xe_hwmon_get_reg(hwmon, REG_TEMP, channel)) ? 0444 : 0;
+	default:
+		return 0;
+	}
+}
+
+static int
+xe_hwmon_temp_read(struct xe_hwmon *hwmon, u32 attr, int channel, long *val)
+{
+	struct xe_mmio *mmio = xe_root_tile_mmio(hwmon->xe);
+	u64 reg_val;
+
+	switch (attr) {
+	case hwmon_temp_input:
+		reg_val = xe_mmio_read32(mmio, xe_hwmon_get_reg(hwmon, REG_TEMP, channel));
+
+		/* HW register value is in degrees Celsius, convert to millidegrees. */
+		*val = REG_FIELD_GET(TEMP_MASK, reg_val) * MILLIDEGREE_PER_DEGREE;
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static umode_t
@@ -667,6 +715,9 @@ xe_hwmon_is_visible(const void *drvdata, enum hwmon_sensor_types type,
 	xe_pm_runtime_get(hwmon->xe);
 
 	switch (type) {
+	case hwmon_temp:
+		ret = xe_hwmon_temp_is_visible(hwmon, attr, channel);
+		break;
 	case hwmon_power:
 		ret = xe_hwmon_power_is_visible(hwmon, attr, channel);
 		break;
@@ -699,6 +750,9 @@ xe_hwmon_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 	xe_pm_runtime_get(hwmon->xe);
 
 	switch (type) {
+	case hwmon_temp:
+		ret = xe_hwmon_temp_read(hwmon, attr, channel, val);
+		break;
 	case hwmon_power:
 		ret = xe_hwmon_power_read(hwmon, attr, channel, val);
 		break;
@@ -752,6 +806,12 @@ static int xe_hwmon_read_label(struct device *dev,
 			       u32 attr, int channel, const char **str)
 {
 	switch (type) {
+	case hwmon_temp:
+		if (channel == CHANNEL_PKG)
+			*str = "pkg";
+		else if (channel == CHANNEL_VRAM)
+			*str = "vram";
+		return 0;
 	case hwmon_power:
 	case hwmon_energy:
 	case hwmon_curr:
@@ -779,10 +839,9 @@ static const struct hwmon_chip_info hwmon_chip_info = {
 };
 
 static void
-xe_hwmon_get_preregistration_info(struct xe_device *xe)
+xe_hwmon_get_preregistration_info(struct xe_hwmon *hwmon)
 {
-	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
-	struct xe_hwmon *hwmon = xe->hwmon;
+	struct xe_mmio *mmio = xe_root_tile_mmio(hwmon->xe);
 	long energy;
 	u64 val_sku_unit = 0;
 	int channel;
@@ -816,33 +875,34 @@ static void xe_hwmon_mutex_destroy(void *arg)
 	mutex_destroy(&hwmon->hwmon_lock);
 }
 
-void xe_hwmon_register(struct xe_device *xe)
+int xe_hwmon_register(struct xe_device *xe)
 {
 	struct device *dev = xe->drm.dev;
 	struct xe_hwmon *hwmon;
+	int ret;
 
 	/* hwmon is available only for dGfx */
 	if (!IS_DGFX(xe))
-		return;
+		return 0;
 
 	/* hwmon is not available on VFs */
 	if (IS_SRIOV_VF(xe))
-		return;
+		return 0;
 
 	hwmon = devm_kzalloc(dev, sizeof(*hwmon), GFP_KERNEL);
 	if (!hwmon)
-		return;
-
-	xe->hwmon = hwmon;
+		return -ENOMEM;
 
 	mutex_init(&hwmon->hwmon_lock);
-	if (devm_add_action_or_reset(dev, xe_hwmon_mutex_destroy, hwmon))
-		return;
+	ret = devm_add_action_or_reset(dev, xe_hwmon_mutex_destroy, hwmon);
+	if (ret)
+		return ret;
 
 	/* There's only one instance of hwmon per device */
 	hwmon->xe = xe;
+	xe->hwmon = hwmon;
 
-	xe_hwmon_get_preregistration_info(xe);
+	xe_hwmon_get_preregistration_info(hwmon);
 
 	drm_dbg(&xe->drm, "Register xe hwmon interface\n");
 
@@ -850,11 +910,12 @@ void xe_hwmon_register(struct xe_device *xe)
 	hwmon->hwmon_dev = devm_hwmon_device_register_with_info(dev, "xe", hwmon,
 								&hwmon_chip_info,
 								hwmon_groups);
-
 	if (IS_ERR(hwmon->hwmon_dev)) {
-		drm_warn(&xe->drm, "Failed to register xe hwmon (%pe)\n", hwmon->hwmon_dev);
+		drm_err(&xe->drm, "Failed to register xe hwmon (%pe)\n", hwmon->hwmon_dev);
 		xe->hwmon = NULL;
-		return;
+		return PTR_ERR(hwmon->hwmon_dev);
 	}
+
+	return 0;
 }
 

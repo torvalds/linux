@@ -7,6 +7,7 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/cleanup.h>
 #include <linux/err.h>
 #include <linux/gpio/driver.h>
 #include <linux/init.h>
@@ -69,6 +70,22 @@ struct bcm_kona_gpio {
 struct bcm_kona_gpio_bank {
 	int id;
 	int irq;
+	/*
+	 * Used to keep track of lock/unlock operations for each GPIO in the
+	 * bank.
+	 *
+	 * All GPIOs are locked by default (see bcm_kona_gpio_reset), and the
+	 * unlock count for all GPIOs is 0 by default. Each unlock increments
+	 * the counter, and each lock decrements the counter.
+	 *
+	 * The lock function only locks the GPIO once its unlock counter is
+	 * down to 0. This is necessary because the GPIO is unlocked in two
+	 * places in this driver: once for requested GPIOs, and once for
+	 * requested IRQs. Since it is possible for a GPIO to be requested
+	 * as both a GPIO and an IRQ, we need to ensure that we don't lock it
+	 * too early.
+	 */
+	u8 gpio_unlock_count[GPIO_PER_BANK];
 	/* Used in the interrupt handler */
 	struct bcm_kona_gpio *kona_gpio;
 };
@@ -84,32 +101,42 @@ static void bcm_kona_gpio_lock_gpio(struct bcm_kona_gpio *kona_gpio,
 					unsigned gpio)
 {
 	u32 val;
-	unsigned long flags;
 	int bank_id = GPIO_BANK(gpio);
+	int bit = GPIO_BIT(gpio);
+	struct bcm_kona_gpio_bank *bank = &kona_gpio->banks[bank_id];
 
-	raw_spin_lock_irqsave(&kona_gpio->lock, flags);
+	if (bank->gpio_unlock_count[bit] == 0) {
+		dev_err(kona_gpio->gpio_chip.parent,
+			"Unbalanced locks for GPIO %u\n", gpio);
+		return;
+	}
 
-	val = readl(kona_gpio->reg_base + GPIO_PWD_STATUS(bank_id));
-	val |= BIT(gpio);
-	bcm_kona_gpio_write_lock_regs(kona_gpio->reg_base, bank_id, val);
+	if (--bank->gpio_unlock_count[bit] == 0) {
+		guard(raw_spinlock_irqsave)(&kona_gpio->lock);
 
-	raw_spin_unlock_irqrestore(&kona_gpio->lock, flags);
+		val = readl(kona_gpio->reg_base + GPIO_PWD_STATUS(bank_id));
+		val |= BIT(bit);
+		bcm_kona_gpio_write_lock_regs(kona_gpio->reg_base, bank_id, val);
+	}
 }
 
 static void bcm_kona_gpio_unlock_gpio(struct bcm_kona_gpio *kona_gpio,
 					unsigned gpio)
 {
 	u32 val;
-	unsigned long flags;
 	int bank_id = GPIO_BANK(gpio);
+	int bit = GPIO_BIT(gpio);
+	struct bcm_kona_gpio_bank *bank = &kona_gpio->banks[bank_id];
 
-	raw_spin_lock_irqsave(&kona_gpio->lock, flags);
+	if (bank->gpio_unlock_count[bit] == 0) {
+		guard(raw_spinlock_irqsave)(&kona_gpio->lock);
 
-	val = readl(kona_gpio->reg_base + GPIO_PWD_STATUS(bank_id));
-	val &= ~BIT(gpio);
-	bcm_kona_gpio_write_lock_regs(kona_gpio->reg_base, bank_id, val);
+		val = readl(kona_gpio->reg_base + GPIO_PWD_STATUS(bank_id));
+		val &= ~BIT(bit);
+		bcm_kona_gpio_write_lock_regs(kona_gpio->reg_base, bank_id, val);
+	}
 
-	raw_spin_unlock_irqrestore(&kona_gpio->lock, flags);
+	++bank->gpio_unlock_count[bit];
 }
 
 static int bcm_kona_gpio_get_dir(struct gpio_chip *chip, unsigned gpio)
@@ -122,22 +149,23 @@ static int bcm_kona_gpio_get_dir(struct gpio_chip *chip, unsigned gpio)
 	return val ? GPIO_LINE_DIRECTION_IN : GPIO_LINE_DIRECTION_OUT;
 }
 
-static void bcm_kona_gpio_set(struct gpio_chip *chip, unsigned gpio, int value)
+static int bcm_kona_gpio_set(struct gpio_chip *chip, unsigned int gpio,
+			     int value)
 {
 	struct bcm_kona_gpio *kona_gpio;
 	void __iomem *reg_base;
 	int bank_id = GPIO_BANK(gpio);
 	int bit = GPIO_BIT(gpio);
 	u32 val, reg_offset;
-	unsigned long flags;
 
 	kona_gpio = gpiochip_get_data(chip);
 	reg_base = kona_gpio->reg_base;
-	raw_spin_lock_irqsave(&kona_gpio->lock, flags);
+
+	guard(raw_spinlock_irqsave)(&kona_gpio->lock);
 
 	/* this function only applies to output pin */
 	if (bcm_kona_gpio_get_dir(chip, gpio) == GPIO_LINE_DIRECTION_IN)
-		goto out;
+		return 0;
 
 	reg_offset = value ? GPIO_OUT_SET(bank_id) : GPIO_OUT_CLEAR(bank_id);
 
@@ -145,8 +173,7 @@ static void bcm_kona_gpio_set(struct gpio_chip *chip, unsigned gpio, int value)
 	val |= BIT(bit);
 	writel(val, reg_base + reg_offset);
 
-out:
-	raw_spin_unlock_irqrestore(&kona_gpio->lock, flags);
+	return 0;
 }
 
 static int bcm_kona_gpio_get(struct gpio_chip *chip, unsigned gpio)
@@ -156,11 +183,11 @@ static int bcm_kona_gpio_get(struct gpio_chip *chip, unsigned gpio)
 	int bank_id = GPIO_BANK(gpio);
 	int bit = GPIO_BIT(gpio);
 	u32 val, reg_offset;
-	unsigned long flags;
 
 	kona_gpio = gpiochip_get_data(chip);
 	reg_base = kona_gpio->reg_base;
-	raw_spin_lock_irqsave(&kona_gpio->lock, flags);
+
+	guard(raw_spinlock_irqsave)(&kona_gpio->lock);
 
 	if (bcm_kona_gpio_get_dir(chip, gpio) == GPIO_LINE_DIRECTION_IN)
 		reg_offset = GPIO_IN_STATUS(bank_id);
@@ -169,8 +196,6 @@ static int bcm_kona_gpio_get(struct gpio_chip *chip, unsigned gpio)
 
 	/* read the GPIO bank status */
 	val = readl(reg_base + reg_offset);
-
-	raw_spin_unlock_irqrestore(&kona_gpio->lock, flags);
 
 	/* return the specified bit status */
 	return !!(val & BIT(bit));
@@ -196,18 +221,16 @@ static int bcm_kona_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
 	struct bcm_kona_gpio *kona_gpio;
 	void __iomem *reg_base;
 	u32 val;
-	unsigned long flags;
 
 	kona_gpio = gpiochip_get_data(chip);
 	reg_base = kona_gpio->reg_base;
-	raw_spin_lock_irqsave(&kona_gpio->lock, flags);
+
+	guard(raw_spinlock_irqsave)(&kona_gpio->lock);
 
 	val = readl(reg_base + GPIO_CONTROL(gpio));
 	val &= ~GPIO_GPCTR0_IOTR_MASK;
 	val |= GPIO_GPCTR0_IOTR_CMD_INPUT;
 	writel(val, reg_base + GPIO_CONTROL(gpio));
-
-	raw_spin_unlock_irqrestore(&kona_gpio->lock, flags);
 
 	return 0;
 }
@@ -220,11 +243,11 @@ static int bcm_kona_gpio_direction_output(struct gpio_chip *chip,
 	int bank_id = GPIO_BANK(gpio);
 	int bit = GPIO_BIT(gpio);
 	u32 val, reg_offset;
-	unsigned long flags;
 
 	kona_gpio = gpiochip_get_data(chip);
 	reg_base = kona_gpio->reg_base;
-	raw_spin_lock_irqsave(&kona_gpio->lock, flags);
+
+	guard(raw_spinlock_irqsave)(&kona_gpio->lock);
 
 	val = readl(reg_base + GPIO_CONTROL(gpio));
 	val &= ~GPIO_GPCTR0_IOTR_MASK;
@@ -235,8 +258,6 @@ static int bcm_kona_gpio_direction_output(struct gpio_chip *chip,
 	val = readl(reg_base + reg_offset);
 	val |= BIT(bit);
 	writel(val, reg_base + reg_offset);
-
-	raw_spin_unlock_irqrestore(&kona_gpio->lock, flags);
 
 	return 0;
 }
@@ -257,7 +278,6 @@ static int bcm_kona_gpio_set_debounce(struct gpio_chip *chip, unsigned gpio,
 	struct bcm_kona_gpio *kona_gpio;
 	void __iomem *reg_base;
 	u32 val, res;
-	unsigned long flags;
 
 	kona_gpio = gpiochip_get_data(chip);
 	reg_base = kona_gpio->reg_base;
@@ -280,7 +300,7 @@ static int bcm_kona_gpio_set_debounce(struct gpio_chip *chip, unsigned gpio,
 	}
 
 	/* spin lock for read-modify-write of the GPIO register */
-	raw_spin_lock_irqsave(&kona_gpio->lock, flags);
+	guard(raw_spinlock_irqsave)(&kona_gpio->lock);
 
 	val = readl(reg_base + GPIO_CONTROL(gpio));
 	val &= ~GPIO_GPCTR0_DBR_MASK;
@@ -294,8 +314,6 @@ static int bcm_kona_gpio_set_debounce(struct gpio_chip *chip, unsigned gpio,
 	}
 
 	writel(val, reg_base + GPIO_CONTROL(gpio));
-
-	raw_spin_unlock_irqrestore(&kona_gpio->lock, flags);
 
 	return 0;
 }
@@ -321,7 +339,7 @@ static const struct gpio_chip template_chip = {
 	.direction_input = bcm_kona_gpio_direction_input,
 	.get = bcm_kona_gpio_get,
 	.direction_output = bcm_kona_gpio_direction_output,
-	.set = bcm_kona_gpio_set,
+	.set_rv = bcm_kona_gpio_set,
 	.set_config = bcm_kona_gpio_set_config,
 	.to_irq = bcm_kona_gpio_to_irq,
 	.base = 0,
@@ -335,17 +353,15 @@ static void bcm_kona_gpio_irq_ack(struct irq_data *d)
 	int bank_id = GPIO_BANK(gpio);
 	int bit = GPIO_BIT(gpio);
 	u32 val;
-	unsigned long flags;
 
 	kona_gpio = irq_data_get_irq_chip_data(d);
 	reg_base = kona_gpio->reg_base;
-	raw_spin_lock_irqsave(&kona_gpio->lock, flags);
+
+	guard(raw_spinlock_irqsave)(&kona_gpio->lock);
 
 	val = readl(reg_base + GPIO_INT_STATUS(bank_id));
 	val |= BIT(bit);
 	writel(val, reg_base + GPIO_INT_STATUS(bank_id));
-
-	raw_spin_unlock_irqrestore(&kona_gpio->lock, flags);
 }
 
 static void bcm_kona_gpio_irq_mask(struct irq_data *d)
@@ -356,18 +372,16 @@ static void bcm_kona_gpio_irq_mask(struct irq_data *d)
 	int bank_id = GPIO_BANK(gpio);
 	int bit = GPIO_BIT(gpio);
 	u32 val;
-	unsigned long flags;
 
 	kona_gpio = irq_data_get_irq_chip_data(d);
 	reg_base = kona_gpio->reg_base;
-	raw_spin_lock_irqsave(&kona_gpio->lock, flags);
+
+	guard(raw_spinlock_irqsave)(&kona_gpio->lock);
 
 	val = readl(reg_base + GPIO_INT_MASK(bank_id));
 	val |= BIT(bit);
 	writel(val, reg_base + GPIO_INT_MASK(bank_id));
 	gpiochip_disable_irq(&kona_gpio->gpio_chip, gpio);
-
-	raw_spin_unlock_irqrestore(&kona_gpio->lock, flags);
 }
 
 static void bcm_kona_gpio_irq_unmask(struct irq_data *d)
@@ -378,18 +392,16 @@ static void bcm_kona_gpio_irq_unmask(struct irq_data *d)
 	int bank_id = GPIO_BANK(gpio);
 	int bit = GPIO_BIT(gpio);
 	u32 val;
-	unsigned long flags;
 
 	kona_gpio = irq_data_get_irq_chip_data(d);
 	reg_base = kona_gpio->reg_base;
-	raw_spin_lock_irqsave(&kona_gpio->lock, flags);
+
+	guard(raw_spinlock_irqsave)(&kona_gpio->lock);
 
 	val = readl(reg_base + GPIO_INT_MSKCLR(bank_id));
 	val |= BIT(bit);
 	writel(val, reg_base + GPIO_INT_MSKCLR(bank_id));
 	gpiochip_enable_irq(&kona_gpio->gpio_chip, gpio);
-
-	raw_spin_unlock_irqrestore(&kona_gpio->lock, flags);
 }
 
 static int bcm_kona_gpio_irq_set_type(struct irq_data *d, unsigned int type)
@@ -399,7 +411,6 @@ static int bcm_kona_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	unsigned gpio = d->hwirq;
 	u32 lvl_type;
 	u32 val;
-	unsigned long flags;
 
 	kona_gpio = irq_data_get_irq_chip_data(d);
 	reg_base = kona_gpio->reg_base;
@@ -425,14 +436,12 @@ static int bcm_kona_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 	}
 
-	raw_spin_lock_irqsave(&kona_gpio->lock, flags);
+	guard(raw_spinlock_irqsave)(&kona_gpio->lock);
 
 	val = readl(reg_base + GPIO_CONTROL(gpio));
 	val &= ~GPIO_GPCTR0_ITR_MASK;
 	val |= lvl_type << GPIO_GPCTR0_ITR_SHIFT;
 	writel(val, reg_base + GPIO_CONTROL(gpio));
-
-	raw_spin_unlock_irqrestore(&kona_gpio->lock, flags);
 
 	return 0;
 }
@@ -477,15 +486,26 @@ static void bcm_kona_gpio_irq_handler(struct irq_desc *desc)
 static int bcm_kona_gpio_irq_reqres(struct irq_data *d)
 {
 	struct bcm_kona_gpio *kona_gpio = irq_data_get_irq_chip_data(d);
+	unsigned int gpio = d->hwirq;
 
-	return gpiochip_reqres_irq(&kona_gpio->gpio_chip, d->hwirq);
+	/*
+	 * We need to unlock the GPIO before any other operations are performed
+	 * on the relevant GPIO configuration registers
+	 */
+	bcm_kona_gpio_unlock_gpio(kona_gpio, gpio);
+
+	return gpiochip_reqres_irq(&kona_gpio->gpio_chip, gpio);
 }
 
 static void bcm_kona_gpio_irq_relres(struct irq_data *d)
 {
 	struct bcm_kona_gpio *kona_gpio = irq_data_get_irq_chip_data(d);
+	unsigned int gpio = d->hwirq;
 
-	gpiochip_relres_irq(&kona_gpio->gpio_chip, d->hwirq);
+	/* Once we no longer use it, lock the GPIO again */
+	bcm_kona_gpio_lock_gpio(kona_gpio, gpio);
+
+	gpiochip_relres_irq(&kona_gpio->gpio_chip, gpio);
 }
 
 static struct irq_chip bcm_gpio_irq_chip = {
@@ -614,7 +634,7 @@ static int bcm_kona_gpio_probe(struct platform_device *pdev)
 		bank->irq = platform_get_irq(pdev, i);
 		bank->kona_gpio = kona_gpio;
 		if (bank->irq < 0) {
-			dev_err(dev, "Couldn't get IRQ for bank %d", i);
+			dev_err(dev, "Couldn't get IRQ for bank %d\n", i);
 			ret = -ENOENT;
 			goto err_irq_domain;
 		}

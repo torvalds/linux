@@ -1329,7 +1329,7 @@ static int fc_lun_reset(struct fc_lport *lport, struct fc_fcp_pkt *fsp,
 	fsp->state |= FC_SRB_COMPL;
 	spin_unlock_bh(&fsp->scsi_pkt_lock);
 
-	del_timer_sync(&fsp->timer);
+	timer_delete_sync(&fsp->timer);
 
 	spin_lock_bh(&fsp->scsi_pkt_lock);
 	if (fsp->seq_ptr) {
@@ -1961,7 +1961,7 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 	fsp->state |= FC_SRB_COMPL;
 	if (!(fsp->state & FC_SRB_FCP_PROCESSING_TMO)) {
 		spin_unlock_bh(&fsp->scsi_pkt_lock);
-		del_timer_sync(&fsp->timer);
+		timer_delete_sync(&fsp->timer);
 		spin_lock_bh(&fsp->scsi_pkt_lock);
 	}
 
@@ -2222,13 +2222,13 @@ int fc_eh_host_reset(struct scsi_cmnd *sc_cmd)
 EXPORT_SYMBOL(fc_eh_host_reset);
 
 /**
- * fc_slave_alloc() - Configure the queue depth of a Scsi_Host
+ * fc_sdev_init() - Configure the queue depth of a Scsi_Host
  * @sdev: The SCSI device that identifies the SCSI host
  *
  * Configures queue depth based on host's cmd_per_len. If not set
  * then we use the libfc default.
  */
-int fc_slave_alloc(struct scsi_device *sdev)
+int fc_sdev_init(struct scsi_device *sdev)
 {
 	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
 
@@ -2238,7 +2238,7 @@ int fc_slave_alloc(struct scsi_device *sdev)
 	scsi_change_queue_depth(sdev, FC_FCP_DFLT_QUEUE_DEPTH);
 	return 0;
 }
-EXPORT_SYMBOL(fc_slave_alloc);
+EXPORT_SYMBOL(fc_sdev_init);
 
 /**
  * fc_fcp_destroy() - Tear down the FCP layer for a given local port

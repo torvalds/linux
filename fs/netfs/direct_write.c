@@ -68,12 +68,12 @@ ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov_iter *
 		 * request.
 		 */
 		if (user_backed_iter(iter)) {
-			n = netfs_extract_user_iter(iter, len, &wreq->iter, 0);
+			n = netfs_extract_user_iter(iter, len, &wreq->buffer.iter, 0);
 			if (n < 0) {
 				ret = n;
 				goto out;
 			}
-			wreq->direct_bv = (struct bio_vec *)wreq->iter.bvec;
+			wreq->direct_bv = (struct bio_vec *)wreq->buffer.iter.bvec;
 			wreq->direct_bv_count = n;
 			wreq->direct_bv_unpin = iov_iter_extract_will_pin(iter);
 		} else {
@@ -82,10 +82,8 @@ ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov_iter *
 			 * (eg. a bio_vec array) will persist till the end of
 			 * the op.
 			 */
-			wreq->iter = *iter;
+			wreq->buffer.iter = *iter;
 		}
-
-		wreq->io_iter = wreq->iter;
 	}
 
 	__set_bit(NETFS_RREQ_USE_IO_ITER, &wreq->flags);
@@ -97,7 +95,7 @@ ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov_iter *
 	__set_bit(NETFS_RREQ_UPLOAD_TO_SERVER, &wreq->flags);
 	if (async)
 		wreq->iocb = iocb;
-	wreq->len = iov_iter_count(&wreq->io_iter);
+	wreq->len = iov_iter_count(&wreq->buffer.iter);
 	wreq->cleanup = netfs_cleanup_dio_write;
 	ret = netfs_unbuffered_write(wreq, is_sync_kiocb(iocb), wreq->len);
 	if (ret < 0) {

@@ -38,6 +38,12 @@ enum rtw89_chanctx_pause_reasons {
 	RTW89_CHANCTX_PAUSE_REASON_ROC,
 };
 
+struct rtw89_chanctx_cb_parm {
+	int (*cb)(struct rtw89_dev *rtwdev, void *data);
+	void *data;
+	const char *caller;
+};
+
 struct rtw89_entity_weight {
 	unsigned int active_chanctxs;
 	unsigned int active_roles;
@@ -93,14 +99,15 @@ void rtw89_config_roc_chandef(struct rtw89_dev *rtwdev,
 			      const struct cfg80211_chan_def *chandef);
 void rtw89_entity_init(struct rtw89_dev *rtwdev);
 enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev);
-void rtw89_chanctx_work(struct work_struct *work);
+void rtw89_chanctx_work(struct wiphy *wiphy, struct wiphy_work *work);
 void rtw89_queue_chanctx_work(struct rtw89_dev *rtwdev);
 void rtw89_queue_chanctx_change(struct rtw89_dev *rtwdev,
 				enum rtw89_chanctx_changes change);
 void rtw89_chanctx_track(struct rtw89_dev *rtwdev);
 void rtw89_chanctx_pause(struct rtw89_dev *rtwdev,
 			 enum rtw89_chanctx_pause_reasons rsn);
-void rtw89_chanctx_proceed(struct rtw89_dev *rtwdev);
+void rtw89_chanctx_proceed(struct rtw89_dev *rtwdev,
+			   const struct rtw89_chanctx_cb_parm *cb_parm);
 
 const struct rtw89_chan *__rtw89_mgnt_chan_get(struct rtw89_dev *rtwdev,
 					       const char *caller_message,

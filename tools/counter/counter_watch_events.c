@@ -38,6 +38,7 @@ static const char * const counter_event_type_name[] = {
 	"COUNTER_EVENT_INDEX",
 	"COUNTER_EVENT_CHANGE_OF_STATE",
 	"COUNTER_EVENT_CAPTURE",
+	"COUNTER_EVENT_DIRECTION_CHANGE",
 };
 
 static const char * const counter_component_type_name[] = {
@@ -118,6 +119,7 @@ static void print_usage(void)
 		"  evt_index                  (COUNTER_EVENT_INDEX)\n"
 		"  evt_change_of_state        (COUNTER_EVENT_CHANGE_OF_STATE)\n"
 		"  evt_capture                (COUNTER_EVENT_CAPTURE)\n"
+		"  evt_direction_change       (COUNTER_EVENT_DIRECTION_CHANGE)\n"
 		"\n"
 		"  chan=<n>                   channel <n> for this watch [default: 0]\n"
 		"  id=<n>                     component id <n> for this watch [default: 0]\n"
@@ -157,6 +159,7 @@ enum {
 	WATCH_EVENT_INDEX,
 	WATCH_EVENT_CHANGE_OF_STATE,
 	WATCH_EVENT_CAPTURE,
+	WATCH_EVENT_DIRECTION_CHANGE,
 	WATCH_CHANNEL,
 	WATCH_ID,
 	WATCH_PARENT,
@@ -183,6 +186,7 @@ static char * const counter_watch_subopts[WATCH_SUBOPTS_MAX + 1] = {
 	[WATCH_EVENT_INDEX] = "evt_index",
 	[WATCH_EVENT_CHANGE_OF_STATE] = "evt_change_of_state",
 	[WATCH_EVENT_CAPTURE] = "evt_capture",
+	[WATCH_EVENT_DIRECTION_CHANGE] = "evt_direction_change",
 	/* channel, id, parent */
 	[WATCH_CHANNEL] = "chan",
 	[WATCH_ID] = "id",
@@ -278,6 +282,7 @@ int main(int argc, char **argv)
 				case WATCH_EVENT_INDEX:
 				case WATCH_EVENT_CHANGE_OF_STATE:
 				case WATCH_EVENT_CAPTURE:
+				case WATCH_EVENT_DIRECTION_CHANGE:
 					/* match counter_event_type: subtract enum value */
 					ret -= WATCH_EVENT_OVERFLOW;
 					watches[i].event = ret;

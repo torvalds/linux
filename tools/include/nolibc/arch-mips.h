@@ -179,6 +179,7 @@
 })
 
 /* startup code, note that it's called __start on MIPS */
+void __start(void);
 void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector __start(void)
 {
 	__asm__ volatile (

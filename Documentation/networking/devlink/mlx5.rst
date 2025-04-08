@@ -53,6 +53,9 @@ parameters.
        * ``smfs`` Software managed flow steering. In SMFS mode, the HW
          steering entities are created and manage through the driver without
          firmware intervention.
+       * ``hmfs`` Hardware managed flow steering. In HMFS mode, the driver
+         is configuring steering rules directly to the HW using Work Queues with
+         a special new type of WQE (Work Queue Element).
 
        SMFS mode is faster and provides better rule insertion rate compared to
        default DMFS mode.
@@ -277,6 +280,10 @@ Description of the vnic counters:
 	number of packets handled by the VNIC experiencing unexpected steering
 	failure (at any point in steering flow owned by the VNIC, including the FDB
 	for the eswitch owner).
+- icm_consumption
+        amount of Interconnect Host Memory (ICM) consumed by the vnic in
+        granularity of 4KB. ICM is host memory allocated by SW upon HCA request
+        and is used for storing data structures that control HCA operation.
 
 User commands examples:
 

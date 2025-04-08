@@ -52,7 +52,8 @@ static char *pseudo_lock_devnode(const struct device *dev, umode_t *mode)
 	rdtgrp = dev_get_drvdata(dev);
 	if (mode)
 		*mode = 0600;
-	return kasprintf(GFP_KERNEL, "pseudo_lock/%s", rdtgrp->kn->name);
+	guard(mutex)(&rdtgroup_mutex);
+	return kasprintf(GFP_KERNEL, "pseudo_lock/%s", rdt_kn_name(rdtgrp->kn));
 }
 
 static const struct class pseudo_lock_class = {
@@ -61,7 +62,8 @@ static const struct class pseudo_lock_class = {
 };
 
 /**
- * get_prefetch_disable_bits - prefetch disable bits of supported platforms
+ * resctrl_arch_get_prefetch_disable_bits - prefetch disable bits of supported
+ *                                          platforms
  * @void: It takes no parameters.
  *
  * Capture the list of platforms that have been validated to support
@@ -75,14 +77,16 @@ static const struct class pseudo_lock_class = {
  * in the SDM.
  *
  * When adding a platform here also add support for its cache events to
- * measure_cycles_perf_fn()
+ * resctrl_arch_measure_l*_residency()
  *
  * Return:
  * If platform is supported, the bits to disable hardware prefetchers, 0
  * if platform is not supported.
  */
-static u64 get_prefetch_disable_bits(void)
+u64 resctrl_arch_get_prefetch_disable_bits(void)
 {
+	prefetch_disable_bits = 0;
+
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL ||
 	    boot_cpu_data.x86 != 6)
 		return 0;
@@ -98,7 +102,8 @@ static u64 get_prefetch_disable_bits(void)
 		 * 3    DCU IP Prefetcher Disable (R/W)
 		 * 63:4 Reserved
 		 */
-		return 0xF;
+		prefetch_disable_bits = 0xF;
+		break;
 	case INTEL_ATOM_GOLDMONT:
 	case INTEL_ATOM_GOLDMONT_PLUS:
 		/*
@@ -109,10 +114,11 @@ static u64 get_prefetch_disable_bits(void)
 		 * 2     DCU Hardware Prefetcher Disable (R/W)
 		 * 63:3  Reserved
 		 */
-		return 0x5;
+		prefetch_disable_bits = 0x5;
+		break;
 	}
 
-	return 0;
+	return prefetch_disable_bits;
 }
 
 /**
@@ -408,8 +414,8 @@ static void pseudo_lock_free(struct rdtgroup *rdtgrp)
 }
 
 /**
- * pseudo_lock_fn - Load kernel memory into cache
- * @_rdtgrp: resource group to which pseudo-lock region belongs
+ * resctrl_arch_pseudo_lock_fn - Load kernel memory into cache
+ * @_plr: the pseudo-lock region descriptor
  *
  * This is the core pseudo-locking flow.
  *
@@ -426,10 +432,9 @@ static void pseudo_lock_free(struct rdtgroup *rdtgrp)
  *
  * Return: 0. Waiter on waitqueue will be woken on completion.
  */
-static int pseudo_lock_fn(void *_rdtgrp)
+int resctrl_arch_pseudo_lock_fn(void *_plr)
 {
-	struct rdtgroup *rdtgrp = _rdtgrp;
-	struct pseudo_lock_region *plr = rdtgrp->plr;
+	struct pseudo_lock_region *plr = _plr;
 	u32 rmid_p, closid_p;
 	unsigned long i;
 	u64 saved_msr;
@@ -459,7 +464,7 @@ static int pseudo_lock_fn(void *_rdtgrp)
 	 * increase likelihood that allocated cache portion will be filled
 	 * with associated memory.
 	 */
-	native_wbinvd();
+	wbinvd();
 
 	/*
 	 * Always called with interrupts enabled. By disabling interrupts
@@ -489,7 +494,8 @@ static int pseudo_lock_fn(void *_rdtgrp)
 	 * pseudo-locked followed by reading of kernel memory to load it
 	 * into the cache.
 	 */
-	__wrmsr(MSR_IA32_PQR_ASSOC, rmid_p, rdtgrp->closid);
+	__wrmsr(MSR_IA32_PQR_ASSOC, rmid_p, plr->closid);
+
 	/*
 	 * Cache was flushed earlier. Now access kernel memory to read it
 	 * into cache region associated with just activated plr->closid.
@@ -712,8 +718,7 @@ int rdtgroup_locksetup_enter(struct rdtgroup *rdtgrp)
 	 * Not knowing the bits to disable prefetching implies that this
 	 * platform does not support Cache Pseudo-Locking.
 	 */
-	prefetch_disable_bits = get_prefetch_disable_bits();
-	if (prefetch_disable_bits == 0) {
+	if (resctrl_arch_get_prefetch_disable_bits() == 0) {
 		rdt_last_cmd_puts("Pseudo-locking not supported\n");
 		return -EINVAL;
 	}
@@ -872,7 +877,8 @@ bool rdtgroup_pseudo_locked_in_hierarchy(struct rdt_ctrl_domain *d)
 }
 
 /**
- * measure_cycles_lat_fn - Measure cycle latency to read pseudo-locked memory
+ * resctrl_arch_measure_cycles_lat_fn - Measure cycle latency to read
+ *                                      pseudo-locked memory
  * @_plr: pseudo-lock region to measure
  *
  * There is no deterministic way to test if a memory region is cached. One
@@ -885,7 +891,7 @@ bool rdtgroup_pseudo_locked_in_hierarchy(struct rdt_ctrl_domain *d)
  *
  * Return: 0. Waiter on waitqueue will be woken on completion.
  */
-static int measure_cycles_lat_fn(void *_plr)
+int resctrl_arch_measure_cycles_lat_fn(void *_plr)
 {
 	struct pseudo_lock_region *plr = _plr;
 	u32 saved_low, saved_high;
@@ -1069,7 +1075,7 @@ out:
 	return 0;
 }
 
-static int measure_l2_residency(void *_plr)
+int resctrl_arch_measure_l2_residency(void *_plr)
 {
 	struct pseudo_lock_region *plr = _plr;
 	struct residency_counts counts = {0};
@@ -1107,7 +1113,7 @@ out:
 	return 0;
 }
 
-static int measure_l3_residency(void *_plr)
+int resctrl_arch_measure_l3_residency(void *_plr)
 {
 	struct pseudo_lock_region *plr = _plr;
 	struct residency_counts counts = {0};
@@ -1205,20 +1211,14 @@ static int pseudo_lock_measure_cycles(struct rdtgroup *rdtgrp, int sel)
 	plr->cpu = cpu;
 
 	if (sel == 1)
-		thread = kthread_create_on_node(measure_cycles_lat_fn, plr,
-						cpu_to_node(cpu),
-						"pseudo_lock_measure/%u",
-						cpu);
+		thread = kthread_run_on_cpu(resctrl_arch_measure_cycles_lat_fn,
+					    plr, cpu, "pseudo_lock_measure/%u");
 	else if (sel == 2)
-		thread = kthread_create_on_node(measure_l2_residency, plr,
-						cpu_to_node(cpu),
-						"pseudo_lock_measure/%u",
-						cpu);
+		thread = kthread_run_on_cpu(resctrl_arch_measure_l2_residency,
+					    plr, cpu, "pseudo_lock_measure/%u");
 	else if (sel == 3)
-		thread = kthread_create_on_node(measure_l3_residency, plr,
-						cpu_to_node(cpu),
-						"pseudo_lock_measure/%u",
-						cpu);
+		thread = kthread_run_on_cpu(resctrl_arch_measure_l3_residency,
+					    plr, cpu, "pseudo_lock_measure/%u");
 	else
 		goto out;
 
@@ -1226,8 +1226,6 @@ static int pseudo_lock_measure_cycles(struct rdtgroup *rdtgrp, int sel)
 		ret = PTR_ERR(thread);
 		goto out;
 	}
-	kthread_bind(thread, cpu);
-	wake_up_process(thread);
 
 	ret = wait_event_interruptible(plr->lock_thread_wq,
 				       plr->thread_done == 1);
@@ -1301,6 +1299,7 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 	struct task_struct *thread;
 	unsigned int new_minor;
 	struct device *dev;
+	char *kn_name __free(kfree) = NULL;
 	int ret;
 
 	ret = pseudo_lock_region_alloc(plr);
@@ -1312,20 +1311,21 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 		ret = -EINVAL;
 		goto out_region;
 	}
+	kn_name = kstrdup(rdt_kn_name(rdtgrp->kn), GFP_KERNEL);
+	if (!kn_name) {
+		ret = -ENOMEM;
+		goto out_cstates;
+	}
 
 	plr->thread_done = 0;
 
-	thread = kthread_create_on_node(pseudo_lock_fn, rdtgrp,
-					cpu_to_node(plr->cpu),
-					"pseudo_lock/%u", plr->cpu);
+	thread = kthread_run_on_cpu(resctrl_arch_pseudo_lock_fn, plr,
+				    plr->cpu, "pseudo_lock/%u");
 	if (IS_ERR(thread)) {
 		ret = PTR_ERR(thread);
 		rdt_last_cmd_printf("Locking thread returned error %d\n", ret);
 		goto out_cstates;
 	}
-
-	kthread_bind(thread, plr->cpu);
-	wake_up_process(thread);
 
 	ret = wait_event_interruptible(plr->lock_thread_wq,
 				       plr->thread_done == 1);
@@ -1360,8 +1360,7 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 	mutex_unlock(&rdtgroup_mutex);
 
 	if (!IS_ERR_OR_NULL(debugfs_resctrl)) {
-		plr->debugfs_dir = debugfs_create_dir(rdtgrp->kn->name,
-						      debugfs_resctrl);
+		plr->debugfs_dir = debugfs_create_dir(kn_name, debugfs_resctrl);
 		if (!IS_ERR_OR_NULL(plr->debugfs_dir))
 			debugfs_create_file("pseudo_lock_measure", 0200,
 					    plr->debugfs_dir, rdtgrp,
@@ -1370,7 +1369,7 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 
 	dev = device_create(&pseudo_lock_class, NULL,
 			    MKDEV(pseudo_lock_major, new_minor),
-			    rdtgrp, "%s", rdtgrp->kn->name);
+			    rdtgrp, "%s", kn_name);
 
 	mutex_lock(&rdtgroup_mutex);
 

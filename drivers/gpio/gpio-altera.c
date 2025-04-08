@@ -32,14 +32,12 @@
 *			  will be blocked until the current one completes.
 * @interrupt_trigger	: specifies the hardware configured IRQ trigger type
 *			  (rising, falling, both, high)
-* @mapped_irq		: kernel mapped irq number.
 */
 struct altera_gpio_chip {
 	struct gpio_chip gc;
 	void __iomem *regs;
 	raw_spinlock_t gpio_lock;
 	int interrupt_trigger;
-	int mapped_irq;
 };
 
 static void altera_gpio_irq_unmask(struct irq_data *d)
@@ -115,7 +113,7 @@ static int altera_gpio_get(struct gpio_chip *gc, unsigned offset)
 	return !!(readl(altera_gc->regs + ALTERA_GPIO_DATA) & BIT(offset));
 }
 
-static void altera_gpio_set(struct gpio_chip *gc, unsigned offset, int value)
+static int altera_gpio_set(struct gpio_chip *gc, unsigned int offset, int value)
 {
 	struct altera_gpio_chip *altera_gc = gpiochip_get_data(gc);
 	unsigned long flags;
@@ -129,6 +127,8 @@ static void altera_gpio_set(struct gpio_chip *gc, unsigned offset, int value)
 		data_reg &= ~BIT(offset);
 	writel(data_reg, altera_gc->regs + ALTERA_GPIO_DATA);
 	raw_spin_unlock_irqrestore(&altera_gc->gpio_lock, flags);
+
+	return 0;
 }
 
 static int altera_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
@@ -235,6 +235,7 @@ static int altera_gpio_probe(struct platform_device *pdev)
 	int reg, ret;
 	struct altera_gpio_chip *altera_gc;
 	struct gpio_irq_chip *girq;
+	int mapped_irq;
 
 	altera_gc = devm_kzalloc(&pdev->dev, sizeof(*altera_gc), GFP_KERNEL);
 	if (!altera_gc)
@@ -258,7 +259,7 @@ static int altera_gpio_probe(struct platform_device *pdev)
 	altera_gc->gc.direction_input	= altera_gpio_direction_input;
 	altera_gc->gc.direction_output	= altera_gpio_direction_output;
 	altera_gc->gc.get		= altera_gpio_get;
-	altera_gc->gc.set		= altera_gpio_set;
+	altera_gc->gc.set_rv		= altera_gpio_set;
 	altera_gc->gc.owner		= THIS_MODULE;
 	altera_gc->gc.parent		= &pdev->dev;
 	altera_gc->gc.base		= -1;
@@ -271,8 +272,8 @@ static int altera_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(altera_gc->regs))
 		return dev_err_probe(dev, PTR_ERR(altera_gc->regs), "failed to ioremap memory resource\n");
 
-	altera_gc->mapped_irq = platform_get_irq_optional(pdev, 0);
-	if (altera_gc->mapped_irq < 0)
+	mapped_irq = platform_get_irq_optional(pdev, 0);
+	if (mapped_irq < 0)
 		goto skip_irq;
 
 	if (device_property_read_u32(dev, "altr,interrupt-type", &reg)) {
@@ -296,7 +297,7 @@ static int altera_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_bad_irq;
-	girq->parents[0] = altera_gc->mapped_irq;
+	girq->parents[0] = mapped_irq;
 
 skip_irq:
 	ret = devm_gpiochip_add_data(dev, &altera_gc->gc, altera_gc);

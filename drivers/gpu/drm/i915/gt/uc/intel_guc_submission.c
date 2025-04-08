@@ -1223,7 +1223,7 @@ __extend_last_switch(struct intel_guc *guc, u64 *prev_start, u32 new_start)
  * determine validity of these values. Instead we read the values multiple times
  * until they are consistent. In test runs, 3 attempts results in consistent
  * values. The upper bound is set to 6 attempts and may need to be tuned as per
- * any new occurences.
+ * any new occurrences.
  */
 static void __get_engine_usage_record(struct intel_engine_cs *engine,
 				      u32 *last_in, u32 *id, u32 *total)
@@ -1285,15 +1285,12 @@ static void guc_update_engine_gt_clks(struct intel_engine_cs *engine)
 static u32 gpm_timestamp_shift(struct intel_gt *gt)
 {
 	intel_wakeref_t wakeref;
-	u32 reg, shift;
+	u32 reg;
 
 	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
 		reg = intel_uncore_read(gt->uncore, RPM_CONFIG0);
 
-	shift = (reg & GEN10_RPM_CONFIG0_CTC_SHIFT_PARAMETER_MASK) >>
-		GEN10_RPM_CONFIG0_CTC_SHIFT_PARAMETER_SHIFT;
-
-	return 3 - shift;
+	return 3 - REG_FIELD_GET(GEN10_RPM_CONFIG0_CTC_SHIFT_PARAMETER_MASK, reg);
 }
 
 static void guc_update_pm_timestamp(struct intel_guc *guc, ktime_t *now)
@@ -1469,6 +1466,19 @@ static void __reset_guc_busyness_stats(struct intel_guc *guc)
 	spin_unlock_irqrestore(&guc->timestamp.lock, flags);
 }
 
+static void __update_guc_busyness_running_state(struct intel_guc *guc)
+{
+	struct intel_gt *gt = guc_to_gt(guc);
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	unsigned long flags;
+
+	spin_lock_irqsave(&guc->timestamp.lock, flags);
+	for_each_engine(engine, gt, id)
+		engine->stats.guc.running = false;
+	spin_unlock_irqrestore(&guc->timestamp.lock, flags);
+}
+
 static void __update_guc_busyness_stats(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
@@ -1618,6 +1628,9 @@ void intel_guc_busyness_park(struct intel_gt *gt)
 
 	if (!guc_submission_initialized(guc))
 		return;
+
+	/* Assume no engines are running and set running state to false */
+	__update_guc_busyness_running_state(guc);
 
 	/*
 	 * There is a race with suspend flow where the worker runs after suspend
@@ -2995,7 +3008,7 @@ static int __guc_context_pin(struct intel_context *ce,
 
 	/*
 	 * GuC context gets pinned in guc_request_alloc. See that function for
-	 * explaination of why.
+	 * explanation of why.
 	 */
 
 	return lrc_pin(ce, engine, vaddr);
@@ -3433,10 +3446,10 @@ static inline int guc_lrc_desc_unpin(struct intel_context *ce)
 	 */
 	ret = deregister_context(ce, ce->guc_id.id);
 	if (ret) {
-		spin_lock(&ce->guc_state.lock);
+		spin_lock_irqsave(&ce->guc_state.lock, flags);
 		set_context_registered(ce);
 		clr_context_destroyed(ce);
-		spin_unlock(&ce->guc_state.lock);
+		spin_unlock_irqrestore(&ce->guc_state.lock, flags);
 		/*
 		 * As gt-pm is awake at function entry, intel_wakeref_put_async merely decrements
 		 * the wakeref immediately but per function spec usage call this after unlock.
@@ -5519,12 +5532,20 @@ static inline void guc_log_context(struct drm_printer *p,
 {
 	drm_printf(p, "GuC lrc descriptor %u:\n", ce->guc_id.id);
 	drm_printf(p, "\tHW Context Desc: 0x%08x\n", ce->lrc.lrca);
-	drm_printf(p, "\t\tLRC Head: Internal %u, Memory %u\n",
-		   ce->ring->head,
-		   ce->lrc_reg_state[CTX_RING_HEAD]);
-	drm_printf(p, "\t\tLRC Tail: Internal %u, Memory %u\n",
-		   ce->ring->tail,
-		   ce->lrc_reg_state[CTX_RING_TAIL]);
+	if (intel_context_pin_if_active(ce)) {
+		drm_printf(p, "\t\tLRC Head: Internal %u, Memory %u\n",
+			   ce->ring->head,
+			   ce->lrc_reg_state[CTX_RING_HEAD]);
+		drm_printf(p, "\t\tLRC Tail: Internal %u, Memory %u\n",
+			   ce->ring->tail,
+			   ce->lrc_reg_state[CTX_RING_TAIL]);
+		intel_context_unpin(ce);
+	} else {
+		drm_printf(p, "\t\tLRC Head: Internal %u, Memory not pinned\n",
+			   ce->ring->head);
+		drm_printf(p, "\t\tLRC Tail: Internal %u, Memory not pinned\n",
+			   ce->ring->tail);
+	}
 	drm_printf(p, "\t\tContext Pin Count: %u\n",
 		   atomic_read(&ce->pin_count));
 	drm_printf(p, "\t\tGuC ID Ref Count: %u\n",

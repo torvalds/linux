@@ -272,7 +272,7 @@ The available attributes are:
       echo async_irq > /sys/bus/dsa/drivers/crypto/sync_mode
 
     Async mode without interrupts (caller must poll) can be enabled by
-    writing 'async' to it::
+    writing 'async' to it (please see Caveat)::
 
       echo async > /sys/bus/dsa/drivers/crypto/sync_mode
 
@@ -282,6 +282,13 @@ The available attributes are:
       echo sync > /sys/bus/dsa/drivers/crypto/sync_mode
 
     The default mode is 'sync'.
+
+    Caveat: since the only mechanism that iaa_crypto currently implements
+    for async polling without interrupts is via the 'sync' mode as
+    described earlier, writing 'async' to
+    '/sys/bus/dsa/drivers/crypto/sync_mode' will internally enable the
+    'sync' mode. This is to ensure correct iaa_crypto behavior until true
+    async polling without interrupts is enabled in iaa_crypto.
 
 .. _iaa_default_config:
 

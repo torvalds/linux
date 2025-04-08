@@ -143,10 +143,10 @@ also track such tags and take certain actions. Private bug trackers and
 invalid URLs are forbidden.
 
 If your patch fixes a bug in a specific commit, e.g. you found an issue using
-``git bisect``, please use the 'Fixes:' tag with the first 12 characters of
-the SHA-1 ID, and the one line summary.  Do not split the tag across multiple
-lines, tags are exempt from the "wrap at 75 columns" rule in order to simplify
-parsing scripts.  For example::
+``git bisect``, please use the 'Fixes:' tag with at least the first 12
+characters of the SHA-1 ID, and the one line summary.  Do not split the tag
+across multiple lines, tags are exempt from the "wrap at 75 columns" rule in
+order to simplify parsing scripts.  For example::
 
 	Fixes: 54a4f0239f2e ("KVM: MMU: make kvm_mmu_zap_page() return the number of pages it actually freed")
 
@@ -463,8 +463,16 @@ If a person was not directly involved in the preparation or handling of a
 patch but wishes to signify and record their approval of it then they can
 ask to have an Acked-by: line added to the patch's changelog.
 
-Acked-by: is often used by the maintainer of the affected code when that
+Acked-by: is meant to be used by those responsible for or involved with the
+affected code in one way or another.  Most commonly, the maintainer when that
 maintainer neither contributed to nor forwarded the patch.
+
+Acked-by: may also be used by other stakeholders, such as people with domain
+knowledge (e.g. the original author of the code being modified), userspace-side
+reviewers for a kernel uAPI patch or key users of a feature.  Optionally, in
+these cases, it can be useful to add a "# Suffix" to clarify its meaning::
+
+	Acked-by: The Stakeholder <stakeholder@example.org> # As primary user
 
 Acked-by: is not as formal as Signed-off-by:.  It is a record that the acker
 has at least reviewed the patch and has indicated acceptance.  Hence patch
@@ -472,19 +480,25 @@ mergers will sometimes manually convert an acker's "yep, looks good to me"
 into an Acked-by: (but note that it is usually better to ask for an
 explicit ack).
 
+Acked-by: is also less formal than Reviewed-by:.  For instance, maintainers may
+use it to signify that they are OK with a patch landing, but they may not have
+reviewed it as thoroughly as if a Reviewed-by: was provided.  Similarly, a key
+user may not have carried out a technical review of the patch, yet they may be
+satisfied with the general approach, the feature or the user-facing interface.
+
 Acked-by: does not necessarily indicate acknowledgement of the entire patch.
 For example, if a patch affects multiple subsystems and has an Acked-by: from
 one subsystem maintainer then this usually indicates acknowledgement of just
 the part which affects that maintainer's code.  Judgement should be used here.
 When in doubt people should refer to the original discussion in the mailing
-list archives.
+list archives.  A "# Suffix" may also be used in this case to clarify.
 
 If a person has had the opportunity to comment on a patch, but has not
 provided such comments, you may optionally add a ``Cc:`` tag to the patch.
-This is the only tag which might be added without an explicit action by the
-person it names - but it should indicate that this person was copied on the
-patch.  This tag documents that potentially interested parties
-have been included in the discussion.
+This tag documents that potentially interested parties have been included in
+the discussion. Note, this is one of only three tags you might be able to use
+without explicit permission of the person named (see 'Tagging people requires
+permission' below for details).
 
 Co-developed-by: states that the patch was co-created by multiple developers;
 it is used to give attribution to co-authors (in addition to the author
@@ -530,9 +544,9 @@ hopefully inspires them to help us again in the future. The tag is intended for
 bugs; please do not use it to credit feature requests. The tag should be
 followed by a Closes: tag pointing to the report, unless the report is not
 available on the web. The Link: tag can be used instead of Closes: if the patch
-fixes a part of the issue(s) being reported. Please note that if the bug was
-reported in private, then ask for permission first before using the Reported-by
-tag.
+fixes a part of the issue(s) being reported. Note, the Reported-by tag is one
+of only three tags you might be able to use without explicit permission of the
+person named (see 'Tagging people requires permission' below for details).
 
 A Tested-by: tag indicates that the patch has been successfully tested (in
 some environment) by the person named.  This tag informs maintainers that
@@ -582,11 +596,11 @@ Usually removal of someone's Tested-by or Reviewed-by tags should be mentioned
 in the patch changelog (after the '---' separator).
 
 A Suggested-by: tag indicates that the patch idea is suggested by the person
-named and ensures credit to the person for the idea. Please note that this
-tag should not be added without the reporter's permission, especially if the
-idea was not posted in a public forum. That said, if we diligently credit our
-idea reporters, they will, hopefully, be inspired to help us again in the
-future.
+named and ensures credit to the person for the idea: if we diligently credit
+our idea reporters, they will, hopefully, be inspired to help us again in the
+future. Note, this is one of only three tags you might be able to use without
+explicit permission of the person named (see 'Tagging people requires
+permission' below for details).
 
 A Fixes: tag indicates that the patch fixes an issue in a previous commit. It
 is used to make it easy to determine where a bug originated, which can help
@@ -600,6 +614,25 @@ process nor the requirement to Cc: stable@vger.kernel.org on all stable
 patch candidates. For more information, please read
 Documentation/process/stable-kernel-rules.rst.
 
+Finally, while providing tags is welcome and typically very appreciated, please
+note that signers (i.e. submitters and maintainers) may use their discretion in
+applying offered tags.
+
+.. _tagging_people:
+
+Tagging people requires permission
+----------------------------------
+
+Be careful in the addition of the aforementioned tags to your patches, as all
+except for Cc:, Reported-by:, and Suggested-by: need explicit permission of the
+person named. For those three implicit permission is sufficient if the person
+contributed to the Linux kernel using that name and email address according
+to the lore archives or the commit history -- and in case of Reported-by:
+and Suggested-by: did the reporting or suggestion in public. Note,
+bugzilla.kernel.org is a public place in this sense, but email addresses
+used there are private; so do not expose them in tags, unless the person
+used them in earlier contributions.
+
 .. _the_canonical_patch_format:
 
 The canonical patch format
@@ -609,6 +642,9 @@ This section describes how the patch itself should be formatted.  Note
 that, if you have your patches stored in a ``git`` repository, proper patch
 formatting can be had with ``git format-patch``.  The tools cannot create
 the necessary text, though, so read the instructions below anyway.
+
+Subject Line
+^^^^^^^^^^^^
 
 The canonical patch subject line is::
 
@@ -683,6 +719,9 @@ Here are some good example Subjects::
     Subject: [PATCH v2] sub/sys: Condensed patch summary
     Subject: [PATCH v2 M/N] sub/sys: Condensed patch summary
 
+From Line
+^^^^^^^^^
+
 The ``from`` line must be the very first line in the message body,
 and has the form:
 
@@ -692,6 +731,15 @@ The ``from`` line specifies who will be credited as the author of the
 patch in the permanent changelog.  If the ``from`` line is missing,
 then the ``From:`` line from the email header will be used to determine
 the patch author in the changelog.
+
+The author may indicate their affiliation or the sponsor of the work
+by adding the name of an organization to the ``from`` and ``SoB`` lines,
+e.g.:
+
+	From: Patch Author (Company) <author@example.com>
+
+Explanation Body
+^^^^^^^^^^^^^^^^
 
 The explanation body will be committed to the permanent source
 changelog, so should make sense to a competent reader who has long since
@@ -707,6 +755,31 @@ If a patch fixes a compile failure, it may not be necessary to include
 _all_ of the compile failures; just enough that it is likely that
 someone searching for the patch can find it. As in the ``summary
 phrase``, it is important to be both succinct as well as descriptive.
+
+.. _backtraces:
+
+Backtraces in commit messages
+"""""""""""""""""""""""""""""
+
+Backtraces help document the call chain leading to a problem. However,
+not all backtraces are helpful. For example, early boot call chains are
+unique and obvious. Copying the full dmesg output verbatim, however,
+adds distracting information like timestamps, module lists, register and
+stack dumps.
+
+Therefore, the most useful backtraces should distill the relevant
+information from the dump, which makes it easier to focus on the real
+issue. Here is an example of a well-trimmed backtrace::
+
+  unchecked MSR access error: WRMSR to 0xd51 (tried to write 0x0000000000000064)
+  at rIP: 0xffffffffae059994 (native_write_msr+0x4/0x20)
+  Call Trace:
+  mba_wrmsr
+  update_domains
+  rdtgroup_mkdir
+
+Commentary
+^^^^^^^^^^
 
 The ``---`` marker line serves the essential purpose of marking for
 patch handling tools where the changelog message ends.
@@ -745,28 +818,6 @@ patch::
 
 See more details on the proper patch format in the following
 references.
-
-.. _backtraces:
-
-Backtraces in commit messages
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Backtraces help document the call chain leading to a problem. However,
-not all backtraces are helpful. For example, early boot call chains are
-unique and obvious. Copying the full dmesg output verbatim, however,
-adds distracting information like timestamps, module lists, register and
-stack dumps.
-
-Therefore, the most useful backtraces should distill the relevant
-information from the dump, which makes it easier to focus on the real
-issue. Here is an example of a well-trimmed backtrace::
-
-  unchecked MSR access error: WRMSR to 0xd51 (tried to write 0x0000000000000064)
-  at rIP: 0xffffffffae059994 (native_write_msr+0x4/0x20)
-  Call Trace:
-  mba_wrmsr
-  update_domains
-  rdtgroup_mkdir
 
 .. _explicit_in_reply_to:
 

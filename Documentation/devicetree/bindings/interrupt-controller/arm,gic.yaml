@@ -110,8 +110,8 @@ properties:
 
   interrupts:
     description: Interrupt source of the parent interrupt controller on
-      secondary GICs, or VGIC maintenance interrupt on primary GIC (see
-      below).
+      secondary GICs, or VGIC maintenance interrupt on primary GIC (see "GICv2
+      with virtualization extensions" paragraph in the "reg" property).
     maxItems: 1
 
   cpu-offset:

@@ -178,9 +178,10 @@ typedef struct xfs_sb {
 
 	xfs_rgnumber_t	sb_rgcount;	/* number of realtime groups */
 	xfs_rtxlen_t	sb_rgextents;	/* size of a realtime group in rtx */
-
 	uint8_t		sb_rgblklog;    /* rt group number shift */
 	uint8_t		sb_pad[7];	/* zeroes */
+	xfs_rfsblock_t	sb_rtstart;	/* start of internal RT section (FSB) */
+	xfs_filblks_t	sb_rtreserved;	/* reserved (zoned) RT blocks */
 
 	/* must be padded to 64 bit alignment */
 } xfs_sb_t;
@@ -270,9 +271,10 @@ struct xfs_dsb {
 	__be64		sb_metadirino;	/* metadata directory tree root */
 	__be32		sb_rgcount;	/* # of realtime groups */
 	__be32		sb_rgextents;	/* size of rtgroup in rtx */
-
 	__u8		sb_rgblklog;    /* rt group number shift */
 	__u8		sb_pad[7];	/* zeroes */
+	__be64		sb_rtstart;	/* start of internal RT section (FSB) */
+	__be64		sb_rtreserved;	/* reserved (zoned) RT blocks */
 
 	/*
 	 * The size of this structure must be padded to 64 bit alignment.
@@ -395,6 +397,9 @@ xfs_sb_has_ro_compat_feature(
 #define XFS_SB_FEAT_INCOMPAT_EXCHRANGE	(1 << 6)  /* exchangerange supported */
 #define XFS_SB_FEAT_INCOMPAT_PARENT	(1 << 7)  /* parent pointers */
 #define XFS_SB_FEAT_INCOMPAT_METADIR	(1 << 8)  /* metadata dir tree */
+#define XFS_SB_FEAT_INCOMPAT_ZONED	(1 << 9)  /* zoned RT allocator */
+#define XFS_SB_FEAT_INCOMPAT_ZONE_GAPS	(1 << 10) /* RTGs have LBA gaps */
+
 #define XFS_SB_FEAT_INCOMPAT_ALL \
 		(XFS_SB_FEAT_INCOMPAT_FTYPE | \
 		 XFS_SB_FEAT_INCOMPAT_SPINODES | \
@@ -404,7 +409,9 @@ xfs_sb_has_ro_compat_feature(
 		 XFS_SB_FEAT_INCOMPAT_NREXT64 | \
 		 XFS_SB_FEAT_INCOMPAT_EXCHRANGE | \
 		 XFS_SB_FEAT_INCOMPAT_PARENT | \
-		 XFS_SB_FEAT_INCOMPAT_METADIR)
+		 XFS_SB_FEAT_INCOMPAT_METADIR | \
+		 XFS_SB_FEAT_INCOMPAT_ZONED | \
+		 XFS_SB_FEAT_INCOMPAT_ZONE_GAPS)
 
 #define XFS_SB_FEAT_INCOMPAT_UNKNOWN	~XFS_SB_FEAT_INCOMPAT_ALL
 static inline bool
@@ -857,6 +864,8 @@ enum xfs_metafile_type {
 	XFS_METAFILE_PRJQUOTA,		/* project quota */
 	XFS_METAFILE_RTBITMAP,		/* rt bitmap */
 	XFS_METAFILE_RTSUMMARY,		/* rt summary */
+	XFS_METAFILE_RTRMAP,		/* rt rmap */
+	XFS_METAFILE_RTREFCOUNT,	/* rt refcount */
 
 	XFS_METAFILE_MAX
 } __packed;
@@ -868,7 +877,9 @@ enum xfs_metafile_type {
 	{ XFS_METAFILE_GRPQUOTA,	"grpquota" }, \
 	{ XFS_METAFILE_PRJQUOTA,	"prjquota" }, \
 	{ XFS_METAFILE_RTBITMAP,	"rtbitmap" }, \
-	{ XFS_METAFILE_RTSUMMARY,	"rtsummary" }
+	{ XFS_METAFILE_RTSUMMARY,	"rtsummary" }, \
+	{ XFS_METAFILE_RTRMAP,		"rtrmap" }, \
+	{ XFS_METAFILE_RTREFCOUNT,	"rtrefcount" }
 
 /*
  * On-disk inode structure.
@@ -948,7 +959,12 @@ struct xfs_dinode {
 	__be64		di_changecount;	/* number of attribute changes */
 	__be64		di_lsn;		/* flush sequence */
 	__be64		di_flags2;	/* more random flags */
-	__be32		di_cowextsize;	/* basic cow extent size for file */
+	union {
+		/* basic cow extent size for (regular) file */
+		__be32		di_cowextsize;
+		/* used blocks in RTG for (zoned) rtrmap inode */
+		__be32		di_used_blocks;
+	};
 	__u8		di_pad2[12];	/* more padding for future expansion */
 
 	/* fields only written to during inode creation */
@@ -997,7 +1013,8 @@ enum xfs_dinode_fmt {
 	XFS_DINODE_FMT_LOCAL,		/* bulk data */
 	XFS_DINODE_FMT_EXTENTS,		/* struct xfs_bmbt_rec */
 	XFS_DINODE_FMT_BTREE,		/* struct xfs_bmdr_block */
-	XFS_DINODE_FMT_UUID		/* added long ago, but never used */
+	XFS_DINODE_FMT_UUID,		/* added long ago, but never used */
+	XFS_DINODE_FMT_META_BTREE,	/* metadata btree */
 };
 
 #define XFS_INODE_FORMAT_STR \
@@ -1005,7 +1022,8 @@ enum xfs_dinode_fmt {
 	{ XFS_DINODE_FMT_LOCAL,		"local" }, \
 	{ XFS_DINODE_FMT_EXTENTS,	"extent" }, \
 	{ XFS_DINODE_FMT_BTREE,		"btree" }, \
-	{ XFS_DINODE_FMT_UUID,		"uuid" }
+	{ XFS_DINODE_FMT_UUID,		"uuid" }, \
+	{ XFS_DINODE_FMT_META_BTREE,	"meta_btree" }
 
 /*
  * Max values for extnum and aextnum.
@@ -1726,6 +1744,24 @@ typedef __be32 xfs_rmap_ptr_t;
 	 XFS_IBT_BLOCK(mp) + 1)
 
 /*
+ * Realtime Reverse mapping btree format definitions
+ *
+ * This is a btree for reverse mapping records for realtime volumes
+ */
+#define	XFS_RTRMAP_CRC_MAGIC	0x4d415052	/* 'MAPR' */
+
+/*
+ * rtrmap root header, on-disk form only.
+ */
+struct xfs_rtrmap_root {
+	__be16		bb_level;	/* 0 is a leaf */
+	__be16		bb_numrecs;	/* current # of data records */
+};
+
+/* inode-based btree pointer type */
+typedef __be64 xfs_rtrmap_ptr_t;
+
+/*
  * Reference Count Btree format definitions
  *
  */
@@ -1768,12 +1804,29 @@ struct xfs_refcount_key {
 	__be32		rc_startblock;	/* starting block number */
 };
 
-#define MAXREFCOUNT	((xfs_nlink_t)~0U)
-#define MAXREFCEXTLEN	((xfs_extlen_t)~0U)
+#define XFS_REFC_REFCOUNT_MAX	((xfs_nlink_t)~0U)
+#define XFS_REFC_LEN_MAX	((xfs_extlen_t)~0U)
 
 /* btree pointer type */
 typedef __be32 xfs_refcount_ptr_t;
 
+/*
+ * Realtime Reference Count btree format definitions
+ *
+ * This is a btree for reference count records for realtime volumes
+ */
+#define	XFS_RTREFC_CRC_MAGIC	0x52434e54	/* 'RCNT' */
+
+/*
+ * rt refcount root header, on-disk form only.
+ */
+struct xfs_rtrefcount_root {
+	__be16		bb_level;	/* 0 is a leaf */
+	__be16		bb_numrecs;	/* current # of data records */
+};
+
+/* inode-rooted btree pointer type */
+typedef __be64 xfs_rtrefcount_ptr_t;
 
 /*
  * BMAP Btree format definitions

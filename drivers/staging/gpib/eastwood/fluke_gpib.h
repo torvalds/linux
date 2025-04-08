@@ -21,7 +21,7 @@ struct fluke_priv {
 	struct dma_chan *dma_channel;
 	u8 *dma_buffer;
 	int dma_buffer_size;
-	void *write_transfer_counter;
+	void __iomem *write_transfer_counter;
 };
 
 // cb7210 specific registers and bits

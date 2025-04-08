@@ -6,7 +6,7 @@
 #ifndef __KVM_X86_VMX_HYPERV_EVMCS_H
 #define __KVM_X86_VMX_HYPERV_EVMCS_H
 
-#include <asm/hyperv-tlfs.h>
+#include <hyperv/hvhdk.h>
 
 #include "capabilities.h"
 #include "vmcs12.h"

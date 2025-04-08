@@ -191,7 +191,7 @@ enum iwl_tx_offload_assist_flags_pos {
  *	cleared. Combination of RATE_MCS_*
  * @sta_id: index of destination station in FW station table
  * @sec_ctl: security control, TX_CMD_SEC_*
- * @initial_rate_index: index into the the rate table for initial TX attempt.
+ * @initial_rate_index: index into the rate table for initial TX attempt.
  *	Applied if TX_CMD_FLG_STA_RATE_MSK is set, normally 0 for data frames.
  * @reserved2: reserved
  * @key: security key
@@ -298,8 +298,7 @@ struct iwl_tx_cmd_gen3 {
 	__le32 rate_n_flags;
 	u8 reserved[8];
 	struct ieee80211_hdr hdr[];
-} __packed; /* TX_CMD_API_S_VER_8,
-	       TX_CMD_API_S_VER_10 */
+} __packed; /* TX_CMD_API_S_VER_8, TX_CMD_API_S_VER_10 */
 
 /*
  * TX response related data
@@ -482,8 +481,8 @@ struct agg_tx_status {
 #define TX_RES_RATE_TABLE_COL_GET(_f) (((_f) & TX_RES_RATE_TABLE_COLOR_MSK) >>\
 				       TX_RES_RATE_TABLE_COLOR_POS)
 
-#define IWL_MVM_TX_RES_GET_TID(_ra_tid) ((_ra_tid) & 0x0f)
-#define IWL_MVM_TX_RES_GET_RA(_ra_tid) ((_ra_tid) >> 4)
+#define IWL_TX_RES_GET_TID(_ra_tid) ((_ra_tid) & 0x0f)
+#define IWL_TX_RES_GET_RA(_ra_tid) ((_ra_tid) >> 4)
 
 /**
  * struct iwl_tx_resp_v3 - notifies that fw is TXing a packet
@@ -601,7 +600,8 @@ struct iwl_tx_resp {
 	__le16 reserved2;
 	struct agg_tx_status status;
 } __packed; /* TX_RSP_API_S_VER_6,
-	       TX_RSP_API_S_VER_7 */
+	       TX_RSP_API_S_VER_7,
+	       TX_RSP_API_S_VER_8 */
 
 /**
  * struct iwl_mvm_ba_notif - notifies about reception of BA
@@ -638,14 +638,14 @@ struct iwl_mvm_ba_notif {
 } __packed;
 
 /**
- * struct iwl_mvm_compressed_ba_tfd - progress of a TFD queue
+ * struct iwl_compressed_ba_tfd - progress of a TFD queue
  * @q_num: TFD queue number
  * @tfd_index: Index of first un-acked frame in the  TFD queue
  * @scd_queue: For debug only - the physical queue the TFD queue is bound to
  * @tid: TID of the queue (0-7)
  * @reserved: reserved for alignment
  */
-struct iwl_mvm_compressed_ba_tfd {
+struct iwl_compressed_ba_tfd {
 	__le16 q_num;
 	__le16 tfd_index;
 	u8 scd_queue;
@@ -654,12 +654,12 @@ struct iwl_mvm_compressed_ba_tfd {
 } __packed; /* COMPRESSED_BA_TFD_API_S_VER_1 */
 
 /**
- * struct iwl_mvm_compressed_ba_ratid - progress of a RA TID queue
+ * struct iwl_compressed_ba_ratid - progress of a RA TID queue
  * @q_num: RA TID queue number
  * @tid: TID of the queue
  * @ssn: BA window current SSN
  */
-struct iwl_mvm_compressed_ba_ratid {
+struct iwl_compressed_ba_ratid {
 	u8 q_num;
 	u8 tid;
 	__le16 ssn;
@@ -685,7 +685,7 @@ enum iwl_mvm_ba_resp_flags {
 };
 
 /**
- * struct iwl_mvm_compressed_ba_notif - notifies about reception of BA
+ * struct iwl_compressed_ba_notif - notifies about reception of BA
  * ( BA_NOTIF = 0xc5 )
  * @flags: status flag, see the &iwl_mvm_ba_resp_flags
  * @sta_id: Index of recipient (BA-sending) station in fw's station table
@@ -704,12 +704,12 @@ enum iwl_mvm_ba_resp_flags {
  * @tx_rate: the rate the aggregation was sent at
  * @tfd_cnt: number of TFD-Q elements
  * @ra_tid_cnt: number of RATID-Q elements
- * @tfd: array of TFD queue status updates. See &iwl_mvm_compressed_ba_tfd
+ * @tfd: array of TFD queue status updates. See &iwl_compressed_ba_tfd
  *	for details. Length in @tfd_cnt.
  * @ra_tid: array of RA-TID queue status updates. For debug purposes only. See
- *	&iwl_mvm_compressed_ba_ratid for more details. Length in @ra_tid_cnt.
+ *	&iwl_compressed_ba_ratid for more details. Length in @ra_tid_cnt.
  */
-struct iwl_mvm_compressed_ba_notif {
+struct iwl_compressed_ba_notif {
 	__le32 flags;
 	u8 sta_id;
 	u8 reduced_txp;
@@ -726,8 +726,8 @@ struct iwl_mvm_compressed_ba_notif {
 	__le16 tfd_cnt;
 	__le16 ra_tid_cnt;
 	union {
-		DECLARE_FLEX_ARRAY(struct iwl_mvm_compressed_ba_ratid, ra_tid);
-		DECLARE_FLEX_ARRAY(struct iwl_mvm_compressed_ba_tfd, tfd);
+		DECLARE_FLEX_ARRAY(struct iwl_compressed_ba_ratid, ra_tid);
+		DECLARE_FLEX_ARRAY(struct iwl_compressed_ba_tfd, tfd);
 	};
 } __packed; /* COMPRESSED_BA_RES_API_S_VER_4,
 	       COMPRESSED_BA_RES_API_S_VER_5 */

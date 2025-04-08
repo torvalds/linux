@@ -5,7 +5,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
-#include "../bpf_testmod/bpf_testmod.h"
+#include "../test_kmods/bpf_testmod.h"
 
 __u32 raw_tp_read_sz = 0;
 
@@ -117,7 +117,7 @@ int BPF_PROG(handle_fexit_ret, int arg, struct file *ret)
 
 	bpf_probe_read_kernel(&buf, 8, ret);
 	bpf_probe_read_kernel(&buf, 8, (char *)ret + 256);
-	*(volatile long long *)ret;
+	*(volatile int *)ret;
 	*(volatile int *)&ret->f_mode;
 	return 0;
 }

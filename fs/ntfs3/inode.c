@@ -410,6 +410,9 @@ end_enum:
 	if (!std5)
 		goto out;
 
+	if (is_bad_inode(inode))
+		goto out;
+
 	if (!is_match && name) {
 		err = -ENOENT;
 		goto out;
@@ -1019,46 +1022,6 @@ int ntfs3_write_inode(struct inode *inode, struct writeback_control *wbc)
 int ntfs_sync_inode(struct inode *inode)
 {
 	return _ni_write_inode(inode, 1);
-}
-
-/*
- * writeback_inode - Helper function for ntfs_flush_inodes().
- *
- * This writes both the inode and the file data blocks, waiting
- * for in flight data blocks before the start of the call.  It
- * does not wait for any io started during the call.
- */
-static int writeback_inode(struct inode *inode)
-{
-	int ret = sync_inode_metadata(inode, 0);
-
-	if (!ret)
-		ret = filemap_fdatawrite(inode->i_mapping);
-	return ret;
-}
-
-/*
- * ntfs_flush_inodes
- *
- * Write data and metadata corresponding to i1 and i2.  The io is
- * started but we do not wait for any of it to finish.
- *
- * filemap_flush() is used for the block device, so if there is a dirty
- * page for a block already in flight, we will not wait and start the
- * io over again.
- */
-int ntfs_flush_inodes(struct super_block *sb, struct inode *i1,
-		      struct inode *i2)
-{
-	int ret = 0;
-
-	if (i1)
-		ret = writeback_inode(i1);
-	if (!ret && i2)
-		ret = writeback_inode(i2);
-	if (!ret)
-		ret = filemap_flush(sb->s_bdev_file->f_mapping);
-	return ret;
 }
 
 /*

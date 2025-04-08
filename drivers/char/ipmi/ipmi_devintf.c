@@ -122,12 +122,9 @@ out:
 static int ipmi_release(struct inode *inode, struct file *file)
 {
 	struct ipmi_file_private *priv = file->private_data;
-	int                      rv;
 	struct ipmi_recv_msg *msg, *next;
 
-	rv = ipmi_destroy_user(priv->user);
-	if (rv)
-		return rv;
+	ipmi_destroy_user(priv->user);
 
 	list_for_each_entry_safe(msg, next, &priv->recv_msgs, link)
 		ipmi_free_recv_msg(msg);

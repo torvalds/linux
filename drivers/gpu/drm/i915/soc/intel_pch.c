@@ -7,6 +7,36 @@
 #include "i915_utils.h"
 #include "intel_pch.h"
 
+#define INTEL_PCH_DEVICE_ID_MASK		0xff80
+#define INTEL_PCH_IBX_DEVICE_ID_TYPE		0x3b00
+#define INTEL_PCH_CPT_DEVICE_ID_TYPE		0x1c00
+#define INTEL_PCH_PPT_DEVICE_ID_TYPE		0x1e00
+#define INTEL_PCH_LPT_DEVICE_ID_TYPE		0x8c00
+#define INTEL_PCH_LPT_LP_DEVICE_ID_TYPE		0x9c00
+#define INTEL_PCH_WPT_DEVICE_ID_TYPE		0x8c80
+#define INTEL_PCH_WPT_LP_DEVICE_ID_TYPE		0x9c80
+#define INTEL_PCH_SPT_DEVICE_ID_TYPE		0xA100
+#define INTEL_PCH_SPT_LP_DEVICE_ID_TYPE		0x9D00
+#define INTEL_PCH_KBP_DEVICE_ID_TYPE		0xA280
+#define INTEL_PCH_CNP_DEVICE_ID_TYPE		0xA300
+#define INTEL_PCH_CNP_LP_DEVICE_ID_TYPE		0x9D80
+#define INTEL_PCH_CMP_DEVICE_ID_TYPE		0x0280
+#define INTEL_PCH_CMP2_DEVICE_ID_TYPE		0x0680
+#define INTEL_PCH_CMP_V_DEVICE_ID_TYPE		0xA380
+#define INTEL_PCH_ICP_DEVICE_ID_TYPE		0x3480
+#define INTEL_PCH_ICP2_DEVICE_ID_TYPE		0x3880
+#define INTEL_PCH_MCC_DEVICE_ID_TYPE		0x4B00
+#define INTEL_PCH_TGP_DEVICE_ID_TYPE		0xA080
+#define INTEL_PCH_TGP2_DEVICE_ID_TYPE		0x4380
+#define INTEL_PCH_JSP_DEVICE_ID_TYPE		0x4D80
+#define INTEL_PCH_ADP_DEVICE_ID_TYPE		0x7A80
+#define INTEL_PCH_ADP2_DEVICE_ID_TYPE		0x5180
+#define INTEL_PCH_ADP3_DEVICE_ID_TYPE		0x7A00
+#define INTEL_PCH_ADP4_DEVICE_ID_TYPE		0x5480
+#define INTEL_PCH_P2X_DEVICE_ID_TYPE		0x7100
+#define INTEL_PCH_P3X_DEVICE_ID_TYPE		0x7000
+#define INTEL_PCH_QEMU_DEVICE_ID_TYPE		0x2900 /* qemu q35 has 2918 */
+
 /* Map PCH device id to PCH type, or PCH_NONE if unknown. */
 static enum intel_pch
 intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
@@ -33,14 +63,14 @@ intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
 			    !IS_HASWELL(dev_priv) && !IS_BROADWELL(dev_priv));
 		drm_WARN_ON(&dev_priv->drm,
 			    IS_HASWELL_ULT(dev_priv) || IS_BROADWELL_ULT(dev_priv));
-		return PCH_LPT;
+		return PCH_LPT_H;
 	case INTEL_PCH_LPT_LP_DEVICE_ID_TYPE:
 		drm_dbg_kms(&dev_priv->drm, "Found LynxPoint LP PCH\n");
 		drm_WARN_ON(&dev_priv->drm,
 			    !IS_HASWELL(dev_priv) && !IS_BROADWELL(dev_priv));
 		drm_WARN_ON(&dev_priv->drm,
 			    !IS_HASWELL_ULT(dev_priv) && !IS_BROADWELL_ULT(dev_priv));
-		return PCH_LPT;
+		return PCH_LPT_LP;
 	case INTEL_PCH_WPT_DEVICE_ID_TYPE:
 		drm_dbg_kms(&dev_priv->drm, "Found WildcatPoint PCH\n");
 		drm_WARN_ON(&dev_priv->drm,
@@ -48,7 +78,7 @@ intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
 		drm_WARN_ON(&dev_priv->drm,
 			    IS_HASWELL_ULT(dev_priv) || IS_BROADWELL_ULT(dev_priv));
 		/* WPT is LPT compatible */
-		return PCH_LPT;
+		return PCH_LPT_H;
 	case INTEL_PCH_WPT_LP_DEVICE_ID_TYPE:
 		drm_dbg_kms(&dev_priv->drm, "Found WildcatPoint LP PCH\n");
 		drm_WARN_ON(&dev_priv->drm,
@@ -56,7 +86,7 @@ intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
 		drm_WARN_ON(&dev_priv->drm,
 			    !IS_HASWELL_ULT(dev_priv) && !IS_BROADWELL_ULT(dev_priv));
 		/* WPT is LPT compatible */
-		return PCH_LPT;
+		return PCH_LPT_LP;
 	case INTEL_PCH_SPT_DEVICE_ID_TYPE:
 		drm_dbg_kms(&dev_priv->drm, "Found SunrisePoint PCH\n");
 		drm_WARN_ON(&dev_priv->drm,
@@ -243,7 +273,7 @@ void intel_detect_pch(struct drm_i915_private *dev_priv)
 	 * underneath. This is a requirement from virtualization team.
 	 *
 	 * In some virtualized environments (e.g. XEN), there is irrelevant
-	 * ISA bridge in the system. To work reliably, we should scan trhough
+	 * ISA bridge in the system. To work reliably, we should scan through
 	 * all the ISA bridge devices and check for the first match, instead
 	 * of only checking the first one.
 	 */
@@ -256,13 +286,11 @@ void intel_detect_pch(struct drm_i915_private *dev_priv)
 		pch_type = intel_pch_type(dev_priv, id);
 		if (pch_type != PCH_NONE) {
 			dev_priv->pch_type = pch_type;
-			dev_priv->pch_id = id;
 			break;
 		} else if (intel_is_virt_pch(id, pch->subsystem_vendor,
 					     pch->subsystem_device)) {
 			intel_virt_detect_pch(dev_priv, &id, &pch_type);
 			dev_priv->pch_type = pch_type;
-			dev_priv->pch_id = id;
 			break;
 		}
 	}
@@ -275,12 +303,10 @@ void intel_detect_pch(struct drm_i915_private *dev_priv)
 		drm_dbg_kms(&dev_priv->drm,
 			    "Display disabled, reverting to NOP PCH\n");
 		dev_priv->pch_type = PCH_NOP;
-		dev_priv->pch_id = 0;
 	} else if (!pch) {
 		if (i915_run_as_guest() && HAS_DISPLAY(dev_priv)) {
 			intel_virt_detect_pch(dev_priv, &id, &pch_type);
 			dev_priv->pch_type = pch_type;
-			dev_priv->pch_id = id;
 		} else {
 			drm_dbg_kms(&dev_priv->drm, "No PCH found.\n");
 		}

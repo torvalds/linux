@@ -37,10 +37,17 @@ properties:
   interrupts:
     maxItems: 1
 
+  interrupt-names:
+    items:
+      - enum: [INT1, INT2]
+
+dependencies:
+  interrupts: [ interrupt-names ]
+  interrupt-names: [ interrupts ]
+
 required:
   - compatible
   - reg
-  - interrupts
 
 allOf:
   - $ref: /schemas/spi/spi-peripheral-props.yaml#
@@ -61,6 +68,7 @@ examples:
             reg = <0x2a>;
             interrupt-parent = <&gpio0>;
             interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+            interrupt-names = "INT1";
         };
     };
   - |
@@ -79,5 +87,6 @@ examples:
             spi-cpha;
             interrupt-parent = <&gpio0>;
             interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+            interrupt-names = "INT2";
         };
     };

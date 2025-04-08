@@ -28,7 +28,7 @@
 #include <linux/sizes.h>
 
 #include <linux/hyperv.h>
-#include <asm/hyperv-tlfs.h>
+#include <hyperv/hvhdk.h>
 
 #include <asm/mshyperv.h>
 
@@ -766,16 +766,18 @@ static void hv_online_page(struct page *pg, unsigned int order)
 	struct hv_hotadd_state *has;
 	unsigned long pfn = page_to_pfn(pg);
 
-	guard(spinlock_irqsave)(&dm_device.ha_lock);
-	list_for_each_entry(has, &dm_device.ha_region_list, list) {
-		/* The page belongs to a different HAS. */
-		if (pfn < has->start_pfn ||
-		    (pfn + (1UL << order) > has->end_pfn))
-			continue;
+	scoped_guard(spinlock_irqsave, &dm_device.ha_lock) {
+		list_for_each_entry(has, &dm_device.ha_region_list, list) {
+			/* The page belongs to a different HAS. */
+			if (pfn < has->start_pfn ||
+				(pfn + (1UL << order) > has->end_pfn))
+				continue;
 
-		hv_bring_pgs_online(has, pfn, 1UL << order);
-		break;
+			hv_bring_pgs_online(has, pfn, 1UL << order);
+			return;
+		}
 	}
+	generic_online_page(pg, order);
 }
 
 static int pfn_covered(unsigned long start_pfn, unsigned long pfn_cnt)
@@ -1190,6 +1192,7 @@ static void free_balloon_pages(struct hv_dynmem_device *dm,
 		__ClearPageOffline(pg);
 		__free_page(pg);
 		dm->num_pages_ballooned--;
+		mod_node_page_state(page_pgdat(pg), NR_BALLOON_PAGES, -1);
 		adjust_managed_page_count(pg, 1);
 	}
 }
@@ -1219,6 +1222,7 @@ static unsigned int alloc_balloon_pages(struct hv_dynmem_device *dm,
 			return i * alloc_unit;
 
 		dm->num_pages_ballooned += alloc_unit;
+		mod_node_page_state(page_pgdat(pg), NR_BALLOON_PAGES, alloc_unit);
 
 		/*
 		 * If we allocatted 2M pages; split them so we
@@ -1586,7 +1590,7 @@ static int hv_free_page_report(struct page_reporting_dev_info *pr_dev_info,
 		return -ENOSPC;
 	}
 
-	hint->type = HV_EXT_MEMORY_HEAT_HINT_TYPE_COLD_DISCARD;
+	hint->heat_type = HV_EXTMEM_HEAT_HINT_COLD_DISCARD;
 	hint->reserved = 0;
 	for_each_sg(sgl, sg, nents, i) {
 		union hv_gpa_page_range *range;

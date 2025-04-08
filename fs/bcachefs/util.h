@@ -55,6 +55,16 @@ static inline size_t buf_pages(void *p, size_t len)
 			    PAGE_SIZE);
 }
 
+static inline void *bch2_kvmalloc(size_t n, gfp_t flags)
+{
+	void *p = unlikely(n >= INT_MAX)
+		? vmalloc(n)
+		: kvmalloc(n, flags & ~__GFP_ZERO);
+	if (p && (flags & __GFP_ZERO))
+		memset(p, 0, n);
+	return p;
+}
+
 #define init_heap(heap, _size, gfp)					\
 ({									\
 	(heap)->nr = 0;						\
@@ -84,6 +94,7 @@ do {									\
 #define printbuf_tabstop_push(_buf, _n)	bch2_printbuf_tabstop_push(_buf, _n)
 
 #define printbuf_indent_add(_out, _n)	bch2_printbuf_indent_add(_out, _n)
+#define printbuf_indent_add_nextline(_out, _n)	bch2_printbuf_indent_add_nextline(_out, _n)
 #define printbuf_indent_sub(_out, _n)	bch2_printbuf_indent_sub(_out, _n)
 
 #define prt_newline(_out)		bch2_prt_newline(_out)
@@ -317,6 +328,19 @@ do {									\
 	_ptr ? container_of(_ptr, type, member) : NULL;			\
 })
 
+static inline struct list_head *list_pop(struct list_head *head)
+{
+	if (list_empty(head))
+		return NULL;
+
+	struct list_head *ret = head->next;
+	list_del_init(ret);
+	return ret;
+}
+
+#define list_pop_entry(head, type, member)		\
+	container_of_or_null(list_pop(head), type, member)
+
 /* Does linear interpolation between powers of two */
 static inline unsigned fract_exp_two(unsigned x, unsigned fract_bits)
 {
@@ -378,10 +402,22 @@ do {									\
 	_ret;								\
 })
 
-size_t bch2_rand_range(size_t);
+u64 bch2_get_random_u64_below(u64);
 
 void memcpy_to_bio(struct bio *, struct bvec_iter, const void *);
 void memcpy_from_bio(void *, struct bio *, struct bvec_iter);
+
+#ifdef CONFIG_BCACHEFS_DEBUG
+void bch2_corrupt_bio(struct bio *);
+
+static inline void bch2_maybe_corrupt_bio(struct bio *bio, unsigned ratio)
+{
+	if (ratio && !get_random_u32_below(ratio))
+		bch2_corrupt_bio(bio);
+}
+#else
+#define bch2_maybe_corrupt_bio(...)	do {} while (0)
+#endif
 
 static inline void memcpy_u64s_small(void *dst, const void *src,
 				     unsigned u64s)
@@ -396,7 +432,7 @@ static inline void memcpy_u64s_small(void *dst, const void *src,
 static inline void __memcpy_u64s(void *dst, const void *src,
 				 unsigned u64s)
 {
-#ifdef CONFIG_X86_64
+#if defined(CONFIG_X86_64) && !defined(CONFIG_KMSAN)
 	long d0, d1, d2;
 
 	asm volatile("rep ; movsq"
@@ -473,7 +509,7 @@ static inline void __memmove_u64s_up(void *_dst, const void *_src,
 	u64 *dst = (u64 *) _dst + u64s - 1;
 	u64 *src = (u64 *) _src + u64s - 1;
 
-#ifdef CONFIG_X86_64
+#if defined(CONFIG_X86_64) && !defined(CONFIG_KMSAN)
 	long d0, d1, d2;
 
 	asm volatile("std ;\n"
@@ -586,7 +622,7 @@ do {									\
 
 #define per_cpu_sum(_p)							\
 ({									\
-	typeof(*_p) _ret = 0;						\
+	TYPEOF_UNQUAL(*_p) _ret = 0;					\
 									\
 	int cpu;							\
 	for_each_possible_cpu(cpu)					\
@@ -647,8 +683,6 @@ static inline int cmp_le32(__le32 l, __le32 r)
 
 #include <linux/uuid.h>
 
-#define QSTR(n) { { { .len = strlen(n) } }, .name = n }
-
 static inline bool qstr_eq(const struct qstr l, const struct qstr r)
 {
 	return l.len == r.len && !memcmp(l.name, r.name, l.len);
@@ -694,6 +728,15 @@ static inline void __clear_bit_le64(size_t bit, __le64 *addr)
 static inline bool test_bit_le64(size_t bit, __le64 *addr)
 {
 	return (addr[bit / 64] & cpu_to_le64(BIT_ULL(bit % 64))) != 0;
+}
+
+static inline void memcpy_swab(void *_dst, void *_src, size_t len)
+{
+	u8 *dst = _dst + len;
+	u8 *src = _src;
+
+	while (len--)
+		*--dst = *src++;
 }
 
 #endif /* _BCACHEFS_UTIL_H */

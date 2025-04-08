@@ -1324,7 +1324,7 @@ EXPORT_SYMBOL_GPL(iscsi_create_flashnode_conn);
  *  1 on success
  *  0 on failure
  */
-static int iscsi_is_flashnode_conn_dev(struct device *dev, void *data)
+static int iscsi_is_flashnode_conn_dev(struct device *dev, const void *data)
 {
 	return dev->bus == &iscsi_flashnode_bus;
 }
@@ -1335,7 +1335,7 @@ static int iscsi_destroy_flashnode_conn(struct iscsi_bus_flash_conn *fnode_conn)
 	return 0;
 }
 
-static int flashnode_match_index(struct device *dev, void *data)
+static int flashnode_match_index(struct device *dev, const void *data)
 {
 	struct iscsi_bus_flash_session *fnode_sess = NULL;
 	int ret = 0;
@@ -1344,7 +1344,7 @@ static int flashnode_match_index(struct device *dev, void *data)
 		goto exit_match_index;
 
 	fnode_sess = iscsi_dev_to_flash_session(dev);
-	ret = (fnode_sess->target_id == *((int *)data)) ? 1 : 0;
+	ret = (fnode_sess->target_id == *((const int *)data)) ? 1 : 0;
 
 exit_match_index:
 	return ret;
@@ -1389,8 +1389,8 @@ iscsi_get_flashnode_by_index(struct Scsi_Host *shost, uint32_t idx)
  *  %NULL on failure
  */
 struct device *
-iscsi_find_flashnode_sess(struct Scsi_Host *shost, void *data,
-			  int (*fn)(struct device *dev, void *data))
+iscsi_find_flashnode_sess(struct Scsi_Host *shost, const void *data,
+			  device_match_t fn)
 {
 	return device_find_child(&shost->shost_gendev, data, fn);
 }
@@ -2121,33 +2121,6 @@ destroy_wq:
 	return err;
 }
 EXPORT_SYMBOL_GPL(iscsi_add_session);
-
-/**
- * iscsi_create_session - create iscsi class session
- * @shost: scsi host
- * @transport: iscsi transport
- * @dd_size: private driver data size
- * @target_id: which target
- *
- * This can be called from a LLD or iscsi_transport.
- */
-struct iscsi_cls_session *
-iscsi_create_session(struct Scsi_Host *shost, struct iscsi_transport *transport,
-		     int dd_size, unsigned int target_id)
-{
-	struct iscsi_cls_session *session;
-
-	session = iscsi_alloc_session(shost, transport, dd_size);
-	if (!session)
-		return NULL;
-
-	if (iscsi_add_session(session, target_id)) {
-		iscsi_free_session(session);
-		return NULL;
-	}
-	return session;
-}
-EXPORT_SYMBOL_GPL(iscsi_create_session);
 
 static void iscsi_conn_release(struct device *dev)
 {

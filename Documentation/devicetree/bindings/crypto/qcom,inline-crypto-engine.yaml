@@ -13,12 +13,14 @@ properties:
   compatible:
     items:
       - enum:
+          - qcom,qcs8300-inline-crypto-engine
           - qcom,sa8775p-inline-crypto-engine
           - qcom,sc7180-inline-crypto-engine
           - qcom,sc7280-inline-crypto-engine
           - qcom,sm8450-inline-crypto-engine
           - qcom,sm8550-inline-crypto-engine
           - qcom,sm8650-inline-crypto-engine
+          - qcom,sm8750-inline-crypto-engine
       - const: qcom,inline-crypto-engine
 
   reg:

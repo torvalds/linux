@@ -2056,7 +2056,7 @@ static void mtip_hw_submit_io(struct driver_data *dd, struct request *rq,
 	unsigned int nents;
 
 	/* Map the scatter list for DMA access */
-	nents = blk_rq_map_sg(hctx->queue, rq, command->sg);
+	nents = blk_rq_map_sg(rq, command->sg);
 	nents = dma_map_sg(&dd->pdev->dev, command->sg, nents, dma_dir);
 
 	prefetch(&port->flags);
@@ -3416,7 +3416,6 @@ static int mtip_block_initialize(struct driver_data *dd)
 	dd->tags.reserved_tags = 1;
 	dd->tags.cmd_size = sizeof(struct mtip_cmd);
 	dd->tags.numa_node = dd->numa_node;
-	dd->tags.flags = BLK_MQ_F_SHOULD_MERGE;
 	dd->tags.driver_data = dd;
 	dd->tags.timeout = MTIP_NCQ_CMD_TIMEOUT_MS;
 

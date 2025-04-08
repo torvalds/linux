@@ -4957,7 +4957,7 @@ int kvmhv_run_single_vcpu(struct kvm_vcpu *vcpu, u64 time_limit,
 			 * states are synchronized from L0 to L1. L1 needs to inform L0 about
 			 * MER=1 only when there are pending external interrupts.
 			 * In the above if check, MER bit is set if there are pending
-			 * external interrupts. Hence, explicity mask off MER bit
+			 * external interrupts. Hence, explicitly mask off MER bit
 			 * here as otherwise it may generate spurious interrupts in L2 KVM
 			 * causing an endless loop, which results in L2 guest getting hung.
 			 */
@@ -6041,7 +6041,7 @@ static int kvmppc_set_passthru_irq(struct kvm *kvm, int host_irq, int guest_gsi)
 	 * the underlying calls, which will EOI the interrupt in real
 	 * mode, need an HW IRQ number mapped in the XICS IRQ domain.
 	 */
-	host_data = irq_domain_get_irq_data(irq_get_default_host(), host_irq);
+	host_data = irq_domain_get_irq_data(irq_get_default_domain(), host_irq);
 	irq_map->r_hwirq = (unsigned int)irqd_to_hwirq(host_data);
 
 	if (i == pimap->n_mapped)

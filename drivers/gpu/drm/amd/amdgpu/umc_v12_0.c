@@ -85,7 +85,8 @@ bool umc_v12_0_is_deferred_error(struct amdgpu_device *adev, uint64_t mc_umc_sta
 
 	return (amdgpu_ras_is_poison_mode_supported(adev) &&
 		(REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1) &&
-		(REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Deferred) == 1));
+		((REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Deferred) == 1) ||
+		(REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Poison) == 1)));
 }
 
 bool umc_v12_0_is_uncorrectable_error(struct amdgpu_device *adev, uint64_t mc_umc_status)
@@ -415,6 +416,7 @@ static int umc_v12_0_aca_bank_parser(struct aca_handle *handle, struct aca_bank 
 		err_type = ACA_ERROR_TYPE_CE;
 	else
 		return 0;
+	bank->aca_err_type = err_type;
 
 	ret = aca_bank_info_decode(bank, &info);
 	if (ret)

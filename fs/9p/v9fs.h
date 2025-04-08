@@ -202,7 +202,7 @@ static inline struct v9fs_session_info *v9fs_inode2v9ses(struct inode *inode)
 	return inode->i_sb->s_fs_info;
 }
 
-static inline struct v9fs_session_info *v9fs_dentry2v9ses(struct dentry *dentry)
+static inline struct v9fs_session_info *v9fs_dentry2v9ses(const struct dentry *dentry)
 {
 	return dentry->d_sb->s_fs_info;
 }

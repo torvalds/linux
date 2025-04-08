@@ -1,0 +1,191 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# description: event tracing - enable/disable with module event
+# requires: set_event "Can enable module events via: :mod:":README
+# flags: instance
+
+rmmod trace-events-sample ||:
+if ! modprobe trace-events-sample ; then
+  echo "No trace-events sample module - please make CONFIG_SAMPLE_TRACE_EVENTS=m"
+  exit_unresolved;
+fi
+trap "rmmod trace-events-sample" EXIT
+
+# Set events for the module
+echo ":mod:trace-events-sample" > set_event
+
+test_all_enabled() {
+
+	# Check if more than one is enabled
+	grep -q sample-trace:foo_bar set_event
+	grep -q sample-trace:foo_bar_with_cond set_event
+	grep -q sample-trace:foo_bar_with_fn set_event
+
+	# All of them should be enabled. Check via the enable file
+	val=`cat events/sample-trace/enable`
+	if [ $val -ne 1 ]; then
+		exit_fail
+	fi
+}
+
+clear_events() {
+	echo > set_event
+	val=`cat events/enable`
+	if [ "$val" != "0" ]; then
+		exit_fail
+	fi
+	count=`cat set_event | wc -l`
+	if [ $count -ne 0 ]; then
+		exit_fail
+	fi
+}
+
+test_all_enabled
+
+echo clear all events
+echo 0 > events/enable
+
+echo Confirm the events are disabled
+val=`cat events/sample-trace/enable`
+if [ $val -ne 0 ]; then
+	exit_fail
+fi
+
+echo And the set_event file is empty
+
+cnt=`wc -l set_event`
+if [ $cnt -ne 0 ]; then
+	exit_fail
+fi
+
+echo now enable all events
+echo 1 > events/enable
+
+echo Confirm the events are enabled again
+val=`cat events/sample-trace/enable`
+if [ $val -ne 1 ]; then
+	exit_fail
+fi
+
+echo disable just the module events
+echo '!:mod:trace-events-sample' >> set_event
+
+echo Should have mix of events enabled
+val=`cat events/enable`
+if [ "$val" != "X" ]; then
+	exit_fail
+fi
+
+echo Confirm the module events are disabled
+val=`cat events/sample-trace/enable`
+if [ $val -ne 0 ]; then
+	exit_fail
+fi
+
+echo 0 > events/enable
+
+echo now enable the system events
+echo 'sample-trace:mod:trace-events-sample' > set_event
+
+test_all_enabled
+
+echo clear all events
+echo 0 > events/enable
+
+echo Confirm the events are disabled
+val=`cat events/sample-trace/enable`
+if [ $val -ne 0 ]; then
+	exit_fail
+fi
+
+echo Test enabling foo_bar only
+echo 'foo_bar:mod:trace-events-sample' > set_event
+
+grep -q sample-trace:foo_bar set_event
+
+echo make sure nothing is found besides foo_bar
+if grep -q -v sample-trace:foo_bar set_event ; then
+	exit_fail
+fi
+
+echo Append another using the system and event name
+echo 'sample-trace:foo_bar_with_cond:mod:trace-events-sample' >> set_event
+
+grep -q sample-trace:foo_bar set_event
+grep -q sample-trace:foo_bar_with_cond set_event
+
+count=`cat set_event | wc -l`
+
+if [ $count -ne 2 ]; then
+	exit_fail
+fi
+
+clear_events
+
+rmmod trace-events-sample
+
+echo ':mod:trace-events-sample' > set_event
+
+echo make sure that the module shows up, and '-' is converted to '_'
+grep -q '\*:\*:mod:trace_events_sample' set_event
+
+modprobe trace-events-sample
+
+test_all_enabled
+
+clear_events
+
+rmmod trace-events-sample
+
+echo Enable just the system events
+echo 'sample-trace:mod:trace-events-sample' > set_event
+grep -q 'sample-trace:mod:trace_events_sample' set_event
+
+modprobe trace-events-sample
+
+test_all_enabled
+
+clear_events
+
+rmmod trace-events-sample
+
+echo Enable event with just event name
+echo 'foo_bar:mod:trace-events-sample' > set_event
+grep -q 'foo_bar:mod:trace_events_sample' set_event
+
+echo Enable another event with both system and event name
+echo 'sample-trace:foo_bar_with_cond:mod:trace-events-sample' >> set_event
+grep -q 'sample-trace:foo_bar_with_cond:mod:trace_events_sample' set_event
+echo Make sure the other event was still there
+grep -q 'foo_bar:mod:trace_events_sample' set_event
+
+modprobe trace-events-sample
+
+echo There should be no :mod: cached events
+if grep -q ':mod:' set_event; then
+	exit_fail
+fi
+
+echo two events should be enabled
+count=`cat set_event | wc -l`
+if [ $count -ne 2 ]; then
+	exit_fail
+fi
+
+echo only two events should be enabled
+val=`cat events/sample-trace/enable`
+if [ "$val" != "X" ]; then
+	exit_fail
+fi
+
+val=`cat events/sample-trace/foo_bar/enable`
+if [ "$val" != "1" ]; then
+	exit_fail
+fi
+
+val=`cat events/sample-trace/foo_bar_with_cond/enable`
+if [ "$val" != "1" ]; then
+	exit_fail
+fi
+
+clear_trace

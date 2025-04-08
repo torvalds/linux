@@ -215,8 +215,11 @@ static int adin_resume(struct phy_device *phydev)
 	return adin_set_powerdown_mode(phydev, false);
 }
 
-static int adin_set_loopback(struct phy_device *phydev, bool enable)
+static int adin_set_loopback(struct phy_device *phydev, bool enable, int speed)
 {
+	if (enable && speed)
+		return -EOPNOTSUPP;
+
 	if (enable)
 		return phy_set_bits_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_10T1L_CTRL,
 					BMCR_LOOPBACK);
@@ -340,7 +343,7 @@ static struct phy_driver adin_driver[] = {
 
 module_phy_driver(adin_driver);
 
-static struct mdio_device_id __maybe_unused adin_tbl[] = {
+static const struct mdio_device_id __maybe_unused adin_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(PHY_ID_ADIN1100) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_ADIN1110) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_ADIN2111) },

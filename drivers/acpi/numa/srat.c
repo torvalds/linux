@@ -18,6 +18,7 @@
 #include <linux/nodemask.h>
 #include <linux/topology.h>
 #include <linux/numa_memblks.h>
+#include <linux/string_choices.h>
 
 static nodemask_t nodes_found_map = NODE_MASK_NONE;
 
@@ -51,6 +52,7 @@ int node_to_pxm(int node)
 		return PXM_INVAL;
 	return node_to_pxm_map[node];
 }
+EXPORT_SYMBOL_GPL(node_to_pxm);
 
 static void __acpi_map_pxm_to_node(int pxm, int node)
 {
@@ -81,6 +83,101 @@ int acpi_map_pxm_to_node(int pxm)
 }
 EXPORT_SYMBOL(acpi_map_pxm_to_node);
 
+#ifdef CONFIG_NUMA_EMU
+/*
+ * Take max_nid - 1 fake-numa nodes into account in both
+ * pxm_to_node_map()/node_to_pxm_map[] tables.
+ */
+int __init fix_pxm_node_maps(int max_nid)
+{
+	static int pxm_to_node_map_copy[MAX_PXM_DOMAINS] __initdata
+			= { [0 ... MAX_PXM_DOMAINS - 1] = NUMA_NO_NODE };
+	static int node_to_pxm_map_copy[MAX_NUMNODES] __initdata
+			= { [0 ... MAX_NUMNODES - 1] = PXM_INVAL };
+	int i, j, index = -1, count = 0;
+	nodemask_t nodes_to_enable;
+
+	if (numa_off)
+		return -1;
+
+	/* no or incomplete node/PXM mapping set, nothing to do */
+	if (srat_disabled())
+		return 0;
+
+	/* find fake nodes PXM mapping */
+	for (i = 0; i < MAX_NUMNODES; i++) {
+		if (node_to_pxm_map[i] != PXM_INVAL) {
+			for (j = 0; j <= max_nid; j++) {
+				if ((emu_nid_to_phys[j] == i) &&
+				    WARN(node_to_pxm_map_copy[j] != PXM_INVAL,
+					 "Node %d is already binded to PXM %d\n",
+					 j, node_to_pxm_map_copy[j]))
+					return -1;
+				if (emu_nid_to_phys[j] == i) {
+					node_to_pxm_map_copy[j] =
+						node_to_pxm_map[i];
+					if (j > index)
+						index = j;
+					count++;
+				}
+			}
+		}
+	}
+	if (index == -1) {
+		pr_debug("No node/PXM mapping has been set\n");
+		/* nothing more to be done */
+		return 0;
+	}
+	if (WARN(index != max_nid, "%d max nid  when expected %d\n",
+		      index, max_nid))
+		return -1;
+
+	nodes_clear(nodes_to_enable);
+
+	/* map phys nodes not used for fake nodes */
+	for (i = 0; i < MAX_NUMNODES; i++) {
+		if (node_to_pxm_map[i] != PXM_INVAL) {
+			for (j = 0; j <= max_nid; j++)
+				if (emu_nid_to_phys[j] == i)
+					break;
+			/* fake nodes PXM mapping has been done */
+			if (j <= max_nid)
+				continue;
+			/* find first hole */
+			for (j = 0;
+			     j < MAX_NUMNODES &&
+				 node_to_pxm_map_copy[j] != PXM_INVAL;
+			     j++)
+			;
+			if (WARN(j == MAX_NUMNODES,
+			    "Number of nodes exceeds MAX_NUMNODES\n"))
+				return -1;
+			node_to_pxm_map_copy[j] = node_to_pxm_map[i];
+			node_set(j, nodes_to_enable);
+			count++;
+		}
+	}
+
+	/* creating reverse mapping in pxm_to_node_map[] */
+	for (i = 0; i < MAX_NUMNODES; i++)
+		if (node_to_pxm_map_copy[i] != PXM_INVAL &&
+		    pxm_to_node_map_copy[node_to_pxm_map_copy[i]] == NUMA_NO_NODE)
+			pxm_to_node_map_copy[node_to_pxm_map_copy[i]] = i;
+
+	/* overwrite with new mapping */
+	for (i = 0; i < MAX_NUMNODES; i++) {
+		node_to_pxm_map[i] = node_to_pxm_map_copy[i];
+		pxm_to_node_map[i] = pxm_to_node_map_copy[i];
+	}
+
+	/* enable other nodes found in PXM for hotplug */
+	nodes_or(numa_nodes_parsed, nodes_to_enable, numa_nodes_parsed);
+
+	pr_debug("found %d total number of nodes\n", count);
+	return 0;
+}
+#endif
+
 static void __init
 acpi_table_print_srat_entry(struct acpi_subtable_header *header)
 {
@@ -92,8 +189,7 @@ acpi_table_print_srat_entry(struct acpi_subtable_header *header)
 			pr_debug("SRAT Processor (id[0x%02x] eid[0x%02x]) in proximity domain %d %s\n",
 				 p->apic_id, p->local_sapic_eid,
 				 p->proximity_domain_lo,
-				 (p->flags & ACPI_SRAT_CPU_ENABLED) ?
-				 "enabled" : "disabled");
+				 str_enabled_disabled(p->flags & ACPI_SRAT_CPU_ENABLED));
 		}
 		break;
 
@@ -105,8 +201,7 @@ acpi_table_print_srat_entry(struct acpi_subtable_header *header)
 				 (unsigned long long)p->base_address,
 				 (unsigned long long)p->length,
 				 p->proximity_domain,
-				 (p->flags & ACPI_SRAT_MEM_ENABLED) ?
-				 "enabled" : "disabled",
+				 str_enabled_disabled(p->flags & ACPI_SRAT_MEM_ENABLED),
 				 (p->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE) ?
 				 " hot-pluggable" : "",
 				 (p->flags & ACPI_SRAT_MEM_NON_VOLATILE) ?
@@ -121,8 +216,7 @@ acpi_table_print_srat_entry(struct acpi_subtable_header *header)
 			pr_debug("SRAT Processor (x2apicid[0x%08x]) in proximity domain %d %s\n",
 				 p->apic_id,
 				 p->proximity_domain,
-				 (p->flags & ACPI_SRAT_CPU_ENABLED) ?
-				 "enabled" : "disabled");
+				 str_enabled_disabled(p->flags & ACPI_SRAT_CPU_ENABLED));
 		}
 		break;
 
@@ -133,8 +227,7 @@ acpi_table_print_srat_entry(struct acpi_subtable_header *header)
 			pr_debug("SRAT Processor (acpi id[0x%04x]) in proximity domain %d %s\n",
 				 p->acpi_processor_uid,
 				 p->proximity_domain,
-				 (p->flags & ACPI_SRAT_GICC_ENABLED) ?
-				 "enabled" : "disabled");
+				 str_enabled_disabled(p->flags & ACPI_SRAT_GICC_ENABLED));
 		}
 		break;
 
@@ -152,8 +245,7 @@ acpi_table_print_srat_entry(struct acpi_subtable_header *header)
 				 *(u16 *)(&p->device_handle[0]),
 				 *(u16 *)(&p->device_handle[2]),
 				 p->proximity_domain,
-				 (p->flags & ACPI_SRAT_GENERIC_AFFINITY_ENABLED) ?
-				"enabled" : "disabled");
+				 str_enabled_disabled(p->flags & ACPI_SRAT_GENERIC_AFFINITY_ENABLED));
 		} else {
 			/*
 			 * In this case we can rely on the device having a
@@ -163,8 +255,7 @@ acpi_table_print_srat_entry(struct acpi_subtable_header *header)
 				(char *)(&p->device_handle[0]),
 				(char *)(&p->device_handle[8]),
 				p->proximity_domain,
-				(p->flags & ACPI_SRAT_GENERIC_AFFINITY_ENABLED) ?
-				"enabled" : "disabled");
+				str_enabled_disabled(p->flags & ACPI_SRAT_GENERIC_AFFINITY_ENABLED));
 		}
 	}
 	break;
@@ -176,8 +267,7 @@ acpi_table_print_srat_entry(struct acpi_subtable_header *header)
 			pr_debug("SRAT Processor (acpi id[0x%04x]) in proximity domain %d %s\n",
 				 p->acpi_processor_uid,
 				 p->proximity_domain,
-				 (p->flags & ACPI_SRAT_RINTC_ENABLED) ?
-				 "enabled" : "disabled");
+				 str_enabled_disabled(p->flags & ACPI_SRAT_RINTC_ENABLED));
 		}
 		break;
 

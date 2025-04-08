@@ -240,6 +240,5 @@ enum fimc_is_error {
 };
 
 const char *fimc_is_strerr(unsigned int error);
-const char *fimc_is_param_strerr(unsigned int error);
 
 #endif /* FIMC_IS_ERR_H_ */

@@ -84,7 +84,7 @@ ATOMIC_NOTIFIER_HEAD(panic_notifier_list);
 EXPORT_SYMBOL(panic_notifier_list);
 
 #ifdef CONFIG_SYSCTL
-static struct ctl_table kern_panic_table[] = {
+static const struct ctl_table kern_panic_table[] = {
 #ifdef CONFIG_SMP
 	{
 		.procname       = "oops_all_cpu_backtrace",
@@ -511,6 +511,7 @@ const struct taint_flag taint_flags[TAINT_FLAGS_COUNT] = {
 	TAINT_FLAG(AUX,				'X', ' ', true),
 	TAINT_FLAG(RANDSTRUCT,			'T', ' ', true),
 	TAINT_FLAG(TEST,			'N', ' ', true),
+	TAINT_FLAG(FWCTL,			'J', ' ', true),
 };
 
 #undef TAINT_FLAG
@@ -832,9 +833,15 @@ device_initcall(register_warn_debugfs);
  */
 __visible noinstr void __stack_chk_fail(void)
 {
+	unsigned long flags;
+
 	instrumentation_begin();
+	flags = user_access_save();
+
 	panic("stack-protector: Kernel stack is corrupted in: %pB",
 		__builtin_return_address(0));
+
+	user_access_restore(flags);
 	instrumentation_end();
 }
 EXPORT_SYMBOL(__stack_chk_fail);

@@ -1,11 +1,11 @@
 [
     {
         "ArchStdEvent": "L2D_CACHE",
-        "PublicDescription": "Counts level 2 cache accesses. level 2 cache is a unified cache for data and instruction accesses. Accesses are for misses in the first level caches or translation resolutions due to accesses. This event also counts write back of dirty data from level 1 data cache to the L2 cache."
+        "PublicDescription": "Counts accesses to the level 2 cache due to data accesses. Level 2 cache is a unified cache for data and instruction accesses. Accesses are for misses in the first level data cache or translation resolutions due to accesses. This event also counts write back of dirty data from level 1 data cache to the L2 cache."
     },
     {
         "ArchStdEvent": "L2D_CACHE_REFILL",
-        "PublicDescription": "Counts cache line refills into the level 2 cache. level 2 cache is a unified cache for data and instruction accesses. Accesses are for misses in the level 1 caches or translation resolutions due to accesses."
+        "PublicDescription": "Counts cache line refills into the level 2 cache. Level 2 cache is a unified cache for data and instruction accesses. Accesses are for misses in the level 1 data cache or translation resolutions due to accesses."
     },
     {
         "ArchStdEvent": "L2D_CACHE_WB",
@@ -13,23 +13,23 @@
     },
     {
         "ArchStdEvent": "L2D_CACHE_ALLOCATE",
-        "PublicDescription": "TBD"
+        "PublicDescription": "Counts level 2 cache line allocates that do not fetch data from outside the level 2 data or unified cache."
     },
     {
         "ArchStdEvent": "L2D_CACHE_RD",
-        "PublicDescription": "Counts level 2 cache accesses due to memory read operations. level 2 cache is a unified cache for data and instruction accesses, accesses are for misses in the level 1 caches or translation resolutions due to accesses."
+        "PublicDescription": "Counts level 2 data cache accesses due to memory read operations. Level 2 cache is a unified cache for data and instruction accesses, accesses are for misses in the level 1 data cache or translation resolutions due to accesses."
     },
     {
         "ArchStdEvent": "L2D_CACHE_WR",
-        "PublicDescription": "Counts level 2 cache accesses due to memory write operations. level 2 cache is a unified cache for data and instruction accesses, accesses are for misses in the level 1 caches or translation resolutions due to accesses."
+        "PublicDescription": "Counts level 2 cache accesses due to memory write operations. Level 2 cache is a unified cache for data and instruction accesses, accesses are for misses in the level 1 data cache or translation resolutions due to accesses."
     },
     {
         "ArchStdEvent": "L2D_CACHE_REFILL_RD",
-        "PublicDescription": "Counts refills for memory accesses due to memory read operation counted by L2D_CACHE_RD. level 2 cache is a unified cache for data and instruction accesses, accesses are for misses in the level 1 caches or translation resolutions due to accesses."
+        "PublicDescription": "Counts refills for memory accesses due to memory read operation counted by L2D_CACHE_RD. Level 2 cache is a unified cache for data and instruction accesses, accesses are for misses in the level 1 data cache or translation resolutions due to accesses."
     },
     {
         "ArchStdEvent": "L2D_CACHE_REFILL_WR",
-        "PublicDescription": "Counts refills for memory accesses due to memory write operation counted by L2D_CACHE_WR. level 2 cache is a unified cache for data and instruction accesses, accesses are for misses in the level 1 caches or translation resolutions due to accesses."
+        "PublicDescription": "Counts refills for memory accesses due to memory write operation counted by L2D_CACHE_WR. Level 2 cache is a unified cache for data and instruction accesses, accesses are for misses in the level 1 data cache or translation resolutions due to accesses."
     },
     {
         "ArchStdEvent": "L2D_CACHE_WB_VICTIM",

@@ -11,6 +11,7 @@
 #include <linux/of_irq.h>
 #include <linux/phy/phy.h>
 #include <linux/delay.h>
+#include <linux/string_choices.h>
 #include <drm/display/drm_dp_aux_bus.h>
 #include <drm/drm_edid.h>
 
@@ -343,8 +344,7 @@ static int msm_dp_display_send_hpd_notification(struct msm_dp_display_private *d
 {
 	if ((hpd && dp->msm_dp_display.link_ready) ||
 			(!hpd && !dp->msm_dp_display.link_ready)) {
-		drm_dbg_dp(dp->drm_dev, "HPD already %s\n",
-				(hpd ? "on" : "off"));
+		drm_dbg_dp(dp->drm_dev, "HPD already %s\n", str_on_off(hpd));
 		return 0;
 	}
 
@@ -367,6 +367,19 @@ static int msm_dp_display_send_hpd_notification(struct msm_dp_display_private *d
 	return 0;
 }
 
+static void msm_dp_display_lttpr_init(struct msm_dp_display_private *dp)
+{
+	u8 lttpr_caps[DP_LTTPR_COMMON_CAP_SIZE];
+	int rc;
+
+	if (drm_dp_read_lttpr_common_caps(dp->aux, dp->panel->dpcd, lttpr_caps))
+		return;
+
+	rc = drm_dp_lttpr_init(dp->aux, drm_dp_lttpr_count(lttpr_caps));
+	if (rc)
+		DRM_ERROR("failed to set LTTPRs transparency mode, rc=%d\n", rc);
+}
+
 static int msm_dp_display_process_hpd_high(struct msm_dp_display_private *dp)
 {
 	struct drm_connector *connector = dp->msm_dp_display.connector;
@@ -376,6 +389,8 @@ static int msm_dp_display_process_hpd_high(struct msm_dp_display_private *dp)
 	rc = msm_dp_panel_read_sink_caps(dp->panel, connector);
 	if (rc)
 		goto end;
+
+	msm_dp_display_lttpr_init(dp);
 
 	msm_dp_link_process_request(dp->link);
 
@@ -930,15 +945,16 @@ enum drm_mode_status msm_dp_bridge_mode_valid(struct drm_bridge *bridge,
 		return -EINVAL;
 	}
 
-	if (mode->clock > DP_MAX_PIXEL_CLK_KHZ)
-		return MODE_CLOCK_HIGH;
-
 	msm_dp_display = container_of(dp, struct msm_dp_display_private, msm_dp_display);
 	link_info = &msm_dp_display->panel->link_info;
 
-	if (drm_mode_is_420_only(&dp->connector->display_info, mode) &&
-	    msm_dp_display->panel->vsc_sdp_supported)
+	if ((drm_mode_is_420_only(&dp->connector->display_info, mode) &&
+	     msm_dp_display->panel->vsc_sdp_supported) ||
+	     msm_dp_wide_bus_available(dp))
 		mode_pclk_khz /= 2;
+
+	if (mode_pclk_khz > DP_MAX_PIXEL_CLK_KHZ)
+		return MODE_CLOCK_HIGH;
 
 	mode_bpp = dp->connector->display_info.bpc * num_components;
 	if (!mode_bpp)
@@ -1491,13 +1507,13 @@ int msm_dp_modeset_init(struct msm_dp *msm_dp_display, struct drm_device *dev,
 }
 
 void msm_dp_bridge_atomic_enable(struct drm_bridge *drm_bridge,
-			     struct drm_bridge_state *old_bridge_state)
+				 struct drm_atomic_state *state)
 {
 	struct msm_dp_bridge *msm_dp_bridge = to_dp_bridge(drm_bridge);
 	struct msm_dp *dp = msm_dp_bridge->msm_dp_display;
 	int rc = 0;
 	struct msm_dp_display_private *msm_dp_display;
-	u32 state;
+	u32 hpd_state;
 	bool force_link_train = false;
 
 	msm_dp_display = container_of(dp, struct msm_dp_display_private, msm_dp_display);
@@ -1516,8 +1532,8 @@ void msm_dp_bridge_atomic_enable(struct drm_bridge *drm_bridge,
 		return;
 	}
 
-	state = msm_dp_display->hpd_state;
-	if (state != ST_DISPLAY_OFF && state != ST_MAINLINK_READY) {
+	hpd_state = msm_dp_display->hpd_state;
+	if (hpd_state != ST_DISPLAY_OFF && hpd_state != ST_MAINLINK_READY) {
 		mutex_unlock(&msm_dp_display->event_mutex);
 		return;
 	}
@@ -1529,9 +1545,9 @@ void msm_dp_bridge_atomic_enable(struct drm_bridge *drm_bridge,
 		return;
 	}
 
-	state =  msm_dp_display->hpd_state;
+	hpd_state =  msm_dp_display->hpd_state;
 
-	if (state == ST_DISPLAY_OFF) {
+	if (hpd_state == ST_DISPLAY_OFF) {
 		msm_dp_display_host_phy_init(msm_dp_display);
 		force_link_train = true;
 	}
@@ -1552,7 +1568,7 @@ void msm_dp_bridge_atomic_enable(struct drm_bridge *drm_bridge,
 }
 
 void msm_dp_bridge_atomic_disable(struct drm_bridge *drm_bridge,
-			      struct drm_bridge_state *old_bridge_state)
+				  struct drm_atomic_state *state)
 {
 	struct msm_dp_bridge *msm_dp_bridge = to_dp_bridge(drm_bridge);
 	struct msm_dp *dp = msm_dp_bridge->msm_dp_display;
@@ -1564,11 +1580,11 @@ void msm_dp_bridge_atomic_disable(struct drm_bridge *drm_bridge,
 }
 
 void msm_dp_bridge_atomic_post_disable(struct drm_bridge *drm_bridge,
-				   struct drm_bridge_state *old_bridge_state)
+				       struct drm_atomic_state *state)
 {
 	struct msm_dp_bridge *msm_dp_bridge = to_dp_bridge(drm_bridge);
 	struct msm_dp *dp = msm_dp_bridge->msm_dp_display;
-	u32 state;
+	u32 hpd_state;
 	struct msm_dp_display_private *msm_dp_display;
 
 	msm_dp_display = container_of(dp, struct msm_dp_display_private, msm_dp_display);
@@ -1578,15 +1594,15 @@ void msm_dp_bridge_atomic_post_disable(struct drm_bridge *drm_bridge,
 
 	mutex_lock(&msm_dp_display->event_mutex);
 
-	state = msm_dp_display->hpd_state;
-	if (state != ST_DISCONNECT_PENDING && state != ST_CONNECTED)
+	hpd_state = msm_dp_display->hpd_state;
+	if (hpd_state != ST_DISCONNECT_PENDING && hpd_state != ST_CONNECTED)
 		drm_dbg_dp(dp->drm_dev, "type=%d wrong hpd_state=%d\n",
-			   dp->connector_type, state);
+			   dp->connector_type, hpd_state);
 
 	msm_dp_display_disable(msm_dp_display);
 
-	state =  msm_dp_display->hpd_state;
-	if (state == ST_DISCONNECT_PENDING) {
+	hpd_state =  msm_dp_display->hpd_state;
+	if (hpd_state == ST_DISCONNECT_PENDING) {
 		/* completed disconnection */
 		msm_dp_display->hpd_state = ST_DISCONNECTED;
 	} else {

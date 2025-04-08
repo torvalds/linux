@@ -302,6 +302,7 @@ static bool func_add_bb_edges(struct func_node *func)
 
 		insn = bb->tail;
 		if (!is_jmp_insn(insn->code) ||
+		    BPF_OP(insn->code) == BPF_CALL ||
 		    BPF_OP(insn->code) == BPF_EXIT) {
 			e->dst = bb_next(bb);
 			e->flags |= EDGE_FLAG_FALLTHROUGH;

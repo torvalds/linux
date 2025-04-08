@@ -985,7 +985,8 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 }
 
 
-/**	spi_dv_device - Do Domain Validation on the device
+/**
+ *	spi_dv_device - Do Domain Validation on the device
  *	@sdev:		scsi device to validate
  *
  *	Performs the domain validation on the given device in the

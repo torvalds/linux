@@ -627,6 +627,11 @@
 	};
 };
 
+&pon {
+	mode-bootloader = <0x2>;
+	mode-recovery = <0x1>;
+};
+
 &qupv3_id_0 {
 	status = "okay";
 };

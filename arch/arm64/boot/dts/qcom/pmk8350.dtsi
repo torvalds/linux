@@ -76,6 +76,14 @@
 			status = "disabled";
 		};
 
+		pmk8350_sdam_1: nvram@7000 {
+			compatible = "qcom,spmi-sdam";
+			reg = <0x7000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x7000 0x100>;
+		};
+
 		pmk8350_sdam_2: nvram@7100 {
 			compatible = "qcom,spmi-sdam";
 			reg = <0x7100>;
@@ -87,6 +95,70 @@
 				reg = <0x48 0x1>;
 				bits = <1 7>;
 			};
+		};
+
+		pmk8350_sdam_5: nvram@7400 {
+			compatible = "qcom,spmi-sdam";
+			reg = <0x7400>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x7400 0x100>;
+		};
+
+		pmk8350_sdam_13: nvram@7c00 {
+			compatible = "qcom,spmi-sdam";
+			reg = <0x7c00>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x7c00 0x100>;
+		};
+
+		pmk8350_sdam_14: nvram@7d00 {
+			compatible = "qcom,spmi-sdam";
+			reg = <0x7d00>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x7d00 0x100>;
+		};
+
+		pmk8350_sdam_21: nvram@8400 {
+			compatible = "qcom,spmi-sdam";
+			reg = <0x8400>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x8400 0x100>;
+		};
+
+		pmk8350_sdam_22: nvram@8500 {
+			compatible = "qcom,spmi-sdam";
+			reg = <0x8500>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x8500 0x100>;
+		};
+
+		pmk8350_sdam_23: nvram@8600 {
+			compatible = "qcom,spmi-sdam";
+			reg = <0x8600>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x8600 0x100>;
+		};
+
+		pmk8350_sdam_41: nvram@9800 {
+			compatible = "qcom,spmi-sdam";
+			reg = <0x9800>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x9800 0x100>;
+		};
+
+		pmk8350_sdam_46: nvram@9d00 {
+			compatible = "qcom,spmi-sdam";
+			reg = <0x9d00>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x9d00 0x100>;
 		};
 
 		pmk8350_gpios: gpio@b000 {

@@ -38,10 +38,7 @@ pte_t __ref *pte_alloc_one_kernel(struct mm_struct *mm)
 	if (likely(mem_init_done)) {
 		pte = (pte_t *)get_zeroed_page(GFP_KERNEL);
 	} else {
-		pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
-		if (!pte)
-			panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
-			      __func__, PAGE_SIZE, PAGE_SIZE);
+		pte = memblock_alloc_or_panic(PAGE_SIZE, PAGE_SIZE);
 	}
 
 	return pte;

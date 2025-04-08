@@ -2622,14 +2622,13 @@ static int tty_tiocgicount(struct tty_struct *tty, void __user *arg)
 
 static int tty_set_serial(struct tty_struct *tty, struct serial_struct *ss)
 {
-	char comm[TASK_COMM_LEN];
 	int flags;
 
 	flags = ss->flags & ASYNC_DEPRECATED;
 
 	if (flags)
 		pr_warn_ratelimited("%s: '%s' is using deprecated serial flags (with no effect): %.8x\n",
-				__func__, get_task_comm(comm, current), flags);
+				__func__, current->comm, flags);
 
 	if (!tty->ops->set_serial)
 		return -ENOTTY;
@@ -3330,10 +3329,12 @@ EXPORT_SYMBOL(tty_unregister_device);
  * __tty_alloc_driver - allocate tty driver
  * @lines: count of lines this driver can handle at most
  * @owner: module which is responsible for this driver
- * @flags: some of %TTY_DRIVER_ flags, will be set in driver->flags
+ * @flags: some of enum tty_driver_flag, will be set in driver->flags
  *
- * This should not be called directly, some of the provided macros should be
- * used instead. Use IS_ERR() and friends on @retval.
+ * This should not be called directly, tty_alloc_driver() should be used
+ * instead.
+ *
+ * Returns: struct tty_driver or a PTR-encoded error (use IS_ERR() and friends).
  */
 struct tty_driver *__tty_alloc_driver(unsigned int lines, struct module *owner,
 		unsigned long flags)
@@ -3618,7 +3619,7 @@ void console_sysfs_notify(void)
 		sysfs_notify(&consdev->kobj, NULL, "active");
 }
 
-static struct ctl_table tty_table[] = {
+static const struct ctl_table tty_table[] = {
 	{
 		.procname	= "legacy_tiocsti",
 		.data		= &tty_legacy_tiocsti,

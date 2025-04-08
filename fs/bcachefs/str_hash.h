@@ -12,7 +12,6 @@
 #include "super.h"
 
 #include <linux/crc32c.h>
-#include <crypto/hash.h>
 #include <crypto/sha2.h>
 
 static inline enum bch_str_hash_type
@@ -34,6 +33,7 @@ bch2_str_hash_opt_to_type(struct bch_fs *c, enum bch_str_hash_opts opt)
 
 struct bch_hash_info {
 	u8			type;
+	struct unicode_map 	*cf_encoding;
 	/*
 	 * For crc32 or crc64 string hashes the first key value of
 	 * the siphash_key (k0) is used as the key.
@@ -47,17 +47,17 @@ bch2_hash_info_init(struct bch_fs *c, const struct bch_inode_unpacked *bi)
 	/* XXX ick */
 	struct bch_hash_info info = {
 		.type = INODE_STR_HASH(bi),
+#ifdef CONFIG_UNICODE
+		.cf_encoding = !!(bi->bi_flags & BCH_INODE_casefolded) ? c->cf_encoding : NULL,
+#endif
 		.siphash_key = { .k0 = bi->bi_hash_seed }
 	};
 
 	if (unlikely(info.type == BCH_STR_HASH_siphash_old)) {
-		SHASH_DESC_ON_STACK(desc, c->sha256);
 		u8 digest[SHA256_DIGEST_SIZE];
 
-		desc->tfm = c->sha256;
-
-		crypto_shash_digest(desc, (void *) &bi->bi_hash_seed,
-				    sizeof(bi->bi_hash_seed), digest);
+		sha256((const u8 *)&bi->bi_hash_seed,
+		       sizeof(bi->bi_hash_seed), digest);
 		memcpy(&info.siphash_key, digest, sizeof(info.siphash_key));
 	}
 
@@ -160,7 +160,7 @@ bch2_hash_lookup_in_snapshot(struct btree_trans *trans,
 	struct bkey_s_c k;
 	int ret;
 
-	for_each_btree_key_upto_norestart(trans, *iter, desc.btree_id,
+	for_each_btree_key_max_norestart(trans, *iter, desc.btree_id,
 			   SPOS(inum.inum, desc.hash_key(info, key), snapshot),
 			   POS(inum.inum, U64_MAX),
 			   BTREE_ITER_slots|flags, k, ret) {
@@ -210,7 +210,7 @@ bch2_hash_hole(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	for_each_btree_key_upto_norestart(trans, *iter, desc.btree_id,
+	for_each_btree_key_max_norestart(trans, *iter, desc.btree_id,
 			   SPOS(inum.inum, desc.hash_key(info, key), snapshot),
 			   POS(inum.inum, U64_MAX),
 			   BTREE_ITER_slots|BTREE_ITER_intent, k, ret)
@@ -231,11 +231,11 @@ int bch2_hash_needs_whiteout(struct btree_trans *trans,
 	struct bkey_s_c k;
 	int ret;
 
-	bch2_trans_copy_iter(&iter, start);
+	bch2_trans_copy_iter(trans, &iter, start);
 
-	bch2_btree_iter_advance(&iter);
+	bch2_btree_iter_advance(trans, &iter);
 
-	for_each_btree_key_continue_norestart(iter, BTREE_ITER_slots, k, ret) {
+	for_each_btree_key_continue_norestart(trans, iter, BTREE_ITER_slots, k, ret) {
 		if (k.k->type != desc.key_type &&
 		    k.k->type != KEY_TYPE_hash_whiteout)
 			break;
@@ -265,7 +265,7 @@ struct bkey_s_c bch2_hash_set_or_get_in_snapshot(struct btree_trans *trans,
 	bool found = false;
 	int ret;
 
-	for_each_btree_key_upto_norestart(trans, *iter, desc.btree_id,
+	for_each_btree_key_max_norestart(trans, *iter, desc.btree_id,
 			   SPOS(insert->k.p.inode,
 				desc.hash_bkey(info, bkey_i_to_s_c(insert)),
 				snapshot),
@@ -280,7 +280,7 @@ struct bkey_s_c bch2_hash_set_or_get_in_snapshot(struct btree_trans *trans,
 		}
 
 		if (!slot.path && !(flags & STR_HASH_must_replace))
-			bch2_trans_copy_iter(&slot, iter);
+			bch2_trans_copy_iter(trans, &slot, iter);
 
 		if (k.k->type != KEY_TYPE_hash_whiteout)
 			goto not_found;
@@ -391,6 +391,28 @@ int bch2_hash_delete(struct btree_trans *trans,
 	ret = bch2_hash_delete_at(trans, desc, info, &iter, 0);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
+}
+
+struct snapshots_seen;
+int __bch2_str_hash_check_key(struct btree_trans *,
+			      struct snapshots_seen *,
+			      const struct bch_hash_desc *,
+			      struct bch_hash_info *,
+			      struct btree_iter *, struct bkey_s_c);
+
+static inline int bch2_str_hash_check_key(struct btree_trans *trans,
+			    struct snapshots_seen *s,
+			    const struct bch_hash_desc *desc,
+			    struct bch_hash_info *hash_info,
+			    struct btree_iter *k_iter, struct bkey_s_c hash_k)
+{
+	if (hash_k.k->type != desc->key_type)
+		return 0;
+
+	if (likely(desc->hash_bkey(hash_info, hash_k) == hash_k.k->p.offset))
+		return 0;
+
+	return __bch2_str_hash_check_key(trans, s, desc, hash_info, k_iter, hash_k);
 }
 
 #endif /* _BCACHEFS_STR_HASH_H */

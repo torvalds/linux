@@ -138,29 +138,6 @@ int hfi_core_trigger_ssr(struct venus_core *core, u32 type)
 	return core->ops->core_trigger_ssr(core, type);
 }
 
-int hfi_core_ping(struct venus_core *core)
-{
-	int ret;
-
-	mutex_lock(&core->lock);
-
-	ret = core->ops->core_ping(core, 0xbeef);
-	if (ret)
-		goto unlock;
-
-	ret = wait_for_completion_timeout(&core->done, TIMEOUT);
-	if (!ret) {
-		ret = -ETIMEDOUT;
-		goto unlock;
-	}
-	ret = 0;
-	if (core->error != HFI_ERR_NONE)
-		ret = -ENODEV;
-unlock:
-	mutex_unlock(&core->lock);
-	return ret;
-}
-
 static int wait_session_msg(struct venus_inst *inst)
 {
 	int ret;

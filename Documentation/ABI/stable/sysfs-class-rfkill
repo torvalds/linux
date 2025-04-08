@@ -16,7 +16,7 @@ Description: 	The rfkill class subsystem folder.
 
 What:		/sys/class/rfkill/rfkill[0-9]+/name
 Date:		09-Jul-2007
-KernelVersion	v2.6.22
+KernelVersion:	v2.6.22
 Contact:	linux-wireless@vger.kernel.org
 Description: 	Name assigned by driver to this key (interface or driver name).
 Values: 	arbitrary string.
@@ -24,7 +24,7 @@ Values: 	arbitrary string.
 
 What: 		/sys/class/rfkill/rfkill[0-9]+/type
 Date:		09-Jul-2007
-KernelVersion	v2.6.22
+KernelVersion:	v2.6.22
 Contact:	linux-wireless@vger.kernel.org
 Description: 	Driver type string ("wlan", "bluetooth", etc).
 Values: 	See include/linux/rfkill.h.
@@ -32,7 +32,7 @@ Values: 	See include/linux/rfkill.h.
 
 What:		/sys/class/rfkill/rfkill[0-9]+/persistent
 Date:		09-Jul-2007
-KernelVersion	v2.6.22
+KernelVersion:	v2.6.22
 Contact:	linux-wireless@vger.kernel.org
 Description: 	Whether the soft blocked state is initialised from non-volatile
 		storage at startup.
@@ -44,7 +44,7 @@ Values: 	A numeric value:
 
 What:		/sys/class/rfkill/rfkill[0-9]+/state
 Date:		09-Jul-2007
-KernelVersion	v2.6.22
+KernelVersion:	v2.6.22
 Contact:	linux-wireless@vger.kernel.org
 Description: 	Current state of the transmitter.
 		This file was scheduled to be removed in 2014, but due to its
@@ -67,7 +67,7 @@ Values: 	A numeric value.
 
 What:		/sys/class/rfkill/rfkill[0-9]+/hard
 Date:		12-March-2010
-KernelVersion	v2.6.34
+KernelVersion:	v2.6.34
 Contact:	linux-wireless@vger.kernel.org
 Description: 	Current hardblock state. This file is read only.
 Values: 	A numeric value.
@@ -81,7 +81,7 @@ Values: 	A numeric value.
 
 What:		/sys/class/rfkill/rfkill[0-9]+/soft
 Date:		12-March-2010
-KernelVersion	v2.6.34
+KernelVersion:	v2.6.34
 Contact:	linux-wireless@vger.kernel.org
 Description:	Current softblock state. This file is read and write.
 Values: 	A numeric value.

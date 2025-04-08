@@ -20,6 +20,7 @@ ALL_TESTS="
 	test_port_range_ipv4_tcp
 	test_port_range_ipv6_udp
 	test_port_range_ipv6_tcp
+	test_port_range_ipv4_udp_drop
 "
 
 NUM_NETIFS=4
@@ -192,6 +193,51 @@ test_port_range_ipv6_tcp()
 	local name="IPv6 TCP"
 
 	__test_port_range $proto $ip_proto $sip $dip $mode "$name"
+}
+
+test_port_range_ipv4_udp_drop()
+{
+	local proto=ipv4
+	local ip_proto=udp
+	local sip=192.0.2.1
+	local dip=192.0.2.2
+	local mode="-4"
+	local name="IPv4 UDP Drop"
+	local dmac=$(mac_get $h2)
+	local smac=$(mac_get $h1)
+	local sport_min=2000
+	local sport_max=3000
+	local sport_mid=$((sport_min + (sport_max - sport_min) / 2))
+	local dport=5000
+
+	RET=0
+
+	tc filter add dev $swp1 ingress protocol $proto handle 101 pref 1 \
+		flower src_ip $sip dst_ip $dip ip_proto $ip_proto \
+		src_port $sport_min-$sport_max \
+		dst_port $dport \
+		action drop
+
+	# Test ports outside range - should pass
+	$MZ $mode $h1 -c 1 -q -p 100 -a $smac -b $dmac -A $sip -B $dip \
+		-t $ip_proto "sp=$((sport_min - 1)),dp=$dport"
+	$MZ $mode $h1 -c 1 -q -p 100 -a $smac -b $dmac -A $sip -B $dip \
+		-t $ip_proto "sp=$((sport_max + 1)),dp=$dport"
+
+	# Test ports inside range - should be dropped
+	$MZ $mode $h1 -c 1 -q -p 100 -a $smac -b $dmac -A $sip -B $dip \
+		-t $ip_proto "sp=$sport_min,dp=$dport"
+	$MZ $mode $h1 -c 1 -q -p 100 -a $smac -b $dmac -A $sip -B $dip \
+		-t $ip_proto "sp=$sport_mid,dp=$dport"
+	$MZ $mode $h1 -c 1 -q -p 100 -a $smac -b $dmac -A $sip -B $dip \
+		-t $ip_proto "sp=$sport_max,dp=$dport"
+
+	tc_check_packets "dev $swp1 ingress" 101 3
+	check_err $? "Filter did not drop the expected number of packets"
+
+	tc filter del dev $swp1 ingress protocol $proto pref 1 handle 101 flower
+
+	log_test "Port range matching - $name"
 }
 
 setup_prepare()

@@ -13,7 +13,7 @@
 
 #include "fpu_emu.h"		/* for definition of PECULIAR_486 */
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 #define	Const__(x)	$##x
 #else
 #define	Const__(x)	x
@@ -37,7 +37,7 @@
 
 #define SW_Exc_Mask     Const__(0x27f)	/* Status word exception bit mask */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #define COMP_A_gt_B	1
 #define COMP_A_eq_B	2
@@ -63,6 +63,6 @@ static inline void setcc(int cc)
 #  define clear_C1()
 #endif /* PECULIAR_486 */
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _STATUS_H_ */

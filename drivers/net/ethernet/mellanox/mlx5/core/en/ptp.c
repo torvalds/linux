@@ -326,7 +326,7 @@ static int mlx5e_ptp_alloc_txqsq(struct mlx5e_ptp *c, int txq_ix,
 	int node;
 
 	sq->pdev      = c->pdev;
-	sq->clock     = &mdev->clock;
+	sq->clock     = mdev->clock;
 	sq->mkey_be   = c->mkey_be;
 	sq->netdev    = c->netdev;
 	sq->priv      = c->priv;
@@ -696,7 +696,7 @@ static int mlx5e_init_ptp_rq(struct mlx5e_ptp *c, struct mlx5e_params *params,
 	rq->pdev         = c->pdev;
 	rq->netdev       = priv->netdev;
 	rq->priv         = priv;
-	rq->clock        = &mdev->clock;
+	rq->clock        = mdev->clock;
 	rq->tstamp       = &priv->tstamp;
 	rq->mdev         = mdev;
 	rq->hw_mtu       = MLX5E_SW2HW_MTU(params, params->sw_mtu);

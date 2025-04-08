@@ -14,6 +14,8 @@
 #include "cifspdu.h"
 #include "cifs_unicode.h"
 #include "fs_context.h"
+#include "nterr.h"
+#include "smberr.h"
 
 /*
  * An NT cancel request header looks just like the original request except:
@@ -377,7 +379,7 @@ coalesce_t2(char *second_buf, struct smb_hdr *target_hdr)
 static void
 cifs_downgrade_oplock(struct TCP_Server_Info *server,
 		      struct cifsInodeInfo *cinode, __u32 oplock,
-		      unsigned int epoch, bool *purge_cache)
+		      __u16 epoch, bool *purge_cache)
 {
 	cifs_set_oplock_level(cinode, oplock);
 }
@@ -426,13 +428,6 @@ cifs_negotiate(const unsigned int xid,
 {
 	int rc;
 	rc = CIFSSMBNegotiate(xid, ses, server);
-	if (rc == -EAGAIN) {
-		/* retry only once on 1st time connection */
-		set_credits(server, 1);
-		rc = CIFSSMBNegotiate(xid, ses, server);
-		if (rc == -EAGAIN)
-			rc = -EHOSTDOWN;
-	}
 	return rc;
 }
 
@@ -444,8 +439,8 @@ cifs_negotiate_wsize(struct cifs_tcon *tcon, struct smb3_fs_context *ctx)
 	unsigned int wsize;
 
 	/* start with specified wsize, or default */
-	if (ctx->wsize)
-		wsize = ctx->wsize;
+	if (ctx->got_wsize)
+		wsize = ctx->vol_wsize;
 	else if (tcon->unix_ext && (unix_cap & CIFS_UNIX_LARGE_WRITE_CAP))
 		wsize = CIFS_DEFAULT_IOSIZE;
 	else
@@ -497,7 +492,7 @@ cifs_negotiate_rsize(struct cifs_tcon *tcon, struct smb3_fs_context *ctx)
 	else
 		defsize = server->maxBuf - sizeof(READ_RSP);
 
-	rsize = ctx->rsize ? ctx->rsize : defsize;
+	rsize = ctx->got_rsize ? ctx->vol_rsize : defsize;
 
 	/*
 	 * no CAP_LARGE_READ_X? Then MS-CIFS states that we must limit this to
@@ -551,7 +546,7 @@ static int cifs_query_path_info(const unsigned int xid,
 	int rc;
 	FILE_ALL_INFO fi = {};
 
-	data->symlink = false;
+	data->reparse_point = false;
 	data->adjust_tz = false;
 
 	/* could do find first instead but this returns more info */
@@ -569,32 +564,8 @@ static int cifs_query_path_info(const unsigned int xid,
 	}
 
 	if (!rc) {
-		int tmprc;
-		int oplock = 0;
-		struct cifs_fid fid;
-		struct cifs_open_parms oparms;
-
 		move_cifs_info_to_smb2(&data->fi, &fi);
-
-		if (!(le32_to_cpu(fi.Attributes) & ATTR_REPARSE))
-			return 0;
-
-		oparms = (struct cifs_open_parms) {
-			.tcon = tcon,
-			.cifs_sb = cifs_sb,
-			.desired_access = FILE_READ_ATTRIBUTES,
-			.create_options = cifs_create_options(cifs_sb, 0),
-			.disposition = FILE_OPEN,
-			.path = full_path,
-			.fid = &fid,
-		};
-
-		/* Need to check if this is a symbolic link or not */
-		tmprc = CIFS_open(xid, &oparms, &oplock, NULL);
-		if (tmprc == -EOPNOTSUPP)
-			data->symlink = true;
-		else if (tmprc == 0)
-			CIFSSMBClose(xid, tcon, fid.netfid);
+		data->reparse_point = le32_to_cpu(fi.Attributes) & ATTR_REPARSE;
 	}
 
 	return rc;
@@ -614,7 +585,13 @@ static int cifs_get_srv_inum(const unsigned int xid, struct cifs_tcon *tcon,
 	 * There may be higher info levels that work but are there Windows
 	 * server or network appliances for which IndexNumber field is not
 	 * guaranteed unique?
+	 *
+	 * CIFSGetSrvInodeNumber() uses SMB_QUERY_FILE_INTERNAL_INFO
+	 * which is SMB PASSTHROUGH level therefore check for capability.
+	 * Note that this function can be called with tcon == NULL.
 	 */
+	if (tcon && !(tcon->ses->capabilities & CAP_INFOLEVEL_PASSTHRU))
+		return -EOPNOTSUPP;
 	return CIFSGetSrvInodeNumber(xid, tcon, full_path, uniqueid,
 				     cifs_sb->local_nls,
 				     cifs_remap(cifs_sb));
@@ -1004,7 +981,7 @@ static int cifs_parse_reparse_point(struct cifs_sb_info *cifs_sb,
 
 	buf = (struct reparse_data_buffer *)((__u8 *)&io->hdr.Protocol +
 					     le32_to_cpu(io->DataOffset));
-	return parse_reparse_point(buf, plen, cifs_sb, full_path, true, data);
+	return parse_reparse_point(buf, plen, cifs_sb, full_path, data);
 }
 
 static bool
@@ -1085,6 +1062,47 @@ cifs_make_node(unsigned int xid, struct inode *inode,
 		return -EPERM;
 	return cifs_sfu_make_node(xid, inode, dentry, tcon,
 				  full_path, mode, dev);
+}
+
+static bool
+cifs_is_network_name_deleted(char *buf, struct TCP_Server_Info *server)
+{
+	struct smb_hdr *shdr = (struct smb_hdr *)buf;
+	struct TCP_Server_Info *pserver;
+	struct cifs_ses *ses;
+	struct cifs_tcon *tcon;
+
+	if (shdr->Flags2 & SMBFLG2_ERR_STATUS) {
+		if (shdr->Status.CifsError != cpu_to_le32(NT_STATUS_NETWORK_NAME_DELETED))
+			return false;
+	} else {
+		if (shdr->Status.DosError.ErrorClass != ERRSRV ||
+		    shdr->Status.DosError.Error != cpu_to_le16(ERRinvtid))
+			return false;
+	}
+
+	/* If server is a channel, select the primary channel */
+	pserver = SERVER_IS_CHAN(server) ? server->primary_server : server;
+
+	spin_lock(&cifs_tcp_ses_lock);
+	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
+		if (cifs_ses_exiting(ses))
+			continue;
+		list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
+			if (tcon->tid == shdr->Tid) {
+				spin_lock(&tcon->tc_lock);
+				tcon->need_reconnect = true;
+				spin_unlock(&tcon->tc_lock);
+				spin_unlock(&cifs_tcp_ses_lock);
+				pr_warn_once("Server share %s deleted.\n",
+					     tcon->tree_name);
+				return true;
+			}
+		}
+	}
+	spin_unlock(&cifs_tcp_ses_lock);
+
+	return false;
 }
 
 struct smb_version_operations smb1_operations = {
@@ -1171,6 +1189,7 @@ struct smb_version_operations smb1_operations = {
 	.get_acl_by_fid = get_cifs_acl_by_fid,
 	.set_acl = set_cifs_acl,
 	.make_node = cifs_make_node,
+	.is_network_name_deleted = cifs_is_network_name_deleted,
 };
 
 struct smb_version_values smb1_values = {
@@ -1188,6 +1207,7 @@ struct smb_version_values smb1_values = {
 	.cap_unix = CAP_UNIX,
 	.cap_nt_find = CAP_NT_SMBS | CAP_NT_FIND,
 	.cap_large_files = CAP_LARGE_FILES,
+	.cap_unicode = CAP_UNICODE,
 	.signing_enabled = SECMODE_SIGN_ENABLED,
 	.signing_required = SECMODE_SIGN_REQUIRED,
 };

@@ -287,7 +287,7 @@ static inline void iwl_fw_umac_set_alive_err_table(struct iwl_trans *trans,
 		trans->dbg.umac_error_event_table = umac_error_event_table;
 }
 
-static inline void iwl_fw_error_collect(struct iwl_fw_runtime *fwrt, bool sync)
+static inline void iwl_fw_error_collect(struct iwl_fw_runtime *fwrt)
 {
 	enum iwl_fw_ini_time_point tp_id;
 
@@ -303,7 +303,7 @@ static inline void iwl_fw_error_collect(struct iwl_fw_runtime *fwrt, bool sync)
 		tp_id = IWL_FW_INI_TIME_POINT_FW_ASSERT;
 	}
 
-	_iwl_dbg_tlv_time_point(fwrt, tp_id, NULL, sync);
+	iwl_dbg_tlv_time_point_sync(fwrt, tp_id, NULL);
 }
 
 static inline void iwl_fwrt_update_fw_versions(struct iwl_fw_runtime *fwrt,
@@ -324,9 +324,6 @@ static inline void iwl_fwrt_update_fw_versions(struct iwl_fw_runtime *fwrt,
 }
 
 void iwl_fwrt_dump_error_logs(struct iwl_fw_runtime *fwrt);
-void iwl_send_dbg_dump_complete_cmd(struct iwl_fw_runtime *fwrt,
-				    u32 timepoint,
-				    u32 timepoint_data);
 bool iwl_fwrt_read_err_table(struct iwl_trans *trans, u32 base, u32 *err_id);
 void iwl_fw_disable_dbg_asserts(struct iwl_fw_runtime *fwrt);
 void iwl_fw_dbg_clear_monitor_buf(struct iwl_fw_runtime *fwrt);

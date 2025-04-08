@@ -430,8 +430,11 @@ class JsonEvent:
   def to_c_string(self, metric: bool) -> str:
     """Representation of the event as a C struct initializer."""
 
+    def fix_comment(s: str) -> str:
+        return s.replace('*/', r'\*\/')
+
     s = self.build_c_string(metric)
-    return f'{{ { _bcs.offsets[s] } }}, /* {s} */\n'
+    return f'{{ { _bcs.offsets[s] } }}, /* {fix_comment(s)} */\n'
 
 
 @lru_cache(maxsize=None)
@@ -461,12 +464,16 @@ def preprocess_arch_std_files(archpath: str) -> None:
   """Read in all architecture standard events."""
   global _arch_std_events
   for item in os.scandir(archpath):
-    if item.is_file() and item.name.endswith('.json'):
+    if not item.is_file() or not item.name.endswith('.json'):
+      continue
+    try:
       for event in read_json_events(item.path, topic=''):
         if event.name:
           _arch_std_events[event.name.lower()] = event
         if event.metric_name:
           _arch_std_events[event.metric_name.lower()] = event
+    except Exception as e:
+        raise RuntimeError(f'Failure processing \'{item.name}\' in \'{archpath}\'') from e
 
 
 def add_events_table_entries(item: os.DirEntry, topic: str) -> None:
@@ -938,7 +945,7 @@ int pmu_events_table__for_each_event(const struct pmu_events_table *table,
                 const char *pmu_name = &big_c_string[table_pmu->pmu_name.offset];
                 int ret;
 
-                if (pmu && !pmu__name_match(pmu, pmu_name))
+                if (pmu && !perf_pmu__name_wildcard_match(pmu, pmu_name))
                         continue;
 
                 ret = pmu_events_table__for_each_event_pmu(table, table_pmu, fn, data);
@@ -959,7 +966,7 @@ int pmu_events_table__find_event(const struct pmu_events_table *table,
                 const char *pmu_name = &big_c_string[table_pmu->pmu_name.offset];
                 int ret;
 
-                if (!pmu__name_match(pmu, pmu_name))
+                if (!perf_pmu__name_wildcard_match(pmu, pmu_name))
                         continue;
 
                 ret = pmu_events_table__find_event_pmu(table, table_pmu, name, fn, data);
@@ -978,7 +985,7 @@ size_t pmu_events_table__num_events(const struct pmu_events_table *table,
                 const struct pmu_table_entry *table_pmu = &table->pmus[i];
                 const char *pmu_name = &big_c_string[table_pmu->pmu_name.offset];
 
-                if (pmu__name_match(pmu, pmu_name))
+                if (perf_pmu__name_wildcard_match(pmu, pmu_name))
                         count += table_pmu->num_entries;
         }
         return count;
@@ -1097,7 +1104,7 @@ const struct pmu_events_table *perf_pmu__find_events_table(struct perf_pmu *pmu)
                 const struct pmu_table_entry *table_pmu = &map->event_table.pmus[i];
                 const char *pmu_name = &big_c_string[table_pmu->pmu_name.offset];
 
-                if (pmu__name_match(pmu, pmu_name))
+                if (perf_pmu__name_wildcard_match(pmu, pmu_name))
                          return &map->event_table;
         }
         return NULL;
@@ -1252,7 +1259,10 @@ def main() -> None:
           item_path = '/'.join(parents) + ('/' if len(parents) > 0 else '') + item.name
           if 'test' not in item_path and 'common' not in item_path and item_path not in _args.model.split(','):
             continue
-      action(parents, item)
+      try:
+        action(parents, item)
+      except Exception as e:
+        raise RuntimeError(f'Action failure for \'{item.name}\' in {parents}') from e
       if item.is_dir():
         ftw(item.path, parents + [item.name], action)
 

@@ -1098,8 +1098,7 @@ static int audit_log_pid_context(struct audit_context *context, pid_t pid,
 				 char *comm)
 {
 	struct audit_buffer *ab;
-	char *ctx = NULL;
-	u32 len;
+	struct lsm_context ctx;
 	int rc = 0;
 
 	ab = audit_log_start(context, GFP_KERNEL, AUDIT_OBJ_PID);
@@ -1110,12 +1109,12 @@ static int audit_log_pid_context(struct audit_context *context, pid_t pid,
 			 from_kuid(&init_user_ns, auid),
 			 from_kuid(&init_user_ns, uid), sessionid);
 	if (lsmprop_is_set(prop)) {
-		if (security_lsmprop_to_secctx(prop, &ctx, &len)) {
+		if (security_lsmprop_to_secctx(prop, &ctx) < 0) {
 			audit_log_format(ab, " obj=(none)");
 			rc = 1;
 		} else {
-			audit_log_format(ab, " obj=%s", ctx);
-			security_release_secctx(ctx, len);
+			audit_log_format(ab, " obj=%s", ctx.context);
+			security_release_secctx(&ctx);
 		}
 	}
 	audit_log_format(ab, " ocomm=");
@@ -1393,15 +1392,14 @@ static void show_special(struct audit_context *context, int *call_panic)
 				 from_kgid(&init_user_ns, context->ipc.gid),
 				 context->ipc.mode);
 		if (lsmprop_is_set(&context->ipc.oprop)) {
-			char *ctx = NULL;
-			u32 len;
+			struct lsm_context lsmctx;
 
 			if (security_lsmprop_to_secctx(&context->ipc.oprop,
-						       &ctx, &len)) {
+						       &lsmctx) < 0) {
 				*call_panic = 1;
 			} else {
-				audit_log_format(ab, " obj=%s", ctx);
-				security_release_secctx(ctx, len);
+				audit_log_format(ab, " obj=%s", lsmctx.context);
+				security_release_secctx(&lsmctx);
 			}
 		}
 		if (context->ipc.has_perm) {
@@ -1560,15 +1558,14 @@ static void audit_log_name(struct audit_context *context, struct audit_names *n,
 				 MAJOR(n->rdev),
 				 MINOR(n->rdev));
 	if (lsmprop_is_set(&n->oprop)) {
-		char *ctx = NULL;
-		u32 len;
+		struct lsm_context ctx;
 
-		if (security_lsmprop_to_secctx(&n->oprop, &ctx, &len)) {
+		if (security_lsmprop_to_secctx(&n->oprop, &ctx) < 0) {
 			if (call_panic)
 				*call_panic = 2;
 		} else {
-			audit_log_format(ab, " obj=%s", ctx);
-			security_release_secctx(ctx, len);
+			audit_log_format(ab, " obj=%s", ctx.context);
+			security_release_secctx(&ctx);
 		}
 	}
 
@@ -2210,10 +2207,8 @@ __audit_reusename(const __user char *uptr)
 	list_for_each_entry(n, &context->names_list, list) {
 		if (!n->name)
 			continue;
-		if (n->name->uptr == uptr) {
-			atomic_inc(&n->name->refcnt);
-			return n->name;
-		}
+		if (n->name->uptr == uptr)
+			return refname(n->name);
 	}
 	return NULL;
 }
@@ -2240,7 +2235,7 @@ void __audit_getname(struct filename *name)
 	n->name = name;
 	n->name_len = AUDIT_NAME_FULL;
 	name->aname = n;
-	atomic_inc(&name->refcnt);
+	refname(name);
 }
 
 static inline int audit_copy_fcaps(struct audit_names *name,
@@ -2372,7 +2367,7 @@ out_alloc:
 		return;
 	if (name) {
 		n->name = name;
-		atomic_inc(&name->refcnt);
+		refname(name);
 	}
 
 out:
@@ -2499,7 +2494,7 @@ void __audit_inode_child(struct inode *parent,
 		if (found_parent) {
 			found_child->name = found_parent->name;
 			found_child->name_len = AUDIT_NAME_FULL;
-			atomic_inc(&found_child->name->refcnt);
+			refname(found_child->name);
 		}
 	}
 

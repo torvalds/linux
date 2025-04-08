@@ -1172,7 +1172,7 @@ static void samsung_banks_node_get(struct device *dev, struct samsung_pinctrl_dr
 		else
 			dev_warn(dev, "Missing node for bank %s - invalid DTB\n",
 				 bank->name);
-		/* child reference dropped in samsung_drop_banks_of_node() */
+		/* child reference dropped in samsung_banks_node_put() */
 	}
 }
 
@@ -1230,6 +1230,7 @@ samsung_pinctrl_get_soc_data(struct samsung_pinctrl_drv_data *d,
 		bank->eint_con_offset = bdata->eint_con_offset;
 		bank->eint_mask_offset = bdata->eint_mask_offset;
 		bank->eint_pend_offset = bdata->eint_pend_offset;
+		bank->eint_fltcon_offset = bdata->eint_fltcon_offset;
 		bank->name = bdata->name;
 
 		raw_spin_lock_init(&bank->slock);
@@ -1272,7 +1273,7 @@ static int samsung_pinctrl_probe(struct platform_device *pdev)
 
 	ret = platform_get_irq_optional(pdev, 0);
 	if (ret < 0 && ret != -ENXIO)
-		return ret;
+		goto err_put_banks;
 	if (ret > 0)
 		drvdata->irq = ret;
 
@@ -1469,10 +1470,14 @@ static const struct of_device_id samsung_pinctrl_dt_match[] = {
 #ifdef CONFIG_PINCTRL_EXYNOS_ARM64
 	{ .compatible = "google,gs101-pinctrl",
 		.data = &gs101_of_data },
+	{ .compatible = "samsung,exynos2200-pinctrl",
+		.data = &exynos2200_of_data },
 	{ .compatible = "samsung,exynos5433-pinctrl",
 		.data = &exynos5433_of_data },
 	{ .compatible = "samsung,exynos7-pinctrl",
 		.data = &exynos7_of_data },
+	{ .compatible = "samsung,exynos7870-pinctrl",
+		.data = &exynos7870_of_data },
 	{ .compatible = "samsung,exynos7885-pinctrl",
 		.data = &exynos7885_of_data },
 	{ .compatible = "samsung,exynos850-pinctrl",

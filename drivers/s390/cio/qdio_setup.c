@@ -83,7 +83,7 @@ static void __qdio_free_queues(struct qdio_q **queues, unsigned int count)
 
 	for (i = 0; i < count; i++) {
 		q = queues[i];
-		free_page((unsigned long) q->slib);
+		free_page((unsigned long)q->sl_page);
 		kmem_cache_free(qdio_q_cache, q);
 	}
 }
@@ -109,12 +109,16 @@ static int __qdio_allocate_qs(struct qdio_q **irq_ptr_qs, int nr_queues)
 			return -ENOMEM;
 		}
 
-		q->slib = (struct slib *) __get_free_page(GFP_KERNEL);
-		if (!q->slib) {
+		q->sl_page = (void *)__get_free_page(GFP_KERNEL);
+		if (!q->sl_page) {
 			kmem_cache_free(qdio_q_cache, q);
 			__qdio_free_queues(irq_ptr_qs, i);
 			return -ENOMEM;
 		}
+		q->slib = q->sl_page;
+		/* As per architecture: SLIB is 2K bytes long, and SL 1K. */
+		q->sl = (struct sl *)(q->slib + 1);
+
 		irq_ptr_qs[i] = q;
 	}
 	return 0;
@@ -142,11 +146,15 @@ int qdio_allocate_qs(struct qdio_irq *irq_ptr, int nr_input_qs, int nr_output_qs
 static void setup_queues_misc(struct qdio_q *q, struct qdio_irq *irq_ptr,
 			      qdio_handler_t *handler, int i)
 {
-	struct slib *slib = q->slib;
+	struct slib *const slib = q->slib;
+	void *const sl_page = q->sl_page;
+	struct sl *const sl = q->sl;
 
 	/* queue must be cleared for qdio_establish */
 	memset(q, 0, sizeof(*q));
-	memset(slib, 0, PAGE_SIZE);
+	memset(sl_page, 0, PAGE_SIZE);
+	q->sl_page = sl_page;
+	q->sl = sl;
 	q->slib = slib;
 	q->irq_ptr = irq_ptr;
 	q->mask = 1 << (31 - i);
@@ -161,7 +169,6 @@ static void setup_storage_lists(struct qdio_q *q, struct qdio_irq *irq_ptr,
 	int j;
 
 	DBF_HEX(&q, sizeof(void *));
-	q->sl = (struct sl *)((char *)q->slib + PAGE_SIZE / 2);
 
 	/* fill in sbal */
 	for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; j++)
@@ -423,7 +430,7 @@ int __init qdio_setup_init(void)
 
 	/* Check for OSA/FCP thin interrupts (bit 67). */
 	DBF_EVENT("thinint:%1d",
-		  (css_general_characteristics.aif_osa) ? 1 : 0);
+		  (css_general_characteristics.aif_qdio) ? 1 : 0);
 
 	/* Check for QEBSM support in general (bit 58). */
 	DBF_EVENT("cssQEBSM:%1d", css_general_characteristics.qebsm);

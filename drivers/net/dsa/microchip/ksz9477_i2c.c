@@ -127,10 +127,14 @@ static const struct of_device_id ksz9477_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, ksz9477_dt_ids);
 
+static DEFINE_SIMPLE_DEV_PM_OPS(ksz_i2c_pm_ops,
+				ksz_switch_suspend, ksz_switch_resume);
+
 static struct i2c_driver ksz9477_i2c_driver = {
 	.driver = {
 		.name	= "ksz9477-switch",
 		.of_match_table = ksz9477_dt_ids,
+		.pm = &ksz_i2c_pm_ops,
 	},
 	.probe = ksz9477_i2c_probe,
 	.remove	= ksz9477_i2c_remove,

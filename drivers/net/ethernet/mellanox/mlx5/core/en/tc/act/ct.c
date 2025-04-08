@@ -5,6 +5,16 @@
 #include "en/tc_priv.h"
 #include "en/tc_ct.h"
 
+static bool
+tc_act_can_offload_ct(struct mlx5e_tc_act_parse_state *parse_state,
+		      const struct flow_action_entry *act,
+		      int act_index,
+		      struct mlx5_flow_attr *attr)
+{
+	return !((act->ct.action & TCA_CT_ACT_COMMIT) &&
+		 flow_action_is_last_entry(parse_state->flow_action, act));
+}
+
 static int
 tc_act_parse_ct(struct mlx5e_tc_act_parse_state *parse_state,
 		const struct flow_action_entry *act,
@@ -56,6 +66,7 @@ tc_act_is_missable_ct(const struct flow_action_entry *act)
 }
 
 struct mlx5e_tc_act mlx5e_tc_act_ct = {
+	.can_offload = tc_act_can_offload_ct,
 	.parse_action = tc_act_parse_ct,
 	.post_parse = tc_act_post_parse_ct,
 	.is_multi_table_act = tc_act_is_multi_table_act_ct,

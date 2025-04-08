@@ -76,7 +76,7 @@ TEST(abi_version)
 	const struct landlock_ruleset_attr ruleset_attr = {
 		.handled_access_fs = LANDLOCK_ACCESS_FS_READ_FILE,
 	};
-	ASSERT_EQ(6, landlock_create_ruleset(NULL, 0,
+	ASSERT_EQ(7, landlock_create_ruleset(NULL, 0,
 					     LANDLOCK_CREATE_RULESET_VERSION));
 
 	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr, 0,
@@ -98,10 +98,54 @@ TEST(abi_version)
 	ASSERT_EQ(EINVAL, errno);
 }
 
+/*
+ * Old source trees might not have the set of Kselftest fixes related to kernel
+ * UAPI headers.
+ */
+#ifndef LANDLOCK_CREATE_RULESET_ERRATA
+#define LANDLOCK_CREATE_RULESET_ERRATA (1U << 1)
+#endif
+
+TEST(errata)
+{
+	const struct landlock_ruleset_attr ruleset_attr = {
+		.handled_access_fs = LANDLOCK_ACCESS_FS_READ_FILE,
+	};
+	int errata;
+
+	errata = landlock_create_ruleset(NULL, 0,
+					 LANDLOCK_CREATE_RULESET_ERRATA);
+	/* The errata bitmask will not be backported to tests. */
+	ASSERT_LE(0, errata);
+	TH_LOG("errata: 0x%x", errata);
+
+	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr, 0,
+					      LANDLOCK_CREATE_RULESET_ERRATA));
+	ASSERT_EQ(EINVAL, errno);
+
+	ASSERT_EQ(-1, landlock_create_ruleset(NULL, sizeof(ruleset_attr),
+					      LANDLOCK_CREATE_RULESET_ERRATA));
+	ASSERT_EQ(EINVAL, errno);
+
+	ASSERT_EQ(-1,
+		  landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr),
+					  LANDLOCK_CREATE_RULESET_ERRATA));
+	ASSERT_EQ(EINVAL, errno);
+
+	ASSERT_EQ(-1, landlock_create_ruleset(
+			      NULL, 0,
+			      LANDLOCK_CREATE_RULESET_VERSION |
+				      LANDLOCK_CREATE_RULESET_ERRATA));
+	ASSERT_EQ(-1, landlock_create_ruleset(NULL, 0,
+					      LANDLOCK_CREATE_RULESET_ERRATA |
+						      1 << 31));
+	ASSERT_EQ(EINVAL, errno);
+}
+
 /* Tests ordering of syscall argument checks. */
 TEST(create_ruleset_checks_ordering)
 {
-	const int last_flag = LANDLOCK_CREATE_RULESET_VERSION;
+	const int last_flag = LANDLOCK_CREATE_RULESET_ERRATA;
 	const int invalid_flag = last_flag << 1;
 	int ruleset_fd;
 	const struct landlock_ruleset_attr ruleset_attr = {
@@ -231,6 +275,88 @@ TEST(restrict_self_checks_ordering)
 	/* Checks valid call. */
 	ASSERT_EQ(0, landlock_restrict_self(ruleset_fd, 0));
 	ASSERT_EQ(0, close(ruleset_fd));
+}
+
+TEST(restrict_self_fd)
+{
+	int fd;
+
+	fd = open("/dev/null", O_RDONLY | O_CLOEXEC);
+	ASSERT_LE(0, fd);
+
+	EXPECT_EQ(-1, landlock_restrict_self(fd, 0));
+	EXPECT_EQ(EBADFD, errno);
+}
+
+TEST(restrict_self_fd_flags)
+{
+	int fd;
+
+	fd = open("/dev/null", O_RDONLY | O_CLOEXEC);
+	ASSERT_LE(0, fd);
+
+	/*
+	 * LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF accepts -1 but not any file
+	 * descriptor.
+	 */
+	EXPECT_EQ(-1, landlock_restrict_self(
+			      fd, LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF));
+	EXPECT_EQ(EBADFD, errno);
+}
+
+TEST(restrict_self_flags)
+{
+	const __u32 last_flag = LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF;
+
+	/* Tests invalid flag combinations. */
+
+	EXPECT_EQ(-1, landlock_restrict_self(-1, last_flag << 1));
+	EXPECT_EQ(EINVAL, errno);
+
+	EXPECT_EQ(-1, landlock_restrict_self(-1, -1));
+	EXPECT_EQ(EINVAL, errno);
+
+	/* Tests valid flag combinations. */
+
+	EXPECT_EQ(-1, landlock_restrict_self(-1, 0));
+	EXPECT_EQ(EBADF, errno);
+
+	EXPECT_EQ(-1, landlock_restrict_self(
+			      -1, LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF));
+	EXPECT_EQ(EBADF, errno);
+
+	EXPECT_EQ(-1,
+		  landlock_restrict_self(
+			  -1,
+			  LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF |
+				  LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF));
+	EXPECT_EQ(EBADF, errno);
+
+	EXPECT_EQ(-1,
+		  landlock_restrict_self(
+			  -1,
+			  LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON |
+				  LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF));
+	EXPECT_EQ(EBADF, errno);
+
+	EXPECT_EQ(-1, landlock_restrict_self(
+			      -1, LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON));
+	EXPECT_EQ(EBADF, errno);
+
+	EXPECT_EQ(-1,
+		  landlock_restrict_self(
+			  -1, LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF |
+				      LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON));
+	EXPECT_EQ(EBADF, errno);
+
+	/* Tests with an invalid ruleset_fd. */
+
+	EXPECT_EQ(-1, landlock_restrict_self(
+			      -2, LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF));
+	EXPECT_EQ(EBADF, errno);
+
+	EXPECT_EQ(0, landlock_restrict_self(
+			     -1, LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF));
 }
 
 TEST(ruleset_fd_io)

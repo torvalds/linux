@@ -1,0 +1,209 @@
+[
+    {
+        "EventCode": "0x0105",
+        "EventName": "FP_MV_SPEC",
+        "BriefDescription": "This event counts architecturally executed floating-point move operations."
+    },
+    {
+        "EventCode": "0x0112",
+        "EventName": "FP_LD_SPEC",
+        "BriefDescription": "This event counts architecturally executed NOSIMD load operations that using SIMD&FP registers."
+    },
+    {
+        "EventCode": "0x0113",
+        "EventName": "FP_ST_SPEC",
+        "BriefDescription": "This event counts architecturally executed NOSIMD store operations that using SIMD&FP registers."
+    },
+    {
+        "ArchStdEvent": "ASE_FP_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD floating-point operation."
+    },
+    {
+        "ArchStdEvent": "SVE_FP_SPEC",
+        "BriefDescription": "This event counts architecturally executed SVE floating-point operation."
+    },
+    {
+        "ArchStdEvent": "ASE_SVE_FP_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD and SVE floating-point operations."
+    },
+    {
+        "ArchStdEvent": "FP_HP_SPEC",
+        "BriefDescription": "This event counts architecturally executed half-precision floating-point operation."
+    },
+    {
+        "ArchStdEvent": "ASE_FP_HP_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD half-precision floating-point operation."
+    },
+    {
+        "ArchStdEvent": "SVE_FP_HP_SPEC",
+        "BriefDescription": "This event counts architecturally executed SVE half-precision floating-point operation."
+    },
+    {
+        "ArchStdEvent": "ASE_SVE_FP_HP_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD and SVE half-precision floating-point operations."
+    },
+    {
+        "ArchStdEvent": "FP_SP_SPEC",
+        "BriefDescription": "This event counts architecturally executed single-precision floating-point operation."
+    },
+    {
+        "ArchStdEvent": "ASE_FP_SP_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD single-precision floating-point operation."
+    },
+    {
+        "ArchStdEvent": "SVE_FP_SP_SPEC",
+        "BriefDescription": "This event counts architecturally executed SVE single-precision floating-point operation."
+    },
+    {
+        "ArchStdEvent": "ASE_SVE_FP_SP_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD and SVE single-precision floating-point operations."
+    },
+    {
+        "ArchStdEvent": "FP_DP_SPEC",
+        "BriefDescription": "This event counts architecturally executed double-precision floating-point operation."
+    },
+    {
+        "ArchStdEvent": "ASE_FP_DP_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD double-precision floating-point operation."
+    },
+    {
+        "ArchStdEvent": "SVE_FP_DP_SPEC",
+        "BriefDescription": "This event counts architecturally executed SVE double-precision floating-point operation."
+    },
+    {
+        "ArchStdEvent": "ASE_SVE_FP_DP_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD and SVE double-precision floating-point operations."
+    },
+    {
+        "ArchStdEvent": "FP_DIV_SPEC",
+        "BriefDescription": "This event counts architecturally executed floating-point divide operation."
+    },
+    {
+        "ArchStdEvent": "ASE_FP_DIV_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD floating-point divide operation."
+    },
+    {
+        "ArchStdEvent": "SVE_FP_DIV_SPEC",
+        "BriefDescription": "This event counts architecturally executed SVE floating-point divide operation."
+    },
+    {
+        "ArchStdEvent": "ASE_SVE_FP_DIV_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD and SVE floating-point divide operations."
+    },
+    {
+        "ArchStdEvent": "FP_SQRT_SPEC",
+        "BriefDescription": "This event counts architecturally executed floating-point square root operation."
+    },
+    {
+        "ArchStdEvent": "ASE_FP_SQRT_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD floating-point square root operation."
+    },
+    {
+        "ArchStdEvent": "SVE_FP_SQRT_SPEC",
+        "BriefDescription": "This event counts architecturally executed SVE floating-point square root operation."
+    },
+    {
+        "ArchStdEvent": "ASE_SVE_FP_SQRT_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD and SVE floating-point square root operations."
+    },
+    {
+        "ArchStdEvent": "ASE_FP_FMA_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD floating-point FMA operation."
+    },
+    {
+        "ArchStdEvent": "SVE_FP_FMA_SPEC",
+        "BriefDescription": "This event counts architecturally executed SVE floating-point FMA operation."
+    },
+    {
+        "ArchStdEvent": "ASE_SVE_FP_FMA_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD and SVE floating-point FMA operations."
+    },
+    {
+        "ArchStdEvent": "FP_MUL_SPEC",
+        "BriefDescription": "This event counts architecturally executed floating-point multiply operations."
+    },
+    {
+        "ArchStdEvent": "ASE_FP_MUL_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD floating-point multiply operation."
+    },
+    {
+        "ArchStdEvent": "SVE_FP_MUL_SPEC",
+        "BriefDescription": "This event counts architecturally executed SVE floating-point multiply operation."
+    },
+    {
+        "ArchStdEvent": "ASE_SVE_FP_MUL_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD and SVE floating-point multiply operations."
+    },
+    {
+        "ArchStdEvent": "FP_ADDSUB_SPEC",
+        "BriefDescription": "This event counts architecturally executed floating-point add or subtract operations."
+    },
+    {
+        "ArchStdEvent": "ASE_FP_ADDSUB_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD floating-point add or subtract operation."
+    },
+    {
+        "ArchStdEvent": "SVE_FP_ADDSUB_SPEC",
+        "BriefDescription": "This event counts architecturally executed SVE floating-point add or subtract operation."
+    },
+    {
+        "ArchStdEvent": "ASE_SVE_FP_ADDSUB_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD and SVE floating-point add or subtract operations."
+    },
+    {
+        "ArchStdEvent": "ASE_FP_RECPE_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD floating-point reciprocal estimate operations."
+    },
+    {
+        "ArchStdEvent": "SVE_FP_RECPE_SPEC",
+        "BriefDescription": "This event counts architecturally executed SVE floating-point reciprocal estimate operations."
+    },
+    {
+        "ArchStdEvent": "ASE_SVE_FP_RECPE_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD and SVE floating-point reciprocal estimate operations."
+    },
+    {
+        "ArchStdEvent": "ASE_FP_CVT_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD floating-point convert operation."
+    },
+    {
+        "ArchStdEvent": "SVE_FP_CVT_SPEC",
+        "BriefDescription": "This event counts architecturally executed SVE floating-point convert operation."
+    },
+    {
+        "ArchStdEvent": "ASE_SVE_FP_CVT_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD and SVE floating-point convert operations."
+    },
+    {
+        "ArchStdEvent": "SVE_FP_AREDUCE_SPEC",
+        "BriefDescription": "This event counts architecturally executed SVE floating-point accumulating reduction operations."
+    },
+    {
+        "ArchStdEvent": "ASE_FP_PREDUCE_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD floating-point pairwise add step operations."
+    },
+    {
+        "ArchStdEvent": "SVE_FP_VREDUCE_SPEC",
+        "BriefDescription": "This event counts architecturally executed SVE floating-point vector reduction operation."
+    },
+    {
+        "ArchStdEvent": "ASE_SVE_FP_VREDUCE_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD and SVE floating-point vector reduction operations."
+    },
+    {
+        "ArchStdEvent": "FP_SCALE_OPS_SPEC",
+        "BriefDescription": "This event counts architecturally executed SVE arithmetic operations. See FP_SCALE_OPS_SPEC of ARMv9 Reference Manual for more information. This event counter is incremented by (128 / CSIZE) and by twice that amount for operations that would also be counted by SVE_FP_FMA_SPEC."
+    },
+    {
+        "ArchStdEvent": "FP_FIXED_OPS_SPEC",
+        "BriefDescription": "This event counts architecturally executed v8SIMD&FP arithmetic operations. See FP_FIXED_OPS_SPEC of ARMv9 Reference Manual for more information. The event counter is incremented by the specified number of elements for Advanced SIMD operations or by 1 for scalar operations, and by twice those amounts for operations that would also be counted by FP_FMA_SPEC."
+    },
+    {
+        "ArchStdEvent": "ASE_SVE_FP_DOT_SPEC",
+        "BriefDescription": "This event counts architecturally executed microarchitectural Advanced SIMD or SVE floating-point dot-product operation."
+    },
+    {
+        "ArchStdEvent": "ASE_SVE_FP_MMLA_SPEC",
+        "BriefDescription": "This event counts architecturally executed microarchitectural Advanced SIMD or SVE floating-point matrix multiply operation."
+    }
+]

@@ -33,7 +33,6 @@
 #include "dml2_dc_resource_mgmt.h"
 #include "dml21_wrapper.h"
 
-
 static void initialize_dml2_ip_params(struct dml2_context *dml2, const struct dc *in_dc, struct ip_params_st *out)
 {
 	if (dml2->config.use_native_soc_bb_construction)
@@ -72,6 +71,7 @@ static void map_hw_resources(struct dml2_context *dml2,
 		in_out_display_cfg->hw.NumberOfDSCSlices[i] = mode_support_info->NumberOfDSCSlices[i];
 		in_out_display_cfg->hw.DLGRefClkFreqMHz = 24;
 		if (dml2->v20.dml_core_ctx.project != dml_project_dcn35 &&
+			dml2->v20.dml_core_ctx.project != dml_project_dcn36 &&
 			dml2->v20.dml_core_ctx.project != dml_project_dcn351) {
 			/*dGPU default as 50Mhz*/
 			in_out_display_cfg->hw.DLGRefClkFreqMHz = 50;
@@ -762,6 +762,9 @@ static void dml2_init(const struct dc *in_dc, const struct dml2_configuration_op
 	case DCN_VERSION_3_51:
 		(*dml2)->v20.dml_core_ctx.project = dml_project_dcn351;
 		break;
+	case DCN_VERSION_3_6:
+		(*dml2)->v20.dml_core_ctx.project = dml_project_dcn36;
+		break;
 	case DCN_VERSION_3_2:
 		(*dml2)->v20.dml_core_ctx.project = dml_project_dcn32;
 		break;
@@ -785,7 +788,10 @@ static void dml2_init(const struct dc *in_dc, const struct dml2_configuration_op
 
 bool dml2_create(const struct dc *in_dc, const struct dml2_configuration_options *config, struct dml2_context **dml2)
 {
-	if ((in_dc->debug.using_dml21) && (in_dc->ctx->dce_version == DCN_VERSION_4_01))
+	// TODO : Temporarily add DCN_VERSION_3_2 for N-1 validation. Remove DCN_VERSION_3_2 after N-1 validation phase is complete.
+	if ((in_dc->debug.using_dml21)
+			&& (in_dc->ctx->dce_version == DCN_VERSION_4_01
+		))
 		return dml21_create(in_dc, dml2, config);
 
 	// Allocate Mode Lib Ctx

@@ -462,7 +462,7 @@ void xfrm_policy_destroy(struct xfrm_policy *policy)
 {
 	BUG_ON(!policy->walk.dead);
 
-	if (del_timer(&policy->timer) || del_timer(&policy->polq.hold_timer))
+	if (timer_delete(&policy->timer) || timer_delete(&policy->polq.hold_timer))
 		BUG();
 
 	xfrm_dev_policy_free(policy);
@@ -487,11 +487,11 @@ static void xfrm_policy_kill(struct xfrm_policy *policy)
 
 	atomic_inc(&policy->genid);
 
-	if (del_timer(&policy->polq.hold_timer))
+	if (timer_delete(&policy->polq.hold_timer))
 		xfrm_pol_put(policy);
 	skb_queue_purge(&policy->polq.hold_queue);
 
-	if (del_timer(&policy->timer))
+	if (timer_delete(&policy->timer))
 		xfrm_pol_put(policy);
 
 	/* XXX: Flush state cache */
@@ -1469,7 +1469,7 @@ static void xfrm_policy_requeue(struct xfrm_policy *old,
 
 	spin_lock_bh(&pq->hold_queue.lock);
 	skb_queue_splice_init(&pq->hold_queue, &list);
-	if (del_timer(&pq->hold_timer))
+	if (timer_delete(&pq->hold_timer))
 		xfrm_pol_put(old);
 	spin_unlock_bh(&pq->hold_queue.lock);
 
@@ -2497,6 +2497,7 @@ xfrm_tmpl_resolve_one(struct xfrm_policy *policy, const struct flowi *fl,
 		struct xfrm_tmpl *tmpl = &policy->xfrm_vec[i];
 
 		if (tmpl->mode == XFRM_MODE_TUNNEL ||
+		    tmpl->mode == XFRM_MODE_IPTFS ||
 		    tmpl->mode == XFRM_MODE_BEET) {
 			remote = &tmpl->id.daddr;
 			local = &tmpl->saddr;
@@ -2748,13 +2749,17 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 
 		dst1->input = dst_discard;
 
-		rcu_read_lock();
-		afinfo = xfrm_state_afinfo_get_rcu(inner_mode->family);
-		if (likely(afinfo))
-			dst1->output = afinfo->output;
-		else
-			dst1->output = dst_discard_out;
-		rcu_read_unlock();
+		if (xfrm[i]->mode_cbs && xfrm[i]->mode_cbs->output) {
+			dst1->output = xfrm[i]->mode_cbs->output;
+		} else {
+			rcu_read_lock();
+			afinfo = xfrm_state_afinfo_get_rcu(inner_mode->family);
+			if (likely(afinfo))
+				dst1->output = afinfo->output;
+			else
+				dst1->output = dst_discard_out;
+			rcu_read_unlock();
+		}
 
 		xdst_prev = xdst;
 
@@ -2959,7 +2964,7 @@ static void xfrm_policy_queue_process(struct timer_list *t)
 		skb_dst_drop(skb);
 		skb_dst_set(skb, dst);
 
-		dst_output(net, skb->sk, skb);
+		dst_output(net, skb_to_full_sk(skb), skb);
 	}
 
 out:
@@ -2999,7 +3004,7 @@ static int xdst_queue_output(struct net *net, struct sock *sk, struct sk_buff *s
 
 	sched_next = jiffies + pq->timeout;
 
-	if (del_timer(&pq->hold_timer)) {
+	if (timer_delete(&pq->hold_timer)) {
 		if (time_before(pq->hold_timer.expires, sched_next))
 			sched_next = pq->hold_timer.expires;
 		xfrm_pol_put(pol);
@@ -3289,8 +3294,9 @@ no_transform:
 
 ok:
 	xfrm_pols_put(pols, drop_pols);
-	if (dst && dst->xfrm &&
-	    dst->xfrm->props.mode == XFRM_MODE_TUNNEL)
+	if (dst->xfrm &&
+	    (dst->xfrm->props.mode == XFRM_MODE_TUNNEL ||
+	     dst->xfrm->props.mode == XFRM_MODE_IPTFS))
 		dst->flags |= DST_XFRM_TUNNEL;
 	return dst;
 
@@ -4519,6 +4525,7 @@ static int migrate_tmpl_match(const struct xfrm_migrate *m, const struct xfrm_tm
 		switch (t->mode) {
 		case XFRM_MODE_TUNNEL:
 		case XFRM_MODE_BEET:
+		case XFRM_MODE_IPTFS:
 			if (xfrm_addr_equal(&t->id.daddr, &m->old_daddr,
 					    m->old_family) &&
 			    xfrm_addr_equal(&t->saddr, &m->old_saddr,
@@ -4561,7 +4568,8 @@ static int xfrm_policy_migrate(struct xfrm_policy *pol,
 				continue;
 			n++;
 			if (pol->xfrm_vec[i].mode != XFRM_MODE_TUNNEL &&
-			    pol->xfrm_vec[i].mode != XFRM_MODE_BEET)
+			    pol->xfrm_vec[i].mode != XFRM_MODE_BEET &&
+			    pol->xfrm_vec[i].mode != XFRM_MODE_IPTFS)
 				continue;
 			/* update endpoints */
 			memcpy(&pol->xfrm_vec[i].id.daddr, &mp->new_daddr,

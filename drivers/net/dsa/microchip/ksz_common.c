@@ -1339,6 +1339,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.supports_rgmii = {false, false, true},
 		.internal_phy = {true, true, false},
 		.gbit_capable = {false, false, true},
+		.ptp_capable = true,
 		.wr_table = &ksz8563_register_set,
 		.rd_table = &ksz8563_register_set,
 	},
@@ -1550,6 +1551,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.internal_phy	= {true, true, true, true,
 				   true, false, false},
 		.gbit_capable	= {true, true, true, true, true, true, true},
+		.ptp_capable = true,
 		.wr_table = &ksz9477_register_set,
 		.rd_table = &ksz9477_register_set,
 	},
@@ -1677,6 +1679,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.supports_rgmii = {false, false, true},
 		.internal_phy = {true, true, false},
 		.gbit_capable = {true, true, true},
+		.ptp_capable = true,
 	},
 
 	[KSZ8567] = {
@@ -1712,6 +1715,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 				   true, false, false},
 		.gbit_capable	= {false, false, false, false, false,
 				   true, true},
+		.ptp_capable = true,
 	},
 
 	[KSZ9567] = {
@@ -1744,6 +1748,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.internal_phy	= {true, true, true, true,
 				   true, false, false},
 		.gbit_capable	= {true, true, true, true, true, true, true},
+		.ptp_capable = true,
 	},
 
 	[LAN9370] = {
@@ -1773,6 +1778,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.supports_rmii = {false, false, false, false, true},
 		.supports_rgmii = {false, false, false, false, true},
 		.internal_phy = {true, true, true, true, false},
+		.ptp_capable = true,
 	},
 
 	[LAN9371] = {
@@ -1802,6 +1808,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.supports_rmii = {false, false, false, false, true, true},
 		.supports_rgmii = {false, false, false, false, true, true},
 		.internal_phy = {true, true, true, true, false, false},
+		.ptp_capable = true,
 	},
 
 	[LAN9372] = {
@@ -1835,6 +1842,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 				   true, true, false, false},
 		.internal_phy	= {true, true, true, true,
 				   false, false, true, true},
+		.ptp_capable = true,
 	},
 
 	[LAN9373] = {
@@ -1868,6 +1876,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 				   true, true, false, false},
 		.internal_phy	= {true, true, true, false,
 				   false, false, true, true},
+		.ptp_capable = true,
 	},
 
 	[LAN9374] = {
@@ -1901,6 +1910,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 				   true, true, false, false},
 		.internal_phy	= {true, true, true, true,
 				   false, false, true, true},
+		.ptp_capable = true,
 	},
 
 	[LAN9646] = {
@@ -2544,7 +2554,11 @@ static int ksz_mdio_register(struct ksz_device *dev)
 		bus->read = ksz_sw_mdio_read;
 		bus->write = ksz_sw_mdio_write;
 		bus->name = "ksz user smi";
-		snprintf(bus->id, MII_BUS_ID_SIZE, "SMI-%d", ds->index);
+		if (ds->dst->index != 0) {
+			snprintf(bus->id, MII_BUS_ID_SIZE, "SMI-%d-%d", ds->dst->index, ds->index);
+		} else {
+			snprintf(bus->id, MII_BUS_ID_SIZE, "SMI-%d", ds->index);
+		}
 	}
 
 	ret = ksz_parse_dt_phy_config(dev, bus, mdio_np);
@@ -2805,16 +2819,21 @@ static int ksz_setup(struct dsa_switch *ds)
 			if (ret)
 				goto out_girq;
 
-			ret = ksz_ptp_irq_setup(ds, dp->index);
-			if (ret)
-				goto out_pirq;
+			if (dev->info->ptp_capable) {
+				ret = ksz_ptp_irq_setup(ds, dp->index);
+				if (ret)
+					goto out_pirq;
+			}
 		}
 	}
 
-	ret = ksz_ptp_clock_register(ds);
-	if (ret) {
-		dev_err(dev->dev, "Failed to register PTP clock: %d\n", ret);
-		goto out_ptpirq;
+	if (dev->info->ptp_capable) {
+		ret = ksz_ptp_clock_register(ds);
+		if (ret) {
+			dev_err(dev->dev, "Failed to register PTP clock: %d\n",
+				ret);
+			goto out_ptpirq;
+		}
 	}
 
 	ret = ksz_mdio_register(dev);
@@ -2834,9 +2853,10 @@ static int ksz_setup(struct dsa_switch *ds)
 	return 0;
 
 out_ptp_clock_unregister:
-	ksz_ptp_clock_unregister(ds);
+	if (dev->info->ptp_capable)
+		ksz_ptp_clock_unregister(ds);
 out_ptpirq:
-	if (dev->irq > 0)
+	if (dev->irq > 0 && dev->info->ptp_capable)
 		dsa_switch_for_each_user_port(dp, dev->ds)
 			ksz_ptp_irq_free(ds, dp->index);
 out_pirq:
@@ -2855,11 +2875,13 @@ static void ksz_teardown(struct dsa_switch *ds)
 	struct ksz_device *dev = ds->priv;
 	struct dsa_port *dp;
 
-	ksz_ptp_clock_unregister(ds);
+	if (dev->info->ptp_capable)
+		ksz_ptp_clock_unregister(ds);
 
 	if (dev->irq > 0) {
 		dsa_switch_for_each_user_port(dp, dev->ds) {
-			ksz_ptp_irq_free(ds, dp->index);
+			if (dev->info->ptp_capable)
+				ksz_ptp_irq_free(ds, dp->index);
 
 			ksz_irq_free(&dev->ports[dp->index].pirq);
 		}
@@ -3444,12 +3466,12 @@ static int ksz_max_mtu(struct dsa_switch *ds, int port)
 	return -EOPNOTSUPP;
 }
 
-static int ksz_validate_eee(struct dsa_switch *ds, int port)
+static bool ksz_support_eee(struct dsa_switch *ds, int port)
 {
 	struct ksz_device *dev = ds->priv;
 
 	if (!dev->info->internal_phy[port])
-		return -EOPNOTSUPP;
+		return false;
 
 	switch (dev->chip_id) {
 	case KSZ8563_CHIP_ID:
@@ -3461,41 +3483,16 @@ static int ksz_validate_eee(struct dsa_switch *ds, int port)
 	case KSZ9896_CHIP_ID:
 	case KSZ9897_CHIP_ID:
 	case LAN9646_CHIP_ID:
-		return 0;
+		return true;
 	}
 
-	return -EOPNOTSUPP;
-}
-
-static int ksz_get_mac_eee(struct dsa_switch *ds, int port,
-			   struct ethtool_keee *e)
-{
-	int ret;
-
-	ret = ksz_validate_eee(ds, port);
-	if (ret)
-		return ret;
-
-	/* There is no documented control of Tx LPI configuration. */
-	e->tx_lpi_enabled = true;
-
-	/* There is no documented control of Tx LPI timer. According to tests
-	 * Tx LPI timer seems to be set by default to minimal value.
-	 */
-	e->tx_lpi_timer = 0;
-
-	return 0;
+	return false;
 }
 
 static int ksz_set_mac_eee(struct dsa_switch *ds, int port,
 			   struct ethtool_keee *e)
 {
 	struct ksz_device *dev = ds->priv;
-	int ret;
-
-	ret = ksz_validate_eee(ds, port);
-	if (ret)
-		return ret;
 
 	if (!e->tx_lpi_enabled) {
 		dev_err(dev->dev, "Disabling EEE Tx LPI is not supported\n");
@@ -4593,6 +4590,23 @@ static int ksz_hsr_leave(struct dsa_switch *ds, int port,
 	return 0;
 }
 
+static int ksz_suspend(struct dsa_switch *ds)
+{
+	struct ksz_device *dev = ds->priv;
+
+	cancel_delayed_work_sync(&dev->mib_read);
+	return 0;
+}
+
+static int ksz_resume(struct dsa_switch *ds)
+{
+	struct ksz_device *dev = ds->priv;
+
+	if (dev->mib_read_interval)
+		schedule_delayed_work(&dev->mib_read, dev->mib_read_interval);
+	return 0;
+}
+
 static const struct dsa_switch_ops ksz_switch_ops = {
 	.get_tag_protocol	= ksz_get_tag_protocol,
 	.connect_tag_protocol   = ksz_connect_tag_protocol,
@@ -4633,6 +4647,8 @@ static const struct dsa_switch_ops ksz_switch_ops = {
 	.port_max_mtu		= ksz_max_mtu,
 	.get_wol		= ksz_get_wol,
 	.set_wol		= ksz_set_wol,
+	.suspend		= ksz_suspend,
+	.resume			= ksz_resume,
 	.get_ts_info		= ksz_get_ts_info,
 	.port_hwtstamp_get	= ksz_hwtstamp_get,
 	.port_hwtstamp_set	= ksz_hwtstamp_set,
@@ -4641,7 +4657,7 @@ static const struct dsa_switch_ops ksz_switch_ops = {
 	.cls_flower_add		= ksz_cls_flower_add,
 	.cls_flower_del		= ksz_cls_flower_del,
 	.port_setup_tc		= ksz_setup_tc,
-	.get_mac_eee		= ksz_get_mac_eee,
+	.support_eee		= ksz_support_eee,
 	.set_mac_eee		= ksz_set_mac_eee,
 	.port_get_default_prio	= ksz_port_get_default_prio,
 	.port_set_default_prio	= ksz_port_set_default_prio,
@@ -5131,6 +5147,24 @@ void ksz_switch_remove(struct ksz_device *dev)
 
 }
 EXPORT_SYMBOL(ksz_switch_remove);
+
+#ifdef CONFIG_PM_SLEEP
+int ksz_switch_suspend(struct device *dev)
+{
+	struct ksz_device *priv = dev_get_drvdata(dev);
+
+	return dsa_switch_suspend(priv->ds);
+}
+EXPORT_SYMBOL(ksz_switch_suspend);
+
+int ksz_switch_resume(struct device *dev)
+{
+	struct ksz_device *priv = dev_get_drvdata(dev);
+
+	return dsa_switch_resume(priv->ds);
+}
+EXPORT_SYMBOL(ksz_switch_resume);
+#endif
 
 MODULE_AUTHOR("Woojung Huh <Woojung.Huh@microchip.com>");
 MODULE_DESCRIPTION("Microchip KSZ Series Switch DSA Driver");

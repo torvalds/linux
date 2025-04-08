@@ -51,6 +51,27 @@ config PROC_MEM_NO_FORCE
 
 endchoice
 
+config MSEAL_SYSTEM_MAPPINGS
+	bool "mseal system mappings"
+	depends on 64BIT
+	depends on ARCH_SUPPORTS_MSEAL_SYSTEM_MAPPINGS
+	depends on !CHECKPOINT_RESTORE
+	help
+	  Apply mseal on system mappings.
+	  The system mappings includes vdso, vvar, vvar_vclock,
+	  vectors (arm compat-mode), sigpage (arm compat-mode), uprobes.
+
+	  A 64-bit kernel is required for the memory sealing feature.
+	  No specific hardware features from the CPU are needed.
+
+	  WARNING: This feature breaks programs which rely on relocating
+	  or unmapping system mappings. Known broken software at the time
+	  of writing includes CHECKPOINT_RESTORE, UML, gVisor, rr. Therefore
+	  this config can't be enabled universally.
+
+	  For complete descriptions of memory sealing, please see
+	  Documentation/userspace-api/mseal.rst
+
 config SECURITY
 	bool "Enable different security models"
 	depends on SYSFS
@@ -63,6 +84,11 @@ config SECURITY
 	  model will be used.
 
 	  If you are unsure how to answer this question, answer N.
+
+config HAS_SECURITY_AUDIT
+	def_bool y
+	depends on AUDIT
+	depends on SECURITY
 
 config SECURITYFS
 	bool "Enable the securityfs filesystem"
@@ -158,27 +184,6 @@ config LSM_MMAP_MIN_ADDR
 	  Programs which use vm86 functionality or have some need to map
 	  this low address space will need the permission specific to the
 	  systems running LSM.
-
-config HARDENED_USERCOPY
-	bool "Harden memory copies between kernel and userspace"
-	imply STRICT_DEVMEM
-	help
-	  This option checks for obviously wrong memory regions when
-	  copying memory to/from the kernel (via copy_to_user() and
-	  copy_from_user() functions) by rejecting memory ranges that
-	  are larger than the specified heap object, span multiple
-	  separately allocated pages, are not on the process stack,
-	  or are part of the kernel text. This prevents entire classes
-	  of heap overflow exploits and similar kernel memory exposures.
-
-config FORTIFY_SOURCE
-	bool "Harden common str/mem functions against buffer overflows"
-	depends on ARCH_HAS_FORTIFY_SOURCE
-	# https://github.com/llvm/llvm-project/issues/53645
-	depends on !CC_IS_CLANG || !X86_32
-	help
-	  Detect overflows of buffers in common string and memory functions
-	  where the compiler can determine and validate the buffer sizes.
 
 config STATIC_USERMODEHELPER
 	bool "Force all usermode helper calls through a single binary"

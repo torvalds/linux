@@ -697,6 +697,37 @@ bool dev_pm_genpd_get_hwmode(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(dev_pm_genpd_get_hwmode);
 
+/**
+ * dev_pm_genpd_rpm_always_on() - Control if the PM domain can be powered off.
+ *
+ * @dev: Device for which the PM domain may need to stay on for.
+ * @on: Value to set or unset for the condition.
+ *
+ * For some usecases a consumer driver requires its device to remain power-on
+ * from the PM domain perspective during runtime. This function allows the
+ * behaviour to be dynamically controlled for a device attached to a genpd.
+ *
+ * It is assumed that the users guarantee that the genpd wouldn't be detached
+ * while this routine is getting called.
+ *
+ * Return: Returns 0 on success and negative error values on failures.
+ */
+int dev_pm_genpd_rpm_always_on(struct device *dev, bool on)
+{
+	struct generic_pm_domain *genpd;
+
+	genpd = dev_to_genpd_safe(dev);
+	if (!genpd)
+		return -ENODEV;
+
+	genpd_lock(genpd);
+	dev_gpd_data(dev)->rpm_always_on = on;
+	genpd_unlock(genpd);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dev_pm_genpd_rpm_always_on);
+
 static int _genpd_power_on(struct generic_pm_domain *genpd, bool timed)
 {
 	unsigned int state_idx = genpd->state_idx;
@@ -868,6 +899,10 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 		if (!pm_runtime_suspended(pdd->dev) ||
 			irq_safe_dev_in_sleep_domain(pdd->dev, genpd))
 			not_suspended++;
+
+		/* The device may need its PM domain to stay powered on. */
+		if (to_gpd_data(pdd)->rpm_always_on)
+			return -EBUSY;
 	}
 
 	if (not_suspended > 1 || (not_suspended == 1 && !one_dev_on))
@@ -3180,6 +3215,8 @@ static int genpd_parse_state(struct genpd_power_state *genpd_state,
 	if (!err)
 		genpd_state->residency_ns = 1000LL * residency;
 
+	of_property_read_string(state_node, "idle-state-name", &genpd_state->name);
+
 	genpd_state->power_on_latency_ns = 1000LL * exit_latency;
 	genpd_state->power_off_latency_ns = 1000LL * entry_latency;
 	genpd_state->fwnode = &state_node->fwnode;
@@ -3458,7 +3495,10 @@ static int idle_states_show(struct seq_file *s, void *data)
 	seq_puts(s, "State          Time Spent(ms) Usage          Rejected\n");
 
 	for (i = 0; i < genpd->state_count; i++) {
-		idle_time += genpd->states[i].idle_time;
+		struct genpd_power_state *state = &genpd->states[i];
+		char state_name[15];
+
+		idle_time += state->idle_time;
 
 		if (genpd->status == GENPD_STATE_OFF && genpd->state_idx == i) {
 			now = ktime_get_mono_fast_ns();
@@ -3468,9 +3508,13 @@ static int idle_states_show(struct seq_file *s, void *data)
 			}
 		}
 
+		if (!state->name)
+			snprintf(state_name, ARRAY_SIZE(state_name), "S%-13d", i);
+
 		do_div(idle_time, NSEC_PER_MSEC);
-		seq_printf(s, "S%-13i %-14llu %-14llu %llu\n", i, idle_time,
-			   genpd->states[i].usage, genpd->states[i].rejected);
+		seq_printf(s, "%-14s %-14llu %-14llu %llu\n",
+			   state->name ?: state_name, idle_time,
+			   state->usage, state->rejected);
 	}
 
 	genpd_unlock(genpd);

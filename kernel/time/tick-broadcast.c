@@ -1020,6 +1020,8 @@ static inline ktime_t tick_get_next_period(void)
 
 /**
  * tick_broadcast_setup_oneshot - setup the broadcast device
+ * @bc: the broadcast device
+ * @from_periodic: true if called from periodic mode
  */
 static void tick_broadcast_setup_oneshot(struct clock_event_device *bc,
 					 bool from_periodic)

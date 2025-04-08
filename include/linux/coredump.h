@@ -52,8 +52,8 @@ extern void do_coredump(const kernel_siginfo_t *siginfo);
 #define __COREDUMP_PRINTK(Level, Format, ...) \
 	do {	\
 		char comm[TASK_COMM_LEN];	\
-	\
-		get_task_comm(comm, current);	\
+		/* This will always be NUL terminated. */ \
+		memcpy(comm, current->comm, sizeof(comm)); \
 		printk_ratelimited(Level "coredump: %d(%*pE): " Format "\n",	\
 			task_tgid_vnr(current), (int)strlen(comm), comm, ##__VA_ARGS__);	\
 	} while (0)	\

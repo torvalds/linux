@@ -1,0 +1,161 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2024 Heiko Schocher <hs@denx.de>
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
+#include "imx8mp-aristainetos3a-som-v1.dtsi"
+
+&{/} {
+	model = "Aristainetos3 proton2s carrier";
+	compatible = "abb,imx8mp-aristanetos3-proton2s",
+		     "abb,imx8mp-aristanetos3-som",
+		     "fsl,imx8mp";
+
+	watchdog {
+		/* MAX6371KA */
+		compatible = "linux,wdt-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_watchdog_gpio>;
+		always-running;
+		gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
+		hw_algo = "level";
+		/* Reset triggers in 3..9 seconds */
+		hw_margin_ms = <1500>;
+	};
+};
+
+&ethphy1 {
+	status = "disabled";
+};
+
+&eqos {
+	max-speed = <100>;
+};
+
+&ecspi1{
+	pinctrl-0 = <&pinctrl_ecspi1>;
+	cs-gpios = <&gpio5 9 GPIO_ACTIVE_LOW>;
+};
+
+&fec {
+	status = "disabled";
+};
+
+&gpio1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpio_proton2s>;
+
+	gpio-line-names =
+		"", "", "", "", "", "", "", "POWER",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
+&gpio6 {
+	gpio-line-names =
+		"RELAY0", "RELAY1", "RELAY2", "HEATER",
+		"FAN", "SPARE",	"CLEAR", "FAULT",
+		"", "", "", "", "", "", "", "", "";
+};
+
+&i2c2 {
+	tlc59108@40 {
+		compatible = "ti,tlc59108";
+		reg = <0x40>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		led@0 {
+			reg = <0x0>;
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_RED>;
+			function-enumerator = <20>;
+		};
+
+		led@1 {
+			reg = <0x1>;
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_GREEN>;
+			function-enumerator = <20>;
+		};
+
+		led@2 {
+			reg = <0x2>;
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_GREEN>;
+			function-enumerator = <21>;
+		};
+
+		led@3 {
+			reg = <0x3>;
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_RED>;
+			function-enumerator = <21>;
+		};
+
+		led@4 {
+			reg = <0x4>;
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_BLUE>;
+			function-enumerator = <21>;
+		};
+
+		led@5 {
+			reg = <0x5>;
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_RED>;
+			function-enumerator = <22>;
+		};
+
+		led@6 {
+			reg = <0x6>;
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_GREEN>;
+			function-enumerator = <22>;
+		};
+
+		led@7 {
+			reg = <0x7>;
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_BLUE>;
+			function-enumerator = <22>;
+		};
+	};
+
+	rtc1: rtc@68 {
+		compatible = "dallas,ds1339";
+		reg = <0x68>;
+	};
+};
+
+&uart1 {
+	pinctrl-0 = <&pinctrl_uart1>;
+};
+
+&uart2 {
+	pinctrl-0 = <&pinctrl_uart2>;
+};
+
+&uart3 {
+	pinctrl-0 = <&pinctrl_uart3>;
+};
+
+&uart4 {
+	linux,rs485-enabled-at-boot-time;
+	rs485-rts-active-low;
+	rs485-rts-delay = <0 0>;
+	rts-gpios = <&gpio3 9 GPIO_ACTIVE_HIGH>;
+};
+
+&usdhc1 {
+	status = "disabled";
+};
+
+&wdog1 {
+	status = "okay";
+};

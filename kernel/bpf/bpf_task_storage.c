@@ -24,22 +24,20 @@ static DEFINE_PER_CPU(int, bpf_task_storage_busy);
 
 static void bpf_task_storage_lock(void)
 {
-	migrate_disable();
+	cant_migrate();
 	this_cpu_inc(bpf_task_storage_busy);
 }
 
 static void bpf_task_storage_unlock(void)
 {
 	this_cpu_dec(bpf_task_storage_busy);
-	migrate_enable();
 }
 
 static bool bpf_task_storage_trylock(void)
 {
-	migrate_disable();
+	cant_migrate();
 	if (unlikely(this_cpu_inc_return(bpf_task_storage_busy) != 1)) {
 		this_cpu_dec(bpf_task_storage_busy);
-		migrate_enable();
 		return false;
 	}
 	return true;
@@ -72,18 +70,19 @@ void bpf_task_storage_free(struct task_struct *task)
 {
 	struct bpf_local_storage *local_storage;
 
+	migrate_disable();
 	rcu_read_lock();
 
 	local_storage = rcu_dereference(task->bpf_storage);
-	if (!local_storage) {
-		rcu_read_unlock();
-		return;
-	}
+	if (!local_storage)
+		goto out;
 
 	bpf_task_storage_lock();
 	bpf_local_storage_destroy(local_storage);
 	bpf_task_storage_unlock();
+out:
 	rcu_read_unlock();
+	migrate_enable();
 }
 
 static void *bpf_pid_task_storage_lookup_elem(struct bpf_map *map, void *key)

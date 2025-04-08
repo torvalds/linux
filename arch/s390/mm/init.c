@@ -8,6 +8,7 @@
  *    Copyright (C) 1995  Linus Torvalds
  */
 
+#include <linux/cpufeature.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -56,6 +57,15 @@ pgd_t invalid_pg_dir[PTRS_PER_PGD] __section(".bss..invalid_pg_dir");
 
 struct ctlreg __bootdata_preserved(s390_invalid_asce);
 
+unsigned long __bootdata_preserved(page_noexec_mask);
+EXPORT_SYMBOL(page_noexec_mask);
+
+unsigned long __bootdata_preserved(segment_noexec_mask);
+EXPORT_SYMBOL(segment_noexec_mask);
+
+unsigned long __bootdata_preserved(region_noexec_mask);
+EXPORT_SYMBOL(region_noexec_mask);
+
 unsigned long empty_zero_page, zero_page_mask;
 EXPORT_SYMBOL(empty_zero_page);
 EXPORT_SYMBOL(zero_page_mask);
@@ -64,8 +74,6 @@ static void __init setup_zero_pages(void)
 {
 	unsigned long total_pages = memblock_estimated_nr_free_pages();
 	unsigned int order;
-	struct page *page;
-	int i;
 
 	/* Latest machines require a mapping granularity of 512KB */
 	order = 7;
@@ -74,16 +82,7 @@ static void __init setup_zero_pages(void)
 	while (order > 2 && (total_pages >> 10) < (1UL << order))
 		order--;
 
-	empty_zero_page = __get_free_pages(GFP_KERNEL | __GFP_ZERO, order);
-	if (!empty_zero_page)
-		panic("Out of memory in setup_zero_pages");
-
-	page = virt_to_page((void *) empty_zero_page);
-	split_page(page, order);
-	for (i = 1 << order; i > 0; i--) {
-		mark_page_reserved(page);
-		page++;
-	}
+	empty_zero_page = (unsigned long)memblock_alloc_or_panic(PAGE_SIZE << order, PAGE_SIZE);
 
 	zero_page_mask = ((PAGE_SIZE << order) - 1) & PAGE_MASK;
 }
@@ -108,7 +107,7 @@ void mark_rodata_ro(void)
 {
 	unsigned long size = __end_ro_after_init - __start_ro_after_init;
 
-	if (MACHINE_HAS_NX)
+	if (cpu_has_nx())
 		system_ctl_set_bit(0, CR0_INSTRUCTION_EXEC_PROTECTION_BIT);
 	__set_memory_ro(__start_ro_after_init, __end_ro_after_init);
 	pr_info("Write protected read-only-after-init data: %luk\n", size >> 10);
@@ -156,19 +155,13 @@ static void pv_init(void)
 	swiotlb_update_mem_attributes();
 }
 
-void __init mem_init(void)
+void __init arch_mm_preinit(void)
 {
 	cpumask_set_cpu(0, &init_mm.context.cpu_attach_mask);
 	cpumask_set_cpu(0, mm_cpumask(&init_mm));
 
-	set_max_mapnr(max_low_pfn);
-        high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
-
 	pv_init();
-	kfence_split_mapping();
 
-	/* this will put all low memory onto the freelists */
-	memblock_free_all();
 	setup_zero_pages();	/* Setup zeroed pages. */
 }
 
@@ -230,16 +223,13 @@ struct s390_cma_mem_data {
 static int s390_cma_check_range(struct cma *cma, void *data)
 {
 	struct s390_cma_mem_data *mem_data;
-	unsigned long start, end;
 
 	mem_data = data;
-	start = cma_get_base(cma);
-	end = start + cma_get_size(cma);
-	if (end < mem_data->start)
-		return 0;
-	if (start >= mem_data->end)
-		return 0;
-	return -EBUSY;
+
+	if (cma_intersects(cma, mem_data->start, mem_data->end))
+		return -EBUSY;
+
+	return 0;
 }
 
 static int s390_cma_mem_notifier(struct notifier_block *nb,
@@ -276,7 +266,7 @@ int arch_add_memory(int nid, u64 start, u64 size,
 	unsigned long size_pages = PFN_DOWN(size);
 	int rc;
 
-	if (WARN_ON_ONCE(params->pgprot.pgprot != PAGE_KERNEL.pgprot))
+	if (WARN_ON_ONCE(pgprot_val(params->pgprot) != pgprot_val(PAGE_KERNEL)))
 		return -EINVAL;
 
 	VM_BUG_ON(!mhp_range_allowed(start, size, true));

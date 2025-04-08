@@ -267,7 +267,7 @@ impl LocalFile {
     /// # Safety
     ///
     /// * The caller must ensure that `ptr` points at a valid file and that the file's refcount is
-    ///   positive for the duration of 'a.
+    ///   positive for the duration of `'a`.
     /// * The caller must ensure that if there is an active call to `fdget_pos` that did not take
     ///   the `f_pos_lock` mutex, then that call is on the current thread.
     #[inline]
@@ -341,7 +341,7 @@ impl File {
     /// # Safety
     ///
     /// * The caller must ensure that `ptr` points at a valid file and that the file's refcount is
-    ///   positive for the duration of 'a.
+    ///   positive for the duration of `'a`.
     /// * The caller must ensure that if there are active `fdget_pos` calls on this file, then they
     ///   took the `f_pos_lock` mutex.
     #[inline]
@@ -392,6 +392,7 @@ pub struct FileDescriptorReservation {
 
 impl FileDescriptorReservation {
     /// Creates a new file descriptor reservation.
+    #[inline]
     pub fn get_unused_fd_flags(flags: u32) -> Result<Self> {
         // SAFETY: FFI call, there are no safety requirements on `flags`.
         let fd: i32 = unsafe { bindings::get_unused_fd_flags(flags) };
@@ -405,6 +406,7 @@ impl FileDescriptorReservation {
     }
 
     /// Returns the file descriptor number that was reserved.
+    #[inline]
     pub fn reserved_fd(&self) -> u32 {
         self.fd
     }
@@ -413,6 +415,7 @@ impl FileDescriptorReservation {
     ///
     /// The previously reserved file descriptor is bound to `file`. This method consumes the
     /// [`FileDescriptorReservation`], so it will not be usable after this call.
+    #[inline]
     pub fn fd_install(self, file: ARef<File>) {
         // SAFETY: `self.fd` was previously returned by `get_unused_fd_flags`. We have not yet used
         // the fd, so it is still valid, and `current` still refers to the same task, as this type
@@ -433,6 +436,7 @@ impl FileDescriptorReservation {
 }
 
 impl Drop for FileDescriptorReservation {
+    #[inline]
     fn drop(&mut self) {
         // SAFETY: By the type invariants of this type, `self.fd` was previously returned by
         // `get_unused_fd_flags`. We have not yet used the fd, so it is still valid, and `current`

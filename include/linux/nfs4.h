@@ -17,6 +17,7 @@
 #include <linux/uidgid.h>
 #include <uapi/linux/nfs4.h>
 #include <linux/sunrpc/msg_prot.h>
+#include <linux/sunrpc/xdrgen/nfs4_1.h>
 
 enum nfs4_acl_whotype {
 	NFS4_ACL_WHO_NAMED = 0,
@@ -46,6 +47,7 @@ struct nfs4_acl {
 struct nfs4_label {
 	uint32_t	lfs;
 	uint32_t	pi;
+	u32		lsmid;
 	u32		len;
 	char	*label;
 };
@@ -298,6 +300,7 @@ enum nfsstat4 {
 /* error codes for internal client use */
 #define NFS4ERR_RESET_TO_MDS   12001
 #define NFS4ERR_RESET_TO_PNFS  12002
+#define NFS4ERR_FATAL_IOERROR  12003
 
 static inline bool seqid_mutating_err(u32 err)
 {
@@ -365,7 +368,7 @@ enum limit_by4 {
 	NFS4_LIMIT_BLOCKS = 2
 };
 
-enum open_delegation_type4 {
+enum nfs4_open_delegation_type4 {
 	NFS4_OPEN_DELEGATE_NONE = 0,
 	NFS4_OPEN_DELEGATE_READ = 1,
 	NFS4_OPEN_DELEGATE_WRITE = 2,
@@ -510,12 +513,6 @@ enum {
  */
 enum {
 	FATTR4_XATTR_SUPPORT		= 82,
-};
-
-enum {
-	FATTR4_TIME_DELEG_ACCESS	= 84,
-	FATTR4_TIME_DELEG_MODIFY	= 85,
-	FATTR4_OPEN_ARGUMENTS		= 86,
 };
 
 /*
@@ -695,6 +692,7 @@ enum {
 	NFSPROC4_CLNT_LISTXATTRS,
 	NFSPROC4_CLNT_REMOVEXATTR,
 	NFSPROC4_CLNT_READ_PLUS,
+	NFSPROC4_CLNT_OFFLOAD_STATUS,
 };
 
 /* nfs41 types */

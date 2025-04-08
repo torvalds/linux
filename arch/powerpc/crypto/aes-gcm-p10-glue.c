@@ -35,9 +35,9 @@ MODULE_ALIAS_CRYPTO("aes");
 asmlinkage int aes_p10_set_encrypt_key(const u8 *userKey, const int bits,
 				       void *key);
 asmlinkage void aes_p10_encrypt(const u8 *in, u8 *out, const void *key);
-asmlinkage void aes_p10_gcm_encrypt(u8 *in, u8 *out, size_t len,
+asmlinkage void aes_p10_gcm_encrypt(const u8 *in, u8 *out, size_t len,
 				    void *rkey, u8 *iv, void *Xi);
-asmlinkage void aes_p10_gcm_decrypt(u8 *in, u8 *out, size_t len,
+asmlinkage void aes_p10_gcm_decrypt(const u8 *in, u8 *out, size_t len,
 				    void *rkey, u8 *iv, void *Xi);
 asmlinkage void gcm_init_htable(unsigned char htable[], unsigned char Xi[]);
 asmlinkage void gcm_ghash_p10(unsigned char *Xi, unsigned char *Htable,
@@ -214,7 +214,6 @@ static int p10_aes_gcm_crypt(struct aead_request *req, u8 *riv,
 	struct gcm_ctx *gctx = PTR_ALIGN((void *)databuf, PPC_ALIGN);
 	u8 hashbuf[sizeof(struct Hash_ctx) + PPC_ALIGN];
 	struct Hash_ctx *hash = PTR_ALIGN((void *)hashbuf, PPC_ALIGN);
-	struct scatter_walk assoc_sg_walk;
 	struct skcipher_walk walk;
 	u8 *assocmem = NULL;
 	u8 *assoc;
@@ -234,8 +233,7 @@ static int p10_aes_gcm_crypt(struct aead_request *req, u8 *riv,
 
 	/* Linearize assoc, if not already linear */
 	if (req->src->length >= assoclen && req->src->length) {
-		scatterwalk_start(&assoc_sg_walk, req->src);
-		assoc = scatterwalk_map(&assoc_sg_walk);
+		assoc = sg_virt(req->src); /* ppc64 is !HIGHMEM */
 	} else {
 		gfp_t flags = (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
 			      GFP_KERNEL : GFP_ATOMIC;
@@ -253,10 +251,7 @@ static int p10_aes_gcm_crypt(struct aead_request *req, u8 *riv,
 	gcmp10_init(gctx, iv, (unsigned char *) &ctx->enc_key, hash, assoc, assoclen);
 	vsx_end();
 
-	if (!assocmem)
-		scatterwalk_unmap(assoc);
-	else
-		kfree(assocmem);
+	kfree(assocmem);
 
 	if (enc)
 		ret = skcipher_walk_aead_encrypt(&walk, req, false);
@@ -266,7 +261,7 @@ static int p10_aes_gcm_crypt(struct aead_request *req, u8 *riv,
 		return ret;
 
 	while ((nbytes = walk.nbytes) > 0 && ret == 0) {
-		u8 *src = walk.src.virt.addr;
+		const u8 *src = walk.src.virt.addr;
 		u8 *dst = walk.dst.virt.addr;
 		u8 buf[AES_BLOCK_SIZE];
 

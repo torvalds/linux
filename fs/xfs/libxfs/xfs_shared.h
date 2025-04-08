@@ -42,6 +42,8 @@ extern const struct xfs_buf_ops xfs_rtbitmap_buf_ops;
 extern const struct xfs_buf_ops xfs_rtsummary_buf_ops;
 extern const struct xfs_buf_ops xfs_rtbuf_ops;
 extern const struct xfs_buf_ops xfs_rtsb_buf_ops;
+extern const struct xfs_buf_ops xfs_rtrefcountbt_buf_ops;
+extern const struct xfs_buf_ops xfs_rtrmapbt_buf_ops;
 extern const struct xfs_buf_ops xfs_sb_buf_ops;
 extern const struct xfs_buf_ops xfs_sb_quiet_buf_ops;
 extern const struct xfs_buf_ops xfs_symlink_buf_ops;
@@ -55,6 +57,9 @@ extern const struct xfs_btree_ops xfs_bmbt_ops;
 extern const struct xfs_btree_ops xfs_refcountbt_ops;
 extern const struct xfs_btree_ops xfs_rmapbt_ops;
 extern const struct xfs_btree_ops xfs_rmapbt_mem_ops;
+extern const struct xfs_btree_ops xfs_rtrmapbt_ops;
+extern const struct xfs_btree_ops xfs_rtrmapbt_mem_ops;
+extern const struct xfs_btree_ops xfs_rtrefcountbt_ops;
 
 static inline bool xfs_btree_is_bno(const struct xfs_btree_ops *ops)
 {
@@ -96,9 +101,25 @@ static inline bool xfs_btree_is_mem_rmap(const struct xfs_btree_ops *ops)
 {
 	return ops == &xfs_rmapbt_mem_ops;
 }
+
+static inline bool xfs_btree_is_mem_rtrmap(const struct xfs_btree_ops *ops)
+{
+	return ops == &xfs_rtrmapbt_mem_ops;
+}
 #else
 # define xfs_btree_is_mem_rmap(...)	(false)
+# define xfs_btree_is_mem_rtrmap(...)	(false)
 #endif
+
+static inline bool xfs_btree_is_rtrmap(const struct xfs_btree_ops *ops)
+{
+	return ops == &xfs_rtrmapbt_ops;
+}
+
+static inline bool xfs_btree_is_rtrefcount(const struct xfs_btree_ops *ops)
+{
+	return ops == &xfs_rtrefcountbt_ops;
+}
 
 /* log size calculation functions */
 int	xfs_log_calc_unit_res(struct xfs_mount *mp, int unit_bytes);

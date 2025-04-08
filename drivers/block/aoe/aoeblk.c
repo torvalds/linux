@@ -368,7 +368,6 @@ aoeblk_gdalloc(void *vp)
 	set->nr_hw_queues = 1;
 	set->queue_depth = 128;
 	set->numa_node = NUMA_NO_NODE;
-	set->flags = BLK_MQ_F_SHOULD_MERGE;
 	err = blk_mq_alloc_tag_set(set);
 	if (err) {
 		pr_err("aoe: cannot allocate tag set for %ld.%d\n",

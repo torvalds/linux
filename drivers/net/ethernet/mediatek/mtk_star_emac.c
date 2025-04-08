@@ -1427,14 +1427,9 @@ static int mtk_star_mdio_init(struct net_device *ndev)
 
 	of_node = dev->of_node;
 
-	mdio_node = of_get_child_by_name(of_node, "mdio");
+	mdio_node = of_get_available_child_by_name(of_node, "mdio");
 	if (!mdio_node)
 		return -ENODEV;
-
-	if (!of_device_is_available(mdio_node)) {
-		ret = -ENODEV;
-		goto out_put_node;
-	}
 
 	priv->mii = devm_mdiobus_alloc(dev);
 	if (!priv->mii) {

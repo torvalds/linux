@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pwm/marvell,berlin-pwm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Berlin PWM controller
+
+maintainers:
+  - Jisheng Zhang <jszhang@kernel.org>
+  - Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
+
+properties:
+  compatible:
+    const: marvell,berlin-pwm
+
+  reg:
+    maxItems: 1
+
+  "#pwm-cells":
+    const: 3
+
+  clocks:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+
+allOf:
+  - $ref: pwm.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    pwm@f7f20000 {
+        compatible = "marvell,berlin-pwm";
+        reg = <0xf7f20000 0x40>;
+        clocks = <&chip_clk 12>;
+        #pwm-cells = <3>;
+    };
+

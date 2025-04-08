@@ -412,7 +412,7 @@ void ceph_fs_debugfs_cleanup(struct ceph_fs_client *fsc)
 
 void ceph_fs_debugfs_init(struct ceph_fs_client *fsc)
 {
-	char name[100];
+	char name[NAME_MAX];
 
 	doutc(fsc->client, "begin\n");
 	fsc->debugfs_congestion_kb =

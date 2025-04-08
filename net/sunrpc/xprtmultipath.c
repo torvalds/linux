@@ -92,6 +92,27 @@ void rpc_xprt_switch_remove_xprt(struct rpc_xprt_switch *xps,
 	xprt_put(xprt);
 }
 
+/**
+ * rpc_xprt_switch_get_main_xprt - Get the 'main' xprt for an xprt switch.
+ * @xps: pointer to struct rpc_xprt_switch.
+ */
+struct rpc_xprt *rpc_xprt_switch_get_main_xprt(struct rpc_xprt_switch *xps)
+{
+	struct rpc_xprt_iter xpi;
+	struct rpc_xprt *xprt;
+
+	xprt_iter_init_listall(&xpi, xps);
+
+	xprt = xprt_iter_get_next(&xpi);
+	while (xprt && !xprt->main) {
+		xprt_put(xprt);
+		xprt = xprt_iter_get_next(&xpi);
+	}
+
+	xprt_iter_destroy(&xpi);
+	return xprt;
+}
+
 static DEFINE_IDA(rpc_xprtswitch_ids);
 
 void xprt_multipath_cleanup_ids(void)
@@ -600,23 +621,6 @@ struct rpc_xprt *xprt_iter_get_helper(struct rpc_xprt_iter *xpi,
 		ret = xprt_get(ret);
 	} while (ret == NULL);
 	return ret;
-}
-
-/**
- * xprt_iter_get_xprt - Returns the rpc_xprt pointed to by the cursor
- * @xpi: pointer to rpc_xprt_iter
- *
- * Returns a reference to the struct rpc_xprt that is currently
- * pointed to by the cursor.
- */
-struct rpc_xprt *xprt_iter_get_xprt(struct rpc_xprt_iter *xpi)
-{
-	struct rpc_xprt *xprt;
-
-	rcu_read_lock();
-	xprt = xprt_iter_get_helper(xpi, xprt_iter_ops(xpi)->xpi_xprt);
-	rcu_read_unlock();
-	return xprt;
 }
 
 /**

@@ -39,11 +39,7 @@ static void __init populate(void *start, void *end)
 	unsigned long i, j;
 	unsigned long vaddr = (unsigned long)start;
 	pmd_t *pmd = pmd_off_k(vaddr);
-	pte_t *pte = memblock_alloc(n_pages * sizeof(pte_t), PAGE_SIZE);
-
-	if (!pte)
-		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
-		      __func__, n_pages * sizeof(pte_t), PAGE_SIZE);
+	pte_t *pte = memblock_alloc_or_panic(n_pages * sizeof(pte_t), PAGE_SIZE);
 
 	pr_debug("%s: %p - %p\n", __func__, start, end);
 

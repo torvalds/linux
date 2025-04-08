@@ -932,7 +932,7 @@ static void pci_bus_slot_names(struct device_node *node, struct pci_bus *bus)
 {
 	const struct pci_slot_names {
 		u32	slot_mask;
-		char	names[0];
+		char	names[];
 	} *prop;
 	const char *sp;
 	int len, i;

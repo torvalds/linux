@@ -6,7 +6,6 @@
 #include <linux/pci.h>
 #include <linux/bitfield.h>
 #include <linux/net/intel/iidc.h>
-#include <crypto/hash.h>
 #include <rdma/ib_verbs.h>
 
 #define STATS_TIMER_DELAY	60000
@@ -43,15 +42,12 @@ enum irdma_status_code irdma_vf_wait_vchnl_resp(struct irdma_sc_dev *dev);
 bool irdma_vf_clear_to_send(struct irdma_sc_dev *dev);
 void irdma_add_dev_ref(struct irdma_sc_dev *dev);
 void irdma_put_dev_ref(struct irdma_sc_dev *dev);
-int irdma_ieq_check_mpacrc(struct shash_desc *desc, void *addr, u32 len,
-			   u32 val);
+int irdma_ieq_check_mpacrc(const void *addr, u32 len, u32 val);
 struct irdma_sc_qp *irdma_ieq_get_qp(struct irdma_sc_dev *dev,
 				     struct irdma_puda_buf *buf);
 void irdma_send_ieq_ack(struct irdma_sc_qp *qp);
 void irdma_ieq_update_tcpip_info(struct irdma_puda_buf *buf, u16 len,
 				 u32 seqnum);
-void irdma_free_hash_desc(struct shash_desc *hash_desc);
-int irdma_init_hash_desc(struct shash_desc **hash_desc);
 int irdma_puda_get_tcpip_info(struct irdma_puda_cmpl_info *info,
 			      struct irdma_puda_buf *buf);
 int irdma_cqp_sds_cmd(struct irdma_sc_dev *dev,
@@ -59,10 +55,6 @@ int irdma_cqp_sds_cmd(struct irdma_sc_dev *dev,
 int irdma_cqp_manage_hmc_fcn_cmd(struct irdma_sc_dev *dev,
 				 struct irdma_hmc_fcn_info *hmcfcninfo,
 				 u16 *pmf_idx);
-int irdma_cqp_query_fpm_val_cmd(struct irdma_sc_dev *dev,
-				struct irdma_dma_mem *val_mem, u8 hmc_fn_id);
-int irdma_cqp_commit_fpm_val_cmd(struct irdma_sc_dev *dev,
-				 struct irdma_dma_mem *val_mem, u8 hmc_fn_id);
 int irdma_alloc_query_fpm_buf(struct irdma_sc_dev *dev,
 			      struct irdma_dma_mem *mem);
 void *irdma_remove_cqp_head(struct irdma_sc_dev *dev);
