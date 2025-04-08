@@ -6,6 +6,7 @@
  */
 
 #include <linux/backlight.h>
+#include <linux/cleanup.h>
 #include <linux/err.h>
 #include <linux/gpio/driver.h>
 #include <linux/i2c.h>
@@ -94,7 +95,7 @@ static int attiny_lcd_power_enable(struct regulator_dev *rdev)
 {
 	struct attiny_lcd *state = rdev_get_drvdata(rdev);
 
-	mutex_lock(&state->lock);
+	guard(mutex)(&state->lock);
 
 	/* Ensure bridge, and tp stay in reset */
 	attiny_set_port_state(state, REG_PORTC, 0);
@@ -115,8 +116,6 @@ static int attiny_lcd_power_enable(struct regulator_dev *rdev)
 
 	msleep(80);
 
-	mutex_unlock(&state->lock);
-
 	return 0;
 }
 
@@ -124,7 +123,7 @@ static int attiny_lcd_power_disable(struct regulator_dev *rdev)
 {
 	struct attiny_lcd *state = rdev_get_drvdata(rdev);
 
-	mutex_lock(&state->lock);
+	guard(mutex)(&state->lock);
 
 	regmap_write(rdev->regmap, REG_PWM, 0);
 	usleep_range(5000, 10000);
@@ -136,8 +135,6 @@ static int attiny_lcd_power_disable(struct regulator_dev *rdev)
 	attiny_set_port_state(state, REG_PORTC, 0);
 	msleep(30);
 
-	mutex_unlock(&state->lock);
-
 	return 0;
 }
 
@@ -145,18 +142,16 @@ static int attiny_lcd_power_is_enabled(struct regulator_dev *rdev)
 {
 	struct attiny_lcd *state = rdev_get_drvdata(rdev);
 	unsigned int data;
-	int ret, i;
+	int ret = 0, i;
 
-	mutex_lock(&state->lock);
-
-	for (i = 0; i < 10; i++) {
-		ret = regmap_read(rdev->regmap, REG_PORTC, &data);
-		if (!ret)
-			break;
-		usleep_range(10000, 12000);
+	scoped_guard(mutex, &state->lock) {
+		for (i = 0; i < 10; i++) {
+			ret = regmap_read(rdev->regmap, REG_PORTC, &data);
+			if (!ret)
+				break;
+			usleep_range(10000, 12000);
+		}
 	}
-
-	mutex_unlock(&state->lock);
 
 	if (ret < 0)
 		return ret;
@@ -190,15 +185,13 @@ static int attiny_update_status(struct backlight_device *bl)
 	int brightness = backlight_get_brightness(bl);
 	int ret, i;
 
-	mutex_lock(&state->lock);
+	guard(mutex)(&state->lock);
 
 	for (i = 0; i < 10; i++) {
 		ret = regmap_write(regmap, REG_PWM, brightness);
 		if (!ret)
 			break;
 	}
-
-	mutex_unlock(&state->lock);
 
 	return ret;
 }
@@ -217,7 +210,7 @@ static void attiny_gpio_set(struct gpio_chip *gc, unsigned int off, int val)
 	struct attiny_lcd *state = gpiochip_get_data(gc);
 	u8 last_val;
 
-	mutex_lock(&state->lock);
+	guard(mutex)(&state->lock);
 
 	last_val = attiny_get_port_state(state, mappings[off].reg);
 	if (val)
@@ -239,8 +232,6 @@ static void attiny_gpio_set(struct gpio_chip *gc, unsigned int off, int val)
 
 		msleep(100);
 	}
-
-	mutex_unlock(&state->lock);
 }
 
 static int attiny_i2c_read(struct i2c_client *client, u8 reg, unsigned int *buf)
