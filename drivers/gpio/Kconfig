@@ -551,7 +551,7 @@ config GPIO_OMAP
 
 config GPIO_PL061
 	tristate "PrimeCell PL061 GPIO support"
-	depends on ARM_AMBA
+	depends on ARM_AMBA || COMPILE_TEST
 	select IRQ_DOMAIN
 	select GPIOLIB_IRQCHIP
 	help
