@@ -229,8 +229,12 @@ static int __pwm_write_waveform(struct pwm_chip *chip, struct pwm_device *pwm, c
  * these two calls and the waveform determined by
  * pwm_round_waveform_might_sleep() cannot be implemented any more.
  *
- * Returns 0 on success, 1 if there is no valid hardware configuration matching
- * the input waveform under the PWM rounding rules or a negative errno.
+ * Usually all values passed in @wf are rounded down to the nearest possible
+ * value (in the order period_length_ns, duty_length_ns and then
+ * duty_offset_ns). Only if this isn't possible, a value might grow.
+ *
+ * Returns 0 on success, 1 if at least one value had to be rounded up or a
+ * negative errno.
  */
 int pwm_round_waveform_might_sleep(struct pwm_device *pwm, struct pwm_waveform *wf)
 {
