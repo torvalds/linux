@@ -958,6 +958,9 @@ static void ath12k_core_hw_group_stop(struct ath12k_hw_group *ag)
 		ab = ag->ab[i];
 		if (!ab)
 			continue;
+
+		clear_bit(ATH12K_FLAG_REGISTERED, &ab->dev_flags);
+
 		ath12k_core_device_cleanup(ab);
 	}
 
@@ -1092,6 +1095,8 @@ core_pdev_create:
 			continue;
 
 		mutex_lock(&ab->core_lock);
+
+		set_bit(ATH12K_FLAG_REGISTERED, &ab->dev_flags);
 
 		ret = ath12k_core_pdev_create(ab);
 		if (ret) {
