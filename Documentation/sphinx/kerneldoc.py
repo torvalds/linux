@@ -118,6 +118,10 @@ class KernelDocDirective(Directive):
             identifiers = self.options.get('identifiers').split()
             if identifiers:
                 for i in identifiers:
+                    i = i.rstrip("\\").strip()
+                    if not i:
+                        continue
+
                     cmd += ['-function', i]
             else:
                 cmd += ['-no-doc-sections']
@@ -126,9 +130,17 @@ class KernelDocDirective(Directive):
             no_identifiers = self.options.get('no-identifiers').split()
             if no_identifiers:
                 for i in no_identifiers:
+                    i = i.rstrip("\\").strip()
+                    if not i:
+                        continue
+
                     cmd += ['-nosymbol', i]
 
         for pattern in export_file_patterns:
+            pattern = pattern.rstrip("\\").strip()
+            if not pattern:
+                continue
+
             for f in glob.glob(env.config.kerneldoc_srctree + '/' + pattern):
                 env.note_dependency(os.path.abspath(f))
                 cmd += ['-export-file', f]
