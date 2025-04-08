@@ -38,6 +38,8 @@ netdev_nl_dev_fill(struct net_device *netdev, struct sk_buff *rsp,
 	u64 xdp_rx_meta = 0;
 	void *hdr;
 
+	netdev_assert_locked(netdev); /* note: rtnl_lock may not be held! */
+
 	hdr = genlmsg_iput(rsp, info);
 	if (!hdr)
 		return -EMSGSIZE;
@@ -122,15 +124,14 @@ int netdev_nl_dev_get_doit(struct sk_buff *skb, struct genl_info *info)
 	if (!rsp)
 		return -ENOMEM;
 
-	rtnl_lock();
-
-	netdev = __dev_get_by_index(genl_info_net(info), ifindex);
-	if (netdev)
-		err = netdev_nl_dev_fill(netdev, rsp, info);
-	else
+	netdev = netdev_get_by_index_lock(genl_info_net(info), ifindex);
+	if (!netdev) {
 		err = -ENODEV;
+		goto err_free_msg;
+	}
 
-	rtnl_unlock();
+	err = netdev_nl_dev_fill(netdev, rsp, info);
+	netdev_unlock(netdev);
 
 	if (err)
 		goto err_free_msg;
@@ -146,18 +147,15 @@ int netdev_nl_dev_get_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct netdev_nl_dump_ctx *ctx = netdev_dump_ctx(cb);
 	struct net *net = sock_net(skb->sk);
-	struct net_device *netdev;
-	int err = 0;
+	int err;
 
-	rtnl_lock();
-	for_each_netdev_dump(net, netdev, ctx->ifindex) {
+	for_each_netdev_lock_scoped(net, netdev, ctx->ifindex) {
 		err = netdev_nl_dev_fill(netdev, skb, genl_info_dump(cb));
 		if (err < 0)
-			break;
+			return err;
 	}
-	rtnl_unlock();
 
-	return err;
+	return 0;
 }
 
 static int
