@@ -443,7 +443,7 @@ xreap_agextent_iter(
 
 		if (rs->oinfo == &XFS_RMAP_OINFO_COW) {
 			/*
-			 * If we're unmapping CoW staging extents, remove the
+			 * t0: Unmapping CoW staging extents, remove the
 			 * records from the refcountbt, which will remove the
 			 * rmap record as well.
 			 */
@@ -475,7 +475,7 @@ xreap_agextent_iter(
 	}
 
 	/*
-	 * If we're getting rid of CoW staging extents, use deferred work items
+	 * t2: To get rid of CoW staging extents, use deferred work items
 	 * to remove the refcountbt records (which removes the rmap records)
 	 * and free the extent.  We're not worried about the system going down
 	 * here because log recovery walks the refcount btree to clean out the
@@ -624,6 +624,84 @@ xreap_configure_agextent_limits(
 
 	trace_xreap_agextent_limits(sc->tp, per_binval, rs->max_binval,
 			step_size, per_intent, rs->max_deferred);
+}
+
+/*
+ * Compute the maximum number of intent items that reaping can attach to the
+ * scrub transaction given the worst case log overhead of the intent items
+ * needed to reap a single CoW staging extent.  This is not for freeing
+ * metadata blocks.
+ */
+STATIC void
+xreap_configure_agcow_limits(
+	struct xreap_state	*rs)
+{
+	struct xfs_scrub	*sc = rs->sc;
+	struct xfs_mount	*mp = sc->mp;
+
+	/*
+	 * In the worst case, relogging an intent item causes both an intent
+	 * item and a done item to be attached to a transaction for each extent
+	 * that we'd like to process.
+	 */
+	const unsigned int	efi = xfs_efi_log_space(1) +
+				      xfs_efd_log_space(1);
+	const unsigned int	rui = xfs_rui_log_space(1) +
+				      xfs_rud_log_space();
+	const unsigned int	cui = xfs_cui_log_space(1) +
+				      xfs_cud_log_space();
+
+	/*
+	 * Various things can happen when reaping non-CoW metadata blocks:
+	 *
+	 * t0: Unmapping crosslinked CoW blocks: deferred removal of refcount
+	 * record, which defers removal of rmap record
+	 *
+	 * t2: Freeing CoW blocks: deferred removal of refcount record, which
+	 * defers removal of rmap record; and deferred removal of the space
+	 *
+	 * For simplicity, we'll use the worst-case intents size to determine
+	 * the maximum number of deferred extents before we have to finish the
+	 * whole chain.  If we're trying to reap a btree larger than this size,
+	 * a crash midway through reaping can result in leaked blocks.
+	 */
+	const unsigned int	t0 = cui + rui;
+	const unsigned int	t2 = cui + rui + efi;
+	const unsigned int	per_intent = max(t0, t2);
+
+	/*
+	 * For each transaction in a reap chain, we must be able to take one
+	 * step in the defer item chain, which should only consist of CUI, EFI,
+	 * or RUI items.
+	 */
+	const unsigned int	f1 = xfs_calc_finish_efi_reservation(mp, 1);
+	const unsigned int	f2 = xfs_calc_finish_rui_reservation(mp, 1);
+	const unsigned int	f3 = xfs_calc_finish_cui_reservation(mp, 1);
+	const unsigned int	step_size = max3(f1, f2, f3);
+
+	/* Largest buffer size (in fsblocks) that can be invalidated. */
+	const unsigned int	max_binval = xrep_binval_max_fsblocks(mp);
+
+	/* Overhead of invalidating one buffer */
+	const unsigned int	per_binval =
+		xfs_buf_inval_log_space(1, XFS_B_TO_FSBT(mp, max_binval));
+
+	/*
+	 * For each transaction in a reap chain, we can delete some number of
+	 * extents and invalidate some number of blocks.  We assume that CoW
+	 * staging extents are usually more than 1 fsblock, and that there
+	 * shouldn't be any buffers for those blocks.  From the assumptions,
+	 * set the number of deferrals to use as much of the reservation as
+	 * it can, but leave space to invalidate 1/8th that number of buffers.
+	 */
+	const unsigned int	variable_overhead = per_intent +
+							(per_binval / 8);
+
+	xreap_configure_limits(rs, step_size, variable_overhead, per_intent,
+			per_binval);
+
+	trace_xreap_agcow_limits(sc->tp, per_binval, rs->max_binval, step_size,
+			per_intent, rs->max_deferred);
 }
 
 /*
@@ -800,15 +878,15 @@ xrep_reap_fsblocks(
 		.sc			= sc,
 		.oinfo			= oinfo,
 		.resv			= XFS_AG_RESV_NONE,
-		.max_binval		= XREAP_MAX_BINVAL,
-		.max_deferred		= XREAP_MAX_DEFER_CHAIN,
 	};
 	int				error;
 
 	ASSERT(xfs_has_rmapbt(sc->mp));
 	ASSERT(sc->ip != NULL);
 
-	if (oinfo != &XFS_RMAP_OINFO_COW)
+	if (oinfo == &XFS_RMAP_OINFO_COW)
+		xreap_configure_agcow_limits(&rs);
+	else
 		xreap_configure_agextent_limits(&rs);
 	error = xfsb_bitmap_walk(bitmap, xreap_fsmeta_extent, &rs);
 	if (error)
