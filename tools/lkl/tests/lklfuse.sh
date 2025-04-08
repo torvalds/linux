@@ -9,7 +9,11 @@ cleanup()
     set -e
 
     sleep 1
-    fusermount -u $dir
+    if type -P fusermount3 > /dev/null; then
+        fusermount3 -u $dir
+    else
+        fusermount -u $dir
+    fi
     rm $file
     rmdir $dir
 }
