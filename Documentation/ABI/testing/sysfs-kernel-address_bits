@@ -1,4 +1,4 @@
-What:		/sys/kernel/address_bit
+What:		/sys/kernel/address_bits
 Date:		May 2023
 KernelVersion:	6.3
 Contact:	Thomas Weißschuh <linux@weissschuh.net>
