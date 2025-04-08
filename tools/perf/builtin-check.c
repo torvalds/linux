@@ -22,6 +22,11 @@ static const char *check_feature_usage[] = {
 	NULL
 };
 
+#define FEATURE_STATUS(name_, macro_) {    \
+	.name = name_,                     \
+	.macro = #macro_,                  \
+	.is_builtin = IS_BUILTIN(macro_) }
+
 struct feature_status supported_features[] = {
 	FEATURE_STATUS("aio", HAVE_AIO_SUPPORT),
 	FEATURE_STATUS("bpf", HAVE_LIBBPF_SUPPORT),

@@ -8,11 +8,6 @@ struct feature_status {
 	int is_builtin;
 };
 
-#define FEATURE_STATUS(name_, macro_) {    \
-	.name = name_,                     \
-	.macro = #macro_,                  \
-	.is_builtin = IS_BUILTIN(macro_) }
-
 extern struct feature_status supported_features[];
 
 void feature_status__printf(const struct feature_status *feature);
