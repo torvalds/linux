@@ -179,14 +179,14 @@ struct gpib_interface_struct {
 	unsigned skip_check_for_command_acceptors : 1;
 };
 
-typedef struct {
+struct gpib_event_queue {
 	struct list_head event_head;
 	spinlock_t lock; // for access to event list
 	unsigned int num_events;
 	unsigned dropped_event : 1;
-} gpib_event_queue_t;
+};
 
-static inline void init_event_queue(gpib_event_queue_t *queue)
+static inline void init_event_queue(struct gpib_event_queue *queue)
 {
 	INIT_LIST_HEAD(&queue->event_head);
 	queue->num_events = 0;
@@ -284,7 +284,7 @@ struct gpib_board {
 	/* autospoll kernel thread */
 	struct task_struct *autospoll_task;
 	/* queue for recording received trigger/clear/ifc events */
-	gpib_event_queue_t event_queue;
+	struct gpib_event_queue event_queue;
 	/* minor number for this board's device file */
 	int minor;
 	/* struct to deal with polling mode*/

@@ -74,7 +74,7 @@ static int t1_delay_ioctl(struct gpib_board *board, unsigned long arg);
 static int cleanup_open_devices(gpib_file_private_t *file_priv, struct gpib_board *board);
 
 static int pop_gpib_event_nolock(struct gpib_board *board,
-				 gpib_event_queue_t *queue, short *event_type);
+				 struct gpib_event_queue *queue, short *event_type);
 
 /*
  * Timer functions
@@ -1839,14 +1839,14 @@ static int select_device_path_ioctl(struct gpib_board_config *config, unsigned l
 	return 0;
 }
 
-unsigned int num_gpib_events(const gpib_event_queue_t *queue)
+unsigned int num_gpib_events(const struct gpib_event_queue *queue)
 {
 	return queue->num_events;
 }
 
 static int push_gpib_event_nolock(struct gpib_board *board, short event_type)
 {
-	gpib_event_queue_t *queue = &board->event_queue;
+	struct gpib_event_queue *queue = &board->event_queue;
 	struct list_head *head = &queue->event_head;
 	gpib_event_t *event;
 	static const unsigned int max_num_events = 1024;
@@ -1901,7 +1901,7 @@ int push_gpib_event(struct gpib_board *board, short event_type)
 EXPORT_SYMBOL(push_gpib_event);
 
 static int pop_gpib_event_nolock(struct gpib_board *board,
-				 gpib_event_queue_t *queue, short *event_type)
+				 struct gpib_event_queue *queue, short *event_type)
 {
 	struct list_head *head = &queue->event_head;
 	struct list_head *front = head->next;
@@ -1935,7 +1935,7 @@ static int pop_gpib_event_nolock(struct gpib_board *board,
 }
 
 // pop event from front of event queue
-int pop_gpib_event(struct gpib_board *board, gpib_event_queue_t *queue, short *event_type)
+int pop_gpib_event(struct gpib_board *board, struct gpib_event_queue *queue, short *event_type)
 {
 	unsigned long flags;
 	int retval;
