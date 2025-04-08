@@ -1635,12 +1635,6 @@ static struct iommu_domain *__iommu_alloc_identity_domain(struct device *dev)
 		domain = ops->domain_alloc_identity(dev);
 		if (IS_ERR(domain))
 			return domain;
-	} else if (ops->domain_alloc) {
-		domain = ops->domain_alloc(IOMMU_DOMAIN_IDENTITY);
-		if (!domain)
-			return ERR_PTR(-ENOMEM);
-		if (IS_ERR(domain))
-			return domain;
 	} else {
 		return ERR_PTR(-EOPNOTSUPP);
 	}
