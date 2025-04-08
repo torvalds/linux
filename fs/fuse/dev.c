@@ -299,24 +299,6 @@ unsigned int fuse_len_args(unsigned int numargs, struct fuse_arg *args)
 }
 EXPORT_SYMBOL_GPL(fuse_len_args);
 
-static u64 fuse_get_unique_locked(struct fuse_iqueue *fiq)
-{
-	fiq->reqctr += FUSE_REQ_ID_STEP;
-	return fiq->reqctr;
-}
-
-u64 fuse_get_unique(struct fuse_iqueue *fiq)
-{
-	u64 ret;
-
-	spin_lock(&fiq->lock);
-	ret = fuse_get_unique_locked(fiq);
-	spin_unlock(&fiq->lock);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(fuse_get_unique);
-
 unsigned int fuse_req_hash(u64 unique)
 {
 	return hash_long(unique & ~FUSE_INT_REQ_BIT, FUSE_PQ_HASH_BITS);
@@ -373,7 +355,7 @@ static void fuse_dev_queue_req(struct fuse_iqueue *fiq, struct fuse_req *req)
 	spin_lock(&fiq->lock);
 	if (fiq->connected) {
 		if (req->in.h.opcode != FUSE_NOTIFY_REPLY)
-			req->in.h.unique = fuse_get_unique_locked(fiq);
+			req->in.h.unique = fuse_get_unique(fiq);
 		list_add_tail(&req->list, &fiq->pending);
 		fuse_dev_wake_and_unlock(fiq);
 	} else {
@@ -1288,7 +1270,7 @@ __releases(fiq->lock)
 	struct fuse_in_header ih = {
 		.opcode = FUSE_FORGET,
 		.nodeid = forget->forget_one.nodeid,
-		.unique = fuse_get_unique_locked(fiq),
+		.unique = fuse_get_unique(fiq),
 		.len = sizeof(ih) + sizeof(arg),
 	};
 
@@ -1319,7 +1301,7 @@ __releases(fiq->lock)
 	struct fuse_batch_forget_in arg = { .count = 0 };
 	struct fuse_in_header ih = {
 		.opcode = FUSE_BATCH_FORGET,
-		.unique = fuse_get_unique_locked(fiq),
+		.unique = fuse_get_unique(fiq),
 		.len = sizeof(ih) + sizeof(arg),
 	};
 

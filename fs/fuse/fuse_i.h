@@ -54,6 +54,10 @@
 /** Frequency (in jiffies) of request timeout checks, if opted into */
 extern const unsigned long fuse_timeout_timer_freq;
 
+/* Ordinary requests have even IDs, while interrupts IDs are odd */
+#define FUSE_INT_REQ_BIT (1ULL << 0)
+#define FUSE_REQ_ID_STEP (1ULL << 1)
+
 /** Maximum of max_pages received in init_out */
 extern unsigned int fuse_max_pages_limit;
 /*
@@ -515,7 +519,7 @@ struct fuse_iqueue {
 	wait_queue_head_t waitq;
 
 	/** The next unique request id */
-	u64 reqctr;
+	u64 __percpu *reqctr;
 
 	/** The list of pending requests */
 	struct list_head pending;
@@ -1105,6 +1109,17 @@ static inline void fuse_sync_bucket_dec(struct fuse_sync_bucket *bucket)
 	rcu_read_unlock();
 }
 
+/**
+ * Get the next unique ID for a request
+ */
+static inline u64 fuse_get_unique(struct fuse_iqueue *fiq)
+{
+	int step = FUSE_REQ_ID_STEP * (task_cpu(current));
+	u64 cntr = this_cpu_inc_return(*fiq->reqctr);
+
+	return cntr * FUSE_REQ_ID_STEP * NR_CPUS + step;
+}
+
 /** Device operations */
 extern const struct file_operations fuse_dev_operations;
 
@@ -1458,10 +1473,6 @@ int fuse_readdir(struct file *file, struct dir_context *ctx);
  */
 unsigned int fuse_len_args(unsigned int numargs, struct fuse_arg *args);
 
-/**
- * Get the next unique ID for a request
- */
-u64 fuse_get_unique(struct fuse_iqueue *fiq);
 void fuse_free_conn(struct fuse_conn *fc);
 
 /* dax.c */

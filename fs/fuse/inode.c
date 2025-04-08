@@ -933,12 +933,18 @@ static void fuse_iqueue_init(struct fuse_iqueue *fiq,
 	memset(fiq, 0, sizeof(struct fuse_iqueue));
 	spin_lock_init(&fiq->lock);
 	init_waitqueue_head(&fiq->waitq);
+	fiq->reqctr = alloc_percpu(u64);
 	INIT_LIST_HEAD(&fiq->pending);
 	INIT_LIST_HEAD(&fiq->interrupts);
 	fiq->forget_list_tail = &fiq->forget_list_head;
 	fiq->connected = 1;
 	fiq->ops = ops;
 	fiq->priv = priv;
+}
+
+static void fuse_iqueue_destroy(struct fuse_iqueue *fiq)
+{
+	free_percpu(fiq->reqctr);
 }
 
 void fuse_pqueue_init(struct fuse_pqueue *fpq)
@@ -999,6 +1005,7 @@ static void delayed_release(struct rcu_head *p)
 	struct fuse_conn *fc = container_of(p, struct fuse_conn, rcu);
 
 	fuse_uring_destruct(fc);
+	fuse_iqueue_destroy(&fc->iq);
 
 	put_user_ns(fc->user_ns);
 	fc->release(fc);
