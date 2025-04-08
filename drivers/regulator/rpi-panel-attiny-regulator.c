@@ -205,7 +205,7 @@ static int attiny_gpio_get_direction(struct gpio_chip *gc, unsigned int off)
 	return GPIO_LINE_DIRECTION_OUT;
 }
 
-static void attiny_gpio_set(struct gpio_chip *gc, unsigned int off, int val)
+static int attiny_gpio_set(struct gpio_chip *gc, unsigned int off, int val)
 {
 	struct attiny_lcd *state = gpiochip_get_data(gc);
 	u8 last_val;
@@ -232,6 +232,8 @@ static void attiny_gpio_set(struct gpio_chip *gc, unsigned int off, int val)
 
 		msleep(100);
 	}
+
+	return 0;
 }
 
 static int attiny_i2c_read(struct i2c_client *client, u8 reg, unsigned int *buf)
@@ -349,7 +351,7 @@ static int attiny_i2c_probe(struct i2c_client *i2c)
 	state->gc.base = -1;
 	state->gc.ngpio = NUM_GPIO;
 
-	state->gc.set = attiny_gpio_set;
+	state->gc.set_rv = attiny_gpio_set;
 	state->gc.get_direction = attiny_gpio_get_direction;
 	state->gc.can_sleep = true;
 
