@@ -24,7 +24,7 @@
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GPIB driver for HP 82335 interface cards");
 
-static int hp82335_attach(struct gpib_board *board, const gpib_board_config_t *config);
+static int hp82335_attach(struct gpib_board *board, const struct gpib_board_config *config);
 static void hp82335_detach(struct gpib_board *board);
 static irqreturn_t hp82335_interrupt(int irq, void *arg);
 
@@ -243,7 +243,7 @@ static void hp82335_clear_interrupt(struct hp82335_priv *hp_priv)
 	writeb(0, tms_priv->mmiobase + HPREG_INTR_CLEAR);
 }
 
-static int hp82335_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int hp82335_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	struct hp82335_priv *hp_priv;
 	struct tms9914_priv *tms_priv;
