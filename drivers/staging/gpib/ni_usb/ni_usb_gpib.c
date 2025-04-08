@@ -2198,14 +2198,14 @@ static int ni_usb_hs_plus_extra_init(struct ni_usb_priv *ni_priv)
 }
 
 static inline int ni_usb_device_match(struct usb_interface *interface,
-				      const gpib_board_config_t *config)
+				      const struct gpib_board_config *config)
 {
 	if (gpib_match_device_path(&interface->dev, config->device_path) == 0)
 		return 0;
 	return 1;
 }
 
-static int ni_usb_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int ni_usb_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	int retval;
 	int i, index;
