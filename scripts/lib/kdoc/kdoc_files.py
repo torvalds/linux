@@ -238,7 +238,7 @@ class KernelFiles():
         return self.out_style.msg(fname, name, arg)
 
     def msg(self, enable_lineno=False, export=False, internal=False,
-            symbol=None, nosymbol=None):
+            symbol=None, nosymbol=None, no_doc_sections=False):
         """
         Interacts over the kernel-doc results and output messages,
         returning kernel-doc markups on each interaction
@@ -257,7 +257,8 @@ class KernelFiles():
         self.out_style.set_config(self.config)
 
         self.out_style.set_filter(export, internal, symbol, nosymbol,
-                                  function_table, enable_lineno)
+                                  function_table, enable_lineno,
+                                  no_doc_sections)
 
         for fname, arg_tuple in self.results:
             msg = ""

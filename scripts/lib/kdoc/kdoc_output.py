@@ -70,6 +70,7 @@ class OutputFormat:
         self.symbol = None
         self.function_table = set()
         self.config = None
+        self.no_doc_sections = False
 
         self.data = ""
 
@@ -77,7 +78,7 @@ class OutputFormat:
         self.config = config
 
     def set_filter(self, export, internal, symbol, nosymbol, function_table,
-                   enable_lineno):
+                   enable_lineno, no_doc_sections):
         """
         Initialize filter variables according with the requested mode.
 
@@ -87,6 +88,7 @@ class OutputFormat:
         """
 
         self.enable_lineno = enable_lineno
+        self.no_doc_sections = no_doc_sections
 
         if symbol:
             self.out_mode = self.OUTPUT_INCLUDE
@@ -116,6 +118,9 @@ class OutputFormat:
 
     def check_doc(self, name):
         """Check if DOC should be output"""
+
+        if self.no_doc_sections:
+            return False
 
         if self.out_mode == self.OUTPUT_ALL:
             return True

@@ -239,9 +239,12 @@ def main():
     sel_mut.add_argument("-s", "-function", "--symbol", action='append',
                          help=FUNCTION_DESC)
 
-    # This one is valid for all 3 types of filter
+    # Those are valid for all 3 types of filter
     parser.add_argument("-n", "-nosymbol", "--nosymbol", action='append',
                          help=NOSYMBOL_DESC)
+
+    parser.add_argument("-D", "-no-doc-sections", "--no-doc-sections",
+                        action='store_true', help="Don't outputt DOC sections")
 
     parser.add_argument("files", metavar="FILE",
                         nargs="+", help=FILES_DESC)
@@ -284,7 +287,8 @@ def main():
 
     for t in kfiles.msg(enable_lineno=args.enable_lineno, export=args.export,
                           internal=args.internal, symbol=args.symbol,
-                          nosymbol=args.nosymbol):
+                          nosymbol=args.nosymbol,
+                          no_doc_sections=args.no_doc_sections):
         msg = t[1]
         if msg:
             print(msg)
