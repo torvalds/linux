@@ -615,7 +615,7 @@ config GPIO_ROCKCHIP
 
 config GPIO_RTD
 	tristate "Realtek DHC GPIO support"
-	depends on ARCH_REALTEK
+	depends on ARCH_REALTEK || COMPILE_TEST
 	default y
 	select GPIOLIB_IRQCHIP
 	help
