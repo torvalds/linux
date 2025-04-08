@@ -841,14 +841,14 @@ config GPIO_ZEVIO
 
 config GPIO_ZYNQ
 	tristate "Xilinx Zynq GPIO support"
-	depends on ARCH_ZYNQ || ARCH_ZYNQMP
+	depends on ARCH_ZYNQ || ARCH_ZYNQMP || COMPILE_TEST
 	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support Xilinx Zynq GPIO controller.
 
 config GPIO_ZYNQMP_MODEPIN
 	tristate "ZynqMP ps-mode pin GPIO configuration driver"
-	depends on ZYNQMP_FIRMWARE
+	depends on ZYNQMP_FIRMWARE || COMPILE_TEST
 	default ZYNQMP_FIRMWARE
 	help
 	  Say yes here to support the ZynqMP ps-mode pin GPIO configuration
