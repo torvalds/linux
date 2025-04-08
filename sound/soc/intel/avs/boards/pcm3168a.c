@@ -11,6 +11,8 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/soc-acpi.h>
+#include "../utils.h"
 
 static const struct snd_soc_dapm_widget card_widgets[] = {
 	SND_SOC_DAPM_HP("CPB Stereo HP 1", NULL),
@@ -95,9 +97,14 @@ static int avs_create_dai_links(struct device *dev, struct snd_soc_dai_link **li
 
 static int avs_pcm3168a_probe(struct platform_device *pdev)
 {
+	struct snd_soc_acpi_mach *mach;
+	struct avs_mach_pdata *pdata;
 	struct device *dev = &pdev->dev;
 	struct snd_soc_card *card;
 	int ret;
+
+	mach = dev_get_platdata(dev);
+	pdata = mach->pdata;
 
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
@@ -107,7 +114,12 @@ static int avs_pcm3168a_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	card->name = "avs_pcm3168a";
+	if (pdata->obsolete_card_names) {
+		card->name = "avs_pcm3168a";
+	} else {
+		card->driver_name = "avs_pcm3168a";
+		card->long_name = card->name = "AVS I2S PCM3168A";
+	}
 	card->dev = dev;
 	card->owner = THIS_MODULE;
 	card->dapm_widgets = card_widgets;

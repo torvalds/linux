@@ -36,7 +36,8 @@ static int avs_probe_mb_probe(struct platform_device *pdev)
 	if (!card)
 		return -ENOMEM;
 
-	card->name = "avs_probe_mb";
+	card->driver_name = "avs_probe_mb";
+	card->long_name = card->name = "AVS PROBE";
 	card->dev = dev;
 	card->owner = THIS_MODULE;
 	card->dai_link = probe_mb_dai_links;
