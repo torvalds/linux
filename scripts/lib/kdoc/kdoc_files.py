@@ -95,7 +95,7 @@ class KernelFiles():
         doc = KernelDoc(self.config, fname)
         doc.run()
 
-        return doc
+        return doc.entries
 
     def process_export_file(self, fname):
         """
@@ -173,7 +173,7 @@ class KernelFiles():
         # Initialize internal variables
 
         self.config.errors = 0
-        self.results = []
+        self.results = {}
 
         self.files = set()
         self.export_files = set()
@@ -189,13 +189,9 @@ class KernelFiles():
         # avoid reporting errors multiple times
 
         for fname in glob.parse_files(file_list, self.file_not_found_cb):
-            if fname in self.files:
-                continue
-
-            res = self.parse_file(fname)
-
-            self.results.append((res.fname, res.entries))
-            self.files.add(fname)
+            if fname not in self.files:
+                self.results[fname] = self.parse_file(fname)
+                self.files.add(fname)
 
         # If a list of export files was provided, parse EXPORT_SYMBOL*
         # from files that weren't fully parsed
@@ -226,7 +222,8 @@ class KernelFiles():
         return self.out_style.msg(fname, name, arg)
 
     def msg(self, enable_lineno=False, export=False, internal=False,
-            symbol=None, nosymbol=None, no_doc_sections=False):
+            symbol=None, nosymbol=None, no_doc_sections=False,
+            filenames=None):
         """
         Interacts over the kernel-doc results and output messages,
         returning kernel-doc markups on each interaction
@@ -248,9 +245,12 @@ class KernelFiles():
                                   function_table, enable_lineno,
                                   no_doc_sections)
 
-        for fname, arg_tuple in self.results:
+        if not filenames:
+            filenames = sorted(self.results.keys())
+
+        for fname in filenames:
             msg = ""
-            for name, arg in arg_tuple:
+            for name, arg in self.results[fname]:
                 msg += self.out_msg(fname, name, arg)
 
                 if msg is None:
