@@ -791,7 +791,6 @@ class KernelDoc:
 
         self.output_declaration(decl_type, declaration_name,
                                 struct=declaration_name,
-                                module=self.entry.modulename,
                                 definition=declaration,
                                 parameterlist=self.entry.parameterlist,
                                 parameterdescs=self.entry.parameterdescs,
@@ -869,7 +868,6 @@ class KernelDoc:
 
         self.output_declaration('enum', declaration_name,
                                 enum=declaration_name,
-                                module=self.config.modulename,
                                 parameterlist=self.entry.parameterlist,
                                 parameterdescs=self.entry.parameterdescs,
                                 parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
@@ -1040,7 +1038,6 @@ class KernelDoc:
             self.output_declaration(decl_type, declaration_name,
                                     function=declaration_name,
                                     typedef=True,
-                                    module=self.config.modulename,
                                     functiontype=return_type,
                                     parameterlist=self.entry.parameterlist,
                                     parameterdescs=self.entry.parameterdescs,
@@ -1055,7 +1052,6 @@ class KernelDoc:
             self.output_declaration(decl_type, declaration_name,
                                     function=declaration_name,
                                     typedef=False,
-                                    module=self.config.modulename,
                                     functiontype=return_type,
                                     parameterlist=self.entry.parameterlist,
                                     parameterdescs=self.entry.parameterdescs,
@@ -1102,7 +1098,6 @@ class KernelDoc:
             self.output_declaration(decl_type, declaration_name,
                                     function=declaration_name,
                                     typedef=True,
-                                    module=self.entry.modulename,
                                     functiontype=return_type,
                                     parameterlist=self.entry.parameterlist,
                                     parameterdescs=self.entry.parameterdescs,
@@ -1130,7 +1125,6 @@ class KernelDoc:
 
             self.output_declaration('typedef', declaration_name,
                                     typedef=declaration_name,
-                                    module=self.entry.modulename,
                                     sectionlist=self.entry.sectionlist,
                                     sections=self.entry.sections,
                                     section_start_lines=self.entry.section_start_lines,
@@ -1619,8 +1613,7 @@ class KernelDoc:
             self.output_declaration("doc", self.entry.identifier,
                                     sectionlist=self.entry.sectionlist,
                                     sections=self.entry.sections,
-                                    section_start_lines=self.entry.section_start_lines,
-                                    module=self.config.modulename)
+                                    section_start_lines=self.entry.section_start_lines)
             self.reset_state(ln)
 
         elif doc_content.search(line):

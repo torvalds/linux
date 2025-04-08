@@ -186,6 +186,7 @@ def main():
                         help="Enable debug messages")
 
     parser.add_argument("-M", "-modulename", "--modulename",
+                        default="Kernel API",
                         help="Allow setting a module name at the output.")
 
     parser.add_argument("-l", "-enable-lineno", "--enable_lineno",
@@ -273,7 +274,7 @@ def main():
     logger.addHandler(handler)
 
     if args.man:
-        out_style = ManFormat()
+        out_style = ManFormat(modulename=args.modulename)
     elif args.none:
         out_style = None
     else:
@@ -282,8 +283,7 @@ def main():
     kfiles = KernelFiles(verbose=args.verbose,
                          out_style=out_style, werror=args.werror,
                          wreturn=args.wreturn, wshort_desc=args.wshort_desc,
-                         wcontents_before_sections=args.wcontents_before_sections,
-                         modulename=args.modulename)
+                         wcontents_before_sections=args.wcontents_before_sections)
 
     kfiles.parse(args.files, export_file=args.export_file)
 

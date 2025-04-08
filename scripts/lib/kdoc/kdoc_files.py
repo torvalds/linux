@@ -126,16 +126,13 @@ class KernelFiles():
     def __init__(self, verbose=False, out_style=None,
                  werror=False, wreturn=False, wshort_desc=False,
                  wcontents_before_sections=False,
-                 logger=None, modulename=None):
+                 logger=None):
         """
         Initialize startup variables and parse all files
         """
 
         if not verbose:
             verbose = bool(os.environ.get("KBUILD_VERBOSE", 0))
-
-        if not modulename:
-            modulename = "Kernel API"
 
         if out_style is None:
             out_style = OutputFormat()
@@ -168,7 +165,6 @@ class KernelFiles():
         self.config.wreturn = wreturn
         self.config.wshort_desc = wshort_desc
         self.config.wcontents_before_sections = wcontents_before_sections
-        self.config.modulename = modulename
 
         self.config.function_table = set()
         self.config.source_map = {}

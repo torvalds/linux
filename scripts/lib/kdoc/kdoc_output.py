@@ -586,7 +586,7 @@ class ManFormat(OutputFormat):
     )
     blankline = ""
 
-    def __init__(self):
+    def __init__(self, modulename):
         """
         Creates class variables.
 
@@ -595,6 +595,7 @@ class ManFormat(OutputFormat):
         """
 
         super().__init__()
+        self.modulename = modulename
 
         dt = datetime.now()
         if os.environ.get("KBUILD_BUILD_TIMESTAMP", None):
@@ -626,14 +627,13 @@ class ManFormat(OutputFormat):
                 self.data += line + "\n"
 
     def out_doc(self, fname, name, args):
-        module = args.get('module')
         sectionlist = args.get('sectionlist', [])
         sections = args.get('sections', {})
 
         if not self.check_doc(name, args):
             return
 
-        self.data += f'.TH "{module}" 9 "{module}" "{self.man_date}" "API Manual" LINUX' + "\n"
+        self.data += f'.TH "{self.modulename}" 9 "{self.modulename}" "{self.man_date}" "API Manual" LINUX' + "\n"
 
         for section in sectionlist:
             self.data += f'.SH "{section}"' + "\n"
@@ -697,7 +697,7 @@ class ManFormat(OutputFormat):
         sectionlist = args.get('sectionlist', [])
         sections = args.get('sections', {})
 
-        self.data += f'.TH "{args["module"]}" 9 "enum {args["enum"]}" "{self.man_date}" "API Manual" LINUX' + "\n"
+        self.data += f'.TH "{self.modulename}" 9 "enum {args["enum"]}" "{self.man_date}" "API Manual" LINUX' + "\n"
 
         self.data += ".SH NAME\n"
         self.data += f"enum {args['enum']} \\- {args['purpose']}\n"
@@ -727,7 +727,7 @@ class ManFormat(OutputFormat):
             self.output_highlight(sections[section])
 
     def out_typedef(self, fname, name, args):
-        module = args.get('module')
+        module = self.modulename
         typedef = args.get('typedef')
         purpose = args.get('purpose')
         sectionlist = args.get('sectionlist', [])
@@ -743,7 +743,7 @@ class ManFormat(OutputFormat):
             self.output_highlight(sections.get(section))
 
     def out_struct(self, fname, name, args):
-        module = args.get('module')
+        module = self.modulename
         struct_type = args.get('type')
         struct_name = args.get('struct')
         purpose = args.get('purpose')
