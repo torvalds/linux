@@ -4953,7 +4953,8 @@ static void rps_trigger_softirq(void *data)
 	struct softnet_data *sd = data;
 
 	____napi_schedule(sd, &sd->backlog);
-	sd->received_rps++;
+	/* Pairs with READ_ONCE() in softnet_seq_show() */
+	WRITE_ONCE(sd->received_rps, sd->received_rps + 1);
 }
 
 #endif /* CONFIG_RPS */
@@ -5038,7 +5039,7 @@ static bool skb_flow_limit(struct sk_buff *skb, unsigned int qlen)
 	rcu_read_lock();
 	fl = rcu_dereference(sd->flow_limit);
 	if (fl) {
-		new_flow = skb_get_hash(skb) & (fl->num_buckets - 1);
+		new_flow = hash_32(skb_get_hash(skb), fl->log_buckets);
 		old_flow = fl->history[fl->history_head];
 		fl->history[fl->history_head] = new_flow;
 
@@ -5049,7 +5050,8 @@ static bool skb_flow_limit(struct sk_buff *skb, unsigned int qlen)
 			fl->buckets[old_flow]--;
 
 		if (++fl->buckets[new_flow] > (FLOW_LIMIT_HISTORY >> 1)) {
-			fl->count++;
+			/* Pairs with READ_ONCE() in softnet_seq_show() */
+			WRITE_ONCE(fl->count, fl->count + 1);
 			rcu_read_unlock();
 			return true;
 		}
@@ -7522,7 +7524,8 @@ start:
 		 */
 		if (unlikely(budget <= 0 ||
 			     time_after_eq(jiffies, time_limit))) {
-			sd->time_squeeze++;
+			/* Pairs with READ_ONCE() in softnet_seq_show() */
+			WRITE_ONCE(sd->time_squeeze, sd->time_squeeze + 1);
 			break;
 		}
 	}
