@@ -163,7 +163,7 @@ enum scx_ops_flags {
 	/*
 	 * CPU cgroup support flags
 	 */
-	SCX_OPS_HAS_CGROUP_WEIGHT = 1LLU << 16,	/* cpu.weight */
+	SCX_OPS_HAS_CGROUP_WEIGHT = 1LLU << 16,	/* DEPRECATED, will be removed on 6.18 */
 
 	SCX_OPS_ALL_FLAGS	= SCX_OPS_KEEP_BUILTIN_IDLE |
 				  SCX_OPS_ENQ_LAST |
@@ -5212,6 +5212,9 @@ static int validate_ops(const struct sched_ext_ops *ops)
 		scx_ops_error("SCX_OPS_BUILTIN_IDLE_PER_NODE requires CPU idle selection enabled");
 		return -EINVAL;
 	}
+
+	if (ops->flags & SCX_OPS_HAS_CGROUP_WEIGHT)
+		pr_warn("SCX_OPS_HAS_CGROUP_WEIGHT is deprecated and a noop\n");
 
 	return 0;
 }
