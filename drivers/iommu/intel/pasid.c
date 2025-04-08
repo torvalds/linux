@@ -67,7 +67,6 @@ int intel_pasid_alloc_table(struct device *dev)
 	}
 
 	pasid_table->table = dir;
-	pasid_table->order = order;
 	pasid_table->max_pasid = 1 << (order + PAGE_SHIFT + 3);
 	info->pasid_table = pasid_table;
 
@@ -100,7 +99,7 @@ void intel_pasid_free_table(struct device *dev)
 		iommu_free_page(table);
 	}
 
-	iommu_free_pages(pasid_table->table, pasid_table->order);
+	iommu_free_pages(pasid_table->table);
 	kfree(pasid_table);
 }
 

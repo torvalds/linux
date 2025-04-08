@@ -3246,7 +3246,7 @@ out_unlock:
 	spin_unlock_irqrestore(&iommu_table_lock, flags);
 
 	if (new_table) {
-		iommu_free_pages(new_table->table, order);
+		iommu_free_pages(new_table->table);
 		kfree(new_table);
 	}
 	return table;

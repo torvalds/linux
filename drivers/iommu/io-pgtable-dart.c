@@ -262,7 +262,7 @@ static int dart_map_pages(struct io_pgtable_ops *ops, unsigned long iova,
 
 		pte = dart_install_table(cptep, ptep, 0, data);
 		if (pte)
-			iommu_free_pages(cptep, get_order(tblsz));
+			iommu_free_pages(cptep);
 
 		/* L2 table is present (now) */
 		pte = READ_ONCE(*ptep);
@@ -423,8 +423,7 @@ apple_dart_alloc_pgtable(struct io_pgtable_cfg *cfg, void *cookie)
 
 out_free_data:
 	while (--i >= 0) {
-		iommu_free_pages(data->pgd[i],
-				 get_order(DART_GRANULE(data)));
+		iommu_free_pages(data->pgd[i]);
 	}
 	kfree(data);
 	return NULL;
@@ -433,7 +432,6 @@ out_free_data:
 static void apple_dart_free_pgtable(struct io_pgtable *iop)
 {
 	struct dart_io_pgtable *data = io_pgtable_to_data(iop);
-	int order = get_order(DART_GRANULE(data));
 	dart_iopte *ptep, *end;
 	int i;
 
@@ -445,9 +443,9 @@ static void apple_dart_free_pgtable(struct io_pgtable *iop)
 			dart_iopte pte = *ptep++;
 
 			if (pte)
-				iommu_free_pages(iopte_deref(pte, data), order);
+				iommu_free_pages(iopte_deref(pte, data));
 		}
-		iommu_free_pages(data->pgd[i], order);
+		iommu_free_pages(data->pgd[i]);
 	}
 
 	kfree(data);
