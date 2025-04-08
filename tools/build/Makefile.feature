@@ -155,7 +155,6 @@ FEATURE_DISPLAY ?=              \
          libperl                \
          libpython              \
          libcrypto              \
-         libunwind              \
          libcapstone            \
          llvm-perf              \
          zlib                   \
