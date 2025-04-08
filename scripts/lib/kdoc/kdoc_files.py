@@ -68,6 +68,9 @@ class GlobSourceFiles:
         handling directories if any
         """
 
+        if not file_list:
+            return
+
         for fname in file_list:
             if self.srctree:
                 f = os.path.join(self.srctree, fname)
@@ -84,40 +87,70 @@ class GlobSourceFiles:
 
 class KernelFiles():
     """
-    Parse lernel-doc tags on multiple kernel source files.
+    Parse kernel-doc tags on multiple kernel source files.
+
+    There are two type of parsers defined here:
+        - self.parse_file(): parses both kernel-doc markups and
+          EXPORT_SYMBOL* macros;
+        - self.process_export_file(): parses only EXPORT_SYMBOL* macros.
     """
+
+    def warning(self, msg):
+        """Ancillary routine to output a warning and increment error count"""
+
+        self.config.log.warning(msg)
+        self.errors += 1
+
+    def error(self, msg):
+        """Ancillary routine to output an error and increment error count"""
+
+        self.config.log.error(msg)
+        self.errors += 1
 
     def parse_file(self, fname):
         """
         Parse a single Kernel source.
         """
 
-        doc = KernelDoc(self.config, fname)
-        doc.run()
+        # Prevent parsing the same file twice if results are cached
+        if fname in self.files:
+            return
 
-        return doc.entries
+        doc = KernelDoc(self.config, fname)
+        export_table, entries = doc.parse_kdoc()
+
+        self.export_table[fname] = export_table
+
+        self.files.add(fname)
+        self.export_files.add(fname)      # parse_kdoc() already check exports
+
+        self.results[fname] = entries
 
     def process_export_file(self, fname):
         """
         Parses EXPORT_SYMBOL* macros from a single Kernel source file.
         """
-        try:
-            with open(fname, "r", encoding="utf8",
-                      errors="backslashreplace") as fp:
-                for line in fp:
-                    KernelDoc.process_export(self.config.function_table, line)
 
-        except IOError:
-            self.config.log.error("Error: Cannot open fname %s", fname)
-            self.config.errors += 1
+        # Prevent parsing the same file twice if results are cached
+        if fname in self.export_files:
+            return
+
+        doc = KernelDoc(self.config, fname)
+        export_table = doc.parse_export()
+
+        if not export_table:
+            self.error(f"Error: Cannot check EXPORT_SYMBOL* on {fname}")
+            export_table = set()
+
+        self.export_table[fname] = export_table
+        self.export_files.add(fname)
 
     def file_not_found_cb(self, fname):
         """
         Callback to warn if a file was not found.
         """
 
-        self.config.log.error("Cannot find file %s", fname)
-        self.config.errors += 1
+        self.error(f"Cannot find file {fname}")
 
     def __init__(self, verbose=False, out_style=None,
                  werror=False, wreturn=False, wshort_desc=False,
@@ -147,7 +180,9 @@ class KernelFiles():
             if kdoc_werror:
                 werror = kdoc_werror
 
-        # Set global config data used on all files
+        # Some variables are global to the parser logic as a whole as they are
+        # used to send control configuration to KernelDoc class. As such,
+        # those variables are read-only inside the KernelDoc.
         self.config = argparse.Namespace
 
         self.config.verbose = verbose
@@ -156,27 +191,25 @@ class KernelFiles():
         self.config.wshort_desc = wshort_desc
         self.config.wcontents_before_sections = wcontents_before_sections
 
-        self.config.function_table = set()
-        self.config.source_map = {}
-
         if not logger:
             self.config.log = logging.getLogger("kernel-doc")
         else:
             self.config.log = logger
 
-        self.config.kernel_version = os.environ.get("KERNELVERSION",
-                                                    "unknown kernel version'")
+        self.config.warning = self.warning
+
         self.config.src_tree = os.environ.get("SRCTREE", None)
+
+        # Initialize variables that are internal to KernelFiles
 
         self.out_style = out_style
 
-        # Initialize internal variables
-
-        self.config.errors = 0
+        self.errors = 0
         self.results = {}
 
         self.files = set()
         self.export_files = set()
+        self.export_table = {}
 
     def parse(self, file_list, export_file=None):
         """
@@ -185,28 +218,11 @@ class KernelFiles():
 
         glob = GlobSourceFiles(srctree=self.config.src_tree)
 
-        # Prevent parsing the same file twice to speedup parsing and
-        # avoid reporting errors multiple times
-
         for fname in glob.parse_files(file_list, self.file_not_found_cb):
-            if fname not in self.files:
-                self.results[fname] = self.parse_file(fname)
-                self.files.add(fname)
-
-        # If a list of export files was provided, parse EXPORT_SYMBOL*
-        # from files that weren't fully parsed
-
-        if not export_file:
-            return
-
-        self.export_files |= self.files
-
-        glob = GlobSourceFiles(srctree=self.config.src_tree)
+            self.parse_file(fname)
 
         for fname in glob.parse_files(export_file, self.file_not_found_cb):
-            if fname not in self.export_files:
-                self.process_export_file(fname)
-                self.export_files.add(fname)
+            self.process_export_file(fname)
 
     def out_msg(self, fname, name, arg):
         """
@@ -223,32 +239,35 @@ class KernelFiles():
 
     def msg(self, enable_lineno=False, export=False, internal=False,
             symbol=None, nosymbol=None, no_doc_sections=False,
-            filenames=None):
+            filenames=None, export_file=None):
         """
         Interacts over the kernel-doc results and output messages,
         returning kernel-doc markups on each interaction
         """
 
-        function_table = self.config.function_table
-
-        if symbol:
-            for s in symbol:
-                function_table.add(s)
-
-        # Output none mode: only warnings will be shown
-        if not self.out_style:
-            return
-
         self.out_style.set_config(self.config)
-
-        self.out_style.set_filter(export, internal, symbol, nosymbol,
-                                  function_table, enable_lineno,
-                                  no_doc_sections)
 
         if not filenames:
             filenames = sorted(self.results.keys())
 
         for fname in filenames:
+            function_table = set()
+
+            if internal or export:
+                if not export_file:
+                    export_file = [fname]
+
+                for f in export_file:
+                    function_table |= self.export_table[f]
+
+            if symbol:
+                for s in symbol:
+                    function_table.add(s)
+
+            self.out_style.set_filter(export, internal, symbol, nosymbol,
+                                      function_table, enable_lineno,
+                                      no_doc_sections)
+
             msg = ""
             for name, arg in self.results[fname]:
                 msg += self.out_msg(fname, name, arg)
@@ -261,12 +280,3 @@ class KernelFiles():
                                             fname, ln, dtype)
             if msg:
                 yield fname, msg
-
-    @property
-    def errors(self):
-        """
-        Return a count of the number of warnings found, including
-        the ones displayed while interacting over self.msg.
-        """
-
-        return self.config.errors

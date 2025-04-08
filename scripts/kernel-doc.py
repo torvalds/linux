@@ -287,7 +287,7 @@ def main():
 
     for t in kfiles.msg(enable_lineno=args.enable_lineno, export=args.export,
                         internal=args.internal, symbol=args.symbol,
-                        nosymbol=args.nosymbol,
+                        nosymbol=args.nosymbol, export_file=args.export_file,
                         no_doc_sections=args.no_doc_sections):
         msg = t[1]
         if msg:

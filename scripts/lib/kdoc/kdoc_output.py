@@ -69,7 +69,7 @@ class OutputFormat:
         self.enable_lineno = None
         self.nosymbol = {}
         self.symbol = None
-        self.function_table = set()
+        self.function_table = None
         self.config = None
         self.no_doc_sections = False
 
@@ -94,10 +94,10 @@ class OutputFormat:
 
         self.enable_lineno = enable_lineno
         self.no_doc_sections = no_doc_sections
+        self.function_table = function_table
 
         if symbol:
             self.out_mode = self.OUTPUT_INCLUDE
-            function_table = symbol
         elif export:
             self.out_mode = self.OUTPUT_EXPORTED
         elif internal:
@@ -108,8 +108,6 @@ class OutputFormat:
         if nosymbol:
             self.nosymbol = set(nosymbol)
 
-        if function_table:
-            self.function_table = function_table
 
     def highlight_block(self, block):
         """
@@ -129,8 +127,7 @@ class OutputFormat:
         warnings = args.get('warnings', [])
 
         for log_msg in warnings:
-            self.config.log.warning(log_msg)
-            self.config.errors += 1
+            self.config.warning(log_msg)
 
     def check_doc(self, name, args):
         """Check if DOC should be output"""

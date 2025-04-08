@@ -1133,21 +1133,25 @@ class KernelDoc:
         self.emit_warning(ln, "error: Cannot parse typedef!")
 
     @staticmethod
-    def process_export(function_table, line):
+    def process_export(function_set, line):
         """
         process EXPORT_SYMBOL* tags
 
-        This method is called both internally and externally, so, it
-        doesn't use self.
+        This method doesn't use any variable from the class, so declare it
+        with a staticmethod decorator.
         """
+
+        # Note: it accepts only one EXPORT_SYMBOL* per line, as having
+        # multiple export lines would violate Kernel coding style.
 
         if export_symbol.search(line):
             symbol = export_symbol.group(2)
-            function_table.add(symbol)
+            function_set.add(symbol)
+            return
 
         if export_symbol_ns.search(line):
             symbol = export_symbol_ns.group(2)
-            function_table.add(symbol)
+            function_set.add(symbol)
 
     def process_normal(self, ln, line):
         """
@@ -1617,17 +1621,39 @@ class KernelDoc:
         elif doc_content.search(line):
             self.entry.contents += doc_content.group(1) + "\n"
 
-    def run(self):
+    def parse_export(self):
+        """
+        Parses EXPORT_SYMBOL* macros from a single Kernel source file.
+        """
+
+        export_table = set()
+
+        try:
+            with open(self.fname, "r", encoding="utf8",
+                      errors="backslashreplace") as fp:
+
+                for line in fp:
+                    self.process_export(export_table, line)
+
+        except IOError:
+            return None
+
+        return export_table
+
+    def parse_kdoc(self):
         """
         Open and process each line of a C source file.
-        he parsing is controlled via a state machine, and the line is passed
+        The parsing is controlled via a state machine, and the line is passed
         to a different process function depending on the state. The process
         function may update the state as needed.
+
+        Besides parsing kernel-doc tags, it also parses export symbols.
         """
 
         cont = False
         prev = ""
         prev_ln = None
+        export_table = set()
 
         try:
             with open(self.fname, "r", encoding="utf8",
@@ -1659,6 +1685,16 @@ class KernelDoc:
                                           self.st_inline_name[self.inline_doc_state],
                                           line)
 
+                    # This is an optimization over the original script.
+                    # There, when export_file was used for the same file,
+                    # it was read twice. Here, we use the already-existing
+                    # loop to parse exported symbols as well.
+                    #
+                    # TODO: It should be noticed that not all states are
+                    # needed here. On a future cleanup, process export only
+                    # at the states that aren't handling comment markups.
+                    self.process_export(export_table, line)
+
                     # Hand this line to the appropriate state handler
                     if self.state == self.STATE_NORMAL:
                         self.process_normal(ln, line)
@@ -1675,3 +1711,5 @@ class KernelDoc:
                         self.process_docblock(ln, line)
         except OSError:
             self.config.log.error(f"Error: Cannot open file {self.fname}")
+
+        return export_table, self.entries
