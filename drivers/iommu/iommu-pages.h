@@ -85,22 +85,6 @@ static inline bool iommu_pages_list_empty(struct iommu_pages_list *list)
 }
 
 /**
- * iommu_alloc_pages_node - Allocate a zeroed page of a given order from
- *                          specific NUMA node
- * @nid: memory NUMA node id
- * @gfp: buddy allocator flags
- * @order: page order
- *
- * Returns the virtual address of the allocated page.
- * Prefer to use iommu_alloc_pages_node_lg2()
- */
-static inline void *iommu_alloc_pages_node(int nid, gfp_t gfp,
-					   unsigned int order)
-{
-	return iommu_alloc_pages_node_sz(nid, gfp, 1 << (order + PAGE_SHIFT));
-}
-
-/**
  * iommu_alloc_pages_sz - Allocate a zeroed page of a given size from
  *                          specific NUMA node
  * @nid: memory NUMA node id
