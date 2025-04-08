@@ -427,7 +427,7 @@ static void am65_cpsw_nuss_ndo_host_tx_timeout(struct net_device *ndev,
 
 	if (netif_tx_queue_stopped(netif_txq)) {
 		/* try recover if stopped by us */
-		txq_trans_update(netif_txq);
+		txq_trans_update(ndev, netif_txq);
 		netif_tx_wake_queue(netif_txq);
 	}
 }

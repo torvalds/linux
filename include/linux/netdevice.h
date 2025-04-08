@@ -4693,9 +4693,10 @@ static inline void __netif_tx_unlock_bh(struct netdev_queue *txq)
 /*
  * txq->trans_start can be read locklessly from dev_watchdog()
  */
-static inline void txq_trans_update(struct netdev_queue *txq)
+static inline void txq_trans_update(const struct net_device *dev,
+				    struct netdev_queue *txq)
 {
-	if (txq->xmit_lock_owner != -1)
+	if (!dev->lltx)
 		WRITE_ONCE(txq->trans_start, jiffies);
 }
 
@@ -5214,7 +5215,7 @@ static inline netdev_tx_t netdev_start_xmit(struct sk_buff *skb, struct net_devi
 
 	rc = __netdev_start_xmit(ops, skb, dev, more);
 	if (rc == NETDEV_TX_OK)
-		txq_trans_update(txq);
+		txq_trans_update(dev, txq);
 
 	return rc;
 }
