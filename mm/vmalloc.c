@@ -1061,12 +1061,11 @@ find_vmap_area_exceed_addr_lock(unsigned long addr, struct vmap_area **va)
 {
 	unsigned long va_start_lowest;
 	struct vmap_node *vn;
-	int i;
 
 repeat:
-	for (i = 0, va_start_lowest = 0; i < nr_vmap_nodes; i++) {
-		vn = &vmap_nodes[i];
+	va_start_lowest = 0;
 
+	for_each_vmap_node(vn) {
 		spin_lock(&vn->busy.lock);
 		*va = __find_vmap_area_exceed_addr(addr, &vn->busy.root);
 
@@ -4963,11 +4962,8 @@ static void show_purge_info(struct seq_file *m)
 {
 	struct vmap_node *vn;
 	struct vmap_area *va;
-	int i;
 
-	for (i = 0; i < nr_vmap_nodes; i++) {
-		vn = &vmap_nodes[i];
-
+	for_each_vmap_node(vn) {
 		spin_lock(&vn->lazy.lock);
 		list_for_each_entry(va, &vn->lazy.head, list) {
 			seq_printf(m, "0x%pK-0x%pK %7ld unpurged vm_area\n",
@@ -4983,11 +4979,8 @@ static int vmalloc_info_show(struct seq_file *m, void *p)
 	struct vmap_node *vn;
 	struct vmap_area *va;
 	struct vm_struct *v;
-	int i;
 
-	for (i = 0; i < nr_vmap_nodes; i++) {
-		vn = &vmap_nodes[i];
-
+	for_each_vmap_node(vn) {
 		spin_lock(&vn->busy.lock);
 		list_for_each_entry(va, &vn->busy.head, list) {
 			if (!va->vm) {
@@ -5108,7 +5101,7 @@ static void __init vmap_init_free_space(void)
 static void vmap_init_nodes(void)
 {
 	struct vmap_node *vn;
-	int i, n;
+	int i;
 
 #if BITS_PER_LONG == 64
 	/*
@@ -5125,7 +5118,7 @@ static void vmap_init_nodes(void)
 	 * set of cores. Therefore a per-domain purging is supposed to
 	 * be added as well as a per-domain balancing.
 	 */
-	n = clamp_t(unsigned int, num_possible_cpus(), 1, 128);
+	int n = clamp_t(unsigned int, num_possible_cpus(), 1, 128);
 
 	if (n > 1) {
 		vn = kmalloc_array(n, sizeof(*vn), GFP_NOWAIT | __GFP_NOWARN);
@@ -5140,8 +5133,7 @@ static void vmap_init_nodes(void)
 	}
 #endif
 
-	for (n = 0; n < nr_vmap_nodes; n++) {
-		vn = &vmap_nodes[n];
+	for_each_vmap_node(vn) {
 		vn->busy.root = RB_ROOT;
 		INIT_LIST_HEAD(&vn->busy.head);
 		spin_lock_init(&vn->busy.lock);
@@ -5162,15 +5154,13 @@ static void vmap_init_nodes(void)
 static unsigned long
 vmap_node_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
 {
-	unsigned long count;
+	unsigned long count = 0;
 	struct vmap_node *vn;
-	int i, j;
+	int i;
 
-	for (count = 0, i = 0; i < nr_vmap_nodes; i++) {
-		vn = &vmap_nodes[i];
-
-		for (j = 0; j < MAX_VA_SIZE_PAGES; j++)
-			count += READ_ONCE(vn->pool[j].len);
+	for_each_vmap_node(vn) {
+		for (i = 0; i < MAX_VA_SIZE_PAGES; i++)
+			count += READ_ONCE(vn->pool[i].len);
 	}
 
 	return count ? count : SHRINK_EMPTY;
@@ -5179,10 +5169,10 @@ vmap_node_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
 static unsigned long
 vmap_node_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 {
-	int i;
+	struct vmap_node *vn;
 
-	for (i = 0; i < nr_vmap_nodes; i++)
-		decay_va_pool_node(&vmap_nodes[i], true);
+	for_each_vmap_node(vn)
+		decay_va_pool_node(vn, true);
 
 	return SHRINK_STOP;
 }
