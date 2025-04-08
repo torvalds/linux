@@ -4569,6 +4569,8 @@ static const struct nla_policy nft_set_policy[NFTA_SET_MAX + 1] = {
 	[NFTA_SET_HANDLE]		= { .type = NLA_U64 },
 	[NFTA_SET_EXPR]			= { .type = NLA_NESTED },
 	[NFTA_SET_EXPRESSIONS]		= NLA_POLICY_NESTED_ARRAY(nft_expr_policy),
+	[NFTA_SET_TYPE]			= { .type = NLA_REJECT },
+	[NFTA_SET_COUNT]		= { .type = NLA_REJECT },
 };
 
 static const struct nla_policy nft_concat_policy[NFTA_SET_FIELD_MAX + 1] = {
@@ -4763,6 +4765,27 @@ static u32 nft_set_userspace_size(const struct nft_set_ops *ops, u32 size)
 	return size;
 }
 
+static noinline_for_stack int
+nf_tables_fill_set_info(struct sk_buff *skb, const struct nft_set *set)
+{
+	unsigned int nelems;
+	char str[40];
+	int ret;
+
+	ret = snprintf(str, sizeof(str), "%ps", set->ops);
+
+	/* Not expected to happen and harmless: NFTA_SET_TYPE is dumped
+	 * to userspace purely for informational/debug purposes.
+	 */
+	DEBUG_NET_WARN_ON_ONCE(ret >= sizeof(str));
+
+	if (nla_put_string(skb, NFTA_SET_TYPE, str))
+		return -EMSGSIZE;
+
+	nelems = nft_set_userspace_size(set->ops, atomic_read(&set->nelems));
+	return nla_put_be32(skb, NFTA_SET_COUNT, htonl(nelems));
+}
+
 static int nf_tables_fill_set(struct sk_buff *skb, const struct nft_ctx *ctx,
 			      const struct nft_set *set, u16 event, u16 flags)
 {
@@ -4842,6 +4865,9 @@ static int nf_tables_fill_set(struct sk_buff *skb, const struct nft_ctx *ctx,
 		goto nla_put_failure;
 
 	nla_nest_end(skb, nest);
+
+	if (nf_tables_fill_set_info(skb, set))
+		goto nla_put_failure;
 
 	if (set->num_exprs == 1) {
 		nest = nla_nest_start_noflag(skb, NFTA_SET_EXPR);
