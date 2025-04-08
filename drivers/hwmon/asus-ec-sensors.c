@@ -169,7 +169,11 @@ enum board_family {
 	family_intel_600_series
 };
 
-/* All the known sensors for ASUS EC controllers */
+/*
+ * All the known sensors for ASUS EC controllers. These arrays have to be sorted
+ * by the full ((bank << 8) + index) register index (see asus_ec_block_read() as
+ * to why).
+ */
 static const struct ec_sensor_info sensors_family_amd_400[] = {
 	[ec_sensor_temp_chipset] =
 		EC_SENSOR("Chipset", hwmon_temp, 1, 0x00, 0x3a),
@@ -183,10 +187,10 @@ static const struct ec_sensor_info sensors_family_amd_400[] = {
 		EC_SENSOR("VRM", hwmon_temp, 1, 0x00, 0x3e),
 	[ec_sensor_in_cpu_core] =
 		EC_SENSOR("CPU Core", hwmon_in, 2, 0x00, 0xa2),
-	[ec_sensor_fan_cpu_opt] =
-		EC_SENSOR("CPU_Opt", hwmon_fan, 2, 0x00, 0xbc),
 	[ec_sensor_fan_vrm_hs] =
 		EC_SENSOR("VRM HS", hwmon_fan, 2, 0x00, 0xb2),
+	[ec_sensor_fan_cpu_opt] =
+		EC_SENSOR("CPU_Opt", hwmon_fan, 2, 0x00, 0xbc),
 	[ec_sensor_fan_chipset] =
 		/* no chipset fans in this generation */
 		EC_SENSOR("Chipset", hwmon_fan, 0, 0x00, 0x00),
@@ -194,10 +198,10 @@ static const struct ec_sensor_info sensors_family_amd_400[] = {
 		EC_SENSOR("Water_Flow", hwmon_fan, 2, 0x00, 0xb4),
 	[ec_sensor_curr_cpu] =
 		EC_SENSOR("CPU", hwmon_curr, 1, 0x00, 0xf4),
-	[ec_sensor_temp_water_in] =
-		EC_SENSOR("Water_In", hwmon_temp, 1, 0x01, 0x0d),
 	[ec_sensor_temp_water_out] =
 		EC_SENSOR("Water_Out", hwmon_temp, 1, 0x01, 0x0b),
+	[ec_sensor_temp_water_in] =
+		EC_SENSOR("Water_In", hwmon_temp, 1, 0x01, 0x0d),
 };
 
 static const struct ec_sensor_info sensors_family_amd_500[] = {
@@ -239,19 +243,20 @@ static const struct ec_sensor_info sensors_family_amd_500[] = {
 
 static const struct ec_sensor_info sensors_family_amd_600[] = {
 	[ec_sensor_temp_cpu] = EC_SENSOR("CPU", hwmon_temp, 1, 0x00, 0x30),
-	[ec_sensor_temp_cpu_package] = EC_SENSOR("CPU Package", hwmon_temp, 1, 0x00, 0x31),
+	[ec_sensor_temp_cpu_package] =
+		EC_SENSOR("CPU Package", hwmon_temp, 1, 0x00, 0x31),
 	[ec_sensor_temp_mb] =
 	EC_SENSOR("Motherboard", hwmon_temp, 1, 0x00, 0x32),
 	[ec_sensor_temp_vrm] =
 		EC_SENSOR("VRM", hwmon_temp, 1, 0x00, 0x33),
 	[ec_sensor_temp_t_sensor] =
 		EC_SENSOR("T_Sensor", hwmon_temp, 1, 0x00, 0x36),
+	[ec_sensor_fan_cpu_opt] =
+		EC_SENSOR("CPU_Opt", hwmon_fan, 2, 0x00, 0xb0),
 	[ec_sensor_temp_water_in] =
 		EC_SENSOR("Water_In", hwmon_temp, 1, 0x01, 0x00),
 	[ec_sensor_temp_water_out] =
 		EC_SENSOR("Water_Out", hwmon_temp, 1, 0x01, 0x01),
-	[ec_sensor_fan_cpu_opt] =
-		EC_SENSOR("CPU_Opt", hwmon_fan, 2, 0x00, 0xb0),
 };
 
 static const struct ec_sensor_info sensors_family_intel_300[] = {
