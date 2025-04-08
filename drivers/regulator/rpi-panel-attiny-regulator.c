@@ -216,9 +216,6 @@ static void attiny_gpio_set(struct gpio_chip *gc, unsigned int off, int val)
 	struct attiny_lcd *state = gpiochip_get_data(gc);
 	u8 last_val;
 
-	if (off >= NUM_GPIO)
-		return;
-
 	mutex_lock(&state->lock);
 
 	last_val = attiny_get_port_state(state, mappings[off].reg);
