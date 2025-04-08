@@ -19,7 +19,7 @@ static inline unsigned long usec_to_jiffies(unsigned int usec)
 };
 
 int serial_poll_all(struct gpib_board *board, unsigned int usec_timeout);
-void init_gpib_descriptor(gpib_descriptor_t *desc);
+void init_gpib_descriptor(struct gpib_descriptor *desc);
 int dvrsp(struct gpib_board *board, unsigned int pad, int sad,
 	  unsigned int usec_timeout, uint8_t *result);
 int ibcac(struct gpib_board *board, int sync, int fallback_to_async);
@@ -38,11 +38,11 @@ int ibpad(struct gpib_board *board, unsigned int addr);
 int ibsad(struct gpib_board *board, int addr);
 int ibeos(struct gpib_board *board, int eos, int eosflags);
 int ibwait(struct gpib_board *board, int wait_mask, int clear_mask, int set_mask,
-	   int *status, unsigned long usec_timeout, gpib_descriptor_t *desc);
+	   int *status, unsigned long usec_timeout, struct gpib_descriptor *desc);
 int ibwrt(struct gpib_board *board, uint8_t *buf, size_t cnt, int send_eoi, size_t *bytes_written);
 int ibstatus(struct gpib_board *board);
 int general_ibstatus(struct gpib_board *board, const struct gpib_status_queue *device,
-		     int clear_mask, int set_mask, gpib_descriptor_t *desc);
+		     int clear_mask, int set_mask, struct gpib_descriptor *desc);
 int io_timed_out(struct gpib_board *board);
 int ibppc(struct gpib_board *board, uint8_t configuration);
 

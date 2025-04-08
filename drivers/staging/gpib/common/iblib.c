@@ -507,7 +507,7 @@ int ibstatus(struct gpib_board *board)
 }
 
 int general_ibstatus(struct gpib_board *board, const struct gpib_status_queue *device,
-		     int clear_mask, int set_mask, gpib_descriptor_t *desc)
+		     int clear_mask, int set_mask, struct gpib_descriptor *desc)
 {
 	int status = 0;
 	short line_status;
@@ -574,7 +574,7 @@ static void init_wait_info(struct wait_info *winfo)
 }
 
 static int wait_satisfied(struct wait_info *winfo, struct gpib_status_queue *status_queue,
-			  int wait_mask, int *status, gpib_descriptor_t *desc)
+			  int wait_mask, int *status, struct gpib_descriptor *desc)
 {
 	struct gpib_board *board = winfo->board;
 	int temp_status;
@@ -623,7 +623,7 @@ static void remove_wait_timer(struct wait_info *winfo)
  * no condition is waited for.
  */
 int ibwait(struct gpib_board *board, int wait_mask, int clear_mask, int set_mask,
-	   int *status, unsigned long usec_timeout, gpib_descriptor_t *desc)
+	   int *status, unsigned long usec_timeout, struct gpib_descriptor *desc)
 {
 	int retval = 0;
 	struct gpib_status_queue *status_queue;

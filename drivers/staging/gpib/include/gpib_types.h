@@ -333,17 +333,17 @@ struct gpib_status_byte {
 void init_gpib_status_queue(struct gpib_status_queue *device);
 
 /* Used to store device-descriptor-specific information */
-typedef struct {
+struct gpib_descriptor {
 	unsigned int pad;	/* primary gpib address */
 	int sad;	/* secondary gpib address (negative means disabled) */
 	atomic_t io_in_progress;
 	unsigned is_board : 1;
 	unsigned autopoll_enabled : 1;
-} gpib_descriptor_t;
+};
 
 typedef struct {
 	atomic_t holding_mutex;
-	gpib_descriptor_t *descriptors[GPIB_MAX_NUM_DESCRIPTORS];
+	struct gpib_descriptor *descriptors[GPIB_MAX_NUM_DESCRIPTORS];
 	/* locked while descriptors are being allocated/deallocated */
 	struct mutex descriptors_mutex;
 	unsigned got_module : 1;

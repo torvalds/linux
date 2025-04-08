@@ -494,7 +494,7 @@ int dvrsp(struct gpib_board *board, unsigned int pad, int sad,
 	return retval;
 }
 
-static gpib_descriptor_t *handle_to_descriptor(const gpib_file_private_t *file_priv,
+static struct gpib_descriptor *handle_to_descriptor(const gpib_file_private_t *file_priv,
 					       int handle)
 {
 	if (handle < 0 || handle >= GPIB_MAX_NUM_DESCRIPTORS) {
@@ -509,7 +509,7 @@ static int init_gpib_file_private(gpib_file_private_t *priv)
 {
 	memset(priv, 0, sizeof(*priv));
 	atomic_set(&priv->holding_mutex, 0);
-	priv->descriptors[0] = kmalloc(sizeof(gpib_descriptor_t), GFP_KERNEL);
+	priv->descriptors[0] = kmalloc(sizeof(struct gpib_descriptor), GFP_KERNEL);
 	if (!priv->descriptors[0]) {
 		pr_err("gpib: failed to allocate default board descriptor\n");
 		return -ENOMEM;
@@ -563,7 +563,7 @@ int ibclose(struct inode *inode, struct file *filep)
 	unsigned int minor = iminor(inode);
 	struct gpib_board *board;
 	gpib_file_private_t *priv = filep->private_data;
-	gpib_descriptor_t *desc;
+	struct gpib_descriptor *desc;
 
 	if (minor >= GPIB_MAX_NUM_BOARDS) {
 		pr_err("gpib: invalid minor number of device file\n");
@@ -869,7 +869,7 @@ static int read_ioctl(gpib_file_private_t *file_priv, struct gpib_board *board,
 	int end_flag = 0;
 	int retval;
 	ssize_t read_ret = 0;
-	gpib_descriptor_t *desc;
+	struct gpib_descriptor *desc;
 	size_t nbytes;
 
 	retval = copy_from_user(&read_cmd, (void __user *)arg, sizeof(read_cmd));
@@ -943,7 +943,7 @@ static int command_ioctl(gpib_file_private_t *file_priv,
 	unsigned long remain;
 	int retval;
 	int fault = 0;
-	gpib_descriptor_t *desc;
+	struct gpib_descriptor *desc;
 	size_t bytes_written;
 	int no_clear_io_in_prog;
 
@@ -1027,7 +1027,7 @@ static int write_ioctl(gpib_file_private_t *file_priv, struct gpib_board *board,
 	unsigned long remain;
 	int retval = 0;
 	int fault;
-	gpib_descriptor_t *desc;
+	struct gpib_descriptor *desc;
 
 	fault = copy_from_user(&write_cmd, (void __user *)arg, sizeof(write_cmd));
 	if (fault)
@@ -1189,7 +1189,7 @@ static int cleanup_open_devices(gpib_file_private_t *file_priv, struct gpib_boar
 	int i;
 
 	for (i = 0; i < GPIB_MAX_NUM_DESCRIPTORS; i++) {
-		gpib_descriptor_t *desc;
+		struct gpib_descriptor *desc;
 
 		desc = file_priv->descriptors[i];
 		if (!desc)
@@ -1228,7 +1228,7 @@ static int open_dev_ioctl(struct file *filep, struct gpib_board *board, unsigned
 		mutex_unlock(&file_priv->descriptors_mutex);
 		return -ERANGE;
 	}
-	file_priv->descriptors[i] = kmalloc(sizeof(gpib_descriptor_t), GFP_KERNEL);
+	file_priv->descriptors[i] = kmalloc(sizeof(struct gpib_descriptor), GFP_KERNEL);
 	if (!file_priv->descriptors[i]) {
 		mutex_unlock(&file_priv->descriptors_mutex);
 		return -ENOMEM;
@@ -1311,7 +1311,7 @@ static int wait_ioctl(gpib_file_private_t *file_priv, struct gpib_board *board,
 {
 	wait_ioctl_t wait_cmd;
 	int retval;
-	gpib_descriptor_t *desc;
+	struct gpib_descriptor *desc;
 
 	retval = copy_from_user(&wait_cmd, (void __user *)arg, sizeof(wait_cmd));
 	if (retval)
@@ -1438,7 +1438,7 @@ static int pad_ioctl(struct gpib_board *board, gpib_file_private_t *file_priv,
 {
 	pad_ioctl_t cmd;
 	int retval;
-	gpib_descriptor_t *desc;
+	struct gpib_descriptor *desc;
 
 	retval = copy_from_user(&cmd, (void __user *)arg, sizeof(cmd));
 	if (retval)
@@ -1474,7 +1474,7 @@ static int sad_ioctl(struct gpib_board *board, gpib_file_private_t *file_priv,
 {
 	sad_ioctl_t cmd;
 	int retval;
-	gpib_descriptor_t *desc;
+	struct gpib_descriptor *desc;
 
 	retval = copy_from_user(&cmd, (void __user *)arg, sizeof(cmd));
 	if (retval)
@@ -1600,7 +1600,7 @@ static int autospoll_ioctl(struct gpib_board *board, gpib_file_private_t *file_p
 {
 	autospoll_ioctl_t enable;
 	int retval;
-	gpib_descriptor_t *desc;
+	struct gpib_descriptor *desc;
 
 	retval = copy_from_user(&enable, (void __user *)arg, sizeof(enable));
 	if (retval)
@@ -2015,7 +2015,7 @@ struct gpib_board board_array[GPIB_MAX_NUM_BOARDS];
 
 LIST_HEAD(registered_drivers);
 
-void init_gpib_descriptor(gpib_descriptor_t *desc)
+void init_gpib_descriptor(struct gpib_descriptor *desc)
 {
 	desc->pad = 0;
 	desc->sad = -1;
