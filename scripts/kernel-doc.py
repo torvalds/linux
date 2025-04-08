@@ -317,6 +317,19 @@ class KernelDoc:
         name = self.entry.section
         contents = self.entry.contents
 
+        # TODO: we can prevent dumping empty sections here with:
+        #
+        #    if self.entry.contents.strip("\n"):
+        #       if start_new:
+        #           self.entry.section = self.section_default
+        #           self.entry.contents = ""
+        #
+        #        return
+        #
+        # But, as we want to be producing the same output of the
+        # venerable kernel-doc Perl tool, let's just output everything,
+        # at least for now
+
         if type_param.match(name):
             name = type_param.group(1)
 
@@ -372,6 +385,19 @@ class KernelDoc:
             args["declaration_start_line"] = self.entry.declaration_start_line
 
         args["type"] = dtype
+
+        # TODO: use colletions.OrderedDict
+
+        sections = args.get('sections', {})
+        sectionlist = args.get('sectionlist', [])
+
+        # Drop empty sections
+        # TODO: improve it to emit warnings
+        for section in [ "Description", "Return" ]:
+            if section in sectionlist:
+                if not sections[section].rstrip():
+                    del sections[section]
+                    sectionlist.remove(section)
 
         self.entries.append((name, args))
 
@@ -476,7 +502,7 @@ class KernelDoc:
         # to ignore "[blah" in a parameter string.
 
         self.entry.parameterlist.append(param)
-        org_arg = Re(r'\s\s+').sub(' ', org_arg, count=1)
+        org_arg = Re(r'\s\s+').sub(' ', org_arg)
         self.entry.parametertypes[param] = org_arg
 
     def save_struct_actual(self, actual):
@@ -1384,8 +1410,7 @@ class KernelDoc:
             return
 
         if doc_end.search(line):
-            if self.entry.contents.strip("\n"):
-                self.dump_section()
+            self.dump_section()
 
             # Look for doc_com + <text> + doc_end:
             r = Re(r'\s*\*\s*[a-zA-Z_0-9:\.]+\*/')
