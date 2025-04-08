@@ -1848,7 +1848,7 @@ static int push_gpib_event_nolock(struct gpib_board *board, short event_type)
 {
 	struct gpib_event_queue *queue = &board->event_queue;
 	struct list_head *head = &queue->event_head;
-	gpib_event_t *event;
+	struct gpib_event *event;
 	static const unsigned int max_num_events = 1024;
 	int retval;
 
@@ -1861,7 +1861,7 @@ static int push_gpib_event_nolock(struct gpib_board *board, short event_type)
 			return retval;
 	}
 
-	event = kmalloc(sizeof(gpib_event_t), GFP_ATOMIC);
+	event = kmalloc(sizeof(struct gpib_event), GFP_ATOMIC);
 	if (!event) {
 		queue->dropped_event = 1;
 		dev_err(board->gpib_dev, "failed to allocate memory for event\n");
@@ -1905,7 +1905,7 @@ static int pop_gpib_event_nolock(struct gpib_board *board,
 {
 	struct list_head *head = &queue->event_head;
 	struct list_head *front = head->next;
-	gpib_event_t *event;
+	struct gpib_event *event;
 
 	if (num_gpib_events(queue) == 0) {
 		*event_type = EVENT_NONE;
@@ -1920,7 +1920,7 @@ static int pop_gpib_event_nolock(struct gpib_board *board,
 		return -EPIPE;
 	}
 
-	event = list_entry(front, gpib_event_t, list);
+	event = list_entry(front, struct gpib_event, list);
 	*event_type = event->event_type;
 
 	list_del(front);

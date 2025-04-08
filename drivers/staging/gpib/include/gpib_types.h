@@ -303,10 +303,10 @@ struct gpib_board {
 };
 
 /* element of event queue */
-typedef struct {
+struct gpib_event {
 	struct list_head list;
 	short event_type;
-} gpib_event_t;
+};
 
 /* Each board has a list of gpib_status_queue_t to keep track of all open devices
  * on the bus, so we know what address to poll when we get a service request
