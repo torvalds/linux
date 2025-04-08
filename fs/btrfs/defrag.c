@@ -621,7 +621,7 @@ static struct extent_map *defrag_get_extent(struct btrfs_inode *inode,
 	u64 ino = btrfs_ino(inode);
 	int ret;
 
-	em = alloc_extent_map();
+	em = btrfs_alloc_extent_map();
 	if (!em) {
 		ret = -ENOMEM;
 		goto err;
@@ -731,12 +731,12 @@ next:
 
 not_found:
 	btrfs_release_path(&path);
-	free_extent_map(em);
+	btrfs_free_extent_map(em);
 	return NULL;
 
 err:
 	btrfs_release_path(&path);
-	free_extent_map(em);
+	btrfs_free_extent_map(em);
 	return ERR_PTR(ret);
 }
 
@@ -766,7 +766,7 @@ static struct extent_map *defrag_lookup_extent(struct inode *inode, u64 start,
 	 * file extent items in the inode's subvolume tree).
 	 */
 	if (em && (em->flags & EXTENT_FLAG_MERGED)) {
-		free_extent_map(em);
+		btrfs_free_extent_map(em);
 		em = NULL;
 	}
 
@@ -834,7 +834,7 @@ static bool defrag_check_next_extent(struct inode *inode, struct extent_map *em,
 
 	ret = true;
 out:
-	free_extent_map(next);
+	btrfs_free_extent_map(next);
 	return ret;
 }
 
@@ -1096,7 +1096,7 @@ add:
 		/* Allocate new defrag_target_range */
 		new = kmalloc(sizeof(*new), GFP_NOFS);
 		if (!new) {
-			free_extent_map(em);
+			btrfs_free_extent_map(em);
 			ret = -ENOMEM;
 			break;
 		}
@@ -1106,7 +1106,7 @@ add:
 
 next:
 		cur = btrfs_extent_map_end(em);
-		free_extent_map(em);
+		btrfs_free_extent_map(em);
 	}
 	if (ret < 0) {
 		struct defrag_target_range *entry;

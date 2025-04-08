@@ -2764,7 +2764,7 @@ static noinline_for_stack int setup_relocation_extent_mapping(struct reloc_contr
 	u64 end = rc->cluster.end - offset;
 	int ret = 0;
 
-	em = alloc_extent_map();
+	em = btrfs_alloc_extent_map();
 	if (!em)
 		return -ENOMEM;
 
@@ -2778,7 +2778,7 @@ static noinline_for_stack int setup_relocation_extent_mapping(struct reloc_contr
 	btrfs_lock_extent(&inode->io_tree, start, end, &cached_state);
 	ret = btrfs_replace_extent_map_range(inode, em, false);
 	btrfs_unlock_extent(&inode->io_tree, start, end, &cached_state);
-	free_extent_map(em);
+	btrfs_free_extent_map(em);
 
 	return ret;
 }
