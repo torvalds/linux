@@ -168,9 +168,9 @@ static int boe_tv101wum_ll2_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_drm_panel_alloc(dev, struct boe_tv101wum_ll2, panel,
 				   &boe_tv101wum_ll2_panel_funcs,
-				   DRM_MODE_CONNECTOR_DSI
-	if (IS_ERR(panel))
-		return PTR_ERR(panel);
+				   DRM_MODE_CONNECTOR_DSI);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	ret = devm_regulator_bulk_get_const(&dsi->dev,
 					ARRAY_SIZE(boe_tv101wum_ll2_supplies),
