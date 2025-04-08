@@ -508,9 +508,8 @@ static int add_extent_mapping(struct btrfs_inode *inode,
 	return 0;
 }
 
-static struct extent_map *
-__lookup_extent_mapping(struct extent_map_tree *tree,
-			u64 start, u64 len, int strict)
+static struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
+						u64 start, u64 len, int strict)
 {
 	struct extent_map *em;
 	struct rb_node *rb_node;
@@ -549,7 +548,7 @@ __lookup_extent_mapping(struct extent_map_tree *tree,
 struct extent_map *btrfs_lookup_extent_mapping(struct extent_map_tree *tree,
 					       u64 start, u64 len)
 {
-	return __lookup_extent_mapping(tree, start, len, 1);
+	return lookup_extent_mapping(tree, start, len, 1);
 }
 
 /*
@@ -567,7 +566,7 @@ struct extent_map *btrfs_lookup_extent_mapping(struct extent_map_tree *tree,
 struct extent_map *btrfs_search_extent_mapping(struct extent_map_tree *tree,
 					       u64 start, u64 len)
 {
-	return __lookup_extent_mapping(tree, start, len, 0);
+	return lookup_extent_mapping(tree, start, len, 0);
 }
 
 /*
