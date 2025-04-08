@@ -900,6 +900,11 @@ static struct vmap_node *vmap_nodes = &single;
 static __read_mostly unsigned int nr_vmap_nodes = 1;
 static __read_mostly unsigned int vmap_zone_size = 1;
 
+/* A simple iterator over all vmap-nodes. */
+#define for_each_vmap_node(vn)	\
+	for ((vn) = &vmap_nodes[0];	\
+		(vn) < &vmap_nodes[nr_vmap_nodes]; (vn)++)
+
 static inline unsigned int
 addr_to_node_id(unsigned long addr)
 {
