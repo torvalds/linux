@@ -1292,7 +1292,7 @@ static int agilent_82357a_init(struct gpib_board *board)
 }
 
 static inline int agilent_82357a_device_match(struct usb_interface *interface,
-					      const gpib_board_config_t *config)
+					      const struct gpib_board_config *config)
 {
 	struct usb_device * const usbdev = interface_to_usbdev(interface);
 
@@ -1305,7 +1305,7 @@ static inline int agilent_82357a_device_match(struct usb_interface *interface,
 	return 1;
 }
 
-static int agilent_82357a_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int agilent_82357a_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	int retval;
 	int i;
