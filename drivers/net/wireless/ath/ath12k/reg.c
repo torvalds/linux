@@ -57,6 +57,24 @@ ath12k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 	ath12k_dbg(ar->ab, ATH12K_DBG_REG,
 		   "Regulatory Notification received for %s\n", wiphy_name(wiphy));
 
+	if (request->initiator == NL80211_REGDOM_SET_BY_DRIVER) {
+		ath12k_dbg(ar->ab, ATH12K_DBG_REG,
+			   "driver initiated regd update\n");
+		if (ah->state != ATH12K_HW_STATE_ON)
+			return;
+
+		for_each_ar(ah, ar, i) {
+			ret = ath12k_reg_update_chan_list(ar, true);
+			if (ret) {
+				ath12k_warn(ar->ab,
+					    "failed to update chan list for pdev %u, ret %d\n",
+					    i, ret);
+				break;
+			}
+		}
+		return;
+	}
+
 	/* Currently supporting only General User Hints. Cell base user
 	 * hints to be handled later.
 	 * Hints from other sources like Core, Beacons are not expected for
@@ -254,7 +272,6 @@ int ath12k_regd_update(struct ath12k *ar, bool init)
 	struct ieee80211_regdomain *regd, *regd_copy = NULL;
 	int ret, regd_len, pdev_id;
 	struct ath12k_base *ab;
-	int i;
 
 	ab = ar->ab;
 
@@ -359,11 +376,7 @@ int ath12k_regd_update(struct ath12k *ar, bool init)
 		goto err;
 	}
 
-	rtnl_lock();
-	wiphy_lock(hw->wiphy);
-	ret = regulatory_set_wiphy_regd_sync(hw->wiphy, regd_copy);
-	wiphy_unlock(hw->wiphy);
-	rtnl_unlock();
+	ret = regulatory_set_wiphy_regd(hw->wiphy, regd_copy);
 
 	kfree(regd_copy);
 
@@ -374,15 +387,7 @@ int ath12k_regd_update(struct ath12k *ar, bool init)
 		goto skip;
 
 	ah->regd_updated = true;
-	/* Apply the new regd to all the radios, this is expected to be received only once
-	 * since we check for ah->regd_updated and allow here only once.
-	 */
-	for_each_ar(ah, ar, i) {
-		ab = ar->ab;
-		ret = ath12k_reg_update_chan_list(ar, true);
-		if (ret)
-			goto err;
-	}
+
 skip:
 	return 0;
 err:
@@ -877,6 +882,7 @@ void ath12k_regd_update_work(struct work_struct *work)
 void ath12k_reg_init(struct ieee80211_hw *hw)
 {
 	hw->wiphy->regulatory_flags = REGULATORY_WIPHY_SELF_MANAGED;
+	hw->wiphy->flags |= WIPHY_FLAG_NOTIFY_REGDOM_BY_DRIVER;
 	hw->wiphy->reg_notifier = ath12k_reg_notifier;
 }
 
