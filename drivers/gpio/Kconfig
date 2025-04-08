@@ -877,7 +877,7 @@ config GPIO_AMD_FCH
 
 config GPIO_MSC313
 	bool "MStar MSC313 GPIO support"
-	depends on ARCH_MSTARV7
+	depends on ARCH_MSTARV7 || COMPILE_TEST
 	default ARCH_MSTARV7
 	select GPIOLIB_IRQCHIP
 	select IRQ_DOMAIN_HIERARCHY
