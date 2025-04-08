@@ -356,6 +356,12 @@ Similarly to ``ndos`` the instance lock is only held for select drivers.
 For "ops locked" drivers all ethtool ops without exceptions should
 be called under the instance lock.
 
+struct netdev_stat_ops
+----------------------
+
+"qstat" ops are invoked under the instance lock for "ops locked" drivers,
+and under rtnl_lock for all other drivers.
+
 struct net_shaper_ops
 ---------------------
 
