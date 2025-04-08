@@ -492,7 +492,7 @@ static void agilent_82350b_free_private(struct gpib_board *board)
 }
 
 static int init_82350a_hardware(struct gpib_board *board,
-				const gpib_board_config_t *config)
+				const struct gpib_board_config *config)
 {
 	struct agilent_82350b_priv *a_priv = board->private_data;
 	static const unsigned int firmware_length = 5302;
@@ -587,7 +587,7 @@ static int test_sram(struct gpib_board *board)
 }
 
 static int agilent_82350b_generic_attach(struct gpib_board *board,
-					 const gpib_board_config_t *config,
+					 const struct gpib_board_config *config,
 					 int use_fifos)
 
 {
@@ -730,13 +730,13 @@ static int agilent_82350b_generic_attach(struct gpib_board *board,
 }
 
 static int agilent_82350b_unaccel_attach(struct gpib_board *board,
-					 const gpib_board_config_t *config)
+					 const struct gpib_board_config *config)
 {
 	return agilent_82350b_generic_attach(board, config, 0);
 }
 
 static int agilent_82350b_accel_attach(struct gpib_board *board,
-				       const gpib_board_config_t *config)
+				       const struct gpib_board_config *config)
 {
 	return agilent_82350b_generic_attach(board, config, 1);
 }
