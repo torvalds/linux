@@ -66,6 +66,7 @@ void __ui_browser__vline(struct ui_browser *browser, unsigned int column,
 
 int ui_browser__warning(struct ui_browser *browser, int timeout,
 			const char *format, ...);
+int ui_browser__warn_unhandled_hotkey(struct ui_browser *browser, int key, int timeout, const char *help);
 int ui_browser__help_window(struct ui_browser *browser, const char *text);
 bool ui_browser__dialog_yesno(struct ui_browser *browser, const char *text);
 int ui_browser__input_window(const char *title, const char *text, char *input,
