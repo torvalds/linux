@@ -131,23 +131,23 @@ class KernelDoc:
         # Place all potential outputs into an array
         self.entries = []
 
-    def show_warnings(self, dtype, declaration_name):  # pylint: disable=W0613
-        """
-        Allow filtering out warnings
-        """
-
-        # TODO: implement it
-
-        return True
-
     # TODO: rename to emit_message
     def emit_warning(self, ln, msg, warning=True):
         """Emit a message"""
 
+        log_msg = f"{self.fname}:{ln} {msg}"
+
+        if self.entry:
+            # Delegate warning output to output logic, as this way it
+            # will report warnings/info only for symbols that are output
+
+            self.entry.warnings.append((warning, log_msg))
+            return
+
         if warning:
-            self.config.log.warning("%s:%d %s", self.fname, ln, msg)
+            self.config.log.warning(log_msg)
         else:
-            self.config.log.info("%s:%d %s", self.fname, ln, msg)
+            self.config.log.info(log_msg)
 
     def dump_section(self, start_new=True):
         """
@@ -221,10 +221,9 @@ class KernelDoc:
         # For now, we're keeping the same name of the function just to make
         # easier to compare the source code of both scripts
 
-        if "declaration_start_line" not in args:
-            args["declaration_start_line"] = self.entry.declaration_start_line
-
+        args["declaration_start_line"] = self.entry.declaration_start_line
         args["type"] = dtype
+        args["warnings"] = self.entry.warnings
 
         # TODO: use colletions.OrderedDict
 
@@ -256,6 +255,8 @@ class KernelDoc:
         self.entry.sectcheck = ""
         self.entry.struct_actual = ""
         self.entry.prototype = ""
+
+        self.entry.warnings = []
 
         self.entry.parameterlist = []
         self.entry.parameterdescs = {}
@@ -328,7 +329,7 @@ class KernelDoc:
         if param not in self.entry.parameterdescs and not param.startswith("#"):
             self.entry.parameterdescs[param] = self.undescribed
 
-            if self.show_warnings(dtype, declaration_name) and "." not in param:
+            if "." not in param:
                 if decl_type == 'function':
                     dname = f"{decl_type} parameter"
                 else:
@@ -868,16 +869,14 @@ class KernelDoc:
             self.entry.parameterlist.append(arg)
             if arg not in self.entry.parameterdescs:
                 self.entry.parameterdescs[arg] = self.undescribed
-                if self.show_warnings("enum", declaration_name):
-                    self.emit_warning(ln,
-                                      f"Enum value '{arg}' not described in enum '{declaration_name}'")
+                self.emit_warning(ln,
+                                  f"Enum value '{arg}' not described in enum '{declaration_name}'")
             member_set.add(arg)
 
         for k in self.entry.parameterdescs:
             if k not in member_set:
-                if self.show_warnings("enum", declaration_name):
-                    self.emit_warning(ln,
-                                      f"Excess enum value '%{k}' description in '{declaration_name}'")
+                self.emit_warning(ln,
+                                  f"Excess enum value '%{k}' description in '{declaration_name}'")
 
         self.output_declaration('enum', declaration_name,
                                 enum=declaration_name,

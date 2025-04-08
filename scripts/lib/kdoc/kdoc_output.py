@@ -116,7 +116,16 @@ class OutputFormat:
 
         return block
 
-    def check_doc(self, name):
+    def out_warnings(self, args):
+        warnings = args.get('warnings', [])
+
+        for warning, log_msg in warnings:
+            if warning:
+                self.config.log.warning(log_msg)
+            else:
+                self.config.log.info(log_msg)
+
+    def check_doc(self, name, args):
         """Check if DOC should be output"""
 
         if self.no_doc_sections:
@@ -126,19 +135,22 @@ class OutputFormat:
             return False
 
         if self.out_mode == self.OUTPUT_ALL:
+            self.out_warnings(args)
             return True
 
         if self.out_mode == self.OUTPUT_INCLUDE:
             if name in self.function_table:
+                self.out_warnings(args)
                 return True
 
         return False
 
-    def check_declaration(self, dtype, name):
+    def check_declaration(self, dtype, name, args):
         if name in self.nosymbol:
             return False
 
         if self.out_mode == self.OUTPUT_ALL:
+            self.out_warnings(args)
             return True
 
         if self.out_mode in [self.OUTPUT_INCLUDE, self.OUTPUT_EXPORTED]:
@@ -147,9 +159,11 @@ class OutputFormat:
 
         if self.out_mode == self.OUTPUT_INTERNAL:
             if dtype != "function":
+                self.out_warnings(args)
                 return True
 
             if name not in self.function_table:
+                self.out_warnings(args)
                 return True
 
         return False
@@ -163,7 +177,7 @@ class OutputFormat:
             self.out_doc(fname, name, args)
             return self.data
 
-        if not self.check_declaration(dtype, name):
+        if not self.check_declaration(dtype, name, args):
             return self.data
 
         if dtype == "function":
@@ -328,7 +342,7 @@ class RestFormat(OutputFormat):
         self.data += "\n"
 
     def out_doc(self, fname, name, args):
-        if not self.check_doc(name):
+        if not self.check_doc(name, args):
             return
         self.out_section(args, out_docblock=True)
 
@@ -586,7 +600,7 @@ class ManFormat(OutputFormat):
         sectionlist = args.get('sectionlist', [])
         sections = args.get('sections', {})
 
-        if not self.check_doc(name):
+        if not self.check_doc(name, args):
                 return
 
         self.data += f'.TH "{module}" 9 "{module}" "{self.man_date}" "API Manual" LINUX' + "\n"
