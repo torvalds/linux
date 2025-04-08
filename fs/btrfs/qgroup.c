@@ -83,7 +83,7 @@ static void qgroup_rsv_add(struct btrfs_fs_info *fs_info,
 			   struct btrfs_qgroup *qgroup, u64 num_bytes,
 			   enum btrfs_qgroup_rsv_type type)
 {
-	trace_qgroup_update_reserve(fs_info, qgroup, num_bytes, type);
+	trace_btrfs_qgroup_update_reserve(fs_info, qgroup, num_bytes, type);
 	qgroup->rsv.values[type] += num_bytes;
 }
 
@@ -91,7 +91,7 @@ static void qgroup_rsv_release(struct btrfs_fs_info *fs_info,
 			       struct btrfs_qgroup *qgroup, u64 num_bytes,
 			       enum btrfs_qgroup_rsv_type type)
 {
-	trace_qgroup_update_reserve(fs_info, qgroup, -(s64)num_bytes, type);
+	trace_btrfs_qgroup_update_reserve(fs_info, qgroup, -(s64)num_bytes, type);
 	if (qgroup->rsv.values[type] >= num_bytes) {
 		qgroup->rsv.values[type] -= num_bytes;
 		return;
@@ -2837,8 +2837,8 @@ static void qgroup_update_counters(struct btrfs_fs_info *fs_info,
 		cur_old_count = btrfs_qgroup_get_old_refcnt(qg, seq);
 		cur_new_count = btrfs_qgroup_get_new_refcnt(qg, seq);
 
-		trace_qgroup_update_counters(fs_info, qg, cur_old_count,
-					     cur_new_count);
+		trace_btrfs_qgroup_update_counters(fs_info, qg, cur_old_count,
+						   cur_new_count);
 
 		/* Rfer update part */
 		if (cur_old_count == 0 && cur_new_count > 0) {
@@ -3100,8 +3100,7 @@ cleanup:
 		kfree(record);
 
 	}
-	trace_qgroup_num_dirty_extents(fs_info, trans->transid,
-				       num_dirty_extents);
+	trace_btrfs_qgroup_num_dirty_extents(fs_info, trans->transid, num_dirty_extents);
 	return ret;
 }
 
@@ -4474,7 +4473,7 @@ int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
 		return 0;
 
 	BUG_ON(num_bytes != round_down(num_bytes, fs_info->nodesize));
-	trace_qgroup_meta_reserve(root, (s64)num_bytes, type);
+	trace_btrfs_qgroup_meta_reserve(root, (s64)num_bytes, type);
 	ret = qgroup_reserve(root, num_bytes, enforce, type);
 	if (ret < 0)
 		return ret;
@@ -4519,7 +4518,7 @@ void btrfs_qgroup_free_meta_all_pertrans(struct btrfs_root *root)
 		return;
 
 	/* TODO: Update trace point to handle such free */
-	trace_qgroup_meta_free_all_pertrans(root);
+	trace_btrfs_qgroup_meta_free_all_pertrans(root);
 	/* Special value -1 means to free all reserved space */
 	btrfs_qgroup_free_refroot(fs_info, btrfs_root_id(root), (u64)-1,
 				  BTRFS_QGROUP_RSV_META_PERTRANS);
@@ -4541,7 +4540,7 @@ void __btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes,
 	 */
 	num_bytes = sub_root_meta_rsv(root, num_bytes, type);
 	BUG_ON(num_bytes != round_down(num_bytes, fs_info->nodesize));
-	trace_qgroup_meta_reserve(root, -(s64)num_bytes, type);
+	trace_btrfs_qgroup_meta_reserve(root, -(s64)num_bytes, type);
 	btrfs_qgroup_free_refroot(fs_info, btrfs_root_id(root), num_bytes, type);
 }
 
@@ -4595,7 +4594,7 @@ void btrfs_qgroup_convert_reserved_meta(struct btrfs_root *root, int num_bytes)
 	/* Same as btrfs_qgroup_free_meta_prealloc() */
 	num_bytes = sub_root_meta_rsv(root, num_bytes,
 				      BTRFS_QGROUP_RSV_META_PREALLOC);
-	trace_qgroup_meta_convert(root, num_bytes);
+	trace_btrfs_qgroup_meta_convert(root, num_bytes);
 	qgroup_convert_meta(fs_info, btrfs_root_id(root), num_bytes);
 	if (!sb_rdonly(fs_info->sb))
 		add_root_meta_rsv(root, num_bytes, BTRFS_QGROUP_RSV_META_PERTRANS);

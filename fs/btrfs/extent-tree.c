@@ -4376,7 +4376,7 @@ static noinline int find_free_extent(struct btrfs_root *root,
 	ins->objectid = 0;
 	ins->offset = 0;
 
-	trace_find_free_extent(root, ffe_ctl);
+	trace_btrfs_find_free_extent(root, ffe_ctl);
 
 	space_info = btrfs_find_space_info(fs_info, ffe_ctl->flags);
 	if (!space_info) {
@@ -4427,7 +4427,7 @@ static noinline int find_free_extent(struct btrfs_root *root,
 		}
 	}
 search:
-	trace_find_free_extent_search_loop(root, ffe_ctl);
+	trace_btrfs_find_free_extent_search_loop(root, ffe_ctl);
 	ffe_ctl->have_caching_bg = false;
 	if (ffe_ctl->index == btrfs_bg_flags_to_raid_index(ffe_ctl->flags) ||
 	    ffe_ctl->index == 0)
@@ -4479,7 +4479,7 @@ search:
 		}
 
 have_block_group:
-		trace_find_free_extent_have_block_group(root, ffe_ctl, block_group);
+		trace_btrfs_find_free_extent_have_block_group(root, ffe_ctl, block_group);
 		ffe_ctl->cached = btrfs_block_group_done(block_group);
 		if (unlikely(!ffe_ctl->cached)) {
 			ffe_ctl->have_caching_bg = true;

@@ -1236,7 +1236,7 @@ DEFINE_EVENT(btrfs__reserved_extent,  btrfs_reserved_extent_free,
 	TP_ARGS(fs_info, start, len)
 );
 
-TRACE_EVENT(find_free_extent,
+TRACE_EVENT(btrfs_find_free_extent,
 
 	TP_PROTO(const struct btrfs_root *root,
 		 const struct find_free_extent_ctl *ffe_ctl),
@@ -1264,7 +1264,7 @@ TRACE_EVENT(find_free_extent,
 				 BTRFS_GROUP_FLAGS))
 );
 
-TRACE_EVENT(find_free_extent_search_loop,
+TRACE_EVENT(btrfs_find_free_extent_search_loop,
 
 	TP_PROTO(const struct btrfs_root *root,
 		 const struct find_free_extent_ctl *ffe_ctl),
@@ -1294,7 +1294,7 @@ TRACE_EVENT(find_free_extent_search_loop,
 		  __entry->loop)
 );
 
-TRACE_EVENT(find_free_extent_have_block_group,
+TRACE_EVENT(btrfs_find_free_extent_have_block_group,
 
 	TP_PROTO(const struct btrfs_root *root,
 		 const struct find_free_extent_ctl *ffe_ctl,
@@ -1739,7 +1739,7 @@ DEFINE_EVENT(btrfs_qgroup_extent, btrfs_qgroup_trace_extent,
 	TP_ARGS(fs_info, rec, bytenr)
 );
 
-TRACE_EVENT(qgroup_num_dirty_extents,
+TRACE_EVENT(btrfs_qgroup_num_dirty_extents,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info, u64 transid,
 		 u64 num_dirty_extents),
@@ -1793,7 +1793,7 @@ TRACE_EVENT(btrfs_qgroup_account_extent,
 		__entry->nr_new_roots)
 );
 
-TRACE_EVENT(qgroup_update_counters,
+TRACE_EVENT(btrfs_qgroup_update_counters,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
 		 const struct btrfs_qgroup *qgroup,
@@ -1822,7 +1822,7 @@ TRACE_EVENT(qgroup_update_counters,
 		  __entry->cur_old_count, __entry->cur_new_count)
 );
 
-TRACE_EVENT(qgroup_update_reserve,
+TRACE_EVENT(btrfs_qgroup_update_reserve,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info, const struct btrfs_qgroup *qgroup,
 		 s64 diff, int type),
@@ -1848,7 +1848,7 @@ TRACE_EVENT(qgroup_update_reserve,
 		__entry->cur_reserved, __entry->diff)
 );
 
-TRACE_EVENT(qgroup_meta_reserve,
+TRACE_EVENT(btrfs_qgroup_meta_reserve,
 
 	TP_PROTO(const struct btrfs_root *root, s64 diff, int type),
 
@@ -1871,7 +1871,7 @@ TRACE_EVENT(qgroup_meta_reserve,
 		__print_symbolic(__entry->type, QGROUP_RSV_TYPES), __entry->diff)
 );
 
-TRACE_EVENT(qgroup_meta_convert,
+TRACE_EVENT(btrfs_qgroup_meta_convert,
 
 	TP_PROTO(const struct btrfs_root *root, s64 diff),
 
@@ -1894,7 +1894,7 @@ TRACE_EVENT(qgroup_meta_convert,
 		__entry->diff)
 );
 
-TRACE_EVENT(qgroup_meta_free_all_pertrans,
+TRACE_EVENT(btrfs_qgroup_meta_free_all_pertrans,
 
 	TP_PROTO(struct btrfs_root *root),
 
