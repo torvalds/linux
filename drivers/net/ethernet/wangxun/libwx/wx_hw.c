@@ -1011,7 +1011,7 @@ void wx_flush_sw_mac_table(struct wx *wx)
 }
 EXPORT_SYMBOL(wx_flush_sw_mac_table);
 
-static int wx_add_mac_filter(struct wx *wx, u8 *addr, u16 pool)
+int wx_add_mac_filter(struct wx *wx, u8 *addr, u16 pool)
 {
 	u32 i;
 
@@ -1042,7 +1042,7 @@ static int wx_add_mac_filter(struct wx *wx, u8 *addr, u16 pool)
 	return -ENOMEM;
 }
 
-static int wx_del_mac_filter(struct wx *wx, u8 *addr, u16 pool)
+int wx_del_mac_filter(struct wx *wx, u8 *addr, u16 pool)
 {
 	u32 i;
 
@@ -1469,7 +1469,7 @@ static void wx_set_ethertype_anti_spoofing(struct wx *wx, bool enable, int vf)
 	wr32(wx, WX_TDM_ETYPE_AS(reg_offset), pfvfspoof);
 }
 
-static int wx_set_vf_spoofchk(struct net_device *netdev, int vf, bool setting)
+int wx_set_vf_spoofchk(struct net_device *netdev, int vf, bool setting)
 {
 	u32 index = WX_VF_REG_OFFSET(vf), vf_bit = WX_VF_IND_SHIFT(vf);
 	struct wx *wx = netdev_priv(netdev);
@@ -2530,7 +2530,7 @@ static int wx_set_vlvf(struct wx *wx, u32 vlan, u32 vind, bool vlan_on,
  *
  *  Turn on/off specified VLAN in the VLAN filter table.
  **/
-static int wx_set_vfta(struct wx *wx, u32 vlan, u32 vind, bool vlan_on)
+int wx_set_vfta(struct wx *wx, u32 vlan, u32 vind, bool vlan_on)
 {
 	u32 bitindex, vfta, targetbit;
 	bool vfta_changed = false;

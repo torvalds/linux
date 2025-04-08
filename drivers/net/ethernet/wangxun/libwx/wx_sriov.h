@@ -10,5 +10,6 @@
 
 void wx_disable_sriov(struct wx *wx);
 int wx_pci_sriov_configure(struct pci_dev *pdev, int num_vfs);
+void wx_msg_task(struct wx *wx);
 
 #endif /* _WX_SRIOV_H_ */

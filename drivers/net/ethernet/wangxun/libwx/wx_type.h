@@ -82,6 +82,8 @@
 
 /*********************** Receive DMA registers **************************/
 #define WX_RDM_VF_RE(_i)             (0x12004 + ((_i) * 4))
+#define WX_RDM_PF_QDE(_i)            (0x12080 + ((_i) * 4))
+#define WX_RDM_VFRE_CLR(_i)          (0x120A0 + ((_i) * 4))
 #define WX_RDM_DRP_PKT               0x12500
 #define WX_RDM_PKT_CNT               0x12504
 #define WX_RDM_BYTE_CNT_LSB          0x12508
@@ -125,6 +127,7 @@
 #define WX_TDM_VF_TE(_i)             (0x18004 + ((_i) * 4))
 #define WX_TDM_MAC_AS(_i)            (0x18060 + ((_i) * 4))
 #define WX_TDM_VLAN_AS(_i)           (0x18070 + ((_i) * 4))
+#define WX_TDM_VFTE_CLR(_i)          (0x180A0 + ((_i) * 4))
 
 /* TDM CTL BIT */
 #define WX_TDM_CTL_TE                BIT(0) /* Transmit Enable */
@@ -226,6 +229,7 @@
 #define WX_PSR_VM_L2CTL(_i)          (0x15600 + ((_i) * 4))
 #define WX_PSR_VM_L2CTL_UPE          BIT(4) /* unicast promiscuous */
 #define WX_PSR_VM_L2CTL_VACC         BIT(6) /* accept nomatched vlan */
+#define WX_PSR_VM_L2CTL_VPE          BIT(7) /* vlan promiscuous mode */
 #define WX_PSR_VM_L2CTL_AUPE         BIT(8) /* accept untagged packets */
 #define WX_PSR_VM_L2CTL_ROMPE        BIT(9) /* accept packets in MTA tbl */
 #define WX_PSR_VM_L2CTL_ROPE         BIT(10) /* accept packets in UC tbl */
@@ -269,6 +273,7 @@
 /* VLAN pool filtering masks */
 #define WX_PSR_VLAN_SWC_VIEN         BIT(31)  /* filter is valid */
 #define WX_PSR_VLAN_SWC_ENTRIES      64
+#define WX_PSR_VLAN_SWC_VLANID_MASK  GENMASK(11, 0)
 
 /********************************* RSEC **************************************/
 /* general rsec */
@@ -282,6 +287,9 @@
 /*********************** Transmit DMA registers **************************/
 /* transmit global control */
 #define WX_TDM_ETYPE_AS(_i)          (0x18058 + ((_i) * 4))
+#define WX_TDM_VLAN_INS(_i)          (0x18100 + ((_i) * 4))
+/* Per VF Port VLAN insertion rules */
+#define WX_TDM_VLAN_INS_VLANA_DEFAULT BIT(30) /* Always use default VLAN*/
 
 /****************************** TDB ******************************************/
 #define WX_TDB_PB_SZ(_i)             (0x1CC00 + ((_i) * 4))
@@ -352,6 +360,9 @@
 #define WX_MAC_WDG_TIMEOUT           0x1100C
 #define WX_MAC_RX_FLOW_CTRL          0x11090
 #define WX_MAC_RX_FLOW_CTRL_RFE      BIT(0) /* receive fc enable */
+
+#define WX_MAC_WDG_TIMEOUT_WTO_MASK  GENMASK(3, 0)
+#define WX_MAC_WDG_TIMEOUT_WTO_DELTA 2
 /* MDIO Registers */
 #define WX_MSCA                      0x11200
 #define WX_MSCA_RA(v)                FIELD_PREP(U16_MAX, v)
@@ -1152,6 +1163,11 @@ struct vf_data_storage {
 	bool link_enable;
 	bool trusted;
 	int xcast_mode;
+	unsigned int vf_api;
+	bool clear_to_send;
+	u16 pf_vlan; /* When set, guest VLAN config not allowed. */
+	u16 pf_qos;
+	bool pf_set_mac;
 
 	u16 vf_mc_hashes[WX_MAX_VF_MC_ENTRIES];
 	u16 num_vf_mc_hashes;
@@ -1269,6 +1285,7 @@ struct wx {
 	u32 wol;
 
 	u16 bd_number;
+	bool default_up;
 
 	struct wx_hw_stats stats;
 	u64 tx_busy;
