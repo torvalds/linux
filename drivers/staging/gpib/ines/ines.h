@@ -36,7 +36,8 @@ struct ines_priv {
 };
 
 // interface functions
-int ines_read(struct gpib_board *board, uint8_t *buffer, size_t length, int *end, size_t *bytes_read);
+int ines_read(struct gpib_board *board, uint8_t *buffer, size_t length,
+	      int *end, size_t *bytes_read);
 int ines_write(struct gpib_board *board, uint8_t *buffer, size_t length,
 	       int send_eoi, size_t *bytes_written);
 int ines_accel_read(struct gpib_board *board, uint8_t *buffer, size_t length,
