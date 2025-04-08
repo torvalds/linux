@@ -315,12 +315,12 @@ class RestFormat(OutputFormat):
             if section in self.nosymbol:
                 continue
 
-            if not self.out_mode == self.OUTPUT_INCLUDE:
-                if out_docblock:
+            if out_docblock:
+                if not self.out_mode == self.OUTPUT_INCLUDE:
                     self.data += f".. _{section}:\n\n"
-
-                if not self.symbol:
                     self.data += f'{self.lineprefix}**{section}**\n\n'
+            else:
+                self.data += f'{self.lineprefix}**{section}**\n\n'
 
             self.print_lineno(section_start_lines.get(section, 0))
             self.output_highlight(sections[section])
