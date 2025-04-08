@@ -325,10 +325,10 @@ struct gpib_status_queue {
 	unsigned dropped_byte : 1;
 };
 
-typedef struct {
+struct gpib_status_byte {
 	struct list_head list;
 	u8 poll_byte;
-} status_byte_t;
+};
 
 void init_gpib_status_queue(struct gpib_status_queue *device);
 

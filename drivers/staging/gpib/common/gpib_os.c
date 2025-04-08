@@ -183,7 +183,7 @@ unsigned int num_status_bytes(const struct gpib_status_queue *dev)
 int push_status_byte(struct gpib_board *board, struct gpib_status_queue *device, u8 poll_byte)
 {
 	struct list_head *head = &device->status_bytes;
-	status_byte_t *status;
+	struct gpib_status_byte *status;
 	static const unsigned int max_num_status_bytes = 1024;
 	int retval;
 
@@ -196,7 +196,7 @@ int push_status_byte(struct gpib_board *board, struct gpib_status_queue *device,
 			return retval;
 	}
 
-	status = kmalloc(sizeof(status_byte_t), GFP_KERNEL);
+	status = kmalloc(sizeof(struct gpib_status_byte), GFP_KERNEL);
 	if (!status)
 		return -ENOMEM;
 
@@ -218,7 +218,7 @@ int pop_status_byte(struct gpib_board *board, struct gpib_status_queue *device, 
 {
 	struct list_head *head = &device->status_bytes;
 	struct list_head *front = head->next;
-	status_byte_t *status;
+	struct gpib_status_byte *status;
 
 	if (num_status_bytes(device) == 0)
 		return -EIO;
@@ -231,7 +231,7 @@ int pop_status_byte(struct gpib_board *board, struct gpib_status_queue *device, 
 		return -EPIPE;
 	}
 
-	status = list_entry(front, status_byte_t, list);
+	status = list_entry(front, struct gpib_status_byte, list);
 	*poll_byte = status->poll_byte;
 
 	list_del(front);
