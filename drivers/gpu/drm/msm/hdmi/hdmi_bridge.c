@@ -324,9 +324,10 @@ static void msm_hdmi_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 		msm_hdmi_phy_resource_enable(phy);
 		msm_hdmi_power_on(bridge);
 		hdmi->power_on = true;
-		if (connector->display_info.is_hdmi)
-			msm_hdmi_audio_update(hdmi);
 	}
+
+	if (connector->display_info.is_hdmi)
+		msm_hdmi_audio_update(hdmi);
 
 	drm_atomic_helper_connector_hdmi_update_infoframes(connector, state);
 
@@ -411,9 +412,6 @@ static void msm_hdmi_set_timings(struct hdmi *hdmi,
 		frame_ctrl |= HDMI_FRAME_CTRL_INTERLACED_EN;
 	DBG("frame_ctrl=%08x", frame_ctrl);
 	hdmi_write(hdmi, REG_HDMI_FRAME_CTRL, frame_ctrl);
-
-	if (hdmi->connector->display_info.is_hdmi)
-		msm_hdmi_audio_update(hdmi);
 }
 
 static const struct drm_edid *msm_hdmi_bridge_edid_read(struct drm_bridge *bridge,
