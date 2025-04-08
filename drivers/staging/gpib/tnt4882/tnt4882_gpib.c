@@ -898,7 +898,7 @@ static void tnt4882_init(struct tnt4882_priv *tnt_priv, const struct gpib_board 
 	tnt_writeb(tnt_priv, tnt_priv->imr0_bits, IMR0);
 }
 
-static int ni_pci_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int ni_pci_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	struct tnt4882_priv *tnt_priv;
 	struct nec7210_priv *nec_priv;
@@ -1019,7 +1019,7 @@ static int ni_isapnp_find(struct pnp_dev **dev)
 	return 0;
 }
 
-static int ni_isa_attach_common(struct gpib_board *board, const gpib_board_config_t *config,
+static int ni_isa_attach_common(struct gpib_board *board, const struct gpib_board_config *config,
 				enum nec7210_chipset chipset)
 {
 	struct tnt4882_priv *tnt_priv;
@@ -1075,17 +1075,17 @@ static int ni_isa_attach_common(struct gpib_board *board, const gpib_board_confi
 	return 0;
 }
 
-static int ni_tnt_isa_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int ni_tnt_isa_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	return ni_isa_attach_common(board, config, TNT4882);
 }
 
-static int ni_nat4882_isa_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int ni_nat4882_isa_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	return ni_isa_attach_common(board, config, NAT4882);
 }
 
-static int ni_nec_isa_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int ni_nec_isa_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	return ni_isa_attach_common(board, config, NEC7210);
 }
@@ -1702,7 +1702,7 @@ static void __exit exit_ni_gpib_cs(void)
 
 static const int pcmcia_gpib_iosize = 32;
 
-static int ni_pcmcia_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int ni_pcmcia_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	struct local_info_t *info;
 	struct tnt4882_priv *tnt_priv;
