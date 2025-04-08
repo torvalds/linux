@@ -44,8 +44,8 @@ struct spi_xcomm {
 	u8 buf[63];
 };
 
-static void spi_xcomm_gpio_set_value(struct gpio_chip *chip,
-				     unsigned int offset, int val)
+static int spi_xcomm_gpio_set_value(struct gpio_chip *chip,
+				    unsigned int offset, int val)
 {
 	struct spi_xcomm *spi_xcomm = gpiochip_get_data(chip);
 	unsigned char buf[2];
@@ -53,7 +53,7 @@ static void spi_xcomm_gpio_set_value(struct gpio_chip *chip,
 	buf[0] = SPI_XCOMM_CMD_GPIO_SET;
 	buf[1] = !!val;
 
-	i2c_master_send(spi_xcomm->i2c, buf, 2);
+	return i2c_master_send(spi_xcomm->i2c, buf, 2);
 }
 
 static int spi_xcomm_gpio_get_direction(struct gpio_chip *chip,
@@ -70,7 +70,7 @@ static int spi_xcomm_gpio_add(struct spi_xcomm *spi_xcomm)
 		return 0;
 
 	spi_xcomm->gc.get_direction = spi_xcomm_gpio_get_direction;
-	spi_xcomm->gc.set = spi_xcomm_gpio_set_value;
+	spi_xcomm->gc.set_rv = spi_xcomm_gpio_set_value;
 	spi_xcomm->gc.can_sleep = 1;
 	spi_xcomm->gc.base = -1;
 	spi_xcomm->gc.ngpio = 1;
