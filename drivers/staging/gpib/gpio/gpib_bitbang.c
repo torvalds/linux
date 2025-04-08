@@ -1206,7 +1206,7 @@ static void bb_detach(struct gpib_board *board)
 	free_private(board);
 }
 
-static int bb_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int bb_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	struct bb_priv *priv;
 	int retval = 0;
