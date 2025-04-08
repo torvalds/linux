@@ -555,27 +555,6 @@ void fsl_mc_init_all_resource_pools(struct fsl_mc_device *mc_bus_dev)
 	}
 }
 
-static void fsl_mc_cleanup_resource_pool(struct fsl_mc_device *mc_bus_dev,
-					 enum fsl_mc_pool_type pool_type)
-{
-	struct fsl_mc_resource *resource;
-	struct fsl_mc_resource *next;
-	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_bus_dev);
-	struct fsl_mc_resource_pool *res_pool =
-					&mc_bus->resource_pools[pool_type];
-
-	list_for_each_entry_safe(resource, next, &res_pool->free_list, node)
-		devm_kfree(&mc_bus_dev->dev, resource);
-}
-
-void fsl_mc_cleanup_all_resource_pools(struct fsl_mc_device *mc_bus_dev)
-{
-	int pool_type;
-
-	for (pool_type = 0; pool_type < FSL_MC_NUM_POOL_TYPES; pool_type++)
-		fsl_mc_cleanup_resource_pool(mc_bus_dev, pool_type);
-}
-
 /*
  * fsl_mc_allocator_probe - callback invoked when an allocatable device is
  * being added to the system

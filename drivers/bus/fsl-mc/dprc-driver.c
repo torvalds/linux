@@ -806,8 +806,6 @@ int dprc_cleanup(struct fsl_mc_device *mc_dev)
 		dev_set_msi_domain(&mc_dev->dev, NULL);
 	}
 
-	fsl_mc_cleanup_all_resource_pools(mc_dev);
-
 	/* if this step fails we cannot go further with cleanup as there is no way of
 	 * communicating with the firmware
 	 */
