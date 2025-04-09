@@ -204,7 +204,7 @@ int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
 }
 EXPORT_SYMBOL(wrmsr_safe_on_cpu);
 
-int wrmsrl_safe_on_cpu(unsigned int cpu, u32 msr_no, u64 q)
+int wrmsrq_safe_on_cpu(unsigned int cpu, u32 msr_no, u64 q)
 {
 	int err;
 	struct msr_info rv;
@@ -218,7 +218,7 @@ int wrmsrl_safe_on_cpu(unsigned int cpu, u32 msr_no, u64 q)
 
 	return err ? err : rv.err;
 }
-EXPORT_SYMBOL(wrmsrl_safe_on_cpu);
+EXPORT_SYMBOL(wrmsrq_safe_on_cpu);
 
 int rdmsrq_safe_on_cpu(unsigned int cpu, u32 msr_no, u64 *q)
 {

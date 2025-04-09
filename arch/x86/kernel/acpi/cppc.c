@@ -74,7 +74,7 @@ int cpc_write_ffh(int cpunum, struct cpc_reg *reg, u64 val)
 		val &= mask;
 		rd_val &= ~mask;
 		rd_val |= val;
-		err = wrmsrl_safe_on_cpu(cpunum, reg->address, rd_val);
+		err = wrmsrq_safe_on_cpu(cpunum, reg->address, rd_val);
 	}
 	return err;
 }
