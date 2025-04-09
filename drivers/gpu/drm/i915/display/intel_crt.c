@@ -370,7 +370,7 @@ intel_crt_mode_valid(struct drm_connector *connector,
 
 	if (HAS_PCH_LPT(dev_priv))
 		max_clock = 180000;
-	else if (IS_VALLEYVIEW(dev_priv))
+	else if (display->platform.valleyview)
 		/*
 		 * 270 MHz due to current DPLL limits,
 		 * DAC limit supposedly 355 MHz.
@@ -591,7 +591,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 	if (HAS_PCH_SPLIT(dev_priv))
 		return ilk_crt_detect_hotplug(connector);
 
-	if (IS_VALLEYVIEW(dev_priv))
+	if (display->platform.valleyview)
 		return valleyview_crt_detect_hotplug(connector);
 
 	/*
@@ -599,7 +599,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 	 * to get a reliable result.
 	 */
 
-	if (IS_G45(dev_priv))
+	if (display->platform.g45)
 		tries = 2;
 	else
 		tries = 1;
@@ -940,7 +940,6 @@ out:
 static int intel_crt_get_modes(struct drm_connector *connector)
 {
 	struct intel_display *display = to_intel_display(connector->dev);
-	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct intel_encoder *encoder = &crt->base;
 	intel_wakeref_t wakeref;
@@ -953,7 +952,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 	wakeref = intel_display_power_get(display, encoder->power_domain);
 
 	ret = intel_crt_ddc_get_modes(connector, connector->ddc);
-	if (ret || !IS_G4X(dev_priv))
+	if (ret || !display->platform.g4x)
 		goto out;
 
 	/* Try to probe digital port for output in DVI-I -> VGA mode. */
@@ -1021,7 +1020,7 @@ void intel_crt_init(struct intel_display *display)
 
 	if (HAS_PCH_SPLIT(dev_priv))
 		adpa_reg = PCH_ADPA;
-	else if (IS_VALLEYVIEW(dev_priv))
+	else if (display->platform.valleyview)
 		adpa_reg = VLV_ADPA;
 	else
 		adpa_reg = ADPA;
@@ -1069,7 +1068,7 @@ void intel_crt_init(struct intel_display *display)
 
 	crt->base.type = INTEL_OUTPUT_ANALOG;
 	crt->base.cloneable = BIT(INTEL_OUTPUT_DVO) | BIT(INTEL_OUTPUT_HDMI);
-	if (IS_I830(dev_priv))
+	if (display->platform.i830)
 		crt->base.pipe_mask = BIT(PIPE_A);
 	else
 		crt->base.pipe_mask = ~0;
