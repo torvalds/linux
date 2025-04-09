@@ -860,7 +860,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 				}
 
 				j++;
-				if (j > sechdrs[relsec].sh_size / sizeof(*rel))
+				if (j == num_relocations)
 					j = 0;
 
 			} while (j_idx != j);
