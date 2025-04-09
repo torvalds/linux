@@ -314,6 +314,9 @@ struct ath12k_link_vif {
 	spinlock_t link_stats_lock; /* Protects updates to link_stats */
 
 	u8 current_cntdown_counter;
+
+	/* only used in station mode */
+	bool is_sta_assoc_link;
 };
 
 struct ath12k_vif {

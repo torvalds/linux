@@ -3477,6 +3477,8 @@ static struct ath12k_link_vif *ath12k_mac_assign_link_vif(struct ath12k_hw *ah,
 		 */
 		if (!ahvif->links_map && link_id != ATH12K_DEFAULT_SCAN_LINK) {
 			arvif = &ahvif->deflink;
+			if (vif->type == NL80211_IFTYPE_STATION)
+				arvif->is_sta_assoc_link = true;
 		} else {
 			arvif = (struct ath12k_link_vif *)
 			kzalloc(sizeof(struct ath12k_link_vif), GFP_KERNEL);
@@ -5867,6 +5869,17 @@ static int ath12k_mac_op_sta_state(struct ieee80211_hw *hw,
 		 * link sta
 		 */
 		if (sta->mlo) {
+			/* For station mode, arvif->is_sta_assoc_link has been set when
+			 * vdev starts. Make sure the arvif/arsta pair have same setting
+			 */
+			if (vif->type == NL80211_IFTYPE_STATION &&
+			    !arsta->arvif->is_sta_assoc_link) {
+				ath12k_hw_warn(ah, "failed to verify assoc link setting with link id %u\n",
+					       link_id);
+				ret = -EINVAL;
+				goto exit;
+			}
+
 			arsta->is_assoc_link = true;
 			ahsta->assoc_link_id = link_id;
 		}
@@ -9123,6 +9136,9 @@ ath12k_mac_mlo_get_vdev_args(struct ath12k_link_vif *arvif,
 	 * link vdevs which are advertised as partners below
 	 */
 	ml_arg->link_add = true;
+
+	ml_arg->assoc_link = arvif->is_sta_assoc_link;
+
 	partner_info = ml_arg->partner_info;
 
 	links = ahvif->links_map;
