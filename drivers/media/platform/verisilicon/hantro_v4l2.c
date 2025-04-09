@@ -77,6 +77,7 @@ int hantro_get_format_depth(u32 fourcc)
 	switch (fourcc) {
 	case V4L2_PIX_FMT_P010:
 	case V4L2_PIX_FMT_P010_4L4:
+	case V4L2_PIX_FMT_NV15:
 	case V4L2_PIX_FMT_NV15_4L4:
 		return 10;
 	default:
