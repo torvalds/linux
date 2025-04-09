@@ -1120,6 +1120,12 @@ properties:
           - const: avnet,sm2s-imx8mp              # SM2S-IMX8PLUS SoM
           - const: fsl,imx8mp
 
+      - description: Boundary Devices Nitrogen8M Plus ENC Carrier Board
+        items:
+          - const: boundary,imx8mp-nitrogen-enc-carrier-board
+          - const: boundary,imx8mp-nitrogen-som
+          - const: fsl,imx8mp
+
       - description: Boundary Device Nitrogen8MP Universal SMARC Carrier Board
         items:
           - const: boundary,imx8mp-nitrogen-smarc-universal-board
