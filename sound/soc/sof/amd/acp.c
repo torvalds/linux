@@ -16,6 +16,8 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
+#include <asm/amd_node.h>
+
 #include "../ops.h"
 #include "acp.h"
 #include "acp-dsp-offset.h"
@@ -42,24 +44,6 @@ const struct dmi_system_id acp_sof_quirk_table[] = {
 	{}
 };
 EXPORT_SYMBOL_GPL(acp_sof_quirk_table);
-
-static int smn_write(struct pci_dev *dev, u32 smn_addr, u32 data)
-{
-	pci_write_config_dword(dev, 0x60, smn_addr);
-	pci_write_config_dword(dev, 0x64, data);
-
-	return 0;
-}
-
-static int smn_read(struct pci_dev *dev, u32 smn_addr)
-{
-	u32 data = 0;
-
-	pci_write_config_dword(dev, 0x60, smn_addr);
-	pci_read_config_dword(dev, 0x64, &data);
-
-	return data;
-}
 
 static void init_dma_descriptor(struct acp_dev_data *adata)
 {
@@ -209,11 +193,11 @@ int configure_and_run_dma(struct acp_dev_data *adata, unsigned int src_addr,
 static int psp_mbox_ready(struct acp_dev_data *adata, bool ack)
 {
 	struct snd_sof_dev *sdev = adata->dev;
-	int ret;
-	u32 data;
+	int ret, data;
 
-	ret = read_poll_timeout(smn_read, data, data & MBOX_READY_MASK, MBOX_DELAY_US,
-				ACP_PSP_TIMEOUT_US, false, adata->smn_dev, MP0_C2PMSG_114_REG);
+	ret = read_poll_timeout(smn_read_register, data, data > 0 && data & MBOX_READY_MASK,
+				MBOX_DELAY_US, ACP_PSP_TIMEOUT_US, false, MP0_C2PMSG_114_REG);
+
 	if (!ret)
 		return 0;
 
@@ -241,8 +225,8 @@ static int psp_send_cmd(struct acp_dev_data *adata, int cmd)
 		return -EINVAL;
 
 	/* Get a non-zero Doorbell value from PSP */
-	ret = read_poll_timeout(smn_read, data, data, MBOX_DELAY_US, ACP_PSP_TIMEOUT_US, false,
-				adata->smn_dev, MP0_C2PMSG_73_REG);
+	ret = read_poll_timeout(smn_read_register, data, data > 0, MBOX_DELAY_US,
+				ACP_PSP_TIMEOUT_US, false, MP0_C2PMSG_73_REG);
 
 	if (ret) {
 		dev_err(sdev->dev, "Failed to get Doorbell from MBOX %x\n", MP0_C2PMSG_73_REG);
@@ -254,10 +238,14 @@ static int psp_send_cmd(struct acp_dev_data *adata, int cmd)
 	if (ret)
 		return ret;
 
-	smn_write(adata->smn_dev, MP0_C2PMSG_114_REG, cmd);
+	ret = amd_smn_write(0, MP0_C2PMSG_114_REG, cmd);
+	if (ret)
+		return ret;
 
 	/* Ring the Doorbell for PSP */
-	smn_write(adata->smn_dev, MP0_C2PMSG_73_REG, data);
+	ret = amd_smn_write(0, MP0_C2PMSG_73_REG, data);
+	if (ret)
+		return ret;
 
 	/* Check MBOX ready as PSP ack */
 	ret = psp_mbox_ready(adata, 1);
@@ -771,16 +759,10 @@ int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 	adata->pci_rev = pci->revision;
 	mutex_init(&adata->acp_lock);
 	sdev->pdata->hw_pdata = adata;
-	adata->smn_dev = pci_get_device(PCI_VENDOR_ID_AMD, chip->host_bridge_id, NULL);
-	if (!adata->smn_dev) {
-		dev_err(sdev->dev, "Failed to get host bridge device\n");
-		ret = -ENODEV;
-		goto unregister_dev;
-	}
 
 	ret = acp_init(sdev);
 	if (ret < 0)
-		goto free_smn_dev;
+		goto unregister_dev;
 
 	sdev->ipc_irq = pci->irq;
 	ret = request_threaded_irq(sdev->ipc_irq, acp_irq_handler, acp_irq_thread,
@@ -788,7 +770,7 @@ int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 	if (ret < 0) {
 		dev_err(sdev->dev, "failed to register IRQ %d\n",
 			sdev->ipc_irq);
-		goto free_smn_dev;
+		goto unregister_dev;
 	}
 
 	/* scan SoundWire capabilities exposed by DSDT */
@@ -801,7 +783,6 @@ int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: SoundWire probe error\n");
 		free_irq(sdev->ipc_irq, sdev);
-		pci_dev_put(adata->smn_dev);
 		return ret;
 	}
 
@@ -847,8 +828,6 @@ skip_soundwire:
 
 free_ipc_irq:
 	free_irq(sdev->ipc_irq, sdev);
-free_smn_dev:
-	pci_dev_put(adata->smn_dev);
 unregister_dev:
 	platform_device_unregister(adata->dmic_dev);
 	return ret;
@@ -858,9 +837,6 @@ EXPORT_SYMBOL_NS(amd_sof_acp_probe, "SND_SOC_SOF_AMD_COMMON");
 void amd_sof_acp_remove(struct snd_sof_dev *sdev)
 {
 	struct acp_dev_data *adata = sdev->pdata->hw_pdata;
-
-	if (adata->smn_dev)
-		pci_dev_put(adata->smn_dev);
 
 	if (adata->sdw)
 		amd_sof_sdw_exit(sdev);

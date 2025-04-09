@@ -74,7 +74,7 @@ xmbuf_alloc(
 
 	/*
 	 * We don't want to bother with kmapping data during repair, so don't
-	 * allow highmem pages to back this mapping.
+	 * allow highmem folios to back this mapping.
 	 */
 	mapping_set_gfp_mask(inode->i_mapping, GFP_KERNEL);
 
@@ -127,14 +127,13 @@ xmbuf_free(
 	kfree(btp);
 }
 
-/* Directly map a shmem page into the buffer cache. */
+/* Directly map a shmem folio into the buffer cache. */
 int
-xmbuf_map_page(
+xmbuf_map_backing_mem(
 	struct xfs_buf		*bp)
 {
 	struct inode		*inode = file_inode(bp->b_target->bt_file);
 	struct folio		*folio = NULL;
-	struct page		*page;
 	loff_t                  pos = BBTOB(xfs_buf_daddr(bp));
 	int			error;
 
@@ -159,37 +158,15 @@ xmbuf_map_page(
 		return -EIO;
 	}
 
-	page = folio_file_page(folio, pos >> PAGE_SHIFT);
-
 	/*
-	 * Mark the page dirty so that it won't be reclaimed once we drop the
-	 * (potentially last) reference in xmbuf_unmap_page.
+	 * Mark the folio dirty so that it won't be reclaimed once we drop the
+	 * (potentially last) reference in xfs_buf_free.
 	 */
-	set_page_dirty(page);
-	unlock_page(page);
+	folio_set_dirty(folio);
+	folio_unlock(folio);
 
-	bp->b_addr = page_address(page);
-	bp->b_pages = bp->b_page_array;
-	bp->b_pages[0] = page;
-	bp->b_page_count = 1;
+	bp->b_addr = folio_address(folio);
 	return 0;
-}
-
-/* Unmap a shmem page that was mapped into the buffer cache. */
-void
-xmbuf_unmap_page(
-	struct xfs_buf		*bp)
-{
-	struct page		*page = bp->b_pages[0];
-
-	ASSERT(xfs_buftarg_is_mem(bp->b_target));
-
-	put_page(page);
-
-	bp->b_addr = NULL;
-	bp->b_pages[0] = NULL;
-	bp->b_pages = NULL;
-	bp->b_page_count = 0;
 }
 
 /* Is this a valid daddr within the buftarg? */
@@ -205,7 +182,7 @@ xmbuf_verify_daddr(
 	return daddr < (inode->i_sb->s_maxbytes >> BBSHIFT);
 }
 
-/* Discard the page backing this buffer. */
+/* Discard the folio backing this buffer. */
 static void
 xmbuf_stale(
 	struct xfs_buf		*bp)
@@ -220,7 +197,7 @@ xmbuf_stale(
 }
 
 /*
- * Finalize a buffer -- discard the backing page if it's stale, or run the
+ * Finalize a buffer -- discard the backing folio if it's stale, or run the
  * write verifier to detect problems.
  */
 int

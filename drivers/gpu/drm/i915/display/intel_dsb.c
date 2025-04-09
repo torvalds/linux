@@ -109,38 +109,32 @@ static bool pre_commit_is_vrr_active(struct intel_atomic_state *state,
 	return old_crtc_state->vrr.enable && !intel_crtc_vrr_disabling(state, crtc);
 }
 
-static const struct intel_crtc_state *
-pre_commit_crtc_state(struct intel_atomic_state *state,
-		      struct intel_crtc *crtc)
+static int dsb_vblank_delay(struct intel_atomic_state *state,
+			    struct intel_crtc *crtc)
 {
-	const struct intel_crtc_state *old_crtc_state =
-		intel_atomic_get_old_crtc_state(state, crtc);
-	const struct intel_crtc_state *new_crtc_state =
-		intel_atomic_get_new_crtc_state(state, crtc);
+	const struct intel_crtc_state *crtc_state =
+		intel_pre_commit_crtc_state(state, crtc);
 
-	/*
-	 * During fastsets/etc. the transcoder is still
-	 * running with the old timings at this point.
-	 */
-	if (intel_crtc_needs_modeset(new_crtc_state))
-		return new_crtc_state;
+	if (pre_commit_is_vrr_active(state, crtc))
+		/*
+		 * When the push is sent during vblank it will trigger
+		 * on the next scanline, hence we have up to one extra
+		 * scanline until the delayed vblank occurs after
+		 * TRANS_PUSH has been written.
+		 */
+		return intel_vrr_vblank_delay(crtc_state) + 1;
 	else
-		return old_crtc_state;
-}
-
-static int dsb_vblank_delay(const struct intel_crtc_state *crtc_state)
-{
-	return intel_mode_vblank_start(&crtc_state->hw.adjusted_mode) -
-		intel_mode_vdisplay(&crtc_state->hw.adjusted_mode);
+		return intel_mode_vblank_delay(&crtc_state->hw.adjusted_mode);
 }
 
 static int dsb_vtotal(struct intel_atomic_state *state,
 		      struct intel_crtc *crtc)
 {
-	const struct intel_crtc_state *crtc_state = pre_commit_crtc_state(state, crtc);
+	const struct intel_crtc_state *crtc_state =
+		intel_pre_commit_crtc_state(state, crtc);
 
 	if (pre_commit_is_vrr_active(state, crtc))
-		return crtc_state->vrr.vmax;
+		return intel_vrr_vmax_vtotal(crtc_state);
 	else
 		return intel_mode_vtotal(&crtc_state->hw.adjusted_mode);
 }
@@ -148,7 +142,8 @@ static int dsb_vtotal(struct intel_atomic_state *state,
 static int dsb_dewake_scanline_start(struct intel_atomic_state *state,
 				     struct intel_crtc *crtc)
 {
-	const struct intel_crtc_state *crtc_state = pre_commit_crtc_state(state, crtc);
+	const struct intel_crtc_state *crtc_state =
+		intel_pre_commit_crtc_state(state, crtc);
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	unsigned int latency = skl_watermark_max_latency(i915, 0);
 
@@ -159,7 +154,8 @@ static int dsb_dewake_scanline_start(struct intel_atomic_state *state,
 static int dsb_dewake_scanline_end(struct intel_atomic_state *state,
 				   struct intel_crtc *crtc)
 {
-	const struct intel_crtc_state *crtc_state = pre_commit_crtc_state(state, crtc);
+	const struct intel_crtc_state *crtc_state =
+		intel_pre_commit_crtc_state(state, crtc);
 
 	return intel_mode_vdisplay(&crtc_state->hw.adjusted_mode);
 }
@@ -167,23 +163,33 @@ static int dsb_dewake_scanline_end(struct intel_atomic_state *state,
 static int dsb_scanline_to_hw(struct intel_atomic_state *state,
 			      struct intel_crtc *crtc, int scanline)
 {
-	const struct intel_crtc_state *crtc_state = pre_commit_crtc_state(state, crtc);
+	const struct intel_crtc_state *crtc_state =
+		intel_pre_commit_crtc_state(state, crtc);
 	int vtotal = dsb_vtotal(state, crtc);
 
 	return (scanline + vtotal - intel_crtc_scanline_offset(crtc_state)) % vtotal;
 }
 
+/*
+ * Bspec suggests that we should always set DSB_SKIP_WAITS_EN. We have approach
+ * different from what is explained in Bspec on how flip is considered being
+ * complete. We are waiting for vblank in DSB and generate interrupt when it
+ * happens and this interrupt is considered as indication of completion -> we
+ * definitely do not want to skip vblank wait. We also have concern what comes
+ * to skipping vblank evasion. I.e. arming registers are latched before we have
+ * managed writing them. Due to these reasons we are not setting
+ * DSB_SKIP_WAITS_EN.
+ */
 static u32 dsb_chicken(struct intel_atomic_state *state,
 		       struct intel_crtc *crtc)
 {
 	if (pre_commit_is_vrr_active(state, crtc))
-		return DSB_SKIP_WAITS_EN |
-			DSB_CTRL_WAIT_SAFE_WINDOW |
+		return DSB_CTRL_WAIT_SAFE_WINDOW |
 			DSB_CTRL_NO_WAIT_VBLANK |
 			DSB_INST_WAIT_SAFE_WINDOW |
 			DSB_INST_NO_WAIT_VBLANK;
 	else
-		return DSB_SKIP_WAITS_EN;
+		return 0;
 }
 
 static bool assert_dsb_has_room(struct intel_dsb *dsb)
@@ -378,7 +384,8 @@ void intel_dsb_interrupt(struct intel_dsb *dsb)
 
 void intel_dsb_wait_usec(struct intel_dsb *dsb, int count)
 {
-	intel_dsb_emit(dsb, count,
+	/* +1 to make sure we never wait less time than asked for */
+	intel_dsb_emit(dsb, count + 1,
 		       DSB_OPCODE_WAIT_USEC << DSB_OPCODE_SHIFT);
 }
 
@@ -461,6 +468,25 @@ void intel_dsb_wait_scanline_out(struct intel_atomic_state *state,
 			   start, end);
 }
 
+void intel_dsb_poll(struct intel_dsb *dsb,
+		    i915_reg_t reg, u32 mask, u32 val,
+		    int wait_us, int count)
+{
+	struct intel_crtc *crtc = dsb->crtc;
+	enum pipe pipe = crtc->pipe;
+
+	intel_dsb_reg_write(dsb, DSB_POLLMASK(pipe, dsb->id), mask);
+	intel_dsb_reg_write(dsb, DSB_POLLFUNC(pipe, dsb->id),
+			    DSB_POLL_ENABLE |
+			    DSB_POLL_WAIT(wait_us) | DSB_POLL_COUNT(count));
+
+	intel_dsb_noop(dsb, 5);
+
+	intel_dsb_emit(dsb, val,
+		       (DSB_OPCODE_POLL << DSB_OPCODE_SHIFT) |
+		       i915_mmio_reg_offset(reg));
+}
+
 static void intel_dsb_align_tail(struct intel_dsb *dsb)
 {
 	u32 aligned_tail, tail;
@@ -532,13 +558,27 @@ void intel_dsb_vblank_evade(struct intel_atomic_state *state,
 			    struct intel_dsb *dsb)
 {
 	struct intel_crtc *crtc = dsb->crtc;
-	const struct intel_crtc_state *crtc_state = pre_commit_crtc_state(state, crtc);
+	const struct intel_crtc_state *crtc_state =
+		intel_pre_commit_crtc_state(state, crtc);
 	/* FIXME calibrate sensibly */
 	int latency = intel_usecs_to_scanlines(&crtc_state->hw.adjusted_mode, 20);
-	int vblank_delay = dsb_vblank_delay(crtc_state);
 	int start, end;
 
+	/*
+	 * PIPEDSL is reading as 0 when in SRDENT(PSR1) or DEEP_SLEEP(PSR2). On
+	 * wake-up scanline counting starts from vblank_start - 1. We don't know
+	 * if wake-up is already ongoing when evasion starts. In worst case
+	 * PIPEDSL could start reading valid value right after checking the
+	 * scanline. In this scenario we wouldn't have enough time to write all
+	 * registers. To tackle this evade scanline 0 as well. As a drawback we
+	 * have 1 frame delay in flip when waking up.
+	 */
+	if (crtc_state->has_psr)
+		intel_dsb_emit_wait_dsl(dsb, DSB_OPCODE_WAIT_DSL_OUT, 0, 0);
+
 	if (pre_commit_is_vrr_active(state, crtc)) {
+		int vblank_delay = intel_vrr_vblank_delay(crtc_state);
+
 		end = intel_vrr_vmin_vblank_start(crtc_state);
 		start = end - vblank_delay - latency;
 		intel_dsb_wait_scanline_out(state, dsb, start, end);
@@ -547,6 +587,8 @@ void intel_dsb_vblank_evade(struct intel_atomic_state *state,
 		start = end - vblank_delay - latency;
 		intel_dsb_wait_scanline_out(state, dsb, start, end);
 	} else {
+		int vblank_delay = intel_mode_vblank_delay(&crtc_state->hw.adjusted_mode);
+
 		end = intel_mode_vblank_start(&crtc_state->hw.adjusted_mode);
 		start = end - vblank_delay - latency;
 		intel_dsb_wait_scanline_out(state, dsb, start, end);
@@ -624,9 +666,10 @@ void intel_dsb_wait_vblank_delay(struct intel_atomic_state *state,
 				 struct intel_dsb *dsb)
 {
 	struct intel_crtc *crtc = dsb->crtc;
-	const struct intel_crtc_state *crtc_state = pre_commit_crtc_state(state, crtc);
+	const struct intel_crtc_state *crtc_state =
+		intel_pre_commit_crtc_state(state, crtc);
 	int usecs = intel_scanlines_to_usecs(&crtc_state->hw.adjusted_mode,
-					     dsb_vblank_delay(crtc_state)) + 1;
+					     dsb_vblank_delay(state, crtc));
 
 	intel_dsb_wait_usec(dsb, usecs);
 }
@@ -825,7 +868,7 @@ void intel_dsb_irq_handler(struct intel_display *display,
 
 		if (crtc->dsb_event) {
 			/*
-			 * Update vblank counter/timestmap in case it
+			 * Update vblank counter/timestamp in case it
 			 * hasn't been done yet for this frame.
 			 */
 			drm_crtc_accurate_vblank_count(&crtc->base);
@@ -838,7 +881,16 @@ void intel_dsb_irq_handler(struct intel_display *display,
 	}
 
 	errors = tmp & dsb_error_int_status(display);
-	if (errors)
-		drm_err(display->drm, "[CRTC:%d:%s] DSB %d error interrupt: 0x%x\n",
-			crtc->base.base.id, crtc->base.name, dsb_id, errors);
+	if (errors & DSB_ATS_FAULT_INT_STATUS)
+		drm_err(display->drm, "[CRTC:%d:%s] DSB %d ATS fault\n",
+			crtc->base.base.id, crtc->base.name, dsb_id);
+	if (errors & DSB_GTT_FAULT_INT_STATUS)
+		drm_err(display->drm, "[CRTC:%d:%s] DSB %d GTT fault\n",
+			crtc->base.base.id, crtc->base.name, dsb_id);
+	if (errors & DSB_RSPTIMEOUT_INT_STATUS)
+		drm_err(display->drm, "[CRTC:%d:%s] DSB %d response timeout\n",
+			crtc->base.base.id, crtc->base.name, dsb_id);
+	if (errors & DSB_POLL_ERR_INT_STATUS)
+		drm_err(display->drm, "[CRTC:%d:%s] DSB %d poll error\n",
+			crtc->base.base.id, crtc->base.name, dsb_id);
 }

@@ -5,6 +5,7 @@
 #include <linux/firmware.h>
 #include <linux/delay.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_modeset_helper_vtables.h>
@@ -12,10 +13,70 @@
 #include <drm/drm_probe_helper.h>
 
 #include "ast_drv.h"
+#include "ast_vbios.h"
+
+struct ast_astdp_mode_index_table_entry {
+	unsigned int hdisplay;
+	unsigned int vdisplay;
+	unsigned int mode_index;
+};
+
+/* FIXME: Do refresh rate and flags actually matter? */
+static const struct ast_astdp_mode_index_table_entry ast_astdp_mode_index_table[] = {
+	{  320,  240, ASTDP_320x240_60 },
+	{  400,  300, ASTDP_400x300_60 },
+	{  512,  384, ASTDP_512x384_60 },
+	{  640,  480, ASTDP_640x480_60 },
+	{  800,  600, ASTDP_800x600_56 },
+	{ 1024,  768, ASTDP_1024x768_60 },
+	{ 1152,  864, ASTDP_1152x864_75 },
+	{ 1280,  800, ASTDP_1280x800_60_RB },
+	{ 1280, 1024, ASTDP_1280x1024_60 },
+	{ 1360,  768, ASTDP_1366x768_60 }, // same as 1366x786
+	{ 1366,  768, ASTDP_1366x768_60 },
+	{ 1440,  900, ASTDP_1440x900_60_RB },
+	{ 1600,  900, ASTDP_1600x900_60_RB },
+	{ 1600, 1200, ASTDP_1600x1200_60 },
+	{ 1680, 1050, ASTDP_1680x1050_60_RB },
+	{ 1920, 1080, ASTDP_1920x1080_60 },
+	{ 1920, 1200, ASTDP_1920x1200_60 },
+	{ 0 }
+};
+
+struct ast_astdp_connector_state {
+	struct drm_connector_state base;
+
+	int mode_index;
+};
+
+static struct ast_astdp_connector_state *
+to_ast_astdp_connector_state(const struct drm_connector_state *state)
+{
+	return container_of(state, struct ast_astdp_connector_state, base);
+}
+
+static int ast_astdp_get_mode_index(unsigned int hdisplay, unsigned int vdisplay)
+{
+	const struct ast_astdp_mode_index_table_entry *entry = ast_astdp_mode_index_table;
+
+	while (entry->hdisplay && entry->vdisplay) {
+		if (entry->hdisplay == hdisplay && entry->vdisplay == vdisplay)
+			return entry->mode_index;
+		++entry;
+	}
+
+	return -EINVAL;
+}
 
 static bool ast_astdp_is_connected(struct ast_device *ast)
 {
 	if (!ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, AST_IO_VGACRDF_HPD))
+		return false;
+	/*
+	 * HPD might be set even if no monitor is connected, so also check that
+	 * the link training was successful.
+	 */
+	if (!ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, AST_IO_VGACRDC_LINK_SUCCESS))
 		return false;
 	return true;
 }
@@ -221,80 +282,6 @@ static void ast_dp_set_enable(struct ast_device *ast, bool enabled)
 	drm_WARN_ON(dev, !__ast_dp_wait_enable(ast, enabled));
 }
 
-static void ast_dp_set_mode(struct drm_crtc *crtc, struct ast_vbios_mode_info *vbios_mode)
-{
-	struct ast_device *ast = to_ast_device(crtc->dev);
-
-	u32 ulRefreshRateIndex;
-	u8 ModeIdx;
-
-	ulRefreshRateIndex = vbios_mode->enh_table->refresh_rate_index - 1;
-
-	switch (crtc->mode.crtc_hdisplay) {
-	case 320:
-		ModeIdx = ASTDP_320x240_60;
-		break;
-	case 400:
-		ModeIdx = ASTDP_400x300_60;
-		break;
-	case 512:
-		ModeIdx = ASTDP_512x384_60;
-		break;
-	case 640:
-		ModeIdx = (ASTDP_640x480_60 + (u8) ulRefreshRateIndex);
-		break;
-	case 800:
-		ModeIdx = (ASTDP_800x600_56 + (u8) ulRefreshRateIndex);
-		break;
-	case 1024:
-		ModeIdx = (ASTDP_1024x768_60 + (u8) ulRefreshRateIndex);
-		break;
-	case 1152:
-		ModeIdx = ASTDP_1152x864_75;
-		break;
-	case 1280:
-		if (crtc->mode.crtc_vdisplay == 800)
-			ModeIdx = (ASTDP_1280x800_60_RB - (u8) ulRefreshRateIndex);
-		else		// 1024
-			ModeIdx = (ASTDP_1280x1024_60 + (u8) ulRefreshRateIndex);
-		break;
-	case 1360:
-	case 1366:
-		ModeIdx = ASTDP_1366x768_60;
-		break;
-	case 1440:
-		ModeIdx = (ASTDP_1440x900_60_RB - (u8) ulRefreshRateIndex);
-		break;
-	case 1600:
-		if (crtc->mode.crtc_vdisplay == 900)
-			ModeIdx = (ASTDP_1600x900_60_RB - (u8) ulRefreshRateIndex);
-		else		//1200
-			ModeIdx = ASTDP_1600x1200_60;
-		break;
-	case 1680:
-		ModeIdx = (ASTDP_1680x1050_60_RB - (u8) ulRefreshRateIndex);
-		break;
-	case 1920:
-		if (crtc->mode.crtc_vdisplay == 1080)
-			ModeIdx = ASTDP_1920x1080_60;
-		else		//1200
-			ModeIdx = ASTDP_1920x1200_60;
-		break;
-	default:
-		return;
-	}
-
-	/*
-	 * CRE0[7:0]: MISC0 ((0x00: 18-bpp) or (0x20: 24-bpp)
-	 * CRE1[7:0]: MISC1 (default: 0x00)
-	 * CRE2[7:0]: video format index (0x00 ~ 0x20 or 0x40 ~ 0x50)
-	 */
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE0, ASTDP_AND_CLEAR_MASK,
-			       ASTDP_MISC0_24bpp);
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE1, ASTDP_AND_CLEAR_MASK, ASTDP_MISC1);
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE2, ASTDP_AND_CLEAR_MASK, ModeIdx);
-}
-
 static void ast_wait_for_vretrace(struct ast_device *ast)
 {
 	unsigned long timeout = jiffies + HZ;
@@ -313,15 +300,62 @@ static const struct drm_encoder_funcs ast_astdp_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
+static enum drm_mode_status
+ast_astdp_encoder_helper_mode_valid(struct drm_encoder *encoder,
+				    const struct drm_display_mode *mode)
+{
+	int res;
+
+	res = ast_astdp_get_mode_index(mode->hdisplay, mode->vdisplay);
+	if (res < 0)
+		return MODE_NOMODE;
+
+	return MODE_OK;
+}
+
 static void ast_astdp_encoder_helper_atomic_mode_set(struct drm_encoder *encoder,
 						     struct drm_crtc_state *crtc_state,
 						     struct drm_connector_state *conn_state)
 {
-	struct drm_crtc *crtc = crtc_state->crtc;
+	struct drm_device *dev = encoder->dev;
+	struct ast_device *ast = to_ast_device(dev);
 	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
-	struct ast_vbios_mode_info *vbios_mode_info = &ast_crtc_state->vbios_mode_info;
+	const struct ast_vbios_enhtable *vmode = ast_crtc_state->vmode;
+	struct ast_astdp_connector_state *astdp_conn_state =
+		to_ast_astdp_connector_state(conn_state);
+	int mode_index = astdp_conn_state->mode_index;
+	u8 refresh_rate_index;
+	u8 vgacre0, vgacre1, vgacre2;
 
-	ast_dp_set_mode(crtc, vbios_mode_info);
+	if (drm_WARN_ON(dev, vmode->refresh_rate_index < 1 || vmode->refresh_rate_index > 255))
+		return;
+	refresh_rate_index = vmode->refresh_rate_index - 1;
+
+	/* FIXME: Why are we doing this? */
+	switch (mode_index) {
+	case ASTDP_1280x800_60_RB:
+	case ASTDP_1440x900_60_RB:
+	case ASTDP_1600x900_60_RB:
+	case ASTDP_1680x1050_60_RB:
+		mode_index = (u8)(mode_index - (u8)refresh_rate_index);
+		break;
+	default:
+		mode_index = (u8)(mode_index + (u8)refresh_rate_index);
+		break;
+	}
+
+	/*
+	 * CRE0[7:0]: MISC0 ((0x00: 18-bpp) or (0x20: 24-bpp)
+	 * CRE1[7:0]: MISC1 (default: 0x00)
+	 * CRE2[7:0]: video format index (0x00 ~ 0x20 or 0x40 ~ 0x50)
+	 */
+	vgacre0 = AST_IO_VGACRE0_24BPP;
+	vgacre1 = 0x00;
+	vgacre2 = mode_index & 0xff;
+
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xe0, vgacre0);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xe1, vgacre1);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xe2, vgacre2);
 }
 
 static void ast_astdp_encoder_helper_atomic_enable(struct drm_encoder *encoder,
@@ -348,10 +382,31 @@ static void ast_astdp_encoder_helper_atomic_disable(struct drm_encoder *encoder,
 	ast_dp_set_phy_sleep(ast, true);
 }
 
+static int ast_astdp_encoder_helper_atomic_check(struct drm_encoder *encoder,
+						 struct drm_crtc_state *crtc_state,
+						 struct drm_connector_state *conn_state)
+{
+	const struct drm_display_mode *mode = &crtc_state->mode;
+	struct ast_astdp_connector_state *astdp_conn_state =
+		to_ast_astdp_connector_state(conn_state);
+	int res;
+
+	if (drm_atomic_crtc_needs_modeset(crtc_state)) {
+		res = ast_astdp_get_mode_index(mode->hdisplay, mode->vdisplay);
+		if (res < 0)
+			return res;
+		astdp_conn_state->mode_index = res;
+	}
+
+	return 0;
+}
+
 static const struct drm_encoder_helper_funcs ast_astdp_encoder_helper_funcs = {
+	.mode_valid = ast_astdp_encoder_helper_mode_valid,
 	.atomic_mode_set = ast_astdp_encoder_helper_atomic_mode_set,
 	.atomic_enable = ast_astdp_encoder_helper_atomic_enable,
 	.atomic_disable = ast_astdp_encoder_helper_atomic_disable,
+	.atomic_check = ast_astdp_encoder_helper_atomic_check,
 };
 
 /*
@@ -422,17 +477,61 @@ static const struct drm_connector_helper_funcs ast_astdp_connector_helper_funcs 
 	.detect_ctx = ast_astdp_connector_helper_detect_ctx,
 };
 
+static void ast_astdp_connector_reset(struct drm_connector *connector)
+{
+	struct ast_astdp_connector_state *astdp_state =
+		kzalloc(sizeof(*astdp_state), GFP_KERNEL);
+
+	if (connector->state)
+		connector->funcs->atomic_destroy_state(connector, connector->state);
+
+	if (astdp_state)
+		__drm_atomic_helper_connector_reset(connector, &astdp_state->base);
+	else
+		__drm_atomic_helper_connector_reset(connector, NULL);
+}
+
+static struct drm_connector_state *
+ast_astdp_connector_atomic_duplicate_state(struct drm_connector *connector)
+{
+	struct ast_astdp_connector_state *new_astdp_state, *astdp_state;
+	struct drm_device *dev = connector->dev;
+
+	if (drm_WARN_ON(dev, !connector->state))
+		return NULL;
+
+	new_astdp_state = kmalloc(sizeof(*new_astdp_state), GFP_KERNEL);
+	if (!new_astdp_state)
+		return NULL;
+	__drm_atomic_helper_connector_duplicate_state(connector, &new_astdp_state->base);
+
+	astdp_state = to_ast_astdp_connector_state(connector->state);
+
+	new_astdp_state->mode_index = astdp_state->mode_index;
+
+	return &new_astdp_state->base;
+}
+
+static void ast_astdp_connector_atomic_destroy_state(struct drm_connector *connector,
+						     struct drm_connector_state *state)
+{
+	struct ast_astdp_connector_state *astdp_state = to_ast_astdp_connector_state(state);
+
+	__drm_atomic_helper_connector_destroy_state(&astdp_state->base);
+	kfree(astdp_state);
+}
+
+static const struct drm_connector_funcs ast_astdp_connector_funcs = {
+	.reset = ast_astdp_connector_reset,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.destroy = drm_connector_cleanup,
+	.atomic_duplicate_state = ast_astdp_connector_atomic_duplicate_state,
+	.atomic_destroy_state = ast_astdp_connector_atomic_destroy_state,
+};
+
 /*
  * Output
  */
-
-static const struct drm_connector_funcs ast_astdp_connector_funcs = {
-	.reset = drm_atomic_helper_connector_reset,
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = drm_connector_cleanup,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-};
 
 int ast_astdp_output_init(struct ast_device *ast)
 {

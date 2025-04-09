@@ -70,7 +70,7 @@ static struct rv_monitor rv_wwnr = {
 
 static int __init register_wwnr(void)
 {
-	rv_register_monitor(&rv_wwnr);
+	rv_register_monitor(&rv_wwnr, NULL);
 	return 0;
 }
 

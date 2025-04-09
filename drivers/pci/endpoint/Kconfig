@@ -26,7 +26,7 @@ config PCI_ENDPOINT_CONFIGFS
 	help
 	   This will enable the configfs entry that can be used to
 	   configure the endpoint function and used to bind the
-	   function with a endpoint controller.
+	   function with an endpoint controller.
 
 source "drivers/pci/endpoint/functions/Kconfig"
 

@@ -43,7 +43,7 @@ enum drm_mode_status drm_encoder_mode_valid(struct drm_encoder *encoder,
 					    const struct drm_display_mode *mode);
 int
 drm_connector_mode_valid(struct drm_connector *connector,
-			 struct drm_display_mode *mode,
+			 const struct drm_display_mode *mode,
 			 struct drm_modeset_acquire_ctx *ctx,
 			 enum drm_mode_status *status);
 

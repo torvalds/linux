@@ -520,6 +520,7 @@ bcm2835_init_power_domain(struct bcm2835_power *power,
 	}
 
 	dom->base.name = name;
+	dom->base.flags = GENPD_FLAG_ACTIVE_WAKEUP;
 	dom->base.power_on = bcm2835_power_pd_power_on;
 	dom->base.power_off = bcm2835_power_pd_power_off;
 

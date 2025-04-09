@@ -14,6 +14,7 @@
 #include <linux/of_irq.h>
 #include <linux/irq.h>
 #include <linux/align.h>
+#include <linux/pm.h>
 
 #include "bus.h"
 #include "wfx.h"
@@ -172,6 +173,13 @@ static size_t wfx_sdio_align_size(void *priv, size_t size)
 	return sdio_align_size(bus->func, size);
 }
 
+static void wfx_sdio_set_wakeup(void *priv, bool enabled)
+{
+	struct wfx_sdio_priv *bus = priv;
+
+	device_set_wakeup_enable(&bus->func->dev, enabled);
+}
+
 static const struct wfx_hwbus_ops wfx_sdio_hwbus_ops = {
 	.copy_from_io    = wfx_sdio_copy_from_io,
 	.copy_to_io      = wfx_sdio_copy_to_io,
@@ -180,6 +188,7 @@ static const struct wfx_hwbus_ops wfx_sdio_hwbus_ops = {
 	.lock            = wfx_sdio_lock,
 	.unlock          = wfx_sdio_unlock,
 	.align_size      = wfx_sdio_align_size,
+	.set_wakeup      = wfx_sdio_set_wakeup,
 };
 
 static const struct of_device_id wfx_sdio_of_match[] = {
@@ -191,9 +200,48 @@ static const struct of_device_id wfx_sdio_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, wfx_sdio_of_match);
 
+static int wfx_sdio_suspend(struct device *dev)
+{
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	struct wfx_sdio_priv *bus = sdio_get_drvdata(func);
+	int ret;
+
+	if (!device_may_wakeup(dev))
+		return 0;
+
+	flush_work(&bus->core->hif.bh);
+	/* Either "wakeup-source" attribute or out-of-band IRQ is required for
+	 * WoWLAN
+	 */
+	if (bus->of_irq) {
+		ret = enable_irq_wake(bus->of_irq);
+		if (ret)
+			return ret;
+	} else {
+		ret = sdio_set_host_pm_flags(func, MMC_PM_WAKE_SDIO_IRQ);
+		if (ret)
+			return ret;
+	}
+	return sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
+}
+
+static int wfx_sdio_resume(struct device *dev)
+{
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	struct wfx_sdio_priv *bus = sdio_get_drvdata(func);
+
+	if (!device_may_wakeup(dev))
+		return 0;
+	if (bus->of_irq)
+		return disable_irq_wake(bus->of_irq);
+	else
+		return 0;
+}
+
 static int wfx_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 {
 	const struct wfx_platform_data *pdata = of_device_get_match_data(&func->dev);
+	mmc_pm_flag_t pm_flag = sdio_get_host_pm_caps(func);
 	struct device_node *np = func->dev.of_node;
 	struct wfx_sdio_priv *bus;
 	int ret;
@@ -235,6 +283,9 @@ static int wfx_sdio_probe(struct sdio_func *func, const struct sdio_device_id *i
 	if (ret)
 		goto sdio_release;
 
+	if (pm_flag & MMC_PM_KEEP_POWER)
+		device_set_wakeup_capable(&func->dev, true);
+
 	return 0;
 
 sdio_release:
@@ -261,6 +312,8 @@ static const struct sdio_device_id wfx_sdio_ids[] = {
 };
 MODULE_DEVICE_TABLE(sdio, wfx_sdio_ids);
 
+static DEFINE_SIMPLE_DEV_PM_OPS(wfx_sdio_pm_ops, wfx_sdio_suspend, wfx_sdio_resume);
+
 struct sdio_driver wfx_sdio_driver = {
 	.name = "wfx-sdio",
 	.id_table = wfx_sdio_ids,
@@ -268,5 +321,6 @@ struct sdio_driver wfx_sdio_driver = {
 	.remove = wfx_sdio_remove,
 	.drv = {
 		.of_match_table = wfx_sdio_of_match,
+		.pm = &wfx_sdio_pm_ops,
 	}
 };

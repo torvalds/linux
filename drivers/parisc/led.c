@@ -39,7 +39,6 @@ static unsigned char led_type;		/* bitmask of LED_HAS_XXX */
 static unsigned char lastleds;		/* LED state from most recent update */
 static unsigned char lcd_new_text;
 static unsigned char lcd_text[20];
-static unsigned char lcd_text_default[20];
 static unsigned char lcd_no_led_support; /* KittyHawk doesn't support LED on its LCD */
 
 struct lcd_block {
@@ -456,9 +455,8 @@ static int __init early_led_init(void)
 	struct pdc_chassis_info chassis_info;
 	int ret;
 
-	snprintf(lcd_text_default, sizeof(lcd_text_default),
+	scnprintf(lcd_text, sizeof(lcd_text),
 		"Linux %s", init_utsname()->release);
-	strcpy(lcd_text, lcd_text_default);
 	lcd_new_text = 1;
 
 	/* Work around the buggy PDC of KittyHawk-machines */

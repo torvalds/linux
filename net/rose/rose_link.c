@@ -32,7 +32,7 @@ static void rose_transmit_restart_request(struct rose_neigh *neigh);
 
 void rose_start_ftimer(struct rose_neigh *neigh)
 {
-	del_timer(&neigh->ftimer);
+	timer_delete(&neigh->ftimer);
 
 	neigh->ftimer.function = rose_ftimer_expiry;
 	neigh->ftimer.expires  =
@@ -43,7 +43,7 @@ void rose_start_ftimer(struct rose_neigh *neigh)
 
 static void rose_start_t0timer(struct rose_neigh *neigh)
 {
-	del_timer(&neigh->t0timer);
+	timer_delete(&neigh->t0timer);
 
 	neigh->t0timer.function = rose_t0timer_expiry;
 	neigh->t0timer.expires  =
@@ -54,12 +54,12 @@ static void rose_start_t0timer(struct rose_neigh *neigh)
 
 void rose_stop_ftimer(struct rose_neigh *neigh)
 {
-	del_timer(&neigh->ftimer);
+	timer_delete(&neigh->ftimer);
 }
 
 void rose_stop_t0timer(struct rose_neigh *neigh)
 {
-	del_timer(&neigh->t0timer);
+	timer_delete(&neigh->t0timer);
 }
 
 int rose_ftimer_running(struct rose_neigh *neigh)

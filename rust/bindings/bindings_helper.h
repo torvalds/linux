@@ -13,6 +13,7 @@
 #include <linux/cpumask.h>
 #include <linux/cred.h>
 #include <linux/device/faux.h>
+#include <linux/dma-mapping.h>
 #include <linux/errname.h>
 #include <linux/ethtool.h>
 #include <linux/file.h>
@@ -37,6 +38,11 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <trace/events/rust_sample.h>
+
+#if defined(CONFIG_DRM_PANIC_SCREEN_QR_CODE)
+// Used by `#[export]` in `drivers/gpu/drm/drm_panic_qr.rs`.
+#include <drm/drm_panic.h>
+#endif
 
 /* `bindgen` gets confused at certain things. */
 const size_t RUST_CONST_HELPER_ARCH_SLAB_MINALIGN = ARCH_SLAB_MINALIGN;

@@ -767,6 +767,17 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 			al->socket = env->cpu[al->cpu].socket_id;
 	}
 
+	/* Account for possible out-of-order switch events. */
+	al->parallelism = max(1, min(machine->parallelism, machine__nr_cpus_avail(machine)));
+	if (test_bit(al->parallelism, symbol_conf.parallelism_filter))
+		al->filtered |= (1 << HIST_FILTER__PARALLELISM);
+	/*
+	 * Multiply it by some const to avoid precision loss or dealing
+	 * with floats. The multiplier does not matter otherwise since
+	 * we only print it as percents.
+	 */
+	al->latency = sample->period * 1000 / al->parallelism;
+
 	if (al->map) {
 		if (symbol_conf.dso_list &&
 		    (!dso || !(strlist__has_entry(symbol_conf.dso_list,

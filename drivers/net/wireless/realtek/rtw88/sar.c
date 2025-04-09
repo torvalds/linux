@@ -97,7 +97,7 @@ int rtw_set_sar_specs(struct rtw_dev *rtwdev,
 			power, BIT(RTW_COMMON_SAR_FCT));
 
 		for (j = 0; j < RTW_RF_PATH_MAX; j++) {
-			for (k = 0; k < RTW_RATE_SECTION_MAX; k++) {
+			for (k = 0; k < RTW_RATE_SECTION_NUM; k++) {
 				arg = (struct rtw_sar_arg){
 					.sar_band = idx,
 					.path = j,

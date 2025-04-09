@@ -173,7 +173,6 @@
 
 &i2c2 {
 	pinctrl-0 = <&i2c2m3_xfer>;
-	status = "okay";
 };
 
 &i2c2m3_xfer {
@@ -334,6 +333,10 @@
 		      "aux", "pipe",
 		      "ref";
 	reset-gpios = <&gpio3 RK_PB6 GPIO_ACTIVE_HIGH>;
+};
+
+&pd_gpu {
+	domain-supply = <&vdd_gpu_s0>;
 };
 
 &pinctrl {

@@ -325,7 +325,7 @@ static const struct drm_connector_helper_funcs sii902x_connector_helper_funcs = 
 };
 
 static void sii902x_bridge_atomic_disable(struct drm_bridge *bridge,
-					  struct drm_bridge_state *old_bridge_state)
+					  struct drm_atomic_state *state)
 {
 	struct sii902x *sii902x = bridge_to_sii902x(bridge);
 
@@ -339,7 +339,7 @@ static void sii902x_bridge_atomic_disable(struct drm_bridge *bridge,
 }
 
 static void sii902x_bridge_atomic_enable(struct drm_bridge *bridge,
-					 struct drm_bridge_state *old_bridge_state)
+					 struct drm_atomic_state *state)
 {
 	struct sii902x *sii902x = bridge_to_sii902x(bridge);
 
@@ -887,7 +887,7 @@ static int sii902x_audio_codec_init(struct sii902x *sii902x,
 		lanes[0] = 0;
 	} else if (num_lanes < 0) {
 		dev_err(dev,
-			"%s: Error gettin \"sil,i2s-data-lanes\": %d\n",
+			"%s: Error getting \"sil,i2s-data-lanes\": %d\n",
 			__func__, num_lanes);
 		return num_lanes;
 	}

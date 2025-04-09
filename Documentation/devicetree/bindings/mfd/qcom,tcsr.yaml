@@ -52,6 +52,7 @@ properties:
           - qcom,tcsr-msm8660
           - qcom,tcsr-msm8916
           - qcom,tcsr-msm8917
+          - qcom,tcsr-msm8937
           - qcom,tcsr-msm8953
           - qcom,tcsr-msm8960
           - qcom,tcsr-msm8974

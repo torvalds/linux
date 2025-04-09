@@ -228,9 +228,9 @@ void drm_gem_dma_free(struct drm_gem_dma_object *dma_obj)
 	struct drm_gem_object *gem_obj = &dma_obj->base;
 	struct iosys_map map = IOSYS_MAP_INIT_VADDR(dma_obj->vaddr);
 
-	if (gem_obj->import_attach) {
+	if (drm_gem_is_imported(gem_obj)) {
 		if (dma_obj->vaddr)
-			dma_buf_vunmap_unlocked(gem_obj->import_attach->dmabuf, &map);
+			dma_buf_vunmap_unlocked(gem_obj->dma_buf, &map);
 		drm_prime_gem_destroy(gem_obj, dma_obj->sgt);
 	} else if (dma_obj->vaddr) {
 		if (dma_obj->map_noncoherent)

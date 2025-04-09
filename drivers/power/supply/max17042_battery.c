@@ -1066,7 +1066,7 @@ static int max17042_probe(struct i2c_client *client, struct device *dev, int irq
 
 	dev_set_drvdata(dev, chip);
 	psy_cfg.drv_data = chip;
-	psy_cfg.of_node = dev->of_node;
+	psy_cfg.fwnode = dev_fwnode(dev);
 
 	/* When current is not measured,
 	 * CURRENT_NOW and CURRENT_AVG properties should be invisible. */

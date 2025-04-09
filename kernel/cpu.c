@@ -526,6 +526,7 @@ void lockdep_assert_cpus_held(void)
 
 	percpu_rwsem_assert_held(&cpu_hotplug_lock);
 }
+EXPORT_SYMBOL_GPL(lockdep_assert_cpus_held);
 
 #ifdef CONFIG_LOCKDEP
 int lockdep_is_cpus_held(void)

@@ -73,6 +73,12 @@ static void rtw_rx_phy_stat(struct rtw_dev *rtwdev,
 		rate_ss_evm = 2;
 		evm_id = RTW_EVM_2SS_A;
 		break;
+	case DESC_RATEMCS16...DESC_RATEMCS23:
+	case DESC_RATEVHT3SS_MCS0...DESC_RATEVHT3SS_MCS9:
+		rate_ss = 3;
+		rate_ss_evm = 3;
+		evm_id = RTW_EVM_3SS_A;
+		break;
 	default:
 		rtw_warn(rtwdev, "unknown pkt rate = %d\n", pkt_stat->rate);
 		return;

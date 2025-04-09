@@ -2478,7 +2478,8 @@ struct vfsmount *clone_private_mount(const struct path *path)
 	struct mount *old_mnt = real_mount(path->mnt);
 	struct mount *new_mnt;
 
-	scoped_guard(rwsem_read, &namespace_sem)
+	guard(rwsem_read)(&namespace_sem);
+
 	if (IS_MNT_UNBINDABLE(old_mnt))
 		return ERR_PTR(-EINVAL);
 
@@ -5326,8 +5327,10 @@ struct kstatmount {
 	struct mnt_idmap *idmap;
 	u64 mask;
 	struct path root;
-	struct statmount sm;
 	struct seq_file seq;
+
+	/* Must be last --ends in a flexible-array member. */
+	struct statmount sm;
 };
 
 static u64 mnt_to_attr_flags(struct vfsmount *mnt)

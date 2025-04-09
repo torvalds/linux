@@ -79,8 +79,9 @@
 	x(crc64,		2)		\
 	x(crc128,		3)		\
 	x(stripe_ptr,		4)		\
-	x(rebalance,		5)
-#define BCH_EXTENT_ENTRY_MAX	6
+	x(rebalance,		5)		\
+	x(flags,		6)
+#define BCH_EXTENT_ENTRY_MAX	7
 
 enum bch_extent_entry_type {
 #define x(f, n) BCH_EXTENT_ENTRY_##f = n,
@@ -198,6 +199,25 @@ struct bch_extent_stripe_ptr {
 				redundancy:4,
 				block:8,
 				type:5;
+#endif
+};
+
+#define BCH_EXTENT_FLAGS()		\
+	x(poisoned,		0)
+
+enum bch_extent_flags_e {
+#define x(n, v)	BCH_EXTENT_FLAG_##n = v,
+	BCH_EXTENT_FLAGS()
+#undef x
+};
+
+struct bch_extent_flags {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	__u64			type:7,
+				flags:57;
+#elif defined (__BIG_ENDIAN_BITFIELD)
+	__u64			flags:57,
+				type:7;
 #endif
 };
 

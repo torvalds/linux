@@ -27,7 +27,7 @@ int intel_sa_mediagt_setup(struct intel_gt *gt, phys_addr_t phys_addr,
 
 	/*
 	 * Standalone media shares the general MMIO space with the primary
-	 * GT.  We'll re-use the primary GT's mapping.
+	 * GT.  We'll reuse the primary GT's mapping.
 	 */
 	uncore->regs = intel_uncore_regs(&i915->uncore);
 	if (drm_WARN_ON(&i915->drm, uncore->regs == NULL))

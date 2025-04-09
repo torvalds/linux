@@ -155,7 +155,7 @@ enum {
 	ULTIMA_TVBOX_ANCHOR_COLD,
 };
 
-static struct usb_device_id dibusb_dib3000mb_table[] = {
+static const struct usb_device_id dibusb_dib3000mb_table[] = {
 	DVB_USB_DEV(WIDEVIEW, WIDEVIEW_DVBT_USB_COLD),
 	DVB_USB_DEV(WIDEVIEW, WIDEVIEW_DVBT_USB_WARM),
 	DVB_USB_DEV(COMPRO, COMPRO_DVBU2000_COLD),

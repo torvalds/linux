@@ -137,9 +137,9 @@ static const struct link_encoder_funcs dcn35_link_enc_funcs = {
 	.hw_init = dcn35_link_encoder_init,
 	.setup = dcn35_link_encoder_setup,
 	.enable_tmds_output = dcn10_link_encoder_enable_tmds_output,
-	.enable_dp_output = dcn31_link_encoder_enable_dp_output,
-	.enable_dp_mst_output = dcn31_link_encoder_enable_dp_mst_output,
-	.disable_output = dcn31_link_encoder_disable_output,
+	.enable_dp_output = dcn35_link_encoder_enable_dp_output,
+	.enable_dp_mst_output = dcn35_link_encoder_enable_dp_mst_output,
+	.disable_output = dcn35_link_encoder_disable_output,
 	.dp_set_lane_settings = dcn10_link_encoder_dp_set_lane_settings,
 	.dp_set_phy_pattern = dcn10_link_encoder_dp_set_phy_pattern,
 	.update_mst_stream_allocation_table =
@@ -295,6 +295,50 @@ static void link_encoder_disable(struct dcn10_link_encoder *enc10)
 {
 	/* reset training complete */
 	REG_UPDATE(DP_LINK_CNTL, DP_LINK_TRAINING_COMPLETE, 0);
+}
+
+void dcn35_link_encoder_enable_dp_output(
+	struct link_encoder *enc,
+	const struct dc_link_settings *link_settings,
+	enum clock_source_id clock_source)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+
+	if (!enc->ctx->dc->config.unify_link_enc_assignment)
+		dcn31_link_encoder_enable_dp_output(enc, link_settings, clock_source);
+	else {
+		DC_LOG_DEBUG("%s: enc_id(%d)\n", __func__, enc->preferred_engine);
+		dcn20_link_encoder_enable_dp_output(enc, link_settings, clock_source);
+	}
+}
+
+void dcn35_link_encoder_enable_dp_mst_output(
+	struct link_encoder *enc,
+	const struct dc_link_settings *link_settings,
+	enum clock_source_id clock_source)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+
+	if (!enc->ctx->dc->config.unify_link_enc_assignment)
+		dcn31_link_encoder_enable_dp_mst_output(enc, link_settings, clock_source);
+	else {
+		DC_LOG_DEBUG("%s: enc_id(%d)\n", __func__, enc->preferred_engine);
+		dcn10_link_encoder_enable_dp_mst_output(enc, link_settings, clock_source);
+	}
+}
+
+void dcn35_link_encoder_disable_output(
+	struct link_encoder *enc,
+	enum signal_type signal)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+
+	if (!enc->ctx->dc->config.unify_link_enc_assignment)
+		dcn31_link_encoder_disable_output(enc, signal);
+	else {
+		DC_LOG_DEBUG("%s: enc_id(%d)\n", __func__, enc->preferred_engine);
+		dcn10_link_encoder_disable_output(enc, signal);
+	}
 }
 
 void dcn35_link_encoder_enable_dpia_output(

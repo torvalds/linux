@@ -4,12 +4,11 @@
 
 set -e
 
-# Skip if there's no probe command.
-if ! perf | grep probe
-then
-        echo "Skip: probe command isn't present"
-        exit 2
-fi
+# shellcheck source=lib/probe.sh
+. "$(dirname $0)"/lib/probe.sh
+
+skip_if_no_perf_probe || exit 2
+[ "$(id -u)" == 0 ] || exit 2
 
 # skip if there's no gcc
 if ! [ -x "$(command -v gcc)" ]; then

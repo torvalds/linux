@@ -59,6 +59,8 @@
 
 #define GVE_MAX_RX_BUFFER_SIZE 4096
 
+#define GVE_XDP_RX_BUFFER_SIZE_DQO 4096
+
 #define GVE_DEFAULT_RX_BUFFER_OFFSET 2048
 
 #define GVE_PAGE_POOL_SIZE_MULTIPLIER 4
@@ -67,6 +69,9 @@
 	(GVE_ADMINQ_BUFFER_SIZE / sizeof(struct gve_adminq_queried_flow_rule))
 #define GVE_FLOW_RULE_IDS_CACHE_SIZE \
 	(GVE_ADMINQ_BUFFER_SIZE / sizeof(((struct gve_adminq_queried_flow_rule *)0)->location))
+
+#define GVE_RSS_KEY_SIZE	40
+#define GVE_RSS_INDIR_SIZE	128
 
 #define GVE_XDP_ACTIONS 5
 
@@ -102,7 +107,13 @@ struct gve_rx_desc_queue {
 
 /* The page info for a single slot in the RX data queue */
 struct gve_rx_slot_page_info {
-	struct page *page;
+	/* netmem is used for DQO RDA mode
+	 * page is used in all other modes
+	 */
+	union {
+		struct page *page;
+		netmem_ref netmem;
+	};
 	void *page_address;
 	u32 page_offset; /* offset to write to in page */
 	unsigned int buf_size;
@@ -218,6 +229,11 @@ struct gve_rx_cnts {
 /* Contains datapath state used to represent an RX queue. */
 struct gve_rx_ring {
 	struct gve_priv *gve;
+
+	u16 packet_buffer_size;		/* Size of buffer posted to NIC */
+	u16 packet_buffer_truesize;	/* Total size of RX buffer */
+	u16 rx_headroom;
+
 	union {
 		/* GQI fields */
 		struct {
@@ -226,7 +242,6 @@ struct gve_rx_ring {
 
 			/* threshold for posting new buffs and descs */
 			u32 db_threshold;
-			u16 packet_buffer_size;
 
 			u32 qpl_copy_pool_mask;
 			u32 qpl_copy_pool_head;
@@ -604,8 +619,6 @@ struct gve_tx_ring {
 	dma_addr_t complq_bus_dqo; /* dma address of the dqo.compl_ring */
 	struct u64_stats_sync statss; /* sync stats for 32bit archs */
 	struct xsk_buff_pool *xsk_pool;
-	u32 xdp_xsk_wakeup;
-	u32 xdp_xsk_done;
 	u64 xdp_xsk_sent;
 	u64 xdp_xmit;
 	u64 xdp_xmit_errors;
@@ -624,10 +637,18 @@ struct gve_notify_block {
 	u32 irq;
 };
 
-/* Tracks allowed and current queue settings */
-struct gve_queue_config {
+/* Tracks allowed and current rx queue settings */
+struct gve_rx_queue_config {
 	u16 max_queues;
-	u16 num_queues; /* current */
+	u16 num_queues;
+	u16 packet_buffer_size;
+};
+
+/* Tracks allowed and current tx queue settings */
+struct gve_tx_queue_config {
+	u16 max_queues;
+	u16 num_queues; /* number of TX queues, excluding XDP queues */
+	u16 num_xdp_queues;
 };
 
 /* Tracks the available and used qpl IDs */
@@ -651,11 +672,11 @@ struct gve_ptype_lut {
 
 /* Parameters for allocating resources for tx queues */
 struct gve_tx_alloc_rings_cfg {
-	struct gve_queue_config *qcfg;
+	struct gve_tx_queue_config *qcfg;
+
+	u16 num_xdp_rings;
 
 	u16 ring_size;
-	u16 start_idx;
-	u16 num_rings;
 	bool raw_addressing;
 
 	/* Allocated resources are returned here */
@@ -665,13 +686,15 @@ struct gve_tx_alloc_rings_cfg {
 /* Parameters for allocating resources for rx queues */
 struct gve_rx_alloc_rings_cfg {
 	/* tx config is also needed to determine QPL ids */
-	struct gve_queue_config *qcfg;
-	struct gve_queue_config *qcfg_tx;
+	struct gve_rx_queue_config *qcfg_rx;
+	struct gve_tx_queue_config *qcfg_tx;
 
 	u16 ring_size;
 	u16 packet_buffer_size;
 	bool raw_addressing;
 	bool enable_header_split;
+	bool reset_rss;
+	bool xdp;
 
 	/* Allocated resources are returned here */
 	struct gve_rx_ring *rx;
@@ -722,6 +745,11 @@ struct gve_flow_rules_cache {
 	u32 rule_ids_cache_num;
 };
 
+struct gve_rss_config {
+	u8 *hash_key;
+	u32 *hash_lut;
+};
+
 struct gve_priv {
 	struct net_device *dev;
 	struct gve_tx_ring *tx; /* array of tx_cfg.num_queues */
@@ -751,9 +779,8 @@ struct gve_priv {
 	u32 rx_copybreak; /* copy packets smaller than this */
 	u16 default_num_queues; /* default num queues to set up */
 
-	u16 num_xdp_queues;
-	struct gve_queue_config tx_cfg;
-	struct gve_queue_config rx_cfg;
+	struct gve_tx_queue_config tx_cfg;
+	struct gve_rx_queue_config rx_cfg;
 	u32 num_ntfy_blks; /* spilt between TX and RX so must be even */
 
 	struct gve_registers __iomem *reg_bar0; /* see gve_register.h */
@@ -823,7 +850,6 @@ struct gve_priv {
 	struct gve_ptype_lut *ptype_lut_dqo;
 
 	/* Must be a power of two. */
-	u16 data_buffer_size_dqo;
 	u16 max_rx_buffer_size; /* device limit */
 
 	enum gve_queue_format queue_format;
@@ -842,6 +868,8 @@ struct gve_priv {
 
 	u16 rss_key_size;
 	u16 rss_lut_size;
+	bool cache_rss_config;
+	struct gve_rss_config rss_config;
 };
 
 enum gve_service_task_flags_bit {
@@ -1024,27 +1052,16 @@ static inline bool gve_is_qpl(struct gve_priv *priv)
 }
 
 /* Returns the number of tx queue page lists */
-static inline u32 gve_num_tx_qpls(const struct gve_queue_config *tx_cfg,
-				  int num_xdp_queues,
+static inline u32 gve_num_tx_qpls(const struct gve_tx_queue_config *tx_cfg,
 				  bool is_qpl)
 {
 	if (!is_qpl)
 		return 0;
-	return tx_cfg->num_queues + num_xdp_queues;
-}
-
-/* Returns the number of XDP tx queue page lists
- */
-static inline u32 gve_num_xdp_qpls(struct gve_priv *priv)
-{
-	if (priv->queue_format != GVE_GQI_QPL_FORMAT)
-		return 0;
-
-	return priv->num_xdp_queues;
+	return tx_cfg->num_queues + tx_cfg->num_xdp_queues;
 }
 
 /* Returns the number of rx queue page lists */
-static inline u32 gve_num_rx_qpls(const struct gve_queue_config *rx_cfg,
+static inline u32 gve_num_rx_qpls(const struct gve_rx_queue_config *rx_cfg,
 				  bool is_qpl)
 {
 	if (!is_qpl)
@@ -1062,7 +1079,8 @@ static inline u32 gve_rx_qpl_id(struct gve_priv *priv, int rx_qid)
 	return priv->tx_cfg.max_queues + rx_qid;
 }
 
-static inline u32 gve_get_rx_qpl_id(const struct gve_queue_config *tx_cfg, int rx_qid)
+static inline u32 gve_get_rx_qpl_id(const struct gve_tx_queue_config *tx_cfg,
+				    int rx_qid)
 {
 	return tx_cfg->max_queues + rx_qid;
 }
@@ -1072,7 +1090,7 @@ static inline u32 gve_tx_start_qpl_id(struct gve_priv *priv)
 	return gve_tx_qpl_id(priv, 0);
 }
 
-static inline u32 gve_rx_start_qpl_id(const struct gve_queue_config *tx_cfg)
+static inline u32 gve_rx_start_qpl_id(const struct gve_tx_queue_config *tx_cfg)
 {
 	return gve_get_rx_qpl_id(tx_cfg, 0);
 }
@@ -1103,7 +1121,7 @@ static inline bool gve_is_gqi(struct gve_priv *priv)
 
 static inline u32 gve_num_tx_queues(struct gve_priv *priv)
 {
-	return priv->tx_cfg.num_queues + priv->num_xdp_queues;
+	return priv->tx_cfg.num_queues + priv->tx_cfg.num_xdp_queues;
 }
 
 static inline u32 gve_xdp_tx_queue_id(struct gve_priv *priv, u32 queue_id)
@@ -1207,7 +1225,8 @@ void gve_free_buffer(struct gve_rx_ring *rx,
 		     struct gve_rx_buf_state_dqo *buf_state);
 int gve_alloc_buffer(struct gve_rx_ring *rx, struct gve_rx_desc_dqo *desc);
 struct page_pool *gve_rx_create_page_pool(struct gve_priv *priv,
-					  struct gve_rx_ring *rx);
+					  struct gve_rx_ring *rx,
+					  bool xdp);
 
 /* Reset */
 void gve_schedule_reset(struct gve_priv *priv);
@@ -1219,14 +1238,17 @@ int gve_adjust_config(struct gve_priv *priv,
 		      struct gve_tx_alloc_rings_cfg *tx_alloc_cfg,
 		      struct gve_rx_alloc_rings_cfg *rx_alloc_cfg);
 int gve_adjust_queues(struct gve_priv *priv,
-		      struct gve_queue_config new_rx_config,
-		      struct gve_queue_config new_tx_config);
+		      struct gve_rx_queue_config new_rx_config,
+		      struct gve_tx_queue_config new_tx_config,
+		      bool reset_rss);
 /* flow steering rule */
 int gve_get_flow_rule_entry(struct gve_priv *priv, struct ethtool_rxnfc *cmd);
 int gve_get_flow_rule_ids(struct gve_priv *priv, struct ethtool_rxnfc *cmd, u32 *rule_locs);
 int gve_add_flow_rule(struct gve_priv *priv, struct ethtool_rxnfc *cmd);
 int gve_del_flow_rule(struct gve_priv *priv, struct ethtool_rxnfc *cmd);
 int gve_flow_rules_reset(struct gve_priv *priv);
+/* RSS config */
+int gve_init_rss_config(struct gve_priv *priv, u16 num_queues);
 /* report stats handling */
 void gve_handle_report_stats(struct gve_priv *priv);
 /* exported by ethtool.c */

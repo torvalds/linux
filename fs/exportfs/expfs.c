@@ -608,4 +608,5 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 }
 EXPORT_SYMBOL_GPL(exportfs_decode_fh);
 
+MODULE_DESCRIPTION("Code mapping from inodes to file handles");
 MODULE_LICENSE("GPL");

@@ -6400,7 +6400,7 @@ bnx2_open(struct net_device *dev)
 				rc = bnx2_request_irq(bp);
 
 			if (rc) {
-				del_timer_sync(&bp->timer);
+				timer_delete_sync(&bp->timer);
 				goto open_err;
 			}
 			bnx2_enable_int(bp);
@@ -6752,7 +6752,7 @@ bnx2_close(struct net_device *dev)
 	bnx2_disable_int_sync(bp);
 	bnx2_napi_disable(bp);
 	netif_tx_disable(dev);
-	del_timer_sync(&bp->timer);
+	timer_delete_sync(&bp->timer);
 	bnx2_shutdown_chip(bp);
 	bnx2_free_irq(bp);
 	bnx2_free_skbs(bp);
@@ -8602,7 +8602,7 @@ bnx2_remove_one(struct pci_dev *pdev)
 
 	unregister_netdev(dev);
 
-	del_timer_sync(&bp->timer);
+	timer_delete_sync(&bp->timer);
 	cancel_work_sync(&bp->reset_task);
 
 	pci_iounmap(bp->pdev, bp->regview);
@@ -8629,7 +8629,7 @@ bnx2_suspend(struct device *device)
 		cancel_work_sync(&bp->reset_task);
 		bnx2_netif_stop(bp, true);
 		netif_device_detach(dev);
-		del_timer_sync(&bp->timer);
+		timer_delete_sync(&bp->timer);
 		bnx2_shutdown_chip(bp);
 		__bnx2_free_irq(bp);
 		bnx2_free_skbs(bp);
@@ -8687,7 +8687,7 @@ static pci_ers_result_t bnx2_io_error_detected(struct pci_dev *pdev,
 
 	if (netif_running(dev)) {
 		bnx2_netif_stop(bp, true);
-		del_timer_sync(&bp->timer);
+		timer_delete_sync(&bp->timer);
 		bnx2_reset_nic(bp, BNX2_DRV_MSG_CODE_RESET);
 	}
 

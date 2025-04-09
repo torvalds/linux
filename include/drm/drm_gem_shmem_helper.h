@@ -120,7 +120,7 @@ static inline bool drm_gem_shmem_is_purgeable(struct drm_gem_shmem_object *shmem
 {
 	return (shmem->madv > 0) &&
 		!shmem->vmap_use_count && shmem->sgt &&
-		!shmem->base.dma_buf && !shmem->base.import_attach;
+		!shmem->base.dma_buf && !drm_gem_is_imported(&shmem->base);
 }
 
 void drm_gem_shmem_purge(struct drm_gem_shmem_object *shmem);

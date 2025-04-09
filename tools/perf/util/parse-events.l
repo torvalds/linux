@@ -53,21 +53,25 @@ static int str(yyscan_t scanner, int token)
 	YYSTYPE *yylval = parse_events_get_lval(scanner);
 	char *text = parse_events_get_text(scanner);
 
-	if (text[0] != '\'') {
-		yylval->str = strdup(text);
-	} else {
-		/*
-		 * If a text tag specified on the command line
-		 * contains opening single quite ' then it is
-		 * expected that the tag ends with single quote
-		 * as well, like this:
-		 *     name=\'CPU_CLK_UNHALTED.THREAD:cmask=1\'
-		 * quotes need to be escaped to bypass shell
-		 * processing.
-		 */
-		yylval->str = strndup(&text[1], strlen(text) - 2);
-	}
+	yylval->str = strdup(text);
+	return token;
+}
 
+static int quoted_str(yyscan_t scanner, int token)
+{
+	YYSTYPE *yylval = parse_events_get_lval(scanner);
+	char *text = parse_events_get_text(scanner);
+
+	/*
+	 * If a text tag specified on the command line
+	 * contains opening single quite ' then it is
+	 * expected that the tag ends with single quote
+	 * as well, like this:
+	 *     name=\'CPU_CLK_UNHALTED.THREAD:cmask=1\'
+	 * quotes need to be escaped to bypass shell
+	 * processing.
+	 */
+	yylval->str = strndup(&text[1], strlen(text) - 2);
 	return token;
 }
 
@@ -235,9 +239,16 @@ event		[^,{}/]+
 num_dec		[0-9]+
 num_hex		0x[a-fA-F0-9]{1,16}
 num_raw_hex	[a-fA-F0-9]{1,16}
-name		[a-zA-Z0-9_*?\[\]][a-zA-Z0-9_*?.\[\]!\-]*
-name_tag	[\'][a-zA-Z0-9_*?\[\]][a-zA-Z0-9_*?\-,\.\[\]:=]*[\']
-name_minus	[a-zA-Z_*?][a-zA-Z0-9\-_*?.:]*
+/* Regular pattern to match the token PE_NAME. */
+name_start      [a-zA-Z0-9_*?\[\]]
+name		{name_start}[a-zA-Z0-9_*?.\[\]!\-]*
+/* PE_NAME token when inside a config term list, allows ':'. */
+term_name	{name_start}[a-zA-Z0-9_*?.\[\]!\-:]*
+/*
+ * PE_NAME token when quoted, allows ':,.='.
+ * Matches the RHS of terms like: name='COMPLEX_CYCLES_NAME:orig=cycles,desc=chip-clock-ticks'.
+ */
+quoted_name	[\']{name_start}[a-zA-Z0-9_*?.\[\]!\-:,\.=]*[\']
 drv_cfg_term	[a-zA-Z0-9_\.]+(=[a-zA-Z0-9_*?\.:]+)?
 /*
  * If you add a modifier you need to update check_modifier().
@@ -341,7 +352,9 @@ r0x{num_raw_hex}	{ return str(yyscanner, PE_RAW); }
 {lc_type}			{ return lc_str(yyscanner, _parse_state); }
 {lc_type}-{lc_op_result}	{ return lc_str(yyscanner, _parse_state); }
 {lc_type}-{lc_op_result}-{lc_op_result}	{ return lc_str(yyscanner, _parse_state); }
-{name_minus}		{ return str(yyscanner, PE_NAME); }
+{num_dec}		{ return value(_parse_state, yyscanner, 10); }
+{num_hex}		{ return value(_parse_state, yyscanner, 16); }
+{term_name}		{ return str(yyscanner, PE_NAME); }
 @{drv_cfg_term}		{ return drv_str(yyscanner, PE_DRV_CFG_TERM); }
 }
 
@@ -410,7 +423,7 @@ r{num_raw_hex}		{ return str(yyscanner, PE_RAW); }
 
 {modifier_event}	{ return modifiers(_parse_state, yyscanner); }
 {name}			{ return str(yyscanner, PE_NAME); }
-{name_tag}		{ return str(yyscanner, PE_NAME); }
+{quoted_name}		{ return quoted_str(yyscanner, PE_NAME); }
 "/"			{ BEGIN(config); return '/'; }
 ,			{ BEGIN(event); return ','; }
 :			{ return ':'; }

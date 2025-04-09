@@ -149,7 +149,8 @@ int lwtunnel_build_state(struct net *net, u16 encap_type,
 }
 EXPORT_SYMBOL_GPL(lwtunnel_build_state);
 
-int lwtunnel_valid_encap_type(u16 encap_type, struct netlink_ext_ack *extack)
+int lwtunnel_valid_encap_type(u16 encap_type, struct netlink_ext_ack *extack,
+			      bool rtnl_is_held)
 {
 	const struct lwtunnel_encap_ops *ops;
 	int ret = -EINVAL;
@@ -160,21 +161,19 @@ int lwtunnel_valid_encap_type(u16 encap_type, struct netlink_ext_ack *extack)
 		return ret;
 	}
 
-	rcu_read_lock();
-	ops = rcu_dereference(lwtun_encaps[encap_type]);
-	rcu_read_unlock();
+	ops = rcu_access_pointer(lwtun_encaps[encap_type]);
 #ifdef CONFIG_MODULES
 	if (!ops) {
 		const char *encap_type_str = lwtunnel_encap_str(encap_type);
 
 		if (encap_type_str) {
-			__rtnl_unlock();
+			if (rtnl_is_held)
+				__rtnl_unlock();
 			request_module("rtnl-lwt-%s", encap_type_str);
-			rtnl_lock();
+			if (rtnl_is_held)
+				rtnl_lock();
 
-			rcu_read_lock();
-			ops = rcu_dereference(lwtun_encaps[encap_type]);
-			rcu_read_unlock();
+			ops = rcu_access_pointer(lwtun_encaps[encap_type]);
 		}
 	}
 #endif
@@ -187,7 +186,8 @@ int lwtunnel_valid_encap_type(u16 encap_type, struct netlink_ext_ack *extack)
 EXPORT_SYMBOL_GPL(lwtunnel_valid_encap_type);
 
 int lwtunnel_valid_encap_type_attr(struct nlattr *attr, int remaining,
-				   struct netlink_ext_ack *extack)
+				   struct netlink_ext_ack *extack,
+				   bool rtnl_is_held)
 {
 	struct rtnexthop *rtnh = (struct rtnexthop *)attr;
 	struct nlattr *nla_entype;
@@ -209,7 +209,8 @@ int lwtunnel_valid_encap_type_attr(struct nlattr *attr, int remaining,
 				encap_type = nla_get_u16(nla_entype);
 
 				if (lwtunnel_valid_encap_type(encap_type,
-							      extack) != 0)
+							      extack,
+							      rtnl_is_held) != 0)
 					return -EOPNOTSUPP;
 			}
 		}

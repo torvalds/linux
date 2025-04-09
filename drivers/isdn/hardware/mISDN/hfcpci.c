@@ -158,7 +158,7 @@ release_io_hfcpci(struct hfc_pci *hc)
 {
 	/* disable memory mapped ports + busmaster */
 	pci_write_config_word(hc->pdev, PCI_COMMAND, 0);
-	del_timer(&hc->hw.timer);
+	timer_delete(&hc->hw.timer);
 	dma_free_coherent(&hc->pdev->dev, 0x8000, hc->hw.fifos,
 			  hc->hw.dmahandle);
 	iounmap(hc->hw.pci_io);
@@ -1087,7 +1087,7 @@ hfc_l1callback(struct dchannel *dch, u_int cmd)
 		}
 		test_and_clear_bit(FLG_TX_BUSY, &dch->Flags);
 		if (test_and_clear_bit(FLG_BUSY_TIMER, &dch->Flags))
-			del_timer(&dch->timer);
+			timer_delete(&dch->timer);
 		break;
 	case HW_POWERUP_REQ:
 		Write_hfc(hc, HFCPCI_STATES, HFCPCI_DO_ACTION);
@@ -1216,7 +1216,7 @@ hfcpci_int(int intno, void *dev_id)
 		receive_dmsg(hc);
 	if (val & 0x04) {	/* D tx */
 		if (test_and_clear_bit(FLG_BUSY_TIMER, &hc->dch.Flags))
-			del_timer(&hc->dch.timer);
+			timer_delete(&hc->dch.timer);
 		tx_dirq(&hc->dch);
 	}
 	spin_unlock(&hc->lock);
@@ -1635,7 +1635,7 @@ hfcpci_l2l1D(struct mISDNchannel *ch, struct sk_buff *skb)
 			}
 			test_and_clear_bit(FLG_TX_BUSY, &dch->Flags);
 			if (test_and_clear_bit(FLG_BUSY_TIMER, &dch->Flags))
-				del_timer(&dch->timer);
+				timer_delete(&dch->timer);
 #ifdef FIXME
 			if (test_and_clear_bit(FLG_L1_BUSY, &dch->Flags))
 				dchannel_sched_event(&hc->dch, D_CLEARBUSY);
@@ -2064,7 +2064,7 @@ release_card(struct hfc_pci *hc) {
 	mode_hfcpci(&hc->bch[0], 1, ISDN_P_NONE);
 	mode_hfcpci(&hc->bch[1], 2, ISDN_P_NONE);
 	if (hc->dch.timer.function != NULL) {
-		del_timer(&hc->dch.timer);
+		timer_delete(&hc->dch.timer);
 		hc->dch.timer.function = NULL;
 	}
 	spin_unlock_irqrestore(&hc->lock, flags);
@@ -2342,7 +2342,7 @@ HFC_init(void)
 	err = pci_register_driver(&hfc_driver);
 	if (err) {
 		if (timer_pending(&hfc_tl))
-			del_timer(&hfc_tl);
+			timer_delete(&hfc_tl);
 	}
 
 	return err;
@@ -2351,7 +2351,7 @@ HFC_init(void)
 static void __exit
 HFC_cleanup(void)
 {
-	del_timer_sync(&hfc_tl);
+	timer_delete_sync(&hfc_tl);
 
 	pci_unregister_driver(&hfc_driver);
 }

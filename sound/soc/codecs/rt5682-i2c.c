@@ -313,13 +313,13 @@ static void rt5682_i2c_remove(struct i2c_client *client)
 
 static const struct of_device_id rt5682_of_match[] = {
 	{.compatible = "realtek,rt5682i"},
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rt5682_of_match);
 
 static const struct acpi_device_id rt5682_acpi_match[] = {
-	{"10EC5682", 0,},
-	{},
+	{ "10EC5682" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt5682_acpi_match);
 

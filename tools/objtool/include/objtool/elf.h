@@ -65,10 +65,11 @@ struct symbol {
 	u8 return_thunk      : 1;
 	u8 fentry            : 1;
 	u8 profiling_func    : 1;
+	u8 warned	     : 1;
 	u8 embedded_insn     : 1;
 	u8 local_label       : 1;
 	u8 frame_pointer     : 1;
-	u8 warnings	     : 2;
+	u8 ignore	     : 1;
 	struct list_head pv_target;
 	struct reloc *relocs;
 };
@@ -77,7 +78,7 @@ struct reloc {
 	struct elf_hash_node hash;
 	struct section *sec;
 	struct symbol *sym;
-	struct reloc *sym_next_reloc;
+	unsigned long _sym_next_reloc;
 };
 
 struct elf {
@@ -295,6 +296,31 @@ static inline void set_reloc_type(struct elf *elf, struct reloc *reloc, unsigned
 	__set_reloc_field(reloc, r_info, info);
 
 	mark_sec_changed(elf, reloc->sec, true);
+}
+
+#define RELOC_JUMP_TABLE_BIT 1UL
+
+/* Does reloc mark the beginning of a jump table? */
+static inline bool is_jump_table(struct reloc *reloc)
+{
+	return reloc->_sym_next_reloc & RELOC_JUMP_TABLE_BIT;
+}
+
+static inline void set_jump_table(struct reloc *reloc)
+{
+	reloc->_sym_next_reloc |= RELOC_JUMP_TABLE_BIT;
+}
+
+static inline struct reloc *sym_next_reloc(struct reloc *reloc)
+{
+	return (struct reloc *)(reloc->_sym_next_reloc & ~RELOC_JUMP_TABLE_BIT);
+}
+
+static inline void set_sym_next_reloc(struct reloc *reloc, struct reloc *next)
+{
+	unsigned long bit = reloc->_sym_next_reloc & RELOC_JUMP_TABLE_BIT;
+
+	reloc->_sym_next_reloc = (unsigned long)next | bit;
 }
 
 #define for_each_sec(file, sec)						\

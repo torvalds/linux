@@ -214,9 +214,13 @@ int shrinker_debugfs_rename(struct shrinker *shrinker, const char *fmt, ...)
 	ret = debugfs_change_name(shrinker->debugfs_entry, "%s-%d",
 			shrinker->name, shrinker->debugfs_id);
 
+	if (ret) {
+		shrinker->name = old;
+		kfree_const(new);
+	} else {
+		kfree_const(old);
+	}
 	mutex_unlock(&shrinker_mutex);
-
-	kfree_const(old);
 
 	return ret;
 }

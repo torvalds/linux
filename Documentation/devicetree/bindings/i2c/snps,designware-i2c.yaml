@@ -27,6 +27,11 @@ properties:
     oneOf:
       - description: Generic Synopsys DesignWare I2C controller
         const: snps,designware-i2c
+      - description: Renesas RZ/N1D I2C controller
+        items:
+          - const: renesas,r9a06g032-i2c  # RZ/N1D
+          - const: renesas,rzn1-i2c       # RZ/N1
+          - const: snps,designware-i2c
       - description: Microsemi Ocelot SoCs I2C controller
         items:
           - const: mscc,ocelot-i2c

@@ -38,7 +38,7 @@ enum pci_barno {
  * @baseclass_code: broadly classifies the type of function the device performs
  * @cache_line_size: specifies the system cacheline size in units of DWORDs
  * @subsys_vendor_id: vendor of the add-in card or subsystem
- * @subsys_id: id specific to vendor
+ * @subsys_id: ID specific to vendor
  * @interrupt_pin: interrupt pin the device (or device function) uses
  */
 struct pci_epf_header {
@@ -59,7 +59,7 @@ struct pci_epf_header {
  * @bind: ops to perform when a EPC device has been bound to EPF device
  * @unbind: ops to perform when a binding has been lost between a EPC device
  *	    and EPF device
- * @add_cfs: ops to initialize function specific configfs attributes
+ * @add_cfs: ops to initialize function-specific configfs attributes
  */
 struct pci_epf_ops {
 	int	(*bind)(struct pci_epf *epf);
@@ -138,7 +138,7 @@ struct pci_epf_bar {
  * @epc: the EPC device to which this EPF device is bound
  * @epf_pf: the physical EPF device to which this virtual EPF device is bound
  * @driver: the EPF driver to which this EPF device is bound
- * @id: Pointer to the EPF device ID
+ * @id: pointer to the EPF device ID
  * @list: to add pci_epf as a list of PCI endpoint functions to pci_epc
  * @lock: mutex to protect pci_epf_ops
  * @sec_epc: the secondary EPC device to which this EPF device is bound
@@ -151,7 +151,7 @@ struct pci_epf_bar {
  * @is_vf: true - virtual function, false - physical function
  * @vfunction_num_map: bitmap to manage virtual function number
  * @pci_vepf: list of virtual endpoint functions associated with this function
- * @event_ops: Callbacks for capturing the EPC events
+ * @event_ops: callbacks for capturing the EPC events
  */
 struct pci_epf {
 	struct device		dev;
@@ -185,11 +185,12 @@ struct pci_epf {
 };
 
 /**
- * struct pci_epf_msix_tbl - represents the MSIX table entry structure
- * @msg_addr: Writes to this address will trigger MSIX interrupt in host
- * @msg_data: Data that should be written to @msg_addr to trigger MSIX interrupt
+ * struct pci_epf_msix_tbl - represents the MSI-X table entry structure
+ * @msg_addr: Writes to this address will trigger MSI-X interrupt in host
+ * @msg_data: Data that should be written to @msg_addr to trigger MSI-X
+ *   interrupt
  * @vector_ctrl: Identifies if the function is prohibited from sending a message
- * using this MSIX table entry
+ *   using this MSI-X table entry
  */
 struct pci_epf_msix_tbl {
 	u64 msg_addr;

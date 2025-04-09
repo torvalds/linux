@@ -319,7 +319,7 @@ void fnic_fcoe_fip_discovery_resp(struct fnic *fnic, struct fip_header *fiph)
 						  round_jiffies(fcs_ka_tov));
 				} else {
 					if (timer_pending(&fnic->fcs_ka_timer))
-						del_timer_sync(&fnic->fcs_ka_timer);
+						timer_delete_sync(&fnic->fcs_ka_timer);
 				}
 
 				if (fka_has_changed) {
@@ -497,7 +497,7 @@ void fnic_fcoe_process_flogi_resp(struct fnic *fnic, struct fip_header *fiph)
 
 		oxid = FNIC_STD_GET_OX_ID(fchdr);
 		fdls_free_oxid(iport, oxid, &iport->active_oxid_fabric_req);
-		del_timer_sync(&fnic->retry_fip_timer);
+		timer_delete_sync(&fnic->retry_fip_timer);
 
 		if ((be16_to_cpu(flogi_rsp->fip.fip_dl_len) == FIP_FLOGI_LEN)
 		    && (flogi_rsp->rsp_desc.flogi.els.fl_cmd == ELS_LS_ACC)) {
@@ -580,10 +580,10 @@ void fnic_common_fip_cleanup(struct fnic *fnic)
 
 	iport->fip.state = FDLS_FIP_INIT;
 
-	del_timer_sync(&fnic->retry_fip_timer);
-	del_timer_sync(&fnic->fcs_ka_timer);
-	del_timer_sync(&fnic->enode_ka_timer);
-	del_timer_sync(&fnic->vn_ka_timer);
+	timer_delete_sync(&fnic->retry_fip_timer);
+	timer_delete_sync(&fnic->fcs_ka_timer);
+	timer_delete_sync(&fnic->enode_ka_timer);
+	timer_delete_sync(&fnic->vn_ka_timer);
 
 	if (!is_zero_ether_addr(iport->fpma))
 		vnic_dev_del_addr(fnic->vdev, iport->fpma);

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config IOMMUFD_DRIVER_CORE
-	tristate
+	bool
 	default (IOMMUFD_DRIVER || IOMMUFD) if IOMMUFD!=n
 
 config IOMMUFD

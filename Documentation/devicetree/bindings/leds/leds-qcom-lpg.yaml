@@ -39,6 +39,10 @@ properties:
           - enum:
               - qcom,pm8550-pwm
           - const: qcom,pm8350c-pwm
+      - items:
+          - enum:
+              - qcom,pm8937-pwm
+          - const: qcom,pm8916-pwm
 
   "#pwm-cells":
     const: 2

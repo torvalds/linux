@@ -172,6 +172,8 @@ static int can_create(struct net *net, struct socket *sock, int protocol,
 		sock_orphan(sk);
 		sock_put(sk);
 		sock->sk = NULL;
+	} else {
+		sock_prot_inuse_add(net, sk->sk_prot, 1);
 	}
 
  errout:
@@ -823,7 +825,7 @@ static void can_pernet_exit(struct net *net)
 	if (IS_ENABLED(CONFIG_PROC_FS)) {
 		can_remove_proc(net);
 		if (stats_timer)
-			del_timer_sync(&net->can.stattimer);
+			timer_delete_sync(&net->can.stattimer);
 	}
 
 	kfree(net->can.rx_alldev_list);

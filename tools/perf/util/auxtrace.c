@@ -1173,16 +1173,19 @@ static int auxtrace_queue_data_cb(struct perf_session *session,
 	if (!qd->samples || event->header.type != PERF_RECORD_SAMPLE)
 		return 0;
 
+	perf_sample__init(&sample, /*all=*/false);
 	err = evlist__parse_sample(session->evlist, event, &sample);
 	if (err)
-		return err;
+		goto out;
 
-	if (!sample.aux_sample.size)
-		return 0;
+	if (sample.aux_sample.size) {
+		offset += sample.aux_sample.data - (void *)event;
 
-	offset += sample.aux_sample.data - (void *)event;
-
-	return session->auxtrace->queue_data(session, &sample, NULL, offset);
+		err = session->auxtrace->queue_data(session, &sample, NULL, offset);
+	}
+out:
+	perf_sample__exit(&sample);
+	return err;
 }
 
 int auxtrace_queue_data(struct perf_session *session, bool samples, bool events)

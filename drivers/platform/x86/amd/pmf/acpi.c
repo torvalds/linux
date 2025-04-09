@@ -220,7 +220,7 @@ static void apmf_sbios_heartbeat_notify(struct work_struct *work)
 	if (!info)
 		return;
 
-	schedule_delayed_work(&dev->heart_beat, msecs_to_jiffies(dev->hb_interval * 1000));
+	schedule_delayed_work(&dev->heart_beat, secs_to_jiffies(dev->hb_interval));
 	kfree(info);
 }
 

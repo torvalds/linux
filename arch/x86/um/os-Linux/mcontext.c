@@ -4,6 +4,7 @@
 #include <asm/ptrace.h>
 #include <sysdep/ptrace.h>
 #include <sysdep/mcontext.h>
+#include <arch.h>
 
 void get_regs_from_mc(struct uml_pt_regs *regs, mcontext_t *mc)
 {
@@ -27,7 +28,17 @@ void get_regs_from_mc(struct uml_pt_regs *regs, mcontext_t *mc)
 	COPY(RIP);
 	COPY2(EFLAGS, EFL);
 	COPY2(CS, CSGSFS);
-	regs->gp[CS / sizeof(unsigned long)] &= 0xffff;
-	regs->gp[CS / sizeof(unsigned long)] |= 3;
+	regs->gp[SS / sizeof(unsigned long)] = mc->gregs[REG_CSGSFS] >> 48;
+#endif
+}
+
+void mc_set_rip(void *_mc, void *target)
+{
+	mcontext_t *mc = _mc;
+
+#ifdef __i386__
+	mc->gregs[REG_EIP] = (unsigned long)target;
+#else
+	mc->gregs[REG_RIP] = (unsigned long)target;
 #endif
 }

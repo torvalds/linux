@@ -76,6 +76,7 @@
 #include "dcn321/dcn321_resource.h"
 #include "dcn35/dcn35_resource.h"
 #include "dcn351/dcn351_resource.h"
+#include "dcn36/dcn36_resource.h"
 #include "dcn401/dcn401_resource.h"
 #if defined(CONFIG_DRM_AMD_DC_FP)
 #include "dc_spl_translate.h"
@@ -204,6 +205,8 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 		dc_version = DCN_VERSION_3_5;
 		if (ASICREV_IS_GC_11_0_4(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_3_51;
+		if (ASICREV_IS_DCN36(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_3_6;
 		break;
 	case AMDGPU_FAMILY_GC_12_0_0:
 		if (ASICREV_IS_GC_12_0_1_A0(asic_id.hw_internal_rev) ||
@@ -319,6 +322,9 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 		break;
 	case DCN_VERSION_3_51:
 		res_pool = dcn351_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_3_6:
+		res_pool = dcn36_create_resource_pool(init_data, dc);
 		break;
 	case DCN_VERSION_4_01:
 		res_pool = dcn401_create_resource_pool(init_data, dc);
@@ -939,6 +945,17 @@ static void calculate_adjust_recout_for_visual_confirm(struct pipe_ctx *pipe_ctx
 		*base_offset = dc->debug.visual_confirm_rect_height;
 	else
 		*base_offset = VISUAL_CONFIRM_BASE_DEFAULT;
+}
+
+static void reverse_adjust_recout_for_visual_confirm(struct rect *recout,
+		struct pipe_ctx *pipe_ctx)
+{
+	int dpp_offset, base_offset;
+
+	calculate_adjust_recout_for_visual_confirm(pipe_ctx, &base_offset,
+		&dpp_offset);
+	recout->height += base_offset;
+	recout->height += dpp_offset;
 }
 
 static void adjust_recout_for_visual_confirm(struct rect *recout,
@@ -1640,6 +1657,62 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	pipe_ctx->stream->dst.y -= timing->v_border_top;
 
 	return res;
+}
+
+bool resource_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx)
+{
+	struct pipe_ctx *test_pipe, *split_pipe;
+	struct rect r1 = pipe_ctx->plane_res.scl_data.recout;
+	int r1_right, r1_bottom;
+	int cur_layer = pipe_ctx->plane_state->layer_index;
+
+	reverse_adjust_recout_for_visual_confirm(&r1, pipe_ctx);
+	r1_right = r1.x + r1.width;
+	r1_bottom = r1.y + r1.height;
+
+	/**
+	 * Disable the cursor if there's another pipe above this with a
+	 * plane that contains this pipe's viewport to prevent double cursor
+	 * and incorrect scaling artifacts.
+	 */
+	for (test_pipe = pipe_ctx->top_pipe; test_pipe;
+	     test_pipe = test_pipe->top_pipe) {
+		struct rect r2;
+		int r2_right, r2_bottom;
+		// Skip invisible layer and pipe-split plane on same layer
+		if (!test_pipe->plane_state ||
+		    !test_pipe->plane_state->visible ||
+		    test_pipe->plane_state->layer_index == cur_layer)
+			continue;
+
+		r2 = test_pipe->plane_res.scl_data.recout;
+		reverse_adjust_recout_for_visual_confirm(&r2, test_pipe);
+		r2_right = r2.x + r2.width;
+		r2_bottom = r2.y + r2.height;
+
+		/**
+		 * There is another half plane on same layer because of
+		 * pipe-split, merge together per same height.
+		 */
+		for (split_pipe = pipe_ctx->top_pipe; split_pipe;
+		     split_pipe = split_pipe->top_pipe)
+			if (split_pipe->plane_state->layer_index == test_pipe->plane_state->layer_index) {
+				struct rect r2_half;
+
+				r2_half = split_pipe->plane_res.scl_data.recout;
+				reverse_adjust_recout_for_visual_confirm(&r2_half, split_pipe);
+				r2.x = min(r2_half.x, r2.x);
+				r2.width = r2.width + r2_half.width;
+				r2_right = r2.x + r2.width;
+				r2_bottom = min(r2_bottom, r2_half.y + r2_half.height);
+				break;
+			}
+
+		if (r1.x >= r2.x && r1.y >= r2.y && r1_right <= r2_right && r1_bottom <= r2_bottom)
+			return true;
+	}
+
+	return false;
 }
 
 
@@ -2617,6 +2690,162 @@ static void remove_hpo_dp_link_enc_from_ctx(struct resource_context *res_ctx,
 	}
 }
 
+static inline int find_acquired_dio_link_enc_for_link(
+		const struct resource_context *res_ctx,
+		const struct dc_link *link)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(res_ctx->dio_link_enc_ref_cnts); i++)
+		if (res_ctx->dio_link_enc_ref_cnts[i] > 0 &&
+				res_ctx->dio_link_enc_to_link_idx[i] == link->link_index)
+			return i;
+
+	return -1;
+}
+
+static inline int find_fixed_dio_link_enc(const struct dc_link *link)
+{
+	/* the 8b10b dp phy can only use fixed link encoder */
+	return link->eng_id;
+}
+
+static inline int find_free_dio_link_enc(const struct resource_context *res_ctx,
+		const struct dc_link *link, const struct resource_pool *pool)
+{
+	int i;
+	int enc_count = pool->dig_link_enc_count;
+
+	/* for dpia, check preferred encoder first and then the next one */
+	for (i = 0; i < enc_count; i++)
+		if (res_ctx->dio_link_enc_ref_cnts[(link->dpia_preferred_eng_id + i) % enc_count] == 0)
+			break;
+
+	return (i >= 0 && i < enc_count) ? (link->dpia_preferred_eng_id + i) % enc_count : -1;
+}
+
+static inline void acquire_dio_link_enc(
+		struct resource_context *res_ctx,
+		unsigned int link_index,
+		int enc_index)
+{
+	res_ctx->dio_link_enc_to_link_idx[enc_index] = link_index;
+	res_ctx->dio_link_enc_ref_cnts[enc_index] = 1;
+}
+
+static inline void retain_dio_link_enc(
+		struct resource_context *res_ctx,
+		int enc_index)
+{
+	res_ctx->dio_link_enc_ref_cnts[enc_index]++;
+}
+
+static inline void release_dio_link_enc(
+		struct resource_context *res_ctx,
+		int enc_index)
+{
+	ASSERT(res_ctx->dio_link_enc_ref_cnts[enc_index] > 0);
+	res_ctx->dio_link_enc_ref_cnts[enc_index]--;
+}
+
+static bool is_dio_enc_acquired_by_other_link(const struct dc_link *link,
+		int enc_index,
+		int *link_index)
+{
+	const struct dc *dc  = link->dc;
+	const struct resource_context *res_ctx = &dc->current_state->res_ctx;
+
+	/* pass the link_index that acquired the enc_index */
+	if (res_ctx->dio_link_enc_ref_cnts[enc_index] > 0 &&
+			res_ctx->dio_link_enc_to_link_idx[enc_index] != link->link_index) {
+		*link_index = res_ctx->dio_link_enc_to_link_idx[enc_index];
+		return true;
+	}
+
+	return false;
+}
+
+static void swap_dio_link_enc_to_muxable_ctx(struct dc_state *context,
+		const struct resource_pool *pool,
+		int new_encoder,
+		int old_encoder)
+{
+	struct resource_context *res_ctx = &context->res_ctx;
+	int stream_count = context->stream_count;
+	int i = 0;
+
+	res_ctx->dio_link_enc_ref_cnts[new_encoder] = res_ctx->dio_link_enc_ref_cnts[old_encoder];
+	res_ctx->dio_link_enc_to_link_idx[new_encoder] = res_ctx->dio_link_enc_to_link_idx[old_encoder];
+	res_ctx->dio_link_enc_ref_cnts[old_encoder] = 0;
+
+	for (i = 0; i < stream_count; i++) {
+		struct dc_stream_state *stream = context->streams[i];
+		struct pipe_ctx *pipe_ctx = resource_get_otg_master_for_stream(&context->res_ctx, stream);
+
+		if (pipe_ctx && pipe_ctx->link_res.dio_link_enc == pool->link_encoders[old_encoder])
+			pipe_ctx->link_res.dio_link_enc = pool->link_encoders[new_encoder];
+	}
+}
+
+static bool add_dio_link_enc_to_ctx(const struct dc *dc,
+		struct dc_state *context,
+		const struct resource_pool *pool,
+		struct pipe_ctx *pipe_ctx,
+		struct dc_stream_state *stream)
+{
+	struct resource_context *res_ctx = &context->res_ctx;
+	int enc_index;
+
+	enc_index = find_acquired_dio_link_enc_for_link(res_ctx, stream->link);
+
+	if (enc_index >= 0) {
+		retain_dio_link_enc(res_ctx, enc_index);
+	} else {
+		if (stream->link->is_dig_mapping_flexible)
+			enc_index = find_free_dio_link_enc(res_ctx, stream->link, pool);
+		else {
+			int link_index = 0;
+
+			enc_index = find_fixed_dio_link_enc(stream->link);
+			/* Fixed mapping link can only use its fixed link encoder.
+			 * If the encoder is acquired by other link then get a new free encoder and swap the new
+			 * one into the acquiring link.
+			 */
+			if (enc_index >= 0 && is_dio_enc_acquired_by_other_link(stream->link, enc_index, &link_index)) {
+				int new_enc_index = find_free_dio_link_enc(res_ctx, dc->links[link_index], pool);
+
+				if (new_enc_index >= 0)
+					swap_dio_link_enc_to_muxable_ctx(context, pool, new_enc_index, enc_index);
+				else
+					return false;
+			}
+		}
+
+		if (enc_index >= 0)
+			acquire_dio_link_enc(res_ctx, stream->link->link_index, enc_index);
+	}
+
+	if (enc_index >= 0)
+		pipe_ctx->link_res.dio_link_enc = pool->link_encoders[enc_index];
+
+	return pipe_ctx->link_res.dio_link_enc != NULL;
+}
+
+static void remove_dio_link_enc_from_ctx(struct resource_context *res_ctx,
+		struct pipe_ctx *pipe_ctx,
+		struct dc_stream_state *stream)
+{
+	int enc_index = -1;
+
+	if (stream->link)
+		enc_index = find_acquired_dio_link_enc_for_link(res_ctx, stream->link);
+
+	if (enc_index >= 0) {
+		release_dio_link_enc(res_ctx, enc_index);
+		pipe_ctx->link_res.dio_link_enc = NULL;
+	}
+}
+
 static int get_num_of_free_pipes(const struct resource_pool *pool, const struct dc_state *context)
 {
 	int i;
@@ -2664,6 +2893,10 @@ void resource_remove_otg_master_for_stream_output(struct dc_state *context,
 		remove_hpo_dp_link_enc_from_ctx(
 				&context->res_ctx, otg_master, stream);
 	}
+
+	if (stream->ctx->dc->config.unify_link_enc_assignment)
+		remove_dio_link_enc_from_ctx(&context->res_ctx, otg_master, stream);
+
 	if (otg_master->stream_res.audio)
 		update_audio_usage(
 			&context->res_ctx,
@@ -2678,6 +2911,7 @@ void resource_remove_otg_master_for_stream_output(struct dc_state *context,
 	if (pool->funcs->remove_stream_from_ctx)
 		pool->funcs->remove_stream_from_ctx(
 				stream->ctx->dc, context, stream);
+
 	memset(otg_master, 0, sizeof(*otg_master));
 }
 
@@ -3529,16 +3763,22 @@ static int acquire_resource_from_hw_enabled_state(
 	return -1;
 }
 
-static void mark_seamless_boot_stream(
-		const struct dc  *dc,
-		struct dc_stream_state *stream)
+static void mark_seamless_boot_stream(const struct dc  *dc,
+				      struct dc_stream_state *stream)
 {
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 
-	if (dc->config.allow_seamless_boot_optimization &&
-			!dcb->funcs->is_accelerated_mode(dcb)) {
-		if (dc_validate_boot_timing(dc, stream->sink, &stream->timing))
-			stream->apply_seamless_boot_optimization = true;
+	DC_LOGGER_INIT(dc->ctx->logger);
+
+	if (stream->apply_seamless_boot_optimization)
+		return;
+	if (!dc->config.allow_seamless_boot_optimization)
+		return;
+	if (dcb->funcs->is_accelerated_mode(dcb))
+		return;
+	if (dc_validate_boot_timing(dc, stream->sink, &stream->timing)) {
+		stream->apply_seamless_boot_optimization = true;
+		DC_LOG_DC("Marked stream for seamless boot optimization\n");
 	}
 }
 
@@ -3649,6 +3889,7 @@ enum dc_status resource_map_pool_resources(
 	struct pipe_ctx *pipe_ctx = NULL;
 	int pipe_idx = -1;
 	bool acquired = false;
+	bool is_dio_encoder = true;
 
 	calculate_phy_pix_clks(stream);
 
@@ -3713,6 +3954,10 @@ enum dc_status resource_map_pool_resources(
 				return DC_NO_LINK_ENC_RESOURCE;
 		}
 	}
+
+	if (dc->config.unify_link_enc_assignment && is_dio_encoder)
+		if (!add_dio_link_enc_to_ctx(dc, context, pool, pipe_ctx, stream))
+			return DC_NO_LINK_ENC_RESOURCE;
 
 	/* TODO: Add check if ASIC support and EDID audio */
 	if (!stream->converter_disable_audio &&
@@ -4247,7 +4492,7 @@ static void set_avi_info_frame(
 		break;
 	case COLOR_SPACE_2020_RGB_FULLRANGE:
 	case COLOR_SPACE_2020_RGB_LIMITEDRANGE:
-	case COLOR_SPACE_2020_YCBCR:
+	case COLOR_SPACE_2020_YCBCR_LIMITED:
 		hdmi_info.bits.EC0_EC2 = COLORIMETRYEX_BT2020RGBYCBCR;
 		hdmi_info.bits.C0_C1   = COLORIMETRY_EXTENDED;
 		break;
@@ -4261,7 +4506,7 @@ static void set_avi_info_frame(
 		break;
 	}
 
-	if (pixel_encoding && color_space == COLOR_SPACE_2020_YCBCR &&
+	if (pixel_encoding && color_space == COLOR_SPACE_2020_YCBCR_LIMITED &&
 			stream->out_transfer_func.tf == TRANSFER_FUNCTION_GAMMA22) {
 		hdmi_info.bits.EC0_EC2 = 0;
 		hdmi_info.bits.C0_C1 = COLORIMETRY_ITU709;
@@ -4684,7 +4929,10 @@ bool pipe_need_reprogram(
 		return true;
 
 	/* DIG link encoder resource assignment for stream changed. */
-	if (pipe_ctx_old->stream->ctx->dc->res_pool->funcs->link_encs_assign) {
+	if (pipe_ctx_old->stream->ctx->dc->config.unify_link_enc_assignment) {
+		if (pipe_ctx_old->link_res.dio_link_enc != pipe_ctx->link_res.dio_link_enc)
+			return true;
+	} else if (pipe_ctx_old->stream->ctx->dc->res_pool->funcs->link_encs_assign) {
 		bool need_reprogram = false;
 		struct dc *dc = pipe_ctx_old->stream->ctx->dc;
 		struct link_encoder *link_enc_prev =
@@ -4950,6 +5198,28 @@ void get_audio_check(struct audio_info *aud_modes,
 	}
 }
 
+struct link_encoder *get_temp_dio_link_enc(
+		const struct resource_context *res_ctx,
+		const struct resource_pool *const pool,
+		const struct dc_link *link)
+{
+	struct link_encoder *link_enc = NULL;
+	int enc_index;
+
+	if (link->is_dig_mapping_flexible)
+		enc_index = find_acquired_dio_link_enc_for_link(res_ctx, link);
+	else
+		enc_index = link->eng_id;
+
+	if (enc_index < 0)
+		enc_index = find_free_dio_link_enc(res_ctx, link, pool);
+
+	if (enc_index >= 0)
+		link_enc = pool->link_encoders[enc_index];
+
+	return link_enc;
+}
+
 static struct hpo_dp_link_encoder *get_temp_hpo_dp_link_enc(
 		const struct resource_context *res_ctx,
 		const struct resource_pool *const pool,
@@ -4979,11 +5249,17 @@ bool get_temp_dp_link_res(struct dc_link *link,
 	memset(link_res, 0, sizeof(*link_res));
 
 	if (dc->link_srv->dp_get_encoding_format(link_settings) == DP_128b_132b_ENCODING) {
-		link_res->hpo_dp_link_enc = get_temp_hpo_dp_link_enc(res_ctx,
-				dc->res_pool, link);
+		link_res->hpo_dp_link_enc = get_temp_hpo_dp_link_enc(res_ctx, dc->res_pool, link);
 		if (!link_res->hpo_dp_link_enc)
 			return false;
+	} else if (dc->link_srv->dp_get_encoding_format(link_settings) == DP_8b_10b_ENCODING &&
+				dc->config.unify_link_enc_assignment) {
+		link_res->dio_link_enc = get_temp_dio_link_enc(res_ctx,
+				dc->res_pool, link);
+		if (!link_res->dio_link_enc)
+			return false;
 	}
+
 	return true;
 }
 
@@ -5254,6 +5530,10 @@ enum dc_status update_dp_encoder_resources_for_test_harness(const struct dc *dc,
 		if (pipe_ctx->link_res.hpo_dp_link_enc)
 			remove_hpo_dp_link_enc_from_ctx(&context->res_ctx, pipe_ctx, pipe_ctx->stream);
 	}
+
+	if (pipe_ctx->link_res.dio_link_enc == NULL && dc->config.unify_link_enc_assignment)
+		if (!add_dio_link_enc_to_ctx(dc, context, dc->res_pool, pipe_ctx, pipe_ctx->stream))
+			return DC_NO_LINK_ENC_RESOURCE;
 
 	return DC_OK;
 }

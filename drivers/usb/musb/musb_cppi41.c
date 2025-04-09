@@ -760,8 +760,8 @@ cppi41_dma_controller_create(struct musb *musb, void __iomem *base)
 	if (!controller)
 		goto kzalloc_fail;
 
-	hrtimer_init(&controller->early_tx, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	controller->early_tx.function = cppi41_recheck_tx_req;
+	hrtimer_setup(&controller->early_tx, cppi41_recheck_tx_req, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL);
 	INIT_LIST_HEAD(&controller->early_tx_list);
 
 	controller->controller.channel_alloc = cppi41_dma_channel_allocate;

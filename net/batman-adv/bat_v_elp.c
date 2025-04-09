@@ -82,7 +82,7 @@ static bool batadv_v_elp_get_throughput(struct batadv_hardif_neigh_node *neigh,
 					u32 *pthroughput)
 {
 	struct batadv_hard_iface *hard_iface = neigh->if_incoming;
-	struct net_device *soft_iface = hard_iface->soft_iface;
+	struct net_device *mesh_iface = hard_iface->mesh_iface;
 	struct ethtool_link_ksettings link_settings;
 	struct net_device *real_netdev;
 	struct station_info sinfo;
@@ -92,7 +92,7 @@ static bool batadv_v_elp_get_throughput(struct batadv_hardif_neigh_node *neigh,
 	/* don't query throughput when no longer associated with any
 	 * batman-adv interface
 	 */
-	if (!soft_iface)
+	if (!mesh_iface)
 		return false;
 
 	/* if the user specified a customised value for this interface, then
@@ -180,7 +180,7 @@ static bool batadv_v_elp_get_throughput(struct batadv_hardif_neigh_node *neigh,
 
 default_throughput:
 	if (!(hard_iface->bat_v.flags & BATADV_WARNING_DEFAULT)) {
-		batadv_info(soft_iface,
+		batadv_info(mesh_iface,
 			    "WiFi driver or ethtool info does not provide information about link speeds on interface %s, therefore defaulting to hardcoded throughput values of %u.%1u Mbps. Consider overriding the throughput manually or checking your driver.\n",
 			    hard_iface->net_dev->name,
 			    BATADV_THROUGHPUT_DEFAULT_VALUE / 10,
@@ -226,7 +226,7 @@ static bool
 batadv_v_elp_wifi_neigh_probe(struct batadv_hardif_neigh_node *neigh)
 {
 	struct batadv_hard_iface *hard_iface = neigh->if_incoming;
-	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
+	struct batadv_priv *bat_priv = netdev_priv(hard_iface->mesh_iface);
 	unsigned long last_tx_diff;
 	struct sk_buff *skb;
 	int probe_len, i;
@@ -295,7 +295,7 @@ static void batadv_v_elp_periodic_work(struct work_struct *work)
 
 	bat_v = container_of(work, struct batadv_hard_iface_bat_v, elp_wq.work);
 	hard_iface = container_of(bat_v, struct batadv_hard_iface, bat_v);
-	bat_priv = netdev_priv(hard_iface->soft_iface);
+	bat_priv = netdev_priv(hard_iface->mesh_iface);
 
 	if (atomic_read(&bat_priv->mesh_state) == BATADV_MESH_DEACTIVATING)
 		goto out;
@@ -476,7 +476,7 @@ void batadv_v_elp_primary_iface_set(struct batadv_hard_iface *primary_iface)
 	/* update orig field of every elp iface belonging to this mesh */
 	rcu_read_lock();
 	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
-		if (primary_iface->soft_iface != hard_iface->soft_iface)
+		if (primary_iface->mesh_iface != hard_iface->mesh_iface)
 			continue;
 
 		batadv_v_elp_iface_activate(primary_iface, hard_iface);
@@ -486,7 +486,7 @@ void batadv_v_elp_primary_iface_set(struct batadv_hard_iface *primary_iface)
 
 /**
  * batadv_v_elp_neigh_update() - update an ELP neighbour node
- * @bat_priv: the bat priv with all the soft interface information
+ * @bat_priv: the bat priv with all the mesh interface information
  * @neigh_addr: the neighbour interface address
  * @if_incoming: the interface the packet was received through
  * @elp_packet: the received ELP packet
@@ -552,7 +552,7 @@ orig_free:
 int batadv_v_elp_packet_recv(struct sk_buff *skb,
 			     struct batadv_hard_iface *if_incoming)
 {
-	struct batadv_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
+	struct batadv_priv *bat_priv = netdev_priv(if_incoming->mesh_iface);
 	struct batadv_elp_packet *elp_packet;
 	struct batadv_hard_iface *primary_if;
 	struct ethhdr *ethhdr;

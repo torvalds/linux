@@ -157,7 +157,7 @@ static void delete_all_records(struct tls_offload_context_tx *offload_ctx)
 	offload_ctx->retransmit_hint = NULL;
 }
 
-static void tls_icsk_clean_acked(struct sock *sk, u32 acked_seq)
+static void tls_tcp_clean_acked(struct sock *sk, u32 acked_seq)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_record_info *info, *temp;
@@ -204,7 +204,7 @@ void tls_device_sk_destruct(struct sock *sk)
 			destroy_record(ctx->open_record);
 		delete_all_records(ctx);
 		crypto_free_aead(ctx->aead_send);
-		clean_acked_data_disable(inet_csk(sk));
+		clean_acked_data_disable(tcp_sk(sk));
 	}
 
 	tls_device_queue_ctx_destruction(tls_ctx);
@@ -1126,7 +1126,7 @@ int tls_set_device_offload(struct sock *sk)
 	start_marker_record->num_frags = 0;
 	list_add_tail(&start_marker_record->list, &offload_ctx->records_list);
 
-	clean_acked_data_enable(inet_csk(sk), &tls_icsk_clean_acked);
+	clean_acked_data_enable(tcp_sk(sk), &tls_tcp_clean_acked);
 	ctx->push_pending_record = tls_device_push_pending_record;
 
 	/* TLS offload is greatly simplified if we don't send
@@ -1172,7 +1172,7 @@ int tls_set_device_offload(struct sock *sk)
 
 release_lock:
 	up_read(&device_offload_lock);
-	clean_acked_data_disable(inet_csk(sk));
+	clean_acked_data_disable(tcp_sk(sk));
 	crypto_free_aead(offload_ctx->aead_send);
 free_offload_ctx:
 	kfree(offload_ctx);

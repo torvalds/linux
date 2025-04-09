@@ -715,7 +715,7 @@ int bdev_open(struct block_device *bdev, blk_mode_t mode, void *holder,
 int bdev_permission(dev_t dev, blk_mode_t mode, void *holder);
 
 void blk_integrity_generate(struct bio *bio);
-void blk_integrity_verify(struct bio *bio);
+void blk_integrity_verify_iter(struct bio *bio, struct bvec_iter *saved_iter);
 void blk_integrity_prepare(struct request *rq);
 void blk_integrity_complete(struct request *rq, unsigned int nr_bytes);
 

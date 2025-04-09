@@ -46,5 +46,9 @@ bool dce100_enable_display_power_gating(struct dc *dc, uint8_t controller_id,
 					struct dc_bios *dcb,
 					enum pipe_gating_control power_gating);
 
+void dce100_reset_surface_dcc_and_tiling(struct pipe_ctx *pipe_ctx,
+					struct dc_plane_state *plane_state,
+					bool clear_tiling);
+
 #endif /* __DC_HWSS_DCE100_H__ */
 

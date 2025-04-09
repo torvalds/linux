@@ -3,6 +3,7 @@
  * Copyright (C) 2024 Google LLC
  */
 
+#define _GNU_SOURCE
 #include <assert.h>
 #include <inttypes.h>
 #include <stdarg.h>
@@ -193,79 +194,17 @@ static void process_fmt(struct die *cache, const char *fmt, ...)
 	va_end(args);
 }
 
-#define MAX_FQN_SIZE 64
-
-/* Get a fully qualified name from DWARF scopes */
-static char *get_fqn(Dwarf_Die *die)
-{
-	const char *list[MAX_FQN_SIZE];
-	Dwarf_Die *scopes = NULL;
-	bool has_name = false;
-	char *fqn = NULL;
-	char *p;
-	int count = 0;
-	int len = 0;
-	int res;
-	int i;
-
-	res = checkp(dwarf_getscopes_die(die, &scopes));
-	if (!res) {
-		list[count] = get_name_attr(die);
-
-		if (!list[count])
-			return NULL;
-
-		len += strlen(list[count]);
-		count++;
-
-		goto done;
-	}
-
-	for (i = res - 1; i >= 0 && count < MAX_FQN_SIZE; i--) {
-		if (dwarf_tag(&scopes[i]) == DW_TAG_compile_unit)
-			continue;
-
-		list[count] = get_name_attr(&scopes[i]);
-
-		if (list[count]) {
-			has_name = true;
-		} else {
-			list[count] = "<anonymous>";
-			has_name = false;
-		}
-
-		len += strlen(list[count]);
-		count++;
-
-		if (i > 0) {
-			list[count++] = "::";
-			len += 2;
-		}
-	}
-
-	free(scopes);
-
-	if (count == MAX_FQN_SIZE)
-		warn("increase MAX_FQN_SIZE: reached the maximum");
-
-	/* Consider the DIE unnamed if the last scope doesn't have a name */
-	if (!has_name)
-		return NULL;
-done:
-	fqn = xmalloc(len + 1);
-	*fqn = '\0';
-
-	p = fqn;
-	for (i = 0; i < count; i++)
-		p = stpcpy(p, list[i]);
-
-	return fqn;
-}
-
 static void update_fqn(struct die *cache, Dwarf_Die *die)
 {
-	if (!cache->fqn)
-		cache->fqn = get_fqn(die) ?: "";
+	struct die *fqn;
+
+	if (!cache->fqn) {
+		if (!__die_map_get((uintptr_t)die->addr, DIE_FQN, &fqn) &&
+		    *fqn->fqn)
+			cache->fqn = xstrdup(fqn->fqn);
+		else
+			cache->fqn = "";
+	}
 }
 
 static void process_fqn(struct die *cache, Dwarf_Die *die)
@@ -1148,8 +1087,81 @@ static void process_symbol_ptr(struct symbol *sym, void *arg)
 	cache_free(&state.expansion_cache);
 }
 
+static int resolve_fqns(struct state *parent, struct die *unused,
+			Dwarf_Die *die)
+{
+	struct state state;
+	struct die *cache;
+	const char *name;
+	bool use_prefix;
+	char *prefix = NULL;
+	char *fqn = "";
+	int tag;
+
+	if (!__die_map_get((uintptr_t)die->addr, DIE_FQN, &cache))
+		return 0;
+
+	tag = dwarf_tag(die);
+
+	/*
+	 * Only namespaces and structures need to pass a prefix to the next
+	 * scope.
+	 */
+	use_prefix = tag == DW_TAG_namespace || tag == DW_TAG_class_type ||
+		     tag == DW_TAG_structure_type;
+
+	state.expand.current_fqn = NULL;
+	name = get_name_attr(die);
+
+	if (parent && parent->expand.current_fqn && (use_prefix || name)) {
+		/*
+		 * The fqn for the current DIE, and if needed, a prefix for the
+		 * next scope.
+		 */
+		if (asprintf(&prefix, "%s::%s", parent->expand.current_fqn,
+			     name ? name : "<anonymous>") < 0)
+			error("asprintf failed");
+
+		if (use_prefix)
+			state.expand.current_fqn = prefix;
+
+		/*
+		 * Use fqn only if the DIE has a name. Otherwise fqn will
+		 * remain empty.
+		 */
+		if (name) {
+			fqn = prefix;
+			/* prefix will be freed by die_map. */
+			prefix = NULL;
+		}
+	} else if (name) {
+		/* No prefix from the previous scope. Use only the name. */
+		fqn = xstrdup(name);
+
+		if (use_prefix)
+			state.expand.current_fqn = fqn;
+	}
+
+	/* If the DIE has a non-empty name, cache it. */
+	if (*fqn) {
+		cache = die_map_get(die, DIE_FQN);
+		/* Move ownership of fqn to die_map. */
+		cache->fqn = fqn;
+		cache->state = DIE_FQN;
+	}
+
+	check(process_die_container(&state, NULL, die, resolve_fqns,
+				    match_all));
+
+	free(prefix);
+	return 0;
+}
+
 void process_cu(Dwarf_Die *cudie)
 {
+	check(process_die_container(NULL, NULL, cudie, resolve_fqns,
+				    match_all));
+
 	check(process_die_container(NULL, NULL, cudie, process_exported_symbols,
 				    match_all));
 

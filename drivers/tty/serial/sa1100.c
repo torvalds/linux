@@ -369,7 +369,7 @@ static void sa1100_shutdown(struct uart_port *port)
 	/*
 	 * Stop our timer.
 	 */
-	del_timer_sync(&sport->timer);
+	timer_delete_sync(&sport->timer);
 
 	/*
 	 * Free the interrupt
@@ -421,7 +421,7 @@ sa1100_set_termios(struct uart_port *port, struct ktermios *termios,
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk/16); 
 	quot = uart_get_divisor(port, baud);
 
-	del_timer_sync(&sport->timer);
+	timer_delete_sync(&sport->timer);
 
 	uart_port_lock_irqsave(&sport->port, &flags);
 

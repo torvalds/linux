@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
 /*
- * Copyright (c) 2022-2023 TQ-Systems GmbH <linux@ew.tq-group.com>,
+ * Copyright (c) 2022-2024 TQ-Systems GmbH <linux@ew.tq-group.com>,
  * D-82229 Seefeld, Germany.
  * Author: Markus Niebel
  * Author: Alexander Stein
@@ -26,8 +26,8 @@
 
 	aliases {
 		eeprom0 = &eeprom0;
-		ethernet0 = &fec;
-		ethernet1 = &eqos;
+		ethernet0 = &eqos;
+		ethernet1 = &fec;
 		rtc0 = &pcf85063;
 		rtc1 = &bbnsm_rtc;
 	};

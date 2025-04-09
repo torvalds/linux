@@ -1519,7 +1519,7 @@ static psmouse_ret_t alps_handle_interleaved_ps2(struct psmouse *psmouse)
 		return PSMOUSE_GOOD_DATA;
 	}
 
-	del_timer(&priv->timer);
+	timer_delete(&priv->timer);
 
 	if (psmouse->packet[6] & 0x80) {
 

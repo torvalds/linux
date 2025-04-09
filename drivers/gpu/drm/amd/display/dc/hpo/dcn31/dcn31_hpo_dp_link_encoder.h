@@ -226,4 +226,10 @@ void dcn31_hpo_dp_link_enc_set_ffe(
 	const struct dc_link_settings *link_settings,
 	uint8_t ffe_preset);
 
+
+void dcn31_fill_stream_allocation_row_info(
+		const struct link_mst_stream_allocation *stream_allocation,
+		uint32_t *src,
+		uint32_t *slots);
+
 #endif   // __DAL_DCN31_HPO_LINK_ENCODER_H__

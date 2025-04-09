@@ -1,0 +1,112 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/fsl,gianfar-mdio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale Gianfar (TSEC) MDIO Device
+
+description:
+  This binding describes the MDIO is a bus to which the PHY devices are
+  connected. For each device that exists on this bus, a child node should be
+  created.
+
+  Some TSECs are associated with an internal Ten-Bit Interface (TBI) PHY. This
+  PHY is accessed through the local MDIO bus. These buses are defined similarly
+  to the mdio buses, except they are compatible with "fsl,gianfar-tbi". The TBI
+  PHYs underneath them are similar to normal PHYs, but the reg property is
+  considered instructive, rather than descriptive. The reg property should be
+  chosen so it doesn't interfere with other PHYs on the bus.
+
+maintainers:
+  - J. Neuschäfer <j.ne@posteo.net>
+
+# This is needed to distinguish gianfar.yaml and gianfar-mdio.yaml, because
+# both use compatible = "gianfar" (with different device_type values)
+select:
+  oneOf:
+    - properties:
+        compatible:
+          contains:
+            const: gianfar
+        device_type:
+          const: mdio
+      required:
+        - device_type
+
+    - properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,gianfar-tbi
+              - fsl,gianfar-mdio
+              - fsl,etsec2-tbi
+              - fsl,etsec2-mdio
+              - fsl,ucc-mdio
+              - ucc_geth_phy
+
+  required:
+    - compatible
+
+properties:
+  compatible:
+    enum:
+      - fsl,gianfar-tbi
+      - fsl,gianfar-mdio
+      - fsl,etsec2-tbi
+      - fsl,etsec2-mdio
+      - fsl,ucc-mdio
+      - gianfar
+      - ucc_geth_phy
+
+  reg:
+    minItems: 1
+    items:
+      - description:
+          Offset and length of the register set for the device
+
+      - description:
+          Optionally, the offset and length of the TBIPA register (TBI PHY
+          address register). If TBIPA register is not specified, the driver
+          will attempt to infer it from the register set specified (your
+          mileage may vary).
+
+  device_type:
+    const: mdio
+
+required:
+  - reg
+  - "#address-cells"
+  - "#size-cells"
+
+allOf:
+  - $ref: mdio.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ucc_geth_phy
+    then:
+      required:
+        - device_type
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    soc {
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        mdio@24520 {
+            reg = <0x24520 0x20>;
+            compatible = "fsl,gianfar-mdio";
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            ethernet-phy@0 {
+                reg = <0>;
+            };
+        };
+    };

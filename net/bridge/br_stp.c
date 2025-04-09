@@ -198,7 +198,7 @@ void br_become_root_bridge(struct net_bridge *br)
 	br->hello_time = br->bridge_hello_time;
 	br->forward_delay = br->bridge_forward_delay;
 	br_topology_change_detection(br);
-	del_timer(&br->tcn_timer);
+	timer_delete(&br->tcn_timer);
 
 	if (br->dev->flags & IFF_UP) {
 		br_config_bpdu_generation(br);
@@ -363,7 +363,7 @@ static int br_supersedes_port_info(const struct net_bridge_port *p,
 static void br_topology_change_acknowledged(struct net_bridge *br)
 {
 	br->topology_change_detected = 0;
-	del_timer(&br->tcn_timer);
+	timer_delete(&br->tcn_timer);
 }
 
 /* called under bridge lock */
@@ -439,7 +439,7 @@ static void br_make_blocking(struct net_bridge_port *p)
 		br_set_state(p, BR_STATE_BLOCKING);
 		br_ifinfo_notify(RTM_NEWLINK, NULL, p);
 
-		del_timer(&p->forward_delay_timer);
+		timer_delete(&p->forward_delay_timer);
 	}
 }
 
@@ -454,7 +454,7 @@ static void br_make_forwarding(struct net_bridge_port *p)
 	if (br->stp_enabled == BR_NO_STP || br->forward_delay == 0) {
 		br_set_state(p, BR_STATE_FORWARDING);
 		br_topology_change_detection(br);
-		del_timer(&p->forward_delay_timer);
+		timer_delete(&p->forward_delay_timer);
 	} else if (br->stp_enabled == BR_KERNEL_STP)
 		br_set_state(p, BR_STATE_LISTENING);
 	else
@@ -483,7 +483,7 @@ void br_port_state_selection(struct net_bridge *br)
 				p->topology_change_ack = 0;
 				br_make_forwarding(p);
 			} else if (br_is_designated_port(p)) {
-				del_timer(&p->message_age_timer);
+				timer_delete(&p->message_age_timer);
 				br_make_forwarding(p);
 			} else {
 				p->config_pending = 0;
@@ -533,9 +533,9 @@ void br_received_config_bpdu(struct net_bridge_port *p,
 		br_port_state_selection(br);
 
 		if (!br_is_root_bridge(br) && was_root) {
-			del_timer(&br->hello_timer);
+			timer_delete(&br->hello_timer);
 			if (br->topology_change_detected) {
-				del_timer(&br->topology_change_timer);
+				timer_delete(&br->topology_change_timer);
 				br_transmit_tcn(br);
 
 				mod_timer(&br->tcn_timer,

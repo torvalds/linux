@@ -544,7 +544,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags, u64 
 		 * core.
 		 */
 		if (flags & SCX_PICK_IDLE_CORE) {
-			cpu = prev_cpu;
+			cpu = -EBUSY;
 			goto out_unlock;
 		}
 	}
@@ -584,8 +584,6 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags, u64 
 	 * increasing distance.
 	 */
 	cpu = scx_pick_idle_cpu(p->cpus_ptr, node, flags);
-	if (cpu >= 0)
-		goto out_unlock;
 
 out_unlock:
 	rcu_read_unlock();
@@ -723,14 +721,14 @@ static void reset_idle_masks(struct sched_ext_ops *ops)
 void scx_idle_enable(struct sched_ext_ops *ops)
 {
 	if (!ops->update_idle || (ops->flags & SCX_OPS_KEEP_BUILTIN_IDLE))
-		static_branch_enable(&scx_builtin_idle_enabled);
+		static_branch_enable_cpuslocked(&scx_builtin_idle_enabled);
 	else
-		static_branch_disable(&scx_builtin_idle_enabled);
+		static_branch_disable_cpuslocked(&scx_builtin_idle_enabled);
 
 	if (ops->flags & SCX_OPS_BUILTIN_IDLE_PER_NODE)
-		static_branch_enable(&scx_builtin_idle_per_node);
+		static_branch_enable_cpuslocked(&scx_builtin_idle_per_node);
 	else
-		static_branch_disable(&scx_builtin_idle_per_node);
+		static_branch_disable_cpuslocked(&scx_builtin_idle_per_node);
 
 #ifdef CONFIG_SMP
 	reset_idle_masks(ops);

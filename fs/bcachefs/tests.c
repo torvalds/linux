@@ -43,7 +43,7 @@ static int test_delete(struct bch_fs *c, u64 nr)
 			     BTREE_ITER_intent);
 
 	ret = commit_do(trans, NULL, NULL, 0,
-		bch2_btree_iter_traverse(&iter) ?:
+		bch2_btree_iter_traverse(trans, &iter) ?:
 		bch2_trans_update(trans, &iter, &k.k_i, 0));
 	bch_err_msg(c, ret, "update error");
 	if (ret)
@@ -51,7 +51,7 @@ static int test_delete(struct bch_fs *c, u64 nr)
 
 	pr_info("deleting once");
 	ret = commit_do(trans, NULL, NULL, 0,
-		bch2_btree_iter_traverse(&iter) ?:
+		bch2_btree_iter_traverse(trans, &iter) ?:
 		bch2_btree_delete_at(trans, &iter, 0));
 	bch_err_msg(c, ret, "delete error (first)");
 	if (ret)
@@ -59,7 +59,7 @@ static int test_delete(struct bch_fs *c, u64 nr)
 
 	pr_info("deleting twice");
 	ret = commit_do(trans, NULL, NULL, 0,
-		bch2_btree_iter_traverse(&iter) ?:
+		bch2_btree_iter_traverse(trans, &iter) ?:
 		bch2_btree_delete_at(trans, &iter, 0));
 	bch_err_msg(c, ret, "delete error (second)");
 	if (ret)
@@ -84,7 +84,7 @@ static int test_delete_written(struct bch_fs *c, u64 nr)
 			     BTREE_ITER_intent);
 
 	ret = commit_do(trans, NULL, NULL, 0,
-		bch2_btree_iter_traverse(&iter) ?:
+		bch2_btree_iter_traverse(trans, &iter) ?:
 		bch2_trans_update(trans, &iter, &k.k_i, 0));
 	bch_err_msg(c, ret, "update error");
 	if (ret)
@@ -94,7 +94,7 @@ static int test_delete_written(struct bch_fs *c, u64 nr)
 	bch2_journal_flush_all_pins(&c->journal);
 
 	ret = commit_do(trans, NULL, NULL, 0,
-		bch2_btree_iter_traverse(&iter) ?:
+		bch2_btree_iter_traverse(trans, &iter) ?:
 		bch2_btree_delete_at(trans, &iter, 0));
 	bch_err_msg(c, ret, "delete error");
 	if (ret)
@@ -349,10 +349,10 @@ static int test_peek_end(struct bch_fs *c, u64 nr)
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_xattrs,
 			     SPOS(0, 0, U32_MAX), 0);
 
-	lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_max(&iter, POS(0, U64_MAX))));
+	lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_max(trans, &iter, POS(0, U64_MAX))));
 	BUG_ON(k.k);
 
-	lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_max(&iter, POS(0, U64_MAX))));
+	lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_max(trans, &iter, POS(0, U64_MAX))));
 	BUG_ON(k.k);
 
 	bch2_trans_iter_exit(trans, &iter);
@@ -369,10 +369,10 @@ static int test_peek_end_extents(struct bch_fs *c, u64 nr)
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
 			     SPOS(0, 0, U32_MAX), 0);
 
-	lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_max(&iter, POS(0, U64_MAX))));
+	lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_max(trans, &iter, POS(0, U64_MAX))));
 	BUG_ON(k.k);
 
-	lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_max(&iter, POS(0, U64_MAX))));
+	lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_max(trans, &iter, POS(0, U64_MAX))));
 	BUG_ON(k.k);
 
 	bch2_trans_iter_exit(trans, &iter);
@@ -488,7 +488,7 @@ static int test_snapshot_filter(struct bch_fs *c, u32 snapid_lo, u32 snapid_hi)
 	trans = bch2_trans_get(c);
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_xattrs,
 			     SPOS(0, 0, snapid_lo), 0);
-	lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_max(&iter, POS(0, U64_MAX))));
+	lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_max(trans, &iter, POS(0, U64_MAX))));
 
 	BUG_ON(k.k->p.snapshot != U32_MAX);
 
@@ -602,9 +602,9 @@ static int rand_lookup(struct bch_fs *c, u64 nr)
 			     SPOS(0, 0, U32_MAX), 0);
 
 	for (i = 0; i < nr; i++) {
-		bch2_btree_iter_set_pos(&iter, SPOS(0, test_rand(), U32_MAX));
+		bch2_btree_iter_set_pos(trans, &iter, SPOS(0, test_rand(), U32_MAX));
 
-		lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek(&iter)));
+		lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek(trans, &iter)));
 		ret = bkey_err(k);
 		if (ret)
 			break;
@@ -623,9 +623,9 @@ static int rand_mixed_trans(struct btree_trans *trans,
 	struct bkey_s_c k;
 	int ret;
 
-	bch2_btree_iter_set_pos(iter, SPOS(0, pos, U32_MAX));
+	bch2_btree_iter_set_pos(trans, iter, SPOS(0, pos, U32_MAX));
 
-	k = bch2_btree_iter_peek(iter);
+	k = bch2_btree_iter_peek(trans, iter);
 	ret = bkey_err(k);
 	bch_err_msg(trans->c, ret, "lookup error");
 	if (ret)
@@ -672,7 +672,7 @@ static int __do_delete(struct btree_trans *trans, struct bpos pos)
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_xattrs, pos,
 			     BTREE_ITER_intent);
-	k = bch2_btree_iter_peek_max(&iter, POS(0, U64_MAX));
+	k = bch2_btree_iter_peek_max(trans, &iter, POS(0, U64_MAX));
 	ret = bkey_err(k);
 	if (ret)
 		goto err;

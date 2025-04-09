@@ -261,7 +261,6 @@ static void drm_test_buddy_alloc_range_bias(struct kunit *test)
 static void drm_test_buddy_alloc_clear(struct kunit *test)
 {
 	unsigned long n_pages, total, i = 0;
-	DRM_RND_STATE(prng, random_seed);
 	const unsigned long ps = SZ_4K;
 	struct drm_buddy_block *block;
 	const int max_order = 12;
@@ -385,17 +384,28 @@ static void drm_test_buddy_alloc_clear(struct kunit *test)
 	drm_buddy_fini(&mm);
 
 	/*
-	 * Create a new mm with a non power-of-two size. Allocate a random size, free as
-	 * cleared and then call fini. This will ensure the multi-root force merge during
-	 * fini.
+	 * Create a new mm with a non power-of-two size. Allocate a random size from each
+	 * root, free as cleared and then call fini. This will ensure the multi-root
+	 * force merge during fini.
 	 */
-	mm_size = 12 * SZ_4K;
-	size = max(round_up(prandom_u32_state(&prng) % mm_size, ps), ps);
+	mm_size = (SZ_4K << max_order) + (SZ_4K << (max_order - 2));
+
 	KUNIT_EXPECT_FALSE(test, drm_buddy_init(&mm, mm_size, ps));
-	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size,
-							    size, ps, &allocated,
-							    DRM_BUDDY_TOPDOWN_ALLOCATION),
-				"buddy_alloc hit an error size=%u\n", size);
+	KUNIT_EXPECT_EQ(test, mm.max_order, max_order);
+	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, SZ_4K << max_order,
+							    4 * ps, ps, &allocated,
+							    DRM_BUDDY_RANGE_ALLOCATION),
+				"buddy_alloc hit an error size=%lu\n", 4 * ps);
+	drm_buddy_free_list(&mm, &allocated, DRM_BUDDY_CLEARED);
+	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, SZ_4K << max_order,
+							    2 * ps, ps, &allocated,
+							    DRM_BUDDY_CLEAR_ALLOCATION),
+				"buddy_alloc hit an error size=%lu\n", 2 * ps);
+	drm_buddy_free_list(&mm, &allocated, DRM_BUDDY_CLEARED);
+	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, SZ_4K << max_order, mm_size,
+							    ps, ps, &allocated,
+							    DRM_BUDDY_RANGE_ALLOCATION),
+				"buddy_alloc hit an error size=%lu\n", ps);
 	drm_buddy_free_list(&mm, &allocated, DRM_BUDDY_CLEARED);
 	drm_buddy_fini(&mm);
 }

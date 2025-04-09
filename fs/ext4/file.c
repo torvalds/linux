@@ -688,10 +688,12 @@ out:
 static ssize_t
 ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
+	int ret;
 	struct inode *inode = file_inode(iocb->ki_filp);
 
-	if (unlikely(ext4_forced_shutdown(inode->i_sb)))
-		return -EIO;
+	ret = ext4_emergency_state(inode->i_sb);
+	if (unlikely(ret))
+		return ret;
 
 #ifdef CONFIG_FS_DAX
 	if (IS_DAX(inode))
@@ -700,7 +702,6 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	if (iocb->ki_flags & IOCB_ATOMIC) {
 		size_t len = iov_iter_count(from);
-		int ret;
 
 		if (len < EXT4_SB(inode->i_sb)->s_awu_min ||
 		    len > EXT4_SB(inode->i_sb)->s_awu_max)
@@ -800,11 +801,16 @@ static const struct vm_operations_struct ext4_file_vm_ops = {
 
 static int ext4_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
+	int ret;
 	struct inode *inode = file->f_mapping->host;
 	struct dax_device *dax_dev = EXT4_SB(inode->i_sb)->s_daxdev;
 
-	if (unlikely(ext4_forced_shutdown(inode->i_sb)))
-		return -EIO;
+	if (file->f_mode & FMODE_WRITE)
+		ret = ext4_emergency_state(inode->i_sb);
+	else
+		ret = ext4_forced_shutdown(inode->i_sb) ? -EIO : 0;
+	if (unlikely(ret))
+		return ret;
 
 	/*
 	 * We don't support synchronous mappings for non-DAX files and
@@ -835,7 +841,8 @@ static int ext4_sample_last_mounted(struct super_block *sb,
 	if (likely(ext4_test_mount_flag(sb, EXT4_MF_MNTDIR_SAMPLED)))
 		return 0;
 
-	if (sb_rdonly(sb) || !sb_start_intwrite_trylock(sb))
+	if (ext4_emergency_state(sb) || sb_rdonly(sb) ||
+	    !sb_start_intwrite_trylock(sb))
 		return 0;
 
 	ext4_set_mount_flag(sb, EXT4_MF_MNTDIR_SAMPLED);
@@ -878,8 +885,12 @@ static int ext4_file_open(struct inode *inode, struct file *filp)
 {
 	int ret;
 
-	if (unlikely(ext4_forced_shutdown(inode->i_sb)))
-		return -EIO;
+	if (filp->f_mode & FMODE_WRITE)
+		ret = ext4_emergency_state(inode->i_sb);
+	else
+		ret = ext4_forced_shutdown(inode->i_sb) ? -EIO : 0;
+	if (unlikely(ret))
+		return ret;
 
 	ret = ext4_sample_last_mounted(inode->i_sb, filp->f_path.mnt);
 	if (ret)

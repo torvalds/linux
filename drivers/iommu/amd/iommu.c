@@ -75,8 +75,6 @@ struct iommu_cmd {
  */
 DEFINE_IDA(pdom_ids);
 
-struct kmem_cache *amd_iommu_irq_cache;
-
 static int amd_iommu_attach_device(struct iommu_domain *dom,
 				   struct device *dev);
 
@@ -868,7 +866,7 @@ static void iommu_print_event(struct amd_iommu *iommu, void *__evt)
 	int type, devid, flags, tag;
 	volatile u32 *event = __evt;
 	int count = 0;
-	u64 address;
+	u64 address, ctrl;
 	u32 pasid;
 
 retry:
@@ -878,6 +876,7 @@ retry:
 		  (event[1] & EVENT_DOMID_MASK_LO);
 	flags   = (event[1] >> EVENT_FLAGS_SHIFT) & EVENT_FLAGS_MASK;
 	address = (u64)(((u64)event[3]) << 32) | event[2];
+	ctrl    = readq(iommu->mmio_base + MMIO_CONTROL_OFFSET);
 
 	if (type == 0) {
 		/* Did we hit the erratum? */
@@ -899,6 +898,7 @@ retry:
 		dev_err(dev, "Event logged [ILLEGAL_DEV_TABLE_ENTRY device=%04x:%02x:%02x.%x pasid=0x%05x address=0x%llx flags=0x%04x]\n",
 			iommu->pci_seg->id, PCI_BUS_NUM(devid), PCI_SLOT(devid), PCI_FUNC(devid),
 			pasid, address, flags);
+		dev_err(dev, "Control Reg : 0x%llx\n", ctrl);
 		dump_dte_entry(iommu, devid);
 		break;
 	case EVENT_TYPE_DEV_TAB_ERR:
@@ -2394,7 +2394,13 @@ static struct iommu_device *amd_iommu_probe_device(struct device *dev)
 	}
 
 out_err:
+
 	iommu_completion_wait(iommu);
+
+	if (FEATURE_NUM_INT_REMAP_SUP_2K(amd_iommu_efr2))
+		dev_data->max_irqs = MAX_IRQS_PER_TABLE_2K;
+	else
+		dev_data->max_irqs = MAX_IRQS_PER_TABLE_512;
 
 	if (dev_is_pci(dev))
 		pci_prepare_ats(to_pci_dev(dev), PAGE_SHIFT);
@@ -2431,15 +2437,6 @@ static struct iommu_group *amd_iommu_device_group(struct device *dev)
  * which is not possible with the dma_ops interface.
  *
  *****************************************************************************/
-
-void protection_domain_free(struct protection_domain *domain)
-{
-	WARN_ON(!list_empty(&domain->dev_list));
-	if (domain->domain.type & __IOMMU_DOMAIN_PAGING)
-		free_io_pgtable_ops(&domain->iop.pgtbl.ops);
-	pdom_id_free(domain->id);
-	kfree(domain);
-}
 
 static void protection_domain_init(struct protection_domain *domain)
 {
@@ -2578,7 +2575,11 @@ void amd_iommu_domain_free(struct iommu_domain *dom)
 {
 	struct protection_domain *domain = to_pdomain(dom);
 
-	protection_domain_free(domain);
+	WARN_ON(!list_empty(&domain->dev_list));
+	if (domain->domain.type & __IOMMU_DOMAIN_PAGING)
+		free_io_pgtable_ops(&domain->iop.pgtbl.ops);
+	pdom_id_free(domain->id);
+	kfree(domain);
 }
 
 static int blocked_domain_attach_device(struct iommu_domain *domain,
@@ -3081,6 +3082,13 @@ out:
 	raw_spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
+static inline u8 iommu_get_int_tablen(struct iommu_dev_data *dev_data)
+{
+	if (dev_data && dev_data->max_irqs == MAX_IRQS_PER_TABLE_2K)
+		return DTE_INTTABLEN_2K;
+	return DTE_INTTABLEN_512;
+}
+
 static void set_dte_irq_entry(struct amd_iommu *iommu, u16 devid,
 			      struct irq_remap_table *table)
 {
@@ -3095,7 +3103,7 @@ static void set_dte_irq_entry(struct amd_iommu *iommu, u16 devid,
 	new &= ~DTE_IRQ_PHYS_ADDR_MASK;
 	new |= iommu_virt_to_phys(table->table);
 	new |= DTE_IRQ_REMAP_INTCTL;
-	new |= DTE_INTTABLEN;
+	new |= iommu_get_int_tablen(dev_data);
 	new |= DTE_IRQ_REMAP_ENABLE;
 	WRITE_ONCE(dte->data[2], new);
 
@@ -3121,7 +3129,7 @@ static struct irq_remap_table *get_irq_table(struct amd_iommu *iommu, u16 devid)
 	return table;
 }
 
-static struct irq_remap_table *__alloc_irq_table(void)
+static struct irq_remap_table *__alloc_irq_table(int nid, int order)
 {
 	struct irq_remap_table *table;
 
@@ -3129,19 +3137,13 @@ static struct irq_remap_table *__alloc_irq_table(void)
 	if (!table)
 		return NULL;
 
-	table->table = kmem_cache_alloc(amd_iommu_irq_cache, GFP_KERNEL);
+	table->table = iommu_alloc_pages_node(nid, GFP_KERNEL, order);
 	if (!table->table) {
 		kfree(table);
 		return NULL;
 	}
 	raw_spin_lock_init(&table->lock);
 
-	if (!AMD_IOMMU_GUEST_IR_GA(amd_iommu_guest_ir))
-		memset(table->table, 0,
-		       MAX_IRQS_PER_TABLE * sizeof(u32));
-	else
-		memset(table->table, 0,
-		       (MAX_IRQS_PER_TABLE * (sizeof(u64) * 2)));
 	return table;
 }
 
@@ -3173,13 +3175,24 @@ static int set_remap_table_entry_alias(struct pci_dev *pdev, u16 alias,
 	return 0;
 }
 
+static inline size_t get_irq_table_size(unsigned int max_irqs)
+{
+	if (!AMD_IOMMU_GUEST_IR_GA(amd_iommu_guest_ir))
+		return max_irqs * sizeof(u32);
+
+	return max_irqs * (sizeof(u64) * 2);
+}
+
 static struct irq_remap_table *alloc_irq_table(struct amd_iommu *iommu,
-					       u16 devid, struct pci_dev *pdev)
+					       u16 devid, struct pci_dev *pdev,
+					       unsigned int max_irqs)
 {
 	struct irq_remap_table *table = NULL;
 	struct irq_remap_table *new_table = NULL;
 	struct amd_iommu_pci_seg *pci_seg;
 	unsigned long flags;
+	int order = get_order(get_irq_table_size(max_irqs));
+	int nid = iommu && iommu->dev ? dev_to_node(&iommu->dev->dev) : NUMA_NO_NODE;
 	u16 alias;
 
 	spin_lock_irqsave(&iommu_table_lock, flags);
@@ -3198,7 +3211,7 @@ static struct irq_remap_table *alloc_irq_table(struct amd_iommu *iommu,
 	spin_unlock_irqrestore(&iommu_table_lock, flags);
 
 	/* Nothing there yet, allocate new irq remapping table */
-	new_table = __alloc_irq_table();
+	new_table = __alloc_irq_table(nid, order);
 	if (!new_table)
 		return NULL;
 
@@ -3233,20 +3246,21 @@ out_unlock:
 	spin_unlock_irqrestore(&iommu_table_lock, flags);
 
 	if (new_table) {
-		kmem_cache_free(amd_iommu_irq_cache, new_table->table);
+		iommu_free_pages(new_table->table, order);
 		kfree(new_table);
 	}
 	return table;
 }
 
 static int alloc_irq_index(struct amd_iommu *iommu, u16 devid, int count,
-			   bool align, struct pci_dev *pdev)
+			   bool align, struct pci_dev *pdev,
+			   unsigned long max_irqs)
 {
 	struct irq_remap_table *table;
 	int index, c, alignment = 1;
 	unsigned long flags;
 
-	table = alloc_irq_table(iommu, devid, pdev);
+	table = alloc_irq_table(iommu, devid, pdev, max_irqs);
 	if (!table)
 		return -ENODEV;
 
@@ -3257,7 +3271,7 @@ static int alloc_irq_index(struct amd_iommu *iommu, u16 devid, int count,
 
 	/* Scan table for free entries */
 	for (index = ALIGN(table->min_index, alignment), c = 0;
-	     index < MAX_IRQS_PER_TABLE;) {
+	     index < max_irqs;) {
 		if (!iommu->irte_ops->is_allocated(table, index)) {
 			c += 1;
 		} else {
@@ -3527,6 +3541,14 @@ static void fill_msi_msg(struct msi_msg *msg, u32 index)
 	msg->data = index;
 	msg->address_lo = 0;
 	msg->arch_addr_lo.base_address = X86_MSI_BASE_ADDRESS_LOW;
+	/*
+	 * The struct msi_msg.dest_mode_logical is used to set the DM bit
+	 * in MSI Message Address Register. For device w/ 2K int-remap support,
+	 * this is bit must be set to 1 regardless of the actual destination
+	 * mode, which is signified by the IRTE[DM].
+	 */
+	if (FEATURE_NUM_INT_REMAP_SUP_2K(amd_iommu_efr2))
+		msg->arch_addr_lo.dest_mode_logical = true;
 	msg->address_hi = X86_MSI_BASE_ADDRESS_HIGH;
 }
 
@@ -3589,6 +3611,8 @@ static int irq_remapping_alloc(struct irq_domain *domain, unsigned int virq,
 	struct amd_ir_data *data = NULL;
 	struct amd_iommu *iommu;
 	struct irq_cfg *cfg;
+	struct iommu_dev_data *dev_data;
+	unsigned long max_irqs;
 	int i, ret, devid, seg, sbdf;
 	int index;
 
@@ -3607,6 +3631,9 @@ static int irq_remapping_alloc(struct irq_domain *domain, unsigned int virq,
 	if (!iommu)
 		return -EINVAL;
 
+	dev_data = search_dev_data(iommu, devid);
+	max_irqs = dev_data ? dev_data->max_irqs : MAX_IRQS_PER_TABLE_512;
+
 	ret = irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, arg);
 	if (ret < 0)
 		return ret;
@@ -3614,7 +3641,7 @@ static int irq_remapping_alloc(struct irq_domain *domain, unsigned int virq,
 	if (info->type == X86_IRQ_ALLOC_TYPE_IOAPIC) {
 		struct irq_remap_table *table;
 
-		table = alloc_irq_table(iommu, devid, NULL);
+		table = alloc_irq_table(iommu, devid, NULL, max_irqs);
 		if (table) {
 			if (!table->min_index) {
 				/*
@@ -3635,9 +3662,11 @@ static int irq_remapping_alloc(struct irq_domain *domain, unsigned int virq,
 		bool align = (info->type == X86_IRQ_ALLOC_TYPE_PCI_MSI);
 
 		index = alloc_irq_index(iommu, devid, nr_irqs, align,
-					msi_desc_to_pci_dev(info->desc));
+					msi_desc_to_pci_dev(info->desc),
+					max_irqs);
 	} else {
-		index = alloc_irq_index(iommu, devid, nr_irqs, false, NULL);
+		index = alloc_irq_index(iommu, devid, nr_irqs, false, NULL,
+					max_irqs);
 	}
 
 	if (index < 0) {

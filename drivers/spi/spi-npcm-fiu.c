@@ -550,11 +550,6 @@ static int npcm_fiu_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	int ret = 0;
 	u8 *buf;
 
-	dev_dbg(fiu->dev, "cmd:%#x mode:%d.%d.%d.%d addr:%#llx len:%#x\n",
-		op->cmd.opcode, op->cmd.buswidth, op->addr.buswidth,
-		op->dummy.buswidth, op->data.buswidth, op->addr.val,
-		op->data.nbytes);
-
 	if (fiu->spix_mode || op->addr.nbytes > 4)
 		return -EOPNOTSUPP;
 

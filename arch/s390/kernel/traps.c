@@ -3,18 +3,13 @@
  *  S390 version
  *    Copyright IBM Corp. 1999, 2000
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
- *               Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com),
+ *		 Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com),
  *
  *  Derived from "arch/i386/kernel/traps.c"
  *    Copyright (C) 1991, 1992 Linus Torvalds
  */
 
-/*
- * 'Traps.c' handles hardware traps and faults after we have saved some
- * state in 'asm.s'.
- */
-#include "asm/irqflags.h"
-#include "asm/ptrace.h"
+#include <linux/cpufeature.h>
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
 #include <linux/randomize_kstack.h>
@@ -29,6 +24,8 @@
 #include <linux/entry-common.h>
 #include <linux/kmsan.h>
 #include <asm/asm-extable.h>
+#include <asm/irqflags.h>
+#include <asm/ptrace.h>
 #include <asm/vtime.h>
 #include <asm/fpu.h>
 #include <asm/fault.h>
@@ -42,7 +39,7 @@ static inline void __user *get_trap_ip(struct pt_regs *regs)
 		address = current->thread.trap_tdb.data[3];
 	else
 		address = regs->psw.addr;
-	return (void __user *) (address - (regs->int_code >> 16));
+	return (void __user *)(address - (regs->int_code >> 16));
 }
 
 #ifdef CONFIG_GENERIC_BUG
@@ -57,16 +54,15 @@ void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str)
 	if (user_mode(regs)) {
 		force_sig_fault(si_signo, si_code, get_trap_ip(regs));
 		report_user_fault(regs, si_signo, 0);
-        } else {
+	} else {
 		if (!fixup_exception(regs))
 			die(regs, str);
-        }
+	}
 }
 
 static void do_trap(struct pt_regs *regs, int si_signo, int si_code, char *str)
 {
-	if (notify_die(DIE_TRAP, str, regs, 0,
-		       regs->int_code, si_signo) == NOTIFY_STOP)
+	if (notify_die(DIE_TRAP, str, regs, 0, regs->int_code, si_signo) == NOTIFY_STOP)
 		return;
 	do_report_trap(regs, si_signo, si_code, str);
 }
@@ -78,8 +74,7 @@ void do_per_trap(struct pt_regs *regs)
 		return;
 	if (!current->ptrace)
 		return;
-	force_sig_fault(SIGTRAP, TRAP_HWBKPT,
-		(void __force __user *) current->thread.per_event.address);
+	force_sig_fault(SIGTRAP, TRAP_HWBKPT, (void __force __user *)current->thread.per_event.address);
 }
 NOKPROBE_SYMBOL(do_per_trap);
 
@@ -98,36 +93,25 @@ static void name(struct pt_regs *regs)		\
 	do_trap(regs, signr, sicode, str);	\
 }
 
-DO_ERROR_INFO(addressing_exception, SIGILL, ILL_ILLADR,
-	      "addressing exception")
-DO_ERROR_INFO(execute_exception, SIGILL, ILL_ILLOPN,
-	      "execute exception")
-DO_ERROR_INFO(divide_exception, SIGFPE, FPE_INTDIV,
-	      "fixpoint divide exception")
-DO_ERROR_INFO(overflow_exception, SIGFPE, FPE_INTOVF,
-	      "fixpoint overflow exception")
-DO_ERROR_INFO(hfp_overflow_exception, SIGFPE, FPE_FLTOVF,
-	      "HFP overflow exception")
-DO_ERROR_INFO(hfp_underflow_exception, SIGFPE, FPE_FLTUND,
-	      "HFP underflow exception")
-DO_ERROR_INFO(hfp_significance_exception, SIGFPE, FPE_FLTRES,
-	      "HFP significance exception")
-DO_ERROR_INFO(hfp_divide_exception, SIGFPE, FPE_FLTDIV,
-	      "HFP divide exception")
-DO_ERROR_INFO(hfp_sqrt_exception, SIGFPE, FPE_FLTINV,
-	      "HFP square root exception")
-DO_ERROR_INFO(operand_exception, SIGILL, ILL_ILLOPN,
-	      "operand exception")
-DO_ERROR_INFO(privileged_op, SIGILL, ILL_PRVOPC,
-	      "privileged operation")
-DO_ERROR_INFO(special_op_exception, SIGILL, ILL_ILLOPN,
-	      "special operation exception")
-DO_ERROR_INFO(transaction_exception, SIGILL, ILL_ILLOPN,
-	      "transaction constraint exception")
+DO_ERROR_INFO(addressing_exception, SIGILL, ILL_ILLADR, "addressing exception")
+DO_ERROR_INFO(divide_exception, SIGFPE, FPE_INTDIV, "fixpoint divide exception")
+DO_ERROR_INFO(execute_exception, SIGILL, ILL_ILLOPN, "execute exception")
+DO_ERROR_INFO(hfp_divide_exception, SIGFPE, FPE_FLTDIV, "HFP divide exception")
+DO_ERROR_INFO(hfp_overflow_exception, SIGFPE, FPE_FLTOVF, "HFP overflow exception")
+DO_ERROR_INFO(hfp_significance_exception, SIGFPE, FPE_FLTRES, "HFP significance exception")
+DO_ERROR_INFO(hfp_sqrt_exception, SIGFPE, FPE_FLTINV, "HFP square root exception")
+DO_ERROR_INFO(hfp_underflow_exception, SIGFPE, FPE_FLTUND, "HFP underflow exception")
+DO_ERROR_INFO(operand_exception, SIGILL, ILL_ILLOPN, "operand exception")
+DO_ERROR_INFO(overflow_exception, SIGFPE, FPE_INTOVF, "fixpoint overflow exception")
+DO_ERROR_INFO(privileged_op, SIGILL, ILL_PRVOPC, "privileged operation")
+DO_ERROR_INFO(special_op_exception, SIGILL, ILL_ILLOPN, "special operation exception")
+DO_ERROR_INFO(specification_exception, SIGILL, ILL_ILLOPN, "specification exception");
+DO_ERROR_INFO(transaction_exception, SIGILL, ILL_ILLOPN, "transaction constraint exception")
 
 static inline void do_fp_trap(struct pt_regs *regs, __u32 fpc)
 {
 	int si_code = 0;
+
 	/* FPC[2] is Data Exception Code */
 	if ((fpc & 0x00000300) == 0) {
 		/* bits 6 and 7 of DXC are 0 iff IEEE exception */
@@ -153,36 +137,35 @@ static void translation_specification_exception(struct pt_regs *regs)
 
 static void illegal_op(struct pt_regs *regs)
 {
-        __u8 opcode[6];
-	__u16 __user *location;
 	int is_uprobe_insn = 0;
+	u16 __user *location;
 	int signal = 0;
+	u16 opcode;
 
 	location = get_trap_ip(regs);
-
 	if (user_mode(regs)) {
-		if (get_user(*((__u16 *) opcode), (__u16 __user *) location))
+		if (get_user(opcode, location))
 			return;
-		if (*((__u16 *) opcode) == S390_BREAKPOINT_U16) {
+		if (opcode == S390_BREAKPOINT_U16) {
 			if (current->ptrace)
 				force_sig_fault(SIGTRAP, TRAP_BRKPT, location);
 			else
 				signal = SIGILL;
 #ifdef CONFIG_UPROBES
-		} else if (*((__u16 *) opcode) == UPROBE_SWBP_INSN) {
+		} else if (opcode == UPROBE_SWBP_INSN) {
 			is_uprobe_insn = 1;
 #endif
-		} else
+		} else {
 			signal = SIGILL;
+		}
 	}
 	/*
-	 * We got either an illegal op in kernel mode, or user space trapped
+	 * This is either an illegal op in kernel mode, or user space trapped
 	 * on a uprobes illegal instruction. See if kprobes or uprobes picks
 	 * it up. If not, SIGILL.
 	 */
 	if (is_uprobe_insn || !user_mode(regs)) {
-		if (notify_die(DIE_BPT, "bpt", regs, 0,
-			       3, SIGTRAP) != NOTIFY_STOP)
+		if (notify_die(DIE_BPT, "bpt", regs, 0, 3, SIGTRAP) != NOTIFY_STOP)
 			signal = SIGILL;
 	}
 	if (signal)
@@ -190,17 +173,9 @@ static void illegal_op(struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(illegal_op);
 
-DO_ERROR_INFO(specification_exception, SIGILL, ILL_ILLOPN,
-	      "specification exception");
-
 static void vector_exception(struct pt_regs *regs)
 {
 	int si_code, vic;
-
-	if (!cpu_has_vx()) {
-		do_trap(regs, SIGILL, ILL_ILLOPN, "illegal operation");
-		return;
-	}
 
 	/* get vector interrupt code from fpc */
 	save_user_fpu_regs();
@@ -249,7 +224,6 @@ static void monitor_event_exception(struct pt_regs *regs)
 {
 	if (user_mode(regs))
 		return;
-
 	switch (report_bug(regs->psw.addr - (regs->int_code >> 16), regs)) {
 	case BUG_TRAP_TYPE_NONE:
 		fixup_exception(regs);
@@ -262,7 +236,7 @@ static void monitor_event_exception(struct pt_regs *regs)
 	}
 }
 
-void kernel_stack_overflow(struct pt_regs *regs)
+void kernel_stack_invalid(struct pt_regs *regs)
 {
 	/*
 	 * Normally regs are unpoisoned by the generic entry code, but
@@ -270,12 +244,12 @@ void kernel_stack_overflow(struct pt_regs *regs)
 	 */
 	kmsan_unpoison_entry_regs(regs);
 	bust_spinlocks(1);
-	printk("Kernel stack overflow.\n");
+	pr_emerg("Kernel stack pointer invalid\n");
 	show_regs(regs);
 	bust_spinlocks(0);
-	panic("Corrupt kernel stack, can't continue.");
+	panic("Invalid kernel stack pointer, cannot continue");
 }
-NOKPROBE_SYMBOL(kernel_stack_overflow);
+NOKPROBE_SYMBOL(kernel_stack_invalid);
 
 static void __init test_monitor_call(void)
 {
@@ -283,7 +257,7 @@ static void __init test_monitor_call(void)
 
 	if (!IS_ENABLED(CONFIG_BUG))
 		return;
-	asm volatile(
+	asm_inline volatile(
 		"	mc	0,0\n"
 		"0:	lhi	%[val],0\n"
 		"1:\n"
@@ -323,7 +297,6 @@ void noinstr __do_pgm_check(struct pt_regs *regs)
 	teid.val = lc->trans_exc_code;
 	regs->int_code = lc->pgm_int_code;
 	regs->int_parm_long = teid.val;
-
 	/*
 	 * In case of a guest fault, short-circuit the fault handler and return.
 	 * This way the sie64a() function will return 0; fault address and
@@ -336,23 +309,19 @@ void noinstr __do_pgm_check(struct pt_regs *regs)
 		current->thread.gmap_int_code = regs->int_code & 0xffff;
 		return;
 	}
-
 	state = irqentry_enter(regs);
-
 	if (user_mode(regs)) {
 		update_timer_sys();
-		if (!static_branch_likely(&cpu_has_bear)) {
+		if (!cpu_has_bear()) {
 			if (regs->last_break < 4096)
 				regs->last_break = 1;
 		}
 		current->thread.last_break = regs->last_break;
 	}
-
 	if (lc->pgm_code & 0x0200) {
 		/* transaction abort */
 		current->thread.trap_tdb = lc->pgm_tdb;
 	}
-
 	if (lc->pgm_code & PGM_INT_CODE_PER) {
 		if (user_mode(regs)) {
 			struct per_event *ev = &current->thread.per_event;
@@ -368,11 +337,9 @@ void noinstr __do_pgm_check(struct pt_regs *regs)
 			goto out;
 		}
 	}
-
 	if (!irqs_disabled_flags(regs->psw.mask))
 		trace_hardirqs_on();
 	__arch_local_irq_ssm(regs->psw.mask & ~PSW_MASK_PER);
-
 	trapnr = regs->int_code & PGM_INT_CODE_MASK;
 	if (trapnr)
 		pgm_check_table[trapnr](regs);

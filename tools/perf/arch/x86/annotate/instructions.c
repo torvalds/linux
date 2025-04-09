@@ -410,7 +410,7 @@ static void update_insn_state_x86(struct type_state *state,
 
 retry:
 		/* Check stack variables with offset */
-		if (sreg == fbreg) {
+		if (sreg == fbreg || sreg == state->stack_reg) {
 			struct type_state_stack *stack;
 			int offset = src->offset - fboff;
 
@@ -433,8 +433,13 @@ retry:
 				return;
 			}
 
-			pr_debug_dtp("mov [%x] -%#x(stack) -> reg%d",
-				     insn_offset, -offset, dst->reg1);
+			if (sreg == fbreg) {
+				pr_debug_dtp("mov [%x] -%#x(stack) -> reg%d",
+					     insn_offset, -offset, dst->reg1);
+			} else {
+				pr_debug_dtp("mov [%x] %#x(reg%d) -> reg%d",
+					     insn_offset, offset, sreg, dst->reg1);
+			}
 			pr_debug_type_name(&tsr->type, tsr->kind);
 		}
 		/* And then dereference the pointer if it has one */
@@ -561,7 +566,7 @@ retry:
 			return;
 
 		/* Check stack variables with offset */
-		if (dst->reg1 == fbreg) {
+		if (dst->reg1 == fbreg || dst->reg1 == state->stack_reg) {
 			struct type_state_stack *stack;
 			int offset = dst->offset - fboff;
 
@@ -584,8 +589,13 @@ retry:
 						    &tsr->type);
 			}
 
-			pr_debug_dtp("mov [%x] reg%d -> -%#x(stack)",
-				     insn_offset, src->reg1, -offset);
+			if (dst->reg1 == fbreg) {
+				pr_debug_dtp("mov [%x] reg%d -> -%#x(stack)",
+					     insn_offset, src->reg1, -offset);
+			} else {
+				pr_debug_dtp("mov [%x] reg%d -> %#x(reg%d)",
+					     insn_offset, src->reg1, offset, dst->reg1);
+			}
 			pr_debug_type_name(&tsr->type, tsr->kind);
 		}
 		/*

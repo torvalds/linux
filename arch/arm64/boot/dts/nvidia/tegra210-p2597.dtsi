@@ -1375,6 +1375,15 @@
 
 			#gpio-cells = <2>;
 			gpio-controller;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(L, 1) IRQ_TYPE_EDGE_FALLING>;
+
+			#interrupt-cells = <2>;
+			interrupt-controller;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&gpio_1v8>;
 		};
 
 		exp2: gpio@77 {
@@ -1383,6 +1392,15 @@
 
 			#gpio-cells = <2>;
 			gpio-controller;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(Z, 2) IRQ_TYPE_EDGE_FALLING>;
+
+			#interrupt-cells = <2>;
+			interrupt-controller;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&gpio_1v8>;
 		};
 	};
 
@@ -1686,7 +1704,7 @@
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
-		gpio = <&exp1 14 GPIO_ACTIVE_HIGH>;
+		gpio = <&exp1 9 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		vin-supply = <&vdd_1v8>;
 	};

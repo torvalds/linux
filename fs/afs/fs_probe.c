@@ -534,6 +534,6 @@ dont_wait:
  */
 void afs_fs_probe_cleanup(struct afs_net *net)
 {
-	if (del_timer_sync(&net->fs_probe_timer))
+	if (timer_delete_sync(&net->fs_probe_timer))
 		afs_dec_servers_outstanding(net);
 }

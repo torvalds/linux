@@ -2229,19 +2229,15 @@ struct tb_tunnel *tb_tunnel_alloc_usb3(struct tb *tb, struct tb_port *up,
 
 	path = tb_path_alloc(tb, down, TB_USB3_HOPID, up, TB_USB3_HOPID, 0,
 			     "USB3 Down");
-	if (!path) {
-		tb_tunnel_put(tunnel);
-		return NULL;
-	}
+	if (!path)
+		goto err_free;
 	tb_usb3_init_path(path);
 	tunnel->paths[TB_USB3_PATH_DOWN] = path;
 
 	path = tb_path_alloc(tb, up, TB_USB3_HOPID, down, TB_USB3_HOPID, 0,
 			     "USB3 Up");
-	if (!path) {
-		tb_tunnel_put(tunnel);
-		return NULL;
-	}
+	if (!path)
+		goto err_free;
 	tb_usb3_init_path(path);
 	tunnel->paths[TB_USB3_PATH_UP] = path;
 
@@ -2258,6 +2254,10 @@ struct tb_tunnel *tb_tunnel_alloc_usb3(struct tb *tb, struct tb_port *up,
 	}
 
 	return tunnel;
+
+err_free:
+	tb_tunnel_put(tunnel);
+	return NULL;
 }
 
 /**

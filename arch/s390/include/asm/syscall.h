@@ -65,15 +65,13 @@ static inline void syscall_get_arguments(struct task_struct *task,
 					 unsigned long *args)
 {
 	unsigned long mask = -1UL;
-	unsigned int n = 6;
 
 #ifdef CONFIG_COMPAT
 	if (test_tsk_thread_flag(task, TIF_31BIT))
 		mask = 0xffffffff;
 #endif
-	while (n-- > 0)
-		if (n > 0)
-			args[n] = regs->gprs[2 + n] & mask;
+	for (int i = 1; i < 6; i++)
+		args[i] = regs->gprs[2 + i] & mask;
 
 	args[0] = regs->orig_gpr2 & mask;
 }

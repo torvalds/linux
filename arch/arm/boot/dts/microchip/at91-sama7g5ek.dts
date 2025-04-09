@@ -137,6 +137,7 @@
 	vref-supply = <&vddout25>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_mikrobus1_an_default &pinctrl_mikrobus2_an_default>;
+	atmel,trigger-edge-type = <IRQ_TYPE_EDGE_RISING>;
 	status = "okay";
 };
 

@@ -177,7 +177,7 @@ int gen_new_estimator(struct gnet_stats_basic_sync *bstats,
 		spin_lock_bh(lock);
 	old = rcu_dereference_protected(*rate_est, 1);
 	if (old) {
-		del_timer_sync(&old->timer);
+		timer_delete_sync(&old->timer);
 		est->avbps = old->avbps;
 		est->avpps = old->avpps;
 	}

@@ -775,7 +775,7 @@ static int das16_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	/*  disable SW timer */
 	if (devpriv->timer_running) {
 		devpriv->timer_running = 0;
-		del_timer(&devpriv->timer);
+		timer_delete(&devpriv->timer);
 	}
 
 	if (devpriv->can_burst)
@@ -940,7 +940,7 @@ static void das16_free_dma(struct comedi_device *dev)
 	struct das16_private_struct *devpriv = dev->private;
 
 	if (devpriv) {
-		del_timer_sync(&devpriv->timer);
+		timer_delete_sync(&devpriv->timer);
 		comedi_isadma_free(devpriv->dma);
 	}
 }

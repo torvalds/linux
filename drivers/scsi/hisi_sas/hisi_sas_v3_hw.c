@@ -1456,9 +1456,7 @@ static void prep_ata_v3_hw(struct hisi_hba *hisi_hba,
 			(task->ata_task.fis.control & ATA_SRST))
 		dw1 |= 1 << CMD_HDR_RESET_OFF;
 
-	dw1 |= (hisi_sas_get_ata_protocol(
-		&task->ata_task.fis, task->data_dir))
-		<< CMD_HDR_FRAME_TYPE_OFF;
+	dw1 |= (hisi_sas_get_ata_protocol(task)) << CMD_HDR_FRAME_TYPE_OFF;
 	dw1 |= sas_dev->device_id << CMD_HDR_DEV_ID_OFF;
 
 	if (FIS_CMD_IS_UNCONSTRAINED(task->ata_task.fis))
@@ -1611,7 +1609,7 @@ static irqreturn_t phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 	phy->port_id = port_id;
 	spin_lock(&phy->lock);
 	/* Delete timer and set phy_attached atomically */
-	del_timer(&phy->timer);
+	timer_delete(&phy->timer);
 	phy->phy_attached = 1;
 	spin_unlock(&phy->lock);
 
@@ -1645,7 +1643,7 @@ static irqreturn_t phy_down_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 
 	atomic_inc(&phy->down_cnt);
 
-	del_timer(&phy->timer);
+	timer_delete(&phy->timer);
 	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_NOT_RDY_MSK, 1);
 
 	phy_state = hisi_sas_read32(hisi_hba, PHY_STATE);

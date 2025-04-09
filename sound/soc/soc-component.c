@@ -13,32 +13,20 @@
 #include <sound/soc.h>
 #include <linux/bitops.h>
 
-#define soc_component_ret(dai, ret) _soc_component_ret(dai, __func__, ret, -1)
-#define soc_component_ret_reg_rw(dai, ret, reg) _soc_component_ret(dai, __func__, ret, reg)
-static inline int _soc_component_ret(struct snd_soc_component *component,
-				     const char *func, int ret, int reg)
+#define soc_component_ret(dai, ret) _soc_component_ret(dai, __func__, ret)
+static inline int _soc_component_ret(struct snd_soc_component *component, const char *func, int ret)
 {
-	/* Positive/Zero values are not errors */
-	if (ret >= 0)
-		return ret;
+	return snd_soc_ret(component->dev, ret,
+			   "at %s() on %s\n", func, component->name);
+}
 
-	/* Negative values might be errors */
-	switch (ret) {
-	case -EPROBE_DEFER:
-	case -ENOTSUPP:
-		break;
-	default:
-		if (reg == -1)
-			dev_err(component->dev,
-				"ASoC: error at %s on %s: %d\n",
-				func, component->name, ret);
-		else
-			dev_err(component->dev,
-				"ASoC: error at %s on %s for register: [0x%08x] %d\n",
-				func, component->name, reg, ret);
-	}
-
-	return ret;
+#define soc_component_ret_reg_rw(dai, ret, reg) _soc_component_ret_reg_rw(dai, __func__, ret, reg)
+static inline int _soc_component_ret_reg_rw(struct snd_soc_component *component,
+					    const char *func, int ret, int reg)
+{
+	return snd_soc_ret(component->dev, ret,
+			   "at %s() on %s for register: [0x%08x]\n",
+			   func, component->name, reg);
 }
 
 static inline int soc_component_field_shift(struct snd_soc_component *component,

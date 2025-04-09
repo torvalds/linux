@@ -1399,11 +1399,11 @@ static int find_parent_nodes(struct btrfs_backref_walk_ctx *ctx,
 		ASSERT(ctx->roots == NULL);
 
 	key.objectid = ctx->bytenr;
-	key.offset = (u64)-1;
 	if (btrfs_fs_incompat(ctx->fs_info, SKINNY_METADATA))
 		key.type = BTRFS_METADATA_ITEM_KEY;
 	else
 		key.type = BTRFS_EXTENT_ITEM_KEY;
+	key.offset = (u64)-1;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -2206,11 +2206,11 @@ int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
 	struct btrfs_extent_item *ei;
 	struct btrfs_key key;
 
+	key.objectid = logical;
 	if (btrfs_fs_incompat(fs_info, SKINNY_METADATA))
 		key.type = BTRFS_METADATA_ITEM_KEY;
 	else
 		key.type = BTRFS_EXTENT_ITEM_KEY;
-	key.objectid = logical;
 	key.offset = (u64)-1;
 
 	ret = btrfs_search_slot(NULL, extent_root, &key, path, 0, 0);

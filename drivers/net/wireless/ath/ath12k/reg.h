@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_REG_H
@@ -12,6 +12,9 @@
 
 struct ath12k_base;
 struct ath12k;
+
+#define ATH12K_2GHZ_MAX_FREQUENCY	2495
+#define ATH12K_5GHZ_MAX_FREQUENCY	5920
 
 /* DFS regdomains supported by Firmware */
 enum ath12k_dfs_region {

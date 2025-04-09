@@ -324,28 +324,6 @@ ssize_t mei_cldev_recv_vtag(struct mei_cl_device *cldev, u8 *buf, size_t length,
 EXPORT_SYMBOL_GPL(mei_cldev_recv_vtag);
 
 /**
- * mei_cldev_recv_nonblock_vtag - non block client receive with vtag (read)
- *
- * @cldev: me client device
- * @buf: buffer to receive
- * @length: buffer length
- * @vtag: virtual tag
- *
- * Return:
- * * read size in bytes
- * * -EAGAIN if function will block.
- * * < 0 on other error
- */
-ssize_t mei_cldev_recv_nonblock_vtag(struct mei_cl_device *cldev, u8 *buf,
-				     size_t length, u8 *vtag)
-{
-	struct mei_cl *cl = cldev->cl;
-
-	return __mei_cl_recv(cl, buf, length, vtag, MEI_CL_IO_RX_NONBLOCK, 0);
-}
-EXPORT_SYMBOL_GPL(mei_cldev_recv_nonblock_vtag);
-
-/**
  * mei_cldev_recv_timeout - client receive with timeout (read)
  *
  * @cldev: me client device
@@ -437,23 +415,6 @@ ssize_t mei_cldev_recv(struct mei_cl_device *cldev, u8 *buf, size_t length)
 	return mei_cldev_recv_vtag(cldev, buf, length, NULL);
 }
 EXPORT_SYMBOL_GPL(mei_cldev_recv);
-
-/**
- * mei_cldev_recv_nonblock - non block client receive (read)
- *
- * @cldev: me client device
- * @buf: buffer to receive
- * @length: buffer length
- *
- * Return: read size in bytes of < 0 on error
- *         -EAGAIN if function will block.
- */
-ssize_t mei_cldev_recv_nonblock(struct mei_cl_device *cldev, u8 *buf,
-				size_t length)
-{
-	return mei_cldev_recv_nonblock_vtag(cldev, buf, length, NULL);
-}
-EXPORT_SYMBOL_GPL(mei_cldev_recv_nonblock);
 
 /**
  * mei_cl_bus_rx_work - dispatch rx event for a bus device
@@ -639,19 +600,6 @@ void mei_cldev_set_drvdata(struct mei_cl_device *cldev, void *data)
 	dev_set_drvdata(&cldev->dev, data);
 }
 EXPORT_SYMBOL_GPL(mei_cldev_set_drvdata);
-
-/**
- * mei_cldev_uuid - return uuid of the underlying me client
- *
- * @cldev: mei client device
- *
- * Return: me client uuid
- */
-const uuid_le *mei_cldev_uuid(const struct mei_cl_device *cldev)
-{
-	return mei_me_cl_uuid(cldev->me_cl);
-}
-EXPORT_SYMBOL_GPL(mei_cldev_uuid);
 
 /**
  * mei_cldev_ver - return protocol version of the underlying me client

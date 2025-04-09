@@ -1380,7 +1380,7 @@ int avs_i2s_platform_register(struct avs_dev *adev, const char *name, unsigned l
 		for_each_set_bit(i, &port_mask, ssp_count)
 			cpu_count += hweight_long(tdms[i]);
 
-	cpus = devm_kzalloc(adev->dev, sizeof(*cpus) * cpu_count, GFP_KERNEL);
+	cpus = devm_kcalloc(adev->dev, cpu_count, sizeof(*cpus), GFP_KERNEL);
 	if (!cpus)
 		return -ENOMEM;
 

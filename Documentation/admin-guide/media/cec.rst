@@ -451,7 +451,7 @@ configure the CEC devices for HDMI Input and the HDMI Outputs manually.
 ---------------------
 
 A three character manufacturer name that is used in the EDID for the HDMI
-Input. If not set, then userspace is reponsible for configuring an EDID.
+Input. If not set, then userspace is responsible for configuring an EDID.
 If set, then the driver will update the EDID automatically based on the
 resolutions supported by the connected displays, and it will not be possible
 anymore to manually set the EDID for the HDMI Input.

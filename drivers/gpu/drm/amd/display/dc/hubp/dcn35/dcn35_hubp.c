@@ -45,7 +45,7 @@ void hubp35_set_fgcg(struct hubp *hubp, bool enable)
 	REG_UPDATE(HUBP_CLK_CNTL, HUBP_FGCG_REP_DIS, !enable);
 }
 
-static void hubp35_init(struct hubp *hubp)
+void hubp35_init(struct hubp *hubp)
 {
 	hubp3_init(hubp);
 

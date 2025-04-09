@@ -20,9 +20,15 @@ EXPORT_SYMBOL_GPL(interval_tree_iter_next);
 /*
  * Roll nodes[1] into nodes[0] by advancing nodes[1] to the end of a contiguous
  * span of nodes. This makes nodes[0]->last the end of that contiguous used span
- * indexes that started at the original nodes[1]->start. nodes[1] is now the
- * first node starting the next used span. A hole span is between nodes[0]->last
- * and nodes[1]->start. nodes[1] must be !NULL.
+ * of indexes that started at the original nodes[1]->start.
+ *
+ * If there is an interior hole, nodes[1] is now the first node starting the
+ * next used span. A hole span is between nodes[0]->last and nodes[1]->start.
+ *
+ * If there is a tailing hole, nodes[1] is now NULL. A hole span is between
+ * nodes[0]->last and last_index.
+ *
+ * If the contiguous used range span to last_index, nodes[1] is set to NULL.
  */
 static void
 interval_tree_span_iter_next_gap(struct interval_tree_span_iter *state)

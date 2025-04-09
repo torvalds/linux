@@ -159,7 +159,7 @@ static int dao_set_left_input(struct dao *dao, struct rsc *input)
 	struct daio *daio = &dao->daio;
 	int i;
 
-	entry = kzalloc((sizeof(*entry) * daio->rscl.msr), GFP_KERNEL);
+	entry = kcalloc(daio->rscl.msr, sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
 
@@ -188,7 +188,7 @@ static int dao_set_right_input(struct dao *dao, struct rsc *input)
 	struct daio *daio = &dao->daio;
 	int i;
 
-	entry = kzalloc((sizeof(*entry) * daio->rscr.msr), GFP_KERNEL);
+	entry = kcalloc(daio->rscr.msr, sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
 

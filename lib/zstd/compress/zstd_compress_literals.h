@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause */
 /*
- * Copyright (c) Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -16,16 +17,24 @@
 
 size_t ZSTD_noCompressLiterals (void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 
+/* ZSTD_compressRleLiteralsBlock() :
+ * Conditions :
+ * - All bytes in @src are identical
+ * - dstCapacity >= 4 */
 size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 
-/* If suspectUncompressible then some sampling checks will be run to potentially skip huffman coding */
-size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
-                              ZSTD_hufCTables_t* nextHuf,
-                              ZSTD_strategy strategy, int disableLiteralCompression,
-                              void* dst, size_t dstCapacity,
+/* ZSTD_compressLiterals():
+ * @entropyWorkspace: must be aligned on 4-bytes boundaries
+ * @entropyWorkspaceSize : must be >= HUF_WORKSPACE_SIZE
+ * @suspectUncompressible: sampling checks, to potentially skip huffman coding
+ */
+size_t ZSTD_compressLiterals (void* dst, size_t dstCapacity,
                         const void* src, size_t srcSize,
                               void* entropyWorkspace, size_t entropyWorkspaceSize,
-                        const int bmi2,
-                        unsigned suspectUncompressible);
+                        const ZSTD_hufCTables_t* prevHuf,
+                              ZSTD_hufCTables_t* nextHuf,
+                              ZSTD_strategy strategy, int disableLiteralCompression,
+                              int suspectUncompressible,
+                              int bmi2);
 
 #endif /* ZSTD_COMPRESS_LITERALS_H */

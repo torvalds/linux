@@ -168,7 +168,7 @@ int bch2_xattr_set(struct btree_trans *trans, subvol_inum inum,
 		   int type, int flags)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter inode_iter = { NULL };
+	struct btree_iter inode_iter = {};
 	int ret;
 
 	ret   = bch2_subvol_is_ro_trans(trans, inum.subvol) ?:
@@ -523,7 +523,7 @@ static int bch2_xattr_bcachefs_set(const struct xattr_handler *handler,
 		if (ret < 0)
 			goto err_class_exit;
 
-		ret = bch2_opt_check_may_set(c, opt_id, v);
+		ret = bch2_opt_check_may_set(c, NULL, opt_id, v);
 		if (ret < 0)
 			goto err_class_exit;
 

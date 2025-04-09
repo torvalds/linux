@@ -17,6 +17,7 @@
 #include "vnic_nic.h"
 #include "vnic_rss.h"
 #include <linux/irq.h>
+#include <net/page_pool/helpers.h>
 
 #define DRV_NAME		"enic"
 #define DRV_DESCRIPTION		"Cisco VIC Ethernet NIC Driver"
@@ -29,6 +30,13 @@
 #define ENIC_WQ_NAPI_BUDGET	256
 
 #define ENIC_AIC_LARGE_PKT_DIFF	3
+
+enum ext_cq {
+	ENIC_RQ_CQ_ENTRY_SIZE_16,
+	ENIC_RQ_CQ_ENTRY_SIZE_32,
+	ENIC_RQ_CQ_ENTRY_SIZE_64,
+	ENIC_RQ_CQ_ENTRY_SIZE_MAX,
+};
 
 struct enic_msix_entry {
 	int requested;
@@ -74,6 +82,10 @@ struct enic_rx_coal {
 #define ENIC_SET_NAME			(1 << 2)
 #define ENIC_SET_INSTANCE		(1 << 3)
 #define ENIC_SET_HOST			(1 << 4)
+
+#define MAX_TSO			BIT(16)
+#define WQ_ENET_MAX_DESC_LEN	BIT(WQ_ENET_LEN_BITS)
+#define ENIC_DESC_MAX_SPLITS	(MAX_TSO / WQ_ENET_MAX_DESC_LEN + 1)
 
 struct enic_port_profile {
 	u32 set;
@@ -158,6 +170,7 @@ struct enic_rq_stats {
 	u64 pkt_truncated;		/* truncated pkts */
 	u64 no_skb;			/* out of skbs */
 	u64 desc_skip;			/* Rx pkt went into later buffer */
+	u64 pp_alloc_fail;		/* page pool alloc failure */
 };
 
 struct enic_wq {
@@ -169,6 +182,7 @@ struct enic_wq {
 struct enic_rq {
 	struct vnic_rq vrq;
 	struct enic_rq_stats stats;
+	struct page_pool *pool;
 } ____cacheline_aligned;
 
 /* Per-instance private data structure */
@@ -223,9 +237,9 @@ struct enic {
 	unsigned int cq_avail;
 	unsigned int cq_count;
 	struct enic_rfs_flw_tbl rfs_h;
-	u32 rx_copybreak;
 	u8 rss_key[ENIC_RSS_LEN];
 	struct vnic_gen_stats gen_stats;
+	enum ext_cq ext_cq;
 };
 
 static inline struct net_device *vnic_get_netdev(struct vnic_dev *vdev)
@@ -347,5 +361,6 @@ int enic_is_valid_vf(struct enic *enic, int vf);
 int enic_is_dynamic(struct enic *enic);
 void enic_set_ethtool_ops(struct net_device *netdev);
 int __enic_set_rsskey(struct enic *enic);
+void enic_ext_cq(struct enic *enic);
 
 #endif /* _ENIC_H_ */

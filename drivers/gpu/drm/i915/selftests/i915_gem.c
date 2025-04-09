@@ -45,12 +45,14 @@ static void trash_stolen(struct drm_i915_private *i915)
 	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
 	const u64 slot = ggtt->error_capture.start;
 	const resource_size_t size = resource_size(&i915->dsm.stolen);
+	struct rnd_state prng;
 	unsigned long page;
-	u32 prng = 0x12345678;
 
 	/* XXX: fsck. needs some more thought... */
 	if (!i915_ggtt_has_aperture(ggtt))
 		return;
+
+	prandom_seed_state(&prng, 0x12345678);
 
 	for (page = 0; page < size; page += PAGE_SIZE) {
 		const dma_addr_t dma = i915->dsm.stolen.start + page;
@@ -64,8 +66,7 @@ static void trash_stolen(struct drm_i915_private *i915)
 
 		s = io_mapping_map_atomic_wc(&ggtt->iomap, slot);
 		for (x = 0; x < PAGE_SIZE / sizeof(u32); x++) {
-			prng = next_pseudo_random32(prng);
-			iowrite32(prng, &s[x]);
+			iowrite32(prandom_u32_state(&prng), &s[x]);
 		}
 		io_mapping_unmap_atomic(s);
 	}
@@ -80,7 +81,7 @@ static void simulate_hibernate(struct drm_i915_private *i915)
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	/*
-	 * As a final sting in the tail, invalidate stolen. Under a real S4,
+	 * As a final string in the tail, invalidate stolen. Under a real S4,
 	 * stolen is lost and needs to be refilled on resume. However, under
 	 * CI we merely do S4-device testing (as full S4 is too unreliable
 	 * for automated testing across a cluster), so to simulate the effect

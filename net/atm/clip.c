@@ -904,7 +904,7 @@ static void atm_clip_exit_noproc(void)
 	/* First, stop the idle timer, so it stops banging
 	 * on the table.
 	 */
-	del_timer_sync(&idle_timer);
+	timer_delete_sync(&idle_timer);
 
 	dev = clip_devs;
 	while (dev) {

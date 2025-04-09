@@ -1303,15 +1303,15 @@ static int wm5100_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	}
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
-	case SND_SOC_DAIFMT_CBS_CFM:
+	case SND_SOC_DAIFMT_CBC_CFP:
 		lrclk |= WM5100_AIF1TX_LRCLK_MSTR;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFS:
+	case SND_SOC_DAIFMT_CBP_CFC:
 		bclk |= WM5100_AIF1_BCLK_MSTR;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		lrclk |= WM5100_AIF1TX_LRCLK_MSTR;
 		bclk |= WM5100_AIF1_BCLK_MSTR;
 		break;
@@ -2625,7 +2625,6 @@ static void wm5100_i2c_remove(struct i2c_client *i2c)
 	gpiod_set_value_cansleep(wm5100->ldo_ena, 0);
 }
 
-#ifdef CONFIG_PM
 static int wm5100_runtime_suspend(struct device *dev)
 {
 	struct wm5100_priv *wm5100 = dev_get_drvdata(dev);
@@ -2662,11 +2661,9 @@ static int wm5100_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops wm5100_pm = {
-	SET_RUNTIME_PM_OPS(wm5100_runtime_suspend, wm5100_runtime_resume,
-			   NULL)
+	RUNTIME_PM_OPS(wm5100_runtime_suspend, wm5100_runtime_resume, NULL)
 };
 
 static const struct i2c_device_id wm5100_i2c_id[] = {
@@ -2678,7 +2675,7 @@ MODULE_DEVICE_TABLE(i2c, wm5100_i2c_id);
 static struct i2c_driver wm5100_i2c_driver = {
 	.driver = {
 		.name = "wm5100",
-		.pm = &wm5100_pm,
+		.pm = pm_ptr(&wm5100_pm),
 	},
 	.probe =    wm5100_i2c_probe,
 	.remove =   wm5100_i2c_remove,

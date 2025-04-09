@@ -1222,7 +1222,7 @@ static int yellowfin_close(struct net_device *dev)
 	iowrite32(0x80000000, ioaddr + RxCtrl);
 	iowrite32(0x80000000, ioaddr + TxCtrl);
 
-	del_timer(&yp->timer);
+	timer_delete(&yp->timer);
 
 #if defined(__i386__)
 	if (yellowfin_debug > 2) {

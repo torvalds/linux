@@ -627,7 +627,7 @@ regular ring buffer.
 AUX events and AUX trace data are two different things.  Let's see an
 example::
 
-        perf record -a -e cycles -e cs_etm/@tmc_etr0/ -- sleep 2
+        perf record -a -e cycles -e cs_etm// -- sleep 2
 
 The above command enables two events: one is the event *cycles* from PMU
 and another is the AUX event *cs_etm* from Arm CoreSight, both are saved
@@ -766,7 +766,7 @@ only record AUX trace data at a specific time point which users are
 interested in.  E.g. below gives an example of how to take snapshots
 with 1 second interval with Arm CoreSight::
 
-  perf record -e cs_etm/@tmc_etr0/u -S -a program &
+  perf record -e cs_etm//u -S -a program &
   PERFPID=$!
   while true; do
       kill -USR2 $PERFPID

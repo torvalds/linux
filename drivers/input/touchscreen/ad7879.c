@@ -273,7 +273,7 @@ static void __ad7879_disable(struct ad7879 *ts)
 		AD7879_PM(AD7879_PM_SHUTDOWN);
 	disable_irq(ts->irq);
 
-	if (del_timer_sync(&ts->timer))
+	if (timer_delete_sync(&ts->timer))
 		ad7879_ts_event_release(ts);
 
 	ad7879_write(ts, AD7879_REG_CTRL2, reg);

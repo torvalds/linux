@@ -9,12 +9,6 @@
 #include "armada-ap806-quad.dtsi"
 #include "armada-80x0.dtsi"
 
-/ {
-	model = "Marvell Armada 8040";
-	compatible = "marvell,armada8040", "marvell,armada-ap806-quad",
-		     "marvell,armada-ap806";
-};
-
 &cp0_pcie0 {
 	iommu-map =
 		<0x0   &smmu 0x480 0x20>,

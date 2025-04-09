@@ -43,8 +43,6 @@ extern bool hyperv_paravisor_present;
 
 extern void *hv_hypercall_pg;
 
-extern u64 hv_current_partition_id;
-
 extern union hv_ghcb * __percpu *hv_ghcb_pg;
 
 bool hv_isolation_type_snp(void);
@@ -57,10 +55,6 @@ u64 hv_tdx_hypercall(u64 control, u64 param1, u64 param2);
  */
 #define HV_AP_INIT_GPAT_DEFAULT		0x0007040600070406ULL
 #define HV_AP_SEGMENT_LIMIT		0xffffffff
-
-int hv_call_deposit_pages(int node, u64 partition_id, u32 num_pages);
-int hv_call_add_logical_proc(int node, u32 lp_index, u32 acpi_id);
-int hv_call_create_vp(int node, u64 partition_id, u32 vp_index, u32 flags);
 
 /*
  * If the hypercall involves no input or output parameters, the hypervisor
@@ -160,7 +154,7 @@ static inline u64 _hv_do_fast_hypercall8(u64 control, u64 input1)
 				      : "cc", "edi", "esi");
 	}
 #endif
-		return hv_status;
+	return hv_status;
 }
 
 static inline u64 hv_do_fast_hypercall8(u16 code, u64 input1)

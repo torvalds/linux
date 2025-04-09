@@ -1,4 +1,5 @@
 /dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	#size-cells = <0x02>;
@@ -8,6 +9,7 @@
 
 	aliases {
 		serial0 = &UART0;
+		ethernet = &enet0;
 	};
 
 	reserved-memory {
@@ -35,40 +37,79 @@
 
 		ibm,powerpc-cpu-features {
 			display-name = "Microwatt";
-			isa = <3000>;
+			isa = <3010>;
 			device_type = "cpu-features";
 			compatible = "ibm,powerpc-cpu-features";
 
 			mmu-radix {
 				isa = <3000>;
-				usable-privilege = <2>;
+				usable-privilege = <6>;
+				os-support = <0>;
 			};
 
 			little-endian {
-				isa = <2050>;
-				usable-privilege = <3>;
+				isa = <0>;
+				usable-privilege = <7>;
+				os-support = <0>;
 				hwcap-bit-nr = <1>;
 			};
 
 			cache-inhibited-large-page {
-				isa = <2040>;
-				usable-privilege = <2>;
+				isa = <0>;
+				usable-privilege = <6>;
+				os-support = <0>;
 			};
 
 			fixed-point-v3 {
 				isa = <3000>;
-				usable-privilege = <3>;
+				usable-privilege = <7>;
 			};
 
 			no-execute {
-				isa = <2010>;
+				isa = <0x00>;
 				usable-privilege = <2>;
+				os-support = <0>;
 			};
 
 			floating-point {
+				hfscr-bit-nr = <0>;
 				hwcap-bit-nr = <27>;
 				isa = <0>;
-				usable-privilege = <3>;
+				usable-privilege = <7>;
+				hv-support = <1>;
+				os-support = <0>;
+			};
+
+			prefixed-instructions {
+				hfscr-bit-nr = <13>;
+				fscr-bit-nr = <13>;
+				isa = <3010>;
+				usable-privilege = <7>;
+				os-support = <1>;
+				hv-support = <1>;
+			};
+
+			tar {
+				hfscr-bit-nr = <8>;
+				fscr-bit-nr = <8>;
+				isa = <2070>;
+				usable-privilege = <7>;
+				os-support = <1>;
+				hv-support = <1>;
+				hwcap-bit-nr = <58>;
+			};
+
+			control-register {
+				isa = <0>;
+				usable-privilege = <7>;
+			};
+
+			system-call-vectored {
+				isa = <3000>;
+				usable-privilege = <7>;
+				os-support = <1>;
+				fscr-bit-nr = <12>;
+				hwcap-bit-nr = <52>;
 			};
 		};
 
@@ -101,6 +142,36 @@
 			ibm,mmu-lpid-bits = <12>;
 			ibm,mmu-pid-bits = <20>;
 		};
+
+		PowerPC,Microwatt@1 {
+			i-cache-sets = <2>;
+			ibm,dec-bits = <64>;
+			reservation-granule-size = <64>;
+			clock-frequency = <100000000>;
+			timebase-frequency = <100000000>;
+			i-tlb-sets = <1>;
+			ibm,ppc-interrupt-server#s = <1>;
+			i-cache-block-size = <64>;
+			d-cache-block-size = <64>;
+			d-cache-sets = <2>;
+			i-tlb-size = <64>;
+			cpu-version = <0x990000>;
+			status = "okay";
+			i-cache-size = <0x1000>;
+			ibm,processor-radix-AP-encodings = <0x0c 0xa0000010 0x20000015 0x4000001e>;
+			tlb-size = <0>;
+			tlb-sets = <0>;
+			device_type = "cpu";
+			d-tlb-size = <128>;
+			d-tlb-sets = <2>;
+			reg = <1>;
+			general-purpose;
+			64-bit;
+			d-cache-size = <0x1000>;
+			ibm,chip-id = <0>;
+			ibm,mmu-lpid-bits = <12>;
+			ibm,mmu-pid-bits = <20>;
+		};
 	};
 
 	soc@c0000000 {
@@ -113,8 +184,8 @@
 
 		interrupt-controller@4000 {
 			compatible = "openpower,xics-presentation", "ibm,ppc-xicp";
-			ibm,interrupt-server-ranges = <0x0 0x1>;
-			reg = <0x4000 0x100>;
+			ibm,interrupt-server-ranges = <0x0 0x2>;
+			reg = <0x4000 0x10 0x4010 0x10>;
 		};
 
 		ICS: interrupt-controller@5000 {
@@ -138,7 +209,18 @@
 			interrupts = <0x10 0x1>;
 		};
 
-		ethernet@8020000 {
+		gpio: gpio@7000 {
+			device_type = "gpio";
+			compatible = "faraday,ftgpio010";
+			gpio-controller;
+			#gpio-cells = <2>;
+			reg = <0x7000 0x80>;
+			interrupts = <0x14 1>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		enet0: ethernet@8020000 {
 			compatible = "litex,liteeth";
 			reg = <0x8021000 0x100
 				0x8020800 0x100
@@ -160,7 +242,6 @@
 			reg-names = "phy", "core", "reader", "writer", "irq";
 			bus-width = <4>;
 			interrupts = <0x13 1>;
-			cap-sd-highspeed;
 			clocks = <&sys_clk>;
 		};
 	};

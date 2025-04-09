@@ -145,7 +145,7 @@ static struct snd_soc_dai_link rk_dailink = {
 	.ops = &rk_aif1_ops,
 	/* set rt5645 as slave */
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-		SND_SOC_DAIFMT_CBS_CFS,
+		SND_SOC_DAIFMT_CBC_CFC,
 	SND_SOC_DAILINK_REG(pcm),
 };
 

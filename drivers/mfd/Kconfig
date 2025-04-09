@@ -138,7 +138,7 @@ config MFD_AAT2870_CORE
 config MFD_AT91_USART
 	tristate "AT91 USART Driver"
 	select MFD_CORE
-	depends on ARCH_AT91 || COMPILE_TEST
+	depends on ARCH_AT91 || ARCH_LAN969X || COMPILE_TEST
 	help
 	  Select this to get support for AT91 USART IP. This is a wrapper
 	  over at91-usart-serial driver and usart-spi-driver. Only one function
@@ -858,7 +858,7 @@ config MFD_MAX77541
 	  There are regulators and adc.
 
 config MFD_MAX77620
-	bool "Maxim Semiconductor MAX77620 and MAX20024 PMIC Support"
+	tristate "Maxim Semiconductor MAX77620 and MAX20024 PMIC Support"
 	depends on I2C=y
 	depends on OF
 	select MFD_CORE
@@ -912,6 +912,19 @@ config MFD_MAX77693
 	  Say yes here to add support for Maxim Semiconductor MAX77693.
 	  This is a companion Power Management IC with Flash, Haptic, Charger,
 	  and MUIC(Micro USB Interface Controller) controls on chip.
+	  This driver provides common support for accessing the device;
+	  additional drivers must be enabled in order to use the functionality
+	  of the device.
+
+config MFD_MAX77705
+	tristate "Maxim MAX77705 PMIC Support"
+	depends on I2C
+	select MFD_CORE
+	select MFD_SIMPLE_MFD_I2C
+	help
+	  Say yes here to add support for Maxim Integrated MAX77705 PMIC.
+	  This is a Power Management IC with Charger, safe LDOs, Flash, Haptic
+	  and MUIC controls on chip.
 	  This driver provides common support for accessing the device;
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
@@ -1118,30 +1131,6 @@ config MFD_RETU
 	help
 	  Retu and Tahvo are a multi-function devices found on Nokia
 	  Internet Tablets (770, N800 and N810).
-
-config MFD_PCF50633
-	tristate "NXP PCF50633"
-	depends on I2C
-	select REGMAP_I2C
-	help
-	  Say yes here if you have NXP PCF50633 chip on your board.
-	  This core driver provides register access and IRQ handling
-	  facilities, and registers devices for the various functions
-	  so that function-specific drivers can bind to them.
-
-config PCF50633_ADC
-	tristate "NXP PCF50633 ADC"
-	depends on MFD_PCF50633
-	help
-	  Say yes here if you want to include support for ADC in the
-	  NXP PCF50633 chip.
-
-config PCF50633_GPIO
-	tristate "NXP PCF50633 GPIO"
-	depends on MFD_PCF50633
-	help
-	  Say yes here if you want to include support GPIO for pins on
-	  the PCF50633 chip.
 
 config MFD_PM8XXX
 	tristate "Qualcomm PM8xxx PMIC chips driver"
@@ -1494,12 +1483,6 @@ config STMPE_SPI
 	help
 	  This is used to enable SPI interface of STMPE
 endmenu
-
-config MFD_STA2X11
-	bool "STMicroelectronics STA2X11"
-	depends on STA2X11
-	select MFD_CORE
-	select REGMAP_MMIO
 
 config MFD_SUN6I_PRCM
 	bool "Allwinner A31/A23/A33 PRCM controller"

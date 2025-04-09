@@ -771,18 +771,8 @@ int amdgpu_gfx_enable_kgq(struct amdgpu_device *adev, int xcc_id)
 	return r;
 }
 
-/* amdgpu_gfx_off_ctrl - Handle gfx off feature enable/disable
- *
- * @adev: amdgpu_device pointer
- * @bool enable true: enable gfx off feature, false: disable gfx off feature
- *
- * 1. gfx off feature will be enabled by gfx ip after gfx cg gp enabled.
- * 2. other client can send request to disable gfx off feature, the request should be honored.
- * 3. other client can cancel their request of disable gfx off feature
- * 4. other client should not send request to enable gfx off feature before disable gfx off feature.
- */
-
-void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
+static void amdgpu_gfx_do_off_ctrl(struct amdgpu_device *adev, bool enable,
+				   bool no_delay)
 {
 	unsigned long delay = GFX_OFF_DELAY_ENABLE;
 
@@ -804,7 +794,7 @@ void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
 		if (adev->gfx.gfx_off_req_count == 0 &&
 		    !adev->gfx.gfx_off_state) {
 			/* If going to s2idle, no need to wait */
-			if (adev->in_s0ix) {
+			if (no_delay) {
 				if (!amdgpu_dpm_set_powergating_by_smu(adev,
 						AMD_IP_BLOCK_TYPE_GFX, true, 0))
 					adev->gfx.gfx_off_state = true;
@@ -834,6 +824,43 @@ void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
 
 unlock:
 	mutex_unlock(&adev->gfx.gfx_off_mutex);
+}
+
+/* amdgpu_gfx_off_ctrl - Handle gfx off feature enable/disable
+ *
+ * @adev: amdgpu_device pointer
+ * @bool enable true: enable gfx off feature, false: disable gfx off feature
+ *
+ * 1. gfx off feature will be enabled by gfx ip after gfx cg pg enabled.
+ * 2. other client can send request to disable gfx off feature, the request should be honored.
+ * 3. other client can cancel their request of disable gfx off feature
+ * 4. other client should not send request to enable gfx off feature before disable gfx off feature.
+ *
+ * gfx off allow will be delayed by GFX_OFF_DELAY_ENABLE ms.
+ */
+void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
+{
+	/* If going to s2idle, no need to wait */
+	bool no_delay = adev->in_s0ix ? true : false;
+
+	amdgpu_gfx_do_off_ctrl(adev, enable, no_delay);
+}
+
+/* amdgpu_gfx_off_ctrl_immediate - Handle gfx off feature enable/disable
+ *
+ * @adev: amdgpu_device pointer
+ * @bool enable true: enable gfx off feature, false: disable gfx off feature
+ *
+ * 1. gfx off feature will be enabled by gfx ip after gfx cg pg enabled.
+ * 2. other client can send request to disable gfx off feature, the request should be honored.
+ * 3. other client can cancel their request of disable gfx off feature
+ * 4. other client should not send request to enable gfx off feature before disable gfx off feature.
+ *
+ * gfx off allow will be issued immediately.
+ */
+void amdgpu_gfx_off_ctrl_immediate(struct amdgpu_device *adev, bool enable)
+{
+	amdgpu_gfx_do_off_ctrl(adev, enable, true);
 }
 
 int amdgpu_set_gfx_off_residency(struct amdgpu_device *adev, bool value)
@@ -1638,15 +1665,8 @@ static ssize_t amdgpu_gfx_set_enforce_isolation(struct device *dev,
 	}
 
 	mutex_lock(&adev->enforce_isolation_mutex);
-	for (i = 0; i < num_partitions; i++) {
-		if (adev->enforce_isolation[i] && !partition_values[i])
-			/* Going from enabled to disabled */
-			amdgpu_vmid_free_reserved(adev, AMDGPU_GFXHUB(i));
-		else if (!adev->enforce_isolation[i] && partition_values[i])
-			/* Going from disabled to enabled */
-			amdgpu_vmid_alloc_reserved(adev, AMDGPU_GFXHUB(i));
+	for (i = 0; i < num_partitions; i++)
 		adev->enforce_isolation[i] = partition_values[i];
-	}
 	mutex_unlock(&adev->enforce_isolation_mutex);
 
 	amdgpu_mes_update_enforce_isolation(adev);
@@ -1975,8 +1995,8 @@ void amdgpu_gfx_enforce_isolation_handler(struct work_struct *work)
 		if (adev->kfd.init_complete) {
 			WARN_ON_ONCE(!adev->gfx.kfd_sch_inactive[idx]);
 			WARN_ON_ONCE(adev->gfx.kfd_sch_req_count[idx]);
-				amdgpu_amdkfd_start_sched(adev, idx);
-				adev->gfx.kfd_sch_inactive[idx] = false;
+			amdgpu_amdkfd_start_sched(adev, idx);
+			adev->gfx.kfd_sch_inactive[idx] = false;
 		}
 	}
 	mutex_unlock(&adev->enforce_isolation_mutex);
@@ -2113,6 +2133,80 @@ void amdgpu_gfx_enforce_isolation_ring_end_use(struct amdgpu_ring *ring)
 
 	if (sched_work)
 		amdgpu_gfx_kfd_sch_ctrl(adev, idx, true);
+}
+
+void amdgpu_gfx_profile_idle_work_handler(struct work_struct *work)
+{
+	struct amdgpu_device *adev =
+		container_of(work, struct amdgpu_device, gfx.idle_work.work);
+	enum PP_SMC_POWER_PROFILE profile;
+	u32 i, fences = 0;
+	int r;
+
+	if (adev->gfx.num_gfx_rings)
+		profile = PP_SMC_POWER_PROFILE_FULLSCREEN3D;
+	else
+		profile = PP_SMC_POWER_PROFILE_COMPUTE;
+
+	for (i = 0; i < AMDGPU_MAX_GFX_RINGS; ++i)
+		fences += amdgpu_fence_count_emitted(&adev->gfx.gfx_ring[i]);
+	for (i = 0; i < (AMDGPU_MAX_COMPUTE_RINGS * AMDGPU_MAX_GC_INSTANCES); ++i)
+		fences += amdgpu_fence_count_emitted(&adev->gfx.compute_ring[i]);
+	if (!fences && !atomic_read(&adev->gfx.total_submission_cnt)) {
+		mutex_lock(&adev->gfx.workload_profile_mutex);
+		if (adev->gfx.workload_profile_active) {
+			r = amdgpu_dpm_switch_power_profile(adev, profile, false);
+			if (r)
+				dev_warn(adev->dev, "(%d) failed to disable %s power profile mode\n", r,
+					 profile == PP_SMC_POWER_PROFILE_FULLSCREEN3D ?
+					 "fullscreen 3D" : "compute");
+			adev->gfx.workload_profile_active = false;
+		}
+		mutex_unlock(&adev->gfx.workload_profile_mutex);
+	} else {
+		schedule_delayed_work(&adev->gfx.idle_work, GFX_PROFILE_IDLE_TIMEOUT);
+	}
+}
+
+void amdgpu_gfx_profile_ring_begin_use(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	enum PP_SMC_POWER_PROFILE profile;
+	int r;
+
+	if (adev->gfx.num_gfx_rings)
+		profile = PP_SMC_POWER_PROFILE_FULLSCREEN3D;
+	else
+		profile = PP_SMC_POWER_PROFILE_COMPUTE;
+
+	atomic_inc(&adev->gfx.total_submission_cnt);
+
+	cancel_delayed_work_sync(&adev->gfx.idle_work);
+
+	/* We can safely return early here because we've cancelled the
+	 * the delayed work so there is no one else to set it to false
+	 * and we don't care if someone else sets it to true.
+	 */
+	if (adev->gfx.workload_profile_active)
+		return;
+
+	mutex_lock(&adev->gfx.workload_profile_mutex);
+	if (!adev->gfx.workload_profile_active) {
+		r = amdgpu_dpm_switch_power_profile(adev, profile, true);
+		if (r)
+			dev_warn(adev->dev, "(%d) failed to disable %s power profile mode\n", r,
+				 profile == PP_SMC_POWER_PROFILE_FULLSCREEN3D ?
+				 "fullscreen 3D" : "compute");
+		adev->gfx.workload_profile_active = true;
+	}
+	mutex_unlock(&adev->gfx.workload_profile_mutex);
+}
+
+void amdgpu_gfx_profile_ring_end_use(struct amdgpu_ring *ring)
+{
+	atomic_dec(&ring->adev->gfx.total_submission_cnt);
+
+	schedule_delayed_work(&ring->adev->gfx.idle_work, GFX_PROFILE_IDLE_TIMEOUT);
 }
 
 /*

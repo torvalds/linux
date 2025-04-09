@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+config RV_MON_SCHED
+	depends on RV
+	bool "sched monitor"
+	help
+	  Collection of monitors to check the scheduler behaves according to specifications.
+	  Enable this to enable all scheduler specification supported by the current kernel.
+
+	  For further information, see:
+	    Documentation/trace/rv/monitor_sched.rst

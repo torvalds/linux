@@ -3,7 +3,7 @@ Kernel driver nct6683
 
 Supported chips:
 
-  * Nuvoton NCT6683D/NCT6687D
+  * Nuvoton NCT6683D/NCT6686D/NCT6687D
 
     Prefix: 'nct6683'
 
@@ -61,6 +61,7 @@ Board				Firmware version
 Intel DH87RL			NCT6683D EC firmware version 1.0 build 04/03/13
 Intel DH87MC			NCT6683D EC firmware version 1.0 build 04/03/13
 Intel DB85FL			NCT6683D EC firmware version 1.0 build 04/03/13
+AMD BC-250			NCT6686D EC firmware version 1.0 build 07/28/21
 ASRock X570			NCT6683D EC firmware version 1.0 build 06/28/19
 ASRock X670E			NCT6686D EC firmware version 1.0 build 05/19/22
 ASRock B650 Steel Legend WiFi	NCT6686D EC firmware version 1.0 build 11/09/23

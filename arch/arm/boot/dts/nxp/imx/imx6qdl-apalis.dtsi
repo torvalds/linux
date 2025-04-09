@@ -10,7 +10,6 @@
 
 / {
 	model = "Toradex Apalis iMX6Q/D Module";
-	compatible = "toradex,apalis_imx6q", "fsl,imx6q";
 
 	aliases {
 		mmc0 = &usdhc3; /* eMMC */
@@ -664,7 +663,6 @@
 			st,settling = <3>;
 			/* 5 ms touch detect interrupt delay */
 			st,touch-det-delay = <5>;
-			status = "disabled";
 		};
 
 		stmpe_adc: stmpe_adc {

@@ -58,7 +58,7 @@ static int cros_ec_wdt_ping(struct watchdog_device *wdd)
 	arg.req.command = EC_HANG_DETECT_CMD_RELOAD;
 	ret = cros_ec_wdt_send_cmd(cros_ec, &arg);
 	if (ret < 0)
-		dev_dbg(wdd->parent, "Failed to ping watchdog (%d)", ret);
+		dev_dbg(wdd->parent, "Failed to ping watchdog (%d)\n", ret);
 
 	return ret;
 }
@@ -74,7 +74,7 @@ static int cros_ec_wdt_start(struct watchdog_device *wdd)
 	arg.req.reboot_timeout_sec = wdd->timeout;
 	ret = cros_ec_wdt_send_cmd(cros_ec, &arg);
 	if (ret < 0)
-		dev_dbg(wdd->parent, "Failed to start watchdog (%d)", ret);
+		dev_dbg(wdd->parent, "Failed to start watchdog (%d)\n", ret);
 
 	return ret;
 }
@@ -88,7 +88,7 @@ static int cros_ec_wdt_stop(struct watchdog_device *wdd)
 	arg.req.command = EC_HANG_DETECT_CMD_CANCEL;
 	ret = cros_ec_wdt_send_cmd(cros_ec, &arg);
 	if (ret < 0)
-		dev_dbg(wdd->parent, "Failed to stop watchdog (%d)", ret);
+		dev_dbg(wdd->parent, "Failed to stop watchdog (%d)\n", ret);
 
 	return ret;
 }
@@ -136,7 +136,7 @@ static int cros_ec_wdt_probe(struct platform_device *pdev)
 	arg.req.command = EC_HANG_DETECT_CMD_GET_STATUS;
 	ret = cros_ec_wdt_send_cmd(cros_ec, &arg);
 	if (ret < 0)
-		return dev_err_probe(dev, ret, "Failed to get watchdog bootstatus");
+		return dev_err_probe(dev, ret, "Failed to get watchdog bootstatus\n");
 
 	wdd->parent = &pdev->dev;
 	wdd->info = &cros_ec_wdt_ident;
@@ -150,7 +150,7 @@ static int cros_ec_wdt_probe(struct platform_device *pdev)
 	arg.req.command = EC_HANG_DETECT_CMD_CLEAR_STATUS;
 	ret = cros_ec_wdt_send_cmd(cros_ec, &arg);
 	if (ret < 0)
-		return dev_err_probe(dev, ret, "Failed to clear watchdog bootstatus");
+		return dev_err_probe(dev, ret, "Failed to clear watchdog bootstatus\n");
 
 	watchdog_stop_on_reboot(wdd);
 	watchdog_stop_on_unregister(wdd);

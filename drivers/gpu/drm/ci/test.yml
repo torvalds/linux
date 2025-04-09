@@ -1,21 +1,16 @@
-.test-rules:
-  rules:
-    - if: '$FD_FARM == "offline" && $RUNNER_TAG =~ /^google-freedreno-/'
-      when: never
-    - if: '$COLLABORA_FARM == "offline" && $RUNNER_TAG =~ /^mesa-ci-x86-64-lava-/'
-      when: never
-    - !reference [.no_scheduled_pipelines-rules, rules]
-    - when: on_success
-
 .lava-test:
   extends:
-    - .test-rules
+    - .container+build-rules
   timeout: "1h30m"
+  rules:
+    - !reference [.scheduled_pipeline-rules, rules]
+    - !reference [.collabora-farm-rules, rules]
+    - when: on_success
   script:
     # Note: Build dir (and thus install) may be dirty due to GIT_STRATEGY
     - rm -rf install
     - tar -xf artifacts/install.tar
-    - mv install/* artifacts/.
+    - mv -n install/* artifacts/.
     # Override it with our lava-submit.sh script
     - ./artifacts/lava-submit.sh
 
@@ -32,6 +27,7 @@
     - alpine/x86_64_lava_ssh_client
     - kernel+rootfs_arm32
     - debian/x86_64_build
+    - python-artifacts
     - testing:arm32
     - igt:arm32
 
@@ -48,6 +44,7 @@
     - alpine/x86_64_lava_ssh_client
     - kernel+rootfs_arm64
     - debian/x86_64_build
+    - python-artifacts
     - testing:arm64
     - igt:arm64
 
@@ -64,6 +61,7 @@
     - alpine/x86_64_lava_ssh_client
     - kernel+rootfs_x86_64
     - debian/x86_64_build
+    - python-artifacts
     - testing:x86_64
     - igt:x86_64
 
@@ -71,8 +69,11 @@
   extends:
     - .baremetal-test-arm64
     - .use-debian/baremetal_arm64_test
-    - .test-rules
   timeout: "1h30m"
+  rules:
+    - !reference [.scheduled_pipeline-rules, rules]
+    - !reference [.google-freedreno-farm-rules, rules]
+    - when: on_success
   variables:
     FDO_CI_CONCURRENT: 10
     HWCI_TEST_SCRIPT: "/install/igt_runner.sh"
@@ -441,20 +442,20 @@ panfrost:g12b:
 virtio_gpu:none:
   stage: software-driver
   timeout: "1h30m"
+  rules:
+    - !reference [.scheduled_pipeline-rules, rules]
+    - when: on_success
   variables:
     CROSVM_GALLIUM_DRIVER: llvmpipe
     DRIVER_NAME: virtio_gpu
     GPU_VERSION: none
   extends:
     - .test-gl
-    - .test-rules
   tags:
     - kvm
   script:
     - ln -sf $CI_PROJECT_DIR/install /install
     - mv install/bzImage /lava-files/bzImage
-    - mkdir -p $CI_PROJECT_DIR/results
-    - ln -sf $CI_PROJECT_DIR/results /results
     - install/crosvm-runner.sh install/igt_runner.sh
   needs:
     - debian/x86_64_test-gl
@@ -464,20 +465,20 @@ virtio_gpu:none:
 vkms:none:
   stage: software-driver
   timeout: "1h30m"
+  rules:
+    - !reference [.scheduled_pipeline-rules, rules]
+    - when: on_success
   variables:
     DRIVER_NAME: vkms
     GPU_VERSION: none
   extends:
     - .test-gl
-    - .test-rules
   tags:
     - kvm
   script:
     - ln -sf $CI_PROJECT_DIR/install /install
     - mv install/bzImage /lava-files/bzImage
     - mkdir -p /lib/modules
-    - mkdir -p $CI_PROJECT_DIR/results
-    - ln -sf $CI_PROJECT_DIR/results /results
     - ./install/crosvm-runner.sh ./install/igt_runner.sh
   needs:
     - debian/x86_64_test-gl

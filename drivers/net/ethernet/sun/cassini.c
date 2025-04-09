@@ -3779,7 +3779,7 @@ static void cas_shutdown(struct cas *cp)
 	/* Make us not-running to avoid timers respawning */
 	cp->hw_running = 0;
 
-	del_timer_sync(&cp->link_timer);
+	timer_delete_sync(&cp->link_timer);
 
 	/* Stop the reset task */
 #if 0

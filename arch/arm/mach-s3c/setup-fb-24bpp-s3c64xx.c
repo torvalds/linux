@@ -9,7 +9,6 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/fb.h>
 #include <linux/gpio.h>
 
 #include "fb.h"

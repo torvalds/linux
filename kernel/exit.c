@@ -268,6 +268,9 @@ repeat:
 	leader = p->group_leader;
 	if (leader != p && thread_group_empty(leader)
 			&& leader->exit_state == EXIT_ZOMBIE) {
+		/* for pidfs_exit() and do_notify_parent() */
+		if (leader->signal->flags & SIGNAL_GROUP_EXIT)
+			leader->exit_code = leader->signal->group_exit_code;
 		/*
 		 * If we were the last child thread and the leader has
 		 * exited already, and the leader's parent ignores SIGCHLD,
@@ -756,12 +759,6 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 		kill_orphaned_pgrp(tsk->group_leader, NULL);
 
 	tsk->exit_state = EXIT_ZOMBIE;
-	/*
-	 * Ignore thread-group leaders that exited before all
-	 * subthreads did.
-	 */
-	if (!delay_group_leader(tsk))
-		do_notify_pidfd(tsk);
 
 	if (unlikely(tsk->ptrace)) {
 		int sig = thread_group_leader(tsk) &&
@@ -774,6 +771,8 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 			do_notify_parent(tsk, tsk->exit_signal);
 	} else {
 		autoreap = true;
+		/* untraced sub-thread */
+		do_notify_pidfd(tsk);
 	}
 
 	if (autoreap) {

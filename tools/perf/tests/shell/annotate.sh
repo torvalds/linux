@@ -35,54 +35,78 @@ trap_cleanup() {
 trap trap_cleanup EXIT TERM INT
 
 test_basic() {
-  echo "Basic perf annotate test"
-  if ! perf record -o "${perfdata}" ${testprog} 2> /dev/null
+  mode=$1
+  echo "${mode} perf annotate test"
+  if [ "x${mode}" == "xBasic" ]
   then
-    echo "Basic annotate [Failed: perf record]"
+    perf record -o "${perfdata}" ${testprog} 2> /dev/null
+  else
+    perf record -o - ${testprog} 2> /dev/null > "${perfdata}"
+  fi
+  if [ "x$?" != "x0" ]
+  then
+    echo "${mode} annotate [Failed: perf record]"
     err=1
     return
   fi
 
   # Generate the annotated output file
-  perf annotate --no-demangle -i "${perfdata}" --stdio 2> /dev/null | head -250 > "${perfout}"
+  if [ "x${mode}" == "xBasic" ]
+  then
+    perf annotate --no-demangle -i "${perfdata}" --stdio 2> /dev/null > "${perfout}"
+  else
+    perf annotate --no-demangle -i - --stdio 2> /dev/null < "${perfdata}" > "${perfout}"
+  fi
 
   # check if it has the target symbol
-  if ! grep "${testsym}" "${perfout}"
+  if ! head -250 "${perfout}" | grep -q "${testsym}"
   then
-    echo "Basic annotate [Failed: missing target symbol]"
+    echo "${mode} annotate [Failed: missing target symbol]"
     err=1
     return
   fi
 
   # check if it has the disassembly lines
-  if ! grep "${disasm_regex}" "${perfout}"
+  if ! head -250 "${perfout}" | grep -q "${disasm_regex}"
   then
-    echo "Basic annotate [Failed: missing disasm output from default disassembler]"
+    echo "${mode} annotate [Failed: missing disasm output from default disassembler]"
     err=1
     return
   fi
 
   # check again with a target symbol name
-  if ! perf annotate --no-demangle -i "${perfdata}" "${testsym}" 2> /dev/null | \
-	  head -250 | grep -m 3 "${disasm_regex}"
+  if [ "x${mode}" == "xBasic" ]
   then
-    echo "Basic annotate [Failed: missing disasm output when specifying the target symbol]"
+    perf annotate --no-demangle -i "${perfdata}" "${testsym}" 2> /dev/null > "${perfout}"
+  else
+    perf annotate --no-demangle -i - "${testsym}" 2> /dev/null < "${perfdata}" > "${perfout}"
+  fi
+
+  if ! head -250 "${perfout}"| grep -q -m 3 "${disasm_regex}"
+  then
+    echo "${mode} annotate [Failed: missing disasm output when specifying the target symbol]"
     err=1
     return
   fi
 
   # check one more with external objdump tool (forced by --objdump option)
-  if ! perf annotate --no-demangle -i "${perfdata}" --objdump=objdump 2> /dev/null | \
-	  head -250 | grep -m 3 "${disasm_regex}"
+  if [ "x${mode}" == "xBasic" ]
   then
-    echo "Basic annotate [Failed: missing disasm output from non default disassembler (using --objdump)]"
+    perf annotate --no-demangle -i "${perfdata}" --objdump=objdump 2> /dev/null > "${perfout}"
+  else
+    perf annotate --no-demangle -i - "${testsym}" 2> /dev/null < "${perfdata}" > "${perfout}"
+  fi
+  if ! head -250 "${perfout}" | grep -q -m 3 "${disasm_regex}"
+  then
+    echo "${mode} annotate [Failed: missing disasm output from non default disassembler (using --objdump)]"
     err=1
     return
   fi
-  echo "Basic annotate test [Success]"
+  echo "${mode} annotate test [Success]"
 }
 
-test_basic
+test_basic Basic
+test_basic Pipe
 
 cleanup
 exit $err

@@ -5052,7 +5052,7 @@ static int sky2_suspend(struct device *dev)
 	if (!hw)
 		return 0;
 
-	del_timer_sync(&hw->watchdog_timer);
+	timer_delete_sync(&hw->watchdog_timer);
 	cancel_work_sync(&hw->restart_work);
 
 	rtnl_lock();

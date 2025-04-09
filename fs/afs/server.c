@@ -318,7 +318,7 @@ struct afs_server *afs_use_server(struct afs_server *server, bool activate,
 	a = atomic_inc_return(&server->active);
 	if (a == 1 && activate &&
 	    !test_bit(AFS_SERVER_FL_EXPIRED, &server->flags))
-		del_timer(&server->timer);
+		timer_delete(&server->timer);
 
 	trace_afs_server(server->debug_id, r + 1, a, reason);
 	return server;

@@ -166,7 +166,7 @@ static void wdt_startup(void)
 static void wdt_turnoff(void)
 {
 	/* Stop the timer */
-	del_timer_sync(&timer);
+	timer_delete_sync(&timer);
 	wdt_change(WDT_DISABLE);
 	pr_info("Watchdog timer is now disabled...\n");
 }
@@ -223,7 +223,7 @@ static int fop_close(struct inode *inode, struct file *file)
 	if (wdt_expect_close == 42)
 		wdt_turnoff();
 	else {
-		/* wim: shouldn't there be a: del_timer(&timer); */
+		/* wim: shouldn't there be a: timer_delete(&timer); */
 		pr_crit("device file closed unexpectedly. Will not stop the WDT!\n");
 	}
 	clear_bit(0, &wdt_is_open);

@@ -264,18 +264,8 @@ static int amg88xx_set_power(struct video_i2c_data *data, bool on)
 
 #if IS_REACHABLE(CONFIG_HWMON)
 
-static const u32 amg88xx_temp_config[] = {
-	HWMON_T_INPUT,
-	0
-};
-
-static const struct hwmon_channel_info amg88xx_temp = {
-	.type = hwmon_temp,
-	.config = amg88xx_temp_config,
-};
-
 static const struct hwmon_channel_info * const amg88xx_info[] = {
-	&amg88xx_temp,
+	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT),
 	NULL
 };
 

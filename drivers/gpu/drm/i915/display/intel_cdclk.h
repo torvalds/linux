@@ -12,6 +12,7 @@
 #include "intel_global_state.h"
 
 struct intel_atomic_state;
+struct intel_crtc;
 struct intel_crtc_state;
 struct intel_display;
 
@@ -58,7 +59,6 @@ struct intel_cdclk_state {
 	bool disable_pipes;
 };
 
-int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state);
 void intel_cdclk_init_hw(struct intel_display *display);
 void intel_cdclk_uninit_hw(struct intel_display *display);
 void intel_init_cdclk_hooks(struct intel_display *display);
@@ -83,6 +83,8 @@ int intel_cdclk_atomic_check(struct intel_atomic_state *state,
 int intel_cdclk_state_set_joined_mbus(struct intel_atomic_state *state, bool joined_mbus);
 struct intel_cdclk_state *
 intel_atomic_get_cdclk_state(struct intel_atomic_state *state);
+void intel_cdclk_update_hw_state(struct intel_display *display);
+void intel_cdclk_crtc_disable_noatomic(struct intel_crtc *crtc);
 
 #define to_intel_cdclk_state(global_state) \
 	container_of_const((global_state), struct intel_cdclk_state, base)

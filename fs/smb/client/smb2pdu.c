@@ -43,6 +43,7 @@
 #endif
 #include "cached_dir.h"
 #include "compress.h"
+#include "fs_context.h"
 
 /*
  *  The following table defines the expected "StructureSize" of SMB2 requests
@@ -3916,12 +3917,10 @@ SMB2_query_acl(const unsigned int xid, struct cifs_tcon *tcon,
 	       u64 persistent_fid, u64 volatile_fid,
 	       void **data, u32 *plen, u32 extra_info)
 {
-	__u32 additional_info = OWNER_SECINFO | GROUP_SECINFO | DACL_SECINFO |
-				extra_info;
 	*plen = 0;
 
 	return query_info(xid, tcon, persistent_fid, volatile_fid,
-			  0, SMB2_O_INFO_SECURITY, additional_info,
+			  0, SMB2_O_INFO_SECURITY, extra_info,
 			  SMB2_MAX_BUFFER_SIZE, MIN_SEC_DESC_LEN, data, plen);
 }
 
@@ -4091,6 +4090,24 @@ smb2_echo_callback(struct mid_q_entry *mid)
 	add_credits(server, &credits, CIFS_ECHO_OP);
 }
 
+static void cifs_renegotiate_iosize(struct TCP_Server_Info *server,
+				    struct cifs_tcon *tcon)
+{
+	struct cifs_sb_info *cifs_sb;
+
+	if (server == NULL || tcon == NULL)
+		return;
+
+	spin_lock(&tcon->sb_list_lock);
+	list_for_each_entry(cifs_sb, &tcon->cifs_sb_list, tcon_sb_link) {
+		cifs_sb->ctx->rsize =
+			server->ops->negotiate_rsize(tcon, cifs_sb->ctx);
+		cifs_sb->ctx->wsize =
+			server->ops->negotiate_wsize(tcon, cifs_sb->ctx);
+	}
+	spin_unlock(&tcon->sb_list_lock);
+}
+
 void smb2_reconnect_server(struct work_struct *work)
 {
 	struct TCP_Server_Info *server = container_of(work,
@@ -4176,9 +4193,10 @@ void smb2_reconnect_server(struct work_struct *work)
 
 	list_for_each_entry_safe(tcon, tcon2, &tmp_list, rlist) {
 		rc = smb2_reconnect(SMB2_INTERNAL_CMD, tcon, server, true);
-		if (!rc)
+		if (!rc) {
+			cifs_renegotiate_iosize(server, tcon);
 			cifs_reopen_persistent_handles(tcon);
-		else
+		} else
 			resched = true;
 		list_del_init(&tcon->rlist);
 		if (tcon->ipc)

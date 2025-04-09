@@ -40,7 +40,7 @@ For remote file server::
 
 	mount -t 9p 10.10.1.2 /mnt/9
 
-For Plan 9 From User Space applications (http://swtch.com/plan9)::
+For Plan 9 From User Space applications (https://9fans.github.io/plan9port/)::
 
 	mount -t 9p `namespace`/acme /mnt/9 -o trans=unix,uname=$USER
 
@@ -165,8 +165,8 @@ Options
 		do not necessarily validate cached values on the server.  In other
 		words changes on the server are not guaranteed to be reflected
 		on the client system.  Only use this mode of operation if you
-		have an exclusive mount and the server will modify the filesystem
-		underneath you.
+		have an exclusive mount and the server will not modify the
+		filesystem underneath you.
 
   debug=n	specifies debug level.  The debug level is a bitmask.
 

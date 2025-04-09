@@ -54,7 +54,7 @@ static const struct special_entry entries[] = {
 	{},
 };
 
-void __weak arch_handle_alternative(unsigned short feature, struct special_alt *alt)
+void __weak arch_handle_alternative(struct special_alt *alt)
 {
 }
 
@@ -86,27 +86,18 @@ static int get_alt_entry(struct elf *elf, const struct special_entry *entry,
 
 	orig_reloc = find_reloc_by_dest(elf, sec, offset + entry->orig);
 	if (!orig_reloc) {
-		WARN_FUNC("can't find orig reloc", sec, offset + entry->orig);
+		ERROR_FUNC(sec, offset + entry->orig, "can't find orig reloc");
 		return -1;
 	}
 
 	reloc_to_sec_off(orig_reloc, &alt->orig_sec, &alt->orig_off);
 
-	if (entry->feature) {
-		unsigned short feature;
-
-		feature = bswap_if_needed(elf,
-					  *(unsigned short *)(sec->data->d_buf +
-							      offset +
-							      entry->feature));
-		arch_handle_alternative(feature, alt);
-	}
+	arch_handle_alternative(alt);
 
 	if (!entry->group || alt->new_len) {
 		new_reloc = find_reloc_by_dest(elf, sec, offset + entry->new);
 		if (!new_reloc) {
-			WARN_FUNC("can't find new reloc",
-				  sec, offset + entry->new);
+			ERROR_FUNC(sec, offset + entry->new, "can't find new reloc");
 			return -1;
 		}
 
@@ -122,8 +113,7 @@ static int get_alt_entry(struct elf *elf, const struct special_entry *entry,
 
 		key_reloc = find_reloc_by_dest(elf, sec, offset + entry->key);
 		if (!key_reloc) {
-			WARN_FUNC("can't find key reloc",
-				  sec, offset + entry->key);
+			ERROR_FUNC(sec, offset + entry->key, "can't find key reloc");
 			return -1;
 		}
 		alt->key_addend = reloc_addend(key_reloc);
@@ -153,8 +143,7 @@ int special_get_alts(struct elf *elf, struct list_head *alts)
 			continue;
 
 		if (sec->sh.sh_size % entry->size != 0) {
-			WARN("%s size not a multiple of %d",
-			     sec->name, entry->size);
+			ERROR("%s size not a multiple of %d", sec->name, entry->size);
 			return -1;
 		}
 
@@ -163,7 +152,7 @@ int special_get_alts(struct elf *elf, struct list_head *alts)
 		for (idx = 0; idx < nr_entries; idx++) {
 			alt = malloc(sizeof(*alt));
 			if (!alt) {
-				WARN("malloc failed");
+				ERROR_GLIBC("malloc failed");
 				return -1;
 			}
 			memset(alt, 0, sizeof(*alt));

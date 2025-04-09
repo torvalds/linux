@@ -140,6 +140,33 @@ void fuse_uring_abort_end_requests(struct fuse_ring *ring)
 	}
 }
 
+bool fuse_uring_request_expired(struct fuse_conn *fc)
+{
+	struct fuse_ring *ring = fc->ring;
+	struct fuse_ring_queue *queue;
+	int qid;
+
+	if (!ring)
+		return false;
+
+	for (qid = 0; qid < ring->nr_queues; qid++) {
+		queue = READ_ONCE(ring->queues[qid]);
+		if (!queue)
+			continue;
+
+		spin_lock(&queue->lock);
+		if (fuse_request_expired(fc, &queue->fuse_req_queue) ||
+		    fuse_request_expired(fc, &queue->fuse_req_bg_queue) ||
+		    fuse_fpq_processing_expired(fc, queue->fpq.processing)) {
+			spin_unlock(&queue->lock);
+			return true;
+		}
+		spin_unlock(&queue->lock);
+	}
+
+	return false;
+}
+
 void fuse_uring_destruct(struct fuse_conn *fc)
 {
 	struct fuse_ring *ring = fc->ring;
@@ -211,7 +238,6 @@ static struct fuse_ring *fuse_uring_create(struct fuse_conn *fc)
 	ring->nr_queues = nr_queues;
 	ring->fc = fc;
 	ring->max_payload_sz = max_payload_size;
-	atomic_set(&ring->queue_refs, 0);
 	smp_store_release(&fc->ring, ring);
 
 	spin_unlock(&fc->lock);
@@ -726,8 +752,6 @@ static void fuse_uring_add_req_to_ring_ent(struct fuse_ring_ent *ent,
 					   struct fuse_req *req)
 {
 	struct fuse_ring_queue *queue = ent->queue;
-	struct fuse_conn *fc = req->fm->fc;
-	struct fuse_iqueue *fiq = &fc->iq;
 
 	lockdep_assert_held(&queue->lock);
 
@@ -737,9 +761,7 @@ static void fuse_uring_add_req_to_ring_ent(struct fuse_ring_ent *ent,
 			ent->state);
 	}
 
-	spin_lock(&fiq->lock);
 	clear_bit(FR_PENDING, &req->flags);
-	spin_unlock(&fiq->lock);
 	ent->fuse_req = req;
 	ent->state = FRRS_FUSE_REQ;
 	list_move(&ent->list, &queue->ent_w_req_queue);
@@ -1238,6 +1260,8 @@ void fuse_uring_queue_fuse_req(struct fuse_iqueue *fiq, struct fuse_req *req)
 	if (unlikely(queue->stopped))
 		goto err_unlock;
 
+	set_bit(FR_URING, &req->flags);
+	req->ring_queue = queue;
 	ent = list_first_entry_or_null(&queue->ent_avail_queue,
 				       struct fuse_ring_ent, list);
 	if (ent)
@@ -1276,6 +1300,8 @@ bool fuse_uring_queue_bq_req(struct fuse_req *req)
 		return false;
 	}
 
+	set_bit(FR_URING, &req->flags);
+	req->ring_queue = queue;
 	list_add_tail(&req->list, &queue->fuse_req_bg_queue);
 
 	ent = list_first_entry_or_null(&queue->ent_avail_queue,
@@ -1304,6 +1330,13 @@ bool fuse_uring_queue_bq_req(struct fuse_req *req)
 	}
 
 	return true;
+}
+
+bool fuse_uring_remove_pending_req(struct fuse_req *req)
+{
+	struct fuse_ring_queue *queue = req->ring_queue;
+
+	return fuse_remove_pending_req(req, &queue->lock);
 }
 
 static const struct fuse_iqueue_ops fuse_io_uring_ops = {

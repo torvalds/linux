@@ -1107,7 +1107,7 @@ static void mhuv2_remove(struct amba_device *adev)
 		writel_relaxed(0x0, &mhu->send->access_request);
 }
 
-static struct amba_id mhuv2_ids[] = {
+static const struct amba_id mhuv2_ids[] = {
 	{
 		/* 2.0 */
 		.id = 0xbb0d1,

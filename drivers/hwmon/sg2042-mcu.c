@@ -50,11 +50,8 @@
 
 struct sg2042_mcu_data {
 	struct i2c_client	*client;
-	struct dentry		*debugfs;
 	struct mutex		mutex;
 };
-
-static struct dentry *sgmcu_debugfs;
 
 static ssize_t reset_count_show(struct device *dev,
 				struct device_attribute *attr,
@@ -292,18 +289,15 @@ static const struct hwmon_chip_info sg2042_mcu_chip_info = {
 	.info = sg2042_mcu_info,
 };
 
-static void sg2042_mcu_debugfs_init(struct sg2042_mcu_data *mcu,
-				    struct device *dev)
+static void sg2042_mcu_debugfs_init(struct sg2042_mcu_data *mcu)
 {
-	mcu->debugfs = debugfs_create_dir(dev_name(dev), sgmcu_debugfs);
-
-	debugfs_create_file("firmware_version", 0444, mcu->debugfs,
+	debugfs_create_file("firmware_version", 0444, mcu->client->debugfs,
 			    mcu, &firmware_version_fops);
-	debugfs_create_file("pcb_version", 0444, mcu->debugfs, mcu,
+	debugfs_create_file("pcb_version", 0444, mcu->client->debugfs, mcu,
 			    &pcb_version_fops);
-	debugfs_create_file("mcu_type", 0444, mcu->debugfs, mcu,
+	debugfs_create_file("mcu_type", 0444, mcu->client->debugfs, mcu,
 			    &mcu_type_fops);
-	debugfs_create_file("board_type", 0444, mcu->debugfs, mcu,
+	debugfs_create_file("board_type", 0444, mcu->client->debugfs, mcu,
 			    &board_type_fops);
 }
 
@@ -333,16 +327,9 @@ static int sg2042_mcu_i2c_probe(struct i2c_client *client)
 	if (IS_ERR(hwmon_dev))
 		return PTR_ERR(hwmon_dev);
 
-	sg2042_mcu_debugfs_init(mcu, dev);
+	sg2042_mcu_debugfs_init(mcu);
 
 	return 0;
-}
-
-static void sg2042_mcu_i2c_remove(struct i2c_client *client)
-{
-	struct sg2042_mcu_data *mcu = i2c_get_clientdata(client);
-
-	debugfs_remove_recursive(mcu->debugfs);
 }
 
 static const struct i2c_device_id sg2042_mcu_id[] = {
@@ -364,24 +351,9 @@ static struct i2c_driver sg2042_mcu_driver = {
 		.dev_groups = sg2042_mcu_groups,
 	},
 	.probe = sg2042_mcu_i2c_probe,
-	.remove = sg2042_mcu_i2c_remove,
 	.id_table = sg2042_mcu_id,
 };
-
-static int __init sg2042_mcu_init(void)
-{
-	sgmcu_debugfs = debugfs_create_dir("sg2042-mcu", NULL);
-	return i2c_add_driver(&sg2042_mcu_driver);
-}
-
-static void __exit sg2042_mcu_exit(void)
-{
-	debugfs_remove_recursive(sgmcu_debugfs);
-	i2c_del_driver(&sg2042_mcu_driver);
-}
-
-module_init(sg2042_mcu_init);
-module_exit(sg2042_mcu_exit);
+module_i2c_driver(sg2042_mcu_driver);
 
 MODULE_AUTHOR("Inochi Amaoto <inochiama@outlook.com>");
 MODULE_DESCRIPTION("MCU I2C driver for SG2042 soc platform");

@@ -207,4 +207,8 @@ void dcn10_update_visual_confirm_color(
 		struct pipe_ctx *pipe_ctx,
 		int mpcc_id);
 
+void dcn10_reset_surface_dcc_and_tiling(struct pipe_ctx *pipe_ctx,
+					struct dc_plane_state *plane_state,
+					bool clear_tiling);
+
 #endif /* __DC_HWSS_DCN10_H__ */

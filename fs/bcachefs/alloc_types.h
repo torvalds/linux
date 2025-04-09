@@ -90,6 +90,7 @@ struct dev_stripe_state {
 	x(stopped)			\
 	x(waiting_io)			\
 	x(waiting_work)			\
+	x(runnable)			\
 	x(running)
 
 enum write_point_state {
@@ -125,6 +126,7 @@ struct write_point {
 		enum write_point_state	state;
 		u64			last_state_change;
 		u64			time[WRITE_POINT_STATE_NR];
+		u64			last_runtime;
 	} __aligned(SMP_CACHE_BYTES);
 };
 

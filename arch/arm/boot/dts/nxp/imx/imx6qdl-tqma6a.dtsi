@@ -30,14 +30,14 @@
 	temperature-sensor@48 {
 		compatible = "national,lm75a";
 		reg = <0x48>;
-		vs-supply = <&reg_3p3v>;
+		vs-supply = <&sw4_reg>;
 	};
 
 	eeprom@50 {
 		compatible = "st,24c64", "atmel,24c64";
 		reg = <0x50>;
 		pagesize = <32>;
-		vcc-supply = <&reg_3p3v>;
+		vcc-supply = <&sw4_reg>;
 	};
 };
 

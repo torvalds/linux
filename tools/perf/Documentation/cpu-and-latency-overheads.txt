@@ -1,0 +1,85 @@
+CPU and latency overheads
+-------------------------
+There are two notions of time: wall-clock time and CPU time.
+For a single-threaded program, or a program running on a single-core machine,
+these notions are the same. However, for a multi-threaded/multi-process program
+running on a multi-core machine, these notions are significantly different.
+Each second of wall-clock time we have number-of-cores seconds of CPU time.
+Perf can measure overhead for both of these times (shown in 'overhead' and
+'latency' columns for CPU and wall-clock time correspondingly).
+
+Optimizing CPU overhead is useful to improve 'throughput', while optimizing
+latency overhead is useful to improve 'latency'. It's important to understand
+which one is useful in a concrete situation at hand. For example, the former
+may be useful to improve max throughput of a CI build server that runs on 100%
+CPU utilization, while the latter may be useful to improve user-perceived
+latency of a single interactive program build.
+These overheads may be significantly different in some cases. For example,
+consider a program that executes function 'foo' for 9 seconds with 1 thread,
+and then executes function 'bar' for 1 second with 128 threads (consumes
+128 seconds of CPU time). The CPU overhead is: 'foo' - 6.6%, 'bar' - 93.4%.
+While the latency overhead is: 'foo' - 90%, 'bar' - 10%. If we try to optimize
+running time of the program looking at the (wrong in this case) CPU overhead,
+we would concentrate on the function 'bar', but it can yield only 10% running
+time improvement at best.
+
+By default, perf shows only CPU overhead. To show latency overhead, use
+'perf record --latency' and 'perf report':
+
+-----------------------------------
+Overhead  Latency  Command
+  93.88%   25.79%  cc1
+   1.90%   39.87%  gzip
+   0.99%   10.16%  dpkg-deb
+   0.57%    1.00%  as
+   0.40%    0.46%  sh
+-----------------------------------
+
+To sort by latency overhead, use 'perf report --latency':
+
+-----------------------------------
+Latency  Overhead  Command
+ 39.87%     1.90%  gzip
+ 25.79%    93.88%  cc1
+ 10.16%     0.99%  dpkg-deb
+  4.17%     0.29%  git
+  2.81%     0.11%  objtool
+-----------------------------------
+
+To get insight into the difference between the overheads, you may check
+parallelization histogram with '--sort=latency,parallelism,comm,symbol --hierarchy'
+flags. It shows fraction of (wall-clock) time the workload utilizes different
+numbers of cores ('Parallelism' column). For example, in the following case
+the workload utilizes only 1 core most of the time, but also has some
+highly-parallel phases, which explains significant difference between
+CPU and wall-clock overheads:
+
+-----------------------------------
+  Latency  Overhead     Parallelism / Command / Symbol
++  56.98%     2.29%     1
++  16.94%     1.36%     2
++   4.00%    20.13%     125
++   3.66%    18.25%     124
++   3.48%    17.66%     126
++   3.26%     0.39%     3
++   2.61%    12.93%     123
+-----------------------------------
+
+By expanding corresponding lines, you may see what commands/functions run
+at the given parallelism level:
+
+-----------------------------------
+  Latency  Overhead     Parallelism / Command / Symbol
+-  56.98%     2.29%     1
+      32.80%     1.32%     gzip
+       4.46%     0.18%     cc1
+       2.81%     0.11%     objtool
+       2.43%     0.10%     dpkg-source
+       2.22%     0.09%     ld
+       2.10%     0.08%     dpkg-genchanges
+-----------------------------------
+
+To see the normal function-level profile for particular parallelism levels
+(number of threads actively running on CPUs), you may use '--parallelism'
+filter. For example, to see the profile only for low parallelism phases
+of a workload use '--latency --parallelism=1-2' flags.

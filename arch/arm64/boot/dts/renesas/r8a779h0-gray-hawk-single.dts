@@ -46,6 +46,8 @@
 		serial0 = &hscif0;
 		serial1 = &hscif2;
 		ethernet0 = &avb0;
+		ethernet1 = &avb1;
+		ethernet2 = &avb2;
 	};
 
 	can_transceiver0: can-phy0 {
@@ -200,17 +202,64 @@
 &avb0 {
 	pinctrl-0 = <&avb0_pins>;
 	pinctrl-names = "default";
-	phy-handle = <&phy0>;
+	phy-handle = <&avb0_phy>;
 	tx-internal-delay-ps = <2000>;
 	status = "okay";
 
-	phy0: ethernet-phy@0 {
-		compatible = "ethernet-phy-id0022.1622",
-			     "ethernet-phy-ieee802.3-c22";
-		rxc-skew-ps = <1500>;
-		reg = <0>;
-		interrupts-extended = <&gpio7 5 IRQ_TYPE_LEVEL_LOW>;
-		reset-gpios = <&gpio7 10 GPIO_ACTIVE_LOW>;
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		avb0_phy: ethernet-phy@0 {
+			compatible = "ethernet-phy-id0022.1622",
+				"ethernet-phy-ieee802.3-c22";
+				rxc-skew-ps = <1500>;
+				reg = <0>;
+				interrupts-extended = <&gpio7 5 IRQ_TYPE_LEVEL_LOW>;
+				reset-gpios = <&gpio7 10 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&avb1 {
+	pinctrl-0 = <&avb1_pins>;
+	pinctrl-names = "default";
+	phy-handle = <&avb1_phy>;
+	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reset-gpios = <&gpio6 1 GPIO_ACTIVE_LOW>;
+		reset-post-delay-us = <4000>;
+
+		avb1_phy: ethernet-phy@0 {
+			compatible = "ethernet-phy-ieee802.3-c45";
+			reg = <0>;
+			interrupts-extended = <&gpio6 3 IRQ_TYPE_LEVEL_LOW>;
+		};
+	};
+};
+
+&avb2 {
+	pinctrl-0 = <&avb2_pins>;
+	pinctrl-names = "default";
+	phy-handle = <&avb2_phy>;
+	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reset-gpios = <&gpio5 5 GPIO_ACTIVE_LOW>;
+		reset-post-delay-us = <4000>;
+
+		avb2_phy: ethernet-phy@0 {
+			compatible = "ethernet-phy-ieee802.3-c45";
+			reg = <0>;
+			interrupts-extended = <&gpio5 4 IRQ_TYPE_LEVEL_LOW>;
+		};
 	};
 };
 
@@ -231,25 +280,6 @@
 	channel1 {
 		status = "okay";
 	};
-};
-
-&dsi0 {
-	status = "okay";
-
-	ports {
-		port@1 {
-			reg = <1>;
-
-			dsi0_out: endpoint {
-				remote-endpoint = <&sn65dsi86_in0>;
-				data-lanes = <1 2 3 4>;
-			};
-		};
-	};
-};
-
-&du {
-	status = "okay";
 };
 
 &csi40 {
@@ -292,6 +322,25 @@
 	};
 };
 
+&dsi0 {
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			dsi0_out: endpoint {
+				remote-endpoint = <&sn65dsi86_in0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&du {
+	status = "okay";
+};
+
 &extal_clk {
 	clock-frequency = <16666666>;
 };
@@ -312,6 +361,7 @@
 &hscif0 {
 	pinctrl-0 = <&hscif0_pins>;
 	pinctrl-names = "default";
+	bootph-all;
 
 	uart-has-rtscts;
 	status = "okay";
@@ -555,6 +605,56 @@
 		pins_mii {
 			groups = "avb0_rgmii";
 			drive-strength = <21>;
+		};
+	};
+
+	avb1_pins: avb1 {
+		mux {
+			groups = "avb1_link", "avb1_mdio", "avb1_rgmii",
+				 "avb1_txcrefclk";
+			function = "avb1";
+		};
+
+		link {
+			groups = "avb1_link";
+			bias-disable;
+		};
+
+		mdio {
+			groups = "avb1_mdio";
+			drive-strength = <24>;
+			bias-disable;
+		};
+
+		rgmii {
+			groups = "avb1_rgmii";
+			drive-strength = <24>;
+			bias-disable;
+		};
+	};
+
+	avb2_pins: avb2 {
+		mux {
+			groups = "avb2_link", "avb2_mdio", "avb2_rgmii",
+				 "avb2_txcrefclk";
+			function = "avb2";
+		};
+
+		link {
+			groups = "avb2_link";
+			bias-disable;
+		};
+
+		mdio {
+			groups = "avb2_mdio";
+			drive-strength = <24>;
+			bias-disable;
+		};
+
+		rgmii {
+			groups = "avb2_rgmii";
+			drive-strength = <24>;
+			bias-disable;
 		};
 	};
 

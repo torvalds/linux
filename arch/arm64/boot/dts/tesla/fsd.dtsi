@@ -92,7 +92,7 @@
 				reg = <0x0 0x000>;
 				enable-method = "psci";
 				clock-frequency = <2400000000>;
-				cpu-idle-states = <&CPU_SLEEP>;
+				cpu-idle-states = <&cpu_sleep>;
 				i-cache-size = <0xc000>;
 				i-cache-line-size = <64>;
 				i-cache-sets = <256>;
@@ -108,7 +108,7 @@
 				reg = <0x0 0x001>;
 				enable-method = "psci";
 				clock-frequency = <2400000000>;
-				cpu-idle-states = <&CPU_SLEEP>;
+				cpu-idle-states = <&cpu_sleep>;
 				i-cache-size = <0xc000>;
 				i-cache-line-size = <64>;
 				i-cache-sets = <256>;
@@ -124,7 +124,7 @@
 				reg = <0x0 0x002>;
 				enable-method = "psci";
 				clock-frequency = <2400000000>;
-				cpu-idle-states = <&CPU_SLEEP>;
+				cpu-idle-states = <&cpu_sleep>;
 				i-cache-size = <0xc000>;
 				i-cache-line-size = <64>;
 				i-cache-sets = <256>;
@@ -139,7 +139,7 @@
 				compatible = "arm,cortex-a72";
 				reg = <0x0 0x003>;
 				enable-method = "psci";
-				cpu-idle-states = <&CPU_SLEEP>;
+				cpu-idle-states = <&cpu_sleep>;
 				i-cache-size = <0xc000>;
 				i-cache-line-size = <64>;
 				i-cache-sets = <256>;
@@ -156,7 +156,7 @@
 				reg = <0x0 0x100>;
 				enable-method = "psci";
 				clock-frequency = <2400000000>;
-				cpu-idle-states = <&CPU_SLEEP>;
+				cpu-idle-states = <&cpu_sleep>;
 				i-cache-size = <0xc000>;
 				i-cache-line-size = <64>;
 				i-cache-sets = <256>;
@@ -172,7 +172,7 @@
 				reg = <0x0 0x101>;
 				enable-method = "psci";
 				clock-frequency = <2400000000>;
-				cpu-idle-states = <&CPU_SLEEP>;
+				cpu-idle-states = <&cpu_sleep>;
 				i-cache-size = <0xc000>;
 				i-cache-line-size = <64>;
 				i-cache-sets = <256>;
@@ -188,7 +188,7 @@
 				reg = <0x0 0x102>;
 				enable-method = "psci";
 				clock-frequency = <2400000000>;
-				cpu-idle-states = <&CPU_SLEEP>;
+				cpu-idle-states = <&cpu_sleep>;
 				i-cache-size = <0xc000>;
 				i-cache-line-size = <64>;
 				i-cache-sets = <256>;
@@ -204,7 +204,7 @@
 				reg = <0x0 0x103>;
 				enable-method = "psci";
 				clock-frequency = <2400000000>;
-				cpu-idle-states = <&CPU_SLEEP>;
+				cpu-idle-states = <&cpu_sleep>;
 				i-cache-size = <0xc000>;
 				i-cache-line-size = <64>;
 				i-cache-sets = <256>;
@@ -221,7 +221,7 @@
 				reg = <0x0 0x200>;
 				enable-method = "psci";
 				clock-frequency = <2400000000>;
-				cpu-idle-states = <&CPU_SLEEP>;
+				cpu-idle-states = <&cpu_sleep>;
 				i-cache-size = <0xc000>;
 				i-cache-line-size = <64>;
 				i-cache-sets = <256>;
@@ -237,7 +237,7 @@
 				reg = <0x0 0x201>;
 				enable-method = "psci";
 				clock-frequency = <2400000000>;
-				cpu-idle-states = <&CPU_SLEEP>;
+				cpu-idle-states = <&cpu_sleep>;
 				i-cache-size = <0xc000>;
 				i-cache-line-size = <64>;
 				i-cache-sets = <256>;
@@ -253,7 +253,7 @@
 				reg = <0x0 0x202>;
 				enable-method = "psci";
 				clock-frequency = <2400000000>;
-				cpu-idle-states = <&CPU_SLEEP>;
+				cpu-idle-states = <&cpu_sleep>;
 				i-cache-size = <0xc000>;
 				i-cache-line-size = <64>;
 				i-cache-sets = <256>;
@@ -269,7 +269,7 @@
 				reg = <0x0 0x203>;
 				enable-method = "psci";
 				clock-frequency = <2400000000>;
-				cpu-idle-states = <&CPU_SLEEP>;
+				cpu-idle-states = <&cpu_sleep>;
 				i-cache-size = <0xc000>;
 				i-cache-line-size = <64>;
 				i-cache-sets = <256>;
@@ -291,7 +291,7 @@
 		idle-states {
 			entry-method = "psci";
 
-			CPU_SLEEP: cpu-sleep {
+			cpu_sleep: cpu-sleep {
 				idle-state-name = "c2";
 				compatible = "arm,idle-state";
 				local-timer-stop;
