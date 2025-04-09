@@ -2571,16 +2571,33 @@ static bool access_mdcr(struct kvm_vcpu *vcpu,
 			struct sys_reg_params *p,
 			const struct sys_reg_desc *r)
 {
-	u64 old = __vcpu_sys_reg(vcpu, MDCR_EL2);
+	u64 hpmn, val, old = __vcpu_sys_reg(vcpu, MDCR_EL2);
 
-	if (!access_rw(vcpu, p, r))
-		return false;
+	if (!p->is_write) {
+		p->regval = old;
+		return true;
+	}
+
+	val = p->regval;
+	hpmn = FIELD_GET(MDCR_EL2_HPMN, val);
 
 	/*
-	 * Request a reload of the PMU to enable/disable the counters affected
-	 * by HPME.
+	 * If HPMN is out of bounds, limit it to what we actually
+	 * support. This matches the UNKNOWN definition of the field
+	 * in that case, and keeps the emulation simple. Sort of.
 	 */
-	if ((old ^ __vcpu_sys_reg(vcpu, MDCR_EL2)) & MDCR_EL2_HPME)
+	if (hpmn > vcpu->kvm->arch.nr_pmu_counters) {
+		hpmn = vcpu->kvm->arch.nr_pmu_counters;
+		u64_replace_bits(val, hpmn, MDCR_EL2_HPMN);
+	}
+
+	__vcpu_sys_reg(vcpu, MDCR_EL2) = val;
+
+	/*
+	 * Request a reload of the PMU to enable/disable the counters
+	 * affected by HPME.
+	 */
+	if ((old ^ val) & MDCR_EL2_HPME)
 		kvm_make_request(KVM_REQ_RELOAD_PMU, vcpu);
 
 	return true;
