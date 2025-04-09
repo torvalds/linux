@@ -579,20 +579,15 @@ static int fill_writer_pointer_gap(struct scrub_ctx *sctx, u64 physical)
 	return ret;
 }
 
-static struct page *scrub_stripe_get_page(struct scrub_stripe *stripe, int sector_nr)
+static void *scrub_stripe_get_kaddr(struct scrub_stripe *stripe, int sector_nr)
 {
-	struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
-	int page_index = (sector_nr << fs_info->sectorsize_bits) >> PAGE_SHIFT;
+	u32 offset = (sector_nr << stripe->bg->fs_info->sectorsize_bits);
+	const struct page *page = stripe->pages[offset >> PAGE_SHIFT];
 
-	return stripe->pages[page_index];
-}
-
-static unsigned int scrub_stripe_get_page_offset(struct scrub_stripe *stripe,
-						 int sector_nr)
-{
-	struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
-
-	return offset_in_page(sector_nr << fs_info->sectorsize_bits);
+	/* stripe->pages[] is allocated by us and no highmem is allowed. */
+	ASSERT(page);
+	ASSERT(!PageHighMem(page));
+	return page_address(page) + offset_in_page(offset);
 }
 
 static void scrub_verify_one_metadata(struct scrub_stripe *stripe, int sector_nr)
@@ -600,19 +595,17 @@ static void scrub_verify_one_metadata(struct scrub_stripe *stripe, int sector_nr
 	struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
 	const u32 sectors_per_tree = fs_info->nodesize >> fs_info->sectorsize_bits;
 	const u64 logical = stripe->logical + (sector_nr << fs_info->sectorsize_bits);
-	const struct page *first_page = scrub_stripe_get_page(stripe, sector_nr);
-	const unsigned int first_off = scrub_stripe_get_page_offset(stripe, sector_nr);
+	void *first_kaddr = scrub_stripe_get_kaddr(stripe, sector_nr);
+	struct btrfs_header *header = first_kaddr;
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	u8 on_disk_csum[BTRFS_CSUM_SIZE];
 	u8 calculated_csum[BTRFS_CSUM_SIZE];
-	struct btrfs_header *header;
 
 	/*
 	 * Here we don't have a good way to attach the pages (and subpages)
 	 * to a dummy extent buffer, thus we have to directly grab the members
 	 * from pages.
 	 */
-	header = (struct btrfs_header *)(page_address(first_page) + first_off);
 	memcpy(on_disk_csum, header->csum, fs_info->csum_size);
 
 	if (logical != btrfs_stack_header_bytenr(header)) {
@@ -648,14 +641,11 @@ static void scrub_verify_one_metadata(struct scrub_stripe *stripe, int sector_nr
 	/* Now check tree block csum. */
 	shash->tfm = fs_info->csum_shash;
 	crypto_shash_init(shash);
-	crypto_shash_update(shash, page_address(first_page) + first_off +
-			    BTRFS_CSUM_SIZE, fs_info->sectorsize - BTRFS_CSUM_SIZE);
+	crypto_shash_update(shash, first_kaddr + BTRFS_CSUM_SIZE,
+			    fs_info->sectorsize - BTRFS_CSUM_SIZE);
 
 	for (int i = sector_nr + 1; i < sector_nr + sectors_per_tree; i++) {
-		struct page *page = scrub_stripe_get_page(stripe, i);
-		unsigned int page_off = scrub_stripe_get_page_offset(stripe, i);
-
-		crypto_shash_update(shash, page_address(page) + page_off,
+		crypto_shash_update(shash, scrub_stripe_get_kaddr(stripe, i),
 				    fs_info->sectorsize);
 	}
 
@@ -691,10 +681,8 @@ static void scrub_verify_one_sector(struct scrub_stripe *stripe, int sector_nr)
 	struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
 	struct scrub_sector_verification *sector = &stripe->sectors[sector_nr];
 	const u32 sectors_per_tree = fs_info->nodesize >> fs_info->sectorsize_bits;
-	struct page *page = scrub_stripe_get_page(stripe, sector_nr);
-	unsigned int pgoff = scrub_stripe_get_page_offset(stripe, sector_nr);
+	void *kaddr = scrub_stripe_get_kaddr(stripe, sector_nr);
 	u8 csum_buf[BTRFS_CSUM_SIZE];
-	void *kaddr;
 	int ret;
 
 	ASSERT(sector_nr >= 0 && sector_nr < stripe->nr_sectors);
@@ -738,9 +726,7 @@ static void scrub_verify_one_sector(struct scrub_stripe *stripe, int sector_nr)
 		return;
 	}
 
-	kaddr = kmap_local_page(page) + pgoff;
 	ret = btrfs_check_sector_csum(fs_info, kaddr, csum_buf, sector->csum);
-	kunmap_local(kaddr);
 	if (ret < 0) {
 		set_bit(sector_nr, &stripe->csum_error_bitmap);
 		set_bit(sector_nr, &stripe->error_bitmap);
@@ -769,8 +755,7 @@ static int calc_sector_number(struct scrub_stripe *stripe, struct bio_vec *first
 	int i;
 
 	for (i = 0; i < stripe->nr_sectors; i++) {
-		if (scrub_stripe_get_page(stripe, i) == first_bvec->bv_page &&
-		    scrub_stripe_get_page_offset(stripe, i) == first_bvec->bv_offset)
+		if (scrub_stripe_get_kaddr(stripe, i) == bvec_virt(first_bvec))
 			break;
 	}
 	ASSERT(i < stripe->nr_sectors);
@@ -817,6 +802,25 @@ static int calc_next_mirror(int mirror, int num_copies)
 	return (mirror + 1 > num_copies) ? 1 : mirror + 1;
 }
 
+static void scrub_bio_add_sector(struct btrfs_bio *bbio, struct scrub_stripe *stripe,
+				 int sector_nr)
+{
+	void *kaddr = scrub_stripe_get_kaddr(stripe, sector_nr);
+	int ret;
+
+	ret = bio_add_page(&bbio->bio, virt_to_page(kaddr), bbio->fs_info->sectorsize,
+			   offset_in_page(kaddr));
+	/*
+	 * Caller should ensure the bbio has enough size.
+	 * And we cannot use __bio_add_page(), which doesn't do any merge.
+	 *
+	 * Meanwhile for scrub_submit_initial_read() we fully rely on the merge
+	 * to create the minimal amount of bio vectors, for fs block size < page
+	 * size cases.
+	 */
+	ASSERT(ret == bbio->fs_info->sectorsize);
+}
+
 static void scrub_stripe_submit_repair_read(struct scrub_stripe *stripe,
 					    int mirror, int blocksize, bool wait)
 {
@@ -829,13 +833,6 @@ static void scrub_stripe_submit_repair_read(struct scrub_stripe *stripe,
 	ASSERT(atomic_read(&stripe->pending_io) == 0);
 
 	for_each_set_bit(i, &old_error_bitmap, stripe->nr_sectors) {
-		struct page *page;
-		int pgoff;
-		int ret;
-
-		page = scrub_stripe_get_page(stripe, i);
-		pgoff = scrub_stripe_get_page_offset(stripe, i);
-
 		/* The current sector cannot be merged, submit the bio. */
 		if (bbio && ((i > 0 && !test_bit(i - 1, &stripe->error_bitmap)) ||
 			     bbio->bio.bi_iter.bi_size >= blocksize)) {
@@ -854,8 +851,7 @@ static void scrub_stripe_submit_repair_read(struct scrub_stripe *stripe,
 				(i << fs_info->sectorsize_bits)) >> SECTOR_SHIFT;
 		}
 
-		ret = bio_add_page(&bbio->bio, page, fs_info->sectorsize, pgoff);
-		ASSERT(ret == fs_info->sectorsize);
+		scrub_bio_add_sector(bbio, stripe, i);
 	}
 	if (bbio) {
 		ASSERT(bbio->bio.bi_iter.bi_size);
@@ -1202,10 +1198,6 @@ static void scrub_write_sectors(struct scrub_ctx *sctx, struct scrub_stripe *str
 	int sector_nr;
 
 	for_each_set_bit(sector_nr, &write_bitmap, stripe->nr_sectors) {
-		struct page *page = scrub_stripe_get_page(stripe, sector_nr);
-		unsigned int pgoff = scrub_stripe_get_page_offset(stripe, sector_nr);
-		int ret;
-
 		/* We should only writeback sectors covered by an extent. */
 		ASSERT(test_bit(sector_nr, &stripe->extent_sector_bitmap));
 
@@ -1221,8 +1213,7 @@ static void scrub_write_sectors(struct scrub_ctx *sctx, struct scrub_stripe *str
 				(sector_nr << fs_info->sectorsize_bits)) >>
 				SECTOR_SHIFT;
 		}
-		ret = bio_add_page(&bbio->bio, page, fs_info->sectorsize, pgoff);
-		ASSERT(ret == fs_info->sectorsize);
+		scrub_bio_add_sector(bbio, stripe, sector_nr);
 	}
 	if (bbio)
 		scrub_submit_write_bio(sctx, stripe, bbio, dev_replace);
@@ -1675,9 +1666,6 @@ static void scrub_submit_extent_sector_read(struct scrub_stripe *stripe)
 	atomic_inc(&stripe->pending_io);
 
 	for_each_set_bit(i, &stripe->extent_sector_bitmap, stripe->nr_sectors) {
-		struct page *page = scrub_stripe_get_page(stripe, i);
-		unsigned int pgoff = scrub_stripe_get_page_offset(stripe, i);
-
 		/* We're beyond the chunk boundary, no need to read anymore. */
 		if (i >= nr_sectors)
 			break;
@@ -1730,7 +1718,7 @@ static void scrub_submit_extent_sector_read(struct scrub_stripe *stripe)
 			bbio->bio.bi_iter.bi_sector = logical >> SECTOR_SHIFT;
 		}
 
-		__bio_add_page(&bbio->bio, page, fs_info->sectorsize, pgoff);
+		scrub_bio_add_sector(bbio, stripe, i);
 	}
 
 	if (bbio) {
@@ -1768,15 +1756,8 @@ static void scrub_submit_initial_read(struct scrub_ctx *sctx,
 
 	bbio->bio.bi_iter.bi_sector = stripe->logical >> SECTOR_SHIFT;
 	/* Read the whole range inside the chunk boundary. */
-	for (unsigned int cur = 0; cur < nr_sectors; cur++) {
-		struct page *page = scrub_stripe_get_page(stripe, cur);
-		unsigned int pgoff = scrub_stripe_get_page_offset(stripe, cur);
-		int ret;
-
-		ret = bio_add_page(&bbio->bio, page, fs_info->sectorsize, pgoff);
-		/* We should have allocated enough bio vectors. */
-		ASSERT(ret == fs_info->sectorsize);
-	}
+	for (unsigned int cur = 0; cur < nr_sectors; cur++)
+		scrub_bio_add_sector(bbio, stripe, cur);
 	atomic_inc(&stripe->pending_io);
 
 	/*
