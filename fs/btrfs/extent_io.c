@@ -501,43 +501,22 @@ static void end_bbio_data_read(struct btrfs_bio *bbio)
 	struct btrfs_fs_info *fs_info = bbio->fs_info;
 	struct bio *bio = &bbio->bio;
 	struct folio_iter fi;
-	const u32 sectorsize = fs_info->sectorsize;
 
 	ASSERT(!bio_flagged(bio, BIO_CLONED));
 	bio_for_each_folio_all(fi, &bbio->bio) {
 		bool uptodate = !bio->bi_status;
 		struct folio *folio = fi.folio;
 		struct inode *inode = folio->mapping->host;
-		u64 start;
-		u64 end;
-		u32 len;
+		u64 start = folio_pos(folio) + fi.offset;
 
 		btrfs_debug(fs_info,
 			"%s: bi_sector=%llu, err=%d, mirror=%u",
 			__func__, bio->bi_iter.bi_sector, bio->bi_status,
 			bbio->mirror_num);
 
-		/*
-		 * We always issue full-sector reads, but if some block in a
-		 * folio fails to read, blk_update_request() will advance
-		 * bv_offset and adjust bv_len to compensate.  Print a warning
-		 * for unaligned offsets, and an error if they don't add up to
-		 * a full sector.
-		 */
-		if (!IS_ALIGNED(fi.offset, sectorsize))
-			btrfs_err(fs_info,
-		"partial page read in btrfs with offset %zu and length %zu",
-				  fi.offset, fi.length);
-		else if (!IS_ALIGNED(fi.offset + fi.length, sectorsize))
-			btrfs_info(fs_info,
-		"incomplete page read with offset %zu and length %zu",
-				   fi.offset, fi.length);
-
-		start = folio_pos(folio) + fi.offset;
-		end = start + fi.length - 1;
-		len = fi.length;
 
 		if (likely(uptodate)) {
+			u64 end = start + fi.length - 1;
 			loff_t i_size = i_size_read(inode);
 
 			/*
@@ -562,7 +541,7 @@ static void end_bbio_data_read(struct btrfs_bio *bbio)
 		}
 
 		/* Update page status and unlock. */
-		end_folio_read(folio, uptodate, start, len);
+		end_folio_read(folio, uptodate, start, fi.length);
 	}
 	bio_put(bio);
 }
