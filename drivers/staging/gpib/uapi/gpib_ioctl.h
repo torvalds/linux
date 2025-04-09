@@ -64,11 +64,11 @@ struct gpib_online_ioctl {
 	int online;
 };
 
-typedef struct {
+struct gpib_spoll_bytes_ioctl {
 	unsigned int num_bytes;
 	unsigned int pad;
 	int sad;
-} spoll_bytes_ioctl_t;
+};
 
 typedef struct {
 	unsigned int pad;
@@ -146,7 +146,7 @@ enum gpib_ioctl {
 	CFCBOARDTYPE = _IOW(GPIB_CODE, 24, struct gpib_board_type_ioctl),
 
 	IBMUTEX = _IOW(GPIB_CODE, 26, int),
-	IBSPOLL_BYTES = _IOWR(GPIB_CODE, 27, spoll_bytes_ioctl_t),
+	IBSPOLL_BYTES = _IOWR(GPIB_CODE, 27, struct gpib_spoll_bytes_ioctl),
 	IBPPC = _IOW(GPIB_CODE, 28, ppoll_config_ioctl_t),
 	IBBOARD_INFO = _IOR(GPIB_CODE, 29, board_info_ioctl_t),
 

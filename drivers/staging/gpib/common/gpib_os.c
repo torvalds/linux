@@ -1095,7 +1095,7 @@ static int write_ioctl(struct gpib_file_private *file_priv, struct gpib_board *b
 static int status_bytes_ioctl(struct gpib_board *board, unsigned long arg)
 {
 	struct gpib_status_queue *device;
-	spoll_bytes_ioctl_t cmd;
+	struct gpib_spoll_bytes_ioctl cmd;
 	int retval;
 
 	retval = copy_from_user(&cmd, (void __user *)arg, sizeof(cmd));
