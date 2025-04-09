@@ -1195,23 +1195,22 @@ static int rbio_add_io_sector(struct btrfs_raid_bio *rbio,
 static void index_one_bio(struct btrfs_raid_bio *rbio, struct bio *bio)
 {
 	const u32 sectorsize = rbio->bioc->fs_info->sectorsize;
-	struct bio_vec bvec;
-	struct bvec_iter iter;
+	const u32 sectorsize_bits = rbio->bioc->fs_info->sectorsize_bits;
+	struct bvec_iter iter = bio->bi_iter;
 	u32 offset = (bio->bi_iter.bi_sector << SECTOR_SHIFT) -
 		     rbio->bioc->full_stripe_logical;
 
-	bio_for_each_segment(bvec, bio, iter) {
-		u32 bvec_offset;
+	while (iter.bi_size) {
+		unsigned int index = (offset >> sectorsize_bits);
+		struct sector_ptr *sector = &rbio->bio_sectors[index];
+		struct bio_vec bv = bio_iter_iovec(bio, iter);
 
-		for (bvec_offset = 0; bvec_offset < bvec.bv_len;
-		     bvec_offset += sectorsize, offset += sectorsize) {
-			int index = offset / sectorsize;
-			struct sector_ptr *sector = &rbio->bio_sectors[index];
+		sector->page = bv.bv_page;
+		sector->pgoff = bv.bv_offset;
+		ASSERT(sector->pgoff < PAGE_SIZE);
 
-			sector->page = bvec.bv_page;
-			sector->pgoff = bvec.bv_offset + bvec_offset;
-			ASSERT(sector->pgoff < PAGE_SIZE);
-		}
+		bio_advance_iter_single(bio, &iter, sectorsize);
+		offset += sectorsize;
 	}
 }
 
