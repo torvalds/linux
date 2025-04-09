@@ -27,7 +27,7 @@
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GPIB driver Measurement Computing boards using cb7210.2 and cbi488.2");
 
-static int cb7210_read(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int cb7210_read(struct gpib_board *board, u8 *buffer, size_t length,
 		       int *end, size_t *bytes_read);
 
 	static inline int have_fifo_word(const struct cb7210_priv *cb_priv)
@@ -76,7 +76,7 @@ static inline void input_fifo_enable(struct gpib_board *board, int enable)
 	spin_unlock_irqrestore(&board->spinlock, flags);
 }
 
-static int fifo_read(struct gpib_board *board, struct cb7210_priv *cb_priv, uint8_t *buffer,
+static int fifo_read(struct gpib_board *board, struct cb7210_priv *cb_priv, u8 *buffer,
 		     size_t length, int *end, size_t *bytes_read)
 {
 	ssize_t retval = 0;
@@ -170,7 +170,7 @@ static int fifo_read(struct gpib_board *board, struct cb7210_priv *cb_priv, uint
 	return retval;
 }
 
-static int cb7210_accel_read(struct gpib_board *board, uint8_t *buffer,
+static int cb7210_accel_read(struct gpib_board *board, u8 *buffer,
 			     size_t length, int *end, size_t *bytes_read)
 {
 	ssize_t retval;
@@ -264,7 +264,7 @@ static inline void output_fifo_enable(struct gpib_board *board, int enable)
 	spin_unlock_irqrestore(&board->spinlock, flags);
 }
 
-static int fifo_write(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int fifo_write(struct gpib_board *board, u8 *buffer, size_t length,
 		      size_t *bytes_written)
 {
 	size_t count = 0;
@@ -350,7 +350,7 @@ static int fifo_write(struct gpib_board *board, uint8_t *buffer, size_t length,
 	return retval;
 }
 
-static int cb7210_accel_write(struct gpib_board *board, uint8_t *buffer,
+static int cb7210_accel_write(struct gpib_board *board, u8 *buffer,
 			      size_t length, int send_eoi, size_t *bytes_written)
 {
 	struct cb7210_priv *cb_priv = board->private_data;
@@ -540,7 +540,7 @@ static void cb_pci_detach(struct gpib_board *board);
 static void cb_isa_detach(struct gpib_board *board);
 
 // wrappers for interface functions
-static int cb7210_read(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int cb7210_read(struct gpib_board *board, u8 *buffer, size_t length,
 		       int *end, size_t *bytes_read)
 {
 	struct cb7210_priv *priv = board->private_data;
@@ -548,7 +548,7 @@ static int cb7210_read(struct gpib_board *board, uint8_t *buffer, size_t length,
 	return nec7210_read(board, &priv->nec7210_priv, buffer, length, end, bytes_read);
 }
 
-static int cb7210_write(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int cb7210_write(struct gpib_board *board, u8 *buffer, size_t length,
 			int send_eoi, size_t *bytes_written)
 {
 	struct cb7210_priv *priv = board->private_data;
@@ -556,7 +556,7 @@ static int cb7210_write(struct gpib_board *board, uint8_t *buffer, size_t length
 	return nec7210_write(board, &priv->nec7210_priv, buffer, length, send_eoi, bytes_written);
 }
 
-static int cb7210_command(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int cb7210_command(struct gpib_board *board, u8 *buffer, size_t length,
 			  size_t *bytes_written)
 {
 	struct cb7210_priv *priv = board->private_data;
@@ -606,7 +606,7 @@ static void cb7210_remote_enable(struct gpib_board *board, int enable)
 	nec7210_remote_enable(board, &priv->nec7210_priv, enable);
 }
 
-static int cb7210_enable_eos(struct gpib_board *board, uint8_t eos_byte, int compare_8_bits)
+static int cb7210_enable_eos(struct gpib_board *board, u8 eos_byte, int compare_8_bits)
 {
 	struct cb7210_priv *priv = board->private_data;
 
@@ -641,14 +641,14 @@ static int cb7210_secondary_address(struct gpib_board *board, unsigned int addre
 	return nec7210_secondary_address(board, &priv->nec7210_priv, address, enable);
 }
 
-static int cb7210_parallel_poll(struct gpib_board *board, uint8_t *result)
+static int cb7210_parallel_poll(struct gpib_board *board, u8 *result)
 {
 	struct cb7210_priv *priv = board->private_data;
 
 	return nec7210_parallel_poll(board, &priv->nec7210_priv, result);
 }
 
-static void cb7210_parallel_poll_configure(struct gpib_board *board, uint8_t configuration)
+static void cb7210_parallel_poll_configure(struct gpib_board *board, u8 configuration)
 {
 	struct cb7210_priv *priv = board->private_data;
 
@@ -662,14 +662,14 @@ static void cb7210_parallel_poll_response(struct gpib_board *board, int ist)
 	nec7210_parallel_poll_response(board, &priv->nec7210_priv, ist);
 }
 
-static void cb7210_serial_poll_response(struct gpib_board *board, uint8_t status)
+static void cb7210_serial_poll_response(struct gpib_board *board, u8 status)
 {
 	struct cb7210_priv *priv = board->private_data;
 
 	nec7210_serial_poll_response(board, &priv->nec7210_priv, status);
 }
 
-static uint8_t cb7210_serial_poll_status(struct gpib_board *board)
+static u8 cb7210_serial_poll_status(struct gpib_board *board)
 {
 	struct cb7210_priv *priv = board->private_data;
 

@@ -73,8 +73,8 @@ static inline int cb7210_page_in_bits(unsigned int page)
 	return 0x50 | (page & 0xf);
 }
 
-static inline uint8_t cb7210_paged_read_byte(struct cb7210_priv *cb_priv,
-					     unsigned int register_num, unsigned int page)
+static inline u8 cb7210_paged_read_byte(struct cb7210_priv *cb_priv,
+					unsigned int register_num, unsigned int page)
 {
 	struct nec7210_priv *nec_priv = &cb_priv->nec7210_priv;
 	u8 retval;
@@ -89,8 +89,8 @@ static inline uint8_t cb7210_paged_read_byte(struct cb7210_priv *cb_priv,
 }
 
 // don't use for register_num < 8, since it doesn't lock
-static inline uint8_t cb7210_read_byte(const struct cb7210_priv *cb_priv,
-				       enum hs_regs register_num)
+static inline u8 cb7210_read_byte(const struct cb7210_priv *cb_priv,
+				  enum hs_regs register_num)
 {
 	const struct nec7210_priv *nec_priv = &cb_priv->nec7210_priv;
 	u8 retval;
@@ -99,7 +99,7 @@ static inline uint8_t cb7210_read_byte(const struct cb7210_priv *cb_priv,
 	return retval;
 }
 
-static inline void cb7210_paged_write_byte(struct cb7210_priv *cb_priv, uint8_t data,
+static inline void cb7210_paged_write_byte(struct cb7210_priv *cb_priv, u8 data,
 					   unsigned int register_num, unsigned int page)
 {
 	struct nec7210_priv *nec_priv = &cb_priv->nec7210_priv;
@@ -113,7 +113,7 @@ static inline void cb7210_paged_write_byte(struct cb7210_priv *cb_priv, uint8_t 
 }
 
 // don't use for register_num < 8, since it doesn't lock
-static inline void cb7210_write_byte(const struct cb7210_priv *cb_priv, uint8_t data,
+static inline void cb7210_write_byte(const struct cb7210_priv *cb_priv, u8 data,
 				     enum hs_regs register_num)
 {
 	const struct nec7210_priv *nec_priv = &cb_priv->nec7210_priv;
