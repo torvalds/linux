@@ -1692,7 +1692,7 @@ static int timeout_ioctl(struct gpib_board *board, unsigned long arg)
 
 static int ppc_ioctl(struct gpib_board *board, unsigned long arg)
 {
-	ppoll_config_ioctl_t cmd;
+	struct gpib_ppoll_config_ioctl cmd;
 	int retval;
 
 	retval = copy_from_user(&cmd, (void __user *)arg, sizeof(cmd));

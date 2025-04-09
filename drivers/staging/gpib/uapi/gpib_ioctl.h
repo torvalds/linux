@@ -86,11 +86,11 @@ struct gpib_select_pci_ioctl {
 	int pci_slot;
 };
 
-typedef struct {
+struct gpib_ppoll_config_ioctl {
 	uint8_t config;
 	unsigned set_ist : 1;
 	unsigned clear_ist : 1;
-}	ppoll_config_ioctl_t;
+};
 
 typedef struct {
 	unsigned int handle;
@@ -147,7 +147,7 @@ enum gpib_ioctl {
 
 	IBMUTEX = _IOW(GPIB_CODE, 26, int),
 	IBSPOLL_BYTES = _IOWR(GPIB_CODE, 27, struct gpib_spoll_bytes_ioctl),
-	IBPPC = _IOW(GPIB_CODE, 28, ppoll_config_ioctl_t),
+	IBPPC = _IOW(GPIB_CODE, 28, struct gpib_ppoll_config_ioctl),
 	IBBOARD_INFO = _IOR(GPIB_CODE, 29, struct gpib_board_info_ioctl),
 
 	IBQUERY_BOARD_RSV = _IOR(GPIB_CODE, 31, int),
