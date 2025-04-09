@@ -155,6 +155,7 @@ struct hsr_port {
 	struct hsr_priv		*hsr;
 	enum hsr_port_type	type;
 	struct rcu_head		rcu;
+	unsigned char		original_macaddress[ETH_ALEN];
 };
 
 struct hsr_frame_info;
