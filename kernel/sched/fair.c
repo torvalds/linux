@@ -10251,7 +10251,7 @@ sched_group_asym(struct lb_env *env, struct sg_lb_stats *sgs, struct sched_group
 	    (sgs->group_weight - sgs->idle_cpus != 1))
 		return false;
 
-	return sched_asym(env->sd, env->dst_cpu, group->asym_prefer_cpu);
+	return sched_asym(env->sd, env->dst_cpu, READ_ONCE(group->asym_prefer_cpu));
 }
 
 /* One group has more than one SMT CPU while the other group does not */
@@ -10488,7 +10488,8 @@ static bool update_sd_pick_busiest(struct lb_env *env,
 
 	case group_asym_packing:
 		/* Prefer to move from lowest priority CPU's work */
-		return sched_asym_prefer(sds->busiest->asym_prefer_cpu, sg->asym_prefer_cpu);
+		return sched_asym_prefer(READ_ONCE(sds->busiest->asym_prefer_cpu),
+					 READ_ONCE(sg->asym_prefer_cpu));
 
 	case group_misfit_task:
 		/*
