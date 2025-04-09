@@ -142,13 +142,19 @@ static int bpf_qdisc_gen_prologue(struct bpf_insn *insn_buf, bool direct_write,
 		return 0;
 
 	/* r6 = r1; // r6 will be "u64 *ctx". r1 is "u64 *ctx".
+	 * r2 = r1[16]; // r2 will be "struct netlink_ext_ack *extack"
 	 * r1 = r1[0]; // r1 will be "struct Qdisc *sch"
-	 * r0 = bpf_qdisc_init_prologue(r1);
+	 * r0 = bpf_qdisc_init_prologue(r1, r2);
+	 * if r0 == 0 goto pc+1;
+	 * BPF_EXIT;
 	 * r1 = r6; // r1 will be "u64 *ctx".
 	 */
 	*insn++ = BPF_MOV64_REG(BPF_REG_6, BPF_REG_1);
+	*insn++ = BPF_LDX_MEM(BPF_DW, BPF_REG_2, BPF_REG_1, 16);
 	*insn++ = BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_1, 0);
 	*insn++ = BPF_CALL_KFUNC(0, bpf_qdisc_init_prologue_ids[0]);
+	*insn++ = BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 1);
+	*insn++ = BPF_EXIT_INSN();
 	*insn++ = BPF_MOV64_REG(BPF_REG_1, BPF_REG_6);
 	*insn++ = prog->insnsi[0];
 
@@ -221,11 +227,26 @@ __bpf_kfunc void bpf_qdisc_watchdog_schedule(struct Qdisc *sch, u64 expire, u64 
 }
 
 /* bpf_qdisc_init_prologue - Hidden kfunc called in prologue of .init. */
-__bpf_kfunc void bpf_qdisc_init_prologue(struct Qdisc *sch)
+__bpf_kfunc int bpf_qdisc_init_prologue(struct Qdisc *sch,
+					struct netlink_ext_ack *extack)
 {
 	struct bpf_sched_data *q = qdisc_priv(sch);
+	struct net_device *dev = qdisc_dev(sch);
+	struct Qdisc *p;
+
+	if (sch->parent != TC_H_ROOT) {
+		p = qdisc_lookup(dev, TC_H_MAJ(sch->parent));
+		if (!p)
+			return -ENOENT;
+
+		if (!(p->flags & TCQ_F_MQROOT)) {
+			NL_SET_ERR_MSG(extack, "BPF qdisc only supported on root or mq");
+			return -EINVAL;
+		}
+	}
 
 	qdisc_watchdog_init(&q->watchdog, sch);
+	return 0;
 }
 
 /* bpf_qdisc_reset_destroy_epilogue - Hidden kfunc called in epilogue of .reset
