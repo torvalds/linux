@@ -107,7 +107,6 @@ struct gpib_select_device_path_ioctl {
 	char device_path[0x1000];
 };
 
-typedef int rsc_ioctl_t;
 typedef unsigned int t1_delay_ioctl_t;
 typedef short autospoll_ioctl_t;
 typedef short local_ppoll_mode_ioctl_t;
@@ -152,7 +151,7 @@ enum gpib_ioctl {
 	IBQUERY_BOARD_RSV = _IOR(GPIB_CODE, 31, int),
 	IBSELECT_PCI = _IOWR(GPIB_CODE, 32, struct gpib_select_pci_ioctl),
 	IBEVENT = _IOR(GPIB_CODE, 33, short),
-	IBRSC = _IOW(GPIB_CODE, 34, rsc_ioctl_t),
+	IBRSC = _IOW(GPIB_CODE, 34, int),
 	IB_T1_DELAY = _IOW(GPIB_CODE, 35, t1_delay_ioctl_t),
 	IBLOC = _IO(GPIB_CODE, 36),
 

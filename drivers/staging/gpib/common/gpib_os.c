@@ -1970,7 +1970,7 @@ static int event_ioctl(struct gpib_board *board, unsigned long arg)
 
 static int request_system_control_ioctl(struct gpib_board *board, unsigned long arg)
 {
-	rsc_ioctl_t request_control;
+	int request_control;
 	int retval;
 
 	retval = copy_from_user(&request_control, (void __user *)arg, sizeof(request_control));
