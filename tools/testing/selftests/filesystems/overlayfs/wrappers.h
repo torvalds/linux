@@ -9,6 +9,10 @@
 #include <linux/mount.h>
 #include <sys/syscall.h>
 
+#ifndef STATX_MNT_ID_UNIQUE
+#define STATX_MNT_ID_UNIQUE 0x00004000U /* Want/got extended stx_mount_id */
+#endif
+
 static inline int sys_fsopen(const char *fsname, unsigned int flags)
 {
 	return syscall(__NR_fsopen, fsname, flags);
