@@ -2091,7 +2091,7 @@ DEFINE_PER_CPU_CACHE_HOT(unsigned long, cpu_current_top_of_stack) = TOP_OF_INIT_
 DEFINE_PER_CPU_CACHE_HOT(u64, __x86_call_depth);
 EXPORT_PER_CPU_SYMBOL(__x86_call_depth);
 
-static void wrmsrl_cstar(unsigned long val)
+static void wrmsrq_cstar(unsigned long val)
 {
 	/*
 	 * Intel CPUs do not support 32-bit SYSCALL. Writing to MSR_CSTAR
@@ -2107,7 +2107,7 @@ static inline void idt_syscall_init(void)
 	wrmsrq(MSR_LSTAR, (unsigned long)entry_SYSCALL_64);
 
 	if (ia32_enabled()) {
-		wrmsrl_cstar((unsigned long)entry_SYSCALL_compat);
+		wrmsrq_cstar((unsigned long)entry_SYSCALL_compat);
 		/*
 		 * This only works on Intel CPUs.
 		 * On AMD CPUs these MSRs are 32-bit, CPU truncates MSR_IA32_SYSENTER_EIP.
@@ -2119,7 +2119,7 @@ static inline void idt_syscall_init(void)
 			    (unsigned long)(cpu_entry_stack(smp_processor_id()) + 1));
 		wrmsrq_safe(MSR_IA32_SYSENTER_EIP, (u64)entry_SYSENTER_compat);
 	} else {
-		wrmsrl_cstar((unsigned long)entry_SYSCALL32_ignore);
+		wrmsrq_cstar((unsigned long)entry_SYSCALL32_ignore);
 		wrmsrq_safe(MSR_IA32_SYSENTER_CS, (u64)GDT_ENTRY_INVALID_SEG);
 		wrmsrq_safe(MSR_IA32_SYSENTER_ESP, 0ULL);
 		wrmsrq_safe(MSR_IA32_SYSENTER_EIP, 0ULL);
