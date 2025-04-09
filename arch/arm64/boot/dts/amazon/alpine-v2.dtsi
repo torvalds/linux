@@ -151,7 +151,7 @@
 			al,msi-num-spis = <160>;
 		};
 
-		io-fabric@fc000000 {
+		io-bus@fc000000 {
 			compatible = "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
