@@ -6794,8 +6794,8 @@ pci_ers_result_t amdgpu_pci_slot_reset(struct pci_dev *pdev)
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_reset_context reset_context;
-	struct amdgpu_device *tmp_adev = NULL;
-	struct amdgpu_hive_info *hive = NULL;
+	struct amdgpu_device *tmp_adev;
+	struct amdgpu_hive_info *hive;
 	struct list_head device_list;
 	int r = 0, i;
 	u32 memsize;
@@ -6856,7 +6856,7 @@ out:
 		dev_info(adev->dev, "PCIe error recovery succeeded\n");
 	} else {
 		dev_err(adev->dev, "PCIe error recovery failed, err:%d\n", r);
-		if (tmp_adev) {
+		if (hive) {
 			list_for_each_entry(tmp_adev, &device_list, reset_list)
 				amdgpu_device_unset_mp1_state(tmp_adev);
 			amdgpu_device_unlock_reset_domain(adev->reset_domain);
