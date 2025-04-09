@@ -48,7 +48,7 @@ static struct platform_driver fmh_gpib_platform_driver;
 static struct pci_driver fmh_gpib_pci_driver;
 
 // wrappers for interface functions
-static int fmh_gpib_read(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int fmh_gpib_read(struct gpib_board *board, u8 *buffer, size_t length,
 			 int *end, size_t *bytes_read)
 {
 	struct fmh_priv *priv = board->private_data;
@@ -56,7 +56,7 @@ static int fmh_gpib_read(struct gpib_board *board, uint8_t *buffer, size_t lengt
 	return nec7210_read(board, &priv->nec7210_priv, buffer, length, end, bytes_read);
 }
 
-static int fmh_gpib_write(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int fmh_gpib_write(struct gpib_board *board, u8 *buffer, size_t length,
 			  int send_eoi, size_t *bytes_written)
 {
 	struct fmh_priv *priv = board->private_data;
@@ -64,7 +64,7 @@ static int fmh_gpib_write(struct gpib_board *board, uint8_t *buffer, size_t leng
 	return nec7210_write(board, &priv->nec7210_priv, buffer, length, send_eoi, bytes_written);
 }
 
-static int fmh_gpib_command(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int fmh_gpib_command(struct gpib_board *board, u8 *buffer, size_t length,
 			    size_t *bytes_written)
 {
 	struct fmh_priv *priv = board->private_data;
@@ -108,7 +108,7 @@ static void fmh_gpib_remote_enable(struct gpib_board *board, int enable)
 	nec7210_remote_enable(board, &priv->nec7210_priv, enable);
 }
 
-static int fmh_gpib_enable_eos(struct gpib_board *board, uint8_t eos_byte, int compare_8_bits)
+static int fmh_gpib_enable_eos(struct gpib_board *board, u8 eos_byte, int compare_8_bits)
 {
 	struct fmh_priv *priv = board->private_data;
 
@@ -143,14 +143,14 @@ static int fmh_gpib_secondary_address(struct gpib_board *board, unsigned int add
 	return nec7210_secondary_address(board, &priv->nec7210_priv, address, enable);
 }
 
-static int fmh_gpib_parallel_poll(struct gpib_board *board, uint8_t *result)
+static int fmh_gpib_parallel_poll(struct gpib_board *board, u8 *result)
 {
 	struct fmh_priv *priv = board->private_data;
 
 	return nec7210_parallel_poll(board, &priv->nec7210_priv, result);
 }
 
-static void fmh_gpib_parallel_poll_configure(struct gpib_board *board, uint8_t configuration)
+static void fmh_gpib_parallel_poll_configure(struct gpib_board *board, u8 configuration)
 {
 	struct fmh_priv *priv = board->private_data;
 
@@ -179,7 +179,7 @@ static void fmh_gpib_local_parallel_poll_mode(struct gpib_board *board, int loca
 	}
 }
 
-static void fmh_gpib_serial_poll_response2(struct gpib_board *board, uint8_t status,
+static void fmh_gpib_serial_poll_response2(struct gpib_board *board, u8 status,
 					   int new_reason_for_service)
 {
 	struct fmh_priv *priv = board->private_data;
@@ -214,7 +214,7 @@ static void fmh_gpib_serial_poll_response2(struct gpib_board *board, uint8_t sta
 	spin_unlock_irqrestore(&board->spinlock, flags);
 }
 
-static uint8_t fmh_gpib_serial_poll_status(struct gpib_board *board)
+static u8 fmh_gpib_serial_poll_status(struct gpib_board *board)
 {
 	struct fmh_priv *priv = board->private_data;
 
@@ -393,7 +393,7 @@ static int fmh_gpib_all_bytes_are_sent(struct fmh_priv *e_priv)
 	return 1;
 }
 
-static int fmh_gpib_dma_write(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int fmh_gpib_dma_write(struct gpib_board *board, u8 *buffer, size_t length,
 			      size_t *bytes_written)
 {
 	struct fmh_priv *e_priv = board->private_data;
@@ -471,7 +471,7 @@ cleanup:
 	return retval;
 }
 
-static int fmh_gpib_accel_write(struct gpib_board *board, uint8_t *buffer,
+static int fmh_gpib_accel_write(struct gpib_board *board, u8 *buffer,
 				size_t length, int send_eoi, size_t *bytes_written)
 {
 	struct fmh_priv *e_priv = board->private_data;
@@ -586,7 +586,7 @@ static int wait_for_tx_fifo_half_empty(struct gpib_board *board)
 /* supports writing a chunk of data whose length must fit into the hardware'd xfer counter,
  * called in a loop by fmh_gpib_fifo_write()
  */
-static int fmh_gpib_fifo_write_countable(struct gpib_board *board, uint8_t *buffer,
+static int fmh_gpib_fifo_write_countable(struct gpib_board *board, u8 *buffer,
 					 size_t length, int send_eoi, size_t *bytes_written)
 {
 	struct fmh_priv *e_priv = board->private_data;
@@ -652,7 +652,7 @@ cleanup:
 	return retval;
 }
 
-static int fmh_gpib_fifo_write(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int fmh_gpib_fifo_write(struct gpib_board *board, u8 *buffer, size_t length,
 			       int send_eoi, size_t *bytes_written)
 {
 	struct fmh_priv *e_priv = board->private_data;
@@ -699,7 +699,7 @@ static int fmh_gpib_fifo_write(struct gpib_board *board, uint8_t *buffer, size_t
 	return retval;
 }
 
-static int fmh_gpib_dma_read(struct gpib_board *board, uint8_t *buffer,
+static int fmh_gpib_dma_read(struct gpib_board *board, u8 *buffer,
 			     size_t length, int *end, size_t *bytes_read)
 {
 	struct fmh_priv *e_priv = board->private_data;
@@ -848,7 +848,7 @@ static void fmh_gpib_release_rfd_holdoff(struct gpib_board *board, struct fmh_pr
 	spin_unlock_irqrestore(&board->spinlock, flags);
 }
 
-static int fmh_gpib_accel_read(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int fmh_gpib_accel_read(struct gpib_board *board, u8 *buffer, size_t length,
 			       int *end, size_t *bytes_read)
 {
 	struct fmh_priv *e_priv = board->private_data;
@@ -898,7 +898,7 @@ static int fmh_gpib_accel_read(struct gpib_board *board, uint8_t *buffer, size_t
 /* Read a chunk of data whose length is within the limits of the hardware's
  * xfer counter.  Called in a loop from fmh_gpib_fifo_read().
  */
-static int fmh_gpib_fifo_read_countable(struct gpib_board *board, uint8_t *buffer,
+static int fmh_gpib_fifo_read_countable(struct gpib_board *board, u8 *buffer,
 					size_t length, int *end, size_t *bytes_read)
 {
 	struct fmh_priv *e_priv = board->private_data;
@@ -956,7 +956,7 @@ cleanup:
 	return retval;
 }
 
-static int fmh_gpib_fifo_read(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int fmh_gpib_fifo_read(struct gpib_board *board, u8 *buffer, size_t length,
 			      int *end, size_t *bytes_read)
 {
 	struct fmh_priv *e_priv = board->private_data;
