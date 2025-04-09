@@ -76,7 +76,6 @@ static struct fpu x86_init_fpu __attribute__ ((aligned (64))) __read_mostly;
 static void __init fpu__init_system_early_generic(void)
 {
 	fpstate_reset(&x86_init_fpu);
-	current->thread.fpu = &x86_init_fpu;
 	set_thread_flag(TIF_NEED_FPU_LOAD);
 	x86_init_fpu.last_cpu = -1;
 
