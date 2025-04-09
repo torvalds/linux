@@ -22,7 +22,6 @@ int serial_poll_all(struct gpib_board *board, unsigned int usec_timeout);
 void init_gpib_descriptor(gpib_descriptor_t *desc);
 int dvrsp(struct gpib_board *board, unsigned int pad, int sad,
 	  unsigned int usec_timeout, uint8_t *result);
-int ibAPrsp(struct gpib_board *board, int padsad, char *spb);
 void ibAPE(struct gpib_board *board, int pad, int v);
 int ibcac(struct gpib_board *board, int sync, int fallback_to_async);
 int ibcmd(struct gpib_board *board, uint8_t *buf, size_t length, size_t *bytes_written);
