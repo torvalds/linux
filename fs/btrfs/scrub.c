@@ -694,6 +694,7 @@ static void scrub_verify_one_sector(struct scrub_stripe *stripe, int sector_nr)
 	struct page *page = scrub_stripe_get_page(stripe, sector_nr);
 	unsigned int pgoff = scrub_stripe_get_page_offset(stripe, sector_nr);
 	u8 csum_buf[BTRFS_CSUM_SIZE];
+	void *kaddr;
 	int ret;
 
 	ASSERT(sector_nr >= 0 && sector_nr < stripe->nr_sectors);
@@ -737,7 +738,9 @@ static void scrub_verify_one_sector(struct scrub_stripe *stripe, int sector_nr)
 		return;
 	}
 
-	ret = btrfs_check_sector_csum(fs_info, page, pgoff, csum_buf, sector->csum);
+	kaddr = kmap_local_page(page) + pgoff;
+	ret = btrfs_check_sector_csum(fs_info, kaddr, csum_buf, sector->csum);
+	kunmap_local(kaddr);
 	if (ret < 0) {
 		set_bit(sector_nr, &stripe->csum_error_bitmap);
 		set_bit(sector_nr, &stripe->error_bitmap);

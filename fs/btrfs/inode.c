@@ -3328,20 +3328,16 @@ int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered)
 /*
  * Verify the checksum for a single sector without any extra action that depend
  * on the type of I/O.
+ *
+ * @kaddr must be a properly kmapped address.
  */
-int btrfs_check_sector_csum(struct btrfs_fs_info *fs_info, struct page *page,
-			    u32 pgoff, u8 *csum, const u8 * const csum_expected)
+int btrfs_check_sector_csum(struct btrfs_fs_info *fs_info, void *kaddr, u8 *csum,
+			    const u8 * const csum_expected)
 {
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
-	char *kaddr;
-
-	ASSERT(pgoff + fs_info->sectorsize <= PAGE_SIZE);
 
 	shash->tfm = fs_info->csum_shash;
-
-	kaddr = kmap_local_page(page) + pgoff;
 	crypto_shash_digest(shash, kaddr, fs_info->sectorsize, csum);
-	kunmap_local(kaddr);
 
 	if (memcmp(csum, csum_expected, fs_info->csum_size))
 		return -EIO;
@@ -3370,6 +3366,7 @@ bool btrfs_data_csum_ok(struct btrfs_bio *bbio, struct btrfs_device *dev,
 	u64 end = file_offset + bv->bv_len - 1;
 	u8 *csum_expected;
 	u8 csum[BTRFS_CSUM_SIZE];
+	void *kaddr;
 
 	ASSERT(bv->bv_len == fs_info->sectorsize);
 
@@ -3387,9 +3384,12 @@ bool btrfs_data_csum_ok(struct btrfs_bio *bbio, struct btrfs_device *dev,
 
 	csum_expected = bbio->csum + (bio_offset >> fs_info->sectorsize_bits) *
 				fs_info->csum_size;
-	if (btrfs_check_sector_csum(fs_info, bv->bv_page, bv->bv_offset, csum,
-				    csum_expected))
+	kaddr = bvec_kmap_local(bv);
+	if (btrfs_check_sector_csum(fs_info, kaddr, csum, csum_expected)) {
+		kunmap_local(kaddr);
 		goto zeroit;
+	}
+	kunmap_local(kaddr);
 	return true;
 
 zeroit:
