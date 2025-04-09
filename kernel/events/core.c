@@ -1271,9 +1271,10 @@ static void put_ctx(struct perf_event_context *ctx)
 		if (ctx->task && ctx->task != TASK_TOMBSTONE)
 			put_task_struct(ctx->task);
 		call_rcu(&ctx->rcu_head, free_ctx);
-	} else if (ctx->task == TASK_TOMBSTONE) {
-		smp_mb(); /* pairs with wait_var_event() */
-		wake_up_var(&ctx->refcount);
+	} else {
+		smp_mb__after_atomic(); /* pairs with wait_var_event() */
+		if (ctx->task == TASK_TOMBSTONE)
+			wake_up_var(&ctx->refcount);
 	}
 }
 
