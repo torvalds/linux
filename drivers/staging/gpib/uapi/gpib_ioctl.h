@@ -17,13 +17,13 @@ struct gpib_board_type_ioctl {
 };
 
 /* argument for read/write/command ioctls */
-typedef struct {
+struct gpib_read_write_ioctl {
 	uint64_t buffer_ptr;
 	unsigned int requested_transfer_count;
 	unsigned int completed_transfer_count;
 	int end; /* end flag return for reads, end io suppression request for cmd*/
 	int handle;
-} read_write_ioctl_t;
+};
 
 typedef struct {
 	unsigned int handle;
@@ -121,9 +121,9 @@ typedef struct {
 
 /* Standard functions. */
 enum gpib_ioctl {
-	IBRD = _IOWR(GPIB_CODE, 100, read_write_ioctl_t),
-	IBWRT = _IOWR(GPIB_CODE, 101, read_write_ioctl_t),
-	IBCMD = _IOWR(GPIB_CODE, 102, read_write_ioctl_t),
+	IBRD = _IOWR(GPIB_CODE, 100, struct gpib_read_write_ioctl),
+	IBWRT = _IOWR(GPIB_CODE, 101, struct gpib_read_write_ioctl),
+	IBCMD = _IOWR(GPIB_CODE, 102, struct gpib_read_write_ioctl),
 	IBOPENDEV = _IOWR(GPIB_CODE, 3, open_dev_ioctl_t),
 	IBCLOSEDEV = _IOW(GPIB_CODE, 4, close_dev_ioctl_t),
 	IBWAIT = _IOWR(GPIB_CODE, 5, wait_ioctl_t),

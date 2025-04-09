@@ -865,7 +865,7 @@ static int board_type_ioctl(struct gpib_file_private *file_priv,
 static int read_ioctl(struct gpib_file_private *file_priv, struct gpib_board *board,
 		      unsigned long arg)
 {
-	read_write_ioctl_t read_cmd;
+	struct gpib_read_write_ioctl read_cmd;
 	u8 __user *userbuf;
 	unsigned long remain;
 	int end_flag = 0;
@@ -940,7 +940,7 @@ static int read_ioctl(struct gpib_file_private *file_priv, struct gpib_board *bo
 static int command_ioctl(struct gpib_file_private *file_priv,
 			 struct gpib_board *board, unsigned long arg)
 {
-	read_write_ioctl_t cmd;
+	struct gpib_read_write_ioctl cmd;
 	u8 __user *userbuf;
 	unsigned long remain;
 	int retval;
@@ -1024,7 +1024,7 @@ static int command_ioctl(struct gpib_file_private *file_priv,
 static int write_ioctl(struct gpib_file_private *file_priv, struct gpib_board *board,
 		       unsigned long arg)
 {
-	read_write_ioctl_t write_cmd;
+	struct gpib_read_write_ioctl write_cmd;
 	u8 __user *userbuf;
 	unsigned long remain;
 	int retval = 0;
