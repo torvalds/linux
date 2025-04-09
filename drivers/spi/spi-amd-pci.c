@@ -46,8 +46,8 @@ static int amd_spi_pci_probe(struct pci_dev *pdev,
 	io_base_addr = (io_base_addr & AMD_SPI_BASE_ADDR_MASK) + AMD_HID2_PCI_BAR_OFFSET;
 	amd_spi->io_remap_addr = devm_ioremap(dev, io_base_addr, AMD_HID2_MEM_SIZE);
 
-	if (IS_ERR(amd_spi->io_remap_addr))
-		return dev_err_probe(dev, PTR_ERR(amd_spi->io_remap_addr),
+	if (!amd_spi->io_remap_addr)
+		return dev_err_probe(dev, -ENOMEM,
 				"ioremap of SPI registers failed\n");
 
 	dev_dbg(dev, "io_remap_address: %p\n", amd_spi->io_remap_addr);
