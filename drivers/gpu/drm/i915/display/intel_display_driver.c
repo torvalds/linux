@@ -418,7 +418,6 @@ bool intel_display_driver_check_access(struct intel_display *display)
 /* part #2: call after irq install, but before gem init */
 int intel_display_driver_probe_nogem(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	enum pipe pipe;
 	int ret;
 
@@ -467,7 +466,7 @@ int intel_display_driver_probe_nogem(struct intel_display *display)
 	intel_display_driver_disable_user_access(display);
 
 	drm_modeset_lock_all(display->drm);
-	intel_modeset_setup_hw_state(i915, display->drm->mode_config.acquire_ctx);
+	intel_modeset_setup_hw_state(display, display->drm->mode_config.acquire_ctx);
 	intel_acpi_assign_connector_fwnodes(display);
 	drm_modeset_unlock_all(display->drm);
 
@@ -689,12 +688,11 @@ __intel_display_driver_resume(struct intel_display *display,
 			      struct drm_atomic_state *state,
 			      struct drm_modeset_acquire_ctx *ctx)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct drm_crtc_state *crtc_state;
 	struct drm_crtc *crtc;
 	int ret, i;
 
-	intel_modeset_setup_hw_state(i915, ctx);
+	intel_modeset_setup_hw_state(display, ctx);
 	intel_vga_redisable(display);
 
 	if (!state)
