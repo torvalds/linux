@@ -1071,7 +1071,7 @@ FIXTURE_SETUP(mount_setattr_idmapped)
 	ASSERT_EQ(mkdir("/mnt/D", 0777), 0);
 	img_fd = openat(-EBADF, "/mnt/C/ext4.img", O_CREAT | O_WRONLY, 0600);
 	ASSERT_GE(img_fd, 0);
-	ASSERT_EQ(ftruncate(img_fd, 1024 * 2048), 0);
+	ASSERT_EQ(ftruncate(img_fd, 2147483648 /* 2 GB */), 0);
 	ASSERT_EQ(system("mkfs.ext4 -q /mnt/C/ext4.img"), 0);
 	ASSERT_EQ(system("mount -o loop -t ext4 /mnt/C/ext4.img /mnt/D/"), 0);
 	ASSERT_EQ(close(img_fd), 0);
