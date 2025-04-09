@@ -338,8 +338,12 @@ exit:
 int mt7996_mcu_wa_cmd(struct mt7996_dev *dev, int cmd, u32 a1, u32 a2, u32 a3)
 {
 	struct {
+		u8 _rsv[4];
+
+		__le16 tag;
+		__le16 len;
 		__le32 args[3];
-	} req = {
+	} __packed req = {
 		.args = {
 			cpu_to_le32(a1),
 			cpu_to_le32(a2),
@@ -347,7 +351,16 @@ int mt7996_mcu_wa_cmd(struct mt7996_dev *dev, int cmd, u32 a1, u32 a2, u32 a3)
 		},
 	};
 
-	return mt76_mcu_send_msg(&dev->mt76, cmd, &req, sizeof(req), false);
+	if (mt7996_has_wa(dev))
+		return mt76_mcu_send_msg(&dev->mt76, cmd, &req.args,
+					 sizeof(req.args), false);
+
+	req.tag = cpu_to_le16(cmd == MCU_WA_PARAM_CMD(QUERY) ? UNI_CMD_SDO_QUERY :
+							       UNI_CMD_SDO_SET);
+	req.len = cpu_to_le16(sizeof(req) - 4);
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_WA_UNI_CMD(SDO), &req,
+				 sizeof(req), false);
 }
 
 static void
@@ -3223,13 +3236,15 @@ int mt7996_mcu_init_firmware(struct mt7996_dev *dev)
 	if (ret)
 		return ret;
 
-	ret = mt7996_mcu_fw_log_2_host(dev, MCU_FW_LOG_WA, 0);
-	if (ret)
-		return ret;
+	if (mt7996_has_wa(dev)) {
+		ret = mt7996_mcu_fw_log_2_host(dev, MCU_FW_LOG_WA, 0);
+		if (ret)
+			return ret;
 
-	ret = mt7996_mcu_set_mwds(dev, 1);
-	if (ret)
-		return ret;
+		ret = mt7996_mcu_set_mwds(dev, 1);
+		if (ret)
+			return ret;
+	}
 
 	ret = mt7996_mcu_init_rx_airtime(dev);
 	if (ret)
@@ -4749,7 +4764,26 @@ int mt7996_mcu_cp_support(struct mt7996_dev *dev, u8 mode)
 	    mode > mt76_connac_lmac_mapping(IEEE80211_AC_VO))
 		return -EINVAL;
 
+	if (!mt7996_has_wa(dev)) {
+		struct {
+			u8 _rsv[4];
+
+			__le16 tag;
+			__le16 len;
+			u8 cp_mode;
+			u8 rsv[3];
+		} __packed req = {
+			.tag = cpu_to_le16(UNI_CMD_SDO_CP_MODE),
+			.len = cpu_to_le16(sizeof(req) - 4),
+			.cp_mode = mode,
+		};
+
+		return mt76_mcu_send_msg(&dev->mt76, MCU_WA_UNI_CMD(SDO),
+					 &req, sizeof(req), false);
+	}
+
 	cp_mode = cpu_to_le32(mode);
+
 	return mt76_mcu_send_msg(&dev->mt76, MCU_WA_EXT_CMD(CP_SUPPORT),
 				 &cp_mode, sizeof(cp_mode), true);
 }
