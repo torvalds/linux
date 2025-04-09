@@ -1984,7 +1984,7 @@ static int request_system_control_ioctl(struct gpib_board *board, unsigned long 
 
 static int t1_delay_ioctl(struct gpib_board *board, unsigned long arg)
 {
-	t1_delay_ioctl_t cmd;
+	unsigned int cmd;
 	unsigned int delay;
 	int retval;
 
