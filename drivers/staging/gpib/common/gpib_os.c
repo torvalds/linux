@@ -813,7 +813,7 @@ static int board_type_ioctl(struct gpib_file_private *file_priv,
 			    struct gpib_board *board, unsigned long arg)
 {
 	struct list_head *list_ptr;
-	board_type_ioctl_t cmd;
+	struct gpib_board_type_ioctl cmd;
 	int retval;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -821,7 +821,8 @@ static int board_type_ioctl(struct gpib_file_private *file_priv,
 	if (board->online)
 		return -EBUSY;
 
-	retval = copy_from_user(&cmd, (void __user *)arg, sizeof(board_type_ioctl_t));
+	retval = copy_from_user(&cmd, (void __user *)arg,
+				sizeof(struct gpib_board_type_ioctl));
 	if (retval)
 		return retval;
 

@@ -12,9 +12,9 @@
 
 #define GPIB_CODE 160
 
-typedef struct {
+struct gpib_board_type_ioctl {
 	char name[100];
-} board_type_ioctl_t;
+};
 
 /* argument for read/write/command ioctls */
 typedef struct {
@@ -143,7 +143,7 @@ enum gpib_ioctl {
 	CFCBASE = _IOW(GPIB_CODE, 21, uint64_t),
 	CFCIRQ = _IOW(GPIB_CODE, 22, unsigned int),
 	CFCDMA = _IOW(GPIB_CODE, 23, unsigned int),
-	CFCBOARDTYPE = _IOW(GPIB_CODE, 24, board_type_ioctl_t),
+	CFCBOARDTYPE = _IOW(GPIB_CODE, 24, struct gpib_board_type_ioctl),
 
 	IBMUTEX = _IOW(GPIB_CODE, 26, int),
 	IBSPOLL_BYTES = _IOWR(GPIB_CODE, 27, spoll_bytes_ioctl_t),
