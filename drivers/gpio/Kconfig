@@ -216,6 +216,7 @@ config GPIO_BCM_XGS_IPROC
 config GPIO_BLZP1600
 	tristate "Blaize BLZP1600 GPIO support"
 	default y if ARCH_BLAIZE
+	depends on ARCH_BLAIZE || COMPILE_TEST
 	depends on OF_GPIO
 	select GPIO_GENERIC
 	select GPIOLIB_IRQCHIP
