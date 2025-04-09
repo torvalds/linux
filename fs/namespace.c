@@ -5189,8 +5189,8 @@ static void finish_mount_kattr(struct mount_kattr *kattr)
 		mnt_idmap_put(kattr->mnt_idmap);
 }
 
-static int copy_mount_setattr(struct mount_attr __user *uattr, size_t usize,
-			      struct mount_kattr *kattr)
+static int wants_mount_setattr(struct mount_attr __user *uattr, size_t usize,
+			       struct mount_kattr *kattr)
 {
 	int ret;
 	struct mount_attr attr;
@@ -5213,9 +5213,13 @@ static int copy_mount_setattr(struct mount_attr __user *uattr, size_t usize,
 	if (attr.attr_set == 0 &&
 	    attr.attr_clr == 0 &&
 	    attr.propagation == 0)
-		return 0;
+		return 0; /* Tell caller to not bother. */
 
-	return build_mount_kattr(&attr, usize, kattr);
+	ret = build_mount_kattr(&attr, usize, kattr);
+	if (ret < 0)
+		return ret;
+
+	return 1;
 }
 
 SYSCALL_DEFINE5(mount_setattr, int, dfd, const char __user *, path,
@@ -5247,8 +5251,8 @@ SYSCALL_DEFINE5(mount_setattr, int, dfd, const char __user *, path,
 	if (flags & AT_RECURSIVE)
 		kattr.kflags |= MOUNT_KATTR_RECURSE;
 
-	err = copy_mount_setattr(uattr, usize, &kattr);
-	if (err)
+	err = wants_mount_setattr(uattr, usize, &kattr);
+	if (err <= 0)
 		return err;
 
 	err = user_path_at(dfd, path, kattr.lookup_flags, &target);
@@ -5282,15 +5286,17 @@ SYSCALL_DEFINE5(open_tree_attr, int, dfd, const char __user *, filename,
 		if (flags & AT_RECURSIVE)
 			kattr.kflags |= MOUNT_KATTR_RECURSE;
 
-		ret = copy_mount_setattr(uattr, usize, &kattr);
-		if (ret)
+		ret = wants_mount_setattr(uattr, usize, &kattr);
+		if (ret < 0)
 			return ret;
 
-		ret = do_mount_setattr(&file->f_path, &kattr);
-		if (ret)
-			return ret;
+		if (ret) {
+			ret = do_mount_setattr(&file->f_path, &kattr);
+			if (ret)
+				return ret;
 
-		finish_mount_kattr(&kattr);
+			finish_mount_kattr(&kattr);
+		}
 	}
 
 	fd = get_unused_fd_flags(flags & O_CLOEXEC);
