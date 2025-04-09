@@ -699,7 +699,13 @@ hit_next:
 			state = clear_state_bit(tree, state, bits, wake, changeset);
 			goto next;
 		}
-		goto search_again;
+		if (need_resched())
+			goto search_again;
+		/*
+		 * Fallthrough and try atomic extent state allocation if needed.
+		 * If it fails we'll jump to 'search_again' retry the allocation
+		 * in non-atomic mode and start the search again.
+		 */
 	}
 	/*
 	 * | ---- desired range ---- |
