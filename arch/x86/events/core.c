@@ -317,7 +317,7 @@ bool check_hw_exists(struct pmu *pmu, unsigned long *cntr_mask,
 	if (rdmsrq_safe(reg, &val))
 		goto msr_fail;
 	val ^= 0xffffUL;
-	ret = wrmsrl_safe(reg, val);
+	ret = wrmsrq_safe(reg, val);
 	ret |= rdmsrq_safe(reg, &val_new);
 	if (ret || val != val_new)
 		goto msr_fail;

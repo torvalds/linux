@@ -58,7 +58,7 @@ static int msr_read(u32 msr, struct msr *m)
  */
 static int msr_write(u32 msr, struct msr *m)
 {
-	return wrmsrl_safe(msr, m->q);
+	return wrmsrq_safe(msr, m->q);
 }
 
 static inline int __flip_bit(u32 msr, u8 bit, bool set)

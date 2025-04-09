@@ -145,7 +145,7 @@ static inline void cache_alloc_hsw_probe(void)
 	struct rdt_resource *r  = &hw_res->r_resctrl;
 	u64 max_cbm = BIT_ULL_MASK(20) - 1, l3_cbm_0;
 
-	if (wrmsrl_safe(MSR_IA32_L3_CBM_BASE, max_cbm))
+	if (wrmsrq_safe(MSR_IA32_L3_CBM_BASE, max_cbm))
 		return;
 
 	rdmsrq(MSR_IA32_L3_CBM_BASE, l3_cbm_0);

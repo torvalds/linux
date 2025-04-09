@@ -101,7 +101,7 @@ static bool split_lock_verify_msr(bool on)
 		ctrl |= MSR_TEST_CTRL_SPLIT_LOCK_DETECT;
 	else
 		ctrl &= ~MSR_TEST_CTRL_SPLIT_LOCK_DETECT;
-	if (wrmsrl_safe(MSR_TEST_CTRL, ctrl))
+	if (wrmsrq_safe(MSR_TEST_CTRL, ctrl))
 		return false;
 	rdmsrq(MSR_TEST_CTRL, tmp);
 	return ctrl == tmp;

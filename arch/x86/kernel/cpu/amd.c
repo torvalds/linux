@@ -612,7 +612,7 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 	if (!cpu_has(c, X86_FEATURE_HYPERVISOR) && !cpu_has(c, X86_FEATURE_IBPB_BRTYPE)) {
 		if (c->x86 == 0x17 && boot_cpu_has(X86_FEATURE_AMD_IBPB))
 			setup_force_cpu_cap(X86_FEATURE_IBPB_BRTYPE);
-		else if (c->x86 >= 0x19 && !wrmsrl_safe(MSR_IA32_PRED_CMD, PRED_CMD_SBPB)) {
+		else if (c->x86 >= 0x19 && !wrmsrq_safe(MSR_IA32_PRED_CMD, PRED_CMD_SBPB)) {
 			setup_force_cpu_cap(X86_FEATURE_IBPB_BRTYPE);
 			setup_force_cpu_cap(X86_FEATURE_SBPB);
 		}
@@ -790,7 +790,7 @@ static void init_amd_bd(struct cpuinfo_x86 *c)
 	if ((c->x86_model >= 0x02) && (c->x86_model < 0x20)) {
 		if (!rdmsrq_safe(MSR_F15H_IC_CFG, &value) && !(value & 0x1E)) {
 			value |= 0x1E;
-			wrmsrl_safe(MSR_F15H_IC_CFG, value);
+			wrmsrq_safe(MSR_F15H_IC_CFG, value);
 		}
 	}
 
@@ -840,7 +840,7 @@ void init_spectral_chicken(struct cpuinfo_x86 *c)
 	if (!cpu_has(c, X86_FEATURE_HYPERVISOR)) {
 		if (!rdmsrq_safe(MSR_ZEN2_SPECTRAL_CHICKEN, &value)) {
 			value |= MSR_ZEN2_SPECTRAL_CHICKEN_BIT;
-			wrmsrl_safe(MSR_ZEN2_SPECTRAL_CHICKEN, value);
+			wrmsrq_safe(MSR_ZEN2_SPECTRAL_CHICKEN, value);
 		}
 	}
 #endif

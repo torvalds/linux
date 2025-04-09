@@ -158,7 +158,7 @@ static void ppin_init(struct cpuinfo_x86 *c)
 
 	/* If PPIN is disabled, try to enable */
 	if (!(val & 2UL)) {
-		wrmsrl_safe(info->msr_ppin_ctl,  val | 2UL);
+		wrmsrq_safe(info->msr_ppin_ctl,  val | 2UL);
 		rdmsrq_safe(info->msr_ppin_ctl, &val);
 	}
 
@@ -2114,15 +2114,15 @@ static inline void idt_syscall_init(void)
 		 * This does not cause SYSENTER to jump to the wrong location, because
 		 * AMD doesn't allow SYSENTER in long mode (either 32- or 64-bit).
 		 */
-		wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)__KERNEL_CS);
-		wrmsrl_safe(MSR_IA32_SYSENTER_ESP,
+		wrmsrq_safe(MSR_IA32_SYSENTER_CS, (u64)__KERNEL_CS);
+		wrmsrq_safe(MSR_IA32_SYSENTER_ESP,
 			    (unsigned long)(cpu_entry_stack(smp_processor_id()) + 1));
-		wrmsrl_safe(MSR_IA32_SYSENTER_EIP, (u64)entry_SYSENTER_compat);
+		wrmsrq_safe(MSR_IA32_SYSENTER_EIP, (u64)entry_SYSENTER_compat);
 	} else {
 		wrmsrl_cstar((unsigned long)entry_SYSCALL32_ignore);
-		wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)GDT_ENTRY_INVALID_SEG);
-		wrmsrl_safe(MSR_IA32_SYSENTER_ESP, 0ULL);
-		wrmsrl_safe(MSR_IA32_SYSENTER_EIP, 0ULL);
+		wrmsrq_safe(MSR_IA32_SYSENTER_CS, (u64)GDT_ENTRY_INVALID_SEG);
+		wrmsrq_safe(MSR_IA32_SYSENTER_ESP, 0ULL);
+		wrmsrq_safe(MSR_IA32_SYSENTER_EIP, 0ULL);
 	}
 
 	/*

@@ -211,7 +211,7 @@ static void isst_restore_msr_local(int cpu)
 		hash_for_each_possible(isst_hash, sst_cmd, hnode,
 				       punit_msr_white_list[i]) {
 			if (!sst_cmd->mbox_cmd_type && sst_cmd->cpu == cpu)
-				wrmsrl_safe(sst_cmd->cmd, sst_cmd->data);
+				wrmsrq_safe(sst_cmd->cmd, sst_cmd->data);
 		}
 	}
 	mutex_unlock(&isst_hash_lock);

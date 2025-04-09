@@ -643,7 +643,7 @@ static void notify_thresholds(__u64 msr_val)
 
 void __weak notify_hwp_interrupt(void)
 {
-	wrmsrl_safe(MSR_HWP_STATUS, 0);
+	wrmsrq_safe(MSR_HWP_STATUS, 0);
 }
 
 /* Thermal transition interrupt handler */

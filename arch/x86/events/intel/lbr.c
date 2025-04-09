@@ -1602,7 +1602,7 @@ void __init intel_pmu_arch_lbr_init(void)
 		goto clear_arch_lbr;
 
 	/* Apply the max depth of Arch LBR */
-	if (wrmsrl_safe(MSR_ARCH_LBR_DEPTH, lbr_nr))
+	if (wrmsrq_safe(MSR_ARCH_LBR_DEPTH, lbr_nr))
 		goto clear_arch_lbr;
 
 	x86_pmu.lbr_depth_mask = eax.split.lbr_depth_mask;

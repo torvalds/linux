@@ -463,7 +463,7 @@ static void intel_imc_init(struct cpuinfo_x86 *c)
 		if (rdmsrq_safe(MSR_ERROR_CONTROL, &error_control))
 			return;
 		error_control |= 2;
-		wrmsrl_safe(MSR_ERROR_CONTROL, error_control);
+		wrmsrq_safe(MSR_ERROR_CONTROL, error_control);
 		break;
 	}
 }

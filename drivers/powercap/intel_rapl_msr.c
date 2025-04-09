@@ -123,7 +123,7 @@ static void rapl_msr_update_func(void *info)
 	val &= ~ra->mask;
 	val |= ra->value;
 
-	ra->err = wrmsrl_safe(ra->reg.msr, val);
+	ra->err = wrmsrq_safe(ra->reg.msr, val);
 }
 
 static int rapl_msr_write_raw(int cpu, struct reg_action *ra)

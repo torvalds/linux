@@ -1894,7 +1894,7 @@ void notify_hwp_interrupt(void)
 	return;
 
 ack_intr:
-	wrmsrl_safe(MSR_HWP_STATUS, 0);
+	wrmsrq_safe(MSR_HWP_STATUS, 0);
 	raw_spin_unlock_irqrestore(&hwp_notify_lock, flags);
 }
 

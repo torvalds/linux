@@ -316,7 +316,7 @@ static __always_inline void wrmsrns(u32 msr, u64 val)
 /*
  * 64-bit version of wrmsr_safe():
  */
-static inline int wrmsrl_safe(u32 msr, u64 val)
+static inline int wrmsrq_safe(u32 msr, u64 val)
 {
 	return wrmsr_safe(msr, (u32)val,  (u32)(val >> 32));
 }
@@ -385,7 +385,7 @@ static inline int rdmsrl_safe_on_cpu(unsigned int cpu, u32 msr_no, u64 *q)
 }
 static inline int wrmsrl_safe_on_cpu(unsigned int cpu, u32 msr_no, u64 q)
 {
-	return wrmsrl_safe(msr_no, q);
+	return wrmsrq_safe(msr_no, q);
 }
 static inline int rdmsr_safe_regs_on_cpu(unsigned int cpu, u32 regs[8])
 {
