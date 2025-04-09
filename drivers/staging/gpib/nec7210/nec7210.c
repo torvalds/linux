@@ -23,7 +23,7 @@
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GPIB library code for NEC uPD7210");
 
-int nec7210_enable_eos(struct gpib_board *board, struct nec7210_priv *priv, uint8_t eos_byte,
+int nec7210_enable_eos(struct gpib_board *board, struct nec7210_priv *priv, u8 eos_byte,
 		       int compare_8_bits)
 {
 	write_byte(priv, eos_byte, EOSR);
@@ -44,7 +44,7 @@ void nec7210_disable_eos(struct gpib_board *board, struct nec7210_priv *priv)
 }
 EXPORT_SYMBOL(nec7210_disable_eos);
 
-int nec7210_parallel_poll(struct gpib_board *board, struct nec7210_priv *priv, uint8_t *result)
+int nec7210_parallel_poll(struct gpib_board *board, struct nec7210_priv *priv, u8 *result)
 {
 	int ret;
 
@@ -86,7 +86,7 @@ EXPORT_SYMBOL(nec7210_parallel_poll_response);
  * 488.2 set srv state machine in the driver (if that is even viable).
  */
 void nec7210_serial_poll_response(struct gpib_board *board,
-				  struct nec7210_priv *priv, uint8_t status)
+				  struct nec7210_priv *priv, u8 status)
 {
 	unsigned long flags;
 
@@ -103,7 +103,7 @@ void nec7210_serial_poll_response(struct gpib_board *board,
 }
 EXPORT_SYMBOL(nec7210_serial_poll_response);
 
-uint8_t nec7210_serial_poll_status(struct gpib_board *board, struct nec7210_priv *priv)
+u8 nec7210_serial_poll_status(struct gpib_board *board, struct nec7210_priv *priv)
 {
 	return read_byte(priv, SPSR);
 }
@@ -251,7 +251,7 @@ void nec7210_set_handshake_mode(struct gpib_board *board, struct nec7210_priv *p
 }
 EXPORT_SYMBOL(nec7210_set_handshake_mode);
 
-uint8_t nec7210_read_data_in(struct gpib_board *board, struct nec7210_priv *priv, int *end)
+u8 nec7210_read_data_in(struct gpib_board *board, struct nec7210_priv *priv, int *end)
 {
 	unsigned long flags;
 	u8 data;
@@ -415,7 +415,7 @@ static inline short nec7210_atn_has_changed(struct gpib_board *board, struct nec
 	return -1;
 }
 
-int nec7210_command(struct gpib_board *board, struct nec7210_priv *priv, uint8_t
+int nec7210_command(struct gpib_board *board, struct nec7210_priv *priv, u8
 		    *buffer, size_t length, size_t *bytes_written)
 {
 	int retval = 0;
@@ -464,7 +464,7 @@ int nec7210_command(struct gpib_board *board, struct nec7210_priv *priv, uint8_t
 }
 EXPORT_SYMBOL(nec7210_command);
 
-static int pio_read(struct gpib_board *board, struct nec7210_priv *priv, uint8_t *buffer,
+static int pio_read(struct gpib_board *board, struct nec7210_priv *priv, u8 *buffer,
 		    size_t length, int *end, size_t *bytes_read)
 {
 	ssize_t retval = 0;
@@ -568,7 +568,7 @@ static ssize_t __dma_read(struct gpib_board *board, struct nec7210_priv *priv, s
 	return retval ? retval : count;
 }
 
-static ssize_t dma_read(struct gpib_board *board, struct nec7210_priv *priv, uint8_t *buffer,
+static ssize_t dma_read(struct gpib_board *board, struct nec7210_priv *priv, u8 *buffer,
 			size_t length)
 {
 	size_t remain = length;
@@ -595,7 +595,7 @@ static ssize_t dma_read(struct gpib_board *board, struct nec7210_priv *priv, uin
 }
 #endif
 
-int nec7210_read(struct gpib_board *board, struct nec7210_priv *priv, uint8_t *buffer,
+int nec7210_read(struct gpib_board *board, struct nec7210_priv *priv, u8 *buffer,
 		 size_t length, int *end, size_t *bytes_read)
 {
 	ssize_t retval = 0;
@@ -642,7 +642,7 @@ static int pio_write_wait(struct gpib_board *board, struct nec7210_priv *priv,
 	return 0;
 }
 
-static int pio_write(struct gpib_board *board, struct nec7210_priv *priv, uint8_t *buffer,
+static int pio_write(struct gpib_board *board, struct nec7210_priv *priv, u8 *buffer,
 		     size_t length, size_t *bytes_written)
 {
 	size_t last_count = 0;
@@ -742,7 +742,7 @@ static ssize_t __dma_write(struct gpib_board *board, struct nec7210_priv *priv, 
 	return retval ? retval : length;
 }
 
-static ssize_t dma_write(struct gpib_board *board, struct nec7210_priv *priv, uint8_t *buffer,
+static ssize_t dma_write(struct gpib_board *board, struct nec7210_priv *priv, u8 *buffer,
 			 size_t length)
 {
 	size_t remain = length;
@@ -767,7 +767,7 @@ static ssize_t dma_write(struct gpib_board *board, struct nec7210_priv *priv, ui
 }
 #endif
 int nec7210_write(struct gpib_board *board, struct nec7210_priv *priv,
-		  uint8_t *buffer, size_t length, int send_eoi,
+		  u8 *buffer, size_t length, int send_eoi,
 		  size_t *bytes_written)
 {
 	int retval = 0;
@@ -1012,13 +1012,13 @@ EXPORT_SYMBOL(nec7210_board_online);
 
 #ifdef CONFIG_HAS_IOPORT
 /* wrappers for io */
-uint8_t nec7210_ioport_read_byte(struct nec7210_priv *priv, unsigned int register_num)
+u8 nec7210_ioport_read_byte(struct nec7210_priv *priv, unsigned int register_num)
 {
 	return inb(priv->iobase + register_num * priv->offset);
 }
 EXPORT_SYMBOL(nec7210_ioport_read_byte);
 
-void nec7210_ioport_write_byte(struct nec7210_priv *priv, uint8_t data, unsigned int register_num)
+void nec7210_ioport_write_byte(struct nec7210_priv *priv, u8 data, unsigned int register_num)
 {
 	if (register_num == AUXMR)
 		/* locking makes absolutely sure noone accesses the
@@ -1031,7 +1031,7 @@ void nec7210_ioport_write_byte(struct nec7210_priv *priv, uint8_t data, unsigned
 EXPORT_SYMBOL(nec7210_ioport_write_byte);
 
 /* locking variants of io wrappers, for chips that page-in registers */
-uint8_t nec7210_locking_ioport_read_byte(struct nec7210_priv *priv, unsigned int register_num)
+u8 nec7210_locking_ioport_read_byte(struct nec7210_priv *priv, unsigned int register_num)
 {
 	u8 retval;
 	unsigned long flags;
@@ -1043,7 +1043,7 @@ uint8_t nec7210_locking_ioport_read_byte(struct nec7210_priv *priv, unsigned int
 }
 EXPORT_SYMBOL(nec7210_locking_ioport_read_byte);
 
-void nec7210_locking_ioport_write_byte(struct nec7210_priv *priv, uint8_t data,
+void nec7210_locking_ioport_write_byte(struct nec7210_priv *priv, u8 data,
 				       unsigned int register_num)
 {
 	unsigned long flags;
@@ -1057,13 +1057,13 @@ void nec7210_locking_ioport_write_byte(struct nec7210_priv *priv, uint8_t data,
 EXPORT_SYMBOL(nec7210_locking_ioport_write_byte);
 #endif
 
-uint8_t nec7210_iomem_read_byte(struct nec7210_priv *priv, unsigned int register_num)
+u8 nec7210_iomem_read_byte(struct nec7210_priv *priv, unsigned int register_num)
 {
 	return readb(priv->mmiobase + register_num * priv->offset);
 }
 EXPORT_SYMBOL(nec7210_iomem_read_byte);
 
-void nec7210_iomem_write_byte(struct nec7210_priv *priv, uint8_t data, unsigned int register_num)
+void nec7210_iomem_write_byte(struct nec7210_priv *priv, u8 data, unsigned int register_num)
 {
 	if (register_num == AUXMR)
 		/* locking makes absolutely sure noone accesses the
@@ -1075,7 +1075,7 @@ void nec7210_iomem_write_byte(struct nec7210_priv *priv, uint8_t data, unsigned 
 }
 EXPORT_SYMBOL(nec7210_iomem_write_byte);
 
-uint8_t nec7210_locking_iomem_read_byte(struct nec7210_priv *priv, unsigned int register_num)
+u8 nec7210_locking_iomem_read_byte(struct nec7210_priv *priv, unsigned int register_num)
 {
 	u8 retval;
 	unsigned long flags;
@@ -1087,7 +1087,7 @@ uint8_t nec7210_locking_iomem_read_byte(struct nec7210_priv *priv, unsigned int 
 }
 EXPORT_SYMBOL(nec7210_locking_iomem_read_byte);
 
-void nec7210_locking_iomem_write_byte(struct nec7210_priv *priv, uint8_t data,
+void nec7210_locking_iomem_write_byte(struct nec7210_priv *priv, u8 data,
 				      unsigned int register_num)
 {
 	unsigned long flags;
