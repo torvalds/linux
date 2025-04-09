@@ -85,7 +85,8 @@
 #define  ESDHC_TUNE_CTRL_MAX		((1 << 7) - 1)
 #define  ESDHC_TUNE_CTRL_STATUS_TAP_SEL_PRE_MASK	GENMASK(30, 24)
 #define  ESDHC_TUNE_CTRL_STATUS_DLY_CELL_SET_PRE_MASK	GENMASK(14, 8)
-
+#define  ESDHC_TUNE_CTRL_STATUS_DLY_CELL_SET_OUT_MASK	GENMASK(7, 4)
+#define  ESDHC_TUNE_CTRL_STATUS_DLY_CELL_SET_POST_MASK	GENMASK(3, 0)
 /* strobe dll register */
 #define ESDHC_STROBE_DLL_CTRL		0x70
 #define ESDHC_STROBE_DLL_CTRL_ENABLE	(1 << 0)
@@ -243,6 +244,7 @@ struct esdhc_platform_data {
 	unsigned int tuning_start_tap;	/* The start delay cell point in tuning procedure */
 	unsigned int strobe_dll_delay_target;	/* The delay cell for strobe pad (read clock) */
 	unsigned int saved_tuning_delay_cell;	/* save the value of tuning delay cell */
+	unsigned int saved_auto_tuning_window;  /* save the auto tuning window width */
 };
 
 struct esdhc_soc_data {
@@ -1211,6 +1213,7 @@ static int esdhc_executing_tuning(struct sdhci_host *host, u32 opcode)
 {
 	int min, max, avg, ret;
 	int win_length, target_min, target_max, target_win_length;
+	u32 clk_tune_ctrl_status;
 
 	min = ESDHC_TUNE_CTRL_MIN;
 	max = ESDHC_TUNE_CTRL_MIN;
@@ -1250,6 +1253,23 @@ static int esdhc_executing_tuning(struct sdhci_host *host, u32 opcode)
 	/* use average delay to get the best timing */
 	avg = (target_min + target_max) / 2;
 	esdhc_prepare_tuning(host, avg);
+
+	/*
+	 * adjust the delay according to tuning window, make preparation
+	 * for the auto-tuning logic. According to hardware suggest, need
+	 * to config the auto tuning window width to 3, to make the auto
+	 * tuning logic have enough space to handle the sample point shift
+	 * caused by temperature change.
+	 */
+	clk_tune_ctrl_status = FIELD_PREP(ESDHC_TUNE_CTRL_STATUS_DLY_CELL_SET_PRE_MASK,
+					  avg - ESDHC_AUTO_TUNING_WINDOW) |
+			       FIELD_PREP(ESDHC_TUNE_CTRL_STATUS_DLY_CELL_SET_OUT_MASK,
+					  ESDHC_AUTO_TUNING_WINDOW) |
+			       FIELD_PREP(ESDHC_TUNE_CTRL_STATUS_DLY_CELL_SET_POST_MASK,
+					  ESDHC_AUTO_TUNING_WINDOW);
+
+	writel(clk_tune_ctrl_status, host->ioaddr + ESDHC_TUNE_CTRL_STATUS);
+
 	ret = mmc_send_tuning(host->mmc, opcode, NULL);
 	esdhc_post_tuning(host);
 
@@ -1652,7 +1672,11 @@ static void sdhc_esdhc_tuning_restore(struct sdhci_host *host)
 		writel(reg, host->ioaddr + ESDHC_MIX_CTRL);
 
 		writel(FIELD_PREP(ESDHC_TUNE_CTRL_STATUS_DLY_CELL_SET_PRE_MASK,
-				  imx_data->boarddata.saved_tuning_delay_cell),
+				  imx_data->boarddata.saved_tuning_delay_cell) |
+		       FIELD_PREP(ESDHC_TUNE_CTRL_STATUS_DLY_CELL_SET_OUT_MASK,
+				  ESDHC_AUTO_TUNING_WINDOW) |
+		       FIELD_PREP(ESDHC_TUNE_CTRL_STATUS_DLY_CELL_SET_POST_MASK,
+				  ESDHC_AUTO_TUNING_WINDOW),
 		       host->ioaddr + ESDHC_TUNE_CTRL_STATUS);
 	}
 }
