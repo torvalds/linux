@@ -528,7 +528,6 @@ int intel_display_driver_probe(struct intel_display *display)
 
 void intel_display_driver_register(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct drm_printer p = drm_dbg_printer(display->drm, DRM_UT_KMS,
 					       "i915 display info:");
 
@@ -555,7 +554,7 @@ void intel_display_driver_register(struct intel_display *display)
 	drm_kms_helper_poll_init(display->drm);
 	intel_hpd_poll_disable(display);
 
-	intel_fbdev_setup(i915);
+	intel_fbdev_setup(display);
 
 	intel_display_device_info_print(DISPLAY_INFO(display),
 					DISPLAY_RUNTIME_INFO(display), &p);
