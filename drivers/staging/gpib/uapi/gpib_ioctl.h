@@ -32,9 +32,9 @@ struct gpib_open_dev_ioctl {
 	unsigned is_board : 1;
 };
 
-typedef struct {
+struct gpib_close_dev_ioctl {
 	unsigned int handle;
-} close_dev_ioctl_t;
+};
 
 typedef struct {
 	unsigned int pad;
@@ -125,7 +125,7 @@ enum gpib_ioctl {
 	IBWRT = _IOWR(GPIB_CODE, 101, struct gpib_read_write_ioctl),
 	IBCMD = _IOWR(GPIB_CODE, 102, struct gpib_read_write_ioctl),
 	IBOPENDEV = _IOWR(GPIB_CODE, 3, struct gpib_open_dev_ioctl),
-	IBCLOSEDEV = _IOW(GPIB_CODE, 4, close_dev_ioctl_t),
+	IBCLOSEDEV = _IOW(GPIB_CODE, 4, struct gpib_close_dev_ioctl),
 	IBWAIT = _IOWR(GPIB_CODE, 5, wait_ioctl_t),
 	IBRPP = _IOWR(GPIB_CODE, 6, uint8_t),
 

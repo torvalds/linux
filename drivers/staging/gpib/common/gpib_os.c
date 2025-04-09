@@ -1262,7 +1262,7 @@ static int open_dev_ioctl(struct file *filep, struct gpib_board *board, unsigned
 
 static int close_dev_ioctl(struct file *filep, struct gpib_board *board, unsigned long arg)
 {
-	close_dev_ioctl_t cmd;
+	struct gpib_close_dev_ioctl cmd;
 	struct gpib_file_private *file_priv = filep->private_data;
 	int retval;
 
