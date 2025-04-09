@@ -1467,13 +1467,13 @@ EXPORT_SYMBOL_GPL(intel_spi_groups);
 /**
  * intel_spi_probe() - Probe the Intel SPI flash controller
  * @dev: Pointer to the parent device
- * @mem: MMIO resource
+ * @base: iomapped MMIO resource
  * @info: Platform specific information
  *
  * Probes Intel SPI flash controller and creates the flash chip device.
  * Returns %0 on success and negative errno in case of failure.
  */
-int intel_spi_probe(struct device *dev, struct resource *mem,
+int intel_spi_probe(struct device *dev, void __iomem *base,
 		    const struct intel_spi_boardinfo *info)
 {
 	struct spi_controller *host;
@@ -1488,10 +1488,7 @@ int intel_spi_probe(struct device *dev, struct resource *mem,
 
 	ispi = spi_controller_get_devdata(host);
 
-	ispi->base = devm_ioremap_resource(dev, mem);
-	if (IS_ERR(ispi->base))
-		return PTR_ERR(ispi->base);
-
+	ispi->base = base;
 	ispi->dev = dev;
 	ispi->host = host;
 	ispi->info = info;

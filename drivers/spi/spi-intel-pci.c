@@ -44,6 +44,7 @@ static int intel_spi_pci_probe(struct pci_dev *pdev,
 			       const struct pci_device_id *id)
 {
 	struct intel_spi_boardinfo *info;
+	void __iomem *base;
 	int ret;
 
 	ret = pcim_enable_device(pdev);
@@ -56,7 +57,12 @@ static int intel_spi_pci_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 
 	info->data = pdev;
-	return intel_spi_probe(&pdev->dev, &pdev->resource[0], info);
+
+	base = pcim_iomap_region(pdev, 0, KBUILD_MODNAME);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
+
+	return intel_spi_probe(&pdev->dev, base, info);
 }
 
 static const struct pci_device_id intel_spi_pci_ids[] = {
