@@ -233,6 +233,9 @@ struct ath12k_hw_params {
 	const struct ce_ie_addr *ce_ie_addr;
 	const struct ce_remap *ce_remap;
 	u32 bdf_addr_offset;
+
+	/* setup REO queue, frag etc only for primary link peer */
+	bool dp_primary_link_only:1;
 };
 
 struct ath12k_hw_ops {

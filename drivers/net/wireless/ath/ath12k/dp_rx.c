@@ -1001,7 +1001,8 @@ int ath12k_dp_rx_peer_tid_setup(struct ath12k *ar, const u8 *peer_mac, int vdev_
 		return -ENOENT;
 	}
 
-	if (!peer->primary_link) {
+	if (ab->hw_params->dp_primary_link_only &&
+	    !peer->primary_link) {
 		spin_unlock_bh(&ab->base_lock);
 		return 0;
 	}

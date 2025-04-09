@@ -1327,6 +1327,8 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.bdf_addr_offset = 0,
 
 		.current_cc_support = false,
+
+		.dp_primary_link_only = true,
 	},
 	{
 		.name = "wcn7850 hw2.0",
@@ -1414,6 +1416,8 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.bdf_addr_offset = 0,
 
 		.current_cc_support = true,
+
+		.dp_primary_link_only = false,
 	},
 	{
 		.name = "qcn9274 hw2.0",
@@ -1497,6 +1501,8 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.bdf_addr_offset = 0,
 
 		.current_cc_support = false,
+
+		.dp_primary_link_only = true,
 	},
 	{
 		.name = "ipq5332 hw1.0",
@@ -1573,6 +1579,8 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.ce_ie_addr = &ath12k_ce_ie_addr_ipq5332,
 		.ce_remap = &ath12k_ce_remap_ipq5332,
 		.bdf_addr_offset = 0xC00000,
+
+		.dp_primary_link_only = true,
 	},
 };
 
