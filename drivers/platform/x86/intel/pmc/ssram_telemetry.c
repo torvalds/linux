@@ -36,13 +36,7 @@ pmc_add_pmt(struct pmc_dev *pmcdev, u64 ssram_base, void __iomem *ssram)
 	u32 dvsec_offset;
 	u32 table, hdr;
 
-	ssram = ioremap(ssram_base, SSRAM_HDR_SIZE);
-	if (!ssram)
-		return;
-
 	dvsec_offset = readl(ssram + SSRAM_DVSEC_OFFSET);
-	iounmap(ssram);
-
 	dvsec = ioremap(ssram_base + dvsec_offset, SSRAM_DVSEC_SIZE);
 	if (!dvsec)
 		return;
