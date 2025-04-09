@@ -1718,7 +1718,7 @@ static int ppc_ioctl(struct gpib_board *board, unsigned long arg)
 
 static int set_local_ppoll_mode_ioctl(struct gpib_board *board, unsigned long arg)
 {
-	local_ppoll_mode_ioctl_t cmd;
+	short cmd;
 	int retval;
 
 	retval = copy_from_user(&cmd, (void __user *)arg, sizeof(cmd));
@@ -1735,7 +1735,7 @@ static int set_local_ppoll_mode_ioctl(struct gpib_board *board, unsigned long ar
 
 static int get_local_ppoll_mode_ioctl(struct gpib_board *board, unsigned long arg)
 {
-	local_ppoll_mode_ioctl_t cmd;
+	short cmd;
 	int retval;
 
 	cmd = board->local_ppoll_mode;

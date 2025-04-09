@@ -107,8 +107,6 @@ struct gpib_select_device_path_ioctl {
 	char device_path[0x1000];
 };
 
-typedef short local_ppoll_mode_ioctl_t;
-
 // update status byte and request service
 struct gpib_request_service2 {
 	uint8_t status_byte;
@@ -155,8 +153,8 @@ enum gpib_ioctl {
 
 	IBAUTOSPOLL = _IOW(GPIB_CODE, 38, short),
 	IBONL = _IOW(GPIB_CODE, 39, struct gpib_online_ioctl),
-	IBPP2_SET = _IOW(GPIB_CODE, 40, local_ppoll_mode_ioctl_t),
-	IBPP2_GET = _IOR(GPIB_CODE, 41, local_ppoll_mode_ioctl_t),
+	IBPP2_SET = _IOW(GPIB_CODE, 40, short),
+	IBPP2_GET = _IOR(GPIB_CODE, 41, short),
 	IBSELECT_DEVICE_PATH = _IOW(GPIB_CODE, 43, struct gpib_select_device_path_ioctl),
 	// 44 was IBSELECT_SERIAL_NUMBER
 	IBRSV2 = _IOW(GPIB_CODE, 45, struct gpib_request_service2)
