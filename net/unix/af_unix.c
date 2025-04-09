@@ -950,13 +950,6 @@ static void unix_close(struct sock *sk, long timeout)
 	 */
 }
 
-static void unix_unhash(struct sock *sk)
-{
-	/* Nothing to do here, unix socket does not need a ->unhash().
-	 * This is merely for sockmap.
-	 */
-}
-
 static bool unix_bpf_bypass_getsockopt(int level, int optname)
 {
 	if (level == SOL_SOCKET) {
@@ -987,7 +980,6 @@ struct proto unix_stream_proto = {
 	.owner			= THIS_MODULE,
 	.obj_size		= sizeof(struct unix_sock),
 	.close			= unix_close,
-	.unhash			= unix_unhash,
 	.bpf_bypass_getsockopt	= unix_bpf_bypass_getsockopt,
 #ifdef CONFIG_BPF_SYSCALL
 	.psock_update_sk_prot	= unix_stream_bpf_update_proto,
