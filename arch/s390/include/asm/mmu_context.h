@@ -124,17 +124,13 @@ static inline void finish_arch_post_lock_switch(void)
 static inline void activate_mm(struct mm_struct *prev,
                                struct mm_struct *next)
 {
-	unsigned long flags;
-
-	switch_mm(prev, next, current);
+	switch_mm_irqs_off(prev, next, current);
 	cpumask_set_cpu(smp_processor_id(), mm_cpumask(next));
-	local_irq_save(flags);
 	if (test_thread_flag(TIF_ASCE_PRIMARY))
 		local_ctl_load(1, &get_lowcore()->kernel_asce);
 	else
 		local_ctl_load(1, &get_lowcore()->user_asce);
 	local_ctl_load(7, &get_lowcore()->user_asce);
-	local_irq_restore(flags);
 }
 
 #include <asm-generic/mmu_context.h>
