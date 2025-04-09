@@ -963,7 +963,7 @@ void irdma_terminate_del_timer(struct irdma_sc_qp *qp)
 	int ret;
 
 	iwqp = qp->qp_uk.back_qp;
-	ret = del_timer(&iwqp->terminate_timer);
+	ret = timer_delete(&iwqp->terminate_timer);
 	if (ret)
 		irdma_qp_rem_ref(&iwqp->ibqp);
 }
@@ -1570,7 +1570,7 @@ void irdma_hw_stats_stop_timer(struct irdma_sc_vsi *vsi)
 {
 	struct irdma_vsi_pestat *devstat = vsi->pestat;
 
-	del_timer_sync(&devstat->stats_timer);
+	timer_delete_sync(&devstat->stats_timer);
 }
 
 /**

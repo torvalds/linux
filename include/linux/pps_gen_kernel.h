@@ -43,7 +43,7 @@ struct pps_gen_source_info {
 
 /* The main struct */
 struct pps_gen_device {
-	struct pps_gen_source_info info;	/* PSS generator info */
+	const struct pps_gen_source_info *info;	/* PSS generator info */
 	bool enabled;				/* PSS generator status */
 
 	unsigned int event;
@@ -70,7 +70,7 @@ extern const struct attribute_group *pps_gen_groups[];
  */
 
 extern struct pps_gen_device *pps_gen_register_source(
-				struct pps_gen_source_info *info);
+				const struct pps_gen_source_info *info);
 extern void pps_gen_unregister_source(struct pps_gen_device *pps_gen);
 extern void pps_gen_event(struct pps_gen_device *pps_gen,
 				unsigned int event, void *data);

@@ -30,6 +30,8 @@ struct pooled_vio {
 	void *context;
 	/* The list entry used by the pool */
 	struct list_head pool_entry;
+	/* The pool this vio is allocated from */
+	struct vio_pool *pool;
 };
 
 /**
@@ -123,6 +125,8 @@ void vdo_set_bio_properties(struct bio *bio, struct vio *vio, bio_end_io_t callb
 
 int vio_reset_bio(struct vio *vio, char *data, bio_end_io_t callback,
 		  blk_opf_t bi_opf, physical_block_number_t pbn);
+int vio_reset_bio_with_size(struct vio *vio, char *data, int size, bio_end_io_t callback,
+			    blk_opf_t bi_opf, physical_block_number_t pbn);
 
 void update_vio_error_stats(struct vio *vio, const char *format, ...)
 	__printf(2, 3);
@@ -188,12 +192,13 @@ static inline struct pooled_vio *vio_as_pooled_vio(struct vio *vio)
 
 struct vio_pool;
 
-int __must_check make_vio_pool(struct vdo *vdo, size_t pool_size, thread_id_t thread_id,
-			       enum vio_type vio_type, enum vio_priority priority,
-			       void *context, struct vio_pool **pool_ptr);
+int __must_check make_vio_pool(struct vdo *vdo, size_t pool_size, size_t block_count,
+			       thread_id_t thread_id, enum vio_type vio_type,
+			       enum vio_priority priority, void *context,
+			       struct vio_pool **pool_ptr);
 void free_vio_pool(struct vio_pool *pool);
 bool __must_check is_vio_pool_busy(struct vio_pool *pool);
 void acquire_vio_from_pool(struct vio_pool *pool, struct vdo_waiter *waiter);
-void return_vio_to_pool(struct vio_pool *pool, struct pooled_vio *vio);
+void return_vio_to_pool(struct pooled_vio *vio);
 
 #endif /* VIO_H */

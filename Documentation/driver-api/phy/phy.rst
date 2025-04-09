@@ -198,8 +198,7 @@ pm_runtime_get_sync of PHY provider device because of parent-child relationship.
 It should also be noted that phy_power_on and phy_power_off performs
 phy_pm_runtime_get_sync and phy_pm_runtime_put respectively.
 There are exported APIs like phy_pm_runtime_get, phy_pm_runtime_get_sync,
-phy_pm_runtime_put, phy_pm_runtime_put_sync, phy_pm_runtime_allow and
-phy_pm_runtime_forbid for performing PM operations.
+phy_pm_runtime_put and phy_pm_runtime_put_sync for performing PM operations.
 
 PHY Mappings
 ============

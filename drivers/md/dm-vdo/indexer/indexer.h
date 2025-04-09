@@ -8,6 +8,7 @@
 
 #include <linux/mutex.h>
 #include <linux/sched.h>
+#include <linux/stddef.h>
 #include <linux/types.h>
 #include <linux/wait.h>
 
@@ -73,7 +74,7 @@ enum uds_request_type {
 	/* Remove any mapping for a name. */
 	UDS_DELETE,
 
-};
+} __packed;
 
 enum uds_open_index_type {
 	/* Create a new index. */
@@ -226,7 +227,7 @@ struct uds_zone_message {
 	enum uds_zone_message_type type;
 	/* The virtual chapter number to which the message applies */
 	u64 virtual_chapter;
-};
+} __packed;
 
 struct uds_index_session;
 struct uds_index;
@@ -253,34 +254,32 @@ struct uds_request {
 
 	/* The existing data associated with the request name, if any */
 	struct uds_record_data old_metadata;
-	/* Either UDS_SUCCESS or an error code for the request */
-	int status;
 	/* True if the record name had an existing entry in the index */
 	bool found;
+	/* Either UDS_SUCCESS or an error code for the request */
+	int status;
 
-	/*
-	 * The remaining fields are used internally and should not be altered by clients. The index
-	 * relies on zone_number being the first field in this section.
-	 */
-
-	/* The number of the zone which will process this request*/
-	unsigned int zone_number;
-	/* A link for adding a request to a lock-free queue */
-	struct funnel_queue_entry queue_link;
-	/* A link for adding a request to a standard linked list */
-	struct uds_request *next_request;
-	/* A pointer to the index processing this request */
-	struct uds_index *index;
-	/* Control message for coordinating between zones */
-	struct uds_zone_message zone_message;
-	/* If true, process request immediately by waking the worker thread */
-	bool unbatched;
-	/* If true, continue this request before processing newer requests */
-	bool requeued;
-	/* The virtual chapter containing the record name, if known */
-	u64 virtual_chapter;
-	/* The region of the index containing the record name */
-	enum uds_index_region location;
+	/* The remaining fields are used internally and should not be altered by clients. */
+	struct_group(internal,
+		     /* The virtual chapter containing the record name, if known */
+		     u64 virtual_chapter;
+		     /* The region of the index containing the record name */
+		     enum uds_index_region location;
+		     /* If true, process request immediately by waking the worker thread */
+		     bool unbatched;
+		     /* If true, continue this request before processing newer requests */
+		     bool requeued;
+		     /* Control message for coordinating between zones */
+		     struct uds_zone_message zone_message;
+		     /* The number of the zone which will process this request*/
+		     unsigned int zone_number;
+		     /* A link for adding a request to a lock-free queue */
+		     struct funnel_queue_entry queue_link;
+		     /* A link for adding a request to a standard linked list */
+		     struct uds_request *next_request;
+		     /* A pointer to the index processing this request */
+		     struct uds_index *index;
+		     );
 };
 
 /* A session is required for most index operations. */

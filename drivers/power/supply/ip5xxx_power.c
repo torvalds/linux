@@ -828,10 +828,9 @@ static void ip5xxx_setup_regs(struct device *dev, struct ip5xxx *ip5xxx,
 
 static int ip5xxx_power_probe(struct i2c_client *client)
 {
-	const struct ip5xxx_regfield_config *fields = &ip51xx_fields;
+	const struct ip5xxx_regfield_config *fields;
 	struct power_supply_config psy_cfg = {};
 	struct device *dev = &client->dev;
-	const struct of_device_id *of_id;
 	struct power_supply *psy;
 	struct ip5xxx *ip5xxx;
 
@@ -843,9 +842,7 @@ static int ip5xxx_power_probe(struct i2c_client *client)
 	if (IS_ERR(ip5xxx->regmap))
 		return PTR_ERR(ip5xxx->regmap);
 
-	of_id = i2c_of_match_device(dev->driver->of_match_table, client);
-	if (of_id)
-		fields = (const struct ip5xxx_regfield_config *)of_id->data;
+	fields = i2c_get_match_data(client) ?: &ip51xx_fields;
 	ip5xxx_setup_regs(dev, ip5xxx, fields);
 
 	psy_cfg.fwnode = dev_fwnode(dev);

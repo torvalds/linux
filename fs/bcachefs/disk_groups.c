@@ -555,9 +555,9 @@ void bch2_target_to_text(struct printbuf *out, struct bch_fs *c, unsigned v)
 			? rcu_dereference(c->devs[t.dev])
 			: NULL;
 
-		if (ca && percpu_ref_tryget(&ca->io_ref)) {
+		if (ca && percpu_ref_tryget(&ca->io_ref[READ])) {
 			prt_printf(out, "/dev/%s", ca->name);
-			percpu_ref_put(&ca->io_ref);
+			percpu_ref_put(&ca->io_ref[READ]);
 		} else if (ca) {
 			prt_printf(out, "offline device %u", t.dev);
 		} else {

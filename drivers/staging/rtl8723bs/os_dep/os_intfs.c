@@ -697,18 +697,18 @@ free_cmd_priv:
 
 void rtw_cancel_all_timer(struct adapter *padapter)
 {
-	del_timer_sync(&padapter->mlmepriv.assoc_timer);
+	timer_delete_sync(&padapter->mlmepriv.assoc_timer);
 
-	del_timer_sync(&padapter->mlmepriv.scan_to_timer);
+	timer_delete_sync(&padapter->mlmepriv.scan_to_timer);
 
-	del_timer_sync(&padapter->mlmepriv.dynamic_chk_timer);
+	timer_delete_sync(&padapter->mlmepriv.dynamic_chk_timer);
 
-	del_timer_sync(&(adapter_to_pwrctl(padapter)->pwr_state_check_timer));
+	timer_delete_sync(&(adapter_to_pwrctl(padapter)->pwr_state_check_timer));
 
-	del_timer_sync(&padapter->mlmepriv.set_scan_deny_timer);
+	timer_delete_sync(&padapter->mlmepriv.set_scan_deny_timer);
 	rtw_clear_scan_deny(padapter);
 
-	del_timer_sync(&padapter->recvpriv.signal_stat_timer);
+	timer_delete_sync(&padapter->recvpriv.signal_stat_timer);
 
 	/* cancel dm timer */
 	rtw_hal_dm_deinit(padapter);
@@ -723,8 +723,6 @@ u8 rtw_free_drv_sw(struct adapter *padapter)
 	rtw_free_evt_priv(&padapter->evtpriv);
 
 	rtw_free_mlme_priv(&padapter->mlmepriv);
-
-	/* free_io_queue(padapter); */
 
 	_rtw_free_xmit_priv(&padapter->xmitpriv);
 

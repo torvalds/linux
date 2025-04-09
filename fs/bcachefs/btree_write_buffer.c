@@ -144,7 +144,7 @@ static inline int wb_flush_one(struct btree_trans *trans, struct btree_iter *ite
 	EBUG_ON(!trans->c->btree_write_buffer.flushing.pin.seq);
 	EBUG_ON(trans->c->btree_write_buffer.flushing.pin.seq > wb->journal_seq);
 
-	ret = bch2_btree_iter_traverse(iter);
+	ret = bch2_btree_iter_traverse(trans, iter);
 	if (ret)
 		return ret;
 
@@ -208,7 +208,7 @@ btree_write_buffered_insert(struct btree_trans *trans,
 
 	trans->journal_res.seq = wb->journal_seq;
 
-	ret   = bch2_btree_iter_traverse(&iter) ?:
+	ret   = bch2_btree_iter_traverse(trans, &iter) ?:
 		bch2_trans_update(trans, &iter, &wb->k,
 				  BTREE_UPDATE_internal_snapshot_node);
 	bch2_trans_iter_exit(trans, &iter);
@@ -285,7 +285,7 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 	struct bch_fs *c = trans->c;
 	struct journal *j = &c->journal;
 	struct btree_write_buffer *wb = &c->btree_write_buffer;
-	struct btree_iter iter = { NULL };
+	struct btree_iter iter = {};
 	size_t overwritten = 0, fast = 0, slowpath = 0, could_not_insert = 0;
 	bool write_locked = false;
 	bool accounting_replay_done = test_bit(BCH_FS_accounting_replay_done, &c->flags);
@@ -368,7 +368,7 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 				write_locked = false;
 
 				ret = lockrestart_do(trans,
-					bch2_btree_iter_traverse(&iter) ?:
+					bch2_btree_iter_traverse(trans, &iter) ?:
 					bch2_foreground_maybe_merge(trans, iter.path, 0,
 							BCH_WATERMARK_reclaim|
 							BCH_TRANS_COMMIT_journal_reclaim|
@@ -385,7 +385,7 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 					     BTREE_ITER_intent|BTREE_ITER_all_snapshots);
 		}
 
-		bch2_btree_iter_set_pos(&iter, k->k.k.p);
+		bch2_btree_iter_set_pos(trans, &iter, k->k.k.p);
 		btree_iter_path(trans, &iter)->preserve = false;
 
 		bool accounting_accumulated = false;

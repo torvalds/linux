@@ -261,7 +261,7 @@ static int loopback_snd_timer_start(struct loopback_pcm *dpcm)
 /* call in cable->lock */
 static inline int loopback_jiffies_timer_stop(struct loopback_pcm *dpcm)
 {
-	del_timer(&dpcm->timer);
+	timer_delete(&dpcm->timer);
 	dpcm->timer.expires = 0;
 
 	return 0;
@@ -292,7 +292,7 @@ static int loopback_snd_timer_stop(struct loopback_pcm *dpcm)
 
 static inline int loopback_jiffies_timer_stop_sync(struct loopback_pcm *dpcm)
 {
-	del_timer_sync(&dpcm->timer);
+	timer_delete_sync(&dpcm->timer);
 
 	return 0;
 }

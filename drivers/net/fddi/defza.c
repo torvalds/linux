@@ -983,7 +983,7 @@ static irqreturn_t fza_interrupt(int irq, void *dev_id)
 
 		case FZA_STATE_UNINITIALIZED:
 			netif_carrier_off(dev);
-			del_timer_sync(&fp->reset_timer);
+			timer_delete_sync(&fp->reset_timer);
 			fp->ring_cmd_index = 0;
 			fp->ring_uns_index = 0;
 			fp->ring_rmc_tx_index = 0;
@@ -1017,7 +1017,7 @@ static irqreturn_t fza_interrupt(int irq, void *dev_id)
 			fp->queue_active = 0;
 			netif_stop_queue(dev);
 			pr_debug("%s: queue stopped\n", fp->name);
-			del_timer_sync(&fp->reset_timer);
+			timer_delete_sync(&fp->reset_timer);
 			pr_warn("%s: halted, reason: %x\n", fp->name,
 				FZA_STATUS_GET_HALT(status));
 			fza_regs_dump(fp);
@@ -1227,7 +1227,7 @@ static int fza_close(struct net_device *dev)
 	netif_stop_queue(dev);
 	pr_debug("%s: queue stopped\n", fp->name);
 
-	del_timer_sync(&fp->reset_timer);
+	timer_delete_sync(&fp->reset_timer);
 	spin_lock_irqsave(&fp->lock, flags);
 	fp->state = FZA_STATE_UNINITIALIZED;
 	fp->state_chg_flag = 0;
@@ -1493,7 +1493,7 @@ static int fza_probe(struct device *bdev)
 	return 0;
 
 err_out_irq:
-	del_timer_sync(&fp->reset_timer);
+	timer_delete_sync(&fp->reset_timer);
 	fza_do_shutdown(fp);
 	free_irq(dev->irq, dev);
 
@@ -1520,7 +1520,7 @@ static int fza_remove(struct device *bdev)
 
 	unregister_netdev(dev);
 
-	del_timer_sync(&fp->reset_timer);
+	timer_delete_sync(&fp->reset_timer);
 	fza_do_shutdown(fp);
 	free_irq(dev->irq, dev);
 

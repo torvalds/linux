@@ -117,13 +117,7 @@ EXPORT_SYMBOL(dev_set_mac_address_user);
 int dev_change_net_namespace(struct net_device *dev, struct net *net,
 			     const char *pat)
 {
-	int ret;
-
-	netdev_lock_ops(dev);
-	ret = netif_change_net_namespace(dev, net, pat, 0, NULL);
-	netdev_unlock_ops(dev);
-
-	return ret;
+	return __dev_change_net_namespace(dev, net, pat, 0, NULL);
 }
 EXPORT_SYMBOL_GPL(dev_change_net_namespace);
 

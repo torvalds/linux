@@ -4501,7 +4501,7 @@ void do_blank_screen(int entering_gfx)
 	}
 
 	hide_cursor(vc);
-	del_timer_sync(&console_timer);
+	timer_delete_sync(&console_timer);
 	blank_timer_expired = 0;
 
 	save_screen(vc);
@@ -4606,7 +4606,7 @@ void poke_blanked_console(void)
 	/* This isn't perfectly race free, but a race here would be mostly harmless,
 	 * at worst, we'll do a spurious blank and it's unlikely
 	 */
-	del_timer(&console_timer);
+	timer_delete(&console_timer);
 	blank_timer_expired = 0;
 
 	if (ignore_poke || !vc_cons[fg_console].d || vc_cons[fg_console].d->vc_mode == KD_GRAPHICS)

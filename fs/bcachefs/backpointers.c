@@ -252,10 +252,22 @@ struct bkey_s_c bch2_backpointer_get_key(struct btree_trans *trans,
 				  0,
 				  bp.v->level,
 				  iter_flags);
-	struct bkey_s_c k = bch2_btree_iter_peek_slot(iter);
+	struct bkey_s_c k = bch2_btree_iter_peek_slot(trans, iter);
 	if (bkey_err(k)) {
 		bch2_trans_iter_exit(trans, iter);
 		return k;
+	}
+
+	/*
+	 * peek_slot() doesn't normally return NULL - except when we ask for a
+	 * key at a btree level that doesn't exist.
+	 *
+	 * We may want to revisit this and change peek_slot():
+	 */
+	if (!k.k) {
+		bkey_init(&iter->k);
+		iter->k.p = bp.v->pos;
+		k.k = &iter->k;
 	}
 
 	if (k.k &&
@@ -293,7 +305,7 @@ struct btree *bch2_backpointer_get_node(struct btree_trans *trans,
 				  0,
 				  bp.v->level - 1,
 				  0);
-	struct btree *b = bch2_btree_iter_peek_node(iter);
+	struct btree *b = bch2_btree_iter_peek_node(trans, iter);
 	if (IS_ERR_OR_NULL(b))
 		goto err;
 
@@ -321,7 +333,7 @@ static int bch2_check_backpointer_has_valid_bucket(struct btree_trans *trans, st
 		return 0;
 
 	struct bch_fs *c = trans->c;
-	struct btree_iter alloc_iter = { NULL };
+	struct btree_iter alloc_iter = {};
 	struct bkey_s_c alloc_k;
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
@@ -462,7 +474,7 @@ err:
 	if (bio)
 		bio_put(bio);
 	kvfree(data_buf);
-	percpu_ref_put(&ca->io_ref);
+	percpu_ref_put(&ca->io_ref[READ]);
 	printbuf_exit(&buf);
 	return ret;
 }
@@ -650,7 +662,7 @@ static int check_btree_root_to_backpointers(struct btree_trans *trans,
 retry:
 	bch2_trans_node_iter_init(trans, &iter, btree_id, POS_MIN,
 				  0, bch2_btree_id_root(c, btree_id)->b->c.level, 0);
-	b = bch2_btree_iter_peek_node(&iter);
+	b = bch2_btree_iter_peek_node(trans, &iter);
 	ret = PTR_ERR_OR_ZERO(b);
 	if (ret)
 		goto err;
@@ -934,7 +946,7 @@ static int btree_node_get_and_pin(struct btree_trans *trans, struct bkey_i *k,
 {
 	struct btree_iter iter;
 	bch2_trans_node_iter_init(trans, &iter, btree, k->k.p, 0, level, 0);
-	struct btree *b = bch2_btree_iter_peek_node(&iter);
+	struct btree *b = bch2_btree_iter_peek_node(trans, &iter);
 	int ret = PTR_ERR_OR_ZERO(b);
 	if (ret)
 		goto err;

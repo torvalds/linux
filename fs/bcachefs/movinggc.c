@@ -280,7 +280,11 @@ unsigned long bch2_copygc_wait_amount(struct bch_fs *c)
 	s64 wait = S64_MAX, fragmented_allowed, fragmented;
 
 	for_each_rw_member(c, ca) {
-		struct bch_dev_usage usage = bch2_dev_usage_read(ca);
+		struct bch_dev_usage_full usage_full = bch2_dev_usage_full_read(ca);
+		struct bch_dev_usage usage;
+
+		for (unsigned i = 0; i < BCH_DATA_NR; i++)
+			usage.buckets[i] = usage_full.d[i].buckets;
 
 		fragmented_allowed = ((__dev_buckets_available(ca, usage, BCH_WATERMARK_stripe) *
 				       ca->mi.bucket_size) >> 1);
@@ -288,7 +292,7 @@ unsigned long bch2_copygc_wait_amount(struct bch_fs *c)
 
 		for (unsigned i = 0; i < BCH_DATA_NR; i++)
 			if (data_type_movable(i))
-				fragmented += usage.d[i].fragmented;
+				fragmented += usage_full.d[i].fragmented;
 
 		wait = min(wait, max(0LL, fragmented_allowed - fragmented));
 	}

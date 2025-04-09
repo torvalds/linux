@@ -69,7 +69,7 @@ def check_reconfig_queues(cfg) -> None:
 def check_reconfig_xdp(cfg) -> None:
     def reconfig(cfg) -> None:
         ip(f"link set dev %s xdp obj %s sec xdp" %
-            (cfg.ifname, cfg.rpath("xdp_dummy.bpf.o")))
+           (cfg.ifname, cfg.net_lib_dir / "xdp_dummy.bpf.o"))
         ip(f"link set dev %s xdp off" % cfg.ifname)
 
     _check_reconfig(cfg, reconfig)

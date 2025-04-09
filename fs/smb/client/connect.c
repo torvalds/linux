@@ -371,7 +371,7 @@ static bool cifs_tcp_ses_needs_reconnect(struct TCP_Server_Info *server, int num
  *
  */
 static int __cifs_reconnect(struct TCP_Server_Info *server,
-			    bool mark_smb_session)
+			    bool mark_smb_session, bool once)
 {
 	int rc = 0;
 
@@ -399,6 +399,9 @@ static int __cifs_reconnect(struct TCP_Server_Info *server,
 		if (rc) {
 			cifs_server_unlock(server);
 			cifs_dbg(FYI, "%s: reconnect error %d\n", __func__, rc);
+			/* If was asked to reconnect only once, do not try it more times */
+			if (once)
+				break;
 			msleep(3000);
 		} else {
 			atomic_inc(&tcpSesReconnectCount);
@@ -564,18 +567,32 @@ static int reconnect_dfs_server(struct TCP_Server_Info *server)
 	return rc;
 }
 
-int cifs_reconnect(struct TCP_Server_Info *server, bool mark_smb_session)
+static int
+_cifs_reconnect(struct TCP_Server_Info *server, bool mark_smb_session, bool once)
 {
 	if (!server->leaf_fullpath)
-		return __cifs_reconnect(server, mark_smb_session);
+		return __cifs_reconnect(server, mark_smb_session, once);
 	return reconnect_dfs_server(server);
 }
 #else
-int cifs_reconnect(struct TCP_Server_Info *server, bool mark_smb_session)
+static int
+_cifs_reconnect(struct TCP_Server_Info *server, bool mark_smb_session, bool once)
 {
-	return __cifs_reconnect(server, mark_smb_session);
+	return __cifs_reconnect(server, mark_smb_session, once);
 }
 #endif
+
+int
+cifs_reconnect(struct TCP_Server_Info *server, bool mark_smb_session)
+{
+	return _cifs_reconnect(server, mark_smb_session, false);
+}
+
+static int
+cifs_reconnect_once(struct TCP_Server_Info *server)
+{
+	return _cifs_reconnect(server, true, true);
+}
 
 static void
 cifs_echo_request(struct work_struct *work)
@@ -803,26 +820,110 @@ is_smb_response(struct TCP_Server_Info *server, unsigned char type)
 		/* Regular SMB response */
 		return true;
 	case RFC1002_SESSION_KEEP_ALIVE:
+		/*
+		 * RFC 1002 session keep alive can sent by the server only when
+		 * we established a RFC 1002 session. But Samba servers send
+		 * RFC 1002 session keep alive also over port 445 on which
+		 * RFC 1002 session is not established.
+		 */
 		cifs_dbg(FYI, "RFC 1002 session keep alive\n");
 		break;
 	case RFC1002_POSITIVE_SESSION_RESPONSE:
-		cifs_dbg(FYI, "RFC 1002 positive session response\n");
+		/*
+		 * RFC 1002 positive session response cannot be returned
+		 * for SMB request. RFC 1002 session response is handled
+		 * exclusively in ip_rfc1001_connect() function.
+		 */
+		cifs_server_dbg(VFS, "RFC 1002 positive session response (unexpected)\n");
+		cifs_reconnect(server, true);
 		break;
 	case RFC1002_NEGATIVE_SESSION_RESPONSE:
 		/*
 		 * We get this from Windows 98 instead of an error on
-		 * SMB negprot response.
+		 * SMB negprot response, when we have not established
+		 * RFC 1002 session (which means ip_rfc1001_connect()
+		 * was skipped). Note that same still happens with
+		 * Windows Server 2022 when connecting via port 139.
+		 * So for this case when mount option -o nonbsessinit
+		 * was not specified, try to reconnect with establishing
+		 * RFC 1002 session. If new socket establishment with
+		 * RFC 1002 session was successful then return to the
+		 * mid's caller -EAGAIN, so it can retry the request.
 		 */
-		cifs_dbg(FYI, "RFC 1002 negative session response\n");
-		/* give server a second to clean up */
-		msleep(1000);
-		/*
-		 * Always try 445 first on reconnect since we get NACK
-		 * on some if we ever connected to port 139 (the NACK
-		 * is since we do not begin with RFC1001 session
-		 * initialize frame).
-		 */
-		cifs_set_port((struct sockaddr *)&server->dstaddr, CIFS_PORT);
+		if (!cifs_rdma_enabled(server) &&
+		    server->tcpStatus == CifsInNegotiate &&
+		    !server->with_rfc1001 &&
+		    server->rfc1001_sessinit != 0) {
+			int rc, mid_rc;
+			struct mid_q_entry *mid, *nmid;
+			LIST_HEAD(dispose_list);
+
+			cifs_dbg(FYI, "RFC 1002 negative session response during SMB Negotiate, retrying with NetBIOS session\n");
+
+			/*
+			 * Before reconnect, delete all pending mids for this
+			 * server, so reconnect would not signal connection
+			 * aborted error to mid's callbacks. Note that for this
+			 * server there should be exactly one pending mid
+			 * corresponding to SMB1/SMB2 Negotiate packet.
+			 */
+			spin_lock(&server->mid_lock);
+			list_for_each_entry_safe(mid, nmid, &server->pending_mid_q, qhead) {
+				kref_get(&mid->refcount);
+				list_move(&mid->qhead, &dispose_list);
+				mid->mid_flags |= MID_DELETED;
+			}
+			spin_unlock(&server->mid_lock);
+
+			/* Now try to reconnect once with NetBIOS session. */
+			server->with_rfc1001 = true;
+			rc = cifs_reconnect_once(server);
+
+			/*
+			 * If reconnect was successful then indicate -EAGAIN
+			 * to mid's caller. If reconnect failed with -EAGAIN
+			 * then mask it as -EHOSTDOWN, so mid's caller would
+			 * know that it failed.
+			 */
+			if (rc == 0)
+				mid_rc = -EAGAIN;
+			else if (rc == -EAGAIN)
+				mid_rc = -EHOSTDOWN;
+			else
+				mid_rc = rc;
+
+			/*
+			 * After reconnect (either successful or unsuccessful)
+			 * deliver reconnect status to mid's caller via mid's
+			 * callback. Use MID_RC state which indicates that the
+			 * return code should be read from mid_rc member.
+			 */
+			list_for_each_entry_safe(mid, nmid, &dispose_list, qhead) {
+				list_del_init(&mid->qhead);
+				mid->mid_rc = mid_rc;
+				mid->mid_state = MID_RC;
+				mid->callback(mid);
+				release_mid(mid);
+			}
+
+			/*
+			 * If reconnect failed then wait two seconds. In most
+			 * cases we were been called from the mount context and
+			 * delivered failure to mid's callback will stop this
+			 * receiver task thread and fails the mount process.
+			 * So wait two seconds to prevent another reconnect
+			 * in this task thread, which would be useless as the
+			 * mount context will fail at all.
+			 */
+			if (rc != 0)
+				msleep(2000);
+		} else {
+			cifs_server_dbg(VFS, "RFC 1002 negative session response (unexpected)\n");
+			cifs_reconnect(server, true);
+		}
+		break;
+	case RFC1002_RETARGET_SESSION_RESPONSE:
+		cifs_server_dbg(VFS, "RFC 1002 retarget session response (unexpected)\n");
 		cifs_reconnect(server, true);
 		break;
 	default:
@@ -1701,6 +1802,8 @@ cifs_get_tcp_session(struct smb3_fs_context *ctx,
 		ctx->source_rfc1001_name, RFC1001_NAME_LEN_WITH_NULL);
 	memcpy(tcp_ses->server_RFC1001_name,
 		ctx->target_rfc1001_name, RFC1001_NAME_LEN_WITH_NULL);
+	tcp_ses->rfc1001_sessinit = ctx->rfc1001_sessinit;
+	tcp_ses->with_rfc1001 = false;
 	tcp_ses->session_estab = false;
 	tcp_ses->sequence_number = 0;
 	tcp_ses->channel_sequence_num = 0; /* only tracked for primary channel */
@@ -1731,12 +1834,8 @@ cifs_get_tcp_session(struct smb3_fs_context *ctx,
 	 */
 	tcp_ses->tcpStatus = CifsNew;
 	++tcp_ses->srv_count;
+	tcp_ses->echo_interval = ctx->echo_interval * HZ;
 
-	if (ctx->echo_interval >= SMB_ECHO_INTERVAL_MIN &&
-		ctx->echo_interval <= SMB_ECHO_INTERVAL_MAX)
-		tcp_ses->echo_interval = ctx->echo_interval * HZ;
-	else
-		tcp_ses->echo_interval = SMB_ECHO_INTERVAL_DEFAULT * HZ;
 	if (tcp_ses->rdma) {
 #ifndef CONFIG_CIFS_SMB_DIRECT
 		cifs_dbg(VFS, "CONFIG_CIFS_SMB_DIRECT is not enabled\n");
@@ -3221,6 +3320,7 @@ ip_rfc1001_connect(struct TCP_Server_Info *server)
 		return -EIO;
 	}
 
+	server->with_rfc1001 = true;
 	return 0;
 }
 
@@ -3332,7 +3432,16 @@ generic_ip_connect(struct TCP_Server_Info *server)
 		return rc;
 	}
 	trace_smb3_connect_done(server->hostname, server->conn_id, &server->dstaddr);
-	if (sport == htons(RFC1001_PORT))
+
+	/*
+	 * Establish RFC1001 NetBIOS session when it was explicitly requested
+	 * by mount option -o nbsessinit, or when connecting to default RFC1001
+	 * server port (139) and it was not explicitly disabled by mount option
+	 * -o nonbsessinit.
+	 */
+	if (server->with_rfc1001 ||
+	    server->rfc1001_sessinit == 1 ||
+	    (server->rfc1001_sessinit == -1 && sport == htons(RFC1001_PORT)))
 		rc = ip_rfc1001_connect(server);
 
 	return rc;
@@ -3481,6 +3590,7 @@ int cifs_setup_cifs_sb(struct cifs_sb_info *cifs_sb)
 	struct smb3_fs_context *ctx = cifs_sb->ctx;
 
 	INIT_DELAYED_WORK(&cifs_sb->prune_tlinks, cifs_prune_tlinks);
+	INIT_LIST_HEAD(&cifs_sb->tcon_sb_link);
 
 	spin_lock_init(&cifs_sb->tlink_tree_lock);
 	cifs_sb->tlink_tree = RB_ROOT;
@@ -3712,6 +3822,10 @@ static int mount_setup_tlink(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 	spin_lock(&cifs_sb->tlink_tree_lock);
 	tlink_rb_insert(&cifs_sb->tlink_tree, tlink);
 	spin_unlock(&cifs_sb->tlink_tree_lock);
+
+	spin_lock(&tcon->sb_list_lock);
+	list_add(&cifs_sb->tcon_sb_link, &tcon->cifs_sb_list);
+	spin_unlock(&tcon->sb_list_lock);
 
 	queue_delayed_work(cifsiod_wq, &cifs_sb->prune_tlinks,
 				TLINK_IDLE_EXPIRE);
@@ -4054,8 +4168,18 @@ cifs_umount(struct cifs_sb_info *cifs_sb)
 	struct rb_root *root = &cifs_sb->tlink_tree;
 	struct rb_node *node;
 	struct tcon_link *tlink;
+	struct cifs_tcon *tcon = NULL;
 
 	cancel_delayed_work_sync(&cifs_sb->prune_tlinks);
+
+	if (cifs_sb->master_tlink) {
+		tcon = cifs_sb->master_tlink->tl_tcon;
+		if (tcon) {
+			spin_lock(&tcon->sb_list_lock);
+			list_del_init(&cifs_sb->tcon_sb_link);
+			spin_unlock(&tcon->sb_list_lock);
+		}
+	}
 
 	spin_lock(&cifs_sb->tlink_tree_lock);
 	while ((node = rb_first(root))) {
@@ -4078,11 +4202,13 @@ int
 cifs_negotiate_protocol(const unsigned int xid, struct cifs_ses *ses,
 			struct TCP_Server_Info *server)
 {
+	bool in_retry = false;
 	int rc = 0;
 
 	if (!server->ops->need_neg || !server->ops->negotiate)
 		return -ENOSYS;
 
+retry:
 	/* only send once per connect */
 	spin_lock(&server->srv_lock);
 	if (server->tcpStatus != CifsGood &&
@@ -4102,6 +4228,14 @@ cifs_negotiate_protocol(const unsigned int xid, struct cifs_ses *ses,
 	spin_unlock(&server->srv_lock);
 
 	rc = server->ops->negotiate(xid, ses, server);
+	if (rc == -EAGAIN) {
+		/* Allow one retry attempt */
+		if (!in_retry) {
+			in_retry = true;
+			goto retry;
+		}
+		rc = -EHOSTDOWN;
+	}
 	if (rc == 0) {
 		spin_lock(&server->srv_lock);
 		if (server->tcpStatus == CifsInNegotiate)

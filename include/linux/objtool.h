@@ -69,7 +69,7 @@
  * In asm, there are two kinds of code: normal C-type callable functions and
  * the rest.  The normal callable functions can be called by other code, and
  * don't do anything unusual with the stack.  Such normal callable functions
- * are annotated with the ENTRY/ENDPROC macros.  Most asm code falls in this
+ * are annotated with SYM_FUNC_{START,END}.  Most asm code falls in this
  * category.  In this case, no special debugging annotations are needed because
  * objtool can automatically generate the ORC data for the ORC unwinder to read
  * at runtime.

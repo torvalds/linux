@@ -327,7 +327,7 @@ again:
 			bucket = sector_to_bucket(ca,
 					round_up(bucket_to_sector(ca, bucket) + 1,
 						 1ULL << ca->mi.btree_bitmap_shift));
-			bch2_btree_iter_set_pos(&iter, POS(ca->dev_idx, bucket));
+			bch2_btree_iter_set_pos(trans, &iter, POS(ca->dev_idx, bucket));
 			s->buckets_seen++;
 			s->skipped_mi_btree_bitmap++;
 			continue;
@@ -355,7 +355,7 @@ again:
 					     watermark, s, cl)
 			: NULL;
 next:
-		bch2_set_btree_iter_dontneed(&citer);
+		bch2_set_btree_iter_dontneed(trans, &citer);
 		bch2_trans_iter_exit(trans, &citer);
 		if (ob)
 			break;
@@ -417,7 +417,7 @@ again:
 							 1ULL << ca->mi.btree_bitmap_shift));
 				alloc_cursor = bucket|(iter.pos.offset & (~0ULL << 56));
 
-				bch2_btree_iter_set_pos(&iter, POS(ca->dev_idx, alloc_cursor));
+				bch2_btree_iter_set_pos(trans, &iter, POS(ca->dev_idx, alloc_cursor));
 				s->skipped_mi_btree_bitmap++;
 				goto next;
 			}
@@ -426,7 +426,7 @@ again:
 			if (ob) {
 				if (!IS_ERR(ob))
 					*dev_alloc_cursor = iter.pos.offset;
-				bch2_set_btree_iter_dontneed(&iter);
+				bch2_set_btree_iter_dontneed(trans, &iter);
 				break;
 			}
 
@@ -469,7 +469,7 @@ static noinline void trace_bucket_alloc2(struct bch_fs *c, struct bch_dev *ca,
 	prt_printf(&buf, "watermark\t%s\n",	bch2_watermarks[watermark]);
 	prt_printf(&buf, "data type\t%s\n",	__bch2_data_types[data_type]);
 	prt_printf(&buf, "blocking\t%u\n",	cl != NULL);
-	prt_printf(&buf, "free\t%llu\n",	usage->d[BCH_DATA_free].buckets);
+	prt_printf(&buf, "free\t%llu\n",	usage->buckets[BCH_DATA_free]);
 	prt_printf(&buf, "avail\t%llu\n",	dev_buckets_free(ca, *usage, watermark));
 	prt_printf(&buf, "copygc_wait\t%lu/%lli\n",
 		   bch2_copygc_wait_amount(c),
@@ -524,10 +524,10 @@ again:
 	bch2_dev_usage_read_fast(ca, usage);
 	avail = dev_buckets_free(ca, *usage, watermark);
 
-	if (usage->d[BCH_DATA_need_discard].buckets > avail)
+	if (usage->buckets[BCH_DATA_need_discard] > avail)
 		bch2_dev_do_discards(ca);
 
-	if (usage->d[BCH_DATA_need_gc_gens].buckets > avail)
+	if (usage->buckets[BCH_DATA_need_gc_gens] > avail)
 		bch2_gc_gens_async(c);
 
 	if (should_invalidate_buckets(ca, *usage))
@@ -606,8 +606,7 @@ struct open_bucket *bch2_bucket_alloc(struct bch_fs *c, struct bch_dev *ca,
 static int __dev_stripe_cmp(struct dev_stripe_state *stripe,
 			    unsigned l, unsigned r)
 {
-	return ((stripe->next_alloc[l] > stripe->next_alloc[r]) -
-		(stripe->next_alloc[l] < stripe->next_alloc[r]));
+	return cmp_int(stripe->next_alloc[l], stripe->next_alloc[r]);
 }
 
 #define dev_stripe_cmp(l, r) __dev_stripe_cmp(stripe, l, r)
@@ -626,25 +625,62 @@ struct dev_alloc_list bch2_dev_alloc_list(struct bch_fs *c,
 	return ret;
 }
 
+static const u64 stripe_clock_hand_rescale	= 1ULL << 62; /* trigger rescale at */
+static const u64 stripe_clock_hand_max		= 1ULL << 56; /* max after rescale */
+static const u64 stripe_clock_hand_inv		= 1ULL << 52; /* max increment, if a device is empty */
+
+static noinline void bch2_stripe_state_rescale(struct dev_stripe_state *stripe)
+{
+	/*
+	 * Avoid underflowing clock hands if at all possible, if clock hands go
+	 * to 0 then we lose information - clock hands can be in a wide range if
+	 * we have devices we rarely try to allocate from, if we generally
+	 * allocate from a specified target but only sometimes have to fall back
+	 * to the whole filesystem.
+	 */
+	u64 scale_max = U64_MAX;	/* maximum we can subtract without underflow */
+	u64 scale_min = 0;		/* minumum we must subtract to avoid overflow */
+
+	for (u64 *v = stripe->next_alloc;
+	     v < stripe->next_alloc + ARRAY_SIZE(stripe->next_alloc); v++) {
+		if (*v)
+			scale_max = min(scale_max, *v);
+		if (*v > stripe_clock_hand_max)
+			scale_min = max(scale_min, *v - stripe_clock_hand_max);
+	}
+
+	u64 scale = max(scale_min, scale_max);
+
+	for (u64 *v = stripe->next_alloc;
+	     v < stripe->next_alloc + ARRAY_SIZE(stripe->next_alloc); v++)
+		*v = *v < scale ? 0 : *v - scale;
+}
+
 static inline void bch2_dev_stripe_increment_inlined(struct bch_dev *ca,
 			       struct dev_stripe_state *stripe,
 			       struct bch_dev_usage *usage)
 {
+	/*
+	 * Stripe state has a per device clock hand: we allocate from the device
+	 * with the smallest clock hand.
+	 *
+	 * When we allocate, we don't do a simple increment; we add the inverse
+	 * of the device's free space. This results in round robin behavior that
+	 * biases in favor of the device(s) with more free space.
+	 */
+
 	u64 *v = stripe->next_alloc + ca->dev_idx;
 	u64 free_space = __dev_buckets_available(ca, *usage, BCH_WATERMARK_normal);
 	u64 free_space_inv = free_space
-		? div64_u64(1ULL << 48, free_space)
-		: 1ULL << 48;
-	u64 scale = *v / 4;
+		? div64_u64(stripe_clock_hand_inv, free_space)
+		: stripe_clock_hand_inv;
 
-	if (*v + free_space_inv >= *v)
-		*v += free_space_inv;
-	else
-		*v = U64_MAX;
+	/* Saturating add, avoid overflow: */
+	u64 sum = *v + free_space_inv;
+	*v = sum >= *v ? sum : U64_MAX;
 
-	for (v = stripe->next_alloc;
-	     v < stripe->next_alloc + ARRAY_SIZE(stripe->next_alloc); v++)
-		*v = *v < scale ? 0 : *v - scale;
+	if (unlikely(*v > stripe_clock_hand_rescale))
+		bch2_stripe_state_rescale(stripe);
 }
 
 void bch2_dev_stripe_increment(struct bch_dev *ca,
@@ -1633,7 +1669,7 @@ void bch2_fs_alloc_debug_to_text(struct printbuf *out, struct bch_fs *c)
 void bch2_dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 {
 	struct bch_fs *c = ca->fs;
-	struct bch_dev_usage stats = bch2_dev_usage_read(ca);
+	struct bch_dev_usage_full stats = bch2_dev_usage_full_read(ca);
 	unsigned nr[BCH_DATA_NR];
 
 	memset(nr, 0, sizeof(nr));
@@ -1656,7 +1692,8 @@ void bch2_dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 	printbuf_tabstop_push(out, 16);
 
 	prt_printf(out, "open buckets\t%i\r\n",	ca->nr_open_buckets);
-	prt_printf(out, "buckets to invalidate\t%llu\r\n",	should_invalidate_buckets(ca, stats));
+	prt_printf(out, "buckets to invalidate\t%llu\r\n",
+		   should_invalidate_buckets(ca, bch2_dev_usage_read(ca)));
 }
 
 static noinline void bch2_print_allocator_stuck(struct bch_fs *c)

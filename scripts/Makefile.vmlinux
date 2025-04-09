@@ -9,6 +9,20 @@ include $(srctree)/scripts/Makefile.lib
 
 targets :=
 
+ifdef CONFIG_ARCH_VMLINUX_NEEDS_RELOCS
+vmlinux-final := vmlinux.unstripped
+
+quiet_cmd_strip_relocs = RSTRIP  $@
+      cmd_strip_relocs = $(OBJCOPY) --remove-section='.rel*' $< $@
+
+vmlinux: $(vmlinux-final) FORCE
+	$(call if_changed,strip_relocs)
+
+targets += vmlinux
+else
+vmlinux-final := vmlinux
+endif
+
 %.o: %.c FORCE
 	$(call if_changed_rule,cc_o_c)
 
@@ -47,7 +61,7 @@ targets += .builtin-dtbs-list
 
 ifdef CONFIG_GENERIC_BUILTIN_DTB
 targets += .builtin-dtbs.S .builtin-dtbs.o
-vmlinux: .builtin-dtbs.o
+$(vmlinux-final): .builtin-dtbs.o
 endif
 
 # vmlinux
@@ -55,11 +69,11 @@ endif
 
 ifdef CONFIG_MODULES
 targets += .vmlinux.export.o
-vmlinux: .vmlinux.export.o
+$(vmlinux-final): .vmlinux.export.o
 endif
 
 ifdef CONFIG_ARCH_WANTS_PRE_LINK_VMLINUX
-vmlinux: arch/$(SRCARCH)/tools/vmlinux.arch.o
+$(vmlinux-final): arch/$(SRCARCH)/tools/vmlinux.arch.o
 
 arch/$(SRCARCH)/tools/vmlinux.arch.o: vmlinux.o FORCE
 	$(Q)$(MAKE) $(build)=arch/$(SRCARCH)/tools $@
@@ -69,14 +83,18 @@ ARCH_POSTLINK := $(wildcard $(srctree)/arch/$(SRCARCH)/Makefile.postlink)
 
 # Final link of vmlinux with optional arch pass after final link
 cmd_link_vmlinux =							\
-	$< "$(LD)" "$(KBUILD_LDFLAGS)" "$(LDFLAGS_vmlinux)";		\
+	$< "$(LD)" "$(KBUILD_LDFLAGS)" "$(LDFLAGS_vmlinux)" "$@";	\
 	$(if $(ARCH_POSTLINK), $(MAKE) -f $(ARCH_POSTLINK) $@, true)
 
-targets += vmlinux
-vmlinux: scripts/link-vmlinux.sh vmlinux.o $(KBUILD_LDS) FORCE
+targets += $(vmlinux-final)
+$(vmlinux-final): scripts/link-vmlinux.sh vmlinux.o $(KBUILD_LDS) FORCE
 	+$(call if_changed_dep,link_vmlinux)
 ifdef CONFIG_DEBUG_INFO_BTF
-vmlinux: $(RESOLVE_BTFIDS)
+$(vmlinux-final): $(RESOLVE_BTFIDS)
+endif
+
+ifdef CONFIG_BUILDTIME_TABLE_SORT
+vmlinux: scripts/sorttable
 endif
 
 # module.builtin.ranges
@@ -92,7 +110,7 @@ modules.builtin.ranges: $(srctree)/scripts/generate_builtin_ranges.awk \
 			modules.builtin vmlinux.map vmlinux.o.map FORCE
 	$(call if_changed,modules_builtin_ranges)
 
-vmlinux.map: vmlinux
+vmlinux.map: $(vmlinux-final)
 	@:
 
 endif

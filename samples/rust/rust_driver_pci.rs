@@ -4,7 +4,7 @@
 //!
 //! To make this driver probe, QEMU must be run with `-device pci-testdev`.
 
-use kernel::{bindings, c_str, devres::Devres, pci, prelude::*};
+use kernel::{bindings, c_str, device::Core, devres::Devres, pci, prelude::*, types::ARef};
 
 struct Regs;
 
@@ -26,7 +26,7 @@ impl TestIndex {
 }
 
 struct SampleDriver {
-    pdev: pci::Device,
+    pdev: ARef<pci::Device>,
     bar: Devres<Bar0>,
 }
 
@@ -43,17 +43,17 @@ kernel::pci_device_table!(
 impl SampleDriver {
     fn testdev(index: &TestIndex, bar: &Bar0) -> Result<u32> {
         // Select the test.
-        bar.writeb(index.0, Regs::TEST);
+        bar.write8(index.0, Regs::TEST);
 
-        let offset = u32::from_le(bar.readl(Regs::OFFSET)) as usize;
-        let data = bar.readb(Regs::DATA);
+        let offset = u32::from_le(bar.read32(Regs::OFFSET)) as usize;
+        let data = bar.read8(Regs::DATA);
 
         // Write `data` to `offset` to increase `count` by one.
         //
-        // Note that we need `try_writeb`, since `offset` can't be checked at compile-time.
-        bar.try_writeb(data, offset)?;
+        // Note that we need `try_write8`, since `offset` can't be checked at compile-time.
+        bar.try_write8(data, offset)?;
 
-        Ok(bar.readl(Regs::COUNT))
+        Ok(bar.read32(Regs::COUNT))
     }
 }
 
@@ -62,7 +62,7 @@ impl pci::Driver for SampleDriver {
 
     const ID_TABLE: pci::IdTable<Self::IdInfo> = &PCI_TABLE;
 
-    fn probe(pdev: &mut pci::Device, info: &Self::IdInfo) -> Result<Pin<KBox<Self>>> {
+    fn probe(pdev: &pci::Device<Core>, info: &Self::IdInfo) -> Result<Pin<KBox<Self>>> {
         dev_dbg!(
             pdev.as_ref(),
             "Probe Rust PCI driver sample (PCI ID: 0x{:x}, 0x{:x}).\n",
@@ -77,7 +77,7 @@ impl pci::Driver for SampleDriver {
 
         let drvdata = KBox::new(
             Self {
-                pdev: pdev.clone(),
+                pdev: pdev.into(),
                 bar,
             },
             GFP_KERNEL,

@@ -75,12 +75,20 @@ static ssize_t label_storage_size_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(label_storage_size);
 
+static resource_size_t cxl_ram_size(struct cxl_dev_state *cxlds)
+{
+	/* Static RAM is only expected at partition 0. */
+	if (cxlds->part[0].mode != CXL_PARTMODE_RAM)
+		return 0;
+	return resource_size(&cxlds->part[0].res);
+}
+
 static ssize_t ram_size_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
-	unsigned long long len = resource_size(&cxlds->ram_res);
+	unsigned long long len = cxl_ram_size(cxlds);
 
 	return sysfs_emit(buf, "%#llx\n", len);
 }
@@ -93,7 +101,7 @@ static ssize_t pmem_size_show(struct device *dev, struct device_attribute *attr,
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
-	unsigned long long len = resource_size(&cxlds->pmem_res);
+	unsigned long long len = cxl_pmem_size(cxlds);
 
 	return sysfs_emit(buf, "%#llx\n", len);
 }
@@ -198,22 +206,17 @@ static int cxl_get_poison_by_memdev(struct cxl_memdev *cxlmd)
 	int rc = 0;
 
 	/* CXL 3.0 Spec 8.2.9.8.4.1 Separate pmem and ram poison requests */
-	if (resource_size(&cxlds->pmem_res)) {
-		offset = cxlds->pmem_res.start;
-		length = resource_size(&cxlds->pmem_res);
-		rc = cxl_mem_get_poison(cxlmd, offset, length, NULL);
-		if (rc)
-			return rc;
-	}
-	if (resource_size(&cxlds->ram_res)) {
-		offset = cxlds->ram_res.start;
-		length = resource_size(&cxlds->ram_res);
+	for (int i = 0; i < cxlds->nr_partitions; i++) {
+		const struct resource *res = &cxlds->part[i].res;
+
+		offset = res->start;
+		length = resource_size(res);
 		rc = cxl_mem_get_poison(cxlmd, offset, length, NULL);
 		/*
 		 * Invalid Physical Address is not an error for
 		 * volatile addresses. Device support is optional.
 		 */
-		if (rc == -EFAULT)
+		if (rc == -EFAULT && cxlds->part[i].mode == CXL_PARTMODE_RAM)
 			rc = 0;
 	}
 	return rc;
@@ -404,14 +407,21 @@ static struct attribute *cxl_memdev_attributes[] = {
 	NULL,
 };
 
+static struct cxl_dpa_perf *to_pmem_perf(struct cxl_dev_state *cxlds)
+{
+	for (int i = 0; i < cxlds->nr_partitions; i++)
+		if (cxlds->part[i].mode == CXL_PARTMODE_PMEM)
+			return &cxlds->part[i].perf;
+	return NULL;
+}
+
 static ssize_t pmem_qos_class_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
-	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
 
-	return sysfs_emit(buf, "%d\n", mds->pmem_perf.qos_class);
+	return sysfs_emit(buf, "%d\n", to_pmem_perf(cxlds)->qos_class);
 }
 
 static struct device_attribute dev_attr_pmem_qos_class =
@@ -423,14 +433,20 @@ static struct attribute *cxl_memdev_pmem_attributes[] = {
 	NULL,
 };
 
+static struct cxl_dpa_perf *to_ram_perf(struct cxl_dev_state *cxlds)
+{
+	if (cxlds->part[0].mode != CXL_PARTMODE_RAM)
+		return NULL;
+	return &cxlds->part[0].perf;
+}
+
 static ssize_t ram_qos_class_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
-	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
 
-	return sysfs_emit(buf, "%d\n", mds->ram_perf.qos_class);
+	return sysfs_emit(buf, "%d\n", to_ram_perf(cxlds)->qos_class);
 }
 
 static struct device_attribute dev_attr_ram_qos_class =
@@ -466,11 +482,11 @@ static umode_t cxl_ram_visible(struct kobject *kobj, struct attribute *a, int n)
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
-	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
+	struct cxl_dpa_perf *perf = to_ram_perf(cxlmd->cxlds);
 
-	if (a == &dev_attr_ram_qos_class.attr)
-		if (mds->ram_perf.qos_class == CXL_QOS_CLASS_INVALID)
-			return 0;
+	if (a == &dev_attr_ram_qos_class.attr &&
+	    (!perf || perf->qos_class == CXL_QOS_CLASS_INVALID))
+		return 0;
 
 	return a->mode;
 }
@@ -485,11 +501,11 @@ static umode_t cxl_pmem_visible(struct kobject *kobj, struct attribute *a, int n
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
-	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
+	struct cxl_dpa_perf *perf = to_pmem_perf(cxlmd->cxlds);
 
-	if (a == &dev_attr_pmem_qos_class.attr)
-		if (mds->pmem_perf.qos_class == CXL_QOS_CLASS_INVALID)
-			return 0;
+	if (a == &dev_attr_pmem_qos_class.attr &&
+	    (!perf || perf->qos_class == CXL_QOS_CLASS_INVALID))
+		return 0;
 
 	return a->mode;
 }
@@ -566,10 +582,9 @@ void set_exclusive_cxl_commands(struct cxl_memdev_state *mds,
 {
 	struct cxl_mailbox *cxl_mbox = &mds->cxlds.cxl_mbox;
 
-	down_write(&cxl_memdev_rwsem);
+	guard(rwsem_write)(&cxl_memdev_rwsem);
 	bitmap_or(cxl_mbox->exclusive_cmds, cxl_mbox->exclusive_cmds,
 		  cmds, CXL_MEM_COMMAND_ID_MAX);
-	up_write(&cxl_memdev_rwsem);
 }
 EXPORT_SYMBOL_NS_GPL(set_exclusive_cxl_commands, "CXL");
 
@@ -583,10 +598,9 @@ void clear_exclusive_cxl_commands(struct cxl_memdev_state *mds,
 {
 	struct cxl_mailbox *cxl_mbox = &mds->cxlds.cxl_mbox;
 
-	down_write(&cxl_memdev_rwsem);
+	guard(rwsem_write)(&cxl_memdev_rwsem);
 	bitmap_andnot(cxl_mbox->exclusive_cmds, cxl_mbox->exclusive_cmds,
 		      cmds, CXL_MEM_COMMAND_ID_MAX);
-	up_write(&cxl_memdev_rwsem);
 }
 EXPORT_SYMBOL_NS_GPL(clear_exclusive_cxl_commands, "CXL");
 
@@ -594,9 +608,8 @@ static void cxl_memdev_shutdown(struct device *dev)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 
-	down_write(&cxl_memdev_rwsem);
+	guard(rwsem_write)(&cxl_memdev_rwsem);
 	cxlmd->cxlds = NULL;
-	up_write(&cxl_memdev_rwsem);
 }
 
 static void cxl_memdev_unregister(void *_cxlmd)
@@ -678,15 +691,13 @@ static long cxl_memdev_ioctl(struct file *file, unsigned int cmd,
 {
 	struct cxl_memdev *cxlmd = file->private_data;
 	struct cxl_dev_state *cxlds;
-	int rc = -ENXIO;
 
-	down_read(&cxl_memdev_rwsem);
+	guard(rwsem_read)(&cxl_memdev_rwsem);
 	cxlds = cxlmd->cxlds;
 	if (cxlds && cxlds->type == CXL_DEVTYPE_CLASSMEM)
-		rc = __cxl_memdev_ioctl(cxlmd, cmd, arg);
-	up_read(&cxl_memdev_rwsem);
+		return __cxl_memdev_ioctl(cxlmd, cmd, arg);
 
-	return rc;
+	return -ENXIO;
 }
 
 static int cxl_memdev_open(struct inode *inode, struct file *file)

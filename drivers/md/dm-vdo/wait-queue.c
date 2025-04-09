@@ -34,7 +34,7 @@ void vdo_waitq_enqueue_waiter(struct vdo_wait_queue *waitq, struct vdo_waiter *w
 		waitq->last_waiter->next_waiter = waiter;
 	}
 
-	/* In both cases, the waiter we added to the ring becomes the last waiter. */
+	/* In both cases, the waiter we added to the list becomes the last waiter. */
 	waitq->last_waiter = waiter;
 	waitq->length += 1;
 }

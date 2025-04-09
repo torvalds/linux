@@ -5,6 +5,7 @@
 
 config IO_URING_ZCRX
 	def_bool y
+	depends on IO_URING
 	depends on PAGE_POOL
 	depends on INET
 	depends on NET_RX_BUSY_POLL

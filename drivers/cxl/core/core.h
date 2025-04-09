@@ -74,8 +74,8 @@ void __iomem *devm_cxl_iomap_block(struct device *dev, resource_size_t addr,
 				   resource_size_t length);
 
 struct dentry *cxl_debugfs_create_dir(const char *dir);
-int cxl_dpa_set_mode(struct cxl_endpoint_decoder *cxled,
-		     enum cxl_decoder_mode mode);
+int cxl_dpa_set_part(struct cxl_endpoint_decoder *cxled,
+		     enum cxl_partition_mode mode);
 int cxl_dpa_alloc(struct cxl_endpoint_decoder *cxled, unsigned long long size);
 int cxl_dpa_free(struct cxl_endpoint_decoder *cxled);
 resource_size_t cxl_dpa_size(struct cxl_endpoint_decoder *cxled);
@@ -116,6 +116,12 @@ int cxl_update_hmat_access_coordinates(int nid, struct cxl_region *cxlr,
 bool cxl_need_node_perf_attrs_update(int nid);
 int cxl_port_get_switch_dport_bandwidth(struct cxl_port *port,
 					struct access_coordinate *c);
+
+int cxl_ras_init(void);
+void cxl_ras_exit(void);
+int cxl_gpf_port_setup(struct device *dport_dev, struct cxl_port *port);
+int cxl_acpi_get_extended_linear_cache_size(struct resource *backing_res,
+					    int nid, resource_size_t *size);
 
 #ifdef CONFIG_CXL_FEATURES
 size_t cxl_get_feature(struct cxl_mailbox *cxl_mbox, const uuid_t *feat_uuid,

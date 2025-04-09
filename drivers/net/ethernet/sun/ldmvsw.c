@@ -390,7 +390,7 @@ static int vsw_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	return 0;
 
 err_out_del_timer:
-	del_timer_sync(&port->clean_timer);
+	timer_delete_sync(&port->clean_timer);
 	list_del_rcu(&port->list);
 	synchronize_rcu();
 	netif_napi_del(&port->napi);
@@ -408,8 +408,8 @@ static void vsw_port_remove(struct vio_dev *vdev)
 	unsigned long flags;
 
 	if (port) {
-		del_timer_sync(&port->vio.timer);
-		del_timer_sync(&port->clean_timer);
+		timer_delete_sync(&port->vio.timer);
+		timer_delete_sync(&port->clean_timer);
 
 		napi_disable(&port->napi);
 		unregister_netdev(port->dev);

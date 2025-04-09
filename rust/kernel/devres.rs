@@ -92,7 +92,7 @@ struct DevresInner<T> {
 /// let devres = Devres::new(&dev, iomem, GFP_KERNEL)?;
 ///
 /// let res = devres.try_access().ok_or(ENXIO)?;
-/// res.writel(0x42, 0x0);
+/// res.write8(0x42, 0x0);
 /// # Ok(())
 /// # }
 /// ```

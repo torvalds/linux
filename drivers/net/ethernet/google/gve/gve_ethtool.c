@@ -392,7 +392,9 @@ gve_get_ethtool_stats(struct net_device *netdev,
 				 */
 				data[i++] = 0;
 				data[i++] = 0;
-				data[i++] = tx->dqo_tx.tail - tx->dqo_tx.head;
+				data[i++] =
+					(tx->dqo_tx.tail - tx->dqo_tx.head) &
+					tx->mask;
 			}
 			do {
 				start =
@@ -703,7 +705,7 @@ static int gve_set_priv_flags(struct net_device *netdev, u32 flags)
 
 		memset(priv->stats_report->stats, 0, (tx_stats_num + rx_stats_num) *
 				   sizeof(struct stats));
-		del_timer_sync(&priv->stats_report_timer);
+		timer_delete_sync(&priv->stats_report_timer);
 	}
 	return 0;
 }

@@ -34,9 +34,9 @@ void __iomem *ioremap_coherent(phys_addr_t addr, unsigned long size)
 	return __ioremap_caller(addr, size, prot, caller);
 }
 
-void __iomem *ioremap_prot(phys_addr_t addr, size_t size, unsigned long flags)
+void __iomem *ioremap_prot(phys_addr_t addr, size_t size, pgprot_t prot)
 {
-	pte_t pte = __pte(flags);
+	pte_t pte = __pte(pgprot_val(prot));
 	void *caller = __builtin_return_address(0);
 
 	/* writeable implies dirty for kernel addresses */

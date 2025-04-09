@@ -23,6 +23,12 @@ _get_disk_dev_t() {
 	echo $(( (major & 0xfff) << 20 | (minor & 0xfffff) ))
 }
 
+_run_fio_verify_io() {
+	fio --name=verify --rw=randwrite --direct=1 --ioengine=libaio \
+		--bs=8k --iodepth=32 --verify=crc32c --do_verify=1 \
+		--verify_state_save=0 "$@" > /dev/null
+}
+
 _create_backfile() {
 	local my_size=$1
 	local my_file

@@ -6,6 +6,10 @@
 TID="loop_03"
 ERR_CODE=0
 
+if ! _have_program fio; then
+	exit "$UBLK_SKIP_CODE"
+fi
+
 _prep_test "loop" "write and verify over zero copy"
 
 backfile_0=$(_create_backfile 256M)
@@ -13,15 +17,7 @@ dev_id=$(_add_ublk_dev -t loop -z "$backfile_0")
 _check_add_dev $TID $? "$backfile_0"
 
 # run fio over the ublk disk
-fio --name=write_and_verify \
-    --filename=/dev/ublkb"${dev_id}" \
-    --ioengine=libaio --iodepth=64 \
-    --rw=write \
-    --size=256M \
-    --direct=1 \
-    --verify=crc32c \
-    --do_verify=1 \
-    --bs=4k > /dev/null 2>&1
+_run_fio_verify_io --filename=/dev/ublkb"${dev_id}" --size=256M
 ERR_CODE=$?
 
 _cleanup_test "loop"

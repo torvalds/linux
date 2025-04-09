@@ -555,6 +555,55 @@ static const struct proc_ops ntfs3_label_fops = {
 	.proc_write = ntfs3_label_write,
 };
 
+static void ntfs_create_procdir(struct super_block *sb)
+{
+	struct proc_dir_entry *e;
+
+	if (!proc_info_root)
+		return;
+
+	e = proc_mkdir(sb->s_id, proc_info_root);
+	if (e) {
+		struct ntfs_sb_info *sbi = sb->s_fs_info;
+
+		proc_create_data("volinfo", 0444, e,
+				 &ntfs3_volinfo_fops, sb);
+		proc_create_data("label", 0644, e,
+				 &ntfs3_label_fops, sb);
+		sbi->procdir = e;
+	}
+}
+
+static void ntfs_remove_procdir(struct super_block *sb)
+{
+	struct ntfs_sb_info *sbi = sb->s_fs_info;
+
+	if (!sbi->procdir)
+		return;
+
+	remove_proc_entry("label", sbi->procdir);
+	remove_proc_entry("volinfo", sbi->procdir);
+	remove_proc_entry(sb->s_id, proc_info_root);
+	sbi->procdir = NULL;
+}
+
+static void ntfs_create_proc_root(void)
+{
+	proc_info_root = proc_mkdir("fs/ntfs3", NULL);
+}
+
+static void ntfs_remove_proc_root(void)
+{
+	if (proc_info_root) {
+		remove_proc_entry("fs/ntfs3", NULL);
+		proc_info_root = NULL;
+	}
+}
+#else
+static void ntfs_create_procdir(struct super_block *sb) {}
+static void ntfs_remove_procdir(struct super_block *sb) {}
+static void ntfs_create_proc_root(void) {}
+static void ntfs_remove_proc_root(void) {}
 #endif
 
 static struct kmem_cache *ntfs_inode_cachep;
@@ -644,15 +693,7 @@ static void ntfs_put_super(struct super_block *sb)
 {
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 
-#ifdef CONFIG_PROC_FS
-	// Remove /proc/fs/ntfs3/..
-	if (sbi->procdir) {
-		remove_proc_entry("label", sbi->procdir);
-		remove_proc_entry("volinfo", sbi->procdir);
-		remove_proc_entry(sb->s_id, proc_info_root);
-		sbi->procdir = NULL;
-	}
-#endif
+	ntfs_remove_procdir(sb);
 
 	/* Mark rw ntfs as clear, if possible. */
 	ntfs_set_state(sbi, NTFS_DIRTY_CLEAR);
@@ -1590,20 +1631,7 @@ load_root:
 		kfree(boot2);
 	}
 
-#ifdef CONFIG_PROC_FS
-	/* Create /proc/fs/ntfs3/.. */
-	if (proc_info_root) {
-		struct proc_dir_entry *e = proc_mkdir(sb->s_id, proc_info_root);
-		static_assert((S_IRUGO | S_IWUSR) == 0644);
-		if (e) {
-			proc_create_data("volinfo", S_IRUGO, e,
-					 &ntfs3_volinfo_fops, sb);
-			proc_create_data("label", S_IRUGO | S_IWUSR, e,
-					 &ntfs3_label_fops, sb);
-			sbi->procdir = e;
-		}
-	}
-#endif
+	ntfs_create_procdir(sb);
 
 	if (is_legacy_ntfs(sb))
 		sb->s_flags |= SB_RDONLY;
@@ -1853,14 +1881,11 @@ static int __init init_ntfs_fs(void)
 	if (IS_ENABLED(CONFIG_NTFS3_LZX_XPRESS))
 		pr_info("ntfs3: Read-only LZX/Xpress compression included\n");
 
-#ifdef CONFIG_PROC_FS
-	/* Create "/proc/fs/ntfs3" */
-	proc_info_root = proc_mkdir("fs/ntfs3", NULL);
-#endif
+	ntfs_create_proc_root();
 
 	err = ntfs3_init_bitmap();
 	if (err)
-		return err;
+		goto out2;
 
 	ntfs_inode_cachep = kmem_cache_create(
 		"ntfs_inode_cache", sizeof(struct ntfs_inode), 0,
@@ -1880,6 +1905,8 @@ out:
 	kmem_cache_destroy(ntfs_inode_cachep);
 out1:
 	ntfs3_exit_bitmap();
+out2:
+	ntfs_remove_proc_root();
 	return err;
 }
 
@@ -1890,11 +1917,7 @@ static void __exit exit_ntfs_fs(void)
 	unregister_filesystem(&ntfs_fs_type);
 	unregister_as_ntfs_legacy();
 	ntfs3_exit_bitmap();
-
-#ifdef CONFIG_PROC_FS
-	if (proc_info_root)
-		remove_proc_entry("fs/ntfs3", NULL);
-#endif
+	ntfs_remove_proc_root();
 }
 
 MODULE_LICENSE("GPL");

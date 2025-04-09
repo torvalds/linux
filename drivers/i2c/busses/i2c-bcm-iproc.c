@@ -678,7 +678,7 @@ static irqreturn_t bcm_iproc_i2c_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int bcm_iproc_i2c_init(struct bcm_iproc_i2c_dev *iproc_i2c)
+static void bcm_iproc_i2c_init(struct bcm_iproc_i2c_dev *iproc_i2c)
 {
 	u32 val;
 
@@ -706,8 +706,6 @@ static int bcm_iproc_i2c_init(struct bcm_iproc_i2c_dev *iproc_i2c)
 
 	/* clear all pending interrupts */
 	iproc_i2c_wr_reg(iproc_i2c, IS_OFFSET, 0xffffffff);
-
-	return 0;
 }
 
 static void bcm_iproc_i2c_enable_disable(struct bcm_iproc_i2c_dev *iproc_i2c,
@@ -1081,9 +1079,7 @@ static int bcm_iproc_i2c_probe(struct platform_device *pdev)
 		bcm_iproc_algo.unreg_slave = NULL;
 	}
 
-	ret = bcm_iproc_i2c_init(iproc_i2c);
-	if (ret)
-		return ret;
+	bcm_iproc_i2c_init(iproc_i2c);
 
 	ret = bcm_iproc_i2c_cfg_speed(iproc_i2c);
 	if (ret)
@@ -1162,16 +1158,13 @@ static int bcm_iproc_i2c_suspend(struct device *dev)
 static int bcm_iproc_i2c_resume(struct device *dev)
 {
 	struct bcm_iproc_i2c_dev *iproc_i2c = dev_get_drvdata(dev);
-	int ret;
 	u32 val;
 
 	/*
 	 * Power domain could have been shut off completely in system deep
 	 * sleep, so re-initialize the block here
 	 */
-	ret = bcm_iproc_i2c_init(iproc_i2c);
-	if (ret)
-		return ret;
+	bcm_iproc_i2c_init(iproc_i2c);
 
 	/* configure to the desired bus speed */
 	val = iproc_i2c_rd_reg(iproc_i2c, TIM_CFG_OFFSET);

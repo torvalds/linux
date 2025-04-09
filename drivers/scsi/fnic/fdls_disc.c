@@ -394,7 +394,7 @@ void fnic_del_fabric_timer_sync(struct fnic *fnic)
 {
 	fnic->iport.fabric.del_timer_inprogress = 1;
 	spin_unlock_irqrestore(&fnic->fnic_lock, fnic->lock_flags);
-	del_timer_sync(&fnic->iport.fabric.retry_timer);
+	timer_delete_sync(&fnic->iport.fabric.retry_timer);
 	spin_lock_irqsave(&fnic->fnic_lock, fnic->lock_flags);
 	fnic->iport.fabric.del_timer_inprogress = 0;
 }
@@ -404,7 +404,7 @@ void fnic_del_tport_timer_sync(struct fnic *fnic,
 {
 	tport->del_timer_inprogress = 1;
 	spin_unlock_irqrestore(&fnic->fnic_lock, fnic->lock_flags);
-	del_timer_sync(&tport->retry_timer);
+	timer_delete_sync(&tport->retry_timer);
 	spin_lock_irqsave(&fnic->fnic_lock, fnic->lock_flags);
 	tport->del_timer_inprogress = 0;
 }
@@ -3617,7 +3617,7 @@ static void fdls_process_fdmi_plogi_rsp(struct fnic_iport_s *iport,
 	fdls_free_oxid(iport, oxid, &iport->active_oxid_fdmi_plogi);
 
 	if (ntoh24(fchdr->fh_s_id) == FC_FID_MGMT_SERV) {
-		del_timer_sync(&iport->fabric.fdmi_timer);
+		timer_delete_sync(&iport->fabric.fdmi_timer);
 		iport->fabric.fdmi_pending = 0;
 		switch (plogi_rsp->els.fl_cmd) {
 		case ELS_LS_ACC:
@@ -3686,7 +3686,7 @@ static void fdls_process_fdmi_reg_ack(struct fnic_iport_s *iport,
 		 iport->fcid);
 
 	if (!iport->fabric.fdmi_pending) {
-		del_timer_sync(&iport->fabric.fdmi_timer);
+		timer_delete_sync(&iport->fabric.fdmi_timer);
 		FNIC_FCS_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
 					 "iport fcid: 0x%x: Canceling FDMI timer\n",
 					 iport->fcid);
@@ -3728,7 +3728,7 @@ static void fdls_process_fdmi_abts_rsp(struct fnic_iport_s *iport,
 		break;
 	}
 
-	del_timer_sync(&iport->fabric.fdmi_timer);
+	timer_delete_sync(&iport->fabric.fdmi_timer);
 	iport->fabric.fdmi_pending &= ~FDLS_FDMI_ABORT_PENDING;
 
 	fdls_send_fdmi_plogi(iport);
@@ -4971,7 +4971,7 @@ void fnic_fdls_link_down(struct fnic_iport_s *iport)
 	}
 
 	if ((fnic_fdmi_support == 1) && (iport->fabric.fdmi_pending > 0)) {
-		del_timer_sync(&iport->fabric.fdmi_timer);
+		timer_delete_sync(&iport->fabric.fdmi_timer);
 		iport->fabric.fdmi_pending = 0;
 	}
 

@@ -52,7 +52,8 @@ static char *pseudo_lock_devnode(const struct device *dev, umode_t *mode)
 	rdtgrp = dev_get_drvdata(dev);
 	if (mode)
 		*mode = 0600;
-	return kasprintf(GFP_KERNEL, "pseudo_lock/%s", rdtgrp->kn->name);
+	guard(mutex)(&rdtgroup_mutex);
+	return kasprintf(GFP_KERNEL, "pseudo_lock/%s", rdt_kn_name(rdtgrp->kn));
 }
 
 static const struct class pseudo_lock_class = {
@@ -1298,6 +1299,7 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 	struct task_struct *thread;
 	unsigned int new_minor;
 	struct device *dev;
+	char *kn_name __free(kfree) = NULL;
 	int ret;
 
 	ret = pseudo_lock_region_alloc(plr);
@@ -1308,6 +1310,11 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 	if (ret < 0) {
 		ret = -EINVAL;
 		goto out_region;
+	}
+	kn_name = kstrdup(rdt_kn_name(rdtgrp->kn), GFP_KERNEL);
+	if (!kn_name) {
+		ret = -ENOMEM;
+		goto out_cstates;
 	}
 
 	plr->thread_done = 0;
@@ -1353,8 +1360,7 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 	mutex_unlock(&rdtgroup_mutex);
 
 	if (!IS_ERR_OR_NULL(debugfs_resctrl)) {
-		plr->debugfs_dir = debugfs_create_dir(rdtgrp->kn->name,
-						      debugfs_resctrl);
+		plr->debugfs_dir = debugfs_create_dir(kn_name, debugfs_resctrl);
 		if (!IS_ERR_OR_NULL(plr->debugfs_dir))
 			debugfs_create_file("pseudo_lock_measure", 0200,
 					    plr->debugfs_dir, rdtgrp,
@@ -1363,7 +1369,7 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 
 	dev = device_create(&pseudo_lock_class, NULL,
 			    MKDEV(pseudo_lock_major, new_minor),
-			    rdtgrp, "%s", rdtgrp->kn->name);
+			    rdtgrp, "%s", kn_name);
 
 	mutex_lock(&rdtgroup_mutex);
 

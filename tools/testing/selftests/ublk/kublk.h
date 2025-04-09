@@ -128,7 +128,7 @@ struct ublk_queue {
 	unsigned int io_inflight;
 	struct ublk_dev *dev;
 	const struct ublk_tgt_ops *tgt_ops;
-	char *io_cmd_buf;
+	struct ublksrv_io_desc *io_cmd_buf;
 	struct io_uring ring;
 	struct ublk_io ios[UBLK_QUEUE_DEPTH];
 #define UBLKSRV_QUEUE_STOPPING	(1U << 0)
@@ -302,7 +302,7 @@ static inline void ublk_mark_io_done(struct ublk_io *io, int res)
 
 static inline const struct ublksrv_io_desc *ublk_get_iod(const struct ublk_queue *q, int tag)
 {
-	return (struct ublksrv_io_desc *)&(q->io_cmd_buf[tag * sizeof(struct ublksrv_io_desc)]);
+	return &q->io_cmd_buf[tag];
 }
 
 static inline void ublk_set_sqe_cmd_op(struct io_uring_sqe *sqe, __u32 cmd_op)

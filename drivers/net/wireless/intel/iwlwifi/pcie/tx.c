@@ -469,7 +469,7 @@ static void iwl_pcie_txq_free(struct iwl_trans *trans, int txq_id)
 	kfree(txq->entries);
 	txq->entries = NULL;
 
-	del_timer_sync(&txq->stuck_timer);
+	timer_delete_sync(&txq->stuck_timer);
 
 	/* 0-fill queue descriptor structure */
 	memset(txq, 0, sizeof(*txq));
@@ -1054,7 +1054,7 @@ static void iwl_txq_progress(struct iwl_txq *txq)
 	 * since we're making progress on this queue
 	 */
 	if (txq->read_ptr == txq->write_ptr)
-		del_timer(&txq->stuck_timer);
+		timer_delete(&txq->stuck_timer);
 	else
 		mod_timer(&txq->stuck_timer, jiffies + txq->wd_timeout);
 }
@@ -2529,7 +2529,7 @@ void iwl_pcie_freeze_txq_timer(struct iwl_trans *trans,
 			/* remember how long until the timer fires */
 			txq->frozen_expiry_remainder =
 				txq->stuck_timer.expires - now;
-			del_timer(&txq->stuck_timer);
+			timer_delete(&txq->stuck_timer);
 			goto next_queue;
 		}
 

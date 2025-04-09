@@ -87,17 +87,17 @@ static int component_devices_show(struct seq_file *s, void *data)
 	size_t i;
 
 	mutex_lock(&component_mutex);
-	seq_printf(s, "%-40s %20s\n", "aggregate_device name", "status");
-	seq_puts(s, "-------------------------------------------------------------\n");
-	seq_printf(s, "%-40s %20s\n\n",
+	seq_printf(s, "%-50s %20s\n", "aggregate_device name", "status");
+	seq_puts(s, "-----------------------------------------------------------------------\n");
+	seq_printf(s, "%-50s %20s\n\n",
 		   dev_name(m->parent), m->bound ? "bound" : "not bound");
 
-	seq_printf(s, "%-40s %20s\n", "device name", "status");
-	seq_puts(s, "-------------------------------------------------------------\n");
+	seq_printf(s, "%-50s %20s\n", "device name", "status");
+	seq_puts(s, "-----------------------------------------------------------------------\n");
 	for (i = 0; i < match->num; i++) {
 		struct component *component = match->compare[i].component;
 
-		seq_printf(s, "%-40s %20s\n",
+		seq_printf(s, "%-50s %20s\n",
 			   component ? dev_name(component->dev) : "(unknown)",
 			   component ? (component->bound ? "bound" : "not bound") : "not registered");
 	}

@@ -1416,13 +1416,13 @@ map_pages:
 				goto err_unmap;
 			}
 			zdd = page->zone_device_data;
-			if (pagemap != page->pgmap) {
+			if (pagemap != page_pgmap(page)) {
 				if (i > 0) {
 					err = -EOPNOTSUPP;
 					goto err_unmap;
 				}
 
-				pagemap = page->pgmap;
+				pagemap = page_pgmap(page);
 				dpagemap = zdd->devmem_allocation->dpagemap;
 				if (drm_WARN_ON(gpusvm->drm, !dpagemap)) {
 					/*

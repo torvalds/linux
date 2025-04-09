@@ -317,6 +317,10 @@ S: Code 930.5, Goddard Space Flight Center
 S: Greenbelt, Maryland 20771
 S: USA
 
+N: Joel Becker
+E: jlbec@evilplan.org
+D: configfs
+
 N: Adam Belay
 E: ambx1@neo.rr.com
 D: Linux Plug and Play Support
@@ -854,6 +858,10 @@ S: Romania
 N: John Crispin
 E: john@phrozen.org
 D: MediaTek MT7623 Gigabit ethernet support
+
+N: Conor Culhane
+E: conor.culhane@silvaco.com
+D: Silvaco I3C master driver
 
 N: Laurence Culhane
 E: loz@holmes.demon.co.uk
@@ -1895,6 +1903,7 @@ S: Czech Republic
 N: Seth Jennings
 E: sjenning@redhat.com
 D: Creation and maintenance of zswap
+D: Creation and maintenace of the zbud allocator
 
 N: Jeremy Kerr
 D: Maintainer of SPU File System
@@ -3661,6 +3670,10 @@ S: 149 Union St.
 S: Kingston, Ontario
 S: Canada K7L 2P4
 
+N: Pravin B Shelar
+E: pshelar@ovn.org
+D: Open vSwitch maintenance and contributions
+
 N: John Shifflett
 E: john@geolog.com
 E: jshiffle@netcom.com
@@ -3803,6 +3816,7 @@ N: Dan Streetman
 E: ddstreet@ieee.org
 D: Maintenance and development of zswap
 D: Creation and maintenance of the zpool API
+D: Maintenace of the zbud allocator
 
 N: Drew Sullivan
 E: drew@ss.org
@@ -4330,6 +4344,7 @@ S: England
 N: Vitaly Wool
 E: vitaly.wool@konsulko.com
 D: Maintenance and development of zswap
+D: Maintenance and development of z3fold
 
 N: Chris Wright
 E: chrisw@sous-sol.org

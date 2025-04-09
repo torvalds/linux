@@ -1353,7 +1353,7 @@ start:
 					"btree read error %s for %s",
 					bch2_blk_status_to_str(bio->bi_status), buf.buf);
 		if (rb->have_ioref)
-			percpu_ref_put(&ca->io_ref);
+			percpu_ref_put(&ca->io_ref[READ]);
 		rb->have_ioref = false;
 
 		bch2_mark_io_failure(&failed, &rb->pick, false);
@@ -1609,6 +1609,7 @@ static void btree_node_read_all_replicas_endio(struct bio *bio)
 		struct bch_dev *ca = bch2_dev_have_ref(c, rb->pick.ptr.dev);
 
 		bch2_latency_acct(ca, rb->start_time, READ);
+		percpu_ref_put(&ca->io_ref[READ]);
 	}
 
 	ra->err[rb->idx] = bio->bi_status;
@@ -1908,7 +1909,8 @@ static void btree_node_scrub_work(struct work_struct *work)
 					  scrub->key.k->k.p, 0, scrub->level - 1, 0);
 
 		struct btree *b;
-		int ret = lockrestart_do(trans, PTR_ERR_OR_ZERO(b = bch2_btree_iter_peek_node(&iter)));
+		int ret = lockrestart_do(trans,
+			PTR_ERR_OR_ZERO(b = bch2_btree_iter_peek_node(trans, &iter)));
 		if (ret)
 			goto err;
 
@@ -1927,7 +1929,7 @@ err:
 	printbuf_exit(&err);
 	bch2_bkey_buf_exit(&scrub->key, c);;
 	btree_bounce_free(c, c->opts.btree_node_size, scrub->used_mempool, scrub->buf);
-	percpu_ref_put(&scrub->ca->io_ref);
+	percpu_ref_put(&scrub->ca->io_ref[READ]);
 	kfree(scrub);
 	bch2_write_ref_put(c, BCH_WRITE_REF_btree_node_scrub);
 }
@@ -1996,7 +1998,7 @@ int bch2_btree_node_scrub(struct btree_trans *trans,
 	return 0;
 err_free:
 	btree_bounce_free(c, c->opts.btree_node_size, used_mempool, buf);
-	percpu_ref_put(&ca->io_ref);
+	percpu_ref_put(&ca->io_ref[READ]);
 err:
 	bch2_write_ref_put(c, BCH_WRITE_REF_btree_node_scrub);
 	return ret;
@@ -2144,6 +2146,7 @@ static void btree_node_write_endio(struct bio *bio)
 
 	if (ca && bio->bi_status) {
 		struct printbuf buf = PRINTBUF;
+		buf.atomic++;
 		prt_printf(&buf, "btree write error: %s\n  ",
 			   bch2_blk_status_to_str(bio->bi_status));
 		bch2_btree_pos_to_text(&buf, c, b);
@@ -2158,8 +2161,12 @@ static void btree_node_write_endio(struct bio *bio)
 		spin_unlock_irqrestore(&c->btree_write_error_lock, flags);
 	}
 
+	/*
+	 * XXX: we should be using io_ref[WRITE], but we aren't retrying failed
+	 * btree writes yet (due to device removal/ro):
+	 */
 	if (wbio->have_ioref)
-		percpu_ref_put(&ca->io_ref);
+		percpu_ref_put(&ca->io_ref[READ]);
 
 	if (parent) {
 		bio_put(bio);

@@ -158,4 +158,8 @@ config CXL_REGION_INVALIDATION_TEST
 	  If unsure, or if this kernel is meant for production environments,
 	  say N.
 
+config CXL_MCE
+	def_bool y
+	depends on X86_MCE && MEMORY_FAILURE
+
 endif

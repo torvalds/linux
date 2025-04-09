@@ -380,7 +380,7 @@ int st21nfca_apdu_reader_event_received(struct nfc_hci_dev *hdev,
 
 	switch (event) {
 	case ST21NFCA_EVT_TRANSMIT_DATA:
-		del_timer_sync(&info->se_info.bwi_timer);
+		timer_delete_sync(&info->se_info.bwi_timer);
 		cancel_work_sync(&info->se_info.timeout_work);
 		info->se_info.bwi_active = false;
 		r = nfc_hci_send_event(hdev, ST21NFCA_DEVICE_MGNT_GATE,
@@ -435,9 +435,9 @@ void st21nfca_se_deinit(struct nfc_hci_dev *hdev)
 	struct st21nfca_hci_info *info = nfc_hci_get_clientdata(hdev);
 
 	if (info->se_info.bwi_active)
-		del_timer_sync(&info->se_info.bwi_timer);
+		timer_delete_sync(&info->se_info.bwi_timer);
 	if (info->se_info.se_active)
-		del_timer_sync(&info->se_info.se_active_timer);
+		timer_delete_sync(&info->se_info.se_active_timer);
 
 	cancel_work_sync(&info->se_info.timeout_work);
 	info->se_info.bwi_active = false;

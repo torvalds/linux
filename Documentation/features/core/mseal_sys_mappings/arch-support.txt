@@ -1,0 +1,30 @@
+#
+# Feature name:          mseal-system-mappings
+#         Kconfig:       ARCH_SUPPORTS_MSEAL_SYSTEM_MAPPINGS
+#         description:   arch supports mseal system mappings
+#
+    -----------------------
+    |         arch |status|
+    -----------------------
+    |       alpha: | TODO |
+    |         arc: |  N/A |
+    |         arm: |  N/A |
+    |       arm64: |  ok  |
+    |        csky: |  N/A |
+    |     hexagon: |  N/A |
+    |   loongarch: | TODO |
+    |        m68k: |  N/A |
+    |  microblaze: |  N/A |
+    |        mips: | TODO |
+    |       nios2: |  N/A |
+    |    openrisc: |  N/A |
+    |      parisc: | TODO |
+    |     powerpc: | TODO |
+    |       riscv: | TODO |
+    |        s390: |  ok  |
+    |          sh: |  N/A |
+    |       sparc: | TODO |
+    |          um: | TODO |
+    |         x86: |  ok  |
+    |      xtensa: |  N/A |
+    -----------------------

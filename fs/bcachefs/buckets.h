@@ -172,7 +172,16 @@ static inline struct bch_dev_usage bch2_dev_usage_read(struct bch_dev *ca)
 	return ret;
 }
 
-void bch2_dev_usage_to_text(struct printbuf *, struct bch_dev *, struct bch_dev_usage *);
+void bch2_dev_usage_full_read_fast(struct bch_dev *, struct bch_dev_usage_full *);
+static inline struct bch_dev_usage_full bch2_dev_usage_full_read(struct bch_dev *ca)
+{
+	struct bch_dev_usage_full ret;
+
+	bch2_dev_usage_full_read_fast(ca, &ret);
+	return ret;
+}
+
+void bch2_dev_usage_to_text(struct printbuf *, struct bch_dev *, struct bch_dev_usage_full *);
 
 static inline u64 bch2_dev_buckets_reserved(struct bch_dev *ca, enum bch_watermark watermark)
 {
@@ -207,7 +216,7 @@ static inline u64 dev_buckets_free(struct bch_dev *ca,
 				   enum bch_watermark watermark)
 {
 	return max_t(s64, 0,
-		     usage.d[BCH_DATA_free].buckets -
+		     usage.buckets[BCH_DATA_free]-
 		     ca->nr_open_buckets -
 		     bch2_dev_buckets_reserved(ca, watermark));
 }
@@ -217,10 +226,10 @@ static inline u64 __dev_buckets_available(struct bch_dev *ca,
 					  enum bch_watermark watermark)
 {
 	return max_t(s64, 0,
-		       usage.d[BCH_DATA_free].buckets
-		     + usage.d[BCH_DATA_cached].buckets
-		     + usage.d[BCH_DATA_need_gc_gens].buckets
-		     + usage.d[BCH_DATA_need_discard].buckets
+		       usage.buckets[BCH_DATA_free]
+		     + usage.buckets[BCH_DATA_cached]
+		     + usage.buckets[BCH_DATA_need_gc_gens]
+		     + usage.buckets[BCH_DATA_need_discard]
 		     - ca->nr_open_buckets
 		     - bch2_dev_buckets_reserved(ca, watermark));
 }

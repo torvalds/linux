@@ -26,6 +26,7 @@ config BCACHEFS_FS
 	select SRCU
 	select SYMBOLIC_ERRNAME
 	select MIN_HEAP
+	select XARRAY_MULTI
 	help
 	The bcachefs filesystem - a modern, copy on write filesystem, with
 	support for multiple devices, compression, checksumming, etc.

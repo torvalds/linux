@@ -859,7 +859,7 @@ EXPORT_SYMBOL_GPL(sas_bios_param);
 
 void sas_task_internal_done(struct sas_task *task)
 {
-	del_timer(&task->slow_task->timer);
+	timer_delete(&task->slow_task->timer);
 	complete(&task->slow_task->completion);
 }
 
@@ -911,7 +911,7 @@ static int sas_execute_internal_abort(struct domain_device *device,
 
 		res = i->dft->lldd_execute_task(task, GFP_KERNEL);
 		if (res) {
-			del_timer_sync(&task->slow_task->timer);
+			timer_delete_sync(&task->slow_task->timer);
 			pr_err("Executing internal abort failed %016llx (%d)\n",
 			       SAS_ADDR(device->sas_addr), res);
 			break;
@@ -1010,7 +1010,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 
 		res = i->dft->lldd_execute_task(task, GFP_KERNEL);
 		if (res) {
-			del_timer_sync(&task->slow_task->timer);
+			timer_delete_sync(&task->slow_task->timer);
 			pr_err("executing TMF task failed %016llx (%d)\n",
 			       SAS_ADDR(device->sas_addr), res);
 			break;
@@ -1180,7 +1180,7 @@ void sas_task_abort(struct sas_task *task)
 
 		if (!slow)
 			return;
-		if (!del_timer(&slow->timer))
+		if (!timer_delete(&slow->timer))
 			return;
 		slow->timer.function(&slow->timer);
 		return;

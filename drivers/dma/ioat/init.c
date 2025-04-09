@@ -1224,12 +1224,12 @@ static void ioat_shutdown(struct pci_dev *pdev)
 		set_bit(IOAT_CHAN_DOWN, &ioat_chan->state);
 		spin_unlock_bh(&ioat_chan->prep_lock);
 		/*
-		 * Synchronization rule for del_timer_sync():
+		 * Synchronization rule for timer_delete_sync():
 		 *  - The caller must not hold locks which would prevent
 		 *    completion of the timer's handler.
 		 * So prep_lock cannot be held before calling it.
 		 */
-		del_timer_sync(&ioat_chan->timer);
+		timer_delete_sync(&ioat_chan->timer);
 
 		/* this should quiesce then reset */
 		ioat_reset_hw(ioat_chan);

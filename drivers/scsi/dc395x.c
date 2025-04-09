@@ -765,7 +765,7 @@ static void waiting_process_next(struct AdapterCtlBlk *acb)
 		return;
 
 	if (timer_pending(&acb->waiting_timer))
-		del_timer(&acb->waiting_timer);
+		timer_delete(&acb->waiting_timer);
 
 	if (list_empty(dcb_list_head))
 		return;
@@ -1153,7 +1153,7 @@ static int __dc395x_eh_bus_reset(struct scsi_cmnd *cmd)
 		cmd, cmd->device->id, (u8)cmd->device->lun, cmd);
 
 	if (timer_pending(&acb->waiting_timer))
-		del_timer(&acb->waiting_timer);
+		timer_delete(&acb->waiting_timer);
 
 	/*
 	 * disable interrupt    
@@ -1561,7 +1561,7 @@ static void dc395x_handle_interrupt(struct AdapterCtlBlk *acb,
 	/*dprintkl(KERN_DEBUG, "handle_interrupt: intstatus = 0x%02x ", scsi_intstatus); */
 
 	if (timer_pending(&acb->selto_timer))
-		del_timer(&acb->selto_timer);
+		timer_delete(&acb->selto_timer);
 
 	if (scsi_intstatus & (INT_SELTIMEOUT | INT_DISCONNECT)) {
 		disconnect(acb);	/* bus free interrupt  */
@@ -3454,7 +3454,7 @@ static void scsi_reset_detect(struct AdapterCtlBlk *acb)
 	dprintkl(KERN_INFO, "scsi_reset_detect: acb=%p\n", acb);
 	/* delay half a second */
 	if (timer_pending(&acb->waiting_timer))
-		del_timer(&acb->waiting_timer);
+		timer_delete(&acb->waiting_timer);
 
 	DC395x_write8(acb, TRM_S1040_SCSI_CONTROL, DO_RSTMODULE);
 	DC395x_write8(acb, TRM_S1040_DMA_CONTROL, DMARESETMODULE);
@@ -4415,9 +4415,9 @@ static void adapter_uninit(struct AdapterCtlBlk *acb)
 
 	/* remove timers */
 	if (timer_pending(&acb->waiting_timer))
-		del_timer(&acb->waiting_timer);
+		timer_delete(&acb->waiting_timer);
 	if (timer_pending(&acb->selto_timer))
-		del_timer(&acb->selto_timer);
+		timer_delete(&acb->selto_timer);
 
 	adapter_uninit_chip(acb);
 	adapter_remove_and_free_all_devices(acb);

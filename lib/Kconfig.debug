@@ -335,12 +335,12 @@ config DEBUG_INFO_COMPRESSED_ZLIB
 	  Compress the debug information using zlib.  Requires GCC 5.0+ or Clang
 	  5.0+, binutils 2.26+, and zlib.
 
-	  Users of dpkg-deb via scripts/package/builddeb may find an increase in
+	  Users of dpkg-deb via debian/rules may find an increase in
 	  size of their debug .deb packages with this config set, due to the
 	  debug info being compressed with zlib, then the object files being
 	  recompressed with a different compression scheme. But this is still
-	  preferable to setting $KDEB_COMPRESS to "none" which would be even
-	  larger.
+	  preferable to setting KDEB_COMPRESS or DPKG_DEB_COMPRESSOR_TYPE to
+	  "none" which would be even larger.
 
 config DEBUG_INFO_COMPRESSED_ZSTD
 	bool "Compress debugging information with zstd"
@@ -473,7 +473,6 @@ config READABLE_ASM
 
 config HEADERS_INSTALL
 	bool "Install uapi headers to usr/include"
-	depends on !UML
 	help
 	  This option will install uapi headers (headers exported to user-space)
 	  into the usr/include directory for use during the kernel build.
@@ -1279,6 +1278,17 @@ config BOOTPARAM_HUNG_TASK_PANIC
 	  where a hung tasks must be resolved ASAP.
 
 	  Say N if unsure.
+
+config DETECT_HUNG_TASK_BLOCKER
+	bool "Dump Hung Tasks Blocker"
+	depends on DETECT_HUNG_TASK
+	depends on !PREEMPT_RT
+	default y
+	help
+	  Say Y here to show the blocker task's stacktrace who acquires
+	  the mutex lock which "hung tasks" are waiting.
+	  This will add overhead a bit but shows suspicious tasks and
+	  call trace if it comes from waiting a mutex.
 
 config WQ_WATCHDOG
 	bool "Detect Workqueue Stalls"
@@ -2502,13 +2512,20 @@ config TEST_IDA
 	tristate "Perform selftest on IDA functions"
 
 config TEST_MISC_MINOR
-	tristate "Basic misc minor Kunit test" if !KUNIT_ALL_TESTS
+	tristate "miscdevice KUnit test" if !KUNIT_ALL_TESTS
 	depends on KUNIT
 	default KUNIT_ALL_TESTS
 	help
-	  Kunit test for the misc minor.
-	  It tests misc minor functions for dynamic and misc dynamic minor.
-	  This include misc_xxx functions
+	  Kunit test for miscdevice API, specially its behavior in respect to
+	  static and dynamic minor numbers.
+
+	  KUnit tests run during boot and output the results to the debug log
+	  in TAP format (https://testanything.org/). Only useful for kernel devs
+	  running the KUnit test harness, and not intended for inclusion into a
+	  production build.
+
+	  For more information on KUnit and unit tests in general please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
 
 	  If unsure, say N.
 

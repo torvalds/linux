@@ -20,7 +20,7 @@ def _get_hds_mode(cfg, netnl) -> str:
 
 
 def _xdp_onoff(cfg):
-    prog = cfg.rpath("../../net/lib/xdp_dummy.bpf.o")
+    prog = cfg.net_lib_dir / "xdp_dummy.bpf.o"
     ip("link set dev %s xdp obj %s sec xdp" %
        (cfg.ifname, prog))
     ip("link set dev %s xdp off" % cfg.ifname)

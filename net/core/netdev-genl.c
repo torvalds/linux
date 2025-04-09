@@ -874,12 +874,6 @@ int netdev_nl_bind_rx_doit(struct sk_buff *skb, struct genl_info *info)
 		goto err_unlock;
 	}
 
-	if (dev_xdp_prog_count(netdev)) {
-		NL_SET_ERR_MSG(info->extack, "unable to bind dmabuf to device with XDP program attached");
-		err = -EEXIST;
-		goto err_unlock;
-	}
-
 	binding = net_devmem_bind_dmabuf(netdev, dmabuf_fd, info->extack);
 	if (IS_ERR(binding)) {
 		err = PTR_ERR(binding);
@@ -951,12 +945,14 @@ void netdev_nl_sock_priv_destroy(struct netdev_nl_sock *priv)
 {
 	struct net_devmem_dmabuf_binding *binding;
 	struct net_devmem_dmabuf_binding *temp;
+	struct net_device *dev;
 
 	mutex_lock(&priv->lock);
 	list_for_each_entry_safe(binding, temp, &priv->bindings, list) {
-		netdev_lock(binding->dev);
+		dev = binding->dev;
+		netdev_lock(dev);
 		net_devmem_unbind_dmabuf(binding);
-		netdev_unlock(binding->dev);
+		netdev_unlock(dev);
 	}
 	mutex_unlock(&priv->lock);
 }

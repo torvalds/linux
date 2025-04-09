@@ -168,9 +168,9 @@ int bch2_sum_sector_overwrites(struct btree_trans *trans,
 	*i_sectors_delta	= 0;
 	*disk_sectors_delta	= 0;
 
-	bch2_trans_copy_iter(&iter, extent_iter);
+	bch2_trans_copy_iter(trans, &iter, extent_iter);
 
-	for_each_btree_key_max_continue_norestart(iter,
+	for_each_btree_key_max_continue_norestart(trans, iter,
 				new->k.p, BTREE_ITER_slots, old, ret) {
 		s64 sectors = min(new->k.p.offset, old.k->p.offset) -
 			max(bkey_start_offset(&new->k),
@@ -292,7 +292,7 @@ int bch2_extent_update(struct btree_trans *trans,
 	 * path already traversed at iter->pos because
 	 * bch2_trans_extent_update() will use it to attempt extent merging
 	 */
-	ret = __bch2_btree_iter_traverse(iter);
+	ret = __bch2_btree_iter_traverse(trans, iter);
 	if (ret)
 		return ret;
 
@@ -337,7 +337,7 @@ int bch2_extent_update(struct btree_trans *trans,
 
 	if (i_sectors_delta_total)
 		*i_sectors_delta_total += i_sectors_delta;
-	bch2_btree_iter_set_pos(iter, next_pos);
+	bch2_btree_iter_set_pos(trans, iter, next_pos);
 	return 0;
 }
 
@@ -445,6 +445,11 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
 	BUG_ON(c->opts.nochanges);
 
 	bkey_for_each_ptr(ptrs, ptr) {
+		/*
+		 * XXX: btree writes should be using io_ref[WRITE], but we
+		 * aren't retrying failed btree writes yet (due to device
+		 * removal/ro):
+		 */
 		struct bch_dev *ca = nocow
 			? bch2_dev_have_ref(c, ptr->dev)
 			: bch2_dev_get_ioref(c, ptr->dev, type == BCH_DATA_btree ? READ : WRITE);
@@ -697,12 +702,19 @@ static void bch2_write_endio(struct bio *bio)
 	bch2_account_io_completion(ca, BCH_MEMBER_ERROR_write,
 				   wbio->submit_time, !bio->bi_status);
 
-	if (bio->bi_status) {
-		bch_err_inum_offset_ratelimited(ca,
-				    op->pos.inode,
-				    wbio->inode_offset << 9,
-				    "data write error: %s",
-				    bch2_blk_status_to_str(bio->bi_status));
+	if (unlikely(bio->bi_status)) {
+		if (ca)
+			bch_err_inum_offset_ratelimited(ca,
+					    op->pos.inode,
+					    wbio->inode_offset << 9,
+					    "data write error: %s",
+					    bch2_blk_status_to_str(bio->bi_status));
+		else
+			bch_err_inum_offset_ratelimited(c,
+					    op->pos.inode,
+					    wbio->inode_offset << 9,
+					    "data write error: %s",
+					    bch2_blk_status_to_str(bio->bi_status));
 		set_bit(wbio->dev, op->failed.d);
 		op->flags |= BCH_WRITE_io_error;
 	}
@@ -715,7 +727,7 @@ static void bch2_write_endio(struct bio *bio)
 	}
 
 	if (wbio->have_ioref)
-		percpu_ref_put(&ca->io_ref);
+		percpu_ref_put(&ca->io_ref[WRITE]);
 
 	if (wbio->bounce)
 		bch2_bio_free_pages_pool(c, bio);
@@ -1293,7 +1305,7 @@ retry:
 		if (ret)
 			break;
 
-		k = bch2_btree_iter_peek_slot(&iter);
+		k = bch2_btree_iter_peek_slot(trans, &iter);
 		ret = bkey_err(k);
 		if (ret)
 			break;
@@ -1377,7 +1389,7 @@ retry:
 		bch2_keylist_push(&op->insert_keys);
 		if (op->flags & BCH_WRITE_submitted)
 			break;
-		bch2_btree_iter_advance(&iter);
+		bch2_btree_iter_advance(trans, &iter);
 	}
 out:
 	bch2_trans_iter_exit(trans, &iter);
@@ -1414,7 +1426,7 @@ err:
 	return;
 err_get_ioref:
 	darray_for_each(buckets, i)
-		percpu_ref_put(&bch2_dev_have_ref(c, i->b.inode)->io_ref);
+		percpu_ref_put(&bch2_dev_have_ref(c, i->b.inode)->io_ref[WRITE]);
 
 	/* Fall back to COW path: */
 	goto out;

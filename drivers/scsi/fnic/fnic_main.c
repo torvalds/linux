@@ -1149,20 +1149,20 @@ static void fnic_remove(struct pci_dev *pdev)
 	fnic_scsi_unload(fnic);
 
 	if (vnic_dev_get_intr_mode(fnic->vdev) == VNIC_DEV_INTR_MODE_MSI)
-		del_timer_sync(&fnic->notify_timer);
+		timer_delete_sync(&fnic->notify_timer);
 
 	if (fnic->config.flags & VFCF_FIP_CAPABLE) {
-		del_timer_sync(&fnic->retry_fip_timer);
-		del_timer_sync(&fnic->fcs_ka_timer);
-		del_timer_sync(&fnic->enode_ka_timer);
-		del_timer_sync(&fnic->vn_ka_timer);
+		timer_delete_sync(&fnic->retry_fip_timer);
+		timer_delete_sync(&fnic->fcs_ka_timer);
+		timer_delete_sync(&fnic->enode_ka_timer);
+		timer_delete_sync(&fnic->vn_ka_timer);
 
 		fnic_free_txq(&fnic->fip_frame_queue);
 		fnic_fcoe_reset_vlans(fnic);
 	}
 
 	if ((fnic_fdmi_support == 1) && (fnic->iport.fabric.fdmi_pending > 0))
-		del_timer_sync(&fnic->iport.fabric.fdmi_timer);
+		timer_delete_sync(&fnic->iport.fabric.fdmi_timer);
 
 	fnic_stats_debugfs_remove(fnic);
 

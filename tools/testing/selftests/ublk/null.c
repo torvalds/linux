@@ -17,7 +17,8 @@ static int ublk_null_tgt_init(const struct dev_ctx *ctx, struct ublk_dev *dev)
 
 	dev->tgt.dev_size = dev_size;
 	dev->tgt.params = (struct ublk_params) {
-		.types = UBLK_PARAM_TYPE_BASIC,
+		.types = UBLK_PARAM_TYPE_BASIC | UBLK_PARAM_TYPE_DMA_ALIGN |
+			UBLK_PARAM_TYPE_SEGMENT,
 		.basic = {
 			.logical_bs_shift	= 9,
 			.physical_bs_shift	= 12,
@@ -25,6 +26,14 @@ static int ublk_null_tgt_init(const struct dev_ctx *ctx, struct ublk_dev *dev)
 			.io_min_shift		= 9,
 			.max_sectors		= info->max_io_buf_bytes >> 9,
 			.dev_sectors		= dev_size >> 9,
+		},
+		.dma = {
+			.alignment 		= 4095,
+		},
+		.seg = {
+			.seg_boundary_mask 	= 4095,
+			.max_segment_size 	= 32 << 10,
+			.max_segments 		= 32,
 		},
 	};
 

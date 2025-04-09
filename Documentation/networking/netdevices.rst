@@ -343,6 +343,29 @@ there are two sets of interfaces: ``dev_xxx`` and ``netif_xxx`` (e.g.,
 acquiring the instance lock themselves, while the ``netif_xxx`` functions
 assume that the driver has already acquired the instance lock.
 
+Notifiers and netdev instance lock
+==================================
+
+For device drivers that implement shaping or queue management APIs,
+some of the notifiers (``enum netdev_cmd``) are running under the netdev
+instance lock.
+
+For devices with locked ops, currently only the following notifiers are
+running under the lock:
+* ``NETDEV_REGISTER``
+* ``NETDEV_UP``
+
+The following notifiers are running without the lock:
+* ``NETDEV_UNREGISTER``
+
+There are no clear expectations for the remaining notifiers. Notifiers not on
+the list may run with or without the instance lock, potentially even invoking
+the same notifier type with and without the lock from different code paths.
+The goal is to eventually ensure that all (or most, with a few documented
+exceptions) notifiers run under the instance lock. Please extend this
+documentation whenever you make explicit assumption about lock being held
+from a notifier.
+
 NETDEV_INTERNAL symbol namespace
 ================================
 

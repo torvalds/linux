@@ -859,7 +859,7 @@ restart:
 
 	if (si_sm_result == SI_SM_IDLE && smi_info->timer_running) {
 		/* Ok it if fails, the timer will just go off. */
-		if (del_timer(&smi_info->si_timer))
+		if (timer_delete(&smi_info->si_timer))
 			smi_info->timer_running = false;
 	}
 
@@ -1839,7 +1839,7 @@ static inline void stop_timer_and_thread(struct smi_info *smi_info)
 	}
 
 	smi_info->timer_can_start = false;
-	del_timer_sync(&smi_info->si_timer);
+	timer_delete_sync(&smi_info->si_timer);
 }
 
 static struct smi_info *find_dup_si(struct smi_info *info)

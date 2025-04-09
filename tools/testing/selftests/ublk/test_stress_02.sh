@@ -27,20 +27,20 @@ ublk_io_and_kill_daemon()
 
 _prep_test "stress" "run IO and kill ublk server"
 
-ublk_io_and_kill_daemon 8G -t null
+ublk_io_and_kill_daemon 8G -t null -q 4
 ERR_CODE=$?
 if [ ${ERR_CODE} -ne 0 ]; then
 	_show_result $TID $ERR_CODE
 fi
 
 BACK_FILE=$(_create_backfile 256M)
-ublk_io_and_kill_daemon 256M -t loop "${BACK_FILE}"
+ublk_io_and_kill_daemon 256M -t loop -q 4 "${BACK_FILE}"
 ERR_CODE=$?
 if [ ${ERR_CODE} -ne 0 ]; then
 	_show_result $TID $ERR_CODE
 fi
 
-ublk_io_and_kill_daemon 256M -t loop -z "${BACK_FILE}"
+ublk_io_and_kill_daemon 256M -t loop -q 4 -z "${BACK_FILE}"
 ERR_CODE=$?
 _cleanup_test "stress"
 _remove_backfile "${BACK_FILE}"

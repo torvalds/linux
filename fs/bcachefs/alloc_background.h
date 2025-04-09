@@ -321,11 +321,11 @@ static inline u64 should_invalidate_buckets(struct bch_dev *ca,
 {
 	u64 want_free = ca->mi.nbuckets >> 7;
 	u64 free = max_t(s64, 0,
-			   u.d[BCH_DATA_free].buckets
-			 + u.d[BCH_DATA_need_discard].buckets
+			   u.buckets[BCH_DATA_free]
+			 + u.buckets[BCH_DATA_need_discard]
 			 - bch2_dev_buckets_reserved(ca, BCH_WATERMARK_stripe));
 
-	return clamp_t(s64, want_free - free, 0, u.d[BCH_DATA_cached].buckets);
+	return clamp_t(s64, want_free - free, 0, u.buckets[BCH_DATA_cached]);
 }
 
 void bch2_dev_do_invalidates(struct bch_dev *);
