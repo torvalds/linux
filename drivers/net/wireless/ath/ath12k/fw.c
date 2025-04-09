@@ -99,6 +99,8 @@ static int ath12k_fw_request_firmware_api_n(struct ath12k_base *ab,
 					__set_bit(i, ab->fw.fw_features);
 			}
 
+			ab->fw.fw_features_valid = true;
+
 			ath12k_dbg_dump(ab, ATH12K_DBG_BOOT, "features", "",
 					ab->fw.fw_features,
 					sizeof(ab->fw.fw_features));
@@ -172,5 +174,5 @@ void ath12k_fw_unmap(struct ath12k_base *ab)
 
 bool ath12k_fw_feature_supported(struct ath12k_base *ab, enum ath12k_fw_features feat)
 {
-	return test_bit(feat, ab->fw.fw_features);
+	return ab->fw.fw_features_valid && test_bit(feat, ab->fw.fw_features);
 }
