@@ -1733,6 +1733,12 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 				continue;
 		}
 
+		/* Reject RISCV ELF "mapping symbols" */
+		if (ehdr.e_machine == EM_RISCV) {
+			if (elf_name[0] == '$' && strchr("dx", elf_name[1]))
+				continue;
+		}
+
 		if (runtime_ss->opdsec && sym.st_shndx == runtime_ss->opdidx) {
 			u32 offset = sym.st_value - syms_ss->opdshdr.sh_addr;
 			u64 *opd = opddata->d_buf + offset;
