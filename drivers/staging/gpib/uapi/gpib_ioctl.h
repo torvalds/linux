@@ -81,10 +81,10 @@ struct gpib_board_info_ioctl {
 	unsigned no_7_bit_eos : 1;
 };
 
-typedef struct {
+struct gpib_select_pci_ioctl {
 	int pci_bus;
 	int pci_slot;
-} select_pci_ioctl_t;
+};
 
 typedef struct {
 	uint8_t config;
@@ -151,7 +151,7 @@ enum gpib_ioctl {
 	IBBOARD_INFO = _IOR(GPIB_CODE, 29, struct gpib_board_info_ioctl),
 
 	IBQUERY_BOARD_RSV = _IOR(GPIB_CODE, 31, int),
-	IBSELECT_PCI = _IOWR(GPIB_CODE, 32, select_pci_ioctl_t),
+	IBSELECT_PCI = _IOWR(GPIB_CODE, 32, struct gpib_select_pci_ioctl),
 	IBEVENT = _IOR(GPIB_CODE, 33, event_ioctl_t),
 	IBRSC = _IOW(GPIB_CODE, 34, rsc_ioctl_t),
 	IB_T1_DELAY = _IOW(GPIB_CODE, 35, t1_delay_ioctl_t),

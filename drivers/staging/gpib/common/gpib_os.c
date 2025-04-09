@@ -1797,7 +1797,7 @@ static int interface_clear_ioctl(struct gpib_board *board, unsigned long arg)
 
 static int select_pci_ioctl(struct gpib_board_config *config, unsigned long arg)
 {
-	select_pci_ioctl_t selection;
+	struct gpib_select_pci_ioctl selection;
 	int retval;
 
 	if (!capable(CAP_SYS_ADMIN))
