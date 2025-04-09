@@ -38,11 +38,15 @@ void crst_table_free(struct mm_struct *mm, unsigned long *table)
 static void __crst_table_upgrade(void *arg)
 {
 	struct mm_struct *mm = arg;
+	struct ctlreg asce;
 
+	asce.val = mm->context.asce;
 	/* change all active ASCEs to avoid the creation of new TLBs */
 	if (current->active_mm == mm) {
-		get_lowcore()->user_asce.val = mm->context.asce;
-		local_ctl_load(7, &get_lowcore()->user_asce);
+		get_lowcore()->user_asce = asce;
+		local_ctl_load(7, &asce);
+		if (!test_thread_flag(TIF_ASCE_PRIMARY))
+			local_ctl_load(1, &asce);
 	}
 	__tlb_flush_local();
 }

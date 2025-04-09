@@ -126,7 +126,6 @@ struct pt_regs {
 		struct tpi_info tpi_info;
 	};
 	unsigned long flags;
-	unsigned long cr1;
 	unsigned long last_break;
 };
 

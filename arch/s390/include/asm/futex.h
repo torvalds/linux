@@ -13,9 +13,11 @@
 static uaccess_kmsan_or_inline int						\
 __futex_atomic_##name(int oparg, int *old, u32 __user *uaddr)			\
 {										\
+	bool sacf_flag;								\
 	int rc, new;								\
 										\
 	instrument_copy_from_user_before(old, uaddr, sizeof(*old));		\
+	sacf_flag = enable_sacf_uaccess();					\
 	asm_inline volatile(							\
 		"	sacf	256\n"						\
 		"0:	l	%[old],%[uaddr]\n"				\
@@ -32,6 +34,7 @@ __futex_atomic_##name(int oparg, int *old, u32 __user *uaddr)			\
 		  [new] "=&d" (new), [uaddr] "+Q" (*uaddr)			\
 		: [oparg] "d" (oparg)						\
 		: "cc");							\
+	disable_sacf_uaccess(sacf_flag);					\
 	if (!rc)								\
 		instrument_copy_from_user_after(old, uaddr, sizeof(*old), 0);	\
 	return rc;								\
@@ -75,9 +78,11 @@ int arch_futex_atomic_op_inuser(int op, int oparg, int *oval, u32 __user *uaddr)
 static uaccess_kmsan_or_inline
 int futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 oldval, u32 newval)
 {
+	bool sacf_flag;
 	int rc;
 
 	instrument_copy_from_user_before(uval, uaddr, sizeof(*uval));
+	sacf_flag = enable_sacf_uaccess();
 	asm_inline volatile(
 		"	sacf	256\n"
 		"0:	cs	%[old],%[new],%[uaddr]\n"
@@ -88,6 +93,7 @@ int futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 oldval, u32 
 		: [rc] "=d" (rc), [old] "+d" (oldval), [uaddr] "+Q" (*uaddr)
 		: [new] "d" (newval)
 		: "cc", "memory");
+	disable_sacf_uaccess(sacf_flag);
 	*uval = oldval;
 	instrument_copy_from_user_after(uval, uaddr, sizeof(*uval), 0);
 	return rc;
