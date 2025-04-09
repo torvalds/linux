@@ -1198,6 +1198,7 @@ int btrfs_decompress_buf2page(const char *buf, u32 buf_len,
 		u32 copy_start;
 		/* Offset inside the full decompressed extent */
 		u32 bvec_offset;
+		void *kaddr;
 
 		bvec = bio_iter_iovec(orig_bio, orig_bio->bi_iter);
 		/*
@@ -1220,10 +1221,12 @@ int btrfs_decompress_buf2page(const char *buf, u32 buf_len,
 		 * @buf + @buf_len.
 		 */
 		ASSERT(copy_start - decompressed < buf_len);
-		memcpy_to_page(bvec.bv_page, bvec.bv_offset,
-			       buf + copy_start - decompressed, copy_len);
-		cur_offset += copy_len;
 
+		kaddr = bvec_kmap_local(&bvec);
+		memcpy(kaddr, buf + copy_start - decompressed, copy_len);
+		kunmap_local(kaddr);
+
+		cur_offset += copy_len;
 		bio_advance(orig_bio, copy_len);
 		/* Finished the bio */
 		if (!orig_bio->bi_iter.bi_size)
