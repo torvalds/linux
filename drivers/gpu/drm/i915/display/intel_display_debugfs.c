@@ -558,6 +558,8 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 	seq_printf(m, "\tpipe src=" DRM_RECT_FMT ", dither=%s, bpp=%d\n",
 		   DRM_RECT_ARG(&crtc_state->pipe_src),
 		   str_yes_no(crtc_state->dither), crtc_state->pipe_bpp);
+	seq_printf(m, "\tport_clock=%d, lane_count=%d\n",
+		   crtc_state->port_clock, crtc_state->lane_count);
 
 	intel_scaler_info(m, crtc);
 
