@@ -42,10 +42,10 @@ struct gpib_serial_poll_ioctl {
 	uint8_t status_byte;
 };
 
-typedef struct {
+struct gpib_eos_ioctl {
 	int eos;
 	int eos_flags;
-} eos_ioctl_t;
+};
 
 typedef struct {
 	int handle;
@@ -138,7 +138,7 @@ enum gpib_ioctl {
 	IBSAD = _IOW(GPIB_CODE, 16, sad_ioctl_t),
 	IBTMO = _IOW(GPIB_CODE, 17, unsigned int),
 	IBRSP = _IOWR(GPIB_CODE, 18, struct gpib_serial_poll_ioctl),
-	IBEOS = _IOW(GPIB_CODE, 19, eos_ioctl_t),
+	IBEOS = _IOW(GPIB_CODE, 19, struct gpib_eos_ioctl),
 	IBRSV = _IOW(GPIB_CODE, 20, uint8_t),
 	CFCBASE = _IOW(GPIB_CODE, 21, uint64_t),
 	CFCIRQ = _IOW(GPIB_CODE, 22, unsigned int),

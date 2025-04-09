@@ -1508,7 +1508,7 @@ static int sad_ioctl(struct gpib_board *board, struct gpib_file_private *file_pr
 
 static int eos_ioctl(struct gpib_board *board, unsigned long arg)
 {
-	eos_ioctl_t eos_cmd;
+	struct gpib_eos_ioctl eos_cmd;
 	int retval;
 
 	retval = copy_from_user(&eos_cmd, (void __user *)arg, sizeof(eos_cmd));
