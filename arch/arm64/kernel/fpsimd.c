@@ -1663,18 +1663,6 @@ void fpsimd_preserve_current_state(void)
 }
 
 /*
- * Like fpsimd_preserve_current_state(), but ensure that
- * current->thread.uw.fpsimd_state is updated so that it can be copied to
- * the signal frame.
- */
-void fpsimd_signal_preserve_current_state(void)
-{
-	fpsimd_preserve_current_state();
-	if (current->thread.fp_type == FP_STATE_SVE)
-		sve_to_fpsimd(current);
-}
-
-/*
  * Associate current's FPSIMD context with this cpu
  * The caller must have ownership of the cpu FPSIMD context before calling
  * this function.
@@ -1766,30 +1754,14 @@ void fpsimd_restore_current_state(void)
 	put_cpu_fpsimd_context();
 }
 
-/*
- * Load an updated userland FPSIMD state for 'current' from memory and set the
- * flag that indicates that the FPSIMD register contents are the most recent
- * FPSIMD state of 'current'. This is used by the signal code to restore the
- * register state when returning from a signal handler in FPSIMD only cases,
- * any SVE context will be discarded.
- */
 void fpsimd_update_current_state(struct user_fpsimd_state const *state)
 {
 	if (WARN_ON(!system_supports_fpsimd()))
 		return;
 
-	get_cpu_fpsimd_context();
-
 	current->thread.uw.fpsimd_state = *state;
 	if (current->thread.fp_type == FP_STATE_SVE)
 		fpsimd_to_sve(current);
-
-	task_fpsimd_load();
-	fpsimd_bind_task_to_cpu();
-
-	clear_thread_flag(TIF_FOREIGN_FPSTATE);
-
-	put_cpu_fpsimd_context();
 }
 
 /*
