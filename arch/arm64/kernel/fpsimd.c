@@ -868,19 +868,10 @@ int vec_set_vector_length(struct task_struct *task, enum vec_type type,
 		task->thread.fp_type = FP_STATE_FPSIMD;
 	}
 
-	if (system_supports_sme()) {
-		if (type == ARM64_VEC_SME ||
-		    !(task->thread.svcr & (SVCR_SM_MASK | SVCR_ZA_MASK))) {
-			/*
-			 * We are changing the SME VL or weren't using
-			 * SME anyway, discard the state and force a
-			 * reallocation.
-			 */
-			task->thread.svcr &= ~(SVCR_SM_MASK |
-					       SVCR_ZA_MASK);
-			clear_tsk_thread_flag(task, TIF_SME);
-			free_sme = true;
-		}
+	if (system_supports_sme() && type == ARM64_VEC_SME) {
+		task->thread.svcr &= ~(SVCR_SM_MASK | SVCR_ZA_MASK);
+		clear_tsk_thread_flag(task, TIF_SME);
+		free_sme = true;
 	}
 
 	if (task == current)
