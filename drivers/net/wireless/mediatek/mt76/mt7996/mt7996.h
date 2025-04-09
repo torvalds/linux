@@ -177,6 +177,8 @@ enum mt7996_rxq_id {
 	MT7996_RXQ_TXFREE1 = 9,
 	MT7996_RXQ_TXFREE2 = 7,
 	MT7996_RXQ_RRO_IND = 0,
+	MT7990_RXQ_TXFREE0 = 6,
+	MT7990_RXQ_TXFREE1 = 7,
 };
 
 struct mt7996_twt_flow {
