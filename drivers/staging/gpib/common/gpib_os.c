@@ -1951,7 +1951,7 @@ int pop_gpib_event(struct gpib_board *board, struct gpib_event_queue *queue, sho
 
 static int event_ioctl(struct gpib_board *board, unsigned long arg)
 {
-	event_ioctl_t user_event;
+	short user_event;
 	int retval;
 	short event;
 
