@@ -335,6 +335,16 @@ config SENSORS_K10TEMP
 	  This driver can also be built as a module. If so, the module
 	  will be called k10temp.
 
+config SENSORS_KBATT
+	tristate "KEBA battery controller support"
+	depends on KEBA_CP500
+	help
+	  This driver supports the battery monitoring controller found in
+	  KEBA system FPGA devices.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called kbatt.
+
 config SENSORS_FAM15H_POWER
 	tristate "AMD Family 15h processor power"
 	depends on X86 && PCI && CPU_SUP_AMD

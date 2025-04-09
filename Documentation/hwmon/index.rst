@@ -106,6 +106,7 @@ Hardware Monitoring Kernel Drivers
    jc42
    k10temp
    k8temp
+   kbatt
    lan966x
    lineage-pem
    lm25066
