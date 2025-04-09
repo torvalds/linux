@@ -1311,7 +1311,7 @@ static int serial_poll_ioctl(struct gpib_board *board, unsigned long arg)
 static int wait_ioctl(struct gpib_file_private *file_priv, struct gpib_board *board,
 		      unsigned long arg)
 {
-	wait_ioctl_t wait_cmd;
+	struct gpib_wait_ioctl wait_cmd;
 	int retval;
 	struct gpib_descriptor *desc;
 

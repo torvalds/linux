@@ -47,7 +47,7 @@ struct gpib_eos_ioctl {
 	int eos_flags;
 };
 
-typedef struct {
+struct gpib_wait_ioctl {
 	int handle;
 	int wait_mask;
 	int clear_mask;
@@ -56,7 +56,7 @@ typedef struct {
 	int pad;
 	int sad;
 	unsigned int usec_timeout;
-} wait_ioctl_t;
+};
 
 typedef struct {
 	uint64_t init_data_ptr;
@@ -126,7 +126,7 @@ enum gpib_ioctl {
 	IBCMD = _IOWR(GPIB_CODE, 102, struct gpib_read_write_ioctl),
 	IBOPENDEV = _IOWR(GPIB_CODE, 3, struct gpib_open_dev_ioctl),
 	IBCLOSEDEV = _IOW(GPIB_CODE, 4, struct gpib_close_dev_ioctl),
-	IBWAIT = _IOWR(GPIB_CODE, 5, wait_ioctl_t),
+	IBWAIT = _IOWR(GPIB_CODE, 5, struct gpib_wait_ioctl),
 	IBRPP = _IOWR(GPIB_CODE, 6, uint8_t),
 
 	IBSIC = _IOW(GPIB_CODE, 9, unsigned int),
