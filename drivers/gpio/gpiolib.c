@@ -266,6 +266,20 @@ struct gpio_device *gpiod_to_gpio_device(struct gpio_desc *desc)
 EXPORT_SYMBOL_GPL(gpiod_to_gpio_device);
 
 /**
+ * gpiod_is_equal() - Check if two GPIO descriptors refer to the same pin.
+ * @desc: Descriptor to compare.
+ * @other: The second descriptor to compare against.
+ *
+ * Returns:
+ * True if the descriptors refer to the same physical pin. False otherwise.
+ */
+bool gpiod_is_equal(struct gpio_desc *desc, struct gpio_desc *other)
+{
+	return desc == other;
+}
+EXPORT_SYMBOL_GPL(gpiod_is_equal);
+
+/**
  * gpio_device_get_base() - Get the base GPIO number allocated by this device
  * @gdev: GPIO device
  *
