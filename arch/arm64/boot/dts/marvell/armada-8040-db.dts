@@ -122,7 +122,6 @@
 	/* U31 */
 	expander0: pca9555@21 {
 		compatible = "nxp,pca9555";
-		pinctrl-names = "default";
 		gpio-controller;
 		#gpio-cells = <2>;
 		reg = <0x21>;
@@ -131,7 +130,6 @@
 	/* U25 */
 	expander1: pca9555@25 {
 		compatible = "nxp,pca9555";
-		pinctrl-names = "default";
 		gpio-controller;
 		#gpio-cells = <2>;
 		reg = <0x25>;
