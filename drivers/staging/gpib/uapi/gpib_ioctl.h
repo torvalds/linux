@@ -70,7 +70,7 @@ struct gpib_spoll_bytes_ioctl {
 	int sad;
 };
 
-typedef struct {
+struct gpib_board_info_ioctl {
 	unsigned int pad;
 	int sad;
 	int parallel_poll_configuration;
@@ -79,7 +79,7 @@ typedef struct {
 	unsigned int t1_delay;
 	unsigned ist : 1;
 	unsigned no_7_bit_eos : 1;
-} board_info_ioctl_t;
+};
 
 typedef struct {
 	int pci_bus;
@@ -148,7 +148,7 @@ enum gpib_ioctl {
 	IBMUTEX = _IOW(GPIB_CODE, 26, int),
 	IBSPOLL_BYTES = _IOWR(GPIB_CODE, 27, struct gpib_spoll_bytes_ioctl),
 	IBPPC = _IOW(GPIB_CODE, 28, ppoll_config_ioctl_t),
-	IBBOARD_INFO = _IOR(GPIB_CODE, 29, board_info_ioctl_t),
+	IBBOARD_INFO = _IOR(GPIB_CODE, 29, struct gpib_board_info_ioctl),
 
 	IBQUERY_BOARD_RSV = _IOR(GPIB_CODE, 31, int),
 	IBSELECT_PCI = _IOWR(GPIB_CODE, 32, select_pci_ioctl_t),
