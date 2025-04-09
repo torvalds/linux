@@ -34,6 +34,8 @@
 #define MT7996_DEVICE_ID_2		0x7991
 #define MT7992_DEVICE_ID		0x7992
 #define MT7992_DEVICE_ID_2		0x799a
+#define MT7990_DEVICE_ID		0x7993
+#define MT7990_DEVICE_ID_2		0x799b
 
 #define MT7996_FIRMWARE_WA		"mediatek/mt7996/mt7996_wa.bin"
 #define MT7996_FIRMWARE_WM		"mediatek/mt7996/mt7996_wm.bin"
@@ -54,6 +56,11 @@
 #define MT7992_FIRMWARE_WM_23		"mediatek/mt7996/mt7992_wm_23.bin"
 #define MT7992_FIRMWARE_DSP_23		"mediatek/mt7996/mt7992_dsp_23.bin"
 #define MT7992_ROM_PATCH_23		"mediatek/mt7996/mt7992_rom_patch_23.bin"
+
+#define MT7990_FIRMWARE_WA		""
+#define MT7990_FIRMWARE_WM		"mediatek/mt7996/mt7990_wm.bin"
+#define MT7990_FIRMWARE_DSP		""
+#define MT7990_ROM_PATCH		"mediatek/mt7996/mt7990_rom_patch.bin"
 
 #define MT7996_EEPROM_DEFAULT		"mediatek/mt7996/mt7996_eeprom.bin"
 #define MT7996_EEPROM_DEFAULT_INT	"mediatek/mt7996/mt7996_eeprom_2i5i6i.bin"
@@ -707,6 +714,11 @@ static inline u16 mt7996_rx_chainmask(struct mt7996_phy *phy)
 		return tx_chainmask;
 
 	return tx_chainmask | (BIT(fls(tx_chainmask)) * phy->has_aux_rx);
+}
+
+static inline bool mt7996_has_wa(struct mt7996_dev *dev)
+{
+	return !is_mt7990(&dev->mt76);
 }
 
 void mt7996_mac_init(struct mt7996_dev *dev);
