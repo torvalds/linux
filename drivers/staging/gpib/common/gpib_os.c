@@ -1815,17 +1815,18 @@ static int select_pci_ioctl(struct gpib_board_config *config, unsigned long arg)
 
 static int select_device_path_ioctl(struct gpib_board_config *config, unsigned long arg)
 {
-	select_device_path_ioctl_t *selection;
+	struct gpib_select_device_path_ioctl *selection;
 	int retval;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	selection = vmalloc(sizeof(select_device_path_ioctl_t));
+	selection = vmalloc(sizeof(struct gpib_select_device_path_ioctl));
 	if (!selection)
 		return -ENOMEM;
 
-	retval = copy_from_user(selection, (void __user *)arg, sizeof(select_device_path_ioctl_t));
+	retval = copy_from_user(selection, (void __user *)arg,
+				sizeof(struct gpib_select_device_path_ioctl));
 	if (retval) {
 		vfree(selection);
 		return -EFAULT;

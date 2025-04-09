@@ -103,9 +103,9 @@ struct gpib_sad_ioctl {
 };
 
 // select a piece of hardware to attach by its sysfs device path
-typedef struct {
+struct gpib_select_device_path_ioctl {
 	char device_path[0x1000];
-} select_device_path_ioctl_t;
+};
 
 typedef short event_ioctl_t;
 typedef int rsc_ioctl_t;
@@ -161,7 +161,7 @@ enum gpib_ioctl {
 	IBONL = _IOW(GPIB_CODE, 39, struct gpib_online_ioctl),
 	IBPP2_SET = _IOW(GPIB_CODE, 40, local_ppoll_mode_ioctl_t),
 	IBPP2_GET = _IOR(GPIB_CODE, 41, local_ppoll_mode_ioctl_t),
-	IBSELECT_DEVICE_PATH = _IOW(GPIB_CODE, 43, select_device_path_ioctl_t),
+	IBSELECT_DEVICE_PATH = _IOW(GPIB_CODE, 43, struct gpib_select_device_path_ioctl),
 	// 44 was IBSELECT_SERIAL_NUMBER
 	IBRSV2 = _IOW(GPIB_CODE, 45, request_service2_t)
 };
