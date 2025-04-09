@@ -1438,7 +1438,7 @@ static int line_status_ioctl(struct gpib_board *board, unsigned long arg)
 static int pad_ioctl(struct gpib_board *board, struct gpib_file_private *file_priv,
 		     unsigned long arg)
 {
-	pad_ioctl_t cmd;
+	struct gpib_pad_ioctl cmd;
 	int retval;
 	struct gpib_descriptor *desc;
 

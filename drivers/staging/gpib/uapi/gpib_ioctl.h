@@ -92,10 +92,10 @@ struct gpib_ppoll_config_ioctl {
 	unsigned clear_ist : 1;
 };
 
-typedef struct {
+struct gpib_pad_ioctl {
 	unsigned int handle;
 	unsigned int pad;
-} pad_ioctl_t;
+};
 
 typedef struct {
 	unsigned int handle;
@@ -134,7 +134,7 @@ enum gpib_ioctl {
 	IBGTS = _IO(GPIB_CODE, 11),
 	IBCAC = _IOW(GPIB_CODE, 12, int),
 	IBLINES = _IOR(GPIB_CODE, 14, short),
-	IBPAD = _IOW(GPIB_CODE, 15, pad_ioctl_t),
+	IBPAD = _IOW(GPIB_CODE, 15, struct gpib_pad_ioctl),
 	IBSAD = _IOW(GPIB_CODE, 16, sad_ioctl_t),
 	IBTMO = _IOW(GPIB_CODE, 17, unsigned int),
 	IBRSP = _IOWR(GPIB_CODE, 18, struct gpib_serial_poll_ioctl),
