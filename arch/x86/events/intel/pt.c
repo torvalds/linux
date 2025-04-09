@@ -1839,7 +1839,7 @@ static __init int pt_init(void)
 	for_each_online_cpu(cpu) {
 		u64 ctl;
 
-		ret = rdmsrl_safe_on_cpu(cpu, MSR_IA32_RTIT_CTL, &ctl);
+		ret = rdmsrq_safe_on_cpu(cpu, MSR_IA32_RTIT_CTL, &ctl);
 		if (!ret && (ctl & RTIT_CTL_TRACEEN))
 			prior_warn++;
 	}
