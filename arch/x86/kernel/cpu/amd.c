@@ -31,7 +31,7 @@
 
 u16 invlpgb_count_max __ro_after_init;
 
-static inline int rdmsrl_amd_safe(unsigned msr, unsigned long long *p)
+static inline int rdmsrl_amd_safe(unsigned msr, u64 *p)
 {
 	u32 gprs[8] = { 0 };
 	int err;
@@ -49,7 +49,7 @@ static inline int rdmsrl_amd_safe(unsigned msr, unsigned long long *p)
 	return err;
 }
 
-static inline int wrmsrl_amd_safe(unsigned msr, unsigned long long val)
+static inline int wrmsrl_amd_safe(unsigned msr, u64 val)
 {
 	u32 gprs[8] = { 0 };
 
