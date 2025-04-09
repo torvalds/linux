@@ -2053,20 +2053,18 @@ void ath12k_core_hw_group_set_mlo_capable(struct ath12k_hw_group *ag)
 
 	lockdep_assert_held(&ag->mutex);
 
-	/* If more than one devices are grouped, then inter MLO
-	 * functionality can work still independent of whether internally
-	 * each device supports single_chip_mlo or not.
-	 * Only when there is one device, then disable for WCN chipsets
-	 * till the required driver implementation is in place.
-	 */
 	if (ag->num_devices == 1) {
 		ab = ag->ab[0];
-
-		/* WCN chipsets does not advertise in firmware features
-		 * hence skip checking
-		 */
-		if (ab->hw_params->def_num_link)
+		/* QCN9274 firmware uses firmware IE for MLO advertisement */
+		if (ab->fw.fw_features_valid) {
+			ag->mlo_capable =
+				ath12k_fw_feature_supported(ab, ATH12K_FW_FEATURE_MLO);
 			return;
+		}
+
+		/* while WCN7850 firmware uses QMI single_chip_mlo_support bit */
+		ag->mlo_capable = ab->single_chip_mlo_support;
+		return;
 	}
 
 	ag->mlo_capable = true;
@@ -2186,6 +2184,7 @@ struct ath12k_base *ath12k_core_alloc(struct device *dev, size_t priv_size,
 	ab->dev = dev;
 	ab->hif.bus = bus;
 	ab->qmi.num_radios = U8_MAX;
+	ab->single_chip_mlo_support = false;
 
 	/* Device index used to identify the devices in a group.
 	 *

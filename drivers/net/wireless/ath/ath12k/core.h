@@ -1126,6 +1126,9 @@ struct ath12k_base {
 	struct ath12k_ftm_event_obj ftm_event_obj;
 	bool hw_group_ref;
 
+	/* Denote whether MLO is possible within the device */
+	bool single_chip_mlo_support;
+
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
 };
