@@ -177,12 +177,11 @@ static u32 g4x_get_aux_send_ctl(struct intel_dp *intel_dp,
 				int send_bytes,
 				u32 aux_clock_divider)
 {
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct intel_display *display = to_intel_display(intel_dp);
 	u32 timeout;
 
 	/* Max timeout value on G4x-BDW: 1.6ms */
-	if (IS_BROADWELL(i915))
+	if (display->platform.broadwell)
 		timeout = DP_AUX_CH_CTL_TIME_OUT_600us;
 	else
 		timeout = DP_AUX_CH_CTL_TIME_OUT_400us;
@@ -804,7 +803,7 @@ void intel_dp_aux_init(struct intel_dp *intel_dp)
 	} else if (HAS_PCH_SPLIT(i915)) {
 		intel_dp->aux_ch_ctl_reg = ilk_aux_ctl_reg;
 		intel_dp->aux_ch_data_reg = ilk_aux_data_reg;
-	} else if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
+	} else if (display->platform.valleyview || display->platform.cherryview) {
 		intel_dp->aux_ch_ctl_reg = vlv_aux_ctl_reg;
 		intel_dp->aux_ch_data_reg = vlv_aux_data_reg;
 	} else {
@@ -814,7 +813,7 @@ void intel_dp_aux_init(struct intel_dp *intel_dp)
 
 	if (DISPLAY_VER(display) >= 9)
 		intel_dp->get_aux_clock_divider = skl_get_aux_clock_divider;
-	else if (IS_BROADWELL(i915) || IS_HASWELL(i915))
+	else if (display->platform.broadwell || display->platform.haswell)
 		intel_dp->get_aux_clock_divider = hsw_get_aux_clock_divider;
 	else if (HAS_PCH_SPLIT(i915))
 		intel_dp->get_aux_clock_divider = ilk_get_aux_clock_divider;
