@@ -1333,6 +1333,64 @@ next:
 	update_group_capacity(sd, cpu);
 }
 
+#ifdef CONFIG_SMP
+
+/* Update the "asym_prefer_cpu" when arch_asym_cpu_priority() changes. */
+void sched_update_asym_prefer_cpu(int cpu, int old_prio, int new_prio)
+{
+	int asym_prefer_cpu = cpu;
+	struct sched_domain *sd;
+
+	guard(rcu)();
+
+	for_each_domain(cpu, sd) {
+		struct sched_group *sg;
+		int group_cpu;
+
+		if (!(sd->flags & SD_ASYM_PACKING))
+			continue;
+
+		/*
+		 * Groups of overlapping domain are replicated per NUMA
+		 * node and will require updating "asym_prefer_cpu" on
+		 * each local copy.
+		 *
+		 * If you are hitting this warning, consider moving
+		 * "sg->asym_prefer_cpu" to "sg->sgc->asym_prefer_cpu"
+		 * which is shared by all the overlapping groups.
+		 */
+		WARN_ON_ONCE(sd->flags & SD_OVERLAP);
+
+		sg = sd->groups;
+		if (cpu != sg->asym_prefer_cpu) {
+			/*
+			 * Since the parent is a superset of the current group,
+			 * if the cpu is not the "asym_prefer_cpu" at the
+			 * current level, it cannot be the preferred CPU at a
+			 * higher levels either.
+			 */
+			if (!sched_asym_prefer(cpu, sg->asym_prefer_cpu))
+				return;
+
+			WRITE_ONCE(sg->asym_prefer_cpu, cpu);
+			continue;
+		}
+
+		/* Ranking has improved; CPU is still the preferred one. */
+		if (new_prio >= old_prio)
+			continue;
+
+		for_each_cpu(group_cpu, sched_group_span(sg)) {
+			if (sched_asym_prefer(group_cpu, asym_prefer_cpu))
+				asym_prefer_cpu = group_cpu;
+		}
+
+		WRITE_ONCE(sg->asym_prefer_cpu, asym_prefer_cpu);
+	}
+}
+
+#endif /* CONFIG_SMP */
+
 /*
  * Set of available CPUs grouped by their corresponding capacities
  * Each list entry contains a CPU mask reflecting CPUs that share the same
