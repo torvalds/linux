@@ -36,11 +36,11 @@ struct gpib_close_dev_ioctl {
 	unsigned int handle;
 };
 
-typedef struct {
+struct gpib_serial_poll_ioctl {
 	unsigned int pad;
 	int sad;
 	uint8_t status_byte;
-} serial_poll_ioctl_t;
+};
 
 typedef struct {
 	int eos;
@@ -137,7 +137,7 @@ enum gpib_ioctl {
 	IBPAD = _IOW(GPIB_CODE, 15, pad_ioctl_t),
 	IBSAD = _IOW(GPIB_CODE, 16, sad_ioctl_t),
 	IBTMO = _IOW(GPIB_CODE, 17, unsigned int),
-	IBRSP = _IOWR(GPIB_CODE, 18, serial_poll_ioctl_t),
+	IBRSP = _IOWR(GPIB_CODE, 18, struct gpib_serial_poll_ioctl),
 	IBEOS = _IOW(GPIB_CODE, 19, eos_ioctl_t),
 	IBRSV = _IOW(GPIB_CODE, 20, uint8_t),
 	CFCBASE = _IOW(GPIB_CODE, 21, uint64_t),

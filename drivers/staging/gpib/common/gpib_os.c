@@ -1289,7 +1289,7 @@ static int close_dev_ioctl(struct file *filep, struct gpib_board *board, unsigne
 
 static int serial_poll_ioctl(struct gpib_board *board, unsigned long arg)
 {
-	serial_poll_ioctl_t serial_cmd;
+	struct gpib_serial_poll_ioctl serial_cmd;
 	int retval;
 
 	retval = copy_from_user(&serial_cmd, (void __user *)arg, sizeof(serial_cmd));
