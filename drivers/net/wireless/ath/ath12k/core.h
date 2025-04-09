@@ -310,6 +310,8 @@ struct ath12k_link_vif {
 	u8 link_id;
 	struct ath12k_vif *ahvif;
 	struct ath12k_rekey_data rekey_data;
+	struct ath12k_link_stats link_stats;
+	spinlock_t link_stats_lock; /* Protects updates to link_stats */
 
 	u8 current_cntdown_counter;
 };

@@ -3397,6 +3397,9 @@ static void ath12k_mac_init_arvif(struct ath12k_vif *ahvif,
 	arvif->ahvif = ahvif;
 	arvif->link_id = _link_id;
 
+	/* Protects the datapath stats update on a per link basis */
+	spin_lock_init(&arvif->link_stats_lock);
+
 	INIT_LIST_HEAD(&arvif->list);
 	INIT_DELAYED_WORK(&arvif->connection_loss_work,
 			  ath12k_mac_vif_sta_connection_loss_work);
@@ -7467,7 +7470,7 @@ static void ath12k_mac_op_tx(struct ieee80211_hw *hw,
 
 	if (!vif->valid_links || !is_mcast ||
 	    test_bit(ATH12K_FLAG_RAW_MODE, &ar->ab->dev_flags)) {
-		ret = ath12k_dp_tx(ar, arvif, skb, false, 0);
+		ret = ath12k_dp_tx(ar, arvif, skb, false, 0, is_mcast);
 		if (unlikely(ret)) {
 			ath12k_warn(ar->ab, "failed to transmit frame %d\n", ret);
 			ieee80211_free_txskb(ar->ah->hw, skb);
@@ -7529,7 +7532,7 @@ static void ath12k_mac_op_tx(struct ieee80211_hw *hw,
 
 skip_peer_find:
 			ret = ath12k_dp_tx(tmp_ar, tmp_arvif,
-					   msdu_copied, true, mcbc_gsn);
+					   msdu_copied, true, mcbc_gsn, is_mcast);
 			if (unlikely(ret)) {
 				if (ret == -ENOMEM) {
 					/* Drops are expected during heavy multicast
@@ -10804,6 +10807,9 @@ static const struct ieee80211_ops ath12k_ops = {
 	.suspend			= ath12k_wow_op_suspend,
 	.resume				= ath12k_wow_op_resume,
 	.set_wakeup			= ath12k_wow_op_set_wakeup,
+#endif
+#ifdef CONFIG_ATH12K_DEBUGFS
+	.vif_add_debugfs                = ath12k_debugfs_op_vif_add,
 #endif
 	CFG80211_TESTMODE_CMD(ath12k_tm_cmd)
 #ifdef CONFIG_ATH12K_DEBUGFS

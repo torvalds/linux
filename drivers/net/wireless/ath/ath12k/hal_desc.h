@@ -1284,11 +1284,13 @@ enum hal_tcl_encap_type {
 	HAL_TCL_ENCAP_TYPE_NATIVE_WIFI,
 	HAL_TCL_ENCAP_TYPE_ETHERNET,
 	HAL_TCL_ENCAP_TYPE_802_3 = 3,
+	HAL_TCL_ENCAP_TYPE_MAX
 };
 
 enum hal_tcl_desc_type {
 	HAL_TCL_DESC_TYPE_BUFFER,
 	HAL_TCL_DESC_TYPE_EXT_DESC,
+	HAL_TCL_DESC_TYPE_MAX,
 };
 
 enum hal_wbm_htt_tx_comp_status {
@@ -1999,6 +2001,7 @@ struct hal_wbm_release_ring_cc_rx {
 #define HAL_WBM_RELEASE_INFO3_CONTINUATION		BIT(2)
 
 #define HAL_WBM_RELEASE_INFO5_LOOPING_COUNT		GENMASK(31, 28)
+#define HAL_ENCRYPT_TYPE_MAX 12
 
 struct hal_wbm_release_ring {
 	struct ath12k_buffer_addr buf_addr_info;

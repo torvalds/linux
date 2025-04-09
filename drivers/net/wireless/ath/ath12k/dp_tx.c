@@ -220,7 +220,8 @@ out:
 }
 
 int ath12k_dp_tx(struct ath12k *ar, struct ath12k_link_vif *arvif,
-		 struct sk_buff *skb, bool gsn_valid, int mcbc_gsn)
+		 struct sk_buff *skb, bool gsn_valid, int mcbc_gsn,
+		 bool is_mcast)
 {
 	struct ath12k_base *ab = ar->ab;
 	struct ath12k_dp *dp = &ab->dp;
@@ -466,6 +467,17 @@ map:
 		goto fail_unmap_dma;
 	}
 
+	spin_lock_bh(&arvif->link_stats_lock);
+	arvif->link_stats.tx_encap_type[ti.encap_type]++;
+	arvif->link_stats.tx_encrypt_type[ti.encrypt_type]++;
+	arvif->link_stats.tx_desc_type[ti.type]++;
+
+	if (is_mcast)
+		arvif->link_stats.tx_bcast_mcast++;
+	else
+		arvif->link_stats.tx_enqueued++;
+	spin_unlock_bh(&arvif->link_stats_lock);
+
 	ath12k_hal_tx_cmd_desc_setup(ab, hal_tcl_desc, &ti);
 
 	ath12k_hal_srng_access_end(ab, tcl_ring);
@@ -489,6 +501,11 @@ fail_unmap_dma:
 
 fail_remove_tx_buf:
 	ath12k_dp_tx_release_txbuf(dp, tx_desc, pool_id);
+
+	spin_lock_bh(&arvif->link_stats_lock);
+	arvif->link_stats.tx_dropped++;
+	spin_unlock_bh(&arvif->link_stats_lock);
+
 	if (tcl_ring_retry)
 		goto tcl_ring_sel;
 
@@ -524,7 +541,10 @@ ath12k_dp_tx_htt_tx_complete_buf(struct ath12k_base *ab,
 				 struct ath12k_dp_htt_wbm_tx_status *ts)
 {
 	struct ieee80211_tx_info *info;
+	struct ath12k_link_vif *arvif;
 	struct ath12k_skb_cb *skb_cb;
+	struct ieee80211_vif *vif;
+	struct ath12k_vif *ahvif;
 	struct ath12k *ar;
 
 	skb_cb = ATH12K_SKB_CB(msdu);
@@ -539,6 +559,19 @@ ath12k_dp_tx_htt_tx_complete_buf(struct ath12k_base *ab,
 	if (skb_cb->paddr_ext_desc)
 		dma_unmap_single(ab->dev, skb_cb->paddr_ext_desc,
 				 sizeof(struct hal_tx_msdu_ext_desc), DMA_TO_DEVICE);
+
+	vif = skb_cb->vif;
+	if (vif) {
+		ahvif = ath12k_vif_to_ahvif(vif);
+		rcu_read_lock();
+		arvif = rcu_dereference(ahvif->link[skb_cb->link_id]);
+		if (arvif) {
+			spin_lock_bh(&arvif->link_stats_lock);
+			arvif->link_stats.tx_completed++;
+			spin_unlock_bh(&arvif->link_stats_lock);
+		}
+		rcu_read_unlock();
+	}
 
 	memset(&info->status, 0, sizeof(info->status));
 
@@ -595,7 +628,7 @@ ath12k_dp_tx_process_htt_tx_complete(struct ath12k_base *ab,
 		 */
 		break;
 	default:
-		ath12k_warn(ab, "Unknown htt tx status %d\n", wbm_status);
+		ath12k_warn(ab, "Unknown htt wbm tx status %d\n", wbm_status);
 		break;
 	}
 }
@@ -725,7 +758,10 @@ static void ath12k_dp_tx_complete_msdu(struct ath12k *ar,
 	struct ath12k_base *ab = ar->ab;
 	struct ath12k_hw *ah = ar->ah;
 	struct ieee80211_tx_info *info;
+	struct ath12k_link_vif *arvif;
 	struct ath12k_skb_cb *skb_cb;
+	struct ieee80211_vif *vif;
+	struct ath12k_vif *ahvif;
 
 	if (WARN_ON_ONCE(ts->buf_rel_source != HAL_WBM_REL_SRC_MODULE_TQM)) {
 		/* Must not happen */
@@ -749,6 +785,17 @@ static void ath12k_dp_tx_complete_msdu(struct ath12k *ar,
 	if (!skb_cb->vif) {
 		ieee80211_free_txskb(ah->hw, msdu);
 		goto exit;
+	}
+
+	vif = skb_cb->vif;
+	if (vif) {
+		ahvif = ath12k_vif_to_ahvif(vif);
+		arvif = rcu_dereference(ahvif->link[skb_cb->link_id]);
+		if (arvif) {
+			spin_lock_bh(&arvif->link_stats_lock);
+			arvif->link_stats.tx_completed++;
+			spin_unlock_bh(&arvif->link_stats_lock);
+		}
 	}
 
 	info = IEEE80211_SKB_CB(msdu);

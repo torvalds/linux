@@ -7,6 +7,7 @@
 #ifndef ATH12K_DP_H
 #define ATH12K_DP_H
 
+#include "hal_desc.h"
 #include "hal_rx.h"
 #include "hw.h"
 
@@ -316,6 +317,16 @@ struct ath12k_reo_q_addr_lut {
 	dma_addr_t paddr_unaligned;
 	dma_addr_t paddr;
 	u32 size;
+};
+
+struct ath12k_link_stats {
+	u32 tx_enqueued;
+	u32 tx_completed;
+	u32 tx_bcast_mcast;
+	u32 tx_dropped;
+	u32 tx_encap_type[HAL_TCL_ENCAP_TYPE_MAX];
+	u32 tx_encrypt_type[HAL_ENCRYPT_TYPE_MAX];
+	u32 tx_desc_type[HAL_TCL_DESC_TYPE_MAX];
 };
 
 struct ath12k_dp {
