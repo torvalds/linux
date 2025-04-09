@@ -1212,7 +1212,7 @@ static int cleanup_open_devices(struct gpib_file_private *file_priv, struct gpib
 
 static int open_dev_ioctl(struct file *filep, struct gpib_board *board, unsigned long arg)
 {
-	open_dev_ioctl_t open_dev_cmd;
+	struct gpib_open_dev_ioctl open_dev_cmd;
 	int retval;
 	struct gpib_file_private *file_priv = filep->private_data;
 	int i;
