@@ -173,11 +173,6 @@ static inline int sys_mount_setattr(int dfd, const char *path, unsigned int flag
 #define AT_RECURSIVE 0x8000 /* Apply to the entire subtree */
 #endif
 
-static inline int sys_open_tree(int dfd, const char *filename, unsigned int flags)
-{
-	return syscall(__NR_open_tree, dfd, filename, flags);
-}
-
 static ssize_t write_nointr(int fd, const void *buf, size_t count)
 {
 	ssize_t ret;
