@@ -712,8 +712,11 @@ hit_next:
 		if (!prealloc)
 			goto search_again;
 		err = split_state(tree, state, prealloc, end + 1);
-		if (err)
+		if (err) {
 			extent_io_tree_panic(tree, state, "split", err);
+			prealloc = NULL;
+			goto out;
+		}
 
 		if (wake)
 			wake_up(&state->wq);
