@@ -535,6 +535,12 @@ struct ath12k_link_sta {
 	u8 link_idx;
 };
 
+struct ath12k_reoq_buf {
+	void *vaddr;
+	dma_addr_t paddr_aligned;
+	u32 size;
+};
+
 struct ath12k_sta {
 	struct ath12k_vif *ahvif;
 	enum hal_pn_type pn_type;
@@ -547,6 +553,8 @@ struct ath12k_sta {
 	u8 num_peer;
 
 	enum ieee80211_sta_state state;
+
+	struct ath12k_reoq_buf reoq_bufs[IEEE80211_NUM_TIDS + 1];
 };
 
 #define ATH12K_HALF_20MHZ_BW	10

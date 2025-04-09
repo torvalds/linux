@@ -929,17 +929,66 @@ static int ath12k_peer_rx_tid_reo_update(struct ath12k *ar,
 	return 0;
 }
 
+static int ath12k_dp_rx_assign_reoq(struct ath12k_base *ab,
+				    struct ath12k_sta *ahsta,
+				    struct ath12k_dp_rx_tid *rx_tid,
+				    u16 ssn, enum hal_pn_type pn_type)
+{
+	u32 ba_win_sz = rx_tid->ba_win_sz;
+	struct ath12k_reoq_buf *buf;
+	void *vaddr, *vaddr_aligned;
+	dma_addr_t paddr_aligned;
+	u8 tid = rx_tid->tid;
+	u32 hw_desc_sz;
+	int ret;
+
+	buf = &ahsta->reoq_bufs[tid];
+	if (!buf->vaddr) {
+		/* TODO: Optimize the memory allocation for qos tid based on
+		 * the actual BA window size in REO tid update path.
+		 */
+		if (tid == HAL_DESC_REO_NON_QOS_TID)
+			hw_desc_sz = ath12k_hal_reo_qdesc_size(ba_win_sz, tid);
+		else
+			hw_desc_sz = ath12k_hal_reo_qdesc_size(DP_BA_WIN_SZ_MAX, tid);
+
+		vaddr = kzalloc(hw_desc_sz + HAL_LINK_DESC_ALIGN - 1, GFP_ATOMIC);
+		if (!vaddr)
+			return -ENOMEM;
+
+		vaddr_aligned = PTR_ALIGN(vaddr, HAL_LINK_DESC_ALIGN);
+
+		ath12k_hal_reo_qdesc_setup(vaddr_aligned, tid, ba_win_sz,
+					   ssn, pn_type);
+
+		paddr_aligned = dma_map_single(ab->dev, vaddr_aligned, hw_desc_sz,
+					       DMA_BIDIRECTIONAL);
+		ret = dma_mapping_error(ab->dev, paddr_aligned);
+		if (ret) {
+			kfree(vaddr);
+			return ret;
+		}
+
+		buf->vaddr = vaddr;
+		buf->paddr_aligned = paddr_aligned;
+		buf->size = hw_desc_sz;
+	}
+
+	rx_tid->qbuf = *buf;
+	rx_tid->active = true;
+
+	return 0;
+}
+
 int ath12k_dp_rx_peer_tid_setup(struct ath12k *ar, const u8 *peer_mac, int vdev_id,
 				u8 tid, u32 ba_win_sz, u16 ssn,
 				enum hal_pn_type pn_type)
 {
 	struct ath12k_base *ab = ar->ab;
 	struct ath12k_dp *dp = &ab->dp;
-	struct hal_rx_reo_queue *addr_aligned;
 	struct ath12k_peer *peer;
+	struct ath12k_sta *ahsta;
 	struct ath12k_dp_rx_tid *rx_tid;
-	u32 hw_desc_sz;
-	void *vaddr;
 	dma_addr_t paddr_aligned;
 	int ret;
 
@@ -972,9 +1021,9 @@ int ath12k_dp_rx_peer_tid_setup(struct ath12k *ar, const u8 *peer_mac, int vdev_
 	}
 
 	rx_tid = &peer->rx_tid[tid];
+	paddr_aligned = rx_tid->qbuf.paddr_aligned;
 	/* Update the tid queue if it is already setup */
 	if (rx_tid->active) {
-		paddr_aligned = rx_tid->qbuf.paddr_aligned;
 		ret = ath12k_peer_rx_tid_reo_update(ar, peer, rx_tid,
 						    ba_win_sz, ssn, true);
 		spin_unlock_bh(&ab->base_lock);
@@ -1002,38 +1051,13 @@ int ath12k_dp_rx_peer_tid_setup(struct ath12k *ar, const u8 *peer_mac, int vdev_
 
 	rx_tid->ba_win_sz = ba_win_sz;
 
-	/* TODO: Optimize the memory allocation for qos tid based on
-	 * the actual BA window size in REO tid update path.
-	 */
-	if (tid == HAL_DESC_REO_NON_QOS_TID)
-		hw_desc_sz = ath12k_hal_reo_qdesc_size(ba_win_sz, tid);
-	else
-		hw_desc_sz = ath12k_hal_reo_qdesc_size(DP_BA_WIN_SZ_MAX, tid);
-
-	vaddr = kzalloc(hw_desc_sz + HAL_LINK_DESC_ALIGN - 1, GFP_ATOMIC);
-	if (!vaddr) {
-		spin_unlock_bh(&ab->base_lock);
-		return -ENOMEM;
-	}
-
-	addr_aligned = PTR_ALIGN(vaddr, HAL_LINK_DESC_ALIGN);
-
-	ath12k_hal_reo_qdesc_setup(addr_aligned, tid, ba_win_sz,
-				   ssn, pn_type);
-
-	paddr_aligned = dma_map_single(ab->dev, addr_aligned, hw_desc_sz,
-				       DMA_BIDIRECTIONAL);
-
-	ret = dma_mapping_error(ab->dev, paddr_aligned);
+	ahsta = ath12k_sta_to_ahsta(peer->sta);
+	ret = ath12k_dp_rx_assign_reoq(ab, ahsta, rx_tid, ssn, pn_type);
 	if (ret) {
 		spin_unlock_bh(&ab->base_lock);
-		goto err_mem_free;
+		ath12k_warn(ab, "failed to assign reoq buf for rx tid %u\n", tid);
+		return ret;
 	}
-
-	rx_tid->qbuf.vaddr = vaddr;
-	rx_tid->qbuf.paddr_aligned = paddr_aligned;
-	rx_tid->qbuf.size = hw_desc_sz;
-	rx_tid->active = true;
 
 	if (ab->hw_params->reoq_lut_support) {
 		/* Update the REO queue LUT at the corresponding peer id
@@ -1053,11 +1077,6 @@ int ath12k_dp_rx_peer_tid_setup(struct ath12k *ar, const u8 *peer_mac, int vdev_
 							     paddr_aligned, tid, 1,
 							     ba_win_sz);
 	}
-
-	return ret;
-
-err_mem_free:
-	kfree(vaddr);
 
 	return ret;
 }
