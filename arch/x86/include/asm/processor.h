@@ -516,7 +516,11 @@ struct thread_struct {
 #endif
 };
 
-#define x86_task_fpu(task)	((struct fpu *)((void *)(task) + sizeof(*(task))))
+#ifdef CONFIG_X86_DEBUG_FPU
+extern struct fpu *x86_task_fpu(struct task_struct *task);
+#else
+# define x86_task_fpu(task)	((struct fpu *)((void *)(task) + sizeof(*(task))))
+#endif
 
 /*
  * X86 doesn't need any embedded-FPU-struct quirks:
