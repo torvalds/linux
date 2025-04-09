@@ -694,7 +694,7 @@ static int airoha_qdma_rx_process(struct airoha_queue *q, int budget)
 
 		reason = FIELD_GET(AIROHA_RXD4_PPE_CPU_REASON, msg1);
 		if (reason == PPE_CPU_REASON_HIT_UNBIND_RATE_REACHED)
-			airoha_ppe_check_skb(eth->ppe, hash);
+			airoha_ppe_check_skb(eth->ppe, q->skb, hash);
 
 		done++;
 		napi_gro_receive(&q->napi, q->skb);

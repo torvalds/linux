@@ -431,10 +431,14 @@ enum airoha_flow_entry_type {
 struct airoha_flow_table_entry {
 	union {
 		struct hlist_node list; /* PPE L3 flow entry */
-		struct rhash_head l2_node; /* L2 flow entry */
+		struct {
+			struct rhash_head l2_node;  /* L2 flow entry */
+			struct hlist_head l2_flows; /* PPE L2 subflows list */
+		};
 	};
 
 	struct airoha_foe_entry data;
+	struct hlist_node l2_subflow_node; /* PPE L2 subflow entry */
 	u32 hash;
 
 	enum airoha_flow_entry_type type;
@@ -548,7 +552,8 @@ u32 airoha_rmw(void __iomem *base, u32 offset, u32 mask, u32 val);
 bool airoha_is_valid_gdm_port(struct airoha_eth *eth,
 			      struct airoha_gdm_port *port);
 
-void airoha_ppe_check_skb(struct airoha_ppe *ppe, u16 hash);
+void airoha_ppe_check_skb(struct airoha_ppe *ppe, struct sk_buff *skb,
+			  u16 hash);
 int airoha_ppe_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 				 void *cb_priv);
 int airoha_ppe_init(struct airoha_eth *eth);
