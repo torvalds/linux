@@ -67,8 +67,8 @@ static inline int cb7210_page_in_bits(unsigned int page)
 }
 
 // don't use without locking nec_priv->register_page_lock
-static inline uint8_t fluke_read_byte_nolock(struct nec7210_priv *nec_priv,
-					     int register_num)
+static inline u8 fluke_read_byte_nolock(struct nec7210_priv *nec_priv,
+					int register_num)
 {
 	u8 retval;
 
@@ -77,14 +77,14 @@ static inline uint8_t fluke_read_byte_nolock(struct nec7210_priv *nec_priv,
 }
 
 // don't use without locking nec_priv->register_page_lock
-static inline void fluke_write_byte_nolock(struct nec7210_priv *nec_priv, uint8_t data,
+static inline void fluke_write_byte_nolock(struct nec7210_priv *nec_priv, u8 data,
 					   int register_num)
 {
 	writel(data, nec_priv->mmiobase + register_num * nec_priv->offset);
 }
 
-static inline uint8_t fluke_paged_read_byte(struct fluke_priv *e_priv,
-					    unsigned int register_num, unsigned int page)
+static inline u8 fluke_paged_read_byte(struct fluke_priv *e_priv,
+				       unsigned int register_num, unsigned int page)
 {
 	struct nec7210_priv *nec_priv = &e_priv->nec7210_priv;
 	u8 retval;
@@ -99,7 +99,7 @@ static inline uint8_t fluke_paged_read_byte(struct fluke_priv *e_priv,
 	return retval;
 }
 
-static inline void fluke_paged_write_byte(struct fluke_priv *e_priv, uint8_t data,
+static inline void fluke_paged_write_byte(struct fluke_priv *e_priv, u8 data,
 					  unsigned int register_num, unsigned int page)
 {
 	struct nec7210_priv *nec_priv = &e_priv->nec7210_priv;

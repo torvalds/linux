@@ -34,7 +34,7 @@ static irqreturn_t fluke_gpib_internal_interrupt(struct gpib_board *board);
 
 static struct platform_device *fluke_gpib_pdev;
 
-static uint8_t fluke_locking_read_byte(struct nec7210_priv *nec_priv, unsigned int register_number)
+static u8 fluke_locking_read_byte(struct nec7210_priv *nec_priv, unsigned int register_number)
 {
 	u8 retval;
 	unsigned long flags;
@@ -45,7 +45,7 @@ static uint8_t fluke_locking_read_byte(struct nec7210_priv *nec_priv, unsigned i
 	return retval;
 }
 
-static void fluke_locking_write_byte(struct nec7210_priv *nec_priv, uint8_t byte,
+static void fluke_locking_write_byte(struct nec7210_priv *nec_priv, u8 byte,
 				     unsigned int register_number)
 {
 	unsigned long flags;
@@ -56,7 +56,7 @@ static void fluke_locking_write_byte(struct nec7210_priv *nec_priv, uint8_t byte
 }
 
 // wrappers for interface functions
-static int fluke_read(struct gpib_board *board, uint8_t *buffer, size_t length, int *end,
+static int fluke_read(struct gpib_board *board, u8 *buffer, size_t length, int *end,
 		      size_t *bytes_read)
 {
 	struct fluke_priv *priv = board->private_data;
@@ -64,7 +64,7 @@ static int fluke_read(struct gpib_board *board, uint8_t *buffer, size_t length, 
 	return nec7210_read(board, &priv->nec7210_priv, buffer, length, end, bytes_read);
 }
 
-static int fluke_write(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int fluke_write(struct gpib_board *board, u8 *buffer, size_t length,
 		       int send_eoi, size_t *bytes_written)
 {
 	struct fluke_priv *priv = board->private_data;
@@ -72,7 +72,7 @@ static int fluke_write(struct gpib_board *board, uint8_t *buffer, size_t length,
 	return nec7210_write(board, &priv->nec7210_priv, buffer, length, send_eoi, bytes_written);
 }
 
-static int fluke_command(struct gpib_board *board, uint8_t *buffer,
+static int fluke_command(struct gpib_board *board, u8 *buffer,
 			 size_t length, size_t *bytes_written)
 {
 	struct fluke_priv *priv = board->private_data;
@@ -116,7 +116,7 @@ static void fluke_remote_enable(struct gpib_board *board, int enable)
 	nec7210_remote_enable(board, &priv->nec7210_priv, enable);
 }
 
-static int fluke_enable_eos(struct gpib_board *board, uint8_t eos_byte, int compare_8_bits)
+static int fluke_enable_eos(struct gpib_board *board, u8 eos_byte, int compare_8_bits)
 {
 	struct fluke_priv *priv = board->private_data;
 
@@ -151,14 +151,14 @@ static int fluke_secondary_address(struct gpib_board *board, unsigned int addres
 	return nec7210_secondary_address(board, &priv->nec7210_priv, address, enable);
 }
 
-static int fluke_parallel_poll(struct gpib_board *board, uint8_t *result)
+static int fluke_parallel_poll(struct gpib_board *board, u8 *result)
 {
 	struct fluke_priv *priv = board->private_data;
 
 	return nec7210_parallel_poll(board, &priv->nec7210_priv, result);
 }
 
-static void fluke_parallel_poll_configure(struct gpib_board *board, uint8_t configuration)
+static void fluke_parallel_poll_configure(struct gpib_board *board, u8 configuration)
 {
 	struct fluke_priv *priv = board->private_data;
 
@@ -172,14 +172,14 @@ static void fluke_parallel_poll_response(struct gpib_board *board, int ist)
 	nec7210_parallel_poll_response(board, &priv->nec7210_priv, ist);
 }
 
-static void fluke_serial_poll_response(struct gpib_board *board, uint8_t status)
+static void fluke_serial_poll_response(struct gpib_board *board, u8 status)
 {
 	struct fluke_priv *priv = board->private_data;
 
 	nec7210_serial_poll_response(board, &priv->nec7210_priv, status);
 }
 
-static uint8_t fluke_serial_poll_status(struct gpib_board *board)
+static u8 fluke_serial_poll_status(struct gpib_board *board)
 {
 	struct fluke_priv *priv = board->private_data;
 
@@ -373,7 +373,7 @@ static void fluke_dma_callback(void *arg)
 	spin_unlock_irqrestore(&board->spinlock, flags);
 }
 
-static int fluke_dma_write(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int fluke_dma_write(struct gpib_board *board, u8 *buffer, size_t length,
 			   size_t *bytes_written)
 {
 	struct fluke_priv *e_priv = board->private_data;
@@ -458,7 +458,7 @@ cleanup:
 	return retval;
 }
 
-static int fluke_accel_write(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int fluke_accel_write(struct gpib_board *board, u8 *buffer, size_t length,
 			     int send_eoi, size_t *bytes_written)
 {
 	struct fluke_priv *e_priv = board->private_data;
@@ -546,7 +546,7 @@ static int fluke_get_dma_residue(struct dma_chan *chan, dma_cookie_t cookie)
 	return state.residue;
 }
 
-static int fluke_dma_read(struct gpib_board *board, uint8_t *buffer,
+static int fluke_dma_read(struct gpib_board *board, u8 *buffer,
 			  size_t length, int *end, size_t *bytes_read)
 {
 	struct fluke_priv *e_priv = board->private_data;
@@ -659,7 +659,7 @@ static int fluke_dma_read(struct gpib_board *board, uint8_t *buffer,
 	return retval;
 }
 
-static int fluke_accel_read(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int fluke_accel_read(struct gpib_board *board, u8 *buffer, size_t length,
 			    int *end, size_t *bytes_read)
 {
 	struct fluke_priv *e_priv = board->private_data;
