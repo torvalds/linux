@@ -2079,7 +2079,7 @@ void ath12k_core_hw_group_set_mlo_capable(struct ath12k_hw_group *ag)
 		/* even if 1 device's firmware feature indicates MLO
 		 * unsupported, make MLO unsupported for the whole group
 		 */
-		if (!test_bit(ATH12K_FW_FEATURE_MLO, ab->fw.fw_features)) {
+		if (!ath12k_fw_feature_supported(ab, ATH12K_FW_FEATURE_MLO)) {
 			ag->mlo_capable = false;
 			return;
 		}

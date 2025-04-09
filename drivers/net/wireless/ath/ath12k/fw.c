@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include "core.h"
@@ -168,4 +168,9 @@ void ath12k_fw_unmap(struct ath12k_base *ab)
 {
 	release_firmware(ab->fw.fw);
 	memset(&ab->fw, 0, sizeof(ab->fw));
+}
+
+bool ath12k_fw_feature_supported(struct ath12k_base *ab, enum ath12k_fw_features feat)
+{
+	return test_bit(feat, ab->fw.fw_features);
 }
