@@ -96,7 +96,7 @@ static int check_for_command_acceptors(struct gpib_board *board)
  *          must be called to initialize the GPIB and enable
  *          the interface to leave the controller idle state.
  */
-int ibcmd(struct gpib_board *board, uint8_t *buf, size_t length, size_t *bytes_written)
+int ibcmd(struct gpib_board *board, u8 *buf, size_t length, size_t *bytes_written)
 {
 	ssize_t ret = 0;
 	int status;
@@ -297,7 +297,7 @@ int iblines(const struct gpib_board *board, short *lines)
  *          calling ibcmd.
  */
 
-int ibrd(struct gpib_board *board, uint8_t *buf, size_t length, int *end_flag, size_t *nbytes)
+int ibrd(struct gpib_board *board, u8 *buf, size_t length, int *end_flag, size_t *nbytes)
 {
 	ssize_t ret = 0;
 	int retval;
@@ -343,7 +343,7 @@ ibrd_out:
  *	1.  Prior to conducting the poll the interface is placed
  *	    in the controller active state.
  */
-int ibrpp(struct gpib_board *board, uint8_t *result)
+int ibrpp(struct gpib_board *board, u8 *result)
 {
 	int retval = 0;
 
@@ -358,7 +358,7 @@ int ibrpp(struct gpib_board *board, uint8_t *result)
 	return retval;
 }
 
-int ibppc(struct gpib_board *board, uint8_t configuration)
+int ibppc(struct gpib_board *board, u8 configuration)
 {
 	configuration &= 0x1f;
 	board->interface->parallel_poll_configure(board, configuration);
@@ -367,7 +367,7 @@ int ibppc(struct gpib_board *board, uint8_t configuration)
 	return 0;
 }
 
-int ibrsv2(struct gpib_board *board, uint8_t status_byte, int new_reason_for_service)
+int ibrsv2(struct gpib_board *board, u8 status_byte, int new_reason_for_service)
 {
 	int board_status = ibstatus(board);
 	const unsigned int MSS = status_byte & request_service_bit;
@@ -677,7 +677,7 @@ int ibwait(struct gpib_board *board, int wait_mask, int clear_mask, int set_mask
  *          well as the interface board itself must be
  *          addressed by calling ibcmd.
  */
-int ibwrt(struct gpib_board *board, uint8_t *buf, size_t cnt, int send_eoi, size_t *bytes_written)
+int ibwrt(struct gpib_board *board, u8 *buf, size_t cnt, int send_eoi, size_t *bytes_written)
 {
 	int ret = 0;
 	int retval;
