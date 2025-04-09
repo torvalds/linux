@@ -211,7 +211,7 @@ static int pwm_loongson_probe(struct platform_device *pdev)
 	if (ddata->clk) {
 		ret = devm_clk_rate_exclusive_get(dev, ddata->clk);
 		if (ret)
-			return dev_err_probe(dev, PTR_ERR(ddata->clk),
+			return dev_err_probe(dev, ret,
 					     "Failed to get exclusive rate\n");
 
 		ddata->clk_rate = clk_get_rate(ddata->clk);
