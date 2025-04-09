@@ -136,7 +136,7 @@ static inline void fpstate_free(struct fpu *fpu) { }
 #endif
 
 /* fpstate-related functions which are exported to KVM */
-extern void fpstate_clear_xstate_component(struct fpstate *fps, unsigned int xfeature);
+extern void fpstate_clear_xstate_component(struct fpstate *fpstate, unsigned int xfeature);
 
 extern u64 xstate_get_guest_group_perm(void);
 
