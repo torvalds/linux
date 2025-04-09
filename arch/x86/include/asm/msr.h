@@ -65,11 +65,11 @@ DECLARE_TRACEPOINT(write_msr);
 DECLARE_TRACEPOINT(rdpmc);
 extern void do_trace_write_msr(unsigned int msr, u64 val, int failed);
 extern void do_trace_read_msr(unsigned int msr, u64 val, int failed);
-extern void do_trace_rdpmc(unsigned int msr, u64 val, int failed);
+extern void do_trace_rdpmc(u32 msr, u64 val, int failed);
 #else
 static inline void do_trace_write_msr(unsigned int msr, u64 val, int failed) {}
 static inline void do_trace_read_msr(unsigned int msr, u64 val, int failed) {}
-static inline void do_trace_rdpmc(unsigned int msr, u64 val, int failed) {}
+static inline void do_trace_rdpmc(u32 msr, u64 val, int failed) {}
 #endif
 
 /*
