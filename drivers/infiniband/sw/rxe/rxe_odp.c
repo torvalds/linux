@@ -266,8 +266,9 @@ int rxe_odp_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
 	return err;
 }
 
-static int rxe_odp_do_atomic_op(struct rxe_mr *mr, u64 iova, int opcode,
-				u64 compare, u64 swap_add, u64 *orig_val)
+static enum resp_states rxe_odp_do_atomic_op(struct rxe_mr *mr, u64 iova,
+					     int opcode, u64 compare,
+					     u64 swap_add, u64 *orig_val)
 {
 	struct ib_umem_odp *umem_odp = to_ib_umem_odp(mr->umem);
 	unsigned int page_offset;
@@ -315,11 +316,11 @@ static int rxe_odp_do_atomic_op(struct rxe_mr *mr, u64 iova, int opcode,
 
 	kunmap_local(va);
 
-	return 0;
+	return RESPST_NONE;
 }
 
-int rxe_odp_atomic_op(struct rxe_mr *mr, u64 iova, int opcode,
-			 u64 compare, u64 swap_add, u64 *orig_val)
+enum resp_states rxe_odp_atomic_op(struct rxe_mr *mr, u64 iova, int opcode,
+				   u64 compare, u64 swap_add, u64 *orig_val)
 {
 	struct ib_umem_odp *umem_odp = to_ib_umem_odp(mr->umem);
 	int err;

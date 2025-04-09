@@ -483,8 +483,8 @@ int rxe_flush_pmem_iova(struct rxe_mr *mr, u64 start, unsigned int length)
 /* Guarantee atomicity of atomic operations at the machine level. */
 DEFINE_SPINLOCK(atomic_ops_lock);
 
-int rxe_mr_do_atomic_op(struct rxe_mr *mr, u64 iova, int opcode,
-			u64 compare, u64 swap_add, u64 *orig_val)
+enum resp_states rxe_mr_do_atomic_op(struct rxe_mr *mr, u64 iova, int opcode,
+				     u64 compare, u64 swap_add, u64 *orig_val)
 {
 	unsigned int page_offset;
 	struct page *page;
@@ -536,12 +536,12 @@ int rxe_mr_do_atomic_op(struct rxe_mr *mr, u64 iova, int opcode,
 
 	kunmap_local(va);
 
-	return 0;
+	return RESPST_NONE;
 }
 
 #if defined CONFIG_64BIT
 /* only implemented or called for 64 bit architectures */
-int rxe_mr_do_atomic_write(struct rxe_mr *mr, u64 iova, u64 value)
+enum resp_states rxe_mr_do_atomic_write(struct rxe_mr *mr, u64 iova, u64 value)
 {
 	unsigned int page_offset;
 	struct page *page;
@@ -578,10 +578,10 @@ int rxe_mr_do_atomic_write(struct rxe_mr *mr, u64 iova, u64 value)
 	smp_store_release(&va[page_offset >> 3], value);
 	kunmap_local(va);
 
-	return 0;
+	return RESPST_NONE;
 }
 #else
-int rxe_mr_do_atomic_write(struct rxe_mr *mr, u64 iova, u64 value)
+enum resp_states rxe_mr_do_atomic_write(struct rxe_mr *mr, u64 iova, u64 value)
 {
 	return RESPST_ERR_UNSUPPORTED_OPCODE;
 }
