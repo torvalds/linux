@@ -1457,7 +1457,8 @@ unregister_ep:
 
 static int pmc_core_ssram_get_lpm_reqs(struct pmc_dev *pmcdev)
 {
-	int ret, i;
+	unsigned int i;
+	int ret;
 
 	if (!pmcdev->ssram_pcidev)
 		return -ENODEV;
@@ -1484,7 +1485,7 @@ const struct pmc_reg_map *pmc_core_find_regmap(struct pmc_info *list, u16 devid)
 }
 
 int pmc_core_pmc_add(struct pmc_dev *pmcdev, u64 pwrm_base,
-		     const struct pmc_reg_map *reg_map, int pmc_index)
+		     const struct pmc_reg_map *reg_map, unsigned int pmc_index)
 {
 	struct pmc *pmc = pmcdev->pmcs[pmc_index];
 

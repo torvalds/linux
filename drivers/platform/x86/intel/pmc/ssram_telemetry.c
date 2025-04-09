@@ -74,7 +74,7 @@ static inline u64 get_base(void __iomem *addr, u32 offset)
 }
 
 static int
-pmc_core_ssram_get_pmc(struct pmc_dev *pmcdev, int pmc_idx, u32 offset)
+pmc_core_ssram_get_pmc(struct pmc_dev *pmcdev, unsigned int pmc_idx, u32 offset)
 {
 	struct pci_dev *ssram_pcidev = pmcdev->ssram_pcidev;
 	void __iomem __free(pmc_core_iounmap) *tmp_ssram = NULL;

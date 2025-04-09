@@ -515,7 +515,7 @@ int pmc_core_ssram_init(struct pmc_dev *pmcdev, int func);
 int generic_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info);
 const struct pmc_reg_map *pmc_core_find_regmap(struct pmc_info *list, u16 devid);
 int pmc_core_pmc_add(struct pmc_dev *pmcdev, u64 pwrm_base,
-		     const struct pmc_reg_map *reg_map, int pmc_index);
+		     const struct pmc_reg_map *reg_map, unsigned int pmc_index);
 
 extern struct pmc_dev_info spt_pmc_dev;
 extern struct pmc_dev_info cnp_pmc_dev;
