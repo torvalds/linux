@@ -73,6 +73,9 @@
 #define MT7992_EEPROM_DEFAULT_23	"mediatek/mt7996/mt7992_eeprom_23.bin"
 #define MT7992_EEPROM_DEFAULT_23_INT	"mediatek/mt7996/mt7992_eeprom_23_2i5i.bin"
 
+#define MT7990_EEPROM_DEFAULT		"mediatek/mt7996/mt7990_eeprom.bin"
+#define MT7990_EEPROM_DEFAULT_INT	"mediatek/mt7996/mt7990_eeprom_2i5i.bin"
+
 #define MT7996_EEPROM_SIZE		7680
 #define MT7996_EEPROM_BLOCK_SIZE	16
 #define MT7996_TOKEN_SIZE		16384
@@ -141,6 +144,10 @@ enum mt7996_var_type {
 enum mt7992_var_type {
 	MT7992_VAR_TYPE_44,
 	MT7992_VAR_TYPE_23,
+};
+
+enum mt7990_var_type {
+	MT7990_VAR_TYPE_23,
 };
 
 enum mt7996_fem_type {
