@@ -141,7 +141,7 @@ MODULE_DEVICE_TABLE(of, adg792a_of_match);
 static struct i2c_driver adg792a_driver = {
 	.driver		= {
 		.name		= "adg792a",
-		.of_match_table = of_match_ptr(adg792a_of_match),
+		.of_match_table = adg792a_of_match,
 	},
 	.probe		= adg792a_probe,
 	.id_table	= adg792a_id,
