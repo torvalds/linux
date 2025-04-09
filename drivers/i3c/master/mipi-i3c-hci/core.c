@@ -590,12 +590,11 @@ static irqreturn_t i3c_hci_irq_handler(int irq, void *dev_id)
 	u32 val;
 
 	val = reg_read(INTR_STATUS);
+	reg_write(INTR_STATUS, val);
 	DBG("INTR_STATUS = %#x", val);
 
-	if (val) {
-		reg_write(INTR_STATUS, val);
+	if (val)
 		result = IRQ_HANDLED;
-	}
 
 	if (val & INTR_HC_RESET_CANCEL) {
 		DBG("cancelled reset");
