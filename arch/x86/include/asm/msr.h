@@ -109,7 +109,7 @@ do {							\
 #define native_wrmsr(msr, low, high)			\
 	__wrmsr(msr, low, high)
 
-#define native_wrmsrl(msr, val)				\
+#define native_wrmsrq(msr, val)				\
 	__wrmsr((msr), (u32)((u64)(val)),		\
 		       (u32)((u64)(val) >> 32))
 

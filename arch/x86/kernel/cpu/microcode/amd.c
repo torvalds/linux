@@ -602,7 +602,7 @@ static bool __apply_microcode_amd(struct microcode_amd *mc, u32 *cur_rev,
 	if (!verify_sha256_digest(mc->hdr.patch_id, *cur_rev, (const u8 *)p_addr, psize))
 		return false;
 
-	native_wrmsrl(MSR_AMD64_PATCH_LOADER, p_addr);
+	native_wrmsrq(MSR_AMD64_PATCH_LOADER, p_addr);
 
 	if (x86_family(bsp_cpuid_1_eax) == 0x17) {
 		unsigned long p_addr_end = p_addr + psize - 1;

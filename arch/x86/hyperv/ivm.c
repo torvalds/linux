@@ -115,7 +115,7 @@ static inline u64 rd_ghcb_msr(void)
 
 static inline void wr_ghcb_msr(u64 val)
 {
-	native_wrmsrl(MSR_AMD64_SEV_ES_GHCB, val);
+	native_wrmsrq(MSR_AMD64_SEV_ES_GHCB, val);
 }
 
 static enum es_result hv_ghcb_hv_call(struct ghcb *ghcb, u64 exit_code,

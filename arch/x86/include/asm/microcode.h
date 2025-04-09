@@ -61,7 +61,7 @@ static inline u32 intel_get_microcode_revision(void)
 {
 	u32 rev, dummy;
 
-	native_wrmsrl(MSR_IA32_UCODE_REV, 0);
+	native_wrmsrq(MSR_IA32_UCODE_REV, 0);
 
 	/* As documented in the SDM: Do a CPUID 1 here */
 	native_cpuid_eax(1);
