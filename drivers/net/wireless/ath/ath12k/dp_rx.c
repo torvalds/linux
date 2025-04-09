@@ -550,9 +550,9 @@ void ath12k_dp_rx_reo_cmd_list_cleanup(struct ath12k_base *ab)
 	spin_lock_bh(&dp->reo_cmd_lock);
 	list_for_each_entry_safe(cmd, tmp, &dp->reo_cmd_list, list) {
 		list_del(&cmd->list);
-		dma_unmap_single(ab->dev, cmd->data.paddr,
-				 cmd->data.size, DMA_BIDIRECTIONAL);
-		kfree(cmd->data.vaddr);
+		dma_unmap_single(ab->dev, cmd->data.qbuf.paddr_aligned,
+				 cmd->data.qbuf.size, DMA_BIDIRECTIONAL);
+		kfree(cmd->data.qbuf.vaddr);
 		kfree(cmd);
 	}
 
@@ -560,9 +560,9 @@ void ath12k_dp_rx_reo_cmd_list_cleanup(struct ath12k_base *ab)
 				 &dp->reo_cmd_cache_flush_list, list) {
 		list_del(&cmd_cache->list);
 		dp->reo_cmd_cache_flush_count--;
-		dma_unmap_single(ab->dev, cmd_cache->data.paddr,
-				 cmd_cache->data.size, DMA_BIDIRECTIONAL);
-		kfree(cmd_cache->data.vaddr);
+		dma_unmap_single(ab->dev, cmd_cache->data.qbuf.paddr_aligned,
+				 cmd_cache->data.qbuf.size, DMA_BIDIRECTIONAL);
+		kfree(cmd_cache->data.qbuf.vaddr);
 		kfree(cmd_cache);
 	}
 	spin_unlock_bh(&dp->reo_cmd_lock);
@@ -577,10 +577,10 @@ static void ath12k_dp_reo_cmd_free(struct ath12k_dp *dp, void *ctx,
 		ath12k_warn(dp->ab, "failed to flush rx tid hw desc, tid %d status %d\n",
 			    rx_tid->tid, status);
 
-	dma_unmap_single(dp->ab->dev, rx_tid->paddr, rx_tid->size,
+	dma_unmap_single(dp->ab->dev, rx_tid->qbuf.paddr_aligned, rx_tid->qbuf.size,
 			 DMA_BIDIRECTIONAL);
-	kfree(rx_tid->vaddr);
-	rx_tid->vaddr = NULL;
+	kfree(rx_tid->qbuf.vaddr);
+	rx_tid->qbuf.vaddr = NULL;
 }
 
 static int ath12k_dp_reo_cmd_send(struct ath12k_base *ab, struct ath12k_dp_rx_tid *rx_tid,
@@ -635,13 +635,13 @@ static void ath12k_dp_reo_cache_flush(struct ath12k_base *ab,
 	unsigned long tot_desc_sz, desc_sz;
 	int ret;
 
-	tot_desc_sz = rx_tid->size;
+	tot_desc_sz = rx_tid->qbuf.size;
 	desc_sz = ath12k_hal_reo_qdesc_size(0, HAL_DESC_REO_NON_QOS_TID);
 
 	while (tot_desc_sz > desc_sz) {
 		tot_desc_sz -= desc_sz;
-		cmd.addr_lo = lower_32_bits(rx_tid->paddr + tot_desc_sz);
-		cmd.addr_hi = upper_32_bits(rx_tid->paddr);
+		cmd.addr_lo = lower_32_bits(rx_tid->qbuf.paddr_aligned + tot_desc_sz);
+		cmd.addr_hi = upper_32_bits(rx_tid->qbuf.paddr_aligned);
 		ret = ath12k_dp_reo_cmd_send(ab, rx_tid,
 					     HAL_REO_CMD_FLUSH_CACHE, &cmd,
 					     NULL);
@@ -652,8 +652,8 @@ static void ath12k_dp_reo_cache_flush(struct ath12k_base *ab,
 	}
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.addr_lo = lower_32_bits(rx_tid->paddr);
-	cmd.addr_hi = upper_32_bits(rx_tid->paddr);
+	cmd.addr_lo = lower_32_bits(rx_tid->qbuf.paddr_aligned);
+	cmd.addr_hi = upper_32_bits(rx_tid->qbuf.paddr_aligned);
 	cmd.flag = HAL_REO_CMD_FLG_NEED_STATUS;
 	ret = ath12k_dp_reo_cmd_send(ab, rx_tid,
 				     HAL_REO_CMD_FLUSH_CACHE,
@@ -661,10 +661,10 @@ static void ath12k_dp_reo_cache_flush(struct ath12k_base *ab,
 	if (ret) {
 		ath12k_err(ab, "failed to send HAL_REO_CMD_FLUSH_CACHE cmd, tid %d (%d)\n",
 			   rx_tid->tid, ret);
-		dma_unmap_single(ab->dev, rx_tid->paddr, rx_tid->size,
+		dma_unmap_single(ab->dev, rx_tid->qbuf.paddr_aligned, rx_tid->qbuf.size,
 				 DMA_BIDIRECTIONAL);
-		kfree(rx_tid->vaddr);
-		rx_tid->vaddr = NULL;
+		kfree(rx_tid->qbuf.vaddr);
+		rx_tid->qbuf.vaddr = NULL;
 	}
 }
 
@@ -723,10 +723,10 @@ static void ath12k_dp_rx_tid_del_func(struct ath12k_dp *dp, void *ctx,
 
 	return;
 free_desc:
-	dma_unmap_single(ab->dev, rx_tid->paddr, rx_tid->size,
+	dma_unmap_single(ab->dev, rx_tid->qbuf.paddr_aligned, rx_tid->qbuf.size,
 			 DMA_BIDIRECTIONAL);
-	kfree(rx_tid->vaddr);
-	rx_tid->vaddr = NULL;
+	kfree(rx_tid->qbuf.vaddr);
+	rx_tid->qbuf.vaddr = NULL;
 }
 
 static void ath12k_peer_rx_tid_qref_setup(struct ath12k_base *ab, u16 peer_id, u16 tid,
@@ -796,8 +796,8 @@ void ath12k_dp_rx_peer_tid_delete(struct ath12k *ar,
 		return;
 
 	cmd.flag = HAL_REO_CMD_FLG_NEED_STATUS;
-	cmd.addr_lo = lower_32_bits(rx_tid->paddr);
-	cmd.addr_hi = upper_32_bits(rx_tid->paddr);
+	cmd.addr_lo = lower_32_bits(rx_tid->qbuf.paddr_aligned);
+	cmd.addr_hi = upper_32_bits(rx_tid->qbuf.paddr_aligned);
 	cmd.upd0 = HAL_REO_CMD_UPD0_VLD;
 	ret = ath12k_dp_reo_cmd_send(ar->ab, rx_tid,
 				     HAL_REO_CMD_UPDATE_RX_QUEUE, &cmd,
@@ -805,10 +805,10 @@ void ath12k_dp_rx_peer_tid_delete(struct ath12k *ar,
 	if (ret) {
 		ath12k_err(ar->ab, "failed to send HAL_REO_CMD_UPDATE_RX_QUEUE cmd, tid %d (%d)\n",
 			   tid, ret);
-		dma_unmap_single(ar->ab->dev, rx_tid->paddr, rx_tid->size,
-				 DMA_BIDIRECTIONAL);
-		kfree(rx_tid->vaddr);
-		rx_tid->vaddr = NULL;
+		dma_unmap_single(ar->ab->dev, rx_tid->qbuf.paddr_aligned,
+				 rx_tid->qbuf.size, DMA_BIDIRECTIONAL);
+		kfree(rx_tid->qbuf.vaddr);
+		rx_tid->qbuf.vaddr = NULL;
 	}
 
 	if (peer->mlo)
@@ -904,8 +904,8 @@ static int ath12k_peer_rx_tid_reo_update(struct ath12k *ar,
 	struct ath12k_hal_reo_cmd cmd = {0};
 	int ret;
 
-	cmd.addr_lo = lower_32_bits(rx_tid->paddr);
-	cmd.addr_hi = upper_32_bits(rx_tid->paddr);
+	cmd.addr_lo = lower_32_bits(rx_tid->qbuf.paddr_aligned);
+	cmd.addr_hi = upper_32_bits(rx_tid->qbuf.paddr_aligned);
 	cmd.flag = HAL_REO_CMD_FLG_NEED_STATUS;
 	cmd.upd0 = HAL_REO_CMD_UPD0_BA_WINDOW_SIZE;
 	cmd.ba_window_size = ba_win_sz;
@@ -940,7 +940,7 @@ int ath12k_dp_rx_peer_tid_setup(struct ath12k *ar, const u8 *peer_mac, int vdev_
 	struct ath12k_dp_rx_tid *rx_tid;
 	u32 hw_desc_sz;
 	void *vaddr;
-	dma_addr_t paddr;
+	dma_addr_t paddr_aligned;
 	int ret;
 
 	spin_lock_bh(&ab->base_lock);
@@ -974,7 +974,7 @@ int ath12k_dp_rx_peer_tid_setup(struct ath12k *ar, const u8 *peer_mac, int vdev_
 	rx_tid = &peer->rx_tid[tid];
 	/* Update the tid queue if it is already setup */
 	if (rx_tid->active) {
-		paddr = rx_tid->paddr;
+		paddr_aligned = rx_tid->qbuf.paddr_aligned;
 		ret = ath12k_peer_rx_tid_reo_update(ar, peer, rx_tid,
 						    ba_win_sz, ssn, true);
 		spin_unlock_bh(&ab->base_lock);
@@ -986,8 +986,8 @@ int ath12k_dp_rx_peer_tid_setup(struct ath12k *ar, const u8 *peer_mac, int vdev_
 		if (!ab->hw_params->reoq_lut_support) {
 			ret = ath12k_wmi_peer_rx_reorder_queue_setup(ar, vdev_id,
 								     peer_mac,
-								     paddr, tid, 1,
-								     ba_win_sz);
+								     paddr_aligned, tid,
+								     1, ba_win_sz);
 			if (ret) {
 				ath12k_warn(ab, "failed to setup peer rx reorder queuefor tid %d: %d\n",
 					    tid, ret);
@@ -1021,18 +1021,18 @@ int ath12k_dp_rx_peer_tid_setup(struct ath12k *ar, const u8 *peer_mac, int vdev_
 	ath12k_hal_reo_qdesc_setup(addr_aligned, tid, ba_win_sz,
 				   ssn, pn_type);
 
-	paddr = dma_map_single(ab->dev, addr_aligned, hw_desc_sz,
-			       DMA_BIDIRECTIONAL);
+	paddr_aligned = dma_map_single(ab->dev, addr_aligned, hw_desc_sz,
+				       DMA_BIDIRECTIONAL);
 
-	ret = dma_mapping_error(ab->dev, paddr);
+	ret = dma_mapping_error(ab->dev, paddr_aligned);
 	if (ret) {
 		spin_unlock_bh(&ab->base_lock);
 		goto err_mem_free;
 	}
 
-	rx_tid->vaddr = vaddr;
-	rx_tid->paddr = paddr;
-	rx_tid->size = hw_desc_sz;
+	rx_tid->qbuf.vaddr = vaddr;
+	rx_tid->qbuf.paddr_aligned = paddr_aligned;
+	rx_tid->qbuf.size = hw_desc_sz;
 	rx_tid->active = true;
 
 	if (ab->hw_params->reoq_lut_support) {
@@ -1040,15 +1040,18 @@ int ath12k_dp_rx_peer_tid_setup(struct ath12k *ar, const u8 *peer_mac, int vdev_
 		 * and tid with qaddr.
 		 */
 		if (peer->mlo)
-			ath12k_peer_rx_tid_qref_setup(ab, peer->ml_id, tid, paddr);
+			ath12k_peer_rx_tid_qref_setup(ab, peer->ml_id, tid,
+						      paddr_aligned);
 		else
-			ath12k_peer_rx_tid_qref_setup(ab, peer->peer_id, tid, paddr);
+			ath12k_peer_rx_tid_qref_setup(ab, peer->peer_id, tid,
+						      paddr_aligned);
 
 		spin_unlock_bh(&ab->base_lock);
 	} else {
 		spin_unlock_bh(&ab->base_lock);
 		ret = ath12k_wmi_peer_rx_reorder_queue_setup(ar, vdev_id, peer_mac,
-							     paddr, tid, 1, ba_win_sz);
+							     paddr_aligned, tid, 1,
+							     ba_win_sz);
 	}
 
 	return ret;
@@ -1191,8 +1194,8 @@ int ath12k_dp_rx_peer_pn_replay_config(struct ath12k_link_vif *arvif,
 		rx_tid = &peer->rx_tid[tid];
 		if (!rx_tid->active)
 			continue;
-		cmd.addr_lo = lower_32_bits(rx_tid->paddr);
-		cmd.addr_hi = upper_32_bits(rx_tid->paddr);
+		cmd.addr_lo = lower_32_bits(rx_tid->qbuf.paddr_aligned);
+		cmd.addr_hi = upper_32_bits(rx_tid->qbuf.paddr_aligned);
 		ret = ath12k_dp_reo_cmd_send(ab, rx_tid,
 					     HAL_REO_CMD_UPDATE_RX_QUEUE,
 					     &cmd, NULL);
@@ -3254,8 +3257,9 @@ static int ath12k_dp_rx_h_defrag_reo_reinject(struct ath12k *ar,
 		reo_ent_ring->queue_addr_lo = reo_dest_ring->rx_mpdu_info.peer_meta_data;
 		queue_addr_hi = 0;
 	} else {
-		reo_ent_ring->queue_addr_lo = cpu_to_le32(lower_32_bits(rx_tid->paddr));
-		queue_addr_hi = upper_32_bits(rx_tid->paddr);
+		reo_ent_ring->queue_addr_lo =
+				cpu_to_le32(lower_32_bits(rx_tid->qbuf.paddr_aligned));
+		queue_addr_hi = upper_32_bits(rx_tid->qbuf.paddr_aligned);
 	}
 
 	reo_ent_ring->info0 = le32_encode_bits(queue_addr_hi,

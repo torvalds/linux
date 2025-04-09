@@ -12,13 +12,17 @@
 
 #define DP_MAX_NWIFI_HDR_LEN	30
 
+struct ath12k_reoq_buf {
+	void *vaddr;
+	dma_addr_t paddr_aligned;
+	u32 size;
+};
+
 struct ath12k_dp_rx_tid {
 	u8 tid;
-	u32 *vaddr;
-	dma_addr_t paddr;
-	u32 size;
 	u32 ba_win_sz;
 	bool active;
+	struct ath12k_reoq_buf qbuf;
 
 	/* Info related to rx fragments */
 	u32 cur_sn;
