@@ -36,30 +36,30 @@ struct ines_priv {
 };
 
 // interface functions
-int ines_read(struct gpib_board *board, uint8_t *buffer, size_t length,
+int ines_read(struct gpib_board *board, u8 *buffer, size_t length,
 	      int *end, size_t *bytes_read);
-int ines_write(struct gpib_board *board, uint8_t *buffer, size_t length,
+int ines_write(struct gpib_board *board, u8 *buffer, size_t length,
 	       int send_eoi, size_t *bytes_written);
-int ines_accel_read(struct gpib_board *board, uint8_t *buffer, size_t length,
+int ines_accel_read(struct gpib_board *board, u8 *buffer, size_t length,
 		    int *end, size_t *bytes_read);
-int ines_accel_write(struct gpib_board *board, uint8_t *buffer, size_t length,
+int ines_accel_write(struct gpib_board *board, u8 *buffer, size_t length,
 		     int send_eoi, size_t *bytes_written);
-int ines_command(struct gpib_board *board, uint8_t *buffer, size_t length, size_t *bytes_written);
+int ines_command(struct gpib_board *board, u8 *buffer, size_t length, size_t *bytes_written);
 int ines_take_control(struct gpib_board *board, int synchronous);
 int ines_go_to_standby(struct gpib_board *board);
 void ines_request_system_control(struct gpib_board *board, int request_control);
 void ines_interface_clear(struct gpib_board *board, int assert);
 void ines_remote_enable(struct gpib_board *board, int enable);
-int ines_enable_eos(struct gpib_board *board, uint8_t eos_byte, int compare_8_bits);
+int ines_enable_eos(struct gpib_board *board, u8 eos_byte, int compare_8_bits);
 void ines_disable_eos(struct gpib_board *board);
 unsigned int ines_update_status(struct gpib_board *board, unsigned int clear_mask);
 int ines_primary_address(struct gpib_board *board, unsigned int address);
 int ines_secondary_address(struct gpib_board *board, unsigned int address, int enable);
-int ines_parallel_poll(struct gpib_board *board, uint8_t *result);
-void ines_parallel_poll_configure(struct gpib_board *board, uint8_t config);
+int ines_parallel_poll(struct gpib_board *board, u8 *result);
+void ines_parallel_poll_configure(struct gpib_board *board, u8 config);
 void ines_parallel_poll_response(struct gpib_board *board, int ist);
-void ines_serial_poll_response(struct gpib_board *board, uint8_t status);
-uint8_t ines_serial_poll_status(struct gpib_board *board);
+void ines_serial_poll_response(struct gpib_board *board, u8 status);
+u8 ines_serial_poll_status(struct gpib_board *board);
 int ines_line_status(const struct gpib_board *board);
 int ines_t1_delay(struct gpib_board *board, unsigned int nano_sec);
 void ines_return_to_local(struct gpib_board *board);
