@@ -460,7 +460,7 @@ static void intel_imc_init(struct cpuinfo_x86 *c)
 	case INTEL_SANDYBRIDGE_X:
 	case INTEL_IVYBRIDGE_X:
 	case INTEL_HASWELL_X:
-		if (rdmsrl_safe(MSR_ERROR_CONTROL, &error_control))
+		if (rdmsrq_safe(MSR_ERROR_CONTROL, &error_control))
 			return;
 		error_control |= 2;
 		wrmsrl_safe(MSR_ERROR_CONTROL, error_control);

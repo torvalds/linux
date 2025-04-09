@@ -748,7 +748,7 @@ static void check_hw_inj_possible(void)
 		toggle_hw_mce_inject(cpu, true);
 
 		wrmsrl_safe(mca_msr_reg(bank, MCA_STATUS), status);
-		rdmsrl_safe(mca_msr_reg(bank, MCA_STATUS), &status);
+		rdmsrq_safe(mca_msr_reg(bank, MCA_STATUS), &status);
 		wrmsrl_safe(mca_msr_reg(bank, MCA_STATUS), 0);
 
 		if (!status) {

@@ -176,11 +176,11 @@ static int __init isst_if_mbox_init(void)
 		return -ENODEV;
 
 	/* Check presence of mailbox MSRs */
-	ret = rdmsrl_safe(MSR_OS_MAILBOX_INTERFACE, &data);
+	ret = rdmsrq_safe(MSR_OS_MAILBOX_INTERFACE, &data);
 	if (ret)
 		return ret;
 
-	ret = rdmsrl_safe(MSR_OS_MAILBOX_DATA, &data);
+	ret = rdmsrq_safe(MSR_OS_MAILBOX_DATA, &data);
 	if (ret)
 		return ret;
 

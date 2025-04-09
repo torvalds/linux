@@ -116,7 +116,7 @@ static void rapl_msr_update_func(void *info)
 	struct reg_action *ra = info;
 	u64 val;
 
-	ra->err = rdmsrl_safe(ra->reg.msr, &val);
+	ra->err = rdmsrq_safe(ra->reg.msr, &val);
 	if (ra->err)
 		return;
 

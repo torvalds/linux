@@ -611,7 +611,7 @@ static int rapl_check_hw_unit(void)
 	int i;
 
 	/* protect rdmsrq() to handle virtualization */
-	if (rdmsrl_safe(rapl_model->msr_power_unit, &msr_rapl_power_unit_bits))
+	if (rdmsrq_safe(rapl_model->msr_power_unit, &msr_rapl_power_unit_bits))
 		return -1;
 	for (i = 0; i < NR_RAPL_PKG_DOMAINS; i++)
 		rapl_pkg_hw_unit[i] = (msr_rapl_power_unit_bits >> 8) & 0x1FULL;

@@ -90,9 +90,9 @@ static int amd_pstate_ut_check_enabled(u32 index)
 	if (get_shared_mem())
 		return 0;
 
-	ret = rdmsrl_safe(MSR_AMD_CPPC_ENABLE, &cppc_enable);
+	ret = rdmsrq_safe(MSR_AMD_CPPC_ENABLE, &cppc_enable);
 	if (ret) {
-		pr_err("%s rdmsrl_safe MSR_AMD_CPPC_ENABLE ret=%d error!\n", __func__, ret);
+		pr_err("%s rdmsrq_safe MSR_AMD_CPPC_ENABLE ret=%d error!\n", __func__, ret);
 		return ret;
 	}
 

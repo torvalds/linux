@@ -99,7 +99,7 @@ static bool __init turbo_disabled(void)
 	u64 misc_en;
 	int err;
 
-	err = rdmsrl_safe(MSR_IA32_MISC_ENABLE, &misc_en);
+	err = rdmsrq_safe(MSR_IA32_MISC_ENABLE, &misc_en);
 	if (err)
 		return false;
 
@@ -110,11 +110,11 @@ static bool __init slv_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq)
 {
 	int err;
 
-	err = rdmsrl_safe(MSR_ATOM_CORE_RATIOS, base_freq);
+	err = rdmsrq_safe(MSR_ATOM_CORE_RATIOS, base_freq);
 	if (err)
 		return false;
 
-	err = rdmsrl_safe(MSR_ATOM_CORE_TURBO_RATIOS, turbo_freq);
+	err = rdmsrq_safe(MSR_ATOM_CORE_TURBO_RATIOS, turbo_freq);
 	if (err)
 		return false;
 
@@ -152,13 +152,13 @@ static bool __init knl_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq,
 	int err, i;
 	u64 msr;
 
-	err = rdmsrl_safe(MSR_PLATFORM_INFO, base_freq);
+	err = rdmsrq_safe(MSR_PLATFORM_INFO, base_freq);
 	if (err)
 		return false;
 
 	*base_freq = (*base_freq >> 8) & 0xFF;	    /* max P state */
 
-	err = rdmsrl_safe(MSR_TURBO_RATIO_LIMIT, &msr);
+	err = rdmsrq_safe(MSR_TURBO_RATIO_LIMIT, &msr);
 	if (err)
 		return false;
 
@@ -190,17 +190,17 @@ static bool __init skx_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq, int s
 	u32 group_size;
 	int err, i;
 
-	err = rdmsrl_safe(MSR_PLATFORM_INFO, base_freq);
+	err = rdmsrq_safe(MSR_PLATFORM_INFO, base_freq);
 	if (err)
 		return false;
 
 	*base_freq = (*base_freq >> 8) & 0xFF;      /* max P state */
 
-	err = rdmsrl_safe(MSR_TURBO_RATIO_LIMIT, &ratios);
+	err = rdmsrq_safe(MSR_TURBO_RATIO_LIMIT, &ratios);
 	if (err)
 		return false;
 
-	err = rdmsrl_safe(MSR_TURBO_RATIO_LIMIT1, &counts);
+	err = rdmsrq_safe(MSR_TURBO_RATIO_LIMIT1, &counts);
 	if (err)
 		return false;
 
@@ -220,11 +220,11 @@ static bool __init core_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq)
 	u64 msr;
 	int err;
 
-	err = rdmsrl_safe(MSR_PLATFORM_INFO, base_freq);
+	err = rdmsrq_safe(MSR_PLATFORM_INFO, base_freq);
 	if (err)
 		return false;
 
-	err = rdmsrl_safe(MSR_TURBO_RATIO_LIMIT, &msr);
+	err = rdmsrq_safe(MSR_TURBO_RATIO_LIMIT, &msr);
 	if (err)
 		return false;
 

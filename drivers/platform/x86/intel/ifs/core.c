@@ -115,13 +115,13 @@ static int __init ifs_init(void)
 	if (!m)
 		return -ENODEV;
 
-	if (rdmsrl_safe(MSR_IA32_CORE_CAPS, &msrval))
+	if (rdmsrq_safe(MSR_IA32_CORE_CAPS, &msrval))
 		return -ENODEV;
 
 	if (!(msrval & MSR_IA32_CORE_CAPS_INTEGRITY_CAPS))
 		return -ENODEV;
 
-	if (rdmsrl_safe(MSR_INTEGRITY_CAPS, &msrval))
+	if (rdmsrq_safe(MSR_INTEGRITY_CAPS, &msrval))
 		return -ENODEV;
 
 	ifs_pkg_auth = kmalloc_array(topology_max_packages(), sizeof(bool), GFP_KERNEL);

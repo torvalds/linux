@@ -488,7 +488,7 @@ static void init_cpuid_fault(struct cpuinfo_x86 *c)
 {
 	u64 msr;
 
-	if (!rdmsrl_safe(MSR_PLATFORM_INFO, &msr)) {
+	if (!rdmsrq_safe(MSR_PLATFORM_INFO, &msr)) {
 		if (msr & MSR_PLATFORM_INFO_CPUID_FAULT)
 			set_cpu_cap(c, X86_FEATURE_CPUID_FAULT);
 	}
@@ -498,7 +498,7 @@ static void init_intel_misc_features(struct cpuinfo_x86 *c)
 {
 	u64 msr;
 
-	if (rdmsrl_safe(MSR_MISC_FEATURES_ENABLES, &msr))
+	if (rdmsrq_safe(MSR_MISC_FEATURES_ENABLES, &msr))
 		return;
 
 	/* Clear all MISC features */

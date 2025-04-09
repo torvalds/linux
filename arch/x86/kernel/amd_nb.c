@@ -151,7 +151,7 @@ struct resource *amd_get_mmconfig_range(struct resource *res)
 
 	/* Assume CPUs from Fam10h have mmconfig, although not all VMs do */
 	if (boot_cpu_data.x86 < 0x10 ||
-	    rdmsrl_safe(MSR_FAM10H_MMIO_CONF_BASE, &msr))
+	    rdmsrq_safe(MSR_FAM10H_MMIO_CONF_BASE, &msr))
 		return NULL;
 
 	/* mmconfig is not enabled */

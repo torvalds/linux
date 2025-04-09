@@ -148,7 +148,7 @@ static void ppin_init(struct cpuinfo_x86 *c)
 	 */
 	info = (struct ppin_info *)id->driver_data;
 
-	if (rdmsrl_safe(info->msr_ppin_ctl, &val))
+	if (rdmsrq_safe(info->msr_ppin_ctl, &val))
 		goto clear_ppin;
 
 	if ((val & 3UL) == 1UL) {
@@ -159,7 +159,7 @@ static void ppin_init(struct cpuinfo_x86 *c)
 	/* If PPIN is disabled, try to enable */
 	if (!(val & 2UL)) {
 		wrmsrl_safe(info->msr_ppin_ctl,  val | 2UL);
-		rdmsrl_safe(info->msr_ppin_ctl, &val);
+		rdmsrq_safe(info->msr_ppin_ctl, &val);
 	}
 
 	/* Is the enable bit set? */

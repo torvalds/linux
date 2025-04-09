@@ -231,7 +231,7 @@ static inline void wrmsrq(unsigned msr, u64 val)
 	_err;						\
 })
 
-static inline int rdmsrl_safe(unsigned msr, u64 *p)
+static inline int rdmsrq_safe(unsigned msr, u64 *p)
 {
 	int err;
 

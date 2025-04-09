@@ -41,7 +41,7 @@ static int msr_read(u32 msr, struct msr *m)
 	int err;
 	u64 val;
 
-	err = rdmsrl_safe(msr, &val);
+	err = rdmsrq_safe(msr, &val);
 	if (!err)
 		m->q = val;
 

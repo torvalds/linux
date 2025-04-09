@@ -5610,7 +5610,7 @@ static bool check_msr(unsigned long msr, u64 mask)
 	 * matches, this is needed to detect certain hardware emulators
 	 * (qemu/kvm) that don't trap on the MSR access and always return 0s.
 	 */
-	if (rdmsrl_safe(msr, &val_old))
+	if (rdmsrq_safe(msr, &val_old))
 		return false;
 
 	/*
@@ -5622,7 +5622,7 @@ static bool check_msr(unsigned long msr, u64 mask)
 		val_tmp = lbr_from_signext_quirk_wr(val_tmp);
 
 	if (wrmsrl_safe(msr, val_tmp) ||
-	    rdmsrl_safe(msr, &val_new))
+	    rdmsrq_safe(msr, &val_new))
 		return false;
 
 	/*

@@ -157,7 +157,7 @@ static int tpmi_get_logical_id(unsigned int cpu, struct tpmi_cpu_info *info)
 	u64 data;
 	int ret;
 
-	ret = rdmsrl_safe(MSR_PM_LOGICAL_ID, &data);
+	ret = rdmsrq_safe(MSR_PM_LOGICAL_ID, &data);
 	if (ret)
 		return ret;
 
@@ -203,7 +203,7 @@ static int __init tpmi_init(void)
 		return -ENODEV;
 
 	/* Check for MSR 0x54 presence */
-	ret = rdmsrl_safe(MSR_PM_LOGICAL_ID, &data);
+	ret = rdmsrq_safe(MSR_PM_LOGICAL_ID, &data);
 	if (ret)
 		return ret;
 

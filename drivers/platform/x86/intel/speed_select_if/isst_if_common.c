@@ -406,7 +406,7 @@ static int isst_if_cpu_online(unsigned int cpu)
 
 	isst_cpu_info[cpu].numa_node = cpu_to_node(cpu);
 
-	ret = rdmsrl_safe(MSR_CPU_BUS_NUMBER, &data);
+	ret = rdmsrq_safe(MSR_CPU_BUS_NUMBER, &data);
 	if (ret) {
 		/* This is not a fatal error on MSR mailbox only I/F */
 		isst_cpu_info[cpu].bus_info[0] = -1;
@@ -420,12 +420,12 @@ static int isst_if_cpu_online(unsigned int cpu)
 
 	if (isst_hpm_support) {
 
-		ret = rdmsrl_safe(MSR_PM_LOGICAL_ID, &data);
+		ret = rdmsrq_safe(MSR_PM_LOGICAL_ID, &data);
 		if (!ret)
 			goto set_punit_id;
 	}
 
-	ret = rdmsrl_safe(MSR_THREAD_ID_INFO, &data);
+	ret = rdmsrq_safe(MSR_THREAD_ID_INFO, &data);
 	if (ret) {
 		isst_cpu_info[cpu].punit_cpu_id = -1;
 		return ret;
@@ -831,8 +831,8 @@ static int __init isst_if_common_init(void)
 		u64 data;
 
 		/* Can fail only on some Skylake-X generations */
-		if (rdmsrl_safe(MSR_OS_MAILBOX_INTERFACE, &data) ||
-		    rdmsrl_safe(MSR_OS_MAILBOX_DATA, &data))
+		if (rdmsrq_safe(MSR_OS_MAILBOX_INTERFACE, &data) ||
+		    rdmsrq_safe(MSR_OS_MAILBOX_DATA, &data))
 			return -ENODEV;
 	}
 

@@ -48,7 +48,7 @@ static int get_oc_core_priority(unsigned int cpu)
 	}
 
 	for (i = 0; i < OC_MAILBOX_RETRY_COUNT; ++i) {
-		ret = rdmsrl_safe(MSR_OC_MAILBOX, &value);
+		ret = rdmsrq_safe(MSR_OC_MAILBOX, &value);
 		if (ret) {
 			pr_debug("cpu %d OC mailbox read failed\n", cpu);
 			break;

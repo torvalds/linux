@@ -153,7 +153,7 @@ static ssize_t tcc_offset_degree_celsius_store(struct device *dev,
 	u64 val;
 	int err;
 
-	err = rdmsrl_safe(MSR_PLATFORM_INFO, &val);
+	err = rdmsrq_safe(MSR_PLATFORM_INFO, &val);
 	if (err)
 		return err;
 
