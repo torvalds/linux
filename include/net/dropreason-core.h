@@ -287,6 +287,7 @@ enum skb_drop_reason {
 	/**
 	 * @SKB_DROP_REASON_TCP_RFC7323_TW_PAWS: PAWS check, socket is in
 	 * TIME_WAIT state.
+	 * Corresponds to LINUX_MIB_PAWS_TW_REJECTED.
 	 */
 	SKB_DROP_REASON_TCP_RFC7323_TW_PAWS,
 	/**
