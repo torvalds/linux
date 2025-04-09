@@ -516,21 +516,19 @@ struct thread_struct {
 #endif
 
 	/* Floating point and extended processor state */
-	struct fpu		fpu;
-	/*
-	 * WARNING: 'fpu' is dynamically-sized.  It *MUST* be at
-	 * the end.
-	 */
+	struct fpu		*fpu;
 };
 
-#define x86_task_fpu(task) (&(task)->thread.fpu)
+#define x86_task_fpu(task) ((task)->thread.fpu)
 
-extern void fpu_thread_struct_whitelist(unsigned long *offset, unsigned long *size);
-
-static inline void arch_thread_struct_whitelist(unsigned long *offset,
-						unsigned long *size)
+/*
+ * X86 doesn't need any embedded-FPU-struct quirks:
+ */
+static inline void
+arch_thread_struct_whitelist(unsigned long *offset, unsigned long *size)
 {
-	fpu_thread_struct_whitelist(offset, size);
+	*offset = 0;
+	*size = 0;
 }
 
 static inline void

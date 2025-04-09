@@ -103,7 +103,7 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	dst->thread.vm86 = NULL;
 #endif
 	/* Drop the copied pointer to current's fpstate */
-	x86_task_fpu(dst)->fpstate = NULL;
+	dst->thread.fpu = NULL;
 
 	return 0;
 }
