@@ -5620,7 +5620,7 @@ static int ath12k_mac_station_add(struct ath12k *ar,
 		goto exit;
 	}
 
-	if (!arsta->rx_stats) {
+	if (ath12k_debugfs_is_extd_rx_stats_enabled(ar) && !arsta->rx_stats) {
 		arsta->rx_stats = kzalloc(sizeof(*arsta->rx_stats), GFP_KERNEL);
 		if (!arsta->rx_stats) {
 			ret = -ENOMEM;
