@@ -523,6 +523,8 @@ struct thread_struct {
 	 */
 };
 
+#define x86_task_fpu(task) (&(task)->thread.fpu)
+
 extern void fpu_thread_struct_whitelist(unsigned long *offset, unsigned long *size);
 
 static inline void arch_thread_struct_whitelist(unsigned long *offset,
