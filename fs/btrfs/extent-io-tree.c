@@ -691,12 +691,11 @@ hit_next:
 		if (!prealloc)
 			goto search_again;
 		err = split_state(tree, state, prealloc, start);
-		if (err)
-			extent_io_tree_panic(tree, state, "split", err);
-
 		prealloc = NULL;
-		if (err)
+		if (err) {
+			extent_io_tree_panic(tree, state, "split", err);
 			goto out;
+		}
 		if (state->end <= end) {
 			state = clear_state_bit(tree, state, bits, wake, changeset);
 			goto next;
