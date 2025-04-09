@@ -857,7 +857,7 @@ static inline __poll_t do_pollfd(struct pollfd *pollfd, poll_table *pwait,
 	int fd = pollfd->fd;
 	__poll_t mask, filter;
 
-	if (fd < 0)
+	if (unlikely(fd < 0))
 		return 0;
 
 	CLASS(fd, f)(fd);
