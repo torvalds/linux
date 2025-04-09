@@ -481,10 +481,10 @@ void crypto_unregister_alg(struct crypto_alg *alg)
 	if (WARN(ret, "Algorithm %s is not registered", alg->cra_driver_name))
 		return;
 
-	if (WARN_ON(refcount_read(&alg->cra_refcnt) != 1))
-		return;
-
-	if (alg->cra_type && alg->cra_type->destroy)
+	if (alg->cra_destroy)
+		crypto_alg_put(alg);
+	else if (!WARN_ON(refcount_read(&alg->cra_refcnt) != 1) &&
+		 alg->cra_type && alg->cra_type->destroy)
 		alg->cra_type->destroy(alg);
 
 	crypto_remove_final(&list);
