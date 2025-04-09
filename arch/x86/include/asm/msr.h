@@ -63,12 +63,12 @@ struct saved_msrs {
 DECLARE_TRACEPOINT(read_msr);
 DECLARE_TRACEPOINT(write_msr);
 DECLARE_TRACEPOINT(rdpmc);
-extern void do_trace_write_msr(unsigned int msr, u64 val, int failed);
-extern void do_trace_read_msr(unsigned int msr, u64 val, int failed);
+extern void do_trace_write_msr(u32 msr, u64 val, int failed);
+extern void do_trace_read_msr(u32 msr, u64 val, int failed);
 extern void do_trace_rdpmc(u32 msr, u64 val, int failed);
 #else
-static inline void do_trace_write_msr(unsigned int msr, u64 val, int failed) {}
-static inline void do_trace_read_msr(unsigned int msr, u64 val, int failed) {}
+static inline void do_trace_write_msr(u32 msr, u64 val, int failed) {}
+static inline void do_trace_read_msr(u32 msr, u64 val, int failed) {}
 static inline void do_trace_rdpmc(u32 msr, u64 val, int failed) {}
 #endif
 
@@ -79,7 +79,7 @@ static inline void do_trace_rdpmc(u32 msr, u64 val, int failed) {}
  * think of extending them - you will be slapped with a stinking trout or a frozen
  * shark will reach you, wherever you are! You've been warned.
  */
-static __always_inline u64 __rdmsr(unsigned int msr)
+static __always_inline u64 __rdmsr(u32 msr)
 {
 	DECLARE_ARGS(val, low, high);
 
@@ -91,7 +91,7 @@ static __always_inline u64 __rdmsr(unsigned int msr)
 	return EAX_EDX_VAL(val, low, high);
 }
 
-static __always_inline void __wrmsr(unsigned int msr, u32 low, u32 high)
+static __always_inline void __wrmsr(u32 msr, u32 low, u32 high)
 {
 	asm volatile("1: wrmsr\n"
 		     "2:\n"
@@ -113,7 +113,7 @@ do {							\
 	__wrmsr((msr), (u32)((u64)(val)),		\
 		       (u32)((u64)(val) >> 32))
 
-static inline u64 native_read_msr(unsigned int msr)
+static inline u64 native_read_msr(u32 msr)
 {
 	u64 val;
 
@@ -125,8 +125,7 @@ static inline u64 native_read_msr(unsigned int msr)
 	return val;
 }
 
-static inline u64 native_read_msr_safe(unsigned int msr,
-						      int *err)
+static inline u64 native_read_msr_safe(u32 msr, int *err)
 {
 	DECLARE_ARGS(val, low, high);
 
@@ -142,7 +141,7 @@ static inline u64 native_read_msr_safe(unsigned int msr,
 
 /* Can be uninlined because referenced by paravirt */
 static inline void notrace
-native_write_msr(unsigned int msr, u32 low, u32 high)
+native_write_msr(u32 msr, u32 low, u32 high)
 {
 	__wrmsr(msr, low, high);
 
@@ -152,7 +151,7 @@ native_write_msr(unsigned int msr, u32 low, u32 high)
 
 /* Can be uninlined because referenced by paravirt */
 static inline int notrace
-native_write_msr_safe(unsigned int msr, u32 low, u32 high)
+native_write_msr_safe(u32 msr, u32 low, u32 high)
 {
 	int err;
 
@@ -251,7 +250,7 @@ do {								\
 	(void)((high) = (u32)(__val >> 32));			\
 } while (0)
 
-static inline void wrmsr(unsigned int msr, u32 low, u32 high)
+static inline void wrmsr(u32 msr, u32 low, u32 high)
 {
 	native_write_msr(msr, low, high);
 }
@@ -259,13 +258,13 @@ static inline void wrmsr(unsigned int msr, u32 low, u32 high)
 #define rdmsrl(msr, val)			\
 	((val) = native_read_msr((msr)))
 
-static inline void wrmsrl(unsigned int msr, u64 val)
+static inline void wrmsrl(u32 msr, u64 val)
 {
 	native_write_msr(msr, (u32)(val & 0xffffffffULL), (u32)(val >> 32));
 }
 
 /* wrmsr with exception handling */
-static inline int wrmsr_safe(unsigned int msr, u32 low, u32 high)
+static inline int wrmsr_safe(u32 msr, u32 low, u32 high)
 {
 	return native_write_msr_safe(msr, low, high);
 }
@@ -280,7 +279,7 @@ static inline int wrmsr_safe(unsigned int msr, u32 low, u32 high)
 	__err;							\
 })
 
-static inline int rdmsrl_safe(unsigned int msr, u64 *p)
+static inline int rdmsrl_safe(u32 msr, u64 *p)
 {
 	int err;
 
