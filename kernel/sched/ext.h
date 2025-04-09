@@ -21,6 +21,7 @@ void scx_rq_activate(struct rq *rq);
 void scx_rq_deactivate(struct rq *rq);
 int scx_check_setscheduler(struct task_struct *p, int policy);
 bool task_should_scx(int policy);
+bool scx_allow_ttwu_queue(const struct task_struct *p);
 void init_sched_ext_class(void);
 
 static inline u32 scx_cpuperf_target(s32 cpu)
@@ -34,13 +35,6 @@ static inline u32 scx_cpuperf_target(s32 cpu)
 static inline bool task_on_scx(const struct task_struct *p)
 {
 	return scx_enabled() && p->sched_class == &ext_sched_class;
-}
-
-static inline bool scx_allow_ttwu_queue(const struct task_struct *p)
-{
-	return !scx_enabled() ||
-		static_branch_likely(&scx_ops_allow_queued_wakeup) ||
-		p->sched_class != &ext_sched_class;
 }
 
 #ifdef CONFIG_SCHED_CORE
