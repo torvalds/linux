@@ -38,6 +38,7 @@
 #include "../pcm.h"
 #include "../power.h"
 
+#include "mixer_usb_offload.h"
 #include "usb_audio_qmi_v01.h"
 
 /* Stream disable request timeout during USB device disconnect */
@@ -1792,6 +1793,7 @@ static void qc_usb_audio_offload_probe(struct snd_usb_audio *chip)
 		sdev->card_idx = chip->card->number;
 		sdev->chip_idx = chip->index;
 
+		snd_usb_offload_create_ctl(chip, uaudio_qdev->auxdev->dev.parent);
 		snd_soc_usb_connect(uaudio_qdev->auxdev->dev.parent, sdev);
 	}
 
