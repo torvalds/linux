@@ -10,8 +10,6 @@ int ibclose(struct inode *inode, struct file *file);
 long ibioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 void os_start_timer(struct gpib_board *board, unsigned int usec_timeout);
 void os_remove_timer(struct gpib_board *board);
-void osSendEOI(void);
-void osSendEOI(void);
 void init_gpib_board(struct gpib_board *board);
 static inline unsigned long usec_to_jiffies(unsigned int usec)
 {
