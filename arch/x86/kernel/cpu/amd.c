@@ -49,7 +49,7 @@ static inline int rdmsrq_amd_safe(unsigned msr, u64 *p)
 	return err;
 }
 
-static inline int wrmsrl_amd_safe(unsigned msr, u64 val)
+static inline int wrmsrq_amd_safe(unsigned msr, u64 val)
 {
 	u32 gprs[8] = { 0 };
 
@@ -638,7 +638,7 @@ static void init_amd_k8(struct cpuinfo_x86 *c)
 		clear_cpu_cap(c, X86_FEATURE_LAHF_LM);
 		if (!rdmsrq_amd_safe(0xc001100d, &value)) {
 			value &= ~BIT_64(32);
-			wrmsrl_amd_safe(0xc001100d, value);
+			wrmsrq_amd_safe(0xc001100d, value);
 		}
 	}
 
