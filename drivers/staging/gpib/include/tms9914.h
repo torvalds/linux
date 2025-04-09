@@ -79,11 +79,11 @@ enum {
 };
 
 // interface functions
-int tms9914_read(struct gpib_board *board, struct tms9914_priv *priv, uint8_t *buffer,
+int tms9914_read(struct gpib_board *board, struct tms9914_priv *priv, u8 *buffer,
 		 size_t length, int *end, size_t *bytes_read);
-int tms9914_write(struct gpib_board *board, struct tms9914_priv *priv, uint8_t *buffer,
+int tms9914_write(struct gpib_board *board, struct tms9914_priv *priv, u8 *buffer,
 		  size_t length, int send_eoi, size_t *bytes_written);
-int tms9914_command(struct gpib_board *board, struct tms9914_priv *priv, uint8_t *buffer,
+int tms9914_command(struct gpib_board *board, struct tms9914_priv *priv, u8 *buffer,
 		    size_t length, size_t *bytes_written);
 int tms9914_take_control(struct gpib_board *board, struct tms9914_priv *priv, int syncronous);
 /* alternate version of tms9914_take_control which works around buggy tcs
@@ -96,7 +96,7 @@ void tms9914_request_system_control(struct gpib_board *board, struct tms9914_pri
 				    int request_control);
 void tms9914_interface_clear(struct gpib_board *board, struct tms9914_priv *priv, int assert);
 void tms9914_remote_enable(struct gpib_board *board, struct tms9914_priv *priv, int enable);
-int tms9914_enable_eos(struct gpib_board *board, struct tms9914_priv *priv, uint8_t eos_bytes,
+int tms9914_enable_eos(struct gpib_board *board, struct tms9914_priv *priv, u8 eos_bytes,
 		       int compare_8_bits);
 void tms9914_disable_eos(struct gpib_board *board, struct tms9914_priv *priv);
 unsigned int tms9914_update_status(struct gpib_board *board, struct tms9914_priv *priv,
@@ -105,14 +105,14 @@ int tms9914_primary_address(struct gpib_board *board,
 			    struct tms9914_priv *priv, unsigned int address);
 int tms9914_secondary_address(struct gpib_board *board, struct tms9914_priv *priv,
 			      unsigned int address, int enable);
-int tms9914_parallel_poll(struct gpib_board *board, struct tms9914_priv *priv, uint8_t *result);
+int tms9914_parallel_poll(struct gpib_board *board, struct tms9914_priv *priv, u8 *result);
 void tms9914_parallel_poll_configure(struct gpib_board *board,
-				     struct tms9914_priv *priv, uint8_t config);
+				     struct tms9914_priv *priv, u8 config);
 void tms9914_parallel_poll_response(struct gpib_board *board,
 				    struct tms9914_priv *priv, int ist);
 void tms9914_serial_poll_response(struct gpib_board *board,
-				  struct tms9914_priv *priv, uint8_t status);
-uint8_t tms9914_serial_poll_status(struct gpib_board *board, struct tms9914_priv *priv);
+				  struct tms9914_priv *priv, u8 status);
+u8 tms9914_serial_poll_status(struct gpib_board *board, struct tms9914_priv *priv);
 int tms9914_line_status(const struct gpib_board *board, struct tms9914_priv *priv);
 unsigned int tms9914_t1_delay(struct gpib_board *board, struct tms9914_priv *priv,
 			      unsigned int nano_sec);
@@ -125,10 +125,10 @@ void tms9914_release_holdoff(struct tms9914_priv *priv);
 void tms9914_set_holdoff_mode(struct tms9914_priv *priv, enum tms9914_holdoff_mode mode);
 
 // wrappers for io functions
-uint8_t tms9914_ioport_read_byte(struct tms9914_priv *priv, unsigned int register_num);
-void tms9914_ioport_write_byte(struct tms9914_priv *priv, uint8_t data, unsigned int register_num);
-uint8_t tms9914_iomem_read_byte(struct tms9914_priv *priv, unsigned int register_num);
-void tms9914_iomem_write_byte(struct tms9914_priv *priv, uint8_t data, unsigned int register_num);
+u8 tms9914_ioport_read_byte(struct tms9914_priv *priv, unsigned int register_num);
+void tms9914_ioport_write_byte(struct tms9914_priv *priv, u8 data, unsigned int register_num);
+u8 tms9914_iomem_read_byte(struct tms9914_priv *priv, unsigned int register_num);
+void tms9914_iomem_write_byte(struct tms9914_priv *priv, u8 data, unsigned int register_num);
 
 // interrupt service routine
 irqreturn_t tms9914_interrupt(struct gpib_board *board, struct tms9914_priv *priv);
