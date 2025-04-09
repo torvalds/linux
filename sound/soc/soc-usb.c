@@ -72,6 +72,32 @@ void *snd_soc_usb_find_priv_data(struct device *usbdev)
 EXPORT_SYMBOL_GPL(snd_soc_usb_find_priv_data);
 
 /**
+ * snd_soc_usb_find_supported_format() - Check if audio format is supported
+ * @card_idx: USB sound chip array index
+ * @params: PCM parameters
+ * @direction: capture or playback
+ *
+ * Ensure that a requested audio profile from the ASoC side is able to be
+ * supported by the USB device.
+ *
+ * Return 0 on success, negative on error.
+ *
+ */
+int snd_soc_usb_find_supported_format(int card_idx,
+				      struct snd_pcm_hw_params *params,
+				      int direction)
+{
+	struct snd_usb_stream *as;
+
+	as = snd_usb_find_suppported_substream(card_idx, params, direction);
+	if (!as)
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_usb_find_supported_format);
+
+/**
  * snd_soc_usb_allocate_port() - allocate a SoC USB port for offloading support
  * @component: USB DPCM backend DAI component
  * @data: private data
