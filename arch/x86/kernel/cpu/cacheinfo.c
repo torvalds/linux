@@ -89,9 +89,13 @@ static const enum cache_type cache_type_map[] = {
 /*
  * Fallback AMD CPUID(4) emulation
  * AMD CPUs with TOPOEXT can just use CPUID(0x8000001d)
+ *
+ * @AMD_L2_L3_INVALID_ASSOC: cache info for the respective L2/L3 cache should
+ * be determined from CPUID(0x8000001d) instead of CPUID(0x80000006).
  */
 
 #define AMD_CPUID4_FULLY_ASSOCIATIVE	0xffff
+#define AMD_L2_L3_INVALID_ASSOC		0x9
 
 union l1_cache {
 	struct {
@@ -128,7 +132,9 @@ union l3_cache {
 static const unsigned short assocs[] = {
 	[1]		= 1,
 	[2]		= 2,
+	[3]		= 3,
 	[4]		= 4,
+	[5]		= 6,
 	[6]		= 8,
 	[8]		= 16,
 	[0xa]		= 32,
@@ -172,7 +178,7 @@ static void legacy_amd_cpuid4(int index, union _cpuid4_leaf_eax *eax,
 		size_in_kb	= l1->size_in_kb;
 		break;
 	case 2:
-		if (!l2.val)
+		if (!l2.assoc || l2.assoc == AMD_L2_L3_INVALID_ASSOC)
 			return;
 
 		/* Use x86_cache_size as it might have K7 errata fixes */
@@ -182,7 +188,7 @@ static void legacy_amd_cpuid4(int index, union _cpuid4_leaf_eax *eax,
 		size_in_kb	= __this_cpu_read(cpu_info.x86_cache_size);
 		break;
 	case 3:
-		if (!l3.val)
+		if (!l3.assoc || l3.assoc == AMD_L2_L3_INVALID_ASSOC)
 			return;
 
 		assoc		= assocs[l3.assoc];
