@@ -1123,6 +1123,7 @@ enum bpf_attach_type {
 	__MAX_BPF_ATTACH_TYPE
 };
 
+#define BPF_BIO_OPS_TYPE_ID 1
 #define MAX_BPF_ATTACH_TYPE __MAX_BPF_ATTACH_TYPE
 
 /* Add BPF_LINK_TYPE(type, name) in bpf_types.h to keep bpf_link_type_strs[]

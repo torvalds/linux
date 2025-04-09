@@ -6,6 +6,7 @@
 #include <linux/swap.h>
 #include <linux/bio-integrity.h>
 #include <linux/blkdev.h>
+#include <linux/bpf_bio.h>
 #include <linux/uio.h>
 #include <linux/iocontext.h>
 #include <linux/slab.h>
@@ -1507,7 +1508,7 @@ static inline bool bio_remaining_done(struct bio *bio)
  **/
 void bio_endio(struct bio *bio)
 {
-again:
+	again:
 	if (!bio_remaining_done(bio))
 		return;
 	if (!bio_integrity_endio(bio))
@@ -1535,6 +1536,11 @@ again:
 		goto again;
 	}
 
+	/* Call BPF hook if registered */
+	if (static_branch_unlikely(&bpf_bio_ops_enabled) && 
+		bpf_bio_ops && bpf_bio_ops->bio_endio_hook)
+		bpf_bio_ops->bio_endio_hook(bio);
+
 #ifdef CONFIG_BLK_CGROUP
 	/*
 	 * Release cgroup info.  We shouldn't have to do this here, but quite
@@ -1550,7 +1556,7 @@ again:
 	if (bio->bi_end_io)
 		bio->bi_end_io(bio);
 }
-EXPORT_SYMBOL(bio_endio);
+EXPORT_SYMBOL_GPL(bio_endio);
 
 /**
  * bio_split - split a bio

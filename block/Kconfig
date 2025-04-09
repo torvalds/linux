@@ -231,4 +231,17 @@ config BLK_MQ_STACKING
 
 source "block/Kconfig.iosched"
 
+config BPF_BIO
+	bool "BPF programs for block I/O operations"
+	depends on BPF_SYSCALL
+	help
+	  Enable support for BPF programs to hook into block I/O operations.
+	  This allows for custom filtering, interposition, and tracing of
+	  block I/O operations using BPF programs.
+
+	  When no BPF program is attached, the performance impact is
+	  negligible due to static branch optimization.
+
+	  If unsure, say N.
+
 endif # BLOCK

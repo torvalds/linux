@@ -40,6 +40,7 @@
 #include <linux/part_stat.h>
 #include <linux/sched/sysctl.h>
 #include <linux/blk-crypto.h>
+#include <linux/bpf_bio.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/block.h>
@@ -902,8 +903,10 @@ static void bio_set_ioprio(struct bio *bio)
  * completion, is delivered asynchronously through the ->bi_end_io() callback
  * in @bio.  The bio must NOT be touched by the caller until ->bi_end_io() has
  * been called.
+ * 
+ * submit_bio() returns 0 on success.
  */
-void submit_bio(struct bio *bio)
+blk_qc_t submit_bio(struct bio *bio)
 {
 	if (bio_op(bio) == REQ_OP_READ) {
 		task_io_account_read(bio->bi_iter.bi_size);
@@ -913,7 +916,22 @@ void submit_bio(struct bio *bio)
 	}
 
 	bio_set_ioprio(bio);
+
+	/* Call BPF hook if registered */
+	if (static_branch_unlikely(&bpf_bio_ops_enabled) && 
+		bpf_bio_ops && bpf_bio_ops->submit_bio_hook) {
+		int ret = bpf_bio_ops->submit_bio_hook(bio);
+		if (ret > 0)
+			return BLK_QC_T_NONE; /* BPF handled it */
+		if (ret < 0) {
+			bio->bi_status = ret;
+			bio_endio(bio);
+			return BLK_QC_T_NONE;
+		}
+	}
+
 	submit_bio_noacct(bio);
+	return BLK_QC_T_NONE;
 }
 EXPORT_SYMBOL(submit_bio);
 
@@ -1279,6 +1297,10 @@ int __init blk_dev_init(void)
 	blk_requestq_cachep = KMEM_CACHE(request_queue, SLAB_PANIC);
 
 	blk_debugfs_root = debugfs_create_dir("block", NULL);
+
+	#ifdef CONFIG_BPF_BIO
+		bpf_bio_ops_init();
+	#endif
 
 	return 0;
 }
