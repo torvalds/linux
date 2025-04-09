@@ -173,6 +173,11 @@ enum scx_ops_flags {
 					  SCX_OPS_SWITCH_PARTIAL |
 					  SCX_OPS_BUILTIN_IDLE_PER_NODE |
 					  SCX_OPS_HAS_CGROUP_WEIGHT,
+
+	/* high 8 bits are internal, don't include in SCX_OPS_ALL_FLAGS */
+	__SCX_OPS_INTERNAL_MASK		= 0xffLLU << 56,
+
+	SCX_OPS_HAS_CPU_PREEMPT		= 1LLU << 56,
 };
 
 /* argument container for ops.init_task() */
@@ -924,7 +929,6 @@ static struct sched_ext_ops scx_ops;
 static bool scx_warned_zero_slice;
 
 DEFINE_STATIC_KEY_FALSE(scx_ops_allow_queued_wakeup);
-static DEFINE_STATIC_KEY_FALSE(scx_ops_cpu_preempt);
 
 static struct static_key_false scx_has_op[SCX_OPI_END] =
 	{ [0 ... SCX_OPI_END-1] = STATIC_KEY_FALSE_INIT };
@@ -2931,7 +2935,7 @@ static int balance_one(struct rq *rq, struct task_struct *prev)
 	rq->scx.flags |= SCX_RQ_IN_BALANCE;
 	rq->scx.flags &= ~(SCX_RQ_BAL_PENDING | SCX_RQ_BAL_KEEP);
 
-	if (static_branch_unlikely(&scx_ops_cpu_preempt) &&
+	if ((scx_ops.flags & SCX_OPS_HAS_CPU_PREEMPT) &&
 	    unlikely(rq->scx.cpu_released)) {
 		/*
 		 * If the previous sched_class for the current CPU was not SCX,
@@ -3160,7 +3164,7 @@ static void switch_class(struct rq *rq, struct task_struct *next)
 	 */
 	smp_store_release(&rq->scx.pnt_seq, rq->scx.pnt_seq + 1);
 #endif
-	if (!static_branch_unlikely(&scx_ops_cpu_preempt))
+	if (!(scx_ops.flags & SCX_OPS_HAS_CPU_PREEMPT))
 		return;
 
 	/*
@@ -4725,7 +4729,6 @@ static void scx_disable_workfn(struct kthread_work *work)
 	for (i = SCX_OPI_BEGIN; i < SCX_OPI_END; i++)
 		static_branch_disable(&scx_has_op[i]);
 	static_branch_disable(&scx_ops_allow_queued_wakeup);
-	static_branch_disable(&scx_ops_cpu_preempt);
 	scx_idle_disable();
 	synchronize_rcu();
 
@@ -5367,7 +5370,7 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	if (ops->flags & SCX_OPS_ALLOW_QUEUED_WAKEUP)
 		static_branch_enable(&scx_ops_allow_queued_wakeup);
 	if (scx_ops.cpu_acquire || scx_ops.cpu_release)
-		static_branch_enable(&scx_ops_cpu_preempt);
+		scx_ops.flags |= SCX_OPS_HAS_CPU_PREEMPT;
 
 	/*
 	 * Lock out forks, cgroup on/offlining and moves before opening the
