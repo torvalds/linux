@@ -193,10 +193,11 @@ static int btrfs_repair_eb_io_failure(const struct extent_buffer *eb,
 		u64 end = min_t(u64, eb->start + eb->len,
 				folio_pos(folio) + eb->folio_size);
 		u32 len = end - start;
+		phys_addr_t paddr = PFN_PHYS(folio_pfn(folio)) +
+				    offset_in_folio(folio, start);
 
-		ret = btrfs_repair_io_failure(fs_info, 0, start, len,
-					      start, folio, offset_in_folio(folio, start),
-					      mirror_num);
+		ret = btrfs_repair_io_failure(fs_info, 0, start, len, start,
+					      paddr, mirror_num);
 		if (ret)
 			break;
 	}

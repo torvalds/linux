@@ -192,7 +192,7 @@ static void btrfs_end_repair_bio(struct btrfs_bio *repair_bbio,
 		btrfs_repair_io_failure(fs_info, btrfs_ino(inode),
 				  repair_bbio->file_offset, fs_info->sectorsize,
 				  repair_bbio->saved_iter.bi_sector << SECTOR_SHIFT,
-				  page_folio(bv->bv_page), bv->bv_offset, mirror);
+				  bvec_phys(bv), mirror);
 	} while (mirror != fbio->bbio->mirror_num);
 
 done:
@@ -803,8 +803,7 @@ void btrfs_submit_bbio(struct btrfs_bio *bbio, int mirror_num)
  * freeing the bio.
  */
 int btrfs_repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
-			    u64 length, u64 logical, struct folio *folio,
-			    unsigned int folio_offset, int mirror_num)
+			    u64 length, u64 logical, phys_addr_t paddr, int mirror_num)
 {
 	struct btrfs_io_stripe smap = { 0 };
 	struct bio_vec bvec;
@@ -835,8 +834,7 @@ int btrfs_repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 
 	bio_init(&bio, smap.dev->bdev, &bvec, 1, REQ_OP_WRITE | REQ_SYNC);
 	bio.bi_iter.bi_sector = smap.physical >> SECTOR_SHIFT;
-	ret = bio_add_folio(&bio, folio, length, folio_offset);
-	ASSERT(ret);
+	__bio_add_page(&bio, phys_to_page(paddr), length, offset_in_page(paddr));
 	ret = submit_bio_wait(&bio);
 	if (ret) {
 		/* try to remap that extent elsewhere? */
