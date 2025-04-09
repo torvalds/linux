@@ -68,19 +68,19 @@ struct gpib_interface_struct {
 	 * return indicates error.
 	 * nbytes returns number of bytes read
 	 */
-	int (*read)(struct gpib_board *board, uint8_t *buffer, size_t length, int *end,
+	int (*read)(struct gpib_board *board, u8 *buffer, size_t length, int *end,
 		    size_t *bytes_read);
 	/* write() should write 'length' bytes from buffer to the bus.
 	 * If the boolean value send_eoi is nonzero, then EOI should
 	 * be sent along with the last byte.  Returns number of bytes
 	 * written or negative value on error.
 	 */
-	int (*write)(struct gpib_board *board, uint8_t *buffer, size_t length, int send_eoi,
+	int (*write)(struct gpib_board *board, u8 *buffer, size_t length, int send_eoi,
 		     size_t *bytes_written);
 	/* command() writes the command bytes in 'buffer' to the bus
 	 * Returns zero on success or negative value on error.
 	 */
-	int (*command)(struct gpib_board *board, uint8_t *buffer, size_t length,
+	int (*command)(struct gpib_board *board, u8 *buffer, size_t length,
 		       size_t *bytes_written);
 	/* Take control (assert ATN).  If 'asyncronous' is nonzero, take
 	 * control asyncronously (assert ATN immediately without waiting
@@ -107,13 +107,13 @@ struct gpib_interface_struct {
 	 * with the eos bytes.	Otherwise only the 7 least significant
 	 * bits are compared.
 	 */
-	int (*enable_eos)(struct gpib_board *board, uint8_t eos, int compare_8_bits);
+	int (*enable_eos)(struct gpib_board *board, u8 eos, int compare_8_bits);
 	/* disable END on eos byte (END on EOI only)*/
 	void (*disable_eos)(struct gpib_board *board);
 	/* configure parallel poll */
-	void (*parallel_poll_configure)(struct gpib_board *board, uint8_t configuration);
+	void (*parallel_poll_configure)(struct gpib_board *board, u8 configuration);
 	/* conduct parallel poll */
-	int (*parallel_poll)(struct gpib_board *board, uint8_t *result);
+	int (*parallel_poll)(struct gpib_board *board, u8 *result);
 	/* set/clear ist (individual status bit) */
 	void (*parallel_poll_response)(struct gpib_board *board, int ist);
 	/* select local parallel poll configuration mode PP2 versus remote PP1 */
@@ -149,7 +149,7 @@ struct gpib_interface_struct {
 	 * by IEEE 488.2 section 11.3.3.4.3 "Allowed Coupled Control of
 	 * STB, reqt, and reqf".
 	 */
-	void (*serial_poll_response)(struct gpib_board *board, uint8_t status_byte);
+	void (*serial_poll_response)(struct gpib_board *board, u8 status_byte);
 	/* Sets the byte the board should send in response to a serial poll.
 	 * This function should also request service via IEEE 488.2 reqt/reqf
 	 * based on MSS (bit 6 of the status_byte) and new_reason_for_service.
@@ -164,11 +164,11 @@ struct gpib_interface_struct {
 	 * If this method is left NULL by the driver, then the user library
 	 * function ibrsv2 will not work.
 	 */
-	void (*serial_poll_response2)(struct gpib_board *board, uint8_t status_byte,
+	void (*serial_poll_response2)(struct gpib_board *board, u8 status_byte,
 				      int new_reason_for_service);
 	/* returns the byte the board will send in response to a serial poll.
 	 */
-	uint8_t (*serial_poll_status)(struct gpib_board *board);
+	u8 (*serial_poll_status)(struct gpib_board *board);
 	/* adjust T1 delay */
 	int (*t1_delay)(struct gpib_board *board, unsigned int nano_sec);
 	/* go to local mode */
