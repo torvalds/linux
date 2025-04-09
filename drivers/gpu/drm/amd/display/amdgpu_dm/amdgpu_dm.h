@@ -639,6 +639,11 @@ struct amdgpu_display_manager {
 	 */
 	struct amdgpu_i2c_adapter *oem_i2c;
 
+	/**
+	 * @fused_io:
+	 *
+	 * dmub fused io interface
+	 */
 	struct fused_io_sync {
 		struct completion replied;
 		char reply_data[0x40];  // Cannot include dmub_cmd here
