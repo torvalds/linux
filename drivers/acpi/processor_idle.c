@@ -461,9 +461,7 @@ static int acpi_processor_power_verify(struct acpi_processor *pr)
 
 static int acpi_processor_get_cstate_info(struct acpi_processor *pr)
 {
-	unsigned int i;
 	int result;
-
 
 	/* NOTE: the idle thread may not be running while calling
 	 * this function */
@@ -482,12 +480,6 @@ static int acpi_processor_get_cstate_info(struct acpi_processor *pr)
 
 	pr->power.count = acpi_processor_power_verify(pr);
 	pr->flags.power = 1;
-
-	for (i = 1; i < ACPI_PROCESSOR_MAX_POWER; i++) {
-		if (pr->power.states[i].valid) {
-			pr->power.count = i;
-		}
-	}
 
 	return 0;
 }
