@@ -924,9 +924,6 @@ static struct sched_ext_ops scx_ops;
 static bool scx_warned_zero_slice;
 
 DEFINE_STATIC_KEY_FALSE(scx_ops_allow_queued_wakeup);
-static DEFINE_STATIC_KEY_FALSE(scx_ops_enq_last);
-static DEFINE_STATIC_KEY_FALSE(scx_ops_enq_exiting);
-static DEFINE_STATIC_KEY_FALSE(scx_ops_enq_migration_disabled);
 static DEFINE_STATIC_KEY_FALSE(scx_ops_cpu_preempt);
 
 static struct static_key_false scx_has_op[SCX_OPI_END] =
@@ -2144,14 +2141,14 @@ static void do_enqueue_task(struct rq *rq, struct task_struct *p, u64 enq_flags,
 		goto direct;
 
 	/* see %SCX_OPS_ENQ_EXITING */
-	if (!static_branch_unlikely(&scx_ops_enq_exiting) &&
+	if (!(scx_ops.flags & SCX_OPS_ENQ_EXITING) &&
 	    unlikely(p->flags & PF_EXITING)) {
 		__scx_add_event(SCX_EV_ENQ_SKIP_EXITING, 1);
 		goto local;
 	}
 
 	/* see %SCX_OPS_ENQ_MIGRATION_DISABLED */
-	if (!static_branch_unlikely(&scx_ops_enq_migration_disabled) &&
+	if (!(scx_ops.flags & SCX_OPS_ENQ_MIGRATION_DISABLED) &&
 	    is_migration_disabled(p)) {
 		__scx_add_event(SCX_EV_ENQ_SKIP_MIGRATION_DISABLED, 1);
 		goto local;
@@ -3022,8 +3019,8 @@ no_tasks:
 	 * Didn't find another task to run. Keep running @prev unless
 	 * %SCX_OPS_ENQ_LAST is in effect.
 	 */
-	if (prev_on_rq && (!static_branch_unlikely(&scx_ops_enq_last) ||
-	     scx_rq_bypassing(rq))) {
+	if (prev_on_rq &&
+	    (!(scx_ops.flags & SCX_OPS_ENQ_LAST) || scx_rq_bypassing(rq))) {
 		rq->scx.flags |= SCX_RQ_BAL_KEEP;
 		__scx_add_event(SCX_EV_DISPATCH_KEEP_LAST, 1);
 		goto has_tasks;
@@ -3228,7 +3225,7 @@ static void put_prev_task_scx(struct rq *rq, struct task_struct *p,
 		 * which should trigger an explicit follow-up scheduling event.
 		 */
 		if (sched_class_above(&ext_sched_class, next->sched_class)) {
-			WARN_ON_ONCE(!static_branch_unlikely(&scx_ops_enq_last));
+			WARN_ON_ONCE(!(scx_ops.flags & SCX_OPS_ENQ_LAST));
 			do_enqueue_task(rq, p, SCX_ENQ_LAST, -1);
 		} else {
 			do_enqueue_task(rq, p, 0, -1);
@@ -4728,9 +4725,6 @@ static void scx_disable_workfn(struct kthread_work *work)
 	for (i = SCX_OPI_BEGIN; i < SCX_OPI_END; i++)
 		static_branch_disable(&scx_has_op[i]);
 	static_branch_disable(&scx_ops_allow_queued_wakeup);
-	static_branch_disable(&scx_ops_enq_last);
-	static_branch_disable(&scx_ops_enq_exiting);
-	static_branch_disable(&scx_ops_enq_migration_disabled);
 	static_branch_disable(&scx_ops_cpu_preempt);
 	scx_idle_disable();
 	synchronize_rcu();
@@ -5372,12 +5366,6 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 
 	if (ops->flags & SCX_OPS_ALLOW_QUEUED_WAKEUP)
 		static_branch_enable(&scx_ops_allow_queued_wakeup);
-	if (ops->flags & SCX_OPS_ENQ_LAST)
-		static_branch_enable(&scx_ops_enq_last);
-	if (ops->flags & SCX_OPS_ENQ_EXITING)
-		static_branch_enable(&scx_ops_enq_exiting);
-	if (ops->flags & SCX_OPS_ENQ_MIGRATION_DISABLED)
-		static_branch_enable(&scx_ops_enq_migration_disabled);
 	if (scx_ops.cpu_acquire || scx_ops.cpu_release)
 		static_branch_enable(&scx_ops_cpu_preempt);
 
