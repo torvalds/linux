@@ -67,6 +67,11 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 struct kimage;
 int arch_kimage_file_post_load_cleanup(struct kimage *image);
 #define arch_kimage_file_post_load_cleanup arch_kimage_file_post_load_cleanup
+
+int load_extra_segments(struct kimage *image, unsigned long kernel_start,
+			unsigned long kernel_len, char *initrd,
+			unsigned long initrd_len, char *cmdline,
+			unsigned long cmdline_len);
 #endif
 
 #endif
