@@ -873,6 +873,11 @@ static void esdhc_writeb_le(struct sdhci_host *host, u8 val, int reg)
 
 		esdhc_clrset_le(host, mask, new_val, reg);
 		return;
+	case SDHCI_TIMEOUT_CONTROL:
+		esdhc_clrset_le(host, ESDHC_SYS_CTRL_DTOCV_MASK,
+				FIELD_PREP(ESDHC_SYS_CTRL_DTOCV_MASK, val),
+				ESDHC_SYSTEM_CONTROL);
+		return;
 	case SDHCI_SOFTWARE_RESET:
 		if (val & SDHCI_RESET_DATA)
 			new_val = readl(host->ioaddr + SDHCI_HOST_CONTROL);
@@ -1399,17 +1404,6 @@ static unsigned int esdhc_get_max_timeout_count(struct sdhci_host *host)
 	return esdhc_is_usdhc(imx_data) ? 1 << 29 : 1 << 27;
 }
 
-static void esdhc_set_timeout(struct sdhci_host *host, struct mmc_command *cmd)
-{
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct pltfm_imx_data *imx_data = sdhci_pltfm_priv(pltfm_host);
-
-	/* use maximum timeout counter */
-	esdhc_clrset_le(host, ESDHC_SYS_CTRL_DTOCV_MASK,
-			esdhc_is_usdhc(imx_data) ? 0xF0000 : 0xE0000,
-			ESDHC_SYSTEM_CONTROL);
-}
-
 static u32 esdhc_cqhci_irq(struct sdhci_host *host, u32 intmask)
 {
 	int cmd_error = 0;
@@ -1446,7 +1440,6 @@ static struct sdhci_ops sdhci_esdhc_ops = {
 	.get_min_clock = esdhc_pltfm_get_min_clock,
 	.get_max_timeout_count = esdhc_get_max_timeout_count,
 	.get_ro = esdhc_pltfm_get_ro,
-	.set_timeout = esdhc_set_timeout,
 	.set_bus_width = esdhc_pltfm_set_bus_width,
 	.set_uhs_signaling = esdhc_set_uhs_signaling,
 	.reset = esdhc_reset,
@@ -1842,6 +1835,8 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 		 * to distinguish the card type.
 		 */
 		host->mmc_host_ops.init_card = usdhc_init_card;
+
+		host->max_timeout_count = 0xF;
 	}
 
 	if (imx_data->socdata->flags & ESDHC_FLAG_MAN_TUNING)
