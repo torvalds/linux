@@ -124,6 +124,14 @@ When mounting an XFS filesystem, the following options are accepted.
 	controls the size of each buffer and so is also relevant to
 	this case.
 
+  lifetime (default) or nolifetime
+	Enable data placement based on write life time hints provided
+	by the user. This turns on co-allocation of data of similar
+	life times when statistically favorable to reduce garbage
+	collection cost.
+
+	These options are only available for zoned rt file systems.
+
   logbsize=value
 	Set the size of each in-memory log buffer.  The size may be
 	specified in bytes, or in kilobytes with a "k" suffix.
@@ -142,6 +150,14 @@ When mounting an XFS filesystem, the following options are accepted.
 	section, and a real-time section.  The real-time section is
 	optional, and the log section can be separate from the data
 	section or contained within it.
+
+  max_open_zones=value
+	Specify the max number of zones to keep open for writing on a
+	zoned rt device. Many open zones aids file data separation
+	but may impact performance on HDDs.
+
+	If ``max_open_zones`` is not specified, the value is determined
+	by the capabilities and the size of the zoned rt device.
 
   noalign
 	Data allocations will not be aligned at stripe unit
@@ -542,6 +558,19 @@ The interesting knobs for XFS workqueues are as follows:
   nice           Relative priority of scheduling the threads.  These are the
                  same nice levels that can be applied to userspace processes.
 ============     ===========
+
+Zoned Filesystems
+=================
+
+For zoned file systems, the following attribute is exposed in:
+
+  /sys/fs/xfs/<dev>/zoned/
+
+  max_open_zones		(Min:  1  Default:  Varies  Max:  UINTMAX)
+	This read-only attribute exposes the maximum number of open zones
+	available for data placement. The value is determined at mount time and
+	is limited by the capabilities of the backing zoned device, file system
+	size and the max_open_zones mount option.
 
 Zoned Filesystems
 =================
