@@ -119,8 +119,6 @@ void pvr_fw_trace_fini(struct pvr_device *pvr_dev)
 	pvr_fw_object_unmap_and_destroy(fw_trace->tracebuf_ctrl_obj);
 }
 
-#if defined(CONFIG_DEBUG_FS)
-
 /**
  * update_logtype() - Send KCCB command to trigger FW to update logtype
  * @pvr_dev: Target PowerVR device
@@ -441,7 +439,7 @@ static const struct file_operations pvr_fw_trace_fops = {
 void
 pvr_fw_trace_mask_update(struct pvr_device *pvr_dev, u32 old_mask, u32 new_mask)
 {
-	if (old_mask != new_mask)
+	if (IS_ENABLED(CONFIG_DEBUG_FS) && old_mask != new_mask)
 		update_logtype(pvr_dev, new_mask);
 }
 
@@ -449,6 +447,9 @@ void
 pvr_fw_trace_debugfs_init(struct pvr_device *pvr_dev, struct dentry *dir)
 {
 	struct pvr_fw_trace *fw_trace = &pvr_dev->fw_dev.fw_trace;
+
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return;
 
 	static_assert(ARRAY_SIZE(fw_trace->buffers) <= 10,
 		      "The filename buffer is only large enough for a single-digit thread count");
@@ -462,4 +463,3 @@ pvr_fw_trace_debugfs_init(struct pvr_device *pvr_dev, struct dentry *dir)
 				    &pvr_fw_trace_fops);
 	}
 }
-#endif
