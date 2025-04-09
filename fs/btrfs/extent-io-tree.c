@@ -734,15 +734,13 @@ hit_next:
 
 	state = clear_state_bit(tree, state, bits, wake, changeset);
 next:
-	if (last_end == (u64)-1)
+	if (last_end >= end)
 		goto out;
 	start = last_end + 1;
-	if (start <= end && state && !need_resched())
+	if (state && !need_resched())
 		goto hit_next;
 
 search_again:
-	if (start > end)
-		goto out;
 	spin_unlock(&tree->lock);
 	if (gfpflags_allow_blocking(mask))
 		cond_resched();
