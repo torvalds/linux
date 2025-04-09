@@ -606,11 +606,12 @@ static irqreturn_t i3c_hci_irq_handler(int irq, void *dev_id)
 		val &= ~INTR_HC_INTERNAL_ERR;
 	}
 
+	if (val)
+		dev_warn_once(&hci->master.dev,
+			      "unexpected INTR_STATUS %#x\n", val);
+
 	if (hci->io->irq_handler(hci))
 		result = IRQ_HANDLED;
-
-	if (val)
-		dev_err(&hci->master.dev, "unexpected INTR_STATUS %#x\n", val);
 
 	return result;
 }
