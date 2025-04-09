@@ -350,7 +350,7 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
 				     MT_RXQ_RING_BASE(MT7996_RXQ_BAND0) +
 				     MT7996_RXQ_BAND0 * MT_RING_SIZE;
 
-		wed->wlan.id = 0x7991;
+		wed->wlan.id = MT7996_DEVICE_ID_2;
 		wed->wlan.tx_tbit[0] = ffs(MT_INT_TX_DONE_BAND2) - 1;
 	} else {
 		wed->wlan.hw_rro = dev->has_rro; /* default on */
@@ -443,13 +443,13 @@ static int mt7996_mmio_init(struct mt76_dev *mdev,
 	spin_lock_init(&dev->reg_lock);
 
 	switch (device_id) {
-	case 0x7990:
+	case MT7996_DEVICE_ID:
 		dev->reg.base = mt7996_reg_base;
 		dev->reg.offs_rev = mt7996_offs;
 		dev->reg.map = mt7996_reg_map;
 		dev->reg.map_size = ARRAY_SIZE(mt7996_reg_map);
 		break;
-	case 0x7992:
+	case MT7992_DEVICE_ID:
 		dev->reg.base = mt7996_reg_base;
 		dev->reg.offs_rev = mt7992_offs;
 		dev->reg.map = mt7996_reg_map;

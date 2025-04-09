@@ -30,6 +30,11 @@
 #define MT7996_RX_MCU_RING_SIZE		512
 #define MT7996_RX_MCU_RING_SIZE_WA	1024
 
+#define MT7996_DEVICE_ID		0x7990
+#define MT7996_DEVICE_ID_2		0x7991
+#define MT7992_DEVICE_ID		0x7992
+#define MT7992_DEVICE_ID_2		0x799a
+
 #define MT7996_FIRMWARE_WA		"mediatek/mt7996/mt7996_wa.bin"
 #define MT7996_FIRMWARE_WM		"mediatek/mt7996/mt7996_wm.bin"
 #define MT7996_FIRMWARE_DSP		"mediatek/mt7996/mt7996_dsp.bin"
@@ -471,11 +476,11 @@ static inline bool
 mt7996_has_background_radar(struct mt7996_dev *dev)
 {
 	switch (mt76_chip(&dev->mt76)) {
-	case 0x7990:
+	case MT7996_DEVICE_ID:
 		if (dev->var.type == MT7996_VAR_TYPE_233)
 			return false;
 		break;
-	case 0x7992:
+	case MT7992_DEVICE_ID:
 		if (dev->var.type == MT7992_VAR_TYPE_23)
 			return false;
 		break;

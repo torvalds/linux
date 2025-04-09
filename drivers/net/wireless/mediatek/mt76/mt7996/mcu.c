@@ -13,7 +13,7 @@
 #define fw_name(_dev, name, ...)	({			\
 	char *_fw;						\
 	switch (mt76_chip(&(_dev)->mt76)) {			\
-	case 0x7992:						\
+	case MT7992_DEVICE_ID:						\
 		switch ((_dev)->var.type) {			\
 		case MT7992_VAR_TYPE_23:			\
 			_fw = MT7992_##name##_23;		\
@@ -22,7 +22,7 @@
 			_fw = MT7992_##name;			\
 		}						\
 		break;						\
-	case 0x7990:						\
+	case MT7996_DEVICE_ID:						\
 	default:						\
 		switch ((_dev)->var.type) {			\
 		case MT7996_VAR_TYPE_233:			\

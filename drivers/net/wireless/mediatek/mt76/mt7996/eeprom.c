@@ -13,9 +13,9 @@ static int mt7996_check_eeprom(struct mt7996_dev *dev)
 	u16 val = get_unaligned_le16(eeprom);
 
 	switch (val) {
-	case 0x7990:
+	case MT7996_DEVICE_ID:
 		return is_mt7996(&dev->mt76) ? 0 : -EINVAL;
-	case 0x7992:
+	case MT7992_DEVICE_ID:
 		return is_mt7992(&dev->mt76) ? 0 : -EINVAL;
 	default:
 		return -EINVAL;
@@ -25,7 +25,7 @@ static int mt7996_check_eeprom(struct mt7996_dev *dev)
 static char *mt7996_eeprom_name(struct mt7996_dev *dev)
 {
 	switch (mt76_chip(&dev->mt76)) {
-	case 0x7992:
+	case MT7992_DEVICE_ID:
 		switch (dev->var.type) {
 		case MT7992_VAR_TYPE_23:
 			if (dev->var.fem == MT7996_FEM_INT)
@@ -39,7 +39,7 @@ static char *mt7996_eeprom_name(struct mt7996_dev *dev)
 				return MT7992_EEPROM_DEFAULT_MIX;
 			return MT7992_EEPROM_DEFAULT;
 		}
-	case 0x7990:
+	case MT7996_DEVICE_ID:
 	default:
 		switch (dev->var.type) {
 		case MT7996_VAR_TYPE_233:
