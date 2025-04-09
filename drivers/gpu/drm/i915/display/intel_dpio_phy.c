@@ -222,9 +222,7 @@ static const struct bxt_dpio_phy_info glk_dpio_phy_info[] = {
 static const struct bxt_dpio_phy_info *
 bxt_get_phy_list(struct intel_display *display, int *count)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
-	if (IS_GEMINILAKE(dev_priv)) {
+	if (display->platform.geminilake) {
 		*count =  ARRAY_SIZE(glk_dpio_phy_info);
 		return glk_dpio_phy_info;
 	} else {
