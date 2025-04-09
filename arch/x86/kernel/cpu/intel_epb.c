@@ -135,7 +135,7 @@ static ssize_t energy_perf_bias_show(struct device *dev,
 	u64 epb;
 	int ret;
 
-	ret = rdmsrl_on_cpu(cpu, MSR_IA32_ENERGY_PERF_BIAS, &epb);
+	ret = rdmsrq_on_cpu(cpu, MSR_IA32_ENERGY_PERF_BIAS, &epb);
 	if (ret < 0)
 		return ret;
 
@@ -157,7 +157,7 @@ static ssize_t energy_perf_bias_store(struct device *dev,
 	else if (kstrtou64(buf, 0, &val) || val > MAX_EPB)
 		return -EINVAL;
 
-	ret = rdmsrl_on_cpu(cpu, MSR_IA32_ENERGY_PERF_BIAS, &epb);
+	ret = rdmsrq_on_cpu(cpu, MSR_IA32_ENERGY_PERF_BIAS, &epb);
 	if (ret < 0)
 		return ret;
 
