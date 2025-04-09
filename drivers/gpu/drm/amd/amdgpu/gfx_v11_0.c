@@ -1631,8 +1631,11 @@ static int gfx_v11_0_sw_init(struct amdgpu_ip_block *ip_block)
 	case IP_VERSION(11, 0, 2):
 	case IP_VERSION(11, 0, 3):
 #ifdef CONFIG_DRM_AMDGPU_NAVI3X_USERQ
-		/* add firmware version checks here */
-		if (0 && !adev->gfx.disable_uq) {
+		if (!adev->gfx.disable_uq &&
+		    adev->gfx.me_fw_version  >= 2390 &&
+		    adev->gfx.pfp_fw_version >= 2530 &&
+		    adev->gfx.mec_fw_version >= 2600 &&
+		    adev->mes.fw_version[0] >= 120) {
 			adev->userq_funcs[AMDGPU_HW_IP_GFX] = &userq_mes_funcs;
 			adev->userq_funcs[AMDGPU_HW_IP_COMPUTE] = &userq_mes_funcs;
 		}
