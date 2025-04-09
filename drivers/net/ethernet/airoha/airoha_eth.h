@@ -422,11 +422,22 @@ struct airoha_flow_data {
 	} pppoe;
 };
 
+enum airoha_flow_entry_type {
+	FLOW_TYPE_L4,
+	FLOW_TYPE_L2,
+	FLOW_TYPE_L2_SUBFLOW,
+};
+
 struct airoha_flow_table_entry {
-	struct hlist_node list;
+	union {
+		struct hlist_node list; /* PPE L3 flow entry */
+		struct rhash_head l2_node; /* L2 flow entry */
+	};
 
 	struct airoha_foe_entry data;
 	u32 hash;
+
+	enum airoha_flow_entry_type type;
 
 	struct rhash_head node;
 	unsigned long cookie;
@@ -479,6 +490,8 @@ struct airoha_ppe {
 
 	void *foe;
 	dma_addr_t foe_dma;
+
+	struct rhashtable l2_flows;
 
 	struct hlist_head *foe_flow;
 	u16 foe_check_time[PPE_NUM_ENTRIES];

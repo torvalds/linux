@@ -24,6 +24,13 @@ static const struct rhashtable_params airoha_flow_table_params = {
 	.automatic_shrinking = true,
 };
 
+static const struct rhashtable_params airoha_l2_flow_table_params = {
+	.head_offset = offsetof(struct airoha_flow_table_entry, l2_node),
+	.key_offset = offsetof(struct airoha_flow_table_entry, data.bridge),
+	.key_len = 2 * ETH_ALEN,
+	.automatic_shrinking = true,
+};
+
 static bool airoha_ppe2_is_enabled(struct airoha_eth *eth)
 {
 	return airoha_fe_rr(eth, REG_PPE_GLO_CFG(1)) & PPE_GLO_CFG_EN_MASK;
@@ -476,6 +483,43 @@ static int airoha_ppe_foe_commit_entry(struct airoha_ppe *ppe,
 	return 0;
 }
 
+static void airoha_ppe_foe_remove_flow(struct airoha_ppe *ppe,
+				       struct airoha_flow_table_entry *e)
+{
+	lockdep_assert_held(&ppe_lock);
+
+	hlist_del_init(&e->list);
+	if (e->hash != 0xffff) {
+		e->data.ib1 &= ~AIROHA_FOE_IB1_BIND_STATE;
+		e->data.ib1 |= FIELD_PREP(AIROHA_FOE_IB1_BIND_STATE,
+					  AIROHA_FOE_STATE_INVALID);
+		airoha_ppe_foe_commit_entry(ppe, &e->data, e->hash);
+		e->hash = 0xffff;
+	}
+}
+
+static void airoha_ppe_foe_remove_l2_flow(struct airoha_ppe *ppe,
+					  struct airoha_flow_table_entry *e)
+{
+	lockdep_assert_held(&ppe_lock);
+
+	rhashtable_remove_fast(&ppe->l2_flows, &e->l2_node,
+			       airoha_l2_flow_table_params);
+}
+
+static void airoha_ppe_foe_flow_remove_entry(struct airoha_ppe *ppe,
+					     struct airoha_flow_table_entry *e)
+{
+	spin_lock_bh(&ppe_lock);
+
+	if (e->type == FLOW_TYPE_L2)
+		airoha_ppe_foe_remove_l2_flow(ppe, e);
+	else
+		airoha_ppe_foe_remove_flow(ppe, e);
+
+	spin_unlock_bh(&ppe_lock);
+}
+
 static void airoha_ppe_foe_insert_entry(struct airoha_ppe *ppe, u32 hash)
 {
 	struct airoha_flow_table_entry *e;
@@ -505,11 +549,37 @@ unlock:
 	spin_unlock_bh(&ppe_lock);
 }
 
+static int
+airoha_ppe_foe_l2_flow_commit_entry(struct airoha_ppe *ppe,
+				    struct airoha_flow_table_entry *e)
+{
+	struct airoha_flow_table_entry *prev;
+
+	e->type = FLOW_TYPE_L2;
+	prev = rhashtable_lookup_get_insert_fast(&ppe->l2_flows, &e->l2_node,
+						 airoha_l2_flow_table_params);
+	if (!prev)
+		return 0;
+
+	if (IS_ERR(prev))
+		return PTR_ERR(prev);
+
+	return rhashtable_replace_fast(&ppe->l2_flows, &prev->l2_node,
+				       &e->l2_node,
+				       airoha_l2_flow_table_params);
+}
+
 static int airoha_ppe_foe_flow_commit_entry(struct airoha_ppe *ppe,
 					    struct airoha_flow_table_entry *e)
 {
-	u32 hash = airoha_ppe_foe_get_entry_hash(&e->data);
+	int type = FIELD_GET(AIROHA_FOE_IB1_BIND_PACKET_TYPE, e->data.ib1);
+	u32 hash;
 
+	if (type == PPE_PKT_TYPE_BRIDGE)
+		return airoha_ppe_foe_l2_flow_commit_entry(ppe, e);
+
+	hash = airoha_ppe_foe_get_entry_hash(&e->data);
+	e->type = FLOW_TYPE_L4;
 	e->hash = 0xffff;
 
 	spin_lock_bh(&ppe_lock);
@@ -517,23 +587,6 @@ static int airoha_ppe_foe_flow_commit_entry(struct airoha_ppe *ppe,
 	spin_unlock_bh(&ppe_lock);
 
 	return 0;
-}
-
-static void airoha_ppe_foe_flow_remove_entry(struct airoha_ppe *ppe,
-					     struct airoha_flow_table_entry *e)
-{
-	spin_lock_bh(&ppe_lock);
-
-	hlist_del_init(&e->list);
-	if (e->hash != 0xffff) {
-		e->data.ib1 &= ~AIROHA_FOE_IB1_BIND_STATE;
-		e->data.ib1 |= FIELD_PREP(AIROHA_FOE_IB1_BIND_STATE,
-					  AIROHA_FOE_STATE_INVALID);
-		airoha_ppe_foe_commit_entry(ppe, &e->data, e->hash);
-		e->hash = 0xffff;
-	}
-
-	spin_unlock_bh(&ppe_lock);
 }
 
 static int airoha_ppe_flow_offload_replace(struct airoha_gdm_port *port,
@@ -890,9 +943,20 @@ int airoha_ppe_init(struct airoha_eth *eth)
 	if (err)
 		return err;
 
+	err = rhashtable_init(&ppe->l2_flows, &airoha_l2_flow_table_params);
+	if (err)
+		goto error_flow_table_destroy;
+
 	err = airoha_ppe_debugfs_init(ppe);
 	if (err)
-		rhashtable_destroy(&eth->flow_table);
+		goto error_l2_flow_table_destroy;
+
+	return 0;
+
+error_l2_flow_table_destroy:
+	rhashtable_destroy(&ppe->l2_flows);
+error_flow_table_destroy:
+	rhashtable_destroy(&eth->flow_table);
 
 	return err;
 }
@@ -909,6 +973,7 @@ void airoha_ppe_deinit(struct airoha_eth *eth)
 	}
 	rcu_read_unlock();
 
+	rhashtable_destroy(&eth->ppe->l2_flows);
 	rhashtable_destroy(&eth->flow_table);
 	debugfs_remove(eth->ppe->debugfs_dir);
 }
