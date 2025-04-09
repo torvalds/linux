@@ -1682,18 +1682,14 @@ static int dcmi_formats_init(struct stm32_dcmi *dcmi)
 		return -ENXIO;
 
 	dcmi->num_of_sd_formats = num_fmts;
-	dcmi->sd_formats = devm_kcalloc(dcmi->dev,
-					num_fmts, sizeof(struct dcmi_format *),
-					GFP_KERNEL);
+	dcmi->sd_formats = devm_kmemdup_array(dcmi->dev, sd_fmts, num_fmts,
+					      sizeof(*sd_fmts), GFP_KERNEL);
 	if (!dcmi->sd_formats) {
 		dev_err(dcmi->dev, "Could not allocate memory\n");
 		return -ENOMEM;
 	}
 
-	memcpy(dcmi->sd_formats, sd_fmts,
-	       num_fmts * sizeof(struct dcmi_format *));
 	dcmi->sd_format = dcmi->sd_formats[0];
-
 	return 0;
 }
 
