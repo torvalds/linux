@@ -2852,10 +2852,23 @@ static u32 rtl_csi_read(struct rtl8169_private *tp, int addr)
 		RTL_R32(tp, CSIDR) : ~0;
 }
 
+static void rtl_csi_mod(struct rtl8169_private *tp, int addr,
+			u32 mask, u32 set)
+{
+	u32 val;
+
+	WARN(addr % 4, "Invalid CSI address %#x\n", addr);
+
+	netdev_notice_once(tp->dev,
+		"No native access to PCI extended config space, falling back to CSI\n");
+
+	val = rtl_csi_read(tp, addr);
+	rtl_csi_write(tp, addr, (val & ~mask) | set);
+}
+
 static void rtl_disable_zrxdc_timeout(struct rtl8169_private *tp)
 {
 	struct pci_dev *pdev = tp->pci_dev;
-	u32 csi;
 	int rc;
 	u8 val;
 
@@ -2872,16 +2885,12 @@ static void rtl_disable_zrxdc_timeout(struct rtl8169_private *tp)
 		}
 	}
 
-	netdev_notice_once(tp->dev,
-		"No native access to PCI extended config space, falling back to CSI\n");
-	csi = rtl_csi_read(tp, RTL_GEN3_RELATED_OFF);
-	rtl_csi_write(tp, RTL_GEN3_RELATED_OFF, csi & ~RTL_GEN3_ZRXDC_NONCOMPL);
+	rtl_csi_mod(tp, RTL_GEN3_RELATED_OFF, RTL_GEN3_ZRXDC_NONCOMPL, 0);
 }
 
 static void rtl_set_aspm_entry_latency(struct rtl8169_private *tp, u8 val)
 {
 	struct pci_dev *pdev = tp->pci_dev;
-	u32 csi;
 
 	/* According to Realtek the value at config space address 0x070f
 	 * controls the L0s/L1 entrance latency. We try standard ECAM access
@@ -2893,10 +2902,7 @@ static void rtl_set_aspm_entry_latency(struct rtl8169_private *tp, u8 val)
 	    pci_write_config_byte(pdev, 0x070f, val) == PCIBIOS_SUCCESSFUL)
 		return;
 
-	netdev_notice_once(tp->dev,
-		"No native access to PCI extended config space, falling back to CSI\n");
-	csi = rtl_csi_read(tp, 0x070c) & 0x00ffffff;
-	rtl_csi_write(tp, 0x070c, csi | val << 24);
+	rtl_csi_mod(tp, 0x070c, 0xff000000, val << 24);
 }
 
 static void rtl_set_def_aspm_entry_latency(struct rtl8169_private *tp)
