@@ -108,6 +108,7 @@
 
 #define ESDHC_TUNING_CTRL		0xcc
 #define ESDHC_STD_TUNING_EN		(1 << 24)
+#define ESDHC_TUNING_WINDOW_MASK	GENMASK(22, 20)
 /* NOTE: the minimum valid tuning start tap for mx6sl is 1 */
 #define ESDHC_TUNING_START_TAP_DEFAULT	0x1
 #define ESDHC_TUNING_START_TAP_MASK	0x7f
@@ -208,6 +209,8 @@
 
 /* The IP does not have GPIO CD wake capabilities */
 #define ESDHC_FLAG_SKIP_CD_WAKE		BIT(18)
+
+#define ESDHC_AUTO_TUNING_WINDOW	3
 
 enum wp_types {
 	ESDHC_WP_NONE,		/* no WP, neither controller nor gpio */
@@ -1552,6 +1555,16 @@ static void sdhci_esdhc_imx_hwinit(struct sdhci_host *host)
 				tmp |= ESDHC_TUNING_STEP_DEFAULT
 					<< ESDHC_TUNING_STEP_SHIFT;
 			}
+
+			/*
+			 * Config the tuning window to the hardware suggested value 3.
+			 * This tuning window is used for auto tuning logic. The default
+			 * tuning window is 2, here change to 3 make the window a bit
+			 * wider, give auto tuning enough space to handle the sample
+			 * point shift cause by temperature change.
+			 */
+			 tmp &= ~ESDHC_TUNING_WINDOW_MASK;
+			 tmp |= FIELD_PREP(ESDHC_TUNING_WINDOW_MASK, ESDHC_AUTO_TUNING_WINDOW);
 
 			/* Disable the CMD CRC check for tuning, if not, need to
 			 * add some delay after every tuning command, because
