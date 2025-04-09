@@ -1353,7 +1353,7 @@ static int parallel_poll_ioctl(struct gpib_board *board, unsigned long arg)
 
 static int online_ioctl(struct gpib_board *board, unsigned long arg)
 {
-	online_ioctl_t online_cmd;
+	struct gpib_online_ioctl online_cmd;
 	int retval;
 	void __user *init_data = NULL;
 

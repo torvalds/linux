@@ -58,11 +58,11 @@ struct gpib_wait_ioctl {
 	unsigned int usec_timeout;
 };
 
-typedef struct {
+struct gpib_online_ioctl {
 	uint64_t init_data_ptr;
 	int init_data_length;
 	int online;
-} online_ioctl_t;
+};
 
 typedef struct {
 	unsigned int num_bytes;
@@ -158,7 +158,7 @@ enum gpib_ioctl {
 	IBLOC = _IO(GPIB_CODE, 36),
 
 	IBAUTOSPOLL = _IOW(GPIB_CODE, 38, autospoll_ioctl_t),
-	IBONL = _IOW(GPIB_CODE, 39, online_ioctl_t),
+	IBONL = _IOW(GPIB_CODE, 39, struct gpib_online_ioctl),
 	IBPP2_SET = _IOW(GPIB_CODE, 40, local_ppoll_mode_ioctl_t),
 	IBPP2_GET = _IOR(GPIB_CODE, 41, local_ppoll_mode_ioctl_t),
 	IBSELECT_DEVICE_PATH = _IOW(GPIB_CODE, 43, select_device_path_ioctl_t),
