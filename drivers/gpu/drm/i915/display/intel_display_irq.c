@@ -1960,8 +1960,22 @@ void vlv_display_irq_postinstall(struct intel_display *display)
 	intel_display_irq_regs_init(display, VLV_IRQ_REGS, dev_priv->irq_mask, enable_mask);
 }
 
+void ibx_display_irq_reset(struct intel_display *display)
+{
+	struct drm_i915_private *i915 = to_i915(display->drm);
+
+	if (HAS_PCH_NOP(i915))
+		return;
+
+	gen2_irq_reset(to_intel_uncore(display->drm), SDE_IRQ_REGS);
+
+	if (HAS_PCH_CPT(i915) || HAS_PCH_LPT(i915))
+		intel_de_write(display, SERR_INT, 0xffffffff);
+}
+
 void gen8_display_irq_reset(struct intel_display *display)
 {
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	enum pipe pipe;
 
 	if (!HAS_DISPLAY(display))
@@ -1977,6 +1991,9 @@ void gen8_display_irq_reset(struct intel_display *display)
 
 	intel_display_irq_regs_reset(display, GEN8_DE_PORT_IRQ_REGS);
 	intel_display_irq_regs_reset(display, GEN8_DE_MISC_IRQ_REGS);
+
+	if (HAS_PCH_SPLIT(i915))
+		ibx_display_irq_reset(display);
 }
 
 void gen11_display_irq_reset(struct intel_display *display)
