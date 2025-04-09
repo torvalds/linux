@@ -1600,7 +1600,7 @@ static int dma_ioctl(struct gpib_board_config *config, unsigned long arg)
 static int autospoll_ioctl(struct gpib_board *board, struct gpib_file_private *file_priv,
 			   unsigned long arg)
 {
-	autospoll_ioctl_t enable;
+	short enable;
 	int retval;
 	struct gpib_descriptor *desc;
 
