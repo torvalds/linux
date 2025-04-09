@@ -61,12 +61,12 @@ struct branch_entry {
 
 static __always_inline void amd_pmu_lbr_set_from(unsigned int idx, u64 val)
 {
-	wrmsrl(MSR_AMD_SAMP_BR_FROM + idx * 2, val);
+	wrmsrq(MSR_AMD_SAMP_BR_FROM + idx * 2, val);
 }
 
 static __always_inline void amd_pmu_lbr_set_to(unsigned int idx, u64 val)
 {
-	wrmsrl(MSR_AMD_SAMP_BR_FROM + idx * 2 + 1, val);
+	wrmsrq(MSR_AMD_SAMP_BR_FROM + idx * 2 + 1, val);
 }
 
 static __always_inline u64 amd_pmu_lbr_get_from(unsigned int idx)
@@ -333,7 +333,7 @@ void amd_pmu_lbr_reset(void)
 
 	cpuc->last_task_ctx = NULL;
 	cpuc->last_log_id = 0;
-	wrmsrl(MSR_AMD64_LBR_SELECT, 0);
+	wrmsrq(MSR_AMD64_LBR_SELECT, 0);
 }
 
 void amd_pmu_lbr_add(struct perf_event *event)
@@ -396,16 +396,16 @@ void amd_pmu_lbr_enable_all(void)
 	/* Set hardware branch filter */
 	if (cpuc->lbr_select) {
 		lbr_select = cpuc->lbr_sel->config & LBR_SELECT_MASK;
-		wrmsrl(MSR_AMD64_LBR_SELECT, lbr_select);
+		wrmsrq(MSR_AMD64_LBR_SELECT, lbr_select);
 	}
 
 	if (cpu_feature_enabled(X86_FEATURE_AMD_LBR_PMC_FREEZE)) {
 		rdmsrq(MSR_IA32_DEBUGCTLMSR, dbg_ctl);
-		wrmsrl(MSR_IA32_DEBUGCTLMSR, dbg_ctl | DEBUGCTLMSR_FREEZE_LBRS_ON_PMI);
+		wrmsrq(MSR_IA32_DEBUGCTLMSR, dbg_ctl | DEBUGCTLMSR_FREEZE_LBRS_ON_PMI);
 	}
 
 	rdmsrq(MSR_AMD_DBG_EXTN_CFG, dbg_extn_cfg);
-	wrmsrl(MSR_AMD_DBG_EXTN_CFG, dbg_extn_cfg | DBG_EXTN_CFG_LBRV2EN);
+	wrmsrq(MSR_AMD_DBG_EXTN_CFG, dbg_extn_cfg | DBG_EXTN_CFG_LBRV2EN);
 }
 
 void amd_pmu_lbr_disable_all(void)

@@ -221,7 +221,7 @@ static noinstr void __wrgsbase_inactive(unsigned long gsbase)
 		native_swapgs();
 	} else {
 		instrumentation_begin();
-		wrmsrl(MSR_KERNEL_GS_BASE, gsbase);
+		wrmsrq(MSR_KERNEL_GS_BASE, gsbase);
 		instrumentation_end();
 	}
 }
@@ -353,7 +353,7 @@ static __always_inline void load_seg_legacy(unsigned short prev_index,
 		} else {
 			if (prev_index != next_index)
 				loadseg(which, next_index);
-			wrmsrl(which == FS ? MSR_FS_BASE : MSR_KERNEL_GS_BASE,
+			wrmsrq(which == FS ? MSR_FS_BASE : MSR_KERNEL_GS_BASE,
 			       next_base);
 		}
 	} else {
@@ -478,7 +478,7 @@ void x86_gsbase_write_cpu_inactive(unsigned long gsbase)
 		__wrgsbase_inactive(gsbase);
 		local_irq_restore(flags);
 	} else {
-		wrmsrl(MSR_KERNEL_GS_BASE, gsbase);
+		wrmsrq(MSR_KERNEL_GS_BASE, gsbase);
 	}
 }
 

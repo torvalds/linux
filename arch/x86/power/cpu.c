@@ -56,7 +56,7 @@ static void msr_restore_context(struct saved_context *ctxt)
 
 	while (msr < end) {
 		if (msr->valid)
-			wrmsrl(msr->info.msr_no, msr->info.reg.q);
+			wrmsrq(msr->info.msr_no, msr->info.reg.q);
 		msr++;
 	}
 }
@@ -198,7 +198,7 @@ static void notrace __restore_processor_state(struct saved_context *ctxt)
 	struct cpuinfo_x86 *c;
 
 	if (ctxt->misc_enable_saved)
-		wrmsrl(MSR_IA32_MISC_ENABLE, ctxt->misc_enable);
+		wrmsrq(MSR_IA32_MISC_ENABLE, ctxt->misc_enable);
 	/*
 	 * control registers
 	 */
@@ -208,7 +208,7 @@ static void notrace __restore_processor_state(struct saved_context *ctxt)
 		__write_cr4(ctxt->cr4);
 #else
 /* CONFIG X86_64 */
-	wrmsrl(MSR_EFER, ctxt->efer);
+	wrmsrq(MSR_EFER, ctxt->efer);
 	__write_cr4(ctxt->cr4);
 #endif
 	write_cr3(ctxt->cr3);
@@ -231,7 +231,7 @@ static void notrace __restore_processor_state(struct saved_context *ctxt)
 	 * handlers or in complicated helpers like load_gs_index().
 	 */
 #ifdef CONFIG_X86_64
-	wrmsrl(MSR_GS_BASE, ctxt->kernelmode_gs_base);
+	wrmsrq(MSR_GS_BASE, ctxt->kernelmode_gs_base);
 
 	/*
 	 * Reinitialize FRED to ensure the FRED MSRs contain the same values
@@ -267,8 +267,8 @@ static void notrace __restore_processor_state(struct saved_context *ctxt)
 	 * restoring the selectors clobbers the bases.  Keep in mind
 	 * that MSR_KERNEL_GS_BASE is horribly misnamed.
 	 */
-	wrmsrl(MSR_FS_BASE, ctxt->fs_base);
-	wrmsrl(MSR_KERNEL_GS_BASE, ctxt->usermode_gs_base);
+	wrmsrq(MSR_FS_BASE, ctxt->fs_base);
+	wrmsrq(MSR_KERNEL_GS_BASE, ctxt->usermode_gs_base);
 #else
 	loadsegment(gs, ctxt->gs);
 #endif

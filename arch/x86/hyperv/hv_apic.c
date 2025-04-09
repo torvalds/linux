@@ -49,7 +49,7 @@ static void hv_apic_icr_write(u32 low, u32 id)
 	reg_val = reg_val << 32;
 	reg_val |= low;
 
-	wrmsrl(HV_X64_MSR_ICR, reg_val);
+	wrmsrq(HV_X64_MSR_ICR, reg_val);
 }
 
 static u32 hv_apic_read(u32 reg)

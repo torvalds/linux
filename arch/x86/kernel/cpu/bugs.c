@@ -71,7 +71,7 @@ void (*x86_return_thunk)(void) __ro_after_init = __x86_return_thunk;
 static void update_spec_ctrl(u64 val)
 {
 	this_cpu_write(x86_spec_ctrl_current, val);
-	wrmsrl(MSR_IA32_SPEC_CTRL, val);
+	wrmsrq(MSR_IA32_SPEC_CTRL, val);
 }
 
 /*
@@ -90,7 +90,7 @@ void update_spec_ctrl_cond(u64 val)
 	 * forced the update can be delayed until that time.
 	 */
 	if (!cpu_feature_enabled(X86_FEATURE_KERNEL_IBRS))
-		wrmsrl(MSR_IA32_SPEC_CTRL, val);
+		wrmsrq(MSR_IA32_SPEC_CTRL, val);
 }
 
 noinstr u64 spec_ctrl_current(void)
@@ -228,9 +228,9 @@ static void x86_amd_ssb_disable(void)
 	u64 msrval = x86_amd_ls_cfg_base | x86_amd_ls_cfg_ssbd_mask;
 
 	if (boot_cpu_has(X86_FEATURE_VIRT_SSBD))
-		wrmsrl(MSR_AMD64_VIRT_SPEC_CTRL, SPEC_CTRL_SSBD);
+		wrmsrq(MSR_AMD64_VIRT_SPEC_CTRL, SPEC_CTRL_SSBD);
 	else if (boot_cpu_has(X86_FEATURE_LS_CFG_SSBD))
-		wrmsrl(MSR_AMD64_LS_CFG, msrval);
+		wrmsrq(MSR_AMD64_LS_CFG, msrval);
 }
 
 #undef pr_fmt
@@ -670,7 +670,7 @@ void update_srbds_msr(void)
 		break;
 	}
 
-	wrmsrl(MSR_IA32_MCU_OPT_CTRL, mcu_ctrl);
+	wrmsrq(MSR_IA32_MCU_OPT_CTRL, mcu_ctrl);
 }
 
 static void __init srbds_select_mitigation(void)
@@ -795,7 +795,7 @@ void update_gds_msr(void)
 		return;
 	}
 
-	wrmsrl(MSR_IA32_MCU_OPT_CTRL, mcu_ctrl);
+	wrmsrq(MSR_IA32_MCU_OPT_CTRL, mcu_ctrl);
 
 	/*
 	 * Check to make sure that the WRMSR value was not ignored. Writes to

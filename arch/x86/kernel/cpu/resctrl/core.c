@@ -309,7 +309,7 @@ static void mba_wrmsr_amd(struct msr_param *m)
 	unsigned int i;
 
 	for (i = m->low; i < m->high; i++)
-		wrmsrl(hw_res->msr_base + i, hw_dom->ctrl_val[i]);
+		wrmsrq(hw_res->msr_base + i, hw_dom->ctrl_val[i]);
 }
 
 /*
@@ -334,7 +334,7 @@ static void mba_wrmsr_intel(struct msr_param *m)
 
 	/*  Write the delay values for mba. */
 	for (i = m->low; i < m->high; i++)
-		wrmsrl(hw_res->msr_base + i, delay_bw_map(hw_dom->ctrl_val[i], m->res));
+		wrmsrq(hw_res->msr_base + i, delay_bw_map(hw_dom->ctrl_val[i], m->res));
 }
 
 static void cat_wrmsr(struct msr_param *m)
@@ -344,7 +344,7 @@ static void cat_wrmsr(struct msr_param *m)
 	unsigned int i;
 
 	for (i = m->low; i < m->high; i++)
-		wrmsrl(hw_res->msr_base + i, hw_dom->ctrl_val[i]);
+		wrmsrq(hw_res->msr_base + i, hw_dom->ctrl_val[i]);
 }
 
 u32 resctrl_arch_get_num_closid(struct rdt_resource *r)

@@ -382,12 +382,12 @@ static void ips_cpu_raise(struct ips_driver *ips)
 	thm_writew(THM_MPCPC, (new_tdp_limit * 10) / 8);
 
 	turbo_override |= TURBO_TDC_OVR_EN | TURBO_TDP_OVR_EN;
-	wrmsrl(TURBO_POWER_CURRENT_LIMIT, turbo_override);
+	wrmsrq(TURBO_POWER_CURRENT_LIMIT, turbo_override);
 
 	turbo_override &= ~TURBO_TDP_MASK;
 	turbo_override |= new_tdp_limit;
 
-	wrmsrl(TURBO_POWER_CURRENT_LIMIT, turbo_override);
+	wrmsrq(TURBO_POWER_CURRENT_LIMIT, turbo_override);
 }
 
 /**
@@ -417,12 +417,12 @@ static void ips_cpu_lower(struct ips_driver *ips)
 	thm_writew(THM_MPCPC, (new_limit * 10) / 8);
 
 	turbo_override |= TURBO_TDC_OVR_EN | TURBO_TDP_OVR_EN;
-	wrmsrl(TURBO_POWER_CURRENT_LIMIT, turbo_override);
+	wrmsrq(TURBO_POWER_CURRENT_LIMIT, turbo_override);
 
 	turbo_override &= ~TURBO_TDP_MASK;
 	turbo_override |= new_limit;
 
-	wrmsrl(TURBO_POWER_CURRENT_LIMIT, turbo_override);
+	wrmsrq(TURBO_POWER_CURRENT_LIMIT, turbo_override);
 }
 
 /**
@@ -440,7 +440,7 @@ static void do_enable_cpu_turbo(void *data)
 	rdmsrq(IA32_PERF_CTL, perf_ctl);
 	if (perf_ctl & IA32_PERF_TURBO_DIS) {
 		perf_ctl &= ~IA32_PERF_TURBO_DIS;
-		wrmsrl(IA32_PERF_CTL, perf_ctl);
+		wrmsrq(IA32_PERF_CTL, perf_ctl);
 	}
 }
 
@@ -478,7 +478,7 @@ static void do_disable_cpu_turbo(void *data)
 	rdmsrq(IA32_PERF_CTL, perf_ctl);
 	if (!(perf_ctl & IA32_PERF_TURBO_DIS)) {
 		perf_ctl |= IA32_PERF_TURBO_DIS;
-		wrmsrl(IA32_PERF_CTL, perf_ctl);
+		wrmsrq(IA32_PERF_CTL, perf_ctl);
 	}
 }
 
@@ -1598,8 +1598,8 @@ static void ips_remove(struct pci_dev *dev)
 
 	rdmsrq(TURBO_POWER_CURRENT_LIMIT, turbo_override);
 	turbo_override &= ~(TURBO_TDC_OVR_EN | TURBO_TDP_OVR_EN);
-	wrmsrl(TURBO_POWER_CURRENT_LIMIT, turbo_override);
-	wrmsrl(TURBO_POWER_CURRENT_LIMIT, ips->orig_turbo_limit);
+	wrmsrq(TURBO_POWER_CURRENT_LIMIT, turbo_override);
+	wrmsrq(TURBO_POWER_CURRENT_LIMIT, ips->orig_turbo_limit);
 
 	free_irq(ips->irq, ips);
 	pci_free_irq_vectors(dev);

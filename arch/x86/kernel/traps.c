@@ -749,7 +749,7 @@ static bool try_fixup_enqcmd_gp(void)
 	if (current->pasid_activated)
 		return false;
 
-	wrmsrl(MSR_IA32_PASID, pasid | MSR_IA32_PASID_VALID);
+	wrmsrq(MSR_IA32_PASID, pasid | MSR_IA32_PASID_VALID);
 	current->pasid_activated = 1;
 
 	return true;
@@ -1122,7 +1122,7 @@ static noinstr void exc_debug_kernel(struct pt_regs *regs, unsigned long dr6)
 
 		rdmsrq(MSR_IA32_DEBUGCTLMSR, debugctl);
 		debugctl |= DEBUGCTLMSR_BTF;
-		wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
+		wrmsrq(MSR_IA32_DEBUGCTLMSR, debugctl);
 	}
 
 	/*
@@ -1390,7 +1390,7 @@ static bool handle_xfd_event(struct pt_regs *regs)
 	if (!xfd_err)
 		return false;
 
-	wrmsrl(MSR_IA32_XFD_ERR, 0);
+	wrmsrq(MSR_IA32_XFD_ERR, 0);
 
 	/* Die if that happens in kernel space */
 	if (WARN_ON(!user_mode(regs)))

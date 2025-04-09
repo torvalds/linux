@@ -358,7 +358,7 @@ static void hfi_enable(void)
 
 	rdmsrq(MSR_IA32_HW_FEEDBACK_CONFIG, msr_val);
 	msr_val |= HW_FEEDBACK_CONFIG_HFI_ENABLE_BIT;
-	wrmsrl(MSR_IA32_HW_FEEDBACK_CONFIG, msr_val);
+	wrmsrq(MSR_IA32_HW_FEEDBACK_CONFIG, msr_val);
 }
 
 static void hfi_set_hw_table(struct hfi_instance *hfi_instance)
@@ -368,7 +368,7 @@ static void hfi_set_hw_table(struct hfi_instance *hfi_instance)
 
 	hw_table_pa = virt_to_phys(hfi_instance->hw_table);
 	msr_val = hw_table_pa | HW_FEEDBACK_PTR_VALID_BIT;
-	wrmsrl(MSR_IA32_HW_FEEDBACK_PTR, msr_val);
+	wrmsrq(MSR_IA32_HW_FEEDBACK_PTR, msr_val);
 }
 
 /* Caller must hold hfi_instance_lock. */
@@ -379,7 +379,7 @@ static void hfi_disable(void)
 
 	rdmsrq(MSR_IA32_HW_FEEDBACK_CONFIG, msr_val);
 	msr_val &= ~HW_FEEDBACK_CONFIG_HFI_ENABLE_BIT;
-	wrmsrl(MSR_IA32_HW_FEEDBACK_CONFIG, msr_val);
+	wrmsrq(MSR_IA32_HW_FEEDBACK_CONFIG, msr_val);
 
 	/*
 	 * Wait for hardware to acknowledge the disabling of HFI. Some

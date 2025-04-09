@@ -1293,7 +1293,7 @@ static void set_power_ctl_ee_state(bool input)
 		power_ctl |= BIT(MSR_IA32_POWER_CTL_BIT_EE);
 		power_ctl_ee_state = POWER_CTL_EE_DISABLE;
 	}
-	wrmsrl(MSR_IA32_POWER_CTL, power_ctl);
+	wrmsrq(MSR_IA32_POWER_CTL, power_ctl);
 	mutex_unlock(&intel_pstate_driver_lock);
 }
 
@@ -2351,7 +2351,7 @@ static inline void intel_pstate_hwp_boost_up(struct cpudata *cpu)
 		return;
 
 	hwp_req = (hwp_req & ~GENMASK_ULL(7, 0)) | cpu->hwp_boost_min;
-	wrmsrl(MSR_HWP_REQUEST, hwp_req);
+	wrmsrq(MSR_HWP_REQUEST, hwp_req);
 	cpu->last_update = cpu->sample.time;
 }
 
@@ -2364,7 +2364,7 @@ static inline void intel_pstate_hwp_boost_down(struct cpudata *cpu)
 		expired = time_after64(cpu->sample.time, cpu->last_update +
 				       hwp_boost_hold_time_ns);
 		if (expired) {
-			wrmsrl(MSR_HWP_REQUEST, cpu->hwp_req_cached);
+			wrmsrq(MSR_HWP_REQUEST, cpu->hwp_req_cached);
 			cpu->hwp_boost_min = 0;
 		}
 	}
@@ -2520,7 +2520,7 @@ static void intel_pstate_update_pstate(struct cpudata *cpu, int pstate)
 		return;
 
 	cpu->pstate.current_pstate = pstate;
-	wrmsrl(MSR_IA32_PERF_CTL, pstate_funcs.get_val(cpu, pstate));
+	wrmsrq(MSR_IA32_PERF_CTL, pstate_funcs.get_val(cpu, pstate));
 }
 
 static void intel_pstate_adjust_pstate(struct cpudata *cpu)
@@ -3100,7 +3100,7 @@ static void intel_cpufreq_hwp_update(struct cpudata *cpu, u32 min, u32 max,
 
 	WRITE_ONCE(cpu->hwp_req_cached, value);
 	if (fast_switch)
-		wrmsrl(MSR_HWP_REQUEST, value);
+		wrmsrq(MSR_HWP_REQUEST, value);
 	else
 		wrmsrl_on_cpu(cpu->cpu, MSR_HWP_REQUEST, value);
 }
@@ -3109,7 +3109,7 @@ static void intel_cpufreq_perf_ctl_update(struct cpudata *cpu,
 					  u32 target_pstate, bool fast_switch)
 {
 	if (fast_switch)
-		wrmsrl(MSR_IA32_PERF_CTL,
+		wrmsrq(MSR_IA32_PERF_CTL,
 		       pstate_funcs.get_val(cpu, target_pstate));
 	else
 		wrmsrl_on_cpu(cpu->cpu, MSR_IA32_PERF_CTL,

@@ -230,7 +230,7 @@ static inline u32 native_apic_msr_read(u32 reg)
 
 static inline void native_x2apic_icr_write(u32 low, u32 id)
 {
-	wrmsrl(APIC_BASE_MSR + (APIC_ICR >> 4), ((__u64) id) << 32 | low);
+	wrmsrq(APIC_BASE_MSR + (APIC_ICR >> 4), ((__u64) id) << 32 | low);
 }
 
 static inline u64 native_x2apic_icr_read(void)

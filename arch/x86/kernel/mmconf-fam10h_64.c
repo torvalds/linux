@@ -212,7 +212,7 @@ void fam10h_check_enable_mmcfg(void)
 	     (FAM10H_MMIO_CONF_BUSRANGE_MASK<<FAM10H_MMIO_CONF_BUSRANGE_SHIFT));
 	val |= fam10h_pci_mmconf_base | (8 << FAM10H_MMIO_CONF_BUSRANGE_SHIFT) |
 	       FAM10H_MMIO_CONF_ENABLE;
-	wrmsrl(address, val);
+	wrmsrq(address, val);
 }
 
 static int __init set_check_enable_amd_mmconf(const struct dmi_system_id *d)

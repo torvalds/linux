@@ -70,7 +70,7 @@ static inline void x86_fsbase_write_cpu(unsigned long fsbase)
 	if (boot_cpu_has(X86_FEATURE_FSGSBASE))
 		wrfsbase(fsbase);
 	else
-		wrmsrl(MSR_FS_BASE, fsbase);
+		wrmsrq(MSR_FS_BASE, fsbase);
 }
 
 extern unsigned long x86_gsbase_read_cpu_inactive(void);

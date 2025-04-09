@@ -667,7 +667,7 @@ static void disable_err_thresholding(struct cpuinfo_x86 *c, unsigned int bank)
 	/* McStatusWrEn has to be set */
 	need_toggle = !(hwcr & BIT(18));
 	if (need_toggle)
-		wrmsrl(MSR_K7_HWCR, hwcr | BIT(18));
+		wrmsrq(MSR_K7_HWCR, hwcr | BIT(18));
 
 	/* Clear CntP bit safely */
 	for (i = 0; i < num_msrs; i++)
@@ -675,7 +675,7 @@ static void disable_err_thresholding(struct cpuinfo_x86 *c, unsigned int bank)
 
 	/* restore old settings */
 	if (need_toggle)
-		wrmsrl(MSR_K7_HWCR, hwcr);
+		wrmsrq(MSR_K7_HWCR, hwcr);
 }
 
 /* cpu init entry point, called from mce.c with preempt off */
@@ -843,7 +843,7 @@ _log_error_bank(unsigned int bank, u32 msr_stat, u32 msr_addr, u64 misc)
 
 	__log_error(bank, status, addr, misc);
 
-	wrmsrl(msr_stat, 0);
+	wrmsrq(msr_stat, 0);
 
 	return status & MCI_STATUS_DEFERRED;
 }
@@ -862,7 +862,7 @@ static bool _log_error_deferred(unsigned int bank, u32 misc)
 		return true;
 
 	/* Clear MCA_DESTAT if the deferred error was logged from MCA_STATUS. */
-	wrmsrl(MSR_AMD64_SMCA_MCx_DESTAT(bank), 0);
+	wrmsrq(MSR_AMD64_SMCA_MCx_DESTAT(bank), 0);
 	return true;
 }
 

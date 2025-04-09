@@ -426,7 +426,7 @@ static void pt_config_start(struct perf_event *event)
 	if (READ_ONCE(pt->vmx_on))
 		perf_aux_output_flag(&pt->handle, PERF_AUX_FLAG_PARTIAL);
 	else
-		wrmsrl(MSR_IA32_RTIT_CTL, ctl);
+		wrmsrq(MSR_IA32_RTIT_CTL, ctl);
 
 	WRITE_ONCE(event->hw.aux_config, ctl);
 }
@@ -485,12 +485,12 @@ static u64 pt_config_filters(struct perf_event *event)
 
 		/* avoid redundant msr writes */
 		if (pt->filters.filter[range].msr_a != filter->msr_a) {
-			wrmsrl(pt_address_ranges[range].msr_a, filter->msr_a);
+			wrmsrq(pt_address_ranges[range].msr_a, filter->msr_a);
 			pt->filters.filter[range].msr_a = filter->msr_a;
 		}
 
 		if (pt->filters.filter[range].msr_b != filter->msr_b) {
-			wrmsrl(pt_address_ranges[range].msr_b, filter->msr_b);
+			wrmsrq(pt_address_ranges[range].msr_b, filter->msr_b);
 			pt->filters.filter[range].msr_b = filter->msr_b;
 		}
 
@@ -509,7 +509,7 @@ static void pt_config(struct perf_event *event)
 	/* First round: clear STATUS, in particular the PSB byte counter. */
 	if (!event->hw.aux_config) {
 		perf_event_itrace_started(event);
-		wrmsrl(MSR_IA32_RTIT_STATUS, 0);
+		wrmsrq(MSR_IA32_RTIT_STATUS, 0);
 	}
 
 	reg = pt_config_filters(event);
@@ -569,7 +569,7 @@ static void pt_config_stop(struct perf_event *event)
 
 	ctl &= ~RTIT_CTL_TRACEEN;
 	if (!READ_ONCE(pt->vmx_on))
-		wrmsrl(MSR_IA32_RTIT_CTL, ctl);
+		wrmsrq(MSR_IA32_RTIT_CTL, ctl);
 
 	WRITE_ONCE(event->hw.aux_config, ctl);
 
@@ -658,13 +658,13 @@ static void pt_config_buffer(struct pt_buffer *buf)
 	reg = virt_to_phys(base);
 	if (pt->output_base != reg) {
 		pt->output_base = reg;
-		wrmsrl(MSR_IA32_RTIT_OUTPUT_BASE, reg);
+		wrmsrq(MSR_IA32_RTIT_OUTPUT_BASE, reg);
 	}
 
 	reg = 0x7f | (mask << 7) | ((u64)buf->output_off << 32);
 	if (pt->output_mask != reg) {
 		pt->output_mask = reg;
-		wrmsrl(MSR_IA32_RTIT_OUTPUT_MASK, reg);
+		wrmsrq(MSR_IA32_RTIT_OUTPUT_MASK, reg);
 	}
 }
 
@@ -970,7 +970,7 @@ static void pt_handle_status(struct pt *pt)
 	if (advance)
 		pt_buffer_advance(buf);
 
-	wrmsrl(MSR_IA32_RTIT_STATUS, status);
+	wrmsrq(MSR_IA32_RTIT_STATUS, status);
 }
 
 /**
@@ -1585,7 +1585,7 @@ void intel_pt_handle_vmx(int on)
 
 	/* Turn PTs back on */
 	if (!on && event)
-		wrmsrl(MSR_IA32_RTIT_CTL, event->hw.aux_config);
+		wrmsrq(MSR_IA32_RTIT_CTL, event->hw.aux_config);
 
 	local_irq_restore(flags);
 }

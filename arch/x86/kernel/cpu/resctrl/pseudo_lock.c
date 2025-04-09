@@ -534,7 +534,7 @@ int resctrl_arch_pseudo_lock_fn(void *_plr)
 	__wrmsr(MSR_IA32_PQR_ASSOC, rmid_p, closid_p);
 
 	/* Re-enable the hardware prefetcher(s) */
-	wrmsrl(MSR_MISC_FEATURE_CONTROL, saved_msr);
+	wrmsrq(MSR_MISC_FEATURE_CONTROL, saved_msr);
 	local_irq_enable();
 
 	plr->thread_done = 1;

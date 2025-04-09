@@ -344,7 +344,7 @@ static int amd_bus_cpu_online(unsigned int cpu)
 	rdmsrq(MSR_AMD64_NB_CFG, reg);
 	if (!(reg & ENABLE_CF8_EXT_CFG)) {
 		reg |= ENABLE_CF8_EXT_CFG;
-		wrmsrl(MSR_AMD64_NB_CFG, reg);
+		wrmsrq(MSR_AMD64_NB_CFG, reg);
 	}
 	return 0;
 }

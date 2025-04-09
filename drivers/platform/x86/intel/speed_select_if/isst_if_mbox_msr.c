@@ -52,14 +52,14 @@ static int isst_if_send_mbox_cmd(u8 command, u8 sub_command, u32 parameter,
 		return ret;
 
 	/* Write DATA register */
-	wrmsrl(MSR_OS_MAILBOX_DATA, command_data);
+	wrmsrq(MSR_OS_MAILBOX_DATA, command_data);
 
 	/* Write command register */
 	data = BIT_ULL(MSR_OS_MAILBOX_BUSY_BIT) |
 		      (parameter & GENMASK_ULL(13, 0)) << 16 |
 		      (sub_command << 8) |
 		      command;
-	wrmsrl(MSR_OS_MAILBOX_INTERFACE, data);
+	wrmsrq(MSR_OS_MAILBOX_INTERFACE, data);
 
 	/* Poll for rb bit == 0 */
 	retries = OS_MAILBOX_RETRY_COUNT;

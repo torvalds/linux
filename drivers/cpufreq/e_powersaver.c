@@ -228,7 +228,7 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 	rdmsrq(MSR_IA32_MISC_ENABLE, val);
 	if (!(val & MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP)) {
 		val |= MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP;
-		wrmsrl(MSR_IA32_MISC_ENABLE, val);
+		wrmsrq(MSR_IA32_MISC_ENABLE, val);
 		/* Can be locked at 0 */
 		rdmsrq(MSR_IA32_MISC_ENABLE, val);
 		if (!(val & MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP)) {

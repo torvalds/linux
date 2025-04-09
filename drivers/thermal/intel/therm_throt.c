@@ -273,7 +273,7 @@ void thermal_clear_package_intr_status(int level, u64 bit_mask)
 	}
 
 	msr_val &= ~bit_mask;
-	wrmsrl(msr, msr_val);
+	wrmsrq(msr, msr_val);
 }
 EXPORT_SYMBOL_GPL(thermal_clear_package_intr_status);
 

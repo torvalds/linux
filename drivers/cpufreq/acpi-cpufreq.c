@@ -117,7 +117,7 @@ static int boost_set_msr(bool enable)
 	else
 		val |= msr_mask;
 
-	wrmsrl(msr_addr, val);
+	wrmsrq(msr_addr, val);
 	return 0;
 }
 

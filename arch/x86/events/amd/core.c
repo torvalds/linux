@@ -563,13 +563,13 @@ static void amd_pmu_cpu_reset(int cpu)
 		return;
 
 	/* Clear enable bits i.e. PerfCntrGlobalCtl.PerfCntrEn */
-	wrmsrl(MSR_AMD64_PERF_CNTR_GLOBAL_CTL, 0);
+	wrmsrq(MSR_AMD64_PERF_CNTR_GLOBAL_CTL, 0);
 
 	/*
 	 * Clear freeze and overflow bits i.e. PerfCntrGLobalStatus.LbrFreeze
 	 * and PerfCntrGLobalStatus.PerfCntrOvfl
 	 */
-	wrmsrl(MSR_AMD64_PERF_CNTR_GLOBAL_STATUS_CLR,
+	wrmsrq(MSR_AMD64_PERF_CNTR_GLOBAL_STATUS_CLR,
 	       GLOBAL_STATUS_LBRS_FROZEN | amd_pmu_global_cntr_mask);
 }
 
@@ -651,7 +651,7 @@ static void amd_pmu_cpu_dead(int cpu)
 
 static __always_inline void amd_pmu_set_global_ctl(u64 ctl)
 {
-	wrmsrl(MSR_AMD64_PERF_CNTR_GLOBAL_CTL, ctl);
+	wrmsrq(MSR_AMD64_PERF_CNTR_GLOBAL_CTL, ctl);
 }
 
 static inline u64 amd_pmu_get_global_status(void)
@@ -672,7 +672,7 @@ static inline void amd_pmu_ack_global_status(u64 status)
 	 * clears the same bit in PerfCntrGlobalStatus
 	 */
 
-	wrmsrl(MSR_AMD64_PERF_CNTR_GLOBAL_STATUS_CLR, status);
+	wrmsrq(MSR_AMD64_PERF_CNTR_GLOBAL_STATUS_CLR, status);
 }
 
 static bool amd_pmu_test_overflow_topbit(int idx)

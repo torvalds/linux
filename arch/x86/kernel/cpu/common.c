@@ -564,7 +564,7 @@ __noendbr u64 ibt_save(bool disable)
 	if (cpu_feature_enabled(X86_FEATURE_IBT)) {
 		rdmsrq(MSR_IA32_S_CET, msr);
 		if (disable)
-			wrmsrl(MSR_IA32_S_CET, msr & ~CET_ENDBR_EN);
+			wrmsrq(MSR_IA32_S_CET, msr & ~CET_ENDBR_EN);
 	}
 
 	return msr;
@@ -578,7 +578,7 @@ __noendbr void ibt_restore(u64 save)
 		rdmsrq(MSR_IA32_S_CET, msr);
 		msr &= ~CET_ENDBR_EN;
 		msr |= (save & CET_ENDBR_EN);
-		wrmsrl(MSR_IA32_S_CET, msr);
+		wrmsrq(MSR_IA32_S_CET, msr);
 	}
 }
 
@@ -602,15 +602,15 @@ static __always_inline void setup_cet(struct cpuinfo_x86 *c)
 		set_cpu_cap(c, X86_FEATURE_USER_SHSTK);
 
 	if (kernel_ibt)
-		wrmsrl(MSR_IA32_S_CET, CET_ENDBR_EN);
+		wrmsrq(MSR_IA32_S_CET, CET_ENDBR_EN);
 	else
-		wrmsrl(MSR_IA32_S_CET, 0);
+		wrmsrq(MSR_IA32_S_CET, 0);
 
 	cr4_set_bits(X86_CR4_CET);
 
 	if (kernel_ibt && ibt_selftest()) {
 		pr_err("IBT selftest: Failed!\n");
-		wrmsrl(MSR_IA32_S_CET, 0);
+		wrmsrq(MSR_IA32_S_CET, 0);
 		setup_clear_cpu_cap(X86_FEATURE_IBT);
 	}
 }
@@ -621,8 +621,8 @@ __noendbr void cet_disable(void)
 	      cpu_feature_enabled(X86_FEATURE_SHSTK)))
 		return;
 
-	wrmsrl(MSR_IA32_S_CET, 0);
-	wrmsrl(MSR_IA32_U_CET, 0);
+	wrmsrq(MSR_IA32_S_CET, 0);
+	wrmsrq(MSR_IA32_U_CET, 0);
 }
 
 /*
@@ -751,9 +751,9 @@ void __init switch_gdt_and_percpu_base(int cpu)
 	 * No need to load %gs. It is already correct.
 	 *
 	 * Writing %gs on 64bit would zero GSBASE which would make any per
-	 * CPU operation up to the point of the wrmsrl() fault.
+	 * CPU operation up to the point of the wrmsrq() fault.
 	 *
-	 * Set GSBASE to the new offset. Until the wrmsrl() happens the
+	 * Set GSBASE to the new offset. Until the wrmsrq() happens the
 	 * early mapping is still valid. That means the GSBASE update will
 	 * lose any prior per CPU data which was not copied over in
 	 * setup_per_cpu_areas().
@@ -761,7 +761,7 @@ void __init switch_gdt_and_percpu_base(int cpu)
 	 * This works even with stackprotector enabled because the
 	 * per CPU stack canary is 0 in both per CPU areas.
 	 */
-	wrmsrl(MSR_GS_BASE, cpu_kernelmode_gs_base(cpu));
+	wrmsrq(MSR_GS_BASE, cpu_kernelmode_gs_base(cpu));
 #else
 	/*
 	 * %fs is already set to __KERNEL_PERCPU, but after switching GDT
@@ -1750,10 +1750,10 @@ static bool detect_null_seg_behavior(void)
 
 	unsigned long old_base, tmp;
 	rdmsrq(MSR_FS_BASE, old_base);
-	wrmsrl(MSR_FS_BASE, 1);
+	wrmsrq(MSR_FS_BASE, 1);
 	loadsegment(fs, 0);
 	rdmsrq(MSR_FS_BASE, tmp);
-	wrmsrl(MSR_FS_BASE, old_base);
+	wrmsrq(MSR_FS_BASE, old_base);
 	return tmp == 0;
 }
 
@@ -2099,12 +2099,12 @@ static void wrmsrl_cstar(unsigned long val)
 	 * guest. Avoid the pointless write on all Intel CPUs.
 	 */
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
-		wrmsrl(MSR_CSTAR, val);
+		wrmsrq(MSR_CSTAR, val);
 }
 
 static inline void idt_syscall_init(void)
 {
-	wrmsrl(MSR_LSTAR, (unsigned long)entry_SYSCALL_64);
+	wrmsrq(MSR_LSTAR, (unsigned long)entry_SYSCALL_64);
 
 	if (ia32_enabled()) {
 		wrmsrl_cstar((unsigned long)entry_SYSCALL_compat);
@@ -2129,7 +2129,7 @@ static inline void idt_syscall_init(void)
 	 * Flags to clear on syscall; clear as much as possible
 	 * to minimize user space-kernel interference.
 	 */
-	wrmsrl(MSR_SYSCALL_MASK,
+	wrmsrq(MSR_SYSCALL_MASK,
 	       X86_EFLAGS_CF|X86_EFLAGS_PF|X86_EFLAGS_AF|
 	       X86_EFLAGS_ZF|X86_EFLAGS_SF|X86_EFLAGS_TF|
 	       X86_EFLAGS_IF|X86_EFLAGS_DF|X86_EFLAGS_OF|
@@ -2313,8 +2313,8 @@ void cpu_init(void)
 		memset(cur->thread.tls_array, 0, GDT_ENTRY_TLS_ENTRIES * 8);
 		syscall_init();
 
-		wrmsrl(MSR_FS_BASE, 0);
-		wrmsrl(MSR_KERNEL_GS_BASE, 0);
+		wrmsrq(MSR_FS_BASE, 0);
+		wrmsrq(MSR_KERNEL_GS_BASE, 0);
 		barrier();
 
 		x2apic_setup();

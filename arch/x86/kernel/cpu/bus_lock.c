@@ -145,7 +145,7 @@ static void __init __split_lock_setup(void)
 	}
 
 	/* Restore the MSR to its cached value. */
-	wrmsrl(MSR_TEST_CTRL, msr_test_ctrl_cache);
+	wrmsrq(MSR_TEST_CTRL, msr_test_ctrl_cache);
 
 	setup_force_cpu_cap(X86_FEATURE_SPLIT_LOCK_DETECT);
 }
@@ -162,7 +162,7 @@ static void sld_update_msr(bool on)
 	if (on)
 		test_ctrl_val |= MSR_TEST_CTRL_SPLIT_LOCK_DETECT;
 
-	wrmsrl(MSR_TEST_CTRL, test_ctrl_val);
+	wrmsrq(MSR_TEST_CTRL, test_ctrl_val);
 }
 
 void split_lock_init(void)
@@ -311,7 +311,7 @@ void bus_lock_init(void)
 		val |= DEBUGCTLMSR_BUS_LOCK_DETECT;
 	}
 
-	wrmsrl(MSR_IA32_DEBUGCTLMSR, val);
+	wrmsrq(MSR_IA32_DEBUGCTLMSR, val);
 }
 
 bool handle_user_split_lock(struct pt_regs *regs, long error_code)

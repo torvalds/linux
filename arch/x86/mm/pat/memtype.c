@@ -232,7 +232,7 @@ void pat_cpu_init(void)
 		panic("x86/PAT: PAT enabled, but not supported by secondary CPU\n");
 	}
 
-	wrmsrl(MSR_IA32_CR_PAT, pat_msr_val);
+	wrmsrq(MSR_IA32_CR_PAT, pat_msr_val);
 
 	__flush_tlb_all();
 }

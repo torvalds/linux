@@ -140,7 +140,7 @@ static int __mfd_enable(unsigned int cpu)
 
 	val |= MSR_AMD64_SYSCFG_MFDM;
 
-	wrmsrl(MSR_AMD64_SYSCFG, val);
+	wrmsrq(MSR_AMD64_SYSCFG, val);
 
 	return 0;
 }
@@ -162,7 +162,7 @@ static int __snp_enable(unsigned int cpu)
 	val |= MSR_AMD64_SYSCFG_SNP_EN;
 	val |= MSR_AMD64_SYSCFG_SNP_VMPL_EN;
 
-	wrmsrl(MSR_AMD64_SYSCFG, val);
+	wrmsrq(MSR_AMD64_SYSCFG, val);
 
 	return 0;
 }

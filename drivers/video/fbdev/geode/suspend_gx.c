@@ -133,7 +133,7 @@ static void gx_restore_video_proc(struct gxfb_par *par)
 {
 	int i;
 
-	wrmsrl(MSR_GX_MSR_PADSEL, par->msr.padsel);
+	wrmsrq(MSR_GX_MSR_PADSEL, par->msr.padsel);
 
 	for (i = 0; i < ARRAY_SIZE(par->vp); i++) {
 		switch (i) {

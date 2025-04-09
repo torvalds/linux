@@ -435,9 +435,9 @@ static inline void perf_ibs_enable_event(struct perf_ibs *perf_ibs,
 	u64 tmp = hwc->config | config;
 
 	if (perf_ibs->fetch_count_reset_broken)
-		wrmsrl(hwc->config_base, tmp & ~perf_ibs->enable_mask);
+		wrmsrq(hwc->config_base, tmp & ~perf_ibs->enable_mask);
 
-	wrmsrl(hwc->config_base, tmp | perf_ibs->enable_mask);
+	wrmsrq(hwc->config_base, tmp | perf_ibs->enable_mask);
 }
 
 /*
@@ -452,9 +452,9 @@ static inline void perf_ibs_disable_event(struct perf_ibs *perf_ibs,
 {
 	config &= ~perf_ibs->cnt_mask;
 	if (boot_cpu_data.x86 == 0x10)
-		wrmsrl(hwc->config_base, config);
+		wrmsrq(hwc->config_base, config);
 	config &= ~perf_ibs->enable_mask;
-	wrmsrl(hwc->config_base, config);
+	wrmsrq(hwc->config_base, config);
 }
 
 /*

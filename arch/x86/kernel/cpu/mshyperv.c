@@ -82,9 +82,9 @@ void hv_set_non_nested_msr(unsigned int reg, u64 value)
 
 		/* Write proxy bit via wrmsl instruction */
 		if (hv_is_sint_msr(reg))
-			wrmsrl(reg, value | 1 << 20);
+			wrmsrq(reg, value | 1 << 20);
 	} else {
-		wrmsrl(reg, value);
+		wrmsrq(reg, value);
 	}
 }
 EXPORT_SYMBOL_GPL(hv_set_non_nested_msr);
@@ -574,7 +574,7 @@ static void __init ms_hyperv_init_platform(void)
 		 * setting of this MSR bit should happen before init_intel()
 		 * is called.
 		 */
-		wrmsrl(HV_X64_MSR_TSC_INVARIANT_CONTROL, HV_EXPOSE_INVARIANT_TSC);
+		wrmsrq(HV_X64_MSR_TSC_INVARIANT_CONTROL, HV_EXPOSE_INVARIANT_TSC);
 		setup_force_cpu_cap(X86_FEATURE_TSC_RELIABLE);
 	}
 

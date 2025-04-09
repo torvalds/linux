@@ -861,7 +861,7 @@ static inline int p4_pmu_clear_cccr_ovf(struct hw_perf_event *hwc)
 	/* an official way for overflow indication */
 	rdmsrq(hwc->config_base, v);
 	if (v & P4_CCCR_OVF) {
-		wrmsrl(hwc->config_base, v & ~P4_CCCR_OVF);
+		wrmsrq(hwc->config_base, v & ~P4_CCCR_OVF);
 		return 1;
 	}
 
@@ -1024,7 +1024,7 @@ static int p4_pmu_set_period(struct perf_event *event)
 		 *
 		 * the former idea is taken from OProfile code
 		 */
-		wrmsrl(hwc->event_base, (u64)(-left) & x86_pmu.cntval_mask);
+		wrmsrq(hwc->event_base, (u64)(-left) & x86_pmu.cntval_mask);
 	}
 
 	return ret;

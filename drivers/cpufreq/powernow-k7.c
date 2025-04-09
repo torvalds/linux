@@ -225,7 +225,7 @@ static void change_FID(int fid)
 		fidvidctl.bits.FID = fid;
 		fidvidctl.bits.VIDC = 0;
 		fidvidctl.bits.FIDC = 1;
-		wrmsrl(MSR_K7_FID_VID_CTL, fidvidctl.val);
+		wrmsrq(MSR_K7_FID_VID_CTL, fidvidctl.val);
 	}
 }
 
@@ -240,7 +240,7 @@ static void change_VID(int vid)
 		fidvidctl.bits.VID = vid;
 		fidvidctl.bits.FIDC = 0;
 		fidvidctl.bits.VIDC = 1;
-		wrmsrl(MSR_K7_FID_VID_CTL, fidvidctl.val);
+		wrmsrq(MSR_K7_FID_VID_CTL, fidvidctl.val);
 	}
 }
 

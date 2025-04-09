@@ -39,7 +39,7 @@ void xen_arch_post_suspend(int cancelled)
 static void xen_vcpu_notify_restore(void *data)
 {
 	if (xen_pv_domain() && boot_cpu_has(X86_FEATURE_SPEC_CTRL))
-		wrmsrl(MSR_IA32_SPEC_CTRL, this_cpu_read(spec_ctrl));
+		wrmsrq(MSR_IA32_SPEC_CTRL, this_cpu_read(spec_ctrl));
 
 	/* Boot processor notified via generic timekeeping_resume() */
 	if (smp_processor_id() == 0)
@@ -57,7 +57,7 @@ static void xen_vcpu_notify_suspend(void *data)
 	if (xen_pv_domain() && boot_cpu_has(X86_FEATURE_SPEC_CTRL)) {
 		rdmsrq(MSR_IA32_SPEC_CTRL, tmp);
 		this_cpu_write(spec_ctrl, tmp);
-		wrmsrl(MSR_IA32_SPEC_CTRL, 0);
+		wrmsrq(MSR_IA32_SPEC_CTRL, 0);
 	}
 }
 

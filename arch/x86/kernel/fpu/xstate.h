@@ -171,7 +171,7 @@ static inline void xfd_validate_state(struct fpstate *fpstate, u64 mask, bool rs
 #ifdef CONFIG_X86_64
 static inline void xfd_set_state(u64 xfd)
 {
-	wrmsrl(MSR_IA32_XFD, xfd);
+	wrmsrq(MSR_IA32_XFD, xfd);
 	__this_cpu_write(xfd_state, xfd);
 }
 

@@ -425,7 +425,7 @@ static int lapic_next_deadline(unsigned long delta,
 	weak_wrmsr_fence();
 
 	tsc = rdtsc();
-	wrmsrl(MSR_IA32_TSC_DEADLINE, tsc + (((u64) delta) * TSC_DIVISOR));
+	wrmsrq(MSR_IA32_TSC_DEADLINE, tsc + (((u64) delta) * TSC_DIVISOR));
 	return 0;
 }
 
@@ -449,7 +449,7 @@ static int lapic_timer_shutdown(struct clock_event_device *evt)
 	 * the timer _and_ zero the counter registers:
 	 */
 	if (v & APIC_LVT_TIMER_TSCDEADLINE)
-		wrmsrl(MSR_IA32_TSC_DEADLINE, 0);
+		wrmsrq(MSR_IA32_TSC_DEADLINE, 0);
 	else
 		apic_write(APIC_TMICT, 0);
 
@@ -1711,8 +1711,8 @@ static void __x2apic_disable(void)
 	if (!(msr & X2APIC_ENABLE))
 		return;
 	/* Disable xapic and x2apic first and then reenable xapic mode */
-	wrmsrl(MSR_IA32_APICBASE, msr & ~(X2APIC_ENABLE | XAPIC_ENABLE));
-	wrmsrl(MSR_IA32_APICBASE, msr & ~X2APIC_ENABLE);
+	wrmsrq(MSR_IA32_APICBASE, msr & ~(X2APIC_ENABLE | XAPIC_ENABLE));
+	wrmsrq(MSR_IA32_APICBASE, msr & ~X2APIC_ENABLE);
 	printk_once(KERN_INFO "x2apic disabled\n");
 }
 
@@ -1723,7 +1723,7 @@ static void __x2apic_enable(void)
 	rdmsrq(MSR_IA32_APICBASE, msr);
 	if (msr & X2APIC_ENABLE)
 		return;
-	wrmsrl(MSR_IA32_APICBASE, msr | X2APIC_ENABLE);
+	wrmsrq(MSR_IA32_APICBASE, msr | X2APIC_ENABLE);
 	printk_once(KERN_INFO "x2apic enabled\n");
 }
 
