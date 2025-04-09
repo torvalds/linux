@@ -91,6 +91,43 @@ int snd_soc_usb_setup_offload_jack(struct snd_soc_component *component,
 EXPORT_SYMBOL_GPL(snd_soc_usb_setup_offload_jack);
 
 /**
+ * snd_soc_usb_update_offload_route - Find active USB offload path
+ * @dev: USB device to get offload status
+ * @card: USB card index
+ * @pcm: USB PCM device index
+ * @direction: playback or capture direction
+ * @path: pcm or card index
+ * @route: pointer to route output array
+ *
+ * Fetch the current status for the USB SND card and PCM device indexes
+ * specified.  The "route" argument should be an array of integers being
+ * used for a kcontrol output.  The first element should have the selected
+ * card index, and the second element should have the selected pcm device
+ * index.
+ */
+int snd_soc_usb_update_offload_route(struct device *dev, int card, int pcm,
+				     int direction, enum snd_soc_usb_kctl path,
+				     long *route)
+{
+	struct snd_soc_usb *ctx;
+	int ret = -ENODEV;
+
+	mutex_lock(&ctx_mutex);
+	ctx = snd_soc_find_usb_ctx(dev);
+	if (!ctx)
+		goto exit;
+
+	if (ctx->update_offload_route_info)
+		ret = ctx->update_offload_route_info(ctx->component, card, pcm,
+						     direction, path, route);
+exit:
+	mutex_unlock(&ctx_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_usb_update_offload_route);
+
+/**
  * snd_soc_usb_find_priv_data() - Retrieve private data stored
  * @usbdev: device reference
  *
