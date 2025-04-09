@@ -78,7 +78,7 @@ int wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
 }
 EXPORT_SYMBOL(wrmsr_on_cpu);
 
-int wrmsrl_on_cpu(unsigned int cpu, u32 msr_no, u64 q)
+int wrmsrq_on_cpu(unsigned int cpu, u32 msr_no, u64 q)
 {
 	int err;
 	struct msr_info rv;
@@ -92,7 +92,7 @@ int wrmsrl_on_cpu(unsigned int cpu, u32 msr_no, u64 q)
 
 	return err;
 }
-EXPORT_SYMBOL(wrmsrl_on_cpu);
+EXPORT_SYMBOL(wrmsrq_on_cpu);
 
 static void __rwmsr_on_cpus(const struct cpumask *mask, u32 msr_no,
 			    struct msr __percpu *msrs,

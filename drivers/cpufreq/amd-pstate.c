@@ -261,7 +261,7 @@ static int msr_update_perf(struct cpufreq_policy *policy, u8 min_perf,
 		wrmsrq(MSR_AMD_CPPC_REQ, value);
 		return 0;
 	} else {
-		int ret = wrmsrl_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ, value);
+		int ret = wrmsrq_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ, value);
 
 		if (ret)
 			return ret;
@@ -309,7 +309,7 @@ static int msr_set_epp(struct cpufreq_policy *policy, u8 epp)
 	if (value == prev)
 		return 0;
 
-	ret = wrmsrl_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ, value);
+	ret = wrmsrq_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ, value);
 	if (ret) {
 		pr_err("failed to set energy perf value (%d)\n", ret);
 		return ret;
@@ -788,7 +788,7 @@ exit_err:
 
 static void amd_perf_ctl_reset(unsigned int cpu)
 {
-	wrmsrl_on_cpu(cpu, MSR_AMD_PERF_CTL, 0);
+	wrmsrq_on_cpu(cpu, MSR_AMD_PERF_CTL, 0);
 }
 
 /*
