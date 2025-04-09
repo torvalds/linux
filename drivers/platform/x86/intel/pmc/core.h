@@ -24,6 +24,11 @@ struct telem_endpoint;
 #define MAX_NUM_PMC			3
 #define S0IX_BLK_SIZE			4
 
+/* PCH query */
+#define LPM_HEADER_OFFSET	1
+#define LPM_REG_COUNT		28
+#define LPM_MODE_OFFSET		1
+
 /* Sunrise Point Power Management Controller PCI Device ID */
 #define SPT_PMC_PCI_DEVICE_ID			0x9d21
 #define SPT_PMC_BASE_ADDR_OFFSET		0x48
@@ -485,7 +490,6 @@ extern const struct pmc_reg_map mtl_socm_reg_map;
 extern const struct pmc_reg_map mtl_ioep_reg_map;
 
 void pmc_core_get_tgl_lpm_reqs(struct platform_device *pdev);
-int pmc_core_ssram_get_lpm_reqs(struct pmc_dev *pmcdev);
 int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value, int ignore);
 
 int pmc_core_resume_common(struct pmc_dev *pmcdev);
@@ -497,6 +501,9 @@ void pmc_core_set_device_d3(unsigned int device);
 int pmc_core_ssram_init(struct pmc_dev *pmcdev, int func);
 
 int generic_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info);
+const struct pmc_reg_map *pmc_core_find_regmap(struct pmc_info *list, u16 devid);
+int pmc_core_pmc_add(struct pmc_dev *pmcdev, u64 pwrm_base,
+		     const struct pmc_reg_map *reg_map, int pmc_index);
 
 extern struct pmc_dev_info spt_pmc_dev;
 extern struct pmc_dev_info cnp_pmc_dev;
