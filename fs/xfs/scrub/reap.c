@@ -445,7 +445,7 @@ xreap_agextent_iter(
 			 */
 			xfs_refcount_free_cow_extent(sc->tp, false, fsbno,
 					*aglenp);
-			xreap_force_defer_finish(rs);
+			xreap_inc_defer(rs);
 			return 0;
 		}
 
@@ -486,7 +486,7 @@ xreap_agextent_iter(
 		if (error)
 			return error;
 
-		xreap_force_defer_finish(rs);
+		xreap_inc_defer(rs);
 		return 0;
 	}
 
