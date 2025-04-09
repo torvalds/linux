@@ -39,8 +39,8 @@ MODULE_PARM_DESC(force_execlist, "Force Execlist submission");
 module_param_named(probe_display, xe_modparam.probe_display, bool, 0444);
 MODULE_PARM_DESC(probe_display, "Probe display HW, otherwise it's left untouched (default: true)");
 
-module_param_named(vram_bar_size, xe_modparam.force_vram_bar_size, uint, 0600);
-MODULE_PARM_DESC(vram_bar_size, "Set the vram bar size(in MiB)");
+module_param_named(vram_bar_size, xe_modparam.force_vram_bar_size, int, 0600);
+MODULE_PARM_DESC(vram_bar_size, "Set the vram bar size (in MiB) - <0=disable-resize, 0=max-needed-size[default], >0=force-size");
 
 module_param_named(guc_log_level, xe_modparam.guc_log_level, int, 0600);
 MODULE_PARM_DESC(guc_log_level, "GuC firmware logging level (0=disable, 1..5=enable with verbosity min..max)");
