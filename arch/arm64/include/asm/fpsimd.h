@@ -96,6 +96,7 @@ struct cpu_fp_state {
 extern void fpsimd_bind_state_to_cpu(struct cpu_fp_state *fp_state);
 
 extern void fpsimd_flush_task_state(struct task_struct *target);
+extern void fpsimd_save_and_flush_current_state(void);
 extern void fpsimd_save_and_flush_cpu_state(void);
 
 static inline bool thread_sm_enabled(struct thread_struct *thread)

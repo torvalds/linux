@@ -1819,6 +1819,17 @@ void fpsimd_flush_task_state(struct task_struct *t)
 	barrier();
 }
 
+void fpsimd_save_and_flush_current_state(void)
+{
+	if (!system_supports_fpsimd())
+		return;
+
+	get_cpu_fpsimd_context();
+	fpsimd_save_user_state();
+	fpsimd_flush_task_state(current);
+	put_cpu_fpsimd_context();
+}
+
 /*
  * Save the FPSIMD state to memory and invalidate cpu view.
  * This function must be called with preemption disabled.
