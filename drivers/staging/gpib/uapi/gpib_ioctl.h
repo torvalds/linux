@@ -97,10 +97,10 @@ struct gpib_pad_ioctl {
 	unsigned int pad;
 };
 
-typedef struct {
+struct gpib_sad_ioctl {
 	unsigned int handle;
 	int sad;
-} sad_ioctl_t;
+};
 
 // select a piece of hardware to attach by its sysfs device path
 typedef struct {
@@ -135,7 +135,7 @@ enum gpib_ioctl {
 	IBCAC = _IOW(GPIB_CODE, 12, int),
 	IBLINES = _IOR(GPIB_CODE, 14, short),
 	IBPAD = _IOW(GPIB_CODE, 15, struct gpib_pad_ioctl),
-	IBSAD = _IOW(GPIB_CODE, 16, sad_ioctl_t),
+	IBSAD = _IOW(GPIB_CODE, 16, struct gpib_sad_ioctl),
 	IBTMO = _IOW(GPIB_CODE, 17, unsigned int),
 	IBRSP = _IOWR(GPIB_CODE, 18, struct gpib_serial_poll_ioctl),
 	IBEOS = _IOW(GPIB_CODE, 19, struct gpib_eos_ioctl),
