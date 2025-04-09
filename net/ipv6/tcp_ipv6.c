@@ -1970,7 +1970,8 @@ do_time_wait:
 		goto csum_error;
 	}
 
-	tw_status = tcp_timewait_state_process(inet_twsk(sk), skb, th, &isn);
+	tw_status = tcp_timewait_state_process(inet_twsk(sk), skb, th, &isn,
+					       &drop_reason);
 	switch (tw_status) {
 	case TCP_TW_SYN:
 	{
