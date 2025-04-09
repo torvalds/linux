@@ -1093,9 +1093,29 @@ static const u32 mt8183_output_fmts[] = {
 	MEDIA_BUS_FMT_RGB888_2X12_BE,
 };
 
-static const u32 mt8195_output_fmts[] = {
+static const u32 mt8195_dpi_output_fmts[] = {
+	MEDIA_BUS_FMT_BGR888_1X24,
 	MEDIA_BUS_FMT_RGB888_1X24,
+	MEDIA_BUS_FMT_RGB888_2X12_LE,
+	MEDIA_BUS_FMT_RGB888_2X12_BE,
+	MEDIA_BUS_FMT_RGB101010_1X30,
 	MEDIA_BUS_FMT_YUYV8_1X16,
+	MEDIA_BUS_FMT_YUYV10_1X20,
+	MEDIA_BUS_FMT_YUYV12_1X24,
+	MEDIA_BUS_FMT_YUV8_1X24,
+	MEDIA_BUS_FMT_YUV10_1X30,
+};
+
+static const u32 mt8195_output_fmts[] = {
+	MEDIA_BUS_FMT_BGR888_1X24,
+	MEDIA_BUS_FMT_RGB888_1X24,
+	MEDIA_BUS_FMT_RGB888_2X12_LE,
+	MEDIA_BUS_FMT_RGB888_2X12_BE,
+	MEDIA_BUS_FMT_RGB101010_1X30,
+	MEDIA_BUS_FMT_YUYV8_1X16,
+	MEDIA_BUS_FMT_YUYV10_1X20,
+	MEDIA_BUS_FMT_YUV8_1X24,
+	MEDIA_BUS_FMT_YUV10_1X30,
 };
 
 static const struct mtk_dpi_factor dpi_factor_mt2701[] = {
@@ -1208,8 +1228,8 @@ static const struct mtk_dpi_conf mt8192_conf = {
 
 static const struct mtk_dpi_conf mt8195_conf = {
 	.max_clock_khz = 594000,
-	.output_fmts = mt8183_output_fmts,
-	.num_output_fmts = ARRAY_SIZE(mt8183_output_fmts),
+	.output_fmts = mt8195_dpi_output_fmts,
+	.num_output_fmts = ARRAY_SIZE(mt8195_dpi_output_fmts),
 	.pixels_per_iter = 1,
 	.is_ck_de_pol = true,
 	.swap_input_support = true,
