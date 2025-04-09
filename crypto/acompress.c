@@ -483,6 +483,9 @@ void crypto_acomp_free_streams(struct crypto_acomp_streams *s)
 	void (*free_ctx)(void *);
 	int i;
 
+	if (!streams)
+		return;
+
 	cancel_work_sync(&s->stream_work);
 	free_ctx = s->free_ctx;
 
