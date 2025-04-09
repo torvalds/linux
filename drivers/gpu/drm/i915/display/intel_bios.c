@@ -3126,7 +3126,7 @@ static const struct vbt_header *intel_bios_get_vbt(struct intel_display *display
 	 * If the OpRegion does not have VBT, look in SPI flash
 	 * through MMIO or PCI mapping
 	 */
-	if (!vbt && IS_DGFX(i915))
+	if (!vbt && display->platform.dgfx)
 		with_intel_display_rpm(display)
 			vbt = oprom_get_vbt(display, intel_rom_spi(i915), sizep, "SPI flash");
 
