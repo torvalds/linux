@@ -73,7 +73,7 @@ static __always_inline u64 amd_pmu_lbr_get_from(unsigned int idx)
 {
 	u64 val;
 
-	rdmsrl(MSR_AMD_SAMP_BR_FROM + idx * 2, val);
+	rdmsrq(MSR_AMD_SAMP_BR_FROM + idx * 2, val);
 
 	return val;
 }
@@ -82,7 +82,7 @@ static __always_inline u64 amd_pmu_lbr_get_to(unsigned int idx)
 {
 	u64 val;
 
-	rdmsrl(MSR_AMD_SAMP_BR_FROM + idx * 2 + 1, val);
+	rdmsrq(MSR_AMD_SAMP_BR_FROM + idx * 2 + 1, val);
 
 	return val;
 }
@@ -400,11 +400,11 @@ void amd_pmu_lbr_enable_all(void)
 	}
 
 	if (cpu_feature_enabled(X86_FEATURE_AMD_LBR_PMC_FREEZE)) {
-		rdmsrl(MSR_IA32_DEBUGCTLMSR, dbg_ctl);
+		rdmsrq(MSR_IA32_DEBUGCTLMSR, dbg_ctl);
 		wrmsrl(MSR_IA32_DEBUGCTLMSR, dbg_ctl | DEBUGCTLMSR_FREEZE_LBRS_ON_PMI);
 	}
 
-	rdmsrl(MSR_AMD_DBG_EXTN_CFG, dbg_extn_cfg);
+	rdmsrq(MSR_AMD_DBG_EXTN_CFG, dbg_extn_cfg);
 	wrmsrl(MSR_AMD_DBG_EXTN_CFG, dbg_extn_cfg | DBG_EXTN_CFG_LBRV2EN);
 }
 

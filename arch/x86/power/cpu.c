@@ -44,7 +44,7 @@ static void msr_save_context(struct saved_context *ctxt)
 
 	while (msr < end) {
 		if (msr->valid)
-			rdmsrl(msr->info.msr_no, msr->info.reg.q);
+			rdmsrq(msr->info.msr_no, msr->info.reg.q);
 		msr++;
 	}
 }
@@ -110,12 +110,12 @@ static void __save_processor_state(struct saved_context *ctxt)
 	savesegment(ds, ctxt->ds);
 	savesegment(es, ctxt->es);
 
-	rdmsrl(MSR_FS_BASE, ctxt->fs_base);
-	rdmsrl(MSR_GS_BASE, ctxt->kernelmode_gs_base);
-	rdmsrl(MSR_KERNEL_GS_BASE, ctxt->usermode_gs_base);
+	rdmsrq(MSR_FS_BASE, ctxt->fs_base);
+	rdmsrq(MSR_GS_BASE, ctxt->kernelmode_gs_base);
+	rdmsrq(MSR_KERNEL_GS_BASE, ctxt->usermode_gs_base);
 	mtrr_save_fixed_ranges(NULL);
 
-	rdmsrl(MSR_EFER, ctxt->efer);
+	rdmsrq(MSR_EFER, ctxt->efer);
 #endif
 
 	/*

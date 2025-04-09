@@ -55,7 +55,7 @@ static void do_user_cp_fault(struct pt_regs *regs, unsigned long error_code)
 	 * will be whatever is live in userspace. So read the SSP before enabling
 	 * interrupts so locking the fpregs to do it later is not required.
 	 */
-	rdmsrl(MSR_IA32_PL3_SSP, ssp);
+	rdmsrq(MSR_IA32_PL3_SSP, ssp);
 
 	cond_local_irq_enable(regs);
 

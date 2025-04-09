@@ -256,7 +256,7 @@ void __init pat_bp_init(void)
 	if (!cpu_feature_enabled(X86_FEATURE_PAT))
 		pat_disable("PAT not supported by the CPU.");
 	else
-		rdmsrl(MSR_IA32_CR_PAT, pat_msr_val);
+		rdmsrq(MSR_IA32_CR_PAT, pat_msr_val);
 
 	if (!pat_msr_val) {
 		pat_disable("PAT support disabled by the firmware.");

@@ -70,7 +70,7 @@ u64 hv_get_non_nested_msr(unsigned int reg)
 	if (hv_is_synic_msr(reg) && ms_hyperv.paravisor_present)
 		hv_ivm_msr_read(reg, &value);
 	else
-		rdmsrl(reg, value);
+		rdmsrq(reg, value);
 	return value;
 }
 EXPORT_SYMBOL_GPL(hv_get_non_nested_msr);
@@ -345,7 +345,7 @@ static unsigned long hv_get_tsc_khz(void)
 {
 	unsigned long freq;
 
-	rdmsrl(HV_X64_MSR_TSC_FREQUENCY, freq);
+	rdmsrq(HV_X64_MSR_TSC_FREQUENCY, freq);
 
 	return freq / 1000;
 }
@@ -541,7 +541,7 @@ static void __init ms_hyperv_init_platform(void)
 		 */
 		u64	hv_lapic_frequency;
 
-		rdmsrl(HV_X64_MSR_APIC_FREQUENCY, hv_lapic_frequency);
+		rdmsrq(HV_X64_MSR_APIC_FREQUENCY, hv_lapic_frequency);
 		hv_lapic_frequency = div_u64(hv_lapic_frequency, HZ);
 		lapic_timer_period = hv_lapic_frequency;
 		pr_info("Hyper-V: LAPIC Timer Frequency: %#x\n",

@@ -239,7 +239,7 @@ static unsigned long get_user_shstk_addr(void)
 
 	fpregs_lock_and_load();
 
-	rdmsrl(MSR_IA32_PL3_SSP, ssp);
+	rdmsrq(MSR_IA32_PL3_SSP, ssp);
 
 	fpregs_unlock();
 
@@ -460,7 +460,7 @@ static int wrss_control(bool enable)
 		return 0;
 
 	fpregs_lock_and_load();
-	rdmsrl(MSR_IA32_U_CET, msrval);
+	rdmsrq(MSR_IA32_U_CET, msrval);
 
 	if (enable) {
 		features_set(ARCH_SHSTK_WRSS);

@@ -556,7 +556,7 @@ static bool disable_dynamic_sst_features(void)
 {
 	u64 value;
 
-	rdmsrl(MSR_PM_ENABLE, value);
+	rdmsrq(MSR_PM_ENABLE, value);
 	return !(value & 0x1);
 }
 

@@ -358,7 +358,7 @@ void lx_set_mode(struct fb_info *info)
 
 	/* Set output mode */
 
-	rdmsrl(MSR_LX_GLD_MSR_CONFIG, msrval);
+	rdmsrq(MSR_LX_GLD_MSR_CONFIG, msrval);
 	msrval &= ~MSR_LX_GLD_MSR_CONFIG_FMT;
 
 	if (par->output & OUTPUT_PANEL) {
@@ -419,7 +419,7 @@ void lx_set_mode(struct fb_info *info)
 
 	/* Set default watermark values */
 
-	rdmsrl(MSR_LX_SPARE_MSR, msrval);
+	rdmsrq(MSR_LX_SPARE_MSR, msrval);
 
 	msrval &= ~(MSR_LX_SPARE_MSR_DIS_CFIFO_HGO
 			| MSR_LX_SPARE_MSR_VFIFO_ARB_SEL
@@ -591,10 +591,10 @@ static void lx_save_regs(struct lxfb_par *par)
 	} while ((i & GP_BLT_STATUS_PB) || !(i & GP_BLT_STATUS_CE));
 
 	/* save MSRs */
-	rdmsrl(MSR_LX_MSR_PADSEL, par->msr.padsel);
-	rdmsrl(MSR_GLCP_DOTPLL, par->msr.dotpll);
-	rdmsrl(MSR_LX_GLD_MSR_CONFIG, par->msr.dfglcfg);
-	rdmsrl(MSR_LX_SPARE_MSR, par->msr.dcspare);
+	rdmsrq(MSR_LX_MSR_PADSEL, par->msr.padsel);
+	rdmsrq(MSR_GLCP_DOTPLL, par->msr.dotpll);
+	rdmsrq(MSR_LX_GLD_MSR_CONFIG, par->msr.dfglcfg);
+	rdmsrq(MSR_LX_SPARE_MSR, par->msr.dcspare);
 
 	write_dc(par, DC_UNLOCK, DC_UNLOCK_UNLOCK);
 

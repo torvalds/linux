@@ -209,7 +209,7 @@ do {						\
 	paravirt_write_msr(msr, val1, val2);	\
 } while (0)
 
-#define rdmsrl(msr, val)			\
+#define rdmsrq(msr, val)			\
 do {						\
 	val = paravirt_read_msr(msr);		\
 } while (0)

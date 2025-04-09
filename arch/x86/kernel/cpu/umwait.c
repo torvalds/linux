@@ -214,7 +214,7 @@ static int __init umwait_init(void)
 	 * changed. This is the only place where orig_umwait_control_cached
 	 * is modified.
 	 */
-	rdmsrl(MSR_IA32_UMWAIT_CONTROL, orig_umwait_control_cached);
+	rdmsrq(MSR_IA32_UMWAIT_CONTROL, orig_umwait_control_cached);
 
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "umwait:online",
 				umwait_cpu_online, umwait_cpu_offline);

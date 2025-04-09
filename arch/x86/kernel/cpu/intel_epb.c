@@ -79,7 +79,7 @@ static int intel_epb_save(void)
 {
 	u64 epb;
 
-	rdmsrl(MSR_IA32_ENERGY_PERF_BIAS, epb);
+	rdmsrq(MSR_IA32_ENERGY_PERF_BIAS, epb);
 	/*
 	 * Ensure that saved_epb will always be nonzero after this write even if
 	 * the EPB value read from the MSR is 0.
@@ -94,7 +94,7 @@ static void intel_epb_restore(void)
 	u64 val = this_cpu_read(saved_epb);
 	u64 epb;
 
-	rdmsrl(MSR_IA32_ENERGY_PERF_BIAS, epb);
+	rdmsrq(MSR_IA32_ENERGY_PERF_BIAS, epb);
 	if (val) {
 		val &= EPB_MASK;
 	} else {

@@ -142,8 +142,8 @@ void gx_set_dclk_frequency(struct fb_info *info)
 		}
 	}
 
-	rdmsrl(MSR_GLCP_SYS_RSTPLL, sys_rstpll);
-	rdmsrl(MSR_GLCP_DOTPLL, dotpll);
+	rdmsrq(MSR_GLCP_SYS_RSTPLL, sys_rstpll);
+	rdmsrq(MSR_GLCP_DOTPLL, dotpll);
 
 	/* Program new M, N and P. */
 	dotpll &= 0x00000000ffffffffull;
@@ -167,7 +167,7 @@ void gx_set_dclk_frequency(struct fb_info *info)
 
 	/* Wait for LOCK bit. */
 	do {
-		rdmsrl(MSR_GLCP_DOTPLL, dotpll);
+		rdmsrq(MSR_GLCP_DOTPLL, dotpll);
 	} while (timeout-- && !(dotpll & MSR_GLCP_DOTPLL_LOCK));
 }
 
@@ -180,7 +180,7 @@ gx_configure_tft(struct fb_info *info)
 
 	/* Set up the DF pad select MSR */
 
-	rdmsrl(MSR_GX_MSR_PADSEL, val);
+	rdmsrq(MSR_GX_MSR_PADSEL, val);
 	val &= ~MSR_GX_MSR_PADSEL_MASK;
 	val |= MSR_GX_MSR_PADSEL_TFT;
 	wrmsrl(MSR_GX_MSR_PADSEL, val);

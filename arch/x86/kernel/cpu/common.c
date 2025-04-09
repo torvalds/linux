@@ -562,7 +562,7 @@ __noendbr u64 ibt_save(bool disable)
 	u64 msr = 0;
 
 	if (cpu_feature_enabled(X86_FEATURE_IBT)) {
-		rdmsrl(MSR_IA32_S_CET, msr);
+		rdmsrq(MSR_IA32_S_CET, msr);
 		if (disable)
 			wrmsrl(MSR_IA32_S_CET, msr & ~CET_ENDBR_EN);
 	}
@@ -575,7 +575,7 @@ __noendbr void ibt_restore(u64 save)
 	u64 msr;
 
 	if (cpu_feature_enabled(X86_FEATURE_IBT)) {
-		rdmsrl(MSR_IA32_S_CET, msr);
+		rdmsrq(MSR_IA32_S_CET, msr);
 		msr &= ~CET_ENDBR_EN;
 		msr |= (save & CET_ENDBR_EN);
 		wrmsrl(MSR_IA32_S_CET, msr);
@@ -1288,7 +1288,7 @@ u64 x86_read_arch_cap_msr(void)
 	u64 x86_arch_cap_msr = 0;
 
 	if (boot_cpu_has(X86_FEATURE_ARCH_CAPABILITIES))
-		rdmsrl(MSR_IA32_ARCH_CAPABILITIES, x86_arch_cap_msr);
+		rdmsrq(MSR_IA32_ARCH_CAPABILITIES, x86_arch_cap_msr);
 
 	return x86_arch_cap_msr;
 }
@@ -1749,10 +1749,10 @@ static bool detect_null_seg_behavior(void)
 	 */
 
 	unsigned long old_base, tmp;
-	rdmsrl(MSR_FS_BASE, old_base);
+	rdmsrq(MSR_FS_BASE, old_base);
 	wrmsrl(MSR_FS_BASE, 1);
 	loadsegment(fs, 0);
-	rdmsrl(MSR_FS_BASE, tmp);
+	rdmsrq(MSR_FS_BASE, tmp);
 	wrmsrl(MSR_FS_BASE, old_base);
 	return tmp == 0;
 }

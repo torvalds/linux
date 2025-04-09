@@ -859,7 +859,7 @@ static inline int p4_pmu_clear_cccr_ovf(struct hw_perf_event *hwc)
 	u64 v;
 
 	/* an official way for overflow indication */
-	rdmsrl(hwc->config_base, v);
+	rdmsrq(hwc->config_base, v);
 	if (v & P4_CCCR_OVF) {
 		wrmsrl(hwc->config_base, v & ~P4_CCCR_OVF);
 		return 1;
@@ -872,7 +872,7 @@ static inline int p4_pmu_clear_cccr_ovf(struct hw_perf_event *hwc)
 	 * the counter has reached zero value and continued counting before
 	 * real NMI signal was received:
 	 */
-	rdmsrl(hwc->event_base, v);
+	rdmsrq(hwc->event_base, v);
 	if (!(v & ARCH_P4_UNFLAGGED_BIT))
 		return 1;
 

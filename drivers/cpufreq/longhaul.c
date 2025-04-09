@@ -136,7 +136,7 @@ static void do_longhaul1(unsigned int mults_index)
 {
 	union msr_bcr2 bcr2;
 
-	rdmsrl(MSR_VIA_BCR2, bcr2.val);
+	rdmsrq(MSR_VIA_BCR2, bcr2.val);
 	/* Enable software clock multiplier */
 	bcr2.bits.ESOFTBF = 1;
 	bcr2.bits.CLOCKMUL = mults_index & 0xff;
@@ -151,7 +151,7 @@ static void do_longhaul1(unsigned int mults_index)
 
 	/* Disable software clock multiplier */
 	local_irq_disable();
-	rdmsrl(MSR_VIA_BCR2, bcr2.val);
+	rdmsrq(MSR_VIA_BCR2, bcr2.val);
 	bcr2.bits.ESOFTBF = 0;
 	wrmsrl(MSR_VIA_BCR2, bcr2.val);
 }
@@ -164,7 +164,7 @@ static void do_powersaver(int cx_address, unsigned int mults_index,
 	union msr_longhaul longhaul;
 	u32 t;
 
-	rdmsrl(MSR_VIA_LONGHAUL, longhaul.val);
+	rdmsrq(MSR_VIA_LONGHAUL, longhaul.val);
 	/* Setup new frequency */
 	if (!revid_errata)
 		longhaul.bits.RevisionKey = longhaul.bits.RevisionID;
@@ -534,7 +534,7 @@ static void longhaul_setup_voltagescaling(void)
 	unsigned int j, speed, pos, kHz_step, numvscales;
 	int min_vid_speed;
 
-	rdmsrl(MSR_VIA_LONGHAUL, longhaul.val);
+	rdmsrq(MSR_VIA_LONGHAUL, longhaul.val);
 	if (!(longhaul.bits.RevisionID & 1)) {
 		pr_info("Voltage scaling not supported by CPU\n");
 		return;

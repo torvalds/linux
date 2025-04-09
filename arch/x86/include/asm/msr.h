@@ -255,7 +255,7 @@ static inline void wrmsr(u32 msr, u32 low, u32 high)
 	native_write_msr(msr, low, high);
 }
 
-#define rdmsrl(msr, val)			\
+#define rdmsrq(msr, val)			\
 	((val) = native_read_msr((msr)))
 
 static inline void wrmsrl(u32 msr, u64 val)
@@ -352,7 +352,7 @@ static inline int wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
 }
 static inline int rdmsrl_on_cpu(unsigned int cpu, u32 msr_no, u64 *q)
 {
-	rdmsrl(msr_no, *q);
+	rdmsrq(msr_no, *q);
 	return 0;
 }
 static inline int wrmsrl_on_cpu(unsigned int cpu, u32 msr_no, u64 q)

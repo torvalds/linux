@@ -31,7 +31,7 @@ static u32 numachip1_get_apic_id(u32 x)
 	unsigned int id = (x >> 24) & 0xff;
 
 	if (static_cpu_has(X86_FEATURE_NODEID_MSR)) {
-		rdmsrl(MSR_FAM10H_NODE_ID, value);
+		rdmsrq(MSR_FAM10H_NODE_ID, value);
 		id |= (value << 2) & 0xff00;
 	}
 
@@ -42,7 +42,7 @@ static u32 numachip2_get_apic_id(u32 x)
 {
 	u64 mcfg;
 
-	rdmsrl(MSR_FAM10H_MMIO_CONF_BASE, mcfg);
+	rdmsrq(MSR_FAM10H_MMIO_CONF_BASE, mcfg);
 	return ((mcfg >> (28 - 8)) & 0xfff00) | (x >> 24);
 }
 
@@ -150,7 +150,7 @@ static void fixup_cpu_id(struct cpuinfo_x86 *c, int node)
 
 	/* Account for nodes per socket in multi-core-module processors */
 	if (boot_cpu_has(X86_FEATURE_NODEID_MSR)) {
-		rdmsrl(MSR_FAM10H_NODE_ID, val);
+		rdmsrq(MSR_FAM10H_NODE_ID, val);
 		nodes = ((val >> 3) & 7) + 1;
 	}
 

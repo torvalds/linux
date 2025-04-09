@@ -55,7 +55,7 @@ static void xen_vcpu_notify_suspend(void *data)
 	tick_suspend_local();
 
 	if (xen_pv_domain() && boot_cpu_has(X86_FEATURE_SPEC_CTRL)) {
-		rdmsrl(MSR_IA32_SPEC_CTRL, tmp);
+		rdmsrq(MSR_IA32_SPEC_CTRL, tmp);
 		this_cpu_write(spec_ctrl, tmp);
 		wrmsrl(MSR_IA32_SPEC_CTRL, 0);
 	}

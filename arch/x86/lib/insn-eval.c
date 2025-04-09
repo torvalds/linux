@@ -702,16 +702,16 @@ unsigned long insn_get_seg_base(struct pt_regs *regs, int seg_reg_idx)
 		unsigned long base;
 
 		if (seg_reg_idx == INAT_SEG_REG_FS) {
-			rdmsrl(MSR_FS_BASE, base);
+			rdmsrq(MSR_FS_BASE, base);
 		} else if (seg_reg_idx == INAT_SEG_REG_GS) {
 			/*
 			 * swapgs was called at the kernel entry point. Thus,
 			 * MSR_KERNEL_GS_BASE will have the user-space GS base.
 			 */
 			if (user_mode(regs))
-				rdmsrl(MSR_KERNEL_GS_BASE, base);
+				rdmsrq(MSR_KERNEL_GS_BASE, base);
 			else
-				rdmsrl(MSR_GS_BASE, base);
+				rdmsrq(MSR_GS_BASE, base);
 		} else {
 			base = 0;
 		}

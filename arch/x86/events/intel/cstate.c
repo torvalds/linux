@@ -320,7 +320,7 @@ static inline u64 cstate_pmu_read_counter(struct perf_event *event)
 {
 	u64 val;
 
-	rdmsrl(event->hw.event_base, val);
+	rdmsrq(event->hw.event_base, val);
 	return val;
 }
 

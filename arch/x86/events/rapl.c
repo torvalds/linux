@@ -192,7 +192,7 @@ static inline unsigned int get_rapl_pmu_idx(int cpu, int scope)
 static inline u64 rapl_read_counter(struct perf_event *event)
 {
 	u64 raw;
-	rdmsrl(event->hw.event_base, raw);
+	rdmsrq(event->hw.event_base, raw);
 	return raw;
 }
 
@@ -221,7 +221,7 @@ static u64 rapl_event_update(struct perf_event *event)
 
 	prev_raw_count = local64_read(&hwc->prev_count);
 	do {
-		rdmsrl(event->hw.event_base, new_raw_count);
+		rdmsrq(event->hw.event_base, new_raw_count);
 	} while (!local64_try_cmpxchg(&hwc->prev_count,
 				      &prev_raw_count, new_raw_count));
 
@@ -610,7 +610,7 @@ static int rapl_check_hw_unit(void)
 	u64 msr_rapl_power_unit_bits;
 	int i;
 
-	/* protect rdmsrl() to handle virtualization */
+	/* protect rdmsrq() to handle virtualization */
 	if (rdmsrl_safe(rapl_model->msr_power_unit, &msr_rapl_power_unit_bits))
 		return -1;
 	for (i = 0; i < NR_RAPL_PKG_DOMAINS; i++)

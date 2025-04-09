@@ -39,7 +39,7 @@ static int isst_if_send_mbox_cmd(u8 command, u8 sub_command, u32 parameter,
 	/* Poll for rb bit == 0 */
 	retries = OS_MAILBOX_RETRY_COUNT;
 	do {
-		rdmsrl(MSR_OS_MAILBOX_INTERFACE, data);
+		rdmsrq(MSR_OS_MAILBOX_INTERFACE, data);
 		if (data & BIT_ULL(MSR_OS_MAILBOX_BUSY_BIT)) {
 			ret = -EBUSY;
 			continue;
@@ -64,7 +64,7 @@ static int isst_if_send_mbox_cmd(u8 command, u8 sub_command, u32 parameter,
 	/* Poll for rb bit == 0 */
 	retries = OS_MAILBOX_RETRY_COUNT;
 	do {
-		rdmsrl(MSR_OS_MAILBOX_INTERFACE, data);
+		rdmsrq(MSR_OS_MAILBOX_INTERFACE, data);
 		if (data & BIT_ULL(MSR_OS_MAILBOX_BUSY_BIT)) {
 			ret = -EBUSY;
 			continue;
@@ -74,7 +74,7 @@ static int isst_if_send_mbox_cmd(u8 command, u8 sub_command, u32 parameter,
 			return -ENXIO;
 
 		if (response_data) {
-			rdmsrl(MSR_OS_MAILBOX_DATA, data);
+			rdmsrq(MSR_OS_MAILBOX_DATA, data);
 			*response_data = data;
 		}
 		ret = 0;

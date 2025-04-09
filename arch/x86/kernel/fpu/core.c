@@ -327,7 +327,7 @@ void fpu_sync_guest_vmexit_xfd_state(void)
 
 	lockdep_assert_irqs_disabled();
 	if (fpu_state_size_dynamic()) {
-		rdmsrl(MSR_IA32_XFD, fps->xfd);
+		rdmsrq(MSR_IA32_XFD, fps->xfd);
 		__this_cpu_write(xfd_state, fps->xfd);
 	}
 }

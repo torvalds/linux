@@ -227,7 +227,7 @@ static void disable_c1_auto_demote(void *unused)
 	int cpunum = smp_processor_id();
 	u64 val;
 
-	rdmsrl(MSR_PKG_CST_CONFIG_CONTROL, val);
+	rdmsrq(MSR_PKG_CST_CONFIG_CONTROL, val);
 	per_cpu(pkg_cst_config, cpunum) = val;
 	val &= ~NHM_C1_AUTO_DEMOTE;
 	wrmsrl(MSR_PKG_CST_CONFIG_CONTROL, val);

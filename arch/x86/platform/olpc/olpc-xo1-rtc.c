@@ -64,9 +64,9 @@ static int __init xo1_rtc_init(void)
 	of_node_put(node);
 
 	pr_info("olpc-xo1-rtc: Initializing OLPC XO-1 RTC\n");
-	rdmsrl(MSR_RTC_DOMA_OFFSET, rtc_info.rtc_day_alarm);
-	rdmsrl(MSR_RTC_MONA_OFFSET, rtc_info.rtc_mon_alarm);
-	rdmsrl(MSR_RTC_CEN_OFFSET, rtc_info.rtc_century);
+	rdmsrq(MSR_RTC_DOMA_OFFSET, rtc_info.rtc_day_alarm);
+	rdmsrq(MSR_RTC_MONA_OFFSET, rtc_info.rtc_mon_alarm);
+	rdmsrq(MSR_RTC_CEN_OFFSET, rtc_info.rtc_century);
 
 	r = platform_device_register(&xo1_rtc_device);
 	if (r)

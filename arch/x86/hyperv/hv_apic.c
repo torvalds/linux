@@ -37,7 +37,7 @@ static u64 hv_apic_icr_read(void)
 {
 	u64 reg_val;
 
-	rdmsrl(HV_X64_MSR_ICR, reg_val);
+	rdmsrq(HV_X64_MSR_ICR, reg_val);
 	return reg_val;
 }
 
