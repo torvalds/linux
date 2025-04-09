@@ -1532,11 +1532,11 @@ static int request_service_ioctl(struct gpib_board *board, unsigned long arg)
 
 static int request_service2_ioctl(struct gpib_board *board, unsigned long arg)
 {
-	request_service2_t request_service2_cmd;
+	struct gpib_request_service2 request_service2_cmd;
 	int retval;
 
 	retval = copy_from_user(&request_service2_cmd, (void __user *)arg,
-				sizeof(request_service2_t));
+				sizeof(struct gpib_request_service2));
 	if (retval)
 		return -EFAULT;
 

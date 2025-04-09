@@ -114,10 +114,10 @@ typedef short autospoll_ioctl_t;
 typedef short local_ppoll_mode_ioctl_t;
 
 // update status byte and request service
-typedef struct {
+struct gpib_request_service2 {
 	uint8_t status_byte;
 	int new_reason_for_service;
-} request_service2_t;
+};
 
 /* Standard functions. */
 enum gpib_ioctl {
@@ -163,7 +163,7 @@ enum gpib_ioctl {
 	IBPP2_GET = _IOR(GPIB_CODE, 41, local_ppoll_mode_ioctl_t),
 	IBSELECT_DEVICE_PATH = _IOW(GPIB_CODE, 43, struct gpib_select_device_path_ioctl),
 	// 44 was IBSELECT_SERIAL_NUMBER
-	IBRSV2 = _IOW(GPIB_CODE, 45, request_service2_t)
+	IBRSV2 = _IOW(GPIB_CODE, 45, struct gpib_request_service2)
 };
 
 #endif	/* _GPIB_IOCTL_H */
