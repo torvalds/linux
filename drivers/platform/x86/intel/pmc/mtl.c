@@ -10,7 +10,6 @@
 
 #include <linux/pci.h>
 #include "core.h"
-#include "../pmt/telemetry.h"
 
 /* PMC SSRAM PMT Telemetry GUIDS */
 #define SOCP_LPM_REQ_GUID	0x2625030

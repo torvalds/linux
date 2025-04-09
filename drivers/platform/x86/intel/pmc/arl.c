@@ -10,7 +10,6 @@
 
 #include <linux/pci.h>
 #include "core.h"
-#include "../pmt/telemetry.h"
 
 /* PMC SSRAM PMT Telemetry GUID */
 #define IOEP_LPM_REQ_GUID	0x5077612
