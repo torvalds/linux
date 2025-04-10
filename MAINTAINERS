@@ -22584,7 +22584,7 @@ F:	Documentation/devicetree/bindings/media/i2c/sony,imx412.yaml
 F:	drivers/media/i2c/imx412.c
 
 SONY IMX415 SENSOR DRIVER
-M:	Michael Riesch <michael.riesch@wolfvision.net>
+M:	Michael Riesch <michael.riesch@collabora.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 T:	git git://linuxtv.org/media.git
