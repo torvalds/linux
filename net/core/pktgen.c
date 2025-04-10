@@ -758,6 +758,7 @@ static ssize_t hex32_arg(const char __user *user_buffer, size_t maxlen,
 	for (; i < maxlen; i++) {
 		int value;
 		char c;
+
 		if (get_user(c, &user_buffer[i]))
 			return -EFAULT;
 		value = hex_to_bin(c);
@@ -777,6 +778,7 @@ static ssize_t count_trail_chars(const char __user *user_buffer, size_t maxlen)
 
 	for (i = 0; i < maxlen; i++) {
 		char c;
+
 		if (get_user(c, &user_buffer[i]))
 			return -EFAULT;
 		switch (c) {
@@ -803,6 +805,7 @@ static ssize_t num_arg(const char __user *user_buffer, size_t maxlen,
 
 	for (i = 0; i < maxlen; i++) {
 		char c;
+
 		if (get_user(c, &user_buffer[i]))
 			return -EFAULT;
 		if ((c >= '0') && (c <= '9')) {
@@ -820,6 +823,7 @@ static ssize_t strn_len(const char __user *user_buffer, size_t maxlen)
 
 	for (i = 0; i < maxlen; i++) {
 		char c;
+
 		if (get_user(c, &user_buffer[i]))
 			return -EFAULT;
 		switch (c) {
@@ -1966,6 +1970,7 @@ static ssize_t pktgen_thread_write(struct file *file,
 
 	if (!strcmp(name, "add_device")) {
 		char f[32];
+
 		memset(f, 0, 32);
 		max = min(sizeof(f) - 1, count - i);
 		len = strn_len(&user_buffer[i], max);
@@ -2408,6 +2413,7 @@ static void get_ipsec_sa(struct pktgen_dev *pkt_dev, int flow)
 #ifdef CONFIG_XFRM
 	struct xfrm_state *x = pkt_dev->flows[flow].x;
 	struct pktgen_net *pn = net_generic(dev_net(pkt_dev->odev), pg_net_id);
+
 	if (!x) {
 
 		if (pkt_dev->spi) {
@@ -2440,6 +2446,7 @@ static void set_cur_queue_map(struct pktgen_dev *pkt_dev)
 
 	else if (pkt_dev->queue_map_min <= pkt_dev->queue_map_max) {
 		__u16 t;
+
 		if (pkt_dev->flags & F_QUEUE_MAP_RND) {
 			t = get_random_u32_inclusive(pkt_dev->queue_map_min,
 						     pkt_dev->queue_map_max);
@@ -2521,6 +2528,7 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 
 	if (pkt_dev->flags & F_MPLS_RND) {
 		unsigned int i;
+
 		for (i = 0; i < pkt_dev->nr_labels; i++)
 			if (pkt_dev->labels[i] & MPLS_STACK_BOTTOM)
 				pkt_dev->labels[i] = MPLS_STACK_BOTTOM |
@@ -2565,6 +2573,7 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 		imx = ntohl(pkt_dev->saddr_max);
 		if (imn < imx) {
 			__u32 t;
+
 			if (pkt_dev->flags & F_IPSRC_RND)
 				t = get_random_u32_inclusive(imn, imx - 1);
 			else {
@@ -2585,6 +2594,7 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 			if (imn < imx) {
 				__u32 t;
 				__be32 s;
+
 				if (pkt_dev->flags & F_IPDST_RND) {
 
 					do {
@@ -2632,6 +2642,7 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 
 	if (pkt_dev->min_pkt_size < pkt_dev->max_pkt_size) {
 		__u32 t;
+
 		if (pkt_dev->flags & F_TXSIZE_RND) {
 			t = get_random_u32_inclusive(pkt_dev->min_pkt_size,
 						     pkt_dev->max_pkt_size - 1);
@@ -2734,8 +2745,10 @@ static void free_SAs(struct pktgen_dev *pkt_dev)
 	if (pkt_dev->cflows) {
 		/* let go of the SAs if we have them */
 		int i;
+
 		for (i = 0; i < pkt_dev->cflows; i++) {
 			struct xfrm_state *x = pkt_dev->flows[i].x;
+
 			if (x) {
 				xfrm_state_put(x);
 				pkt_dev->flows[i].x = NULL;
@@ -2750,6 +2763,7 @@ static int process_ipsec(struct pktgen_dev *pkt_dev,
 	if (pkt_dev->flags & F_IPSEC) {
 		struct xfrm_state *x = pkt_dev->flows[pkt_dev->curfl].x;
 		int nhead = 0;
+
 		if (x) {
 			struct ethhdr *eth;
 			struct iphdr *iph;
@@ -2793,6 +2807,7 @@ err:
 static void mpls_push(__be32 *mpls, struct pktgen_dev *pkt_dev)
 {
 	unsigned int i;
+
 	for (i = 0; i < pkt_dev->nr_labels; i++)
 		*mpls++ = pkt_dev->labels[i] & ~MPLS_STACK_BOTTOM;
 
@@ -3478,6 +3493,7 @@ static void pktgen_rem_thread(struct pktgen_thread *t)
 static void pktgen_resched(struct pktgen_dev *pkt_dev)
 {
 	ktime_t idle_start = ktime_get();
+
 	schedule();
 	pkt_dev->idle_acc += ktime_to_ns(ktime_sub(ktime_get(), idle_start));
 }
