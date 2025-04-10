@@ -8,6 +8,8 @@
  * Copyright (C) 2009 Bernie Thompson <bernie@plugable.com>
  */
 
+#include <linux/unaligned.h>
+
 #include <drm/drm.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
@@ -23,10 +25,56 @@
 #define WRITES_IN_FLIGHT (20)
 #define MAX_VENDOR_DESCRIPTOR_SIZE 256
 
+#define UDL_SKU_PIXEL_LIMIT_DEFAULT	2080000
+
 static struct urb *udl_get_urb_locked(struct udl_device *udl, long timeout);
+
+/*
+ * Try to make sense of whatever we parse. Therefore return @end on
+ * errors, but don't fail hard.
+ */
+static const u8 *udl_parse_key_value_pair(struct udl_device *udl, const u8 *pos, const u8 *end)
+{
+	u16 key;
+	u8 len;
+
+	/* read key */
+	if (pos >= end - 2)
+		return end;
+	key = get_unaligned_le16(pos);
+	pos += 2;
+
+	/* read value length */
+	if (pos >= end - 1)
+		return end;
+	len = *pos++;
+
+	/* read value */
+	if (pos >= end - len)
+		return end;
+	switch (key) {
+	case 0x0200: { /* maximum number of pixels */
+		unsigned int sku_pixel_limit;
+
+		if (len < sizeof(__le32))
+			break;
+		sku_pixel_limit = get_unaligned_le32(pos);
+		if (sku_pixel_limit >= 16 * UDL_SKU_PIXEL_LIMIT_DEFAULT)
+			break; /* almost 100 MiB, so probably bogus */
+		udl->sku_pixel_limit = sku_pixel_limit;
+		break;
+	}
+	default:
+		break;
+	}
+	pos += len;
+
+	return pos;
+}
 
 static int udl_parse_vendor_descriptor(struct udl_device *udl)
 {
+	struct drm_device *dev = &udl->drm;
 	struct usb_device *udev = udl_to_usb_device(udl);
 	void *buf;
 	int ret;
@@ -50,8 +98,6 @@ static int udl_parse_vendor_descriptor(struct udl_device *udl)
 	desc = buf;
 	desc_end = desc + len;
 
-	DRM_INFO("vendor descriptor length: %u data:%11ph\n", len, desc);
-
 	if ((desc[0] != len) ||    /* descriptor length */
 	    (desc[1] != 0x5f) ||   /* vendor descriptor type */
 	    (desc[2] != 0x01) ||   /* version (2 bytes) */
@@ -60,35 +106,14 @@ static int udl_parse_vendor_descriptor(struct udl_device *udl)
 		goto unrecognized;
 	desc += 5;
 
-	while (desc < desc_end) {
-		u8 length;
-		u16 key;
-
-		key = le16_to_cpu(*((u16 *)desc));
-		desc += sizeof(u16);
-		length = *desc;
-		desc++;
-
-		switch (key) {
-		case 0x0200: { /* max_area */
-			u32 max_area = le32_to_cpu(*((u32 *)desc));
-
-			DRM_DEBUG("DL chip limited to %d pixel modes\n",
-				  max_area);
-			udl->sku_pixel_limit = max_area;
-			break;
-		}
-		default:
-			break;
-		}
-		desc += length;
-	}
+	while (desc < desc_end)
+		desc = udl_parse_key_value_pair(udl, desc, desc_end);
 
 	goto success;
 
 unrecognized:
 	/* allow udlfb to load for now even if firmware unrecognized */
-	DRM_ERROR("Unrecognized vendor firmware descriptor\n");
+	drm_warn(dev, "Unrecognized vendor firmware descriptor\n");
 
 success:
 	kfree(buf);
