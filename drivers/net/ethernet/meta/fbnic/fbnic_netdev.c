@@ -423,6 +423,9 @@ static void fbnic_get_stats64(struct net_device *dev,
 	stats64->tx_packets = tx_packets;
 	stats64->tx_dropped = tx_dropped;
 
+	/* Record drops from Tx HW Datapath */
+	tx_dropped += fbd->hw_stats.tmi.drop.frames.value;
+
 	for (i = 0; i < fbn->num_tx_queues; i++) {
 		struct fbnic_ring *txr = fbn->tx[i];
 

@@ -70,6 +70,37 @@ static void fbnic_hw_stat_rd64(struct fbnic_dev *fbd, u32 reg, s32 offset,
 	stat->u.old_reg_value_64 = new_reg_value;
 }
 
+static void fbnic_reset_tmi_stats(struct fbnic_dev *fbd,
+				  struct fbnic_tmi_stats *tmi)
+{
+	fbnic_hw_stat_rst32(fbd, FBNIC_TMI_DROP_PKTS, &tmi->drop.frames);
+	fbnic_hw_stat_rst64(fbd, FBNIC_TMI_DROP_BYTE_L, 1, &tmi->drop.bytes);
+
+	fbnic_hw_stat_rst32(fbd,
+			    FBNIC_TMI_ILLEGAL_PTP_REQS,
+			    &tmi->ptp_illegal_req);
+	fbnic_hw_stat_rst32(fbd, FBNIC_TMI_GOOD_PTP_TS, &tmi->ptp_good_ts);
+	fbnic_hw_stat_rst32(fbd, FBNIC_TMI_BAD_PTP_TS, &tmi->ptp_bad_ts);
+}
+
+static void fbnic_get_tmi_stats32(struct fbnic_dev *fbd,
+				  struct fbnic_tmi_stats *tmi)
+{
+	fbnic_hw_stat_rd32(fbd, FBNIC_TMI_DROP_PKTS, &tmi->drop.frames);
+
+	fbnic_hw_stat_rd32(fbd,
+			   FBNIC_TMI_ILLEGAL_PTP_REQS,
+			   &tmi->ptp_illegal_req);
+	fbnic_hw_stat_rd32(fbd, FBNIC_TMI_GOOD_PTP_TS, &tmi->ptp_good_ts);
+	fbnic_hw_stat_rd32(fbd, FBNIC_TMI_BAD_PTP_TS, &tmi->ptp_bad_ts);
+}
+
+static void fbnic_get_tmi_stats(struct fbnic_dev *fbd,
+				struct fbnic_tmi_stats *tmi)
+{
+	fbnic_hw_stat_rd64(fbd, FBNIC_TMI_DROP_BYTE_L, 1, &tmi->drop.bytes);
+}
+
 static void fbnic_reset_rpc_stats(struct fbnic_dev *fbd,
 				  struct fbnic_rpc_stats *rpc)
 {
@@ -419,6 +450,7 @@ static void fbnic_get_pcie_stats_asic64(struct fbnic_dev *fbd,
 void fbnic_reset_hw_stats(struct fbnic_dev *fbd)
 {
 	spin_lock(&fbd->hw_stats_lock);
+	fbnic_reset_tmi_stats(fbd, &fbd->hw_stats.tmi);
 	fbnic_reset_rpc_stats(fbd, &fbd->hw_stats.rpc);
 	fbnic_reset_rxb_stats(fbd, &fbd->hw_stats.rxb);
 	fbnic_reset_hw_rxq_stats(fbd, fbd->hw_stats.hw_q);
@@ -428,6 +460,7 @@ void fbnic_reset_hw_stats(struct fbnic_dev *fbd)
 
 static void __fbnic_get_hw_stats32(struct fbnic_dev *fbd)
 {
+	fbnic_get_tmi_stats32(fbd, &fbd->hw_stats.tmi);
 	fbnic_get_rpc_stats32(fbd, &fbd->hw_stats.rpc);
 	fbnic_get_rxb_stats32(fbd, &fbd->hw_stats.rxb);
 	fbnic_get_hw_rxq_stats32(fbd, fbd->hw_stats.hw_q);
@@ -445,6 +478,7 @@ void fbnic_get_hw_stats(struct fbnic_dev *fbd)
 	spin_lock(&fbd->hw_stats_lock);
 	__fbnic_get_hw_stats32(fbd);
 
+	fbnic_get_tmi_stats(fbd, &fbd->hw_stats.tmi);
 	fbnic_get_rxb_stats(fbd, &fbd->hw_stats.rxb);
 	fbnic_get_pcie_stats_asic64(fbd, &fbd->hw_stats.pcie);
 	spin_unlock(&fbd->hw_stats_lock);

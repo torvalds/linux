@@ -27,6 +27,11 @@ struct fbnic_stat {
 	FBNIC_STAT_FIELDS(fbnic_hw_stats, name, stat)
 
 static const struct fbnic_stat fbnic_gstrings_hw_stats[] = {
+	/* TMI */
+	FBNIC_HW_STAT("ptp_illegal_req", tmi.ptp_illegal_req),
+	FBNIC_HW_STAT("ptp_good_ts", tmi.ptp_good_ts),
+	FBNIC_HW_STAT("ptp_bad_ts", tmi.ptp_bad_ts),
+
 	/* RPC */
 	FBNIC_HW_STAT("rpc_unkn_etype", rpc.unkn_etype),
 	FBNIC_HW_STAT("rpc_unkn_ext_hdr", rpc.unkn_ext_hdr),

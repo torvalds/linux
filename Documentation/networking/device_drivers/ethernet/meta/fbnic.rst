@@ -31,6 +31,13 @@ separate entry.
 Statistics
 ----------
 
+TX MAC Interface
+~~~~~~~~~~~~~~~~
+
+ - ``ptp_illegal_req``: packets sent to the NIC with PTP request bit set but routed to BMC/FW
+ - ``ptp_good_ts``: packets successfully routed to MAC with PTP request bit set
+ - ``ptp_bad_ts``: packets destined for MAC with PTP request bit set but aborted because of some error (e.g., DMA read error)
+
 RXB (RX Buffer) Enqueue
 ~~~~~~~~~~~~~~~~~~~~~~~
 
