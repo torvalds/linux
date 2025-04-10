@@ -28,25 +28,27 @@ static struct urb *udl_get_urb_locked(struct udl_device *udl, long timeout);
 static int udl_parse_vendor_descriptor(struct udl_device *udl)
 {
 	struct usb_device *udev = udl_to_usb_device(udl);
-	char *desc;
-	char *buf;
-	char *desc_end;
+	void *buf;
 	int ret;
 	unsigned int len;
+	const u8 *desc;
+	const u8 *desc_end;
 
 	buf = kzalloc(MAX_VENDOR_DESCRIPTOR_SIZE, GFP_KERNEL);
 	if (!buf)
 		return false;
-	desc = buf;
 
 	ret = usb_get_descriptor(udev, 0x5f, /* vendor specific */
-				 0, desc, MAX_VENDOR_DESCRIPTOR_SIZE);
+				 0, buf, MAX_VENDOR_DESCRIPTOR_SIZE);
 	if (ret < 0)
 		goto unrecognized;
 	len = ret;
 
 	if (len < 5)
 		goto unrecognized;
+
+	desc = buf;
+	desc_end = desc + len;
 
 	DRM_INFO("vendor descriptor length: %u data:%11ph\n", len, desc);
 
@@ -56,9 +58,7 @@ static int udl_parse_vendor_descriptor(struct udl_device *udl)
 	    (desc[3] != 0x00) ||
 	    (desc[4] != len - 2))  /* length after type */
 		goto unrecognized;
-
-	desc_end = desc + len;
-	desc += 5; /* the fixed header we've already parsed */
+	desc += 5;
 
 	while (desc < desc_end) {
 		u8 length;
