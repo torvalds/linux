@@ -1946,9 +1946,6 @@ enum netdev_reg_state {
  *
  *	@reg_state:		Register/unregister state machine
  *	@dismantle:		Device is going to be freed
- *	@rtnl_link_state:	This enum represents the phases of creating
- *				a new link
- *
  *	@needs_free_netdev:	Should unregister perform free_netdev?
  *	@priv_destructor:	Called from unregister
  *	@npinfo:		XXX: need comments on this one
@@ -2363,11 +2360,8 @@ struct net_device {
 
 	/** @moving_ns: device is changing netns, protected by @lock */
 	bool moving_ns;
-
-	enum {
-		RTNL_LINK_INITIALIZED,
-		RTNL_LINK_INITIALIZING,
-	} rtnl_link_state:16;
+	/** @rtnl_link_initializing: Device being created, suppress events */
+	bool rtnl_link_initializing;
 
 	bool needs_free_netdev;
 	void (*priv_destructor)(struct net_device *dev);

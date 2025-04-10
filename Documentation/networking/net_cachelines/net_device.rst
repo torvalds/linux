@@ -131,7 +131,7 @@ struct ref_tracker_dir              refcnt_tracker
 struct list_head                    link_watch_list
 enum:8                              reg_state
 bool                                dismantle
-enum:16                             rtnl_link_state
+bool                                rtnl_link_initilizing
 bool                                needs_free_netdev
 void*priv_destructor                struct net_device
 struct netpoll_info*                npinfo                                          read_mostly         napi_poll/napi_poll_lock
