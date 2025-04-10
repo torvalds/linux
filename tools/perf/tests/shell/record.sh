@@ -34,13 +34,15 @@ default_fd_limit=$(ulimit -Sn)
 min_fd_limit=$(($(getconf _NPROCESSORS_ONLN) * 16))
 
 cleanup() {
-  rm -rf "${perfdata}"
-  rm -rf "${perfdata}".old
+  rm -f "${perfdata}"
+  rm -f "${perfdata}".old
+  rm -f "${script_output}"
 
   trap - EXIT TERM INT
 }
 
 trap_cleanup() {
+  echo "Unexpected signal in ${FUNCNAME[1]}"
   cleanup
   exit 1
 }
@@ -239,7 +241,7 @@ test_leader_sampling() {
     return
   fi
   index=0
-  perf script -i "${perfdata}" > $script_output
+  perf script -i "${perfdata}" > "${script_output}"
   while IFS= read -r line
   do
     # Check if the two instruction counts are equal in each record
@@ -252,7 +254,7 @@ test_leader_sampling() {
     fi
     index=$(($index+1))
     prev_cycles=$cycles
-  done < $script_output
+  done < "${script_output}"
   echo "Basic leader sampling test [Success]"
 }
 
