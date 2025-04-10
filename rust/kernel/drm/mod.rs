@@ -9,6 +9,7 @@ pub mod ioctl;
 pub use self::device::Device;
 pub use self::driver::Driver;
 pub use self::driver::DriverInfo;
+pub use self::driver::Registration;
 
 pub(crate) mod private {
     pub trait Sealed {}

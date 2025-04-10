@@ -4,7 +4,15 @@
 //!
 //! C header: [`include/linux/drm/drm_drv.h`](srctree/include/linux/drm/drm_drv.h)
 
-use crate::{bindings, drm, str::CStr};
+use crate::{
+    bindings, device,
+    devres::Devres,
+    drm,
+    error::{to_result, Result},
+    prelude::*,
+    str::CStr,
+    types::ARef,
+};
 use macros::vtable;
 
 /// Driver use the GEM memory manager. This should be set for all modern drivers.
@@ -102,4 +110,54 @@ pub trait Driver {
 
     /// IOCTL list. See `kernel::drm::ioctl::declare_drm_ioctls!{}`.
     const IOCTLS: &'static [drm::ioctl::DrmIoctlDescriptor];
+}
+
+/// The registration type of a `drm::Device`.
+///
+/// Once the `Registration` structure is dropped, the device is unregistered.
+pub struct Registration<T: Driver>(ARef<drm::Device<T>>);
+
+impl<T: Driver> Registration<T> {
+    /// Creates a new [`Registration`] and registers it.
+    fn new(drm: &drm::Device<T>, flags: usize) -> Result<Self> {
+        // SAFETY: `drm.as_raw()` is valid by the invariants of `drm::Device`.
+        to_result(unsafe { bindings::drm_dev_register(drm.as_raw(), flags) })?;
+
+        Ok(Self(drm.into()))
+    }
+
+    /// Same as [`Registration::new`}, but transfers ownership of the [`Registration`] to
+    /// [`Devres`].
+    pub fn new_foreign_owned(
+        drm: &drm::Device<T>,
+        dev: &device::Device<device::Bound>,
+        flags: usize,
+    ) -> Result {
+        if drm.as_ref().as_raw() != dev.as_raw() {
+            return Err(EINVAL);
+        }
+
+        let reg = Registration::<T>::new(drm, flags)?;
+        Devres::new_foreign_owned(dev, reg, GFP_KERNEL)
+    }
+
+    /// Returns a reference to the `Device` instance for this registration.
+    pub fn device(&self) -> &drm::Device<T> {
+        &self.0
+    }
+}
+
+// SAFETY: `Registration` doesn't offer any methods or access to fields when shared between
+// threads, hence it's safe to share it.
+unsafe impl<T: Driver> Sync for Registration<T> {}
+
+// SAFETY: Registration with and unregistration from the DRM subsystem can happen from any thread.
+unsafe impl<T: Driver> Send for Registration<T> {}
+
+impl<T: Driver> Drop for Registration<T> {
+    fn drop(&mut self) {
+        // SAFETY: Safe by the invariant of `ARef<drm::Device<T>>`. The existence of this
+        // `Registration` also guarantees the this `drm::Device` is actually registered.
+        unsafe { bindings::drm_dev_unregister(self.0.as_raw()) };
+    }
 }
