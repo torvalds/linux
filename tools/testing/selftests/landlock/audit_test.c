@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <linux/landlock.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <sys/mount.h>
 #include <sys/prctl.h>
@@ -104,7 +105,8 @@ TEST_F(audit, layers)
 				  matches_log_signal(_metadata, self->audit_fd,
 						     getppid(), &denial_dom));
 			EXPECT_EQ(0, matches_log_domain_allocated(
-					     self->audit_fd, &allocated_dom));
+					     self->audit_fd, getpid(),
+					     &allocated_dom));
 			EXPECT_NE(denial_dom, 1);
 			EXPECT_NE(denial_dom, 0);
 			EXPECT_EQ(denial_dom, allocated_dom);
@@ -154,6 +156,126 @@ TEST_F(audit, layers)
 	EXPECT_EQ(0, setsockopt(self->audit_fd, SOL_SOCKET, SO_RCVTIMEO,
 				&audit_tv_default, sizeof(audit_tv_default)));
 	EXPECT_EQ(0, close(ruleset_fd));
+}
+
+struct thread_data {
+	pid_t parent_pid;
+	int ruleset_fd, pipe_child, pipe_parent;
+};
+
+static void *thread_audit_test(void *arg)
+{
+	const struct thread_data *data = (struct thread_data *)arg;
+	uintptr_t err = 0;
+	char buffer;
+
+	/* TGID and TID are different for a second thread. */
+	if (getpid() == gettid()) {
+		err = 1;
+		goto out;
+	}
+
+	if (landlock_restrict_self(data->ruleset_fd, 0)) {
+		err = 2;
+		goto out;
+	}
+
+	if (close(data->ruleset_fd)) {
+		err = 3;
+		goto out;
+	}
+
+	/* Creates a denial to get the domain ID. */
+	if (kill(data->parent_pid, 0) != -1) {
+		err = 4;
+		goto out;
+	}
+
+	if (EPERM != errno) {
+		err = 5;
+		goto out;
+	}
+
+	/* Signals the parent to read denial logs. */
+	if (write(data->pipe_child, ".", 1) != 1) {
+		err = 6;
+		goto out;
+	}
+
+	/* Waits for the parent to update audit filters. */
+	if (read(data->pipe_parent, &buffer, 1) != 1) {
+		err = 7;
+		goto out;
+	}
+
+out:
+	close(data->pipe_child);
+	close(data->pipe_parent);
+	return (void *)err;
+}
+
+/* Checks that the PID tied to a domain is not a TID but the TGID. */
+TEST_F(audit, thread)
+{
+	const struct landlock_ruleset_attr ruleset_attr = {
+		.scoped = LANDLOCK_SCOPE_SIGNAL,
+	};
+	__u64 denial_dom = 1;
+	__u64 allocated_dom = 2;
+	__u64 deallocated_dom = 3;
+	pthread_t thread;
+	int pipe_child[2], pipe_parent[2];
+	char buffer;
+	struct thread_data child_data;
+
+	child_data.parent_pid = getppid();
+	ASSERT_EQ(0, pipe2(pipe_child, O_CLOEXEC));
+	child_data.pipe_child = pipe_child[1];
+	ASSERT_EQ(0, pipe2(pipe_parent, O_CLOEXEC));
+	child_data.pipe_parent = pipe_parent[0];
+	child_data.ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+	ASSERT_LE(0, child_data.ruleset_fd);
+
+	/* TGID and TID are the same for the initial thread . */
+	EXPECT_EQ(getpid(), gettid());
+	EXPECT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0));
+	ASSERT_EQ(0, pthread_create(&thread, NULL, thread_audit_test,
+				    &child_data));
+
+	/* Waits for the child to generate a denial. */
+	ASSERT_EQ(1, read(pipe_child[0], &buffer, 1));
+	EXPECT_EQ(0, close(pipe_child[0]));
+
+	/* Matches the signal log to get the domain ID. */
+	EXPECT_EQ(0, matches_log_signal(_metadata, self->audit_fd,
+					child_data.parent_pid, &denial_dom));
+	EXPECT_NE(denial_dom, 1);
+	EXPECT_NE(denial_dom, 0);
+
+	EXPECT_EQ(0, matches_log_domain_allocated(self->audit_fd, getpid(),
+						  &allocated_dom));
+	EXPECT_EQ(denial_dom, allocated_dom);
+
+	/* Updates filter rules to match the drop record. */
+	set_cap(_metadata, CAP_AUDIT_CONTROL);
+	EXPECT_EQ(0, audit_filter_drop(self->audit_fd, AUDIT_ADD_RULE));
+	EXPECT_EQ(0, audit_filter_exe(self->audit_fd, &self->audit_filter,
+				      AUDIT_DEL_RULE));
+	clear_cap(_metadata, CAP_AUDIT_CONTROL);
+
+	/* Signals the thread to exit, which will generate a domain deallocation. */
+	ASSERT_EQ(1, write(pipe_parent[1], ".", 1));
+	EXPECT_EQ(0, close(pipe_parent[1]));
+	ASSERT_EQ(0, pthread_join(thread, NULL));
+
+	EXPECT_EQ(0, setsockopt(self->audit_fd, SOL_SOCKET, SO_RCVTIMEO,
+				&audit_tv_dom_drop, sizeof(audit_tv_dom_drop)));
+	EXPECT_EQ(0, matches_log_domain_deallocated(self->audit_fd, 1,
+						    &deallocated_dom));
+	EXPECT_EQ(denial_dom, deallocated_dom);
+	EXPECT_EQ(0, setsockopt(self->audit_fd, SOL_SOCKET, SO_RCVTIMEO,
+				&audit_tv_default, sizeof(audit_tv_default)));
 }
 
 FIXTURE(audit_flags)
@@ -270,7 +392,8 @@ TEST_F(audit_flags, signal)
 
 			/* Checks domain information records. */
 			EXPECT_EQ(0, matches_log_domain_allocated(
-					     self->audit_fd, &allocated_dom));
+					     self->audit_fd, getpid(),
+					     &allocated_dom));
 			EXPECT_NE(*self->domain_id, 1);
 			EXPECT_NE(*self->domain_id, 0);
 			EXPECT_EQ(*self->domain_id, allocated_dom);

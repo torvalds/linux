@@ -5964,7 +5964,8 @@ TEST_F(audit_layout1, refer_handled)
 	EXPECT_EQ(EXDEV, errno);
 	EXPECT_EQ(0, matches_log_fs(_metadata, self->audit_fd, "fs\\.refer",
 				    dir_s1d1));
-	EXPECT_EQ(0, matches_log_domain_allocated(self->audit_fd, NULL));
+	EXPECT_EQ(0,
+		  matches_log_domain_allocated(self->audit_fd, getpid(), NULL));
 	EXPECT_EQ(0, matches_log_fs(_metadata, self->audit_fd, "fs\\.refer",
 				    dir_s1d3));
 
