@@ -45,43 +45,43 @@ static int udl_parse_vendor_descriptor(struct udl_device *udl)
 		goto unrecognized;
 	len = ret;
 
-	if (len > 5) {
-		DRM_INFO("vendor descriptor length: %u data:%11ph\n",
-			 len, desc);
+	if (len < 5)
+		goto unrecognized;
 
-		if ((desc[0] != len) ||    /* descriptor length */
-		    (desc[1] != 0x5f) ||   /* vendor descriptor type */
-		    (desc[2] != 0x01) ||   /* version (2 bytes) */
-		    (desc[3] != 0x00) ||
-		    (desc[4] != len - 2))  /* length after type */
-			goto unrecognized;
+	DRM_INFO("vendor descriptor length: %u data:%11ph\n", len, desc);
 
-		desc_end = desc + len;
-		desc += 5; /* the fixed header we've already parsed */
+	if ((desc[0] != len) ||    /* descriptor length */
+	    (desc[1] != 0x5f) ||   /* vendor descriptor type */
+	    (desc[2] != 0x01) ||   /* version (2 bytes) */
+	    (desc[3] != 0x00) ||
+	    (desc[4] != len - 2))  /* length after type */
+		goto unrecognized;
 
-		while (desc < desc_end) {
-			u8 length;
-			u16 key;
+	desc_end = desc + len;
+	desc += 5; /* the fixed header we've already parsed */
 
-			key = le16_to_cpu(*((u16 *) desc));
-			desc += sizeof(u16);
-			length = *desc;
-			desc++;
+	while (desc < desc_end) {
+		u8 length;
+		u16 key;
 
-			switch (key) {
-			case 0x0200: { /* max_area */
-				u32 max_area;
-				max_area = le32_to_cpu(*((u32 *)desc));
-				DRM_DEBUG("DL chip limited to %d pixel modes\n",
-					max_area);
-				udl->sku_pixel_limit = max_area;
-				break;
-			}
-			default:
-				break;
-			}
-			desc += length;
+		key = le16_to_cpu(*((u16 *)desc));
+		desc += sizeof(u16);
+		length = *desc;
+		desc++;
+
+		switch (key) {
+		case 0x0200: { /* max_area */
+			u32 max_area = le32_to_cpu(*((u32 *)desc));
+
+			DRM_DEBUG("DL chip limited to %d pixel modes\n",
+				  max_area);
+			udl->sku_pixel_limit = max_area;
+			break;
 		}
+		default:
+			break;
+		}
+		desc += length;
 	}
 
 	goto success;
