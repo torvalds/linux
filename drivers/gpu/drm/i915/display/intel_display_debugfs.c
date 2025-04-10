@@ -610,17 +610,6 @@ static int i915_display_info(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static int i915_display_capabilities(struct seq_file *m, void *unused)
-{
-	struct intel_display *display = node_to_intel_display(m->private);
-	struct drm_printer p = drm_seq_file_printer(m);
-
-	intel_display_device_info_print(DISPLAY_INFO(display),
-					DISPLAY_RUNTIME_INFO(display), &p);
-
-	return 0;
-}
-
 static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 {
 	struct intel_display *display = node_to_intel_display(m->private);
@@ -817,7 +806,6 @@ static const struct drm_info_list intel_display_debugfs_list[] = {
 	{"i915_gem_framebuffer", i915_gem_framebuffer_info, 0},
 	{"i915_power_domain_info", i915_power_domain_info, 0},
 	{"i915_display_info", i915_display_info, 0},
-	{"i915_display_capabilities", i915_display_capabilities, 0},
 	{"i915_shared_dplls_info", i915_shared_dplls_info, 0},
 	{"i915_dp_mst_info", i915_dp_mst_info, 0},
 	{"i915_ddb_info", i915_ddb_info, 0},
