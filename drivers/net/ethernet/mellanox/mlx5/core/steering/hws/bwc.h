@@ -10,9 +10,7 @@
 #define MLX5HWS_BWC_MATCHER_REHASH_BURST_TH 32
 
 /* Max number of AT attach operations for the same matcher.
- * When the limit is reached, next attempt to attach new AT
- * will result in creation of a new matcher and moving all
- * the rules to this matcher.
+ * When the limit is reached, a larger buffer is allocated for the ATs.
  */
 #define MLX5HWS_BWC_MATCHER_ATTACH_AT_NUM 8
 
@@ -23,10 +21,11 @@
 struct mlx5hws_bwc_matcher {
 	struct mlx5hws_matcher *matcher;
 	struct mlx5hws_match_template *mt;
-	struct mlx5hws_action_template *at[MLX5HWS_BWC_MATCHER_ATTACH_AT_NUM];
-	u32 priority;
+	struct mlx5hws_action_template **at;
 	u8 num_of_at;
+	u8 size_of_at_array;
 	u8 size_log;
+	u32 priority;
 	atomic_t num_of_rules;
 	struct list_head *rules;
 };

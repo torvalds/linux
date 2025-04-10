@@ -905,18 +905,48 @@ static int hws_matcher_uninit(struct mlx5hws_matcher *matcher)
 	return 0;
 }
 
+static int hws_matcher_grow_at_array(struct mlx5hws_matcher *matcher)
+{
+	void *p;
+
+	if (matcher->size_of_at_array >= MLX5HWS_MATCHER_MAX_AT)
+		return -ENOMEM;
+
+	matcher->size_of_at_array *= 2;
+	p = krealloc(matcher->at,
+		     matcher->size_of_at_array * sizeof(*matcher->at),
+		     __GFP_ZERO | GFP_KERNEL);
+	if (!p) {
+		matcher->size_of_at_array /= 2;
+		return -ENOMEM;
+	}
+
+	matcher->at = p;
+
+	return 0;
+}
+
 int mlx5hws_matcher_attach_at(struct mlx5hws_matcher *matcher,
-			      struct mlx5hws_action_template *at)
+			      struct mlx5hws_action_template *at,
+			      bool *need_rehash)
 {
 	bool is_jumbo = mlx5hws_matcher_mt_is_jumbo(matcher->mt);
 	struct mlx5hws_context *ctx = matcher->tbl->ctx;
 	u32 required_stes;
 	int ret;
 
-	if (!matcher->attr.max_num_of_at_attach) {
-		mlx5hws_dbg(ctx, "Num of current at (%d) exceed allowed value\n",
-			    matcher->num_of_at);
-		return -EOPNOTSUPP;
+	*need_rehash = false;
+
+	if (unlikely(matcher->num_of_at >= matcher->size_of_at_array)) {
+		ret = hws_matcher_grow_at_array(matcher);
+		if (ret)
+			return ret;
+
+		if (matcher->col_matcher) {
+			ret = hws_matcher_grow_at_array(matcher->col_matcher);
+			if (ret)
+				return ret;
+		}
 	}
 
 	ret = hws_matcher_check_and_process_at(matcher, at);
@@ -927,12 +957,11 @@ int mlx5hws_matcher_attach_at(struct mlx5hws_matcher *matcher,
 	if (matcher->action_ste.max_stes < required_stes) {
 		mlx5hws_dbg(ctx, "Required STEs [%d] exceeds initial action template STE [%d]\n",
 			    required_stes, matcher->action_ste.max_stes);
-		return -ENOMEM;
+		*need_rehash = true;
 	}
 
 	matcher->at[matcher->num_of_at] = *at;
 	matcher->num_of_at += 1;
-	matcher->attr.max_num_of_at_attach -= 1;
 
 	if (matcher->col_matcher)
 		matcher->col_matcher->num_of_at = matcher->num_of_at;
@@ -960,8 +989,9 @@ hws_matcher_set_templates(struct mlx5hws_matcher *matcher,
 	if (!matcher->mt)
 		return -ENOMEM;
 
-	matcher->at = kvcalloc(num_of_at + matcher->attr.max_num_of_at_attach,
-			       sizeof(*matcher->at),
+	matcher->size_of_at_array =
+		num_of_at + matcher->attr.max_num_of_at_attach;
+	matcher->at = kvcalloc(matcher->size_of_at_array, sizeof(*matcher->at),
 			       GFP_KERNEL);
 	if (!matcher->at) {
 		mlx5hws_err(ctx, "Failed to allocate action template array\n");

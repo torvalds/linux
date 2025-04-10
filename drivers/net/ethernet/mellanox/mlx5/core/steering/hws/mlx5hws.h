@@ -399,11 +399,14 @@ int mlx5hws_matcher_destroy(struct mlx5hws_matcher *matcher);
  *
  * @matcher: Matcher to attach the action template to.
  * @at: Action template to be attached to the matcher.
+ * @need_rehash: Output parameter that tells callers if the matcher needs to be
+ * rehashed.
  *
  * Return: Zero on success, non-zero otherwise.
  */
 int mlx5hws_matcher_attach_at(struct mlx5hws_matcher *matcher,
-			      struct mlx5hws_action_template *at);
+			      struct mlx5hws_action_template *at,
+			      bool *need_rehash);
 
 /**
  * mlx5hws_matcher_resize_set_target - Link two matchers and enable moving rules.

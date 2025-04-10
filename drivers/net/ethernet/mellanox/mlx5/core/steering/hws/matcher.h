@@ -23,6 +23,9 @@
  */
 #define MLX5HWS_MATCHER_ACTION_RTC_UPDATE_MULT 1
 
+/* Maximum number of action templates that can be attached to a matcher. */
+#define MLX5HWS_MATCHER_MAX_AT 128
+
 enum mlx5hws_matcher_offset {
 	MLX5HWS_MATCHER_OFFSET_TAG_DW1 = 12,
 	MLX5HWS_MATCHER_OFFSET_TAG_DW0 = 13,
@@ -72,6 +75,7 @@ struct mlx5hws_matcher {
 	struct mlx5hws_match_template *mt;
 	struct mlx5hws_action_template *at;
 	u8 num_of_at;
+	u8 size_of_at_array;
 	u8 num_of_mt;
 	/* enum mlx5hws_matcher_flags */
 	u8 flags;
