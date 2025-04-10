@@ -15,6 +15,7 @@
 #include "cpumask.c"
 #include "cred.c"
 #include "device.c"
+#include "drm.c"
 #include "err.c"
 #include "fs.c"
 #include "io.c"

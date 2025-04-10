@@ -5,6 +5,7 @@
 pub mod device;
 pub mod driver;
 pub mod file;
+pub mod gem;
 pub mod ioctl;
 
 pub use self::device::Device;
