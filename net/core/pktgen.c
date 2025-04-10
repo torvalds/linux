@@ -476,8 +476,7 @@ struct pktgen_thread {
 #define FIND   0
 
 static const char version[] =
-	"Packet Generator for packet performance testing. "
-	"Version: " VERSION "\n";
+	"Packet Generator for packet performance testing. Version: " VERSION "\n";
 
 static int pktgen_remove_device(struct pktgen_thread *t, struct pktgen_dev *i);
 static int pktgen_add_device(struct pktgen_thread *t, const char *ifname);
@@ -628,8 +627,7 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "%pM\n", pkt_dev->dst_mac);
 
 	seq_printf(seq,
-		   "     udp_src_min: %d  udp_src_max: %d"
-		   "  udp_dst_min: %d  udp_dst_max: %d\n",
+		   "     udp_src_min: %d  udp_src_max: %d  udp_dst_min: %d  udp_dst_max: %d\n",
 		   pkt_dev->udp_src_min, pkt_dev->udp_src_max,
 		   pkt_dev->udp_dst_min, pkt_dev->udp_dst_max);
 
