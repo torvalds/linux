@@ -6546,15 +6546,6 @@ S:	Maintained
 F:	Documentation/scsi/dc395x.rst
 F:	drivers/scsi/dc395x.*
 
-DCCP PROTOCOL
-L:	dccp@vger.kernel.org
-S:	Orphan
-W:	http://www.linuxfoundation.org/collaborate/workgroups/networking/dccp
-F:	include/linux/dccp.h
-F:	include/linux/tfrc.h
-F:	include/uapi/linux/dccp.h
-F:	net/dccp/
-
 DEBUGOBJECTS:
 M:	Thomas Gleixner <tglx@linutronix.de>
 L:	linux-kernel@vger.kernel.org

@@ -127,8 +127,6 @@ const struct security_class_mapping secclass_map[] = {
 	{ "key",
 	  { "view", "read", "write", "search", "link", "setattr", "create",
 	    NULL } },
-	{ "dccp_socket",
-	  { COMMON_SOCK_PERMS, "node_bind", "name_connect", NULL } },
 	{ "memprotect", { "mmap_zero", NULL } },
 	{ "peer", { "recv", NULL } },
 	{ "capability2", { COMMON_CAP2_PERMS, NULL } },

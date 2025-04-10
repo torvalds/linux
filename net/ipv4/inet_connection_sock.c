@@ -1322,7 +1322,7 @@ void inet_csk_destroy_sock(struct sock *sk)
 EXPORT_SYMBOL(inet_csk_destroy_sock);
 
 /* This function allows to force a closure of a socket after the call to
- * tcp/dccp_create_openreq_child().
+ * tcp_create_openreq_child().
  */
 void inet_csk_prepare_forced_close(struct sock *sk)
 	__releases(&sk->sk_lock.slock)
