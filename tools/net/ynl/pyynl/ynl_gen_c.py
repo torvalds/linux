@@ -971,9 +971,6 @@ class Family(SpecFamily):
     def resolve(self):
         self.resolve_up(super())
 
-        if self.yaml.get('protocol', 'genetlink') not in {'genetlink', 'genetlink-c', 'genetlink-legacy'}:
-            raise Exception("Codegen only supported for genetlink")
-
         self.c_name = c_lower(self.ident_name)
         if 'name-prefix' in self.yaml['operations']:
             self.op_prefix = c_upper(self.yaml['operations']['name-prefix'])
@@ -1019,6 +1016,9 @@ class Family(SpecFamily):
 
     def new_operation(self, elem, req_value, rsp_value):
         return Operation(self, elem, req_value, rsp_value)
+
+    def is_classic(self):
+        return self.proto == 'netlink-raw'
 
     def _mark_notify(self):
         for op in self.msgs.values():
@@ -2730,6 +2730,9 @@ def render_user_family(family, cw, prototype):
 
     cw.block_start(f'{symbol} = ')
     cw.p(f'.name\t\t= "{family.c_name}",')
+    if family.is_classic():
+        cw.p(f'.is_classic\t= true,')
+        cw.p(f'.classic_id\t= {family.get("protonum")},')
     if family.fixed_header:
         cw.p(f'.hdr_len\t= sizeof(struct genlmsghdr) + sizeof(struct {c_lower(family.fixed_header)}),')
     else:

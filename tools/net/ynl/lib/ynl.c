@@ -663,6 +663,7 @@ ynl_sock_create(const struct ynl_family *yf, struct ynl_error *yse)
 	struct sockaddr_nl addr;
 	struct ynl_sock *ys;
 	socklen_t addrlen;
+	int sock_type;
 	int one = 1;
 
 	ys = malloc(sizeof(*ys) + 2 * YNL_SOCKET_BUFFER_SIZE);
@@ -675,7 +676,9 @@ ynl_sock_create(const struct ynl_family *yf, struct ynl_error *yse)
 	ys->rx_buf = &ys->raw_buf[YNL_SOCKET_BUFFER_SIZE];
 	ys->ntf_last_next = &ys->ntf_first;
 
-	ys->socket = socket(AF_NETLINK, SOCK_RAW, NETLINK_GENERIC);
+	sock_type = yf->is_classic ? yf->classic_id : NETLINK_GENERIC;
+
+	ys->socket = socket(AF_NETLINK, SOCK_RAW, sock_type);
 	if (ys->socket < 0) {
 		__perr(yse, "failed to create a netlink socket");
 		goto err_free_sock;
@@ -708,8 +711,9 @@ ynl_sock_create(const struct ynl_family *yf, struct ynl_error *yse)
 	ys->portid = addr.nl_pid;
 	ys->seq = random();
 
-
-	if (ynl_sock_read_family(ys, yf->name)) {
+	if (yf->is_classic) {
+		ys->family_id = yf->classic_id;
+	} else if (ynl_sock_read_family(ys, yf->name)) {
 		if (yse)
 			memcpy(yse, &ys->err, sizeof(*yse));
 		goto err_close_sock;
@@ -791,13 +795,21 @@ static int ynl_ntf_parse(struct ynl_sock *ys, const struct nlmsghdr *nlh)
 	struct ynl_parse_arg yarg = { .ys = ys, };
 	const struct ynl_ntf_info *info;
 	struct ynl_ntf_base_type *rsp;
-	struct genlmsghdr *gehdr;
+	__u32 cmd;
 	int ret;
 
-	gehdr = ynl_nlmsg_data(nlh);
-	if (gehdr->cmd >= ys->family->ntf_info_size)
+	if (ys->family->is_classic) {
+		cmd = nlh->nlmsg_type;
+	} else {
+		struct genlmsghdr *gehdr;
+
+		gehdr = ynl_nlmsg_data(nlh);
+		cmd = gehdr->cmd;
+	}
+
+	if (cmd >= ys->family->ntf_info_size)
 		return YNL_PARSE_CB_ERROR;
-	info = &ys->family->ntf_info[gehdr->cmd];
+	info = &ys->family->ntf_info[cmd];
 	if (!info->cb)
 		return YNL_PARSE_CB_ERROR;
 
@@ -811,7 +823,7 @@ static int ynl_ntf_parse(struct ynl_sock *ys, const struct nlmsghdr *nlh)
 		goto err_free;
 
 	rsp->family = nlh->nlmsg_type;
-	rsp->cmd = gehdr->cmd;
+	rsp->cmd = cmd;
 
 	*ys->ntf_last_next = rsp;
 	ys->ntf_last_next = &rsp->next;
@@ -863,17 +875,22 @@ int ynl_error_parse(struct ynl_parse_arg *yarg, const char *msg)
 static int
 ynl_check_alien(struct ynl_sock *ys, const struct nlmsghdr *nlh, __u32 rsp_cmd)
 {
-	struct genlmsghdr *gehdr;
+	if (ys->family->is_classic) {
+		if (nlh->nlmsg_type != rsp_cmd)
+			return ynl_ntf_parse(ys, nlh);
+	} else {
+		struct genlmsghdr *gehdr;
 
-	if (ynl_nlmsg_data_len(nlh) < sizeof(*gehdr)) {
-		yerr(ys, YNL_ERROR_INV_RESP,
-		     "Kernel responded with truncated message");
-		return -1;
+		if (ynl_nlmsg_data_len(nlh) < sizeof(*gehdr)) {
+			yerr(ys, YNL_ERROR_INV_RESP,
+			     "Kernel responded with truncated message");
+			return -1;
+		}
+
+		gehdr = ynl_nlmsg_data(nlh);
+		if (gehdr->cmd != rsp_cmd)
+			return ynl_ntf_parse(ys, nlh);
 	}
-
-	gehdr = ynl_nlmsg_data(nlh);
-	if (gehdr->cmd != rsp_cmd)
-		return ynl_ntf_parse(ys, nlh);
 
 	return 0;
 }
