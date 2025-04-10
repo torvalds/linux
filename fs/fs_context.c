@@ -449,6 +449,10 @@ void logfc(struct fc_log *log, const char *prefix, char level, const char *fmt, 
 			printk(KERN_ERR "%s%s%pV\n", prefix ? prefix : "",
 						prefix ? ": " : "", &vaf);
 			break;
+		case 'i':
+			printk(KERN_INFO "%s%s%pV\n", prefix ? prefix : "",
+						prefix ? ": " : "", &vaf);
+			break;
 		default:
 			printk(KERN_NOTICE "%s%s%pV\n", prefix ? prefix : "",
 						prefix ? ": " : "", &vaf);
