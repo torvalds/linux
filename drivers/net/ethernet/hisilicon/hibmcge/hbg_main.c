@@ -21,7 +21,7 @@
 
 static void hbg_all_irq_enable(struct hbg_priv *priv, bool enabled)
 {
-	struct hbg_irq_info *info;
+	const struct hbg_irq_info *info;
 	u32 i;
 
 	for (i = 0; i < priv->vectors.info_array_len; i++) {

@@ -61,7 +61,7 @@ static int hbg_dbg_irq_info(struct seq_file *s, void *unused)
 {
 	struct net_device *netdev = dev_get_drvdata(s->private);
 	struct hbg_priv *priv = netdev_priv(netdev);
-	struct hbg_irq_info *info;
+	const struct hbg_irq_info *info;
 	u32 i;
 
 	for (i = 0; i < priv->vectors.info_array_len; i++) {
@@ -73,7 +73,7 @@ static int hbg_dbg_irq_info(struct seq_file *s, void *unused)
 								info->mask)),
 			   str_true_false(info->need_reset),
 			   str_true_false(info->need_print),
-			   info->count);
+			   priv->vectors.stats_array[i]);
 	}
 
 	return 0;
