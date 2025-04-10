@@ -2937,12 +2937,13 @@ static int vc_con_write_normal(struct vc_data *vc, int tc, int c,
 			width = 2;
 		} else if (ucs_is_zero_width(c)) {
 			prev_c = vc_uniscr_getc(vc, -1);
-			if (prev_c == ' ' &&
+			if (prev_c == 0x200B &&
 			    ucs_is_double_width(vc_uniscr_getc(vc, -2))) {
 				/*
 				 * Let's merge this zero-width code point with
 				 * the preceding double-width code point by
-				 * replacing the existing whitespace padding.
+				 * replacing the existing zero-white-space
+				 * padding.
 				 */
 				vc_con_rewind(vc);
 			} else if (c == 0xfe0f && prev_c != 0) {
@@ -3040,7 +3041,11 @@ static int vc_con_write_normal(struct vc_data *vc, int tc, int c,
 		tc = conv_uni_to_pc(vc, ' ');
 		if (tc < 0)
 			tc = ' ';
-		next_c = ' ';
+		/*
+		 * Store a zero-white-space in the Unicode screen given that
+		 * the previous code point is semantically double-width.
+		 */
+		next_c = 0x200B;
 	}
 
 out:
