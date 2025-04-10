@@ -2398,7 +2398,11 @@ static int smu_switch_power_profile(void *handle,
 			smu_power_profile_mode_get(smu, type);
 		else
 			smu_power_profile_mode_put(smu, type);
-		ret = smu_bump_power_profile_mode(smu, NULL, 0);
+		/* don't switch the active workload when paused */
+		if (smu->pause_workload)
+			ret = 0;
+		else
+			ret = smu_bump_power_profile_mode(smu, NULL, 0);
 		if (ret) {
 			if (enable)
 				smu_power_profile_mode_put(smu, type);
@@ -2406,6 +2410,35 @@ static int smu_switch_power_profile(void *handle,
 				smu_power_profile_mode_get(smu, type);
 			return ret;
 		}
+	}
+
+	return 0;
+}
+
+static int smu_pause_power_profile(void *handle,
+				   bool pause)
+{
+	struct smu_context *smu = handle;
+	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
+	u32 workload_mask = 1 << PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
+	int ret;
+
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+		return -EOPNOTSUPP;
+
+	if (smu_dpm_ctx->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL &&
+	    smu_dpm_ctx->dpm_level != AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM) {
+		smu->pause_workload = pause;
+
+		/* force to bootup default profile */
+		if (smu->pause_workload && smu->ppt_funcs->set_power_profile_mode)
+			ret = smu->ppt_funcs->set_power_profile_mode(smu,
+								     workload_mask,
+								     NULL,
+								     0);
+		else
+			ret = smu_bump_power_profile_mode(smu, NULL, 0);
+		return ret;
 	}
 
 	return 0;
@@ -3733,6 +3766,7 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.get_pp_table            = smu_sys_get_pp_table,
 	.set_pp_table            = smu_sys_set_pp_table,
 	.switch_power_profile    = smu_switch_power_profile,
+	.pause_power_profile     = smu_pause_power_profile,
 	/* export to amdgpu */
 	.dispatch_tasks          = smu_handle_dpm_task,
 	.load_firmware           = smu_load_microcode,
