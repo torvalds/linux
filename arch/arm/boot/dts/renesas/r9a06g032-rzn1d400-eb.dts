@@ -67,6 +67,28 @@
 		drive-strength = <6>;
 		bias-disable;
 	};
+
+	pins_sdio1: pins-sdio1 {
+		pinmux = <RZN1_PINMUX(95, RZN1_FUNC_SDIO)>,
+			 <RZN1_PINMUX(97, RZN1_FUNC_SDIO)>,
+			 <RZN1_PINMUX(98, RZN1_FUNC_SDIO)>,
+			 <RZN1_PINMUX(99, RZN1_FUNC_SDIO)>,
+			 <RZN1_PINMUX(100, RZN1_FUNC_SDIO)>,
+			 <RZN1_PINMUX(101, RZN1_FUNC_SDIO_E)>,
+			 <RZN1_PINMUX(102, RZN1_FUNC_SDIO_E)>;
+	};
+
+	pins_sdio1_clk: pins-sdio1-clk {
+		pinmux = <RZN1_PINMUX(96, RZN1_FUNC_SDIO)>;
+		drive-strength = <12>;
+	};
+};
+
+&sdio1 {
+	pinctrl-0 = <&pins_sdio1>, <&pins_sdio1_clk>;
+	pinctrl-names = "default";
+
+	status = "okay";
 };
 
 &switch {
