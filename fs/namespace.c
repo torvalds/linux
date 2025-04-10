@@ -1830,6 +1830,8 @@ static inline void namespace_lock(void)
 	down_write(&namespace_sem);
 }
 
+DEFINE_GUARD(namespace_lock, struct rw_semaphore *, namespace_lock(), namespace_unlock())
+
 enum umount_tree_flags {
 	UMOUNT_SYNC = 1,
 	UMOUNT_PROPAGATE = 2,
@@ -2383,7 +2385,7 @@ void dissolve_on_fput(struct vfsmount *mnt)
 			return;
 	}
 
-	scoped_guard(rwsem_write, &namespace_sem) {
+	scoped_guard(namespace_lock, &namespace_sem) {
 		ns = m->mnt_ns;
 		if (!must_dissolve(ns))
 			return;
