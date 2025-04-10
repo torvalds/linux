@@ -906,6 +906,51 @@ static void mt7530_get_rmon_stats(struct dsa_switch *ds, int port,
 	*ranges = mt7530_rmon_ranges;
 }
 
+static void mt7530_get_stats64(struct dsa_switch *ds, int port,
+			       struct rtnl_link_stats64 *storage)
+{
+	struct mt7530_priv *priv = ds->priv;
+	uint64_t data;
+
+	/* MIB counter doesn't provide a FramesTransmittedOK but instead
+	 * provide stats for Unicast, Broadcast and Multicast frames separately.
+	 * To simulate a global frame counter, read Unicast and addition Multicast
+	 * and Broadcast later
+	 */
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_UNICAST, 1,
+			       &storage->rx_packets);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_MULTICAST, 1,
+			       &storage->multicast);
+	storage->rx_packets += storage->multicast;
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_BROADCAST, 1,
+			       &data);
+	storage->rx_packets += data;
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_UNICAST, 1,
+			       &storage->tx_packets);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_MULTICAST, 1,
+			       &data);
+	storage->tx_packets += data;
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_BROADCAST, 1,
+			       &data);
+	storage->tx_packets += data;
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_BYTES, 2,
+			       &storage->rx_bytes);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_BYTES, 2,
+			       &storage->tx_bytes);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_DROP, 1,
+			       &storage->rx_dropped);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_DROP, 1,
+			       &storage->tx_dropped);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_CRC_ERR, 1,
+			       &storage->rx_crc_errors);
+}
+
 static void mt7530_get_eth_ctrl_stats(struct dsa_switch *ds, int port,
 				      struct ethtool_eth_ctrl_stats *ctrl_stats)
 {
@@ -3207,6 +3252,7 @@ const struct dsa_switch_ops mt7530_switch_ops = {
 	.get_eth_mac_stats	= mt7530_get_eth_mac_stats,
 	.get_rmon_stats		= mt7530_get_rmon_stats,
 	.get_eth_ctrl_stats	= mt7530_get_eth_ctrl_stats,
+	.get_stats64		= mt7530_get_stats64,
 	.set_ageing_time	= mt7530_set_ageing_time,
 	.port_enable		= mt7530_port_enable,
 	.port_disable		= mt7530_port_disable,
