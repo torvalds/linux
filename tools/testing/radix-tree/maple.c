@@ -36248,6 +36248,21 @@ static noinline void __init check_mtree_dup(struct maple_tree *mt)
 
 extern void test_kmem_cache_bulk(void);
 
+static inline void check_spanning_store_height(struct maple_tree *mt)
+{
+	int index = 0;
+	MA_STATE(mas, mt, 0, 0);
+	mas_lock(&mas);
+	while (mt_height(mt) != 3) {
+		mas_store_gfp(&mas, xa_mk_value(index), GFP_KERNEL);
+		mas_set(&mas, ++index);
+	}
+	mas_set_range(&mas, 90, 140);
+	mas_store_gfp(&mas, xa_mk_value(index), GFP_KERNEL);
+	MT_BUG_ON(mt, mas_mt_height(&mas) != 2);
+	mas_unlock(&mas);
+}
+
 /* callback function used for check_nomem_writer_race() */
 static void writer2(void *maple_tree)
 {
@@ -36412,6 +36427,10 @@ void farmer_tests(void)
 
 	mt_init_flags(&tree, MT_FLAGS_ALLOC_RANGE);
 	check_spanning_write(&tree);
+	mtree_destroy(&tree);
+
+	mt_init_flags(&tree, MT_FLAGS_ALLOC_RANGE);
+	check_spanning_store_height(&tree);
 	mtree_destroy(&tree);
 
 	mt_init_flags(&tree, MT_FLAGS_ALLOC_RANGE);
