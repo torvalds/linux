@@ -234,6 +234,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT1318_SDW
 	imply SND_SOC_RT1320_SDW
 	imply SND_SOC_RT9120
+	imply SND_SOC_RT9123
 	imply SND_SOC_RTQ9128
 	imply SND_SOC_SDW_MOCKUP
 	imply SND_SOC_SGTL5000
@@ -1822,6 +1823,14 @@ config SND_SOC_RT9120
 	help
 	  Enable support for Richtek RT9120 20W, stereo, inductor-less,
 	  high-efficiency Class-D audio amplifier.
+
+config SND_SOC_RT9123
+	tristate "Richtek RT9123 Mono Class-D Amplifier"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Enable support for the I2C control mode of Richtek RT9123 3.2W mono
+	  Class-D audio amplifier.
 
 config SND_SOC_RTQ9128
 	tristate "Richtek RTQ9128 45W Digital Input Amplifier"
