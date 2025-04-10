@@ -563,18 +563,48 @@ void pciehp_power_off_slot(struct controller *ctrl)
 		 PCI_EXP_SLTCTL_PWR_OFF);
 }
 
+bool pciehp_device_replaced(struct controller *ctrl)
+{
+	struct pci_dev *pdev __free(pci_dev_put) = NULL;
+	u32 reg;
+
+	if (pci_dev_is_disconnected(ctrl->pcie->port))
+		return false;
+
+	pdev = pci_get_slot(ctrl->pcie->port->subordinate, PCI_DEVFN(0, 0));
+	if (!pdev)
+		return true;
+
+	if (pci_read_config_dword(pdev, PCI_VENDOR_ID, &reg) ||
+	    reg != (pdev->vendor | (pdev->device << 16)) ||
+	    pci_read_config_dword(pdev, PCI_CLASS_REVISION, &reg) ||
+	    reg != (pdev->revision | (pdev->class << 8)))
+		return true;
+
+	if (pdev->hdr_type == PCI_HEADER_TYPE_NORMAL &&
+	    (pci_read_config_dword(pdev, PCI_SUBSYSTEM_VENDOR_ID, &reg) ||
+	     reg != (pdev->subsystem_vendor | (pdev->subsystem_device << 16))))
+		return true;
+
+	if (pci_get_dsn(pdev) != ctrl->dsn)
+		return true;
+
+	return false;
+}
+
 static void pciehp_ignore_dpc_link_change(struct controller *ctrl,
-					  struct pci_dev *pdev, int irq)
+					  struct pci_dev *pdev, int irq,
+					  u16 ignored_events)
 {
 	/*
 	 * Ignore link changes which occurred while waiting for DPC recovery.
 	 * Could be several if DPC triggered multiple times consecutively.
 	 */
 	synchronize_hardirq(irq);
-	atomic_and(~PCI_EXP_SLTSTA_DLLSC, &ctrl->pending_events);
+	atomic_and(~ignored_events, &ctrl->pending_events);
 	if (pciehp_poll_mode)
 		pcie_capability_write_word(pdev, PCI_EXP_SLTSTA,
-					   PCI_EXP_SLTSTA_DLLSC);
+					   ignored_events);
 	ctrl_info(ctrl, "Slot(%s): Link Down/Up ignored (recovered by DPC)\n",
 		  slot_name(ctrl));
 
@@ -584,8 +614,8 @@ static void pciehp_ignore_dpc_link_change(struct controller *ctrl,
 	 * Synthesize it to ensure that it is acted on.
 	 */
 	down_read_nested(&ctrl->reset_lock, ctrl->depth);
-	if (!pciehp_check_link_active(ctrl))
-		pciehp_request(ctrl, PCI_EXP_SLTSTA_DLLSC);
+	if (!pciehp_check_link_active(ctrl) || pciehp_device_replaced(ctrl))
+		pciehp_request(ctrl, ignored_events);
 	up_read(&ctrl->reset_lock);
 }
 
@@ -736,8 +766,13 @@ static irqreturn_t pciehp_ist(int irq, void *dev_id)
 	 */
 	if ((events & PCI_EXP_SLTSTA_DLLSC) && pci_dpc_recovered(pdev) &&
 	    ctrl->state == ON_STATE) {
-		events &= ~PCI_EXP_SLTSTA_DLLSC;
-		pciehp_ignore_dpc_link_change(ctrl, pdev, irq);
+		u16 ignored_events = PCI_EXP_SLTSTA_DLLSC;
+
+		if (!ctrl->inband_presence_disabled)
+			ignored_events |= events & PCI_EXP_SLTSTA_PDC;
+
+		events &= ~ignored_events;
+		pciehp_ignore_dpc_link_change(ctrl, pdev, irq, ignored_events);
 	}
 
 	/*
