@@ -158,7 +158,7 @@ static noinline char *strsym(char *buf, void *ip)
 
 	p = findsym((unsigned long)ip, &off, &len);
 	if (p) {
-		strncpy(buf, p, MAX_SYMLEN);
+		strscpy(buf, p, MAX_SYMLEN);
 		/* reserve 15 bytes for offset/len in symbol+0x1234/0x1234 */
 		p = buf + strnlen(buf, MAX_SYMLEN - 15);
 		strcpy(p, "+0x");
