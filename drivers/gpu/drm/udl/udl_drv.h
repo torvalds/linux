@@ -56,8 +56,6 @@ struct udl_device {
 	struct drm_encoder encoder;
 	struct drm_connector connector;
 
-	struct mutex gem_lock;
-
 	int sku_pixel_limit;
 
 	struct urb_list urbs;

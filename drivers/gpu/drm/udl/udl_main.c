@@ -320,8 +320,6 @@ int udl_init(struct udl_device *udl)
 		drm_warn(dev, "buffer sharing not supported"); /* not an error */
 	}
 
-	mutex_init(&udl->gem_lock);
-
 	if (!udl_parse_vendor_descriptor(udl)) {
 		ret = -ENODEV;
 		DRM_ERROR("firmware not recognized. Assume incompatible device\n");
