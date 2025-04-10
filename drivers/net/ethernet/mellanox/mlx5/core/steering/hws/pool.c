@@ -60,10 +60,8 @@ hws_pool_create_one_resource(struct mlx5hws_pool *pool, u32 log_range,
 		ret = -EINVAL;
 	}
 
-	if (ret) {
-		mlx5hws_err(pool->ctx, "Failed to allocate resource objects\n");
+	if (ret)
 		goto free_resource;
-	}
 
 	resource->pool = pool;
 	resource->range = 1 << log_range;
@@ -76,17 +74,17 @@ free_resource:
 	return NULL;
 }
 
-static int
-hws_pool_resource_alloc(struct mlx5hws_pool *pool, u32 log_range)
+static int hws_pool_resource_alloc(struct mlx5hws_pool *pool)
 {
 	struct mlx5hws_pool_resource *resource;
 	u32 fw_ft_type, opt_log_range;
 
 	fw_ft_type = mlx5hws_table_get_res_fw_ft_type(pool->tbl_type, false);
-	opt_log_range = pool->opt_type == MLX5HWS_POOL_OPTIMIZE_ORIG ? 0 : log_range;
+	opt_log_range = pool->opt_type == MLX5HWS_POOL_OPTIMIZE_ORIG ?
+				0 : pool->alloc_log_sz;
 	resource = hws_pool_create_one_resource(pool, opt_log_range, fw_ft_type);
 	if (!resource) {
-		mlx5hws_err(pool->ctx, "Failed allocating resource\n");
+		mlx5hws_err(pool->ctx, "Failed to allocate resource\n");
 		return -EINVAL;
 	}
 
@@ -96,10 +94,11 @@ hws_pool_resource_alloc(struct mlx5hws_pool *pool, u32 log_range)
 		struct mlx5hws_pool_resource *mirror_resource;
 
 		fw_ft_type = mlx5hws_table_get_res_fw_ft_type(pool->tbl_type, true);
-		opt_log_range = pool->opt_type == MLX5HWS_POOL_OPTIMIZE_MIRROR ? 0 : log_range;
+		opt_log_range = pool->opt_type == MLX5HWS_POOL_OPTIMIZE_MIRROR ?
+					0 : pool->alloc_log_sz;
 		mirror_resource = hws_pool_create_one_resource(pool, opt_log_range, fw_ft_type);
 		if (!mirror_resource) {
-			mlx5hws_err(pool->ctx, "Failed allocating mirrored resource\n");
+			mlx5hws_err(pool->ctx, "Failed to allocate mirrored resource\n");
 			hws_pool_free_one_resource(resource);
 			pool->resource = NULL;
 			return -EINVAL;
@@ -110,17 +109,44 @@ hws_pool_resource_alloc(struct mlx5hws_pool *pool, u32 log_range)
 	return 0;
 }
 
-static unsigned long *hws_pool_create_and_init_bitmap(u32 log_range)
+static int hws_pool_buddy_init(struct mlx5hws_pool *pool)
 {
-	unsigned long *cur_bmp;
+	struct mlx5hws_buddy_mem *buddy;
 
-	cur_bmp = bitmap_zalloc(1 << log_range, GFP_KERNEL);
-	if (!cur_bmp)
-		return NULL;
+	buddy = mlx5hws_buddy_create(pool->alloc_log_sz);
+	if (!buddy) {
+		mlx5hws_err(pool->ctx, "Failed to create buddy order: %zu\n",
+			    pool->alloc_log_sz);
+		return -ENOMEM;
+	}
 
-	bitmap_fill(cur_bmp, 1 << log_range);
+	if (hws_pool_resource_alloc(pool) != 0) {
+		mlx5hws_err(pool->ctx, "Failed to create resource type: %d size %zu\n",
+			    pool->type, pool->alloc_log_sz);
+		mlx5hws_buddy_cleanup(buddy);
+		return -ENOMEM;
+	}
 
-	return cur_bmp;
+	pool->db.buddy = buddy;
+
+	return 0;
+}
+
+static int hws_pool_buddy_db_get_chunk(struct mlx5hws_pool *pool,
+				       struct mlx5hws_pool_chunk *chunk)
+{
+	struct mlx5hws_buddy_mem *buddy = pool->db.buddy;
+
+	if (!buddy) {
+		mlx5hws_err(pool->ctx, "Bad buddy state\n");
+		return -EINVAL;
+	}
+
+	chunk->offset = mlx5hws_buddy_alloc_mem(buddy, chunk->order);
+	if (chunk->offset >= 0)
+		return 0;
+
+	return -ENOMEM;
 }
 
 static void hws_pool_buddy_db_put_chunk(struct mlx5hws_pool *pool,
@@ -137,67 +163,6 @@ static void hws_pool_buddy_db_put_chunk(struct mlx5hws_pool *pool,
 	mlx5hws_buddy_free_mem(buddy, chunk->offset, chunk->order);
 }
 
-static struct mlx5hws_buddy_mem *
-hws_pool_buddy_get_buddy(struct mlx5hws_pool *pool, u32 order)
-{
-	static struct mlx5hws_buddy_mem *buddy;
-	u32 new_buddy_size;
-
-	buddy = pool->db.buddy;
-	if (buddy)
-		return buddy;
-
-	new_buddy_size = max(pool->alloc_log_sz, order);
-	buddy = mlx5hws_buddy_create(new_buddy_size);
-	if (!buddy) {
-		mlx5hws_err(pool->ctx, "Failed to create buddy order: %d\n",
-			    new_buddy_size);
-		return NULL;
-	}
-
-	if (hws_pool_resource_alloc(pool, new_buddy_size) != 0) {
-		mlx5hws_err(pool->ctx, "Failed to create resource type: %d: size %d\n",
-			    pool->type, new_buddy_size);
-		mlx5hws_buddy_cleanup(buddy);
-		return NULL;
-	}
-
-	pool->db.buddy = buddy;
-
-	return buddy;
-}
-
-static int hws_pool_buddy_get_mem_chunk(struct mlx5hws_pool *pool,
-					int order,
-					int *seg)
-{
-	struct mlx5hws_buddy_mem *buddy;
-
-	buddy = hws_pool_buddy_get_buddy(pool, order);
-	if (!buddy)
-		return -ENOMEM;
-
-	*seg = mlx5hws_buddy_alloc_mem(buddy, order);
-	if (*seg >= 0)
-		return 0;
-
-	return -ENOMEM;
-}
-
-static int hws_pool_buddy_db_get_chunk(struct mlx5hws_pool *pool,
-				       struct mlx5hws_pool_chunk *chunk)
-{
-	int ret = 0;
-
-	ret = hws_pool_buddy_get_mem_chunk(pool, chunk->order,
-					   &chunk->offset);
-	if (ret)
-		mlx5hws_err(pool->ctx, "Failed to get free slot for chunk with order: %d\n",
-			    chunk->order);
-
-	return ret;
-}
-
 static void hws_pool_buddy_db_uninit(struct mlx5hws_pool *pool)
 {
 	struct mlx5hws_buddy_mem *buddy;
@@ -210,15 +175,13 @@ static void hws_pool_buddy_db_uninit(struct mlx5hws_pool *pool)
 	}
 }
 
-static int hws_pool_buddy_db_init(struct mlx5hws_pool *pool, u32 log_range)
+static int hws_pool_buddy_db_init(struct mlx5hws_pool *pool)
 {
-	if (pool->flags & MLX5HWS_POOL_FLAGS_ALLOC_MEM_ON_CREATE) {
-		if (!hws_pool_buddy_get_buddy(pool, log_range)) {
-			mlx5hws_err(pool->ctx,
-				    "Failed allocating memory on create log_sz: %d\n", log_range);
-			return -ENOMEM;
-		}
-	}
+	int ret;
+
+	ret = hws_pool_buddy_init(pool);
+	if (ret)
+		return ret;
 
 	pool->p_db_uninit = &hws_pool_buddy_db_uninit;
 	pool->p_get_chunk = &hws_pool_buddy_db_get_chunk;
@@ -227,234 +190,105 @@ static int hws_pool_buddy_db_init(struct mlx5hws_pool *pool, u32 log_range)
 	return 0;
 }
 
-static int hws_pool_create_resource(struct mlx5hws_pool *pool, u32 alloc_size)
+static unsigned long *hws_pool_create_and_init_bitmap(u32 log_range)
 {
-	int ret = hws_pool_resource_alloc(pool, alloc_size);
+	unsigned long *bitmap;
 
-	if (ret) {
-		mlx5hws_err(pool->ctx, "Failed to create resource type: %d: size %d\n",
-			    pool->type, alloc_size);
-		return ret;
-	}
-
-	return 0;
-}
-
-static struct mlx5hws_pool_elements *
-hws_pool_element_create_new_elem(struct mlx5hws_pool *pool, u32 order)
-{
-	struct mlx5hws_pool_elements *elem;
-	u32 alloc_size;
-
-	alloc_size = pool->alloc_log_sz;
-
-	elem = kzalloc(sizeof(*elem), GFP_KERNEL);
-	if (!elem)
+	bitmap = bitmap_zalloc(1 << log_range, GFP_KERNEL);
+	if (!bitmap)
 		return NULL;
 
-	/* Sharing the same resource, also means that all the elements are with size 1 */
-	if ((pool->flags & MLX5HWS_POOL_FLAGS_FIXED_SIZE_OBJECTS) &&
-	    !(pool->flags & MLX5HWS_POOL_FLAGS_RESOURCE_PER_CHUNK)) {
-		 /* Currently all chunks in size 1 */
-		elem->bitmap = hws_pool_create_and_init_bitmap(alloc_size - order);
-		if (!elem->bitmap) {
-			mlx5hws_err(pool->ctx,
-				    "Failed to create bitmap type: %d: size %d\n",
-				    pool->type, alloc_size);
-			goto free_elem;
-		}
+	bitmap_fill(bitmap, 1 << log_range);
 
-		elem->log_size = alloc_size - order;
-	}
-
-	if (hws_pool_create_resource(pool, alloc_size)) {
-		mlx5hws_err(pool->ctx, "Failed to create resource type: %d: size %d\n",
-			    pool->type, alloc_size);
-		goto free_db;
-	}
-
-	pool->db.element = elem;
-
-	return elem;
-
-free_db:
-	bitmap_free(elem->bitmap);
-free_elem:
-	kfree(elem);
-	return NULL;
+	return bitmap;
 }
 
-static int hws_pool_element_find_seg(struct mlx5hws_pool_elements *elem, int *seg)
+static int hws_pool_bitmap_init(struct mlx5hws_pool *pool)
 {
-	unsigned int segment, size;
+	unsigned long *bitmap;
 
-	size = 1 << elem->log_size;
-
-	segment = find_first_bit(elem->bitmap, size);
-	if (segment >= size) {
-		elem->is_full = true;
+	bitmap = hws_pool_create_and_init_bitmap(pool->alloc_log_sz);
+	if (!bitmap) {
+		mlx5hws_err(pool->ctx, "Failed to create bitmap order: %zu\n",
+			    pool->alloc_log_sz);
 		return -ENOMEM;
 	}
 
-	bitmap_clear(elem->bitmap, segment, 1);
-	*seg = segment;
-	return 0;
-}
-
-static int
-hws_pool_onesize_element_get_mem_chunk(struct mlx5hws_pool *pool, u32 order,
-				       int *seg)
-{
-	struct mlx5hws_pool_elements *elem;
-
-	elem = pool->db.element;
-	if (!elem)
-		elem = hws_pool_element_create_new_elem(pool, order);
-	if (!elem)
-		goto err_no_elem;
-
-	if (hws_pool_element_find_seg(elem, seg) != 0) {
-		mlx5hws_err(pool->ctx, "No more resources (last request order: %d)\n", order);
+	if (hws_pool_resource_alloc(pool) != 0) {
+		mlx5hws_err(pool->ctx, "Failed to create resource type: %d: size %zu\n",
+			    pool->type, pool->alloc_log_sz);
+		bitmap_free(bitmap);
 		return -ENOMEM;
 	}
 
-	elem->num_of_elements++;
-	return 0;
+	pool->db.bitmap = bitmap;
 
-err_no_elem:
-	mlx5hws_err(pool->ctx, "Failed to allocate element for order: %d\n", order);
-	return -ENOMEM;
+	return 0;
 }
 
-static int hws_pool_general_element_get_mem_chunk(struct mlx5hws_pool *pool,
-						  u32 order, int *seg)
+static int hws_pool_bitmap_db_get_chunk(struct mlx5hws_pool *pool,
+					struct mlx5hws_pool_chunk *chunk)
 {
-	int ret;
+	unsigned long *bitmap, size;
 
-	if (!pool->resource) {
-		ret = hws_pool_create_resource(pool, order);
-		if (ret)
-			goto err_no_res;
-		*seg = 0; /* One memory slot in that element */
-		return 0;
+	if (chunk->order != 0) {
+		mlx5hws_err(pool->ctx, "Pool only supports order 0 allocs\n");
+		return -EINVAL;
 	}
 
-	mlx5hws_err(pool->ctx, "No more resources (last request order: %d)\n", order);
-	return -ENOMEM;
+	bitmap = pool->db.bitmap;
+	if (!bitmap) {
+		mlx5hws_err(pool->ctx, "Bad bitmap state\n");
+		return -EINVAL;
+	}
 
-err_no_res:
-	mlx5hws_err(pool->ctx, "Failed to allocate element for order: %d\n", order);
-	return -ENOMEM;
-}
+	size = 1 << pool->alloc_log_sz;
 
-static int hws_pool_general_element_db_get_chunk(struct mlx5hws_pool *pool,
-						 struct mlx5hws_pool_chunk *chunk)
-{
-	int ret;
+	chunk->offset = find_first_bit(bitmap, size);
+	if (chunk->offset >= size)
+		return -ENOMEM;
 
-	ret = hws_pool_general_element_get_mem_chunk(pool, chunk->order,
-						     &chunk->offset);
-	if (ret)
-		mlx5hws_err(pool->ctx, "Failed to get free slot for chunk with order: %d\n",
-			    chunk->order);
-
-	return ret;
-}
-
-static void hws_pool_general_element_db_put_chunk(struct mlx5hws_pool *pool,
-						  struct mlx5hws_pool_chunk *chunk)
-{
-	if (pool->flags & MLX5HWS_POOL_FLAGS_RELEASE_FREE_RESOURCE)
-		hws_pool_resource_free(pool);
-}
-
-static void hws_pool_general_element_db_uninit(struct mlx5hws_pool *pool)
-{
-	(void)pool;
-}
-
-/* This memory management works as the following:
- * - At start doesn't allocate no mem at all.
- * - When new request for chunk arrived:
- *	allocate resource and give it.
- * - When free that chunk:
- *	the resource is freed.
- */
-static int hws_pool_general_element_db_init(struct mlx5hws_pool *pool)
-{
-	pool->p_db_uninit = &hws_pool_general_element_db_uninit;
-	pool->p_get_chunk = &hws_pool_general_element_db_get_chunk;
-	pool->p_put_chunk = &hws_pool_general_element_db_put_chunk;
+	bitmap_clear(bitmap, chunk->offset, 1);
 
 	return 0;
 }
 
-static void
-hws_onesize_element_db_destroy_element(struct mlx5hws_pool *pool,
-				       struct mlx5hws_pool_elements *elem)
+static void hws_pool_bitmap_db_put_chunk(struct mlx5hws_pool *pool,
+					 struct mlx5hws_pool_chunk *chunk)
 {
-	hws_pool_resource_free(pool);
-	bitmap_free(elem->bitmap);
-	kfree(elem);
-	pool->db.element = NULL;
-}
+	unsigned long *bitmap;
 
-static void hws_onesize_element_db_put_chunk(struct mlx5hws_pool *pool,
-					     struct mlx5hws_pool_chunk *chunk)
-{
-	struct mlx5hws_pool_elements *elem;
-
-	elem = pool->db.element;
-	if (!elem) {
-		mlx5hws_err(pool->ctx, "Pool element was not allocated\n");
+	bitmap = pool->db.bitmap;
+	if (!bitmap) {
+		mlx5hws_err(pool->ctx, "Bad bitmap state\n");
 		return;
 	}
 
-	bitmap_set(elem->bitmap, chunk->offset, 1);
-	elem->is_full = false;
-	elem->num_of_elements--;
-
-	if (pool->flags & MLX5HWS_POOL_FLAGS_RELEASE_FREE_RESOURCE &&
-	    !elem->num_of_elements)
-		hws_onesize_element_db_destroy_element(pool, elem);
+	bitmap_set(bitmap, chunk->offset, 1);
 }
 
-static int hws_onesize_element_db_get_chunk(struct mlx5hws_pool *pool,
-					    struct mlx5hws_pool_chunk *chunk)
+static void hws_pool_bitmap_db_uninit(struct mlx5hws_pool *pool)
 {
-	int ret = 0;
+	unsigned long *bitmap;
 
-	ret = hws_pool_onesize_element_get_mem_chunk(pool, chunk->order,
-						     &chunk->offset);
-	if (ret)
-		mlx5hws_err(pool->ctx, "Failed to get free slot for chunk with order: %d\n",
-			    chunk->order);
-
-	return ret;
-}
-
-static void hws_onesize_element_db_uninit(struct mlx5hws_pool *pool)
-{
-	struct mlx5hws_pool_elements *elem = pool->db.element;
-
-	if (elem) {
-		bitmap_free(elem->bitmap);
-		kfree(elem);
-		pool->db.element = NULL;
+	bitmap = pool->db.bitmap;
+	if (bitmap) {
+		bitmap_free(bitmap);
+		pool->db.bitmap = NULL;
 	}
 }
 
-/* This memory management works as the following:
- * - At start doesn't allocate no mem at all.
- * - When new request for chunk arrived:
- *  aloocate the first and only slot of memory/resource
- *  when it ended return error.
- */
-static int hws_pool_onesize_element_db_init(struct mlx5hws_pool *pool)
+static int hws_pool_bitmap_db_init(struct mlx5hws_pool *pool)
 {
-	pool->p_db_uninit = &hws_onesize_element_db_uninit;
-	pool->p_get_chunk = &hws_onesize_element_db_get_chunk;
-	pool->p_put_chunk = &hws_onesize_element_db_put_chunk;
+	int ret;
+
+	ret = hws_pool_bitmap_init(pool);
+	if (ret)
+		return ret;
+
+	pool->p_db_uninit = &hws_pool_bitmap_db_uninit;
+	pool->p_get_chunk = &hws_pool_bitmap_db_get_chunk;
+	pool->p_put_chunk = &hws_pool_bitmap_db_put_chunk;
 
 	return 0;
 }
@@ -464,15 +298,14 @@ static int hws_pool_db_init(struct mlx5hws_pool *pool,
 {
 	int ret;
 
-	if (db_type == MLX5HWS_POOL_DB_TYPE_GENERAL_SIZE)
-		ret = hws_pool_general_element_db_init(pool);
-	else if (db_type == MLX5HWS_POOL_DB_TYPE_ONE_SIZE_RESOURCE)
-		ret = hws_pool_onesize_element_db_init(pool);
+	if (db_type == MLX5HWS_POOL_DB_TYPE_BITMAP)
+		ret = hws_pool_bitmap_db_init(pool);
 	else
-		ret = hws_pool_buddy_db_init(pool, pool->alloc_log_sz);
+		ret = hws_pool_buddy_db_init(pool);
 
 	if (ret) {
-		mlx5hws_err(pool->ctx, "Failed to init general db : %d (ret: %d)\n", db_type, ret);
+		mlx5hws_err(pool->ctx, "Failed to init pool type: %d (ret: %d)\n",
+			    db_type, ret);
 		return ret;
 	}
 
@@ -521,15 +354,10 @@ mlx5hws_pool_create(struct mlx5hws_context *ctx, struct mlx5hws_pool_attr *pool_
 	pool->tbl_type = pool_attr->table_type;
 	pool->opt_type = pool_attr->opt_type;
 
-	/* Support general db */
-	if (pool->flags == (MLX5HWS_POOL_FLAGS_RELEASE_FREE_RESOURCE |
-			    MLX5HWS_POOL_FLAGS_RESOURCE_PER_CHUNK))
-		res_db_type = MLX5HWS_POOL_DB_TYPE_GENERAL_SIZE;
-	else if (pool->flags == (MLX5HWS_POOL_FLAGS_ONE_RESOURCE |
-				 MLX5HWS_POOL_FLAGS_FIXED_SIZE_OBJECTS))
-		res_db_type = MLX5HWS_POOL_DB_TYPE_ONE_SIZE_RESOURCE;
-	else
+	if (pool->flags & MLX5HWS_POOL_FLAG_BUDDY)
 		res_db_type = MLX5HWS_POOL_DB_TYPE_BUDDY;
+	else
+		res_db_type = MLX5HWS_POOL_DB_TYPE_BITMAP;
 
 	pool->alloc_log_sz = pool_attr->alloc_log_sz;
 
@@ -545,7 +373,7 @@ free_pool:
 	return NULL;
 }
 
-int mlx5hws_pool_destroy(struct mlx5hws_pool *pool)
+void mlx5hws_pool_destroy(struct mlx5hws_pool *pool)
 {
 	mutex_destroy(&pool->lock);
 
@@ -555,5 +383,4 @@ int mlx5hws_pool_destroy(struct mlx5hws_pool *pool)
 	hws_pool_db_unint(pool);
 
 	kfree(pool);
-	return 0;
 }

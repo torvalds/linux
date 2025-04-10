@@ -265,14 +265,6 @@ static int hws_matcher_create_rtc(struct mlx5hws_matcher *matcher,
 				rtc_attr.match_definer_0 = ctx->caps->linear_match_definer;
 			}
 		}
-
-		/* Match pool requires implicit allocation */
-		ret = mlx5hws_pool_chunk_alloc(ste_pool, ste);
-		if (ret) {
-			mlx5hws_err(ctx, "Failed to allocate STE for %s RTC",
-				    hws_matcher_rtc_type_to_str(rtc_type));
-			return ret;
-		}
 		break;
 
 	case HWS_MATCHER_RTC_TYPE_STE_ARRAY:
@@ -357,23 +349,17 @@ static void hws_matcher_destroy_rtc(struct mlx5hws_matcher *matcher,
 {
 	struct mlx5hws_matcher_action_ste *action_ste;
 	struct mlx5hws_table *tbl = matcher->tbl;
-	struct mlx5hws_pool_chunk *ste;
-	struct mlx5hws_pool *ste_pool;
 	u32 rtc_0_id, rtc_1_id;
 
 	switch (rtc_type) {
 	case HWS_MATCHER_RTC_TYPE_MATCH:
 		rtc_0_id = matcher->match_ste.rtc_0_id;
 		rtc_1_id = matcher->match_ste.rtc_1_id;
-		ste_pool = matcher->match_ste.pool;
-		ste = &matcher->match_ste.ste;
 		break;
 	case HWS_MATCHER_RTC_TYPE_STE_ARRAY:
 		action_ste = &matcher->action_ste;
 		rtc_0_id = action_ste->rtc_0_id;
 		rtc_1_id = action_ste->rtc_1_id;
-		ste_pool = action_ste->pool;
-		ste = &action_ste->ste;
 		break;
 	default:
 		return;
@@ -383,8 +369,6 @@ static void hws_matcher_destroy_rtc(struct mlx5hws_matcher *matcher,
 		mlx5hws_cmd_rtc_destroy(matcher->tbl->ctx->mdev, rtc_1_id);
 
 	mlx5hws_cmd_rtc_destroy(matcher->tbl->ctx->mdev, rtc_0_id);
-	if (rtc_type == HWS_MATCHER_RTC_TYPE_MATCH)
-		mlx5hws_pool_chunk_free(ste_pool, ste);
 }
 
 static int
@@ -557,7 +541,7 @@ static int hws_matcher_bind_at(struct mlx5hws_matcher *matcher)
 	/* Allocate action STE mempool */
 	pool_attr.table_type = tbl->type;
 	pool_attr.pool_type = MLX5HWS_POOL_TYPE_STE;
-	pool_attr.flags = MLX5HWS_POOL_FLAGS_FOR_STE_ACTION_POOL;
+	pool_attr.flags = MLX5HWS_POOL_FLAG_BUDDY;
 	/* Pool size is similar to action RTC size */
 	pool_attr.alloc_log_sz = ilog2(roundup_pow_of_two(action_ste->max_stes)) +
 				 matcher->attr.table.sz_row_log +
@@ -636,7 +620,6 @@ static int hws_matcher_bind_mt(struct mlx5hws_matcher *matcher)
 	/* Create an STE pool per matcher*/
 	pool_attr.table_type = matcher->tbl->type;
 	pool_attr.pool_type = MLX5HWS_POOL_TYPE_STE;
-	pool_attr.flags = MLX5HWS_POOL_FLAGS_FOR_MATCHER_STE_POOL;
 	pool_attr.alloc_log_sz = matcher->attr.table.sz_col_log +
 				 matcher->attr.table.sz_row_log;
 	hws_matcher_set_pool_attr(&pool_attr, matcher);

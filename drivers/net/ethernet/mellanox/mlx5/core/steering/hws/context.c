@@ -34,7 +34,6 @@ static int hws_context_pools_init(struct mlx5hws_context *ctx)
 
 	/* Create an STC pool per FT type */
 	pool_attr.pool_type = MLX5HWS_POOL_TYPE_STC;
-	pool_attr.flags = MLX5HWS_POOL_FLAGS_FOR_STC_POOL;
 	max_log_sz = min(MLX5HWS_POOL_STC_LOG_SZ, ctx->caps->stc_alloc_log_max);
 	pool_attr.alloc_log_sz = max(max_log_sz, ctx->caps->stc_alloc_log_gran);
 

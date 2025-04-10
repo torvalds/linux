@@ -1602,7 +1602,6 @@ hws_action_create_dest_match_range_table(struct mlx5hws_context *ctx,
 
 	pool_attr.table_type = MLX5HWS_TABLE_TYPE_FDB;
 	pool_attr.pool_type = MLX5HWS_POOL_TYPE_STE;
-	pool_attr.flags = MLX5HWS_POOL_FLAGS_FOR_STE_ACTION_POOL;
 	pool_attr.alloc_log_sz = 1;
 	table_ste->pool = mlx5hws_pool_create(ctx, &pool_attr);
 	if (!table_ste->pool) {
