@@ -387,10 +387,41 @@ static int hws_debug_dump_context_stc(struct seq_file *f, struct mlx5hws_context
 	return 0;
 }
 
+static void
+hws_debug_dump_action_ste_table(struct seq_file *f,
+				struct mlx5hws_action_ste_table *action_tbl)
+{
+	int ste_0_id = mlx5hws_pool_get_base_id(action_tbl->pool);
+	int ste_1_id = mlx5hws_pool_get_base_mirror_id(action_tbl->pool);
+
+	seq_printf(f, "%d,0x%llx,%d,%d,%d,%d\n",
+		   MLX5HWS_DEBUG_RES_TYPE_ACTION_STE_TABLE,
+		   HWS_PTR_TO_ID(action_tbl),
+		   action_tbl->rtc_0_id, ste_0_id,
+		   action_tbl->rtc_1_id, ste_1_id);
+}
+
+static void hws_debug_dump_action_ste_pool(struct seq_file *f,
+					   struct mlx5hws_action_ste_pool *pool)
+{
+	struct mlx5hws_action_ste_table *action_tbl;
+	enum mlx5hws_pool_optimize opt;
+
+	mutex_lock(&pool->lock);
+	for (opt = MLX5HWS_POOL_OPTIMIZE_NONE; opt < MLX5HWS_POOL_OPTIMIZE_MAX;
+	     opt++) {
+		list_for_each_entry(action_tbl, &pool->elems[opt].available,
+				    list_node) {
+			hws_debug_dump_action_ste_table(f, action_tbl);
+		}
+	}
+	mutex_unlock(&pool->lock);
+}
+
 static int hws_debug_dump_context(struct seq_file *f, struct mlx5hws_context *ctx)
 {
 	struct mlx5hws_table *tbl;
-	int ret;
+	int ret, i;
 
 	ret = hws_debug_dump_context_info(f, ctx);
 	if (ret)
@@ -409,6 +440,9 @@ static int hws_debug_dump_context(struct seq_file *f, struct mlx5hws_context *ct
 		if (ret)
 			return ret;
 	}
+
+	for (i = 0; i < ctx->queues; i++)
+		hws_debug_dump_action_ste_pool(f, &ctx->action_ste_pool[i]);
 
 	return 0;
 }
