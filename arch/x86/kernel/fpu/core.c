@@ -607,7 +607,8 @@ int fpu_clone(struct task_struct *dst, unsigned long clone_flags, bool minimal,
 	 * We allocate the new FPU structure right after the end of the task struct.
 	 * task allocation size already took this into account.
 	 *
-	 * This is safe because task_struct size is a multiple of cacheline size.
+	 * This is safe because task_struct size is a multiple of cacheline size,
+	 * thus x86_task_fpu() will always be cacheline aligned as well.
 	 */
 	struct fpu *dst_fpu = (void *)dst + sizeof(*dst);
 
