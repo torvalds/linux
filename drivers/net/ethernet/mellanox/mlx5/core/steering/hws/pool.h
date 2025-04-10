@@ -71,6 +71,7 @@ struct mlx5hws_pool {
 	enum mlx5hws_pool_flags flags;
 	struct mutex lock; /* protect the pool */
 	size_t alloc_log_sz;
+	size_t available_elems;
 	enum mlx5hws_table_type tbl_type;
 	enum mlx5hws_pool_optimize opt_type;
 	struct mlx5hws_pool_resource *resource;
@@ -102,5 +103,29 @@ static inline u32 mlx5hws_pool_get_base_id(struct mlx5hws_pool *pool)
 static inline u32 mlx5hws_pool_get_base_mirror_id(struct mlx5hws_pool *pool)
 {
 	return pool->mirror_resource->base_id;
+}
+
+static inline bool
+mlx5hws_pool_empty(struct mlx5hws_pool *pool)
+{
+	bool ret;
+
+	mutex_lock(&pool->lock);
+	ret = pool->available_elems == 0;
+	mutex_unlock(&pool->lock);
+
+	return ret;
+}
+
+static inline bool
+mlx5hws_pool_full(struct mlx5hws_pool *pool)
+{
+	bool ret;
+
+	mutex_lock(&pool->lock);
+	ret = pool->available_elems == (1 << pool->alloc_log_sz);
+	mutex_unlock(&pool->lock);
+
+	return ret;
 }
 #endif /* MLX5HWS_POOL_H_ */
