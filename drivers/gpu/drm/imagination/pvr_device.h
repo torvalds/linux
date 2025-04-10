@@ -18,6 +18,7 @@
 #include <linux/bits.h>
 #include <linux/compiler_attributes.h>
 #include <linux/compiler_types.h>
+#include <linux/device.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
@@ -130,6 +131,13 @@ struct pvr_device {
 	 * Interface (MEMIF). If present, this needs to be enabled/disabled together with @core_clk.
 	 */
 	struct clk *mem_clk;
+
+	struct pvr_device_power {
+		struct device **domain_devs;
+		struct device_link **domain_links;
+
+		u32 domain_count;
+	} power;
 
 	/** @irq: IRQ number. */
 	int irq;
