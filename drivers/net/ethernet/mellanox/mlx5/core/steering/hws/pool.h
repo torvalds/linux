@@ -33,6 +33,7 @@ enum mlx5hws_pool_optimize {
 	MLX5HWS_POOL_OPTIMIZE_NONE = 0x0,
 	MLX5HWS_POOL_OPTIMIZE_ORIG = 0x1,
 	MLX5HWS_POOL_OPTIMIZE_MIRROR = 0x2,
+	MLX5HWS_POOL_OPTIMIZE_MAX = 0x3,
 };
 
 struct mlx5hws_pool_attr {

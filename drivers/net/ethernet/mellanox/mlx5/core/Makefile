@@ -154,7 +154,8 @@ mlx5_core-$(CONFIG_MLX5_HW_STEERING) += steering/hws/cmd.o \
 					steering/hws/vport.o \
 					steering/hws/bwc_complex.o \
 					steering/hws/fs_hws_pools.o \
-					steering/hws/fs_hws.o
+					steering/hws/fs_hws.o \
+					steering/hws/action_ste_pool.o
 
 #
 # SF device
