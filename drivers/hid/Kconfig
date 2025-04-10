@@ -163,6 +163,7 @@ config HID_APPLETB_KBD
 	depends on USB_HID
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on INPUT
+	depends on X86 || COMPILE_TEST
 	select INPUT_SPARSEKMAP
 	select HID_APPLETB_BL
 	help
