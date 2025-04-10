@@ -55,6 +55,8 @@
 #define EXYNOS4_MIPI_PHY_SRESETN		(1 << 1)
 #define EXYNOS4_MIPI_PHY_MRESETN		(1 << 2)
 #define EXYNOS4_MIPI_PHY_RESET_MASK		(3 << 1)
+/* USB PHY enable bit, valid for Exynos7870 */
+#define EXYNOS7870_USB2PHY_ENABLE		(1 << 1)
 
 #define S5P_INFORM0				0x0800
 #define S5P_INFORM1				0x0804
