@@ -43,7 +43,6 @@ static const struct mt7530_mib_desc mt7530_mib[] = {
 	MIB_DESC(1, 0x20, "TxDeferred"),
 	MIB_DESC(1, 0x24, "TxLateCollision"),
 	MIB_DESC(1, 0x28, "TxExcessiveCollistion"),
-	MIB_DESC(1, 0x2c, "TxPause"),
 	MIB_DESC(2, 0x48, "TxBytes"),
 	MIB_DESC(1, 0x60, "RxDrop"),
 	MIB_DESC(1, 0x64, "RxFiltering"),
@@ -52,7 +51,6 @@ static const struct mt7530_mib_desc mt7530_mib[] = {
 	MIB_DESC(1, 0x70, "RxBroadcast"),
 	MIB_DESC(1, 0x74, "RxAlignErr"),
 	MIB_DESC(1, 0x78, "RxCrcErr"),
-	MIB_DESC(1, 0x8c, "RxPause"),
 	MIB_DESC(2, 0xa8, "RxBytes"),
 	MIB_DESC(1, 0xb0, "RxCtrlDrop"),
 	MIB_DESC(1, 0xb4, "RxIngressDrop"),
@@ -865,6 +863,18 @@ static void mt7530_get_rmon_stats(struct dsa_switch *ds, int port,
 			       &rmon_stats->hist_tx[5]);
 
 	*ranges = mt7530_rmon_ranges;
+}
+
+static void mt7530_get_eth_ctrl_stats(struct dsa_switch *ds, int port,
+				      struct ethtool_eth_ctrl_stats *ctrl_stats)
+{
+	struct mt7530_priv *priv = ds->priv;
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_PAUSE, 1,
+			       &ctrl_stats->MACControlFramesTransmitted);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_PAUSE, 1,
+			       &ctrl_stats->MACControlFramesReceived);
 }
 
 static int
@@ -3154,6 +3164,7 @@ const struct dsa_switch_ops mt7530_switch_ops = {
 	.get_ethtool_stats	= mt7530_get_ethtool_stats,
 	.get_sset_count		= mt7530_get_sset_count,
 	.get_rmon_stats		= mt7530_get_rmon_stats,
+	.get_eth_ctrl_stats	= mt7530_get_eth_ctrl_stats,
 	.set_ageing_time	= mt7530_set_ageing_time,
 	.port_enable		= mt7530_port_enable,
 	.port_disable		= mt7530_port_disable,

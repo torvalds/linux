@@ -424,6 +424,7 @@ enum mt7530_vlan_port_acc_frm {
 /* Register for MIB */
 #define MT7530_PORT_MIB_COUNTER(x)	(0x4000 + (x) * 0x100)
 /* Each define is an offset of MT7530_PORT_MIB_COUNTER */
+#define   MT7530_PORT_MIB_TX_PAUSE	0x2c
 #define   MT7530_PORT_MIB_TX_PKT_SZ_64	0x30
 #define   MT7530_PORT_MIB_TX_PKT_SZ_65_TO_127 0x34
 #define   MT7530_PORT_MIB_TX_PKT_SZ_128_TO_255 0x38
@@ -434,6 +435,7 @@ enum mt7530_vlan_port_acc_frm {
 #define   MT7530_PORT_MIB_RX_FRAG_ERR	0x80
 #define   MT7530_PORT_MIB_RX_OVER_SZ_ERR 0x84
 #define   MT7530_PORT_MIB_RX_JABBER_ERR	0x88
+#define   MT7530_PORT_MIB_RX_PAUSE	0x8c
 #define   MT7530_PORT_MIB_RX_PKT_SZ_64	0x90
 #define   MT7530_PORT_MIB_RX_PKT_SZ_65_TO_127 0x94
 #define   MT7530_PORT_MIB_RX_PKT_SZ_128_TO_255 0x98
