@@ -963,7 +963,6 @@ err_disable_clk:
 err_put_ctrl:
 	spi_controller_put(ctlr);
 
-	dev_err(dev, "Freescale QuadSPI probe failed\n");
 	return ret;
 }
 
