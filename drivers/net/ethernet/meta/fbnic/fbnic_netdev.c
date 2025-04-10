@@ -408,8 +408,8 @@ static void fbnic_get_stats64(struct net_device *dev,
 	struct fbnic_net *fbn = netdev_priv(dev);
 	struct fbnic_dev *fbd = fbn->fbd;
 	struct fbnic_queue_stats *stats;
+	u64 rx_over = 0, rx_missed = 0;
 	unsigned int start, i;
-	u64 rx_over = 0;
 
 	fbnic_get_hw_stats(fbd);
 
@@ -449,6 +449,17 @@ static void fbnic_get_stats64(struct net_device *dev,
 	rx_dropped = stats->dropped;
 
 	spin_lock(&fbd->hw_stats_lock);
+	/* Record drops for the host FIFOs.
+	 * 4: network to Host,	6: BMC to Host
+	 * Exclude the BMC and MC FIFOs as those stats may contain drops
+	 * due to unrelated items such as TCAM misses. They are still
+	 * accessible through the ethtool stats.
+	 */
+	i = FBNIC_RXB_FIFO_HOST;
+	rx_missed += fbd->hw_stats.rxb.fifo[i].drop.frames.value;
+	i = FBNIC_RXB_FIFO_BMC_TO_HOST;
+	rx_missed += fbd->hw_stats.rxb.fifo[i].drop.frames.value;
+
 	for (i = 0; i < fbd->max_num_queues; i++) {
 		/* Report packets dropped due to CQ/BDQ being full/empty */
 		rx_over += fbd->hw_stats.hw_q[i].rde_pkt_cq_drop.value;
@@ -464,6 +475,7 @@ static void fbnic_get_stats64(struct net_device *dev,
 	stats64->rx_dropped = rx_dropped;
 	stats64->rx_over_errors = rx_over;
 	stats64->rx_errors = rx_errors;
+	stats64->rx_missed_errors = rx_missed;
 
 	for (i = 0; i < fbn->num_rx_queues; i++) {
 		struct fbnic_ring *rxr = fbn->rx[i];

@@ -485,6 +485,14 @@ enum {
 	FBNIC_RXB_FIFO_INDICES		= 8
 };
 
+enum {
+	FBNIC_RXB_INTF_NET = 0,
+	FBNIC_RXB_INTF_RBT = 1,
+	/* Unused */
+	/* Unused */
+	FBNIC_RXB_INTF_INDICES	= 4
+};
+
 #define FBNIC_RXB_CT_SIZE(n)		(0x08000 + (n))	/* 0x20000 + 4*n */
 #define FBNIC_RXB_CT_SIZE_CNT			8
 #define FBNIC_RXB_CT_SIZE_HEADER		CSR_GENMASK(5, 0)

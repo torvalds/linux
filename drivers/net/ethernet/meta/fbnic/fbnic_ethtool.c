@@ -40,6 +40,47 @@ static const struct fbnic_stat fbnic_gstrings_hw_stats[] = {
 
 #define FBNIC_HW_FIXED_STATS_LEN ARRAY_SIZE(fbnic_gstrings_hw_stats)
 
+#define FBNIC_RXB_ENQUEUE_STAT(name, stat) \
+	FBNIC_STAT_FIELDS(fbnic_rxb_enqueue_stats, name, stat)
+
+static const struct fbnic_stat fbnic_gstrings_rxb_enqueue_stats[] = {
+	FBNIC_RXB_ENQUEUE_STAT("rxb_integrity_err%u", integrity_err),
+	FBNIC_RXB_ENQUEUE_STAT("rxb_mac_err%u", mac_err),
+	FBNIC_RXB_ENQUEUE_STAT("rxb_parser_err%u", parser_err),
+	FBNIC_RXB_ENQUEUE_STAT("rxb_frm_err%u", frm_err),
+
+	FBNIC_RXB_ENQUEUE_STAT("rxb_drbo%u_frames", drbo.frames),
+	FBNIC_RXB_ENQUEUE_STAT("rxb_drbo%u_bytes", drbo.bytes),
+};
+
+#define FBNIC_HW_RXB_ENQUEUE_STATS_LEN \
+	ARRAY_SIZE(fbnic_gstrings_rxb_enqueue_stats)
+
+#define FBNIC_RXB_FIFO_STAT(name, stat) \
+	FBNIC_STAT_FIELDS(fbnic_rxb_fifo_stats, name, stat)
+
+static const struct fbnic_stat fbnic_gstrings_rxb_fifo_stats[] = {
+	FBNIC_RXB_FIFO_STAT("rxb_fifo%u_drop", trans_drop),
+	FBNIC_RXB_FIFO_STAT("rxb_fifo%u_dropped_frames", drop.frames),
+	FBNIC_RXB_FIFO_STAT("rxb_fifo%u_ecn", trans_ecn),
+	FBNIC_RXB_FIFO_STAT("rxb_fifo%u_level", level),
+};
+
+#define FBNIC_HW_RXB_FIFO_STATS_LEN ARRAY_SIZE(fbnic_gstrings_rxb_fifo_stats)
+
+#define FBNIC_RXB_DEQUEUE_STAT(name, stat) \
+	FBNIC_STAT_FIELDS(fbnic_rxb_dequeue_stats, name, stat)
+
+static const struct fbnic_stat fbnic_gstrings_rxb_dequeue_stats[] = {
+	FBNIC_RXB_DEQUEUE_STAT("rxb_intf%u_frames", intf.frames),
+	FBNIC_RXB_DEQUEUE_STAT("rxb_intf%u_bytes", intf.bytes),
+	FBNIC_RXB_DEQUEUE_STAT("rxb_pbuf%u_frames", pbuf.frames),
+	FBNIC_RXB_DEQUEUE_STAT("rxb_pbuf%u_bytes", pbuf.bytes),
+};
+
+#define FBNIC_HW_RXB_DEQUEUE_STATS_LEN \
+	ARRAY_SIZE(fbnic_gstrings_rxb_dequeue_stats)
+
 #define FBNIC_HW_Q_STAT(name, stat) \
 	FBNIC_STAT_FIELDS(fbnic_hw_q_stats, name, stat.value)
 
@@ -52,6 +93,9 @@ static const struct fbnic_stat fbnic_gstrings_hw_q_stats[] = {
 #define FBNIC_HW_Q_STATS_LEN ARRAY_SIZE(fbnic_gstrings_hw_q_stats)
 #define FBNIC_HW_STATS_LEN \
 	(FBNIC_HW_FIXED_STATS_LEN + \
+	 FBNIC_HW_RXB_ENQUEUE_STATS_LEN * FBNIC_RXB_ENQUEUE_INDICES + \
+	 FBNIC_HW_RXB_FIFO_STATS_LEN * FBNIC_RXB_FIFO_INDICES + \
+	 FBNIC_HW_RXB_DEQUEUE_STATS_LEN * FBNIC_RXB_DEQUEUE_INDICES + \
 	 FBNIC_HW_Q_STATS_LEN * FBNIC_MAX_QUEUES)
 
 static void
@@ -311,6 +355,36 @@ err_free_clone:
 	return err;
 }
 
+static void fbnic_get_rxb_enqueue_strings(u8 **data, unsigned int idx)
+{
+	const struct fbnic_stat *stat;
+	int i;
+
+	stat = fbnic_gstrings_rxb_enqueue_stats;
+	for (i = 0; i < FBNIC_HW_RXB_ENQUEUE_STATS_LEN; i++, stat++)
+		ethtool_sprintf(data, stat->string, idx);
+}
+
+static void fbnic_get_rxb_fifo_strings(u8 **data, unsigned int idx)
+{
+	const struct fbnic_stat *stat;
+	int i;
+
+	stat = fbnic_gstrings_rxb_fifo_stats;
+	for (i = 0; i < FBNIC_HW_RXB_FIFO_STATS_LEN; i++, stat++)
+		ethtool_sprintf(data, stat->string, idx);
+}
+
+static void fbnic_get_rxb_dequeue_strings(u8 **data, unsigned int idx)
+{
+	const struct fbnic_stat *stat;
+	int i;
+
+	stat = fbnic_gstrings_rxb_dequeue_stats;
+	for (i = 0; i < FBNIC_HW_RXB_DEQUEUE_STATS_LEN; i++, stat++)
+		ethtool_sprintf(data, stat->string, idx);
+}
+
 static void fbnic_get_strings(struct net_device *dev, u32 sset, u8 *data)
 {
 	const struct fbnic_stat *stat;
@@ -320,6 +394,15 @@ static void fbnic_get_strings(struct net_device *dev, u32 sset, u8 *data)
 	case ETH_SS_STATS:
 		for (i = 0; i < FBNIC_HW_FIXED_STATS_LEN; i++)
 			ethtool_puts(&data, fbnic_gstrings_hw_stats[i].string);
+
+		for (i = 0; i < FBNIC_RXB_ENQUEUE_INDICES; i++)
+			fbnic_get_rxb_enqueue_strings(&data, i);
+
+		for (i = 0; i < FBNIC_RXB_FIFO_INDICES; i++)
+			fbnic_get_rxb_fifo_strings(&data, i);
+
+		for (i = 0; i < FBNIC_RXB_DEQUEUE_INDICES; i++)
+			fbnic_get_rxb_dequeue_strings(&data, i);
 
 		for (idx = 0; idx < FBNIC_MAX_QUEUES; idx++) {
 			stat = fbnic_gstrings_hw_q_stats;
@@ -356,6 +439,33 @@ static void fbnic_get_ethtool_stats(struct net_device *dev,
 	spin_lock(&fbd->hw_stats_lock);
 	fbnic_report_hw_stats(fbnic_gstrings_hw_stats, &fbd->hw_stats,
 			      FBNIC_HW_FIXED_STATS_LEN, &data);
+
+	for (i = 0; i < FBNIC_RXB_ENQUEUE_INDICES; i++) {
+		const struct fbnic_rxb_enqueue_stats *enq;
+
+		enq = &fbd->hw_stats.rxb.enq[i];
+		fbnic_report_hw_stats(fbnic_gstrings_rxb_enqueue_stats,
+				      enq, FBNIC_HW_RXB_ENQUEUE_STATS_LEN,
+				      &data);
+	}
+
+	for (i = 0; i < FBNIC_RXB_FIFO_INDICES; i++) {
+		const struct fbnic_rxb_fifo_stats *fifo;
+
+		fifo = &fbd->hw_stats.rxb.fifo[i];
+		fbnic_report_hw_stats(fbnic_gstrings_rxb_fifo_stats,
+				      fifo, FBNIC_HW_RXB_FIFO_STATS_LEN,
+				      &data);
+	}
+
+	for (i = 0; i < FBNIC_RXB_DEQUEUE_INDICES; i++) {
+		const struct fbnic_rxb_dequeue_stats *deq;
+
+		deq = &fbd->hw_stats.rxb.deq[i];
+		fbnic_report_hw_stats(fbnic_gstrings_rxb_dequeue_stats,
+				      deq, FBNIC_HW_RXB_DEQUEUE_STATS_LEN,
+				      &data);
+	}
 
 	for (i  = 0; i < FBNIC_MAX_QUEUES; i++) {
 		const struct fbnic_hw_q_stats *hw_q = &fbd->hw_stats.hw_q[i];

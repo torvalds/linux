@@ -17,6 +17,11 @@ struct fbnic_stat_counter {
 	bool reported;
 };
 
+struct fbnic_hw_stat {
+	struct fbnic_stat_counter frames;
+	struct fbnic_stat_counter bytes;
+};
+
 struct fbnic_eth_mac_stats {
 	struct fbnic_stat_counter FramesTransmittedOK;
 	struct fbnic_stat_counter FramesReceivedOK;
@@ -43,6 +48,28 @@ struct fbnic_rpc_stats {
 	struct fbnic_stat_counter tcp_opt_err, out_of_hdr_err, ovr_size_err;
 };
 
+struct fbnic_rxb_enqueue_stats {
+	struct fbnic_hw_stat drbo;
+	struct fbnic_stat_counter integrity_err, mac_err;
+	struct fbnic_stat_counter parser_err, frm_err;
+};
+
+struct fbnic_rxb_fifo_stats {
+	struct fbnic_hw_stat drop, trunc;
+	struct fbnic_stat_counter trans_drop, trans_ecn;
+	struct fbnic_stat_counter level;
+};
+
+struct fbnic_rxb_dequeue_stats {
+	struct fbnic_hw_stat intf, pbuf;
+};
+
+struct fbnic_rxb_stats {
+	struct fbnic_rxb_enqueue_stats enq[FBNIC_RXB_ENQUEUE_INDICES];
+	struct fbnic_rxb_fifo_stats fifo[FBNIC_RXB_FIFO_INDICES];
+	struct fbnic_rxb_dequeue_stats deq[FBNIC_RXB_DEQUEUE_INDICES];
+};
+
 struct fbnic_hw_q_stats {
 	struct fbnic_stat_counter rde_pkt_err;
 	struct fbnic_stat_counter rde_pkt_cq_drop;
@@ -62,6 +89,7 @@ struct fbnic_pcie_stats {
 struct fbnic_hw_stats {
 	struct fbnic_mac_stats mac;
 	struct fbnic_rpc_stats rpc;
+	struct fbnic_rxb_stats rxb;
 	struct fbnic_hw_q_stats hw_q[FBNIC_MAX_QUEUES];
 	struct fbnic_pcie_stats pcie;
 };

@@ -31,6 +31,32 @@ separate entry.
 Statistics
 ----------
 
+RXB (RX Buffer) Enqueue
+~~~~~~~~~~~~~~~~~~~~~~~
+
+ - ``rxb_integrity_err[i]``: frames enqueued with integrity errors (e.g., multi-bit ECC errors) on RXB input i
+ - ``rxb_mac_err[i]``: frames enqueued with MAC end-of-frame errors (e.g., bad FCS) on RXB input i
+ - ``rxb_parser_err[i]``: frames experienced RPC parser errors
+ - ``rxb_frm_err[i]``: frames experienced signaling errors (e.g., missing end-of-packet/start-of-packet) on RXB input i
+ - ``rxb_drbo[i]_frames``: frames received at RXB input i
+ - ``rxb_drbo[i]_bytes``: bytes received at RXB input i
+
+RXB (RX Buffer) FIFO
+~~~~~~~~~~~~~~~~~~~~
+
+ - ``rxb_fifo[i]_drop``: transitions into the drop state on RXB pool i
+ - ``rxb_fifo[i]_dropped_frames``: frames dropped on RXB pool i
+ - ``rxb_fifo[i]_ecn``: transitions into the ECN mark state on RXB pool i
+ - ``rxb_fifo[i]_level``: current occupancy of RXB pool i
+
+RXB (RX Buffer) Dequeue
+~~~~~~~~~~~~~~~~~~~~~~~
+
+   - ``rxb_intf[i]_frames``: frames sent to the output i
+   - ``rxb_intf[i]_bytes``: bytes sent to the output i
+   - ``rxb_pbuf[i]_frames``: frames sent to output i from the perspective of internal packet buffer
+   - ``rxb_pbuf[i]_bytes``: bytes sent to output i from the perspective of internal packet buffer
+
 RPC (Rx parser)
 ~~~~~~~~~~~~~~~
 

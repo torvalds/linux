@@ -117,6 +117,173 @@ static void fbnic_get_rpc_stats32(struct fbnic_dev *fbd,
 			   &rpc->ovr_size_err);
 }
 
+static void fbnic_reset_rxb_fifo_stats(struct fbnic_dev *fbd, int i,
+				       struct fbnic_rxb_fifo_stats *fifo)
+{
+	fbnic_hw_stat_rst32(fbd, FBNIC_RXB_DROP_FRMS_STS(i),
+			    &fifo->drop.frames);
+	fbnic_hw_stat_rst64(fbd, FBNIC_RXB_DROP_BYTES_STS_L(i), 1,
+			    &fifo->drop.bytes);
+
+	fbnic_hw_stat_rst32(fbd, FBNIC_RXB_TRUN_FRMS_STS(i),
+			    &fifo->trunc.frames);
+	fbnic_hw_stat_rst64(fbd, FBNIC_RXB_TRUN_BYTES_STS_L(i), 1,
+			    &fifo->trunc.bytes);
+
+	fbnic_hw_stat_rst32(fbd, FBNIC_RXB_TRANS_DROP_STS(i),
+			    &fifo->trans_drop);
+	fbnic_hw_stat_rst32(fbd, FBNIC_RXB_TRANS_ECN_STS(i),
+			    &fifo->trans_ecn);
+
+	fifo->level.u.old_reg_value_32 = 0;
+}
+
+static void fbnic_reset_rxb_enq_stats(struct fbnic_dev *fbd, int i,
+				      struct fbnic_rxb_enqueue_stats *enq)
+{
+	fbnic_hw_stat_rst32(fbd, FBNIC_RXB_DRBO_FRM_CNT_SRC(i),
+			    &enq->drbo.frames);
+	fbnic_hw_stat_rst64(fbd, FBNIC_RXB_DRBO_BYTE_CNT_SRC_L(i), 4,
+			    &enq->drbo.bytes);
+
+	fbnic_hw_stat_rst32(fbd, FBNIC_RXB_INTEGRITY_ERR(i),
+			    &enq->integrity_err);
+	fbnic_hw_stat_rst32(fbd, FBNIC_RXB_MAC_ERR(i),
+			    &enq->mac_err);
+	fbnic_hw_stat_rst32(fbd, FBNIC_RXB_PARSER_ERR(i),
+			    &enq->parser_err);
+	fbnic_hw_stat_rst32(fbd, FBNIC_RXB_FRM_ERR(i),
+			    &enq->frm_err);
+}
+
+static void fbnic_reset_rxb_deq_stats(struct fbnic_dev *fbd, int i,
+				      struct fbnic_rxb_dequeue_stats *deq)
+{
+	fbnic_hw_stat_rst32(fbd, FBNIC_RXB_INTF_FRM_CNT_DST(i),
+			    &deq->intf.frames);
+	fbnic_hw_stat_rst64(fbd, FBNIC_RXB_INTF_BYTE_CNT_DST_L(i), 4,
+			    &deq->intf.bytes);
+
+	fbnic_hw_stat_rst32(fbd, FBNIC_RXB_PBUF_FRM_CNT_DST(i),
+			    &deq->pbuf.frames);
+	fbnic_hw_stat_rst64(fbd, FBNIC_RXB_PBUF_BYTE_CNT_DST_L(i), 4,
+			    &deq->pbuf.bytes);
+}
+
+static void fbnic_reset_rxb_stats(struct fbnic_dev *fbd,
+				  struct fbnic_rxb_stats *rxb)
+{
+	int i;
+
+	for (i = 0; i < FBNIC_RXB_FIFO_INDICES; i++)
+		fbnic_reset_rxb_fifo_stats(fbd, i, &rxb->fifo[i]);
+
+	for (i = 0; i < FBNIC_RXB_INTF_INDICES; i++) {
+		fbnic_reset_rxb_enq_stats(fbd, i, &rxb->enq[i]);
+		fbnic_reset_rxb_deq_stats(fbd, i, &rxb->deq[i]);
+	}
+}
+
+static void fbnic_get_rxb_fifo_stats32(struct fbnic_dev *fbd, int i,
+				       struct fbnic_rxb_fifo_stats *fifo)
+{
+	fbnic_hw_stat_rd32(fbd, FBNIC_RXB_DROP_FRMS_STS(i),
+			   &fifo->drop.frames);
+	fbnic_hw_stat_rd32(fbd, FBNIC_RXB_TRUN_FRMS_STS(i),
+			   &fifo->trunc.frames);
+
+	fbnic_hw_stat_rd32(fbd, FBNIC_RXB_TRANS_DROP_STS(i),
+			   &fifo->trans_drop);
+	fbnic_hw_stat_rd32(fbd, FBNIC_RXB_TRANS_ECN_STS(i),
+			   &fifo->trans_ecn);
+
+	fifo->level.value = rd32(fbd, FBNIC_RXB_PBUF_FIFO_LEVEL(i));
+}
+
+static void fbnic_get_rxb_fifo_stats(struct fbnic_dev *fbd, int i,
+				     struct fbnic_rxb_fifo_stats *fifo)
+{
+	fbnic_hw_stat_rd64(fbd, FBNIC_RXB_DROP_BYTES_STS_L(i), 1,
+			   &fifo->drop.bytes);
+	fbnic_hw_stat_rd64(fbd, FBNIC_RXB_TRUN_BYTES_STS_L(i), 1,
+			   &fifo->trunc.bytes);
+
+	fbnic_get_rxb_fifo_stats32(fbd, i, fifo);
+}
+
+static void fbnic_get_rxb_enq_stats32(struct fbnic_dev *fbd, int i,
+				      struct fbnic_rxb_enqueue_stats *enq)
+{
+	fbnic_hw_stat_rd32(fbd, FBNIC_RXB_DRBO_FRM_CNT_SRC(i),
+			   &enq->drbo.frames);
+
+	fbnic_hw_stat_rd32(fbd, FBNIC_RXB_INTEGRITY_ERR(i),
+			   &enq->integrity_err);
+	fbnic_hw_stat_rd32(fbd, FBNIC_RXB_MAC_ERR(i),
+			   &enq->mac_err);
+	fbnic_hw_stat_rd32(fbd, FBNIC_RXB_PARSER_ERR(i),
+			   &enq->parser_err);
+	fbnic_hw_stat_rd32(fbd, FBNIC_RXB_FRM_ERR(i),
+			   &enq->frm_err);
+}
+
+static void fbnic_get_rxb_enq_stats(struct fbnic_dev *fbd, int i,
+				    struct fbnic_rxb_enqueue_stats *enq)
+{
+	fbnic_hw_stat_rd64(fbd, FBNIC_RXB_DRBO_BYTE_CNT_SRC_L(i), 4,
+			   &enq->drbo.bytes);
+
+	fbnic_get_rxb_enq_stats32(fbd, i, enq);
+}
+
+static void fbnic_get_rxb_deq_stats32(struct fbnic_dev *fbd, int i,
+				      struct fbnic_rxb_dequeue_stats *deq)
+{
+	fbnic_hw_stat_rd32(fbd, FBNIC_RXB_INTF_FRM_CNT_DST(i),
+			   &deq->intf.frames);
+	fbnic_hw_stat_rd32(fbd, FBNIC_RXB_PBUF_FRM_CNT_DST(i),
+			   &deq->pbuf.frames);
+}
+
+static void fbnic_get_rxb_deq_stats(struct fbnic_dev *fbd, int i,
+				    struct fbnic_rxb_dequeue_stats *deq)
+{
+	fbnic_hw_stat_rd64(fbd, FBNIC_RXB_INTF_BYTE_CNT_DST_L(i), 4,
+			   &deq->intf.bytes);
+	fbnic_hw_stat_rd64(fbd, FBNIC_RXB_PBUF_BYTE_CNT_DST_L(i), 4,
+			   &deq->pbuf.bytes);
+
+	fbnic_get_rxb_deq_stats32(fbd, i, deq);
+}
+
+static void fbnic_get_rxb_stats32(struct fbnic_dev *fbd,
+				  struct fbnic_rxb_stats *rxb)
+{
+	int i;
+
+	for (i = 0; i < FBNIC_RXB_FIFO_INDICES; i++)
+		fbnic_get_rxb_fifo_stats32(fbd, i, &rxb->fifo[i]);
+
+	for (i = 0; i < FBNIC_RXB_INTF_INDICES; i++) {
+		fbnic_get_rxb_enq_stats32(fbd, i, &rxb->enq[i]);
+		fbnic_get_rxb_deq_stats32(fbd, i, &rxb->deq[i]);
+	}
+}
+
+static void fbnic_get_rxb_stats(struct fbnic_dev *fbd,
+				struct fbnic_rxb_stats *rxb)
+{
+	int i;
+
+	for (i = 0; i < FBNIC_RXB_FIFO_INDICES; i++)
+		fbnic_get_rxb_fifo_stats(fbd, i, &rxb->fifo[i]);
+
+	for (i = 0; i < FBNIC_RXB_INTF_INDICES; i++) {
+		fbnic_get_rxb_enq_stats(fbd, i, &rxb->enq[i]);
+		fbnic_get_rxb_deq_stats(fbd, i, &rxb->deq[i]);
+	}
+}
+
 static void fbnic_reset_hw_rxq_stats(struct fbnic_dev *fbd,
 				     struct fbnic_hw_q_stats *hw_q)
 {
@@ -253,6 +420,7 @@ void fbnic_reset_hw_stats(struct fbnic_dev *fbd)
 {
 	spin_lock(&fbd->hw_stats_lock);
 	fbnic_reset_rpc_stats(fbd, &fbd->hw_stats.rpc);
+	fbnic_reset_rxb_stats(fbd, &fbd->hw_stats.rxb);
 	fbnic_reset_hw_rxq_stats(fbd, fbd->hw_stats.hw_q);
 	fbnic_reset_pcie_stats_asic(fbd, &fbd->hw_stats.pcie);
 	spin_unlock(&fbd->hw_stats_lock);
@@ -261,6 +429,7 @@ void fbnic_reset_hw_stats(struct fbnic_dev *fbd)
 static void __fbnic_get_hw_stats32(struct fbnic_dev *fbd)
 {
 	fbnic_get_rpc_stats32(fbd, &fbd->hw_stats.rpc);
+	fbnic_get_rxb_stats32(fbd, &fbd->hw_stats.rxb);
 	fbnic_get_hw_rxq_stats32(fbd, fbd->hw_stats.hw_q);
 }
 
@@ -275,6 +444,8 @@ void fbnic_get_hw_stats(struct fbnic_dev *fbd)
 {
 	spin_lock(&fbd->hw_stats_lock);
 	__fbnic_get_hw_stats32(fbd);
+
+	fbnic_get_rxb_stats(fbd, &fbd->hw_stats.rxb);
 	fbnic_get_pcie_stats_asic64(fbd, &fbd->hw_stats.pcie);
 	spin_unlock(&fbd->hw_stats_lock);
 }
