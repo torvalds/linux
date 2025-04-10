@@ -974,8 +974,8 @@ static __u32 pktgen_read_flag(const char *f, bool *disable)
 }
 
 static ssize_t pktgen_if_write(struct file *file,
-			       const char __user * user_buffer, size_t count,
-			       loff_t * offset)
+			       const char __user *user_buffer, size_t count,
+			       loff_t *offset)
 {
 	struct seq_file *seq = file->private_data;
 	struct pktgen_dev *pkt_dev = seq->private;
@@ -1909,8 +1909,8 @@ static int pktgen_thread_show(struct seq_file *seq, void *v)
 }
 
 static ssize_t pktgen_thread_write(struct file *file,
-				   const char __user * user_buffer,
-				   size_t count, loff_t * offset)
+				   const char __user *user_buffer,
+				   size_t count, loff_t *offset)
 {
 	struct seq_file *seq = file->private_data;
 	struct pktgen_thread *t = seq->private;
