@@ -293,7 +293,7 @@ static int hws_pool_create_resource_on_index(struct mlx5hws_pool *pool,
 }
 
 static struct mlx5hws_pool_elements *
-hws_pool_element_create_new_elem(struct mlx5hws_pool *pool, u32 order, int idx)
+hws_pool_element_create_new_elem(struct mlx5hws_pool *pool, u32 order)
 {
 	struct mlx5hws_pool_elements *elem;
 	u32 alloc_size;
@@ -311,21 +311,21 @@ hws_pool_element_create_new_elem(struct mlx5hws_pool *pool, u32 order, int idx)
 		elem->bitmap = hws_pool_create_and_init_bitmap(alloc_size - order);
 		if (!elem->bitmap) {
 			mlx5hws_err(pool->ctx,
-				    "Failed to create bitmap type: %d: size %d index: %d\n",
-				    pool->type, alloc_size, idx);
+				    "Failed to create bitmap type: %d: size %d\n",
+				    pool->type, alloc_size);
 			goto free_elem;
 		}
 
 		elem->log_size = alloc_size - order;
 	}
 
-	if (hws_pool_create_resource_on_index(pool, alloc_size, idx)) {
-		mlx5hws_err(pool->ctx, "Failed to create resource type: %d: size %d index: %d\n",
-			    pool->type, alloc_size, idx);
+	if (hws_pool_create_resource_on_index(pool, alloc_size, 0)) {
+		mlx5hws_err(pool->ctx, "Failed to create resource type: %d: size %d\n",
+			    pool->type, alloc_size);
 		goto free_db;
 	}
 
-	pool->db.element_manager->elements[idx] = elem;
+	pool->db.element = elem;
 
 	return elem;
 
@@ -359,9 +359,9 @@ hws_pool_onesize_element_get_mem_chunk(struct mlx5hws_pool *pool, u32 order,
 {
 	struct mlx5hws_pool_elements *elem;
 
-	elem = pool->db.element_manager->elements[0];
+	elem = pool->db.element;
 	if (!elem)
-		elem = hws_pool_element_create_new_elem(pool, order, 0);
+		elem = hws_pool_element_create_new_elem(pool, order);
 	if (!elem)
 		goto err_no_elem;
 
@@ -451,16 +451,14 @@ static int hws_pool_general_element_db_init(struct mlx5hws_pool *pool)
 	return 0;
 }
 
-static void hws_onesize_element_db_destroy_element(struct mlx5hws_pool *pool,
-						   struct mlx5hws_pool_elements *elem,
-						   struct mlx5hws_pool_chunk *chunk)
+static void
+hws_onesize_element_db_destroy_element(struct mlx5hws_pool *pool,
+				       struct mlx5hws_pool_elements *elem)
 {
-	if (unlikely(!pool->resource[chunk->resource_idx]))
-		pr_warn("HWS: invalid resource with index %d\n", chunk->resource_idx);
-
-	hws_pool_resource_free(pool, chunk->resource_idx);
+	hws_pool_resource_free(pool, 0);
+	bitmap_free(elem->bitmap);
 	kfree(elem);
-	pool->db.element_manager->elements[chunk->resource_idx] = NULL;
+	pool->db.element = NULL;
 }
 
 static void hws_onesize_element_db_put_chunk(struct mlx5hws_pool *pool,
@@ -471,7 +469,7 @@ static void hws_onesize_element_db_put_chunk(struct mlx5hws_pool *pool,
 	if (unlikely(chunk->resource_idx))
 		pr_warn("HWS: invalid resource with index %d\n", chunk->resource_idx);
 
-	elem = pool->db.element_manager->elements[chunk->resource_idx];
+	elem = pool->db.element;
 	if (!elem) {
 		mlx5hws_err(pool->ctx, "No such element (%d)\n", chunk->resource_idx);
 		return;
@@ -483,7 +481,7 @@ static void hws_onesize_element_db_put_chunk(struct mlx5hws_pool *pool,
 
 	if (pool->flags & MLX5HWS_POOL_FLAGS_RELEASE_FREE_RESOURCE &&
 	    !elem->num_of_elements)
-		hws_onesize_element_db_destroy_element(pool, elem, chunk);
+		hws_onesize_element_db_destroy_element(pool, elem);
 }
 
 static int hws_onesize_element_db_get_chunk(struct mlx5hws_pool *pool,
@@ -504,18 +502,13 @@ static int hws_onesize_element_db_get_chunk(struct mlx5hws_pool *pool,
 
 static void hws_onesize_element_db_uninit(struct mlx5hws_pool *pool)
 {
-	struct mlx5hws_pool_elements *elem;
-	int i;
+	struct mlx5hws_pool_elements *elem = pool->db.element;
 
-	for (i = 0; i < MLX5HWS_POOL_RESOURCE_ARR_SZ; i++) {
-		elem = pool->db.element_manager->elements[i];
-		if (elem) {
-			bitmap_free(elem->bitmap);
-			kfree(elem);
-			pool->db.element_manager->elements[i] = NULL;
-		}
+	if (elem) {
+		bitmap_free(elem->bitmap);
+		kfree(elem);
+		pool->db.element = NULL;
 	}
-	kfree(pool->db.element_manager);
 }
 
 /* This memory management works as the following:
@@ -526,10 +519,6 @@ static void hws_onesize_element_db_uninit(struct mlx5hws_pool *pool)
  */
 static int hws_pool_onesize_element_db_init(struct mlx5hws_pool *pool)
 {
-	pool->db.element_manager = kzalloc(sizeof(*pool->db.element_manager), GFP_KERNEL);
-	if (!pool->db.element_manager)
-		return -ENOMEM;
-
 	pool->p_db_uninit = &hws_onesize_element_db_uninit;
 	pool->p_get_chunk = &hws_onesize_element_db_get_chunk;
 	pool->p_put_chunk = &hws_onesize_element_db_put_chunk;

@@ -87,14 +87,10 @@ struct mlx5hws_pool_elements {
 	bool is_full;
 };
 
-struct mlx5hws_element_manager {
-	struct mlx5hws_pool_elements *elements[MLX5HWS_POOL_RESOURCE_ARR_SZ];
-};
-
 struct mlx5hws_pool_db {
 	enum mlx5hws_db_type type;
 	union {
-		struct mlx5hws_element_manager *element_manager;
+		struct mlx5hws_pool_elements *element;
 		struct mlx5hws_buddy_manager *buddy_manager;
 	};
 };
