@@ -353,6 +353,7 @@ properties:
       physical start address it should jump to.
 
 allOf:
+  - $ref: /schemas/opp/opp-v1.yaml#
   - if:
       # If the enable-method property contains one of those values
       properties:
