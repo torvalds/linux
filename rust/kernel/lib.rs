@@ -50,6 +50,8 @@ pub mod device_id;
 pub mod devres;
 pub mod dma;
 pub mod driver;
+#[cfg(CONFIG_DRM = "y")]
+pub mod drm;
 pub mod error;
 pub mod faux;
 #[cfg(CONFIG_RUST_FW_LOADER_ABSTRACTIONS)]
