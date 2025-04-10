@@ -2,7 +2,6 @@
 
 #include <linux/export.h>
 #include <linux/slab.h>
-#include <linux/module.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -19,9 +18,6 @@
 #include <drm/drm_probe_helper.h>
 
 #include "drm_sysfb_helper.h"
-
-MODULE_DESCRIPTION("Helpers for DRM sysfb drivers");
-MODULE_LICENSE("GPL");
 
 struct drm_display_mode drm_sysfb_mode(unsigned int width,
 				       unsigned int height,
