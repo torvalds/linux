@@ -197,22 +197,15 @@ static int hws_matcher_disconnect(struct mlx5hws_matcher *matcher)
 
 static void hws_matcher_set_rtc_attr_sz(struct mlx5hws_matcher *matcher,
 					struct mlx5hws_cmd_rtc_create_attr *rtc_attr,
-					enum mlx5hws_matcher_rtc_type rtc_type,
 					bool is_mirror)
 {
-	struct mlx5hws_pool_chunk *ste = &matcher->action_ste.ste;
 	enum mlx5hws_matcher_flow_src flow_src = matcher->attr.optimize_flow_src;
-	bool is_match_rtc = rtc_type == HWS_MATCHER_RTC_TYPE_MATCH;
 
 	if ((flow_src == MLX5HWS_MATCHER_FLOW_SRC_VPORT && !is_mirror) ||
 	    (flow_src == MLX5HWS_MATCHER_FLOW_SRC_WIRE && is_mirror)) {
 		/* Optimize FDB RTC */
 		rtc_attr->log_size = 0;
 		rtc_attr->log_depth = 0;
-	} else {
-		/* Keep original values */
-		rtc_attr->log_size = is_match_rtc ? matcher->attr.table.sz_row_log : ste->order;
-		rtc_attr->log_depth = is_match_rtc ? matcher->attr.table.sz_col_log : 0;
 	}
 }
 
@@ -225,8 +218,7 @@ static int hws_matcher_create_rtc(struct mlx5hws_matcher *matcher,
 	struct mlx5hws_context *ctx = matcher->tbl->ctx;
 	struct mlx5hws_matcher_action_ste *action_ste;
 	struct mlx5hws_table *tbl = matcher->tbl;
-	struct mlx5hws_pool *ste_pool, *stc_pool;
-	struct mlx5hws_pool_chunk *ste;
+	struct mlx5hws_pool *ste_pool;
 	u32 *rtc_0_id, *rtc_1_id;
 	u32 obj_id;
 	int ret;
@@ -236,8 +228,6 @@ static int hws_matcher_create_rtc(struct mlx5hws_matcher *matcher,
 		rtc_0_id = &matcher->match_ste.rtc_0_id;
 		rtc_1_id = &matcher->match_ste.rtc_1_id;
 		ste_pool = matcher->match_ste.pool;
-		ste = &matcher->match_ste.ste;
-		ste->order = attr->table.sz_col_log + attr->table.sz_row_log;
 
 		rtc_attr.log_size = attr->table.sz_row_log;
 		rtc_attr.log_depth = attr->table.sz_col_log;
@@ -273,16 +263,15 @@ static int hws_matcher_create_rtc(struct mlx5hws_matcher *matcher,
 		rtc_0_id = &action_ste->rtc_0_id;
 		rtc_1_id = &action_ste->rtc_1_id;
 		ste_pool = action_ste->pool;
-		ste = &action_ste->ste;
 		/* Action RTC size calculation:
 		 * log((max number of rules in matcher) *
 		 *     (max number of action STEs per rule) *
 		 *     (2 to support writing new STEs for update rule))
 		 */
-		ste->order = ilog2(roundup_pow_of_two(action_ste->max_stes)) +
-			     attr->table.sz_row_log +
-			     MLX5HWS_MATCHER_ACTION_RTC_UPDATE_MULT;
-		rtc_attr.log_size = ste->order;
+		rtc_attr.log_size =
+			ilog2(roundup_pow_of_two(action_ste->max_stes)) +
+			attr->table.sz_row_log +
+			MLX5HWS_MATCHER_ACTION_RTC_UPDATE_MULT;
 		rtc_attr.log_depth = 0;
 		rtc_attr.update_index_mode = MLX5_IFC_RTC_STE_UPDATE_MODE_BY_OFFSET;
 		/* The action STEs use the default always hit definer */
@@ -300,21 +289,19 @@ static int hws_matcher_create_rtc(struct mlx5hws_matcher *matcher,
 
 	rtc_attr.pd = ctx->pd_num;
 	rtc_attr.ste_base = obj_id;
-	rtc_attr.ste_offset = ste->offset;
 	rtc_attr.reparse_mode = mlx5hws_context_get_reparse_mode(ctx);
 	rtc_attr.table_type = mlx5hws_table_get_res_fw_ft_type(tbl->type, false);
-	hws_matcher_set_rtc_attr_sz(matcher, &rtc_attr, rtc_type, false);
+	hws_matcher_set_rtc_attr_sz(matcher, &rtc_attr, false);
 
 	/* STC is a single resource (obj_id), use any STC for the ID */
-	stc_pool = ctx->stc_pool;
-	obj_id = mlx5hws_pool_get_base_id(stc_pool);
+	obj_id = mlx5hws_pool_get_base_id(ctx->stc_pool);
 	rtc_attr.stc_base = obj_id;
 
 	ret = mlx5hws_cmd_rtc_create(ctx->mdev, &rtc_attr, rtc_0_id);
 	if (ret) {
 		mlx5hws_err(ctx, "Failed to create matcher RTC of type %s",
 			    hws_matcher_rtc_type_to_str(rtc_type));
-		goto free_ste;
+		return ret;
 	}
 
 	if (tbl->type == MLX5HWS_TABLE_TYPE_FDB) {
@@ -322,9 +309,9 @@ static int hws_matcher_create_rtc(struct mlx5hws_matcher *matcher,
 		rtc_attr.ste_base = obj_id;
 		rtc_attr.table_type = mlx5hws_table_get_res_fw_ft_type(tbl->type, true);
 
-		obj_id = mlx5hws_pool_get_base_mirror_id(stc_pool);
+		obj_id = mlx5hws_pool_get_base_mirror_id(ctx->stc_pool);
 		rtc_attr.stc_base = obj_id;
-		hws_matcher_set_rtc_attr_sz(matcher, &rtc_attr, rtc_type, true);
+		hws_matcher_set_rtc_attr_sz(matcher, &rtc_attr, true);
 
 		ret = mlx5hws_cmd_rtc_create(ctx->mdev, &rtc_attr, rtc_1_id);
 		if (ret) {
@@ -338,16 +325,12 @@ static int hws_matcher_create_rtc(struct mlx5hws_matcher *matcher,
 
 destroy_rtc_0:
 	mlx5hws_cmd_rtc_destroy(ctx->mdev, *rtc_0_id);
-free_ste:
-	if (rtc_type == HWS_MATCHER_RTC_TYPE_MATCH)
-		mlx5hws_pool_chunk_free(ste_pool, ste);
 	return ret;
 }
 
 static void hws_matcher_destroy_rtc(struct mlx5hws_matcher *matcher,
 				    enum mlx5hws_matcher_rtc_type rtc_type)
 {
-	struct mlx5hws_matcher_action_ste *action_ste;
 	struct mlx5hws_table *tbl = matcher->tbl;
 	u32 rtc_0_id, rtc_1_id;
 
@@ -357,18 +340,17 @@ static void hws_matcher_destroy_rtc(struct mlx5hws_matcher *matcher,
 		rtc_1_id = matcher->match_ste.rtc_1_id;
 		break;
 	case HWS_MATCHER_RTC_TYPE_STE_ARRAY:
-		action_ste = &matcher->action_ste;
-		rtc_0_id = action_ste->rtc_0_id;
-		rtc_1_id = action_ste->rtc_1_id;
+		rtc_0_id = matcher->action_ste.rtc_0_id;
+		rtc_1_id = matcher->action_ste.rtc_1_id;
 		break;
 	default:
 		return;
 	}
 
 	if (tbl->type == MLX5HWS_TABLE_TYPE_FDB)
-		mlx5hws_cmd_rtc_destroy(matcher->tbl->ctx->mdev, rtc_1_id);
+		mlx5hws_cmd_rtc_destroy(tbl->ctx->mdev, rtc_1_id);
 
-	mlx5hws_cmd_rtc_destroy(matcher->tbl->ctx->mdev, rtc_0_id);
+	mlx5hws_cmd_rtc_destroy(tbl->ctx->mdev, rtc_0_id);
 }
 
 static int
@@ -564,7 +546,6 @@ static int hws_matcher_bind_at(struct mlx5hws_matcher *matcher)
 	stc_attr.action_offset = MLX5HWS_ACTION_OFFSET_HIT;
 	stc_attr.action_type = MLX5_IFC_STC_ACTION_TYPE_JUMP_TO_STE_TABLE;
 	stc_attr.reparse_mode = MLX5_IFC_STC_REPARSE_IGNORE;
-	stc_attr.ste_table.ste = action_ste->ste;
 	stc_attr.ste_table.ste_pool = action_ste->pool;
 	stc_attr.ste_table.match_definer_id = ctx->caps->trivial_match_definer;
 

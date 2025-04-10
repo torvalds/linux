@@ -45,14 +45,12 @@ struct mlx5hws_match_template {
 };
 
 struct mlx5hws_matcher_match_ste {
-	struct mlx5hws_pool_chunk ste;
 	u32 rtc_0_id;
 	u32 rtc_1_id;
 	struct mlx5hws_pool *pool;
 };
 
 struct mlx5hws_matcher_action_ste {
-	struct mlx5hws_pool_chunk ste;
 	struct mlx5hws_pool_chunk stc;
 	u32 rtc_0_id;
 	u32 rtc_1_id;
