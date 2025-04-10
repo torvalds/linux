@@ -2,6 +2,7 @@
 
 name: rt-addr
 protocol: netlink-raw
+uapi-header: linux/rtnetlink.h
 protonum: 0
 
 doc:
@@ -49,6 +50,8 @@ definitions:
   -
     name: ifa-flags
     type: flags
+    name-prefix: ifa-f-
+    enum-name:
     entries:
       -
         name: secondary
@@ -124,6 +127,7 @@ attribute-sets:
 operations:
   fixed-header: ifaddrmsg
   enum-model: directional
+  name-prefix: rtm-
   list:
     -
       name: newaddr
