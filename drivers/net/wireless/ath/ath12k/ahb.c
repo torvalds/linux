@@ -360,10 +360,10 @@ static int ath12k_ahb_power_up(struct ath12k_base *ab)
 	mem_phys = rmem->base;
 	mem_size = rmem->size;
 	mem_region = devm_memremap(dev, mem_phys, mem_size, MEMREMAP_WC);
-	if (!mem_region) {
+	if (IS_ERR(mem_region)) {
 		ath12k_err(ab, "unable to map memory region: %pa+%pa\n",
 			   &rmem->base, &rmem->size);
-		return -ENOMEM;
+		return PTR_ERR(mem_region);
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "%s/%s/%s%d%s", ATH12K_FW_DIR,
@@ -929,7 +929,7 @@ static int ath12k_ahb_resource_init(struct ath12k_base *ab)
 		 * for accessing them.
 		 */
 		ab->mem_ce = ioremap(ce_remap->base, ce_remap->size);
-		if (IS_ERR(ab->mem_ce)) {
+		if (!ab->mem_ce) {
 			dev_err(&pdev->dev, "ce ioremap error\n");
 			ret = -ENOMEM;
 			goto err_mem_unmap;
