@@ -487,6 +487,8 @@ static void bch2_rbio_retry(struct work_struct *work)
 		.inum	= rbio->read_pos.inode,
 	};
 	struct bch_io_failures failed = { .nr = 0 };
+	int orig_error = rbio->ret;
+
 	struct btree_trans *trans = bch2_trans_get(c);
 
 	trace_io_read_retry(&rbio->bio);
@@ -519,7 +521,9 @@ static void bch2_rbio_retry(struct work_struct *work)
 	if (ret) {
 		rbio->ret = ret;
 		rbio->bio.bi_status = BLK_STS_IOERR;
-	} else {
+	} else if (orig_error != -BCH_ERR_data_read_retry_csum_err_maybe_userspace &&
+		   orig_error != -BCH_ERR_data_read_ptr_stale_race &&
+		   !failed.nr) {
 		struct printbuf buf = PRINTBUF;
 
 		lockrestart_do(trans,
