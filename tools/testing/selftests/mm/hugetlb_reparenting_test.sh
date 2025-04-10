@@ -56,7 +56,7 @@ function cleanup() {
   rmdir "$CGROUP_ROOT"/a/b 2>/dev/null
   rmdir "$CGROUP_ROOT"/a 2>/dev/null
   rmdir "$CGROUP_ROOT"/test1 2>/dev/null
-  echo 0 >/proc/sys/vm/nr_hugepages
+  echo $nr_hugepgs >/proc/sys/vm/nr_hugepages
   set -e
 }
 
