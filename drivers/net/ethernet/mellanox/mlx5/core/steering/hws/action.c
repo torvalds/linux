@@ -1574,13 +1574,13 @@ hws_action_create_dest_match_range_definer(struct mlx5hws_context *ctx)
 	return definer;
 }
 
-static struct mlx5hws_matcher_action_ste *
+static struct mlx5hws_range_action_table *
 hws_action_create_dest_match_range_table(struct mlx5hws_context *ctx,
 					 struct mlx5hws_definer *definer,
 					 u32 miss_ft_id)
 {
 	struct mlx5hws_cmd_rtc_create_attr rtc_attr = {0};
-	struct mlx5hws_matcher_action_ste *table_ste;
+	struct mlx5hws_range_action_table *table_ste;
 	struct mlx5hws_pool_attr pool_attr = {0};
 	struct mlx5hws_pool *ste_pool, *stc_pool;
 	u32 *rtc_0_id, *rtc_1_id;
@@ -1669,9 +1669,9 @@ free_ste:
 	return NULL;
 }
 
-static void
-hws_action_destroy_dest_match_range_table(struct mlx5hws_context *ctx,
-					  struct mlx5hws_matcher_action_ste *table_ste)
+static void hws_action_destroy_dest_match_range_table(
+	struct mlx5hws_context *ctx,
+	struct mlx5hws_range_action_table *table_ste)
 {
 	mutex_lock(&ctx->ctrl_lock);
 
@@ -1683,12 +1683,11 @@ hws_action_destroy_dest_match_range_table(struct mlx5hws_context *ctx,
 	mutex_unlock(&ctx->ctrl_lock);
 }
 
-static int
-hws_action_create_dest_match_range_fill_table(struct mlx5hws_context *ctx,
-					      struct mlx5hws_matcher_action_ste *table_ste,
-					      struct mlx5hws_action *hit_ft_action,
-					      struct mlx5hws_definer *range_definer,
-					      u32 min, u32 max)
+static int hws_action_create_dest_match_range_fill_table(
+	struct mlx5hws_context *ctx,
+	struct mlx5hws_range_action_table *table_ste,
+	struct mlx5hws_action *hit_ft_action,
+	struct mlx5hws_definer *range_definer, u32 min, u32 max)
 {
 	struct mlx5hws_wqe_gta_data_seg_ste match_wqe_data = {0};
 	struct mlx5hws_wqe_gta_data_seg_ste range_wqe_data = {0};
@@ -1784,7 +1783,7 @@ mlx5hws_action_create_dest_match_range(struct mlx5hws_context *ctx,
 				       u32 min, u32 max, u32 flags)
 {
 	struct mlx5hws_cmd_stc_modify_attr stc_attr = {0};
-	struct mlx5hws_matcher_action_ste *table_ste;
+	struct mlx5hws_range_action_table *table_ste;
 	struct mlx5hws_action *hit_ft_action;
 	struct mlx5hws_definer *definer;
 	struct mlx5hws_action *action;

@@ -478,21 +478,9 @@ hws_bwc_matcher_size_maxed_out(struct mlx5hws_bwc_matcher *bwc_matcher)
 	struct mlx5hws_cmd_query_caps *caps = bwc_matcher->matcher->tbl->ctx->caps;
 
 	/* check the match RTC size */
-	if ((bwc_matcher->size_log +
-	     MLX5HWS_MATCHER_ASSURED_MAIN_TBL_DEPTH +
-	     MLX5HWS_BWC_MATCHER_SIZE_LOG_STEP) >
-	    (caps->ste_alloc_log_max - 1))
-		return true;
-
-	/* check the action RTC size */
-	if ((bwc_matcher->size_log +
-	     MLX5HWS_BWC_MATCHER_SIZE_LOG_STEP +
-	     ilog2(roundup_pow_of_two(bwc_matcher->matcher->action_ste.max_stes)) +
-	     MLX5HWS_MATCHER_ACTION_RTC_UPDATE_MULT) >
-	    (caps->ste_alloc_log_max - 1))
-		return true;
-
-	return false;
+	return (bwc_matcher->size_log + MLX5HWS_MATCHER_ASSURED_MAIN_TBL_DEPTH +
+		MLX5HWS_BWC_MATCHER_SIZE_LOG_STEP) >
+	       (caps->ste_alloc_log_max - 1);
 }
 
 static bool
@@ -779,19 +767,6 @@ hws_bwc_matcher_rehash_size(struct mlx5hws_bwc_matcher *bwc_matcher)
 	return hws_bwc_matcher_move(bwc_matcher);
 }
 
-static int
-hws_bwc_matcher_rehash_at(struct mlx5hws_bwc_matcher *bwc_matcher)
-{
-	/* Rehash by action template doesn't require any additional checking.
-	 * The bwc_matcher already contains the new action template.
-	 * Just do the usual rehash:
-	 *  - create new matcher
-	 *  - move all the rules to the new matcher
-	 *  - destroy the old matcher
-	 */
-	return hws_bwc_matcher_move(bwc_matcher);
-}
-
 int mlx5hws_bwc_rule_create_simple(struct mlx5hws_bwc_rule *bwc_rule,
 				   u32 *match_param,
 				   struct mlx5hws_rule_action rule_actions[],
@@ -803,7 +778,6 @@ int mlx5hws_bwc_rule_create_simple(struct mlx5hws_bwc_rule *bwc_rule,
 	struct mlx5hws_rule_attr rule_attr;
 	struct mutex *queue_lock; /* Protect the queue */
 	u32 num_of_rules;
-	bool need_rehash;
 	int ret = 0;
 	int at_idx;
 
@@ -830,29 +804,10 @@ int mlx5hws_bwc_rule_create_simple(struct mlx5hws_bwc_rule *bwc_rule,
 		at_idx = bwc_matcher->num_of_at - 1;
 
 		ret = mlx5hws_matcher_attach_at(bwc_matcher->matcher,
-						bwc_matcher->at[at_idx],
-						&need_rehash);
+						bwc_matcher->at[at_idx]);
 		if (unlikely(ret)) {
 			hws_bwc_unlock_all_queues(ctx);
 			return ret;
-		}
-		if (unlikely(need_rehash)) {
-			/* The new action template requires more action STEs.
-			 * Need to attempt creating new matcher with all
-			 * the action templates, including the new one.
-			 */
-			ret = hws_bwc_matcher_rehash_at(bwc_matcher);
-			if (unlikely(ret)) {
-				mlx5hws_action_template_destroy(bwc_matcher->at[at_idx]);
-				bwc_matcher->at[at_idx] = NULL;
-				bwc_matcher->num_of_at--;
-
-				hws_bwc_unlock_all_queues(ctx);
-
-				mlx5hws_err(ctx,
-					    "BWC rule insertion: rehash AT failed (%d)\n", ret);
-				return ret;
-			}
 		}
 
 		hws_bwc_unlock_all_queues(ctx);
@@ -973,7 +928,6 @@ hws_bwc_rule_action_update(struct mlx5hws_bwc_rule *bwc_rule,
 	struct mlx5hws_context *ctx = bwc_matcher->matcher->tbl->ctx;
 	struct mlx5hws_rule_attr rule_attr;
 	struct mutex *queue_lock; /* Protect the queue */
-	bool need_rehash;
 	int at_idx, ret;
 	u16 idx;
 
@@ -1005,31 +959,10 @@ hws_bwc_rule_action_update(struct mlx5hws_bwc_rule *bwc_rule,
 			at_idx = bwc_matcher->num_of_at - 1;
 
 			ret = mlx5hws_matcher_attach_at(bwc_matcher->matcher,
-							bwc_matcher->at[at_idx],
-							&need_rehash);
+							bwc_matcher->at[at_idx]);
 			if (unlikely(ret)) {
 				hws_bwc_unlock_all_queues(ctx);
 				return ret;
-			}
-			if (unlikely(need_rehash)) {
-				/* The new action template requires more action
-				 * STEs. Need to attempt creating new matcher
-				 * with all the action templates, including the
-				 * new one.
-				 */
-				ret = hws_bwc_matcher_rehash_at(bwc_matcher);
-				if (unlikely(ret)) {
-					mlx5hws_action_template_destroy(bwc_matcher->at[at_idx]);
-					bwc_matcher->at[at_idx] = NULL;
-					bwc_matcher->num_of_at--;
-
-					hws_bwc_unlock_all_queues(ctx);
-
-					mlx5hws_err(ctx,
-						    "BWC rule update: rehash AT failed (%d)\n",
-						    ret);
-					return ret;
-				}
 			}
 		}
 

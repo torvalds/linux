@@ -203,7 +203,7 @@ static int mlx5hws_rule_alloc_action_ste(struct mlx5hws_rule *rule,
 	struct mlx5hws_context *ctx = matcher->tbl->ctx;
 
 	rule->action_ste.ste.order =
-		ilog2(roundup_pow_of_two(matcher->action_ste.max_stes));
+		ilog2(roundup_pow_of_two(matcher->num_of_action_stes));
 	return mlx5hws_action_ste_chunk_alloc(&ctx->action_ste_pool[queue_id],
 					      skip_rx, skip_tx,
 					      &rule->action_ste);

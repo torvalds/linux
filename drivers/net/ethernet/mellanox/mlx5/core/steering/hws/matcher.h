@@ -50,23 +50,6 @@ struct mlx5hws_matcher_match_ste {
 	struct mlx5hws_pool *pool;
 };
 
-struct mlx5hws_matcher_action_ste {
-	struct mlx5hws_pool_chunk stc;
-	u32 rtc_0_id;
-	u32 rtc_1_id;
-	struct mlx5hws_pool *pool;
-	u8 max_stes;
-};
-
-struct mlx5hws_matcher_resize_data {
-	struct mlx5hws_pool_chunk stc;
-	u32 rtc_0_id;
-	u32 rtc_1_id;
-	struct mlx5hws_pool *pool;
-	u8 max_stes;
-	struct list_head list_node;
-};
-
 struct mlx5hws_matcher {
 	struct mlx5hws_table *tbl;
 	struct mlx5hws_matcher_attr attr;
@@ -75,15 +58,14 @@ struct mlx5hws_matcher {
 	u8 num_of_at;
 	u8 size_of_at_array;
 	u8 num_of_mt;
+	u8 num_of_action_stes;
 	/* enum mlx5hws_matcher_flags */
 	u8 flags;
 	u32 end_ft_id;
 	struct mlx5hws_matcher *col_matcher;
 	struct mlx5hws_matcher *resize_dst;
 	struct mlx5hws_matcher_match_ste match_ste;
-	struct mlx5hws_matcher_action_ste action_ste;
 	struct list_head list_node;
-	struct list_head resize_data;
 };
 
 static inline bool
