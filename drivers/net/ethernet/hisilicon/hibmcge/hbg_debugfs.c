@@ -106,6 +106,7 @@ static int hbg_dbg_nic_state(struct seq_file *s, void *unused)
 {
 	struct net_device *netdev = dev_get_drvdata(s->private);
 	struct hbg_priv *priv = netdev_priv(netdev);
+	bool np_link_fail;
 
 	seq_printf(s, "event handling state: %s\n",
 		   state_str_true_false(priv, HBG_NIC_STATE_EVENT_HANDLING));
@@ -117,8 +118,10 @@ static int hbg_dbg_nic_state(struct seq_file *s, void *unused)
 		   reset_type_str[priv->reset_type]);
 	seq_printf(s, "need reset state: %s\n",
 		   state_str_true_false(priv, HBG_NIC_STATE_NEED_RESET));
-	seq_printf(s, "np_link fail state: %s\n",
-		   state_str_true_false(priv, HBG_NIC_STATE_NP_LINK_FAIL));
+
+	np_link_fail = !hbg_reg_read_field(priv, HBG_REG_AN_NEG_STATE_ADDR,
+					   HBG_REG_AN_NEG_STATE_NP_LINK_OK_B);
+	seq_printf(s, "np_link fail state: %s\n", str_true_false(np_link_fail));
 
 	return 0;
 }
