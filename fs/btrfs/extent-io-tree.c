@@ -1389,11 +1389,11 @@ hit_next:
 			goto out;
 		}
 		ret = split_state(tree, state, prealloc, start);
-		if (ret)
-			extent_io_tree_panic(tree, state, "split", ret);
 		prealloc = NULL;
-		if (ret)
+		if (ret) {
+			extent_io_tree_panic(tree, state, "split", ret);
 			goto out;
+		}
 		if (state->end <= end) {
 			set_state_bits(tree, state, bits, NULL);
 			cache_state(state, cached_state);
