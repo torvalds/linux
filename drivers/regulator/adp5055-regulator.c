@@ -343,12 +343,6 @@ static struct regulator_desc adp5055_regulators[] = {
 	ADP5055_REG("buck2", 2, 2),
 };
 
-static const struct of_device_id adp5055_dt_ids[] = {
-	{ .compatible = "adi,adp5055"},
-	{ }
-};
-MODULE_DEVICE_TABLE(of, adp5055_dt_ids);
-
 static int adp5055_probe(struct i2c_client *client)
 {
 	struct regulator_init_data *init_data;
