@@ -767,7 +767,6 @@ void inet_csk_init_xmit_timers(struct sock *sk,
 	timer_setup(&sk->sk_timer, keepalive_handler, 0);
 	icsk->icsk_pending = icsk->icsk_ack.pending = 0;
 }
-EXPORT_SYMBOL(inet_csk_init_xmit_timers);
 
 void inet_csk_clear_xmit_timers(struct sock *sk)
 {
@@ -780,7 +779,6 @@ void inet_csk_clear_xmit_timers(struct sock *sk)
 	sk_stop_timer(sk, &icsk->icsk_delack_timer);
 	sk_stop_timer(sk, &sk->sk_timer);
 }
-EXPORT_SYMBOL(inet_csk_clear_xmit_timers);
 
 void inet_csk_clear_xmit_timers_sync(struct sock *sk)
 {
@@ -831,7 +829,6 @@ no_route:
 	__IP_INC_STATS(net, IPSTATS_MIB_OUTNOROUTES);
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(inet_csk_route_req);
 
 struct dst_entry *inet_csk_route_child_sock(const struct sock *sk,
 					    struct sock *newsk,
@@ -898,7 +895,6 @@ int inet_rtx_syn_ack(const struct sock *parent, struct request_sock *req)
 		req->num_retrans++;
 	return err;
 }
-EXPORT_SYMBOL(inet_rtx_syn_ack);
 
 static struct request_sock *
 reqsk_alloc_noprof(const struct request_sock_ops *ops, struct sock *sk_listener,
@@ -1058,14 +1054,13 @@ bool inet_csk_reqsk_queue_drop(struct sock *sk, struct request_sock *req)
 {
 	return __inet_csk_reqsk_queue_drop(sk, req, false);
 }
-EXPORT_SYMBOL(inet_csk_reqsk_queue_drop);
 
 void inet_csk_reqsk_queue_drop_and_put(struct sock *sk, struct request_sock *req)
 {
 	inet_csk_reqsk_queue_drop(sk, req);
 	reqsk_put(req);
 }
-EXPORT_SYMBOL(inet_csk_reqsk_queue_drop_and_put);
+EXPORT_IPV6_MOD(inet_csk_reqsk_queue_drop_and_put);
 
 static void reqsk_timer_handler(struct timer_list *t)
 {
@@ -1209,7 +1204,6 @@ bool inet_csk_reqsk_queue_hash_add(struct sock *sk, struct request_sock *req,
 	inet_csk_reqsk_queue_added(sk);
 	return true;
 }
-EXPORT_SYMBOL_GPL(inet_csk_reqsk_queue_hash_add);
 
 static void inet_clone_ulp(const struct request_sock *req, struct sock *newsk,
 			   const gfp_t priority)
@@ -1290,7 +1284,6 @@ struct sock *inet_csk_clone_lock(const struct sock *sk,
 
 	return newsk;
 }
-EXPORT_SYMBOL_GPL(inet_csk_clone_lock);
 
 /*
  * At this point, there should be no process reference to this
@@ -1380,7 +1373,6 @@ int inet_csk_listen_start(struct sock *sk)
 	inet_sk_set_state(sk, TCP_CLOSE);
 	return err;
 }
-EXPORT_SYMBOL_GPL(inet_csk_listen_start);
 
 static void inet_child_forget(struct sock *sk, struct request_sock *req,
 			      struct sock *child)
@@ -1475,7 +1467,6 @@ child_put:
 	sock_put(child);
 	return NULL;
 }
-EXPORT_SYMBOL(inet_csk_complete_hashdance);
 
 /*
  *	This routine closes sockets which have been at least partially
@@ -1590,4 +1581,3 @@ struct dst_entry *inet_csk_update_pmtu(struct sock *sk, u32 mtu)
 out:
 	return dst;
 }
-EXPORT_SYMBOL_GPL(inet_csk_update_pmtu);
