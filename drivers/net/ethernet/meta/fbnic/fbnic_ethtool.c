@@ -27,6 +27,14 @@ struct fbnic_stat {
 	FBNIC_STAT_FIELDS(fbnic_hw_stats, name, stat)
 
 static const struct fbnic_stat fbnic_gstrings_hw_stats[] = {
+	/* TTI */
+	FBNIC_HW_STAT("tti_cm_drop_frames", tti.cm_drop.frames),
+	FBNIC_HW_STAT("tti_cm_drop_bytes", tti.cm_drop.bytes),
+	FBNIC_HW_STAT("tti_frame_drop_frames", tti.frame_drop.frames),
+	FBNIC_HW_STAT("tti_frame_drop_bytes", tti.frame_drop.bytes),
+	FBNIC_HW_STAT("tti_tbi_drop_frames", tti.tbi_drop.frames),
+	FBNIC_HW_STAT("tti_tbi_drop_bytes", tti.tbi_drop.bytes),
+
 	/* TMI */
 	FBNIC_HW_STAT("ptp_illegal_req", tmi.ptp_illegal_req),
 	FBNIC_HW_STAT("ptp_good_ts", tmi.ptp_good_ts),

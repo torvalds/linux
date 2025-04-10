@@ -101,6 +101,69 @@ static void fbnic_get_tmi_stats(struct fbnic_dev *fbd,
 	fbnic_hw_stat_rd64(fbd, FBNIC_TMI_DROP_BYTE_L, 1, &tmi->drop.bytes);
 }
 
+static void fbnic_reset_tti_stats(struct fbnic_dev *fbd,
+				  struct fbnic_tti_stats *tti)
+{
+	fbnic_hw_stat_rst32(fbd,
+			    FBNIC_TCE_TTI_CM_DROP_PKTS,
+			    &tti->cm_drop.frames);
+	fbnic_hw_stat_rst64(fbd,
+			    FBNIC_TCE_TTI_CM_DROP_BYTE_L,
+			    1,
+			    &tti->cm_drop.bytes);
+
+	fbnic_hw_stat_rst32(fbd,
+			    FBNIC_TCE_TTI_FRAME_DROP_PKTS,
+			    &tti->frame_drop.frames);
+	fbnic_hw_stat_rst64(fbd,
+			    FBNIC_TCE_TTI_FRAME_DROP_BYTE_L,
+			    1,
+			    &tti->frame_drop.bytes);
+
+	fbnic_hw_stat_rst32(fbd,
+			    FBNIC_TCE_TBI_DROP_PKTS,
+			    &tti->tbi_drop.frames);
+	fbnic_hw_stat_rst64(fbd,
+			    FBNIC_TCE_TBI_DROP_BYTE_L,
+			    1,
+			    &tti->tbi_drop.bytes);
+}
+
+static void fbnic_get_tti_stats32(struct fbnic_dev *fbd,
+				  struct fbnic_tti_stats *tti)
+{
+	fbnic_hw_stat_rd32(fbd,
+			   FBNIC_TCE_TTI_CM_DROP_PKTS,
+			   &tti->cm_drop.frames);
+
+	fbnic_hw_stat_rd32(fbd,
+			   FBNIC_TCE_TTI_FRAME_DROP_PKTS,
+			   &tti->frame_drop.frames);
+
+	fbnic_hw_stat_rd32(fbd,
+			   FBNIC_TCE_TBI_DROP_PKTS,
+			   &tti->tbi_drop.frames);
+}
+
+static void fbnic_get_tti_stats(struct fbnic_dev *fbd,
+				struct fbnic_tti_stats *tti)
+{
+	fbnic_hw_stat_rd64(fbd,
+			   FBNIC_TCE_TTI_CM_DROP_BYTE_L,
+			   1,
+			   &tti->cm_drop.bytes);
+
+	fbnic_hw_stat_rd64(fbd,
+			   FBNIC_TCE_TTI_FRAME_DROP_BYTE_L,
+			   1,
+			   &tti->frame_drop.bytes);
+
+	fbnic_hw_stat_rd64(fbd,
+			   FBNIC_TCE_TBI_DROP_BYTE_L,
+			   1,
+			   &tti->tbi_drop.bytes);
+}
+
 static void fbnic_reset_rpc_stats(struct fbnic_dev *fbd,
 				  struct fbnic_rpc_stats *rpc)
 {
@@ -451,6 +514,7 @@ void fbnic_reset_hw_stats(struct fbnic_dev *fbd)
 {
 	spin_lock(&fbd->hw_stats_lock);
 	fbnic_reset_tmi_stats(fbd, &fbd->hw_stats.tmi);
+	fbnic_reset_tti_stats(fbd, &fbd->hw_stats.tti);
 	fbnic_reset_rpc_stats(fbd, &fbd->hw_stats.rpc);
 	fbnic_reset_rxb_stats(fbd, &fbd->hw_stats.rxb);
 	fbnic_reset_hw_rxq_stats(fbd, fbd->hw_stats.hw_q);
@@ -461,6 +525,7 @@ void fbnic_reset_hw_stats(struct fbnic_dev *fbd)
 static void __fbnic_get_hw_stats32(struct fbnic_dev *fbd)
 {
 	fbnic_get_tmi_stats32(fbd, &fbd->hw_stats.tmi);
+	fbnic_get_tti_stats32(fbd, &fbd->hw_stats.tti);
 	fbnic_get_rpc_stats32(fbd, &fbd->hw_stats.rpc);
 	fbnic_get_rxb_stats32(fbd, &fbd->hw_stats.rxb);
 	fbnic_get_hw_rxq_stats32(fbd, fbd->hw_stats.hw_q);
@@ -479,6 +544,7 @@ void fbnic_get_hw_stats(struct fbnic_dev *fbd)
 	__fbnic_get_hw_stats32(fbd);
 
 	fbnic_get_tmi_stats(fbd, &fbd->hw_stats.tmi);
+	fbnic_get_tti_stats(fbd, &fbd->hw_stats.tti);
 	fbnic_get_rxb_stats(fbd, &fbd->hw_stats.rxb);
 	fbnic_get_pcie_stats_asic64(fbd, &fbd->hw_stats.pcie);
 	spin_unlock(&fbd->hw_stats_lock);

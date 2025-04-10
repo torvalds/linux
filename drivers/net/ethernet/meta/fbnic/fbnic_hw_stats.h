@@ -47,6 +47,10 @@ struct fbnic_tmi_stats {
 	struct fbnic_stat_counter ptp_illegal_req, ptp_good_ts, ptp_bad_ts;
 };
 
+struct fbnic_tti_stats {
+	struct fbnic_hw_stat cm_drop, frame_drop, tbi_drop;
+};
+
 struct fbnic_rpc_stats {
 	struct fbnic_stat_counter unkn_etype, unkn_ext_hdr;
 	struct fbnic_stat_counter ipv4_frag, ipv6_frag, ipv4_esp, ipv6_esp;
@@ -94,6 +98,7 @@ struct fbnic_pcie_stats {
 struct fbnic_hw_stats {
 	struct fbnic_mac_stats mac;
 	struct fbnic_tmi_stats tmi;
+	struct fbnic_tti_stats tti;
 	struct fbnic_rpc_stats rpc;
 	struct fbnic_rxb_stats rxb;
 	struct fbnic_hw_q_stats hw_q[FBNIC_MAX_QUEUES];

@@ -38,6 +38,13 @@ TX MAC Interface
  - ``ptp_good_ts``: packets successfully routed to MAC with PTP request bit set
  - ``ptp_bad_ts``: packets destined for MAC with PTP request bit set but aborted because of some error (e.g., DMA read error)
 
+TX Extension (TEI) Interface (TTI)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+ - ``tti_cm_drop``: control messages dropped at the TX Extension (TEI) Interface because of credit starvation
+ - ``tti_frame_drop``: packets dropped at the TX Extension (TEI) Interface because of credit starvation
+ - ``tti_tbi_drop``: packets dropped at the TX BMC Interface (TBI) because of credit starvation
+
 RXB (RX Buffer) Enqueue
 ~~~~~~~~~~~~~~~~~~~~~~~
 
