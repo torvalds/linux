@@ -69,22 +69,22 @@ static inline struct usb_device *udl_to_usb_device(struct udl_device *udl)
 }
 
 /* modeset */
-int udl_modeset_init(struct drm_device *dev);
+int udl_modeset_init(struct udl_device *udl);
 struct drm_connector *udl_connector_init(struct drm_device *dev);
 
-struct urb *udl_get_urb(struct drm_device *dev);
+struct urb *udl_get_urb(struct udl_device *udl);
 
-int udl_submit_urb(struct drm_device *dev, struct urb *urb, size_t len);
-void udl_sync_pending_urbs(struct drm_device *dev);
+int udl_submit_urb(struct udl_device *udl, struct urb *urb, size_t len);
+void udl_sync_pending_urbs(struct udl_device *udl);
 void udl_urb_completion(struct urb *urb);
 
 int udl_init(struct udl_device *udl);
 
-int udl_render_hline(struct drm_device *dev, int log_bpp, struct urb **urb_ptr,
+int udl_render_hline(struct udl_device *udl, int log_bpp, struct urb **urb_ptr,
 		     const char *front, char **urb_buf_ptr,
 		     u32 byte_offset, u32 device_byte_offset, u32 byte_width);
 
-int udl_drop_usb(struct drm_device *dev);
+int udl_drop_usb(struct udl_device *udl);
 int udl_select_std_channel(struct udl_device *udl);
 
 #endif

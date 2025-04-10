@@ -145,9 +145,8 @@ void udl_urb_completion(struct urb *urb)
 	wake_up(&udl->urbs.sleep);
 }
 
-static void udl_free_urb_list(struct drm_device *dev)
+static void udl_free_urb_list(struct udl_device *udl)
 {
-	struct udl_device *udl = to_udl(dev);
 	struct urb_node *unode;
 	struct urb *urb;
 
@@ -172,9 +171,8 @@ static void udl_free_urb_list(struct drm_device *dev)
 	wake_up_all(&udl->urbs.sleep);
 }
 
-static int udl_alloc_urb_list(struct drm_device *dev, int count, size_t size)
+static int udl_alloc_urb_list(struct udl_device *udl, int count, size_t size)
 {
-	struct udl_device *udl = to_udl(dev);
 	struct urb *urb;
 	struct urb_node *unode;
 	char *buf;
@@ -210,7 +208,7 @@ retry:
 			usb_free_urb(urb);
 			if (size > PAGE_SIZE) {
 				size /= 2;
-				udl_free_urb_list(dev);
+				udl_free_urb_list(udl);
 				goto retry;
 			}
 			break;
@@ -259,9 +257,8 @@ static struct urb *udl_get_urb_locked(struct udl_device *udl, long timeout)
 }
 
 #define GET_URB_TIMEOUT	HZ
-struct urb *udl_get_urb(struct drm_device *dev)
+struct urb *udl_get_urb(struct udl_device *udl)
 {
-	struct udl_device *udl = to_udl(dev);
 	struct urb *urb;
 
 	spin_lock_irq(&udl->urbs.lock);
@@ -270,9 +267,8 @@ struct urb *udl_get_urb(struct drm_device *dev)
 	return urb;
 }
 
-int udl_submit_urb(struct drm_device *dev, struct urb *urb, size_t len)
+int udl_submit_urb(struct udl_device *udl, struct urb *urb, size_t len)
 {
-	struct udl_device *udl = to_udl(dev);
 	int ret;
 
 	if (WARN_ON(len > udl->urbs.size)) {
@@ -290,9 +286,9 @@ int udl_submit_urb(struct drm_device *dev, struct urb *urb, size_t len)
 }
 
 /* wait until all pending URBs have been processed */
-void udl_sync_pending_urbs(struct drm_device *dev)
+void udl_sync_pending_urbs(struct udl_device *udl)
 {
-	struct udl_device *udl = to_udl(dev);
+	struct drm_device *dev = &udl->drm;
 
 	spin_lock_irq(&udl->urbs.lock);
 	/* 2 seconds as a sane timeout */
@@ -329,13 +325,13 @@ int udl_init(struct udl_device *udl)
 	if (udl_select_std_channel(udl))
 		DRM_ERROR("Selecting channel failed\n");
 
-	if (!udl_alloc_urb_list(dev, WRITES_IN_FLIGHT, MAX_TRANSFER)) {
+	if (!udl_alloc_urb_list(udl, WRITES_IN_FLIGHT, MAX_TRANSFER)) {
 		DRM_ERROR("udl_alloc_urb_list failed\n");
 		goto err;
 	}
 
 	DRM_DEBUG("\n");
-	ret = udl_modeset_init(dev);
+	ret = udl_modeset_init(udl);
 	if (ret)
 		goto err;
 
@@ -343,14 +339,14 @@ int udl_init(struct udl_device *udl)
 
 err:
 	if (udl->urbs.count)
-		udl_free_urb_list(dev);
+		udl_free_urb_list(udl);
 	DRM_ERROR("%d\n", ret);
 	return ret;
 }
 
-int udl_drop_usb(struct drm_device *dev)
+int udl_drop_usb(struct udl_device *udl)
 {
-	udl_free_urb_list(dev);
+	udl_free_urb_list(udl);
 
 	return 0;
 }
