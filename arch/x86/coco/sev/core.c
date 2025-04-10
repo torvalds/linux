@@ -2688,6 +2688,11 @@ static struct platform_device sev_guest_device = {
 	.id		= -1,
 };
 
+static struct platform_device tpm_svsm_device = {
+	.name		= "tpm-svsm",
+	.id		= -1,
+};
+
 static int __init snp_init_platform_device(void)
 {
 	if (!cc_platform_has(CC_ATTR_GUEST_SEV_SNP))
@@ -2696,7 +2701,11 @@ static int __init snp_init_platform_device(void)
 	if (platform_device_register(&sev_guest_device))
 		return -ENODEV;
 
-	pr_info("SNP guest platform device initialized.\n");
+	if (snp_svsm_vtpm_probe() &&
+	    platform_device_register(&tpm_svsm_device))
+		return -ENODEV;
+
+	pr_info("SNP guest platform devices initialized.\n");
 	return 0;
 }
 device_initcall(snp_init_platform_device);
