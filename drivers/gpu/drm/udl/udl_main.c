@@ -76,6 +76,7 @@ static int udl_parse_vendor_descriptor(struct udl_device *udl)
 {
 	struct drm_device *dev = &udl->drm;
 	struct usb_device *udev = udl_to_usb_device(udl);
+	bool detected = false;
 	void *buf;
 	int ret;
 	unsigned int len;
@@ -84,16 +85,16 @@ static int udl_parse_vendor_descriptor(struct udl_device *udl)
 
 	buf = kzalloc(MAX_VENDOR_DESCRIPTOR_SIZE, GFP_KERNEL);
 	if (!buf)
-		return false;
+		return -ENOMEM;
 
 	ret = usb_get_descriptor(udev, 0x5f, /* vendor specific */
 				 0, buf, MAX_VENDOR_DESCRIPTOR_SIZE);
 	if (ret < 0)
-		goto unrecognized;
+		goto out;
 	len = ret;
 
 	if (len < 5)
-		goto unrecognized;
+		goto out;
 
 	desc = buf;
 	desc_end = desc + len;
@@ -103,21 +104,20 @@ static int udl_parse_vendor_descriptor(struct udl_device *udl)
 	    (desc[2] != 0x01) ||   /* version (2 bytes) */
 	    (desc[3] != 0x00) ||
 	    (desc[4] != len - 2))  /* length after type */
-		goto unrecognized;
+		goto out;
 	desc += 5;
+
+	detected = true;
 
 	while (desc < desc_end)
 		desc = udl_parse_key_value_pair(udl, desc, desc_end);
 
-	goto success;
-
-unrecognized:
-	/* allow udlfb to load for now even if firmware unrecognized */
-	drm_warn(dev, "Unrecognized vendor firmware descriptor\n");
-
-success:
+out:
+	if (!detected)
+		drm_warn(dev, "Unrecognized vendor firmware descriptor\n");
 	kfree(buf);
-	return true;
+
+	return 0;
 }
 
 /*
@@ -345,11 +345,16 @@ int udl_init(struct udl_device *udl)
 		drm_warn(dev, "buffer sharing not supported"); /* not an error */
 	}
 
-	if (!udl_parse_vendor_descriptor(udl)) {
-		ret = -ENODEV;
-		DRM_ERROR("firmware not recognized. Assume incompatible device\n");
+	/*
+	 * Not all devices provide vendor descriptors with device
+	 * information. Initialize to default values of real-world
+	 * devices. It is just enough memory for FullHD.
+	 */
+	udl->sku_pixel_limit = UDL_SKU_PIXEL_LIMIT_DEFAULT;
+
+	ret = udl_parse_vendor_descriptor(udl);
+	if (ret)
 		goto err;
-	}
 
 	if (udl_select_std_channel(udl))
 		DRM_ERROR("Selecting channel failed\n");
