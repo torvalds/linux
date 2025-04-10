@@ -98,13 +98,16 @@ mes_userq_create_wptr_mapping(struct amdgpu_userq_mgr *uq_mgr,
 }
 
 static int mes_userq_map(struct amdgpu_userq_mgr *uq_mgr,
-			 struct amdgpu_usermode_queue *queue,
-			 struct amdgpu_mqd_prop *userq_props)
+			 struct amdgpu_usermode_queue *queue)
 {
 	struct amdgpu_device *adev = uq_mgr->adev;
 	struct amdgpu_userq_obj *ctx = &queue->fw_obj;
+	struct amdgpu_mqd_prop *userq_props = queue->userq_prop;
 	struct mes_add_queue_input queue_input;
 	int r;
+
+	if (queue->queue_active)
+		return 0;
 
 	memset(&queue_input, 0x0, sizeof(struct mes_add_queue_input));
 
@@ -143,13 +146,16 @@ static int mes_userq_map(struct amdgpu_userq_mgr *uq_mgr,
 	return 0;
 }
 
-static void mes_userq_unmap(struct amdgpu_userq_mgr *uq_mgr,
-			    struct amdgpu_usermode_queue *queue)
+static int mes_userq_unmap(struct amdgpu_userq_mgr *uq_mgr,
+			   struct amdgpu_usermode_queue *queue)
 {
 	struct amdgpu_device *adev = uq_mgr->adev;
 	struct mes_remove_queue_input queue_input;
 	struct amdgpu_userq_obj *ctx = &queue->fw_obj;
 	int r;
+
+	if (!queue->queue_active)
+		return 0;
 
 	memset(&queue_input, 0x0, sizeof(struct mes_remove_queue_input));
 	queue_input.doorbell_offset = queue->doorbell_index;
@@ -161,6 +167,7 @@ static void mes_userq_unmap(struct amdgpu_userq_mgr *uq_mgr,
 	if (r)
 		DRM_ERROR("Failed to unmap queue in HW, err (%d)\n", r);
 	queue->queue_active = false;
+	return r;
 }
 
 static int mes_userq_create_ctx_space(struct amdgpu_userq_mgr *uq_mgr,
@@ -314,7 +321,7 @@ static int mes_userq_mqd_create(struct amdgpu_userq_mgr *uq_mgr,
 	}
 
 	/* Map userqueue into FW using MES */
-	r = mes_userq_map(uq_mgr, queue, userq_props);
+	r = mes_userq_map(uq_mgr, queue);
 	if (r) {
 		DRM_ERROR("Failed to init MQD\n");
 		goto free_ctx;
@@ -354,34 +361,9 @@ mes_userq_mqd_destroy(struct amdgpu_userq_mgr *uq_mgr,
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 }
 
-static int mes_userq_suspend(struct amdgpu_userq_mgr *uq_mgr,
-				   struct amdgpu_usermode_queue *queue)
-{
-	if (queue->queue_active)
-		mes_userq_unmap(uq_mgr, queue);
-
-	return 0;
-}
-
-static int mes_userq_resume(struct amdgpu_userq_mgr *uq_mgr,
-				  struct amdgpu_usermode_queue *queue)
-{
-	int ret;
-
-	if (queue->queue_active)
-		return 0;
-
-	ret = mes_userq_map(uq_mgr, queue, queue->userq_prop);
-	if (ret) {
-		DRM_ERROR("Failed to resume queue\n");
-		return ret;
-	}
-	return 0;
-}
-
 const struct amdgpu_userq_funcs userq_mes_funcs = {
 	.mqd_create = mes_userq_mqd_create,
 	.mqd_destroy = mes_userq_mqd_destroy,
-	.suspend = mes_userq_suspend,
-	.resume = mes_userq_resume,
+	.unmap = mes_userq_unmap,
+	.map = mes_userq_map,
 };
