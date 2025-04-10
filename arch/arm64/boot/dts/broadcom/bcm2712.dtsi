@@ -64,7 +64,7 @@
 			i-cache-sets = <256>; // 64KiB(size)/64(line-size)=1024ways/4-way set
 			next-level-cache = <&l2_cache_l0>;
 
-			l2_cache_l0: l2-cache-l0 {
+			l2_cache_l0: l2-cache {
 				compatible = "cache";
 				cache-size = <0x80000>;
 				cache-line-size = <64>;
@@ -88,7 +88,7 @@
 			i-cache-sets = <256>; // 64KiB(size)/64(line-size)=1024ways/4-way set
 			next-level-cache = <&l2_cache_l1>;
 
-			l2_cache_l1: l2-cache-l1 {
+			l2_cache_l1: l2-cache {
 				compatible = "cache";
 				cache-size = <0x80000>;
 				cache-line-size = <64>;
@@ -112,7 +112,7 @@
 			i-cache-sets = <256>; // 64KiB(size)/64(line-size)=1024ways/4-way set
 			next-level-cache = <&l2_cache_l2>;
 
-			l2_cache_l2: l2-cache-l2 {
+			l2_cache_l2: l2-cache {
 				compatible = "cache";
 				cache-size = <0x80000>;
 				cache-line-size = <64>;
@@ -136,7 +136,7 @@
 			i-cache-sets = <256>; // 64KiB(size)/64(line-size)=1024ways/4-way set
 			next-level-cache = <&l2_cache_l3>;
 
-			l2_cache_l3: l2-cache-l3 {
+			l2_cache_l3: l2-cache {
 				compatible = "cache";
 				cache-size = <0x80000>;
 				cache-line-size = <64>;
