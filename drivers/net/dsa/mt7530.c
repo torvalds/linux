@@ -790,23 +790,33 @@ mt7530_get_strings(struct dsa_switch *ds, int port, u32 stringset,
 }
 
 static void
+mt7530_read_port_stats(struct mt7530_priv *priv, int port,
+		       u32 offset, u8 size, uint64_t *data)
+{
+	u32 val, reg = MT7530_PORT_MIB_COUNTER(port) + offset;
+
+	val = mt7530_read(priv, reg);
+	*data = val;
+
+	if (size == 2) {
+		val = mt7530_read(priv, reg + 4);
+		*data |= (u64)val << 32;
+	}
+}
+
+static void
 mt7530_get_ethtool_stats(struct dsa_switch *ds, int port,
 			 uint64_t *data)
 {
 	struct mt7530_priv *priv = ds->priv;
 	const struct mt7530_mib_desc *mib;
-	u32 reg, i;
-	u64 hi;
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mt7530_mib); i++) {
 		mib = &mt7530_mib[i];
-		reg = MT7530_PORT_MIB_COUNTER(port) + mib->offset;
 
-		data[i] = mt7530_read(priv, reg);
-		if (mib->size == 2) {
-			hi = mt7530_read(priv, reg + 4);
-			data[i] |= hi << 32;
-		}
+		mt7530_read_port_stats(priv, port, mib->offset, mib->size,
+				       data + i);
 	}
 }
 
