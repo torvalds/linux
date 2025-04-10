@@ -429,9 +429,9 @@ bool validate_constant_table(const struct constant_table *tbl, size_t tbl_size,
 }
 
 /**
- * fs_validate_description - Validate a parameter description
- * @name: The parameter name to search for.
- * @desc: The parameter description to validate.
+ * fs_validate_description - Validate a parameter specification array
+ * @name: Owner name of the parameter specification array
+ * @desc: The parameter specification array to validate.
  */
 bool fs_validate_description(const char *name,
 	const struct fs_parameter_spec *desc)
