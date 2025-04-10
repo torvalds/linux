@@ -38,12 +38,8 @@
  */
 u8 snp_vmpl __ro_after_init;
 EXPORT_SYMBOL_GPL(snp_vmpl);
-static struct svsm_ca *boot_svsm_caa __ro_after_init;
-static u64 boot_svsm_caa_pa __ro_after_init;
-
-static struct svsm_ca *svsm_get_caa(void);
-static u64 svsm_get_caa_pa(void);
-static int svsm_perform_call_protocol(struct svsm_call *call);
+struct svsm_ca *boot_svsm_caa __ro_after_init;
+u64 boot_svsm_caa_pa __ro_after_init;
 
 /* I/O parameters for CPUID-related helpers */
 struct cpuid_leaf {
@@ -54,36 +50,6 @@ struct cpuid_leaf {
 	u32 ecx;
 	u32 edx;
 };
-
-/*
- * Individual entries of the SNP CPUID table, as defined by the SNP
- * Firmware ABI, Revision 0.9, Section 7.1, Table 14.
- */
-struct snp_cpuid_fn {
-	u32 eax_in;
-	u32 ecx_in;
-	u64 xcr0_in;
-	u64 xss_in;
-	u32 eax;
-	u32 ebx;
-	u32 ecx;
-	u32 edx;
-	u64 __reserved;
-} __packed;
-
-/*
- * SNP CPUID table, as defined by the SNP Firmware ABI, Revision 0.9,
- * Section 8.14.2.6. Also noted there is the SNP firmware-enforced limit
- * of 64 entries per CPUID table.
- */
-#define SNP_CPUID_COUNT_MAX 64
-
-struct snp_cpuid_table {
-	u32 count;
-	u32 __reserved1;
-	u64 __reserved2;
-	struct snp_cpuid_fn fn[SNP_CPUID_COUNT_MAX];
-} __packed;
 
 /*
  * Since feature negotiation related variables are set early in the boot
@@ -107,7 +73,7 @@ static u32 cpuid_std_range_max __ro_after_init;
 static u32 cpuid_hyp_range_max __ro_after_init;
 static u32 cpuid_ext_range_max __ro_after_init;
 
-static bool __init sev_es_check_cpu_features(void)
+bool __init sev_es_check_cpu_features(void)
 {
 	if (!has_cpuflag(X86_FEATURE_RDRAND)) {
 		error("RDRAND instruction not supported - no trusted source of randomness available\n");
@@ -117,7 +83,7 @@ static bool __init sev_es_check_cpu_features(void)
 	return true;
 }
 
-static void __head __noreturn
+void __head __noreturn
 sev_es_terminate(unsigned int set, unsigned int reason)
 {
 	u64 val = GHCB_MSR_TERM_REQ;
@@ -136,7 +102,7 @@ sev_es_terminate(unsigned int set, unsigned int reason)
 /*
  * The hypervisor features are available from GHCB version 2 onward.
  */
-static u64 get_hv_features(void)
+u64 get_hv_features(void)
 {
 	u64 val;
 
@@ -153,7 +119,7 @@ static u64 get_hv_features(void)
 	return GHCB_MSR_HV_FT_RESP_VAL(val);
 }
 
-static void snp_register_ghcb_early(unsigned long paddr)
+void snp_register_ghcb_early(unsigned long paddr)
 {
 	unsigned long pfn = paddr >> PAGE_SHIFT;
 	u64 val;
@@ -169,7 +135,7 @@ static void snp_register_ghcb_early(unsigned long paddr)
 		sev_es_terminate(SEV_TERM_SET_LINUX, GHCB_TERM_REGISTER);
 }
 
-static bool sev_es_negotiate_protocol(void)
+bool sev_es_negotiate_protocol(void)
 {
 	u64 val;
 
@@ -188,12 +154,6 @@ static bool sev_es_negotiate_protocol(void)
 	ghcb_version = min_t(size_t, GHCB_MSR_PROTO_MAX(val), GHCB_PROTOCOL_MAX);
 
 	return true;
-}
-
-static __always_inline void vc_ghcb_invalidate(struct ghcb *ghcb)
-{
-	ghcb->save.sw_exit_code = 0;
-	__builtin_memset(ghcb->save.valid_bitmap, 0, sizeof(ghcb->save.valid_bitmap));
 }
 
 static bool vc_decoding_needed(unsigned long exit_code)
@@ -371,10 +331,10 @@ static int svsm_perform_ghcb_protocol(struct ghcb *ghcb, struct svsm_call *call)
 	return svsm_process_result_codes(call);
 }
 
-static enum es_result sev_es_ghcb_hv_call(struct ghcb *ghcb,
-					  struct es_em_ctxt *ctxt,
-					  u64 exit_code, u64 exit_info_1,
-					  u64 exit_info_2)
+enum es_result sev_es_ghcb_hv_call(struct ghcb *ghcb,
+				   struct es_em_ctxt *ctxt,
+				   u64 exit_code, u64 exit_info_1,
+				   u64 exit_info_2)
 {
 	/* Fill in protocol and format specifiers */
 	ghcb->protocol_version = ghcb_version;
@@ -473,7 +433,7 @@ static int sev_cpuid_hv(struct ghcb *ghcb, struct es_em_ctxt *ctxt, struct cpuid
  * while running with the initial identity mapping as well as the
  * switch-over to kernel virtual addresses later.
  */
-static const struct snp_cpuid_table *snp_cpuid_get_table(void)
+const struct snp_cpuid_table *snp_cpuid_get_table(void)
 {
 	return rip_rel_ptr(&cpuid_table_copy);
 }
