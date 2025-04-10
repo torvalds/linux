@@ -34,24 +34,10 @@ static struct mt753x_pcs *pcs_to_mt753x_pcs(struct phylink_pcs *pcs)
 static const struct mt7530_mib_desc mt7530_mib[] = {
 	MIB_DESC(1, 0x00, "TxDrop"),
 	MIB_DESC(1, 0x04, "TxCrcErr"),
-	MIB_DESC(1, 0x08, "TxUnicast"),
-	MIB_DESC(1, 0x0c, "TxMulticast"),
-	MIB_DESC(1, 0x10, "TxBroadcast"),
 	MIB_DESC(1, 0x14, "TxCollision"),
-	MIB_DESC(1, 0x18, "TxSingleCollision"),
-	MIB_DESC(1, 0x1c, "TxMultipleCollision"),
-	MIB_DESC(1, 0x20, "TxDeferred"),
-	MIB_DESC(1, 0x24, "TxLateCollision"),
-	MIB_DESC(1, 0x28, "TxExcessiveCollistion"),
-	MIB_DESC(2, 0x48, "TxBytes"),
 	MIB_DESC(1, 0x60, "RxDrop"),
 	MIB_DESC(1, 0x64, "RxFiltering"),
-	MIB_DESC(1, 0x68, "RxUnicast"),
-	MIB_DESC(1, 0x6c, "RxMulticast"),
-	MIB_DESC(1, 0x70, "RxBroadcast"),
-	MIB_DESC(1, 0x74, "RxAlignErr"),
 	MIB_DESC(1, 0x78, "RxCrcErr"),
-	MIB_DESC(2, 0xa8, "RxBytes"),
 	MIB_DESC(1, 0xb0, "RxCtrlDrop"),
 	MIB_DESC(1, 0xb4, "RxIngressDrop"),
 	MIB_DESC(1, 0xb8, "RxArlDrop"),
@@ -809,6 +795,61 @@ mt7530_get_sset_count(struct dsa_switch *ds, int port, int sset)
 		return 0;
 
 	return ARRAY_SIZE(mt7530_mib);
+}
+
+static void mt7530_get_eth_mac_stats(struct dsa_switch *ds, int port,
+				     struct ethtool_eth_mac_stats *mac_stats)
+{
+	struct mt7530_priv *priv = ds->priv;
+
+	/* MIB counter doesn't provide a FramesTransmittedOK but instead
+	 * provide stats for Unicast, Broadcast and Multicast frames separately.
+	 * To simulate a global frame counter, read Unicast and addition Multicast
+	 * and Broadcast later
+	 */
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_UNICAST, 1,
+			       &mac_stats->FramesTransmittedOK);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_SINGLE_COLLISION, 1,
+			       &mac_stats->SingleCollisionFrames);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_MULTIPLE_COLLISION, 1,
+			       &mac_stats->MultipleCollisionFrames);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_UNICAST, 1,
+			       &mac_stats->FramesReceivedOK);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_BYTES, 2,
+			       &mac_stats->OctetsTransmittedOK);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_ALIGN_ERR, 1,
+			       &mac_stats->AlignmentErrors);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_DEFERRED, 1,
+			       &mac_stats->FramesWithDeferredXmissions);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_LATE_COLLISION, 1,
+			       &mac_stats->LateCollisions);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_EXCESSIVE_COLLISION, 1,
+			       &mac_stats->FramesAbortedDueToXSColls);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_BYTES, 2,
+			       &mac_stats->OctetsReceivedOK);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_MULTICAST, 1,
+			       &mac_stats->MulticastFramesXmittedOK);
+	mac_stats->FramesTransmittedOK += mac_stats->MulticastFramesXmittedOK;
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_BROADCAST, 1,
+			       &mac_stats->BroadcastFramesXmittedOK);
+	mac_stats->FramesTransmittedOK += mac_stats->BroadcastFramesXmittedOK;
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_MULTICAST, 1,
+			       &mac_stats->MulticastFramesReceivedOK);
+	mac_stats->FramesReceivedOK += mac_stats->MulticastFramesReceivedOK;
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_BROADCAST, 1,
+			       &mac_stats->BroadcastFramesReceivedOK);
+	mac_stats->FramesReceivedOK += mac_stats->BroadcastFramesReceivedOK;
 }
 
 static const struct ethtool_rmon_hist_range mt7530_rmon_ranges[] = {
@@ -3163,6 +3204,7 @@ const struct dsa_switch_ops mt7530_switch_ops = {
 	.get_strings		= mt7530_get_strings,
 	.get_ethtool_stats	= mt7530_get_ethtool_stats,
 	.get_sset_count		= mt7530_get_sset_count,
+	.get_eth_mac_stats	= mt7530_get_eth_mac_stats,
 	.get_rmon_stats		= mt7530_get_rmon_stats,
 	.get_eth_ctrl_stats	= mt7530_get_eth_ctrl_stats,
 	.set_ageing_time	= mt7530_set_ageing_time,
