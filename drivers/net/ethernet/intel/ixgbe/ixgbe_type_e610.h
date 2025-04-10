@@ -10,7 +10,32 @@
 #define IXGBE_MAX_VSI			768
 
 /* Checksum and Shadow RAM pointers */
-#define E610_SR_SW_CHECKSUM_WORD		0x3F
+#define IXGBE_E610_SR_NVM_CTRL_WORD		0x00
+#define IXGBE_E610_SR_PBA_BLOCK_PTR		0x16
+#define IXGBE_E610_SR_NVM_DEV_STARTER_VER	0x18
+#define IXGBE_E610_SR_NVM_EETRACK_LO		0x2D
+#define IXGBE_E610_SR_NVM_EETRACK_HI		0x2E
+#define IXGBE_E610_NVM_VER_LO_MASK		GENMASK(7, 0)
+#define IXGBE_E610_NVM_VER_HI_MASK		GENMASK(15, 12)
+#define IXGBE_E610_SR_SW_CHECKSUM_WORD		0x3F
+#define IXGBE_E610_SR_PFA_PTR			0x40
+#define IXGBE_E610_SR_1ST_NVM_BANK_PTR		0x42
+#define IXGBE_E610_SR_NVM_BANK_SIZE		0x43
+#define IXGBE_E610_SR_1ST_OROM_BANK_PTR		0x44
+#define IXGBE_E610_SR_OROM_BANK_SIZE		0x45
+#define IXGBE_E610_SR_NETLIST_BANK_PTR		0x46
+#define IXGBE_E610_SR_NETLIST_BANK_SIZE		0x47
+
+/* CSS Header words */
+#define IXGBE_NVM_CSS_HDR_LEN_L			0x02
+#define IXGBE_NVM_CSS_HDR_LEN_H			0x03
+#define IXGBE_NVM_CSS_SREV_L			0x14
+#define IXGBE_NVM_CSS_SREV_H			0x15
+
+#define IXGBE_HDR_LEN_ROUNDUP			32
+
+/* Length of Authentication header section in words */
+#define IXGBE_NVM_AUTH_HEADER_LEN		0x08
 
 /* Shadow RAM related */
 #define IXGBE_SR_WORDS_IN_1KB	512
@@ -28,6 +53,14 @@
 #define IXGBE_GLNVM_FLA			0x000B6108 /* Reset Source: POR */
 #define IXGBE_GLNVM_FLA_LOCKED_S	6
 #define IXGBE_GLNVM_FLA_LOCKED_M	BIT(6)
+
+/* Auxiliary field, mask and shift definition for Shadow RAM and NVM Flash */
+#define IXGBE_SR_CTRL_WORD_1_M		GENMASK(7, 6)
+#define IXGBE_SR_CTRL_WORD_VALID	BIT(0)
+#define IXGBE_SR_CTRL_WORD_OROM_BANK	BIT(3)
+#define IXGBE_SR_CTRL_WORD_NETLIST_BANK	BIT(4)
+#define IXGBE_SR_CTRL_WORD_NVM_BANK	BIT(5)
+#define IXGBE_SR_NVM_PTR_4KB_UNITS	BIT(15)
 
 /* Admin Command Interface (ACI) registers */
 #define IXGBE_PF_HIDA(_i)			(0x00085000 + ((_i) * 4))
@@ -1013,6 +1046,11 @@ struct ixgbe_aci_event {
 struct ixgbe_aci_info {
 	struct mutex lock;		/* admin command interface lock */
 	enum ixgbe_aci_err last_status;	/* last status of sent admin command */
+};
+
+enum ixgbe_bank_select {
+	IXGBE_ACTIVE_FLASH_BANK,
+	IXGBE_INACTIVE_FLASH_BANK,
 };
 
 /* Option ROM version information */

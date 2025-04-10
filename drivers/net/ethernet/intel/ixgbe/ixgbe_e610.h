@@ -77,5 +77,6 @@ int ixgbe_read_ee_aci_buffer_e610(struct ixgbe_hw *hw, u16 offset,
 				  u16 words, u16 *data);
 int ixgbe_validate_eeprom_checksum_e610(struct ixgbe_hw *hw, u16 *checksum_val);
 int ixgbe_reset_hw_e610(struct ixgbe_hw *hw);
+int ixgbe_get_flash_data(struct ixgbe_hw *hw);
 
 #endif /* _IXGBE_E610_H_ */

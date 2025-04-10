@@ -2267,6 +2267,511 @@ int ixgbe_nvm_validate_checksum(struct ixgbe_hw *hw)
 }
 
 /**
+ * ixgbe_discover_flash_size - Discover the available flash size
+ * @hw: pointer to the HW struct
+ *
+ * The device flash could be up to 16MB in size. However, it is possible that
+ * the actual size is smaller. Use bisection to determine the accessible size
+ * of flash memory.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_discover_flash_size(struct ixgbe_hw *hw)
+{
+	u32 min_size = 0, max_size = IXGBE_ACI_NVM_MAX_OFFSET + 1;
+	int err;
+
+	err = ixgbe_acquire_nvm(hw, IXGBE_RES_READ);
+	if (err)
+		return err;
+
+	while ((max_size - min_size) > 1) {
+		u32 offset = (max_size + min_size) / 2;
+		u32 len = 1;
+		u8 data;
+
+		err = ixgbe_read_flat_nvm(hw, offset, &len, &data, false);
+		if (err == -EIO &&
+		    hw->aci.last_status == IXGBE_ACI_RC_EINVAL) {
+			err = 0;
+			max_size = offset;
+		} else if (!err) {
+			min_size = offset;
+		} else {
+			/* an unexpected error occurred */
+			goto err_read_flat_nvm;
+		}
+	}
+
+	hw->flash.flash_size = max_size;
+
+err_read_flat_nvm:
+	ixgbe_release_nvm(hw);
+
+	return err;
+}
+
+/**
+ * ixgbe_read_sr_base_address - Read the value of a Shadow RAM pointer word
+ * @hw: pointer to the HW structure
+ * @offset: the word offset of the Shadow RAM word to read
+ * @pointer: pointer value read from Shadow RAM
+ *
+ * Read the given Shadow RAM word, and convert it to a pointer value specified
+ * in bytes. This function assumes the specified offset is a valid pointer
+ * word.
+ *
+ * Each pointer word specifies whether it is stored in word size or 4KB
+ * sector size by using the highest bit. The reported pointer value will be in
+ * bytes, intended for flat NVM reads.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_read_sr_base_address(struct ixgbe_hw *hw, u16 offset,
+				      u32 *pointer)
+{
+	u16 value;
+	int err;
+
+	err = ixgbe_read_ee_aci_e610(hw, offset, &value);
+	if (err)
+		return err;
+
+	/* Determine if the pointer is in 4KB or word units */
+	if (value & IXGBE_SR_NVM_PTR_4KB_UNITS)
+		*pointer = (value & ~IXGBE_SR_NVM_PTR_4KB_UNITS) * SZ_4K;
+	else
+		*pointer = value * sizeof(u16);
+
+	return 0;
+}
+
+/**
+ * ixgbe_read_sr_area_size - Read an area size from a Shadow RAM word
+ * @hw: pointer to the HW structure
+ * @offset: the word offset of the Shadow RAM to read
+ * @size: size value read from the Shadow RAM
+ *
+ * Read the given Shadow RAM word, and convert it to an area size value
+ * specified in bytes. This function assumes the specified offset is a valid
+ * area size word.
+ *
+ * Each area size word is specified in 4KB sector units. This function reports
+ * the size in bytes, intended for flat NVM reads.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_read_sr_area_size(struct ixgbe_hw *hw, u16 offset, u32 *size)
+{
+	u16 value;
+	int err;
+
+	err = ixgbe_read_ee_aci_e610(hw, offset, &value);
+	if (err)
+		return err;
+
+	/* Area sizes are always specified in 4KB units */
+	*size = value * SZ_4K;
+
+	return 0;
+}
+
+/**
+ * ixgbe_determine_active_flash_banks - Discover active bank for each module
+ * @hw: pointer to the HW struct
+ *
+ * Read the Shadow RAM control word and determine which banks are active for
+ * the NVM, OROM, and Netlist modules. Also read and calculate the associated
+ * pointer and size. These values are then cached into the ixgbe_flash_info
+ * structure for later use in order to calculate the correct offset to read
+ * from the active module.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_determine_active_flash_banks(struct ixgbe_hw *hw)
+{
+	struct ixgbe_bank_info *banks = &hw->flash.banks;
+	u16 ctrl_word;
+	int err;
+
+	err = ixgbe_read_ee_aci_e610(hw, IXGBE_E610_SR_NVM_CTRL_WORD,
+				     &ctrl_word);
+	if (err)
+		return err;
+
+	if (FIELD_GET(IXGBE_SR_CTRL_WORD_1_M, ctrl_word) !=
+	    IXGBE_SR_CTRL_WORD_VALID)
+		return -ENODATA;
+
+	if (!(ctrl_word & IXGBE_SR_CTRL_WORD_NVM_BANK))
+		banks->nvm_bank = IXGBE_1ST_FLASH_BANK;
+	else
+		banks->nvm_bank = IXGBE_2ND_FLASH_BANK;
+
+	if (!(ctrl_word & IXGBE_SR_CTRL_WORD_OROM_BANK))
+		banks->orom_bank = IXGBE_1ST_FLASH_BANK;
+	else
+		banks->orom_bank = IXGBE_2ND_FLASH_BANK;
+
+	if (!(ctrl_word & IXGBE_SR_CTRL_WORD_NETLIST_BANK))
+		banks->netlist_bank = IXGBE_1ST_FLASH_BANK;
+	else
+		banks->netlist_bank = IXGBE_2ND_FLASH_BANK;
+
+	err = ixgbe_read_sr_base_address(hw, IXGBE_E610_SR_1ST_NVM_BANK_PTR,
+					 &banks->nvm_ptr);
+	if (err)
+		return err;
+
+	err = ixgbe_read_sr_area_size(hw, IXGBE_E610_SR_NVM_BANK_SIZE,
+				      &banks->nvm_size);
+	if (err)
+		return err;
+
+	err = ixgbe_read_sr_base_address(hw, IXGBE_E610_SR_1ST_OROM_BANK_PTR,
+					 &banks->orom_ptr);
+	if (err)
+		return err;
+
+	err = ixgbe_read_sr_area_size(hw, IXGBE_E610_SR_OROM_BANK_SIZE,
+				      &banks->orom_size);
+	if (err)
+		return err;
+
+	err = ixgbe_read_sr_base_address(hw, IXGBE_E610_SR_NETLIST_BANK_PTR,
+					 &banks->netlist_ptr);
+	if (err)
+		return err;
+
+	err = ixgbe_read_sr_area_size(hw, IXGBE_E610_SR_NETLIST_BANK_SIZE,
+				      &banks->netlist_size);
+
+	return err;
+}
+
+/**
+ * ixgbe_get_flash_bank_offset - Get offset into requested flash bank
+ * @hw: pointer to the HW structure
+ * @bank: whether to read from the active or inactive flash bank
+ * @module: the module to read from
+ *
+ * Based on the module, lookup the module offset from the beginning of the
+ * flash.
+ *
+ * Return: the flash offset. Note that a value of zero is invalid and must be
+ * treated as an error.
+ */
+static int ixgbe_get_flash_bank_offset(struct ixgbe_hw *hw,
+				       enum ixgbe_bank_select bank,
+				       u16 module)
+{
+	struct ixgbe_bank_info *banks = &hw->flash.banks;
+	enum ixgbe_flash_bank active_bank;
+	bool second_bank_active;
+	u32 offset, size;
+
+	switch (module) {
+	case IXGBE_E610_SR_1ST_NVM_BANK_PTR:
+		offset = banks->nvm_ptr;
+		size = banks->nvm_size;
+		active_bank = banks->nvm_bank;
+		break;
+	case IXGBE_E610_SR_1ST_OROM_BANK_PTR:
+		offset = banks->orom_ptr;
+		size = banks->orom_size;
+		active_bank = banks->orom_bank;
+		break;
+	case IXGBE_E610_SR_NETLIST_BANK_PTR:
+		offset = banks->netlist_ptr;
+		size = banks->netlist_size;
+		active_bank = banks->netlist_bank;
+		break;
+	default:
+		return 0;
+	}
+
+	switch (active_bank) {
+	case IXGBE_1ST_FLASH_BANK:
+		second_bank_active = false;
+		break;
+	case IXGBE_2ND_FLASH_BANK:
+		second_bank_active = true;
+		break;
+	default:
+		return 0;
+	}
+
+	/* The second flash bank is stored immediately following the first
+	 * bank. Based on whether the 1st or 2nd bank is active, and whether
+	 * we want the active or inactive bank, calculate the desired offset.
+	 */
+	switch (bank) {
+	case IXGBE_ACTIVE_FLASH_BANK:
+		return offset + (second_bank_active ? size : 0);
+	case IXGBE_INACTIVE_FLASH_BANK:
+		return offset + (second_bank_active ? 0 : size);
+	}
+
+	return 0;
+}
+
+/**
+ * ixgbe_read_flash_module - Read a word from one of the main NVM modules
+ * @hw: pointer to the HW structure
+ * @bank: which bank of the module to read
+ * @module: the module to read
+ * @offset: the offset into the module in bytes
+ * @data: storage for the word read from the flash
+ * @length: bytes of data to read
+ *
+ * Read data from the specified flash module. The bank parameter indicates
+ * whether or not to read from the active bank or the inactive bank of that
+ * module.
+ *
+ * The word will be read using flat NVM access, and relies on the
+ * hw->flash.banks data being setup by ixgbe_determine_active_flash_banks()
+ * during initialization.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_read_flash_module(struct ixgbe_hw *hw,
+				   enum ixgbe_bank_select bank,
+				   u16 module, u32 offset, u8 *data, u32 length)
+{
+	u32 start;
+	int err;
+
+	start = ixgbe_get_flash_bank_offset(hw, bank, module);
+	if (!start)
+		return -EINVAL;
+
+	err = ixgbe_acquire_nvm(hw, IXGBE_RES_READ);
+	if (err)
+		return err;
+
+	err = ixgbe_read_flat_nvm(hw, start + offset, &length, data, false);
+
+	ixgbe_release_nvm(hw);
+
+	return err;
+}
+
+/**
+ * ixgbe_read_nvm_module - Read from the active main NVM module
+ * @hw: pointer to the HW structure
+ * @bank: whether to read from active or inactive NVM module
+ * @offset: offset into the NVM module to read, in words
+ * @data: storage for returned word value
+ *
+ * Read the specified word from the active NVM module. This includes the CSS
+ * header at the start of the NVM module.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_read_nvm_module(struct ixgbe_hw *hw,
+				 enum ixgbe_bank_select bank,
+				 u32 offset, u16 *data)
+{
+	__le16 data_local;
+	int err;
+
+	err = ixgbe_read_flash_module(hw, bank, IXGBE_E610_SR_1ST_NVM_BANK_PTR,
+				      offset * sizeof(data_local),
+				      (u8 *)&data_local,
+				      sizeof(data_local));
+	if (!err)
+		*data = le16_to_cpu(data_local);
+
+	return err;
+}
+
+/**
+ * ixgbe_get_nvm_css_hdr_len - Read the CSS header length
+ * @hw: pointer to the HW struct
+ * @bank: whether to read from the active or inactive flash bank
+ * @hdr_len: storage for header length in words
+ *
+ * Read the CSS header length from the NVM CSS header and add the
+ * Authentication header size, and then convert to words.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_get_nvm_css_hdr_len(struct ixgbe_hw *hw,
+				     enum ixgbe_bank_select bank,
+				     u32 *hdr_len)
+{
+	u16 hdr_len_l, hdr_len_h;
+	u32 hdr_len_dword;
+	int err;
+
+	err = ixgbe_read_nvm_module(hw, bank, IXGBE_NVM_CSS_HDR_LEN_L,
+				    &hdr_len_l);
+	if (err)
+		return err;
+
+	err = ixgbe_read_nvm_module(hw, bank, IXGBE_NVM_CSS_HDR_LEN_H,
+				    &hdr_len_h);
+	if (err)
+		return err;
+
+	/* CSS header length is in DWORD, so convert to words and add
+	 * authentication header size.
+	 */
+	hdr_len_dword = (hdr_len_h << 16) | hdr_len_l;
+	*hdr_len = hdr_len_dword * 2 + IXGBE_NVM_AUTH_HEADER_LEN;
+
+	return 0;
+}
+
+/**
+ * ixgbe_read_nvm_sr_copy - Read a word from the Shadow RAM copy
+ * @hw: pointer to the HW structure
+ * @bank: whether to read from the active or inactive NVM module
+ * @offset: offset into the Shadow RAM copy to read, in words
+ * @data: storage for returned word value
+ *
+ * Read the specified word from the copy of the Shadow RAM found in the
+ * specified NVM module.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_read_nvm_sr_copy(struct ixgbe_hw *hw,
+				  enum ixgbe_bank_select bank,
+				  u32 offset, u16 *data)
+{
+	u32 hdr_len;
+	int err;
+
+	err = ixgbe_get_nvm_css_hdr_len(hw, bank, &hdr_len);
+	if (err)
+		return err;
+
+	hdr_len = round_up(hdr_len, IXGBE_HDR_LEN_ROUNDUP);
+
+	return ixgbe_read_nvm_module(hw, bank, hdr_len + offset, data);
+}
+
+/**
+ * ixgbe_get_nvm_srev - Read the security revision from the NVM CSS header
+ * @hw: pointer to the HW struct
+ * @bank: whether to read from the active or inactive flash bank
+ * @srev: storage for security revision
+ *
+ * Read the security revision out of the CSS header of the active NVM module
+ * bank.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_get_nvm_srev(struct ixgbe_hw *hw,
+			      enum ixgbe_bank_select bank, u32 *srev)
+{
+	u16 srev_l, srev_h;
+	int err;
+
+	err = ixgbe_read_nvm_module(hw, bank, IXGBE_NVM_CSS_SREV_L, &srev_l);
+	if (err)
+		return err;
+
+	err = ixgbe_read_nvm_module(hw, bank, IXGBE_NVM_CSS_SREV_H, &srev_h);
+	if (err)
+		return err;
+
+	*srev = (srev_h << 16) | srev_l;
+
+	return 0;
+}
+
+/**
+ * ixgbe_get_nvm_ver_info - Read NVM version information
+ * @hw: pointer to the HW struct
+ * @bank: whether to read from the active or inactive flash bank
+ * @nvm: pointer to NVM info structure
+ *
+ * Read the NVM EETRACK ID and map version of the main NVM image bank, filling
+ * in the nvm info structure.
+ *
+ * Return: the exit code of the operation.
+ */
+static int ixgbe_get_nvm_ver_info(struct ixgbe_hw *hw,
+				  enum ixgbe_bank_select bank,
+				  struct ixgbe_nvm_info *nvm)
+{
+	u16 eetrack_lo, eetrack_hi, ver;
+	int err;
+
+	err = ixgbe_read_nvm_sr_copy(hw, bank,
+				     IXGBE_E610_SR_NVM_DEV_STARTER_VER, &ver);
+	if (err)
+		return err;
+
+	nvm->major = FIELD_GET(IXGBE_E610_NVM_VER_HI_MASK, ver);
+	nvm->minor = FIELD_GET(IXGBE_E610_NVM_VER_LO_MASK, ver);
+
+	err = ixgbe_read_nvm_sr_copy(hw, bank, IXGBE_E610_SR_NVM_EETRACK_LO,
+				     &eetrack_lo);
+	if (err)
+		return err;
+
+	err = ixgbe_read_nvm_sr_copy(hw, bank, IXGBE_E610_SR_NVM_EETRACK_HI,
+				     &eetrack_hi);
+	if (err)
+		return err;
+
+	nvm->eetrack = (eetrack_hi << 16) | eetrack_lo;
+
+	ixgbe_get_nvm_srev(hw, bank, &nvm->srev);
+
+	return 0;
+}
+
+/**
+ * ixgbe_get_flash_data - get flash data
+ * @hw: pointer to the HW struct
+ *
+ * Read and populate flash data such as Shadow RAM size,
+ * max_timeout and blank_nvm_mode
+ *
+ * Return: the exit code of the operation.
+ */
+int ixgbe_get_flash_data(struct ixgbe_hw *hw)
+{
+	struct ixgbe_flash_info *flash = &hw->flash;
+	u32 fla, gens_stat;
+	u8 sr_size;
+	int err;
+
+	/* The SR size is stored regardless of the NVM programming mode
+	 * as the blank mode may be used in the factory line.
+	 */
+	gens_stat = IXGBE_READ_REG(hw, GLNVM_GENS);
+	sr_size = FIELD_GET(GLNVM_GENS_SR_SIZE_M, gens_stat);
+
+	/* Switching to words (sr_size contains power of 2) */
+	flash->sr_words = BIT(sr_size) * (SZ_1K / sizeof(u16));
+
+	/* Check if we are in the normal or blank NVM programming mode */
+	fla = IXGBE_READ_REG(hw, IXGBE_GLNVM_FLA);
+	if (fla & IXGBE_GLNVM_FLA_LOCKED_M) {
+		flash->blank_nvm_mode = false;
+	} else {
+		flash->blank_nvm_mode = true;
+		return -EIO;
+	}
+
+	err = ixgbe_discover_flash_size(hw);
+	if (err)
+		return err;
+
+	err = ixgbe_determine_active_flash_banks(hw);
+	if (err)
+		return err;
+
+	err = ixgbe_get_nvm_ver_info(hw, IXGBE_ACTIVE_FLASH_BANK,
+				     &flash->nvm);
+	return err;
+}
+
+/**
  * ixgbe_read_sr_word_aci - Reads Shadow RAM via ACI
  * @hw: pointer to the HW structure
  * @offset: offset of the Shadow RAM word to read (0x000000 - 0x001FFF)
@@ -2485,7 +2990,7 @@ int ixgbe_validate_eeprom_checksum_e610(struct ixgbe_hw *hw, u16 *checksum_val)
 		if (err)
 			return err;
 
-		err = ixgbe_read_sr_word_aci(hw, E610_SR_SW_CHECKSUM_WORD,
+		err = ixgbe_read_sr_word_aci(hw, IXGBE_E610_SR_SW_CHECKSUM_WORD,
 					     &tmp_checksum);
 		ixgbe_release_nvm(hw);
 

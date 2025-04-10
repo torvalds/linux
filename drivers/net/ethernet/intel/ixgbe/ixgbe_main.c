@@ -11339,6 +11339,10 @@ static int ixgbe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = ixgbe_get_caps(&adapter->hw);
 		if (err)
 			dev_err(&pdev->dev, "ixgbe_get_caps failed %d\n", err);
+
+		err = ixgbe_get_flash_data(&adapter->hw);
+		if (err)
+			goto err_sw_init;
 	}
 
 	if (adapter->hw.mac.type == ixgbe_mac_82599EB)
