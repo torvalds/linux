@@ -175,9 +175,8 @@ struct inet_hashinfo {
 	bool				pernet;
 } ____cacheline_aligned_in_smp;
 
-static inline struct inet_hashinfo *tcp_or_dccp_get_hashinfo(const struct sock *sk)
+static inline struct inet_hashinfo *tcp_get_hashinfo(const struct sock *sk)
 {
-	/* TODO: rename function */
 	return sock_net(sk)->ipv4.tcp_death_row.hashinfo;
 }
 
