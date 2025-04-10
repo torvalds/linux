@@ -2549,31 +2549,6 @@ EXPORT_SYMBOL_GPL(cpufreq_unregister_governor);
  *                          POLICY INTERFACE                         *
  *********************************************************************/
 
-/**
- * cpufreq_get_policy - get the current cpufreq_policy
- * @policy: struct cpufreq_policy into which the current cpufreq_policy
- *	is written
- * @cpu: CPU to find the policy for
- *
- * Reads the current cpufreq policy.
- */
-int cpufreq_get_policy(struct cpufreq_policy *policy, unsigned int cpu)
-{
-	struct cpufreq_policy *cpu_policy __free(put_cpufreq_policy);
-
-	if (!policy)
-		return -EINVAL;
-
-	cpu_policy = cpufreq_cpu_get(cpu);
-	if (!cpu_policy)
-		return -EINVAL;
-
-	memcpy(policy, cpu_policy, sizeof(*policy));
-
-	return 0;
-}
-EXPORT_SYMBOL(cpufreq_get_policy);
-
 DEFINE_PER_CPU(unsigned long, cpufreq_pressure);
 
 /**
