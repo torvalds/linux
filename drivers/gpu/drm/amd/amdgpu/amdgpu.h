@@ -1249,6 +1249,7 @@ struct amdgpu_device {
 
 	struct list_head		userq_mgr_list;
 	struct mutex                    userq_mutex;
+	bool                            userq_halt_for_enforce_isolation;
 };
 
 static inline uint32_t amdgpu_ip_version(const struct amdgpu_device *adev,

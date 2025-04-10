@@ -115,4 +115,9 @@ uint64_t amdgpu_userqueue_get_doorbell_index(struct amdgpu_userq_mgr *uq_mgr,
 int amdgpu_userq_suspend(struct amdgpu_device *adev);
 int amdgpu_userq_resume(struct amdgpu_device *adev);
 
+int amdgpu_userq_stop_sched_for_enforce_isolation(struct amdgpu_device *adev,
+						  u32 idx);
+int amdgpu_userq_start_sched_for_enforce_isolation(struct amdgpu_device *adev,
+						   u32 idx);
+
 #endif
