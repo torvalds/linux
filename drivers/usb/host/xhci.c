@@ -1605,11 +1605,6 @@ static int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flag
 		goto free_priv;
 	}
 
-	/* Class driver might not be aware ep halted due to async URB giveback */
-	if (*ep_state & EP_STALLED)
-		dev_dbg(&urb->dev->dev, "URB %p queued before clearing halt\n",
-			urb);
-
 	switch (usb_endpoint_type(&urb->ep->desc)) {
 
 	case USB_ENDPOINT_XFER_CONTROL:
@@ -3208,7 +3203,6 @@ static void xhci_endpoint_reset(struct usb_hcd *hcd,
 		return;
 
 	ep = &vdev->eps[ep_index];
-	ep->ep_state &= ~EP_STALLED;
 
 	/* Bail out if toggle is already being cleared by a endpoint reset */
 	spin_lock_irqsave(&xhci->lock, flags);

@@ -664,7 +664,7 @@ struct xhci_virt_ep {
 	unsigned int			err_count;
 	unsigned int			ep_state;
 #define SET_DEQ_PENDING		(1 << 0)
-#define EP_HALTED		(1 << 1)	/* Halted host ep handling */
+#define EP_HALTED		(1 << 1)	/* For stall handling */
 #define EP_STOP_CMD_PENDING	(1 << 2)	/* For URB cancellation */
 /* Transitioning the endpoint to using streams, don't enqueue URBs */
 #define EP_GETTING_STREAMS	(1 << 3)
@@ -675,7 +675,6 @@ struct xhci_virt_ep {
 #define EP_SOFT_CLEAR_TOGGLE	(1 << 7)
 /* usb_hub_clear_tt_buffer is in progress */
 #define EP_CLEARING_TT		(1 << 8)
-#define EP_STALLED		(1 << 9)	/* For stall handling */
 	/* ----  Related to URB cancellation ---- */
 	struct list_head	cancelled_td_list;
 	struct xhci_hcd		*xhci;
