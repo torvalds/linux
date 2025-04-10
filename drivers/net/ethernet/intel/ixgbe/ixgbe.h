@@ -830,6 +830,11 @@ struct ixgbe_adapter {
 	spinlock_t vfs_lock;
 };
 
+static inline struct ixgbe_adapter *ixgbe_from_netdev(struct net_device *netdev)
+{
+	return netdev_priv(netdev);
+}
+
 static inline int ixgbe_determine_xdp_q_idx(int cpu)
 {
 	if (static_key_enabled(&ixgbe_xdp_locking_key))
