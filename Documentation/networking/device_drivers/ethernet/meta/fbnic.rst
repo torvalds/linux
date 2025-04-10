@@ -44,6 +44,15 @@ RPC (Rx parser)
  - ``rpc_out_of_hdr_err``: frames where header was larger than parsable region
  - ``ovr_size_err``: oversized frames
 
+Hardware Queues
+~~~~~~~~~~~~~~~
+
+1. RX DMA Engine:
+
+ - ``rde_[i]_pkt_err``: packets with MAC EOP, RPC parser, RXB truncation, or RDE frame truncation errors. These error are flagged in the packet metadata because of cut-through support but the actual drop happens once PCIE/RDE is reached.
+ - ``rde_[i]_pkt_cq_drop``: packets dropped because RCQ is full
+ - ``rde_[i]_pkt_bdq_drop``: packets dropped because HPQ or PPQ ran out of host buffer
+
 PCIe
 ~~~~
 

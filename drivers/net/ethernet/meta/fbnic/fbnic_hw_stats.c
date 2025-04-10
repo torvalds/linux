@@ -117,6 +117,54 @@ static void fbnic_get_rpc_stats32(struct fbnic_dev *fbd,
 			   &rpc->ovr_size_err);
 }
 
+static void fbnic_reset_hw_rxq_stats(struct fbnic_dev *fbd,
+				     struct fbnic_hw_q_stats *hw_q)
+{
+	int i;
+
+	for (i = 0; i < fbd->max_num_queues; i++, hw_q++) {
+		u32 base = FBNIC_QUEUE(i);
+
+		fbnic_hw_stat_rst32(fbd,
+				    base + FBNIC_QUEUE_RDE_PKT_ERR_CNT,
+				    &hw_q->rde_pkt_err);
+		fbnic_hw_stat_rst32(fbd,
+				    base + FBNIC_QUEUE_RDE_CQ_DROP_CNT,
+				    &hw_q->rde_pkt_cq_drop);
+		fbnic_hw_stat_rst32(fbd,
+				    base + FBNIC_QUEUE_RDE_BDQ_DROP_CNT,
+				    &hw_q->rde_pkt_bdq_drop);
+	}
+}
+
+static void fbnic_get_hw_rxq_stats32(struct fbnic_dev *fbd,
+				     struct fbnic_hw_q_stats *hw_q)
+{
+	int i;
+
+	for (i = 0; i < fbd->max_num_queues; i++, hw_q++) {
+		u32 base = FBNIC_QUEUE(i);
+
+		fbnic_hw_stat_rd32(fbd,
+				   base + FBNIC_QUEUE_RDE_PKT_ERR_CNT,
+				   &hw_q->rde_pkt_err);
+		fbnic_hw_stat_rd32(fbd,
+				   base + FBNIC_QUEUE_RDE_CQ_DROP_CNT,
+				   &hw_q->rde_pkt_cq_drop);
+		fbnic_hw_stat_rd32(fbd,
+				   base + FBNIC_QUEUE_RDE_BDQ_DROP_CNT,
+				   &hw_q->rde_pkt_bdq_drop);
+	}
+}
+
+void fbnic_get_hw_q_stats(struct fbnic_dev *fbd,
+			  struct fbnic_hw_q_stats *hw_q)
+{
+	spin_lock(&fbd->hw_stats_lock);
+	fbnic_get_hw_rxq_stats32(fbd, hw_q);
+	spin_unlock(&fbd->hw_stats_lock);
+}
+
 static void fbnic_reset_pcie_stats_asic(struct fbnic_dev *fbd,
 					struct fbnic_pcie_stats *pcie)
 {
@@ -205,6 +253,7 @@ void fbnic_reset_hw_stats(struct fbnic_dev *fbd)
 {
 	spin_lock(&fbd->hw_stats_lock);
 	fbnic_reset_rpc_stats(fbd, &fbd->hw_stats.rpc);
+	fbnic_reset_hw_rxq_stats(fbd, fbd->hw_stats.hw_q);
 	fbnic_reset_pcie_stats_asic(fbd, &fbd->hw_stats.pcie);
 	spin_unlock(&fbd->hw_stats_lock);
 }
@@ -212,6 +261,7 @@ void fbnic_reset_hw_stats(struct fbnic_dev *fbd)
 static void __fbnic_get_hw_stats32(struct fbnic_dev *fbd)
 {
 	fbnic_get_rpc_stats32(fbd, &fbd->hw_stats.rpc);
+	fbnic_get_hw_rxq_stats32(fbd, fbd->hw_stats.hw_q);
 }
 
 void fbnic_get_hw_stats32(struct fbnic_dev *fbd)

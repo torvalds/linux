@@ -39,7 +39,20 @@ static const struct fbnic_stat fbnic_gstrings_hw_stats[] = {
 };
 
 #define FBNIC_HW_FIXED_STATS_LEN ARRAY_SIZE(fbnic_gstrings_hw_stats)
-#define FBNIC_HW_STATS_LEN	FBNIC_HW_FIXED_STATS_LEN
+
+#define FBNIC_HW_Q_STAT(name, stat) \
+	FBNIC_STAT_FIELDS(fbnic_hw_q_stats, name, stat.value)
+
+static const struct fbnic_stat fbnic_gstrings_hw_q_stats[] = {
+	FBNIC_HW_Q_STAT("rde_%u_pkt_err", rde_pkt_err),
+	FBNIC_HW_Q_STAT("rde_%u_pkt_cq_drop", rde_pkt_cq_drop),
+	FBNIC_HW_Q_STAT("rde_%u_pkt_bdq_drop", rde_pkt_bdq_drop),
+};
+
+#define FBNIC_HW_Q_STATS_LEN ARRAY_SIZE(fbnic_gstrings_hw_q_stats)
+#define FBNIC_HW_STATS_LEN \
+	(FBNIC_HW_FIXED_STATS_LEN + \
+	 FBNIC_HW_Q_STATS_LEN * FBNIC_MAX_QUEUES)
 
 static void
 fbnic_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
@@ -300,13 +313,34 @@ err_free_clone:
 
 static void fbnic_get_strings(struct net_device *dev, u32 sset, u8 *data)
 {
-	int i;
+	const struct fbnic_stat *stat;
+	int i, idx;
 
 	switch (sset) {
 	case ETH_SS_STATS:
-		for (i = 0; i < FBNIC_HW_STATS_LEN; i++)
+		for (i = 0; i < FBNIC_HW_FIXED_STATS_LEN; i++)
 			ethtool_puts(&data, fbnic_gstrings_hw_stats[i].string);
+
+		for (idx = 0; idx < FBNIC_MAX_QUEUES; idx++) {
+			stat = fbnic_gstrings_hw_q_stats;
+
+			for (i = 0; i < FBNIC_HW_Q_STATS_LEN; i++, stat++)
+				ethtool_sprintf(&data, stat->string, idx);
+		}
 		break;
+	}
+}
+
+static void fbnic_report_hw_stats(const struct fbnic_stat *stat,
+				  const void *base, int len, u64 **data)
+{
+	while (len--) {
+		u8 *curr = (u8 *)base + stat->offset;
+
+		**data = *(u64 *)curr;
+
+		stat++;
+		(*data)++;
 	}
 }
 
@@ -314,15 +348,22 @@ static void fbnic_get_ethtool_stats(struct net_device *dev,
 				    struct ethtool_stats *stats, u64 *data)
 {
 	struct fbnic_net *fbn = netdev_priv(dev);
-	const struct fbnic_stat *stat;
+	struct fbnic_dev *fbd = fbn->fbd;
 	int i;
 
 	fbnic_get_hw_stats(fbn->fbd);
 
-	for (i = 0; i < FBNIC_HW_STATS_LEN; i++) {
-		stat = &fbnic_gstrings_hw_stats[i];
-		data[i] = *(u64 *)((u8 *)&fbn->fbd->hw_stats + stat->offset);
+	spin_lock(&fbd->hw_stats_lock);
+	fbnic_report_hw_stats(fbnic_gstrings_hw_stats, &fbd->hw_stats,
+			      FBNIC_HW_FIXED_STATS_LEN, &data);
+
+	for (i  = 0; i < FBNIC_MAX_QUEUES; i++) {
+		const struct fbnic_hw_q_stats *hw_q = &fbd->hw_stats.hw_q[i];
+
+		fbnic_report_hw_stats(fbnic_gstrings_hw_q_stats, hw_q,
+				      FBNIC_HW_Q_STATS_LEN, &data);
 	}
+	spin_unlock(&fbd->hw_stats_lock);
 }
 
 static int fbnic_get_sset_count(struct net_device *dev, int sset)

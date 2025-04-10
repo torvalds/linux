@@ -43,6 +43,12 @@ struct fbnic_rpc_stats {
 	struct fbnic_stat_counter tcp_opt_err, out_of_hdr_err, ovr_size_err;
 };
 
+struct fbnic_hw_q_stats {
+	struct fbnic_stat_counter rde_pkt_err;
+	struct fbnic_stat_counter rde_pkt_cq_drop;
+	struct fbnic_stat_counter rde_pkt_bdq_drop;
+};
+
 struct fbnic_pcie_stats {
 	struct fbnic_stat_counter ob_rd_tlp, ob_rd_dword;
 	struct fbnic_stat_counter ob_wr_tlp, ob_wr_dword;
@@ -56,12 +62,15 @@ struct fbnic_pcie_stats {
 struct fbnic_hw_stats {
 	struct fbnic_mac_stats mac;
 	struct fbnic_rpc_stats rpc;
+	struct fbnic_hw_q_stats hw_q[FBNIC_MAX_QUEUES];
 	struct fbnic_pcie_stats pcie;
 };
 
 u64 fbnic_stat_rd64(struct fbnic_dev *fbd, u32 reg, u32 offset);
 
 void fbnic_reset_hw_stats(struct fbnic_dev *fbd);
+void fbnic_get_hw_q_stats(struct fbnic_dev *fbd,
+			  struct fbnic_hw_q_stats *hw_q);
 void fbnic_get_hw_stats32(struct fbnic_dev *fbd);
 void fbnic_get_hw_stats(struct fbnic_dev *fbd);
 

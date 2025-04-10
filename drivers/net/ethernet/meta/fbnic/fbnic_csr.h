@@ -864,6 +864,12 @@ enum {
 #define FBNIC_QUEUE_TWQ1_BAL		0x022		/* 0x088 */
 #define FBNIC_QUEUE_TWQ1_BAH		0x023		/* 0x08c */
 
+/* Tx Work Queue Statistics Registers */
+#define FBNIC_QUEUE_TWQ0_PKT_CNT	0x062		/* 0x188 */
+#define FBNIC_QUEUE_TWQ0_ERR_CNT	0x063		/* 0x18c */
+#define FBNIC_QUEUE_TWQ1_PKT_CNT	0x072		/* 0x1c8 */
+#define FBNIC_QUEUE_TWQ1_ERR_CNT	0x073		/* 0x1cc */
+
 /* Tx Completion Queue Registers */
 #define FBNIC_QUEUE_TCQ_CTL		0x080		/* 0x200 */
 #define FBNIC_QUEUE_TCQ_CTL_RESET		CSR_BIT(0)
@@ -952,6 +958,12 @@ enum {
 	FBNIC_QUEUE_RDE_CTL1_PAYLD_PACK_ALL	= 1,
 	FBNIC_QUEUE_RDE_CTL1_PAYLD_PACK_RSS	= 2,
 };
+
+/* Rx Per CQ Statistics Counters */
+#define FBNIC_QUEUE_RDE_PKT_CNT		0x2a2		/* 0xa88 */
+#define FBNIC_QUEUE_RDE_PKT_ERR_CNT	0x2a3		/* 0xa8c */
+#define FBNIC_QUEUE_RDE_CQ_DROP_CNT	0x2a4		/* 0xa90 */
+#define FBNIC_QUEUE_RDE_BDQ_DROP_CNT	0x2a5		/* 0xa94 */
 
 /* Rx Interrupt Manager Registers */
 #define FBNIC_QUEUE_RIM_CTL		0x2c0		/* 0xb00 */

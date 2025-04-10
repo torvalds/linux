@@ -403,11 +403,15 @@ static int fbnic_hwtstamp_set(struct net_device *netdev,
 static void fbnic_get_stats64(struct net_device *dev,
 			      struct rtnl_link_stats64 *stats64)
 {
+	u64 rx_bytes, rx_packets, rx_dropped = 0, rx_errors = 0;
 	u64 tx_bytes, tx_packets, tx_dropped = 0;
-	u64 rx_bytes, rx_packets, rx_dropped = 0;
 	struct fbnic_net *fbn = netdev_priv(dev);
+	struct fbnic_dev *fbd = fbn->fbd;
 	struct fbnic_queue_stats *stats;
 	unsigned int start, i;
+	u64 rx_over = 0;
+
+	fbnic_get_hw_stats(fbd);
 
 	stats = &fbn->tx_stats;
 
@@ -444,9 +448,22 @@ static void fbnic_get_stats64(struct net_device *dev,
 	rx_packets = stats->packets;
 	rx_dropped = stats->dropped;
 
+	spin_lock(&fbd->hw_stats_lock);
+	for (i = 0; i < fbd->max_num_queues; i++) {
+		/* Report packets dropped due to CQ/BDQ being full/empty */
+		rx_over += fbd->hw_stats.hw_q[i].rde_pkt_cq_drop.value;
+		rx_over += fbd->hw_stats.hw_q[i].rde_pkt_bdq_drop.value;
+
+		/* Report packets with errors */
+		rx_errors += fbd->hw_stats.hw_q[i].rde_pkt_err.value;
+	}
+	spin_unlock(&fbd->hw_stats_lock);
+
 	stats64->rx_bytes = rx_bytes;
 	stats64->rx_packets = rx_packets;
 	stats64->rx_dropped = rx_dropped;
+	stats64->rx_over_errors = rx_over;
+	stats64->rx_errors = rx_errors;
 
 	for (i = 0; i < fbn->num_rx_queues; i++) {
 		struct fbnic_ring *rxr = fbn->rx[i];
@@ -486,6 +503,7 @@ static void fbnic_get_queue_stats_rx(struct net_device *dev, int idx,
 {
 	struct fbnic_net *fbn = netdev_priv(dev);
 	struct fbnic_ring *rxr = fbn->rx[idx];
+	struct fbnic_dev *fbd = fbn->fbd;
 	struct fbnic_queue_stats *stats;
 	u64 bytes, packets, alloc_fail;
 	u64 csum_complete, csum_none;
@@ -509,6 +527,15 @@ static void fbnic_get_queue_stats_rx(struct net_device *dev, int idx,
 	rx->alloc_fail = alloc_fail;
 	rx->csum_complete = csum_complete;
 	rx->csum_none = csum_none;
+
+	fbnic_get_hw_q_stats(fbd, fbd->hw_stats.hw_q);
+
+	spin_lock(&fbd->hw_stats_lock);
+	rx->hw_drop_overruns = fbd->hw_stats.hw_q[idx].rde_pkt_cq_drop.value +
+			       fbd->hw_stats.hw_q[idx].rde_pkt_bdq_drop.value;
+	rx->hw_drops = fbd->hw_stats.hw_q[idx].rde_pkt_err.value +
+		       rx->hw_drop_overruns;
+	spin_unlock(&fbd->hw_stats_lock);
 }
 
 static void fbnic_get_queue_stats_tx(struct net_device *dev, int idx,
