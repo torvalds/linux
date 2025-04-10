@@ -40,7 +40,6 @@ FIXTURE(audit)
 {
 	struct audit_filter audit_filter;
 	int audit_fd;
-	__u64(*domain_stack)[16];
 };
 
 FIXTURE_SETUP(audit)
@@ -60,18 +59,10 @@ FIXTURE_SETUP(audit)
 		TH_LOG("Failed to initialize audit: %s", error_msg);
 	}
 	clear_cap(_metadata, CAP_AUDIT_CONTROL);
-
-	self->domain_stack = mmap(NULL, sizeof(*self->domain_stack),
-				  PROT_READ | PROT_WRITE,
-				  MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-	ASSERT_NE(MAP_FAILED, self->domain_stack);
-	memset(self->domain_stack, 0, sizeof(*self->domain_stack));
 }
 
 FIXTURE_TEARDOWN(audit)
 {
-	EXPECT_EQ(0, munmap(self->domain_stack, sizeof(*self->domain_stack)));
-
 	set_cap(_metadata, CAP_AUDIT_CONTROL);
 	EXPECT_EQ(0, audit_cleanup(self->audit_fd, &self->audit_filter));
 	clear_cap(_metadata, CAP_AUDIT_CONTROL);
@@ -83,8 +74,14 @@ TEST_F(audit, layers)
 		.scoped = LANDLOCK_SCOPE_SIGNAL,
 	};
 	int status, ruleset_fd, i;
+	__u64(*domain_stack)[16];
 	__u64 prev_dom = 3;
 	pid_t child;
+
+	domain_stack = mmap(NULL, sizeof(*domain_stack), PROT_READ | PROT_WRITE,
+			    MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+	ASSERT_NE(MAP_FAILED, domain_stack);
+	memset(domain_stack, 0, sizeof(*domain_stack));
 
 	ruleset_fd =
 		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
@@ -94,7 +91,7 @@ TEST_F(audit, layers)
 	child = fork();
 	ASSERT_LE(0, child);
 	if (child == 0) {
-		for (i = 0; i < ARRAY_SIZE(*self->domain_stack); i++) {
+		for (i = 0; i < ARRAY_SIZE(*domain_stack); i++) {
 			__u64 denial_dom = 1;
 			__u64 allocated_dom = 2;
 
@@ -115,7 +112,7 @@ TEST_F(audit, layers)
 			/* Checks that the new domain is younger than the previous one. */
 			EXPECT_GT(allocated_dom, prev_dom);
 			prev_dom = allocated_dom;
-			(*self->domain_stack)[i] = allocated_dom;
+			(*domain_stack)[i] = allocated_dom;
 		}
 
 		/* Checks that we reached the maximum number of layers. */
@@ -142,20 +139,20 @@ TEST_F(audit, layers)
 	/* Purges log from deallocated domains. */
 	EXPECT_EQ(0, setsockopt(self->audit_fd, SOL_SOCKET, SO_RCVTIMEO,
 				&audit_tv_dom_drop, sizeof(audit_tv_dom_drop)));
-	for (i = ARRAY_SIZE(*self->domain_stack) - 1; i >= 0; i--) {
+	for (i = ARRAY_SIZE(*domain_stack) - 1; i >= 0; i--) {
 		__u64 deallocated_dom = 2;
 
 		EXPECT_EQ(0, matches_log_domain_deallocated(self->audit_fd, 1,
 							    &deallocated_dom));
-		EXPECT_EQ((*self->domain_stack)[i], deallocated_dom)
+		EXPECT_EQ((*domain_stack)[i], deallocated_dom)
 		{
 			TH_LOG("Failed to match domain %llx (#%d)",
-			       (*self->domain_stack)[i], i);
+			       (*domain_stack)[i], i);
 		}
 	}
+	EXPECT_EQ(0, munmap(domain_stack, sizeof(*domain_stack)));
 	EXPECT_EQ(0, setsockopt(self->audit_fd, SOL_SOCKET, SO_RCVTIMEO,
 				&audit_tv_default, sizeof(audit_tv_default)));
-
 	EXPECT_EQ(0, close(ruleset_fd));
 }
 
