@@ -31,28 +31,32 @@ static int udl_parse_vendor_descriptor(struct udl_device *udl)
 	char *desc;
 	char *buf;
 	char *desc_end;
-
-	u8 total_len = 0;
+	int ret;
+	unsigned int len;
 
 	buf = kzalloc(MAX_VENDOR_DESCRIPTOR_SIZE, GFP_KERNEL);
 	if (!buf)
 		return false;
 	desc = buf;
 
-	total_len = usb_get_descriptor(udev, 0x5f, /* vendor specific */
-				    0, desc, MAX_VENDOR_DESCRIPTOR_SIZE);
-	if (total_len > 5) {
-		DRM_INFO("vendor descriptor length:%x data:%11ph\n",
-			total_len, desc);
+	ret = usb_get_descriptor(udev, 0x5f, /* vendor specific */
+				 0, desc, MAX_VENDOR_DESCRIPTOR_SIZE);
+	if (ret < 0)
+		goto unrecognized;
+	len = ret;
 
-		if ((desc[0] != total_len) || /* descriptor length */
+	if (len > 5) {
+		DRM_INFO("vendor descriptor length: %u data:%11ph\n",
+			 len, desc);
+
+		if ((desc[0] != len) ||    /* descriptor length */
 		    (desc[1] != 0x5f) ||   /* vendor descriptor type */
 		    (desc[2] != 0x01) ||   /* version (2 bytes) */
 		    (desc[3] != 0x00) ||
-		    (desc[4] != total_len - 2)) /* length after type */
+		    (desc[4] != len - 2))  /* length after type */
 			goto unrecognized;
 
-		desc_end = desc + total_len;
+		desc_end = desc + len;
 		desc += 5; /* the fixed header we've already parsed */
 
 		while (desc < desc_end) {
