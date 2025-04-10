@@ -222,7 +222,7 @@ int vfs_parse_monolithic_sep(struct fs_context *fc, void *data,
 			char *value = strchr(key, '=');
 
 			if (value) {
-				if (value == key)
+				if (unlikely(value == key))
 					continue;
 				*value++ = 0;
 				v_len = strlen(value);
