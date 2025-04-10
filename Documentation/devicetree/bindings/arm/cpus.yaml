@@ -273,8 +273,6 @@ properties:
     description:
       The DT specification defines this as 64-bit always, but some 32-bit Arm
       systems have used a 32-bit value which must be supported.
-      Required for systems that have an "enable-method"
-        property value of "spin-table".
 
   cpu-idle-states:
     $ref: /schemas/types.yaml#/definitions/phandle-array
@@ -333,24 +331,13 @@ properties:
 
   qcom,saw:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: |
-      Specifies the SAW* node associated with this CPU.
-
-      Required for systems that have an "enable-method" property
-      value of "qcom,kpss-acc-v1" or "qcom,kpss-acc-v2"
-
-      * arm/msm/qcom,saw2.txt
+    description:
+      Specifies the SAW node associated with this CPU.
 
   qcom,acc:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: |
-      Specifies the ACC* node associated with this CPU.
-
-      Required for systems that have an "enable-method" property
-      value of "qcom,kpss-acc-v1", "qcom,kpss-acc-v2", "qcom,msm8226-smp" or
-      "qcom,msm8916-smp".
-
-      * arm/msm/qcom,kpss-acc.txt
+    description:
+      Specifies the ACC node associated with this CPU.
 
   rockchip,pmu:
     $ref: /schemas/types.yaml#/definitions/phandle
@@ -378,22 +365,61 @@ properties:
       formed by encoding the target CPU id into the low bits of the
       physical start address it should jump to.
 
-if:
-  # If the enable-method property contains one of those values
-  properties:
-    enable-method:
-      contains:
-        enum:
-          - brcm,bcm11351-cpu-method
-          - brcm,bcm23550
-          - brcm,bcm-nsp-smp
-  # and if enable-method is present
-  required:
-    - enable-method
-
-then:
-  required:
-    - secondary-boot-reg
+allOf:
+  - if:
+      # If the enable-method property contains one of those values
+      properties:
+        enable-method:
+          contains:
+            enum:
+              - brcm,bcm11351-cpu-method
+              - brcm,bcm23550
+              - brcm,bcm-nsp-smp
+      # and if enable-method is present
+      required:
+        - enable-method
+    then:
+      required:
+        - secondary-boot-reg
+  - if:
+      properties:
+        enable-method:
+          enum:
+            - spin-table
+            - renesas,r9a06g032-smp
+      required:
+        - enable-method
+    then:
+      required:
+        - cpu-release-addr
+  - if:
+      properties:
+        enable-method:
+          enum:
+            - qcom,kpss-acc-v1
+            - qcom,kpss-acc-v2
+            - qcom,msm8226-smp
+            - qcom,msm8916-smp
+      required:
+        - enable-method
+    then:
+      required:
+        - qcom,acc
+        - qcom,saw
+    else:
+      if:
+        # 2 Qualcomm platforms bootloaders need qcom,acc and qcom,saw yet use
+        # "spin-table" or "psci" enable-methods. Disallowing the properties for
+        # all other CPUs is the best we can do as there's not any way to
+        # distinguish these Qualcomm platforms.
+        not:
+          properties:
+            compatible:
+              const: arm,cortex-a53
+      then:
+        properties:
+          qcom,acc: false
+          qcom,saw: false
 
 required:
   - device_type
