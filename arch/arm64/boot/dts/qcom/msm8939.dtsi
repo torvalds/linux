@@ -47,6 +47,7 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "spin-table";
+			cpu-release-addr = /bits/ 64 <0>;
 			reg = <0x100>;
 			next-level-cache = <&l2_1>;
 			qcom,acc = <&acc0>;
@@ -65,6 +66,7 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "spin-table";
+			cpu-release-addr = /bits/ 64 <0>;
 			reg = <0x101>;
 			next-level-cache = <&l2_1>;
 			qcom,acc = <&acc1>;
@@ -78,6 +80,7 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "spin-table";
+			cpu-release-addr = /bits/ 64 <0>;
 			reg = <0x102>;
 			next-level-cache = <&l2_1>;
 			qcom,acc = <&acc2>;
@@ -91,6 +94,7 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "spin-table";
+			cpu-release-addr = /bits/ 64 <0>;
 			reg = <0x103>;
 			next-level-cache = <&l2_1>;
 			qcom,acc = <&acc3>;
@@ -104,6 +108,7 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "spin-table";
+			cpu-release-addr = /bits/ 64 <0>;
 			reg = <0x0>;
 			qcom,acc = <&acc4>;
 			qcom,saw = <&saw4>;
@@ -122,6 +127,7 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "spin-table";
+			cpu-release-addr = /bits/ 64 <0>;
 			reg = <0x1>;
 			next-level-cache = <&l2_0>;
 			qcom,acc = <&acc5>;
@@ -135,6 +141,7 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "spin-table";
+			cpu-release-addr = /bits/ 64 <0>;
 			reg = <0x2>;
 			next-level-cache = <&l2_0>;
 			qcom,acc = <&acc6>;
@@ -148,6 +155,7 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "spin-table";
+			cpu-release-addr = /bits/ 64 <0>;
 			reg = <0x3>;
 			next-level-cache = <&l2_0>;
 			qcom,acc = <&acc7>;
