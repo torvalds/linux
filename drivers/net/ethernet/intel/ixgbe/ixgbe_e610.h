@@ -83,5 +83,16 @@ int ixgbe_read_ee_aci_buffer_e610(struct ixgbe_hw *hw, u16 offset,
 int ixgbe_validate_eeprom_checksum_e610(struct ixgbe_hw *hw, u16 *checksum_val);
 int ixgbe_reset_hw_e610(struct ixgbe_hw *hw);
 int ixgbe_get_flash_data(struct ixgbe_hw *hw);
+int ixgbe_nvm_set_pkg_data(struct ixgbe_hw *hw, bool del_pkg_data_flag,
+			   u8 *data, u16 length);
+int ixgbe_nvm_pass_component_tbl(struct ixgbe_hw *hw, u8 *data, u16 length,
+				 u8 transfer_flag, u8 *comp_response,
+				 u8 *comp_response_code);
+int ixgbe_aci_erase_nvm(struct ixgbe_hw *hw, u16 module_typeid);
+int ixgbe_aci_update_nvm(struct ixgbe_hw *hw, u16 module_typeid,
+			 u32 offset, u16 length, void *data,
+			 bool last_command, u8 command_flags);
+int ixgbe_nvm_write_activate(struct ixgbe_hw *hw, u16 cmd_flags,
+			     u8 *response_flags);
 
 #endif /* _IXGBE_E610_H_ */

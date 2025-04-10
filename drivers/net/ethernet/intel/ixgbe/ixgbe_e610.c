@@ -597,6 +597,11 @@ static bool ixgbe_parse_e610_caps(struct ixgbe_hw *hw,
 	case IXGBE_ACI_CAPS_PENDING_NET_VER:
 		caps->nvm_update_pending_netlist = true;
 		break;
+	case IXGBE_ACI_CAPS_NVM_MGMT:
+		caps->nvm_unified_update =
+			(number & IXGBE_NVM_MGMT_UNIFIED_UPD_SUPPORT) ?
+			true : false;
+		break;
 	case IXGBE_ACI_CAPS_MAX_MTU:
 		caps->max_mtu = number;
 		break;
@@ -2295,6 +2300,131 @@ int ixgbe_aci_read_nvm(struct ixgbe_hw *hw, u16 module_typeid, u32 offset,
 }
 
 /**
+ * ixgbe_aci_erase_nvm - erase NVM sector
+ * @hw: pointer to the HW struct
+ * @module_typeid: module pointer location in words from the NVM beginning
+ *
+ * Erase the NVM sector using the ACI command (0x0702).
+ *
+ * Return: the exit code of the operation.
+ */
+int ixgbe_aci_erase_nvm(struct ixgbe_hw *hw, u16 module_typeid)
+{
+	struct ixgbe_aci_cmd_nvm *cmd;
+	struct ixgbe_aci_desc desc;
+	__le16 len;
+	int err;
+
+	/* Read a length value from SR, so module_typeid is equal to 0,
+	 * calculate offset where module size is placed from bytes to words
+	 * set last command and read from SR values to true.
+	 */
+	err = ixgbe_aci_read_nvm(hw, 0, 2 * module_typeid + 2, 2, &len, true,
+				 true);
+	if (err)
+		return err;
+
+	cmd = &desc.params.nvm;
+
+	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_nvm_erase);
+
+	cmd->module_typeid = cpu_to_le16(module_typeid);
+	cmd->length = len;
+	cmd->offset_low = 0;
+	cmd->offset_high = 0;
+
+	return ixgbe_aci_send_cmd(hw, &desc, NULL, 0);
+}
+
+/**
+ * ixgbe_aci_update_nvm - update NVM
+ * @hw: pointer to the HW struct
+ * @module_typeid: module pointer location in words from the NVM beginning
+ * @offset: byte offset from the module beginning
+ * @length: length of the section to be written (in bytes from the offset)
+ * @data: command buffer (size [bytes] = length)
+ * @last_command: tells if this is the last command in a series
+ * @command_flags: command parameters
+ *
+ * Update the NVM using the ACI command (0x0703).
+ *
+ * Return: the exit code of the operation.
+ */
+int ixgbe_aci_update_nvm(struct ixgbe_hw *hw, u16 module_typeid,
+			 u32 offset, u16 length, void *data,
+			 bool last_command, u8 command_flags)
+{
+	struct ixgbe_aci_cmd_nvm *cmd;
+	struct ixgbe_aci_desc desc;
+
+	cmd = &desc.params.nvm;
+
+	/* In offset the highest byte must be zeroed. */
+	if (offset & 0xFF000000)
+		return -EINVAL;
+
+	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_nvm_write);
+
+	cmd->cmd_flags |= command_flags;
+
+	/* If this is the last command in a series, set the proper flag. */
+	if (last_command)
+		cmd->cmd_flags |= IXGBE_ACI_NVM_LAST_CMD;
+	cmd->module_typeid = cpu_to_le16(module_typeid);
+	cmd->offset_low = cpu_to_le16(offset & 0xFFFF);
+	cmd->offset_high = FIELD_GET(IXGBE_ACI_NVM_OFFSET_HI_U_MASK, offset);
+	cmd->length = cpu_to_le16(length);
+
+	desc.flags |= cpu_to_le16(IXGBE_ACI_FLAG_RD);
+
+	return ixgbe_aci_send_cmd(hw, &desc, data, length);
+}
+
+/**
+ * ixgbe_nvm_write_activate - NVM activate write
+ * @hw: pointer to the HW struct
+ * @cmd_flags: flags for write activate command
+ * @response_flags: response indicators from firmware
+ *
+ * Update the control word with the required banks' validity bits
+ * and dumps the Shadow RAM to flash using ACI command (0x0707).
+ *
+ * cmd_flags controls which banks to activate, the preservation level to use
+ * when activating the NVM bank, and whether an EMP reset is required for
+ * activation.
+ *
+ * Note that the 16bit cmd_flags value is split between two separate 1 byte
+ * flag values in the descriptor.
+ *
+ * On successful return of the firmware command, the response_flags variable
+ * is updated with the flags reported by firmware indicating certain status,
+ * such as whether EMP reset is enabled.
+ *
+ * Return: the exit code of the operation.
+ */
+int ixgbe_nvm_write_activate(struct ixgbe_hw *hw, u16 cmd_flags,
+			     u8 *response_flags)
+{
+	struct ixgbe_aci_cmd_nvm *cmd;
+	struct ixgbe_aci_desc desc;
+	s32 err;
+
+	cmd = &desc.params.nvm;
+	ixgbe_fill_dflt_direct_cmd_desc(&desc,
+					ixgbe_aci_opc_nvm_write_activate);
+
+	cmd->cmd_flags = (u8)(cmd_flags & 0xFF);
+	cmd->offset_high = (u8)FIELD_GET(IXGBE_ACI_NVM_OFFSET_HI_A_MASK,
+					 cmd_flags);
+
+	err = ixgbe_aci_send_cmd(hw, &desc, NULL, 0);
+	if (!err && response_flags)
+		*response_flags = cmd->cmd_flags;
+
+	return err;
+}
+
+/**
  * ixgbe_nvm_validate_checksum - validate checksum
  * @hw: pointer to the HW struct
  *
@@ -3168,6 +3298,85 @@ int ixgbe_get_flash_data(struct ixgbe_hw *hw)
 
 	err = ixgbe_get_netlist_info(hw, IXGBE_ACTIVE_FLASH_BANK,
 				     &flash->netlist);
+	return err;
+}
+
+/* ixgbe_nvm_set_pkg_data - NVM set package data
+ * @hw: pointer to the HW struct
+ * @del_pkg_data_flag: If is set then the current pkg_data store by FW
+ *		       is deleted.
+ *		       If bit is set to 1, then buffer should be size 0.
+ * @data: pointer to buffer
+ * @length: length of the buffer
+ *
+ * Set package data using ACI command (0x070A).
+ * This command is equivalent to the reception of
+ * a PLDM FW Update GetPackageData cmd. This command should be sent
+ * as part of the NVM update as the first cmd in the flow.
+ *
+ * Return: the exit code of the operation.
+ */
+int ixgbe_nvm_set_pkg_data(struct ixgbe_hw *hw, bool del_pkg_data_flag,
+			   u8 *data, u16 length)
+{
+	struct ixgbe_aci_cmd_nvm_pkg_data *cmd;
+	struct ixgbe_aci_desc desc;
+
+	if (length != 0 && !data)
+		return -EINVAL;
+
+	cmd = &desc.params.pkg_data;
+
+	ixgbe_fill_dflt_direct_cmd_desc(&desc, ixgbe_aci_opc_nvm_pkg_data);
+	desc.flags |= cpu_to_le16(IXGBE_ACI_FLAG_RD);
+
+	if (del_pkg_data_flag)
+		cmd->cmd_flags |= IXGBE_ACI_NVM_PKG_DELETE;
+
+	return ixgbe_aci_send_cmd(hw, &desc, data, length);
+}
+
+/* ixgbe_nvm_pass_component_tbl - NVM pass component table
+ * @hw: pointer to the HW struct
+ * @data: pointer to buffer
+ * @length: length of the buffer
+ * @transfer_flag: parameter for determining stage of the update
+ * @comp_response: a pointer to the response from the 0x070B ACI.
+ * @comp_response_code: a pointer to the response code from the 0x070B ACI.
+ *
+ * Pass component table using ACI command (0x070B). This command is equivalent
+ * to the reception of a PLDM FW Update PassComponentTable cmd.
+ * This command should be sent once per component. It can be only sent after
+ * Set Package Data cmd and before actual update. FW will assume these
+ * commands are going to be sent until the TransferFlag is set to End or
+ * StartAndEnd.
+ *
+ * Return: the exit code of the operation.
+ */
+int ixgbe_nvm_pass_component_tbl(struct ixgbe_hw *hw, u8 *data, u16 length,
+				 u8 transfer_flag, u8 *comp_response,
+				 u8 *comp_response_code)
+{
+	struct ixgbe_aci_cmd_nvm_pass_comp_tbl *cmd;
+	struct ixgbe_aci_desc desc;
+	int err;
+
+	if (!data || !comp_response || !comp_response_code)
+		return -EINVAL;
+
+	cmd = &desc.params.pass_comp_tbl;
+
+	ixgbe_fill_dflt_direct_cmd_desc(&desc,
+					ixgbe_aci_opc_nvm_pass_component_tbl);
+	desc.flags |= cpu_to_le16(IXGBE_ACI_FLAG_RD);
+
+	cmd->transfer_flag = transfer_flag;
+	err = ixgbe_aci_send_cmd(hw, &desc, data, length);
+	if (!err) {
+		*comp_response = cmd->component_response;
+		*comp_response_code = cmd->component_response_code;
+	}
+
 	return err;
 }
 

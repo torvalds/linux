@@ -833,6 +833,8 @@ struct ixgbe_aci_cmd_nvm {
 #define IXGBE_ACI_NVM_MAX_OFFSET	0xFFFFFF
 	__le16 offset_low;
 	u8 offset_high; /* For Write Activate offset_high is used as flags2 */
+#define IXGBE_ACI_NVM_OFFSET_HI_A_MASK  GENMASK(15, 8)
+#define IXGBE_ACI_NVM_OFFSET_HI_U_MASK	GENMASK(23, 16)
 	u8 cmd_flags;
 #define IXGBE_ACI_NVM_LAST_CMD		BIT(0)
 #define IXGBE_ACI_NVM_PCIR_REQ		BIT(0) /* Used by NVM Write reply */
@@ -848,6 +850,9 @@ struct ixgbe_aci_cmd_nvm {
 #define IXGBE_ACI_NVM_PERST_FLAG	1
 #define IXGBE_ACI_NVM_EMPR_FLAG		2
 #define IXGBE_ACI_NVM_EMPR_ENA		BIT(0) /* Write Activate reply only */
+#define IXGBE_ACI_NVM_NO_PRESERVATION	0x0
+#define IXGBE_ACI_NVM_PRESERVE_SELECTED	0x6
+
 	/* For Write Activate, several flags are sent as part of a separate
 	 * flags2 field using a separate byte. For simplicity of the software
 	 * interface, we pass the flags as a 16 bit value so these flags are
@@ -876,6 +881,63 @@ struct ixgbe_aci_cmd_nvm_checksum {
 #define IXGBE_ACI_NVM_CHECKSUM_CORRECT	0xBABA
 	u8 rsvd2[12];
 };
+
+/* Used for NVM Set Package Data command - 0x070A */
+struct ixgbe_aci_cmd_nvm_pkg_data {
+	u8 reserved[3];
+	u8 cmd_flags;
+#define IXGBE_ACI_NVM_PKG_DELETE	BIT(0) /* used for command call */
+
+	u32 reserved1;
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+/* Used for Pass Component Table command - 0x070B */
+struct ixgbe_aci_cmd_nvm_pass_comp_tbl {
+	u8 component_response; /* Response only */
+#define IXGBE_ACI_NVM_PASS_COMP_CAN_BE_UPDATED		0x0
+#define IXGBE_ACI_NVM_PASS_COMP_CAN_MAY_BE_UPDATEABLE	0x1
+#define IXGBE_ACI_NVM_PASS_COMP_CAN_NOT_BE_UPDATED	0x2
+#define IXGBE_ACI_NVM_PASS_COMP_PARTIAL_CHECK		0x3
+	u8 component_response_code; /* Response only */
+#define IXGBE_ACI_NVM_PASS_COMP_CAN_BE_UPDATED_CODE	0x0
+#define IXGBE_ACI_NVM_PASS_COMP_STAMP_IDENTICAL_CODE	0x1
+#define IXGBE_ACI_NVM_PASS_COMP_STAMP_LOWER		0x2
+#define IXGBE_ACI_NVM_PASS_COMP_INVALID_STAMP_CODE	0x3
+#define IXGBE_ACI_NVM_PASS_COMP_CONFLICT_CODE		0x4
+#define IXGBE_ACI_NVM_PASS_COMP_PRE_REQ_NOT_MET_CODE	0x5
+#define IXGBE_ACI_NVM_PASS_COMP_NOT_SUPPORTED_CODE	0x6
+#define IXGBE_ACI_NVM_PASS_COMP_CANNOT_DOWNGRADE_CODE	0x7
+#define IXGBE_ACI_NVM_PASS_COMP_INCOMPLETE_IMAGE_CODE	0x8
+#define IXGBE_ACI_NVM_PASS_COMP_VER_STR_IDENTICAL_CODE	0xA
+#define IXGBE_ACI_NVM_PASS_COMP_VER_STR_LOWER_CODE	0xB
+	u8 reserved;
+	u8 transfer_flag;
+	__le32 reserved1;
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+struct ixgbe_aci_cmd_nvm_comp_tbl {
+	__le16 comp_class;
+#define NVM_COMP_CLASS_ALL_FW		0x000A
+
+	__le16 comp_id;
+#define NVM_COMP_ID_OROM		0x5
+#define NVM_COMP_ID_NVM			0x6
+#define NVM_COMP_ID_NETLIST		0x8
+
+	u8 comp_class_idx;
+#define FWU_COMP_CLASS_IDX_NOT_USE	0x0
+
+	__le32 comp_cmp_stamp;
+	u8 cvs_type;
+#define NVM_CVS_TYPE_ASCII		0x1
+
+	u8 cvs_len;
+	u8 cvs[]; /* Component Version String */
+} __packed;
 
 /**
  * struct ixgbe_aci_desc - Admin Command (AC) descriptor
@@ -920,6 +982,8 @@ struct ixgbe_aci_desc {
 		struct ixgbe_aci_cmd_sff_eeprom read_write_sff_param;
 		struct ixgbe_aci_cmd_nvm nvm;
 		struct ixgbe_aci_cmd_nvm_checksum nvm_checksum;
+		struct ixgbe_aci_cmd_nvm_pkg_data pkg_data;
+		struct ixgbe_aci_cmd_nvm_pass_comp_tbl pass_comp_tbl;
 	} params;
 };
 

@@ -3,6 +3,7 @@
 
 #include "ixgbe.h"
 #include "devlink.h"
+#include "ixgbe_fw_update.h"
 
 struct ixgbe_info_ctx {
 	char buf[128];
@@ -366,6 +367,9 @@ free_ctx:
 
 static const struct devlink_ops ixgbe_devlink_ops = {
 	.info_get = ixgbe_devlink_info_get,
+	.supported_flash_update_params =
+		DEVLINK_SUPPORT_FLASH_UPDATE_OVERWRITE_MASK,
+	.flash_update = ixgbe_flash_pldm_image,
 };
 
 /**
