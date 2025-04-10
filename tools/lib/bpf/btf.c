@@ -1148,6 +1148,12 @@ static int btf_find_elf_sections(Elf *elf, const char *path, struct btf_elf_secs
 		else
 			continue;
 
+		if (sh.sh_type != SHT_PROGBITS) {
+			pr_warn("unexpected section type (%d) of section(%d, %s) from %s\n",
+				sh.sh_type, idx, name, path);
+			goto err;
+		}
+
 		data = elf_getdata(scn, 0);
 		if (!data) {
 			pr_warn("failed to get section(%d, %s) data from %s\n",
