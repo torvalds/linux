@@ -1832,6 +1832,12 @@ config SND_SOC_RT9123
 	  Enable support for the I2C control mode of Richtek RT9123 3.2W mono
 	  Class-D audio amplifier.
 
+config SND_SOC_RT9123P
+	tristate "Richtek RT9123P Mono Class-D Amplifier"
+	help
+	  Enable support for the HW control mode of Richtek RT9123P 3.2W mono
+	  Class-D audio amplifier.
+
 config SND_SOC_RTQ9128
 	tristate "Richtek RTQ9128 45W Digital Input Amplifier"
 	depends on I2C
