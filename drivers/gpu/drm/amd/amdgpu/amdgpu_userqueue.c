@@ -28,32 +28,6 @@
 #include "amdgpu_userqueue.h"
 #include "amdgpu_userq_fence.h"
 
-static void amdgpu_userq_walk_and_drop_fence_drv(struct xarray *xa)
-{
-	struct amdgpu_userq_fence_driver *fence_drv;
-	unsigned long index;
-
-	if (xa_empty(xa))
-		return;
-
-	xa_lock(xa);
-	xa_for_each(xa, index, fence_drv) {
-		__xa_erase(xa, index);
-		amdgpu_userq_fence_driver_put(fence_drv);
-	}
-
-	xa_unlock(xa);
-}
-
-static void
-amdgpu_userq_fence_driver_free(struct amdgpu_usermode_queue *userq)
-{
-	amdgpu_userq_walk_and_drop_fence_drv(&userq->fence_drv_xa);
-	xa_destroy(&userq->fence_drv_xa);
-	/* Drop the fence_drv reference held by user queue */
-	amdgpu_userq_fence_driver_put(userq->fence_drv);
-}
-
 static void
 amdgpu_userqueue_cleanup(struct amdgpu_userq_mgr *uq_mgr,
 			 struct amdgpu_usermode_queue *queue,
