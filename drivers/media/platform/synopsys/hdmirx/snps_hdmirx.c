@@ -1956,10 +1956,6 @@ static void dma_idle_int_handler(struct snps_hdmirx_dev *hdmirx_dev,
 					vb_done->field = V4L2_FIELD_NONE;
 
 				hdmirx_vb_done(stream, vb_done);
-				stream->sequence++;
-				if (stream->sequence == 30)
-					v4l2_dbg(1, debug, v4l2_dev,
-						 "rcv frames\n");
 			}
 
 			stream->curr_buf = NULL;
@@ -1971,6 +1967,10 @@ static void dma_idle_int_handler(struct snps_hdmirx_dev *hdmirx_dev,
 			v4l2_dbg(3, debug, v4l2_dev,
 				 "%s: next_buf NULL, skip vb_done\n", __func__);
 		}
+
+		stream->sequence++;
+		if (stream->sequence == 30)
+			v4l2_dbg(1, debug, v4l2_dev, "rcv frames\n");
 	}
 
 DMA_IDLE_OUT:
