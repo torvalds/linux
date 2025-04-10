@@ -528,13 +528,13 @@ static void *cxlctl_set_feature(struct cxl_features_state *cxlfs,
 	rc = cxl_set_feature(cxl_mbox, &feat_in->uuid,
 			     feat_in->version, feat_in->feat_data,
 			     data_size, flags, offset, &return_code);
+	*out_len = sizeof(*rpc_out);
 	if (rc) {
 		rpc_out->retval = return_code;
 		return no_free_ptr(rpc_out);
 	}
 
 	rpc_out->retval = CXL_MBOX_CMD_RC_SUCCESS;
-	*out_len = sizeof(*rpc_out);
 
 	return no_free_ptr(rpc_out);
 }
