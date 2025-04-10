@@ -605,9 +605,9 @@ int btrfs_clear_extent_bit_changeset(struct extent_io_tree *tree, u64 start, u64
 	struct extent_state *prealloc = NULL;
 	u64 last_end;
 	int ret = 0;
-	int clear = 0;
-	int wake;
-	int delete = (bits & EXTENT_CLEAR_ALL_BITS);
+	bool clear;
+	bool wake;
+	const bool delete = (bits & EXTENT_CLEAR_ALL_BITS);
 	gfp_t mask;
 
 	set_gfp_mask_from_bits(&bits, &mask);
@@ -620,9 +620,8 @@ int btrfs_clear_extent_bit_changeset(struct extent_io_tree *tree, u64 start, u64
 	if (bits & EXTENT_DELALLOC)
 		bits |= EXTENT_NORESERVE;
 
-	wake = ((bits & EXTENT_LOCK_BITS) ? 1 : 0);
-	if (bits & (EXTENT_LOCK_BITS | EXTENT_BOUNDARY))
-		clear = 1;
+	wake = (bits & EXTENT_LOCK_BITS);
+	clear = (bits & (EXTENT_LOCK_BITS | EXTENT_BOUNDARY));
 again:
 	if (!prealloc) {
 		/*
