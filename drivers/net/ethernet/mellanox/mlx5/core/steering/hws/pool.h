@@ -6,16 +6,12 @@
 
 #define MLX5HWS_POOL_STC_LOG_SZ 15
 
-#define MLX5HWS_POOL_RESOURCE_ARR_SZ 100
-
 enum mlx5hws_pool_type {
 	MLX5HWS_POOL_TYPE_STE,
 	MLX5HWS_POOL_TYPE_STC,
 };
 
 struct mlx5hws_pool_chunk {
-	u32 resource_idx;
-	/* Internal offset, relative to base index */
 	int offset;
 	int order;
 };
@@ -72,12 +68,8 @@ enum mlx5hws_db_type {
 	MLX5HWS_POOL_DB_TYPE_GENERAL_SIZE,
 	/* One resource only, all the elements are with same one size */
 	MLX5HWS_POOL_DB_TYPE_ONE_SIZE_RESOURCE,
-	/* Many resources, the memory allocated with buddy mechanism */
+	/* Entries are managed using a buddy mechanism. */
 	MLX5HWS_POOL_DB_TYPE_BUDDY,
-};
-
-struct mlx5hws_buddy_manager {
-	struct mlx5hws_buddy_mem *buddies[MLX5HWS_POOL_RESOURCE_ARR_SZ];
 };
 
 struct mlx5hws_pool_elements {
@@ -91,7 +83,7 @@ struct mlx5hws_pool_db {
 	enum mlx5hws_db_type type;
 	union {
 		struct mlx5hws_pool_elements *element;
-		struct mlx5hws_buddy_manager *buddy_manager;
+		struct mlx5hws_buddy_mem *buddy;
 	};
 };
 
@@ -109,8 +101,8 @@ struct mlx5hws_pool {
 	size_t alloc_log_sz;
 	enum mlx5hws_table_type tbl_type;
 	enum mlx5hws_pool_optimize opt_type;
-	struct mlx5hws_pool_resource *resource[MLX5HWS_POOL_RESOURCE_ARR_SZ];
-	struct mlx5hws_pool_resource *mirror_resource[MLX5HWS_POOL_RESOURCE_ARR_SZ];
+	struct mlx5hws_pool_resource *resource;
+	struct mlx5hws_pool_resource *mirror_resource;
 	/* DB */
 	struct mlx5hws_pool_db db;
 	/* Functions */
@@ -131,17 +123,13 @@ int mlx5hws_pool_chunk_alloc(struct mlx5hws_pool *pool,
 void mlx5hws_pool_chunk_free(struct mlx5hws_pool *pool,
 			     struct mlx5hws_pool_chunk *chunk);
 
-static inline u32
-mlx5hws_pool_chunk_get_base_id(struct mlx5hws_pool *pool,
-			       struct mlx5hws_pool_chunk *chunk)
+static inline u32 mlx5hws_pool_get_base_id(struct mlx5hws_pool *pool)
 {
-	return pool->resource[chunk->resource_idx]->base_id;
+	return pool->resource->base_id;
 }
 
-static inline u32
-mlx5hws_pool_chunk_get_base_mirror_id(struct mlx5hws_pool *pool,
-				      struct mlx5hws_pool_chunk *chunk)
+static inline u32 mlx5hws_pool_get_base_mirror_id(struct mlx5hws_pool *pool)
 {
-	return pool->mirror_resource[chunk->resource_idx]->base_id;
+	return pool->mirror_resource->base_id;
 }
 #endif /* MLX5HWS_POOL_H_ */

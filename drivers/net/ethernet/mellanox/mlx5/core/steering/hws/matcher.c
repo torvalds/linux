@@ -223,7 +223,6 @@ static int hws_matcher_create_rtc(struct mlx5hws_matcher *matcher,
 	struct mlx5hws_cmd_rtc_create_attr rtc_attr = {0};
 	struct mlx5hws_match_template *mt = matcher->mt;
 	struct mlx5hws_context *ctx = matcher->tbl->ctx;
-	struct mlx5hws_action_default_stc *default_stc;
 	struct mlx5hws_matcher_action_ste *action_ste;
 	struct mlx5hws_table *tbl = matcher->tbl;
 	struct mlx5hws_pool *ste_pool, *stc_pool;
@@ -305,7 +304,7 @@ static int hws_matcher_create_rtc(struct mlx5hws_matcher *matcher,
 		return -EINVAL;
 	}
 
-	obj_id = mlx5hws_pool_chunk_get_base_id(ste_pool, ste);
+	obj_id = mlx5hws_pool_get_base_id(ste_pool);
 
 	rtc_attr.pd = ctx->pd_num;
 	rtc_attr.ste_base = obj_id;
@@ -316,8 +315,7 @@ static int hws_matcher_create_rtc(struct mlx5hws_matcher *matcher,
 
 	/* STC is a single resource (obj_id), use any STC for the ID */
 	stc_pool = ctx->stc_pool;
-	default_stc = ctx->common_res.default_stc;
-	obj_id = mlx5hws_pool_chunk_get_base_id(stc_pool, &default_stc->default_hit);
+	obj_id = mlx5hws_pool_get_base_id(stc_pool);
 	rtc_attr.stc_base = obj_id;
 
 	ret = mlx5hws_cmd_rtc_create(ctx->mdev, &rtc_attr, rtc_0_id);
@@ -328,11 +326,11 @@ static int hws_matcher_create_rtc(struct mlx5hws_matcher *matcher,
 	}
 
 	if (tbl->type == MLX5HWS_TABLE_TYPE_FDB) {
-		obj_id = mlx5hws_pool_chunk_get_base_mirror_id(ste_pool, ste);
+		obj_id = mlx5hws_pool_get_base_mirror_id(ste_pool);
 		rtc_attr.ste_base = obj_id;
 		rtc_attr.table_type = mlx5hws_table_get_res_fw_ft_type(tbl->type, true);
 
-		obj_id = mlx5hws_pool_chunk_get_base_mirror_id(stc_pool, &default_stc->default_hit);
+		obj_id = mlx5hws_pool_get_base_mirror_id(stc_pool);
 		rtc_attr.stc_base = obj_id;
 		hws_matcher_set_rtc_attr_sz(matcher, &rtc_attr, rtc_type, true);
 

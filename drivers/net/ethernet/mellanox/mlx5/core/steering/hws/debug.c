@@ -118,7 +118,6 @@ static int hws_debug_dump_matcher(struct seq_file *f, struct mlx5hws_matcher *ma
 {
 	enum mlx5hws_table_type tbl_type = matcher->tbl->type;
 	struct mlx5hws_cmd_ft_query_attr ft_attr = {0};
-	struct mlx5hws_pool_chunk *ste;
 	struct mlx5hws_pool *ste_pool;
 	u64 icm_addr_0 = 0;
 	u64 icm_addr_1 = 0;
@@ -134,12 +133,11 @@ static int hws_debug_dump_matcher(struct seq_file *f, struct mlx5hws_matcher *ma
 		   matcher->end_ft_id,
 		   matcher->col_matcher ? HWS_PTR_TO_ID(matcher->col_matcher) : 0);
 
-	ste = &matcher->match_ste.ste;
 	ste_pool = matcher->match_ste.pool;
 	if (ste_pool) {
-		ste_0_id = mlx5hws_pool_chunk_get_base_id(ste_pool, ste);
+		ste_0_id = mlx5hws_pool_get_base_id(ste_pool);
 		if (tbl_type == MLX5HWS_TABLE_TYPE_FDB)
-			ste_1_id = mlx5hws_pool_chunk_get_base_mirror_id(ste_pool, ste);
+			ste_1_id = mlx5hws_pool_get_base_mirror_id(ste_pool);
 	}
 
 	seq_printf(f, ",%d,%d,%d,%d",
@@ -148,12 +146,11 @@ static int hws_debug_dump_matcher(struct seq_file *f, struct mlx5hws_matcher *ma
 		   matcher->match_ste.rtc_1_id,
 		   (int)ste_1_id);
 
-	ste = &matcher->action_ste.ste;
 	ste_pool = matcher->action_ste.pool;
 	if (ste_pool) {
-		ste_0_id = mlx5hws_pool_chunk_get_base_id(ste_pool, ste);
+		ste_0_id = mlx5hws_pool_get_base_id(ste_pool);
 		if (tbl_type == MLX5HWS_TABLE_TYPE_FDB)
-			ste_1_id = mlx5hws_pool_chunk_get_base_mirror_id(ste_pool, ste);
+			ste_1_id = mlx5hws_pool_get_base_mirror_id(ste_pool);
 		else
 			ste_1_id = -1;
 	} else {
@@ -387,14 +384,17 @@ static int hws_debug_dump_context_stc(struct seq_file *f, struct mlx5hws_context
 	if (!stc_pool)
 		return 0;
 
-	if (stc_pool->resource[0]) {
-		ret = hws_debug_dump_context_stc_resource(f, ctx, stc_pool->resource[0]);
+	if (stc_pool->resource) {
+		ret = hws_debug_dump_context_stc_resource(f, ctx,
+							  stc_pool->resource);
 		if (ret)
 			return ret;
 	}
 
-	if (stc_pool->mirror_resource[0]) {
-		ret = hws_debug_dump_context_stc_resource(f, ctx, stc_pool->mirror_resource[0]);
+	if (stc_pool->mirror_resource) {
+		struct mlx5hws_pool_resource *res = stc_pool->mirror_resource;
+
+		ret = hws_debug_dump_context_stc_resource(f, ctx, res);
 		if (ret)
 			return ret;
 	}
