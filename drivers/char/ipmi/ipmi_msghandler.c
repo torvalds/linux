@@ -1327,6 +1327,7 @@ static void _ipmi_destroy_user(struct ipmi_user *user)
 	unsigned long    flags;
 	struct cmd_rcvr  *rcvr;
 	struct cmd_rcvr  *rcvrs = NULL;
+	struct ipmi_recv_msg *msg, *msg2;
 
 	if (!refcount_dec_if_one(&user->destroyed))
 		return;
@@ -1376,6 +1377,15 @@ static void _ipmi_destroy_user(struct ipmi_user *user)
 		rcvrs = rcvr->next;
 		kfree(rcvr);
 	}
+
+	mutex_lock(&intf->user_msgs_mutex);
+	list_for_each_entry_safe(msg, msg2, &intf->user_msgs, link) {
+		if (msg->user != user)
+			continue;
+		list_del(&msg->link);
+		ipmi_free_recv_msg(msg);
+	}
+	mutex_unlock(&intf->user_msgs_mutex);
 
 	release_ipmi_user(user);
 }
@@ -4844,8 +4854,22 @@ static void smi_work(struct work_struct *t)
 		struct ipmi_user *user = msg->user;
 
 		list_del(&msg->link);
-		atomic_dec(&user->nr_msgs);
-		user->handler->ipmi_recv_hndl(msg, user->handler_data);
+
+		/*
+		 * I would like for this check (and user->destroyed)
+		 * to go away, but it's possible that an interface is
+		 * processing a message that belongs to the user while
+		 * the user is being deleted.  When that response
+		 * comes back, it could be queued after the user is
+		 * destroyed.  This is simpler than handling it in the
+		 * interface.
+		 */
+		if (refcount_read(&user->destroyed) == 0) {
+			ipmi_free_recv_msg(msg);
+		} else {
+			atomic_dec(&user->nr_msgs);
+			user->handler->ipmi_recv_hndl(msg, user->handler_data);
+		}
 	}
 	mutex_unlock(&intf->user_msgs_mutex);
 
