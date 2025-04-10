@@ -604,7 +604,7 @@ int btrfs_clear_extent_bit_changeset(struct extent_io_tree *tree, u64 start, u64
 	struct extent_state *cached;
 	struct extent_state *prealloc = NULL;
 	u64 last_end;
-	int err;
+	int ret = 0;
 	int clear = 0;
 	int wake;
 	int delete = (bits & EXTENT_CLEAR_ALL_BITS);
@@ -690,10 +690,10 @@ hit_next:
 		prealloc = alloc_extent_state_atomic(prealloc);
 		if (!prealloc)
 			goto search_again;
-		err = split_state(tree, state, prealloc, start);
+		ret = split_state(tree, state, prealloc, start);
 		prealloc = NULL;
-		if (err) {
-			extent_io_tree_panic(tree, state, "split", err);
+		if (ret) {
+			extent_io_tree_panic(tree, state, "split", ret);
 			goto out;
 		}
 		if (state->end <= end) {
@@ -711,9 +711,9 @@ hit_next:
 		prealloc = alloc_extent_state_atomic(prealloc);
 		if (!prealloc)
 			goto search_again;
-		err = split_state(tree, state, prealloc, end + 1);
-		if (err) {
-			extent_io_tree_panic(tree, state, "split", err);
+		ret = split_state(tree, state, prealloc, end + 1);
+		if (ret) {
+			extent_io_tree_panic(tree, state, "split", ret);
 			prealloc = NULL;
 			goto out;
 		}
@@ -748,7 +748,7 @@ out:
 	if (prealloc)
 		btrfs_free_extent_state(prealloc);
 
-	return 0;
+	return ret;
 
 }
 
