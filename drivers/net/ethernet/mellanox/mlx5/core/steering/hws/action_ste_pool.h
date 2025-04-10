@@ -8,6 +8,9 @@
 #define MLX5HWS_ACTION_STE_TABLE_STEP_LOG_SZ 1
 #define MLX5HWS_ACTION_STE_TABLE_MAX_LOG_SZ 20
 
+#define MLX5HWS_ACTION_STE_POOL_CLEANUP_SECONDS 300
+#define MLX5HWS_ACTION_STE_POOL_EXPIRE_SECONDS 300
+
 struct mlx5hws_action_ste_pool_element;
 
 struct mlx5hws_action_ste_table {
@@ -19,10 +22,12 @@ struct mlx5hws_action_ste_table {
 	u32 rtc_0_id;
 	u32 rtc_1_id;
 	struct list_head list_node;
+	unsigned long last_used;
 };
 
 struct mlx5hws_action_ste_pool_element {
 	struct mlx5hws_context *ctx;
+	struct mlx5hws_action_ste_pool *parent_pool;
 	size_t log_sz;  /* Size of the largest table so far. */
 	enum mlx5hws_pool_optimize opt;
 	struct list_head available;
@@ -33,6 +38,12 @@ struct mlx5hws_action_ste_pool_element {
  * per queue.
  */
 struct mlx5hws_action_ste_pool {
+	/* Protects the entire pool. We have one pool per queue and only one
+	 * operation can be active per rule at a given time. Thus this lock
+	 * protects solely against concurrent garbage collection and we expect
+	 * very little contention.
+	 */
+	struct mutex lock;
 	struct mlx5hws_action_ste_pool_element elems[MLX5HWS_POOL_OPTIMIZE_MAX];
 };
 

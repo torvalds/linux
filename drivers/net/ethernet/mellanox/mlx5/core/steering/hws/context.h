@@ -40,6 +40,7 @@ struct mlx5hws_context {
 	u32 pd_num;
 	struct mlx5hws_pool *stc_pool;
 	struct mlx5hws_action_ste_pool *action_ste_pool; /* One per queue */
+	struct delayed_work action_ste_cleanup;
 	struct mlx5hws_context_common_res common_res;
 	struct mlx5hws_pattern_cache *pattern_cache;
 	struct mlx5hws_definer_cache *definer_cache;

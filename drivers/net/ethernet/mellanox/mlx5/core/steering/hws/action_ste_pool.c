@@ -159,6 +159,7 @@ hws_action_ste_table_alloc(struct mlx5hws_action_ste_pool_element *parent_elem)
 
 	action_tbl->parent_elem = parent_elem;
 	INIT_LIST_HEAD(&action_tbl->list_node);
+	action_tbl->last_used = jiffies;
 	list_add(&action_tbl->list_node, &parent_elem->available);
 	parent_elem->log_sz = log_sz;
 
@@ -236,6 +237,8 @@ static int hws_action_ste_pool_init(struct mlx5hws_context *ctx,
 	enum mlx5hws_pool_optimize opt;
 	int err;
 
+	mutex_init(&pool->lock);
+
 	/* Rules which are added for both RX and TX must use the same action STE
 	 * indices for both. If we were to use a single table, then RX-only and
 	 * TX-only rules would waste the unused entries. Thus, we use separate
@@ -247,6 +250,7 @@ static int hws_action_ste_pool_init(struct mlx5hws_context *ctx,
 						       opt);
 		if (err)
 			goto destroy_elems;
+		pool->elems[opt].parent_pool = pool;
 	}
 
 	return 0;
@@ -267,6 +271,58 @@ static void hws_action_ste_pool_destroy(struct mlx5hws_action_ste_pool *pool)
 		hws_action_ste_pool_element_destroy(&pool->elems[opt]);
 }
 
+static void hws_action_ste_pool_element_collect_stale(
+	struct mlx5hws_action_ste_pool_element *elem, struct list_head *cleanup)
+{
+	struct mlx5hws_action_ste_table *action_tbl, *p;
+	unsigned long expire_time, now;
+
+	expire_time = secs_to_jiffies(MLX5HWS_ACTION_STE_POOL_EXPIRE_SECONDS);
+	now = jiffies;
+
+	list_for_each_entry_safe(action_tbl, p, &elem->available, list_node) {
+		if (mlx5hws_pool_full(action_tbl->pool) &&
+		    time_before(action_tbl->last_used + expire_time, now))
+			list_move(&action_tbl->list_node, cleanup);
+	}
+}
+
+static void hws_action_ste_table_cleanup_list(struct list_head *cleanup)
+{
+	struct mlx5hws_action_ste_table *action_tbl, *p;
+
+	list_for_each_entry_safe(action_tbl, p, cleanup, list_node)
+		hws_action_ste_table_destroy(action_tbl);
+}
+
+static void hws_action_ste_pool_cleanup(struct work_struct *work)
+{
+	enum mlx5hws_pool_optimize opt;
+	struct mlx5hws_context *ctx;
+	LIST_HEAD(cleanup);
+	int i;
+
+	ctx = container_of(work, struct mlx5hws_context,
+			   action_ste_cleanup.work);
+
+	for (i = 0; i < ctx->queues; i++) {
+		struct mlx5hws_action_ste_pool *p = &ctx->action_ste_pool[i];
+
+		mutex_lock(&p->lock);
+		for (opt = MLX5HWS_POOL_OPTIMIZE_NONE;
+		     opt < MLX5HWS_POOL_OPTIMIZE_MAX; opt++)
+			hws_action_ste_pool_element_collect_stale(
+				&p->elems[opt], &cleanup);
+		mutex_unlock(&p->lock);
+	}
+
+	hws_action_ste_table_cleanup_list(&cleanup);
+
+	schedule_delayed_work(&ctx->action_ste_cleanup,
+			      secs_to_jiffies(
+				  MLX5HWS_ACTION_STE_POOL_CLEANUP_SECONDS));
+}
+
 int mlx5hws_action_ste_pool_init(struct mlx5hws_context *ctx)
 {
 	struct mlx5hws_action_ste_pool *pool;
@@ -285,6 +341,12 @@ int mlx5hws_action_ste_pool_init(struct mlx5hws_context *ctx)
 
 	ctx->action_ste_pool = pool;
 
+	INIT_DELAYED_WORK(&ctx->action_ste_cleanup,
+			  hws_action_ste_pool_cleanup);
+	schedule_delayed_work(
+		&ctx->action_ste_cleanup,
+		secs_to_jiffies(MLX5HWS_ACTION_STE_POOL_CLEANUP_SECONDS));
+
 	return 0;
 
 free_pool:
@@ -299,6 +361,8 @@ void mlx5hws_action_ste_pool_uninit(struct mlx5hws_context *ctx)
 {
 	size_t queues = ctx->queues;
 	int i;
+
+	cancel_delayed_work_sync(&ctx->action_ste_cleanup);
 
 	for (i = 0; i < queues; i++)
 		hws_action_ste_pool_destroy(&ctx->action_ste_pool[i]);
@@ -330,6 +394,7 @@ hws_action_ste_table_chunk_alloc(struct mlx5hws_action_ste_table *action_tbl,
 		return err;
 
 	chunk->action_tbl = action_tbl;
+	action_tbl->last_used = jiffies;
 
 	return 0;
 }
@@ -345,6 +410,8 @@ int mlx5hws_action_ste_chunk_alloc(struct mlx5hws_action_ste_pool *pool,
 
 	if (skip_rx && skip_tx)
 		return -EINVAL;
+
+	mutex_lock(&pool->lock);
 
 	elem = hws_action_ste_choose_elem(pool, skip_rx, skip_tx);
 
@@ -362,26 +429,39 @@ int mlx5hws_action_ste_chunk_alloc(struct mlx5hws_action_ste_pool *pool,
 
 	if (!found) {
 		action_tbl = hws_action_ste_table_alloc(elem);
-		if (IS_ERR(action_tbl))
-			return PTR_ERR(action_tbl);
+		if (IS_ERR(action_tbl)) {
+			err = PTR_ERR(action_tbl);
+			goto out;
+		}
 
 		err = hws_action_ste_table_chunk_alloc(action_tbl, chunk);
 		if (err)
-			return err;
+			goto out;
 	}
 
 	if (mlx5hws_pool_empty(action_tbl->pool))
 		list_move(&action_tbl->list_node, &elem->full);
 
-	return 0;
+	err = 0;
+
+out:
+	mutex_unlock(&pool->lock);
+
+	return err;
 }
 
 void mlx5hws_action_ste_chunk_free(struct mlx5hws_action_ste_chunk *chunk)
 {
+	struct mutex *lock = &chunk->action_tbl->parent_elem->parent_pool->lock;
+
 	mlx5hws_dbg(chunk->action_tbl->pool->ctx,
 		    "Freeing action STEs offset %d order %d\n",
 		    chunk->ste.offset, chunk->ste.order);
+
+	mutex_lock(lock);
 	mlx5hws_pool_chunk_free(chunk->action_tbl->pool, &chunk->ste);
+	chunk->action_tbl->last_used = jiffies;
 	list_move(&chunk->action_tbl->list_node,
 		  &chunk->action_tbl->parent_elem->available);
+	mutex_unlock(lock);
 }
