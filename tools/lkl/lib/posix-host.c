@@ -448,15 +448,6 @@ static void panic(void)
 	assert(0);
 }
 
-static long _gettid(void)
-{
-#ifdef	__FreeBSD__
-	return (long)pthread_self();
-#else
-	return syscall(SYS_gettid);
-#endif
-}
-
 static void *page_alloc(unsigned long size)
 {
 	void *addr;
@@ -607,7 +598,6 @@ struct lkl_host_operations lkl_host_ops = {
 	.ioremap = lkl_ioremap,
 	.iomem_access = lkl_iomem_access,
 	.virtio_devices = lkl_virtio_devs,
-	.gettid = _gettid,
 	.jmp_buf_set = jmp_buf_set,
 	.jmp_buf_longjmp = jmp_buf_longjmp,
 	.memcpy = posix_memcpy,
