@@ -1247,6 +1247,9 @@ class RenderInfo:
         if op_mode == 'event':
             self.struct['reply'] = Struct(family, self.attr_set, type_list=op['event']['attributes'])
 
+    def type_empty(self, key):
+        return len(self.struct[key].attr_list) == 0 and self.fixed_hdr is None
+
 
 class CodeWriter:
     def __init__(self, nlib, out_file=None, overwrite=True):
@@ -2034,7 +2037,7 @@ def print_type_helpers(ri, direction, deref=False):
 
 
 def print_req_type_helpers(ri):
-    if len(ri.struct["request"].attr_list) == 0:
+    if ri.type_empty("request"):
         return
     print_alloc_wrapper(ri, "request")
     print_type_helpers(ri, "request")
@@ -2057,7 +2060,7 @@ def print_parse_prototype(ri, direction, terminate=True):
 
 
 def print_req_type(ri):
-    if len(ri.struct["request"].attr_list) == 0:
+    if ri.type_empty("request"):
         return
     print_type(ri, "request")
 
