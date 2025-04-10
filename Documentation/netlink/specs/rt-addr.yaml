@@ -133,11 +133,6 @@ operations:
         request:
           value: 20
           attributes: &ifaddr-all
-            - ifa-family
-            - ifa-flags
-            - ifa-prefixlen
-            - ifa-scope
-            - ifa-index
             - address
             - label
             - local
@@ -150,11 +145,6 @@ operations:
         request:
           value: 21
           attributes:
-            - ifa-family
-            - ifa-flags
-            - ifa-prefixlen
-            - ifa-scope
-            - ifa-index
             - address
             - local
     -
@@ -164,8 +154,7 @@ operations:
       dump:
         request:
           value: 22
-          attributes:
-            - ifa-index
+          attributes: []
         reply:
           value: 20
           attributes: *ifaddr-all
@@ -177,9 +166,7 @@ operations:
       do:
         request:
           value: 58
-          attributes:
-            - ifa-family
-            - ifa-index
+          attributes: []
         reply:
           value: 58
           attributes: &mcaddr-attrs
@@ -188,8 +175,7 @@ operations:
       dump:
         request:
           value: 58
-          attributes:
-            - ifa-family
+          attributes: []
         reply:
           value: 58
           attributes: *mcaddr-attrs
