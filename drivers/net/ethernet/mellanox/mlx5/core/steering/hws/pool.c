@@ -80,7 +80,7 @@ static int hws_pool_resource_alloc(struct mlx5hws_pool *pool)
 	u32 fw_ft_type, opt_log_range;
 
 	fw_ft_type = mlx5hws_table_get_res_fw_ft_type(pool->tbl_type, false);
-	opt_log_range = pool->opt_type == MLX5HWS_POOL_OPTIMIZE_ORIG ?
+	opt_log_range = pool->opt_type == MLX5HWS_POOL_OPTIMIZE_MIRROR ?
 				0 : pool->alloc_log_sz;
 	resource = hws_pool_create_one_resource(pool, opt_log_range, fw_ft_type);
 	if (!resource) {
@@ -94,7 +94,7 @@ static int hws_pool_resource_alloc(struct mlx5hws_pool *pool)
 		struct mlx5hws_pool_resource *mirror_resource;
 
 		fw_ft_type = mlx5hws_table_get_res_fw_ft_type(pool->tbl_type, true);
-		opt_log_range = pool->opt_type == MLX5HWS_POOL_OPTIMIZE_MIRROR ?
+		opt_log_range = pool->opt_type == MLX5HWS_POOL_OPTIMIZE_ORIG ?
 					0 : pool->alloc_log_sz;
 		mirror_resource = hws_pool_create_one_resource(pool, opt_log_range, fw_ft_type);
 		if (!mirror_resource) {
