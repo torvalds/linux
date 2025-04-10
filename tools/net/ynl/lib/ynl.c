@@ -451,14 +451,14 @@ ynl_gemsg_start(struct ynl_sock *ys, __u32 id, __u16 flags,
 	return nlh;
 }
 
-void ynl_msg_start_req(struct ynl_sock *ys, __u32 id)
+struct nlmsghdr *ynl_msg_start_req(struct ynl_sock *ys, __u32 id)
 {
-	ynl_msg_start(ys, id, NLM_F_REQUEST | NLM_F_ACK);
+	return ynl_msg_start(ys, id, NLM_F_REQUEST | NLM_F_ACK);
 }
 
-void ynl_msg_start_dump(struct ynl_sock *ys, __u32 id)
+struct nlmsghdr *ynl_msg_start_dump(struct ynl_sock *ys, __u32 id)
 {
-	ynl_msg_start(ys, id, NLM_F_REQUEST | NLM_F_ACK | NLM_F_DUMP);
+	return ynl_msg_start(ys, id, NLM_F_REQUEST | NLM_F_ACK | NLM_F_DUMP);
 }
 
 struct nlmsghdr *

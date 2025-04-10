@@ -1710,7 +1710,10 @@ def _multi_parse(ri, struct, init_lines, local_vars):
         ri.cw.p(f'dst->{arg} = {arg};')
 
     if ri.fixed_hdr:
-        ri.cw.p('hdr = ynl_nlmsg_data_offset(nlh, sizeof(struct genlmsghdr));')
+        if ri.family.is_classic():
+            ri.cw.p('hdr = ynl_nlmsg_data(nlh);')
+        else:
+            ri.cw.p('hdr = ynl_nlmsg_data_offset(nlh, sizeof(struct genlmsghdr));')
         ri.cw.p(f"memcpy(&dst->_hdr, hdr, sizeof({ri.fixed_hdr}));")
     for anest in sorted(all_multi):
         aspec = struct[anest]
@@ -1857,7 +1860,10 @@ def print_req(ri):
     ri.cw.block_start()
     ri.cw.write_func_lvar(local_vars)
 
-    ri.cw.p(f"nlh = ynl_gemsg_start_req(ys, {ri.nl.get_family_id()}, {ri.op.enum_name}, 1);")
+    if ri.family.is_classic():
+        ri.cw.p(f"nlh = ynl_msg_start_req(ys, {ri.op.enum_name});")
+    else:
+        ri.cw.p(f"nlh = ynl_gemsg_start_req(ys, {ri.nl.get_family_id()}, {ri.op.enum_name}, 1);")
 
     ri.cw.p(f"ys->req_policy = &{ri.struct['request'].render_name}_nest;")
     if 'reply' in ri.op[ri.op_mode]:
@@ -1926,7 +1932,10 @@ def print_dump(ri):
     else:
         ri.cw.p(f'yds.rsp_cmd = {ri.op.rsp_value};')
     ri.cw.nl()
-    ri.cw.p(f"nlh = ynl_gemsg_start_dump(ys, {ri.nl.get_family_id()}, {ri.op.enum_name}, 1);")
+    if ri.family.is_classic():
+        ri.cw.p(f"nlh = ynl_msg_start_dump(ys, {ri.op.enum_name});")
+    else:
+        ri.cw.p(f"nlh = ynl_gemsg_start_dump(ys, {ri.nl.get_family_id()}, {ri.op.enum_name}, 1);")
 
     if ri.fixed_hdr:
         ri.cw.p("hdr_len = sizeof(req->_hdr);")
@@ -2736,7 +2745,9 @@ def render_user_family(family, cw, prototype):
     if family.is_classic():
         cw.p(f'.is_classic\t= true,')
         cw.p(f'.classic_id\t= {family.get("protonum")},')
-    if family.fixed_header:
+    if family.is_classic():
+        cw.p(f'.hdr_len\t= sizeof(struct {c_lower(family.fixed_header)}),')
+    elif family.fixed_header:
         cw.p(f'.hdr_len\t= sizeof(struct genlmsghdr) + sizeof(struct {c_lower(family.fixed_header)}),')
     else:
         cw.p('.hdr_len\t= sizeof(struct genlmsghdr),')
