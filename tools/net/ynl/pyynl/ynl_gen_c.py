@@ -2726,7 +2726,7 @@ def render_user_family(family, cw, prototype):
         return
 
     if family.ntfs:
-        cw.block_start(line=f"static const struct ynl_ntf_info {family['name']}_ntf_info[] = ")
+        cw.block_start(line=f"static const struct ynl_ntf_info {family.c_name}_ntf_info[] = ")
         for ntf_op_name, ntf_op in family.ntfs.items():
             if 'notify' in ntf_op:
                 op = family.ops[ntf_op['notify']]
@@ -2756,8 +2756,8 @@ def render_user_family(family, cw, prototype):
     else:
         cw.p('.hdr_len\t= sizeof(struct genlmsghdr),')
     if family.ntfs:
-        cw.p(f".ntf_info\t= {family['name']}_ntf_info,")
-        cw.p(f".ntf_info_size\t= YNL_ARRAY_SIZE({family['name']}_ntf_info),")
+        cw.p(f".ntf_info\t= {family.c_name}_ntf_info,")
+        cw.p(f".ntf_info_size\t= YNL_ARRAY_SIZE({family.c_name}_ntf_info),")
     cw.block_end(line=';')
 
 
