@@ -63,8 +63,8 @@ pub struct Device<T: drm::Driver> {
 impl<T: drm::Driver> Device<T> {
     const VTABLE: bindings::drm_driver = drm_legacy_fields! {
         load: None,
-        open: None, // TODO: File abstraction
-        postclose: None, // TODO: File abstraction
+        open: Some(drm::File::<T::File>::open_callback),
+        postclose: Some(drm::File::<T::File>::postclose_callback),
         unload: None,
         release: None,
         master_set: None,

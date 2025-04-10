@@ -105,6 +105,9 @@ pub trait Driver {
     /// The type used to manage memory for this driver.
     type Object: AllocImpl;
 
+    /// The type used to represent a DRM File (client)
+    type File: drm::file::DriverFile;
+
     /// Driver metadata
     const INFO: DriverInfo;
 
