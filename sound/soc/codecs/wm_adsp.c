@@ -8,6 +8,7 @@
  */
 
 #include <linux/array_size.h>
+#include <linux/cleanup.h>
 #include <linux/ctype.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -19,7 +20,7 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
-#include <linux/vmalloc.h>
+#include <linux/string.h>
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
 #include <sound/core.h>
@@ -415,21 +416,12 @@ static int wm_coeff_tlv_put(struct snd_kcontrol *kctl,
 		(struct soc_bytes_ext *)kctl->private_value;
 	struct wm_coeff_ctl *ctl = bytes_ext_to_ctl(bytes_ext);
 	struct cs_dsp_coeff_ctl *cs_ctl = ctl->cs_ctl;
-	void *scratch;
-	int ret = 0;
+	void *scratch __free(kvfree) = vmemdup_user(bytes, size);
 
-	scratch = vmalloc(size);
-	if (!scratch)
-		return -ENOMEM;
+	if (IS_ERR(scratch))
+		return PTR_ERR(no_free_ptr(scratch));
 
-	if (copy_from_user(scratch, bytes, size))
-		ret = -EFAULT;
-	else
-		ret = cs_dsp_coeff_lock_and_write_ctrl(cs_ctl, 0, scratch, size);
-
-	vfree(scratch);
-
-	return ret;
+	return cs_dsp_coeff_lock_and_write_ctrl(cs_ctl, 0, scratch, size);
 }
 
 static int wm_coeff_put_acked(struct snd_kcontrol *kctl,
