@@ -53,7 +53,10 @@ static struct intel_display *node_to_intel_display(struct drm_info_node *node)
 static int intel_display_caps(struct seq_file *m, void *data)
 {
 	struct intel_display *display = node_to_intel_display(m->private);
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct drm_printer p = drm_seq_file_printer(m);
+
+	drm_printf(&p, "PCH type: %d\n", INTEL_PCH_TYPE(i915));
 
 	intel_display_device_info_print(DISPLAY_INFO(display),
 					DISPLAY_RUNTIME_INFO(display), &p);
