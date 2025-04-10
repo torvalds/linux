@@ -6,6 +6,7 @@
 #include <asm/boot_data.h>
 #include <asm/extmem.h>
 #include <asm/sections.h>
+#include <asm/diag288.h>
 #include <asm/maccess.h>
 #include <asm/machine.h>
 #include <asm/sysinfo.h>
@@ -69,6 +70,20 @@ static void detect_machine_type(void)
 		set_machine_feature(MFEATURE_KVM);
 	else if (!memcmp(vmms->vm[0].cpi, "\xa9\x61\xe5\xd4", 4))
 		set_machine_feature(MFEATURE_VM);
+}
+
+static void detect_diag288(void)
+{
+	/* "BEGIN" in EBCDIC character set */
+	static const char cmd[] = "\xc2\xc5\xc7\xc9\xd5";
+	unsigned long action, len;
+
+	action = machine_is_vm() ? (unsigned long)cmd : LPARWDT_RESTART;
+	len = machine_is_vm() ? sizeof(cmd) : 0;
+	if (__diag288(WDT_FUNC_INIT, MIN_INTERVAL, action, len))
+		return;
+	__diag288(WDT_FUNC_CANCEL, 0, 0, 0);
+	set_machine_feature(MFEATURE_DIAG288);
 }
 
 static void detect_diag9c(void)
@@ -519,6 +534,8 @@ void startup_kernel(void)
 	detect_facilities();
 	detect_diag9c();
 	detect_machine_type();
+	/* detect_diag288() needs machine type */
+	detect_diag288();
 	cmma_init();
 	sanitize_prot_virt_host();
 	max_physmem_end = detect_max_physmem_end();
