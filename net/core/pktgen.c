@@ -2900,7 +2900,7 @@ static struct sk_buff *pktgen_alloc_skb(struct net_device *dev,
 			skb->dev = dev;
 		}
 	} else {
-		 skb = __netdev_alloc_skb(dev, size, GFP_NOWAIT);
+		skb = __netdev_alloc_skb(dev, size, GFP_NOWAIT);
 	}
 
 	/* the caller pre-fetches from skb->data and reserves for the mac hdr */
