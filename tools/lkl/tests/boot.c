@@ -780,7 +780,10 @@ int main(int argc, const char **argv)
 
 	lkl_host_ops.print = lkl_test_log;
 
-	lkl_init(&lkl_host_ops);
+	if (lkl_init(&lkl_host_ops) < 0) {
+		printf("%s\n", lkl_test_get_log());
+		return 1;
+	}
 
 	ret = lkl_test_run(tests, sizeof(tests)/sizeof(struct lkl_test),
 			"boot");
