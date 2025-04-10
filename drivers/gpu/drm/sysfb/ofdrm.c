@@ -78,20 +78,12 @@ enum ofdrm_model {
 
 static int display_get_validated_int(struct drm_device *dev, const char *name, uint32_t value)
 {
-	if (value > INT_MAX) {
-		drm_err(dev, "invalid framebuffer %s of %u\n", name, value);
-		return -EINVAL;
-	}
-	return (int)value;
+	return drm_sysfb_get_validated_int(dev, name, value, INT_MAX);
 }
 
 static int display_get_validated_int0(struct drm_device *dev, const char *name, uint32_t value)
 {
-	if (!value) {
-		drm_err(dev, "invalid framebuffer %s of %u\n", name, value);
-		return -EINVAL;
-	}
-	return display_get_validated_int(dev, name, value);
+	return drm_sysfb_get_validated_int0(dev, name, value, INT_MAX);
 }
 
 static const struct drm_format_info *display_get_validated_format(struct drm_device *dev,

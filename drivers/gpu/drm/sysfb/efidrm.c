@@ -33,28 +33,6 @@
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
-static int efidrm_get_validated_int(struct drm_device *dev, const char *name,
-				    u64 value, u32 max)
-{
-	if (max > INT_MAX)
-		max = INT_MAX;
-	if (value > max) {
-		drm_err(dev, "%s of %llu exceeds maximum of %u\n", name, value, max);
-		return -EINVAL;
-	}
-	return value;
-}
-
-static int efidrm_get_validated_int0(struct drm_device *dev, const char *name,
-				     u64 value, u32 max)
-{
-	if (!value) {
-		drm_err(dev, "%s of 0 not allowed\n", name);
-		return -EINVAL;
-	}
-	return efidrm_get_validated_int(dev, name, value, max);
-}
-
 static s64 efidrm_get_validated_size0(struct drm_device *dev, const char *name,
 				      u64 value, u64 max)
 {
@@ -70,12 +48,12 @@ static s64 efidrm_get_validated_size0(struct drm_device *dev, const char *name,
 
 static int efidrm_get_width_si(struct drm_device *dev, const struct screen_info *si)
 {
-	return efidrm_get_validated_int0(dev, "width", si->lfb_width, U16_MAX);
+	return drm_sysfb_get_validated_int0(dev, "width", si->lfb_width, U16_MAX);
 }
 
 static int efidrm_get_height_si(struct drm_device *dev, const struct screen_info *si)
 {
-	return efidrm_get_validated_int0(dev, "height", si->lfb_height, U16_MAX);
+	return drm_sysfb_get_validated_int0(dev, "height", si->lfb_height, U16_MAX);
 }
 
 static struct resource *efidrm_get_memory_si(struct drm_device *dev,
@@ -102,7 +80,8 @@ static int efidrm_get_stride_si(struct drm_device *dev, const struct screen_info
 	if (!lfb_linelength)
 		lfb_linelength = drm_format_info_min_pitch(format, 0, width);
 
-	return efidrm_get_validated_int0(dev, "stride", lfb_linelength, div64_u64(size, height));
+	return drm_sysfb_get_validated_int0(dev, "stride", lfb_linelength,
+					    div64_u64(size, height));
 }
 
 static u64 efidrm_get_visible_size_si(struct drm_device *dev, const struct screen_info *si,
