@@ -102,7 +102,7 @@ static int agilent_82357a_send_bulk_msg(struct agilent_82357a_priv *a_priv, void
 cleanup:
 	if (timeout_msecs) {
 		if (timer_pending(&a_priv->bulk_timer))
-			del_timer_sync(&a_priv->bulk_timer);
+			timer_delete_sync(&a_priv->bulk_timer);
 	}
 	mutex_lock(&a_priv->bulk_alloc_lock);
 	if (a_priv->bulk_urb) {
@@ -169,7 +169,7 @@ static int agilent_82357a_receive_bulk_msg(struct agilent_82357a_priv *a_priv, v
 	*actual_data_length = a_priv->bulk_urb->actual_length;
 cleanup:
 	if (timeout_msecs)
-		del_timer_sync(&a_priv->bulk_timer);
+		timer_delete_sync(&a_priv->bulk_timer);
 
 	mutex_lock(&a_priv->bulk_alloc_lock);
 	if (a_priv->bulk_urb) {

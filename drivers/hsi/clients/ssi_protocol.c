@@ -281,9 +281,9 @@ static void ssip_set_rxstate(struct ssi_protocol *ssi, unsigned int state)
 	ssi->recv_state = state;
 	switch (state) {
 	case RECV_IDLE:
-		del_timer(&ssi->rx_wd);
+		timer_delete(&ssi->rx_wd);
 		if (ssi->send_state == SEND_IDLE)
-			del_timer(&ssi->keep_alive);
+			timer_delete(&ssi->keep_alive);
 		break;
 	case RECV_READY:
 		/* CMT speech workaround */
@@ -306,9 +306,9 @@ static void ssip_set_txstate(struct ssi_protocol *ssi, unsigned int state)
 	switch (state) {
 	case SEND_IDLE:
 	case SEND_READY:
-		del_timer(&ssi->tx_wd);
+		timer_delete(&ssi->tx_wd);
 		if (ssi->recv_state == RECV_IDLE)
-			del_timer(&ssi->keep_alive);
+			timer_delete(&ssi->keep_alive);
 		break;
 	case WAIT4READY:
 	case SENDING:
@@ -398,9 +398,9 @@ static void ssip_reset(struct hsi_client *cl)
 	if (test_and_clear_bit(SSIP_WAKETEST_FLAG, &ssi->flags))
 		ssi_waketest(cl, 0); /* FIXME: To be removed */
 	spin_lock_bh(&ssi->lock);
-	del_timer(&ssi->rx_wd);
-	del_timer(&ssi->tx_wd);
-	del_timer(&ssi->keep_alive);
+	timer_delete(&ssi->rx_wd);
+	timer_delete(&ssi->tx_wd);
+	timer_delete(&ssi->keep_alive);
 	cancel_work_sync(&ssi->work);
 	ssi->main_state = 0;
 	ssi->send_state = 0;
@@ -648,7 +648,7 @@ static void ssip_rx_data_complete(struct hsi_msg *msg)
 		ssip_error(cl);
 		return;
 	}
-	del_timer(&ssi->rx_wd); /* FIXME: Revisit */
+	timer_delete(&ssi->rx_wd); /* FIXME: Revisit */
 	skb = msg->context;
 	ssip_pn_rx(skb);
 	hsi_free_msg(msg);
@@ -731,7 +731,7 @@ static void ssip_rx_waketest(struct hsi_client *cl, u32 cmd)
 
 	spin_lock_bh(&ssi->lock);
 	ssi->main_state = ACTIVE;
-	del_timer(&ssi->tx_wd); /* Stop boot handshake timer */
+	timer_delete(&ssi->tx_wd); /* Stop boot handshake timer */
 	spin_unlock_bh(&ssi->lock);
 
 	dev_notice(&cl->device, "WAKELINES TEST %s\n",

@@ -376,6 +376,7 @@ void do_protection_exception(struct pt_regs *regs)
 	if (unlikely(!teid.b61)) {
 		if (user_mode(regs)) {
 			/* Low-address protection in user mode: cannot happen */
+			dump_fault_info(regs);
 			die(regs, "Low-address protection");
 		}
 		/*

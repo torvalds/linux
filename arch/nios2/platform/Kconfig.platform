@@ -35,19 +35,20 @@ config NIOS2_DTB_PHYS_ADDR
 	help
 	  Physical address of a dtb blob.
 
-config NIOS2_DTB_SOURCE_BOOL
+config BUILTIN_DTB
 	bool "Compile and link device tree into kernel image"
 	depends on !COMPILE_TEST
+	select GENERIC_BUILTIN_DTB
 	help
 	  This allows you to specify a dts (device tree source) file
 	  which will be compiled and linked into the kernel image.
 
-config NIOS2_DTB_SOURCE
-	string "Device tree source file"
-	depends on NIOS2_DTB_SOURCE_BOOL
+config BUILTIN_DTB_NAME
+	string "Built-in device tree name"
+	depends on BUILTIN_DTB
 	default ""
 	help
-	  Absolute path to the device tree source (dts) file describing your
+	  Relative path to the device tree without suffix describing your
 	  system.
 
 comment "Nios II instructions"

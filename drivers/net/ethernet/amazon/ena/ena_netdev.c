@@ -3245,7 +3245,7 @@ static int ena_destroy_device(struct ena_adapter *adapter, bool graceful)
 
 	netif_carrier_off(netdev);
 
-	del_timer_sync(&adapter->timer_service);
+	timer_delete_sync(&adapter->timer_service);
 
 	dev_up = test_bit(ENA_FLAG_DEV_UP, &adapter->flags);
 	adapter->dev_up_before_reset = dev_up;
@@ -4065,7 +4065,7 @@ err_free_msix:
 	ena_free_mgmnt_irq(adapter);
 	ena_disable_msix(adapter);
 err_worker_destroy:
-	del_timer(&adapter->timer_service);
+	timer_delete(&adapter->timer_service);
 err_device_destroy:
 	ena_com_delete_host_info(ena_dev);
 	ena_com_admin_destroy(ena_dev);
@@ -4104,7 +4104,7 @@ static void __ena_shutoff(struct pci_dev *pdev, bool shutdown)
 	/* Make sure timer and reset routine won't be called after
 	 * freeing device resources.
 	 */
-	del_timer_sync(&adapter->timer_service);
+	timer_delete_sync(&adapter->timer_service);
 	cancel_work_sync(&adapter->reset_task);
 
 	rtnl_lock(); /* lock released inside the below if-else block */

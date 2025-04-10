@@ -18,6 +18,7 @@ int netdev_debug_event(struct notifier_block *nb, unsigned long event,
 
 	/* Keep enum and don't add default to trigger -Werror=switch */
 	switch (cmd) {
+	case NETDEV_CHANGE:
 	case NETDEV_REGISTER:
 	case NETDEV_UP:
 	case NETDEV_XDP_FEAT_CHANGE:
@@ -25,7 +26,6 @@ int netdev_debug_event(struct notifier_block *nb, unsigned long event,
 		fallthrough;
 	case NETDEV_DOWN:
 	case NETDEV_REBOOT:
-	case NETDEV_CHANGE:
 	case NETDEV_UNREGISTER:
 	case NETDEV_CHANGEMTU:
 	case NETDEV_CHANGEADDR:

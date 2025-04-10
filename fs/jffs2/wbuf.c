@@ -584,7 +584,7 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 	size_t retlen;
 
 	/* Nothing to do if not write-buffering the flash. In particular, we shouldn't
-	   del_timer() the timer we never initialised. */
+	   call timer_delete() on the timer we never initialised. */
 	if (!jffs2_is_writebuffered(c))
 		return 0;
 

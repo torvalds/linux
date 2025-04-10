@@ -2261,7 +2261,7 @@ static void check_for_drain_complete(struct hash_zone *zone)
 	if ((atomic_read(&zone->timer_state) == DEDUPE_QUERY_TIMER_IDLE) ||
 	    change_timer_state(zone, DEDUPE_QUERY_TIMER_RUNNING,
 			       DEDUPE_QUERY_TIMER_IDLE)) {
-		del_timer_sync(&zone->timer);
+		timer_delete_sync(&zone->timer);
 	} else {
 		/*
 		 * There is an in flight time-out, which must get processed before we can continue.

@@ -74,7 +74,7 @@ static void bnx2fc_ofld_wait(struct bnx2fc_rport *tgt)
 				  &tgt->flags)));
 	if (signal_pending(current))
 		flush_signals(current);
-	del_timer_sync(&tgt->ofld_timer);
+	timer_delete_sync(&tgt->ofld_timer);
 }
 
 static void bnx2fc_offload_session(struct fcoe_port *port,
@@ -283,7 +283,7 @@ static void bnx2fc_upld_wait(struct bnx2fc_rport *tgt)
 				  &tgt->flags)));
 	if (signal_pending(current))
 		flush_signals(current);
-	del_timer_sync(&tgt->upld_timer);
+	timer_delete_sync(&tgt->upld_timer);
 }
 
 static void bnx2fc_upload_session(struct fcoe_port *port,

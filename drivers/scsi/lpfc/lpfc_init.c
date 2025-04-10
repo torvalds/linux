@@ -3120,8 +3120,8 @@ lpfc_cleanup(struct lpfc_vport *vport)
 void
 lpfc_stop_vport_timers(struct lpfc_vport *vport)
 {
-	del_timer_sync(&vport->els_tmofunc);
-	del_timer_sync(&vport->delayed_disc_tmo);
+	timer_delete_sync(&vport->els_tmofunc);
+	timer_delete_sync(&vport->delayed_disc_tmo);
 	lpfc_can_disctmo(vport);
 	return;
 }
@@ -3140,7 +3140,7 @@ __lpfc_sli4_stop_fcf_redisc_wait_timer(struct lpfc_hba *phba)
 	phba->fcf.fcf_flag &= ~FCF_REDISC_PEND;
 
 	/* Now, try to stop the timer */
-	del_timer(&phba->fcf.redisc_wait);
+	timer_delete(&phba->fcf.redisc_wait);
 }
 
 /**
@@ -3302,12 +3302,12 @@ lpfc_stop_hba_timers(struct lpfc_hba *phba)
 		lpfc_stop_vport_timers(phba->pport);
 	cancel_delayed_work_sync(&phba->eq_delay_work);
 	cancel_delayed_work_sync(&phba->idle_stat_delay_work);
-	del_timer_sync(&phba->sli.mbox_tmo);
-	del_timer_sync(&phba->fabric_block_timer);
-	del_timer_sync(&phba->eratt_poll);
-	del_timer_sync(&phba->hb_tmofunc);
+	timer_delete_sync(&phba->sli.mbox_tmo);
+	timer_delete_sync(&phba->fabric_block_timer);
+	timer_delete_sync(&phba->eratt_poll);
+	timer_delete_sync(&phba->hb_tmofunc);
 	if (phba->sli_rev == LPFC_SLI_REV4) {
-		del_timer_sync(&phba->rrq_tmr);
+		timer_delete_sync(&phba->rrq_tmr);
 		clear_bit(HBA_RRQ_ACTIVE, &phba->hba_flag);
 	}
 	clear_bit(HBA_HBEAT_INP, &phba->hba_flag);
@@ -3316,7 +3316,7 @@ lpfc_stop_hba_timers(struct lpfc_hba *phba)
 	switch (phba->pci_dev_grp) {
 	case LPFC_PCI_DEV_LP:
 		/* Stop any LightPulse device specific driver timers */
-		del_timer_sync(&phba->fcp_poll_timer);
+		timer_delete_sync(&phba->fcp_poll_timer);
 		break;
 	case LPFC_PCI_DEV_OC:
 		/* Stop any OneConnect device specific driver timers */
@@ -12761,7 +12761,7 @@ static void __lpfc_cpuhp_remove(struct lpfc_hba *phba)
 	 * timer. Wait for the poll timer to retire.
 	 */
 	synchronize_rcu();
-	del_timer_sync(&phba->cpuhp_poll_timer);
+	timer_delete_sync(&phba->cpuhp_poll_timer);
 }
 
 static void lpfc_cpuhp_remove(struct lpfc_hba *phba)

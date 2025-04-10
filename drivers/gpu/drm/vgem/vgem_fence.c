@@ -49,7 +49,7 @@ static void vgem_fence_release(struct dma_fence *base)
 {
 	struct vgem_fence *fence = container_of(base, typeof(*fence), base);
 
-	del_timer_sync(&fence->timer);
+	timer_delete_sync(&fence->timer);
 	dma_fence_free(&fence->base);
 }
 

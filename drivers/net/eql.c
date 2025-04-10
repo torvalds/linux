@@ -254,7 +254,7 @@ static int eql_close(struct net_device *dev)
 	 *	at the data structure it scans every so often...
 	 */
 
-	del_timer_sync(&eql->timer);
+	timer_delete_sync(&eql->timer);
 
 	eql_kill_slave_queue(&eql->queue);
 

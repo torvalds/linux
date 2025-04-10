@@ -610,7 +610,7 @@ static void start_wait_timer(struct wait_info *winfo)
 
 static void remove_wait_timer(struct wait_info *winfo)
 {
-	del_timer_sync(&winfo->timer);
+	timer_delete_sync(&winfo->timer);
 	destroy_timer_on_stack(&winfo->timer);
 }
 

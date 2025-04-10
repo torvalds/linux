@@ -351,7 +351,7 @@ static int c8sectpfe_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 		dev_dbg(fei->dev, "%s:%d global_feed_count=%d\n"
 			, __func__, __LINE__, fei->global_feed_count);
 
-		del_timer(&fei->timer);
+		timer_delete(&fei->timer);
 	}
 
 	mutex_unlock(&fei->lock);

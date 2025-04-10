@@ -291,7 +291,7 @@ void __init uic_init_tree(void)
 	if (!primary_uic)
 		panic("Unable to initialize primary UIC %pOF\n", np);
 
-	irq_set_default_host(primary_uic->irqhost);
+	irq_set_default_domain(primary_uic->irqhost);
 	of_node_put(np);
 
 	/* The scan again for cascaded UICs */

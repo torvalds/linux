@@ -109,7 +109,7 @@ void os_remove_timer(struct gpib_board *board)
 /* Removes the timeout task */
 {
 	if (timer_pending(&board->timer))
-		del_timer_sync(&board->timer);
+		timer_delete_sync(&board->timer);
 }
 
 int io_timed_out(struct gpib_board *board)
@@ -163,7 +163,7 @@ void gpib_free_pseudo_irq(struct gpib_board *board)
 {
 	atomic_set(&board->pseudo_irq.active, 0);
 
-	del_timer_sync(&board->pseudo_irq.timer);
+	timer_delete_sync(&board->pseudo_irq.timer);
 	board->pseudo_irq.handler = NULL;
 }
 EXPORT_SYMBOL(gpib_free_pseudo_irq);

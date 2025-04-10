@@ -1172,13 +1172,13 @@ static void do_handle_shift(struct vc_data *vc, u_char value, char up_flag)
 	if (cursor_track == read_all_mode) {
 		switch (value) {
 		case KVAL(K_SHIFT):
-			del_timer(&cursor_timer);
+			timer_delete(&cursor_timer);
 			spk_shut_up &= 0xfe;
 			spk_do_flush();
 			read_all_doc(vc);
 			break;
 		case KVAL(K_CTRL):
-			del_timer(&cursor_timer);
+			timer_delete(&cursor_timer);
 			cursor_track = prev_cursor_track;
 			spk_shut_up &= 0xfe;
 			spk_do_flush();
@@ -1399,7 +1399,7 @@ static void start_read_all_timer(struct vc_data *vc, enum read_all_command comma
 
 static void kbd_fakekey2(struct vc_data *vc, enum read_all_command command)
 {
-	del_timer(&cursor_timer);
+	timer_delete(&cursor_timer);
 	speakup_fake_down_arrow();
 	start_read_all_timer(vc, command);
 }
@@ -1415,7 +1415,7 @@ static void read_all_doc(struct vc_data *vc)
 	cursor_track = read_all_mode;
 	spk_reset_index_count(0);
 	if (get_sentence_buf(vc, 0) == -1) {
-		del_timer(&cursor_timer);
+		timer_delete(&cursor_timer);
 		if (!in_keyboard_notifier)
 			speakup_fake_down_arrow();
 		start_read_all_timer(vc, RA_DOWN_ARROW);
@@ -1428,7 +1428,7 @@ static void read_all_doc(struct vc_data *vc)
 
 static void stop_read_all(struct vc_data *vc)
 {
-	del_timer(&cursor_timer);
+	timer_delete(&cursor_timer);
 	cursor_track = prev_cursor_track;
 	spk_shut_up &= 0xfe;
 	spk_do_flush();
@@ -1528,7 +1528,7 @@ static int pre_handle_cursor(struct vc_data *vc, u_char value, char up_flag)
 			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			return NOTIFY_STOP;
 		}
-		del_timer(&cursor_timer);
+		timer_delete(&cursor_timer);
 		spk_shut_up &= 0xfe;
 		spk_do_flush();
 		start_read_all_timer(vc, value + 1);
@@ -1692,7 +1692,7 @@ static void cursor_done(struct timer_list *unused)
 	struct vc_data *vc = vc_cons[cursor_con].d;
 	unsigned long flags;
 
-	del_timer(&cursor_timer);
+	timer_delete(&cursor_timer);
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	if (cursor_con != fg_console) {
 		is_cursor = 0;
@@ -2333,7 +2333,7 @@ static void __exit speakup_exit(void)
 	speakup_unregister_devsynth();
 	speakup_cancel_selection();
 	speakup_cancel_paste();
-	del_timer_sync(&cursor_timer);
+	timer_delete_sync(&cursor_timer);
 	kthread_stop(speakup_task);
 	speakup_task = NULL;
 	mutex_lock(&spk_mutex);
@@ -2437,7 +2437,7 @@ error_task:
 
 error_vtnotifier:
 	unregister_keyboard_notifier(&keyboard_notifier_block);
-	del_timer(&cursor_timer);
+	timer_delete(&cursor_timer);
 
 error_kbdnotifier:
 	speakup_unregister_devsynth();

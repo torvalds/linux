@@ -61,6 +61,12 @@ static inline void topology_expect_change(void) { }
 
 #endif /* CONFIG_SCHED_TOPOLOGY */
 
+static inline bool topology_is_primary_thread(unsigned int cpu)
+{
+	return smp_get_base_cpu(cpu) == cpu;
+}
+#define topology_is_primary_thread topology_is_primary_thread
+
 #define POLARIZATION_UNKNOWN	(-1)
 #define POLARIZATION_HRZ	(0)
 #define POLARIZATION_VL		(1)

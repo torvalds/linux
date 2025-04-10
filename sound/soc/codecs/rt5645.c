@@ -4286,7 +4286,7 @@ static void rt5645_i2c_remove(struct i2c_client *i2c)
 	 * Since the rt5645_btn_check_callback() can queue jack_detect_work,
 	 * the timer need to be delted first
 	 */
-	del_timer_sync(&rt5645->btn_check_timer);
+	timer_delete_sync(&rt5645->btn_check_timer);
 
 	cancel_delayed_work_sync(&rt5645->jack_detect_work);
 	cancel_delayed_work_sync(&rt5645->rcclock_work);
@@ -4318,7 +4318,7 @@ static int rt5645_sys_suspend(struct device *dev)
 {
 	struct rt5645_priv *rt5645 = dev_get_drvdata(dev);
 
-	del_timer_sync(&rt5645->btn_check_timer);
+	timer_delete_sync(&rt5645->btn_check_timer);
 	cancel_delayed_work_sync(&rt5645->jack_detect_work);
 	cancel_delayed_work_sync(&rt5645->rcclock_work);
 

@@ -240,6 +240,7 @@ config S390
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_VIRT_CPU_ACCOUNTING
 	select HAVE_VIRT_CPU_ACCOUNTING_IDLE
+	select HOTPLUG_SMT
 	select IOMMU_HELPER		if PCI
 	select IOMMU_SUPPORT		if PCI
 	select KASAN_VMALLOC if KASAN
@@ -630,6 +631,7 @@ endchoice
 
 config RELOCATABLE
 	def_bool y
+	select ARCH_VMLINUX_NEEDS_RELOCS
 	help
 	  This builds a kernel image that retains relocation information
 	  so it can be loaded at an arbitrary address.

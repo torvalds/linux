@@ -724,7 +724,7 @@ static void o2net_shutdown_sc(struct work_struct *work)
 	if (o2net_unregister_callbacks(sc->sc_sock->sk, sc)) {
 		/* we shouldn't flush as we're in the thread, the
 		 * races with pending sc work structs are harmless */
-		del_timer_sync(&sc->sc_idle_timeout);
+		timer_delete_sync(&sc->sc_idle_timeout);
 		o2net_sc_cancel_delayed_work(sc, &sc->sc_keepalive_work);
 		sc_put(sc);
 		kernel_sock_shutdown(sc->sc_sock, SHUT_RDWR);

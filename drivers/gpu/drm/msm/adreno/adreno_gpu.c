@@ -292,7 +292,7 @@ int adreno_fault_handler(struct msm_gpu *gpu, unsigned long iova, int flags,
 
 	if (do_devcoredump) {
 		/* Turn off the hangcheck timer to keep it from bothering us */
-		del_timer(&gpu->hangcheck_timer);
+		timer_delete(&gpu->hangcheck_timer);
 
 		gpu->fault_info.ttbr0 = info->ttbr0;
 		gpu->fault_info.iova  = iova;

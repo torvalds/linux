@@ -441,8 +441,8 @@ static enum hrtimer_restart nsim_napi_schedule(struct hrtimer *timer)
 
 static void nsim_rq_timer_init(struct nsim_rq *rq)
 {
-	hrtimer_init(&rq->napi_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	rq->napi_timer.function = nsim_napi_schedule;
+	hrtimer_setup(&rq->napi_timer, nsim_napi_schedule, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL);
 }
 
 static void nsim_enable_napi(struct netdevsim *ns)

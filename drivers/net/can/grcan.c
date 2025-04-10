@@ -778,7 +778,7 @@ static irqreturn_t grcan_interrupt(int irq, void *dev_id)
 	 */
 	if (priv->need_txbug_workaround &&
 	    (sources & (GRCAN_IRQ_TX | GRCAN_IRQ_TXLOSS))) {
-		del_timer(&priv->hang_timer);
+		timer_delete(&priv->hang_timer);
 	}
 
 	/* Frame(s) received or transmitted */
@@ -817,8 +817,8 @@ static void grcan_running_reset(struct timer_list *t)
 	spin_lock_irqsave(&priv->lock, flags);
 
 	priv->resetting = false;
-	del_timer(&priv->hang_timer);
-	del_timer(&priv->rr_timer);
+	timer_delete(&priv->hang_timer);
+	timer_delete(&priv->rr_timer);
 
 	if (!priv->closing) {
 		/* Save and reset - config register preserved by grcan_reset */
@@ -1108,8 +1108,8 @@ static int grcan_close(struct net_device *dev)
 	priv->closing = true;
 	if (priv->need_txbug_workaround) {
 		spin_unlock_irqrestore(&priv->lock, flags);
-		del_timer_sync(&priv->hang_timer);
-		del_timer_sync(&priv->rr_timer);
+		timer_delete_sync(&priv->hang_timer);
+		timer_delete_sync(&priv->rr_timer);
 		spin_lock_irqsave(&priv->lock, flags);
 	}
 	netif_stop_queue(dev);
@@ -1147,7 +1147,7 @@ static void grcan_transmit_catch_up(struct net_device *dev)
 		 * so prevent a running reset while catching up
 		 */
 		if (priv->need_txbug_workaround)
-			del_timer(&priv->hang_timer);
+			timer_delete(&priv->hang_timer);
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);

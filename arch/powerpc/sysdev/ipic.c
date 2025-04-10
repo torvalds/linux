@@ -757,7 +757,7 @@ struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
 	ipic_write(ipic->regs, IPIC_SEMSR, temp);
 
 	primary_ipic = ipic;
-	irq_set_default_host(primary_ipic->irqhost);
+	irq_set_default_domain(primary_ipic->irqhost);
 
 	ipic_write(ipic->regs, IPIC_SIMSR_H, 0);
 	ipic_write(ipic->regs, IPIC_SIMSR_L, 0);

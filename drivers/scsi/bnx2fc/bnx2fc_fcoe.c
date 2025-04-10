@@ -1599,7 +1599,7 @@ static void bnx2fc_interface_cleanup(struct bnx2fc_interface *interface)
 	struct bnx2fc_hba *hba = interface->hba;
 
 	/* Stop the transmit retry timer */
-	del_timer_sync(&port->timer);
+	timer_delete_sync(&port->timer);
 
 	/* Free existing transmit skbs */
 	fcoe_clean_pending_queue(lport);
@@ -1938,7 +1938,7 @@ static void bnx2fc_fw_destroy(struct bnx2fc_hba *hba)
 			if (signal_pending(current))
 				flush_signals(current);
 
-			del_timer_sync(&hba->destroy_timer);
+			timer_delete_sync(&hba->destroy_timer);
 		}
 		bnx2fc_unbind_adapter_devices(hba);
 	}

@@ -1287,7 +1287,7 @@ static void cpsw_ale_aging_stop(struct cpsw_ale *ale)
 		return;
 	}
 
-	del_timer_sync(&ale->timer);
+	timer_delete_sync(&ale->timer);
 }
 
 void cpsw_ale_start(struct cpsw_ale *ale)

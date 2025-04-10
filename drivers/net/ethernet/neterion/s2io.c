@@ -7019,7 +7019,7 @@ static void do_s2io_card_down(struct s2io_nic *sp, int do_io)
 	if (!is_s2io_card_up(sp))
 		return;
 
-	del_timer_sync(&sp->alarm_timer);
+	timer_delete_sync(&sp->alarm_timer);
 	/* If s2io_set_link task is executing, wait till it completes. */
 	while (test_and_set_bit(__S2IO_STATE_LINK_TASK, &(sp->state)))
 		msleep(50);

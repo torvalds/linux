@@ -3193,7 +3193,7 @@ static int vxlan_stop(struct net_device *dev)
 
 	vxlan_multicast_leave(vxlan);
 
-	del_timer_sync(&vxlan->age_timer);
+	timer_delete_sync(&vxlan->age_timer);
 
 	vxlan_flush(vxlan, &desc);
 	vxlan_sock_release(vxlan);

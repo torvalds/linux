@@ -384,13 +384,13 @@ static void batadv_tp_sender_cleanup(struct batadv_priv *bat_priv,
 	atomic_dec(&tp_vars->bat_priv->tp_num);
 
 	/* kill the timer and remove its reference */
-	del_timer_sync(&tp_vars->timer);
+	timer_delete_sync(&tp_vars->timer);
 	/* the worker might have rearmed itself therefore we kill it again. Note
 	 * that if the worker should run again before invoking the following
-	 * del_timer(), it would not re-arm itself once again because the status
+	 * timer_delete(), it would not re-arm itself once again because the status
 	 * is OFF now
 	 */
-	del_timer(&tp_vars->timer);
+	timer_delete(&tp_vars->timer);
 	batadv_tp_vars_put(tp_vars);
 }
 

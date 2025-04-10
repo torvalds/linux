@@ -222,13 +222,7 @@ int xe_eu_stall_init(struct xe_gt *gt)
 		goto exit_free;
 	}
 
-	ret = devm_add_action_or_reset(xe->drm.dev, xe_eu_stall_fini, gt);
-	if (ret)
-		goto exit_destroy;
-
-	return 0;
-exit_destroy:
-	destroy_workqueue(gt->eu_stall->buf_ptr_poll_wq);
+	return devm_add_action_or_reset(xe->drm.dev, xe_eu_stall_fini, gt);
 exit_free:
 	mutex_destroy(&gt->eu_stall->stream_lock);
 	kfree(gt->eu_stall);

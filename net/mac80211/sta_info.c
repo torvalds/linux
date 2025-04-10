@@ -1592,7 +1592,7 @@ int sta_info_init(struct ieee80211_local *local)
 
 void sta_info_stop(struct ieee80211_local *local)
 {
-	del_timer_sync(&local->sta_cleanup);
+	timer_delete_sync(&local->sta_cleanup);
 	rhltable_destroy(&local->sta_hash);
 	rhltable_destroy(&local->link_sta_hash);
 }

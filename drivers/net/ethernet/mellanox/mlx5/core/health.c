@@ -847,7 +847,7 @@ void mlx5_stop_health_poll(struct mlx5_core_dev *dev, bool disable_health)
 	if (disable_health)
 		set_bit(MLX5_DROP_HEALTH_WORK, &health->flags);
 
-	del_timer_sync(&health->timer);
+	timer_delete_sync(&health->timer);
 }
 
 void mlx5_start_health_fw_log_up(struct mlx5_core_dev *dev)

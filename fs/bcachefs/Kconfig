@@ -4,7 +4,7 @@ config BCACHEFS_FS
 	depends on BLOCK
 	select EXPORTFS
 	select CLOSURES
-	select LIBCRC32C
+	select CRC32
 	select CRC64
 	select FS_POSIX_ACL
 	select LZ4_COMPRESS

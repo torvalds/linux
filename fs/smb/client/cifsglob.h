@@ -714,6 +714,8 @@ struct TCP_Server_Info {
 	spinlock_t srv_lock;  /* protect anything here that is not protected */
 	__u64 conn_id; /* connection identifier (useful for debugging) */
 	int srv_count; /* reference counter */
+	int rfc1001_sessinit; /* whether to estasblish netbios session */
+	bool with_rfc1001; /* if netbios session is used */
 	/* 15 character server name + 0x20 16th byte indicating type = srv */
 	char server_RFC1001_name[RFC1001_NAME_LEN_WITH_NULL];
 	struct smb_version_operations	*ops;
@@ -1321,7 +1323,8 @@ struct cifs_tcon {
 #endif
 	struct list_head pending_opens;	/* list of incomplete opens */
 	struct cached_fids *cfids;
-	/* BB add field for back pointer to sb struct(s)? */
+	struct list_head cifs_sb_list;
+	spinlock_t sb_list_lock;
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	struct delayed_work dfs_cache_work;
 	struct list_head dfs_ses_list;
@@ -1718,6 +1721,7 @@ struct mid_q_entry {
 	void *resp_buf;		/* pointer to received SMB header */
 	unsigned int resp_buf_size;
 	int mid_state;	/* wish this were enum but can not pass to wait_event */
+	int mid_rc;		/* rc for MID_RC */
 	unsigned int mid_flags;
 	__le16 command;		/* smb command code */
 	unsigned int optype;	/* operation type */
@@ -1880,6 +1884,7 @@ static inline bool is_replayable_error(int error)
 #define   MID_RESPONSE_MALFORMED 0x10
 #define   MID_SHUTDOWN		 0x20
 #define   MID_RESPONSE_READY 0x40 /* ready for other process handle the rsp */
+#define   MID_RC             0x80 /* mid_rc contains custom rc */
 
 /* Flags */
 #define   MID_WAIT_CANCELLED	 1 /* Cancelled while waiting for response */

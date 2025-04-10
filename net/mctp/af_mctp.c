@@ -663,7 +663,7 @@ static void mctp_sk_unhash(struct sock *sk)
 	 * keys), stop any pending expiry events. the timer cannot be re-queued
 	 * as the sk is no longer observable
 	 */
-	del_timer_sync(&msk->key_expiry);
+	timer_delete_sync(&msk->key_expiry);
 }
 
 static void mctp_sk_destruct(struct sock *sk)

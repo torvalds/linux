@@ -1509,7 +1509,7 @@ static int netdev_close(struct net_device *dev)
 	}
 #endif /* __i386__ debugging only */
 
-	del_timer_sync(&np->timer);
+	timer_delete_sync(&np->timer);
 
 	free_rxtx_rings(np);
 	free_ringdesc(np);
@@ -1560,7 +1560,7 @@ static int __maybe_unused w840_suspend(struct device *dev_d)
 
 	rtnl_lock();
 	if (netif_running (dev)) {
-		del_timer_sync(&np->timer);
+		timer_delete_sync(&np->timer);
 
 		spin_lock_irq(&np->lock);
 		netif_device_detach(dev);

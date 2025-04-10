@@ -12,6 +12,5 @@ struct xe_device;
 
 int xe_survivability_mode_enable(struct xe_device *xe);
 bool xe_survivability_mode_is_enabled(struct xe_device *xe);
-bool xe_survivability_mode_required(struct xe_device *xe);
 
 #endif /* _XE_SURVIVABILITY_MODE_H_ */

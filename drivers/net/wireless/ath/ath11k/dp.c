@@ -875,7 +875,7 @@ void ath11k_dp_pdev_free(struct ath11k_base *ab)
 	struct ath11k *ar;
 	int i;
 
-	del_timer_sync(&ab->mon_reap_timer);
+	timer_delete_sync(&ab->mon_reap_timer);
 
 	for (i = 0; i < ab->num_radios; i++) {
 		ar = ab->pdevs[i].ar;
@@ -1170,7 +1170,7 @@ void ath11k_dp_shadow_stop_timer(struct ath11k_base *ab,
 	if (!update_timer->init)
 		return;
 
-	del_timer_sync(&update_timer->timer);
+	timer_delete_sync(&update_timer->timer);
 }
 
 void ath11k_dp_shadow_init_timer(struct ath11k_base *ab,

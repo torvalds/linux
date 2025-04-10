@@ -2578,7 +2578,7 @@ lpfc_poll_store(struct device *dev, struct device_attribute *attr,
 	    (old_val & DISABLE_FCP_RING_INT))
 	{
 		spin_unlock_irq(&phba->hbalock);
-		del_timer(&phba->fcp_poll_timer);
+		timer_delete(&phba->fcp_poll_timer);
 		spin_lock_irq(&phba->hbalock);
 		if (lpfc_readl(phba->HCregaddr, &creg_val)) {
 			spin_unlock_irq(&phba->hbalock);

@@ -567,7 +567,7 @@ EXPORT_SYMBOL_GPL(netdev_watchdog_up);
 static void netdev_watchdog_down(struct net_device *dev)
 {
 	netif_tx_lock_bh(dev);
-	if (del_timer(&dev->watchdog_timer))
+	if (timer_delete(&dev->watchdog_timer))
 		netdev_put(dev, &dev->watchdog_dev_tracker);
 	netif_tx_unlock_bh(dev);
 }

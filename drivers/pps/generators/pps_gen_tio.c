@@ -227,8 +227,8 @@ static int pps_gen_tio_probe(struct platform_device *pdev)
 		return PTR_ERR(tio->base);
 
 	pps_tio_disable(tio);
-	hrtimer_init(&tio->timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
-	tio->timer.function = hrtimer_callback;
+	hrtimer_setup(&tio->timer, hrtimer_callback, CLOCK_REALTIME,
+		      HRTIMER_MODE_ABS);
 	spin_lock_init(&tio->lock);
 	platform_set_drvdata(pdev, &tio);
 

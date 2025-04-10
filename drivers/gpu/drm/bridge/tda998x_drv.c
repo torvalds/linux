@@ -1763,7 +1763,7 @@ static void tda998x_destroy(struct device *dev)
 	if (priv->hdmi->irq)
 		free_irq(priv->hdmi->irq, priv);
 
-	del_timer_sync(&priv->edid_delay_timer);
+	timer_delete_sync(&priv->edid_delay_timer);
 	cancel_work_sync(&priv->detect_work);
 
 	i2c_unregister_device(priv->cec);

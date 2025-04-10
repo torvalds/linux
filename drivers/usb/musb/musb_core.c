@@ -921,7 +921,7 @@ b_host:
 		musb_set_state(musb, OTG_STATE_B_HOST);
 		if (musb->hcd)
 			musb->hcd->self.is_b_host = 1;
-		del_timer(&musb->otg_timer);
+		timer_delete(&musb->otg_timer);
 		break;
 	default:
 		if ((devctl & MUSB_DEVCTL_VBUS)
@@ -1015,7 +1015,7 @@ static void musb_handle_intr_reset(struct musb *musb)
 				+ msecs_to_jiffies(TA_WAIT_BCON(musb)));
 			break;
 		case OTG_STATE_A_PERIPHERAL:
-			del_timer(&musb->otg_timer);
+			timer_delete(&musb->otg_timer);
 			musb_g_reset(musb);
 			break;
 		case OTG_STATE_B_WAIT_ACON:

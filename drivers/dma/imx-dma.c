@@ -324,7 +324,7 @@ static void imxdma_disable_hw(struct imxdma_channel *imxdmac)
 	dev_dbg(imxdma->dev, "%s channel %d\n", __func__, channel);
 
 	if (imxdma_hw_chain(imxdmac))
-		del_timer(&imxdmac->watchdog);
+		timer_delete(&imxdmac->watchdog);
 
 	local_irq_save(flags);
 	imx_dmav1_writel(imxdma, imx_dmav1_readl(imxdma, DMA_DIMR) |
@@ -454,7 +454,7 @@ static void dma_irq_handle_channel(struct imxdma_channel *imxdmac)
 		}
 
 		if (imxdma_hw_chain(imxdmac)) {
-			del_timer(&imxdmac->watchdog);
+			timer_delete(&imxdmac->watchdog);
 			return;
 		}
 	}

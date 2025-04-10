@@ -934,7 +934,7 @@ static void realtek_cr_destructor(void *extra)
 
 #ifdef CONFIG_REALTEK_AUTOPM
 	if (ss_en) {
-		del_timer(&chip->rts51x_suspend_timer);
+		timer_delete(&chip->rts51x_suspend_timer);
 		chip->timer_expires = 0;
 	}
 #endif

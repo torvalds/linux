@@ -985,7 +985,7 @@ void ath12k_dp_pdev_free(struct ath12k_base *ab)
 	if (!ab->mon_reap_timer.function)
 		return;
 
-	del_timer_sync(&ab->mon_reap_timer);
+	timer_delete_sync(&ab->mon_reap_timer);
 
 	for (i = 0; i < ab->num_radios; i++)
 		ath12k_dp_rx_pdev_free(ab, i);

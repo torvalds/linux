@@ -341,6 +341,7 @@ enum pp_policy_soc_pstate {
 #define MAX_CLKS 4
 #define NUM_VCN 4
 #define NUM_JPEG_ENG 32
+#define NUM_JPEG_ENG_V1 40
 #define MAX_XCC 8
 #define NUM_XCP 8
 struct seq_file;
@@ -374,6 +375,20 @@ struct amdgpu_xcp_metrics_v1_1 {
 	uint64_t gfx_busy_acc[MAX_XCC];
 	/* Total App Clock Counter Accumulated */
 	uint64_t gfx_below_host_limit_acc[MAX_XCC];
+};
+
+struct amdgpu_xcp_metrics_v1_2 {
+	/* Utilization Instantaneous (%) */
+	uint32_t gfx_busy_inst[MAX_XCC];
+	uint16_t jpeg_busy[NUM_JPEG_ENG_V1];
+	uint16_t vcn_busy[NUM_VCN];
+	/* Utilization Accumulated (%) */
+	uint64_t gfx_busy_acc[MAX_XCC];
+	/* Total App Clock Counter Accumulated */
+	uint64_t gfx_below_host_limit_ppt_acc[MAX_XCC];
+	uint64_t gfx_below_host_limit_thm_acc[MAX_XCC];
+	uint64_t gfx_low_utilization_acc[MAX_XCC];
+	uint64_t gfx_below_host_limit_total_acc[MAX_XCC];
 };
 
 struct amd_pm_funcs {
@@ -1085,6 +1100,105 @@ struct gpu_metrics_v1_7 {
 
 	/* XCP metrics stats */
 	struct amdgpu_xcp_metrics_v1_1	xcp_stats[NUM_XCP];
+
+	/* PCIE other end recovery counter */
+	uint32_t			pcie_lc_perf_other_end_recovery;
+};
+
+struct gpu_metrics_v1_8 {
+	struct metrics_table_header	common_header;
+
+	/* Temperature (Celsius) */
+	uint16_t			temperature_hotspot;
+	uint16_t			temperature_mem;
+	uint16_t			temperature_vrsoc;
+
+	/* Power (Watts) */
+	uint16_t			curr_socket_power;
+
+	/* Utilization (%) */
+	uint16_t			average_gfx_activity;
+	uint16_t			average_umc_activity; // memory controller
+
+	/* VRAM max bandwidthi (in GB/sec) at max memory clock */
+	uint64_t			mem_max_bandwidth;
+
+	/* Energy (15.259uJ (2^-16) units) */
+	uint64_t			energy_accumulator;
+
+	/* Driver attached timestamp (in ns) */
+	uint64_t			system_clock_counter;
+
+	/* Accumulation cycle counter */
+	uint32_t                        accumulation_counter;
+
+	/* Accumulated throttler residencies */
+	uint32_t                        prochot_residency_acc;
+	uint32_t                        ppt_residency_acc;
+	uint32_t                        socket_thm_residency_acc;
+	uint32_t                        vr_thm_residency_acc;
+	uint32_t                        hbm_thm_residency_acc;
+
+	/* Clock Lock Status. Each bit corresponds to clock instance */
+	uint32_t			gfxclk_lock_status;
+
+	/* Link width (number of lanes) and speed (in 0.1 GT/s) */
+	uint16_t			pcie_link_width;
+	uint16_t			pcie_link_speed;
+
+	/* XGMI bus width and bitrate (in Gbps) */
+	uint16_t			xgmi_link_width;
+	uint16_t			xgmi_link_speed;
+
+	/* Utilization Accumulated (%) */
+	uint32_t			gfx_activity_acc;
+	uint32_t			mem_activity_acc;
+
+	/*PCIE accumulated bandwidth (GB/sec) */
+	uint64_t			pcie_bandwidth_acc;
+
+	/*PCIE instantaneous bandwidth (GB/sec) */
+	uint64_t			pcie_bandwidth_inst;
+
+	/* PCIE L0 to recovery state transition accumulated count */
+	uint64_t			pcie_l0_to_recov_count_acc;
+
+	/* PCIE replay accumulated count */
+	uint64_t			pcie_replay_count_acc;
+
+	/* PCIE replay rollover accumulated count */
+	uint64_t			pcie_replay_rover_count_acc;
+
+	/* PCIE NAK sent  accumulated count */
+	uint32_t			pcie_nak_sent_count_acc;
+
+	/* PCIE NAK received accumulated count */
+	uint32_t			pcie_nak_rcvd_count_acc;
+
+	/* XGMI accumulated data transfer size(KiloBytes) */
+	uint64_t			xgmi_read_data_acc[NUM_XGMI_LINKS];
+	uint64_t			xgmi_write_data_acc[NUM_XGMI_LINKS];
+
+	/* XGMI link status(active/inactive) */
+	uint16_t			xgmi_link_status[NUM_XGMI_LINKS];
+
+	uint16_t			padding;
+
+	/* PMFW attached timestamp (10ns resolution) */
+	uint64_t			firmware_timestamp;
+
+	/* Current clocks (Mhz) */
+	uint16_t			current_gfxclk[MAX_GFX_CLKS];
+	uint16_t			current_socclk[MAX_CLKS];
+	uint16_t			current_vclk0[MAX_CLKS];
+	uint16_t			current_dclk0[MAX_CLKS];
+	uint16_t			current_uclk;
+
+	/* Number of current partition */
+	uint16_t			num_partition;
+
+	/* XCP metrics stats */
+	struct amdgpu_xcp_metrics_v1_2	xcp_stats[NUM_XCP];
 
 	/* PCIE other end recovery counter */
 	uint32_t			pcie_lc_perf_other_end_recovery;
