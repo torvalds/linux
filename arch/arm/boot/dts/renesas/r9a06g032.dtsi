@@ -298,6 +298,30 @@
 			status = "okay";
 		};
 
+		sdio1: mmc@40100000 {
+			compatible = "renesas,r9a06g032-sdhci", "renesas,rzn1-sdhci", "arasan,sdhci-8.9a";
+			reg = <0x40100000 0x1000>;
+			interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "int", "wakeup";
+			clocks = <&sysctrl R9A06G032_CLK_SDIO0>, <&sysctrl R9A06G032_HCLK_SDIO0>;
+			clock-names = "clk_xin", "clk_ahb";
+			no-1-8-v;
+			status = "disabled";
+		};
+
+		sdio2: mmc@40101000 {
+			compatible = "renesas,r9a06g032-sdhci", "renesas,rzn1-sdhci", "arasan,sdhci-8.9a";
+			reg = <0x40101000 0x1000>;
+			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "int", "wakeup";
+			clocks = <&sysctrl R9A06G032_CLK_SDIO1>, <&sysctrl R9A06G032_HCLK_SDIO1>;
+			clock-names = "clk_xin", "clk_ahb";
+			no-1-8-v;
+			status = "disabled";
+		};
+
 		nand_controller: nand-controller@40102000 {
 			compatible = "renesas,r9a06g032-nandc", "renesas,rzn1-nandc";
 			reg = <0x40102000 0x2000>;
