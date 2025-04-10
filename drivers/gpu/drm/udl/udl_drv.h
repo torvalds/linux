@@ -51,12 +51,12 @@ struct urb_list {
 struct udl_device {
 	struct drm_device drm;
 
+	unsigned long sku_pixel_limit;
+
 	struct drm_plane primary_plane;
 	struct drm_crtc crtc;
 	struct drm_encoder encoder;
 	struct drm_connector connector;
-
-	int sku_pixel_limit;
 
 	struct urb_list urbs;
 };
