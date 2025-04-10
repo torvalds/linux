@@ -1266,6 +1266,7 @@ config SPI_ZYNQMP_GQSPI
 
 config SPI_AMD
 	tristate "AMD SPI controller"
+	depends on PCI
 	depends on SPI_MASTER || COMPILE_TEST
 	help
 	  Enables SPI controller driver for AMD SoC.
