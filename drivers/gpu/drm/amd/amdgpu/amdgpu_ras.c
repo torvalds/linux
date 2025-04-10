@@ -3473,6 +3473,10 @@ int amdgpu_ras_init_badpage_info(struct amdgpu_device *adev)
 	if (!adev->umc.ras || !adev->umc.ras->convert_ras_err_addr)
 		control->ras_num_pa_recs = control->ras_num_recs;
 
+	if (adev->umc.ras &&
+	    adev->umc.ras->get_retire_flip_bits)
+		adev->umc.ras->get_retire_flip_bits(adev);
+
 	if (control->ras_num_recs) {
 		ret = amdgpu_ras_load_bad_pages(adev);
 		if (ret)
