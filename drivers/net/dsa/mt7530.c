@@ -32,15 +32,15 @@ static struct mt753x_pcs *pcs_to_mt753x_pcs(struct phylink_pcs *pcs)
 
 /* String, offset, and register size in bytes if different from 4 bytes */
 static const struct mt7530_mib_desc mt7530_mib[] = {
-	MIB_DESC(1, 0x00, "TxDrop"),
-	MIB_DESC(1, 0x04, "TxCrcErr"),
-	MIB_DESC(1, 0x14, "TxCollision"),
-	MIB_DESC(1, 0x60, "RxDrop"),
-	MIB_DESC(1, 0x64, "RxFiltering"),
-	MIB_DESC(1, 0x78, "RxCrcErr"),
-	MIB_DESC(1, 0xb0, "RxCtrlDrop"),
-	MIB_DESC(1, 0xb4, "RxIngressDrop"),
-	MIB_DESC(1, 0xb8, "RxArlDrop"),
+	MIB_DESC(1, MT7530_PORT_MIB_TX_DROP, "TxDrop"),
+	MIB_DESC(1, MT7530_PORT_MIB_TX_CRC_ERR, "TxCrcErr"),
+	MIB_DESC(1, MT7530_PORT_MIB_TX_COLLISION, "TxCollision"),
+	MIB_DESC(1, MT7530_PORT_MIB_RX_DROP, "RxDrop"),
+	MIB_DESC(1, MT7530_PORT_MIB_RX_FILTERING, "RxFiltering"),
+	MIB_DESC(1, MT7530_PORT_MIB_RX_CRC_ERR, "RxCrcErr"),
+	MIB_DESC(1, MT7530_PORT_MIB_RX_CTRL_DROP, "RxCtrlDrop"),
+	MIB_DESC(1, MT7530_PORT_MIB_RX_INGRESS_DROP, "RxIngressDrop"),
+	MIB_DESC(1, MT7530_PORT_MIB_RX_ARL_DROP, "RxArlDrop"),
 };
 
 static void
