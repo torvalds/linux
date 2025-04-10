@@ -156,7 +156,7 @@ static int jpeg_v5_0_1_sw_init(struct amdgpu_ip_block *ip_block)
 
 		for (j = 0; j < adev->jpeg.num_jpeg_rings; ++j) {
 			ring = &adev->jpeg.inst[i].ring_dec[j];
-			ring->use_doorbell = false;
+			ring->use_doorbell = true;
 			ring->vm_hub = AMDGPU_MMHUB0(adev->jpeg.inst[i].aid_id);
 			if (!amdgpu_sriov_vf(adev)) {
 				ring->doorbell_index =
@@ -264,7 +264,7 @@ static int jpeg_v5_0_1_hw_init(struct amdgpu_ip_block *ip_block)
 			ring = &adev->jpeg.inst[i].ring_dec[j];
 			if (ring->use_doorbell)
 				WREG32_SOC15_OFFSET(VCN, GET_INST(VCN, i), regVCN_JPEG_DB_CTRL,
-						    (ring->pipe ? (ring->pipe - 0x15) : 0),
+						    ring->pipe,
 						    ring->doorbell_index <<
 						    VCN_JPEG_DB_CTRL__OFFSET__SHIFT |
 						    VCN_JPEG_DB_CTRL__EN_MASK);
