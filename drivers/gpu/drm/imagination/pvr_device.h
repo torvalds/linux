@@ -308,6 +308,9 @@ struct pvr_device {
 	 *  struct pvr_file.
 	 */
 	spinlock_t ctx_list_lock;
+
+	/** @has_safety_events: Whether this device can raise safety events. */
+	bool has_safety_events;
 };
 
 /**
