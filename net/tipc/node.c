@@ -1581,7 +1581,7 @@ int tipc_node_get_linkname(struct net *net, u32 bearer_id, u32 addr,
 	tipc_node_read_lock(node);
 	link = node->links[bearer_id].link;
 	if (link) {
-		strncpy(linkname, tipc_link_name(link), len);
+		strscpy(linkname, tipc_link_name(link), len);
 		err = 0;
 	}
 	tipc_node_read_unlock(node);

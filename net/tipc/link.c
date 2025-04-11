@@ -2228,7 +2228,7 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 			break;
 		if (msg_data_sz(hdr) < TIPC_MAX_IF_NAME)
 			break;
-		strncpy(if_name, data, TIPC_MAX_IF_NAME);
+		strscpy(if_name, data, TIPC_MAX_IF_NAME);
 
 		/* Update own tolerance if peer indicates a non-zero value */
 		if (tipc_in_range(peers_tol, TIPC_MIN_LINK_TOL, TIPC_MAX_LINK_TOL)) {
