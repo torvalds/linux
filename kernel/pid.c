@@ -359,11 +359,6 @@ static void __change_pid(struct pid **pids, struct task_struct *task,
 	hlist_del_rcu(&task->pid_links[type]);
 	*pid_ptr = new;
 
-	if (type == PIDTYPE_PID) {
-		WARN_ON_ONCE(pid_has_task(pid, PIDTYPE_PID));
-		wake_up_all(&pid->wait_pidfd);
-	}
-
 	for (tmp = PIDTYPE_MAX; --tmp >= 0; )
 		if (pid_has_task(pid, tmp))
 			return;
