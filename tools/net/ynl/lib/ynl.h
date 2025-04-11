@@ -2,6 +2,7 @@
 #ifndef __YNL_C_H
 #define __YNL_C_H 1
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <linux/genetlink.h>
 #include <linux/types.h>
@@ -48,6 +49,8 @@ struct ynl_family {
 /* private: */
 	const char *name;
 	size_t hdr_len;
+	bool is_classic;
+	__u16 classic_id;
 	const struct ynl_ntf_info *ntf_info;
 	unsigned int ntf_info_size;
 };

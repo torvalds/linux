@@ -971,9 +971,6 @@ class Family(SpecFamily):
     def resolve(self):
         self.resolve_up(super())
 
-        if self.yaml.get('protocol', 'genetlink') not in {'genetlink', 'genetlink-c', 'genetlink-legacy'}:
-            raise Exception("Codegen only supported for genetlink")
-
         self.c_name = c_lower(self.ident_name)
         if 'name-prefix' in self.yaml['operations']:
             self.op_prefix = c_upper(self.yaml['operations']['name-prefix'])
@@ -1019,6 +1016,9 @@ class Family(SpecFamily):
 
     def new_operation(self, elem, req_value, rsp_value):
         return Operation(self, elem, req_value, rsp_value)
+
+    def is_classic(self):
+        return self.proto == 'netlink-raw'
 
     def _mark_notify(self):
         for op in self.msgs.values():
@@ -1212,6 +1212,7 @@ class RenderInfo:
 
         # 'do' and 'dump' response parsing is identical
         self.type_consistent = True
+        self.type_oneside = False
         if op_mode != 'do' and 'dump' in op:
             if 'do' in op:
                 if ('reply' in op['do']) != ('reply' in op["dump"]):
@@ -1219,7 +1220,8 @@ class RenderInfo:
                 elif 'reply' in op['do'] and op["do"]["reply"] != op["dump"]["reply"]:
                     self.type_consistent = False
             else:
-                self.type_consistent = False
+                self.type_consistent = True
+                self.type_oneside = True
 
         self.attr_set = attr_set
         if not self.attr_set:
@@ -1246,6 +1248,9 @@ class RenderInfo:
                 self.struct[op_dir] = Struct(family, self.attr_set, type_list=type_list)
         if op_mode == 'event':
             self.struct['reply'] = Struct(family, self.attr_set, type_list=op['event']['attributes'])
+
+    def type_empty(self, key):
+        return len(self.struct[key].attr_list) == 0 and self.fixed_hdr is None
 
 
 class CodeWriter:
@@ -1513,7 +1518,9 @@ def op_prefix(ri, direction, deref=False):
         suffix += f"{direction_to_suffix[direction]}"
     else:
         if direction == 'request':
-            suffix += '_req_dump'
+            suffix += '_req'
+            if not ri.type_oneside:
+                suffix += '_dump'
         else:
             if ri.type_consistent:
                 if deref:
@@ -1707,7 +1714,10 @@ def _multi_parse(ri, struct, init_lines, local_vars):
         ri.cw.p(f'dst->{arg} = {arg};')
 
     if ri.fixed_hdr:
-        ri.cw.p('hdr = ynl_nlmsg_data_offset(nlh, sizeof(struct genlmsghdr));')
+        if ri.family.is_classic():
+            ri.cw.p('hdr = ynl_nlmsg_data(nlh);')
+        else:
+            ri.cw.p('hdr = ynl_nlmsg_data_offset(nlh, sizeof(struct genlmsghdr));')
         ri.cw.p(f"memcpy(&dst->_hdr, hdr, sizeof({ri.fixed_hdr}));")
     for anest in sorted(all_multi):
         aspec = struct[anest]
@@ -1854,7 +1864,10 @@ def print_req(ri):
     ri.cw.block_start()
     ri.cw.write_func_lvar(local_vars)
 
-    ri.cw.p(f"nlh = ynl_gemsg_start_req(ys, {ri.nl.get_family_id()}, {ri.op.enum_name}, 1);")
+    if ri.family.is_classic():
+        ri.cw.p(f"nlh = ynl_msg_start_req(ys, {ri.op.enum_name});")
+    else:
+        ri.cw.p(f"nlh = ynl_gemsg_start_req(ys, {ri.nl.get_family_id()}, {ri.op.enum_name}, 1);")
 
     ri.cw.p(f"ys->req_policy = &{ri.struct['request'].render_name}_nest;")
     if 'reply' in ri.op[ri.op_mode]:
@@ -1923,7 +1936,10 @@ def print_dump(ri):
     else:
         ri.cw.p(f'yds.rsp_cmd = {ri.op.rsp_value};')
     ri.cw.nl()
-    ri.cw.p(f"nlh = ynl_gemsg_start_dump(ys, {ri.nl.get_family_id()}, {ri.op.enum_name}, 1);")
+    if ri.family.is_classic():
+        ri.cw.p(f"nlh = ynl_msg_start_dump(ys, {ri.op.enum_name});")
+    else:
+        ri.cw.p(f"nlh = ynl_gemsg_start_dump(ys, {ri.nl.get_family_id()}, {ri.op.enum_name}, 1);")
 
     if ri.fixed_hdr:
         ri.cw.p("hdr_len = sizeof(req->_hdr);")
@@ -1983,7 +1999,7 @@ def _print_type(ri, direction, struct):
     if not direction and ri.type_name_conflict:
         suffix += '_'
 
-    if ri.op_mode == 'dump':
+    if ri.op_mode == 'dump' and not ri.type_oneside:
         suffix += '_dump'
 
     ri.cw.block_start(line=f"struct {ri.family.c_name}{suffix}")
@@ -2034,7 +2050,7 @@ def print_type_helpers(ri, direction, deref=False):
 
 
 def print_req_type_helpers(ri):
-    if len(ri.struct["request"].attr_list) == 0:
+    if ri.type_empty("request"):
         return
     print_alloc_wrapper(ri, "request")
     print_type_helpers(ri, "request")
@@ -2057,7 +2073,7 @@ def print_parse_prototype(ri, direction, terminate=True):
 
 
 def print_req_type(ri):
-    if len(ri.struct["request"].attr_list) == 0:
+    if ri.type_empty("request"):
         return
     print_type(ri, "request")
 
@@ -2710,7 +2726,7 @@ def render_user_family(family, cw, prototype):
         return
 
     if family.ntfs:
-        cw.block_start(line=f"static const struct ynl_ntf_info {family['name']}_ntf_info[] = ")
+        cw.block_start(line=f"static const struct ynl_ntf_info {family.c_name}_ntf_info[] = ")
         for ntf_op_name, ntf_op in family.ntfs.items():
             if 'notify' in ntf_op:
                 op = family.ops[ntf_op['notify']]
@@ -2730,13 +2746,18 @@ def render_user_family(family, cw, prototype):
 
     cw.block_start(f'{symbol} = ')
     cw.p(f'.name\t\t= "{family.c_name}",')
-    if family.fixed_header:
+    if family.is_classic():
+        cw.p(f'.is_classic\t= true,')
+        cw.p(f'.classic_id\t= {family.get("protonum")},')
+    if family.is_classic():
+        cw.p(f'.hdr_len\t= sizeof(struct {c_lower(family.fixed_header)}),')
+    elif family.fixed_header:
         cw.p(f'.hdr_len\t= sizeof(struct genlmsghdr) + sizeof(struct {c_lower(family.fixed_header)}),')
     else:
         cw.p('.hdr_len\t= sizeof(struct genlmsghdr),')
     if family.ntfs:
-        cw.p(f".ntf_info\t= {family['name']}_ntf_info,")
-        cw.p(f".ntf_info_size\t= YNL_ARRAY_SIZE({family['name']}_ntf_info),")
+        cw.p(f".ntf_info\t= {family.c_name}_ntf_info,")
+        cw.p(f".ntf_info_size\t= YNL_ARRAY_SIZE({family.c_name}_ntf_info),")
     cw.block_end(line=';')
 
 
@@ -2962,7 +2983,7 @@ def main():
                     ri = RenderInfo(cw, parsed, args.mode, op, 'dump')
                     print_req_type(ri)
                     print_req_type_helpers(ri)
-                    if not ri.type_consistent:
+                    if not ri.type_consistent or ri.type_oneside:
                         print_rsp_type(ri)
                     print_wrapped_type(ri)
                     print_dump_prototype(ri)
@@ -3040,7 +3061,7 @@ def main():
                 if 'dump' in op:
                     cw.p(f"/* {op.enum_name} - dump */")
                     ri = RenderInfo(cw, parsed, args.mode, op, "dump")
-                    if not ri.type_consistent:
+                    if not ri.type_consistent or ri.type_oneside:
                         parse_rsp_msg(ri, deref=True)
                     print_req_free(ri)
                     print_dump_type_free(ri)

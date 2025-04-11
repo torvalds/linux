@@ -2,6 +2,7 @@
 
 name: rt-route
 protocol: netlink-raw
+uapi-header: linux/rtnetlink.h
 protonum: 0
 
 doc:
@@ -11,6 +12,7 @@ definitions:
   -
     name: rtm-type
     name-prefix: rtn-
+    enum-name:
     type: enum
     entries:
       - unspec
@@ -245,21 +247,19 @@ attribute-sets:
 
 operations:
   enum-model: directional
+  fixed-header: rtmsg
+  name-prefix: rtm-
   list:
     -
       name: getroute
       doc: Dump route information.
       attribute-set: route-attrs
-      fixed-header: rtmsg
       do:
         request:
           value: 26
           attributes:
-            - rtm-family
             - src
-            - rtm-src-len
             - dst
-            - rtm-dst-len
             - iif
             - oif
             - ip-proto
@@ -271,15 +271,6 @@ operations:
         reply:
           value: 24
           attributes: &all-route-attrs
-            - rtm-family
-            - rtm-dst-len
-            - rtm-src-len
-            - rtm-tos
-            - rtm-table
-            - rtm-protocol
-            - rtm-scope
-            - rtm-type
-            - rtm-flags
             - dst
             - src
             - iif
@@ -311,8 +302,7 @@ operations:
       dump:
         request:
           value: 26
-          attributes:
-            - rtm-family
+          attributes: []
         reply:
           value: 24
           attributes: *all-route-attrs
@@ -320,7 +310,6 @@ operations:
       name: newroute
       doc: Create a new route
       attribute-set: route-attrs
-      fixed-header: rtmsg
       do:
         request:
           value: 24
@@ -329,7 +318,6 @@ operations:
       name: delroute
       doc: Delete an existing route
       attribute-set: route-attrs
-      fixed-header: rtmsg
       do:
         request:
           value: 25
