@@ -2561,24 +2561,26 @@ out_put:
 
 /**
  * smp_text_poke_batch_process() -- update instructions on live kernel on SMP
- * @text_poke_array.vec:		vector of instructions to patch
- * @text_poke_array.nr_entries:	number of entries in the vector
  *
- * Modify multi-byte instruction by using int3 breakpoint on SMP.
- * We completely avoid stop_machine() here, and achieve the
- * synchronization using int3 breakpoint.
+ * Input state:
+ *  text_poke_array.vec: vector of instructions to patch
+ *  text_poke_array.nr_entries: number of entries in the vector
+ *
+ * Modify multi-byte instructions by using INT3 breakpoints on SMP.
+ * We completely avoid using stop_machine() here, and achieve the
+ * synchronization using INT3 breakpoints and SMP cross-calls.
  *
  * The way it is done:
  *	- For each entry in the vector:
- *		- add a int3 trap to the address that will be patched
- *	- sync cores
+ *		- add an INT3 trap to the address that will be patched
+ *	- SMP sync all CPUs
  *	- For each entry in the vector:
  *		- update all but the first byte of the patched range
- *	- sync cores
+ *	- SMP sync all CPUs
  *	- For each entry in the vector:
- *		- replace the first byte (int3) by the first byte of
+ *		- replace the first byte (INT3) by the first byte of the
  *		  replacing opcode
- *	- sync cores
+ *	- SMP sync all CPUs
  */
 static void smp_text_poke_batch_process(void)
 {
@@ -2606,13 +2608,13 @@ static void smp_text_poke_batch_process(void)
 	cond_resched();
 
 	/*
-	 * Corresponding read barrier in int3 notifier for making sure the
+	 * Corresponding read barrier in INT3 notifier for making sure the
 	 * text_poke_array.nr_entries and handler are correctly ordered wrt. patching.
 	 */
 	smp_wmb();
 
 	/*
-	 * First step: add a int3 trap to the address that will be patched.
+	 * First step: add a INT3 trap to the address that will be patched.
 	 */
 	for (i = 0; i < text_poke_array.nr_entries; i++) {
 		text_poke_array.vec[i].old = *(u8 *)text_poke_addr(&text_poke_array.vec[i]);
@@ -2685,7 +2687,7 @@ static void smp_text_poke_batch_process(void)
 	}
 
 	/*
-	 * Third step: replace the first byte (int3) by the first byte of
+	 * Third step: replace the first byte (INT3) by the first byte of the
 	 * replacing opcode.
 	 */
 	for (do_sync = 0, i = 0; i < text_poke_array.nr_entries; i++) {
