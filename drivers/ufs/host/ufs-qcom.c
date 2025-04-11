@@ -1566,6 +1566,59 @@ int ufs_qcom_testbus_config(struct ufs_qcom_host *host)
 	return 0;
 }
 
+static int ufs_qcom_dump_regs(struct ufs_hba *hba, size_t offset, size_t len,
+			      const char *prefix, enum ufshcd_res id)
+{
+	u32 *regs __free(kfree) = NULL;
+	size_t pos;
+
+	if (offset % 4 != 0 || len % 4 != 0)
+		return -EINVAL;
+
+	regs = kzalloc(len, GFP_ATOMIC);
+	if (!regs)
+		return -ENOMEM;
+
+	for (pos = 0; pos < len; pos += 4)
+		regs[pos / 4] = readl(hba->res[id].base + offset + pos);
+
+	print_hex_dump(KERN_ERR, prefix,
+		       len > 4 ? DUMP_PREFIX_OFFSET : DUMP_PREFIX_NONE,
+		       16, 4, regs, len, false);
+
+	return 0;
+}
+
+static void ufs_qcom_dump_mcq_hci_regs(struct ufs_hba *hba)
+{
+	struct dump_info {
+		size_t offset;
+		size_t len;
+		const char *prefix;
+		enum ufshcd_res id;
+	};
+
+	struct dump_info mcq_dumps[] = {
+		{0x0, 256 * 4, "MCQ HCI-0 ", RES_MCQ},
+		{0x400, 256 * 4, "MCQ HCI-1 ", RES_MCQ},
+		{0x0, 5 * 4, "MCQ VS-0 ", RES_MCQ_VS},
+		{0x0, 256 * 4, "MCQ SQD-0 ", RES_MCQ_SQD},
+		{0x400, 256 * 4, "MCQ SQD-1 ", RES_MCQ_SQD},
+		{0x800, 256 * 4, "MCQ SQD-2 ", RES_MCQ_SQD},
+		{0xc00, 256 * 4, "MCQ SQD-3 ", RES_MCQ_SQD},
+		{0x1000, 256 * 4, "MCQ SQD-4 ", RES_MCQ_SQD},
+		{0x1400, 256 * 4, "MCQ SQD-5 ", RES_MCQ_SQD},
+		{0x1800, 256 * 4, "MCQ SQD-6 ", RES_MCQ_SQD},
+		{0x1c00, 256 * 4, "MCQ SQD-7 ", RES_MCQ_SQD},
+	};
+
+	for (int i = 0; i < ARRAY_SIZE(mcq_dumps); i++) {
+		ufs_qcom_dump_regs(hba, mcq_dumps[i].offset, mcq_dumps[i].len,
+				   mcq_dumps[i].prefix, mcq_dumps[i].id);
+		cond_resched();
+	}
+}
+
 static void ufs_qcom_dump_dbg_regs(struct ufs_hba *hba)
 {
 	u32 reg;
@@ -1624,6 +1677,18 @@ static void ufs_qcom_dump_dbg_regs(struct ufs_hba *hba)
 
 	reg = ufs_qcom_get_debug_reg_offset(host, UFS_DBG_RD_REG_TMRLUT);
 	ufshcd_dump_regs(hba, reg, 9 * 4, "UFS_DBG_RD_REG_TMRLUT ");
+
+	if (hba->mcq_enabled) {
+		reg = ufs_qcom_get_debug_reg_offset(host, UFS_RD_REG_MCQ);
+		ufshcd_dump_regs(hba, reg, 64 * 4, "HCI MCQ Debug Registers ");
+	}
+
+	/* ensure below dumps occur only in task context due to blocking calls. */
+	if (in_task()) {
+		/* Dump MCQ Host Vendor Specific Registers */
+		if (hba->mcq_enabled)
+			ufs_qcom_dump_mcq_hci_regs(hba);
+	}
 }
 
 /**
