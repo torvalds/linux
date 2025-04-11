@@ -3,9 +3,9 @@
  * x86 CPU caches detection and configuration
  *
  * Previous changes
- * - Venkatesh Pallipadi:		Cache identification through CPUID(4)
+ * - Venkatesh Pallipadi:		Cache identification through CPUID(0x4)
  * - Ashok Raj <ashok.raj@intel.com>:	Work with CPU hotplug infrastructure
- * - Andi Kleen / Andreas Herrmann:	CPUID(4) emulation on AMD
+ * - Andi Kleen / Andreas Herrmann:	CPUID(0x4) emulation on AMD
  */
 
 #include <linux/cacheinfo.h>
@@ -78,7 +78,7 @@ struct _cpuid4_info {
 	unsigned long size;
 };
 
-/* Map CPUID(4) EAX.cache_type to linux/cacheinfo.h types */
+/* Map CPUID(0x4) EAX.cache_type to <linux/cacheinfo.h> types */
 static const enum cache_type cache_type_map[] = {
 	[CTYPE_NULL]	= CACHE_TYPE_NOCACHE,
 	[CTYPE_DATA]	= CACHE_TYPE_DATA,
@@ -87,7 +87,7 @@ static const enum cache_type cache_type_map[] = {
 };
 
 /*
- * Fallback AMD CPUID(4) emulation
+ * Fallback AMD CPUID(0x4) emulation
  * AMD CPUs with TOPOEXT can just use CPUID(0x8000001d)
  *
  * @AMD_L2_L3_INVALID_ASSOC: cache info for the respective L2/L3 cache should
@@ -361,7 +361,7 @@ static void intel_cacheinfo_done(struct cpuinfo_x86 *c, unsigned int l3,
 {
 	/*
 	 * If llc_id is still unset, then cpuid_level < 4, which implies
-	 * that the only possibility left is SMT.  Since CPUID(2) doesn't
+	 * that the only possibility left is SMT.  Since CPUID(0x2) doesn't
 	 * specify any shared caches and SMT shares all caches, we can
 	 * unconditionally set LLC ID to the package ID so that all
 	 * threads share it.
@@ -376,7 +376,7 @@ static void intel_cacheinfo_done(struct cpuinfo_x86 *c, unsigned int l3,
 }
 
 /*
- * Legacy Intel CPUID(2) path if CPUID(4) is not available.
+ * Legacy Intel CPUID(0x2) path if CPUID(0x4) is not available.
  */
 static void intel_cacheinfo_0x2(struct cpuinfo_x86 *c)
 {
@@ -466,7 +466,7 @@ static bool intel_cacheinfo_0x4(struct cpuinfo_x86 *c)
 
 void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 {
-	/* Don't use CPUID(2) if CPUID(4) is supported. */
+	/* Don't use CPUID(0x2) if CPUID(0x4) is supported. */
 	if (intel_cacheinfo_0x4(c))
 		return;
 
@@ -474,7 +474,7 @@ void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 }
 
 /*
- * linux/cacheinfo.h shared_cpu_map setup, AMD/Hygon
+ * <linux/cacheinfo.h> shared_cpu_map setup, AMD/Hygon
  */
 static int __cache_amd_cpumap_setup(unsigned int cpu, int index,
 				    const struct _cpuid4_info *id4)
@@ -533,7 +533,7 @@ static int __cache_amd_cpumap_setup(unsigned int cpu, int index,
 }
 
 /*
- * linux/cacheinfo.h shared_cpu_map setup, Intel + fallback AMD/Hygon
+ * <linux/cacheinfo.h> shared_cpu_map setup, Intel + fallback AMD/Hygon
  */
 static void __cache_cpumap_setup(unsigned int cpu, int index,
 				 const struct _cpuid4_info *id4)
@@ -599,7 +599,7 @@ int init_cache_level(unsigned int cpu)
 }
 
 /*
- * The max shared threads number comes from CPUID(4) EAX[25-14] with input
+ * The max shared threads number comes from CPUID(0x4) EAX[25-14] with input
  * ECX as cache index. Then right shift apicid by the number's order to get
  * cache id for this cache node.
  */
