@@ -2515,7 +2515,7 @@ static __always_inline int patch_cmp(const void *key, const void *elt)
 	return 0;
 }
 
-noinstr int poke_int3_handler(struct pt_regs *regs)
+noinstr int smp_text_poke_int3_handler(struct pt_regs *regs)
 {
 	struct text_poke_int3_vec *desc;
 	struct text_poke_loc *tp;
