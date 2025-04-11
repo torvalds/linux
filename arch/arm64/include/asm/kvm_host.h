@@ -359,8 +359,8 @@ struct kvm_arch {
 
 	cpumask_var_t supported_cpus;
 
-	/* PMCR_EL0.N value for the guest */
-	u8 pmcr_n;
+	/* Maximum number of counters for the guest */
+	u8 nr_pmu_counters;
 
 	/* Iterator for idreg debugfs */
 	u8	idreg_debugfs_iter;

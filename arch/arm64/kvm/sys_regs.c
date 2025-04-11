@@ -785,7 +785,7 @@ static unsigned int pmu_visibility(const struct kvm_vcpu *vcpu,
 static u64 reset_pmu_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 {
 	u64 mask = BIT(ARMV8_PMU_CYCLE_IDX);
-	u8 n = vcpu->kvm->arch.pmcr_n;
+	u8 n = vcpu->kvm->arch.nr_pmu_counters;
 
 	if (n)
 		mask |= GENMASK(n - 1, 0);
@@ -1217,7 +1217,7 @@ static int set_pmcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 	 */
 	if (!kvm_vm_has_ran_once(kvm) &&
 	    new_n <= kvm_arm_pmu_get_max_counters(kvm))
-		kvm->arch.pmcr_n = new_n;
+		kvm->arch.nr_pmu_counters = new_n;
 
 	mutex_unlock(&kvm->arch.config_lock);
 
