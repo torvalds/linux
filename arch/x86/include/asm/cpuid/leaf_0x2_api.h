@@ -41,29 +41,6 @@ static inline void cpuid_get_leaf_0x2_regs(union leaf_0x2_regs *regs)
 }
 
 /**
- * for_each_leaf_0x2_desc() - Iterator for CPUID leaf 0x2 descriptors
- * @regs:	Leaf 0x2 output, as returned by cpuid_get_leaf_0x2_regs()
- * @desc:	Pointer to the returned descriptor for each iteration
- *
- * Loop over the 1-byte descriptors in the passed leaf 0x2 output registers
- * @regs.  Provide each descriptor through @desc.
- *
- * Note that the first byte is skipped as it is not a descriptor.
- *
- * Sample usage::
- *
- *	union leaf_0x2_regs regs;
- *	u8 *desc;
- *
- *	cpuid_get_leaf_0x2_regs(&regs);
- *	for_each_leaf_0x2_desc(regs, desc) {
- *		// Handle *desc value
- *	}
- */
-#define for_each_leaf_0x2_desc(regs, desc)				\
-	for (desc = &(regs).desc[1]; desc < &(regs).desc[16]; desc++)
-
-/**
  * for_each_leaf_0x2_entry() - Iterator for parsed leaf 0x2 descriptors
  * @regs:   Leaf 0x2 register output, returned by cpuid_get_leaf_0x2_regs()
  * @__ptr:  u8 pointer, for macro internal use only
