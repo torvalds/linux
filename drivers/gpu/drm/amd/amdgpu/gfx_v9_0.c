@@ -7387,8 +7387,14 @@ static void gfx_v9_ip_dump(struct amdgpu_ip_block *ip_block)
 
 static void gfx_v9_0_ring_emit_cleaner_shader(struct amdgpu_ring *ring)
 {
+	struct amdgpu_device *adev = ring->adev;
+
 	/* Emit the cleaner shader */
-	amdgpu_ring_write(ring, PACKET3(PACKET3_RUN_CLEANER_SHADER, 0));
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 2))
+		amdgpu_ring_write(ring, PACKET3(PACKET3_RUN_CLEANER_SHADER, 0));
+	else
+		amdgpu_ring_write(ring, PACKET3(PACKET3_RUN_CLEANER_SHADER_9_0, 0));
+
 	amdgpu_ring_write(ring, 0);  /* RESERVED field, programmed to zero */
 }
 
