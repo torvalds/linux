@@ -2751,6 +2751,13 @@ static void text_poke_bp_batch(struct text_poke_loc *tp, unsigned int nr_entries
 
 	/*
 	 * Remove and wait for refs to be zero.
+	 *
+	 * Notably, if after step-3 above the INT3 got removed, then the
+	 * text_poke_sync() will have serialized against any running INT3
+	 * handlers and the below spin-wait will not happen.
+	 *
+	 * IOW. unless the replacement instruction is INT3, this case goes
+	 * unused.
 	 */
 	for_each_possible_cpu(i) {
 		atomic_t *refs = per_cpu_ptr(&bp_refs, i);
