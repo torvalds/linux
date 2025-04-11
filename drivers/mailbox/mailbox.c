@@ -458,7 +458,7 @@ struct mbox_chan *mbox_request_channel_byname(struct mbox_client *cl,
 	if (index < 0) {
 		dev_err(cl->dev, "%s() could not locate channel named \"%s\"\n",
 			__func__, name);
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(index);
 	}
 	return mbox_request_channel(cl, index);
 }
