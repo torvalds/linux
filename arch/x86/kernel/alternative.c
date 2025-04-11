@@ -2838,8 +2838,6 @@ static void __smp_text_poke_batch_add(void *addr, const void *opcode, size_t len
  */
 static bool text_poke_addr_ordered(void *addr)
 {
-	struct smp_text_poke_loc *tp;
-
 	WARN_ON_ONCE(!addr);
 
 	if (!text_poke_array.nr_entries)
@@ -2851,8 +2849,7 @@ static bool text_poke_addr_ordered(void *addr)
 	 * is violated and we must first flush all pending patching
 	 * requests:
 	 */
-	tp = &text_poke_array.vec[text_poke_array.nr_entries-1];
-	if ((unsigned long)text_poke_addr(tp) > (unsigned long)addr)
+	if (text_poke_addr(text_poke_array.vec + text_poke_array.nr_entries-1) > addr)
 		return false;
 
 	return true;
