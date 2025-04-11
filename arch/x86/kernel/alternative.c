@@ -2476,14 +2476,14 @@ struct text_poke_int3_vec {
 	int nr_entries;
 };
 
-static DEFINE_PER_CPU(atomic_t, bp_refs);
+static DEFINE_PER_CPU(atomic_t, text_poke_array_refs);
 
 static struct text_poke_int3_vec bp_desc;
 
 static __always_inline
 struct text_poke_int3_vec *try_get_desc(void)
 {
-	atomic_t *refs = this_cpu_ptr(&bp_refs);
+	atomic_t *refs = this_cpu_ptr(&text_poke_array_refs);
 
 	if (!raw_atomic_inc_not_zero(refs))
 		return NULL;
@@ -2493,7 +2493,7 @@ struct text_poke_int3_vec *try_get_desc(void)
 
 static __always_inline void put_desc(void)
 {
-	atomic_t *refs = this_cpu_ptr(&bp_refs);
+	atomic_t *refs = this_cpu_ptr(&text_poke_array_refs);
 
 	smp_mb__before_atomic();
 	raw_atomic_dec(refs);
@@ -2529,9 +2529,9 @@ noinstr int poke_int3_handler(struct pt_regs *regs)
 	 * Having observed our INT3 instruction, we now must observe
 	 * bp_desc with non-zero refcount:
 	 *
-	 *	bp_refs = 1		INT3
+	 *	text_poke_array_refs = 1		INT3
 	 *	WMB			RMB
-	 *	write INT3		if (bp_refs != 0)
+	 *	write INT3		if (text_poke_array_refs != 0)
 	 */
 	smp_rmb();
 
@@ -2638,7 +2638,7 @@ static void text_poke_bp_batch(struct text_poke_loc *tp, unsigned int nr_entries
 	 * ensure reading a non-zero refcount provides up to date bp_desc data.
 	 */
 	for_each_possible_cpu(i)
-		atomic_set_release(per_cpu_ptr(&bp_refs, i), 1);
+		atomic_set_release(per_cpu_ptr(&text_poke_array_refs, i), 1);
 
 	/*
 	 * Function tracing can enable thousands of places that need to be
@@ -2760,7 +2760,7 @@ static void text_poke_bp_batch(struct text_poke_loc *tp, unsigned int nr_entries
 	 * unused.
 	 */
 	for_each_possible_cpu(i) {
-		atomic_t *refs = per_cpu_ptr(&bp_refs, i);
+		atomic_t *refs = per_cpu_ptr(&text_poke_array_refs, i);
 
 		if (unlikely(!atomic_dec_and_test(refs)))
 			atomic_cond_read_acquire(refs, !VAL);
