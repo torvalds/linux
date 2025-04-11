@@ -67,8 +67,6 @@ struct skcipher_walk {
 		struct scatter_walk in;
 	};
 
-	unsigned int nbytes;
-
 	union {
 		/* Virtual address of the destination. */
 		struct {
@@ -81,6 +79,7 @@ struct skcipher_walk {
 		struct scatter_walk out;
 	};
 
+	unsigned int nbytes;
 	unsigned int total;
 
 	u8 *page;
