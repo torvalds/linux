@@ -671,7 +671,6 @@ The members are as follows:
 	fsparam_bool()		fs_param_is_bool
 	fsparam_u32()		fs_param_is_u32
 	fsparam_u32oct()	fs_param_is_u32_octal
-	fsparam_u32hex()	fs_param_is_u32_hex
 	fsparam_s32()		fs_param_is_s32
 	fsparam_u64()		fs_param_is_u64
 	fsparam_enum()		fs_param_is_enum
