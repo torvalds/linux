@@ -2892,9 +2892,6 @@ void __ref smp_text_poke_batch_add(void *addr, const void *opcode, size_t len, c
  */
 void __ref smp_text_poke_single(void *addr, const void *opcode, size_t len, const void *emulate)
 {
-	/* Batch-patching should not be mixed with single-patching: */
-	WARN_ON_ONCE(text_poke_array.nr_entries != 0);
-
 	__smp_text_poke_batch_add(addr, opcode, len, emulate);
 	smp_text_poke_batch_finish();
 }
