@@ -2904,8 +2904,13 @@ void __ref smp_text_poke_batch_add(void *addr, const void *opcode, size_t len, c
  */
 void __ref smp_text_poke_single(void *addr, const void *opcode, size_t len, const void *emulate)
 {
-	struct smp_text_poke_loc tp;
+	struct smp_text_poke_loc *tp;
 
-	text_poke_int3_loc_init(&tp, addr, opcode, len, emulate);
-	smp_text_poke_batch_process(&tp, 1);
+	/* Batch-patching should not be mixed with single-patching: */
+	WARN_ON_ONCE(tp_vec_nr != 0);
+
+	tp = &tp_vec[tp_vec_nr++];
+	text_poke_int3_loc_init(tp, addr, opcode, len, emulate);
+
+	smp_text_poke_batch_finish();
 }
