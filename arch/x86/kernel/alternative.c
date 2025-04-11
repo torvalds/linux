@@ -2466,15 +2466,6 @@ struct smp_text_poke_loc {
 	u8 old;
 };
 
-struct text_poke_int3_vec {
-	int nr_entries;
-	struct smp_text_poke_loc *vec;
-};
-
-static DEFINE_PER_CPU(atomic_t, text_poke_array_refs);
-
-static struct text_poke_int3_vec int3_vec;
-
 #define TP_ARRAY_NR_ENTRIES_MAX (PAGE_SIZE / sizeof(struct smp_text_poke_loc))
 
 static struct smp_text_poke_array {
@@ -2482,15 +2473,17 @@ static struct smp_text_poke_array {
 	struct smp_text_poke_loc vec[TP_ARRAY_NR_ENTRIES_MAX];
 } text_poke_array;
 
+static DEFINE_PER_CPU(atomic_t, text_poke_array_refs);
+
 static __always_inline
-struct text_poke_int3_vec *try_get_desc(void)
+struct smp_text_poke_array *try_get_desc(void)
 {
 	atomic_t *refs = this_cpu_ptr(&text_poke_array_refs);
 
 	if (!raw_atomic_inc_not_zero(refs))
 		return NULL;
 
-	return &int3_vec;
+	return &text_poke_array;
 }
 
 static __always_inline void put_desc(void)
@@ -2519,7 +2512,7 @@ static __always_inline int patch_cmp(const void *key, const void *elt)
 
 noinstr int smp_text_poke_int3_handler(struct pt_regs *regs)
 {
-	struct text_poke_int3_vec *desc;
+	struct smp_text_poke_array *desc;
 	struct smp_text_poke_loc *tp;
 	int ret = 0;
 	void *ip;
@@ -2529,7 +2522,7 @@ noinstr int smp_text_poke_int3_handler(struct pt_regs *regs)
 
 	/*
 	 * Having observed our INT3 instruction, we now must observe
-	 * int3_vec with non-zero refcount:
+	 * text_poke_array with non-zero refcount:
 	 *
 	 *	text_poke_array_refs = 1		INT3
 	 *	WMB			RMB
@@ -2633,12 +2626,9 @@ static void smp_text_poke_batch_process(struct smp_text_poke_loc *tp, unsigned i
 	WARN_ON_ONCE(tp != text_poke_array.vec);
 	WARN_ON_ONCE(nr_entries != text_poke_array.nr_entries);
 
-	int3_vec.vec = tp;
-	int3_vec.nr_entries = nr_entries;
-
 	/*
 	 * Corresponds to the implicit memory barrier in try_get_desc() to
-	 * ensure reading a non-zero refcount provides up to date int3_vec data.
+	 * ensure reading a non-zero refcount provides up to date text_poke_array data.
 	 */
 	for_each_possible_cpu(i)
 		atomic_set_release(per_cpu_ptr(&text_poke_array_refs, i), 1);
