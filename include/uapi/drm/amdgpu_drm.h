@@ -516,6 +516,12 @@ struct drm_amdgpu_userq_fence_info {
 
 struct drm_amdgpu_userq_wait {
 	/**
+	 * @waitq_id: Queue handle used by the userq wait IOCTL to retrieve the
+	 * wait queue and maintain the fence driver references in it.
+	 */
+	__u32	waitq_id;
+	__u32	pad;
+	/**
 	 * @syncobj_handles: The list of syncobj handles submitted by the user queue
 	 * job to get the va/value pairs.
 	 */

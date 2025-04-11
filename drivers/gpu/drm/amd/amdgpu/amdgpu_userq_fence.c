@@ -91,7 +91,6 @@ int amdgpu_userq_fence_driver_alloc(struct amdgpu_device *adev,
 	spin_lock_init(&fence_drv->fence_list_lock);
 
 	fence_drv->adev = adev;
-	fence_drv->fence_drv_xa_ptr = &userq->fence_drv_xa;
 	fence_drv->context = dma_fence_context_alloc(1);
 	get_task_comm(fence_drv->timeline_name, current);
 
@@ -611,6 +610,9 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 	u32 num_syncobj, num_read_bo_handles, num_write_bo_handles;
 	struct drm_amdgpu_userq_fence_info *fence_info = NULL;
 	struct drm_amdgpu_userq_wait *wait_info = data;
+	struct amdgpu_fpriv *fpriv = filp->driver_priv;
+	struct amdgpu_userq_mgr *userq_mgr = &fpriv->userq_mgr;
+	struct amdgpu_usermode_queue *waitq;
 	struct drm_gem_object **gobj_write;
 	struct drm_gem_object **gobj_read;
 	struct dma_fence **fences = NULL;
@@ -860,6 +862,10 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 			fences[num_fences++] = fence;
 		}
 
+		waitq = idr_find(&userq_mgr->userq_idr, wait_info->waitq_id);
+		if (!waitq)
+			goto free_fences;
+
 		for (i = 0, cnt = 0; i < num_fences; i++) {
 			struct amdgpu_userq_fence_driver *fence_drv;
 			struct amdgpu_userq_fence *userq_fence;
@@ -888,14 +894,12 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 			 * Otherwise, we would gather those references until we don't
 			 * have any more space left and crash.
 			 */
-			if (fence_drv->fence_drv_xa_ptr) {
-				r = xa_alloc(fence_drv->fence_drv_xa_ptr, &index, fence_drv,
-					     xa_limit_32b, GFP_KERNEL);
-				if (r)
-					goto free_fences;
+			r = xa_alloc(&waitq->fence_drv_xa, &index, fence_drv,
+				     xa_limit_32b, GFP_KERNEL);
+			if (r)
+				goto free_fences;
 
-				amdgpu_userq_fence_driver_get(fence_drv);
-			}
+			amdgpu_userq_fence_driver_get(fence_drv);
 
 			/* Store drm syncobj's gpu va address and value */
 			fence_info[cnt].va = fence_drv->va;
