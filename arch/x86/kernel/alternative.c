@@ -2627,6 +2627,9 @@ static void smp_text_poke_batch_process(struct smp_text_poke_loc *tp, unsigned i
 
 	lockdep_assert_held(&text_mutex);
 
+	WARN_ON_ONCE(tp != tp_vec);
+	WARN_ON_ONCE(nr_entries != tp_vec_nr);
+
 	int3_vec.vec = tp;
 	int3_vec.nr_entries = nr_entries;
 
