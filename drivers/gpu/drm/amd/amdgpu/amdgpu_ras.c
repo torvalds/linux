@@ -1498,6 +1498,9 @@ int amdgpu_ras_reset_error_count(struct amdgpu_device *adev,
 	    !amdgpu_ras_get_aca_debug_mode(adev))
 		return -EOPNOTSUPP;
 
+	if (amdgpu_sriov_vf(adev))
+		return -EOPNOTSUPP;
+
 	/* skip ras error reset in gpu reset */
 	if ((amdgpu_in_reset(adev) || amdgpu_ras_in_recovery(adev)) &&
 	    ((smu_funcs && smu_funcs->set_debug_mode) ||
