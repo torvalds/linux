@@ -2139,10 +2139,6 @@ void __init_or_module text_poke_early(void *addr, const void *opcode,
 	}
 }
 
-typedef struct {
-	struct mm_struct *mm;
-} temp_mm_state_t;
-
 /*
  * Using a temporary mm allows to set temporary mappings that are not accessible
  * by other CPUs. Such mappings are needed to perform sensitive memory writes
@@ -2156,9 +2152,9 @@ typedef struct {
  *          loaded, thereby preventing interrupt handler bugs from overriding
  *          the kernel memory protection.
  */
-static inline temp_mm_state_t use_temporary_mm(struct mm_struct *mm)
+static inline struct mm_struct *use_temporary_mm(struct mm_struct *temp_mm)
 {
-	temp_mm_state_t temp_state;
+	struct mm_struct *prev_mm;
 
 	lockdep_assert_irqs_disabled();
 
@@ -2170,8 +2166,8 @@ static inline temp_mm_state_t use_temporary_mm(struct mm_struct *mm)
 	if (this_cpu_read(cpu_tlbstate_shared.is_lazy))
 		leave_mm();
 
-	temp_state.mm = this_cpu_read(cpu_tlbstate.loaded_mm);
-	switch_mm_irqs_off(NULL, mm, current);
+	prev_mm = this_cpu_read(cpu_tlbstate.loaded_mm);
+	switch_mm_irqs_off(NULL, temp_mm, current);
 
 	/*
 	 * If breakpoints are enabled, disable them while the temporary mm is
@@ -2187,17 +2183,17 @@ static inline temp_mm_state_t use_temporary_mm(struct mm_struct *mm)
 	if (hw_breakpoint_active())
 		hw_breakpoint_disable();
 
-	return temp_state;
+	return prev_mm;
 }
 
 __ro_after_init struct mm_struct *text_poke_mm;
 __ro_after_init unsigned long text_poke_mm_addr;
 
-static inline void unuse_temporary_mm(temp_mm_state_t prev_state)
+static inline void unuse_temporary_mm(struct mm_struct *prev_mm)
 {
 	lockdep_assert_irqs_disabled();
 
-	switch_mm_irqs_off(NULL, prev_state.mm, current);
+	switch_mm_irqs_off(NULL, prev_mm, current);
 
 	/* Clear the cpumask, to indicate no TLB flushing is needed anywhere */
 	cpumask_clear_cpu(raw_smp_processor_id(), mm_cpumask(text_poke_mm));
@@ -2228,7 +2224,7 @@ static void *__text_poke(text_poke_f func, void *addr, const void *src, size_t l
 {
 	bool cross_page_boundary = offset_in_page(addr) + len > PAGE_SIZE;
 	struct page *pages[2] = {NULL};
-	temp_mm_state_t prev;
+	struct mm_struct *prev_mm;
 	unsigned long flags;
 	pte_t pte, *ptep;
 	spinlock_t *ptl;
@@ -2286,7 +2282,7 @@ static void *__text_poke(text_poke_f func, void *addr, const void *src, size_t l
 	 * Loading the temporary mm behaves as a compiler barrier, which
 	 * guarantees that the PTE will be set at the time memcpy() is done.
 	 */
-	prev = use_temporary_mm(text_poke_mm);
+	prev_mm = use_temporary_mm(text_poke_mm);
 
 	kasan_disable_current();
 	func((u8 *)text_poke_mm_addr + offset_in_page(addr), src, len);
@@ -2307,7 +2303,7 @@ static void *__text_poke(text_poke_f func, void *addr, const void *src, size_t l
 	 * instruction that already allows the core to see the updated version.
 	 * Xen-PV is assumed to serialize execution in a similar manner.
 	 */
-	unuse_temporary_mm(prev);
+	unuse_temporary_mm(prev_mm);
 
 	/*
 	 * Flushing the TLB might involve IPIs, which would require enabled
