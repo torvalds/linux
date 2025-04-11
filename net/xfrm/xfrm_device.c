@@ -145,10 +145,6 @@ struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t featur
 		return NULL;
 	}
 
-	/* This skb was already validated on the upper/virtual dev */
-	if ((x->xso.dev != dev) && (x->xso.real_dev == dev))
-		return skb;
-
 	local_irq_save(flags);
 	sd = this_cpu_ptr(&softnet_data);
 	err = !skb_queue_empty(&sd->xfrm_backlog);
@@ -159,8 +155,7 @@ struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t featur
 		return skb;
 	}
 
-	if (skb_is_gso(skb) && (unlikely(x->xso.dev != dev) ||
-				unlikely(xmit_xfrm_check_overflow(skb)))) {
+	if (skb_is_gso(skb) && unlikely(xmit_xfrm_check_overflow(skb))) {
 		struct sk_buff *segs;
 
 		/* Packet got rerouted, fixup features and segment it. */
