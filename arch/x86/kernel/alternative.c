@@ -2447,6 +2447,11 @@ static struct smp_text_poke_array {
 
 static DEFINE_PER_CPU(atomic_t, text_poke_array_refs);
 
+/*
+ * These four __always_inline annotations imply noinstr, necessary
+ * due to smp_text_poke_int3_handler() being noinstr:
+ */
+
 static __always_inline bool try_get_text_poke_array(void)
 {
 	atomic_t *refs = this_cpu_ptr(&text_poke_array_refs);
