@@ -2511,7 +2511,6 @@ static __always_inline int patch_cmp(const void *key, const void *elt)
 
 noinstr int smp_text_poke_int3_handler(struct pt_regs *regs)
 {
-	struct smp_text_poke_array *desc;
 	struct smp_text_poke_loc *tp;
 	int ret = 0;
 	void *ip;
@@ -2531,9 +2530,6 @@ noinstr int smp_text_poke_int3_handler(struct pt_regs *regs)
 
 	if (!try_get_text_poke_array())
 		return 0;
-	desc = &text_poke_array;
-
-	WARN_ON_ONCE(desc->vec != text_poke_array.vec);
 
 	/*
 	 * Discount the INT3. See smp_text_poke_batch_process().
@@ -2543,14 +2539,14 @@ noinstr int smp_text_poke_int3_handler(struct pt_regs *regs)
 	/*
 	 * Skip the binary search if there is a single member in the vector.
 	 */
-	if (unlikely(desc->nr_entries > 1)) {
-		tp = __inline_bsearch(ip, desc->vec, desc->nr_entries,
+	if (unlikely(text_poke_array.nr_entries > 1)) {
+		tp = __inline_bsearch(ip, text_poke_array.vec, text_poke_array.nr_entries,
 				      sizeof(struct smp_text_poke_loc),
 				      patch_cmp);
 		if (!tp)
 			goto out_put;
 	} else {
-		tp = desc->vec;
+		tp = text_poke_array.vec;
 		if (text_poke_addr(tp) != ip)
 			goto out_put;
 	}
