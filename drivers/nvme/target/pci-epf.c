@@ -1648,16 +1648,17 @@ static int nvmet_pci_epf_process_sq(struct nvmet_pci_epf_ctrl *ctrl,
 {
 	struct nvmet_pci_epf_iod *iod;
 	int ret, n = 0;
+	u16 head = sq->head;
 
 	sq->tail = nvmet_pci_epf_bar_read32(ctrl, sq->db);
-	while (sq->head != sq->tail && (!ctrl->sq_ab || n < ctrl->sq_ab)) {
+	while (head != sq->tail && (!ctrl->sq_ab || n < ctrl->sq_ab)) {
 		iod = nvmet_pci_epf_alloc_iod(sq);
 		if (!iod)
 			break;
 
 		/* Get the NVMe command submitted by the host. */
 		ret = nvmet_pci_epf_transfer(ctrl, &iod->cmd,
-					     sq->pci_addr + sq->head * sq->qes,
+					     sq->pci_addr + head * sq->qes,
 					     sq->qes, DMA_FROM_DEVICE);
 		if (ret) {
 			/* Not much we can do... */
@@ -1666,12 +1667,13 @@ static int nvmet_pci_epf_process_sq(struct nvmet_pci_epf_ctrl *ctrl,
 		}
 
 		dev_dbg(ctrl->dev, "SQ[%u]: head %u, tail %u, command %s\n",
-			sq->qid, sq->head, sq->tail,
+			sq->qid, head, sq->tail,
 			nvmet_pci_epf_iod_name(iod));
 
-		sq->head++;
-		if (sq->head == sq->depth)
-			sq->head = 0;
+		head++;
+		if (head == sq->depth)
+			head = 0;
+		WRITE_ONCE(sq->head, head);
 		n++;
 
 		queue_work_on(WORK_CPU_UNBOUND, sq->iod_wq, &iod->work);
@@ -1761,8 +1763,17 @@ static void nvmet_pci_epf_cq_work(struct work_struct *work)
 		if (!iod)
 			break;
 
-		/* Post the IOD completion entry. */
+		/*
+		 * Post the IOD completion entry. If the IOD request was
+		 * executed (req->execute() called), the CQE is already
+		 * initialized. However, the IOD may have been failed before
+		 * that, leaving the CQE not properly initialized. So always
+		 * initialize it here.
+		 */
 		cqe = &iod->cqe;
+		cqe->sq_head = cpu_to_le16(READ_ONCE(iod->sq->head));
+		cqe->sq_id = cpu_to_le16(iod->sq->qid);
+		cqe->command_id = iod->cmd.common.command_id;
 		cqe->status = cpu_to_le16((iod->status << 1) | cq->phase);
 
 		dev_dbg(ctrl->dev,
