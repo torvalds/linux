@@ -154,8 +154,11 @@ struct xfrm_dev_offload {
 	 */
 	struct net_device	*dev;
 	netdevice_tracker	dev_tracker;
-	/* This is a private pointer used by the bonding driver.
-	 * Device drivers should not use it.
+	/* This is a private pointer used by the bonding driver (and eventually
+	 * should be moved there). Device drivers should not use it.
+	 * Protected by xfrm_state.lock AND bond.ipsec_lock in most cases,
+	 * except in the .xdo_dev_state_del() flow, where only xfrm_state.lock
+	 * is held.
 	 */
 	struct net_device	*real_dev;
 	unsigned long		offload_handle;
