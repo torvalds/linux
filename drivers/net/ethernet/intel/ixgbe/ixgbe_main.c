@@ -11317,6 +11317,7 @@ static int ixgbe_recovery_probe(struct ixgbe_adapter *adapter)
 	ixgbe_devlink_register_port(adapter);
 	SET_NETDEV_DEVLINK_PORT(adapter->netdev,
 				&adapter->devlink_port);
+	ixgbe_devlink_init_regions(adapter);
 	devl_register(adapter->devlink);
 	devl_unlock(adapter->devlink);
 
@@ -11824,6 +11825,7 @@ skip_sriov:
 	if (err)
 		goto err_netdev;
 
+	ixgbe_devlink_init_regions(adapter);
 	devl_register(adapter->devlink);
 	devl_unlock(adapter->devlink);
 	return 0;
@@ -11882,6 +11884,7 @@ static void ixgbe_remove(struct pci_dev *pdev)
 	netdev  = adapter->netdev;
 	devl_lock(adapter->devlink);
 	devl_unregister(adapter->devlink);
+	ixgbe_devlink_destroy_regions(adapter);
 	ixgbe_dbg_adapter_exit(adapter);
 
 	set_bit(__IXGBE_REMOVING, &adapter->state);
