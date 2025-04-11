@@ -2434,7 +2434,7 @@ struct smp_text_poke_loc {
 	u8 len;
 	u8 opcode;
 	const u8 text[TEXT_POKE_MAX_OPCODE_SIZE];
-	/* see smp_text_poke_batch_process() */
+	/* see smp_text_poke_batch_finish() */
 	u8 old;
 };
 
@@ -2507,7 +2507,7 @@ noinstr int smp_text_poke_int3_handler(struct pt_regs *regs)
 		return 0;
 
 	/*
-	 * Discount the INT3. See smp_text_poke_batch_process().
+	 * Discount the INT3. See smp_text_poke_batch_finish().
 	 */
 	ip = (void *) regs->ip - INT3_INSN_SIZE;
 
@@ -2565,7 +2565,7 @@ out_put:
 }
 
 /**
- * smp_text_poke_batch_process() -- update instructions on live kernel on SMP
+ * smp_text_poke_batch_finish() -- update instructions on live kernel on SMP
  *
  * Input state:
  *  text_poke_array.vec: vector of instructions to patch
@@ -2587,11 +2587,14 @@ out_put:
  *		  replacing opcode
  *	- SMP sync all CPUs
  */
-static void smp_text_poke_batch_process(void)
+void smp_text_poke_batch_finish(void)
 {
 	unsigned char int3 = INT3_INSN_OPCODE;
 	unsigned int i;
 	int do_sync;
+
+	if (!text_poke_array.nr_entries)
+		return;
 
 	lockdep_assert_held(&text_mutex);
 
@@ -2832,12 +2835,6 @@ static bool text_poke_addr_ordered(void *addr)
 	return true;
 }
 
-void smp_text_poke_batch_finish(void)
-{
-	if (text_poke_array.nr_entries)
-		smp_text_poke_batch_process();
-}
-
 /**
  * smp_text_poke_batch_add() -- update instruction on live kernel on SMP, batched
  * @addr:	address to patch
@@ -2854,7 +2851,7 @@ void smp_text_poke_batch_finish(void)
 void __ref smp_text_poke_batch_add(void *addr, const void *opcode, size_t len, const void *emulate)
 {
 	if (text_poke_array.nr_entries == TEXT_POKE_ARRAY_MAX || !text_poke_addr_ordered(addr))
-		smp_text_poke_batch_process();
+		smp_text_poke_batch_finish();
 	__smp_text_poke_batch_add(addr, opcode, len, emulate);
 }
 
