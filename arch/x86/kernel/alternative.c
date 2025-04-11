@@ -2445,7 +2445,7 @@ static void do_sync_core(void *info)
 	sync_core();
 }
 
-void text_poke_sync(void)
+void smp_text_poke_sync_each_cpu(void)
 {
 	on_each_cpu(do_sync_core, NULL, 1);
 }
@@ -2469,8 +2469,8 @@ struct smp_text_poke_loc {
 #define TP_ARRAY_NR_ENTRIES_MAX (PAGE_SIZE / sizeof(struct smp_text_poke_loc))
 
 static struct smp_text_poke_array {
-	int nr_entries;
 	struct smp_text_poke_loc vec[TP_ARRAY_NR_ENTRIES_MAX];
+	int nr_entries;
 } text_poke_array;
 
 static DEFINE_PER_CPU(atomic_t, text_poke_array_refs);
@@ -2649,7 +2649,7 @@ static void smp_text_poke_batch_process(void)
 		text_poke(text_poke_addr(&text_poke_array.vec[i]), &int3, INT3_INSN_SIZE);
 	}
 
-	text_poke_sync();
+	smp_text_poke_sync_each_cpu();
 
 	/*
 	 * Second step: update all but the first byte of the patched range.
@@ -2711,7 +2711,7 @@ static void smp_text_poke_batch_process(void)
 		 * not necessary and we'd be safe even without it. But
 		 * better safe than sorry (plus there's not only Intel).
 		 */
-		text_poke_sync();
+		smp_text_poke_sync_each_cpu();
 	}
 
 	/*
@@ -2732,13 +2732,13 @@ static void smp_text_poke_batch_process(void)
 	}
 
 	if (do_sync)
-		text_poke_sync();
+		smp_text_poke_sync_each_cpu();
 
 	/*
 	 * Remove and wait for refs to be zero.
 	 *
 	 * Notably, if after step-3 above the INT3 got removed, then the
-	 * text_poke_sync() will have serialized against any running INT3
+	 * smp_text_poke_sync_each_cpu() will have serialized against any running INT3
 	 * handlers and the below spin-wait will not happen.
 	 *
 	 * IOW. unless the replacement instruction is INT3, this case goes
