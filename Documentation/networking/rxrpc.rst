@@ -1178,6 +1178,7 @@ API Function Reference
 ======================
 
 .. kernel-doc:: net/rxrpc/af_rxrpc.c
+.. kernel-doc:: net/rxrpc/call_object.c
 .. kernel-doc:: net/rxrpc/key.c
 .. kernel-doc:: net/rxrpc/oob.c
 .. kernel-doc:: net/rxrpc/peer_object.c
