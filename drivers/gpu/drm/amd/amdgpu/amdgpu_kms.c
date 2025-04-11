@@ -427,7 +427,7 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 		type = AMD_IP_BLOCK_TYPE_SDMA;
 		for (i = 0; i < adev->sdma.num_instances; i++)
 			if (adev->sdma.instance[i].ring.sched.ready &&
-			    !adev->gfx.gfx_ring[i].no_user_submission)
+			    !adev->sdma.instance[i].ring.no_user_submission)
 				++num_rings;
 		ib_start_alignment = 256;
 		ib_size_alignment = 4;
