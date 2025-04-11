@@ -102,26 +102,6 @@ EXPORT_SYMBOL(strcpy);
 #endif
 
 /**
- * strncpy - Copy a length-limited, %NUL-terminated string
- * @dest: Where to copy the string to
- * @src: Where to copy the string from
- * @n: The maximum number of bytes to copy
- *
- * The result is not %NUL-terminated if the source exceeds
- * @n bytes.
- */
-#ifdef __HAVE_ARCH_STRNCPY
-char *strncpy(char *dest, const char *src, size_t n)
-{
-	size_t len = __strnend(src, n) - src;
-	memset(dest + len, 0, n - len);
-	memcpy(dest, src, len);
-	return dest;
-}
-EXPORT_SYMBOL(strncpy);
-#endif
-
-/**
  * strcat - Append one %NUL-terminated string to another
  * @dest: The string to be appended to
  * @src: The string to append to it
@@ -181,9 +161,6 @@ EXPORT_SYMBOL(strlcat);
  * @n: The maximum numbers of bytes to copy
  *
  * returns a pointer to @dest
- *
- * Note that in contrast to strncpy, strncat ensures the result is
- * terminated.
  */
 #ifdef __HAVE_ARCH_STRNCAT
 char *strncat(char *dest, const char *src, size_t n)
