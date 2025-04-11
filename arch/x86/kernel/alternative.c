@@ -2873,6 +2873,19 @@ static void smp_text_poke_batch_flush(void *addr)
 	}
 }
 
+/**
+ * smp_text_poke_batch_add() -- update instruction on live kernel on SMP, batched
+ * @addr:	address to patch
+ * @opcode:	opcode of new instruction
+ * @len:	length to copy
+ * @emulate:	instruction to be emulated
+ *
+ * Add a new instruction to the current queue of to-be-patched instructions
+ * the kernel maintains. The patching request will not be executed immediately,
+ * but becomes part of an array of patching requests, optimized for batched
+ * execution. All pending patching requests will be executed on the next
+ * smp_text_poke_batch_finish() call.
+ */
 void __ref smp_text_poke_batch_add(void *addr, const void *opcode, size_t len, const void *emulate)
 {
 	smp_text_poke_batch_flush(addr);
