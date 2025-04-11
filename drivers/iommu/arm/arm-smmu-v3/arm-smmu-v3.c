@@ -3411,9 +3411,9 @@ static int arm_smmu_insert_master(struct arm_smmu_device *smmu,
 				continue;
 
 			dev_warn(master->dev,
-				 "stream %u already in tree from dev %s\n", sid,
-				 dev_name(existing_master->dev));
-			ret = -EINVAL;
+				 "Aliasing StreamID 0x%x (from %s) unsupported, expect DMA to be broken\n",
+				 sid, dev_name(existing_master->dev));
+			ret = -ENODEV;
 			break;
 		}
 	}
