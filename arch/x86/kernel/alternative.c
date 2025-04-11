@@ -2510,6 +2510,10 @@ static __always_inline int patch_cmp(const void *key, const void *elt)
 	return 0;
 }
 
+#define TP_VEC_MAX (PAGE_SIZE / sizeof(struct smp_text_poke_loc))
+static struct smp_text_poke_loc tp_vec[TP_VEC_MAX];
+static int tp_vec_nr;
+
 noinstr int smp_text_poke_int3_handler(struct pt_regs *regs)
 {
 	struct text_poke_int3_vec *desc;
@@ -2533,6 +2537,8 @@ noinstr int smp_text_poke_int3_handler(struct pt_regs *regs)
 	desc = try_get_desc();
 	if (!desc)
 		return 0;
+
+	WARN_ON_ONCE(desc->vec != tp_vec);
 
 	/*
 	 * Discount the INT3. See smp_text_poke_batch_process().
@@ -2591,10 +2597,6 @@ out_put:
 	put_desc();
 	return ret;
 }
-
-#define TP_VEC_MAX (PAGE_SIZE / sizeof(struct smp_text_poke_loc))
-static struct smp_text_poke_loc tp_vec[TP_VEC_MAX];
-static int tp_vec_nr;
 
 /**
  * smp_text_poke_batch_process() -- update instructions on live kernel on SMP
