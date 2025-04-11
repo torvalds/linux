@@ -6,6 +6,7 @@
  */
 
 #include <linux/slab.h>
+#include <crypto/krb5.h>
 #include "internal.h"
 #include "afs_fs.h"
 #include "protocol_yfs.h"
@@ -17,6 +18,9 @@
  */
 static int afs_respond_to_challenge(struct sk_buff *challenge)
 {
+#ifdef CONFIG_RXGK
+	struct krb5_buffer appdata = {};
+#endif
 	struct rxrpc_peer *peer;
 	unsigned long peer_data;
 	u16 service_id;
@@ -44,8 +48,16 @@ static int afs_respond_to_challenge(struct sk_buff *challenge)
 	}
 
 	switch (security_index) {
+#ifdef CONFIG_RXKAD
 	case RXRPC_SECURITY_RXKAD:
 		return rxkad_kernel_respond_to_challenge(challenge);
+#endif
+
+#ifdef CONFIG_RXGK
+	case RXRPC_SECURITY_RXGK:
+	case RXRPC_SECURITY_YFS_RXGK:
+		return rxgk_kernel_respond_to_challenge(challenge, &appdata);
+#endif
 
 	default:
 		return rxrpc_kernel_reject_challenge(challenge, RX_USER_ABORT, -EPROTO,

@@ -31,6 +31,7 @@ struct key_preparsed_payload;
 struct rxrpc_connection;
 struct rxrpc_txbuf;
 struct rxrpc_txqueue;
+struct rxgk_context;
 
 /*
  * Mark applied to socket buffers in skb->mark.  skb->priority is used
@@ -312,6 +313,11 @@ struct rxrpc_security {
 
 	/* clear connection security */
 	void (*clear)(struct rxrpc_connection *);
+
+	/* Default ticket -> key decoder */
+	int (*default_decode_ticket)(struct rxrpc_connection *conn, struct sk_buff *skb,
+				     unsigned int ticket_offset, unsigned int ticket_len,
+				     struct key **_key);
 };
 
 /*
@@ -559,7 +565,10 @@ struct rxrpc_connection {
 			u32	nonce;		/* response re-use preventer */
 		} rxkad;
 		struct {
+			struct rxgk_context *keys[1];
 			u64	start_time;	/* The start time for TK derivation */
+			u8	nonce[20];	/* Response re-use preventer */
+			u32	enctype;	/* Kerberos 5 encoding type */
 		} rxgk;
 	};
 	struct sk_buff		*tx_response;	/* Response packet to be transmitted */
@@ -903,6 +912,8 @@ struct rxrpc_txbuf {
 	unsigned short		len;		/* Amount of data in buffer */
 	unsigned short		space;		/* Remaining data space */
 	unsigned short		offset;		/* Offset of fill point */
+	unsigned short		crypto_header;	/* Size of crypto header */
+	unsigned short		sec_header;	/* Size of security header */
 	unsigned short		pkt_len;	/* Size of packet content */
 	unsigned short		alloc_size;	/* Amount of bufferage allocated */
 	unsigned int		flags;
@@ -1339,6 +1350,7 @@ int rxrpc_sendmsg_oob(struct rxrpc_sock *rx, struct msghdr *msg, size_t len);
 /*
  * output.c
  */
+ssize_t do_udp_sendmsg(struct socket *socket, struct msghdr *msg, size_t len);
 void rxrpc_send_ACK(struct rxrpc_call *call, u8 ack_reason,
 		    rxrpc_serial_t serial, enum rxrpc_propose_ack_trace why);
 void rxrpc_send_probe_for_pmtud(struct rxrpc_call *call);
@@ -1410,6 +1422,11 @@ void rxrpc_call_add_rtt(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
 			ktime_t send_time, ktime_t resp_time);
 ktime_t rxrpc_get_rto_backoff(struct rxrpc_call *call, bool retrans);
 void rxrpc_call_init_rtt(struct rxrpc_call *call);
+
+/*
+ * rxgk.c
+ */
+extern const struct rxrpc_security rxgk_yfs;
 
 /*
  * rxkad.c

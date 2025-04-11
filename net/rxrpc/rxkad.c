@@ -177,8 +177,10 @@ static struct rxrpc_txbuf *rxkad_alloc_txbuf(struct rxrpc_call *call, size_t rem
 	if (!txb)
 		return NULL;
 
-	txb->offset += shdr;
-	txb->space = part;
+	txb->crypto_header	= 0;
+	txb->sec_header		= shdr;
+	txb->offset		+= shdr;
+	txb->space		= part;
 	return txb;
 }
 
