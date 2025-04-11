@@ -185,12 +185,6 @@ static void ops_exit_rtnl_list(const struct list_head *ops_list,
 		__rtnl_net_unlock(net);
 	}
 
-	ops = saved_ops;
-	list_for_each_entry_continue_reverse(ops, ops_list, list) {
-		if (ops->exit_batch_rtnl)
-			ops->exit_batch_rtnl(net_exit_list, &dev_kill_list);
-	}
-
 	unregister_netdevice_many(&dev_kill_list);
 
 	rtnl_unlock();
@@ -263,7 +257,7 @@ static void ops_undo_list(const struct list_head *ops_list,
 static void ops_undo_single(struct pernet_operations *ops,
 			    struct list_head *net_exit_list)
 {
-	bool hold_rtnl = ops->exit_rtnl || ops->exit_batch_rtnl;
+	bool hold_rtnl = !!ops->exit_rtnl;
 	LIST_HEAD(ops_list);
 
 	list_add(&ops->list, &ops_list);
