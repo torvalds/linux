@@ -418,6 +418,7 @@ static void amdgpu_ras_set_eeprom_table_version(struct amdgpu_ras_eeprom_control
 		hdr->version = RAS_TABLE_VER_V2_1;
 		return;
 	case IP_VERSION(12, 0, 0):
+	case IP_VERSION(12, 5, 0):
 		hdr->version = RAS_TABLE_VER_V3;
 		return;
 	default:
