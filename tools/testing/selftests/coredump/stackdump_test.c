@@ -96,7 +96,7 @@ TEST_F(coredump, stackdump)
 	char *test_dir, *line;
 	size_t line_length;
 	char buf[PATH_MAX];
-	int ret, i;
+	int ret, i, status;
 	FILE *file;
 	pid_t pid;
 
@@ -129,6 +129,10 @@ TEST_F(coredump, stackdump)
 	/*
 	 * Step 3: Wait for the stackdump script to write the stack pointers to the stackdump file
 	 */
+	waitpid(pid, &status, 0);
+	ASSERT_TRUE(WIFSIGNALED(status));
+	ASSERT_TRUE(WCOREDUMP(status));
+
 	for (i = 0; i < 10; ++i) {
 		file = fopen(STACKDUMP_FILE, "r");
 		if (file)
