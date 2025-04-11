@@ -475,8 +475,8 @@ static
 int iwl_mld_mac80211_start(struct ieee80211_hw *hw)
 {
 	struct iwl_mld *mld = IWL_MAC80211_GET_MLD(hw);
-	int ret;
 	bool in_d3 = false;
+	int ret = 0;
 
 	lockdep_assert_wiphy(mld->wiphy);
 
@@ -501,7 +501,7 @@ int iwl_mld_mac80211_start(struct ieee80211_hw *hw)
 		iwl_mld_restart_cleanup(mld);
 	}
 
-	if (!in_d3) {
+	if (!in_d3 || ret) {
 		ret = iwl_mld_start_fw(mld);
 		if (ret)
 			goto error;
