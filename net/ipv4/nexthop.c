@@ -4040,14 +4040,11 @@ out:
 }
 EXPORT_SYMBOL(nexthop_res_grp_activity_update);
 
-static void __net_exit nexthop_net_exit_batch_rtnl(struct list_head *net_list,
-						   struct list_head *dev_to_kill)
+static void __net_exit nexthop_net_exit_rtnl(struct net *net,
+					     struct list_head *dev_to_kill)
 {
-	struct net *net;
-
-	ASSERT_RTNL();
-	list_for_each_entry(net, net_list, exit_list)
-		flush_all_nexthops(net);
+	ASSERT_RTNL_NET(net);
+	flush_all_nexthops(net);
 }
 
 static void __net_exit nexthop_net_exit(struct net *net)
@@ -4072,7 +4069,7 @@ static int __net_init nexthop_net_init(struct net *net)
 static struct pernet_operations nexthop_net_ops = {
 	.init = nexthop_net_init,
 	.exit = nexthop_net_exit,
-	.exit_batch_rtnl = nexthop_net_exit_batch_rtnl,
+	.exit_rtnl = nexthop_net_exit_rtnl,
 };
 
 static const struct rtnl_msg_handler nexthop_rtnl_msg_handlers[] __initconst = {
