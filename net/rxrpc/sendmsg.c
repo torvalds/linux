@@ -794,6 +794,8 @@ error_release_sock:
  * appropriate to sending data.  No control data should be supplied in @msg,
  * nor should an address be supplied.  MSG_MORE should be flagged if there's
  * more data to come, otherwise this data will end the transmission phase.
+ *
+ * Return: %0 if successful and a negative error code otherwise.
  */
 int rxrpc_kernel_send_data(struct socket *sock, struct rxrpc_call *call,
 			   struct msghdr *msg, size_t len,
@@ -829,8 +831,9 @@ EXPORT_SYMBOL(rxrpc_kernel_send_data);
  * @error: Local error value
  * @why: Indication as to why.
  *
- * Allow a kernel service to abort a call, if it's still in an abortable state
- * and return true if the call was aborted, false if it was already complete.
+ * Allow a kernel service to abort a call if it's still in an abortable state.
+ *
+ * Return: %true if the call was aborted, %false if it was already complete.
  */
 bool rxrpc_kernel_abort_call(struct socket *sock, struct rxrpc_call *call,
 			     u32 abort_code, int error, enum rxrpc_abort_reason why)

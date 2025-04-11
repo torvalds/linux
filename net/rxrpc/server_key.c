@@ -152,6 +152,8 @@ int rxrpc_server_keyring(struct rxrpc_sock *rx, sockptr_t optval, int optlen)
  *
  * Set the server security keyring on an rxrpc socket.  This is used to provide
  * the encryption keys for a kernel service.
+ *
+ * Return: %0 if successful and a negative error code otherwise.
  */
 int rxrpc_sock_set_security_keyring(struct sock *sk, struct key *keyring)
 {

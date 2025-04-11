@@ -531,6 +531,8 @@ EXPORT_SYMBOL(rxrpc_get_server_data_key);
  *
  * Generate a null RxRPC key that can be used to indicate anonymous security is
  * required for a particular domain.
+ *
+ * Return: The new key or a negative error code.
  */
 struct key *rxrpc_get_null_key(const char *keyname)
 {
