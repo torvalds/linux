@@ -2725,6 +2725,30 @@ TRACE_EVENT(rxrpc_rack_timer,
 		      ktime_to_us(__entry->delay))
 	    );
 
+TRACE_EVENT(rxrpc_rxgk_rekey,
+	    TP_PROTO(struct rxrpc_connection *conn,
+		     unsigned int current_key, unsigned int requested_key),
+
+	    TP_ARGS(conn, current_key, requested_key),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	conn)
+		    __field(unsigned int,	current_key)
+		    __field(unsigned int,	requested_key)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->conn		= conn->debug_id;
+		    __entry->current_key	= current_key;
+		    __entry->requested_key	= requested_key;
+			   ),
+
+	    TP_printk("C=%08x cur=%x req=%x",
+		      __entry->conn,
+		      __entry->current_key,
+		      __entry->requested_key)
+	    );
+
 #undef EM
 #undef E_
 
