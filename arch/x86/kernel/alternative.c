@@ -2466,10 +2466,10 @@ struct smp_text_poke_loc {
 	u8 old;
 };
 
-#define TP_ARRAY_NR_ENTRIES_MAX (PAGE_SIZE / sizeof(struct smp_text_poke_loc))
+#define TEXT_POKE_ARRAY_MAX (PAGE_SIZE / sizeof(struct smp_text_poke_loc))
 
 static struct smp_text_poke_array {
-	struct smp_text_poke_loc vec[TP_ARRAY_NR_ENTRIES_MAX];
+	struct smp_text_poke_loc vec[TEXT_POKE_ARRAY_MAX];
 	int nr_entries;
 } text_poke_array;
 
@@ -2863,7 +2863,7 @@ static void smp_text_poke_batch_flush(void *addr)
 {
 	lockdep_assert_held(&text_mutex);
 
-	if (text_poke_array.nr_entries == TP_ARRAY_NR_ENTRIES_MAX || !text_poke_addr_ordered(addr))
+	if (text_poke_array.nr_entries == TEXT_POKE_ARRAY_MAX || !text_poke_addr_ordered(addr))
 		smp_text_poke_batch_process();
 }
 
