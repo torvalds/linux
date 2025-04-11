@@ -89,7 +89,7 @@ fail:
 	fprintf(stderr, "Failed to cleanup stackdump test: %s\n", reason);
 }
 
-TEST_F(coredump, stackdump)
+TEST_F_TIMEOUT(coredump, stackdump, 120)
 {
 	struct sigaction action = {};
 	unsigned long long stack;
