@@ -587,16 +587,6 @@ static void __devm_mbox_controller_unregister(struct device *dev, void *res)
 	mbox_controller_unregister(*mbox);
 }
 
-static int devm_mbox_controller_match(struct device *dev, void *res, void *data)
-{
-	struct mbox_controller **mbox = res;
-
-	if (WARN_ON(!mbox || !*mbox))
-		return 0;
-
-	return *mbox == data;
-}
-
 /**
  * devm_mbox_controller_register() - managed mbox_controller_register()
  * @dev: device owning the mailbox controller being registered
@@ -632,20 +622,3 @@ int devm_mbox_controller_register(struct device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(devm_mbox_controller_register);
-
-/**
- * devm_mbox_controller_unregister() - managed mbox_controller_unregister()
- * @dev: device owning the mailbox controller being unregistered
- * @mbox: mailbox controller being unregistered
- *
- * This function unregisters the mailbox controller and removes the device-
- * managed resource that was set up to automatically unregister the mailbox
- * controller on driver probe failure or driver removal. It's typically not
- * necessary to call this function.
- */
-void devm_mbox_controller_unregister(struct device *dev, struct mbox_controller *mbox)
-{
-	WARN_ON(devres_release(dev, __devm_mbox_controller_unregister,
-			       devm_mbox_controller_match, mbox));
-}
-EXPORT_SYMBOL_GPL(devm_mbox_controller_unregister);

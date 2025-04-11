@@ -134,7 +134,4 @@ void mbox_chan_txdone(struct mbox_chan *chan, int r); /* atomic */
 
 int devm_mbox_controller_register(struct device *dev,
 				  struct mbox_controller *mbox);
-void devm_mbox_controller_unregister(struct device *dev,
-				     struct mbox_controller *mbox);
-
 #endif /* __MAILBOX_CONTROLLER_H */
