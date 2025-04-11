@@ -451,6 +451,7 @@ int mpi3mr_process_admin_reply_q(struct mpi3mr_ioc *mrioc)
 		return 0;
 	}
 
+	atomic_set(&mrioc->admin_pend_isr, 0);
 	reply_desc = (struct mpi3_default_reply_descriptor *)mrioc->admin_reply_base +
 	    admin_reply_ci;
 
@@ -2925,6 +2926,7 @@ static int mpi3mr_setup_admin_qpair(struct mpi3mr_ioc *mrioc)
 	mrioc->admin_reply_ci = 0;
 	mrioc->admin_reply_ephase = 1;
 	atomic_set(&mrioc->admin_reply_q_in_use, 0);
+	atomic_set(&mrioc->admin_pend_isr, 0);
 
 	if (!mrioc->admin_req_base) {
 		mrioc->admin_req_base = dma_alloc_coherent(&mrioc->pdev->dev,
@@ -4653,6 +4655,7 @@ void mpi3mr_memset_buffers(struct mpi3mr_ioc *mrioc)
 	if (mrioc->admin_reply_base)
 		memset(mrioc->admin_reply_base, 0, mrioc->admin_reply_q_sz);
 	atomic_set(&mrioc->admin_reply_q_in_use, 0);
+	atomic_set(&mrioc->admin_pend_isr, 0);
 
 	if (mrioc->init_cmds.reply) {
 		memset(mrioc->init_cmds.reply, 0, sizeof(*mrioc->init_cmds.reply));
