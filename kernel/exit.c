@@ -133,8 +133,13 @@ struct release_task_post {
 static void __unhash_process(struct release_task_post *post, struct task_struct *p,
 			     bool group_dead)
 {
+	struct pid *pid = task_pid(p);
+
 	nr_threads--;
+
 	detach_pid(post->pids, p, PIDTYPE_PID);
+	wake_up_all(&pid->wait_pidfd);
+
 	if (group_dead) {
 		detach_pid(post->pids, p, PIDTYPE_TGID);
 		detach_pid(post->pids, p, PIDTYPE_PGID);
