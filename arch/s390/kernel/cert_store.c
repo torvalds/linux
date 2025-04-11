@@ -138,7 +138,7 @@ static void cert_store_key_describe(const struct key *key, struct seq_file *m)
 	 * First 64 bytes of the key description is key name in EBCDIC CP 500.
 	 * Convert it to ASCII for displaying in /proc/keys.
 	 */
-	strscpy(ascii, key->description, sizeof(ascii));
+	strscpy(ascii, key->description);
 	EBCASC_500(ascii, VC_NAME_LEN_BYTES);
 	seq_puts(m, ascii);
 
