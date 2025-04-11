@@ -272,7 +272,7 @@ enum rxrpc_oob_type rxrpc_kernel_query_oob(struct sk_buff *oob,
 	switch (type) {
 	case RXRPC_OOB_CHALLENGE:
 		*_peer		= sp->chall.conn->peer;
-		*_peer_appdata	= 0; /* TODO: retrieve appdata */
+		*_peer_appdata	= sp->chall.conn->peer->app_data;
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -347,7 +347,7 @@ void rxrpc_kernel_query_challenge(struct sk_buff *challenge,
 	struct rxrpc_skb_priv *sp = rxrpc_skb(challenge);
 
 	*_peer		= sp->chall.conn->peer;
-	*_peer_appdata	= 0; /* TODO: retrieve appdata */
+	*_peer_appdata	= sp->chall.conn->peer->app_data;
 	*_service_id	= sp->hdr.serviceId;
 	*_security_index = sp->hdr.securityIndex;
 }
