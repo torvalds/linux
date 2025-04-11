@@ -2762,7 +2762,7 @@ static void smp_text_poke_batch_process(struct text_poke_loc *tp, unsigned int n
 	}
 }
 
-static void text_poke_loc_init(struct text_poke_loc *tp, void *addr,
+static void text_poke_int3_loc_init(struct text_poke_loc *tp, void *addr,
 			       const void *opcode, size_t len, const void *emulate)
 {
 	struct insn insn;
@@ -2878,7 +2878,7 @@ void __ref smp_text_poke_batch_add(void *addr, const void *opcode, size_t len, c
 	smp_text_poke_batch_flush(addr);
 
 	tp = &tp_vec[tp_vec_nr++];
-	text_poke_loc_init(tp, addr, opcode, len, emulate);
+	text_poke_int3_loc_init(tp, addr, opcode, len, emulate);
 }
 
 /**
@@ -2896,6 +2896,6 @@ void __ref smp_text_poke_single(void *addr, const void *opcode, size_t len, cons
 {
 	struct text_poke_loc tp;
 
-	text_poke_loc_init(&tp, addr, opcode, len, emulate);
+	text_poke_int3_loc_init(&tp, addr, opcode, len, emulate);
 	smp_text_poke_batch_process(&tp, 1);
 }
