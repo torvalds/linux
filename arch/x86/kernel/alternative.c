@@ -2471,17 +2471,17 @@ struct text_poke_loc {
 	u8 old;
 };
 
-struct bp_patching_desc {
+struct text_poke_int3_vec {
 	struct text_poke_loc *vec;
 	int nr_entries;
 };
 
 static DEFINE_PER_CPU(atomic_t, bp_refs);
 
-static struct bp_patching_desc bp_desc;
+static struct text_poke_int3_vec bp_desc;
 
 static __always_inline
-struct bp_patching_desc *try_get_desc(void)
+struct text_poke_int3_vec *try_get_desc(void)
 {
 	atomic_t *refs = this_cpu_ptr(&bp_refs);
 
@@ -2517,7 +2517,7 @@ static __always_inline int patch_cmp(const void *key, const void *elt)
 
 noinstr int poke_int3_handler(struct pt_regs *regs)
 {
-	struct bp_patching_desc *desc;
+	struct text_poke_int3_vec *desc;
 	struct text_poke_loc *tp;
 	int ret = 0;
 	void *ip;
