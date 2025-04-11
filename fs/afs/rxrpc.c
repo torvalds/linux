@@ -78,6 +78,10 @@ int afs_open_socket(struct afs_net *net)
 	if (ret < 0)
 		goto error_2;
 
+	ret = afs_create_token_key(net, socket);
+	if (ret < 0)
+		pr_err("Couldn't create RxGK CM key: %d\n", ret);
+
 	ret = kernel_bind(socket, (struct sockaddr *) &srx, sizeof(srx));
 	if (ret == -EADDRINUSE) {
 		srx.transport.sin6.sin6_port = 0;
@@ -140,6 +144,7 @@ void afs_close_socket(struct afs_net *net)
 	flush_workqueue(afs_async_calls);
 	net->socket->sk->sk_user_data = NULL;
 	sock_release(net->socket);
+	key_put(net->fs_cm_token_key);
 
 	_debug("dework");
 	_leave("");
@@ -820,7 +825,7 @@ static int afs_deliver_cm_op_id(struct afs_call *call)
 	trace_afs_cb_call(call);
 	call->work.func = call->type->work;
 
-	/* pass responsibility for the remainer of this message off to the
+	/* pass responsibility for the remainder of this message off to the
 	 * cache manager op */
 	return call->type->deliver(call);
 }
