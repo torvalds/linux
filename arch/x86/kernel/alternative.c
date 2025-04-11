@@ -2478,7 +2478,7 @@ struct text_poke_int3_vec {
 
 static DEFINE_PER_CPU(atomic_t, text_poke_array_refs);
 
-static struct text_poke_int3_vec bp_desc;
+static struct text_poke_int3_vec int3_desc;
 
 static __always_inline
 struct text_poke_int3_vec *try_get_desc(void)
@@ -2488,7 +2488,7 @@ struct text_poke_int3_vec *try_get_desc(void)
 	if (!raw_atomic_inc_not_zero(refs))
 		return NULL;
 
-	return &bp_desc;
+	return &int3_desc;
 }
 
 static __always_inline void put_desc(void)
@@ -2527,7 +2527,7 @@ noinstr int smp_text_poke_int3_handler(struct pt_regs *regs)
 
 	/*
 	 * Having observed our INT3 instruction, we now must observe
-	 * bp_desc with non-zero refcount:
+	 * int3_desc with non-zero refcount:
 	 *
 	 *	text_poke_array_refs = 1		INT3
 	 *	WMB			RMB
@@ -2630,12 +2630,12 @@ static void smp_text_poke_batch_process(struct text_poke_loc *tp, unsigned int n
 
 	lockdep_assert_held(&text_mutex);
 
-	bp_desc.vec = tp;
-	bp_desc.nr_entries = nr_entries;
+	int3_desc.vec = tp;
+	int3_desc.nr_entries = nr_entries;
 
 	/*
 	 * Corresponds to the implicit memory barrier in try_get_desc() to
-	 * ensure reading a non-zero refcount provides up to date bp_desc data.
+	 * ensure reading a non-zero refcount provides up to date int3_desc data.
 	 */
 	for_each_possible_cpu(i)
 		atomic_set_release(per_cpu_ptr(&text_poke_array_refs, i), 1);
