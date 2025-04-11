@@ -560,7 +560,6 @@ struct xe_device {
 	 * migrating to the right sub-structs
 	 */
 	struct intel_display display;
-	enum intel_pch pch_type;
 
 	struct dram_info {
 		bool wm_lv_0_adjust_needed;

@@ -271,9 +271,6 @@ struct drm_i915_private {
 	/* pm private clock gating functions */
 	const struct drm_i915_clock_gating_funcs *clock_gating_funcs;
 
-	/* PCH chipset type */
-	enum intel_pch pch_type;
-
 	unsigned long gem_quirks;
 
 	struct i915_gem_mm mm;

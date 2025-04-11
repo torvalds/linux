@@ -6,7 +6,9 @@
 #ifndef __INTEL_PCH__
 #define __INTEL_PCH__
 
-struct drm_i915_private;
+#include "intel_display_conversion.h"
+
+struct intel_display;
 
 /*
  * Sorted by south display engine compatibility.
@@ -34,23 +36,23 @@ enum intel_pch {
 	PCH_LNL,
 };
 
-#define INTEL_PCH_TYPE(dev_priv)		((dev_priv)->pch_type)
-#define HAS_PCH_DG2(dev_priv)			(INTEL_PCH_TYPE(dev_priv) == PCH_DG2)
-#define HAS_PCH_ADP(dev_priv)			(INTEL_PCH_TYPE(dev_priv) == PCH_ADP)
-#define HAS_PCH_DG1(dev_priv)			(INTEL_PCH_TYPE(dev_priv) == PCH_DG1)
-#define HAS_PCH_TGP(dev_priv)			(INTEL_PCH_TYPE(dev_priv) == PCH_TGP)
-#define HAS_PCH_ICP(dev_priv)			(INTEL_PCH_TYPE(dev_priv) == PCH_ICP)
-#define HAS_PCH_CNP(dev_priv)			(INTEL_PCH_TYPE(dev_priv) == PCH_CNP)
-#define HAS_PCH_SPT(dev_priv)			(INTEL_PCH_TYPE(dev_priv) == PCH_SPT)
-#define HAS_PCH_LPT_H(dev_priv)			(INTEL_PCH_TYPE(dev_priv) == PCH_LPT_H)
-#define HAS_PCH_LPT_LP(dev_priv)		(INTEL_PCH_TYPE(dev_priv) == PCH_LPT_LP)
-#define HAS_PCH_LPT(dev_priv)			(INTEL_PCH_TYPE(dev_priv) == PCH_LPT_H || \
-						 INTEL_PCH_TYPE(dev_priv) == PCH_LPT_LP)
-#define HAS_PCH_CPT(dev_priv)			(INTEL_PCH_TYPE(dev_priv) == PCH_CPT)
-#define HAS_PCH_IBX(dev_priv)			(INTEL_PCH_TYPE(dev_priv) == PCH_IBX)
-#define HAS_PCH_NOP(dev_priv)			(INTEL_PCH_TYPE(dev_priv) == PCH_NOP)
-#define HAS_PCH_SPLIT(dev_priv)			(INTEL_PCH_TYPE(dev_priv) != PCH_NONE)
+#define INTEL_PCH_TYPE(_display)		(__to_intel_display(_display)->pch_type)
+#define HAS_PCH_DG2(display)			(INTEL_PCH_TYPE(display) == PCH_DG2)
+#define HAS_PCH_ADP(display)			(INTEL_PCH_TYPE(display) == PCH_ADP)
+#define HAS_PCH_DG1(display)			(INTEL_PCH_TYPE(display) == PCH_DG1)
+#define HAS_PCH_TGP(display)			(INTEL_PCH_TYPE(display) == PCH_TGP)
+#define HAS_PCH_ICP(display)			(INTEL_PCH_TYPE(display) == PCH_ICP)
+#define HAS_PCH_CNP(display)			(INTEL_PCH_TYPE(display) == PCH_CNP)
+#define HAS_PCH_SPT(display)			(INTEL_PCH_TYPE(display) == PCH_SPT)
+#define HAS_PCH_LPT_H(display)			(INTEL_PCH_TYPE(display) == PCH_LPT_H)
+#define HAS_PCH_LPT_LP(display)			(INTEL_PCH_TYPE(display) == PCH_LPT_LP)
+#define HAS_PCH_LPT(display)			(INTEL_PCH_TYPE(display) == PCH_LPT_H || \
+						 INTEL_PCH_TYPE(display) == PCH_LPT_LP)
+#define HAS_PCH_CPT(display)			(INTEL_PCH_TYPE(display) == PCH_CPT)
+#define HAS_PCH_IBX(display)			(INTEL_PCH_TYPE(display) == PCH_IBX)
+#define HAS_PCH_NOP(display)			(INTEL_PCH_TYPE(display) == PCH_NOP)
+#define HAS_PCH_SPLIT(display)			(INTEL_PCH_TYPE(display) != PCH_NONE)
 
-void intel_detect_pch(struct drm_i915_private *dev_priv);
+void intel_detect_pch(struct intel_display *display);
 
 #endif /* __INTEL_PCH__ */

@@ -134,7 +134,7 @@ int xe_display_init_early(struct xe_device *xe)
 	spin_lock_init(&xe->uncore.lock);
 
 	/* This must be called before any calls to HAS_PCH_* */
-	intel_detect_pch(xe);
+	intel_detect_pch(display);
 
 	intel_display_driver_early_probe(display);
 

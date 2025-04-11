@@ -21,12 +21,13 @@
 #include "intel_display_limits.h"
 #include "intel_display_params.h"
 #include "intel_display_power.h"
+#include "intel_dmc_wl.h"
 #include "intel_dpll_mgr.h"
 #include "intel_fbc.h"
 #include "intel_global_state.h"
 #include "intel_gmbus.h"
 #include "intel_opregion.h"
-#include "intel_dmc_wl.h"
+#include "intel_pch.h"
 #include "intel_wm_types.h"
 
 struct task_struct;
@@ -288,6 +289,9 @@ struct intel_display {
 
 	/* Platform (and subplatform, if any) identification */
 	struct intel_display_platforms platform;
+
+	/* Intel PCH: where the south display engine lives */
+	enum intel_pch pch_type;
 
 	/* Display functions */
 	struct {
