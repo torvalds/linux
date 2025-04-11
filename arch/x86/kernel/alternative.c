@@ -149,12 +149,6 @@ static void add_nop(u8 *buf, unsigned int len)
 		*buf = INT3_INSN_OPCODE;
 }
 
-extern s32 __retpoline_sites[], __retpoline_sites_end[];
-extern s32 __return_sites[], __return_sites_end[];
-extern s32 __cfi_sites[], __cfi_sites_end[];
-extern s32 __ibt_endbr_seal[], __ibt_endbr_seal_end[];
-extern s32 __smp_locks[], __smp_locks_end[];
-
 /*
  * Matches NOP and NOPL, not any of the other possible NOPs.
  */
