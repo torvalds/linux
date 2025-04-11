@@ -55,7 +55,7 @@ void ftrace_arch_code_modify_post_process(void)
 {
 	/*
 	 * ftrace_make_{call,nop}() may be called during
-	 * module load, and we need to finish the text_poke_queue()
+	 * module load, and we need to finish the smp_text_poke_batch_add()
 	 * that they do, here.
 	 */
 	smp_text_poke_batch_finish();
@@ -119,7 +119,7 @@ ftrace_modify_code_direct(unsigned long ip, const char *old_code,
 
 	/* replace the text with the new text */
 	if (ftrace_poke_late)
-		text_poke_queue((void *)ip, new_code, MCOUNT_INSN_SIZE, NULL);
+		smp_text_poke_batch_add((void *)ip, new_code, MCOUNT_INSN_SIZE, NULL);
 	else
 		text_poke_early((void *)ip, new_code, MCOUNT_INSN_SIZE);
 	return 0;
@@ -247,7 +247,7 @@ void ftrace_replace_code(int enable)
 			break;
 		}
 
-		text_poke_queue((void *)rec->ip, new, MCOUNT_INSN_SIZE, NULL);
+		smp_text_poke_batch_add((void *)rec->ip, new, MCOUNT_INSN_SIZE, NULL);
 		ftrace_update_record(rec, enable);
 	}
 	smp_text_poke_batch_finish();
