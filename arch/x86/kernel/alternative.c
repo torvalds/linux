@@ -2752,11 +2752,13 @@ static void smp_text_poke_batch_process(void)
 	}
 }
 
-static void text_poke_int3_loc_init(struct smp_text_poke_loc *tp, void *addr,
-			       const void *opcode, size_t len, const void *emulate)
+static void __smp_text_poke_batch_add(void *addr, const void *opcode, size_t len, const void *emulate)
 {
+	struct smp_text_poke_loc *tp;
 	struct insn insn;
 	int ret, i = 0;
+
+	tp = &text_poke_array.vec[text_poke_array.nr_entries++];
 
 	if (len == 6)
 		i = 1;
@@ -2873,12 +2875,8 @@ static void smp_text_poke_batch_flush(void *addr)
 
 void __ref smp_text_poke_batch_add(void *addr, const void *opcode, size_t len, const void *emulate)
 {
-	struct smp_text_poke_loc *tp;
-
 	smp_text_poke_batch_flush(addr);
-
-	tp = &text_poke_array.vec[text_poke_array.nr_entries++];
-	text_poke_int3_loc_init(tp, addr, opcode, len, emulate);
+	__smp_text_poke_batch_add(addr, opcode, len, emulate);
 }
 
 /**
@@ -2894,13 +2892,9 @@ void __ref smp_text_poke_batch_add(void *addr, const void *opcode, size_t len, c
  */
 void __ref smp_text_poke_single(void *addr, const void *opcode, size_t len, const void *emulate)
 {
-	struct smp_text_poke_loc *tp;
-
 	/* Batch-patching should not be mixed with single-patching: */
 	WARN_ON_ONCE(text_poke_array.nr_entries != 0);
 
-	tp = &text_poke_array.vec[text_poke_array.nr_entries++];
-	text_poke_int3_loc_init(tp, addr, opcode, len, emulate);
-
+	__smp_text_poke_batch_add(addr, opcode, len, emulate);
 	smp_text_poke_batch_finish();
 }
