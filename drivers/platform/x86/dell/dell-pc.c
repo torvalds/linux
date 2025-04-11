@@ -13,18 +13,18 @@
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/bits.h>
+#include <linux/device/faux.h>
 #include <linux/dmi.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_profile.h>
-#include <linux/platform_device.h>
 #include <linux/slab.h>
 
 #include "dell-smbios.h"
 
-static struct platform_device *platform_device;
+static struct faux_device *dell_pc_fdev;
 static int supported_modes;
 
 static const struct dmi_system_id dell_device_table[] __initconst = {
@@ -246,7 +246,7 @@ static const struct platform_profile_ops dell_pc_platform_profile_ops = {
 	.profile_set = thermal_platform_profile_set,
 };
 
-static int thermal_init(void)
+static int dell_pc_faux_probe(struct faux_device *fdev)
 {
 	struct device *ppdev;
 	int ret;
@@ -258,51 +258,31 @@ static int thermal_init(void)
 	if (ret < 0)
 		return ret;
 
-	platform_device = platform_device_register_simple("dell-pc", PLATFORM_DEVID_NONE, NULL, 0);
-	if (IS_ERR(platform_device))
-		return PTR_ERR(platform_device);
+	ppdev = devm_platform_profile_register(&fdev->dev, "dell-pc", NULL,
+					       &dell_pc_platform_profile_ops);
 
-	ppdev = devm_platform_profile_register(&platform_device->dev, "dell-pc",
-					       NULL, &dell_pc_platform_profile_ops);
-	if (IS_ERR(ppdev)) {
-		ret = PTR_ERR(ppdev);
-		goto cleanup_platform_device;
-	}
-
-	return 0;
-
-cleanup_platform_device:
-	platform_device_unregister(platform_device);
-
-	return ret;
+	return PTR_ERR_OR_ZERO(ppdev);
 }
 
-static void thermal_cleanup(void)
-{
-	platform_device_unregister(platform_device);
-}
+static const struct faux_device_ops dell_pc_faux_ops = {
+	.probe = dell_pc_faux_probe,
+};
 
 static int __init dell_init(void)
 {
-	int ret;
-
 	if (!dmi_check_system(dell_device_table))
 		return -ENODEV;
 
-	ret = thermal_init();
-	if (ret)
-		goto fail_thermal;
+	dell_pc_fdev = faux_device_create("dell-pc", NULL, &dell_pc_faux_ops);
+	if (!dell_pc_fdev)
+		return -ENODEV;
 
 	return 0;
-
-fail_thermal:
-	thermal_cleanup();
-	return ret;
 }
 
 static void __exit dell_exit(void)
 {
-	thermal_cleanup();
+	faux_device_destroy(dell_pc_fdev);
 }
 
 module_init(dell_init);
