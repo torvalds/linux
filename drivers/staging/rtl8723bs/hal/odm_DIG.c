@@ -56,7 +56,7 @@ void odm_NHMBBInit(void *pDM_VOID)
 {
 	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 
-	pDM_Odm->adaptivity_flag = 0;
+	pDM_Odm->adaptivity_flag = false;
 	pDM_Odm->tolerance_cnt = 3;
 	pDM_Odm->NHMLastTxOkcnt = 0;
 	pDM_Odm->NHMLastRxOkcnt = 0;
