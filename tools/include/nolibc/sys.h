@@ -300,9 +300,15 @@ void sys_exit(int status)
 }
 
 static __attribute__((noreturn,unused))
-void exit(int status)
+void _exit(int status)
 {
 	sys_exit(status);
+}
+
+static __attribute__((noreturn,unused))
+void exit(int status)
+{
+	_exit(status);
 }
 
 
