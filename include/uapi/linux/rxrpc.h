@@ -80,6 +80,7 @@ enum rxrpc_cmsg_type {
 #define RXRPC_SECURITY_RXKAD	2	/* kaserver or kerberos 4 */
 #define RXRPC_SECURITY_RXGK	4	/* gssapi-based */
 #define RXRPC_SECURITY_RXK5	5	/* kerberos 5 */
+#define RXRPC_SECURITY_YFS_RXGK	6	/* YFS gssapi-based */
 
 /*
  * RxRPC-level abort codes
@@ -124,6 +125,36 @@ enum rxrpc_cmsg_type {
 #define RXKADSEALEDINCON	19270410	/* sealed data inconsistent */
 #define RXKADDATALEN		19270411	/* user data too long */
 #define RXKADILLEGALLEVEL	19270412	/* caller not authorised to use encrypted conns */
+
+/*
+ * RxGK GSSAPI security abort codes.
+ */
+#if 0 /* Original standard abort codes (used by OpenAFS) */
+#define RXGK_INCONSISTENCY	1233242880	/* Security module structure inconsistent */
+#define RXGK_PACKETSHORT	1233242881	/* Packet too short for security challenge */
+#define RXGK_BADCHALLENGE	1233242882	/* Invalid security challenge */
+#define RXGK_BADETYPE		1233242883	/* Invalid or impermissible encryption type */
+#define RXGK_BADLEVEL		1233242884	/* Invalid or impermissible security level */
+#define RXGK_BADKEYNO		1233242885	/* Key version number not found */
+#define RXGK_EXPIRED		1233242886	/* Token has expired */
+#define RXGK_NOTAUTH		1233242887	/* Caller not authorized */
+#define RXGK_BAD_TOKEN		1233242888	/* Security object was passed a bad token */
+#define RXGK_SEALED_INCON	1233242889	/* Sealed data inconsistent */
+#define RXGK_DATA_LEN		1233242890	/* User data too long */
+#define RXGK_BAD_QOP		1233242891	/* Inadequate quality of protection available */
+#else /* Revised standard abort codes (used by YFS) */
+#define RXGK_INCONSISTENCY	1233242880	/* Security module structure inconsistent */
+#define RXGK_PACKETSHORT	1233242881	/* Packet too short for security challenge */
+#define RXGK_BADCHALLENGE	1233242882	/* Security challenge/response failed */
+#define RXGK_SEALEDINCON	1233242883	/* Sealed data is inconsistent */
+#define RXGK_NOTAUTH		1233242884	/* Caller not authorised */
+#define RXGK_EXPIRED		1233242885	/* Authentication expired */
+#define RXGK_BADLEVEL		1233242886	/* Unsupported or not permitted security level */
+#define RXGK_BADKEYNO		1233242887	/* Bad transport key number */
+#define RXGK_NOTRXGK		1233242888	/* Security layer is not rxgk */
+#define RXGK_UNSUPPORTED	1233242889	/* Endpoint does not support rxgk */
+#define RXGK_GSSERROR		1233242890	/* GSSAPI mechanism error */
+#endif
 
 /*
  * Challenge information in the RXRPC_CHALLENGED control message.
