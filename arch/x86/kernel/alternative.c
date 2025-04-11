@@ -2858,7 +2858,7 @@ static bool tp_order_fail(void *addr)
 	return false;
 }
 
-static void text_poke_flush(void *addr)
+static void smp_text_poke_batch_flush(void *addr)
 {
 	if (tp_vec_nr == TP_VEC_MAX || tp_order_fail(addr)) {
 		smp_text_poke_batch_process(tp_vec, tp_vec_nr);
@@ -2868,14 +2868,14 @@ static void text_poke_flush(void *addr)
 
 void text_poke_finish(void)
 {
-	text_poke_flush(NULL);
+	smp_text_poke_batch_flush(NULL);
 }
 
 void __ref text_poke_queue(void *addr, const void *opcode, size_t len, const void *emulate)
 {
 	struct text_poke_loc *tp;
 
-	text_poke_flush(addr);
+	smp_text_poke_batch_flush(addr);
 
 	tp = &tp_vec[tp_vec_nr++];
 	text_poke_loc_init(tp, addr, opcode, len, emulate);
