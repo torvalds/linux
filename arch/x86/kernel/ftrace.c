@@ -58,7 +58,7 @@ void ftrace_arch_code_modify_post_process(void)
 	 * module load, and we need to finish the text_poke_queue()
 	 * that they do, here.
 	 */
-	text_poke_finish();
+	smp_text_poke_batch_finish();
 	ftrace_poke_late = 0;
 	mutex_unlock(&text_mutex);
 }
@@ -250,7 +250,7 @@ void ftrace_replace_code(int enable)
 		text_poke_queue((void *)rec->ip, new, MCOUNT_INSN_SIZE, NULL);
 		ftrace_update_record(rec, enable);
 	}
-	text_poke_finish();
+	smp_text_poke_batch_finish();
 }
 
 void arch_ftrace_update_code(int command)

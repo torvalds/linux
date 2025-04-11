@@ -2866,7 +2866,7 @@ static void smp_text_poke_batch_flush(void *addr)
 	}
 }
 
-void text_poke_finish(void)
+void smp_text_poke_batch_finish(void)
 {
 	smp_text_poke_batch_flush(NULL);
 }

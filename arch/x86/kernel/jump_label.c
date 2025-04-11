@@ -143,6 +143,6 @@ bool arch_jump_label_transform_queue(struct jump_entry *entry,
 void arch_jump_label_transform_apply(void)
 {
 	mutex_lock(&text_mutex);
-	text_poke_finish();
+	smp_text_poke_batch_finish();
 	mutex_unlock(&text_mutex);
 }
