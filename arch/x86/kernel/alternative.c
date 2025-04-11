@@ -2880,7 +2880,7 @@ void __ref smp_text_poke_batch_add(void *addr, const void *opcode, size_t len, c
 }
 
 /**
- * smp_text_poke_single() -- update instructions on live kernel on SMP
+ * smp_text_poke_single() -- update instruction on live kernel on SMP immediately
  * @addr:	address to patch
  * @opcode:	opcode of new instruction
  * @len:	length to copy
@@ -2888,7 +2888,8 @@ void __ref smp_text_poke_batch_add(void *addr, const void *opcode, size_t len, c
  *
  * Update a single instruction with the vector in the stack, avoiding
  * dynamically allocated memory. This function should be used when it is
- * not possible to allocate memory.
+ * not possible to allocate memory for a vector. The single instruction
+ * is patched in immediately.
  */
 void __ref smp_text_poke_single(void *addr, const void *opcode, size_t len, const void *emulate)
 {
