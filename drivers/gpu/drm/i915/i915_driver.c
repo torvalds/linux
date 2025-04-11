@@ -263,9 +263,6 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 
 	i915_gem_init_early(dev_priv);
 
-	/* This must be called before any calls to HAS_PCH_* */
-	intel_detect_pch(display);
-
 	intel_irq_init(dev_priv);
 	intel_display_driver_early_probe(display);
 	intel_clock_gating_hooks_init(dev_priv);

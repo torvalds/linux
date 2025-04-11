@@ -53,6 +53,6 @@ enum intel_pch {
 #define HAS_PCH_NOP(display)			(INTEL_PCH_TYPE(display) == PCH_NOP)
 #define HAS_PCH_SPLIT(display)			(INTEL_PCH_TYPE(display) != PCH_NONE)
 
-void intel_detect_pch(struct intel_display *display);
+void intel_pch_detect(struct intel_display *display);
 
 #endif /* __INTEL_PCH__ */

@@ -250,7 +250,7 @@ intel_virt_detect_pch(const struct intel_display *display,
 	*pch_id = id;
 }
 
-void intel_detect_pch(struct intel_display *display)
+void intel_pch_detect(struct intel_display *display)
 {
 	struct pci_dev *pch = NULL;
 	unsigned short id;

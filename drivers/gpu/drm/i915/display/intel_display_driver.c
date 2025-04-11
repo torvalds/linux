@@ -180,6 +180,9 @@ static void intel_plane_possible_crtcs_init(struct intel_display *display)
 
 void intel_display_driver_early_probe(struct intel_display *display)
 {
+	/* This must be called before any calls to HAS_PCH_* */
+	intel_pch_detect(display);
+
 	if (!HAS_DISPLAY(display))
 		return;
 
