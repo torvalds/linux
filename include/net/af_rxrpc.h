@@ -16,12 +16,17 @@ struct sock;
 struct socket;
 struct rxrpc_call;
 struct rxrpc_peer;
+struct krb5_buffer;
 enum rxrpc_abort_reason;
 
 enum rxrpc_interruptibility {
 	RXRPC_INTERRUPTIBLE,	/* Call is interruptible */
 	RXRPC_PREINTERRUPTIBLE,	/* Call can be cancelled whilst waiting for a slot */
 	RXRPC_UNINTERRUPTIBLE,	/* Call should not be interruptible at all */
+};
+
+enum rxrpc_oob_type {
+	RXRPC_OOB_CHALLENGE,	/* Security challenge for a connection */
 };
 
 /*
@@ -37,6 +42,7 @@ struct rxrpc_kernel_ops {
 				unsigned long user_call_ID);
 	void (*discard_new_call)(struct rxrpc_call *call, unsigned long user_call_ID);
 	void (*user_attach_call)(struct rxrpc_call *call, unsigned long user_call_ID);
+	void (*notify_oob)(struct sock *sk, struct sk_buff *oob);
 };
 
 typedef void (*rxrpc_notify_rx_t)(struct sock *, struct rxrpc_call *,
@@ -88,5 +94,23 @@ void rxrpc_kernel_set_max_life(struct socket *, struct rxrpc_call *,
 
 int rxrpc_sock_set_min_security_level(struct sock *sk, unsigned int val);
 int rxrpc_sock_set_security_keyring(struct sock *, struct key *);
+int rxrpc_sock_set_manage_response(struct sock *sk, bool set);
+
+enum rxrpc_oob_type rxrpc_kernel_query_oob(struct sk_buff *oob,
+					   struct rxrpc_peer **_peer,
+					   unsigned long *_peer_appdata);
+struct sk_buff *rxrpc_kernel_dequeue_oob(struct socket *sock,
+					 enum rxrpc_oob_type *_type);
+void rxrpc_kernel_free_oob(struct sk_buff *oob);
+void rxrpc_kernel_query_challenge(struct sk_buff *challenge,
+				  struct rxrpc_peer **_peer,
+				  unsigned long *_peer_appdata,
+				  u16 *_service_id, u8 *_security_index);
+int rxrpc_kernel_reject_challenge(struct sk_buff *challenge, u32 abort_code,
+				  int error, enum rxrpc_abort_reason why);
+int rxkad_kernel_respond_to_challenge(struct sk_buff *challenge);
+u32 rxgk_kernel_query_challenge(struct sk_buff *challenge);
+int rxgk_kernel_respond_to_challenge(struct sk_buff *challenge,
+				     struct krb5_buffer *appdata);
 
 #endif /* _NET_RXRPC_H */

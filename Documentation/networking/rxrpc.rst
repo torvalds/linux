@@ -1179,7 +1179,9 @@ API Function Reference
 
 .. kernel-doc:: net/rxrpc/af_rxrpc.c
 .. kernel-doc:: net/rxrpc/key.c
+.. kernel-doc:: net/rxrpc/oob.c
 .. kernel-doc:: net/rxrpc/peer_object.c
 .. kernel-doc:: net/rxrpc/recvmsg.c
+.. kernel-doc:: net/rxrpc/rxkad.c
 .. kernel-doc:: net/rxrpc/sendmsg.c
 .. kernel-doc:: net/rxrpc/server_key.c

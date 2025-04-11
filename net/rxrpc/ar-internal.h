@@ -39,6 +39,7 @@ struct rxrpc_txqueue;
 enum rxrpc_skb_mark {
 	RXRPC_SKB_MARK_PACKET,		/* Received packet */
 	RXRPC_SKB_MARK_ERROR,		/* Error notification */
+	RXRPC_SKB_MARK_CHALLENGE,	/* Challenge notification */
 	RXRPC_SKB_MARK_SERVICE_CONN_SECURED, /* Service connection response has been verified */
 	RXRPC_SKB_MARK_REJECT_BUSY,	/* Reject with BUSY */
 	RXRPC_SKB_MARK_REJECT_ABORT,	/* Reject with ABORT (code in skb->priority) */
@@ -149,6 +150,9 @@ struct rxrpc_sock {
 	const struct rxrpc_kernel_ops *app_ops;	/* Table of kernel app notification funcs */
 	struct rxrpc_local	*local;		/* local endpoint */
 	struct rxrpc_backlog	*backlog;	/* Preallocation for services */
+	struct sk_buff_head	recvmsg_oobq;	/* OOB messages for recvmsg to pick up */
+	struct rb_root		pending_oobq;	/* OOB messages awaiting userspace to respond to */
+	u64			oob_id_counter;	/* OOB message ID counter */
 	spinlock_t		incoming_lock;	/* Incoming call vs service shutdown lock */
 	struct list_head	sock_calls;	/* List of calls owned by this socket */
 	struct list_head	to_be_accepted;	/* calls awaiting acceptance */
@@ -159,6 +163,7 @@ struct rxrpc_sock {
 	struct rb_root		calls;		/* User ID -> call mapping */
 	unsigned long		flags;
 #define RXRPC_SOCK_CONNECTED		0	/* connect_srx is set */
+#define RXRPC_SOCK_MANAGE_RESPONSE	1	/* User wants to manage RESPONSE packets */
 	rwlock_t		call_lock;	/* lock for calls */
 	u32			min_sec_level;	/* minimum security level */
 #define RXRPC_SECURITY_MAX	RXRPC_SECURITY_ENCRYPT
@@ -202,7 +207,7 @@ struct rxrpc_host_header {
  */
 struct rxrpc_skb_priv {
 	union {
-		struct rxrpc_connection *conn;	/* Connection referred to (poke packet) */
+		struct rxrpc_connection *poke_conn;	/* Conn referred to (poke packet) */
 		struct {
 			u16		offset;		/* Offset of data */
 			u16		len;		/* Length of data */
@@ -216,6 +221,19 @@ struct rxrpc_skb_priv {
 			u16		nr_acks;	/* Number of acks+nacks */
 			u8		reason;		/* Reason for ack */
 		} ack;
+		struct {
+			struct rxrpc_connection *conn;	/* Connection referred to */
+			union {
+				u32 rxkad_nonce;
+			};
+		} chall;
+		struct {
+			rxrpc_serial_t	challenge_serial;
+			u32		kvno;
+			u32		version;
+			u16		len;
+			u16		ticket_len;
+		} resp;
 	};
 	struct rxrpc_host_header hdr;	/* RxRPC packet header from this packet */
 };
@@ -269,9 +287,24 @@ struct rxrpc_security {
 	/* issue a challenge */
 	int (*issue_challenge)(struct rxrpc_connection *);
 
+	/* Validate a challenge packet */
+	bool (*validate_challenge)(struct rxrpc_connection *conn,
+				   struct sk_buff *skb);
+
+	/* Fill out the cmsg for recvmsg() to pass on a challenge to userspace.
+	 * The security class gets to add additional information.
+	 */
+	int (*challenge_to_recvmsg)(struct rxrpc_connection *conn,
+				    struct sk_buff *challenge,
+				    struct msghdr *msg);
+
+	/* Parse sendmsg() control message and respond to challenge. */
+	int (*sendmsg_respond_to_challenge)(struct sk_buff *challenge,
+					    struct msghdr *msg);
+
 	/* respond to a challenge */
-	int (*respond_to_challenge)(struct rxrpc_connection *,
-				    struct sk_buff *);
+	int (*respond_to_challenge)(struct rxrpc_connection *conn,
+				    struct sk_buff *challenge);
 
 	/* verify a response */
 	int (*verify_response)(struct rxrpc_connection *,
@@ -526,6 +559,7 @@ struct rxrpc_connection {
 			u32	nonce;		/* response re-use preventer */
 		} rxkad;
 	};
+	struct sk_buff		*tx_response;	/* Response packet to be transmitted */
 	unsigned long		flags;
 	unsigned long		events;
 	unsigned long		idle_timestamp;	/* Time at which last became idle */
@@ -1199,8 +1233,11 @@ void rxrpc_error_report(struct sock *);
 bool rxrpc_direct_abort(struct sk_buff *skb, enum rxrpc_abort_reason why,
 			s32 abort_code, int err);
 int rxrpc_io_thread(void *data);
+void rxrpc_post_response(struct rxrpc_connection *conn, struct sk_buff *skb);
 static inline void rxrpc_wake_up_io_thread(struct rxrpc_local *local)
 {
+	if (!local->io_thread)
+		return;
 	wake_up_process(READ_ONCE(local->io_thread));
 }
 
@@ -1290,6 +1327,13 @@ static inline struct rxrpc_net *rxrpc_net(struct net *net)
 }
 
 /*
+ * out_of_band.c
+ */
+void rxrpc_notify_socket_oob(struct rxrpc_call *call, struct sk_buff *skb);
+void rxrpc_add_pending_oob(struct rxrpc_sock *rx, struct sk_buff *skb);
+int rxrpc_sendmsg_oob(struct rxrpc_sock *rx, struct msghdr *msg, size_t len);
+
+/*
  * output.c
  */
 void rxrpc_send_ACK(struct rxrpc_call *call, u8 ack_reason,
@@ -1300,6 +1344,7 @@ void rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_send_data_req 
 void rxrpc_send_conn_abort(struct rxrpc_connection *conn);
 void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb);
 void rxrpc_send_keepalive(struct rxrpc_peer *);
+void rxrpc_send_response(struct rxrpc_connection *conn, struct sk_buff *skb);
 
 /*
  * peer_event.c

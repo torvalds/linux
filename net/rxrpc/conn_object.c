@@ -329,6 +329,7 @@ static void rxrpc_clean_up_connection(struct work_struct *work)
 	}
 
 	rxrpc_purge_queue(&conn->rx_queue);
+	rxrpc_free_skb(conn->tx_response, rxrpc_skb_put_response);
 
 	rxrpc_kill_client_conn(conn);
 

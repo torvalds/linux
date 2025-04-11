@@ -758,14 +758,21 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 	if (rxrpc_call_is_complete(call)) {
 		/* it's too late for this call */
 		ret = -ESHUTDOWN;
-	} else if (p.command == RXRPC_CMD_SEND_ABORT) {
+		goto out_put_unlock;
+	}
+
+	switch (p.command) {
+	case RXRPC_CMD_SEND_ABORT:
 		rxrpc_propose_abort(call, p.abort_code, -ECONNABORTED,
 				    rxrpc_abort_call_sendmsg);
 		ret = 0;
-	} else if (p.command != RXRPC_CMD_SEND_DATA) {
-		ret = -EINVAL;
-	} else {
+		break;
+	case RXRPC_CMD_SEND_DATA:
 		ret = rxrpc_send_data(rx, call, msg, len, NULL, &dropped_lock);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
 	}
 
 out_put_unlock:

@@ -25,12 +25,14 @@ static void afs_process_async_call(struct work_struct *);
 static void afs_rx_new_call(struct sock *, struct rxrpc_call *, unsigned long);
 static void afs_rx_discard_new_call(struct rxrpc_call *, unsigned long);
 static void afs_rx_attach(struct rxrpc_call *rxcall, unsigned long user_call_ID);
+static void afs_rx_notify_oob(struct sock *sk, struct sk_buff *oob);
 static int afs_deliver_cm_op_id(struct afs_call *);
 
 static const struct rxrpc_kernel_ops afs_rxrpc_callback_ops = {
 	.notify_new_call	= afs_rx_new_call,
 	.discard_new_call	= afs_rx_discard_new_call,
 	.user_attach_call	= afs_rx_attach,
+	.notify_oob		= afs_rx_notify_oob,
 };
 
 /* asynchronous incoming call initial processing */
@@ -56,6 +58,7 @@ int afs_open_socket(struct afs_net *net)
 		goto error_1;
 
 	socket->sk->sk_allocation = GFP_NOFS;
+	socket->sk->sk_user_data = net;
 
 	/* bind the callback manager's address to make this a server socket */
 	memset(&srx, 0, sizeof(srx));
@@ -68,6 +71,10 @@ int afs_open_socket(struct afs_net *net)
 
 	ret = rxrpc_sock_set_min_security_level(socket->sk,
 						RXRPC_SECURITY_ENCRYPT);
+	if (ret < 0)
+		goto error_2;
+
+	ret = rxrpc_sock_set_manage_response(socket->sk, true);
 	if (ret < 0)
 		goto error_2;
 
@@ -131,6 +138,7 @@ void afs_close_socket(struct afs_net *net)
 
 	kernel_sock_shutdown(net->socket, SHUT_RDWR);
 	flush_workqueue(afs_async_calls);
+	net->socket->sk->sk_user_data = NULL;
 	sock_release(net->socket);
 
 	_debug("dework");
@@ -956,4 +964,14 @@ noinline int afs_protocol_error(struct afs_call *call,
 	if (call)
 		call->unmarshalling_error = true;
 	return -EBADMSG;
+}
+
+/*
+ * Wake up OOB notification processing.
+ */
+static void afs_rx_notify_oob(struct sock *sk, struct sk_buff *oob)
+{
+	struct afs_net *net = sk->sk_user_data;
+
+	schedule_work(&net->rx_oob_work);
 }
