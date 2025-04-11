@@ -235,6 +235,17 @@ static void ops_undo_list(const struct list_head *ops_list,
 		ops_free_list(ops, net_exit_list);
 }
 
+static void ops_undo_single(struct pernet_operations *ops,
+			    struct list_head *net_exit_list)
+{
+	bool hold_rtnl = !!ops->exit_batch_rtnl;
+	LIST_HEAD(ops_list);
+
+	list_add(&ops->list, &ops_list);
+	ops_undo_list(&ops_list, NULL, net_exit_list, false, hold_rtnl);
+	list_del(&ops->list);
+}
+
 /* should be called with nsid_lock held */
 static int alloc_netid(struct net *net, struct net *peer, int reqid)
 {
@@ -1235,31 +1246,13 @@ void __init net_ns_init(void)
 	rtnl_register_many(net_ns_rtnl_msg_handlers);
 }
 
-static void free_exit_list(struct pernet_operations *ops, struct list_head *net_exit_list)
-{
-	ops_pre_exit_list(ops, net_exit_list);
-	synchronize_rcu();
-
-	if (ops->exit_batch_rtnl) {
-		LIST_HEAD(dev_kill_list);
-
-		rtnl_lock();
-		ops->exit_batch_rtnl(net_exit_list, &dev_kill_list);
-		unregister_netdevice_many(&dev_kill_list);
-		rtnl_unlock();
-	}
-	ops_exit_list(ops, net_exit_list);
-
-	ops_free_list(ops, net_exit_list);
-}
-
 #ifdef CONFIG_NET_NS
 static int __register_pernet_operations(struct list_head *list,
 					struct pernet_operations *ops)
 {
+	LIST_HEAD(net_exit_list);
 	struct net *net;
 	int error;
-	LIST_HEAD(net_exit_list);
 
 	list_add_tail(&ops->list, list);
 	if (ops->init || ops->id) {
@@ -1278,21 +1271,21 @@ static int __register_pernet_operations(struct list_head *list,
 out_undo:
 	/* If I have an error cleanup all namespaces I initialized */
 	list_del(&ops->list);
-	free_exit_list(ops, &net_exit_list);
+	ops_undo_single(ops, &net_exit_list);
 	return error;
 }
 
 static void __unregister_pernet_operations(struct pernet_operations *ops)
 {
-	struct net *net;
 	LIST_HEAD(net_exit_list);
+	struct net *net;
 
-	list_del(&ops->list);
 	/* See comment in __register_pernet_operations() */
 	for_each_net(net)
 		list_add_tail(&net->exit_list, &net_exit_list);
 
-	free_exit_list(ops, &net_exit_list);
+	list_del(&ops->list);
+	ops_undo_single(ops, &net_exit_list);
 }
 
 #else
@@ -1300,22 +1293,23 @@ static void __unregister_pernet_operations(struct pernet_operations *ops)
 static int __register_pernet_operations(struct list_head *list,
 					struct pernet_operations *ops)
 {
-	if (!init_net_initialized) {
-		list_add_tail(&ops->list, list);
+	list_add_tail(&ops->list, list);
+
+	if (!init_net_initialized)
 		return 0;
-	}
 
 	return ops_init(ops, &init_net);
 }
 
 static void __unregister_pernet_operations(struct pernet_operations *ops)
 {
-	if (!init_net_initialized) {
-		list_del(&ops->list);
-	} else {
+	list_del(&ops->list);
+
+	if (init_net_initialized) {
 		LIST_HEAD(net_exit_list);
+
 		list_add(&init_net.exit_list, &net_exit_list);
-		free_exit_list(ops, &net_exit_list);
+		ops_undo_single(ops, &net_exit_list);
 	}
 }
 
