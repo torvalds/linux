@@ -488,7 +488,7 @@ static const struct iio_chan_spec_ext_info axi_dac_ext_info[] = {
 	IIO_BACKEND_EX_INFO("scale1", IIO_SEPARATE, AXI_DAC_SCALE_TONE_2),
 	IIO_BACKEND_EX_INFO("phase0", IIO_SEPARATE, AXI_DAC_PHASE_TONE_1),
 	IIO_BACKEND_EX_INFO("phase1", IIO_SEPARATE, AXI_DAC_PHASE_TONE_2),
-	{}
+	{ }
 };
 
 static int axi_dac_extend_chan(struct iio_backend *back,
@@ -1015,7 +1015,7 @@ static const struct axi_dac_info dac_ad3552r = {
 static const struct of_device_id axi_dac_of_match[] = {
 	{ .compatible = "adi,axi-dac-9.1.b", .data = &dac_generic },
 	{ .compatible = "adi,axi-ad3552r", .data = &dac_ad3552r },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, axi_dac_of_match);
 

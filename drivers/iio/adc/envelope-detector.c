@@ -305,7 +305,7 @@ static const struct iio_chan_spec_ext_info envelope_detector_ext_info[] = {
 	{ .name = "compare_interval",
 	  .read = envelope_show_comp_interval,
 	  .write = envelope_store_comp_interval, },
-	{ /* sentinel */ }
+	{ }
 };
 
 static const struct iio_chan_spec envelope_detector_iio_channel = {
@@ -390,7 +390,7 @@ static int envelope_detector_probe(struct platform_device *pdev)
 
 static const struct of_device_id envelope_detector_match[] = {
 	{ .compatible = "axentia,tse850-envelope-detector", },
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, envelope_detector_match);
 

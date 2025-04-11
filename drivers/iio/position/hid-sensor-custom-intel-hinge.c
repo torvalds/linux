@@ -358,7 +358,7 @@ static const struct platform_device_id hid_hinge_ids[] = {
 		/* Format: HID-SENSOR-INT-usage_id_in_hex_lowercase */
 		.name = "HID-SENSOR-INT-020b",
 	},
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, hid_hinge_ids);
 

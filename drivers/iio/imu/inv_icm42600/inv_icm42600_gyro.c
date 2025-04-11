@@ -57,7 +57,7 @@ enum inv_icm42600_gyro_scan {
 
 static const struct iio_chan_spec_ext_info inv_icm42600_gyro_ext_infos[] = {
 	IIO_MOUNT_MATRIX(IIO_SHARED_BY_ALL, inv_icm42600_get_mount_matrix),
-	{},
+	{ }
 };
 
 static const struct iio_chan_spec inv_icm42600_gyro_channels[] = {

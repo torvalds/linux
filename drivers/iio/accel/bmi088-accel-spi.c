@@ -67,7 +67,7 @@ static const struct of_device_id bmi088_of_match[] = {
 	{ .compatible = "bosch,bmi085-accel" },
 	{ .compatible = "bosch,bmi088-accel" },
 	{ .compatible = "bosch,bmi090l-accel" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, bmi088_of_match);
 
@@ -75,7 +75,7 @@ static const struct spi_device_id bmi088_accel_id[] = {
 	{"bmi085-accel",  BOSCH_BMI085},
 	{"bmi088-accel",  BOSCH_BMI088},
 	{"bmi090l-accel", BOSCH_BMI090L},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, bmi088_accel_id);
 

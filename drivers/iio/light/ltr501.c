@@ -541,7 +541,7 @@ static const struct iio_chan_spec_ext_info ltr501_ext_info[] = {
 		.shared = IIO_SEPARATE,
 		.read = ltr501_read_near_level,
 	},
-	{ /* sentinel */ }
+	{ }
 };
 
 static const struct iio_event_spec ltr501_als_event_spec[] = {
@@ -1602,7 +1602,7 @@ static const struct acpi_device_id ltr_acpi_match[] = {
 	{ "LTER0301", ltr301 },
 	/* https://www.catalog.update.microsoft.com/Search.aspx?q=lter0303 */
 	{ "LTER0303", ltr303 },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, ltr_acpi_match);
 
@@ -1620,7 +1620,7 @@ static const struct of_device_id ltr501_of_match[] = {
 	{ .compatible = "liteon,ltr559", },
 	{ .compatible = "liteon,ltr301", },
 	{ .compatible = "liteon,ltr303", },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ltr501_of_match);
 

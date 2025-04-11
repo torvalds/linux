@@ -366,7 +366,7 @@ MODULE_DEVICE_TABLE(spi, lmp92064_id_table);
 
 static const struct of_device_id lmp92064_of_table[] = {
 	{ .compatible = "ti,lmp92064" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, lmp92064_of_table);
 

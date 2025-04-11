@@ -28,20 +28,20 @@ static const struct of_device_id st_lsm9ds0_of_match[] = {
 		.compatible = "st,lsm9ds0-imu",
 		.data = LSM9DS0_IMU_DEV_NAME,
 	},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, st_lsm9ds0_of_match);
 
 static const struct i2c_device_id st_lsm9ds0_id_table[] = {
 	{ LSM303D_IMU_DEV_NAME },
 	{ LSM9DS0_IMU_DEV_NAME },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, st_lsm9ds0_id_table);
 
 static const struct acpi_device_id st_lsm9ds0_acpi_match[] = {
 	{"ACCL0001", (kernel_ulong_t)LSM303D_IMU_DEV_NAME},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, st_lsm9ds0_acpi_match);
 

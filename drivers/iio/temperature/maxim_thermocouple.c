@@ -265,7 +265,7 @@ static const struct spi_device_id maxim_thermocouple_id[] = {
 	{"max31855t", MAX31855T},
 	{"max31855e", MAX31855E},
 	{"max31855r", MAX31855R},
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, maxim_thermocouple_id);
 

@@ -2058,7 +2058,7 @@ static const struct of_device_id adis16475_of_match[] = {
 		.data = &adis16475_chip_info[ADIS16577_2] },
 	{ .compatible = "adi,adis16577-3",
 		.data = &adis16475_chip_info[ADIS16577_3] },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, adis16475_of_match);
 

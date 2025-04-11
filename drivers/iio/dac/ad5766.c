@@ -437,7 +437,7 @@ static const struct iio_chan_spec_ext_info ad5766_ext_info[] = {
 	IIO_ENUM("dither_scale", IIO_SEPARATE, &ad5766_dither_scale_enum),
 	IIO_ENUM_AVAILABLE("dither_scale", IIO_SEPARATE,
 			   &ad5766_dither_scale_enum),
-	{}
+	{ }
 };
 
 #define AD576x_CHANNEL(_chan, _bits) {					\
@@ -648,14 +648,14 @@ static int ad5766_probe(struct spi_device *spi)
 static const struct of_device_id ad5766_dt_match[] = {
 	{ .compatible = "adi,ad5766" },
 	{ .compatible = "adi,ad5767" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ad5766_dt_match);
 
 static const struct spi_device_id ad5766_spi_ids[] = {
 	{ "ad5766", ID_AD5766 },
 	{ "ad5767", ID_AD5767 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad5766_spi_ids);
 

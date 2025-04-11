@@ -949,21 +949,21 @@ static const struct dev_pm_ops us5182d_pm_ops = {
 
 static const struct acpi_device_id us5182d_acpi_match[] = {
 	{ "USD5182", 0 },
-	{}
+	{ }
 };
 
 MODULE_DEVICE_TABLE(acpi, us5182d_acpi_match);
 
 static const struct i2c_device_id us5182d_id[] = {
 	{ "usd5182" },
-	{}
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, us5182d_id);
 
 static const struct of_device_id us5182d_of_match[] = {
 	{ .compatible = "upisemi,usd5182" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, us5182d_of_match);
 

@@ -219,13 +219,13 @@ static DEFINE_SIMPLE_DEV_PM_OPS(al3010_pm_ops, al3010_suspend, al3010_resume);
 
 static const struct i2c_device_id al3010_id[] = {
 	{"al3010", },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, al3010_id);
 
 static const struct of_device_id al3010_of_match[] = {
 	{ .compatible = "dynaimage,al3010", },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, al3010_of_match);
 

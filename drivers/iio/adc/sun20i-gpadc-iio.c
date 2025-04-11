@@ -243,7 +243,7 @@ static int sun20i_gpadc_probe(struct platform_device *pdev)
 
 static const struct of_device_id sun20i_gpadc_of_id[] = {
 	{ .compatible = "allwinner,sun20i-d1-gpadc" },
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, sun20i_gpadc_of_id);
 

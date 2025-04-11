@@ -1190,13 +1190,13 @@ static DEFINE_SIMPLE_DEV_PM_OPS(hx9023s_pm_ops, hx9023s_suspend,
 
 static const struct of_device_id hx9023s_of_match[] = {
 	{ .compatible = "tyhx,hx9023s" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, hx9023s_of_match);
 
 static const struct i2c_device_id hx9023s_id[] = {
 	{ "hx9023s" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, hx9023s_id);
 

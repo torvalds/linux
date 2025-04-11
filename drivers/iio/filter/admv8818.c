@@ -602,7 +602,7 @@ static const struct iio_enum admv8818_mode_enum = {
 static const struct iio_chan_spec_ext_info admv8818_ext_info[] = {
 	IIO_ENUM("filter_mode", IIO_SHARED_BY_ALL, &admv8818_mode_enum),
 	IIO_ENUM_AVAILABLE("filter_mode", IIO_SHARED_BY_ALL, &admv8818_mode_enum),
-	{ },
+	{ }
 };
 
 #define ADMV8818_CHAN(_channel) {				\
@@ -797,13 +797,13 @@ static int admv8818_probe(struct spi_device *spi)
 
 static const struct spi_device_id admv8818_id[] = {
 	{ "admv8818", 0 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, admv8818_id);
 
 static const struct of_device_id admv8818_of_match[] = {
 	{ .compatible = "adi,admv8818" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, admv8818_of_match);
 

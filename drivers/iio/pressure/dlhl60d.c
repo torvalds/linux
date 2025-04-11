@@ -343,14 +343,14 @@ static int dlh_probe(struct i2c_client *client)
 static const struct of_device_id dlh_of_match[] = {
 	{ .compatible = "asc,dlhl60d" },
 	{ .compatible = "asc,dlhl60g" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, dlh_of_match);
 
 static const struct i2c_device_id dlh_id[] = {
 	{ "dlhl60d",    dlhl60d },
 	{ "dlhl60g",    dlhl60g },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, dlh_id);
 

@@ -573,14 +573,14 @@ static const struct acpi_device_id mxc4005_acpi_match[] = {
 	{"MXC4005",	0},
 	{"MXC6655",	0},
 	{"MDA6655",	0},
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, mxc4005_acpi_match);
 
 static const struct of_device_id mxc4005_of_match[] = {
 	{ .compatible = "memsic,mxc4005", },
 	{ .compatible = "memsic,mxc6655", },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, mxc4005_of_match);
 

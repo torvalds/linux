@@ -615,7 +615,7 @@ static const struct i2c_device_id max30102_id[] = {
 	{ "max30101", max30105 },
 	{ "max30102", max30102 },
 	{ "max30105", max30105 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max30102_id);
 

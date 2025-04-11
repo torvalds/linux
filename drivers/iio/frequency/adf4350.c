@@ -373,7 +373,7 @@ static const struct iio_chan_spec_ext_info adf4350_ext_info[] = {
 	_ADF4350_EXT_INFO("frequency_resolution", ADF4350_FREQ_RESOLUTION),
 	_ADF4350_EXT_INFO("refin_frequency", ADF4350_FREQ_REFIN),
 	_ADF4350_EXT_INFO("powerdown", ADF4350_PWRDOWN),
-	{ },
+	{ }
 };
 
 static const struct iio_chan_spec adf4350_chan = {
@@ -682,14 +682,14 @@ static int adf4350_probe(struct spi_device *spi)
 static const struct of_device_id adf4350_of_match[] = {
 	{ .compatible = "adi,adf4350", },
 	{ .compatible = "adi,adf4351", },
-	{ /* sentinel */ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, adf4350_of_match);
 
 static const struct spi_device_id adf4350_id[] = {
 	{"adf4350", 4350},
 	{"adf4351", 4351},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, adf4350_id);
 

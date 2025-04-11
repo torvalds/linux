@@ -457,7 +457,7 @@ static const struct i2c_device_id als31300_id[] = {
 		.name = "als31300-2000",
 		.driver_data = (kernel_ulong_t)&al31300_variant_2000,
 	},
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, als31300_id);
 
@@ -474,7 +474,7 @@ static const struct of_device_id als31300_of_match[] = {
 		.compatible = "allegromicro,als31300-2000",
 		.data = &al31300_variant_2000,
 	},
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, als31300_of_match);
 

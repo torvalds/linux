@@ -412,7 +412,7 @@ MODULE_DEVICE_TABLE(of, ad9832_of_match);
 static const struct spi_device_id ad9832_id[] = {
 	{"ad9832", 0},
 	{"ad9835", 0},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad9832_id);
 

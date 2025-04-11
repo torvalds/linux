@@ -1585,7 +1585,7 @@ static const struct i2c_device_id yas5xx_id[] = {
 	{"yas532", (kernel_ulong_t)&yas5xx_chip_info_tbl[yas532] },
 	{"yas533", (kernel_ulong_t)&yas5xx_chip_info_tbl[yas533] },
 	{"yas537", (kernel_ulong_t)&yas5xx_chip_info_tbl[yas537] },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, yas5xx_id);
 
@@ -1594,7 +1594,7 @@ static const struct of_device_id yas5xx_of_match[] = {
 	{ .compatible = "yamaha,yas532", &yas5xx_chip_info_tbl[yas532] },
 	{ .compatible = "yamaha,yas533", &yas5xx_chip_info_tbl[yas533] },
 	{ .compatible = "yamaha,yas537", &yas5xx_chip_info_tbl[yas537] },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, yas5xx_of_match);
 

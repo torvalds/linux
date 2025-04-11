@@ -440,7 +440,7 @@ static const struct platform_device_id hid_accel_3d_ids[] = {
 	{	/* gravity sensor */
 		.name = "HID-SENSOR-20007b",
 	},
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, hid_accel_3d_ids);
 

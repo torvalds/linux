@@ -1107,7 +1107,7 @@ static const struct i2c_device_id ak8975_id[] = {
 	{"ak09912", (kernel_ulong_t)&ak_def_array[AK09912] },
 	{"ak09916", (kernel_ulong_t)&ak_def_array[AK09916] },
 	{"ak09918", (kernel_ulong_t)&ak_def_array[AK09918] },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ak8975_id);
 
@@ -1122,7 +1122,7 @@ static const struct of_device_id ak8975_of_match[] = {
 	{ .compatible = "ak09912", .data = &ak_def_array[AK09912] },
 	{ .compatible = "asahi-kasei,ak09916", .data = &ak_def_array[AK09916] },
 	{ .compatible = "asahi-kasei,ak09918", .data = &ak_def_array[AK09918] },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ak8975_of_match);
 

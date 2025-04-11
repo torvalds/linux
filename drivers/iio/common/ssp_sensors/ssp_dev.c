@@ -434,7 +434,7 @@ static const struct of_device_id ssp_of_match[] = {
 		.compatible	= "samsung,sensorhub-thermostat",
 		.data		= &ssp_thermostat_info,
 	},
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ssp_of_match);
 

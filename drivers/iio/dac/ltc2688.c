@@ -608,7 +608,7 @@ static const struct iio_chan_spec_ext_info ltc2688_toggle_sym_ext_info[] = {
 			      ltc2688_reg_bool_get, ltc2688_reg_bool_set),
 	LTC2688_CHAN_EXT_INFO("symbol", LTC2688_CMD_SW_TOGGLE, IIO_SEPARATE,
 			      ltc2688_reg_bool_get, ltc2688_reg_bool_set),
-	{}
+	{ }
 };
 
 static const struct iio_chan_spec_ext_info ltc2688_toggle_ext_info[] = {
@@ -621,7 +621,7 @@ static const struct iio_chan_spec_ext_info ltc2688_toggle_ext_info[] = {
 			      ltc2688_dither_toggle_set),
 	LTC2688_CHAN_EXT_INFO("powerdown", LTC2688_CMD_POWERDOWN, IIO_SEPARATE,
 			      ltc2688_reg_bool_get, ltc2688_reg_bool_set),
-	{}
+	{ }
 };
 
 static struct iio_chan_spec_ext_info ltc2688_dither_ext_info[] = {
@@ -649,13 +649,13 @@ static struct iio_chan_spec_ext_info ltc2688_dither_ext_info[] = {
 			      ltc2688_dither_toggle_set),
 	LTC2688_CHAN_EXT_INFO("powerdown", LTC2688_CMD_POWERDOWN, IIO_SEPARATE,
 			      ltc2688_reg_bool_get, ltc2688_reg_bool_set),
-	{}
+	{ }
 };
 
 static const struct iio_chan_spec_ext_info ltc2688_ext_info[] = {
 	LTC2688_CHAN_EXT_INFO("powerdown", LTC2688_CMD_POWERDOWN, IIO_SEPARATE,
 			      ltc2688_reg_bool_get, ltc2688_reg_bool_set),
-	{}
+	{ }
 };
 
 #define LTC2688_CHANNEL(_chan) {					\
@@ -991,13 +991,13 @@ static int ltc2688_probe(struct spi_device *spi)
 
 static const struct of_device_id ltc2688_of_id[] = {
 	{ .compatible = "adi,ltc2688" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ltc2688_of_id);
 
 static const struct spi_device_id ltc2688_id[] = {
 	{ "ltc2688" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ltc2688_id);
 

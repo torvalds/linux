@@ -245,7 +245,7 @@ static void cros_ec_mkbp_proximity_remove(struct platform_device *pdev)
 
 static const struct of_device_id cros_ec_mkbp_proximity_of_match[] = {
 	{ .compatible = "google,cros-ec-mkbp-proximity" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, cros_ec_mkbp_proximity_of_match);
 

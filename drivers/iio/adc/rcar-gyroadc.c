@@ -307,7 +307,7 @@ static const struct of_device_id rcar_gyroadc_child_match[] __maybe_unused = {
 		.compatible	= "maxim,max11100",
 		.data		= (void *)RCAR_GYROADC_MODE_SELECT_3_MAX1162,
 	},
-	{ /* sentinel */ }
+	{ }
 };
 
 static int rcar_gyroadc_parse_subdevs(struct iio_dev *indio_dev)

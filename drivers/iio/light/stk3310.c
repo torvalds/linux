@@ -165,7 +165,7 @@ static const struct iio_chan_spec_ext_info stk3310_ext_info[] = {
 		.shared = IIO_SEPARATE,
 		.read = stk3310_read_near_level,
 	},
-	{ /* sentinel */ }
+	{ }
 };
 
 static const struct iio_chan_spec stk3310_channels[] = {
@@ -703,7 +703,7 @@ static const struct i2c_device_id stk3310_i2c_id[] = {
 	{ "STK3310" },
 	{ "STK3311" },
 	{ "STK3335" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, stk3310_i2c_id);
 
@@ -711,7 +711,7 @@ static const struct acpi_device_id stk3310_acpi_id[] = {
 	{"STK3013", 0},
 	{"STK3310", 0},
 	{"STK3311", 0},
-	{}
+	{ }
 };
 
 MODULE_DEVICE_TABLE(acpi, stk3310_acpi_id);
@@ -721,7 +721,7 @@ static const struct of_device_id stk3310_of_match[] = {
 	{ .compatible = "sensortek,stk3310", },
 	{ .compatible = "sensortek,stk3311", },
 	{ .compatible = "sensortek,stk3335", },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, stk3310_of_match);
 

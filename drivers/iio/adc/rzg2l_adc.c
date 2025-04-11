@@ -507,7 +507,7 @@ static const struct rzg2l_adc_hw_params rzg3s_hw_params = {
 static const struct of_device_id rzg2l_adc_match[] = {
 	{ .compatible = "renesas,r9a08g045-adc", .data = &rzg3s_hw_params },
 	{ .compatible = "renesas,rzg2l-adc", .data = &rzg2l_hw_params },
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rzg2l_adc_match);
 

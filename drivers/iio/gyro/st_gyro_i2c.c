@@ -54,7 +54,7 @@ static const struct of_device_id st_gyro_of_match[] = {
 		.compatible = "st,lsm9ds0-gyro",
 		.data = LSM9DS0_GYRO_DEV_NAME,
 	},
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, st_gyro_of_match);
 
@@ -102,7 +102,7 @@ static const struct i2c_device_id st_gyro_id_table[] = {
 	{ L3G4IS_GYRO_DEV_NAME },
 	{ LSM330_GYRO_DEV_NAME },
 	{ LSM9DS0_GYRO_DEV_NAME },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, st_gyro_id_table);
 

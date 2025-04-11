@@ -728,7 +728,7 @@ static int ad5933_probe(struct i2c_client *client)
 static const struct i2c_device_id ad5933_id[] = {
 	{ "ad5933" },
 	{ "ad5934" },
-	{}
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, ad5933_id);
@@ -736,7 +736,7 @@ MODULE_DEVICE_TABLE(i2c, ad5933_id);
 static const struct of_device_id ad5933_of_match[] = {
 	{ .compatible = "adi,ad5933" },
 	{ .compatible = "adi,ad5934" },
-	{ },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(of, ad5933_of_match);

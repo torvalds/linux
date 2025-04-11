@@ -469,7 +469,7 @@ static struct stm32_adc_trig_info stm32h7_adc_trigs[] = {
 	{ LPTIM1_OUT, STM32_EXT18 },
 	{ LPTIM2_OUT, STM32_EXT19 },
 	{ LPTIM3_OUT, STM32_EXT20 },
-	{},
+	{ }
 };
 
 /*
@@ -1876,7 +1876,7 @@ static const struct iio_chan_spec_ext_info stm32_adc_ext_info[] = {
 		.read = iio_enum_available_read,
 		.private = (uintptr_t)&stm32_adc_trig_pol,
 	},
-	{},
+	{ }
 };
 
 static void stm32_adc_debugfs_init(struct iio_dev *indio_dev)

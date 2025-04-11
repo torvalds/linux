@@ -919,7 +919,7 @@ static const struct iio_enum mma9553_calibgender_enum = {
 static const struct iio_chan_spec_ext_info mma9553_ext_info[] = {
 	IIO_ENUM("calibgender", IIO_SHARED_BY_TYPE, &mma9553_calibgender_enum),
 	IIO_ENUM_AVAILABLE("calibgender", IIO_SHARED_BY_TYPE, &mma9553_calibgender_enum),
-	{},
+	{ }
 };
 
 #define MMA9553_PEDOMETER_CHANNEL(_type, _mask) {		\
@@ -1216,14 +1216,14 @@ static const struct dev_pm_ops mma9553_pm_ops = {
 
 static const struct acpi_device_id mma9553_acpi_match[] = {
 	{"MMA9553", 0},
-	{},
+	{ }
 };
 
 MODULE_DEVICE_TABLE(acpi, mma9553_acpi_match);
 
 static const struct i2c_device_id mma9553_id[] = {
 	{ "mma9553" },
-	{}
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, mma9553_id);

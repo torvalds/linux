@@ -413,7 +413,7 @@ static const struct iio_info imx7d_adc_iio_info = {
 
 static const struct of_device_id imx7d_adc_match[] = {
 	{ .compatible = "fsl,imx7d-adc", },
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, imx7d_adc_match);
 

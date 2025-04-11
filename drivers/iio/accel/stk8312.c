@@ -635,7 +635,7 @@ static const struct i2c_device_id stk8312_i2c_id[] = {
 	/* Deprecated in favour of lowercase form */
 	{ "STK8312" },
 	{ "stk8312" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, stk8312_i2c_id);
 

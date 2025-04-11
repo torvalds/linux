@@ -133,7 +133,7 @@ static int stm32_lptim_trigger_probe(struct platform_device *pdev)
 static const struct of_device_id stm32_lptim_trig_of_match[] = {
 	{ .compatible = "st,stm32-lptimer-trigger", .data = &stm32mp15_lptim_cfg },
 	{ .compatible = "st,stm32mp25-lptimer-trigger", .data = &stm32mp25_lptim_cfg},
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, stm32_lptim_trig_of_match);
 

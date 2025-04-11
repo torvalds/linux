@@ -307,12 +307,12 @@ static DEFINE_SIMPLE_DEV_PM_OPS(bma220_pm_ops, bma220_suspend, bma220_resume);
 
 static const struct spi_device_id bma220_spi_id[] = {
 	{"bma220", 0},
-	{}
+	{ }
 };
 
 static const struct acpi_device_id bma220_acpi_id[] = {
 	{"BMA0220", 0},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, bma220_spi_id);
 

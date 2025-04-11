@@ -417,7 +417,7 @@ static const struct iio_chan_spec_ext_info scmi_iio_ext_info[] = {
 		.read = scmi_iio_get_raw_available,
 		.shared = IIO_SHARED_BY_TYPE,
 	},
-	{},
+	{ }
 };
 
 static void scmi_iio_set_timestamp_channel(struct iio_chan_spec *iio_chan,
@@ -704,7 +704,7 @@ static int scmi_iio_dev_probe(struct scmi_device *sdev)
 
 static const struct scmi_device_id scmi_id_table[] = {
 	{ SCMI_PROTOCOL_SENSOR, "iiodev" },
-	{},
+	{ }
 };
 
 MODULE_DEVICE_TABLE(scmi, scmi_id_table);

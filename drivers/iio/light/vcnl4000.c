@@ -1745,7 +1745,7 @@ static const struct iio_chan_spec_ext_info vcnl4000_ext_info[] = {
 		.shared = IIO_SEPARATE,
 		.read = vcnl4000_read_near_level,
 	},
-	{ /* sentinel */ }
+	{ }
 };
 
 static const struct iio_event_spec vcnl4000_event_spec[] = {
@@ -2068,7 +2068,7 @@ static const struct of_device_id vcnl_4000_of_match[] = {
 		.compatible = "vishay,vcnl4200",
 		.data = (void *)VCNL4200,
 	},
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, vcnl_4000_of_match);
 

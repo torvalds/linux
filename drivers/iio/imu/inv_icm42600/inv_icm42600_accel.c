@@ -157,7 +157,7 @@ static const struct iio_chan_spec_ext_info inv_icm42600_accel_ext_infos[] = {
 			   &inv_icm42600_accel_power_mode_enum),
 	IIO_ENUM("power_mode", IIO_SHARED_BY_TYPE,
 		 &inv_icm42600_accel_power_mode_enum),
-	{},
+	{ }
 };
 
 static const struct iio_chan_spec inv_icm42600_accel_channels[] = {

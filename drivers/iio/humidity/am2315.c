@@ -253,7 +253,7 @@ static int am2315_probe(struct i2c_client *client)
 
 static const struct i2c_device_id am2315_i2c_id[] = {
 	{ "am2315" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, am2315_i2c_id);
 

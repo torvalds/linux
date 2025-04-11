@@ -273,7 +273,7 @@ kxsd9_get_mount_matrix(const struct iio_dev *indio_dev,
 
 static const struct iio_chan_spec_ext_info kxsd9_ext_info[] = {
 	IIO_MOUNT_MATRIX(IIO_SHARED_BY_TYPE, kxsd9_get_mount_matrix),
-	{ },
+	{ }
 };
 
 #define KXSD9_ACCEL_CHAN(axis, index)						\

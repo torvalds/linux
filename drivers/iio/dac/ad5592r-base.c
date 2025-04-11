@@ -470,7 +470,7 @@ static const struct iio_chan_spec_ext_info ad5592r_ext_info[] = {
 	 .read = ad5592r_show_scale_available,
 	 .shared = IIO_SHARED_BY_TYPE,
 	 },
-	{},
+	{ }
 };
 
 static void ad5592r_setup_channel(struct iio_dev *iio_dev,

@@ -588,7 +588,7 @@ static const struct of_device_id mt6359_auxadc_of_match[] = {
 	{ .compatible = "mediatek,mt6357-auxadc", .data = &mt6357_chip_info },
 	{ .compatible = "mediatek,mt6358-auxadc", .data = &mt6358_chip_info },
 	{ .compatible = "mediatek,mt6359-auxadc", .data = &mt6359_chip_info },
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, mt6359_auxadc_of_match);
 

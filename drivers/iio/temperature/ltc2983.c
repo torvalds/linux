@@ -1664,7 +1664,7 @@ static const struct spi_device_id ltc2983_id_table[] = {
 	{ "ltc2984", (kernel_ulong_t)&ltc2984_chip_info_data },
 	{ "ltc2986", (kernel_ulong_t)&ltc2986_chip_info_data },
 	{ "ltm2985", (kernel_ulong_t)&ltm2985_chip_info_data },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ltc2983_id_table);
 
@@ -1673,7 +1673,7 @@ static const struct of_device_id ltc2983_of_match[] = {
 	{ .compatible = "adi,ltc2984", .data = &ltc2984_chip_info_data },
 	{ .compatible = "adi,ltc2986", .data = &ltc2986_chip_info_data },
 	{ .compatible = "adi,ltm2985", .data = &ltm2985_chip_info_data },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ltc2983_of_match);
 

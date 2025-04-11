@@ -311,7 +311,7 @@ static const struct platform_device_id cros_ec_sensors_ids[] = {
 	{
 		.name = "cros-ec-mag",
 	},
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, cros_ec_sensors_ids);
 

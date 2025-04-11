@@ -190,7 +190,7 @@ MODULE_DEVICE_TABLE(i2c, al3000a_id);
 
 static const struct of_device_id al3000a_of_match[] = {
 	{ .compatible = "dynaimage,al3000a" },
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, al3000a_of_match);
 

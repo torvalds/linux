@@ -247,19 +247,19 @@ static DEFINE_SIMPLE_DEV_PM_OPS(al3320a_pm_ops, al3320a_suspend,
 
 static const struct i2c_device_id al3320a_id[] = {
 	{ "al3320a" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, al3320a_id);
 
 static const struct of_device_id al3320a_of_match[] = {
 	{ .compatible = "dynaimage,al3320a", },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, al3320a_of_match);
 
 static const struct acpi_device_id al3320a_acpi_match[] = {
 	{"CALS0001"},
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, al3320a_acpi_match);
 

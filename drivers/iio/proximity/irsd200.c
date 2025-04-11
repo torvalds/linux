@@ -941,7 +941,7 @@ static const struct of_device_id irsd200_of_match[] = {
 	{
 		.compatible = "murata,irsd200",
 	},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, irsd200_of_match);
 

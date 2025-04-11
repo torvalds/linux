@@ -487,13 +487,13 @@ static int adrf6780_probe(struct spi_device *spi)
 
 static const struct spi_device_id adrf6780_id[] = {
 	{ "adrf6780", 0 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, adrf6780_id);
 
 static const struct of_device_id adrf6780_of_match[] = {
 	{ .compatible = "adi,adrf6780" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, adrf6780_of_match);
 

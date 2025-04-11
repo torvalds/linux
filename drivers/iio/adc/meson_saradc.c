@@ -1342,7 +1342,7 @@ static const struct of_device_id meson_sar_adc_of_match[] = {
 		.compatible = "amlogic,meson-g12a-saradc",
 		.data = &meson_sar_adc_g12a_data,
 	},
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, meson_sar_adc_of_match);
 

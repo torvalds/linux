@@ -859,13 +859,13 @@ static int ad7293_probe(struct spi_device *spi)
 
 static const struct spi_device_id ad7293_id[] = {
 	{ "ad7293", 0 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad7293_id);
 
 static const struct of_device_id ad7293_of_match[] = {
 	{ .compatible = "adi,ad7293" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ad7293_of_match);
 

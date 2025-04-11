@@ -121,7 +121,7 @@ static const struct of_device_id bmp280_of_spi_match[] = {
 	{ .compatible = "bosch,bme280", .data = &bme280_chip_info },
 	{ .compatible = "bosch,bmp380", .data = &bmp380_chip_info },
 	{ .compatible = "bosch,bmp580", .data = &bmp580_chip_info },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, bmp280_of_spi_match);
 

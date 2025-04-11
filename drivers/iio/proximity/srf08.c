@@ -531,7 +531,7 @@ static const struct of_device_id of_srf08_match[] = {
 	{ .compatible = "devantech,srf02", (void *)SRF02 },
 	{ .compatible = "devantech,srf08", (void *)SRF08 },
 	{ .compatible = "devantech,srf10", (void *)SRF10 },
-	{},
+	{ }
 };
 
 MODULE_DEVICE_TABLE(of, of_srf08_match);

@@ -1597,7 +1597,7 @@ MODULE_DEVICE_TABLE(of, ad2s1210_of_match);
 
 static const struct spi_device_id ad2s1210_id[] = {
 	{ "ad2s1210" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad2s1210_id);
 

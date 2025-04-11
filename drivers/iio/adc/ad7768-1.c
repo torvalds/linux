@@ -736,7 +736,7 @@ static int ad7768_probe(struct spi_device *spi)
 
 static const struct spi_device_id ad7768_id_table[] = {
 	{ "ad7768-1", 0 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad7768_id_table);
 

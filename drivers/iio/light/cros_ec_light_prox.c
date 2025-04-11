@@ -249,7 +249,7 @@ static const struct platform_device_id cros_ec_light_prox_ids[] = {
 	{
 		.name = "cros-ec-light",
 	},
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, cros_ec_light_prox_ids);
 

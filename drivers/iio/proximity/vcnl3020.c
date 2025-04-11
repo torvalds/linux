@@ -653,7 +653,7 @@ static const struct of_device_id vcnl3020_of_match[] = {
 	{
 		.compatible = "vishay,vcnl3020",
 	},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, vcnl3020_of_match);
 

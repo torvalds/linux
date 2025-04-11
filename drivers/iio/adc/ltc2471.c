@@ -138,7 +138,7 @@ static int ltc2471_i2c_probe(struct i2c_client *client)
 static const struct i2c_device_id ltc2471_i2c_id[] = {
 	{ "ltc2471", ltc2471 },
 	{ "ltc2473", ltc2473 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ltc2471_i2c_id);
 

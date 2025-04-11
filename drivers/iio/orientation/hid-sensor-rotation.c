@@ -351,7 +351,7 @@ static const struct platform_device_id hid_dev_rot_ids[] = {
 		/* Geomagnetic orientation(AM) sensor */
 		.name = "HID-SENSOR-2000c1",
 	},
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, hid_dev_rot_ids);
 

@@ -674,14 +674,14 @@ static int sca3300_probe(struct spi_device *spi)
 static const struct of_device_id sca3300_dt_ids[] = {
 	{ .compatible = "murata,sca3300"},
 	{ .compatible = "murata,scl3300"},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, sca3300_dt_ids);
 
 static const struct spi_device_id sca3300_ids[] = {
 	{ "sca3300" },
 	{ "scl3300" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, sca3300_ids);
 

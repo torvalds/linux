@@ -820,7 +820,7 @@ static int adux1020_probe(struct i2c_client *client)
 
 static const struct i2c_device_id adux1020_id[] = {
 	{ "adux1020" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adux1020_id);
 

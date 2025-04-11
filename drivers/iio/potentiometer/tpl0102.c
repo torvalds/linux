@@ -153,7 +153,7 @@ static const struct i2c_device_id tpl0102_id[] = {
 	{ "cat5140-104", CAT5140_104 },
 	{ "tpl0102-104", TPL0102_104 },
 	{ "tpl0401-103", TPL0401_103 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tpl0102_id);
 
