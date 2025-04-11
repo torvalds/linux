@@ -2461,7 +2461,7 @@ struct smp_text_poke_loc {
 	s32 disp;
 	u8 len;
 	u8 opcode;
-	const u8 text[POKE_MAX_OPCODE_SIZE];
+	const u8 text[TEXT_POKE_MAX_OPCODE_SIZE];
 	/* see smp_text_poke_batch_process() */
 	u8 old;
 };
@@ -2653,8 +2653,8 @@ static void smp_text_poke_batch_process(void)
 	 * Second step: update all but the first byte of the patched range.
 	 */
 	for (do_sync = 0, i = 0; i < text_poke_array.nr_entries; i++) {
-		u8 old[POKE_MAX_OPCODE_SIZE+1] = { text_poke_array.vec[i].old, };
-		u8 _new[POKE_MAX_OPCODE_SIZE+1];
+		u8 old[TEXT_POKE_MAX_OPCODE_SIZE+1] = { text_poke_array.vec[i].old, };
+		u8 _new[TEXT_POKE_MAX_OPCODE_SIZE+1];
 		const u8 *new = text_poke_array.vec[i].text;
 		int len = text_poke_array.vec[i].len;
 

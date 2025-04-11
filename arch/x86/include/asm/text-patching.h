@@ -11,7 +11,7 @@
  * JUMP_LABEL_NOP_SIZE/RELATIVEJUMP_SIZE, which are 5.
  * Raise it if needed.
  */
-#define POKE_MAX_OPCODE_SIZE	5
+#define TEXT_POKE_MAX_OPCODE_SIZE	5
 
 extern void text_poke_early(void *addr, const void *opcode, size_t len);
 
@@ -82,7 +82,7 @@ static __always_inline int text_opcode_size(u8 opcode)
 }
 
 union text_poke_insn {
-	u8 text[POKE_MAX_OPCODE_SIZE];
+	u8 text[TEXT_POKE_MAX_OPCODE_SIZE];
 	struct {
 		u8 opcode;
 		s32 disp;
