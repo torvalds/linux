@@ -62,6 +62,8 @@ allOf:
       properties:
         clocks:
           maxItems: 3
+        clock-names:
+          maxItems: 3
         resets:
           maxItems: 1
         reset-names:
@@ -77,6 +79,8 @@ allOf:
     then:
       properties:
         clocks:
+          minItems: 4
+        clock-names:
           minItems: 4
         resets:
           minItems: 3
