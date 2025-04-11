@@ -6541,6 +6541,7 @@ static const struct bpf_raw_tp_null_args raw_tp_null_args[] = {
 	{ "xprt_put_cong", 0x10 },
 	/* tcp */
 	{ "tcp_send_reset", 0x11 },
+	{ "tcp_sendmsg_locked", 0x100 },
 	/* tegra_apb_dma */
 	{ "tegra_dma_tx_status", 0x100 },
 	/* timer_migration */
