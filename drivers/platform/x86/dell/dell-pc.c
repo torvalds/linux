@@ -11,6 +11,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/bitfield.h>
+#include <linux/bitops.h>
 #include <linux/bits.h>
 #include <linux/dmi.h>
 #include <linux/err.h>
@@ -228,13 +229,13 @@ static int thermal_platform_profile_get(struct device *dev,
 static int thermal_platform_profile_probe(void *drvdata, unsigned long *choices)
 {
 	if (supported_modes & DELL_QUIET)
-		set_bit(PLATFORM_PROFILE_QUIET, choices);
+		__set_bit(PLATFORM_PROFILE_QUIET, choices);
 	if (supported_modes & DELL_COOL_BOTTOM)
-		set_bit(PLATFORM_PROFILE_COOL, choices);
+		__set_bit(PLATFORM_PROFILE_COOL, choices);
 	if (supported_modes & DELL_BALANCED)
-		set_bit(PLATFORM_PROFILE_BALANCED, choices);
+		__set_bit(PLATFORM_PROFILE_BALANCED, choices);
 	if (supported_modes & DELL_PERFORMANCE)
-		set_bit(PLATFORM_PROFILE_PERFORMANCE, choices);
+		__set_bit(PLATFORM_PROFILE_PERFORMANCE, choices);
 
 	return 0;
 }
