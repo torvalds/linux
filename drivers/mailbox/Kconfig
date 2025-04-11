@@ -191,8 +191,8 @@ config POLARFIRE_SOC_MAILBOX
 
 config MCHP_SBI_IPC_MBOX
 	tristate "Microchip Inter-processor Communication (IPC) SBI driver"
-	depends on RISCV_SBI || COMPILE_TEST
-	depends on ARCH_MICROCHIP
+	depends on RISCV_SBI
+	depends on ARCH_MICROCHIP || COMPILE_TEST
 	help
 	  Mailbox implementation for Microchip devices with an
 	  Inter-process communication (IPC) controller.
