@@ -235,7 +235,7 @@ static u32 anysee_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm anysee_i2c_algo = {
+static const struct i2c_algorithm anysee_i2c_algo = {
 	.master_xfer   = anysee_master_xfer,
 	.functionality = anysee_i2c_func,
 };

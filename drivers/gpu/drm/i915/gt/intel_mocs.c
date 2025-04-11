@@ -675,7 +675,7 @@ void intel_mocs_init(struct intel_gt *gt)
 		__init_mocs_table(gt->uncore, &table, global_mocs_offset());
 
 	/*
-	 * Initialize the L3CC table as part of mocs initalization to make
+	 * Initialize the L3CC table as part of mocs initialization to make
 	 * sure the LNCFCMOCSx registers are programmed for the subsequent
 	 * memory transactions including guc transactions
 	 */

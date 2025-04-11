@@ -530,7 +530,7 @@ int radeon_wb_init(struct radeon_device *rdev)
  * @mc: memory controller structure holding memory informations
  * @base: base address at which to put VRAM
  *
- * Function will place try to place VRAM at base address provided
+ * Function will try to place VRAM at base address provided
  * as parameter (which is so far either PCI aperture address or
  * for IGP TOM base address).
  *
@@ -557,7 +557,7 @@ int radeon_wb_init(struct radeon_device *rdev)
  *
  * Note 3: when limiting vram it's safe to overwritte real_vram_size because
  * we are not in case where real_vram_size is inferior to mc_vram_size (ie
- * note afected by bogus hw of Novell bug 204882 + along with lots of ubuntu
+ * not affected by bogus hw of Novell bug 204882 + along with lots of ubuntu
  * ones)
  *
  * Note 4: IGP TOM addr should be the same as the aperture addr, we don't
@@ -594,7 +594,7 @@ void radeon_vram_location(struct radeon_device *rdev, struct radeon_mc *mc, u64 
  * @rdev: radeon device structure holding all necessary informations
  * @mc: memory controller structure holding memory informations
  *
- * Function will place try to place GTT before or after VRAM.
+ * Function will try to place GTT before or after VRAM.
  *
  * If GTT size is bigger than space left then we ajust GTT size.
  * Thus function will never fails.

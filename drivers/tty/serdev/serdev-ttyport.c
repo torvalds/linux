@@ -92,14 +92,6 @@ static void ttyport_write_flush(struct serdev_controller *ctrl)
 	tty_driver_flush_buffer(tty);
 }
 
-static int ttyport_write_room(struct serdev_controller *ctrl)
-{
-	struct serport *serport = serdev_controller_get_drvdata(ctrl);
-	struct tty_struct *tty = serport->tty;
-
-	return tty_write_room(tty);
-}
-
 static int ttyport_open(struct serdev_controller *ctrl)
 {
 	struct serport *serport = serdev_controller_get_drvdata(ctrl);
@@ -259,7 +251,6 @@ static int ttyport_break_ctl(struct serdev_controller *ctrl, unsigned int break_
 static const struct serdev_controller_ops ctrl_ops = {
 	.write_buf = ttyport_write_buf,
 	.write_flush = ttyport_write_flush,
-	.write_room = ttyport_write_room,
 	.open = ttyport_open,
 	.close = ttyport_close,
 	.set_flow_control = ttyport_set_flow_control,

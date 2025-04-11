@@ -135,7 +135,6 @@ static int dart_init_pte(struct dart_io_pgtable *data,
 	pte |= FIELD_PREP(APPLE_DART_PTE_SUBPAGE_START, 0);
 	pte |= FIELD_PREP(APPLE_DART_PTE_SUBPAGE_END, 0xfff);
 
-	pte |= APPLE_DART1_PTE_PROT_SP_DIS;
 	pte |= APPLE_DART_PTE_VALID;
 
 	for (i = 0; i < num_entries; i++)
@@ -211,6 +210,7 @@ static dart_iopte dart_prot_to_pte(struct dart_io_pgtable *data,
 	dart_iopte pte = 0;
 
 	if (data->iop.fmt == APPLE_DART) {
+		pte |= APPLE_DART1_PTE_PROT_SP_DIS;
 		if (!(prot & IOMMU_WRITE))
 			pte |= APPLE_DART1_PTE_PROT_NO_WRITE;
 		if (!(prot & IOMMU_READ))

@@ -31,8 +31,8 @@
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_probe_helper.h>
 
-#include "i915_drv.h"
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "icl_dsi.h"
 #include "icl_dsi_regs.h"
 #include "intel_atomic.h"
@@ -243,7 +243,7 @@ static void dsi_program_swing_and_deemphasis(struct intel_encoder *encoder)
 	for_each_dsi_phy(phy, intel_dsi->phys) {
 		/*
 		 * Program voltage swing and pre-emphasis level values as per
-		 * table in BSPEC under DDI buffer programing
+		 * table in BSPEC under DDI buffer programming.
 		 */
 		mask = SCALING_MODE_SEL_MASK | RTERM_SELECT_MASK;
 		val = SCALING_MODE_SEL(0x2) | TAP2_DISABLE | TAP3_DISABLE |
@@ -345,7 +345,6 @@ static void gen11_dsi_program_esc_clk_div(struct intel_encoder *encoder,
 					  const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum port port;
 	int afe_clk_khz;
@@ -354,7 +353,7 @@ static void gen11_dsi_program_esc_clk_div(struct intel_encoder *encoder,
 
 	afe_clk_khz = afe_clk(encoder, crtc_state);
 
-	if (IS_ALDERLAKE_S(dev_priv) || IS_ALDERLAKE_P(dev_priv)) {
+	if (display->platform.alderlake_s || display->platform.alderlake_p) {
 		theo_word_clk = DIV_ROUND_UP(afe_clk_khz, 8 * DSI_MAX_ESC_CLK);
 		act_word_clk = max(3, theo_word_clk + (theo_word_clk + 1) % 2);
 		esc_clk_div_m = act_word_clk * 8;
@@ -375,7 +374,7 @@ static void gen11_dsi_program_esc_clk_div(struct intel_encoder *encoder,
 		intel_de_posting_read(display, ICL_DPHY_ESC_CLK_DIV(port));
 	}
 
-	if (IS_ALDERLAKE_S(dev_priv) || IS_ALDERLAKE_P(dev_priv)) {
+	if (display->platform.alderlake_s || display->platform.alderlake_p) {
 		for_each_dsi_port(port, intel_dsi->ports) {
 			intel_de_write(display, ADL_MIPIO_DW(port, 8),
 				       esc_clk_div_m_phy & TX_ESC_CLK_DIV_PHY);
@@ -387,13 +386,12 @@ static void gen11_dsi_program_esc_clk_div(struct intel_encoder *encoder,
 static void get_dsi_io_power_domains(struct intel_dsi *intel_dsi)
 {
 	struct intel_display *display = to_intel_display(&intel_dsi->base);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	enum port port;
 
 	for_each_dsi_port(port, intel_dsi->ports) {
 		drm_WARN_ON(display->drm, intel_dsi->io_wakeref[port]);
 		intel_dsi->io_wakeref[port] =
-			intel_display_power_get(dev_priv,
+			intel_display_power_get(display,
 						port == PORT_A ?
 						POWER_DOMAIN_PORT_DDI_IO_A :
 						POWER_DOMAIN_PORT_DDI_IO_B);
@@ -415,19 +413,18 @@ static void gen11_dsi_enable_io_power(struct intel_encoder *encoder)
 
 static void gen11_dsi_power_up_lanes(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum phy phy;
 
 	for_each_dsi_phy(phy, intel_dsi->phys)
-		intel_combo_phy_power_up_lanes(dev_priv, phy, true,
+		intel_combo_phy_power_up_lanes(display, phy, true,
 					       intel_dsi->lane_count, false);
 }
 
 static void gen11_dsi_config_phy_lanes_sequence(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum phy phy;
 	u32 tmp;
@@ -452,7 +449,7 @@ static void gen11_dsi_config_phy_lanes_sequence(struct intel_encoder *encoder)
 		intel_de_write(display, ICL_PORT_TX_DW2_GRP(phy), tmp);
 
 		/* For EHL, TGL, set latency optimization for PCS_DW1 lanes */
-		if (IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv) ||
+		if (display->platform.jasperlake || display->platform.elkhartlake ||
 		    (DISPLAY_VER(display) >= 12)) {
 			intel_de_rmw(display, ICL_PORT_PCS_DW1_AUX(phy),
 				     LATENCY_OPTIM_MASK, LATENCY_OPTIM_VAL(0));
@@ -534,7 +531,6 @@ gen11_dsi_setup_dphy_timings(struct intel_encoder *encoder,
 			     const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum port port;
 	enum phy phy;
@@ -564,7 +560,7 @@ gen11_dsi_setup_dphy_timings(struct intel_encoder *encoder,
 		}
 	}
 
-	if (IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv)) {
+	if (display->platform.jasperlake || display->platform.elkhartlake) {
 		for_each_dsi_phy(phy, intel_dsi->phys)
 			intel_de_rmw(display, ICL_DPHY_CHKN(phy),
 				     0, ICL_DPHY_CHKN_AFE_OVER_PPI_STRAP);
@@ -961,7 +957,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	for_each_dsi_port(port, intel_dsi->ports) {
 		dsi_trans = dsi_port_to_transcoder(port);
 		/*
-		 * FIXME: Programing this by assuming progressive mode, since
+		 * FIXME: Programming this by assuming progressive mode, since
 		 * non-interlaced info from VBT is not saved inside
 		 * struct drm_display_mode.
 		 * For interlace mode: program required pixel minus 2
@@ -1385,7 +1381,6 @@ static void gen11_dsi_disable_port(struct intel_encoder *encoder)
 static void gen11_dsi_disable_io_power(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum port port;
 
@@ -1393,7 +1388,7 @@ static void gen11_dsi_disable_io_power(struct intel_encoder *encoder)
 		intel_wakeref_t wakeref;
 
 		wakeref = fetch_and_zero(&intel_dsi->io_wakeref[port]);
-		intel_display_power_put(dev_priv,
+		intel_display_power_put(display,
 					port == PORT_A ?
 					POWER_DOMAIN_PORT_DDI_IO_A :
 					POWER_DOMAIN_PORT_DDI_IO_B,
@@ -1460,12 +1455,12 @@ static void gen11_dsi_post_disable(struct intel_atomic_state *state,
 }
 
 static enum drm_mode_status gen11_dsi_mode_valid(struct drm_connector *connector,
-						 struct drm_display_mode *mode)
+						 const struct drm_display_mode *mode)
 {
-	struct drm_i915_private *i915 = to_i915(connector->dev);
+	struct intel_display *display = to_intel_display(connector->dev);
 	enum drm_mode_status status;
 
-	status = intel_cpu_transcoder_mode_valid(i915, mode);
+	status = intel_cpu_transcoder_mode_valid(display, mode);
 	if (status != MODE_OK)
 		return status;
 
@@ -1652,7 +1647,7 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 	if (ret)
 		return ret;
 
-	ret = intel_panel_fitting(pipe_config, conn_state);
+	ret = intel_pfit_compute_config(pipe_config, conn_state);
 	if (ret)
 		return ret;
 
@@ -1697,7 +1692,6 @@ static bool gen11_dsi_get_hw_state(struct intel_encoder *encoder,
 				   enum pipe *pipe)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum transcoder dsi_trans;
 	intel_wakeref_t wakeref;
@@ -1705,7 +1699,7 @@ static bool gen11_dsi_get_hw_state(struct intel_encoder *encoder,
 	bool ret = false;
 	u32 tmp;
 
-	wakeref = intel_display_power_get_if_enabled(dev_priv,
+	wakeref = intel_display_power_get_if_enabled(display,
 						     encoder->power_domain);
 	if (!wakeref)
 		return false;
@@ -1736,7 +1730,7 @@ static bool gen11_dsi_get_hw_state(struct intel_encoder *encoder,
 		ret = tmp & TRANSCONF_ENABLE;
 	}
 out:
-	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
+	intel_display_power_put(display, encoder->power_domain, wakeref);
 	return ret;
 }
 

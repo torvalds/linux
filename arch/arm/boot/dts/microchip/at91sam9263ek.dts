@@ -207,7 +207,7 @@
 			};
 		};
 
-		usb0: ohci@a00000 {
+		usb0: usb@a00000 {
 			num-ports = <2>;
 			status = "okay";
 			atmel,vbus-gpio = <&pioA 24 GPIO_ACTIVE_HIGH

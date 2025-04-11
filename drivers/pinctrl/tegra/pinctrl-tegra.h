@@ -8,6 +8,10 @@
 #ifndef __PINMUX_TEGRA_H__
 #define __PINMUX_TEGRA_H__
 
+struct tegra_pingroup_config {
+	bool is_sfsel;
+};
+
 struct tegra_pmx {
 	struct device *dev;
 	struct pinctrl_dev *pctl;
@@ -21,6 +25,8 @@ struct tegra_pmx {
 	int nbanks;
 	void __iomem **regs;
 	u32 *backup_regs;
+	/* Array of size soc->ngroups */
+	struct tegra_pingroup_config *pingroup_configs;
 };
 
 enum tegra_pinconf_param {
@@ -54,6 +60,8 @@ enum tegra_pinconf_param {
 	TEGRA_PINCONF_PARAM_SLEW_RATE_RISING,
 	/* argument: Integer, range is HW-dependant */
 	TEGRA_PINCONF_PARAM_DRIVE_TYPE,
+	/* argument: Boolean */
+	TEGRA_PINCONF_PARAM_GPIO_MODE,
 };
 
 enum tegra_pinconf_pull {
@@ -176,16 +184,22 @@ struct tegra_pingroup {
 
 /**
  * struct tegra_pinctrl_soc_data - Tegra pin controller driver configuration
- * @ngpios:	The number of GPIO pins the pin controller HW affects.
- * @pins:	An array describing all pins the pin controller affects.
- *		All pins which are also GPIOs must be listed first within the
- *		array, and be numbered identically to the GPIO controller's
- *		numbering.
- * @npins:	The numbmer of entries in @pins.
- * @functions:	An array describing all mux functions the SoC supports.
- * @nfunctions:	The numbmer of entries in @functions.
- * @groups:	An array describing all pin groups the pin SoC supports.
- * @ngroups:	The numbmer of entries in @groups.
+ * @ngpios:		The number of GPIO pins the pin controller HW affects.
+ * @gpio_compatible:	Device-tree GPIO compatible string.
+ * @pins:		An array describing all pins the pin controller affects.
+ *			All pins which are also GPIOs must be listed first within the
+ *			array, and be numbered identically to the GPIO controller's
+ *			numbering.
+ * @npins:		The number of entries in @pins.
+ * @functions:		An array describing all mux functions the SoC supports.
+ * @nfunctions:		The number of entries in @functions.
+ * @groups:		An array describing all pin groups the pin SoC supports.
+ * @ngroups:		The number of entries in @groups.
+ * @hsm_in_mux:		High-speed mode field. Only applicable to devices with one pin per group.
+ * @schmitt_in_mux:	Schmitt trigger field. Only applicable to devices with one pin per group.
+ * @drvtype_in_mux:	Drivetype field. Only applicable to devices with one pin per group.
+ * @sfsel_in_mux:	Special function selection field.
+ *			Only applicable to devices with one pin per group.
  */
 struct tegra_pinctrl_soc_data {
 	unsigned ngpios;

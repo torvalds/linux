@@ -206,7 +206,7 @@ static bool __wake_nocb_gp(struct rcu_data *rdp_gp,
 
 	if (rdp_gp->nocb_defer_wakeup > RCU_NOCB_WAKE_NOT) {
 		WRITE_ONCE(rdp_gp->nocb_defer_wakeup, RCU_NOCB_WAKE_NOT);
-		del_timer(&rdp_gp->nocb_timer);
+		timer_delete(&rdp_gp->nocb_timer);
 	}
 
 	if (force || READ_ONCE(rdp_gp->nocb_gp_sleep)) {
@@ -822,7 +822,7 @@ static void nocb_gp_wait(struct rcu_data *my_rdp)
 
 		if (my_rdp->nocb_defer_wakeup > RCU_NOCB_WAKE_NOT) {
 			WRITE_ONCE(my_rdp->nocb_defer_wakeup, RCU_NOCB_WAKE_NOT);
-			del_timer(&my_rdp->nocb_timer);
+			timer_delete(&my_rdp->nocb_timer);
 		}
 		WRITE_ONCE(my_rdp->nocb_gp_sleep, true);
 		raw_spin_unlock_irqrestore(&my_rdp->nocb_gp_lock, flags);

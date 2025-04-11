@@ -164,22 +164,18 @@ static int mtk_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 		/* write address */
 		if (pmsg->flags & I2C_M_TEN) {
 			/* 10 bits address */
-			addr = 0xf0 | ((pmsg->addr >> 7) & 0x06);
-			addr |= (pmsg->addr & 0xff) << 8;
-			if (pmsg->flags & I2C_M_RD)
-				addr |= 1;
-			iowrite32(addr, i2c->base + REG_SM0D0_REG);
-			ret = mtk_i2c_cmd(i2c, SM0CTL1_WRITE, 2);
-			if (ret)
-				goto err_timeout;
+			addr = i2c_10bit_addr_hi_from_msg(pmsg);
+			addr |= i2c_10bit_addr_lo_from_msg(pmsg) << 8;
+			len = 2;
 		} else {
 			/* 7 bits address */
 			addr = i2c_8bit_addr_from_msg(pmsg);
-			iowrite32(addr, i2c->base + REG_SM0D0_REG);
-			ret = mtk_i2c_cmd(i2c, SM0CTL1_WRITE, 1);
-			if (ret)
-				goto err_timeout;
+			len = 1;
 		}
+		iowrite32(addr, i2c->base + REG_SM0D0_REG);
+		ret = mtk_i2c_cmd(i2c, SM0CTL1_WRITE, len);
+		if (ret)
+			goto err_timeout;
 
 		/* check address ACK */
 		if (!(pmsg->flags & I2C_M_IGNORE_NAK)) {

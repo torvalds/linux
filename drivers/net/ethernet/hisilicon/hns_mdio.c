@@ -640,7 +640,7 @@ static struct platform_driver hns_mdio_driver = {
 	.driver = {
 		   .name = MDIO_DRV_NAME,
 		   .of_match_table = hns_mdio_match,
-		   .acpi_match_table = ACPI_PTR(hns_mdio_acpi_match),
+		   .acpi_match_table = hns_mdio_acpi_match,
 		   },
 };
 

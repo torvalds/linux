@@ -15,7 +15,8 @@ enum um_irq_type {
 };
 
 struct siginfo;
-extern void sigio_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs);
+extern void sigio_handler(int sig, struct siginfo *unused_si,
+			  struct uml_pt_regs *regs, void *mc);
 void sigio_run_timetravel_handlers(void);
 extern void free_irq_by_fd(int fd);
 extern void deactivate_fd(int fd, int irqnum);

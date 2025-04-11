@@ -269,7 +269,7 @@ void amdgpu_gmc_sysvm_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc
  * @mc: memory controller structure holding memory information
  * @gart_placement: GART placement policy with respect to VRAM
  *
- * Function will place try to place GART before or after VRAM.
+ * Function will try to place GART before or after VRAM.
  * If GART size is bigger than space left then we ajust GART size.
  * Thus function will never fails.
  */
@@ -573,6 +573,7 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
 	unsigned vm_inv_engs[AMDGPU_MAX_VMHUBS] = {0};
 	unsigned i;
 	unsigned vmhub, inv_eng;
+	struct amdgpu_ring *shared_ring;
 
 	/* init the vm inv eng for all vmhubs */
 	for_each_set_bit(i, adev->vmhubs_mask, AMDGPU_MAX_VMHUBS) {
@@ -591,7 +592,12 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
 
 		if (ring == &adev->mes.ring[0] ||
 		    ring == &adev->mes.ring[1] ||
-		    ring == &adev->umsch_mm.ring)
+		    ring == &adev->umsch_mm.ring ||
+		    ring == &adev->cper.ring_buf)
+			continue;
+
+		/* Skip if the ring is a shared ring */
+		if (amdgpu_sdma_is_shared_inv_eng(adev, ring))
 			continue;
 
 		inv_eng = ffs(vm_inv_engs[vmhub]);
@@ -606,6 +612,21 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
 
 		dev_info(adev->dev, "ring %s uses VM inv eng %u on hub %u\n",
 			 ring->name, ring->vm_inv_eng, ring->vm_hub);
+		/* SDMA has a special packet which allows it to use the same
+		 * invalidation engine for all the rings in one instance.
+		 * Therefore, we do not allocate a separate VM invalidation engine
+		 * for SDMA page rings. Instead, they share the VM invalidation
+		 * engine with the SDMA gfx ring. This change ensures efficient
+		 * resource management and avoids the issue of insufficient VM
+		 * invalidation engines.
+		 */
+		shared_ring = amdgpu_sdma_get_shared_ring(adev, ring);
+		if (shared_ring) {
+			shared_ring->vm_inv_eng = ring->vm_inv_eng;
+			dev_info(adev->dev, "ring %s shares VM invalidation engine %u with ring %s on hub %u\n",
+					ring->name, ring->vm_inv_eng, shared_ring->name, ring->vm_hub);
+			continue;
+		}
 	}
 
 	return 0;
@@ -851,6 +872,7 @@ void amdgpu_gmc_tmz_set(struct amdgpu_device *adev)
 	case IP_VERSION(11, 5, 0):
 	case IP_VERSION(11, 5, 1):
 	case IP_VERSION(11, 5, 2):
+	case IP_VERSION(11, 5, 3):
 		/* Don't enable it by default yet.
 		 */
 		if (amdgpu_tmz < 1) {
@@ -888,6 +910,7 @@ void amdgpu_gmc_noretry_set(struct amdgpu_device *adev)
 				gc_ver == IP_VERSION(9, 4, 2) ||
 				gc_ver == IP_VERSION(9, 4, 3) ||
 				gc_ver == IP_VERSION(9, 4, 4) ||
+				gc_ver == IP_VERSION(9, 5, 0) ||
 				gc_ver >= IP_VERSION(10, 3, 0));
 
 	if (!amdgpu_sriov_xnack_support(adev))

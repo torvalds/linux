@@ -745,6 +745,7 @@ extern enum l1tf_mitigations l1tf_mitigation;
 
 enum mds_mitigations {
 	MDS_MITIGATION_OFF,
+	MDS_MITIGATION_AUTO,
 	MDS_MITIGATION_FULL,
 	MDS_MITIGATION_VMWERV,
 };

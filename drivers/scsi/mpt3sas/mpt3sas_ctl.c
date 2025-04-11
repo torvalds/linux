@@ -186,6 +186,9 @@ _ctl_display_some_debug(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	case MPI2_FUNCTION_NVME_ENCAPSULATED:
 		desc = "nvme_encapsulated";
 		break;
+	case MPI2_FUNCTION_MCTP_PASSTHROUGH:
+		desc = "mctp_passthrough";
+		break;
 	}
 
 	if (!desc)
@@ -653,6 +656,40 @@ _ctl_set_task_mid(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command *karg,
 }
 
 /**
+ * _ctl_send_mctp_passthru_req - Send an MCTP passthru request
+ * @ioc: per adapter object
+ * @mctp_passthru_req: MPI mctp passhthru request from caller
+ * @psge: pointer to the H2DSGL
+ * @data_out_dma: DMA buffer for H2D SGL
+ * @data_out_sz: H2D length
+ * @data_in_dma: DMA buffer for D2H SGL
+ * @data_in_sz: D2H length
+ * @smid: SMID to submit the request
+ *
+ */
+static void
+_ctl_send_mctp_passthru_req(
+	struct MPT3SAS_ADAPTER *ioc,
+	Mpi26MctpPassthroughRequest_t *mctp_passthru_req, void *psge,
+	dma_addr_t data_out_dma, int data_out_sz,
+	dma_addr_t data_in_dma, int data_in_sz,
+	u16 smid)
+{
+	mctp_passthru_req->H2DLength = data_out_sz;
+	mctp_passthru_req->D2HLength = data_in_sz;
+
+	/* Build the H2D SGL from the data out buffer */
+	ioc->build_sg(ioc, psge, data_out_dma, data_out_sz, 0, 0);
+
+	psge += ioc->sge_size_ieee;
+
+	/* Build the D2H SGL for the data in buffer */
+	ioc->build_sg(ioc, psge, 0, 0, data_in_dma, data_in_sz);
+
+	ioc->put_smid_default(ioc, smid);
+}
+
+/**
  * _ctl_do_mpt_command - main handler for MPT3COMMAND opcode
  * @ioc: per adapter object
  * @karg: (struct mpt3_ioctl_command)
@@ -679,6 +716,7 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	size_t data_in_sz = 0;
 	long ret;
 	u16 device_handle = MPT3SAS_INVALID_DEVICE_HANDLE;
+	int tm_ret;
 
 	issue_reset = 0;
 
@@ -792,6 +830,23 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 
 	init_completion(&ioc->ctl_cmds.done);
 	switch (mpi_request->Function) {
+	case MPI2_FUNCTION_MCTP_PASSTHROUGH:
+	{
+		Mpi26MctpPassthroughRequest_t *mctp_passthru_req =
+						(Mpi26MctpPassthroughRequest_t *)request;
+
+		if (!(ioc->facts.IOCCapabilities & MPI26_IOCFACTS_CAPABILITY_MCTP_PASSTHRU)) {
+			ioc_err(ioc, "%s: MCTP Passthrough request not supported\n",
+				__func__);
+			mpt3sas_base_free_smid(ioc, smid);
+			ret = -EINVAL;
+			goto out;
+		}
+
+		_ctl_send_mctp_passthru_req(ioc, mctp_passthru_req, psge, data_out_dma,
+					data_out_sz, data_in_dma, data_in_sz, smid);
+		break;
+	}
 	case MPI2_FUNCTION_NVME_ENCAPSULATED:
 	{
 		nvme_encap_request = (Mpi26NVMeEncapsulatedRequest_t *)request;
@@ -1120,18 +1175,25 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 			if (pcie_device && (!ioc->tm_custom_handling) &&
 			    (!(mpt3sas_scsih_is_pcie_scsi_device(
 			    pcie_device->device_info))))
-				mpt3sas_scsih_issue_locked_tm(ioc,
+				tm_ret = mpt3sas_scsih_issue_locked_tm(ioc,
 				  le16_to_cpu(mpi_request->FunctionDependent1),
 				  0, 0, 0,
 				  MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0,
 				  0, pcie_device->reset_timeout,
 			MPI26_SCSITASKMGMT_MSGFLAGS_PROTOCOL_LVL_RST_PCIE);
 			else
-				mpt3sas_scsih_issue_locked_tm(ioc,
+				tm_ret = mpt3sas_scsih_issue_locked_tm(ioc,
 				  le16_to_cpu(mpi_request->FunctionDependent1),
 				  0, 0, 0,
 				  MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0,
 				  0, 30, MPI2_SCSITASKMGMT_MSGFLAGS_LINK_RESET);
+
+			if (tm_ret != SUCCESS) {
+				ioc_info(ioc,
+					 "target reset failed, issue hard reset: handle (0x%04x)\n",
+					 le16_to_cpu(mpi_request->FunctionDependent1));
+				mpt3sas_base_hard_reset_handler(ioc, FORCE_BIG_HAMMER);
+			}
 		} else
 			mpt3sas_base_hard_reset_handler(ioc, FORCE_BIG_HAMMER);
 	}
@@ -1199,6 +1261,8 @@ _ctl_getiocinfo(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 		break;
 	}
 	karg.bios_version = le32_to_cpu(ioc->bios_pg3.BiosVersion);
+
+	karg.driver_capability |= MPT3_IOCTL_IOCINFO_DRIVER_CAP_MCTP_PASSTHRU;
 
 	if (copy_to_user(arg, &karg, sizeof(karg))) {
 		pr_err("failure at %s:%d/%s()!\n",
@@ -2785,6 +2849,217 @@ out_unlock_pciaccess:
 	mutex_unlock(&ioc->pci_access_mutex);
 	return ret;
 }
+
+/**
+ * _ctl_get_mpt_mctp_passthru_adapter - Traverse the IOC list and return the IOC at
+ *					dev_index positionthat support MCTP passhtru
+ * @dev_index: position in the mpt3sas_ioc_list to search for
+ * Return pointer to the IOC on success
+ *	  NULL if device not found error
+ */
+static struct MPT3SAS_ADAPTER *
+_ctl_get_mpt_mctp_passthru_adapter(int dev_index)
+{
+	struct MPT3SAS_ADAPTER *ioc = NULL;
+	int count = 0;
+
+	spin_lock(&gioc_lock);
+	/* Traverse ioc list and return number of IOC that support MCTP passthru */
+	list_for_each_entry(ioc, &mpt3sas_ioc_list, list) {
+		if (ioc->facts.IOCCapabilities & MPI26_IOCFACTS_CAPABILITY_MCTP_PASSTHRU) {
+			if (count == dev_index) {
+				spin_unlock(&gioc_lock);
+				return 0;
+			}
+		}
+	}
+	spin_unlock(&gioc_lock);
+
+	return NULL;
+}
+
+/**
+ * mpt3sas_get_device_count - Retrieve the count of MCTP passthrough
+ *				capable devices managed by the driver.
+ *
+ * Returns number of devices that support MCTP passthrough.
+ */
+int
+mpt3sas_get_device_count(void)
+{
+	int count = 0;
+	struct MPT3SAS_ADAPTER *ioc = NULL;
+
+	spin_lock(&gioc_lock);
+	/* Traverse ioc list and return number of IOC that support MCTP passthru */
+	list_for_each_entry(ioc, &mpt3sas_ioc_list, list)
+		if (ioc->facts.IOCCapabilities & MPI26_IOCFACTS_CAPABILITY_MCTP_PASSTHRU)
+			count++;
+
+	spin_unlock(&gioc_lock);
+
+	return count;
+}
+EXPORT_SYMBOL(mpt3sas_get_device_count);
+
+/**
+ * mpt3sas_send_passthru_cmd - Send an MPI MCTP passthrough command to
+ *				firmware
+ * @command: The MPI MCTP passthrough command to send to firmware
+ *
+ * Returns 0 on success, anything else is error.
+ */
+int mpt3sas_send_mctp_passthru_req(struct mpt3_passthru_command *command)
+{
+	struct MPT3SAS_ADAPTER *ioc;
+	MPI2RequestHeader_t *mpi_request = NULL, *request;
+	MPI2DefaultReply_t *mpi_reply;
+	Mpi26MctpPassthroughRequest_t *mctp_passthru_req;
+	u16 smid;
+	unsigned long timeout;
+	u8 issue_reset = 0;
+	u32 sz;
+	void *psge;
+	void *data_out = NULL;
+	dma_addr_t data_out_dma = 0;
+	size_t data_out_sz = 0;
+	void *data_in = NULL;
+	dma_addr_t data_in_dma = 0;
+	size_t data_in_sz = 0;
+	long ret;
+
+	/* Retrieve ioc from dev_index */
+	ioc = _ctl_get_mpt_mctp_passthru_adapter(command->dev_index);
+	if (!ioc)
+		return -ENODEV;
+
+	mutex_lock(&ioc->pci_access_mutex);
+	if (ioc->shost_recovery ||
+	    ioc->pci_error_recovery || ioc->is_driver_loading ||
+	    ioc->remove_host) {
+		ret = -EAGAIN;
+		goto unlock_pci_access;
+	}
+
+	/* Lock the ctl_cmds mutex to ensure a single ctl cmd is pending */
+	if (mutex_lock_interruptible(&ioc->ctl_cmds.mutex)) {
+		ret = -ERESTARTSYS;
+		goto unlock_pci_access;
+	}
+
+	if (ioc->ctl_cmds.status != MPT3_CMD_NOT_USED) {
+		ioc_err(ioc, "%s: ctl_cmd in use\n", __func__);
+		ret = -EAGAIN;
+		goto unlock_ctl_cmds;
+	}
+
+	ret = mpt3sas_wait_for_ioc(ioc,	IOC_OPERATIONAL_WAIT_COUNT);
+	if (ret)
+		goto unlock_ctl_cmds;
+
+	mpi_request = (MPI2RequestHeader_t *)command->mpi_request;
+	if (mpi_request->Function != MPI2_FUNCTION_MCTP_PASSTHROUGH) {
+		ioc_err(ioc, "%s: Invalid request received, Function 0x%x\n",
+			__func__, mpi_request->Function);
+		ret = -EINVAL;
+		goto unlock_ctl_cmds;
+	}
+
+	/* Use first reserved smid for passthrough commands */
+	smid = ioc->scsiio_depth - INTERNAL_SCSIIO_CMDS_COUNT + 1;
+	ret = 0;
+	ioc->ctl_cmds.status = MPT3_CMD_PENDING;
+	memset(ioc->ctl_cmds.reply, 0, ioc->reply_sz);
+	request = mpt3sas_base_get_msg_frame(ioc, smid);
+	memset(request, 0, ioc->request_sz);
+	memcpy(request, command->mpi_request, sizeof(Mpi26MctpPassthroughRequest_t));
+	ioc->ctl_cmds.smid = smid;
+	data_out_sz = command->data_out_size;
+	data_in_sz = command->data_in_size;
+
+	/* obtain dma-able memory for data transfer */
+	if (data_out_sz) /* WRITE */ {
+		data_out = dma_alloc_coherent(&ioc->pdev->dev, data_out_sz,
+					      &data_out_dma, GFP_ATOMIC);
+		if (!data_out) {
+			ret = -ENOMEM;
+			mpt3sas_base_free_smid(ioc, smid);
+			goto out;
+		}
+		memcpy(data_out, command->data_out_buf_ptr, data_out_sz);
+
+	}
+
+	if (data_in_sz) /* READ */ {
+		data_in = dma_alloc_coherent(&ioc->pdev->dev, data_in_sz,
+					     &data_in_dma, GFP_ATOMIC);
+		if (!data_in) {
+			ret = -ENOMEM;
+			mpt3sas_base_free_smid(ioc, smid);
+			goto out;
+		}
+	}
+
+	psge = &((Mpi26MctpPassthroughRequest_t *)request)->H2DSGL;
+
+	init_completion(&ioc->ctl_cmds.done);
+
+	mctp_passthru_req = (Mpi26MctpPassthroughRequest_t *)request;
+
+	_ctl_send_mctp_passthru_req(ioc, mctp_passthru_req, psge, data_out_dma,
+				data_out_sz, data_in_dma, data_in_sz, smid);
+
+	timeout = command->timeout;
+	if (timeout < MPT3_IOCTL_DEFAULT_TIMEOUT)
+		timeout = MPT3_IOCTL_DEFAULT_TIMEOUT;
+
+	wait_for_completion_timeout(&ioc->ctl_cmds.done, timeout*HZ);
+	if (!(ioc->ctl_cmds.status & MPT3_CMD_COMPLETE)) {
+		mpt3sas_check_cmd_timeout(ioc,
+		    ioc->ctl_cmds.status, mpi_request,
+		    sizeof(Mpi26MctpPassthroughRequest_t) / 4, issue_reset);
+		goto issue_host_reset;
+	}
+
+	mpi_reply = ioc->ctl_cmds.reply;
+
+	/* copy out xdata to user */
+	if (data_in_sz)
+		memcpy(command->data_in_buf_ptr, data_in, data_in_sz);
+
+	/* copy out reply message frame to user */
+	if (command->max_reply_bytes) {
+		sz = min_t(u32, command->max_reply_bytes, ioc->reply_sz);
+		memcpy(command->reply_frame_buf_ptr, ioc->ctl_cmds.reply, sz);
+	}
+
+issue_host_reset:
+	if (issue_reset) {
+		ret = -ENODATA;
+		mpt3sas_base_hard_reset_handler(ioc, FORCE_BIG_HAMMER);
+	}
+
+out:
+	/* free memory associated with sg buffers */
+	if (data_in)
+		dma_free_coherent(&ioc->pdev->dev, data_in_sz, data_in,
+		    data_in_dma);
+
+	if (data_out)
+		dma_free_coherent(&ioc->pdev->dev, data_out_sz, data_out,
+		    data_out_dma);
+
+	ioc->ctl_cmds.status = MPT3_CMD_NOT_USED;
+
+unlock_ctl_cmds:
+	mutex_unlock(&ioc->ctl_cmds.mutex);
+
+unlock_pci_access:
+	mutex_unlock(&ioc->pci_access_mutex);
+	return ret;
+
+}
+EXPORT_SYMBOL(mpt3sas_send_mctp_passthru_req);
 
 /**
  * _ctl_ioctl - mpt3ctl main ioctl entry point (unlocked)

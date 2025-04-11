@@ -741,7 +741,9 @@ int add_mtd_device(struct mtd_info *mtd)
 	mtd->dev.type = &mtd_devtype;
 	mtd->dev.class = &mtd_class;
 	mtd->dev.devt = MTD_DEVT(i);
-	dev_set_name(&mtd->dev, "mtd%d", i);
+	error = dev_set_name(&mtd->dev, "mtd%d", i);
+	if (error)
+		goto fail_devname;
 	dev_set_drvdata(&mtd->dev, mtd);
 	mtd_check_of_node(mtd);
 	of_node_get(mtd_get_of_node(mtd));
@@ -790,6 +792,7 @@ fail_nvmem_add:
 	device_unregister(&mtd->dev);
 fail_added:
 	of_node_put(mtd_get_of_node(mtd));
+fail_devname:
 	idr_remove(&mtd_idr, i);
 fail_locked:
 	mutex_unlock(&mtd_table_mutex);
@@ -1053,7 +1056,7 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 			      const struct mtd_partition *parts,
 			      int nr_parts)
 {
-	int ret;
+	int ret, err;
 
 	mtd_set_dev_defaults(mtd);
 
@@ -1105,8 +1108,11 @@ out:
 		nvmem_unregister(mtd->otp_factory_nvmem);
 	}
 
-	if (ret && device_is_registered(&mtd->dev))
-		del_mtd_device(mtd);
+	if (ret && device_is_registered(&mtd->dev)) {
+		err = del_mtd_device(mtd);
+		if (err)
+			pr_err("Error when deleting MTD device (%d)\n", err);
+	}
 
 	return ret;
 }

@@ -129,7 +129,7 @@ static int sh_wdt_stop(struct watchdog_device *wdt_dev)
 
 	spin_lock_irqsave(&wdt->lock, flags);
 
-	del_timer(&wdt->timer);
+	timer_delete(&wdt->timer);
 
 	csr = sh_wdt_read_csr();
 	csr &= ~WTCSR_TME;

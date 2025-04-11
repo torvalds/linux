@@ -2044,7 +2044,6 @@ static const struct pp_hwmgr_func smu8_hwmgr_funcs = {
 	.apply_state_adjust_rules = smu8_apply_state_adjust_rules,
 	.force_dpm_level = smu8_dpm_force_dpm_level,
 	.get_power_state_size = smu8_get_power_state_size,
-	.powerdown_uvd = smu8_dpm_powerdown_uvd,
 	.powergate_uvd = smu8_dpm_powergate_uvd,
 	.powergate_vce = smu8_dpm_powergate_vce,
 	.powergate_acp = smu8_dpm_powergate_acp,

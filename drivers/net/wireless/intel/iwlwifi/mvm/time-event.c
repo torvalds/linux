@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2017 Intel Deutschland GmbH
  */
@@ -771,7 +771,7 @@ static void iwl_mvm_cancel_session_protection(struct iwl_mvm *mvm,
 
 static void iwl_mvm_roc_rm_cmd(struct iwl_mvm *mvm, u32 activity)
 {
-	struct iwl_roc_req roc_cmd = {
+	struct iwl_roc_req_v5 roc_cmd = {
 		.action = cpu_to_le32(FW_CTXT_ACTION_REMOVE),
 		.activity = cpu_to_le32(activity),
 	};
@@ -1102,7 +1102,7 @@ int iwl_mvm_roc_add_cmd(struct iwl_mvm *mvm,
 {
 	int res;
 	u32 duration_tu, delay;
-	struct iwl_roc_req roc_req = {
+	struct iwl_roc_req_v5 roc_req = {
 		.action = cpu_to_le32(FW_CTXT_ACTION_ADD),
 		.activity = cpu_to_le32(activity),
 		.sta_id = cpu_to_le32(mvm->aux_sta.sta_id),

@@ -10,6 +10,7 @@ enum test_setup_type {
 	SETUP_SYSCALL_SLEEP,
 	SETUP_SKB_PROG,
 	SETUP_SKB_PROG_TP,
+	SETUP_XDP_PROG,
 };
 
 static struct {
@@ -18,6 +19,8 @@ static struct {
 } success_tests[] = {
 	{"test_read_write", SETUP_SYSCALL_SLEEP},
 	{"test_dynptr_data", SETUP_SYSCALL_SLEEP},
+	{"test_dynptr_copy", SETUP_SYSCALL_SLEEP},
+	{"test_dynptr_copy_xdp", SETUP_XDP_PROG},
 	{"test_ringbuf", SETUP_SYSCALL_SLEEP},
 	{"test_skb_readonly", SETUP_SKB_PROG},
 	{"test_dynptr_skb_data", SETUP_SKB_PROG},
@@ -114,6 +117,24 @@ static void verify_success(const char *prog_name, enum test_setup_type setup_typ
 
 		err = bpf_prog_test_run_opts(aux_prog_fd, &topts);
 		bpf_link__destroy(link);
+
+		if (!ASSERT_OK(err, "test_run"))
+			goto cleanup;
+
+		break;
+	}
+	case SETUP_XDP_PROG:
+	{
+		char data[5000];
+		int err, prog_fd;
+		LIBBPF_OPTS(bpf_test_run_opts, opts,
+			    .data_in = &data,
+			    .data_size_in = sizeof(data),
+			    .repeat = 1,
+		);
+
+		prog_fd = bpf_program__fd(prog);
+		err = bpf_prog_test_run_opts(prog_fd, &opts);
 
 		if (!ASSERT_OK(err, "test_run"))
 			goto cleanup;

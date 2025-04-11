@@ -222,7 +222,7 @@ static long cec_transmit(struct cec_adapter *adap, struct cec_fh *fh,
 	mutex_lock(&adap->lock);
 	if (adap->log_addrs.num_log_addrs == 0)
 		err = -EPERM;
-	else if (adap->is_configuring)
+	else if (adap->is_configuring && !msg_is_raw(&msg))
 		err = -ENONET;
 	else if (cec_is_busy(adap, fh))
 		err = -EBUSY;

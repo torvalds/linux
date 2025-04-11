@@ -777,7 +777,7 @@ static int p4_validate_raw_event(struct perf_event *event)
 	 * the user needs special permissions to be able to use it
 	 */
 	if (p4_ht_active() && p4_event_bind_map[v].shared) {
-		v = perf_allow_cpu(&event->attr);
+		v = perf_allow_cpu();
 		if (v)
 			return v;
 	}

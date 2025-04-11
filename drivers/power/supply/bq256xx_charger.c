@@ -1657,7 +1657,7 @@ static int bq256xx_parse_dt(struct bq256xx_device *bq,
 	int ret = 0;
 
 	psy_cfg->drv_data = bq;
-	psy_cfg->of_node = dev->of_node;
+	psy_cfg->fwnode = dev_fwnode(dev);
 
 	ret = device_property_read_u32(bq->dev, "ti,watchdog-timeout-ms",
 				       &bq->watchdog_timer);

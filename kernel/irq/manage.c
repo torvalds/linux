@@ -35,6 +35,8 @@ static int __init setup_forced_irqthreads(char *arg)
 early_param("threadirqs", setup_forced_irqthreads);
 #endif
 
+static int __irq_get_irqchip_state(struct irq_data *d, enum irqchip_irq_state which, bool *state);
+
 static void __synchronize_hardirq(struct irq_desc *desc, bool sync_chip)
 {
 	struct irq_data *irqd = irq_desc_get_irq_data(desc);
@@ -187,7 +189,7 @@ bool irq_can_set_affinity_usr(unsigned int irq)
  *	set_cpus_allowed_ptr() here as we hold desc->lock and this
  *	code can be called from hard interrupt context.
  */
-void irq_set_thread_affinity(struct irq_desc *desc)
+static void irq_set_thread_affinity(struct irq_desc *desc)
 {
 	struct irqaction *action;
 
@@ -2789,8 +2791,7 @@ out:
 	irq_put_desc_unlock(desc, flags);
 }
 
-int __irq_get_irqchip_state(struct irq_data *data, enum irqchip_irq_state which,
-			    bool *state)
+static int __irq_get_irqchip_state(struct irq_data *data, enum irqchip_irq_state which, bool *state)
 {
 	struct irq_chip *chip;
 	int err = -EINVAL;

@@ -363,6 +363,17 @@ class KUnitParserTest(unittest.TestCase):
 		self.print_mock.assert_any_call(StrContains('  Indented more.'))
 		self.noPrintCallContains('not ok 1 test1')
 
+	def test_parse_late_test_plan(self):
+		output = """
+		TAP version 13
+		ok 4 test4
+		1..4
+		"""
+		result = kunit_parser.parse_run_tests(output.splitlines(), stdout)
+		# Missing test results after test plan should alert a suspected test crash.
+		self.assertEqual(kunit_parser.TestStatus.TEST_CRASHED, result.status)
+		self.assertEqual(result.counts, kunit_parser.TestCounts(passed=1, crashed=1, errors=1))
+
 def line_stream_from_strs(strs: Iterable[str]) -> kunit_parser.LineStream:
 	return kunit_parser.LineStream(enumerate(strs, start=1))
 

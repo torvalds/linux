@@ -31,9 +31,6 @@ struct perf_mem_event perf_mem_events[PERF_MEM_EVENTS__MAX] = {
 
 bool perf_mem_record[PERF_MEM_EVENTS__MAX] = { 0 };
 
-static char mem_loads_name[100];
-static char mem_stores_name[100];
-
 struct perf_mem_event *perf_pmu__mem_events_ptr(struct perf_pmu *pmu, int i)
 {
 	if (i >= PERF_MEM_EVENTS__MAX || !pmu)
@@ -81,7 +78,8 @@ int perf_pmu__mem_events_num_mem_pmus(struct perf_pmu *pmu)
 	return num;
 }
 
-static const char *perf_pmu__mem_events_name(int i, struct perf_pmu *pmu)
+static const char *perf_pmu__mem_events_name(struct perf_pmu *pmu, int i,
+					     char *buf, size_t buf_size)
 {
 	struct perf_mem_event *e;
 
@@ -96,31 +94,31 @@ static const char *perf_pmu__mem_events_name(int i, struct perf_pmu *pmu)
 		if (e->ldlat) {
 			if (!e->aux_event) {
 				/* ARM and Most of Intel */
-				scnprintf(mem_loads_name, sizeof(mem_loads_name),
+				scnprintf(buf, buf_size,
 					  e->name, pmu->name,
 					  perf_mem_events__loads_ldlat);
 			} else {
 				/* Intel with mem-loads-aux event */
-				scnprintf(mem_loads_name, sizeof(mem_loads_name),
+				scnprintf(buf, buf_size,
 					  e->name, pmu->name, pmu->name,
 					  perf_mem_events__loads_ldlat);
 			}
 		} else {
 			if (!e->aux_event) {
 				/* AMD and POWER */
-				scnprintf(mem_loads_name, sizeof(mem_loads_name),
+				scnprintf(buf, buf_size,
 					  e->name, pmu->name);
-			} else
+			} else {
 				return NULL;
+			}
 		}
-
-		return mem_loads_name;
+		return buf;
 	}
 
 	if (i == PERF_MEM_EVENTS__STORE) {
-		scnprintf(mem_stores_name, sizeof(mem_stores_name),
+		scnprintf(buf, buf_size,
 			  e->name, pmu->name);
-		return mem_stores_name;
+		return buf;
 	}
 
 	return NULL;
@@ -189,7 +187,7 @@ static bool perf_pmu__mem_events_supported(const char *mnt, struct perf_pmu *pmu
 	if (!e->event_name)
 		return true;
 
-	scnprintf(path, PATH_MAX, "%s/devices/%s/events/%s", mnt, pmu->name, e->event_name);
+	scnprintf(path, PATH_MAX, "%s/bus/event_source/devices/%s/events/%s", mnt, pmu->name, e->event_name);
 
 	return !stat(path, &st);
 }
@@ -238,69 +236,87 @@ void perf_pmu__mem_events_list(struct perf_pmu *pmu)
 	int j;
 
 	for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
+		char buf[128];
 		struct perf_mem_event *e = perf_pmu__mem_events_ptr(pmu, j);
 
 		fprintf(stderr, "%-*s%-*s%s",
 			e->tag ? 13 : 0,
 			e->tag ? : "",
 			e->tag && verbose > 0 ? 25 : 0,
-			e->tag && verbose > 0 ? perf_pmu__mem_events_name(j, pmu) : "",
+			e->tag && verbose > 0
+			? perf_pmu__mem_events_name(pmu, j, buf, sizeof(buf))
+			: "",
 			e->supported ? ": available\n" : "");
 	}
 }
 
-int perf_mem_events__record_args(const char **rec_argv, int *argv_nr)
+int perf_mem_events__record_args(const char **rec_argv, int *argv_nr, char **event_name_storage_out)
 {
 	const char *mnt = sysfs__mount();
 	struct perf_pmu *pmu = NULL;
-	struct perf_mem_event *e;
 	int i = *argv_nr;
-	const char *s;
-	char *copy;
 	struct perf_cpu_map *cpu_map = NULL;
-	int ret;
+	size_t event_name_storage_size =
+		perf_pmu__mem_events_num_mem_pmus(NULL) * PERF_MEM_EVENTS__MAX * 128;
+	size_t event_name_storage_remaining = event_name_storage_size;
+	char *event_name_storage = malloc(event_name_storage_size);
+	char *event_name_storage_ptr = event_name_storage;
 
+	if (!event_name_storage)
+		return -ENOMEM;
+
+	*event_name_storage_out = NULL;
 	while ((pmu = perf_pmus__scan_mem(pmu)) != NULL) {
 		for (int j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
-			e = perf_pmu__mem_events_ptr(pmu, j);
+			const char *s;
+			struct perf_mem_event *e = perf_pmu__mem_events_ptr(pmu, j);
+			int ret;
 
 			if (!perf_mem_record[j])
 				continue;
 
 			if (!e->supported) {
+				char buf[128];
+
 				pr_err("failed: event '%s' not supported\n",
-					perf_pmu__mem_events_name(j, pmu));
+					perf_pmu__mem_events_name(pmu, j, buf, sizeof(buf)));
+				free(event_name_storage);
 				return -1;
 			}
 
-			s = perf_pmu__mem_events_name(j, pmu);
+			s = perf_pmu__mem_events_name(pmu, j, event_name_storage_ptr,
+						      event_name_storage_remaining);
 			if (!s || !perf_pmu__mem_events_supported(mnt, pmu, e))
 				continue;
 
-			copy = strdup(s);
-			if (!copy)
-				return -1;
-
 			rec_argv[i++] = "-e";
-			rec_argv[i++] = copy;
+			rec_argv[i++] = event_name_storage_ptr;
+			event_name_storage_remaining -= strlen(event_name_storage_ptr) + 1;
+			event_name_storage_ptr += strlen(event_name_storage_ptr) + 1;
 
 			ret = perf_cpu_map__merge(&cpu_map, pmu->cpus);
-			if (ret < 0)
+			if (ret < 0) {
+				free(event_name_storage);
 				return ret;
+			}
 		}
 	}
 
 	if (cpu_map) {
-		if (!perf_cpu_map__equal(cpu_map, cpu_map__online())) {
+		struct perf_cpu_map *online = cpu_map__online();
+
+		if (!perf_cpu_map__equal(cpu_map, online)) {
 			char buf[200];
 
 			cpu_map__snprint(cpu_map, buf, sizeof(buf));
 			pr_warning("Memory events are enabled on a subset of CPUs: %s\n", buf);
 		}
+		perf_cpu_map__put(online);
 		perf_cpu_map__put(cpu_map);
 	}
 
 	*argv_nr = i;
+	*event_name_storage_out = event_name_storage;
 	return 0;
 }
 

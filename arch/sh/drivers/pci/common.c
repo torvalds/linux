@@ -90,7 +90,7 @@ static void pcibios_enable_err(struct timer_list *t)
 {
 	struct pci_channel *hose = from_timer(hose, t, err_timer);
 
-	del_timer(&hose->err_timer);
+	timer_delete(&hose->err_timer);
 	printk(KERN_DEBUG "PCI: re-enabling error IRQ.\n");
 	enable_irq(hose->err_irq);
 }
@@ -99,7 +99,7 @@ static void pcibios_enable_serr(struct timer_list *t)
 {
 	struct pci_channel *hose = from_timer(hose, t, serr_timer);
 
-	del_timer(&hose->serr_timer);
+	timer_delete(&hose->serr_timer);
 	printk(KERN_DEBUG "PCI: re-enabling system error IRQ.\n");
 	enable_irq(hose->serr_irq);
 }

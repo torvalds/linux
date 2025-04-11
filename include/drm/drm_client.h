@@ -143,6 +143,14 @@ struct drm_client_dev {
 	bool suspended;
 
 	/**
+	 * @hotplug_pending:
+	 *
+	 * A hotplug event has been received while the client was suspended.
+	 * Try again on resume.
+	 */
+	bool hotplug_pending;
+
+	/**
 	 * @hotplug_failed:
 	 *
 	 * Set by client hotplug helpers if the hotplugging failed

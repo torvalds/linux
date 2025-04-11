@@ -2950,8 +2950,8 @@ static int virtio_mem_probe(struct virtio_device *vdev)
 	mutex_init(&vm->hotplug_mutex);
 	INIT_LIST_HEAD(&vm->next);
 	spin_lock_init(&vm->removal_lock);
-	hrtimer_init(&vm->retry_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	vm->retry_timer.function = virtio_mem_timer_expired;
+	hrtimer_setup(&vm->retry_timer, virtio_mem_timer_expired, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL);
 	vm->retry_timer_ms = VIRTIO_MEM_RETRY_TIMER_MIN_MS;
 	vm->in_kdump = is_kdump_kernel();
 

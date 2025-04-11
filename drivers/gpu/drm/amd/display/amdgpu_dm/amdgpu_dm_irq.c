@@ -473,7 +473,7 @@ void amdgpu_dm_irq_fini(struct amdgpu_device *adev)
 	unregister_all_irq_handlers(adev);
 }
 
-int amdgpu_dm_irq_suspend(struct amdgpu_device *adev)
+void amdgpu_dm_irq_suspend(struct amdgpu_device *adev)
 {
 	int src;
 	struct list_head *hnd_list_h;
@@ -511,10 +511,9 @@ int amdgpu_dm_irq_suspend(struct amdgpu_device *adev)
 	}
 
 	DM_IRQ_TABLE_UNLOCK(adev, irq_table_flags);
-	return 0;
 }
 
-int amdgpu_dm_irq_resume_early(struct amdgpu_device *adev)
+void amdgpu_dm_irq_resume_early(struct amdgpu_device *adev)
 {
 	int src;
 	struct list_head *hnd_list_h, *hnd_list_l;
@@ -522,7 +521,7 @@ int amdgpu_dm_irq_resume_early(struct amdgpu_device *adev)
 
 	DM_IRQ_TABLE_LOCK(adev, irq_table_flags);
 
-	DRM_DEBUG_KMS("DM_IRQ: early resume\n");
+	drm_dbg(adev_to_drm(adev), "DM_IRQ: early resume\n");
 
 	/* re-enable short pulse interrupts HW interrupt */
 	for (src = DC_IRQ_SOURCE_HPD1RX; src <= DC_IRQ_SOURCE_HPD6RX; src++) {
@@ -533,11 +532,9 @@ int amdgpu_dm_irq_resume_early(struct amdgpu_device *adev)
 	}
 
 	DM_IRQ_TABLE_UNLOCK(adev, irq_table_flags);
-
-	return 0;
 }
 
-int amdgpu_dm_irq_resume_late(struct amdgpu_device *adev)
+void amdgpu_dm_irq_resume_late(struct amdgpu_device *adev)
 {
 	int src;
 	struct list_head *hnd_list_h, *hnd_list_l;
@@ -545,7 +542,7 @@ int amdgpu_dm_irq_resume_late(struct amdgpu_device *adev)
 
 	DM_IRQ_TABLE_LOCK(adev, irq_table_flags);
 
-	DRM_DEBUG_KMS("DM_IRQ: resume\n");
+	drm_dbg(adev_to_drm(adev), "DM_IRQ: resume\n");
 
 	/**
 	 * Renable HW interrupt  for HPD and only since FLIP and VBLANK
@@ -559,7 +556,6 @@ int amdgpu_dm_irq_resume_late(struct amdgpu_device *adev)
 	}
 
 	DM_IRQ_TABLE_UNLOCK(adev, irq_table_flags);
-	return 0;
 }
 
 /*

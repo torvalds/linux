@@ -77,7 +77,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		usb0: ohci@500000 {
+		usb0: usb@500000 {
 			compatible = "atmel,at91rm9200-ohci", "usb-ohci";
 			reg = <0x00500000 0x100000>;
 			interrupts = <20 IRQ_TYPE_LEVEL_HIGH 2>;

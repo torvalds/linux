@@ -76,12 +76,6 @@ void hchacha_block_arch(const u32 *state, u32 *stream, int nrounds)
 }
 EXPORT_SYMBOL(hchacha_block_arch);
 
-void chacha_init_arch(u32 *state, const u32 *key, const u8 *iv)
-{
-	chacha_init_generic(state, key, iv);
-}
-EXPORT_SYMBOL(chacha_init_arch);
-
 void chacha_crypt_arch(u32 *state, u8 *dst, const u8 *src, unsigned int bytes,
 		       int nrounds)
 {
@@ -116,7 +110,7 @@ static int chacha_stream_xor(struct skcipher_request *req,
 
 	err = skcipher_walk_virt(&walk, req, false);
 
-	chacha_init_generic(state, ctx->key, iv);
+	chacha_init(state, ctx->key, iv);
 
 	while (walk.nbytes > 0) {
 		unsigned int nbytes = walk.nbytes;
@@ -166,7 +160,7 @@ static int do_xchacha(struct skcipher_request *req, bool neon)
 	u32 state[16];
 	u8 real_iv[16];
 
-	chacha_init_generic(state, ctx->key, req->iv);
+	chacha_init(state, ctx->key, req->iv);
 
 	if (!IS_ENABLED(CONFIG_KERNEL_MODE_NEON) || !neon) {
 		hchacha_block_arm(state, subctx.key, ctx->nrounds);

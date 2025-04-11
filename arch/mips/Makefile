@@ -100,10 +100,6 @@ LDFLAGS_vmlinux			+= -G 0 -static -n -nostdlib
 KBUILD_AFLAGS_MODULE		+= -mlong-calls
 KBUILD_CFLAGS_MODULE		+= -mlong-calls
 
-ifeq ($(CONFIG_RELOCATABLE),y)
-LDFLAGS_vmlinux			+= --emit-relocs
-endif
-
 cflags-y += -ffreestanding
 
 cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= -EB

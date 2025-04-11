@@ -195,7 +195,7 @@ struct iommu_domain *amd_iommu_domain_alloc_sva(struct device *dev,
 
 	ret = mmu_notifier_register(&pdom->mn, mm);
 	if (ret) {
-		protection_domain_free(pdom);
+		amd_iommu_domain_free(&pdom->domain);
 		return ERR_PTR(ret);
 	}
 

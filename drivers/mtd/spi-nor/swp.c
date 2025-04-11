@@ -5,6 +5,7 @@
  * Copyright (C) 2005, Intec Automation Inc.
  * Copyright (C) 2014, Freescale Semiconductor, Inc.
  */
+#include <linux/math64.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/spi-nor.h>
 

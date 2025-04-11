@@ -514,26 +514,37 @@ static int rtq6056_adc_read_avail(struct iio_dev *indio_dev,
 	}
 }
 
-static int rtq6056_adc_write_raw(struct iio_dev *indio_dev,
-				 struct iio_chan_spec const *chan, int val,
-				 int val2, long mask)
+static int __rtq6056_adc_write_raw(struct iio_dev *indio_dev,
+				   struct iio_chan_spec const *chan, int val,
+				   long mask)
 {
 	struct rtq6056_priv *priv = iio_priv(indio_dev);
 	const struct richtek_dev_data *devdata = priv->devdata;
 
-	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-		switch (mask) {
-		case IIO_CHAN_INFO_SAMP_FREQ:
-			if (devdata->fixed_samp_freq)
-				return -EINVAL;
-			return rtq6056_adc_set_samp_freq(priv, chan, val);
-		case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
-			return devdata->set_average(priv, val);
-		default:
+	switch (mask) {
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		if (devdata->fixed_samp_freq)
 			return -EINVAL;
-		}
+		return rtq6056_adc_set_samp_freq(priv, chan, val);
+	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		return devdata->set_average(priv, val);
+	default:
+		return -EINVAL;
 	}
-	unreachable();
+}
+
+static int rtq6056_adc_write_raw(struct iio_dev *indio_dev,
+				 struct iio_chan_spec const *chan, int val,
+				 int val2, long mask)
+{
+	int ret;
+
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
+	ret = __rtq6056_adc_write_raw(indio_dev, chan, val, mask);
+	iio_device_release_direct(indio_dev);
+	return ret;
 }
 
 static const char *rtq6056_channel_labels[RTQ6056_MAX_CHANNEL] = {
@@ -590,9 +601,8 @@ static ssize_t shunt_resistor_store(struct device *dev,
 	struct rtq6056_priv *priv = iio_priv(indio_dev);
 	int val, val_fract, ret;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
 
 	ret = iio_str_to_fixpoint(buf, 100000, &val, &val_fract);
 	if (ret)
@@ -601,7 +611,7 @@ static ssize_t shunt_resistor_store(struct device *dev,
 	ret = rtq6056_set_shunt_resistor(priv, val * 1000000 + val_fract);
 
 out_store:
-	iio_device_release_direct_mode(indio_dev);
+	iio_device_release_direct(indio_dev);
 
 	return ret ?: len;
 }

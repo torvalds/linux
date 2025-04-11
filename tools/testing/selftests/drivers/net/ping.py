@@ -13,20 +13,20 @@ remote_ifname=""
 no_sleep=False
 
 def _test_v4(cfg) -> None:
-    cfg.require_v4()
+    cfg.require_ipver("4")
 
-    cmd(f"ping -c 1 -W0.5 {cfg.remote_v4}")
-    cmd(f"ping -c 1 -W0.5 {cfg.v4}", host=cfg.remote)
-    cmd(f"ping -s 65000 -c 1 -W0.5 {cfg.remote_v4}")
-    cmd(f"ping -s 65000 -c 1 -W0.5 {cfg.v4}", host=cfg.remote)
+    cmd("ping -c 1 -W0.5 " + cfg.remote_addr_v["4"])
+    cmd("ping -c 1 -W0.5 " + cfg.addr_v["4"], host=cfg.remote)
+    cmd("ping -s 65000 -c 1 -W0.5 " + cfg.remote_addr_v["4"])
+    cmd("ping -s 65000 -c 1 -W0.5 " + cfg.addr_v["4"], host=cfg.remote)
 
 def _test_v6(cfg) -> None:
-    cfg.require_v6()
+    cfg.require_ipver("6")
 
-    cmd(f"ping -c 1 -W5 {cfg.remote_v6}")
-    cmd(f"ping -c 1 -W5 {cfg.v6}", host=cfg.remote)
-    cmd(f"ping -s 65000 -c 1 -W0.5 {cfg.remote_v6}")
-    cmd(f"ping -s 65000 -c 1 -W0.5 {cfg.v6}", host=cfg.remote)
+    cmd("ping -c 1 -W5 " + cfg.remote_addr_v["6"])
+    cmd("ping -c 1 -W5 " + cfg.addr_v["6"], host=cfg.remote)
+    cmd("ping -s 65000 -c 1 -W0.5 " + cfg.remote_addr_v["6"])
+    cmd("ping -s 65000 -c 1 -W0.5 " + cfg.addr_v["6"], host=cfg.remote)
 
 def _test_tcp(cfg) -> None:
     cfg.require_cmd("socat", remote=True)
@@ -56,8 +56,7 @@ def _set_offload_checksum(cfg, netnl, on) -> None:
         return
 
 def _set_xdp_generic_sb_on(cfg) -> None:
-    test_dir = os.path.dirname(os.path.realpath(__file__))
-    prog = test_dir + "/../../net/lib/xdp_dummy.bpf.o"
+    prog = cfg.net_lib_dir / "xdp_dummy.bpf.o"
     cmd(f"ip link set dev {remote_ifname} mtu 1500", shell=True, host=cfg.remote)
     cmd(f"ip link set dev {cfg.ifname} mtu 1500 xdpgeneric obj {prog} sec xdp", shell=True)
     defer(cmd, f"ip link set dev {cfg.ifname} xdpgeneric off")
@@ -66,8 +65,7 @@ def _set_xdp_generic_sb_on(cfg) -> None:
         time.sleep(10)
 
 def _set_xdp_generic_mb_on(cfg) -> None:
-    test_dir = os.path.dirname(os.path.realpath(__file__))
-    prog = test_dir + "/../../net/lib/xdp_dummy.bpf.o"
+    prog = cfg.net_lib_dir / "xdp_dummy.bpf.o"
     cmd(f"ip link set dev {remote_ifname} mtu 9000", shell=True, host=cfg.remote)
     defer(ip, f"link set dev {remote_ifname} mtu 1500", host=cfg.remote)
     ip("link set dev %s mtu 9000 xdpgeneric obj %s sec xdp.frags" % (cfg.ifname, prog))
@@ -77,8 +75,7 @@ def _set_xdp_generic_mb_on(cfg) -> None:
         time.sleep(10)
 
 def _set_xdp_native_sb_on(cfg) -> None:
-    test_dir = os.path.dirname(os.path.realpath(__file__))
-    prog = test_dir + "/../../net/lib/xdp_dummy.bpf.o"
+    prog = cfg.net_lib_dir / "xdp_dummy.bpf.o"
     cmd(f"ip link set dev {remote_ifname} mtu 1500", shell=True, host=cfg.remote)
     cmd(f"ip -j link set dev {cfg.ifname} mtu 1500 xdp obj {prog} sec xdp", shell=True)
     defer(ip, f"link set dev {cfg.ifname} mtu 1500 xdp off")
@@ -95,8 +92,7 @@ def _set_xdp_native_sb_on(cfg) -> None:
         time.sleep(10)
 
 def _set_xdp_native_mb_on(cfg) -> None:
-    test_dir = os.path.dirname(os.path.realpath(__file__))
-    prog = test_dir + "/../../net/lib/xdp_dummy.bpf.o"
+    prog = cfg.net_lib_dir / "xdp_dummy.bpf.o"
     cmd(f"ip link set dev {remote_ifname} mtu 9000", shell=True, host=cfg.remote)
     defer(ip, f"link set dev {remote_ifname} mtu 1500", host=cfg.remote)
     try:
@@ -109,8 +105,7 @@ def _set_xdp_native_mb_on(cfg) -> None:
         time.sleep(10)
 
 def _set_xdp_offload_on(cfg) -> None:
-    test_dir = os.path.dirname(os.path.realpath(__file__))
-    prog = test_dir + "/../../net/lib/xdp_dummy.bpf.o"
+    prog = cfg.net_lib_dir / "xdp_dummy.bpf.o"
     cmd(f"ip link set dev {cfg.ifname} mtu 1500", shell=True)
     try:
         cmd(f"ip link set dev {cfg.ifname} xdpoffload obj {prog} sec xdp", shell=True)
@@ -126,7 +121,7 @@ def get_interface_info(cfg) -> None:
     global remote_ifname
     global no_sleep
 
-    remote_info = cmd(f"ip -4 -o addr show to {cfg.remote_v4} | awk '{{print $2}}'", shell=True, host=cfg.remote).stdout
+    remote_info = cmd(f"ip -4 -o addr show to {cfg.remote_addr_v['4']} | awk '{{print $2}}'", shell=True, host=cfg.remote).stdout
     remote_ifname = remote_info.rstrip('\n')
     if remote_ifname == "":
         raise KsftFailEx('Can not get remote interface')

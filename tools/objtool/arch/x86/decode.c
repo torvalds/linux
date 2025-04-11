@@ -36,7 +36,7 @@ static int is_x86_64(const struct elf *elf)
 	case EM_386:
 		return 0;
 	default:
-		WARN("unexpected ELF machine type %d", elf->ehdr.e_machine);
+		ERROR("unexpected ELF machine type %d", elf->ehdr.e_machine);
 		return -1;
 	}
 }
@@ -173,7 +173,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 	ret = insn_decode(&ins, sec->data->d_buf + offset, maxlen,
 			  x86_64 ? INSN_MODE_64 : INSN_MODE_32);
 	if (ret < 0) {
-		WARN("can't decode instruction at %s:0x%lx", sec->name, offset);
+		ERROR("can't decode instruction at %s:0x%lx", sec->name, offset);
 		return -1;
 	}
 
@@ -321,7 +321,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 			break;
 
 		default:
-			/* WARN ? */
+			/* ERROR ? */
 			break;
 		}
 
@@ -561,8 +561,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 			if (ins.prefixes.nbytes == 1 &&
 			    ins.prefixes.bytes[0] == 0xf2) {
 				/* ENQCMD cannot be used in the kernel. */
-				WARN("ENQCMD instruction at %s:%lx", sec->name,
-				     offset);
+				WARN("ENQCMD instruction at %s:%lx", sec->name, offset);
 			}
 
 		} else if (op2 == 0xa0 || op2 == 0xa8) {
@@ -646,7 +645,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 			if (disp->sym->type == STT_SECTION)
 				func = find_symbol_by_offset(disp->sym->sec, reloc_addend(disp));
 			if (!func) {
-				WARN("no func for pv_ops[]");
+				ERROR("no func for pv_ops[]");
 				return -1;
 			}
 
@@ -776,7 +775,7 @@ const char *arch_nop_insn(int len)
 	};
 
 	if (len < 1 || len > 5) {
-		WARN("invalid NOP size: %d\n", len);
+		ERROR("invalid NOP size: %d\n", len);
 		return NULL;
 	}
 
@@ -796,7 +795,7 @@ const char *arch_ret_insn(int len)
 	};
 
 	if (len < 1 || len > 5) {
-		WARN("invalid RET size: %d\n", len);
+		ERROR("invalid RET size: %d\n", len);
 		return NULL;
 	}
 

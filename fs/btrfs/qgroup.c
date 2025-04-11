@@ -956,8 +956,8 @@ static int btrfs_clean_quota_tree(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 
 	key.objectid = 0;
-	key.offset = 0;
 	key.type = 0;
+	key.offset = 0;
 
 	while (1) {
 		ret = btrfs_search_slot(trans, root, &key, path, -1, 1);

@@ -182,7 +182,6 @@ static inline unsigned long bh_offset(const struct buffer_head *bh)
 		BUG_ON(!PagePrivate(page));			\
 		((struct buffer_head *)page_private(page));	\
 	})
-#define page_has_buffers(page)	PagePrivate(page)
 #define folio_buffers(folio)		folio_get_private(folio)
 
 void buffer_check_dirty_writeback(struct folio *folio,
@@ -271,7 +270,7 @@ int cont_write_begin(struct file *, struct address_space *, loff_t,
 			unsigned, struct folio **, void **,
 			get_block_t *, loff_t *);
 int generic_cont_expand_simple(struct inode *inode, loff_t size);
-void block_commit_write(struct page *page, unsigned int from, unsigned int to);
+void block_commit_write(struct folio *folio, size_t from, size_t to);
 int block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 				get_block_t get_block);
 sector_t generic_block_bmap(struct address_space *, sector_t, get_block_t *);

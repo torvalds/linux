@@ -87,6 +87,7 @@ struct bch_ioctl_incremental {
 #define BCH_IOCTL_FSCK_OFFLINE	_IOW(0xbc,	19,  struct bch_ioctl_fsck_offline)
 #define BCH_IOCTL_FSCK_ONLINE	_IOW(0xbc,	20,  struct bch_ioctl_fsck_online)
 #define BCH_IOCTL_QUERY_ACCOUNTING _IOW(0xbc,	21,  struct bch_ioctl_query_accounting)
+#define BCH_IOCTL_QUERY_COUNTERS _IOW(0xbc,	21,  struct bch_ioctl_query_counters)
 
 /* ioctl below act on a particular file, not the filesystem as a whole: */
 
@@ -215,6 +216,10 @@ struct bch_ioctl_data {
 	union {
 	struct {
 		__u32		dev;
+		__u32		data_types;
+	}			scrub;
+	struct {
+		__u32		dev;
 		__u32		pad;
 	}			migrate;
 	struct {
@@ -229,6 +234,11 @@ enum bch_data_event {
 	BCH_DATA_EVENT_NR	= 1,
 };
 
+enum data_progress_data_type_special {
+	DATA_PROGRESS_DATA_TYPE_phys	= 254,
+	DATA_PROGRESS_DATA_TYPE_done	= 255,
+};
+
 struct bch_ioctl_data_progress {
 	__u8			data_type;
 	__u8			btree_id;
@@ -237,11 +247,19 @@ struct bch_ioctl_data_progress {
 
 	__u64			sectors_done;
 	__u64			sectors_total;
+	__u64			sectors_error_corrected;
+	__u64			sectors_error_uncorrected;
 } __packed __aligned(8);
+
+enum bch_ioctl_data_event_ret {
+	BCH_IOCTL_DATA_EVENT_RET_done		= 1,
+	BCH_IOCTL_DATA_EVENT_RET_device_offline	= 2,
+};
 
 struct bch_ioctl_data_event {
 	__u8			type;
-	__u8			pad[7];
+	__u8			ret;
+	__u8			pad[6];
 	union {
 	struct bch_ioctl_data_progress p;
 	__u64			pad2[15];
@@ -441,6 +459,15 @@ struct bch_ioctl_query_accounting {
 	__u32			accounting_types_mask; /* input parameter */
 
 	struct bkey_i_accounting accounting[];
+};
+
+#define BCH_IOCTL_QUERY_COUNTERS_MOUNT	(1 << 0)
+
+struct bch_ioctl_query_counters {
+	__u16			nr;
+	__u16			flags;
+	__u32			pad;
+	__u64			d[];
 };
 
 #endif /* _BCACHEFS_IOCTL_H */

@@ -45,7 +45,6 @@ int
 ice_rx_flow_steer(struct net_device *netdev, const struct sk_buff *skb,
 		  u16 rxq_idx, u32 flow_id);
 void ice_clear_arfs(struct ice_vsi *vsi);
-void ice_free_cpu_rx_rmap(struct ice_vsi *vsi);
 void ice_init_arfs(struct ice_vsi *vsi);
 void ice_sync_arfs_fltrs(struct ice_pf *pf);
 int ice_set_cpu_rx_rmap(struct ice_vsi *vsi);
@@ -56,7 +55,6 @@ ice_is_arfs_using_perfect_flow(struct ice_hw *hw,
 			       enum ice_fltr_ptype flow_type);
 #else
 static inline void ice_clear_arfs(struct ice_vsi *vsi) { }
-static inline void ice_free_cpu_rx_rmap(struct ice_vsi *vsi) { }
 static inline void ice_init_arfs(struct ice_vsi *vsi) { }
 static inline void ice_sync_arfs_fltrs(struct ice_pf *pf) { }
 static inline void ice_remove_arfs(struct ice_pf *pf) { }

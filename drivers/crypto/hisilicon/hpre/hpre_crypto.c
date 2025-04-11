@@ -39,6 +39,8 @@ struct hpre_ctx;
 #define HPRE_DFX_SEC_TO_US	1000000
 #define HPRE_DFX_US_TO_NS	1000
 
+#define HPRE_ENABLE_HPCORE_SHIFT	7
+
 /* due to nist p521  */
 #define HPRE_ECC_MAX_KSZ	66
 
@@ -131,6 +133,8 @@ struct hpre_ctx {
 	};
 	/* for ecc algorithms */
 	unsigned int curve_id;
+	/* for high performance core */
+	u8 enable_hpcore;
 };
 
 struct hpre_asym_request {
@@ -1619,6 +1623,8 @@ static int hpre_ecdh_compute_value(struct kpp_request *req)
 	}
 
 	msg->dw0 = cpu_to_le32(le32_to_cpu(msg->dw0) | HPRE_ALG_ECC_MUL);
+	msg->resv1 = ctx->enable_hpcore << HPRE_ENABLE_HPCORE_SHIFT;
+
 	ret = hpre_send(ctx, msg);
 	if (likely(!ret))
 		return -EINPROGRESS;
@@ -1653,6 +1659,7 @@ static int hpre_ecdh_nist_p256_init_tfm(struct crypto_kpp *tfm)
 	struct hpre_ctx *ctx = kpp_tfm_ctx(tfm);
 
 	ctx->curve_id = ECC_CURVE_NIST_P256;
+	ctx->enable_hpcore = 1;
 
 	kpp_set_reqsize(tfm, sizeof(struct hpre_asym_request) + hpre_align_pd());
 

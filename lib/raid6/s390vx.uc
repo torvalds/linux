@@ -11,6 +11,7 @@
  * This file is postprocessed using unroll.awk.
  */
 
+#include <linux/cpufeature.h>
 #include <linux/raid/pq.h>
 #include <asm/fpu.h>
 

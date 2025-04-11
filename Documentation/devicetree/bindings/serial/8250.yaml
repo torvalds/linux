@@ -77,7 +77,6 @@ properties:
               - altr,16550-FIFO64
               - altr,16550-FIFO128
               - fsl,16550-FIFO64
-              - fsl,ns16550
               - andestech,uart16550
               - nxp,lpc1850-uart
               - opencores,uart16550-rtlsvn105
@@ -86,6 +85,7 @@ properties:
       - items:
           - enum:
               - ns16750
+              - fsl,ns16550
               - cavium,octeon-3860-uart
               - xlnx,xps-uart16550-2.00.b
               - ralink,rt2880-uart

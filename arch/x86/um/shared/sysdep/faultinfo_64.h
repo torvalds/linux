@@ -29,4 +29,16 @@ struct faultinfo {
 
 #define PTRACE_FULL_FAULTINFO 1
 
+#define ___backtrack_faulted(_faulted)					\
+	asm volatile (							\
+		"mov $0, %0\n"						\
+		"movq $__get_kernel_nofault_faulted_%=,%1\n"		\
+		"jmp _end_%=\n"						\
+		"__get_kernel_nofault_faulted_%=:\n"			\
+		"mov $1, %0;"						\
+		"_end_%=:"						\
+		: "=r" (_faulted),					\
+		  "=m" (current->thread.segv_continue) ::		\
+	)
+
 #endif

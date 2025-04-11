@@ -8,8 +8,6 @@
 use super::{lock::Backend, lock::Guard, LockClassKey};
 use crate::{
     ffi::{c_int, c_long},
-    init::PinInit,
-    pin_init,
     str::CStr,
     task::{
         MAX_SCHEDULE_TIMEOUT, TASK_FREEZABLE, TASK_INTERRUPTIBLE, TASK_NORMAL, TASK_UNINTERRUPTIBLE,
@@ -18,7 +16,7 @@ use crate::{
     types::Opaque,
 };
 use core::{marker::PhantomPinned, pin::Pin, ptr};
-use macros::pin_data;
+use pin_init::{pin_data, pin_init, PinInit};
 
 /// Creates a [`CondVar`] initialiser with the given name and a newly-created lock class.
 #[macro_export]
@@ -38,7 +36,7 @@ pub use new_condvar;
 /// spuriously.
 ///
 /// Instances of [`CondVar`] need a lock class and to be pinned. The recommended way to create such
-/// instances is with the [`pin_init`](crate::pin_init) and [`new_condvar`] macros.
+/// instances is with the [`pin_init`](crate::pin_init!) and [`new_condvar`] macros.
 ///
 /// # Examples
 ///

@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2009, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2015		Intel Deutschland GmbH
- * Copyright (C) 2019-2020, 2022-2024 Intel Corporation
+ * Copyright (C) 2019-2020, 2022-2025 Intel Corporation
  */
 
 #include <linux/kernel.h>
@@ -1297,25 +1297,24 @@ void cfg80211_stop_background_radar_detection(struct wireless_dev *wdev)
 
 int cfg80211_assoc_ml_reconf(struct cfg80211_registered_device *rdev,
 			     struct net_device *dev,
-			     struct cfg80211_assoc_link *links,
-			     u16 rem_links)
+			     struct cfg80211_ml_reconf_req *req)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
 
 	lockdep_assert_wiphy(wdev->wiphy);
 
-	err = rdev_assoc_ml_reconf(rdev, dev, links, rem_links);
+	err = rdev_assoc_ml_reconf(rdev, dev, req);
 	if (!err) {
 		int link_id;
 
 		for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS;
 		     link_id++) {
-			if (!links[link_id].bss)
+			if (!req->add_links[link_id].bss)
 				continue;
 
-			cfg80211_ref_bss(&rdev->wiphy, links[link_id].bss);
-			cfg80211_hold_bss(bss_from_pub(links[link_id].bss));
+			cfg80211_ref_bss(&rdev->wiphy, req->add_links[link_id].bss);
+			cfg80211_hold_bss(bss_from_pub(req->add_links[link_id].bss));
 		}
 	}
 
@@ -1361,6 +1360,10 @@ void cfg80211_mlo_reconf_add_done(struct net_device *dev,
 		if (data->added_links & BIT(link_id)) {
 			wdev->links[link_id].client.current_bss =
 				bss_from_pub(bss);
+
+			memcpy(wdev->links[link_id].addr,
+			       data->links[link_id].addr,
+			       ETH_ALEN);
 		} else {
 			cfg80211_unhold_bss(bss_from_pub(bss));
 			cfg80211_put_bss(wiphy, bss);

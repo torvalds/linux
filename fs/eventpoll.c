@@ -447,7 +447,7 @@ static bool ep_busy_loop(struct eventpoll *ep)
 	if (!budget)
 		budget = BUSY_POLL_BUDGET;
 
-	if (napi_id >= MIN_NAPI_ID && ep_busy_loop_on(ep)) {
+	if (napi_id_valid(napi_id) && ep_busy_loop_on(ep)) {
 		napi_busy_loop(napi_id, ep_busy_loop_end,
 			       ep, prefer_busy_poll, budget);
 		if (ep_events_available(ep))
@@ -492,7 +492,7 @@ static inline void ep_set_busy_poll_napi_id(struct epitem *epi)
 	 *	or
 	 * Nothing to do if we already have this ID
 	 */
-	if (napi_id < MIN_NAPI_ID || napi_id == ep->napi_id)
+	if (!napi_id_valid(napi_id) || napi_id == ep->napi_id)
 		return;
 
 	/* record NAPI ID for use in next busy poll */
@@ -546,7 +546,7 @@ static void ep_suspend_napi_irqs(struct eventpoll *ep)
 {
 	unsigned int napi_id = READ_ONCE(ep->napi_id);
 
-	if (napi_id >= MIN_NAPI_ID && READ_ONCE(ep->prefer_busy_poll))
+	if (napi_id_valid(napi_id) && READ_ONCE(ep->prefer_busy_poll))
 		napi_suspend_irqs(napi_id);
 }
 
@@ -554,7 +554,7 @@ static void ep_resume_napi_irqs(struct eventpoll *ep)
 {
 	unsigned int napi_id = READ_ONCE(ep->napi_id);
 
-	if (napi_id >= MIN_NAPI_ID && READ_ONCE(ep->prefer_busy_poll))
+	if (napi_id_valid(napi_id) && READ_ONCE(ep->prefer_busy_poll))
 		napi_resume_irqs(napi_id);
 }
 

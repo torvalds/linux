@@ -102,6 +102,7 @@ struct xfs_rmap_intent;
 struct xfs_refcount_intent;
 struct xfs_metadir_update;
 struct xfs_rtgroup;
+struct xfs_open_zone;
 
 #define XFS_ATTR_FILTER_FLAGS \
 	{ XFS_ATTR_ROOT,	"ROOT" }, \
@@ -264,6 +265,152 @@ DEFINE_GROUP_REF_EVENT(xfs_group_put);
 DEFINE_GROUP_REF_EVENT(xfs_group_grab);
 DEFINE_GROUP_REF_EVENT(xfs_group_grab_next_tag);
 DEFINE_GROUP_REF_EVENT(xfs_group_rele);
+
+#ifdef CONFIG_XFS_RT
+DECLARE_EVENT_CLASS(xfs_zone_class,
+	TP_PROTO(struct xfs_rtgroup *rtg),
+	TP_ARGS(rtg),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_rgnumber_t, rgno)
+		__field(xfs_rgblock_t, used)
+		__field(unsigned int, nr_open)
+	),
+	TP_fast_assign(
+		struct xfs_mount	*mp = rtg_mount(rtg);
+
+		__entry->dev = mp->m_super->s_dev;
+		__entry->rgno = rtg_rgno(rtg);
+		__entry->used = rtg_rmap(rtg)->i_used_blocks;
+		__entry->nr_open = mp->m_zone_info->zi_nr_open_zones;
+	),
+	TP_printk("dev %d:%d rgno 0x%x used 0x%x nr_open %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->rgno,
+		  __entry->used,
+		  __entry->nr_open)
+);
+
+#define DEFINE_ZONE_EVENT(name)				\
+DEFINE_EVENT(xfs_zone_class, name,			\
+	TP_PROTO(struct xfs_rtgroup *rtg),		\
+	TP_ARGS(rtg))
+DEFINE_ZONE_EVENT(xfs_zone_emptied);
+DEFINE_ZONE_EVENT(xfs_zone_full);
+DEFINE_ZONE_EVENT(xfs_zone_opened);
+DEFINE_ZONE_EVENT(xfs_zone_reset);
+DEFINE_ZONE_EVENT(xfs_zone_gc_target_opened);
+
+TRACE_EVENT(xfs_zone_free_blocks,
+	TP_PROTO(struct xfs_rtgroup *rtg, xfs_rgblock_t rgbno,
+		 xfs_extlen_t len),
+	TP_ARGS(rtg, rgbno, len),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_rgnumber_t, rgno)
+		__field(xfs_rgblock_t, used)
+		__field(xfs_rgblock_t, rgbno)
+		__field(xfs_extlen_t, len)
+	),
+	TP_fast_assign(
+		__entry->dev = rtg_mount(rtg)->m_super->s_dev;
+		__entry->rgno = rtg_rgno(rtg);
+		__entry->used = rtg_rmap(rtg)->i_used_blocks;
+		__entry->rgbno = rgbno;
+		__entry->len = len;
+	),
+	TP_printk("dev %d:%d rgno 0x%x used 0x%x rgbno 0x%x len 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->rgno,
+		  __entry->used,
+		  __entry->rgbno,
+		  __entry->len)
+);
+
+DECLARE_EVENT_CLASS(xfs_zone_alloc_class,
+	TP_PROTO(struct xfs_open_zone *oz, xfs_rgblock_t rgbno,
+		 xfs_extlen_t len),
+	TP_ARGS(oz, rgbno, len),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_rgnumber_t, rgno)
+		__field(xfs_rgblock_t, used)
+		__field(xfs_rgblock_t, written)
+		__field(xfs_rgblock_t, write_pointer)
+		__field(xfs_rgblock_t, rgbno)
+		__field(xfs_extlen_t, len)
+	),
+	TP_fast_assign(
+		__entry->dev = rtg_mount(oz->oz_rtg)->m_super->s_dev;
+		__entry->rgno = rtg_rgno(oz->oz_rtg);
+		__entry->used = rtg_rmap(oz->oz_rtg)->i_used_blocks;
+		__entry->written = oz->oz_written;
+		__entry->write_pointer = oz->oz_write_pointer;
+		__entry->rgbno = rgbno;
+		__entry->len = len;
+	),
+	TP_printk("dev %d:%d rgno 0x%x used 0x%x written 0x%x wp 0x%x rgbno 0x%x len 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->rgno,
+		  __entry->used,
+		  __entry->written,
+		  __entry->write_pointer,
+		  __entry->rgbno,
+		  __entry->len)
+);
+
+#define DEFINE_ZONE_ALLOC_EVENT(name)				\
+DEFINE_EVENT(xfs_zone_alloc_class, name,			\
+	TP_PROTO(struct xfs_open_zone *oz, xfs_rgblock_t rgbno,	\
+		 xfs_extlen_t len),				\
+	TP_ARGS(oz, rgbno, len))
+DEFINE_ZONE_ALLOC_EVENT(xfs_zone_record_blocks);
+DEFINE_ZONE_ALLOC_EVENT(xfs_zone_alloc_blocks);
+
+TRACE_EVENT(xfs_zone_gc_select_victim,
+	TP_PROTO(struct xfs_rtgroup *rtg, unsigned int bucket),
+	TP_ARGS(rtg, bucket),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_rgnumber_t, rgno)
+		__field(xfs_rgblock_t, used)
+		__field(unsigned int, bucket)
+	),
+	TP_fast_assign(
+		__entry->dev = rtg_mount(rtg)->m_super->s_dev;
+		__entry->rgno = rtg_rgno(rtg);
+		__entry->used = rtg_rmap(rtg)->i_used_blocks;
+		__entry->bucket = bucket;
+	),
+	TP_printk("dev %d:%d rgno 0x%x used 0x%x bucket %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->rgno,
+		  __entry->used,
+		  __entry->bucket)
+);
+
+TRACE_EVENT(xfs_zones_mount,
+	TP_PROTO(struct xfs_mount *mp),
+	TP_ARGS(mp),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_rgnumber_t, rgcount)
+		__field(uint32_t, blocks)
+		__field(unsigned int, max_open_zones)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->rgcount = mp->m_sb.sb_rgcount;
+		__entry->blocks = mp->m_groups[XG_TYPE_RTG].blocks;
+		__entry->max_open_zones = mp->m_max_open_zones;
+	),
+	TP_printk("dev %d:%d zoned %u blocks_per_zone %u, max_open %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		__entry->rgcount,
+		__entry->blocks,
+		__entry->max_open_zones)
+);
+#endif /* CONFIG_XFS_RT */
 
 TRACE_EVENT(xfs_inodegc_worker,
 	TP_PROTO(struct xfs_mount *mp, unsigned int shrinker_hits),
@@ -545,6 +692,10 @@ DEFINE_BUF_EVENT(xfs_buf_iodone_async);
 DEFINE_BUF_EVENT(xfs_buf_error_relse);
 DEFINE_BUF_EVENT(xfs_buf_drain_buftarg);
 DEFINE_BUF_EVENT(xfs_trans_read_buf_shut);
+DEFINE_BUF_EVENT(xfs_buf_backing_folio);
+DEFINE_BUF_EVENT(xfs_buf_backing_kmem);
+DEFINE_BUF_EVENT(xfs_buf_backing_vmalloc);
+DEFINE_BUF_EVENT(xfs_buf_backing_fallback);
 
 /* not really buffer traces, but the buf provides useful information */
 DEFINE_BUF_EVENT(xfs_btree_corrupt);
@@ -1596,6 +1747,7 @@ DEFINE_SIMPLE_IO_EVENT(xfs_end_io_direct_write);
 DEFINE_SIMPLE_IO_EVENT(xfs_end_io_direct_write_unwritten);
 DEFINE_SIMPLE_IO_EVENT(xfs_end_io_direct_write_append);
 DEFINE_SIMPLE_IO_EVENT(xfs_file_splice_read);
+DEFINE_SIMPLE_IO_EVENT(xfs_zoned_map_blocks);
 
 DECLARE_EVENT_CLASS(xfs_itrunc_class,
 	TP_PROTO(struct xfs_inode *ip, xfs_fsize_t new_size),
@@ -3983,6 +4135,7 @@ DEFINE_SIMPLE_IO_EVENT(xfs_reflink_cancel_cow_range);
 DEFINE_SIMPLE_IO_EVENT(xfs_reflink_end_cow);
 DEFINE_INODE_IREC_EVENT(xfs_reflink_cow_remap_from);
 DEFINE_INODE_IREC_EVENT(xfs_reflink_cow_remap_to);
+DEFINE_INODE_IREC_EVENT(xfs_reflink_cow_remap_skip);
 
 DEFINE_INODE_ERROR_EVENT(xfs_reflink_cancel_cow_range_error);
 DEFINE_INODE_ERROR_EVENT(xfs_reflink_end_cow_error);
@@ -5606,11 +5759,10 @@ DEFINE_METADIR_EVENT(xfs_metadir_lookup);
 /* metadata inode space reservations */
 
 DECLARE_EVENT_CLASS(xfs_metafile_resv_class,
-	TP_PROTO(struct xfs_inode *ip, xfs_filblks_t len),
-	TP_ARGS(ip, len),
+	TP_PROTO(struct xfs_mount *mp, xfs_filblks_t len),
+	TP_ARGS(mp, len),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
-		__field(xfs_ino_t, ino)
 		__field(unsigned long long, freeblks)
 		__field(unsigned long long, reserved)
 		__field(unsigned long long, asked)
@@ -5618,19 +5770,15 @@ DECLARE_EVENT_CLASS(xfs_metafile_resv_class,
 		__field(unsigned long long, len)
 	),
 	TP_fast_assign(
-		struct xfs_mount *mp = ip->i_mount;
-
 		__entry->dev = mp->m_super->s_dev;
-		__entry->ino = ip->i_ino;
-		__entry->freeblks = percpu_counter_sum(&mp->m_fdblocks);
-		__entry->reserved = ip->i_delayed_blks;
-		__entry->asked = ip->i_meta_resv_asked;
-		__entry->used = ip->i_nblocks;
+		__entry->freeblks = xfs_sum_freecounter_raw(mp, XC_FREE_BLOCKS);
+		__entry->reserved = mp->m_metafile_resv_avail;
+		__entry->asked = mp->m_metafile_resv_target;
+		__entry->used = mp->m_metafile_resv_used;
 		__entry->len = len;
 	),
-	TP_printk("dev %d:%d ino 0x%llx freeblks %llu resv %llu ask %llu used %llu len %llu",
+	TP_printk("dev %d:%d freeblks %llu resv %llu ask %llu used %llu len %llu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->ino,
 		  __entry->freeblks,
 		  __entry->reserved,
 		  __entry->asked,
@@ -5639,14 +5787,14 @@ DECLARE_EVENT_CLASS(xfs_metafile_resv_class,
 )
 #define DEFINE_METAFILE_RESV_EVENT(name) \
 DEFINE_EVENT(xfs_metafile_resv_class, name, \
-	TP_PROTO(struct xfs_inode *ip, xfs_filblks_t len), \
-	TP_ARGS(ip, len))
+	TP_PROTO(struct xfs_mount *mp, xfs_filblks_t len), \
+	TP_ARGS(mp, len))
 DEFINE_METAFILE_RESV_EVENT(xfs_metafile_resv_init);
 DEFINE_METAFILE_RESV_EVENT(xfs_metafile_resv_free);
 DEFINE_METAFILE_RESV_EVENT(xfs_metafile_resv_alloc_space);
 DEFINE_METAFILE_RESV_EVENT(xfs_metafile_resv_free_space);
 DEFINE_METAFILE_RESV_EVENT(xfs_metafile_resv_critical);
-DEFINE_INODE_ERROR_EVENT(xfs_metafile_resv_init_error);
+DEFINE_METAFILE_RESV_EVENT(xfs_metafile_resv_init_error);
 
 #ifdef CONFIG_XFS_RT
 TRACE_EVENT(xfs_growfs_check_rtgeom,
@@ -5668,6 +5816,46 @@ TRACE_EVENT(xfs_growfs_check_rtgeom,
 		  __entry->min_logfsbs)
 );
 #endif /* CONFIG_XFS_RT */
+
+TRACE_DEFINE_ENUM(XC_FREE_BLOCKS);
+TRACE_DEFINE_ENUM(XC_FREE_RTEXTENTS);
+TRACE_DEFINE_ENUM(XC_FREE_RTAVAILABLE);
+
+DECLARE_EVENT_CLASS(xfs_freeblocks_resv_class,
+	TP_PROTO(struct xfs_mount *mp, enum xfs_free_counter ctr,
+		 uint64_t delta, unsigned long caller_ip),
+	TP_ARGS(mp, ctr, delta, caller_ip),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(enum xfs_free_counter, ctr)
+		__field(uint64_t, delta)
+		__field(uint64_t, avail)
+		__field(uint64_t, total)
+		__field(unsigned long, caller_ip)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->ctr = ctr;
+		__entry->delta = delta;
+		__entry->avail = mp->m_free[ctr].res_avail;
+		__entry->total = mp->m_free[ctr].res_total;
+		__entry->caller_ip = caller_ip;
+	),
+	TP_printk("dev %d:%d ctr %s delta %llu avail %llu total %llu caller %pS",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __print_symbolic(__entry->ctr, XFS_FREECOUNTER_STR),
+		  __entry->delta,
+		  __entry->avail,
+		  __entry->total,
+		  (char *)__entry->caller_ip)
+)
+#define DEFINE_FREEBLOCKS_RESV_EVENT(name) \
+DEFINE_EVENT(xfs_freeblocks_resv_class, name, \
+	TP_PROTO(struct xfs_mount *mp, enum xfs_free_counter ctr, \
+		 uint64_t delta, unsigned long caller_ip), \
+	TP_ARGS(mp, ctr, delta, caller_ip))
+DEFINE_FREEBLOCKS_RESV_EVENT(xfs_freecounter_reserved);
+DEFINE_FREEBLOCKS_RESV_EVENT(xfs_freecounter_enospc);
 
 #endif /* _TRACE_XFS_H */
 

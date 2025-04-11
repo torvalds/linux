@@ -573,6 +573,16 @@ config DRM_PANEL_RAYDIUM_RM67191
 	  Say Y here if you want to enable support for Raydium RM67191 FHD
 	  (1080x1920) DSI panel.
 
+config DRM_PANEL_RAYDIUM_RM67200
+	tristate "Raydium RM67200-based DSI panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	help
+	  Say Y here if you want to enable support for Raydium RM67200-based
+	  DSI video mode panels. This panel controller can be found in the
+	  Wanchanglong W552793BAA panel found on the Rockchip RK3588 EVB1
+	  evaluation boards.
+
 config DRM_PANEL_RAYDIUM_RM68200
 	tristate "Raydium RM68200 720x1280 DSI video mode panel"
 	depends on OF
@@ -925,6 +935,15 @@ config DRM_PANEL_SIMPLE
 	  that it can be automatically turned off when the panel goes into a
 	  low power state.
 
+config DRM_PANEL_SUMMIT
+	tristate "Apple Summit display panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y if you want to enable support for the "Summit" display panel
+	  used as a touchbar on certain Apple laptops.
+
 config DRM_PANEL_SYNAPTICS_R63353
 	tristate "Synaptics R63353-based panels"
 	depends on OF
@@ -995,6 +1014,18 @@ config DRM_PANEL_VISIONOX_RM69299
 	help
 	  Say Y here if you want to enable support for Visionox
 	  RM69299  DSI Video Mode panel.
+
+config DRM_PANEL_VISIONOX_RM692E5
+	tristate "Visionox RM692E5"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	select DRM_DISPLAY_DSC_HELPER
+	select DRM_DISPLAY_HELPER
+	help
+	  Say Y here if you want to enable support for Visionox RM692E5 amoled
+	  display panels, such as the one found in the Nothing Phone (1)
+	  smartphone.
 
 config DRM_PANEL_VISIONOX_VTDR6130
 	tristate "Visionox VTDR6130"

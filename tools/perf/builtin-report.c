@@ -112,6 +112,8 @@ struct report {
 	u64			nr_entries;
 	u64			queue_size;
 	u64			total_cycles;
+	u64			total_samples;
+	u64			singlethreaded_samples;
 	int			socket_filter;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 	struct branch_type_stat	brtype_stat;
@@ -330,6 +332,10 @@ static int process_sample_event(const struct perf_tool *tool,
 				     rep->nonany_branch_mode,
 				     &rep->total_cycles, evsel);
 	}
+
+	rep->total_samples++;
+	if (al.parallelism == 1)
+		rep->singlethreaded_samples++;
 
 	ret = hist_entry_iter__add(&iter, &al, rep->max_stack, rep);
 	if (ret < 0)
@@ -1079,6 +1085,11 @@ static int __cmd_report(struct report *rep)
 		return ret;
 	}
 
+	/* Don't show Latency column for non-parallel profiles by default. */
+	if (!symbol_conf.prefer_latency && rep->total_samples &&
+		rep->singlethreaded_samples * 100 / rep->total_samples >= 99)
+		perf_hpp__cancel_latency();
+
 	evlist__check_mem_load_aux(session->evlist);
 
 	if (rep->stats_mode)
@@ -1390,6 +1401,8 @@ int cmd_report(int argc, const char **argv)
 		     symbol__config_symfs),
 	OPT_STRING('C', "cpu", &report.cpu_list, "cpu",
 		   "list of cpus to profile"),
+	OPT_STRING(0, "parallelism", &symbol_conf.parallelism_list_str, "parallelism",
+		   "only consider these parallelism levels (cpu set format)"),
 	OPT_BOOLEAN('I', "show-info", &report.show_full_info,
 		    "Display extended information about perf.data file"),
 	OPT_BOOLEAN(0, "source", &annotate_opts.annotate_src,
@@ -1466,6 +1479,10 @@ int cmd_report(int argc, const char **argv)
 		    "Disable raw trace ordering"),
 	OPT_BOOLEAN(0, "skip-empty", &report.skip_empty,
 		    "Do not display empty (or dummy) events in the output"),
+	OPT_BOOLEAN(0, "latency", &symbol_conf.prefer_latency,
+		    "Show latency-centric profile rather than the default\n"
+		    "\t\t\t  CPU-consumption-centric profile\n"
+		    "\t\t\t  (requires perf record --latency flag)."),
 	OPT_END()
 	};
 	struct perf_data data = {
@@ -1553,12 +1570,12 @@ int cmd_report(int argc, const char **argv)
 			input_name = "perf.data";
 	}
 
+repeat:
 	data.path  = input_name;
 	data.force = symbol_conf.force;
 
 	symbol_conf.skip_empty = report.skip_empty;
 
-repeat:
 	perf_tool__init(&report.tool, ordered_events);
 	report.tool.sample		 = process_sample_event;
 	report.tool.mmap		 = perf_event__process_mmap;
@@ -1568,6 +1585,7 @@ repeat:
 	report.tool.cgroup		 = perf_event__process_cgroup;
 	report.tool.exit		 = perf_event__process_exit;
 	report.tool.fork		 = perf_event__process_fork;
+	report.tool.context_switch	 = perf_event__process_switch;
 	report.tool.lost		 = perf_event__process_lost;
 	report.tool.read		 = process_read_event;
 	report.tool.attr		 = process_attr;
@@ -1655,8 +1673,6 @@ repeat:
 
 	if (symbol_conf.report_hierarchy) {
 		/* disable incompatible options */
-		symbol_conf.cumulate_callchain = false;
-
 		if (field_order) {
 			pr_err("Error: --hierarchy and --fields options cannot be used together\n");
 			parse_options_usage(report_usage, options, "F", 1);
@@ -1703,6 +1719,9 @@ repeat:
 		report.data_type = true;
 		annotate_opts.annotate_src = false;
 
+		/* disable incompatible options */
+		symbol_conf.cumulate_callchain = false;
+
 #ifndef HAVE_LIBDW_SUPPORT
 		pr_err("Error: Data type profiling is disabled due to missing DWARF support\n");
 		goto error;
@@ -1719,22 +1738,45 @@ repeat:
 		symbol_conf.annotate_data_sample = true;
 	}
 
-	if (sort_order && strstr(sort_order, "ipc")) {
-		parse_options_usage(report_usage, options, "s", 1);
-		goto error;
+	symbol_conf.enable_latency = true;
+	if (report.disable_order || !perf_session__has_switch_events(session)) {
+		if (symbol_conf.parallelism_list_str ||
+			symbol_conf.prefer_latency ||
+			(sort_order && (strstr(sort_order, "latency") ||
+				strstr(sort_order, "parallelism"))) ||
+			(field_order && (strstr(field_order, "latency") ||
+				strstr(field_order, "parallelism")))) {
+			if (report.disable_order)
+				ui__error("Use of latency profile or parallelism is incompatible with --disable-order.\n");
+			else
+				ui__error("Use of latency profile or parallelism requires --latency flag during record.\n");
+			return -1;
+		}
+		/*
+		 * If user did not ask for anything related to
+		 * latency/parallelism explicitly, just don't show it.
+		 */
+		symbol_conf.enable_latency = false;
 	}
 
-	if (sort_order && strstr(sort_order, "symbol")) {
-		if (sort__mode == SORT_MODE__BRANCH) {
-			snprintf(sort_tmp, sizeof(sort_tmp), "%s,%s",
-				 sort_order, "ipc_lbr");
-			report.symbol_ipc = true;
-		} else {
-			snprintf(sort_tmp, sizeof(sort_tmp), "%s,%s",
-				 sort_order, "ipc_null");
+	if (last_key != K_SWITCH_INPUT_DATA) {
+		if (sort_order && strstr(sort_order, "ipc")) {
+			parse_options_usage(report_usage, options, "s", 1);
+			goto error;
 		}
 
-		sort_order = sort_tmp;
+		if (sort_order && strstr(sort_order, "symbol")) {
+			if (sort__mode == SORT_MODE__BRANCH) {
+				snprintf(sort_tmp, sizeof(sort_tmp), "%s,%s",
+					 sort_order, "ipc_lbr");
+				report.symbol_ipc = true;
+			} else {
+				snprintf(sort_tmp, sizeof(sort_tmp), "%s,%s",
+					 sort_order, "ipc_null");
+			}
+
+			sort_order = sort_tmp;
+		}
 	}
 
 	if ((last_key != K_SWITCH_INPUT_DATA && last_key != K_RELOAD) &&
@@ -1826,6 +1868,11 @@ repeat:
 	if (ret == K_SWITCH_INPUT_DATA || ret == K_RELOAD) {
 		perf_session__delete(session);
 		last_key = K_SWITCH_INPUT_DATA;
+		/*
+		 * To support switching between data with and without callchains.
+		 * report__setup_sample_type() will update it properly.
+		 */
+		symbol_conf.use_callchain = false;
 		goto repeat;
 	} else
 		ret = 0;

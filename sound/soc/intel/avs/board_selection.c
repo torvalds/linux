@@ -312,6 +312,18 @@ static struct snd_soc_acpi_mach avs_tgl_i2s_machines[] = {
 	{},
 };
 
+static struct snd_soc_acpi_mach avs_mbl_i2s_machines[] = {
+	{
+		.id = "PCM3168A",
+		.drv_name = "avs_pcm3168a",
+		.mach_params = {
+			.i2s_link_mask = AVS_SSP(0) | AVS_SSP(2),
+		},
+		.tplg_filename = "pcm3168a-tplg.bin",
+	},
+	{}
+};
+
 static struct snd_soc_acpi_mach avs_test_i2s_machines[] = {
 	{
 		.drv_name = "avs_i2s_test",
@@ -378,10 +390,11 @@ static const struct avs_acpi_boards i2s_boards[] = {
 	AVS_MACH_ENTRY(HDA_ICL_LP,	avs_icl_i2s_machines),
 	AVS_MACH_ENTRY(HDA_TGL_LP,	avs_tgl_i2s_machines),
 	AVS_MACH_ENTRY(HDA_EHL_0,	avs_tgl_i2s_machines),
+	AVS_MACH_ENTRY(HDA_ADL_N,	avs_mbl_i2s_machines),
 	AVS_MACH_ENTRY(HDA_ADL_P,	avs_tgl_i2s_machines),
 	AVS_MACH_ENTRY(HDA_RPL_P_0,	avs_tgl_i2s_machines),
-	AVS_MACH_ENTRY(HDA_RPL_M,	avs_tgl_i2s_machines),
-	{},
+	AVS_MACH_ENTRY(HDA_RPL_M,	avs_mbl_i2s_machines),
+	{}
 };
 
 static const struct avs_acpi_boards *avs_get_i2s_boards(struct avs_dev *adev)

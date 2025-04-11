@@ -7852,7 +7852,7 @@ static int si_dpm_resume(struct amdgpu_ip_block *ip_block)
 	return ret;
 }
 
-static bool si_dpm_is_idle(void *handle)
+static bool si_dpm_is_idle(struct amdgpu_ip_block *ip_block)
 {
 	/* XXX */
 	return true;

@@ -17,6 +17,7 @@ config PPC_POWERNV
 	select MMU_NOTIFIER
 	select FORCE_SMP
 	select ARCH_SUPPORTS_PER_VMA_LOCK
+	select PPC_RADIX_BROADCAST_TLBIE
 	default y
 
 config OPAL_PRD

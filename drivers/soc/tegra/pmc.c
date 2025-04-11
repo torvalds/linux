@@ -47,6 +47,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/string_choices.h>
 #include <linux/syscore_ops.h>
 
 #include <soc/tegra/common.h>
@@ -1181,7 +1182,7 @@ static int powergate_show(struct seq_file *s, void *data)
 			continue;
 
 		seq_printf(s, " %9s %7s\n", pmc->soc->powergates[i],
-			   status ? "yes" : "no");
+			   str_yes_no(status));
 	}
 
 	return 0;

@@ -188,14 +188,23 @@ void vdo_set_bio_properties(struct bio *bio, struct vio *vio, bio_end_io_t callb
 
 /*
  * Prepares the bio to perform IO with the specified buffer. May only be used on a VDO-allocated
- * bio, as it assumes the bio wraps a 4k buffer that is 4k aligned, but there does not have to be a
- * vio associated with the bio.
+ * bio, as it assumes the bio wraps a 4k-multiple buffer that is 4k aligned, but there does not
+ * have to be a vio associated with the bio.
  */
 int vio_reset_bio(struct vio *vio, char *data, bio_end_io_t callback,
 		  blk_opf_t bi_opf, physical_block_number_t pbn)
 {
-	int bvec_count, offset, len, i;
+	return vio_reset_bio_with_size(vio, data, vio->block_count * VDO_BLOCK_SIZE,
+				       callback, bi_opf, pbn);
+}
+
+int vio_reset_bio_with_size(struct vio *vio, char *data, int size, bio_end_io_t callback,
+			    blk_opf_t bi_opf, physical_block_number_t pbn)
+{
+	int bvec_count, offset, i;
 	struct bio *bio = vio->bio;
+	int vio_size = vio->block_count * VDO_BLOCK_SIZE;
+	int remaining;
 
 	bio_reset(bio, bio->bi_bdev, bi_opf);
 	vdo_set_bio_properties(bio, vio, callback, bi_opf, pbn);
@@ -205,22 +214,21 @@ int vio_reset_bio(struct vio *vio, char *data, bio_end_io_t callback,
 	bio->bi_ioprio = 0;
 	bio->bi_io_vec = bio->bi_inline_vecs;
 	bio->bi_max_vecs = vio->block_count + 1;
-	len = VDO_BLOCK_SIZE * vio->block_count;
+	if (VDO_ASSERT(size <= vio_size, "specified size %d is not greater than allocated %d",
+		       size, vio_size) != VDO_SUCCESS)
+		size = vio_size;
+	vio->io_size = size;
 	offset = offset_in_page(data);
-	bvec_count = DIV_ROUND_UP(offset + len, PAGE_SIZE);
+	bvec_count = DIV_ROUND_UP(offset + size, PAGE_SIZE);
+	remaining = size;
 
-	/*
-	 * If we knew that data was always on one page, or contiguous pages, we wouldn't need the
-	 * loop. But if we're using vmalloc, it's not impossible that the data is in different
-	 * pages that can't be merged in bio_add_page...
-	 */
-	for (i = 0; (i < bvec_count) && (len > 0); i++) {
+	for (i = 0; (i < bvec_count) && (remaining > 0); i++) {
 		struct page *page;
 		int bytes_added;
 		int bytes = PAGE_SIZE - offset;
 
-		if (bytes > len)
-			bytes = len;
+		if (bytes > remaining)
+			bytes = remaining;
 
 		page = is_vmalloc_addr(data) ? vmalloc_to_page(data) : virt_to_page(data);
 		bytes_added = bio_add_page(bio, page, bytes, offset);
@@ -232,7 +240,7 @@ int vio_reset_bio(struct vio *vio, char *data, bio_end_io_t callback,
 		}
 
 		data += bytes;
-		len -= bytes;
+		remaining -= bytes;
 		offset = 0;
 	}
 
@@ -301,6 +309,7 @@ void vio_record_metadata_io_error(struct vio *vio)
  * make_vio_pool() - Create a new vio pool.
  * @vdo: The vdo.
  * @pool_size: The number of vios in the pool.
+ * @block_count: The number of 4k blocks per vio.
  * @thread_id: The ID of the thread using this pool.
  * @vio_type: The type of vios in the pool.
  * @priority: The priority with which vios from the pool should be enqueued.
@@ -309,13 +318,14 @@ void vio_record_metadata_io_error(struct vio *vio)
  *
  * Return: A success or error code.
  */
-int make_vio_pool(struct vdo *vdo, size_t pool_size, thread_id_t thread_id,
+int make_vio_pool(struct vdo *vdo, size_t pool_size, size_t block_count, thread_id_t thread_id,
 		  enum vio_type vio_type, enum vio_priority priority, void *context,
 		  struct vio_pool **pool_ptr)
 {
 	struct vio_pool *pool;
 	char *ptr;
 	int result;
+	size_t per_vio_size = VDO_BLOCK_SIZE * block_count;
 
 	result = vdo_allocate_extended(struct vio_pool, pool_size, struct pooled_vio,
 				       __func__, &pool);
@@ -326,7 +336,7 @@ int make_vio_pool(struct vdo *vdo, size_t pool_size, thread_id_t thread_id,
 	INIT_LIST_HEAD(&pool->available);
 	INIT_LIST_HEAD(&pool->busy);
 
-	result = vdo_allocate(pool_size * VDO_BLOCK_SIZE, char,
+	result = vdo_allocate(pool_size * per_vio_size, char,
 			      "VIO pool buffer", &pool->buffer);
 	if (result != VDO_SUCCESS) {
 		free_vio_pool(pool);
@@ -334,10 +344,10 @@ int make_vio_pool(struct vdo *vdo, size_t pool_size, thread_id_t thread_id,
 	}
 
 	ptr = pool->buffer;
-	for (pool->size = 0; pool->size < pool_size; pool->size++, ptr += VDO_BLOCK_SIZE) {
+	for (pool->size = 0; pool->size < pool_size; pool->size++, ptr += per_vio_size) {
 		struct pooled_vio *pooled = &pool->vios[pool->size];
 
-		result = allocate_vio_components(vdo, vio_type, priority, NULL, 1, ptr,
+		result = allocate_vio_components(vdo, vio_type, priority, NULL, block_count, ptr,
 						 &pooled->vio);
 		if (result != VDO_SUCCESS) {
 			free_vio_pool(pool);
@@ -345,6 +355,7 @@ int make_vio_pool(struct vdo *vdo, size_t pool_size, thread_id_t thread_id,
 		}
 
 		pooled->context = context;
+		pooled->pool = pool;
 		list_add_tail(&pooled->pool_entry, &pool->available);
 	}
 
@@ -419,12 +430,13 @@ void acquire_vio_from_pool(struct vio_pool *pool, struct vdo_waiter *waiter)
 }
 
 /**
- * return_vio_to_pool() - Return a vio to the pool
- * @pool: The vio pool.
+ * return_vio_to_pool() - Return a vio to its pool
  * @vio: The pooled vio to return.
  */
-void return_vio_to_pool(struct vio_pool *pool, struct pooled_vio *vio)
+void return_vio_to_pool(struct pooled_vio *vio)
 {
+	struct vio_pool *pool = vio->pool;
+
 	VDO_ASSERT_LOG_ONLY((pool->thread_id == vdo_get_callback_thread_id()),
 			    "vio pool entry returned on same thread as it was acquired");
 

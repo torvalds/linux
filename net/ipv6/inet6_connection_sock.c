@@ -56,20 +56,6 @@ struct dst_entry *inet6_csk_route_req(const struct sock *sk,
 }
 EXPORT_SYMBOL(inet6_csk_route_req);
 
-void inet6_csk_addr2sockaddr(struct sock *sk, struct sockaddr *uaddr)
-{
-	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) uaddr;
-
-	sin6->sin6_family = AF_INET6;
-	sin6->sin6_addr = sk->sk_v6_daddr;
-	sin6->sin6_port	= inet_sk(sk)->inet_dport;
-	/* We do not store received flowlabel for TCP */
-	sin6->sin6_flowinfo = 0;
-	sin6->sin6_scope_id = ipv6_iface_scope_id(&sin6->sin6_addr,
-						  sk->sk_bound_dev_if);
-}
-EXPORT_SYMBOL_GPL(inet6_csk_addr2sockaddr);
-
 static inline
 struct dst_entry *__inet6_csk_dst_check(struct sock *sk, u32 cookie)
 {

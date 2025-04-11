@@ -20,6 +20,14 @@
 #include "hda.h"
 #include "mtl.h"
 
+/* Meteorlake ops */
+static struct snd_sof_dsp_ops sof_mtl_ops;
+
+static int sof_mtl_ops_init(struct snd_sof_dev *sdev)
+{
+	return sof_mtl_set_ops(sdev, &sof_mtl_ops);
+}
+
 static const struct sof_dev_desc mtl_desc = {
 	.use_acpi_target_states	= true,
 	.machines               = snd_soc_acpi_intel_mtl_machines,
@@ -127,7 +135,7 @@ static struct pci_driver snd_sof_pci_intel_mtl_driver = {
 	.remove = sof_pci_remove,
 	.shutdown = sof_pci_shutdown,
 	.driver = {
-		.pm = &sof_pci_pm,
+		.pm = pm_ptr(&sof_pci_pm),
 	},
 };
 module_pci_driver(snd_sof_pci_intel_mtl_driver);

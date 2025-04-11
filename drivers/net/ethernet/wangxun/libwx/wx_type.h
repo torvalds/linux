@@ -4,6 +4,8 @@
 #ifndef _WX_TYPE_H_
 #define _WX_TYPE_H_
 
+#include <linux/ptp_clock_kernel.h>
+#include <linux/timecounter.h>
 #include <linux/bitfield.h>
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
@@ -180,6 +182,23 @@
 #define WX_PSR_VLAN_CTL              0x15088
 #define WX_PSR_VLAN_CTL_CFIEN        BIT(29)  /* bit 29 */
 #define WX_PSR_VLAN_CTL_VFE          BIT(30)  /* bit 30 */
+/* EType Queue Filter */
+#define WX_PSR_ETYPE_SWC(_i)         (0x15128 + ((_i) * 4))
+#define WX_PSR_ETYPE_SWC_FILTER_1588 3
+#define WX_PSR_ETYPE_SWC_FILTER_EN   BIT(31)
+#define WX_PSR_ETYPE_SWC_1588        BIT(30)
+/* 1588 */
+#define WX_PSR_1588_MSG                 0x15120
+#define WX_PSR_1588_MSG_V1_SYNC         FIELD_PREP(GENMASK(7, 0), 0)
+#define WX_PSR_1588_MSG_V1_DELAY_REQ    FIELD_PREP(GENMASK(7, 0), 1)
+#define WX_PSR_1588_STMPL               0x151E8
+#define WX_PSR_1588_STMPH               0x151A4
+#define WX_PSR_1588_CTL                 0x15188
+#define WX_PSR_1588_CTL_ENABLED         BIT(4)
+#define WX_PSR_1588_CTL_TYPE_MASK       GENMASK(3, 1)
+#define WX_PSR_1588_CTL_TYPE_L4_V1      FIELD_PREP(GENMASK(3, 1), 1)
+#define WX_PSR_1588_CTL_TYPE_EVENT_V2   FIELD_PREP(GENMASK(3, 1), 5)
+#define WX_PSR_1588_CTL_VALID           BIT(0)
 /* mcasst/ucast overflow tbl */
 #define WX_PSR_MC_TBL(_i)            (0x15200  + ((_i) * 4))
 #define WX_PSR_UC_TBL(_i)            (0x15400 + ((_i) * 4))
@@ -253,6 +272,32 @@
 #define WX_TSC_ST_SECTX_RDY          BIT(0)
 #define WX_TSC_BUF_AE                0x1D00C
 #define WX_TSC_BUF_AE_THR            GENMASK(9, 0)
+/* 1588 */
+#define WX_TSC_1588_CTL              0x11F00
+#define WX_TSC_1588_CTL_ENABLED      BIT(4)
+#define WX_TSC_1588_CTL_VALID        BIT(0)
+#define WX_TSC_1588_STMPL            0x11F04
+#define WX_TSC_1588_STMPH            0x11F08
+#define WX_TSC_1588_SYSTIML          0x11F0C
+#define WX_TSC_1588_SYSTIMH          0x11F10
+#define WX_TSC_1588_INC              0x11F14
+#define WX_TSC_1588_INT_ST           0x11F20
+#define WX_TSC_1588_INT_ST_TT1       BIT(5)
+#define WX_TSC_1588_INT_EN           0x11F24
+#define WX_TSC_1588_INT_EN_TT1       BIT(5)
+#define WX_TSC_1588_AUX_CTL          0x11F28
+#define WX_TSC_1588_AUX_CTL_EN_TS0   BIT(8)
+#define WX_TSC_1588_AUX_CTL_EN_TT1   BIT(2)
+#define WX_TSC_1588_AUX_CTL_PLSG     BIT(1)
+#define WX_TSC_1588_AUX_CTL_EN_TT0   BIT(0)
+#define WX_TSC_1588_TRGT_L(i)        (0x11F2C + ((i) * 8)) /* [0,1] */
+#define WX_TSC_1588_TRGT_H(i)        (0x11F30 + ((i) * 8)) /* [0,1] */
+#define WX_TSC_1588_SDP(i)           (0x11F5C + ((i) * 4)) /* [0,3] */
+#define WX_TSC_1588_SDP_OUT_LEVEL_H  FIELD_PREP(BIT(4), 0)
+#define WX_TSC_1588_SDP_OUT_LEVEL_L  FIELD_PREP(BIT(4), 1)
+#define WX_TSC_1588_SDP_FUN_SEL_MASK GENMASK(2, 0)
+#define WX_TSC_1588_SDP_FUN_SEL_TT0  FIELD_PREP(WX_TSC_1588_SDP_FUN_SEL_MASK, 1)
+#define WX_TSC_1588_SDP_FUN_SEL_TS0  FIELD_PREP(WX_TSC_1588_SDP_FUN_SEL_MASK, 5)
 
 /************************************** MNG ********************************/
 #define WX_MNG_SWFW_SYNC             0x1E008
@@ -264,6 +309,10 @@
 #define WX_MNG_MBOX_CTL_FWRDY        BIT(2)
 #define WX_MNG_BMC2OS_CNT            0x1E090
 #define WX_MNG_OS2BMC_CNT            0x1E094
+#define WX_SW2FW_MBOX_CMD            0x1E0A0
+#define WX_SW2FW_MBOX_CMD_VLD        BIT(31)
+#define WX_SW2FW_MBOX                0x1E200
+#define WX_FW2SW_MBOX                0x1E300
 
 /************************************* ETH MAC *****************************/
 #define WX_MAC_TX_CFG                0x11000
@@ -327,6 +376,7 @@ enum WX_MSCA_CMD_value {
 #define WX_12K_ITR                   336
 #define WX_20K_ITR                   200
 #define WX_SP_MAX_EITR               0x00000FF8U
+#define WX_AML_MAX_EITR              0x00000FFFU
 #define WX_EM_MAX_EITR               0x00007FFCU
 
 /* transmit DMA Registers */
@@ -370,6 +420,7 @@ enum WX_MSCA_CMD_value {
 /****************** Manageablility Host Interface defines ********************/
 #define WX_HI_MAX_BLOCK_BYTE_LENGTH  256 /* Num of bytes in range */
 #define WX_HI_COMMAND_TIMEOUT        1000 /* Process HI command limit */
+#define WX_HIC_HDR_INDEX_MAX         255
 
 #define FW_READ_SHADOW_RAM_CMD       0x31
 #define FW_READ_SHADOW_RAM_LEN       0x6
@@ -382,6 +433,8 @@ enum WX_MSCA_CMD_value {
 #define FW_CEM_CMD_RESERVED          0X0
 #define FW_CEM_MAX_RETRIES           3
 #define FW_CEM_RESP_STATUS_SUCCESS   0x1
+#define FW_PPS_SET_CMD               0xF6
+#define FW_PPS_SET_LEN               0x14
 
 #define WX_SW_REGION_PTR             0x1C
 
@@ -460,6 +513,7 @@ enum WX_MSCA_CMD_value {
 #define WX_RXD_STAT_L4CS             BIT(7) /* L4 xsum calculated */
 #define WX_RXD_STAT_IPCS             BIT(8) /* IP xsum calculated */
 #define WX_RXD_STAT_OUTERIPCS        BIT(10) /* Cloud IP xsum calculated*/
+#define WX_RXD_STAT_TS               BIT(14) /* IEEE1588 Time Stamp */
 
 #define WX_RXD_ERR_OUTERIPER         BIT(26) /* CRC IP Header error */
 #define WX_RXD_ERR_RXE               BIT(29) /* Any MAC Error */
@@ -663,21 +717,30 @@ struct wx_hic_hdr {
 		u8 cmd_resv;
 		u8 ret_status;
 	} cmd_or_resp;
-	u8 checksum;
+	union {
+		u8 checksum;
+		u8 index;
+	};
 };
 
 struct wx_hic_hdr2_req {
 	u8 cmd;
 	u8 buf_lenh;
 	u8 buf_lenl;
-	u8 checksum;
+	union {
+		u8 checksum;
+		u8 index;
+	};
 };
 
 struct wx_hic_hdr2_rsp {
 	u8 cmd;
 	u8 buf_lenl;
 	u8 buf_lenh_status;     /* 7-5: high bits of buf_len, 4-0: status */
-	u8 checksum;
+	union {
+		u8 checksum;
+		u8 index;
+	};
 };
 
 union wx_hic_hdr2 {
@@ -701,6 +764,15 @@ struct wx_hic_reset {
 	u16 reset_type;
 };
 
+struct wx_hic_set_pps {
+	struct wx_hic_hdr hdr;
+	u8 lan_id;
+	u8 enable;
+	u16 pad2;
+	u64 nsec;
+	u64 cycles;
+};
+
 /* Bus parameters */
 struct wx_bus_info {
 	u8 func;
@@ -716,7 +788,8 @@ struct wx_thermal_sensor_data {
 enum wx_mac_type {
 	wx_mac_unknown = 0,
 	wx_mac_sp,
-	wx_mac_em
+	wx_mac_em,
+	wx_mac_aml,
 };
 
 enum sp_media_type {
@@ -863,6 +936,7 @@ struct wx_tx_context_desc {
  */
 struct wx_tx_buffer {
 	union wx_tx_desc *next_to_watch;
+	unsigned long time_stamp;
 	struct sk_buff *skb;
 	unsigned int bytecount;
 	unsigned short gso_segs;
@@ -924,6 +998,7 @@ struct wx_ring {
 	unsigned int size;              /* length in bytes */
 
 	u16 count;                      /* amount of descriptors */
+	unsigned long last_rx_timestamp;
 
 	u8 queue_index; /* needed for multiqueue queue management */
 	u8 reg_idx;                     /* holds the special value that gets
@@ -1026,13 +1101,21 @@ struct wx_hw_stats {
 
 enum wx_state {
 	WX_STATE_RESETTING,
-	WX_STATE_NBITS,		/* must be last */
+	WX_STATE_SWFW_BUSY,
+	WX_STATE_PTP_RUNNING,
+	WX_STATE_PTP_TX_IN_PROGRESS,
+	WX_STATE_NBITS		/* must be last */
 };
 
 enum wx_pf_flags {
+	WX_FLAG_SWFW_RING,
 	WX_FLAG_FDIR_CAPABLE,
 	WX_FLAG_FDIR_HASH,
 	WX_FLAG_FDIR_PERFECT,
+	WX_FLAG_RSC_CAPABLE,
+	WX_FLAG_RX_HWTSTAMP_ENABLED,
+	WX_FLAG_RX_HWTSTAMP_IN_REGISTER,
+	WX_FLAG_PTP_PPS_ENABLED,
 	WX_PF_FLAGS_NBITS               /* must be last */
 };
 
@@ -1066,6 +1149,7 @@ struct wx {
 	char eeprom_id[32];
 	char *driver_name;
 	enum wx_reset_type reset_type;
+	u8 swfw_index;
 
 	/* PHY stuff */
 	unsigned int link;
@@ -1133,6 +1217,29 @@ struct wx {
 	void (*atr)(struct wx_ring *ring, struct wx_tx_buffer *first, u8 ptype);
 	void (*configure_fdir)(struct wx *wx);
 	void (*do_reset)(struct net_device *netdev);
+	int (*ptp_setup_sdp)(struct wx *wx);
+
+	bool pps_enabled;
+	u64 pps_width;
+	u64 pps_edge_start;
+	u64 pps_edge_end;
+	u64 sec_to_cc;
+	u32 base_incval;
+	u32 tx_hwtstamp_pkts;
+	u32 tx_hwtstamp_timeouts;
+	u32 tx_hwtstamp_skipped;
+	u32 tx_hwtstamp_errors;
+	u32 rx_hwtstamp_cleared;
+	unsigned long last_overflow_check;
+	unsigned long last_rx_ptp_check;
+	unsigned long ptp_tx_start;
+	seqlock_t hw_tc_lock; /* seqlock for ptp */
+	struct cyclecounter hw_cc;
+	struct timecounter hw_tc;
+	struct ptp_clock *ptp_clock;
+	struct ptp_clock_info ptp_caps;
+	struct kernel_hwtstamp_config tstamp_config;
+	struct sk_buff *ptp_tx_skb;
 };
 
 #define WX_INTR_ALL (~0ULL)
@@ -1175,6 +1282,24 @@ rd64(struct wx *wx, u32 reg)
 	msb = rd32(wx, reg + 4);
 
 	return (lsb | msb << 32);
+}
+
+static inline u32
+rd32ptp(struct wx *wx, u32 reg)
+{
+	if (wx->mac.type == wx_mac_em)
+		return rd32(wx, reg);
+
+	return rd32(wx, reg + 0xB500);
+}
+
+static inline void
+wr32ptp(struct wx *wx, u32 reg, u32 value)
+{
+	if (wx->mac.type == wx_mac_em)
+		return wr32(wx, reg, value);
+
+	return wr32(wx, reg + 0xB500, value);
 }
 
 /* On some domestic CPU platforms, sometimes IO is not synchronized with

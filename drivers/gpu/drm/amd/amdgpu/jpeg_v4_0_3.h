@@ -56,6 +56,7 @@ void jpeg_v4_0_3_dec_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq
 				unsigned int flags);
 void jpeg_v4_0_3_dec_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					unsigned int vmid, uint64_t pd_addr);
+void jpeg_v4_0_3_ring_emit_hdp_flush(struct amdgpu_ring *ring);
 void jpeg_v4_0_3_dec_ring_nop(struct amdgpu_ring *ring, uint32_t count);
 void jpeg_v4_0_3_dec_ring_insert_start(struct amdgpu_ring *ring);
 void jpeg_v4_0_3_dec_ring_insert_end(struct amdgpu_ring *ring);

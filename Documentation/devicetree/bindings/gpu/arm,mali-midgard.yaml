@@ -47,10 +47,13 @@ properties:
           - const: arm,mali-t760
       - items:
           - enum:
+              - samsung,exynos7870-mali
+          - const: arm,mali-t830
+      - items:
+          - enum:
               - rockchip,rk3399-mali
           - const: arm,mali-t860
 
-          # "arm,mali-t830"
           # "arm,mali-t880"
 
   reg:

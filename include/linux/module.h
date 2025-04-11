@@ -665,7 +665,7 @@ static inline bool within_module(unsigned long addr, const struct module *mod)
 	return within_module_init(addr, mod) || within_module_core(addr, mod);
 }
 
-/* Search for module by name: must be in a RCU-sched critical section. */
+/* Search for module by name: must be in a RCU critical section. */
 struct module *find_module(const char *name);
 
 extern void __noreturn __module_put_and_kthread_exit(struct module *mod,
@@ -770,6 +770,8 @@ static inline bool is_livepatch_module(struct module *mod)
 }
 
 void set_module_sig_enforced(void);
+
+void module_for_each_mod(int(*func)(struct module *mod, void *data), void *data);
 
 #else /* !CONFIG_MODULES... */
 
@@ -877,6 +879,10 @@ void *dereference_module_function_descriptor(struct module *mod, void *ptr)
 static inline bool module_is_coming(struct module *mod)
 {
 	return false;
+}
+
+static inline void module_for_each_mod(int(*func)(struct module *mod, void *data), void *data)
+{
 }
 #endif /* CONFIG_MODULES */
 

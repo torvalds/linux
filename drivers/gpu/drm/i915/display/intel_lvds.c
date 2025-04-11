@@ -53,6 +53,7 @@
 #include "intel_lvds_regs.h"
 #include "intel_panel.h"
 #include "intel_pfit.h"
+#include "intel_pfit_regs.h"
 #include "intel_pps_regs.h"
 
 /* Private structure for the integrated LVDS support */
@@ -102,18 +103,19 @@ bool intel_lvds_port_enabled(struct drm_i915_private *i915,
 static bool intel_lvds_get_hw_state(struct intel_encoder *encoder,
 				    enum pipe *pipe)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(encoder);
 	intel_wakeref_t wakeref;
 	bool ret;
 
-	wakeref = intel_display_power_get_if_enabled(i915, encoder->power_domain);
+	wakeref = intel_display_power_get_if_enabled(display, encoder->power_domain);
 	if (!wakeref)
 		return false;
 
 	ret = intel_lvds_port_enabled(i915, lvds_encoder->reg, pipe);
 
-	intel_display_power_put(i915, encoder->power_domain, wakeref);
+	intel_display_power_put(display, encoder->power_domain, wakeref);
 
 	return ret;
 }
@@ -239,6 +241,7 @@ static void intel_pre_enable_lvds(struct intel_atomic_state *state,
 				  const struct intel_crtc_state *crtc_state,
 				  const struct drm_connector_state *conn_state)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(encoder);
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -247,10 +250,10 @@ static void intel_pre_enable_lvds(struct intel_atomic_state *state,
 	u32 temp;
 
 	if (HAS_PCH_SPLIT(i915)) {
-		assert_fdi_rx_pll_disabled(i915, pipe);
-		assert_shared_dpll_disabled(i915, crtc_state->shared_dpll);
+		assert_fdi_rx_pll_disabled(display, pipe);
+		assert_shared_dpll_disabled(display, crtc_state->shared_dpll);
 	} else {
-		assert_pll_disabled(i915, pipe);
+		assert_pll_disabled(display, pipe);
 	}
 
 	intel_lvds_pps_init_hw(i915, &lvds_encoder->init_pps);
@@ -390,16 +393,16 @@ static void intel_lvds_shutdown(struct intel_encoder *encoder)
 
 static enum drm_mode_status
 intel_lvds_mode_valid(struct drm_connector *_connector,
-		      struct drm_display_mode *mode)
+		      const struct drm_display_mode *mode)
 {
+	struct intel_display *display = to_intel_display(_connector->dev);
 	struct intel_connector *connector = to_intel_connector(_connector);
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	const struct drm_display_mode *fixed_mode =
 		intel_panel_fixed_mode(connector, mode);
-	int max_pixclk = to_i915(connector->base.dev)->display.cdclk.max_dotclk_freq;
+	int max_pixclk = display->cdclk.max_dotclk_freq;
 	enum drm_mode_status status;
 
-	status = intel_cpu_transcoder_mode_valid(i915, mode);
+	status = intel_cpu_transcoder_mode_valid(display, mode);
 	if (status != MODE_OK)
 		return status;
 
@@ -466,7 +469,7 @@ static int intel_lvds_compute_config(struct intel_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;
 
-	ret = intel_panel_fitting(crtc_state, conn_state);
+	ret = intel_pfit_compute_config(crtc_state, conn_state);
 	if (ret)
 		return ret;
 

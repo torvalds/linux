@@ -91,7 +91,7 @@ struct mailbox_pkg {
 
 struct mailbox_msg {
 	void			*handle;
-	int			(*notify_cb)(void *handle, const u32 *data, size_t size);
+	int			(*notify_cb)(void *handle, void __iomem *data, size_t size);
 	size_t			pkg_size; /* package size in bytes */
 	struct mailbox_pkg	pkg;
 };
@@ -244,7 +244,7 @@ no_space:
 
 static int
 mailbox_get_resp(struct mailbox_channel *mb_chann, struct xdna_msg_header *header,
-		 void *data)
+		 void __iomem *data)
 {
 	struct mailbox_msg *mb_msg;
 	int msg_id;
@@ -332,7 +332,7 @@ static int mailbox_get_msg(struct mailbox_channel *mb_chann)
 	memcpy_fromio((u32 *)&header + 1, read_addr, rest);
 	read_addr += rest;
 
-	ret = mailbox_get_resp(mb_chann, &header, (u32 *)read_addr);
+	ret = mailbox_get_resp(mb_chann, &header, read_addr);
 
 	mailbox_set_headptr(mb_chann, head + msg_size);
 	/* After update head, it can equal to ringbuf_size. This is expected. */
@@ -349,8 +349,6 @@ static irqreturn_t mailbox_irq_handler(int irq, void *p)
 	trace_mbox_irq_handle(MAILBOX_NAME, irq);
 	/* Schedule a rx_work to call the callback functions */
 	queue_work(mb_chann->work_q, &mb_chann->rx_work);
-	/* Clear IOHUB register */
-	mailbox_reg_write(mb_chann, mb_chann->iohub_int_addr, 0);
 
 	return IRQ_HANDLED;
 }
@@ -367,6 +365,9 @@ static void mailbox_rx_worker(struct work_struct *rx_work)
 		return;
 	}
 
+again:
+	mailbox_reg_write(mb_chann, mb_chann->iohub_int_addr, 0);
+
 	while (1) {
 		/*
 		 * If return is 0, keep consuming next message, until there is
@@ -380,10 +381,18 @@ static void mailbox_rx_worker(struct work_struct *rx_work)
 		if (unlikely(ret)) {
 			MB_ERR(mb_chann, "Unexpected ret %d, disable irq", ret);
 			WRITE_ONCE(mb_chann->bad_state, true);
-			disable_irq(mb_chann->msix_irq);
-			break;
+			return;
 		}
 	}
+
+	/*
+	 * The hardware will not generate interrupt if firmware creates a new
+	 * response right after driver clears interrupt register. Check
+	 * the interrupt register to make sure there is not any new response
+	 * before exiting.
+	 */
+	if (mailbox_reg_read(mb_chann, mb_chann->iohub_int_addr))
+		goto again;
 }
 
 int xdna_mailbox_send_msg(struct mailbox_channel *mb_chann,

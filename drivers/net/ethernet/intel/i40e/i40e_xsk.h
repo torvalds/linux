@@ -6,21 +6,13 @@
 
 #include <linux/types.h>
 
-/* This value should match the pragma in the loop_unrolled_for
+/* This value should match the pragma in the unrolled_count()
  * macro. Why 4? It is strictly empirical. It seems to be a good
  * compromise between the advantage of having simultaneous outstanding
  * reads to the DMA array that can hide each others latency and the
  * disadvantage of having a larger code path.
  */
 #define PKTS_PER_BATCH 4
-
-#ifdef __clang__
-#define loop_unrolled_for _Pragma("clang loop unroll_count(4)") for
-#elif __GNUC__ >= 8
-#define loop_unrolled_for _Pragma("GCC unroll 4") for
-#else
-#define loop_unrolled_for for
-#endif
 
 struct i40e_ring;
 struct i40e_vsi;

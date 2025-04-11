@@ -115,154 +115,193 @@ avs_path_find_variant(struct avs_dev *adev,
 	return NULL;
 }
 
-__maybe_unused
-static bool avs_dma_type_is_host(u32 dma_type)
+static void avs_init_node_id(union avs_connector_node_id *node_id,
+			     struct avs_tplg_modcfg_ext *te, u32 dma_id)
 {
-	return dma_type == AVS_DMA_HDA_HOST_OUTPUT ||
-	       dma_type == AVS_DMA_HDA_HOST_INPUT;
+	node_id->val = 0;
+	node_id->dma_type = te->copier.dma_type;
+
+	switch (node_id->dma_type) {
+	case AVS_DMA_DMIC_LINK_INPUT:
+	case AVS_DMA_I2S_LINK_OUTPUT:
+	case AVS_DMA_I2S_LINK_INPUT:
+		/* Gateway's virtual index is statically assigned in the topology. */
+		node_id->vindex = te->copier.vindex.val;
+		break;
+
+	case AVS_DMA_HDA_HOST_OUTPUT:
+	case AVS_DMA_HDA_HOST_INPUT:
+		/* Gateway's virtual index is dynamically assigned with DMA ID */
+		node_id->vindex = dma_id;
+		break;
+
+	case AVS_DMA_HDA_LINK_OUTPUT:
+	case AVS_DMA_HDA_LINK_INPUT:
+		node_id->vindex = te->copier.vindex.val | dma_id;
+		break;
+
+	default:
+		*node_id = INVALID_NODE_ID;
+		break;
+	}
 }
 
-__maybe_unused
-static bool avs_dma_type_is_link(u32 dma_type)
+/* Every BLOB contains at least gateway attributes. */
+static struct acpi_nhlt_config *default_blob = (struct acpi_nhlt_config *)&(u32[2]) {4};
+
+static struct acpi_nhlt_config *
+avs_nhlt_config_or_default(struct avs_dev *adev, struct avs_tplg_module *t)
 {
-	return !avs_dma_type_is_host(dma_type);
+	struct acpi_nhlt_format_config *fmtcfg;
+	struct avs_tplg_modcfg_ext *te;
+	struct avs_audio_format *fmt;
+	int link_type, dev_type;
+	int bus_id, dir;
+
+	te = t->cfg_ext;
+
+	switch (te->copier.dma_type) {
+	case AVS_DMA_I2S_LINK_OUTPUT:
+		link_type = ACPI_NHLT_LINKTYPE_SSP;
+		dev_type = ACPI_NHLT_DEVICETYPE_CODEC;
+		bus_id = te->copier.vindex.i2s.instance;
+		dir = SNDRV_PCM_STREAM_PLAYBACK;
+		fmt = te->copier.out_fmt;
+		break;
+
+	case AVS_DMA_I2S_LINK_INPUT:
+		link_type = ACPI_NHLT_LINKTYPE_SSP;
+		dev_type = ACPI_NHLT_DEVICETYPE_CODEC;
+		bus_id = te->copier.vindex.i2s.instance;
+		dir = SNDRV_PCM_STREAM_CAPTURE;
+		fmt = t->in_fmt;
+		break;
+
+	case AVS_DMA_DMIC_LINK_INPUT:
+		link_type = ACPI_NHLT_LINKTYPE_PDM;
+		dev_type = -1; /* ignored */
+		bus_id = 0;
+		dir = SNDRV_PCM_STREAM_CAPTURE;
+		fmt = t->in_fmt;
+		break;
+
+	default:
+		return default_blob;
+	}
+
+	/* Override format selection if necessary. */
+	if (te->copier.blob_fmt)
+		fmt = te->copier.blob_fmt;
+
+	fmtcfg = acpi_nhlt_find_fmtcfg(link_type, dev_type, dir, bus_id,
+				       fmt->num_channels, fmt->sampling_freq, fmt->valid_bit_depth,
+				       fmt->bit_depth);
+	if (!fmtcfg) {
+		dev_warn(adev->dev, "Endpoint format configuration not found.\n");
+		return ERR_PTR(-ENOENT);
+	}
+
+	if (fmtcfg->config.capabilities_size < default_blob->capabilities_size)
+		return ERR_PTR(-ETOOSMALL);
+	/* The firmware expects the payload to be DWORD-aligned. */
+	if (fmtcfg->config.capabilities_size % sizeof(u32))
+		return ERR_PTR(-EINVAL);
+
+	return &fmtcfg->config;
 }
 
-__maybe_unused
-static bool avs_dma_type_is_output(u32 dma_type)
+static int avs_fill_gtw_config(struct avs_dev *adev, struct avs_copier_gtw_cfg *gtw,
+			       struct avs_tplg_module *t, size_t *cfg_size)
 {
-	return dma_type == AVS_DMA_HDA_HOST_OUTPUT ||
-	       dma_type == AVS_DMA_HDA_LINK_OUTPUT ||
-	       dma_type == AVS_DMA_I2S_LINK_OUTPUT;
-}
+	struct acpi_nhlt_config *blob;
+	size_t gtw_size;
 
-__maybe_unused
-static bool avs_dma_type_is_input(u32 dma_type)
-{
-	return !avs_dma_type_is_output(dma_type);
+	blob = avs_nhlt_config_or_default(adev, t);
+	if (IS_ERR(blob))
+		return PTR_ERR(blob);
+
+	gtw_size = blob->capabilities_size;
+	if (*cfg_size + gtw_size > AVS_MAILBOX_SIZE)
+		return -E2BIG;
+
+	gtw->config_length = gtw_size / sizeof(u32);
+	memcpy(gtw->config.blob, blob->capabilities, blob->capabilities_size);
+	*cfg_size += gtw_size;
+
+	return 0;
 }
 
 static int avs_copier_create(struct avs_dev *adev, struct avs_path_module *mod)
 {
 	struct avs_tplg_module *t = mod->template;
+	struct avs_tplg_modcfg_ext *te;
 	struct avs_copier_cfg *cfg;
-	struct acpi_nhlt_format_config *ep_blob;
-	struct acpi_nhlt_endpoint *ep;
-	union avs_connector_node_id node_id = {0};
-	size_t cfg_size, data_size;
-	void *data = NULL;
-	u32 dma_type;
+	size_t cfg_size;
+	u32 dma_id;
 	int ret;
 
-	data_size = sizeof(cfg->gtw_cfg.config);
-	dma_type = t->cfg_ext->copier.dma_type;
-	node_id.dma_type = dma_type;
-
-	switch (dma_type) {
-		struct avs_audio_format *fmt;
-		int direction;
-
-	case AVS_DMA_I2S_LINK_OUTPUT:
-	case AVS_DMA_I2S_LINK_INPUT:
-		if (avs_dma_type_is_input(dma_type))
-			direction = SNDRV_PCM_STREAM_CAPTURE;
-		else
-			direction = SNDRV_PCM_STREAM_PLAYBACK;
-
-		if (t->cfg_ext->copier.blob_fmt)
-			fmt = t->cfg_ext->copier.blob_fmt;
-		else if (direction == SNDRV_PCM_STREAM_CAPTURE)
-			fmt = t->in_fmt;
-		else
-			fmt = t->cfg_ext->copier.out_fmt;
-
-		ep = acpi_nhlt_find_endpoint(ACPI_NHLT_LINKTYPE_SSP,
-					     ACPI_NHLT_DEVICETYPE_CODEC, direction,
-					     t->cfg_ext->copier.vindex.i2s.instance);
-		ep_blob = acpi_nhlt_endpoint_find_fmtcfg(ep, fmt->num_channels, fmt->sampling_freq,
-							 fmt->valid_bit_depth, fmt->bit_depth);
-		if (!ep_blob) {
-			dev_err(adev->dev, "no I2S ep_blob found\n");
-			return -ENOENT;
-		}
-
-		data = ep_blob->config.capabilities;
-		data_size = ep_blob->config.capabilities_size;
-		/* I2S gateway's vindex is statically assigned in topology */
-		node_id.vindex = t->cfg_ext->copier.vindex.val;
-
-		break;
-
-	case AVS_DMA_DMIC_LINK_INPUT:
-		direction = SNDRV_PCM_STREAM_CAPTURE;
-
-		if (t->cfg_ext->copier.blob_fmt)
-			fmt = t->cfg_ext->copier.blob_fmt;
-		else
-			fmt = t->in_fmt;
-
-		ep = acpi_nhlt_find_endpoint(ACPI_NHLT_LINKTYPE_PDM, -1, direction, 0);
-		ep_blob = acpi_nhlt_endpoint_find_fmtcfg(ep, fmt->num_channels, fmt->sampling_freq,
-							 fmt->valid_bit_depth, fmt->bit_depth);
-		if (!ep_blob) {
-			dev_err(adev->dev, "no DMIC ep_blob found\n");
-			return -ENOENT;
-		}
-
-		data = ep_blob->config.capabilities;
-		data_size = ep_blob->config.capabilities_size;
-		/* DMIC gateway's vindex is statically assigned in topology */
-		node_id.vindex = t->cfg_ext->copier.vindex.val;
-
-		break;
-
-	case AVS_DMA_HDA_HOST_OUTPUT:
-	case AVS_DMA_HDA_HOST_INPUT:
-		/* HOST gateway's vindex is dynamically assigned with DMA id */
-		node_id.vindex = mod->owner->owner->dma_id;
-		break;
-
-	case AVS_DMA_HDA_LINK_OUTPUT:
-	case AVS_DMA_HDA_LINK_INPUT:
-		node_id.vindex = t->cfg_ext->copier.vindex.val |
-				 mod->owner->owner->dma_id;
-		break;
-
-	case INVALID_OBJECT_ID:
-	default:
-		node_id = INVALID_NODE_ID;
-		break;
-	}
-
-	cfg_size = offsetof(struct avs_copier_cfg, gtw_cfg.config) + data_size;
-	if (cfg_size > AVS_MAILBOX_SIZE)
-		return -EINVAL;
-
+	te = t->cfg_ext;
 	cfg = adev->modcfg_buf;
-	memset(cfg, 0, cfg_size);
+	dma_id = mod->owner->owner->dma_id;
+	cfg_size = offsetof(struct avs_copier_cfg, gtw_cfg.config);
+
+	ret = avs_fill_gtw_config(adev, &cfg->gtw_cfg, t, &cfg_size);
+	if (ret)
+		return ret;
+
 	cfg->base.cpc = t->cfg_base->cpc;
 	cfg->base.ibs = t->cfg_base->ibs;
 	cfg->base.obs = t->cfg_base->obs;
 	cfg->base.is_pages = t->cfg_base->is_pages;
 	cfg->base.audio_fmt = *t->in_fmt;
-	cfg->out_fmt = *t->cfg_ext->copier.out_fmt;
-	cfg->feature_mask = t->cfg_ext->copier.feature_mask;
-	cfg->gtw_cfg.node_id = node_id;
-	cfg->gtw_cfg.dma_buffer_size = t->cfg_ext->copier.dma_buffer_size;
-	/* config_length in DWORDs */
-	cfg->gtw_cfg.config_length = DIV_ROUND_UP(data_size, 4);
-	if (data)
-		memcpy(&cfg->gtw_cfg.config.blob, data, data_size);
-
+	cfg->out_fmt = *te->copier.out_fmt;
+	cfg->feature_mask = te->copier.feature_mask;
+	avs_init_node_id(&cfg->gtw_cfg.node_id, te, dma_id);
+	cfg->gtw_cfg.dma_buffer_size = te->copier.dma_buffer_size;
 	mod->gtw_attrs = cfg->gtw_cfg.config.attrs;
 
-	ret = avs_dsp_init_module(adev, mod->module_id, mod->owner->instance_id,
-				  t->core_id, t->domain, cfg, cfg_size,
-				  &mod->instance_id);
+	ret = avs_dsp_init_module(adev, mod->module_id, mod->owner->instance_id, t->core_id,
+				  t->domain, cfg, cfg_size, &mod->instance_id);
 	return ret;
 }
 
-static struct avs_control_data *avs_get_module_control(struct avs_path_module *mod)
+static int avs_whm_create(struct avs_dev *adev, struct avs_path_module *mod)
+{
+	struct avs_tplg_module *t = mod->template;
+	struct avs_tplg_modcfg_ext *te;
+	struct avs_whm_cfg *cfg;
+	size_t cfg_size;
+	u32 dma_id;
+	int ret;
+
+	te = t->cfg_ext;
+	cfg = adev->modcfg_buf;
+	dma_id = mod->owner->owner->dma_id;
+	cfg_size = offsetof(struct avs_whm_cfg, gtw_cfg.config);
+
+	ret = avs_fill_gtw_config(adev, &cfg->gtw_cfg, t, &cfg_size);
+	if (ret)
+		return ret;
+
+	cfg->base.cpc = t->cfg_base->cpc;
+	cfg->base.ibs = t->cfg_base->ibs;
+	cfg->base.obs = t->cfg_base->obs;
+	cfg->base.is_pages = t->cfg_base->is_pages;
+	cfg->base.audio_fmt = *t->in_fmt;
+	cfg->ref_fmt = *te->whm.ref_fmt;
+	cfg->out_fmt = *te->whm.out_fmt;
+	cfg->wake_tick_period = te->whm.wake_tick_period;
+	avs_init_node_id(&cfg->gtw_cfg.node_id, te, dma_id);
+	cfg->gtw_cfg.dma_buffer_size = te->whm.dma_buffer_size;
+	mod->gtw_attrs = cfg->gtw_cfg.config.attrs;
+
+	ret = avs_dsp_init_module(adev, mod->module_id, mod->owner->instance_id, t->core_id,
+				  t->domain, cfg, cfg_size, &mod->instance_id);
+	return ret;
+}
+
+static struct soc_mixer_control *avs_get_module_control(struct avs_path_module *mod,
+							const char *name)
 {
 	struct avs_tplg_module *t = mod->template;
 	struct avs_tplg_path_template *path_tmpl;
@@ -278,27 +317,93 @@ static struct avs_control_data *avs_get_module_control(struct avs_path_module *m
 
 		mc = (struct soc_mixer_control *)w->kcontrols[i]->private_value;
 		ctl_data = (struct avs_control_data *)mc->dobj.private;
-		if (ctl_data->id == t->ctl_id)
-			return ctl_data;
+		if (ctl_data->id == t->ctl_id && strstr(w->kcontrols[i]->id.name, name))
+			return mc;
 	}
 
 	return NULL;
 }
 
+int avs_peakvol_set_volume(struct avs_dev *adev, struct avs_path_module *mod,
+			   struct soc_mixer_control *mc, long *input)
+{
+	struct avs_volume_cfg vols[SND_SOC_TPLG_MAX_CHAN] = {{0}};
+	struct avs_control_data *ctl_data;
+	struct avs_tplg_module *t;
+	int ret, i;
+
+	ctl_data = mc->dobj.private;
+	t = mod->template;
+	if (!input)
+		input = ctl_data->values;
+
+	if (mc->num_channels) {
+		for (i = 0; i < mc->num_channels; i++) {
+			vols[i].channel_id = i;
+			vols[i].target_volume = input[i];
+			vols[i].curve_type = t->cfg_ext->peakvol.curve_type;
+			vols[i].curve_duration = t->cfg_ext->peakvol.curve_duration;
+		}
+
+		ret = avs_ipc_peakvol_set_volumes(adev, mod->module_id, mod->instance_id, vols,
+						  mc->num_channels);
+		return AVS_IPC_RET(ret);
+	}
+
+	/* Target all channels if no individual selected. */
+	vols[0].channel_id = AVS_ALL_CHANNELS_MASK;
+	vols[0].target_volume = input[0];
+	vols[0].curve_type = t->cfg_ext->peakvol.curve_type;
+	vols[0].curve_duration = t->cfg_ext->peakvol.curve_duration;
+
+	ret = avs_ipc_peakvol_set_volume(adev, mod->module_id, mod->instance_id, &vols[0]);
+	return AVS_IPC_RET(ret);
+}
+
+int avs_peakvol_set_mute(struct avs_dev *adev, struct avs_path_module *mod,
+			 struct soc_mixer_control *mc, long *input)
+{
+	struct avs_mute_cfg mutes[SND_SOC_TPLG_MAX_CHAN] = {{0}};
+	struct avs_control_data *ctl_data;
+	struct avs_tplg_module *t;
+	int ret, i;
+
+	ctl_data = mc->dobj.private;
+	t = mod->template;
+	if (!input)
+		input = ctl_data->values;
+
+	if (mc->num_channels) {
+		for (i = 0; i < mc->num_channels; i++) {
+			mutes[i].channel_id = i;
+			mutes[i].mute = !input[i];
+			mutes[i].curve_type = t->cfg_ext->peakvol.curve_type;
+			mutes[i].curve_duration = t->cfg_ext->peakvol.curve_duration;
+		}
+
+		ret = avs_ipc_peakvol_set_mutes(adev, mod->module_id, mod->instance_id, mutes,
+						mc->num_channels);
+		return AVS_IPC_RET(ret);
+	}
+
+	/* Target all channels if no individual selected. */
+	mutes[0].channel_id = AVS_ALL_CHANNELS_MASK;
+	mutes[0].mute = !input[0];
+	mutes[0].curve_type = t->cfg_ext->peakvol.curve_type;
+	mutes[0].curve_duration = t->cfg_ext->peakvol.curve_duration;
+
+	ret = avs_ipc_peakvol_set_mute(adev, mod->module_id, mod->instance_id, &mutes[0]);
+	return AVS_IPC_RET(ret);
+}
+
 static int avs_peakvol_create(struct avs_dev *adev, struct avs_path_module *mod)
 {
 	struct avs_tplg_module *t = mod->template;
-	struct avs_control_data *ctl_data;
+	struct soc_mixer_control *mc;
 	struct avs_peakvol_cfg *cfg;
-	int volume = S32_MAX;
 	size_t cfg_size;
 	int ret;
 
-	ctl_data = avs_get_module_control(mod);
-	if (ctl_data)
-		volume = ctl_data->volume;
-
-	/* As 2+ channels controls are unsupported, have a single block for all channels. */
 	cfg_size = struct_size(cfg, vols, 1);
 	if (cfg_size > AVS_MAILBOX_SIZE)
 		return -EINVAL;
@@ -310,15 +415,28 @@ static int avs_peakvol_create(struct avs_dev *adev, struct avs_path_module *mod)
 	cfg->base.obs = t->cfg_base->obs;
 	cfg->base.is_pages = t->cfg_base->is_pages;
 	cfg->base.audio_fmt = *t->in_fmt;
-	cfg->vols[0].target_volume = volume;
 	cfg->vols[0].channel_id = AVS_ALL_CHANNELS_MASK;
-	cfg->vols[0].curve_type = AVS_AUDIO_CURVE_NONE;
-	cfg->vols[0].curve_duration = 0;
+	cfg->vols[0].target_volume = S32_MAX;
+	cfg->vols[0].curve_type = t->cfg_ext->peakvol.curve_type;
+	cfg->vols[0].curve_duration = t->cfg_ext->peakvol.curve_duration;
 
 	ret = avs_dsp_init_module(adev, mod->module_id, mod->owner->instance_id, t->core_id,
 				  t->domain, cfg, cfg_size, &mod->instance_id);
+	if (ret)
+		return ret;
 
-	return ret;
+	/* Now configure both VOLUME and MUTE parameters. */
+	mc = avs_get_module_control(mod, "Volume");
+	if (mc) {
+		ret = avs_peakvol_set_volume(adev, mod, mc, NULL);
+		if (ret)
+			return ret;
+	}
+
+	mc = avs_get_module_control(mod, "Switch");
+	if (mc)
+		return avs_peakvol_set_mute(adev, mod, mc, NULL);
+	return 0;
 }
 
 static int avs_updown_mix_create(struct avs_dev *adev, struct avs_path_module *mod)
@@ -533,6 +651,7 @@ static struct avs_module_create avs_module_create[] = {
 	{ &AVS_ASRC_MOD_UUID, avs_asrc_create },
 	{ &AVS_INTELWOV_MOD_UUID, avs_wov_create },
 	{ &AVS_PROBE_MOD_UUID, avs_probe_create },
+	{ &AVS_WOVHOSTM_MOD_UUID, avs_whm_create },
 };
 
 static int avs_path_module_type_create(struct avs_dev *adev, struct avs_path_module *mod)

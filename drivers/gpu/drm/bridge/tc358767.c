@@ -1548,9 +1548,8 @@ static int tc_edp_stream_disable(struct tc_data *tc)
 	return 0;
 }
 
-static void
-tc_dpi_bridge_atomic_enable(struct drm_bridge *bridge,
-			    struct drm_bridge_state *old_bridge_state)
+static void tc_dpi_bridge_atomic_enable(struct drm_bridge *bridge,
+					struct drm_atomic_state *state)
 
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
@@ -1564,9 +1563,8 @@ tc_dpi_bridge_atomic_enable(struct drm_bridge *bridge,
 	}
 }
 
-static void
-tc_dpi_bridge_atomic_disable(struct drm_bridge *bridge,
-			     struct drm_bridge_state *old_bridge_state)
+static void tc_dpi_bridge_atomic_disable(struct drm_bridge *bridge,
+					 struct drm_atomic_state *state)
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
 	int ret;
@@ -1576,9 +1574,8 @@ tc_dpi_bridge_atomic_disable(struct drm_bridge *bridge,
 		dev_err(tc->dev, "main link stream stop error: %d\n", ret);
 }
 
-static void
-tc_edp_bridge_atomic_enable(struct drm_bridge *bridge,
-			    struct drm_bridge_state *old_bridge_state)
+static void tc_edp_bridge_atomic_enable(struct drm_bridge *bridge,
+					struct drm_atomic_state *state)
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
 	int ret;
@@ -1603,9 +1600,8 @@ tc_edp_bridge_atomic_enable(struct drm_bridge *bridge,
 	}
 }
 
-static void
-tc_edp_bridge_atomic_disable(struct drm_bridge *bridge,
-			     struct drm_bridge_state *old_bridge_state)
+static void tc_edp_bridge_atomic_disable(struct drm_bridge *bridge,
+					 struct drm_atomic_state *state)
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
 	int ret;

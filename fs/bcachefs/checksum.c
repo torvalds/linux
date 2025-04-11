@@ -466,7 +466,7 @@ int bch2_rechecksum_bio(struct bch_fs *c, struct bio *bio,
 		prt_str(&buf, ")");
 		WARN_RATELIMIT(1, "%s", buf.buf);
 		printbuf_exit(&buf);
-		return -EIO;
+		return -BCH_ERR_recompute_checksum;
 	}
 
 	for (i = splits; i < splits + ARRAY_SIZE(splits); i++) {
@@ -693,6 +693,14 @@ static int bch2_alloc_ciphers(struct bch_fs *c)
 	return 0;
 }
 
+#if 0
+
+/*
+ * This seems to be duplicating code in cmd_remove_passphrase() in
+ * bcachefs-tools, but we might want to switch userspace to use this - and
+ * perhaps add an ioctl for calling this at runtime, so we can take the
+ * passphrase off of a mounted filesystem (which has come up).
+ */
 int bch2_disable_encryption(struct bch_fs *c)
 {
 	struct bch_sb_field_crypt *crypt;
@@ -725,6 +733,10 @@ out:
 	return ret;
 }
 
+/*
+ * For enabling encryption on an existing filesystem: not hooked up yet, but it
+ * should be
+ */
 int bch2_enable_encryption(struct bch_fs *c, bool keyed)
 {
 	struct bch_encrypted_key key;
@@ -781,6 +793,7 @@ err:
 	memzero_explicit(&key, sizeof(key));
 	return ret;
 }
+#endif
 
 void bch2_fs_encryption_exit(struct bch_fs *c)
 {
@@ -788,8 +801,6 @@ void bch2_fs_encryption_exit(struct bch_fs *c)
 		crypto_free_shash(c->poly1305);
 	if (c->chacha20)
 		crypto_free_sync_skcipher(c->chacha20);
-	if (c->sha256)
-		crypto_free_shash(c->sha256);
 }
 
 int bch2_fs_encryption_init(struct bch_fs *c)
@@ -797,14 +808,6 @@ int bch2_fs_encryption_init(struct bch_fs *c)
 	struct bch_sb_field_crypt *crypt;
 	struct bch_key key;
 	int ret = 0;
-
-	c->sha256 = crypto_alloc_shash("sha256", 0, 0);
-	ret = PTR_ERR_OR_ZERO(c->sha256);
-	if (ret) {
-		c->sha256 = NULL;
-		bch_err(c, "error requesting sha256 module: %s", bch2_err_str(ret));
-		goto out;
-	}
 
 	crypt = bch2_sb_field_get(c->disk_sb.sb, crypt);
 	if (!crypt)

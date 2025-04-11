@@ -18,6 +18,12 @@ description: |
   These SoCs have an XTAL from where the cpu clock is
   provided as well as derived clocks for the bus and the peripherals.
 
+  Each clock is assigned an identifier and client nodes use this identifier
+  to specify the clock which they consume.
+
+  All these identifiers could be found in:
+  [1]: <include/dt-bindings/clock/mediatek,mtmips-sysc.h>.
+
 properties:
   compatible:
     items:
@@ -38,7 +44,8 @@ properties:
 
   '#clock-cells':
     description:
-      The first cell indicates the clock number.
+      The first cell indicates the clock number, see [1] for available
+      clocks.
     const: 1
 
   '#reset-cells':
@@ -56,6 +63,8 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/clock/mediatek,mtmips-sysc.h>
+
     syscon@0 {
       compatible = "ralink,rt5350-sysc", "syscon";
       reg = <0x0 0x100>;

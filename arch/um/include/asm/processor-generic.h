@@ -31,6 +31,8 @@ struct thread_struct {
 		} thread;
 	} request;
 
+	void *segv_continue;
+
 	/* Contains variable sized FP registers */
 	struct pt_regs regs;
 };

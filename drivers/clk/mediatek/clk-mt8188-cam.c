@@ -20,6 +20,8 @@ static const struct mtk_gate_regs cam_cg_regs = {
 #define GATE_CAM(_id, _name, _parent, _shift)			\
 	GATE_MTK(_id, _name, _parent, &cam_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
 
+#define CAM_SYS_SMI_LARB_RST_OFF	(0xA0)
+
 static const struct mtk_gate cam_main_clks[] = {
 	GATE_CAM(CLK_CAM_MAIN_LARB13, "cam_main_larb13", "top_cam", 0),
 	GATE_CAM(CLK_CAM_MAIN_LARB14, "cam_main_larb14", "top_cam", 1),
@@ -72,6 +74,17 @@ static const struct mtk_gate cam_yuvb_clks[] = {
 	GATE_CAM(CLK_CAM_YUVB_CAMTG, "cam_yuvb_camtg", "top_cam", 2),
 };
 
+/* Reset for SMI larb 16a/16b/17a/17b */
+static u16 cam_sys_rst_ofs[] = {
+	CAM_SYS_SMI_LARB_RST_OFF,
+};
+
+static const struct mtk_clk_rst_desc cam_sys_rst_desc = {
+	.version = MTK_RST_SIMPLE,
+	.rst_bank_ofs = cam_sys_rst_ofs,
+	.rst_bank_nr = ARRAY_SIZE(cam_sys_rst_ofs),
+};
+
 static const struct mtk_clk_desc cam_main_desc = {
 	.clks = cam_main_clks,
 	.num_clks = ARRAY_SIZE(cam_main_clks),
@@ -80,21 +93,25 @@ static const struct mtk_clk_desc cam_main_desc = {
 static const struct mtk_clk_desc cam_rawa_desc = {
 	.clks = cam_rawa_clks,
 	.num_clks = ARRAY_SIZE(cam_rawa_clks),
+	.rst_desc = &cam_sys_rst_desc,
 };
 
 static const struct mtk_clk_desc cam_rawb_desc = {
 	.clks = cam_rawb_clks,
 	.num_clks = ARRAY_SIZE(cam_rawb_clks),
+	.rst_desc = &cam_sys_rst_desc,
 };
 
 static const struct mtk_clk_desc cam_yuva_desc = {
 	.clks = cam_yuva_clks,
 	.num_clks = ARRAY_SIZE(cam_yuva_clks),
+	.rst_desc = &cam_sys_rst_desc,
 };
 
 static const struct mtk_clk_desc cam_yuvb_desc = {
 	.clks = cam_yuvb_clks,
 	.num_clks = ARRAY_SIZE(cam_yuvb_clks),
+	.rst_desc = &cam_sys_rst_desc,
 };
 
 static const struct of_device_id of_match_clk_mt8188_cam[] = {

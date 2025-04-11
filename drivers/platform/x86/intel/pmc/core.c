@@ -1345,39 +1345,79 @@ static void pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 	}
 }
 
+/*
+ * When supported, ssram init is used to achieve all available PMCs.
+ * If ssram init fails, this function uses legacy method to at least get the
+ * primary PMC.
+ */
+int generic_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info)
+{
+	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
+	bool ssram;
+	int ret;
+
+	pmcdev->suspend = pmc_dev_info->suspend;
+	pmcdev->resume = pmc_dev_info->resume;
+
+	ssram = pmc_dev_info->regmap_list != NULL;
+	if (ssram) {
+		pmcdev->regmap_list = pmc_dev_info->regmap_list;
+		ret = pmc_core_ssram_init(pmcdev, pmc_dev_info->pci_func);
+		if (ret) {
+			dev_warn(&pmcdev->pdev->dev,
+				 "ssram init failed, %d, using legacy init\n", ret);
+			ssram = false;
+		}
+	}
+
+	if (!ssram) {
+		pmc->map = pmc_dev_info->map;
+		ret = get_primary_reg_base(pmc);
+		if (ret)
+			return ret;
+	}
+
+	pmc_core_get_low_power_modes(pmcdev);
+	if (pmc_dev_info->dmu_guid)
+		pmc_core_punit_pmt_init(pmcdev, pmc_dev_info->dmu_guid);
+
+	if (ssram)
+		return pmc_core_ssram_get_lpm_reqs(pmcdev);
+
+	return 0;
+}
+
 static const struct x86_cpu_id intel_pmc_core_ids[] = {
-	X86_MATCH_VFM(INTEL_SKYLAKE_L,		spt_core_init),
-	X86_MATCH_VFM(INTEL_SKYLAKE,		spt_core_init),
-	X86_MATCH_VFM(INTEL_KABYLAKE_L,		spt_core_init),
-	X86_MATCH_VFM(INTEL_KABYLAKE,		spt_core_init),
-	X86_MATCH_VFM(INTEL_CANNONLAKE_L,	cnp_core_init),
-	X86_MATCH_VFM(INTEL_ICELAKE_L,		icl_core_init),
-	X86_MATCH_VFM(INTEL_ICELAKE_NNPI,	icl_core_init),
-	X86_MATCH_VFM(INTEL_COMETLAKE,		cnp_core_init),
-	X86_MATCH_VFM(INTEL_COMETLAKE_L,	cnp_core_init),
-	X86_MATCH_VFM(INTEL_TIGERLAKE_L,	tgl_l_core_init),
-	X86_MATCH_VFM(INTEL_TIGERLAKE,		tgl_core_init),
-	X86_MATCH_VFM(INTEL_ATOM_TREMONT,	tgl_l_core_init),
-	X86_MATCH_VFM(INTEL_ATOM_TREMONT_L,	icl_core_init),
-	X86_MATCH_VFM(INTEL_ROCKETLAKE,		tgl_core_init),
-	X86_MATCH_VFM(INTEL_ALDERLAKE_L,	tgl_l_core_init),
-	X86_MATCH_VFM(INTEL_ATOM_GRACEMONT,	tgl_l_core_init),
-	X86_MATCH_VFM(INTEL_ALDERLAKE,		adl_core_init),
-	X86_MATCH_VFM(INTEL_RAPTORLAKE_P,	tgl_l_core_init),
-	X86_MATCH_VFM(INTEL_RAPTORLAKE,		adl_core_init),
-	X86_MATCH_VFM(INTEL_RAPTORLAKE_S,	adl_core_init),
-	X86_MATCH_VFM(INTEL_METEORLAKE_L,	mtl_core_init),
-	X86_MATCH_VFM(INTEL_ARROWLAKE,		arl_core_init),
-	X86_MATCH_VFM(INTEL_LUNARLAKE_M,	lnl_core_init),
+	X86_MATCH_VFM(INTEL_SKYLAKE_L,		&spt_pmc_dev),
+	X86_MATCH_VFM(INTEL_SKYLAKE,		&spt_pmc_dev),
+	X86_MATCH_VFM(INTEL_KABYLAKE_L,		&spt_pmc_dev),
+	X86_MATCH_VFM(INTEL_KABYLAKE,		&spt_pmc_dev),
+	X86_MATCH_VFM(INTEL_CANNONLAKE_L,	&cnp_pmc_dev),
+	X86_MATCH_VFM(INTEL_ICELAKE_L,		&icl_pmc_dev),
+	X86_MATCH_VFM(INTEL_ICELAKE_NNPI,	&icl_pmc_dev),
+	X86_MATCH_VFM(INTEL_COMETLAKE,		&cnp_pmc_dev),
+	X86_MATCH_VFM(INTEL_COMETLAKE_L,	&cnp_pmc_dev),
+	X86_MATCH_VFM(INTEL_TIGERLAKE_L,	&tgl_l_pmc_dev),
+	X86_MATCH_VFM(INTEL_TIGERLAKE,		&tgl_pmc_dev),
+	X86_MATCH_VFM(INTEL_ATOM_TREMONT,	&tgl_l_pmc_dev),
+	X86_MATCH_VFM(INTEL_ATOM_TREMONT_L,	&icl_pmc_dev),
+	X86_MATCH_VFM(INTEL_ROCKETLAKE,		&tgl_pmc_dev),
+	X86_MATCH_VFM(INTEL_ALDERLAKE_L,	&tgl_l_pmc_dev),
+	X86_MATCH_VFM(INTEL_ATOM_GRACEMONT,	&tgl_l_pmc_dev),
+	X86_MATCH_VFM(INTEL_ALDERLAKE,		&adl_pmc_dev),
+	X86_MATCH_VFM(INTEL_RAPTORLAKE_P,	&tgl_l_pmc_dev),
+	X86_MATCH_VFM(INTEL_RAPTORLAKE,		&adl_pmc_dev),
+	X86_MATCH_VFM(INTEL_RAPTORLAKE_S,	&adl_pmc_dev),
+	X86_MATCH_VFM(INTEL_METEORLAKE_L,	&mtl_pmc_dev),
+	X86_MATCH_VFM(INTEL_ARROWLAKE,		&arl_pmc_dev),
+	X86_MATCH_VFM(INTEL_ARROWLAKE_H,	&arl_h_pmc_dev),
+	X86_MATCH_VFM(INTEL_ARROWLAKE_U,	&arl_h_pmc_dev),
+	X86_MATCH_VFM(INTEL_LUNARLAKE_M,	&lnl_pmc_dev),
+	X86_MATCH_VFM(INTEL_PANTHERLAKE_L,	&ptl_pmc_dev),
 	{}
 };
 
 MODULE_DEVICE_TABLE(x86cpu, intel_pmc_core_ids);
-
-static const struct pci_device_id pmc_pci_ids[] = {
-	{ PCI_VDEVICE(INTEL, SPT_PMC_PCI_DEVICE_ID) },
-	{ }
-};
 
 /*
  * This quirk can be used on those platforms where
@@ -1452,7 +1492,7 @@ static int pmc_core_probe(struct platform_device *pdev)
 	static bool device_initialized;
 	struct pmc_dev *pmcdev;
 	const struct x86_cpu_id *cpu_id;
-	int (*core_init)(struct pmc_dev *pmcdev);
+	struct pmc_dev_info *pmc_dev_info;
 	struct pmc *primary_pmc;
 	int ret;
 
@@ -1472,7 +1512,7 @@ static int pmc_core_probe(struct platform_device *pdev)
 	if (!cpu_id)
 		return -ENODEV;
 
-	core_init = (int (*)(struct pmc_dev *))cpu_id->driver_data;
+	pmc_dev_info = (struct pmc_dev_info *)cpu_id->driver_data;
 
 	/* Primary PMC */
 	primary_pmc = devm_kzalloc(&pdev->dev, sizeof(*primary_pmc), GFP_KERNEL);
@@ -1489,16 +1529,13 @@ static int pmc_core_probe(struct platform_device *pdev)
 	if (!pmcdev->pkgc_res_cnt)
 		return -ENOMEM;
 
-	/*
-	 * Coffee Lake has CPU ID of Kaby Lake and Cannon Lake PCH. So here
-	 * Sunrisepoint PCH regmap can't be used. Use Cannon Lake PCH regmap
-	 * in this case.
-	 */
-	if (core_init == spt_core_init && !pci_dev_present(pmc_pci_ids))
-		core_init = cnp_core_init;
-
 	mutex_init(&pmcdev->lock);
-	ret = core_init(pmcdev);
+
+	if (pmc_dev_info->init)
+		ret = pmc_dev_info->init(pmcdev, pmc_dev_info);
+	else
+		ret = generic_core_init(pmcdev, pmc_dev_info);
+
 	if (ret) {
 		pmc_core_clean_structure(pdev);
 		return ret;

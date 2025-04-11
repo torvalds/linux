@@ -66,7 +66,7 @@ static long pps_gen_cdev_ioctl(struct file *file,
 		if (ret)
 			return -EFAULT;
 
-		ret = pps_gen->info.enable(pps_gen, status);
+		ret = pps_gen->info->enable(pps_gen, status);
 		if (ret)
 			return ret;
 		pps_gen->enabled = status;
@@ -76,7 +76,7 @@ static long pps_gen_cdev_ioctl(struct file *file,
 	case PPS_GEN_USESYSTEMCLOCK:
 		dev_dbg(pps_gen->dev, "PPS_GEN_USESYSTEMCLOCK\n");
 
-		ret = put_user(pps_gen->info.use_system_clock, uiuarg);
+		ret = put_user(pps_gen->info->use_system_clock, uiuarg);
 		if (ret)
 			return -EFAULT;
 
@@ -175,7 +175,7 @@ static int pps_gen_register_cdev(struct pps_gen_device *pps_gen)
 	devt = MKDEV(MAJOR(pps_gen_devt), pps_gen->id);
 
 	cdev_init(&pps_gen->cdev, &pps_gen_cdev_fops);
-	pps_gen->cdev.owner = pps_gen->info.owner;
+	pps_gen->cdev.owner = pps_gen->info->owner;
 
 	err = cdev_add(&pps_gen->cdev, devt, 1);
 	if (err) {
@@ -183,8 +183,8 @@ static int pps_gen_register_cdev(struct pps_gen_device *pps_gen)
 				MAJOR(pps_gen_devt), pps_gen->id);
 		goto free_ida;
 	}
-	pps_gen->dev = device_create(pps_gen_class, pps_gen->info.parent, devt,
-					pps_gen, "pps-gen%d", pps_gen->id);
+	pps_gen->dev = device_create(pps_gen_class, pps_gen->info->parent, devt,
+				     pps_gen, "pps-gen%d", pps_gen->id);
 	if (IS_ERR(pps_gen->dev)) {
 		err = PTR_ERR(pps_gen->dev);
 		goto del_cdev;
@@ -225,7 +225,7 @@ static void pps_gen_unregister_cdev(struct pps_gen_device *pps_gen)
  * Return: the PPS generator device in case of success, and ERR_PTR(errno)
  *	 otherwise.
  */
-struct pps_gen_device *pps_gen_register_source(struct pps_gen_source_info *info)
+struct pps_gen_device *pps_gen_register_source(const struct pps_gen_source_info *info)
 {
 	struct pps_gen_device *pps_gen;
 	int err;
@@ -235,7 +235,7 @@ struct pps_gen_device *pps_gen_register_source(struct pps_gen_source_info *info)
 		err = -ENOMEM;
 		goto pps_gen_register_source_exit;
 	}
-	pps_gen->info = *info;
+	pps_gen->info = info;
 	pps_gen->enabled = false;
 
 	init_waitqueue_head(&pps_gen->queue);

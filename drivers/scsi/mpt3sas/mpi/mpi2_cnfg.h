@@ -251,6 +251,7 @@
  * 12-17-18  02.00.47  Swap locations of Slotx2 and Slotx4 in ManPage 7.
  * 08-01-19  02.00.49  Add MPI26_MANPAGE7_FLAG_X2_X4_SLOT_INFO_VALID
  *                     Add MPI26_IOUNITPAGE1_NVME_WRCACHE_SHIFT
+ * 09-13-24  02.00.50  Added PCIe 32 GT/s link rate
  */
 
 #ifndef MPI2_CNFG_H
@@ -1121,6 +1122,7 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_7 {
 #define MPI2_IOUNITPAGE7_PCIE_SPEED_5_0_GBPS        (0x01)
 #define MPI2_IOUNITPAGE7_PCIE_SPEED_8_0_GBPS        (0x02)
 #define MPI2_IOUNITPAGE7_PCIE_SPEED_16_0_GBPS       (0x03)
+#define MPI2_IOUNITPAGE7_PCIE_SPEED_32_0_GBPS       (0x04)
 
 /*defines for IO Unit Page 7 ProcessorState field */
 #define MPI2_IOUNITPAGE7_PSTATE_MASK_SECOND         (0x0000000F)
@@ -2301,6 +2303,7 @@ typedef struct _MPI2_CONFIG_PAGE_SASIOUNIT_1 {
 #define MPI2_SASIOUNIT1_CONTROL_CLEAR_AFFILIATION                   (0x0001)
 
 /*values for SAS IO Unit Page 1 AdditionalControlFlags */
+#define MPI2_SASIOUNIT1_ACONTROL_PROD_SPECIFIC_1                    (0x8000)
 #define MPI2_SASIOUNIT1_ACONTROL_DA_PERSIST_CONNECT                 (0x0100)
 #define MPI2_SASIOUNIT1_ACONTROL_MULTI_PORT_DOMAIN_ILLEGAL          (0x0080)
 #define MPI2_SASIOUNIT1_ACONTROL_SATA_ASYNCHROUNOUS_NOTIFICATION    (0x0040)
@@ -3591,6 +3594,7 @@ typedef struct _MPI2_CONFIG_PAGE_EXT_MAN_PS {
 #define MPI26_PCIE_NEG_LINK_RATE_5_0                    (0x03)
 #define MPI26_PCIE_NEG_LINK_RATE_8_0                    (0x04)
 #define MPI26_PCIE_NEG_LINK_RATE_16_0                   (0x05)
+#define MPI26_PCIE_NEG_LINK_RATE_32_0                   (0x06)
 
 
 /****************************************************************************
@@ -3700,6 +3704,7 @@ typedef struct _MPI26_CONFIG_PAGE_PIOUNIT_1 {
 #define MPI26_PCIEIOUNIT1_MAX_RATE_5_0                              (0x30)
 #define MPI26_PCIEIOUNIT1_MAX_RATE_8_0                              (0x40)
 #define MPI26_PCIEIOUNIT1_MAX_RATE_16_0                             (0x50)
+#define MPI26_PCIEIOUNIT1_MAX_RATE_32_0                             (0x60)
 
 /*values for PCIe IO Unit Page 1 DMDReportPCIe */
 #define MPI26_PCIEIOUNIT1_DMDRPT_UNIT_MASK                          (0x80)

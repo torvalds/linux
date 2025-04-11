@@ -34,8 +34,8 @@ static inline int crypto_ctr_encrypt_walk(struct skcipher_request *req,
 	err = skcipher_walk_virt(&walk, req, false);
 
 	while (walk.nbytes > 0) {
+		const u8 *src = walk.src.virt.addr;
 		u8 *dst = walk.dst.virt.addr;
-		u8 *src = walk.src.virt.addr;
 		int nbytes = walk.nbytes;
 		int tail = 0;
 

@@ -96,7 +96,7 @@ static void input_start_autorepeat(struct input_dev *dev, int code)
 
 static void input_stop_autorepeat(struct input_dev *dev)
 {
-	del_timer(&dev->timer);
+	timer_delete(&dev->timer);
 }
 
 /*
@@ -2223,7 +2223,7 @@ static void __input_unregister_device(struct input_dev *dev)
 			handle->handler->disconnect(handle);
 		WARN_ON(!list_empty(&dev->h_list));
 
-		del_timer_sync(&dev->timer);
+		timer_delete_sync(&dev->timer);
 		list_del_init(&dev->node);
 
 		input_wakeup_procfs_readers();

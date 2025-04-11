@@ -58,6 +58,30 @@ unsigned long tpm_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal)
 }
 EXPORT_SYMBOL_GPL(tpm_calc_ordinal_duration);
 
+static void tpm_chip_cancel(struct tpm_chip *chip)
+{
+	if (!chip->ops->cancel)
+		return;
+
+	chip->ops->cancel(chip);
+}
+
+static u8 tpm_chip_status(struct tpm_chip *chip)
+{
+	if (!chip->ops->status)
+		return 0;
+
+	return chip->ops->status(chip);
+}
+
+static bool tpm_chip_req_canceled(struct tpm_chip *chip, u8 status)
+{
+	if (!chip->ops->req_canceled)
+		return false;
+
+	return chip->ops->req_canceled(chip, status);
+}
+
 static ssize_t tpm_try_transmit(struct tpm_chip *chip, void *buf, size_t bufsiz)
 {
 	struct tpm_header *header = buf;
@@ -104,12 +128,12 @@ static ssize_t tpm_try_transmit(struct tpm_chip *chip, void *buf, size_t bufsiz)
 
 	stop = jiffies + tpm_calc_ordinal_duration(chip, ordinal);
 	do {
-		u8 status = chip->ops->status(chip);
+		u8 status = tpm_chip_status(chip);
 		if ((status & chip->ops->req_complete_mask) ==
 		    chip->ops->req_complete_val)
 			goto out_recv;
 
-		if (chip->ops->req_canceled(chip, status)) {
+		if (tpm_chip_req_canceled(chip, status)) {
 			dev_err(&chip->dev, "Operation Canceled\n");
 			return -ECANCELED;
 		}
@@ -118,7 +142,7 @@ static ssize_t tpm_try_transmit(struct tpm_chip *chip, void *buf, size_t bufsiz)
 		rmb();
 	} while (time_before(jiffies, stop));
 
-	chip->ops->cancel(chip);
+	tpm_chip_cancel(chip);
 	dev_err(&chip->dev, "Operation Timed out\n");
 	return -ETIME;
 
@@ -445,18 +469,11 @@ int tpm_get_random(struct tpm_chip *chip, u8 *out, size_t max)
 	if (!chip)
 		return -ENODEV;
 
-	/* Give back zero bytes, as TPM chip has not yet fully resumed: */
-	if (chip->flags & TPM_CHIP_FLAG_SUSPENDED) {
-		rc = 0;
-		goto out;
-	}
-
 	if (chip->flags & TPM_CHIP_FLAG_TPM2)
 		rc = tpm2_get_random(chip, out, max);
 	else
 		rc = tpm1_get_random(chip, out, max);
 
-out:
 	tpm_put_ops(chip);
 	return rc;
 }

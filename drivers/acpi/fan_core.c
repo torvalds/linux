@@ -203,12 +203,16 @@ static const struct thermal_cooling_device_ops fan_cooling_ops = {
  * --------------------------------------------------------------------------
 */
 
+static bool acpi_fan_has_fst(struct acpi_device *device)
+{
+	return acpi_has_method(device->handle, "_FST");
+}
+
 static bool acpi_fan_is_acpi4(struct acpi_device *device)
 {
 	return acpi_has_method(device->handle, "_FIF") &&
 	       acpi_has_method(device->handle, "_FPS") &&
-	       acpi_has_method(device->handle, "_FSL") &&
-	       acpi_has_method(device->handle, "_FST");
+	       acpi_has_method(device->handle, "_FSL");
 }
 
 static int acpi_fan_get_fif(struct acpi_device *device)
@@ -327,7 +331,12 @@ static int acpi_fan_probe(struct platform_device *pdev)
 	device->driver_data = fan;
 	platform_set_drvdata(pdev, fan);
 
-	if (acpi_fan_is_acpi4(device)) {
+	if (acpi_fan_has_fst(device)) {
+		fan->has_fst = true;
+		fan->acpi4 = acpi_fan_is_acpi4(device);
+	}
+
+	if (fan->acpi4) {
 		result = acpi_fan_get_fif(device);
 		if (result)
 			return result;
@@ -335,7 +344,9 @@ static int acpi_fan_probe(struct platform_device *pdev)
 		result = acpi_fan_get_fps(device);
 		if (result)
 			return result;
+	}
 
+	if (fan->has_fst) {
 		result = devm_acpi_fan_create_hwmon(device);
 		if (result)
 			return result;
@@ -343,9 +354,9 @@ static int acpi_fan_probe(struct platform_device *pdev)
 		result = acpi_fan_create_attributes(device);
 		if (result)
 			return result;
+	}
 
-		fan->acpi4 = true;
-	} else {
+	if (!fan->acpi4) {
 		result = acpi_device_update_power(device, NULL);
 		if (result) {
 			dev_err(&device->dev, "Failed to set initial power state\n");
@@ -391,7 +402,7 @@ err_remove_link:
 err_unregister:
 	thermal_cooling_device_unregister(cdev);
 err_end:
-	if (fan->acpi4)
+	if (fan->has_fst)
 		acpi_fan_delete_attributes(device);
 
 	return result;
@@ -401,7 +412,7 @@ static void acpi_fan_remove(struct platform_device *pdev)
 {
 	struct acpi_fan *fan = platform_get_drvdata(pdev);
 
-	if (fan->acpi4) {
+	if (fan->has_fst) {
 		struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
 
 		acpi_fan_delete_attributes(device);

@@ -217,7 +217,7 @@ static irqreturn_t mctrl_gpio_irq_handle(int irq, void *context)
  *
  * This will get the {cts,rts,...}-gpios from device tree if they are present
  * and request them, set direction etc, and return an allocated structure.
- * `devm_*` functions are used, so there's no need to call mctrl_gpio_free().
+ * `devm_*` functions are used, so there's no need to explicitly free.
  * As this sets up the irq handling, make sure to not handle changes to the
  * gpio input lines in your driver, too.
  */
@@ -268,32 +268,6 @@ struct mctrl_gpios *mctrl_gpio_init(struct uart_port *port, unsigned int idx)
 EXPORT_SYMBOL_GPL(mctrl_gpio_init);
 
 /**
- * mctrl_gpio_free - explicitly free uart gpios
- * @dev: uart port's device
- * @gpios: gpios structure to be freed
- *
- * This will free the requested gpios in mctrl_gpio_init(). As `devm_*`
- * functions are used, there's generally no need to call this function.
- */
-void mctrl_gpio_free(struct device *dev, struct mctrl_gpios *gpios)
-{
-	enum mctrl_gpio_idx i;
-
-	if (gpios == NULL)
-		return;
-
-	for (i = 0; i < UART_GPIO_MAX; i++) {
-		if (gpios->irq[i])
-			devm_free_irq(gpios->port->dev, gpios->irq[i], gpios);
-
-		if (gpios->gpio[i])
-			devm_gpiod_put(dev, gpios->gpio[i]);
-	}
-	devm_kfree(dev, gpios);
-}
-EXPORT_SYMBOL_GPL(mctrl_gpio_free);
-
-/**
  * mctrl_gpio_enable_ms - enable irqs and handling of changes to the ms lines
  * @gpios: gpios to enable
  */
@@ -322,11 +296,7 @@ void mctrl_gpio_enable_ms(struct mctrl_gpios *gpios)
 }
 EXPORT_SYMBOL_GPL(mctrl_gpio_enable_ms);
 
-/**
- * mctrl_gpio_disable_ms - disable irqs and handling of changes to the ms lines
- * @gpios: gpios to disable
- */
-void mctrl_gpio_disable_ms(struct mctrl_gpios *gpios)
+static void mctrl_gpio_disable_ms(struct mctrl_gpios *gpios, bool sync)
 {
 	enum mctrl_gpio_idx i;
 
@@ -342,10 +312,34 @@ void mctrl_gpio_disable_ms(struct mctrl_gpios *gpios)
 		if (!gpios->irq[i])
 			continue;
 
-		disable_irq(gpios->irq[i]);
+		if (sync)
+			disable_irq(gpios->irq[i]);
+		else
+			disable_irq_nosync(gpios->irq[i]);
 	}
 }
-EXPORT_SYMBOL_GPL(mctrl_gpio_disable_ms);
+
+/**
+ * mctrl_gpio_disable_ms_sync - disable irqs and handling of changes to the ms
+ * lines, and wait for any pending IRQ to be processed
+ * @gpios: gpios to disable
+ */
+void mctrl_gpio_disable_ms_sync(struct mctrl_gpios *gpios)
+{
+	mctrl_gpio_disable_ms(gpios, true);
+}
+EXPORT_SYMBOL_GPL(mctrl_gpio_disable_ms_sync);
+
+/**
+ * mctrl_gpio_disable_ms_no_sync - disable irqs and handling of changes to the
+ * ms lines, and return immediately
+ * @gpios: gpios to disable
+ */
+void mctrl_gpio_disable_ms_no_sync(struct mctrl_gpios *gpios)
+{
+	mctrl_gpio_disable_ms(gpios, false);
+}
+EXPORT_SYMBOL_GPL(mctrl_gpio_disable_ms_no_sync);
 
 void mctrl_gpio_enable_irq_wake(struct mctrl_gpios *gpios)
 {

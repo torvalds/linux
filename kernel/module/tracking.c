@@ -21,8 +21,6 @@ int try_add_tainted_module(struct module *mod)
 {
 	struct mod_unload_taint *mod_taint;
 
-	module_assert_mutex_or_preempt();
-
 	if (!mod->taints)
 		goto out;
 

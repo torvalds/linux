@@ -244,7 +244,7 @@ information about the interrupt from the irb parameter.
 --------------------
 
 The ccwgroup mechanism is designed to handle devices consisting of multiple ccw
-devices, like lcs or ctc.
+devices, like qeth or ctc.
 
 The ccw driver provides a 'group' attribute. Piping bus ids of ccw devices to
 this attributes creates a ccwgroup device consisting of these ccw devices (if

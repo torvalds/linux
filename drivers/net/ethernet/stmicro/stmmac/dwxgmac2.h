@@ -112,14 +112,7 @@
 #define XGMAC_MGKPKTEN			BIT(1)
 #define XGMAC_PWRDWN			BIT(0)
 #define XGMAC_LPI_CTRL			0x000000d0
-#define XGMAC_TXCGE			BIT(21)
-#define XGMAC_LPITXA			BIT(19)
-#define XGMAC_PLS			BIT(17)
-#define XGMAC_LPITXEN			BIT(16)
-#define XGMAC_RLPIEX			BIT(3)
-#define XGMAC_RLPIEN			BIT(2)
-#define XGMAC_TLPIEX			BIT(1)
-#define XGMAC_TLPIEN			BIT(0)
+/* For definitions, see LPI_CTRL_STATUS_xxx in common.h */
 #define XGMAC_LPI_TIMER_CTRL		0x000000d4
 #define XGMAC_HW_FEATURE0		0x0000011c
 #define XGMAC_HWFEAT_EDMA		BIT(31)

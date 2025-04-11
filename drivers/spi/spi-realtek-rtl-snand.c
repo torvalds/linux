@@ -364,7 +364,6 @@ static int rtl_snand_probe(struct platform_device *pdev)
 		.reg_bits	= 32,
 		.val_bits	= 32,
 		.reg_stride	= 4,
-		.cache_type	= REGCACHE_NONE,
 	};
 	int irq, ret;
 

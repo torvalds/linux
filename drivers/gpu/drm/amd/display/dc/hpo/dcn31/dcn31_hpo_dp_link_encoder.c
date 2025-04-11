@@ -262,7 +262,7 @@ void dcn31_hpo_dp_link_enc_set_link_test_pattern(
 	}
 }
 
-static void fill_stream_allocation_row_info(
+void dcn31_fill_stream_allocation_row_info(
 		const struct link_mst_stream_allocation *stream_allocation,
 		uint32_t *src,
 		uint32_t *slots)
@@ -296,7 +296,7 @@ void dcn31_hpo_dp_link_enc_update_stream_allocation_table(
 	/* we should clean-up table each time */
 
 	if (table->stream_count >= 1) {
-		fill_stream_allocation_row_info(
+		dcn31_fill_stream_allocation_row_info(
 			&table->stream_allocations[0],
 			&src,
 			&slots);
@@ -310,7 +310,7 @@ void dcn31_hpo_dp_link_enc_update_stream_allocation_table(
 			SAT_SLOT_COUNT, slots);
 
 	if (table->stream_count >= 2) {
-		fill_stream_allocation_row_info(
+		dcn31_fill_stream_allocation_row_info(
 			&table->stream_allocations[1],
 			&src,
 			&slots);
@@ -324,7 +324,7 @@ void dcn31_hpo_dp_link_enc_update_stream_allocation_table(
 			SAT_SLOT_COUNT, slots);
 
 	if (table->stream_count >= 3) {
-		fill_stream_allocation_row_info(
+		dcn31_fill_stream_allocation_row_info(
 			&table->stream_allocations[2],
 			&src,
 			&slots);
@@ -338,7 +338,7 @@ void dcn31_hpo_dp_link_enc_update_stream_allocation_table(
 			SAT_SLOT_COUNT, slots);
 
 	if (table->stream_count >= 4) {
-		fill_stream_allocation_row_info(
+		dcn31_fill_stream_allocation_row_info(
 			&table->stream_allocations[3],
 			&src,
 			&slots);

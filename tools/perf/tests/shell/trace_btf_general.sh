@@ -76,6 +76,7 @@ trace_config() {
 
 skip_if_no_perf_trace || exit 2
 check_vmlinux || exit 2
+[ "$(id -u)" = 0 ] || exit 2
 
 trace_config
 

@@ -12,6 +12,10 @@
 #include "fbnic_txrx.h"
 
 #define FBNIC_MAX_NAPI_VECTORS		128u
+#define FBNIC_MIN_RXD_PER_FRAME		2
+
+/* Natively supported tunnel GSO features (not thru GSO_PARTIAL) */
+#define FBNIC_TUN_GSO_FEATURES		NETIF_F_GSO_IPXIP6
 
 struct fbnic_net {
 	struct fbnic_ring *tx[FBNIC_MAX_TXQS];
@@ -26,6 +30,11 @@ struct fbnic_net {
 	u32 hpq_size;
 	u32 ppq_size;
 	u32 rcq_size;
+
+	u16 rx_usecs;
+	u16 tx_usecs;
+
+	u32 rx_max_frames;
 
 	u16 num_napi;
 

@@ -30,6 +30,15 @@
 
 #include <asm/dma.h>
 #include <asm/pgalloc.h>
+#include <asm/tlbflush.h>
+
+#include "hugetlb_vmemmap.h"
+
+/*
+ * Flags for vmemmap_populate_range and friends.
+ */
+/* Get a ref on the head page struct page, for ZONE_DEVICE compound pages */
+#define VMEMMAP_POPULATE_PAGEREF	0x0001
 
 #include "internal.h"
 
@@ -144,17 +153,18 @@ void __meminit vmemmap_verify(pte_t *pte, int node,
 
 pte_t * __meminit vmemmap_pte_populate(pmd_t *pmd, unsigned long addr, int node,
 				       struct vmem_altmap *altmap,
-				       struct page *reuse)
+				       unsigned long ptpfn, unsigned long flags)
 {
 	pte_t *pte = pte_offset_kernel(pmd, addr);
 	if (pte_none(ptep_get(pte))) {
 		pte_t entry;
 		void *p;
 
-		if (!reuse) {
+		if (ptpfn == (unsigned long)-1) {
 			p = vmemmap_alloc_block_buf(PAGE_SIZE, node, altmap);
 			if (!p)
 				return NULL;
+			ptpfn = PHYS_PFN(__pa(p));
 		} else {
 			/*
 			 * When a PTE/PMD entry is freed from the init_mm
@@ -165,10 +175,10 @@ pte_t * __meminit vmemmap_pte_populate(pmd_t *pmd, unsigned long addr, int node,
 			 * and through vmemmap_populate_compound_pages() when
 			 * slab is available.
 			 */
-			get_page(reuse);
-			p = page_to_virt(reuse);
+			if (flags & VMEMMAP_POPULATE_PAGEREF)
+				get_page(pfn_to_page(ptpfn));
 		}
-		entry = pfn_pte(__pa(p) >> PAGE_SHIFT, PAGE_KERNEL);
+		entry = pfn_pte(ptpfn, PAGE_KERNEL);
 		set_pte_at(&init_mm, addr, pte, entry);
 	}
 	return pte;
@@ -238,7 +248,8 @@ pgd_t * __meminit vmemmap_pgd_populate(unsigned long addr, int node)
 
 static pte_t * __meminit vmemmap_populate_address(unsigned long addr, int node,
 					      struct vmem_altmap *altmap,
-					      struct page *reuse)
+					      unsigned long ptpfn,
+					      unsigned long flags)
 {
 	pgd_t *pgd;
 	p4d_t *p4d;
@@ -258,7 +269,7 @@ static pte_t * __meminit vmemmap_populate_address(unsigned long addr, int node,
 	pmd = vmemmap_pmd_populate(pud, addr, node);
 	if (!pmd)
 		return NULL;
-	pte = vmemmap_pte_populate(pmd, addr, node, altmap, reuse);
+	pte = vmemmap_pte_populate(pmd, addr, node, altmap, ptpfn, flags);
 	if (!pte)
 		return NULL;
 	vmemmap_verify(pte, node, addr, addr + PAGE_SIZE);
@@ -269,13 +280,15 @@ static pte_t * __meminit vmemmap_populate_address(unsigned long addr, int node,
 static int __meminit vmemmap_populate_range(unsigned long start,
 					    unsigned long end, int node,
 					    struct vmem_altmap *altmap,
-					    struct page *reuse)
+					    unsigned long ptpfn,
+					    unsigned long flags)
 {
 	unsigned long addr = start;
 	pte_t *pte;
 
 	for (; addr < end; addr += PAGE_SIZE) {
-		pte = vmemmap_populate_address(addr, node, altmap, reuse);
+		pte = vmemmap_populate_address(addr, node, altmap,
+					       ptpfn, flags);
 		if (!pte)
 			return -ENOMEM;
 	}
@@ -286,7 +299,107 @@ static int __meminit vmemmap_populate_range(unsigned long start,
 int __meminit vmemmap_populate_basepages(unsigned long start, unsigned long end,
 					 int node, struct vmem_altmap *altmap)
 {
-	return vmemmap_populate_range(start, end, node, altmap, NULL);
+	return vmemmap_populate_range(start, end, node, altmap, -1, 0);
+}
+
+/*
+ * Undo populate_hvo, and replace it with a normal base page mapping.
+ * Used in memory init in case a HVO mapping needs to be undone.
+ *
+ * This can happen when it is discovered that a memblock allocated
+ * hugetlb page spans multiple zones, which can only be verified
+ * after zones have been initialized.
+ *
+ * We know that:
+ * 1) The first @headsize / PAGE_SIZE vmemmap pages were individually
+ *    allocated through memblock, and mapped.
+ *
+ * 2) The rest of the vmemmap pages are mirrors of the last head page.
+ */
+int __meminit vmemmap_undo_hvo(unsigned long addr, unsigned long end,
+				      int node, unsigned long headsize)
+{
+	unsigned long maddr, pfn;
+	pte_t *pte;
+	int headpages;
+
+	/*
+	 * Should only be called early in boot, so nothing will
+	 * be accessing these page structures.
+	 */
+	WARN_ON(!early_boot_irqs_disabled);
+
+	headpages = headsize >> PAGE_SHIFT;
+
+	/*
+	 * Clear mirrored mappings for tail page structs.
+	 */
+	for (maddr = addr + headsize; maddr < end; maddr += PAGE_SIZE) {
+		pte = virt_to_kpte(maddr);
+		pte_clear(&init_mm, maddr, pte);
+	}
+
+	/*
+	 * Clear and free mappings for head page and first tail page
+	 * structs.
+	 */
+	for (maddr = addr; headpages-- > 0; maddr += PAGE_SIZE) {
+		pte = virt_to_kpte(maddr);
+		pfn = pte_pfn(ptep_get(pte));
+		pte_clear(&init_mm, maddr, pte);
+		memblock_phys_free(PFN_PHYS(pfn), PAGE_SIZE);
+	}
+
+	flush_tlb_kernel_range(addr, end);
+
+	return vmemmap_populate(addr, end, node, NULL);
+}
+
+/*
+ * Write protect the mirrored tail page structs for HVO. This will be
+ * called from the hugetlb code when gathering and initializing the
+ * memblock allocated gigantic pages. The write protect can't be
+ * done earlier, since it can't be guaranteed that the reserved
+ * page structures will not be written to during initialization,
+ * even if CONFIG_DEFERRED_STRUCT_PAGE_INIT is enabled.
+ *
+ * The PTEs are known to exist, and nothing else should be touching
+ * these pages. The caller is responsible for any TLB flushing.
+ */
+void vmemmap_wrprotect_hvo(unsigned long addr, unsigned long end,
+				    int node, unsigned long headsize)
+{
+	unsigned long maddr;
+	pte_t *pte;
+
+	for (maddr = addr + headsize; maddr < end; maddr += PAGE_SIZE) {
+		pte = virt_to_kpte(maddr);
+		ptep_set_wrprotect(&init_mm, maddr, pte);
+	}
+}
+
+/*
+ * Populate vmemmap pages HVO-style. The first page contains the head
+ * page and needed tail pages, the other ones are mirrors of the first
+ * page.
+ */
+int __meminit vmemmap_populate_hvo(unsigned long addr, unsigned long end,
+				       int node, unsigned long headsize)
+{
+	pte_t *pte;
+	unsigned long maddr;
+
+	for (maddr = addr; maddr < addr + headsize; maddr += PAGE_SIZE) {
+		pte = vmemmap_populate_address(maddr, node, NULL, -1, 0);
+		if (!pte)
+			return -ENOMEM;
+	}
+
+	/*
+	 * Reuse the last page struct page mapped above for the rest.
+	 */
+	return vmemmap_populate_range(maddr, end, node, NULL,
+					pte_pfn(ptep_get(pte)), 0);
 }
 
 void __weak __meminit vmemmap_set_pmd(pmd_t *pmd, void *p, int node,
@@ -409,7 +522,8 @@ static int __meminit vmemmap_populate_compound_pages(unsigned long start_pfn,
 		 * with just tail struct pages.
 		 */
 		return vmemmap_populate_range(start, end, node, NULL,
-					      pte_page(ptep_get(pte)));
+					      pte_pfn(ptep_get(pte)),
+					      VMEMMAP_POPULATE_PAGEREF);
 	}
 
 	size = min(end - start, pgmap_vmemmap_nr(pgmap) * sizeof(struct page));
@@ -417,13 +531,13 @@ static int __meminit vmemmap_populate_compound_pages(unsigned long start_pfn,
 		unsigned long next, last = addr + size;
 
 		/* Populate the head page vmemmap page */
-		pte = vmemmap_populate_address(addr, node, NULL, NULL);
+		pte = vmemmap_populate_address(addr, node, NULL, -1, 0);
 		if (!pte)
 			return -ENOMEM;
 
 		/* Populate the tail pages vmemmap page */
 		next = addr + PAGE_SIZE;
-		pte = vmemmap_populate_address(next, node, NULL, NULL);
+		pte = vmemmap_populate_address(next, node, NULL, -1, 0);
 		if (!pte)
 			return -ENOMEM;
 
@@ -433,7 +547,8 @@ static int __meminit vmemmap_populate_compound_pages(unsigned long start_pfn,
 		 */
 		next += PAGE_SIZE;
 		rc = vmemmap_populate_range(next, last, node, NULL,
-					    pte_page(ptep_get(pte)));
+					    pte_pfn(ptep_get(pte)),
+					    VMEMMAP_POPULATE_PAGEREF);
 		if (rc)
 			return -ENOMEM;
 	}
@@ -470,3 +585,28 @@ struct page * __meminit __populate_section_memmap(unsigned long pfn,
 
 	return pfn_to_page(pfn);
 }
+
+#ifdef CONFIG_SPARSEMEM_VMEMMAP_PREINIT
+/*
+ * This is called just before initializing sections for a NUMA node.
+ * Any special initialization that needs to be done before the
+ * generic initialization can be done from here. Sections that
+ * are initialized in hooks called from here will be skipped by
+ * the generic initialization.
+ */
+void __init sparse_vmemmap_init_nid_early(int nid)
+{
+	hugetlb_vmemmap_init_early(nid);
+}
+
+/*
+ * This is called just before the initialization of page structures
+ * through memmap_init. Zones are now initialized, so any work that
+ * needs to be done that needs zone information can be done from
+ * here.
+ */
+void __init sparse_vmemmap_init_nid_late(int nid)
+{
+	hugetlb_vmemmap_init_late(nid);
+}
+#endif

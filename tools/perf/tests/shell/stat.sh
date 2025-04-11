@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # perf stat tests
 # SPDX-License-Identifier: GPL-2.0
 
@@ -67,43 +67,54 @@ test_topdown_groups() {
     echo "Topdown event group test [Skipped event parsing failed]"
     return
   fi
-  if perf stat -e '{slots,topdown-retiring}' true 2>&1 | grep -E -q "<not supported>"
+  td_err=0
+  do_topdown_group_test() {
+    events=$1
+    failure=$2
+    if perf stat -e "$events" true 2>&1 | grep -E -q "<not supported>"
+    then
+      echo "Topdown event group test [Failed $failure for '$events']"
+      td_err=1
+      return
+    fi
+  }
+  do_topdown_group_test "{slots,topdown-retiring}" "events not supported"
+  do_topdown_group_test "{instructions,r400,r8000}" "raw format slots not reordered first"
+  filler_events=("instructions" "cycles"
+                 "context-switches" "faults")
+  for ((i = 0; i < ${#filler_events[@]}; i+=2))
+  do
+    filler1=${filler_events[i]}
+    filler2=${filler_events[i+1]}
+    do_topdown_group_test "$filler1,topdown-retiring,slots" \
+      "slots not reordered first in no-group case"
+    do_topdown_group_test "slots,$filler1,topdown-retiring" \
+      "topdown metrics event not reordered in no-group case"
+    do_topdown_group_test "{$filler1,topdown-retiring,slots}" \
+      "slots not reordered first in single group case"
+    do_topdown_group_test "{$filler1,slots},topdown-retiring" \
+      "topdown metrics event not move into slots group"
+    do_topdown_group_test "topdown-retiring,{$filler1,slots}" \
+      "topdown metrics event not move into slots group last"
+    do_topdown_group_test "{$filler1,slots},{topdown-retiring}" \
+      "topdown metrics group not merge into slots group"
+    do_topdown_group_test "{topdown-retiring},{$filler1,slots}" \
+      "topdown metrics group not merge into slots group last"
+    do_topdown_group_test "{$filler1,slots},$filler2,topdown-retiring" \
+      "non-adjacent topdown metrics group not move into slots group"
+    do_topdown_group_test "$filler2,topdown-retiring,{$filler1,slots}" \
+      "non-adjacent topdown metrics group not move into slots group last"
+    do_topdown_group_test "{$filler1,slots},{$filler2,topdown-retiring}" \
+      "metrics group not merge into slots group"
+    do_topdown_group_test "{$filler1,topdown-retiring},{$filler2,slots}" \
+      "metrics group not merge into slots group last"
+  done
+  if test "$td_err" -eq 0
   then
-    echo "Topdown event group test [Failed events not supported]"
-    err=1
-    return
+    echo "Topdown event group test [Success]"
+  else
+    err="$td_err"
   fi
-  if perf stat -e 'instructions,topdown-retiring,slots' true 2>&1 | grep -E -q "<not supported>"
-  then
-    echo "Topdown event group test [Failed slots not reordered first in no-group case]"
-    err=1
-    return
-  fi
-  if perf stat -e '{instructions,topdown-retiring,slots}' true 2>&1 | grep -E -q "<not supported>"
-  then
-    echo "Topdown event group test [Failed slots not reordered first in single group case]"
-    err=1
-    return
-  fi
-  if perf stat -e '{instructions,slots},topdown-retiring' true 2>&1 | grep -E -q "<not supported>"
-  then
-    echo "Topdown event group test [Failed topdown metrics event not move into slots group]"
-    err=1
-    return
-  fi
-  if perf stat -e '{instructions,slots},{topdown-retiring}' true 2>&1 | grep -E -q "<not supported>"
-  then
-    echo "Topdown event group test [Failed topdown metrics group not merge into slots group]"
-    err=1
-    return
-  fi
-  if perf stat -e '{instructions,r400,r8000}' true 2>&1 | grep -E -q "<not supported>"
-  then
-    echo "Topdown event group test [Failed raw format slots not reordered first]"
-    err=1
-    return
-  fi
-  echo "Topdown event group test [Success]"
 }
 
 test_topdown_weak_groups() {

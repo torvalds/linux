@@ -1451,7 +1451,8 @@ static int platform_dma_configure(struct device *dev)
 		attr = acpi_get_dma_attr(to_acpi_device_node(fwnode));
 		ret = acpi_dma_configure(dev, attr);
 	}
-	if (ret || drv->driver_managed_dma)
+	/* @drv may not be valid when we're called from the IOMMU layer */
+	if (ret || !dev->driver || drv->driver_managed_dma)
 		return ret;
 
 	ret = iommu_device_use_default_domain(dev);

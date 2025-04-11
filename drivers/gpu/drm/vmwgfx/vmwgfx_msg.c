@@ -289,7 +289,7 @@ static int vmw_send_msg(struct rpc_channel *channel, const char *msg)
 
 	return -EINVAL;
 }
-STACK_FRAME_NON_STANDARD(vmw_send_msg);
+STACK_FRAME_NON_STANDARD_FP(vmw_send_msg);
 
 
 /**

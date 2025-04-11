@@ -7,14 +7,18 @@
 
 #include "debug.h"
 
-extern u8 rtw_cck_rates[];
-extern u8 rtw_ofdm_rates[];
-extern u8 rtw_ht_1s_rates[];
-extern u8 rtw_ht_2s_rates[];
-extern u8 rtw_vht_1s_rates[];
-extern u8 rtw_vht_2s_rates[];
-extern u8 *rtw_rate_section[];
-extern u8 rtw_rate_size[];
+extern const u8 rtw_cck_rates[];
+extern const u8 rtw_ofdm_rates[];
+extern const u8 rtw_ht_1s_rates[];
+extern const u8 rtw_ht_2s_rates[];
+extern const u8 rtw_vht_1s_rates[];
+extern const u8 rtw_vht_2s_rates[];
+extern const u8 rtw_ht_3s_rates[];
+extern const u8 rtw_ht_4s_rates[];
+extern const u8 rtw_vht_3s_rates[];
+extern const u8 rtw_vht_4s_rates[];
+extern const u8 * const rtw_rate_section[];
+extern const u8 rtw_rate_size[];
 
 void rtw_phy_init(struct rtw_dev *rtwdev);
 void rtw_phy_dynamic_mechanism(struct rtw_dev *rtwdev);

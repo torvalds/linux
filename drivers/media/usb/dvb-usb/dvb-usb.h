@@ -73,8 +73,8 @@ struct dvb_usb_device_description {
 	const char *name;
 
 #define DVB_USB_ID_MAX_NUM 15
-	struct usb_device_id *cold_ids[DVB_USB_ID_MAX_NUM];
-	struct usb_device_id *warm_ids[DVB_USB_ID_MAX_NUM];
+	const struct usb_device_id *cold_ids[DVB_USB_ID_MAX_NUM];
+	const struct usb_device_id *warm_ids[DVB_USB_ID_MAX_NUM];
 };
 
 static inline u8 rc5_custom(struct rc_map_table *key)
@@ -309,7 +309,7 @@ struct dvb_usb_device_properties {
 		struct dvb_rc core;
 	} rc;
 
-	struct i2c_algorithm *i2c_algo;
+	const struct i2c_algorithm *i2c_algo;
 
 	int generic_bulk_ctrl_endpoint;
 	int generic_bulk_ctrl_endpoint_response;

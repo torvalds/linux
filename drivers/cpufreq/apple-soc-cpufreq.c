@@ -229,12 +229,6 @@ static int apple_soc_cpufreq_find_cluster(struct cpufreq_policy *policy,
 	return 0;
 }
 
-static struct freq_attr *apple_soc_cpufreq_hw_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL, /* Filled in below if boost is enabled */
-	NULL,
-};
-
 static int apple_soc_cpufreq_init(struct cpufreq_policy *policy)
 {
 	int ret, i;
@@ -316,16 +310,6 @@ static int apple_soc_cpufreq_init(struct cpufreq_policy *policy)
 	policy->fast_switch_possible = true;
 	policy->suspend_freq = freq_table[0].frequency;
 
-	if (policy_has_boost_freq(policy)) {
-		ret = cpufreq_enable_boost_support();
-		if (ret) {
-			dev_warn(cpu_dev, "failed to enable boost: %d\n", ret);
-		} else {
-			apple_soc_cpufreq_hw_attr[1] = &cpufreq_freq_attr_scaling_boost_freqs;
-			apple_soc_cpufreq_driver.boost_enabled = true;
-		}
-	}
-
 	return 0;
 
 out_free_cpufreq_table:
@@ -360,7 +344,7 @@ static struct cpufreq_driver apple_soc_cpufreq_driver = {
 	.target_index	= apple_soc_cpufreq_set_target,
 	.fast_switch	= apple_soc_cpufreq_fast_switch,
 	.register_em	= cpufreq_register_em_with_opp,
-	.attr		= apple_soc_cpufreq_hw_attr,
+	.set_boost	= cpufreq_boost_set_sw,
 	.suspend	= cpufreq_generic_suspend,
 };
 

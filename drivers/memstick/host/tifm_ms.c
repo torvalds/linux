@@ -337,7 +337,7 @@ static void tifm_ms_complete_cmd(struct tifm_ms *host)
 	struct memstick_host *msh = tifm_get_drvdata(sock);
 	int rc;
 
-	del_timer(&host->timer);
+	timer_delete(&host->timer);
 
 	host->req->int_reg = readl(sock->addr + SOCK_MS_STATUS) & 0xff;
 	host->req->int_reg = (host->req->int_reg & 1)
@@ -600,7 +600,7 @@ static void tifm_ms_remove(struct tifm_dev *sock)
 	spin_lock_irqsave(&sock->lock, flags);
 	host->eject = 1;
 	if (host->req) {
-		del_timer(&host->timer);
+		timer_delete(&host->timer);
 		writel(TIFM_FIFO_INT_SETALL,
 		       sock->addr + SOCK_DMA_FIFO_INT_ENABLE_CLEAR);
 		writel(TIFM_DMA_RESET, sock->addr + SOCK_DMA_CONTROL);

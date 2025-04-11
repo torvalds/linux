@@ -17,7 +17,6 @@
 
 struct  rt722_sdca_priv {
 	struct regmap *regmap;
-	struct regmap *mbq_regmap;
 	struct snd_soc_component *component;
 	struct sdw_slave *slave;
 	struct sdw_bus_params params;
@@ -229,8 +228,7 @@ enum rt722_sdca_jd_src {
 };
 
 int rt722_sdca_io_init(struct device *dev, struct sdw_slave *slave);
-int rt722_sdca_init(struct device *dev, struct regmap *regmap,
-			struct regmap *mbq_regmap, struct sdw_slave *slave);
+int rt722_sdca_init(struct device *dev, struct regmap *regmap, struct sdw_slave *slave);
 int rt722_sdca_index_write(struct rt722_sdca_priv *rt722,
 		unsigned int nid, unsigned int reg, unsigned int value);
 int rt722_sdca_index_read(struct rt722_sdca_priv *rt722,

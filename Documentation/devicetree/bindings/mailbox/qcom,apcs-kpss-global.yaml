@@ -26,6 +26,7 @@ properties:
           - const: qcom,ipq6018-apcs-apps-global
       - items:
           - enum:
+              - qcom,msm8226-apcs-kpss-global
               - qcom,qcs404-apcs-apps-global
           - const: qcom,msm8916-apcs-kpss-global
           - const: syscon

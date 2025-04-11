@@ -25,13 +25,6 @@ static void devm_pci_epc_release(struct device *dev, void *res)
 	pci_epc_destroy(epc);
 }
 
-static int devm_pci_epc_match(struct device *dev, void *res, void *match_data)
-{
-	struct pci_epc **epc = res;
-
-	return *epc == match_data;
-}
-
 /**
  * pci_epc_put() - release the PCI endpoint controller
  * @epc: epc returned by pci_epc_get()
@@ -609,6 +602,10 @@ int pci_epc_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 	if (!epc_features)
 		return -EINVAL;
 
+	if (epc_features->bar[bar].type == BAR_RESIZABLE &&
+	    (epf_bar->size < SZ_1M || (u64)epf_bar->size > (SZ_128G * 1024)))
+		return -EINVAL;
+
 	if (epc_features->bar[bar].type == BAR_FIXED &&
 	    (epc_features->bar[bar].fixed_size != epf_bar->size))
 		return -EINVAL;
@@ -633,6 +630,33 @@ int pci_epc_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(pci_epc_set_bar);
+
+/**
+ * pci_epc_bar_size_to_rebar_cap() - convert a size to the representation used
+ *				     by the Resizable BAR Capability Register
+ * @size: the size to convert
+ * @cap: where to store the result
+ *
+ * Returns 0 on success and a negative error code in case of error.
+ */
+int pci_epc_bar_size_to_rebar_cap(size_t size, u32 *cap)
+{
+	/*
+	 * As per PCIe r6.0, sec 7.8.6.2, min size for a resizable BAR is 1 MB,
+	 * thus disallow a requested BAR size smaller than 1 MB.
+	 * Disallow a requested BAR size larger than 128 TB.
+	 */
+	if (size < SZ_1M || (u64)size > (SZ_128G * 1024))
+		return -EINVAL;
+
+	*cap = ilog2(size) - ilog2(SZ_1M);
+
+	/* Sizes in REBAR_CAP start at BIT(4). */
+	*cap = BIT(*cap + 4);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pci_epc_bar_size_to_rebar_cap);
 
 /**
  * pci_epc_write_header() - write standard configuration header
@@ -930,24 +954,6 @@ void pci_epc_destroy(struct pci_epc *epc)
 	device_unregister(&epc->dev);
 }
 EXPORT_SYMBOL_GPL(pci_epc_destroy);
-
-/**
- * devm_pci_epc_destroy() - destroy the EPC device
- * @dev: device that wants to destroy the EPC
- * @epc: the EPC device that has to be destroyed
- *
- * Invoke to destroy the devres associated with this
- * pci_epc and destroy the EPC device.
- */
-void devm_pci_epc_destroy(struct device *dev, struct pci_epc *epc)
-{
-	int r;
-
-	r = devres_release(dev, devm_pci_epc_release, devm_pci_epc_match,
-			   epc);
-	dev_WARN_ONCE(dev, r, "couldn't find PCI EPC resource\n");
-}
-EXPORT_SYMBOL_GPL(devm_pci_epc_destroy);
 
 static void pci_epc_release(struct device *dev)
 {

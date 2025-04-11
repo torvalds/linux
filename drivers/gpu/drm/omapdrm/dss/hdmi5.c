@@ -339,10 +339,9 @@ static void hdmi5_bridge_mode_set(struct drm_bridge *bridge,
 }
 
 static void hdmi5_bridge_enable(struct drm_bridge *bridge,
-				struct drm_bridge_state *bridge_state)
+				struct drm_atomic_state *state)
 {
 	struct omap_hdmi *hdmi = drm_bridge_to_hdmi(bridge);
-	struct drm_atomic_state *state = bridge_state->base.state;
 	struct drm_connector_state *conn_state;
 	struct drm_connector *connector;
 	struct drm_crtc_state *crtc_state;
@@ -408,7 +407,7 @@ done:
 }
 
 static void hdmi5_bridge_disable(struct drm_bridge *bridge,
-				 struct drm_bridge_state *bridge_state)
+				 struct drm_atomic_state *state)
 {
 	struct omap_hdmi *hdmi = drm_bridge_to_hdmi(bridge);
 	unsigned long flags;

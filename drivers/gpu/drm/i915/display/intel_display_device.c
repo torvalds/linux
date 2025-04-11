@@ -1357,6 +1357,12 @@ static const struct intel_display_device_info xe2_hpd_display = {
 		BIT(PORT_TC1) | BIT(PORT_TC2) | BIT(PORT_TC3) | BIT(PORT_TC4),
 };
 
+static const u16 mtl_u_ids[] = {
+	INTEL_MTL_U_IDS(ID),
+	INTEL_ARL_U_IDS(ID),
+	0
+};
+
 /*
  * Do not initialize the .info member of the platform desc for GMD ID based
  * platforms. Their display will be probed automatically based on the IP version
@@ -1364,6 +1370,13 @@ static const struct intel_display_device_info xe2_hpd_display = {
  */
 static const struct platform_desc mtl_desc = {
 	PLATFORM(meteorlake),
+	.subplatforms = (const struct subplatform_desc[]) {
+		{
+			SUBPLATFORM(meteorlake, u),
+			.pciidlist = mtl_u_ids,
+		},
+		{},
+	}
 };
 
 static const struct platform_desc lnl_desc = {

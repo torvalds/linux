@@ -45,6 +45,55 @@
 #define VHOST_SCSI_PREALLOC_SGLS 2048
 #define VHOST_SCSI_PREALLOC_UPAGES 2048
 #define VHOST_SCSI_PREALLOC_PROT_SGLS 2048
+/*
+ * For the legacy descriptor case we allocate an iov per byte in the
+ * virtio_scsi_cmd_resp struct.
+ */
+#define VHOST_SCSI_MAX_RESP_IOVS sizeof(struct virtio_scsi_cmd_resp)
+
+static unsigned int vhost_scsi_inline_sg_cnt = VHOST_SCSI_PREALLOC_SGLS;
+
+#ifdef CONFIG_ARCH_NO_SG_CHAIN
+static int vhost_scsi_set_inline_sg_cnt(const char *buf,
+					const struct kernel_param *kp)
+{
+	pr_err("Setting inline_sg_cnt is not supported.\n");
+	return -EOPNOTSUPP;
+}
+#else
+static int vhost_scsi_set_inline_sg_cnt(const char *buf,
+					const struct kernel_param *kp)
+{
+	unsigned int cnt;
+	int ret;
+
+	ret = kstrtouint(buf, 10, &cnt);
+	if (ret)
+		return ret;
+
+	if (ret > VHOST_SCSI_PREALLOC_SGLS) {
+		pr_err("Max inline_sg_cnt is %u\n", VHOST_SCSI_PREALLOC_SGLS);
+		return -EINVAL;
+	}
+
+	vhost_scsi_inline_sg_cnt = cnt;
+	return 0;
+}
+#endif
+
+static int vhost_scsi_get_inline_sg_cnt(char *buf,
+					const struct kernel_param *kp)
+{
+	return sprintf(buf, "%u\n", vhost_scsi_inline_sg_cnt);
+}
+
+static const struct kernel_param_ops vhost_scsi_inline_sg_cnt_op = {
+	.get = vhost_scsi_get_inline_sg_cnt,
+	.set = vhost_scsi_set_inline_sg_cnt,
+};
+
+module_param_cb(inline_sg_cnt, &vhost_scsi_inline_sg_cnt_op, NULL, 0644);
+MODULE_PARM_DESC(inline_sg_cnt, "Set the number of scatterlist entries to pre-allocate. The default is 2048.");
 
 /* Max number of requests before requeueing the job.
  * Using this limit prevents one virtqueue from starving others with
@@ -62,40 +111,26 @@ struct vhost_scsi_inflight {
 struct vhost_scsi_cmd {
 	/* Descriptor from vhost_get_vq_desc() for virt_queue segment */
 	int tvc_vq_desc;
-	/* virtio-scsi initiator task attribute */
-	int tvc_task_attr;
-	/* virtio-scsi response incoming iovecs */
-	int tvc_in_iovs;
-	/* virtio-scsi initiator data direction */
-	enum dma_data_direction tvc_data_direction;
-	/* Expected data transfer length from virtio-scsi header */
-	u32 tvc_exp_data_len;
-	/* The Tag from include/linux/virtio_scsi.h:struct virtio_scsi_cmd_req */
-	u64 tvc_tag;
 	/* The number of scatterlists associated with this cmd */
 	u32 tvc_sgl_count;
 	u32 tvc_prot_sgl_count;
-	/* Saved unpacked SCSI LUN for vhost_scsi_target_queue_cmd() */
-	u32 tvc_lun;
 	u32 copied_iov:1;
-	const void *saved_iter_addr;
-	struct iov_iter saved_iter;
-	/* Pointer to the SGL formatted memory from virtio-scsi */
-	struct scatterlist *tvc_sgl;
-	struct scatterlist *tvc_prot_sgl;
-	struct page **tvc_upages;
-	/* Pointer to response header iovec */
-	struct iovec *tvc_resp_iov;
-	/* Pointer to vhost_scsi for our device */
-	struct vhost_scsi *tvc_vhost;
+	const void *read_iov;
+	struct iov_iter *read_iter;
+	struct scatterlist *sgl;
+	struct sg_table table;
+	struct scatterlist *prot_sgl;
+	struct sg_table prot_table;
+	/* Fast path response header iovec used when only one vec is needed */
+	struct iovec tvc_resp_iov;
+	/* Number of iovs for response */
+	unsigned int tvc_resp_iovs_cnt;
+	/* Pointer to response header iovecs if more than one is needed */
+	struct iovec *tvc_resp_iovs;
 	/* Pointer to vhost_virtqueue for the cmd */
 	struct vhost_virtqueue *tvc_vq;
-	/* Pointer to vhost nexus memory */
-	struct vhost_scsi_nexus *tvc_nexus;
 	/* The TCM I/O descriptor that is accessed via container_of() */
 	struct se_cmd tvc_se_cmd;
-	/* Copy of the incoming SCSI command descriptor block (CDB) */
-	unsigned char tvc_cdb[VHOST_SCSI_MAX_CDB_SIZE];
 	/* Sense buffer that will be mapped into outgoing status */
 	unsigned char tvc_sense_buf[TRANSPORT_SENSE_BUFFER];
 	/* Completed commands list, serviced from vhost worker thread */
@@ -187,6 +222,7 @@ struct vhost_scsi_virtqueue {
 	struct vhost_scsi_cmd *scsi_cmds;
 	struct sbitmap scsi_tags;
 	int max_cmds;
+	struct page **upages;
 
 	struct vhost_work completion_work;
 	struct llist_head completion_list;
@@ -206,6 +242,8 @@ struct vhost_scsi {
 
 	bool vs_events_missed; /* any missed events, protected by vq->mutex */
 	int vs_events_nr; /* num of pending events, protected by vq->mutex */
+
+	unsigned int inline_sg_cnt;
 };
 
 struct vhost_scsi_tmf {
@@ -330,23 +368,38 @@ static void vhost_scsi_release_cmd_res(struct se_cmd *se_cmd)
 				struct vhost_scsi_cmd, tvc_se_cmd);
 	struct vhost_scsi_virtqueue *svq = container_of(tv_cmd->tvc_vq,
 				struct vhost_scsi_virtqueue, vq);
+	struct vhost_scsi *vs = svq->vs;
 	struct vhost_scsi_inflight *inflight = tv_cmd->inflight;
+	struct scatterlist *sg;
+	struct page *page;
 	int i;
 
 	if (tv_cmd->tvc_sgl_count) {
-		for (i = 0; i < tv_cmd->tvc_sgl_count; i++) {
+		for_each_sgtable_sg(&tv_cmd->table, sg, i) {
+			page = sg_page(sg);
+			if (!page)
+				continue;
+
 			if (tv_cmd->copied_iov)
-				__free_page(sg_page(&tv_cmd->tvc_sgl[i]));
+				__free_page(page);
 			else
-				put_page(sg_page(&tv_cmd->tvc_sgl[i]));
+				put_page(page);
 		}
-		kfree(tv_cmd->saved_iter_addr);
+		kfree(tv_cmd->read_iter);
+		kfree(tv_cmd->read_iov);
+		sg_free_table_chained(&tv_cmd->table, vs->inline_sg_cnt);
 	}
 	if (tv_cmd->tvc_prot_sgl_count) {
-		for (i = 0; i < tv_cmd->tvc_prot_sgl_count; i++)
-			put_page(sg_page(&tv_cmd->tvc_prot_sgl[i]));
+		for_each_sgtable_sg(&tv_cmd->prot_table, sg, i) {
+			page = sg_page(sg);
+			if (page)
+				put_page(page);
+		}
+		sg_free_table_chained(&tv_cmd->prot_table, vs->inline_sg_cnt);
 	}
 
+	if (tv_cmd->tvc_resp_iovs != &tv_cmd->tvc_resp_iov)
+		kfree(tv_cmd->tvc_resp_iovs);
 	sbitmap_clear_bit(&svq->scsi_tags, se_cmd->map_tag);
 	vhost_scsi_put_inflight(inflight);
 }
@@ -533,15 +586,18 @@ static void vhost_scsi_evt_work(struct vhost_work *work)
 
 static int vhost_scsi_copy_sgl_to_iov(struct vhost_scsi_cmd *cmd)
 {
-	struct iov_iter *iter = &cmd->saved_iter;
-	struct scatterlist *sg = cmd->tvc_sgl;
+	struct iov_iter *iter = cmd->read_iter;
+	struct scatterlist *sg;
 	struct page *page;
 	size_t len;
 	int i;
 
-	for (i = 0; i < cmd->tvc_sgl_count; i++) {
-		page = sg_page(&sg[i]);
-		len = sg[i].length;
+	for_each_sgtable_sg(&cmd->table, sg, i) {
+		page = sg_page(sg);
+		if (!page)
+			continue;
+
+		len = sg->length;
 
 		if (copy_page_to_iter(page, 0, len, iter) != len) {
 			pr_err("Could not copy data while handling misaligned cmd. Error %zu\n",
@@ -578,7 +634,7 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 			cmd, se_cmd->residual_count, se_cmd->scsi_status);
 		memset(&v_rsp, 0, sizeof(v_rsp));
 
-		if (cmd->saved_iter_addr && vhost_scsi_copy_sgl_to_iov(cmd)) {
+		if (cmd->read_iter && vhost_scsi_copy_sgl_to_iov(cmd)) {
 			v_rsp.response = VIRTIO_SCSI_S_BAD_TARGET;
 		} else {
 			v_rsp.resid = cpu_to_vhost32(cmd->tvc_vq,
@@ -591,8 +647,8 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 			       se_cmd->scsi_sense_length);
 		}
 
-		iov_iter_init(&iov_iter, ITER_DEST, cmd->tvc_resp_iov,
-			      cmd->tvc_in_iovs, sizeof(v_rsp));
+		iov_iter_init(&iov_iter, ITER_DEST, cmd->tvc_resp_iovs,
+			      cmd->tvc_resp_iovs_cnt, sizeof(v_rsp));
 		ret = copy_to_iter(&v_rsp, sizeof(v_rsp), &iov_iter);
 		if (likely(ret == sizeof(v_rsp))) {
 			signal = true;
@@ -609,53 +665,51 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 }
 
 static struct vhost_scsi_cmd *
-vhost_scsi_get_cmd(struct vhost_virtqueue *vq, struct vhost_scsi_tpg *tpg,
-		   unsigned char *cdb, u64 scsi_tag, u16 lun, u8 task_attr,
-		   u32 exp_data_len, int data_direction)
+vhost_scsi_get_cmd(struct vhost_virtqueue *vq, u64 scsi_tag)
 {
 	struct vhost_scsi_virtqueue *svq = container_of(vq,
 					struct vhost_scsi_virtqueue, vq);
 	struct vhost_scsi_cmd *cmd;
-	struct vhost_scsi_nexus *tv_nexus;
-	struct scatterlist *sg, *prot_sg;
-	struct iovec *tvc_resp_iov;
-	struct page **pages;
+	struct scatterlist *sgl, *prot_sgl;
 	int tag;
-
-	tv_nexus = tpg->tpg_nexus;
-	if (!tv_nexus) {
-		pr_err("Unable to locate active struct vhost_scsi_nexus\n");
-		return ERR_PTR(-EIO);
-	}
 
 	tag = sbitmap_get(&svq->scsi_tags);
 	if (tag < 0) {
-		pr_err("Unable to obtain tag for vhost_scsi_cmd\n");
+		pr_warn_once("Guest sent too many cmds. Returning TASK_SET_FULL.\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
 	cmd = &svq->scsi_cmds[tag];
-	sg = cmd->tvc_sgl;
-	prot_sg = cmd->tvc_prot_sgl;
-	pages = cmd->tvc_upages;
-	tvc_resp_iov = cmd->tvc_resp_iov;
+	sgl = cmd->sgl;
+	prot_sgl = cmd->prot_sgl;
 	memset(cmd, 0, sizeof(*cmd));
-	cmd->tvc_sgl = sg;
-	cmd->tvc_prot_sgl = prot_sg;
-	cmd->tvc_upages = pages;
+	cmd->sgl = sgl;
+	cmd->prot_sgl = prot_sgl;
 	cmd->tvc_se_cmd.map_tag = tag;
-	cmd->tvc_tag = scsi_tag;
-	cmd->tvc_lun = lun;
-	cmd->tvc_task_attr = task_attr;
-	cmd->tvc_exp_data_len = exp_data_len;
-	cmd->tvc_data_direction = data_direction;
-	cmd->tvc_nexus = tv_nexus;
 	cmd->inflight = vhost_scsi_get_inflight(vq);
-	cmd->tvc_resp_iov = tvc_resp_iov;
-
-	memcpy(cmd->tvc_cdb, cdb, VHOST_SCSI_MAX_CDB_SIZE);
 
 	return cmd;
+}
+
+static void vhost_scsi_revert_map_iov_to_sgl(struct iov_iter *iter,
+					     struct scatterlist *curr,
+					     struct scatterlist *end)
+{
+	size_t revert_bytes = 0;
+	struct page *page;
+
+	while (curr != end) {
+		page = sg_page(curr);
+
+		if (page) {
+			put_page(page);
+			revert_bytes += curr->length;
+		}
+		/* Clear so we can re-use it for the copy path */
+		sg_set_page(curr, NULL, 0, 0);
+		curr = sg_next(curr);
+	}
+	iov_iter_revert(iter, revert_bytes);
 }
 
 /*
@@ -666,14 +720,17 @@ vhost_scsi_get_cmd(struct vhost_virtqueue *vq, struct vhost_scsi_tpg *tpg,
 static int
 vhost_scsi_map_to_sgl(struct vhost_scsi_cmd *cmd,
 		      struct iov_iter *iter,
-		      struct scatterlist *sgl,
+		      struct sg_table *sg_table,
+		      struct scatterlist **sgl,
 		      bool is_prot)
 {
-	struct page **pages = cmd->tvc_upages;
-	struct scatterlist *sg = sgl;
-	ssize_t bytes, mapped_bytes;
-	size_t offset, mapped_offset;
-	unsigned int npages = 0;
+	struct vhost_scsi_virtqueue *svq = container_of(cmd->tvc_vq,
+					struct vhost_scsi_virtqueue, vq);
+	struct page **pages = svq->upages;
+	struct scatterlist *sg = *sgl;
+	ssize_t bytes;
+	size_t offset;
+	unsigned int n, npages = 0;
 
 	bytes = iov_iter_get_pages2(iter, pages, LONG_MAX,
 				VHOST_SCSI_PREALLOC_UPAGES, &offset);
@@ -681,11 +738,8 @@ vhost_scsi_map_to_sgl(struct vhost_scsi_cmd *cmd,
 	if (bytes <= 0)
 		return bytes < 0 ? bytes : -EFAULT;
 
-	mapped_bytes = bytes;
-	mapped_offset = offset;
-
 	while (bytes) {
-		unsigned n = min_t(unsigned, PAGE_SIZE - offset, bytes);
+		n = min_t(unsigned int, PAGE_SIZE - offset, bytes);
 		/*
 		 * The block layer requires bios/requests to be a multiple of
 		 * 512 bytes, but Windows can send us vecs that are misaligned.
@@ -706,25 +760,24 @@ vhost_scsi_map_to_sgl(struct vhost_scsi_cmd *cmd,
 			goto revert_iter_get_pages;
 		}
 
-		sg_set_page(sg++, pages[npages++], n, offset);
+		sg_set_page(sg, pages[npages++], n, offset);
+		sg = sg_next(sg);
 		bytes -= n;
 		offset = 0;
 	}
 
+	*sgl = sg;
 	return npages;
 
 revert_iter_get_pages:
-	iov_iter_revert(iter, mapped_bytes);
+	vhost_scsi_revert_map_iov_to_sgl(iter, *sgl, sg);
 
-	npages = 0;
-	while (mapped_bytes) {
-		unsigned int n = min_t(unsigned int, PAGE_SIZE - mapped_offset,
-				       mapped_bytes);
+	iov_iter_revert(iter, bytes);
+	while (bytes) {
+		n = min_t(unsigned int, PAGE_SIZE, bytes);
 
 		put_page(pages[npages++]);
-
-		mapped_bytes -= n;
-		mapped_offset = 0;
+		bytes -= n;
 	}
 
 	return -EINVAL;
@@ -752,33 +805,42 @@ vhost_scsi_calc_sgls(struct iov_iter *iter, size_t bytes, int max_sgls)
 
 static int
 vhost_scsi_copy_iov_to_sgl(struct vhost_scsi_cmd *cmd, struct iov_iter *iter,
-			   struct scatterlist *sg, int sg_count)
+			   struct sg_table *sg_table, int sg_count,
+			   int data_dir)
 {
 	size_t len = iov_iter_count(iter);
 	unsigned int nbytes = 0;
+	struct scatterlist *sg;
 	struct page *page;
-	int i;
+	int i, ret;
 
-	if (cmd->tvc_data_direction == DMA_FROM_DEVICE) {
-		cmd->saved_iter_addr = dup_iter(&cmd->saved_iter, iter,
-						GFP_KERNEL);
-		if (!cmd->saved_iter_addr)
+	if (data_dir == DMA_FROM_DEVICE) {
+		cmd->read_iter = kzalloc(sizeof(*cmd->read_iter), GFP_KERNEL);
+		if (!cmd->read_iter)
 			return -ENOMEM;
+
+		cmd->read_iov = dup_iter(cmd->read_iter, iter, GFP_KERNEL);
+		if (!cmd->read_iov) {
+			ret = -ENOMEM;
+			goto free_iter;
+		}
 	}
 
-	for (i = 0; i < sg_count; i++) {
+	for_each_sgtable_sg(sg_table, sg, i) {
 		page = alloc_page(GFP_KERNEL);
 		if (!page) {
-			i--;
+			ret = -ENOMEM;
 			goto err;
 		}
 
 		nbytes = min_t(unsigned int, PAGE_SIZE, len);
-		sg_set_page(&sg[i], page, nbytes, 0);
+		sg_set_page(sg, page, nbytes, 0);
 
-		if (cmd->tvc_data_direction == DMA_TO_DEVICE &&
-		    copy_page_from_iter(page, 0, nbytes, iter) != nbytes)
+		if (data_dir == DMA_TO_DEVICE &&
+		    copy_page_from_iter(page, 0, nbytes, iter) != nbytes) {
+			ret = -EFAULT;
 			goto err;
+		}
 
 		len -= nbytes;
 	}
@@ -790,66 +852,63 @@ err:
 	pr_err("Could not read %u bytes while handling misaligned cmd\n",
 	       nbytes);
 
-	for (; i >= 0; i--)
-		__free_page(sg_page(&sg[i]));
-	kfree(cmd->saved_iter_addr);
-	return -ENOMEM;
+	for_each_sgtable_sg(sg_table, sg, i) {
+		page = sg_page(sg);
+		if (page)
+			__free_page(page);
+	}
+	kfree(cmd->read_iov);
+free_iter:
+	kfree(cmd->read_iter);
+	return ret;
 }
 
 static int
 vhost_scsi_map_iov_to_sgl(struct vhost_scsi_cmd *cmd, struct iov_iter *iter,
-			  struct scatterlist *sg, int sg_count, bool is_prot)
+			  struct sg_table *sg_table, int sg_count, bool is_prot)
 {
-	struct scatterlist *p = sg;
-	size_t revert_bytes;
+	struct scatterlist *sg = sg_table->sgl;
 	int ret;
 
 	while (iov_iter_count(iter)) {
-		ret = vhost_scsi_map_to_sgl(cmd, iter, sg, is_prot);
+		ret = vhost_scsi_map_to_sgl(cmd, iter, sg_table, &sg, is_prot);
 		if (ret < 0) {
-			revert_bytes = 0;
-
-			while (p < sg) {
-				struct page *page = sg_page(p);
-
-				if (page) {
-					put_page(page);
-					revert_bytes += p->length;
-				}
-				p++;
-			}
-
-			iov_iter_revert(iter, revert_bytes);
+			vhost_scsi_revert_map_iov_to_sgl(iter, sg_table->sgl,
+							 sg);
 			return ret;
 		}
-		sg += ret;
 	}
 
 	return 0;
 }
 
 static int
-vhost_scsi_mapal(struct vhost_scsi_cmd *cmd,
+vhost_scsi_mapal(struct vhost_scsi *vs, struct vhost_scsi_cmd *cmd,
 		 size_t prot_bytes, struct iov_iter *prot_iter,
-		 size_t data_bytes, struct iov_iter *data_iter)
+		 size_t data_bytes, struct iov_iter *data_iter, int data_dir)
 {
 	int sgl_count, ret;
 
 	if (prot_bytes) {
 		sgl_count = vhost_scsi_calc_sgls(prot_iter, prot_bytes,
 						 VHOST_SCSI_PREALLOC_PROT_SGLS);
-		if (sgl_count < 0)
-			return sgl_count;
+		cmd->prot_table.sgl = cmd->prot_sgl;
+		ret = sg_alloc_table_chained(&cmd->prot_table, sgl_count,
+					     cmd->prot_table.sgl,
+					     vs->inline_sg_cnt);
+		if (ret)
+			return ret;
 
-		sg_init_table(cmd->tvc_prot_sgl, sgl_count);
 		cmd->tvc_prot_sgl_count = sgl_count;
 		pr_debug("%s prot_sg %p prot_sgl_count %u\n", __func__,
-			 cmd->tvc_prot_sgl, cmd->tvc_prot_sgl_count);
+			 cmd->prot_table.sgl, cmd->tvc_prot_sgl_count);
 
 		ret = vhost_scsi_map_iov_to_sgl(cmd, prot_iter,
-						cmd->tvc_prot_sgl,
+						&cmd->prot_table,
 						cmd->tvc_prot_sgl_count, true);
 		if (ret < 0) {
+			sg_free_table_chained(&cmd->prot_table,
+					      vs->inline_sg_cnt);
 			cmd->tvc_prot_sgl_count = 0;
 			return ret;
 		}
@@ -859,20 +918,23 @@ vhost_scsi_mapal(struct vhost_scsi_cmd *cmd,
 	if (sgl_count < 0)
 		return sgl_count;
 
-	sg_init_table(cmd->tvc_sgl, sgl_count);
+	cmd->table.sgl = cmd->sgl;
+	ret = sg_alloc_table_chained(&cmd->table, sgl_count, cmd->table.sgl,
+				     vs->inline_sg_cnt);
+	if (ret)
+		return ret;
+
 	cmd->tvc_sgl_count = sgl_count;
 	pr_debug("%s data_sg %p data_sgl_count %u\n", __func__,
-		  cmd->tvc_sgl, cmd->tvc_sgl_count);
+		  cmd->table.sgl, cmd->tvc_sgl_count);
 
-	ret = vhost_scsi_map_iov_to_sgl(cmd, data_iter, cmd->tvc_sgl,
+	ret = vhost_scsi_map_iov_to_sgl(cmd, data_iter, &cmd->table,
 					cmd->tvc_sgl_count, false);
-	if (ret == -EINVAL) {
-		sg_init_table(cmd->tvc_sgl, cmd->tvc_sgl_count);
-		ret = vhost_scsi_copy_iov_to_sgl(cmd, data_iter, cmd->tvc_sgl,
-						 cmd->tvc_sgl_count);
-	}
-
+	if (ret == -EINVAL)
+		ret = vhost_scsi_copy_iov_to_sgl(cmd, data_iter, &cmd->table,
+						 cmd->tvc_sgl_count, data_dir);
 	if (ret < 0) {
+		sg_free_table_chained(&cmd->table, vs->inline_sg_cnt);
 		cmd->tvc_sgl_count = 0;
 		return ret;
 	}
@@ -896,37 +958,56 @@ static int vhost_scsi_to_tcm_attr(int attr)
 	return TCM_SIMPLE_TAG;
 }
 
-static void vhost_scsi_target_queue_cmd(struct vhost_scsi_cmd *cmd)
+static void vhost_scsi_target_queue_cmd(struct vhost_scsi_nexus *nexus,
+					struct vhost_scsi_cmd *cmd,
+					unsigned char *cdb, u16 lun,
+					int task_attr, int data_dir,
+					u32 exp_data_len)
 {
 	struct se_cmd *se_cmd = &cmd->tvc_se_cmd;
-	struct vhost_scsi_nexus *tv_nexus;
 	struct scatterlist *sg_ptr, *sg_prot_ptr = NULL;
 
 	/* FIXME: BIDI operation */
 	if (cmd->tvc_sgl_count) {
-		sg_ptr = cmd->tvc_sgl;
+		sg_ptr = cmd->table.sgl;
 
 		if (cmd->tvc_prot_sgl_count)
-			sg_prot_ptr = cmd->tvc_prot_sgl;
+			sg_prot_ptr = cmd->prot_table.sgl;
 		else
 			se_cmd->prot_pto = true;
 	} else {
 		sg_ptr = NULL;
 	}
-	tv_nexus = cmd->tvc_nexus;
 
 	se_cmd->tag = 0;
-	target_init_cmd(se_cmd, tv_nexus->tvn_se_sess, &cmd->tvc_sense_buf[0],
-			cmd->tvc_lun, cmd->tvc_exp_data_len,
-			vhost_scsi_to_tcm_attr(cmd->tvc_task_attr),
-			cmd->tvc_data_direction, TARGET_SCF_ACK_KREF);
+	target_init_cmd(se_cmd, nexus->tvn_se_sess, &cmd->tvc_sense_buf[0],
+			lun, exp_data_len, vhost_scsi_to_tcm_attr(task_attr),
+			data_dir, TARGET_SCF_ACK_KREF);
 
-	if (target_submit_prep(se_cmd, cmd->tvc_cdb, sg_ptr,
+	if (target_submit_prep(se_cmd, cdb, sg_ptr,
 			       cmd->tvc_sgl_count, NULL, 0, sg_prot_ptr,
 			       cmd->tvc_prot_sgl_count, GFP_KERNEL))
 		return;
 
 	target_submit(se_cmd);
+}
+
+static void
+vhost_scsi_send_status(struct vhost_scsi *vs, struct vhost_virtqueue *vq,
+		       int head, unsigned int out, u8 status)
+{
+	struct virtio_scsi_cmd_resp __user *resp;
+	struct virtio_scsi_cmd_resp rsp;
+	int ret;
+
+	memset(&rsp, 0, sizeof(rsp));
+	rsp.status = status;
+	resp = vq->iov[out].iov_base;
+	ret = __copy_to_user(resp, &rsp, sizeof(rsp));
+	if (!ret)
+		vhost_add_used_and_signal(&vs->dev, vq, head, 0);
+	else
+		pr_err("Faulted on virtio_scsi_cmd_resp\n");
 }
 
 static void
@@ -1049,6 +1130,43 @@ out:
 	return ret;
 }
 
+static int
+vhost_scsi_setup_resp_iovs(struct vhost_scsi_cmd *cmd, struct iovec *in_iovs,
+			   unsigned int in_iovs_cnt)
+{
+	int i, cnt;
+
+	if (!in_iovs_cnt)
+		return 0;
+	/*
+	 * Initiator's normally just put the virtio_scsi_cmd_resp in the first
+	 * iov, but just in case they wedged in some data with it we check for
+	 * greater than or equal to the response struct.
+	 */
+	if (in_iovs[0].iov_len >= sizeof(struct virtio_scsi_cmd_resp)) {
+		cmd->tvc_resp_iovs = &cmd->tvc_resp_iov;
+		cmd->tvc_resp_iovs_cnt = 1;
+	} else {
+		/*
+		 * Legacy descriptor layouts didn't specify that we must put
+		 * the entire response in one iov. Worst case we have a
+		 * iov per byte.
+		 */
+		cnt = min(VHOST_SCSI_MAX_RESP_IOVS, in_iovs_cnt);
+		cmd->tvc_resp_iovs = kcalloc(cnt, sizeof(struct iovec),
+					     GFP_KERNEL);
+		if (!cmd->tvc_resp_iovs)
+			return -ENOMEM;
+
+		cmd->tvc_resp_iovs_cnt = cnt;
+	}
+
+	for (i = 0; i < cmd->tvc_resp_iovs_cnt; i++)
+		cmd->tvc_resp_iovs[i] = in_iovs[i];
+
+	return 0;
+}
+
 static u16 vhost_buf_to_lun(u8 *lun_buf)
 {
 	return ((lun_buf[2] << 8) | lun_buf[3]) & 0x3FFF;
@@ -1060,16 +1178,17 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 	struct vhost_scsi_tpg **vs_tpg, *tpg;
 	struct virtio_scsi_cmd_req v_req;
 	struct virtio_scsi_cmd_req_pi v_req_pi;
+	struct vhost_scsi_nexus *nexus;
 	struct vhost_scsi_ctx vc;
 	struct vhost_scsi_cmd *cmd;
 	struct iov_iter in_iter, prot_iter, data_iter;
 	u64 tag;
 	u32 exp_data_len, data_direction;
-	int ret, prot_bytes, i, c = 0;
+	int ret, prot_bytes, c = 0;
 	u16 lun;
 	u8 task_attr;
 	bool t10_pi = vhost_has_feature(vq, VIRTIO_SCSI_F_T10_PI);
-	void *cdb;
+	u8 *cdb;
 
 	mutex_lock(&vq->mutex);
 	/*
@@ -1212,29 +1331,39 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 				scsi_command_size(cdb), VHOST_SCSI_MAX_CDB_SIZE);
 				goto err;
 		}
-		cmd = vhost_scsi_get_cmd(vq, tpg, cdb, tag, lun, task_attr,
-					 exp_data_len + prot_bytes,
-					 data_direction);
-		if (IS_ERR(cmd)) {
-			vq_err(vq, "vhost_scsi_get_cmd failed %ld\n",
-			       PTR_ERR(cmd));
+
+		nexus = tpg->tpg_nexus;
+		if (!nexus) {
+			vq_err(vq, "Unable to locate active struct vhost_scsi_nexus\n");
+			ret = -EIO;
 			goto err;
 		}
-		cmd->tvc_vhost = vs;
+
+		cmd = vhost_scsi_get_cmd(vq, tag);
+		if (IS_ERR(cmd)) {
+			ret = PTR_ERR(cmd);
+			vq_err(vq, "vhost_scsi_get_tag failed %dd\n", ret);
+			goto err;
+		}
 		cmd->tvc_vq = vq;
-		for (i = 0; i < vc.in ; i++)
-			cmd->tvc_resp_iov[i] = vq->iov[vc.out + i];
-		cmd->tvc_in_iovs = vc.in;
+
+		ret = vhost_scsi_setup_resp_iovs(cmd, &vq->iov[vc.out], vc.in);
+		if (ret) {
+			vq_err(vq, "Failed to alloc recv iovs\n");
+			vhost_scsi_release_cmd_res(&cmd->tvc_se_cmd);
+			goto err;
+		}
 
 		pr_debug("vhost_scsi got command opcode: %#02x, lun: %d\n",
-			 cmd->tvc_cdb[0], cmd->tvc_lun);
+			 cdb[0], lun);
 		pr_debug("cmd: %p exp_data_len: %d, prot_bytes: %d data_direction:"
 			 " %d\n", cmd, exp_data_len, prot_bytes, data_direction);
 
 		if (data_direction != DMA_NONE) {
-			if (unlikely(vhost_scsi_mapal(cmd, prot_bytes,
-						      &prot_iter, exp_data_len,
-						      &data_iter))) {
+			ret = vhost_scsi_mapal(vs, cmd, prot_bytes, &prot_iter,
+					       exp_data_len, &data_iter,
+					       data_direction);
+			if (unlikely(ret)) {
 				vq_err(vq, "Failed to map iov to sgl\n");
 				vhost_scsi_release_cmd_res(&cmd->tvc_se_cmd);
 				goto err;
@@ -1246,7 +1375,9 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 		 * vhost_scsi_queue_data_in() and vhost_scsi_queue_status()
 		 */
 		cmd->tvc_vq_desc = vc.head;
-		vhost_scsi_target_queue_cmd(cmd);
+		vhost_scsi_target_queue_cmd(nexus, cmd, cdb, lun, task_attr,
+					    data_direction,
+					    exp_data_len + prot_bytes);
 		ret = 0;
 err:
 		/*
@@ -1254,11 +1385,15 @@ err:
 		 * EINVAL: Invalid response buffer, drop the request
 		 * EIO:    Respond with bad target
 		 * EAGAIN: Pending request
+		 * ENOMEM: Could not allocate resources for request
 		 */
 		if (ret == -ENXIO)
 			break;
 		else if (ret == -EIO)
 			vhost_scsi_send_bad_target(vs, vq, vc.head, vc.out);
+		else if (ret == -ENOMEM)
+			vhost_scsi_send_status(vs, vq, vc.head, vc.out,
+					       SAM_STAT_TASK_SET_FULL);
 	} while (likely(!vhost_exceeds_weight(vq, ++c, 0)));
 out:
 	mutex_unlock(&vq->mutex);
@@ -1596,13 +1731,12 @@ static void vhost_scsi_destroy_vq_cmds(struct vhost_virtqueue *vq)
 	for (i = 0; i < svq->max_cmds; i++) {
 		tv_cmd = &svq->scsi_cmds[i];
 
-		kfree(tv_cmd->tvc_sgl);
-		kfree(tv_cmd->tvc_prot_sgl);
-		kfree(tv_cmd->tvc_upages);
-		kfree(tv_cmd->tvc_resp_iov);
+		kfree(tv_cmd->sgl);
+		kfree(tv_cmd->prot_sgl);
 	}
 
 	sbitmap_free(&svq->scsi_tags);
+	kfree(svq->upages);
 	kfree(svq->scsi_cmds);
 	svq->scsi_cmds = NULL;
 }
@@ -1611,6 +1745,7 @@ static int vhost_scsi_setup_vq_cmds(struct vhost_virtqueue *vq, int max_cmds)
 {
 	struct vhost_scsi_virtqueue *svq = container_of(vq,
 					struct vhost_scsi_virtqueue, vq);
+	struct vhost_scsi *vs = svq->vs;
 	struct vhost_scsi_cmd *tv_cmd;
 	unsigned int i;
 
@@ -1628,39 +1763,33 @@ static int vhost_scsi_setup_vq_cmds(struct vhost_virtqueue *vq, int max_cmds)
 		return -ENOMEM;
 	}
 
+	svq->upages = kcalloc(VHOST_SCSI_PREALLOC_UPAGES, sizeof(struct page *),
+			      GFP_KERNEL);
+	if (!svq->upages)
+		goto out;
+
 	for (i = 0; i < max_cmds; i++) {
 		tv_cmd = &svq->scsi_cmds[i];
 
-		tv_cmd->tvc_sgl = kcalloc(VHOST_SCSI_PREALLOC_SGLS,
-					  sizeof(struct scatterlist),
-					  GFP_KERNEL);
-		if (!tv_cmd->tvc_sgl) {
-			pr_err("Unable to allocate tv_cmd->tvc_sgl\n");
-			goto out;
+		if (vs->inline_sg_cnt) {
+			tv_cmd->sgl = kcalloc(vs->inline_sg_cnt,
+					      sizeof(struct scatterlist),
+					      GFP_KERNEL);
+			if (!tv_cmd->sgl) {
+				pr_err("Unable to allocate tv_cmd->sgl\n");
+				goto out;
+			}
 		}
 
-		tv_cmd->tvc_upages = kcalloc(VHOST_SCSI_PREALLOC_UPAGES,
-					     sizeof(struct page *),
-					     GFP_KERNEL);
-		if (!tv_cmd->tvc_upages) {
-			pr_err("Unable to allocate tv_cmd->tvc_upages\n");
-			goto out;
-		}
-
-		tv_cmd->tvc_resp_iov = kcalloc(UIO_MAXIOV,
-					       sizeof(struct iovec),
-					       GFP_KERNEL);
-		if (!tv_cmd->tvc_resp_iov) {
-			pr_err("Unable to allocate tv_cmd->tvc_resp_iov\n");
-			goto out;
-		}
-
-		tv_cmd->tvc_prot_sgl = kcalloc(VHOST_SCSI_PREALLOC_PROT_SGLS,
-					       sizeof(struct scatterlist),
-					       GFP_KERNEL);
-		if (!tv_cmd->tvc_prot_sgl) {
-			pr_err("Unable to allocate tv_cmd->tvc_prot_sgl\n");
-			goto out;
+		if (vhost_has_feature(vq, VIRTIO_SCSI_F_T10_PI) &&
+		    vs->inline_sg_cnt) {
+			tv_cmd->prot_sgl = kcalloc(vs->inline_sg_cnt,
+						   sizeof(struct scatterlist),
+						   GFP_KERNEL);
+			if (!tv_cmd->prot_sgl) {
+				pr_err("Unable to allocate tv_cmd->prot_sgl\n");
+				goto out;
+			}
 		}
 	}
 	return 0;
@@ -1699,14 +1828,19 @@ vhost_scsi_set_endpoint(struct vhost_scsi *vs,
 		}
 	}
 
+	if (vs->vs_tpg) {
+		pr_err("vhost-scsi endpoint already set for %s.\n",
+		       vs->vs_vhost_wwpn);
+		ret = -EEXIST;
+		goto out;
+	}
+
 	len = sizeof(vs_tpg[0]) * VHOST_SCSI_MAX_TARGET;
 	vs_tpg = kzalloc(len, GFP_KERNEL);
 	if (!vs_tpg) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	if (vs->vs_tpg)
-		memcpy(vs_tpg, vs->vs_tpg, len);
 
 	mutex_lock(&vhost_scsi_mutex);
 	list_for_each_entry(tpg, &vhost_scsi_list, tv_tpg_list) {
@@ -1722,12 +1856,6 @@ vhost_scsi_set_endpoint(struct vhost_scsi *vs,
 		tv_tport = tpg->tport;
 
 		if (!strcmp(tv_tport->tport_name, t->vhost_wwpn)) {
-			if (vs->vs_tpg && vs->vs_tpg[tpg->tport_tpgt]) {
-				mutex_unlock(&tpg->tv_tpg_mutex);
-				mutex_unlock(&vhost_scsi_mutex);
-				ret = -EEXIST;
-				goto undepend;
-			}
 			/*
 			 * In order to ensure individual vhost-scsi configfs
 			 * groups cannot be removed while in use by vhost ioctl,
@@ -1774,15 +1902,15 @@ vhost_scsi_set_endpoint(struct vhost_scsi *vs,
 		}
 		ret = 0;
 	} else {
-		ret = -EEXIST;
+		ret = -ENODEV;
+		goto free_tpg;
 	}
 
 	/*
-	 * Act as synchronize_rcu to make sure access to
-	 * old vs->vs_tpg is finished.
+	 * Act as synchronize_rcu to make sure requests after this point
+	 * see a fully setup device.
 	 */
 	vhost_scsi_flush(vs);
-	kfree(vs->vs_tpg);
 	vs->vs_tpg = vs_tpg;
 	goto out;
 
@@ -1802,6 +1930,7 @@ undepend:
 			target_undepend_item(&tpg->se_tpg.tpg_group.cg_item);
 		}
 	}
+free_tpg:
 	kfree(vs_tpg);
 out:
 	mutex_unlock(&vs->dev.mutex);
@@ -1904,6 +2033,7 @@ free_vs_tpg:
 	vhost_scsi_flush(vs);
 	kfree(vs->vs_tpg);
 	vs->vs_tpg = NULL;
+	memset(vs->vs_vhost_wwpn, 0, sizeof(vs->vs_vhost_wwpn));
 	WARN_ON(vs->vs_events_nr);
 	mutex_unlock(&vs->dev.mutex);
 	return 0;
@@ -1948,6 +2078,7 @@ static int vhost_scsi_open(struct inode *inode, struct file *f)
 	vs = kvzalloc(sizeof(*vs), GFP_KERNEL);
 	if (!vs)
 		goto err_vs;
+	vs->inline_sg_cnt = vhost_scsi_inline_sg_cnt;
 
 	if (nvqs > VHOST_SCSI_MAX_IO_VQ) {
 		pr_err("Invalid max_io_vqs of %d. Using %d.\n", nvqs,

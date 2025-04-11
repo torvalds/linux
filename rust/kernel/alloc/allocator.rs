@@ -80,6 +80,7 @@ impl ReallocFunc {
     /// This method has the same guarantees as `Allocator::realloc`. Additionally
     /// - it accepts any pointer to a valid memory allocation allocated by this function.
     /// - memory allocated by this function remains valid until it is passed to this function.
+    #[inline]
     unsafe fn call(
         &self,
         ptr: Option<NonNull<u8>>,

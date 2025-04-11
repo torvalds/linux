@@ -242,7 +242,7 @@ static int xcs_resume(struct intel_engine_cs *engine)
 		/*
 		 * In case of resets fails because engine resumes from
 		 * incorrect RING_HEAD and then GPU may be then fed
-		 * to invalid instrcutions, which may lead to unrecoverable
+		 * to invalid instructions, which may lead to unrecoverable
 		 * hang. So at first write doesn't succeed then try again.
 		 */
 		ENGINE_WRITE_FW(engine, RING_HEAD, ring->head);

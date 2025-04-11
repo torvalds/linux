@@ -311,6 +311,14 @@ to the mailing list, e.g.::
 Posting as one thread is discouraged because it confuses patchwork
 (as of patchwork 2.2.2).
 
+Co-posting selftests
+--------------------
+
+Selftests should be part of the same series as the code changes.
+Specifically for fixes both code change and related test should go into
+the same tree (the tests may lack a Fixes tag, which is expected).
+Mixing code changes and test changes in a single commit is discouraged.
+
 Preparing changes
 -----------------
 

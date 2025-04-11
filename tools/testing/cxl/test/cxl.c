@@ -155,7 +155,7 @@ static struct {
 	} cfmws7;
 	struct {
 		struct acpi_cedt_cfmws cfmws;
-		u32 target[4];
+		u32 target[3];
 	} cfmws8;
 	struct {
 		struct acpi_cedt_cxims cxims;
@@ -331,14 +331,14 @@ static struct {
 				.length = sizeof(mock_cedt.cfmws8),
 			},
 			.interleave_arithmetic = ACPI_CEDT_CFMWS_ARITHMETIC_XOR,
-			.interleave_ways = 2,
-			.granularity = 0,
+			.interleave_ways = 8,
+			.granularity = 1,
 			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_TYPE3 |
 					ACPI_CEDT_CFMWS_RESTRICT_PMEM,
 			.qtg_id = FAKE_QTG_ID,
-			.window_size = SZ_256M * 16UL,
+			.window_size = SZ_512M * 6UL,
 		},
-		.target = { 0, 1, 0, 1, },
+		.target = { 0, 1, 2, },
 	},
 	.cxims0 = {
 		.cxims = {
@@ -1000,25 +1000,21 @@ static void mock_cxl_endpoint_parse_cdat(struct cxl_port *port)
 		find_cxl_root(port);
 	struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport_dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
-	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
 	struct access_coordinate ep_c[ACCESS_COORDINATE_MAX];
-	struct range pmem_range = {
-		.start = cxlds->pmem_res.start,
-		.end = cxlds->pmem_res.end,
-	};
-	struct range ram_range = {
-		.start = cxlds->ram_res.start,
-		.end = cxlds->ram_res.end,
-	};
 
 	if (!cxl_root)
 		return;
 
-	if (range_len(&ram_range))
-		dpa_perf_setup(port, &ram_range, &mds->ram_perf);
+	for (int i = 0; i < cxlds->nr_partitions; i++) {
+		struct resource *res = &cxlds->part[i].res;
+		struct cxl_dpa_perf *perf = &cxlds->part[i].perf;
+		struct range range = {
+			.start = res->start,
+			.end = res->end,
+		};
 
-	if (range_len(&pmem_range))
-		dpa_perf_setup(port, &pmem_range, &mds->pmem_perf);
+		dpa_perf_setup(port, &range, perf);
+	}
 
 	cxl_memdev_update_perf(cxlmd);
 

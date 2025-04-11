@@ -172,6 +172,16 @@ config NFSD_LEGACY_CLIENT_TRACKING
 	  recoverydir, or spawn a process directly using a usermodehelper
 	  upcall.
 
-	  These legacy client tracking methods have proven to be probelmatic
+	  These legacy client tracking methods have proven to be problematic
 	  and will be removed in the future. Say Y here if you need support
 	  for them in the interim.
+
+config NFSD_V4_DELEG_TIMESTAMPS
+	bool "Support delegated timestamps"
+	depends on NFSD_V4
+	default n
+	help
+	  NFSD implements delegated timestamps according to
+	  draft-ietf-nfsv4-delstid-08 "Extending the Opening of Files". This
+	  is currently an experimental feature and is therefore left disabled
+	  by default.

@@ -262,26 +262,6 @@ struct pci_dev *pcistub_get_pci_dev_by_slot(struct xen_pcibk_device *pdev,
 	return found_dev;
 }
 
-struct pci_dev *pcistub_get_pci_dev(struct xen_pcibk_device *pdev,
-				    struct pci_dev *dev)
-{
-	struct pcistub_device *psdev;
-	struct pci_dev *found_dev = NULL;
-	unsigned long flags;
-
-	spin_lock_irqsave(&pcistub_devices_lock, flags);
-
-	list_for_each_entry(psdev, &pcistub_devices, dev_list) {
-		if (psdev->dev == dev) {
-			found_dev = pcistub_device_get_pci_dev(pdev, psdev);
-			break;
-		}
-	}
-
-	spin_unlock_irqrestore(&pcistub_devices_lock, flags);
-	return found_dev;
-}
-
 /*
  * Called when:
  *  - XenBus state has been reconfigure (pci unplug). See xen_pcibk_remove_device

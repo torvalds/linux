@@ -9,6 +9,7 @@
 #define MPI3_DIAG_BUFFER_TYPE_FW	(0x02)
 #define MPI3_DIAG_BUFFER_ACTION_RELEASE	(0x01)
 
+#define MPI3_DIAG_BUFFER_POST_MSGFLAGS_SEGMENTED	(0x01)
 struct mpi3_diag_buffer_post_request {
 	__le16                     host_tag;
 	u8                         ioc_use_only02;

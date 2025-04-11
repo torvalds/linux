@@ -88,13 +88,13 @@ static struct inode *__lookup_free_space_inode(struct btrfs_root *root,
 	struct btrfs_disk_key disk_key;
 	struct btrfs_free_space_header *header;
 	struct extent_buffer *leaf;
-	struct inode *inode = NULL;
+	struct btrfs_inode *inode;
 	unsigned nofs_flag;
 	int ret;
 
 	key.objectid = BTRFS_FREE_SPACE_OBJECTID;
-	key.offset = offset;
 	key.type = 0;
+	key.offset = offset;
 
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
@@ -120,13 +120,13 @@ static struct inode *__lookup_free_space_inode(struct btrfs_root *root,
 	btrfs_release_path(path);
 	memalloc_nofs_restore(nofs_flag);
 	if (IS_ERR(inode))
-		return inode;
+		return ERR_CAST(inode);
 
-	mapping_set_gfp_mask(inode->i_mapping,
-			mapping_gfp_constraint(inode->i_mapping,
+	mapping_set_gfp_mask(inode->vfs_inode.i_mapping,
+			mapping_gfp_constraint(inode->vfs_inode.i_mapping,
 			~(__GFP_FS | __GFP_HIGHMEM)));
 
-	return inode;
+	return &inode->vfs_inode;
 }
 
 struct inode *lookup_free_space_inode(struct btrfs_block_group *block_group,
@@ -201,8 +201,8 @@ static int __create_free_space_inode(struct btrfs_root *root,
 	btrfs_release_path(path);
 
 	key.objectid = BTRFS_FREE_SPACE_OBJECTID;
-	key.offset = offset;
 	key.type = 0;
+	key.offset = offset;
 	ret = btrfs_insert_empty_item(trans, root, path, &key,
 				      sizeof(struct btrfs_free_space_header));
 	if (ret < 0) {
@@ -244,7 +244,7 @@ int btrfs_remove_free_space_inode(struct btrfs_trans_handle *trans,
 				  struct inode *inode,
 				  struct btrfs_block_group *block_group)
 {
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_key key;
 	int ret = 0;
 
@@ -257,12 +257,12 @@ int btrfs_remove_free_space_inode(struct btrfs_trans_handle *trans,
 	if (IS_ERR(inode)) {
 		if (PTR_ERR(inode) != -ENOENT)
 			ret = PTR_ERR(inode);
-		goto out;
+		return ret;
 	}
 	ret = btrfs_orphan_add(trans, BTRFS_I(inode));
 	if (ret) {
 		btrfs_add_delayed_iput(BTRFS_I(inode));
-		goto out;
+		return ret;
 	}
 	clear_nlink(inode);
 	/* One for the block groups ref */
@@ -285,12 +285,9 @@ int btrfs_remove_free_space_inode(struct btrfs_trans_handle *trans,
 	if (ret) {
 		if (ret > 0)
 			ret = 0;
-		goto out;
+		return ret;
 	}
-	ret = btrfs_del_item(trans, trans->fs_info->tree_root, path);
-out:
-	btrfs_free_path(path);
-	return ret;
+	return btrfs_del_item(trans, trans->fs_info->tree_root, path);
 }
 
 int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
@@ -447,7 +444,7 @@ static void io_ctl_drop_pages(struct btrfs_io_ctl *io_ctl)
 
 static int io_ctl_prepare_pages(struct btrfs_io_ctl *io_ctl, bool uptodate)
 {
-	struct page *page;
+	struct folio *folio;
 	struct inode *inode = io_ctl->inode;
 	gfp_t mask = btrfs_alloc_write_mask(inode->i_mapping);
 	int i;
@@ -455,31 +452,33 @@ static int io_ctl_prepare_pages(struct btrfs_io_ctl *io_ctl, bool uptodate)
 	for (i = 0; i < io_ctl->num_pages; i++) {
 		int ret;
 
-		page = find_or_create_page(inode->i_mapping, i, mask);
-		if (!page) {
+		folio = __filemap_get_folio(inode->i_mapping, i,
+					    FGP_LOCK | FGP_ACCESSED | FGP_CREAT,
+					    mask);
+		if (IS_ERR(folio)) {
 			io_ctl_drop_pages(io_ctl);
 			return -ENOMEM;
 		}
 
-		ret = set_folio_extent_mapped(page_folio(page));
+		ret = set_folio_extent_mapped(folio);
 		if (ret < 0) {
-			unlock_page(page);
-			put_page(page);
+			folio_unlock(folio);
+			folio_put(folio);
 			io_ctl_drop_pages(io_ctl);
 			return ret;
 		}
 
-		io_ctl->pages[i] = page;
-		if (uptodate && !PageUptodate(page)) {
-			btrfs_read_folio(NULL, page_folio(page));
-			lock_page(page);
-			if (page->mapping != inode->i_mapping) {
+		io_ctl->pages[i] = &folio->page;
+		if (uptodate && !folio_test_uptodate(folio)) {
+			btrfs_read_folio(NULL, folio);
+			folio_lock(folio);
+			if (folio->mapping != inode->i_mapping) {
 				btrfs_err(BTRFS_I(inode)->root->fs_info,
 					  "free space cache page truncated");
 				io_ctl_drop_pages(io_ctl);
 				return -EIO;
 			}
-			if (!PageUptodate(page)) {
+			if (!folio_test_uptodate(folio)) {
 				btrfs_err(BTRFS_I(inode)->root->fs_info,
 					   "error reading free space cache");
 				io_ctl_drop_pages(io_ctl);
@@ -753,8 +752,8 @@ static int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 		return 0;
 
 	key.objectid = BTRFS_FREE_SPACE_OBJECTID;
-	key.offset = offset;
 	key.type = 0;
+	key.offset = offset;
 
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
@@ -1156,8 +1155,8 @@ update_cache_item(struct btrfs_trans_handle *trans,
 	int ret;
 
 	key.objectid = BTRFS_FREE_SPACE_OBJECTID;
-	key.offset = offset;
 	key.type = 0;
+	key.offset = offset;
 
 	ret = btrfs_search_slot(trans, root, &key, path, 0, 1);
 	if (ret < 0) {

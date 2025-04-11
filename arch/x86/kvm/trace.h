@@ -830,12 +830,12 @@ TRACE_EVENT(kvm_emulate_insn,
 	TP_ARGS(vcpu, failed),
 
 	TP_STRUCT__entry(
-		__field(    __u64, rip                       )
-		__field(    __u32, csbase                    )
-		__field(    __u8,  len                       )
-		__array(    __u8,  insn,    15	             )
-		__field(    __u8,  flags       	   	     )
-		__field(    __u8,  failed                    )
+		__field(    __u64, rip                              )
+		__field(    __u32, csbase                           )
+		__field(    __u8,  len                              )
+		__array(    __u8,  insn, X86_MAX_INSTRUCTION_LENGTH )
+		__field(    __u8,  flags       	   	            )
+		__field(    __u8,  failed                           )
 		),
 
 	TP_fast_assign(
@@ -846,7 +846,7 @@ TRACE_EVENT(kvm_emulate_insn,
 		__entry->rip = vcpu->arch.emulate_ctxt->_eip - __entry->len;
 		memcpy(__entry->insn,
 		       vcpu->arch.emulate_ctxt->fetch.data,
-		       15);
+		       X86_MAX_INSTRUCTION_LENGTH);
 		__entry->flags = kei_decode_mode(vcpu->arch.emulate_ctxt->mode);
 		__entry->failed = failed;
 		),

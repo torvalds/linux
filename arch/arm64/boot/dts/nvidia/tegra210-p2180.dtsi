@@ -49,6 +49,19 @@
 		};
 	};
 
+	i2c@7000c000 {
+		status = "okay";
+
+		tmp451: temperature-sensor@4c {
+			compatible = "ti,tmp451";
+			reg = <0x4c>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(X, 4) IRQ_TYPE_LEVEL_LOW>;
+			vcc-supply = <&vdd_1v8>;
+			#thermal-sensor-cells = <1>;
+		};
+	};
+
 	i2c@7000c400 {
 		status = "okay";
 

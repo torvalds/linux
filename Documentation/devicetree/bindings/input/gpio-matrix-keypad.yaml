@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+
+$id: http://devicetree.org/schemas/input/gpio-matrix-keypad.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: GPIO matrix keypad
+
+maintainers:
+  - Marek Vasut <marek.vasut@gmail.com>
+
+description:
+  GPIO driven matrix keypad is used to interface a SoC with a matrix keypad.
+  The matrix keypad supports multiple row and column lines, a key can be
+  placed at each intersection of a unique row and a unique column. The matrix
+  keypad can sense a key-press and key-release by means of GPIO lines and
+  report the event using GPIO interrupts to the cpu.
+
+allOf:
+  - $ref: /schemas/input/matrix-keymap.yaml#
+
+properties:
+  compatible:
+    const: gpio-matrix-keypad
+
+  row-gpios:
+    description:
+      List of GPIOs used as row lines. The gpio specifier for this property
+      depends on the gpio controller to which these row lines are connected.
+
+  col-gpios:
+    description:
+      List of GPIOs used as column lines. The gpio specifier for this property
+      depends on the gpio controller to which these column lines are connected.
+
+  linux,keymap: true
+
+  linux,no-autorepeat:
+    type: boolean
+    description: Do not enable autorepeat feature.
+
+  gpio-activelow:
+    type: boolean
+    description:
+      Force GPIO polarity to active low.
+      In the absence of this property GPIOs are treated as active high.
+
+  debounce-delay-ms:
+    description: Debounce interval in milliseconds.
+    default: 0
+
+  col-scan-delay-us:
+    description:
+      Delay, measured in microseconds, that is needed
+      before we can scan keypad after activating column gpio.
+    default: 0
+
+  all-cols-on-delay-us:
+    description:
+      Delay, measured in microseconds, that is needed
+      after activating all column gpios.
+    default: 0
+
+  drive-inactive-cols:
+    type: boolean
+    description:
+      Drive inactive columns during scan,
+      default is to turn inactive columns into inputs.
+
+  wakeup-source: true
+
+required:
+  - compatible
+  - row-gpios
+  - col-gpios
+  - linux,keymap
+
+additionalProperties: false
+
+examples:
+  - |
+    matrix-keypad {
+        compatible = "gpio-matrix-keypad";
+        debounce-delay-ms = <5>;
+        col-scan-delay-us = <2>;
+
+        row-gpios = <&gpio2 25 0
+                     &gpio2 26 0
+                     &gpio2 27 0>;
+
+        col-gpios = <&gpio2 21 0
+                     &gpio2 22 0>;
+
+        linux,keymap = <0x0000008B
+                        0x0100009E
+                        0x02000069
+                        0x0001006A
+                        0x0101001C
+                        0x0201006C>;
+
+        wakeup-source;
+    };

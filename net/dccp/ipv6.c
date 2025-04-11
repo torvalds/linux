@@ -365,6 +365,9 @@ static int dccp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	ireq = inet_rsk(req);
 	ireq->ir_v6_rmt_addr = ipv6_hdr(skb)->saddr;
 	ireq->ir_v6_loc_addr = ipv6_hdr(skb)->daddr;
+	ireq->ir_rmt_addr = LOOPBACK4_IPV6;
+	ireq->ir_loc_addr = LOOPBACK4_IPV6;
+
 	ireq->ireq_family = AF_INET6;
 	ireq->ir_mark = inet_request_mark(sk, skb);
 
@@ -504,10 +507,7 @@ static struct sock *dccp_v6_request_recv_sock(const struct sock *sk,
 
 	memcpy(newnp, np, sizeof(struct ipv6_pinfo));
 
-	newsk->sk_v6_daddr	= ireq->ir_v6_rmt_addr;
 	newnp->saddr		= ireq->ir_v6_loc_addr;
-	newsk->sk_v6_rcv_saddr	= ireq->ir_v6_loc_addr;
-	newsk->sk_bound_dev_if	= ireq->ir_iif;
 
 	/* Now IPv6 options...
 
@@ -545,9 +545,6 @@ static struct sock *dccp_v6_request_recv_sock(const struct sock *sk,
 						    opt->opt_flen;
 
 	dccp_sync_mss(newsk, dst_mtu(dst));
-
-	newinet->inet_daddr = newinet->inet_saddr = LOOPBACK4_IPV6;
-	newinet->inet_rcv_saddr = LOOPBACK4_IPV6;
 
 	if (__inet_inherit_port(sk, newsk) < 0) {
 		inet_csk_prepare_forced_close(newsk);
@@ -991,8 +988,6 @@ static const struct inet_connection_sock_af_ops dccp_ipv6_af_ops = {
 	.net_header_len	   = sizeof(struct ipv6hdr),
 	.setsockopt	   = ipv6_setsockopt,
 	.getsockopt	   = ipv6_getsockopt,
-	.addr2sockaddr	   = inet6_csk_addr2sockaddr,
-	.sockaddr_len	   = sizeof(struct sockaddr_in6),
 };
 
 /*
@@ -1007,8 +1002,6 @@ static const struct inet_connection_sock_af_ops dccp_ipv6_mapped = {
 	.net_header_len	   = sizeof(struct iphdr),
 	.setsockopt	   = ipv6_setsockopt,
 	.getsockopt	   = ipv6_getsockopt,
-	.addr2sockaddr	   = inet6_csk_addr2sockaddr,
-	.sockaddr_len	   = sizeof(struct sockaddr_in6),
 };
 
 static void dccp_v6_sk_destruct(struct sock *sk)

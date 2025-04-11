@@ -570,7 +570,7 @@ static int baycom_ioctl(struct net_device *dev, void __user *data,
 		break;
 
 	case HDLCDRVCTL_GETMODE:
-		strcpy(hi->data.modename, "ser12");
+		strscpy(hi->data.modename, "ser12");
 		if (bc->opt_dcd <= 0)
 			strcat(hi->data.modename, (!bc->opt_dcd) ? "*" : (bc->opt_dcd == -2) ? "@" : "+");
 		if (copy_to_user(data, hi, sizeof(struct hdlcdrv_ioctl)))
@@ -584,7 +584,7 @@ static int baycom_ioctl(struct net_device *dev, void __user *data,
 		return baycom_setmode(bc, hi->data.modename);
 
 	case HDLCDRVCTL_MODELIST:
-		strcpy(hi->data.modename, "ser12");
+		strscpy(hi->data.modename, "ser12");
 		if (copy_to_user(data, hi, sizeof(struct hdlcdrv_ioctl)))
 			return -EFAULT;
 		return 0;

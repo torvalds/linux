@@ -112,8 +112,11 @@ int cn10k_refill_pool_ptrs(void *dev, struct otx2_cq_queue *cq)
 	struct otx2_nic *pfvf = dev;
 	int cnt = cq->pool_ptrs;
 	u64 ptrs[NPA_MAX_BURST];
+	struct otx2_pool *pool;
 	dma_addr_t bufptr;
 	int num_ptrs = 1;
+
+	pool = &pfvf->qset.pool[cq->cq_idx];
 
 	/* Refill pool with new buffers */
 	while (cq->pool_ptrs) {
@@ -124,7 +127,9 @@ int cn10k_refill_pool_ptrs(void *dev, struct otx2_cq_queue *cq)
 			break;
 		}
 		cq->pool_ptrs--;
-		ptrs[num_ptrs] = (u64)bufptr + OTX2_HEAD_ROOM;
+		ptrs[num_ptrs] = pool->xsk_pool ?
+				 (u64)bufptr : (u64)bufptr + OTX2_HEAD_ROOM;
+
 		num_ptrs++;
 		if (num_ptrs == NPA_MAX_BURST || cq->pool_ptrs == 0) {
 			__cn10k_aura_freeptr(pfvf, cq->cq_idx, ptrs,

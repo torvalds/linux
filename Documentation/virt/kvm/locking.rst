@@ -196,7 +196,7 @@ writable between reading spte and updating spte. Like below case:
 The Dirty bit is lost in this case.
 
 In order to avoid this kind of issue, we always treat the spte as "volatile"
-if it can be updated out of mmu-lock [see spte_has_volatile_bits()]; it means
+if it can be updated out of mmu-lock [see spte_needs_atomic_update()]; it means
 the spte is always atomically updated in this case.
 
 3) flush tlbs due to spte updated
@@ -212,7 +212,7 @@ function to update spte (present -> present).
 
 Since the spte is "volatile" if it can be updated out of mmu-lock, we always
 atomically update the spte and the race caused by fast page fault can be avoided.
-See the comments in spte_has_volatile_bits() and mmu_spte_update().
+See the comments in spte_needs_atomic_update() and mmu_spte_update().
 
 Lockless Access Tracking:
 

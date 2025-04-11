@@ -5,6 +5,10 @@
  *			    (C) 2002 by Frank Mori Hess
  ***************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define dev_fmt pr_fmt
+#define DRV_NAME KBUILD_MODNAME
+
 #include "ines.h"
 
 #include <linux/pci.h>
@@ -21,34 +25,32 @@
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GPIB driver for Ines iGPIB 72010");
 
-int ines_line_status(const gpib_board_t *board)
+int ines_line_status(const struct gpib_board *board)
 {
-	int status = ValidALL;
+	int status = VALID_ALL;
 	int bcm_bits;
 	struct ines_priv *ines_priv;
-	struct nec7210_priv *nec_priv;
 
 	ines_priv = board->private_data;
-	nec_priv = &ines_priv->nec7210_priv;
 
 	bcm_bits = ines_inb(ines_priv, BUS_CONTROL_MONITOR);
 
 	if (bcm_bits & BCM_REN_BIT)
-		status |= BusREN;
+		status |= BUS_REN;
 	if (bcm_bits & BCM_IFC_BIT)
-		status |= BusIFC;
+		status |= BUS_IFC;
 	if (bcm_bits & BCM_SRQ_BIT)
-		status |= BusSRQ;
+		status |= BUS_SRQ;
 	if (bcm_bits & BCM_EOI_BIT)
-		status |= BusEOI;
+		status |= BUS_EOI;
 	if (bcm_bits & BCM_NRFD_BIT)
-		status |= BusNRFD;
+		status |= BUS_NRFD;
 	if (bcm_bits & BCM_NDAC_BIT)
-		status |= BusNDAC;
+		status |= BUS_NDAC;
 	if (bcm_bits & BCM_DAV_BIT)
-		status |= BusDAV;
+		status |= BUS_DAV;
 	if (bcm_bits & BCM_ATN_BIT)
-		status |= BusATN;
+		status |= BUS_ATN;
 
 	return status;
 }
@@ -56,14 +58,14 @@ int ines_line_status(const gpib_board_t *board)
 void ines_set_xfer_counter(struct ines_priv *priv, unsigned int count)
 {
 	if (count > 0xffff) {
-		pr_err("ines: bug! tried to set xfer counter > 0xffff\n");
+		pr_err("bug! tried to set xfer counter > 0xffff\n");
 		return;
 	}
 	ines_outb(priv, (count >> 8) & 0xff, XFER_COUNT_UPPER);
 	ines_outb(priv, count & 0xff, XFER_COUNT_LOWER);
 }
 
-unsigned int ines_t1_delay(gpib_board_t *board, unsigned int nano_sec)
+int ines_t1_delay(struct gpib_board *board, unsigned int nano_sec)
 {
 	struct ines_priv *ines_priv = board->private_data;
 	struct nec7210_priv *nec_priv = &ines_priv->nec7210_priv;
@@ -93,7 +95,7 @@ static inline unsigned short num_in_fifo_bytes(struct ines_priv *ines_priv)
 	return ines_inb(ines_priv, IN_FIFO_COUNT);
 }
 
-static ssize_t pio_read(gpib_board_t *board, struct ines_priv *ines_priv, uint8_t *buffer,
+static ssize_t pio_read(struct gpib_board *board, struct ines_priv *ines_priv, uint8_t *buffer,
 			size_t length, size_t *nbytes)
 {
 	ssize_t retval = 0;
@@ -106,21 +108,18 @@ static ssize_t pio_read(gpib_board_t *board, struct ines_priv *ines_priv, uint8_
 					     num_in_fifo_bytes(ines_priv) ||
 					     test_bit(RECEIVED_END_BN, &nec_priv->state) ||
 					     test_bit(DEV_CLEAR_BN, &nec_priv->state) ||
-					     test_bit(TIMO_NUM, &board->status))) {
-			pr_warn("gpib: pio read wait interrupted\n");
+					     test_bit(TIMO_NUM, &board->status)))
 			return -ERESTARTSYS;
-		}
+
 		if (test_bit(TIMO_NUM, &board->status))
 			return -ETIMEDOUT;
 		if (test_bit(DEV_CLEAR_BN, &nec_priv->state))
 			return -EINTR;
 
 		num_fifo_bytes = num_in_fifo_bytes(ines_priv);
-		if (num_fifo_bytes + *nbytes > length)	{
-			pr_warn("ines: counter allowed %li extra byte(s)\n",
-				(long)(num_fifo_bytes - (length - *nbytes)));
+		if (num_fifo_bytes + *nbytes > length)
 			num_fifo_bytes = length - *nbytes;
-		}
+
 		for (i = 0; i < num_fifo_bytes; i++)
 			buffer[(*nbytes)++] = read_byte(nec_priv, DIR);
 		if (test_bit(RECEIVED_END_BN, &nec_priv->state) &&
@@ -134,7 +133,7 @@ static ssize_t pio_read(gpib_board_t *board, struct ines_priv *ines_priv, uint8_
 	return retval;
 }
 
-int ines_accel_read(gpib_board_t *board, uint8_t *buffer,
+int ines_accel_read(struct gpib_board *board, uint8_t *buffer,
 		    size_t length, int *end, size_t *bytes_read)
 {
 	ssize_t retval = 0;
@@ -191,7 +190,7 @@ static inline unsigned short num_out_fifo_bytes(struct ines_priv *ines_priv)
 	return ines_inb(ines_priv, OUT_FIFO_COUNT);
 }
 
-static int ines_write_wait(gpib_board_t *board, struct ines_priv *ines_priv,
+static int ines_write_wait(struct gpib_board *board, struct ines_priv *ines_priv,
 			   unsigned int fifo_threshold)
 {
 	struct nec7210_priv *nec_priv = &ines_priv->nec7210_priv;
@@ -201,10 +200,9 @@ static int ines_write_wait(gpib_board_t *board, struct ines_priv *ines_priv,
 				     num_out_fifo_bytes(ines_priv) < fifo_threshold ||
 				     test_bit(BUS_ERROR_BN, &nec_priv->state) ||
 				     test_bit(DEV_CLEAR_BN, &nec_priv->state) ||
-				     test_bit(TIMO_NUM, &board->status))) {
-		dev_dbg(board->gpib_dev, "gpib write interrupted\n");
+				     test_bit(TIMO_NUM, &board->status)))
 		return -ERESTARTSYS;
-	}
+
 	if (test_bit(BUS_ERROR_BN, &nec_priv->state))
 		return -EIO;
 	if (test_bit(DEV_CLEAR_BN, &nec_priv->state))
@@ -215,7 +213,7 @@ static int ines_write_wait(gpib_board_t *board, struct ines_priv *ines_priv,
 	return 0;
 }
 
-int ines_accel_write(gpib_board_t *board, uint8_t *buffer, size_t length,
+int ines_accel_write(struct gpib_board *board, uint8_t *buffer, size_t length,
 		     int send_eoi, size_t *bytes_written)
 {
 	size_t count = 0;
@@ -268,7 +266,7 @@ int ines_accel_write(gpib_board_t *board, uint8_t *buffer, size_t length,
 
 irqreturn_t ines_pci_interrupt(int irq, void *arg)
 {
-	gpib_board_t *board = arg;
+	struct gpib_board *board = arg;
 	struct ines_priv *priv = board->private_data;
 	struct nec7210_priv *nec_priv = &priv->nec7210_priv;
 
@@ -283,7 +281,7 @@ irqreturn_t ines_pci_interrupt(int irq, void *arg)
 	return ines_interrupt(board);
 }
 
-irqreturn_t ines_interrupt(gpib_board_t *board)
+irqreturn_t ines_interrupt(struct gpib_board *board)
 {
 	struct ines_priv *priv = board->private_data;
 	struct nec7210_priv *nec_priv = &priv->nec7210_priv;
@@ -301,7 +299,7 @@ irqreturn_t ines_interrupt(gpib_board_t *board)
 		wake++;
 	}
 	if (isr3_bits & FIFO_ERROR_BIT)
-		pr_err("ines gpib: fifo error\n");
+		dev_err(board->gpib_dev, "fifo error\n");
 	if (isr3_bits & XFER_COUNT_BIT)
 		wake++;
 
@@ -315,12 +313,12 @@ irqreturn_t ines_interrupt(gpib_board_t *board)
 	return IRQ_HANDLED;
 }
 
-static int ines_pci_attach(gpib_board_t *board, const gpib_board_config_t *config);
-static int ines_pci_accel_attach(gpib_board_t *board, const gpib_board_config_t *config);
-static int ines_isa_attach(gpib_board_t *board, const gpib_board_config_t *config);
+static int ines_pci_attach(struct gpib_board *board, const gpib_board_config_t *config);
+static int ines_pci_accel_attach(struct gpib_board *board, const gpib_board_config_t *config);
+static int ines_isa_attach(struct gpib_board *board, const gpib_board_config_t *config);
 
-static void ines_pci_detach(gpib_board_t *board);
-static void ines_isa_detach(gpib_board_t *board);
+static void ines_pci_detach(struct gpib_board *board);
+static void ines_isa_detach(struct gpib_board *board);
 
 enum ines_pci_vendor_ids {
 	PCI_VENDOR_ID_INES_QUICKLOGIC = 0x16da
@@ -395,7 +393,8 @@ static struct ines_pci_id pci_ids[] = {
 static const int num_pci_chips = ARRAY_SIZE(pci_ids);
 
 // wrappers for interface functions
-int ines_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end, size_t *bytes_read)
+int ines_read(struct gpib_board *board, uint8_t *buffer, size_t length,
+	      int *end, size_t *bytes_read)
 {
 	struct ines_priv *priv = board->private_data;
 	struct nec7210_priv *nec_priv = &priv->nec7210_priv;
@@ -413,7 +412,7 @@ int ines_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end, siz
 	return retval;
 }
 
-int ines_write(gpib_board_t *board, uint8_t *buffer, size_t length, int send_eoi,
+int ines_write(struct gpib_board *board, uint8_t *buffer, size_t length, int send_eoi,
 	       size_t *bytes_written)
 {
 	struct ines_priv *priv = board->private_data;
@@ -421,119 +420,119 @@ int ines_write(gpib_board_t *board, uint8_t *buffer, size_t length, int send_eoi
 	return nec7210_write(board, &priv->nec7210_priv, buffer, length, send_eoi, bytes_written);
 }
 
-int ines_command(gpib_board_t *board, uint8_t *buffer, size_t length, size_t *bytes_written)
+int ines_command(struct gpib_board *board, uint8_t *buffer, size_t length, size_t *bytes_written)
 {
 	struct ines_priv *priv = board->private_data;
 
 	return nec7210_command(board, &priv->nec7210_priv, buffer, length, bytes_written);
 }
 
-int ines_take_control(gpib_board_t *board, int synchronous)
+int ines_take_control(struct gpib_board *board, int synchronous)
 {
 	struct ines_priv *priv = board->private_data;
 
 	return nec7210_take_control(board, &priv->nec7210_priv, synchronous);
 }
 
-int ines_go_to_standby(gpib_board_t *board)
+int ines_go_to_standby(struct gpib_board *board)
 {
 	struct ines_priv *priv = board->private_data;
 
 	return nec7210_go_to_standby(board, &priv->nec7210_priv);
 }
 
-void ines_request_system_control(gpib_board_t *board, int request_control)
+void ines_request_system_control(struct gpib_board *board, int request_control)
 {
 	struct ines_priv *priv = board->private_data;
 
 	nec7210_request_system_control(board, &priv->nec7210_priv, request_control);
 }
 
-void ines_interface_clear(gpib_board_t *board, int assert)
+void ines_interface_clear(struct gpib_board *board, int assert)
 {
 	struct ines_priv *priv = board->private_data;
 
 	nec7210_interface_clear(board, &priv->nec7210_priv, assert);
 }
 
-void ines_remote_enable(gpib_board_t *board, int enable)
+void ines_remote_enable(struct gpib_board *board, int enable)
 {
 	struct ines_priv *priv = board->private_data;
 
 	nec7210_remote_enable(board, &priv->nec7210_priv, enable);
 }
 
-int ines_enable_eos(gpib_board_t *board, uint8_t eos_byte, int compare_8_bits)
+int ines_enable_eos(struct gpib_board *board, uint8_t eos_byte, int compare_8_bits)
 {
 	struct ines_priv *priv = board->private_data;
 
 	return nec7210_enable_eos(board, &priv->nec7210_priv, eos_byte, compare_8_bits);
 }
 
-void ines_disable_eos(gpib_board_t *board)
+void ines_disable_eos(struct gpib_board *board)
 {
 	struct ines_priv *priv = board->private_data;
 
 	nec7210_disable_eos(board, &priv->nec7210_priv);
 }
 
-unsigned int ines_update_status(gpib_board_t *board, unsigned int clear_mask)
+unsigned int ines_update_status(struct gpib_board *board, unsigned int clear_mask)
 {
 	struct ines_priv *priv = board->private_data;
 
 	return nec7210_update_status(board, &priv->nec7210_priv, clear_mask);
 }
 
-int ines_primary_address(gpib_board_t *board, unsigned int address)
+int ines_primary_address(struct gpib_board *board, unsigned int address)
 {
 	struct ines_priv *priv = board->private_data;
 
 	return nec7210_primary_address(board, &priv->nec7210_priv, address);
 }
 
-int ines_secondary_address(gpib_board_t *board, unsigned int address, int enable)
+int ines_secondary_address(struct gpib_board *board, unsigned int address, int enable)
 {
 	struct ines_priv *priv = board->private_data;
 
 	return nec7210_secondary_address(board, &priv->nec7210_priv, address, enable);
 }
 
-int ines_parallel_poll(gpib_board_t *board, uint8_t *result)
+int ines_parallel_poll(struct gpib_board *board, uint8_t *result)
 {
 	struct ines_priv *priv = board->private_data;
 
 	return nec7210_parallel_poll(board, &priv->nec7210_priv, result);
 }
 
-void ines_parallel_poll_configure(gpib_board_t *board, uint8_t config)
+void ines_parallel_poll_configure(struct gpib_board *board, uint8_t config)
 {
 	struct ines_priv *priv = board->private_data;
 
 	nec7210_parallel_poll_configure(board, &priv->nec7210_priv, config);
 }
 
-void ines_parallel_poll_response(gpib_board_t *board, int ist)
+void ines_parallel_poll_response(struct gpib_board *board, int ist)
 {
 	struct ines_priv *priv = board->private_data;
 
 	nec7210_parallel_poll_response(board, &priv->nec7210_priv, ist);
 }
 
-void ines_serial_poll_response(gpib_board_t *board, uint8_t status)
+void ines_serial_poll_response(struct gpib_board *board, uint8_t status)
 {
 	struct ines_priv *priv = board->private_data;
 
 	nec7210_serial_poll_response(board, &priv->nec7210_priv, status);
 }
 
-uint8_t ines_serial_poll_status(gpib_board_t *board)
+uint8_t ines_serial_poll_status(struct gpib_board *board)
 {
 	struct ines_priv *priv = board->private_data;
 
 	return nec7210_serial_poll_status(board, &priv->nec7210_priv);
 }
 
-void ines_return_to_local(gpib_board_t *board)
+void ines_return_to_local(struct gpib_board *board)
 {
 	struct ines_priv *priv = board->private_data;
 
@@ -652,7 +651,7 @@ static gpib_interface_t ines_isa_interface = {
 	.return_to_local = ines_return_to_local,
 };
 
-static int ines_allocate_private(gpib_board_t *board)
+static int ines_allocate_private(struct gpib_board *board)
 {
 	struct ines_priv *priv;
 
@@ -665,13 +664,13 @@ static int ines_allocate_private(gpib_board_t *board)
 	return 0;
 }
 
-void ines_free_private(gpib_board_t *board)
+void ines_free_private(struct gpib_board *board)
 {
 	kfree(board->private_data);
 	board->private_data = NULL;
 }
 
-int ines_generic_attach(gpib_board_t *board)
+int ines_generic_attach(struct gpib_board *board)
 {
 	struct ines_priv *ines_priv;
 	struct nec7210_priv *nec_priv;
@@ -691,7 +690,7 @@ int ines_generic_attach(gpib_board_t *board)
 	return 0;
 }
 
-void ines_online(struct ines_priv *ines_priv, const gpib_board_t *board, int use_accel)
+void ines_online(struct ines_priv *ines_priv, const struct gpib_board *board, int use_accel)
 {
 	struct nec7210_priv *nec_priv = &ines_priv->nec7210_priv;
 
@@ -725,7 +724,7 @@ void ines_online(struct ines_priv *ines_priv, const gpib_board_t *board, int use
 		nec7210_set_reg_bits(nec_priv, IMR1, HR_DOIE | HR_DIIE, 0);
 }
 
-static int ines_common_pci_attach(gpib_board_t *board, const gpib_board_config_t *config)
+static int ines_common_pci_attach(struct gpib_board *board, const gpib_board_config_t *config)
 {
 	struct ines_priv *ines_priv;
 	struct nec7210_priv *nec_priv;
@@ -769,16 +768,16 @@ static int ines_common_pci_attach(gpib_board_t *board, const gpib_board_config_t
 		} while (1);
 	}
 	if (!ines_priv->pci_device) {
-		pr_err("gpib: could not find ines PCI board\n");
+		dev_err(board->gpib_dev, "could not find ines PCI board\n");
 		return -1;
 	}
 
 	if (pci_enable_device(ines_priv->pci_device)) {
-		pr_err("error enabling pci device\n");
+		dev_err(board->gpib_dev, "error enabling pci device\n");
 		return -1;
 	}
 
-	if (pci_request_regions(ines_priv->pci_device, "ines-gpib"))
+	if (pci_request_regions(ines_priv->pci_device, DRV_NAME))
 		return -1;
 	nec_priv->iobase = pci_resource_start(ines_priv->pci_device,
 					      found_id.gpib_region);
@@ -797,7 +796,7 @@ static int ines_common_pci_attach(gpib_board_t *board, const gpib_board_config_t
 	case PCI_CHIP_QUICKLOGIC5030:
 		break;
 	default:
-		pr_err("gpib: unspecified chip type? (bug)\n");
+		dev_err(board->gpib_dev, "unspecified chip type? (bug)\n");
 		nec_priv->iobase = 0;
 		pci_release_regions(ines_priv->pci_device);
 		return -1;
@@ -813,8 +812,8 @@ static int ines_common_pci_attach(gpib_board_t *board, const gpib_board_config_t
 #endif
 	isr_flags |= IRQF_SHARED;
 	if (request_irq(ines_priv->pci_device->irq, ines_pci_interrupt, isr_flags,
-			"pci-gpib", board)) {
-		pr_err("gpib: can't request IRQ %d\n", ines_priv->pci_device->irq);
+			DRV_NAME, board)) {
+		dev_err(board->gpib_dev, "can't request IRQ %d\n", ines_priv->pci_device->irq);
 		return -1;
 	}
 	ines_priv->irq = ines_priv->pci_device->irq;
@@ -846,14 +845,14 @@ static int ines_common_pci_attach(gpib_board_t *board, const gpib_board_config_t
 	case PCI_CHIP_QUICKLOGIC5030:
 		break;
 	default:
-		pr_err("gpib: unspecified chip type? (bug)\n");
+		dev_err(board->gpib_dev, "unspecified chip type? (bug)\n");
 		return -1;
 	}
 
 	return 0;
 }
 
-int ines_pci_attach(gpib_board_t *board, const gpib_board_config_t *config)
+int ines_pci_attach(struct gpib_board *board, const gpib_board_config_t *config)
 {
 	struct ines_priv *ines_priv;
 	int retval;
@@ -868,7 +867,7 @@ int ines_pci_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	return 0;
 }
 
-int ines_pci_accel_attach(gpib_board_t *board, const gpib_board_config_t *config)
+int ines_pci_accel_attach(struct gpib_board *board, const gpib_board_config_t *config)
 {
 	struct ines_priv *ines_priv;
 	int retval;
@@ -885,7 +884,7 @@ int ines_pci_accel_attach(gpib_board_t *board, const gpib_board_config_t *config
 
 static const int ines_isa_iosize = 0x20;
 
-int ines_isa_attach(gpib_board_t *board, const gpib_board_config_t *config)
+int ines_isa_attach(struct gpib_board *board, const gpib_board_config_t *config)
 {
 	struct ines_priv *ines_priv;
 	struct nec7210_priv *nec_priv;
@@ -899,15 +898,16 @@ int ines_isa_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	ines_priv = board->private_data;
 	nec_priv = &ines_priv->nec7210_priv;
 
-	if (!request_region(config->ibbase, ines_isa_iosize, "ines_gpib")) {
-		pr_err("ines_gpib: ioports at 0x%x already in use\n", config->ibbase);
-		return -1;
+	if (!request_region(config->ibbase, ines_isa_iosize, DRV_NAME)) {
+		dev_err(board->gpib_dev, "ioports at 0x%x already in use\n",
+			config->ibbase);
+		return -EBUSY;
 	}
 	nec_priv->iobase = config->ibbase;
 	nec_priv->offset = 1;
 	nec7210_board_reset(nec_priv, board);
-	if (request_irq(config->ibirq, ines_pci_interrupt, isr_flags, "ines_gpib", board)) {
-		pr_err("ines_gpib: failed to allocate IRQ %d\n", config->ibirq);
+	if (request_irq(config->ibirq, ines_pci_interrupt, isr_flags, DRV_NAME, board)) {
+		dev_err(board->gpib_dev, "failed to allocate IRQ %d\n", config->ibirq);
 		return -1;
 	}
 	ines_priv->irq = config->ibirq;
@@ -915,7 +915,7 @@ int ines_isa_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	return 0;
 }
 
-void ines_pci_detach(gpib_board_t *board)
+void ines_pci_detach(struct gpib_board *board)
 {
 	struct ines_priv *ines_priv = board->private_data;
 	struct nec7210_priv *nec_priv;
@@ -949,7 +949,7 @@ void ines_pci_detach(gpib_board_t *board)
 	ines_free_private(board);
 }
 
-void ines_isa_detach(gpib_board_t *board)
+void ines_isa_detach(struct gpib_board *board)
 {
 	struct ines_priv *ines_priv = board->private_data;
 	struct nec7210_priv *nec_priv;
@@ -977,7 +977,7 @@ static struct pci_driver ines_pci_driver = {
 	.probe = &ines_pci_probe
 };
 
-#ifdef GPIB_PCMCIA
+#ifdef CONFIG_GPIB_PCMCIA
 
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
@@ -987,13 +987,6 @@ static struct pci_driver ines_pci_driver = {
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 #include <pcmcia/cisreg.h>
-
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-#define DEBUG(n, args...) do {if (pc_debug > (n)) pr_debug(args)} while (0)
-#else
-#define DEBUG(args...)
-#endif
 
 static const int ines_pcmcia_iosize = 0x20;
 
@@ -1007,11 +1000,11 @@ static const int ines_pcmcia_iosize = 0x20;
 
 static int ines_gpib_config(struct pcmcia_device  *link);
 static void ines_gpib_release(struct pcmcia_device  *link);
-static int ines_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config);
-static int ines_pcmcia_accel_attach(gpib_board_t *board, const gpib_board_config_t *config);
-static void ines_pcmcia_detach(gpib_board_t *board);
+static int ines_pcmcia_attach(struct gpib_board *board, const gpib_board_config_t *config);
+static int ines_pcmcia_accel_attach(struct gpib_board *board, const gpib_board_config_t *config);
+static void ines_pcmcia_detach(struct gpib_board *board);
 static irqreturn_t ines_pcmcia_interrupt(int irq, void *arg);
-static int ines_common_pcmcia_attach(gpib_board_t *board);
+static int ines_common_pcmcia_attach(struct gpib_board *board);
 /*
  * A linked list of "instances" of the gpib device.  Each actual
  *  PCMCIA card corresponds to one device instance, and is described
@@ -1043,7 +1036,7 @@ static struct pcmcia_device *curr_dev;
 
 struct local_info {
 	struct pcmcia_device	*p_dev;
-	gpib_board_t		*dev;
+	struct gpib_board		*dev;
 	u_short manfid;
 	u_short cardid;
 };
@@ -1062,8 +1055,6 @@ static int ines_gpib_probe(struct pcmcia_device *link)
 	struct local_info *info;
 
 //	int ret, i;
-
-	DEBUG(0, "%s(0x%p)\n", __func__ link);
 
 	/* Allocate space for private device-specific data */
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
@@ -1096,9 +1087,7 @@ static int ines_gpib_probe(struct pcmcia_device *link)
 static void ines_gpib_remove(struct pcmcia_device *link)
 {
 	struct local_info *info = link->priv;
-	//struct gpib_board_t *dev = info->dev;
-
-	DEBUG(0, "%s(0x%p)\n", __func__, link);
+	//struct struct gpib_board *dev = info->dev;
 
 	if (info->dev)
 		ines_pcmcia_detach(info->dev);
@@ -1125,7 +1114,6 @@ static int ines_gpib_config(struct pcmcia_device *link)
 	void __iomem *virt;
 
 	dev = link->priv;
-	DEBUG(0, "%s(0x%p)\n", __func__, link);
 
 	retval = pcmcia_loop_config(link, &ines_gpib_config_iteration, NULL);
 	if (retval) {
@@ -1134,8 +1122,8 @@ static int ines_gpib_config(struct pcmcia_device *link)
 		return -ENODEV;
 	}
 
-	pr_debug("ines_cs: manufacturer: 0x%x card: 0x%x\n",
-		 link->manf_id, link->card_id);
+	dev_dbg(&link->dev, "ines_cs: manufacturer: 0x%x card: 0x%x\n",
+		link->manf_id, link->card_id);
 
 	/*  for the ines card we have to setup the configuration registers in
 	 *	attribute memory here
@@ -1167,7 +1155,6 @@ static int ines_gpib_config(struct pcmcia_device *link)
 		ines_gpib_release(link);
 		return -ENODEV;
 	}
-	pr_info("ines gpib device loaded\n");
 	return 0;
 } /* gpib_config */
 
@@ -1179,18 +1166,16 @@ static int ines_gpib_config(struct pcmcia_device *link)
 
 static void ines_gpib_release(struct pcmcia_device *link)
 {
-	DEBUG(0, "%s(0x%p)\n", __func__, link);
 	pcmcia_disable_device(link);
 } /* gpib_release */
 
 static int ines_gpib_suspend(struct pcmcia_device *link)
 {
 	//struct local_info *info = link->priv;
-	//struct gpib_board_t *dev = info->dev;
-	DEBUG(0, "%s(0x%p)\n", __func__, link);
+	//struct struct gpib_board *dev = info->dev;
 
 	if (link->open)
-		pr_err("Device still open ???\n");
+		dev_err(&link->dev, "Device still open\n");
 	//netif_device_detach(dev);
 
 	return 0;
@@ -1199,12 +1184,10 @@ static int ines_gpib_suspend(struct pcmcia_device *link)
 static int ines_gpib_resume(struct pcmcia_device *link)
 {
 	//struct local_info_t *info = link->priv;
-	//struct gpib_board_t *dev = info->dev;
-	DEBUG(0, "%s(0x%p)\n", __func__, link);
+	//struct struct gpib_board *dev = info->dev;
 
 	/*if (link->open) {
 	 *	ni_gpib_probe(dev);	/ really?
-	 *		printk("Gpib resumed ???\n");
 	 *	//netif_device_attach(dev);
 	 *}
 	 */
@@ -1229,7 +1212,6 @@ static struct pcmcia_driver ines_gpib_cs_driver = {
 
 void ines_pcmcia_cleanup_module(void)
 {
-	DEBUG(0, "ines_cs: unloading\n");
 	pcmcia_unregister_driver(&ines_gpib_cs_driver);
 }
 
@@ -1319,19 +1301,19 @@ static gpib_interface_t ines_pcmcia_interface = {
 
 irqreturn_t ines_pcmcia_interrupt(int irq, void *arg)
 {
-	gpib_board_t *board = arg;
+	struct gpib_board *board = arg;
 
 	return ines_interrupt(board);
 }
 
-int ines_common_pcmcia_attach(gpib_board_t *board)
+int ines_common_pcmcia_attach(struct gpib_board *board)
 {
 	struct ines_priv *ines_priv;
 	struct nec7210_priv *nec_priv;
 	int retval;
 
 	if (!curr_dev) {
-		pr_err("no ines pcmcia cards found\n");
+		dev_err(board->gpib_dev, "no ines pcmcia cards found\n");
 		return -1;
 	}
 
@@ -1343,9 +1325,9 @@ int ines_common_pcmcia_attach(gpib_board_t *board)
 	nec_priv = &ines_priv->nec7210_priv;
 
 	if (!request_region(curr_dev->resource[0]->start,
-			    resource_size(curr_dev->resource[0]), "ines_gpib")) {
-		pr_err("ines_gpib: ioports at 0x%lx already in use\n",
-		       (unsigned long)(curr_dev->resource[0]->start));
+			    resource_size(curr_dev->resource[0]), DRV_NAME)) {
+		dev_err(board->gpib_dev, "ioports at 0x%lx already in use\n",
+			(unsigned long)(curr_dev->resource[0]->start));
 		return -1;
 	}
 
@@ -1355,7 +1337,7 @@ int ines_common_pcmcia_attach(gpib_board_t *board)
 
 	if (request_irq(curr_dev->irq, ines_pcmcia_interrupt, IRQF_SHARED,
 			"pcmcia-gpib", board))	{
-		pr_err("gpib: can't request IRQ %d\n", curr_dev->irq);
+		dev_err(board->gpib_dev, "can't request IRQ %d\n", curr_dev->irq);
 		return -1;
 	}
 	ines_priv->irq = curr_dev->irq;
@@ -1363,7 +1345,7 @@ int ines_common_pcmcia_attach(gpib_board_t *board)
 	return 0;
 }
 
-int ines_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config)
+int ines_pcmcia_attach(struct gpib_board *board, const gpib_board_config_t *config)
 {
 	struct ines_priv *ines_priv;
 	int retval;
@@ -1378,7 +1360,7 @@ int ines_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	return 0;
 }
 
-int ines_pcmcia_accel_attach(gpib_board_t *board, const gpib_board_config_t *config)
+int ines_pcmcia_accel_attach(struct gpib_board *board, const gpib_board_config_t *config)
 {
 	struct ines_priv *ines_priv;
 	int retval;
@@ -1393,7 +1375,7 @@ int ines_pcmcia_accel_attach(gpib_board_t *board, const gpib_board_config_t *con
 	return 0;
 }
 
-void ines_pcmcia_detach(gpib_board_t *board)
+void ines_pcmcia_detach(struct gpib_board *board)
 {
 	struct ines_priv *ines_priv = board->private_data;
 	struct nec7210_priv *nec_priv;
@@ -1410,7 +1392,7 @@ void ines_pcmcia_detach(gpib_board_t *board)
 	ines_free_private(board);
 }
 
-#endif /* GPIB_PCMCIA */
+#endif /* CONFIG_GPIB_PCMCIA */
 
 static int __init ines_init_module(void)
 {
@@ -1418,63 +1400,63 @@ static int __init ines_init_module(void)
 
 	ret = pci_register_driver(&ines_pci_driver);
 	if (ret) {
-		pr_err("ines_gpib: pci_register_driver failed: error = %d\n", ret);
+		pr_err("pci_register_driver failed: error = %d\n", ret);
 		return ret;
 	}
 
 	ret = gpib_register_driver(&ines_pci_interface, THIS_MODULE);
 	if (ret) {
-		pr_err("ines_gpib: gpib_register_driver failed: error = %d\n", ret);
+		pr_err("gpib_register_driver failed: error = %d\n", ret);
 		goto err_pci;
 	}
 
 	ret = gpib_register_driver(&ines_pci_unaccel_interface, THIS_MODULE);
 	if (ret) {
-		pr_err("ines_gpib: gpib_register_driver failed: error = %d\n", ret);
+		pr_err("gpib_register_driver failed: error = %d\n", ret);
 		goto err_pci_unaccel;
 	}
 
 	ret = gpib_register_driver(&ines_pci_accel_interface, THIS_MODULE);
 	if (ret) {
-		pr_err("ines_gpib: gpib_register_driver failed: error = %d\n", ret);
+		pr_err("gpib_register_driver failed: error = %d\n", ret);
 		goto err_pci_accel;
 	}
 
 	ret = gpib_register_driver(&ines_isa_interface, THIS_MODULE);
 	if (ret) {
-		pr_err("ines_gpib: gpib_register_driver failed: error = %d\n", ret);
+		pr_err("gpib_register_driver failed: error = %d\n", ret);
 		goto err_isa;
 	}
 
-#ifdef GPIB_PCMCIA
+#ifdef CONFIG_GPIB_PCMCIA
 	ret = gpib_register_driver(&ines_pcmcia_interface, THIS_MODULE);
 	if (ret) {
-		pr_err("ines_gpib: gpib_register_driver failed: error = %d\n", ret);
+		pr_err("gpib_register_driver failed: error = %d\n", ret);
 		goto err_pcmcia;
 	}
 
 	ret = gpib_register_driver(&ines_pcmcia_unaccel_interface, THIS_MODULE);
 	if (ret) {
-		pr_err("ines_gpib: gpib_register_driver failed: error = %d\n", ret);
+		pr_err("gpib_register_driver failed: error = %d\n", ret);
 		goto err_pcmcia_unaccel;
 	}
 
 	ret = gpib_register_driver(&ines_pcmcia_accel_interface, THIS_MODULE);
 	if (ret) {
-		pr_err("ines_gpib: gpib_register_driver failed: error = %d\n", ret);
+		pr_err("gpib_register_driver failed: error = %d\n", ret);
 		goto err_pcmcia_accel;
 	}
 
 	ret = pcmcia_register_driver(&ines_gpib_cs_driver);
 	if (ret) {
-		pr_err("ines_gpib: pcmcia_register_driver failed: error = %d\n", ret);
+		pr_err("pcmcia_register_driver failed: error = %d\n", ret);
 		goto err_pcmcia_driver;
 	}
 #endif
 
 	return 0;
 
-#ifdef GPIB_PCMCIA
+#ifdef CONFIG_GPIB_PCMCIA
 err_pcmcia_driver:
 	gpib_unregister_driver(&ines_pcmcia_accel_interface);
 err_pcmcia_accel:

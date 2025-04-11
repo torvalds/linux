@@ -69,4 +69,9 @@ int avs_path_reset(struct avs_path *path);
 int avs_path_pause(struct avs_path *path);
 int avs_path_run(struct avs_path *path, int trigger);
 
+int avs_peakvol_set_volume(struct avs_dev *adev, struct avs_path_module *mod,
+			   struct soc_mixer_control *mc, long *input);
+int avs_peakvol_set_mute(struct avs_dev *adev, struct avs_path_module *mod,
+			 struct soc_mixer_control *mc, long *input);
+
 #endif

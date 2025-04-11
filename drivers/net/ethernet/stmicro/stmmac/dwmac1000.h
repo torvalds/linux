@@ -59,21 +59,10 @@ enum power_event {
 /* Energy Efficient Ethernet (EEE)
  *
  * LPI status, timer and control register offset
+ * For LPI control and status bit definitions, see common.h.
  */
 #define LPI_CTRL_STATUS	0x0030
 #define LPI_TIMER_CTRL	0x0034
-
-/* LPI control and status defines */
-#define LPI_CTRL_STATUS_LPITXA	0x00080000	/* Enable LPI TX Automate */
-#define LPI_CTRL_STATUS_PLSEN	0x00040000	/* Enable PHY Link Status */
-#define LPI_CTRL_STATUS_PLS	0x00020000	/* PHY Link Status */
-#define LPI_CTRL_STATUS_LPIEN	0x00010000	/* LPI Enable */
-#define LPI_CTRL_STATUS_RLPIST	0x00000200	/* Receive LPI state */
-#define LPI_CTRL_STATUS_TLPIST	0x00000100	/* Transmit LPI state */
-#define LPI_CTRL_STATUS_RLPIEX	0x00000008	/* Receive LPI Exit */
-#define LPI_CTRL_STATUS_RLPIEN	0x00000004	/* Receive LPI Entry */
-#define LPI_CTRL_STATUS_TLPIEX	0x00000002	/* Transmit LPI Exit */
-#define LPI_CTRL_STATUS_TLPIEN	0x00000001	/* Transmit LPI Entry */
 
 /* GMAC HW ADDR regs */
 #define GMAC_ADDR_HIGH(reg)	((reg > 15) ? 0x00000800 + (reg - 16) * 8 : \

@@ -106,6 +106,62 @@ static int i2c_mii_write_default_c22(struct mii_bus *bus, int phy_id, int reg,
 	return i2c_mii_write_default_c45(bus, phy_id, -1, reg, val);
 }
 
+static int smbus_byte_mii_read_default_c22(struct mii_bus *bus, int phy_id,
+					   int reg)
+{
+	struct i2c_adapter *i2c = bus->priv;
+	union i2c_smbus_data smbus_data;
+	int val = 0, ret;
+
+	if (!i2c_mii_valid_phy_id(phy_id))
+		return 0;
+
+	ret = i2c_smbus_xfer(i2c, i2c_mii_phy_addr(phy_id), 0,
+			     I2C_SMBUS_READ, reg,
+			     I2C_SMBUS_BYTE_DATA, &smbus_data);
+	if (ret < 0)
+		return ret;
+
+	val = (smbus_data.byte & 0xff) << 8;
+
+	ret = i2c_smbus_xfer(i2c, i2c_mii_phy_addr(phy_id), 0,
+			     I2C_SMBUS_READ, reg,
+			     I2C_SMBUS_BYTE_DATA, &smbus_data);
+	if (ret < 0)
+		return ret;
+
+	val |= smbus_data.byte & 0xff;
+
+	return val;
+}
+
+static int smbus_byte_mii_write_default_c22(struct mii_bus *bus, int phy_id,
+					    int reg, u16 val)
+{
+	struct i2c_adapter *i2c = bus->priv;
+	union i2c_smbus_data smbus_data;
+	int ret;
+
+	if (!i2c_mii_valid_phy_id(phy_id))
+		return 0;
+
+	smbus_data.byte = (val & 0xff00) >> 8;
+
+	ret = i2c_smbus_xfer(i2c, i2c_mii_phy_addr(phy_id), 0,
+			     I2C_SMBUS_WRITE, reg,
+			     I2C_SMBUS_BYTE_DATA, &smbus_data);
+	if (ret < 0)
+		return ret;
+
+	smbus_data.byte = val & 0xff;
+
+	ret = i2c_smbus_xfer(i2c, i2c_mii_phy_addr(phy_id), 0,
+			     I2C_SMBUS_WRITE, reg,
+			     I2C_SMBUS_BYTE_DATA, &smbus_data);
+
+	return ret < 0 ? ret : 0;
+}
+
 /* RollBall SFPs do not access internal PHY via I2C address 0x56, but
  * instead via address 0x51, when SFP page is set to 0x03 and password to
  * 0xffffffff.
@@ -378,13 +434,26 @@ static int i2c_mii_init_rollball(struct i2c_adapter *i2c)
 		return 0;
 }
 
+static bool mdio_i2c_check_functionality(struct i2c_adapter *i2c,
+					 enum mdio_i2c_proto protocol)
+{
+	if (i2c_check_functionality(i2c, I2C_FUNC_I2C))
+		return true;
+
+	if (i2c_check_functionality(i2c, I2C_FUNC_SMBUS_BYTE_DATA) &&
+	    protocol == MDIO_I2C_MARVELL_C22)
+		return true;
+
+	return false;
+}
+
 struct mii_bus *mdio_i2c_alloc(struct device *parent, struct i2c_adapter *i2c,
 			       enum mdio_i2c_proto protocol)
 {
 	struct mii_bus *mii;
 	int ret;
 
-	if (!i2c_check_functionality(i2c, I2C_FUNC_I2C))
+	if (!mdio_i2c_check_functionality(i2c, protocol))
 		return ERR_PTR(-EINVAL);
 
 	mii = mdiobus_alloc();
@@ -394,6 +463,14 @@ struct mii_bus *mdio_i2c_alloc(struct device *parent, struct i2c_adapter *i2c,
 	snprintf(mii->id, MII_BUS_ID_SIZE, "i2c:%s", dev_name(parent));
 	mii->parent = parent;
 	mii->priv = i2c;
+
+	/* Only use SMBus if we have no other choice */
+	if (i2c_check_functionality(i2c, I2C_FUNC_SMBUS_BYTE_DATA) &&
+	    !i2c_check_functionality(i2c, I2C_FUNC_I2C)) {
+		mii->read = smbus_byte_mii_read_default_c22;
+		mii->write = smbus_byte_mii_write_default_c22;
+		return mii;
+	}
 
 	switch (protocol) {
 	case MDIO_I2C_ROLLBALL:

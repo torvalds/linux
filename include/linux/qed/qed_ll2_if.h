@@ -267,7 +267,7 @@ struct qed_ll2_ops {
 int qed_ll2_alloc_if(struct qed_dev *);
 void qed_ll2_dealloc_if(struct qed_dev *);
 #else
-static const struct qed_ll2_ops qed_ll2_ops_pass = {
+static __maybe_unused const struct qed_ll2_ops qed_ll2_ops_pass = {
 	.start = NULL,
 	.stop = NULL,
 	.start_xmit = NULL,

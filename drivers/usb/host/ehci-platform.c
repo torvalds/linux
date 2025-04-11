@@ -224,7 +224,7 @@ static void quirk_poll_init(struct ehci_platform_priv *priv)
 
 static void quirk_poll_end(struct ehci_platform_priv *priv)
 {
-	del_timer_sync(&priv->poll_timer);
+	timer_delete_sync(&priv->poll_timer);
 	cancel_delayed_work(&priv->poll_work);
 }
 

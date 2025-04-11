@@ -73,13 +73,10 @@ static bool is_module_cfi_trap(unsigned long addr)
 	struct module *mod;
 	bool found = false;
 
-	rcu_read_lock_sched_notrace();
-
+	guard(rcu)();
 	mod = __module_address(addr);
 	if (mod)
 		found = is_trap(addr, mod->kcfi_traps, mod->kcfi_traps_end);
-
-	rcu_read_unlock_sched_notrace();
 
 	return found;
 }

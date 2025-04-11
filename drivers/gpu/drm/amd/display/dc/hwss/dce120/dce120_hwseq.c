@@ -29,6 +29,7 @@
 #include "dce120_hwseq.h"
 #include "dce/dce_hwseq.h"
 
+#include "dce100/dce100_hwseq.h"
 #include "dce110/dce110_hwseq.h"
 
 #include "dce/dce_12_0_offset.h"
@@ -264,5 +265,6 @@ void dce120_hw_sequencer_construct(struct dc *dc)
 	dce110_hw_sequencer_construct(dc);
 	dc->hwseq->funcs.enable_display_power_gating = dce120_enable_display_power_gating;
 	dc->hwss.update_dchub = dce120_update_dchub;
+	dc->hwss.clear_surface_dcc_and_tiling = dce100_reset_surface_dcc_and_tiling;
 }
 

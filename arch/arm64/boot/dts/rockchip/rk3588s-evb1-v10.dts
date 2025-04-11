@@ -242,7 +242,7 @@
 	status = "okay";
 
 	es8388: audio-codec@11 {
-		compatible = "everest,es8388";
+		compatible = "everest,es8388", "everest,es8328";
 		reg = <0x11>;
 		clocks = <&cru I2S0_8CH_MCLKOUT>;
 		assigned-clocks = <&cru I2S0_8CH_MCLKOUT>;
@@ -338,6 +338,10 @@
 	pinctrl-0 = <&pcie2_2_rst>;
 	reset-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
 	status = "okay";
+};
+
+&pd_gpu {
+	domain-supply = <&vdd_gpu_s0>;
 };
 
 &pinctrl {

@@ -30,6 +30,7 @@ trap trap_cleanup EXIT TERM INT
 function commachecker()
 {
 	local prefix=1
+	local -i metric_only=0
 
 	case "$1"
 	in "--interval")	prefix=2
@@ -41,6 +42,7 @@ function commachecker()
 	;; "--per-die")		prefix=3
 	;; "--per-cache")	prefix=3
 	;; "--per-cluster")	prefix=3
+	;; "--metric-only")	metric_only=1
 	esac
 
 	while read line
@@ -59,6 +61,9 @@ function commachecker()
 		main_body=$(echo $line | cut -d' ' -f$prefix-)
 		x=${main_body%#*}
 		[ "$x" = "" ] && continue
+
+		# Check metric only - if it has a non-empty result
+		[ $metric_only -eq 1 ] && return 0
 
 		# Skip metrics without event name
 		y=${main_body#*#}
@@ -84,6 +89,8 @@ function commachecker()
 			exit 1;
 		}
 	done < "${stat_output}"
+
+	[ $metric_only -eq 1 ] && exit 1
 	return 0
 }
 
@@ -95,6 +102,7 @@ check_system_wide "STD" "$perf_cmd"
 check_interval "STD" "$perf_cmd"
 check_per_thread "STD" "$perf_cmd"
 check_per_node "STD" "$perf_cmd"
+check_metric_only "STD" "$perf_cmd"
 if [ $skip_test -ne 1 ]
 then
 	check_system_wide_no_aggr "STD" "$perf_cmd"

@@ -2902,7 +2902,6 @@ init_vbt_panel_defaults(struct intel_panel *panel)
 static void
 init_vbt_missing_defaults(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	unsigned int ports = DISPLAY_RUNTIME_INFO(display)->port_mask;
 	enum port port;
 
@@ -2912,13 +2911,13 @@ init_vbt_missing_defaults(struct intel_display *display)
 	for_each_port_masked(port, ports) {
 		struct intel_bios_encoder_data *devdata;
 		struct child_device_config *child;
-		enum phy phy = intel_port_to_phy(i915, port);
+		enum phy phy = intel_port_to_phy(display, port);
 
 		/*
 		 * VBT has the TypeC mode (native,TBT/USB) and we don't want
 		 * to detect it.
 		 */
-		if (intel_phy_is_tc(i915, phy))
+		if (intel_phy_is_tc(display, phy))
 			continue;
 
 		/* Create fake child device config */

@@ -318,7 +318,7 @@ Several Subdirectories
 		|	|__ include
 		|	    |__ hardwareif.h
 		|__ include
-		|__ complex.h
+			|__ complex.h
 
 	To build the module complex.ko, we then need the following
 	kbuild file::

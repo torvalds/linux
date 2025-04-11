@@ -523,5 +523,5 @@ unsigned int mmc_queue_map_sg(struct mmc_queue *mq, struct mmc_queue_req *mqrq)
 {
 	struct request *req = mmc_queue_req_to_req(mqrq);
 
-	return blk_rq_map_sg(mq->queue, req, mqrq->sg);
+	return blk_rq_map_sg(req, mqrq->sg);
 }

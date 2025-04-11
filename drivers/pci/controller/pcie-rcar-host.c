@@ -178,8 +178,8 @@ static int rcar_pcie_config_access(struct rcar_pcie_host *host,
 	 * space, it's generally only accessible when in endpoint mode.
 	 * When in root complex mode, the controller is unable to target
 	 * itself with either type 0 or type 1 accesses, and indeed, any
-	 * controller initiated target transfer to its own config space
-	 * result in a completer abort.
+	 * controller-initiated target transfer to its own config space
+	 * results in a completer abort.
 	 *
 	 * Each channel effectively only supports a single device, but as
 	 * the same channel <-> device access works for any PCI_SLOT()
@@ -775,7 +775,7 @@ static int rcar_pcie_enable_msi(struct rcar_pcie_host *host)
 	if (err)
 		return err;
 
-	/* Two irqs are for MSI, but they are also used for non-MSI irqs */
+	/* Two IRQs are for MSI, but they are also used for non-MSI IRQs */
 	err = devm_request_irq(dev, msi->irq1, rcar_pcie_msi_irq,
 			       IRQF_SHARED | IRQF_NO_THREAD,
 			       rcar_msi_bottom_chip.name, host);
@@ -792,7 +792,7 @@ static int rcar_pcie_enable_msi(struct rcar_pcie_host *host)
 		goto err;
 	}
 
-	/* disable all MSIs */
+	/* Disable all MSIs */
 	rcar_pci_write_reg(pcie, 0, PCIEMSIIER);
 
 	/*
@@ -892,6 +892,7 @@ static int rcar_pcie_inbound_ranges(struct rcar_pcie *pcie,
 			dev_err(pcie->dev, "Failed to map inbound regions!\n");
 			return -EINVAL;
 		}
+
 		/*
 		 * If the size of the range is larger than the alignment of
 		 * the start address, we have to use multiple entries to
@@ -903,6 +904,7 @@ static int rcar_pcie_inbound_ranges(struct rcar_pcie *pcie,
 
 			size = min(size, alignment);
 		}
+
 		/* Hardware supports max 4GiB inbound region */
 		size = min(size, 1ULL << 32);
 

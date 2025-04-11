@@ -41,7 +41,6 @@ static void pci_stop_dev(struct pci_dev *dev)
 	if (!pci_dev_test_and_clear_added(dev))
 		return;
 
-	pci_pwrctrl_unregister(&dev->dev);
 	device_release_driver(&dev->dev);
 	pci_proc_detach_device(dev);
 	pci_remove_sysfs_dev_files(dev);
@@ -53,6 +52,7 @@ static void pci_destroy_dev(struct pci_dev *dev)
 	if (pci_dev_test_and_set_removed(dev))
 		return;
 
+	pci_doe_sysfs_teardown(dev);
 	pci_npem_remove(dev);
 
 	device_del(&dev->dev);
@@ -64,6 +64,7 @@ static void pci_destroy_dev(struct pci_dev *dev)
 	pci_doe_destroy(dev);
 	pcie_aspm_exit_link_state(dev);
 	pci_bridge_d3_update(dev);
+	pci_pwrctrl_unregister(&dev->dev);
 	pci_free_resources(dev);
 	put_device(&dev->dev);
 }
@@ -162,6 +163,8 @@ void pci_stop_root_bus(struct pci_bus *bus)
 	list_for_each_entry_safe_reverse(child, tmp,
 					 &bus->devices, bus_list)
 		pci_stop_bus_device(child);
+
+	of_pci_remove_host_bridge_node(host_bridge);
 
 	/* stop the host bridge */
 	device_release_driver(&host_bridge->dev);

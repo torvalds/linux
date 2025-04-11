@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Landlock LSM - Filesystem management and hooks
+ * Landlock - Filesystem management and hooks
  *
  * Copyright © 2016-2020 Mickaël Salaün <mic@digikod.net>
  * Copyright © 2018-2020 ANSSI
- * Copyright © 2021-2022 Microsoft Corporation
+ * Copyright © 2021-2025 Microsoft Corporation
  * Copyright © 2022 Günther Noack <gnoack3000@gmail.com>
  * Copyright © 2023-2024 Google LLC
  */
@@ -23,11 +23,14 @@
 #include <linux/kernel.h>
 #include <linux/limits.h>
 #include <linux/list.h>
+#include <linux/lsm_audit.h>
 #include <linux/lsm_hooks.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/path.h>
+#include <linux/pid.h>
 #include <linux/rcupdate.h>
+#include <linux/sched/signal.h>
 #include <linux/spinlock.h>
 #include <linux/stat.h>
 #include <linux/types.h>
@@ -37,8 +40,10 @@
 #include <uapi/linux/landlock.h>
 
 #include "access.h"
+#include "audit.h"
 #include "common.h"
 #include "cred.h"
+#include "domain.h"
 #include "fs.h"
 #include "limits.h"
 #include "object.h"
@@ -393,12 +398,6 @@ static const struct access_masks any_fs = {
 	.fs = ~0,
 };
 
-static const struct landlock_ruleset *get_current_fs_domain(void)
-{
-	return landlock_get_applicable_domain(landlock_get_current_domain(),
-					      any_fs);
-}
-
 /*
  * Check that a destination file hierarchy has more restrictions than a source
  * file hierarchy.  This is only used for link and rename actions.
@@ -728,6 +727,7 @@ static void test_is_eacces_with_write(struct kunit *const test)
  *     those identified by @access_request_parent1).  This matrix can
  *     initially refer to domain layer masks and, when the accesses for the
  *     destination and source are the same, to requested layer masks.
+ * @log_request_parent1: Audit request to fill if the related access is denied.
  * @dentry_child1: Dentry to the initial child of the parent1 path.  This
  *     pointer must be NULL for non-refer actions (i.e. not link nor rename).
  * @access_request_parent2: Similar to @access_request_parent1 but for a
@@ -736,6 +736,7 @@ static void test_is_eacces_with_write(struct kunit *const test)
  *     the source.  Must be set to 0 when using a simple path request.
  * @layer_masks_parent2: Similar to @layer_masks_parent1 but for a refer
  *     action.  This must be NULL otherwise.
+ * @log_request_parent2: Audit request to fill if the related access is denied.
  * @dentry_child2: Dentry to the initial child of the parent2 path.  This
  *     pointer is only set for RENAME_EXCHANGE actions and must be NULL
  *     otherwise.
@@ -755,10 +756,12 @@ static bool is_access_to_paths_allowed(
 	const struct path *const path,
 	const access_mask_t access_request_parent1,
 	layer_mask_t (*const layer_masks_parent1)[LANDLOCK_NUM_ACCESS_FS],
-	const struct dentry *const dentry_child1,
+	struct landlock_request *const log_request_parent1,
+	struct dentry *const dentry_child1,
 	const access_mask_t access_request_parent2,
 	layer_mask_t (*const layer_masks_parent2)[LANDLOCK_NUM_ACCESS_FS],
-	const struct dentry *const dentry_child2)
+	struct landlock_request *const log_request_parent2,
+	struct dentry *const dentry_child2)
 {
 	bool allowed_parent1 = false, allowed_parent2 = false, is_dom_check,
 	     child1_is_directory = true, child2_is_directory = true;
@@ -771,11 +774,14 @@ static bool is_access_to_paths_allowed(
 
 	if (!access_request_parent1 && !access_request_parent2)
 		return true;
-	if (WARN_ON_ONCE(!domain || !path))
+
+	if (WARN_ON_ONCE(!path))
 		return true;
+
 	if (is_nouser_or_private(path->dentry))
 		return true;
-	if (WARN_ON_ONCE(domain->num_layers < 1 || !layer_masks_parent1))
+
+	if (WARN_ON_ONCE(!layer_masks_parent1))
 		return false;
 
 	allowed_parent1 = is_layer_masks_allowed(layer_masks_parent1);
@@ -920,24 +926,51 @@ jump_up:
 	}
 	path_put(&walker_path);
 
+	if (!allowed_parent1) {
+		log_request_parent1->type = LANDLOCK_REQUEST_FS_ACCESS;
+		log_request_parent1->audit.type = LSM_AUDIT_DATA_PATH;
+		log_request_parent1->audit.u.path = *path;
+		log_request_parent1->access = access_masked_parent1;
+		log_request_parent1->layer_masks = layer_masks_parent1;
+		log_request_parent1->layer_masks_size =
+			ARRAY_SIZE(*layer_masks_parent1);
+	}
+
+	if (!allowed_parent2) {
+		log_request_parent2->type = LANDLOCK_REQUEST_FS_ACCESS;
+		log_request_parent2->audit.type = LSM_AUDIT_DATA_PATH;
+		log_request_parent2->audit.u.path = *path;
+		log_request_parent2->access = access_masked_parent2;
+		log_request_parent2->layer_masks = layer_masks_parent2;
+		log_request_parent2->layer_masks_size =
+			ARRAY_SIZE(*layer_masks_parent2);
+	}
 	return allowed_parent1 && allowed_parent2;
 }
 
 static int current_check_access_path(const struct path *const path,
 				     access_mask_t access_request)
 {
-	const struct landlock_ruleset *const dom = get_current_fs_domain();
+	const struct access_masks masks = {
+		.fs = access_request,
+	};
+	const struct landlock_cred_security *const subject =
+		landlock_get_applicable_subject(current_cred(), masks, NULL);
 	layer_mask_t layer_masks[LANDLOCK_NUM_ACCESS_FS] = {};
+	struct landlock_request request = {};
 
-	if (!dom)
+	if (!subject)
 		return 0;
 
-	access_request = landlock_init_layer_masks(
-		dom, access_request, &layer_masks, LANDLOCK_KEY_INODE);
-	if (is_access_to_paths_allowed(dom, path, access_request, &layer_masks,
-				       NULL, 0, NULL, NULL))
+	access_request = landlock_init_layer_masks(subject->domain,
+						   access_request, &layer_masks,
+						   LANDLOCK_KEY_INODE);
+	if (is_access_to_paths_allowed(subject->domain, path, access_request,
+				       &layer_masks, &request, NULL, 0, NULL,
+				       NULL, NULL))
 		return 0;
 
+	landlock_log_denial(subject, &request);
 	return -EACCES;
 }
 
@@ -1098,18 +1131,19 @@ static int current_check_refer_path(struct dentry *const old_dentry,
 				    struct dentry *const new_dentry,
 				    const bool removable, const bool exchange)
 {
-	const struct landlock_ruleset *const dom = get_current_fs_domain();
+	const struct landlock_cred_security *const subject =
+		landlock_get_applicable_subject(current_cred(), any_fs, NULL);
 	bool allow_parent1, allow_parent2;
 	access_mask_t access_request_parent1, access_request_parent2;
 	struct path mnt_dir;
 	struct dentry *old_parent;
 	layer_mask_t layer_masks_parent1[LANDLOCK_NUM_ACCESS_FS] = {},
 		     layer_masks_parent2[LANDLOCK_NUM_ACCESS_FS] = {};
+	struct landlock_request request1 = {}, request2 = {};
 
-	if (!dom)
+	if (!subject)
 		return 0;
-	if (WARN_ON_ONCE(dom->num_layers < 1))
-		return -EACCES;
+
 	if (unlikely(d_is_negative(old_dentry)))
 		return -ENOENT;
 	if (exchange) {
@@ -1134,12 +1168,16 @@ static int current_check_refer_path(struct dentry *const old_dentry,
 		 * for same-directory referer (i.e. no reparenting).
 		 */
 		access_request_parent1 = landlock_init_layer_masks(
-			dom, access_request_parent1 | access_request_parent2,
+			subject->domain,
+			access_request_parent1 | access_request_parent2,
 			&layer_masks_parent1, LANDLOCK_KEY_INODE);
-		if (is_access_to_paths_allowed(
-			    dom, new_dir, access_request_parent1,
-			    &layer_masks_parent1, NULL, 0, NULL, NULL))
+		if (is_access_to_paths_allowed(subject->domain, new_dir,
+					       access_request_parent1,
+					       &layer_masks_parent1, &request1,
+					       NULL, 0, NULL, NULL, NULL))
 			return 0;
+
+		landlock_log_denial(subject, &request1);
 		return -EACCES;
 	}
 
@@ -1160,10 +1198,12 @@ static int current_check_refer_path(struct dentry *const old_dentry,
 						      old_dentry->d_parent;
 
 	/* new_dir->dentry is equal to new_dentry->d_parent */
-	allow_parent1 = collect_domain_accesses(dom, mnt_dir.dentry, old_parent,
+	allow_parent1 = collect_domain_accesses(subject->domain, mnt_dir.dentry,
+						old_parent,
 						&layer_masks_parent1);
-	allow_parent2 = collect_domain_accesses(
-		dom, mnt_dir.dentry, new_dir->dentry, &layer_masks_parent2);
+	allow_parent2 = collect_domain_accesses(subject->domain, mnt_dir.dentry,
+						new_dir->dentry,
+						&layer_masks_parent2);
 
 	if (allow_parent1 && allow_parent2)
 		return 0;
@@ -1175,10 +1215,20 @@ static int current_check_refer_path(struct dentry *const old_dentry,
 	 * destination parent access rights.
 	 */
 	if (is_access_to_paths_allowed(
-		    dom, &mnt_dir, access_request_parent1, &layer_masks_parent1,
-		    old_dentry, access_request_parent2, &layer_masks_parent2,
+		    subject->domain, &mnt_dir, access_request_parent1,
+		    &layer_masks_parent1, &request1, old_dentry,
+		    access_request_parent2, &layer_masks_parent2, &request2,
 		    exchange ? new_dentry : NULL))
 		return 0;
+
+	if (request1.access) {
+		request1.audit.u.path.dentry = old_parent;
+		landlock_log_denial(subject, &request1);
+	}
+	if (request2.access) {
+		request2.audit.u.path.dentry = new_dir->dentry;
+		landlock_log_denial(subject, &request2);
+	}
 
 	/*
 	 * This prioritizes EACCES over EXDEV for all actions, including
@@ -1322,6 +1372,34 @@ static void hook_sb_delete(struct super_block *const sb)
 		       !atomic_long_read(&landlock_superblock(sb)->inode_refs));
 }
 
+static void
+log_fs_change_topology_path(const struct landlock_cred_security *const subject,
+			    size_t handle_layer, const struct path *const path)
+{
+	landlock_log_denial(subject, &(struct landlock_request) {
+		.type = LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY,
+		.audit = {
+			.type = LSM_AUDIT_DATA_PATH,
+			.u.path = *path,
+		},
+		.layer_plus_one = handle_layer + 1,
+	});
+}
+
+static void log_fs_change_topology_dentry(
+	const struct landlock_cred_security *const subject, size_t handle_layer,
+	struct dentry *const dentry)
+{
+	landlock_log_denial(subject, &(struct landlock_request) {
+		.type = LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY,
+		.audit = {
+			.type = LSM_AUDIT_DATA_DENTRY,
+			.u.dentry = dentry,
+		},
+		.layer_plus_one = handle_layer + 1,
+	});
+}
+
 /*
  * Because a Landlock security policy is defined according to the filesystem
  * topology (i.e. the mount namespace), changing it may grant access to files
@@ -1344,16 +1422,30 @@ static int hook_sb_mount(const char *const dev_name,
 			 const struct path *const path, const char *const type,
 			 const unsigned long flags, void *const data)
 {
-	if (!get_current_fs_domain())
+	size_t handle_layer;
+	const struct landlock_cred_security *const subject =
+		landlock_get_applicable_subject(current_cred(), any_fs,
+						&handle_layer);
+
+	if (!subject)
 		return 0;
+
+	log_fs_change_topology_path(subject, handle_layer, path);
 	return -EPERM;
 }
 
 static int hook_move_mount(const struct path *const from_path,
 			   const struct path *const to_path)
 {
-	if (!get_current_fs_domain())
+	size_t handle_layer;
+	const struct landlock_cred_security *const subject =
+		landlock_get_applicable_subject(current_cred(), any_fs,
+						&handle_layer);
+
+	if (!subject)
 		return 0;
+
+	log_fs_change_topology_path(subject, handle_layer, to_path);
 	return -EPERM;
 }
 
@@ -1363,15 +1455,29 @@ static int hook_move_mount(const struct path *const from_path,
  */
 static int hook_sb_umount(struct vfsmount *const mnt, const int flags)
 {
-	if (!get_current_fs_domain())
+	size_t handle_layer;
+	const struct landlock_cred_security *const subject =
+		landlock_get_applicable_subject(current_cred(), any_fs,
+						&handle_layer);
+
+	if (!subject)
 		return 0;
+
+	log_fs_change_topology_dentry(subject, handle_layer, mnt->mnt_root);
 	return -EPERM;
 }
 
 static int hook_sb_remount(struct super_block *const sb, void *const mnt_opts)
 {
-	if (!get_current_fs_domain())
+	size_t handle_layer;
+	const struct landlock_cred_security *const subject =
+		landlock_get_applicable_subject(current_cred(), any_fs,
+						&handle_layer);
+
+	if (!subject)
 		return 0;
+
+	log_fs_change_topology_dentry(subject, handle_layer, sb->s_root);
 	return -EPERM;
 }
 
@@ -1386,8 +1492,15 @@ static int hook_sb_remount(struct super_block *const sb, void *const mnt_opts)
 static int hook_sb_pivotroot(const struct path *const old_path,
 			     const struct path *const new_path)
 {
-	if (!get_current_fs_domain())
+	size_t handle_layer;
+	const struct landlock_cred_security *const subject =
+		landlock_get_applicable_subject(current_cred(), any_fs,
+						&handle_layer);
+
+	if (!subject)
 		return 0;
+
+	log_fs_change_topology_path(subject, handle_layer, new_path);
 	return -EPERM;
 }
 
@@ -1504,11 +1617,11 @@ static int hook_file_open(struct file *const file)
 	layer_mask_t layer_masks[LANDLOCK_NUM_ACCESS_FS] = {};
 	access_mask_t open_access_request, full_access_request, allowed_access,
 		optional_access;
-	const struct landlock_ruleset *const dom =
-		landlock_get_applicable_domain(
-			landlock_cred(file->f_cred)->domain, any_fs);
+	const struct landlock_cred_security *const subject =
+		landlock_get_applicable_subject(file->f_cred, any_fs, NULL);
+	struct landlock_request request = {};
 
-	if (!dom)
+	if (!subject)
 		return 0;
 
 	/*
@@ -1529,10 +1642,11 @@ static int hook_file_open(struct file *const file)
 	full_access_request = open_access_request | optional_access;
 
 	if (is_access_to_paths_allowed(
-		    dom, &file->f_path,
-		    landlock_init_layer_masks(dom, full_access_request,
-					      &layer_masks, LANDLOCK_KEY_INODE),
-		    &layer_masks, NULL, 0, NULL, NULL)) {
+		    subject->domain, &file->f_path,
+		    landlock_init_layer_masks(subject->domain,
+					      full_access_request, &layer_masks,
+					      LANDLOCK_KEY_INODE),
+		    &layer_masks, &request, NULL, 0, NULL, NULL, NULL)) {
 		allowed_access = full_access_request;
 	} else {
 		unsigned long access_bit;
@@ -1558,10 +1672,18 @@ static int hook_file_open(struct file *const file)
 	 * file access rights in the opened struct file.
 	 */
 	landlock_file(file)->allowed_access = allowed_access;
+#ifdef CONFIG_AUDIT
+	landlock_file(file)->deny_masks = landlock_get_deny_masks(
+		_LANDLOCK_ACCESS_FS_OPTIONAL, optional_access, &layer_masks,
+		ARRAY_SIZE(layer_masks));
+#endif /* CONFIG_AUDIT */
 
 	if ((open_access_request & allowed_access) == open_access_request)
 		return 0;
 
+	/* Sets access to reflect the actual request. */
+	request.access = open_access_request;
+	landlock_log_denial(subject, &request);
 	return -EACCES;
 }
 
@@ -1579,76 +1701,131 @@ static int hook_file_truncate(struct file *const file)
 	 */
 	if (landlock_file(file)->allowed_access & LANDLOCK_ACCESS_FS_TRUNCATE)
 		return 0;
+
+	landlock_log_denial(landlock_cred(file->f_cred), &(struct landlock_request) {
+		.type = LANDLOCK_REQUEST_FS_ACCESS,
+		.audit = {
+			.type = LSM_AUDIT_DATA_FILE,
+			.u.file = file,
+		},
+		.all_existing_optional_access = _LANDLOCK_ACCESS_FS_OPTIONAL,
+		.access = LANDLOCK_ACCESS_FS_TRUNCATE,
+#ifdef CONFIG_AUDIT
+		.deny_masks = landlock_file(file)->deny_masks,
+#endif /* CONFIG_AUDIT */
+	});
+	return -EACCES;
+}
+
+static int hook_file_ioctl_common(const struct file *const file,
+				  const unsigned int cmd, const bool is_compat)
+{
+	access_mask_t allowed_access = landlock_file(file)->allowed_access;
+
+	/*
+	 * It is the access rights at the time of opening the file which
+	 * determine whether IOCTL can be used on the opened file later.
+	 *
+	 * The access right is attached to the opened file in hook_file_open().
+	 */
+	if (allowed_access & LANDLOCK_ACCESS_FS_IOCTL_DEV)
+		return 0;
+
+	if (!is_device(file))
+		return 0;
+
+	if (unlikely(is_compat) ? is_masked_device_ioctl_compat(cmd) :
+				  is_masked_device_ioctl(cmd))
+		return 0;
+
+	landlock_log_denial(landlock_cred(file->f_cred), &(struct landlock_request) {
+		.type = LANDLOCK_REQUEST_FS_ACCESS,
+		.audit = {
+			.type = LSM_AUDIT_DATA_IOCTL_OP,
+			.u.op = &(struct lsm_ioctlop_audit) {
+				.path = file->f_path,
+				.cmd = cmd,
+			},
+		},
+		.all_existing_optional_access = _LANDLOCK_ACCESS_FS_OPTIONAL,
+		.access = LANDLOCK_ACCESS_FS_IOCTL_DEV,
+#ifdef CONFIG_AUDIT
+		.deny_masks = landlock_file(file)->deny_masks,
+#endif /* CONFIG_AUDIT */
+	});
 	return -EACCES;
 }
 
 static int hook_file_ioctl(struct file *file, unsigned int cmd,
 			   unsigned long arg)
 {
-	access_mask_t allowed_access = landlock_file(file)->allowed_access;
-
-	/*
-	 * It is the access rights at the time of opening the file which
-	 * determine whether IOCTL can be used on the opened file later.
-	 *
-	 * The access right is attached to the opened file in hook_file_open().
-	 */
-	if (allowed_access & LANDLOCK_ACCESS_FS_IOCTL_DEV)
-		return 0;
-
-	if (!is_device(file))
-		return 0;
-
-	if (is_masked_device_ioctl(cmd))
-		return 0;
-
-	return -EACCES;
+	return hook_file_ioctl_common(file, cmd, false);
 }
 
 static int hook_file_ioctl_compat(struct file *file, unsigned int cmd,
 				  unsigned long arg)
 {
-	access_mask_t allowed_access = landlock_file(file)->allowed_access;
-
-	/*
-	 * It is the access rights at the time of opening the file which
-	 * determine whether IOCTL can be used on the opened file later.
-	 *
-	 * The access right is attached to the opened file in hook_file_open().
-	 */
-	if (allowed_access & LANDLOCK_ACCESS_FS_IOCTL_DEV)
-		return 0;
-
-	if (!is_device(file))
-		return 0;
-
-	if (is_masked_device_ioctl_compat(cmd))
-		return 0;
-
-	return -EACCES;
+	return hook_file_ioctl_common(file, cmd, true);
 }
 
-static void hook_file_set_fowner(struct file *file)
+/*
+ * Always allow sending signals between threads of the same process.  This
+ * ensures consistency with hook_task_kill().
+ */
+static bool control_current_fowner(struct fown_struct *const fown)
 {
-	struct landlock_ruleset *new_dom, *prev_dom;
+	struct task_struct *p;
 
 	/*
 	 * Lock already held by __f_setown(), see commit 26f204380a3c ("fs: Fix
 	 * file_set_fowner LSM hook inconsistencies").
 	 */
-	lockdep_assert_held(&file_f_owner(file)->lock);
-	new_dom = landlock_get_current_domain();
-	landlock_get_ruleset(new_dom);
-	prev_dom = landlock_file(file)->fown_domain;
-	landlock_file(file)->fown_domain = new_dom;
+	lockdep_assert_held(&fown->lock);
 
-	/* Called in an RCU read-side critical section. */
+	/*
+	 * Some callers (e.g. fcntl_dirnotify) may not be in an RCU read-side
+	 * critical section.
+	 */
+	guard(rcu)();
+	p = pid_task(fown->pid, fown->pid_type);
+	if (!p)
+		return true;
+
+	return !same_thread_group(p, current);
+}
+
+static void hook_file_set_fowner(struct file *file)
+{
+	struct landlock_ruleset *prev_dom;
+	struct landlock_cred_security fown_subject = {};
+	size_t fown_layer = 0;
+
+	if (control_current_fowner(file_f_owner(file))) {
+		static const struct access_masks signal_scope = {
+			.scope = LANDLOCK_SCOPE_SIGNAL,
+		};
+		const struct landlock_cred_security *new_subject =
+			landlock_get_applicable_subject(
+				current_cred(), signal_scope, &fown_layer);
+		if (new_subject) {
+			landlock_get_ruleset(new_subject->domain);
+			fown_subject = *new_subject;
+		}
+	}
+
+	prev_dom = landlock_file(file)->fown_subject.domain;
+	landlock_file(file)->fown_subject = fown_subject;
+#ifdef CONFIG_AUDIT
+	landlock_file(file)->fown_layer = fown_layer;
+#endif /* CONFIG_AUDIT*/
+
+	/* May be called in an RCU read-side critical section. */
 	landlock_put_ruleset_deferred(prev_dom);
 }
 
 static void hook_file_free_security(struct file *file)
 {
-	landlock_put_ruleset_deferred(landlock_file(file)->fown_domain);
+	landlock_put_ruleset_deferred(landlock_file(file)->fown_subject.domain);
 }
 
 static struct security_hook_list landlock_hooks[] __ro_after_init = {

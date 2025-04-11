@@ -72,17 +72,17 @@ static inline void __elf_hash_del(struct elf_hash_node *node,
 	     obj;							\
 	     obj = elf_list_entry(obj->member.next, typeof(*(obj)), member))
 
-#define elf_alloc_hash(name, size) \
-({ \
-	__elf_bits(name) = max(10, ilog2(size)); \
+#define elf_alloc_hash(name, size)					\
+({									\
+	__elf_bits(name) = max(10, ilog2(size));			\
 	__elf_table(name) = mmap(NULL, sizeof(struct elf_hash_node *) << __elf_bits(name), \
-				 PROT_READ|PROT_WRITE, \
-				 MAP_PRIVATE|MAP_ANON, -1, 0); \
-	if (__elf_table(name) == (void *)-1L) { \
-		WARN("mmap fail " #name); \
-		__elf_table(name) = NULL; \
-	} \
-	__elf_table(name); \
+				 PROT_READ|PROT_WRITE,			\
+				 MAP_PRIVATE|MAP_ANON, -1, 0);		\
+	if (__elf_table(name) == (void *)-1L) {				\
+		ERROR_GLIBC("mmap fail " #name);			\
+		__elf_table(name) = NULL;				\
+	}								\
+	__elf_table(name);						\
 })
 
 static inline unsigned long __sym_start(struct symbol *s)
@@ -316,12 +316,12 @@ static int read_sections(struct elf *elf)
 	int i;
 
 	if (elf_getshdrnum(elf->elf, &sections_nr)) {
-		WARN_ELF("elf_getshdrnum");
+		ERROR_ELF("elf_getshdrnum");
 		return -1;
 	}
 
 	if (elf_getshdrstrndx(elf->elf, &shstrndx)) {
-		WARN_ELF("elf_getshdrstrndx");
+		ERROR_ELF("elf_getshdrstrndx");
 		return -1;
 	}
 
@@ -331,7 +331,7 @@ static int read_sections(struct elf *elf)
 
 	elf->section_data = calloc(sections_nr, sizeof(*sec));
 	if (!elf->section_data) {
-		perror("calloc");
+		ERROR_GLIBC("calloc");
 		return -1;
 	}
 	for (i = 0; i < sections_nr; i++) {
@@ -341,33 +341,32 @@ static int read_sections(struct elf *elf)
 
 		s = elf_getscn(elf->elf, i);
 		if (!s) {
-			WARN_ELF("elf_getscn");
+			ERROR_ELF("elf_getscn");
 			return -1;
 		}
 
 		sec->idx = elf_ndxscn(s);
 
 		if (!gelf_getshdr(s, &sec->sh)) {
-			WARN_ELF("gelf_getshdr");
+			ERROR_ELF("gelf_getshdr");
 			return -1;
 		}
 
 		sec->name = elf_strptr(elf->elf, shstrndx, sec->sh.sh_name);
 		if (!sec->name) {
-			WARN_ELF("elf_strptr");
+			ERROR_ELF("elf_strptr");
 			return -1;
 		}
 
 		if (sec->sh.sh_size != 0 && !is_dwarf_section(sec)) {
 			sec->data = elf_getdata(s, NULL);
 			if (!sec->data) {
-				WARN_ELF("elf_getdata");
+				ERROR_ELF("elf_getdata");
 				return -1;
 			}
 			if (sec->data->d_off != 0 ||
 			    sec->data->d_size != sec->sh.sh_size) {
-				WARN("unexpected data attributes for %s",
-				     sec->name);
+				ERROR("unexpected data attributes for %s", sec->name);
 				return -1;
 			}
 		}
@@ -387,7 +386,7 @@ static int read_sections(struct elf *elf)
 
 	/* sanity check, one more call to elf_nextscn() should return NULL */
 	if (elf_nextscn(elf->elf, s)) {
-		WARN("section entry mismatch");
+		ERROR("section entry mismatch");
 		return -1;
 	}
 
@@ -467,7 +466,7 @@ static int read_symbols(struct elf *elf)
 
 	elf->symbol_data = calloc(symbols_nr, sizeof(*sym));
 	if (!elf->symbol_data) {
-		perror("calloc");
+		ERROR_GLIBC("calloc");
 		return -1;
 	}
 	for (i = 0; i < symbols_nr; i++) {
@@ -477,14 +476,14 @@ static int read_symbols(struct elf *elf)
 
 		if (!gelf_getsymshndx(symtab->data, shndx_data, i, &sym->sym,
 				      &shndx)) {
-			WARN_ELF("gelf_getsymshndx");
+			ERROR_ELF("gelf_getsymshndx");
 			goto err;
 		}
 
 		sym->name = elf_strptr(elf->elf, symtab->sh.sh_link,
 				       sym->sym.st_name);
 		if (!sym->name) {
-			WARN_ELF("elf_strptr");
+			ERROR_ELF("elf_strptr");
 			goto err;
 		}
 
@@ -496,8 +495,7 @@ static int read_symbols(struct elf *elf)
 
 			sym->sec = find_section_by_index(elf, shndx);
 			if (!sym->sec) {
-				WARN("couldn't find section for symbol %s",
-				     sym->name);
+				ERROR("couldn't find section for symbol %s", sym->name);
 				goto err;
 			}
 			if (GELF_ST_TYPE(sym->sym.st_info) == STT_SECTION) {
@@ -536,8 +534,7 @@ static int read_symbols(struct elf *elf)
 			pnamelen = coldstr - sym->name;
 			pname = strndup(sym->name, pnamelen);
 			if (!pname) {
-				WARN("%s(): failed to allocate memory",
-				     sym->name);
+				ERROR("%s(): failed to allocate memory", sym->name);
 				return -1;
 			}
 
@@ -545,8 +542,7 @@ static int read_symbols(struct elf *elf)
 			free(pname);
 
 			if (!pfunc) {
-				WARN("%s(): can't find parent function",
-				     sym->name);
+				ERROR("%s(): can't find parent function", sym->name);
 				return -1;
 			}
 
@@ -583,7 +579,7 @@ static int elf_update_sym_relocs(struct elf *elf, struct symbol *sym)
 {
 	struct reloc *reloc;
 
-	for (reloc = sym->relocs; reloc; reloc = reloc->sym_next_reloc)
+	for (reloc = sym->relocs; reloc; reloc = sym_next_reloc(reloc))
 		set_reloc_sym(elf, reloc, reloc->sym->idx);
 
 	return 0;
@@ -613,14 +609,14 @@ static int elf_update_symbol(struct elf *elf, struct section *symtab,
 
 	s = elf_getscn(elf->elf, symtab->idx);
 	if (!s) {
-		WARN_ELF("elf_getscn");
+		ERROR_ELF("elf_getscn");
 		return -1;
 	}
 
 	if (symtab_shndx) {
 		t = elf_getscn(elf->elf, symtab_shndx->idx);
 		if (!t) {
-			WARN_ELF("elf_getscn");
+			ERROR_ELF("elf_getscn");
 			return -1;
 		}
 	}
@@ -643,7 +639,7 @@ static int elf_update_symbol(struct elf *elf, struct section *symtab,
 
 			if (idx) {
 				/* we don't do holes in symbol tables */
-				WARN("index out of range");
+				ERROR("index out of range");
 				return -1;
 			}
 
@@ -654,7 +650,7 @@ static int elf_update_symbol(struct elf *elf, struct section *symtab,
 
 			buf = calloc(num, entsize);
 			if (!buf) {
-				WARN("malloc");
+				ERROR_GLIBC("calloc");
 				return -1;
 			}
 
@@ -669,7 +665,7 @@ static int elf_update_symbol(struct elf *elf, struct section *symtab,
 			if (t) {
 				buf = calloc(num, sizeof(Elf32_Word));
 				if (!buf) {
-					WARN("malloc");
+					ERROR_GLIBC("calloc");
 					return -1;
 				}
 
@@ -687,7 +683,7 @@ static int elf_update_symbol(struct elf *elf, struct section *symtab,
 
 		/* empty blocks should not happen */
 		if (!symtab_data->d_size) {
-			WARN("zero size data");
+			ERROR("zero size data");
 			return -1;
 		}
 
@@ -702,7 +698,7 @@ static int elf_update_symbol(struct elf *elf, struct section *symtab,
 
 	/* something went side-ways */
 	if (idx < 0) {
-		WARN("negative index");
+		ERROR("negative index");
 		return -1;
 	}
 
@@ -714,13 +710,13 @@ static int elf_update_symbol(struct elf *elf, struct section *symtab,
 	} else {
 		sym->sym.st_shndx = SHN_XINDEX;
 		if (!shndx_data) {
-			WARN("no .symtab_shndx");
+			ERROR("no .symtab_shndx");
 			return -1;
 		}
 	}
 
 	if (!gelf_update_symshndx(symtab_data, shndx_data, idx, &sym->sym, shndx)) {
-		WARN_ELF("gelf_update_symshndx");
+		ERROR_ELF("gelf_update_symshndx");
 		return -1;
 	}
 
@@ -738,7 +734,7 @@ __elf_create_symbol(struct elf *elf, struct symbol *sym)
 	if (symtab) {
 		symtab_shndx = find_section_by_name(elf, ".symtab_shndx");
 	} else {
-		WARN("no .symtab");
+		ERROR("no .symtab");
 		return NULL;
 	}
 
@@ -760,7 +756,7 @@ __elf_create_symbol(struct elf *elf, struct symbol *sym)
 		old->idx = new_idx;
 
 		if (elf_update_symbol(elf, symtab, symtab_shndx, old)) {
-			WARN("elf_update_symbol move");
+			ERROR("elf_update_symbol move");
 			return NULL;
 		}
 
@@ -778,7 +774,7 @@ __elf_create_symbol(struct elf *elf, struct symbol *sym)
 non_local:
 	sym->idx = new_idx;
 	if (elf_update_symbol(elf, symtab, symtab_shndx, sym)) {
-		WARN("elf_update_symbol");
+		ERROR("elf_update_symbol");
 		return NULL;
 	}
 
@@ -799,7 +795,7 @@ elf_create_section_symbol(struct elf *elf, struct section *sec)
 	struct symbol *sym = calloc(1, sizeof(*sym));
 
 	if (!sym) {
-		perror("malloc");
+		ERROR_GLIBC("malloc");
 		return NULL;
 	}
 
@@ -829,7 +825,7 @@ elf_create_prefix_symbol(struct elf *elf, struct symbol *orig, long size)
 	char *name = malloc(namelen);
 
 	if (!sym || !name) {
-		perror("malloc");
+		ERROR_GLIBC("malloc");
 		return NULL;
 	}
 
@@ -858,16 +854,16 @@ static struct reloc *elf_init_reloc(struct elf *elf, struct section *rsec,
 	struct reloc *reloc, empty = { 0 };
 
 	if (reloc_idx >= sec_num_entries(rsec)) {
-		WARN("%s: bad reloc_idx %u for %s with %d relocs",
-		     __func__, reloc_idx, rsec->name, sec_num_entries(rsec));
+		ERROR("%s: bad reloc_idx %u for %s with %d relocs",
+		      __func__, reloc_idx, rsec->name, sec_num_entries(rsec));
 		return NULL;
 	}
 
 	reloc = &rsec->relocs[reloc_idx];
 
 	if (memcmp(reloc, &empty, sizeof(empty))) {
-		WARN("%s: %s: reloc %d already initialized!",
-		     __func__, rsec->name, reloc_idx);
+		ERROR("%s: %s: reloc %d already initialized!",
+		      __func__, rsec->name, reloc_idx);
 		return NULL;
 	}
 
@@ -880,7 +876,7 @@ static struct reloc *elf_init_reloc(struct elf *elf, struct section *rsec,
 	set_reloc_addend(elf, reloc, addend);
 
 	elf_hash_add(reloc, &reloc->hash, reloc_hash(reloc));
-	reloc->sym_next_reloc = sym->relocs;
+	set_sym_next_reloc(reloc, sym->relocs);
 	sym->relocs = reloc;
 
 	return reloc;
@@ -896,8 +892,7 @@ struct reloc *elf_init_reloc_text_sym(struct elf *elf, struct section *sec,
 	int addend = insn_off;
 
 	if (!(insn_sec->sh.sh_flags & SHF_EXECINSTR)) {
-		WARN("bad call to %s() for data symbol %s",
-		     __func__, sym->name);
+		ERROR("bad call to %s() for data symbol %s", __func__, sym->name);
 		return NULL;
 	}
 
@@ -926,8 +921,7 @@ struct reloc *elf_init_reloc_data_sym(struct elf *elf, struct section *sec,
 				      s64 addend)
 {
 	if (sym->sec && (sec->sh.sh_flags & SHF_EXECINSTR)) {
-		WARN("bad call to %s() for text symbol %s",
-		     __func__, sym->name);
+		ERROR("bad call to %s() for text symbol %s", __func__, sym->name);
 		return NULL;
 	}
 
@@ -953,8 +947,7 @@ static int read_relocs(struct elf *elf)
 
 		rsec->base = find_section_by_index(elf, rsec->sh.sh_info);
 		if (!rsec->base) {
-			WARN("can't find base section for reloc section %s",
-			     rsec->name);
+			ERROR("can't find base section for reloc section %s", rsec->name);
 			return -1;
 		}
 
@@ -963,7 +956,7 @@ static int read_relocs(struct elf *elf)
 		nr_reloc = 0;
 		rsec->relocs = calloc(sec_num_entries(rsec), sizeof(*reloc));
 		if (!rsec->relocs) {
-			perror("calloc");
+			ERROR_GLIBC("calloc");
 			return -1;
 		}
 		for (i = 0; i < sec_num_entries(rsec); i++) {
@@ -973,13 +966,12 @@ static int read_relocs(struct elf *elf)
 			symndx = reloc_sym(reloc);
 			reloc->sym = sym = find_symbol_by_index(elf, symndx);
 			if (!reloc->sym) {
-				WARN("can't find reloc entry symbol %d for %s",
-				     symndx, rsec->name);
+				ERROR("can't find reloc entry symbol %d for %s", symndx, rsec->name);
 				return -1;
 			}
 
 			elf_hash_add(reloc, &reloc->hash, reloc_hash(reloc));
-			reloc->sym_next_reloc = sym->relocs;
+			set_sym_next_reloc(reloc, sym->relocs);
 			sym->relocs = reloc;
 
 			nr_reloc++;
@@ -1005,7 +997,7 @@ struct elf *elf_open_read(const char *name, int flags)
 
 	elf = malloc(sizeof(*elf));
 	if (!elf) {
-		perror("malloc");
+		ERROR_GLIBC("malloc");
 		return NULL;
 	}
 	memset(elf, 0, sizeof(*elf));
@@ -1028,12 +1020,12 @@ struct elf *elf_open_read(const char *name, int flags)
 
 	elf->elf = elf_begin(elf->fd, cmd, NULL);
 	if (!elf->elf) {
-		WARN_ELF("elf_begin");
+		ERROR_ELF("elf_begin");
 		goto err;
 	}
 
 	if (!gelf_getehdr(elf->elf, &elf->ehdr)) {
-		WARN_ELF("gelf_getehdr");
+		ERROR_ELF("gelf_getehdr");
 		goto err;
 	}
 
@@ -1062,19 +1054,19 @@ static int elf_add_string(struct elf *elf, struct section *strtab, char *str)
 	if (!strtab)
 		strtab = find_section_by_name(elf, ".strtab");
 	if (!strtab) {
-		WARN("can't find .strtab section");
+		ERROR("can't find .strtab section");
 		return -1;
 	}
 
 	s = elf_getscn(elf->elf, strtab->idx);
 	if (!s) {
-		WARN_ELF("elf_getscn");
+		ERROR_ELF("elf_getscn");
 		return -1;
 	}
 
 	data = elf_newdata(s);
 	if (!data) {
-		WARN_ELF("elf_newdata");
+		ERROR_ELF("elf_newdata");
 		return -1;
 	}
 
@@ -1099,7 +1091,7 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 
 	sec = malloc(sizeof(*sec));
 	if (!sec) {
-		perror("malloc");
+		ERROR_GLIBC("malloc");
 		return NULL;
 	}
 	memset(sec, 0, sizeof(*sec));
@@ -1108,13 +1100,13 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 
 	s = elf_newscn(elf->elf);
 	if (!s) {
-		WARN_ELF("elf_newscn");
+		ERROR_ELF("elf_newscn");
 		return NULL;
 	}
 
 	sec->name = strdup(name);
 	if (!sec->name) {
-		perror("strdup");
+		ERROR_GLIBC("strdup");
 		return NULL;
 	}
 
@@ -1122,7 +1114,7 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 
 	sec->data = elf_newdata(s);
 	if (!sec->data) {
-		WARN_ELF("elf_newdata");
+		ERROR_ELF("elf_newdata");
 		return NULL;
 	}
 
@@ -1132,14 +1124,14 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 	if (size) {
 		sec->data->d_buf = malloc(size);
 		if (!sec->data->d_buf) {
-			perror("malloc");
+			ERROR_GLIBC("malloc");
 			return NULL;
 		}
 		memset(sec->data->d_buf, 0, size);
 	}
 
 	if (!gelf_getshdr(s, &sec->sh)) {
-		WARN_ELF("gelf_getshdr");
+		ERROR_ELF("gelf_getshdr");
 		return NULL;
 	}
 
@@ -1154,7 +1146,7 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 	if (!shstrtab)
 		shstrtab = find_section_by_name(elf, ".strtab");
 	if (!shstrtab) {
-		WARN("can't find .shstrtab or .strtab section");
+		ERROR("can't find .shstrtab or .strtab section");
 		return NULL;
 	}
 	sec->sh.sh_name = elf_add_string(elf, shstrtab, sec->name);
@@ -1179,7 +1171,7 @@ static struct section *elf_create_rela_section(struct elf *elf,
 
 	rsec_name = malloc(strlen(sec->name) + strlen(".rela") + 1);
 	if (!rsec_name) {
-		perror("malloc");
+		ERROR_GLIBC("malloc");
 		return NULL;
 	}
 	strcpy(rsec_name, ".rela");
@@ -1199,7 +1191,7 @@ static struct section *elf_create_rela_section(struct elf *elf,
 
 	rsec->relocs = calloc(sec_num_entries(rsec), sizeof(struct reloc));
 	if (!rsec->relocs) {
-		perror("calloc");
+		ERROR_GLIBC("calloc");
 		return NULL;
 	}
 
@@ -1232,7 +1224,7 @@ int elf_write_insn(struct elf *elf, struct section *sec,
 	Elf_Data *data = sec->data;
 
 	if (data->d_type != ELF_T_BYTE || data->d_off) {
-		WARN("write to unexpected data for section: %s", sec->name);
+		ERROR("write to unexpected data for section: %s", sec->name);
 		return -1;
 	}
 
@@ -1261,7 +1253,7 @@ static int elf_truncate_section(struct elf *elf, struct section *sec)
 
 	s = elf_getscn(elf->elf, sec->idx);
 	if (!s) {
-		WARN_ELF("elf_getscn");
+		ERROR_ELF("elf_getscn");
 		return -1;
 	}
 
@@ -1271,7 +1263,7 @@ static int elf_truncate_section(struct elf *elf, struct section *sec)
 
 		if (!data) {
 			if (size) {
-				WARN("end of section data but non-zero size left\n");
+				ERROR("end of section data but non-zero size left\n");
 				return -1;
 			}
 			return 0;
@@ -1279,12 +1271,12 @@ static int elf_truncate_section(struct elf *elf, struct section *sec)
 
 		if (truncated) {
 			/* when we remove symbols */
-			WARN("truncated; but more data\n");
+			ERROR("truncated; but more data\n");
 			return -1;
 		}
 
 		if (!data->d_size) {
-			WARN("zero size data");
+			ERROR("zero size data");
 			return -1;
 		}
 
@@ -1310,13 +1302,13 @@ int elf_write(struct elf *elf)
 		if (sec_changed(sec)) {
 			s = elf_getscn(elf->elf, sec->idx);
 			if (!s) {
-				WARN_ELF("elf_getscn");
+				ERROR_ELF("elf_getscn");
 				return -1;
 			}
 
 			/* Note this also flags the section dirty */
 			if (!gelf_update_shdr(s, &sec->sh)) {
-				WARN_ELF("gelf_update_shdr");
+				ERROR_ELF("gelf_update_shdr");
 				return -1;
 			}
 
@@ -1329,7 +1321,7 @@ int elf_write(struct elf *elf)
 
 	/* Write all changes to the file. */
 	if (elf_update(elf->elf, ELF_C_WRITE) < 0) {
-		WARN_ELF("elf_update");
+		ERROR_ELF("elf_update");
 		return -1;
 	}
 

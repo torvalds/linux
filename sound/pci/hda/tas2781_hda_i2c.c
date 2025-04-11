@@ -45,7 +45,7 @@
 	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
 		 SNDRV_CTL_ELEM_ACCESS_READWRITE,\
 	.tlv.p = (tlv_array), \
-	.info = snd_soc_info_volsw_range, \
+	.info = snd_soc_info_volsw, \
 	.get = xhandler_get, .put = xhandler_put, \
 	.private_value = (unsigned long)&(struct soc_mixer_control) \
 		{.reg = xreg, .rreg = xreg, .shift = xshift, \
@@ -558,28 +558,38 @@ static int tas2563_save_calibration(struct tasdevice_priv *tas_priv)
 
 static void tas2781_apply_calib(struct tasdevice_priv *tas_priv)
 {
-	static const unsigned char page_array[CALIB_MAX] = {
-		0x17, 0x18, 0x18, 0x13, 0x18,
+	struct calidata *cali_data = &tas_priv->cali_data;
+	struct cali_reg *r = &cali_data->cali_reg_array;
+	unsigned int cali_reg[CALIB_MAX] = {
+		TASDEVICE_REG(0, 0x17, 0x74),
+		TASDEVICE_REG(0, 0x18, 0x0c),
+		TASDEVICE_REG(0, 0x18, 0x14),
+		TASDEVICE_REG(0, 0x13, 0x70),
+		TASDEVICE_REG(0, 0x18, 0x7c),
 	};
-	static const unsigned char rgno_array[CALIB_MAX] = {
-		0x74, 0x0c, 0x14, 0x70, 0x7c,
-	};
-	int offset = 0;
 	int i, j, rc;
+	int oft = 0;
 	__be32 data;
+
+	if (tas_priv->dspbin_typ != TASDEV_BASIC) {
+		cali_reg[0] = r->r0_reg;
+		cali_reg[1] = r->invr0_reg;
+		cali_reg[2] = r->r0_low_reg;
+		cali_reg[3] = r->pow_reg;
+		cali_reg[4] = r->tlimit_reg;
+	}
 
 	for (i = 0; i < tas_priv->ndev; i++) {
 		for (j = 0; j < CALIB_MAX; j++) {
 			data = cpu_to_be32(
-				*(uint32_t *)&tas_priv->cali_data.data[offset]);
+				*(uint32_t *)&tas_priv->cali_data.data[oft]);
 			rc = tasdevice_dev_bulk_write(tas_priv, i,
-				TASDEVICE_REG(0, page_array[j], rgno_array[j]),
-				(unsigned char *)&data, 4);
+				cali_reg[j], (unsigned char *)&data, 4);
 			if (rc < 0)
 				dev_err(tas_priv->dev,
 					"chn %d calib %d bulk_wr err = %d\n",
 					i, j, rc);
-			offset += 4;
+			oft += 4;
 		}
 	}
 }
@@ -594,7 +604,6 @@ static int tas2781_save_calibration(struct tasdevice_priv *tas_priv)
 	efi_guid_t efi_guid = EFI_GUID(0x02f9af02, 0x7734, 0x4233, 0xb4, 0x3d,
 		0x93, 0xfe, 0x5a, 0xa3, 0x5d, 0xb3);
 	static efi_char16_t efi_name[] = L"CALI_DATA";
-	struct tm *tm = &tas_priv->tm;
 	unsigned int attr, crc;
 	unsigned int *tmp_val;
 	efi_status_t status;
@@ -629,10 +638,9 @@ static int tas2781_save_calibration(struct tasdevice_priv *tas_priv)
 		crc, tmp_val[21]);
 
 	if (crc == tmp_val[21]) {
-		time64_to_tm(tmp_val[20], 0, tm);
-		dev_dbg(tas_priv->dev, "%4ld-%2d-%2d, %2d:%2d:%2d\n",
-			tm->tm_year, tm->tm_mon, tm->tm_mday,
-			tm->tm_hour, tm->tm_min, tm->tm_sec);
+		time64_t seconds = tmp_val[20];
+
+		dev_dbg(tas_priv->dev, "%ptTsr\n", &seconds);
 		tasdevice_apply_calibration(tas_priv);
 	} else
 		tas_priv->cali_data.total_sz = 0;
@@ -755,8 +763,7 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 
 out:
 	mutex_unlock(&tas_hda->priv->codec_lock);
-	if (fmw)
-		release_firmware(fmw);
+	release_firmware(fmw);
 	pm_runtime_mark_last_busy(tas_hda->dev);
 	pm_runtime_put_autosuspend(tas_hda->dev);
 }

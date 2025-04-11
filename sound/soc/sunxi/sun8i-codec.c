@@ -1702,15 +1702,15 @@ static const struct of_device_id sun8i_codec_of_match[] = {
 MODULE_DEVICE_TABLE(of, sun8i_codec_of_match);
 
 static const struct dev_pm_ops sun8i_codec_pm_ops = {
-	SET_RUNTIME_PM_OPS(sun8i_codec_runtime_suspend,
-			   sun8i_codec_runtime_resume, NULL)
+	RUNTIME_PM_OPS(sun8i_codec_runtime_suspend,
+		       sun8i_codec_runtime_resume, NULL)
 };
 
 static struct platform_driver sun8i_codec_driver = {
 	.driver = {
 		.name = "sun8i-codec",
 		.of_match_table = sun8i_codec_of_match,
-		.pm = &sun8i_codec_pm_ops,
+		.pm = pm_ptr(&sun8i_codec_pm_ops),
 	},
 	.probe = sun8i_codec_probe,
 	.remove = sun8i_codec_remove,

@@ -7,6 +7,7 @@
  * Author: Eric Biggers <ebiggers@google.com>
  */
 #include <kunit/test.h>
+#include <linux/crc7.h>
 #include <linux/crc16.h>
 #include <linux/crc-t10dif.h>
 #include <linux/crc32.h>
@@ -32,7 +33,9 @@ static size_t test_buflen;
  * @poly: The generator polynomial with the highest-order term omitted.
  *	  Bit-reversed if @le is true.
  * @func: The function to compute a CRC.  The type signature uses u64 so that it
- *	  can fit any CRC up to CRC-64.
+ *	  can fit any CRC up to CRC-64.  The CRC is passed in, and is expected
+ *	  to be returned in, the least significant bits of the u64.  The
+ *	  function is expected to *not* invert the CRC at the beginning and end.
  * @combine_func: Optional function to combine two CRCs.
  */
 struct crc_variant {
@@ -223,8 +226,9 @@ crc_benchmark(struct kunit *test,
 	};
 	size_t len, i, j, num_iters;
 	/*
-	 * Some of the CRC library functions are marked as __pure, so use
-	 * volatile to ensure that all calls are really made as intended.
+	 * The CRC value that this function computes in a series of calls to
+	 * crc_func is never actually used, so use volatile to ensure that the
+	 * computations are done as intended and don't all get optimized out.
 	 */
 	volatile u64 crc = 0;
 	u64 t;
@@ -249,6 +253,33 @@ crc_benchmark(struct kunit *test,
 		kunit_info(test, "len=%zu: %llu MB/s\n",
 			   len, div64_u64((u64)len * num_iters * 1000, t));
 	}
+}
+
+/* crc7_be */
+
+static u64 crc7_be_wrapper(u64 crc, const u8 *p, size_t len)
+{
+	/*
+	 * crc7_be() left-aligns the 7-bit CRC in a u8, whereas the test wants a
+	 * right-aligned CRC (in a u64).  Convert between the conventions.
+	 */
+	return crc7_be(crc << 1, p, len) >> 1;
+}
+
+static const struct crc_variant crc_variant_crc7_be = {
+	.bits = 7,
+	.poly = 0x9,
+	.func = crc7_be_wrapper,
+};
+
+static void crc7_be_test(struct kunit *test)
+{
+	crc_test(test, &crc_variant_crc7_be);
+}
+
+static void crc7_be_benchmark(struct kunit *test)
+{
+	crc_benchmark(test, crc7_be_wrapper);
 }
 
 /* crc16 */
@@ -362,7 +393,7 @@ static u64 crc32c_wrapper(u64 crc, const u8 *p, size_t len)
 
 static u64 crc32c_combine_wrapper(u64 crc1, u64 crc2, size_t len2)
 {
-	return __crc32c_le_combine(crc1, crc2, len2);
+	return crc32c_combine(crc1, crc2, len2);
 }
 
 static const struct crc_variant crc_variant_crc32c = {
@@ -407,7 +438,34 @@ static void crc64_be_benchmark(struct kunit *test)
 	crc_benchmark(test, crc64_be_wrapper);
 }
 
+/* crc64_nvme */
+
+static u64 crc64_nvme_wrapper(u64 crc, const u8 *p, size_t len)
+{
+	/* The inversions that crc64_nvme() does have to be undone here. */
+	return ~crc64_nvme(~crc, p, len);
+}
+
+static const struct crc_variant crc_variant_crc64_nvme = {
+	.bits = 64,
+	.le = true,
+	.poly = 0x9a6c9329ac4bc9b5,
+	.func = crc64_nvme_wrapper,
+};
+
+static void crc64_nvme_test(struct kunit *test)
+{
+	crc_test(test, &crc_variant_crc64_nvme);
+}
+
+static void crc64_nvme_benchmark(struct kunit *test)
+{
+	crc_benchmark(test, crc64_nvme_wrapper);
+}
+
 static struct kunit_case crc_test_cases[] = {
+	KUNIT_CASE(crc7_be_test),
+	KUNIT_CASE(crc7_be_benchmark),
 	KUNIT_CASE(crc16_test),
 	KUNIT_CASE(crc16_benchmark),
 	KUNIT_CASE(crc_t10dif_test),
@@ -420,6 +478,8 @@ static struct kunit_case crc_test_cases[] = {
 	KUNIT_CASE(crc32c_benchmark),
 	KUNIT_CASE(crc64_be_test),
 	KUNIT_CASE(crc64_be_benchmark),
+	KUNIT_CASE(crc64_nvme_test),
+	KUNIT_CASE(crc64_nvme_benchmark),
 	{},
 };
 

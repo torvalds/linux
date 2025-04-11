@@ -411,7 +411,7 @@ static const struct sdw_slave_ops cs42l42_sdw_ops = {
 	.port_prep = cs42l42_sdw_port_prep,
 };
 
-static int __maybe_unused cs42l42_sdw_runtime_suspend(struct device *dev)
+static int cs42l42_sdw_runtime_suspend(struct device *dev)
 {
 	struct cs42l42_private *cs42l42 = dev_get_drvdata(dev);
 
@@ -426,11 +426,11 @@ static int __maybe_unused cs42l42_sdw_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static const struct reg_sequence __maybe_unused cs42l42_soft_reboot_seq[] = {
+static const struct reg_sequence cs42l42_soft_reboot_seq[] = {
 	REG_SEQ0(CS42L42_SOFT_RESET_REBOOT, 0x1e),
 };
 
-static int __maybe_unused cs42l42_sdw_handle_unattach(struct cs42l42_private *cs42l42)
+static int cs42l42_sdw_handle_unattach(struct cs42l42_private *cs42l42)
 {
 	struct sdw_slave *peripheral = cs42l42->sdw_peripheral;
 
@@ -460,7 +460,7 @@ static int __maybe_unused cs42l42_sdw_handle_unattach(struct cs42l42_private *cs
 	return 0;
 }
 
-static int __maybe_unused cs42l42_sdw_runtime_resume(struct device *dev)
+static int cs42l42_sdw_runtime_resume(struct device *dev)
 {
 	static const unsigned int ts_dbnce_ms[] = { 0, 125, 250, 500, 750, 1000, 1250, 1500};
 	struct cs42l42_private *cs42l42 = dev_get_drvdata(dev);
@@ -491,7 +491,7 @@ static int __maybe_unused cs42l42_sdw_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused cs42l42_sdw_resume(struct device *dev)
+static int cs42l42_sdw_resume(struct device *dev)
 {
 	struct cs42l42_private *cs42l42 = dev_get_drvdata(dev);
 	int ret;
@@ -596,8 +596,8 @@ static int cs42l42_sdw_remove(struct sdw_slave *peripheral)
 }
 
 static const struct dev_pm_ops cs42l42_sdw_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(cs42l42_suspend, cs42l42_sdw_resume)
-	SET_RUNTIME_PM_OPS(cs42l42_sdw_runtime_suspend, cs42l42_sdw_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(cs42l42_suspend, cs42l42_sdw_resume)
+	RUNTIME_PM_OPS(cs42l42_sdw_runtime_suspend, cs42l42_sdw_runtime_resume, NULL)
 };
 
 static const struct sdw_device_id cs42l42_sdw_id[] = {
@@ -609,7 +609,7 @@ MODULE_DEVICE_TABLE(sdw, cs42l42_sdw_id);
 static struct sdw_driver cs42l42_sdw_driver = {
 	.driver = {
 		.name = "cs42l42-sdw",
-		.pm = &cs42l42_sdw_pm,
+		.pm = pm_ptr(&cs42l42_sdw_pm),
 	},
 	.probe = cs42l42_sdw_probe,
 	.remove = cs42l42_sdw_remove,

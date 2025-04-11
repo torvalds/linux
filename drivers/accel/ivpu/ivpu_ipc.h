@@ -90,7 +90,7 @@ void ivpu_ipc_disable(struct ivpu_device *vdev);
 void ivpu_ipc_reset(struct ivpu_device *vdev);
 
 void ivpu_ipc_irq_handler(struct ivpu_device *vdev);
-void ivpu_ipc_irq_thread_handler(struct ivpu_device *vdev);
+void ivpu_ipc_irq_work_fn(struct work_struct *work);
 
 void ivpu_ipc_consumer_add(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
 			   u32 channel, ivpu_ipc_rx_callback_t callback);

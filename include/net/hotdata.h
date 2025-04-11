@@ -23,7 +23,6 @@ struct net_hotdata {
 	struct net_offload	udpv6_offload;
 #endif
 	struct list_head	offload_base;
-	struct list_head	ptype_all;
 	struct kmem_cache	*skbuff_cache;
 	struct kmem_cache	*skbuff_fclone_cache;
 	struct kmem_cache	*skb_small_head_cache;

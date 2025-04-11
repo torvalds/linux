@@ -99,7 +99,7 @@ static struct snd_soc_dai_link smdk_dai[] = {
 		.name = "WM8994 PAIF PCM",
 		.stream_name = "Primary PCM",
 		.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_IB_NF |
-			   SND_SOC_DAIFMT_CBS_CFS,
+			   SND_SOC_DAIFMT_CBC_CFC,
 		.ops = &smdk_wm8994_pcm_ops,
 		SND_SOC_DAILINK_REG(paif_pcm),
 	},

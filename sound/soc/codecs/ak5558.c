@@ -342,7 +342,7 @@ static void ak5558_remove(struct snd_soc_component *component)
 	ak5558_reset(ak5558, true);
 }
 
-static int __maybe_unused ak5558_runtime_suspend(struct device *dev)
+static int ak5558_runtime_suspend(struct device *dev)
 {
 	struct ak5558_priv *ak5558 = dev_get_drvdata(dev);
 
@@ -354,7 +354,7 @@ static int __maybe_unused ak5558_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused ak5558_runtime_resume(struct device *dev)
+static int ak5558_runtime_resume(struct device *dev)
 {
 	struct ak5558_priv *ak5558 = dev_get_drvdata(dev);
 	int ret;
@@ -376,9 +376,8 @@ static int __maybe_unused ak5558_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops ak5558_pm = {
-	SET_RUNTIME_PM_OPS(ak5558_runtime_suspend, ak5558_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	RUNTIME_PM_OPS(ak5558_runtime_suspend, ak5558_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 static const struct snd_soc_component_driver soc_codec_dev_ak5558 = {
@@ -495,7 +494,7 @@ static struct i2c_driver ak5558_i2c_driver = {
 	.driver = {
 		.name = "ak5558",
 		.of_match_table = of_match_ptr(ak5558_i2c_dt_ids),
-		.pm = &ak5558_pm,
+		.pm = pm_ptr(&ak5558_pm),
 	},
 	.probe = ak5558_i2c_probe,
 	.remove = ak5558_i2c_remove,

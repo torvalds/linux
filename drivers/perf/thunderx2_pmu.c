@@ -752,9 +752,8 @@ static int tx2_uncore_pmu_add_dev(struct tx2_uncore_pmu *tx2_pmu)
 	tx2_pmu->cpu = cpu;
 
 	if (tx2_pmu->hrtimer_callback) {
-		hrtimer_init(&tx2_pmu->hrtimer,
-				CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-		tx2_pmu->hrtimer.function = tx2_pmu->hrtimer_callback;
+		hrtimer_setup(&tx2_pmu->hrtimer, tx2_pmu->hrtimer_callback, CLOCK_MONOTONIC,
+			      HRTIMER_MODE_REL);
 	}
 
 	ret = tx2_uncore_pmu_register(tx2_pmu);

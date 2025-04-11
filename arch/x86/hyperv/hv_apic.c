@@ -145,6 +145,11 @@ static bool __send_ipi_mask_ex(const struct cpumask *mask, int vector,
 		ipi_arg->vp_set.format = HV_GENERIC_SET_ALL;
 	}
 
+	/*
+	 * For this hypercall, Hyper-V treats the valid_bank_mask field
+	 * of ipi_arg->vp_set as part of the fixed size input header.
+	 * So the variable input header size is equal to nr_bank.
+	 */
 	status = hv_do_rep_hypercall(HVCALL_SEND_IPI_EX, 0, nr_bank,
 				     ipi_arg, NULL);
 
