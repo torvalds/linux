@@ -689,17 +689,17 @@ static int mlx5e_ipsec_create_dwork(struct mlx5e_ipsec_sa_entry *sa_entry)
 	return 0;
 }
 
-static int mlx5e_xfrm_add_state(struct xfrm_state *x,
+static int mlx5e_xfrm_add_state(struct net_device *dev,
+				struct xfrm_state *x,
 				struct netlink_ext_ack *extack)
 {
 	struct mlx5e_ipsec_sa_entry *sa_entry = NULL;
-	struct net_device *netdev = x->xso.real_dev;
 	struct mlx5e_ipsec *ipsec;
 	struct mlx5e_priv *priv;
 	gfp_t gfp;
 	int err;
 
-	priv = netdev_priv(netdev);
+	priv = netdev_priv(dev);
 	if (!priv->ipsec)
 		return -EOPNOTSUPP;
 
@@ -710,7 +710,7 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x,
 		return -ENOMEM;
 
 	sa_entry->x = x;
-	sa_entry->dev = netdev;
+	sa_entry->dev = dev;
 	sa_entry->ipsec = ipsec;
 	/* Check if this SA is originated from acquire flow temporary SA */
 	if (x->xso.flags & XFRM_DEV_OFFLOAD_FLAG_ACQ)
@@ -807,7 +807,7 @@ err_xfrm:
 	return err;
 }
 
-static void mlx5e_xfrm_del_state(struct xfrm_state *x)
+static void mlx5e_xfrm_del_state(struct net_device *dev, struct xfrm_state *x)
 {
 	struct mlx5e_ipsec_sa_entry *sa_entry = to_ipsec_sa_entry(x);
 	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
@@ -820,7 +820,7 @@ static void mlx5e_xfrm_del_state(struct xfrm_state *x)
 	WARN_ON(old != sa_entry);
 }
 
-static void mlx5e_xfrm_free_state(struct xfrm_state *x)
+static void mlx5e_xfrm_free_state(struct net_device *dev, struct xfrm_state *x)
 {
 	struct mlx5e_ipsec_sa_entry *sa_entry = to_ipsec_sa_entry(x);
 	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
