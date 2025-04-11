@@ -208,13 +208,15 @@ char *fgets(char *s, int size, FILE *stream)
 }
 
 
-/* minimal vfprintf(). It supports the following formats:
+/* minimal printf(). It supports the following formats:
  *  - %[l*]{d,u,c,x,p}
  *  - %s
  *  - unknown modifiers are ignored.
  */
-static __attribute__((unused, format(printf, 2, 0)))
-int vfprintf(FILE *stream, const char *fmt, va_list args)
+typedef int (*__nolibc_printf_cb)(intptr_t state, const char *buf, size_t size);
+
+static __attribute__((unused, format(printf, 3, 0)))
+int __nolibc_printf(__nolibc_printf_cb cb, intptr_t state, const char *fmt, va_list args)
 {
 	char escape, lpref, c;
 	unsigned long long v;
@@ -304,7 +306,7 @@ int vfprintf(FILE *stream, const char *fmt, va_list args)
 			outstr = fmt;
 			len = ofs - 1;
 		flush_str:
-			if (_fwrite(outstr, len, stream) != 0)
+			if (cb(state, outstr, len) != 0)
 				break;
 
 			written += len;
@@ -319,6 +321,17 @@ int vfprintf(FILE *stream, const char *fmt, va_list args)
 		/* literal char, just queue it */
 	}
 	return written;
+}
+
+static int __nolibc_fprintf_cb(intptr_t state, const char *buf, size_t size)
+{
+	return _fwrite(buf, size, (FILE *)state);
+}
+
+static __attribute__((unused, format(printf, 2, 0)))
+int vfprintf(FILE *stream, const char *fmt, va_list args)
+{
+	return __nolibc_printf(__nolibc_fprintf_cb, (intptr_t)stream, fmt, args);
 }
 
 static __attribute__((unused, format(printf, 1, 0)))
