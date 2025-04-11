@@ -2831,14 +2831,6 @@ void smp_text_poke_batch_finish(void)
 		smp_text_poke_batch_process();
 }
 
-static void smp_text_poke_batch_flush(void *addr)
-{
-	lockdep_assert_held(&text_mutex);
-
-	if (text_poke_array.nr_entries == TEXT_POKE_ARRAY_MAX || !text_poke_addr_ordered(addr))
-		smp_text_poke_batch_process();
-}
-
 /**
  * smp_text_poke_batch_add() -- update instruction on live kernel on SMP, batched
  * @addr:	address to patch
@@ -2854,7 +2846,8 @@ static void smp_text_poke_batch_flush(void *addr)
  */
 void __ref smp_text_poke_batch_add(void *addr, const void *opcode, size_t len, const void *emulate)
 {
-	smp_text_poke_batch_flush(addr);
+	if (text_poke_array.nr_entries == TEXT_POKE_ARRAY_MAX || !text_poke_addr_ordered(addr))
+		smp_text_poke_batch_process();
 	__smp_text_poke_batch_add(addr, opcode, len, emulate);
 }
 
