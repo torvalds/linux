@@ -220,7 +220,7 @@ int __nolibc_printf(__nolibc_printf_cb cb, intptr_t state, size_t n, const char 
 {
 	char escape, lpref, c;
 	unsigned long long v;
-	unsigned int written;
+	unsigned int written, width;
 	size_t len, ofs, w;
 	char tmpbuf[21];
 	const char *outstr;
@@ -228,10 +228,20 @@ int __nolibc_printf(__nolibc_printf_cb cb, intptr_t state, size_t n, const char 
 	written = ofs = escape = lpref = 0;
 	while (1) {
 		c = fmt[ofs++];
+		width = 0;
 
 		if (escape) {
 			/* we're in an escape sequence, ofs == 1 */
 			escape = 0;
+
+			/* width */
+			while (c >= '0' && c <= '9') {
+				width *= 10;
+				width += c - '0';
+
+				c = fmt[ofs++];
+			}
+
 			if (c == 'c' || c == 'd' || c == 'u' || c == 'x' || c == 'p') {
 				char *out = tmpbuf;
 
@@ -309,6 +319,11 @@ int __nolibc_printf(__nolibc_printf_cb cb, intptr_t state, size_t n, const char 
 			if (n) {
 				w = len < n ? len : n;
 				n -= w;
+				while (width-- > w) {
+					if (cb(state, " ", 1) != 0)
+						break;
+					written += 1;
+				}
 				if (cb(state, outstr, w) != 0)
 					break;
 			}
