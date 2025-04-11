@@ -28,7 +28,6 @@
 #include "intel_hotplug.h"
 #include "intel_pch_display.h"
 #include "intel_pps.h"
-#include "vlv_sideband.h"
 
 static const struct dpll g4x_dpll[] = {
 	{ .dot = 162000, .p1 = 2, .p2 = 10, .n = 2, .m1 = 23, .m2 = 8, },
@@ -581,16 +580,10 @@ static void chv_post_disable_dp(struct intel_atomic_state *state,
 				const struct intel_crtc_state *old_crtc_state,
 				const struct drm_connector_state *old_conn_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
 	intel_dp_link_down(encoder, old_crtc_state);
-
-	vlv_dpio_get(dev_priv);
 
 	/* Assert data lane reset */
 	chv_data_lane_soft_reset(encoder, old_crtc_state, true);
-
-	vlv_dpio_put(dev_priv);
 }
 
 static void
