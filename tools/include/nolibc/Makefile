@@ -33,6 +33,7 @@ all_files := \
 		elf.h \
 		errno.h \
 		fcntl.h \
+		getopt.h \
 		limits.h \
 		nolibc.h \
 		signal.h \

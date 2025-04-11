@@ -113,6 +113,7 @@
 #include "stackprotector.h"
 #include "dirent.h"
 #include "fcntl.h"
+#include "getopt.h"
 
 /* Used by programs to avoid std includes */
 #define NOLIBC
