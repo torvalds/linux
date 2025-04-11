@@ -1000,7 +1000,9 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *, gfp_t, unsigned int);
 struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *,
 					 struct rxrpc_conn_parameters *,
 					 struct rxrpc_call_params *, gfp_t,
-					 unsigned int);
+					 unsigned int)
+	__releases(&rx->sk.sk_lock)
+	__acquires(&call->user_mutex);
 void rxrpc_start_call_timer(struct rxrpc_call *call);
 void rxrpc_incoming_call(struct rxrpc_sock *, struct rxrpc_call *,
 			 struct sk_buff *);
