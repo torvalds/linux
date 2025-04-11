@@ -2841,28 +2841,34 @@ static void text_poke_int3_loc_init(struct smp_text_poke_loc *tp, void *addr,
  * We hard rely on the tp_vec being ordered; ensure this is so by flushing
  * early if needed.
  */
-static bool tp_order_fail(void *addr)
+static bool text_poke_addr_ordered(void *addr)
 {
 	struct smp_text_poke_loc *tp;
 
 	if (!tp_vec_nr)
-		return false;
+		return true;
 
 	if (!addr) /* force */
-		return true;
+		return false;
 
-	tp = &tp_vec[tp_vec_nr - 1];
+	/*
+	 * If the last current entry's address is higher than the
+	 * new entry's address we'd like to add, then ordering
+	 * is violated and we must first flush all pending patching
+	 * requests:
+	 */
+	tp = &tp_vec[tp_vec_nr-1];
 	if ((unsigned long)text_poke_addr(tp) > (unsigned long)addr)
-		return true;
+		return false;
 
-	return false;
+	return true;
 }
 
 static void smp_text_poke_batch_flush(void *addr)
 {
 	lockdep_assert_held(&text_mutex);
 
-	if (tp_vec_nr == TP_VEC_MAX || tp_order_fail(addr)) {
+	if (tp_vec_nr == TP_VEC_MAX || !text_poke_addr_ordered(addr)) {
 		smp_text_poke_batch_process(tp_vec, tp_vec_nr);
 		tp_vec_nr = 0;
 	}
