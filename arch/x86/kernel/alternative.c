@@ -2486,7 +2486,7 @@ struct smp_text_poke_array *try_get_text_poke_array(void)
 	return &text_poke_array;
 }
 
-static __always_inline void put_desc(void)
+static __always_inline void put_text_poke_array(void)
 {
 	atomic_t *refs = this_cpu_ptr(&text_poke_array_refs);
 
@@ -2590,7 +2590,7 @@ noinstr int smp_text_poke_int3_handler(struct pt_regs *regs)
 	ret = 1;
 
 out_put:
-	put_desc();
+	put_text_poke_array();
 	return ret;
 }
 
