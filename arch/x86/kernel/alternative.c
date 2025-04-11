@@ -2498,13 +2498,11 @@ static __always_inline void *text_poke_addr(const struct smp_text_poke_loc *tp)
 	return _stext + tp->rel_addr;
 }
 
-static __always_inline int patch_cmp(const void *key, const void *elt)
+static __always_inline int patch_cmp(const void *tpl_a, const void *tpl_b)
 {
-	struct smp_text_poke_loc *tp = (struct smp_text_poke_loc *) elt;
-
-	if (key < text_poke_addr(tp))
+	if (tpl_a < text_poke_addr(tpl_b))
 		return -1;
-	if (key > text_poke_addr(tp))
+	if (tpl_a > text_poke_addr(tpl_b))
 		return 1;
 	return 0;
 }
