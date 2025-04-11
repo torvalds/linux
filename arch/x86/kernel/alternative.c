@@ -2860,6 +2860,8 @@ static bool tp_order_fail(void *addr)
 
 static void smp_text_poke_batch_flush(void *addr)
 {
+	lockdep_assert_held(&text_mutex);
+
 	if (tp_vec_nr == TP_VEC_MAX || tp_order_fail(addr)) {
 		smp_text_poke_batch_process(tp_vec, tp_vec_nr);
 		tp_vec_nr = 0;
