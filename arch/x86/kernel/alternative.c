@@ -2591,8 +2591,8 @@ out_put:
 
 /**
  * smp_text_poke_batch_process() -- update instructions on live kernel on SMP
- * @tp:			vector of instructions to patch
- * @nr_entries:		number of entries in the vector
+ * @text_poke_array.vec:		vector of instructions to patch
+ * @text_poke_array.nr_entries:	number of entries in the vector
  *
  * Modify multi-byte instruction by using int3 breakpoint on SMP.
  * We completely avoid stop_machine() here, and achieve the
@@ -2610,16 +2610,13 @@ out_put:
  *		  replacing opcode
  *	- sync cores
  */
-static void smp_text_poke_batch_process(struct smp_text_poke_loc *tp, unsigned int nr_entries)
+static void smp_text_poke_batch_process(void)
 {
 	unsigned char int3 = INT3_INSN_OPCODE;
 	unsigned int i;
 	int do_sync;
 
 	lockdep_assert_held(&text_mutex);
-
-	WARN_ON_ONCE(tp != text_poke_array.vec);
-	WARN_ON_ONCE(nr_entries != text_poke_array.nr_entries);
 
 	/*
 	 * Corresponds to the implicit memory barrier in try_get_text_poke_array() to
@@ -2640,16 +2637,16 @@ static void smp_text_poke_batch_process(struct smp_text_poke_loc *tp, unsigned i
 
 	/*
 	 * Corresponding read barrier in int3 notifier for making sure the
-	 * nr_entries and handler are correctly ordered wrt. patching.
+	 * text_poke_array.nr_entries and handler are correctly ordered wrt. patching.
 	 */
 	smp_wmb();
 
 	/*
 	 * First step: add a int3 trap to the address that will be patched.
 	 */
-	for (i = 0; i < nr_entries; i++) {
-		tp[i].old = *(u8 *)text_poke_addr(&tp[i]);
-		text_poke(text_poke_addr(&tp[i]), &int3, INT3_INSN_SIZE);
+	for (i = 0; i < text_poke_array.nr_entries; i++) {
+		text_poke_array.vec[i].old = *(u8 *)text_poke_addr(&text_poke_array.vec[i]);
+		text_poke(text_poke_addr(&text_poke_array.vec[i]), &int3, INT3_INSN_SIZE);
 	}
 
 	text_poke_sync();
@@ -2657,15 +2654,15 @@ static void smp_text_poke_batch_process(struct smp_text_poke_loc *tp, unsigned i
 	/*
 	 * Second step: update all but the first byte of the patched range.
 	 */
-	for (do_sync = 0, i = 0; i < nr_entries; i++) {
-		u8 old[POKE_MAX_OPCODE_SIZE+1] = { tp[i].old, };
+	for (do_sync = 0, i = 0; i < text_poke_array.nr_entries; i++) {
+		u8 old[POKE_MAX_OPCODE_SIZE+1] = { text_poke_array.vec[i].old, };
 		u8 _new[POKE_MAX_OPCODE_SIZE+1];
-		const u8 *new = tp[i].text;
-		int len = tp[i].len;
+		const u8 *new = text_poke_array.vec[i].text;
+		int len = text_poke_array.vec[i].len;
 
 		if (len - INT3_INSN_SIZE > 0) {
 			memcpy(old + INT3_INSN_SIZE,
-			       text_poke_addr(&tp[i]) + INT3_INSN_SIZE,
+			       text_poke_addr(&text_poke_array.vec[i]) + INT3_INSN_SIZE,
 			       len - INT3_INSN_SIZE);
 
 			if (len == 6) {
@@ -2674,7 +2671,7 @@ static void smp_text_poke_batch_process(struct smp_text_poke_loc *tp, unsigned i
 				new = _new;
 			}
 
-			text_poke(text_poke_addr(&tp[i]) + INT3_INSN_SIZE,
+			text_poke(text_poke_addr(&text_poke_array.vec[i]) + INT3_INSN_SIZE,
 				  new + INT3_INSN_SIZE,
 				  len - INT3_INSN_SIZE);
 
@@ -2705,7 +2702,7 @@ static void smp_text_poke_batch_process(struct smp_text_poke_loc *tp, unsigned i
 		 * The old instruction is recorded so that the event can be
 		 * processed forwards or backwards.
 		 */
-		perf_event_text_poke(text_poke_addr(&tp[i]), old, len, new, len);
+		perf_event_text_poke(text_poke_addr(&text_poke_array.vec[i]), old, len, new, len);
 	}
 
 	if (do_sync) {
@@ -2721,16 +2718,16 @@ static void smp_text_poke_batch_process(struct smp_text_poke_loc *tp, unsigned i
 	 * Third step: replace the first byte (int3) by the first byte of
 	 * replacing opcode.
 	 */
-	for (do_sync = 0, i = 0; i < nr_entries; i++) {
-		u8 byte = tp[i].text[0];
+	for (do_sync = 0, i = 0; i < text_poke_array.nr_entries; i++) {
+		u8 byte = text_poke_array.vec[i].text[0];
 
-		if (tp[i].len == 6)
+		if (text_poke_array.vec[i].len == 6)
 			byte = 0x0f;
 
 		if (byte == INT3_INSN_OPCODE)
 			continue;
 
-		text_poke(text_poke_addr(&tp[i]), &byte, INT3_INSN_SIZE);
+		text_poke(text_poke_addr(&text_poke_array.vec[i]), &byte, INT3_INSN_SIZE);
 		do_sync++;
 	}
 
@@ -2859,7 +2856,7 @@ static bool text_poke_addr_ordered(void *addr)
 void smp_text_poke_batch_finish(void)
 {
 	if (text_poke_array.nr_entries) {
-		smp_text_poke_batch_process(text_poke_array.vec, text_poke_array.nr_entries);
+		smp_text_poke_batch_process();
 		text_poke_array.nr_entries = 0;
 	}
 }
@@ -2869,7 +2866,7 @@ static void smp_text_poke_batch_flush(void *addr)
 	lockdep_assert_held(&text_mutex);
 
 	if (text_poke_array.nr_entries == TP_ARRAY_NR_ENTRIES_MAX || !text_poke_addr_ordered(addr)) {
-		smp_text_poke_batch_process(text_poke_array.vec, text_poke_array.nr_entries);
+		smp_text_poke_batch_process();
 		text_poke_array.nr_entries = 0;
 	}
 }
