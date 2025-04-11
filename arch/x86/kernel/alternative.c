@@ -2750,6 +2750,9 @@ static void smp_text_poke_batch_process(void)
 		if (unlikely(!atomic_dec_and_test(refs)))
 			atomic_cond_read_acquire(refs, !VAL);
 	}
+
+	/* They are all completed: */
+	text_poke_array.nr_entries = 0;
 }
 
 static void __smp_text_poke_batch_add(void *addr, const void *opcode, size_t len, const void *emulate)
@@ -2857,20 +2860,16 @@ static bool text_poke_addr_ordered(void *addr)
 
 void smp_text_poke_batch_finish(void)
 {
-	if (text_poke_array.nr_entries) {
+	if (text_poke_array.nr_entries)
 		smp_text_poke_batch_process();
-		text_poke_array.nr_entries = 0;
-	}
 }
 
 static void smp_text_poke_batch_flush(void *addr)
 {
 	lockdep_assert_held(&text_mutex);
 
-	if (text_poke_array.nr_entries == TP_ARRAY_NR_ENTRIES_MAX || !text_poke_addr_ordered(addr)) {
+	if (text_poke_array.nr_entries == TP_ARRAY_NR_ENTRIES_MAX || !text_poke_addr_ordered(addr))
 		smp_text_poke_batch_process();
-		text_poke_array.nr_entries = 0;
-	}
 }
 
 /**
