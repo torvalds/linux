@@ -2475,15 +2475,14 @@ static struct smp_text_poke_array {
 
 static DEFINE_PER_CPU(atomic_t, text_poke_array_refs);
 
-static __always_inline
-struct smp_text_poke_array *try_get_text_poke_array(void)
+static __always_inline bool try_get_text_poke_array(void)
 {
 	atomic_t *refs = this_cpu_ptr(&text_poke_array_refs);
 
 	if (!raw_atomic_inc_not_zero(refs))
-		return NULL;
+		return false;
 
-	return &text_poke_array;
+	return true;
 }
 
 static __always_inline void put_text_poke_array(void)
@@ -2530,9 +2529,9 @@ noinstr int smp_text_poke_int3_handler(struct pt_regs *regs)
 	 */
 	smp_rmb();
 
-	desc = try_get_text_poke_array();
-	if (!desc)
+	if (!try_get_text_poke_array())
 		return 0;
+	desc = &text_poke_array;
 
 	WARN_ON_ONCE(desc->vec != text_poke_array.vec);
 
