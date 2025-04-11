@@ -23,6 +23,8 @@
  */
 
 #include <drm/drm_exec.h>
+#include <linux/pm_runtime.h>
+
 #include "amdgpu.h"
 #include "amdgpu_vm.h"
 #include "amdgpu_userqueue.h"
@@ -257,6 +259,10 @@ amdgpu_userqueue_destroy(struct drm_file *filp, int queue_id)
 	amdgpu_bo_unref(&queue->db_obj.obj);
 	amdgpu_userqueue_cleanup(uq_mgr, queue, queue_id);
 	mutex_unlock(&uq_mgr->userq_mutex);
+
+	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
+	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
+
 	return r;
 }
 
@@ -278,6 +284,13 @@ amdgpu_userqueue_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	    args->in.ip_type != AMDGPU_HW_IP_COMPUTE) {
 		DRM_ERROR("Usermode queue doesn't support IP type %u\n", args->in.ip_type);
 		return -EINVAL;
+	}
+
+	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
+	if (r < 0) {
+		dev_err(adev->dev, "pm_runtime_get_sync() failed for userqueue create\n");
+		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
+		return r;
 	}
 
 	/*
