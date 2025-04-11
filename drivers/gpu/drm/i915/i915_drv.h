@@ -38,7 +38,6 @@
 
 #include "display/intel_display_limits.h"
 #include "display/intel_display_core.h"
-#include "display/intel_pch.h"
 
 #include "gem/i915_gem_context_types.h"
 #include "gem/i915_gem_shrinker.h"

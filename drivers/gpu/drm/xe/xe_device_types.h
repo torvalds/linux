@@ -30,7 +30,6 @@
 #endif
 
 #if IS_ENABLED(CONFIG_DRM_XE_DISPLAY)
-#include "intel_pch.h"
 #include "intel_display_core.h"
 #include "intel_display_device.h"
 #endif

@@ -3,8 +3,10 @@
  * Copyright 2025 Intel Corporation.
  */
 
-#include "i915_drv.h"
+#include <drm/drm_print.h>
+
 #include "i915_utils.h"
+#include "intel_display_core.h"
 #include "intel_pch.h"
 
 #define INTEL_PCH_DEVICE_ID_MASK		0xff80
