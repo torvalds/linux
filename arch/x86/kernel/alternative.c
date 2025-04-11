@@ -2467,13 +2467,20 @@ struct smp_text_poke_loc {
 };
 
 struct text_poke_int3_vec {
-	struct smp_text_poke_loc *vec;
 	int nr_entries;
+	struct smp_text_poke_loc *vec;
 };
 
 static DEFINE_PER_CPU(atomic_t, text_poke_array_refs);
 
 static struct text_poke_int3_vec int3_vec;
+
+#define TP_ARRAY_NR_ENTRIES_MAX (PAGE_SIZE / sizeof(struct smp_text_poke_loc))
+
+static struct smp_text_poke_array {
+	int nr_entries;
+	struct smp_text_poke_loc vec[TP_ARRAY_NR_ENTRIES_MAX];
+} text_poke_array;
 
 static __always_inline
 struct text_poke_int3_vec *try_get_desc(void)
@@ -2510,10 +2517,6 @@ static __always_inline int patch_cmp(const void *key, const void *elt)
 	return 0;
 }
 
-#define TP_VEC_MAX (PAGE_SIZE / sizeof(struct smp_text_poke_loc))
-static struct smp_text_poke_loc tp_vec[TP_VEC_MAX];
-static int tp_vec_nr;
-
 noinstr int smp_text_poke_int3_handler(struct pt_regs *regs)
 {
 	struct text_poke_int3_vec *desc;
@@ -2538,7 +2541,7 @@ noinstr int smp_text_poke_int3_handler(struct pt_regs *regs)
 	if (!desc)
 		return 0;
 
-	WARN_ON_ONCE(desc->vec != tp_vec);
+	WARN_ON_ONCE(desc->vec != text_poke_array.vec);
 
 	/*
 	 * Discount the INT3. See smp_text_poke_batch_process().
@@ -2627,8 +2630,8 @@ static void smp_text_poke_batch_process(struct smp_text_poke_loc *tp, unsigned i
 
 	lockdep_assert_held(&text_mutex);
 
-	WARN_ON_ONCE(tp != tp_vec);
-	WARN_ON_ONCE(nr_entries != tp_vec_nr);
+	WARN_ON_ONCE(tp != text_poke_array.vec);
+	WARN_ON_ONCE(nr_entries != text_poke_array.nr_entries);
 
 	int3_vec.vec = tp;
 	int3_vec.nr_entries = nr_entries;
@@ -2843,7 +2846,7 @@ static void text_poke_int3_loc_init(struct smp_text_poke_loc *tp, void *addr,
 }
 
 /*
- * We hard rely on the tp_vec being ordered; ensure this is so by flushing
+ * We hard rely on the text_poke_array.vec being ordered; ensure this is so by flushing
  * early if needed.
  */
 static bool text_poke_addr_ordered(void *addr)
@@ -2852,7 +2855,7 @@ static bool text_poke_addr_ordered(void *addr)
 
 	WARN_ON_ONCE(!addr);
 
-	if (!tp_vec_nr)
+	if (!text_poke_array.nr_entries)
 		return true;
 
 	/*
@@ -2861,7 +2864,7 @@ static bool text_poke_addr_ordered(void *addr)
 	 * is violated and we must first flush all pending patching
 	 * requests:
 	 */
-	tp = &tp_vec[tp_vec_nr-1];
+	tp = &text_poke_array.vec[text_poke_array.nr_entries-1];
 	if ((unsigned long)text_poke_addr(tp) > (unsigned long)addr)
 		return false;
 
@@ -2870,9 +2873,9 @@ static bool text_poke_addr_ordered(void *addr)
 
 void smp_text_poke_batch_finish(void)
 {
-	if (tp_vec_nr) {
-		smp_text_poke_batch_process(tp_vec, tp_vec_nr);
-		tp_vec_nr = 0;
+	if (text_poke_array.nr_entries) {
+		smp_text_poke_batch_process(text_poke_array.vec, text_poke_array.nr_entries);
+		text_poke_array.nr_entries = 0;
 	}
 }
 
@@ -2880,9 +2883,9 @@ static void smp_text_poke_batch_flush(void *addr)
 {
 	lockdep_assert_held(&text_mutex);
 
-	if (tp_vec_nr == TP_VEC_MAX || !text_poke_addr_ordered(addr)) {
-		smp_text_poke_batch_process(tp_vec, tp_vec_nr);
-		tp_vec_nr = 0;
+	if (text_poke_array.nr_entries == TP_ARRAY_NR_ENTRIES_MAX || !text_poke_addr_ordered(addr)) {
+		smp_text_poke_batch_process(text_poke_array.vec, text_poke_array.nr_entries);
+		text_poke_array.nr_entries = 0;
 	}
 }
 
@@ -2892,7 +2895,7 @@ void __ref smp_text_poke_batch_add(void *addr, const void *opcode, size_t len, c
 
 	smp_text_poke_batch_flush(addr);
 
-	tp = &tp_vec[tp_vec_nr++];
+	tp = &text_poke_array.vec[text_poke_array.nr_entries++];
 	text_poke_int3_loc_init(tp, addr, opcode, len, emulate);
 }
 
@@ -2912,9 +2915,9 @@ void __ref smp_text_poke_single(void *addr, const void *opcode, size_t len, cons
 	struct smp_text_poke_loc *tp;
 
 	/* Batch-patching should not be mixed with single-patching: */
-	WARN_ON_ONCE(tp_vec_nr != 0);
+	WARN_ON_ONCE(text_poke_array.nr_entries != 0);
 
-	tp = &tp_vec[tp_vec_nr++];
+	tp = &text_poke_array.vec[text_poke_array.nr_entries++];
 	text_poke_int3_loc_init(tp, addr, opcode, len, emulate);
 
 	smp_text_poke_batch_finish();
