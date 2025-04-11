@@ -215,13 +215,13 @@ char *fgets(char *s, int size, FILE *stream)
  */
 typedef int (*__nolibc_printf_cb)(intptr_t state, const char *buf, size_t size);
 
-static __attribute__((unused, format(printf, 3, 0)))
-int __nolibc_printf(__nolibc_printf_cb cb, intptr_t state, const char *fmt, va_list args)
+static __attribute__((unused, format(printf, 4, 0)))
+int __nolibc_printf(__nolibc_printf_cb cb, intptr_t state, size_t n, const char *fmt, va_list args)
 {
 	char escape, lpref, c;
 	unsigned long long v;
 	unsigned int written;
-	size_t len, ofs;
+	size_t len, ofs, w;
 	char tmpbuf[21];
 	const char *outstr;
 
@@ -306,8 +306,12 @@ int __nolibc_printf(__nolibc_printf_cb cb, intptr_t state, const char *fmt, va_l
 			outstr = fmt;
 			len = ofs - 1;
 		flush_str:
-			if (cb(state, outstr, len) != 0)
-				break;
+			if (n) {
+				w = len < n ? len : n;
+				n -= w;
+				if (cb(state, outstr, w) != 0)
+					break;
+			}
 
 			written += len;
 		do_escape:
@@ -331,7 +335,7 @@ static int __nolibc_fprintf_cb(intptr_t state, const char *buf, size_t size)
 static __attribute__((unused, format(printf, 2, 0)))
 int vfprintf(FILE *stream, const char *fmt, va_list args)
 {
-	return __nolibc_printf(__nolibc_fprintf_cb, (intptr_t)stream, fmt, args);
+	return __nolibc_printf(__nolibc_fprintf_cb, (intptr_t)stream, SIZE_MAX, fmt, args);
 }
 
 static __attribute__((unused, format(printf, 1, 0)))
