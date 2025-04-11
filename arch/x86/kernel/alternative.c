@@ -2476,7 +2476,7 @@ static struct smp_text_poke_array {
 static DEFINE_PER_CPU(atomic_t, text_poke_array_refs);
 
 static __always_inline
-struct smp_text_poke_array *try_get_desc(void)
+struct smp_text_poke_array *try_get_text_poke_array(void)
 {
 	atomic_t *refs = this_cpu_ptr(&text_poke_array_refs);
 
@@ -2530,7 +2530,7 @@ noinstr int smp_text_poke_int3_handler(struct pt_regs *regs)
 	 */
 	smp_rmb();
 
-	desc = try_get_desc();
+	desc = try_get_text_poke_array();
 	if (!desc)
 		return 0;
 
@@ -2627,7 +2627,7 @@ static void smp_text_poke_batch_process(struct smp_text_poke_loc *tp, unsigned i
 	WARN_ON_ONCE(nr_entries != text_poke_array.nr_entries);
 
 	/*
-	 * Corresponds to the implicit memory barrier in try_get_desc() to
+	 * Corresponds to the implicit memory barrier in try_get_text_poke_array() to
 	 * ensure reading a non-zero refcount provides up to date text_poke_array data.
 	 */
 	for_each_possible_cpu(i)
