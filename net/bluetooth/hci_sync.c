@@ -6898,20 +6898,37 @@ int hci_le_conn_update_sync(struct hci_dev *hdev, struct hci_conn *conn,
 
 static void create_pa_complete(struct hci_dev *hdev, void *data, int err)
 {
+	struct hci_conn *conn = data;
+	struct hci_conn *pa_sync;
+
 	bt_dev_dbg(hdev, "err %d", err);
-
-	if (!err)
-		return;
-
-	hci_dev_clear_flag(hdev, HCI_PA_SYNC);
 
 	if (err == -ECANCELED)
 		return;
 
 	hci_dev_lock(hdev);
 
-	hci_update_passive_scan_sync(hdev);
+	hci_dev_clear_flag(hdev, HCI_PA_SYNC);
 
+	if (!hci_conn_valid(hdev, conn))
+		clear_bit(HCI_CONN_CREATE_PA_SYNC, &conn->flags);
+
+	if (!err)
+		goto unlock;
+
+	/* Add connection to indicate PA sync error */
+	pa_sync = hci_conn_add_unset(hdev, ISO_LINK, BDADDR_ANY,
+				     HCI_ROLE_SLAVE);
+
+	if (IS_ERR(pa_sync))
+		goto unlock;
+
+	set_bit(HCI_CONN_PA_SYNC_FAILED, &pa_sync->flags);
+
+	/* Notify iso layer */
+	hci_connect_cfm(pa_sync, bt_status(err));
+
+unlock:
 	hci_dev_unlock(hdev);
 }
 
@@ -6925,8 +6942,22 @@ static int hci_le_pa_create_sync(struct hci_dev *hdev, void *data)
 	if (!hci_conn_valid(hdev, conn))
 		return -ECANCELED;
 
+	if (conn->sync_handle != HCI_SYNC_HANDLE_INVALID)
+		return -EINVAL;
+
 	if (hci_dev_test_and_set_flag(hdev, HCI_PA_SYNC))
 		return -EBUSY;
+
+	/* Stop scanning if SID has not been set and active scanning is enabled
+	 * so we use passive scanning which will be scanning using the allow
+	 * list programmed to contain only the connection address.
+	 */
+	if (conn->sid == HCI_SID_INVALID &&
+	    hci_dev_test_flag(hdev, HCI_LE_SCAN)) {
+		hci_scan_disable_sync(hdev);
+		hci_dev_set_flag(hdev, HCI_LE_SCAN_INTERRUPTED);
+		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+	}
 
 	/* Mark HCI_CONN_CREATE_PA_SYNC so hci_update_passive_scan_sync can
 	 * program the address in the allow list so PA advertisements can be
@@ -6935,6 +6966,14 @@ static int hci_le_pa_create_sync(struct hci_dev *hdev, void *data)
 	set_bit(HCI_CONN_CREATE_PA_SYNC, &conn->flags);
 
 	hci_update_passive_scan_sync(hdev);
+
+	/* SID has not been set listen for HCI_EV_LE_EXT_ADV_REPORT to update
+	 * it.
+	 */
+	if (conn->sid == HCI_SID_INVALID)
+		__hci_cmd_sync_status_sk(hdev, HCI_OP_NOP, 0, NULL,
+					 HCI_EV_LE_EXT_ADV_REPORT,
+					 conn->conn_timeout, NULL);
 
 	memset(&cp, 0, sizeof(cp));
 	cp.options = qos->bcast.options;
