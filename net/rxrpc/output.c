@@ -953,6 +953,8 @@ void rxrpc_send_response(struct rxrpc_connection *conn, struct sk_buff *response
 	serial = rxrpc_get_next_serials(conn, 1);
 	wserial = htonl(serial);
 
+	trace_rxrpc_tx_response(conn, serial, sp);
+
 	ret = skb_store_bits(response, offsetof(struct rxrpc_wire_header, serial),
 			     &wserial, sizeof(wserial));
 	if (ret < 0)

@@ -668,6 +668,8 @@ static int rxgk_issue_challenge(struct rxrpc_connection *conn)
 	serial = rxrpc_get_next_serials(conn, 1);
 	whdr->serial = htonl(serial);
 
+	trace_rxrpc_tx_challenge(conn, serial, 0, *(u32 *)&conn->rxgk.nonce);
+
 	ret = do_udp_sendmsg(conn->local->socket, &msg, len);
 	if (ret > 0)
 		conn->peer->last_tx_at = ktime_get_seconds();
@@ -1202,6 +1204,8 @@ static int rxgk_verify_response(struct rxrpc_connection *conn,
 	token_len	= ntohl(rhdr.token_len);
 	if (xdr_round_up(token_len) + sizeof(__be32) > len)
 		goto short_packet;
+
+	trace_rxrpc_rx_response(conn, sp->hdr.serial, 0, sp->hdr.cksum, token_len);
 
 	offset	+= xdr_round_up(token_len);
 	len	-= xdr_round_up(token_len);
