@@ -1004,6 +1004,8 @@ int br_mdb_hash_init(struct net_bridge *br);
 void br_mdb_hash_fini(struct net_bridge *br);
 void br_mdb_notify(struct net_device *dev, struct net_bridge_mdb_entry *mp,
 		   struct net_bridge_port_group *pg, int type);
+void br_mdb_flag_change_notify(struct net_device *dev, struct net_bridge_mdb_entry *mp,
+			       struct net_bridge_port_group *pg);
 void br_rtr_notify(struct net_device *dev, struct net_bridge_mcast_port *pmctx,
 		   int type);
 void br_multicast_del_pg(struct net_bridge_mdb_entry *mp,
@@ -1352,6 +1354,13 @@ br_multicast_set_pg_offload_flags(struct net_bridge_port_group *p,
 	p->flags &= ~(MDB_PG_FLAGS_OFFLOAD | MDB_PG_FLAGS_OFFLOAD_FAILED);
 	p->flags |= (offloaded ? MDB_PG_FLAGS_OFFLOAD :
 		MDB_PG_FLAGS_OFFLOAD_FAILED);
+}
+
+static inline bool
+br_mdb_should_notify(const struct net_bridge *br, u8 changed_flags)
+{
+	return br_opt_get(br, BROPT_MDB_OFFLOAD_FAIL_NOTIFICATION) &&
+		(changed_flags & MDB_PG_FLAGS_OFFLOAD_FAILED);
 }
 #else
 static inline int br_multicast_rcv(struct net_bridge_mcast **brmctx,
