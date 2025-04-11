@@ -2845,11 +2845,10 @@ static bool text_poke_addr_ordered(void *addr)
 {
 	struct smp_text_poke_loc *tp;
 
+	WARN_ON_ONCE(!addr);
+
 	if (!tp_vec_nr)
 		return true;
-
-	if (!addr) /* force */
-		return false;
 
 	/*
 	 * If the last current entry's address is higher than the
@@ -2864,6 +2863,14 @@ static bool text_poke_addr_ordered(void *addr)
 	return true;
 }
 
+void smp_text_poke_batch_finish(void)
+{
+	if (tp_vec_nr) {
+		smp_text_poke_batch_process(tp_vec, tp_vec_nr);
+		tp_vec_nr = 0;
+	}
+}
+
 static void smp_text_poke_batch_flush(void *addr)
 {
 	lockdep_assert_held(&text_mutex);
@@ -2872,11 +2879,6 @@ static void smp_text_poke_batch_flush(void *addr)
 		smp_text_poke_batch_process(tp_vec, tp_vec_nr);
 		tp_vec_nr = 0;
 	}
-}
-
-void smp_text_poke_batch_finish(void)
-{
-	smp_text_poke_batch_flush(NULL);
 }
 
 void __ref smp_text_poke_batch_add(void *addr, const void *opcode, size_t len, const void *emulate)
