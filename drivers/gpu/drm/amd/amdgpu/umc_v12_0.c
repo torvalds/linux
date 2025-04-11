@@ -188,24 +188,39 @@ static void umc_v12_0_get_retire_flip_bits(struct amdgpu_device *adev)
 	flip_bits->flip_bits_in_pa[1] = UMC_V12_0_PA_C3_BIT;
 	flip_bits->flip_bits_in_pa[2] = UMC_V12_0_PA_C4_BIT;
 	flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R13_BIT;
+	flip_bits->flip_row_bit = 13;
 	flip_bits->bit_num = 4;
+	flip_bits->r13_in_pa = UMC_V12_0_PA_R13_BIT;
+
+	if (nps == AMDGPU_NPS2_PARTITION_MODE) {
+		flip_bits->flip_bits_in_pa[0] = UMC_V12_0_PA_CH5_BIT;
+		flip_bits->flip_bits_in_pa[1] = UMC_V12_0_PA_C2_BIT;
+		flip_bits->flip_bits_in_pa[2] = UMC_V12_0_PA_B1_BIT;
+		flip_bits->r13_in_pa = UMC_V12_0_PA_R12_BIT;
+	} else if (nps == AMDGPU_NPS4_PARTITION_MODE) {
+		flip_bits->flip_bits_in_pa[0] = UMC_V12_0_PA_CH4_BIT;
+		flip_bits->flip_bits_in_pa[1] = UMC_V12_0_PA_CH5_BIT;
+		flip_bits->flip_bits_in_pa[2] = UMC_V12_0_PA_B0_BIT;
+		flip_bits->r13_in_pa = UMC_V12_0_PA_R11_BIT;
+	}
 
 	switch (vram_type) {
 	case AMDGPU_VRAM_TYPE_HBM:
 		/* other nps modes are taken as nps1 */
-		if (nps == AMDGPU_NPS2_PARTITION_MODE) {
-			flip_bits->flip_bits_in_pa[0] = UMC_V12_0_PA_CH5_BIT;
-			flip_bits->flip_bits_in_pa[1] = UMC_V12_0_PA_C2_BIT;
-			flip_bits->flip_bits_in_pa[2] = UMC_V12_0_PA_B1_BIT;
+		if (nps == AMDGPU_NPS2_PARTITION_MODE)
 			flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R12_BIT;
-		}
-
-		if (nps == AMDGPU_NPS4_PARTITION_MODE) {
-			flip_bits->flip_bits_in_pa[0] = UMC_V12_0_PA_CH4_BIT;
-			flip_bits->flip_bits_in_pa[1] = UMC_V12_0_PA_CH5_BIT;
-			flip_bits->flip_bits_in_pa[2] = UMC_V12_0_PA_B0_BIT;
+		else if (nps == AMDGPU_NPS4_PARTITION_MODE)
 			flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R11_BIT;
-		}
+
+		break;
+	case AMDGPU_VRAM_TYPE_HBM3E:
+		flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R12_BIT;
+		flip_bits->flip_row_bit = 12;
+
+		if (nps == AMDGPU_NPS2_PARTITION_MODE)
+			flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R11_BIT;
+		else if (nps == AMDGPU_NPS4_PARTITION_MODE)
+			flip_bits->flip_bits_in_pa[3] = UMC_V12_0_PA_R10_BIT;
 
 		break;
 	default:
