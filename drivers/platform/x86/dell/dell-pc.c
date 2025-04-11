@@ -146,11 +146,6 @@ static int thermal_get_supported_modes(int *supported_bits)
 
 	dell_fill_request(&buffer, 0x0, 0, 0, 0);
 	ret = dell_send_request(&buffer, CLASS_INFO, SELECT_THERMAL_MANAGEMENT);
-	/* Thermal function not supported */
-	if (ret == -ENXIO) {
-		*supported_bits = 0;
-		return 0;
-	}
 	if (ret)
 		return ret;
 	*supported_bits = FIELD_GET(DELL_THERMAL_SUPPORTED, buffer.output[1]);
@@ -255,16 +250,12 @@ static int thermal_init(void)
 	struct device *ppdev;
 	int ret;
 
-	/* If thermal commands are not supported, exit without error */
 	if (!dell_smbios_class_is_supported(CLASS_INFO))
-		return 0;
+		return -ENODEV;
 
-	/* If thermal modes are not supported, exit without error */
 	ret = thermal_get_supported_modes(&supported_modes);
 	if (ret < 0)
 		return ret;
-	if (!supported_modes)
-		return 0;
 
 	platform_device = platform_device_register_simple("dell-pc", PLATFORM_DEVID_NONE, NULL, 0);
 	if (IS_ERR(platform_device))
@@ -297,7 +288,6 @@ static int __init dell_init(void)
 	if (!dmi_check_system(dell_device_table))
 		return -ENODEV;
 
-	/* Do not fail module if thermal modes not supported, just skip */
 	ret = thermal_init();
 	if (ret)
 		goto fail_thermal;
