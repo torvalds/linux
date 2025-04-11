@@ -2455,7 +2455,7 @@ void text_poke_sync(void)
  * this thing. When len == 6 everything is prefixed with 0x0f and we map
  * opcode to Jcc.d8, using len to distinguish.
  */
-struct text_poke_loc {
+struct smp_text_poke_loc {
 	/* addr := _stext + rel_addr */
 	s32 rel_addr;
 	s32 disp;
@@ -2467,7 +2467,7 @@ struct text_poke_loc {
 };
 
 struct text_poke_int3_vec {
-	struct text_poke_loc *vec;
+	struct smp_text_poke_loc *vec;
 	int nr_entries;
 };
 
@@ -2494,14 +2494,14 @@ static __always_inline void put_desc(void)
 	raw_atomic_dec(refs);
 }
 
-static __always_inline void *text_poke_addr(struct text_poke_loc *tp)
+static __always_inline void *text_poke_addr(struct smp_text_poke_loc *tp)
 {
 	return _stext + tp->rel_addr;
 }
 
 static __always_inline int patch_cmp(const void *key, const void *elt)
 {
-	struct text_poke_loc *tp = (struct text_poke_loc *) elt;
+	struct smp_text_poke_loc *tp = (struct smp_text_poke_loc *) elt;
 
 	if (key < text_poke_addr(tp))
 		return -1;
@@ -2513,7 +2513,7 @@ static __always_inline int patch_cmp(const void *key, const void *elt)
 noinstr int smp_text_poke_int3_handler(struct pt_regs *regs)
 {
 	struct text_poke_int3_vec *desc;
-	struct text_poke_loc *tp;
+	struct smp_text_poke_loc *tp;
 	int ret = 0;
 	void *ip;
 
@@ -2544,7 +2544,7 @@ noinstr int smp_text_poke_int3_handler(struct pt_regs *regs)
 	 */
 	if (unlikely(desc->nr_entries > 1)) {
 		tp = __inline_bsearch(ip, desc->vec, desc->nr_entries,
-				      sizeof(struct text_poke_loc),
+				      sizeof(struct smp_text_poke_loc),
 				      patch_cmp);
 		if (!tp)
 			goto out_put;
@@ -2592,8 +2592,8 @@ out_put:
 	return ret;
 }
 
-#define TP_VEC_MAX (PAGE_SIZE / sizeof(struct text_poke_loc))
-static struct text_poke_loc tp_vec[TP_VEC_MAX];
+#define TP_VEC_MAX (PAGE_SIZE / sizeof(struct smp_text_poke_loc))
+static struct smp_text_poke_loc tp_vec[TP_VEC_MAX];
 static int tp_vec_nr;
 
 /**
@@ -2617,7 +2617,7 @@ static int tp_vec_nr;
  *		  replacing opcode
  *	- sync cores
  */
-static void smp_text_poke_batch_process(struct text_poke_loc *tp, unsigned int nr_entries)
+static void smp_text_poke_batch_process(struct smp_text_poke_loc *tp, unsigned int nr_entries)
 {
 	unsigned char int3 = INT3_INSN_OPCODE;
 	unsigned int i;
@@ -2762,7 +2762,7 @@ static void smp_text_poke_batch_process(struct text_poke_loc *tp, unsigned int n
 	}
 }
 
-static void text_poke_int3_loc_init(struct text_poke_loc *tp, void *addr,
+static void text_poke_int3_loc_init(struct smp_text_poke_loc *tp, void *addr,
 			       const void *opcode, size_t len, const void *emulate)
 {
 	struct insn insn;
@@ -2843,7 +2843,7 @@ static void text_poke_int3_loc_init(struct text_poke_loc *tp, void *addr,
  */
 static bool tp_order_fail(void *addr)
 {
-	struct text_poke_loc *tp;
+	struct smp_text_poke_loc *tp;
 
 	if (!tp_vec_nr)
 		return false;
@@ -2873,7 +2873,7 @@ void smp_text_poke_batch_finish(void)
 
 void __ref smp_text_poke_batch_add(void *addr, const void *opcode, size_t len, const void *emulate)
 {
-	struct text_poke_loc *tp;
+	struct smp_text_poke_loc *tp;
 
 	smp_text_poke_batch_flush(addr);
 
@@ -2894,7 +2894,7 @@ void __ref smp_text_poke_batch_add(void *addr, const void *opcode, size_t len, c
  */
 void __ref smp_text_poke_single(void *addr, const void *opcode, size_t len, const void *emulate)
 {
-	struct text_poke_loc tp;
+	struct smp_text_poke_loc tp;
 
 	text_poke_int3_loc_init(&tp, addr, opcode, len, emulate);
 	smp_text_poke_batch_process(&tp, 1);
