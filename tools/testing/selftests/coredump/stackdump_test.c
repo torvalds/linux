@@ -138,10 +138,12 @@ TEST_F(coredump, stackdump)
 	ASSERT_NE(file, NULL);
 
 	/* Step 4: Make sure all stack pointer values are non-zero */
+	line = NULL;
 	for (i = 0; -1 != getline(&line, &line_length, file); ++i) {
 		stack = strtoull(line, NULL, 10);
 		ASSERT_NE(stack, 0);
 	}
+	free(line);
 
 	ASSERT_EQ(i, 1 + NUM_THREAD_SPAWN);
 
