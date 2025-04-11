@@ -31,6 +31,10 @@ struct avs_dma_data {
 		struct hdac_ext_stream *host_stream;
 	};
 
+	struct snd_pcm_hw_constraint_list rate_list;
+	struct snd_pcm_hw_constraint_list channels_list;
+	struct snd_pcm_hw_constraint_list sample_bits_list;
+
 	struct work_struct period_elapsed_work;
 	struct snd_pcm_substream *substream;
 };
@@ -74,6 +78,45 @@ void avs_period_elapsed(struct snd_pcm_substream *substream)
 	schedule_work(&data->period_elapsed_work);
 }
 
+static int hw_rule_param_size(struct snd_pcm_hw_params *params, struct snd_pcm_hw_rule *rule);
+static int avs_hw_constraints_init(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_pcm_hw_constraint_list *r, *c, *s;
+	struct avs_tplg_path_template *template;
+	struct avs_dma_data *data;
+	int ret;
+
+	ret = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
+	if (ret < 0)
+		return ret;
+
+	data = snd_soc_dai_get_dma_data(dai, substream);
+	r = &(data->rate_list);
+	c = &(data->channels_list);
+	s = &(data->sample_bits_list);
+
+	template = avs_dai_find_path_template(dai, !rtd->dai_link->no_pcm, substream->stream);
+	ret = avs_path_set_constraint(data->adev, template, r, c, s);
+	if (ret <= 0)
+		return ret;
+
+	ret = snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE, r);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS, c);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_SAMPLE_BITS, s);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static int avs_dai_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
@@ -101,7 +144,7 @@ static int avs_dai_startup(struct snd_pcm_substream *substream, struct snd_soc_d
 	if (rtd->dai_link->ignore_suspend)
 		adev->num_lp_paths++;
 
-	return 0;
+	return avs_hw_constraints_init(substream, dai);
 }
 
 static void avs_dai_shutdown(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
@@ -113,6 +156,10 @@ static void avs_dai_shutdown(struct snd_pcm_substream *substream, struct snd_soc
 
 	if (rtd->dai_link->ignore_suspend)
 		data->adev->num_lp_paths--;
+
+	kfree(data->rate_list.list);
+	kfree(data->channels_list.list);
+	kfree(data->sample_bits_list.list);
 
 	snd_soc_dai_set_dma_data(dai, substream, NULL);
 	kfree(data);
@@ -927,7 +974,8 @@ static int avs_component_probe(struct snd_soc_component *component)
 		else
 			mach->tplg_filename = devm_kasprintf(adev->dev, GFP_KERNEL,
 							     "hda-generic-tplg.bin");
-
+		if (!mach->tplg_filename)
+			return -ENOMEM;
 		filename = kasprintf(GFP_KERNEL, "%s/%s", component->driver->topology_name_prefix,
 				     mach->tplg_filename);
 		if (!filename)

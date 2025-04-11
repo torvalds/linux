@@ -1295,9 +1295,19 @@ static int aw88081_i2c_probe(struct i2c_client *i2c)
 			aw88081_dai, ARRAY_SIZE(aw88081_dai));
 }
 
+#if defined(CONFIG_OF)
+static const struct of_device_id aw88081_of_match[] = {
+	{ .compatible = "awinic,aw88081" },
+	{ .compatible = "awinic,aw88083" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, aw88081_of_match);
+#endif
+
 static struct i2c_driver aw88081_i2c_driver = {
 	.driver = {
 		.name = AW88081_I2C_NAME,
+		.of_match_table = of_match_ptr(aw88081_of_match),
 	},
 	.probe = aw88081_i2c_probe,
 	.id_table = aw88081_i2c_id,
