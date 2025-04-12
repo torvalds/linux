@@ -191,7 +191,7 @@ objdump
 編行。如果沒有調試符號，您將看到所示例程的彙編程序代碼，但是如果內核有調試
 符號，C代碼也將可見（調試符號可以在內核配置菜單的hacking項中啓用）。例如::
 
-    $ objdump -r -S -l --disassemble net/dccp/ipv4.o
+    $ objdump -r -S -l --disassemble net/ipv4/tcp.o
 
 .. note::
 

@@ -1369,8 +1369,6 @@ static int inet_diag_type2proto(int type)
 	switch (type) {
 	case TCPDIAG_GETSOCK:
 		return IPPROTO_TCP;
-	case DCCPDIAG_GETSOCK:
-		return IPPROTO_DCCP;
 	default:
 		return 0;
 	}

@@ -881,7 +881,6 @@ bool ipv6_opt_accepted(const struct sock *sk, const struct sk_buff *skb,
 	}
 	return false;
 }
-EXPORT_SYMBOL_GPL(ipv6_opt_accepted);
 
 static struct packet_type ipv6_packet_type __read_mostly = {
 	.type = cpu_to_be16(ETH_P_IPV6),

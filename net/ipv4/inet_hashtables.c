@@ -176,7 +176,7 @@ void inet_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
  */
 static void __inet_put_port(struct sock *sk)
 {
-	struct inet_hashinfo *hashinfo = tcp_or_dccp_get_hashinfo(sk);
+	struct inet_hashinfo *hashinfo = tcp_get_hashinfo(sk);
 	struct inet_bind_hashbucket *head, *head2;
 	struct net *net = sock_net(sk);
 	struct inet_bind_bucket *tb;
@@ -215,7 +215,7 @@ EXPORT_SYMBOL(inet_put_port);
 
 int __inet_inherit_port(const struct sock *sk, struct sock *child)
 {
-	struct inet_hashinfo *table = tcp_or_dccp_get_hashinfo(sk);
+	struct inet_hashinfo *table = tcp_get_hashinfo(sk);
 	unsigned short port = inet_sk(child)->inet_num;
 	struct inet_bind_hashbucket *head, *head2;
 	bool created_inet_bind_bucket = false;
@@ -668,7 +668,7 @@ static bool inet_ehash_lookup_by_sk(struct sock *sk,
  */
 bool inet_ehash_insert(struct sock *sk, struct sock *osk, bool *found_dup_sk)
 {
-	struct inet_hashinfo *hashinfo = tcp_or_dccp_get_hashinfo(sk);
+	struct inet_hashinfo *hashinfo = tcp_get_hashinfo(sk);
 	struct inet_ehash_bucket *head;
 	struct hlist_nulls_head *list;
 	spinlock_t *lock;
@@ -713,7 +713,7 @@ bool inet_ehash_nolisten(struct sock *sk, struct sock *osk, bool *found_dup_sk)
 	}
 	return ok;
 }
-EXPORT_SYMBOL_GPL(inet_ehash_nolisten);
+EXPORT_IPV6_MOD(inet_ehash_nolisten);
 
 static int inet_reuseport_add_sock(struct sock *sk,
 				   struct inet_listen_hashbucket *ilb)
@@ -740,7 +740,7 @@ static int inet_reuseport_add_sock(struct sock *sk,
 
 int __inet_hash(struct sock *sk, struct sock *osk)
 {
-	struct inet_hashinfo *hashinfo = tcp_or_dccp_get_hashinfo(sk);
+	struct inet_hashinfo *hashinfo = tcp_get_hashinfo(sk);
 	struct inet_listen_hashbucket *ilb2;
 	int err = 0;
 
@@ -771,7 +771,7 @@ unlock:
 
 	return err;
 }
-EXPORT_SYMBOL(__inet_hash);
+EXPORT_IPV6_MOD(__inet_hash);
 
 int inet_hash(struct sock *sk)
 {
@@ -782,11 +782,10 @@ int inet_hash(struct sock *sk)
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(inet_hash);
 
 void inet_unhash(struct sock *sk)
 {
-	struct inet_hashinfo *hashinfo = tcp_or_dccp_get_hashinfo(sk);
+	struct inet_hashinfo *hashinfo = tcp_get_hashinfo(sk);
 
 	if (sk_unhashed(sk))
 		return;
@@ -823,7 +822,7 @@ void inet_unhash(struct sock *sk)
 		spin_unlock_bh(lock);
 	}
 }
-EXPORT_SYMBOL_GPL(inet_unhash);
+EXPORT_IPV6_MOD(inet_unhash);
 
 static bool inet_bind2_bucket_match(const struct inet_bind2_bucket *tb,
 				    const struct net *net, unsigned short port,
@@ -874,7 +873,7 @@ inet_bind2_bucket_find(const struct inet_bind_hashbucket *head, const struct net
 struct inet_bind_hashbucket *
 inet_bhash2_addr_any_hashbucket(const struct sock *sk, const struct net *net, int port)
 {
-	struct inet_hashinfo *hinfo = tcp_or_dccp_get_hashinfo(sk);
+	struct inet_hashinfo *hinfo = tcp_get_hashinfo(sk);
 	u32 hash;
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -902,7 +901,7 @@ static void inet_update_saddr(struct sock *sk, void *saddr, int family)
 
 static int __inet_bhash2_update_saddr(struct sock *sk, void *saddr, int family, bool reset)
 {
-	struct inet_hashinfo *hinfo = tcp_or_dccp_get_hashinfo(sk);
+	struct inet_hashinfo *hinfo = tcp_get_hashinfo(sk);
 	struct inet_bind_hashbucket *head, *head2;
 	struct inet_bind2_bucket *tb2, *new_tb2;
 	int l3mdev = inet_sk_bound_l3mdev(sk);
@@ -982,14 +981,14 @@ int inet_bhash2_update_saddr(struct sock *sk, void *saddr, int family)
 {
 	return __inet_bhash2_update_saddr(sk, saddr, family, false);
 }
-EXPORT_SYMBOL_GPL(inet_bhash2_update_saddr);
+EXPORT_IPV6_MOD(inet_bhash2_update_saddr);
 
 void inet_bhash2_reset_saddr(struct sock *sk)
 {
 	if (!(sk->sk_userlocks & SOCK_BINDADDR_LOCK))
 		__inet_bhash2_update_saddr(sk, NULL, 0, true);
 }
-EXPORT_SYMBOL_GPL(inet_bhash2_reset_saddr);
+EXPORT_IPV6_MOD(inet_bhash2_reset_saddr);
 
 /* RFC 6056 3.3.4.  Algorithm 4: Double-Hash Port Selection Algorithm
  * Note that we use 32bit integers (vs RFC 'short integers')
@@ -1214,7 +1213,6 @@ int inet_hash_connect(struct inet_timewait_death_row *death_row,
 	return __inet_hash_connect(death_row, sk, port_offset, hash_port0,
 				   __inet_check_established);
 }
-EXPORT_SYMBOL_GPL(inet_hash_connect);
 
 static void init_hashinfo_lhash2(struct inet_hashinfo *h)
 {
@@ -1265,7 +1263,6 @@ int inet_hashinfo2_init_mod(struct inet_hashinfo *h)
 	init_hashinfo_lhash2(h);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(inet_hashinfo2_init_mod);
 
 int inet_ehash_locks_alloc(struct inet_hashinfo *hashinfo)
 {
@@ -1305,7 +1302,6 @@ set_mask:
 	hashinfo->ehash_locks_mask = nblocks - 1;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(inet_ehash_locks_alloc);
 
 struct inet_hashinfo *inet_pernet_hashinfo_alloc(struct inet_hashinfo *hashinfo,
 						 unsigned int ehash_entries)
@@ -1341,7 +1337,6 @@ free_hashinfo:
 err:
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(inet_pernet_hashinfo_alloc);
 
 void inet_pernet_hashinfo_free(struct inet_hashinfo *hashinfo)
 {
@@ -1352,4 +1347,3 @@ void inet_pernet_hashinfo_free(struct inet_hashinfo *hashinfo)
 	vfree(hashinfo->ehash);
 	kfree(hashinfo);
 }
-EXPORT_SYMBOL_GPL(inet_pernet_hashinfo_free);

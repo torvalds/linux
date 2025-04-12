@@ -245,7 +245,6 @@ source "net/bridge/netfilter/Kconfig"
 
 endif
 
-source "net/dccp/Kconfig"
 source "net/sctp/Kconfig"
 source "net/rds/Kconfig"
 source "net/tipc/Kconfig"

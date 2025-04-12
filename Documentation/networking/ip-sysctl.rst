@@ -37,8 +37,8 @@ ip_no_pmtu_disc - INTEGER
 	Mode 3 is a hardened pmtu discover mode. The kernel will only
 	accept fragmentation-needed errors if the underlying protocol
 	can verify them besides a plain socket lookup. Current
-	protocols for which pmtu events will be honored are TCP, SCTP
-	and DCCP as they verify e.g. the sequence number or the
+	protocols for which pmtu events will be honored are TCP and
+	SCTP as they verify e.g. the sequence number or the
 	association. This mode should not be enabled globally but is
 	only intended to secure e.g. name servers in namespaces where
 	TCP path mtu must still work but path MTU information of other
