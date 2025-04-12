@@ -171,7 +171,8 @@ static void fmh_gpib_local_parallel_poll_mode(struct gpib_board *board, int loca
 	if (local) {
 		write_byte(&priv->nec7210_priv, AUX_I_REG | LOCAL_PPOLL_MODE_BIT, AUXMR);
 	} else	{
-		/* For fmh_gpib_core, remote parallel poll config mode is unaffected by the
+		/*
+		 * For fmh_gpib_core, remote parallel poll config mode is unaffected by the
 		 * state of the disable bit of the parallel poll register (unlike the tnt4882).
 		 * So, we don't need to worry about that.
 		 */
@@ -197,7 +198,8 @@ static void fmh_gpib_serial_poll_response2(struct gpib_board *board, u8 status,
 	}
 
 	if (reqt) {
-		/* It may seem like a race to issue reqt before updating
+		/*
+		 * It may seem like a race to issue reqt before updating
 		 * the status byte, but it is not.  The chip does not
 		 * issue the reqt until the SPMR is written to at
 		 * a later time.
@@ -206,7 +208,8 @@ static void fmh_gpib_serial_poll_response2(struct gpib_board *board, u8 status,
 	} else if (reqf) {
 		write_byte(&priv->nec7210_priv, AUX_REQF, AUXMR);
 	}
-	/* We need to always zero bit 6 of the status byte before writing it to
+	/*
+	 * We need to always zero bit 6 of the status byte before writing it to
 	 * the SPMR to insure we are using
 	 * serial poll mode SP1, and not accidentally triggering mode SP3.
 	 */
@@ -335,7 +338,8 @@ static int wait_for_rx_fifo_half_full_or_end(struct gpib_board *board)
 	return retval;
 }
 
-/* Wait until the gpib chip is ready to accept a data out byte.
+/*
+ * Wait until the gpib chip is ready to accept a data out byte.
  */
 static int wait_for_data_out_ready(struct gpib_board *board)
 {
@@ -379,7 +383,8 @@ static void fmh_gpib_dma_callback(void *arg)
 	spin_unlock_irqrestore(&board->spinlock, flags);
 }
 
-/* returns true when all the bytes of a write have been transferred to
+/*
+ * returns true when all the bytes of a write have been transferred to
  * the chip and successfully transferred out over the gpib bus.
  */
 static int fmh_gpib_all_bytes_are_sent(struct fmh_priv *e_priv)
@@ -525,7 +530,8 @@ static int fmh_gpib_accel_write(struct gpib_board *board, u8 *buffer,
 		if (WARN_ON_ONCE(remainder != 1))
 			return -EFAULT;
 
-		/* wait until we are sure we will be able to write the data byte
+		/*
+		 * wait until we are sure we will be able to write the data byte
 		 * into the chip before we send AUX_SEOI.  This prevents a timeout
 		 * scenario where we send AUX_SEOI but then timeout without getting
 		 * any bytes into the gpib chip.  This will result in the first byte
@@ -556,8 +562,10 @@ static int fmh_gpib_get_dma_residue(struct dma_chan *chan, dma_cookie_t cookie)
 		return result;
 	}
 	dmaengine_tx_status(chan, cookie, &state);
-	// dma330 hardware doesn't support resume, so dont call this
-	// method unless the dma transfer is done.
+	/*
+	 * dma330 hardware doesn't support resume, so dont call this
+	 * method unless the dma transfer is done.
+	 */
 	return state.residue;
 }
 
@@ -583,7 +591,8 @@ static int wait_for_tx_fifo_half_empty(struct gpib_board *board)
 	return retval;
 }
 
-/* supports writing a chunk of data whose length must fit into the hardware'd xfer counter,
+/*
+ * supports writing a chunk of data whose length must fit into the hardware'd xfer counter,
  * called in a loop by fmh_gpib_fifo_write()
  */
 static int fmh_gpib_fifo_write_countable(struct gpib_board *board, u8 *buffer,
@@ -770,8 +779,10 @@ static int fmh_gpib_dma_read(struct gpib_board *board, u8 *buffer,
 	// stop the dma transfer
 	nec7210_set_reg_bits(nec_priv, IMR2, HR_DMAI, 0);
 	fifos_write(e_priv, 0, FIFO_CONTROL_STATUS_REG);
-	// give time for pl330 to transfer any in-flight data, since
-	// pl330 will throw it away when dmaengine_pause is called.
+	/*
+	 * give time for pl330 to transfer any in-flight data, since
+	 * pl330 will throw it away when dmaengine_pause is called.
+	 */
 	usleep_range(10, 15);
 	residue = fmh_gpib_get_dma_residue(e_priv->dma_channel, dma_cookie);
 	if (WARN_ON_ONCE(residue > length || residue < 0))
@@ -795,14 +806,17 @@ static int fmh_gpib_dma_read(struct gpib_board *board, u8 *buffer,
 		buffer[(*bytes_read)++] = fifos_read(e_priv, FIFO_DATA_REG) & fifo_data_mask;
 	}
 
-	/* If we got an end interrupt, figure out if it was
+	/*
+	 * If we got an end interrupt, figure out if it was
 	 * associated with the last byte we dma'd or with a
 	 * byte still sitting on the cb7210.
 	 */
 	spin_lock_irqsave(&board->spinlock, flags);
 	if (*bytes_read > 0 && test_bit(READ_READY_BN, &nec_priv->state) == 0) {
-		// If there is no byte sitting on the cb7210 and we
-		// saw an end, we need to deal with it now
+		/*
+		 * If there is no byte sitting on the cb7210 and we
+		 * saw an end, we need to deal with it now
+		 */
 		if (test_and_clear_bit(RECEIVED_END_BN, &nec_priv->state))
 			*end = 1;
 	}
@@ -821,7 +835,8 @@ static void fmh_gpib_release_rfd_holdoff(struct gpib_board *board, struct fmh_pr
 
 	ext_status_1 = read_byte(nec_priv, EXT_STATUS_1_REG);
 
-	/* if there is an end byte sitting on the chip, don't release
+	/*
+	 * if there is an end byte sitting on the chip, don't release
 	 * holdoff.  We want it left set after we read out the end
 	 * byte.
 	 */
@@ -830,7 +845,8 @@ static void fmh_gpib_release_rfd_holdoff(struct gpib_board *board, struct fmh_pr
 		if (ext_status_1 & RFD_HOLDOFF_STATUS_BIT)
 			write_byte(nec_priv, AUX_FH, AUXMR);
 
-		/* Check if an end byte raced in before we executed the AUX_FH command.
+		/*
+		 * Check if an end byte raced in before we executed the AUX_FH command.
 		 * If it did, we want to make sure the rfd holdoff is in effect.  The end
 		 * byte can arrive since
 		 * AUX_RFD_HOLDOFF_ASAP doesn't immediately force the acceptor handshake
@@ -895,7 +911,8 @@ static int fmh_gpib_accel_read(struct gpib_board *board, u8 *buffer, size_t leng
 	return retval;
 }
 
-/* Read a chunk of data whose length is within the limits of the hardware's
+/*
+ * Read a chunk of data whose length is within the limits of the hardware's
  * xfer counter.  Called in a loop from fmh_gpib_fifo_read().
  */
 static int fmh_gpib_fifo_read_countable(struct gpib_board *board, u8 *buffer,
@@ -971,7 +988,8 @@ static int fmh_gpib_fifo_read(struct gpib_board *board, u8 *buffer, size_t lengt
 	*end = 0;
 	*bytes_read = 0;
 
-	/* Do a little prep with data in interrupt so that following wait_for_read()
+	/*
+	 * Do a little prep with data in interrupt so that following wait_for_read()
 	 * will wake up if a data byte is received.
 	 */
 	nec7210_set_reg_bits(nec_priv, IMR1, HR_DIIE, HR_DIIE);
@@ -1168,7 +1186,8 @@ irqreturn_t fmh_gpib_internal_interrupt(struct gpib_board *board)
 		clear_bit(RFD_HOLDOFF_BN, &nec_priv->state);
 
 	if (ext_status_1 & END_STATUS_BIT) {
-		/* only set RECEIVED_END while there is still a data
+		/*
+		 * only set RECEIVED_END while there is still a data
 		 * byte sitting in the chip, to avoid spuriously
 		 * setting it multiple times after it has been cleared
 		 * during a read.
@@ -1181,7 +1200,8 @@ irqreturn_t fmh_gpib_internal_interrupt(struct gpib_board *board)
 
 	if ((fifo_status & TX_FIFO_HALF_EMPTY_INTERRUPT_IS_ENABLED) &&
 	    (fifo_status & TX_FIFO_HALF_EMPTY)) {
-		/* We really only want to clear the
+		/*
+		 * We really only want to clear the
 		 * TX_FIFO_HALF_EMPTY_INTERRUPT_ENABLE bit in the
 		 * FIFO_CONTROL_STATUS_REG.  Since we are not being
 		 * careful, this also has a side effect of disabling
@@ -1195,7 +1215,8 @@ irqreturn_t fmh_gpib_internal_interrupt(struct gpib_board *board)
 
 	if ((fifo_status & RX_FIFO_HALF_FULL_INTERRUPT_IS_ENABLED) &&
 	    (fifo_status & RX_FIFO_HALF_FULL)) {
-		/* We really only want to clear the
+		/*
+		 * We really only want to clear the
 		 * RX_FIFO_HALF_FULL_INTERRUPT_ENABLE bit in the
 		 * FIFO_CONTROL_STATUS_REG.  Since we are not being
 		 * careful, this also has a side effect of disabling
@@ -1444,7 +1465,8 @@ static int fmh_gpib_attach_impl(struct gpib_board *board, const struct gpib_boar
 			return -EIO;
 		}
 	}
-	/* in the future we might want to know the half-fifo size
+	/*
+	 * in the future we might want to know the half-fifo size
 	 * (dma_burst_length) even when not using dma, so go ahead an
 	 * initialize it unconditionally.
 	 */
