@@ -16,6 +16,9 @@
 /* Set this bit for virtual address instead of SG list. */
 #define CRYPTO_AHASH_REQ_VIRT	0x00000001
 
+#define CRYPTO_AHASH_REQ_PRIVATE \
+	CRYPTO_AHASH_REQ_VIRT
+
 struct crypto_ahash;
 
 /**
@@ -167,11 +170,21 @@ struct shash_desc {
  * containing a 'struct sha3_state'.
  */
 #define HASH_MAX_DESCSIZE	(sizeof(struct shash_desc) + 360)
+#define MAX_SYNC_HASH_REQSIZE	HASH_MAX_DESCSIZE
 
 #define SHASH_DESC_ON_STACK(shash, ctx)					     \
 	char __##shash##_desc[sizeof(struct shash_desc) + HASH_MAX_DESCSIZE] \
 		__aligned(__alignof__(struct shash_desc));		     \
 	struct shash_desc *shash = (struct shash_desc *)__##shash##_desc
+
+#define HASH_REQUEST_ON_STACK(name, _tfm) \
+	char __##name##_req[sizeof(struct ahash_request) + \
+			    MAX_SYNC_HASH_REQSIZE] CRYPTO_MINALIGN_ATTR; \
+	struct ahash_request *name = \
+		ahash_request_on_stack_init(__##name##_req, (_tfm))
+
+#define HASH_REQUEST_CLONE(name, gfp) \
+	hash_request_clone(name, sizeof(__##name##_req), gfp)
 
 /**
  * struct shash_alg - synchronous message digest definition
@@ -231,6 +244,7 @@ struct crypto_ahash {
 	bool using_shash; /* Underlying algorithm is shash, not ahash */
 	unsigned int statesize;
 	unsigned int reqsize;
+	struct crypto_ahash *fb;
 	struct crypto_tfm base;
 };
 
@@ -247,6 +261,11 @@ struct crypto_shash {
  * The asynchronous cipher operation discussion provided for the
  * CRYPTO_ALG_TYPE_SKCIPHER API applies here as well.
  */
+
+static inline bool ahash_req_on_stack(struct ahash_request *req)
+{
+	return crypto_req_on_stack(&req->base);
+}
 
 static inline struct crypto_ahash *__crypto_ahash_cast(struct crypto_tfm *tfm)
 {
@@ -544,7 +563,7 @@ int crypto_ahash_update(struct ahash_request *req);
 static inline void ahash_request_set_tfm(struct ahash_request *req,
 					 struct crypto_ahash *tfm)
 {
-	req->base.tfm = crypto_ahash_tfm(tfm);
+	crypto_request_set_tfm(&req->base, crypto_ahash_tfm(tfm));
 }
 
 /**
@@ -578,9 +597,12 @@ static inline struct ahash_request *ahash_request_alloc_noprof(
  * ahash_request_free() - zeroize and free the request data structure
  * @req: request data structure cipher handle to be freed
  */
-static inline void ahash_request_free(struct ahash_request *req)
+void ahash_request_free(struct ahash_request *req);
+
+static inline void ahash_request_zero(struct ahash_request *req)
 {
-	kfree_sensitive(req);
+	memzero_explicit(req, sizeof(*req) +
+			      crypto_ahash_reqsize(crypto_ahash_reqtfm(req)));
 }
 
 static inline struct ahash_request *ahash_request_cast(
@@ -619,13 +641,9 @@ static inline void ahash_request_set_callback(struct ahash_request *req,
 					      crypto_completion_t compl,
 					      void *data)
 {
-	u32 keep = CRYPTO_AHASH_REQ_VIRT;
-
-	req->base.complete = compl;
-	req->base.data = data;
-	flags &= ~keep;
-	req->base.flags &= keep;
-	req->base.flags |= flags;
+	flags &= ~CRYPTO_AHASH_REQ_PRIVATE;
+	flags |= req->base.flags & CRYPTO_AHASH_REQ_PRIVATE;
+	crypto_request_set_callback(&req->base, flags, compl, data);
 }
 
 /**
@@ -870,6 +888,9 @@ int crypto_shash_digest(struct shash_desc *desc, const u8 *data,
 int crypto_shash_tfm_digest(struct crypto_shash *tfm, const u8 *data,
 			    unsigned int len, u8 *out);
 
+int crypto_hash_digest(struct crypto_ahash *tfm, const u8 *data,
+		       unsigned int len, u8 *out);
+
 /**
  * crypto_shash_export() - extract operational state for message digest
  * @desc: reference to the operational state handle whose state is exported
@@ -979,5 +1000,18 @@ static inline bool ahash_is_async(struct crypto_ahash *tfm)
 {
 	return crypto_tfm_is_async(&tfm->base);
 }
+
+static inline struct ahash_request *ahash_request_on_stack_init(
+	char *buf, struct crypto_ahash *tfm)
+{
+	struct ahash_request *req = (void *)buf;
+
+	ahash_request_set_tfm(req, tfm);
+	req->base.flags = CRYPTO_TFM_REQ_ON_STACK;
+	return req;
+}
+
+struct ahash_request *ahash_request_clone(struct ahash_request *req,
+					  size_t total, gfp_t gfp);
 
 #endif	/* _CRYPTO_HASH_H */

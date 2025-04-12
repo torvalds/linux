@@ -300,6 +300,8 @@ int crypto_ahash_setkey(struct crypto_ahash *tfm, const u8 *key,
 		int err;
 
 		err = alg->setkey(tfm, key, keylen);
+		if (!err && ahash_is_async(tfm))
+			err = crypto_ahash_setkey(tfm->fb, key, keylen);
 		if (unlikely(err)) {
 			ahash_set_needkey(tfm, alg);
 			return err;
@@ -473,6 +475,8 @@ int crypto_ahash_init(struct ahash_request *req)
 		return crypto_shash_init(prepare_shash_desc(req, tfm));
 	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
 		return -ENOKEY;
+	if (ahash_req_on_stack(req) && ahash_is_async(tfm))
+		return -EAGAIN;
 	return ahash_do_req_chain(req, crypto_ahash_alg(tfm)->init);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_init);
@@ -520,6 +524,8 @@ int crypto_ahash_update(struct ahash_request *req)
 
 	if (likely(tfm->using_shash))
 		return shash_ahash_update(req, ahash_request_ctx(req));
+	if (ahash_req_on_stack(req) && ahash_is_async(tfm))
+		return -EAGAIN;
 	return ahash_do_req_chain(req, crypto_ahash_alg(tfm)->update);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_update);
@@ -530,6 +536,8 @@ int crypto_ahash_final(struct ahash_request *req)
 
 	if (likely(tfm->using_shash))
 		return crypto_shash_final(ahash_request_ctx(req), req->result);
+	if (ahash_req_on_stack(req) && ahash_is_async(tfm))
+		return -EAGAIN;
 	return ahash_do_req_chain(req, crypto_ahash_alg(tfm)->final);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_final);
@@ -540,6 +548,8 @@ int crypto_ahash_finup(struct ahash_request *req)
 
 	if (likely(tfm->using_shash))
 		return shash_ahash_finup(req, ahash_request_ctx(req));
+	if (ahash_req_on_stack(req) && ahash_is_async(tfm))
+		return -EAGAIN;
 	if (!crypto_ahash_alg(tfm)->finup ||
 	    (!crypto_ahash_req_chain(tfm) && ahash_request_isvirt(req)))
 		return ahash_def_finup(req);
@@ -611,6 +621,8 @@ int crypto_ahash_digest(struct ahash_request *req)
 
 	if (likely(tfm->using_shash))
 		return shash_ahash_digest(req, prepare_shash_desc(req, tfm));
+	if (ahash_req_on_stack(req) && ahash_is_async(tfm))
+		return -EAGAIN;
 	if (!crypto_ahash_req_chain(tfm) && ahash_request_isvirt(req))
 		return ahash_def_digest(req);
 	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
@@ -714,26 +726,63 @@ static void crypto_ahash_exit_tfm(struct crypto_tfm *tfm)
 	struct crypto_ahash *hash = __crypto_ahash_cast(tfm);
 	struct ahash_alg *alg = crypto_ahash_alg(hash);
 
-	alg->exit_tfm(hash);
+	if (alg->exit_tfm)
+		alg->exit_tfm(hash);
+	else if (tfm->__crt_alg->cra_exit)
+		tfm->__crt_alg->cra_exit(tfm);
+
+	if (ahash_is_async(hash))
+		crypto_free_ahash(hash->fb);
 }
 
 static int crypto_ahash_init_tfm(struct crypto_tfm *tfm)
 {
 	struct crypto_ahash *hash = __crypto_ahash_cast(tfm);
 	struct ahash_alg *alg = crypto_ahash_alg(hash);
+	struct crypto_ahash *fb = NULL;
+	int err;
 
 	crypto_ahash_set_statesize(hash, alg->halg.statesize);
 	crypto_ahash_set_reqsize(hash, crypto_tfm_alg_reqsize(tfm));
 
+	hash->fb = hash;
+
 	if (tfm->__crt_alg->cra_type == &crypto_shash_type)
 		return crypto_init_ahash_using_shash(tfm);
 
+	if (ahash_is_async(hash)) {
+		fb = crypto_alloc_ahash(crypto_ahash_alg_name(hash),
+					0, CRYPTO_ALG_ASYNC);
+		if (IS_ERR(fb))
+			return PTR_ERR(fb);
+
+		hash->fb = fb;
+	}
+
 	ahash_set_needkey(hash, alg);
 
-	if (alg->exit_tfm)
-		tfm->exit = crypto_ahash_exit_tfm;
+	tfm->exit = crypto_ahash_exit_tfm;
 
-	return alg->init_tfm ? alg->init_tfm(hash) : 0;
+	if (!alg->init_tfm) {
+		if (!tfm->__crt_alg->cra_init)
+			return 0;
+
+		err = tfm->__crt_alg->cra_init(tfm);
+		if (err)
+			goto out_free_sync_hash;
+
+		return 0;
+	}
+
+	err = alg->init_tfm(hash);
+	if (err)
+		goto out_free_sync_hash;
+
+	return 0;
+
+out_free_sync_hash:
+	crypto_free_ahash(fb);
+	return err;
 }
 
 static unsigned int crypto_ahash_extsize(struct crypto_alg *alg)
@@ -969,6 +1018,55 @@ int ahash_register_instance(struct crypto_template *tmpl,
 	return crypto_register_instance(tmpl, ahash_crypto_instance(inst));
 }
 EXPORT_SYMBOL_GPL(ahash_register_instance);
+
+void ahash_request_free(struct ahash_request *req)
+{
+	if (unlikely(!req))
+		return;
+
+	if (!ahash_req_on_stack(req)) {
+		kfree(req);
+		return;
+	}
+
+	ahash_request_zero(req);
+}
+EXPORT_SYMBOL_GPL(ahash_request_free);
+
+int crypto_hash_digest(struct crypto_ahash *tfm, const u8 *data,
+		       unsigned int len, u8 *out)
+{
+	HASH_REQUEST_ON_STACK(req, tfm->fb);
+	int err;
+
+	ahash_request_set_callback(req, 0, NULL, NULL);
+	ahash_request_set_virt(req, data, out, len);
+	err = crypto_ahash_digest(req);
+
+	ahash_request_zero(req);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(crypto_hash_digest);
+
+struct ahash_request *ahash_request_clone(struct ahash_request *req,
+					  size_t total, gfp_t gfp)
+{
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct ahash_request *nreq;
+
+	nreq = kmalloc(total, gfp);
+	if (!nreq) {
+		ahash_request_set_tfm(req, tfm->fb);
+		req->base.flags = CRYPTO_TFM_REQ_ON_STACK;
+		return req;
+	}
+
+	memcpy(nreq, req, total);
+	ahash_request_set_tfm(req, tfm);
+	return req;
+}
+EXPORT_SYMBOL_GPL(ahash_request_clone);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Asynchronous cryptographic hash type");

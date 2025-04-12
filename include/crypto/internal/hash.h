@@ -11,6 +11,12 @@
 #include <crypto/algapi.h>
 #include <crypto/hash.h>
 
+#define HASH_FBREQ_ON_STACK(name, req) \
+        char __##name##_req[sizeof(struct ahash_request) + \
+                            MAX_SYNC_HASH_REQSIZE] CRYPTO_MINALIGN_ATTR; \
+        struct ahash_request *name = ahash_fbreq_on_stack_init( \
+                __##name##_req, (req))
+
 struct ahash_request;
 
 struct ahash_instance {
@@ -187,7 +193,7 @@ static inline void ahash_request_complete(struct ahash_request *req, int err)
 
 static inline u32 ahash_request_flags(struct ahash_request *req)
 {
-	return req->base.flags;
+	return crypto_request_flags(&req->base) & ~CRYPTO_AHASH_REQ_PRIVATE;
 }
 
 static inline struct crypto_ahash *crypto_spawn_ahash(
@@ -255,6 +261,24 @@ static inline bool ahash_request_isvirt(struct ahash_request *req)
 static inline bool crypto_ahash_req_chain(struct crypto_ahash *tfm)
 {
 	return crypto_tfm_req_chain(&tfm->base);
+}
+
+static inline struct ahash_request *ahash_fbreq_on_stack_init(
+	char *buf, struct ahash_request *old)
+{
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(old);
+	struct ahash_request *req = (void *)buf;
+
+	ahash_request_set_tfm(req, tfm->fb);
+	req->base.flags = CRYPTO_TFM_REQ_ON_STACK;
+	ahash_request_set_callback(req, ahash_request_flags(old), NULL, NULL);
+	req->base.flags &= ~CRYPTO_AHASH_REQ_PRIVATE;
+	req->base.flags |= old->base.flags & CRYPTO_AHASH_REQ_PRIVATE;
+	req->src = old->src;
+	req->result = old->result;
+	req->nbytes = old->nbytes;
+
+	return req;
 }
 
 #endif	/* _CRYPTO_INTERNAL_HASH_H */
