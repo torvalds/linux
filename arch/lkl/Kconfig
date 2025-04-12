@@ -2,7 +2,6 @@ config LKL
        def_bool y
        depends on !SMP && !COREDUMP && !SECCOMP && !UPROBES && !COMPAT && !USER_RETURN_NOTIFIER
        select ARCH_THREAD_STACK_ALLOCATOR
-       select RWSEM_GENERIC_SPINLOCK
        select GENERIC_ATOMIC64
        select GENERIC_HWEIGHT
        select FLATMEM
@@ -131,10 +130,6 @@ config GENERIC_HWEIGHT
 
 config NO_IOPORT_MAP
        def_bool y
-
-config RWSEM_GENERIC_SPINLOCK
-	bool
-	default y
 
 config HZ
         int
