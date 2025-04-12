@@ -739,6 +739,19 @@ static ssize_t smu_v13_0_6_get_pm_metrics(struct smu_context *smu,
 	return pm_metrics->common_header.structure_size;
 }
 
+static void smu_v13_0_6_fill_static_metrics_table(struct smu_context *smu,
+						  StaticMetricsTable_t *static_metrics)
+{
+	struct smu_13_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
+
+	if (!static_metrics->InputTelemetryVoltageInmV) {
+		dev_warn(smu->adev->dev, "Invalid board voltage %d\n",
+				static_metrics->InputTelemetryVoltageInmV);
+	}
+
+	dpm_context->board_volt = static_metrics->InputTelemetryVoltageInmV;
+}
+
 int smu_v13_0_6_get_static_metrics_table(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
@@ -762,6 +775,7 @@ int smu_v13_0_6_get_static_metrics_table(struct smu_context *smu)
 static int smu_v13_0_6_setup_driver_pptable(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
+	StaticMetricsTable_t *static_metrics = (StaticMetricsTable_t *)smu_table->metrics_table;
 	MetricsTableV0_t *metrics_v0 = (MetricsTableV0_t *)smu_table->metrics_table;
 	MetricsTableV1_t *metrics_v1 = (MetricsTableV1_t *)smu_table->metrics_table;
 	MetricsTableV2_t *metrics_v2 = (MetricsTableV2_t *)smu_table->metrics_table;
@@ -830,6 +844,7 @@ static int smu_v13_0_6_setup_driver_pptable(struct smu_context *smu)
 			ret = smu_v13_0_6_get_static_metrics_table(smu);
 			if (ret)
 				return ret;
+			smu_v13_0_6_fill_static_metrics_table(smu, static_metrics);
 		}
 	}
 
