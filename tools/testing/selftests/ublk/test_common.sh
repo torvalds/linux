@@ -30,18 +30,26 @@ _run_fio_verify_io() {
 }
 
 _create_backfile() {
-	local my_size=$1
-	local my_file
+	local index=$1
+	local new_size=$2
+	local old_file
+	local new_file
 
-	my_file=$(mktemp ublk_file_"${my_size}"_XXXXX)
-	truncate -s "${my_size}" "${my_file}"
-	echo "$my_file"
+	old_file="${UBLK_BACKFILES[$index]}"
+	[ -f "$old_file" ] && rm -f "$old_file"
+
+	new_file=$(mktemp ublk_file_"${new_size}"_XXXXX)
+	truncate -s "${new_size}" "${new_file}"
+	UBLK_BACKFILES["$index"]="$new_file"
 }
 
-_remove_backfile() {
-	local file=$1
+_remove_files() {
+	local file
 
-	[ -f "$file" ] && rm -f "$file"
+	for file in "${UBLK_BACKFILES[@]}"; do
+		[ -f "$file" ] && rm -f "$file"
+	done
+	[ -f "$UBLK_TMP" ] && rm -f "$UBLK_TMP"
 }
 
 _create_tmp_dir() {
@@ -129,7 +137,10 @@ _show_result()
 			echo "$1 : [FAIL]"
 		fi
 	fi
-	[ "$2" -ne 0 ] && exit "$2"
+	if [ "$2" -ne 0 ]; then
+		_remove_files
+		exit "$2"
+	fi
 	return 0
 }
 
@@ -138,16 +149,16 @@ _check_add_dev()
 {
 	local tid=$1
 	local code=$2
-	shift 2
+
 	if [ "${code}" -ne 0 ]; then
-		_remove_test_files "$@"
 		_show_result "${tid}" "${code}"
 	fi
 }
 
 _cleanup_test() {
 	"${UBLK_PROG}" del -a
-	rm -f "$UBLK_TMP"
+
+	_remove_files
 }
 
 _have_feature()
@@ -247,6 +258,7 @@ UBLK_TMP=$(mktemp ublk_test_XXXXX)
 UBLK_PROG=$(_ublk_test_top_dir)/kublk
 UBLK_TEST_QUIET=1
 UBLK_TEST_SHOW_RESULT=1
+UBLK_BACKFILES=()
 export UBLK_PROG
 export UBLK_TEST_QUIET
 export UBLK_TEST_SHOW_RESULT
