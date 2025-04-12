@@ -723,7 +723,7 @@ static struct shash_alg sm4_mac_algs[] = {
 			.cra_name		= "cbcmac(sm4)",
 			.cra_driver_name	= "cbcmac-sm4-ce",
 			.cra_priority		= 400,
-			.cra_blocksize		= 1,
+			.cra_blocksize		= SM4_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct sm4_mac_tfm_ctx),
 			.cra_module		= THIS_MODULE,
 		},

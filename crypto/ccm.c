@@ -883,7 +883,7 @@ static int cbcmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 		goto err_free_inst;
 
 	inst->alg.base.cra_priority = alg->cra_priority;
-	inst->alg.base.cra_blocksize = 1;
+	inst->alg.base.cra_blocksize = alg->cra_blocksize;
 
 	inst->alg.digestsize = alg->cra_blocksize;
 	inst->alg.descsize = sizeof(struct cbcmac_desc_ctx) +
