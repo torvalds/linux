@@ -206,15 +206,84 @@ static const char *ublk_dev_state_desc(struct ublk_dev *dev)
 	};
 }
 
+static void ublk_print_cpu_set(const cpu_set_t *set, char *buf, unsigned len)
+{
+	unsigned done = 0;
+	int i;
+
+	for (i = 0; i < CPU_SETSIZE; i++) {
+		if (CPU_ISSET(i, set))
+			done += snprintf(&buf[done], len - done, "%d ", i);
+	}
+}
+
+static void ublk_adjust_affinity(cpu_set_t *set)
+{
+	int j, updated = 0;
+
+	/*
+	 * Just keep the 1st CPU now.
+	 *
+	 * In future, auto affinity selection can be tried.
+	 */
+	for (j = 0; j < CPU_SETSIZE; j++) {
+		if (CPU_ISSET(j, set)) {
+			if (!updated) {
+				updated = 1;
+				continue;
+			}
+			CPU_CLR(j, set);
+		}
+	}
+}
+
+/* Caller must free the allocated buffer */
+static int ublk_ctrl_get_affinity(struct ublk_dev *ctrl_dev, cpu_set_t **ptr_buf)
+{
+	struct ublk_ctrl_cmd_data data = {
+		.cmd_op	= UBLK_U_CMD_GET_QUEUE_AFFINITY,
+		.flags	= CTRL_CMD_HAS_DATA | CTRL_CMD_HAS_BUF,
+	};
+	cpu_set_t *buf;
+	int i, ret;
+
+	buf = malloc(sizeof(cpu_set_t) * ctrl_dev->dev_info.nr_hw_queues);
+	if (!buf)
+		return -ENOMEM;
+
+	for (i = 0; i < ctrl_dev->dev_info.nr_hw_queues; i++) {
+		data.data[0] = i;
+		data.len = sizeof(cpu_set_t);
+		data.addr = (__u64)&buf[i];
+
+		ret = __ublk_ctrl_cmd(ctrl_dev, &data);
+		if (ret < 0) {
+			free(buf);
+			return ret;
+		}
+		ublk_adjust_affinity(&buf[i]);
+	}
+
+	*ptr_buf = buf;
+	return 0;
+}
+
 static void ublk_ctrl_dump(struct ublk_dev *dev)
 {
 	struct ublksrv_ctrl_dev_info *info = &dev->dev_info;
 	struct ublk_params p;
+	cpu_set_t *affinity;
 	int ret;
 
 	ret = ublk_ctrl_get_params(dev, &p);
 	if (ret < 0) {
 		ublk_err("failed to get params %d %s\n", ret, strerror(-ret));
+		return;
+	}
+
+	ret = ublk_ctrl_get_affinity(dev, &affinity);
+	if (ret < 0) {
+		ublk_err("failed to get affinity %m\n");
 		return;
 	}
 
@@ -224,6 +293,19 @@ static void ublk_ctrl_dump(struct ublk_dev *dev)
 	ublk_log("\tmax rq size %d daemon pid %d flags 0x%llx state %s\n",
 			info->max_io_buf_bytes, info->ublksrv_pid, info->flags,
 			ublk_dev_state_desc(dev));
+
+	if (affinity) {
+		char buf[512];
+		int i;
+
+		for (i = 0; i < info->nr_hw_queues; i++) {
+			ublk_print_cpu_set(&affinity[i], buf, sizeof(buf));
+			printf("\tqueue %u: tid %d affinity(%s)\n",
+					i, dev->q[i].tid, buf);
+		}
+		free(affinity);
+	}
+
 	fflush(stdout);
 }
 
@@ -603,9 +685,24 @@ static int ublk_process_io(struct ublk_queue *q)
 	return reapped;
 }
 
+static void ublk_queue_set_sched_affinity(const struct ublk_queue *q,
+		cpu_set_t *cpuset)
+{
+        if (sched_setaffinity(0, sizeof(*cpuset), cpuset) < 0)
+                ublk_err("ublk dev %u queue %u set affinity failed",
+                                q->dev->dev_info.dev_id, q->q_id);
+}
+
+struct ublk_queue_info {
+	struct ublk_queue 	*q;
+	sem_t 			*queue_sem;
+	cpu_set_t 		*affinity;
+};
+
 static void *ublk_io_handler_fn(void *data)
 {
-	struct ublk_queue *q = data;
+	struct ublk_queue_info *info = data;
+	struct ublk_queue *q = info->q;
 	int dev_id = q->dev->dev_info.dev_id;
 	int ret;
 
@@ -615,6 +712,10 @@ static void *ublk_io_handler_fn(void *data)
 				dev_id, q->q_id);
 		return NULL;
 	}
+	/* IO perf is sensitive with queue pthread affinity on NUMA machine*/
+	ublk_queue_set_sched_affinity(q, info->affinity);
+	sem_post(info->queue_sem);
+
 	ublk_dbg(UBLK_DBG_QUEUE, "tid %d: ublk dev %d queue %d started\n",
 			q->tid, dev_id, q->q_id);
 
@@ -640,7 +741,7 @@ static void ublk_set_parameters(struct ublk_dev *dev)
 				dev->dev_info.dev_id, ret);
 }
 
-static int ublk_send_dev_event(const struct dev_ctx *ctx, int dev_id)
+static int ublk_send_dev_event(const struct dev_ctx *ctx, struct ublk_dev *dev, int dev_id)
 {
 	uint64_t id;
 	int evtfd = ctx->_evtfd;
@@ -653,10 +754,14 @@ static int ublk_send_dev_event(const struct dev_ctx *ctx, int dev_id)
 	else
 		id = ERROR_EVTFD_DEVID;
 
+	if (dev && ctx->shadow_dev)
+		memcpy(&ctx->shadow_dev->q, &dev->q, sizeof(dev->q));
+
 	if (write(evtfd, &id, sizeof(id)) != sizeof(id))
 		return -EINVAL;
 
 	close(evtfd);
+	shmdt(ctx->shadow_dev);
 
 	return 0;
 }
@@ -664,23 +769,45 @@ static int ublk_send_dev_event(const struct dev_ctx *ctx, int dev_id)
 
 static int ublk_start_daemon(const struct dev_ctx *ctx, struct ublk_dev *dev)
 {
-	int ret, i;
-	void *thread_ret;
 	const struct ublksrv_ctrl_dev_info *dinfo = &dev->dev_info;
+	struct ublk_queue_info *qinfo;
+	cpu_set_t *affinity_buf;
+	void *thread_ret;
+	sem_t queue_sem;
+	int ret, i;
 
 	ublk_dbg(UBLK_DBG_DEV, "%s enter\n", __func__);
 
+	qinfo = (struct ublk_queue_info *)calloc(sizeof(struct ublk_queue_info),
+			dinfo->nr_hw_queues);
+	if (!qinfo)
+		return -ENOMEM;
+
+	sem_init(&queue_sem, 0, 0);
 	ret = ublk_dev_prep(ctx, dev);
+	if (ret)
+		return ret;
+
+	ret = ublk_ctrl_get_affinity(dev, &affinity_buf);
 	if (ret)
 		return ret;
 
 	for (i = 0; i < dinfo->nr_hw_queues; i++) {
 		dev->q[i].dev = dev;
 		dev->q[i].q_id = i;
+
+		qinfo[i].q = &dev->q[i];
+		qinfo[i].queue_sem = &queue_sem;
+		qinfo[i].affinity = &affinity_buf[i];
 		pthread_create(&dev->q[i].thread, NULL,
 				ublk_io_handler_fn,
-				&dev->q[i]);
+				&qinfo[i]);
 	}
+
+	for (i = 0; i < dinfo->nr_hw_queues; i++)
+		sem_wait(&queue_sem);
+	free(qinfo);
+	free(affinity_buf);
 
 	/* everything is fine now, start us */
 	ublk_set_parameters(dev);
@@ -694,7 +821,7 @@ static int ublk_start_daemon(const struct dev_ctx *ctx, struct ublk_dev *dev)
 	if (ctx->fg)
 		ublk_ctrl_dump(dev);
 	else
-		ublk_send_dev_event(ctx, dev->dev_info.dev_id);
+		ublk_send_dev_event(ctx, dev, dev->dev_info.dev_id);
 
 	/* wait until we are terminated */
 	for (i = 0; i < dinfo->nr_hw_queues; i++)
@@ -873,7 +1000,7 @@ static int __cmd_dev_add(const struct dev_ctx *ctx)
 
 fail:
 	if (ret < 0)
-		ublk_send_dev_event(ctx, -1);
+		ublk_send_dev_event(ctx, dev, -1);
 	ublk_ctrl_deinit(dev);
 	return ret;
 }
@@ -887,6 +1014,16 @@ static int cmd_dev_add(struct dev_ctx *ctx)
 	if (ctx->fg)
 		goto run;
 
+	ctx->_shmid = shmget(IPC_PRIVATE, sizeof(struct ublk_dev), IPC_CREAT | 0666);
+	if (ctx->_shmid < 0) {
+		ublk_err("%s: failed to shmget %s\n", __func__, strerror(errno));
+		exit(-1);
+	}
+	ctx->shadow_dev = (struct ublk_dev *)shmat(ctx->_shmid, NULL, 0);
+	if (ctx->shadow_dev == (struct ublk_dev *)-1) {
+		ublk_err("%s: failed to shmat %s\n", __func__, strerror(errno));
+		exit(-1);
+	}
 	ctx->_evtfd = eventfd(0, 0);
 	if (ctx->_evtfd < 0) {
 		ublk_err("%s: failed to create eventfd %s\n", __func__, strerror(errno));
@@ -922,6 +1059,8 @@ run:
 			if (__cmd_dev_list(ctx) >= 0)
 				exit_code = EXIT_SUCCESS;
 		}
+		shmdt(ctx->shadow_dev);
+		shmctl(ctx->_shmid, IPC_RMID, NULL);
 		/* wait for child and detach from it */
 		wait(NULL);
 		exit(exit_code);
@@ -988,6 +1127,9 @@ static int __cmd_dev_list(struct dev_ctx *ctx)
 			ublk_err("%s: can't get dev info from %d: %d\n",
 					__func__, ctx->dev_id, ret);
 	} else {
+		if (ctx->shadow_dev)
+			memcpy(&dev->q, ctx->shadow_dev->q, sizeof(dev->q));
+
 		ublk_ctrl_dump(dev);
 	}
 

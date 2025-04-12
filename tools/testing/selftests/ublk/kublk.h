@@ -20,10 +20,15 @@
 #include <sys/wait.h>
 #include <sys/eventfd.h>
 #include <sys/uio.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 #include <linux/io_uring.h>
 #include <liburing.h>
-#include <linux/ublk_cmd.h>
+#include <semaphore.h>
+
+/* allow ublk_dep.h to override ublk_cmd.h */
 #include "ublk_dep.h"
+#include <linux/ublk_cmd.h>
 
 #define __maybe_unused __attribute__((unused))
 #define MAX_BACK_FILES   4
@@ -74,6 +79,10 @@ struct dev_ctx {
 	unsigned int    chunk_size;
 
 	int _evtfd;
+	int _shmid;
+
+	/* built from shmem, only for ublk_dump_dev() */
+	struct ublk_dev *shadow_dev;
 };
 
 struct ublk_ctrl_cmd_data {
