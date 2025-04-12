@@ -990,12 +990,13 @@ static struct pci_driver ines_pci_driver = {
 
 static const int ines_pcmcia_iosize = 0x20;
 
-/*    The event() function is this driver's Card Services event handler.
- *    It will be called by Card Services when an appropriate card status
- *    event is received.  The config() and release() entry points are
- *    used to configure or release a socket, in response to card insertion
- *    and ejection events.  They are invoked from the gpib event
- *    handler.
+/*
+ * The event() function is this driver's Card Services event handler.
+ * It will be called by Card Services when an appropriate card status
+ * event is received.  The config() and release() entry points are
+ * used to configure or release a socket, in response to card insertion
+ * and ejection events.  They are invoked from the gpib event
+ * handler.
  */
 
 static int ines_gpib_config(struct pcmcia_device  *link);
@@ -1008,31 +1009,31 @@ static irqreturn_t ines_pcmcia_interrupt(int irq, void *arg);
 static int ines_common_pcmcia_attach(struct gpib_board *board);
 /*
  * A linked list of "instances" of the gpib device.  Each actual
- *  PCMCIA card corresponds to one device instance, and is described
- *  by one dev_link_t structure (defined in ds.h).
+ * PCMCIA card corresponds to one device instance, and is described
+ * by one dev_link_t structure (defined in ds.h).
  *
- *  You may not want to use a linked list for this -- for example, the
- *  memory card driver uses an array of dev_link_t pointers, where minor
- *  device numbers are used to derive the corresponding array index.
+ * You may not want to use a linked list for this -- for example, the
+ * memory card driver uses an array of dev_link_t pointers, where minor
+ * device numbers are used to derive the corresponding array index.
  */
 
 static struct pcmcia_device *curr_dev;
 
 /*
- *   A dev_link_t structure has fields for most things that are needed
- *  to keep track of a socket, but there will usually be some device
- *  specific information that also needs to be kept track of.  The
- *  'priv' pointer in a dev_link_t structure can be used to point to
- *  a device-specific private data structure, like this.
+ * A dev_link_t structure has fields for most things that are needed
+ * to keep track of a socket, but there will usually be some device
+ * specific information that also needs to be kept track of.  The
+ * 'priv' pointer in a dev_link_t structure can be used to point to
+ * a device-specific private data structure, like this.
  *
- *  A driver needs to provide a dev_node_t structure for each device
- *  on a card.	In some cases, there is only one device per card (for
- *  example, ethernet cards, modems).  In other cases, there may be
- *  many actual or logical devices (SCSI adapters, memory cards with
- *  multiple partitions).  The dev_node_t structures need to be kept
- *  in a linked list starting at the 'dev' field of a dev_link_t
- *  structure.	We allocate them in the card's private data structure,
- *  because they generally can't be allocated dynamically.
+ * A driver needs to provide a dev_node_t structure for each device
+ * on a card.	In some cases, there is only one device per card (for
+ * example, ethernet cards, modems).  In other cases, there may be
+ * many actual or logical devices (SCSI adapters, memory cards with
+ * multiple partitions).  The dev_node_t structures need to be kept
+ * in a linked list starting at the 'dev' field of a dev_link_t
+ * structure.	We allocate them in the card's private data structure,
+ * because they generally can't be allocated dynamically.
  */
 
 struct local_info {
@@ -1043,13 +1044,13 @@ struct local_info {
 };
 
 /*
- *   gpib_attach() creates an "instance" of the driver, allocating
- *   local data structures for one device.  The device is registered
- *   with Card Services.
+ * gpib_attach() creates an "instance" of the driver, allocating
+ * local data structures for one device.  The device is registered
+ * with Card Services.
  *
- *   The dev_link structure is initialized, but we don't actually
- *   configure the card at this point -- we wait until we receive a
- *   card insertion event.
+ * The dev_link structure is initialized, but we don't actually
+ * configure the card at this point -- we wait until we receive a
+ * card insertion event.
  */
 static int ines_gpib_probe(struct pcmcia_device *link)
 {
@@ -1080,10 +1081,10 @@ static int ines_gpib_probe(struct pcmcia_device *link)
 }
 
 /*
- *   This deletes a driver "instance".	The device is de-registered
- *   with Card Services.  If it has been released, all local data
- *   structures are freed.  Otherwise, the structures will be freed
- *   when the device is released.
+ * This deletes a driver "instance".	The device is de-registered
+ * with Card Services.  If it has been released, all local data
+ * structures are freed.  Otherwise, the structures will be freed
+ * when the device is released.
  */
 static void ines_gpib_remove(struct pcmcia_device *link)
 {
@@ -1104,9 +1105,9 @@ static int ines_gpib_config_iteration(struct pcmcia_device *link, void *priv_dat
 }
 
 /*
- *   gpib_config() is scheduled to run after a CARD_INSERTION event
- *   is received, to configure the PCMCIA socket, and to make the
- *   device available to the system.
+ * gpib_config() is scheduled to run after a CARD_INSERTION event
+ * is received, to configure the PCMCIA socket, and to make the
+ * device available to the system.
  */
 static int ines_gpib_config(struct pcmcia_device *link)
 {
@@ -1126,8 +1127,9 @@ static int ines_gpib_config(struct pcmcia_device *link)
 	dev_dbg(&link->dev, "ines_cs: manufacturer: 0x%x card: 0x%x\n",
 		link->manf_id, link->card_id);
 
-	/*  for the ines card we have to setup the configuration registers in
-	 *	attribute memory here
+	/*
+	 * for the ines card we have to setup the configuration registers in
+	 * attribute memory here
 	 */
 	link->resource[2]->flags |= WIN_MEMORY_TYPE_AM | WIN_DATA_WIDTH_8 | WIN_ENABLE;
 	link->resource[2]->end = 0x1000;
@@ -1160,9 +1162,9 @@ static int ines_gpib_config(struct pcmcia_device *link)
 } /* gpib_config */
 
 /*
- *   After a card is removed, gpib_release() will unregister the net
- *   device, and release the PCMCIA configuration.  If the device is
- *   still open, this will be postponed until it is closed.
+ * After a card is removed, gpib_release() will unregister the net
+ * device, and release the PCMCIA configuration.  If the device is
+ * still open, this will be postponed until it is closed.
  */
 
 static void ines_gpib_release(struct pcmcia_device *link)
