@@ -676,7 +676,6 @@ static void qcom_ethqos_speed_mode_2500(struct net_device *ndev, void *data)
 {
 	struct stmmac_priv *priv = netdev_priv(ndev);
 
-	priv->plat->max_speed = 2500;
 	priv->plat->phy_interface = PHY_INTERFACE_MODE_2500BASEX;
 }
 
