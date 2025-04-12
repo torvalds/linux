@@ -5,7 +5,6 @@ config LKL
        select GENERIC_ATOMIC64
        select GENERIC_HWEIGHT
        select FLATMEM
-       select FLAT_NODE_MEM_MAP
        select GENERIC_CLOCKEVENTS
        select GENERIC_CPU_DEVICES
        select NO_HZ_IDLE
