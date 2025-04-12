@@ -75,11 +75,8 @@ int amdgpu_userq_fence_driver_alloc(struct amdgpu_device *adev,
 	int r;
 
 	fence_drv = kzalloc(sizeof(*fence_drv), GFP_KERNEL);
-	if (!fence_drv) {
-		DRM_ERROR("Failed to allocate memory for fence driver\n");
-		r = -ENOMEM;
-		goto free_fence_drv;
-	}
+	if (!fence_drv)
+		return -ENOMEM;
 
 	/* Acquire seq64 memory */
 	r = amdgpu_seq64_alloc(adev, &fence_drv->va, &fence_drv->gpu_addr,
