@@ -53,7 +53,8 @@ int tms9914_take_control(struct gpib_board *board, struct tms9914_priv *priv, in
 }
 EXPORT_SYMBOL_GPL(tms9914_take_control);
 
-/* The agilent 82350B has a buggy implementation of tcs which interferes with the
+/*
+ * The agilent 82350B has a buggy implementation of tcs which interferes with the
  * operation of tca.  It appears to be based on the controller state machine
  * described in the TI 9900 TMS9914A data manual published in 1982.  This
  * manual describes tcs as putting the controller into a CWAS
@@ -324,7 +325,8 @@ static void update_talker_state(struct tms9914_priv *priv, unsigned int address_
 		if (address_status_bits & HR_ATN)
 			priv->talker_state = talker_addressed;
 		else
-			/* this could also be serial_poll_active, but the tms9914 provides no
+			/*
+			 * this could also be serial_poll_active, but the tms9914 provides no
 			 * way to distinguish, so we'll assume talker_active
 			 */
 			priv->talker_state = talker_active;
@@ -743,7 +745,8 @@ irqreturn_t tms9914_interrupt_have_status(struct gpib_board *board, struct tms99
 		switch (command_byte) {
 		case PP_CONFIG:
 			priv->ppoll_configure_state = 1;
-			/* AUX_PTS generates another UNC interrupt on the next command byte
+			/*
+			 * AUX_PTS generates another UNC interrupt on the next command byte
 			 * if it is in the secondary address group (such as PPE and PPD).
 			 */
 			write_byte(priv, AUX_PTS, AUXCR);
