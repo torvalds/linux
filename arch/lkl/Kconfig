@@ -31,7 +31,6 @@ config LKL
        select IPV6_ROUTE_MULTIPATH
        select IP_ADVANCED_ROUTER
        select IPV6_ADVANCED_ROUTER
-       select HAVE_MEMBLOCK
        select NO_BOOTMEM
        select BLK_DEV_NVME
        select UACCESS_MEMCPY
