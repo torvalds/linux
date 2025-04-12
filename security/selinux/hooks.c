@@ -3160,7 +3160,7 @@ static inline int task_avdcache_search(struct task_security_struct *tsec,
  * task_avdcache_update - Update the task's AVD cache
  * @tsec: the task's security state
  * @isec: the inode associated with the cache entry
- * @avdc: the AVD info to cache
+ * @avd: the AVD to cache
  * @audited: the permission audit bitmask to cache
  *
  * Update the AVD cache in @tsec with the @avdc and @audited info associated
