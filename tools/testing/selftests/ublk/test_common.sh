@@ -169,8 +169,11 @@ _have_feature()
 	return 1
 }
 
-_add_ublk_dev() {
+_create_ublk_dev() {
 	local dev_id;
+	local cmd=$1
+
+	shift 1
 
 	if [ ! -c /dev/ublk-control ]; then
 		return ${UBLK_SKIP_CODE}
@@ -181,7 +184,7 @@ _add_ublk_dev() {
 		fi
 	fi
 
-	if ! dev_id=$("${UBLK_PROG}" add "$@" | grep "dev id" | awk -F '[ :]' '{print $3}'); then
+	if ! dev_id=$("${UBLK_PROG}" "$cmd" "$@" | grep "dev id" | awk -F '[ :]' '{print $3}'); then
 		echo "fail to add ublk dev $*"
 		return 255
 	fi
@@ -192,6 +195,23 @@ _add_ublk_dev() {
 	else
 		return 255
 	fi
+}
+
+_add_ublk_dev() {
+	_create_ublk_dev "add" "$@"
+}
+
+_recover_ublk_dev() {
+	local dev_id
+	local state
+
+	dev_id=$(_create_ublk_dev "recover" "$@")
+	for ((j=0;j<20;j++)); do
+		state=$(_get_ublk_dev_state "${dev_id}")
+		[ "$state" == "LIVE" ] && break
+		sleep 1
+	done
+	echo "$state"
 }
 
 # kill the ublk daemon and return ublk device state
@@ -279,6 +299,39 @@ run_io_and_kill_daemon()
 		exit 255
 	fi
 }
+
+run_io_and_recover()
+{
+	local state
+	local dev_id
+
+	dev_id=$(_add_ublk_dev "$@")
+	_check_add_dev "$TID" $?
+
+	fio --name=job1 --filename=/dev/ublkb"${dev_id}" --ioengine=libaio \
+		--rw=readwrite --iodepth=256 --size="${size}" --numjobs=4 \
+		--runtime=20 --time_based > /dev/null 2>&1 &
+	sleep 4
+
+	state=$(__ublk_kill_daemon "${dev_id}" "QUIESCED")
+	if [ "$state" != "QUIESCED" ]; then
+		echo "device isn't quiesced($state) after killing daemon"
+		return 255
+	fi
+
+	state=$(_recover_ublk_dev -n "$dev_id" "$@")
+	if [ "$state" != "LIVE" ]; then
+		echo "faile to recover to LIVE($state)"
+		return 255
+	fi
+
+	if ! __remove_ublk_dev_return "${dev_id}"; then
+		echo "delete dev ${dev_id} failed"
+		return 255
+	fi
+	wait
+}
+
 
 _ublk_test_top_dir()
 {

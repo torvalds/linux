@@ -79,6 +79,7 @@ struct dev_ctx {
 	unsigned int	logging:1;
 	unsigned int	all:1;
 	unsigned int	fg:1;
+	unsigned int	recovery:1;
 
 	int _evtfd;
 	int _shmid;

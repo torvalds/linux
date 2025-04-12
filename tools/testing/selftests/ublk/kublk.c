@@ -119,6 +119,27 @@ static int ublk_ctrl_start_dev(struct ublk_dev *dev,
 	return __ublk_ctrl_cmd(dev, &data);
 }
 
+static int ublk_ctrl_start_user_recovery(struct ublk_dev *dev)
+{
+	struct ublk_ctrl_cmd_data data = {
+		.cmd_op	= UBLK_U_CMD_START_USER_RECOVERY,
+	};
+
+	return __ublk_ctrl_cmd(dev, &data);
+}
+
+static int ublk_ctrl_end_user_recovery(struct ublk_dev *dev, int daemon_pid)
+{
+	struct ublk_ctrl_cmd_data data = {
+		.cmd_op	= UBLK_U_CMD_END_USER_RECOVERY,
+		.flags	= CTRL_CMD_HAS_DATA,
+	};
+
+	dev->dev_info.ublksrv_pid = data.data[0] = daemon_pid;
+
+	return __ublk_ctrl_cmd(dev, &data);
+}
+
 static int ublk_ctrl_add_dev(struct ublk_dev *dev)
 {
 	struct ublk_ctrl_cmd_data data = {
@@ -812,8 +833,12 @@ static int ublk_start_daemon(const struct dev_ctx *ctx, struct ublk_dev *dev)
 	free(affinity_buf);
 
 	/* everything is fine now, start us */
-	ublk_set_parameters(dev);
-	ret = ublk_ctrl_start_dev(dev, getpid());
+	if (ctx->recovery)
+		ret = ublk_ctrl_end_user_recovery(dev, getpid());
+	else {
+		ublk_set_parameters(dev);
+		ret = ublk_ctrl_start_dev(dev, getpid());
+	}
 	if (ret < 0) {
 		ublk_err("%s: ublk_ctrl_start_dev failed: %d\n", __func__, ret);
 		goto fail;
@@ -988,7 +1013,10 @@ static int __cmd_dev_add(const struct dev_ctx *ctx)
 		}
 	}
 
-	ret = ublk_ctrl_add_dev(dev);
+	if (ctx->recovery)
+		ret = ublk_ctrl_start_user_recovery(dev);
+	else
+		ret = ublk_ctrl_add_dev(dev);
 	if (ret < 0) {
 		ublk_err("%s: can't add dev id %d, type %s ret %d\n",
 				__func__, dev_id, tgt_type, ret);
@@ -1202,12 +1230,14 @@ static int cmd_dev_get_features(void)
 	return ret;
 }
 
-static int cmd_dev_help(char *exe)
+static void __cmd_create_help(char *exe, bool recovery)
 {
 	int i;
 
-	printf("%s add -t [null|loop|stripe] [-q nr_queues] [-d depth] [-n dev_id]\n", exe);
-	printf("\t[--foreground] [--quiet] [-z] [--debug_mask mask]\n");
+	printf("%s %s -t [null|loop|stripe] [-q nr_queues] [-d depth] [-n dev_id]\n",
+			exe, recovery ? "recover" : "add");
+	printf("\t[--foreground] [--quiet] [-z] [--debug_mask mask] [-r 0|1 ] [-g 0|1]\n");
+	printf("\t[-e 0|1 ] [-i 0|1]\n");
 	printf("\t[target options] [backfile1] [backfile2] ...\n");
 	printf("\tdefault: nr_queues=2(max 32), depth=128(max 1024), dev_id=-1(auto allocation)\n");
 
@@ -1217,7 +1247,25 @@ static int cmd_dev_help(char *exe)
 		if (ops->usage)
 			ops->usage(ops);
 	}
+}
+
+static void cmd_add_help(char *exe)
+{
+	__cmd_create_help(exe, false);
 	printf("\n");
+}
+
+static void cmd_recover_help(char *exe)
+{
+	__cmd_create_help(exe, true);
+	printf("\tPlease provide exact command line for creating this device with real dev_id\n");
+	printf("\n");
+}
+
+static int cmd_dev_help(char *exe)
+{
+	cmd_add_help(exe);
+	cmd_recover_help(exe);
 
 	printf("%s del [-n dev_id] -a \n", exe);
 	printf("\t -a delete all devices -n delete specified device\n\n");
@@ -1239,6 +1287,10 @@ int main(int argc, char *argv[])
 		{ "quiet",		0,	NULL,  0  },
 		{ "zero_copy",          0,      NULL, 'z' },
 		{ "foreground",		0,	NULL,  0  },
+		{ "recovery", 		1,      NULL, 'r' },
+		{ "recovery_fail_io",	1,	NULL, 'e'},
+		{ "recovery_reissue",	1,	NULL, 'i'},
+		{ "get_data",		1,	NULL, 'g'},
 		{ 0, 0, 0, 0 }
 	};
 	const struct ublk_tgt_ops *ops = NULL;
@@ -1253,13 +1305,14 @@ int main(int argc, char *argv[])
 	int ret = -EINVAL, i;
 	int tgt_argc = 1;
 	char *tgt_argv[MAX_NR_TGT_ARG] = { NULL };
+	int value;
 
 	if (argc == 1)
 		return ret;
 
 	opterr = 0;
 	optind = 2;
-	while ((opt = getopt_long(argc, argv, "t:n:d:q:az",
+	while ((opt = getopt_long(argc, argv, "t:n:d:q:r:e:i:az",
 				  longopts, &option_idx)) != -1) {
 		switch (opt) {
 		case 'a':
@@ -1281,6 +1334,25 @@ int main(int argc, char *argv[])
 		case 'z':
 			ctx.flags |= UBLK_F_SUPPORT_ZERO_COPY | UBLK_F_USER_COPY;
 			break;
+		case 'r':
+			value = strtol(optarg, NULL, 10);
+			if (value)
+				ctx.flags |= UBLK_F_USER_RECOVERY;
+			break;
+		case 'e':
+			value = strtol(optarg, NULL, 10);
+			if (value)
+				ctx.flags |= UBLK_F_USER_RECOVERY | UBLK_F_USER_RECOVERY_FAIL_IO;
+			break;
+		case 'i':
+			value = strtol(optarg, NULL, 10);
+			if (value)
+				ctx.flags |= UBLK_F_USER_RECOVERY | UBLK_F_USER_RECOVERY_REISSUE;
+			break;
+		case 'g':
+			value = strtol(optarg, NULL, 10);
+			if (value)
+				ctx.flags |= UBLK_F_NEED_GET_DATA;
 		case 0:
 			if (!strcmp(longopts[option_idx].name, "debug_mask"))
 				ublk_dbg_mask = strtol(optarg, NULL, 16);
@@ -1326,7 +1398,15 @@ int main(int argc, char *argv[])
 
 	if (!strcmp(cmd, "add"))
 		ret = cmd_dev_add(&ctx);
-	else if (!strcmp(cmd, "del"))
+	else if (!strcmp(cmd, "recover")) {
+		if (ctx.dev_id < 0) {
+			fprintf(stderr, "device id isn't provided for recovering\n");
+			ret = -EINVAL;
+		} else {
+			ctx.recovery = 1;
+			ret = cmd_dev_add(&ctx);
+		}
+	} else if (!strcmp(cmd, "del"))
 		ret = cmd_dev_del(&ctx);
 	else if (!strcmp(cmd, "list")) {
 		ctx.all = 1;
