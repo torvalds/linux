@@ -386,6 +386,9 @@ static void smu_v13_0_6_init_caps(struct smu_context *smu)
 			smu_v13_0_6_cap_clear(smu, SMU_CAP(RMA_MSG));
 		if (fw_ver < 0x00555600)
 			smu_v13_0_6_cap_clear(smu, SMU_CAP(ACA_SYND));
+		if ((pgm == 7 && fw_ver >= 0x7550E00) ||
+		    (pgm == 0 && fw_ver >= 0x00557E00))
+			smu_v13_0_6_cap_set(smu, SMU_CAP(HST_LIMIT_METRICS));
 	}
 	if (((pgm == 7) && (fw_ver >= 0x7550700)) ||
 	    ((pgm == 0) && (fw_ver >= 0x00557900)) ||
