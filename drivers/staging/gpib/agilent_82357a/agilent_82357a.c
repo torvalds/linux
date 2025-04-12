@@ -524,9 +524,10 @@ static int agilent_82357a_read(struct gpib_board *board, uint8_t *buffer, size_t
 	}
 	kfree(in_data);
 
-	/* Fix for a bug in 9914A that does not return the contents of ADSR
-	 *  when the board is in listener active state and ATN is not asserted.
-	 *  Set ATN here to obtain a valid board level ibsta
+	/*
+	 * Fix for a bug in 9914A that does not return the contents of ADSR
+	 * when the board is in listener active state and ATN is not asserted.
+	 * Set ATN here to obtain a valid board level ibsta
 	 */
 	agilent_82357a_take_control_internal(board, 0);
 
@@ -715,9 +716,10 @@ static int agilent_82357a_take_control(struct gpib_board *board, int synchronous
 	if (!a_priv->bus_interface)
 		return -ENODEV;
 
-/* It looks like the 9914 does not handle tcs properly.
- *  See comment above tms9914_take_control_workaround() in
- *  drivers/gpib/tms9914/tms9914_aux.c
+/*
+ * It looks like the 9914 does not handle tcs properly.
+ * See comment above tms9914_take_control_workaround() in
+ * drivers/gpib/tms9914/tms9914_aux.c
  */
 	if (synchronous)
 		return -ETIMEDOUT;
