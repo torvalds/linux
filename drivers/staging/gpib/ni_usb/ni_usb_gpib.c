@@ -74,7 +74,8 @@ static unsigned short ni_usb_timeout_code(unsigned int usec)
 		return 0xff;
 	else if	 (usec <= 300000000)
 		return 0x01;
-	/* NI driver actually uses 0xff for timeout T1000s, which is a bug in their code.
+	/*
+	 * NI driver actually uses 0xff for timeout T1000s, which is a bug in their code.
 	 * I've verified on a usb-b that a code of 0x2 is correct for a 1000 sec timeout
 	 */
 	else if (usec <= 1000000000)
@@ -232,7 +233,8 @@ static int ni_usb_nonblocking_receive_bulk_msg(struct ni_usb_priv *ni_priv,
 	mutex_unlock(&ni_priv->bulk_transfer_lock);
 	if (interruptible) {
 		if (wait_for_completion_interruptible(&context->complete)) {
-			/* If we got interrupted by a signal while
+			/*
+			 * If we got interrupted by a signal while
 			 * waiting for the usb gpib to respond, we
 			 * should send a stop command so it will
 			 * finish up with whatever it was doing and
@@ -240,8 +242,9 @@ static int ni_usb_nonblocking_receive_bulk_msg(struct ni_usb_priv *ni_priv,
 			 */
 			ni_usb_stop(ni_priv);
 			retval = -ERESTARTSYS;
-			/* now do an uninterruptible wait, it shouldn't take long
-			 *	for the board to respond now.
+			/*
+			 * now do an uninterruptible wait, it shouldn't take long
+			 * for the board to respond now.
 			 */
 			wait_for_completion(&context->complete);
 		}
@@ -684,7 +687,8 @@ static int ni_usb_read(struct gpib_board *board, uint8_t *buffer, size_t length,
 		retval = 0;
 		break;
 	case NIUSB_ABORTED_ERROR:
-		/* this is expected if ni_usb_receive_bulk_msg got
+		/*
+		 * this is expected if ni_usb_receive_bulk_msg got
 		 * interrupted by a signal and returned -ERESTARTSYS
 		 */
 		break;
@@ -794,7 +798,8 @@ static int ni_usb_write(struct gpib_board *board, uint8_t *buffer, size_t length
 		retval = 0;
 		break;
 	case NIUSB_ABORTED_ERROR:
-		/* this is expected if ni_usb_receive_bulk_msg got
+		/*
+		 * this is expected if ni_usb_receive_bulk_msg got
 		 * interrupted by a signal and returned -ERESTARTSYS
 		 */
 		break;
@@ -893,7 +898,8 @@ static int ni_usb_command_chunk(struct gpib_board *board, uint8_t *buffer, size_
 	case NIUSB_NO_ERROR:
 		break;
 	case NIUSB_ABORTED_ERROR:
-		/* this is expected if ni_usb_receive_bulk_msg got
+		/*
+		 * this is expected if ni_usb_receive_bulk_msg got
 		 * interrupted by a signal and returned -ERESTARTSYS
 		 */
 		break;
@@ -1192,8 +1198,9 @@ static int ni_usb_enable_eos(struct gpib_board *board, uint8_t eos_byte, int com
 static void ni_usb_disable_eos(struct gpib_board *board)
 {
 	struct ni_usb_priv *ni_priv = board->private_data;
-	/* adapter gets unhappy if you don't zero all the bits
-	 *	for the eos mode and eos char (returns error 4 on reads).
+	/*
+	 * adapter gets unhappy if you don't zero all the bits
+	 * for the eos mode and eos char (returns error 4 on reads).
 	 */
 	ni_priv->eos_mode = 0;
 	ni_priv->eos_char = 0;
@@ -2045,8 +2052,10 @@ static int ni_usb_hs_wait_for_ready(struct ni_usb_priv *ni_priv)
 			unexpected = 1;
 		}
 		++j;
-		// MC usb-488 (and sometimes NI-USB-HS?) sends 0x8 here; MC usb-488A sends 0x7 here
-		// NI-USB-HS+ sends 0x0
+		/*
+		 * MC usb-488 (and sometimes NI-USB-HS?) sends 0x8 here; MC usb-488A sends 0x7 here
+		 * NI-USB-HS+ sends 0x0
+		 */
 		if (buffer[j] != 0x1 && buffer[j] != 0x8 && buffer[j] != 0x7 && buffer[j] != 0x0) {
 			// [3]
 			dev_err(&usb_dev->dev, "unexpected data: buffer[%i]=0x%x, expected 0x0, 0x1, 0x7 or 0x8\n",
@@ -2127,7 +2136,8 @@ ready_out:
 	return retval;
 }
 
-/* This does some extra init for HS+ models, as observed on Windows.  One of the
+/*
+ * This does some extra init for HS+ models, as observed on Windows.  One of the
  * control requests causes the LED to stop blinking.
  * I'm not sure what the other 2 requests do.  None of these requests are actually required
  * for the adapter to work, maybe they do some init for the analyzer interface
@@ -2343,8 +2353,10 @@ static void ni_usb_detach(struct gpib_board *board)
 	struct ni_usb_priv *ni_priv;
 
 	mutex_lock(&ni_usb_hotplug_lock);
-// under windows, software unplug does chip_reset nec7210 aux command,
-// then writes 0x0 to address 0x10 of device 3
+	/*
+	 * under windows, software unplug does chip_reset nec7210 aux command,
+	 * then writes 0x0 to address 0x10 of device 3
+	 */
 	ni_priv = board->private_data;
 	if (ni_priv) {
 		if (ni_priv->bus_interface) {

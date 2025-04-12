@@ -113,27 +113,37 @@ enum ni_usb_bulk_ids {
 
 enum ni_usb_error_codes {
 	NIUSB_NO_ERROR = 0,
-	/* NIUSB_ABORTED_ERROR occurs when I/O is interrupted early by
-	 *	doing a NI_USB_STOP_REQUEST on the control endpoint.
+	/*
+	 * NIUSB_ABORTED_ERROR occurs when I/O is interrupted early by
+	 * doing a NI_USB_STOP_REQUEST on the control endpoint.
 	 */
 	NIUSB_ABORTED_ERROR = 1,
-	// NIUSB_READ_ATN_ERROR occurs when you do a board read while
-	// ATN is set
+	/*
+	 * NIUSB_READ_ATN_ERROR occurs when you do a board read while
+	 * ATN is set
+	 */
 	NIUSB_ATN_STATE_ERROR = 2,
-	// NIUSB_ADDRESSING_ERROR occurs when you do a board
-	// read/write as CIC but are not in LACS/TACS
+	/*
+	 * NIUSB_ADDRESSING_ERROR occurs when you do a board
+	 * read/write as CIC but are not in LACS/TACS
+	 */
 	NIUSB_ADDRESSING_ERROR = 3,
-	/* NIUSB_EOSMODE_ERROR occurs on reads if any eos mode or char
+	/*
+	 * NIUSB_EOSMODE_ERROR occurs on reads if any eos mode or char
 	 * bits are set when REOS is not set.
 	 * Have also seen error 4 if you try to send more than 16
 	 * command bytes at once on a usb-b.
 	 */
 	NIUSB_EOSMODE_ERROR = 4,
-	// NIUSB_NO_BUS_ERROR occurs when you try to write a command
-	// byte but there are no devices connected to the gpib bus
+	/*
+	 * NIUSB_NO_BUS_ERROR occurs when you try to write a command
+	 * byte but there are no devices connected to the gpib bus
+	 */
 	NIUSB_NO_BUS_ERROR = 5,
-	// NIUSB_NO_LISTENER_ERROR occurs when you do a board write as
-	// CIC with no listener
+	/*
+	 * NIUSB_NO_LISTENER_ERROR occurs when you do a board write as
+	 * CIC with no listener
+	 */
 	NIUSB_NO_LISTENER_ERROR = 8,
 	// get NIUSB_TIMEOUT_ERROR on board read/write timeout
 	NIUSB_TIMEOUT_ERROR = 10,
