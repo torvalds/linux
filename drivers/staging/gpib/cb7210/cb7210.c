@@ -905,7 +905,8 @@ static int cb7210_init(struct cb7210_priv *cb_priv, struct gpib_board *board)
 	cb7210_write_byte(cb_priv, cb_priv->hs_mode_bits, HS_MODE);
 
 	write_byte(nec_priv, AUX_LO_SPEED, AUXMR);
-	/* set clock register for maximum (20 MHz) driving frequency
+	/*
+	 * set clock register for maximum (20 MHz) driving frequency
 	 * ICR should be set to clock in megahertz (1-15) and to zero
 	 * for clocks faster than 15 MHz (max 20MHz)
 	 */
@@ -1275,9 +1276,9 @@ static int cb_gpib_config(struct pcmcia_device  *link)
 } /* gpib_config */
 
 /*
- *    After a card is removed, gpib_release() will unregister the net
- *   device, and release the PCMCIA configuration.  If the device is
- *   still open, this will be postponed until it is closed.
+ * After a card is removed, gpib_release() will unregister the net
+ * device, and release the PCMCIA configuration.  If the device is
+ * still open, this will be postponed until it is closed.
  */
 
 static void cb_gpib_release(struct pcmcia_device *link)
