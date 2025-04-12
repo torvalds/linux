@@ -392,8 +392,10 @@ static void smu_v13_0_6_init_caps(struct smu_context *smu)
 		if ((pgm == 7 && fw_ver >= 0x7550E00) ||
 		    (pgm == 0 && fw_ver >= 0x00557E00))
 			smu_v13_0_6_cap_set(smu, SMU_CAP(HST_LIMIT_METRICS));
-		if (fw_ver >= 0x00557F01)
+		if (fw_ver >= 0x00557F01) {
 			smu_v13_0_6_cap_set(smu, SMU_CAP(STATIC_METRICS));
+			smu_v13_0_6_cap_set(smu, SMU_CAP(BOARD_VOLTAGE));
+		}
 	}
 	if (((pgm == 7) && (fw_ver >= 0x7550700)) ||
 	    ((pgm == 0) && (fw_ver >= 0x00557900)) ||
