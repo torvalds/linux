@@ -335,6 +335,10 @@ test "$(cat "$CONFIGFS_AGG_DIR/agg0/live")" = 0 || \
 agg_remove_line   agg0 line0
 agg_remove_chip   agg0
 
+echo "1.1.6. Can't instantiate a chip with _sysfs prefix"
+mkdir "$CONFIGFS_AGG_DIR/_sysfs" 2> /dev/null && fail "chip _sysfs unexpectedly created"
+mkdir "$CONFIGFS_AGG_DIR/_sysfs.foo" 2> /dev/null && fail "chip _sysfs.foo unexpectedly created"
+
 echo "1.2. Creation/deletion via sysfs"
 
 echo "1.2.1. Minimum creation/deletion"
