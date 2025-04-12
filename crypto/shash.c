@@ -153,9 +153,6 @@ static int crypto_shash_init_tfm(struct crypto_tfm *tfm)
 {
 	struct crypto_shash *hash = __crypto_shash_cast(tfm);
 	struct shash_alg *alg = crypto_shash_alg(hash);
-	int err;
-
-	hash->descsize = alg->descsize;
 
 	shash_set_needkey(hash, alg);
 
@@ -165,18 +162,7 @@ static int crypto_shash_init_tfm(struct crypto_tfm *tfm)
 	if (!alg->init_tfm)
 		return 0;
 
-	err = alg->init_tfm(hash);
-	if (err)
-		return err;
-
-	/* ->init_tfm() may have increased the descsize. */
-	if (WARN_ON_ONCE(hash->descsize > HASH_MAX_DESCSIZE)) {
-		if (alg->exit_tfm)
-			alg->exit_tfm(hash);
-		return -EINVAL;
-	}
-
-	return 0;
+	return alg->init_tfm(hash);
 }
 
 static void crypto_shash_free_instance(struct crypto_instance *inst)
@@ -273,8 +259,6 @@ struct crypto_shash *crypto_clone_shash(struct crypto_shash *hash)
 	nhash = crypto_clone_tfm(&crypto_shash_type, tfm);
 	if (IS_ERR(nhash))
 		return nhash;
-
-	nhash->descsize = hash->descsize;
 
 	if (alg->clone_tfm) {
 		err = alg->clone_tfm(nhash, hash);
