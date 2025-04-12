@@ -146,9 +146,6 @@ static int hmac_init_tfm(struct crypto_shash *parent)
 	if (IS_ERR(hash))
 		return PTR_ERR(hash);
 
-	parent->descsize = sizeof(struct shash_desc) +
-			   crypto_shash_descsize(hash);
-
 	tctx->hash = hash;
 	return 0;
 }
@@ -222,6 +219,7 @@ static int hmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	inst->alg.digestsize = ds;
 	inst->alg.statesize = ss;
+	inst->alg.descsize = sizeof(struct shash_desc) + salg->descsize;
 	inst->alg.init = hmac_init;
 	inst->alg.update = hmac_update;
 	inst->alg.final = hmac_final;
