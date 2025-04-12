@@ -37,7 +37,27 @@
 #include <linux/export.h>
 
 void *hv_hypercall_pg;
+
+#ifdef CONFIG_X86_64
+u64 hv_std_hypercall(u64 control, u64 param1, u64 param2)
+{
+	u64 hv_status;
+
+	if (!hv_hypercall_pg)
+		return U64_MAX;
+
+	register u64 __r8 asm("r8") = param2;
+	asm volatile (CALL_NOSPEC
+		      : "=a" (hv_status), ASM_CALL_CONSTRAINT,
+		        "+c" (control), "+d" (param1), "+r" (__r8)
+		      : THUNK_TARGET(hv_hypercall_pg)
+		      : "cc", "memory", "r9", "r10", "r11");
+
+	return hv_status;
+}
+#else
 EXPORT_SYMBOL_GPL(hv_hypercall_pg);
+#endif
 
 union hv_ghcb * __percpu *hv_ghcb_pg;
 
