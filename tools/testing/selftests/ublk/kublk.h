@@ -30,6 +30,8 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
+
 /****************** part 1: libublk ********************/
 
 #define CTRL_DEV		"/dev/ublk-control"

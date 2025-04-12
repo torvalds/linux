@@ -14,13 +14,12 @@ static const struct ublk_tgt_ops *tgt_ops_list[] = {
 
 static const struct ublk_tgt_ops *ublk_find_tgt(const char *name)
 {
-	const struct ublk_tgt_ops *ops;
 	int i;
 
 	if (name == NULL)
 		return NULL;
 
-	for (i = 0; sizeof(tgt_ops_list) / sizeof(ops); i++)
+	for (i = 0; i < ARRAY_SIZE(tgt_ops_list); i++)
 		if (strcmp(tgt_ops_list[i]->name, name) == 0)
 			return tgt_ops_list[i];
 	return NULL;
