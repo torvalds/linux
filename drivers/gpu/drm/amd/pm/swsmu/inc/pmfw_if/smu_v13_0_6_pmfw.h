@@ -459,4 +459,11 @@ typedef struct __attribute__((packed, aligned(4))) {
   uint64_t AccGfxclkBelowHostLimit;
 } VfMetricsTable_t;
 
+#pragma pack(push, 4)
+typedef struct {
+  // Telemetry
+  uint32_t InputTelemetryVoltageInmV;
+} StaticMetricsTable_t;
+#pragma pack(pop)
+
 #endif
