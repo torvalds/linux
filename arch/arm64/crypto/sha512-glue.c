@@ -6,11 +6,10 @@
  */
 
 #include <crypto/internal/hash.h>
-#include <linux/types.h>
-#include <linux/string.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <crypto/sha2.h>
 #include <crypto/sha512_base.h>
-#include <asm/neon.h>
 
 MODULE_DESCRIPTION("SHA-384/SHA-512 secure hash for arm64");
 MODULE_AUTHOR("Andy Polyakov <appro@openssl.org>");
