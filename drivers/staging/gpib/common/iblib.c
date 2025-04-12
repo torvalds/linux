@@ -33,9 +33,10 @@ int ibcac(struct gpib_board *board, int sync, int fallback_to_async)
 		return 0;
 
 	if (sync && (status & LACS) == 0)
-		/* tcs (take control synchronously) can only possibly work when
-		 *  controller is listener.  Error code also needs to be -ETIMEDOUT
-		 *  or it will giveout without doing fallback.
+		/*
+		 * tcs (take control synchronously) can only possibly work when
+		 * controller is listener.  Error code also needs to be -ETIMEDOUT
+		 * or it will giveout without doing fallback.
 		 */
 		retval = -ETIMEDOUT;
 	else
@@ -50,7 +51,8 @@ int ibcac(struct gpib_board *board, int sync, int fallback_to_async)
 	return retval;
 }
 
-/* After ATN is asserted, it should cause any connected devices
+/*
+ * After ATN is asserted, it should cause any connected devices
  * to start listening for command bytes and leave acceptor idle state.
  * So if ATN is asserted and neither NDAC or NRFD are asserted,
  * then there are no devices and ibcmd should error out immediately.
@@ -218,7 +220,8 @@ int ibonline(struct gpib_board *board)
 		board->interface->detach(board);
 		return retval;
 	}
-	/* nios2nommu on 2.6.11 uclinux kernel has weird problems
+	/*
+	 * nios2nommu on 2.6.11 uclinux kernel has weird problems
 	 * with autospoll thread causing huge slowdowns
 	 */
 #ifndef CONFIG_NIOS2
@@ -313,7 +316,8 @@ int ibrd(struct gpib_board *board, u8 *buf, size_t length, int *end_flag, size_t
 		if (retval < 0)
 			return retval;
 	}
-	/* XXX resetting timer here could cause timeouts take longer than they should,
+	/*
+	 * XXX resetting timer here could cause timeouts take longer than they should,
 	 * since read_ioctl calls this
 	 * function in a loop, there is probably a similar problem with writes/commands
 	 */
@@ -514,7 +518,8 @@ int general_ibstatus(struct gpib_board *board, const struct gpib_status_queue *d
 
 	if (board->private_data) {
 		status = board->interface->update_status(board, clear_mask);
-		/* XXX should probably stop having drivers use TIMO bit in
+		/*
+		 * XXX should probably stop having drivers use TIMO bit in
 		 * board->status to avoid confusion
 		 */
 		status &= ~TIMO;

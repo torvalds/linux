@@ -122,7 +122,8 @@ int io_timed_out(struct gpib_board *board)
 	return 0;
 }
 
-/* this is a function instead of a constant because of Suse
+/*
+ * this is a function instead of a constant because of Suse
  * defining HZ to be a function call to get_hz()
  */
 static inline int pseudo_irq_period(void)
@@ -294,7 +295,8 @@ int autopoll_all_devices(struct gpib_board *board)
 	}
 
 	dev_dbg(board->gpib_dev, "complete\n");
-	/* need to wake wait queue in case someone is
+	/*
+	 * need to wake wait queue in case someone is
 	 * waiting on RQS
 	 */
 	wake_up_interruptible(&board->wait);
@@ -668,8 +670,9 @@ long ibioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		retval = board_info_ioctl(board, arg);
 		goto done;
 	case IBMUTEX:
-		/* Need to unlock board->big_gpib_mutex before potentially locking board->user_mutex
-		 *  to maintain consistent locking order
+		/*
+		 * Need to unlock board->big_gpib_mutex before potentially locking board->user_mutex
+		 * to maintain consistent locking order
 		 */
 		mutex_unlock(&board->big_gpib_mutex);
 		return mutex_ioctl(board, file_priv, arg);
@@ -739,8 +742,9 @@ long ibioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		retval = take_control_ioctl(board, arg);
 		goto done;
 	case IBCMD:
-		/* IO ioctls can take a long time, we need to unlock board->big_gpib_mutex
-		 *  before we call them.
+		/*
+		 * IO ioctls can take a long time, we need to unlock board->big_gpib_mutex
+		 * before we call them.
 		 */
 		mutex_unlock(&board->big_gpib_mutex);
 		return command_ioctl(file_priv, board, arg);
@@ -763,8 +767,9 @@ long ibioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		retval = query_board_rsv_ioctl(board, arg);
 		goto done;
 	case IBRD:
-		/* IO ioctls can take a long time, we need to unlock board->big_gpib_mutex
-		 *  before we call them.
+		/*
+		 * IO ioctls can take a long time, we need to unlock board->big_gpib_mutex
+		 * before we call them.
 		 */
 		mutex_unlock(&board->big_gpib_mutex);
 		return read_ioctl(file_priv, board, arg);
@@ -793,8 +798,9 @@ long ibioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		retval = timeout_ioctl(board, arg);
 		goto done;
 	case IBWRT:
-		/* IO ioctls can take a long time, we need to unlock board->big_gpib_mutex
-		 *  before we call them.
+		/*
+		 * IO ioctls can take a long time, we need to unlock board->big_gpib_mutex
+		 * before we call them.
 		 */
 		mutex_unlock(&board->big_gpib_mutex);
 		return write_ioctl(file_priv, board, arg);
@@ -918,7 +924,8 @@ static int read_ioctl(struct gpib_file_private *file_priv, struct gpib_board *bo
 	}
 	read_cmd.completed_transfer_count = read_cmd.requested_transfer_count - remain;
 	read_cmd.end = end_flag;
-	/* suppress errors (for example due to timeout or interruption by device clear)
+	/*
+	 * suppress errors (for example due to timeout or interruption by device clear)
 	 * if all bytes got sent.  This prevents races that can occur in the various drivers
 	 * if a device receives a device clear immediately after a transfer completes and
 	 * the driver code wasn't careful enough to handle that case.
@@ -972,10 +979,11 @@ static int command_ioctl(struct gpib_file_private *file_priv,
 	if (!access_ok(userbuf, remain))
 		return -EFAULT;
 
-	/* Write buffer loads till we empty the user supplied buffer.
-	 *	Call drivers at least once, even if remain is zero, in
-	 *	order to allow them to insure previous commands were
-	 *	completely finished, in the case of a restarted ioctl.
+	/*
+	 * Write buffer loads till we empty the user supplied buffer.
+	 * Call drivers at least once, even if remain is zero, in
+	 * order to allow them to insure previous commands were
+	 * completely finished, in the case of a restarted ioctl.
 	 */
 
 	atomic_set(&desc->io_in_progress, 1);
@@ -1073,7 +1081,8 @@ static int write_ioctl(struct gpib_file_private *file_priv, struct gpib_board *b
 			break;
 	}
 	write_cmd.completed_transfer_count = write_cmd.requested_transfer_count - remain;
-	/* suppress errors (for example due to timeout or interruption by device clear)
+	/*
+	 * suppress errors (for example due to timeout or interruption by device clear)
 	 * if all bytes got sent.  This prevents races that can occur in the various drivers
 	 * if a device receives a device clear immediately after a transfer completes and
 	 * the driver code wasn't careful enough to handle that case.
@@ -1121,7 +1130,8 @@ static int increment_open_device_count(struct gpib_board *board, struct list_hea
 	struct list_head *list_ptr;
 	struct gpib_status_queue *device;
 
-	/* first see if address has already been opened, then increment
+	/*
+	 * first see if address has already been opened, then increment
 	 * open count
 	 */
 	for (list_ptr = head->next; list_ptr != head; list_ptr = list_ptr->next) {
@@ -1247,7 +1257,8 @@ static int open_dev_ioctl(struct file *filep, struct gpib_board *board, unsigned
 	if (retval < 0)
 		return retval;
 
-	/* clear stuck srq state, since we may be able to find service request on
+	/*
+	 * clear stuck srq state, since we may be able to find service request on
 	 * the new device
 	 */
 	atomic_set(&board->stuck_srq, 0);
