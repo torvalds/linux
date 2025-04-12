@@ -4,19 +4,19 @@
 . "$(cd "$(dirname "$0")" && pwd)"/test_common.sh
 TID="stress_01"
 ERR_CODE=0
-DEV_ID=-1
 
 ublk_io_and_remove()
 {
 	local size=$1
+	local dev_id
 	shift 1
 
-	DEV_ID=$(_add_ublk_dev "$@")
+	dev_id=$(_add_ublk_dev "$@")
 	_check_add_dev $TID $?
 
 	[ "$UBLK_TEST_QUIET" -eq 0 ] && echo "run ublk IO vs. remove device(ublk add $*)"
-	if ! __run_io_and_remove "${DEV_ID}" "${size}" "no"; then
-		echo "/dev/ublkc${DEV_ID} isn't removed"
+	if ! __run_io_and_remove "$dev_id" "${size}" "no"; then
+		echo "/dev/ublkc$dev_id isn't removed"
 		exit 255
 	fi
 }

@@ -170,7 +170,6 @@ _have_feature()
 }
 
 _add_ublk_dev() {
-	local kublk_temp;
 	local dev_id;
 
 	if [ ! -c /dev/ublk-control ]; then
@@ -182,17 +181,17 @@ _add_ublk_dev() {
 		fi
 	fi
 
-	kublk_temp=$(mktemp /tmp/kublk-XXXXXX)
-	if ! "${UBLK_PROG}" add "$@" > "${kublk_temp}" 2>&1; then
+	if ! dev_id=$("${UBLK_PROG}" add "$@" | grep "dev id" | awk -F '[ :]' '{print $3}'); then
 		echo "fail to add ublk dev $*"
-		rm -f "${kublk_temp}"
 		return 255
 	fi
-
-	dev_id=$(grep "dev id" "${kublk_temp}" | awk -F '[ :]' '{print $3}')
 	udevadm settle
-	rm -f "${kublk_temp}"
-	echo "${dev_id}"
+
+	if [[ "$dev_id" =~ ^[0-9]+$ ]]; then
+		echo "${dev_id}"
+	else
+		return 255
+	fi
 }
 
 # kill the ublk daemon and return ublk device state

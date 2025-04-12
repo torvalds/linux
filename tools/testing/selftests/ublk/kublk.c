@@ -654,6 +654,8 @@ static int ublk_send_dev_event(const struct dev_ctx *ctx, int dev_id)
 	if (write(evtfd, &id, sizeof(id)) != sizeof(id))
 		return -EINVAL;
 
+	close(evtfd);
+
 	return 0;
 }
 
@@ -889,24 +891,40 @@ static int cmd_dev_add(struct dev_ctx *ctx)
 		exit(-1);
 	}
 
-	setsid();
 	res = fork();
 	if (res == 0) {
+		int res2;
+
+		setsid();
+		res2 = fork();
+		if (res2 == 0) {
+			/* prepare for detaching */
+			close(STDIN_FILENO);
+			close(STDOUT_FILENO);
+			close(STDERR_FILENO);
 run:
-		res = __cmd_dev_add(ctx);
-		return res;
+			res = __cmd_dev_add(ctx);
+			return res;
+		} else {
+			/* detached from the foreground task */
+			exit(EXIT_SUCCESS);
+		}
 	} else if (res > 0) {
 		uint64_t id;
+		int exit_code = EXIT_FAILURE;
 
 		res = read(ctx->_evtfd, &id, sizeof(id));
 		close(ctx->_evtfd);
 		if (res == sizeof(id) && id != ERROR_EVTFD_DEVID) {
 			ctx->dev_id = id - 1;
-			return __cmd_dev_list(ctx);
+			if (__cmd_dev_list(ctx) >= 0)
+				exit_code = EXIT_SUCCESS;
 		}
-		exit(EXIT_FAILURE);
+		/* wait for child and detach from it */
+		wait(NULL);
+		exit(exit_code);
 	} else {
-		return res;
+		exit(EXIT_FAILURE);
 	}
 }
 
