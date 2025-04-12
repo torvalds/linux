@@ -258,7 +258,8 @@ static void tnt4882_release_holdoff(struct gpib_board *board, struct tnt4882_pri
 
 	sasr_bits = tnt_readb(tnt_priv, SASR);
 
-	/*tnt4882 not in one-chip mode won't always release holdoff unless we
+	/*
+	 * tnt4882 not in one-chip mode won't always release holdoff unless we
 	 * are in the right mode when release handshake command is given
 	 */
 	if (sasr_bits & AEHS_BIT) /* holding off due to holdoff on end mode*/	{
@@ -384,7 +385,8 @@ static int tnt4882_accel_read(struct gpib_board *board, uint8_t *buffer, size_t 
 
 	nec7210_set_reg_bits(nec_priv, IMR1, HR_ENDIE, 0);
 	nec7210_set_reg_bits(nec_priv, IMR2, HR_DMAI, 0);
-	/* force handling of any pending interrupts (seems to be needed
+	/*
+	 * force handling of any pending interrupts (seems to be needed
 	 * to keep interrupts from getting hosed, plus for syncing
 	 * with RECEIVED_END below)
 	 */
@@ -531,7 +533,8 @@ static int generic_write(struct gpib_board *board, uint8_t *buffer, size_t lengt
 
 	nec7210_set_reg_bits(nec_priv, IMR1, HR_ERR, 0x0);
 	nec7210_set_reg_bits(nec_priv, IMR2, HR_DMAO, 0x0);
-	/* force handling of any interrupts that happened
+	/*
+	 * force handling of any interrupts that happened
 	 * while they were masked (this appears to be needed)
 	 */
 	tnt4882_internal_interrupt(board);
@@ -760,7 +763,8 @@ static void tnt4882_parallel_poll_response(struct gpib_board *board, int ist)
 	nec7210_parallel_poll_response(board, &priv->nec7210_priv, ist);
 }
 
-/* this is just used by the old nec7210 isa interfaces, the newer
+/*
+ * this is just used by the old nec7210 isa interfaces, the newer
  * boards use tnt4882_serial_poll_response2
  */
 static void tnt4882_serial_poll_response(struct gpib_board *board, uint8_t status)
@@ -788,7 +792,8 @@ static void tnt4882_serial_poll_response2(struct gpib_board *board, uint8_t stat
 			priv->nec7210_priv.srq_pending = 0;
 	}
 	if (reqt)
-		/* It may seem like a race to issue reqt before updating
+		/*
+		 * It may seem like a race to issue reqt before updating
 		 * the status byte, but it is not.  The chip does not
 		 * issue the reqt until the SPMR is written to at
 		 * a later time.
@@ -796,7 +801,8 @@ static void tnt4882_serial_poll_response2(struct gpib_board *board, uint8_t stat
 		write_byte(&priv->nec7210_priv, AUX_REQT, AUXMR);
 	else if (reqf)
 		write_byte(&priv->nec7210_priv, AUX_REQF, AUXMR);
-	/* We need to always zero bit 6 of the status byte before writing it to
+	/*
+	 * We need to always zero bit 6 of the status byte before writing it to
 	 * the SPMR to insure we are using
 	 * serial poll mode SP1, and not accidentally triggering mode SP3.
 	 */
@@ -1581,10 +1587,10 @@ static int ni_gpib_probe(struct pcmcia_device *link)
 }
 
 /*
- *	This deletes a driver "instance".  The device is de-registered
- *	with Card Services.  If it has been released, all local data
- *	structures are freed.  Otherwise, the structures will be freed
- *	when the device is released.
+ * This deletes a driver "instance".  The device is de-registered
+ * with Card Services.  If it has been released, all local data
+ * structures are freed.  Otherwise, the structures will be freed
+ * when the device is released.
  */
 static void ni_gpib_remove(struct pcmcia_device *link)
 {
@@ -1611,9 +1617,9 @@ static int ni_gpib_config_iteration(struct pcmcia_device *link,	void *priv_data)
 }
 
 /*
- *	ni_gpib_config() is scheduled to run after a CARD_INSERTION event
- *	is received, to configure the PCMCIA socket, and to make the
- *	device available to the system.
+ * ni_gpib_config() is scheduled to run after a CARD_INSERTION event
+ * is received, to configure the PCMCIA socket, and to make the
+ * device available to the system.
  */
 static int ni_gpib_config(struct pcmcia_device *link)
 {
