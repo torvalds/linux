@@ -166,19 +166,22 @@ static void sm3_transform(struct sm3_state *sctx, u8 const *data, u32 W[16])
 #undef W1
 #undef W2
 
-static inline void sm3_block(struct sm3_state *sctx,
-		u8 const *data, int blocks, u32 W[16])
+void sm3_block_generic(struct sm3_state *sctx, u8 const *data, int blocks)
 {
-	while (blocks--) {
+	u32 W[16];
+
+	do {
 		sm3_transform(sctx, data, W);
 		data += SM3_BLOCK_SIZE;
-	}
+	} while (--blocks);
+
+	memzero_explicit(W, sizeof(W));
 }
+EXPORT_SYMBOL_GPL(sm3_block_generic);
 
 void sm3_update(struct sm3_state *sctx, const u8 *data, unsigned int len)
 {
 	unsigned int partial = sctx->count % SM3_BLOCK_SIZE;
-	u32 W[16];
 
 	sctx->count += len;
 
@@ -192,18 +195,16 @@ void sm3_update(struct sm3_state *sctx, const u8 *data, unsigned int len)
 			data += p;
 			len -= p;
 
-			sm3_block(sctx, sctx->buffer, 1, W);
+			sm3_block_generic(sctx, sctx->buffer, 1);
 		}
 
 		blocks = len / SM3_BLOCK_SIZE;
 		len %= SM3_BLOCK_SIZE;
 
 		if (blocks) {
-			sm3_block(sctx, data, blocks, W);
+			sm3_block_generic(sctx, data, blocks);
 			data += blocks * SM3_BLOCK_SIZE;
 		}
-
-		memzero_explicit(W, sizeof(W));
 
 		partial = 0;
 	}
@@ -218,7 +219,6 @@ void sm3_final(struct sm3_state *sctx, u8 *out)
 	__be64 *bits = (__be64 *)(sctx->buffer + bit_offset);
 	__be32 *digest = (__be32 *)out;
 	unsigned int partial = sctx->count % SM3_BLOCK_SIZE;
-	u32 W[16];
 	int i;
 
 	sctx->buffer[partial++] = 0x80;
@@ -226,18 +226,17 @@ void sm3_final(struct sm3_state *sctx, u8 *out)
 		memset(sctx->buffer + partial, 0, SM3_BLOCK_SIZE - partial);
 		partial = 0;
 
-		sm3_block(sctx, sctx->buffer, 1, W);
+		sm3_block_generic(sctx, sctx->buffer, 1);
 	}
 
 	memset(sctx->buffer + partial, 0, bit_offset - partial);
 	*bits = cpu_to_be64(sctx->count << 3);
-	sm3_block(sctx, sctx->buffer, 1, W);
+	sm3_block_generic(sctx, sctx->buffer, 1);
 
 	for (i = 0; i < 8; i++)
 		put_unaligned_be32(sctx->state[i], digest++);
 
 	/* Zeroize sensitive information. */
-	memzero_explicit(W, sizeof(W));
 	memzero_explicit(sctx, sizeof(*sctx));
 }
 EXPORT_SYMBOL_GPL(sm3_final);

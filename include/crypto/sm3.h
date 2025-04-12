@@ -58,6 +58,7 @@ static inline void sm3_init(struct sm3_state *sctx)
 	sctx->count = 0;
 }
 
+void sm3_block_generic(struct sm3_state *sctx, u8 const *data, int blocks);
 void sm3_update(struct sm3_state *sctx, const u8 *data, unsigned int len);
 void sm3_final(struct sm3_state *sctx, u8 *out);
 
