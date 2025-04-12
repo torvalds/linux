@@ -489,7 +489,9 @@ static int init_sb(struct gfs2_sbd *sdp, int silent)
 		       sdp->sd_sb.sb_bsize, (unsigned int)PAGE_SIZE);
 		goto out;
 	}
-	sb_set_blocksize(sb, sdp->sd_sb.sb_bsize);
+	ret = -EINVAL;
+	if (!sb_set_blocksize(sb, sdp->sd_sb.sb_bsize))
+		goto out;
 
 	/* Get the root inode */
 	no_addr = sdp->sd_sb.sb_root_dir.no_addr;
@@ -1158,6 +1160,9 @@ static int gfs2_fill_super(struct super_block *sb, struct fs_context *fc)
 	/* Set up the buffer cache and fill in some fake block size values
 	   to allow us to read-in the on-disk superblock. */
 	sdp->sd_sb.sb_bsize = sb_min_blocksize(sb, 512);
+	error = -EINVAL;
+	if (!sdp->sd_sb.sb_bsize)
+		goto fail_free;
 	sdp->sd_sb.sb_bsize_shift = sb->s_blocksize_bits;
 	sdp->sd_fsb2bb_shift = sdp->sd_sb.sb_bsize_shift - 9;
 	sdp->sd_fsb2bb = BIT(sdp->sd_fsb2bb_shift);
