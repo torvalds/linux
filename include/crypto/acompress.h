@@ -52,10 +52,6 @@ struct acomp_req;
 struct folio;
 
 struct acomp_req_chain {
-	struct list_head head;
-	struct acomp_req *req0;
-	struct acomp_req *cur;
-	int (*op)(struct acomp_req *req);
 	crypto_completion_t compl;
 	void *data;
 	struct scatterlist ssg;
@@ -68,8 +64,6 @@ struct acomp_req_chain {
 		u8 *dst;
 		struct folio *dfolio;
 	};
-	size_t soff;
-	size_t doff;
 	u32 flags;
 };
 
@@ -343,8 +337,6 @@ static inline void acomp_request_set_callback(struct acomp_req *req,
 	req->base.data = data;
 	req->base.flags &= keep;
 	req->base.flags |= flgs & ~keep;
-
-	crypto_reqchain_init(&req->base);
 }
 
 /**
@@ -550,12 +542,6 @@ static inline void acomp_request_set_dst_folio(struct acomp_req *req,
 	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_NONDMA;
 	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_VIRT;
 	req->base.flags |= CRYPTO_ACOMP_REQ_DST_FOLIO;
-}
-
-static inline void acomp_request_chain(struct acomp_req *req,
-				       struct acomp_req *head)
-{
-	crypto_request_chain(&req->base, &head->base);
 }
 
 /**

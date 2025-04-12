@@ -284,28 +284,14 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 	return ret;
 }
 
-static int scomp_acomp_chain(struct acomp_req *req, int dir)
-{
-	struct acomp_req *r2;
-	int err;
-
-	err = scomp_acomp_comp_decomp(req, dir);
-	req->base.err = err;
-
-	list_for_each_entry(r2, &req->base.list, base.list)
-		r2->base.err = scomp_acomp_comp_decomp(r2, dir);
-
-	return err;
-}
-
 static int scomp_acomp_compress(struct acomp_req *req)
 {
-	return scomp_acomp_chain(req, 1);
+	return scomp_acomp_comp_decomp(req, 1);
 }
 
 static int scomp_acomp_decompress(struct acomp_req *req)
 {
-	return scomp_acomp_chain(req, 0);
+	return scomp_acomp_comp_decomp(req, 0);
 }
 
 static void crypto_exit_scomp_ops_async(struct crypto_tfm *tfm)

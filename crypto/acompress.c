@@ -177,7 +177,6 @@ static void acomp_save_req(struct acomp_req *req, crypto_completion_t cplt)
 	state->data = req->base.data;
 	req->base.complete = cplt;
 	req->base.data = state;
-	state->req0 = req;
 }
 
 static void acomp_restore_req(struct acomp_req *req)
@@ -188,23 +187,20 @@ static void acomp_restore_req(struct acomp_req *req)
 	req->base.data = state->data;
 }
 
-static void acomp_reqchain_virt(struct acomp_req_chain *state, int err)
+static void acomp_reqchain_virt(struct acomp_req *req)
 {
-	struct acomp_req *req = state->cur;
+	struct acomp_req_chain *state = &req->chain;
 	unsigned int slen = req->slen;
 	unsigned int dlen = req->dlen;
-
-	req->base.err = err;
-	state = &req->chain;
 
 	if (state->flags & CRYPTO_ACOMP_REQ_SRC_VIRT)
 		acomp_request_set_src_dma(req, state->src, slen);
 	else if (state->flags & CRYPTO_ACOMP_REQ_SRC_FOLIO)
-		acomp_request_set_src_folio(req, state->sfolio, state->soff, slen);
+		acomp_request_set_src_folio(req, state->sfolio, req->soff, slen);
 	if (state->flags & CRYPTO_ACOMP_REQ_DST_VIRT)
 		acomp_request_set_dst_dma(req, state->dst, dlen);
 	else if (state->flags & CRYPTO_ACOMP_REQ_DST_FOLIO)
-		acomp_request_set_dst_folio(req, state->dfolio, state->doff, dlen);
+		acomp_request_set_dst_folio(req, state->dfolio, req->doff, dlen);
 }
 
 static void acomp_virt_to_sg(struct acomp_req *req)
@@ -229,7 +225,6 @@ static void acomp_virt_to_sg(struct acomp_req *req)
 		size_t off = req->soff;
 
 		state->sfolio = folio;
-		state->soff = off;
 		sg_init_table(&state->ssg, 1);
 		sg_set_page(&state->ssg, folio_page(folio, off / PAGE_SIZE),
 			    slen, off % PAGE_SIZE);
@@ -249,7 +244,6 @@ static void acomp_virt_to_sg(struct acomp_req *req)
 		size_t off = req->doff;
 
 		state->dfolio = folio;
-		state->doff = off;
 		sg_init_table(&state->dsg, 1);
 		sg_set_page(&state->dsg, folio_page(folio, off / PAGE_SIZE),
 			    dlen, off % PAGE_SIZE);
@@ -257,8 +251,7 @@ static void acomp_virt_to_sg(struct acomp_req *req)
 	}
 }
 
-static int acomp_do_nondma(struct acomp_req_chain *state,
-			   struct acomp_req *req)
+static int acomp_do_nondma(struct acomp_req *req, bool comp)
 {
 	u32 keep = CRYPTO_ACOMP_REQ_SRC_VIRT |
 		   CRYPTO_ACOMP_REQ_SRC_NONDMA |
@@ -275,7 +268,7 @@ static int acomp_do_nondma(struct acomp_req_chain *state,
 	fbreq->slen = req->slen;
 	fbreq->dlen = req->dlen;
 
-	if (state->op == crypto_acomp_reqtfm(req)->compress)
+	if (comp)
 		err = crypto_acomp_compress(fbreq);
 	else
 		err = crypto_acomp_decompress(fbreq);
@@ -284,114 +277,70 @@ static int acomp_do_nondma(struct acomp_req_chain *state,
 	return err;
 }
 
-static int acomp_do_one_req(struct acomp_req_chain *state,
-			    struct acomp_req *req)
+static int acomp_do_one_req(struct acomp_req *req, bool comp)
 {
-	state->cur = req;
-
 	if (acomp_request_isnondma(req))
-		return acomp_do_nondma(state, req);
+		return acomp_do_nondma(req, comp);
 
 	acomp_virt_to_sg(req);
-	return state->op(req);
+	return comp ? crypto_acomp_reqtfm(req)->compress(req) :
+		      crypto_acomp_reqtfm(req)->decompress(req);
 }
 
-static int acomp_reqchain_finish(struct acomp_req *req0, int err, u32 mask)
+static int acomp_reqchain_finish(struct acomp_req *req, int err)
 {
-	struct acomp_req_chain *state = req0->base.data;
-	struct acomp_req *req = state->cur;
-	struct acomp_req *n;
-
-	acomp_reqchain_virt(state, err);
-
-	if (req != req0)
-		list_add_tail(&req->base.list, &req0->base.list);
-
-	list_for_each_entry_safe(req, n, &state->head, base.list) {
-		list_del_init(&req->base.list);
-
-		req->base.flags &= mask;
-		req->base.complete = acomp_reqchain_done;
-		req->base.data = state;
-
-		err = acomp_do_one_req(state, req);
-
-		if (err == -EINPROGRESS) {
-			if (!list_empty(&state->head))
-				err = -EBUSY;
-			goto out;
-		}
-
-		if (err == -EBUSY)
-			goto out;
-
-		acomp_reqchain_virt(state, err);
-		list_add_tail(&req->base.list, &req0->base.list);
-	}
-
-	acomp_restore_req(req0);
-
-out:
+	acomp_reqchain_virt(req);
+	acomp_restore_req(req);
 	return err;
 }
 
 static void acomp_reqchain_done(void *data, int err)
 {
-	struct acomp_req_chain *state = data;
-	crypto_completion_t compl = state->compl;
+	struct acomp_req *req = data;
+	crypto_completion_t compl;
 
-	data = state->data;
+	compl = req->chain.compl;
+	data = req->chain.data;
 
-	if (err == -EINPROGRESS) {
-		if (!list_empty(&state->head))
-			return;
+	if (err == -EINPROGRESS)
 		goto notify;
-	}
 
-	err = acomp_reqchain_finish(state->req0, err,
-				    CRYPTO_TFM_REQ_MAY_BACKLOG);
-	if (err == -EBUSY)
-		return;
+	err = acomp_reqchain_finish(req, err);
 
 notify:
 	compl(data, err);
 }
 
-static int acomp_do_req_chain(struct acomp_req *req,
-			      int (*op)(struct acomp_req *req))
+static int acomp_do_req_chain(struct acomp_req *req, bool comp)
 {
-	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
-	struct acomp_req_chain *state;
 	int err;
 
-	if (crypto_acomp_req_chain(tfm) ||
-	    (!acomp_request_chained(req) && acomp_request_issg(req)))
-		return op(req);
-
 	acomp_save_req(req, acomp_reqchain_done);
-	state = req->base.data;
 
-	state->op = op;
-	state->src = NULL;
-	INIT_LIST_HEAD(&state->head);
-	list_splice_init(&req->base.list, &state->head);
-
-	err = acomp_do_one_req(state, req);
+	err = acomp_do_one_req(req, comp);
 	if (err == -EBUSY || err == -EINPROGRESS)
-		return -EBUSY;
+		return err;
 
-	return acomp_reqchain_finish(req, err, ~0);
+	return acomp_reqchain_finish(req, err);
 }
 
 int crypto_acomp_compress(struct acomp_req *req)
 {
-	return acomp_do_req_chain(req, crypto_acomp_reqtfm(req)->compress);
+	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
+
+	if (crypto_acomp_req_chain(tfm) || acomp_request_issg(req))
+		crypto_acomp_reqtfm(req)->compress(req);
+	return acomp_do_req_chain(req, true);
 }
 EXPORT_SYMBOL_GPL(crypto_acomp_compress);
 
 int crypto_acomp_decompress(struct acomp_req *req)
 {
-	return acomp_do_req_chain(req, crypto_acomp_reqtfm(req)->decompress);
+	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
+
+	if (crypto_acomp_req_chain(tfm) || acomp_request_issg(req))
+		crypto_acomp_reqtfm(req)->decompress(req);
+	return acomp_do_req_chain(req, false);
 }
 EXPORT_SYMBOL_GPL(crypto_acomp_decompress);
 
