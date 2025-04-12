@@ -1101,7 +1101,7 @@ static int gpio_aggregator_parse(struct gpio_aggregator *aggr)
 		error = bitmap_parselist(offsets, bitmap, AGGREGATOR_MAX_GPIOS);
 		if (error) {
 			pr_err("Cannot parse %s: %d\n", offsets, error);
-			return error;
+			goto err;
 		}
 
 		for_each_set_bit(i, bitmap, AGGREGATOR_MAX_GPIOS) {
