@@ -268,8 +268,9 @@ static int pc2_generic_attach(struct gpib_board *board, const struct gpib_board_
 	nec_priv->type = chipset;
 
 #ifndef PC2_DMA
-	/* board->dev hasn't been initialized, so forget about DMA until this driver
-	 *  is adapted to use isa_register_driver.
+	/*
+	 * board->dev hasn't been initialized, so forget about DMA until this driver
+	 * is adapted to use isa_register_driver.
 	 */
 	if (config->ibdma)
 	// driver needs to be adapted to use isa_register_driver to get a struct device*
