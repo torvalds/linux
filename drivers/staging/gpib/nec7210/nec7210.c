@@ -79,7 +79,8 @@ void nec7210_parallel_poll_response(struct gpib_board *board, struct nec7210_pri
 		write_byte(priv, AUX_CPPF, AUXMR);
 }
 EXPORT_SYMBOL(nec7210_parallel_poll_response);
-/* This is really only adequate for chips that do a 488.2 style reqt/reqf
+/*
+ * This is really only adequate for chips that do a 488.2 style reqt/reqf
  * based on bit 6 of the SPMR (see chapter 11.3.3 of 488.2). For simpler chips that simply
  * set rsv directly based on bit 6, we either need to do more hardware setup to expose
  * the 488.2 capability (for example with NI chips), or we need to implement the
@@ -202,7 +203,8 @@ unsigned int nec7210_update_status_nolock(struct gpib_board *board, struct nec72
 		set_bit(SPOLL_NUM, &board->status);
 	}
 
-	/* we rely on the interrupt handler to set the
+	/*
+	 * we rely on the interrupt handler to set the
 	 * rest of the status bits
 	 */
 
@@ -482,7 +484,8 @@ static int pio_read(struct gpib_board *board, struct nec7210_priv *priv, u8 *buf
 		}
 		if (test_bit(READ_READY_BN, &priv->state)) {
 			if (*bytes_read == 0)	{
-				/* We set the handshake mode here because we know
+				/*
+				 * We set the handshake mode here because we know
 				 * no new bytes will arrive (it has already arrived
 				 * and is awaiting being read out of the chip) while we are changing
 				 * modes.  This ensures we can reliably keep track
@@ -662,7 +665,8 @@ static int pio_write(struct gpib_board *board, struct nec7210_priv *priv, u8 *bu
 		if (retval == -EIO) {
 			/* resend last byte on bus error */
 			*bytes_written = last_count;
-			/* we can get unrecoverable bus errors,
+			/*
+			 * we can get unrecoverable bus errors,
 			 * so give up after a while
 			 */
 			bus_error_count++;
@@ -805,7 +809,8 @@ int nec7210_write(struct gpib_board *board, struct nec7210_priv *priv,
 	if (send_eoi) {
 		size_t num_bytes;
 
-		/* We need to wait to make sure we will immediately be able to write the data byte
+		/*
+		 * We need to wait to make sure we will immediately be able to write the data byte
 		 * into the chip before sending the associated AUX_SEOI command.  This is really
 		 * only needed for length==1 since otherwise the earlier calls to pio_write
 		 * will have dont the wait already.
@@ -827,7 +832,7 @@ int nec7210_write(struct gpib_board *board, struct nec7210_priv *priv,
 EXPORT_SYMBOL(nec7210_write);
 
 /*
- *  interrupt service routine
+ * interrupt service routine
  */
 irqreturn_t nec7210_interrupt(struct gpib_board *board, struct nec7210_priv *priv)
 {
@@ -1021,7 +1026,8 @@ EXPORT_SYMBOL(nec7210_ioport_read_byte);
 void nec7210_ioport_write_byte(struct nec7210_priv *priv, u8 data, unsigned int register_num)
 {
 	if (register_num == AUXMR)
-		/* locking makes absolutely sure noone accesses the
+		/*
+		 * locking makes absolutely sure noone accesses the
 		 * AUXMR register faster than once per microsecond
 		 */
 		nec7210_locking_ioport_write_byte(priv, data, register_num);
@@ -1066,7 +1072,8 @@ EXPORT_SYMBOL(nec7210_iomem_read_byte);
 void nec7210_iomem_write_byte(struct nec7210_priv *priv, u8 data, unsigned int register_num)
 {
 	if (register_num == AUXMR)
-		/* locking makes absolutely sure noone accesses the
+		/*
+		 * locking makes absolutely sure noone accesses the
 		 * AUXMR register faster than once per microsecond
 		 */
 		nec7210_locking_iomem_write_byte(priv, data, register_num);
