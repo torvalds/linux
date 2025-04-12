@@ -60,8 +60,14 @@ static int zynqmp_sha_init_tfm(struct crypto_shash *hash)
 	if (IS_ERR(fallback_tfm))
 		return PTR_ERR(fallback_tfm);
 
+	if (crypto_shash_descsize(hash) <
+	    sizeof(struct zynqmp_sha_desc_ctx) +
+	    crypto_shash_descsize(tfm_ctx->fbk_tfm)) {
+		crypto_free_shash(fallback_tfm);
+		return -EINVAL;
+	}
+
 	tfm_ctx->fbk_tfm = fallback_tfm;
-	hash->descsize += crypto_shash_descsize(tfm_ctx->fbk_tfm);
 
 	return 0;
 }
@@ -170,7 +176,8 @@ static struct zynqmp_sha_drv_ctx sha3_drv_ctx = {
 		.import = zynqmp_sha_import,
 		.init_tfm = zynqmp_sha_init_tfm,
 		.exit_tfm = zynqmp_sha_exit_tfm,
-		.descsize = sizeof(struct zynqmp_sha_desc_ctx),
+		.descsize = sizeof(struct zynqmp_sha_desc_ctx) +
+			    sizeof(struct sha3_state),
 		.statesize = sizeof(struct sha3_state),
 		.digestsize = SHA3_384_DIGEST_SIZE,
 		.base = {
