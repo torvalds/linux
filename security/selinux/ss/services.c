@@ -49,7 +49,6 @@
 #include <linux/parser.h>
 #include <linux/vmalloc.h>
 #include <linux/lsm_hooks.h>
-#include <linux/parser.h>
 #include <net/netlabel.h>
 
 #include "flask.h"
