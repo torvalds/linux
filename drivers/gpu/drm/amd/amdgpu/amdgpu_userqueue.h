@@ -32,6 +32,13 @@
 #define uq_mgr_to_fpriv(u) container_of(u, struct amdgpu_fpriv, userq_mgr)
 #define work_to_uq_mgr(w, name) container_of(w, struct amdgpu_userq_mgr, name)
 
+enum amdgpu_userqueue_state {
+	AMDGPU_USERQ_STATE_UNMAPPED = 0,
+	AMDGPU_USERQ_STATE_MAPPED,
+	AMDGPU_USERQ_STATE_PREEMPTED,
+	AMDGPU_USERQ_STATE_HUNG,
+};
+
 struct amdgpu_mqd_prop;
 
 struct amdgpu_userq_obj {
@@ -42,7 +49,7 @@ struct amdgpu_userq_obj {
 
 struct amdgpu_usermode_queue {
 	int			queue_type;
-	uint8_t			queue_active;
+	enum amdgpu_userqueue_state state;
 	uint64_t		doorbell_handle;
 	uint64_t		doorbell_index;
 	uint64_t		flags;
