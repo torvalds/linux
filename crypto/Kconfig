@@ -1012,13 +1012,10 @@ config CRYPTO_SHA3
 	help
 	  SHA-3 secure hash algorithms (FIPS 202, ISO/IEC 10118-3)
 
-config CRYPTO_SM3
-	tristate
-
 config CRYPTO_SM3_GENERIC
 	tristate "SM3 (ShangMi 3)"
 	select CRYPTO_HASH
-	select CRYPTO_SM3
+	select CRYPTO_LIB_SM3
 	help
 	  SM3 (ShangMi 3) secure hash function (OSCCA GM/T 0004-2012, ISO/IEC 10118-3)
 

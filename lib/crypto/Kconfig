@@ -152,4 +152,7 @@ config CRYPTO_LIB_SHA1
 config CRYPTO_LIB_SHA256
 	tristate
 
+config CRYPTO_LIB_SM3
+	tristate
+
 endmenu
