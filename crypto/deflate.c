@@ -111,7 +111,6 @@ static int deflate_compress(struct acomp_req *req)
 {
 	struct crypto_acomp_stream *s;
 	struct deflate_stream *ds;
-	struct acomp_req *r2;
 	int err;
 
 	s = crypto_acomp_lock_stream_bh(&deflate_streams);
@@ -126,12 +125,6 @@ static int deflate_compress(struct acomp_req *req)
 	}
 
 	err = deflate_compress_one(req, ds);
-	req->base.err = err;
-
-	list_for_each_entry(r2, &req->base.list, base.list) {
-		zlib_deflateReset(&ds->stream);
-		r2->base.err = deflate_compress_one(r2, ds);
-	}
 
 out:
 	crypto_acomp_unlock_stream_bh(s);
@@ -199,7 +192,6 @@ static int deflate_decompress(struct acomp_req *req)
 {
 	struct crypto_acomp_stream *s;
 	struct deflate_stream *ds;
-	struct acomp_req *r2;
 	int err;
 
 	s = crypto_acomp_lock_stream_bh(&deflate_streams);
@@ -212,12 +204,6 @@ static int deflate_decompress(struct acomp_req *req)
 	}
 
 	err = deflate_decompress_one(req, ds);
-	req->base.err = err;
-
-	list_for_each_entry(r2, &req->base.list, base.list) {
-		zlib_inflateReset(&ds->stream);
-		r2->base.err = deflate_decompress_one(r2, ds);
-	}
 
 out:
 	crypto_acomp_unlock_stream_bh(s);
