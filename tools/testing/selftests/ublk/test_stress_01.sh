@@ -7,37 +7,28 @@ ERR_CODE=0
 
 ublk_io_and_remove()
 {
-	local size=$1
-	local dev_id
-	shift 1
-
-	dev_id=$(_add_ublk_dev "$@")
-	_check_add_dev $TID $?
-
-	[ "$UBLK_TEST_QUIET" -eq 0 ] && echo "run ublk IO vs. remove device(ublk add $*)"
-	if ! __run_io_and_remove "$dev_id" "${size}" "no"; then
-		echo "/dev/ublkc$dev_id isn't removed"
-		exit 255
+	run_io_and_remove "$@"
+	ERR_CODE=$?
+	if [ ${ERR_CODE} -ne 0 ]; then
+		echo "$TID failure: $*"
+		_show_result $TID $ERR_CODE
 	fi
 }
 
+if ! _have_program fio; then
+	exit "$UBLK_SKIP_CODE"
+fi
+
 _prep_test "stress" "run IO and remove device"
 
-ublk_io_and_remove 8G -t null -q 4
-ERR_CODE=$?
-if [ ${ERR_CODE} -ne 0 ]; then
-	_show_result $TID $ERR_CODE
-fi
-
 _create_backfile 0 256M
+_create_backfile 1 128M
+_create_backfile 2 128M
 
-ublk_io_and_remove 256M -t loop -q 4 "${UBLK_BACKFILES[0]}"
-ERR_CODE=$?
-if [ ${ERR_CODE} -ne 0 ]; then
-	_show_result $TID $ERR_CODE
-fi
+ublk_io_and_remove 8G -t null -q 4 &
+ublk_io_and_remove 256M -t loop -q 4 "${UBLK_BACKFILES[0]}" &
+ublk_io_and_remove 256M -t stripe -q 4 "${UBLK_BACKFILES[1]}" "${UBLK_BACKFILES[2]}" &
+wait
 
-ublk_io_and_remove 256M -t loop -q 4 -z "${UBLK_BACKFILES[0]}"
-ERR_CODE=$?
 _cleanup_test "stress"
 _show_result $TID $ERR_CODE

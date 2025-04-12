@@ -230,7 +230,7 @@ __run_io_and_remove()
 	local kill_server=$3
 
 	fio --name=job1 --filename=/dev/ublkb"${dev_id}" --ioengine=libaio \
-		--rw=readwrite --iodepth=64 --size="${size}" --numjobs=4 \
+		--rw=readwrite --iodepth=256 --size="${size}" --numjobs=4 \
 		--runtime=20 --time_based > /dev/null 2>&1 &
 	sleep 2
 	if [ "${kill_server}" = "yes" ]; then
@@ -246,6 +246,38 @@ __run_io_and_remove()
 		return 255
 	fi
 	wait
+}
+
+run_io_and_remove()
+{
+	local size=$1
+	local dev_id
+	shift 1
+
+	dev_id=$(_add_ublk_dev "$@")
+	_check_add_dev "$TID" $?
+
+	[ "$UBLK_TEST_QUIET" -eq 0 ] && echo "run ublk IO vs. remove device(ublk add $*)"
+	if ! __run_io_and_remove "$dev_id" "${size}" "no"; then
+		echo "/dev/ublkc$dev_id isn't removed"
+		exit 255
+	fi
+}
+
+run_io_and_kill_daemon()
+{
+	local size=$1
+	local dev_id
+	shift 1
+
+	dev_id=$(_add_ublk_dev "$@")
+	_check_add_dev "$TID" $?
+
+	[ "$UBLK_TEST_QUIET" -eq 0 ] && echo "run ublk IO vs kill ublk server(ublk add $*)"
+	if ! __run_io_and_remove "$dev_id" "${size}" "yes"; then
+		echo "/dev/ublkc$dev_id isn't removed res ${res}"
+		exit 255
+	fi
 }
 
 _ublk_test_top_dir()
