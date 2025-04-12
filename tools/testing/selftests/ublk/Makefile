@@ -25,6 +25,7 @@ TEST_PROGS += test_stress_01.sh
 TEST_PROGS += test_stress_02.sh
 TEST_PROGS += test_stress_03.sh
 TEST_PROGS += test_stress_04.sh
+TEST_PROGS += test_stress_05.sh
 
 TEST_GEN_PROGS_EXTENDED = kublk
 
