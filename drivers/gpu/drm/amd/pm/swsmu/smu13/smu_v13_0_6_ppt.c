@@ -337,6 +337,8 @@ static void smu_v13_0_12_init_caps(struct smu_context *smu)
 	if (fw_ver >= 0x00561E00)
 		smu_v13_0_6_cap_set(smu, SMU_CAP(STATIC_METRICS));
 
+	if (fw_ver >= 0x00562500)
+		smu_v13_0_6_cap_set(smu, SMU_CAP(HST_LIMIT_METRICS));
 }
 
 static void smu_v13_0_6_init_caps(struct smu_context *smu)
