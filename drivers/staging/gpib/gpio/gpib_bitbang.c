@@ -32,7 +32,8 @@
 #define ENABLE_IRQ(IRQ, TYPE) irq_set_irq_type(IRQ, TYPE)
 #define DISABLE_IRQ(IRQ) irq_set_irq_type(IRQ, IRQ_TYPE_NONE)
 
-/* Debug print levels:
+/*
+ * Debug print levels:
  *  0 = load/unload info and errors that make the driver fail;
  *  1 = + warnings for unforeseen events that may break the current
  *	 operation and lead to a timeout, but do not affect the
@@ -1256,7 +1257,8 @@ static int bb_attach(struct gpib_board *board, const struct gpib_board_config *c
 	if (allocate_gpios(board))
 		goto bb_attach_fail;
 
-/* Configure SN7516X control lines.
+/*
+ * Configure SN7516X control lines.
  * drive ATN, IFC and REN as outputs only when master
  * i.e. system controller. In this mode can only be the CIC
  * When not master then enable device mode ATN, IFC & REN as inputs
