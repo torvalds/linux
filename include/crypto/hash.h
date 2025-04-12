@@ -166,8 +166,8 @@ struct shash_desc {
 #define HASH_MAX_DIGESTSIZE	 64
 
 /*
- * Worst case is hmac(sha3-224-generic).  Its context is a nested 'shash_desc'
- * containing a 'struct sha3_state'.
+ * Worst case is hmac(sha-224-s390).  Its context is a nested 'shash_desc'
+ * containing a 'struct s390_sha_ctx'.
  */
 #define HASH_MAX_DESCSIZE	(sizeof(struct shash_desc) + 360)
 #define MAX_SYNC_HASH_REQSIZE	HASH_MAX_DESCSIZE
