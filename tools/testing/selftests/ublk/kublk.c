@@ -346,7 +346,9 @@ static int ublk_queue_init(struct ublk_queue *q)
 	}
 
 	ret = ublk_setup_ring(&q->ring, ring_depth, cq_depth,
-			IORING_SETUP_COOP_TASKRUN);
+			IORING_SETUP_COOP_TASKRUN |
+			IORING_SETUP_SINGLE_ISSUER |
+			IORING_SETUP_DEFER_TASKRUN);
 	if (ret < 0) {
 		ublk_err("ublk dev %d queue %d setup io_uring failed %d\n",
 				q->dev->dev_info.dev_id, q->q_id, ret);
