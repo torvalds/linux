@@ -9,10 +9,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-struct lzo_ctx {
-	void *lzo_comp_mem;
-};
-
 static void *lzo_alloc_ctx(void)
 {
 	void *ctx;

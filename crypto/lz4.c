@@ -12,10 +12,6 @@
 #include <linux/lz4.h>
 #include <crypto/internal/scompress.h>
 
-struct lz4_ctx {
-	void *lz4_comp_mem;
-};
-
 static void *lz4_alloc_ctx(void)
 {
 	void *ctx;

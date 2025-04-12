@@ -9,10 +9,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-struct lzorle_ctx {
-	void *lzorle_comp_mem;
-};
-
 static void *lzorle_alloc_ctx(void)
 {
 	void *ctx;

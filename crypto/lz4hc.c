@@ -10,10 +10,6 @@
 #include <linux/vmalloc.h>
 #include <linux/lz4.h>
 
-struct lz4hc_ctx {
-	void *lz4hc_comp_mem;
-};
-
 static void *lz4hc_alloc_ctx(void)
 {
 	void *ctx;
