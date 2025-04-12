@@ -24,6 +24,13 @@ static const struct rhashtable_params airoha_flow_table_params = {
 	.automatic_shrinking = true,
 };
 
+static const struct rhashtable_params airoha_l2_flow_table_params = {
+	.head_offset = offsetof(struct airoha_flow_table_entry, l2_node),
+	.key_offset = offsetof(struct airoha_flow_table_entry, data.bridge),
+	.key_len = 2 * ETH_ALEN,
+	.automatic_shrinking = true,
+};
+
 static bool airoha_ppe2_is_enabled(struct airoha_eth *eth)
 {
 	return airoha_fe_rr(eth, REG_PPE_GLO_CFG(1)) & PPE_GLO_CFG_EN_MASK;
@@ -197,6 +204,15 @@ static int airoha_get_dsa_port(struct net_device **dev)
 #endif
 }
 
+static void airoha_ppe_foe_set_bridge_addrs(struct airoha_foe_bridge *br,
+					    struct ethhdr *eh)
+{
+	br->dest_mac_hi = get_unaligned_be32(eh->h_dest);
+	br->dest_mac_lo = get_unaligned_be16(eh->h_dest + 4);
+	br->src_mac_hi = get_unaligned_be16(eh->h_source);
+	br->src_mac_lo = get_unaligned_be32(eh->h_source + 2);
+}
+
 static int airoha_ppe_foe_entry_prepare(struct airoha_eth *eth,
 					struct airoha_foe_entry *hwe,
 					struct net_device *dev, int type,
@@ -247,13 +263,7 @@ static int airoha_ppe_foe_entry_prepare(struct airoha_eth *eth,
 
 	qdata = FIELD_PREP(AIROHA_FOE_SHAPER_ID, 0x7f);
 	if (type == PPE_PKT_TYPE_BRIDGE) {
-		hwe->bridge.dest_mac_hi = get_unaligned_be32(data->eth.h_dest);
-		hwe->bridge.dest_mac_lo =
-			get_unaligned_be16(data->eth.h_dest + 4);
-		hwe->bridge.src_mac_hi =
-			get_unaligned_be16(data->eth.h_source);
-		hwe->bridge.src_mac_lo =
-			get_unaligned_be32(data->eth.h_source + 2);
+		airoha_ppe_foe_set_bridge_addrs(&hwe->bridge, &data->eth);
 		hwe->bridge.data = qdata;
 		hwe->bridge.ib2 = val;
 		l2 = &hwe->bridge.l2.common;
@@ -378,6 +388,19 @@ static u32 airoha_ppe_foe_get_entry_hash(struct airoha_foe_entry *hwe)
 		hv3 = hwe->ipv6.src_ip[1] ^ hwe->ipv6.dest_ip[1];
 		hv3 ^= hwe->ipv6.src_ip[0];
 		break;
+	case PPE_PKT_TYPE_BRIDGE: {
+		struct airoha_foe_mac_info *l2 = &hwe->bridge.l2;
+
+		hv1 = l2->common.src_mac_hi & 0xffff;
+		hv1 = hv1 << 16 | l2->src_mac_lo;
+
+		hv2 = l2->common.dest_mac_lo;
+		hv2 = hv2 << 16;
+		hv2 = hv2 | ((l2->common.src_mac_hi & 0xffff0000) >> 16);
+
+		hv3 = l2->common.dest_mac_hi;
+		break;
+	}
 	case PPE_PKT_TYPE_IPV4_DSLITE:
 	case PPE_PKT_TYPE_IPV6_6RD:
 	default:
@@ -476,10 +499,102 @@ static int airoha_ppe_foe_commit_entry(struct airoha_ppe *ppe,
 	return 0;
 }
 
-static void airoha_ppe_foe_insert_entry(struct airoha_ppe *ppe, u32 hash)
+static void airoha_ppe_foe_remove_flow(struct airoha_ppe *ppe,
+				       struct airoha_flow_table_entry *e)
+{
+	lockdep_assert_held(&ppe_lock);
+
+	hlist_del_init(&e->list);
+	if (e->hash != 0xffff) {
+		e->data.ib1 &= ~AIROHA_FOE_IB1_BIND_STATE;
+		e->data.ib1 |= FIELD_PREP(AIROHA_FOE_IB1_BIND_STATE,
+					  AIROHA_FOE_STATE_INVALID);
+		airoha_ppe_foe_commit_entry(ppe, &e->data, e->hash);
+		e->hash = 0xffff;
+	}
+	if (e->type == FLOW_TYPE_L2_SUBFLOW) {
+		hlist_del_init(&e->l2_subflow_node);
+		kfree(e);
+	}
+}
+
+static void airoha_ppe_foe_remove_l2_flow(struct airoha_ppe *ppe,
+					  struct airoha_flow_table_entry *e)
+{
+	struct hlist_head *head = &e->l2_flows;
+	struct hlist_node *n;
+
+	lockdep_assert_held(&ppe_lock);
+
+	rhashtable_remove_fast(&ppe->l2_flows, &e->l2_node,
+			       airoha_l2_flow_table_params);
+	hlist_for_each_entry_safe(e, n, head, l2_subflow_node)
+		airoha_ppe_foe_remove_flow(ppe, e);
+}
+
+static void airoha_ppe_foe_flow_remove_entry(struct airoha_ppe *ppe,
+					     struct airoha_flow_table_entry *e)
+{
+	spin_lock_bh(&ppe_lock);
+
+	if (e->type == FLOW_TYPE_L2)
+		airoha_ppe_foe_remove_l2_flow(ppe, e);
+	else
+		airoha_ppe_foe_remove_flow(ppe, e);
+
+	spin_unlock_bh(&ppe_lock);
+}
+
+static int
+airoha_ppe_foe_commit_subflow_entry(struct airoha_ppe *ppe,
+				    struct airoha_flow_table_entry *e,
+				    u32 hash)
+{
+	u32 mask = AIROHA_FOE_IB1_BIND_PACKET_TYPE | AIROHA_FOE_IB1_BIND_UDP;
+	struct airoha_foe_entry *hwe_p, hwe;
+	struct airoha_flow_table_entry *f;
+	struct airoha_foe_mac_info *l2;
+	int type;
+
+	hwe_p = airoha_ppe_foe_get_entry(ppe, hash);
+	if (!hwe_p)
+		return -EINVAL;
+
+	f = kzalloc(sizeof(*f), GFP_ATOMIC);
+	if (!f)
+		return -ENOMEM;
+
+	hlist_add_head(&f->l2_subflow_node, &e->l2_flows);
+	f->type = FLOW_TYPE_L2_SUBFLOW;
+	f->hash = hash;
+
+	memcpy(&hwe, hwe_p, sizeof(*hwe_p));
+	hwe.ib1 = (hwe.ib1 & mask) | (e->data.ib1 & ~mask);
+	l2 = &hwe.bridge.l2;
+	memcpy(l2, &e->data.bridge.l2, sizeof(*l2));
+
+	type = FIELD_GET(AIROHA_FOE_IB1_BIND_PACKET_TYPE, hwe.ib1);
+	if (type == PPE_PKT_TYPE_IPV4_HNAPT)
+		memcpy(&hwe.ipv4.new_tuple, &hwe.ipv4.orig_tuple,
+		       sizeof(hwe.ipv4.new_tuple));
+	else if (type >= PPE_PKT_TYPE_IPV6_ROUTE_3T &&
+		 l2->common.etype == ETH_P_IP)
+		l2->common.etype = ETH_P_IPV6;
+
+	hwe.bridge.ib2 = e->data.bridge.ib2;
+	airoha_ppe_foe_commit_entry(ppe, &hwe, hash);
+
+	return 0;
+}
+
+static void airoha_ppe_foe_insert_entry(struct airoha_ppe *ppe,
+					struct sk_buff *skb,
+					u32 hash)
 {
 	struct airoha_flow_table_entry *e;
+	struct airoha_foe_bridge br = {};
 	struct airoha_foe_entry *hwe;
+	bool commit_done = false;
 	struct hlist_node *n;
 	u32 index, state;
 
@@ -495,21 +610,68 @@ static void airoha_ppe_foe_insert_entry(struct airoha_ppe *ppe, u32 hash)
 
 	index = airoha_ppe_foe_get_entry_hash(hwe);
 	hlist_for_each_entry_safe(e, n, &ppe->foe_flow[index], list) {
-		if (airoha_ppe_foe_compare_entry(e, hwe)) {
-			airoha_ppe_foe_commit_entry(ppe, &e->data, hash);
-			e->hash = hash;
-			break;
+		if (e->type == FLOW_TYPE_L2_SUBFLOW) {
+			state = FIELD_GET(AIROHA_FOE_IB1_BIND_STATE, hwe->ib1);
+			if (state != AIROHA_FOE_STATE_BIND) {
+				e->hash = 0xffff;
+				airoha_ppe_foe_remove_flow(ppe, e);
+			}
+			continue;
 		}
+
+		if (commit_done || !airoha_ppe_foe_compare_entry(e, hwe)) {
+			e->hash = 0xffff;
+			continue;
+		}
+
+		airoha_ppe_foe_commit_entry(ppe, &e->data, hash);
+		commit_done = true;
+		e->hash = hash;
 	}
+
+	if (commit_done)
+		goto unlock;
+
+	airoha_ppe_foe_set_bridge_addrs(&br, eth_hdr(skb));
+	e = rhashtable_lookup_fast(&ppe->l2_flows, &br,
+				   airoha_l2_flow_table_params);
+	if (e)
+		airoha_ppe_foe_commit_subflow_entry(ppe, e, hash);
 unlock:
 	spin_unlock_bh(&ppe_lock);
+}
+
+static int
+airoha_ppe_foe_l2_flow_commit_entry(struct airoha_ppe *ppe,
+				    struct airoha_flow_table_entry *e)
+{
+	struct airoha_flow_table_entry *prev;
+
+	e->type = FLOW_TYPE_L2;
+	prev = rhashtable_lookup_get_insert_fast(&ppe->l2_flows, &e->l2_node,
+						 airoha_l2_flow_table_params);
+	if (!prev)
+		return 0;
+
+	if (IS_ERR(prev))
+		return PTR_ERR(prev);
+
+	return rhashtable_replace_fast(&ppe->l2_flows, &prev->l2_node,
+				       &e->l2_node,
+				       airoha_l2_flow_table_params);
 }
 
 static int airoha_ppe_foe_flow_commit_entry(struct airoha_ppe *ppe,
 					    struct airoha_flow_table_entry *e)
 {
-	u32 hash = airoha_ppe_foe_get_entry_hash(&e->data);
+	int type = FIELD_GET(AIROHA_FOE_IB1_BIND_PACKET_TYPE, e->data.ib1);
+	u32 hash;
 
+	if (type == PPE_PKT_TYPE_BRIDGE)
+		return airoha_ppe_foe_l2_flow_commit_entry(ppe, e);
+
+	hash = airoha_ppe_foe_get_entry_hash(&e->data);
+	e->type = FLOW_TYPE_L4;
 	e->hash = 0xffff;
 
 	spin_lock_bh(&ppe_lock);
@@ -517,23 +679,6 @@ static int airoha_ppe_foe_flow_commit_entry(struct airoha_ppe *ppe,
 	spin_unlock_bh(&ppe_lock);
 
 	return 0;
-}
-
-static void airoha_ppe_foe_flow_remove_entry(struct airoha_ppe *ppe,
-					     struct airoha_flow_table_entry *e)
-{
-	spin_lock_bh(&ppe_lock);
-
-	hlist_del_init(&e->list);
-	if (e->hash != 0xffff) {
-		e->data.ib1 &= ~AIROHA_FOE_IB1_BIND_STATE;
-		e->data.ib1 |= FIELD_PREP(AIROHA_FOE_IB1_BIND_STATE,
-					  AIROHA_FOE_STATE_INVALID);
-		airoha_ppe_foe_commit_entry(ppe, &e->data, e->hash);
-		e->hash = 0xffff;
-	}
-
-	spin_unlock_bh(&ppe_lock);
 }
 
 static int airoha_ppe_flow_offload_replace(struct airoha_gdm_port *port,
@@ -846,7 +991,8 @@ int airoha_ppe_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 	return err;
 }
 
-void airoha_ppe_check_skb(struct airoha_ppe *ppe, u16 hash)
+void airoha_ppe_check_skb(struct airoha_ppe *ppe, struct sk_buff *skb,
+			  u16 hash)
 {
 	u16 now, diff;
 
@@ -859,7 +1005,7 @@ void airoha_ppe_check_skb(struct airoha_ppe *ppe, u16 hash)
 		return;
 
 	ppe->foe_check_time[hash] = now;
-	airoha_ppe_foe_insert_entry(ppe, hash);
+	airoha_ppe_foe_insert_entry(ppe, skb, hash);
 }
 
 int airoha_ppe_init(struct airoha_eth *eth)
@@ -890,9 +1036,20 @@ int airoha_ppe_init(struct airoha_eth *eth)
 	if (err)
 		return err;
 
+	err = rhashtable_init(&ppe->l2_flows, &airoha_l2_flow_table_params);
+	if (err)
+		goto error_flow_table_destroy;
+
 	err = airoha_ppe_debugfs_init(ppe);
 	if (err)
-		rhashtable_destroy(&eth->flow_table);
+		goto error_l2_flow_table_destroy;
+
+	return 0;
+
+error_l2_flow_table_destroy:
+	rhashtable_destroy(&ppe->l2_flows);
+error_flow_table_destroy:
+	rhashtable_destroy(&eth->flow_table);
 
 	return err;
 }
@@ -909,6 +1066,7 @@ void airoha_ppe_deinit(struct airoha_eth *eth)
 	}
 	rcu_read_unlock();
 
+	rhashtable_destroy(&eth->ppe->l2_flows);
 	rhashtable_destroy(&eth->flow_table);
 	debugfs_remove(eth->ppe->debugfs_dir);
 }
