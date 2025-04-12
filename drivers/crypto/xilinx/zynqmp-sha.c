@@ -3,18 +3,19 @@
  * Xilinx ZynqMP SHA Driver.
  * Copyright (c) 2022 Xilinx Inc.
  */
-#include <linux/cacheflush.h>
 #include <crypto/hash.h>
 #include <crypto/internal/hash.h>
 #include <crypto/sha3.h>
-#include <linux/crypto.h>
+#include <linux/cacheflush.h>
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/err.h>
 #include <linux/firmware/xlnx-zynqmp.h>
-#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/spinlock.h>
 #include <linux/platform_device.h>
 
 #define ZYNQMP_DMA_BIT_MASK		32U
@@ -42,6 +43,8 @@ struct zynqmp_sha_desc_ctx {
 
 static dma_addr_t update_dma_addr, final_dma_addr;
 static char *ubuf, *fbuf;
+
+static DEFINE_SPINLOCK(zynqmp_sha_lock);
 
 static int zynqmp_sha_init_tfm(struct crypto_shash *hash)
 {
@@ -130,7 +133,8 @@ static int zynqmp_sha_export(struct shash_desc *desc, void *out)
 	return crypto_shash_export(&dctx->fbk_req, out);
 }
 
-static int zynqmp_sha_digest(struct shash_desc *desc, const u8 *data, unsigned int len, u8 *out)
+static int __zynqmp_sha_digest(struct shash_desc *desc, const u8 *data,
+			       unsigned int len, u8 *out)
 {
 	unsigned int remaining_len = len;
 	int update_size;
@@ -163,6 +167,12 @@ static int zynqmp_sha_digest(struct shash_desc *desc, const u8 *data, unsigned i
 	memzero_explicit(fbuf, SHA3_384_DIGEST_SIZE);
 
 	return ret;
+}
+
+static int zynqmp_sha_digest(struct shash_desc *desc, const u8 *data, unsigned int len, u8 *out)
+{
+	scoped_guard(spinlock_bh, &zynqmp_sha_lock)
+		return __zynqmp_sha_digest(desc, data, len, out);
 }
 
 static struct zynqmp_sha_drv_ctx sha3_drv_ctx = {
