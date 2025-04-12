@@ -672,13 +672,6 @@ static int ethqos_configure_sgmii(struct qcom_ethqos *ethqos, int speed)
 	return val;
 }
 
-static void qcom_ethqos_speed_mode_2500(struct net_device *ndev, void *data)
-{
-	struct stmmac_priv *priv = netdev_priv(ndev);
-
-	priv->plat->phy_interface = PHY_INTERFACE_MODE_2500BASEX;
-}
-
 static int ethqos_configure(struct qcom_ethqos *ethqos, int speed)
 {
 	return ethqos->configure_func(ethqos, speed);
@@ -800,8 +793,6 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 		ethqos->configure_func = ethqos_configure_rgmii;
 		break;
 	case PHY_INTERFACE_MODE_2500BASEX:
-		plat_dat->speed_mode_2500 = qcom_ethqos_speed_mode_2500;
-		fallthrough;
 	case PHY_INTERFACE_MODE_SGMII:
 		ethqos->configure_func = ethqos_configure_sgmii;
 		break;
