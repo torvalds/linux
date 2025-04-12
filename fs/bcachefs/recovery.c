@@ -1125,7 +1125,10 @@ int bch2_fs_initialize(struct bch_fs *c)
 	 * journal_res_get() will crash if called before this has
 	 * set up the journal.pin FIFO and journal.cur pointer:
 	 */
-	bch2_fs_journal_start(&c->journal, 1);
+	ret = bch2_fs_journal_start(&c->journal, 1);
+	if (ret)
+		goto err;
+
 	set_bit(BCH_FS_accounting_replay_done, &c->flags);
 	bch2_journal_set_replay_done(&c->journal);
 
