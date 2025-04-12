@@ -247,11 +247,6 @@ static inline struct crypto_shash *__crypto_shash_cast(struct crypto_tfm *tfm)
 	return container_of(tfm, struct crypto_shash, base);
 }
 
-static inline bool ahash_request_chained(struct ahash_request *req)
-{
-	return false;
-}
-
 static inline bool ahash_request_isvirt(struct ahash_request *req)
 {
 	return req->base.flags & CRYPTO_AHASH_REQ_VIRT;

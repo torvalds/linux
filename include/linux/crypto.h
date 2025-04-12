@@ -14,7 +14,6 @@
 
 #include <linux/completion.h>
 #include <linux/errno.h>
-#include <linux/list.h>
 #include <linux/refcount.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -179,7 +178,6 @@ struct crypto_async_request {
 	struct crypto_tfm *tfm;
 
 	u32 flags;
-	int err;
 };
 
 /**
@@ -471,19 +469,6 @@ static inline unsigned int crypto_tfm_ctx_alignment(void)
 {
 	struct crypto_tfm *tfm;
 	return __alignof__(tfm->__crt_ctx);
-}
-
-static inline void crypto_reqchain_init(struct crypto_async_request *req)
-{
-	req->err = -EINPROGRESS;
-	INIT_LIST_HEAD(&req->list);
-}
-
-static inline void crypto_request_chain(struct crypto_async_request *req,
-					struct crypto_async_request *head)
-{
-	req->err = -EINPROGRESS;
-	list_add_tail(&req->list, &head->list);
 }
 
 static inline bool crypto_tfm_is_async(struct crypto_tfm *tfm)

@@ -630,7 +630,6 @@ static inline void ahash_request_set_callback(struct ahash_request *req,
 	flags &= ~keep;
 	req->base.flags &= keep;
 	req->base.flags |= flags;
-	crypto_reqchain_init(&req->base);
 }
 
 /**
@@ -677,12 +676,6 @@ static inline void ahash_request_set_virt(struct ahash_request *req,
 	req->nbytes = nbytes;
 	req->result = result;
 	req->base.flags |= CRYPTO_AHASH_REQ_VIRT;
-}
-
-static inline void ahash_request_chain(struct ahash_request *req,
-				       struct ahash_request *head)
-{
-	crypto_request_chain(&req->base, &head->base);
 }
 
 /**
@@ -984,11 +977,6 @@ static inline void shash_desc_zero(struct shash_desc *desc)
 {
 	memzero_explicit(desc,
 			 sizeof(*desc) + crypto_shash_descsize(desc->tfm));
-}
-
-static inline int ahash_request_err(struct ahash_request *req)
-{
-	return req->base.err;
 }
 
 static inline bool ahash_is_async(struct crypto_ahash *tfm)
