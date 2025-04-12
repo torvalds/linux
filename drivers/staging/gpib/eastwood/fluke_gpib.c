@@ -256,7 +256,8 @@ static int lacs_or_read_ready(struct gpib_board *board)
 	return retval;
 }
 
-/* Wait until it is possible for a read to do something useful.  This
+/*
+ * Wait until it is possible for a read to do something useful.  This
  * is not essential, it only exists to prevent RFD holdoff from being released pointlessly.
  */
 static int wait_for_read(struct gpib_board *board)
@@ -278,7 +279,8 @@ static int wait_for_read(struct gpib_board *board)
 	return retval;
 }
 
-/* Check if the SH state machine is in SGNS.  We check twice since there is a very small chance
+/*
+ * Check if the SH state machine is in SGNS.  We check twice since there is a very small chance
  * we could be blowing through SGNS from SIDS to SDYS if there is already a
  * byte available in the handshake state machine.  We are interested
  * in the case where the handshake is stuck in SGNS due to no byte being
@@ -312,7 +314,8 @@ static int source_handshake_is_sids_or_sgns(struct fluke_priv *e_priv)
 		(source_handshake_bits == SOURCE_HANDSHAKE_SIDS_BITS);
 }
 
-/* Wait until the gpib chip is ready to accept a data out byte.
+/*
+ * Wait until the gpib chip is ready to accept a data out byte.
  * If the chip is SGNS it is probably waiting for a a byte to
  * be written to it.
  */
@@ -443,7 +446,8 @@ static int fluke_dma_write(struct gpib_board *board, u8 *buffer, size_t length,
 	if (test_bit(DMA_WRITE_IN_PROGRESS_BN, &nec_priv->state))
 		fluke_dma_callback(board);
 
-	/* if everything went fine, try to wait until last byte is actually
+	/*
+	 * if everything went fine, try to wait until last byte is actually
 	 * transmitted across gpib (but don't try _too_ hard)
 	 */
 	if (retval == 0)
@@ -510,7 +514,8 @@ static int fluke_accel_write(struct gpib_board *board, u8 *buffer, size_t length
 		if (WARN_ON_ONCE(remainder != 1))
 			return -EFAULT;
 
-		/* wait until we are sure we will be able to write the data byte
+		/*
+		 * wait until we are sure we will be able to write the data byte
 		 * into the chip before we send AUX_SEOI.  This prevents a timeout
 		 * scenerio where we send AUX_SEOI but then timeout without getting
 		 * any bytes into the gpib chip.  This will result in the first byte
@@ -541,8 +546,10 @@ static int fluke_get_dma_residue(struct dma_chan *chan, dma_cookie_t cookie)
 		return result;
 	}
 	dmaengine_tx_status(chan, cookie, &state);
-	// hardware doesn't support resume, so dont call this
-	// method unless the dma transfer is done.
+	/*
+	 * hardware doesn't support resume, so dont call this
+	 * method unless the dma transfer is done.
+	 */
 	return state.residue;
 }
 
@@ -610,7 +617,8 @@ static int fluke_dma_read(struct gpib_board *board, u8 *buffer,
 	if (test_bit(DEV_CLEAR_BN, &nec_priv->state))
 		retval = -EINTR;
 
-	/* If we woke up because of end, wait until the dma transfer has pulled
+	/*
+	 * If we woke up because of end, wait until the dma transfer has pulled
 	 * the data byte associated with the end before we cancel the dma transfer.
 	 */
 	if (test_bit(RECEIVED_END_BN, &nec_priv->state)) {
@@ -627,7 +635,8 @@ static int fluke_dma_read(struct gpib_board *board, u8 *buffer,
 
 	// stop the dma transfer
 	nec7210_set_reg_bits(nec_priv, IMR2, HR_DMAI, 0);
-	/* delay a little just to make sure any bytes in dma controller's fifo get
+	/*
+	 * delay a little just to make sure any bytes in dma controller's fifo get
 	 * written to memory before we disable it
 	 */
 	usleep_range(10, 15);
@@ -643,14 +652,17 @@ static int fluke_dma_read(struct gpib_board *board, u8 *buffer,
 	dma_unmap_single(board->dev, bus_address, length, DMA_FROM_DEVICE);
 	memcpy(buffer, e_priv->dma_buffer, *bytes_read);
 
-	/* If we got an end interrupt, figure out if it was
+	/*
+	 * If we got an end interrupt, figure out if it was
 	 * associated with the last byte we dma'd or with a
 	 * byte still sitting on the cb7210.
 	 */
 	spin_lock_irqsave(&board->spinlock, flags);
 	if (test_bit(READ_READY_BN, &nec_priv->state) == 0) {
-		// There is no byte sitting on the cb7210.  If we
-		// saw an end interrupt, we need to deal with it now
+		/*
+		 * There is no byte sitting on the cb7210.  If we
+		 * saw an end interrupt, we need to deal with it now
+		 */
 		if (test_and_clear_bit(RECEIVED_END_BN, &nec_priv->state))
 			*end = 1;
 	}
@@ -727,7 +739,8 @@ static gpib_interface_t fluke_unaccel_interface = {
 	.return_to_local = fluke_return_to_local,
 };
 
-/* fluke_hybrid uses dma for writes but not for reads.  Added
+/*
+ * fluke_hybrid uses dma for writes but not for reads.  Added
  * to deal with occasional corruption of bytes seen when doing dma
  * reads.  From looking at the cb7210 vhdl, I believe the corruption
  * is due to a hardware bug triggered by the cpu reading a cb7210
@@ -916,7 +929,8 @@ static int fluke_init(struct fluke_priv *e_priv, struct gpib_board *board, int h
 
 	nec7210_board_reset(nec_priv, board);
 	write_byte(nec_priv, AUX_LO_SPEED, AUXMR);
-	/* set clock register for driving frequency
+	/*
+	 * set clock register for driving frequency
 	 * ICR should be set to clock in megahertz (1-15) and to zero
 	 * for clocks faster than 15 MHz (max 20MHz)
 	 */
@@ -935,7 +949,8 @@ static int fluke_init(struct fluke_priv *e_priv, struct gpib_board *board, int h
 	return 0;
 }
 
-/* This function is passed to dma_request_channel() in order to
+/*
+ * This function is passed to dma_request_channel() in order to
  * select the pl330 dma channel which has been hardwired to
  * the gpib controller.
  */
@@ -1042,8 +1057,10 @@ static int fluke_attach_impl(struct gpib_board *board, const struct gpib_board_c
 	e_priv->dma_channel = dma_request_channel(dma_cap, gpib_dma_channel_filter, NULL);
 	if (!e_priv->dma_channel) {
 		dev_err(board->gpib_dev, "failed to allocate a dma channel.\n");
-		// we don't error out here because unaccel interface will still
-		// work without dma
+		/*
+		 * we don't error out here because unaccel interface will still
+		 * work without dma
+		 */
 	}
 
 	return fluke_init(e_priv, board, handshake_mode);
