@@ -4,8 +4,9 @@
  * copyright            : (C) 2002 by Frank Mori Hess                      *
  ***************************************************************************/
 
-/*should enable ATN interrupts (and update board->status on occurrence),
- *	implement recovery from bus errors (if necessary)
+/*
+ * should enable ATN interrupts (and update board->status on occurrence),
+ * implement recovery from bus errors (if necessary)
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
