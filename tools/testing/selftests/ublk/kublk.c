@@ -5,6 +5,8 @@
 
 #include "kublk.h"
 
+#define MAX_NR_TGT_ARG 	64
+
 unsigned int ublk_dbg_mask = UBLK_LOG;
 static const struct ublk_tgt_ops *tgt_ops_list[] = {
 	&null_tgt_ops,
@@ -1202,12 +1204,25 @@ static int cmd_dev_get_features(void)
 
 static int cmd_dev_help(char *exe)
 {
-	printf("%s add -t [null|loop] [-q nr_queues] [-d depth] [-n dev_id] [backfile1] [backfile2] ...\n", exe);
-	printf("\t default: nr_queues=2(max 32), depth=128(max 1024), dev_id=-1(auto allocation)\n");
+	int i;
+
+	printf("%s add -t [null|loop|stripe] [-q nr_queues] [-d depth] [-n dev_id]\n", exe);
+	printf("\t[--foreground] [--quiet] [-z] [--debug_mask mask]\n");
+	printf("\t[target options] [backfile1] [backfile2] ...\n");
+	printf("\tdefault: nr_queues=2(max 32), depth=128(max 1024), dev_id=-1(auto allocation)\n");
+
+	for (i = 0; i < sizeof(tgt_ops_list) / sizeof(tgt_ops_list[0]); i++) {
+		const struct ublk_tgt_ops *ops = tgt_ops_list[i];
+
+		if (ops->usage)
+			ops->usage(ops);
+	}
+	printf("\n");
+
 	printf("%s del [-n dev_id] -a \n", exe);
-	printf("\t -a delete all devices -n delete specified device\n");
+	printf("\t -a delete all devices -n delete specified device\n\n");
 	printf("%s list [-n dev_id] -a \n", exe);
-	printf("\t -a list all devices, -n list specified device, default -a \n");
+	printf("\t -a list all devices, -n list specified device, default -a \n\n");
 	printf("%s features\n", exe);
 	return 0;
 }
@@ -1224,9 +1239,9 @@ int main(int argc, char *argv[])
 		{ "quiet",		0,	NULL,  0  },
 		{ "zero_copy",          0,      NULL, 'z' },
 		{ "foreground",		0,	NULL,  0  },
-		{ "chunk_size", 	1,	NULL,  0  },
 		{ 0, 0, 0, 0 }
 	};
+	const struct ublk_tgt_ops *ops = NULL;
 	int option_idx, opt;
 	const char *cmd = argv[1];
 	struct dev_ctx ctx = {
@@ -1234,13 +1249,15 @@ int main(int argc, char *argv[])
 		.nr_hw_queues	=	2,
 		.dev_id		=	-1,
 		.tgt_type	=	"unknown",
-		.chunk_size 	= 	65536, 	/* def chunk size is 64K */
 	};
 	int ret = -EINVAL, i;
+	int tgt_argc = 1;
+	char *tgt_argv[MAX_NR_TGT_ARG] = { NULL };
 
 	if (argc == 1)
 		return ret;
 
+	opterr = 0;
 	optind = 2;
 	while ((opt = getopt_long(argc, argv, "t:n:d:q:az",
 				  longopts, &option_idx)) != -1) {
@@ -1271,14 +1288,40 @@ int main(int argc, char *argv[])
 				ublk_dbg_mask = 0;
 			if (!strcmp(longopts[option_idx].name, "foreground"))
 				ctx.fg = 1;
-			if (!strcmp(longopts[option_idx].name, "chunk_size"))
-				ctx.chunk_size = strtol(optarg, NULL, 10);
+			break;
+		case '?':
+			/*
+			 * target requires every option must have argument
+			 */
+			if (argv[optind][0] == '-' || argv[optind - 1][0] != '-') {
+				fprintf(stderr, "every target option requires argument: %s %s\n",
+						argv[optind - 1], argv[optind]);
+				exit(EXIT_FAILURE);
+			}
+
+			if (tgt_argc < (MAX_NR_TGT_ARG - 1) / 2) {
+				tgt_argv[tgt_argc++] = argv[optind - 1];
+				tgt_argv[tgt_argc++] = argv[optind];
+			} else {
+				fprintf(stderr, "too many target options\n");
+				exit(EXIT_FAILURE);
+			}
+			optind += 1;
+			break;
 		}
 	}
 
 	i = optind;
 	while (i < argc && ctx.nr_files < MAX_BACK_FILES) {
 		ctx.files[ctx.nr_files++] = argv[i++];
+	}
+
+	ops = ublk_find_tgt(ctx.tgt_type);
+	if (ops && ops->parse_cmd_line) {
+		optind = 0;
+
+		tgt_argv[0] = ctx.tgt_type;
+		ops->parse_cmd_line(&ctx, tgt_argc, tgt_argv);
 	}
 
 	if (!strcmp(cmd, "add"))

@@ -63,6 +63,11 @@
 struct ublk_dev;
 struct ublk_queue;
 
+struct stripe_ctx {
+	/* stripe */
+	unsigned int    chunk_size;
+};
+
 struct dev_ctx {
 	char tgt_type[16];
 	unsigned long flags;
@@ -75,14 +80,15 @@ struct dev_ctx {
 	unsigned int	all:1;
 	unsigned int	fg:1;
 
-	/* stripe */
-	unsigned int    chunk_size;
-
 	int _evtfd;
 	int _shmid;
 
 	/* built from shmem, only for ublk_dump_dev() */
 	struct ublk_dev *shadow_dev;
+
+	union {
+		struct stripe_ctx  stripe;
+	};
 };
 
 struct ublk_ctrl_cmd_data {
@@ -119,6 +125,14 @@ struct ublk_tgt_ops {
 	int (*queue_io)(struct ublk_queue *, int tag);
 	void (*tgt_io_done)(struct ublk_queue *,
 			int tag, const struct io_uring_cqe *);
+
+	/*
+	 * Target specific command line handling
+	 *
+	 * each option requires argument for target command line
+	 */
+	void (*parse_cmd_line)(struct dev_ctx *ctx, int argc, char *argv[]);
+	void (*usage)(const struct ublk_tgt_ops *ops);
 };
 
 struct ublk_tgt {
