@@ -792,6 +792,7 @@ static const struct crypto_type crypto_ahash_type = {
 	.maskset = CRYPTO_ALG_TYPE_AHASH_MASK,
 	.type = CRYPTO_ALG_TYPE_AHASH,
 	.tfmsize = offsetof(struct crypto_ahash, base),
+	.algsize = offsetof(struct ahash_alg, halg.base),
 };
 
 int crypto_grab_ahash(struct crypto_ahash_spawn *spawn,

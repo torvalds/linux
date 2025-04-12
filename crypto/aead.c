@@ -186,6 +186,7 @@ static const struct crypto_type crypto_aead_type = {
 	.maskset = CRYPTO_ALG_TYPE_MASK,
 	.type = CRYPTO_ALG_TYPE_AEAD,
 	.tfmsize = offsetof(struct crypto_aead, base),
+	.algsize = offsetof(struct aead_alg, base),
 };
 
 int crypto_grab_aead(struct crypto_aead_spawn *spawn,

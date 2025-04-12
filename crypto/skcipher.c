@@ -620,6 +620,7 @@ static const struct crypto_type crypto_skcipher_type = {
 	.maskset = CRYPTO_ALG_TYPE_SKCIPHER_MASK,
 	.type = CRYPTO_ALG_TYPE_SKCIPHER,
 	.tfmsize = offsetof(struct crypto_skcipher, base),
+	.algsize = offsetof(struct skcipher_alg, base),
 };
 
 int crypto_grab_skcipher(struct crypto_skcipher_spawn *spawn,

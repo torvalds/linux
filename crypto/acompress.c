@@ -150,6 +150,7 @@ static const struct crypto_type crypto_acomp_type = {
 	.maskset = CRYPTO_ALG_TYPE_ACOMPRESS_MASK,
 	.type = CRYPTO_ALG_TYPE_ACOMPRESS,
 	.tfmsize = offsetof(struct crypto_acomp, base),
+	.algsize = offsetof(struct acomp_alg, base),
 };
 
 struct crypto_acomp *crypto_alloc_acomp(const char *alg_name, u32 type,

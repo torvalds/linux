@@ -347,6 +347,7 @@ static const struct crypto_type crypto_scomp_type = {
 	.maskset = CRYPTO_ALG_TYPE_MASK,
 	.type = CRYPTO_ALG_TYPE_SCOMPRESS,
 	.tfmsize = offsetof(struct crypto_scomp, base),
+	.algsize = offsetof(struct scomp_alg, base),
 };
 
 static void scomp_prepare_alg(struct scomp_alg *alg)

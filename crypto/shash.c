@@ -227,6 +227,7 @@ const struct crypto_type crypto_shash_type = {
 	.maskset = CRYPTO_ALG_TYPE_MASK,
 	.type = CRYPTO_ALG_TYPE_SHASH,
 	.tfmsize = offsetof(struct crypto_shash, base),
+	.algsize = offsetof(struct shash_alg, base),
 };
 
 int crypto_grab_shash(struct crypto_shash_spawn *spawn,

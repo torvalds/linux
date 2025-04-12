@@ -74,6 +74,7 @@ static const struct crypto_type crypto_sig_type = {
 	.maskset = CRYPTO_ALG_TYPE_MASK,
 	.type = CRYPTO_ALG_TYPE_SIG,
 	.tfmsize = offsetof(struct crypto_sig, base),
+	.algsize = offsetof(struct sig_alg, base),
 };
 
 struct crypto_sig *crypto_alloc_sig(const char *alg_name, u32 type, u32 mask)

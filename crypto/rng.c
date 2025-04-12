@@ -98,6 +98,7 @@ static const struct crypto_type crypto_rng_type = {
 	.maskset = CRYPTO_ALG_TYPE_MASK,
 	.type = CRYPTO_ALG_TYPE_RNG,
 	.tfmsize = offsetof(struct crypto_rng, base),
+	.algsize = offsetof(struct rng_alg, base),
 };
 
 struct crypto_rng *crypto_alloc_rng(const char *alg_name, u32 type, u32 mask)

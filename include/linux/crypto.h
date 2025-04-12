@@ -50,6 +50,15 @@
 #define CRYPTO_ALG_NEED_FALLBACK	0x00000100
 
 /*
+ * Set if the algorithm data structure should be duplicated into
+ * kmalloc memory before registration.  This is useful for hardware
+ * that can be disconnected at will.  Do not use this if the data
+ * structure is embedded into a bigger one.  Duplicate the overall
+ * data structure in the driver in that case.
+ */
+#define CRYPTO_ALG_DUP_FIRST		0x00000200
+
+/*
  * Set if the algorithm has passed automated run-time testing.  Note that
  * if there is no run-time testing for a given algorithm it is considered
  * to have passed.

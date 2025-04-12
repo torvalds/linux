@@ -66,13 +66,7 @@ static int crypto_check_alg(struct crypto_alg *alg)
 
 static void crypto_free_instance(struct crypto_instance *inst)
 {
-	struct crypto_alg *alg = &inst->alg;
-	const struct crypto_type *type;
-
-	type = alg->cra_type;
-	if (type->destroy)
-		type->destroy(alg);
-	type->free(inst);
+	inst->alg.cra_type->free(inst);
 }
 
 static void crypto_destroy_instance_workfn(struct work_struct *w)
@@ -424,6 +418,15 @@ void crypto_remove_final(struct list_head *list)
 }
 EXPORT_SYMBOL_GPL(crypto_remove_final);
 
+static void crypto_free_alg(struct crypto_alg *alg)
+{
+	unsigned int algsize = alg->cra_type->algsize;
+	u8 *p = (u8 *)alg - algsize;
+
+	crypto_destroy_alg(alg);
+	kfree(p);
+}
+
 int crypto_register_alg(struct crypto_alg *alg)
 {
 	struct crypto_larval *larval;
@@ -436,6 +439,19 @@ int crypto_register_alg(struct crypto_alg *alg)
 	if (err)
 		return err;
 
+	if (alg->cra_flags & CRYPTO_ALG_DUP_FIRST &&
+	    !WARN_ON_ONCE(alg->cra_destroy)) {
+		unsigned int algsize = alg->cra_type->algsize;
+		u8 *p = (u8 *)alg - algsize;
+
+		p = kmemdup(p, algsize + sizeof(*alg), GFP_KERNEL);
+		if (!p)
+			return -ENOMEM;
+
+		alg = (void *)(p + algsize);
+		alg->cra_destroy = crypto_free_alg;
+	}
+
 	down_write(&crypto_alg_sem);
 	larval = __crypto_register_alg(alg, &algs_to_put);
 	if (!IS_ERR_OR_NULL(larval)) {
@@ -444,8 +460,10 @@ int crypto_register_alg(struct crypto_alg *alg)
 	}
 	up_write(&crypto_alg_sem);
 
-	if (IS_ERR(larval))
+	if (IS_ERR(larval)) {
+		crypto_alg_put(alg);
 		return PTR_ERR(larval);
+	}
 
 	if (test_started)
 		crypto_schedule_test(larval);
@@ -481,12 +499,9 @@ void crypto_unregister_alg(struct crypto_alg *alg)
 	if (WARN(ret, "Algorithm %s is not registered", alg->cra_driver_name))
 		return;
 
-	if (alg->cra_destroy)
-		crypto_alg_put(alg);
-	else if (!WARN_ON(refcount_read(&alg->cra_refcnt) != 1) &&
-		 alg->cra_type && alg->cra_type->destroy)
-		alg->cra_type->destroy(alg);
+	WARN_ON(!alg->cra_destroy && refcount_read(&alg->cra_refcnt) != 1);
 
+	list_add(&alg->cra_list, &list);
 	crypto_remove_final(&list);
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_alg);

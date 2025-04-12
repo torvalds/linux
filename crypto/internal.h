@@ -46,6 +46,7 @@ struct crypto_type {
 	unsigned int maskclear;
 	unsigned int maskset;
 	unsigned int tfmsize;
+	unsigned int algsize;
 };
 
 enum {
@@ -162,10 +163,12 @@ static inline struct crypto_alg *crypto_alg_get(struct crypto_alg *alg)
 	return alg;
 }
 
+void crypto_destroy_alg(struct crypto_alg *alg);
+
 static inline void crypto_alg_put(struct crypto_alg *alg)
 {
 	if (refcount_dec_and_test(&alg->cra_refcnt))
-		alg->cra_destroy(alg);
+		crypto_destroy_alg(alg);
 }
 
 static inline int crypto_tmpl_get(struct crypto_template *tmpl)
