@@ -206,8 +206,14 @@ static int padlock_init_tfm(struct crypto_shash *hash)
 		return PTR_ERR(fallback_tfm);
 	}
 
+	if (crypto_shash_descsize(hash) < sizeof(struct padlock_sha_desc) +
+					  crypto_shash_descsize(fallback_tfm)) {
+		crypto_free_shash(fallback_tfm);
+		return -EINVAL;
+	}
+
 	ctx->fallback = fallback_tfm;
-	hash->descsize += crypto_shash_descsize(fallback_tfm);
+
 	return 0;
 }
 
@@ -228,7 +234,8 @@ static struct shash_alg sha1_alg = {
 	.import		=	padlock_sha_import,
 	.init_tfm	=	padlock_init_tfm,
 	.exit_tfm	=	padlock_exit_tfm,
-	.descsize	=	sizeof(struct padlock_sha_desc),
+	.descsize	=	sizeof(struct padlock_sha_desc) +
+				sizeof(struct sha1_state),
 	.statesize	=	sizeof(struct sha1_state),
 	.base		=	{
 		.cra_name		=	"sha1",
@@ -251,7 +258,8 @@ static struct shash_alg sha256_alg = {
 	.import		=	padlock_sha_import,
 	.init_tfm	=	padlock_init_tfm,
 	.exit_tfm	=	padlock_exit_tfm,
-	.descsize	=	sizeof(struct padlock_sha_desc),
+	.descsize	=	sizeof(struct padlock_sha_desc) +
+				sizeof(struct sha256_state),
 	.statesize	=	sizeof(struct sha256_state),
 	.base		=	{
 		.cra_name		=	"sha256",
