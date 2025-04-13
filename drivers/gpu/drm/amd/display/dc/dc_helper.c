@@ -689,6 +689,12 @@ void reg_sequence_wait_done(const struct dc_context *ctx)
 char *dce_version_to_string(const int version)
 {
 	switch (version) {
+	case DCE_VERSION_6_0:
+		return "DCE 6.0";
+	case DCE_VERSION_6_1:
+		return "DCE 6.1";
+	case DCE_VERSION_6_4:
+		return "DCE 6.4";
 	case DCE_VERSION_8_0:
 		return "DCE 8.0";
 	case DCE_VERSION_8_1:
