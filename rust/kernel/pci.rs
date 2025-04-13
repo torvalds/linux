@@ -360,11 +360,13 @@ impl<const SIZE: usize> Deref for Bar<SIZE> {
     }
 }
 
-impl Device {
+impl<Ctx: device::DeviceContext> Device<Ctx> {
     fn as_raw(&self) -> *mut bindings::pci_dev {
         self.0.get()
     }
+}
 
+impl Device {
     /// Returns the PCI vendor ID.
     pub fn vendor_id(&self) -> u16 {
         // SAFETY: `self.as_raw` is a valid pointer to a `struct pci_dev`.
@@ -440,8 +442,8 @@ unsafe impl crate::types::AlwaysRefCounted for Device {
     }
 }
 
-impl AsRef<device::Device> for Device {
-    fn as_ref(&self) -> &device::Device {
+impl<Ctx: device::DeviceContext> AsRef<device::Device<Ctx>> for Device<Ctx> {
+    fn as_ref(&self) -> &device::Device<Ctx> {
         // SAFETY: By the type invariant of `Self`, `self.as_raw()` is a pointer to a valid
         // `struct pci_dev`.
         let dev = unsafe { addr_of_mut!((*self.as_raw()).dev) };
