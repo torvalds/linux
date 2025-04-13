@@ -1253,8 +1253,8 @@ static irqreturn_t kxcjk1013_trigger_handler(int irq, void *p)
 	if (ret < 0)
 		goto err;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
-					   data->timestamp);
+	iio_push_to_buffers_with_ts(indio_dev, &data->scan, sizeof(data->scan),
+				    data->timestamp);
 err:
 	iio_trigger_notify_done(indio_dev->trig);
 

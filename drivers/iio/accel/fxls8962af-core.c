@@ -983,8 +983,8 @@ static int fxls8962af_fifo_flush(struct iio_dev *indio_dev)
 			       sizeof(data->scan.channels[0]));
 		}
 
-		iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
-						   tstamp);
+		iio_push_to_buffers_with_ts(indio_dev, &data->scan,
+					    sizeof(data->scan), tstamp);
 
 		tstamp += sample_period;
 	}
