@@ -425,12 +425,7 @@ impl Device<device::Core> {
 // SAFETY: `Device` is a transparent wrapper of a type that doesn't depend on `Device`'s generic
 // argument.
 kernel::impl_device_context_deref!(unsafe { Device });
-
-impl From<&Device<device::Core>> for ARef<Device> {
-    fn from(dev: &Device<device::Core>) -> Self {
-        (&**dev).into()
-    }
-}
+kernel::impl_device_context_into_aref!(Device);
 
 // SAFETY: Instances of `Device` are always reference-counted.
 unsafe impl crate::types::AlwaysRefCounted for Device {

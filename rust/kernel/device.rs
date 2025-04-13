@@ -281,6 +281,27 @@ macro_rules! impl_device_context_deref {
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! __impl_device_context_into_aref {
+    ($src:ty, $device:tt) => {
+        impl ::core::convert::From<&$device<$src>> for $crate::types::ARef<$device> {
+            fn from(dev: &$device<$src>) -> Self {
+                (&**dev).into()
+            }
+        }
+    };
+}
+
+/// Implement [`core::convert::From`], such that all `&Device<Ctx>` can be converted to an
+/// `ARef<Device>`.
+#[macro_export]
+macro_rules! impl_device_context_into_aref {
+    ($device:tt) => {
+        ::kernel::__impl_device_context_into_aref!($crate::device::Core, $device);
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! dev_printk {
     ($method:ident, $dev:expr, $($f:tt)*) => {
         {
