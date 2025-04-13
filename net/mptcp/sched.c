@@ -82,10 +82,23 @@ void mptcp_get_available_schedulers(char *buf, size_t maxlen)
 	rcu_read_unlock();
 }
 
+int mptcp_validate_scheduler(struct mptcp_sched_ops *sched)
+{
+	if (!sched->get_send) {
+		pr_err("%s does not implement required ops\n", sched->name);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int mptcp_register_scheduler(struct mptcp_sched_ops *sched)
 {
-	if (!sched->get_send)
-		return -EINVAL;
+	int ret;
+
+	ret = mptcp_validate_scheduler(sched);
+	if (ret)
+		return ret;
 
 	spin_lock(&mptcp_sched_list_lock);
 	if (mptcp_sched_find(sched->name)) {
