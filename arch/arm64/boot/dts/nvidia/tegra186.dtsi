@@ -1185,7 +1185,7 @@
 	};
 
 	cec@3960000 {
-		compatible = "nvidia,tegra186-cec";
+		compatible = "nvidia,tegra186-cec", "nvidia,tegra210-cec";
 		reg = <0x0 0x03960000 0x0 0x10000>;
 		interrupts = <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&bpmp TEGRA186_CLK_CEC>;
