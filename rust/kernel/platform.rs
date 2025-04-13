@@ -16,7 +16,6 @@ use crate::{
 
 use core::{
     marker::PhantomData,
-    ops::Deref,
     ptr::{addr_of_mut, NonNull},
 };
 
@@ -190,19 +189,9 @@ impl Device {
     }
 }
 
-impl Deref for Device<device::Core> {
-    type Target = Device;
-
-    fn deref(&self) -> &Self::Target {
-        let ptr: *const Self = self;
-
-        // CAST: `Device<Ctx>` is a transparent wrapper of `Opaque<bindings::platform_device>`.
-        let ptr = ptr.cast::<Device>();
-
-        // SAFETY: `ptr` was derived from `&self`.
-        unsafe { &*ptr }
-    }
-}
+// SAFETY: `Device` is a transparent wrapper of a type that doesn't depend on `Device`'s generic
+// argument.
+kernel::impl_device_context_deref!(unsafe { Device });
 
 impl From<&Device<device::Core>> for ARef<Device> {
     fn from(dev: &Device<device::Core>) -> Self {

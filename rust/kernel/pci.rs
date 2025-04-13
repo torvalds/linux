@@ -422,19 +422,9 @@ impl Device<device::Core> {
     }
 }
 
-impl Deref for Device<device::Core> {
-    type Target = Device;
-
-    fn deref(&self) -> &Self::Target {
-        let ptr: *const Self = self;
-
-        // CAST: `Device<Ctx>` is a transparent wrapper of `Opaque<bindings::pci_dev>`.
-        let ptr = ptr.cast::<Device>();
-
-        // SAFETY: `ptr` was derived from `&self`.
-        unsafe { &*ptr }
-    }
-}
+// SAFETY: `Device` is a transparent wrapper of a type that doesn't depend on `Device`'s generic
+// argument.
+kernel::impl_device_context_deref!(unsafe { Device });
 
 impl From<&Device<device::Core>> for ARef<Device> {
     fn from(dev: &Device<device::Core>) -> Self {

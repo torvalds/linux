@@ -235,6 +235,50 @@ mod private {
 impl DeviceContext for Core {}
 impl DeviceContext for Normal {}
 
+/// # Safety
+///
+/// The type given as `$device` must be a transparent wrapper of a type that doesn't depend on the
+/// generic argument of `$device`.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __impl_device_context_deref {
+    (unsafe { $device:ident, $src:ty => $dst:ty }) => {
+        impl ::core::ops::Deref for $device<$src> {
+            type Target = $device<$dst>;
+
+            fn deref(&self) -> &Self::Target {
+                let ptr: *const Self = self;
+
+                // CAST: `$device<$src>` and `$device<$dst>` transparently wrap the same type by the
+                // safety requirement of the macro.
+                let ptr = ptr.cast::<Self::Target>();
+
+                // SAFETY: `ptr` was derived from `&self`.
+                unsafe { &*ptr }
+            }
+        }
+    };
+}
+
+/// Implement [`core::ops::Deref`] traits for allowed [`DeviceContext`] conversions of a (bus
+/// specific) device.
+///
+/// # Safety
+///
+/// The type given as `$device` must be a transparent wrapper of a type that doesn't depend on the
+/// generic argument of `$device`.
+#[macro_export]
+macro_rules! impl_device_context_deref {
+    (unsafe { $device:ident }) => {
+        // SAFETY: This macro has the exact same safety requirement as
+        // `__impl_device_context_deref!`.
+        ::kernel::__impl_device_context_deref!(unsafe {
+            $device,
+            $crate::device::Core => $crate::device::Normal
+        });
+    };
+}
+
 #[doc(hidden)]
 #[macro_export]
 macro_rules! dev_printk {
