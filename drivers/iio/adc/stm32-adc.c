@@ -1858,8 +1858,8 @@ static irqreturn_t stm32_adc_trigger_handler(int irq, void *p)
 
 	/* reset buffer index */
 	adc->bufi = 0;
-	iio_push_to_buffers_with_timestamp(indio_dev, adc->buffer,
-					   pf->timestamp);
+	iio_push_to_buffers_with_ts(indio_dev, adc->buffer, sizeof(adc->buffer),
+				    pf->timestamp);
 	iio_trigger_notify_done(indio_dev->trig);
 
 	/* re-enable eoc irq */

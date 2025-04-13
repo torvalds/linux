@@ -516,8 +516,8 @@ static irqreturn_t mcp3911_trigger_handler(int irq, void *p)
 		adc->scan.channels[i] = get_unaligned_be24(&adc->rx_buf[scan_chan->channel * 3]);
 		i++;
 	}
-	iio_push_to_buffers_with_timestamp(indio_dev, &adc->scan,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &adc->scan, sizeof(adc->scan),
+				    iio_get_time_ns(indio_dev));
 out:
 	iio_trigger_notify_done(indio_dev->trig);
 

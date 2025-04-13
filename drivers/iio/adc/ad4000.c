@@ -793,7 +793,8 @@ static irqreturn_t ad4000_trigger_handler(int irq, void *p)
 	if (ret < 0)
 		goto err_out;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &st->scan, pf->timestamp);
+	iio_push_to_buffers_with_ts(indio_dev, &st->scan, sizeof(st->scan),
+				    pf->timestamp);
 
 err_out:
 	iio_trigger_notify_done(indio_dev->trig);

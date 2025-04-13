@@ -1044,7 +1044,8 @@ static irqreturn_t pac1921_trigger_handler(int irq, void *p)
 		priv->scan.chan[ch++] = val;
 	}
 
-	iio_push_to_buffers_with_timestamp(idev, &priv->scan, pf->timestamp);
+	iio_push_to_buffers_with_ts(idev, &priv->scan, sizeof(priv->scan),
+				    pf->timestamp);
 
 done:
 	iio_trigger_notify_done(idev->trig);

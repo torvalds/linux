@@ -1361,8 +1361,8 @@ static irqreturn_t ad7380_trigger_handler(int irq, void *p)
 	if (ret)
 		goto out;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &st->scan_data,
-					   pf->timestamp);
+	iio_push_to_buffers_with_ts(indio_dev, &st->scan_data, sizeof(st->scan_data),
+				    pf->timestamp);
 
 out:
 	iio_trigger_notify_done(indio_dev->trig);

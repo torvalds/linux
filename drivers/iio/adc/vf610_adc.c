@@ -592,9 +592,9 @@ static irqreturn_t vf610_adc_isr(int irq, void *dev_id)
 		info->value = vf610_adc_read_data(info);
 		if (iio_buffer_enabled(indio_dev)) {
 			info->scan.chan = info->value;
-			iio_push_to_buffers_with_timestamp(indio_dev,
-					&info->scan,
-					iio_get_time_ns(indio_dev));
+			iio_push_to_buffers_with_ts(indio_dev, &info->scan,
+						    sizeof(info->scan),
+						    iio_get_time_ns(indio_dev));
 			iio_trigger_notify_done(indio_dev->trig);
 		} else
 			complete(&info->completion);
