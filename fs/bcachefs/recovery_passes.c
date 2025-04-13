@@ -266,6 +266,7 @@ int bch2_run_recovery_passes(struct bch_fs *c)
 	spin_lock_irq(&c->recovery_pass_lock);
 
 	while (c->curr_recovery_pass < ARRAY_SIZE(recovery_pass_fns) && !ret) {
+		unsigned prev_done = c->recovery_pass_done;
 		unsigned pass = c->curr_recovery_pass;
 
 		c->next_recovery_pass = pass + 1;
@@ -299,6 +300,12 @@ int bch2_run_recovery_passes(struct bch_fs *c)
 		}
 
 		c->curr_recovery_pass = c->next_recovery_pass;
+
+		if (prev_done <= BCH_RECOVERY_PASS_check_snapshots &&
+		    c->recovery_pass_done > BCH_RECOVERY_PASS_check_snapshots) {
+			bch2_copygc_wakeup(c);
+			bch2_rebalance_wakeup(c);
+		}
 	}
 
 	spin_unlock_irq(&c->recovery_pass_lock);

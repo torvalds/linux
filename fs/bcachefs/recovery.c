@@ -18,6 +18,7 @@
 #include "journal_seq_blacklist.h"
 #include "logged_ops.h"
 #include "move.h"
+#include "movinggc.h"
 #include "namei.h"
 #include "quota.h"
 #include "rebalance.h"
@@ -1193,6 +1194,9 @@ int bch2_fs_initialize(struct bch_fs *c)
 		goto err;
 
 	c->recovery_pass_done = BCH_RECOVERY_PASS_NR - 1;
+
+	bch2_copygc_wakeup(c);
+	bch2_rebalance_wakeup(c);
 
 	if (enabled_qtypes(c)) {
 		ret = bch2_fs_quota_read(c);

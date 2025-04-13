@@ -418,32 +418,6 @@ bool bch2_fs_emergency_read_only_locked(struct bch_fs *c)
 	return ret;
 }
 
-static int bch2_fs_read_write_late(struct bch_fs *c)
-{
-	int ret;
-
-	/*
-	 * Data move operations can't run until after check_snapshots has
-	 * completed, and bch2_snapshot_is_ancestor() is available.
-	 *
-	 * Ideally we'd start copygc/rebalance earlier instead of waiting for
-	 * all of recovery/fsck to complete:
-	 */
-	ret = bch2_copygc_start(c);
-	if (ret) {
-		bch_err(c, "error starting copygc thread");
-		return ret;
-	}
-
-	ret = bch2_rebalance_start(c);
-	if (ret) {
-		bch_err(c, "error starting rebalance thread");
-		return ret;
-	}
-
-	return 0;
-}
-
 static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 {
 	int ret;
@@ -503,10 +477,17 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 		atomic_long_inc(&c->writes[i]);
 	}
 #endif
-	if (!early) {
-		ret = bch2_fs_read_write_late(c);
-		if (ret)
-			goto err;
+
+	ret = bch2_copygc_start(c);
+	if (ret) {
+		bch_err_msg(c, ret, "error starting copygc thread");
+		goto err;
+	}
+
+	ret = bch2_rebalance_start(c);
+	if (ret) {
+		bch_err_msg(c, ret, "error starting rebalance thread");
+		goto err;
 	}
 
 	bch2_do_discards(c);
@@ -1082,13 +1063,10 @@ int bch2_fs_start(struct bch_fs *c)
 	wake_up(&c->ro_ref_wait);
 
 	down_write(&c->state_lock);
-	if (c->opts.read_only) {
+	if (c->opts.read_only)
 		bch2_fs_read_only(c);
-	} else {
-		ret = !test_bit(BCH_FS_rw, &c->flags)
-			? bch2_fs_read_write(c)
-			: bch2_fs_read_write_late(c);
-	}
+	else if (!test_bit(BCH_FS_rw, &c->flags))
+		ret = bch2_fs_read_write(c);
 	up_write(&c->state_lock);
 
 err:
