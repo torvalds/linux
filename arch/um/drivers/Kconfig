@@ -367,3 +367,11 @@ config UML_PCI_OVER_VIRTIO_DEVICE_ID
 	  There's no official device ID assigned (yet), set the one you
 	  wish to use for experimentation here. The default of -1 is
 	  not valid and will cause the driver to fail at probe.
+
+config UML_PCI_OVER_VFIO
+	bool "Enable VFIO-based PCI passthrough"
+	select UML_PCI
+	help
+	  This driver provides support for VFIO-based PCI passthrough.
+	  Currently, only MSI-X capable devices are supported, and it
+	  is assumed that drivers will use MSI-X.

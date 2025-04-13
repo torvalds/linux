@@ -19,6 +19,7 @@ port-objs := port_kern.o port_user.o
 harddog-objs := harddog_kern.o
 harddog-builtin-$(CONFIG_UML_WATCHDOG) := harddog_user.o harddog_user_exp.o
 rtc-objs := rtc_kern.o rtc_user.o
+vfio_uml-objs := vfio_kern.o vfio_user.o
 
 LDFLAGS_vde.o = $(shell $(CC) $(CFLAGS) -print-file-name=libvdeplug.a)
 
@@ -62,6 +63,7 @@ obj-$(CONFIG_VIRTIO_UML) += virtio_uml.o
 obj-$(CONFIG_UML_RTC) += rtc.o
 obj-$(CONFIG_UML_PCI) += virt-pci.o
 obj-$(CONFIG_UML_PCI_OVER_VIRTIO) += virtio_pcidev.o
+obj-$(CONFIG_UML_PCI_OVER_VFIO) += vfio_uml.o
 
 # pcap_user.o must be added explicitly.
 USER_OBJS := fd.o null.o pty.o tty.o xterm.o slip_common.o vde_user.o vector_user.o
