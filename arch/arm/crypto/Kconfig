@@ -48,14 +48,8 @@ config CRYPTO_NHPOLY1305_NEON
 
 config CRYPTO_POLY1305_ARM
 	tristate
-	select CRYPTO_HASH
 	select CRYPTO_ARCH_HAVE_LIB_POLY1305
 	default CRYPTO_LIB_POLY1305_INTERNAL
-	help
-	  Poly1305 authenticator algorithm (RFC7539)
-
-	  Architecture: arm optionally using
-	  - NEON (Advanced SIMD) extensions
 
 config CRYPTO_BLAKE2S_ARM
 	bool "Hash functions: BLAKE2s"
