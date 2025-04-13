@@ -17,12 +17,6 @@
 #include <linux/sched/mm.h>
 #include <linux/swap.h>
 
-#define BTREE_CACHE_NOT_FREED_INCREMENT(counter) \
-do {						 \
-	if (shrinker_counter)			 \
-		bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_##counter]++;	 \
-} while (0)
-
 const char * const bch2_btree_node_flags[] = {
 	"typebit",
 	"typebit",
@@ -354,7 +348,7 @@ static inline struct btree *btree_cache_find(struct btree_cache *bc,
  * this version is for btree nodes that have already been freed (we're not
  * reaping a real btree node)
  */
-static int __btree_node_reclaim(struct bch_fs *c, struct btree *b, bool flush, bool shrinker_counter)
+static int __btree_node_reclaim(struct bch_fs *c, struct btree *b, bool flush)
 {
 	struct btree_cache *bc = &c->btree_cache;
 	int ret = 0;
@@ -366,11 +360,11 @@ wait_on_io:
 			(1U << BTREE_NODE_write_in_flight))) {
 		if (!flush) {
 			if (btree_node_dirty(b))
-				BTREE_CACHE_NOT_FREED_INCREMENT(dirty);
+				bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_dirty]++;
 			else if (btree_node_read_in_flight(b))
-				BTREE_CACHE_NOT_FREED_INCREMENT(read_in_flight);
+				bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_read_in_flight]++;
 			else if (btree_node_write_in_flight(b))
-				BTREE_CACHE_NOT_FREED_INCREMENT(write_in_flight);
+				bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_write_in_flight]++;
 			return -BCH_ERR_ENOMEM_btree_node_reclaim;
 		}
 
@@ -380,12 +374,12 @@ wait_on_io:
 	}
 
 	if (!six_trylock_intent(&b->c.lock)) {
-		BTREE_CACHE_NOT_FREED_INCREMENT(lock_intent);
+		bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_lock_intent]++;
 		return -BCH_ERR_ENOMEM_btree_node_reclaim;
 	}
 
 	if (!six_trylock_write(&b->c.lock)) {
-		BTREE_CACHE_NOT_FREED_INCREMENT(lock_write);
+		bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_lock_write]++;
 		goto out_unlock_intent;
 	}
 
@@ -394,9 +388,9 @@ wait_on_io:
 			(1U << BTREE_NODE_write_in_flight))) {
 		if (!flush) {
 			if (btree_node_read_in_flight(b))
-				BTREE_CACHE_NOT_FREED_INCREMENT(read_in_flight);
+				bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_read_in_flight]++;
 			else if (btree_node_write_in_flight(b))
-				BTREE_CACHE_NOT_FREED_INCREMENT(write_in_flight);
+				bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_write_in_flight]++;
 			goto out_unlock;
 		}
 		six_unlock_write(&b->c.lock);
@@ -405,21 +399,21 @@ wait_on_io:
 	}
 
 	if (btree_node_noevict(b)) {
-		BTREE_CACHE_NOT_FREED_INCREMENT(noevict);
+		bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_noevict]++;
 		goto out_unlock;
 	}
 	if (btree_node_write_blocked(b)) {
-		BTREE_CACHE_NOT_FREED_INCREMENT(write_blocked);
+		bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_write_blocked]++;
 		goto out_unlock;
 	}
 	if (btree_node_will_make_reachable(b)) {
-		BTREE_CACHE_NOT_FREED_INCREMENT(will_make_reachable);
+		bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_will_make_reachable]++;
 		goto out_unlock;
 	}
 
 	if (btree_node_dirty(b)) {
 		if (!flush) {
-			BTREE_CACHE_NOT_FREED_INCREMENT(dirty);
+			bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_dirty]++;
 			goto out_unlock;
 		}
 		/*
@@ -451,14 +445,14 @@ out_unlock_intent:
 	goto out;
 }
 
-static int btree_node_reclaim(struct bch_fs *c, struct btree *b, bool shrinker_counter)
+static int btree_node_reclaim(struct bch_fs *c, struct btree *b)
 {
-	return __btree_node_reclaim(c, b, false, shrinker_counter);
+	return __btree_node_reclaim(c, b, false);
 }
 
 static int btree_node_write_and_reclaim(struct bch_fs *c, struct btree *b)
 {
-	return __btree_node_reclaim(c, b, true, false);
+	return __btree_node_reclaim(c, b, true);
 }
 
 static unsigned long bch2_btree_cache_scan(struct shrinker *shrink,
@@ -506,7 +500,7 @@ static unsigned long bch2_btree_cache_scan(struct shrinker *shrink,
 		if (touched >= nr)
 			goto out;
 
-		if (!btree_node_reclaim(c, b, true)) {
+		if (!btree_node_reclaim(c, b)) {
 			btree_node_data_free(bc, b);
 			six_unlock_write(&b->c.lock);
 			six_unlock_intent(&b->c.lock);
@@ -522,7 +516,7 @@ restart:
 			clear_btree_node_accessed(b);
 			bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_access_bit]++;
 			--touched;;
-		} else if (!btree_node_reclaim(c, b, true)) {
+		} else if (!btree_node_reclaim(c, b)) {
 			__bch2_btree_node_hash_remove(bc, b);
 			__btree_node_data_free(bc, b);
 
@@ -755,7 +749,7 @@ static struct btree *btree_node_cannibalize(struct bch_fs *c)
 
 	for (unsigned i = 0; i < ARRAY_SIZE(bc->live); i++)
 		list_for_each_entry_reverse(b, &bc->live[i].list, list)
-			if (!btree_node_reclaim(c, b, false))
+			if (!btree_node_reclaim(c, b))
 				return b;
 
 	while (1) {
@@ -790,7 +784,7 @@ struct btree *bch2_btree_node_mem_alloc(struct btree_trans *trans, bool pcpu_rea
 	 * disk node. Check the freed list before allocating a new one:
 	 */
 	list_for_each_entry(b, freed, list)
-		if (!btree_node_reclaim(c, b, false)) {
+		if (!btree_node_reclaim(c, b)) {
 			list_del_init(&b->list);
 			goto got_node;
 		}
@@ -817,7 +811,7 @@ got_node:
 	 * the list. Check if there's any freed nodes there:
 	 */
 	list_for_each_entry(b2, &bc->freeable, list)
-		if (!btree_node_reclaim(c, b2, false)) {
+		if (!btree_node_reclaim(c, b2)) {
 			swap(b->data, b2->data);
 			swap(b->aux_data, b2->aux_data);
 
