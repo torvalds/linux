@@ -423,6 +423,9 @@ static struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *trans,
 	struct bch_io_opts *opts_ret = &io_opts->fs_io_opts;
 	int ret = 0;
 
+	if (extent_iter->min_depth)
+		return opts_ret;
+
 	if (extent_k.k->type == KEY_TYPE_reflink_v)
 		goto out;
 
@@ -573,11 +576,11 @@ static struct bkey_s_c bch2_lookup_indirect_extent_for_move(struct btree_trans *
 	return k;
 }
 
-static int bch2_move_data_btree(struct moving_context *ctxt,
-				struct bpos start,
-				struct bpos end,
-				move_pred_fn pred, void *arg,
-				enum btree_id btree_id)
+int bch2_move_data_btree(struct moving_context *ctxt,
+			 struct bpos start,
+			 struct bpos end,
+			 move_pred_fn pred, void *arg,
+			 enum btree_id btree_id, unsigned level)
 {
 	struct btree_trans *trans = ctxt->trans;
 	struct bch_fs *c = trans->c;
@@ -604,10 +607,10 @@ static int bch2_move_data_btree(struct moving_context *ctxt,
 	}
 
 	bch2_trans_begin(trans);
-	bch2_trans_iter_init(trans, &iter, btree_id, start,
-			     BTREE_ITER_prefetch|
-			     BTREE_ITER_not_extents|
-			     BTREE_ITER_all_snapshots);
+	bch2_trans_node_iter_init(trans, &iter, btree_id, start, 0, level,
+				  BTREE_ITER_prefetch|
+				  BTREE_ITER_not_extents|
+				  BTREE_ITER_all_snapshots);
 
 	if (ctxt->rate)
 		bch2_ratelimit_reset(ctxt->rate);
@@ -627,7 +630,7 @@ static int bch2_move_data_btree(struct moving_context *ctxt,
 		if (ret)
 			break;
 
-		if (bkey_ge(bkey_start_pos(k.k), end))
+		if (bkey_gt(bkey_start_pos(k.k), end))
 			break;
 
 		if (ctxt->stats)
@@ -677,7 +680,14 @@ static int bch2_move_data_btree(struct moving_context *ctxt,
 		bch2_bkey_buf_reassemble(&sk, c, k);
 		k = bkey_i_to_s_c(sk.k);
 
-		ret2 = bch2_move_extent(ctxt, NULL, extent_iter, k, *io_opts, data_opts);
+		if (!level)
+			ret2 = bch2_move_extent(ctxt, NULL, extent_iter, k, *io_opts, data_opts);
+		else if (!data_opts.scrub)
+			ret2 = bch2_btree_node_rewrite_pos(trans, btree_id, level,
+							  k.k->p, data_opts.target, 0);
+		else
+			ret2 = bch2_btree_node_scrub(trans, btree_id, level, k, data_opts.read_dev);
+
 		if (ret2) {
 			if (bch2_err_matches(ret2, BCH_ERR_transaction_restart))
 				continue;
@@ -695,7 +705,8 @@ next:
 		if (ctxt->stats)
 			atomic64_add(k.k->size, &ctxt->stats->sectors_seen);
 next_nondata:
-		bch2_btree_iter_advance(trans, &iter);
+		if (!bch2_btree_iter_advance(trans, &iter))
+			break;
 	}
 
 	bch2_trans_iter_exit(trans, &reflink_iter);
@@ -727,7 +738,7 @@ int __bch2_move_data(struct moving_context *ctxt,
 		ret = bch2_move_data_btree(ctxt,
 				       id == start.btree ? start.pos : POS_MIN,
 				       id == end.btree   ? end.pos   : POS_MAX,
-				       pred, arg, id);
+				       pred, arg, id, 0);
 		if (ret)
 			break;
 	}
