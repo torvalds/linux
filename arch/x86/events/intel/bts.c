@@ -101,7 +101,7 @@ bts_buffer_setup_aux(struct perf_event *event, void **pages,
 	if (overwrite && nr_buf > 1)
 		return NULL;
 
-	bb = kzalloc_node(offsetof(struct bts_buffer, buf[nr_buf]), GFP_KERNEL, node);
+	bb = kzalloc_node(struct_size(bb, buf, nr_buf), GFP_KERNEL, node);
 	if (!bb)
 		return NULL;
 
