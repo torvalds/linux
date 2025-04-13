@@ -426,8 +426,8 @@ int bch2_journal_flush(struct journal *);
 bool bch2_journal_noflush_seq(struct journal *, u64, u64);
 int bch2_journal_meta(struct journal *);
 
-void bch2_journal_halt(struct journal *);
 void bch2_journal_halt_locked(struct journal *);
+void bch2_journal_halt(struct journal *);
 
 static inline int bch2_journal_error(struct journal *j)
 {

@@ -331,16 +331,6 @@ static void __journal_entry_close(struct journal *j, unsigned closed_val, bool t
 	__bch2_journal_buf_put(j, le64_to_cpu(buf->data->seq));
 }
 
-void bch2_journal_halt(struct journal *j)
-{
-	spin_lock(&j->lock);
-	__journal_entry_close(j, JOURNAL_ENTRY_ERROR_VAL, true);
-	if (!j->err_seq)
-		j->err_seq = journal_cur_seq(j);
-	journal_wake(j);
-	spin_unlock(&j->lock);
-}
-
 void bch2_journal_halt_locked(struct journal *j)
 {
 	lockdep_assert_held(&j->lock);
@@ -349,6 +339,13 @@ void bch2_journal_halt_locked(struct journal *j)
 	if (!j->err_seq)
 		j->err_seq = journal_cur_seq(j);
 	journal_wake(j);
+}
+
+void bch2_journal_halt(struct journal *j)
+{
+	spin_lock(&j->lock);
+	bch2_journal_halt_locked(j);
+	spin_unlock(&j->lock);
 }
 
 static bool journal_entry_want_write(struct journal *j)
