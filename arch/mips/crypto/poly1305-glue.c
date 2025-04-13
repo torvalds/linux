@@ -165,11 +165,17 @@ static struct shash_alg mips_poly1305_alg = {
 	.descsize		= sizeof(struct poly1305_desc_ctx),
 
 	.base.cra_name		= "poly1305",
-	.base.cra_driver_name	= "poly1305-mips",
+	.base.cra_driver_name	= "poly1305-mips-old",
 	.base.cra_priority	= 200,
 	.base.cra_blocksize	= POLY1305_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 };
+
+bool poly1305_is_arch_optimized(void)
+{
+	return true;
+}
+EXPORT_SYMBOL(poly1305_is_arch_optimized);
 
 static int __init mips_poly1305_mod_init(void)
 {
@@ -183,7 +189,7 @@ static void __exit mips_poly1305_mod_exit(void)
 		crypto_unregister_shash(&mips_poly1305_alg);
 }
 
-module_init(mips_poly1305_mod_init);
+arch_initcall(mips_poly1305_mod_init);
 module_exit(mips_poly1305_mod_exit);
 
 MODULE_DESCRIPTION("Poly1305 transform (MIPS accelerated");

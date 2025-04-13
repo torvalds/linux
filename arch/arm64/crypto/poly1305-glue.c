@@ -206,6 +206,13 @@ static struct shash_alg neon_poly1305_alg = {
 	.base.cra_module	= THIS_MODULE,
 };
 
+bool poly1305_is_arch_optimized(void)
+{
+	/* We always can use at least the ARM64 scalar implementation. */
+	return true;
+}
+EXPORT_SYMBOL(poly1305_is_arch_optimized);
+
 static int __init neon_poly1305_mod_init(void)
 {
 	if (!cpu_have_named_feature(ASIMD))
@@ -223,7 +230,7 @@ static void __exit neon_poly1305_mod_exit(void)
 		crypto_unregister_shash(&neon_poly1305_alg);
 }
 
-module_init(neon_poly1305_mod_init);
+arch_initcall(neon_poly1305_mod_init);
 module_exit(neon_poly1305_mod_exit);
 
 MODULE_DESCRIPTION("Poly1305 transform using NEON instructions");

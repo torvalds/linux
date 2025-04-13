@@ -218,7 +218,7 @@ static struct shash_alg arm_poly1305_algs[] = {{
 	.descsize		= sizeof(struct poly1305_desc_ctx),
 
 	.base.cra_name		= "poly1305",
-	.base.cra_driver_name	= "poly1305-arm",
+	.base.cra_driver_name	= "poly1305-arm-old",
 	.base.cra_priority	= 150,
 	.base.cra_blocksize	= POLY1305_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
@@ -237,6 +237,13 @@ static struct shash_alg arm_poly1305_algs[] = {{
 	.base.cra_module	= THIS_MODULE,
 #endif
 }};
+
+bool poly1305_is_arch_optimized(void)
+{
+	/* We always can use at least the ARM scalar implementation. */
+	return true;
+}
+EXPORT_SYMBOL(poly1305_is_arch_optimized);
 
 static int __init arm_poly1305_mod_init(void)
 {
@@ -264,7 +271,7 @@ static void __exit arm_poly1305_mod_exit(void)
 				  ARRAY_SIZE(arm_poly1305_algs));
 }
 
-module_init(arm_poly1305_mod_init);
+arch_initcall(arm_poly1305_mod_init);
 module_exit(arm_poly1305_mod_exit);
 
 MODULE_DESCRIPTION("Accelerated Poly1305 transform for ARM");

@@ -113,6 +113,12 @@ void poly1305_final_arch(struct poly1305_desc_ctx *dctx, u8 *dst)
 }
 EXPORT_SYMBOL(poly1305_final_arch);
 
+bool poly1305_is_arch_optimized(void)
+{
+	return static_key_enabled(&have_p10);
+}
+EXPORT_SYMBOL(poly1305_is_arch_optimized);
+
 static int __init poly1305_p10_init(void)
 {
 	if (cpu_has_feature(CPU_FTR_ARCH_31))

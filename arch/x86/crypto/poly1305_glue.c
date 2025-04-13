@@ -257,6 +257,12 @@ static struct shash_alg alg = {
 	},
 };
 
+bool poly1305_is_arch_optimized(void)
+{
+	return static_key_enabled(&poly1305_use_avx);
+}
+EXPORT_SYMBOL(poly1305_is_arch_optimized);
+
 static int __init poly1305_simd_mod_init(void)
 {
 	if (boot_cpu_has(X86_FEATURE_AVX) &&
@@ -280,7 +286,7 @@ static void __exit poly1305_simd_mod_exit(void)
 		crypto_unregister_shash(&alg);
 }
 
-module_init(poly1305_simd_mod_init);
+arch_initcall(poly1305_simd_mod_init);
 module_exit(poly1305_simd_mod_exit);
 
 MODULE_LICENSE("GPL");
