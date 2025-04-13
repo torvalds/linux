@@ -22,8 +22,6 @@ void poly1305_init_generic(struct poly1305_desc_ctx *desc,
 	desc->s[3] = get_unaligned_le32(key + 28);
 	poly1305_core_init(&desc->h);
 	desc->buflen = 0;
-	desc->sset = true;
-	desc->rset = 2;
 }
 EXPORT_SYMBOL_GPL(poly1305_init_generic);
 
