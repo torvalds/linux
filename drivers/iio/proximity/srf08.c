@@ -191,8 +191,8 @@ static irqreturn_t srf08_trigger_handler(int irq, void *p)
 	mutex_lock(&data->lock);
 
 	data->scan.chan = sensor_data;
-	iio_push_to_buffers_with_timestamp(indio_dev,
-					   &data->scan, pf->timestamp);
+	iio_push_to_buffers_with_ts(indio_dev, &data->scan, sizeof(data->scan),
+				    pf->timestamp);
 
 	mutex_unlock(&data->lock);
 err:
