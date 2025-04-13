@@ -9,7 +9,7 @@ use crate::{
     str::CStr,
     types::{ARef, Opaque},
 };
-use core::{fmt, ptr};
+use core::{fmt, marker::PhantomData, ptr};
 
 #[cfg(CONFIG_PRINTK)]
 use crate::c_str;
@@ -42,7 +42,7 @@ use crate::c_str;
 /// `bindings::device::release` is valid to be called from any thread, hence `ARef<Device>` can be
 /// dropped from any thread.
 #[repr(transparent)]
-pub struct Device(Opaque<bindings::device>);
+pub struct Device<Ctx: DeviceContext = Normal>(Opaque<bindings::device>, PhantomData<Ctx>);
 
 impl Device {
     /// Creates a new reference-counted abstraction instance of an existing `struct device` pointer.
@@ -59,7 +59,9 @@ impl Device {
         // SAFETY: By the safety requirements ptr is valid
         unsafe { Self::as_ref(ptr) }.into()
     }
+}
 
+impl<Ctx: DeviceContext> Device<Ctx> {
     /// Obtain the raw `struct device *`.
     pub(crate) fn as_raw(&self) -> *mut bindings::device {
         self.0.get()
@@ -188,6 +190,11 @@ impl Device {
         unsafe { bindings::device_property_present(self.as_raw().cast_const(), name.as_char_ptr()) }
     }
 }
+
+// SAFETY: `Device` is a transparent wrapper of a type that doesn't depend on `Device`'s generic
+// argument.
+kernel::impl_device_context_deref!(unsafe { Device });
+kernel::impl_device_context_into_aref!(Device);
 
 // SAFETY: Instances of `Device` are always reference-counted.
 unsafe impl crate::types::AlwaysRefCounted for Device {
