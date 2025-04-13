@@ -106,8 +106,8 @@ static void bch2_chacha20_init(u32 state[CHACHA_STATE_WORDS],
 	memzero_explicit(key_words, sizeof(key_words));
 }
 
-static void bch2_chacha20(const struct bch_key *key, struct nonce nonce,
-			  void *data, size_t len)
+void bch2_chacha20(const struct bch_key *key, struct nonce nonce,
+		   void *data, size_t len)
 {
 	u32 state[CHACHA_STATE_WORDS];
 

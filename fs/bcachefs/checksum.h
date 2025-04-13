@@ -69,6 +69,8 @@ static inline void bch2_csum_err_msg(struct printbuf *out,
 	bch2_csum_to_text(out, type, expected);
 }
 
+void bch2_chacha20(const struct bch_key *, struct nonce, void *, size_t);
+
 int bch2_request_key(struct bch_sb *, struct bch_key *);
 #ifndef __KERNEL__
 int bch2_revoke_key(struct bch_sb *);
