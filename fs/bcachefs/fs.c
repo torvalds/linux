@@ -352,9 +352,8 @@ repeat:
 			if (!trans) {
 				__wait_on_freeing_inode(c, inode, inum);
 			} else {
-				bch2_trans_unlock(trans);
-				__wait_on_freeing_inode(c, inode, inum);
-				int ret = bch2_trans_relock(trans);
+				int ret = drop_locks_do(trans,
+						(__wait_on_freeing_inode(c, inode, inum), 0));
 				if (ret)
 					return ERR_PTR(ret);
 			}
