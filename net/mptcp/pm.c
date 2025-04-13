@@ -151,10 +151,13 @@ bool mptcp_remove_anno_list_by_saddr(struct mptcp_sock *msk,
 				     const struct mptcp_addr_info *addr)
 {
 	struct mptcp_pm_add_entry *entry;
+	bool ret;
 
 	entry = mptcp_pm_del_add_timer(msk, addr, false);
+	ret = entry;
 	kfree(entry);
-	return entry;
+
+	return ret;
 }
 
 bool mptcp_pm_sport_in_anno_list(struct mptcp_sock *msk, const struct sock *sk)
