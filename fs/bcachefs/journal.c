@@ -1298,6 +1298,9 @@ int bch2_set_nr_journal_buckets(struct bch_fs *c, struct bch_dev *ca,
 
 int bch2_dev_journal_alloc(struct bch_dev *ca, bool new_fs)
 {
+	if (!(ca->mi.data_allowed & BIT(BCH_DATA_journal)))
+		return 0;
+
 	unsigned nr;
 	int ret;
 
