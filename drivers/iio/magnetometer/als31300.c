@@ -245,8 +245,7 @@ static irqreturn_t als31300_trigger_handler(int irq, void *p)
 	scan.channels[0] = x;
 	scan.channels[1] = y;
 	scan.channels[2] = z;
-	iio_push_to_buffers_with_timestamp(indio_dev, &scan,
-					   pf->timestamp);
+	iio_push_to_buffers_with_ts(indio_dev, &scan, sizeof(scan), pf->timestamp);
 
 trigger_out:
 	iio_trigger_notify_done(indio_dev->trig);

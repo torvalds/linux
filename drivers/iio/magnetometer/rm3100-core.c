@@ -515,8 +515,8 @@ static irqreturn_t rm3100_trigger_handler(int irq, void *p)
 	 * Always using the same buffer so that we wouldn't need to set the
 	 * paddings to 0 in case of leaking any data.
 	 */
-	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
-					   pf->timestamp);
+	iio_push_to_buffers_with_ts(indio_dev, data->buffer, sizeof(data->buffer),
+				    pf->timestamp);
 done:
 	iio_trigger_notify_done(indio_dev->trig);
 
