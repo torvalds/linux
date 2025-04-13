@@ -2593,15 +2593,22 @@ static bool bch2_dev_has_open_write_point(struct bch_fs *c, struct bch_dev *ca)
 	return ret;
 }
 
+void bch2_dev_allocator_set_rw(struct bch_fs *c, struct bch_dev *ca, bool rw)
+{
+	for (unsigned i = 0; i < ARRAY_SIZE(c->rw_devs); i++)
+		if (rw && (ca->mi.data_allowed & BIT(i)))
+			set_bit(ca->dev_idx, c->rw_devs[i].d);
+		else
+			clear_bit(ca->dev_idx, c->rw_devs[i].d);
+}
+
 /* device goes ro: */
 void bch2_dev_allocator_remove(struct bch_fs *c, struct bch_dev *ca)
 {
 	lockdep_assert_held(&c->state_lock);
 
 	/* First, remove device from allocation groups: */
-
-	for (unsigned i = 0; i < ARRAY_SIZE(c->rw_devs); i++)
-		clear_bit(ca->dev_idx, c->rw_devs[i].d);
+	bch2_dev_allocator_set_rw(c, ca, false);
 
 	c->rw_devs_change_count++;
 
@@ -2635,10 +2642,7 @@ void bch2_dev_allocator_add(struct bch_fs *c, struct bch_dev *ca)
 {
 	lockdep_assert_held(&c->state_lock);
 
-	for (unsigned i = 0; i < ARRAY_SIZE(c->rw_devs); i++)
-		if (ca->mi.data_allowed & (1 << i))
-			set_bit(ca->dev_idx, c->rw_devs[i].d);
-
+	bch2_dev_allocator_set_rw(c, ca, true);
 	c->rw_devs_change_count++;
 }
 
