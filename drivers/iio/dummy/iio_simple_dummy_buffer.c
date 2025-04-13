@@ -83,8 +83,8 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 	iio_for_each_active_channel(indio_dev, j)
 		scan->data[i++] = fakedata[j];
 
-	iio_push_to_buffers_with_timestamp(indio_dev, scan,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, scan, sizeof(*scan),
+				    iio_get_time_ns(indio_dev));
 
 	kfree(scan);
 done:
