@@ -3236,18 +3236,6 @@ struct phy_device *fwnode_phy_find_device(struct fwnode_handle *phy_fwnode)
 EXPORT_SYMBOL(fwnode_phy_find_device);
 
 /**
- * device_phy_find_device - For the given device, get the phy_device
- * @dev: Pointer to the given device
- *
- * Refer return conditions of fwnode_phy_find_device().
- */
-struct phy_device *device_phy_find_device(struct device *dev)
-{
-	return fwnode_phy_find_device(dev_fwnode(dev));
-}
-EXPORT_SYMBOL_GPL(device_phy_find_device);
-
-/**
  * fwnode_get_phy_node - Get the phy_node using the named reference.
  * @fwnode: Pointer to fwnode from which phy_node has to be obtained.
  *
