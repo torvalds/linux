@@ -23,7 +23,7 @@
 
 #include <uapi/asm-generic/errno-base.h>
 
-#include <asm/amd_node.h>
+#include <asm/amd/node.h>
 
 #include "hsmp.h"
 

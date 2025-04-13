@@ -1142,7 +1142,7 @@ M:	Mario Limonciello <mario.limonciello@amd.com>
 M:	Yazen Ghannam <yazen.ghannam@amd.com>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
-F:	arch/x86/include/asm/amd_node.h
+F:	arch/x86/include/asm/amd/node.h
 F:	arch/x86/kernel/amd_node.c
 
 AMD PDS CORE DRIVER

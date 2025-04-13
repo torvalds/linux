@@ -18,7 +18,7 @@
 #include <linux/ras.h>
 
 #include <asm/amd/nb.h>
-#include <asm/amd_node.h>
+#include <asm/amd/node.h>
 
 #include "reg_fields.h"
 

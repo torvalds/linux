@@ -18,7 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/sysfs.h>
 
-#include <asm/amd_node.h>
+#include <asm/amd/node.h>
 
 #include "hsmp.h"
 

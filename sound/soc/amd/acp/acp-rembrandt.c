@@ -22,7 +22,7 @@
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 
-#include <asm/amd_node.h>
+#include <asm/amd/node.h>
 
 #include "amd.h"
 #include "../mach-config.h"
