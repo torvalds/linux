@@ -618,8 +618,8 @@ static int zpa2326_fill_sample_buffer(struct iio_dev               *indio_dev,
 	 */
 	zpa2326_dbg(indio_dev, "filling raw samples buffer");
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &sample,
-					   private->timestamp);
+	iio_push_to_buffers_with_ts(indio_dev, &sample, sizeof(sample),
+				    private->timestamp);
 
 	return 0;
 }

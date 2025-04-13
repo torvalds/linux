@@ -1142,8 +1142,9 @@ static irqreturn_t bmp280_trigger_handler(int irq, void *p)
 	chans[0] = comp_press;
 	chans[1] = comp_temp;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, data->sensor_data,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, data->sensor_data,
+				    sizeof(data->sensor_data),
+				    iio_get_time_ns(indio_dev));
 
 out:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -1273,8 +1274,9 @@ static irqreturn_t bme280_trigger_handler(int irq, void *p)
 	chans[1] = comp_temp;
 	chans[2] = comp_humidity;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, data->sensor_data,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, data->sensor_data,
+				    sizeof(data->sensor_data),
+				    iio_get_time_ns(indio_dev));
 
 out:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -1936,8 +1938,9 @@ static irqreturn_t bmp380_trigger_handler(int irq, void *p)
 	chans[0] = comp_press;
 	chans[1] = comp_temp;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, data->sensor_data,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, data->sensor_data,
+				    sizeof(data->sensor_data),
+				    iio_get_time_ns(indio_dev));
 
 out:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -2630,8 +2633,9 @@ static irqreturn_t bmp580_trigger_handler(int irq, void *p)
 	/* Temperature calculations */
 	memcpy(&data->sensor_data[offset], &data->buf[0], 3);
 
-	iio_push_to_buffers_with_timestamp(indio_dev, data->sensor_data,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, data->sensor_data,
+				    sizeof(data->sensor_data),
+				    iio_get_time_ns(indio_dev));
 
 out:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -2969,8 +2973,9 @@ static irqreturn_t bmp180_trigger_handler(int irq, void *p)
 	chans[0] = comp_press;
 	chans[1] = comp_temp;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, data->sensor_data,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, data->sensor_data,
+				    sizeof(data->sensor_data),
+				    iio_get_time_ns(indio_dev));
 
 out:
 	iio_trigger_notify_done(indio_dev->trig);
