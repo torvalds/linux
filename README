@@ -1,6 +1,8 @@
 Linux kernel
 ============
 
+Thank you for downloading Linux!
+
 There are several guides for kernel developers and users. These guides can
 be rendered in a number of formats, like HTML and PDF. Please read
 Documentation/admin-guide/README.rst first.
@@ -16,3 +18,5 @@ several of them using the reStructuredText markup notation.
 Please read the Documentation/process/changes.rst file, as it contains the
 requirements for building and running the kernel, and information about
 the problems which may result by upgrading your kernel.
+
+If you are a beginner to Linux, feel free to read: https://www.linux.org/forums/linux-beginner-tutorials.123/ to get started. 
