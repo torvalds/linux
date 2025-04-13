@@ -5,7 +5,6 @@
 
 config PHYLINK
 	tristate
-	depends on NETDEVICES
 	select PHYLIB
 	select SWPHY
 	help
@@ -15,7 +14,6 @@ config PHYLINK
 
 menuconfig PHYLIB
 	tristate "PHY Device support and infrastructure"
-	depends on NETDEVICES
 	select MDIO_DEVICE
 	select MDIO_DEVRES
 	help
