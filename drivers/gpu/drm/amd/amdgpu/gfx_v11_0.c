@@ -4832,10 +4832,10 @@ static int gfx_v11_0_hw_init(struct amdgpu_ip_block *ip_block)
 static int gfx_v11_0_set_userq_eop_interrupts(struct amdgpu_device *adev,
 					      bool enable)
 {
-	if (adev->gfx.disable_kq) {
-		unsigned int irq_type;
-		int m, p, r;
+	unsigned int irq_type;
+	int m, p, r;
 
+	if (adev->userq_funcs[AMDGPU_HW_IP_GFX]) {
 		for (m = 0; m < adev->gfx.me.num_me; m++) {
 			for (p = 0; p < adev->gfx.me.num_pipe_per_me; p++) {
 				irq_type = AMDGPU_CP_IRQ_GFX_ME0_PIPE0_EOP + p;
@@ -4849,7 +4849,9 @@ static int gfx_v11_0_set_userq_eop_interrupts(struct amdgpu_device *adev,
 					return r;
 			}
 		}
+	}
 
+	if (adev->userq_funcs[AMDGPU_HW_IP_COMPUTE]) {
 		for (m = 0; m < adev->gfx.mec.num_mec; ++m) {
 			for (p = 0; p < adev->gfx.mec.num_pipe_per_mec; p++) {
 				irq_type = AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP
@@ -4866,6 +4868,7 @@ static int gfx_v11_0_set_userq_eop_interrupts(struct amdgpu_device *adev,
 			}
 		}
 	}
+
 	return 0;
 }
 
