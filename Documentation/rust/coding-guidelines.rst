@@ -203,6 +203,23 @@ or:
 	/// [`struct mutex`]: srctree/include/linux/mutex.h
 
 
+C FFI types
+-----------
+
+Rust kernel code refers to C types, such as ``int``, using type aliases such as
+``c_int``, which are readily available from the ``kernel`` prelude. Please do
+not use the aliases from ``core::ffi`` -- they may not map to the correct types.
+
+These aliases should generally be referred directly by their identifier, i.e.
+as a single segment path. For instance:
+
+.. code-block:: rust
+
+	fn f(p: *const c_char) -> c_int {
+	    // ...
+	}
+
+
 Naming
 ------
 

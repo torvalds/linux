@@ -14,6 +14,11 @@
 #[doc(no_inline)]
 pub use core::pin::Pin;
 
+pub use ::ffi::{
+    c_char, c_int, c_long, c_longlong, c_schar, c_short, c_uchar, c_uint, c_ulong, c_ulonglong,
+    c_ushort, c_void,
+};
+
 pub use crate::alloc::{flags::*, Box, KBox, KVBox, KVVec, KVec, VBox, VVec, Vec};
 
 #[doc(no_inline)]
