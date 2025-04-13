@@ -232,13 +232,19 @@ pub struct Normal;
 /// any of the bus callbacks, such as `probe()`.
 pub struct Core;
 
+/// The [`Bound`] context is the context of a bus specific device reference when it is guaranteed to
+/// be bound for the duration of its lifetime.
+pub struct Bound;
+
 mod private {
     pub trait Sealed {}
 
+    impl Sealed for super::Bound {}
     impl Sealed for super::Core {}
     impl Sealed for super::Normal {}
 }
 
+impl DeviceContext for Bound {}
 impl DeviceContext for Core {}
 impl DeviceContext for Normal {}
 
@@ -281,7 +287,14 @@ macro_rules! impl_device_context_deref {
         // `__impl_device_context_deref!`.
         ::kernel::__impl_device_context_deref!(unsafe {
             $device,
-            $crate::device::Core => $crate::device::Normal
+            $crate::device::Core => $crate::device::Bound
+        });
+
+        // SAFETY: This macro has the exact same safety requirement as
+        // `__impl_device_context_deref!`.
+        ::kernel::__impl_device_context_deref!(unsafe {
+            $device,
+            $crate::device::Bound => $crate::device::Normal
         });
     };
 }
@@ -304,6 +317,7 @@ macro_rules! __impl_device_context_into_aref {
 macro_rules! impl_device_context_into_aref {
     ($device:tt) => {
         ::kernel::__impl_device_context_into_aref!($crate::device::Core, $device);
+        ::kernel::__impl_device_context_into_aref!($crate::device::Bound, $device);
     };
 }
 
