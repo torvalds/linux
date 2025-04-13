@@ -18,8 +18,8 @@
 #include <asm/neon.h>
 #include <asm/simd.h>
 
-static DEFINE_STATIC_KEY_FALSE(have_crc32);
-static DEFINE_STATIC_KEY_FALSE(have_pmull);
+static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_crc32);
+static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_pmull);
 
 #define PMULL_MIN_LEN	64	/* min size of buffer for pmull functions */
 

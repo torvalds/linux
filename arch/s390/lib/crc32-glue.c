@@ -18,7 +18,7 @@
 #define VX_ALIGNMENT		16L
 #define VX_ALIGN_MASK		(VX_ALIGNMENT - 1)
 
-static DEFINE_STATIC_KEY_FALSE(have_vxrs);
+static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_vxrs);
 
 /*
  * DEFINE_CRC32_VX() - Define a CRC-32 function using the vector extension

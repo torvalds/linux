@@ -17,7 +17,7 @@
 #include <asm/pstate.h>
 #include <asm/elf.h>
 
-static DEFINE_STATIC_KEY_FALSE(have_crc32c_opcode);
+static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_crc32c_opcode);
 
 u32 crc32_le_arch(u32 crc, const u8 *data, size_t len)
 {
