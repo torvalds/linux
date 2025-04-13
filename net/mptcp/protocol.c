@@ -3527,8 +3527,10 @@ bool mptcp_finish_join(struct sock *ssk)
 		return true;
 	}
 
-	if (!mptcp_pm_allow_new_subflow(msk))
+	if (!mptcp_pm_allow_new_subflow(msk)) {
+		MPTCP_INC_STATS(sock_net(ssk), MPTCP_MIB_JOINREJECTED);
 		goto err_prohibited;
+	}
 
 	/* If we can't acquire msk socket lock here, let the release callback
 	 * handle it
