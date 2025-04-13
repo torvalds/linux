@@ -487,7 +487,10 @@ static unsigned long bch2_btree_cache_scan(struct shrinker *shrink,
 	 * IO can always make forward progress:
 	 */
 	can_free = btree_cache_can_free(list);
-	nr = min_t(unsigned long, nr, can_free);
+	if (nr > can_free) {
+		bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_cache_reserve] += nr - can_free;
+		nr = can_free;
+	}
 
 	i = 0;
 	list_for_each_entry_safe(b, t, &bc->freeable, list) {
@@ -1489,9 +1492,10 @@ void bch2_btree_cache_to_text(struct printbuf *out, const struct btree_cache *bc
 
 	prt_btree_cache_line(out, c, "live:",		bc->live[0].nr);
 	prt_btree_cache_line(out, c, "pinned:",		bc->live[1].nr);
-	prt_btree_cache_line(out, c, "freeable:",	bc->nr_freeable);
+	prt_btree_cache_line(out, c, "reserve:",	bc->nr_reserve);
+	prt_btree_cache_line(out, c, "freed:",		bc->nr_freeable);
 	prt_btree_cache_line(out, c, "dirty:",		atomic_long_read(&bc->nr_dirty));
-	prt_printf(out, "cannibalize lock:\t%p\n",	bc->alloc_lock);
+	prt_printf(out, "cannibalize lock:\t%s\n",	bc->alloc_lock ? "held" : "not held");
 	prt_newline(out);
 
 	for (unsigned i = 0; i < ARRAY_SIZE(bc->nr_by_btree); i++) {
@@ -1502,6 +1506,7 @@ void bch2_btree_cache_to_text(struct printbuf *out, const struct btree_cache *bc
 	}
 
 	prt_newline(out);
+	prt_printf(out, "counters since mount:\n");
 	prt_printf(out, "freed:\t%zu\n", bc->nr_freed);
 	prt_printf(out, "not freed:\n");
 
