@@ -344,6 +344,69 @@ static inline struct btree *btree_cache_find(struct btree_cache *bc,
 	return rhashtable_lookup_fast(&bc->table, &v, bch_btree_cache_params);
 }
 
+static int __btree_node_reclaim_checks(struct bch_fs *c, struct btree *b,
+				       bool flush, bool locked)
+{
+	struct btree_cache *bc = &c->btree_cache;
+
+	lockdep_assert_held(&bc->lock);
+
+	if (btree_node_noevict(b)) {
+		bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_noevict]++;
+		return -BCH_ERR_ENOMEM_btree_node_reclaim;
+	}
+	if (btree_node_write_blocked(b)) {
+		bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_write_blocked]++;
+		return -BCH_ERR_ENOMEM_btree_node_reclaim;
+	}
+	if (btree_node_will_make_reachable(b)) {
+		bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_will_make_reachable]++;
+		return -BCH_ERR_ENOMEM_btree_node_reclaim;
+	}
+
+	if (btree_node_dirty(b)) {
+		if (!flush) {
+			bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_dirty]++;
+			return -BCH_ERR_ENOMEM_btree_node_reclaim;
+		}
+
+		if (locked) {
+			/*
+			 * Using the underscore version because we don't want to compact
+			 * bsets after the write, since this node is about to be evicted
+			 * - unless btree verify mode is enabled, since it runs out of
+			 * the post write cleanup:
+			 */
+			if (bch2_verify_btree_ondisk)
+				bch2_btree_node_write(c, b, SIX_LOCK_intent,
+						      BTREE_WRITE_cache_reclaim);
+			else
+				__bch2_btree_node_write(c, b,
+							BTREE_WRITE_cache_reclaim);
+		}
+	}
+
+	if (b->flags & ((1U << BTREE_NODE_read_in_flight)|
+			(1U << BTREE_NODE_write_in_flight))) {
+		if (!flush) {
+			if (btree_node_read_in_flight(b))
+				bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_read_in_flight]++;
+			else if (btree_node_write_in_flight(b))
+				bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_write_in_flight]++;
+			return -BCH_ERR_ENOMEM_btree_node_reclaim;
+		}
+
+		if (locked)
+			return -EINTR;
+
+		/* XXX: waiting on IO with btree cache lock held */
+		bch2_btree_node_wait_on_read(b);
+		bch2_btree_node_wait_on_write(b);
+	}
+
+	return 0;
+}
+
 /*
  * this version is for btree nodes that have already been freed (we're not
  * reaping a real btree node)
@@ -354,24 +417,10 @@ static int __btree_node_reclaim(struct bch_fs *c, struct btree *b, bool flush)
 	int ret = 0;
 
 	lockdep_assert_held(&bc->lock);
-wait_on_io:
-	if (b->flags & ((1U << BTREE_NODE_dirty)|
-			(1U << BTREE_NODE_read_in_flight)|
-			(1U << BTREE_NODE_write_in_flight))) {
-		if (!flush) {
-			if (btree_node_dirty(b))
-				bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_dirty]++;
-			else if (btree_node_read_in_flight(b))
-				bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_read_in_flight]++;
-			else if (btree_node_write_in_flight(b))
-				bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_write_in_flight]++;
-			return -BCH_ERR_ENOMEM_btree_node_reclaim;
-		}
-
-		/* XXX: waiting on IO with btree cache lock held */
-		bch2_btree_node_wait_on_read(b);
-		bch2_btree_node_wait_on_write(b);
-	}
+retry_unlocked:
+	ret = __btree_node_reclaim_checks(c, b, flush, false);
+	if (ret)
+		return ret;
 
 	if (!six_trylock_intent(&b->c.lock)) {
 		bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_lock_intent]++;
@@ -380,69 +429,23 @@ wait_on_io:
 
 	if (!six_trylock_write(&b->c.lock)) {
 		bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_lock_write]++;
-		goto out_unlock_intent;
+		six_unlock_intent(&b->c.lock);
+		return -BCH_ERR_ENOMEM_btree_node_reclaim;
 	}
 
 	/* recheck under lock */
-	if (b->flags & ((1U << BTREE_NODE_read_in_flight)|
-			(1U << BTREE_NODE_write_in_flight))) {
-		if (!flush) {
-			if (btree_node_read_in_flight(b))
-				bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_read_in_flight]++;
-			else if (btree_node_write_in_flight(b))
-				bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_write_in_flight]++;
-			goto out_unlock;
-		}
+	ret = __btree_node_reclaim_checks(c, b, flush, true);
+	if (ret) {
 		six_unlock_write(&b->c.lock);
 		six_unlock_intent(&b->c.lock);
-		goto wait_on_io;
+		if (ret == -EINTR)
+			goto retry_unlocked;
+		return ret;
 	}
 
-	if (btree_node_noevict(b)) {
-		bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_noevict]++;
-		goto out_unlock;
-	}
-	if (btree_node_write_blocked(b)) {
-		bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_write_blocked]++;
-		goto out_unlock;
-	}
-	if (btree_node_will_make_reachable(b)) {
-		bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_will_make_reachable]++;
-		goto out_unlock;
-	}
-
-	if (btree_node_dirty(b)) {
-		if (!flush) {
-			bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_dirty]++;
-			goto out_unlock;
-		}
-		/*
-		 * Using the underscore version because we don't want to compact
-		 * bsets after the write, since this node is about to be evicted
-		 * - unless btree verify mode is enabled, since it runs out of
-		 * the post write cleanup:
-		 */
-		if (bch2_verify_btree_ondisk)
-			bch2_btree_node_write(c, b, SIX_LOCK_intent,
-					      BTREE_WRITE_cache_reclaim);
-		else
-			__bch2_btree_node_write(c, b,
-						BTREE_WRITE_cache_reclaim);
-
-		six_unlock_write(&b->c.lock);
-		six_unlock_intent(&b->c.lock);
-		goto wait_on_io;
-	}
-out:
 	if (b->hash_val && !ret)
 		trace_and_count(c, btree_cache_reap, c, b);
-	return ret;
-out_unlock:
-	six_unlock_write(&b->c.lock);
-out_unlock_intent:
-	six_unlock_intent(&b->c.lock);
-	ret = -BCH_ERR_ENOMEM_btree_node_reclaim;
-	goto out;
+	return 0;
 }
 
 static int btree_node_reclaim(struct bch_fs *c, struct btree *b)
