@@ -72,6 +72,8 @@ static const struct usb_device_id id_table[] = {
 	{DEVICE_G1K(0x1bc7, 0x900e)},	/* Telit Gobi QDL device */
 
 	/* Gobi 2000 devices */
+	{USB_DEVICE(0x04da, 0x250e)},	/* Panasonic Gobi 2000 QDL device */
+	{USB_DEVICE(0x04da, 0x250f)},	/* Panasonic Gobi 2000 Modem device */
 	{USB_DEVICE(0x1410, 0xa010)},	/* Novatel Gobi 2000 QDL device */
 	{USB_DEVICE(0x1410, 0xa011)},	/* Novatel Gobi 2000 QDL device */
 	{USB_DEVICE(0x1410, 0xa012)},	/* Novatel Gobi 2000 QDL device */
