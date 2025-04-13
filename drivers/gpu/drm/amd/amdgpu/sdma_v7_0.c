@@ -1353,11 +1353,39 @@ static int sdma_v7_0_sw_fini(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
+static int sdma_v7_0_set_userq_trap_interrupts(struct amdgpu_device *adev,
+					       bool enable)
+{
+	unsigned int irq_type;
+	int i, r;
+
+	if (adev->userq_funcs[AMDGPU_HW_IP_DMA]) {
+		for (i = 0; i < adev->sdma.num_instances; i++) {
+			irq_type = AMDGPU_SDMA_IRQ_INSTANCE0 + i;
+			if (enable)
+				r = amdgpu_irq_get(adev, &adev->sdma.trap_irq,
+						   irq_type);
+			else
+				r = amdgpu_irq_put(adev, &adev->sdma.trap_irq,
+						   irq_type);
+			if (r)
+				return r;
+		}
+	}
+
+	return 0;
+}
+
 static int sdma_v7_0_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
+	int r;
 
-	return sdma_v7_0_start(adev);
+	r = sdma_v7_0_start(adev);
+	if (r)
+		return r;
+
+	return sdma_v7_0_set_userq_trap_interrupts(adev, true);
 }
 
 static int sdma_v7_0_hw_fini(struct amdgpu_ip_block *ip_block)
@@ -1369,6 +1397,7 @@ static int sdma_v7_0_hw_fini(struct amdgpu_ip_block *ip_block)
 
 	sdma_v7_0_ctx_switch_enable(adev, false);
 	sdma_v7_0_enable(adev, false);
+	sdma_v7_0_set_userq_trap_interrupts(adev, false);
 
 	return 0;
 }
