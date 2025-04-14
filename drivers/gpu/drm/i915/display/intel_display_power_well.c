@@ -25,6 +25,7 @@
 #include "intel_hotplug.h"
 #include "intel_pcode.h"
 #include "intel_pps.h"
+#include "intel_psr.h"
 #include "intel_tc.h"
 #include "intel_vga.h"
 #include "skl_watermark.h"
@@ -759,6 +760,9 @@ void gen9_set_dc_state(struct intel_display *display, u32 state)
 	if (drm_WARN_ON_ONCE(display->drm,
 			     state & ~power_domains->allowed_dc_mask))
 		state &= power_domains->allowed_dc_mask;
+
+	if (!power_domains->initializing)
+		intel_psr_notify_dc5_dc6(display);
 
 	val = intel_de_read(display, DC_STATE_EN);
 	mask = gen9_dc_mask(display);

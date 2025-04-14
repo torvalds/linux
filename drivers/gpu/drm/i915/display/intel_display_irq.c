@@ -1704,14 +1704,7 @@ static void intel_display_vblank_dc_work(struct work_struct *work)
 		container_of(work, typeof(*display), irq.vblank_dc_work);
 	int vblank_wa_num_pipes = READ_ONCE(display->irq.vblank_wa_num_pipes);
 
-	/*
-	 * NOTE: intel_display_power_set_target_dc_state is used only by PSR
-	 * code for DC3CO handling. DC3CO target state is currently disabled in
-	 * PSR code. If DC3CO is taken into use we need take that into account
-	 * here as well.
-	 */
-	intel_display_power_set_target_dc_state(display, vblank_wa_num_pipes ? DC_STATE_DISABLE :
-						DC_STATE_EN_UPTO_DC6);
+	intel_psr_notify_vblank_enable_disable(display, vblank_wa_num_pipes);
 }
 
 int bdw_enable_vblank(struct drm_crtc *_crtc)

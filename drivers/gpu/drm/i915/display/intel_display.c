@@ -6659,6 +6659,8 @@ static void intel_enable_crtc(struct intel_atomic_state *state,
 		intel_crtc_update_active_timings(pipe_crtc_state, false);
 	}
 
+	intel_psr_notify_pipe_change(state, crtc, true);
+
 	display->funcs.display->crtc_enable(state, crtc);
 
 	/* vblanks work again, re-enable pipe CRC. */
@@ -6777,6 +6779,8 @@ static void intel_old_crtc_state_disables(struct intel_atomic_state *state,
 	for_each_intel_crtc_in_pipe_mask(display->drm, pipe_crtc,
 					 intel_crtc_joined_pipe_mask(old_crtc_state))
 		intel_crtc_disable_pipe_crc(pipe_crtc);
+
+	intel_psr_notify_pipe_change(state, crtc, false);
 
 	display->funcs.display->crtc_disable(state, crtc);
 

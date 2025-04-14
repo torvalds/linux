@@ -54,6 +54,7 @@
 #include "intel_plane_initial.h"
 #include "intel_pmdemand.h"
 #include "intel_pps.h"
+#include "intel_psr.h"
 #include "intel_quirks.h"
 #include "intel_vga.h"
 #include "intel_wm.h"
@@ -225,6 +226,8 @@ int intel_display_driver_probe_noirq(struct intel_display *display)
 	ret = intel_vga_register(display);
 	if (ret)
 		goto cleanup_bios;
+
+	intel_psr_dc5_dc6_wa_init(display);
 
 	/* FIXME: completely on the wrong abstraction layer */
 	ret = intel_power_domains_init(display);
