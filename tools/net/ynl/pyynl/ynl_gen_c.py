@@ -1399,9 +1399,9 @@ class CodeWriter:
 
     def write_func(self, qual_ret, name, body, args=None, local_vars=None):
         self.write_func_prot(qual_ret=qual_ret, name=name, args=args)
+        self.block_start()
         self.write_func_lvar(local_vars=local_vars)
 
-        self.block_start()
         for line in body:
             self.p(line)
         self.block_end()
