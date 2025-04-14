@@ -5,8 +5,8 @@
 
 #include "mana_ib.h"
 
-#define VALID_MR_FLAGS                                                         \
-	(IB_ACCESS_LOCAL_WRITE | IB_ACCESS_REMOTE_WRITE | IB_ACCESS_REMOTE_READ)
+#define VALID_MR_FLAGS (IB_ACCESS_LOCAL_WRITE | IB_ACCESS_REMOTE_WRITE | IB_ACCESS_REMOTE_READ |\
+			IB_ACCESS_REMOTE_ATOMIC)
 
 #define VALID_DMA_MR_FLAGS (IB_ACCESS_LOCAL_WRITE)
 
@@ -23,6 +23,9 @@ mana_ib_verbs_to_gdma_access_flags(int access_flags)
 
 	if (access_flags & IB_ACCESS_REMOTE_READ)
 		flags |= GDMA_ACCESS_FLAG_REMOTE_READ;
+
+	if (access_flags & IB_ACCESS_REMOTE_ATOMIC)
+		flags |= GDMA_ACCESS_FLAG_REMOTE_ATOMIC;
 
 	return flags;
 }
