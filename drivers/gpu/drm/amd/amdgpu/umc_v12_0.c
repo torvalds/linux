@@ -283,9 +283,10 @@ static int umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 	col_lower = (err_addr >> 1) & 0x3ULL;
 	/* extra row bit will be handled later */
 	row_lower = (err_addr >> UMC_V12_0_MA_R0_BIT) & 0x1fffULL;
+	row_lower &= ~BIT_ULL(adev->umc.flip_bits.flip_row_bit);
 
 	if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(9, 5, 0)) {
-		row_high = (soc_pa >> UMC_V12_0_PA_R13_BIT) & 0x3ULL;
+		row_high = (soc_pa >> adev->umc.flip_bits.r13_in_pa) & 0x3ULL;
 		/* it's 2.25GB in each channel, from MCA address to PA
 		 * [R14 R13] is converted if the two bits value are 0x3,
 		 * get them from PA instead of MCA address.
@@ -303,8 +304,10 @@ static int umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 			soc_pa |= (((column >> i) & 0x1ULL) << flip_bits[i]);
 
 		col = ((column & 0x7) << 2) | col_lower;
-		/* add row bit 13 */
-		row = ((column >> 3) << 13) | row_lower;
+		/* handle extra row bit */
+		if (bit_num == RETIRE_FLIP_BITS_NUM)
+			row = ((column >> 3) << adev->umc.flip_bits.flip_row_bit) |
+					row_lower;
 
 		if (dump_addr)
 			dev_info(adev->dev,
@@ -527,8 +530,7 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	uint64_t err_addr, pa_addr = 0;
 	struct ras_ecc_err *ecc_err;
 	struct ta_ras_query_address_output addr_out;
-	enum amdgpu_memory_partition nps = AMDGPU_NPS1_PARTITION_MODE;
-	uint32_t shift_bit = UMC_V12_0_PA_C4_BIT;
+	uint32_t shift_bit = adev->umc.flip_bits.flip_bits_in_pa[2];
 	int count, ret, i;
 
 	hwid = REG_GET_FIELD(ipid, MCMP1_IPIDT0, HardwareID);
@@ -572,14 +574,6 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	ecc_err->addr = addr;
 	ecc_err->pa_pfn = pa_addr >> AMDGPU_GPU_PAGE_SHIFT;
 	ecc_err->channel_idx = addr_out.pa.channel_idx;
-
-	if (adev->gmc.gmc_funcs->query_mem_partition_mode)
-		nps = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
-
-	if (nps == AMDGPU_NPS2_PARTITION_MODE)
-		shift_bit = UMC_V12_0_PA_B1_BIT;
-	if (nps == AMDGPU_NPS4_PARTITION_MODE)
-		shift_bit = UMC_V12_0_PA_B0_BIT;
 
 	/* If converted pa_pfn is 0, use pa C4 pfn. */
 	if (!ecc_err->pa_pfn)
