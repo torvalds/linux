@@ -163,10 +163,9 @@ static int kfd_smi_ev_release(struct inode *inode, struct file *filep)
 static bool kfd_smi_ev_enabled(pid_t pid, struct kfd_smi_client *client,
 			       unsigned int event)
 {
-	uint64_t all = KFD_SMI_EVENT_MASK_FROM_INDEX(KFD_SMI_EVENT_ALL_PROCESS);
 	uint64_t events = READ_ONCE(client->events);
 
-	if (pid && client->pid != pid && !(client->suser && (events & all)))
+	if (pid && client->pid != pid && !client->suser)
 		return false;
 
 	return events & KFD_SMI_EVENT_MASK_FROM_INDEX(event);
