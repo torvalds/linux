@@ -1666,44 +1666,6 @@ void qed_calc_task_ctx_validation(void *p_ctx_mem,
 	*region1_val_ptr = qed_calc_cdu_validation_byte(ctx_type, 1, tid);
 }
 
-/* Memset session context to 0 while preserving validation bytes */
-void qed_memset_session_ctx(void *p_ctx_mem, u32 ctx_size, u8 ctx_type)
-{
-	u8 *x_val_ptr, *t_val_ptr, *u_val_ptr, *p_ctx;
-	u8 x_val, t_val, u_val;
-
-	p_ctx = (u8 * const)p_ctx_mem;
-	x_val_ptr = &p_ctx[con_region_offsets[0][ctx_type]];
-	t_val_ptr = &p_ctx[con_region_offsets[1][ctx_type]];
-	u_val_ptr = &p_ctx[con_region_offsets[2][ctx_type]];
-
-	x_val = *x_val_ptr;
-	t_val = *t_val_ptr;
-	u_val = *u_val_ptr;
-
-	memset(p_ctx, 0, ctx_size);
-
-	*x_val_ptr = x_val;
-	*t_val_ptr = t_val;
-	*u_val_ptr = u_val;
-}
-
-/* Memset task context to 0 while preserving validation bytes */
-void qed_memset_task_ctx(void *p_ctx_mem, u32 ctx_size, u8 ctx_type)
-{
-	u8 *p_ctx, *region1_val_ptr;
-	u8 region1_val;
-
-	p_ctx = (u8 * const)p_ctx_mem;
-	region1_val_ptr = &p_ctx[task_region_offsets[0][ctx_type]];
-
-	region1_val = *region1_val_ptr;
-
-	memset(p_ctx, 0, ctx_size);
-
-	*region1_val_ptr = region1_val;
-}
-
 /* Enable and configure context validation */
 void qed_enable_context_validation(struct qed_hwfn *p_hwfn,
 				   struct qed_ptt *p_ptt)

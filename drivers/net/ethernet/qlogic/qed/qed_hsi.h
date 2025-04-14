@@ -2694,30 +2694,6 @@ void qed_calc_session_ctx_validation(void *p_ctx_mem,
 void qed_calc_task_ctx_validation(void *p_ctx_mem,
 				  u16 ctx_size, u8 ctx_type, u32 tid);
 
-/**
- * qed_memset_session_ctx(): Memset session context to 0 while
- *                            preserving validation bytes.
- *
- * @p_ctx_mem: Pointer to context memory.
- * @ctx_size: Size to initialzie.
- * @ctx_type: Context type.
- *
- * Return: Void.
- */
-void qed_memset_session_ctx(void *p_ctx_mem, u32 ctx_size, u8 ctx_type);
-
-/**
- * qed_memset_task_ctx(): Memset task context to 0 while preserving
- *                        validation bytes.
- *
- * @p_ctx_mem: Pointer to context memory.
- * @ctx_size: size to initialzie.
- * @ctx_type: context type.
- *
- * Return: Void.
- */
-void qed_memset_task_ctx(void *p_ctx_mem, u32 ctx_size, u8 ctx_type);
-
 #define NUM_STORMS 6
 
 /**
