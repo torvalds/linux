@@ -6,13 +6,16 @@
 #ifndef __DC_DRV_H__
 #define __DC_DRV_H__
 
+#include <linux/container_of.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
 
 #include <drm/drm_device.h>
+#include <drm/drm_encoder.h>
 
 #include "dc-de.h"
+#include "dc-kms.h"
 #include "dc-pe.h"
 
 /**
@@ -21,6 +24,12 @@
 struct dc_drm_device {
 	/** @base: base drm_device structure */
 	struct drm_device base;
+	/** @dc_crtc: DC specific CRTC list */
+	struct dc_crtc dc_crtc[DC_DISPLAYS];
+	/** @dc_primary: DC specific primary plane list */
+	struct dc_plane dc_primary[DC_DISPLAYS];
+	/** @encoder: encoder list */
+	struct drm_encoder encoder[DC_DISPLAYS];
 	/** @cf_safe: constframe list(safety stream) */
 	struct dc_cf *cf_safe[DC_DISPLAYS];
 	/** @cf_cont: constframe list(content stream) */
@@ -47,6 +56,19 @@ struct dc_subdev_info {
 	resource_size_t reg_start;
 	int id;
 };
+
+static inline struct dc_drm_device *to_dc_drm_device(struct drm_device *drm)
+{
+	return container_of(drm, struct dc_drm_device, base);
+}
+
+int dc_crtc_init(struct dc_drm_device *dc_drm, int crtc_index);
+int dc_crtc_post_init(struct dc_drm_device *dc_drm, int crtc_index);
+
+int dc_kms_init(struct dc_drm_device *dc_drm);
+void dc_kms_uninit(struct dc_drm_device *dc_drm);
+
+int dc_plane_init(struct dc_drm_device *dc_drm, struct dc_plane *dc_plane);
 
 extern struct platform_driver dc_cf_driver;
 extern struct platform_driver dc_de_driver;
