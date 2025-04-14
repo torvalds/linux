@@ -24411,6 +24411,7 @@ M:	Emanuele Ghidoli <ghidoliemanuele@gmail.com>
 M:	Francesco Dolcini <francesco@dolcini.it>
 S:	Maintained
 F:	Documentation/devicetree/bindings/power/reset/toradex,smarc-ec.yaml
+F:	drivers/power/reset/tdx-ec-poweroff.c
 
 TORTURE-TEST MODULES
 M:	Davidlohr Bueso <dave@stgolabs.net>
