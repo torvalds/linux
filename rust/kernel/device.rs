@@ -67,6 +67,25 @@ impl<Ctx: DeviceContext> Device<Ctx> {
         self.0.get()
     }
 
+    /// Returns a reference to the parent device, if any.
+    #[expect(unused)]
+    pub(crate) fn parent(&self) -> Option<&Self> {
+        // SAFETY:
+        // - By the type invariant `self.as_raw()` is always valid.
+        // - The parent device is only ever set at device creation.
+        let parent = unsafe { (*self.as_raw()).parent };
+
+        if parent.is_null() {
+            None
+        } else {
+            // SAFETY:
+            // - Since `parent` is not NULL, it must be a valid pointer to a `struct device`.
+            // - `parent` is valid for the lifetime of `self`, since a `struct device` holds a
+            //   reference count of its parent.
+            Some(unsafe { Self::as_ref(parent) })
+        }
+    }
+
     /// Convert a raw C `struct device` pointer to a `&'a Device`.
     ///
     /// # Safety
