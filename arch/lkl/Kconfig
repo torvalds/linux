@@ -2,11 +2,9 @@ config LKL
        def_bool y
        depends on !SMP && !COREDUMP && !SECCOMP && !UPROBES && !COMPAT && !USER_RETURN_NOTIFIER
        select ARCH_THREAD_STACK_ALLOCATOR
-       select RWSEM_GENERIC_SPINLOCK
        select GENERIC_ATOMIC64
        select GENERIC_HWEIGHT
        select FLATMEM
-       select FLAT_NODE_MEM_MAP
        select GENERIC_CLOCKEVENTS
        select GENERIC_CPU_DEVICES
        select NO_HZ_IDLE
@@ -33,9 +31,6 @@ config LKL
        select IPV6_ROUTE_MULTIPATH
        select IP_ADVANCED_ROUTER
        select IPV6_ADVANCED_ROUTER
-       select ARCH_NO_COHERENT_DMA_MMAP
-       select HAVE_MEMBLOCK
-       select NO_BOOTMEM
        select BLK_DEV_NVME
        select UACCESS_MEMCPY
        select GENERIC_STRNCPY_FROM_USER
@@ -131,10 +126,6 @@ config GENERIC_HWEIGHT
 
 config NO_IOPORT_MAP
        def_bool y
-
-config RWSEM_GENERIC_SPINLOCK
-	bool
-	default y
 
 config HZ
         int
