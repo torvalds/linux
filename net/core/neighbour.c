@@ -2430,12 +2430,12 @@ static int neightbl_valid_dump_info(const struct nlmsghdr *nlh,
 {
 	struct ndtmsg *ndtm;
 
-	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ndtm))) {
+	ndtm = nlmsg_payload(nlh, sizeof(*ndtm));
+	if (!ndtm) {
 		NL_SET_ERR_MSG(extack, "Invalid header for neighbor table dump request");
 		return -EINVAL;
 	}
 
-	ndtm = nlmsg_data(nlh);
 	if (ndtm->ndtm_pad1  || ndtm->ndtm_pad2) {
 		NL_SET_ERR_MSG(extack, "Invalid values in header for neighbor table dump request");
 		return -EINVAL;
