@@ -107,6 +107,9 @@ allOf:
           contains:
             const: renesas,rzg2l-usb2-phy
     then:
+      properties:
+        clocks:
+          minItems: 2
       required:
         - resets
 
