@@ -654,10 +654,10 @@ class TypeMultiAttr(Type):
     def attr_put(self, ri, var):
         if self.attr['type'] in scalars:
             put_type = self.type
-            ri.cw.p(f"for (unsigned int i = 0; i < {var}->n_{self.c_name}; i++)")
+            ri.cw.p(f"for (i = 0; i < {var}->n_{self.c_name}; i++)")
             ri.cw.p(f"ynl_attr_put_{put_type}(nlh, {self.enum_name}, {var}->{self.c_name}[i]);")
         elif 'type' not in self.attr or self.attr['type'] == 'nest':
-            ri.cw.p(f"for (unsigned int i = 0; i < {var}->n_{self.c_name}; i++)")
+            ri.cw.p(f"for (i = 0; i < {var}->n_{self.c_name}; i++)")
             self._attr_put_line(ri, var, f"{self.nested_render_name}_put(nlh, " +
                                 f"{self.enum_name}, &{var}->{self.c_name}[i])")
         else:
@@ -1644,11 +1644,23 @@ def put_req_nested_prototype(ri, struct, suffix=';'):
 
 
 def put_req_nested(ri, struct):
+    local_vars = []
+    init_lines = []
+
+    local_vars.append('struct nlattr *nest;')
+    init_lines.append("nest = ynl_attr_nest_start(nlh, attr_type);")
+
+    for _, arg in struct.member_list():
+        if arg.presence_type() == 'count':
+            local_vars.append('unsigned int i;')
+            break
+
     put_req_nested_prototype(ri, struct, suffix='')
     ri.cw.block_start()
-    ri.cw.write_func_lvar('struct nlattr *nest;')
+    ri.cw.write_func_lvar(local_vars)
 
-    ri.cw.p("nest = ynl_attr_nest_start(nlh, attr_type);")
+    for line in init_lines:
+        ri.cw.p(line)
 
     for _, arg in struct.member_list():
         arg.attr_put(ri, "obj")
@@ -1849,6 +1861,11 @@ def print_req(ri):
     if ri.fixed_hdr:
         local_vars += ['size_t hdr_len;',
                        'void *hdr;']
+
+    for _, attr in ri.struct["request"].member_list():
+        if attr.presence_type() == 'count':
+            local_vars += ['unsigned int i;']
+            break
 
     print_prototype(ri, direction, terminate=False)
     ri.cw.block_start()
