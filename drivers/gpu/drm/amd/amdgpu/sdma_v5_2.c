@@ -113,6 +113,8 @@ static void sdma_v5_2_set_ring_funcs(struct amdgpu_device *adev);
 static void sdma_v5_2_set_buffer_funcs(struct amdgpu_device *adev);
 static void sdma_v5_2_set_vm_pte_funcs(struct amdgpu_device *adev);
 static void sdma_v5_2_set_irq_funcs(struct amdgpu_device *adev);
+static int sdma_v5_2_stop_queue(struct amdgpu_ring *ring);
+static int sdma_v5_2_restore_queue(struct amdgpu_ring *ring);
 
 static u32 sdma_v5_2_get_reg_offset(struct amdgpu_device *adev, u32 instance, u32 internal_offset)
 {
@@ -759,36 +761,48 @@ static int sdma_v5_2_load_microcode(struct amdgpu_device *adev)
 	return 0;
 }
 
+static int sdma_v5_2_soft_reset_engine(struct amdgpu_device *adev, u32 instance_id)
+{
+	u32 grbm_soft_reset;
+	u32 tmp;
+
+	grbm_soft_reset = REG_SET_FIELD(0,
+					GRBM_SOFT_RESET, SOFT_RESET_SDMA0,
+					1);
+	grbm_soft_reset <<= instance_id;
+
+	tmp = RREG32_SOC15(GC, 0, mmGRBM_SOFT_RESET);
+	tmp |= grbm_soft_reset;
+	DRM_DEBUG("GRBM_SOFT_RESET=0x%08X\n", tmp);
+	WREG32_SOC15(GC, 0, mmGRBM_SOFT_RESET, tmp);
+	tmp = RREG32_SOC15(GC, 0, mmGRBM_SOFT_RESET);
+
+	udelay(50);
+
+	tmp &= ~grbm_soft_reset;
+	WREG32_SOC15(GC, 0, mmGRBM_SOFT_RESET, tmp);
+	tmp = RREG32_SOC15(GC, 0, mmGRBM_SOFT_RESET);
+	return 0;
+}
+
 static int sdma_v5_2_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
-	u32 grbm_soft_reset;
-	u32 tmp;
 	int i;
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
-		grbm_soft_reset = REG_SET_FIELD(0,
-						GRBM_SOFT_RESET, SOFT_RESET_SDMA0,
-						1);
-		grbm_soft_reset <<= i;
-
-		tmp = RREG32_SOC15(GC, 0, mmGRBM_SOFT_RESET);
-		tmp |= grbm_soft_reset;
-		DRM_DEBUG("GRBM_SOFT_RESET=0x%08X\n", tmp);
-		WREG32_SOC15(GC, 0, mmGRBM_SOFT_RESET, tmp);
-		tmp = RREG32_SOC15(GC, 0, mmGRBM_SOFT_RESET);
-
-		udelay(50);
-
-		tmp &= ~grbm_soft_reset;
-		WREG32_SOC15(GC, 0, mmGRBM_SOFT_RESET, tmp);
-		tmp = RREG32_SOC15(GC, 0, mmGRBM_SOFT_RESET);
-
+		sdma_v5_2_soft_reset_engine(adev, i);
 		udelay(50);
 	}
 
 	return 0;
 }
+
+static const struct amdgpu_sdma_funcs sdma_v5_2_sdma_funcs = {
+	.stop_kernel_queue = &sdma_v5_2_stop_queue,
+	.start_kernel_queue = &sdma_v5_2_restore_queue,
+	.soft_reset_kernel_queue = &sdma_v5_2_soft_reset_engine,
+};
 
 /**
  * sdma_v5_2_start - setup and start the async dma engines
@@ -1302,6 +1316,7 @@ static int sdma_v5_2_sw_init(struct amdgpu_ip_block *ip_block)
 	}
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
+		adev->sdma.instance[i].funcs = &sdma_v5_2_sdma_funcs;
 		ring = &adev->sdma.instance[i].ring;
 		ring->ring_obj = NULL;
 		ring->use_doorbell = true;
@@ -1437,8 +1452,16 @@ static int sdma_v5_2_wait_for_idle(struct amdgpu_ip_block *ip_block)
 static int sdma_v5_2_reset_queue(struct amdgpu_ring *ring, unsigned int vmid)
 {
 	struct amdgpu_device *adev = ring->adev;
-	int i, j, r;
-	u32 rb_cntl, ib_cntl, f32_cntl, freeze, cntl, preempt, soft_reset, stat1_reg;
+	u32 inst_id = ring->me;
+
+	return amdgpu_sdma_reset_engine(adev, inst_id);
+}
+
+static int sdma_v5_2_stop_queue(struct amdgpu_ring *ring)
+{
+	u32 rb_cntl, ib_cntl, f32_cntl, freeze, cntl, stat1_reg;
+	struct amdgpu_device *adev = ring->adev;
+	int i, j, r = 0;
 
 	if (amdgpu_sriov_vf(adev))
 		return -EINVAL;
@@ -1495,31 +1518,26 @@ static int sdma_v5_2_reset_queue(struct amdgpu_ring *ring, unsigned int vmid)
 	cntl = REG_SET_FIELD(cntl, SDMA0_CNTL, UTC_L1_ENABLE, 0);
 	WREG32(sdma_v5_2_get_reg_offset(adev, i, mmSDMA0_CNTL), cntl);
 
-	/* soft reset SDMA_GFX_PREEMPT.IB_PREEMPT = 0 mmGRBM_SOFT_RESET.SOFT_RESET_SDMA0/1 = 1 */
-	preempt = RREG32(sdma_v5_2_get_reg_offset(adev, i, mmSDMA0_GFX_PREEMPT));
-	preempt = REG_SET_FIELD(preempt, SDMA0_GFX_PREEMPT, IB_PREEMPT, 0);
-	WREG32(sdma_v5_2_get_reg_offset(adev, i, mmSDMA0_GFX_PREEMPT), preempt);
-
-	soft_reset = RREG32_SOC15(GC, 0, mmGRBM_SOFT_RESET);
-	soft_reset |= 1 << GRBM_SOFT_RESET__SOFT_RESET_SDMA0__SHIFT << i;
-
-
-	WREG32_SOC15(GC, 0, mmGRBM_SOFT_RESET, soft_reset);
-
-	udelay(50);
-
-	soft_reset &= ~(1 << GRBM_SOFT_RESET__SOFT_RESET_SDMA0__SHIFT << i);
-
-	WREG32_SOC15(GC, 0, mmGRBM_SOFT_RESET, soft_reset);
-
-	/* unfreeze and unhalt */
-	freeze = RREG32(sdma_v5_2_get_reg_offset(adev, i, mmSDMA0_FREEZE));
-	freeze = REG_SET_FIELD(freeze, SDMA0_FREEZE, FREEZE, 0);
-	WREG32(sdma_v5_2_get_reg_offset(adev, i, mmSDMA0_FREEZE), freeze);
-
-	r = sdma_v5_2_gfx_resume_instance(adev, i, true);
-
 err0:
+	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
+	return r;
+}
+
+static int sdma_v5_2_restore_queue(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	u32 inst_id = ring->me;
+	u32 freeze;
+	int r;
+
+	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
+	/* unfreeze and unhalt */
+	freeze = RREG32(sdma_v5_2_get_reg_offset(adev, inst_id, mmSDMA0_FREEZE));
+	freeze = REG_SET_FIELD(freeze, SDMA0_FREEZE, FREEZE, 0);
+	WREG32(sdma_v5_2_get_reg_offset(adev, inst_id, mmSDMA0_FREEZE), freeze);
+
+	r = sdma_v5_2_gfx_resume_instance(adev, inst_id, true);
+
 	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 	return r;
 }
