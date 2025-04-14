@@ -329,6 +329,7 @@ struct dml2_core_internal_mode_support_info {
 	bool temp_read_or_ppt_support;
 
 	struct dml2_core_internal_watermarks watermarks;
+	bool dcfclk_support;
 };
 
 struct dml2_core_internal_mode_support {
@@ -350,9 +351,11 @@ struct dml2_core_internal_mode_support {
 	double SOCCLK; /// <brief Basically just the clock freq at the min (or given) state
 	double DCFCLK; /// <brief Basically just the clock freq at the min (or given) state and max combine setting
 	double GlobalDPPCLK; /// <brief the Max DPPCLK freq out of all pipes
+	double GlobalDTBCLK; /// <brief the Max DTBCLK freq out of all pipes
 	double uclk_freq_mhz;
 	double dram_bw_mbps;
 	double max_dram_bw_mbps;
+	double min_available_urgent_bandwidth_MBps; /// <brief Minimum guaranteed available urgent return bandwidth in MBps
 
 	double MaxFabricClock; /// <brief Basically just the clock freq at the min (or given) state
 	double MaxDCFCLK; /// <brief Basically just the clock freq at the min (or given) state and max combine setting
@@ -473,9 +476,19 @@ struct dml2_core_internal_mode_support {
 	bool RequiresDSC[DML2_MAX_PLANES];
 	bool RequiresFEC[DML2_MAX_PLANES];
 	double OutputBpp[DML2_MAX_PLANES];
+	double DesiredOutputBpp[DML2_MAX_PLANES];
+	double PixelClockBackEnd[DML2_MAX_PLANES];
 	unsigned int DSCDelay[DML2_MAX_PLANES];
 	enum dml2_core_internal_output_type OutputType[DML2_MAX_PLANES];
 	enum dml2_core_internal_output_type_rate OutputRate[DML2_MAX_PLANES];
+	bool TotalAvailablePipesSupportNoDSC;
+	bool TotalAvailablePipesSupportDSC;
+	unsigned int NumberOfDPPNoDSC;
+	unsigned int NumberOfDPPDSC;
+	enum dml2_odm_mode ODMModeNoDSC;
+	enum dml2_odm_mode ODMModeDSC;
+	double RequiredDISPCLKPerSurfaceNoDSC;
+	double RequiredDISPCLKPerSurfaceDSC;
 
 	// Bandwidth Related Info
 	double BandwidthAvailableForImmediateFlip;
@@ -538,7 +551,41 @@ struct dml2_core_internal_mode_support {
 	bool mall_comb_mcache_c[DML2_MAX_PLANES];
 	bool lc_comb_mcache[DML2_MAX_PLANES];
 
+	unsigned int vmpg_width_y[DML2_MAX_PLANES];
+	unsigned int vmpg_height_y[DML2_MAX_PLANES];
+	unsigned int vmpg_width_c[DML2_MAX_PLANES];
+	unsigned int vmpg_height_c[DML2_MAX_PLANES];
 
+	unsigned int meta_row_height_luma[DML2_MAX_PLANES];
+	unsigned int meta_row_height_chroma[DML2_MAX_PLANES];
+	unsigned int meta_row_bytes_per_row_ub_l[DML2_MAX_PLANES];
+	unsigned int meta_row_bytes_per_row_ub_c[DML2_MAX_PLANES];
+	unsigned int dpte_row_bytes_per_row_l[DML2_MAX_PLANES];
+	unsigned int dpte_row_bytes_per_row_c[DML2_MAX_PLANES];
+
+	unsigned int pstate_bytes_required_l[DML2_MAX_PLANES];
+	unsigned int pstate_bytes_required_c[DML2_MAX_PLANES];
+	unsigned int cursor_bytes_per_chunk[DML2_MAX_PLANES];
+	unsigned int cursor_bytes_per_line[DML2_MAX_PLANES];
+
+	unsigned int MaximumVStartup[DML2_MAX_PLANES];
+
+	double HostVMInefficiencyFactor;
+	double HostVMInefficiencyFactorPrefetch;
+
+	unsigned int tdlut_pte_bytes_per_frame[DML2_MAX_PLANES];
+	unsigned int tdlut_bytes_per_frame[DML2_MAX_PLANES];
+	double tdlut_opt_time[DML2_MAX_PLANES];
+	double tdlut_drain_time[DML2_MAX_PLANES];
+	unsigned int tdlut_bytes_per_group[DML2_MAX_PLANES];
+
+	double Tvm_trips_flip[DML2_MAX_PLANES];
+	double Tr0_trips_flip[DML2_MAX_PLANES];
+	double Tvm_trips_flip_rounded[DML2_MAX_PLANES];
+	double Tr0_trips_flip_rounded[DML2_MAX_PLANES];
+
+	unsigned int DSTYAfterScaler[DML2_MAX_PLANES];
+	unsigned int DSTXAfterScaler[DML2_MAX_PLANES];
 };
 
 /// @brief A mega structure that houses various info for model programming step.
@@ -548,6 +595,7 @@ struct dml2_core_internal_mode_program {
 	double FabricClock; /// <brief Basically just the clock freq at the min (or given) state
 	//double DCFCLK; /// <brief Basically just the clock freq at the min (or given) state and max combine setting
 	double dram_bw_mbps;
+	double min_available_urgent_bandwidth_MBps; /// <brief Minimum guaranteed available urgent return bandwidth in MBps
 	double uclk_freq_mhz;
 	unsigned int NoOfDPP[DML2_MAX_PLANES];
 	enum dml2_odm_mode ODMMode[DML2_MAX_PLANES];
@@ -684,6 +732,38 @@ struct dml2_core_internal_mode_program {
 	double TCalc;
 	unsigned int TotImmediateFlipBytes;
 
+	unsigned int MaxTotalDETInKByte;
+	unsigned int NomDETInKByte;
+	unsigned int MinCompressedBufferSizeInKByte;
+	double PixelClockBackEnd[DML2_MAX_PLANES];
+	double OutputBpp[DML2_MAX_PLANES];
+	bool dsc_enable[DML2_MAX_PLANES];
+	unsigned int num_dsc_slices[DML2_MAX_PLANES];
+	unsigned int meta_row_bytes_per_row_ub_l[DML2_MAX_PLANES];
+	unsigned int meta_row_bytes_per_row_ub_c[DML2_MAX_PLANES];
+	unsigned int dpte_row_bytes_per_row_l[DML2_MAX_PLANES];
+	unsigned int dpte_row_bytes_per_row_c[DML2_MAX_PLANES];
+	unsigned int cursor_bytes_per_chunk[DML2_MAX_PLANES];
+	unsigned int cursor_bytes_per_line[DML2_MAX_PLANES];
+	unsigned int MaxVStartupLines[DML2_MAX_PLANES]; /// <brief more like vblank for the plane's OTG
+	double HostVMInefficiencyFactor;
+	double HostVMInefficiencyFactorPrefetch;
+	unsigned int tdlut_pte_bytes_per_frame[DML2_MAX_PLANES];
+	unsigned int tdlut_bytes_per_frame[DML2_MAX_PLANES];
+	unsigned int tdlut_groups_per_2row_ub[DML2_MAX_PLANES];
+	double tdlut_opt_time[DML2_MAX_PLANES];
+	double tdlut_drain_time[DML2_MAX_PLANES];
+	unsigned int tdlut_bytes_per_group[DML2_MAX_PLANES];
+	double Tvm_trips_flip[DML2_MAX_PLANES];
+	double Tr0_trips_flip[DML2_MAX_PLANES];
+	double Tvm_trips_flip_rounded[DML2_MAX_PLANES];
+	double Tr0_trips_flip_rounded[DML2_MAX_PLANES];
+	bool immediate_flip_required; // any pipes need immediate flip
+	double SOCCLK; /// <brief Basically just the clock freq at the min (or given) state
+	double TotalWRBandwidth;
+	double max_urgent_latency_us;
+	double df_response_time_us;
+
 	// -------------------
 	// Output
 	// -------------------
@@ -697,6 +777,7 @@ struct dml2_core_internal_mode_program {
 	bool PrefetchModeSupported; // <brief Is the prefetch mode (bandwidth and latency) supported
 	bool ImmediateFlipSupported;
 	bool ImmediateFlipSupportedForPipe[DML2_MAX_PLANES];
+	bool dcfclk_support;
 
 	// Clock
 	double Dcfclk;
@@ -1028,7 +1109,6 @@ struct dml2_core_calcs_mode_programming_locals {
 	double dlg_vblank_start;
 	double LSetup;
 	double blank_lines_remaining;
-	double TotalWRBandwidth;
 	double WRBandwidth;
 	struct dml2_core_internal_DmlPipe myPipe;
 	double PixelClockBackEndFactor;

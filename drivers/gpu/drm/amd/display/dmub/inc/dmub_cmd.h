@@ -104,6 +104,14 @@
  */
 #define DMUB_MAX_FPO_STREAMS 4
 
+/* Define to ensure that the "common" members always appear in the same
+ * order in different structs for back compat purposes
+ */
+#define COMMON_STREAM_STATIC_SUB_STATE \
+    struct dmub_fams2_cmd_legacy_stream_static_state legacy; \
+    struct dmub_fams2_cmd_subvp_stream_static_state subvp; \
+    struct dmub_fams2_cmd_drr_stream_static_state drr;
+
 /* Maximum number of streams on any ASIC. */
 #define DMUB_MAX_STREAMS 6
 
@@ -2021,10 +2029,12 @@ union dmub_fams2_stream_static_sub_state {
 }; //v0
 
 union dmub_fams2_cmd_stream_static_sub_state {
-	struct dmub_fams2_cmd_legacy_stream_static_state legacy;
-	struct dmub_fams2_cmd_subvp_stream_static_state subvp;
-	struct dmub_fams2_cmd_drr_stream_static_state drr;
+	COMMON_STREAM_STATIC_SUB_STATE
 }; //v1
+
+union dmub_fams2_stream_static_sub_state_v2 {
+	COMMON_STREAM_STATIC_SUB_STATE
+}; //v2
 
 struct dmub_fams2_stream_static_state {
 	enum fams2_stream_type type;
@@ -2091,7 +2101,7 @@ struct dmub_fams2_cmd_stream_static_base_state {
 
 struct dmub_fams2_stream_static_state_v1 {
 	struct dmub_fams2_cmd_stream_static_base_state base;
-	union dmub_fams2_cmd_stream_static_sub_state sub_state;
+	union dmub_fams2_stream_static_sub_state_v2 sub_state;
 }; //v1
 
 /**

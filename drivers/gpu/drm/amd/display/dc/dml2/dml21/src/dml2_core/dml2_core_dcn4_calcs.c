@@ -7905,6 +7905,7 @@ static noinline_for_stack void dml_core_ms_prefetch_check(struct dml2_core_inter
 
 }
 
+
 static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out_params)
 {
 	struct dml2_core_internal_display_mode_lib *mode_lib = in_out_params->mode_lib;
@@ -11880,7 +11881,7 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 		}
 
 		//Maximum Bandwidth Used
-		s->TotalWRBandwidth = 0;
+		mode_lib->mp.TotalWRBandwidth = 0;
 		for (k = 0; k < display_cfg->num_streams; ++k) {
 			s->WRBandwidth = 0;
 			if (display_cfg->stream_descriptors[k].writeback.active_writebacks_per_stream > 0) {
@@ -11889,7 +11890,7 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 					(display_cfg->stream_descriptors[k].timing.h_total * display_cfg->stream_descriptors[k].writeback.writeback_stream[0].input_height
 						/ ((double)display_cfg->stream_descriptors[k].timing.pixel_clock_khz / 1000))
 					* (display_cfg->stream_descriptors[k].writeback.writeback_stream[0].pixel_format == dml2_444_32 ? 4.0 : 8.0);
-				s->TotalWRBandwidth = s->TotalWRBandwidth + s->WRBandwidth;
+				mode_lib->mp.TotalWRBandwidth = mode_lib->mp.TotalWRBandwidth + s->WRBandwidth;
 			}
 		}
 
@@ -13243,7 +13244,7 @@ void dml2_core_calcs_get_informative(const struct dml2_core_internal_display_mod
 		out->informative.misc.DisplayPipeLineDeliveryTimeLumaPrefetch[k] = mode_lib->mp.DisplayPipeLineDeliveryTimeLumaPrefetch[k];
 		out->informative.misc.DisplayPipeLineDeliveryTimeChromaPrefetch[k] = mode_lib->mp.DisplayPipeLineDeliveryTimeChromaPrefetch[k];
 
-		out->informative.misc.WritebackRequiredBandwidth = mode_lib->scratch.dml_core_mode_programming_locals.TotalWRBandwidth / 1000.0;
+		out->informative.misc.WritebackRequiredBandwidth = mode_lib->mp.TotalWRBandwidth / 1000.0;
 		out->informative.misc.WritebackAllowDRAMClockChangeEndPosition[k] = mode_lib->mp.WritebackAllowDRAMClockChangeEndPosition[k];
 		out->informative.misc.WritebackAllowFCLKChangeEndPosition[k] = mode_lib->mp.WritebackAllowFCLKChangeEndPosition[k];
 		out->informative.misc.DSCCLK_calculated[k] = mode_lib->mp.DSCCLK[k];
