@@ -729,7 +729,6 @@ static void err_print_gt_info(struct drm_i915_error_state_buf *m,
 static void err_print_gt_display(struct drm_i915_error_state_buf *m,
 				 struct intel_gt_coredump *gt)
 {
-	err_printf(m, "IER: 0x%08x\n", gt->ier);
 	err_printf(m, "DERRMR: 0x%08x\n", gt->derrmr);
 }
 
@@ -1775,13 +1774,6 @@ static void gt_record_display_regs(struct intel_gt_coredump *gt)
 
 	if (DISPLAY_VER(i915) >= 6 && DISPLAY_VER(i915) < 20)
 		gt->derrmr = intel_uncore_read(uncore, DERRMR);
-
-	if (GRAPHICS_VER(i915) >= 8)
-		gt->ier = intel_uncore_read(uncore, GEN8_DE_MISC_IER);
-	else if (IS_VALLEYVIEW(i915))
-		gt->ier = intel_uncore_read(uncore, VLV_IER);
-	else if (HAS_PCH_SPLIT(i915))
-		gt->ier = intel_uncore_read(uncore, DEIER);
 }
 
 /* Capture all other registers that GuC doesn't capture. */
