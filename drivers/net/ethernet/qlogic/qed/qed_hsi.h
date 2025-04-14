@@ -2666,34 +2666,6 @@ void qed_gft_config(struct qed_hwfn *p_hwfn,
 void qed_enable_context_validation(struct qed_hwfn *p_hwfn,
 				   struct qed_ptt *p_ptt);
 
-/**
- * qed_calc_session_ctx_validation(): Calcualte validation byte for
- *                                    session context.
- *
- * @p_ctx_mem: Pointer to context memory.
- * @ctx_size: Context size.
- * @ctx_type: Context type.
- * @cid: Context cid.
- *
- * Return: Void.
- */
-void qed_calc_session_ctx_validation(void *p_ctx_mem,
-				     u16 ctx_size, u8 ctx_type, u32 cid);
-
-/**
- * qed_calc_task_ctx_validation(): Calcualte validation byte for task
- *                                 context.
- *
- * @p_ctx_mem: Pointer to context memory.
- * @ctx_size: Context size.
- * @ctx_type: Context type.
- * @tid: Context tid.
- *
- * Return: Void.
- */
-void qed_calc_task_ctx_validation(void *p_ctx_mem,
-				  u16 ctx_size, u8 ctx_type, u32 tid);
-
 #define NUM_STORMS 6
 
 /**
