@@ -77,6 +77,12 @@ struct perf_pmu_alias {
 	char unit[UNIT_MAX_LEN+1];
 	/** @scale: Value to scale read counter values by. */
 	double scale;
+	/** @retirement_latency_mean: Value to be given for unsampled retirement latency mean. */
+	double retirement_latency_mean;
+	/** @retirement_latency_min: Value to be given for unsampled retirement latency min. */
+	double retirement_latency_min;
+	/** @retirement_latency_max: Value to be given for unsampled retirement latency max. */
+	double retirement_latency_max;
 	/**
 	 * @per_pkg: Does the file
 	 * <sysfs>/bus/event_source/devices/<pmu_name>/events/<name>.per-pkg or
@@ -257,7 +263,7 @@ static int pmu_format(struct perf_pmu *pmu, int dirfd, const char *name, bool ea
 	return 0;
 }
 
-int perf_pmu__convert_scale(const char *scale, char **end, double *sval)
+static int parse_double(const char *scale, char **end, double *sval)
 {
 	char *lc;
 	int ret = 0;
@@ -292,6 +298,11 @@ out:
 	setlocale(LC_NUMERIC, lc);
 	free(lc);
 	return ret;
+}
+
+int perf_pmu__convert_scale(const char *scale, char **end, double *sval)
+{
+	return parse_double(scale, end, sval);
 }
 
 static int perf_pmu__parse_scale(struct perf_pmu *pmu, struct perf_pmu_alias *alias)
@@ -525,6 +536,18 @@ static int update_alias(const struct pmu_event *pe,
 		if (!ret)
 			snprintf(data->alias->unit, sizeof(data->alias->unit), "%s", unit);
 	}
+	if (!ret && pe->retirement_latency_mean) {
+		ret = parse_double(pe->retirement_latency_mean, NULL,
+					      &data->alias->retirement_latency_mean);
+	}
+	if (!ret && pe->retirement_latency_min) {
+		ret = parse_double(pe->retirement_latency_min, NULL,
+					      &data->alias->retirement_latency_min);
+	}
+	if (!ret && pe->retirement_latency_max) {
+		ret = parse_double(pe->retirement_latency_max, NULL,
+					      &data->alias->retirement_latency_max);
+	}
 	return ret;
 }
 
@@ -533,7 +556,7 @@ static int perf_pmu__new_alias(struct perf_pmu *pmu, const char *name,
 			        const struct pmu_event *pe, enum event_source src)
 {
 	struct perf_pmu_alias *alias;
-	int ret;
+	int ret = 0;
 	const char *long_desc = NULL, *topic = NULL, *unit = NULL, *pmu_name = NULL;
 	bool deprecated = false, perpkg = false;
 
@@ -562,6 +585,24 @@ static int perf_pmu__new_alias(struct perf_pmu *pmu, const char *name,
 	alias->per_pkg = perpkg;
 	alias->snapshot = false;
 	alias->deprecated = deprecated;
+	alias->retirement_latency_mean = 0.0;
+	alias->retirement_latency_min = 0.0;
+	alias->retirement_latency_max = 0.0;
+
+	if (!ret && pe && pe->retirement_latency_mean) {
+		ret = parse_double(pe->retirement_latency_mean, NULL,
+				   &alias->retirement_latency_mean);
+	}
+	if (!ret && pe && pe->retirement_latency_min) {
+		ret = parse_double(pe->retirement_latency_min, NULL,
+				   &alias->retirement_latency_min);
+	}
+	if (!ret && pe && pe->retirement_latency_max) {
+		ret = parse_double(pe->retirement_latency_max, NULL,
+				   &alias->retirement_latency_max);
+	}
+	if (ret)
+		return ret;
 
 	ret = parse_events_terms(&alias->terms, val, val_fd);
 	if (ret) {
@@ -1678,6 +1719,9 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct parse_events_terms *head_
 	info->unit     = NULL;
 	info->scale    = 0.0;
 	info->snapshot = false;
+	info->retirement_latency_mean = 0.0;
+	info->retirement_latency_min = 0.0;
+	info->retirement_latency_max = 0.0;
 
 	if (perf_pmu__is_hwmon(pmu)) {
 		ret = hwmon_pmu__check_alias(head_terms, info, err);
@@ -1710,6 +1754,10 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct parse_events_terms *head_
 
 		if (term->alternate_hw_config)
 			*alternate_hw_config = term->val.num;
+
+		info->retirement_latency_mean = alias->retirement_latency_mean;
+		info->retirement_latency_min = alias->retirement_latency_min;
+		info->retirement_latency_max = alias->retirement_latency_max;
 
 		list_del_init(&term->list);
 		parse_events_term__delete(term);

@@ -47,6 +47,9 @@ _json_event_attributes = [
     'event',
     # Short things in alphabetical order.
     'compat', 'deprecated', 'perpkg', 'unit',
+    # Retirement latency specific to Intel granite rapids currently.
+    'retirement_latency_mean', 'retirement_latency_min',
+    'retirement_latency_max',
     # Longer things (the last won't be iterated over during decompress).
     'long_desc'
 ]
@@ -341,6 +344,9 @@ class JsonEvent:
     self.perpkg = jd.get('PerPkg')
     self.aggr_mode = convert_aggr_mode(jd.get('AggregationMode'))
     self.deprecated = jd.get('Deprecated')
+    self.retirement_latency_mean = jd.get('RetirementLatencyMean')
+    self.retirement_latency_min = jd.get('RetirementLatencyMin')
+    self.retirement_latency_max = jd.get('RetirementLatencyMax')
     self.metric_name = jd.get('MetricName')
     self.metric_group = jd.get('MetricGroup')
     self.metricgroup_no_group = jd.get('MetricgroupNoGroup')

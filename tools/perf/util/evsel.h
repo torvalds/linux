@@ -177,6 +177,12 @@ struct evsel {
 	/* For tool events */
 	/* Beginning time subtracted when the counter is read. */
 	union {
+		/* Defaults for retirement latency events. */
+		struct _retirement_latency {
+			double mean;
+			double min;
+			double max;
+		} retirement_latency;
 		/* duration_time is a single global time. */
 		__u64 start_time;
 		/*

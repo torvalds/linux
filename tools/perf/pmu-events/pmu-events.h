@@ -47,6 +47,9 @@ struct pmu_event {
 	const char *long_desc;
 	const char *pmu;
 	const char *unit;
+	const char *retirement_latency_mean;
+	const char *retirement_latency_min;
+	const char *retirement_latency_max;
 	bool perpkg;
 	bool deprecated;
 };
