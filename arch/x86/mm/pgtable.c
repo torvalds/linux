@@ -121,16 +121,17 @@ static void pgd_dtor(pgd_t *pgd)
  * processor notices the update.  Since this is expensive, and
  * all 4 top-level entries are used almost immediately in a
  * new process's life, we just pre-populate them here.
- *
- * Also, if we're in a paravirt environment where the kernel pmd is
- * not shared between pagetables (!SHARED_KERNEL_PMDS), we allocate
- * and initialize the kernel pmds here.
  */
 #define PREALLOCATED_PMDS	(static_cpu_has(X86_FEATURE_PTI) ? \
 					PTRS_PER_PGD : KERNEL_PGD_BOUNDARY)
 #define MAX_PREALLOCATED_PMDS	PTRS_PER_PGD
 
 /*
+ * "USER_PMDS" are the PMDs for the user copy of the page tables when
+ * PTI is enabled. They do not exist when PTI is disabled.  Note that
+ * this is distinct from the user _portion_ of the kernel page tables
+ * which always exists.
+ *
  * We allocate separate PMDs for the kernel part of the user page-table
  * when PTI is enabled. We need them to map the per-process LDT into the
  * user-space page-table.
