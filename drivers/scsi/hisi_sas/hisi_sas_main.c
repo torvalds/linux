@@ -124,11 +124,9 @@ u8 hisi_sas_get_ata_protocol(struct sas_task *task)
 		}
 
 	default:
-	{
 		if (direction == DMA_NONE)
 			return HISI_SAS_SATA_PROTOCOL_NONDATA;
 		return hisi_sas_get_ata_protocol_from_tf(qc);
-	}
 	}
 }
 EXPORT_SYMBOL_GPL(hisi_sas_get_ata_protocol);
@@ -141,7 +139,7 @@ void hisi_sas_sata_done(struct sas_task *task,
 	struct hisi_sas_status_buffer *status_buf =
 			hisi_sas_status_buf_addr_mem(slot);
 	u8 *iu = &status_buf->iu[0];
-	struct dev_to_host_fis *d2h =  (struct dev_to_host_fis *)iu;
+	struct dev_to_host_fis *d2h = (struct dev_to_host_fis *)iu;
 
 	resp->frame_len = sizeof(struct dev_to_host_fis);
 	memcpy(&resp->ending_fis[0], d2h, sizeof(struct dev_to_host_fis));
@@ -1926,12 +1924,9 @@ static int hisi_sas_lu_reset(struct domain_device *device, u8 *lun)
 	hisi_sas_dereg_device(hisi_hba, device);
 
 	if (dev_is_sata(device)) {
-		struct sas_phy *phy;
-
-		phy = sas_get_local_phy(device);
+		struct sas_phy *phy = sas_get_local_phy(device);
 
 		rc = sas_phy_reset(phy, true);
-
 		if (rc == 0)
 			hisi_sas_release_task(hisi_hba, device);
 		sas_put_local_phy(phy);
@@ -2115,7 +2110,7 @@ void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy,
 		hisi_sas_bytes_dmaed(hisi_hba, phy_no, gfp_flags);
 		hisi_sas_port_notify_formed(sas_phy);
 	} else {
-		struct hisi_sas_port *port  = phy->port;
+		struct hisi_sas_port *port = phy->port;
 
 		if (test_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags) ||
 		    phy->in_reset) {

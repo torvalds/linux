@@ -359,7 +359,7 @@ struct hisi_sas_hw {
 	const struct scsi_host_template *sht;
 };
 
-#define HISI_SAS_MAX_DEBUGFS_DUMP (50)
+#define HISI_SAS_MAX_DEBUGFS_DUMP 50
 #define HISI_SAS_DEFAULT_DEBUGFS_DUMP 1
 
 struct hisi_sas_debugfs_cq {
@@ -460,12 +460,12 @@ struct hisi_hba {
 	dma_addr_t sata_breakpoint_dma;
 	struct hisi_sas_slot	*slot_info;
 	unsigned long flags;
-	const struct hisi_sas_hw *hw;	/* Low level hw interface */
+	const struct hisi_sas_hw *hw; /* Low level hw interface */
 	unsigned long sata_dev_bitmap[BITS_TO_LONGS(HISI_SAS_MAX_DEVICES)];
 	struct work_struct rst_work;
 	u32 phy_state;
-	u32 intr_coal_ticks;	/* Time of interrupt coalesce in us */
-	u32 intr_coal_count;	/* Interrupt count to coalesce */
+	u32 intr_coal_ticks; /* Time of interrupt coalesce in us */
+	u32 intr_coal_count; /* Interrupt count to coalesce */
 
 	int cq_nvecs;
 

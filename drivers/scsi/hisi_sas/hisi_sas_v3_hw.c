@@ -1348,8 +1348,8 @@ static void prep_ssp_v3_hw(struct hisi_hba *hisi_hba,
 	/* map itct entry */
 	dw1 |= sas_dev->device_id << CMD_HDR_DEV_ID_OFF;
 
-	dw2 = (((sizeof(struct ssp_command_iu) + sizeof(struct ssp_frame_hdr)
-	      + 3) / BYTE_TO_DW) << CMD_HDR_CFL_OFF) |
+	dw2 = (((sizeof(struct ssp_command_iu) + sizeof(struct ssp_frame_hdr) +
+	         3) / BYTE_TO_DW) << CMD_HDR_CFL_OFF) |
 	      ((HISI_SAS_MAX_SSP_RESP_SZ / BYTE_TO_DW) << CMD_HDR_MRFL_OFF) |
 	      (HDR_SG_MOD << CMD_HDR_SG_MOD_OFF);
 	hdr->dw2 = cpu_to_le32(dw2);
@@ -1740,7 +1740,7 @@ static irqreturn_t int_phy_up_down_bcast_v3_hw(int irq_no, void *p)
 	irq_msk = hisi_sas_read32(hisi_hba, CHNL_INT_STATUS)
 				& 0x11111111;
 	while (irq_msk) {
-		if (irq_msk  & 1) {
+		if (irq_msk & 1) {
 			u32 irq_value = hisi_sas_phy_read32(hisi_hba, phy_no,
 							    CHL_INT0);
 			u32 phy_state = hisi_sas_read32(hisi_hba, PHY_STATE);
@@ -1963,8 +1963,7 @@ static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
 	u32 irq_msk;
 	int phy_no = 0;
 
-	irq_msk = hisi_sas_read32(hisi_hba, CHNL_INT_STATUS)
-		  & CHNL_INT_STS_MSK;
+	irq_msk = hisi_sas_read32(hisi_hba, CHNL_INT_STATUS) & CHNL_INT_STS_MSK;
 
 	while (irq_msk) {
 		if (irq_msk & (CHNL_INT_STS_INT0_MSK << (phy_no * CHNL_WIDTH)))
@@ -2608,7 +2607,6 @@ static int interrupt_preinit_v3_hw(struct hisi_hba *hisi_hba)
 						 &desc);
 	if (vectors < 0)
 		return -ENOENT;
-
 
 	hisi_hba->cq_nvecs = vectors - BASE_VECTORS_V3_HW - hisi_hba->iopoll_q_cnt;
 	shost->nr_hw_queues = hisi_hba->cq_nvecs + hisi_hba->iopoll_q_cnt;
@@ -3300,7 +3298,7 @@ static int debugfs_set_bist_v3_hw(struct hisi_hba *hisi_hba, bool enable)
 		/* some preparations before bist test */
 		hisi_sas_bist_test_prep_v3_hw(hisi_hba);
 
-		/* set linkrate of bit test*/
+		/* set linkrate of bit test */
 		reg_val = hisi_sas_phy_read32(hisi_hba, phy_no,
 					      PROG_PHY_LINK_RATE);
 		reg_val &= ~CFG_PROG_OOB_PHY_LINK_RATE_MSK;
@@ -3398,7 +3396,7 @@ static const struct scsi_host_template sht_v3_hw = {
 	.shost_groups		= host_v3_hw_groups,
 	.sdev_groups		= sdev_groups_v3_hw,
 	.tag_alloc_policy_rr	= true,
-	.host_reset             = hisi_sas_host_reset,
+	.host_reset		= hisi_sas_host_reset,
 	.host_tagset		= 1,
 	.mq_poll		= queue_complete_v3_hw,
 };
@@ -3649,7 +3647,6 @@ static void debugfs_print_reg_v3_hw(u32 *regs_val, struct seq_file *s,
 
 		name = debugfs_to_reg_name_v3_hw(off, reg->base_off,
 						 reg->lu);
-
 		if (name)
 			seq_printf(s, "0x%08x 0x%08x %s\n", off,
 				   regs_val[i], name);
