@@ -533,6 +533,37 @@ void intel_dmc_block_pkgc(struct intel_display *display, enum pipe pipe,
 		     PIPEDMC_BLOCK_PKGC_SW_BLOCK_PKGC_ALWAYS : 0);
 }
 
+/**
+ * intel_dmc_start_pkgc_exit_at_start_of_undelayed_vblank() - start of PKG
+ * C-state exit
+ * @display: display instance
+ * @pipe: pipe which register use to block
+ * @enable: enable/disable
+ *
+ * This interface is target for Wa_16025596647 usage. I.e. start the package C
+ * exit at the start of the undelayed vblank
+ */
+void intel_dmc_start_pkgc_exit_at_start_of_undelayed_vblank(struct intel_display *display,
+							    enum pipe pipe, bool enable)
+{
+	u32 val;
+
+	if (enable)
+		val = DMC_EVT_CTL_ENABLE | DMC_EVT_CTL_RECURRING |
+			REG_FIELD_PREP(DMC_EVT_CTL_TYPE_MASK,
+				       DMC_EVT_CTL_TYPE_EDGE_0_1) |
+			REG_FIELD_PREP(DMC_EVT_CTL_EVENT_ID_MASK,
+				       DMC_EVT_CTL_EVENT_ID_VBLANK_A);
+	else
+		val = REG_FIELD_PREP(DMC_EVT_CTL_EVENT_ID_MASK,
+				     DMC_EVT_CTL_EVENT_ID_FALSE) |
+			REG_FIELD_PREP(DMC_EVT_CTL_TYPE_MASK,
+				       DMC_EVT_CTL_TYPE_EDGE_0_1);
+
+	intel_de_write(display, MTL_PIPEDMC_EVT_CTL_4(pipe),
+		       val);
+}
+
 static bool is_dmc_evt_ctl_reg(struct intel_display *display,
 			       enum intel_dmc_id dmc_id, i915_reg_t reg)
 {

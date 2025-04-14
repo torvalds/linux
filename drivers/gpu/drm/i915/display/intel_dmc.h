@@ -20,6 +20,8 @@ void intel_dmc_enable_pipe(struct intel_display *display, enum pipe pipe);
 void intel_dmc_disable_pipe(struct intel_display *display, enum pipe pipe);
 void intel_dmc_block_pkgc(struct intel_display *display, enum pipe pipe,
 			  bool block);
+void intel_dmc_start_pkgc_exit_at_start_of_undelayed_vblank(struct intel_display *display,
+							    enum pipe pipe, bool enable);
 void intel_dmc_fini(struct intel_display *display);
 void intel_dmc_suspend(struct intel_display *display);
 void intel_dmc_resume(struct intel_display *display);
