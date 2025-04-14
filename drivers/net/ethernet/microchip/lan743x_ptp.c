@@ -942,12 +942,6 @@ static int lan743x_ptp_io_extts(struct lan743x_adapter *adapter, int on,
 
 	extts = &ptp->extts[index];
 
-	if (extts_request->flags & ~(PTP_ENABLE_FEATURE |
-				     PTP_RISING_EDGE |
-				     PTP_FALLING_EDGE |
-				     PTP_STRICT_FLAGS))
-		return -EOPNOTSUPP;
-
 	if (on) {
 		extts_pin = ptp_find_pin(ptp->ptp_clock, PTP_PF_EXTTS, index);
 		if (extts_pin < 0)
@@ -1543,6 +1537,9 @@ int lan743x_ptp_open(struct lan743x_adapter *adapter)
 	ptp->ptp_clock_info.n_per_out = LAN743X_PTP_N_EVENT_CHAN;
 	ptp->ptp_clock_info.n_pins = n_pins;
 	ptp->ptp_clock_info.pps = LAN743X_PTP_N_PPS;
+	ptp->ptp_clock_info.supported_extts_flags = PTP_RISING_EDGE |
+						    PTP_FALLING_EDGE |
+						    PTP_STRICT_FLAGS;
 	ptp->ptp_clock_info.pin_config = ptp->pin_config;
 	ptp->ptp_clock_info.adjfine = lan743x_ptpci_adjfine;
 	ptp->ptp_clock_info.adjtime = lan743x_ptpci_adjtime;
