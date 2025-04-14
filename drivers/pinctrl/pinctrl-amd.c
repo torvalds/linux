@@ -37,7 +37,9 @@
 #include "pinctrl-utils.h"
 #include "pinctrl-amd.h"
 
+#ifdef CONFIG_SUSPEND
 static struct amd_gpio *pinctrl_dev;
+#endif
 
 static int amd_gpio_get_direction(struct gpio_chip *gc, unsigned offset)
 {
@@ -892,7 +894,7 @@ static void amd_gpio_irq_init(struct amd_gpio *gpio_dev)
 	}
 }
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_SUSPEND
 static bool amd_gpio_should_save(struct amd_gpio *gpio_dev, unsigned int pin)
 {
 	const struct pin_desc *pd = pin_desc_get(gpio_dev->pctrl, pin);
@@ -969,7 +971,9 @@ static int amd_gpio_suspend_hibernate_common(struct device *dev, bool is_suspend
 
 static int amd_gpio_suspend(struct device *dev)
 {
+#ifdef CONFIG_SUSPEND
 	pinctrl_dev = dev_get_drvdata(dev);
+#endif
 	return amd_gpio_suspend_hibernate_common(dev, true);
 }
 
@@ -1143,7 +1147,7 @@ static int amd_gpio_probe(struct platform_device *pdev)
 	if (gpio_dev->irq < 0)
 		return gpio_dev->irq;
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_SUSPEND
 	gpio_dev->saved_regs = devm_kcalloc(&pdev->dev, amd_pinctrl_desc.npins,
 					    sizeof(*gpio_dev->saved_regs),
 					    GFP_KERNEL);
@@ -1209,7 +1213,7 @@ static int amd_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, gpio_dev);
 	acpi_register_wakeup_handler(gpio_dev->irq, amd_gpio_check_wake, gpio_dev);
-#ifdef CONFIG_ACPI
+#if defined(CONFIG_ACPI) && defined(CONFIG_SUSPEND)
 	acpi_register_lps0_dev(&pinctrl_amd_s2idle_dev_ops);
 #endif
 
@@ -1230,7 +1234,7 @@ static void amd_gpio_remove(struct platform_device *pdev)
 
 	gpiochip_remove(&gpio_dev->gc);
 	acpi_unregister_wakeup_handler(amd_gpio_check_wake, gpio_dev);
-#ifdef CONFIG_ACPI
+#if defined(CONFIG_ACPI) && defined(CONFIG_SUSPEND)
 	acpi_unregister_lps0_dev(&pinctrl_amd_s2idle_dev_ops);
 #endif
 }
@@ -1249,7 +1253,7 @@ static struct platform_driver amd_gpio_driver = {
 	.driver		= {
 		.name	= "amd_gpio",
 		.acpi_match_table = ACPI_PTR(amd_gpio_acpi_match),
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_SUSPEND
 		.pm	= &amd_gpio_pm_ops,
 #endif
 	},
