@@ -7,6 +7,7 @@
  */
 
 #include <kunit/test.h>
+#include <linux/auxiliary_bus.h>
 #include <linux/blk-mq.h>
 #include <linux/blk_types.h>
 #include <linux/blkdev.h>

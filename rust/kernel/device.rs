@@ -68,7 +68,6 @@ impl<Ctx: DeviceContext> Device<Ctx> {
     }
 
     /// Returns a reference to the parent device, if any.
-    #[expect(unused)]
     pub(crate) fn parent(&self) -> Option<&Self> {
         // SAFETY:
         // - By the type invariant `self.as_raw()` is always valid.
