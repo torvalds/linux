@@ -75,7 +75,6 @@ static void virtgpu_gem_unmap_dma_buf(struct dma_buf_attachment *attach,
 
 static const struct virtio_dma_buf_ops virtgpu_dmabuf_ops =  {
 	.ops = {
-		.cache_sgt_mapping = true,
 		.attach = virtio_dma_buf_attach,
 		.detach = drm_gem_map_detach,
 		.map_dma_buf = virtgpu_gem_map_dma_buf,

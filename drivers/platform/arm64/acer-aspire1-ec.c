@@ -366,7 +366,8 @@ static const struct power_supply_desc aspire_ec_adp_psy_desc = {
  * USB-C DP Alt mode HPD.
  */
 
-static int aspire_ec_bridge_attach(struct drm_bridge *bridge, enum drm_bridge_attach_flags flags)
+static int aspire_ec_bridge_attach(struct drm_bridge *bridge, struct drm_encoder *encoder,
+				   enum drm_bridge_attach_flags flags)
 {
 	return flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR ? 0 : -EINVAL;
 }

@@ -38,6 +38,7 @@ static inline struct tpd12s015_device *to_tpd12s015(struct drm_bridge *bridge)
 }
 
 static int tpd12s015_attach(struct drm_bridge *bridge,
+			    struct drm_encoder *encoder,
 			    enum drm_bridge_attach_flags flags)
 {
 	struct tpd12s015_device *tpd = to_tpd12s015(bridge);
@@ -46,7 +47,7 @@ static int tpd12s015_attach(struct drm_bridge *bridge,
 	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
 		return -EINVAL;
 
-	ret = drm_bridge_attach(bridge->encoder, tpd->next_bridge,
+	ret = drm_bridge_attach(encoder, tpd->next_bridge,
 				bridge, flags);
 	if (ret < 0)
 		return ret;

@@ -11,6 +11,7 @@ nouveau_.*
 ^v3d.*
 ^vc4.*
 ^vmwgfx*
+^xe.*
 
 # GEM tests takes ~1000 hours, so skip it
 gem_.*

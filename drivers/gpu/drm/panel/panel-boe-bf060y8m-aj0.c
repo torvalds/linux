@@ -350,9 +350,11 @@ static int boe_bf060y8m_aj0_probe(struct mipi_dsi_device *dsi)
 	struct boe_bf060y8m_aj0 *boe;
 	int ret;
 
-	boe = devm_kzalloc(dev, sizeof(*boe), GFP_KERNEL);
-	if (!boe)
-		return -ENOMEM;
+	boe = devm_drm_panel_alloc(dev, struct boe_bf060y8m_aj0, panel,
+				   &boe_bf060y8m_aj0_panel_funcs,
+				   DRM_MODE_CONNECTOR_DSI);
+	if (IS_ERR(boe))
+		return PTR_ERR(boe);
 
 	ret = boe_bf060y8m_aj0_init_vregs(boe, dev);
 	if (ret)
@@ -373,9 +375,6 @@ static int boe_bf060y8m_aj0_probe(struct mipi_dsi_device *dsi)
 			  MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
 			  MIPI_DSI_CLOCK_NON_CONTINUOUS |
 			  MIPI_DSI_MODE_LPM;
-
-	drm_panel_init(&boe->panel, dev, &boe_bf060y8m_aj0_panel_funcs,
-		       DRM_MODE_CONNECTOR_DSI);
 
 	boe->panel.prepare_prev_first = true;
 

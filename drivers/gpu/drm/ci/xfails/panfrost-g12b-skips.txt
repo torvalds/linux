@@ -10,6 +10,7 @@ nouveau_.*
 gem_.*
 i915_.*
 tools_test.*
+kms_dp_link_training.*
 
 # Panfrost is not a KMS driver, so skip the KMS tests
 kms_.*

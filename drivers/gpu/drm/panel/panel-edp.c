@@ -839,9 +839,10 @@ static int panel_edp_probe(struct device *dev, const struct panel_desc *desc,
 	struct device_node *ddc;
 	int err;
 
-	panel = devm_kzalloc(dev, sizeof(*panel), GFP_KERNEL);
-	if (!panel)
-		return -ENOMEM;
+	panel = devm_drm_panel_alloc(dev, struct panel_edp, base,
+				     &panel_edp_funcs, DRM_MODE_CONNECTOR_eDP);
+	if (IS_ERR(panel))
+		return PTR_ERR(panel);
 
 	panel->prepared_time = 0;
 	panel->desc = desc;
@@ -885,8 +886,6 @@ static int panel_edp_probe(struct device *dev, const struct panel_desc *desc,
 		panel_edp_parse_panel_timing_node(dev, panel, &dt);
 
 	dev_set_drvdata(dev, panel);
-
-	drm_panel_init(&panel->base, dev, &panel_edp_funcs, DRM_MODE_CONNECTOR_eDP);
 
 	err = drm_panel_of_backlight(&panel->base);
 	if (err)

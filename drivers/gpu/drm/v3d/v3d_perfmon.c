@@ -200,10 +200,10 @@ void v3d_perfmon_init(struct v3d_dev *v3d)
 	const struct v3d_perf_counter_desc *counters = NULL;
 	unsigned int max = 0;
 
-	if (v3d->ver >= 71) {
+	if (v3d->ver >= V3D_GEN_71) {
 		counters = v3d_v71_performance_counters;
 		max = ARRAY_SIZE(v3d_v71_performance_counters);
-	} else if (v3d->ver >= 42) {
+	} else if (v3d->ver >= V3D_GEN_42) {
 		counters = v3d_v42_performance_counters;
 		max = ARRAY_SIZE(v3d_v42_performance_counters);
 	}

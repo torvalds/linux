@@ -662,7 +662,7 @@ static int imx8qxp_ldb_probe(struct platform_device *pdev)
 
 	ldb_add_bridge_helper(ldb, &imx8qxp_ldb_bridge_funcs);
 
-	return ret;
+	return 0;
 }
 
 static void imx8qxp_ldb_remove(struct platform_device *pdev)

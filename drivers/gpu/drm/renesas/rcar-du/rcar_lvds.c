@@ -634,6 +634,7 @@ static bool rcar_lvds_mode_fixup(struct drm_bridge *bridge,
 }
 
 static int rcar_lvds_attach(struct drm_bridge *bridge,
+			    struct drm_encoder *encoder,
 			    enum drm_bridge_attach_flags flags)
 {
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
@@ -641,7 +642,7 @@ static int rcar_lvds_attach(struct drm_bridge *bridge,
 	if (!lvds->next_bridge)
 		return 0;
 
-	return drm_bridge_attach(bridge->encoder, lvds->next_bridge, bridge,
+	return drm_bridge_attach(encoder, lvds->next_bridge, bridge,
 				 flags);
 }
 

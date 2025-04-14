@@ -1160,12 +1160,13 @@ static void vc4_dsi_bridge_enable(struct drm_bridge *bridge,
 }
 
 static int vc4_dsi_bridge_attach(struct drm_bridge *bridge,
+				 struct drm_encoder *encoder,
 				 enum drm_bridge_attach_flags flags)
 {
 	struct vc4_dsi *dsi = bridge_to_vc4_dsi(bridge);
 
 	/* Attach the panel or bridge to the dsi bridge */
-	return drm_bridge_attach(bridge->encoder, dsi->out_bridge,
+	return drm_bridge_attach(encoder, dsi->out_bridge,
 				 &dsi->bridge, flags);
 }
 

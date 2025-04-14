@@ -53,25 +53,10 @@ static void vgem_fence_release(struct dma_fence *base)
 	dma_fence_free(&fence->base);
 }
 
-static void vgem_fence_value_str(struct dma_fence *fence, char *str, int size)
-{
-	snprintf(str, size, "%llu", fence->seqno);
-}
-
-static void vgem_fence_timeline_value_str(struct dma_fence *fence, char *str,
-					  int size)
-{
-	snprintf(str, size, "%llu",
-		 dma_fence_is_signaled(fence) ? fence->seqno : 0);
-}
-
 static const struct dma_fence_ops vgem_fence_ops = {
 	.get_driver_name = vgem_fence_get_driver_name,
 	.get_timeline_name = vgem_fence_get_timeline_name,
 	.release = vgem_fence_release,
-
-	.fence_value_str = vgem_fence_value_str,
-	.timeline_value_str = vgem_fence_timeline_value_str,
 };
 
 static void vgem_fence_timeout(struct timer_list *t)

@@ -12,6 +12,7 @@
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_fbdev_shmem.h>
 #include <drm/drm_format_helper.h>
 #include <drm/drm_framebuffer.h>
@@ -21,7 +22,8 @@
 #include <drm/drm_managed.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_simple_kms_helper.h>
+
+#include "drm_sysfb_helper.h"
 
 #define DRIVER_NAME	"ofdrm"
 #define DRIVER_DESC	"DRM driver for OF platform devices"
@@ -226,6 +228,16 @@ static u64 display_get_address_of(struct drm_device *dev, struct device_node *of
 	return address;
 }
 
+static const u8 *display_get_edid_of(struct drm_device *dev, struct device_node *of_node,
+				     u8 buf[EDID_LENGTH])
+{
+	int ret = of_property_read_u8_array(of_node, "EDID", buf, EDID_LENGTH);
+
+	if (ret)
+		return NULL;
+	return buf;
+}
+
 static bool is_avivo(u32 vendor, u32 device)
 {
 	/* This will match most R5xx */
@@ -290,22 +302,17 @@ struct ofdrm_device_funcs {
 };
 
 struct ofdrm_device {
-	struct drm_device dev;
-	struct platform_device *pdev;
+	struct drm_sysfb_device sysfb;
 
 	const struct ofdrm_device_funcs *funcs;
-
-	/* firmware-buffer settings */
-	struct iosys_map screen_base;
-	struct drm_display_mode mode;
-	const struct drm_format_info *format;
-	unsigned int pitch;
 
 	/* colormap */
 	void __iomem *cmap_base;
 
+	u8 edid[EDID_LENGTH];
+
 	/* modesetting */
-	uint32_t formats[8];
+	u32 formats[DRM_SYSFB_PLANE_NFORMATS(1)];
 	struct drm_plane primary_plane;
 	struct drm_crtc crtc;
 	struct drm_encoder encoder;
@@ -314,7 +321,7 @@ struct ofdrm_device {
 
 static struct ofdrm_device *ofdrm_device_of_dev(struct drm_device *dev)
 {
-	return container_of(dev, struct ofdrm_device, dev);
+	return container_of(to_drm_sysfb_device(dev), struct ofdrm_device, sysfb);
 }
 
 /*
@@ -354,7 +361,7 @@ static void ofdrm_pci_release(void *data)
 
 static int ofdrm_device_init_pci(struct ofdrm_device *odev)
 {
-	struct drm_device *dev = &odev->dev;
+	struct drm_device *dev = &odev->sysfb.dev;
 	struct platform_device *pdev = to_platform_device(dev->dev);
 	struct device_node *of_node = pdev->dev.of_node;
 	struct pci_dev *pcidev;
@@ -397,7 +404,7 @@ static int ofdrm_device_init_pci(struct ofdrm_device *odev)
 static struct resource *ofdrm_find_fb_resource(struct ofdrm_device *odev,
 					       struct resource *fb_res)
 {
-	struct platform_device *pdev = to_platform_device(odev->dev.dev);
+	struct platform_device *pdev = to_platform_device(odev->sysfb.dev.dev);
 	struct resource *res, *max_res = NULL;
 	u32 i;
 
@@ -423,7 +430,7 @@ static struct resource *ofdrm_find_fb_resource(struct ofdrm_device *odev,
 static void __iomem *get_cmap_address_of(struct ofdrm_device *odev, struct device_node *of_node,
 					 int bar_no, unsigned long offset, unsigned long size)
 {
-	struct drm_device *dev = &odev->dev;
+	struct drm_device *dev = &odev->sysfb.dev;
 	const __be32 *addr_p;
 	u64 max_size, address;
 	unsigned int flags;
@@ -456,7 +463,7 @@ static void __iomem *ofdrm_mach64_cmap_ioremap(struct ofdrm_device *odev,
 					       struct device_node *of_node,
 					       u64 fb_base)
 {
-	struct drm_device *dev = &odev->dev;
+	struct drm_device *dev = &odev->sysfb.dev;
 	u64 address;
 	void __iomem *cmap_base;
 
@@ -618,7 +625,7 @@ static void __iomem *ofdrm_qemu_cmap_ioremap(struct ofdrm_device *odev,
 		cpu_to_be32(0x00),
 	};
 
-	struct drm_device *dev = &odev->dev;
+	struct drm_device *dev = &odev->sysfb.dev;
 	u64 address;
 	void __iomem *cmap_base;
 
@@ -648,7 +655,7 @@ static void ofdrm_qemu_cmap_write(struct ofdrm_device *odev, unsigned char index
 static void ofdrm_device_set_gamma_linear(struct ofdrm_device *odev,
 					  const struct drm_format_info *format)
 {
-	struct drm_device *dev = &odev->dev;
+	struct drm_device *dev = &odev->sysfb.dev;
 	int i;
 
 	switch (format->format) {
@@ -687,7 +694,7 @@ static void ofdrm_device_set_gamma(struct ofdrm_device *odev,
 				   const struct drm_format_info *format,
 				   struct drm_color_lut *lut)
 {
-	struct drm_device *dev = &odev->dev;
+	struct drm_device *dev = &odev->sysfb.dev;
 	int i;
 
 	switch (format->format) {
@@ -731,205 +738,27 @@ static void ofdrm_device_set_gamma(struct ofdrm_device *odev,
  * Modesetting
  */
 
-struct ofdrm_crtc_state {
-	struct drm_crtc_state base;
-
-	/* Primary-plane format; required for color mgmt. */
-	const struct drm_format_info *format;
+static const u64 ofdrm_primary_plane_format_modifiers[] = {
+	DRM_SYSFB_PLANE_FORMAT_MODIFIERS,
 };
-
-static struct ofdrm_crtc_state *to_ofdrm_crtc_state(struct drm_crtc_state *base)
-{
-	return container_of(base, struct ofdrm_crtc_state, base);
-}
-
-static void ofdrm_crtc_state_destroy(struct ofdrm_crtc_state *ofdrm_crtc_state)
-{
-	__drm_atomic_helper_crtc_destroy_state(&ofdrm_crtc_state->base);
-	kfree(ofdrm_crtc_state);
-}
-
-static const uint64_t ofdrm_primary_plane_format_modifiers[] = {
-	DRM_FORMAT_MOD_LINEAR,
-	DRM_FORMAT_MOD_INVALID
-};
-
-static int ofdrm_primary_plane_helper_atomic_check(struct drm_plane *plane,
-						   struct drm_atomic_state *new_state)
-{
-	struct drm_device *dev = plane->dev;
-	struct ofdrm_device *odev = ofdrm_device_of_dev(dev);
-	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(new_state, plane);
-	struct drm_shadow_plane_state *new_shadow_plane_state =
-		to_drm_shadow_plane_state(new_plane_state);
-	struct drm_framebuffer *new_fb = new_plane_state->fb;
-	struct drm_crtc *new_crtc = new_plane_state->crtc;
-	struct drm_crtc_state *new_crtc_state = NULL;
-	struct ofdrm_crtc_state *new_ofdrm_crtc_state;
-	int ret;
-
-	if (new_crtc)
-		new_crtc_state = drm_atomic_get_new_crtc_state(new_state, new_plane_state->crtc);
-
-	ret = drm_atomic_helper_check_plane_state(new_plane_state, new_crtc_state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
-						  false, false);
-	if (ret)
-		return ret;
-	else if (!new_plane_state->visible)
-		return 0;
-
-	if (new_fb->format != odev->format) {
-		void *buf;
-
-		/* format conversion necessary; reserve buffer */
-		buf = drm_format_conv_state_reserve(&new_shadow_plane_state->fmtcnv_state,
-						    odev->pitch, GFP_KERNEL);
-		if (!buf)
-			return -ENOMEM;
-	}
-
-	new_crtc_state = drm_atomic_get_new_crtc_state(new_state, new_plane_state->crtc);
-
-	new_ofdrm_crtc_state = to_ofdrm_crtc_state(new_crtc_state);
-	new_ofdrm_crtc_state->format = new_fb->format;
-
-	return 0;
-}
-
-static void ofdrm_primary_plane_helper_atomic_update(struct drm_plane *plane,
-						     struct drm_atomic_state *state)
-{
-	struct drm_device *dev = plane->dev;
-	struct ofdrm_device *odev = ofdrm_device_of_dev(dev);
-	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
-	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
-	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
-	struct drm_framebuffer *fb = plane_state->fb;
-	unsigned int dst_pitch = odev->pitch;
-	const struct drm_format_info *dst_format = odev->format;
-	struct drm_atomic_helper_damage_iter iter;
-	struct drm_rect damage;
-	int ret, idx;
-
-	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
-	if (ret)
-		return;
-
-	if (!drm_dev_enter(dev, &idx))
-		goto out_drm_gem_fb_end_cpu_access;
-
-	drm_atomic_helper_damage_iter_init(&iter, old_plane_state, plane_state);
-	drm_atomic_for_each_plane_damage(&iter, &damage) {
-		struct iosys_map dst = odev->screen_base;
-		struct drm_rect dst_clip = plane_state->dst;
-
-		if (!drm_rect_intersect(&dst_clip, &damage))
-			continue;
-
-		iosys_map_incr(&dst, drm_fb_clip_offset(dst_pitch, dst_format, &dst_clip));
-		drm_fb_blit(&dst, &dst_pitch, dst_format->format, shadow_plane_state->data, fb,
-			    &damage, &shadow_plane_state->fmtcnv_state);
-	}
-
-	drm_dev_exit(idx);
-out_drm_gem_fb_end_cpu_access:
-	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
-}
-
-static void ofdrm_primary_plane_helper_atomic_disable(struct drm_plane *plane,
-						      struct drm_atomic_state *state)
-{
-	struct drm_device *dev = plane->dev;
-	struct ofdrm_device *odev = ofdrm_device_of_dev(dev);
-	struct iosys_map dst = odev->screen_base;
-	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
-	void __iomem *dst_vmap = dst.vaddr_iomem; /* TODO: Use mapping abstraction */
-	unsigned int dst_pitch = odev->pitch;
-	const struct drm_format_info *dst_format = odev->format;
-	struct drm_rect dst_clip;
-	unsigned long lines, linepixels, i;
-	int idx;
-
-	drm_rect_init(&dst_clip,
-		      plane_state->src_x >> 16, plane_state->src_y >> 16,
-		      plane_state->src_w >> 16, plane_state->src_h >> 16);
-
-	lines = drm_rect_height(&dst_clip);
-	linepixels = drm_rect_width(&dst_clip);
-
-	if (!drm_dev_enter(dev, &idx))
-		return;
-
-	/* Clear buffer to black if disabled */
-	dst_vmap += drm_fb_clip_offset(dst_pitch, dst_format, &dst_clip);
-	for (i = 0; i < lines; ++i) {
-		memset_io(dst_vmap, 0, linepixels * dst_format->cpp[0]);
-		dst_vmap += dst_pitch;
-	}
-
-	drm_dev_exit(idx);
-}
 
 static const struct drm_plane_helper_funcs ofdrm_primary_plane_helper_funcs = {
-	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
-	.atomic_check = ofdrm_primary_plane_helper_atomic_check,
-	.atomic_update = ofdrm_primary_plane_helper_atomic_update,
-	.atomic_disable = ofdrm_primary_plane_helper_atomic_disable,
+	DRM_SYSFB_PLANE_HELPER_FUNCS,
 };
 
 static const struct drm_plane_funcs ofdrm_primary_plane_funcs = {
-	.update_plane = drm_atomic_helper_update_plane,
-	.disable_plane = drm_atomic_helper_disable_plane,
+	DRM_SYSFB_PLANE_FUNCS,
 	.destroy = drm_plane_cleanup,
-	DRM_GEM_SHADOW_PLANE_FUNCS,
 };
-
-static enum drm_mode_status ofdrm_crtc_helper_mode_valid(struct drm_crtc *crtc,
-							 const struct drm_display_mode *mode)
-{
-	struct ofdrm_device *odev = ofdrm_device_of_dev(crtc->dev);
-
-	return drm_crtc_helper_mode_valid_fixed(crtc, mode, &odev->mode);
-}
-
-static int ofdrm_crtc_helper_atomic_check(struct drm_crtc *crtc,
-					  struct drm_atomic_state *new_state)
-{
-	static const size_t gamma_lut_length = OFDRM_GAMMA_LUT_SIZE * sizeof(struct drm_color_lut);
-
-	struct drm_device *dev = crtc->dev;
-	struct drm_crtc_state *new_crtc_state = drm_atomic_get_new_crtc_state(new_state, crtc);
-	int ret;
-
-	if (!new_crtc_state->enable)
-		return 0;
-
-	ret = drm_atomic_helper_check_crtc_primary_plane(new_crtc_state);
-	if (ret)
-		return ret;
-
-	if (new_crtc_state->color_mgmt_changed) {
-		struct drm_property_blob *gamma_lut = new_crtc_state->gamma_lut;
-
-		if (gamma_lut && (gamma_lut->length != gamma_lut_length)) {
-			drm_dbg(dev, "Incorrect gamma_lut length %zu\n", gamma_lut->length);
-			return -EINVAL;
-		}
-	}
-
-	return 0;
-}
 
 static void ofdrm_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
 	struct ofdrm_device *odev = ofdrm_device_of_dev(crtc->dev);
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
-	struct ofdrm_crtc_state *ofdrm_crtc_state = to_ofdrm_crtc_state(crtc_state);
+	struct drm_sysfb_crtc_state *sysfb_crtc_state = to_drm_sysfb_crtc_state(crtc_state);
 
 	if (crtc_state->enable && crtc_state->color_mgmt_changed) {
-		const struct drm_format_info *format = ofdrm_crtc_state->format;
+		const struct drm_format_info *format = sysfb_crtc_state->format;
 
 		if (crtc_state->gamma_lut)
 			ofdrm_device_set_gamma(odev, format, crtc_state->gamma_lut->data);
@@ -938,91 +767,31 @@ static void ofdrm_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_ato
 	}
 }
 
-/*
- * The CRTC is always enabled. Screen updates are performed by
- * the primary plane's atomic_update function. Disabling clears
- * the screen in the primary plane's atomic_disable function.
- */
 static const struct drm_crtc_helper_funcs ofdrm_crtc_helper_funcs = {
-	.mode_valid = ofdrm_crtc_helper_mode_valid,
-	.atomic_check = ofdrm_crtc_helper_atomic_check,
+	DRM_SYSFB_CRTC_HELPER_FUNCS,
 	.atomic_flush = ofdrm_crtc_helper_atomic_flush,
 };
 
-static void ofdrm_crtc_reset(struct drm_crtc *crtc)
-{
-	struct ofdrm_crtc_state *ofdrm_crtc_state =
-		kzalloc(sizeof(*ofdrm_crtc_state), GFP_KERNEL);
-
-	if (crtc->state)
-		ofdrm_crtc_state_destroy(to_ofdrm_crtc_state(crtc->state));
-
-	if (ofdrm_crtc_state)
-		__drm_atomic_helper_crtc_reset(crtc, &ofdrm_crtc_state->base);
-	else
-		__drm_atomic_helper_crtc_reset(crtc, NULL);
-}
-
-static struct drm_crtc_state *ofdrm_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_crtc_state *crtc_state = crtc->state;
-	struct ofdrm_crtc_state *new_ofdrm_crtc_state;
-	struct ofdrm_crtc_state *ofdrm_crtc_state;
-
-	if (drm_WARN_ON(dev, !crtc_state))
-		return NULL;
-
-	new_ofdrm_crtc_state = kzalloc(sizeof(*new_ofdrm_crtc_state), GFP_KERNEL);
-	if (!new_ofdrm_crtc_state)
-		return NULL;
-
-	ofdrm_crtc_state = to_ofdrm_crtc_state(crtc_state);
-
-	__drm_atomic_helper_crtc_duplicate_state(crtc, &new_ofdrm_crtc_state->base);
-	new_ofdrm_crtc_state->format = ofdrm_crtc_state->format;
-
-	return &new_ofdrm_crtc_state->base;
-}
-
-static void ofdrm_crtc_atomic_destroy_state(struct drm_crtc *crtc,
-					    struct drm_crtc_state *crtc_state)
-{
-	ofdrm_crtc_state_destroy(to_ofdrm_crtc_state(crtc_state));
-}
-
 static const struct drm_crtc_funcs ofdrm_crtc_funcs = {
-	.reset = ofdrm_crtc_reset,
+	DRM_SYSFB_CRTC_FUNCS,
 	.destroy = drm_crtc_cleanup,
-	.set_config = drm_atomic_helper_set_config,
-	.page_flip = drm_atomic_helper_page_flip,
-	.atomic_duplicate_state = ofdrm_crtc_atomic_duplicate_state,
-	.atomic_destroy_state = ofdrm_crtc_atomic_destroy_state,
 };
 
-static int ofdrm_connector_helper_get_modes(struct drm_connector *connector)
-{
-	struct ofdrm_device *odev = ofdrm_device_of_dev(connector->dev);
-
-	return drm_connector_helper_get_modes_fixed(connector, &odev->mode);
-}
+static const struct drm_encoder_funcs ofdrm_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
 
 static const struct drm_connector_helper_funcs ofdrm_connector_helper_funcs = {
-	.get_modes = ofdrm_connector_helper_get_modes,
+	DRM_SYSFB_CONNECTOR_HELPER_FUNCS,
 };
 
 static const struct drm_connector_funcs ofdrm_connector_funcs = {
-	.reset = drm_atomic_helper_connector_reset,
-	.fill_modes = drm_helper_probe_single_connector_modes,
+	DRM_SYSFB_CONNECTOR_FUNCS,
 	.destroy = drm_connector_cleanup,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static const struct drm_mode_config_funcs ofdrm_mode_config_funcs = {
-	.fb_create = drm_gem_fb_create_with_dirty,
-	.atomic_check = drm_atomic_helper_check,
-	.atomic_commit = drm_atomic_helper_commit,
+	DRM_SYSFB_MODE_CONFIG_FUNCS,
 };
 
 /*
@@ -1072,32 +841,19 @@ static const struct ofdrm_device_funcs ofdrm_qemu_device_funcs = {
 	.cmap_write = ofdrm_qemu_cmap_write,
 };
 
-static struct drm_display_mode ofdrm_mode(unsigned int width, unsigned int height)
-{
-	/*
-	 * Assume a monitor resolution of 96 dpi to
-	 * get a somewhat reasonable screen size.
-	 */
-	const struct drm_display_mode mode = {
-		DRM_MODE_INIT(60, width, height,
-			      DRM_MODE_RES_MM(width, 96ul),
-			      DRM_MODE_RES_MM(height, 96ul))
-	};
-
-	return mode;
-}
-
 static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 						struct platform_device *pdev)
 {
 	struct device_node *of_node = pdev->dev.of_node;
 	struct ofdrm_device *odev;
+	struct drm_sysfb_device *sysfb;
 	struct drm_device *dev;
 	enum ofdrm_model model;
 	bool big_endian;
 	int width, height, depth, linebytes;
 	const struct drm_format_info *format;
 	u64 address;
+	const u8 *edid;
 	resource_size_t fb_size, fb_base, fb_pgbase, fb_pgsize;
 	struct resource *res, *mem;
 	void __iomem *screen_base;
@@ -1109,10 +865,11 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 	size_t nformats;
 	int ret;
 
-	odev = devm_drm_dev_alloc(&pdev->dev, drv, struct ofdrm_device, dev);
+	odev = devm_drm_dev_alloc(&pdev->dev, drv, struct ofdrm_device, sysfb.dev);
 	if (IS_ERR(odev))
 		return ERR_CAST(odev);
-	dev = &odev->dev;
+	sysfb = &odev->sysfb;
+	dev = &sysfb->dev;
 	platform_set_drvdata(pdev, dev);
 
 	ret = ofdrm_device_init_pci(odev);
@@ -1246,16 +1003,22 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 		}
 	}
 
+	/* EDID is optional */
+	edid = display_get_edid_of(dev, of_node, odev->edid);
+
 	/*
 	 * Firmware framebuffer
 	 */
 
-	iosys_map_set_vaddr_iomem(&odev->screen_base, screen_base);
-	odev->mode = ofdrm_mode(width, height);
-	odev->format = format;
-	odev->pitch = linebytes;
+	iosys_map_set_vaddr_iomem(&sysfb->fb_addr, screen_base);
+	sysfb->fb_mode = drm_sysfb_mode(width, height, 0, 0);
+	sysfb->fb_format = format;
+	sysfb->fb_pitch = linebytes;
+	if (odev->cmap_base)
+		sysfb->fb_gamma_lut_size = OFDRM_GAMMA_LUT_SIZE;
+	sysfb->edid = edid;
 
-	drm_dbg(dev, "display mode={" DRM_MODE_FMT "}\n", DRM_MODE_ARG(&odev->mode));
+	drm_dbg(dev, "display mode={" DRM_MODE_FMT "}\n", DRM_MODE_ARG(&sysfb->fb_mode));
 	drm_dbg(dev, "framebuffer format=%p4cc, size=%dx%d, linebytes=%d byte\n",
 		&format->format, width, height, linebytes);
 
@@ -1302,15 +1065,16 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 		return ERR_PTR(ret);
 	drm_crtc_helper_add(crtc, &ofdrm_crtc_helper_funcs);
 
-	if (odev->cmap_base) {
-		drm_mode_crtc_set_gamma_size(crtc, OFDRM_GAMMA_LUT_SIZE);
-		drm_crtc_enable_color_mgmt(crtc, 0, false, OFDRM_GAMMA_LUT_SIZE);
+	if (sysfb->fb_gamma_lut_size) {
+		ret = drm_mode_crtc_set_gamma_size(crtc, sysfb->fb_gamma_lut_size);
+		if (!ret)
+			drm_crtc_enable_color_mgmt(crtc, 0, false, sysfb->fb_gamma_lut_size);
 	}
 
 	/* Encoder */
 
 	encoder = &odev->encoder;
-	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_NONE);
+	ret = drm_encoder_init(dev, encoder, &ofdrm_encoder_funcs, DRM_MODE_ENCODER_NONE, NULL);
 	if (ret)
 		return ERR_PTR(ret);
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
@@ -1326,6 +1090,8 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 	drm_connector_set_panel_orientation_with_quirk(connector,
 						       DRM_MODE_PANEL_ORIENTATION_UNKNOWN,
 						       width, height);
+	if (edid)
+		drm_connector_attach_edid_property(connector);
 
 	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret)
@@ -1360,19 +1126,21 @@ static struct drm_driver ofdrm_driver = {
 static int ofdrm_probe(struct platform_device *pdev)
 {
 	struct ofdrm_device *odev;
+	struct drm_sysfb_device *sysfb;
 	struct drm_device *dev;
 	int ret;
 
 	odev = ofdrm_device_create(&ofdrm_driver, pdev);
 	if (IS_ERR(odev))
 		return PTR_ERR(odev);
-	dev = &odev->dev;
+	sysfb = &odev->sysfb;
+	dev = &sysfb->dev;
 
 	ret = drm_dev_register(dev, 0);
 	if (ret)
 		return ret;
 
-	drm_client_setup(dev, odev->format);
+	drm_client_setup(dev, sysfb->fb_format);
 
 	return 0;
 }

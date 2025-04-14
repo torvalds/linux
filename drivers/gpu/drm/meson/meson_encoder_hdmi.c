@@ -49,11 +49,12 @@ struct meson_encoder_hdmi {
 	container_of(x, struct meson_encoder_hdmi, bridge)
 
 static int meson_encoder_hdmi_attach(struct drm_bridge *bridge,
+				     struct drm_encoder *encoder,
 				     enum drm_bridge_attach_flags flags)
 {
 	struct meson_encoder_hdmi *encoder_hdmi = bridge_to_meson_encoder_hdmi(bridge);
 
-	return drm_bridge_attach(bridge->encoder, encoder_hdmi->next_bridge,
+	return drm_bridge_attach(encoder, encoder_hdmi->next_bridge,
 				 &encoder_hdmi->bridge, flags);
 }
 

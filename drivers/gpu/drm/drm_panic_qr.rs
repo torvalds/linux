@@ -5,7 +5,7 @@
 //! It is called from a panic handler, so it should't allocate memory and
 //! does all the work on the stack or on the provided buffers. For
 //! simplification, it only supports low error correction, and applies the
-//! first mask (checkerboard). It will draw the smallest QRcode that can
+//! first mask (checkerboard). It will draw the smallest QR code that can
 //! contain the string passed as parameter. To get the most compact
 //! QR code, the start of the URL is encoded as binary, and the
 //! compressed kmsg is encoded as numeric.
@@ -415,7 +415,7 @@ impl Iterator for SegmentIterator<'_> {
                         self.carry_len -= out_len;
                         let pow = u64::pow(10, self.carry_len as u32);
                         let out = (self.carry / pow) as u16;
-                        self.carry = self.carry % pow;
+                        self.carry %= pow;
                         Some((out, NUM_CHARS_BITS[out_len]))
                     }
                 }
@@ -876,7 +876,7 @@ impl QrImage<'_> {
 ///   will be encoded as binary segment, otherwise it will be encoded
 ///   efficiently as a numeric segment, and appended to the URL.
 /// * `data_len`: Length of the data, that needs to be encoded, must be less
-///   than data_size.
+///   than `data_size`.
 /// * `data_size`: Size of data buffer, it should be at least 4071 bytes to hold
 ///   a V40 QR code. It will then be overwritten with the QR code image.
 /// * `tmp`: A temporary buffer that the QR code encoder will use, to write the
