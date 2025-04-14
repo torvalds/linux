@@ -22,6 +22,7 @@ use proc_macro::TokenStream;
 #[cfg(kernel)]
 #[path = "../../../macros/quote.rs"]
 #[macro_use]
+#[cfg_attr(not(kernel), rustfmt::skip)]
 mod quote;
 #[cfg(not(kernel))]
 #[macro_use]
