@@ -1240,7 +1240,11 @@ struct task_struct {
 #endif
 
 #ifdef CONFIG_DETECT_HUNG_TASK_BLOCKER
-	struct mutex			*blocker_mutex;
+	/*
+	 * Encoded lock address causing task block (lower 2 bits = type from
+	 * <linux/hung_task.h>). Accessed via hung_task_*() helpers.
+	 */
+	unsigned long			blocker;
 #endif
 
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
