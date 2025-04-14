@@ -38,6 +38,7 @@
 #include "intel_display_irq.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
+#include "intel_dmc.h"
 #include "intel_dp.h"
 #include "intel_dp_aux.h"
 #include "intel_frontbuffer.h"
@@ -1951,6 +1952,12 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 			intel_de_rmw(display, CLKGATE_DIS_MISC, 0,
 				     CLKGATE_DIS_MISC_DMASC_GATING_DIS);
 	}
+
+	/* Wa_16025596647 */
+	if ((DISPLAY_VER(display) == 20 ||
+	     IS_DISPLAY_VERx100_STEP(display, 3000, STEP_A0, STEP_B0)) &&
+	    !intel_dp->psr.panel_replay_enabled)
+		intel_dmc_block_pkgc(display, intel_dp->psr.pipe, true);
 }
 
 static bool psr_interrupt_error_check(struct intel_dp *intel_dp)
@@ -2174,6 +2181,12 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 			drm_dp_dpcd_writeb(&intel_dp->aux,
 					   DP_RECEIVER_ALPM_CONFIG, 0);
 	}
+
+	/* Wa_16025596647 */
+	if ((DISPLAY_VER(display) == 20 ||
+	     IS_DISPLAY_VERx100_STEP(display, 3000, STEP_A0, STEP_B0)) &&
+	    !intel_dp->psr.panel_replay_enabled)
+		intel_dmc_block_pkgc(display, intel_dp->psr.pipe, false);
 
 	intel_dp->psr.enabled = false;
 	intel_dp->psr.panel_replay_enabled = false;
