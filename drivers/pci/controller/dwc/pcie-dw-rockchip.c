@@ -278,17 +278,13 @@ static void rockchip_pcie_ep_hide_broken_ats_cap_rk3588(struct dw_pcie_ep *ep)
 		dev_err(dev, "failed to hide ATS capability\n");
 }
 
-static void rockchip_pcie_ep_pre_init(struct dw_pcie_ep *ep)
-{
-	rockchip_pcie_ep_hide_broken_ats_cap_rk3588(ep);
-}
-
 static void rockchip_pcie_ep_init(struct dw_pcie_ep *ep)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	enum pci_barno bar;
 
 	rockchip_pcie_enable_l0s(pci);
+	rockchip_pcie_ep_hide_broken_ats_cap_rk3588(ep);
 
 	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++)
 		dw_pcie_ep_reset_bar(pci, bar);
@@ -359,7 +355,6 @@ rockchip_pcie_get_features(struct dw_pcie_ep *ep)
 
 static const struct dw_pcie_ep_ops rockchip_pcie_ep_ops = {
 	.init = rockchip_pcie_ep_init,
-	.pre_init = rockchip_pcie_ep_pre_init,
 	.raise_irq = rockchip_pcie_raise_irq,
 	.get_features = rockchip_pcie_get_features,
 };
