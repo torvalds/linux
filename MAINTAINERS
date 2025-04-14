@@ -16223,6 +16223,7 @@ F:	arch/mips/include/asm/mach-loongson32/
 F:	arch/mips/loongson32/
 F:	drivers/*/*loongson1*
 F:	drivers/net/ethernet/stmicro/stmmac/dwmac-loongson1.c
+F:	sound/soc/loongson/loongson1_ac97.c
 
 MIPS/LOONGSON2EF ARCHITECTURE
 M:	Jiaxun Yang <jiaxun.yang@flygoat.com>
