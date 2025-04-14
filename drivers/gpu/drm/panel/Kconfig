@@ -154,6 +154,17 @@ config DRM_PANEL_LVDS
 	  handling of power supplies or control signals. It implements automatic
 	  backlight handling if the panel is attached to a backlight controller.
 
+config DRM_PANEL_HIMAX_HX8279
+	tristate "Himax HX8279-based panels"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y if you want to enable support for panels based on the
+	  Himax HX8279 controller, such as the Startek KD070FHFID078
+	  7.0" 1200x1920 IPS LCD panel that uses a MIPI-DSI interface
+	  and others.
+
 config DRM_PANEL_HIMAX_HX83102
 	tristate "Himax HX83102-based panels"
 	depends on OF
