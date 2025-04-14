@@ -487,6 +487,7 @@ struct amdgpu_gfx {
 	struct mutex                    workload_profile_mutex;
 
 	bool				disable_kq;
+	bool				disable_uq;
 };
 
 struct amdgpu_gfx_ras_reg_entry {

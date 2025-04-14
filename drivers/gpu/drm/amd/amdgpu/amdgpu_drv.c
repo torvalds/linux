@@ -242,7 +242,7 @@ int amdgpu_wbrf = -1;
 int amdgpu_damage_clips = -1; /* auto */
 int amdgpu_umsch_mm_fwlog;
 int amdgpu_rebar = -1; /* auto */
-int amdgpu_disable_kq = -1;
+int amdgpu_user_queue = -1;
 
 DECLARE_DYNDBG_CLASSMAP(drm_debug_classes, DD_CLASS_TYPE_DISJOINT_BITS, 0,
 			"DRM_UT_CORE",
@@ -1114,12 +1114,15 @@ MODULE_PARM_DESC(rebar, "Resizable BAR (-1 = auto (default), 0 = disable, 1 = en
 module_param_named(rebar, amdgpu_rebar, int, 0444);
 
 /**
- * DOC: disable_kq (int)
- * Disable kernel queues on systems that support user queues.
- * (0 = kernel queues enabled, 1 = kernel queues disabled, -1 = auto (default setting))
+ * DOC: user_queue (int)
+ * Enable user queues on systems that support user queues.
+ * -1 = auto (ASIC specific default)
+ *  0 = user queues disabled
+ *  1 = user queues enabled and kernel queues enabled (if supported)
+ *  2 = user queues enabled and kernel queues disabled
  */
-MODULE_PARM_DESC(disable_kq, "Disable kernel queues (-1 = auto (default), 0 = enable KQ, 1 = disable KQ)");
-module_param_named(disable_kq, amdgpu_disable_kq, int, 0444);
+MODULE_PARM_DESC(user_queue, "Enable user queues (-1 = auto (default), 0 = disable, 1 = enable, 2 = enable UQs and disable KQs)");
+module_param_named(user_queue, amdgpu_user_queue, int, 0444);
 
 /* These devices are not supported by amdgpu.
  * They are supported by the mach64, r128, radeon drivers

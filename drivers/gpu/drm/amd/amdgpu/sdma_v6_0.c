@@ -1269,8 +1269,22 @@ static int sdma_v6_0_early_init(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
-	if (amdgpu_disable_kq == 1)
+	switch (amdgpu_user_queue) {
+	case -1:
+	case 0:
+	default:
+		adev->sdma.no_user_submission = false;
+		adev->sdma.disable_uq = true;
+		break;
+	case 1:
+		adev->sdma.no_user_submission = false;
+		adev->sdma.disable_uq = false;
+		break;
+	case 2:
 		adev->sdma.no_user_submission = true;
+		adev->sdma.disable_uq = false;
+		break;
+	}
 
 	r = amdgpu_sdma_init_microcode(adev, 0, true);
 	if (r)
@@ -1351,7 +1365,7 @@ static int sdma_v6_0_sw_init(struct amdgpu_ip_block *ip_block)
 
 #ifdef CONFIG_DRM_AMDGPU_NAVI3X_USERQ
 	/* add firmware version checks here */
-	if (0)
+	if (0 && !adev->sdma.disable_uq)
 		adev->userq_funcs[AMDGPU_HW_IP_DMA] = &userq_mes_funcs;
 #endif
 	r = amdgpu_sdma_sysfs_reset_mask_init(adev);
