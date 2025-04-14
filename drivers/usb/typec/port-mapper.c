@@ -8,6 +8,7 @@
 
 #include <linux/acpi.h>
 #include <linux/component.h>
+#include <linux/thunderbolt.h>
 #include <linux/usb.h>
 
 #include "class.h"
@@ -36,6 +37,11 @@ struct each_port_arg {
 	struct component_match *match;
 };
 
+static int usb4_port_compare(struct device *dev, void *fwnode)
+{
+	return usb4_usb3_port_match(dev, fwnode);
+}
+
 static int typec_port_compare(struct device *dev, void *fwnode)
 {
 	return device_match_fwnode(dev, fwnode);
@@ -51,9 +57,22 @@ static int typec_port_match(struct device *dev, void *data)
 	if (con_adev == adev)
 		return 0;
 
-	if (con_adev->pld_crc == adev->pld_crc)
+	if (con_adev->pld_crc == adev->pld_crc)	{
+		struct fwnode_handle *adev_fwnode = acpi_fwnode_handle(adev);
+
 		component_match_add(&arg->port->dev, &arg->match, typec_port_compare,
-				    acpi_fwnode_handle(adev));
+				    adev_fwnode);
+
+		/*
+		 * If dev is USB 3.x port, it may have reference to the
+		 * USB4 host interface in which case we can also link the
+		 * Type-C port with the USB4 port.
+		 */
+		if (fwnode_property_present(adev_fwnode, "usb4-host-interface"))
+			component_match_add(&arg->port->dev, &arg->match,
+					    usb4_port_compare, adev_fwnode);
+	}
+
 	return 0;
 }
 
