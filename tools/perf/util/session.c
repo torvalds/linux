@@ -1639,8 +1639,17 @@ static s64 perf_session__process_event(struct perf_session *session,
 	if (session->header.needs_swap)
 		event_swap(event, evlist__sample_id_all(evlist));
 
-	if (event->header.type >= PERF_RECORD_HEADER_MAX)
-		return -EINVAL;
+	if (event->header.type >= PERF_RECORD_HEADER_MAX) {
+		/* perf should not support unaligned event, stop here. */
+		if (event->header.size % sizeof(u64))
+			return -EINVAL;
+
+		/* This perf is outdated and does not support the latest event type. */
+		ui__warning("Unsupported header type %u, please consider updating perf.\n",
+			    event->header.type);
+		/* Skip unsupported event by returning its size. */
+		return event->header.size;
+	}
 
 	events_stats__inc(&evlist->stats, event->header.type);
 
