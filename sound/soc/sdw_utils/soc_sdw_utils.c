@@ -934,10 +934,10 @@ static bool asoc_sdw_is_unique_device(const struct snd_soc_acpi_link_adr *adr_li
 	return true;
 }
 
-const char *asoc_sdw_get_codec_name(struct device *dev,
-				    const struct asoc_sdw_codec_info *codec_info,
-				    const struct snd_soc_acpi_link_adr *adr_link,
-				    int adr_index)
+static const char *_asoc_sdw_get_codec_name(struct device *dev,
+					    const struct asoc_sdw_codec_info *codec_info,
+					    const struct snd_soc_acpi_link_adr *adr_link,
+					    int adr_index)
 {
 	u64 adr = adr_link->adr_d[adr_index].adr;
 	unsigned int sdw_version = SDW_VERSION(adr);
@@ -947,17 +947,24 @@ const char *asoc_sdw_get_codec_name(struct device *dev,
 	unsigned int part_id = SDW_PART_ID(adr);
 	unsigned int class_id = SDW_CLASS_ID(adr);
 
-	if (codec_info->codec_name)
-		return devm_kstrdup(dev, codec_info->codec_name, GFP_KERNEL);
-	else if (asoc_sdw_is_unique_device(adr_link, sdw_version, mfg_id, part_id,
-					   class_id, adr_index))
+	if (asoc_sdw_is_unique_device(adr_link, sdw_version, mfg_id, part_id,
+				      class_id, adr_index))
 		return devm_kasprintf(dev, GFP_KERNEL, "sdw:0:%01x:%04x:%04x:%02x",
 				      link_id, mfg_id, part_id, class_id);
-	else
-		return devm_kasprintf(dev, GFP_KERNEL, "sdw:0:%01x:%04x:%04x:%02x:%01x",
-				      link_id, mfg_id, part_id, class_id, unique_id);
 
-	return NULL;
+	return devm_kasprintf(dev, GFP_KERNEL, "sdw:0:%01x:%04x:%04x:%02x:%01x",
+			      link_id, mfg_id, part_id, class_id, unique_id);
+}
+
+const char *asoc_sdw_get_codec_name(struct device *dev,
+				    const struct asoc_sdw_codec_info *codec_info,
+				    const struct snd_soc_acpi_link_adr *adr_link,
+				    int adr_index)
+{
+	if (codec_info->codec_name)
+		return devm_kstrdup(dev, codec_info->codec_name, GFP_KERNEL);
+
+	return _asoc_sdw_get_codec_name(dev, codec_info, adr_link, adr_index);
 }
 EXPORT_SYMBOL_NS(asoc_sdw_get_codec_name, "SND_SOC_SDW_UTILS");
 
