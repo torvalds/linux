@@ -19,7 +19,6 @@
 #include <linux/slab.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
-#include <sound/tpa6130a2-plat.h>
 
 #include "tpa6130a2.h"
 
@@ -209,18 +208,10 @@ static const struct regmap_config tpa6130a2_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static const struct i2c_device_id tpa6130a2_id[] = {
-	{ "tpa6130a2", TPA6130A2 },
-	{ "tpa6140a2", TPA6140A2 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, tpa6130a2_id);
-
 static int tpa6130a2_probe(struct i2c_client *client)
 {
 	struct device *dev;
 	struct tpa6130a2_data *data;
-	struct tpa6130a2_platform_data *pdata = client->dev.platform_data;
 	struct device_node *np = client->dev.of_node;
 	const char *regulator;
 	unsigned int version;
@@ -238,9 +229,7 @@ static int tpa6130a2_probe(struct i2c_client *client)
 	if (IS_ERR(data->regmap))
 		return PTR_ERR(data->regmap);
 
-	if (pdata) {
-		data->power_gpio = pdata->power_gpio;
-	} else if (np) {
+	if (np) {
 		data->power_gpio = of_get_named_gpio(np, "power-gpio", 0);
 	} else {
 		dev_err(dev, "Platform data not set\n");
@@ -318,7 +307,6 @@ static struct i2c_driver tpa6130a2_i2c_driver = {
 		.of_match_table = of_match_ptr(tpa6130a2_of_match),
 	},
 	.probe = tpa6130a2_probe,
-	.id_table = tpa6130a2_id,
 };
 
 module_i2c_driver(tpa6130a2_i2c_driver);
