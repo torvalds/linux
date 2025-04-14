@@ -14,7 +14,7 @@
 #include <linux/spinlock.h>
 #include <linux/pci_ids.h>
 
-#include <asm/amd_nb.h>
+#include <asm/amd/nb.h>
 #include <asm/cpuid.h>
 
 static u32 *flush_words;

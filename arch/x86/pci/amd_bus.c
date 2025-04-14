@@ -5,7 +5,7 @@
 #include <linux/cpu.h>
 #include <linux/range.h>
 
-#include <asm/amd_nb.h>
+#include <asm/amd/nb.h>
 #include <asm/pci_x86.h>
 
 #include <asm/pci-direct.h>

@@ -9,7 +9,7 @@
 #include <linux/pci.h>
 #include <linux/sysfs.h>
 
-#include <asm/amd_nb.h>
+#include <asm/amd/nb.h>
 
 #include "cpu.h"
 

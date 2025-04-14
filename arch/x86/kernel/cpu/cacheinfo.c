@@ -13,7 +13,7 @@
 #include <linux/cpuhotplug.h>
 #include <linux/stop_machine.h>
 
-#include <asm/amd_nb.h>
+#include <asm/amd/nb.h>
 #include <asm/cacheinfo.h>
 #include <asm/cpufeature.h>
 #include <asm/cpuid.h>
