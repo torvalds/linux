@@ -97,18 +97,13 @@ static void pgd_ctor(struct mm_struct *mm, pgd_t *pgd)
 				KERNEL_PGD_PTRS);
 	}
 
-	/* list required to sync kernel mapping updates */
-	if (!SHARED_KERNEL_PMD) {
-		pgd_set_mm(pgd, mm);
-		pgd_list_add(pgd);
-	}
+	/* List used to sync kernel mapping updates */
+	pgd_set_mm(pgd, mm);
+	pgd_list_add(pgd);
 }
 
 static void pgd_dtor(pgd_t *pgd)
 {
-	if (SHARED_KERNEL_PMD)
-		return;
-
 	spin_lock(&pgd_lock);
 	pgd_list_del(pgd);
 	spin_unlock(&pgd_lock);
