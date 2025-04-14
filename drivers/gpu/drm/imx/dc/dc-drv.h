@@ -13,6 +13,7 @@
 #include <drm/drm_device.h>
 
 #include "dc-de.h"
+#include "dc-pe.h"
 
 /**
  * struct dc_drm_device - DC specific drm_device
@@ -20,10 +21,24 @@
 struct dc_drm_device {
 	/** @base: base drm_device structure */
 	struct drm_device base;
+	/** @cf_safe: constframe list(safety stream) */
+	struct dc_cf *cf_safe[DC_DISPLAYS];
+	/** @cf_cont: constframe list(content stream) */
+	struct dc_cf *cf_cont[DC_DISPLAYS];
 	/** @de: display engine list */
 	struct dc_de *de[DC_DISPLAYS];
+	/** @ed_safe: extdst list(safety stream) */
+	struct dc_ed *ed_safe[DC_DISPLAYS];
+	/** @ed_cont: extdst list(content stream) */
+	struct dc_ed *ed_cont[DC_DISPLAYS];
 	/** @fg: framegen list */
 	struct dc_fg *fg[DC_DISPLAYS];
+	/** @fu_disp: fetchunit list(used by display engine) */
+	struct dc_fu *fu_disp[DC_DISP_FU_CNT];
+	/** @lb: layerblend list */
+	struct dc_lb *lb[DC_LB_CNT];
+	/** @pe: pixel engine */
+	struct dc_pe *pe;
 	/** @tc: tcon list */
 	struct dc_tc *tc[DC_DISPLAYS];
 };
@@ -33,8 +48,14 @@ struct dc_subdev_info {
 	int id;
 };
 
+extern struct platform_driver dc_cf_driver;
 extern struct platform_driver dc_de_driver;
+extern struct platform_driver dc_ed_driver;
 extern struct platform_driver dc_fg_driver;
+extern struct platform_driver dc_fl_driver;
+extern struct platform_driver dc_fw_driver;
+extern struct platform_driver dc_lb_driver;
+extern struct platform_driver dc_pe_driver;
 extern struct platform_driver dc_tc_driver;
 
 static inline int dc_subdev_get_id(const struct dc_subdev_info *info,
@@ -53,5 +74,6 @@ static inline int dc_subdev_get_id(const struct dc_subdev_info *info,
 }
 
 void dc_de_post_bind(struct dc_drm_device *dc_drm);
+void dc_pe_post_bind(struct dc_drm_device *dc_drm);
 
 #endif /* __DC_DRV_H__ */
