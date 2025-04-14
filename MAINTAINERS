@@ -3874,6 +3874,7 @@ F:	drivers/base/auxiliary.c
 F:	include/linux/auxiliary_bus.h
 F:	rust/helpers/auxiliary.c
 F:	rust/kernel/auxiliary.rs
+F:	samples/rust/rust_driver_auxiliary.rs
 
 AUXILIARY DISPLAY DRIVERS
 M:	Andy Shevchenko <andy@kernel.org>
