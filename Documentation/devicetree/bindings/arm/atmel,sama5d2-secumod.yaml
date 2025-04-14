@@ -21,6 +21,7 @@ properties:
           - const: syscon
       - items:
           - enum:
+              - microchip,sama7d65-secumod
               - microchip,sama7g5-secumod
           - const: atmel,sama5d2-secumod
           - const: syscon
