@@ -13,25 +13,25 @@ definitions:
     type: struct
     members:
       -
-        name: family
+        name: ndm-family
         type: u8
       -
-        name: pad
+        name: ndm-pad
         type: pad
         len: 3
       -
-        name: ifindex
+        name: ndm-ifindex
         type: s32
       -
-        name: state
+        name: ndm-state
         type: u16
         enum: nud-state
       -
-        name: flags
+        name: ndm-flags
         type: u8
         enum: ntf-flags
       -
-        name: type
+        name: ndm-type
         type: u8
         enum: rtm-type
   -
