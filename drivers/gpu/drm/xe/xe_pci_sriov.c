@@ -7,6 +7,7 @@
 #include "xe_device.h"
 #include "xe_gt_sriov_pf_config.h"
 #include "xe_gt_sriov_pf_control.h"
+#include "xe_gt_sriov_printk.h"
 #include "xe_guc_engine_activity.h"
 #include "xe_pci_sriov.h"
 #include "xe_pm.h"
@@ -121,8 +122,8 @@ static void pf_engine_activity_stats(struct xe_device *xe, unsigned int num_vfs,
 	for_each_gt(gt, xe, id) {
 		ret = xe_guc_engine_activity_function_stats(&gt->uc.guc, num_vfs, enable);
 		if (ret)
-			xe_sriov_info(xe, "Failed to %s engine activity function stats (%pe)\n",
-				      str_enable_disable(enable), ERR_PTR(ret));
+			xe_gt_sriov_info(gt, "Failed to %s engine activity function stats (%pe)\n",
+					 str_enable_disable(enable), ERR_PTR(ret));
 	}
 }
 
