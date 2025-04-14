@@ -80,16 +80,11 @@ struct mm_struct *pgd_page_get_mm(struct page *page)
 
 static void pgd_ctor(struct mm_struct *mm, pgd_t *pgd)
 {
-	/* If the pgd points to a shared pagetable level (either the
-	   ptes in non-PAE, or shared PMD in PAE), then just copy the
-	   references from swapper_pg_dir. */
-	if (CONFIG_PGTABLE_LEVELS == 2 ||
-	    (CONFIG_PGTABLE_LEVELS == 3 && SHARED_KERNEL_PMD) ||
-	    CONFIG_PGTABLE_LEVELS >= 4) {
+	/* PAE preallocates all its PMDs.  No cloning needed. */
+	if (!IS_ENABLED(CONFIG_X86_PAE))
 		clone_pgd_range(pgd + KERNEL_PGD_BOUNDARY,
 				swapper_pg_dir + KERNEL_PGD_BOUNDARY,
 				KERNEL_PGD_PTRS);
-	}
 
 	/* List used to sync kernel mapping updates */
 	pgd_set_mm(pgd, mm);
@@ -122,8 +117,7 @@ static void pgd_dtor(pgd_t *pgd)
  * all 4 top-level entries are used almost immediately in a
  * new process's life, we just pre-populate them here.
  */
-#define PREALLOCATED_PMDS	(static_cpu_has(X86_FEATURE_PTI) ? \
-					PTRS_PER_PGD : KERNEL_PGD_BOUNDARY)
+#define PREALLOCATED_PMDS	PTRS_PER_PGD
 #define MAX_PREALLOCATED_PMDS	PTRS_PER_PGD
 
 /*
