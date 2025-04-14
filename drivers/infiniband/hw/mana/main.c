@@ -479,7 +479,7 @@ int mana_ib_create_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
 {
 	unsigned long page_sz;
 
-	page_sz = ib_umem_find_best_pgsz(umem, PAGE_SZ_BM, virt);
+	page_sz = ib_umem_find_best_pgsz(umem, dev->adapter_caps.page_size_cap, virt);
 	if (!page_sz) {
 		ibdev_dbg(&dev->ib_dev, "Failed to find page size.\n");
 		return -EINVAL;
@@ -494,7 +494,7 @@ int mana_ib_create_zero_offset_dma_region(struct mana_ib_dev *dev, struct ib_ume
 	unsigned long page_sz;
 
 	/* Hardware requires dma region to align to chosen page size */
-	page_sz = ib_umem_find_best_pgoff(umem, PAGE_SZ_BM, 0);
+	page_sz = ib_umem_find_best_pgoff(umem, dev->adapter_caps.page_size_cap, 0);
 	if (!page_sz) {
 		ibdev_dbg(&dev->ib_dev, "Failed to find page size.\n");
 		return -EINVAL;
@@ -577,7 +577,7 @@ int mana_ib_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
 
 	memset(props, 0, sizeof(*props));
 	props->max_mr_size = MANA_IB_MAX_MR_SIZE;
-	props->page_size_cap = PAGE_SZ_BM;
+	props->page_size_cap = dev->adapter_caps.page_size_cap;
 	props->max_qp = dev->adapter_caps.max_qp_count;
 	props->max_qp_wr = dev->adapter_caps.max_qp_wr;
 	props->device_cap_flags = IB_DEVICE_RC_RNR_NAK_GEN;
@@ -695,6 +695,10 @@ int mana_ib_gd_query_adapter_caps(struct mana_ib_dev *dev)
 	caps->max_send_sge_count = resp.max_send_sge_count;
 	caps->max_recv_sge_count = resp.max_recv_sge_count;
 	caps->feature_flags = resp.feature_flags;
+
+	caps->page_size_cap = PAGE_SZ_BM;
+	if (mdev_to_gc(dev)->pf_cap_flags1 & GDMA_DRV_CAP_FLAG_1_GDMA_PAGES_4MB_1GB_2GB)
+		caps->page_size_cap |= (SZ_4M | SZ_1G | SZ_2G);
 
 	return 0;
 }

@@ -407,6 +407,8 @@ struct gdma_context {
 
 	/* Azure RDMA adapter */
 	struct gdma_dev		mana_ib;
+
+	u64 pf_cap_flags1;
 };
 
 static inline bool mana_gd_is_mana(struct gdma_dev *gd)
@@ -553,6 +555,7 @@ enum {
  */
 #define GDMA_DRV_CAP_FLAG_1_NAPI_WKDONE_FIX BIT(2)
 #define GDMA_DRV_CAP_FLAG_1_HWC_TIMEOUT_RECONFIG BIT(3)
+#define GDMA_DRV_CAP_FLAG_1_GDMA_PAGES_4MB_1GB_2GB BIT(4)
 #define GDMA_DRV_CAP_FLAG_1_VARIABLE_INDIRECTION_TABLE_SUPPORT BIT(5)
 
 /* Driver can handle holes (zeros) in the device list */
@@ -705,20 +708,6 @@ struct gdma_query_hwc_timeout_resp {
 	struct gdma_resp_hdr hdr;
 	u32 timeout_ms;
 	u32 reserved;
-};
-
-enum atb_page_size {
-	ATB_PAGE_SIZE_4K,
-	ATB_PAGE_SIZE_8K,
-	ATB_PAGE_SIZE_16K,
-	ATB_PAGE_SIZE_32K,
-	ATB_PAGE_SIZE_64K,
-	ATB_PAGE_SIZE_128K,
-	ATB_PAGE_SIZE_256K,
-	ATB_PAGE_SIZE_512K,
-	ATB_PAGE_SIZE_1M,
-	ATB_PAGE_SIZE_2M,
-	ATB_PAGE_SIZE_MAX,
 };
 
 enum gdma_mr_access_flags {

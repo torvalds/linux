@@ -60,6 +60,7 @@ struct mana_ib_adapter_caps {
 	u32 max_recv_sge_count;
 	u32 max_inline_data_size;
 	u64 feature_flags;
+	u64 page_size_cap;
 };
 
 struct mana_ib_queue {
