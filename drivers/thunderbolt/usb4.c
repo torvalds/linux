@@ -935,7 +935,15 @@ int usb4_switch_dealloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
 	return status ? -EIO : 0;
 }
 
-static int usb4_port_idx(const struct tb_switch *sw, const struct tb_port *port)
+/**
+ * usb4_port_index() - Finds matching USB4 port index
+ * @sw: USB4 router
+ * @port: USB4 protocol or lane adapter
+ *
+ * Finds matching USB4 port index (starting from %0) that given @port goes
+ * through.
+ */
+int usb4_port_index(const struct tb_switch *sw, const struct tb_port *port)
 {
 	struct tb_port *p;
 	int usb4_idx = 0;
@@ -969,7 +977,7 @@ static int usb4_port_idx(const struct tb_switch *sw, const struct tb_port *port)
 struct tb_port *usb4_switch_map_pcie_down(struct tb_switch *sw,
 					  const struct tb_port *port)
 {
-	int usb4_idx = usb4_port_idx(sw, port);
+	int usb4_idx = usb4_port_index(sw, port);
 	struct tb_port *p;
 	int pcie_idx = 0;
 
@@ -1000,7 +1008,7 @@ struct tb_port *usb4_switch_map_pcie_down(struct tb_switch *sw,
 struct tb_port *usb4_switch_map_usb3_down(struct tb_switch *sw,
 					  const struct tb_port *port)
 {
-	int usb4_idx = usb4_port_idx(sw, port);
+	int usb4_idx = usb4_port_index(sw, port);
 	struct tb_port *p;
 	int usb_idx = 0;
 

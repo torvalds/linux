@@ -1468,6 +1468,7 @@ static inline struct usb4_port *tb_to_usb4_port_device(struct device *dev)
 struct usb4_port *usb4_port_device_add(struct tb_port *port);
 void usb4_port_device_remove(struct usb4_port *usb4);
 int usb4_port_device_resume(struct usb4_port *usb4);
+int usb4_port_index(const struct tb_switch *sw, const struct tb_port *port);
 
 static inline bool usb4_port_device_is_offline(const struct usb4_port *usb4)
 {
