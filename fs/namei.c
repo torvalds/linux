@@ -125,9 +125,9 @@
 
 #define EMBEDDED_NAME_MAX	(PATH_MAX - offsetof(struct filename, iname))
 
-static inline void initname(struct filename *name)
+static inline void initname(struct filename *name, const char __user *uptr)
 {
-	name->uptr = NULL;
+	name->uptr = uptr;
 	name->aname = NULL;
 	atomic_set(&name->refcnt, 1);
 }
@@ -210,7 +210,7 @@ getname_flags(const char __user *filename, int flags)
 			return ERR_PTR(-ENAMETOOLONG);
 		}
 	}
-	initname(result);
+	initname(result, filename);
 	audit_getname(result);
 	return result;
 }
@@ -268,7 +268,7 @@ struct filename *getname_kernel(const char * filename)
 		return ERR_PTR(-ENAMETOOLONG);
 	}
 	memcpy((char *)result->name, filename, len);
-	initname(result);
+	initname(result, NULL);
 	audit_getname(result);
 	return result;
 }
