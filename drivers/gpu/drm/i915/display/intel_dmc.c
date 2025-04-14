@@ -516,6 +516,23 @@ void intel_dmc_disable_pipe(struct intel_display *display, enum pipe pipe)
 		intel_de_rmw(display, PIPEDMC_CONTROL(pipe), PIPEDMC_ENABLE, 0);
 }
 
+/**
+ * intel_dmc_block_pkgc() - block PKG C-state
+ * @display: display instance
+ * @pipe: pipe which register use to block
+ * @block: block/unblock
+ *
+ * This interface is target for Wa_16025596647 usage. I.e. to set/clear
+ * PIPEDMC_BLOCK_PKGC_SW_BLOCK_PKGC_ALWAYS bit in PIPEDMC_BLOCK_PKGC_SW register.
+ */
+void intel_dmc_block_pkgc(struct intel_display *display, enum pipe pipe,
+			  bool block)
+{
+	intel_de_rmw(display, PIPEDMC_BLOCK_PKGC_SW(pipe),
+		     PIPEDMC_BLOCK_PKGC_SW_BLOCK_PKGC_ALWAYS, block ?
+		     PIPEDMC_BLOCK_PKGC_SW_BLOCK_PKGC_ALWAYS : 0);
+}
+
 static bool is_dmc_evt_ctl_reg(struct intel_display *display,
 			       enum intel_dmc_id dmc_id, i915_reg_t reg)
 {
