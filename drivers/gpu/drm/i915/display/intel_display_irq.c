@@ -2343,7 +2343,7 @@ intel_display_irq_snapshot_capture(struct intel_display *display)
 	if (!snapshot)
 		return NULL;
 
-	if (DISPLAY_VER(display) >= 6 && DISPLAY_VER(display) < 20)
+	if (DISPLAY_VER(display) >= 6 && DISPLAY_VER(display) < 20 && !HAS_GMCH(display))
 		snapshot->derrmr = intel_de_read(display, DERRMR);
 
 	return snapshot;
