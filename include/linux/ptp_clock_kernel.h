@@ -69,6 +69,11 @@ struct ptp_system_timestamp {
  * @n_pins:    The number of programmable pins.
  * @pps:       Indicates whether the clock supports a PPS callback.
  *
+ * @supported_perout_flags:  The set of flags the driver supports for the
+ *                           PTP_PEROUT_REQUEST ioctl. The PTP core will
+ *                           reject a request with any flag not specified
+ *                           here.
+ *
  * @supported_extts_flags:  The set of flags the driver supports for the
  *                          PTP_EXTTS_REQUEST ioctl. The PTP core will use
  *                          this list to reject unsupported requests.
@@ -185,6 +190,7 @@ struct ptp_clock_info {
 	int n_per_out;
 	int n_pins;
 	int pps;
+	unsigned int supported_perout_flags;
 	unsigned int supported_extts_flags;
 	struct ptp_pin_desc *pin_config;
 	int (*adjfine)(struct ptp_clock_info *ptp, long scaled_ppm);
