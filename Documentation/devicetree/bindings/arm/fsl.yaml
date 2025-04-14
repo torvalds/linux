@@ -1182,6 +1182,12 @@ properties:
           - const: polyhex,imx8mp-debix-som-a       # Polyhex Debix SOM A
           - const: fsl,imx8mp
 
+      - description: Toradex Boards with SMARC iMX8M Plus Modules
+        items:
+          - const: toradex,smarc-imx8mp-dev # Toradex SMARC iMX8M Plus on Toradex SMARC Development Board
+          - const: toradex,smarc-imx8mp     # Toradex SMARC iMX8M Plus Module
+          - const: fsl,imx8mp
+
       - description: Toradex Boards with Verdin iMX8M Plus Modules
         items:
           - enum:
