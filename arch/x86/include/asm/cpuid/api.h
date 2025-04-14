@@ -36,9 +36,9 @@ static inline void native_cpuid(u32 *eax, u32 *ebx,
 }
 
 #define NATIVE_CPUID_REG(reg)					\
-static inline u32 native_cpuid_##reg(u32 op)	\
+static inline u32 native_cpuid_##reg(u32 op)			\
 {								\
-	u32 eax = op, ebx, ecx = 0, edx;		\
+	u32 eax = op, ebx, ecx = 0, edx;			\
 								\
 	native_cpuid(&eax, &ebx, &ecx, &edx);			\
 								\
