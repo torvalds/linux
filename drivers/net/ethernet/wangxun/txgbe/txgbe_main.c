@@ -849,5 +849,5 @@ module_pci_driver(txgbe_driver);
 
 MODULE_DEVICE_TABLE(pci, txgbe_pci_tbl);
 MODULE_AUTHOR("Beijing WangXun Technology Co., Ltd, <software@trustnetic.com>");
-MODULE_DESCRIPTION("WangXun(R) 10 Gigabit PCI Express Network Driver");
+MODULE_DESCRIPTION("WangXun(R) 10/25/40 Gigabit PCI Express Network Driver");
 MODULE_LICENSE("GPL");
