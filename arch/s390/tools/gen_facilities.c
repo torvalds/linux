@@ -54,6 +54,9 @@ static struct facility_def facility_defs[] = {
 #ifdef CONFIG_HAVE_MARCH_Z15_FEATURES
 			61, /* miscellaneous-instruction-extension 3 */
 #endif
+#ifdef CONFIG_HAVE_MARCH_Z17_FEATURES
+			84, /* miscellaneous-instruction-extension 4 */
+#endif
 			-1 /* END */
 		}
 	},
