@@ -14,10 +14,13 @@
 #include <linux/bio.h>
 #include <linux/slab.h>
 #include <linux/kthread.h>
+#include <linux/delay.h>
 
 #include <linux/device-mapper.h>
 
 #define DM_MSG_PREFIX "delay"
+
+#define SLEEP_SHIFT 3
 
 struct delay_class {
 	struct dm_dev *dev;
@@ -34,6 +37,7 @@ struct delay_c {
 	struct work_struct flush_expired_bios;
 	struct list_head delayed_bios;
 	struct task_struct *worker;
+	unsigned int worker_sleep_us;
 	bool may_delay;
 
 	struct delay_class read;
@@ -136,6 +140,7 @@ static int flush_worker_fn(void *data)
 			schedule();
 		} else {
 			spin_unlock(&dc->delayed_bios_lock);
+			fsleep(dc->worker_sleep_us);
 			cond_resched();
 		}
 	}
@@ -212,7 +217,7 @@ static int delay_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	struct delay_c *dc;
 	int ret;
-	unsigned int max_delay;
+	unsigned int max_delay, min_delay;
 
 	if (argc != 3 && argc != 6 && argc != 9) {
 		ti->error = "Requires exactly 3, 6 or 9 arguments";
@@ -235,7 +240,7 @@ static int delay_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ret = delay_class_ctr(ti, &dc->read, argv);
 	if (ret)
 		goto bad;
-	max_delay = dc->read.delay;
+	min_delay = max_delay = dc->read.delay;
 
 	if (argc == 3) {
 		ret = delay_class_ctr(ti, &dc->write, argv);
@@ -251,6 +256,7 @@ static int delay_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (ret)
 		goto bad;
 	max_delay = max(max_delay, dc->write.delay);
+	min_delay = min_not_zero(min_delay, dc->write.delay);
 
 	if (argc == 6) {
 		ret = delay_class_ctr(ti, &dc->flush, argv + 3);
@@ -263,9 +269,14 @@ static int delay_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (ret)
 		goto bad;
 	max_delay = max(max_delay, dc->flush.delay);
+	min_delay = min_not_zero(min_delay, dc->flush.delay);
 
 out:
 	if (max_delay < 50) {
+		if (min_delay >> SLEEP_SHIFT)
+			dc->worker_sleep_us = 1000;
+		else
+			dc->worker_sleep_us = (min_delay * 1000) >> SLEEP_SHIFT;
 		/*
 		 * In case of small requested delays, use kthread instead of
 		 * timers and workqueue to achieve better latency.
@@ -438,7 +449,7 @@ out:
 
 static struct target_type delay_target = {
 	.name	     = "delay",
-	.version     = {1, 4, 0},
+	.version     = {1, 5, 0},
 	.features    = DM_TARGET_PASSES_INTEGRITY | DM_TARGET_ZONED_HM,
 	.module      = THIS_MODULE,
 	.ctr	     = delay_ctr,
