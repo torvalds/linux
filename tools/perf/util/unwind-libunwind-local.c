@@ -371,7 +371,7 @@ static int read_unwind_spec_debug_frame(struct dso *dso,
 	 *    has to be pointed by symsrc_filename
 	 */
 	if (ofs == 0) {
-		if (dso__data_get_fd(dso, machine, &fd) {
+		if (dso__data_get_fd(dso, machine, &fd)) {
 			ofs = elf_section_offset(fd, ".debug_frame");
 			dso__data_put_fd(dso);
 		}
