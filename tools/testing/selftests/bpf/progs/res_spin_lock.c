@@ -38,13 +38,14 @@ int res_spin_lock_test(struct __sk_buff *ctx)
 	r = bpf_res_spin_lock(&elem1->lock);
 	if (r)
 		return r;
-	if (!bpf_res_spin_lock(&elem2->lock)) {
+	r = bpf_res_spin_lock(&elem2->lock);
+	if (!r) {
 		bpf_res_spin_unlock(&elem2->lock);
 		bpf_res_spin_unlock(&elem1->lock);
 		return -1;
 	}
 	bpf_res_spin_unlock(&elem1->lock);
-	return 0;
+	return r != -EDEADLK;
 }
 
 SEC("tc")
@@ -124,11 +125,14 @@ int res_spin_lock_test_held_lock_max(struct __sk_buff *ctx)
 	/* Trigger AA, after exhausting entries in the held lock table. This
 	 * time, only the timeout can save us, as AA detection won't succeed.
 	 */
-	if (!bpf_res_spin_lock(locks[34])) {
+	ret = bpf_res_spin_lock(locks[34]);
+	if (!ret) {
 		bpf_res_spin_unlock(locks[34]);
 		ret = 1;
 		goto end;
 	}
+
+	ret = ret != -ETIMEDOUT ? 2 : 0;
 
 end:
 	for (i = i - 1; i >= 0; i--)

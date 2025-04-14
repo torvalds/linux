@@ -389,9 +389,9 @@ int bch2_journal_replay(struct bch_fs *c)
 	 * Now, replay any remaining keys in the order in which they appear in
 	 * the journal, unpinning those journal entries as we go:
 	 */
-	sort(keys_sorted.data, keys_sorted.nr,
-	     sizeof(keys_sorted.data[0]),
-	     journal_sort_seq_cmp, NULL);
+	sort_nonatomic(keys_sorted.data, keys_sorted.nr,
+		       sizeof(keys_sorted.data[0]),
+		       journal_sort_seq_cmp, NULL);
 
 	darray_for_each(keys_sorted, kp) {
 		cond_resched();

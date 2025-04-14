@@ -585,6 +585,7 @@ struct xe_device {
 			INTEL_DRAM_DDR5,
 			INTEL_DRAM_LPDDR5,
 			INTEL_DRAM_GDDR,
+			INTEL_DRAM_GDDR_ECC,
 		} type;
 		u8 num_qgv_points;
 		u8 num_psf_gv_points;

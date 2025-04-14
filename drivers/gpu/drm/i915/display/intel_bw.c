@@ -244,6 +244,7 @@ static int icl_get_qgv_points(struct drm_i915_private *dev_priv,
 			qi->deinterleave = 4;
 			break;
 		case INTEL_DRAM_GDDR:
+		case INTEL_DRAM_GDDR_ECC:
 			qi->channel_width = 32;
 			break;
 		default:
@@ -394,6 +395,12 @@ static const struct intel_sa_info mtl_sa_info = {
 
 static const struct intel_sa_info xe2_hpd_sa_info = {
 	.derating = 30,
+	.deprogbwlimit = 53,
+	/* Other values not used by simplified algorithm */
+};
+
+static const struct intel_sa_info xe2_hpd_ecc_sa_info = {
+	.derating = 45,
 	.deprogbwlimit = 53,
 	/* Other values not used by simplified algorithm */
 };
@@ -740,10 +747,15 @@ static unsigned int icl_qgv_bw(struct drm_i915_private *i915,
 
 void intel_bw_init_hw(struct drm_i915_private *dev_priv)
 {
+	const struct dram_info *dram_info = &dev_priv->dram_info;
+
 	if (!HAS_DISPLAY(dev_priv))
 		return;
 
-	if (DISPLAY_VERx100(dev_priv) >= 1401 && IS_DGFX(dev_priv))
+	if (DISPLAY_VERx100(dev_priv) >= 1401 && IS_DGFX(dev_priv) &&
+		 dram_info->type == INTEL_DRAM_GDDR_ECC)
+		xe2_hpd_get_bw_info(dev_priv, &xe2_hpd_ecc_sa_info);
+	else if (DISPLAY_VERx100(dev_priv) >= 1401 && IS_DGFX(dev_priv))
 		xe2_hpd_get_bw_info(dev_priv, &xe2_hpd_sa_info);
 	else if (DISPLAY_VER(dev_priv) >= 14)
 		tgl_get_bw_info(dev_priv, &mtl_sa_info);
