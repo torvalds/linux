@@ -79,17 +79,11 @@ anarion_config_dt(struct platform_device *pdev,
 
 	gmac->ctl_block = ctl_block;
 
-	switch (plat_dat->phy_interface) {
-	case PHY_INTERFACE_MODE_RGMII:
-		fallthrough;
-	case PHY_INTERFACE_MODE_RGMII_ID:
-	case PHY_INTERFACE_MODE_RGMII_RXID:
-	case PHY_INTERFACE_MODE_RGMII_TXID:
+	if (phy_interface_mode_is_rgmii(plat_dat->phy_interface)) {
 		gmac->phy_intf_sel = GMAC_CONFIG_INTF_RGMII;
-		break;
-	default:
-		dev_err(&pdev->dev, "Unsupported phy-mode (%d)\n",
-			plat_dat->phy_interface);
+	} else {
+		dev_err(&pdev->dev, "Unsupported phy-mode (%s)\n",
+			phy_modes(plat_dat->phy_interface));
 		return ERR_PTR(-ENOTSUPP);
 	}
 
