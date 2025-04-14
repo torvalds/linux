@@ -189,7 +189,7 @@ attribute-sets:
         type: binary
         display-hint: ipv4
       -
-        name: lladr
+        name: lladdr
         type: binary
         display-hint: mac
       -
