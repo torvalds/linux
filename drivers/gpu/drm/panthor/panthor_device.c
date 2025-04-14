@@ -245,7 +245,7 @@ int panthor_device_init(struct panthor_device *ptdev)
 
 	ret = panthor_gpu_coherency_init(ptdev);
 	if (ret)
-		return ret;
+		goto err_unplug_gpu;
 
 	ret = panthor_mmu_init(ptdev);
 	if (ret)
