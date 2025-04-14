@@ -136,14 +136,13 @@ static void i9xx_set_fifo_underrun_reporting(struct intel_display *display,
 static void ilk_set_fifo_underrun_reporting(struct intel_display *display,
 					    enum pipe pipe, bool enable)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 bit = (pipe == PIPE_A) ?
 		DE_PIPEA_FIFO_UNDERRUN : DE_PIPEB_FIFO_UNDERRUN;
 
 	if (enable)
-		ilk_enable_display_irq(dev_priv, bit);
+		ilk_enable_display_irq(display, bit);
 	else
-		ilk_disable_display_irq(dev_priv, bit);
+		ilk_disable_display_irq(display, bit);
 }
 
 static void ivb_check_fifo_underruns(struct intel_crtc *crtc)
@@ -169,7 +168,6 @@ static void ivb_set_fifo_underrun_reporting(struct intel_display *display,
 					    enum pipe pipe, bool enable,
 					    bool old)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	if (enable) {
 		intel_de_write(display, GEN7_ERR_INT,
 			       ERR_INT_FIFO_UNDERRUN(pipe));
@@ -177,9 +175,9 @@ static void ivb_set_fifo_underrun_reporting(struct intel_display *display,
 		if (!ivb_can_enable_err_int(display))
 			return;
 
-		ilk_enable_display_irq(dev_priv, DE_ERR_INT_IVB);
+		ilk_enable_display_irq(display, DE_ERR_INT_IVB);
 	} else {
-		ilk_disable_display_irq(dev_priv, DE_ERR_INT_IVB);
+		ilk_disable_display_irq(display, DE_ERR_INT_IVB);
 
 		if (old &&
 		    intel_de_read(display, GEN7_ERR_INT) & ERR_INT_FIFO_UNDERRUN(pipe)) {
@@ -193,26 +191,23 @@ static void ivb_set_fifo_underrun_reporting(struct intel_display *display,
 static void bdw_set_fifo_underrun_reporting(struct intel_display *display,
 					    enum pipe pipe, bool enable)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
 	if (enable)
-		bdw_enable_pipe_irq(dev_priv, pipe, GEN8_PIPE_FIFO_UNDERRUN);
+		bdw_enable_pipe_irq(display, pipe, GEN8_PIPE_FIFO_UNDERRUN);
 	else
-		bdw_disable_pipe_irq(dev_priv, pipe, GEN8_PIPE_FIFO_UNDERRUN);
+		bdw_disable_pipe_irq(display, pipe, GEN8_PIPE_FIFO_UNDERRUN);
 }
 
 static void ibx_set_fifo_underrun_reporting(struct intel_display *display,
 					    enum pipe pch_transcoder,
 					    bool enable)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 bit = (pch_transcoder == PIPE_A) ?
 		SDE_TRANSA_FIFO_UNDER : SDE_TRANSB_FIFO_UNDER;
 
 	if (enable)
-		ibx_enable_display_interrupt(dev_priv, bit);
+		ibx_enable_display_interrupt(display, bit);
 	else
-		ibx_disable_display_interrupt(dev_priv, bit);
+		ibx_disable_display_interrupt(display, bit);
 }
 
 static void cpt_check_pch_fifo_underruns(struct intel_crtc *crtc)
@@ -240,8 +235,6 @@ static void cpt_set_fifo_underrun_reporting(struct intel_display *display,
 					    enum pipe pch_transcoder,
 					    bool enable, bool old)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
 	if (enable) {
 		intel_de_write(display, SERR_INT,
 			       SERR_INT_TRANS_FIFO_UNDERRUN(pch_transcoder));
@@ -249,9 +242,9 @@ static void cpt_set_fifo_underrun_reporting(struct intel_display *display,
 		if (!cpt_can_enable_serr_int(display))
 			return;
 
-		ibx_enable_display_interrupt(dev_priv, SDE_ERROR_CPT);
+		ibx_enable_display_interrupt(display, SDE_ERROR_CPT);
 	} else {
-		ibx_disable_display_interrupt(dev_priv, SDE_ERROR_CPT);
+		ibx_disable_display_interrupt(display, SDE_ERROR_CPT);
 
 		if (old && intel_de_read(display, SERR_INT) &
 		    SERR_INT_TRANS_FIFO_UNDERRUN(pch_transcoder)) {
@@ -477,8 +470,6 @@ void intel_init_fifo_underrun_reporting(struct intel_display *display,
 					struct intel_crtc *crtc,
 					bool enable)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	crtc->cpu_fifo_underrun_disabled = !enable;
 
 	/*
@@ -490,6 +481,6 @@ void intel_init_fifo_underrun_reporting(struct intel_display *display,
 	 * PCH transcoders B and C would prevent enabling the south
 	 * error interrupt (see cpt_can_enable_serr_int()).
 	 */
-	if (intel_has_pch_trancoder(i915, crtc->pipe))
+	if (intel_has_pch_trancoder(display, crtc->pipe))
 		crtc->pch_fifo_underrun_disabled = !enable;
 }

@@ -8,16 +8,15 @@
 
 #include <linux/types.h>
 
+enum pipe;
 struct dpll;
-struct drm_i915_private;
 struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
 struct intel_display;
 struct intel_dpll_hw_state;
-enum pipe;
 
-void intel_dpll_init_clock_hook(struct drm_i915_private *dev_priv);
+void intel_dpll_init_clock_hook(struct intel_display *display);
 int intel_dpll_crtc_compute_clock(struct intel_atomic_state *state,
 				  struct intel_crtc *crtc);
 int intel_dpll_crtc_get_shared_dpll(struct intel_atomic_state *state,
@@ -29,14 +28,14 @@ void i9xx_dpll_get_hw_state(struct intel_crtc *crtc,
 void vlv_compute_dpll(struct intel_crtc_state *crtc_state);
 void chv_compute_dpll(struct intel_crtc_state *crtc_state);
 
-int vlv_force_pll_on(struct drm_i915_private *dev_priv, enum pipe pipe,
+int vlv_force_pll_on(struct intel_display *display, enum pipe pipe,
 		     const struct dpll *dpll);
-void vlv_force_pll_off(struct drm_i915_private *dev_priv, enum pipe pipe);
+void vlv_force_pll_off(struct intel_display *display, enum pipe pipe);
 
 void chv_enable_pll(const struct intel_crtc_state *crtc_state);
-void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe);
+void chv_disable_pll(struct intel_display *display, enum pipe pipe);
 void vlv_enable_pll(const struct intel_crtc_state *crtc_state);
-void vlv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe);
+void vlv_disable_pll(struct intel_display *display, enum pipe pipe);
 void i9xx_enable_pll(const struct intel_crtc_state *crtc_state);
 void i9xx_disable_pll(const struct intel_crtc_state *crtc_state);
 bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state,
