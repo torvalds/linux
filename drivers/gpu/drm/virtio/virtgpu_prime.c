@@ -206,7 +206,7 @@ static void virtgpu_dma_buf_free_obj(struct drm_gem_object *obj)
 	struct virtio_gpu_device *vgdev = obj->dev->dev_private;
 	struct dma_buf_attachment *attach = obj->import_attach;
 
-	if (attach) {
+	if (drm_gem_is_imported(obj)) {
 		struct dma_buf *dmabuf = attach->dmabuf;
 
 		dma_resv_lock(dmabuf->resv, NULL);
