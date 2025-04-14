@@ -42,7 +42,7 @@ mod pthread_mtx {
 
     #[derive(Debug)]
     pub enum Error {
-        #[expect(dead_code)]
+        #[allow(dead_code)]
         IO(std::io::Error),
         Alloc,
     }
