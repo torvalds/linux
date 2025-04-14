@@ -12,6 +12,7 @@
 #include <linux/gpio/driver.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/overflow.h>
 #include <linux/platform_device.h>
 #include <linux/random.h>
 #include <sound/cs-amp-lib.h>
@@ -40,8 +41,7 @@ static void cs_amp_lib_test_init_dummy_cal_blob(struct kunit *test, int num_amps
 	unsigned int blob_size;
 	int i;
 
-	blob_size = offsetof(struct cirrus_amp_efi_data, data) +
-		    sizeof(struct cirrus_amp_cal_data) * num_amps;
+	blob_size = struct_size(priv->cal_blob, data, num_amps);
 
 	priv->cal_blob = kunit_kzalloc(test, blob_size, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, priv->cal_blob);
