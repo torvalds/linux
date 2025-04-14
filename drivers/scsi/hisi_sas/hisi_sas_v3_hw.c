@@ -5100,9 +5100,11 @@ static void hisi_sas_reset_prepare_v3_hw(struct pci_dev *pdev)
 {
 	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
 	struct hisi_hba *hisi_hba = sha->lldd_ha;
+	struct Scsi_Host *shost = hisi_hba->shost;
 	struct device *dev = hisi_hba->dev;
 	int rc;
 
+	wait_event(shost->host_wait, !scsi_host_in_recovery(shost));
 	dev_info(dev, "FLR prepare\n");
 	down(&hisi_hba->sem);
 	set_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags);
