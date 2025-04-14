@@ -118,7 +118,6 @@ static void pgd_dtor(pgd_t *pgd)
  * new process's life, we just pre-populate them here.
  */
 #define PREALLOCATED_PMDS	PTRS_PER_PGD
-#define MAX_PREALLOCATED_PMDS	PTRS_PER_PGD
 
 /*
  * "USER_PMDS" are the PMDs for the user copy of the page tables when
@@ -154,7 +153,6 @@ void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmd)
 
 /* No need to prepopulate any pagetable entries in non-PAE modes. */
 #define PREALLOCATED_PMDS	0
-#define MAX_PREALLOCATED_PMDS	0
 #define PREALLOCATED_USER_PMDS	 0
 #define MAX_PREALLOCATED_USER_PMDS 0
 #endif	/* CONFIG_X86_PAE */
@@ -324,7 +322,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	pgd_t *pgd;
 	pmd_t *u_pmds[MAX_PREALLOCATED_USER_PMDS];
-	pmd_t *pmds[MAX_PREALLOCATED_PMDS];
+	pmd_t *pmds[PREALLOCATED_PMDS];
 
 	pgd = _pgd_alloc(mm);
 
