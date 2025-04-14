@@ -65,8 +65,10 @@ int ___ratelimit(struct ratelimit_state *rs, const char *func)
 		unsigned int rs_flags = READ_ONCE(rs->flags);
 
 		if (rs_flags & RATELIMIT_INITIALIZED && burst) {
-			int n_left;
+			int n_left = atomic_read(&rs->rs_n_left);
 
+			if (n_left <= 0)
+				return 0;
 			n_left = atomic_dec_return(&rs->rs_n_left);
 			if (n_left >= 0)
 				return 1;
