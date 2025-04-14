@@ -416,6 +416,23 @@ static int adxl345_fifo_push(struct iio_dev *indio_dev,
 	return 0;
 }
 
+static int adxl345_push_event(struct iio_dev *indio_dev, int int_stat)
+{
+	struct adxl345_state *st = iio_priv(indio_dev);
+	int samples;
+
+	if (FIELD_GET(ADXL345_INT_WATERMARK, int_stat)) {
+		samples = adxl345_get_samples(st);
+		if (samples < 0)
+			return -EINVAL;
+
+		if (adxl345_fifo_push(indio_dev, samples) < 0)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 /**
  * adxl345_irq_handler() - Handle irqs of the ADXL345.
  * @irq: The irq being handled.
@@ -428,19 +445,12 @@ static irqreturn_t adxl345_irq_handler(int irq, void *p)
 	struct iio_dev *indio_dev = p;
 	struct adxl345_state *st = iio_priv(indio_dev);
 	int int_stat;
-	int samples;
 
 	if (regmap_read(st->regmap, ADXL345_REG_INT_SOURCE, &int_stat))
 		return IRQ_NONE;
 
-	if (FIELD_GET(ADXL345_INT_WATERMARK, int_stat)) {
-		samples = adxl345_get_samples(st);
-		if (samples < 0)
-			goto err;
-
-		if (adxl345_fifo_push(indio_dev, samples) < 0)
-			goto err;
-	}
+	if (adxl345_push_event(indio_dev, int_stat))
+		goto err;
 
 	if (FIELD_GET(ADXL345_INT_OVERRUN, int_stat))
 		goto err;
