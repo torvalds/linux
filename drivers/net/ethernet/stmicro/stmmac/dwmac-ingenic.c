@@ -290,11 +290,7 @@ static int ingenic_mac_probe(struct platform_device *pdev)
 	plat_dat->bsp_priv = mac;
 	plat_dat->init = ingenic_mac_init;
 
-	ret = ingenic_mac_init(pdev, mac);
-	if (ret)
-		return ret;
-
-	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+	return devm_stmmac_pltfr_probe(pdev, plat_dat, &stmmac_res);
 }
 
 static struct ingenic_soc_info jz4775_soc_info = {
@@ -345,7 +341,6 @@ MODULE_DEVICE_TABLE(of, ingenic_mac_of_matches);
 
 static struct platform_driver ingenic_mac_driver = {
 	.probe		= ingenic_mac_probe,
-	.remove		= stmmac_pltfr_remove,
 	.driver		= {
 		.name	= "ingenic-mac",
 		.pm		= &stmmac_pltfr_pm_ops,
