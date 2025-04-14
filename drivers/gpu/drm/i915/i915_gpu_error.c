@@ -1792,7 +1792,7 @@ static void gt_record_global_nonguc_regs(struct intel_gt_coredump *gt)
 			gt->gtier[i] =
 				intel_uncore_read(uncore, GEN8_GT_IER(i));
 		gt->ngtier = 4;
-	} else if (HAS_PCH_SPLIT(i915)) {
+	} else if (GRAPHICS_VER(i915) >= 5) {
 		gt->gtier[0] = intel_uncore_read(uncore, GTIER);
 		gt->ngtier = 1;
 	} else {
