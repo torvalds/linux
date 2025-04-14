@@ -6989,11 +6989,6 @@ create_stream_for_sink(struct drm_connector *connector,
 	drm_mode_init(&mode, drm_mode);
 	memset(&saved_mode, 0, sizeof(saved_mode));
 
-	if (connector == NULL) {
-		drm_err(dev, "connector is NULL!\n");
-		return stream;
-	}
-
 	if (connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK) {
 		aconnector = NULL;
 		aconnector = to_amdgpu_dm_connector(connector);
