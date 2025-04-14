@@ -815,6 +815,8 @@ enum gdma_mr_type {
 	 * address that is set up in the MST
 	 */
 	GDMA_MR_TYPE_GVA = 2,
+	/* Guest zero-based address MRs */
+	GDMA_MR_TYPE_ZBVA = 4,
 };
 
 struct gdma_create_mr_params {
@@ -826,6 +828,10 @@ struct gdma_create_mr_params {
 			u64 virtual_address;
 			enum gdma_mr_access_flags access_flags;
 		} gva;
+		struct {
+			u64 dma_region_handle;
+			enum gdma_mr_access_flags access_flags;
+		} zbva;
 	};
 };
 
@@ -841,7 +847,10 @@ struct gdma_create_mr_request {
 			u64 virtual_address;
 			enum gdma_mr_access_flags access_flags;
 		} gva;
-
+		struct {
+			u64 dma_region_handle;
+			enum gdma_mr_access_flags access_flags;
+		} zbva;
 	};
 	u32 reserved_2;
 };/* HW DATA */
