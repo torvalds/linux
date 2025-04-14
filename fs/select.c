@@ -630,7 +630,7 @@ int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 	long stack_fds[SELECT_STACK_ALLOC/sizeof(long)];
 
 	ret = -EINVAL;
-	if (n < 0)
+	if (unlikely(n < 0))
 		goto out_nofds;
 
 	/* max_fds can increase, so grab it once to avoid race */
