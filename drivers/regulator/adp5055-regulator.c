@@ -165,7 +165,7 @@ static int adp5055_parse_fw(struct device *dev, struct  adp5055 *adp5055)
 		ret = regmap_write(regmap, ADP5055_DVS_LIM0 + i, val);
 		if (ret)
 			return ret;
-	};
+	}
 
 	val = FIELD_PREP(ADP5055_MASK_EN_MODE, adp5055->en_mode_software);
 	ret = regmap_write(regmap, ADP5055_CTRL_MODE1, val);
