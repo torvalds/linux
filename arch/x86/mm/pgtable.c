@@ -68,12 +68,6 @@ static inline void pgd_list_del(pgd_t *pgd)
 	list_del(&ptdesc->pt_list);
 }
 
-#define UNSHARED_PTRS_PER_PGD				\
-	(SHARED_KERNEL_PMD ? KERNEL_PGD_BOUNDARY : PTRS_PER_PGD)
-#define MAX_UNSHARED_PTRS_PER_PGD			\
-	MAX_T(size_t, KERNEL_PGD_BOUNDARY, PTRS_PER_PGD)
-
-
 static void pgd_set_mm(pgd_t *pgd, struct mm_struct *mm)
 {
 	virt_to_ptdesc(pgd)->pt_mm = mm;
@@ -132,8 +126,9 @@ static void pgd_dtor(pgd_t *pgd)
  * not shared between pagetables (!SHARED_KERNEL_PMDS), we allocate
  * and initialize the kernel pmds here.
  */
-#define PREALLOCATED_PMDS	UNSHARED_PTRS_PER_PGD
-#define MAX_PREALLOCATED_PMDS	MAX_UNSHARED_PTRS_PER_PGD
+#define PREALLOCATED_PMDS	(static_cpu_has(X86_FEATURE_PTI) ? \
+					PTRS_PER_PGD : KERNEL_PGD_BOUNDARY)
+#define MAX_PREALLOCATED_PMDS	PTRS_PER_PGD
 
 /*
  * We allocate separate PMDs for the kernel part of the user page-table
