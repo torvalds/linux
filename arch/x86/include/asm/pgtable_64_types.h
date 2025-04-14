@@ -46,8 +46,6 @@ extern unsigned int ptrs_per_p4d;
 
 #endif	/* !__ASSEMBLER__ */
 
-#define SHARED_KERNEL_PMD	0
-
 #ifdef CONFIG_X86_5LEVEL
 
 /*
