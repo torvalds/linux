@@ -768,6 +768,7 @@ retry:
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_SKIP, &gh);
 	if (error)
 		goto fail_gunlock3;
+	clear_bit(GLF_INSTANTIATE_NEEDED, &ip->i_gl->gl_flags);
 
 	error = gfs2_trans_begin(sdp, blocks, 0);
 	if (error)
