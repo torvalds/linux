@@ -657,13 +657,13 @@ static inline struct bset_tree *bset_tree_last(struct btree *b)
 static inline void *
 __btree_node_offset_to_ptr(const struct btree *b, u16 offset)
 {
-	return (void *) ((u64 *) b->data + 1 + offset);
+	return (void *) ((u64 *) b->data + offset);
 }
 
 static inline u16
 __btree_node_ptr_to_offset(const struct btree *b, const void *p)
 {
-	u16 ret = (u64 *) p - 1 - (u64 *) b->data;
+	u16 ret = (u64 *) p - (u64 *) b->data;
 
 	EBUG_ON(__btree_node_offset_to_ptr(b, ret) != p);
 	return ret;
