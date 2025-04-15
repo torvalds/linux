@@ -56,7 +56,7 @@ specific debugfs path ``/sys/kernel/debug/iio/iio:deviceX``.
 | Debugfs device files  | Description                                          |
 +-----------------------+------------------------------------------------------+
 | data_source           | The used data source, as                             |
-|                       | ``normal``, ``ramp-16bit``, etc.                        |
+|                       | ``normal``, ``ramp-16bit``, etc.                     |
 +-----------------------+------------------------------------------------------+
 | data_source_available | The available data sources.                          |
 +-----------------------+------------------------------------------------------+
