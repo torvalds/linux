@@ -49,7 +49,7 @@ static void cs_amp_lib_test_init_dummy_cal_blob(struct kunit *test, int num_amps
 	priv->cal_blob->size = blob_size;
 	priv->cal_blob->count = num_amps;
 
-	get_random_bytes(priv->cal_blob->data, sizeof(struct cirrus_amp_cal_data) * num_amps);
+	get_random_bytes(priv->cal_blob->data, flex_array_size(priv->cal_blob, data, num_amps));
 
 	/* Ensure all timestamps are non-zero to mark the entry valid. */
 	for (i = 0; i < num_amps; i++)
