@@ -1035,6 +1035,7 @@ static void dccg35_enable_dpp_clk_new(
 			  DPPCLK0_DTO_MODULO, 0xFF);
 }
 
+
 static void dccg35_disable_dpp_clk_new(
 	struct dccg *dccg,
 	int inst)
@@ -1771,36 +1772,40 @@ static void dccg35_enable_dscclk(struct dccg *dccg, int inst)
 	//Disable DTO
 	switch (inst) {
 	case 0:
+		if (dccg->ctx->dc->debug.root_clock_optimization.bits.dsc)
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL6, DSCCLK0_ROOT_GATE_DISABLE, 1);
+
 		REG_UPDATE_2(DSCCLK0_DTO_PARAM,
 				DSCCLK0_DTO_PHASE, 0,
 				DSCCLK0_DTO_MODULO, 0);
 		REG_UPDATE(DSCCLK_DTO_CTRL,	DSCCLK0_EN, 1);
-		if (dccg->ctx->dc->debug.root_clock_optimization.bits.dsc)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL6, DSCCLK0_ROOT_GATE_DISABLE, 1);
 		break;
 	case 1:
+		if (dccg->ctx->dc->debug.root_clock_optimization.bits.dsc)
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL6, DSCCLK1_ROOT_GATE_DISABLE, 1);
+
 		REG_UPDATE_2(DSCCLK1_DTO_PARAM,
 				DSCCLK1_DTO_PHASE, 0,
 				DSCCLK1_DTO_MODULO, 0);
 		REG_UPDATE(DSCCLK_DTO_CTRL, DSCCLK1_EN, 1);
-		if (dccg->ctx->dc->debug.root_clock_optimization.bits.dsc)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL6, DSCCLK1_ROOT_GATE_DISABLE, 1);
 		break;
 	case 2:
+		if (dccg->ctx->dc->debug.root_clock_optimization.bits.dsc)
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL6, DSCCLK2_ROOT_GATE_DISABLE, 1);
+
 		REG_UPDATE_2(DSCCLK2_DTO_PARAM,
 				DSCCLK2_DTO_PHASE, 0,
 				DSCCLK2_DTO_MODULO, 0);
 		REG_UPDATE(DSCCLK_DTO_CTRL, DSCCLK2_EN, 1);
-		if (dccg->ctx->dc->debug.root_clock_optimization.bits.dsc)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL6, DSCCLK2_ROOT_GATE_DISABLE, 1);
 		break;
 	case 3:
+		if (dccg->ctx->dc->debug.root_clock_optimization.bits.dsc)
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL6, DSCCLK3_ROOT_GATE_DISABLE, 1);
+
 		REG_UPDATE_2(DSCCLK3_DTO_PARAM,
 				DSCCLK3_DTO_PHASE, 0,
 				DSCCLK3_DTO_MODULO, 0);
 		REG_UPDATE(DSCCLK_DTO_CTRL, DSCCLK3_EN, 1);
-		if (dccg->ctx->dc->debug.root_clock_optimization.bits.dsc)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL6, DSCCLK3_ROOT_GATE_DISABLE, 1);
 		break;
 	default:
 		BREAK_TO_DEBUGGER();
@@ -1812,9 +1817,6 @@ static void dccg35_disable_dscclk(struct dccg *dccg,
 				int inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
-
-	if (!dccg->ctx->dc->debug.root_clock_optimization.bits.dsc)
-		return;
 
 	switch (inst) {
 	case 0:
