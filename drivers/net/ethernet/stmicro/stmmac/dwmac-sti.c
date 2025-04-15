@@ -23,12 +23,7 @@
 
 #define DWMAC_50MHZ	50000000
 
-#define IS_PHY_IF_MODE_RGMII(iface)	(iface == PHY_INTERFACE_MODE_RGMII || \
-			iface == PHY_INTERFACE_MODE_RGMII_ID || \
-			iface == PHY_INTERFACE_MODE_RGMII_RXID || \
-			iface == PHY_INTERFACE_MODE_RGMII_TXID)
-
-#define IS_PHY_IF_MODE_GBIT(iface)	(IS_PHY_IF_MODE_RGMII(iface) || \
+#define IS_PHY_IF_MODE_GBIT(iface)	(phy_interface_mode_is_rgmii(iface) || \
 					 iface == PHY_INTERFACE_MODE_GMII)
 
 /* STiH4xx register definitions (STiH407/STiH410 families)
@@ -148,7 +143,7 @@ static void stih4xx_fix_retime_src(void *priv, int spd, unsigned int mode)
 			src = TX_RETIME_SRC_CLKGEN;
 			freq = DWMAC_50MHZ;
 		}
-	} else if (IS_PHY_IF_MODE_RGMII(dwmac->interface)) {
+	} else if (phy_interface_mode_is_rgmii(dwmac->interface)) {
 		/* On GiGa clk source can be either ext or from clkgen */
 		freq = rgmii_clock(spd);
 
