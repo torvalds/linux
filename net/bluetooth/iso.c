@@ -1330,6 +1330,7 @@ static int iso_sock_getname(struct socket *sock, struct sockaddr *addr,
 {
 	struct sockaddr_iso *sa = (struct sockaddr_iso *)addr;
 	struct sock *sk = sock->sk;
+	int len = sizeof(struct sockaddr_iso);
 
 	BT_DBG("sock %p, sk %p", sock, sk);
 
@@ -1338,12 +1339,20 @@ static int iso_sock_getname(struct socket *sock, struct sockaddr *addr,
 	if (peer) {
 		bacpy(&sa->iso_bdaddr, &iso_pi(sk)->dst);
 		sa->iso_bdaddr_type = iso_pi(sk)->dst_type;
+
+		if (test_bit(BT_SK_PA_SYNC, &iso_pi(sk)->flags)) {
+			sa->iso_bc->bc_sid = iso_pi(sk)->bc_sid;
+			sa->iso_bc->bc_num_bis = iso_pi(sk)->bc_num_bis;
+			memcpy(sa->iso_bc->bc_bis, iso_pi(sk)->bc_bis,
+			       ISO_MAX_NUM_BIS);
+			len += sizeof(struct sockaddr_iso_bc);
+		}
 	} else {
 		bacpy(&sa->iso_bdaddr, &iso_pi(sk)->src);
 		sa->iso_bdaddr_type = iso_pi(sk)->src_type;
 	}
 
-	return sizeof(struct sockaddr_iso);
+	return len;
 }
 
 static int iso_sock_sendmsg(struct socket *sock, struct msghdr *msg,
@@ -1988,11 +1997,13 @@ static void iso_conn_ready(struct iso_conn *conn)
 			hcon->dst_type = iso_pi(parent)->dst_type;
 		}
 
-		if (ev3) {
+		if (test_bit(HCI_CONN_PA_SYNC, &hcon->flags)) {
 			iso_pi(sk)->qos = iso_pi(parent)->qos;
 			hcon->iso_qos = iso_pi(sk)->qos;
+			iso_pi(sk)->bc_sid = iso_pi(parent)->bc_sid;
 			iso_pi(sk)->bc_num_bis = iso_pi(parent)->bc_num_bis;
-			memcpy(iso_pi(sk)->bc_bis, iso_pi(parent)->bc_bis, ISO_MAX_NUM_BIS);
+			memcpy(iso_pi(sk)->bc_bis, iso_pi(parent)->bc_bis,
+			       ISO_MAX_NUM_BIS);
 			set_bit(BT_SK_PA_SYNC, &iso_pi(sk)->flags);
 		}
 
