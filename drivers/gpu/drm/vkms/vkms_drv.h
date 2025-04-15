@@ -45,6 +45,23 @@ struct vkms_frame_info {
 	unsigned int rotation;
 };
 
+/**
+ * struct pixel_argb_u16 - Internal representation of a pixel color.
+ * @a: Alpha component value, stored in 16 bits, without padding, using
+ *     machine endianness
+ * @r: Red component value, stored in 16 bits, without padding, using
+ *     machine endianness
+ * @g: Green component value, stored in 16 bits, without padding, using
+ *     machine endianness
+ * @b: Blue component value, stored in 16 bits, without padding, using
+ *     machine endianness
+ *
+ * The goal of this structure is to keep enough precision to ensure
+ * correct composition results in VKMS and simplifying color
+ * manipulation by splitting each component into its own field.
+ * Caution: the byte ordering of this structure is machine-dependent,
+ * you can't cast it directly to AR48 or xR48.
+ */
 struct pixel_argb_u16 {
 	u16 a, r, g, b;
 };
