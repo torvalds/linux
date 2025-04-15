@@ -3270,18 +3270,13 @@ static int wcd938x_populate_dt_data(struct wcd938x_priv *wcd938x, struct device 
 		return dev_err_probe(dev, PTR_ERR(wcd938x->reset_gpio),
 				     "Failed to get reset gpio\n");
 
-	wcd938x->us_euro_mux = devm_mux_control_get(dev, NULL);
-	if (IS_ERR(wcd938x->us_euro_mux)) {
-		if (PTR_ERR(wcd938x->us_euro_mux) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
+	if (of_property_present(dev->of_node, "mux-controls")) {
+		wcd938x->us_euro_mux = devm_mux_control_get(dev, NULL);
+		if (IS_ERR(wcd938x->us_euro_mux)) {
+			ret = PTR_ERR(wcd938x->us_euro_mux);
+			return dev_err_probe(dev, ret, "failed to get mux control\n");
+		}
 
-		/* mux is optional and now fallback to using gpio */
-		wcd938x->us_euro_mux = NULL;
-		wcd938x->us_euro_gpio = devm_gpiod_get_optional(dev, "us-euro", GPIOD_OUT_LOW);
-		if (IS_ERR(wcd938x->us_euro_gpio))
-			return dev_err_probe(dev, PTR_ERR(wcd938x->us_euro_gpio),
-					     "us-euro swap Control GPIO not found\n");
-	} else {
 		ret = mux_control_try_select(wcd938x->us_euro_mux, wcd938x->mux_state);
 		if (ret) {
 			dev_err(dev, "Error (%d) Unable to select us/euro mux state\n", ret);
@@ -3289,6 +3284,11 @@ static int wcd938x_populate_dt_data(struct wcd938x_priv *wcd938x, struct device 
 			return ret;
 		}
 		wcd938x->mux_setup_done = true;
+	} else {
+		wcd938x->us_euro_gpio = devm_gpiod_get_optional(dev, "us-euro", GPIOD_OUT_LOW);
+		if (IS_ERR(wcd938x->us_euro_gpio))
+			return dev_err_probe(dev, PTR_ERR(wcd938x->us_euro_gpio),
+					     "us-euro swap Control GPIO not found\n");
 	}
 
 	cfg->swap_gnd_mic = wcd938x_swap_gnd_mic;
