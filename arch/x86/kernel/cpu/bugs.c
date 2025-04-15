@@ -1701,13 +1701,13 @@ static void __init bhi_select_mitigation(void)
 
 	if (bhi_mitigation == BHI_MITIGATION_VMEXIT_ONLY) {
 		pr_info("Spectre BHI mitigation: SW BHB clearing on VM exit only\n");
-		setup_force_cpu_cap(X86_FEATURE_CLEAR_BHB_LOOP_ON_VMEXIT);
+		setup_force_cpu_cap(X86_FEATURE_CLEAR_BHB_VMEXIT);
 		return;
 	}
 
 	pr_info("Spectre BHI mitigation: SW BHB clearing on syscall and VM exit\n");
 	setup_force_cpu_cap(X86_FEATURE_CLEAR_BHB_LOOP);
-	setup_force_cpu_cap(X86_FEATURE_CLEAR_BHB_LOOP_ON_VMEXIT);
+	setup_force_cpu_cap(X86_FEATURE_CLEAR_BHB_VMEXIT);
 }
 
 static void __init spectre_v2_select_mitigation(void)
@@ -2891,7 +2891,7 @@ static const char *spectre_bhi_state(void)
 		 !boot_cpu_has(X86_FEATURE_RETPOLINE_LFENCE) &&
 		 rrsba_disabled)
 		return "; BHI: Retpoline";
-	else if (boot_cpu_has(X86_FEATURE_CLEAR_BHB_LOOP_ON_VMEXIT))
+	else if (boot_cpu_has(X86_FEATURE_CLEAR_BHB_VMEXIT))
 		return "; BHI: Vulnerable, KVM: SW loop";
 
 	return "; BHI: Vulnerable";
