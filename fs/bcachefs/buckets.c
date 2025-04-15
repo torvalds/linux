@@ -409,7 +409,7 @@ static int bucket_ref_update_err(struct btree_trans *trans, struct printbuf *buf
 	}
 
 	if (print || insert)
-		bch2_print_string_as_lines(KERN_ERR, buf->buf);
+		bch2_print_str(c, KERN_ERR, buf->buf);
 	return ret;
 }
 
@@ -706,7 +706,7 @@ err:
 				   (u64) p.ec.idx);
 			bch2_bkey_val_to_text(&buf, c, k);
 			__bch2_inconsistent_error(c, &buf);
-			bch2_print_string_as_lines(KERN_ERR, buf.buf);
+			bch2_print_str(c, KERN_ERR, buf.buf);
 			printbuf_exit(&buf);
 			return -BCH_ERR_trigger_stripe_pointer;
 		}
@@ -976,7 +976,7 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 					BCH_RECOVERY_PASS_check_allocations);
 
 		if (print)
-			bch2_print_string_as_lines(KERN_ERR, buf.buf);
+			bch2_print_str(c, KERN_ERR, buf.buf);
 		printbuf_exit(&buf);
 		ret = -BCH_ERR_metadata_bucket_inconsistency;
 		goto err;

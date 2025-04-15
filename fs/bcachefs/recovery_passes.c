@@ -163,7 +163,7 @@ int bch2_run_explicit_recovery_pass(struct bch_fs *c,
 	int ret = bch2_run_explicit_recovery_pass_printbuf(c, &buf, pass);
 
 	if (len != buf.pos)
-		bch2_print_string_as_lines(KERN_NOTICE, buf.buf);
+		bch2_print_str(c, KERN_NOTICE, buf.buf);
 	printbuf_exit(&buf);
 	return ret;
 }

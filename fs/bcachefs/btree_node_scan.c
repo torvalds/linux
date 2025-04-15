@@ -395,7 +395,7 @@ int bch2_scan_for_btree_nodes(struct bch_fs *c)
 		printbuf_reset(&buf);
 		prt_printf(&buf, "%s: nodes found:\n", __func__);
 		found_btree_nodes_to_text(&buf, c, f->nodes);
-		bch2_print_string_as_lines(KERN_INFO, buf.buf);
+		bch2_print_str(c, KERN_INFO, buf.buf);
 	}
 
 	sort_nonatomic(f->nodes.data, f->nodes.nr, sizeof(f->nodes.data[0]), found_btree_node_cmp_cookie, NULL);
@@ -424,7 +424,7 @@ int bch2_scan_for_btree_nodes(struct bch_fs *c)
 		printbuf_reset(&buf);
 		prt_printf(&buf, "%s: nodes after merging replicas:\n", __func__);
 		found_btree_nodes_to_text(&buf, c, f->nodes);
-		bch2_print_string_as_lines(KERN_INFO, buf.buf);
+		bch2_print_str(c, KERN_INFO, buf.buf);
 	}
 
 	swap(nodes_heap, f->nodes);
@@ -470,7 +470,7 @@ int bch2_scan_for_btree_nodes(struct bch_fs *c)
 		printbuf_reset(&buf);
 		prt_printf(&buf, "%s: nodes found after overwrites:\n", __func__);
 		found_btree_nodes_to_text(&buf, c, f->nodes);
-		bch2_print_string_as_lines(KERN_INFO, buf.buf);
+		bch2_print_str(c, KERN_INFO, buf.buf);
 	} else {
 		bch_info(c, "btree node scan found %zu nodes after overwrites", f->nodes.nr);
 	}

@@ -1807,7 +1807,7 @@ static int bch2_btree_insert_node(struct btree_update *as, struct btree_trans *t
 		bch2_btree_update_to_text(&buf, as);
 		bch2_btree_path_to_text(&buf, trans, path_idx);
 
-		bch2_print_string_as_lines(KERN_ERR, buf.buf);
+		bch2_print_str(c, KERN_ERR, buf.buf);
 		printbuf_exit(&buf);
 		bch2_fs_emergency_read_only(c);
 		return -EIO;

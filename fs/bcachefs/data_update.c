@@ -358,7 +358,7 @@ restart_drop_extra_replicas:
 			prt_str(&buf, "\nnew: ");
 			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(insert));
 
-			bch2_print_string_as_lines(KERN_ERR, buf.buf);
+			bch2_print_str(c, KERN_ERR, buf.buf);
 			printbuf_exit(&buf);
 
 			bch2_fatal_error(c);

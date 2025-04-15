@@ -265,7 +265,7 @@ static inline int bch2_extent_update_i_size_sectors(struct btree_trans *trans,
 
 			bool print = bch2_count_fsck_err(c, inode_i_sectors_underflow, &buf);
 			if (print)
-				bch2_print_str(c, buf.buf);
+				bch2_print_str(c, KERN_ERR, buf.buf);
 			printbuf_exit(&buf);
 
 			if (i_sectors_delta < 0)

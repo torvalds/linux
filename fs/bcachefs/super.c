@@ -84,7 +84,8 @@ const char * const bch2_fs_flag_strs[] = {
 	NULL
 };
 
-void bch2_print_str(struct bch_fs *c, const char *str)
+static void __bch2_print_str(struct bch_fs *c, const char *prefix,
+			     const char *str, bool nonblocking)
 {
 #ifdef __KERNEL__
 	struct stdio_redirect *stdio = bch2_fs_stdio_redirect(c);
@@ -94,7 +95,17 @@ void bch2_print_str(struct bch_fs *c, const char *str)
 		return;
 	}
 #endif
-	bch2_print_string_as_lines(KERN_ERR, str);
+	bch2_print_string_as_lines(KERN_ERR, str, nonblocking);
+}
+
+void bch2_print_str(struct bch_fs *c, const char *prefix, const char *str)
+{
+	__bch2_print_str(c, prefix, str, false);
+}
+
+void bch2_print_str_nonblocking(struct bch_fs *c, const char *prefix, const char *str)
+{
+	__bch2_print_str(c, prefix, str, true);
 }
 
 __printf(2, 0)

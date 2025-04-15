@@ -24,7 +24,7 @@ int bch2_dev_missing_bkey(struct bch_fs *c, struct bkey_s_c k, unsigned dev)
 						 BCH_RECOVERY_PASS_check_allocations);
 
 	if (print)
-		bch2_print_string_as_lines(KERN_ERR, buf.buf);
+		bch2_print_str(c, KERN_ERR, buf.buf);
 	printbuf_exit(&buf);
 	return ret;
 }

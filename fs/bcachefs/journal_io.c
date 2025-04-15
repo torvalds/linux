@@ -2107,7 +2107,7 @@ CLOSURE_CALLBACK(bch2_journal_write)
 					  le64_to_cpu(w->data->seq),
 					  vstruct_sectors(w->data, c->block_bits),
 					  bch2_err_str(ret));
-		bch2_print_string_as_lines(KERN_ERR, buf.buf);
+		bch2_print_str(c, KERN_ERR, buf.buf);
 		printbuf_exit(&buf);
 	}
 	if (ret)

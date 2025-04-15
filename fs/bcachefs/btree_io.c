@@ -605,7 +605,7 @@ static int __btree_err(int ret,
 	}
 
 	if (!silent)
-		bch2_print_string_as_lines(KERN_ERR, out.buf);
+		bch2_print_str(c, KERN_ERR, out.buf);
 out:
 fsck_err:
 	printbuf_exit(&out);

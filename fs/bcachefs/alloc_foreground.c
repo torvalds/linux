@@ -1664,7 +1664,7 @@ static noinline void bch2_print_allocator_stuck(struct bch_fs *c)
 	bch2_journal_debug_to_text(&buf, &c->journal);
 	printbuf_indent_sub(&buf, 2);
 
-	bch2_print_string_as_lines(KERN_ERR, buf.buf);
+	bch2_print_str(c, KERN_ERR, buf.buf);
 	printbuf_exit(&buf);
 }
 

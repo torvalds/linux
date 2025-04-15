@@ -252,8 +252,8 @@ void bch2_prt_u64_base2(struct printbuf *out, u64 v)
 	bch2_prt_u64_base2_nbits(out, v, fls64(v) ?: 1);
 }
 
-static void __bch2_print_string_as_lines(const char *prefix, const char *lines,
-					 bool nonblocking)
+void bch2_print_string_as_lines(const char *prefix, const char *lines,
+				bool nonblocking)
 {
 	bool locked = false;
 	const char *p;
@@ -279,16 +279,6 @@ static void __bch2_print_string_as_lines(const char *prefix, const char *lines,
 	}
 	if (locked)
 		console_unlock();
-}
-
-void bch2_print_string_as_lines(const char *prefix, const char *lines)
-{
-	return __bch2_print_string_as_lines(prefix, lines, false);
-}
-
-void bch2_print_string_as_lines_nonblocking(const char *prefix, const char *lines)
-{
-	return __bch2_print_string_as_lines(prefix, lines, true);
 }
 
 int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *task, unsigned skipnr,

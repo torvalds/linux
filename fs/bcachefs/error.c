@@ -34,7 +34,7 @@ bool __bch2_inconsistent_error(struct bch_fs *c, struct printbuf *out)
 				   journal_cur_seq(&c->journal));
 		return true;
 	case BCH_ON_ERROR_panic:
-		bch2_print_string_as_lines_nonblocking(KERN_ERR, out->buf);
+		bch2_print_str(c, KERN_ERR, out->buf);
 		panic(bch2_fmt(c, "panic after error"));
 		return true;
 	default:
@@ -71,7 +71,7 @@ static bool bch2_fs_trans_inconsistent(struct bch_fs *c, struct btree_trans *tra
 	if (trans)
 		bch2_trans_updates_to_text(&buf, trans);
 	bool ret = __bch2_inconsistent_error(c, &buf);
-	bch2_print_string_as_lines_nonblocking(KERN_ERR, buf.buf);
+	bch2_print_str_nonblocking(c, KERN_ERR, buf.buf);
 
 	printbuf_exit(&buf);
 	return ret;
@@ -121,7 +121,7 @@ int bch2_fs_topology_error(struct bch_fs *c, const char *fmt, ...)
 	va_end(args);
 
 	int ret = __bch2_topology_error(c, &buf);
-	bch2_print_string_as_lines(KERN_ERR, buf.buf);
+	bch2_print_str(c, KERN_ERR, buf.buf);
 
 	printbuf_exit(&buf);
 	return ret;
@@ -328,7 +328,7 @@ static int do_fsck_ask_yn(struct bch_fs *c,
 	if (bch2_fs_stdio_redirect(c))
 		bch2_print(c, "%s", question->buf);
 	else
-		bch2_print_string_as_lines(KERN_ERR, question->buf);
+		bch2_print_str(c, KERN_ERR, question->buf);
 
 	int ask = bch2_fsck_ask_yn(c, trans);
 
@@ -565,7 +565,7 @@ print:
 		if (bch2_fs_stdio_redirect(c))
 			bch2_print(c, "%s", out->buf);
 		else
-			bch2_print_string_as_lines(KERN_ERR, out->buf);
+			bch2_print_str(c, KERN_ERR, out->buf);
 	}
 
 	if (s)

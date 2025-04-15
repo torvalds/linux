@@ -153,7 +153,7 @@ void __bch2_i_sectors_acct(struct bch_fs *c, struct bch_inode_info *inode,
 
 		bool print = bch2_count_fsck_err(c, vfs_inode_i_blocks_underflow, &buf);
 		if (print)
-			bch2_print_str(c, buf.buf);
+			bch2_print_str(c, KERN_ERR, buf.buf);
 		printbuf_exit(&buf);
 
 		if (sectors < 0)
@@ -527,7 +527,7 @@ int bchfs_truncate(struct mnt_idmap *idmap,
 
 		bool print = bch2_count_fsck_err(c, vfs_inode_i_blocks_not_zero_at_truncate, &buf);
 		if (print)
-			bch2_print_str(c, buf.buf);
+			bch2_print_str(c, KERN_ERR, buf.buf);
 		printbuf_exit(&buf);
 	}
 
