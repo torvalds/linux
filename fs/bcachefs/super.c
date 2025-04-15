@@ -589,6 +589,7 @@ static void __bch2_fs_free(struct bch_fs *c)
 		free_percpu(c->online_reserved);
 	}
 
+	darray_exit(&c->incompat_versions_requested);
 	darray_exit(&c->btree_roots_extra);
 	free_percpu(c->pcpu);
 	free_percpu(c->usage);
