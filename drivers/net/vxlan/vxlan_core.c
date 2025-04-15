@@ -4966,19 +4966,15 @@ static void __net_exit vxlan_destroy_tunnels(struct vxlan_net *vn,
 		vxlan_dellink(vxlan->dev, dev_to_kill);
 }
 
-static void __net_exit vxlan_exit_batch_rtnl(struct list_head *net_list,
-					     struct list_head *dev_to_kill)
+static void __net_exit vxlan_exit_rtnl(struct net *net,
+				       struct list_head *dev_to_kill)
 {
-	struct net *net;
+	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
 
-	ASSERT_RTNL();
-	list_for_each_entry(net, net_list, exit_list) {
-		struct vxlan_net *vn = net_generic(net, vxlan_net_id);
+	ASSERT_RTNL_NET(net);
 
-		__unregister_nexthop_notifier(net, &vn->nexthop_notifier_block);
-
-		vxlan_destroy_tunnels(vn, dev_to_kill);
-	}
+	__unregister_nexthop_notifier(net, &vn->nexthop_notifier_block);
+	vxlan_destroy_tunnels(vn, dev_to_kill);
 }
 
 static void __net_exit vxlan_exit_net(struct net *net)
@@ -4992,7 +4988,7 @@ static void __net_exit vxlan_exit_net(struct net *net)
 
 static struct pernet_operations vxlan_net_ops = {
 	.init = vxlan_init_net,
-	.exit_batch_rtnl = vxlan_exit_batch_rtnl,
+	.exit_rtnl = vxlan_exit_rtnl,
 	.exit = vxlan_exit_net,
 	.id   = &vxlan_net_id,
 	.size = sizeof(struct vxlan_net),
