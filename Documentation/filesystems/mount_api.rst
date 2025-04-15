@@ -754,21 +754,6 @@ process the parameters it is given.
 
    * ::
 
-       bool validate_constant_table(const struct constant_table *tbl,
-				    size_t tbl_size,
-				    int low, int high, int special);
-
-     Validate a constant table.  Checks that all the elements are appropriately
-     ordered, that there are no duplicates and that the values are between low
-     and high inclusive, though provision is made for one allowable special
-     value outside of that range.  If no special value is required, special
-     should just be set to lie inside the low-to-high range.
-
-     If all is good, true is returned.  If the table is invalid, errors are
-     logged to the kernel log buffer and false is returned.
-
-   * ::
-
        bool fs_validate_description(const char *name,
                                     const struct fs_parameter_description *desc);
 
