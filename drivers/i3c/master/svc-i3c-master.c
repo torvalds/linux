@@ -201,7 +201,6 @@ struct svc_i3c_drvdata {
  * @addrs: Array containing the dynamic addresses of each attached device
  * @descs: Array of descriptors, one per attached device
  * @hj_work: Hot-join work
- * @ibi_work: IBI work
  * @irq: Main interrupt
  * @pclk: System clock
  * @fclk: Fast clock (bus)
@@ -229,7 +228,6 @@ struct svc_i3c_master {
 	u8 addrs[SVC_I3C_MAX_DEVS];
 	struct i3c_dev_desc *descs[SVC_I3C_MAX_DEVS];
 	struct work_struct hj_work;
-	struct work_struct ibi_work;
 	int irq;
 	struct clk *pclk;
 	struct clk *fclk;
@@ -487,9 +485,8 @@ static int svc_i3c_master_handle_ibi_won(struct svc_i3c_master *master, u32 msta
 	return ret;
 }
 
-static void svc_i3c_master_ibi_work(struct work_struct *work)
+static void svc_i3c_master_ibi_isr(struct svc_i3c_master *master)
 {
-	struct svc_i3c_master *master = container_of(work, struct svc_i3c_master, ibi_work);
 	struct svc_i3c_i2c_dev_data *data;
 	unsigned int ibitype, ibiaddr;
 	struct i3c_dev_desc *dev;
@@ -504,7 +501,7 @@ static void svc_i3c_master_ibi_work(struct work_struct *work)
 	 * schedule during the whole I3C transaction, otherwise, the I3C bus timeout may happen if
 	 * any irq or schedule happen during transaction.
 	 */
-	guard(spinlock_irqsave)(&master->xferqueue.lock);
+	guard(spinlock)(&master->xferqueue.lock);
 
 	/*
 	 * IBIWON may be set before SVC_I3C_MCTRL_REQUEST_AUTO_IBI, causing
@@ -530,7 +527,7 @@ static void svc_i3c_master_ibi_work(struct work_struct *work)
 	if (ret) {
 		dev_err(master->dev, "Timeout when polling for IBIWON\n");
 		svc_i3c_master_emit_stop(master);
-		goto reenable_ibis;
+		return;
 	}
 
 	status = readl(master->regs + SVC_I3C_MSTATUS);
@@ -574,7 +571,7 @@ static void svc_i3c_master_ibi_work(struct work_struct *work)
 
 		svc_i3c_master_emit_stop(master);
 
-		goto reenable_ibis;
+		return;
 	}
 
 	/* Handle the non critical tasks */
@@ -597,9 +594,6 @@ static void svc_i3c_master_ibi_work(struct work_struct *work)
 	default:
 		break;
 	}
-
-reenable_ibis:
-	svc_i3c_master_enable_interrupts(master, SVC_I3C_MINT_SLVSTART);
 }
 
 static irqreturn_t svc_i3c_master_irq_handler(int irq, void *dev_id)
@@ -618,10 +612,12 @@ static irqreturn_t svc_i3c_master_irq_handler(int irq, void *dev_id)
 	    !SVC_I3C_MSTATUS_STATE_SLVREQ(active))
 		return IRQ_HANDLED;
 
-	svc_i3c_master_disable_interrupts(master);
-
-	/* Handle the interrupt in a non atomic context */
-	queue_work(master->base.wq, &master->ibi_work);
+	/*
+	 * The SDA line remains low until the request is processed.
+	 * Receive the request in the interrupt context to respond promptly
+	 * and restore the bus to idle state.
+	 */
+	svc_i3c_master_ibi_isr(master);
 
 	return IRQ_HANDLED;
 }
@@ -1947,7 +1943,6 @@ static int svc_i3c_master_probe(struct platform_device *pdev)
 		return ret;
 
 	INIT_WORK(&master->hj_work, svc_i3c_master_hj_work);
-	INIT_WORK(&master->ibi_work, svc_i3c_master_ibi_work);
 	mutex_init(&master->lock);
 
 	ret = devm_request_irq(dev, master->irq, svc_i3c_master_irq_handler,
