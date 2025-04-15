@@ -2752,46 +2752,48 @@ static int filename_parentat(int dfd, struct filename *name,
 /* does lookup, returns the object with parent locked */
 static struct dentry *__kern_path_locked(int dfd, struct filename *name, struct path *path)
 {
+	struct path parent_path __free(path_put) = {};
 	struct dentry *d;
 	struct qstr last;
 	int type, error;
 
-	error = filename_parentat(dfd, name, 0, path, &last, &type);
+	error = filename_parentat(dfd, name, 0, &parent_path, &last, &type);
 	if (error)
 		return ERR_PTR(error);
-	if (unlikely(type != LAST_NORM)) {
-		path_put(path);
+	if (unlikely(type != LAST_NORM))
 		return ERR_PTR(-EINVAL);
-	}
-	inode_lock_nested(path->dentry->d_inode, I_MUTEX_PARENT);
-	d = lookup_one_qstr_excl(&last, path->dentry, 0);
+	inode_lock_nested(parent_path.dentry->d_inode, I_MUTEX_PARENT);
+	d = lookup_one_qstr_excl(&last, parent_path.dentry, 0);
 	if (IS_ERR(d)) {
-		inode_unlock(path->dentry->d_inode);
-		path_put(path);
+		inode_unlock(parent_path.dentry->d_inode);
+		return d;
 	}
+	path->dentry = no_free_ptr(parent_path.dentry);
+	path->mnt = no_free_ptr(parent_path.mnt);
 	return d;
 }
 
 struct dentry *kern_path_locked_negative(const char *name, struct path *path)
 {
+	struct path parent_path __free(path_put) = {};
 	struct filename *filename __free(putname) = getname_kernel(name);
 	struct dentry *d;
 	struct qstr last;
 	int type, error;
 
-	error = filename_parentat(AT_FDCWD, filename, 0, path, &last, &type);
+	error = filename_parentat(AT_FDCWD, filename, 0, &parent_path, &last, &type);
 	if (error)
 		return ERR_PTR(error);
-	if (unlikely(type != LAST_NORM)) {
-		path_put(path);
+	if (unlikely(type != LAST_NORM))
 		return ERR_PTR(-EINVAL);
-	}
-	inode_lock_nested(path->dentry->d_inode, I_MUTEX_PARENT);
-	d = lookup_one_qstr_excl_raw(&last, path->dentry, 0);
+	inode_lock_nested(parent_path.dentry->d_inode, I_MUTEX_PARENT);
+	d = lookup_one_qstr_excl_raw(&last, parent_path.dentry, 0);
 	if (IS_ERR(d)) {
-		inode_unlock(path->dentry->d_inode);
-		path_put(path);
+		inode_unlock(parent_path.dentry->d_inode);
+		return d;
 	}
+	path->dentry = no_free_ptr(parent_path.dentry);
+	path->mnt = no_free_ptr(parent_path.mnt);
 	return d;
 }
 
