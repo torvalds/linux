@@ -59,19 +59,17 @@ static bool blk_mq_dispatch_hctx_list(struct list_head *rq_list)
 		list_first_entry(rq_list, struct request, queuelist)->mq_hctx;
 	struct request *rq;
 	LIST_HEAD(hctx_list);
-	unsigned int count = 0;
 
 	list_for_each_entry(rq, rq_list, queuelist) {
 		if (rq->mq_hctx != hctx) {
 			list_cut_before(&hctx_list, rq_list, &rq->queuelist);
 			goto dispatch;
 		}
-		count++;
 	}
 	list_splice_tail_init(rq_list, &hctx_list);
 
 dispatch:
-	return blk_mq_dispatch_rq_list(hctx, &hctx_list, count);
+	return blk_mq_dispatch_rq_list(hctx, &hctx_list, false);
 }
 
 #define BLK_MQ_BUDGET_DELAY	3		/* ms units */
@@ -167,7 +165,7 @@ static int __blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
 			dispatched |= blk_mq_dispatch_hctx_list(&rq_list);
 		} while (!list_empty(&rq_list));
 	} else {
-		dispatched = blk_mq_dispatch_rq_list(hctx, &rq_list, count);
+		dispatched = blk_mq_dispatch_rq_list(hctx, &rq_list, false);
 	}
 
 	if (busy)
@@ -261,7 +259,7 @@ static int blk_mq_do_dispatch_ctx(struct blk_mq_hw_ctx *hctx)
 		/* round robin for fair dispatch */
 		ctx = blk_mq_next_ctx(hctx, rq->mq_ctx);
 
-	} while (blk_mq_dispatch_rq_list(rq->mq_hctx, &rq_list, 1));
+	} while (blk_mq_dispatch_rq_list(rq->mq_hctx, &rq_list, false));
 
 	WRITE_ONCE(hctx->dispatch_from, ctx);
 	return ret;
@@ -298,7 +296,7 @@ static int __blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	 */
 	if (!list_empty(&rq_list)) {
 		blk_mq_sched_mark_restart_hctx(hctx);
-		if (!blk_mq_dispatch_rq_list(hctx, &rq_list, 0))
+		if (!blk_mq_dispatch_rq_list(hctx, &rq_list, true))
 			return 0;
 		need_dispatch = true;
 	} else {
@@ -312,7 +310,7 @@ static int __blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	if (need_dispatch)
 		return blk_mq_do_dispatch_ctx(hctx);
 	blk_mq_flush_busy_ctxs(hctx, &rq_list);
-	blk_mq_dispatch_rq_list(hctx, &rq_list, 0);
+	blk_mq_dispatch_rq_list(hctx, &rq_list, true);
 	return 0;
 }
 

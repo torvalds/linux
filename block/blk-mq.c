@@ -2080,7 +2080,7 @@ static void blk_mq_commit_rqs(struct blk_mq_hw_ctx *hctx, int queued,
  * Returns true if we did some work AND can potentially do more.
  */
 bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list,
-			     unsigned int nr_budgets)
+			     bool get_budget)
 {
 	enum prep_dispatch prep;
 	struct request_queue *q = hctx->queue;
@@ -2102,7 +2102,7 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list,
 		rq = list_first_entry(list, struct request, queuelist);
 
 		WARN_ON_ONCE(hctx != rq->mq_hctx);
-		prep = blk_mq_prep_dispatch_rq(rq, !nr_budgets);
+		prep = blk_mq_prep_dispatch_rq(rq, get_budget);
 		if (prep != PREP_DISPATCH_OK)
 			break;
 
@@ -2111,12 +2111,6 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list,
 		bd.rq = rq;
 		bd.last = list_empty(list);
 
-		/*
-		 * once the request is queued to lld, no need to cover the
-		 * budget any more
-		 */
-		if (nr_budgets)
-			nr_budgets--;
 		ret = q->mq_ops->queue_rq(hctx, &bd);
 		switch (ret) {
 		case BLK_STS_OK:
@@ -2150,7 +2144,11 @@ out:
 			((hctx->flags & BLK_MQ_F_TAG_QUEUE_SHARED) ||
 			blk_mq_is_shared_tags(hctx->flags));
 
-		if (nr_budgets)
+		/*
+		 * If the caller allocated budgets, free the budgets of the
+		 * requests that have not yet been passed to the block driver.
+		 */
+		if (!get_budget)
 			blk_mq_release_budgets(q, list);
 
 		spin_lock(&hctx->lock);
