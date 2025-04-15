@@ -2819,14 +2819,13 @@ static void vxlan_cleanup(struct timer_list *t)
 {
 	struct vxlan_dev *vxlan = from_timer(vxlan, t, age_timer);
 	unsigned long next_timer = jiffies + FDB_AGE_INTERVAL;
-	struct hlist_node *n;
 	struct vxlan_fdb *f;
 
 	if (!netif_running(vxlan->dev))
 		return;
 
-	spin_lock(&vxlan->hash_lock);
-	hlist_for_each_entry_safe(f, n, &vxlan->fdb_list, fdb_node) {
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(f, &vxlan->fdb_list, fdb_node) {
 		unsigned long timeout;
 
 		if (f->state & (NUD_PERMANENT | NUD_NOARP))
@@ -2837,15 +2836,19 @@ static void vxlan_cleanup(struct timer_list *t)
 
 		timeout = READ_ONCE(f->updated) + vxlan->cfg.age_interval * HZ;
 		if (time_before_eq(timeout, jiffies)) {
-			netdev_dbg(vxlan->dev, "garbage collect %pM\n",
-				   f->eth_addr);
-			f->state = NUD_STALE;
-			vxlan_fdb_destroy(vxlan, f, true, true);
+			spin_lock(&vxlan->hash_lock);
+			if (!hlist_unhashed(&f->fdb_node)) {
+				netdev_dbg(vxlan->dev, "garbage collect %pM\n",
+					   f->eth_addr);
+				f->state = NUD_STALE;
+				vxlan_fdb_destroy(vxlan, f, true, true);
+			}
+			spin_unlock(&vxlan->hash_lock);
 		} else if (time_before(timeout, next_timer)) {
 			next_timer = timeout;
 		}
 	}
-	spin_unlock(&vxlan->hash_lock);
+	rcu_read_unlock();
 
 	mod_timer(&vxlan->age_timer, next_timer);
 }
