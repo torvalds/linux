@@ -392,29 +392,23 @@ static int bucket_ref_update_err(struct btree_trans *trans, struct printbuf *buf
 				 struct bkey_s_c k, bool insert, enum bch_sb_error_id id)
 {
 	struct bch_fs *c = trans->c;
-	bool repeat = false, print = true, suppress = false;
 
 	prt_printf(buf, "\nwhile marking ");
 	bch2_bkey_val_to_text(buf, c, k);
 	prt_newline(buf);
 
-	__bch2_count_fsck_err(c, id, buf->buf, &repeat, &print, &suppress);
+	bool print = __bch2_count_fsck_err(c, id, buf);
 
 	int ret = bch2_run_explicit_recovery_pass_printbuf(c, buf,
 					BCH_RECOVERY_PASS_check_allocations);
 
 	if (insert) {
-		print = true;
-		suppress = false;
-
 		bch2_trans_updates_to_text(buf, trans);
 		__bch2_inconsistent_error(c, buf);
 		ret = -BCH_ERR_bucket_ref_update;
 	}
 
-	if (suppress)
-		prt_printf(buf, "Ratelimiting new instances of previous error\n");
-	if (print)
+	if (print || insert)
 		bch2_print_string_as_lines(KERN_ERR, buf->buf);
 	return ret;
 }
@@ -976,15 +970,11 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 			   bch2_data_type_str(type),
 			   bch2_data_type_str(type));
 
-		bool repeat = false, print = true, suppress = false;
-		bch2_count_fsck_err(c, bucket_metadata_type_mismatch, buf.buf,
-				    &repeat, &print, &suppress);
+		bool print = bch2_count_fsck_err(c, bucket_metadata_type_mismatch, &buf);
 
 		bch2_run_explicit_recovery_pass_printbuf(c, &buf,
 					BCH_RECOVERY_PASS_check_allocations);
 
-		if (suppress)
-			prt_printf(&buf, "Ratelimiting new instances of previous error\n");
 		if (print)
 			bch2_print_string_as_lines(KERN_ERR, buf.buf);
 		printbuf_exit(&buf);

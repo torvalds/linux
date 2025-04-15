@@ -376,15 +376,21 @@ static struct fsck_err_state *count_fsck_err_locked(struct bch_fs *c,
 	return s;
 }
 
-void __bch2_count_fsck_err(struct bch_fs *c,
-			   enum bch_sb_error_id id, const char *msg,
-			   bool *repeat, bool *print, bool *suppress)
+bool __bch2_count_fsck_err(struct bch_fs *c,
+			   enum bch_sb_error_id id, struct printbuf *msg)
 {
 	bch2_sb_error_count(c, id);
 
 	mutex_lock(&c->fsck_error_msgs_lock);
-	count_fsck_err_locked(c, id, msg, repeat, print, suppress);
+	bool print = true, repeat = false, suppress = false;
+
+	count_fsck_err_locked(c, id, msg->buf, &repeat, &print, &suppress);
 	mutex_unlock(&c->fsck_error_msgs_lock);
+
+	if (suppress)
+		prt_printf(msg, "Ratelimiting new instances of previous error\n");
+
+	return print && !repeat;
 }
 
 int __bch2_fsck_err(struct bch_fs *c,

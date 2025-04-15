@@ -263,9 +263,7 @@ static inline int bch2_extent_update_i_size_sectors(struct btree_trans *trans,
 			prt_printf(&buf, "inode %llu i_sectors underflow: %lli + %lli < 0",
 				   extent_iter->pos.inode, bi_sectors, i_sectors_delta);
 
-			bool repeat = false, print = false, suppress = false;
-			bch2_count_fsck_err(c, inode_i_sectors_underflow, buf.buf,
-					    &repeat, &print, &suppress);
+			bool print = bch2_count_fsck_err(c, inode_i_sectors_underflow, &buf);
 			if (print)
 				bch2_print_str(c, buf.buf);
 			printbuf_exit(&buf);

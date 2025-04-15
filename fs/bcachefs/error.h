@@ -76,9 +76,7 @@ struct fsck_err_state {
 
 #define fsck_err_count(_c, _err)	bch2_sb_err_count(_c, BCH_FSCK_ERR_##_err)
 
-void __bch2_count_fsck_err(struct bch_fs *,
-			   enum bch_sb_error_id, const char *,
-			   bool *, bool *, bool *);
+bool __bch2_count_fsck_err(struct bch_fs *, enum bch_sb_error_id, struct printbuf *);
 #define bch2_count_fsck_err(_c, _err, ...)				\
 	__bch2_count_fsck_err(_c, BCH_FSCK_ERR_##_err, __VA_ARGS__)
 

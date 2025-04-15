@@ -151,8 +151,7 @@ void __bch2_i_sectors_acct(struct bch_fs *c, struct bch_inode_info *inode,
 			   inode->v.i_ino, (u64) inode->v.i_blocks, sectors,
 			   inode->ei_inode.bi_sectors);
 
-		bool repeat = false, print = false, suppress = false;
-		bch2_count_fsck_err(c, vfs_inode_i_blocks_underflow, buf.buf, &repeat, &print, &suppress);
+		bool print = bch2_count_fsck_err(c, vfs_inode_i_blocks_underflow, &buf);
 		if (print)
 			bch2_print_str(c, buf.buf);
 		printbuf_exit(&buf);
@@ -526,9 +525,7 @@ int bchfs_truncate(struct mnt_idmap *idmap,
 			   inode->v.i_ino, (u64) inode->v.i_blocks,
 			   inode->ei_inode.bi_sectors);
 
-		bool repeat = false, print = false, suppress = false;
-		bch2_count_fsck_err(c, vfs_inode_i_blocks_not_zero_at_truncate, buf.buf,
-				    &repeat, &print, &suppress);
+		bool print = bch2_count_fsck_err(c, vfs_inode_i_blocks_not_zero_at_truncate, &buf);
 		if (print)
 			bch2_print_str(c, buf.buf);
 		printbuf_exit(&buf);
