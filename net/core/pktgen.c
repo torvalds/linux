@@ -227,7 +227,7 @@ static char *pkt_flag_names[] = {
 
 /* Xmit modes */
 #define M_START_XMIT		0	/* Default normal TX */
-#define M_NETIF_RECEIVE 	1	/* Inject packets into stack */
+#define M_NETIF_RECEIVE		1	/* Inject packets into stack */
 #define M_QUEUE_XMIT		2	/* Inject packet into qdisc */
 
 /* If lock -- protects updating of if_list */
