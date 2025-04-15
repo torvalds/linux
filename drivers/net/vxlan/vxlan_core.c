@@ -3967,6 +3967,8 @@ static int __vxlan_dev_create(struct net *net, struct net_device *dev,
 		err = netdev_upper_dev_link(remote_dev, dev, extack);
 		if (err)
 			goto unregister;
+
+		dst->remote_dev = remote_dev;
 	}
 
 	err = rtnl_configure_link(dev, NULL, 0, NULL);
@@ -3994,8 +3996,7 @@ static int __vxlan_dev_create(struct net *net, struct net_device *dev,
 	}
 
 	list_add(&vxlan->next, &vn->vxlan_list);
-	if (remote_dev)
-		dst->remote_dev = remote_dev;
+
 	return 0;
 
 unlink:
