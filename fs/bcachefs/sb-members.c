@@ -5,11 +5,31 @@
 #include "disk_groups.h"
 #include "error.h"
 #include "opts.h"
+#include "recovery_passes.h"
 #include "replicas.h"
 #include "sb-members.h"
 #include "super-io.h"
 
-void bch2_dev_missing(struct bch_fs *c, unsigned dev)
+int bch2_dev_missing_bkey(struct bch_fs *c, struct bkey_s_c k, unsigned dev)
+{
+	struct printbuf buf = PRINTBUF;
+	bch2_log_msg_start(c, &buf);
+
+	prt_printf(&buf, "pointer to nonexistent device %u in key\n", dev);
+	bch2_bkey_val_to_text(&buf, c, k);
+
+	bool print = bch2_count_fsck_err(c, ptr_to_invalid_device, &buf);
+
+	int ret = bch2_run_explicit_recovery_pass_printbuf(c, &buf,
+						 BCH_RECOVERY_PASS_check_allocations);
+
+	if (print)
+		bch2_print_string_as_lines(KERN_ERR, buf.buf);
+	printbuf_exit(&buf);
+	return ret;
+}
+
+void bch2_dev_missing_atomic(struct bch_fs *c, unsigned dev)
 {
 	if (dev != BCH_SB_MEMBER_INVALID)
 		bch2_fs_inconsistent(c, "pointer to nonexistent device %u", dev);

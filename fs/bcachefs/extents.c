@@ -158,7 +158,15 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 		if (dev >= 0 && p.ptr.dev != dev)
 			continue;
 
-		struct bch_dev *ca = bch2_dev_rcu(c, p.ptr.dev);
+		struct bch_dev *ca = bch2_dev_rcu_noerror(c, p.ptr.dev);
+
+		if (unlikely(!ca && p.ptr.dev != BCH_SB_MEMBER_INVALID)) {
+			rcu_read_unlock();
+			int ret = bch2_dev_missing_bkey(c, k, p.ptr.dev);
+			if (ret)
+				return ret;
+			rcu_read_lock();
+		}
 
 		if (p.ptr.cached && (!ca || dev_ptr_stale_rcu(ca, &p.ptr)))
 			continue;

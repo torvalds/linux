@@ -218,13 +218,15 @@ static inline struct bch_dev *bch2_dev_rcu_noerror(struct bch_fs *c, unsigned de
 		: NULL;
 }
 
-void bch2_dev_missing(struct bch_fs *, unsigned);
+int bch2_dev_missing_bkey(struct bch_fs *, struct bkey_s_c, unsigned);
+
+void bch2_dev_missing_atomic(struct bch_fs *, unsigned);
 
 static inline struct bch_dev *bch2_dev_rcu(struct bch_fs *c, unsigned dev)
 {
 	struct bch_dev *ca = bch2_dev_rcu_noerror(c, dev);
 	if (unlikely(!ca))
-		bch2_dev_missing(c, dev);
+		bch2_dev_missing_atomic(c, dev);
 	return ca;
 }
 
@@ -242,7 +244,7 @@ static inline struct bch_dev *bch2_dev_tryget(struct bch_fs *c, unsigned dev)
 {
 	struct bch_dev *ca = bch2_dev_tryget_noerror(c, dev);
 	if (unlikely(!ca))
-		bch2_dev_missing(c, dev);
+		bch2_dev_missing_atomic(c, dev);
 	return ca;
 }
 
