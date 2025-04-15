@@ -480,4 +480,3 @@ module_platform_driver(raspberrypi_clk_driver);
 MODULE_AUTHOR("Nicolas Saenz Julienne <nsaenzjulienne@suse.de>");
 MODULE_DESCRIPTION("Raspberry Pi firmware clock driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:raspberrypi-clk");
