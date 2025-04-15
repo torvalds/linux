@@ -294,6 +294,7 @@ static void member_to_text(struct printbuf *out,
 
 	prt_printf(out, "Discard:\t%llu\n", BCH_MEMBER_DISCARD(&m));
 	prt_printf(out, "Freespace initialized:\t%llu\n", BCH_MEMBER_FREESPACE_INITIALIZED(&m));
+	prt_printf(out, "Resize on mount:\t%llu\n", BCH_MEMBER_RESIZE_ON_MOUNT(&m));
 
 	printbuf_indent_sub(out, 2);
 }

@@ -353,6 +353,7 @@ static inline struct bch_member_cpu bch2_mi_to_cpu(struct bch_member *mi)
 			? BCH_MEMBER_DURABILITY(mi) - 1
 			: 1,
 		.freespace_initialized = BCH_MEMBER_FREESPACE_INITIALIZED(mi),
+		.resize_on_mount	= BCH_MEMBER_RESIZE_ON_MOUNT(mi),
 		.valid		= bch2_member_alive(mi),
 		.btree_bitmap_shift	= mi->btree_bitmap_shift,
 		.btree_allocated_bitmap = le64_to_cpu(mi->btree_allocated_bitmap),

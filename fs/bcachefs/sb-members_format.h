@@ -88,6 +88,8 @@ LE64_BITMASK(BCH_MEMBER_GROUP,		struct bch_member, flags, 20, 28)
 LE64_BITMASK(BCH_MEMBER_DURABILITY,	struct bch_member, flags, 28, 30)
 LE64_BITMASK(BCH_MEMBER_FREESPACE_INITIALIZED,
 					struct bch_member, flags, 30, 31)
+LE64_BITMASK(BCH_MEMBER_RESIZE_ON_MOUNT,
+					struct bch_member, flags, 31, 32)
 
 #if 0
 LE64_BITMASK(BCH_MEMBER_NR_READ_ERRORS,	struct bch_member, flags[1], 0,  20);

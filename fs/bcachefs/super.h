@@ -35,6 +35,8 @@ void bch2_fs_read_only(struct bch_fs *);
 int bch2_fs_read_write(struct bch_fs *);
 int bch2_fs_read_write_early(struct bch_fs *);
 
+int bch2_fs_resize_on_mount(struct bch_fs *);
+
 void __bch2_fs_stop(struct bch_fs *);
 void bch2_fs_free(struct bch_fs *);
 void bch2_fs_stop(struct bch_fs *);

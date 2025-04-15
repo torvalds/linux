@@ -734,11 +734,6 @@ int bch2_fs_recovery(struct bch_fs *c)
 		c->opts.read_only = true;
 	}
 
-	if (c->sb.features & BIT_ULL(BCH_FEATURE_small_image)) {
-		bch_info(c, "filesystem is an unresized image file, mounting ro");
-		c->opts.read_only = true;
-	}
-
 	mutex_lock(&c->sb_lock);
 	struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
 	bool write_sb = false;
@@ -892,6 +887,17 @@ use_clean:
 	if (ret)
 		goto err;
 
+	ret = bch2_fs_resize_on_mount(c);
+	if (ret) {
+		up_write(&c->state_lock);
+		goto err;
+	}
+
+	if (c->sb.features & BIT_ULL(BCH_FEATURE_small_image)) {
+		bch_info(c, "filesystem is an unresized image file, mounting ro");
+		c->opts.read_only = true;
+	}
+
 	if (!c->opts.read_only &&
 	    (c->sb.features & BIT_ULL(BCH_FEATURE_no_alloc_info))) {
 		bch_info(c, "mounting a filesystem with no alloc info read-write; will recreate");
@@ -954,6 +960,8 @@ use_clean:
 	set_bit(BCH_FS_btree_running, &c->flags);
 
 	ret = bch2_sb_set_upgrade_extra(c);
+	if (ret)
+		goto err;
 
 	ret = bch2_run_recovery_passes(c);
 	if (ret)
