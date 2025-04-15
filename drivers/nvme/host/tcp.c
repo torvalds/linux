@@ -2385,7 +2385,7 @@ static int nvme_tcp_setup_ctrl(struct nvme_ctrl *ctrl, bool new)
 	if (ret)
 		return ret;
 
-	if (ctrl->opts && ctrl->opts->concat && !ctrl->tls_pskid) {
+	if (ctrl->opts->concat && !ctrl->tls_pskid) {
 		/* See comments for nvme_tcp_key_revoke_needed() */
 		dev_dbg(ctrl->device, "restart admin queue for secure concatenation\n");
 		nvme_stop_keep_alive(ctrl);
