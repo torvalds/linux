@@ -42,11 +42,17 @@ static void none_free_call_crypto(struct rxrpc_call *call)
 {
 }
 
-static int none_respond_to_challenge(struct rxrpc_connection *conn,
-				     struct sk_buff *skb)
+static bool none_validate_challenge(struct rxrpc_connection *conn,
+				    struct sk_buff *skb)
 {
 	return rxrpc_abort_conn(conn, skb, RX_PROTOCOL_ERROR, -EPROTO,
 				rxrpc_eproto_rxnull_challenge);
+}
+
+static int none_sendmsg_respond_to_challenge(struct sk_buff *challenge,
+					     struct msghdr *msg)
+{
+	return -EINVAL;
 }
 
 static int none_verify_response(struct rxrpc_connection *conn,
@@ -82,7 +88,8 @@ const struct rxrpc_security rxrpc_no_security = {
 	.alloc_txbuf			= none_alloc_txbuf,
 	.secure_packet			= none_secure_packet,
 	.verify_packet			= none_verify_packet,
-	.respond_to_challenge		= none_respond_to_challenge,
+	.validate_challenge		= none_validate_challenge,
+	.sendmsg_respond_to_challenge	= none_sendmsg_respond_to_challenge,
 	.verify_response		= none_verify_response,
 	.clear				= none_clear,
 };

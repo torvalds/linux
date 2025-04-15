@@ -181,4 +181,24 @@ struct rxkad_response {
 	__be32		ticket_len;	/* Kerberos ticket length  */
 } __packed;
 
+/*
+ * GSSAPI security type-4 and type-6 data header.
+ */
+struct rxgk_header {
+	__be32	epoch;
+	__be32	cid;
+	__be32	call_number;
+	__be32	seq;
+	__be32	sec_index;
+	__be32	data_len;
+} __packed;
+
+/*
+ * GSSAPI security type-4 and type-6 response packet header.
+ */
+struct rxgk_response {
+	__be64	start_time;
+	__be32	token_len;
+} __packed;
+
 #endif /* _LINUX_RXRPC_PACKET_H */

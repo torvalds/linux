@@ -24,7 +24,16 @@ static void afs_wake_up_async_call(struct sock *, struct rxrpc_call *, unsigned 
 static void afs_process_async_call(struct work_struct *);
 static void afs_rx_new_call(struct sock *, struct rxrpc_call *, unsigned long);
 static void afs_rx_discard_new_call(struct rxrpc_call *, unsigned long);
+static void afs_rx_attach(struct rxrpc_call *rxcall, unsigned long user_call_ID);
+static void afs_rx_notify_oob(struct sock *sk, struct sk_buff *oob);
 static int afs_deliver_cm_op_id(struct afs_call *);
+
+static const struct rxrpc_kernel_ops afs_rxrpc_callback_ops = {
+	.notify_new_call	= afs_rx_new_call,
+	.discard_new_call	= afs_rx_discard_new_call,
+	.user_attach_call	= afs_rx_attach,
+	.notify_oob		= afs_rx_notify_oob,
+};
 
 /* asynchronous incoming call initial processing */
 static const struct afs_call_type afs_RXCMxxxx = {
@@ -49,6 +58,7 @@ int afs_open_socket(struct afs_net *net)
 		goto error_1;
 
 	socket->sk->sk_allocation = GFP_NOFS;
+	socket->sk->sk_user_data = net;
 
 	/* bind the callback manager's address to make this a server socket */
 	memset(&srx, 0, sizeof(srx));
@@ -63,6 +73,14 @@ int afs_open_socket(struct afs_net *net)
 						RXRPC_SECURITY_ENCRYPT);
 	if (ret < 0)
 		goto error_2;
+
+	ret = rxrpc_sock_set_manage_response(socket->sk, true);
+	if (ret < 0)
+		goto error_2;
+
+	ret = afs_create_token_key(net, socket);
+	if (ret < 0)
+		pr_err("Couldn't create RxGK CM key: %d\n", ret);
 
 	ret = kernel_bind(socket, (struct sockaddr *) &srx, sizeof(srx));
 	if (ret == -EADDRINUSE) {
@@ -84,8 +102,7 @@ int afs_open_socket(struct afs_net *net)
 	 * it sends back to us.
 	 */
 
-	rxrpc_kernel_new_call_notification(socket, afs_rx_new_call,
-					   afs_rx_discard_new_call);
+	rxrpc_kernel_set_notifications(socket, &afs_rxrpc_callback_ops);
 
 	ret = kernel_listen(socket, INT_MAX);
 	if (ret < 0)
@@ -125,7 +142,9 @@ void afs_close_socket(struct afs_net *net)
 
 	kernel_sock_shutdown(net->socket, SHUT_RDWR);
 	flush_workqueue(afs_async_calls);
+	net->socket->sk->sk_user_data = NULL;
 	sock_release(net->socket);
+	key_put(net->fs_cm_token_key);
 
 	_debug("dework");
 	_leave("");
@@ -738,7 +757,6 @@ void afs_charge_preallocation(struct work_struct *work)
 
 		if (rxrpc_kernel_charge_accept(net->socket,
 					       afs_wake_up_async_call,
-					       afs_rx_attach,
 					       (unsigned long)call,
 					       GFP_KERNEL,
 					       call->debug_id) < 0)
@@ -800,10 +818,14 @@ static int afs_deliver_cm_op_id(struct afs_call *call)
 	if (!afs_cm_incoming_call(call))
 		return -ENOTSUPP;
 
+	call->security_ix = rxrpc_kernel_query_call_security(call->rxcall,
+							     &call->service_id,
+							     &call->enctype);
+
 	trace_afs_cb_call(call);
 	call->work.func = call->type->work;
 
-	/* pass responsibility for the remainer of this message off to the
+	/* pass responsibility for the remainder of this message off to the
 	 * cache manager op */
 	return call->type->deliver(call);
 }
@@ -951,4 +973,14 @@ noinline int afs_protocol_error(struct afs_call *call,
 	if (call)
 		call->unmarshalling_error = true;
 	return -EBADMSG;
+}
+
+/*
+ * Wake up OOB notification processing.
+ */
+static void afs_rx_notify_oob(struct sock *sk, struct sk_buff *oob)
+{
+	struct afs_net *net = sk->sk_user_data;
+
+	schedule_work(&net->rx_oob_work);
 }

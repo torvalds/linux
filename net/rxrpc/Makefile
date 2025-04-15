@@ -24,6 +24,7 @@ rxrpc-y := \
 	local_object.o \
 	misc.o \
 	net_ns.o \
+	oob.o \
 	output.o \
 	peer_event.o \
 	peer_object.o \
@@ -39,6 +40,9 @@ rxrpc-y := \
 rxrpc-$(CONFIG_PROC_FS) += proc.o
 rxrpc-$(CONFIG_RXKAD) += rxkad.o
 rxrpc-$(CONFIG_SYSCTL) += sysctl.o
-
+rxrpc-$(CONFIG_RXGK) += \
+	rxgk.o \
+	rxgk_app.o \
+	rxgk_kdf.o
 
 obj-$(CONFIG_RXPERF) += rxperf.o
