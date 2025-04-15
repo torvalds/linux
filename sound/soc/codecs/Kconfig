@@ -103,6 +103,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_CS47L85
 	imply SND_SOC_CS47L90
 	imply SND_SOC_CS47L92
+	imply SND_SOC_CS48L32
 	imply SND_SOC_CS53L30
 	imply SND_SOC_CS530X_I2C
 	imply SND_SOC_CX20442
@@ -404,6 +405,7 @@ config SND_SOC_WM_ADSP
 	default y if SND_SOC_CS35L45_SPI=y
 	default y if SND_SOC_CS35L45_I2C=y
 	default y if SND_SOC_CS35L56=y
+	default y if SND_SOC_CS48L32=y
 	default m if SND_SOC_MADERA=m
 	default m if SND_SOC_CS47L24=m
 	default m if SND_SOC_WM5102=m
@@ -414,6 +416,7 @@ config SND_SOC_WM_ADSP
 	default m if SND_SOC_CS35L45_SPI=m
 	default m if SND_SOC_CS35L45_I2C=m
 	default m if SND_SOC_CS35L56=m
+	default m if SND_SOC_CS48L32=m
 
 config SND_SOC_AB8500_CODEC
 	tristate
@@ -1049,6 +1052,13 @@ config SND_SOC_CS47L90
 config SND_SOC_CS47L92
 	tristate
 	depends on MFD_CS47L92
+
+config SND_SOC_CS48L32
+	tristate "Cirrus Logic CS48L32 audio DSP"
+	depends on SPI_MASTER
+	select REGMAP_SPI
+	help
+	  Build the codec driver for the Cirrus Logic CS48L32 audio DSP.
 
 # Cirrus Logic Quad-Channel ADC
 config SND_SOC_CS53L30
