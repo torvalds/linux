@@ -122,8 +122,8 @@ There's lots of plane features we could add support for:
 
 - Scaling.
 
-- Additional buffer formats, especially YUV formats for video like NV12.
-  Low/high bpp RGB formats would also be interesting.
+- Additional buffer formats. Low/high bpp RGB formats would be interesting
+  [Good to get started].
 
 - Async updates (currently only possible on cursor plane using the legacy
   cursor api).
