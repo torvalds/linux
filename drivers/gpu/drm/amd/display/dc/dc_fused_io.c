@@ -11,7 +11,8 @@ static bool op_i2c_convert(
 		union dmub_rb_cmd *cmd,
 		const struct mod_hdcp_atomic_op_i2c *op,
 		enum dmub_cmd_fused_request_type type,
-		uint32_t ddc_line
+		uint32_t ddc_line,
+		bool over_aux
 )
 {
 	struct dmub_cmd_fused_request *req = &cmd->fused_io.request;
@@ -23,6 +24,7 @@ static bool op_i2c_convert(
 	req->type = type;
 	loc->is_aux = false;
 	loc->ddc_line = ddc_line;
+	loc->over_aux = over_aux;
 	loc->address = op->address;
 	loc->offset = op->offset;
 	loc->length = op->size;
@@ -100,11 +102,13 @@ bool dm_atomic_write_poll_read_i2c(
 	if (!link)
 		return false;
 
+	const bool over_aux = false;
 	const uint32_t ddc_line = link->ddc->ddc_pin->pin_data->en;
+
 	union dmub_rb_cmd commands[3] = { 0 };
-	const bool converted = op_i2c_convert(&commands[0], write, FUSED_REQUEST_WRITE, ddc_line)
-			&& op_i2c_convert(&commands[1], poll, FUSED_REQUEST_POLL, ddc_line)
-			&& op_i2c_convert(&commands[2], read, FUSED_REQUEST_READ, ddc_line);
+	const bool converted = op_i2c_convert(&commands[0], write, FUSED_REQUEST_WRITE, ddc_line, over_aux)
+			&& op_i2c_convert(&commands[1], poll, FUSED_REQUEST_POLL, ddc_line, over_aux)
+			&& op_i2c_convert(&commands[2], read, FUSED_REQUEST_READ, ddc_line, over_aux);
 
 	if (!converted)
 		return false;
