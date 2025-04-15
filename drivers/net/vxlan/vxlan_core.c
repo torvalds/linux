@@ -816,14 +816,6 @@ static struct vxlan_fdb *vxlan_fdb_alloc(struct vxlan_dev *vxlan, const u8 *mac,
 	return f;
 }
 
-static void vxlan_fdb_insert(struct vxlan_dev *vxlan, const u8 *mac,
-			     __be32 src_vni, struct vxlan_fdb *f)
-{
-	++vxlan->addrcnt;
-	hlist_add_head_rcu(&f->hlist,
-			   vxlan_fdb_head(vxlan, mac, src_vni));
-}
-
 static int vxlan_fdb_nh_update(struct vxlan_dev *vxlan, struct vxlan_fdb *fdb,
 			       u32 nhid, struct netlink_ext_ack *extack)
 {
@@ -912,6 +904,10 @@ int vxlan_fdb_create(struct vxlan_dev *vxlan,
 		rc = vxlan_fdb_append(f, ip, port, vni, ifindex, &rd);
 	if (rc < 0)
 		goto errout;
+
+	++vxlan->addrcnt;
+	hlist_add_head_rcu(&f->hlist,
+			   vxlan_fdb_head(vxlan, mac, src_vni));
 
 	*fdb = f;
 
@@ -1101,7 +1097,6 @@ static int vxlan_fdb_update_create(struct vxlan_dev *vxlan,
 	if (rc < 0)
 		return rc;
 
-	vxlan_fdb_insert(vxlan, mac, src_vni, f);
 	rc = vxlan_fdb_notify(vxlan, f, first_remote_rtnl(f), RTM_NEWNEIGH,
 			      swdev_notify, extack);
 	if (rc)
@@ -3994,8 +3989,6 @@ static int __vxlan_dev_create(struct net *net, struct net_device *dev,
 	}
 
 	if (f) {
-		vxlan_fdb_insert(vxlan, all_zeros_mac, dst->remote_vni, f);
-
 		/* notify default fdb entry */
 		err = vxlan_fdb_notify(vxlan, f, first_remote_rtnl(f),
 				       RTM_NEWNEIGH, true, extack);
