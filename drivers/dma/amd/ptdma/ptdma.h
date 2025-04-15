@@ -254,7 +254,6 @@ struct pt_device {
 	/* Support for the DMA Engine capabilities */
 	struct dma_device dma_dev;
 	struct pt_dma_chan *pt_dma_chan;
-	struct kmem_cache *dma_cmd_cache;
 	struct kmem_cache *dma_desc_cache;
 
 	wait_queue_head_t lsb_queue;
