@@ -1582,17 +1582,22 @@ static int mtk_hdmi_audio_get_eld(struct device *dev, void *data, uint8_t *buf, 
 	return 0;
 }
 
+static void mtk_hdmi_audio_set_plugged_cb(struct mtk_hdmi *hdmi, hdmi_codec_plugged_cb fn,
+					  struct device *codec_dev)
+{
+	mutex_lock(&hdmi->update_plugged_status_lock);
+	hdmi->plugged_cb = fn;
+	hdmi->codec_dev = codec_dev;
+	mutex_unlock(&hdmi->update_plugged_status_lock);
+}
+
 static int mtk_hdmi_audio_hook_plugged_cb(struct device *dev, void *data,
 					  hdmi_codec_plugged_cb fn,
 					  struct device *codec_dev)
 {
 	struct mtk_hdmi *hdmi = data;
 
-	mutex_lock(&hdmi->update_plugged_status_lock);
-	hdmi->plugged_cb = fn;
-	hdmi->codec_dev = codec_dev;
-	mutex_unlock(&hdmi->update_plugged_status_lock);
-
+	mtk_hdmi_audio_set_plugged_cb(hdmi, fn, codec_dev);
 	mtk_hdmi_update_plugged_status(hdmi);
 
 	return 0;
