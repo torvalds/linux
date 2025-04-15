@@ -17,7 +17,6 @@
 
 #include "kernfs-internal.h"
 
-DEFINE_RWLOCK(kernfs_rename_lock);	/* kn->parent and ->name */
 /*
  * Don't use rename_lock to piggy back on pr_cont_buf. We don't want to
  * call pr_cont() while holding rename_lock. Because sometimes pr_cont()
@@ -228,7 +227,7 @@ int kernfs_path_from_node(struct kernfs_node *to, struct kernfs_node *from,
 	if (to) {
 		root = kernfs_root(to);
 		if (!(root->flags & KERNFS_ROOT_INVARIANT_PARENT)) {
-			guard(read_lock_irqsave)(&kernfs_rename_lock);
+			guard(read_lock_irqsave)(&root->kernfs_rename_lock);
 			return kernfs_path_from_node_locked(to, from, buf, buflen);
 		}
 	}
@@ -295,12 +294,14 @@ out:
 struct kernfs_node *kernfs_get_parent(struct kernfs_node *kn)
 {
 	struct kernfs_node *parent;
+	struct kernfs_root *root;
 	unsigned long flags;
 
-	read_lock_irqsave(&kernfs_rename_lock, flags);
+	root = kernfs_root(kn);
+	read_lock_irqsave(&root->kernfs_rename_lock, flags);
 	parent = kernfs_parent(kn);
 	kernfs_get(parent);
-	read_unlock_irqrestore(&kernfs_rename_lock, flags);
+	read_unlock_irqrestore(&root->kernfs_rename_lock, flags);
 
 	return parent;
 }
@@ -993,6 +994,7 @@ struct kernfs_root *kernfs_create_root(struct kernfs_syscall_ops *scops,
 	init_rwsem(&root->kernfs_iattr_rwsem);
 	init_rwsem(&root->kernfs_supers_rwsem);
 	INIT_LIST_HEAD(&root->supers);
+	rwlock_init(&root->kernfs_rename_lock);
 
 	/*
 	 * On 64bit ino setups, id is ino.  On 32bit, low 32bits are ino.
@@ -1789,7 +1791,7 @@ int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 	/* rename_lock protects ->parent accessors */
 	if (old_parent != new_parent) {
 		kernfs_get(new_parent);
-		write_lock_irq(&kernfs_rename_lock);
+		write_lock_irq(&root->kernfs_rename_lock);
 
 		rcu_assign_pointer(kn->__parent, new_parent);
 
@@ -1797,7 +1799,7 @@ int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 		if (new_name)
 			rcu_assign_pointer(kn->name, new_name);
 
-		write_unlock_irq(&kernfs_rename_lock);
+		write_unlock_irq(&root->kernfs_rename_lock);
 		kernfs_put(old_parent);
 	} else {
 		/* name assignment is RCU protected, parent is the same */
