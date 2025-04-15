@@ -1333,7 +1333,7 @@ again:
 	return copied;
 }
 
-ssize_t btrfs_buffered_write(struct kiocb *iocb, struct iov_iter *i)
+ssize_t btrfs_buffered_write(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
 	loff_t pos;
@@ -1359,7 +1359,7 @@ ssize_t btrfs_buffered_write(struct kiocb *iocb, struct iov_iter *i)
 	 */
 	old_isize = i_size_read(inode);
 
-	ret = generic_write_checks(iocb, i);
+	ret = generic_write_checks(iocb, iter);
 	if (ret <= 0)
 		goto out;
 
@@ -1368,8 +1368,8 @@ ssize_t btrfs_buffered_write(struct kiocb *iocb, struct iov_iter *i)
 		goto out;
 
 	pos = iocb->ki_pos;
-	while (iov_iter_count(i) > 0) {
-		ret = copy_one_range(BTRFS_I(inode), i, &data_reserved, pos, nowait);
+	while (iov_iter_count(iter) > 0) {
+		ret = copy_one_range(BTRFS_I(inode), iter, &data_reserved, pos, nowait);
 		if (ret < 0)
 			break;
 		pos += ret;
