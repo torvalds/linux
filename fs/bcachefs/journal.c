@@ -1295,8 +1295,15 @@ int bch2_set_nr_journal_buckets(struct bch_fs *c, struct bch_dev *ca,
 
 int bch2_dev_journal_alloc(struct bch_dev *ca, bool new_fs)
 {
+	struct bch_fs *c = ca->fs;
+
 	if (!(ca->mi.data_allowed & BIT(BCH_DATA_journal)))
 		return 0;
+
+	if (c->sb.features & BIT_ULL(BCH_FEATURE_small_image)) {
+		bch_err(c, "cannot allocate journal, filesystem is an unresized image file");
+		return -BCH_ERR_erofs_filesystem_full;
+	}
 
 	unsigned nr;
 	int ret;
@@ -1318,7 +1325,7 @@ int bch2_dev_journal_alloc(struct bch_dev *ca, bool new_fs)
 		     min(1 << 13,
 			 (1 << 24) / ca->mi.bucket_size));
 
-	ret = bch2_set_nr_journal_buckets_loop(ca->fs, ca, nr, new_fs);
+	ret = bch2_set_nr_journal_buckets_loop(c, ca, nr, new_fs);
 err:
 	bch_err_fn(ca, ret);
 	return ret;

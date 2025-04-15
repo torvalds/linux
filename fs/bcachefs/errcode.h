@@ -222,6 +222,7 @@
 	x(EROFS,			erofs_norecovery)			\
 	x(EROFS,			erofs_nochanges)			\
 	x(EROFS,			erofs_no_alloc_info)			\
+	x(EROFS,			erofs_filesystem_full)			\
 	x(EROFS,			insufficient_devices)			\
 	x(0,				operation_blocked)			\
 	x(BCH_ERR_operation_blocked,	btree_cache_cannibalize_lock_blocked)	\

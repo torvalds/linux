@@ -924,7 +924,8 @@ static inline void SET_BCH_SB_BACKGROUND_COMPRESSION_TYPE(struct bch_sb *sb, __u
 	x(extents_across_btree_nodes,	18)	\
 	x(incompat_version_field,	19)	\
 	x(casefolding,			20)	\
-	x(no_alloc_info,		21)
+	x(no_alloc_info,		21)	\
+	x(small_image,			22)
 
 #define BCH_SB_FEATURES_ALWAYS				\
 	(BIT_ULL(BCH_FEATURE_new_extent_overwrite)|	\

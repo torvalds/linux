@@ -451,6 +451,11 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 		return -BCH_ERR_erofs_unfixed_errors;
 	}
 
+	if (c->sb.features & BIT_ULL(BCH_FEATURE_small_image)) {
+		bch_err(c, "cannot go rw, filesystem is an unresized image file");
+		return -BCH_ERR_erofs_filesystem_full;
+	}
+
 	if (test_bit(BCH_FS_rw, &c->flags))
 		return 0;
 
