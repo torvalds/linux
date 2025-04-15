@@ -2419,7 +2419,6 @@ static int gather_surplus_pages(struct hstate *h, long delta)
 	long i;
 	long needed, allocated;
 	bool alloc_ok = true;
-	int node;
 	nodemask_t *mbind_nodemask, alloc_nodemask;
 
 	mbind_nodemask = policy_mbind_nodemask(htlb_alloc_mask(h));
@@ -2443,21 +2442,12 @@ retry:
 	for (i = 0; i < needed; i++) {
 		folio = NULL;
 
-		/* Prioritize current node */
-		if (node_isset(numa_mem_id(), alloc_nodemask))
-			folio = alloc_surplus_hugetlb_folio(h, htlb_alloc_mask(h),
-					numa_mem_id(), NULL);
-
-		if (!folio) {
-			for_each_node_mask(node, alloc_nodemask) {
-				if (node == numa_mem_id())
-					continue;
-				folio = alloc_surplus_hugetlb_folio(h, htlb_alloc_mask(h),
-						node, NULL);
-				if (folio)
-					break;
-			}
-		}
+		/*
+		 * It is okay to use NUMA_NO_NODE because we use numa_mem_id()
+		 * down the road to pick the current node if that is the case.
+		 */
+		folio = alloc_surplus_hugetlb_folio(h, htlb_alloc_mask(h),
+						    NUMA_NO_NODE, &alloc_nodemask);
 		if (!folio) {
 			alloc_ok = false;
 			break;
