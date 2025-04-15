@@ -409,8 +409,8 @@ static inline struct hlist_head *vxlan_fdb_head(struct vxlan_dev *vxlan,
 }
 
 /* Look up Ethernet address in forwarding table */
-static struct vxlan_fdb *__vxlan_find_mac(struct vxlan_dev *vxlan,
-					  const u8 *mac, __be32 vni)
+static struct vxlan_fdb *vxlan_find_mac_rcu(struct vxlan_dev *vxlan,
+					    const u8 *mac, __be32 vni)
 {
 	struct hlist_head *head = vxlan_fdb_head(vxlan, mac, vni);
 	struct vxlan_fdb *f;
@@ -434,13 +434,27 @@ static struct vxlan_fdb *vxlan_find_mac_tx(struct vxlan_dev *vxlan,
 {
 	struct vxlan_fdb *f;
 
-	f = __vxlan_find_mac(vxlan, mac, vni);
+	f = vxlan_find_mac_rcu(vxlan, mac, vni);
 	if (f) {
 		unsigned long now = jiffies;
 
 		if (READ_ONCE(f->used) != now)
 			WRITE_ONCE(f->used, now);
 	}
+
+	return f;
+}
+
+static struct vxlan_fdb *vxlan_find_mac(struct vxlan_dev *vxlan,
+					const u8 *mac, __be32 vni)
+{
+	struct vxlan_fdb *f;
+
+	lockdep_assert_held_once(&vxlan->hash_lock);
+
+	rcu_read_lock();
+	f = vxlan_find_mac_rcu(vxlan, mac, vni);
+	rcu_read_unlock();
 
 	return f;
 }
@@ -480,7 +494,7 @@ int vxlan_fdb_find_uc(struct net_device *dev, const u8 *mac, __be32 vni,
 
 	rcu_read_lock();
 
-	f = __vxlan_find_mac(vxlan, eth_addr, vni);
+	f = vxlan_find_mac_rcu(vxlan, eth_addr, vni);
 	if (!f) {
 		rc = -ENOENT;
 		goto out;
@@ -1117,7 +1131,7 @@ int vxlan_fdb_update(struct vxlan_dev *vxlan,
 {
 	struct vxlan_fdb *f;
 
-	f = __vxlan_find_mac(vxlan, mac, src_vni);
+	f = vxlan_find_mac(vxlan, mac, src_vni);
 	if (f) {
 		if (flags & NLM_F_EXCL) {
 			netdev_dbg(vxlan->dev,
@@ -1286,7 +1300,7 @@ int __vxlan_fdb_delete(struct vxlan_dev *vxlan,
 	struct vxlan_fdb *f;
 	int err = -ENOENT;
 
-	f = __vxlan_find_mac(vxlan, addr, src_vni);
+	f = vxlan_find_mac(vxlan, addr, src_vni);
 	if (!f)
 		return err;
 
@@ -1409,7 +1423,7 @@ static int vxlan_fdb_get(struct sk_buff *skb,
 
 	rcu_read_lock();
 
-	f = __vxlan_find_mac(vxlan, addr, vni);
+	f = vxlan_find_mac_rcu(vxlan, addr, vni);
 	if (!f) {
 		NL_SET_ERR_MSG(extack, "Fdb entry not found");
 		err = -ENOENT;
@@ -1445,7 +1459,7 @@ static enum skb_drop_reason vxlan_snoop(struct net_device *dev,
 		ifindex = src_ifindex;
 #endif
 
-	f = __vxlan_find_mac(vxlan, src_mac, vni);
+	f = vxlan_find_mac_rcu(vxlan, src_mac, vni);
 	if (likely(f)) {
 		struct vxlan_rdst *rdst = first_remote_rcu(f);
 		unsigned long now = jiffies;
@@ -4727,7 +4741,7 @@ vxlan_fdb_offloaded_set(struct net_device *dev,
 
 	spin_lock_bh(&vxlan->hash_lock);
 
-	f = __vxlan_find_mac(vxlan, fdb_info->eth_addr, fdb_info->vni);
+	f = vxlan_find_mac(vxlan, fdb_info->eth_addr, fdb_info->vni);
 	if (!f)
 		goto out;
 
@@ -4779,7 +4793,7 @@ vxlan_fdb_external_learn_del(struct net_device *dev,
 
 	spin_lock_bh(&vxlan->hash_lock);
 
-	f = __vxlan_find_mac(vxlan, fdb_info->eth_addr, fdb_info->vni);
+	f = vxlan_find_mac(vxlan, fdb_info->eth_addr, fdb_info->vni);
 	if (!f)
 		err = -ENOENT;
 	else if (f->flags & NTF_EXT_LEARNED)
