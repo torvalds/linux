@@ -2387,13 +2387,27 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 		goto done;
 	}
 	if (bm->dma_dir != DMA_NONE) {
+		unsigned long vm_start = vma->vm_start;
+		unsigned long vm_end = vma->vm_end;
+
 		/*
-		 * DMA buffer was allocated as a single block.
-		 * Address is in page_list[0].
+		 * Buffer pages are not contiguous, so temporarily modify VMA
+		 * start and end addresses for each buffer page.
 		 */
-		buf = &bm->page_list[0];
-		retval = dma_mmap_coherent(bm->dma_hw_dev, vma, buf->virt_addr,
-					   buf->dma_addr, n_pages * PAGE_SIZE);
+		for (i = 0; i < n_pages; ++i) {
+			buf = &bm->page_list[i];
+			vma->vm_start = start;
+			vma->vm_end = start + PAGE_SIZE;
+			retval = dma_mmap_coherent(bm->dma_hw_dev, vma,
+						   buf->virt_addr,
+						   buf->dma_addr, PAGE_SIZE);
+			if (retval)
+				break;
+
+			start += PAGE_SIZE;
+		}
+		vma->vm_start = vm_start;
+		vma->vm_end = vm_end;
 	} else {
 		for (i = 0; i < n_pages; ++i) {
 			unsigned long pfn;
@@ -2407,19 +2421,18 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 
 			start += PAGE_SIZE;
 		}
+	}
 
 #ifdef CONFIG_MMU
-		/*
-		 * Leaving behind a partial mapping of a buffer we're about to
-		 * drop is unsafe, see remap_pfn_range_notrack().
-		 * We need to zap the range here ourselves instead of relying
-		 * on the automatic zapping in remap_pfn_range() because we call
-		 * remap_pfn_range() in a loop.
-		 */
-		if (retval)
-			zap_vma_ptes(vma, vma->vm_start, size);
+	/*
+	 * Leaving behind a partial mapping of a buffer we're about to drop is
+	 * unsafe, see remap_pfn_range_notrack().  We need to zap the range
+	 * here ourselves instead of relying on the automatic zapping in
+	 * remap_pfn_range() because we call remap_pfn_range() in a loop.
+	 */
+	if (retval)
+		zap_vma_ptes(vma, vma->vm_start, size);
 #endif
-	}
 
 	if (retval == 0) {
 		vma->vm_ops = &comedi_vm_ops;

@@ -27,14 +27,12 @@ static void comedi_buf_map_kref_release(struct kref *kref)
 
 	if (bm->page_list) {
 		if (bm->dma_dir != DMA_NONE) {
-			/*
-			 * DMA buffer was allocated as a single block.
-			 * Address is in page_list[0].
-			 */
-			buf = &bm->page_list[0];
-			dma_free_coherent(bm->dma_hw_dev,
-					  PAGE_SIZE * bm->n_pages,
-					  buf->virt_addr, buf->dma_addr);
+			for (i = 0; i < bm->n_pages; i++) {
+				buf = &bm->page_list[i];
+				dma_free_coherent(bm->dma_hw_dev, PAGE_SIZE,
+						  buf->virt_addr,
+						  buf->dma_addr);
+			}
 		} else {
 			for (i = 0; i < bm->n_pages; i++) {
 				buf = &bm->page_list[i];
@@ -88,26 +86,14 @@ comedi_buf_map_alloc(struct comedi_device *dev, enum dma_data_direction dma_dir,
 		goto err;
 
 	if (bm->dma_dir != DMA_NONE) {
-		void *virt_addr;
-		dma_addr_t dma_addr;
-
-		/*
-		 * Currently, the DMA buffer needs to be allocated as a
-		 * single block so that it can be mmap()'ed.
-		 */
-		virt_addr = dma_alloc_coherent(bm->dma_hw_dev,
-					       PAGE_SIZE * n_pages, &dma_addr,
-					       GFP_KERNEL);
-		if (!virt_addr)
-			goto err;
-
 		for (i = 0; i < n_pages; i++) {
 			buf = &bm->page_list[i];
-			buf->virt_addr = virt_addr + (i << PAGE_SHIFT);
-			buf->dma_addr = dma_addr + (i << PAGE_SHIFT);
+			buf->virt_addr =
+			    dma_alloc_coherent(bm->dma_hw_dev, PAGE_SIZE,
+					       &buf->dma_addr, GFP_KERNEL);
+			if (!buf->virt_addr)
+				break;
 		}
-
-		bm->n_pages = i;
 	} else {
 		for (i = 0; i < n_pages; i++) {
 			buf = &bm->page_list[i];
@@ -117,11 +103,10 @@ comedi_buf_map_alloc(struct comedi_device *dev, enum dma_data_direction dma_dir,
 
 			SetPageReserved(virt_to_page(buf->virt_addr));
 		}
-
-		bm->n_pages = i;
-		if (i < n_pages)
-			goto err;
 	}
+	bm->n_pages = i;
+	if (i < n_pages)
+		goto err;
 
 	return bm;
 
