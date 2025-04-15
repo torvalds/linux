@@ -1,22 +1,22 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/usb/qcom,dwc3.yaml#
+$id: http://devicetree.org/schemas/usb/qcom,snps-dwc3.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Legacy Qualcomm SuperSpeed DWC3 USB SoC controller
+title: Qualcomm SuperSpeed DWC3 USB SoC controller
 
 maintainers:
   - Wesley Cheng <quic_wcheng@quicinc.com>
 
-# Use the combined qcom,snps-dwc3 instead
-deprecated: true
+description:
+  Describes the Qualcomm USB block, based on Synopsys DWC3.
 
 select:
   properties:
     compatible:
       contains:
-        const: qcom,dwc3
+        const: qcom,snps-dwc3
   required:
     - compatible
 
@@ -66,25 +66,13 @@ properties:
           - qcom,sm8450-dwc3
           - qcom,sm8550-dwc3
           - qcom,sm8650-dwc3
-          - qcom,sm8750-dwc3
           - qcom,x1e80100-dwc3
-          - qcom,x1e80100-dwc3-mp
-      - const: qcom,dwc3
+      - const: qcom,snps-dwc3
 
   reg:
-    description: Offset and length of register set for QSCRATCH wrapper
     maxItems: 1
 
-  "#address-cells":
-    enum: [ 1, 2 ]
-
-  "#size-cells":
-    enum: [ 1, 2 ]
-
-  ranges: true
-
   power-domains:
-    description: specifies a phandle to PM domain provider node
     maxItems: 1
 
   required-opps:
@@ -108,6 +96,11 @@ properties:
     minItems: 1
     maxItems: 9
 
+  dma-coherent: true
+
+  iommus:
+    maxItems: 1
+
   resets:
     maxItems: 1
 
@@ -122,6 +115,7 @@ properties:
   interrupts:
     description: |
       Different types of interrupts are used based on HS PHY used on target:
+        - dwc_usb3: Core DWC3 interrupt
         - pwr_event: Used for wakeup based on other power events.
         - hs_phy_irq: Apart from DP/DM/QUSB2 PHY interrupts, there is
                        hs_phy_irq which is not triggered by default and its
@@ -137,12 +131,12 @@ properties:
                                only on SoCs with non-QUSB2 targets with
                                exception of SDM670/SDM845/SM6350.
         - ss_phy_irq: Used for remote wakeup in Super Speed mode of operation.
-    minItems: 2
-    maxItems: 18
+    minItems: 3
+    maxItems: 19
 
   interrupt-names:
-    minItems: 2
-    maxItems: 18
+    minItems: 3
+    maxItems: 19
 
   qcom,select-utmi-as-pipe-clk:
     description:
@@ -155,26 +149,16 @@ properties:
 
 # Required child node:
 
-patternProperties:
-  "^usb@[0-9a-f]+$":
-    $ref: snps,dwc3.yaml#
-    unevaluatedProperties: false
-
-    properties:
-      wakeup-source: false
-
 required:
   - compatible
   - reg
-  - "#address-cells"
-  - "#size-cells"
-  - ranges
   - clocks
   - clock-names
   - interrupts
   - interrupt-names
 
 allOf:
+  - $ref: snps,dwc3-common.yaml#
   - if:
       properties:
         compatible:
@@ -366,7 +350,6 @@ allOf:
               - qcom,sm8450-dwc3
               - qcom,sm8550-dwc3
               - qcom,sm8650-dwc3
-              - qcom,sm8750-dwc3
     then:
       properties:
         clocks:
@@ -414,11 +397,12 @@ allOf:
     then:
       properties:
         interrupts:
-          minItems: 2
-          maxItems: 3
+          minItems: 3
+          maxItems: 4
         interrupt-names:
-          minItems: 2
+          minItems: 3
           items:
+            - const: dwc_usb3
             - const: pwr_event
             - const: qusb2_phy
             - const: ss_phy_irq
@@ -436,11 +420,12 @@ allOf:
     then:
       properties:
         interrupts:
-          minItems: 3
-          maxItems: 4
+          minItems: 4
+          maxItems: 5
         interrupt-names:
-          minItems: 3
+          minItems: 4
           items:
+            - const: dwc_usb3
             - const: pwr_event
             - const: qusb2_phy
             - const: hs_phy_irq
@@ -455,9 +440,10 @@ allOf:
     then:
       properties:
         interrupts:
-          maxItems: 3
+          maxItems: 4
         interrupt-names:
           items:
+            - const: dwc_usb3
             - const: pwr_event
             - const: dp_hs_phy_irq
             - const: dm_hs_phy_irq
@@ -471,11 +457,10 @@ allOf:
     then:
       properties:
         interrupts:
-          minItems: 3
-          maxItems: 4
+          maxItems: 5
         interrupt-names:
-          minItems: 3
           items:
+            - const: dwc_usb3
             - const: pwr_event
             - const: dp_hs_phy_irq
             - const: dm_hs_phy_irq
@@ -510,15 +495,15 @@ allOf:
               - qcom,sm8450-dwc3
               - qcom,sm8550-dwc3
               - qcom,sm8650-dwc3
-              - qcom,sm8750-dwc3
     then:
       properties:
         interrupts:
-          minItems: 4
-          maxItems: 5
+          minItems: 5
+          maxItems: 6
         interrupt-names:
-          minItems: 4
+          minItems: 5
           items:
+            - const: dwc_usb3
             - const: pwr_event
             - const: hs_phy_irq
             - const: dp_hs_phy_irq
@@ -535,10 +520,11 @@ allOf:
     then:
       properties:
         interrupts:
-          minItems: 10
-          maxItems: 10
+          minItems: 11
+          maxItems: 11
         interrupt-names:
           items:
+            - const: dwc_usb3
             - const: pwr_event_1
             - const: pwr_event_2
             - const: hs_phy_1
@@ -559,10 +545,11 @@ allOf:
     then:
       properties:
         interrupts:
-          minItems: 18
-          maxItems: 18
+          minItems: 19
+          maxItems: 19
         interrupt-names:
           items:
+            - const: dwc_usb3
             - const: pwr_event_1
             - const: pwr_event_2
             - const: pwr_event_3
@@ -582,7 +569,7 @@ allOf:
             - const: ss_phy_1
             - const: ss_phy_2
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
@@ -593,13 +580,10 @@ examples:
         #address-cells = <2>;
         #size-cells = <2>;
 
-        usb@a6f8800 {
-            compatible = "qcom,sdm845-dwc3", "qcom,dwc3";
-            reg = <0 0x0a6f8800 0 0x400>;
+        usb@a600000 {
+            compatible = "qcom,sdm845-dwc3", "qcom,snps-dwc3";
+            reg = <0 0x0a600000 0 0x100000>;
 
-            #address-cells = <2>;
-            #size-cells = <2>;
-            ranges;
             clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
                      <&gcc GCC_USB30_PRIM_MASTER_CLK>,
                      <&gcc GCC_AGGRE_USB3_PRIM_AXI_CLK>,
@@ -615,27 +599,24 @@ examples:
                           <&gcc GCC_USB30_PRIM_MASTER_CLK>;
             assigned-clock-rates = <19200000>, <150000000>;
 
-            interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>,
+            interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>,
                          <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>,
                          <GIC_SPI 489 IRQ_TYPE_EDGE_BOTH>,
                          <GIC_SPI 488 IRQ_TYPE_EDGE_BOTH>,
                          <GIC_SPI 486 IRQ_TYPE_LEVEL_HIGH>;
-            interrupt-names = "pwr_event", "hs_phy_irq",
+            interrupt-names = "dwc_usb3", "pwr_event", "hs_phy_irq",
                           "dp_hs_phy_irq", "dm_hs_phy_irq", "ss_phy_irq";
 
             power-domains = <&gcc USB30_PRIM_GDSC>;
 
             resets = <&gcc GCC_USB30_PRIM_BCR>;
 
-            usb@a600000 {
-                compatible = "snps,dwc3";
-                reg = <0 0x0a600000 0 0xcd00>;
-                interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
-                iommus = <&apps_smmu 0x740 0>;
-                snps,dis_u2_susphy_quirk;
-                snps,dis_enblslpm_quirk;
-                phys = <&usb_1_hsphy>, <&usb_1_ssphy>;
-                phy-names = "usb2-phy", "usb3-phy";
-            };
+            iommus = <&apps_smmu 0x740 0>;
+            snps,dis_u2_susphy_quirk;
+            snps,dis_enblslpm_quirk;
+            phys = <&usb_1_hsphy>, <&usb_1_ssphy>;
+            phy-names = "usb2-phy", "usb3-phy";
         };
     };
+...
