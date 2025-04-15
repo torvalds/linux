@@ -39,7 +39,7 @@ static int agilent_82350b_accel_read(struct gpib_board *board, u8 *buffer,
 	int retval = 0;
 	unsigned short event_status;
 	int i, num_fifo_bytes;
-	//hardware doesn't support checking for end-of-string character when using fifo
+	/* hardware doesn't support checking for end-of-string character when using fifo */
 	if (tms_priv->eos_flags & REOS)
 		return tms9914_read(board, tms_priv, buffer, length, end, bytes_read);
 
@@ -50,9 +50,9 @@ static int agilent_82350b_accel_read(struct gpib_board *board, u8 *buffer,
 	*bytes_read = 0;
 	if (length == 0)
 		return 0;
-	//disable fifo for the moment
+	/* disable fifo for the moment */
 	writeb(DIRECTION_GPIB_TO_HOST, a_priv->gpib_base + SRAM_ACCESS_CONTROL_REG);
-	// handle corner case of board not in holdoff and one byte might slip in early
+	/* handle corner case of board not in holdoff and one byte might slip in early */
 	if (tms_priv->holdoff_active == 0 && length > 1) {
 		size_t num_bytes;
 
@@ -67,7 +67,8 @@ static int agilent_82350b_accel_read(struct gpib_board *board, u8 *buffer,
 	tms9914_release_holdoff(tms_priv);
 	i = 0;
 	num_fifo_bytes = length - 1;
-	write_byte(tms_priv, tms_priv->imr0_bits & ~HR_BIIE, IMR0); // disable BI interrupts
+	/* disable BI interrupts */
+	write_byte(tms_priv, tms_priv->imr0_bits & ~HR_BIIE, IMR0);
 	while (i < num_fifo_bytes && *end == 0) {
 		int block_size;
 		int j;
@@ -111,17 +112,18 @@ static int agilent_82350b_accel_read(struct gpib_board *board, u8 *buffer,
 			break;
 		}
 	}
-	write_byte(tms_priv, tms_priv->imr0_bits, IMR0); // re-enable BI interrupts
+	/* re-enable BI interrupts */
+	write_byte(tms_priv, tms_priv->imr0_bits, IMR0);
 	*bytes_read += i;
 	buffer += i;
 	length -= i;
 	writeb(DIRECTION_GPIB_TO_HOST, a_priv->gpib_base + SRAM_ACCESS_CONTROL_REG);
 	if (retval < 0)
 		return retval;
-	// read last bytes if we havn't received an END yet
+	/* read last bytes if we havn't received an END yet */
 	if (*end == 0) {
 		size_t num_bytes;
-		// try to make sure we holdoff after last byte read
+		/* try to make sure we holdoff after last byte read */
 		retval = tms9914_read(board, tms_priv, buffer, length, end, &num_bytes);
 		*bytes_read += num_bytes;
 		if (retval < 0)
@@ -169,7 +171,7 @@ static int agilent_82350b_accel_write(struct gpib_board *board, u8 *buffer,
 	event_status = read_and_clear_event_status(board);
 
 #ifdef EXPERIMENTAL
-	// wait for previous BO to complete if any
+	/* wait for previous BO to complete if any */
 	retval = wait_event_interruptible(board->wait,
 					  test_bit(DEV_CLEAR_BN, &tms_priv->state) ||
 					  test_bit(WRITE_READY_BN, &tms_priv->state) ||
@@ -192,7 +194,7 @@ static int agilent_82350b_accel_write(struct gpib_board *board, u8 *buffer,
 		block_size = min(fifotransferlength - i, agilent_82350b_fifo_size);
 		set_transfer_counter(a_priv, block_size);
 		for (j = 0; j < block_size; ++j, ++i) {
-			// load data into board's sram
+			/* load data into board's sram */
 			writeb(buffer[i], a_priv->sram_base + j);
 		}
 		writeb(ENABLE_TI_TO_SRAM, a_priv->gpib_base + SRAM_ACCESS_CONTROL_REG);
@@ -262,7 +264,7 @@ static irqreturn_t agilent_82350b_interrupt(int irq, void *arg)
 		tms9914_interrupt_have_status(board, &a_priv->tms9914_priv, tms9914_status1,
 					      tms9914_status2);
 	}
-//write-clear status bits
+	/* write-clear status bits */
 	if (event_status & (BUFFER_END_STATUS_BIT | TERM_COUNT_STATUS_BIT)) {
 		writeb(event_status & (BUFFER_END_STATUS_BIT | TERM_COUNT_STATUS_BIT),
 		       a_priv->gpib_base + EVENT_STATUS_REG);
@@ -292,11 +294,11 @@ static void set_transfer_counter(struct agilent_82350b_priv *a_priv, int count)
 
 	writeb(complement & 0xff, a_priv->gpib_base + XFER_COUNT_LO_REG);
 	writeb((complement >> 8) & 0xff, a_priv->gpib_base + XFER_COUNT_MID_REG);
-	//I don't think the hi count reg is even used, but oh well
+	/* I don't think the hi count reg is even used, but oh well */
 	writeb((complement >> 16) & 0xf, a_priv->gpib_base + XFER_COUNT_HI_REG);
 }
 
-// wrappers for interface functions
+/* wrappers for interface functions */
 static int agilent_82350b_read(struct gpib_board *board, u8 *buffer,
 			       size_t length, int *end, size_t *bytes_read)
 {
@@ -511,18 +513,18 @@ static int init_82350a_hardware(struct gpib_board *board,
 		PLX9050_PCI_RETRY_DELAY_BITS(64) |
 		PLX9050_DIRECT_SLAVE_LOCK_ENABLE_BIT;
 
-// load borg data
+	/* load borg data */
 	borg_status = readb(a_priv->borg_base);
 	if ((borg_status & BORG_DONE_BIT))
 		return 0;
-	// need to programme borg
+	/* need to programme borg */
 	if (!config->init_data || config->init_data_length != firmware_length) {
 		dev_err(board->gpib_dev, "the 82350A board requires firmware after powering on.\n");
 		return -EIO;
 	}
 	dev_dbg(board->gpib_dev, "Loading firmware...\n");
 
-	// tickle the borg
+	/* tickle the borg */
 	writel(plx_cntrl_static_bits | PLX9050_USER3_DATA_BIT,
 	       a_priv->plx_base + PLX9050_CNTRL_REG);
 	usleep_range(1000, 2000);
@@ -563,7 +565,7 @@ static int test_sram(struct gpib_board *board)
 	struct agilent_82350b_priv *a_priv = board->private_data;
 	unsigned int i;
 	const unsigned int sram_length = pci_resource_len(a_priv->pci_device, SRAM_82350A_REGION);
-	// test SRAM
+	/* test SRAM */
 	const unsigned int byte_mask = 0xff;
 
 	for (i = 0; i < sram_length; ++i) {
@@ -606,7 +608,7 @@ static int agilent_82350b_generic_attach(struct gpib_board *board,
 	tms_priv->write_byte = tms9914_iomem_write_byte;
 	tms_priv->offset = 1;
 
-	// find board
+	/* find board */
 	a_priv->pci_device = gpib_pci_get_device(config, PCI_VENDOR_ID_AGILENT,
 						 PCI_DEVICE_ID_82350B, NULL);
 	if (a_priv->pci_device) {
@@ -702,7 +704,7 @@ static int agilent_82350b_generic_attach(struct gpib_board *board,
 	writeb(a_priv->card_mode_bits, a_priv->gpib_base + CARD_MODE_REG);
 
 	if (a_priv->model == MODEL_82350A) {
-		// enable PCI interrupts for 82350a
+		/* enable PCI interrupts for 82350a */
 		writel(PLX9050_LINTR1_EN_BIT | PLX9050_LINTR2_POLARITY_BIT |
 		       PLX9050_PCI_INTR_EN_BIT,
 		       a_priv->plx_base + PLX9050_INTCSR_REG);
@@ -713,7 +715,7 @@ static int agilent_82350b_generic_attach(struct gpib_board *board,
 		       a_priv->gpib_base + EVENT_ENABLE_REG);
 		writeb(ENABLE_TERM_COUNT_INTERRUPT_BIT | ENABLE_BUFFER_END_INTERRUPT_BIT |
 		       ENABLE_TMS9914_INTERRUPTS_BIT, a_priv->gpib_base + INTERRUPT_ENABLE_REG);
-		//write-clear event status bits
+		/* write-clear event status bits */
 		writeb(BUFFER_END_STATUS_BIT | TERM_COUNT_STATUS_BIT,
 		       a_priv->gpib_base + EVENT_STATUS_REG);
 	} else {
@@ -747,7 +749,7 @@ static void agilent_82350b_detach(struct gpib_board *board)
 	struct tms9914_priv *tms_priv;
 
 	if (a_priv) {
-		if (a_priv->plx_base) // disable interrupts
+		if (a_priv->plx_base) /* disable interrupts */
 			writel(0, a_priv->plx_base + PLX9050_INTCSR_REG);
 
 		tms_priv = &a_priv->tms9914_priv;
@@ -790,7 +792,7 @@ static struct gpib_interface agilent_82350b_unaccel_interface = {
 	.parallel_poll = agilent_82350b_parallel_poll,
 	.parallel_poll_configure = agilent_82350b_parallel_poll_configure,
 	.parallel_poll_response = agilent_82350b_parallel_poll_response,
-	.local_parallel_poll_mode = NULL, // XXX
+	.local_parallel_poll_mode = NULL, /* XXX */
 	.line_status = agilent_82350b_line_status,
 	.update_status = agilent_82350b_update_status,
 	.primary_address = agilent_82350b_primary_address,
@@ -818,7 +820,7 @@ static struct gpib_interface agilent_82350b_interface = {
 	.parallel_poll = agilent_82350b_parallel_poll,
 	.parallel_poll_configure = agilent_82350b_parallel_poll_configure,
 	.parallel_poll_response = agilent_82350b_parallel_poll_response,
-	.local_parallel_poll_mode = NULL, // XXX
+	.local_parallel_poll_mode = NULL, /* XXX */
 	.line_status = agilent_82350b_line_status,
 	.update_status = agilent_82350b_update_status,
 	.primary_address = agilent_82350b_primary_address,
