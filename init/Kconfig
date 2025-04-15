@@ -479,16 +479,6 @@ config CROSS_MEMORY_ATTACH
 	  to directly read from or write to another process' address space.
 	  See the man page for more details.
 
-config USELIB
-	bool "uselib syscall (for libc5 and earlier)"
-	default ALPHA || M68K || SPARC
-	help
-	  This option enables the uselib syscall, a system call used in the
-	  dynamic linker from libc5 and earlier.  glibc does not use this
-	  system call.  If you intend to run programs built on libc5 or
-	  earlier, you may need to enable this syscall.  Current systems
-	  running glibc can safely disable this.
-
 config AUDIT
 	bool "Auditing support"
 	depends on NET
