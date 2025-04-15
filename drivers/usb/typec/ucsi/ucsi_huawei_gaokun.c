@@ -359,6 +359,7 @@ static int gaokun_ucsi_notify(struct notifier_block *nb,
 			      unsigned long action, void *data)
 {
 	u32 cci;
+	int ret;
 	struct gaokun_ucsi *uec = container_of(nb, struct gaokun_ucsi, nb);
 
 	switch (action) {
@@ -368,7 +369,10 @@ static int gaokun_ucsi_notify(struct notifier_block *nb,
 		return NOTIFY_OK;
 
 	case EC_EVENT_UCSI:
-		gaokun_ucsi_read_cci(uec->ucsi, &cci);
+		ret = gaokun_ucsi_read_cci(uec->ucsi, &cci);
+		if (ret)
+			return NOTIFY_DONE;
+
 		ucsi_notify_common(uec->ucsi, cci);
 		if (UCSI_CCI_CONNECTOR(cci))
 			gaokun_ucsi_handle_no_usb_event(uec, UCSI_CCI_CONNECTOR(cci) - 1);
