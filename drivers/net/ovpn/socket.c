@@ -49,8 +49,8 @@ static bool ovpn_socket_put(struct ovpn_peer *peer, struct ovpn_socket *sock)
  * ovpn_socket_release - release resources owned by socket user
  * @peer: peer whose socket should be released
  *
- * This function should be invoked when the user is shutting
- * down and wants to drop its link to the socket.
+ * This function should be invoked when the peer is being removed
+ * and wants to drop its link to the socket.
  *
  * In case of UDP, the detach routine will drop a reference to the
  * ovpn netdev, pointed by the ovpn_socket.
