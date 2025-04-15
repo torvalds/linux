@@ -19,6 +19,7 @@
 #include "main.h"
 #include "netlink.h"
 #include "io.h"
+#include "peer.h"
 #include "proto.h"
 
 static const struct net_device_ops ovpn_netdev_ops = {
@@ -92,6 +93,7 @@ static int ovpn_newlink(struct net_device *dev,
 
 	ovpn->dev = dev;
 	ovpn->mode = mode;
+	spin_lock_init(&ovpn->lock);
 
 	/* Set carrier explicitly after registration, this way state is
 	 * clearly defined.
@@ -107,6 +109,16 @@ static int ovpn_newlink(struct net_device *dev,
 		netif_carrier_off(dev);
 
 	return register_netdevice(dev);
+}
+
+static void ovpn_dellink(struct net_device *dev, struct list_head *head)
+{
+	struct ovpn_priv *ovpn = netdev_priv(dev);
+
+	if (ovpn->mode == OVPN_MODE_P2P)
+		ovpn_peer_release_p2p(ovpn, OVPN_DEL_PEER_REASON_TEARDOWN);
+
+	unregister_netdevice_queue(dev, head);
 }
 
 static int ovpn_fill_info(struct sk_buff *skb, const struct net_device *dev)
@@ -127,7 +139,7 @@ static struct rtnl_link_ops ovpn_link_ops = {
 	.policy = ovpn_policy,
 	.maxtype = IFLA_OVPN_MAX,
 	.newlink = ovpn_newlink,
-	.dellink = unregister_netdevice_queue,
+	.dellink = ovpn_dellink,
 	.fill_info = ovpn_fill_info,
 };
 
