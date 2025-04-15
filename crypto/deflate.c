@@ -60,7 +60,7 @@ static int deflate_compress_one(struct acomp_req *req,
 	struct acomp_walk walk;
 	int ret;
 
-	ret = acomp_walk_virt(&walk, req);
+	ret = acomp_walk_virt(&walk, req, true);
 	if (ret)
 		return ret;
 
@@ -140,7 +140,7 @@ static int deflate_decompress_one(struct acomp_req *req,
 	struct acomp_walk walk;
 	int ret;
 
-	ret = acomp_walk_virt(&walk, req);
+	ret = acomp_walk_virt(&walk, req, true);
 	if (ret)
 		return ret;
 

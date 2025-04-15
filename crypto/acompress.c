@@ -536,7 +536,7 @@ int acomp_walk_next_dst(struct acomp_walk *walk)
 EXPORT_SYMBOL_GPL(acomp_walk_next_dst);
 
 int acomp_walk_virt(struct acomp_walk *__restrict walk,
-		    struct acomp_req *__restrict req)
+		    struct acomp_req *__restrict req, bool atomic)
 {
 	struct scatterlist *src = req->src;
 	struct scatterlist *dst = req->dst;
@@ -548,7 +548,7 @@ int acomp_walk_virt(struct acomp_walk *__restrict walk,
 		return -EINVAL;
 
 	walk->flags = 0;
-	if ((req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP))
+	if ((req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) && !atomic)
 		walk->flags |= ACOMP_WALK_SLEEP;
 	if ((req->base.flags & CRYPTO_ACOMP_REQ_SRC_VIRT))
 		walk->flags |= ACOMP_WALK_SRC_LINEAR;

@@ -208,7 +208,7 @@ void acomp_walk_done_dst(struct acomp_walk *walk, int used);
 int acomp_walk_next_src(struct acomp_walk *walk);
 int acomp_walk_next_dst(struct acomp_walk *walk);
 int acomp_walk_virt(struct acomp_walk *__restrict walk,
-		    struct acomp_req *__restrict req);
+		    struct acomp_req *__restrict req, bool atomic);
 
 static inline bool acomp_walk_more_src(const struct acomp_walk *walk, int cur)
 {
