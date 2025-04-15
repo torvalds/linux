@@ -2306,7 +2306,7 @@ static __always_inline void __intel_pmu_disable_all(bool bts)
 static __always_inline void intel_pmu_disable_all(void)
 {
 	__intel_pmu_disable_all(true);
-	intel_pmu_pebs_disable_all();
+	static_call_cond(x86_pmu_pebs_disable_all)();
 	intel_pmu_lbr_disable_all();
 }
 
@@ -2338,7 +2338,7 @@ static void __intel_pmu_enable_all(int added, bool pmi)
 
 static void intel_pmu_enable_all(int added)
 {
-	intel_pmu_pebs_enable_all();
+	static_call_cond(x86_pmu_pebs_enable_all)();
 	__intel_pmu_enable_all(added, false);
 }
 
@@ -2595,7 +2595,7 @@ static void intel_pmu_disable_event(struct perf_event *event)
 	 * so we don't trigger the event without PEBS bit set.
 	 */
 	if (unlikely(event->attr.precise_ip))
-		intel_pmu_pebs_disable(event);
+		static_call(x86_pmu_pebs_disable)(event);
 }
 
 static void intel_pmu_assign_event(struct perf_event *event, int idx)
@@ -2948,7 +2948,7 @@ static void intel_pmu_enable_event(struct perf_event *event)
 	int idx = hwc->idx;
 
 	if (unlikely(event->attr.precise_ip))
-		intel_pmu_pebs_enable(event);
+		static_call(x86_pmu_pebs_enable)(event);
 
 	switch (idx) {
 	case 0 ... INTEL_PMC_IDX_FIXED - 1:

@@ -808,6 +808,10 @@ struct x86_pmu {
 	int		(*hw_config)(struct perf_event *event);
 	int		(*schedule_events)(struct cpu_hw_events *cpuc, int n, int *assign);
 	void		(*late_setup)(void);
+	void		(*pebs_enable)(struct perf_event *event);
+	void		(*pebs_disable)(struct perf_event *event);
+	void		(*pebs_enable_all)(void);
+	void		(*pebs_disable_all)(void);
 	unsigned	eventsel;
 	unsigned	perfctr;
 	unsigned	fixedctr;
@@ -1120,6 +1124,10 @@ DECLARE_STATIC_CALL(x86_pmu_set_period, *x86_pmu.set_period);
 DECLARE_STATIC_CALL(x86_pmu_update,     *x86_pmu.update);
 DECLARE_STATIC_CALL(x86_pmu_drain_pebs,	*x86_pmu.drain_pebs);
 DECLARE_STATIC_CALL(x86_pmu_late_setup,	*x86_pmu.late_setup);
+DECLARE_STATIC_CALL(x86_pmu_pebs_enable, *x86_pmu.pebs_enable);
+DECLARE_STATIC_CALL(x86_pmu_pebs_disable, *x86_pmu.pebs_disable);
+DECLARE_STATIC_CALL(x86_pmu_pebs_enable_all, *x86_pmu.pebs_enable_all);
+DECLARE_STATIC_CALL(x86_pmu_pebs_disable_all, *x86_pmu.pebs_disable_all);
 
 static __always_inline struct x86_perf_task_context_opt *task_context_opt(void *ctx)
 {

@@ -2679,6 +2679,11 @@ void __init intel_pebs_init(void)
 		if (format < 4)
 			x86_pmu.intel_cap.pebs_baseline = 0;
 
+		x86_pmu.pebs_enable = intel_pmu_pebs_enable;
+		x86_pmu.pebs_disable = intel_pmu_pebs_disable;
+		x86_pmu.pebs_enable_all = intel_pmu_pebs_enable_all;
+		x86_pmu.pebs_disable_all = intel_pmu_pebs_disable_all;
+
 		switch (format) {
 		case 0:
 			pr_cont("PEBS fmt0%c, ", pebs_type);
