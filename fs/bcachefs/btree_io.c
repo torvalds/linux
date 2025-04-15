@@ -1018,7 +1018,6 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 	bool used_mempool, blacklisted;
 	bool updated_range = b->key.k.type == KEY_TYPE_btree_ptr_v2 &&
 		BTREE_PTR_RANGE_UPDATED(&bkey_i_to_btree_ptr_v2(&b->key)->v);
-	unsigned u64s;
 	unsigned ptr_written = btree_ptr_sectors_written(bkey_i_to_s_c(&b->key));
 	u64 max_journal_seq = 0;
 	struct printbuf buf = PRINTBUF;
@@ -1225,23 +1224,20 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 	sorted = btree_bounce_alloc(c, btree_buf_bytes(b), &used_mempool);
 	sorted->keys.u64s = 0;
 
-	set_btree_bset(b, b->set, &b->data->keys);
-
 	b->nr = bch2_key_sort_fix_overlapping(c, &sorted->keys, iter);
 	memset((uint8_t *)(sorted + 1) + b->nr.live_u64s * sizeof(u64), 0,
 			btree_buf_bytes(b) -
 			sizeof(struct btree_node) -
 			b->nr.live_u64s * sizeof(u64));
 
-	u64s = le16_to_cpu(sorted->keys.u64s);
+	b->data->keys.u64s = sorted->keys.u64s;
 	*sorted = *b->data;
-	sorted->keys.u64s = cpu_to_le16(u64s);
 	swap(sorted, b->data);
 	set_btree_bset(b, b->set, &b->data->keys);
 	b->nsets = 1;
 	b->data->keys.journal_seq = cpu_to_le64(max_journal_seq);
 
-	BUG_ON(b->nr.live_u64s != u64s);
+	BUG_ON(b->nr.live_u64s != le16_to_cpu(b->data->keys.u64s));
 
 	btree_bounce_free(c, btree_buf_bytes(b), used_mempool, sorted);
 
