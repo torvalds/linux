@@ -262,7 +262,7 @@ int bch2_set_rebalance_needs_scan(struct bch_fs *c, u64 inum)
 	int ret = bch2_trans_commit_do(c, NULL, NULL,
 				       BCH_TRANS_COMMIT_no_enospc,
 			    bch2_set_rebalance_needs_scan_trans(trans, inum));
-	rebalance_wakeup(c);
+	bch2_rebalance_wakeup(c);
 	return ret;
 }
 
@@ -664,7 +664,7 @@ void bch2_rebalance_stop(struct bch_fs *c)
 	c->rebalance.thread = NULL;
 
 	if (p) {
-		/* for sychronizing with rebalance_wakeup() */
+		/* for sychronizing with bch2_rebalance_wakeup() */
 		synchronize_rcu();
 
 		kthread_stop(p);
