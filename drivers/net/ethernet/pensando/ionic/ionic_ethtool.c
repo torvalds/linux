@@ -948,44 +948,6 @@ static int ionic_get_tunable(struct net_device *netdev,
 	return 0;
 }
 
-static int ionic_get_module_info(struct net_device *netdev,
-				 struct ethtool_modinfo *modinfo)
-
-{
-	struct ionic_lif *lif = netdev_priv(netdev);
-	struct ionic_dev *idev = &lif->ionic->idev;
-	struct ionic_xcvr_status *xcvr;
-	struct sfp_eeprom_base *sfp;
-
-	xcvr = &idev->port_info->status.xcvr;
-	sfp = (struct sfp_eeprom_base *) xcvr->sprom;
-
-	/* report the module data type and length */
-	switch (sfp->phys_id) {
-	case SFF8024_ID_SFP:
-		modinfo->type = ETH_MODULE_SFF_8079;
-		modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
-		break;
-	case SFF8024_ID_QSFP_8436_8636:
-	case SFF8024_ID_QSFP28_8636:
-		modinfo->type = ETH_MODULE_SFF_8436;
-		modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
-		break;
-	case SFF8024_ID_QSFP_PLUS_CMIS:
-		modinfo->type = ETH_MODULE_SFF_8472;
-		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
-		break;
-	default:
-		netdev_info(netdev, "unknown xcvr type 0x%02x\n",
-			    xcvr->sprom[0]);
-		modinfo->type = 0;
-		modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
-		break;
-	}
-
-	return 0;
-}
-
 static int ionic_do_module_copy(u8 *dst, u8 *src, u32 len)
 {
 	char tbuf[sizeof_field(struct ionic_xcvr_status, sprom)];
@@ -1010,46 +972,43 @@ static int ionic_do_module_copy(u8 *dst, u8 *src, u32 len)
 	return 0;
 }
 
-static int ionic_get_module_eeprom(struct net_device *netdev,
-				   struct ethtool_eeprom *ee,
-				   u8 *data)
+static int ionic_get_module_eeprom_by_page(struct net_device *netdev,
+					   const struct ethtool_module_eeprom *page_data,
+					   struct netlink_ext_ack *extack)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
 	struct ionic_dev *idev = &lif->ionic->idev;
-	u32 start = ee->offset;
 	u32 err = -EINVAL;
-	u32 size = 0;
 	u8 *src;
 
-	if (start < ETH_MODULE_SFF_8079_LEN) {
-		if (start + ee->len > ETH_MODULE_SFF_8079_LEN)
-			size = ETH_MODULE_SFF_8079_LEN - start;
-		else
-			size = ee->len;
+	if (!page_data->length)
+		return -EINVAL;
 
-		src = &idev->port_info->status.xcvr.sprom[start];
-		err = ionic_do_module_copy(data, src, size);
-		if (err)
-			return err;
-
-		data += size;
-		start += size;
+	if (page_data->bank != 0) {
+		NL_SET_ERR_MSG_MOD(extack, "Only bank 0 is supported");
+		return -EINVAL;
 	}
 
-	if (start >= ETH_MODULE_SFF_8079_LEN &&
-	    start < ETH_MODULE_SFF_8472_LEN) {
-		size = ee->len - size;
-		if (start + size > ETH_MODULE_SFF_8472_LEN)
-			size = ETH_MODULE_SFF_8472_LEN - start;
-
-		start -= ETH_MODULE_SFF_8079_LEN;
-		src = &idev->port_info->sprom_epage[start];
-		err = ionic_do_module_copy(data, src, size);
-		if (err)
-			return err;
+	switch (page_data->page) {
+	case 0:
+		src = &idev->port_info->status.xcvr.sprom[page_data->offset];
+		break;
+	case 1:
+		src = &idev->port_info->sprom_page1[page_data->offset - 128];
+		break;
+	case 2:
+		src = &idev->port_info->sprom_page2[page_data->offset - 128];
+		break;
+	default:
+		return -EOPNOTSUPP;
 	}
 
-	return err;
+	memset(page_data->data, 0, page_data->length);
+	err = ionic_do_module_copy(page_data->data, src, page_data->length);
+	if (err)
+		return err;
+
+	return page_data->length;
 }
 
 static int ionic_get_ts_info(struct net_device *netdev,
@@ -1197,8 +1156,7 @@ static const struct ethtool_ops ionic_ethtool_ops = {
 	.set_rxfh		= ionic_set_rxfh,
 	.get_tunable		= ionic_get_tunable,
 	.set_tunable		= ionic_set_tunable,
-	.get_module_info	= ionic_get_module_info,
-	.get_module_eeprom	= ionic_get_module_eeprom,
+	.get_module_eeprom_by_page	= ionic_get_module_eeprom_by_page,
 	.get_pauseparam		= ionic_get_pauseparam,
 	.set_pauseparam		= ionic_set_pauseparam,
 	.get_fecparam		= ionic_get_fecparam,
