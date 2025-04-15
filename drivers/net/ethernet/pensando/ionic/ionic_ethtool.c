@@ -999,6 +999,9 @@ static int ionic_get_module_eeprom_by_page(struct net_device *netdev,
 	case 2:
 		src = &idev->port_info->sprom_page2[page_data->offset - 128];
 		break;
+	case 17:
+		src = &idev->port_info->sprom_page17[page_data->offset - 128];
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}

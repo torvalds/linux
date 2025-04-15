@@ -2842,6 +2842,7 @@ union ionic_port_identity {
  * @sprom_epage:     Extended Transceiver sprom
  * @sprom_page1:     Extended Transceiver sprom, page 1
  * @sprom_page2:     Extended Transceiver sprom, page 2
+ * @sprom_page17:    Extended Transceiver sprom, page 17
  * @rsvd:            reserved byte(s)
  * @pb_stats:        uplink pb drop stats
  */
@@ -2853,13 +2854,14 @@ struct ionic_port_info {
 		struct ionic_mgmt_port_stats mgmt_stats;
 	};
 	union {
-		u8     sprom_epage[256];
+		u8     sprom_epage[384];
 		struct {
 			u8 sprom_page1[128];
 			u8 sprom_page2[128];
+			u8 sprom_page17[128];
 		};
 	};
-	u8     rsvd[504];
+	u8     rsvd[376];
 
 	/* pb_stats must start at 2k offset */
 	struct ionic_port_pb_stats  pb_stats;
