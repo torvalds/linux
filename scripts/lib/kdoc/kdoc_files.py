@@ -270,13 +270,16 @@ class KernelFiles():
 
             msg = ""
             for name, arg in self.results[fname]:
-                msg += self.out_msg(fname, name, arg)
+                m = self.out_msg(fname, name, arg)
 
-                if msg is None:
+                if m is None:
                     ln = arg.get("ln", 0)
                     dtype = arg.get('type', "")
 
                     self.config.log.warning("%s:%d Can't handle %s",
                                             fname, ln, dtype)
+                else:
+                    msg += m
+
             if msg:
                 yield fname, msg
