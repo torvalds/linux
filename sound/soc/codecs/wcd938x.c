@@ -3280,7 +3280,6 @@ static int wcd938x_populate_dt_data(struct wcd938x_priv *wcd938x, struct device 
 		ret = mux_control_try_select(wcd938x->us_euro_mux, wcd938x->mux_state);
 		if (ret) {
 			dev_err(dev, "Error (%d) Unable to select us/euro mux state\n", ret);
-			wcd938x->mux_setup_done = false;
 			return ret;
 		}
 		wcd938x->mux_setup_done = true;
