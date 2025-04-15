@@ -303,7 +303,7 @@ static int tpm_crb_ffa_probe(struct ffa_device *ffa_dev)
 
 	if (!ffa_partition_supports_direct_recv(ffa_dev) &&
 	    !ffa_partition_supports_direct_req2_recv(ffa_dev)) {
-		pr_err("TPM partition doesn't support direct message receive.\n");
+		dev_warn(&ffa_dev->dev, "partition doesn't support direct message receive.\n");
 		return -EINVAL;
 	}
 
@@ -324,17 +324,17 @@ static int tpm_crb_ffa_probe(struct ffa_device *ffa_dev)
 	rc = tpm_crb_ffa_get_interface_version(&tpm_crb_ffa->major_version,
 					       &tpm_crb_ffa->minor_version);
 	if (rc) {
-		pr_err("failed to get crb interface version. rc:%d", rc);
+		dev_err(&ffa_dev->dev, "failed to get crb interface version. rc:%d\n", rc);
 		goto out;
 	}
 
-	pr_info("ABI version %u.%u", tpm_crb_ffa->major_version,
+	dev_info(&ffa_dev->dev, "ABI version %u.%u\n", tpm_crb_ffa->major_version,
 		tpm_crb_ffa->minor_version);
 
 	if (tpm_crb_ffa->major_version != CRB_FFA_VERSION_MAJOR ||
 	    (tpm_crb_ffa->minor_version > 0 &&
 	    tpm_crb_ffa->minor_version < CRB_FFA_VERSION_MINOR)) {
-		pr_err("Incompatible ABI version");
+		dev_warn(&ffa_dev->dev, "Incompatible ABI version\n");
 		goto out;
 	}
 
