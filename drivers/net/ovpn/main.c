@@ -116,7 +116,8 @@ static void ovpn_dellink(struct net_device *dev, struct list_head *head)
 	struct ovpn_priv *ovpn = netdev_priv(dev);
 
 	if (ovpn->mode == OVPN_MODE_P2P)
-		ovpn_peer_release_p2p(ovpn, OVPN_DEL_PEER_REASON_TEARDOWN);
+		ovpn_peer_release_p2p(ovpn, NULL,
+				      OVPN_DEL_PEER_REASON_TEARDOWN);
 
 	unregister_netdevice_queue(dev, head);
 }
