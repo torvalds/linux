@@ -185,9 +185,10 @@ static void parse_nlmsg(struct nlmsghdr *nlh)
 	}
 }
 
-static void recv_nlmsg(int fd, struct nlmsghdr *nlh)
+static void recv_nlmsg(int fd)
 {
 	char rcv_buff[8192];
+	struct nlmsghdr *nlh = (struct nlmsghdr *)rcv_buff;
 	struct sockaddr_nl rcv_nladdr = {
 		.nl_family = AF_NETLINK
 	};
@@ -204,7 +205,6 @@ static void recv_nlmsg(int fd, struct nlmsghdr *nlh)
 	int len;
 
 	len = recvmsg(fd, &rcv_msg, 0);
-	nlh = (struct nlmsghdr *)rcv_buff;
 
 	while (NLMSG_OK(nlh, len)) {
 		if (nlh->nlmsg_type == NLMSG_DONE) {
@@ -225,7 +225,6 @@ static void recv_nlmsg(int fd, struct nlmsghdr *nlh)
 
 static void get_mptcpinfo(__u32 token)
 {
-	struct nlmsghdr *nlh = NULL;
 	int fd;
 
 	fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_SOCK_DIAG);
@@ -233,7 +232,7 @@ static void get_mptcpinfo(__u32 token)
 		die_perror("Netlink socket");
 
 	send_query(fd, token);
-	recv_nlmsg(fd, nlh);
+	recv_nlmsg(fd);
 
 	close(fd);
 }
