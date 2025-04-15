@@ -24,6 +24,11 @@ struct vxlan_net {
 	struct notifier_block nexthop_notifier_block;
 };
 
+struct vxlan_fdb_key {
+	u8 eth_addr[ETH_ALEN];
+	__be32 vni;
+};
+
 /* Forwarding table entry */
 struct vxlan_fdb {
 	struct hlist_node hlist;	/* linked list of entries */
@@ -31,9 +36,8 @@ struct vxlan_fdb {
 	unsigned long	  updated;	/* jiffies */
 	unsigned long	  used;
 	struct list_head  remotes;
-	u8		  eth_addr[ETH_ALEN];
+	struct vxlan_fdb_key key;
 	u16		  state;	/* see ndm_state */
-	__be32		  vni;
 	u16		  flags;	/* see ndm_flags and below */
 	struct list_head  nh_list;
 	struct hlist_node fdb_node;
