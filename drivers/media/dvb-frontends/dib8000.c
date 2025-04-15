@@ -1584,7 +1584,7 @@ static int dib8096p_set_output_mode(struct dvb_frontend *fe, int mode)
 				dib8096p_configMpegMux(state, 3, 1, 1);
 				dib8096p_setHostBusMux(state, MPEG_ON_HOSTBUS);
 			} else {/* Use Smooth block */
-				dprintk("dib8096P setting output mode TS_SERIAL using Smooth bloc\n");
+				dprintk("dib8096P setting output mode TS_SERIAL using Smooth block\n");
 				dib8096p_setHostBusMux(state,
 						DEMOUT_ON_HOSTBUS);
 				outreg |= (2 << 6) | (0 << 1);
@@ -1612,7 +1612,8 @@ static int dib8096p_set_output_mode(struct dvb_frontend *fe, int mode)
 
 	case OUTMODE_MPEG2_FIFO:
 			/* Using Smooth block because not supported
-			   by new Mpeg Mux bloc */
+			 * by new Mpeg Mux block
+			 */
 			dprintk("dib8096P setting output mode TS_FIFO using Smooth block\n");
 			dib8096p_setHostBusMux(state, DEMOUT_ON_HOSTBUS);
 			outreg |= (5 << 6);
