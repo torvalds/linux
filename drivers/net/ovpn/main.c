@@ -93,10 +93,18 @@ static int ovpn_newlink(struct net_device *dev,
 	ovpn->dev = dev;
 	ovpn->mode = mode;
 
-	/* turn carrier explicitly off after registration, this way state is
-	 * clearly defined
+	/* Set carrier explicitly after registration, this way state is
+	 * clearly defined.
+	 *
+	 * In case of MP interfaces we keep the carrier always on.
+	 *
+	 * Carrier for P2P interfaces is initially off and it is then
+	 * switched on and off when the remote peer is added or deleted.
 	 */
-	netif_carrier_off(dev);
+	if (ovpn->mode == OVPN_MODE_MP)
+		netif_carrier_on(dev);
+	else
+		netif_carrier_off(dev);
 
 	return register_netdevice(dev);
 }
