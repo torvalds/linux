@@ -233,6 +233,29 @@ static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 	return 0;
 }
 
+static int sti_dwmac_init(struct platform_device *pdev, void *bsp_priv)
+{
+	struct sti_dwmac *dwmac = bsp_priv;
+	int ret;
+
+	ret = clk_prepare_enable(dwmac->clk);
+	if (ret)
+		return ret;
+
+	ret = sti_dwmac_set_mode(dwmac);
+	if (ret)
+		clk_disable_unprepare(dwmac->clk);
+
+	return ret;
+}
+
+static void sti_dwmac_exit(struct platform_device *pdev, void *bsp_priv)
+{
+	struct sti_dwmac *dwmac = bsp_priv;
+
+	clk_disable_unprepare(dwmac->clk);
+}
+
 static int sti_dwmac_probe(struct platform_device *pdev)
 {
 	struct plat_stmmacenet_data *plat_dat;
@@ -269,34 +292,10 @@ static int sti_dwmac_probe(struct platform_device *pdev)
 
 	plat_dat->bsp_priv = dwmac;
 	plat_dat->fix_mac_speed = data->fix_retime_src;
+	plat_dat->init = sti_dwmac_init;
+	plat_dat->exit = sti_dwmac_exit;
 
-	ret = clk_prepare_enable(dwmac->clk);
-	if (ret)
-		return ret;
-
-	ret = sti_dwmac_set_mode(dwmac);
-	if (ret)
-		goto disable_clk;
-
-	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
-	if (ret)
-		goto disable_clk;
-
-	return 0;
-
-disable_clk:
-	clk_disable_unprepare(dwmac->clk);
-
-	return ret;
-}
-
-static void sti_dwmac_remove(struct platform_device *pdev)
-{
-	struct sti_dwmac *dwmac = get_stmmac_bsp_priv(&pdev->dev);
-
-	stmmac_dvr_remove(&pdev->dev);
-
-	clk_disable_unprepare(dwmac->clk);
+	return devm_stmmac_pltfr_probe(pdev, plat_dat, &stmmac_res);
 }
 
 static int sti_dwmac_suspend(struct device *dev)
@@ -334,7 +333,6 @@ MODULE_DEVICE_TABLE(of, sti_dwmac_match);
 
 static struct platform_driver sti_dwmac_driver = {
 	.probe  = sti_dwmac_probe,
-	.remove = sti_dwmac_remove,
 	.driver = {
 		.name           = "sti-dwmac",
 		.pm		= pm_sleep_ptr(&sti_dwmac_pm_ops),
