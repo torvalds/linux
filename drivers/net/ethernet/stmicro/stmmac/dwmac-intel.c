@@ -300,11 +300,8 @@ static void intel_speed_mode_2500(struct net_device *ndev, void *intel_data)
 	if (((data & SERDES_LINK_MODE_MASK) >> SERDES_LINK_MODE_SHIFT) ==
 	    SERDES_LINK_MODE_2G5) {
 		dev_info(priv->device, "Link Speed Mode: 2.5Gbps\n");
-		priv->plat->max_speed = 2500;
 		priv->plat->phy_interface = PHY_INTERFACE_MODE_2500BASEX;
 		priv->plat->mdio_bus_data->default_an_inband = false;
-	} else {
-		priv->plat->max_speed = 1000;
 	}
 }
 
