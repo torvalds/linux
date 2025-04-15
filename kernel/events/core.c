@@ -2343,6 +2343,7 @@ static void perf_child_detach(struct perf_event *event)
 	 * not being a child event. See for example unaccount_event().
 	 */
 	event->parent = EVENT_TOMBSTONE;
+	put_event(parent_event);
 }
 
 static bool is_orphaned_event(struct perf_event *event)
@@ -5688,7 +5689,7 @@ static void put_event(struct perf_event *event)
 	_free_event(event);
 
 	/* Matches the refcount bump in inherit_event() */
-	if (parent)
+	if (parent && parent != EVENT_TOMBSTONE)
 		put_event(parent);
 }
 
