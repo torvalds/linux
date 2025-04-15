@@ -15,6 +15,7 @@
 #include <linux/igmp.h>
 #include <linux/if_ether.h>
 #include <linux/ethtool.h>
+#include <linux/rhashtable.h>
 #include <net/arp.h>
 #include <net/ndisc.h>
 #include <net/gro.h>
@@ -63,8 +64,12 @@ static int vxlan_sock_add(struct vxlan_dev *vxlan);
 
 static void vxlan_vs_del_dev(struct vxlan_dev *vxlan);
 
-/* salt for hash table */
-static u32 vxlan_salt __read_mostly;
+static const struct rhashtable_params vxlan_fdb_rht_params = {
+	.head_offset = offsetof(struct vxlan_fdb, rhnode),
+	.key_offset = offsetof(struct vxlan_fdb, key),
+	.key_len = sizeof(struct vxlan_fdb_key),
+	.automatic_shrinking = true,
+};
 
 static inline bool vxlan_collect_metadata(struct vxlan_sock *vs)
 {
@@ -371,62 +376,21 @@ static void vxlan_fdb_miss(struct vxlan_dev *vxlan, const u8 eth_addr[ETH_ALEN])
 	vxlan_fdb_notify(vxlan, &f, &remote, RTM_GETNEIGH, true, NULL);
 }
 
-/* Hash Ethernet address */
-static u32 eth_hash(const unsigned char *addr)
-{
-	u64 value = get_unaligned((u64 *)addr);
-
-	/* only want 6 bytes */
-#ifdef __BIG_ENDIAN
-	value >>= 16;
-#else
-	value <<= 16;
-#endif
-	return hash_64(value, FDB_HASH_BITS);
-}
-
-u32 eth_vni_hash(const unsigned char *addr, __be32 vni)
-{
-	/* use 1 byte of OUI and 3 bytes of NIC */
-	u32 key = get_unaligned((u32 *)(addr + 2));
-
-	return jhash_2words(key, vni, vxlan_salt) & (FDB_HASH_SIZE - 1);
-}
-
-u32 fdb_head_index(struct vxlan_dev *vxlan, const u8 *mac, __be32 vni)
-{
-	if (vxlan->cfg.flags & VXLAN_F_COLLECT_METADATA)
-		return eth_vni_hash(mac, vni);
-	else
-		return eth_hash(mac);
-}
-
-/* Hash chain to use given mac address */
-static inline struct hlist_head *vxlan_fdb_head(struct vxlan_dev *vxlan,
-						const u8 *mac, __be32 vni)
-{
-	return &vxlan->fdb_head[fdb_head_index(vxlan, mac, vni)];
-}
-
 /* Look up Ethernet address in forwarding table */
 static struct vxlan_fdb *vxlan_find_mac_rcu(struct vxlan_dev *vxlan,
 					    const u8 *mac, __be32 vni)
 {
-	struct hlist_head *head = vxlan_fdb_head(vxlan, mac, vni);
-	struct vxlan_fdb *f;
+	struct vxlan_fdb_key key;
 
-	hlist_for_each_entry_rcu(f, head, hlist) {
-		if (ether_addr_equal(mac, f->key.eth_addr)) {
-			if (vxlan->cfg.flags & VXLAN_F_COLLECT_METADATA) {
-				if (vni == f->key.vni)
-					return f;
-			} else {
-				return f;
-			}
-		}
-	}
+	memset(&key, 0, sizeof(key));
+	memcpy(key.eth_addr, mac, sizeof(key.eth_addr));
+	if (!(vxlan->cfg.flags & VXLAN_F_COLLECT_METADATA))
+		key.vni = vxlan->default_dst.remote_vni;
+	else
+		key.vni = vni;
 
-	return NULL;
+	return rhashtable_lookup(&vxlan->fdb_hash_tbl, &key,
+				 vxlan_fdb_rht_params);
 }
 
 static struct vxlan_fdb *vxlan_find_mac_tx(struct vxlan_dev *vxlan,
@@ -915,15 +879,27 @@ int vxlan_fdb_create(struct vxlan_dev *vxlan,
 	if (rc < 0)
 		goto errout;
 
+	rc = rhashtable_lookup_insert_fast(&vxlan->fdb_hash_tbl, &f->rhnode,
+					   vxlan_fdb_rht_params);
+	if (rc)
+		goto destroy_remote;
+
 	++vxlan->addrcnt;
-	hlist_add_head_rcu(&f->hlist,
-			   vxlan_fdb_head(vxlan, mac, src_vni));
 	hlist_add_head_rcu(&f->fdb_node, &vxlan->fdb_list);
 
 	*fdb = f;
 
 	return 0;
 
+destroy_remote:
+	if (rcu_access_pointer(f->nh)) {
+		list_del_rcu(&f->nh_list);
+		nexthop_put(rtnl_dereference(f->nh));
+	} else {
+		list_del(&rd->list);
+		dst_cache_destroy(&rd->dst_cache);
+		kfree(rd);
+	}
 errout:
 	kfree(f);
 	return rc;
@@ -974,7 +950,8 @@ static void vxlan_fdb_destroy(struct vxlan_dev *vxlan, struct vxlan_fdb *f,
 	}
 
 	hlist_del_init_rcu(&f->fdb_node);
-	hlist_del_rcu(&f->hlist);
+	rhashtable_remove_fast(&vxlan->fdb_hash_tbl, &f->rhnode,
+			       vxlan_fdb_rht_params);
 	list_del_rcu(&f->nh_list);
 	call_rcu(&f->rcu, vxlan_fdb_free);
 }
@@ -2898,10 +2875,14 @@ static int vxlan_init(struct net_device *dev)
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	int err;
 
+	err = rhashtable_init(&vxlan->fdb_hash_tbl, &vxlan_fdb_rht_params);
+	if (err)
+		return err;
+
 	if (vxlan->cfg.flags & VXLAN_F_VNIFILTER) {
 		err = vxlan_vnigroup_init(vxlan);
 		if (err)
-			return err;
+			goto err_rhashtable_destroy;
 	}
 
 	err = gro_cells_init(&vxlan->gro_cells, dev);
@@ -2920,6 +2901,8 @@ err_gro_cells_destroy:
 err_vnigroup_uninit:
 	if (vxlan->cfg.flags & VXLAN_F_VNIFILTER)
 		vxlan_vnigroup_uninit(vxlan);
+err_rhashtable_destroy:
+	rhashtable_destroy(&vxlan->fdb_hash_tbl);
 	return err;
 }
 
@@ -2933,6 +2916,8 @@ static void vxlan_uninit(struct net_device *dev)
 		vxlan_vnigroup_uninit(vxlan);
 
 	gro_cells_destroy(&vxlan->gro_cells);
+
+	rhashtable_destroy(&vxlan->fdb_hash_tbl);
 }
 
 /* Start ageing timer and join group when device is brought up */
@@ -3329,7 +3314,6 @@ static void vxlan_offload_rx_ports(struct net_device *dev, bool push)
 static void vxlan_setup(struct net_device *dev)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
-	unsigned int h;
 
 	eth_hw_addr_random(dev);
 	ether_setup(dev);
@@ -3362,8 +3346,6 @@ static void vxlan_setup(struct net_device *dev)
 
 	vxlan->dev = dev;
 
-	for (h = 0; h < FDB_HASH_SIZE; ++h)
-		INIT_HLIST_HEAD(&vxlan->fdb_head[h]);
 	INIT_HLIST_HEAD(&vxlan->fdb_list);
 }
 
@@ -4943,8 +4925,6 @@ static struct pernet_operations vxlan_net_ops = {
 static int __init vxlan_init_module(void)
 {
 	int rc;
-
-	get_random_bytes(&vxlan_salt, sizeof(vxlan_salt));
 
 	rc = register_pernet_subsys(&vxlan_net_ops);
 	if (rc)

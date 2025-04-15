@@ -31,7 +31,7 @@ struct vxlan_fdb_key {
 
 /* Forwarding table entry */
 struct vxlan_fdb {
-	struct hlist_node hlist;	/* linked list of entries */
+	struct rhash_head rhnode;
 	struct rcu_head	  rcu;
 	unsigned long	  updated;	/* jiffies */
 	unsigned long	  used;
