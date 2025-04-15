@@ -22,6 +22,7 @@
 #include "crypto_aead.h"
 #include "netlink.h"
 #include "proto.h"
+#include "tcp.h"
 #include "udp.h"
 #include "skb.h"
 #include "socket.h"
@@ -210,6 +211,9 @@ void ovpn_encrypt_post(void *data, int ret)
 	switch (sock->sock->sk->sk_protocol) {
 	case IPPROTO_UDP:
 		ovpn_udp_send_skb(peer, sock->sock, skb);
+		break;
+	case IPPROTO_TCP:
+		ovpn_tcp_send_skb(peer, sock->sock, skb);
 		break;
 	default:
 		/* no transport configured yet */

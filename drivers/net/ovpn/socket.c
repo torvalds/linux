@@ -16,6 +16,7 @@
 #include "io.h"
 #include "peer.h"
 #include "socket.h"
+#include "tcp.h"
 #include "udp.h"
 
 static void ovpn_socket_release_kref(struct kref *kref)
@@ -23,12 +24,10 @@ static void ovpn_socket_release_kref(struct kref *kref)
 	struct ovpn_socket *sock = container_of(kref, struct ovpn_socket,
 						refcount);
 
-	if (sock->sock->sk->sk_protocol == IPPROTO_UDP) {
+	if (sock->sock->sk->sk_protocol == IPPROTO_UDP)
 		ovpn_udp_socket_detach(sock);
-		netdev_put(sock->ovpn->dev, &sock->dev_tracker);
-	}
-
-	kfree_rcu(sock, rcu);
+	else if (sock->sock->sk->sk_protocol == IPPROTO_TCP)
+		ovpn_tcp_socket_detach(sock);
 }
 
 /**
@@ -38,10 +37,12 @@ static void ovpn_socket_release_kref(struct kref *kref)
  *
  * This function is only used internally. Users willing to release
  * references to the ovpn_socket should use ovpn_socket_release()
+ *
+ * Return: true if the socket was released, false otherwise
  */
-static void ovpn_socket_put(struct ovpn_peer *peer, struct ovpn_socket *sock)
+static bool ovpn_socket_put(struct ovpn_peer *peer, struct ovpn_socket *sock)
 {
-	kref_put(&sock->refcount, ovpn_socket_release_kref);
+	return kref_put(&sock->refcount, ovpn_socket_release_kref);
 }
 
 /**
@@ -65,6 +66,7 @@ static void ovpn_socket_put(struct ovpn_peer *peer, struct ovpn_socket *sock)
 void ovpn_socket_release(struct ovpn_peer *peer)
 {
 	struct ovpn_socket *sock;
+	bool released;
 
 	might_sleep();
 
@@ -89,11 +91,26 @@ void ovpn_socket_release(struct ovpn_peer *peer)
 	 * detached before it can be picked by a concurrent reader.
 	 */
 	lock_sock(sock->sock->sk);
-	ovpn_socket_put(peer, sock);
+	released = ovpn_socket_put(peer, sock);
 	release_sock(sock->sock->sk);
 
 	/* align all readers with sk_user_data being NULL */
 	synchronize_rcu();
+
+	/* following cleanup should happen with lock released */
+	if (released) {
+		if (sock->sock->sk->sk_protocol == IPPROTO_UDP) {
+			netdev_put(sock->ovpn->dev, &sock->dev_tracker);
+		} else if (sock->sock->sk->sk_protocol == IPPROTO_TCP) {
+			/* wait for TCP jobs to terminate */
+			ovpn_tcp_socket_wait_finish(sock);
+			ovpn_peer_put(sock->peer);
+		}
+		/* we can call plain kfree() because we already waited one RCU
+		 * period due to synchronize_rcu()
+		 */
+		kfree(sock);
+	}
 }
 
 static bool ovpn_socket_hold(struct ovpn_socket *sock)
@@ -105,6 +122,8 @@ static int ovpn_socket_attach(struct ovpn_socket *sock, struct ovpn_peer *peer)
 {
 	if (sock->sock->sk->sk_protocol == IPPROTO_UDP)
 		return ovpn_udp_socket_attach(sock, peer->ovpn);
+	else if (sock->sock->sk->sk_protocol == IPPROTO_TCP)
+		return ovpn_tcp_socket_attach(sock, peer);
 
 	return -EOPNOTSUPP;
 }
@@ -191,7 +210,14 @@ struct ovpn_socket *ovpn_socket_new(struct socket *sock, struct ovpn_peer *peer)
 		goto sock_release;
 	}
 
-	if (sock->sk->sk_protocol == IPPROTO_UDP) {
+	/* TCP sockets are per-peer, therefore they are linked to their unique
+	 * peer
+	 */
+	if (sock->sk->sk_protocol == IPPROTO_TCP) {
+		INIT_WORK(&ovpn_sock->tcp_tx_work, ovpn_tcp_tx_work);
+		ovpn_sock->peer = peer;
+		ovpn_peer_hold(peer);
+	} else if (sock->sk->sk_protocol == IPPROTO_UDP) {
 		/* in UDP we only link the ovpn instance since the socket is
 		 * shared among multiple peers
 		 */

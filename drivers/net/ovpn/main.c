@@ -22,6 +22,7 @@
 #include "io.h"
 #include "peer.h"
 #include "proto.h"
+#include "tcp.h"
 #include "udp.h"
 
 static int ovpn_net_init(struct net_device *dev)
@@ -176,6 +177,8 @@ static int __init ovpn_init(void)
 		pr_err("ovpn: can't register netlink family: %d\n", err);
 		goto unreg_rtnl;
 	}
+
+	ovpn_tcp_init();
 
 	return 0;
 
