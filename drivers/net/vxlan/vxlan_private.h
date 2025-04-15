@@ -36,6 +36,7 @@ struct vxlan_fdb {
 	__be32		  vni;
 	u16		  flags;	/* see ndm_flags and below */
 	struct list_head  nh_list;
+	struct hlist_node fdb_node;
 	struct nexthop __rcu *nh;
 	struct vxlan_dev  __rcu *vdev;
 };

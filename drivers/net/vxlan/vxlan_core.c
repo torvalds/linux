@@ -908,6 +908,7 @@ int vxlan_fdb_create(struct vxlan_dev *vxlan,
 	++vxlan->addrcnt;
 	hlist_add_head_rcu(&f->hlist,
 			   vxlan_fdb_head(vxlan, mac, src_vni));
+	hlist_add_head_rcu(&f->fdb_node, &vxlan->fdb_list);
 
 	*fdb = f;
 
@@ -962,6 +963,7 @@ static void vxlan_fdb_destroy(struct vxlan_dev *vxlan, struct vxlan_fdb *f,
 						 swdev_notify, NULL);
 	}
 
+	hlist_del_init_rcu(&f->fdb_node);
 	hlist_del_rcu(&f->hlist);
 	list_del_rcu(&f->nh_list);
 	call_rcu(&f->rcu, vxlan_fdb_free);
@@ -3360,6 +3362,7 @@ static void vxlan_setup(struct net_device *dev)
 
 	for (h = 0; h < FDB_HASH_SIZE; ++h)
 		INIT_HLIST_HEAD(&vxlan->fdb_head[h]);
+	INIT_HLIST_HEAD(&vxlan->fdb_list);
 }
 
 static void vxlan_ether_setup(struct net_device *dev)

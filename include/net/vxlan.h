@@ -307,6 +307,7 @@ struct vxlan_dev {
 	struct hlist_head fdb_head[FDB_HASH_SIZE];
 
 	struct rhashtable mdb_tbl;
+	struct hlist_head fdb_list;
 	struct hlist_head mdb_list;
 	unsigned int mdb_seq;
 };
