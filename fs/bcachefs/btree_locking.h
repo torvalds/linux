@@ -15,7 +15,6 @@
 
 void bch2_btree_lock_init(struct btree_bkey_cached_common *, enum six_lock_init_flags, gfp_t gfp);
 
-void bch2_trans_unlock_noassert(struct btree_trans *);
 void bch2_trans_unlock_write(struct btree_trans *);
 
 static inline bool is_btree_node(struct btree_path *path, unsigned l)

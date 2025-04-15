@@ -977,7 +977,7 @@ static noinline struct btree *bch2_btree_node_fill(struct btree_trans *trans,
 
 		/* Unlock before doing IO: */
 		six_unlock_intent(&b->c.lock);
-		bch2_trans_unlock_noassert(trans);
+		bch2_trans_unlock(trans);
 
 		bch2_btree_node_read(trans, b, sync);
 
