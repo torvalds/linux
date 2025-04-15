@@ -127,6 +127,11 @@ enum tx_sched_mode {
 	TC_SCH_WRR2,
 };
 
+enum trtcm_unit_type {
+	TRTCM_BYTE_UNIT,
+	TRTCM_PACKET_UNIT,
+};
+
 enum trtcm_param_type {
 	TRTCM_MISC_MODE, /* meter_en, pps_mode, tick_sel */
 	TRTCM_TOKEN_RATE_MODE,
@@ -554,8 +559,7 @@ bool airoha_is_valid_gdm_port(struct airoha_eth *eth,
 
 void airoha_ppe_check_skb(struct airoha_ppe *ppe, struct sk_buff *skb,
 			  u16 hash);
-int airoha_ppe_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
-				 void *cb_priv);
+int airoha_ppe_setup_tc_block_cb(struct net_device *dev, void *type_data);
 int airoha_ppe_init(struct airoha_eth *eth);
 void airoha_ppe_deinit(struct airoha_eth *eth);
 struct airoha_foe_entry *airoha_ppe_foe_get_entry(struct airoha_ppe *ppe,

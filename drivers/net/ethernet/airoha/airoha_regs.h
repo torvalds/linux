@@ -283,6 +283,7 @@
 #define PPE_HASH_SEED				0x12345678
 
 #define REG_PPE_DFT_CPORT0(_n)			(((_n) ? PPE2_BASE : PPE1_BASE) + 0x248)
+#define DFT_CPORT_MASK(_n)			GENMASK(3 + ((_n) << 2), ((_n) << 2))
 
 #define REG_PPE_DFT_CPORT1(_n)			(((_n) ? PPE2_BASE : PPE1_BASE) + 0x24c)
 
@@ -690,6 +691,12 @@
 #define REG_TRTCM_CFG_PARAM(_n)		((_n) + 0x4)
 #define REG_TRTCM_DATA_LOW(_n)		((_n) + 0x8)
 #define REG_TRTCM_DATA_HIGH(_n)		((_n) + 0xc)
+
+#define RATE_LIMIT_PARAM_RW_MASK	BIT(31)
+#define RATE_LIMIT_PARAM_RW_DONE_MASK	BIT(30)
+#define RATE_LIMIT_PARAM_TYPE_MASK	GENMASK(29, 28)
+#define RATE_LIMIT_METER_GROUP_MASK	GENMASK(27, 26)
+#define RATE_LIMIT_PARAM_INDEX_MASK	GENMASK(23, 16)
 
 #define REG_TXWRR_MODE_CFG		0x1020
 #define TWRR_WEIGHT_SCALE_MASK		BIT(31)

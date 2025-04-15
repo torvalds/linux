@@ -967,17 +967,12 @@ error_npu_put:
 	return err;
 }
 
-int airoha_ppe_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
-				 void *cb_priv)
+int airoha_ppe_setup_tc_block_cb(struct net_device *dev, void *type_data)
 {
-	struct flow_cls_offload *cls = type_data;
-	struct net_device *dev = cb_priv;
 	struct airoha_gdm_port *port = netdev_priv(dev);
+	struct flow_cls_offload *cls = type_data;
 	struct airoha_eth *eth = port->qdma->eth;
 	int err = 0;
-
-	if (!tc_can_offload(dev) || type != TC_SETUP_CLSFLOWER)
-		return -EOPNOTSUPP;
 
 	mutex_lock(&flow_offload_mutex);
 
