@@ -83,4 +83,36 @@ static inline u32 ovpn_peer_id_from_skb(const struct sk_buff *skb, u16 offset)
 	return FIELD_GET(OVPN_OPCODE_PEERID_MASK, opcode);
 }
 
+/**
+ * ovpn_key_id_from_skb - extract key ID from the skb head
+ * @skb: the packet to extract the key ID code from
+ *
+ * Note: this function assumes that the skb head was pulled enough
+ * to access the first 4 bytes.
+ *
+ * Return: the key ID
+ */
+static inline u8 ovpn_key_id_from_skb(const struct sk_buff *skb)
+{
+	u32 opcode = be32_to_cpu(*(__be32 *)skb->data);
+
+	return FIELD_GET(OVPN_OPCODE_KEYID_MASK, opcode);
+}
+
+/**
+ * ovpn_opcode_compose - combine OP code, key ID and peer ID to wire format
+ * @opcode: the OP code
+ * @key_id: the key ID
+ * @peer_id: the peer ID
+ *
+ * Return: a 4 bytes integer obtained combining all input values following the
+ * OpenVPN wire format. This integer can then be written to the packet header.
+ */
+static inline u32 ovpn_opcode_compose(u8 opcode, u8 key_id, u32 peer_id)
+{
+	return FIELD_PREP(OVPN_OPCODE_PKTTYPE_MASK, opcode) |
+	       FIELD_PREP(OVPN_OPCODE_KEYID_MASK, key_id) |
+	       FIELD_PREP(OVPN_OPCODE_PEERID_MASK, peer_id);
+}
+
 #endif /* _NET_OVPN_OVPNPROTO_H_ */
