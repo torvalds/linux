@@ -56,13 +56,7 @@ static void __comedi_buf_free(struct comedi_device *dev,
 	struct comedi_buf_map *bm;
 	unsigned long flags;
 
-	if (async->prealloc_buf) {
-		if (s->async_dma_dir == DMA_NONE)
-			vunmap(async->prealloc_buf);
-		async->prealloc_buf = NULL;
-		async->prealloc_bufsz = 0;
-	}
-
+	async->prealloc_bufsz = 0;
 	spin_lock_irqsave(&s->spin_lock, flags);
 	bm = async->buf_map;
 	async->buf_map = NULL;
@@ -141,11 +135,8 @@ static void __comedi_buf_alloc(struct comedi_device *dev,
 			       unsigned int n_pages)
 {
 	struct comedi_async *async = s->async;
-	struct page **pages = NULL;
 	struct comedi_buf_map *bm;
-	struct comedi_buf_page *buf;
 	unsigned long flags;
-	unsigned int i;
 
 	if (!IS_ENABLED(CONFIG_HAS_DMA) && s->async_dma_dir != DMA_NONE) {
 		dev_err(dev->class_dev,
@@ -160,30 +151,7 @@ static void __comedi_buf_alloc(struct comedi_device *dev,
 	spin_lock_irqsave(&s->spin_lock, flags);
 	async->buf_map = bm;
 	spin_unlock_irqrestore(&s->spin_lock, flags);
-
-	if (bm->dma_dir != DMA_NONE) {
-		/*
-		 * DMA buffer was allocated as a single block.
-		 * Address is in page_list[0].
-		 */
-		buf = &bm->page_list[0];
-		async->prealloc_buf = buf->virt_addr;
-	} else {
-		pages = vmalloc(sizeof(struct page *) * n_pages);
-		if (!pages)
-			return;
-
-		for (i = 0; i < n_pages; i++) {
-			buf = &bm->page_list[i];
-			pages[i] = virt_to_page(buf->virt_addr);
-		}
-
-		/* vmap the pages to prealloc_buf */
-		async->prealloc_buf = vmap(pages, n_pages, VM_MAP,
-					   COMEDI_PAGE_PROTECTION);
-
-		vfree(pages);
-	}
+	async->prealloc_bufsz = n_pages << PAGE_SHIFT;
 }
 
 void comedi_buf_map_get(struct comedi_buf_map *bm)
@@ -264,7 +232,7 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 	new_size = (new_size + PAGE_SIZE - 1) & PAGE_MASK;
 
 	/* if no change is required, do nothing */
-	if (async->prealloc_buf && async->prealloc_bufsz == new_size)
+	if (async->prealloc_bufsz == new_size)
 		return 0;
 
 	/* deallocate old buffer */
@@ -275,14 +243,9 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 		unsigned int n_pages = new_size >> PAGE_SHIFT;
 
 		__comedi_buf_alloc(dev, s, n_pages);
-
-		if (!async->prealloc_buf) {
-			/* allocation failed */
-			__comedi_buf_free(dev, s);
+		if (!async->prealloc_bufsz)
 			return -ENOMEM;
-		}
 	}
-	async->prealloc_bufsz = new_size;
 
 	return 0;
 }
