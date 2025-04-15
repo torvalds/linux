@@ -74,8 +74,10 @@ static int q6usb_hw_params(struct snd_pcm_substream *substream,
 		goto out;
 
 	q6usb_afe = q6afe_port_get_from_id(cpu_dai->dev, USB_RX);
-	if (IS_ERR(q6usb_afe))
+	if (IS_ERR(q6usb_afe)) {
+		ret = PTR_ERR(q6usb_afe);
 		goto out;
+	}
 
 	/* Notify audio DSP about the devices being offloaded */
 	ret = afe_port_send_usb_dev_param(q6usb_afe, sdev->card_idx,
