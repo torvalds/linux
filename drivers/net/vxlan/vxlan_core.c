@@ -3037,13 +3037,16 @@ static void vxlan_flush(struct vxlan_dev *vxlan,
 			const struct vxlan_fdb_flush_desc *desc)
 {
 	bool match_remotes = vxlan_fdb_flush_should_match_remotes(desc);
-	struct hlist_node *n;
 	struct vxlan_fdb *f;
 
-	spin_lock_bh(&vxlan->hash_lock);
-	hlist_for_each_entry_safe(f, n, &vxlan->fdb_list, fdb_node) {
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(f, &vxlan->fdb_list, fdb_node) {
 		if (!vxlan_fdb_flush_matches(f, vxlan, desc))
 			continue;
+
+		spin_lock_bh(&vxlan->hash_lock);
+		if (hlist_unhashed(&f->fdb_node))
+			goto unlock;
 
 		if (match_remotes) {
 			bool destroy_fdb = false;
@@ -3052,12 +3055,14 @@ static void vxlan_flush(struct vxlan_dev *vxlan,
 						      &destroy_fdb);
 
 			if (!destroy_fdb)
-				continue;
+				goto unlock;
 		}
 
 		vxlan_fdb_destroy(vxlan, f, true, true);
+unlock:
+		spin_unlock_bh(&vxlan->hash_lock);
 	}
-	spin_unlock_bh(&vxlan->hash_lock);
+	rcu_read_unlock();
 }
 
 static const struct nla_policy vxlan_del_bulk_policy[NDA_MAX + 1] = {
