@@ -7314,8 +7314,17 @@ __init int intel_pmu_init(void)
 		name = "meteorlake_hybrid";
 		break;
 
+	case INTEL_PANTHERLAKE_L:
+		pr_cont("Pantherlake Hybrid events, ");
+		name = "pantherlake_hybrid";
+		goto lnl_common;
+
 	case INTEL_LUNARLAKE_M:
 	case INTEL_ARROWLAKE:
+		pr_cont("Lunarlake Hybrid events, ");
+		name = "lunarlake_hybrid";
+
+	lnl_common:
 		intel_pmu_init_hybrid(hybrid_big_small);
 
 		x86_pmu.pebs_latency_data = lnl_latency_data;
@@ -7337,8 +7346,6 @@ __init int intel_pmu_init(void)
 		intel_pmu_init_skt(&pmu->pmu);
 
 		intel_pmu_pebs_data_source_lnl();
-		pr_cont("Lunarlake Hybrid events, ");
-		name = "lunarlake_hybrid";
 		break;
 
 	case INTEL_ARROWLAKE_H:
