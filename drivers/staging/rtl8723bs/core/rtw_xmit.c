@@ -1936,7 +1936,6 @@ static void do_queue_select(struct adapter	*padapter, struct pkt_attrib *pattrib
 s32 rtw_xmit(struct adapter *padapter, struct sk_buff **ppkt)
 {
 	static unsigned long start;
-	static u32 drop_cnt;
 
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct xmit_frame *pxmitframe = NULL;
@@ -1948,15 +1947,11 @@ s32 rtw_xmit(struct adapter *padapter, struct sk_buff **ppkt)
 
 	pxmitframe = rtw_alloc_xmitframe(pxmitpriv);
 
-	if (jiffies_to_msecs(jiffies - start) > 2000) {
+	if (jiffies_to_msecs(jiffies - start) > 2000)
 		start = jiffies;
-		drop_cnt = 0;
-	}
 
-	if (!pxmitframe) {
-		drop_cnt++;
+	if (!pxmitframe)
 		return -1;
-	}
 
 	res = update_attrib(padapter, *ppkt, &pxmitframe->attrib);
 
