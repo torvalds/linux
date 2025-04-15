@@ -6972,16 +6972,6 @@ qlt_81xx_config_nvram_stage2(struct scsi_qla_host *vha,
 }
 
 void
-qlt_83xx_iospace_config(struct qla_hw_data *ha)
-{
-	if (!QLA_TGT_MODE_ENABLED())
-		return;
-
-	ha->msix_count += 1; /* For ATIO Q */
-}
-
-
-void
 qlt_modify_vp_config(struct scsi_qla_host *vha,
 	struct vp_config_entry_24xx *vpmod)
 {
