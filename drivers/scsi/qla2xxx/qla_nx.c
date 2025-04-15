@@ -2915,32 +2915,6 @@ qla82xx_need_qsnt_handler(scsi_qla_host_t *vha)
 	}
 }
 
-/*
-* qla82xx_wait_for_state_change
-*    Wait for device state to change from given current state
-*
-* Note:
-*     IDC lock must not be held upon entry
-*
-* Return:
-*    Changed device state.
-*/
-uint32_t
-qla82xx_wait_for_state_change(scsi_qla_host_t *vha, uint32_t curr_state)
-{
-	struct qla_hw_data *ha = vha->hw;
-	uint32_t dev_state;
-
-	do {
-		msleep(1000);
-		qla82xx_idc_lock(ha);
-		dev_state = qla82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
-		qla82xx_idc_unlock(ha);
-	} while (dev_state == curr_state);
-
-	return dev_state;
-}
-
 void
 qla8xxx_dev_failed_handler(scsi_qla_host_t *vha)
 {
