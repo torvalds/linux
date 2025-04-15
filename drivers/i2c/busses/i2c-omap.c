@@ -1454,7 +1454,7 @@ omap_i2c_probe(struct platform_device *pdev)
 				       (1000 * omap->speed / 8);
 	}
 
-	if (of_property_read_bool(node, "mux-states")) {
+	if (of_property_present(node, "mux-states")) {
 		struct mux_state *mux_state;
 
 		mux_state = devm_mux_state_get(&pdev->dev, NULL);
