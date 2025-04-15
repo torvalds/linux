@@ -4141,7 +4141,7 @@
 			mdss0_mdp: display-controller@ae01000 {
 				compatible = "qcom,sc8280xp-dpu";
 				reg = <0 0x0ae01000 0 0x8f000>,
-				      <0 0x0aeb0000 0 0x2008>;
+				      <0 0x0aeb0000 0 0x3000>;
 				reg-names = "mdp", "vbif";
 
 				clocks = <&gcc GCC_DISP_HF_AXI_CLK>,
@@ -5459,7 +5459,7 @@
 			mdss1_mdp: display-controller@22001000 {
 				compatible = "qcom,sc8280xp-dpu";
 				reg = <0 0x22001000 0 0x8f000>,
-				      <0 0x220b0000 0 0x2008>;
+				      <0 0x220b0000 0 0x3000>;
 				reg-names = "mdp", "vbif";
 
 				clocks = <&gcc GCC_DISP_HF_AXI_CLK>,
