@@ -40,6 +40,7 @@ struct kernfs_root {
 
 	/* private fields, do not use outside kernfs proper */
 	struct idr		ino_idr;
+	spinlock_t		kernfs_idr_lock;	/* root->ino_idr */
 	u32			last_id_lowbits;
 	u32			id_highbits;
 	struct kernfs_syscall_ops *syscall_ops;
