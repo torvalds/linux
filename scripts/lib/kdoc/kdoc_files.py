@@ -250,6 +250,8 @@ class KernelFiles():
         if not filenames:
             filenames = sorted(self.results.keys())
 
+        glob = GlobSourceFiles(srctree=self.config.src_tree)
+
         for fname in filenames:
             function_table = set()
 
@@ -257,7 +259,7 @@ class KernelFiles():
                 if not export_file:
                     export_file = [fname]
 
-                for f in export_file:
+                for f in glob.parse_files(export_file, self.file_not_found_cb):
                     function_table |= self.export_table[f]
 
             if symbol:
