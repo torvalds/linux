@@ -612,6 +612,22 @@ static inline int nlmsg_len(const struct nlmsghdr *nlh)
 }
 
 /**
+ * nlmsg_payload - message payload if the data fits in the len
+ * @nlh: netlink message header
+ * @len: struct length
+ *
+ * Returns: The netlink message payload/data if the length is sufficient,
+ * otherwise NULL.
+ */
+static inline void *nlmsg_payload(const struct nlmsghdr *nlh, size_t len)
+{
+	if (nlh->nlmsg_len < nlmsg_msg_size(len))
+		return NULL;
+
+	return nlmsg_data(nlh);
+}
+
+/**
  * nlmsg_attrdata - head of attributes data
  * @nlh: netlink message header
  * @hdrlen: length of family specific header
