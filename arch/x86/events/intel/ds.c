@@ -624,7 +624,7 @@ static int alloc_pebs_buffer(int cpu)
 	int max, node = cpu_to_node(cpu);
 	void *buffer, *insn_buff, *cea;
 
-	if (!x86_pmu.pebs)
+	if (!x86_pmu.ds_pebs)
 		return 0;
 
 	buffer = dsalloc_pages(bsiz, GFP_KERNEL, cpu);
@@ -659,7 +659,7 @@ static void release_pebs_buffer(int cpu)
 	struct cpu_hw_events *hwev = per_cpu_ptr(&cpu_hw_events, cpu);
 	void *cea;
 
-	if (!x86_pmu.pebs)
+	if (!x86_pmu.ds_pebs)
 		return;
 
 	kfree(per_cpu(insn_buffer, cpu));
@@ -734,7 +734,7 @@ void release_ds_buffers(void)
 {
 	int cpu;
 
-	if (!x86_pmu.bts && !x86_pmu.pebs)
+	if (!x86_pmu.bts && !x86_pmu.ds_pebs)
 		return;
 
 	for_each_possible_cpu(cpu)
@@ -750,7 +750,8 @@ void release_ds_buffers(void)
 	}
 
 	for_each_possible_cpu(cpu) {
-		release_pebs_buffer(cpu);
+		if (x86_pmu.ds_pebs)
+			release_pebs_buffer(cpu);
 		release_bts_buffer(cpu);
 	}
 }
@@ -761,15 +762,17 @@ void reserve_ds_buffers(void)
 	int cpu;
 
 	x86_pmu.bts_active = 0;
-	x86_pmu.pebs_active = 0;
 
-	if (!x86_pmu.bts && !x86_pmu.pebs)
+	if (x86_pmu.ds_pebs)
+		x86_pmu.pebs_active = 0;
+
+	if (!x86_pmu.bts && !x86_pmu.ds_pebs)
 		return;
 
 	if (!x86_pmu.bts)
 		bts_err = 1;
 
-	if (!x86_pmu.pebs)
+	if (!x86_pmu.ds_pebs)
 		pebs_err = 1;
 
 	for_each_possible_cpu(cpu) {
@@ -781,7 +784,8 @@ void reserve_ds_buffers(void)
 		if (!bts_err && alloc_bts_buffer(cpu))
 			bts_err = 1;
 
-		if (!pebs_err && alloc_pebs_buffer(cpu))
+		if (x86_pmu.ds_pebs && !pebs_err &&
+		    alloc_pebs_buffer(cpu))
 			pebs_err = 1;
 
 		if (bts_err && pebs_err)
@@ -793,7 +797,7 @@ void reserve_ds_buffers(void)
 			release_bts_buffer(cpu);
 	}
 
-	if (pebs_err) {
+	if (x86_pmu.ds_pebs && pebs_err) {
 		for_each_possible_cpu(cpu)
 			release_pebs_buffer(cpu);
 	}
@@ -805,7 +809,7 @@ void reserve_ds_buffers(void)
 		if (x86_pmu.bts && !bts_err)
 			x86_pmu.bts_active = 1;
 
-		if (x86_pmu.pebs && !pebs_err)
+		if (x86_pmu.ds_pebs && !pebs_err)
 			x86_pmu.pebs_active = 1;
 
 		for_each_possible_cpu(cpu) {
@@ -2662,12 +2666,12 @@ void __init intel_pebs_init(void)
 	if (!boot_cpu_has(X86_FEATURE_DTES64))
 		return;
 
-	x86_pmu.pebs = boot_cpu_has(X86_FEATURE_PEBS);
+	x86_pmu.ds_pebs = boot_cpu_has(X86_FEATURE_PEBS);
 	x86_pmu.pebs_buffer_size = PEBS_BUFFER_SIZE;
 	if (x86_pmu.version <= 4)
 		x86_pmu.pebs_no_isolation = 1;
 
-	if (x86_pmu.pebs) {
+	if (x86_pmu.ds_pebs) {
 		char pebs_type = x86_pmu.intel_cap.pebs_trap ?  '+' : '-';
 		char *pebs_qual = "";
 		int format = x86_pmu.intel_cap.pebs_format;
@@ -2759,7 +2763,7 @@ void __init intel_pebs_init(void)
 
 		default:
 			pr_cont("no PEBS fmt%d%c, ", format, pebs_type);
-			x86_pmu.pebs = 0;
+			x86_pmu.ds_pebs = 0;
 		}
 	}
 }
@@ -2768,7 +2772,7 @@ void perf_restore_debug_store(void)
 {
 	struct debug_store *ds = __this_cpu_read(cpu_hw_events.ds);
 
-	if (!x86_pmu.bts && !x86_pmu.pebs)
+	if (!x86_pmu.bts && !x86_pmu.ds_pebs)
 		return;
 
 	wrmsrl(MSR_IA32_DS_AREA, (unsigned long)ds);

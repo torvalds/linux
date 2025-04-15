@@ -898,7 +898,7 @@ struct x86_pmu {
 	 */
 	unsigned int	bts			:1,
 			bts_active		:1,
-			pebs			:1,
+			ds_pebs			:1,
 			pebs_active		:1,
 			pebs_broken		:1,
 			pebs_prec_dist		:1,
