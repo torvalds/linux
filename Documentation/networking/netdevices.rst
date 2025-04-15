@@ -8,7 +8,7 @@ Network Devices, the Kernel, and You!
 Introduction
 ============
 The following is a random collection of documentation regarding
-network devices.
+network devices. It is intended for driver developers.
 
 struct net_device lifetime rules
 ================================
