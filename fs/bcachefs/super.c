@@ -1013,6 +1013,11 @@ static void print_mount_opts(struct bch_fs *c)
 		bch2_opt_to_text(&p, c, c->disk_sb.sb, opt, v, OPT_SHOW_MOUNT_STYLE);
 	}
 
+	if (c->sb.version_incompat_allowed != c->sb.version) {
+		prt_printf(&p, "\n  allowing incompatible features above ");
+		bch2_version_to_text(&p, c->sb.version_incompat_allowed);
+	}
+
 	bch_info(c, "%s", p.buf);
 	printbuf_exit(&p);
 }
