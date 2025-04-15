@@ -554,6 +554,10 @@ static void amd_pstate_update(struct amd_cpudata *cpudata, u8 min_perf,
 	if (!policy)
 		return;
 
+	/* limit the max perf when core performance boost feature is disabled */
+	if (!cpudata->boost_supported)
+		max_perf = min_t(u8, perf.nominal_perf, max_perf);
+
 	des_perf = clamp_t(u8, des_perf, min_perf, max_perf);
 
 	policy->cur = perf_to_freq(perf, cpudata->nominal_freq, des_perf);
@@ -562,10 +566,6 @@ static void amd_pstate_update(struct amd_cpudata *cpudata, u8 min_perf,
 		min_perf = des_perf;
 		des_perf = 0;
 	}
-
-	/* limit the max perf when core performance boost feature is disabled */
-	if (!cpudata->boost_supported)
-		max_perf = min_t(u8, perf.nominal_perf, max_perf);
 
 	if (trace_amd_pstate_perf_enabled() && amd_pstate_sample(cpudata)) {
 		trace_amd_pstate_perf(min_perf, des_perf, max_perf, cpudata->freq,
