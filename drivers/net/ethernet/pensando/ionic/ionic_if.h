@@ -2839,6 +2839,7 @@ union ionic_port_identity {
  * @status:          Port status data
  * @stats:           Port statistics data
  * @mgmt_stats:      Port management statistics data
+ * @sprom_epage:     Extended Transceiver sprom, high page 1 and 2
  * @rsvd:            reserved byte(s)
  * @pb_stats:        uplink pb drop stats
  */
@@ -2849,8 +2850,10 @@ struct ionic_port_info {
 		struct ionic_port_stats      stats;
 		struct ionic_mgmt_port_stats mgmt_stats;
 	};
-	/* room for pb_stats to start at 2k offset */
-	u8                          rsvd[760];
+	u8     sprom_epage[256];
+	u8     rsvd[504];
+
+	/* pb_stats must start at 2k offset */
 	struct ionic_port_pb_stats  pb_stats;
 };
 

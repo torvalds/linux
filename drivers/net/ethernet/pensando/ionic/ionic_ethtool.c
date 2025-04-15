@@ -968,9 +968,12 @@ static int ionic_get_module_info(struct net_device *netdev,
 		break;
 	case SFF8024_ID_QSFP_8436_8636:
 	case SFF8024_ID_QSFP28_8636:
-	case SFF8024_ID_QSFP_PLUS_CMIS:
 		modinfo->type = ETH_MODULE_SFF_8436;
 		modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
+		break;
+	case SFF8024_ID_QSFP_PLUS_CMIS:
+		modinfo->type = ETH_MODULE_SFF_8472;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
 		break;
 	default:
 		netdev_info(netdev, "unknown xcvr type 0x%02x\n",
@@ -983,29 +986,20 @@ static int ionic_get_module_info(struct net_device *netdev,
 	return 0;
 }
 
-static int ionic_get_module_eeprom(struct net_device *netdev,
-				   struct ethtool_eeprom *ee,
-				   u8 *data)
+static int ionic_do_module_copy(u8 *dst, u8 *src, u32 len)
 {
-	struct ionic_lif *lif = netdev_priv(netdev);
-	struct ionic_dev *idev = &lif->ionic->idev;
-	struct ionic_xcvr_status *xcvr;
-	char tbuf[sizeof(xcvr->sprom)];
+	char tbuf[sizeof_field(struct ionic_xcvr_status, sprom)];
 	int count = 10;
-	u32 len;
 
 	/* The NIC keeps the module prom up-to-date in the DMA space
 	 * so we can simply copy the module bytes into the data buffer.
 	 */
-	xcvr = &idev->port_info->status.xcvr;
-	len = min_t(u32, sizeof(xcvr->sprom), ee->len);
-
 	do {
-		memcpy(data, &xcvr->sprom[ee->offset], len);
-		memcpy(tbuf, &xcvr->sprom[ee->offset], len);
+		memcpy(dst, src, len);
+		memcpy(tbuf, src, len);
 
 		/* Let's make sure we got a consistent copy */
-		if (!memcmp(data, tbuf, len))
+		if (!memcmp(dst, tbuf, len))
 			break;
 
 	} while (--count);
@@ -1014,6 +1008,48 @@ static int ionic_get_module_eeprom(struct net_device *netdev,
 		return -ETIMEDOUT;
 
 	return 0;
+}
+
+static int ionic_get_module_eeprom(struct net_device *netdev,
+				   struct ethtool_eeprom *ee,
+				   u8 *data)
+{
+	struct ionic_lif *lif = netdev_priv(netdev);
+	struct ionic_dev *idev = &lif->ionic->idev;
+	u32 start = ee->offset;
+	u32 err = -EINVAL;
+	u32 size = 0;
+	u8 *src;
+
+	if (start < ETH_MODULE_SFF_8079_LEN) {
+		if (start + ee->len > ETH_MODULE_SFF_8079_LEN)
+			size = ETH_MODULE_SFF_8079_LEN - start;
+		else
+			size = ee->len;
+
+		src = &idev->port_info->status.xcvr.sprom[start];
+		err = ionic_do_module_copy(data, src, size);
+		if (err)
+			return err;
+
+		data += size;
+		start += size;
+	}
+
+	if (start >= ETH_MODULE_SFF_8079_LEN &&
+	    start < ETH_MODULE_SFF_8472_LEN) {
+		size = ee->len - size;
+		if (start + size > ETH_MODULE_SFF_8472_LEN)
+			size = ETH_MODULE_SFF_8472_LEN - start;
+
+		start -= ETH_MODULE_SFF_8079_LEN;
+		src = &idev->port_info->sprom_epage[start];
+		err = ionic_do_module_copy(data, src, size);
+		if (err)
+			return err;
+	}
+
+	return err;
 }
 
 static int ionic_get_ts_info(struct net_device *netdev,
