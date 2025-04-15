@@ -18134,6 +18134,7 @@ T:	git https://github.com/OpenVPN/linux-kernel-ovpn.git
 F:	Documentation/netlink/specs/ovpn.yaml
 F:	drivers/net/ovpn/
 F:	include/uapi/linux/ovpn.h
+F:	tools/testing/selftests/net/ovpn/
 
 OPENVSWITCH
 M:	Aaron Conole <aconole@redhat.com>
