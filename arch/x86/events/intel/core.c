@@ -5271,7 +5271,7 @@ static inline bool intel_pmu_broken_perf_cap(void)
 	return false;
 }
 
-static void update_pmu_cap(struct x86_hybrid_pmu *pmu)
+static void update_pmu_cap(struct pmu *pmu)
 {
 	unsigned int cntr, fixed_cntr, ecx, edx;
 	union cpuid35_eax eax;
@@ -5280,30 +5280,30 @@ static void update_pmu_cap(struct x86_hybrid_pmu *pmu)
 	cpuid(ARCH_PERFMON_EXT_LEAF, &eax.full, &ebx.full, &ecx, &edx);
 
 	if (ebx.split.umask2)
-		pmu->config_mask |= ARCH_PERFMON_EVENTSEL_UMASK2;
+		hybrid(pmu, config_mask) |= ARCH_PERFMON_EVENTSEL_UMASK2;
 	if (ebx.split.eq)
-		pmu->config_mask |= ARCH_PERFMON_EVENTSEL_EQ;
+		hybrid(pmu, config_mask) |= ARCH_PERFMON_EVENTSEL_EQ;
 
 	if (eax.split.cntr_subleaf) {
 		cpuid_count(ARCH_PERFMON_EXT_LEAF, ARCH_PERFMON_NUM_COUNTER_LEAF,
 			    &cntr, &fixed_cntr, &ecx, &edx);
-		pmu->cntr_mask64 = cntr;
-		pmu->fixed_cntr_mask64 = fixed_cntr;
+		hybrid(pmu, cntr_mask64) = cntr;
+		hybrid(pmu, fixed_cntr_mask64) = fixed_cntr;
 	}
 
 	if (eax.split.acr_subleaf) {
 		cpuid_count(ARCH_PERFMON_EXT_LEAF, ARCH_PERFMON_ACR_LEAF,
 			    &cntr, &fixed_cntr, &ecx, &edx);
 		/* The mask of the counters which can be reloaded */
-		pmu->acr_cntr_mask64 = cntr | ((u64)fixed_cntr << INTEL_PMC_IDX_FIXED);
+		hybrid(pmu, acr_cntr_mask64) = cntr | ((u64)fixed_cntr << INTEL_PMC_IDX_FIXED);
 
 		/* The mask of the counters which can cause a reload of reloadable counters */
-		pmu->acr_cause_mask64 = ecx | ((u64)edx << INTEL_PMC_IDX_FIXED);
+		hybrid(pmu, acr_cause_mask64) = ecx | ((u64)edx << INTEL_PMC_IDX_FIXED);
 	}
 
 	if (!intel_pmu_broken_perf_cap()) {
 		/* Perf Metric (Bit 15) and PEBS via PT (Bit 16) are hybrid enumeration */
-		rdmsrl(MSR_IA32_PERF_CAPABILITIES, pmu->intel_cap.capabilities);
+		rdmsrl(MSR_IA32_PERF_CAPABILITIES, hybrid(pmu, intel_cap).capabilities);
 	}
 }
 
@@ -5390,7 +5390,7 @@ static bool init_hybrid_pmu(int cpu)
 		goto end;
 
 	if (this_cpu_has(X86_FEATURE_ARCH_PERFMON_EXT))
-		update_pmu_cap(pmu);
+		update_pmu_cap(&pmu->pmu);
 
 	intel_pmu_check_hybrid_pmus(pmu);
 
@@ -6899,6 +6899,7 @@ __init int intel_pmu_init(void)
 
 	x86_pmu.pebs_events_mask	= intel_pmu_pebs_mask(x86_pmu.cntr_mask64);
 	x86_pmu.pebs_capable		= PEBS_COUNTER_MASK;
+	x86_pmu.config_mask		= X86_RAW_EVENT_MASK;
 
 	/*
 	 * Quirk: v2 perfmon does not report fixed-purpose events, so
@@ -7714,6 +7715,18 @@ __init int intel_pmu_init(void)
 
 		x86_pmu.attr_update = hybrid_attr_update;
 	}
+
+	/*
+	 * The archPerfmonExt (0x23) includes an enhanced enumeration of
+	 * PMU architectural features with a per-core view. For non-hybrid,
+	 * each core has the same PMU capabilities. It's good enough to
+	 * update the x86_pmu from the booting CPU. For hybrid, the x86_pmu
+	 * is used to keep the common capabilities. Still keep the values
+	 * from the leaf 0xa. The core specific update will be done later
+	 * when a new type is online.
+	 */
+	if (!is_hybrid() && boot_cpu_has(X86_FEATURE_ARCH_PERFMON_EXT))
+		update_pmu_cap(NULL);
 
 	intel_pmu_check_counters_mask(&x86_pmu.cntr_mask64,
 				      &x86_pmu.fixed_cntr_mask64,
