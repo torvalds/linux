@@ -365,6 +365,7 @@ static unsigned int comedi_buf_munge(struct comedi_subdevice *s,
 				     unsigned int num_bytes)
 {
 	struct comedi_async *async = s->async;
+	struct comedi_buf_page *buf_page_list = async->buf_map->page_list;
 	unsigned int count = 0;
 	const unsigned int num_sample_bytes = comedi_bytes_per_sample(s);
 
@@ -376,15 +377,16 @@ static unsigned int comedi_buf_munge(struct comedi_subdevice *s,
 	/* don't munge partial samples */
 	num_bytes -= num_bytes % num_sample_bytes;
 	while (count < num_bytes) {
-		int block_size = num_bytes - count;
-		unsigned int buf_end;
+		/*
+		 * Do not munge beyond page boundary.
+		 * Note: prealloc_bufsz is a multiple of PAGE_SIZE.
+		 */
+		unsigned int page = async->munge_ptr >> PAGE_SHIFT;
+		unsigned int offset = offset_in_page(async->munge_ptr);
+		unsigned int block_size =
+			     min(num_bytes - count, PAGE_SIZE - offset);
 
-		buf_end = async->prealloc_bufsz - async->munge_ptr;
-		if (block_size > buf_end)
-			block_size = buf_end;
-
-		s->munge(s->device, s,
-			 async->prealloc_buf + async->munge_ptr,
+		s->munge(s->device, s, buf_page_list[page].virt_addr + offset,
 			 block_size, async->munge_chan);
 
 		/*
@@ -397,7 +399,8 @@ static unsigned int comedi_buf_munge(struct comedi_subdevice *s,
 		async->munge_chan %= async->cmd.chanlist_len;
 		async->munge_count += block_size;
 		async->munge_ptr += block_size;
-		async->munge_ptr %= async->prealloc_bufsz;
+		if (async->munge_ptr == async->prealloc_bufsz)
+			async->munge_ptr = 0;
 		count += block_size;
 	}
 
@@ -558,46 +561,52 @@ static void comedi_buf_memcpy_to(struct comedi_subdevice *s,
 				 const void *data, unsigned int num_bytes)
 {
 	struct comedi_async *async = s->async;
+	struct comedi_buf_page *buf_page_list = async->buf_map->page_list;
 	unsigned int write_ptr = async->buf_write_ptr;
 
 	while (num_bytes) {
-		unsigned int block_size;
+		/*
+		 * Do not copy beyond page boundary.
+		 * Note: prealloc_bufsz is a multiple of PAGE_SIZE.
+		 */
+		unsigned int page = write_ptr >> PAGE_SHIFT;
+		unsigned int offset = offset_in_page(write_ptr);
+		unsigned int block_size = min(num_bytes, PAGE_SIZE - offset);
 
-		if (write_ptr + num_bytes > async->prealloc_bufsz)
-			block_size = async->prealloc_bufsz - write_ptr;
-		else
-			block_size = num_bytes;
-
-		memcpy(async->prealloc_buf + write_ptr, data, block_size);
+		memcpy(buf_page_list[page].virt_addr + offset,
+		       data, block_size);
 
 		data += block_size;
 		num_bytes -= block_size;
-
-		write_ptr = 0;
+		write_ptr += block_size;
+		if (write_ptr == async->prealloc_bufsz)
+			write_ptr = 0;
 	}
 }
 
 static void comedi_buf_memcpy_from(struct comedi_subdevice *s,
 				   void *dest, unsigned int nbytes)
 {
-	void *src;
 	struct comedi_async *async = s->async;
+	struct comedi_buf_page *buf_page_list = async->buf_map->page_list;
 	unsigned int read_ptr = async->buf_read_ptr;
 
 	while (nbytes) {
-		unsigned int block_size;
+		/*
+		 * Do not copy beyond page boundary.
+		 * Note: prealloc_bufsz is a multiple of PAGE_SIZE.
+		 */
+		unsigned int page = read_ptr >> PAGE_SHIFT;
+		unsigned int offset = offset_in_page(read_ptr);
+		unsigned int block_size = min(nbytes, PAGE_SIZE - offset);
 
-		src = async->prealloc_buf + read_ptr;
-
-		if (nbytes >= async->prealloc_bufsz - read_ptr)
-			block_size = async->prealloc_bufsz - read_ptr;
-		else
-			block_size = nbytes;
-
-		memcpy(dest, src, block_size);
+		memcpy(dest, buf_page_list[page].virt_addr + offset,
+		       block_size);
 		nbytes -= block_size;
 		dest += block_size;
-		read_ptr = 0;
+		read_ptr += block_size;
+		if (read_ptr == async->prealloc_bufsz)
+			read_ptr = 0;
 	}
 }
 
