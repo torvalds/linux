@@ -517,7 +517,6 @@ int vxlan_fdb_replay(const struct net_device *dev, __be32 vni,
 	struct vxlan_dev *vxlan;
 	struct vxlan_rdst *rdst;
 	struct vxlan_fdb *f;
-	unsigned int h;
 	int rc = 0;
 
 	if (!netif_is_vxlan(dev))
@@ -525,16 +524,13 @@ int vxlan_fdb_replay(const struct net_device *dev, __be32 vni,
 	vxlan = netdev_priv(dev);
 
 	spin_lock_bh(&vxlan->hash_lock);
-	for (h = 0; h < FDB_HASH_SIZE; ++h) {
-		hlist_for_each_entry(f, &vxlan->fdb_head[h], hlist) {
-			if (f->vni == vni) {
-				list_for_each_entry(rdst, &f->remotes, list) {
-					rc = vxlan_fdb_notify_one(nb, vxlan,
-								  f, rdst,
-								  extack);
-					if (rc)
-						goto unlock;
-				}
+	hlist_for_each_entry(f, &vxlan->fdb_list, fdb_node) {
+		if (f->vni == vni) {
+			list_for_each_entry(rdst, &f->remotes, list) {
+				rc = vxlan_fdb_notify_one(nb, vxlan, f, rdst,
+							  extack);
+				if (rc)
+					goto unlock;
 			}
 		}
 	}
@@ -552,18 +548,17 @@ void vxlan_fdb_clear_offload(const struct net_device *dev, __be32 vni)
 	struct vxlan_dev *vxlan;
 	struct vxlan_rdst *rdst;
 	struct vxlan_fdb *f;
-	unsigned int h;
 
 	if (!netif_is_vxlan(dev))
 		return;
 	vxlan = netdev_priv(dev);
 
 	spin_lock_bh(&vxlan->hash_lock);
-	for (h = 0; h < FDB_HASH_SIZE; ++h) {
-		hlist_for_each_entry(f, &vxlan->fdb_head[h], hlist)
-			if (f->vni == vni)
-				list_for_each_entry(rdst, &f->remotes, list)
-					rdst->offloaded = false;
+	hlist_for_each_entry(f, &vxlan->fdb_list, fdb_node) {
+		if (f->vni == vni) {
+			list_for_each_entry(rdst, &f->remotes, list)
+				rdst->offloaded = false;
+		}
 	}
 	spin_unlock_bh(&vxlan->hash_lock);
 
@@ -1351,52 +1346,46 @@ static int vxlan_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 {
 	struct ndo_fdb_dump_context *ctx = (void *)cb->ctx;
 	struct vxlan_dev *vxlan = netdev_priv(dev);
-	unsigned int h;
+	struct vxlan_fdb *f;
 	int err = 0;
 
-	for (h = 0; h < FDB_HASH_SIZE; ++h) {
-		struct vxlan_fdb *f;
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(f, &vxlan->fdb_list, fdb_node) {
+		struct vxlan_rdst *rd;
 
-		rcu_read_lock();
-		hlist_for_each_entry_rcu(f, &vxlan->fdb_head[h], hlist) {
-			struct vxlan_rdst *rd;
-
-			if (rcu_access_pointer(f->nh)) {
-				if (*idx < ctx->fdb_idx)
-					goto skip_nh;
-				err = vxlan_fdb_info(skb, vxlan, f,
-						     NETLINK_CB(cb->skb).portid,
-						     cb->nlh->nlmsg_seq,
-						     RTM_NEWNEIGH,
-						     NLM_F_MULTI, NULL);
-				if (err < 0) {
-					rcu_read_unlock();
-					goto out;
-				}
+		if (rcu_access_pointer(f->nh)) {
+			if (*idx < ctx->fdb_idx)
+				goto skip_nh;
+			err = vxlan_fdb_info(skb, vxlan, f,
+					     NETLINK_CB(cb->skb).portid,
+					     cb->nlh->nlmsg_seq,
+					     RTM_NEWNEIGH, NLM_F_MULTI, NULL);
+			if (err < 0) {
+				rcu_read_unlock();
+				goto out;
+			}
 skip_nh:
-				*idx += 1;
-				continue;
-			}
-
-			list_for_each_entry_rcu(rd, &f->remotes, list) {
-				if (*idx < ctx->fdb_idx)
-					goto skip;
-
-				err = vxlan_fdb_info(skb, vxlan, f,
-						     NETLINK_CB(cb->skb).portid,
-						     cb->nlh->nlmsg_seq,
-						     RTM_NEWNEIGH,
-						     NLM_F_MULTI, rd);
-				if (err < 0) {
-					rcu_read_unlock();
-					goto out;
-				}
-skip:
-				*idx += 1;
-			}
+			*idx += 1;
+			continue;
 		}
-		rcu_read_unlock();
+
+		list_for_each_entry_rcu(rd, &f->remotes, list) {
+			if (*idx < ctx->fdb_idx)
+				goto skip;
+
+			err = vxlan_fdb_info(skb, vxlan, f,
+					     NETLINK_CB(cb->skb).portid,
+					     cb->nlh->nlmsg_seq,
+					     RTM_NEWNEIGH, NLM_F_MULTI, rd);
+			if (err < 0) {
+				rcu_read_unlock();
+				goto out;
+			}
+skip:
+			*idx += 1;
+		}
 	}
+	rcu_read_unlock();
 out:
 	return err;
 }
@@ -2830,35 +2819,30 @@ static void vxlan_cleanup(struct timer_list *t)
 {
 	struct vxlan_dev *vxlan = from_timer(vxlan, t, age_timer);
 	unsigned long next_timer = jiffies + FDB_AGE_INTERVAL;
-	unsigned int h;
+	struct hlist_node *n;
+	struct vxlan_fdb *f;
 
 	if (!netif_running(vxlan->dev))
 		return;
 
 	spin_lock(&vxlan->hash_lock);
-	for (h = 0; h < FDB_HASH_SIZE; ++h) {
-		struct hlist_node *p, *n;
+	hlist_for_each_entry_safe(f, n, &vxlan->fdb_list, fdb_node) {
+		unsigned long timeout;
 
-		hlist_for_each_safe(p, n, &vxlan->fdb_head[h]) {
-			struct vxlan_fdb *f
-				= container_of(p, struct vxlan_fdb, hlist);
-			unsigned long timeout;
+		if (f->state & (NUD_PERMANENT | NUD_NOARP))
+			continue;
 
-			if (f->state & (NUD_PERMANENT | NUD_NOARP))
-				continue;
+		if (f->flags & NTF_EXT_LEARNED)
+			continue;
 
-			if (f->flags & NTF_EXT_LEARNED)
-				continue;
-
-			timeout = READ_ONCE(f->updated) + vxlan->cfg.age_interval * HZ;
-			if (time_before_eq(timeout, jiffies)) {
-				netdev_dbg(vxlan->dev,
-					   "garbage collect %pM\n",
-					   f->eth_addr);
-				f->state = NUD_STALE;
-				vxlan_fdb_destroy(vxlan, f, true, true);
-			} else if (time_before(timeout, next_timer))
-				next_timer = timeout;
+		timeout = READ_ONCE(f->updated) + vxlan->cfg.age_interval * HZ;
+		if (time_before_eq(timeout, jiffies)) {
+			netdev_dbg(vxlan->dev, "garbage collect %pM\n",
+				   f->eth_addr);
+			f->state = NUD_STALE;
+			vxlan_fdb_destroy(vxlan, f, true, true);
+		} else if (time_before(timeout, next_timer)) {
+			next_timer = timeout;
 		}
 	}
 	spin_unlock(&vxlan->hash_lock);
@@ -3050,31 +3034,25 @@ static void vxlan_flush(struct vxlan_dev *vxlan,
 			const struct vxlan_fdb_flush_desc *desc)
 {
 	bool match_remotes = vxlan_fdb_flush_should_match_remotes(desc);
-	unsigned int h;
+	struct hlist_node *n;
+	struct vxlan_fdb *f;
 
 	spin_lock_bh(&vxlan->hash_lock);
-	for (h = 0; h < FDB_HASH_SIZE; ++h) {
-		struct hlist_node *p, *n;
+	hlist_for_each_entry_safe(f, n, &vxlan->fdb_list, fdb_node) {
+		if (!vxlan_fdb_flush_matches(f, vxlan, desc))
+			continue;
 
-		hlist_for_each_safe(p, n, &vxlan->fdb_head[h]) {
-			struct vxlan_fdb *f
-				= container_of(p, struct vxlan_fdb, hlist);
+		if (match_remotes) {
+			bool destroy_fdb = false;
 
-			if (!vxlan_fdb_flush_matches(f, vxlan, desc))
+			vxlan_fdb_flush_match_remotes(f, vxlan, desc,
+						      &destroy_fdb);
+
+			if (!destroy_fdb)
 				continue;
-
-			if (match_remotes) {
-				bool destroy_fdb = false;
-
-				vxlan_fdb_flush_match_remotes(f, vxlan, desc,
-							      &destroy_fdb);
-
-				if (!destroy_fdb)
-					continue;
-			}
-
-			vxlan_fdb_destroy(vxlan, f, true, true);
 		}
+
+		vxlan_fdb_destroy(vxlan, f, true, true);
 	}
 	spin_unlock_bh(&vxlan->hash_lock);
 }
@@ -4860,7 +4838,7 @@ static void vxlan_fdb_nh_flush(struct nexthop *nh)
 		vxlan = rcu_dereference(fdb->vdev);
 		WARN_ON(!vxlan);
 		spin_lock_bh(&vxlan->hash_lock);
-		if (!hlist_unhashed(&fdb->hlist))
+		if (!hlist_unhashed(&fdb->fdb_node))
 			vxlan_fdb_destroy(vxlan, fdb, false, false);
 		spin_unlock_bh(&vxlan->hash_lock);
 	}
