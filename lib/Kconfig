@@ -139,27 +139,22 @@ config TRACE_MMIO_ACCESS
 source "lib/crypto/Kconfig"
 
 config CRC_CCITT
-	tristate "CRC-CCITT functions"
+	tristate
 	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require CRC-CCITT functions, but a module built outside
-	  the kernel tree does. Such modules that use library CRC-CCITT
-	  functions require M here.
+	  The CRC-CCITT library functions.  Select this if your module uses any
+	  of the functions from <linux/crc-ccitt.h>.
 
 config CRC16
-	tristate "CRC16 functions"
+	tristate
 	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require CRC16 functions, but a module built outside
-	  the kernel tree does. Such modules that use library CRC16
-	  functions require M here.
+	  The CRC16 library functions.  Select this if your module uses any of
+	  the functions from <linux/crc16.h>.
 
 config CRC_T10DIF
-	tristate "CRC calculation for the T10 Data Integrity Field"
+	tristate
 	help
-	  This option is only needed if a module that's not in the
-	  kernel tree needs to calculate CRC checks for use with the
-	  SCSI data integrity subsystem.
+	  The CRC-T10DIF library functions.  Select this if your module uses
+	  any of the functions from <linux/crc-t10dif.h>.
 
 config ARCH_HAS_CRC_T10DIF
 	bool
@@ -169,22 +164,17 @@ config CRC_T10DIF_ARCH
 	default CRC_T10DIF if ARCH_HAS_CRC_T10DIF && CRC_OPTIMIZATIONS
 
 config CRC_ITU_T
-	tristate "CRC ITU-T V.41 functions"
+	tristate
 	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require CRC ITU-T V.41 functions, but a module built outside
-	  the kernel tree does. Such modules that use library CRC ITU-T V.41
-	  functions require M here.
+	  The CRC-ITU-T library functions.  Select this if your module uses
+	  any of the functions from <linux/crc-itu-t.h>.
 
 config CRC32
-	tristate "CRC32/CRC32c functions"
-	default y
+	tristate
 	select BITREVERSE
 	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require CRC32/CRC32c functions, but a module built outside
-	  the kernel tree does. Such modules that use library CRC32/CRC32c
-	  functions require M here.
+	  The CRC32 library functions.  Select this if your module uses any of
+	  the functions from <linux/crc32.h> or <linux/crc32c.h>.
 
 config ARCH_HAS_CRC32
 	bool
@@ -195,6 +185,9 @@ config CRC32_ARCH
 
 config CRC64
 	tristate
+	help
+	  The CRC64 library functions.  Select this if your module uses any of
+	  the functions from <linux/crc64.h>.
 
 config ARCH_HAS_CRC64
 	bool
@@ -205,19 +198,21 @@ config CRC64_ARCH
 
 config CRC4
 	tristate
+	help
+	  The CRC4 library functions.  Select this if your module uses any of
+	  the functions from <linux/crc4.h>.
 
 config CRC7
 	tristate
-
-config LIBCRC32C
-	tristate
-	select CRC32
 	help
-	  This option just selects CRC32 and is provided for compatibility
-	  purposes until the users are updated to select CRC32 directly.
+	  The CRC7 library functions.  Select this if your module uses any of
+	  the functions from <linux/crc7.h>.
 
 config CRC8
 	tristate
+	help
+	  The CRC8 library functions.  Select this if your module uses any of
+	  the functions from <linux/crc8.h>.
 
 config CRC_OPTIMIZATIONS
 	bool "Enable optimized CRC implementations" if EXPERT

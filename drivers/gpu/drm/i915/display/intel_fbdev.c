@@ -50,6 +50,7 @@
 #include "i915_drv.h"
 #include "i915_vma.h"
 #include "intel_bo.h"
+#include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
@@ -213,7 +214,8 @@ int intel_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 	struct intel_framebuffer *fb = ifbdev->fb;
 	struct drm_device *dev = helper->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	intel_wakeref_t wakeref;
+	struct intel_display *display = to_intel_display(dev);
+	struct ref_tracker *wakeref;
 	struct fb_info *info;
 	struct i915_vma *vma;
 	unsigned long flags = 0;
@@ -247,7 +249,7 @@ int intel_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 		sizes->fb_height = fb->base.height;
 	}
 
-	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
+	wakeref = intel_display_rpm_get(display);
 
 	/* Pin the GGTT vma for our access via info->screen_base.
 	 * This also validates that any existing fb inherited from the
@@ -299,14 +301,15 @@ int intel_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 	ifbdev->vma = vma;
 	ifbdev->vma_flags = flags;
 
-	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
+	intel_display_rpm_put(display, wakeref);
 
 	return 0;
 
 out_unpin:
 	intel_fb_unpin_vma(vma, flags);
 out_unlock:
-	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
+	intel_display_rpm_put(display, wakeref);
+
 	return ret;
 }
 

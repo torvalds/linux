@@ -155,9 +155,8 @@ static void reset_crtc_encoder_state(struct intel_crtc *crtc)
 static void intel_crtc_disable_noatomic_complete(struct intel_crtc *crtc)
 {
 	struct intel_display *display = to_intel_display(crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	struct intel_pmdemand_state *pmdemand_state =
-		to_intel_pmdemand_state(i915->display.pmdemand.obj.state);
+		to_intel_pmdemand_state(display->pmdemand.obj.state);
 	struct intel_crtc_state *crtc_state =
 		to_intel_crtc_state(crtc->base.state);
 	enum pipe pipe = crtc->pipe;
@@ -169,7 +168,7 @@ static void intel_crtc_disable_noatomic_complete(struct intel_crtc *crtc)
 	reset_crtc_encoder_state(crtc);
 
 	intel_fbc_disable(crtc);
-	intel_update_watermarks(i915);
+	intel_update_watermarks(display);
 
 	intel_display_power_put_all_in_set(display, &crtc->enabled_power_domains);
 
@@ -821,18 +820,18 @@ static void intel_modeset_readout_hw_state(struct drm_i915_private *i915)
 			to_intel_crtc_state(crtc->base.state);
 		struct intel_plane *plane;
 
-		if (crtc_state->hw.active) {
-			/*
-			 * The initial mode needs to be set in order to keep
-			 * the atomic core happy. It wants a valid mode if the
-			 * crtc's enabled, so we do the above call.
-			 *
-			 * But we don't set all the derived state fully, hence
-			 * set a flag to indicate that a full recalculation is
-			 * needed on the next commit.
-			 */
-			crtc_state->inherited = true;
+		/*
+		 * The initial mode needs to be set in order to keep
+		 * the atomic core happy. It wants a valid mode if the
+		 * crtc's enabled, so we do the above call.
+		 *
+		 * But we don't set all the derived state fully, hence
+		 * set a flag to indicate that a full recalculation is
+		 * needed on the next commit.
+		 */
+		crtc_state->inherited = true;
 
+		if (crtc_state->hw.active) {
 			intel_crtc_update_active_timings(crtc_state,
 							 crtc_state->vrr.enable);
 
@@ -874,7 +873,7 @@ static void intel_modeset_readout_hw_state(struct drm_i915_private *i915)
 
 	/* TODO move here (or even earlier?) on all platforms */
 	if (DISPLAY_VER(display) >= 9)
-		intel_wm_get_hw_state(i915);
+		intel_wm_get_hw_state(display);
 
 	intel_bw_update_hw_state(display);
 	intel_cdclk_update_hw_state(display);
@@ -947,7 +946,7 @@ void intel_modeset_setup_hw_state(struct drm_i915_private *i915,
 	/* HW state is read out, now we need to sanitize this mess. */
 	get_encoder_power_domains(i915);
 
-	intel_pch_sanitize(i915);
+	intel_pch_sanitize(display);
 
 	intel_cmtg_sanitize(display);
 
@@ -988,8 +987,8 @@ void intel_modeset_setup_hw_state(struct drm_i915_private *i915,
 
 	/* TODO move earlier on all platforms */
 	if (DISPLAY_VER(display) < 9)
-		intel_wm_get_hw_state(i915);
-	intel_wm_sanitize(i915);
+		intel_wm_get_hw_state(display);
+	intel_wm_sanitize(display);
 
 	for_each_intel_crtc(&i915->drm, crtc) {
 		struct intel_crtc_state *crtc_state =

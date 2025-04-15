@@ -126,6 +126,9 @@ int drm_kunit_helper_enable_crtc_connector(struct kunit *test,
 					   const struct drm_display_mode *mode,
 					   struct drm_modeset_acquire_ctx *ctx);
 
+int drm_kunit_add_mode_destroy_action(struct kunit *test,
+				      struct drm_display_mode *mode);
+
 struct drm_display_mode *
 drm_kunit_display_mode_from_cea_vic(struct kunit *test, struct drm_device *dev,
 				    u8 video_code);

@@ -725,7 +725,6 @@ static int z_erofs_register_pcluster(struct z_erofs_frontend *fe)
 	lockref_init(&pcl->lockref); /* one ref for this request */
 	pcl->algorithmformat = map->m_algorithmformat;
 	pcl->pclustersize = map->m_plen;
-	pcl->pageofs_in = pageofs_in;
 	pcl->length = 0;
 	pcl->partial = true;
 	pcl->next = fe->head;

@@ -2689,22 +2689,24 @@ static const struct drm_plane_funcs tgl_plane_funcs = {
 static void
 skl_plane_enable_flip_done(struct intel_plane *plane)
 {
+	struct intel_display *display = to_intel_display(plane);
 	struct drm_i915_private *i915 = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
 
 	spin_lock_irq(&i915->irq_lock);
-	bdw_enable_pipe_irq(i915, pipe, GEN9_PIPE_PLANE_FLIP_DONE(plane->id));
+	bdw_enable_pipe_irq(display, pipe, GEN9_PIPE_PLANE_FLIP_DONE(plane->id));
 	spin_unlock_irq(&i915->irq_lock);
 }
 
 static void
 skl_plane_disable_flip_done(struct intel_plane *plane)
 {
+	struct intel_display *display = to_intel_display(plane);
 	struct drm_i915_private *i915 = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
 
 	spin_lock_irq(&i915->irq_lock);
-	bdw_disable_pipe_irq(i915, pipe, GEN9_PIPE_PLANE_FLIP_DONE(plane->id));
+	bdw_disable_pipe_irq(display, pipe, GEN9_PIPE_PLANE_FLIP_DONE(plane->id));
 	spin_unlock_irq(&i915->irq_lock);
 }
 
