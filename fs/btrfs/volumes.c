@@ -7938,7 +7938,7 @@ static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 	}
 
 	/*
-	 * Very old mkfs.btrfs (before v4.1) will not respect the reserved
+	 * Very old mkfs.btrfs (before v4.15) will not respect the reserved
 	 * space. Although kernel can handle it without problem, better to warn
 	 * the users.
 	 */
