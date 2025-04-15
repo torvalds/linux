@@ -1454,50 +1454,6 @@ static struct fc_port *qlt_create_sess(
 	return sess;
 }
 
-/*
- * max_gen - specifies maximum session generation
- * at which this deletion requestion is still valid
- */
-void
-qlt_fc_port_deleted(struct scsi_qla_host *vha, fc_port_t *fcport, int max_gen)
-{
-	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
-	struct fc_port *sess = fcport;
-	unsigned long flags;
-
-	if (!vha->hw->tgt.tgt_ops)
-		return;
-
-	if (!tgt)
-		return;
-
-	spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
-	if (tgt->tgt_stop) {
-		spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
-		return;
-	}
-	if (!sess->se_sess) {
-		spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
-		return;
-	}
-
-	if (max_gen - sess->generation < 0) {
-		spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
-		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf092,
-		    "Ignoring stale deletion request for se_sess %p / sess %p"
-		    " for port %8phC, req_gen %d, sess_gen %d\n",
-		    sess->se_sess, sess, sess->port_name, max_gen,
-		    sess->generation);
-		return;
-	}
-
-	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf008, "qla_tgt_fc_port_deleted %p", sess);
-
-	sess->local = 1;
-	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
-	qlt_schedule_sess_for_deletion(sess);
-}
-
 static inline int test_tgt_sess_count(struct qla_tgt *tgt)
 {
 	struct qla_hw_data *ha = tgt->ha;
