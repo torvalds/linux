@@ -5,7 +5,7 @@
  * SMBus host driver for PA Semi PWRficient
  */
 
-#include <linux/bitfield.h>
+#include <linux/bits.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
