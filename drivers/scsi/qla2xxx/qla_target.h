@@ -1083,7 +1083,6 @@ extern int qlt_stop_phase1(struct qla_tgt *);
 extern void qlt_stop_phase2(struct qla_tgt *);
 extern irqreturn_t qla83xx_msix_atio_q(int, void *);
 extern void qlt_83xx_iospace_config(struct qla_hw_data *);
-extern int qlt_free_qfull_cmds(struct qla_qpair *);
 extern void qlt_logo_completion_handler(fc_port_t *, int);
 extern void qlt_do_generation_tick(struct scsi_qla_host *, int *);
 
