@@ -1641,7 +1641,7 @@
 			mdp: display-controller@5e01000 {
 				compatible = "qcom,qcm2290-dpu";
 				reg = <0x0 0x05e01000 0x0 0x8f000>,
-				      <0x0 0x05eb0000 0x0 0x2008>;
+				      <0x0 0x05eb0000 0x0 0x3000>;
 				reg-names = "mdp",
 					    "vbif";
 
