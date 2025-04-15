@@ -914,6 +914,7 @@ static const struct dev_pm_ops dwc3_qcom_dev_pm_ops = {
 };
 
 static const struct of_device_id dwc3_qcom_of_match[] = {
+	{ .compatible = "qcom,dwc3" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, dwc3_qcom_of_match);
@@ -922,7 +923,7 @@ static struct platform_driver dwc3_qcom_driver = {
 	.probe		= dwc3_qcom_probe,
 	.remove		= dwc3_qcom_remove,
 	.driver		= {
-		.name	= "dwc3-qcom",
+		.name	= "dwc3-qcom-legacy",
 		.pm	= &dwc3_qcom_dev_pm_ops,
 		.of_match_table	= dwc3_qcom_of_match,
 	},
@@ -931,4 +932,4 @@ static struct platform_driver dwc3_qcom_driver = {
 module_platform_driver(dwc3_qcom_driver);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("DesignWare DWC3 QCOM Glue Driver");
+MODULE_DESCRIPTION("DesignWare DWC3 QCOM legacy glue Driver");
