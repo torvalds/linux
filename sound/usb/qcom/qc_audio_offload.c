@@ -379,7 +379,7 @@ static int uaudio_send_disconnect_ind(struct snd_usb_audio *chip)
 		} else if (ret < 0) {
 			dev_err(uaudio_qdev->data->dev,
 				"failed with ret %d\n", ret);
-				atomic_set(&dev->in_use, 0);
+			atomic_set(&dev->in_use, 0);
 		}
 		mutex_lock(&qdev_mutex);
 		mutex_lock(&chip->mutex);
