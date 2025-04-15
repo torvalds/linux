@@ -1349,14 +1349,16 @@ err:
 
 	bch2_trans_iter_exit(trans, &iter);
 
-	if (ret) {
-		struct printbuf buf = PRINTBUF;
-		lockrestart_do(trans,
-			bch2_inum_offset_err_msg_trans(trans, &buf, inum,
-						       bvec_iter.bi_sector << 9));
-		prt_printf(&buf, "read error: %s", bch2_err_str(ret));
-		bch_err_ratelimited(c, "%s", buf.buf);
-		printbuf_exit(&buf);
+	if (unlikely(ret)) {
+		if (ret != -BCH_ERR_extent_poisoned) {
+			struct printbuf buf = PRINTBUF;
+			lockrestart_do(trans,
+				       bch2_inum_offset_err_msg_trans(trans, &buf, inum,
+								      bvec_iter.bi_sector << 9));
+			prt_printf(&buf, "data read error: %s", bch2_err_str(ret));
+			bch_err_ratelimited(c, "%s", buf.buf);
+			printbuf_exit(&buf);
+		}
 
 		rbio->bio.bi_status	= BLK_STS_IOERR;
 		rbio->ret		= ret;
