@@ -298,29 +298,6 @@ static int sti_dwmac_probe(struct platform_device *pdev)
 	return devm_stmmac_pltfr_probe(pdev, plat_dat, &stmmac_res);
 }
 
-static int sti_dwmac_suspend(struct device *dev)
-{
-	struct sti_dwmac *dwmac = get_stmmac_bsp_priv(dev);
-	int ret = stmmac_suspend(dev);
-
-	clk_disable_unprepare(dwmac->clk);
-
-	return ret;
-}
-
-static int sti_dwmac_resume(struct device *dev)
-{
-	struct sti_dwmac *dwmac = get_stmmac_bsp_priv(dev);
-
-	clk_prepare_enable(dwmac->clk);
-	sti_dwmac_set_mode(dwmac);
-
-	return stmmac_resume(dev);
-}
-
-static DEFINE_SIMPLE_DEV_PM_OPS(sti_dwmac_pm_ops, sti_dwmac_suspend,
-						  sti_dwmac_resume);
-
 static const struct sti_dwmac_of_data stih4xx_dwmac_data = {
 	.fix_retime_src = stih4xx_fix_retime_src,
 };
@@ -335,7 +312,7 @@ static struct platform_driver sti_dwmac_driver = {
 	.probe  = sti_dwmac_probe,
 	.driver = {
 		.name           = "sti-dwmac",
-		.pm		= pm_sleep_ptr(&sti_dwmac_pm_ops),
+		.pm		= &stmmac_pltfr_pm_ops,
 		.of_match_table = sti_dwmac_match,
 	},
 };
