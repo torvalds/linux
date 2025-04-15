@@ -72,28 +72,28 @@ static void sun7i_gmac_exit(struct platform_device *pdev, void *priv)
 		regulator_disable(gmac->regulator);
 }
 
-static void sun7i_fix_speed(void *priv, int speed, unsigned int mode)
+static int sun7i_set_clk_tx_rate(void *bsp_priv, struct clk *clk_tx_i,
+				 phy_interface_t interface, int speed)
 {
-	struct sunxi_priv_data *gmac = priv;
+	struct sunxi_priv_data *gmac = bsp_priv;
 
-	/* only GMII mode requires us to reconfigure the clock lines */
-	if (gmac->interface != PHY_INTERFACE_MODE_GMII)
-		return;
+	if (interface == PHY_INTERFACE_MODE_GMII) {
+		if (gmac->clk_enabled) {
+			clk_disable(gmac->tx_clk);
+			gmac->clk_enabled = 0;
+		}
+		clk_unprepare(gmac->tx_clk);
 
-	if (gmac->clk_enabled) {
-		clk_disable(gmac->tx_clk);
-		gmac->clk_enabled = 0;
+		if (speed == 1000) {
+			clk_set_rate(gmac->tx_clk, SUN7I_GMAC_GMII_RGMII_RATE);
+			clk_prepare_enable(gmac->tx_clk);
+			gmac->clk_enabled = 1;
+		} else {
+			clk_set_rate(gmac->tx_clk, SUN7I_GMAC_MII_RATE);
+			clk_prepare(gmac->tx_clk);
+		}
 	}
-	clk_unprepare(gmac->tx_clk);
-
-	if (speed == 1000) {
-		clk_set_rate(gmac->tx_clk, SUN7I_GMAC_GMII_RGMII_RATE);
-		clk_prepare_enable(gmac->tx_clk);
-		gmac->clk_enabled = 1;
-	} else {
-		clk_set_rate(gmac->tx_clk, SUN7I_GMAC_MII_RATE);
-		clk_prepare(gmac->tx_clk);
-	}
+	return 0;
 }
 
 static int sun7i_gmac_probe(struct platform_device *pdev)
@@ -140,7 +140,7 @@ static int sun7i_gmac_probe(struct platform_device *pdev)
 	plat_dat->bsp_priv = gmac;
 	plat_dat->init = sun7i_gmac_init;
 	plat_dat->exit = sun7i_gmac_exit;
-	plat_dat->fix_mac_speed = sun7i_fix_speed;
+	plat_dat->set_clk_tx_rate = sun7i_set_clk_tx_rate;
 	plat_dat->tx_fifo_size = 4096;
 	plat_dat->rx_fifo_size = 16384;
 
