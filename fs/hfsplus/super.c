@@ -656,6 +656,8 @@ static int hfsplus_init_fs_context(struct fs_context *fc)
 {
 	struct hfsplus_sb_info *sbi;
 
+	pr_warn("The hfsplus filesystem is deprecated and scheduled to be removed from the kernel in 2025\n");
+
 	sbi = kzalloc(sizeof(struct hfsplus_sb_info), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;

@@ -404,6 +404,8 @@ static int hfs_init_fs_context(struct fs_context *fc)
 {
 	struct hfs_sb_info *hsb;
 
+	pr_warn("The hfs filesystem is deprecated and scheduled to be removed from the kernel in 2025\n");
+
 	hsb = kzalloc(sizeof(struct hfs_sb_info), GFP_KERNEL);
 	if (!hsb)
 		return -ENOMEM;
