@@ -2830,8 +2830,8 @@
 				compatible = "qcom,msm8998-dpu";
 				reg = <0x0c901000 0x8f000>,
 				      <0x0c9a8e00 0xf0>,
-				      <0x0c9b0000 0x2008>,
-				      <0x0c9b8000 0x1040>;
+				      <0x0c9b0000 0x3000>,
+				      <0x0c9b8000 0x3000>;
 				reg-names = "mdp",
 					    "regdma",
 					    "vbif",
