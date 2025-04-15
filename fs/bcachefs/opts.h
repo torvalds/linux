@@ -612,10 +612,10 @@ void bch2_opt_set_by_id(struct bch_opts *, enum bch_opt_id, u64);
 
 u64 bch2_opt_from_sb(struct bch_sb *, enum bch_opt_id, int);
 int bch2_opts_from_sb(struct bch_opts *, struct bch_sb *);
-void __bch2_opt_set_sb(struct bch_sb *, int, const struct bch_option *, u64);
+bool __bch2_opt_set_sb(struct bch_sb *, int, const struct bch_option *, u64);
 
 struct bch_dev;
-void bch2_opt_set_sb(struct bch_fs *, struct bch_dev *, const struct bch_option *, u64);
+bool bch2_opt_set_sb(struct bch_fs *, struct bch_dev *, const struct bch_option *, u64);
 
 int bch2_opt_lookup(const char *);
 int bch2_opt_validate(const struct bch_option *, u64, struct printbuf *);
@@ -632,8 +632,11 @@ void bch2_opts_to_text(struct printbuf *,
 		       struct bch_fs *, struct bch_sb *,
 		       unsigned, unsigned, unsigned);
 
-int bch2_opt_check_may_set(struct bch_fs *, struct bch_dev *, int, u64);
-int bch2_opts_check_may_set(struct bch_fs *);
+int bch2_opt_hook_pre_set(struct bch_fs *, struct bch_dev *, enum bch_opt_id, u64);
+int bch2_opts_hooks_pre_set(struct bch_fs *);
+void bch2_opt_hook_post_set(struct bch_fs *, struct bch_dev *, u64,
+			    struct bch_opts *, enum bch_opt_id);
+
 int bch2_parse_one_mount_opt(struct bch_fs *, struct bch_opts *,
 			     struct printbuf *, const char *, const char *);
 int bch2_parse_mount_opts(struct bch_fs *, struct bch_opts *, struct printbuf *,

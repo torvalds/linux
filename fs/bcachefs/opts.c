@@ -7,7 +7,9 @@
 #include "compress.h"
 #include "disk_groups.h"
 #include "error.h"
+#include "movinggc.h"
 #include "opts.h"
+#include "rebalance.h"
 #include "recovery_passes.h"
 #include "super-io.h"
 #include "util.h"
@@ -516,7 +518,7 @@ void bch2_opts_to_text(struct printbuf *out,
 	}
 }
 
-int bch2_opt_check_may_set(struct bch_fs *c, struct bch_dev *ca, int id, u64 v)
+int bch2_opt_hook_pre_set(struct bch_fs *c, struct bch_dev *ca, enum bch_opt_id id, u64 v)
 {
 	int ret = 0;
 
@@ -534,20 +536,68 @@ int bch2_opt_check_may_set(struct bch_fs *c, struct bch_dev *ca, int id, u64 v)
 		if (v)
 			bch2_check_set_feature(c, BCH_FEATURE_ec);
 		break;
+	default:
+		break;
 	}
 
 	return ret;
 }
 
-int bch2_opts_check_may_set(struct bch_fs *c)
+int bch2_opts_hooks_pre_set(struct bch_fs *c)
 {
 	for (unsigned i = 0; i < bch2_opts_nr; i++) {
-		int ret = bch2_opt_check_may_set(c, NULL, i, bch2_opt_get_by_id(&c->opts, i));
+		int ret = bch2_opt_hook_pre_set(c, NULL, i, bch2_opt_get_by_id(&c->opts, i));
 		if (ret)
 			return ret;
 	}
 
 	return 0;
+}
+
+void bch2_opt_hook_post_set(struct bch_fs *c, struct bch_dev *ca, u64 inum,
+			    struct bch_opts *new_opts, enum bch_opt_id id)
+{
+	switch (id) {
+	case Opt_foreground_target:
+		if (new_opts->foreground_target &&
+		    !new_opts->background_target)
+			bch2_set_rebalance_needs_scan(c, inum);
+		break;
+	case Opt_compression:
+		if (new_opts->compression &&
+		    !new_opts->background_compression)
+			bch2_set_rebalance_needs_scan(c, inum);
+		break;
+	case Opt_background_target:
+		if (new_opts->background_target)
+			bch2_set_rebalance_needs_scan(c, inum);
+		break;
+	case Opt_background_compression:
+		if (new_opts->background_compression)
+			bch2_set_rebalance_needs_scan(c, inum);
+		break;
+	case Opt_rebalance_enabled:
+		bch2_rebalance_wakeup(c);
+		break;
+	case Opt_copygc_enabled:
+		bch2_copygc_wakeup(c);
+		break;
+	case Opt_discard:
+		if (!ca) {
+			mutex_lock(&c->sb_lock);
+			for_each_member_device(c, ca) {
+				struct bch_member *m =
+					bch2_members_v2_get_mut(ca->disk_sb.sb, ca->dev_idx);
+				SET_BCH_MEMBER_DISCARD(m, c->opts.discard);
+			}
+
+			bch2_write_super(c);
+			mutex_unlock(&c->sb_lock);
+		}
+		break;
+	default:
+		break;
+	}
 }
 
 int bch2_parse_one_mount_opt(struct bch_fs *c, struct bch_opts *opts,
@@ -709,9 +759,11 @@ int bch2_opts_from_sb(struct bch_opts *opts, struct bch_sb *sb)
 	return 0;
 }
 
-void __bch2_opt_set_sb(struct bch_sb *sb, int dev_idx,
+bool __bch2_opt_set_sb(struct bch_sb *sb, int dev_idx,
 		       const struct bch_option *opt, u64 v)
 {
+	bool changed = false;
+
 	if (opt->flags & OPT_SB_FIELD_SECTORS)
 		v >>= 9;
 
@@ -721,26 +773,35 @@ void __bch2_opt_set_sb(struct bch_sb *sb, int dev_idx,
 	if (opt->flags & OPT_SB_FIELD_ONE_BIAS)
 		v++;
 
-	if ((opt->flags & OPT_FS) && opt->set_sb && dev_idx < 0)
+	if ((opt->flags & OPT_FS) && opt->set_sb && dev_idx < 0) {
+		changed = v != opt->get_sb(sb);
+
 		opt->set_sb(sb, v);
+	}
 
 	if ((opt->flags & OPT_DEVICE) && opt->set_member && dev_idx >= 0) {
 		if (WARN(!bch2_member_exists(sb, dev_idx),
 			 "tried to set device option %s on nonexistent device %i",
 			 opt->attr.name, dev_idx))
-			return;
+			return false;
 
-		opt->set_member(bch2_members_v2_get_mut(sb, dev_idx), v);
+		struct bch_member *m = bch2_members_v2_get_mut(sb, dev_idx);
+		changed = v != opt->get_member(m);
+		opt->set_member(m, v);
 	}
+
+	return changed;
 }
 
-void bch2_opt_set_sb(struct bch_fs *c, struct bch_dev *ca,
+bool bch2_opt_set_sb(struct bch_fs *c, struct bch_dev *ca,
 		     const struct bch_option *opt, u64 v)
 {
 	mutex_lock(&c->sb_lock);
-	__bch2_opt_set_sb(c->disk_sb.sb, ca ? ca->dev_idx : -1, opt, v);
-	bch2_write_super(c);
+	bool changed = __bch2_opt_set_sb(c->disk_sb.sb, ca ? ca->dev_idx : -1, opt, v);
+	if (changed)
+		bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
+	return changed;
 }
 
 /* io opts: */

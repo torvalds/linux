@@ -1130,7 +1130,7 @@ int bch2_fs_start(struct bch_fs *c)
 	if (ret)
 		goto err;
 
-	ret = bch2_opts_check_may_set(c);
+	ret = bch2_opts_hooks_pre_set(c);
 	if (ret)
 		goto err;
 

@@ -637,36 +637,19 @@ static ssize_t sysfs_opt_store(struct bch_fs *c,
 
 	u64 v;
 	ret =   bch2_opt_parse(c, opt, strim(tmp), &v, NULL) ?:
-		bch2_opt_check_may_set(c, ca, id, v);
+		bch2_opt_hook_pre_set(c, ca, id, v);
 	kfree(tmp);
 
 	if (ret < 0)
 		goto err;
 
-	bch2_opt_set_sb(c, ca, opt, v);
-	bch2_opt_set_by_id(&c->opts, id, v);
+	bool changed = bch2_opt_set_sb(c, ca, opt, v);
 
-	if (v &&
-	    (id == Opt_background_target ||
-	     (id == Opt_foreground_target && !c->opts.background_target) ||
-	     id == Opt_background_compression ||
-	     (id == Opt_compression && !c->opts.background_compression)))
-		bch2_set_rebalance_needs_scan(c, 0);
+	if (!ca)
+		bch2_opt_set_by_id(&c->opts, id, v);
 
-	if (v && id == Opt_rebalance_enabled)
-		bch2_rebalance_wakeup(c);
-
-	if (v && id == Opt_copygc_enabled)
-		bch2_copygc_wakeup(c);
-
-	if (id == Opt_discard && !ca) {
-		mutex_lock(&c->sb_lock);
-		for_each_member_device(c, ca)
-			opt->set_member(bch2_members_v2_get_mut(ca->disk_sb.sb, ca->dev_idx), v);
-
-		bch2_write_super(c);
-		mutex_unlock(&c->sb_lock);
-	}
+	if (changed)
+		bch2_opt_hook_post_set(c, ca, 0, &c->opts, id);
 
 	ret = size;
 err:
