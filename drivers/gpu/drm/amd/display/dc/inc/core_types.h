@@ -78,8 +78,7 @@ struct resource_funcs {
 	/* Create a minimal link encoder object with no dc_link object
 	 * associated with it. */
 	struct link_encoder *(*link_enc_create_minimal)(struct dc_context *ctx, enum engine_id eng_id);
-
-	enum dc_status (*validate_bandwidth)(
+	bool (*validate_bandwidth)(
 					struct dc *dc,
 					struct dc_state *context,
 					bool fast_validate);
@@ -218,9 +217,6 @@ struct resource_funcs {
 	int (*get_power_profile)(const struct dc_state *context);
 	unsigned int (*get_det_buffer_size)(const struct dc_state *context);
 	unsigned int (*get_vstartup_for_pipe)(struct pipe_ctx *pipe_ctx);
-	unsigned int (*get_max_hw_cursor_size)(const struct dc *dc,
-			struct dc_state *state,
-			const struct dc_stream_state *stream);
 };
 
 struct audio_support{

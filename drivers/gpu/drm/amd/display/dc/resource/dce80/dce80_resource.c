@@ -869,7 +869,7 @@ static void dce80_resource_destruct(struct dce110_resource_pool *pool)
 	}
 }
 
-static enum dc_status dce80_validate_bandwidth(
+static bool dce80_validate_bandwidth(
 	struct dc *dc,
 	struct dc_state *context,
 	bool fast_validate)
@@ -891,7 +891,7 @@ static enum dc_status dce80_validate_bandwidth(
 		context->bw_ctx.bw.dce.yclk_khz = 0;
 	}
 
-	return DC_OK;
+	return true;
 }
 
 static bool dce80_validate_surface_sets(
