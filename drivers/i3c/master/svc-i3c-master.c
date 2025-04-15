@@ -577,11 +577,11 @@ static void svc_i3c_master_ibi_isr(struct svc_i3c_master *master)
 	/* Handle the non critical tasks */
 	switch (ibitype) {
 	case SVC_I3C_MSTATUS_IBITYPE_IBI:
+		svc_i3c_master_emit_stop(master);
 		if (dev) {
 			i3c_master_queue_ibi(dev, master->ibi.tbq_slot);
 			master->ibi.tbq_slot = NULL;
 		}
-		svc_i3c_master_emit_stop(master);
 		break;
 	case SVC_I3C_MSTATUS_IBITYPE_HOT_JOIN:
 		svc_i3c_master_emit_stop(master);
