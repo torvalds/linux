@@ -189,7 +189,6 @@ void amdgpu_eviction_fence_destroy(struct amdgpu_eviction_fence_mgr *evf_mgr)
 int amdgpu_eviction_fence_attach(struct amdgpu_eviction_fence_mgr *evf_mgr,
 				 struct amdgpu_bo *bo)
 {
-	struct dma_fence *ef;
 	struct amdgpu_eviction_fence *ev_fence;
 	struct dma_resv *resv = bo->tbo.base.resv;
 	int ret;
@@ -205,10 +204,8 @@ int amdgpu_eviction_fence_attach(struct amdgpu_eviction_fence_mgr *evf_mgr,
 
 	spin_lock(&evf_mgr->ev_fence_lock);
 	ev_fence = evf_mgr->ev_fence;
-	if (ev_fence) {
-		ef = dma_fence_get(&ev_fence->base);
-		dma_resv_add_fence(resv, ef, DMA_RESV_USAGE_BOOKKEEP);
-	}
+	if (ev_fence)
+		dma_resv_add_fence(resv, &ev_fence->base, DMA_RESV_USAGE_BOOKKEEP);
 	spin_unlock(&evf_mgr->ev_fence_lock);
 
 	return 0;
