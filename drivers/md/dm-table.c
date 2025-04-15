@@ -117,7 +117,6 @@ static int alloc_targets(struct dm_table *t, unsigned int num)
 	n_targets = (struct dm_target *) (n_highs + num);
 
 	memset(n_highs, -1, sizeof(*n_highs) * num);
-	kvfree(t->highs);
 
 	t->num_allocated = num;
 	t->highs = n_highs;
