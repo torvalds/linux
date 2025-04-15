@@ -2930,18 +2930,6 @@ err_vnigroup_uninit:
 	return err;
 }
 
-static void vxlan_fdb_delete_default(struct vxlan_dev *vxlan, __be32 vni)
-{
-	struct vxlan_fdb *f;
-	u32 hash_index = fdb_head_index(vxlan, all_zeros_mac, vni);
-
-	spin_lock_bh(&vxlan->hash_lock[hash_index]);
-	f = __vxlan_find_mac(vxlan, all_zeros_mac, vni);
-	if (f)
-		vxlan_fdb_destroy(vxlan, f, true, true);
-	spin_unlock_bh(&vxlan->hash_lock[hash_index]);
-}
-
 static void vxlan_uninit(struct net_device *dev)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
@@ -2952,8 +2940,6 @@ static void vxlan_uninit(struct net_device *dev)
 		vxlan_vnigroup_uninit(vxlan);
 
 	gro_cells_destroy(&vxlan->gro_cells);
-
-	vxlan_fdb_delete_default(vxlan, vxlan->cfg.vni);
 }
 
 /* Start ageing timer and join group when device is brought up */
@@ -3187,7 +3173,7 @@ static int vxlan_stop(struct net_device *dev)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct vxlan_fdb_flush_desc desc = {
-		/* Default entry is deleted at vxlan_uninit. */
+		/* Default entry is deleted at vxlan_dellink. */
 		.ignore_default_entry = true,
 		.state = 0,
 		.state_mask = NUD_PERMANENT | NUD_NOARP,
@@ -3963,7 +3949,6 @@ static int __vxlan_dev_create(struct net *net, struct net_device *dev,
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct net_device *remote_dev = NULL;
 	struct vxlan_fdb *f = NULL;
-	bool unregister = false;
 	struct vxlan_rdst *dst;
 	int err;
 
@@ -3973,6 +3958,26 @@ static int __vxlan_dev_create(struct net *net, struct net_device *dev,
 		return err;
 
 	dev->ethtool_ops = &vxlan_ethtool_ops;
+
+	err = register_netdevice(dev);
+	if (err)
+		return err;
+
+	if (dst->remote_ifindex) {
+		remote_dev = __dev_get_by_index(net, dst->remote_ifindex);
+		if (!remote_dev) {
+			err = -ENODEV;
+			goto unregister;
+		}
+
+		err = netdev_upper_dev_link(remote_dev, dev, extack);
+		if (err)
+			goto unregister;
+	}
+
+	err = rtnl_configure_link(dev, NULL, 0, NULL);
+	if (err < 0)
+		goto unlink;
 
 	/* create an fdb entry for a valid default destination */
 	if (!vxlan_addr_any(&dst->remote_ip)) {
@@ -3985,29 +3990,8 @@ static int __vxlan_dev_create(struct net *net, struct net_device *dev,
 				       dst->remote_ifindex,
 				       NTF_SELF, 0, &f, extack);
 		if (err)
-			return err;
+			goto unlink;
 	}
-
-	err = register_netdevice(dev);
-	if (err)
-		goto errout;
-	unregister = true;
-
-	if (dst->remote_ifindex) {
-		remote_dev = __dev_get_by_index(net, dst->remote_ifindex);
-		if (!remote_dev) {
-			err = -ENODEV;
-			goto errout;
-		}
-
-		err = netdev_upper_dev_link(remote_dev, dev, extack);
-		if (err)
-			goto errout;
-	}
-
-	err = rtnl_configure_link(dev, NULL, 0, NULL);
-	if (err < 0)
-		goto unlink;
 
 	if (f) {
 		vxlan_fdb_insert(vxlan, all_zeros_mac, dst->remote_vni, f);
@@ -4015,31 +3999,22 @@ static int __vxlan_dev_create(struct net *net, struct net_device *dev,
 		/* notify default fdb entry */
 		err = vxlan_fdb_notify(vxlan, f, first_remote_rtnl(f),
 				       RTM_NEWNEIGH, true, extack);
-		if (err) {
-			vxlan_fdb_destroy(vxlan, f, false, false);
-			if (remote_dev)
-				netdev_upper_dev_unlink(remote_dev, dev);
-			goto unregister;
-		}
+		if (err)
+			goto fdb_destroy;
 	}
 
 	list_add(&vxlan->next, &vn->vxlan_list);
 	if (remote_dev)
 		dst->remote_dev = remote_dev;
 	return 0;
+
+fdb_destroy:
+	vxlan_fdb_destroy(vxlan, f, false, false);
 unlink:
 	if (remote_dev)
 		netdev_upper_dev_unlink(remote_dev, dev);
-errout:
-	/* unregister_netdevice() destroys the default FDB entry with deletion
-	 * notification. But the addition notification was not sent yet, so
-	 * destroy the entry by hand here.
-	 */
-	if (f)
-		__vxlan_fdb_free(f);
 unregister:
-	if (unregister)
-		unregister_netdevice(dev);
+	unregister_netdevice(dev);
 	return err;
 }
 
@@ -4520,10 +4495,7 @@ static int vxlan_changelink(struct net_device *dev, struct nlattr *tb[],
 static void vxlan_dellink(struct net_device *dev, struct list_head *head)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
-	struct vxlan_fdb_flush_desc desc = {
-		/* Default entry is deleted at vxlan_uninit. */
-		.ignore_default_entry = true,
-	};
+	struct vxlan_fdb_flush_desc desc = {};
 
 	vxlan_flush(vxlan, &desc);
 
