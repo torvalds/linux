@@ -667,7 +667,7 @@ static bool check_version_upgrade(struct bch_fs *c)
 				     bch2_recovery_passes_from_stable(le64_to_cpu(passes)));
 		}
 
-		bch_info(c, "%s", buf.buf);
+		bch_notice(c, "%s", buf.buf);
 		printbuf_exit(&buf);
 
 		ret = true;
@@ -683,7 +683,7 @@ static bool check_version_upgrade(struct bch_fs *c)
 		bch2_version_to_text(&buf, c->sb.version_incompat_allowed);
 		prt_newline(&buf);
 
-		bch_info(c, "%s", buf.buf);
+		bch_notice(c, "%s", buf.buf);
 		printbuf_exit(&buf);
 
 		ret = true;

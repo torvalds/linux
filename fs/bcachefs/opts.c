@@ -595,6 +595,15 @@ void bch2_opt_hook_post_set(struct bch_fs *c, struct bch_dev *ca, u64 inum,
 			mutex_unlock(&c->sb_lock);
 		}
 		break;
+	case Opt_version_upgrade:
+		/*
+		 * XXX: in the future we'll likely want to do compatible
+		 * upgrades at runtime as well, but right now there's nothing
+		 * that does that:
+		 */
+		if (new_opts->version_upgrade == BCH_VERSION_UPGRADE_incompatible)
+			bch2_sb_upgrade_incompat(c);
+		break;
 	default:
 		break;
 	}

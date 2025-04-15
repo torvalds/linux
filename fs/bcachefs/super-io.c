@@ -1274,6 +1274,31 @@ void bch2_sb_upgrade(struct bch_fs *c, unsigned new_version, bool incompat)
 	}
 }
 
+void bch2_sb_upgrade_incompat(struct bch_fs *c)
+{
+	mutex_lock(&c->sb_lock);
+	if (c->sb.version == c->sb.version_incompat_allowed)
+		goto unlock;
+
+	struct printbuf buf = PRINTBUF;
+
+	prt_str(&buf, "Now allowing incompatible features up to ");
+	bch2_version_to_text(&buf, c->sb.version);
+	prt_str(&buf, ", previously allowed up to ");
+	bch2_version_to_text(&buf, c->sb.version_incompat_allowed);
+	prt_newline(&buf);
+
+	bch_notice(c, "%s", buf.buf);
+	printbuf_exit(&buf);
+
+	c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
+	SET_BCH_SB_VERSION_INCOMPAT_ALLOWED(c->disk_sb.sb,
+			max(BCH_SB_VERSION_INCOMPAT_ALLOWED(c->disk_sb.sb), c->sb.version));
+	bch2_write_super(c);
+unlock:
+	mutex_unlock(&c->sb_lock);
+}
+
 static int bch2_sb_ext_validate(struct bch_sb *sb, struct bch_sb_field *f,
 				enum bch_validate_flags flags, struct printbuf *err)
 {

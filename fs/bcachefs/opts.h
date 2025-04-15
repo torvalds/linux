@@ -450,7 +450,7 @@ enum fsck_err_opts {
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		"Reconstruct alloc btree")			\
 	x(version_upgrade,		u8,				\
-	  OPT_FS|OPT_MOUNT,						\
+	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
 	  OPT_STR(bch2_version_upgrade_opts),				\
 	  BCH_SB_VERSION_UPGRADE,	BCH_VERSION_UPGRADE_compatible,	\
 	  NULL,		"Set superblock to latest version,\n"		\
