@@ -584,9 +584,13 @@ static struct request *blk_mq_rq_cache_fill(struct request_queue *q,
 	struct blk_mq_alloc_data data = {
 		.q		= q,
 		.flags		= flags,
+		.shallow_depth	= 0,
 		.cmd_flags	= opf,
+		.rq_flags	= 0,
 		.nr_tags	= plug->nr_ios,
 		.cached_rqs	= &plug->cached_rqs,
+		.ctx		= NULL,
+		.hctx		= NULL
 	};
 	struct request *rq;
 
@@ -646,8 +650,13 @@ struct request *blk_mq_alloc_request(struct request_queue *q, blk_opf_t opf,
 		struct blk_mq_alloc_data data = {
 			.q		= q,
 			.flags		= flags,
+			.shallow_depth	= 0,
 			.cmd_flags	= opf,
+			.rq_flags	= 0,
 			.nr_tags	= 1,
+			.cached_rqs	= NULL,
+			.ctx		= NULL,
+			.hctx		= NULL
 		};
 		int ret;
 
@@ -675,8 +684,13 @@ struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
 	struct blk_mq_alloc_data data = {
 		.q		= q,
 		.flags		= flags,
+		.shallow_depth	= 0,
 		.cmd_flags	= opf,
+		.rq_flags	= 0,
 		.nr_tags	= 1,
+		.cached_rqs	= NULL,
+		.ctx		= NULL,
+		.hctx		= NULL
 	};
 	u64 alloc_time_ns = 0;
 	struct request *rq;
@@ -2967,8 +2981,14 @@ static struct request *blk_mq_get_new_requests(struct request_queue *q,
 {
 	struct blk_mq_alloc_data data = {
 		.q		= q,
-		.nr_tags	= 1,
+		.flags		= 0,
+		.shallow_depth	= 0,
 		.cmd_flags	= bio->bi_opf,
+		.rq_flags	= 0,
+		.nr_tags	= 1,
+		.cached_rqs	= NULL,
+		.ctx		= NULL,
+		.hctx		= NULL
 	};
 	struct request *rq;
 
