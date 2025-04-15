@@ -238,6 +238,7 @@ hws_action_fixup_stc_attr(struct mlx5hws_context *ctx,
 			  enum mlx5hws_table_type table_type,
 			  bool is_mirror)
 {
+	struct mlx5hws_pool *pool;
 	bool use_fixup = false;
 	u32 fw_tbl_type;
 	u32 base_id;
@@ -253,13 +254,11 @@ hws_action_fixup_stc_attr(struct mlx5hws_context *ctx,
 			use_fixup = true;
 			break;
 		}
+		pool = stc_attr->ste_table.ste_pool;
 		if (!is_mirror)
-			base_id = mlx5hws_pool_chunk_get_base_id(stc_attr->ste_table.ste_pool,
-								 &stc_attr->ste_table.ste);
+			base_id = mlx5hws_pool_get_base_id(pool);
 		else
-			base_id =
-				mlx5hws_pool_chunk_get_base_mirror_id(stc_attr->ste_table.ste_pool,
-								      &stc_attr->ste_table.ste);
+			base_id = mlx5hws_pool_get_base_mirror_id(pool);
 
 		*fixup_stc_attr = *stc_attr;
 		fixup_stc_attr->ste_table.ste_obj_id = base_id;
@@ -337,7 +336,7 @@ __must_hold(&ctx->ctrl_lock)
 	if (!mlx5hws_context_cap_dynamic_reparse(ctx))
 		stc_attr->reparse_mode = MLX5_IFC_STC_REPARSE_IGNORE;
 
-	obj_0_id = mlx5hws_pool_chunk_get_base_id(stc_pool, stc);
+	obj_0_id = mlx5hws_pool_get_base_id(stc_pool);
 
 	/* According to table/action limitation change the stc_attr */
 	use_fixup = hws_action_fixup_stc_attr(ctx, stc_attr, &fixup_stc_attr, table_type, false);
@@ -353,7 +352,7 @@ __must_hold(&ctx->ctrl_lock)
 	if (table_type == MLX5HWS_TABLE_TYPE_FDB) {
 		u32 obj_1_id;
 
-		obj_1_id = mlx5hws_pool_chunk_get_base_mirror_id(stc_pool, stc);
+		obj_1_id = mlx5hws_pool_get_base_mirror_id(stc_pool);
 
 		use_fixup = hws_action_fixup_stc_attr(ctx, stc_attr,
 						      &fixup_stc_attr,
@@ -393,11 +392,11 @@ __must_hold(&ctx->ctrl_lock)
 	stc_attr.action_type = MLX5_IFC_STC_ACTION_TYPE_DROP;
 	stc_attr.action_offset = MLX5HWS_ACTION_OFFSET_HIT;
 	stc_attr.stc_offset = stc->offset;
-	obj_id = mlx5hws_pool_chunk_get_base_id(stc_pool, stc);
+	obj_id = mlx5hws_pool_get_base_id(stc_pool);
 	mlx5hws_cmd_stc_modify(ctx->mdev, obj_id, &stc_attr);
 
 	if (table_type == MLX5HWS_TABLE_TYPE_FDB) {
-		obj_id = mlx5hws_pool_chunk_get_base_mirror_id(stc_pool, stc);
+		obj_id = mlx5hws_pool_get_base_mirror_id(stc_pool);
 		mlx5hws_cmd_stc_modify(ctx->mdev, obj_id, &stc_attr);
 	}
 
@@ -1575,17 +1574,15 @@ hws_action_create_dest_match_range_definer(struct mlx5hws_context *ctx)
 	return definer;
 }
 
-static struct mlx5hws_matcher_action_ste *
+static struct mlx5hws_range_action_table *
 hws_action_create_dest_match_range_table(struct mlx5hws_context *ctx,
 					 struct mlx5hws_definer *definer,
 					 u32 miss_ft_id)
 {
 	struct mlx5hws_cmd_rtc_create_attr rtc_attr = {0};
-	struct mlx5hws_action_default_stc *default_stc;
-	struct mlx5hws_matcher_action_ste *table_ste;
+	struct mlx5hws_range_action_table *table_ste;
 	struct mlx5hws_pool_attr pool_attr = {0};
 	struct mlx5hws_pool *ste_pool, *stc_pool;
-	struct mlx5hws_pool_chunk *ste;
 	u32 *rtc_0_id, *rtc_1_id;
 	u32 obj_id;
 	int ret;
@@ -1604,7 +1601,6 @@ hws_action_create_dest_match_range_table(struct mlx5hws_context *ctx,
 
 	pool_attr.table_type = MLX5HWS_TABLE_TYPE_FDB;
 	pool_attr.pool_type = MLX5HWS_POOL_TYPE_STE;
-	pool_attr.flags = MLX5HWS_POOL_FLAGS_FOR_STE_ACTION_POOL;
 	pool_attr.alloc_log_sz = 1;
 	table_ste->pool = mlx5hws_pool_create(ctx, &pool_attr);
 	if (!table_ste->pool) {
@@ -1616,8 +1612,6 @@ hws_action_create_dest_match_range_table(struct mlx5hws_context *ctx,
 	rtc_0_id = &table_ste->rtc_0_id;
 	rtc_1_id = &table_ste->rtc_1_id;
 	ste_pool = table_ste->pool;
-	ste = &table_ste->ste;
-	ste->order = 1;
 
 	rtc_attr.log_size = 0;
 	rtc_attr.log_depth = 0;
@@ -1629,18 +1623,16 @@ hws_action_create_dest_match_range_table(struct mlx5hws_context *ctx,
 	rtc_attr.fw_gen_wqe = true;
 	rtc_attr.is_scnd_range = true;
 
-	obj_id = mlx5hws_pool_chunk_get_base_id(ste_pool, ste);
+	obj_id = mlx5hws_pool_get_base_id(ste_pool);
 
 	rtc_attr.pd = ctx->pd_num;
 	rtc_attr.ste_base = obj_id;
-	rtc_attr.ste_offset = ste->offset;
 	rtc_attr.reparse_mode = mlx5hws_context_get_reparse_mode(ctx);
 	rtc_attr.table_type = mlx5hws_table_get_res_fw_ft_type(MLX5HWS_TABLE_TYPE_FDB, false);
 
 	/* STC is a single resource (obj_id), use any STC for the ID */
 	stc_pool = ctx->stc_pool;
-	default_stc = ctx->common_res.default_stc;
-	obj_id = mlx5hws_pool_chunk_get_base_id(stc_pool, &default_stc->default_hit);
+	obj_id = mlx5hws_pool_get_base_id(stc_pool);
 	rtc_attr.stc_base = obj_id;
 
 	ret = mlx5hws_cmd_rtc_create(ctx->mdev, &rtc_attr, rtc_0_id);
@@ -1650,11 +1642,11 @@ hws_action_create_dest_match_range_table(struct mlx5hws_context *ctx,
 	}
 
 	/* Create mirror RTC */
-	obj_id = mlx5hws_pool_chunk_get_base_mirror_id(ste_pool, ste);
+	obj_id = mlx5hws_pool_get_base_mirror_id(ste_pool);
 	rtc_attr.ste_base = obj_id;
 	rtc_attr.table_type = mlx5hws_table_get_res_fw_ft_type(MLX5HWS_TABLE_TYPE_FDB, true);
 
-	obj_id = mlx5hws_pool_chunk_get_base_mirror_id(stc_pool, &default_stc->default_hit);
+	obj_id = mlx5hws_pool_get_base_mirror_id(stc_pool);
 	rtc_attr.stc_base = obj_id;
 
 	ret = mlx5hws_cmd_rtc_create(ctx->mdev, &rtc_attr, rtc_1_id);
@@ -1677,9 +1669,9 @@ free_ste:
 	return NULL;
 }
 
-static void
-hws_action_destroy_dest_match_range_table(struct mlx5hws_context *ctx,
-					  struct mlx5hws_matcher_action_ste *table_ste)
+static void hws_action_destroy_dest_match_range_table(
+	struct mlx5hws_context *ctx,
+	struct mlx5hws_range_action_table *table_ste)
 {
 	mutex_lock(&ctx->ctrl_lock);
 
@@ -1691,12 +1683,11 @@ hws_action_destroy_dest_match_range_table(struct mlx5hws_context *ctx,
 	mutex_unlock(&ctx->ctrl_lock);
 }
 
-static int
-hws_action_create_dest_match_range_fill_table(struct mlx5hws_context *ctx,
-					      struct mlx5hws_matcher_action_ste *table_ste,
-					      struct mlx5hws_action *hit_ft_action,
-					      struct mlx5hws_definer *range_definer,
-					      u32 min, u32 max)
+static int hws_action_create_dest_match_range_fill_table(
+	struct mlx5hws_context *ctx,
+	struct mlx5hws_range_action_table *table_ste,
+	struct mlx5hws_action *hit_ft_action,
+	struct mlx5hws_definer *range_definer, u32 min, u32 max)
 {
 	struct mlx5hws_wqe_gta_data_seg_ste match_wqe_data = {0};
 	struct mlx5hws_wqe_gta_data_seg_ste range_wqe_data = {0};
@@ -1792,7 +1783,7 @@ mlx5hws_action_create_dest_match_range(struct mlx5hws_context *ctx,
 				       u32 min, u32 max, u32 flags)
 {
 	struct mlx5hws_cmd_stc_modify_attr stc_attr = {0};
-	struct mlx5hws_matcher_action_ste *table_ste;
+	struct mlx5hws_range_action_table *table_ste;
 	struct mlx5hws_action *hit_ft_action;
 	struct mlx5hws_definer *definer;
 	struct mlx5hws_action *action;
@@ -1837,7 +1828,6 @@ mlx5hws_action_create_dest_match_range(struct mlx5hws_context *ctx,
 	stc_attr.action_offset = MLX5HWS_ACTION_OFFSET_HIT;
 	stc_attr.action_type = MLX5_IFC_STC_ACTION_TYPE_JUMP_TO_STE_TABLE;
 	stc_attr.reparse_mode = MLX5_IFC_STC_REPARSE_IGNORE;
-	stc_attr.ste_table.ste = table_ste->ste;
 	stc_attr.ste_table.ste_pool = table_ste->pool;
 	stc_attr.ste_table.match_definer_id = ctx->caps->trivial_match_definer;
 
