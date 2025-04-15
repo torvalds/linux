@@ -76,7 +76,7 @@
  * conventions for the use the flash space:
  */
 
-/* Minumum amount of flash we support */
+/* Minimum amount of flash we support */
 #define FLASH_MIN		0x00020000	/* Minimum flash size */
 
 #define	CC_SROM_OTP		0x800	/* SROM/OTP address space */

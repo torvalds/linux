@@ -479,7 +479,7 @@ void brcms_c_ampdu_reset_session(struct brcms_ampdu_session *session,
 
 /*
  * Preps the given packet for AMPDU based on the session data. If the
- * frame cannot be accomodated in the current session, -ENOSPC is
+ * frame cannot be accommodated in the current session, -ENOSPC is
  * returned.
  */
 int brcms_c_ampdu_add_frame(struct brcms_ampdu_session *session,
@@ -529,7 +529,7 @@ int brcms_c_ampdu_add_frame(struct brcms_ampdu_session *session,
 	}
 
 	/*
-	 * Now that we're sure this frame can be accomodated, update the
+	 * Now that we're sure this frame can be accommodated, update the
 	 * session information.
 	 */
 	session->ampdu_len += len;
