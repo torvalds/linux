@@ -4673,7 +4673,7 @@
 			mdss_mdp: display-controller@ae01000 {
 				compatible = "qcom,sc7280-dpu";
 				reg = <0 0x0ae01000 0 0x8f030>,
-					<0 0x0aeb0000 0 0x2008>;
+					<0 0x0aeb0000 0 0x3000>;
 				reg-names = "mdp", "vbif";
 
 				clocks = <&gcc GCC_DISP_HF_AXI_CLK>,
