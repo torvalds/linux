@@ -3943,7 +3943,6 @@ static int __vxlan_dev_create(struct net *net, struct net_device *dev,
 	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct net_device *remote_dev = NULL;
-	struct vxlan_fdb *f = NULL;
 	struct vxlan_rdst *dst;
 	int err;
 
@@ -3976,24 +3975,22 @@ static int __vxlan_dev_create(struct net *net, struct net_device *dev,
 
 	/* create an fdb entry for a valid default destination */
 	if (!vxlan_addr_any(&dst->remote_ip)) {
-		err = vxlan_fdb_create(vxlan, all_zeros_mac,
+		u32 hash_index = fdb_head_index(vxlan, all_zeros_mac,
+						dst->remote_vni);
+
+		spin_lock_bh(&vxlan->hash_lock[hash_index]);
+		err = vxlan_fdb_update(vxlan, all_zeros_mac,
 				       &dst->remote_ip,
 				       NUD_REACHABLE | NUD_PERMANENT,
+				       NLM_F_EXCL | NLM_F_CREATE,
 				       vxlan->cfg.dst_port,
 				       dst->remote_vni,
 				       dst->remote_vni,
 				       dst->remote_ifindex,
-				       NTF_SELF, 0, &f, extack);
+				       NTF_SELF, 0, true, extack);
+		spin_unlock_bh(&vxlan->hash_lock[hash_index]);
 		if (err)
 			goto unlink;
-	}
-
-	if (f) {
-		/* notify default fdb entry */
-		err = vxlan_fdb_notify(vxlan, f, first_remote_rtnl(f),
-				       RTM_NEWNEIGH, true, extack);
-		if (err)
-			goto fdb_destroy;
 	}
 
 	list_add(&vxlan->next, &vn->vxlan_list);
@@ -4001,8 +3998,6 @@ static int __vxlan_dev_create(struct net *net, struct net_device *dev,
 		dst->remote_dev = remote_dev;
 	return 0;
 
-fdb_destroy:
-	vxlan_fdb_destroy(vxlan, f, false, false);
 unlink:
 	if (remote_dev)
 		netdev_upper_dev_unlink(remote_dev, dev);
