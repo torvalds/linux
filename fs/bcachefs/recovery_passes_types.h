@@ -60,7 +60,8 @@
 	x(resume_logged_ops,			23, PASS_ALWAYS)			\
 	x(delete_dead_inodes,			32, PASS_ALWAYS)			\
 	x(fix_reflink_p,			33, 0)					\
-	x(set_fs_needs_rebalance,		34, 0)
+	x(set_fs_needs_rebalance,		34, 0)					\
+	x(lookup_root_inode,			42, PASS_ALWAYS|PASS_SILENT)
 
 /* We normally enumerate recovery passes in the order we run them: */
 enum bch_recovery_pass {

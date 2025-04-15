@@ -52,6 +52,21 @@ static int bch2_set_may_go_rw(struct bch_fs *c)
 	return 0;
 }
 
+/*
+ * Make sure root inode is readable while we're still in recovery and can rewind
+ * for repair:
+ */
+static int bch2_lookup_root_inode(struct bch_fs *c)
+{
+	subvol_inum inum = BCACHEFS_ROOT_SUBVOL_INUM;
+	struct bch_inode_unpacked inode_u;
+	struct bch_subvolume subvol;
+
+	return bch2_trans_do(c,
+		bch2_subvolume_get(trans, inum.subvol, true, &subvol) ?:
+		bch2_inode_find_by_inum_trans(trans, inum, &inode_u));
+}
+
 struct recovery_pass_fn {
 	int		(*fn)(struct bch_fs *);
 	unsigned	when;
