@@ -176,7 +176,7 @@ TRACE_EVENT(kvm_set_way_flush,
 	    ),
 
 	    TP_printk("S/W flush at 0x%016lx (cache %s)",
-		      __entry->vcpu_pc, __entry->cache ? "on" : "off")
+		      __entry->vcpu_pc, str_on_off(__entry->cache))
 );
 
 TRACE_EVENT(kvm_toggle_cache,
@@ -196,8 +196,8 @@ TRACE_EVENT(kvm_toggle_cache,
 	    ),
 
 	    TP_printk("VM op at 0x%016lx (cache was %s, now %s)",
-		      __entry->vcpu_pc, __entry->was ? "on" : "off",
-		      __entry->now ? "on" : "off")
+		      __entry->vcpu_pc, str_on_off(__entry->was),
+		      str_on_off(__entry->now))
 );
 
 /*
