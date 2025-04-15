@@ -400,7 +400,8 @@ static int bucket_ref_update_err(struct btree_trans *trans, struct printbuf *buf
 
 	__bch2_count_fsck_err(c, id, buf->buf, &repeat, &print, &suppress);
 
-	int ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
+	int ret = bch2_run_explicit_recovery_pass_printbuf(c, buf,
+					BCH_RECOVERY_PASS_check_allocations);
 
 	if (insert) {
 		print = true;
@@ -966,14 +967,27 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 		return PTR_ERR(a);
 
 	if (a->v.data_type && type && a->v.data_type != type) {
-		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
-		log_fsck_err(trans, bucket_metadata_type_mismatch,
-			"bucket %llu:%llu gen %u different types of data in same bucket: %s, %s\n"
-			"while marking %s",
-			iter.pos.inode, iter.pos.offset, a->v.gen,
-			bch2_data_type_str(a->v.data_type),
-			bch2_data_type_str(type),
-			bch2_data_type_str(type));
+		struct printbuf buf = PRINTBUF;
+		bch2_log_msg_start(c, &buf);
+		prt_printf(&buf, "bucket %llu:%llu gen %u different types of data in same bucket: %s, %s\n"
+			   "while marking %s\n",
+			   iter.pos.inode, iter.pos.offset, a->v.gen,
+			   bch2_data_type_str(a->v.data_type),
+			   bch2_data_type_str(type),
+			   bch2_data_type_str(type));
+
+		bool repeat = false, print = true, suppress = false;
+		bch2_count_fsck_err(c, bucket_metadata_type_mismatch, buf.buf,
+				    &repeat, &print, &suppress);
+
+		bch2_run_explicit_recovery_pass_printbuf(c, &buf,
+					BCH_RECOVERY_PASS_check_allocations);
+
+		if (suppress)
+			prt_printf(&buf, "Ratelimiting new instances of previous error\n");
+		if (print)
+			bch2_print_string_as_lines(KERN_ERR, buf.buf);
+		printbuf_exit(&buf);
 		ret = -BCH_ERR_metadata_bucket_inconsistency;
 		goto err;
 	}
@@ -985,7 +999,6 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 		ret = bch2_trans_update(trans, &iter, &a->k_i, 0);
 	}
 err:
-fsck_err:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }

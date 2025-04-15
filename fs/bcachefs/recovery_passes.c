@@ -101,7 +101,8 @@ u64 bch2_recovery_passes_from_stable(u64 v)
 /*
  * For when we need to rewind recovery passes and run a pass we skipped:
  */
-static int __bch2_run_explicit_recovery_pass(struct bch_fs *c,
+static int __bch2_run_explicit_recovery_pass(struct printbuf *out,
+					     struct bch_fs *c,
 					     enum bch_recovery_pass pass)
 {
 	if (c->curr_recovery_pass == ARRAY_SIZE(recovery_pass_fns))
@@ -115,15 +116,15 @@ static int __bch2_run_explicit_recovery_pass(struct bch_fs *c,
 	if (pass < BCH_RECOVERY_PASS_set_may_go_rw &&
 	    c->curr_recovery_pass >= BCH_RECOVERY_PASS_set_may_go_rw) {
 		if (print)
-			bch_info(c, "need recovery pass %s (%u), but already rw",
-				 bch2_recovery_passes[pass], pass);
+			prt_printf(out, "need recovery pass %s (%u), but already rw",
+				   bch2_recovery_passes[pass], pass);
 		return -BCH_ERR_cannot_rewind_recovery;
 	}
 
 	if (print)
-		bch_info(c, "running explicit recovery pass %s (%u), currently at %s (%u)",
-			 bch2_recovery_passes[pass], pass,
-			 bch2_recovery_passes[c->curr_recovery_pass], c->curr_recovery_pass);
+		prt_printf(out, "running explicit recovery pass %s (%u), currently at %s (%u)",
+			   bch2_recovery_passes[pass], pass,
+			   bch2_recovery_passes[c->curr_recovery_pass], c->curr_recovery_pass);
 
 	c->opts.recovery_passes |= BIT_ULL(pass);
 
@@ -136,13 +137,34 @@ static int __bch2_run_explicit_recovery_pass(struct bch_fs *c,
 	}
 }
 
+int bch2_run_explicit_recovery_pass_printbuf(struct bch_fs *c,
+				    struct printbuf *out,
+				    enum bch_recovery_pass pass)
+{
+	bch2_printbuf_make_room(out, 1024);
+	out->atomic++;
+
+	unsigned long flags;
+	spin_lock_irqsave(&c->recovery_pass_lock, flags);
+	int ret = __bch2_run_explicit_recovery_pass(out, c, pass);
+	spin_unlock_irqrestore(&c->recovery_pass_lock, flags);
+
+	--out->atomic;
+	return ret;
+}
+
 int bch2_run_explicit_recovery_pass(struct bch_fs *c,
 				    enum bch_recovery_pass pass)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&c->recovery_pass_lock, flags);
-	int ret = __bch2_run_explicit_recovery_pass(c, pass);
-	spin_unlock_irqrestore(&c->recovery_pass_lock, flags);
+	struct printbuf buf = PRINTBUF;
+	bch2_log_msg_start(c, &buf);
+	unsigned len = buf.pos;
+
+	int ret = bch2_run_explicit_recovery_pass_printbuf(c, &buf, pass);
+
+	if (len != buf.pos)
+		bch2_print_string_as_lines(KERN_NOTICE, buf.buf);
+	printbuf_exit(&buf);
 	return ret;
 }
 
