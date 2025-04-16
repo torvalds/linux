@@ -257,11 +257,11 @@ static ssize_t per_cpu_count_show(struct kobject *kobj,
 	for_each_possible_cpu(cpu) {
 		unsigned int c = irq_desc_kstat_cpu(desc, cpu);
 
-		ret += scnprintf(buf + ret, PAGE_SIZE - ret, "%s%u", p, c);
+		ret += sysfs_emit_at(buf, ret, "%s%u", p, c);
 		p = ",";
 	}
 
-	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "\n");
+	ret += sysfs_emit_at(buf, ret, "\n");
 	return ret;
 }
 IRQ_ATTR_RO(per_cpu_count);
@@ -273,10 +273,8 @@ static ssize_t chip_name_show(struct kobject *kobj,
 	ssize_t ret = 0;
 
 	raw_spin_lock_irq(&desc->lock);
-	if (desc->irq_data.chip && desc->irq_data.chip->name) {
-		ret = scnprintf(buf, PAGE_SIZE, "%s\n",
-				desc->irq_data.chip->name);
-	}
+	if (desc->irq_data.chip && desc->irq_data.chip->name)
+		ret = sysfs_emit(buf, "%s\n", desc->irq_data.chip->name);
 	raw_spin_unlock_irq(&desc->lock);
 
 	return ret;
@@ -291,7 +289,7 @@ static ssize_t hwirq_show(struct kobject *kobj,
 
 	raw_spin_lock_irq(&desc->lock);
 	if (desc->irq_data.domain)
-		ret = sprintf(buf, "%lu\n", desc->irq_data.hwirq);
+		ret = sysfs_emit(buf, "%lu\n", desc->irq_data.hwirq);
 	raw_spin_unlock_irq(&desc->lock);
 
 	return ret;
@@ -305,8 +303,7 @@ static ssize_t type_show(struct kobject *kobj,
 	ssize_t ret = 0;
 
 	raw_spin_lock_irq(&desc->lock);
-	ret = sprintf(buf, "%s\n",
-		      irqd_is_level_type(&desc->irq_data) ? "level" : "edge");
+	ret = sysfs_emit(buf, "%s\n", irqd_is_level_type(&desc->irq_data) ? "level" : "edge");
 	raw_spin_unlock_irq(&desc->lock);
 
 	return ret;
@@ -321,7 +318,7 @@ static ssize_t wakeup_show(struct kobject *kobj,
 	ssize_t ret = 0;
 
 	raw_spin_lock_irq(&desc->lock);
-	ret = sprintf(buf, "%s\n", str_enabled_disabled(irqd_is_wakeup_set(&desc->irq_data)));
+	ret = sysfs_emit(buf, "%s\n", str_enabled_disabled(irqd_is_wakeup_set(&desc->irq_data)));
 	raw_spin_unlock_irq(&desc->lock);
 
 	return ret;
@@ -337,7 +334,7 @@ static ssize_t name_show(struct kobject *kobj,
 
 	raw_spin_lock_irq(&desc->lock);
 	if (desc->name)
-		ret = scnprintf(buf, PAGE_SIZE, "%s\n", desc->name);
+		ret = sysfs_emit(buf, "%s\n", desc->name);
 	raw_spin_unlock_irq(&desc->lock);
 
 	return ret;
@@ -354,14 +351,13 @@ static ssize_t actions_show(struct kobject *kobj,
 
 	raw_spin_lock_irq(&desc->lock);
 	for_each_action_of_desc(desc, action) {
-		ret += scnprintf(buf + ret, PAGE_SIZE - ret, "%s%s",
-				 p, action->name);
+		ret += sysfs_emit_at(buf, ret, "%s%s", p, action->name);
 		p = ",";
 	}
 	raw_spin_unlock_irq(&desc->lock);
 
 	if (ret)
-		ret += scnprintf(buf + ret, PAGE_SIZE - ret, "\n");
+		ret += sysfs_emit_at(buf, ret, "\n");
 
 	return ret;
 }
