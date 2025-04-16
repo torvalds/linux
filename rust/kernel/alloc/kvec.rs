@@ -209,7 +209,6 @@ where
     /// # Safety
     ///
     /// - `count` must be less than or equal to `self.len`.
-    #[expect(unused)]
     unsafe fn dec_len(&mut self, count: usize) -> &mut [T] {
         debug_assert!(count <= self.len());
         // INVARIANT: We relinquish ownership of the elements within the range `[self.len - count,
@@ -489,23 +488,15 @@ where
     /// # Ok::<(), Error>(())
     /// ```
     pub fn truncate(&mut self, len: usize) {
-        if len >= self.len() {
-            return;
+        if let Some(count) = self.len().checked_sub(len) {
+            // SAFETY: `count` is `self.len() - len` so it is guaranteed to be less than or
+            // equal to `self.len()`.
+            let ptr: *mut [T] = unsafe { self.dec_len(count) };
+
+            // SAFETY: the contract of `dec_len` guarantees that the elements in `ptr` are
+            // valid elements whose ownership has been transferred to the caller.
+            unsafe { ptr::drop_in_place(ptr) };
         }
-
-        let drop_range = len..self.len();
-
-        // SAFETY: `drop_range` is a subrange of `[0, len)` by the bounds check above.
-        let ptr: *mut [T] = unsafe { self.get_unchecked_mut(drop_range) };
-
-        // SAFETY: By the above bounds check, it is guaranteed that `len < self.capacity()`.
-        unsafe { self.set_len(len) };
-
-        // SAFETY:
-        // - the dropped values are valid `T`s by the type invariant
-        // - we are allowed to invalidate [`new_len`, `old_len`) because we just changed the
-        //   len, therefore we have exclusive access to [`new_len`, `old_len`)
-        unsafe { ptr::drop_in_place(ptr) };
     }
 }
 
