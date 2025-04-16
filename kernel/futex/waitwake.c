@@ -407,6 +407,12 @@ int futex_wait_multiple_setup(struct futex_vector *vs, int count, int *woken)
 	u32 uval;
 
 	/*
+	 * Make sure to have a reference on the private_hash such that we
+	 * don't block on rehash after changing the task state below.
+	 */
+	guard(private_hash)();
+
+	/*
 	 * Enqueuing multiple futexes is tricky, because we need to enqueue
 	 * each futex on the list before dealing with the next one to avoid
 	 * deadlocking on the hash bucket. But, before enqueuing, we need to
