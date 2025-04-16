@@ -1743,22 +1743,20 @@ static void __ublk_quiesce_dev(struct ublk_device *ub)
 	ub->dev_info.state = UBLK_S_DEV_QUIESCED;
 }
 
-static void ublk_unquiesce_dev(struct ublk_device *ub)
+static void ublk_force_abort_dev(struct ublk_device *ub)
 {
 	int i;
 
-	pr_devel("%s: unquiesce ub: dev_id %d state %s\n",
+	pr_devel("%s: force abort ub: dev_id %d state %s\n",
 			__func__, ub->dev_info.dev_id,
 			ub->dev_info.state == UBLK_S_DEV_LIVE ?
 			"LIVE" : "QUIESCED");
-	/* quiesce_work has run. We let requeued rqs be aborted
-	 * before running fallback_wq. "force_abort" must be seen
-	 * after request queue is unqiuesced. Then del_gendisk()
-	 * can move on.
-	 */
+	blk_mq_quiesce_queue(ub->ub_disk->queue);
+	if (ub->dev_info.state == UBLK_S_DEV_LIVE)
+		ublk_wait_tagset_rqs_idle(ub);
+
 	for (i = 0; i < ub->dev_info.nr_hw_queues; i++)
 		ublk_get_queue(ub, i)->force_abort = true;
-
 	blk_mq_unquiesce_queue(ub->ub_disk->queue);
 	/* We may have requeued some rqs in ublk_quiesce_queue() */
 	blk_mq_kick_requeue_list(ub->ub_disk->queue);
@@ -1786,11 +1784,8 @@ static void ublk_stop_dev(struct ublk_device *ub)
 	mutex_lock(&ub->mutex);
 	if (ub->dev_info.state == UBLK_S_DEV_DEAD)
 		goto unlock;
-	if (ublk_nosrv_dev_should_queue_io(ub)) {
-		if (ub->dev_info.state == UBLK_S_DEV_LIVE)
-			__ublk_quiesce_dev(ub);
-		ublk_unquiesce_dev(ub);
-	}
+	if (ublk_nosrv_dev_should_queue_io(ub))
+		ublk_force_abort_dev(ub);
 	del_gendisk(ub->ub_disk);
 	disk = ublk_detach_disk(ub);
 	put_disk(disk);
