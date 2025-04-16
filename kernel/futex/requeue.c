@@ -769,7 +769,6 @@ int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 {
 	struct hrtimer_sleeper timeout, *to;
 	struct rt_mutex_waiter rt_waiter;
-	struct futex_hash_bucket *hb;
 	union futex_key key2 = FUTEX_KEY_INIT;
 	struct futex_q q = futex_q_init;
 	struct rt_mutex_base *pi_mutex;
@@ -805,29 +804,24 @@ int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 	 * Prepare to wait on uaddr. On success, it holds hb->lock and q
 	 * is initialized.
 	 */
-	ret = futex_wait_setup(uaddr, val, flags, &q, &hb);
+	ret = futex_wait_setup(uaddr, val, flags, &q, &key2, current);
 	if (ret)
 		goto out;
 
-	/*
-	 * The check above which compares uaddrs is not sufficient for
-	 * shared futexes. We need to compare the keys:
-	 */
-	if (futex_match(&q.key, &key2)) {
-		futex_q_unlock(hb);
-		ret = -EINVAL;
-		goto out;
-	}
-
 	/* Queue the futex_q, drop the hb lock, wait for wakeup. */
-	futex_wait_queue(hb, &q, to);
+	futex_do_wait(&q, to);
 
 	switch (futex_requeue_pi_wakeup_sync(&q)) {
 	case Q_REQUEUE_PI_IGNORE:
-		/* The waiter is still on uaddr1 */
-		spin_lock(&hb->lock);
-		ret = handle_early_requeue_pi_wakeup(hb, &q, to);
-		spin_unlock(&hb->lock);
+		{
+			struct futex_hash_bucket *hb;
+
+			hb = futex_hash(&q.key);
+			/* The waiter is still on uaddr1 */
+			spin_lock(&hb->lock);
+			ret = handle_early_requeue_pi_wakeup(hb, &q, to);
+			spin_unlock(&hb->lock);
+		}
 		break;
 
 	case Q_REQUEUE_PI_LOCKED:

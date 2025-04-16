@@ -339,18 +339,8 @@ static long futex_wait_restart(struct restart_block *restart);
  * @q:		the futex_q to queue up on
  * @timeout:	the prepared hrtimer_sleeper, or null for no timeout
  */
-void futex_wait_queue(struct futex_hash_bucket *hb, struct futex_q *q,
-			    struct hrtimer_sleeper *timeout)
+void futex_do_wait(struct futex_q *q, struct hrtimer_sleeper *timeout)
 {
-	/*
-	 * The task state is guaranteed to be set before another task can
-	 * wake it. set_current_state() is implemented using smp_store_mb() and
-	 * futex_queue() calls spin_unlock() upon completion, both serializing
-	 * access to the hash list and forcing another memory barrier.
-	 */
-	set_current_state(TASK_INTERRUPTIBLE|TASK_FREEZABLE);
-	futex_queue(q, hb, current);
-
 	/* Arm the timer */
 	if (timeout)
 		hrtimer_sleeper_start_expires(timeout, HRTIMER_MODE_ABS);
@@ -578,7 +568,8 @@ int futex_wait_multiple(struct futex_vector *vs, unsigned int count,
  * @val:	the expected value
  * @flags:	futex flags (FLAGS_SHARED, etc.)
  * @q:		the associated futex_q
- * @hb:		storage for hash_bucket pointer to be returned to caller
+ * @key2:	the second futex_key if used for requeue PI
+ * task:	Task queueing this futex
  *
  * Setup the futex_q and locate the hash_bucket.  Get the futex value and
  * compare it with the expected value.  Handle atomic faults internally.
@@ -589,8 +580,10 @@ int futex_wait_multiple(struct futex_vector *vs, unsigned int count,
  *  - <1 - -EFAULT or -EWOULDBLOCK (uaddr does not contain val) and hb is unlocked
  */
 int futex_wait_setup(u32 __user *uaddr, u32 val, unsigned int flags,
-		     struct futex_q *q, struct futex_hash_bucket **hb)
+		     struct futex_q *q, union futex_key *key2,
+		     struct task_struct *task)
 {
+	struct futex_hash_bucket *hb;
 	u32 uval;
 	int ret;
 
@@ -618,12 +611,12 @@ retry:
 		return ret;
 
 retry_private:
-	*hb = futex_q_lock(q);
+	hb = futex_q_lock(q);
 
 	ret = futex_get_value_locked(&uval, uaddr);
 
 	if (ret) {
-		futex_q_unlock(*hb);
+		futex_q_unlock(hb);
 
 		ret = get_user(uval, uaddr);
 		if (ret)
@@ -636,9 +629,24 @@ retry_private:
 	}
 
 	if (uval != val) {
-		futex_q_unlock(*hb);
-		ret = -EWOULDBLOCK;
+		futex_q_unlock(hb);
+		return -EWOULDBLOCK;
 	}
+
+	if (key2 && futex_match(&q->key, key2)) {
+		futex_q_unlock(hb);
+		return -EINVAL;
+	}
+
+	/*
+	 * The task state is guaranteed to be set before another task can
+	 * wake it. set_current_state() is implemented using smp_store_mb() and
+	 * futex_queue() calls spin_unlock() upon completion, both serializing
+	 * access to the hash list and forcing another memory barrier.
+	 */
+	if (task == current)
+		set_current_state(TASK_INTERRUPTIBLE|TASK_FREEZABLE);
+	futex_queue(q, hb, task);
 
 	return ret;
 }
@@ -647,7 +655,6 @@ int __futex_wait(u32 __user *uaddr, unsigned int flags, u32 val,
 		 struct hrtimer_sleeper *to, u32 bitset)
 {
 	struct futex_q q = futex_q_init;
-	struct futex_hash_bucket *hb;
 	int ret;
 
 	if (!bitset)
@@ -660,12 +667,12 @@ retry:
 	 * Prepare to wait on uaddr. On success, it holds hb->lock and q
 	 * is initialized.
 	 */
-	ret = futex_wait_setup(uaddr, val, flags, &q, &hb);
+	ret = futex_wait_setup(uaddr, val, flags, &q, NULL, current);
 	if (ret)
 		return ret;
 
 	/* futex_queue and wait for wakeup, timeout, or a signal. */
-	futex_wait_queue(hb, &q, to);
+	futex_do_wait(&q, to);
 
 	/* If we were woken (and unqueued), we succeeded, whatever. */
 	if (!futex_unqueue(&q))
