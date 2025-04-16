@@ -81,14 +81,21 @@ static int amdgpu_dma_buf_pin(struct dma_buf_attachment *attach)
 
 	dma_resv_assert_held(dmabuf->resv);
 
-	/*
-	 * Try pinning into VRAM to allow P2P with RDMA NICs without ODP
+	/* Try pinning into VRAM to allow P2P with RDMA NICs without ODP
 	 * support if all attachments can do P2P. If any attachment can't do
 	 * P2P just pin into GTT instead.
+	 *
+	 * To avoid with conflicting pinnings between GPUs and RDMA when move
+	 * notifiers are disabled, only allow pinning in VRAM when move
+	 * notiers are enabled.
 	 */
-	list_for_each_entry(attach, &dmabuf->attachments, node)
-		if (!attach->peer2peer)
-			domains &= ~AMDGPU_GEM_DOMAIN_VRAM;
+	if (!IS_ENABLED(CONFIG_DMABUF_MOVE_NOTIFY)) {
+		domains &= ~AMDGPU_GEM_DOMAIN_VRAM;
+	} else {
+		list_for_each_entry(attach, &dmabuf->attachments, node)
+			if (!attach->peer2peer)
+				domains &= ~AMDGPU_GEM_DOMAIN_VRAM;
+	}
 
 	if (domains & AMDGPU_GEM_DOMAIN_VRAM)
 		bo->flags |= AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
