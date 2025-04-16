@@ -139,6 +139,11 @@ int bch2_sb_members_cpy_v2_v1(struct bch_sb_handle *disk_sb)
 	struct bch_sb_field_members_v1 *mi1;
 	struct bch_sb_field_members_v2 *mi2;
 
+	if (BCH_SB_VERSION_INCOMPAT(disk_sb->sb) > bcachefs_metadata_version_extent_flags) {
+		bch2_sb_field_resize(disk_sb, members_v1, 0);
+		return 0;
+	}
+
 	mi1 = bch2_sb_field_resize(disk_sb, members_v1,
 			DIV_ROUND_UP(sizeof(*mi1) + BCH_MEMBER_V1_BYTES *
 				     disk_sb->sb->nr_devices, sizeof(u64)));
