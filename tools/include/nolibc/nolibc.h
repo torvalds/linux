@@ -101,6 +101,7 @@
 #include "sys/stat.h"
 #include "sys/syscall.h"
 #include "sys/time.h"
+#include "sys/wait.h"
 #include "ctype.h"
 #include "elf.h"
 #include "signal.h"

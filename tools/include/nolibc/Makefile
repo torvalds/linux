@@ -50,6 +50,7 @@ all_files := \
 		sys/syscall.h \
 		sys/time.h \
 		sys/types.h \
+		sys/wait.h \
 		time.h \
 		types.h \
 		unistd.h \
