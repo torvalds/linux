@@ -32,6 +32,7 @@ all_files := \
 		dirent.h \
 		elf.h \
 		errno.h \
+		fcntl.h \
 		limits.h \
 		nolibc.h \
 		signal.h \
