@@ -45,6 +45,7 @@ all_files := \
 		string.h \
 		sys.h \
 		sys/auxv.h \
+		sys/mman.h \
 		time.h \
 		types.h \
 		unistd.h \
