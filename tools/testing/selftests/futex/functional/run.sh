@@ -82,3 +82,7 @@ echo
 
 echo
 ./futex_waitv $COLOR
+
+echo
+./futex_priv_hash $COLOR
+./futex_priv_hash -g $COLOR

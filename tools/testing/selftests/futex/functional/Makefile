@@ -17,6 +17,7 @@ TEST_GEN_PROGS := \
 	futex_wait_private_mapped_file \
 	futex_wait \
 	futex_requeue \
+	futex_priv_hash \
 	futex_waitv
 
 TEST_PROGS := run.sh
