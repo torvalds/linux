@@ -31,6 +31,7 @@
 #include <linux/rculist.h>
 
 #include <net/bluetooth/hci.h>
+#include <net/bluetooth/hci_drv.h>
 #include <net/bluetooth/hci_sync.h>
 #include <net/bluetooth/hci_sock.h>
 #include <net/bluetooth/coredump.h>
@@ -612,6 +613,8 @@ struct hci_dev {
 
 	struct list_head	monitored_devices;
 	bool			advmon_pend_notify;
+
+	struct hci_drv		*hci_drv;
 
 #if IS_ENABLED(CONFIG_BT_LEDS)
 	struct led_trigger	*power_led;

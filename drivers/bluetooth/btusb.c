@@ -21,6 +21,7 @@
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
+#include <net/bluetooth/hci_drv.h>
 
 #include "btintel.h"
 #include "btbcm.h"
@@ -3800,6 +3801,61 @@ static ssize_t isoc_alt_store(struct device *dev,
 
 static DEVICE_ATTR_RW(isoc_alt);
 
+static const struct {
+	u16 opcode;
+	const char *desc;
+} btusb_hci_drv_supported_commands[] = {
+	/* Common commands */
+	{ HCI_DRV_OP_READ_INFO, "Read Info" },
+};
+static int btusb_hci_drv_read_info(struct hci_dev *hdev, void *data,
+				   u16 data_len)
+{
+	struct hci_drv_rp_read_info *rp;
+	size_t rp_size;
+	int err, i;
+	u16 opcode, num_supported_commands =
+		ARRAY_SIZE(btusb_hci_drv_supported_commands);
+
+	rp_size = sizeof(*rp) + num_supported_commands * 2;
+
+	rp = kmalloc(rp_size, GFP_KERNEL);
+	if (!rp)
+		return -ENOMEM;
+
+	strscpy_pad(rp->driver_name, btusb_driver.name);
+
+	rp->num_supported_commands = cpu_to_le16(num_supported_commands);
+	for (i = 0; i < num_supported_commands; i++) {
+		opcode = btusb_hci_drv_supported_commands[i].opcode;
+		bt_dev_info(hdev,
+			    "Supported HCI Drv command (0x%02x|0x%04x): %s",
+			    hci_opcode_ogf(opcode),
+			    hci_opcode_ocf(opcode),
+			    btusb_hci_drv_supported_commands[i].desc);
+		rp->supported_commands[i] = cpu_to_le16(opcode);
+	}
+
+	err = hci_drv_cmd_complete(hdev, HCI_DRV_OP_READ_INFO,
+				   HCI_DRV_STATUS_SUCCESS, rp, rp_size);
+
+	kfree(rp);
+	return err;
+}
+
+static const struct hci_drv_handler btusb_hci_drv_common_handlers[] = {
+	{ btusb_hci_drv_read_info,	HCI_DRV_READ_INFO_SIZE },
+};
+
+static const struct hci_drv_handler btusb_hci_drv_specific_handlers[] = {};
+
+static struct hci_drv btusb_hci_drv = {
+	.common_handler_count	= ARRAY_SIZE(btusb_hci_drv_common_handlers),
+	.common_handlers	= btusb_hci_drv_common_handlers,
+	.specific_handler_count	= ARRAY_SIZE(btusb_hci_drv_specific_handlers),
+	.specific_handlers	= btusb_hci_drv_specific_handlers,
+};
+
 static int btusb_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
 {
@@ -3939,12 +3995,13 @@ static int btusb_probe(struct usb_interface *intf,
 		data->reset_gpio = reset_gpio;
 	}
 
-	hdev->open   = btusb_open;
-	hdev->close  = btusb_close;
-	hdev->flush  = btusb_flush;
-	hdev->send   = btusb_send_frame;
-	hdev->notify = btusb_notify;
-	hdev->wakeup = btusb_wakeup;
+	hdev->open    = btusb_open;
+	hdev->close   = btusb_close;
+	hdev->flush   = btusb_flush;
+	hdev->send    = btusb_send_frame;
+	hdev->notify  = btusb_notify;
+	hdev->wakeup  = btusb_wakeup;
+	hdev->hci_drv = &btusb_hci_drv;
 
 #ifdef CONFIG_PM
 	err = btusb_config_oob_wake(hdev);
