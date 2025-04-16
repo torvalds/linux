@@ -86,6 +86,68 @@ struct idpf_ptp_secondary_mbx {
 };
 
 /**
+ * enum idpf_ptp_tx_tstamp_state - Tx timestamp states
+ * @IDPF_PTP_FREE: Tx timestamp index free to use
+ * @IDPF_PTP_REQUEST: Tx timestamp index set to the Tx descriptor
+ * @IDPF_PTP_READ_VALUE: Tx timestamp value ready to be read
+ */
+enum idpf_ptp_tx_tstamp_state {
+	IDPF_PTP_FREE,
+	IDPF_PTP_REQUEST,
+	IDPF_PTP_READ_VALUE,
+};
+
+/**
+ * struct idpf_ptp_tx_tstamp_status - Parameters to track Tx timestamp
+ * @skb: the pointer to the SKB that received the completion tag
+ * @state: the state of the Tx timestamp
+ */
+struct idpf_ptp_tx_tstamp_status {
+	struct sk_buff *skb;
+	enum idpf_ptp_tx_tstamp_state state;
+};
+
+/**
+ * struct idpf_ptp_tx_tstamp - Parameters for Tx timestamping
+ * @list_member: the list member structure
+ * @tx_latch_reg_offset_l: Tx tstamp latch low register offset
+ * @tx_latch_reg_offset_h: Tx tstamp latch high register offset
+ * @skb: the pointer to the SKB for this timestamp request
+ * @tstamp: the Tx tstamp value
+ * @idx: the index of the Tx tstamp
+ */
+struct idpf_ptp_tx_tstamp {
+	struct list_head list_member;
+	u32 tx_latch_reg_offset_l;
+	u32 tx_latch_reg_offset_h;
+	struct sk_buff *skb;
+	u64 tstamp;
+	u32 idx;
+};
+
+/**
+ * struct idpf_ptp_vport_tx_tstamp_caps - Tx timestamp capabilities
+ * @vport_id: the vport id
+ * @num_entries: the number of negotiated Tx timestamp entries
+ * @tstamp_ns_lo_bit: first bit for nanosecond part of the timestamp
+ * @latches_lock: the lock to the lists of free/used timestamp indexes
+ * @status_lock: the lock to the status tracker
+ * @latches_free: the list of the free Tx timestamps latches
+ * @latches_in_use: the list of the used Tx timestamps latches
+ * @tx_tstamp_status: Tx tstamp status tracker
+ */
+struct idpf_ptp_vport_tx_tstamp_caps {
+	u32 vport_id;
+	u16 num_entries;
+	u16 tstamp_ns_lo_bit;
+	spinlock_t latches_lock;
+	spinlock_t status_lock;
+	struct list_head latches_free;
+	struct list_head latches_in_use;
+	struct idpf_ptp_tx_tstamp_status tx_tstamp_status[];
+};
+
+/**
  * struct idpf_ptp - PTP parameters
  * @info: structure defining PTP hardware capabilities
  * @clock: pointer to registered PTP clock device
@@ -98,6 +160,7 @@ struct idpf_ptp_secondary_mbx {
  * @get_dev_clk_time_access: access type for getting the device clock time
  * @set_dev_clk_time_access: access type for setting the device clock time
  * @adj_dev_clk_time_access: access type for the adjusting the device clock
+ * @tx_tstamp_access: access type for the Tx timestamp value read
  * @rsv: reserved bits
  * @secondary_mbx: parameters for using dedicated PTP mailbox
  * @read_dev_clk_lock: spinlock protecting access to the device clock read
@@ -115,7 +178,8 @@ struct idpf_ptp {
 	enum idpf_ptp_access get_dev_clk_time_access:2;
 	enum idpf_ptp_access set_dev_clk_time_access:2;
 	enum idpf_ptp_access adj_dev_clk_time_access:2;
-	u32 rsv:10;
+	enum idpf_ptp_access tx_tstamp_access:2;
+	u8 rsv;
 	struct idpf_ptp_secondary_mbx secondary_mbx;
 	spinlock_t read_dev_clk_lock;
 };
@@ -144,6 +208,27 @@ struct idpf_ptp_dev_timers {
 	u64 dev_clk_time_ns;
 };
 
+/**
+ * idpf_ptp_is_vport_tx_tstamp_ena - Verify the Tx timestamping enablement for
+ *				     a given vport.
+ * @vport: Virtual port structure
+ *
+ * Tx timestamp capabilities are negotiated with the Control Plane only if the
+ * device clock value can be read, Tx timestamp access type is different than
+ * NONE, and the PTP clock for the adapter is created. When all those conditions
+ * are satisfied, Tx timestamp feature is enabled and tx_tstamp_caps is
+ * allocated and fulfilled.
+ *
+ * Return: true if the Tx timestamping is enabled, false otherwise.
+ */
+static inline bool idpf_ptp_is_vport_tx_tstamp_ena(struct idpf_vport *vport)
+{
+	if (!vport->tx_tstamp_caps)
+		return false;
+	else
+		return true;
+}
+
 #if IS_ENABLED(CONFIG_PTP_1588_CLOCK)
 int idpf_ptp_init(struct idpf_adapter *adapter);
 void idpf_ptp_release(struct idpf_adapter *adapter);
@@ -154,6 +239,7 @@ int idpf_ptp_get_dev_clk_time(struct idpf_adapter *adapter,
 int idpf_ptp_set_dev_clk_time(struct idpf_adapter *adapter, u64 time);
 int idpf_ptp_adj_dev_clk_fine(struct idpf_adapter *adapter, u64 incval);
 int idpf_ptp_adj_dev_clk_time(struct idpf_adapter *adapter, s64 delta);
+int idpf_ptp_get_vport_tstamps_caps(struct idpf_vport *vport);
 #else /* CONFIG_PTP_1588_CLOCK */
 static inline int idpf_ptp_init(struct idpf_adapter *adapter)
 {
@@ -191,6 +277,11 @@ static inline int idpf_ptp_adj_dev_clk_fine(struct idpf_adapter *adapter,
 
 static inline int idpf_ptp_adj_dev_clk_time(struct idpf_adapter *adapter,
 					    s64 delta)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int idpf_ptp_get_vport_tstamps_caps(struct idpf_vport *vport)
 {
 	return -EOPNOTSUPP;
 }

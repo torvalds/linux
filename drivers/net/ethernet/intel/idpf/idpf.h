@@ -292,6 +292,7 @@ struct idpf_port_stats {
  * @port_stats: per port csum, header split, and other offload stats
  * @link_up: True if link is up
  * @sw_marker_wq: workqueue for marker packets
+ * @tx_tstamp_caps: Capabilities negotiated for Tx timestamping
  */
 struct idpf_vport {
 	u16 num_txq;
@@ -336,6 +337,8 @@ struct idpf_vport {
 	bool link_up;
 
 	wait_queue_head_t sw_marker_wq;
+
+	struct idpf_ptp_vport_tx_tstamp_caps *tx_tstamp_caps;
 };
 
 /**
@@ -479,6 +482,13 @@ struct idpf_vport_config {
 };
 
 struct idpf_vc_xn_manager;
+
+#define idpf_for_each_vport(adapter, iter) \
+	for (struct idpf_vport **__##iter = &(adapter)->vports[0], \
+	     *iter = (adapter)->max_vports ? *__##iter : NULL; \
+	     iter; \
+	     iter = (++__##iter) < &(adapter)->vports[(adapter)->max_vports] ? \
+	     *__##iter : NULL)
 
 /**
  * struct idpf_adapter - Device data struct generated on probe
