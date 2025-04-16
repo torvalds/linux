@@ -18,6 +18,7 @@ properties:
   compatible:
     items:
       - enum:
+          - mediatek,mt6893-scpsys
           - mediatek,mt8167-scpsys
           - mediatek,mt8173-scpsys
           - mediatek,mt8183-scpsys
