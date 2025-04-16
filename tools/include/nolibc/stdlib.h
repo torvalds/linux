@@ -103,32 +103,6 @@ char *getenv(const char *name)
 }
 
 static __attribute__((unused))
-unsigned long getauxval(unsigned long type)
-{
-	const unsigned long *auxv = _auxv;
-	unsigned long ret;
-
-	if (!auxv)
-		return 0;
-
-	while (1) {
-		if (!auxv[0] && !auxv[1]) {
-			ret = 0;
-			break;
-		}
-
-		if (auxv[0] == type) {
-			ret = auxv[1];
-			break;
-		}
-
-		auxv += 2;
-	}
-
-	return ret;
-}
-
-static __attribute__((unused))
 void *malloc(size_t len)
 {
 	struct nolibc_heap *heap;

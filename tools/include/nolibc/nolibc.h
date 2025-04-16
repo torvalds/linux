@@ -96,6 +96,7 @@
 #include "arch.h"
 #include "types.h"
 #include "sys.h"
+#include "sys/auxv.h"
 #include "ctype.h"
 #include "elf.h"
 #include "signal.h"
