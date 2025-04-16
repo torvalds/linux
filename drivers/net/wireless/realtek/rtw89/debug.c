@@ -857,11 +857,14 @@ static ssize_t __print_txpwr_map(struct rtw89_dev *rtwdev, char *buf, size_t buf
 static int __print_regd(struct rtw89_dev *rtwdev, char *buf, size_t bufsz,
 			const struct rtw89_chan *chan)
 {
+	const struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
 	char *p = buf, *end = buf + bufsz;
 	u8 band = chan->band_type;
 	u8 regd = rtw89_regd_get(rtwdev, band);
 
 	p += scnprintf(p, end - p, "%s\n", rtw89_regd_get_string(regd));
+	p += scnprintf(p, end - p, "\t(txpwr UK follow ETSI: %s)\n",
+		       str_yes_no(regulatory->txpwr_uk_follow_etsi));
 
 	return p - buf;
 }

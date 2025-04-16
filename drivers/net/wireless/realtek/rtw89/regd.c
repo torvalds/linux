@@ -636,6 +636,7 @@ int rtw89_regd_setup(struct rtw89_dev *rtwdev)
 	}
 
 	regulatory->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
+	regulatory->txpwr_uk_follow_etsi = true;
 
 	if (!wiphy)
 		return -EINVAL;

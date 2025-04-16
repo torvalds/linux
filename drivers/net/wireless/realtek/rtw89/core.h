@@ -5267,6 +5267,8 @@ struct rtw89_regulatory_info {
 	const struct rtw89_regd *regd;
 	enum rtw89_reg_6ghz_power reg_6ghz_power;
 	struct rtw89_reg_6ghz_tpe reg_6ghz_tpe;
+	bool txpwr_uk_follow_etsi;
+
 	DECLARE_BITMAP(block_unii4, RTW89_REGD_MAX_COUNTRY_NUM);
 	DECLARE_BITMAP(block_6ghz, RTW89_REGD_MAX_COUNTRY_NUM);
 	DECLARE_BITMAP(block_6ghz_sp, RTW89_REGD_MAX_COUNTRY_NUM);
@@ -6885,9 +6887,14 @@ static inline void rtw89_load_txpwr_table(struct rtw89_dev *rtwdev,
 
 static inline u8 rtw89_regd_get(struct rtw89_dev *rtwdev, u8 band)
 {
-	const struct rtw89_regd *regd = rtwdev->regulatory.regd;
+	const struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	const struct rtw89_regd *regd = regulatory->regd;
+	u8 txpwr_regd = regd->txpwr_regd[band];
 
-	return regd->txpwr_regd[band];
+	if (regulatory->txpwr_uk_follow_etsi && txpwr_regd == RTW89_UK)
+		return RTW89_ETSI;
+
+	return txpwr_regd;
 }
 
 static inline void rtw89_ctrl_btg_bt_rx(struct rtw89_dev *rtwdev, bool en,
