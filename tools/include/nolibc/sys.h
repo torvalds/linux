@@ -488,27 +488,6 @@ int getpagesize(void)
 
 
 /*
- * int gettimeofday(struct timeval *tv, struct timezone *tz);
- */
-
-static __attribute__((unused))
-int sys_gettimeofday(struct timeval *tv, struct timezone *tz)
-{
-#ifdef __NR_gettimeofday
-	return my_syscall2(__NR_gettimeofday, tv, tz);
-#else
-	return __nolibc_enosys(__func__, tv, tz);
-#endif
-}
-
-static __attribute__((unused))
-int gettimeofday(struct timeval *tv, struct timezone *tz)
-{
-	return __sysret(sys_gettimeofday(tv, tz));
-}
-
-
-/*
  * uid_t getuid(void);
  */
 
