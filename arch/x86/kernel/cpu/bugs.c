@@ -127,9 +127,13 @@ EXPORT_SYMBOL_GPL(mds_idle_clear);
  */
 DEFINE_STATIC_KEY_FALSE(switch_mm_cond_l1d_flush);
 
-/* Controls CPU Fill buffer clear before KVM guest MMIO accesses */
-DEFINE_STATIC_KEY_FALSE(mmio_stale_data_clear);
-EXPORT_SYMBOL_GPL(mmio_stale_data_clear);
+/*
+ * Controls CPU Fill buffer clear before VMenter. This is a subset of
+ * X86_FEATURE_CLEAR_CPU_BUF, and should only be enabled when KVM-only
+ * mitigation is required.
+ */
+DEFINE_STATIC_KEY_FALSE(cpu_buf_vm_clear);
+EXPORT_SYMBOL_GPL(cpu_buf_vm_clear);
 
 void __init cpu_select_mitigations(void)
 {
@@ -449,9 +453,9 @@ static void __init mmio_select_mitigation(void)
 	 * mitigations, disable KVM-only mitigation in that case.
 	 */
 	if (boot_cpu_has(X86_FEATURE_CLEAR_CPU_BUF))
-		static_branch_disable(&mmio_stale_data_clear);
+		static_branch_disable(&cpu_buf_vm_clear);
 	else
-		static_branch_enable(&mmio_stale_data_clear);
+		static_branch_enable(&cpu_buf_vm_clear);
 
 	/*
 	 * If Processor-MMIO-Stale-Data bug is present and Fill Buffer data can
@@ -571,7 +575,7 @@ static void __init md_clear_update_mitigation(void)
 		taa_select_mitigation();
 	}
 	/*
-	 * MMIO_MITIGATION_OFF is not checked here so that mmio_stale_data_clear
+	 * MMIO_MITIGATION_OFF is not checked here so that cpu_buf_vm_clear
 	 * gets updated correctly as per X86_FEATURE_CLEAR_CPU_BUF state.
 	 */
 	if (boot_cpu_has_bug(X86_BUG_MMIO_STALE_DATA)) {
