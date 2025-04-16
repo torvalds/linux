@@ -90,6 +90,8 @@ macro_rules! kvec {
 ///   without re-allocation. For ZSTs `self.layout`'s capacity is zero. However, it is legal for the
 ///   backing buffer to be larger than `layout`.
 ///
+/// - `self.len()` is always less than or equal to `self.capacity()`.
+///
 /// - The `Allocator` type `A` of the vector is the exact same `Allocator` type the backing buffer
 ///   was allocated with (and must be freed with).
 pub struct Vec<T, A: Allocator> {
@@ -262,8 +264,8 @@ where
     /// Returns a slice of `MaybeUninit<T>` for the remaining spare capacity of the vector.
     pub fn spare_capacity_mut(&mut self) -> &mut [MaybeUninit<T>] {
         // SAFETY:
-        // - `self.len` is smaller than `self.capacity` and hence, the resulting pointer is
-        //   guaranteed to be part of the same allocated object.
+        // - `self.len` is smaller than `self.capacity` by the type invariant and hence, the
+        //   resulting pointer is guaranteed to be part of the same allocated object.
         // - `self.len` can not overflow `isize`.
         let ptr = unsafe { self.as_mut_ptr().add(self.len) } as *mut MaybeUninit<T>;
 
@@ -817,12 +819,13 @@ where
             unsafe { ptr::copy(ptr, buf.as_ptr(), len) };
             ptr = buf.as_ptr();
 
-            // SAFETY: `len` is guaranteed to be smaller than `self.layout.len()`.
+            // SAFETY: `len` is guaranteed to be smaller than `self.layout.len()` by the type
+            // invariant.
             let layout = unsafe { ArrayLayout::<T>::new_unchecked(len) };
 
-            // SAFETY: `buf` points to the start of the backing buffer and `len` is guaranteed to be
-            // smaller than `cap`. Depending on `alloc` this operation may shrink the buffer or leaves
-            // it as it is.
+            // SAFETY: `buf` points to the start of the backing buffer and `len` is guaranteed by
+            // the type invariant to be smaller than `cap`. Depending on `realloc` this operation
+            // may shrink the buffer or leave it as it is.
             ptr = match unsafe {
                 A::realloc(Some(buf.cast()), layout.into(), old_layout.into(), flags)
             } {
