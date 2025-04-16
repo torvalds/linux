@@ -37,7 +37,7 @@
 #define ETHTOOL_DMA_OFFSET	55
 
 struct stmmac_stats {
-	char stat_string[ETH_GSTRING_LEN];
+	char stat_string[ETH_GSTRING_LEN] __nonstring;
 	int sizeof_stat;
 	int stat_offset;
 };

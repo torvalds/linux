@@ -141,7 +141,7 @@ static const struct {
 
 static const struct {
 	int reg;
-	char name[ETH_GSTRING_LEN];
+	char name[ETH_GSTRING_LEN] __nonstring;
 } enetc_port_counters[] = {
 	{ ENETC_PM_REOCT(0),	"MAC rx ethernet octets" },
 	{ ENETC_PM_RALN(0),	"MAC rx alignment errors" },
@@ -264,7 +264,7 @@ static void enetc_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 			break;
 
 		for (i = 0; i < ARRAY_SIZE(enetc_port_counters); i++)
-			ethtool_puts(&data, enetc_port_counters[i].name);
+			ethtool_cpy(&data, enetc_port_counters[i].name);
 
 		break;
 	}
