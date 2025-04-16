@@ -366,7 +366,7 @@ static const struct debug_obj_descr hrtimer_debug_descr;
 
 static void *hrtimer_debug_hint(void *addr)
 {
-	return ((struct hrtimer *) addr)->function;
+	return ACCESS_PRIVATE((struct hrtimer *)addr, function);
 }
 
 /*

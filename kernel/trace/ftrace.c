@@ -3256,6 +3256,31 @@ static int append_hash(struct ftrace_hash **hash, struct ftrace_hash *new_hash,
 }
 
 /*
+ * Remove functions from @hash that are in @notrace_hash
+ */
+static void remove_hash(struct ftrace_hash *hash, struct ftrace_hash *notrace_hash)
+{
+	struct ftrace_func_entry *entry;
+	struct hlist_node *tmp;
+	int size;
+	int i;
+
+	/* If the notrace hash is empty, there's nothing to do */
+	if (ftrace_hash_empty(notrace_hash))
+		return;
+
+	size = 1 << hash->size_bits;
+	for (i = 0; i < size; i++) {
+		hlist_for_each_entry_safe(entry, tmp, &hash->buckets[i], hlist) {
+			if (!__ftrace_lookup_ip(notrace_hash, entry->ip))
+				continue;
+			remove_hash_entry(hash, entry);
+			kfree(entry);
+		}
+	}
+}
+
+/*
  * Add to @hash only those that are in both @new_hash1 and @new_hash2
  *
  * The notrace_hash updates uses just the intersect_hash() function
@@ -3293,67 +3318,6 @@ static int intersect_hash(struct ftrace_hash **hash, struct ftrace_hash *new_has
 		*hash = EMPTY_HASH;
 	}
 	return 0;
-}
-
-/* Return a new hash that has a union of all @ops->filter_hash entries */
-static struct ftrace_hash *append_hashes(struct ftrace_ops *ops)
-{
-	struct ftrace_hash *new_hash = NULL;
-	struct ftrace_ops *subops;
-	int size_bits;
-	int ret;
-
-	if (ops->func_hash->filter_hash)
-		size_bits = ops->func_hash->filter_hash->size_bits;
-	else
-		size_bits = FTRACE_HASH_DEFAULT_BITS;
-
-	list_for_each_entry(subops, &ops->subop_list, list) {
-		ret = append_hash(&new_hash, subops->func_hash->filter_hash, size_bits);
-		if (ret < 0) {
-			free_ftrace_hash(new_hash);
-			return NULL;
-		}
-		/* Nothing more to do if new_hash is empty */
-		if (ftrace_hash_empty(new_hash))
-			break;
-	}
-	/* Can't return NULL as that means this failed */
-	return new_hash ? : EMPTY_HASH;
-}
-
-/* Make @ops trace evenything except what all its subops do not trace */
-static struct ftrace_hash *intersect_hashes(struct ftrace_ops *ops)
-{
-	struct ftrace_hash *new_hash = NULL;
-	struct ftrace_ops *subops;
-	int size_bits;
-	int ret;
-
-	list_for_each_entry(subops, &ops->subop_list, list) {
-		struct ftrace_hash *next_hash;
-
-		if (!new_hash) {
-			size_bits = subops->func_hash->notrace_hash->size_bits;
-			new_hash = alloc_and_copy_ftrace_hash(size_bits, ops->func_hash->notrace_hash);
-			if (!new_hash)
-				return NULL;
-			continue;
-		}
-		size_bits = new_hash->size_bits;
-		next_hash = new_hash;
-		new_hash = alloc_ftrace_hash(size_bits);
-		ret = intersect_hash(&new_hash, next_hash, subops->func_hash->notrace_hash);
-		free_ftrace_hash(next_hash);
-		if (ret < 0) {
-			free_ftrace_hash(new_hash);
-			return NULL;
-		}
-		/* Nothing more to do if new_hash is empty */
-		if (ftrace_hash_empty(new_hash))
-			break;
-	}
-	return new_hash;
 }
 
 static bool ops_equal(struct ftrace_hash *A, struct ftrace_hash *B)
@@ -3427,6 +3391,93 @@ static int ftrace_update_ops(struct ftrace_ops *ops, struct ftrace_hash *filter_
 	return 0;
 }
 
+static int add_first_hash(struct ftrace_hash **filter_hash, struct ftrace_hash **notrace_hash,
+			  struct ftrace_ops_hash *func_hash)
+{
+	/* If the filter hash is not empty, simply remove the nohash from it */
+	if (!ftrace_hash_empty(func_hash->filter_hash)) {
+		*filter_hash = copy_hash(func_hash->filter_hash);
+		if (!*filter_hash)
+			return -ENOMEM;
+		remove_hash(*filter_hash, func_hash->notrace_hash);
+		*notrace_hash = EMPTY_HASH;
+
+	} else {
+		*notrace_hash = copy_hash(func_hash->notrace_hash);
+		if (!*notrace_hash)
+			return -ENOMEM;
+		*filter_hash = EMPTY_HASH;
+	}
+	return 0;
+}
+
+static int add_next_hash(struct ftrace_hash **filter_hash, struct ftrace_hash **notrace_hash,
+			 struct ftrace_ops_hash *ops_hash, struct ftrace_ops_hash *subops_hash)
+{
+	int size_bits;
+	int ret;
+
+	/* If the subops trace all functions so must the main ops */
+	if (ftrace_hash_empty(ops_hash->filter_hash) ||
+	    ftrace_hash_empty(subops_hash->filter_hash)) {
+		*filter_hash = EMPTY_HASH;
+	} else {
+		/*
+		 * The main ops filter hash is not empty, so its
+		 * notrace_hash had better be, as the notrace hash
+		 * is only used for empty main filter hashes.
+		 */
+		WARN_ON_ONCE(!ftrace_hash_empty(ops_hash->notrace_hash));
+
+		size_bits = max(ops_hash->filter_hash->size_bits,
+				subops_hash->filter_hash->size_bits);
+
+		/* Copy the subops hash */
+		*filter_hash = alloc_and_copy_ftrace_hash(size_bits, subops_hash->filter_hash);
+		if (!filter_hash)
+			return -ENOMEM;
+		/* Remove any notrace functions from the copy */
+		remove_hash(*filter_hash, subops_hash->notrace_hash);
+
+		ret = append_hash(filter_hash, ops_hash->filter_hash,
+				  size_bits);
+		if (ret < 0) {
+			free_ftrace_hash(*filter_hash);
+			return ret;
+		}
+	}
+
+	/*
+	 * Only process notrace hashes if the main filter hash is empty
+	 * (tracing all functions), otherwise the filter hash will just
+	 * remove the notrace hash functions, and the notrace hash is
+	 * not needed.
+	 */
+	if (ftrace_hash_empty(*filter_hash)) {
+		/*
+		 * Intersect the notrace functions. That is, if two
+		 * subops are not tracing a set of functions, the
+		 * main ops will only not trace the functions that are
+		 * in both subops, but has to trace the functions that
+		 * are only notrace in one of the subops, for the other
+		 * subops to be able to trace them.
+		 */
+		size_bits = max(ops_hash->notrace_hash->size_bits,
+				subops_hash->notrace_hash->size_bits);
+		*notrace_hash = alloc_ftrace_hash(size_bits);
+		if (!*notrace_hash)
+			return -ENOMEM;
+
+		ret = intersect_hash(notrace_hash, ops_hash->notrace_hash,
+				     subops_hash->notrace_hash);
+		if (ret < 0) {
+			free_ftrace_hash(*notrace_hash);
+			return ret;
+		}
+	}
+	return 0;
+}
+
 /**
  * ftrace_startup_subops - enable tracing for subops of an ops
  * @ops: Manager ops (used to pick all the functions of its subops)
@@ -3443,7 +3494,6 @@ int ftrace_startup_subops(struct ftrace_ops *ops, struct ftrace_ops *subops, int
 	struct ftrace_hash *notrace_hash;
 	struct ftrace_hash *save_filter_hash;
 	struct ftrace_hash *save_notrace_hash;
-	int size_bits;
 	int ret;
 
 	if (unlikely(ftrace_disabled))
@@ -3467,14 +3517,14 @@ int ftrace_startup_subops(struct ftrace_ops *ops, struct ftrace_ops *subops, int
 
 	/* For the first subops to ops just enable it normally */
 	if (list_empty(&ops->subop_list)) {
-		/* Just use the subops hashes */
-		filter_hash = copy_hash(subops->func_hash->filter_hash);
-		notrace_hash = copy_hash(subops->func_hash->notrace_hash);
-		if (!filter_hash || !notrace_hash) {
-			free_ftrace_hash(filter_hash);
-			free_ftrace_hash(notrace_hash);
-			return -ENOMEM;
-		}
+
+		/* The ops was empty, should have empty hashes */
+		WARN_ON_ONCE(!ftrace_hash_empty(ops->func_hash->filter_hash));
+		WARN_ON_ONCE(!ftrace_hash_empty(ops->func_hash->notrace_hash));
+
+		ret = add_first_hash(&filter_hash, &notrace_hash, subops->func_hash);
+		if (ret < 0)
+			return ret;
 
 		save_filter_hash = ops->func_hash->filter_hash;
 		save_notrace_hash = ops->func_hash->notrace_hash;
@@ -3500,48 +3550,16 @@ int ftrace_startup_subops(struct ftrace_ops *ops, struct ftrace_ops *subops, int
 
 	/*
 	 * Here there's already something attached. Here are the rules:
-	 *   o If either filter_hash is empty then the final stays empty
-	 *      o Otherwise, the final is a superset of both hashes
-	 *   o If either notrace_hash is empty then the final stays empty
-	 *      o Otherwise, the final is an intersection between the hashes
+	 *   If the new subops and main ops filter hashes are not empty:
+	 *     o Make a copy of the subops filter hash
+	 *     o Remove all functions in the nohash from it.
+	 *     o Add in the main hash filter functions
+	 *     o Remove any of these functions from the main notrace hash
 	 */
-	if (ftrace_hash_empty(ops->func_hash->filter_hash) ||
-	    ftrace_hash_empty(subops->func_hash->filter_hash)) {
-		filter_hash = EMPTY_HASH;
-	} else {
-		size_bits = max(ops->func_hash->filter_hash->size_bits,
-				subops->func_hash->filter_hash->size_bits);
-		filter_hash = alloc_and_copy_ftrace_hash(size_bits, ops->func_hash->filter_hash);
-		if (!filter_hash)
-			return -ENOMEM;
-		ret = append_hash(&filter_hash, subops->func_hash->filter_hash,
-				  size_bits);
-		if (ret < 0) {
-			free_ftrace_hash(filter_hash);
-			return ret;
-		}
-	}
 
-	if (ftrace_hash_empty(ops->func_hash->notrace_hash) ||
-	    ftrace_hash_empty(subops->func_hash->notrace_hash)) {
-		notrace_hash = EMPTY_HASH;
-	} else {
-		size_bits = max(ops->func_hash->filter_hash->size_bits,
-				subops->func_hash->filter_hash->size_bits);
-		notrace_hash = alloc_ftrace_hash(size_bits);
-		if (!notrace_hash) {
-			free_ftrace_hash(filter_hash);
-			return -ENOMEM;
-		}
-
-		ret = intersect_hash(&notrace_hash, ops->func_hash->filter_hash,
-				     subops->func_hash->filter_hash);
-		if (ret < 0) {
-			free_ftrace_hash(filter_hash);
-			free_ftrace_hash(notrace_hash);
-			return ret;
-		}
-	}
+	ret = add_next_hash(&filter_hash, &notrace_hash, ops->func_hash, subops->func_hash);
+	if (ret < 0)
+		return ret;
 
 	list_add(&subops->list, &ops->subop_list);
 
@@ -3555,6 +3573,42 @@ int ftrace_startup_subops(struct ftrace_ops *ops, struct ftrace_ops *subops, int
 		subops->managed = ops;
 	}
 	return ret;
+}
+
+static int rebuild_hashes(struct ftrace_hash **filter_hash, struct ftrace_hash **notrace_hash,
+			  struct ftrace_ops *ops)
+{
+	struct ftrace_ops_hash temp_hash;
+	struct ftrace_ops *subops;
+	bool first = true;
+	int ret;
+
+	temp_hash.filter_hash = EMPTY_HASH;
+	temp_hash.notrace_hash = EMPTY_HASH;
+
+	list_for_each_entry(subops, &ops->subop_list, list) {
+		*filter_hash = EMPTY_HASH;
+		*notrace_hash = EMPTY_HASH;
+
+		if (first) {
+			ret = add_first_hash(filter_hash, notrace_hash, subops->func_hash);
+			if (ret < 0)
+				return ret;
+			first = false;
+		} else {
+			ret = add_next_hash(filter_hash, notrace_hash,
+					    &temp_hash, subops->func_hash);
+			if (ret < 0) {
+				free_ftrace_hash(temp_hash.filter_hash);
+				free_ftrace_hash(temp_hash.notrace_hash);
+				return ret;
+			}
+		}
+
+		temp_hash.filter_hash = *filter_hash;
+		temp_hash.notrace_hash = *notrace_hash;
+	}
+	return 0;
 }
 
 /**
@@ -3605,14 +3659,9 @@ int ftrace_shutdown_subops(struct ftrace_ops *ops, struct ftrace_ops *subops, in
 	}
 
 	/* Rebuild the hashes without subops */
-	filter_hash = append_hashes(ops);
-	notrace_hash = intersect_hashes(ops);
-	if (!filter_hash || !notrace_hash) {
-		free_ftrace_hash(filter_hash);
-		free_ftrace_hash(notrace_hash);
-		list_add(&subops->list, &ops->subop_list);
-		return -ENOMEM;
-	}
+	ret = rebuild_hashes(&filter_hash, &notrace_hash, ops);
+	if (ret < 0)
+		return ret;
 
 	ret = ftrace_update_ops(ops, filter_hash, notrace_hash);
 	if (ret < 0) {
@@ -3628,11 +3677,11 @@ int ftrace_shutdown_subops(struct ftrace_ops *ops, struct ftrace_ops *subops, in
 
 static int ftrace_hash_move_and_update_subops(struct ftrace_ops *subops,
 					      struct ftrace_hash **orig_subhash,
-					      struct ftrace_hash *hash,
-					      int enable)
+					      struct ftrace_hash *hash)
 {
 	struct ftrace_ops *ops = subops->managed;
-	struct ftrace_hash **orig_hash;
+	struct ftrace_hash *notrace_hash;
+	struct ftrace_hash *filter_hash;
 	struct ftrace_hash *save_hash;
 	struct ftrace_hash *new_hash;
 	int ret;
@@ -3649,24 +3698,15 @@ static int ftrace_hash_move_and_update_subops(struct ftrace_ops *subops,
 		return -ENOMEM;
 	}
 
-	/* Create a new_hash to hold the ops new functions */
-	if (enable) {
-		orig_hash = &ops->func_hash->filter_hash;
-		new_hash = append_hashes(ops);
-	} else {
-		orig_hash = &ops->func_hash->notrace_hash;
-		new_hash = intersect_hashes(ops);
-	}
-
-	/* Move the hash over to the new hash */
-	ret = __ftrace_hash_move_and_update_ops(ops, orig_hash, new_hash, enable);
-
-	free_ftrace_hash(new_hash);
+	ret = rebuild_hashes(&filter_hash, &notrace_hash, ops);
+	if (!ret)
+		ret = ftrace_update_ops(ops, filter_hash, notrace_hash);
 
 	if (ret) {
 		/* Put back the original hash */
-		free_ftrace_hash_rcu(*orig_subhash);
+		new_hash = *orig_subhash;
 		*orig_subhash = save_hash;
+		free_ftrace_hash_rcu(new_hash);
 	} else {
 		free_ftrace_hash_rcu(save_hash);
 	}
@@ -4890,7 +4930,7 @@ static int ftrace_hash_move_and_update_ops(struct ftrace_ops *ops,
 					   int enable)
 {
 	if (ops->flags & FTRACE_OPS_FL_SUBOP)
-		return ftrace_hash_move_and_update_subops(ops, orig_hash, hash, enable);
+		return ftrace_hash_move_and_update_subops(ops, orig_hash, hash);
 
 	/*
 	 * If this ops is not enabled, it could be sharing its filters
@@ -4909,7 +4949,7 @@ static int ftrace_hash_move_and_update_ops(struct ftrace_ops *ops,
 			list_for_each_entry(subops, &op->subop_list, list) {
 				if ((subops->flags & FTRACE_OPS_FL_ENABLED) &&
 				     subops->func_hash == ops->func_hash) {
-					return ftrace_hash_move_and_update_subops(subops, orig_hash, hash, enable);
+					return ftrace_hash_move_and_update_subops(subops, orig_hash, hash);
 				}
 			}
 		} while_for_each_ftrace_op(op);
