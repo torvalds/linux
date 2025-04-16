@@ -16,8 +16,7 @@
  *       accessible by another component;
  *   10: The page is accessible but not owned by the component;
  * The storage of this state depends on the component: either in the
- * hyp_vmemmap for the host state or in PTE software bits for the hypervisor
- * and guests.
+ * hyp_vmemmap for the host and hyp states or in PTE software bits for guests.
  */
 enum pkvm_page_state {
 	PKVM_PAGE_OWNED			= 0ULL,
@@ -25,13 +24,14 @@ enum pkvm_page_state {
 	PKVM_PAGE_SHARED_BORROWED	= BIT(1),
 
 	/*
-	 * 'Meta-states' are not stored directly in PTE SW bits for hyp and
-	 * guest states, but inferred from the context (e.g. invalid PTE
-	 * entries). For the host, meta-states are stored directly in the
+	 * 'Meta-states' are not stored directly in PTE SW bits for guest
+	 * states, but inferred from the context (e.g. invalid PTE entries).
+	 * For the host and hyp, meta-states are stored directly in the
 	 * struct hyp_page.
 	 */
 	PKVM_NOPAGE			= BIT(0) | BIT(1),
 };
+#define PKVM_PAGE_STATE_MASK		(BIT(0) | BIT(1))
 
 #define PKVM_PAGE_STATE_PROT_MASK	(KVM_PGTABLE_PROT_SW0 | KVM_PGTABLE_PROT_SW1)
 static inline enum kvm_pgtable_prot pkvm_mkstate(enum kvm_pgtable_prot prot,
@@ -52,7 +52,14 @@ struct hyp_page {
 	u8 order;
 
 	/* Host state. Guarded by the host stage-2 lock. */
-	unsigned __host_state : 8;
+	unsigned __host_state : 4;
+
+	/*
+	 * Complement of the hyp state. Guarded by the hyp stage-1 lock. We use
+	 * the complement so that the initial 0 in __hyp_state_comp (due to the
+	 * entire vmemmap starting off zeroed) encodes PKVM_NOPAGE.
+	 */
+	unsigned __hyp_state_comp : 4;
 
 	u32 host_share_guest_count;
 };
@@ -97,6 +104,16 @@ static inline enum pkvm_page_state get_host_state(phys_addr_t phys)
 static inline void set_host_state(phys_addr_t phys, enum pkvm_page_state state)
 {
 	hyp_phys_to_page(phys)->__host_state = state;
+}
+
+static inline enum pkvm_page_state get_hyp_state(phys_addr_t phys)
+{
+	return hyp_phys_to_page(phys)->__hyp_state_comp ^ PKVM_PAGE_STATE_MASK;
+}
+
+static inline void set_hyp_state(phys_addr_t phys, enum pkvm_page_state state)
+{
+	hyp_phys_to_page(phys)->__hyp_state_comp = state ^ PKVM_PAGE_STATE_MASK;
 }
 
 /*
