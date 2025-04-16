@@ -896,27 +896,27 @@ unsigned int irq_get_next_irq(unsigned int offset)
 	return irq_find_at_or_after(offset);
 }
 
-struct irq_desc *
-__irq_get_desc_lock(unsigned int irq, unsigned long *flags, bool bus,
-		    unsigned int check)
+struct irq_desc *__irq_get_desc_lock(unsigned int irq, unsigned long *flags, bool bus,
+				     unsigned int check)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_desc *desc;
 
-	if (desc) {
-		if (check & _IRQ_DESC_CHECK) {
-			if ((check & _IRQ_DESC_PERCPU) &&
-			    !irq_settings_is_per_cpu_devid(desc))
-				return NULL;
+	desc = irq_to_desc(irq);
+	if (!desc)
+		return NULL;
 
-			if (!(check & _IRQ_DESC_PERCPU) &&
-			    irq_settings_is_per_cpu_devid(desc))
-				return NULL;
-		}
+	if (check & _IRQ_DESC_CHECK) {
+		if ((check & _IRQ_DESC_PERCPU) && !irq_settings_is_per_cpu_devid(desc))
+			return NULL;
 
-		if (bus)
-			chip_bus_lock(desc);
-		raw_spin_lock_irqsave(&desc->lock, *flags);
+		if (!(check & _IRQ_DESC_PERCPU) && irq_settings_is_per_cpu_devid(desc))
+			return NULL;
 	}
+
+	if (bus)
+		chip_bus_lock(desc);
+	raw_spin_lock_irqsave(&desc->lock, *flags);
+
 	return desc;
 }
 
