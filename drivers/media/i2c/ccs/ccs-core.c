@@ -3451,7 +3451,6 @@ static int ccs_probe(struct i2c_client *client)
 				CCS_LIM(sensor, NUM_OF_VT_LANES) + 1;
 			sensor->pll.op_lanes =
 				CCS_LIM(sensor, NUM_OF_OP_LANES) + 1;
-			sensor->pll.flags |= CCS_PLL_FLAG_LINK_DECOUPLED;
 		} else {
 			sensor->pll.vt_lanes = sensor->pll.csi2.lanes;
 			sensor->pll.op_lanes = sensor->pll.csi2.lanes;
