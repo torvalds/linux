@@ -22,6 +22,7 @@
 #include <linux/spi/spi.h>
 #include <linux/acpi.h>
 #include <linux/property.h>
+#include <linux/sizes.h>
 
 #define QSPI_COMMAND1				0x000
 #define QSPI_BIT_LENGTH(x)			(((x) & 0x1f) << 0)
@@ -156,10 +157,14 @@
 #define DATA_DIR_RX				BIT(1)
 
 #define QSPI_DMA_TIMEOUT			(msecs_to_jiffies(1000))
-#define DEFAULT_QSPI_DMA_BUF_LEN		(64 * 1024)
-#define CMD_TRANSFER				0
-#define ADDR_TRANSFER				1
-#define DATA_TRANSFER				2
+#define DEFAULT_QSPI_DMA_BUF_LEN		SZ_64K
+
+enum tegra_qspi_transfer_type {
+	CMD_TRANSFER   = 0,
+	ADDR_TRANSFER  = 1,
+	DUMMY_TRANSFER = 2,
+	DATA_TRANSFER  = 3
+};
 
 struct tegra_qspi_soc_data {
 	bool has_dma;
@@ -1085,6 +1090,13 @@ static int tegra_qspi_combined_seq_xfer(struct tegra_qspi *tqspi,
 							     xfer->len);
 			address_value = *((const u32 *)(xfer->tx_buf));
 			break;
+		case DUMMY_TRANSFER:
+			if (xfer->dummy_data) {
+				tqspi->dummy_cycles = xfer->len * 8 / xfer->tx_nbits;
+				break;
+			}
+			transfer_phase++;
+			fallthrough;
 		case DATA_TRANSFER:
 			/* Program Command, Address value in register */
 			tegra_qspi_writel(tqspi, cmd_value, QSPI_CMB_SEQ_CMD);
@@ -1292,7 +1304,9 @@ static bool tegra_qspi_validate_cmb_seq(struct tegra_qspi *tqspi,
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		transfer_count++;
 	}
-	if (!tqspi->soc_data->cmb_xfer_capable || transfer_count != 3)
+	if (!tqspi->soc_data->cmb_xfer_capable)
+		return false;
+	if (transfer_count > 4 || transfer_count < 3)
 		return false;
 	xfer = list_first_entry(&msg->transfers, typeof(*xfer),
 				transfer_list);
@@ -1302,6 +1316,13 @@ static bool tegra_qspi_validate_cmb_seq(struct tegra_qspi *tqspi,
 	if (xfer->len > 4 || xfer->len < 3)
 		return false;
 	xfer = list_next_entry(xfer, transfer_list);
+	if (transfer_count == 4) {
+		if (xfer->dummy_data != 1)
+			return false;
+		if ((xfer->len * 8 / xfer->tx_nbits) > QSPI_DUMMY_CYCLES_MAX)
+			return false;
+		xfer = list_next_entry(xfer, transfer_list);
+	}
 	if (!tqspi->soc_data->has_dma && xfer->len > (QSPI_FIFO_DEPTH << 2))
 		return false;
 
