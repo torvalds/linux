@@ -1912,7 +1912,8 @@ inline struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 	io_ring_submit_lock(ctx, issue_flags);
 	node = io_rsrc_node_lookup(&ctx->file_table.data, fd);
 	if (node) {
-		io_req_assign_rsrc_node(&req->file_node, node);
+		node->refs++;
+		req->file_node = node;
 		req->flags |= io_slot_flags(node);
 		file = io_slot_file(node);
 	}

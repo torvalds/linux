@@ -1110,13 +1110,19 @@ inline struct io_rsrc_node *io_find_buf_node(struct io_kiocb *req,
 
 	if (req->flags & REQ_F_BUF_NODE)
 		return req->buf_node;
+	req->flags |= REQ_F_BUF_NODE;
 
 	io_ring_submit_lock(ctx, issue_flags);
 	node = io_rsrc_node_lookup(&ctx->buf_table, req->buf_index);
-	if (node)
-		io_req_assign_buf_node(req, node);
+	if (node) {
+		node->refs++;
+		req->buf_node = node;
+		io_ring_submit_unlock(ctx, issue_flags);
+		return node;
+	}
+	req->flags &= ~REQ_F_BUF_NODE;
 	io_ring_submit_unlock(ctx, issue_flags);
-	return node;
+	return NULL;
 }
 
 int io_import_reg_buf(struct io_kiocb *req, struct iov_iter *iter,
