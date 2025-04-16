@@ -185,20 +185,19 @@ where
         self.len
     }
 
-    /// Forcefully sets `self.len` to `new_len`.
+    /// Increments `self.len` by `additional`.
     ///
     /// # Safety
     ///
-    /// - `new_len` must be less than or equal to [`Self::capacity`].
-    /// - If `new_len` is greater than `self.len`, all elements within the interval
-    ///   [`self.len`,`new_len`) must be initialized.
+    /// - `additional` must be less than or equal to `self.capacity - self.len`.
+    /// - All elements within the interval [`self.len`,`self.len + additional`) must be initialized.
     #[inline]
-    pub unsafe fn set_len(&mut self, new_len: usize) {
-        debug_assert!(new_len <= self.capacity());
-
-        // INVARIANT: By the safety requirements of this method `new_len` represents the exact
-        // number of elements stored within `self`.
-        self.len = new_len;
+    pub unsafe fn inc_len(&mut self, additional: usize) {
+        // Guaranteed by the type invariant to never underflow.
+        debug_assert!(additional <= self.capacity() - self.len());
+        // INVARIANT: By the safety requirements of this method this represents the exact number of
+        // elements stored within `self`.
+        self.len += additional;
     }
 
     /// Decreases `self.len` by `count`.
@@ -317,7 +316,7 @@ where
         // SAFETY: We just initialised the first spare entry, so it is safe to increase the length
         // by 1. We also know that the new length is <= capacity because of the previous call to
         // `reserve` above.
-        unsafe { self.set_len(self.len() + 1) };
+        unsafe { self.inc_len(1) };
         Ok(())
     }
 
@@ -521,7 +520,7 @@ impl<T: Clone, A: Allocator> Vec<T, A> {
         // SAFETY:
         // - `self.len() + n < self.capacity()` due to the call to reserve above,
         // - the loop and the line above initialized the next `n` elements.
-        unsafe { self.set_len(self.len() + n) };
+        unsafe { self.inc_len(n) };
 
         Ok(())
     }
@@ -552,7 +551,7 @@ impl<T: Clone, A: Allocator> Vec<T, A> {
         //   the length by the same number.
         // - `self.len() + other.len() <= self.capacity()` is guaranteed by the preceding `reserve`
         //   call.
-        unsafe { self.set_len(self.len() + other.len()) };
+        unsafe { self.inc_len(other.len()) };
         Ok(())
     }
 
