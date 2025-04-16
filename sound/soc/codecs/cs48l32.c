@@ -1802,7 +1802,7 @@ static int cs48l32_fllhj_validate(struct cs48l32_fll *fll,
 	}
 
 	if (fout > CS48L32_FLL_MAX_FOUT) {
-		cs48l32_fll_err(fll, "Fout=%dMHz exceeeds maximum %dMHz\n",
+		cs48l32_fll_err(fll, "Fout=%dMHz exceeds maximum %dMHz\n",
 				fout, CS48L32_FLL_MAX_FOUT);
 		return -EINVAL;
 	}
