@@ -285,7 +285,7 @@ enum ibask_option {
 	IBA_RSV = 0x21,	/* board only */
 	IBA_BNA = 0x200,	/* device only */
 	/* linux-gpib extensions */
-	IBA_7BitEOS = 0x1000	/* board only. Returns 1 if board supports 7 bit eos compares*/
+	IBA_7_BIT_EOS = 0x1000	/* board only. Returns 1 if board supports 7 bit eos compares*/
 };
 
 enum ibconfig_option {
