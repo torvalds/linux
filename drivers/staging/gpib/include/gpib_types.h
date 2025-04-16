@@ -8,11 +8,6 @@
 #define _GPIB_TYPES_H
 
 #ifdef __KERNEL__
-/* gpib_interface defines the interface
- * between the board-specific details dealt with in the drivers
- * and generic interface provided by gpib-common.
- * This really should be in a different header file.
- */
 #include "gpib_user.h"
 #include <linux/atomic.h>
 #include <linux/device.h>
@@ -36,11 +31,13 @@ struct gpib_board_config {
 	unsigned int ibirq;
 	/* dma channel to use for non-pnp cards (set by core, driver should make local copy) */
 	unsigned int ibdma;
-	/* pci bus of card, useful for distinguishing multiple identical pci cards
+	/*
+	 * pci bus of card, useful for distinguishing multiple identical pci cards
 	 * (negative means don't care)
 	 */
 	int pci_bus;
-	/* pci slot of card, useful for distinguishing multiple identical pci cards
+	/*
+	 * pci slot of card, useful for distinguishing multiple identical pci cards
 	 * (negative means don't care)
 	 */
 	int pci_slot;
@@ -50,6 +47,12 @@ struct gpib_board_config {
 	char *serial_number;
 };
 
+/*
+ * struct gpib_interface defines the interface
+ * between the board-specific details dealt with in the drivers
+ * and generic interface provided by gpib-common.
+ * This really should be in a different header file.
+ */
 struct gpib_interface {
 	/* name of board */
 	char *name;
@@ -57,7 +60,8 @@ struct gpib_interface {
 	int (*attach)(struct gpib_board *board, const struct gpib_board_config *config);
 	/* detach() shuts down board and frees resources */
 	void (*detach)(struct gpib_board *board);
-	/* read() should read at most 'length' bytes from the bus into
+	/*
+	 * read() should read at most 'length' bytes from the bus into
 	 * 'buffer'.  It should return when it fills the buffer or
 	 * encounters an END (EOI and or EOS if appropriate).  It should set 'end'
 	 * to be nonzero if the read was terminated by an END, otherwise 'end'
@@ -69,39 +73,46 @@ struct gpib_interface {
 	 */
 	int (*read)(struct gpib_board *board, u8 *buffer, size_t length, int *end,
 		    size_t *bytes_read);
-	/* write() should write 'length' bytes from buffer to the bus.
+	/*
+	 * write() should write 'length' bytes from buffer to the bus.
 	 * If the boolean value send_eoi is nonzero, then EOI should
 	 * be sent along with the last byte.  Returns number of bytes
 	 * written or negative value on error.
 	 */
 	int (*write)(struct gpib_board *board, u8 *buffer, size_t length, int send_eoi,
 		     size_t *bytes_written);
-	/* command() writes the command bytes in 'buffer' to the bus
+	/*
+	 * command() writes the command bytes in 'buffer' to the bus
 	 * Returns zero on success or negative value on error.
 	 */
 	int (*command)(struct gpib_board *board, u8 *buffer, size_t length,
 		       size_t *bytes_written);
-	/* Take control (assert ATN).  If 'asyncronous' is nonzero, take
+	/*
+	 * Take control (assert ATN).  If 'asyncronous' is nonzero, take
 	 * control asyncronously (assert ATN immediately without waiting
 	 * for other processes to complete first).  Should not return
 	 * until board becomes controller in charge.  Returns zero no success,
 	 * nonzero on error.
 	 */
 	int (*take_control)(struct gpib_board *board, int asyncronous);
-	/* De-assert ATN.  Returns zero on success, nonzer on error.
+	/*
+	 * De-assert ATN.  Returns zero on success, nonzer on error.
 	 */
 	int (*go_to_standby)(struct gpib_board *board);
 	/* request/release control of the IFC and REN lines (system controller) */
 	void (*request_system_control)(struct gpib_board *board, int request_control);
-	/* Asserts or de-asserts 'interface clear' (IFC) depending on
+	/*
+	 * Asserts or de-asserts 'interface clear' (IFC) depending on
 	 * boolean value of 'assert'
 	 */
 	void (*interface_clear)(struct gpib_board *board, int assert);
-	/* Sends remote enable command if 'enable' is nonzero, disables remote mode
+	/*
+	 * Sends remote enable command if 'enable' is nonzero, disables remote mode
 	 * if 'enable' is zero
 	 */
 	void (*remote_enable)(struct gpib_board *board, int enable);
-	/* enable END for reads, when byte 'eos' is received.  If
+	/*
+	 * enable END for reads, when byte 'eos' is received.  If
 	 * 'compare_8_bits' is nonzero, then all 8 bits are compared
 	 * with the eos bytes.	Otherwise only the 7 least significant
 	 * bits are compared.
@@ -117,26 +128,31 @@ struct gpib_interface {
 	void (*parallel_poll_response)(struct gpib_board *board, int ist);
 	/* select local parallel poll configuration mode PP2 versus remote PP1 */
 	void (*local_parallel_poll_mode)(struct gpib_board *board, int local);
-	/* Returns current status of the bus lines.  Should be set to
+	/*
+	 * Returns current status of the bus lines.  Should be set to
 	 * NULL if your board does not have the ability to query the
 	 * state of the bus lines.
 	 */
 	int (*line_status)(const struct gpib_board *board);
-	/* updates and returns the board's current status.
+	/*
+	 * updates and returns the board's current status.
 	 * The meaning of the bits are specified in gpib_user.h
 	 * in the IBSTA section.  The driver does not need to
 	 * worry about setting the CMPL, END, TIMO, or ERR bits.
 	 */
 	unsigned int (*update_status)(struct gpib_board *board, unsigned int clear_mask);
-	/* Sets primary address 0-30 for gpib interface card.
+	/*
+	 * Sets primary address 0-30 for gpib interface card.
 	 */
 	int (*primary_address)(struct gpib_board *board, unsigned int address);
-	/* Sets and enables, or disables secondary address 0-30
+	/*
+	 * Sets and enables, or disables secondary address 0-30
 	 * for gpib interface card.
 	 */
 	int (*secondary_address)(struct gpib_board *board, unsigned int address,
 				 int enable);
-	/* Sets the byte the board should send in response to a serial poll.
+	/*
+	 * Sets the byte the board should send in response to a serial poll.
 	 * This function should also start or stop requests for service via
 	 * IEEE 488.2 reqt/reqf, based on MSS (bit 6 of the status_byte).
 	 * If the more flexible serial_poll_response2 is implemented by the
@@ -149,7 +165,8 @@ struct gpib_interface {
 	 * STB, reqt, and reqf".
 	 */
 	void (*serial_poll_response)(struct gpib_board *board, u8 status_byte);
-	/* Sets the byte the board should send in response to a serial poll.
+	/*
+	 * Sets the byte the board should send in response to a serial poll.
 	 * This function should also request service via IEEE 488.2 reqt/reqf
 	 * based on MSS (bit 6 of the status_byte) and new_reason_for_service.
 	 * reqt should be set true if new_reason_for_service is true,
@@ -165,7 +182,8 @@ struct gpib_interface {
 	 */
 	void (*serial_poll_response2)(struct gpib_board *board, u8 status_byte,
 				      int new_reason_for_service);
-	/* returns the byte the board will send in response to a serial poll.
+	/*
+	 * returns the byte the board will send in response to a serial poll.
 	 */
 	u8 (*serial_poll_status)(struct gpib_board *board);
 	/* adjust T1 delay */
@@ -215,14 +233,16 @@ struct gpib_interface_list {
 	struct module *module;
 };
 
-/* One struct gpib_board is allocated for each physical board in the computer.
+/*
+ * One struct gpib_board is allocated for each physical board in the computer.
  * It provides storage for variables local to each board, and interface
  * functions for performing operations on the board
  */
 struct gpib_board {
 	/* functions used by this board */
 	struct gpib_interface *interface;
-	/* Pointer to module whose use count we should increment when
+	/*
+	 * Pointer to module whose use count we should increment when
 	 * interface is in use
 	 */
 	struct module *provider_module;
@@ -230,20 +250,24 @@ struct gpib_board {
 	u8 *buffer;
 	/* length of buffer */
 	unsigned int buffer_length;
-	/* Used to hold the board's current status (see update_status() above)
+	/*
+	 * Used to hold the board's current status (see update_status() above)
 	 */
 	unsigned long status;
-	/* Driver should only sleep on this wait queue.	 It is special in that the
+	/*
+	 * Driver should only sleep on this wait queue.	 It is special in that the
 	 * core will wake this queue and set the TIMO bit in 'status' when the
 	 * watchdog timer times out.
 	 */
 	wait_queue_head_t wait;
-	/* Lock that only allows one process to access this board at a time.
+	/*
+	 * Lock that only allows one process to access this board at a time.
 	 * Has to be first in any locking order, since it can be locked over
 	 * multiple ioctls.
 	 */
 	struct mutex user_mutex;
-	/* Mutex which compensates for removal of "big kernel lock" from kernel.
+	/*
+	 * Mutex which compensates for removal of "big kernel lock" from kernel.
 	 * Should not be held for extended waits.
 	 */
 	struct mutex big_gpib_mutex;
@@ -258,7 +282,8 @@ struct gpib_board {
 	struct device *dev;
 	/* gpib_common device gpibN */
 	struct device *gpib_dev;
-	/* 'private_data' can be used as seen fit by the driver to
+	/*
+	 * 'private_data' can be used as seen fit by the driver to
 	 * store additional variables for this board
 	 */
 	void *private_data;
@@ -295,7 +320,8 @@ struct gpib_board {
 	unsigned master : 1;
 	/* individual status bit */
 	unsigned ist : 1;
-	/* one means local parallel poll mode ieee 488.1 PP2 (or no parallel poll PP0),
+	/*
+	 * one means local parallel poll mode ieee 488.1 PP2 (or no parallel poll PP0),
 	 * zero means remote parallel poll configuration mode ieee 488.1 PP1
 	 */
 	unsigned local_ppoll_mode : 1;
@@ -307,7 +333,8 @@ struct gpib_event {
 	short event_type;
 };
 
-/* Each board has a list of gpib_status_queue to keep track of all open devices
+/*
+ * Each board has a list of gpib_status_queue to keep track of all open devices
  * on the bus, so we know what address to poll when we get a service request
  */
 struct gpib_status_queue {

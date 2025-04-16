@@ -86,7 +86,8 @@ int tms9914_write(struct gpib_board *board, struct tms9914_priv *priv, u8 *buffe
 int tms9914_command(struct gpib_board *board, struct tms9914_priv *priv, u8 *buffer,
 		    size_t length, size_t *bytes_written);
 int tms9914_take_control(struct gpib_board *board, struct tms9914_priv *priv, int syncronous);
-/* alternate version of tms9914_take_control which works around buggy tcs
+/*
+ * alternate version of tms9914_take_control which works around buggy tcs
  * implementation.
  */
 int tms9914_take_control_workaround(struct gpib_board *board, struct tms9914_priv *priv,
@@ -140,7 +141,8 @@ enum {
 	ms9914_num_registers = 8,
 };
 
-/* tms9914 register numbers (might need to be multiplied by
+/*
+ * tms9914 register numbers (might need to be multiplied by
  * a board-dependent offset to get actually io address offset)
  */
 // write registers
