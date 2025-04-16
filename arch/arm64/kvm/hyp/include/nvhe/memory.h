@@ -8,20 +8,29 @@
 #include <linux/types.h>
 
 /*
- * Bits 0-1 are reserved to track the memory ownership state of each page:
- *   00: The page is owned exclusively by the page-table owner.
- *   01: The page is owned by the page-table owner, but is shared
- *       with another entity.
- *   10: The page is shared with, but not owned by the page-table owner.
- *   11: Reserved for future use (lending).
+ * Bits 0-1 are used to encode the memory ownership state of each page from the
+ * point of view of a pKVM "component" (host, hyp, guest, ... see enum
+ * pkvm_component_id):
+ *   00: The page is owned and exclusively accessible by the component;
+ *   01: The page is owned and accessible by the component, but is also
+ *       accessible by another component;
+ *   10: The page is accessible but not owned by the component;
+ * The storage of this state depends on the component: either in the
+ * hyp_vmemmap for the host state or in PTE software bits for the hypervisor
+ * and guests.
  */
 enum pkvm_page_state {
 	PKVM_PAGE_OWNED			= 0ULL,
 	PKVM_PAGE_SHARED_OWNED		= BIT(0),
 	PKVM_PAGE_SHARED_BORROWED	= BIT(1),
-	__PKVM_PAGE_RESERVED		= BIT(0) | BIT(1),
+	__PKVM_PAGE_RESERVED            = BIT(0) | BIT(1),
 
-	/* Meta-states which aren't encoded directly in the PTE's SW bits */
+	/*
+	 * 'Meta-states' are not stored directly in PTE SW bits for hyp and
+	 * guest states, but inferred from the context (e.g. invalid PTE
+	 * entries). For the host, meta-states are stored directly in the
+	 * struct hyp_page.
+	 */
 	PKVM_NOPAGE			= BIT(2),
 };
 #define PKVM_PAGE_META_STATES_MASK	(~__PKVM_PAGE_RESERVED)
@@ -44,7 +53,7 @@ struct hyp_page {
 	u16 refcount;
 	u8 order;
 
-	/* Host (non-meta) state. Guarded by the host stage-2 lock. */
+	/* Host state. Guarded by the host stage-2 lock. */
 	enum pkvm_page_state host_state : 8;
 
 	u32 host_share_guest_count;
