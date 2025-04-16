@@ -2450,9 +2450,11 @@ struct rcu_torture_one_read_state_updown {
 	struct hrtimer rtorsu_hrt;
 	bool rtorsu_inuse;
 	ktime_t rtorsu_kt;
+	int rtorsu_cpu;
 	unsigned long rtorsu_j;
 	unsigned long rtorsu_ndowns;
 	unsigned long rtorsu_nups;
+	unsigned long rtorsu_nmigrates;
 	struct torture_random_state rtorsu_trs;
 	struct rcu_torture_one_read_state rtorsu_rtors;
 };
@@ -2463,12 +2465,15 @@ static int rcu_torture_updown(void *arg);
 
 static enum hrtimer_restart rcu_torture_updown_hrt(struct hrtimer *hrtp)
 {
+	int cpu = raw_smp_processor_id();
 	struct rcu_torture_one_read_state_updown *rtorsup;
 
 	rtorsup = container_of(hrtp, struct rcu_torture_one_read_state_updown, rtorsu_hrt);
 	rcu_torture_one_read_end(&rtorsup->rtorsu_rtors, &rtorsup->rtorsu_trs, -1);
 	WARN_ONCE(rtorsup->rtorsu_nups >= rtorsup->rtorsu_ndowns, "%s: Up without matching down #%zu.\n", __func__, rtorsup - updownreaders);
-	rtorsup->rtorsu_nups++;
+	WRITE_ONCE(rtorsup->rtorsu_nups, rtorsup->rtorsu_nups + 1);
+	WRITE_ONCE(rtorsup->rtorsu_nmigrates,
+		   rtorsup->rtorsu_nmigrates + (cpu != rtorsup->rtorsu_cpu));
 	smp_store_release(&rtorsup->rtorsu_inuse, false);
 	return HRTIMER_NORESTART;
 }
@@ -2516,7 +2521,7 @@ static void rcu_torture_updown_cleanup(void)
 		if (hrtimer_cancel(&rtorsup->rtorsu_hrt) || WARN_ON_ONCE(rtorsup->rtorsu_inuse)) {
 			rcu_torture_one_read_end(&rtorsup->rtorsu_rtors, &rtorsup->rtorsu_trs, -1);
 			WARN_ONCE(rtorsup->rtorsu_nups >= rtorsup->rtorsu_ndowns, "%s: Up without matching down #%zu.\n", __func__, rtorsup - updownreaders);
-			rtorsup->rtorsu_nups++;
+			WRITE_ONCE(rtorsup->rtorsu_nups, rtorsup->rtorsu_nups + 1);
 			smp_store_release(&rtorsup->rtorsu_inuse, false);
 		}
 
@@ -2534,13 +2539,14 @@ static void rcu_torture_updown_one(struct rcu_torture_one_read_state_updown *rto
 
 	init_rcu_torture_one_read_state(&rtorsup->rtorsu_rtors, &rtorsup->rtorsu_trs);
 	rawidx = cur_ops->down_read();
-	rtorsup->rtorsu_ndowns++;
+	WRITE_ONCE(rtorsup->rtorsu_ndowns, rtorsup->rtorsu_ndowns + 1);
 	idx = (rawidx << RCUTORTURE_RDR_SHIFT_1) & RCUTORTURE_RDR_MASK_1;
 	rtorsup->rtorsu_rtors.readstate = idx | RCUTORTURE_RDR_UPDOWN;
 	rtorsup->rtorsu_rtors.rtrsp++;
+	rtorsup->rtorsu_cpu = raw_smp_processor_id();
 	if (!rcu_torture_one_read_start(&rtorsup->rtorsu_rtors, &rtorsup->rtorsu_trs, -1)) {
 		WARN_ONCE(rtorsup->rtorsu_nups >= rtorsup->rtorsu_ndowns, "%s: Up without matching down #%zu.\n", __func__, rtorsup - updownreaders);
-		rtorsup->rtorsu_nups++;
+		WRITE_ONCE(rtorsup->rtorsu_nups, rtorsup->rtorsu_nups + 1);
 		schedule_timeout_idle(HZ);
 		return;
 	}
@@ -2649,6 +2655,10 @@ rcu_torture_stats_print(void)
 	long pipesummary[RCU_TORTURE_PIPE_LEN + 1] = { 0 };
 	long batchsummary[RCU_TORTURE_PIPE_LEN + 1] = { 0 };
 	long n_gpwraps = 0;
+	unsigned long ndowns = 0;
+	unsigned long nunexpired = 0;
+	unsigned long nmigrates = 0;
+	unsigned long nups = 0;
 	struct rcu_torture *rtcp;
 	static unsigned long rtcv_snap = ULONG_MAX;
 	static bool splatted;
@@ -2662,10 +2672,18 @@ rcu_torture_stats_print(void)
 		if (cur_ops->get_gpwrap_count)
 			n_gpwraps += cur_ops->get_gpwrap_count(cpu);
 	}
+	if (updownreaders) {
+		for (i = 0; i < n_up_down; i++) {
+			ndowns += READ_ONCE(updownreaders[i].rtorsu_ndowns);
+			nups += READ_ONCE(updownreaders[i].rtorsu_nups);
+			nunexpired += READ_ONCE(updownreaders[i].rtorsu_inuse);
+			nmigrates += READ_ONCE(updownreaders[i].rtorsu_nmigrates);
+		}
+	}
 	for (i = RCU_TORTURE_PIPE_LEN; i >= 0; i--) {
 		if (pipesummary[i] != 0)
 			break;
-	}
+	} // The value of variable "i" is used later, so don't clobber it!
 
 	pr_alert("%s%s ", torture_type, TORTURE_FLAG);
 	rtcp = rcu_access_pointer(rcu_torture_current);
@@ -2686,6 +2704,8 @@ rcu_torture_stats_print(void)
 		n_rcu_torture_boost_failure,
 		n_rcu_torture_boosts,
 		atomic_long_read(&n_rcu_torture_timers));
+	if (updownreaders)
+		pr_cont("ndowns: %lu nups: %lu nhrt: %lu nmigrates: %lu ", ndowns, nups, nunexpired,  nmigrates);
 	torture_onoff_stats();
 	pr_cont("barrier: %ld/%ld:%ld ",
 		data_race(n_barrier_successes),
