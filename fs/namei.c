@@ -571,14 +571,14 @@ int inode_permission(struct mnt_idmap *idmap,
 	int retval;
 
 	retval = sb_permission(inode->i_sb, inode, mask);
-	if (retval)
+	if (unlikely(retval))
 		return retval;
 
 	if (unlikely(mask & MAY_WRITE)) {
 		/*
 		 * Nobody gets write access to an immutable file.
 		 */
-		if (IS_IMMUTABLE(inode))
+		if (unlikely(IS_IMMUTABLE(inode)))
 			return -EPERM;
 
 		/*
@@ -586,16 +586,16 @@ int inode_permission(struct mnt_idmap *idmap,
 		 * written back improperly if their true value is unknown
 		 * to the vfs.
 		 */
-		if (HAS_UNMAPPED_ID(idmap, inode))
+		if (unlikely(HAS_UNMAPPED_ID(idmap, inode)))
 			return -EACCES;
 	}
 
 	retval = do_inode_permission(idmap, inode, mask);
-	if (retval)
+	if (unlikely(retval))
 		return retval;
 
 	retval = devcgroup_inode_permission(inode, mask);
-	if (retval)
+	if (unlikely(retval))
 		return retval;
 
 	return security_inode_permission(inode, mask);
