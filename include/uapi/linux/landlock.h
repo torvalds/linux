@@ -53,12 +53,16 @@ struct landlock_ruleset_attr {
 	__u64 scoped;
 };
 
-/*
- * sys_landlock_create_ruleset() flags:
+/**
+ * DOC: landlock_create_ruleset_flags
  *
- * - %LANDLOCK_CREATE_RULESET_VERSION: Get the highest supported Landlock ABI
- *   version.
- * - %LANDLOCK_CREATE_RULESET_ERRATA: Get a bitmask of fixed issues.
+ * **Flags**
+ *
+ * %LANDLOCK_CREATE_RULESET_VERSION
+ *     Get the highest supported Landlock ABI version (starting at 1).
+ *
+ * %LANDLOCK_CREATE_RULESET_ERRATA
+ *     Get a bitmask of fixed issues for the current Landlock ABI version.
  */
 /* clang-format off */
 #define LANDLOCK_CREATE_RULESET_VERSION			(1U << 0)

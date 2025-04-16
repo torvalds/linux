@@ -169,20 +169,16 @@ const int landlock_abi_version = 7;
  *        the new ruleset.
  * @size: Size of the pointed &struct landlock_ruleset_attr (needed for
  *        backward and forward compatibility).
- * @flags: Supported value:
+ * @flags: Supported values:
+ *
  *         - %LANDLOCK_CREATE_RULESET_VERSION
  *         - %LANDLOCK_CREATE_RULESET_ERRATA
  *
  * This system call enables to create a new Landlock ruleset, and returns the
  * related file descriptor on success.
  *
- * If @flags is %LANDLOCK_CREATE_RULESET_VERSION and @attr is NULL and @size is
- * 0, then the returned value is the highest supported Landlock ABI version
- * (starting at 1).
- *
- * If @flags is %LANDLOCK_CREATE_RULESET_ERRATA and @attr is NULL and @size is
- * 0, then the returned value is a bitmask of fixed issues for the current
- * Landlock ABI version.
+ * If %LANDLOCK_CREATE_RULESET_VERSION or %LANDLOCK_CREATE_RULESET_ERRATA is
+ * set, then @attr must be NULL and @size must be 0.
  *
  * Possible returned errors are:
  *
@@ -191,6 +187,9 @@ const int landlock_abi_version = 7;
  * - %E2BIG: @attr or @size inconsistencies;
  * - %EFAULT: @attr or @size inconsistencies;
  * - %ENOMSG: empty &landlock_ruleset_attr.handled_access_fs.
+ *
+ * .. kernel-doc:: include/uapi/linux/landlock.h
+ *     :identifiers: landlock_create_ruleset_flags
  */
 SYSCALL_DEFINE3(landlock_create_ruleset,
 		const struct landlock_ruleset_attr __user *const, attr,
