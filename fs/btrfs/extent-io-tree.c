@@ -1223,6 +1223,7 @@ hit_next:
 		if (IS_ERR(inserted_state)) {
 			ret = PTR_ERR(inserted_state);
 			extent_io_tree_panic(tree, prealloc, "insert", ret);
+			goto out;
 		}
 
 		cache_state(inserted_state, cached_state);
