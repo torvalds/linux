@@ -18,15 +18,16 @@ static inline int devcgroup_inode_permission(struct inode *inode, int mask)
 {
 	short type, access = 0;
 
+	if (likely(!S_ISBLK(inode->i_mode) && !S_ISCHR(inode->i_mode)))
+		return 0;
+
 	if (likely(!inode->i_rdev))
 		return 0;
 
 	if (S_ISBLK(inode->i_mode))
 		type = DEVCG_DEV_BLOCK;
-	else if (S_ISCHR(inode->i_mode))
+	else /* S_ISCHR by the test above */
 		type = DEVCG_DEV_CHAR;
-	else
-		return 0;
 
 	if (mask & MAY_WRITE)
 		access |= DEVCG_ACC_WRITE;
