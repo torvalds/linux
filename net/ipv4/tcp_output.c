@@ -4149,6 +4149,7 @@ int tcp_connect(struct sock *sk)
 	tcp_connect_queue_skb(sk, buff);
 	tcp_ecn_send_syn(sk, buff);
 	tcp_rbtree_insert(&sk->tcp_rtx_queue, buff);
+	NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPSYNSEND);
 
 	/* Send off SYN; include data in Fast Open. */
 	err = tp->fastopen_req ? tcp_send_syn_data(sk, buff) :
