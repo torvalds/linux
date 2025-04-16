@@ -63,6 +63,7 @@ struct futex_private_hash {
 	struct rcu_head	rcu;
 	void		*mm;
 	bool		custom;
+	bool		immutable;
 	struct futex_hash_bucket queues[];
 };
 
@@ -132,12 +133,16 @@ static inline bool futex_key_is_private(union futex_key *key)
 
 bool futex_private_hash_get(struct futex_private_hash *fph)
 {
+	if (fph->immutable)
+		return true;
 	return rcuref_get(&fph->users);
 }
 
 void futex_private_hash_put(struct futex_private_hash *fph)
 {
 	/* Ignore return value, last put is verified via rcuref_is_dead() */
+	if (fph->immutable)
+		return;
 	if (rcuref_put(&fph->users))
 		wake_up_var(fph->mm);
 }
@@ -277,6 +282,8 @@ again:
 		if (!fph)
 			return NULL;
 
+		if (fph->immutable)
+			return fph;
 		if (rcuref_get(&fph->users))
 			return fph;
 	}
@@ -1383,6 +1390,9 @@ static void futex_hash_bucket_init(struct futex_hash_bucket *fhb,
 	spin_lock_init(&fhb->lock);
 }
 
+#define FH_CUSTOM	0x01
+#define FH_IMMUTABLE	0x02
+
 #ifdef CONFIG_FUTEX_PRIVATE_HASH
 void futex_hash_free(struct mm_struct *mm)
 {
@@ -1433,10 +1443,11 @@ static bool futex_hash_less(struct futex_private_hash *a,
 	return false; /* equal */
 }
 
-static int futex_hash_allocate(unsigned int hash_slots, bool custom)
+static int futex_hash_allocate(unsigned int hash_slots, unsigned int flags)
 {
 	struct mm_struct *mm = current->mm;
 	struct futex_private_hash *fph;
+	bool custom = flags & FH_CUSTOM;
 	int i;
 
 	if (hash_slots && (hash_slots == 1 || !is_power_of_2(hash_slots)))
@@ -1447,7 +1458,7 @@ static int futex_hash_allocate(unsigned int hash_slots, bool custom)
 	 */
 	scoped_guard(rcu) {
 		fph = rcu_dereference(mm->futex_phash);
-		if (fph && !fph->hash_mask) {
+		if (fph && (!fph->hash_mask || fph->immutable)) {
 			if (custom)
 				return -EBUSY;
 			return 0;
@@ -1461,6 +1472,7 @@ static int futex_hash_allocate(unsigned int hash_slots, bool custom)
 	rcuref_init(&fph->users, 1);
 	fph->hash_mask = hash_slots ? hash_slots - 1 : 0;
 	fph->custom = custom;
+	fph->immutable = !!(flags & FH_IMMUTABLE);
 	fph->mm = mm;
 
 	for (i = 0; i < hash_slots; i++)
@@ -1553,7 +1565,7 @@ int futex_hash_allocate_default(void)
 	if (current_buckets >= buckets)
 		return 0;
 
-	return futex_hash_allocate(buckets, false);
+	return futex_hash_allocate(buckets, 0);
 }
 
 static int futex_hash_get_slots(void)
@@ -1567,9 +1579,22 @@ static int futex_hash_get_slots(void)
 	return 0;
 }
 
+static int futex_hash_get_immutable(void)
+{
+	struct futex_private_hash *fph;
+
+	guard(rcu)();
+	fph = rcu_dereference(current->mm->futex_phash);
+	if (fph && fph->immutable)
+		return 1;
+	if (fph && !fph->hash_mask)
+		return 1;
+	return 0;
+}
+
 #else
 
-static int futex_hash_allocate(unsigned int hash_slots, bool custom)
+static int futex_hash_allocate(unsigned int hash_slots, unsigned int flags)
 {
 	return -EINVAL;
 }
@@ -1578,21 +1603,33 @@ static int futex_hash_get_slots(void)
 {
 	return 0;
 }
+
+static int futex_hash_get_immutable(void)
+{
+	return 0;
+}
 #endif
 
 int futex_hash_prctl(unsigned long arg2, unsigned long arg3, unsigned long arg4)
 {
+	unsigned int flags = FH_CUSTOM;
 	int ret;
 
 	switch (arg2) {
 	case PR_FUTEX_HASH_SET_SLOTS:
-		if (arg4 != 0)
+		if (arg4 & ~FH_FLAG_IMMUTABLE)
 			return -EINVAL;
-		ret = futex_hash_allocate(arg3, true);
+		if (arg4 & FH_FLAG_IMMUTABLE)
+			flags |= FH_IMMUTABLE;
+		ret = futex_hash_allocate(arg3, flags);
 		break;
 
 	case PR_FUTEX_HASH_GET_SLOTS:
 		ret = futex_hash_get_slots();
+		break;
+
+	case PR_FUTEX_HASH_GET_IMMUTABLE:
+		ret = futex_hash_get_immutable();
 		break;
 
 	default:
