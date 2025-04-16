@@ -733,7 +733,7 @@ static inline void restore_fpregs_from_init_fpstate(u64 features_mask)
 /*
  * Reset current->fpu memory state to the init values.
  */
-static void fpu_reset_fpregs(void)
+static void fpu_reset_fpstate_regs(void)
 {
 	struct fpu *fpu = x86_task_fpu(current);
 
@@ -768,7 +768,7 @@ void fpu__clear_user_states(struct fpu *fpu)
 
 	fpregs_lock();
 	if (!cpu_feature_enabled(X86_FEATURE_FPU)) {
-		fpu_reset_fpregs();
+		fpu_reset_fpstate_regs();
 		fpregs_unlock();
 		return;
 	}
@@ -798,7 +798,7 @@ void fpu__clear_user_states(struct fpu *fpu)
 void fpu_flush_thread(void)
 {
 	fpstate_reset(x86_task_fpu(current));
-	fpu_reset_fpregs();
+	fpu_reset_fpstate_regs();
 }
 /*
  * Load FPU context before returning to userspace.
