@@ -3177,8 +3177,12 @@ void idpf_vport_init(struct idpf_vport *vport, struct idpf_vport_max_q *max_q)
 		return;
 
 	err = idpf_ptp_get_vport_tstamps_caps(vport);
-	if (err)
+	if (err) {
 		pci_dbg(vport->adapter->pdev, "Tx timestamping not supported\n");
+		return;
+	}
+
+	INIT_WORK(&vport->tstamp_task, idpf_tstamp_task);
 }
 
 /**

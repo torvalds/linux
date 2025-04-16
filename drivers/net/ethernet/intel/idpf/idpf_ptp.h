@@ -132,6 +132,7 @@ struct idpf_ptp_tx_tstamp {
  * @tstamp_ns_lo_bit: first bit for nanosecond part of the timestamp
  * @latches_lock: the lock to the lists of free/used timestamp indexes
  * @status_lock: the lock to the status tracker
+ * @access: indicates an access to Tx timestamp
  * @latches_free: the list of the free Tx timestamps latches
  * @latches_in_use: the list of the used Tx timestamps latches
  * @tx_tstamp_status: Tx tstamp status tracker
@@ -142,6 +143,7 @@ struct idpf_ptp_vport_tx_tstamp_caps {
 	u16 tstamp_ns_lo_bit;
 	spinlock_t latches_lock;
 	spinlock_t status_lock;
+	bool access:1;
 	struct list_head latches_free;
 	struct list_head latches_in_use;
 	struct idpf_ptp_tx_tstamp_status tx_tstamp_status[];
@@ -155,6 +157,8 @@ struct idpf_ptp_vport_tx_tstamp_caps {
  * @base_incval: base increment value of the PTP clock
  * @max_adj: maximum adjustment of the PTP clock
  * @cmd: HW specific command masks
+ * @cached_phc_time: a cached copy of the PHC time for timestamp extension
+ * @cached_phc_jiffies: jiffies when cached_phc_time was last updated
  * @dev_clk_regs: the set of registers to access the device clock
  * @caps: PTP capabilities negotiated with the Control Plane
  * @get_dev_clk_time_access: access type for getting the device clock time
@@ -173,6 +177,8 @@ struct idpf_ptp {
 	u64 base_incval;
 	u64 max_adj;
 	struct idpf_ptp_cmd cmd;
+	u64 cached_phc_time;
+	unsigned long cached_phc_jiffies;
 	struct idpf_ptp_dev_clk_regs dev_clk_regs;
 	u32 caps;
 	enum idpf_ptp_access get_dev_clk_time_access:2;
@@ -234,12 +240,21 @@ int idpf_ptp_init(struct idpf_adapter *adapter);
 void idpf_ptp_release(struct idpf_adapter *adapter);
 int idpf_ptp_get_caps(struct idpf_adapter *adapter);
 void idpf_ptp_get_features_access(const struct idpf_adapter *adapter);
+bool idpf_ptp_get_txq_tstamp_capability(struct idpf_tx_queue *txq);
 int idpf_ptp_get_dev_clk_time(struct idpf_adapter *adapter,
 			      struct idpf_ptp_dev_timers *dev_clk_time);
 int idpf_ptp_set_dev_clk_time(struct idpf_adapter *adapter, u64 time);
 int idpf_ptp_adj_dev_clk_fine(struct idpf_adapter *adapter, u64 incval);
 int idpf_ptp_adj_dev_clk_time(struct idpf_adapter *adapter, s64 delta);
 int idpf_ptp_get_vport_tstamps_caps(struct idpf_vport *vport);
+int idpf_ptp_get_tx_tstamp(struct idpf_vport *vport);
+int idpf_ptp_set_timestamp_mode(struct idpf_vport *vport,
+				struct kernel_hwtstamp_config *config);
+u64 idpf_ptp_extend_ts(struct idpf_vport *vport, u64 in_tstamp);
+u64 idpf_ptp_tstamp_extend_32b_to_64b(u64 cached_phc_time, u32 in_timestamp);
+int idpf_ptp_request_ts(struct idpf_tx_queue *tx_q, struct sk_buff *skb,
+			u32 *idx);
+void idpf_tstamp_task(struct work_struct *work);
 #else /* CONFIG_PTP_1588_CLOCK */
 static inline int idpf_ptp_init(struct idpf_adapter *adapter)
 {
@@ -255,6 +270,12 @@ static inline int idpf_ptp_get_caps(struct idpf_adapter *adapter)
 
 static inline void
 idpf_ptp_get_features_access(const struct idpf_adapter *adapter) { }
+
+static inline bool
+idpf_ptp_get_txq_tstamp_capability(struct idpf_tx_queue *txq)
+{
+	return false;
+}
 
 static inline int
 idpf_ptp_get_dev_clk_time(struct idpf_adapter *adapter,
@@ -286,5 +307,35 @@ static inline int idpf_ptp_get_vport_tstamps_caps(struct idpf_vport *vport)
 	return -EOPNOTSUPP;
 }
 
+static inline int idpf_ptp_get_tx_tstamp(struct idpf_vport *vport)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+idpf_ptp_set_timestamp_mode(struct idpf_vport *vport,
+			    struct kernel_hwtstamp_config *config)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline u64 idpf_ptp_extend_ts(struct idpf_vport *vport, u32 in_tstamp)
+{
+	return 0;
+}
+
+static inline u64 idpf_ptp_tstamp_extend_32b_to_64b(u64 cached_phc_time,
+						    u32 in_timestamp)
+{
+	return 0;
+}
+
+static inline int idpf_ptp_request_ts(struct idpf_tx_queue *tx_q,
+				      struct sk_buff *skb, u32 *idx)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void idpf_tstamp_task(struct work_struct *work) { }
 #endif /* CONFIG_PTP_1588_CLOCK */
 #endif /* _IDPF_PTP_H */

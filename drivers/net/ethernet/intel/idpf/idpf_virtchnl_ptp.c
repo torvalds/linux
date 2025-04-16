@@ -328,7 +328,9 @@ int idpf_ptp_get_vport_tstamps_caps(struct idpf_vport *vport)
 		goto get_tstamp_caps_out;
 	}
 
+	tstamp_caps->access = true;
 	tstamp_caps->num_entries = num_latches;
+
 	INIT_LIST_HEAD(&tstamp_caps->latches_in_use);
 	INIT_LIST_HEAD(&tstamp_caps->latches_free);
 
@@ -382,4 +384,232 @@ get_tstamp_caps_out:
 	kfree(rcv_tx_tstamp_caps);
 
 	return err;
+}
+
+/**
+ * idpf_ptp_update_tstamp_tracker - Update the Tx timestamp tracker based on
+ *				    the skb compatibility.
+ * @caps: Tx timestamp capabilities that monitor the latch status
+ * @skb: skb for which the tstamp value is returned through virtchnl message
+ * @current_state: Current state of the Tx timestamp latch
+ * @expected_state: Expected state of the Tx timestamp latch
+ *
+ * Find a proper skb tracker for which the Tx timestamp is received and change
+ * the state to expected value.
+ *
+ * Return: true if the tracker has been found and updated, false otherwise.
+ */
+static bool
+idpf_ptp_update_tstamp_tracker(struct idpf_ptp_vport_tx_tstamp_caps *caps,
+			       struct sk_buff *skb,
+			       enum idpf_ptp_tx_tstamp_state current_state,
+			       enum idpf_ptp_tx_tstamp_state expected_state)
+{
+	bool updated = false;
+
+	spin_lock(&caps->status_lock);
+	for (u16 i = 0; i < caps->num_entries; i++) {
+		struct idpf_ptp_tx_tstamp_status *status;
+
+		status = &caps->tx_tstamp_status[i];
+
+		if (skb == status->skb && status->state == current_state) {
+			status->state = expected_state;
+			updated = true;
+			break;
+		}
+	}
+	spin_unlock(&caps->status_lock);
+
+	return updated;
+}
+
+/**
+ * idpf_ptp_get_tstamp_value - Get the Tx timestamp value and provide it
+ *			       back to the skb.
+ * @vport: Virtual port structure
+ * @tstamp_latch: Tx timestamp latch structure fulfilled by the Control Plane
+ * @ptp_tx_tstamp: Tx timestamp latch to add to the free list
+ *
+ * Read the value of the Tx timestamp for a given latch received from the
+ * Control Plane, extend it to 64 bit and provide back to the skb.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+static int
+idpf_ptp_get_tstamp_value(struct idpf_vport *vport,
+			  struct virtchnl2_ptp_tx_tstamp_latch *tstamp_latch,
+			  struct idpf_ptp_tx_tstamp *ptp_tx_tstamp)
+{
+	struct idpf_ptp_vport_tx_tstamp_caps *tx_tstamp_caps;
+	struct skb_shared_hwtstamps shhwtstamps;
+	bool state_upd = false;
+	u8 tstamp_ns_lo_bit;
+	u64 tstamp;
+
+	tx_tstamp_caps = vport->tx_tstamp_caps;
+	tstamp_ns_lo_bit = tx_tstamp_caps->tstamp_ns_lo_bit;
+
+	ptp_tx_tstamp->tstamp = le64_to_cpu(tstamp_latch->tstamp);
+	ptp_tx_tstamp->tstamp >>= tstamp_ns_lo_bit;
+
+	state_upd = idpf_ptp_update_tstamp_tracker(tx_tstamp_caps,
+						   ptp_tx_tstamp->skb,
+						   IDPF_PTP_READ_VALUE,
+						   IDPF_PTP_FREE);
+	if (!state_upd)
+		return -EINVAL;
+
+	tstamp = idpf_ptp_extend_ts(vport, ptp_tx_tstamp->tstamp);
+	shhwtstamps.hwtstamp = ns_to_ktime(tstamp);
+	skb_tstamp_tx(ptp_tx_tstamp->skb, &shhwtstamps);
+	consume_skb(ptp_tx_tstamp->skb);
+
+	list_add(&ptp_tx_tstamp->list_member,
+		 &tx_tstamp_caps->latches_free);
+
+	return 0;
+}
+
+/**
+ * idpf_ptp_get_tx_tstamp_async_handler - Async callback for getting Tx tstamps
+ * @adapter: Driver specific private structure
+ * @xn: transaction for message
+ * @ctlq_msg: received message
+ *
+ * Read the tstamps Tx tstamp values from a received message and put them
+ * directly to the skb. The number of timestamps to read is specified by
+ * the virtchnl message.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+static int
+idpf_ptp_get_tx_tstamp_async_handler(struct idpf_adapter *adapter,
+				     struct idpf_vc_xn *xn,
+				     const struct idpf_ctlq_msg *ctlq_msg)
+{
+	struct virtchnl2_ptp_get_vport_tx_tstamp_latches *recv_tx_tstamp_msg;
+	struct idpf_ptp_vport_tx_tstamp_caps *tx_tstamp_caps;
+	struct virtchnl2_ptp_tx_tstamp_latch tstamp_latch;
+	struct idpf_ptp_tx_tstamp *tx_tstamp, *tmp;
+	struct idpf_vport *tstamp_vport = NULL;
+	struct list_head *head;
+	u16 num_latches;
+	u32 vport_id;
+	int err = 0;
+
+	recv_tx_tstamp_msg = ctlq_msg->ctx.indirect.payload->va;
+	vport_id = le32_to_cpu(recv_tx_tstamp_msg->vport_id);
+
+	idpf_for_each_vport(adapter, vport) {
+		if (!vport)
+			continue;
+
+		if (vport->vport_id == vport_id) {
+			tstamp_vport = vport;
+			break;
+		}
+	}
+
+	if (!tstamp_vport || !tstamp_vport->tx_tstamp_caps)
+		return -EINVAL;
+
+	tx_tstamp_caps = tstamp_vport->tx_tstamp_caps;
+	num_latches = le16_to_cpu(recv_tx_tstamp_msg->num_latches);
+
+	spin_lock_bh(&tx_tstamp_caps->latches_lock);
+	head = &tx_tstamp_caps->latches_in_use;
+
+	for (u16 i = 0; i < num_latches; i++) {
+		tstamp_latch = recv_tx_tstamp_msg->tstamp_latches[i];
+
+		if (!tstamp_latch.valid)
+			continue;
+
+		if (list_empty(head)) {
+			err = -ENOBUFS;
+			goto unlock;
+		}
+
+		list_for_each_entry_safe(tx_tstamp, tmp, head, list_member) {
+			if (tstamp_latch.index == tx_tstamp->idx) {
+				list_del(&tx_tstamp->list_member);
+				err = idpf_ptp_get_tstamp_value(tstamp_vport,
+								&tstamp_latch,
+								tx_tstamp);
+				if (err)
+					goto unlock;
+
+				break;
+			}
+		}
+	}
+
+unlock:
+	spin_unlock_bh(&tx_tstamp_caps->latches_lock);
+
+	return err;
+}
+
+/**
+ * idpf_ptp_get_tx_tstamp - Send virtchnl get Tx timestamp latches message
+ * @vport: Virtual port structure
+ *
+ * Send virtchnl get Tx tstamp message to read the value of the HW timestamp.
+ * The message contains a list of indexes set in the Tx descriptors.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+int idpf_ptp_get_tx_tstamp(struct idpf_vport *vport)
+{
+	struct virtchnl2_ptp_get_vport_tx_tstamp_latches *send_tx_tstamp_msg;
+	struct idpf_ptp_vport_tx_tstamp_caps *tx_tstamp_caps;
+	struct idpf_vc_xn_params xn_params = {
+		.vc_op = VIRTCHNL2_OP_PTP_GET_VPORT_TX_TSTAMP,
+		.timeout_ms = IDPF_VC_XN_DEFAULT_TIMEOUT_MSEC,
+		.async = true,
+		.async_handler = idpf_ptp_get_tx_tstamp_async_handler,
+	};
+	struct idpf_ptp_tx_tstamp *ptp_tx_tstamp;
+	int reply_sz, size, msg_size;
+	struct list_head *head;
+	bool state_upd;
+	u16 id = 0;
+
+	tx_tstamp_caps = vport->tx_tstamp_caps;
+	head = &tx_tstamp_caps->latches_in_use;
+
+	size = struct_size(send_tx_tstamp_msg, tstamp_latches,
+			   tx_tstamp_caps->num_entries);
+	send_tx_tstamp_msg = kzalloc(size, GFP_KERNEL);
+	if (!send_tx_tstamp_msg)
+		return -ENOMEM;
+
+	spin_lock_bh(&tx_tstamp_caps->latches_lock);
+	list_for_each_entry(ptp_tx_tstamp, head, list_member) {
+		u8 idx;
+
+		state_upd = idpf_ptp_update_tstamp_tracker(tx_tstamp_caps,
+							   ptp_tx_tstamp->skb,
+							   IDPF_PTP_REQUEST,
+							   IDPF_PTP_READ_VALUE);
+		if (!state_upd)
+			continue;
+
+		idx = ptp_tx_tstamp->idx;
+		send_tx_tstamp_msg->tstamp_latches[id].index = idx;
+		id++;
+	}
+	spin_unlock_bh(&tx_tstamp_caps->latches_lock);
+
+	msg_size = struct_size(send_tx_tstamp_msg, tstamp_latches, id);
+	send_tx_tstamp_msg->vport_id = cpu_to_le32(vport->vport_id);
+	send_tx_tstamp_msg->num_latches = cpu_to_le16(id);
+	xn_params.send_buf.iov_base = send_tx_tstamp_msg;
+	xn_params.send_buf.iov_len = msg_size;
+
+	reply_sz = idpf_vc_xn_exec(vport->adapter, &xn_params);
+	kfree(send_tx_tstamp_msg);
+
+	return min(reply_sz, 0);
 }
