@@ -2035,9 +2035,6 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 		goto out;
 
 	ubq = ublk_get_queue(ub, ub_cmd->q_id);
-	if (!ubq || ub_cmd->q_id != ubq->q_id)
-		goto out;
-
 	if (ubq->ubq_daemon && ubq->ubq_daemon != current)
 		goto out;
 
