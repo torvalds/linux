@@ -14776,7 +14776,7 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 T:	git git://linuxtv.org/media.git
 F:	Documentation/admin-guide/media/imx.rst
-F:	Documentation/devicetree/bindings/media/imx.txt
+F:	Documentation/devicetree/bindings/media/fsl,imx6-mipi-csi2.yaml
 F:	drivers/staging/media/imx/
 F:	include/linux/imx-media.h
 F:	include/media/imx.h
