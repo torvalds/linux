@@ -1661,6 +1661,65 @@ static void rtase_get_stats64(struct net_device *dev,
 	stats->rx_length_errors = tp->stats.rx_length_errors;
 }
 
+static void rtase_set_hw_cbs(const struct rtase_private *tp, u32 queue)
+{
+	u32 idle = tp->tx_qos[queue].idleslope * RTASE_1T_CLOCK;
+	u32 val, i;
+
+	val = u32_encode_bits(idle / RTASE_1T_POWER, RTASE_IDLESLOPE_INT_MASK);
+	idle %= RTASE_1T_POWER;
+
+	for (i = 1; i <= RTASE_IDLESLOPE_INT_SHIFT; i++) {
+		idle *= 2;
+		if ((idle / RTASE_1T_POWER) == 1)
+			val |= BIT(RTASE_IDLESLOPE_INT_SHIFT - i);
+
+		idle %= RTASE_1T_POWER;
+	}
+
+	rtase_w32(tp, RTASE_TXQCRDT_0 + queue * 4, val);
+}
+
+static int rtase_setup_tc_cbs(struct rtase_private *tp,
+			      const struct tc_cbs_qopt_offload *qopt)
+{
+	int queue = qopt->queue;
+
+	if (queue < 0 || queue >= tp->func_tx_queue_num)
+		return -EINVAL;
+
+	if (!qopt->enable) {
+		tp->tx_qos[queue].hicredit = 0;
+		tp->tx_qos[queue].locredit = 0;
+		tp->tx_qos[queue].idleslope = 0;
+		tp->tx_qos[queue].sendslope = 0;
+
+		rtase_w32(tp, RTASE_TXQCRDT_0 + queue * 4, 0);
+	} else {
+		tp->tx_qos[queue].hicredit = qopt->hicredit;
+		tp->tx_qos[queue].locredit = qopt->locredit;
+		tp->tx_qos[queue].idleslope = qopt->idleslope;
+		tp->tx_qos[queue].sendslope = qopt->sendslope;
+
+		rtase_set_hw_cbs(tp, queue);
+	}
+
+	return 0;
+}
+
+static int rtase_setup_tc(struct net_device *dev, enum tc_setup_type type,
+			  void *type_data)
+{
+	struct rtase_private *tp = netdev_priv(dev);
+
+	switch (type) {
+	case TC_SETUP_QDISC_CBS:
+		return rtase_setup_tc_cbs(tp, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static netdev_features_t rtase_fix_features(struct net_device *dev,
 					    netdev_features_t features)
 {
@@ -1696,6 +1755,7 @@ static const struct net_device_ops rtase_netdev_ops = {
 	.ndo_change_mtu = rtase_change_mtu,
 	.ndo_tx_timeout = rtase_tx_timeout,
 	.ndo_get_stats64 = rtase_get_stats64,
+	.ndo_setup_tc = rtase_setup_tc,
 	.ndo_fix_features = rtase_fix_features,
 	.ndo_set_features = rtase_set_features,
 };
