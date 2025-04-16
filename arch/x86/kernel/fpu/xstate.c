@@ -814,6 +814,17 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 		goto out_disable;
 	}
 
+	if (fpu_kernel_cfg.max_features & XFEATURE_MASK_APX &&
+	    fpu_kernel_cfg.max_features & (XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR)) {
+		/*
+		 * This is a problematic CPU configuration where two
+		 * conflicting state components are both enumerated.
+		 */
+		pr_err("x86/fpu: Both APX/MPX present in the CPU's xstate features: 0x%llx, disabling XSAVE.\n",
+		       fpu_kernel_cfg.max_features);
+		goto out_disable;
+	}
+
 	fpu_kernel_cfg.independent_features = fpu_kernel_cfg.max_features &
 					      XFEATURE_MASK_INDEPENDENT;
 
