@@ -387,12 +387,14 @@ For device drivers that implement shaping or queue management APIs,
 some of the notifiers (``enum netdev_cmd``) are running under the netdev
 instance lock.
 
+The following netdev notifiers are always run under the instance lock:
+* ``NETDEV_XDP_FEAT_CHANGE``
+
 For devices with locked ops, currently only the following notifiers are
 running under the lock:
 * ``NETDEV_CHANGE``
 * ``NETDEV_REGISTER``
 * ``NETDEV_UP``
-* ``NETDEV_XDP_FEAT_CHANGE``
 
 The following notifiers are running without the lock:
 * ``NETDEV_UNREGISTER``

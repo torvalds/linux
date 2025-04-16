@@ -963,10 +963,14 @@ static int netdev_genl_netdevice_event(struct notifier_block *nb,
 
 	switch (event) {
 	case NETDEV_REGISTER:
+		netdev_lock_ops_to_full(netdev);
 		netdev_genl_dev_notify(netdev, NETDEV_CMD_DEV_ADD_NTF);
+		netdev_unlock_full_to_ops(netdev);
 		break;
 	case NETDEV_UNREGISTER:
+		netdev_lock(netdev);
 		netdev_genl_dev_notify(netdev, NETDEV_CMD_DEV_DEL_NTF);
+		netdev_unlock(netdev);
 		break;
 	case NETDEV_XDP_FEAT_CHANGE:
 		netdev_genl_dev_notify(netdev, NETDEV_CMD_DEV_CHANGE_NTF);
