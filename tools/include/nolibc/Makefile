@@ -72,7 +72,7 @@ help:
 headers:
 	$(Q)mkdir -p $(OUTPUT)sysroot
 	$(Q)mkdir -p $(OUTPUT)sysroot/include
-	$(Q)cp $(all_files) $(OUTPUT)sysroot/include/
+	$(Q)cp --parents $(all_files) $(OUTPUT)sysroot/include/
 	$(Q)if [ "$(ARCH)" = "x86" ]; then      \
 		sed -e                          \
 		  's,^#ifndef _NOLIBC_ARCH_X86_64_H,#if !defined(_NOLIBC_ARCH_X86_64_H) \&\& defined(__x86_64__),' \
