@@ -737,10 +737,6 @@ static int sja1105_per_out_enable(struct sja1105_private *priv,
 	if (perout->index != 0)
 		return -EOPNOTSUPP;
 
-	/* Reject requests with unsupported flags */
-	if (perout->flags)
-		return -EOPNOTSUPP;
-
 	mutex_lock(&ptp_data->lock);
 
 	rc = sja1105_change_ptp_clk_pin_func(priv, PTP_PF_PEROUT);
@@ -818,13 +814,6 @@ static int sja1105_extts_enable(struct sja1105_private *priv,
 
 	/* We only support one channel */
 	if (extts->index != 0)
-		return -EOPNOTSUPP;
-
-	/* Reject requests with unsupported flags */
-	if (extts->flags & ~(PTP_ENABLE_FEATURE |
-			     PTP_RISING_EDGE |
-			     PTP_FALLING_EDGE |
-			     PTP_STRICT_FLAGS))
 		return -EOPNOTSUPP;
 
 	/* We can only enable time stamping on both edges, sadly. */
@@ -912,6 +901,9 @@ int sja1105_ptp_clock_register(struct dsa_switch *ds)
 		.n_pins		= 1,
 		.n_ext_ts	= 1,
 		.n_per_out	= 1,
+		.supported_extts_flags = PTP_RISING_EDGE |
+					 PTP_FALLING_EDGE |
+					 PTP_STRICT_FLAGS,
 	};
 
 	/* Only used on SJA1105 */

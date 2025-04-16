@@ -246,18 +246,6 @@ static int idt82p33_extts_enable(struct idt82p33_channel *channel,
 	idt82p33  = channel->idt82p33;
 	old_mask = idt82p33->extts_mask;
 
-	/* Reject requests with unsupported flags */
-	if (rq->extts.flags & ~(PTP_ENABLE_FEATURE |
-				PTP_RISING_EDGE |
-				PTP_FALLING_EDGE |
-				PTP_STRICT_FLAGS))
-		return -EOPNOTSUPP;
-
-	/* Reject requests to enable time stamping on falling edge */
-	if ((rq->extts.flags & PTP_ENABLE_FEATURE) &&
-	    (rq->extts.flags & PTP_FALLING_EDGE))
-		return -EOPNOTSUPP;
-
 	if (index >= MAX_PHC_PLL)
 		return -EINVAL;
 
@@ -1186,6 +1174,9 @@ static void idt82p33_caps_init(u32 index, struct ptp_clock_info *caps,
 	snprintf(caps->name, sizeof(caps->name), "IDT 82P33 PLL%u", index);
 
 	caps->pin_config = pin_cfg;
+
+	caps->supported_extts_flags = PTP_RISING_EDGE |
+				      PTP_STRICT_FLAGS;
 
 	for (i = 0; i < max_pins; ++i) {
 		ppd = &pin_cfg[i];
