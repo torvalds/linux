@@ -606,7 +606,52 @@ int bch2_move_data_btree(struct moving_context *ctxt,
 		ctxt->stats->pos	= BBPOS(btree_id, start);
 	}
 
+retry_root:
 	bch2_trans_begin(trans);
+
+	if (level == bch2_btree_id_root(c, btree_id)->level + 1) {
+		bch2_trans_node_iter_init(trans, &iter, btree_id, start, 0, level - 1,
+					  BTREE_ITER_prefetch|
+					  BTREE_ITER_not_extents|
+					  BTREE_ITER_all_snapshots);
+		struct btree *b = bch2_btree_iter_peek_node(trans, &iter);
+		ret = PTR_ERR_OR_ZERO(b);
+		if (ret)
+			goto root_err;
+
+		if (b != btree_node_root(c, b)) {
+			bch2_trans_iter_exit(trans, &iter);
+			goto retry_root;
+		}
+
+		k = bkey_i_to_s_c(&b->key);
+
+		io_opts = bch2_move_get_io_opts(trans, &snapshot_io_opts,
+						iter.pos, &iter, k);
+		ret = PTR_ERR_OR_ZERO(io_opts);
+		if (ret)
+			goto root_err;
+
+		memset(&data_opts, 0, sizeof(data_opts));
+		if (!pred(c, arg, iter.btree_id, k, io_opts, &data_opts))
+			goto out;
+
+
+		if (!data_opts.scrub)
+			ret = bch2_btree_node_rewrite_pos(trans, btree_id, level,
+							  k.k->p, data_opts.target, 0);
+		else
+			ret = bch2_btree_node_scrub(trans, btree_id, level, k, data_opts.read_dev);
+
+root_err:
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
+			bch2_trans_iter_exit(trans, &iter);
+			goto retry_root;
+		}
+
+		goto out;
+	}
+
 	bch2_trans_node_iter_init(trans, &iter, btree_id, start, 0, level,
 				  BTREE_ITER_prefetch|
 				  BTREE_ITER_not_extents|
@@ -708,7 +753,7 @@ next_nondata:
 		if (!bch2_btree_iter_advance(trans, &iter))
 			break;
 	}
-
+out:
 	bch2_trans_iter_exit(trans, &reflink_iter);
 	bch2_trans_iter_exit(trans, &iter);
 	bch2_bkey_buf_exit(&sk, c);
