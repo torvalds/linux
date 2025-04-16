@@ -1294,6 +1294,17 @@ static int futex_hash_allocate(unsigned int hash_slots, bool custom)
 	return 0;
 }
 
+int futex_hash_allocate_default(void)
+{
+	if (!current->mm)
+		return 0;
+
+	if (current->mm->futex_phash)
+		return 0;
+
+	return futex_hash_allocate(16, false);
+}
+
 static int futex_hash_get_slots(void)
 {
 	struct futex_private_hash *fph;
