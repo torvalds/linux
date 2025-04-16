@@ -84,23 +84,27 @@ amdgpu_userqueue_map_helper(struct amdgpu_userq_mgr *uq_mgr,
 }
 
 static void
+amdgpu_userqueue_wait_for_last_fence(struct amdgpu_userq_mgr *uq_mgr,
+				     struct amdgpu_usermode_queue *queue)
+{
+	struct amdgpu_device *adev = uq_mgr->adev;
+	struct dma_fence *f = queue->last_fence;
+	int ret;
+
+	if (f && !dma_fence_is_signaled(f)) {
+		ret = dma_fence_wait_timeout(f, true, msecs_to_jiffies(100));
+		if (ret <= 0)
+			dev_err(adev->dev, "Timed out waiting for fence f=%p\n", f);
+	}
+}
+
+static void
 amdgpu_userqueue_cleanup(struct amdgpu_userq_mgr *uq_mgr,
 			 struct amdgpu_usermode_queue *queue,
 			 int queue_id)
 {
 	struct amdgpu_device *adev = uq_mgr->adev;
 	const struct amdgpu_userq_funcs *uq_funcs = adev->userq_funcs[queue->queue_type];
-	struct dma_fence *f = queue->last_fence;
-	int ret;
-
-	if (f && !dma_fence_is_signaled(f)) {
-		ret = dma_fence_wait_timeout(f, true, msecs_to_jiffies(100));
-		if (ret <= 0) {
-			DRM_ERROR("Timed out waiting for fence=%llu:%llu\n",
-				  f->context, f->seqno);
-			return;
-		}
-	}
 
 	uq_funcs->mqd_destroy(uq_mgr, queue);
 	amdgpu_userq_fence_driver_free(queue);
@@ -305,6 +309,7 @@ amdgpu_userqueue_destroy(struct drm_file *filp, int queue_id)
 		mutex_unlock(&uq_mgr->userq_mutex);
 		return -EINVAL;
 	}
+	amdgpu_userqueue_wait_for_last_fence(uq_mgr, queue);
 	r = amdgpu_userqueue_unmap_helper(uq_mgr, queue);
 	amdgpu_bo_unpin(queue->db_obj.obj);
 	amdgpu_bo_unref(&queue->db_obj.obj);
@@ -780,6 +785,7 @@ void amdgpu_userq_mgr_fini(struct amdgpu_userq_mgr *userq_mgr)
 
 	mutex_lock(&userq_mgr->userq_mutex);
 	idr_for_each_entry(&userq_mgr->userq_idr, queue, queue_id) {
+		amdgpu_userqueue_wait_for_last_fence(userq_mgr, queue);
 		amdgpu_userqueue_unmap_helper(userq_mgr, queue);
 		amdgpu_userqueue_cleanup(userq_mgr, queue, queue_id);
 	}
