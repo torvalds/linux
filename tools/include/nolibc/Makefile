@@ -49,6 +49,7 @@ all_files := \
 		sys/stat.h \
 		sys/syscall.h \
 		sys/time.h \
+		sys/types.h \
 		time.h \
 		types.h \
 		unistd.h \
