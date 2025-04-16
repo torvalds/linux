@@ -1160,6 +1160,13 @@ void futex_exit_release(struct task_struct *tsk)
 	futex_cleanup_end(tsk, FUTEX_STATE_DEAD);
 }
 
+static void futex_hash_bucket_init(struct futex_hash_bucket *fhb)
+{
+	atomic_set(&fhb->waiters, 0);
+	plist_head_init(&fhb->chain);
+	spin_lock_init(&fhb->lock);
+}
+
 static int __init futex_init(void)
 {
 	unsigned long hashsize, i;
@@ -1177,11 +1184,8 @@ static int __init futex_init(void)
 					       hashsize, hashsize);
 	hashsize = 1UL << futex_shift;
 
-	for (i = 0; i < hashsize; i++) {
-		atomic_set(&futex_queues[i].waiters, 0);
-		plist_head_init(&futex_queues[i].chain);
-		spin_lock_init(&futex_queues[i].lock);
-	}
+	for (i = 0; i < hashsize; i++)
+		futex_hash_bucket_init(&futex_queues[i]);
 
 	futex_hashmask = hashsize - 1;
 	return 0;
