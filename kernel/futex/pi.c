@@ -939,7 +939,8 @@ retry:
 		goto out;
 
 retry_private:
-	hb = futex_q_lock(&q);
+	hb = futex_hash(&q.key);
+	futex_q_lock(&q, hb);
 
 	ret = futex_lock_pi_atomic(uaddr, hb, &q.key, &q.pi_state, current,
 				   &exiting, 0);

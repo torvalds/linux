@@ -441,7 +441,8 @@ retry:
 		struct futex_q *q = &vs[i].q;
 		u32 val = vs[i].w.val;
 
-		hb = futex_q_lock(q);
+		hb = futex_hash(&q->key);
+		futex_q_lock(q, hb);
 		ret = futex_get_value_locked(&uval, uaddr);
 
 		if (!ret && uval == val) {
@@ -611,7 +612,8 @@ retry:
 		return ret;
 
 retry_private:
-	hb = futex_q_lock(q);
+	hb = futex_hash(&q->key);
+	futex_q_lock(q, hb);
 
 	ret = futex_get_value_locked(&uval, uaddr);
 
