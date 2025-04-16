@@ -2060,10 +2060,21 @@ static void rtw89_stats_trigger_frame(struct rtw89_dev *rtwdev,
 			break;
 
 		if (aid == vif->cfg.aid) {
-			enum nl80211_he_ru_alloc rua = rtw89_he_rua_to_ru_alloc(tf_rua >> 1);
+			enum nl80211_he_ru_alloc rua;
 
 			rtwvif->stats.rx_tf_acc++;
 			rtwdev->stats.rx_tf_acc++;
+
+			/* The following only required for HE trigger frame, but we
+			 * cannot use UL HE-SIG-A2 reserved subfield to identify it
+			 * since some 11ax APs will fill it with all 0s, which will
+			 * be misunderstood as EHT trigger frame.
+			 */
+			if (bss_conf->eht_support)
+				break;
+
+			rua = rtw89_he_rua_to_ru_alloc(tf_rua >> 1);
+
 			if (tf_bw == IEEE80211_TRIGGER_ULBW_160_80P80MHZ &&
 			    rua <= NL80211_RATE_INFO_HE_RU_ALLOC_106)
 				rtwvif_link->pwr_diff_en = true;
