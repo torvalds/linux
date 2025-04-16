@@ -212,10 +212,10 @@
 	bne-	1f
 
 	mr	r3, r15
+1:	mtlr	r3
 	.if \allregs == 0
 	REST_GPR(15, r1)
 	.endif
-1:	mtlr	r3
 #endif
 
 	/* Restore gprs */
