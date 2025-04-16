@@ -6804,6 +6804,7 @@ tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 			icsk->icsk_af_ops->conn_request(sk, skb);
 			local_bh_enable();
 			rcu_read_unlock();
+			NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPSYNRECV);
 
 			consume_skb(skb);
 			return 0;
