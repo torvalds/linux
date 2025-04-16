@@ -751,6 +751,8 @@ static int __init init_xstate_size(void)
  */
 static void __init fpu__init_disable_system_xstate(unsigned int legacy_size)
 {
+	pr_info("x86/fpu: XSAVE disabled\n");
+
 	fpu_kernel_cfg.max_features = 0;
 	cr4_clear_bits(X86_CR4_OSXSAVE);
 	setup_clear_cpu_cap(X86_FEATURE_XSAVE);
@@ -821,7 +823,7 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 		 * This is a problematic CPU configuration where two
 		 * conflicting state components are both enumerated.
 		 */
-		pr_err("x86/fpu: Both APX/MPX present in the CPU's xstate features: 0x%llx, disabling XSAVE.\n",
+		pr_err("x86/fpu: Both APX/MPX present in the CPU's xstate features: 0x%llx.\n",
 		       fpu_kernel_cfg.max_features);
 		goto out_disable;
 	}
@@ -900,7 +902,7 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 	init_fpstate.xfeatures		= fpu_kernel_cfg.default_features;
 
 	if (init_fpstate.size > sizeof(init_fpstate.regs)) {
-		pr_warn("x86/fpu: init_fpstate buffer too small (%zu < %d), disabling XSAVE\n",
+		pr_warn("x86/fpu: init_fpstate buffer too small (%zu < %d)\n",
 			sizeof(init_fpstate.regs), init_fpstate.size);
 		goto out_disable;
 	}
@@ -912,7 +914,7 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 	 * xfeatures mask.
 	 */
 	if (xfeatures != fpu_kernel_cfg.max_features) {
-		pr_err("x86/fpu: xfeatures modified from 0x%016llx to 0x%016llx during init, disabling XSAVE\n",
+		pr_err("x86/fpu: xfeatures modified from 0x%016llx to 0x%016llx during init\n",
 		       xfeatures, fpu_kernel_cfg.max_features);
 		goto out_disable;
 	}
