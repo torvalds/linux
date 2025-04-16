@@ -842,6 +842,7 @@ static int rt722_sdca_fu113_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		rt722->fu1e_dapm_mute = false;
 		rt722_sdca_set_fu1e_capture_ctl(rt722);
+		usleep_range(150000, 160000);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		rt722->fu1e_dapm_mute = true;
@@ -871,6 +872,28 @@ static int rt722_sdca_fu36_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static void rt722_pde_transition_delay(struct rt722_sdca_priv *rt722, unsigned char func,
+	unsigned char entity, unsigned char ps)
+{
+	unsigned int delay = 1000, val;
+
+	pm_runtime_mark_last_busy(&rt722->slave->dev);
+
+	/* waiting for Actual PDE becomes to PS0/PS3 */
+	while (delay) {
+		regmap_read(rt722->regmap,
+			SDW_SDCA_CTL(func, entity, RT722_SDCA_CTL_ACTUAL_POWER_STATE, 0), &val);
+		if (val == ps)
+			break;
+
+		usleep_range(1000, 1500);
+		delay--;
+	}
+	if (!delay) {
+		dev_warn(&rt722->slave->dev, "%s PDE to %s is NOT ready", __func__, ps?"PS3":"PS0");
+	}
+}
+
 static int rt722_sdca_pde47_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
@@ -884,11 +907,13 @@ static int rt722_sdca_pde47_event(struct snd_soc_dapm_widget *w,
 		regmap_write(rt722->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_PDE40,
 				RT722_SDCA_CTL_REQ_POWER_STATE, 0), ps0);
+		rt722_pde_transition_delay(rt722, FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_PDE40, ps0);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		regmap_write(rt722->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_PDE40,
 				RT722_SDCA_CTL_REQ_POWER_STATE, 0), ps3);
+		rt722_pde_transition_delay(rt722, FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_PDE40, ps3);
 		break;
 	}
 	return 0;
@@ -907,11 +932,13 @@ static int rt722_sdca_pde23_event(struct snd_soc_dapm_widget *w,
 		regmap_write(rt722->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_AMP, RT722_SDCA_ENT_PDE23,
 				RT722_SDCA_CTL_REQ_POWER_STATE, 0), ps0);
+		rt722_pde_transition_delay(rt722, FUNC_NUM_AMP, RT722_SDCA_ENT_PDE23, ps0);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		regmap_write(rt722->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_AMP, RT722_SDCA_ENT_PDE23,
 				RT722_SDCA_CTL_REQ_POWER_STATE, 0), ps3);
+		rt722_pde_transition_delay(rt722, FUNC_NUM_AMP, RT722_SDCA_ENT_PDE23, ps3);
 		break;
 	}
 	return 0;
@@ -930,11 +957,13 @@ static int rt722_sdca_pde11_event(struct snd_soc_dapm_widget *w,
 		regmap_write(rt722->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT722_SDCA_ENT_PDE2A,
 				RT722_SDCA_CTL_REQ_POWER_STATE, 0), ps0);
+		rt722_pde_transition_delay(rt722, FUNC_NUM_MIC_ARRAY, RT722_SDCA_ENT_PDE2A, ps0);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		regmap_write(rt722->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT722_SDCA_ENT_PDE2A,
 				RT722_SDCA_CTL_REQ_POWER_STATE, 0), ps3);
+		rt722_pde_transition_delay(rt722, FUNC_NUM_MIC_ARRAY, RT722_SDCA_ENT_PDE2A, ps3);
 		break;
 	}
 	return 0;
@@ -953,11 +982,13 @@ static int rt722_sdca_pde12_event(struct snd_soc_dapm_widget *w,
 		regmap_write(rt722->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_PDE12,
 				RT722_SDCA_CTL_REQ_POWER_STATE, 0), ps0);
+		rt722_pde_transition_delay(rt722, FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_PDE12, ps0);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		regmap_write(rt722->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_PDE12,
 				RT722_SDCA_CTL_REQ_POWER_STATE, 0), ps3);
+		rt722_pde_transition_delay(rt722, FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_PDE12, ps3);
 		break;
 	}
 	return 0;
@@ -1343,6 +1374,8 @@ static void rt722_sdca_dmic_preset(struct rt722_sdca_priv *rt722)
 				RT722_SDCA_CTL_VENDOR_DEF, 0), 0x01);
 		/* Fine tune PDE2A latency */
 		regmap_write(rt722->regmap, 0x2f5c, 0x25);
+		/* PHYtiming TDZ/TZD control */
+		regmap_write(rt722->regmap, 0x2f03, 0x06);
 
 		/* clear flag */
 		regmap_write(rt722->regmap,

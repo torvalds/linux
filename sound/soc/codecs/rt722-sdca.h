@@ -199,6 +199,7 @@ struct rt722_sdca_dmic_kctrl_priv {
 #define RT722_SDCA_CTL_VENDOR_DEF			0x30
 #define RT722_SDCA_CTL_FU_CH_GAIN			0x0b
 #define RT722_SDCA_CTL_FUNC_STATUS			0x10
+#define RT722_SDCA_CTL_ACTUAL_POWER_STATE		0x10
 
 /* RT722 SDCA channel */
 #define CH_L	0x01
