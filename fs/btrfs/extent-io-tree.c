@@ -1456,6 +1456,22 @@ hit_next:
 		if (inserted_state == prealloc)
 			prealloc = NULL;
 		start = inserted_state->end + 1;
+
+		/* Beyond target range, stop. */
+		if (start > end)
+			goto out;
+
+		if (need_resched())
+			goto search_again;
+
+		state = next_search_state(inserted_state, end);
+		/*
+		 * If there's a next state, whether contiguous or not, we don't
+		 * need to unlock and start search again. If it's not contiguous
+		 * we will end up here and try to allocate a prealloc state and insert.
+		 */
+		if (state)
+			goto hit_next;
 		goto search_again;
 	}
 	/*
