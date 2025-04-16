@@ -39,6 +39,7 @@
 #include <linux/memblock.h>
 #include <linux/fault-inject.h>
 #include <linux/slab.h>
+#include <linux/prctl.h>
 
 #include "futex.h"
 #include "../locking/rtmutex_common.h"
@@ -55,6 +56,12 @@ static struct {
 #define futex_queues   (__futex_data.queues)
 #define futex_hashmask (__futex_data.hashmask)
 
+struct futex_private_hash {
+	unsigned int	hash_mask;
+	void		*mm;
+	bool		custom;
+	struct futex_hash_bucket queues[];
+};
 
 /*
  * Fault injections for futexes.
@@ -107,9 +114,17 @@ late_initcall(fail_futex_debugfs);
 
 #endif /* CONFIG_FAIL_FUTEX */
 
-struct futex_private_hash *futex_private_hash(void)
+static struct futex_hash_bucket *
+__futex_hash(union futex_key *key, struct futex_private_hash *fph);
+
+#ifdef CONFIG_FUTEX_PRIVATE_HASH
+static inline bool futex_key_is_private(union futex_key *key)
 {
-	return NULL;
+	/*
+	 * Relies on get_futex_key() to set either bit for shared
+	 * futexes -- see comment with union futex_key.
+	 */
+	return !(key->both.offset & (FUT_OFF_INODE | FUT_OFF_MMSHARED));
 }
 
 bool futex_private_hash_get(struct futex_private_hash *fph)
@@ -117,21 +132,8 @@ bool futex_private_hash_get(struct futex_private_hash *fph)
 	return false;
 }
 
-void futex_private_hash_put(struct futex_private_hash *fph) { }
-
-/**
- * futex_hash - Return the hash bucket in the global hash
- * @key:	Pointer to the futex key for which the hash is calculated
- *
- * We hash on the keys returned from get_futex_key (see below) and return the
- * corresponding hash bucket in the global hash.
- */
-struct futex_hash_bucket *futex_hash(union futex_key *key)
+void futex_private_hash_put(struct futex_private_hash *fph)
 {
-	u32 hash = jhash2((u32 *)key, offsetof(typeof(*key), both.offset) / 4,
-			  key->both.offset);
-
-	return &futex_queues[hash & futex_hashmask];
 }
 
 /**
@@ -143,6 +145,84 @@ struct futex_hash_bucket *futex_hash(union futex_key *key)
  */
 void futex_hash_get(struct futex_hash_bucket *hb) { }
 void futex_hash_put(struct futex_hash_bucket *hb) { }
+
+static struct futex_hash_bucket *
+__futex_hash_private(union futex_key *key, struct futex_private_hash *fph)
+{
+	u32 hash;
+
+	if (!futex_key_is_private(key))
+		return NULL;
+
+	if (!fph)
+		fph = key->private.mm->futex_phash;
+	if (!fph || !fph->hash_mask)
+		return NULL;
+
+	hash = jhash2((void *)&key->private.address,
+		      sizeof(key->private.address) / 4,
+		      key->both.offset);
+	return &fph->queues[hash & fph->hash_mask];
+}
+
+struct futex_private_hash *futex_private_hash(void)
+{
+	struct mm_struct *mm = current->mm;
+	struct futex_private_hash *fph;
+
+	fph = mm->futex_phash;
+	return fph;
+}
+
+struct futex_hash_bucket *futex_hash(union futex_key *key)
+{
+	struct futex_hash_bucket *hb;
+
+	hb = __futex_hash(key, NULL);
+	return hb;
+}
+
+#else /* !CONFIG_FUTEX_PRIVATE_HASH */
+
+static struct futex_hash_bucket *
+__futex_hash_private(union futex_key *key, struct futex_private_hash *fph)
+{
+	return NULL;
+}
+
+struct futex_hash_bucket *futex_hash(union futex_key *key)
+{
+	return __futex_hash(key, NULL);
+}
+
+#endif /* CONFIG_FUTEX_PRIVATE_HASH */
+
+/**
+ * __futex_hash - Return the hash bucket
+ * @key:	Pointer to the futex key for which the hash is calculated
+ * @fph:	Pointer to private hash if known
+ *
+ * We hash on the keys returned from get_futex_key (see below) and return the
+ * corresponding hash bucket.
+ * If the FUTEX is PROCESS_PRIVATE then a per-process hash bucket (from the
+ * private hash) is returned if existing. Otherwise a hash bucket from the
+ * global hash is returned.
+ */
+static struct futex_hash_bucket *
+__futex_hash(union futex_key *key, struct futex_private_hash *fph)
+{
+	struct futex_hash_bucket *hb;
+	u32 hash;
+
+	hb = __futex_hash_private(key, fph);
+	if (hb)
+		return hb;
+
+	hash = jhash2((u32 *)key,
+		      offsetof(typeof(*key), both.offset) / 4,
+		      key->both.offset);
+	return &futex_queues[hash & futex_hashmask];
+}
 
 /**
  * futex_setup_timer - set up the sleeping hrtimer.
@@ -986,6 +1066,13 @@ static void exit_pi_state_list(struct task_struct *curr)
 	union futex_key key = FUTEX_KEY_INIT;
 
 	/*
+	 * Ensure the hash remains stable (no resize) during the while loop
+	 * below. The hb pointer is acquired under the pi_lock so we can't block
+	 * on the mutex.
+	 */
+	WARN_ON(curr != current);
+	guard(private_hash)();
+	/*
 	 * We are a ZOMBIE and nobody can enqueue itself on
 	 * pi_state_list anymore, but we have to be careful
 	 * versus waiters unqueueing themselves:
@@ -1160,11 +1247,96 @@ void futex_exit_release(struct task_struct *tsk)
 	futex_cleanup_end(tsk, FUTEX_STATE_DEAD);
 }
 
-static void futex_hash_bucket_init(struct futex_hash_bucket *fhb)
+static void futex_hash_bucket_init(struct futex_hash_bucket *fhb,
+				   struct futex_private_hash *fph)
 {
+#ifdef CONFIG_FUTEX_PRIVATE_HASH
+	fhb->priv = fph;
+#endif
 	atomic_set(&fhb->waiters, 0);
 	plist_head_init(&fhb->chain);
 	spin_lock_init(&fhb->lock);
+}
+
+#ifdef CONFIG_FUTEX_PRIVATE_HASH
+void futex_hash_free(struct mm_struct *mm)
+{
+	kvfree(mm->futex_phash);
+}
+
+static int futex_hash_allocate(unsigned int hash_slots, bool custom)
+{
+	struct mm_struct *mm = current->mm;
+	struct futex_private_hash *fph;
+	int i;
+
+	if (hash_slots && (hash_slots == 1 || !is_power_of_2(hash_slots)))
+		return -EINVAL;
+
+	if (mm->futex_phash)
+		return -EALREADY;
+
+	if (!thread_group_empty(current))
+		return -EINVAL;
+
+	fph = kvzalloc(struct_size(fph, queues, hash_slots), GFP_KERNEL_ACCOUNT | __GFP_NOWARN);
+	if (!fph)
+		return -ENOMEM;
+
+	fph->hash_mask = hash_slots ? hash_slots - 1 : 0;
+	fph->custom = custom;
+	fph->mm = mm;
+
+	for (i = 0; i < hash_slots; i++)
+		futex_hash_bucket_init(&fph->queues[i], fph);
+
+	mm->futex_phash = fph;
+	return 0;
+}
+
+static int futex_hash_get_slots(void)
+{
+	struct futex_private_hash *fph;
+
+	fph = current->mm->futex_phash;
+	if (fph && fph->hash_mask)
+		return fph->hash_mask + 1;
+	return 0;
+}
+
+#else
+
+static int futex_hash_allocate(unsigned int hash_slots, bool custom)
+{
+	return -EINVAL;
+}
+
+static int futex_hash_get_slots(void)
+{
+	return 0;
+}
+#endif
+
+int futex_hash_prctl(unsigned long arg2, unsigned long arg3, unsigned long arg4)
+{
+	int ret;
+
+	switch (arg2) {
+	case PR_FUTEX_HASH_SET_SLOTS:
+		if (arg4 != 0)
+			return -EINVAL;
+		ret = futex_hash_allocate(arg3, true);
+		break;
+
+	case PR_FUTEX_HASH_GET_SLOTS:
+		ret = futex_hash_get_slots();
+		break;
+
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
 }
 
 static int __init futex_init(void)
@@ -1185,7 +1357,7 @@ static int __init futex_init(void)
 	hashsize = 1UL << futex_shift;
 
 	for (i = 0; i < hashsize; i++)
-		futex_hash_bucket_init(&futex_queues[i]);
+		futex_hash_bucket_init(&futex_queues[i], NULL);
 
 	futex_hashmask = hashsize - 1;
 	return 0;

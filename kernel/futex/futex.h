@@ -118,6 +118,7 @@ struct futex_hash_bucket {
 	atomic_t waiters;
 	spinlock_t lock;
 	struct plist_head chain;
+	struct futex_private_hash *priv;
 } ____cacheline_aligned_in_smp;
 
 /*
@@ -204,12 +205,21 @@ futex_setup_timer(ktime_t *time, struct hrtimer_sleeper *timeout,
 		  int flags, u64 range_ns);
 
 extern struct futex_hash_bucket *futex_hash(union futex_key *key);
+#ifdef CONFIG_FUTEX_PRIVATE_HASH
 extern void futex_hash_get(struct futex_hash_bucket *hb);
 extern void futex_hash_put(struct futex_hash_bucket *hb);
 
 extern struct futex_private_hash *futex_private_hash(void);
 extern bool futex_private_hash_get(struct futex_private_hash *fph);
 extern void futex_private_hash_put(struct futex_private_hash *fph);
+
+#else /* !CONFIG_FUTEX_PRIVATE_HASH */
+static inline void futex_hash_get(struct futex_hash_bucket *hb) { }
+static inline void futex_hash_put(struct futex_hash_bucket *hb) { }
+static inline struct futex_private_hash *futex_private_hash(void) { return NULL; }
+static inline bool futex_private_hash_get(void) { return false; }
+static inline void futex_private_hash_put(struct futex_private_hash *fph) { }
+#endif
 
 DEFINE_CLASS(hb, struct futex_hash_bucket *,
 	     if (_T) futex_hash_put(_T),
