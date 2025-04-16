@@ -537,8 +537,8 @@ void futex_q_lock(struct futex_q *q, struct futex_hash_bucket *hb)
 void futex_q_unlock(struct futex_hash_bucket *hb)
 	__releases(&hb->lock)
 {
-	spin_unlock(&hb->lock);
 	futex_hb_waiters_dec(hb);
+	spin_unlock(&hb->lock);
 }
 
 void __futex_queue(struct futex_q *q, struct futex_hash_bucket *hb,
