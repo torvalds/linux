@@ -252,7 +252,8 @@ bypass_clk_reset_gpio:
 	plat_dat->fix_mac_speed = tegra_eqos_fix_speed;
 	plat_dat->set_clk_tx_rate = stmmac_set_clk_tx_rate;
 	plat_dat->bsp_priv = eqos;
-	plat_dat->flags |= STMMAC_FLAG_SPH_DISABLE;
+	plat_dat->flags |= STMMAC_FLAG_SPH_DISABLE |
+			   STMMAC_FLAG_EN_TX_LPI_CLK_PHY_CAP;
 
 	return 0;
 
