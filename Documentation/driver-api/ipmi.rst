@@ -280,10 +280,8 @@ Creating the User
 To use the message handler, you must first create a user using
 ipmi_create_user.  The interface number specifies which SMI you want
 to connect to, and you must supply callback functions to be called
-when data comes in.  The callback function can run at interrupt level,
-so be careful using the callbacks.  This also allows to you pass in a
-piece of data, the handler_data, that will be passed back to you on
-all calls.
+when data comes in.  This also allows to you pass in a piece of data,
+the handler_data, that will be passed back to you on all calls.
 
 Once you are done, call ipmi_destroy_user() to get rid of the user.
 
@@ -303,8 +301,7 @@ use it for anything you like.
 
 Responses come back in the function pointed to by the ipmi_recv_hndl
 field of the "handler" that you passed in to ipmi_create_user().
-Remember again, these may be running at interrupt level.  Remember to
-look at the receive type, too.
+Remember to look at the receive type, too.
 
 From userland, you fill out an ipmi_req_t structure and use the
 IPMICTL_SEND_COMMAND ioctl.  For incoming stuff, you can use select()
