@@ -10,6 +10,7 @@
 #include <linux/if_ether.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
+#include <net/dscp.h>
 
 enum iidc_rdma_event_type {
 	IIDC_RDMA_EVENT_BEFORE_MTU_CHANGE,
@@ -32,7 +33,6 @@ enum iidc_rdma_protocol {
 };
 
 #define IIDC_MAX_USER_PRIORITY		8
-#define IIDC_MAX_DSCP_MAPPING		64
 #define IIDC_DSCP_PFC_MODE		0x1
 
 /* Struct to hold per RDMA Qset info */
@@ -63,7 +63,7 @@ struct iidc_rdma_qos_params {
 	u8 vport_priority_type;
 	u8 num_tc;
 	u8 pfc_mode;
-	u8 dscp_map[IIDC_MAX_DSCP_MAPPING];
+	u8 dscp_map[DSCP_MAX];
 };
 
 struct iidc_rdma_event {

@@ -225,7 +225,7 @@ void ice_get_qos_params(struct ice_pf *pf, struct iidc_rdma_qos_params *qos)
 
 	qos->pfc_mode = dcbx_cfg->pfc_mode;
 	if (qos->pfc_mode == IIDC_DSCP_PFC_MODE)
-		for (i = 0; i < IIDC_MAX_DSCP_MAPPING; i++)
+		for (i = 0; i < DSCP_MAX; i++)
 			qos->dscp_map[i] = dcbx_cfg->dscp_map[i];
 }
 EXPORT_SYMBOL_GPL(ice_get_qos_params);
