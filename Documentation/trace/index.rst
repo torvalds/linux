@@ -3,7 +3,7 @@ Linux Tracing Technologies
 ==========================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    ftrace-design
    tracepoint-analysis
