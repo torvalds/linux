@@ -163,10 +163,8 @@ static u8 *pkey_pack_u32(u8 *dst, u32 val)
 static int software_key_query(const struct kernel_pkey_params *params,
 			      struct kernel_pkey_query *info)
 {
-	struct crypto_akcipher *tfm;
 	struct public_key *pkey = params->key->payload.data[asym_crypto];
 	char alg_name[CRYPTO_MAX_ALG_NAME];
-	struct crypto_sig *sig;
 	u8 *key, *ptr;
 	int ret, len;
 	bool issig;
@@ -191,6 +189,8 @@ static int software_key_query(const struct kernel_pkey_params *params,
 	memset(info, 0, sizeof(*info));
 
 	if (issig) {
+		struct crypto_sig *sig;
+
 		sig = crypto_alloc_sig(alg_name, 0, 0);
 		if (IS_ERR(sig)) {
 			ret = PTR_ERR(sig);
@@ -202,7 +202,7 @@ static int software_key_query(const struct kernel_pkey_params *params,
 		else
 			ret = crypto_sig_set_pubkey(sig, key, pkey->keylen);
 		if (ret < 0)
-			goto error_free_tfm;
+			goto error_free_sig;
 
 		len = crypto_sig_keysize(sig);
 		info->key_size = len;
@@ -221,7 +221,12 @@ static int software_key_query(const struct kernel_pkey_params *params,
 			if (pkey->key_is_private)
 				info->supported_ops |= KEYCTL_SUPPORTS_DECRYPT;
 		}
+
+error_free_sig:
+		crypto_free_sig(sig);
 	} else {
+		struct crypto_akcipher *tfm;
+
 		tfm = crypto_alloc_akcipher(alg_name, 0, 0);
 		if (IS_ERR(tfm)) {
 			ret = PTR_ERR(tfm);
@@ -233,7 +238,7 @@ static int software_key_query(const struct kernel_pkey_params *params,
 		else
 			ret = crypto_akcipher_set_pub_key(tfm, key, pkey->keylen);
 		if (ret < 0)
-			goto error_free_tfm;
+			goto error_free_akcipher;
 
 		len = crypto_akcipher_maxsize(tfm);
 		info->key_size = len * BITS_PER_BYTE;
@@ -245,15 +250,11 @@ static int software_key_query(const struct kernel_pkey_params *params,
 		info->supported_ops = KEYCTL_SUPPORTS_ENCRYPT;
 		if (pkey->key_is_private)
 			info->supported_ops |= KEYCTL_SUPPORTS_DECRYPT;
+
+error_free_akcipher:
+		crypto_free_akcipher(tfm);
 	}
 
-	ret = 0;
-
-error_free_tfm:
-	if (issig)
-		crypto_free_sig(sig);
-	else
-		crypto_free_akcipher(tfm);
 error_free_key:
 	kfree_sensitive(key);
 	pr_devel("<==%s() = %d\n", __func__, ret);
