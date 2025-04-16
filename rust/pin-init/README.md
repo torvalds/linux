@@ -218,11 +218,13 @@ the `kernel` crate. The [`sync`] module is a good starting point.
 [pinning]: https://doc.rust-lang.org/std/pin/index.html
 [structurally pinned fields]: https://doc.rust-lang.org/std/pin/index.html#pinning-is-structural-for-field
 [stack]: https://docs.rs/pin-init/latest/pin_init/macro.stack_pin_init.html
-[`Arc<T>`]: https://doc.rust-lang.org/stable/alloc/sync/struct.Arc.html
-[`Box<T>`]: https://doc.rust-lang.org/stable/alloc/boxed/struct.Box.html
 [`impl PinInit<Foo>`]: https://docs.rs/pin-init/latest/pin_init/trait.PinInit.html
 [`impl PinInit<T, E>`]: https://docs.rs/pin-init/latest/pin_init/trait.PinInit.html
 [`impl Init<T, E>`]: https://docs.rs/pin-init/latest/pin_init/trait.Init.html
 [Rust-for-Linux]: https://rust-for-linux.com/
 
 <!-- cargo-rdme end -->
+
+<!-- These links are not picked up by cargo-rdme, since they are behind cfgs... -->
+[`Arc<T>`]: https://doc.rust-lang.org/stable/alloc/sync/struct.Arc.html
+[`Box<T>`]: https://doc.rust-lang.org/stable/alloc/boxed/struct.Box.html
