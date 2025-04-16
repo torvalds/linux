@@ -15,7 +15,7 @@
 #include "sar.h"
 #include "util.h"
 
-#define RTW8852C_FW_FORMAT_MAX 1
+#define RTW8852C_FW_FORMAT_MAX 2
 #define RTW8852C_FW_BASENAME "rtw89/rtw8852c_fw"
 #define RTW8852C_MODULE_FIRMWARE \
 	RTW8852C_FW_BASENAME "-" __stringify(RTW8852C_FW_FORMAT_MAX) ".bin"
