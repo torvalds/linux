@@ -1054,6 +1054,11 @@ static void print_mount_opts(struct bch_fs *c)
 		bch2_version_to_text(&p, c->sb.version_incompat_allowed);
 	}
 
+	if (c->opts.verbose) {
+		prt_printf(&p, "\n  features: ");
+		prt_bitflags(&p, bch2_sb_features, c->sb.features);
+	}
+
 	bch_info(c, "%s", p.buf);
 	printbuf_exit(&p);
 }
