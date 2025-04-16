@@ -1734,13 +1734,19 @@ static void ublk_wait_tagset_rqs_idle(struct ublk_device *ub)
 
 static void __ublk_quiesce_dev(struct ublk_device *ub)
 {
+	int i;
+
 	pr_devel("%s: quiesce ub: dev_id %d state %s\n",
 			__func__, ub->dev_info.dev_id,
 			ub->dev_info.state == UBLK_S_DEV_LIVE ?
 			"LIVE" : "QUIESCED");
 	blk_mq_quiesce_queue(ub->ub_disk->queue);
+	/* mark every queue as canceling */
+	for (i = 0; i < ub->dev_info.nr_hw_queues; i++)
+		ublk_get_queue(ub, i)->canceling = true;
 	ublk_wait_tagset_rqs_idle(ub);
 	ub->dev_info.state = UBLK_S_DEV_QUIESCED;
+	blk_mq_unquiesce_queue(ub->ub_disk->queue);
 }
 
 static void ublk_force_abort_dev(struct ublk_device *ub)
@@ -2961,7 +2967,6 @@ static void ublk_queue_reinit(struct ublk_device *ub, struct ublk_queue *ubq)
 	/* We have to reset it to NULL, otherwise ub won't accept new FETCH_REQ */
 	ubq->ubq_daemon = NULL;
 	ubq->timeout = false;
-	ubq->canceling = false;
 
 	for (i = 0; i < ubq->q_depth; i++) {
 		struct ublk_io *io = &ubq->ios[i];
@@ -3048,20 +3053,18 @@ static int ublk_ctrl_end_recovery(struct ublk_device *ub,
 	pr_devel("%s: new ublksrv_pid %d, dev id %d\n",
 			__func__, ublksrv_pid, header->dev_id);
 
-	if (ublk_nosrv_dev_should_queue_io(ub)) {
-		ub->dev_info.state = UBLK_S_DEV_LIVE;
-		blk_mq_unquiesce_queue(ub->ub_disk->queue);
-		pr_devel("%s: queue unquiesced, dev id %d.\n",
-				__func__, header->dev_id);
-		blk_mq_kick_requeue_list(ub->ub_disk->queue);
-	} else {
-		blk_mq_quiesce_queue(ub->ub_disk->queue);
-		ub->dev_info.state = UBLK_S_DEV_LIVE;
-		for (i = 0; i < ub->dev_info.nr_hw_queues; i++) {
-			ublk_get_queue(ub, i)->fail_io = false;
-		}
-		blk_mq_unquiesce_queue(ub->ub_disk->queue);
+	blk_mq_quiesce_queue(ub->ub_disk->queue);
+	ub->dev_info.state = UBLK_S_DEV_LIVE;
+	for (i = 0; i < ub->dev_info.nr_hw_queues; i++) {
+		struct ublk_queue *ubq = ublk_get_queue(ub, i);
+
+		ubq->canceling = false;
+		ubq->fail_io = false;
 	}
+	blk_mq_unquiesce_queue(ub->ub_disk->queue);
+	pr_devel("%s: queue unquiesced, dev id %d.\n",
+			__func__, header->dev_id);
+	blk_mq_kick_requeue_list(ub->ub_disk->queue);
 
 	ret = 0;
  out_unlock:
