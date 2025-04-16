@@ -2443,7 +2443,7 @@ static int validate_desc(const struct gpio_desc *desc, const char *func)
 		return 0;
 
 	if (IS_ERR(desc)) {
-		pr_warn("%s: invalid GPIO (errorpointer)\n", func);
+		pr_warn("%s: invalid GPIO (errorpointer: %pe)\n", func, desc);
 		return PTR_ERR(desc);
 	}
 
