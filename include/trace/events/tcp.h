@@ -293,7 +293,7 @@ DECLARE_TRACE(tcp_cwnd_reduction_tp,
 
 TRACE_EVENT(tcp_probe,
 
-	TP_PROTO(struct sock *sk, struct sk_buff *skb),
+	TP_PROTO(struct sock *sk, const struct sk_buff *skb),
 
 	TP_ARGS(sk, skb),
 
