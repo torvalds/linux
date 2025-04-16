@@ -8,7 +8,7 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Radxa A5E";
+	model = "Radxa Cubie A5E";
 	compatible = "radxa,cubie-a5e", "allwinner,sun55i-a527";
 
 	aliases {
