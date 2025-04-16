@@ -134,6 +134,13 @@ struct futex_hash_bucket *futex_hash(union futex_key *key)
 	return &futex_queues[hash & futex_hashmask];
 }
 
+/**
+ * futex_hash_get - Get an additional reference for the local hash.
+ * @hb:                    ptr to the private local hash.
+ *
+ * Obtain an additional reference for the already obtained hash bucket. The
+ * caller must already own an reference.
+ */
 void futex_hash_get(struct futex_hash_bucket *hb) { }
 void futex_hash_put(struct futex_hash_bucket *hb) { }
 
@@ -613,6 +620,24 @@ retry:
 	}
 
 	return ret;
+}
+
+void futex_q_lockptr_lock(struct futex_q *q)
+{
+	spinlock_t *lock_ptr;
+
+	/*
+	 * See futex_unqueue() why lock_ptr can change.
+	 */
+	guard(rcu)();
+retry:
+	lock_ptr = READ_ONCE(q->lock_ptr);
+	spin_lock(lock_ptr);
+
+	if (unlikely(lock_ptr != q->lock_ptr)) {
+		spin_unlock(lock_ptr);
+		goto retry;
+	}
 }
 
 /*

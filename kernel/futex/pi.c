@@ -806,7 +806,7 @@ handle_err:
 		break;
 	}
 
-	spin_lock(q->lock_ptr);
+	futex_q_lockptr_lock(q);
 	raw_spin_lock_irq(&pi_state->pi_mutex.wait_lock);
 
 	/*
@@ -1072,7 +1072,7 @@ cleanup:
 		 * spinlock/rtlock (which might enqueue its own rt_waiter) and fix up
 		 * the
 		 */
-		spin_lock(q.lock_ptr);
+		futex_q_lockptr_lock(&q);
 		/*
 		 * Waiter is unqueued.
 		 */
@@ -1092,6 +1092,11 @@ no_block:
 
 		futex_unqueue_pi(&q);
 		spin_unlock(q.lock_ptr);
+		if (q.drop_hb_ref) {
+			CLASS(hb, hb)(&q.key);
+			/* Additional reference from futex_unlock_pi() */
+			futex_hash_put(hb);
+		}
 		goto out;
 
 out_unlock_put_key:
@@ -1200,6 +1205,12 @@ retry_hb:
 		 */
 		rt_waiter = rt_mutex_top_waiter(&pi_state->pi_mutex);
 		if (!rt_waiter) {
+			/*
+			 * Acquire a reference for the leaving waiter to ensure
+			 * valid futex_q::lock_ptr.
+			 */
+			futex_hash_get(hb);
+			top_waiter->drop_hb_ref = true;
 			__futex_unqueue(top_waiter);
 			raw_spin_unlock_irq(&pi_state->pi_mutex.wait_lock);
 			goto retry_hb;

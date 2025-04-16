@@ -231,7 +231,12 @@ void requeue_pi_wake_futex(struct futex_q *q, union futex_key *key,
 
 	WARN_ON(!q->rt_waiter);
 	q->rt_waiter = NULL;
-
+	/*
+	 * Acquire a reference for the waiter to ensure valid
+	 * futex_q::lock_ptr.
+	 */
+	futex_hash_get(hb);
+	q->drop_hb_ref = true;
 	q->lock_ptr = &hb->lock;
 
 	/* Signal locked state to the waiter */
@@ -826,7 +831,7 @@ int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 	case Q_REQUEUE_PI_LOCKED:
 		/* The requeue acquired the lock */
 		if (q.pi_state && (q.pi_state->owner != current)) {
-			spin_lock(q.lock_ptr);
+			futex_q_lockptr_lock(&q);
 			ret = fixup_pi_owner(uaddr2, &q, true);
 			/*
 			 * Drop the reference to the pi state which the
@@ -853,7 +858,7 @@ int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 		if (ret && !rt_mutex_cleanup_proxy_lock(pi_mutex, &rt_waiter))
 			ret = 0;
 
-		spin_lock(q.lock_ptr);
+		futex_q_lockptr_lock(&q);
 		debug_rt_mutex_free_waiter(&rt_waiter);
 		/*
 		 * Fixup the pi_state owner and possibly acquire the lock if we
@@ -884,6 +889,11 @@ int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 		break;
 	default:
 		BUG();
+	}
+	if (q.drop_hb_ref) {
+		CLASS(hb, hb)(&q.key);
+		/* Additional reference from requeue_pi_wake_futex() */
+		futex_hash_put(hb);
 	}
 
 out:
