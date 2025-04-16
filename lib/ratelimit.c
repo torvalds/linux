@@ -103,13 +103,16 @@ int ___ratelimit(struct ratelimit_state *rs, const char *func)
 		}
 	}
 	if (burst) {
-		int n_left;
+		int n_left = atomic_read(&rs->rs_n_left);
 
 		/* The burst might have been taken by a parallel call. */
-		n_left = atomic_dec_return(&rs->rs_n_left);
-		if (n_left >= 0) {
-			ret = 1;
-			goto unlock_ret;
+
+		if (n_left > 0) {
+			n_left = atomic_dec_return(&rs->rs_n_left);
+			if (n_left >= 0) {
+				ret = 1;
+				goto unlock_ret;
+			}
 		}
 	}
 
