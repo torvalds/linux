@@ -87,6 +87,11 @@ void requeue_futex(struct futex_q *q, struct futex_hash_bucket *hb1,
 		futex_hb_waiters_inc(hb2);
 		plist_add(&q->list, &hb2->chain);
 		q->lock_ptr = &hb2->lock;
+		/*
+		 * hb1 and hb2 belong to the same futex_hash_bucket_private
+		 * because if we managed get a reference on hb1 then it can't be
+		 * replaced. Therefore we avoid put(hb1)+get(hb2) here.
+		 */
 	}
 	q->key = *key2;
 }
