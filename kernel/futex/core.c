@@ -107,6 +107,18 @@ late_initcall(fail_futex_debugfs);
 
 #endif /* CONFIG_FAIL_FUTEX */
 
+struct futex_private_hash *futex_private_hash(void)
+{
+	return NULL;
+}
+
+bool futex_private_hash_get(struct futex_private_hash *fph)
+{
+	return false;
+}
+
+void futex_private_hash_put(struct futex_private_hash *fph) { }
+
 /**
  * futex_hash - Return the hash bucket in the global hash
  * @key:	Pointer to the futex key for which the hash is calculated

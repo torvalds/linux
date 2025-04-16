@@ -206,9 +206,17 @@ extern struct futex_hash_bucket *futex_hash(union futex_key *key);
 extern void futex_hash_get(struct futex_hash_bucket *hb);
 extern void futex_hash_put(struct futex_hash_bucket *hb);
 
+extern struct futex_private_hash *futex_private_hash(void);
+extern bool futex_private_hash_get(struct futex_private_hash *fph);
+extern void futex_private_hash_put(struct futex_private_hash *fph);
+
 DEFINE_CLASS(hb, struct futex_hash_bucket *,
 	     if (_T) futex_hash_put(_T),
 	     futex_hash(key), union futex_key *key);
+
+DEFINE_CLASS(private_hash, struct futex_private_hash *,
+	     if (_T) futex_private_hash_put(_T),
+	     futex_private_hash(), void);
 
 /**
  * futex_match - Check whether two futex keys are equal
