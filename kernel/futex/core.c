@@ -43,6 +43,8 @@
 #include <linux/slab.h>
 #include <linux/prctl.h>
 #include <linux/rcuref.h>
+#include <linux/mempolicy.h>
+#include <linux/mmap_lock.h>
 
 #include "futex.h"
 #include "../locking/rtmutex_common.h"
@@ -328,6 +330,75 @@ struct futex_hash_bucket *futex_hash(union futex_key *key)
 
 #endif /* CONFIG_FUTEX_PRIVATE_HASH */
 
+#ifdef CONFIG_FUTEX_MPOL
+
+static int __futex_key_to_node(struct mm_struct *mm, unsigned long addr)
+{
+	struct vm_area_struct *vma = vma_lookup(mm, addr);
+	struct mempolicy *mpol;
+	int node = FUTEX_NO_NODE;
+
+	if (!vma)
+		return FUTEX_NO_NODE;
+
+	mpol = vma_policy(vma);
+	if (!mpol)
+		return FUTEX_NO_NODE;
+
+	switch (mpol->mode) {
+	case MPOL_PREFERRED:
+		node = first_node(mpol->nodes);
+		break;
+	case MPOL_PREFERRED_MANY:
+	case MPOL_BIND:
+		if (mpol->home_node != NUMA_NO_NODE)
+			node = mpol->home_node;
+		break;
+	default:
+		break;
+	}
+
+	return node;
+}
+
+static int futex_key_to_node_opt(struct mm_struct *mm, unsigned long addr)
+{
+	int seq, node;
+
+	guard(rcu)();
+
+	if (!mmap_lock_speculate_try_begin(mm, &seq))
+		return -EBUSY;
+
+	node = __futex_key_to_node(mm, addr);
+
+	if (mmap_lock_speculate_retry(mm, seq))
+		return -EAGAIN;
+
+	return node;
+}
+
+static int futex_mpol(struct mm_struct *mm, unsigned long addr)
+{
+	int node;
+
+	node = futex_key_to_node_opt(mm, addr);
+	if (node >= FUTEX_NO_NODE)
+		return node;
+
+	guard(mmap_read_lock)(mm);
+	return __futex_key_to_node(mm, addr);
+}
+
+#else /* !CONFIG_FUTEX_MPOL */
+
+static int futex_mpol(struct mm_struct *mm, unsigned long addr)
+{
+	return FUTEX_NO_NODE;
+}
+
+#endif /* CONFIG_FUTEX_MPOL */
+
 /**
  * __futex_hash - Return the hash bucket
  * @key:	Pointer to the futex key for which the hash is calculated
@@ -342,18 +413,20 @@ struct futex_hash_bucket *futex_hash(union futex_key *key)
 static struct futex_hash_bucket *
 __futex_hash(union futex_key *key, struct futex_private_hash *fph)
 {
-	struct futex_hash_bucket *hb;
+	int node = key->both.node;
 	u32 hash;
-	int node;
 
-	hb = __futex_hash_private(key, fph);
-	if (hb)
-		return hb;
+	if (node == FUTEX_NO_NODE) {
+		struct futex_hash_bucket *hb;
+
+		hb = __futex_hash_private(key, fph);
+		if (hb)
+			return hb;
+	}
 
 	hash = jhash2((u32 *)key,
 		      offsetof(typeof(*key), both.offset) / sizeof(u32),
 		      key->both.offset);
-	node = key->both.node;
 
 	if (node == FUTEX_NO_NODE) {
 		/*
@@ -480,6 +553,7 @@ int get_futex_key(u32 __user *uaddr, unsigned int flags, union futex_key *key,
 	struct folio *folio;
 	struct address_space *mapping;
 	int node, err, size, ro = 0;
+	bool node_updated = false;
 	bool fshared;
 
 	fshared = flags & FLAGS_SHARED;
@@ -501,26 +575,36 @@ int get_futex_key(u32 __user *uaddr, unsigned int flags, union futex_key *key,
 	if (unlikely(should_fail_futex(fshared)))
 		return -EFAULT;
 
+	node = FUTEX_NO_NODE;
+
 	if (flags & FLAGS_NUMA) {
 		u32 __user *naddr = (void *)uaddr + size / 2;
 
 		if (futex_get_value(&node, naddr))
 			return -EFAULT;
 
+		if (node != FUTEX_NO_NODE &&
+		    (node >= MAX_NUMNODES || !node_possible(node)))
+			return -EINVAL;
+	}
+
+	if (node == FUTEX_NO_NODE && (flags & FLAGS_MPOL)) {
+		node = futex_mpol(mm, address);
+		node_updated = true;
+	}
+
+	if (flags & FLAGS_NUMA) {
+		u32 __user *naddr = (void *)uaddr + size / 2;
+
 		if (node == FUTEX_NO_NODE) {
 			node = numa_node_id();
-			if (futex_put_value(node, naddr))
-				return -EFAULT;
-
-		} else if (node >= MAX_NUMNODES || !node_possible(node)) {
-			return -EINVAL;
+			node_updated = true;
 		}
-
-		key->both.node = node;
-
-	} else {
-		key->both.node = FUTEX_NO_NODE;
+		if (node_updated && futex_put_value(node, naddr))
+			return -EFAULT;
 	}
+
+	key->both.node = node;
 
 	/*
 	 * PROCESS_PRIVATE futexes are fast.

@@ -1704,6 +1704,11 @@ config FUTEX_PRIVATE_HASH
 	depends on FUTEX && !BASE_SMALL && MMU
 	default y
 
+config FUTEX_MPOL
+	bool
+	depends on FUTEX && NUMA
+	default y
+
 config EPOLL
 	bool "Enable eventpoll support" if EXPERT
 	default y

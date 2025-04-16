@@ -63,7 +63,7 @@
 #define FUTEX2_SIZE_U32		0x02
 #define FUTEX2_SIZE_U64		0x03
 #define FUTEX2_NUMA		0x04
-			/*	0x08 */
+#define FUTEX2_MPOL		0x08
 			/*	0x10 */
 			/*	0x20 */
 			/*	0x40 */
