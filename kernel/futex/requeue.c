@@ -444,10 +444,8 @@ retry:
 
 retry_private:
 	if (1) {
-		struct futex_hash_bucket *hb1, *hb2;
-
-		hb1 = futex_hash(&key1);
-		hb2 = futex_hash(&key2);
+		CLASS(hb, hb1)(&key1);
+		CLASS(hb, hb2)(&key2);
 
 		futex_hb_waiters_inc(hb2);
 		double_lock_hb(hb1, hb2);
@@ -817,9 +815,7 @@ int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 	switch (futex_requeue_pi_wakeup_sync(&q)) {
 	case Q_REQUEUE_PI_IGNORE:
 		{
-			struct futex_hash_bucket *hb;
-
-			hb = futex_hash(&q.key);
+			CLASS(hb, hb)(&q.key);
 			/* The waiter is still on uaddr1 */
 			spin_lock(&hb->lock);
 			ret = handle_early_requeue_pi_wakeup(hb, &q, to);

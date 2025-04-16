@@ -154,7 +154,6 @@ void futex_wake_mark(struct wake_q_head *wake_q, struct futex_q *q)
  */
 int futex_wake(u32 __user *uaddr, unsigned int flags, int nr_wake, u32 bitset)
 {
-	struct futex_hash_bucket *hb;
 	struct futex_q *this, *next;
 	union futex_key key = FUTEX_KEY_INIT;
 	DEFINE_WAKE_Q(wake_q);
@@ -170,7 +169,7 @@ int futex_wake(u32 __user *uaddr, unsigned int flags, int nr_wake, u32 bitset)
 	if ((flags & FLAGS_STRICT) && !nr_wake)
 		return 0;
 
-	hb = futex_hash(&key);
+	CLASS(hb, hb)(&key);
 
 	/* Make sure we really have tasks to wakeup */
 	if (!futex_hb_waiters_pending(hb))
@@ -267,10 +266,8 @@ retry:
 
 retry_private:
 	if (1) {
-		struct futex_hash_bucket *hb1, *hb2;
-
-		hb1 = futex_hash(&key1);
-		hb2 = futex_hash(&key2);
+		CLASS(hb, hb1)(&key1);
+		CLASS(hb, hb2)(&key2);
 
 		double_lock_hb(hb1, hb2);
 		op_ret = futex_atomic_op_inuser(op, uaddr2);
@@ -444,9 +441,8 @@ retry:
 		u32 val = vs[i].w.val;
 
 		if (1) {
-			struct futex_hash_bucket *hb;
+			CLASS(hb, hb)(&q->key);
 
-			hb = futex_hash(&q->key);
 			futex_q_lock(q, hb);
 			ret = futex_get_value_locked(&uval, uaddr);
 
@@ -618,9 +614,8 @@ retry:
 
 retry_private:
 	if (1) {
-		struct futex_hash_bucket *hb;
+		CLASS(hb, hb)(&q->key);
 
-		hb = futex_hash(&q->key);
 		futex_q_lock(q, hb);
 
 		ret = futex_get_value_locked(&uval, uaddr);

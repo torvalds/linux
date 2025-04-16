@@ -939,9 +939,8 @@ retry:
 
 retry_private:
 	if (1) {
-		struct futex_hash_bucket *hb;
+		CLASS(hb, hb)(&q.key);
 
-		hb = futex_hash(&q.key);
 		futex_q_lock(&q, hb);
 
 		ret = futex_lock_pi_atomic(uaddr, hb, &q.key, &q.pi_state, current,
@@ -994,6 +993,16 @@ retry_private:
 			goto no_block;
 		}
 
+		/*
+		 * Caution; releasing @hb in-scope. The hb->lock is still locked
+		 * while the reference is dropped. The reference can not be dropped
+		 * after the unlock because if a user initiated resize is in progress
+		 * then we might need to wake him. This can not be done after the
+		 * rt_mutex_pre_schedule() invocation. The hb will remain valid because
+		 * the thread, performing resize, will block on hb->lock during
+		 * the requeue.
+		 */
+		futex_hash_put(no_free_ptr(hb));
 		/*
 		 * Must be done before we enqueue the waiter, here is unfortunately
 		 * under the hb lock, but that *should* work because it does nothing.
@@ -1119,7 +1128,6 @@ int futex_unlock_pi(u32 __user *uaddr, unsigned int flags)
 {
 	u32 curval, uval, vpid = task_pid_vnr(current);
 	union futex_key key = FUTEX_KEY_INIT;
-	struct futex_hash_bucket *hb;
 	struct futex_q *top_waiter;
 	int ret;
 
@@ -1139,7 +1147,7 @@ retry:
 	if (ret)
 		return ret;
 
-	hb = futex_hash(&key);
+	CLASS(hb, hb)(&key);
 	spin_lock(&hb->lock);
 retry_hb:
 
