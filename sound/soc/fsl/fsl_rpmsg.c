@@ -97,13 +97,9 @@ static int fsl_rpmsg_hw_free(struct snd_pcm_substream *substream,
 static int fsl_rpmsg_startup(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *cpu_dai)
 {
-	int ret;
-
-	ret = snd_pcm_hw_constraint_list(substream->runtime, 0,
-					 SNDRV_PCM_HW_PARAM_RATE,
-					 &fsl_rpmsg_rate_constraints);
-
-	return ret;
+	return snd_pcm_hw_constraint_list(substream->runtime, 0,
+					  SNDRV_PCM_HW_PARAM_RATE,
+					  &fsl_rpmsg_rate_constraints);
 }
 
 static const struct snd_soc_dai_ops fsl_rpmsg_dai_ops = {
