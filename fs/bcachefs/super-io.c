@@ -384,7 +384,6 @@ static int bch2_sb_compatible(struct bch_sb *sb, struct printbuf *out)
 int bch2_sb_validate(struct bch_sb *sb, u64 read_offset,
 		     enum bch_validate_flags flags, struct printbuf *out)
 {
-	struct bch_sb_field_members_v1 *mi;
 	enum bch_opt_id opt_id;
 	int ret;
 
@@ -539,14 +538,17 @@ int bch2_sb_validate(struct bch_sb *sb, u64 read_offset,
 		}
 	}
 
+	struct bch_sb_field *mi =
+		bch2_sb_field_get_id(sb, BCH_SB_FIELD_members_v2) ?:
+		bch2_sb_field_get_id(sb, BCH_SB_FIELD_members_v1);
+
 	/* members must be validated first: */
-	mi = bch2_sb_field_get(sb, members_v1);
 	if (!mi) {
 		prt_printf(out, "Invalid superblock: member info area missing");
 		return -BCH_ERR_invalid_sb_members_missing;
 	}
 
-	ret = bch2_sb_field_validate(sb, &mi->field, flags, out);
+	ret = bch2_sb_field_validate(sb, mi, flags, out);
 	if (ret)
 		return ret;
 
