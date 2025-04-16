@@ -374,6 +374,9 @@ int bch2_sb_downgrade_update(struct bch_fs *c)
 		if (BCH_VERSION_MAJOR(src->version) != BCH_VERSION_MAJOR(le16_to_cpu(c->disk_sb.sb->version)))
 			continue;
 
+		if (src->version < c->sb.version_incompat)
+			continue;
+
 		struct bch_sb_field_downgrade_entry *dst;
 		unsigned bytes = sizeof(*dst) + sizeof(dst->errors[0]) * src->nr_errors;
 
