@@ -391,6 +391,7 @@ static void dccg35_set_dppclk_rcg(struct dccg *dccg,
 
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
+
 	if (!dccg->ctx->dc->debug.root_clock_optimization.bits.dpp && enable)
 		return;
 
@@ -411,6 +412,8 @@ static void dccg35_set_dppclk_rcg(struct dccg *dccg,
 	BREAK_TO_DEBUGGER();
 		break;
 	}
+	//DC_LOG_DEBUG("%s: inst(%d) DPPCLK rcg_disable: %d\n", __func__, inst, enable ? 0 : 1);
+
 }
 
 static void dccg35_set_dpstreamclk_rcg(
@@ -1113,30 +1116,24 @@ static void dcn35_set_dppclk_enable(struct dccg *dccg,
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
+
 	switch (dpp_inst) {
 	case 0:
 		REG_UPDATE(DPPCLK_CTRL, DPPCLK0_EN, enable);
-		if (dccg->ctx->dc->debug.root_clock_optimization.bits.dpp)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL6, DPPCLK0_ROOT_GATE_DISABLE, enable);
 		break;
 	case 1:
 		REG_UPDATE(DPPCLK_CTRL, DPPCLK1_EN, enable);
-		if (dccg->ctx->dc->debug.root_clock_optimization.bits.dpp)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL6, DPPCLK1_ROOT_GATE_DISABLE, enable);
 		break;
 	case 2:
 		REG_UPDATE(DPPCLK_CTRL, DPPCLK2_EN, enable);
-		if (dccg->ctx->dc->debug.root_clock_optimization.bits.dpp)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL6, DPPCLK2_ROOT_GATE_DISABLE, enable);
 		break;
 	case 3:
 		REG_UPDATE(DPPCLK_CTRL, DPPCLK3_EN, enable);
-		if (dccg->ctx->dc->debug.root_clock_optimization.bits.dpp)
-			REG_UPDATE(DCCG_GATE_DISABLE_CNTL6, DPPCLK3_ROOT_GATE_DISABLE, enable);
 		break;
 	default:
 		break;
 	}
+	//DC_LOG_DEBUG("%s: dpp_inst(%d) DPPCLK_EN = %d\n", __func__, dpp_inst, enable);
 
 }
 
@@ -1164,14 +1161,18 @@ static void dccg35_update_dpp_dto(struct dccg *dccg, int dpp_inst,
 			ASSERT(false);
 			phase = 0xff;
 		}
+		dccg35_set_dppclk_rcg(dccg, dpp_inst, false);
 
 		REG_SET_2(DPPCLK_DTO_PARAM[dpp_inst], 0,
 				DPPCLK0_DTO_PHASE, phase,
 				DPPCLK0_DTO_MODULO, modulo);
 
 		dcn35_set_dppclk_enable(dccg, dpp_inst, true);
-	} else
+	} else {
 		dcn35_set_dppclk_enable(dccg, dpp_inst, false);
+		/*we have this in hwss: disable_plane*/
+		//dccg35_set_dppclk_rcg(dccg, dpp_inst, true);
+	}
 	dccg->pipe_dppclk_khz[dpp_inst] = req_dppclk;
 }
 
@@ -1182,6 +1183,7 @@ static void dccg35_set_dppclk_root_clock_gating(struct dccg *dccg,
 
 	if (!dccg->ctx->dc->debug.root_clock_optimization.bits.dpp)
 		return;
+
 
 	switch (dpp_inst) {
 	case 0:
@@ -1199,6 +1201,8 @@ static void dccg35_set_dppclk_root_clock_gating(struct dccg *dccg,
 	default:
 		break;
 	}
+	//DC_LOG_DEBUG("%s: dpp_inst(%d) rcg: %d\n", __func__, dpp_inst, enable);
+
 }
 
 static void dccg35_get_pixel_rate_div(
@@ -1522,28 +1526,30 @@ static void dccg35_set_physymclk_root_clock_gating(
 	switch (phy_inst) {
 	case 0:
 		REG_UPDATE(DCCG_GATE_DISABLE_CNTL2,
-				PHYASYMCLK_ROOT_GATE_DISABLE, enable ? 1 : 0);
+				PHYASYMCLK_ROOT_GATE_DISABLE, enable ? 0 : 1);
 		break;
 	case 1:
 		REG_UPDATE(DCCG_GATE_DISABLE_CNTL2,
-				PHYBSYMCLK_ROOT_GATE_DISABLE, enable ? 1 : 0);
+				PHYBSYMCLK_ROOT_GATE_DISABLE, enable ? 0 : 1);
 		break;
 	case 2:
 		REG_UPDATE(DCCG_GATE_DISABLE_CNTL2,
-				PHYCSYMCLK_ROOT_GATE_DISABLE, enable ? 1 : 0);
+				PHYCSYMCLK_ROOT_GATE_DISABLE, enable ? 0 : 1);
 		break;
 	case 3:
 		REG_UPDATE(DCCG_GATE_DISABLE_CNTL2,
-				PHYDSYMCLK_ROOT_GATE_DISABLE, enable ? 1 : 0);
+				PHYDSYMCLK_ROOT_GATE_DISABLE, enable ? 0 : 1);
 		break;
 	case 4:
 		REG_UPDATE(DCCG_GATE_DISABLE_CNTL2,
-				PHYESYMCLK_ROOT_GATE_DISABLE, enable ? 1 : 0);
+				PHYESYMCLK_ROOT_GATE_DISABLE, enable ? 0 : 1);
 		break;
 	default:
 		BREAK_TO_DEBUGGER();
 		return;
 	}
+	//DC_LOG_DEBUG("%s: dpp_inst(%d) PHYESYMCLK_ROOT_GATE_DISABLE:\n", __func__, phy_inst, enable ? 0 : 1);
+
 }
 
 static void dccg35_set_physymclk(
@@ -1644,6 +1650,8 @@ static void dccg35_dpp_root_clock_control(
 		return;
 
 	if (clock_on) {
+		dccg35_set_dppclk_rcg(dccg, dpp_inst, false);
+
 		/* turn off the DTO and leave phase/modulo at max */
 		dcn35_set_dppclk_enable(dccg, dpp_inst, 1);
 		REG_SET_2(DPPCLK_DTO_PARAM[dpp_inst], 0,
@@ -1655,6 +1663,8 @@ static void dccg35_dpp_root_clock_control(
 		REG_SET_2(DPPCLK_DTO_PARAM[dpp_inst], 0,
 			  DPPCLK0_DTO_PHASE, 0,
 			  DPPCLK0_DTO_MODULO, 1);
+		/*we have this in hwss: disable_plane*/
+		//dccg35_set_dppclk_rcg(dccg, dpp_inst, true);
 	}
 
 	dccg->dpp_clock_gated[dpp_inst] = !clock_on;
