@@ -15,7 +15,8 @@ static DEFINE_XARRAY_ALLOC1(ice_aux_id);
  * This function has to be called with a device_lock on the
  * pf->adev.dev to avoid race conditions.
  */
-static struct iidc_auxiliary_drv *ice_get_auxiliary_drv(struct ice_pf *pf)
+static
+struct iidc_rdma_core_auxiliary_drv *ice_get_auxiliary_drv(struct ice_pf *pf)
 {
 	struct auxiliary_device *adev;
 
@@ -23,8 +24,8 @@ static struct iidc_auxiliary_drv *ice_get_auxiliary_drv(struct ice_pf *pf)
 	if (!adev || !adev->dev.driver)
 		return NULL;
 
-	return container_of(adev->dev.driver, struct iidc_auxiliary_drv,
-			    adrv.driver);
+	return container_of(adev->dev.driver,
+			    struct iidc_rdma_core_auxiliary_drv, adrv.driver);
 }
 
 /**
@@ -32,9 +33,9 @@ static struct iidc_auxiliary_drv *ice_get_auxiliary_drv(struct ice_pf *pf)
  * @pf: pointer to PF struct
  * @event: event struct
  */
-void ice_send_event_to_aux(struct ice_pf *pf, struct iidc_event *event)
+void ice_send_event_to_aux(struct ice_pf *pf, struct iidc_rdma_event *event)
 {
-	struct iidc_auxiliary_drv *iadrv;
+	struct iidc_rdma_core_auxiliary_drv *iadrv;
 
 	if (WARN_ON_ONCE(!in_task()))
 		return;
@@ -141,7 +142,8 @@ EXPORT_SYMBOL_GPL(ice_del_rdma_qset);
  * @pf: struct for PF
  * @reset_type: type of reset
  */
-int ice_rdma_request_reset(struct ice_pf *pf, enum iidc_reset_type reset_type)
+int ice_rdma_request_reset(struct ice_pf *pf,
+			   enum iidc_rdma_reset_type reset_type)
 {
 	enum ice_reset_req reset;
 
@@ -205,7 +207,7 @@ EXPORT_SYMBOL_GPL(ice_rdma_update_vsi_filter);
  * @pf: pointer to PF struct
  * @qos: set of QoS values
  */
-void ice_get_qos_params(struct ice_pf *pf, struct iidc_qos_params *qos)
+void ice_get_qos_params(struct ice_pf *pf, struct iidc_rdma_qos_params *qos)
 {
 	struct ice_dcbx_cfg *dcbx_cfg;
 	unsigned int i;
@@ -263,9 +265,10 @@ EXPORT_SYMBOL_GPL(ice_free_rdma_qvector);
  */
 static void ice_adev_release(struct device *dev)
 {
-	struct iidc_auxiliary_dev *iadev;
+	struct iidc_rdma_core_auxiliary_dev *iadev;
 
-	iadev = container_of(dev, struct iidc_auxiliary_dev, adev.dev);
+	iadev = container_of(dev, struct iidc_rdma_core_auxiliary_dev,
+			     adev.dev);
 	kfree(iadev);
 }
 
@@ -275,7 +278,7 @@ static void ice_adev_release(struct device *dev)
  */
 int ice_plug_aux_dev(struct ice_pf *pf)
 {
-	struct iidc_auxiliary_dev *iadev;
+	struct iidc_rdma_core_auxiliary_dev *iadev;
 	struct auxiliary_device *adev;
 	int ret;
 

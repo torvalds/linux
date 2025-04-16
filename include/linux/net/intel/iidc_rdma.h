@@ -11,16 +11,16 @@
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 
-enum iidc_event_type {
-	IIDC_EVENT_BEFORE_MTU_CHANGE,
-	IIDC_EVENT_AFTER_MTU_CHANGE,
-	IIDC_EVENT_BEFORE_TC_CHANGE,
-	IIDC_EVENT_AFTER_TC_CHANGE,
-	IIDC_EVENT_CRIT_ERR,
-	IIDC_EVENT_NBITS		/* must be last */
+enum iidc_rdma_event_type {
+	IIDC_RDMA_EVENT_BEFORE_MTU_CHANGE,
+	IIDC_RDMA_EVENT_AFTER_MTU_CHANGE,
+	IIDC_RDMA_EVENT_BEFORE_TC_CHANGE,
+	IIDC_RDMA_EVENT_AFTER_TC_CHANGE,
+	IIDC_RDMA_EVENT_CRIT_ERR,
+	IIDC_RDMA_EVENT_NBITS		/* must be last */
 };
 
-enum iidc_reset_type {
+enum iidc_rdma_reset_type {
 	IIDC_PFR,
 	IIDC_CORER,
 	IIDC_GLOBR,
@@ -47,7 +47,7 @@ struct iidc_rdma_qset_params {
 	u8 tc; /* TC branch the Qset should belong to */
 };
 
-struct iidc_qos_info {
+struct iidc_rdma_qos_info {
 	u64 tc_ctx;
 	u8 rel_bw;
 	u8 prio_type;
@@ -56,8 +56,8 @@ struct iidc_qos_info {
 };
 
 /* Struct to pass QoS info */
-struct iidc_qos_params {
-	struct iidc_qos_info tc_info[IEEE_8021QAZ_MAX_TCS];
+struct iidc_rdma_qos_params {
+	struct iidc_rdma_qos_info tc_info[IEEE_8021QAZ_MAX_TCS];
 	u8 up2tc[IIDC_MAX_USER_PRIORITY];
 	u8 vport_relative_bw;
 	u8 vport_priority_type;
@@ -66,8 +66,8 @@ struct iidc_qos_params {
 	u8 dscp_map[IIDC_MAX_DSCP_MAPPING];
 };
 
-struct iidc_event {
-	DECLARE_BITMAP(type, IIDC_EVENT_NBITS);
+struct iidc_rdma_event {
+	DECLARE_BITMAP(type, IIDC_RDMA_EVENT_NBITS);
 	u32 reg;
 };
 
@@ -75,9 +75,11 @@ struct ice_pf;
 
 int ice_add_rdma_qset(struct ice_pf *pf, struct iidc_rdma_qset_params *qset);
 int ice_del_rdma_qset(struct ice_pf *pf, struct iidc_rdma_qset_params *qset);
-int ice_rdma_request_reset(struct ice_pf *pf, enum iidc_reset_type reset_type);
+int ice_rdma_request_reset(struct ice_pf *pf,
+			   enum iidc_rdma_reset_type reset_type);
 int ice_rdma_update_vsi_filter(struct ice_pf *pf, u16 vsi_id, bool enable);
-void ice_get_qos_params(struct ice_pf *pf, struct iidc_qos_params *qos);
+void ice_get_qos_params(struct ice_pf *pf,
+			struct iidc_rdma_qos_params *qos);
 int ice_alloc_rdma_qvector(struct ice_pf *pf, struct msix_entry *entry);
 void ice_free_rdma_qvector(struct ice_pf *pf, struct msix_entry *entry);
 
@@ -86,7 +88,7 @@ void ice_free_rdma_qvector(struct ice_pf *pf, struct msix_entry *entry);
  * instance of this struct dedicated to it.
  */
 
-struct iidc_auxiliary_dev {
+struct iidc_rdma_core_auxiliary_dev {
 	struct auxiliary_device adev;
 	struct ice_pf *pf;
 };
@@ -96,14 +98,14 @@ struct iidc_auxiliary_dev {
  * driver will access these ops by performing a container_of on the
  * auxiliary_device->dev.driver.
  */
-struct iidc_auxiliary_drv {
+struct iidc_rdma_core_auxiliary_drv {
 	struct auxiliary_driver adrv;
 	/* This event_handler is meant to be a blocking call.  For instance,
 	 * when a BEFORE_MTU_CHANGE event comes in, the event_handler will not
 	 * return until the auxiliary driver is ready for the MTU change to
 	 * happen.
 	 */
-	void (*event_handler)(struct ice_pf *pf, struct iidc_event *event);
+	void (*event_handler)(struct ice_pf *pf, struct iidc_rdma_event *event);
 };
 
 #endif /* _IIDC_RDMA_H_*/

@@ -61,7 +61,7 @@ static void irdma_log_invalid_mtu(u16 mtu, struct irdma_sc_dev *dev)
 }
 
 static void irdma_fill_qos_info(struct irdma_l2params *l2params,
-				struct iidc_qos_params *qos_info)
+				struct iidc_rdma_qos_params *qos_info)
 {
 	int i;
 
@@ -85,12 +85,12 @@ static void irdma_fill_qos_info(struct irdma_l2params *l2params,
 	}
 }
 
-static void irdma_iidc_event_handler(struct ice_pf *pf, struct iidc_event *event)
+static void irdma_iidc_event_handler(struct ice_pf *pf, struct iidc_rdma_event *event)
 {
 	struct irdma_device *iwdev = dev_get_drvdata(&pf->adev->dev);
 	struct irdma_l2params l2params = {};
 
-	if (*event->type & BIT(IIDC_EVENT_AFTER_MTU_CHANGE)) {
+	if (*event->type & BIT(IIDC_RDMA_EVENT_AFTER_MTU_CHANGE)) {
 		ibdev_dbg(&iwdev->ibdev, "CLNT: new MTU = %d\n", iwdev->netdev->mtu);
 		if (iwdev->vsi.mtu != iwdev->netdev->mtu) {
 			l2params.mtu = iwdev->netdev->mtu;
@@ -98,13 +98,13 @@ static void irdma_iidc_event_handler(struct ice_pf *pf, struct iidc_event *event
 			irdma_log_invalid_mtu(l2params.mtu, &iwdev->rf->sc_dev);
 			irdma_change_l2params(&iwdev->vsi, &l2params);
 		}
-	} else if (*event->type & BIT(IIDC_EVENT_BEFORE_TC_CHANGE)) {
+	} else if (*event->type & BIT(IIDC_RDMA_EVENT_BEFORE_TC_CHANGE)) {
 		if (iwdev->vsi.tc_change_pending)
 			return;
 
 		irdma_prep_tc_change(iwdev);
-	} else if (*event->type & BIT(IIDC_EVENT_AFTER_TC_CHANGE)) {
-		struct iidc_qos_params qos_info = {};
+	} else if (*event->type & BIT(IIDC_RDMA_EVENT_AFTER_TC_CHANGE)) {
+		struct iidc_rdma_qos_params qos_info = {};
 
 		if (!iwdev->vsi.tc_change_pending)
 			return;
@@ -116,7 +116,7 @@ static void irdma_iidc_event_handler(struct ice_pf *pf, struct iidc_event *event
 		if (iwdev->rf->protocol_used != IRDMA_IWARP_PROTOCOL_ONLY)
 			iwdev->dcb_vlan_mode = qos_info.num_tc > 1 && !l2params.dscp_mode;
 		irdma_change_l2params(&iwdev->vsi, &l2params);
-	} else if (*event->type & BIT(IIDC_EVENT_CRIT_ERR)) {
+	} else if (*event->type & BIT(IIDC_RDMA_EVENT_CRIT_ERR)) {
 		ibdev_warn(&iwdev->ibdev, "ICE OICR event notification: oicr = 0x%08x\n",
 			   event->reg);
 		if (event->reg & IRDMAPFINT_OICR_PE_CRITERR_M) {
@@ -245,11 +245,12 @@ static void irdma_deinit_interrupts(struct irdma_pci_f *rf, struct ice_pf *pf)
 
 static void irdma_remove(struct auxiliary_device *aux_dev)
 {
-	struct iidc_auxiliary_dev *iidc_adev = container_of(aux_dev,
-							    struct iidc_auxiliary_dev,
-							    adev);
-	struct ice_pf *pf = iidc_adev->pf;
 	struct irdma_device *iwdev = auxiliary_get_drvdata(aux_dev);
+	struct iidc_rdma_core_auxiliary_dev *iidc_adev;
+	struct ice_pf *pf;
+
+	iidc_adev = container_of(aux_dev, struct iidc_rdma_core_auxiliary_dev, adev);
+	pf = iidc_adev->pf;
 
 	irdma_ib_unregister_device(iwdev);
 	ice_rdma_update_vsi_filter(pf, iwdev->vsi_num, false);
@@ -292,16 +293,18 @@ static void irdma_fill_device_info(struct irdma_device *iwdev, struct ice_pf *pf
 
 static int irdma_probe(struct auxiliary_device *aux_dev, const struct auxiliary_device_id *id)
 {
-	struct iidc_auxiliary_dev *iidc_adev = container_of(aux_dev,
-							    struct iidc_auxiliary_dev,
-							    adev);
-	struct ice_pf *pf = iidc_adev->pf;
-	struct ice_vsi *vsi = ice_get_main_vsi(pf);
-	struct iidc_qos_params qos_info = {};
+	struct iidc_rdma_core_auxiliary_dev *iidc_adev;
+	struct iidc_rdma_qos_params qos_info = {};
+	struct irdma_l2params l2params = {};
 	struct irdma_device *iwdev;
 	struct irdma_pci_f *rf;
-	struct irdma_l2params l2params = {};
+	struct ice_vsi *vsi;
+	struct ice_pf *pf;
 	int err;
+
+	iidc_adev = container_of(aux_dev, struct iidc_rdma_core_auxiliary_dev, adev);
+	pf = iidc_adev->pf;
+	vsi = ice_get_main_vsi(pf);
 
 	if (!vsi)
 		return -EIO;
@@ -367,7 +370,7 @@ static const struct auxiliary_device_id irdma_auxiliary_id_table[] = {
 
 MODULE_DEVICE_TABLE(auxiliary, irdma_auxiliary_id_table);
 
-static struct iidc_auxiliary_drv irdma_auxiliary_drv = {
+static struct iidc_rdma_core_auxiliary_drv irdma_auxiliary_drv = {
 	.adrv = {
 	    .id_table = irdma_auxiliary_id_table,
 	    .probe = irdma_probe,
