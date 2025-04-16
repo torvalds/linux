@@ -253,7 +253,6 @@ int futex_wake_op(u32 __user *uaddr1, unsigned int flags, u32 __user *uaddr2,
 		  int nr_wake, int nr_wake2, int op)
 {
 	union futex_key key1 = FUTEX_KEY_INIT, key2 = FUTEX_KEY_INIT;
-	struct futex_hash_bucket *hb1, *hb2;
 	struct futex_q *this, *next;
 	int ret, op_ret;
 	DEFINE_WAKE_Q(wake_q);
@@ -266,67 +265,71 @@ retry:
 	if (unlikely(ret != 0))
 		return ret;
 
-	hb1 = futex_hash(&key1);
-	hb2 = futex_hash(&key2);
-
 retry_private:
-	double_lock_hb(hb1, hb2);
-	op_ret = futex_atomic_op_inuser(op, uaddr2);
-	if (unlikely(op_ret < 0)) {
-		double_unlock_hb(hb1, hb2);
+	if (1) {
+		struct futex_hash_bucket *hb1, *hb2;
 
-		if (!IS_ENABLED(CONFIG_MMU) ||
-		    unlikely(op_ret != -EFAULT && op_ret != -EAGAIN)) {
-			/*
-			 * we don't get EFAULT from MMU faults if we don't have
-			 * an MMU, but we might get them from range checking
-			 */
-			ret = op_ret;
-			return ret;
-		}
+		hb1 = futex_hash(&key1);
+		hb2 = futex_hash(&key2);
 
-		if (op_ret == -EFAULT) {
-			ret = fault_in_user_writeable(uaddr2);
-			if (ret)
+		double_lock_hb(hb1, hb2);
+		op_ret = futex_atomic_op_inuser(op, uaddr2);
+		if (unlikely(op_ret < 0)) {
+			double_unlock_hb(hb1, hb2);
+
+			if (!IS_ENABLED(CONFIG_MMU) ||
+			    unlikely(op_ret != -EFAULT && op_ret != -EAGAIN)) {
+				/*
+				 * we don't get EFAULT from MMU faults if we don't have
+				 * an MMU, but we might get them from range checking
+				 */
+				ret = op_ret;
 				return ret;
-		}
-
-		cond_resched();
-		if (!(flags & FLAGS_SHARED))
-			goto retry_private;
-		goto retry;
-	}
-
-	plist_for_each_entry_safe(this, next, &hb1->chain, list) {
-		if (futex_match (&this->key, &key1)) {
-			if (this->pi_state || this->rt_waiter) {
-				ret = -EINVAL;
-				goto out_unlock;
 			}
-			this->wake(&wake_q, this);
-			if (++ret >= nr_wake)
-				break;
-		}
-	}
 
-	if (op_ret > 0) {
-		op_ret = 0;
-		plist_for_each_entry_safe(this, next, &hb2->chain, list) {
-			if (futex_match (&this->key, &key2)) {
+			if (op_ret == -EFAULT) {
+				ret = fault_in_user_writeable(uaddr2);
+				if (ret)
+					return ret;
+			}
+
+			cond_resched();
+			if (!(flags & FLAGS_SHARED))
+				goto retry_private;
+			goto retry;
+		}
+
+		plist_for_each_entry_safe(this, next, &hb1->chain, list) {
+			if (futex_match(&this->key, &key1)) {
 				if (this->pi_state || this->rt_waiter) {
 					ret = -EINVAL;
 					goto out_unlock;
 				}
 				this->wake(&wake_q, this);
-				if (++op_ret >= nr_wake2)
+				if (++ret >= nr_wake)
 					break;
 			}
 		}
-		ret += op_ret;
-	}
+
+		if (op_ret > 0) {
+			op_ret = 0;
+			plist_for_each_entry_safe(this, next, &hb2->chain, list) {
+				if (futex_match(&this->key, &key2)) {
+					if (this->pi_state || this->rt_waiter) {
+						ret = -EINVAL;
+						goto out_unlock;
+					}
+					this->wake(&wake_q, this);
+					if (++op_ret >= nr_wake2)
+						break;
+				}
+			}
+			ret += op_ret;
+		}
 
 out_unlock:
-	double_unlock_hb(hb1, hb2);
+		double_unlock_hb(hb1, hb2);
+	}
 	wake_up_q(&wake_q);
 	return ret;
 }
@@ -402,7 +405,6 @@ int futex_unqueue_multiple(struct futex_vector *v, int count)
  */
 int futex_wait_multiple_setup(struct futex_vector *vs, int count, int *woken)
 {
-	struct futex_hash_bucket *hb;
 	bool retry = false;
 	int ret, i;
 	u32 uval;
@@ -441,21 +443,25 @@ retry:
 		struct futex_q *q = &vs[i].q;
 		u32 val = vs[i].w.val;
 
-		hb = futex_hash(&q->key);
-		futex_q_lock(q, hb);
-		ret = futex_get_value_locked(&uval, uaddr);
+		if (1) {
+			struct futex_hash_bucket *hb;
 
-		if (!ret && uval == val) {
-			/*
-			 * The bucket lock can't be held while dealing with the
-			 * next futex. Queue each futex at this moment so hb can
-			 * be unlocked.
-			 */
-			futex_queue(q, hb, current);
-			continue;
+			hb = futex_hash(&q->key);
+			futex_q_lock(q, hb);
+			ret = futex_get_value_locked(&uval, uaddr);
+
+			if (!ret && uval == val) {
+				/*
+				 * The bucket lock can't be held while dealing with the
+				 * next futex. Queue each futex at this moment so hb can
+				 * be unlocked.
+				 */
+				futex_queue(q, hb, current);
+				continue;
+			}
+
+			futex_q_unlock(hb);
 		}
-
-		futex_q_unlock(hb);
 		__set_current_state(TASK_RUNNING);
 
 		/*
@@ -584,7 +590,6 @@ int futex_wait_setup(u32 __user *uaddr, u32 val, unsigned int flags,
 		     struct futex_q *q, union futex_key *key2,
 		     struct task_struct *task)
 {
-	struct futex_hash_bucket *hb;
 	u32 uval;
 	int ret;
 
@@ -612,43 +617,47 @@ retry:
 		return ret;
 
 retry_private:
-	hb = futex_hash(&q->key);
-	futex_q_lock(q, hb);
+	if (1) {
+		struct futex_hash_bucket *hb;
 
-	ret = futex_get_value_locked(&uval, uaddr);
+		hb = futex_hash(&q->key);
+		futex_q_lock(q, hb);
 
-	if (ret) {
-		futex_q_unlock(hb);
+		ret = futex_get_value_locked(&uval, uaddr);
 
-		ret = get_user(uval, uaddr);
-		if (ret)
-			return ret;
+		if (ret) {
+			futex_q_unlock(hb);
 
-		if (!(flags & FLAGS_SHARED))
-			goto retry_private;
+			ret = get_user(uval, uaddr);
+			if (ret)
+				return ret;
 
-		goto retry;
+			if (!(flags & FLAGS_SHARED))
+				goto retry_private;
+
+			goto retry;
+		}
+
+		if (uval != val) {
+			futex_q_unlock(hb);
+			return -EWOULDBLOCK;
+		}
+
+		if (key2 && futex_match(&q->key, key2)) {
+			futex_q_unlock(hb);
+			return -EINVAL;
+		}
+
+		/*
+		 * The task state is guaranteed to be set before another task can
+		 * wake it. set_current_state() is implemented using smp_store_mb() and
+		 * futex_queue() calls spin_unlock() upon completion, both serializing
+		 * access to the hash list and forcing another memory barrier.
+		 */
+		if (task == current)
+			set_current_state(TASK_INTERRUPTIBLE|TASK_FREEZABLE);
+		futex_queue(q, hb, task);
 	}
-
-	if (uval != val) {
-		futex_q_unlock(hb);
-		return -EWOULDBLOCK;
-	}
-
-	if (key2 && futex_match(&q->key, key2)) {
-		futex_q_unlock(hb);
-		return -EINVAL;
-	}
-
-	/*
-	 * The task state is guaranteed to be set before another task can
-	 * wake it. set_current_state() is implemented using smp_store_mb() and
-	 * futex_queue() calls spin_unlock() upon completion, both serializing
-	 * access to the hash list and forcing another memory barrier.
-	 */
-	if (task == current)
-		set_current_state(TASK_INTERRUPTIBLE|TASK_FREEZABLE);
-	futex_queue(q, hb, task);
 
 	return ret;
 }
