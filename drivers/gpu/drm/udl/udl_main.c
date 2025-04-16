@@ -361,6 +361,7 @@ int udl_init(struct udl_device *udl)
 
 	if (!udl_alloc_urb_list(udl, WRITES_IN_FLIGHT, MAX_TRANSFER)) {
 		DRM_ERROR("udl_alloc_urb_list failed\n");
+		ret = -ENOMEM;
 		goto err;
 	}
 
