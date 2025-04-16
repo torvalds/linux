@@ -419,6 +419,7 @@ static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
  * Define a zeroed, on-stack, instance of @type structure with a trailing
  * flexible array member.
  * Use __struct_size(@name) to get compile-time size of it afterwards.
+ * Use __member_size(@name->member) to get compile-time size of @name members.
  */
 #define DEFINE_RAW_FLEX(type, name, member, count)	\
 	_DEFINE_FLEX(type, name, member, count, = {})
@@ -436,6 +437,7 @@ static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
  * Define a zeroed, on-stack, instance of @TYPE structure with a trailing
  * flexible array member.
  * Use __struct_size(@NAME) to get compile-time size of it afterwards.
+ * Use __member_size(@NAME->member) to get compile-time size of @NAME members.
  */
 #define DEFINE_FLEX(TYPE, NAME, MEMBER, COUNTER, COUNT)	\
 	_DEFINE_FLEX(TYPE, NAME, MEMBER, COUNT, = { .obj.COUNTER = COUNT, })
