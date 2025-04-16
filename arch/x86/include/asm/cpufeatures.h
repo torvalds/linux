@@ -481,6 +481,7 @@
 #define X86_FEATURE_AMD_HTR_CORES	(21*32+ 6) /* Heterogeneous Core Topology */
 #define X86_FEATURE_AMD_WORKLOAD_CLASS	(21*32+ 7) /* Workload Classification */
 #define X86_FEATURE_PREFER_YMM		(21*32+ 8) /* Avoid ZMM registers due to downclocking */
+#define X86_FEATURE_APX			(21*32+ 9) /* Advanced Performance Extensions */
 
 /*
  * BUG word(s)
