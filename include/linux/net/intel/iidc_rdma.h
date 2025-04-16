@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (C) 2021, Intel Corporation. */
 
-#ifndef _IIDC_H_
-#define _IIDC_H_
+#ifndef _IIDC_RDMA_H_
+#define _IIDC_RDMA_H_
 
 #include <linux/auxiliary_bus.h>
 #include <linux/dcbnl.h>
@@ -106,4 +106,4 @@ struct iidc_auxiliary_drv {
 	void (*event_handler)(struct ice_pf *pf, struct iidc_event *event);
 };
 
-#endif /* _IIDC_H_*/
+#endif /* _IIDC_RDMA_H_*/
