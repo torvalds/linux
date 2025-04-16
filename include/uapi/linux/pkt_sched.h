@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-#ifndef __LINUX_PKT_SCHED_H
-#define __LINUX_PKT_SCHED_H
+#ifndef _UAPI__LINUX_PKT_SCHED_H
+#define _UAPI__LINUX_PKT_SCHED_H
 
 #include <linux/const.h>
 #include <linux/types.h>
