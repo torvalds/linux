@@ -1353,6 +1353,10 @@ static ssize_t amdgpu_gfx_get_current_compute_partition(struct device *dev,
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	int mode;
 
+	/* Only minimal precaution taken to reject requests while in reset.*/
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+
 	mode = amdgpu_xcp_query_partition_mode(adev->xcp_mgr,
 					       AMDGPU_XCP_FL_NONE);
 
@@ -1396,7 +1400,13 @@ static ssize_t amdgpu_gfx_set_compute_partition(struct device *dev,
 		return -EINVAL;
 	}
 
+	/* Don't allow a switch while under reset */
+	if (!down_read_trylock(&adev->reset_domain->sem))
+		return -EPERM;
+
 	ret = amdgpu_xcp_switch_partition_mode(adev->xcp_mgr, mode);
+
+	up_read(&adev->reset_domain->sem);
 
 	if (ret)
 		return ret;
