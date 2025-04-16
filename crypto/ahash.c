@@ -315,16 +315,7 @@ EXPORT_SYMBOL_GPL(crypto_ahash_setkey);
 
 static bool ahash_request_hasvirt(struct ahash_request *req)
 {
-	struct ahash_request *r2;
-
-	if (ahash_request_isvirt(req))
-		return true;
-
-	list_for_each_entry(r2, &req->base.list, base.list)
-		if (ahash_request_isvirt(r2))
-			return true;
-
-	return false;
+	return ahash_request_isvirt(req);
 }
 
 static int ahash_reqchain_virt(struct ahash_save_req_state *state,
@@ -472,7 +463,6 @@ static int ahash_do_req_chain(struct ahash_request *req,
 	bool update = op == crypto_ahash_alg(tfm)->update;
 	struct ahash_save_req_state *state;
 	struct ahash_save_req_state state0;
-	struct ahash_request *r2;
 	u8 *page = NULL;
 	int err;
 
@@ -509,7 +499,6 @@ static int ahash_do_req_chain(struct ahash_request *req,
 	state->offset = 0;
 	state->nbytes = 0;
 	INIT_LIST_HEAD(&state->head);
-	list_splice_init(&req->base.list, &state->head);
 
 	if (page)
 		sg_init_one(&state->sg, page, PAGE_SIZE);
@@ -540,9 +529,6 @@ out_free_page:
 
 out_set_chain:
 	req->base.err = err;
-	list_for_each_entry(r2, &req->base.list, base.list)
-		r2->base.err = err;
-
 	return err;
 }
 
@@ -551,19 +537,10 @@ int crypto_ahash_init(struct ahash_request *req)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 
 	if (likely(tfm->using_shash)) {
-		struct ahash_request *r2;
 		int err;
 
 		err = crypto_shash_init(prepare_shash_desc(req, tfm));
 		req->base.err = err;
-
-		list_for_each_entry(r2, &req->base.list, base.list) {
-			struct shash_desc *desc;
-
-			desc = prepare_shash_desc(r2, tfm);
-			r2->base.err = crypto_shash_init(desc);
-		}
-
 		return err;
 	}
 
@@ -620,19 +597,10 @@ int crypto_ahash_update(struct ahash_request *req)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 
 	if (likely(tfm->using_shash)) {
-		struct ahash_request *r2;
 		int err;
 
 		err = shash_ahash_update(req, ahash_request_ctx(req));
 		req->base.err = err;
-
-		list_for_each_entry(r2, &req->base.list, base.list) {
-			struct shash_desc *desc;
-
-			desc = ahash_request_ctx(r2);
-			r2->base.err = shash_ahash_update(r2, desc);
-		}
-
 		return err;
 	}
 
@@ -645,19 +613,10 @@ int crypto_ahash_final(struct ahash_request *req)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 
 	if (likely(tfm->using_shash)) {
-		struct ahash_request *r2;
 		int err;
 
 		err = crypto_shash_final(ahash_request_ctx(req), req->result);
 		req->base.err = err;
-
-		list_for_each_entry(r2, &req->base.list, base.list) {
-			struct shash_desc *desc;
-
-			desc = ahash_request_ctx(r2);
-			r2->base.err = crypto_shash_final(desc, r2->result);
-		}
-
 		return err;
 	}
 
@@ -670,19 +629,10 @@ int crypto_ahash_finup(struct ahash_request *req)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 
 	if (likely(tfm->using_shash)) {
-		struct ahash_request *r2;
 		int err;
 
 		err = shash_ahash_finup(req, ahash_request_ctx(req));
 		req->base.err = err;
-
-		list_for_each_entry(r2, &req->base.list, base.list) {
-			struct shash_desc *desc;
-
-			desc = ahash_request_ctx(r2);
-			r2->base.err = shash_ahash_finup(r2, desc);
-		}
-
 		return err;
 	}
 
@@ -757,19 +707,10 @@ int crypto_ahash_digest(struct ahash_request *req)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 
 	if (likely(tfm->using_shash)) {
-		struct ahash_request *r2;
 		int err;
 
 		err = shash_ahash_digest(req, prepare_shash_desc(req, tfm));
 		req->base.err = err;
-
-		list_for_each_entry(r2, &req->base.list, base.list) {
-			struct shash_desc *desc;
-
-			desc = prepare_shash_desc(r2, tfm);
-			r2->base.err = shash_ahash_digest(r2, desc);
-		}
-
 		return err;
 	}
 
@@ -1132,21 +1073,6 @@ int ahash_register_instance(struct crypto_template *tmpl,
 	return crypto_register_instance(tmpl, ahash_crypto_instance(inst));
 }
 EXPORT_SYMBOL_GPL(ahash_register_instance);
-
-void ahash_request_free(struct ahash_request *req)
-{
-	struct ahash_request *tmp;
-	struct ahash_request *r2;
-
-	if (unlikely(!req))
-		return;
-
-	list_for_each_entry_safe(r2, tmp, &req->base.list, base.list)
-		kfree_sensitive(r2);
-
-	kfree_sensitive(req);
-}
-EXPORT_SYMBOL_GPL(ahash_request_free);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Asynchronous cryptographic hash type");
