@@ -47,6 +47,7 @@ all_files := \
 		sys/auxv.h \
 		sys/mman.h \
 		sys/stat.h \
+		sys/syscall.h \
 		time.h \
 		types.h \
 		unistd.h \
