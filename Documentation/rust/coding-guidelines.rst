@@ -85,6 +85,18 @@ written after the documentation, e.g.:
 	    // ...
 	}
 
+This applies to both public and private items. This increases consistency with
+public items, allows changes to visibility with less changes involved and will
+allow us to potentially generate the documentation for private items as well.
+In other words, if documentation is written for a private item, then ``///``
+should still be used. For instance:
+
+.. code-block:: rust
+
+	/// My private function.
+	// TODO: ...
+	fn f() {}
+
 One special kind of comments are the ``// SAFETY:`` comments. These must appear
 before every ``unsafe`` block, and they explain why the code inside the block is
 correct/sound, i.e. why it cannot trigger undefined behavior in any case, e.g.:
