@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
+futex_numa_mpol
 futex_priv_hash
 futex_requeue
 futex_requeue_pi

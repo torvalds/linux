@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 INCLUDES := -I../include -I../../ $(KHDR_INCLUDES)
 CFLAGS := $(CFLAGS) -g -O2 -Wall -pthread $(INCLUDES) $(KHDR_INCLUDES)
-LDLIBS := -lpthread -lrt
+LDLIBS := -lpthread -lrt -lnuma
 
 LOCAL_HDRS := \
 	../include/futextest.h \
@@ -18,6 +18,7 @@ TEST_GEN_PROGS := \
 	futex_wait \
 	futex_requeue \
 	futex_priv_hash \
+	futex_numa_mpol \
 	futex_waitv
 
 TEST_PROGS := run.sh
