@@ -257,7 +257,7 @@ amdgpu-y += \
 amdgpu-y += amdgpu_amdkfd.o
 
 # add gfx usermode queue
-amdgpu-y += amdgpu_userqueue.o
+amdgpu-y += amdgpu_userq.o
 
 ifneq ($(CONFIG_HSA_AMD),)
 AMDKFD_PATH := ../amdkfd

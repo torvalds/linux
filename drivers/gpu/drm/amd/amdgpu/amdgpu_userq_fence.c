@@ -292,7 +292,7 @@ static int amdgpu_userq_fence_create(struct amdgpu_usermode_queue *userq,
 
 static const char *amdgpu_userq_fence_get_driver_name(struct dma_fence *f)
 {
-	return "amdgpu_userqueue_fence";
+	return "amdgpu_userq_fence";
 }
 
 static const char *amdgpu_userq_fence_get_timeline_name(struct dma_fence *f)
@@ -513,7 +513,7 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 		goto put_gobj_write;
 
 	/* We are here means UQ is active, make sure the eviction fence is valid */
-	amdgpu_userqueue_ensure_ev_fence(&fpriv->userq_mgr, &fpriv->evf_mgr);
+	amdgpu_userq_ensure_ev_fence(&fpriv->userq_mgr, &fpriv->evf_mgr);
 
 	/* Create a new fence */
 	r = amdgpu_userq_fence_create(queue, userq_fence, wptr, &fence);

@@ -45,7 +45,7 @@
 #include "amdgpu_ras.h"
 #include "amdgpu_reset.h"
 #include "amd_pcie.h"
-#include "amdgpu_userqueue.h"
+#include "amdgpu_userq.h"
 
 void amdgpu_unregister_gpu_instance(struct amdgpu_device *adev)
 {
@@ -1009,7 +1009,7 @@ out:
 			}
 		}
 
-		dev_info->userq_ip_mask = amdgpu_userqueue_get_supported_ip_mask(adev);
+		dev_info->userq_ip_mask = amdgpu_userq_get_supported_ip_mask(adev);
 
 		ret = copy_to_user(out, dev_info,
 				   min((size_t)size, sizeof(*dev_info))) ? -EFAULT : 0;

@@ -189,7 +189,7 @@ static int mes_userq_create_ctx_space(struct amdgpu_userq_mgr *uq_mgr,
 	 * for the same.
 	 */
 	size = AMDGPU_USERQ_PROC_CTX_SZ + AMDGPU_USERQ_GANG_CTX_SZ;
-	r = amdgpu_userqueue_create_object(uq_mgr, ctx, size);
+	r = amdgpu_userq_create_object(uq_mgr, ctx, size);
 	if (r) {
 		DRM_ERROR("Failed to allocate ctx space bo for userqueue, err:%d\n", r);
 		return r;
@@ -222,7 +222,7 @@ static int mes_userq_mqd_create(struct amdgpu_userq_mgr *uq_mgr,
 		goto free_props;
 	}
 
-	r = amdgpu_userqueue_create_object(uq_mgr, &queue->mqd, mqd_hw_default->mqd_size);
+	r = amdgpu_userq_create_object(uq_mgr, &queue->mqd, mqd_hw_default->mqd_size);
 	if (r) {
 		DRM_ERROR("Failed to create MQD object for userqueue\n");
 		goto free_props;
@@ -327,10 +327,10 @@ static int mes_userq_mqd_create(struct amdgpu_userq_mgr *uq_mgr,
 	return 0;
 
 free_ctx:
-	amdgpu_userqueue_destroy_object(uq_mgr, &queue->fw_obj);
+	amdgpu_userq_destroy_object(uq_mgr, &queue->fw_obj);
 
 free_mqd:
-	amdgpu_userqueue_destroy_object(uq_mgr, &queue->mqd);
+	amdgpu_userq_destroy_object(uq_mgr, &queue->mqd);
 
 free_props:
 	kfree(userq_props);
@@ -342,9 +342,9 @@ static void
 mes_userq_mqd_destroy(struct amdgpu_userq_mgr *uq_mgr,
 		      struct amdgpu_usermode_queue *queue)
 {
-	amdgpu_userqueue_destroy_object(uq_mgr, &queue->fw_obj);
+	amdgpu_userq_destroy_object(uq_mgr, &queue->fw_obj);
 	kfree(queue->userq_prop);
-	amdgpu_userqueue_destroy_object(uq_mgr, &queue->mqd);
+	amdgpu_userq_destroy_object(uq_mgr, &queue->mqd);
 }
 
 const struct amdgpu_userq_funcs userq_mes_funcs = {

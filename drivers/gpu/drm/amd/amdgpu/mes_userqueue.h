@@ -24,7 +24,7 @@
 
 #ifndef MES_USERQ_H
 #define MES_USERQ_H
-#include "amdgpu_userqueue.h"
+#include "amdgpu_userq.h"
 
 extern const struct amdgpu_userq_funcs userq_mes_funcs;
 #endif

@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef AMDGPU_USERQUEUE_H_
-#define AMDGPU_USERQUEUE_H_
+#ifndef AMDGPU_USERQ_H_
+#define AMDGPU_USERQ_H_
 #include "amdgpu_eviction_fence.h"
 
 #define AMDGPU_MAX_USERQ_COUNT 512
@@ -32,7 +32,7 @@
 #define uq_mgr_to_fpriv(u) container_of(u, struct amdgpu_fpriv, userq_mgr)
 #define work_to_uq_mgr(w, name) container_of(w, struct amdgpu_userq_mgr, name)
 
-enum amdgpu_userqueue_state {
+enum amdgpu_userq_state {
 	AMDGPU_USERQ_STATE_UNMAPPED = 0,
 	AMDGPU_USERQ_STATE_MAPPED,
 	AMDGPU_USERQ_STATE_PREEMPTED,
@@ -49,7 +49,7 @@ struct amdgpu_userq_obj {
 
 struct amdgpu_usermode_queue {
 	int			queue_type;
-	enum amdgpu_userqueue_state state;
+	enum amdgpu_userq_state state;
 	uint64_t		doorbell_handle;
 	uint64_t		doorbell_index;
 	uint64_t		flags;
@@ -101,26 +101,26 @@ int amdgpu_userq_mgr_init(struct amdgpu_userq_mgr *userq_mgr, struct amdgpu_devi
 
 void amdgpu_userq_mgr_fini(struct amdgpu_userq_mgr *userq_mgr);
 
-int amdgpu_userqueue_create_object(struct amdgpu_userq_mgr *uq_mgr,
-				   struct amdgpu_userq_obj *userq_obj,
-				   int size);
+int amdgpu_userq_create_object(struct amdgpu_userq_mgr *uq_mgr,
+			       struct amdgpu_userq_obj *userq_obj,
+			       int size);
 
-void amdgpu_userqueue_destroy_object(struct amdgpu_userq_mgr *uq_mgr,
-				     struct amdgpu_userq_obj *userq_obj);
+void amdgpu_userq_destroy_object(struct amdgpu_userq_mgr *uq_mgr,
+				 struct amdgpu_userq_obj *userq_obj);
 
-void amdgpu_userqueue_evict(struct amdgpu_userq_mgr *uq_mgr,
-			    struct amdgpu_eviction_fence *ev_fence);
+void amdgpu_userq_evict(struct amdgpu_userq_mgr *uq_mgr,
+			struct amdgpu_eviction_fence *ev_fence);
 
-int amdgpu_userqueue_active(struct amdgpu_userq_mgr *uq_mgr);
+int amdgpu_userq_active(struct amdgpu_userq_mgr *uq_mgr);
 
-void amdgpu_userqueue_ensure_ev_fence(struct amdgpu_userq_mgr *userq_mgr,
-				      struct amdgpu_eviction_fence_mgr *evf_mgr);
+void amdgpu_userq_ensure_ev_fence(struct amdgpu_userq_mgr *userq_mgr,
+				  struct amdgpu_eviction_fence_mgr *evf_mgr);
 
-uint64_t amdgpu_userqueue_get_doorbell_index(struct amdgpu_userq_mgr *uq_mgr,
-					     struct amdgpu_db_info *db_info,
+uint64_t amdgpu_userq_get_doorbell_index(struct amdgpu_userq_mgr *uq_mgr,
+					 struct amdgpu_db_info *db_info,
 					     struct drm_file *filp);
 
-u32 amdgpu_userqueue_get_supported_ip_mask(struct amdgpu_device *adev);
+u32 amdgpu_userq_get_supported_ip_mask(struct amdgpu_device *adev);
 
 int amdgpu_userq_suspend(struct amdgpu_device *adev);
 int amdgpu_userq_resume(struct amdgpu_device *adev);

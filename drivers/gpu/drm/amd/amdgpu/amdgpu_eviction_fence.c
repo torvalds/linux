@@ -112,7 +112,7 @@ amdgpu_eviction_fence_suspend_worker(struct work_struct *work)
 	if (!ev_fence)
 		goto unlock;
 
-	amdgpu_userqueue_evict(uq_mgr, ev_fence);
+	amdgpu_userq_evict(uq_mgr, ev_fence);
 
 unlock:
 	mutex_unlock(&uq_mgr->userq_mutex);

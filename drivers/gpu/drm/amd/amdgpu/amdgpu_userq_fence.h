@@ -27,7 +27,7 @@
 
 #include <linux/types.h>
 
-#include "amdgpu_userqueue.h"
+#include "amdgpu_userq.h"
 
 struct amdgpu_userq_fence {
 	struct dma_fence base;
