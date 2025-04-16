@@ -30,6 +30,7 @@ properties:
           - const: mediatek,mt8173-mipi-tx
       - items:
           - enum:
+              - mediatek,mt6893-mipi-tx
               - mediatek,mt8188-mipi-tx
               - mediatek,mt8195-mipi-tx
               - mediatek,mt8365-mipi-tx
