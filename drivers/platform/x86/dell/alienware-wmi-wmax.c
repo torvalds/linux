@@ -655,12 +655,10 @@ static int thermal_profile_probe(void *drvdata, unsigned long *choices)
 	for (u32 i = 0; i < sys_desc[3]; i++) {
 		ret = wmax_thermal_information(priv->wdev, WMAX_OPERATION_LIST_IDS,
 					       i + first_mode, &out_data);
-
-		if (ret == -EIO)
-			return ret;
-
 		if (ret == -EBADRQC)
 			break;
+		if (ret)
+			return ret;
 
 		if (!is_wmax_thermal_code(out_data))
 			continue;
