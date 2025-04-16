@@ -1545,7 +1545,7 @@ int ata_eh_get_ncq_success_sense(struct ata_link *link)
 		 * If the command does not have any sense data, clear ATA_SENSE.
 		 * Keep ATA_QCFLAG_EH_SUCCESS_CMD so that command is finished.
 		 */
-		if (!(sense_valid & (1 << tag))) {
+		if (!(sense_valid & BIT(tag))) {
 			qc->result_tf.status &= ~ATA_SENSE;
 			continue;
 		}
@@ -1634,7 +1634,7 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 		return;
 	}
 
-	if (!(link->sactive & (1 << tag))) {
+	if (!(link->sactive & BIT(tag))) {
 		ata_link_err(link, "log page 10h reported inactive tag %d\n",
 			     tag);
 		return;
