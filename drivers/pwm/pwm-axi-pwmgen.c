@@ -75,6 +75,7 @@ static int axi_pwmgen_round_waveform_tohw(struct pwm_chip *chip,
 {
 	struct axi_pwmgen_waveform *wfhw = _wfhw;
 	struct axi_pwmgen_ddata *ddata = axi_pwmgen_ddata_from_chip(chip);
+	int ret = 0;
 
 	if (wf->period_length_ns == 0) {
 		*wfhw = (struct axi_pwmgen_waveform){
@@ -91,12 +92,15 @@ static int axi_pwmgen_round_waveform_tohw(struct pwm_chip *chip,
 		if (wfhw->period_cnt == 0) {
 			/*
 			 * The specified period is too short for the hardware.
-			 * Let's round .duty_cycle down to 0 to get a (somewhat)
-			 * valid result.
+			 * So round up .period_cnt to 1 (i.e. the smallest
+			 * possible period). With .duty_cycle and .duty_offset
+			 * being less than or equal to .period, their rounded
+			 * value must be 0.
 			 */
 			wfhw->period_cnt = 1;
 			wfhw->duty_cycle_cnt = 0;
 			wfhw->duty_offset_cnt = 0;
+			ret = 1;
 		} else {
 			wfhw->duty_cycle_cnt = min_t(u64,
 						     mul_u64_u32_div(wf->duty_length_ns, ddata->clk_rate_hz, NSEC_PER_SEC),
@@ -111,7 +115,7 @@ static int axi_pwmgen_round_waveform_tohw(struct pwm_chip *chip,
 		pwm->hwpwm, wf->duty_length_ns, wf->period_length_ns, wf->duty_offset_ns,
 		ddata->clk_rate_hz, wfhw->period_cnt, wfhw->duty_cycle_cnt, wfhw->duty_offset_cnt);
 
-	return 0;
+	return ret;
 }
 
 static int axi_pwmgen_round_waveform_fromhw(struct pwm_chip *chip, struct pwm_device *pwm,
