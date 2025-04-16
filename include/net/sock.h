@@ -2604,8 +2604,8 @@ struct sock_skb_cb {
  * using skb->cb[] would keep using it directly and utilize its
  * alignment guarantee.
  */
-#define SOCK_SKB_CB_OFFSET ((sizeof_field(struct sk_buff, cb) - \
-			    sizeof(struct sock_skb_cb)))
+#define SOCK_SKB_CB_OFFSET (sizeof_field(struct sk_buff, cb) - \
+			    sizeof(struct sock_skb_cb))
 
 #define SOCK_SKB_CB(__skb) ((struct sock_skb_cb *)((__skb)->cb + \
 			    SOCK_SKB_CB_OFFSET))
