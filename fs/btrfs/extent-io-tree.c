@@ -538,6 +538,18 @@ static int split_state(struct extent_io_tree *tree, struct extent_state *orig,
 }
 
 /*
+ * Use this during tree iteration to avoid doing next node searches when it's
+ * not needed (the current record ends at or after the target range's end).
+ */
+static inline struct extent_state *next_search_state(struct extent_state *state, u64 end)
+{
+	if (state->end < end)
+		return next_state(state);
+
+	return NULL;
+}
+
+/*
  * Utility function to clear some bits in an extent state struct.  It will
  * optionally wake up anyone waiting on this state (wake == 1).
  *
@@ -546,7 +558,7 @@ static int split_state(struct extent_io_tree *tree, struct extent_state *orig,
  */
 static struct extent_state *clear_state_bit(struct extent_io_tree *tree,
 					    struct extent_state *state,
-					    u32 bits, int wake,
+					    u32 bits, int wake, u64 end,
 					    struct extent_changeset *changeset)
 {
 	struct extent_state *next;
@@ -562,7 +574,7 @@ static struct extent_state *clear_state_bit(struct extent_io_tree *tree,
 	if (wake)
 		wake_up(&state->wq);
 	if (state->state == 0) {
-		next = next_state(state);
+		next = next_search_state(state, end);
 		if (extent_state_in_tree(state)) {
 			rb_erase(&state->rb_node, &tree->state);
 			RB_CLEAR_NODE(&state->rb_node);
@@ -572,7 +584,7 @@ static struct extent_state *clear_state_bit(struct extent_io_tree *tree,
 		}
 	} else {
 		merge_state(tree, state);
-		next = next_state(state);
+		next = next_search_state(state, end);
 	}
 	return next;
 }
@@ -666,7 +678,7 @@ hit_next:
 
 	/* The state doesn't have the wanted bits, go ahead. */
 	if (!(state->state & bits)) {
-		state = next_state(state);
+		state = next_search_state(state, end);
 		goto next;
 	}
 
@@ -696,7 +708,8 @@ hit_next:
 			goto out;
 		}
 		if (state->end <= end) {
-			state = clear_state_bit(tree, state, bits, wake, changeset);
+			state = clear_state_bit(tree, state, bits, wake, end,
+						changeset);
 			goto next;
 		}
 		if (need_resched())
@@ -726,13 +739,13 @@ hit_next:
 		if (wake)
 			wake_up(&state->wq);
 
-		clear_state_bit(tree, prealloc, bits, wake, changeset);
+		clear_state_bit(tree, prealloc, bits, wake, end, changeset);
 
 		prealloc = NULL;
 		goto out;
 	}
 
-	state = clear_state_bit(tree, state, bits, wake, changeset);
+	state = clear_state_bit(tree, state, bits, wake, end, changeset);
 next:
 	if (last_end >= end)
 		goto out;
@@ -1357,7 +1370,7 @@ hit_next:
 	if (state->start == start && state->end <= end) {
 		set_state_bits(tree, state, bits, NULL);
 		cache_state(state, cached_state);
-		state = clear_state_bit(tree, state, clear_bits, 0, NULL);
+		state = clear_state_bit(tree, state, clear_bits, 0, end, NULL);
 		if (last_end == (u64)-1)
 			goto out;
 		start = last_end + 1;
@@ -1397,7 +1410,7 @@ hit_next:
 		if (state->end <= end) {
 			set_state_bits(tree, state, bits, NULL);
 			cache_state(state, cached_state);
-			state = clear_state_bit(tree, state, clear_bits, 0, NULL);
+			state = clear_state_bit(tree, state, clear_bits, 0, end, NULL);
 			if (last_end == (u64)-1)
 				goto out;
 			start = last_end + 1;
@@ -1469,7 +1482,7 @@ hit_next:
 
 		set_state_bits(tree, prealloc, bits, NULL);
 		cache_state(prealloc, cached_state);
-		clear_state_bit(tree, prealloc, clear_bits, 0, NULL);
+		clear_state_bit(tree, prealloc, clear_bits, 0, end, NULL);
 		prealloc = NULL;
 		goto out;
 	}
