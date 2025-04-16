@@ -11,19 +11,19 @@
  *   Copyright (C) 2014 - 2018 Linaro Ltd. <ard.biesheuvel@linaro.org>
  */
 
-#include <linux/types.h>
-#include <linux/err.h>
-#include <linux/crypto.h>
-#include <linux/delay.h>
+#include "aesp8-ppc.h"
 #include <asm/simd.h>
 #include <asm/switch_to.h>
 #include <crypto/aes.h>
+#include <crypto/b128ops.h>
 #include <crypto/ghash.h>
-#include <crypto/scatterwalk.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/simd.h>
-#include <crypto/b128ops.h>
-#include "aesp8-ppc.h"
+#include <crypto/scatterwalk.h>
+#include <linux/err.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/uaccess.h>
 
 void gcm_init_p8(u128 htable[16], const u64 Xi[2]);
 void gcm_gmult_p8(u64 Xi[2], const u128 htable[16]);
