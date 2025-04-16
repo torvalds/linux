@@ -34,7 +34,13 @@ static int xe_bo_apply_to_pinned(struct xe_device *xe,
 		ret = pinned_fn(bo);
 		if (ret && pinned_list != new_list) {
 			spin_lock(&xe->pinned.lock);
-			list_move(&bo->pinned_link, pinned_list);
+			/*
+			 * We might no longer be pinned, since PM notifier can
+			 * call this. If the pinned link is now empty, keep it
+			 * that way.
+			 */
+			if (!list_empty(&bo->pinned_link))
+				list_move(&bo->pinned_link, pinned_list);
 			spin_unlock(&xe->pinned.lock);
 		}
 		xe_bo_put(bo);
@@ -44,6 +50,49 @@ static int xe_bo_apply_to_pinned(struct xe_device *xe,
 	spin_unlock(&xe->pinned.lock);
 
 	return ret;
+}
+
+/**
+ * xe_bo_notifier_prepare_all_pinned() - Pre-allocate the backing pages for all
+ * pinned VRAM objects which need to be saved.
+ * @xe: xe device
+ *
+ * Should be called from PM notifier when preparing for s3/s4.
+ *
+ * Return: 0 on success, negative error code on error.
+ */
+int xe_bo_notifier_prepare_all_pinned(struct xe_device *xe)
+{
+	int ret;
+
+	ret = xe_bo_apply_to_pinned(xe, &xe->pinned.early.kernel_bo_present,
+				    &xe->pinned.early.kernel_bo_present,
+				    xe_bo_notifier_prepare_pinned);
+	if (!ret)
+		ret = xe_bo_apply_to_pinned(xe, &xe->pinned.late.kernel_bo_present,
+					    &xe->pinned.late.kernel_bo_present,
+					    xe_bo_notifier_prepare_pinned);
+
+	return ret;
+}
+
+/**
+ * xe_bo_notifier_unprepare_all_pinned() - Remove the backing pages for all
+ * pinned VRAM objects which have been restored.
+ * @xe: xe device
+ *
+ * Should be called from PM notifier after exiting s3/s4 (either on success or
+ * failure).
+ */
+void xe_bo_notifier_unprepare_all_pinned(struct xe_device *xe)
+{
+	(void)xe_bo_apply_to_pinned(xe, &xe->pinned.early.kernel_bo_present,
+				    &xe->pinned.early.kernel_bo_present,
+				    xe_bo_notifier_unprepare_pinned);
+
+	(void)xe_bo_apply_to_pinned(xe, &xe->pinned.late.kernel_bo_present,
+				    &xe->pinned.late.kernel_bo_present,
+				    xe_bo_notifier_unprepare_pinned);
 }
 
 /**
