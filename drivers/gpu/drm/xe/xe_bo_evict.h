@@ -9,6 +9,7 @@
 struct xe_device;
 
 int xe_bo_evict_all(struct xe_device *xe);
+int xe_bo_evict_all_user(struct xe_device *xe);
 int xe_bo_restore_early(struct xe_device *xe);
 int xe_bo_restore_late(struct xe_device *xe);
 

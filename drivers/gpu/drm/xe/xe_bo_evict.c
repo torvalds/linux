@@ -47,25 +47,17 @@ static int xe_bo_apply_to_pinned(struct xe_device *xe,
 }
 
 /**
- * xe_bo_evict_all - evict all BOs from VRAM
- *
+ * xe_bo_evict_all_user - evict all non-pinned user BOs from VRAM
  * @xe: xe device
  *
- * Evict non-pinned user BOs first (via GPU), evict pinned external BOs next
- * (via GPU), wait for evictions, and finally evict pinned kernel BOs via CPU.
- * All eviction magic done via TTM calls.
+ * Evict non-pinned user BOs (via GPU).
  *
  * Evict == move VRAM BOs to temporary (typically system) memory.
- *
- * This function should be called before the device goes into a suspend state
- * where the VRAM loses power.
  */
-int xe_bo_evict_all(struct xe_device *xe)
+int xe_bo_evict_all_user(struct xe_device *xe)
 {
 	struct ttm_device *bdev = &xe->ttm;
-	struct xe_tile *tile;
 	u32 mem_type;
-	u8 id;
 	int ret;
 
 	/* User memory */
@@ -91,9 +83,34 @@ int xe_bo_evict_all(struct xe_device *xe)
 		}
 	}
 
-	ret = xe_bo_apply_to_pinned(xe, &xe->pinned.late.external,
-				    &xe->pinned.late.external,
-				    xe_bo_evict_pinned);
+	return 0;
+}
+
+/**
+ * xe_bo_evict_all - evict all BOs from VRAM
+ * @xe: xe device
+ *
+ * Evict non-pinned user BOs first (via GPU), evict pinned external BOs next
+ * (via GPU), wait for evictions, and finally evict pinned kernel BOs via CPU.
+ * All eviction magic done via TTM calls.
+ *
+ * Evict == move VRAM BOs to temporary (typically system) memory.
+ *
+ * This function should be called before the device goes into a suspend state
+ * where the VRAM loses power.
+ */
+int xe_bo_evict_all(struct xe_device *xe)
+{
+	struct xe_tile *tile;
+	u8 id;
+	int ret;
+
+	ret = xe_bo_evict_all_user(xe);
+	if (ret)
+		return ret;
+
+	ret = xe_bo_apply_to_pinned(xe, &xe->pinned.late.kernel_bo_present,
+				    &xe->pinned.late.evicted, xe_bo_evict_pinned);
 
 	if (!ret)
 		ret = xe_bo_apply_to_pinned(xe, &xe->pinned.late.kernel_bo_present,

@@ -742,7 +742,7 @@ static void xe_pci_remove(struct pci_dev *pdev)
 		return;
 
 	xe_device_remove(xe);
-	xe_pm_runtime_fini(xe);
+	xe_pm_fini(xe);
 }
 
 /*

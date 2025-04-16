@@ -286,6 +286,29 @@ static u32 vram_threshold_value(struct xe_device *xe)
 	return DEFAULT_VRAM_THRESHOLD;
 }
 
+static int xe_pm_notifier_callback(struct notifier_block *nb,
+				   unsigned long action, void *data)
+{
+	struct xe_device *xe = container_of(nb, struct xe_device, pm_notifier);
+	int err = 0;
+
+	switch (action) {
+	case PM_HIBERNATION_PREPARE:
+	case PM_SUSPEND_PREPARE:
+		xe_pm_runtime_get(xe);
+		err = xe_bo_evict_all_user(xe);
+		xe_pm_runtime_put(xe);
+		if (err)
+			drm_dbg(&xe->drm, "Notifier evict user failed (%d)\n", err);
+		break;
+	}
+
+	if (err)
+		return NOTIFY_BAD;
+
+	return NOTIFY_DONE;
+}
+
 /**
  * xe_pm_init - Initialize Xe Power Management
  * @xe: xe device instance
@@ -299,6 +322,11 @@ int xe_pm_init(struct xe_device *xe)
 	u32 vram_threshold;
 	int err;
 
+	xe->pm_notifier.notifier_call = xe_pm_notifier_callback;
+	err = register_pm_notifier(&xe->pm_notifier);
+	if (err)
+		return err;
+
 	/* For now suspend/resume is only allowed with GuC */
 	if (!xe_device_uc_enabled(xe))
 		return 0;
@@ -308,29 +336,40 @@ int xe_pm_init(struct xe_device *xe)
 	if (xe->d3cold.capable) {
 		err = xe_device_sysfs_init(xe);
 		if (err)
-			return err;
+			goto err_unregister;
 
 		vram_threshold = vram_threshold_value(xe);
 		err = xe_pm_set_vram_threshold(xe, vram_threshold);
 		if (err)
-			return err;
+			goto err_unregister;
 	}
 
 	xe_pm_runtime_init(xe);
-
 	return 0;
+
+err_unregister:
+	unregister_pm_notifier(&xe->pm_notifier);
+	return err;
 }
 
-/**
- * xe_pm_runtime_fini - Finalize Runtime PM
- * @xe: xe device instance
- */
-void xe_pm_runtime_fini(struct xe_device *xe)
+static void xe_pm_runtime_fini(struct xe_device *xe)
 {
 	struct device *dev = xe->drm.dev;
 
 	pm_runtime_get_sync(dev);
 	pm_runtime_forbid(dev);
+}
+
+/**
+ * xe_pm_fini - Finalize PM
+ * @xe: xe device instance
+ */
+void xe_pm_fini(struct xe_device *xe)
+{
+	if (xe_device_uc_enabled(xe))
+		xe_pm_runtime_fini(xe);
+
+	unregister_pm_notifier(&xe->pm_notifier);
 }
 
 static void xe_pm_write_callback_task(struct xe_device *xe,
