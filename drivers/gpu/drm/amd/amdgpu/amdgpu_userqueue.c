@@ -528,7 +528,7 @@ int amdgpu_userq_ioctl(struct drm_device *dev, void *data,
 #endif
 
 static int
-amdgpu_userqueue_resume_all(struct amdgpu_userq_mgr *uq_mgr)
+amdgpu_userqueue_restore_all(struct amdgpu_userq_mgr *uq_mgr)
 {
 	struct amdgpu_device *adev = uq_mgr->adev;
 	struct amdgpu_usermode_queue *queue;
@@ -659,7 +659,7 @@ unlock_all:
 	return ret;
 }
 
-static void amdgpu_userqueue_resume_worker(struct work_struct *work)
+static void amdgpu_userqueue_restore_worker(struct work_struct *work)
 {
 	struct amdgpu_userq_mgr *uq_mgr = work_to_uq_mgr(work, resume_work.work);
 	struct amdgpu_fpriv *fpriv = uq_mgr_to_fpriv(uq_mgr);
@@ -675,9 +675,9 @@ static void amdgpu_userqueue_resume_worker(struct work_struct *work)
 		goto unlock;
 	}
 
-	ret = amdgpu_userqueue_resume_all(uq_mgr);
+	ret = amdgpu_userqueue_restore_all(uq_mgr);
 	if (ret) {
-		DRM_ERROR("Failed to resume all queues\n");
+		DRM_ERROR("Failed to restore all queues\n");
 		goto unlock;
 	}
 
@@ -686,7 +686,7 @@ unlock:
 }
 
 static int
-amdgpu_userqueue_suspend_all(struct amdgpu_userq_mgr *uq_mgr)
+amdgpu_userqueue_evict_all(struct amdgpu_userq_mgr *uq_mgr)
 {
 	struct amdgpu_device *adev = uq_mgr->adev;
 	struct amdgpu_usermode_queue *queue;
@@ -728,8 +728,8 @@ amdgpu_userqueue_wait_for_signal(struct amdgpu_userq_mgr *uq_mgr)
 }
 
 void
-amdgpu_userqueue_suspend(struct amdgpu_userq_mgr *uq_mgr,
-			 struct amdgpu_eviction_fence *ev_fence)
+amdgpu_userqueue_evict(struct amdgpu_userq_mgr *uq_mgr,
+		       struct amdgpu_eviction_fence *ev_fence)
 {
 	int ret;
 	struct amdgpu_fpriv *fpriv = uq_mgr_to_fpriv(uq_mgr);
@@ -738,11 +738,11 @@ amdgpu_userqueue_suspend(struct amdgpu_userq_mgr *uq_mgr,
 	/* Wait for any pending userqueue fence work to finish */
 	ret = amdgpu_userqueue_wait_for_signal(uq_mgr);
 	if (ret) {
-		DRM_ERROR("Not suspending userqueue, timeout waiting for work\n");
+		DRM_ERROR("Not evicting userqueue, timeout waiting for work\n");
 		return;
 	}
 
-	ret = amdgpu_userqueue_suspend_all(uq_mgr);
+	ret = amdgpu_userqueue_evict_all(uq_mgr);
 	if (ret) {
 		DRM_ERROR("Failed to evict userqueue\n");
 		return;
@@ -770,7 +770,7 @@ int amdgpu_userq_mgr_init(struct amdgpu_userq_mgr *userq_mgr, struct amdgpu_devi
 	list_add(&userq_mgr->list, &adev->userq_mgr_list);
 	mutex_unlock(&adev->userq_mutex);
 
-	INIT_DELAYED_WORK(&userq_mgr->resume_work, amdgpu_userqueue_resume_worker);
+	INIT_DELAYED_WORK(&userq_mgr->resume_work, amdgpu_userqueue_restore_worker);
 	return 0;
 }
 

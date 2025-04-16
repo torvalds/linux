@@ -108,8 +108,8 @@ int amdgpu_userqueue_create_object(struct amdgpu_userq_mgr *uq_mgr,
 void amdgpu_userqueue_destroy_object(struct amdgpu_userq_mgr *uq_mgr,
 				     struct amdgpu_userq_obj *userq_obj);
 
-void amdgpu_userqueue_suspend(struct amdgpu_userq_mgr *uq_mgr,
-			      struct amdgpu_eviction_fence *ev_fence);
+void amdgpu_userqueue_evict(struct amdgpu_userq_mgr *uq_mgr,
+			    struct amdgpu_eviction_fence *ev_fence);
 
 int amdgpu_userqueue_active(struct amdgpu_userq_mgr *uq_mgr);
 
