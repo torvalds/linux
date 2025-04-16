@@ -1009,12 +1009,7 @@ out:
 			}
 		}
 
-		if (adev->userq_funcs[AMDGPU_HW_IP_GFX])
-			dev_info->userq_ip_mask |= (1 << AMDGPU_HW_IP_GFX);
-		if (adev->userq_funcs[AMDGPU_HW_IP_COMPUTE])
-			dev_info->userq_ip_mask |= (1 << AMDGPU_HW_IP_COMPUTE);
-		if (adev->userq_funcs[AMDGPU_HW_IP_DMA])
-			dev_info->userq_ip_mask |= (1 << AMDGPU_HW_IP_DMA);
+		dev_info->userq_ip_mask = amdgpu_userqueue_get_supported_ip_mask(adev);
 
 		ret = copy_to_user(out, dev_info,
 				   min((size_t)size, sizeof(*dev_info))) ? -EFAULT : 0;

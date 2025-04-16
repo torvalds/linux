@@ -31,6 +31,19 @@
 #include "amdgpu_userqueue.h"
 #include "amdgpu_userq_fence.h"
 
+u32 amdgpu_userqueue_get_supported_ip_mask(struct amdgpu_device *adev)
+{
+	int i;
+	u32 userq_ip_mask = 0;
+
+	for (i = 0; i < AMDGPU_HW_IP_NUM; i++) {
+		if (adev->userq_funcs[i])
+			userq_ip_mask |= (1 << i);
+	}
+
+	return userq_ip_mask;
+}
+
 static void
 amdgpu_userqueue_cleanup(struct amdgpu_userq_mgr *uq_mgr,
 			 struct amdgpu_usermode_queue *queue,
