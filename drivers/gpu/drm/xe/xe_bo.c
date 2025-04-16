@@ -1120,13 +1120,15 @@ int xe_bo_evict_pinned(struct xe_bo *bo)
 	if (bo->flags & XE_BO_FLAG_PINNED_NORESTORE)
 		goto out_unlock_bo;
 
-	backup = xe_bo_create_locked(xe, NULL, NULL, bo->size, ttm_bo_type_kernel,
-				     XE_BO_FLAG_SYSTEM | XE_BO_FLAG_NEEDS_CPU_ACCESS |
-				     XE_BO_FLAG_PINNED);
+	backup = ___xe_bo_create_locked(xe, NULL, NULL, bo->ttm.base.resv, NULL, bo->size,
+					DRM_XE_GEM_CPU_CACHING_WB, ttm_bo_type_kernel,
+					XE_BO_FLAG_SYSTEM | XE_BO_FLAG_NEEDS_CPU_ACCESS |
+					XE_BO_FLAG_PINNED);
 	if (IS_ERR(backup)) {
 		ret = PTR_ERR(backup);
 		goto out_unlock_bo;
 	}
+	backup->parent_obj = xe_bo_get(bo); /* Released by bo_destroy */
 
 	if (xe_bo_is_user(bo) || (bo->flags & XE_BO_FLAG_PINNED_LATE_RESTORE)) {
 		struct xe_migrate *migrate;
@@ -1177,7 +1179,6 @@ int xe_bo_evict_pinned(struct xe_bo *bo)
 
 out_backup:
 	xe_bo_vunmap(backup);
-	xe_bo_unlock(backup);
 	if (ret)
 		xe_bo_put(backup);
 out_unlock_bo:
@@ -1212,16 +1213,11 @@ int xe_bo_restore_pinned(struct xe_bo *bo)
 	if (!backup)
 		return 0;
 
-	xe_bo_lock(backup, false);
+	xe_bo_lock(bo, false);
 
 	ret = ttm_bo_validate(&backup->ttm, &backup->placement, &ctx);
 	if (ret)
 		goto out_backup;
-
-	if (WARN_ON(!dma_resv_trylock(bo->ttm.base.resv))) {
-		ret = -EBUSY;
-		goto out_backup;
-	}
 
 	if (xe_bo_is_user(bo) || (bo->flags & XE_BO_FLAG_PINNED_LATE_RESTORE)) {
 		struct xe_migrate *migrate;
@@ -1271,15 +1267,14 @@ int xe_bo_restore_pinned(struct xe_bo *bo)
 
 	bo->backup_obj = NULL;
 
+out_backup:
+	xe_bo_vunmap(backup);
+	if (!bo->backup_obj)
+		xe_bo_put(backup);
 out_unlock_bo:
 	if (unmap)
 		xe_bo_vunmap(bo);
 	xe_bo_unlock(bo);
-out_backup:
-	xe_bo_vunmap(backup);
-	xe_bo_unlock(backup);
-	if (!bo->backup_obj)
-		xe_bo_put(backup);
 	return ret;
 }
 
@@ -1531,6 +1526,9 @@ static void xe_ttm_bo_destroy(struct ttm_buffer_object *ttm_bo)
 
 	if (bo->vm && xe_bo_is_user(bo))
 		xe_vm_put(bo->vm);
+
+	if (bo->parent_obj)
+		xe_bo_put(bo->parent_obj);
 
 	mutex_lock(&xe->mem_access.vram_userfault.lock);
 	if (!list_empty(&bo->vram_userfault_link))
