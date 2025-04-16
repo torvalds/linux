@@ -36,6 +36,8 @@
 #include <linux/pagemap.h>
 #include <linux/debugfs.h>
 #include <linux/plist.h>
+#include <linux/gfp.h>
+#include <linux/vmalloc.h>
 #include <linux/memblock.h>
 #include <linux/fault-inject.h>
 #include <linux/slab.h>
@@ -51,11 +53,14 @@
  * reside in the same cacheline.
  */
 static struct {
-	struct futex_hash_bucket *queues;
 	unsigned long            hashmask;
+	unsigned int		 hashshift;
+	struct futex_hash_bucket *queues[MAX_NUMNODES];
 } __futex_data __read_mostly __aligned(2*sizeof(long));
-#define futex_queues   (__futex_data.queues)
-#define futex_hashmask (__futex_data.hashmask)
+
+#define futex_hashmask	(__futex_data.hashmask)
+#define futex_hashshift	(__futex_data.hashshift)
+#define futex_queues	(__futex_data.queues)
 
 struct futex_private_hash {
 	rcuref_t	users;
@@ -339,15 +344,35 @@ __futex_hash(union futex_key *key, struct futex_private_hash *fph)
 {
 	struct futex_hash_bucket *hb;
 	u32 hash;
+	int node;
 
 	hb = __futex_hash_private(key, fph);
 	if (hb)
 		return hb;
 
 	hash = jhash2((u32 *)key,
-		      offsetof(typeof(*key), both.offset) / 4,
+		      offsetof(typeof(*key), both.offset) / sizeof(u32),
 		      key->both.offset);
-	return &futex_queues[hash & futex_hashmask];
+	node = key->both.node;
+
+	if (node == FUTEX_NO_NODE) {
+		/*
+		 * In case of !FLAGS_NUMA, use some unused hash bits to pick a
+		 * node -- this ensures regular futexes are interleaved across
+		 * the nodes and avoids having to allocate multiple
+		 * hash-tables.
+		 *
+		 * NOTE: this isn't perfectly uniform, but it is fast and
+		 * handles sparse node masks.
+		 */
+		node = (hash >> futex_hashshift) % nr_node_ids;
+		if (!node_possible(node)) {
+			node = find_next_bit_wrap(node_possible_map.bits,
+						  nr_node_ids, node);
+		}
+	}
+
+	return &futex_queues[node][hash & futex_hashmask];
 }
 
 /**
@@ -454,24 +479,48 @@ int get_futex_key(u32 __user *uaddr, unsigned int flags, union futex_key *key,
 	struct page *page;
 	struct folio *folio;
 	struct address_space *mapping;
-	int err, ro = 0;
+	int node, err, size, ro = 0;
 	bool fshared;
 
 	fshared = flags & FLAGS_SHARED;
+	size = futex_size(flags);
+	if (flags & FLAGS_NUMA)
+		size *= 2;
 
 	/*
 	 * The futex address must be "naturally" aligned.
 	 */
 	key->both.offset = address % PAGE_SIZE;
-	if (unlikely((address % sizeof(u32)) != 0))
+	if (unlikely((address % size) != 0))
 		return -EINVAL;
 	address -= key->both.offset;
 
-	if (unlikely(!access_ok(uaddr, sizeof(u32))))
+	if (unlikely(!access_ok(uaddr, size)))
 		return -EFAULT;
 
 	if (unlikely(should_fail_futex(fshared)))
 		return -EFAULT;
+
+	if (flags & FLAGS_NUMA) {
+		u32 __user *naddr = (void *)uaddr + size / 2;
+
+		if (futex_get_value(&node, naddr))
+			return -EFAULT;
+
+		if (node == FUTEX_NO_NODE) {
+			node = numa_node_id();
+			if (futex_put_value(node, naddr))
+				return -EFAULT;
+
+		} else if (node >= MAX_NUMNODES || !node_possible(node)) {
+			return -EINVAL;
+		}
+
+		key->both.node = node;
+
+	} else {
+		key->both.node = FUTEX_NO_NODE;
+	}
 
 	/*
 	 * PROCESS_PRIVATE futexes are fast.
@@ -1642,24 +1691,41 @@ int futex_hash_prctl(unsigned long arg2, unsigned long arg3, unsigned long arg4)
 static int __init futex_init(void)
 {
 	unsigned long hashsize, i;
-	unsigned int futex_shift;
+	unsigned int order, n;
+	unsigned long size;
 
 #ifdef CONFIG_BASE_SMALL
 	hashsize = 16;
 #else
-	hashsize = roundup_pow_of_two(256 * num_possible_cpus());
+	hashsize = 256 * num_possible_cpus();
+	hashsize /= num_possible_nodes();
+	hashsize = max(4, hashsize);
+	hashsize = roundup_pow_of_two(hashsize);
 #endif
+	futex_hashshift = ilog2(hashsize);
+	size = sizeof(struct futex_hash_bucket) * hashsize;
+	order = get_order(size);
 
-	futex_queues = alloc_large_system_hash("futex", sizeof(*futex_queues),
-					       hashsize, 0, 0,
-					       &futex_shift, NULL,
-					       hashsize, hashsize);
-	hashsize = 1UL << futex_shift;
+	for_each_node(n) {
+		struct futex_hash_bucket *table;
 
-	for (i = 0; i < hashsize; i++)
-		futex_hash_bucket_init(&futex_queues[i], NULL);
+		if (order > MAX_PAGE_ORDER)
+			table = vmalloc_huge_node(size, GFP_KERNEL, n);
+		else
+			table = alloc_pages_exact_nid(n, size, GFP_KERNEL);
+
+		BUG_ON(!table);
+
+		for (i = 0; i < hashsize; i++)
+			futex_hash_bucket_init(&table[i], NULL);
+
+		futex_queues[n] = table;
+	}
 
 	futex_hashmask = hashsize - 1;
+	pr_info("futex hash table entries: %lu (%lu bytes on %d NUMA nodes, total %lu KiB, %s).\n",
+		hashsize, size, num_possible_nodes(), size * num_possible_nodes() / 1024,
+		order > MAX_PAGE_ORDER ? "vmalloc" : "linear");
 	return 0;
 }
 core_initcall(futex_init);

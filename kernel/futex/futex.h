@@ -54,7 +54,7 @@ static inline unsigned int futex_to_flags(unsigned int op)
 	return flags;
 }
 
-#define FUTEX2_VALID_MASK (FUTEX2_SIZE_MASK | FUTEX2_PRIVATE)
+#define FUTEX2_VALID_MASK (FUTEX2_SIZE_MASK | FUTEX2_NUMA | FUTEX2_PRIVATE)
 
 /* FUTEX2_ to FLAGS_ */
 static inline unsigned int futex2_to_flags(unsigned int flags2)
@@ -86,6 +86,19 @@ static inline bool futex_flags_valid(unsigned int flags)
 	/* Only 32bit futexes are implemented -- for now */
 	if ((flags & FLAGS_SIZE_MASK) != FLAGS_SIZE_32)
 		return false;
+
+	/*
+	 * Must be able to represent both FUTEX_NO_NODE and every valid nodeid
+	 * in a futex word.
+	 */
+	if (flags & FLAGS_NUMA) {
+		int bits = 8 * futex_size(flags);
+		u64 max = ~0ULL;
+
+		max >>= 64 - bits;
+		if (nr_node_ids >= max)
+			return false;
+	}
 
 	return true;
 }
@@ -282,7 +295,7 @@ static inline int futex_cmpxchg_value_locked(u32 *curval, u32 __user *uaddr, u32
  * This looks a bit overkill, but generally just results in a couple
  * of instructions.
  */
-static __always_inline int futex_read_inatomic(u32 *dest, u32 __user *from)
+static __always_inline int futex_get_value(u32 *dest, u32 __user *from)
 {
 	u32 val;
 
@@ -299,12 +312,26 @@ Efault:
 	return -EFAULT;
 }
 
+static __always_inline int futex_put_value(u32 val, u32 __user *to)
+{
+	if (can_do_masked_user_access())
+		to = masked_user_access_begin(to);
+	else if (!user_read_access_begin(to, sizeof(*to)))
+		return -EFAULT;
+	unsafe_put_user(val, to, Efault);
+	user_read_access_end();
+	return 0;
+Efault:
+	user_read_access_end();
+	return -EFAULT;
+}
+
 static inline int futex_get_value_locked(u32 *dest, u32 __user *from)
 {
 	int ret;
 
 	pagefault_disable();
-	ret = futex_read_inatomic(dest, from);
+	ret = futex_get_value(dest, from);
 	pagefault_enable();
 
 	return ret;
