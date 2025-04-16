@@ -114,7 +114,6 @@ static inline bool save_xstate_epilog(void __user *buf, int ia32_frame,
 {
 	struct xregs_state __user *x = buf;
 	struct _fpx_sw_bytes sw_bytes = {};
-	u32 xfeatures;
 	int err;
 
 	/* Setup the bytes not touched by the [f]xsave and reserved for SW. */
@@ -128,12 +127,6 @@ static inline bool save_xstate_epilog(void __user *buf, int ia32_frame,
 			  (__u32 __user *)(buf + fpstate->user_size));
 
 	/*
-	 * Read the xfeatures which we copied (directly from the cpu or
-	 * from the state in task struct) to the user buffers.
-	 */
-	err |= __get_user(xfeatures, (__u32 __user *)&x->header.xfeatures);
-
-	/*
 	 * For legacy compatible, we always set FP/SSE bits in the bit
 	 * vector while saving the state to the user context. This will
 	 * enable us capturing any changes(during sigreturn) to
@@ -144,9 +137,7 @@ static inline bool save_xstate_epilog(void __user *buf, int ia32_frame,
 	 * header as well as change any contents in the memory layout.
 	 * xrestore as part of sigreturn will capture all the changes.
 	 */
-	xfeatures |= XFEATURE_MASK_FPSSE;
-
-	err |= __put_user(xfeatures, (__u32 __user *)&x->header.xfeatures);
+	err |= set_xfeature_in_sigframe(x, XFEATURE_MASK_FPSSE);
 
 	return !err;
 }
