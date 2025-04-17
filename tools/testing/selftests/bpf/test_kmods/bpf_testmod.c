@@ -134,6 +134,10 @@ bpf_testmod_test_arg_ptr_to_struct(struct bpf_testmod_struct_arg_1 *a) {
 	return bpf_testmod_test_struct_arg_result;
 }
 
+__weak noinline void bpf_testmod_looooooooooooooooooooooooooooooong_name(void)
+{
+}
+
 __bpf_kfunc void
 bpf_testmod_test_mod_kfunc(int i)
 {
