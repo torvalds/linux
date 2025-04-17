@@ -16,6 +16,7 @@
 #include <linux/device.h>
 #include <linux/jiffies.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include <linux/of.h>
 
 #define	DRIVER_NAME "tmp102"
@@ -203,6 +204,10 @@ static int tmp102_probe(struct i2c_client *client)
 			"adapter doesn't support SMBus word transactions\n");
 		return -ENODEV;
 	}
+
+	err = devm_regulator_get_enable_optional(dev, "vcc");
+	if (err < 0 && err != -ENODEV)
+		return dev_err_probe(dev, err, "Failed to enable regulator\n");
 
 	tmp102 = devm_kzalloc(dev, sizeof(*tmp102), GFP_KERNEL);
 	if (!tmp102)
