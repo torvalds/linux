@@ -34,7 +34,7 @@ config MTD_NAND_DENALI_DT
 config MTD_NAND_AMS_DELTA
 	tristate "Amstrad E3 NAND controller"
 	depends on MACH_AMS_DELTA || COMPILE_TEST
-	default y
+	default MACH_AMS_DELTA
 	help
 	  Support for NAND flash on Amstrad E3 (Delta).
 
