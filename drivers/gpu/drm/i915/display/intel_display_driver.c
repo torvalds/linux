@@ -458,8 +458,6 @@ int intel_display_driver_probe_nogem(struct intel_display *display)
 
 	intel_hti_init(display);
 
-	/* Just disable it once at startup */
-	intel_vga_disable(display);
 	intel_setup_outputs(display);
 
 	ret = intel_dp_tunnel_mgr_init(display);
@@ -696,7 +694,6 @@ __intel_display_driver_resume(struct intel_display *display,
 	int ret, i;
 
 	intel_modeset_setup_hw_state(display, ctx);
-	intel_vga_redisable(display);
 
 	if (!state)
 		return 0;

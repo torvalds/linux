@@ -77,28 +77,6 @@ void intel_vga_disable(struct intel_display *display)
 	intel_de_posting_read(display, vga_reg);
 }
 
-void intel_vga_redisable(struct intel_display *display)
-{
-	intel_wakeref_t wakeref;
-
-	/*
-	 * This function can be called both from intel_modeset_setup_hw_state or
-	 * at a very early point in our resume sequence, where the power well
-	 * structures are not yet restored. Since this function is at a very
-	 * paranoid "someone might have enabled VGA while we were not looking"
-	 * level, just check if the power well is enabled instead of trying to
-	 * follow the "don't touch the power well if we don't need it" policy
-	 * the rest of the driver uses.
-	 */
-	wakeref = intel_display_power_get_if_enabled(display, POWER_DOMAIN_VGA);
-	if (!wakeref)
-		return;
-
-	intel_vga_disable(display);
-
-	intel_display_power_put(display, POWER_DOMAIN_VGA, wakeref);
-}
-
 void intel_vga_reset_io_mem(struct intel_display *display)
 {
 	struct pci_dev *pdev = to_pci_dev(display->drm->dev);

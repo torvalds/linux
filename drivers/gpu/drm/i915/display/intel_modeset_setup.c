@@ -31,6 +31,7 @@
 #include "intel_pmdemand.h"
 #include "intel_tc.h"
 #include "intel_vblank.h"
+#include "intel_vga.h"
 #include "intel_wm.h"
 #include "skl_watermark.h"
 
@@ -935,6 +936,8 @@ void intel_modeset_setup_hw_state(struct intel_display *display,
 	wakeref = intel_display_power_get(display, POWER_DOMAIN_INIT);
 
 	intel_early_display_was(display);
+	intel_vga_disable(display);
+
 	intel_modeset_readout_hw_state(display);
 
 	/* HW state is read out, now we need to sanitize this mess. */

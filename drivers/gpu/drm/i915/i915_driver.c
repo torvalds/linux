@@ -62,7 +62,6 @@
 #include "display/intel_pch_refclk.h"
 #include "display/intel_pps.h"
 #include "display/intel_sprite_uapi.h"
-#include "display/intel_vga.h"
 #include "display/skl_watermark.h"
 
 #include "gem/i915_gem_context.h"
@@ -1201,8 +1200,6 @@ static int i915_drm_resume(struct drm_device *dev)
 	intel_dmc_resume(display);
 
 	i9xx_display_sr_restore(display);
-
-	intel_vga_redisable(display);
 
 	intel_gmbus_reset(display);
 
