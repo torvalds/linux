@@ -44,7 +44,8 @@ amdgpu_userqueue_cleanup(struct amdgpu_userq_mgr *uq_mgr,
 	if (f && !dma_fence_is_signaled(f)) {
 		ret = dma_fence_wait_timeout(f, true, msecs_to_jiffies(100));
 		if (ret <= 0) {
-			DRM_ERROR("Timed out waiting for fence f=%p\n", f);
+			DRM_ERROR("Timed out waiting for fence=%llu:%llu\n",
+				  f->context, f->seqno);
 			return;
 		}
 	}
@@ -654,7 +655,8 @@ amdgpu_userqueue_wait_for_signal(struct amdgpu_userq_mgr *uq_mgr)
 			continue;
 		ret = dma_fence_wait_timeout(f, true, msecs_to_jiffies(100));
 		if (ret <= 0) {
-			DRM_ERROR("Timed out waiting for fence f=%p\n", f);
+			DRM_ERROR("Timed out waiting for fence=%llu:%llu\n",
+				  f->context, f->seqno);
 			return -ETIMEDOUT;
 		}
 	}
