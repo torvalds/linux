@@ -8,17 +8,22 @@
 #include <linux/consolemap.h>
 #include <linux/minmax.h>
 
-struct ucs_interval {
+struct ucs_interval16 {
+	u16 first;
+	u16 last;
+};
+
+struct ucs_interval32 {
 	u32 first;
 	u32 last;
 };
 
 #include "ucs_width_table.h"
 
-static int interval_cmp(const void *key, const void *element)
+static int interval16_cmp(const void *key, const void *element)
 {
-	u32 cp = *(u32 *)key;
-	const struct ucs_interval *entry = element;
+	u16 cp = *(u16 *)key;
+	const struct ucs_interval16 *entry = element;
 
 	if (cp < entry->first)
 		return -1;
@@ -27,14 +32,37 @@ static int interval_cmp(const void *key, const void *element)
 	return 0;
 }
 
-static bool cp_in_range(u32 cp, const struct ucs_interval *ranges, size_t size)
+static int interval32_cmp(const void *key, const void *element)
+{
+	u32 cp = *(u32 *)key;
+	const struct ucs_interval32 *entry = element;
+
+	if (cp < entry->first)
+		return -1;
+	if (cp > entry->last)
+		return 1;
+	return 0;
+}
+
+static bool cp_in_range16(u16 cp, const struct ucs_interval16 *ranges, size_t size)
 {
 	if (!in_range(cp, ranges[0].first, ranges[size - 1].last))
 		return false;
 
 	return __inline_bsearch(&cp, ranges, size, sizeof(*ranges),
-				interval_cmp) != NULL;
+				interval16_cmp) != NULL;
 }
+
+static bool cp_in_range32(u32 cp, const struct ucs_interval32 *ranges, size_t size)
+{
+	if (!in_range(cp, ranges[0].first, ranges[size - 1].last))
+		return false;
+
+	return __inline_bsearch(&cp, ranges, size, sizeof(*ranges),
+				interval32_cmp) != NULL;
+}
+
+#define UCS_IS_BMP(cp)	((cp) <= 0xffff)
 
 /**
  * ucs_is_zero_width() - Determine if a Unicode code point is zero-width.
@@ -44,8 +72,12 @@ static bool cp_in_range(u32 cp, const struct ucs_interval *ranges, size_t size)
  */
 bool ucs_is_zero_width(u32 cp)
 {
-	return cp_in_range(cp, ucs_zero_width_ranges,
-			   ARRAY_SIZE(ucs_zero_width_ranges));
+	if (UCS_IS_BMP(cp))
+		return cp_in_range16(cp, ucs_zero_width_bmp_ranges,
+				     ARRAY_SIZE(ucs_zero_width_bmp_ranges));
+	else
+		return cp_in_range32(cp, ucs_zero_width_non_bmp_ranges,
+				     ARRAY_SIZE(ucs_zero_width_non_bmp_ranges));
 }
 
 /**
@@ -56,8 +88,12 @@ bool ucs_is_zero_width(u32 cp)
  */
 bool ucs_is_double_width(u32 cp)
 {
-	return cp_in_range(cp, ucs_double_width_ranges,
-			   ARRAY_SIZE(ucs_double_width_ranges));
+	if (UCS_IS_BMP(cp))
+		return cp_in_range16(cp, ucs_double_width_bmp_ranges,
+				     ARRAY_SIZE(ucs_double_width_bmp_ranges));
+	else
+		return cp_in_range32(cp, ucs_double_width_non_bmp_ranges,
+				     ARRAY_SIZE(ucs_double_width_non_bmp_ranges));
 }
 
 /*
