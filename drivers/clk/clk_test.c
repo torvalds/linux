@@ -3403,8 +3403,148 @@ static struct kunit_suite clk_assigned_rates_suite = {
 	.init = clk_assigned_rates_test_init,
 };
 
+static const struct clk_init_data clk_hw_get_dev_of_node_init_data = {
+	.name = "clk_hw_get_dev_of_node",
+	.ops = &empty_clk_ops,
+};
+
+/*
+ * Test that a clk registered with a struct device returns the device from
+ * clk_hw_get_dev() and the node from clk_hw_get_of_node()
+ */
+static void clk_hw_register_dev_get_dev_returns_dev(struct kunit *test)
+{
+	struct device *dev;
+	struct clk_hw *hw;
+	static const struct of_device_id match_table[] = {
+		{ .compatible = "test,clk-hw-get-dev-of-node" },
+		{ }
+	};
+
+	KUNIT_ASSERT_EQ(test, 0, of_overlay_apply_kunit(test, kunit_clk_hw_get_dev_of_node));
+
+	dev = kunit_of_platform_driver_dev(test, match_table);
+
+	hw = kunit_kzalloc(test, sizeof(*hw), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, hw);
+
+	hw->init = &clk_hw_get_dev_of_node_init_data;
+	KUNIT_ASSERT_EQ(test, 0, clk_hw_register_kunit(test, dev, hw));
+
+	KUNIT_EXPECT_PTR_EQ(test, dev, clk_hw_get_dev(hw));
+	KUNIT_EXPECT_PTR_EQ(test, dev_of_node(dev), clk_hw_get_of_node(hw));
+}
+
+/*
+ * Test that a clk registered with a struct device that's not associated with
+ * an OF node returns the device from clk_hw_get_dev() and NULL from
+ * clk_hw_get_of_node()
+ */
+static void clk_hw_register_dev_no_node_get_dev_returns_dev(struct kunit *test)
+{
+	struct platform_device *pdev;
+	struct device *dev;
+	struct clk_hw *hw;
+
+	pdev = kunit_platform_device_alloc(test, "clk_hw_register_dev_no_node", -1);
+	KUNIT_ASSERT_NOT_NULL(test, pdev);
+	KUNIT_ASSERT_EQ(test, 0, kunit_platform_device_add(test, pdev));
+	dev = &pdev->dev;
+
+	hw = kunit_kzalloc(test, sizeof(*hw), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, hw);
+
+	hw->init = &clk_hw_get_dev_of_node_init_data;
+	KUNIT_ASSERT_EQ(test, 0, clk_hw_register_kunit(test, dev, hw));
+
+	KUNIT_EXPECT_PTR_EQ(test, dev, clk_hw_get_dev(hw));
+	KUNIT_EXPECT_PTR_EQ(test, NULL, clk_hw_get_of_node(hw));
+}
+
+/*
+ * Test that a clk registered without a struct device returns NULL from
+ * clk_hw_get_dev()
+ */
+static void clk_hw_register_NULL_get_dev_of_node_returns_NULL(struct kunit *test)
+{
+	struct clk_hw *hw;
+
+	hw = kunit_kzalloc(test, sizeof(*hw), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, hw);
+
+	hw->init = &clk_hw_get_dev_of_node_init_data;
+
+	KUNIT_ASSERT_EQ(test, 0, clk_hw_register_kunit(test, NULL, hw));
+
+	KUNIT_EXPECT_PTR_EQ(test, NULL, clk_hw_get_dev(hw));
+	KUNIT_EXPECT_PTR_EQ(test, NULL, clk_hw_get_of_node(hw));
+}
+
+/*
+ * Test that a clk registered with an of_node returns the node from
+ * clk_hw_get_of_node() and NULL from clk_hw_get_dev()
+ */
+static void of_clk_hw_register_node_get_of_node_returns_node(struct kunit *test)
+{
+	struct device_node *np;
+	struct clk_hw *hw;
+
+	hw = kunit_kzalloc(test, sizeof(*hw), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, hw);
+
+	KUNIT_ASSERT_EQ(test, 0, of_overlay_apply_kunit(test, kunit_clk_hw_get_dev_of_node));
+
+	np = of_find_compatible_node(NULL, NULL, "test,clk-hw-get-dev-of-node");
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, np);
+	of_node_put_kunit(test, np);
+
+	hw->init = &clk_hw_get_dev_of_node_init_data;
+	KUNIT_ASSERT_EQ(test, 0, of_clk_hw_register_kunit(test, np, hw));
+
+	KUNIT_EXPECT_PTR_EQ(test, NULL, clk_hw_get_dev(hw));
+	KUNIT_EXPECT_PTR_EQ(test, np, clk_hw_get_of_node(hw));
+}
+
+/*
+ * Test that a clk registered without an of_node returns the node from
+ * clk_hw_get_of_node() and clk_hw_get_dev()
+ */
+static void of_clk_hw_register_NULL_get_of_node_returns_NULL(struct kunit *test)
+{
+	struct clk_hw *hw;
+
+	hw = kunit_kzalloc(test, sizeof(*hw), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, hw);
+
+	hw->init = &clk_hw_get_dev_of_node_init_data;
+	KUNIT_ASSERT_EQ(test, 0, of_clk_hw_register_kunit(test, NULL, hw));
+
+	KUNIT_EXPECT_PTR_EQ(test, NULL, clk_hw_get_dev(hw));
+	KUNIT_EXPECT_PTR_EQ(test, NULL, clk_hw_get_of_node(hw));
+}
+
+static struct kunit_case clk_hw_get_dev_of_node_test_cases[] = {
+	KUNIT_CASE(clk_hw_register_dev_get_dev_returns_dev),
+	KUNIT_CASE(clk_hw_register_dev_no_node_get_dev_returns_dev),
+	KUNIT_CASE(clk_hw_register_NULL_get_dev_of_node_returns_NULL),
+	KUNIT_CASE(of_clk_hw_register_node_get_of_node_returns_node),
+	KUNIT_CASE(of_clk_hw_register_NULL_get_of_node_returns_NULL),
+	{}
+};
+
+/*
+ * Test suite to verify clk_hw_get_dev() and clk_hw_get_of_node() when clk
+ * registered with clk_hw_register() and of_clk_hw_register()
+ */
+static struct kunit_suite clk_hw_get_dev_of_node_test_suite = {
+	.name = "clk_hw_get_dev_of_node_test_suite",
+	.test_cases = clk_hw_get_dev_of_node_test_cases,
+};
+
+
 kunit_test_suites(
 	&clk_assigned_rates_suite,
+	&clk_hw_get_dev_of_node_test_suite,
 	&clk_leaf_mux_set_rate_parent_test_suite,
 	&clk_test_suite,
 	&clk_multiple_parents_mux_test_suite,
