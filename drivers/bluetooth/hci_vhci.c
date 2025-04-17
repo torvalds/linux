@@ -289,18 +289,18 @@ static void vhci_coredump(struct hci_dev *hdev)
 
 static void vhci_coredump_hdr(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	char buf[80];
+	const char *buf;
 
-	snprintf(buf, sizeof(buf), "Controller Name: vhci_ctrl\n");
+	buf = "Controller Name: vhci_ctrl\n";
 	skb_put_data(skb, buf, strlen(buf));
 
-	snprintf(buf, sizeof(buf), "Firmware Version: vhci_fw\n");
+	buf = "Firmware Version: vhci_fw\n";
 	skb_put_data(skb, buf, strlen(buf));
 
-	snprintf(buf, sizeof(buf), "Driver: vhci_drv\n");
+	buf = "Driver: vhci_drv\n";
 	skb_put_data(skb, buf, strlen(buf));
 
-	snprintf(buf, sizeof(buf), "Vendor: vhci\n");
+	buf = "Vendor: vhci\n";
 	skb_put_data(skb, buf, strlen(buf));
 }
 
