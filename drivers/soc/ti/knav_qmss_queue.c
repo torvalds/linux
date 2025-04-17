@@ -252,8 +252,7 @@ static struct knav_queue *__knav_queue_open(struct knav_queue_inst *inst,
 	return qh;
 
 err:
-	if (qh->stats)
-		free_percpu(qh->stats);
+	free_percpu(qh->stats);
 	devm_kfree(inst->kdev->dev, qh);
 	return ERR_PTR(ret);
 }
