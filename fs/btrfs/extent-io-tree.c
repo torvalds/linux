@@ -1199,13 +1199,7 @@ hit_next:
 	 * extent we found.
 	 */
 	if (state->start > start) {
-		u64 this_end;
 		struct extent_state *inserted_state;
-
-		if (end < last_start)
-			this_end = end;
-		else
-			this_end = last_start - 1;
 
 		prealloc = alloc_extent_state_atomic(prealloc);
 		if (!prealloc)
@@ -1216,7 +1210,11 @@ hit_next:
 		 * extent.
 		 */
 		prealloc->start = start;
-		prealloc->end = this_end;
+		if (end < last_start)
+			prealloc->end = end;
+		else
+			prealloc->end = last_start - 1;
+
 		inserted_state = insert_state(tree, prealloc, bits, changeset);
 		if (IS_ERR(inserted_state)) {
 			ret = PTR_ERR(inserted_state);
@@ -1227,7 +1225,7 @@ hit_next:
 		cache_state(inserted_state, cached_state);
 		if (inserted_state == prealloc)
 			prealloc = NULL;
-		start = this_end + 1;
+		start = inserted_state->end + 1;
 		goto search_again;
 	}
 	/*
