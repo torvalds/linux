@@ -39,7 +39,7 @@ struct gpib_close_dev_ioctl {
 struct gpib_serial_poll_ioctl {
 	unsigned int pad;
 	int sad;
-	uint8_t status_byte;
+	__u8 status_byte;
 };
 
 struct gpib_eos_ioctl {
@@ -87,7 +87,7 @@ struct gpib_select_pci_ioctl {
 };
 
 struct gpib_ppoll_config_ioctl {
-	uint8_t config;
+	__u8 config;
 	unsigned set_ist : 1;
 	unsigned clear_ist : 1;
 };
@@ -109,7 +109,7 @@ struct gpib_select_device_path_ioctl {
 
 // update status byte and request service
 struct gpib_request_service2 {
-	uint8_t status_byte;
+	__u8 status_byte;
 	int new_reason_for_service;
 };
 
@@ -121,7 +121,7 @@ enum gpib_ioctl {
 	IBOPENDEV = _IOWR(GPIB_CODE, 3, struct gpib_open_dev_ioctl),
 	IBCLOSEDEV = _IOW(GPIB_CODE, 4, struct gpib_close_dev_ioctl),
 	IBWAIT = _IOWR(GPIB_CODE, 5, struct gpib_wait_ioctl),
-	IBRPP = _IOWR(GPIB_CODE, 6, uint8_t),
+	IBRPP = _IOWR(GPIB_CODE, 6, __u8),
 
 	IBSIC = _IOW(GPIB_CODE, 9, unsigned int),
 	IBSRE = _IOW(GPIB_CODE, 10, int),
@@ -133,7 +133,7 @@ enum gpib_ioctl {
 	IBTMO = _IOW(GPIB_CODE, 17, unsigned int),
 	IBRSP = _IOWR(GPIB_CODE, 18, struct gpib_serial_poll_ioctl),
 	IBEOS = _IOW(GPIB_CODE, 19, struct gpib_eos_ioctl),
-	IBRSV = _IOW(GPIB_CODE, 20, uint8_t),
+	IBRSV = _IOW(GPIB_CODE, 20, __u8),
 	CFCBASE = _IOW(GPIB_CODE, 21, uint64_t),
 	CFCIRQ = _IOW(GPIB_CODE, 22, unsigned int),
 	CFCDMA = _IOW(GPIB_CODE, 23, unsigned int),
