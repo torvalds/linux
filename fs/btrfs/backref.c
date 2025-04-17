@@ -3617,7 +3617,7 @@ int btrfs_backref_finish_upper_links(struct btrfs_backref_cache *cache,
 
 		/* Sanity check, we shouldn't have any unchecked nodes */
 		if (!upper->checked) {
-			ASSERT(0);
+			DEBUG_WARN("we should not have any unchecked nodes");
 			return -EUCLEAN;
 		}
 

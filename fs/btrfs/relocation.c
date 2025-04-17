@@ -1931,11 +1931,11 @@ static int record_reloc_root_in_trans(struct btrfs_trans_handle *trans,
 	 * reloc root without a corresponding root this could return ENOENT.
 	 */
 	if (IS_ERR(root)) {
-		ASSERT(0);
+		DEBUG_WARN("error %ld reading root for reloc root", PTR_ERR(root));
 		return PTR_ERR(root);
 	}
 	if (root->reloc_root != reloc_root) {
-		ASSERT(0);
+		DEBUG_WARN("unexpected reloc root found");
 		btrfs_err(fs_info,
 			  "root %llu has two reloc roots associated with it",
 			  reloc_root->root_key.offset);

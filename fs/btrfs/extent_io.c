@@ -3274,7 +3274,7 @@ reallocate:
 		 * using 0-order folios.
 		 */
 		if (unlikely(ret == -EAGAIN)) {
-			ASSERT(0);
+			DEBUG_WARN("folio order mismatch between new eb and filemap");
 			goto reallocate;
 		}
 		attached++;
