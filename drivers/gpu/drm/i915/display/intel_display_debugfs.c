@@ -7,11 +7,12 @@
 #include <linux/string_helpers.h>
 
 #include <drm/drm_debugfs.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_file.h>
 #include <drm/drm_fourcc.h>
 
 #include "hsw_ips.h"
-#include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
 #include "i9xx_wm_regs.h"

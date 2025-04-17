@@ -4,12 +4,15 @@
  */
 
 #include <linux/delay.h>
+#include <linux/pci.h>
 #include <linux/vgaarb.h>
 
+#include <drm/drm_device.h>
+#include <drm/drm_print.h>
 #include <video/vga.h>
+
 #include "soc/intel_gmch.h"
 
-#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_de.h"
 #include "intel_vga.h"

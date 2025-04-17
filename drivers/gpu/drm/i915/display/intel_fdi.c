@@ -6,15 +6,16 @@
 #include <linux/string_helpers.h>
 
 #include <drm/drm_fixed.h>
+#include <drm/drm_print.h>
 
-#include "i915_drv.h"
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "intel_atomic.h"
 #include "intel_crtc.h"
 #include "intel_ddi.h"
 #include "intel_de.h"
-#include "intel_dp.h"
 #include "intel_display_types.h"
+#include "intel_dp.h"
 #include "intel_fdi.h"
 #include "intel_fdi_regs.h"
 #include "intel_link_bw.h"

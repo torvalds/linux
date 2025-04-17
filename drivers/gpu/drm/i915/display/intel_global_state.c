@@ -3,10 +3,13 @@
  * Copyright © 2020 Intel Corporation
  */
 
+#include <linux/pci.h>
 #include <linux/string.h>
 
-#include "i915_drv.h"
+#include <drm/drm_print.h>
+
 #include "intel_atomic.h"
+#include "intel_display_core.h"
 #include "intel_display_types.h"
 #include "intel_global_state.h"
 

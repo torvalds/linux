@@ -3,11 +3,13 @@
  * Copyright © 2023 Intel Corporation
  */
 
-#include <drm/intel/pciids.h>
-#include <drm/drm_color_mgmt.h>
 #include <linux/pci.h>
 
-#include "i915_drv.h"
+#include <drm/drm_color_mgmt.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_print.h>
+#include <drm/intel/pciids.h>
+
 #include "i915_reg.h"
 #include "intel_cx0_phy_regs.h"
 #include "intel_de.h"
