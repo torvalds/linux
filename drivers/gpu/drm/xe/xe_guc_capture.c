@@ -1672,18 +1672,16 @@ snapshot_print_by_list_order(struct xe_hw_engine_snapshot *snapshot, struct drm_
 {
 	struct xe_gt *gt = snapshot->hwe->gt;
 	struct xe_device *xe = gt_to_xe(gt);
-	struct xe_guc *guc = &gt->uc.guc;
 	struct xe_devcoredump *devcoredump = &xe->devcoredump;
 	struct xe_devcoredump_snapshot *devcore_snapshot = &devcoredump->snapshot;
 	struct gcap_reg_list_info *reginfo = NULL;
 	u32 i, last_value = 0;
-	bool is_ext, low32_ready = false;
+	bool low32_ready = false;
 
 	if (!list || !list->list || list->num_regs == 0)
 		return;
 	XE_WARN_ON(!devcore_snapshot->matched_node);
 
-	is_ext = list == guc->capture->extlists;
 	reginfo = &devcore_snapshot->matched_node->reginfo[type];
 
 	/*
@@ -1749,7 +1747,7 @@ snapshot_print_by_list_order(struct xe_hw_engine_snapshot *snapshot, struct drm_
 			 */
 			XE_WARN_ON(low32_ready);
 
-			if (is_ext) {
+			if (FIELD_GET(GUC_REGSET_STEERING_NEEDED, reg_desc->flags)) {
 				int dss, group, instance;
 
 				group = FIELD_GET(GUC_REGSET_STEERING_GROUP, reg_desc->flags);
