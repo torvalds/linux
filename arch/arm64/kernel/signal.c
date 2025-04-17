@@ -1479,6 +1479,7 @@ static int setup_return(struct pt_regs *regs, struct ksignal *ksig,
 		}
 
 		current->thread.svcr &= ~(SVCR_ZA_MASK | SVCR_SM_MASK);
+		write_sysreg_s(0, SYS_TPIDR2_EL0);
 	}
 
 	return 0;

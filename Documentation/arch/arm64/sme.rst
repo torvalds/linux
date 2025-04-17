@@ -115,7 +115,7 @@ be zeroed.
 5.  Signal handling
 -------------------
 
-* Signal handlers are invoked with streaming mode and ZA disabled.
+* Signal handlers are invoked with PSTATE.SM=0, PSTATE.ZA=0, and TPIDR2_EL0=0.
 
 * A new signal frame record TPIDR2_MAGIC is added formatted as a struct
   tpidr2_context to allow access to TPIDR2_EL0 from signal handlers.
