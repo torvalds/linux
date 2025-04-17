@@ -120,6 +120,9 @@ void
 acpi_ex_trace_point(acpi_trace_event_type type,
 		    u8 begin, u8 *aml, char *pathname);
 
+void
+acpi_ex_trace_args(union acpi_operand_object **params, u32 count);
+
 /*
  * exfield - ACPI AML (p-code) execution - field manipulation
  */
