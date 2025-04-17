@@ -1542,7 +1542,7 @@ static struct svc_xprt *svc_create_socket(struct svc_serv *serv,
 
 	if (protocol == IPPROTO_TCP) {
 		sk_net_refcnt_upgrade(sock->sk);
-		if ((error = kernel_listen(sock, 64)) < 0)
+		if ((error = kernel_listen(sock, SOMAXCONN)) < 0)
 			goto bummer;
 	}
 
