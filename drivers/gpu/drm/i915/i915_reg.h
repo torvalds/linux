@@ -1777,9 +1777,10 @@
 
 /* VBIOS regs */
 #define VGACNTRL		_MMIO(0x71400)
-# define VGA_DISP_DISABLE			(1 << 31)
-# define VGA_2X_MODE				(1 << 30)
-# define VGA_PIPE_B_SELECT			(1 << 29)
+#define   VGA_DISP_DISABLE			REG_BIT(31)
+#define   VGA_2X_MODE				REG_BIT(30)
+#define   VGA_PIPE_SEL_MASK			REG_BIT(29)
+#define   VGA_PIPE_SEL(pipe)			REG_FIELD_PREP(VGA_PIPE_SEL_MASK, (pipe))
 
 #define VLV_VGACNTRL		_MMIO(VLV_DISPLAY_BASE + 0x71400)
 
