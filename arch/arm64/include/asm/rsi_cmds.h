@@ -7,6 +7,8 @@
 #define __ASM_RSI_CMDS_H
 
 #include <linux/arm-smccc.h>
+#include <linux/string.h>
+#include <asm/memory.h>
 
 #include <asm/rsi_smc.h>
 
