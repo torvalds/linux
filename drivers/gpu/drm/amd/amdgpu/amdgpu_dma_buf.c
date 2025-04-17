@@ -77,7 +77,7 @@ static int amdgpu_dma_buf_pin(struct dma_buf_attachment *attach)
 {
 	struct dma_buf *dmabuf = attach->dmabuf;
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(dmabuf->priv);
-	u32 domains = bo->preferred_domains;
+	u32 domains = bo->allowed_domains;
 
 	dma_resv_assert_held(dmabuf->resv);
 
@@ -92,6 +92,9 @@ static int amdgpu_dma_buf_pin(struct dma_buf_attachment *attach)
 
 	if (domains & AMDGPU_GEM_DOMAIN_VRAM)
 		bo->flags |= AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
+
+	if (WARN_ON(!domains))
+		return -EINVAL;
 
 	return amdgpu_bo_pin(bo, domains);
 }
