@@ -18,7 +18,7 @@ struct gpib_board_type_ioctl {
 
 /* argument for read/write/command ioctls */
 struct gpib_read_write_ioctl {
-	uint64_t buffer_ptr;
+	__u64 buffer_ptr;
 	unsigned int requested_transfer_count;
 	unsigned int completed_transfer_count;
 	int end; /* end flag return for reads, end io suppression request for cmd*/
@@ -59,7 +59,7 @@ struct gpib_wait_ioctl {
 };
 
 struct gpib_online_ioctl {
-	uint64_t init_data_ptr;
+	__u64 init_data_ptr;
 	int init_data_length;
 	int online;
 };
@@ -134,7 +134,7 @@ enum gpib_ioctl {
 	IBRSP = _IOWR(GPIB_CODE, 18, struct gpib_serial_poll_ioctl),
 	IBEOS = _IOW(GPIB_CODE, 19, struct gpib_eos_ioctl),
 	IBRSV = _IOW(GPIB_CODE, 20, __u8),
-	CFCBASE = _IOW(GPIB_CODE, 21, uint64_t),
+	CFCBASE = _IOW(GPIB_CODE, 21, __u64),
 	CFCIRQ = _IOW(GPIB_CODE, 22, unsigned int),
 	CFCDMA = _IOW(GPIB_CODE, 23, unsigned int),
 	CFCBOARDTYPE = _IOW(GPIB_CODE, 24, struct gpib_board_type_ioctl),
