@@ -124,7 +124,7 @@ static int alcor_pci_probe(struct pci_dev *pdev,
 	ret = pcim_request_all_regions(pdev, DRV_NAME_ALCOR_PCI);
 	if (ret) {
 		dev_err(&pdev->dev, "Cannot request region\n");
-		ret = -ENOMEM;
+		ret = -EBUSY;
 		goto error_free_ida;
 	}
 
