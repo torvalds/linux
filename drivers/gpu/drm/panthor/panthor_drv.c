@@ -940,6 +940,7 @@ static int panthor_ioctl_bo_mmap_offset(struct drm_device *ddev, void *data,
 					struct drm_file *file)
 {
 	struct drm_panthor_bo_mmap_offset *args = data;
+	struct panthor_gem_object *bo;
 	struct drm_gem_object *obj;
 	int ret;
 
@@ -949,6 +950,12 @@ static int panthor_ioctl_bo_mmap_offset(struct drm_device *ddev, void *data,
 	obj = drm_gem_object_lookup(file, args->handle);
 	if (!obj)
 		return -ENOENT;
+
+	bo = to_panthor_bo(obj);
+	if (bo->flags & DRM_PANTHOR_BO_NO_MMAP) {
+		ret = -EPERM;
+		goto out;
+	}
 
 	ret = drm_gem_create_mmap_offset(obj);
 	if (ret)

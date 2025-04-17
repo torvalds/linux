@@ -129,17 +129,6 @@ err_free_bo:
 	return ERR_PTR(ret);
 }
 
-static int panthor_gem_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
-{
-	struct panthor_gem_object *bo = to_panthor_bo(obj);
-
-	/* Don't allow mmap on objects that have the NO_MMAP flag set. */
-	if (bo->flags & DRM_PANTHOR_BO_NO_MMAP)
-		return -EINVAL;
-
-	return drm_gem_shmem_object_mmap(obj, vma);
-}
-
 static struct dma_buf *
 panthor_gem_prime_export(struct drm_gem_object *obj, int flags)
 {
@@ -169,7 +158,7 @@ static const struct drm_gem_object_funcs panthor_gem_funcs = {
 	.get_sg_table = drm_gem_shmem_object_get_sg_table,
 	.vmap = drm_gem_shmem_object_vmap,
 	.vunmap = drm_gem_shmem_object_vunmap,
-	.mmap = panthor_gem_mmap,
+	.mmap = drm_gem_shmem_object_mmap,
 	.status = panthor_gem_status,
 	.export = panthor_gem_prime_export,
 	.vm_ops = &drm_gem_shmem_vm_ops,
