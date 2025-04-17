@@ -194,6 +194,27 @@ def write_tables(zero_width_ranges, double_width_ranges):
         double_width_ranges: List of (start, end) ranges for double-width characters
     """
 
+    # Function to split ranges into BMP (16-bit) and non-BMP (above 16-bit)
+    def split_ranges_by_size(ranges):
+        bmp_ranges = []
+        non_bmp_ranges = []
+
+        for start, end in ranges:
+            if end <= 0xFFFF:
+                bmp_ranges.append((start, end))
+            elif start > 0xFFFF:
+                non_bmp_ranges.append((start, end))
+            else:
+                # Split the range at 0xFFFF
+                bmp_ranges.append((start, 0xFFFF))
+                non_bmp_ranges.append((0x10000, end))
+
+        return bmp_ranges, non_bmp_ranges
+
+    # Split ranges into BMP and non-BMP
+    zero_width_bmp, zero_width_non_bmp = split_ranges_by_size(zero_width_ranges)
+    double_width_bmp, double_width_non_bmp = split_ranges_by_size(double_width_ranges)
+
     # Function to generate code point description comments
     def get_code_point_comment(start, end):
         try:
@@ -221,22 +242,44 @@ def write_tables(zero_width_ranges, double_width_ranges):
  * Unicode Version: {unicodedata.unidata_version}
  */
 
-/* Zero-width character ranges */
-static const struct ucs_interval ucs_zero_width_ranges[] = {{
+/* Zero-width character ranges (BMP - Basic Multilingual Plane, U+0000 to U+FFFF) */
+static const struct ucs_interval16 ucs_zero_width_bmp_ranges[] = {{
 """)
 
-        for start, end in zero_width_ranges:
+        for start, end in zero_width_bmp:
+            comment = get_code_point_comment(start, end)
+            f.write(f"\t{{ 0x{start:04X}, 0x{end:04X} }}, {comment}\n")
+
+        f.write("""\
+};
+
+/* Zero-width character ranges (non-BMP, U+10000 and above) */
+static const struct ucs_interval32 ucs_zero_width_non_bmp_ranges[] = {
+""")
+
+        for start, end in zero_width_non_bmp:
             comment = get_code_point_comment(start, end)
             f.write(f"\t{{ 0x{start:05X}, 0x{end:05X} }}, {comment}\n")
 
         f.write("""\
 };
 
-/* Double-width character ranges */
-static const struct ucs_interval ucs_double_width_ranges[] = {
+/* Double-width character ranges (BMP - Basic Multilingual Plane, U+0000 to U+FFFF) */
+static const struct ucs_interval16 ucs_double_width_bmp_ranges[] = {
 """)
 
-        for start, end in double_width_ranges:
+        for start, end in double_width_bmp:
+            comment = get_code_point_comment(start, end)
+            f.write(f"\t{{ 0x{start:04X}, 0x{end:04X} }}, {comment}\n")
+
+        f.write("""\
+};
+
+/* Double-width character ranges (non-BMP, U+10000 and above) */
+static const struct ucs_interval32 ucs_double_width_non_bmp_ranges[] = {
+""")
+
+        for start, end in double_width_non_bmp:
             comment = get_code_point_comment(start, end)
             f.write(f"\t{{ 0x{start:05X}, 0x{end:05X} }}, {comment}\n")
 
