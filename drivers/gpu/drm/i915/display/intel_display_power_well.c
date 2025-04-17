@@ -1256,7 +1256,7 @@ static void vlv_display_power_well_init(struct intel_display *display)
 			intel_crt_reset(&encoder->base);
 	}
 
-	intel_vga_redisable_power_on(display);
+	intel_vga_disable(display);
 
 	intel_pps_unlock_regs_wa(display);
 }

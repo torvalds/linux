@@ -77,17 +77,6 @@ void intel_vga_disable(struct intel_display *display)
 	intel_de_posting_read(display, vga_reg);
 }
 
-void intel_vga_redisable_power_on(struct intel_display *display)
-{
-	i915_reg_t vga_reg = intel_vga_cntrl_reg(display);
-
-	if (!(intel_de_read(display, vga_reg) & VGA_DISP_DISABLE)) {
-		drm_dbg_kms(display->drm,
-			    "Something enabled VGA plane, disabling it\n");
-		intel_vga_disable(display);
-	}
-}
-
 void intel_vga_redisable(struct intel_display *display)
 {
 	intel_wakeref_t wakeref;
@@ -105,7 +94,7 @@ void intel_vga_redisable(struct intel_display *display)
 	if (!wakeref)
 		return;
 
-	intel_vga_redisable_power_on(display);
+	intel_vga_disable(display);
 
 	intel_display_power_put(display, POWER_DOMAIN_VGA, wakeref);
 }
