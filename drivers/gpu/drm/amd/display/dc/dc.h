@@ -448,6 +448,7 @@ struct dc_config {
 	bool enable_windowed_mpo_odm;
 	bool forceHBR2CP2520; // Used for switching between test patterns TPS4 and CP2520
 	uint32_t allow_edp_hotplug_detection;
+	bool skip_riommu_prefetch_wa;
 	bool clamp_min_dcfclk;
 	uint64_t vblank_alignment_dto_params;
 	uint8_t  vblank_alignment_max_frame_time_diff;
