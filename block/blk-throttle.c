@@ -645,6 +645,18 @@ static void __tg_update_carryover(struct throtl_grp *tg, bool rw,
 	u32 iops_limit = tg_iops_limit(tg, rw);
 
 	/*
+	 * If the queue is empty, carryover handling is not needed. In such cases,
+	 * tg->[bytes/io]_disp should be reset to 0 to avoid impacting the dispatch
+	 * of subsequent bios. The same handling applies when the previous BPS/IOPS
+	 * limit was set to max.
+	 */
+	if (tg->service_queue.nr_queued[rw] == 0) {
+		tg->bytes_disp[rw] = 0;
+		tg->io_disp[rw] = 0;
+		return;
+	}
+
+	/*
 	 * If config is updated while bios are still throttled, calculate and
 	 * accumulate how many bytes/ios are waited across changes. And
 	 * carryover_bytes/ios will be used to calculate new wait time under new
@@ -656,8 +668,8 @@ static void __tg_update_carryover(struct throtl_grp *tg, bool rw,
 	if (iops_limit != UINT_MAX)
 		*ios = calculate_io_allowed(iops_limit, jiffy_elapsed) -
 			tg->io_disp[rw];
-	tg->bytes_disp[rw] -= *bytes;
-	tg->io_disp[rw] -= *ios;
+	tg->bytes_disp[rw] = -*bytes;
+	tg->io_disp[rw] = -*ios;
 }
 
 static void tg_update_carryover(struct throtl_grp *tg)
@@ -665,10 +677,8 @@ static void tg_update_carryover(struct throtl_grp *tg)
 	long long bytes[2] = {0};
 	int ios[2] = {0};
 
-	if (tg->service_queue.nr_queued[READ])
-		__tg_update_carryover(tg, READ, &bytes[READ], &ios[READ]);
-	if (tg->service_queue.nr_queued[WRITE])
-		__tg_update_carryover(tg, WRITE, &bytes[WRITE], &ios[WRITE]);
+	__tg_update_carryover(tg, READ, &bytes[READ], &ios[READ]);
+	__tg_update_carryover(tg, WRITE, &bytes[WRITE], &ios[WRITE]);
 
 	/* see comments in struct throtl_grp for meaning of these fields. */
 	throtl_log(&tg->service_queue, "%s: %lld %lld %d %d\n", __func__,
