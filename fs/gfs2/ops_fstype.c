@@ -64,8 +64,7 @@ static void gfs2_tune_init(struct gfs2_tune *gt)
 
 void free_sbd(struct gfs2_sbd *sdp)
 {
-	if (sdp->sd_lkstats)
-		free_percpu(sdp->sd_lkstats);
+	free_percpu(sdp->sd_lkstats);
 	kfree(sdp);
 }
 
