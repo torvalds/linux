@@ -2995,7 +2995,7 @@ static int vc_con_write_normal(struct vc_data *vc, int tc, int c,
 	/* Now try to find out how to display it */
 	tc = conv_uni_to_pc(vc, tc);
 	if (tc & ~charmask) {
-		if (tc == -1 || tc == -2)
+		if (tc == -1)
 			return -1; /* nothing to display */
 
 		/* Glyph not found */
