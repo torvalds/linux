@@ -2923,6 +2923,7 @@ static void vc_con_rewind(struct vc_data *vc)
 	vc->vc_need_wrap = 0;
 }
 
+#define UCS_ZWS		0x200b	/* Zero Width Space */
 #define UCS_VS16	0xfe0f	/* Variation Selector 16 */
 
 static int vc_process_ucs(struct vc_data *vc, int *c, int *tc)
@@ -2941,8 +2942,8 @@ static int vc_process_ucs(struct vc_data *vc, int *c, int *tc)
 		/*
 		 * Let's merge this zero-width code point with the preceding
 		 * double-width code point by replacing the existing
-		 * whitespace padding. To do so we rewind one column and
-		 * pretend this has a width of 1.
+		 * zero-width space padding. To do so we rewind one column
+		 * and pretend this has a width of 1.
 		 * We give the legacy display the same initial space padding.
 		 */
 		vc_con_rewind(vc);
@@ -3065,7 +3066,11 @@ static int vc_con_write_normal(struct vc_data *vc, int tc, int c,
 		tc = conv_uni_to_pc(vc, ' ');
 		if (tc < 0)
 			tc = ' ';
-		next_c = ' ';
+		/*
+		 * Store a zero-width space in the Unicode screen given that
+		 * the previous code point is semantically double width.
+		 */
+		next_c = UCS_ZWS;
 	}
 
 out:
