@@ -848,7 +848,6 @@
 };
 
 &serdes0 {
-	status = "okay";
 	serdes0_usb_link: phy@0 {
 		reg = <0>;
 		cdns,num-lanes = <1>;
@@ -863,7 +862,6 @@
 };
 
 &serdes1 {
-	status = "okay";
 	serdes1_pcie_link: phy@0 {
 		reg = <0>;
 		cdns,num-lanes = <1>;
