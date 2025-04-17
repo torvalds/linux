@@ -27,10 +27,10 @@ struct device;
  * @retry_support: indication that the hardware allows re-execution
  * of a failed backlog request
  * crypto-engine, in head position to keep order
+ * @rt: whether this queue is set to run as a realtime task
  * @list: link with the global crypto engine list
  * @queue_lock: spinlock to synchronise access to request queue
  * @queue: the crypto queue of the engine
- * @rt: whether this queue is set to run as a realtime task
  * @prepare_crypt_hardware: a request will soon arrive from the queue
  * so the subsystem requests the driver to prepare the hardware
  * by issuing this call
@@ -51,13 +51,12 @@ struct crypto_engine {
 	bool			running;
 
 	bool			retry_support;
+	bool			rt;
 
 	struct list_head	list;
 	spinlock_t		queue_lock;
 	struct crypto_queue	queue;
 	struct device		*dev;
-
-	bool			rt;
 
 	int (*prepare_crypt_hardware)(struct crypto_engine *engine);
 	int (*unprepare_crypt_hardware)(struct crypto_engine *engine);
