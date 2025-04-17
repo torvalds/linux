@@ -92,6 +92,7 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned type,
 struct inode *gfs2_lookup_by_inum(struct gfs2_sbd *sdp, u64 no_addr,
 				  u64 no_formal_ino,
 				  unsigned int blktype);
+int gfs2_dinode_dealloc(struct gfs2_inode *ip);
 
 struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 			   int is_root);
