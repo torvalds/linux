@@ -15,6 +15,7 @@
 
 #include "i915_reg.h"
 #include "intel_de.h"
+#include "intel_display.h"
 #include "intel_vga.h"
 #include "intel_vga_regs.h"
 
@@ -28,15 +29,41 @@ static i915_reg_t intel_vga_cntrl_reg(struct intel_display *display)
 		return VGACNTRL;
 }
 
+static bool has_vga_pipe_sel(struct intel_display *display)
+{
+	if (display->platform.i845g ||
+	    display->platform.i865g)
+		return false;
+
+	if (display->platform.valleyview ||
+	    display->platform.cherryview)
+		return true;
+
+	return DISPLAY_VER(display) < 7;
+}
+
 /* Disable the VGA plane that we never use */
 void intel_vga_disable(struct intel_display *display)
 {
 	struct pci_dev *pdev = to_pci_dev(display->drm->dev);
 	i915_reg_t vga_reg = intel_vga_cntrl_reg(display);
+	enum pipe pipe;
+	u32 tmp;
 	u8 sr1;
 
-	if (intel_de_read(display, vga_reg) & VGA_DISP_DISABLE)
+	tmp = intel_de_read(display, vga_reg);
+	if (tmp & VGA_DISP_DISABLE)
 		return;
+
+	if (display->platform.cherryview)
+		pipe = REG_FIELD_GET(VGA_PIPE_SEL_MASK_CHV, tmp);
+	else if (has_vga_pipe_sel(display))
+		pipe = REG_FIELD_GET(VGA_PIPE_SEL_MASK, tmp);
+	else
+		pipe = PIPE_A;
+
+	drm_dbg_kms(display->drm, "Disabling VGA plane on pipe %c\n",
+		    pipe_name(pipe));
 
 	/* WaEnableVGAAccessThroughIOPort:ctg,elk,ilk,snb,ivb,vlv,hsw */
 	vga_get_uninterruptible(pdev, VGA_RSRC_LEGACY_IO);
