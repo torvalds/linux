@@ -2574,8 +2574,7 @@ config TEST_BITOPS
 config TEST_VMALLOC
 	tristate "Test module for stress/performance analysis of vmalloc allocator"
 	default n
-       depends on MMU
-	depends on m
+	depends on MMU
 	help
 	  This builds the "test_vmalloc" module that should be used for
 	  stress and performance analysis. So, any new change for vmalloc

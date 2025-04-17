@@ -591,10 +591,11 @@ static void do_concurrent_test(void)
 	kvfree(tdriver);
 }
 
-static int vmalloc_test_init(void)
+static int __init vmalloc_test_init(void)
 {
 	do_concurrent_test();
-	return -EAGAIN; /* Fail will directly unload the module */
+	/* Fail will directly unload the module */
+	return IS_BUILTIN(CONFIG_TEST_VMALLOC) ? 0:-EAGAIN;
 }
 
 module_init(vmalloc_test_init)
