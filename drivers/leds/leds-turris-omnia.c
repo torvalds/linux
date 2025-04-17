@@ -361,7 +361,7 @@ static DEVICE_ATTR_RW(gamma_correction);
 static struct attribute *omnia_led_controller_attrs[] = {
 	&dev_attr_brightness.attr,
 	&dev_attr_gamma_correction.attr,
-	NULL,
+	NULL
 };
 ATTRIBUTE_GROUPS(omnia_led_controller);
 
@@ -527,7 +527,7 @@ static void omnia_leds_remove(struct i2c_client *client)
 
 static const struct of_device_id of_omnia_leds_match[] = {
 	{ .compatible = "cznic,turris-omnia-leds", },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, of_omnia_leds_match);
 
