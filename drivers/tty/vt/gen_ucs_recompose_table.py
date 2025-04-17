@@ -19,8 +19,8 @@ import textwrap
 from pathlib import Path
 this_file = Path(__file__).name
 
-# Output file name
-out_file = "ucs_recompose_table.h"
+# Default output file name
+DEFAULT_OUT_FILE = "ucs_recompose_table.h"
 
 common_recompose_description = "most commonly used Latin, Greek, and Cyrillic recomposition pairs only"
 COMMON_RECOMPOSITION_PAIRS = [
@@ -165,7 +165,7 @@ def validate_common_pairs(full_list):
             print(error_msg)
             raise ValueError(error_msg)
 
-def generate_recomposition_table(use_full_list=False):
+def generate_recomposition_table(use_full_list=False, out_file=DEFAULT_OUT_FILE):
     """Generate the recomposition C table."""
 
     # Collect all recomposition pairs for validation
@@ -250,6 +250,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate Unicode recomposition table")
     parser.add_argument("--full", action="store_true",
                         help="Generate a full recomposition table (default: common pairs only)")
+    parser.add_argument("-o", "--output", dest="output_file", default=DEFAULT_OUT_FILE,
+                        help=f"Output file name (default: {DEFAULT_OUT_FILE})")
     args = parser.parse_args()
 
-    generate_recomposition_table(use_full_list=args.full)
+    generate_recomposition_table(use_full_list=args.full, out_file=args.output_file)

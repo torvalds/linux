@@ -11,7 +11,8 @@ obj-$(CONFIG_CONSOLE_TRANSLATIONS)	+= consolemap.o consolemap_deftbl.o \
 					   ucs.o
 
 # Files generated that shall be removed upon make clean
-clean-files := consolemap_deftbl.c defkeymap.c
+clean-files :=	consolemap_deftbl.c defkeymap.c \
+		ucs_width_table.h ucs_recompose_table.h
 
 hostprogs += conmakehash
 
@@ -32,5 +33,29 @@ ifdef GENERATE_KEYMAP
 
 $(obj)/defkeymap.c: $(obj)/%.c: $(src)/%.map
 	loadkeys --mktable --unicode $< > $@
+
+endif
+
+$(obj)/ucs.o: $(src)/ucs.c $(obj)/ucs_width_table.h $(obj)/ucs_recompose_table.h
+
+# You may uncomment one of those to have the UCS tables be regenerated
+# during the build process. By default the _shipped versions are used.
+#
+#GENERATE_UCS_TABLES := 1
+#GENERATE_UCS_TABLES := 2  # invokes gen_ucs_recompose_table.py with --full
+
+ifdef GENERATE_UCS_TABLES
+
+$(obj)/ucs_width_table.h: $(src)/gen_ucs_width_table.py
+	$(PYTHON3) $< -o $@
+
+ifeq ($(GENERATE_UCS_TABLES),2)
+gen_recomp_arg := --full
+else
+gen_recomp_arg :=
+endif
+
+$(obj)/ucs_recompose_table.h: $(src)/gen_ucs_recompose_table.py
+	$(PYTHON3) $< -o $@ $(gen_recomp_arg)
 
 endif

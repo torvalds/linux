@@ -5,13 +5,14 @@
 
 import unicodedata
 import sys
+import argparse
 
 # This script's file name
 from pathlib import Path
 this_file = Path(__file__).name
 
-# Output file name
-out_file = "ucs_width_table.h"
+# Default output file name
+DEFAULT_OUT_FILE = "ucs_width_table.h"
 
 # --- Global Constants for Width Assignments ---
 
@@ -185,13 +186,14 @@ def create_width_tables():
 
     return zero_width_ranges, double_width_ranges
 
-def write_tables(zero_width_ranges, double_width_ranges):
+def write_tables(zero_width_ranges, double_width_ranges, out_file=DEFAULT_OUT_FILE):
     """
     Write the generated tables to C header file.
 
     Args:
         zero_width_ranges: List of (start, end) ranges for zero-width characters
         double_width_ranges: List of (start, end) ranges for double-width characters
+        out_file: Output file name (default: DEFAULT_OUT_FILE)
     """
 
     # Function to split ranges into BMP (16-bit) and non-BMP (above 16-bit)
@@ -286,14 +288,20 @@ static const struct ucs_interval32 ucs_double_width_non_bmp_ranges[] = {
         f.write("};\n")
 
 if __name__ == "__main__":
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Generate Unicode width tables")
+    parser.add_argument("-o", "--output", dest="output_file", default=DEFAULT_OUT_FILE,
+                        help=f"Output file name (default: {DEFAULT_OUT_FILE})")
+    args = parser.parse_args()
+
     # Write tables to header file
     zero_width_ranges, double_width_ranges = create_width_tables()
-    write_tables(zero_width_ranges, double_width_ranges)
+    write_tables(zero_width_ranges, double_width_ranges, out_file=args.output_file)
 
     # Print summary
     zero_width_count = sum(end - start + 1 for start, end in zero_width_ranges)
     double_width_count = sum(end - start + 1 for start, end in double_width_ranges)
-    print(f"Generated {out_file} with:")
+    print(f"Generated {args.output_file} with:")
     print(f"- {len(zero_width_ranges)} zero-width ranges covering ~{zero_width_count} code points")
     print(f"- {len(double_width_ranges)} double-width ranges covering ~{double_width_count} code points")
     print(f"- Unicode Version: {unicodedata.unidata_version}")
