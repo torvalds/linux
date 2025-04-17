@@ -1036,6 +1036,7 @@ static int io_import_fixed(int ddir, struct iov_iter *iter,
 			   struct io_mapped_ubuf *imu,
 			   u64 buf_addr, size_t len)
 {
+	const struct bio_vec *bvec;
 	size_t offset;
 	int ret;
 
@@ -1054,47 +1055,45 @@ static int io_import_fixed(int ddir, struct iov_iter *iter,
 	offset = buf_addr - imu->ubuf;
 	iov_iter_bvec(iter, ddir, imu->bvec, imu->nr_bvecs, offset + len);
 
-	if (offset) {
-		/*
-		 * Don't use iov_iter_advance() here, as it's really slow for
-		 * using the latter parts of a big fixed buffer - it iterates
-		 * over each segment manually. We can cheat a bit here for user
-		 * registered nodes, because we know that:
-		 *
-		 * 1) it's a BVEC iter, we set it up
-		 * 2) all bvecs are the same in size, except potentially the
-		 *    first and last bvec
-		 *
-		 * So just find our index, and adjust the iterator afterwards.
-		 * If the offset is within the first bvec (or the whole first
-		 * bvec, just use iov_iter_advance(). This makes it easier
-		 * since we can just skip the first segment, which may not
-		 * be folio_size aligned.
-		 */
-		const struct bio_vec *bvec = imu->bvec;
+	/*
+	 * Don't use iov_iter_advance() here, as it's really slow for
+	 * using the latter parts of a big fixed buffer - it iterates
+	 * over each segment manually. We can cheat a bit here for user
+	 * registered nodes, because we know that:
+	 *
+	 * 1) it's a BVEC iter, we set it up
+	 * 2) all bvecs are the same in size, except potentially the
+	 *    first and last bvec
+	 *
+	 * So just find our index, and adjust the iterator afterwards.
+	 * If the offset is within the first bvec (or the whole first
+	 * bvec, just use iov_iter_advance(). This makes it easier
+	 * since we can just skip the first segment, which may not
+	 * be folio_size aligned.
+	 */
+	bvec = imu->bvec;
 
-		/*
-		 * Kernel buffer bvecs, on the other hand, don't necessarily
-		 * have the size property of user registered ones, so we have
-		 * to use the slow iter advance.
-		 */
-		if (offset < bvec->bv_len) {
-			iter->count -= offset;
-			iter->iov_offset = offset;
-		} else if (imu->is_kbuf) {
-			iov_iter_advance(iter, offset);
-		} else {
-			unsigned long seg_skip;
+	/*
+	 * Kernel buffer bvecs, on the other hand, don't necessarily
+	 * have the size property of user registered ones, so we have
+	 * to use the slow iter advance.
+	 */
+	if (offset < bvec->bv_len) {
+		iter->count -= offset;
+		iter->iov_offset = offset;
+	} else if (imu->is_kbuf) {
+		iov_iter_advance(iter, offset);
+	} else {
+		unsigned long seg_skip;
 
-			/* skip first vec */
-			offset -= bvec->bv_len;
-			seg_skip = 1 + (offset >> imu->folio_shift);
+		/* skip first vec */
+		offset -= bvec->bv_len;
+		seg_skip = 1 + (offset >> imu->folio_shift);
 
-			iter->bvec += seg_skip;
-			iter->nr_segs -= seg_skip;
-			iter->count -= bvec->bv_len + offset;
-			iter->iov_offset = offset & ((1UL << imu->folio_shift) - 1);
-		}
+		iter->bvec += seg_skip;
+		iter->nr_segs -= seg_skip;
+		iter->count -= bvec->bv_len + offset;
+		iter->iov_offset = offset & ((1UL << imu->folio_shift) - 1);
 	}
 
 	return 0;
