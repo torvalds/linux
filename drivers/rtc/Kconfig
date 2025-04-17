@@ -2088,7 +2088,7 @@ config RTC_DRV_AMLOGIC_A4
 	tristate "Amlogic RTC"
 	depends on ARCH_MESON || COMPILE_TEST
 	select REGMAP_MMIO
-	default y
+	default ARCH_MESON
 	help
 	  If you say yes here you get support for the RTC block on the
 	  Amlogic A113L2(A4) and A113X2(A5) SoCs.
