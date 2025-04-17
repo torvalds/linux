@@ -4143,10 +4143,8 @@ static const struct intel_wm_funcs nop_funcs = {
 
 void i9xx_wm_init(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
 	/* For FIFO watermark updates */
-	if (HAS_PCH_SPLIT(dev_priv)) {
+	if (HAS_PCH_SPLIT(display)) {
 		ilk_setup_wm_latency(display);
 		display->funcs.wm = &ilk_wm_funcs;
 	} else if (display->platform.valleyview || display->platform.cherryview) {

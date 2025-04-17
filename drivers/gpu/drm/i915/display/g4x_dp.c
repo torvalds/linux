@@ -59,14 +59,13 @@ static void g4x_dp_set_clock(struct intel_encoder *encoder,
 			     struct intel_crtc_state *pipe_config)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	const struct dpll *divisor = NULL;
 	int i, count = 0;
 
 	if (display->platform.g4x) {
 		divisor = g4x_dpll;
 		count = ARRAY_SIZE(g4x_dpll);
-	} else if (HAS_PCH_SPLIT(dev_priv)) {
+	} else if (HAS_PCH_SPLIT(display)) {
 		divisor = pch_dpll;
 		count = ARRAY_SIZE(pch_dpll);
 	} else if (display->platform.cherryview) {
@@ -92,7 +91,6 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 			     const struct intel_crtc_state *pipe_config)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	enum port port = encoder->port;
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
@@ -140,7 +138,7 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 			intel_dp->DP |= DP_ENHANCED_FRAMING;
 
 		intel_dp->DP |= DP_PIPE_SEL_IVB(crtc->pipe);
-	} else if (HAS_PCH_CPT(dev_priv) && port != PORT_A) {
+	} else if (HAS_PCH_CPT(display) && port != PORT_A) {
 		intel_dp->DP |= DP_LINK_TRAIN_OFF_CPT;
 
 		intel_de_rmw(display, TRANS_DP_CTL(crtc->pipe),
@@ -276,7 +274,6 @@ bool g4x_dp_port_enabled(struct intel_display *display,
 			 i915_reg_t dp_reg, enum port port,
 			 enum pipe *pipe)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	bool ret;
 	u32 val;
 
@@ -287,7 +284,7 @@ bool g4x_dp_port_enabled(struct intel_display *display,
 	/* asserts want to know the pipe even if the port is disabled */
 	if (display->platform.ivybridge && port == PORT_A)
 		*pipe = (val & DP_PIPE_SEL_MASK_IVB) >> DP_PIPE_SEL_SHIFT_IVB;
-	else if (HAS_PCH_CPT(dev_priv) && port != PORT_A)
+	else if (HAS_PCH_CPT(display) && port != PORT_A)
 		ret &= cpt_dp_port_selected(display, port, pipe);
 	else if (display->platform.cherryview)
 		*pipe = (val & DP_PIPE_SEL_MASK_CHV) >> DP_PIPE_SEL_SHIFT_CHV;
@@ -337,7 +334,6 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 				struct intel_crtc_state *pipe_config)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	u32 tmp, flags = 0;
 	enum port port = encoder->port;
@@ -352,7 +348,7 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 
 	pipe_config->has_audio = tmp & DP_AUDIO_OUTPUT_ENABLE && port != PORT_A;
 
-	if (HAS_PCH_CPT(dev_priv) && port != PORT_A) {
+	if (HAS_PCH_CPT(display) && port != PORT_A) {
 		u32 trans_dp = intel_de_read(display,
 					     TRANS_DP_CTL(crtc->pipe));
 
@@ -415,7 +411,6 @@ intel_dp_link_down(struct intel_encoder *encoder,
 		   const struct intel_crtc_state *old_crtc_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	enum port port = encoder->port;
@@ -428,7 +423,7 @@ intel_dp_link_down(struct intel_encoder *encoder,
 	drm_dbg_kms(display->drm, "\n");
 
 	if ((display->platform.ivybridge && port == PORT_A) ||
-	    (HAS_PCH_CPT(dev_priv) && port != PORT_A)) {
+	    (HAS_PCH_CPT(display) && port != PORT_A)) {
 		intel_dp->DP &= ~DP_LINK_TRAIN_MASK_CPT;
 		intel_dp->DP |= DP_LINK_TRAIN_PAT_IDLE_CPT;
 	} else {
@@ -447,7 +442,7 @@ intel_dp_link_down(struct intel_encoder *encoder,
 	 * to transcoder A after disabling it to allow the
 	 * matching HDMI port to be enabled on transcoder A.
 	 */
-	if (HAS_PCH_IBX(dev_priv) && crtc->pipe == PIPE_B && port != PORT_A) {
+	if (HAS_PCH_IBX(display) && crtc->pipe == PIPE_B && port != PORT_A) {
 		/*
 		 * We get CPU/PCH FIFO underruns on the other pipe when
 		 * doing the workaround. Sweep them under the rug.
@@ -1216,10 +1211,10 @@ static int g4x_dp_compute_config(struct intel_encoder *encoder,
 				 struct intel_crtc_state *crtc_state,
 				 struct drm_connector_state *conn_state)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	int ret;
 
-	if (HAS_PCH_SPLIT(i915) && encoder->port != PORT_A)
+	if (HAS_PCH_SPLIT(display) && encoder->port != PORT_A)
 		crtc_state->has_pch_encoder = true;
 
 	ret = intel_dp_compute_config(encoder, crtc_state, conn_state);
@@ -1272,7 +1267,6 @@ static const struct drm_encoder_funcs intel_dp_enc_funcs = {
 bool g4x_dp_init(struct intel_display *display,
 		 i915_reg_t output_reg, enum port port)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	const struct intel_bios_encoder_data *devdata;
 	struct intel_digital_port *dig_port;
 	struct intel_encoder *intel_encoder;
@@ -1346,7 +1340,7 @@ bool g4x_dp_init(struct intel_display *display,
 	intel_encoder->audio_disable = g4x_dp_audio_disable;
 
 	if ((display->platform.ivybridge && port == PORT_A) ||
-	    (HAS_PCH_CPT(dev_priv) && port != PORT_A))
+	    (HAS_PCH_CPT(display) && port != PORT_A))
 		dig_port->dp.set_link_train = cpt_set_link_train;
 	else
 		dig_port->dp.set_link_train = g4x_set_link_train;
@@ -1363,7 +1357,7 @@ bool g4x_dp_init(struct intel_display *display,
 		intel_encoder->set_signal_levels = g4x_set_signal_levels;
 
 	if (display->platform.valleyview || display->platform.cherryview ||
-	    (HAS_PCH_SPLIT(dev_priv) && port != PORT_A)) {
+	    (HAS_PCH_SPLIT(display) && port != PORT_A)) {
 		dig_port->dp.preemph_max = intel_dp_preemph_max_3;
 		dig_port->dp.voltage_max = intel_dp_voltage_max_3;
 	} else {

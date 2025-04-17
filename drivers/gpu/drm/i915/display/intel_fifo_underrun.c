@@ -346,7 +346,7 @@ bool intel_set_pch_fifo_underrun_reporting(struct intel_display *display,
 	old = !crtc->pch_fifo_underrun_disabled;
 	crtc->pch_fifo_underrun_disabled = !enable;
 
-	if (HAS_PCH_IBX(dev_priv))
+	if (HAS_PCH_IBX(display))
 		ibx_set_fifo_underrun_reporting(display,
 						pch_transcoder,
 						enable);
@@ -459,7 +459,7 @@ void intel_check_pch_fifo_underruns(struct intel_display *display)
 		if (crtc->pch_fifo_underrun_disabled)
 			continue;
 
-		if (HAS_PCH_CPT(dev_priv))
+		if (HAS_PCH_CPT(display))
 			cpt_check_pch_fifo_underruns(crtc);
 	}
 

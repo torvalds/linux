@@ -27,7 +27,6 @@ static void intel_hdmi_prepare(struct intel_encoder *encoder,
 			       const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
@@ -36,7 +35,7 @@ static void intel_hdmi_prepare(struct intel_encoder *encoder,
 	intel_dp_dual_mode_set_tmds_output(intel_hdmi, true);
 
 	hdmi_val = SDVO_ENCODING_HDMI;
-	if (!HAS_PCH_SPLIT(dev_priv) && crtc_state->limited_color_range)
+	if (!HAS_PCH_SPLIT(display) && crtc_state->limited_color_range)
 		hdmi_val |= HDMI_COLOR_RANGE_16_235;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 		hdmi_val |= SDVO_VSYNC_ACTIVE_HIGH;
@@ -51,7 +50,7 @@ static void intel_hdmi_prepare(struct intel_encoder *encoder,
 	if (crtc_state->has_hdmi_sink)
 		hdmi_val |= HDMI_MODE_SELECT_HDMI;
 
-	if (HAS_PCH_CPT(dev_priv))
+	if (HAS_PCH_CPT(display))
 		hdmi_val |= SDVO_PIPE_SEL_CPT(crtc->pipe);
 	else if (display->platform.cherryview)
 		hdmi_val |= SDVO_PIPE_SEL_CHV(crtc->pipe);
@@ -133,9 +132,8 @@ static int g4x_hdmi_compute_config(struct intel_encoder *encoder,
 	struct intel_display *display = to_intel_display(encoder);
 	struct intel_atomic_state *state = to_intel_atomic_state(crtc_state->uapi.state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 
-	if (HAS_PCH_SPLIT(i915)) {
+	if (HAS_PCH_SPLIT(display)) {
 		crtc_state->has_pch_encoder = true;
 		if (!intel_fdi_compute_pipe_bpp(crtc_state))
 			return -EINVAL;
@@ -154,7 +152,6 @@ static void intel_hdmi_get_config(struct intel_encoder *encoder,
 				  struct intel_crtc_state *pipe_config)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	u32 tmp, flags = 0;
 	int dotclock;
@@ -185,7 +182,7 @@ static void intel_hdmi_get_config(struct intel_encoder *encoder,
 	if (tmp & HDMI_AUDIO_ENABLE)
 		pipe_config->has_audio = true;
 
-	if (!HAS_PCH_SPLIT(dev_priv) &&
+	if (!HAS_PCH_SPLIT(display) &&
 	    tmp & HDMI_COLOR_RANGE_16_235)
 		pipe_config->limited_color_range = true;
 
@@ -382,7 +379,6 @@ static void intel_disable_hdmi(struct intel_atomic_state *state,
 			       const struct drm_connector_state *old_conn_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	struct intel_digital_port *dig_port =
 		hdmi_to_dig_port(intel_hdmi);
@@ -400,7 +396,7 @@ static void intel_disable_hdmi(struct intel_atomic_state *state,
 	 * to transcoder A after disabling it to allow the
 	 * matching DP port to be enabled on transcoder A.
 	 */
-	if (HAS_PCH_IBX(dev_priv) && crtc->pipe == PIPE_B) {
+	if (HAS_PCH_IBX(display) && crtc->pipe == PIPE_B) {
 		/*
 		 * We get CPU/PCH FIFO underruns on the other pipe when
 		 * doing the workaround. Sweep them under the rug.
@@ -674,7 +670,6 @@ static bool assert_hdmi_port_valid(struct intel_display *display, enum port port
 bool g4x_hdmi_init(struct intel_display *display,
 		   i915_reg_t hdmi_reg, enum port port)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	const struct intel_bios_encoder_data *devdata;
 	struct intel_digital_port *dig_port;
 	struct intel_encoder *intel_encoder;
@@ -716,7 +711,7 @@ bool g4x_hdmi_init(struct intel_display *display,
 
 	intel_encoder->hotplug = intel_hdmi_hotplug;
 	intel_encoder->compute_config = g4x_hdmi_compute_config;
-	if (HAS_PCH_SPLIT(dev_priv)) {
+	if (HAS_PCH_SPLIT(display)) {
 		intel_encoder->disable = pch_disable_hdmi;
 		intel_encoder->post_disable = pch_post_disable_hdmi;
 	} else {
@@ -737,9 +732,9 @@ bool g4x_hdmi_init(struct intel_display *display,
 		intel_encoder->post_disable = vlv_hdmi_post_disable;
 	} else {
 		intel_encoder->pre_enable = intel_hdmi_pre_enable;
-		if (HAS_PCH_CPT(dev_priv))
+		if (HAS_PCH_CPT(display))
 			intel_encoder->enable = cpt_enable_hdmi;
-		else if (HAS_PCH_IBX(dev_priv))
+		else if (HAS_PCH_IBX(display))
 			intel_encoder->enable = ibx_enable_hdmi;
 		else
 			intel_encoder->enable = g4x_enable_hdmi;

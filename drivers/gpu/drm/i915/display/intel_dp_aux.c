@@ -111,10 +111,9 @@ static u32 ilk_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 static u32 hsw_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 
-	if (dig_port->aux_ch != AUX_CH_A && HAS_PCH_LPT_H(i915)) {
+	if (dig_port->aux_ch != AUX_CH_A && HAS_PCH_LPT_H(display)) {
 		/* Workaround for non-ULT HSW */
 		switch (index) {
 		case 0: return 63;
@@ -785,7 +784,6 @@ void intel_dp_aux_fini(struct intel_dp *intel_dp)
 void intel_dp_aux_init(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *encoder = &dig_port->base;
 	enum aux_ch aux_ch = dig_port->aux_ch;
@@ -800,7 +798,7 @@ void intel_dp_aux_init(struct intel_dp *intel_dp)
 	} else if (DISPLAY_VER(display) >= 9) {
 		intel_dp->aux_ch_ctl_reg = skl_aux_ctl_reg;
 		intel_dp->aux_ch_data_reg = skl_aux_data_reg;
-	} else if (HAS_PCH_SPLIT(i915)) {
+	} else if (HAS_PCH_SPLIT(display)) {
 		intel_dp->aux_ch_ctl_reg = ilk_aux_ctl_reg;
 		intel_dp->aux_ch_data_reg = ilk_aux_data_reg;
 	} else if (display->platform.valleyview || display->platform.cherryview) {
@@ -815,7 +813,7 @@ void intel_dp_aux_init(struct intel_dp *intel_dp)
 		intel_dp->get_aux_clock_divider = skl_get_aux_clock_divider;
 	else if (display->platform.broadwell || display->platform.haswell)
 		intel_dp->get_aux_clock_divider = hsw_get_aux_clock_divider;
-	else if (HAS_PCH_SPLIT(i915))
+	else if (HAS_PCH_SPLIT(display))
 		intel_dp->get_aux_clock_divider = ilk_get_aux_clock_divider;
 	else
 		intel_dp->get_aux_clock_divider = g4x_get_aux_clock_divider;

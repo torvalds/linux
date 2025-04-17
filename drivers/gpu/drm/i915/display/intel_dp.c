@@ -6344,7 +6344,6 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 				     struct intel_connector *connector)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct drm_display_mode *fixed_mode;
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	bool has_dpcd;
@@ -6361,7 +6360,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	 */
 	if (intel_get_lvds_encoder(display)) {
 		drm_WARN_ON(display->drm,
-			    !(HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv)));
+			    !(HAS_PCH_IBX(display) || HAS_PCH_CPT(display)));
 		drm_info(display->drm,
 			 "LVDS was detected, not registering eDP\n");
 

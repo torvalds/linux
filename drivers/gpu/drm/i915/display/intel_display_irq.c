@@ -879,7 +879,7 @@ static void ilk_gtt_fault_irq_handler(struct intel_display *display)
 
 void ilk_display_irq_handler(struct intel_display *display, u32 de_iir)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
+	struct drm_i915_private __maybe_unused *dev_priv = to_i915(display->drm);
 	enum pipe pipe;
 	u32 hotplug_trigger = de_iir & DE_DP_A_HOTPLUG;
 
@@ -916,7 +916,7 @@ void ilk_display_irq_handler(struct intel_display *display, u32 de_iir)
 	if (de_iir & DE_PCH_EVENT) {
 		u32 pch_iir = intel_de_read(display, SDEIIR);
 
-		if (HAS_PCH_CPT(dev_priv))
+		if (HAS_PCH_CPT(display))
 			cpt_irq_handler(display, pch_iir);
 		else
 			ibx_irq_handler(display, pch_iir);
@@ -931,7 +931,6 @@ void ilk_display_irq_handler(struct intel_display *display, u32 de_iir)
 
 void ivb_display_irq_handler(struct intel_display *display, u32 de_iir)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	enum pipe pipe;
 	u32 hotplug_trigger = de_iir & DE_DP_A_HOTPLUG_IVB;
 
@@ -969,7 +968,7 @@ void ivb_display_irq_handler(struct intel_display *display, u32 de_iir)
 	}
 
 	/* check event from PCH */
-	if (!HAS_PCH_NOP(dev_priv) && (de_iir & DE_PCH_EVENT_IVB)) {
+	if (!HAS_PCH_NOP(display) && (de_iir & DE_PCH_EVENT_IVB)) {
 		u32 pch_iir = intel_de_read(display, SDEIIR);
 
 		cpt_irq_handler(display, pch_iir);
@@ -1311,7 +1310,6 @@ static u32 gen8_de_pipe_flip_done_mask(struct intel_display *display)
 
 static void gen8_read_and_ack_pch_irqs(struct intel_display *display, u32 *pch_iir, u32 *pica_iir)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	u32 pica_ier = 0;
 
 	*pica_iir = 0;
@@ -1325,7 +1323,7 @@ static void gen8_read_and_ack_pch_irqs(struct intel_display *display, u32 *pch_i
 	 * their flags both in the PICA and SDE IIR.
 	 */
 	if (*pch_iir & SDE_PICAINTERRUPT) {
-		drm_WARN_ON(display->drm, INTEL_PCH_TYPE(i915) < PCH_MTL);
+		drm_WARN_ON(display->drm, INTEL_PCH_TYPE(display) < PCH_MTL);
 
 		pica_ier = intel_de_rmw(display, PICAINTERRUPT_IER, ~0, 0);
 		*pica_iir = intel_de_read(display, PICAINTERRUPT_IIR);
@@ -1340,7 +1338,6 @@ static void gen8_read_and_ack_pch_irqs(struct intel_display *display, u32 *pch_i
 
 void gen8_de_irq_handler(struct intel_display *display, u32 master_ctl)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 iir;
 	enum pipe pipe;
 
@@ -1465,7 +1462,7 @@ void gen8_de_irq_handler(struct intel_display *display, u32 master_ctl)
 						     pipe, fault_errors);
 	}
 
-	if (HAS_PCH_SPLIT(dev_priv) && !HAS_PCH_NOP(dev_priv) &&
+	if (HAS_PCH_SPLIT(display) && !HAS_PCH_NOP(display) &&
 	    master_ctl & GEN8_DE_PCH_IRQ) {
 		u32 pica_iir;
 
@@ -1479,9 +1476,9 @@ void gen8_de_irq_handler(struct intel_display *display, u32 master_ctl)
 			if (pica_iir)
 				xelpdp_pica_irq_handler(display, pica_iir);
 
-			if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
+			if (INTEL_PCH_TYPE(display) >= PCH_ICP)
 				icp_irq_handler(display, iir);
-			else if (INTEL_PCH_TYPE(dev_priv) >= PCH_SPT)
+			else if (INTEL_PCH_TYPE(display) >= PCH_SPT)
 				spt_irq_handler(display, iir);
 			else
 				cpt_irq_handler(display, iir);
@@ -1998,7 +1995,6 @@ void gen8_display_irq_reset(struct intel_display *display)
 
 void gen11_display_irq_reset(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	enum pipe pipe;
 	u32 trans_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_D);
@@ -2043,7 +2039,7 @@ void gen11_display_irq_reset(struct intel_display *display)
 	else
 		intel_display_irq_regs_reset(display, GEN11_DE_HPD_IRQ_REGS);
 
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
+	if (INTEL_PCH_TYPE(display) >= PCH_ICP)
 		intel_display_irq_regs_reset(display, SDE_IRQ_REGS);
 }
 
@@ -2105,15 +2101,14 @@ void gen8_irq_power_well_pre_disable(struct intel_display *display,
  */
 static void ibx_irq_postinstall(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 mask;
 
-	if (HAS_PCH_NOP(dev_priv))
+	if (HAS_PCH_NOP(display))
 		return;
 
-	if (HAS_PCH_IBX(dev_priv))
+	if (HAS_PCH_IBX(display))
 		mask = SDE_GMBUS | SDE_AUX_MASK | SDE_POISON;
-	else if (HAS_PCH_CPT(dev_priv) || HAS_PCH_LPT(dev_priv))
+	else if (HAS_PCH_CPT(display) || HAS_PCH_LPT(display))
 		mask = SDE_GMBUS_CPT | SDE_AUX_MASK_CPT;
 	else
 		mask = SDE_GMBUS_CPT;
@@ -2201,8 +2196,6 @@ static void icp_irq_postinstall(struct intel_display *display);
 
 void gen8_de_irq_postinstall(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
 	u32 de_pipe_masked = gen8_de_pipe_fault_mask(display) |
 		GEN8_PIPE_CDCLK_CRC_DONE;
 	u32 de_pipe_enables;
@@ -2218,9 +2211,9 @@ void gen8_de_irq_postinstall(struct intel_display *display)
 
 	if (DISPLAY_VER(display) >= 14)
 		mtp_irq_postinstall(display);
-	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
+	else if (INTEL_PCH_TYPE(display) >= PCH_ICP)
 		icp_irq_postinstall(display);
-	else if (HAS_PCH_SPLIT(dev_priv))
+	else if (HAS_PCH_SPLIT(display))
 		ibx_irq_postinstall(display);
 
 	if (DISPLAY_VER(display) < 11)

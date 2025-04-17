@@ -281,7 +281,7 @@ static void lpt_enable_clkout_dp(struct intel_display *display,
 	if (drm_WARN(display->drm, with_fdi && !with_spread,
 		     "FDI requires downspread\n"))
 		with_spread = true;
-	if (drm_WARN(display->drm, HAS_PCH_LPT_LP(dev_priv) &&
+	if (drm_WARN(display->drm, HAS_PCH_LPT_LP(display) &&
 		     with_fdi, "LP PCH doesn't have FDI\n"))
 		with_fdi = false;
 
@@ -303,7 +303,7 @@ static void lpt_enable_clkout_dp(struct intel_display *display,
 			lpt_fdi_program_mphy(display);
 	}
 
-	reg = HAS_PCH_LPT_LP(dev_priv) ? SBI_GEN0 : SBI_DBUFF0;
+	reg = HAS_PCH_LPT_LP(display) ? SBI_GEN0 : SBI_DBUFF0;
 	tmp = intel_sbi_read(dev_priv, reg, SBI_ICLK);
 	tmp |= SBI_GEN0_CFG_BUFFENABLE_DISABLE;
 	intel_sbi_write(dev_priv, reg, tmp, SBI_ICLK);
@@ -319,7 +319,7 @@ void lpt_disable_clkout_dp(struct intel_display *display)
 
 	intel_sbi_lock(dev_priv);
 
-	reg = HAS_PCH_LPT_LP(dev_priv) ? SBI_GEN0 : SBI_DBUFF0;
+	reg = HAS_PCH_LPT_LP(display) ? SBI_GEN0 : SBI_DBUFF0;
 	tmp = intel_sbi_read(dev_priv, reg, SBI_ICLK);
 	tmp &= ~SBI_GEN0_CFG_BUFFENABLE_DISABLE;
 	intel_sbi_write(dev_priv, reg, tmp, SBI_ICLK);
@@ -498,7 +498,6 @@ static void lpt_init_pch_refclk(struct intel_display *display)
 
 static void ilk_init_pch_refclk(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_encoder *encoder;
 	struct intel_shared_dpll *pll;
 	int i;
@@ -527,7 +526,7 @@ static void ilk_init_pch_refclk(struct intel_display *display)
 		}
 	}
 
-	if (HAS_PCH_IBX(dev_priv)) {
+	if (HAS_PCH_IBX(display)) {
 		has_ck505 = display->vbt.display_clock_mode;
 		can_ssc = has_ck505;
 	} else {
@@ -678,10 +677,8 @@ static void ilk_init_pch_refclk(struct intel_display *display)
  */
 void intel_init_pch_refclk(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
-	if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv))
+	if (HAS_PCH_IBX(display) || HAS_PCH_CPT(display))
 		ilk_init_pch_refclk(display);
-	else if (HAS_PCH_LPT(dev_priv))
+	else if (HAS_PCH_LPT(display))
 		lpt_init_pch_refclk(display);
 }

@@ -91,13 +91,12 @@ static struct intel_crt *intel_attached_crt(struct intel_connector *connector)
 bool intel_crt_port_enabled(struct intel_display *display,
 			    i915_reg_t adpa_reg, enum pipe *pipe)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 val;
 
 	val = intel_de_read(display, adpa_reg);
 
 	/* asserts want to know the pipe even if the port is disabled */
-	if (HAS_PCH_CPT(dev_priv))
+	if (HAS_PCH_CPT(display))
 		*pipe = REG_FIELD_GET(ADPA_PIPE_SEL_MASK_CPT, val);
 	else
 		*pipe = REG_FIELD_GET(ADPA_PIPE_SEL_MASK, val);
@@ -177,7 +176,6 @@ static void intel_crt_set_dpms(struct intel_encoder *encoder,
 			       int mode)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
@@ -194,14 +192,14 @@ static void intel_crt_set_dpms(struct intel_encoder *encoder,
 		adpa |= ADPA_VSYNC_ACTIVE_HIGH;
 
 	/* For CPT allow 3 pipe config, for others just use A or B */
-	if (HAS_PCH_LPT(dev_priv))
+	if (HAS_PCH_LPT(display))
 		; /* Those bits don't exist here */
-	else if (HAS_PCH_CPT(dev_priv))
+	else if (HAS_PCH_CPT(display))
 		adpa |= ADPA_PIPE_SEL_CPT(crtc->pipe);
 	else
 		adpa |= ADPA_PIPE_SEL(crtc->pipe);
 
-	if (!HAS_PCH_SPLIT(dev_priv))
+	if (!HAS_PCH_SPLIT(display))
 		intel_de_write(display, BCLRPAT(display, crtc->pipe), 0);
 
 	switch (mode) {
@@ -356,7 +354,6 @@ intel_crt_mode_valid(struct drm_connector *connector,
 		     const struct drm_display_mode *mode)
 {
 	struct intel_display *display = to_intel_display(connector->dev);
-	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	int max_dotclk = display->cdclk.max_dotclk_freq;
 	enum drm_mode_status status;
 	int max_clock;
@@ -368,7 +365,7 @@ intel_crt_mode_valid(struct drm_connector *connector,
 	if (mode->clock < 25000)
 		return MODE_CLOCK_LOW;
 
-	if (HAS_PCH_LPT(dev_priv))
+	if (HAS_PCH_LPT(display))
 		max_clock = 180000;
 	else if (display->platform.valleyview)
 		/*
@@ -387,7 +384,7 @@ intel_crt_mode_valid(struct drm_connector *connector,
 		return MODE_CLOCK_HIGH;
 
 	/* The FDI receiver on LPT only supports 8bpc and only has 2 lanes. */
-	if (HAS_PCH_LPT(dev_priv) &&
+	if (HAS_PCH_LPT(display) &&
 	    ilk_get_lanes_required(mode->clock, 270000, 24) > 2)
 		return MODE_CLOCK_HIGH;
 
@@ -438,7 +435,6 @@ static int hsw_crt_compute_config(struct intel_encoder *encoder,
 				  struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
 
@@ -457,7 +453,7 @@ static int hsw_crt_compute_config(struct intel_encoder *encoder,
 	crtc_state->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
 	/* LPT FDI RX only supports 8bpc. */
-	if (HAS_PCH_LPT(dev_priv)) {
+	if (HAS_PCH_LPT(display)) {
 		/* TODO: Check crtc_state->max_link_bpp_x16 instead of bw_constrained */
 		if (crtc_state->bw_constrained && crtc_state->pipe_bpp < 24) {
 			drm_dbg_kms(display->drm,
@@ -482,13 +478,12 @@ static bool ilk_crt_detect_hotplug(struct drm_connector *connector)
 {
 	struct intel_display *display = to_intel_display(connector->dev);
 	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
-	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	u32 adpa;
 	bool ret;
 
 	/* The first time through, trigger an explicit detection cycle */
 	if (crt->force_hotplug_required) {
-		bool turn_off_dac = HAS_PCH_SPLIT(dev_priv);
+		bool turn_off_dac = HAS_PCH_SPLIT(display);
 		u32 save_adpa;
 
 		crt->force_hotplug_required = false;
@@ -583,12 +578,11 @@ static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 {
 	struct intel_display *display = to_intel_display(connector->dev);
-	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	u32 stat;
 	bool ret = false;
 	int i, tries = 0;
 
-	if (HAS_PCH_SPLIT(dev_priv))
+	if (HAS_PCH_SPLIT(display))
 		return ilk_crt_detect_hotplug(connector);
 
 	if (display->platform.valleyview)
@@ -1011,14 +1005,13 @@ static const struct drm_encoder_funcs intel_crt_enc_funcs = {
 
 void intel_crt_init(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_connector *connector;
 	struct intel_crt *crt;
 	i915_reg_t adpa_reg;
 	u8 ddc_pin;
 	u32 adpa;
 
-	if (HAS_PCH_SPLIT(dev_priv))
+	if (HAS_PCH_SPLIT(display))
 		adpa_reg = PCH_ADPA;
 	else if (display->platform.valleyview)
 		adpa_reg = VLV_ADPA;
@@ -1108,7 +1101,7 @@ void intel_crt_init(struct intel_display *display)
 
 		intel_ddi_buf_trans_init(&crt->base);
 	} else {
-		if (HAS_PCH_SPLIT(dev_priv)) {
+		if (HAS_PCH_SPLIT(display)) {
 			crt->base.compute_config = pch_crt_compute_config;
 			crt->base.disable = pch_disable_crt;
 			crt->base.post_disable = pch_post_disable_crt;
@@ -1130,7 +1123,7 @@ void intel_crt_init(struct intel_display *display)
 	 * polarity and link reversal bits or not, instead of relying on the
 	 * BIOS.
 	 */
-	if (HAS_PCH_LPT(dev_priv)) {
+	if (HAS_PCH_LPT(display)) {
 		u32 fdi_config = FDI_RX_POLARITY_REVERSED_LPT |
 				 FDI_RX_LINK_REVERSAL_OVERRIDE;
 

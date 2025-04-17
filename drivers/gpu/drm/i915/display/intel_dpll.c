@@ -374,12 +374,11 @@ int chv_calc_dpll_params(int refclk, struct dpll *clock)
 static int i9xx_pll_refclk(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
-	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 	const struct i9xx_dpll_hw_state *hw_state = &crtc_state->dpll_hw_state.i9xx;
 
 	if ((hw_state->dpll & PLL_REF_INPUT_MASK) == PLLB_REF_INPUT_SPREADSPECTRUMIN)
 		return display->vbt.lvds_ssc_freq;
-	else if (HAS_PCH_SPLIT(i915))
+	else if (HAS_PCH_SPLIT(display))
 		return 120000;
 	else if (DISPLAY_VER(display) != 2)
 		return 96000;
@@ -1235,12 +1234,10 @@ static int mtl_crtc_compute_clock(struct intel_atomic_state *state,
 static int ilk_fb_cb_factor(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS) &&
 	    ((intel_panel_use_ssc(display) && display->vbt.lvds_ssc_freq == 100000) ||
-	     (HAS_PCH_IBX(i915) && intel_is_dual_link_lvds(display))))
+	     (HAS_PCH_IBX(display) && intel_is_dual_link_lvds(display))))
 		return 25;
 
 	if (crtc_state->sdvo_tv_clock)
@@ -1791,15 +1788,13 @@ int intel_dpll_crtc_get_shared_dpll(struct intel_atomic_state *state,
 void
 intel_dpll_init_clock_hook(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
 	if (DISPLAY_VER(display) >= 14)
 		display->funcs.dpll = &mtl_dpll_funcs;
 	else if (display->platform.dg2)
 		display->funcs.dpll = &dg2_dpll_funcs;
 	else if (DISPLAY_VER(display) >= 9 || HAS_DDI(display))
 		display->funcs.dpll = &hsw_dpll_funcs;
-	else if (HAS_PCH_SPLIT(dev_priv))
+	else if (HAS_PCH_SPLIT(display))
 		display->funcs.dpll = &ilk_dpll_funcs;
 	else if (display->platform.cherryview)
 		display->funcs.dpll = &chv_dpll_funcs;
