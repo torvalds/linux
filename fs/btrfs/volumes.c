@@ -1551,7 +1551,8 @@ static bool dev_extent_hole_check_zoned(struct btrfs_device *device,
 	int ret;
 	bool changed = false;
 
-	ASSERT(IS_ALIGNED(*hole_start, zone_size));
+	ASSERT(IS_ALIGNED(*hole_start, zone_size),
+	       "hole_start=%llu zone_size=%llu", *hole_start, zone_size);
 
 	while (*hole_size > 0) {
 		pos = btrfs_find_allocatable_zones(device, *hole_start,
@@ -1802,7 +1803,9 @@ next:
 	else
 		ret = 0;
 
-	ASSERT(max_hole_start + max_hole_size <= search_end);
+	ASSERT(max_hole_start + max_hole_size <= search_end,
+	       "max_hole_start=%llu max_hole_size=%llu search_end=%llu",
+	       max_hole_start, max_hole_size, search_end);
 out:
 	btrfs_free_path(path);
 	*start = max_hole_start;
@@ -2115,7 +2118,7 @@ static u64 btrfs_num_devices(struct btrfs_fs_info *fs_info)
 
 	down_read(&fs_info->dev_replace.rwsem);
 	if (btrfs_dev_replace_is_ongoing(&fs_info->dev_replace)) {
-		ASSERT(num_devices > 1);
+		ASSERT(num_devices > 1, "num_devices=%llu", num_devices);
 		num_devices--;
 	}
 	up_read(&fs_info->dev_replace.rwsem);
@@ -2319,7 +2322,7 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 	 */
 	if (cur_devices->num_devices == 0) {
 		list_del_init(&cur_devices->seed_list);
-		ASSERT(cur_devices->opened == 1);
+		ASSERT(cur_devices->opened == 1, "opened=%d", cur_devices->opened);
 		cur_devices->opened--;
 		free_fs_devices(cur_devices);
 	}
@@ -4663,7 +4666,8 @@ int btrfs_resume_balance_async(struct btrfs_fs_info *fs_info)
 	}
 
 	spin_lock(&fs_info->super_lock);
-	ASSERT(fs_info->exclusive_operation == BTRFS_EXCLOP_BALANCE_PAUSED);
+	ASSERT(fs_info->exclusive_operation == BTRFS_EXCLOP_BALANCE_PAUSED,
+	       "exclusive_operation=%d", fs_info->exclusive_operation);
 	fs_info->exclusive_operation = BTRFS_EXCLOP_BALANCE;
 	spin_unlock(&fs_info->super_lock);
 	/*
@@ -5346,7 +5350,9 @@ static int decide_stripe_size_zoned(struct alloc_chunk_ctl *ctl,
 	 * It should hold because:
 	 *    dev_extent_min == dev_extent_want == zone_size * dev_stripes
 	 */
-	ASSERT(devices_info[ctl->ndevs - 1].max_avail == ctl->dev_extent_min);
+	ASSERT(devices_info[ctl->ndevs - 1].max_avail == ctl->dev_extent_min,
+	       "ndevs=%d max_avail=%llu dev_extent_min=%llu", ctl->ndevs,
+	       devices_info[ctl->ndevs - 1].max_avail, ctl->dev_extent_min);
 
 	ctl->stripe_size = zone_size;
 	ctl->num_stripes = ctl->ndevs * ctl->dev_stripes;
@@ -5359,7 +5365,9 @@ static int decide_stripe_size_zoned(struct alloc_chunk_ctl *ctl,
 				     ctl->dev_stripes);
 		ctl->num_stripes = ctl->ndevs * ctl->dev_stripes;
 		data_stripes = (ctl->num_stripes - ctl->nparity) / ctl->ncopies;
-		ASSERT(ctl->stripe_size * data_stripes <= ctl->max_chunk_size);
+		ASSERT(ctl->stripe_size * data_stripes <= ctl->max_chunk_size,
+		       "stripe_size=%llu data_stripes=%d max_chunk_size=%llu",
+		       ctl->stripe_size, data_stripes, ctl->max_chunk_size);
 	}
 
 	ctl->chunk_size = ctl->stripe_size * data_stripes;
@@ -5965,8 +5973,8 @@ static int find_live_mirror(struct btrfs_fs_info *fs_info,
 	int tolerance;
 	struct btrfs_device *srcdev;
 
-	ASSERT((map->type &
-		 (BTRFS_BLOCK_GROUP_RAID1_MASK | BTRFS_BLOCK_GROUP_RAID10)));
+	ASSERT((map->type & (BTRFS_BLOCK_GROUP_RAID1_MASK | BTRFS_BLOCK_GROUP_RAID10)),
+	       "type=%llu", map->type);
 
 	if (map->type & BTRFS_BLOCK_GROUP_RAID10)
 		num_stripes = map->sub_stripes;
@@ -6267,7 +6275,7 @@ static void handle_ops_on_dev_replace(struct btrfs_io_context *bioc,
 	}
 
 	/* We can only have at most 2 extra nr_stripes (for DUP). */
-	ASSERT(nr_extra_stripes <= 2);
+	ASSERT(nr_extra_stripes <= 2, "nr_extra_stripes=%d", nr_extra_stripes);
 	/*
 	 * For GET_READ_MIRRORS, we can only return at most 1 extra stripe for
 	 * replace.
@@ -6278,7 +6286,8 @@ static void handle_ops_on_dev_replace(struct btrfs_io_context *bioc,
 		struct btrfs_io_stripe *second = &bioc->stripes[num_stripes + 1];
 
 		/* Only DUP can have two extra stripes. */
-		ASSERT(bioc->map_type & BTRFS_BLOCK_GROUP_DUP);
+		ASSERT(bioc->map_type & BTRFS_BLOCK_GROUP_DUP,
+		       "map_type=%llu", bioc->map_type);
 
 		/*
 		 * Swap the last stripe stripes and reduce @nr_extra_stripes.
@@ -6305,7 +6314,8 @@ static u64 btrfs_max_io_len(struct btrfs_chunk_map *map, u64 offset,
 	 */
 	io_geom->stripe_offset = offset & BTRFS_STRIPE_LEN_MASK;
 	io_geom->stripe_nr = offset >> BTRFS_STRIPE_LEN_SHIFT;
-	ASSERT(io_geom->stripe_offset < U32_MAX);
+	ASSERT(io_geom->stripe_offset < U32_MAX,
+	       "stripe_offset=%llu", io_geom->stripe_offset);
 
 	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
 		unsigned long full_stripe_len =
@@ -6323,8 +6333,12 @@ static u64 btrfs_max_io_len(struct btrfs_chunk_map *map, u64 offset,
 		io_geom->raid56_full_stripe_start = btrfs_stripe_nr_to_offset(
 			rounddown(io_geom->stripe_nr, nr_data_stripes(map)));
 
-		ASSERT(io_geom->raid56_full_stripe_start + full_stripe_len > offset);
-		ASSERT(io_geom->raid56_full_stripe_start <= offset);
+		ASSERT(io_geom->raid56_full_stripe_start + full_stripe_len > offset,
+		       "raid56_full_stripe_start=%llu full_stripe_len=%lu offset=%llu",
+		       io_geom->raid56_full_stripe_start, full_stripe_len, offset);
+		ASSERT(io_geom->raid56_full_stripe_start <= offset,
+		       "raid56_full_stripe_start=%llu offset=%llu",
+		       io_geom->raid56_full_stripe_start, offset);
 		/*
 		 * For writes to RAID56, allow to write a full stripe set, but
 		 * no straddling of stripe sets.
@@ -6490,7 +6504,7 @@ static void map_blocks_raid56_read(struct btrfs_chunk_map *map,
 {
 	int data_stripes = nr_data_stripes(map);
 
-	ASSERT(io_geom->mirror_num <= 1);
+	ASSERT(io_geom->mirror_num <= 1, "mirror_num=%d", io_geom->mirror_num);
 	/* Just grab the data stripe directly. */
 	io_geom->stripe_index = io_geom->stripe_nr % data_stripes;
 	io_geom->stripe_nr /= data_stripes;
@@ -7835,7 +7849,7 @@ void btrfs_commit_device_sizes(struct btrfs_transaction *trans)
 {
 	struct btrfs_device *curr, *next;
 
-	ASSERT(trans->state == TRANS_STATE_COMMIT_DOING);
+	ASSERT(trans->state == TRANS_STATE_COMMIT_DOING, "state=%d" , trans->state);
 
 	if (list_empty(&trans->dev_update_list))
 		return;
@@ -8204,7 +8218,7 @@ static void map_raid56_repair_block(struct btrfs_io_context *bioc,
 		    logical < stripe_start + BTRFS_STRIPE_LEN)
 			break;
 	}
-	ASSERT(i < data_stripes);
+	ASSERT(i < data_stripes, "i=%d data_stripes=%d", i, data_stripes);
 	smap->dev = bioc->stripes[i].dev;
 	smap->physical = bioc->stripes[i].physical +
 			((logical - bioc->full_stripe_logical) &
@@ -8233,7 +8247,7 @@ int btrfs_map_repair_block(struct btrfs_fs_info *fs_info,
 	int mirror_ret = mirror_num;
 	int ret;
 
-	ASSERT(mirror_num > 0);
+	ASSERT(mirror_num > 0, "mirror_num=%d", mirror_num);
 
 	ret = btrfs_map_block(fs_info, BTRFS_MAP_WRITE, logical, &map_length,
 			      &bioc, smap, &mirror_ret);
@@ -8241,7 +8255,7 @@ int btrfs_map_repair_block(struct btrfs_fs_info *fs_info,
 		return ret;
 
 	/* The map range should not cross stripe boundary. */
-	ASSERT(map_length >= length);
+	ASSERT(map_length >= length, "map_length=%llu length=%u", map_length, length);
 
 	/* Already mapped to single stripe. */
 	if (!bioc)
@@ -8253,7 +8267,8 @@ int btrfs_map_repair_block(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 
-	ASSERT(mirror_num <= bioc->num_stripes);
+	ASSERT(mirror_num <= bioc->num_stripes,
+	       "mirror_num=%d num_stripes=%d", mirror_num,  bioc->num_stripes);
 	smap->dev = bioc->stripes[mirror_num - 1].dev;
 	smap->physical = bioc->stripes[mirror_num - 1].physical;
 out:
