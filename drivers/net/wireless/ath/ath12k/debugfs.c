@@ -33,6 +33,82 @@ static const struct file_operations fops_simulate_radar = {
 	.open = simple_open
 };
 
+static ssize_t ath12k_read_simulate_fw_crash(struct file *file,
+					     char __user *user_buf,
+					     size_t count, loff_t *ppos)
+{
+	const char buf[] =
+		"To simulate firmware crash write one of the keywords to this file:\n"
+		"`assert` - send WMI_FORCE_FW_HANG_CMDID to firmware to cause assert.\n";
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
+}
+
+static ssize_t
+ath12k_write_simulate_fw_crash(struct file *file,
+			       const char __user *user_buf,
+			       size_t count, loff_t *ppos)
+{
+	struct ath12k_base *ab = file->private_data;
+	struct ath12k_pdev *pdev;
+	struct ath12k *ar = NULL;
+	char buf[32] = {0};
+	int i, ret;
+	ssize_t rc;
+
+	/* filter partial writes and invalid commands */
+	if (*ppos != 0 || count >= sizeof(buf) || count == 0)
+		return -EINVAL;
+
+	rc = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (rc < 0)
+		return rc;
+
+	/* drop the possible '\n' from the end */
+	if (buf[*ppos - 1] == '\n')
+		buf[*ppos - 1] = '\0';
+
+	for (i = 0; i < ab->num_radios; i++) {
+		pdev = &ab->pdevs[i];
+		ar = pdev->ar;
+		if (ar)
+			break;
+	}
+
+	if (!ar)
+		return -ENETDOWN;
+
+	if (!strcmp(buf, "assert")) {
+		ath12k_info(ab, "simulating firmware assert crash\n");
+		ret = ath12k_wmi_force_fw_hang_cmd(ar,
+						   ATH12K_WMI_FW_HANG_ASSERT_TYPE,
+						   ATH12K_WMI_FW_HANG_DELAY);
+	} else {
+		return -EINVAL;
+	}
+
+	if (ret) {
+		ath12k_warn(ab, "failed to simulate firmware crash: %d\n", ret);
+		return ret;
+	}
+
+	return count;
+}
+
+static const struct file_operations fops_simulate_fw_crash = {
+	.read = ath12k_read_simulate_fw_crash,
+	.write = ath12k_write_simulate_fw_crash,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+void ath12k_debugfs_pdev_create(struct ath12k_base *ab)
+{
+	debugfs_create_file("simulate_fw_crash", 0600, ab->debugfs_soc, ab,
+			    &fops_simulate_fw_crash);
+}
+
 static ssize_t ath12k_write_tpc_stats_type(struct file *file,
 					   const char __user *user_buf,
 					   size_t count, loff_t *ppos)
