@@ -39,6 +39,28 @@
 #define INTEL_PCH_P3X_DEVICE_ID_TYPE		0x7000
 #define INTEL_PCH_QEMU_DEVICE_ID_TYPE		0x2900 /* qemu q35 has 2918 */
 
+/*
+ * Check for platforms where the south display is on the same PCI device or SoC
+ * die as the north display. The PCH (if it even exists) is not involved in
+ * display. Return a fake PCH type for south display handling on these
+ * platforms, without actually detecting the PCH, and PCH_NONE otherwise.
+ */
+static enum intel_pch intel_pch_fake_for_south_display(struct intel_display *display)
+{
+	enum intel_pch pch_type = PCH_NONE;
+
+	if (DISPLAY_VER(display) >= 20)
+		pch_type = PCH_LNL;
+	else if (display->platform.battlemage || display->platform.meteorlake)
+		pch_type = PCH_MTL;
+	else if (display->platform.dg2)
+		pch_type = PCH_DG2;
+	else if (display->platform.dg1)
+		pch_type = PCH_DG1;
+
+	return pch_type;
+}
+
 /* Map PCH device id to PCH type, or PCH_NONE if unknown. */
 static enum intel_pch
 intel_pch_type(const struct intel_display *display, unsigned short id)
@@ -258,25 +280,12 @@ void intel_pch_detect(struct intel_display *display)
 	unsigned short id;
 	enum intel_pch pch_type;
 
-	/*
-	 * South display engine on the same PCI device: just assign the fake
-	 * PCH.
-	 */
-	if (DISPLAY_VER(display) >= 20) {
-		display->pch_type = PCH_LNL;
-		return;
-	} else if (display->platform.battlemage || display->platform.meteorlake) {
-		/*
-		 * Both north display and south display are on the SoC die.
-		 * The real PCH (if it even exists) is uninvolved in display.
-		 */
-		display->pch_type = PCH_MTL;
-		return;
-	} else if (display->platform.dg2) {
-		display->pch_type = PCH_DG2;
-		return;
-	} else if (display->platform.dg1) {
-		display->pch_type = PCH_DG1;
+	pch_type = intel_pch_fake_for_south_display(display);
+	if (pch_type != PCH_NONE) {
+		display->pch_type = pch_type;
+		drm_dbg_kms(display->drm,
+			    "PCH not involved in display, using fake PCH type %d for south display\n",
+			    pch_type);
 		return;
 	}
 
