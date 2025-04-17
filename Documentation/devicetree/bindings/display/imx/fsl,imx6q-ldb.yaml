@@ -1,0 +1,193 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/imx/fsl,imx6q-ldb.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale LVDS Display Bridge (ldb)
+
+description:
+  The LVDS Display Bridge device tree node contains up to two lvds-channel
+  nodes describing each of the two LVDS encoder channels of the bridge.
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - fsl,imx53-ldb
+      - items:
+          - enum:
+              - fsl,imx6q-ldb
+          - const: fsl,imx53-ldb
+
+  reg:
+    maxItems: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+  gpr:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      The phandle points to the iomuxc-gpr region containing the LVDS
+      control register.
+
+  clocks:
+    minItems: 6
+    maxItems: 8
+
+  clock-names:
+    oneOf:
+      - items:
+          - const: di0_pll
+          - const: di1_pll
+          - const: di0_sel
+          - const: di1_sel
+          - const: di0
+          - const: di1
+      - items:
+          - const: di0_pll
+          - const: di1_pll
+          - const: di0_sel
+          - const: di1_sel
+          - const: di2_sel
+          - const: di3_sel
+          - const: di0
+          - const: di1
+
+  fsl,dual-channel:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      if it exists, only LVDS channel 0 should
+      be configured - one input will be distributed on both outputs in dual
+      channel mode
+
+patternProperties:
+  '^lvds-channel@[0-1]$':
+    type: object
+    description:
+      Each LVDS Channel has to contain either an of graph link to a panel device node
+      or a display-timings node that describes the video timings for the connected
+      LVDS display as well as the fsl,data-mapping and fsl,data-width properties.
+
+    properties:
+      reg:
+        maxItems: 1
+
+      '#address-cells':
+        const: 1
+
+      '#size-cells':
+        const: 0
+
+      display-timings:
+        $ref: /schemas/display/panel/display-timings.yaml#
+
+      fsl,data-mapping:
+        enum:
+          - spwg
+          - jeida
+
+      fsl,data-width:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description: should be <18> or <24>
+        enum:
+          - 18
+          - 24
+
+      fsl,panel:
+        $ref: /schemas/types.yaml#/definitions/phandle
+        description: phandle to lcd panel
+
+    patternProperties:
+      '^port@[0-4]$':
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          On i.MX5, the internal two-input-multiplexer is used. Due to hardware
+          limitations, only one input port (port@[0,1]) can be used for each channel
+          (lvds-channel@[0,1], respectively).
+          On i.MX6, there should be four input ports (port@[0-3]) that correspond
+          to the four LVDS multiplexer inputs.
+          A single output port (port@2 on i.MX5, port@4 on i.MX6) must be connected
+          to a panel input port. Optionally, the output port can be left out if
+          display-timings are used instead.
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - gpr
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/imx5-clock.h>
+
+    ldb@53fa8008 {
+        compatible = "fsl,imx53-ldb";
+        reg = <0x53fa8008 0x4>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        gpr = <&gpr>;
+        clocks = <&clks IMX5_CLK_LDB_DI0_SEL>,
+                 <&clks IMX5_CLK_LDB_DI1_SEL>,
+                 <&clks IMX5_CLK_IPU_DI0_SEL>,
+                 <&clks IMX5_CLK_IPU_DI1_SEL>,
+                 <&clks IMX5_CLK_LDB_DI0_GATE>,
+                 <&clks IMX5_CLK_LDB_DI1_GATE>;
+        clock-names = "di0_pll", "di1_pll",
+                      "di0_sel", "di1_sel",
+                      "di0", "di1";
+
+        /* Using an of-graph endpoint link to connect the panel */
+        lvds-channel@0 {
+                reg = <0>;
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+
+                    endpoint {
+                        remote-endpoint = <&ipu_di0_lvds0>;
+                    };
+                };
+
+                port@2 {
+                    reg = <2>;
+
+                    endpoint {
+                        remote-endpoint = <&panel_in>;
+                    };
+               };
+        };
+
+        /* Using display-timings and fsl,data-mapping/width instead */
+        lvds-channel@1 {
+                reg = <1>;
+                #address-cells = <1>;
+                #size-cells = <0>;
+                fsl,data-mapping = "spwg";
+                fsl,data-width = <24>;
+
+                display-timings {/* ... */
+                };
+
+                port@1 {
+                     reg = <1>;
+
+                     endpoint {
+                         remote-endpoint = <&ipu_di1_lvds1>;
+                     };
+                };
+        };
+    };
