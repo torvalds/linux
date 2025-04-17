@@ -81,6 +81,15 @@
 
 /* Max RRL register sets per {,sub-,pseudo-}channel. */
 #define NUM_RRL_SET		3
+/* Max RRL registers per set. */
+#define NUM_RRL_REG		6
+
+/* RRL registers per {,sub-,pseudo-}channel. */
+struct reg_rrl {
+	/* RRL register parts. */
+	int set_num;
+	u32 offsets[NUM_RRL_SET][NUM_RRL_REG];
+};
 
 /*
  * Each cpu socket contains some pci devices that provide global
@@ -237,14 +246,10 @@ struct res_config {
 	/* HBM mdev device BDF */
 	struct pci_bdf hbm_mdev_bdf;
 	int sad_all_offset;
-	/* Offsets of retry_rd_err_log registers */
-	u32 *offsets_scrub;
-	u32 *offsets_scrub_hbm0;
-	u32 *offsets_scrub_hbm1;
-	u32 *offsets_demand;
-	u32 *offsets_demand2;
-	u32 *offsets_demand_hbm0;
-	u32 *offsets_demand_hbm1;
+	/* RRL register sets per DDR channel */
+	struct reg_rrl *reg_rrl_ddr;
+	/* RRL register sets per HBM channel */
+	struct reg_rrl *reg_rrl_hbm[2];
 };
 
 typedef int (*get_dimm_config_f)(struct mem_ctl_info *mci,

@@ -86,15 +86,38 @@ static int retry_rd_err_log;
 static int decoding_via_mca;
 static bool mem_cfg_2lm;
 
-static u32 offsets_scrub_icx[]  = {0x22c60, 0x22c54, 0x22c5c, 0x22c58, 0x22c28, 0x20ed8};
-static u32 offsets_scrub_spr[]  = {0x22c60, 0x22c54, 0x22f08, 0x22c58, 0x22c28, 0x20ed8};
-static u32 offsets_scrub_spr_hbm0[]  = {0x2860, 0x2854, 0x2b08, 0x2858, 0x2828, 0x0ed8};
-static u32 offsets_scrub_spr_hbm1[]  = {0x2c60, 0x2c54, 0x2f08, 0x2c58, 0x2c28, 0x0fa8};
-static u32 offsets_demand_icx[] = {0x22e54, 0x22e60, 0x22e64, 0x22e58, 0x22e5c, 0x20ee0};
-static u32 offsets_demand_spr[] = {0x22e54, 0x22e60, 0x22f10, 0x22e58, 0x22e5c, 0x20ee0};
-static u32 offsets_demand2_spr[] = {0x22c70, 0x22d80, 0x22f18, 0x22d58, 0x22c64, 0x20f10};
-static u32 offsets_demand_spr_hbm0[] = {0x2a54, 0x2a60, 0x2b10, 0x2a58, 0x2a5c, 0x0ee0};
-static u32 offsets_demand_spr_hbm1[] = {0x2e54, 0x2e60, 0x2f10, 0x2e58, 0x2e5c, 0x0fb0};
+static struct reg_rrl icx_reg_rrl_ddr = {
+	.set_num = 2,
+	.offsets = {
+		{0x22c60, 0x22c54, 0x22c5c, 0x22c58, 0x22c28, 0x20ed8},
+		{0x22e54, 0x22e60, 0x22e64, 0x22e58, 0x22e5c, 0x20ee0},
+	},
+};
+
+static struct reg_rrl spr_reg_rrl_ddr = {
+	.set_num = 3,
+	.offsets = {
+		{0x22c60, 0x22c54, 0x22f08, 0x22c58, 0x22c28, 0x20ed8},
+		{0x22e54, 0x22e60, 0x22f10, 0x22e58, 0x22e5c, 0x20ee0},
+		{0x22c70, 0x22d80, 0x22f18, 0x22d58, 0x22c64, 0x20f10},
+	},
+};
+
+static struct reg_rrl spr_reg_rrl_hbm_pch0 = {
+	.set_num = 2,
+	.offsets = {
+		{0x2860, 0x2854, 0x2b08, 0x2858, 0x2828, 0x0ed8},
+		{0x2a54, 0x2a60, 0x2b10, 0x2a58, 0x2a5c, 0x0ee0},
+	},
+};
+
+static struct reg_rrl spr_reg_rrl_hbm_pch1 = {
+	.set_num = 2,
+	.offsets = {
+		{0x2c60, 0x2c54, 0x2f08, 0x2c58, 0x2c28, 0x0fa8},
+		{0x2e54, 0x2e60, 0x2f10, 0x2e58, 0x2e5c, 0x0fb0},
+	},
+};
 
 static void __enable_retry_rd_err_log(struct skx_imc *imc, int chan, bool enable, u32 *rrl_ctl,
 				      u32 *offsets_scrub, u32 *offsets_demand,
@@ -185,9 +208,11 @@ static void enable_retry_rd_err_log(bool enable)
 			chan = d->imc[i].chan;
 			for (j = 0; j < chan_num; j++)
 				__enable_retry_rd_err_log(imc, j, enable, chan[j].rrl_ctl[0],
-							  res_cfg->offsets_scrub,
-							  res_cfg->offsets_demand,
-							  res_cfg->offsets_demand2);
+							  res_cfg->reg_rrl_ddr->offsets[0],
+							  res_cfg->reg_rrl_ddr->offsets[1],
+							  res_cfg->reg_rrl_ddr->set_num > 2 ?
+							  res_cfg->reg_rrl_ddr->offsets[2] : NULL);
+
 		}
 
 		imc_num += res_cfg->hbm_imc_num;
@@ -201,12 +226,12 @@ static void enable_retry_rd_err_log(bool enable)
 			chan = d->imc[i].chan;
 			for (j = 0; j < chan_num; j++) {
 				__enable_retry_rd_err_log(imc, j, enable, chan[j].rrl_ctl[0],
-							  res_cfg->offsets_scrub_hbm0,
-							  res_cfg->offsets_demand_hbm0,
+							  res_cfg->reg_rrl_hbm[0]->offsets[0],
+							  res_cfg->reg_rrl_hbm[0]->offsets[1],
 							  NULL);
 				__enable_retry_rd_err_log(imc, j, enable, chan[j].rrl_ctl[1],
-							  res_cfg->offsets_scrub_hbm1,
-							  res_cfg->offsets_demand_hbm1,
+							  res_cfg->reg_rrl_hbm[1]->offsets[0],
+							  res_cfg->reg_rrl_hbm[1]->offsets[1],
 							  NULL);
 			}
 		}
@@ -233,17 +258,18 @@ static void show_retry_rd_err_log(struct decoded_addr *res, char *msg,
 		pch = res->cs & 1;
 
 		if (pch)
-			offsets = scrub_err ? res_cfg->offsets_scrub_hbm1 :
-					      res_cfg->offsets_demand_hbm1;
+			offsets = scrub_err ? res_cfg->reg_rrl_hbm[1]->offsets[0] :
+					      res_cfg->reg_rrl_hbm[1]->offsets[1];
 		else
-			offsets = scrub_err ? res_cfg->offsets_scrub_hbm0 :
-					      res_cfg->offsets_demand_hbm0;
+			offsets = scrub_err ? res_cfg->reg_rrl_hbm[0]->offsets[0] :
+					      res_cfg->reg_rrl_hbm[0]->offsets[1];
 	} else {
 		if (scrub_err) {
-			offsets = res_cfg->offsets_scrub;
+			offsets = res_cfg->reg_rrl_ddr->offsets[0];
 		} else {
-			offsets = res_cfg->offsets_demand;
-			xffsets = res_cfg->offsets_demand2;
+			offsets = res_cfg->reg_rrl_ddr->offsets[1];
+			if (res_cfg->reg_rrl_ddr->set_num > 2)
+				xffsets = res_cfg->reg_rrl_ddr->offsets[2];
 		}
 	}
 
@@ -883,8 +909,7 @@ static struct res_config i10nm_cfg0 = {
 	.ddr_mdev_bdf		= {0, 12, 0},
 	.hbm_mdev_bdf		= {0, 12, 1},
 	.sad_all_offset		= 0x108,
-	.offsets_scrub		= offsets_scrub_icx,
-	.offsets_demand		= offsets_demand_icx,
+	.reg_rrl_ddr		= &icx_reg_rrl_ddr,
 };
 
 static struct res_config i10nm_cfg1 = {
@@ -902,8 +927,7 @@ static struct res_config i10nm_cfg1 = {
 	.ddr_mdev_bdf		= {0, 12, 0},
 	.hbm_mdev_bdf		= {0, 12, 1},
 	.sad_all_offset		= 0x108,
-	.offsets_scrub		= offsets_scrub_icx,
-	.offsets_demand		= offsets_demand_icx,
+	.reg_rrl_ddr		= &icx_reg_rrl_ddr,
 };
 
 static struct res_config spr_cfg = {
@@ -926,13 +950,9 @@ static struct res_config spr_cfg = {
 	.ddr_mdev_bdf		= {0, 12, 0},
 	.hbm_mdev_bdf		= {0, 12, 1},
 	.sad_all_offset		= 0x300,
-	.offsets_scrub		= offsets_scrub_spr,
-	.offsets_scrub_hbm0	= offsets_scrub_spr_hbm0,
-	.offsets_scrub_hbm1	= offsets_scrub_spr_hbm1,
-	.offsets_demand		= offsets_demand_spr,
-	.offsets_demand2	= offsets_demand2_spr,
-	.offsets_demand_hbm0	= offsets_demand_spr_hbm0,
-	.offsets_demand_hbm1	= offsets_demand_spr_hbm1,
+	.reg_rrl_ddr		= &spr_reg_rrl_ddr,
+	.reg_rrl_hbm[0]		= &spr_reg_rrl_hbm_pch0,
+	.reg_rrl_hbm[1]		= &spr_reg_rrl_hbm_pch1,
 };
 
 static struct res_config gnr_cfg = {
@@ -1121,7 +1141,7 @@ static int __init i10nm_init(void)
 	mce_register_decode_chain(&i10nm_mce_dec);
 	skx_setup_debug("i10nm_test");
 
-	if (retry_rd_err_log && res_cfg->offsets_scrub && res_cfg->offsets_demand) {
+	if (retry_rd_err_log && res_cfg->reg_rrl_ddr) {
 		skx_set_decode(i10nm_mc_decode, show_retry_rd_err_log);
 		if (retry_rd_err_log == 2)
 			enable_retry_rd_err_log(true);
@@ -1141,7 +1161,7 @@ static void __exit i10nm_exit(void)
 {
 	edac_dbg(2, "\n");
 
-	if (retry_rd_err_log && res_cfg->offsets_scrub && res_cfg->offsets_demand) {
+	if (retry_rd_err_log && res_cfg->reg_rrl_ddr) {
 		skx_set_decode(NULL, NULL);
 		if (retry_rd_err_log == 2)
 			enable_retry_rd_err_log(false);
