@@ -61,17 +61,6 @@ DEFINE_CRC32_VX(crc32_le_arch, crc32_le_vgfm_16, crc32_le_base)
 DEFINE_CRC32_VX(crc32_be_arch, crc32_be_vgfm_16, crc32_be_base)
 DEFINE_CRC32_VX(crc32c_arch, crc32c_le_vgfm_16, crc32c_base)
 
-static int __init crc32_s390_init(void)
-{
-	return 0;
-}
-arch_initcall(crc32_s390_init);
-
-static void __exit crc32_s390_exit(void)
-{
-}
-module_exit(crc32_s390_exit);
-
 u32 crc32_optimizations(void)
 {
 	if (cpu_has_vx()) {
