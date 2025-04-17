@@ -443,6 +443,15 @@ static void vc_uniscr_scroll(struct vc_data *vc, unsigned int top,
 	}
 }
 
+static u32 vc_uniscr_getc(struct vc_data *vc, int relative_pos)
+{
+	int pos = vc->state.x + vc->vc_need_wrap + relative_pos;
+
+	if (vc->vc_uni_lines && in_range(pos, 0, vc->vc_cols))
+		return vc->vc_uni_lines[vc->state.y][pos];
+	return 0;
+}
+
 static void vc_uniscr_copy_area(u32 **dst_lines,
 				unsigned int dst_cols,
 				unsigned int dst_rows,
@@ -2905,6 +2914,60 @@ static bool vc_is_control(struct vc_data *vc, int tc, int c)
 	return false;
 }
 
+static void vc_con_rewind(struct vc_data *vc)
+{
+	if (vc->state.x && !vc->vc_need_wrap) {
+		vc->vc_pos -= 2;
+		vc->state.x--;
+	}
+	vc->vc_need_wrap = 0;
+}
+
+#define UCS_VS16	0xfe0f	/* Variation Selector 16 */
+
+static int vc_process_ucs(struct vc_data *vc, int c, int *tc)
+{
+	u32 prev_c, curr_c = c;
+
+	if (ucs_is_double_width(curr_c))
+		return 2;
+
+	if (!ucs_is_zero_width(curr_c))
+		return 1;
+
+	/* From here curr_c is known to be zero-width. */
+
+	if (ucs_is_double_width(vc_uniscr_getc(vc, -2))) {
+		/*
+		 * Let's merge this zero-width code point with the preceding
+		 * double-width code point by replacing the existing
+		 * whitespace padding. To do so we rewind one column and
+		 * pretend this has a width of 1.
+		 * We give the legacy display the same initial space padding.
+		 */
+		vc_con_rewind(vc);
+		*tc = ' ';
+		return 1;
+	}
+
+	/* From here the preceding character, if any, must be single-width. */
+	prev_c = vc_uniscr_getc(vc, -1);
+
+	if (curr_c == UCS_VS16 && prev_c != 0) {
+		/*
+		 * VS16 (U+FE0F) is special. It typically turns the preceding
+		 * single-width character into a double-width one. Let it
+		 * have a width of 1 effectively making the combination with
+		 * the preceding character double-width.
+		 */
+		*tc = ' ';
+		return 1;
+	}
+
+	/* Otherwise zero-width code points are ignored. */
+	return 0;
+}
+
 static int vc_con_write_normal(struct vc_data *vc, int tc, int c,
 		struct vc_draw_region *draw)
 {
@@ -2915,8 +2978,9 @@ static int vc_con_write_normal(struct vc_data *vc, int tc, int c,
 	bool inverse = false;
 
 	if (vc->vc_utf && !vc->vc_disp_ctrl) {
-		if (ucs_is_double_width(c))
-			width = 2;
+		width = vc_process_ucs(vc, c, &tc);
+		if (!width)
+			goto out;
 	}
 
 	/* Now try to find out how to display it */
@@ -2995,6 +3059,8 @@ static int vc_con_write_normal(struct vc_data *vc, int tc, int c,
 			tc = ' ';
 		next_c = ' ';
 	}
+
+out:
 	notify_write(vc, c);
 
 	if (inverse)
