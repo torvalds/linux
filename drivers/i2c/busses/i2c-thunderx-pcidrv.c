@@ -178,7 +178,7 @@ static int thunder_i2c_probe_pci(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	ret = pci_request_regions(pdev, DRV_NAME);
+	ret = pcim_request_all_regions(pdev, DRV_NAME);
 	if (ret)
 		return ret;
 
