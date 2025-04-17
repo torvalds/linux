@@ -777,9 +777,7 @@ static inline int inode_need_compress(struct btrfs_inode *inode, u64 start,
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 
 	if (!btrfs_inode_can_compress(inode)) {
-		WARN(IS_ENABLED(CONFIG_BTRFS_DEBUG),
-			KERN_ERR "BTRFS: unexpected compression for ino %llu\n",
-			btrfs_ino(inode));
+		DEBUG_WARN("BTRFS: unexpected compression for ino %llu", btrfs_ino(inode));
 		return 0;
 	}
 
@@ -2880,7 +2878,7 @@ int btrfs_writepage_cow_fixup(struct folio *folio)
 	 * We should not hit such out-of-band dirty folios anymore.
 	 */
 	if (IS_ENABLED(CONFIG_BTRFS_EXPERIMENTAL)) {
-		WARN_ON(IS_ENABLED(CONFIG_BTRFS_DEBUG));
+		DEBUG_WARN();
 		btrfs_err_rl(fs_info,
 	"root %lld ino %llu folio %llu is marked dirty without notifying the fs",
 			     BTRFS_I(inode)->root->root_key.objectid,

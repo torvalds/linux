@@ -2877,7 +2877,7 @@ int btrfs_backref_iter_start(struct btrfs_backref_iter *iter, u64 bytenr)
 		goto release;
 	}
 	if (path->slots[0] == 0) {
-		WARN_ON(IS_ENABLED(CONFIG_BTRFS_DEBUG));
+		DEBUG_WARN();
 		ret = -EUCLEAN;
 		goto release;
 	}

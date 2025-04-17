@@ -1823,7 +1823,7 @@ int btrfs_remove_qgroup(struct btrfs_trans_handle *trans, u64 qgroupid)
 	if (qgroup->rsv.values[BTRFS_QGROUP_RSV_DATA] ||
 	    qgroup->rsv.values[BTRFS_QGROUP_RSV_META_PREALLOC] ||
 	    qgroup->rsv.values[BTRFS_QGROUP_RSV_META_PERTRANS]) {
-		WARN_ON(IS_ENABLED(CONFIG_BTRFS_DEBUG));
+		DEBUG_WARN();
 		btrfs_warn_rl(fs_info,
 "to be deleted qgroup %u/%llu has non-zero numbers, data %llu meta prealloc %llu meta pertrans %llu",
 			      btrfs_qgroup_level(qgroup->qgroupid),
@@ -1843,7 +1843,7 @@ int btrfs_remove_qgroup(struct btrfs_trans_handle *trans, u64 qgroupid)
 	    !(fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT)) {
 		if (qgroup->rfer || qgroup->excl ||
 		    qgroup->rfer_cmpr || qgroup->excl_cmpr) {
-			WARN_ON(IS_ENABLED(CONFIG_BTRFS_DEBUG));
+			DEBUG_WARN();
 			btrfs_warn_rl(fs_info,
 "to be deleted qgroup %u/%llu has non-zero numbers, rfer %llu rfer_cmpr %llu excl %llu excl_cmpr %llu",
 				      btrfs_qgroup_level(qgroup->qgroupid),
@@ -4767,7 +4767,7 @@ int btrfs_qgroup_add_swapped_blocks(struct btrfs_root *subvol_root,
 				 * Marking qgroup inconsistent should be enough
 				 * for end users.
 				 */
-				WARN_ON(IS_ENABLED(CONFIG_BTRFS_DEBUG));
+				DEBUG_WARN("duplicated but mismatched entry found");
 				ret = -EEXIST;
 			}
 			kfree(block);

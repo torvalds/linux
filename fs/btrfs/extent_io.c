@@ -3697,7 +3697,7 @@ static bool report_eb_range(const struct extent_buffer *eb, unsigned long start,
 	btrfs_warn(eb->fs_info,
 		"access to eb bytenr %llu len %u out of range start %lu len %lu",
 		eb->start, eb->len, start, len);
-	WARN_ON(IS_ENABLED(CONFIG_BTRFS_DEBUG));
+	DEBUG_WARN();
 
 	return true;
 }
