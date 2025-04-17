@@ -83,6 +83,8 @@
 #define NUM_RRL_SET		3
 /* Max RRL registers per set. */
 #define NUM_RRL_REG		6
+/* Max correctable error count registers. */
+#define NUM_CECNT_REG		4
 
 /* Modes of RRL register set. */
 enum rrl_mode {
@@ -99,16 +101,23 @@ enum rrl_mode {
 /* RRL registers per {,sub-,pseudo-}channel. */
 struct reg_rrl {
 	/* RRL register parts. */
-	int set_num;
+	int set_num, reg_num;
 	enum rrl_mode modes[NUM_RRL_SET];
 	u32 offsets[NUM_RRL_SET][NUM_RRL_REG];
 	/* RRL register widths in byte per set. */
 	u8 widths[NUM_RRL_REG];
 	/* RRL control bits of the first register per set. */
+	u32 v_mask;
 	u32 uc_mask;
+	u32 over_mask;
 	u32 en_patspr_mask;
 	u32 noover_mask;
 	u32 en_mask;
+
+	/* CORRERRCNT register parts. */
+	int cecnt_num;
+	u32 cecnt_offsets[NUM_CECNT_REG];
+	u8 cecnt_widths[NUM_CECNT_REG];
 };
 
 /*

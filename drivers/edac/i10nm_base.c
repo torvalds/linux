@@ -72,8 +72,6 @@
 #define I10NM_SAD_ENABLE(reg)		GET_BITFIELD(reg, 0, 0)
 #define I10NM_SAD_NM_CACHEABLE(reg)	GET_BITFIELD(reg, 5, 5)
 
-#define RETRY_RD_ERR_LOG_OVER_UC_V	(BIT(2) | BIT(1) | BIT(0))
-
 static struct list_head *i10nm_edac_list;
 
 static struct res_config *res_cfg;
@@ -83,20 +81,28 @@ static bool mem_cfg_2lm;
 
 static struct reg_rrl icx_reg_rrl_ddr = {
 	.set_num = 2,
+	.reg_num = 6,
 	.modes = {LRE_SCRUB, LRE_DEMAND},
 	.offsets = {
 		{0x22c60, 0x22c54, 0x22c5c, 0x22c58, 0x22c28, 0x20ed8},
 		{0x22e54, 0x22e60, 0x22e64, 0x22e58, 0x22e5c, 0x20ee0},
 	},
 	.widths		= {4, 4, 4, 4, 4, 8},
+	.v_mask		= BIT(0),
 	.uc_mask	= BIT(1),
+	.over_mask	= BIT(2),
 	.en_patspr_mask	= BIT(13),
 	.noover_mask	= BIT(14),
 	.en_mask	= BIT(15),
+
+	.cecnt_num	= 4,
+	.cecnt_offsets	= {0x22c18, 0x22c1c, 0x22c20, 0x22c24},
+	.cecnt_widths	= {4, 4, 4, 4},
 };
 
 static struct reg_rrl spr_reg_rrl_ddr = {
 	.set_num = 3,
+	.reg_num = 6,
 	.modes = {LRE_SCRUB, LRE_DEMAND, FRE_DEMAND},
 	.offsets = {
 		{0x22c60, 0x22c54, 0x22f08, 0x22c58, 0x22c28, 0x20ed8},
@@ -104,38 +110,58 @@ static struct reg_rrl spr_reg_rrl_ddr = {
 		{0x22c70, 0x22d80, 0x22f18, 0x22d58, 0x22c64, 0x20f10},
 	},
 	.widths		= {4, 4, 8, 4, 4, 8},
+	.v_mask		= BIT(0),
 	.uc_mask	= BIT(1),
+	.over_mask	= BIT(2),
 	.en_patspr_mask	= BIT(13),
 	.noover_mask	= BIT(14),
 	.en_mask	= BIT(15),
+
+	.cecnt_num	= 4,
+	.cecnt_offsets	= {0x22c18, 0x22c1c, 0x22c20, 0x22c24},
+	.cecnt_widths	= {4, 4, 4, 4},
 };
 
 static struct reg_rrl spr_reg_rrl_hbm_pch0 = {
 	.set_num = 2,
+	.reg_num = 6,
 	.modes = {LRE_SCRUB, LRE_DEMAND},
 	.offsets = {
 		{0x2860, 0x2854, 0x2b08, 0x2858, 0x2828, 0x0ed8},
 		{0x2a54, 0x2a60, 0x2b10, 0x2a58, 0x2a5c, 0x0ee0},
 	},
 	.widths		= {4, 4, 8, 4, 4, 8},
+	.v_mask		= BIT(0),
 	.uc_mask	= BIT(1),
+	.over_mask	= BIT(2),
 	.en_patspr_mask	= BIT(13),
 	.noover_mask	= BIT(14),
 	.en_mask	= BIT(15),
+
+	.cecnt_num	= 4,
+	.cecnt_offsets	= {0x2818, 0x281c, 0x2820, 0x2824},
+	.cecnt_widths	= {4, 4, 4, 4},
 };
 
 static struct reg_rrl spr_reg_rrl_hbm_pch1 = {
 	.set_num = 2,
+	.reg_num = 6,
 	.modes = {LRE_SCRUB, LRE_DEMAND},
 	.offsets = {
 		{0x2c60, 0x2c54, 0x2f08, 0x2c58, 0x2c28, 0x0fa8},
 		{0x2e54, 0x2e60, 0x2f10, 0x2e58, 0x2e5c, 0x0fb0},
 	},
 	.widths		= {4, 4, 8, 4, 4, 8},
+	.v_mask		= BIT(0),
 	.uc_mask	= BIT(1),
+	.over_mask	= BIT(2),
 	.en_patspr_mask	= BIT(13),
 	.noover_mask	= BIT(14),
 	.en_mask	= BIT(15),
+
+	.cecnt_num	= 4,
+	.cecnt_offsets	= {0x2c18, 0x2c1c, 0x2c20, 0x2c24},
+	.cecnt_widths	= {4, 4, 4, 4},
 };
 
 static u64 read_imc_reg(struct skx_imc *imc, int chan, u32 offset, u8 width)
@@ -276,110 +302,64 @@ static void enable_retry_rd_err_log(bool enable)
 static void show_retry_rd_err_log(struct decoded_addr *res, char *msg,
 				  int len, bool scrub_err)
 {
+	int i, j, n, ch = res->channel, pch = res->cs & 1;
 	struct skx_imc *imc = &res->dev->imc[res->imc];
-	u32 log0, log1, log2, log3, log4;
-	u32 corr0, corr1, corr2, corr3;
-	u32 lxg0, lxg1, lxg3, lxg4;
-	u32 *xffsets = NULL;
-	u64 log2a, log5;
-	u64 lxg2a, lxg5;
-	u32 *offsets;
-	int n, pch;
+	u32 offset, status_mask;
+	struct reg_rrl *rrl;
+	u64 log, corr;
+	bool scrub;
+	u8 width;
 
 	if (!imc->mbase)
 		return;
 
-	if (imc->hbm_mc) {
-		pch = res->cs & 1;
+	rrl = imc->hbm_mc ? res_cfg->reg_rrl_hbm[pch] : res_cfg->reg_rrl_ddr;
 
-		if (pch)
-			offsets = scrub_err ? res_cfg->reg_rrl_hbm[1]->offsets[0] :
-					      res_cfg->reg_rrl_hbm[1]->offsets[1];
-		else
-			offsets = scrub_err ? res_cfg->reg_rrl_hbm[0]->offsets[0] :
-					      res_cfg->reg_rrl_hbm[0]->offsets[1];
-	} else {
-		if (scrub_err) {
-			offsets = res_cfg->reg_rrl_ddr->offsets[0];
-		} else {
-			offsets = res_cfg->reg_rrl_ddr->offsets[1];
-			if (res_cfg->reg_rrl_ddr->set_num > 2)
-				xffsets = res_cfg->reg_rrl_ddr->offsets[2];
+	if (!rrl)
+		return;
+
+	status_mask = rrl->over_mask | rrl->uc_mask | rrl->v_mask;
+
+	n = snprintf(msg, len, " retry_rd_err_log[");
+	for (i = 0; i < rrl->set_num; i++) {
+		scrub = (rrl->modes[i] == FRE_SCRUB || rrl->modes[i] == LRE_SCRUB);
+		if (scrub_err != scrub)
+			continue;
+
+		for (j = 0; j < rrl->reg_num && len - n > 0; j++) {
+			offset = rrl->offsets[i][j];
+			width = rrl->widths[j];
+			log = read_imc_reg(imc, ch, offset, width);
+
+			if (width == 4)
+				n += snprintf(msg + n, len - n, "%.8llx ", log);
+			else
+				n += snprintf(msg + n, len - n, "%.16llx ", log);
+
+			/* Clear RRL status if RRL in Linux control mode. */
+			if (retry_rd_err_log == 2 && !j && (log & status_mask))
+				write_imc_reg(imc, ch, offset, width, log & ~status_mask);
 		}
 	}
 
-	log0 = I10NM_GET_REG32(imc, res->channel, offsets[0]);
-	log1 = I10NM_GET_REG32(imc, res->channel, offsets[1]);
-	log3 = I10NM_GET_REG32(imc, res->channel, offsets[3]);
-	log4 = I10NM_GET_REG32(imc, res->channel, offsets[4]);
-	log5 = I10NM_GET_REG64(imc, res->channel, offsets[5]);
+	/* Move back one space. */
+	n--;
+	n += snprintf(msg + n, len - n, "]");
 
-	if (xffsets) {
-		lxg0 = I10NM_GET_REG32(imc, res->channel, xffsets[0]);
-		lxg1 = I10NM_GET_REG32(imc, res->channel, xffsets[1]);
-		lxg3 = I10NM_GET_REG32(imc, res->channel, xffsets[3]);
-		lxg4 = I10NM_GET_REG32(imc, res->channel, xffsets[4]);
-		lxg5 = I10NM_GET_REG64(imc, res->channel, xffsets[5]);
-	}
+	if (len - n > 0) {
+		n += snprintf(msg + n, len - n, " correrrcnt[");
+		for (i = 0; i < rrl->cecnt_num && len - n > 0; i++) {
+			offset = rrl->cecnt_offsets[i];
+			width = rrl->cecnt_widths[i];
+			corr = read_imc_reg(imc, ch, offset, width);
 
-	if (res_cfg->type == SPR) {
-		log2a = I10NM_GET_REG64(imc, res->channel, offsets[2]);
-		n = snprintf(msg, len, " retry_rd_err_log[%.8x %.8x %.16llx %.8x %.8x %.16llx",
-			     log0, log1, log2a, log3, log4, log5);
-
-		if (len - n > 0) {
-			if (xffsets) {
-				lxg2a = I10NM_GET_REG64(imc, res->channel, xffsets[2]);
-				n += snprintf(msg + n, len - n, " %.8x %.8x %.16llx %.8x %.8x %.16llx]",
-					     lxg0, lxg1, lxg2a, lxg3, lxg4, lxg5);
-			} else {
-				n += snprintf(msg + n, len - n, "]");
-			}
-		}
-	} else {
-		log2 = I10NM_GET_REG32(imc, res->channel, offsets[2]);
-		n = snprintf(msg, len, " retry_rd_err_log[%.8x %.8x %.8x %.8x %.8x %.16llx]",
-			     log0, log1, log2, log3, log4, log5);
-	}
-
-	if (imc->hbm_mc) {
-		if (pch) {
-			corr0 = I10NM_GET_REG32(imc, res->channel, 0x2c18);
-			corr1 = I10NM_GET_REG32(imc, res->channel, 0x2c1c);
-			corr2 = I10NM_GET_REG32(imc, res->channel, 0x2c20);
-			corr3 = I10NM_GET_REG32(imc, res->channel, 0x2c24);
-		} else {
-			corr0 = I10NM_GET_REG32(imc, res->channel, 0x2818);
-			corr1 = I10NM_GET_REG32(imc, res->channel, 0x281c);
-			corr2 = I10NM_GET_REG32(imc, res->channel, 0x2820);
-			corr3 = I10NM_GET_REG32(imc, res->channel, 0x2824);
-		}
-	} else {
-		corr0 = I10NM_GET_REG32(imc, res->channel, 0x22c18);
-		corr1 = I10NM_GET_REG32(imc, res->channel, 0x22c1c);
-		corr2 = I10NM_GET_REG32(imc, res->channel, 0x22c20);
-		corr3 = I10NM_GET_REG32(imc, res->channel, 0x22c24);
-	}
-
-	if (len - n > 0)
-		snprintf(msg + n, len - n,
-			 " correrrcnt[%.4x %.4x %.4x %.4x %.4x %.4x %.4x %.4x]",
-			 corr0 & 0xffff, corr0 >> 16,
-			 corr1 & 0xffff, corr1 >> 16,
-			 corr2 & 0xffff, corr2 >> 16,
-			 corr3 & 0xffff, corr3 >> 16);
-
-	/* Clear status bits */
-	if (retry_rd_err_log == 2) {
-		if (log0 & RETRY_RD_ERR_LOG_OVER_UC_V) {
-			log0 &= ~RETRY_RD_ERR_LOG_OVER_UC_V;
-			I10NM_SET_REG32(imc, res->channel, offsets[0], log0);
+			n += snprintf(msg + n, len - n, "%.4llx %.4llx ",
+				      corr & 0xffff, corr >> 16);
 		}
 
-		if (xffsets && (lxg0 & RETRY_RD_ERR_LOG_OVER_UC_V)) {
-			lxg0 &= ~RETRY_RD_ERR_LOG_OVER_UC_V;
-			I10NM_SET_REG32(imc, res->channel, xffsets[0], lxg0);
-		}
+		/* Move back one space. */
+		n--;
+		n += snprintf(msg + n, len - n, "]");
 	}
 }
 
