@@ -4,7 +4,6 @@
  * Author: Cosmin Tanislav <cosmin.tanislav@analog.com>
  */
 
-#include <linux/unaligned.h>
 #include <linux/bitfield.h>
 #include <linux/cleanup.h>
 #include <linux/crc8.h>
@@ -24,6 +23,8 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
+#include <linux/types.h>
+#include <linux/unaligned.h>
 
 #include <dt-bindings/iio/addac/adi,ad74413r.h>
 
@@ -84,7 +85,7 @@ struct ad74413r_state {
 	 */
 	struct {
 		u8 rx_buf[AD74413R_FRAME_SIZE * AD74413R_CHANNEL_MAX];
-		s64 timestamp;
+		aligned_s64 timestamp;
 	} adc_samples_buf __aligned(IIO_DMA_MINALIGN);
 
 	u8	adc_samples_tx_buf[AD74413R_FRAME_SIZE * AD74413R_CHANNEL_MAX];
