@@ -948,12 +948,12 @@ int ip_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
 	if (filter->rtnl_held)
 		ASSERT_RTNL();
 
-	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*rtm))) {
+	rtm = nlmsg_payload(nlh, sizeof(*rtm));
+	if (!rtm) {
 		NL_SET_ERR_MSG(extack, "Invalid header for FIB dump request");
 		return -EINVAL;
 	}
 
-	rtm = nlmsg_data(nlh);
 	if (rtm->rtm_dst_len || rtm->rtm_src_len  || rtm->rtm_tos   ||
 	    rtm->rtm_scope) {
 		NL_SET_ERR_MSG(extack, "Invalid values in header for FIB dump request");

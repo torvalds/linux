@@ -6112,7 +6112,8 @@ static int inet6_valid_dump_ifinfo(const struct nlmsghdr *nlh,
 {
 	struct ifinfomsg *ifm;
 
-	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ifm))) {
+	ifm = nlmsg_payload(nlh, sizeof(*ifm));
+	if (!ifm) {
 		NL_SET_ERR_MSG_MOD(extack, "Invalid header for link dump request");
 		return -EINVAL;
 	}
@@ -6122,7 +6123,6 @@ static int inet6_valid_dump_ifinfo(const struct nlmsghdr *nlh,
 		return -EINVAL;
 	}
 
-	ifm = nlmsg_data(nlh);
 	if (ifm->__ifi_pad || ifm->ifi_type || ifm->ifi_flags ||
 	    ifm->ifi_change || ifm->ifi_index) {
 		NL_SET_ERR_MSG_MOD(extack, "Invalid values in header for dump request");
