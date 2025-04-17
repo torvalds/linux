@@ -1524,6 +1524,18 @@ static const struct mtk_soundcard_pdata mt8195_mt6359_max98390_rt5682_card = {
 	.soc_probe = mt8195_mt6359_soc_card_probe
 };
 
+static const struct mtk_soundcard_pdata mt8195_mt6359_card = {
+	.card_name = "mt8195_mt6359",
+	.card_data = &(struct mtk_platform_card_data) {
+		.card = &mt8195_mt6359_soc_card,
+		.num_jacks = MT8195_JACK_MAX,
+		.pcm_constraints = mt8195_pcm_constraints,
+		.num_pcm_constraints = ARRAY_SIZE(mt8195_pcm_constraints),
+	},
+	.sof_priv = &mt8195_sof_priv,
+	.soc_probe = mt8195_mt6359_soc_card_probe
+};
+
 static const struct of_device_id mt8195_mt6359_dt_match[] = {
 	{
 		.compatible = "mediatek,mt8195_mt6359_rt1019_rt5682",
@@ -1536,6 +1548,10 @@ static const struct of_device_id mt8195_mt6359_dt_match[] = {
 	{
 		.compatible = "mediatek,mt8195_mt6359_max98390_rt5682",
 		.data = &mt8195_mt6359_max98390_rt5682_card,
+	},
+	{
+		.compatible = "mediatek,mt8195_mt6359",
+		.data = &mt8195_mt6359_card,
 	},
 	{},
 };
