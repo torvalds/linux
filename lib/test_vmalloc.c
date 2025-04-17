@@ -13,9 +13,9 @@
 #include <linux/moduleparam.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
-#include <linux/rwsem.h>
 #include <linux/mm.h>
 #include <linux/rcupdate.h>
+#include <linux/srcu.h>
 #include <linux/slab.h>
 
 #define __param(type, name, init, msg)		\
@@ -58,10 +58,9 @@ __param(int, run_test_mask, INT_MAX,
 );
 
 /*
- * Read write semaphore for synchronization of setup
- * phase that is done in main thread and workers.
+ * This is for synchronization of setup phase.
  */
-static DECLARE_RWSEM(prepare_for_test_rwsem);
+DEFINE_STATIC_SRCU(prepare_for_test_srcu);
 
 /*
  * Completion tracking for worker threads.
@@ -458,7 +457,7 @@ static int test_func(void *private)
 	/*
 	 * Block until initialization is done.
 	 */
-	down_read(&prepare_for_test_rwsem);
+	synchronize_srcu(&prepare_for_test_srcu);
 
 	t->start = get_cycles();
 	for (i = 0; i < ARRAY_SIZE(test_case_array); i++) {
@@ -487,8 +486,6 @@ static int test_func(void *private)
 		t->data[index].time = delta;
 	}
 	t->stop = get_cycles();
-
-	up_read(&prepare_for_test_rwsem);
 	test_report_one_done();
 
 	/*
@@ -526,7 +523,7 @@ init_test_configuration(void)
 
 static void do_concurrent_test(void)
 {
-	int i, ret;
+	int i, ret, idx;
 
 	/*
 	 * Set some basic configurations plus sanity check.
@@ -538,7 +535,7 @@ static void do_concurrent_test(void)
 	/*
 	 * Put on hold all workers.
 	 */
-	down_write(&prepare_for_test_rwsem);
+	idx = srcu_read_lock(&prepare_for_test_srcu);
 
 	for (i = 0; i < nr_threads; i++) {
 		struct test_driver *t = &tdriver[i];
@@ -555,7 +552,7 @@ static void do_concurrent_test(void)
 	/*
 	 * Now let the workers do their job.
 	 */
-	up_write(&prepare_for_test_rwsem);
+	srcu_read_unlock(&prepare_for_test_srcu, idx);
 
 	/*
 	 * Sleep quiet until all workers are done with 1 second
