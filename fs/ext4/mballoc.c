@@ -3037,10 +3037,8 @@ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 	unsigned char blocksize_bits = min_t(unsigned char,
 					     sb->s_blocksize_bits,
 					     EXT4_MAX_BLOCK_LOG_SIZE);
-	struct sg {
-		struct ext4_group_info info;
-		ext4_grpblk_t counters[EXT4_MAX_BLOCK_LOG_SIZE + 2];
-	} sg;
+	DEFINE_RAW_FLEX(struct ext4_group_info, sg, bb_counters,
+			EXT4_MAX_BLOCK_LOG_SIZE + 2);
 
 	group--;
 	if (group == 0)
@@ -3048,7 +3046,7 @@ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 			      " 2^0   2^1   2^2   2^3   2^4   2^5   2^6  "
 			      " 2^7   2^8   2^9   2^10  2^11  2^12  2^13  ]\n");
 
-	i = (blocksize_bits + 2) * sizeof(sg.info.bb_counters[0]) +
+	i = (blocksize_bits + 2) * sizeof(sg->bb_counters[0]) +
 		sizeof(struct ext4_group_info);
 
 	grinfo = ext4_get_group_info(sb, group);
@@ -3068,14 +3066,14 @@ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 	 * We care only about free space counters in the group info and
 	 * these are safe to access even after the buddy has been unloaded
 	 */
-	memcpy(&sg, grinfo, i);
-	seq_printf(seq, "#%-5u: %-5u %-5u %-5u [", group, sg.info.bb_free,
-			sg.info.bb_fragments, sg.info.bb_first_free);
+	memcpy(sg, grinfo, i);
+	seq_printf(seq, "#%-5u: %-5u %-5u %-5u [", group, sg->bb_free,
+			sg->bb_fragments, sg->bb_first_free);
 	for (i = 0; i <= 13; i++)
 		seq_printf(seq, " %-5u", i <= blocksize_bits + 1 ?
-				sg.info.bb_counters[i] : 0);
+				sg->bb_counters[i] : 0);
 	seq_puts(seq, " ]");
-	if (EXT4_MB_GRP_BBITMAP_CORRUPT(&sg.info))
+	if (EXT4_MB_GRP_BBITMAP_CORRUPT(sg))
 		seq_puts(seq, " Block bitmap corrupted!");
 	seq_putc(seq, '\n');
 	return 0;

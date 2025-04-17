@@ -229,6 +229,7 @@ typedef struct xfs_mount {
 	bool			m_finobt_nores; /* no per-AG finobt resv. */
 	bool			m_update_sb;	/* sb needs update in mount */
 	unsigned int		m_max_open_zones;
+	unsigned int		m_zonegc_low_space;
 
 	/*
 	 * Bitsets of per-fs metadata that have been checked and/or are sick.
