@@ -7895,7 +7895,7 @@ L:	dri-devel@lists.freedesktop.org
 S:	Supported
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	Documentation/devicetree/bindings/display/fsl,dcu.txt
-F:	Documentation/devicetree/bindings/display/fsl,tcon.txt
+F:	Documentation/devicetree/bindings/display/fsl,vf610-tcon.yaml
 F:	drivers/gpu/drm/fsl-dcu/
 
 DRM DRIVERS FOR FREESCALE IMX 5/6
