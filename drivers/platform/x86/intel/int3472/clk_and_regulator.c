@@ -5,7 +5,6 @@
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/device.h>
-#include <linux/dmi.h>
 #include <linux/gpio/consumer.h>
 #include <linux/regulator/driver.h>
 #include <linux/slab.h>
@@ -205,36 +204,13 @@ static const char * const skl_int3472_regulator_map_supplies[] = {
 static_assert(ARRAY_SIZE(skl_int3472_regulator_map_supplies) ==
 	      GPIO_REGULATOR_SUPPLY_MAP_COUNT);
 
-/*
- * On some models there is a single GPIO regulator which is shared between
- * sensors and only listed in the ACPI resources of one sensor.
- * This DMI table contains the name of the second sensor. This is used to add
- * entries for the second sensor to the supply_map.
- */
-static const struct dmi_system_id skl_int3472_regulator_second_sensor[] = {
-	{
-		/* Lenovo Miix 510-12IKB */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "MIIX 510-12IKB"),
-		},
-		.driver_data = "i2c-OVTI2680:00",
-	},
-	{ }
-};
-
 int skl_int3472_register_regulator(struct int3472_discrete_device *int3472,
-				   struct gpio_desc *gpio)
+				   struct gpio_desc *gpio,
+				   const char *second_sensor)
 {
 	struct regulator_init_data init_data = { };
 	struct regulator_config cfg = { };
-	const char *second_sensor = NULL;
-	const struct dmi_system_id *id;
 	int i, j;
-
-	id = dmi_first_match(skl_int3472_regulator_second_sensor);
-	if (id)
-		second_sensor = id->driver_data;
 
 	for (i = 0, j = 0; i < ARRAY_SIZE(skl_int3472_regulator_map_supplies); i++) {
 		int3472->regulator.supply_map[j].supply = skl_int3472_regulator_map_supplies[i];

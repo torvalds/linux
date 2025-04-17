@@ -5,6 +5,7 @@
 #include <linux/array_size.h>
 #include <linux/bitfield.h>
 #include <linux/device.h>
+#include <linux/dmi.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/machine.h>
 #include <linux/i2c.h>
@@ -310,7 +311,8 @@ static int skl_int3472_handle_gpio_resources(struct acpi_resource *ares,
 
 			break;
 		case INT3472_GPIO_TYPE_POWER_ENABLE:
-			ret = skl_int3472_register_regulator(int3472, gpio);
+			ret = skl_int3472_register_regulator(int3472, gpio,
+							     int3472->quirks.avdd_second_sensor);
 			if (ret)
 				err_msg = "Failed to map regulator to sensor\n";
 
@@ -378,12 +380,18 @@ static void skl_int3472_discrete_remove(struct platform_device *pdev)
 static int skl_int3472_discrete_probe(struct platform_device *pdev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(&pdev->dev);
+	const struct int3472_discrete_quirks *quirks = NULL;
 	struct int3472_discrete_device *int3472;
+	const struct dmi_system_id *id;
 	struct int3472_cldb cldb;
 	int ret;
 
 	if (!adev)
 		return -ENODEV;
+
+	id = dmi_first_match(skl_int3472_discrete_quirks);
+	if (id)
+		quirks = id->driver_data;
 
 	ret = skl_int3472_fill_cldb(adev, &cldb);
 	if (ret) {
@@ -407,6 +415,9 @@ static int skl_int3472_discrete_probe(struct platform_device *pdev)
 	int3472->dev = &pdev->dev;
 	platform_set_drvdata(pdev, int3472);
 	int3472->clock.imgclk_index = cldb.clock_source;
+
+	if (quirks)
+		int3472->quirks = *quirks;
 
 	ret = skl_int3472_get_sensor_adev_and_name(&pdev->dev, &int3472->sensor,
 						   &int3472->sensor_name);
