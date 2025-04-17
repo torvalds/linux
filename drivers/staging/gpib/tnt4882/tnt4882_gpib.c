@@ -236,7 +236,7 @@ static int fifo_xfer_done(struct tnt4882_priv *tnt_priv)
 	return retval;
 }
 
-static int drain_fifo_words(struct tnt4882_priv *tnt_priv, uint8_t *buffer, int num_bytes)
+static int drain_fifo_words(struct tnt4882_priv *tnt_priv, u8 *buffer, int num_bytes)
 {
 	int count = 0;
 	struct nec7210_priv *nec_priv = &tnt_priv->nec7210_priv;
@@ -275,7 +275,7 @@ static void tnt4882_release_holdoff(struct gpib_board *board, struct tnt4882_pri
 	}
 }
 
-static int tnt4882_accel_read(struct gpib_board *board, uint8_t *buffer, size_t length, int *end,
+static int tnt4882_accel_read(struct gpib_board *board, u8 *buffer, size_t length, int *end,
 			      size_t *bytes_read)
 {
 	size_t count = 0;
@@ -450,7 +450,7 @@ static int write_wait(struct gpib_board *board, struct tnt4882_priv *tnt_priv,
 	return 0;
 }
 
-static int generic_write(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int generic_write(struct gpib_board *board, u8 *buffer, size_t length,
 			 int send_eoi, int send_commands, size_t *bytes_written)
 {
 	size_t count = 0;
@@ -542,13 +542,13 @@ static int generic_write(struct gpib_board *board, uint8_t *buffer, size_t lengt
 	return retval;
 }
 
-static int tnt4882_accel_write(struct gpib_board *board, uint8_t *buffer,
+static int tnt4882_accel_write(struct gpib_board *board, u8 *buffer,
 			       size_t length, int send_eoi, size_t *bytes_written)
 {
 	return generic_write(board, buffer, length, send_eoi, 0, bytes_written);
 }
 
-static int tnt4882_command(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int tnt4882_command(struct gpib_board *board, u8 *buffer, size_t length,
 			   size_t *bytes_written)
 {
 	return generic_write(board, buffer, length, 0, 1, bytes_written);
@@ -595,7 +595,7 @@ static irqreturn_t tnt4882_interrupt(int irq, void *arg)
 }
 
 // wrappers for interface functions
-static int tnt4882_read(struct gpib_board *board, uint8_t *buffer, size_t length, int *end,
+static int tnt4882_read(struct gpib_board *board, u8 *buffer, size_t length, int *end,
 			size_t *bytes_read)
 {
 	struct tnt4882_priv *priv = board->private_data;
@@ -615,7 +615,7 @@ static int tnt4882_read(struct gpib_board *board, uint8_t *buffer, size_t length
 	return retval;
 }
 
-static int tnt4882_write(struct gpib_board *board, uint8_t *buffer, size_t length, int send_eoi,
+static int tnt4882_write(struct gpib_board *board, u8 *buffer, size_t length, int send_eoi,
 			 size_t *bytes_written)
 {
 	struct tnt4882_priv *priv = board->private_data;
@@ -623,7 +623,7 @@ static int tnt4882_write(struct gpib_board *board, uint8_t *buffer, size_t lengt
 	return nec7210_write(board, &priv->nec7210_priv, buffer, length, send_eoi, bytes_written);
 }
 
-static int tnt4882_command_unaccel(struct gpib_board *board, uint8_t *buffer,
+static int tnt4882_command_unaccel(struct gpib_board *board, u8 *buffer,
 				   size_t length, size_t *bytes_written)
 {
 	struct tnt4882_priv *priv = board->private_data;
@@ -674,7 +674,7 @@ static void tnt4882_remote_enable(struct gpib_board *board, int enable)
 	nec7210_remote_enable(board, &priv->nec7210_priv, enable);
 }
 
-static int tnt4882_enable_eos(struct gpib_board *board, uint8_t eos_byte, int compare_8_bits)
+static int tnt4882_enable_eos(struct gpib_board *board, u8 eos_byte, int compare_8_bits)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
@@ -721,7 +721,7 @@ static int tnt4882_secondary_address(struct gpib_board *board, unsigned int addr
 	return nec7210_secondary_address(board, &priv->nec7210_priv, address, enable);
 }
 
-static int tnt4882_parallel_poll(struct gpib_board *board, uint8_t *result)
+static int tnt4882_parallel_poll(struct gpib_board *board, u8 *result)
 {
 	struct tnt4882_priv *tnt_priv = board->private_data;
 
@@ -738,7 +738,7 @@ static int tnt4882_parallel_poll(struct gpib_board *board, uint8_t *result)
 	}
 }
 
-static void tnt4882_parallel_poll_configure(struct gpib_board *board, uint8_t config)
+static void tnt4882_parallel_poll_configure(struct gpib_board *board, u8 config)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
@@ -767,14 +767,14 @@ static void tnt4882_parallel_poll_response(struct gpib_board *board, int ist)
  * this is just used by the old nec7210 isa interfaces, the newer
  * boards use tnt4882_serial_poll_response2
  */
-static void tnt4882_serial_poll_response(struct gpib_board *board, uint8_t status)
+static void tnt4882_serial_poll_response(struct gpib_board *board, u8 status)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
 	nec7210_serial_poll_response(board, &priv->nec7210_priv, status);
 }
 
-static void tnt4882_serial_poll_response2(struct gpib_board *board, uint8_t status,
+static void tnt4882_serial_poll_response2(struct gpib_board *board, u8 status,
 					  int new_reason_for_service)
 {
 	struct tnt4882_priv *priv = board->private_data;
@@ -810,7 +810,7 @@ static void tnt4882_serial_poll_response2(struct gpib_board *board, uint8_t stat
 	spin_unlock_irqrestore(&board->spinlock, flags);
 }
 
-static uint8_t tnt4882_serial_poll_status(struct gpib_board *board)
+static u8 tnt4882_serial_poll_status(struct gpib_board *board)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
