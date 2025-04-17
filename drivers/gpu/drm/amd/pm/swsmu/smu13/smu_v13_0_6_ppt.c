@@ -1916,7 +1916,7 @@ static int smu_v13_0_6_set_performance_level(struct smu_context *smu,
 				return ret;
 			pstate_table->uclk_pstate.curr.max = uclk_table->max;
 		}
-		pstate_table->uclk_pstate.custom.max = 0;
+		smu_v13_0_reset_custom_level(smu);
 
 		return 0;
 	case AMD_DPM_FORCED_LEVEL_MANUAL:
@@ -2129,7 +2129,7 @@ static int smu_v13_0_6_usr_edit_dpm_table(struct smu_context *smu,
 				smu, SMU_UCLK, min_clk, max_clk, false);
 			if (ret)
 				return ret;
-			pstate_table->uclk_pstate.custom.max = 0;
+			smu_v13_0_reset_custom_level(smu);
 		}
 		break;
 	case PP_OD_COMMIT_DPM_TABLE:
