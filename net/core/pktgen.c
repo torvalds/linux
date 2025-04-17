@@ -227,7 +227,7 @@ static char *pkt_flag_names[] = {
 
 /* Xmit modes */
 #define M_START_XMIT		0	/* Default normal TX */
-#define M_NETIF_RECEIVE 	1	/* Inject packets into stack */
+#define M_NETIF_RECEIVE		1	/* Inject packets into stack */
 #define M_QUEUE_XMIT		2	/* Inject packet into qdisc */
 
 /* If lock -- protects updating of if_list */
@@ -1313,9 +1313,9 @@ static ssize_t pktgen_if_write(struct file *file,
 				put_page(pkt_dev->page);
 				pkt_dev->page = NULL;
 			}
-		}
-		else
+		} else {
 			sprintf(pg_result, "ERROR: node not possible");
+		}
 		return count;
 	}
 	if (!strcmp(name, "xmit_mode")) {
@@ -1419,8 +1419,7 @@ static ssize_t pktgen_if_write(struct file *file,
 			return -EFAULT;
 		buf[len] = 0;
 		if (strcmp(buf, pkt_dev->dst_min) != 0) {
-			memset(pkt_dev->dst_min, 0, sizeof(pkt_dev->dst_min));
-			strcpy(pkt_dev->dst_min, buf);
+			strscpy_pad(pkt_dev->dst_min, buf);
 			pkt_dev->daddr_min = in_aton(pkt_dev->dst_min);
 			pkt_dev->cur_daddr = pkt_dev->daddr_min;
 		}
@@ -1440,8 +1439,7 @@ static ssize_t pktgen_if_write(struct file *file,
 			return -EFAULT;
 		buf[len] = 0;
 		if (strcmp(buf, pkt_dev->dst_max) != 0) {
-			memset(pkt_dev->dst_max, 0, sizeof(pkt_dev->dst_max));
-			strcpy(pkt_dev->dst_max, buf);
+			strscpy_pad(pkt_dev->dst_max, buf);
 			pkt_dev->daddr_max = in_aton(pkt_dev->dst_max);
 			pkt_dev->cur_daddr = pkt_dev->daddr_max;
 		}
@@ -1550,8 +1548,7 @@ static ssize_t pktgen_if_write(struct file *file,
 			return -EFAULT;
 		buf[len] = 0;
 		if (strcmp(buf, pkt_dev->src_min) != 0) {
-			memset(pkt_dev->src_min, 0, sizeof(pkt_dev->src_min));
-			strcpy(pkt_dev->src_min, buf);
+			strscpy_pad(pkt_dev->src_min, buf);
 			pkt_dev->saddr_min = in_aton(pkt_dev->src_min);
 			pkt_dev->cur_saddr = pkt_dev->saddr_min;
 		}
@@ -1571,8 +1568,7 @@ static ssize_t pktgen_if_write(struct file *file,
 			return -EFAULT;
 		buf[len] = 0;
 		if (strcmp(buf, pkt_dev->src_max) != 0) {
-			memset(pkt_dev->src_max, 0, sizeof(pkt_dev->src_max));
-			strcpy(pkt_dev->src_max, buf);
+			strscpy_pad(pkt_dev->src_max, buf);
 			pkt_dev->saddr_max = in_aton(pkt_dev->src_max);
 			pkt_dev->cur_saddr = pkt_dev->saddr_max;
 		}
@@ -3228,11 +3224,11 @@ static void pktgen_run(struct pktgen_thread *t)
 
 			set_pkt_overhead(pkt_dev);
 
-			strcpy(pkt_dev->result, "Starting");
+			strscpy(pkt_dev->result, "Starting");
 			pkt_dev->running = 1;	/* Cranke yeself! */
 			started++;
 		} else
-			strcpy(pkt_dev->result, "Error starting");
+			strscpy(pkt_dev->result, "Error starting");
 	}
 	rcu_read_unlock();
 	if (started)
@@ -3846,7 +3842,7 @@ static int pktgen_add_device(struct pktgen_thread *t, const char *ifname)
 	if (!pkt_dev)
 		return -ENOMEM;
 
-	strcpy(pkt_dev->odevname, ifname);
+	strscpy(pkt_dev->odevname, ifname);
 	pkt_dev->flows = vzalloc_node(array_size(MAX_CFLOWS,
 						 sizeof(struct flow_state)),
 				      node);
