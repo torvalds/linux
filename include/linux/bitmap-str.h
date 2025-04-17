@@ -2,6 +2,8 @@
 #ifndef __LINUX_BITMAP_STR_H
 #define __LINUX_BITMAP_STR_H
 
+#include <linux/types.h>
+
 int bitmap_parse_user(const char __user *ubuf, unsigned int ulen, unsigned long *dst, int nbits);
 int bitmap_print_to_pagebuf(bool list, char *buf, const unsigned long *maskp, int nmaskbits);
 int bitmap_print_bitmask_to_buf(char *buf, const unsigned long *maskp, int nmaskbits,
