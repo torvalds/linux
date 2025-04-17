@@ -741,21 +741,19 @@ static int pci1xxxx_spi_probe(struct pci_dev *pdev, const struct pci_device_id *
 			if (ret)
 				return -ENOMEM;
 
-			ret = pci_request_regions(pdev, DRV_NAME);
+			ret = pcim_request_all_regions(pdev, DRV_NAME);
 			if (ret)
 				return -ENOMEM;
 
 			spi_bus->reg_base = pcim_iomap(pdev, 0, pci_resource_len(pdev, 0));
-			if (!spi_bus->reg_base) {
-				ret = -EINVAL;
-				goto error;
-			}
+			if (!spi_bus->reg_base)
+				return -EINVAL;
 
 			ret = pci_alloc_irq_vectors(pdev, hw_inst_cnt, hw_inst_cnt,
 						    PCI_IRQ_ALL_TYPES);
 			if (ret < 0) {
 				dev_err(&pdev->dev, "Error allocating MSI vectors\n");
-				goto error;
+				return ret;
 			}
 
 			init_completion(&spi_sub_ptr->spi_xfer_done);
@@ -773,13 +771,12 @@ static int pci1xxxx_spi_probe(struct pci_dev *pdev, const struct pci_device_id *
 			if (ret < 0) {
 				dev_err(&pdev->dev, "Unable to request irq : %d",
 					spi_sub_ptr->irq);
-				ret = -ENODEV;
-				goto error;
+				return -ENODEV;
 			}
 
 			ret = pci1xxxx_spi_dma_init(spi_bus, spi_sub_ptr->irq);
 			if (ret && ret != -EOPNOTSUPP)
-				goto error;
+				return ret;
 
 			/* This register is only applicable for 1st instance */
 			regval = readl(spi_bus->reg_base + SPI_PCI_CTRL_REG_OFFSET(0));
@@ -808,8 +805,7 @@ static int pci1xxxx_spi_probe(struct pci_dev *pdev, const struct pci_device_id *
 			if (ret < 0) {
 				dev_err(&pdev->dev, "Unable to request irq : %d",
 					spi_sub_ptr->irq);
-				ret = -ENODEV;
-				goto error;
+				return -ENODEV;
 			}
 		}
 
@@ -828,15 +824,11 @@ static int pci1xxxx_spi_probe(struct pci_dev *pdev, const struct pci_device_id *
 		spi_controller_set_devdata(spi_host, spi_sub_ptr);
 		ret = devm_spi_register_controller(dev, spi_host);
 		if (ret)
-			goto error;
+			return ret;
 	}
 	pci_set_drvdata(pdev, spi_bus);
 
 	return 0;
-
-error:
-	pci_release_regions(pdev);
-	return ret;
 }
 
 static void store_restore_config(struct pci1xxxx_spi *spi_ptr,
