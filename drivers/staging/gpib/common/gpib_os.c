@@ -263,7 +263,7 @@ struct gpib_status_queue *get_gpib_status_queue(struct gpib_board *board, unsign
 }
 
 int get_serial_poll_byte(struct gpib_board *board, unsigned int pad, int sad,
-			 unsigned int usec_timeout, uint8_t *poll_byte)
+			 unsigned int usec_timeout, u8 *poll_byte)
 {
 	struct gpib_status_queue *device;
 
@@ -339,7 +339,7 @@ static int setup_serial_poll(struct gpib_board *board, unsigned int usec_timeout
 }
 
 static int read_serial_poll_byte(struct gpib_board *board, unsigned int pad,
-				 int sad, unsigned int usec_timeout, uint8_t *result)
+				 int sad, unsigned int usec_timeout, u8 *result)
 {
 	u8 cmd_string[8];
 	int end_flag;
@@ -410,7 +410,7 @@ static int cleanup_serial_poll(struct gpib_board *board, unsigned int usec_timeo
 }
 
 static int serial_poll_single(struct gpib_board *board, unsigned int pad, int sad,
-			      unsigned int usec_timeout, uint8_t *result)
+			      unsigned int usec_timeout, u8 *result)
 {
 	int retval, cleanup_retval;
 
@@ -475,7 +475,7 @@ int serial_poll_all(struct gpib_board *board, unsigned int usec_timeout)
  */
 
 int dvrsp(struct gpib_board *board, unsigned int pad, int sad,
-	  unsigned int usec_timeout, uint8_t *result)
+	  unsigned int usec_timeout, u8 *result)
 {
 	int status = ibstatus(board);
 	int retval;
