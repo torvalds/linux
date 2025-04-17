@@ -571,6 +571,48 @@ static u64 calculate_bytes_allowed(u64 bps_limit, unsigned long jiffy_elapsed)
 	return mul_u64_u64_div_u64(bps_limit, (u64)jiffy_elapsed, (u64)HZ);
 }
 
+static long long throtl_trim_bps(struct throtl_grp *tg, bool rw,
+				 unsigned long time_elapsed)
+{
+	u64 bps_limit = tg_bps_limit(tg, rw);
+	long long bytes_trim;
+
+	if (bps_limit == U64_MAX)
+		return 0;
+
+	/* Need to consider the case of bytes_allowed overflow. */
+	bytes_trim = calculate_bytes_allowed(bps_limit, time_elapsed);
+	if (bytes_trim <= 0 || tg->bytes_disp[rw] < bytes_trim) {
+		bytes_trim = tg->bytes_disp[rw];
+		tg->bytes_disp[rw] = 0;
+	} else {
+		tg->bytes_disp[rw] -= bytes_trim;
+	}
+
+	return bytes_trim;
+}
+
+static int throtl_trim_iops(struct throtl_grp *tg, bool rw,
+			    unsigned long time_elapsed)
+{
+	u32 iops_limit = tg_iops_limit(tg, rw);
+	int io_trim;
+
+	if (iops_limit == UINT_MAX)
+		return 0;
+
+	/* Need to consider the case of io_allowed overflow. */
+	io_trim = calculate_io_allowed(iops_limit, time_elapsed);
+	if (io_trim <= 0 || tg->io_disp[rw] < io_trim) {
+		io_trim = tg->io_disp[rw];
+		tg->io_disp[rw] = 0;
+	} else {
+		tg->io_disp[rw] -= io_trim;
+	}
+
+	return io_trim;
+}
+
 /* Trim the used slices and adjust slice start accordingly */
 static inline void throtl_trim_slice(struct throtl_grp *tg, bool rw)
 {
@@ -612,21 +654,10 @@ static inline void throtl_trim_slice(struct throtl_grp *tg, bool rw)
 	 * one extra slice is preserved for deviation.
 	 */
 	time_elapsed -= tg->td->throtl_slice;
-	bytes_trim = calculate_bytes_allowed(tg_bps_limit(tg, rw),
-					     time_elapsed);
-	io_trim = calculate_io_allowed(tg_iops_limit(tg, rw), time_elapsed);
-	if (bytes_trim <= 0 && io_trim <= 0)
+	bytes_trim = throtl_trim_bps(tg, rw, time_elapsed);
+	io_trim = throtl_trim_iops(tg, rw, time_elapsed);
+	if (!bytes_trim && !io_trim)
 		return;
-
-	if ((long long)tg->bytes_disp[rw] >= bytes_trim)
-		tg->bytes_disp[rw] -= bytes_trim;
-	else
-		tg->bytes_disp[rw] = 0;
-
-	if ((int)tg->io_disp[rw] >= io_trim)
-		tg->io_disp[rw] -= io_trim;
-	else
-		tg->io_disp[rw] = 0;
 
 	tg->slice_start[rw] += time_elapsed;
 
@@ -643,6 +674,8 @@ static void __tg_update_carryover(struct throtl_grp *tg, bool rw,
 	unsigned long jiffy_elapsed = jiffies - tg->slice_start[rw];
 	u64 bps_limit = tg_bps_limit(tg, rw);
 	u32 iops_limit = tg_iops_limit(tg, rw);
+	long long bytes_allowed;
+	int io_allowed;
 
 	/*
 	 * If the queue is empty, carryover handling is not needed. In such cases,
@@ -661,13 +694,19 @@ static void __tg_update_carryover(struct throtl_grp *tg, bool rw,
 	 * accumulate how many bytes/ios are waited across changes. And use the
 	 * calculated carryover (@bytes/@ios) to update [bytes/io]_disp, which
 	 * will be used to calculate new wait time under new configuration.
+	 * And we need to consider the case of bytes/io_allowed overflow.
 	 */
-	if (bps_limit != U64_MAX)
-		*bytes = calculate_bytes_allowed(bps_limit, jiffy_elapsed) -
-			tg->bytes_disp[rw];
-	if (iops_limit != UINT_MAX)
-		*ios = calculate_io_allowed(iops_limit, jiffy_elapsed) -
-			tg->io_disp[rw];
+	if (bps_limit != U64_MAX) {
+		bytes_allowed = calculate_bytes_allowed(bps_limit, jiffy_elapsed);
+		if (bytes_allowed > 0)
+			*bytes = bytes_allowed - tg->bytes_disp[rw];
+	}
+	if (iops_limit != UINT_MAX) {
+		io_allowed = calculate_io_allowed(iops_limit, jiffy_elapsed);
+		if (io_allowed > 0)
+			*ios = io_allowed - tg->io_disp[rw];
+	}
+
 	tg->bytes_disp[rw] = -*bytes;
 	tg->io_disp[rw] = -*ios;
 }
@@ -734,7 +773,9 @@ static unsigned long tg_within_bps_limit(struct throtl_grp *tg, struct bio *bio,
 
 	jiffy_elapsed_rnd = roundup(jiffy_elapsed_rnd, tg->td->throtl_slice);
 	bytes_allowed = calculate_bytes_allowed(bps_limit, jiffy_elapsed_rnd);
-	if (bytes_allowed > 0 && tg->bytes_disp[rw] + bio_size <= bytes_allowed)
+	/* Need to consider the case of bytes_allowed overflow. */
+	if ((bytes_allowed > 0 && tg->bytes_disp[rw] + bio_size <= bytes_allowed)
+	    || bytes_allowed < 0)
 		return 0;
 
 	/* Calc approx time to dispatch */
