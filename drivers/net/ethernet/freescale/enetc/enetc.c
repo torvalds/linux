@@ -3362,7 +3362,8 @@ static int enetc_int_vector_init(struct enetc_ndev_priv *priv, int i,
 	bdr->buffer_offset = ENETC_RXB_PAD;
 	priv->rx_ring[i] = bdr;
 
-	err = xdp_rxq_info_reg(&bdr->xdp.rxq, priv->ndev, i, 0);
+	err = __xdp_rxq_info_reg(&bdr->xdp.rxq, priv->ndev, i, 0,
+				 ENETC_RXB_DMA_SIZE_XDP);
 	if (err)
 		goto free_vector;
 
