@@ -325,7 +325,7 @@ static void set_data_lines(u8 byte);
 static u8 get_data_lines(void);
 static void set_data_lines_input(void);
 static void set_data_lines_output(void);
-static inline int check_for_eos(struct bb_priv *priv, uint8_t byte);
+static inline int check_for_eos(struct bb_priv *priv, u8 byte);
 static void set_atn(struct gpib_board *board, int atn_asserted);
 
 static inline void SET_DIR_WRITE(struct bb_priv *priv);
@@ -354,7 +354,7 @@ static char printable(char x)
  *									   *
  ***************************************************************************/
 
-static int bb_read(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int bb_read(struct gpib_board *board, u8 *buffer, size_t length,
 		   int *end, size_t *bytes_read)
 {
 	struct bb_priv *priv = board->private_data;
@@ -492,7 +492,7 @@ dav_exit:
  *									   *
  ***************************************************************************/
 
-static int bb_write(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int bb_write(struct gpib_board *board, u8 *buffer, size_t length,
 		    int send_eoi, size_t *bytes_written)
 {
 	unsigned long flags;
@@ -729,7 +729,7 @@ static irqreturn_t bb_SRQ_interrupt(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static int bb_command(struct gpib_board *board, uint8_t *buffer,
+static int bb_command(struct gpib_board *board, u8 *buffer,
 		      size_t length, size_t *bytes_written)
 {
 	size_t ret;
@@ -921,7 +921,7 @@ static void bb_remote_enable(struct gpib_board *board, int enable)
 	}
 }
 
-static int bb_enable_eos(struct gpib_board *board, uint8_t eos_byte, int compare_8_bits)
+static int bb_enable_eos(struct gpib_board *board, u8 eos_byte, int compare_8_bits)
 {
 	struct bb_priv *priv = board->private_data;
 
@@ -988,12 +988,12 @@ static int bb_secondary_address(struct gpib_board *board, unsigned int address, 
 	return 0;
 }
 
-static int bb_parallel_poll(struct gpib_board *board, uint8_t *result)
+static int bb_parallel_poll(struct gpib_board *board, u8 *result)
 {
 	return -ENOENT;
 }
 
-static void bb_parallel_poll_configure(struct gpib_board *board, uint8_t config)
+static void bb_parallel_poll_configure(struct gpib_board *board, u8 config)
 {
 }
 
@@ -1001,11 +1001,11 @@ static void bb_parallel_poll_response(struct gpib_board *board, int ist)
 {
 }
 
-static void bb_serial_poll_response(struct gpib_board *board, uint8_t status)
+static void bb_serial_poll_response(struct gpib_board *board, u8 status)
 {
 }
 
-static uint8_t bb_serial_poll_status(struct gpib_board *board)
+static u8 bb_serial_poll_status(struct gpib_board *board)
 {
 	return 0; // -ENOENT;
 }
@@ -1366,7 +1366,7 @@ inline long usec_diff(struct timespec64 *a, struct timespec64 *b)
 		(a->tv_nsec - b->tv_nsec) / 1000);
 }
 
-static inline int check_for_eos(struct bb_priv *priv, uint8_t byte)
+static inline int check_for_eos(struct bb_priv *priv, u8 byte)
 {
 	if (priv->eos_check)
 		return 0;
