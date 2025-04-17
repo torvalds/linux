@@ -19,6 +19,7 @@
 #define CLKOUT3	3
 #define CLKOUTMAX 4
 
+#define BRGCKR_31	(1 << 31)
 #define BRRx_MASK(x) (0x3FF & x)
 
 static struct rsnd_mod_ops adg_ops = {
@@ -361,10 +362,13 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *ssi_mod, unsigned int rate)
 
 	rsnd_adg_set_ssi_clk(ssi_mod, data);
 
+	ckr = adg->ckr & ~BRGCKR_31;
 	if (0 == (rate % 8000))
-		ckr = 0x80000000; /* BRGB output = 48kHz */
-
-	rsnd_mod_bset(adg_mod, BRGCKR, 0x80770000, adg->ckr | ckr);
+		ckr |= BRGCKR_31; /* use BRGB output = 48kHz */
+	if (ckr != adg->ckr) {
+		rsnd_mod_bset(adg_mod, BRGCKR, 0x80770000, adg->ckr);
+		adg->ckr = ckr;
+	}
 
 	dev_dbg(dev, "CLKOUT is based on BRG%c (= %dHz)\n",
 		(ckr) ? 'B' : 'A',
@@ -683,6 +687,9 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 	}
 
 rsnd_adg_get_clkout_end:
+	if (0 == (req_rate[0] % 8000))
+		ckr |= BRGCKR_31; /* use BRGB output = 48kHz */
+
 	adg->ckr = ckr;
 	adg->brga = brga;
 	adg->brgb = brgb;
