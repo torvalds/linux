@@ -36,11 +36,11 @@ OpenRISC工具链和Linux的构建指南
 工具链的构建指南可以在openrisc.io或Stafford的工具链构建和发布脚本
 中找到。
 
-	======      =================================================
-	二进制      https://github.com/openrisc/or1k-gcc/releases
+	======      ==========================================================
+	二进制      https://github.com/stffrdhrn/or1k-toolchain-build/releases
 	工具链      https://openrisc.io/software
 	构建        https://github.com/stffrdhrn/or1k-toolchain-build
-	======      =================================================
+	======      ==========================================================
 
 2) 构建
 
