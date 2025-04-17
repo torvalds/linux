@@ -164,6 +164,29 @@ static struct reg_rrl spr_reg_rrl_hbm_pch1 = {
 	.cecnt_widths	= {4, 4, 4, 4},
 };
 
+static struct reg_rrl gnr_reg_rrl_ddr = {
+	.set_num = 4,
+	.reg_num = 6,
+	.modes = {FRE_SCRUB, FRE_DEMAND, LRE_SCRUB, LRE_DEMAND},
+	.offsets = {
+		{0x2f10, 0x2f20, 0x2f30, 0x2f50, 0x2f60, 0xba0},
+		{0x2f14, 0x2f24, 0x2f38, 0x2f54, 0x2f64, 0xba8},
+		{0x2f18, 0x2f28, 0x2f40, 0x2f58, 0x2f68, 0xbb0},
+		{0x2f1c, 0x2f2c, 0x2f48, 0x2f5c, 0x2f6c, 0xbb8},
+	},
+	.widths		= {4, 4, 8, 4, 4, 8},
+	.v_mask		= BIT(0),
+	.uc_mask	= BIT(1),
+	.over_mask	= BIT(2),
+	.en_patspr_mask	= BIT(14),
+	.noover_mask	= BIT(15),
+	.en_mask	= BIT(12),
+
+	.cecnt_num	= 8,
+	.cecnt_offsets	= {0x2c10, 0x2c14, 0x2c18, 0x2c1c, 0x2c20, 0x2c24, 0x2c28, 0x2c2c},
+	.cecnt_widths	= {4, 4, 4, 4, 4, 4, 4, 4},
+};
+
 static u64 read_imc_reg(struct skx_imc *imc, int chan, u32 offset, u8 width)
 {
 	switch (width) {
@@ -353,8 +376,17 @@ static void show_retry_rd_err_log(struct decoded_addr *res, char *msg,
 			width = rrl->cecnt_widths[i];
 			corr = read_imc_reg(imc, ch, offset, width);
 
-			n += snprintf(msg + n, len - n, "%.4llx %.4llx ",
-				      corr & 0xffff, corr >> 16);
+			/* CPUs {ICX,SPR} encode two counters per 4-byte CORRERRCNT register. */
+			if (res_cfg->type <= SPR) {
+				n += snprintf(msg + n, len - n, "%.4llx %.4llx ",
+					      corr & 0xffff, corr >> 16);
+			} else {
+			/* CPUs {GNR} encode one counter per CORRERRCNT register. */
+				if (width == 4)
+					n += snprintf(msg + n, len - n, "%.8llx ", corr);
+				else
+					n += snprintf(msg + n, len - n, "%.16llx ", corr);
+			}
 		}
 
 		/* Move back one space. */
@@ -985,6 +1017,7 @@ static struct res_config gnr_cfg = {
 	.uracu_bdf		= {0, 0, 1},
 	.ddr_mdev_bdf		= {0, 5, 1},
 	.sad_all_offset		= 0x300,
+	.reg_rrl_ddr		= &gnr_reg_rrl_ddr,
 };
 
 static const struct x86_cpu_id i10nm_cpuids[] = {

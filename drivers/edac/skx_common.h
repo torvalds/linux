@@ -80,11 +80,11 @@
 #define MCACOD_EXT_MEM_ERR	0x280
 
 /* Max RRL register sets per {,sub-,pseudo-}channel. */
-#define NUM_RRL_SET		3
+#define NUM_RRL_SET		4
 /* Max RRL registers per set. */
 #define NUM_RRL_REG		6
 /* Max correctable error count registers. */
-#define NUM_CECNT_REG		4
+#define NUM_CECNT_REG		8
 
 /* Modes of RRL register set. */
 enum rrl_mode {
