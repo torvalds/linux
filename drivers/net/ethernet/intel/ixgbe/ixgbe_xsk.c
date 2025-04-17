@@ -508,7 +508,7 @@ bool ixgbe_clean_xdp_tx_irq(struct ixgbe_q_vector *q_vector,
 
 int ixgbe_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(dev);
 	struct ixgbe_ring *ring;
 
 	if (test_bit(__IXGBE_DOWN, &adapter->state))
