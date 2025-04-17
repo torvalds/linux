@@ -27,10 +27,10 @@ MODULE_DESCRIPTION("GPIB driver for Agilent 82350b");
 static int read_transfer_counter(struct agilent_82350b_priv *a_priv);
 static unsigned short read_and_clear_event_status(struct gpib_board *board);
 static void set_transfer_counter(struct agilent_82350b_priv *a_priv, int count);
-static int agilent_82350b_write(struct gpib_board *board, uint8_t *buffer,
+static int agilent_82350b_write(struct gpib_board *board, u8 *buffer,
 				size_t length, int send_eoi, size_t *bytes_written);
 
-static int agilent_82350b_accel_read(struct gpib_board *board, uint8_t *buffer,
+static int agilent_82350b_accel_read(struct gpib_board *board, u8 *buffer,
 				     size_t length, int *end, size_t *bytes_read)
 
 {
@@ -145,7 +145,7 @@ static int translate_wait_return_value(struct gpib_board *board, int retval)
 	return 0;
 }
 
-static int agilent_82350b_accel_write(struct gpib_board *board, uint8_t *buffer,
+static int agilent_82350b_accel_write(struct gpib_board *board, u8 *buffer,
 				      size_t length, int send_eoi,
 				      size_t *bytes_written)
 {
@@ -297,7 +297,7 @@ static void set_transfer_counter(struct agilent_82350b_priv *a_priv, int count)
 }
 
 // wrappers for interface functions
-static int agilent_82350b_read(struct gpib_board *board, uint8_t *buffer,
+static int agilent_82350b_read(struct gpib_board *board, u8 *buffer,
 			       size_t length, int *end, size_t *bytes_read)
 {
 	struct agilent_82350b_priv *priv = board->private_data;
@@ -305,7 +305,7 @@ static int agilent_82350b_read(struct gpib_board *board, uint8_t *buffer,
 	return tms9914_read(board, &priv->tms9914_priv, buffer, length, end, bytes_read);
 }
 
-static int agilent_82350b_write(struct gpib_board *board, uint8_t *buffer,
+static int agilent_82350b_write(struct gpib_board *board, u8 *buffer,
 				size_t length, int send_eoi, size_t *bytes_written)
 
 {
@@ -314,7 +314,7 @@ static int agilent_82350b_write(struct gpib_board *board, uint8_t *buffer,
 	return tms9914_write(board, &priv->tms9914_priv, buffer, length, send_eoi, bytes_written);
 }
 
-static int agilent_82350b_command(struct gpib_board *board, uint8_t *buffer,
+static int agilent_82350b_command(struct gpib_board *board, u8 *buffer,
 				  size_t length, size_t *bytes_written)
 
 {
@@ -373,7 +373,7 @@ static void agilent_82350b_remote_enable(struct gpib_board *board, int enable)
 	tms9914_remote_enable(board, &priv->tms9914_priv, enable);
 }
 
-static int agilent_82350b_enable_eos(struct gpib_board *board, uint8_t eos_byte,
+static int agilent_82350b_enable_eos(struct gpib_board *board, u8 eos_byte,
 				     int compare_8_bits)
 {
 	struct agilent_82350b_priv *priv = board->private_data;
@@ -412,7 +412,7 @@ static int agilent_82350b_secondary_address(struct gpib_board *board,
 	return tms9914_secondary_address(board, &priv->tms9914_priv, address, enable);
 }
 
-static int agilent_82350b_parallel_poll(struct gpib_board *board, uint8_t *result)
+static int agilent_82350b_parallel_poll(struct gpib_board *board, u8 *result)
 {
 	struct agilent_82350b_priv *priv = board->private_data;
 
@@ -420,7 +420,7 @@ static int agilent_82350b_parallel_poll(struct gpib_board *board, uint8_t *resul
 }
 
 static void agilent_82350b_parallel_poll_configure(struct gpib_board *board,
-						   uint8_t config)
+						   u8 config)
 {
 	struct agilent_82350b_priv *priv = board->private_data;
 
@@ -434,14 +434,14 @@ static void agilent_82350b_parallel_poll_response(struct gpib_board *board, int 
 	tms9914_parallel_poll_response(board, &priv->tms9914_priv, ist);
 }
 
-static void agilent_82350b_serial_poll_response(struct gpib_board *board, uint8_t status)
+static void agilent_82350b_serial_poll_response(struct gpib_board *board, u8 status)
 {
 	struct agilent_82350b_priv *priv = board->private_data;
 
 	tms9914_serial_poll_response(board, &priv->tms9914_priv, status);
 }
 
-static uint8_t agilent_82350b_serial_poll_status(struct gpib_board *board)
+static u8 agilent_82350b_serial_poll_status(struct gpib_board *board)
 {
 	struct agilent_82350b_priv *priv = board->private_data;
 
