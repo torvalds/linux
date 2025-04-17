@@ -73,6 +73,7 @@
 #define I10NM_SAD_NM_CACHEABLE(reg)	GET_BITFIELD(reg, 5, 5)
 
 #define RETRY_RD_ERR_LOG_UC		BIT(1)
+#define RETRY_RD_ERR_LOG_EN_PATSPR	BIT(13)
 #define RETRY_RD_ERR_LOG_NOOVER		BIT(14)
 #define RETRY_RD_ERR_LOG_EN		BIT(15)
 #define RETRY_RD_ERR_LOG_NOOVER_UC	(BIT(14) | BIT(1))
@@ -114,12 +115,15 @@ static void __enable_retry_rd_err_log(struct skx_imc *imc, int chan, bool enable
 			rrl_ctl[2] = d2;
 
 		s &= ~RETRY_RD_ERR_LOG_NOOVER_UC;
+		s |=  RETRY_RD_ERR_LOG_EN_PATSPR;
 		s |=  RETRY_RD_ERR_LOG_EN;
 		d &= ~RETRY_RD_ERR_LOG_NOOVER_UC;
+		d &= ~RETRY_RD_ERR_LOG_EN_PATSPR;
 		d |=  RETRY_RD_ERR_LOG_EN;
 
 		if (offsets_demand2) {
 			d2 &= ~RETRY_RD_ERR_LOG_UC;
+			d2 &= ~RETRY_RD_ERR_LOG_EN_PATSPR;
 			d2 |=  RETRY_RD_ERR_LOG_NOOVER;
 			d2 |=  RETRY_RD_ERR_LOG_EN;
 		}
@@ -129,18 +133,24 @@ static void __enable_retry_rd_err_log(struct skx_imc *imc, int chan, bool enable
 			s |=  RETRY_RD_ERR_LOG_UC;
 		if (rrl_ctl[0] & RETRY_RD_ERR_LOG_NOOVER)
 			s |=  RETRY_RD_ERR_LOG_NOOVER;
+		if (!(rrl_ctl[0] & RETRY_RD_ERR_LOG_EN_PATSPR))
+			s &=  ~RETRY_RD_ERR_LOG_EN_PATSPR;
 		if (!(rrl_ctl[0] & RETRY_RD_ERR_LOG_EN))
 			s &= ~RETRY_RD_ERR_LOG_EN;
 		if (rrl_ctl[1] & RETRY_RD_ERR_LOG_UC)
 			d |=  RETRY_RD_ERR_LOG_UC;
 		if (rrl_ctl[1] & RETRY_RD_ERR_LOG_NOOVER)
 			d |=  RETRY_RD_ERR_LOG_NOOVER;
+		if (rrl_ctl[1] & RETRY_RD_ERR_LOG_EN_PATSPR)
+			d |=  RETRY_RD_ERR_LOG_EN_PATSPR;
 		if (!(rrl_ctl[1] & RETRY_RD_ERR_LOG_EN))
 			d &= ~RETRY_RD_ERR_LOG_EN;
 
 		if (offsets_demand2) {
 			if (rrl_ctl[2] & RETRY_RD_ERR_LOG_UC)
 				d2 |=  RETRY_RD_ERR_LOG_UC;
+			if (rrl_ctl[2] & RETRY_RD_ERR_LOG_EN_PATSPR)
+				d2 |=  RETRY_RD_ERR_LOG_EN_PATSPR;
 			if (!(rrl_ctl[2] & RETRY_RD_ERR_LOG_NOOVER))
 				d2 &=  ~RETRY_RD_ERR_LOG_NOOVER;
 			if (!(rrl_ctl[2] & RETRY_RD_ERR_LOG_EN))
