@@ -1297,6 +1297,8 @@ void ftrace_free_filter(struct ftrace_ops *ops)
 		return;
 	free_ftrace_hash(ops->func_hash->filter_hash);
 	free_ftrace_hash(ops->func_hash->notrace_hash);
+	ops->func_hash->filter_hash = EMPTY_HASH;
+	ops->func_hash->notrace_hash = EMPTY_HASH;
 }
 EXPORT_SYMBOL_GPL(ftrace_free_filter);
 
@@ -3443,6 +3445,7 @@ static int add_next_hash(struct ftrace_hash **filter_hash, struct ftrace_hash **
 				  size_bits);
 		if (ret < 0) {
 			free_ftrace_hash(*filter_hash);
+			*filter_hash = EMPTY_HASH;
 			return ret;
 		}
 	}
@@ -3472,6 +3475,7 @@ static int add_next_hash(struct ftrace_hash **filter_hash, struct ftrace_hash **
 				     subops_hash->notrace_hash);
 		if (ret < 0) {
 			free_ftrace_hash(*notrace_hash);
+			*notrace_hash = EMPTY_HASH;
 			return ret;
 		}
 	}
