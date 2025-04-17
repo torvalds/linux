@@ -84,11 +84,31 @@
 /* Max RRL registers per set. */
 #define NUM_RRL_REG		6
 
+/* Modes of RRL register set. */
+enum rrl_mode {
+	/* Last read error from patrol scrub. */
+	LRE_SCRUB,
+	/* Last read error from demand. */
+	LRE_DEMAND,
+	/* First read error from patrol scrub. */
+	FRE_SCRUB,
+	/* First read error from demand. */
+	FRE_DEMAND,
+};
+
 /* RRL registers per {,sub-,pseudo-}channel. */
 struct reg_rrl {
 	/* RRL register parts. */
 	int set_num;
+	enum rrl_mode modes[NUM_RRL_SET];
 	u32 offsets[NUM_RRL_SET][NUM_RRL_REG];
+	/* RRL register widths in byte per set. */
+	u8 widths[NUM_RRL_REG];
+	/* RRL control bits of the first register per set. */
+	u32 uc_mask;
+	u32 en_patspr_mask;
+	u32 noover_mask;
+	u32 en_mask;
 };
 
 /*

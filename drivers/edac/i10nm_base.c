@@ -72,11 +72,6 @@
 #define I10NM_SAD_ENABLE(reg)		GET_BITFIELD(reg, 0, 0)
 #define I10NM_SAD_NM_CACHEABLE(reg)	GET_BITFIELD(reg, 5, 5)
 
-#define RETRY_RD_ERR_LOG_UC		BIT(1)
-#define RETRY_RD_ERR_LOG_EN_PATSPR	BIT(13)
-#define RETRY_RD_ERR_LOG_NOOVER		BIT(14)
-#define RETRY_RD_ERR_LOG_EN		BIT(15)
-#define RETRY_RD_ERR_LOG_NOOVER_UC	(BIT(14) | BIT(1))
 #define RETRY_RD_ERR_LOG_OVER_UC_V	(BIT(2) | BIT(1) | BIT(0))
 
 static struct list_head *i10nm_edac_list;
@@ -88,153 +83,193 @@ static bool mem_cfg_2lm;
 
 static struct reg_rrl icx_reg_rrl_ddr = {
 	.set_num = 2,
+	.modes = {LRE_SCRUB, LRE_DEMAND},
 	.offsets = {
 		{0x22c60, 0x22c54, 0x22c5c, 0x22c58, 0x22c28, 0x20ed8},
 		{0x22e54, 0x22e60, 0x22e64, 0x22e58, 0x22e5c, 0x20ee0},
 	},
+	.widths		= {4, 4, 4, 4, 4, 8},
+	.uc_mask	= BIT(1),
+	.en_patspr_mask	= BIT(13),
+	.noover_mask	= BIT(14),
+	.en_mask	= BIT(15),
 };
 
 static struct reg_rrl spr_reg_rrl_ddr = {
 	.set_num = 3,
+	.modes = {LRE_SCRUB, LRE_DEMAND, FRE_DEMAND},
 	.offsets = {
 		{0x22c60, 0x22c54, 0x22f08, 0x22c58, 0x22c28, 0x20ed8},
 		{0x22e54, 0x22e60, 0x22f10, 0x22e58, 0x22e5c, 0x20ee0},
 		{0x22c70, 0x22d80, 0x22f18, 0x22d58, 0x22c64, 0x20f10},
 	},
+	.widths		= {4, 4, 8, 4, 4, 8},
+	.uc_mask	= BIT(1),
+	.en_patspr_mask	= BIT(13),
+	.noover_mask	= BIT(14),
+	.en_mask	= BIT(15),
 };
 
 static struct reg_rrl spr_reg_rrl_hbm_pch0 = {
 	.set_num = 2,
+	.modes = {LRE_SCRUB, LRE_DEMAND},
 	.offsets = {
 		{0x2860, 0x2854, 0x2b08, 0x2858, 0x2828, 0x0ed8},
 		{0x2a54, 0x2a60, 0x2b10, 0x2a58, 0x2a5c, 0x0ee0},
 	},
+	.widths		= {4, 4, 8, 4, 4, 8},
+	.uc_mask	= BIT(1),
+	.en_patspr_mask	= BIT(13),
+	.noover_mask	= BIT(14),
+	.en_mask	= BIT(15),
 };
 
 static struct reg_rrl spr_reg_rrl_hbm_pch1 = {
 	.set_num = 2,
+	.modes = {LRE_SCRUB, LRE_DEMAND},
 	.offsets = {
 		{0x2c60, 0x2c54, 0x2f08, 0x2c58, 0x2c28, 0x0fa8},
 		{0x2e54, 0x2e60, 0x2f10, 0x2e58, 0x2e5c, 0x0fb0},
 	},
+	.widths		= {4, 4, 8, 4, 4, 8},
+	.uc_mask	= BIT(1),
+	.en_patspr_mask	= BIT(13),
+	.noover_mask	= BIT(14),
+	.en_mask	= BIT(15),
 };
 
-static void __enable_retry_rd_err_log(struct skx_imc *imc, int chan, bool enable, u32 *rrl_ctl,
-				      u32 *offsets_scrub, u32 *offsets_demand,
-				      u32 *offsets_demand2)
+static u64 read_imc_reg(struct skx_imc *imc, int chan, u32 offset, u8 width)
 {
-	u32 s, d, d2;
+	switch (width) {
+	case 4:
+		return I10NM_GET_REG32(imc, chan, offset);
+	case 8:
+		return I10NM_GET_REG64(imc, chan, offset);
+	default:
+		i10nm_printk(KERN_ERR, "Invalid readd RRL 0x%x width %d\n", offset, width);
+		return 0;
+	}
+}
 
-	s = I10NM_GET_REG32(imc, chan, offsets_scrub[0]);
-	d = I10NM_GET_REG32(imc, chan, offsets_demand[0]);
-	if (offsets_demand2)
-		d2 = I10NM_GET_REG32(imc, chan, offsets_demand2[0]);
+static void write_imc_reg(struct skx_imc *imc, int chan, u32 offset, u8 width, u64 val)
+{
+	switch (width) {
+	case 4:
+		return I10NM_SET_REG32(imc, chan, offset, (u32)val);
+	default:
+		i10nm_printk(KERN_ERR, "Invalid write RRL 0x%x width %d\n", offset, width);
+	}
+}
+
+static void enable_rrl(struct skx_imc *imc, int chan, struct reg_rrl *rrl,
+		       int rrl_set, bool enable, u32 *rrl_ctl)
+{
+	enum rrl_mode mode = rrl->modes[rrl_set];
+	u32 offset = rrl->offsets[rrl_set][0], v;
+	u8 width = rrl->widths[0];
+	bool first, scrub;
+
+	/* First or last read error. */
+	first = (mode == FRE_SCRUB || mode == FRE_DEMAND);
+	/* Patrol scrub or on-demand read error. */
+	scrub = (mode == FRE_SCRUB || mode == LRE_SCRUB);
+
+	v = read_imc_reg(imc, chan, offset, width);
 
 	if (enable) {
-		/* Save default configurations */
-		rrl_ctl[0] = s;
-		rrl_ctl[1] = d;
-		if (offsets_demand2)
-			rrl_ctl[2] = d2;
+		/* Save default configurations. */
+		*rrl_ctl = v;
+		v &= ~rrl->uc_mask;
 
-		s &= ~RETRY_RD_ERR_LOG_NOOVER_UC;
-		s |=  RETRY_RD_ERR_LOG_EN_PATSPR;
-		s |=  RETRY_RD_ERR_LOG_EN;
-		d &= ~RETRY_RD_ERR_LOG_NOOVER_UC;
-		d &= ~RETRY_RD_ERR_LOG_EN_PATSPR;
-		d |=  RETRY_RD_ERR_LOG_EN;
+		if (first)
+			v |= rrl->noover_mask;
+		else
+			v &= ~rrl->noover_mask;
 
-		if (offsets_demand2) {
-			d2 &= ~RETRY_RD_ERR_LOG_UC;
-			d2 &= ~RETRY_RD_ERR_LOG_EN_PATSPR;
-			d2 |=  RETRY_RD_ERR_LOG_NOOVER;
-			d2 |=  RETRY_RD_ERR_LOG_EN;
-		}
+		if (scrub)
+			v |= rrl->en_patspr_mask;
+		else
+			v &= ~rrl->en_patspr_mask;
+
+		v |= rrl->en_mask;
 	} else {
-		/* Restore default configurations */
-		if (rrl_ctl[0] & RETRY_RD_ERR_LOG_UC)
-			s |=  RETRY_RD_ERR_LOG_UC;
-		if (rrl_ctl[0] & RETRY_RD_ERR_LOG_NOOVER)
-			s |=  RETRY_RD_ERR_LOG_NOOVER;
-		if (!(rrl_ctl[0] & RETRY_RD_ERR_LOG_EN_PATSPR))
-			s &=  ~RETRY_RD_ERR_LOG_EN_PATSPR;
-		if (!(rrl_ctl[0] & RETRY_RD_ERR_LOG_EN))
-			s &= ~RETRY_RD_ERR_LOG_EN;
-		if (rrl_ctl[1] & RETRY_RD_ERR_LOG_UC)
-			d |=  RETRY_RD_ERR_LOG_UC;
-		if (rrl_ctl[1] & RETRY_RD_ERR_LOG_NOOVER)
-			d |=  RETRY_RD_ERR_LOG_NOOVER;
-		if (rrl_ctl[1] & RETRY_RD_ERR_LOG_EN_PATSPR)
-			d |=  RETRY_RD_ERR_LOG_EN_PATSPR;
-		if (!(rrl_ctl[1] & RETRY_RD_ERR_LOG_EN))
-			d &= ~RETRY_RD_ERR_LOG_EN;
+		/* Restore default configurations. */
+		if (*rrl_ctl & rrl->uc_mask)
+			v |= rrl->uc_mask;
 
-		if (offsets_demand2) {
-			if (rrl_ctl[2] & RETRY_RD_ERR_LOG_UC)
-				d2 |=  RETRY_RD_ERR_LOG_UC;
-			if (rrl_ctl[2] & RETRY_RD_ERR_LOG_EN_PATSPR)
-				d2 |=  RETRY_RD_ERR_LOG_EN_PATSPR;
-			if (!(rrl_ctl[2] & RETRY_RD_ERR_LOG_NOOVER))
-				d2 &=  ~RETRY_RD_ERR_LOG_NOOVER;
-			if (!(rrl_ctl[2] & RETRY_RD_ERR_LOG_EN))
-				d2 &= ~RETRY_RD_ERR_LOG_EN;
+		if (first) {
+			if (!(*rrl_ctl & rrl->noover_mask))
+				v &= ~rrl->noover_mask;
+		} else {
+			if (*rrl_ctl & rrl->noover_mask)
+				v |= rrl->noover_mask;
 		}
+
+		if (scrub) {
+			if (!(*rrl_ctl & rrl->en_patspr_mask))
+				v &= ~rrl->en_patspr_mask;
+		} else {
+			if (*rrl_ctl & rrl->en_patspr_mask)
+				v |= rrl->en_patspr_mask;
+		}
+
+		if (!(*rrl_ctl & rrl->en_mask))
+			v &= ~rrl->en_mask;
 	}
 
-	I10NM_SET_REG32(imc, chan, offsets_scrub[0], s);
-	I10NM_SET_REG32(imc, chan, offsets_demand[0], d);
-	if (offsets_demand2)
-		I10NM_SET_REG32(imc, chan, offsets_demand2[0], d2);
+	write_imc_reg(imc, chan, offset, width, v);
+}
+
+static void enable_rrls(struct skx_imc *imc, int chan, struct reg_rrl *rrl,
+			bool enable, u32 *rrl_ctl)
+{
+	for (int i = 0; i < rrl->set_num; i++)
+		enable_rrl(imc, chan, rrl, i, enable, rrl_ctl + i);
+}
+
+static void enable_rrls_ddr(struct skx_imc *imc, bool enable)
+{
+	struct reg_rrl *rrl_ddr = res_cfg->reg_rrl_ddr;
+	int i, chan_num = res_cfg->ddr_chan_num;
+	struct skx_channel *chan = imc->chan;
+
+	if (!imc->mbase)
+		return;
+
+	for (i = 0; i < chan_num; i++)
+		enable_rrls(imc, i, rrl_ddr, enable, chan[i].rrl_ctl[0]);
+}
+
+static void enable_rrls_hbm(struct skx_imc *imc, bool enable)
+{
+	struct reg_rrl **rrl_hbm = res_cfg->reg_rrl_hbm;
+	int i, chan_num = res_cfg->hbm_chan_num;
+	struct skx_channel *chan = imc->chan;
+
+	if (!imc->mbase || !imc->hbm_mc || !rrl_hbm[0] || !rrl_hbm[1])
+		return;
+
+	for (i = 0; i < chan_num; i++) {
+		enable_rrls(imc, i, rrl_hbm[0], enable, chan[i].rrl_ctl[0]);
+		enable_rrls(imc, i, rrl_hbm[1], enable, chan[i].rrl_ctl[1]);
+	}
 }
 
 static void enable_retry_rd_err_log(bool enable)
 {
-	int i, j, imc_num, chan_num;
-	struct skx_channel *chan;
-	struct skx_imc *imc;
 	struct skx_dev *d;
+	int i, imc_num;
 
 	edac_dbg(2, "\n");
 
 	list_for_each_entry(d, i10nm_edac_list, list) {
 		imc_num  = res_cfg->ddr_imc_num;
-		chan_num = res_cfg->ddr_chan_num;
-
-		for (i = 0; i < imc_num; i++) {
-			imc = &d->imc[i];
-			if (!imc->mbase)
-				continue;
-
-			chan = d->imc[i].chan;
-			for (j = 0; j < chan_num; j++)
-				__enable_retry_rd_err_log(imc, j, enable, chan[j].rrl_ctl[0],
-							  res_cfg->reg_rrl_ddr->offsets[0],
-							  res_cfg->reg_rrl_ddr->offsets[1],
-							  res_cfg->reg_rrl_ddr->set_num > 2 ?
-							  res_cfg->reg_rrl_ddr->offsets[2] : NULL);
-
-		}
+		for (i = 0; i < imc_num; i++)
+			enable_rrls_ddr(&d->imc[i], enable);
 
 		imc_num += res_cfg->hbm_imc_num;
-		chan_num = res_cfg->hbm_chan_num;
-
-		for (; i < imc_num; i++) {
-			imc = &d->imc[i];
-			if (!imc->mbase || !imc->hbm_mc)
-				continue;
-
-			chan = d->imc[i].chan;
-			for (j = 0; j < chan_num; j++) {
-				__enable_retry_rd_err_log(imc, j, enable, chan[j].rrl_ctl[0],
-							  res_cfg->reg_rrl_hbm[0]->offsets[0],
-							  res_cfg->reg_rrl_hbm[0]->offsets[1],
-							  NULL);
-				__enable_retry_rd_err_log(imc, j, enable, chan[j].rrl_ctl[1],
-							  res_cfg->reg_rrl_hbm[1]->offsets[0],
-							  res_cfg->reg_rrl_hbm[1]->offsets[1],
-							  NULL);
-			}
-		}
+		for (; i < imc_num; i++)
+			enable_rrls_hbm(&d->imc[i], enable);
 	}
 }
 
