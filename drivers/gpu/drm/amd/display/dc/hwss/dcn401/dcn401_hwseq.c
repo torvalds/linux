@@ -525,11 +525,11 @@ bool dcn401_program_rmcm_luts(
 	enum MCM_LUT_XABLE shaper_xable, lut3d_xable = MCM_LUT_DISABLE, lut1d_xable;
 	enum hubp_3dlut_fl_mode mode;
 	enum hubp_3dlut_fl_addressing_mode addr_mode;
-	enum hubp_3dlut_fl_format format;
-	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_y_g;
-	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_cb_b;
-	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_cr_r;
-	enum hubp_3dlut_fl_width width;
+	enum hubp_3dlut_fl_format format = 0;
+	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_y_g = 0;
+	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_cb_b = 0;
+	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_cr_r = 0;
+	enum hubp_3dlut_fl_width width = 0;
 	struct dc *dc = hubp->ctx->dc;
 
 	bool bypass_rmcm_3dlut  = false;
@@ -654,9 +654,9 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 	enum hubp_3dlut_fl_mode mode;
 	enum hubp_3dlut_fl_width width = 0;
 	enum hubp_3dlut_fl_addressing_mode addr_mode;
-	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_y_g;
-	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_cb_b;
-	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_cr_r;
+	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_y_g = 0;
+	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_cb_b = 0;
+	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_cr_r = 0;
 	enum MCM_LUT_XABLE shaper_xable = MCM_LUT_DISABLE;
 	enum MCM_LUT_XABLE lut3d_xable = MCM_LUT_DISABLE;
 	enum MCM_LUT_XABLE lut1d_xable = MCM_LUT_DISABLE;
