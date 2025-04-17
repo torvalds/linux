@@ -2198,8 +2198,7 @@ bool memcg1_alloc_events(struct mem_cgroup *memcg)
 
 void memcg1_free_events(struct mem_cgroup *memcg)
 {
-	if (memcg->events_percpu)
-		free_percpu(memcg->events_percpu);
+	free_percpu(memcg->events_percpu);
 }
 
 static int __init memcg1_init(void)
