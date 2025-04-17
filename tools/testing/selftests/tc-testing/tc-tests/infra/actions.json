@@ -412,5 +412,27 @@
         "teardown": [
             "$TC qdisc del dev $DUMMY ingress"
         ]
+    },
+    {
+        "id": "33f4",
+        "name": "Check echo of big filter command",
+        "category": [
+            "infra",
+            "u32"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY parent root handle 10: fq_codel"
+        ],
+        "cmdUnderTest": "bash -c '$TC -echo filter add dev $DUMMY parent 10: u32 match u32 0 0 $(for i in $(seq 32); do echo action pedit munge ip dport set 22; done) | grep \"added filter\"'",
+        "verifyCmd": "",
+        "expExitCode": "0",
+        "matchCount": "0",
+        "matchPattern": "",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY parent root fq_codel"
+        ]
     }
 ]
