@@ -10457,14 +10457,18 @@ S:	Supported
 F:	drivers/infiniband/hw/hfi1
 
 HFS FILESYSTEM
+M:	Viacheslav Dubeyko <slava@dubeyko.com>
+M:	John Paul Adrian Glaubitz <glaubitz@physik.fu-berlin.de>
 L:	linux-fsdevel@vger.kernel.org
-S:	Orphan
+S:	Maintained
 F:	Documentation/filesystems/hfs.rst
 F:	fs/hfs/
 
 HFSPLUS FILESYSTEM
+M:	Viacheslav Dubeyko <slava@dubeyko.com>
+M:	John Paul Adrian Glaubitz <glaubitz@physik.fu-berlin.de>
 L:	linux-fsdevel@vger.kernel.org
-S:	Orphan
+S:	Maintained
 F:	Documentation/filesystems/hfsplus.rst
 F:	fs/hfsplus/
 
