@@ -2925,9 +2925,9 @@ static void vc_con_rewind(struct vc_data *vc)
 
 #define UCS_VS16	0xfe0f	/* Variation Selector 16 */
 
-static int vc_process_ucs(struct vc_data *vc, int c, int *tc)
+static int vc_process_ucs(struct vc_data *vc, int *c, int *tc)
 {
-	u32 prev_c, curr_c = c;
+	u32 prev_c, curr_c = *c;
 
 	if (ucs_is_double_width(curr_c))
 		return 2;
@@ -2964,6 +2964,14 @@ static int vc_process_ucs(struct vc_data *vc, int c, int *tc)
 		return 1;
 	}
 
+	/* try recomposition */
+	prev_c = ucs_recompose(prev_c, curr_c);
+	if (prev_c != 0) {
+		vc_con_rewind(vc);
+		*tc = *c = prev_c;
+		return 1;
+	}
+
 	/* Otherwise zero-width code points are ignored. */
 	return 0;
 }
@@ -2978,7 +2986,7 @@ static int vc_con_write_normal(struct vc_data *vc, int tc, int c,
 	bool inverse = false;
 
 	if (vc->vc_utf && !vc->vc_disp_ctrl) {
-		width = vc_process_ucs(vc, c, &tc);
+		width = vc_process_ucs(vc, &c, &tc);
 		if (!width)
 			goto out;
 	}

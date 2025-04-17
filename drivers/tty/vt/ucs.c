@@ -59,3 +59,65 @@ bool ucs_is_double_width(u32 cp)
 	return cp_in_range(cp, ucs_double_width_ranges,
 			   ARRAY_SIZE(ucs_double_width_ranges));
 }
+
+/*
+ * Structure for base with combining mark pairs and resulting recompositions.
+ * Using u16 to save space since all values are within BMP range.
+ */
+struct ucs_recomposition {
+	u16 base;	/* base character */
+	u16 mark;	/* combining mark */
+	u16 recomposed;	/* corresponding recomposed character */
+};
+
+#include "ucs_recompose_table.h"
+
+struct compare_key {
+	u16 base;
+	u16 mark;
+};
+
+static int recomposition_cmp(const void *key, const void *element)
+{
+	const struct compare_key *search_key = key;
+	const struct ucs_recomposition *entry = element;
+
+	/* Compare base character first */
+	if (search_key->base < entry->base)
+		return -1;
+	if (search_key->base > entry->base)
+		return 1;
+
+	/* Base characters match, now compare combining character */
+	if (search_key->mark < entry->mark)
+		return -1;
+	if (search_key->mark > entry->mark)
+		return 1;
+
+	/* Both match */
+	return 0;
+}
+
+/**
+ * ucs_recompose() - Attempt to recompose two Unicode characters into a single character.
+ * @base: Base Unicode code point (UCS-4)
+ * @mark: Combining mark Unicode code point (UCS-4)
+ *
+ * Return: Recomposed Unicode code point, or 0 if no recomposition is possible
+ */
+u32 ucs_recompose(u32 base, u32 mark)
+{
+	/* Check if characters are within the range of our table */
+	if (!in_range(base, UCS_RECOMPOSE_MIN_BASE, UCS_RECOMPOSE_MAX_BASE) ||
+	    !in_range(mark, UCS_RECOMPOSE_MIN_MARK, UCS_RECOMPOSE_MAX_MARK))
+		return 0;
+
+	struct compare_key key = { base, mark };
+	struct ucs_recomposition *result =
+		__inline_bsearch(&key, ucs_recomposition_table,
+				 ARRAY_SIZE(ucs_recomposition_table),
+				 sizeof(*ucs_recomposition_table),
+				 recomposition_cmp);
+
+	return result ? result->recomposed : 0;
+}

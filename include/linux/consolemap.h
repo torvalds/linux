@@ -30,6 +30,7 @@ int conv_uni_to_8bit(u32 uni);
 void console_map_init(void);
 bool ucs_is_double_width(uint32_t cp);
 bool ucs_is_zero_width(uint32_t cp);
+u32 ucs_recompose(u32 base, u32 mark);
 #else
 static inline u16 inverse_translate(const struct vc_data *conp, u16 glyph,
 		bool use_unicode)
@@ -68,6 +69,11 @@ static inline bool ucs_is_double_width(uint32_t cp)
 static inline bool ucs_is_zero_width(uint32_t cp)
 {
 	return false;
+}
+
+static inline u32 ucs_recompose(u32 base, u32 mark)
+{
+	return 0;
 }
 #endif /* CONFIG_CONSOLE_TRANSLATIONS */
 
