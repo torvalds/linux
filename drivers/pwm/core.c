@@ -216,14 +216,14 @@ static int __pwm_write_waveform(struct pwm_chip *chip, struct pwm_device *pwm, c
  *
  * Typically a given waveform cannot be implemented exactly by hardware, e.g.
  * because hardware only supports coarse period resolution or no duty_offset.
- * This function returns the actually implemented waveform if you pass wf to
- * pwm_set_waveform_might_sleep now.
+ * This function returns the actually implemented waveform if you pass @wf to
+ * pwm_set_waveform_might_sleep() now.
  *
  * Note however that the world doesn't stop turning when you call it, so when
- * doing
+ * doing::
  *
- * 	pwm_round_waveform_might_sleep(mypwm, &wf);
- * 	pwm_set_waveform_might_sleep(mypwm, &wf, true);
+ *   pwm_round_waveform_might_sleep(mypwm, &wf);
+ *   pwm_set_waveform_might_sleep(mypwm, &wf, true);
  *
  * the latter might fail, e.g. because an input clock changed its rate between
  * these two calls and the waveform determined by
@@ -233,8 +233,9 @@ static int __pwm_write_waveform(struct pwm_chip *chip, struct pwm_device *pwm, c
  * value (in the order period_length_ns, duty_length_ns and then
  * duty_offset_ns). Only if this isn't possible, a value might grow.
  *
- * Returns 0 on success, 1 if at least one value had to be rounded up or a
+ * Returns: 0 on success, 1 if at least one value had to be rounded up or a
  * negative errno.
+ * Context: May sleep.
  */
 int pwm_round_waveform_might_sleep(struct pwm_device *pwm, struct pwm_waveform *wf)
 {
@@ -291,6 +292,9 @@ EXPORT_SYMBOL_GPL(pwm_round_waveform_might_sleep);
  *
  * Stores the current configuration of the PWM in @wf. Note this is the
  * equivalent of pwm_get_state_hw() (and not pwm_get_state()) for pwm_waveform.
+ *
+ * Returns: 0 on success or a negative errno
+ * Context: May sleep.
  */
 int pwm_get_waveform_might_sleep(struct pwm_device *pwm, struct pwm_waveform *wf)
 {
@@ -399,13 +403,17 @@ static int __pwm_set_waveform(struct pwm_device *pwm,
  *
  * Typically a requested waveform cannot be implemented exactly, e.g. because
  * you requested .period_length_ns = 100 ns, but the hardware can only set
- * periods that are a multiple of 8.5 ns. With that hardware passing exact =
+ * periods that are a multiple of 8.5 ns. With that hardware passing @exact =
  * true results in pwm_set_waveform_might_sleep() failing and returning 1. If
- * exact = false you get a period of 93.5 ns (i.e. the biggest period not bigger
+ * @exact = false you get a period of 93.5 ns (i.e. the biggest period not bigger
  * than the requested value).
- * Note that even with exact = true, some rounding by less than 1 is
+ * Note that even with @exact = true, some rounding by less than 1 ns is
  * possible/needed. In the above example requesting .period_length_ns = 94 and
- * exact = true, you get the hardware configured with period = 93.5 ns.
+ * @exact = true, you get the hardware configured with period = 93.5 ns.
+ *
+ * Returns: 0 on success, 1 if was rounded up (if !@exact) or no perfect match was
+ * possible (if @exact), or a negative errno
+ * Context: May sleep.
  */
 int pwm_set_waveform_might_sleep(struct pwm_device *pwm,
 				 const struct pwm_waveform *wf, bool exact)
@@ -565,11 +573,6 @@ static bool pwm_state_valid(const struct pwm_state *state)
 	return true;
 }
 
-/**
- * __pwm_apply() - atomically apply a new state to a PWM device
- * @pwm: PWM device
- * @state: new state to apply
- */
 static int __pwm_apply(struct pwm_device *pwm, const struct pwm_state *state)
 {
 	struct pwm_chip *chip;
@@ -678,6 +681,9 @@ static int __pwm_apply(struct pwm_device *pwm, const struct pwm_state *state)
  * Cannot be used in atomic context.
  * @pwm: PWM device
  * @state: new state to apply
+ *
+ * Returns: 0 on success, or a negative errno
+ * Context: May sleep.
  */
 int pwm_apply_might_sleep(struct pwm_device *pwm, const struct pwm_state *state)
 {
@@ -719,6 +725,9 @@ EXPORT_SYMBOL_GPL(pwm_apply_might_sleep);
  * Not all PWM devices support this function, check with pwm_might_sleep().
  * @pwm: PWM device
  * @state: new state to apply
+ *
+ * Returns: 0 on success, or a negative errno
+ * Context: Any
  */
 int pwm_apply_atomic(struct pwm_device *pwm, const struct pwm_state *state)
 {
@@ -792,6 +801,9 @@ EXPORT_SYMBOL_GPL(pwm_get_state_hw);
  * This function will adjust the PWM config to the PWM arguments provided
  * by the DT or PWM lookup table. This is particularly useful to adapt
  * the bootloader config to the Linux one.
+ *
+ * Returns: 0 on success or a negative error code on failure.
+ * Context: May sleep.
  */
 int pwm_adjust_config(struct pwm_device *pwm)
 {
