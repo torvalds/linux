@@ -1037,6 +1037,7 @@ static int io_import_fixed(int ddir, struct iov_iter *iter,
 			   u64 buf_addr, size_t len)
 {
 	const struct bio_vec *bvec;
+	size_t folio_mask;
 	unsigned nr_segs;
 	size_t offset;
 	int ret;
@@ -1067,6 +1068,7 @@ static int io_import_fixed(int ddir, struct iov_iter *iter,
 	 * 2) all bvecs are the same in size, except potentially the
 	 *    first and last bvec
 	 */
+	folio_mask = (1UL << imu->folio_shift) - 1;
 	bvec = imu->bvec;
 	if (offset >= bvec->bv_len) {
 		unsigned long seg_skip;
@@ -1075,10 +1077,9 @@ static int io_import_fixed(int ddir, struct iov_iter *iter,
 		offset -= bvec->bv_len;
 		seg_skip = 1 + (offset >> imu->folio_shift);
 		bvec += seg_skip;
-		offset &= (1UL << imu->folio_shift) - 1;
+		offset &= folio_mask;
 	}
-
-	nr_segs = imu->nr_bvecs - (bvec - imu->bvec);
+	nr_segs = (offset + len + bvec->bv_offset + folio_mask) >> imu->folio_shift;
 	iov_iter_bvec(iter, ddir, bvec, nr_segs, len);
 	iter->iov_offset = offset;
 	return 0;
