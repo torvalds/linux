@@ -1048,11 +1048,14 @@ static int io_import_fixed(int ddir, struct iov_iter *iter,
 	if (!(imu->dir & (1 << ddir)))
 		return -EFAULT;
 
-	/*
-	 * Might not be a start of buffer, set size appropriately
-	 * and advance us to the beginning.
-	 */
 	offset = buf_addr - imu->ubuf;
+
+	if (imu->is_kbuf) {
+		iov_iter_bvec(iter, ddir, imu->bvec, imu->nr_bvecs, offset + len);
+		iov_iter_advance(iter, offset);
+		return 0;
+	}
+
 	iov_iter_bvec(iter, ddir, imu->bvec, imu->nr_bvecs, offset + len);
 
 	/*
@@ -1072,17 +1075,9 @@ static int io_import_fixed(int ddir, struct iov_iter *iter,
 	 * be folio_size aligned.
 	 */
 	bvec = imu->bvec;
-
-	/*
-	 * Kernel buffer bvecs, on the other hand, don't necessarily
-	 * have the size property of user registered ones, so we have
-	 * to use the slow iter advance.
-	 */
 	if (offset < bvec->bv_len) {
 		iter->count -= offset;
 		iter->iov_offset = offset;
-	} else if (imu->is_kbuf) {
-		iov_iter_advance(iter, offset);
 	} else {
 		unsigned long seg_skip;
 
