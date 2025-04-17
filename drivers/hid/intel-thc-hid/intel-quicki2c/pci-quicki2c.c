@@ -82,15 +82,10 @@ static int quicki2c_acpi_get_dsd_property(struct acpi_device *adev, acpi_string 
 {
 	acpi_handle handle = acpi_device_handle(adev);
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object obj = { .type = type };
-	struct acpi_object_list arg_list = {
-		.count = 1,
-		.pointer = &obj,
-	};
 	union acpi_object *ret_obj;
 	acpi_status status;
 
-	status = acpi_evaluate_object(handle, dsd_method_name, &arg_list, &buffer);
+	status = acpi_evaluate_object(handle, dsd_method_name, NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		acpi_handle_err(handle,
 				"Can't evaluate %s method: %d\n", dsd_method_name, status);
