@@ -420,10 +420,10 @@ cleanup:
 }
 
 // interface functions
-int agilent_82357a_command(struct gpib_board *board, uint8_t *buffer, size_t length,
+int agilent_82357a_command(struct gpib_board *board, u8 *buffer, size_t length,
 			   size_t *bytes_written);
 
-static int agilent_82357a_read(struct gpib_board *board, uint8_t *buffer, size_t length, int *end,
+static int agilent_82357a_read(struct gpib_board *board, u8 *buffer, size_t length, int *end,
 			       size_t *nbytes)
 {
 	int retval;
@@ -536,7 +536,7 @@ static int agilent_82357a_read(struct gpib_board *board, uint8_t *buffer, size_t
 }
 
 static ssize_t agilent_82357a_generic_write(struct gpib_board *board,
-					    uint8_t *buffer, size_t length,
+					    u8 *buffer, size_t length,
 					    int send_commands, int send_eoi,
 					    size_t *bytes_written)
 {
@@ -676,13 +676,13 @@ static ssize_t agilent_82357a_generic_write(struct gpib_board *board,
 	return 0;
 }
 
-static int agilent_82357a_write(struct gpib_board *board, uint8_t *buffer,
+static int agilent_82357a_write(struct gpib_board *board, u8 *buffer,
 				size_t length, int send_eoi, size_t *bytes_written)
 {
 	return agilent_82357a_generic_write(board, buffer, length, 0, send_eoi, bytes_written);
 }
 
-int agilent_82357a_command(struct gpib_board *board, uint8_t *buffer, size_t length,
+int agilent_82357a_command(struct gpib_board *board, u8 *buffer, size_t length,
 			   size_t *bytes_written)
 {
 	return agilent_82357a_generic_write(board, buffer, length, 1, 0, bytes_written);
@@ -834,7 +834,7 @@ static void agilent_82357a_remote_enable(struct gpib_board *board, int enable)
 	return;// 0;
 }
 
-static int agilent_82357a_enable_eos(struct gpib_board *board, uint8_t eos_byte,
+static int agilent_82357a_enable_eos(struct gpib_board *board, u8 eos_byte,
 				     int compare_8_bits)
 {
 	struct agilent_82357a_priv *a_priv = board->private_data;
@@ -948,7 +948,7 @@ static int agilent_82357a_secondary_address(struct gpib_board *board,
 	return 0;
 }
 
-static int agilent_82357a_parallel_poll(struct gpib_board *board, uint8_t *result)
+static int agilent_82357a_parallel_poll(struct gpib_board *board, u8 *result)
 {
 	struct agilent_82357a_priv *a_priv = board->private_data;
 	struct usb_device *usb_dev;
@@ -990,7 +990,7 @@ static int agilent_82357a_parallel_poll(struct gpib_board *board, uint8_t *resul
 	return 0;
 }
 
-static void agilent_82357a_parallel_poll_configure(struct gpib_board *board, uint8_t config)
+static void agilent_82357a_parallel_poll_configure(struct gpib_board *board, u8 config)
 {
 	//board can only be system controller
 	return;// 0;
@@ -1002,13 +1002,13 @@ static void agilent_82357a_parallel_poll_response(struct gpib_board *board, int 
 	return;// 0;
 }
 
-static void agilent_82357a_serial_poll_response(struct gpib_board *board, uint8_t status)
+static void agilent_82357a_serial_poll_response(struct gpib_board *board, u8 status)
 {
 	//board can only be system controller
 	return;// 0;
 }
 
-static uint8_t agilent_82357a_serial_poll_status(struct gpib_board *board)
+static u8 agilent_82357a_serial_poll_status(struct gpib_board *board)
 {
 	//board can only be system controller
 	return 0;
