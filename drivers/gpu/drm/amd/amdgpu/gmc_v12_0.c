@@ -656,6 +656,7 @@ static int gmc_v12_0_early_init(struct amdgpu_ip_block *ip_block)
 	adev->gmc.private_aperture_start = 0x1000000000000000ULL;
 	adev->gmc.private_aperture_end =
 		adev->gmc.private_aperture_start + (4ULL << 30) - 1;
+	adev->gmc.noretry_flags = AMDGPU_VM_NORETRY_FLAGS_TF;
 
 	return 0;
 }
@@ -822,14 +823,28 @@ static int gmc_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
-	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(12, 1, 0))
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(12, 1, 0)) {
 		r = amdgpu_irq_add_id(adev, SOC21_IH_CLIENTID_UTCL2,
 				      UTCL2_1_0__SRCID__FAULT,
 				      &adev->gmc.vm_fault);
-	else
+		if (r)
+			return r;
+		/* Add GCVM UTCL2 Retry fault */
+		r = amdgpu_irq_add_id(adev, SOC21_IH_CLIENTID_UTCL2,
+				      UTCL2_1_0__SRCID__RETRY,
+				      &adev->gmc.vm_fault);
+		if (r)
+			return r;
+
+		/* Add MMVM UTCL2 Retry fault */
+		r = amdgpu_irq_add_id(adev, SOC21_IH_CLIENTID_VMC,
+				      VMC_1_0__SRCID__VM_RETRY,
+				      &adev->gmc.vm_fault);
+	} else {
 		r = amdgpu_irq_add_id(adev, SOC21_IH_CLIENTID_GFX,
 				      UTCL2_1_0__SRCID__FAULT,
 				      &adev->gmc.vm_fault);
+	}
 	if (r)
 		return r;
 
