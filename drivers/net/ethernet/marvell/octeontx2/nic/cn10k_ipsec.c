@@ -663,10 +663,10 @@ static int cn10k_ipsec_inb_add_state(struct xfrm_state *x,
 	return -EOPNOTSUPP;
 }
 
-static int cn10k_ipsec_outb_add_state(struct xfrm_state *x,
+static int cn10k_ipsec_outb_add_state(struct net_device *dev,
+				      struct xfrm_state *x,
 				      struct netlink_ext_ack *extack)
 {
-	struct net_device *netdev = x->xso.dev;
 	struct cn10k_tx_sa_s *sa_entry;
 	struct qmem *sa_info;
 	struct otx2_nic *pf;
@@ -676,7 +676,7 @@ static int cn10k_ipsec_outb_add_state(struct xfrm_state *x,
 	if (err)
 		return err;
 
-	pf = netdev_priv(netdev);
+	pf = netdev_priv(dev);
 
 	err = qmem_alloc(pf->dev, &sa_info, pf->ipsec.sa_size, OTX2_ALIGN);
 	if (err)
@@ -700,18 +700,18 @@ static int cn10k_ipsec_outb_add_state(struct xfrm_state *x,
 	return 0;
 }
 
-static int cn10k_ipsec_add_state(struct xfrm_state *x,
+static int cn10k_ipsec_add_state(struct net_device *dev,
+				 struct xfrm_state *x,
 				 struct netlink_ext_ack *extack)
 {
 	if (x->xso.dir == XFRM_DEV_OFFLOAD_IN)
 		return cn10k_ipsec_inb_add_state(x, extack);
 	else
-		return cn10k_ipsec_outb_add_state(x, extack);
+		return cn10k_ipsec_outb_add_state(dev, x, extack);
 }
 
-static void cn10k_ipsec_del_state(struct xfrm_state *x)
+static void cn10k_ipsec_del_state(struct net_device *dev, struct xfrm_state *x)
 {
-	struct net_device *netdev = x->xso.dev;
 	struct cn10k_tx_sa_s *sa_entry;
 	struct qmem *sa_info;
 	struct otx2_nic *pf;
@@ -720,7 +720,7 @@ static void cn10k_ipsec_del_state(struct xfrm_state *x)
 	if (x->xso.dir == XFRM_DEV_OFFLOAD_IN)
 		return;
 
-	pf = netdev_priv(netdev);
+	pf = netdev_priv(dev);
 
 	sa_info = (struct qmem *)x->xso.offload_handle;
 	sa_entry = (struct cn10k_tx_sa_s *)sa_info->base;
@@ -732,7 +732,7 @@ static void cn10k_ipsec_del_state(struct xfrm_state *x)
 
 	err = cn10k_outb_write_sa(pf, sa_info);
 	if (err)
-		netdev_err(netdev, "Error (%d) deleting SA\n", err);
+		netdev_err(dev, "Error (%d) deleting SA\n", err);
 
 	x->xso.offload_handle = 0;
 	qmem_free(pf->dev, sa_info);

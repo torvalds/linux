@@ -1013,9 +1013,13 @@ struct netdev_bpf {
 
 #ifdef CONFIG_XFRM_OFFLOAD
 struct xfrmdev_ops {
-	int	(*xdo_dev_state_add) (struct xfrm_state *x, struct netlink_ext_ack *extack);
-	void	(*xdo_dev_state_delete) (struct xfrm_state *x);
-	void	(*xdo_dev_state_free) (struct xfrm_state *x);
+	int	(*xdo_dev_state_add)(struct net_device *dev,
+				     struct xfrm_state *x,
+				     struct netlink_ext_ack *extack);
+	void	(*xdo_dev_state_delete)(struct net_device *dev,
+					struct xfrm_state *x);
+	void	(*xdo_dev_state_free)(struct net_device *dev,
+				      struct xfrm_state *x);
 	bool	(*xdo_dev_offload_ok) (struct sk_buff *skb,
 				       struct xfrm_state *x);
 	void	(*xdo_dev_state_advance_esn) (struct xfrm_state *x);
