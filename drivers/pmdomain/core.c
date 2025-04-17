@@ -908,13 +908,12 @@ static void genpd_queue_power_off_work(struct generic_pm_domain *genpd)
  * If all of the @genpd's devices have been suspended and all of its subdomains
  * have been powered down, remove power from @genpd.
  */
-static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
-			   unsigned int depth)
+static void genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
+			    unsigned int depth)
 {
 	struct pm_domain_data *pdd;
 	struct gpd_link *link;
 	unsigned int not_suspended = 0;
-	int ret;
 
 	/*
 	 * Do not try to power off the domain in the following situations:
@@ -922,7 +921,7 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 	 * (2) System suspend is in progress.
 	 */
 	if (!genpd_status_on(genpd) || genpd->prepared_count > 0)
-		return 0;
+		return;
 
 	/*
 	 * Abort power off for the PM domain in the following situations:
@@ -932,7 +931,7 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 	if (genpd_is_always_on(genpd) ||
 			genpd_is_rpm_always_on(genpd) ||
 			atomic_read(&genpd->sd_count) > 0)
-		return -EBUSY;
+		return;
 
 	/*
 	 * The children must be in their deepest (powered-off) states to allow
@@ -943,7 +942,7 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 	list_for_each_entry(link, &genpd->parent_links, parent_node) {
 		struct generic_pm_domain *child = link->child;
 		if (child->state_idx < child->state_count - 1)
-			return -EBUSY;
+			return;
 	}
 
 	list_for_each_entry(pdd, &genpd->dev_list, list_node) {
@@ -957,15 +956,15 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 
 		/* The device may need its PM domain to stay powered on. */
 		if (to_gpd_data(pdd)->rpm_always_on)
-			return -EBUSY;
+			return;
 	}
 
 	if (not_suspended > 1 || (not_suspended == 1 && !one_dev_on))
-		return -EBUSY;
+		return;
 
 	if (genpd->gov && genpd->gov->power_down_ok) {
 		if (!genpd->gov->power_down_ok(&genpd->domain))
-			return -EAGAIN;
+			return;
 	}
 
 	/* Default to shallowest state. */
@@ -974,12 +973,11 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 
 	/* Don't power off, if a child domain is waiting to power on. */
 	if (atomic_read(&genpd->sd_count) > 0)
-		return -EBUSY;
+		return;
 
-	ret = _genpd_power_off(genpd, true);
-	if (ret) {
+	if (_genpd_power_off(genpd, true)) {
 		genpd->states[genpd->state_idx].rejected++;
-		return ret;
+		return;
 	}
 
 	genpd->status = GENPD_STATE_OFF;
@@ -992,8 +990,6 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 		genpd_power_off(link->parent, false, depth + 1);
 		genpd_unlock(link->parent);
 	}
-
-	return 0;
 }
 
 /**
