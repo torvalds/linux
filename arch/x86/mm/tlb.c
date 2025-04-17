@@ -905,14 +905,6 @@ void switch_mm_irqs_off(struct mm_struct *unused, struct mm_struct *next,
 		this_cpu_write(cpu_tlbstate.loaded_mm, LOADED_MM_SWITCHING);
 		barrier();
 
-		/*
-		 * Leave this CPU in prev's mm_cpumask. Atomic writes to
-		 * mm_cpumask can be expensive under contention. The CPU
-		 * will be removed lazily at TLB flush time.
-		 */
-		VM_WARN_ON_ONCE(prev != &init_mm && !cpumask_test_cpu(cpu,
-				mm_cpumask(prev)));
-
 		/* Start receiving IPIs and then read tlb_gen (and LAM below) */
 		if (next != &init_mm && !cpumask_test_cpu(cpu, mm_cpumask(next)))
 			cpumask_set_cpu(cpu, mm_cpumask(next));
