@@ -658,9 +658,9 @@ static void __tg_update_carryover(struct throtl_grp *tg, bool rw,
 
 	/*
 	 * If config is updated while bios are still throttled, calculate and
-	 * accumulate how many bytes/ios are waited across changes. And
-	 * carryover_bytes/ios will be used to calculate new wait time under new
-	 * configuration.
+	 * accumulate how many bytes/ios are waited across changes. And use the
+	 * calculated carryover (@bytes/@ios) to update [bytes/io]_disp, which
+	 * will be used to calculate new wait time under new configuration.
 	 */
 	if (bps_limit != U64_MAX)
 		*bytes = calculate_bytes_allowed(bps_limit, jiffy_elapsed) -
@@ -680,7 +680,7 @@ static void tg_update_carryover(struct throtl_grp *tg)
 	__tg_update_carryover(tg, READ, &bytes[READ], &ios[READ]);
 	__tg_update_carryover(tg, WRITE, &bytes[WRITE], &ios[WRITE]);
 
-	/* see comments in struct throtl_grp for meaning of these fields. */
+	/* see comments in struct throtl_grp for meaning of carryover. */
 	throtl_log(&tg->service_queue, "%s: %lld %lld %d %d\n", __func__,
 		   bytes[READ], bytes[WRITE], ios[READ], ios[WRITE]);
 }

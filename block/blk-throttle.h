@@ -102,19 +102,16 @@ struct throtl_grp {
 	/* IOPS limits */
 	unsigned int iops[2];
 
-	/* Number of bytes dispatched in current slice */
-	int64_t bytes_disp[2];
-	/* Number of bio's dispatched in current slice */
-	int io_disp[2];
-
 	/*
-	 * The following two fields are updated when new configuration is
-	 * submitted while some bios are still throttled, they record how many
-	 * bytes/ios are waited already in previous configuration, and they will
-	 * be used to calculate wait time under new configuration.
+	 * Number of bytes/bio's dispatched in current slice.
+	 * When new configuration is submitted while some bios are still throttled,
+	 * first calculate the carryover: the amount of bytes/IOs already waited
+	 * under the previous configuration. Then, [bytes/io]_disp are represented
+	 * as the negative of the carryover, and they will be used to calculate the
+	 * wait time under the new configuration.
 	 */
-	long long carryover_bytes[2];
-	int carryover_ios[2];
+	int64_t bytes_disp[2];
+	int io_disp[2];
 
 	unsigned long last_check_time;
 
