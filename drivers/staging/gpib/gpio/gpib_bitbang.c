@@ -884,6 +884,8 @@ static int bb_go_to_standby(struct gpib_board *board)
 
 static int bb_request_system_control(struct gpib_board *board, int request_control)
 {
+	struct bb_priv *priv = board->private_data;
+
 	dbg_printk(2, "%d\n", request_control);
 	if (!request_control)
 		return -EINVAL;
@@ -894,6 +896,8 @@ static int bb_request_system_control(struct gpib_board *board, int request_contr
 		gpiod_direction_output(DC, 0); /* enable ATN as output on SN75161/2 */
 
 	gpiod_direction_input(SRQ);
+
+	ENABLE_IRQ(priv->irq_SRQ, IRQ_TYPE_EDGE_FALLING);
 
 	return 0;
 }
@@ -1298,8 +1302,6 @@ static int bb_attach(struct gpib_board *board, const struct gpib_board_config *c
 	if (bb_get_irq(board, NAME "_SRQ", SRQ, &priv->irq_SRQ, bb_SRQ_interrupt, NULL,
 		       IRQF_TRIGGER_NONE))
 		goto bb_attach_fail_r;
-
-	ENABLE_IRQ(priv->irq_SRQ, IRQ_TYPE_EDGE_FALLING);
 
 	dbg_printk(0, "attached board %d\n", board->minor);
 	goto bb_attach_out;
