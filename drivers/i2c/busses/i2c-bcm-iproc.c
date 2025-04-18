@@ -1014,17 +1014,14 @@ static int bcm_iproc_i2c_cfg_speed(struct bcm_iproc_i2c_dev *iproc_i2c)
 		bus_speed = I2C_MAX_STANDARD_MODE_FREQ;
 	}
 
-	if (bus_speed < I2C_MAX_STANDARD_MODE_FREQ) {
-		dev_err(iproc_i2c->device, "%d Hz bus speed not supported\n",
-			bus_speed);
-		dev_err(iproc_i2c->device,
-			"valid speeds are 100khz and 400khz\n");
-		return -EINVAL;
-	} else if (bus_speed < I2C_MAX_FAST_MODE_FREQ) {
+	if (bus_speed < I2C_MAX_STANDARD_MODE_FREQ)
+		return dev_err_probe(iproc_i2c->device, -EINVAL,
+				     "%d Hz not supported (out of 100-400 kHz range)\n",
+				     bus_speed);
+	else if (bus_speed < I2C_MAX_FAST_MODE_FREQ)
 		bus_speed = I2C_MAX_STANDARD_MODE_FREQ;
-	} else {
+	else
 		bus_speed = I2C_MAX_FAST_MODE_FREQ;
-	}
 
 	iproc_i2c->bus_speed = bus_speed;
 	val = iproc_i2c_rd_reg(iproc_i2c, TIM_CFG_OFFSET);
@@ -1066,11 +1063,9 @@ static int bcm_iproc_i2c_probe(struct platform_device *pdev)
 		ret = of_property_read_u32(iproc_i2c->device->of_node,
 					   "brcm,ape-hsls-addr-mask",
 					   &iproc_i2c->ape_addr_mask);
-		if (ret < 0) {
-			dev_err(iproc_i2c->device,
-				"'brcm,ape-hsls-addr-mask' missing\n");
-			return -EINVAL;
-		}
+		if (ret < 0)
+			return dev_err_probe(iproc_i2c->device, ret,
+					     "'brcm,ape-hsls-addr-mask' missing\n");
 
 		spin_lock_init(&iproc_i2c->idm_lock);
 
@@ -1090,11 +1085,9 @@ static int bcm_iproc_i2c_probe(struct platform_device *pdev)
 		ret = devm_request_irq(iproc_i2c->device, irq,
 				       bcm_iproc_i2c_isr, 0, pdev->name,
 				       iproc_i2c);
-		if (ret < 0) {
-			dev_err(iproc_i2c->device,
-				"unable to request irq %i\n", irq);
-			return ret;
-		}
+		if (ret < 0)
+			return dev_err_probe(iproc_i2c->device, ret,
+					     "unable to request irq %i\n", irq);
 
 		iproc_i2c->irq = irq;
 	} else {
