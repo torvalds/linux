@@ -124,8 +124,6 @@ struct nx_sg *nx_build_sg_list(struct nx_sg *sg_head,
 		}
 
 		if ((sg - sg_head) == sgmax) {
-			pr_err("nx: scatter/gather list overflow, pid: %d\n",
-			       current->pid);
 			sg++;
 			break;
 		}
@@ -702,14 +700,14 @@ int nx_crypto_ctx_aes_ecb_init(struct crypto_skcipher *tfm)
 				  NX_MODE_AES_ECB);
 }
 
-int nx_crypto_ctx_sha_init(struct crypto_tfm *tfm)
+int nx_crypto_ctx_sha_init(struct crypto_shash *tfm)
 {
-	return nx_crypto_ctx_init(crypto_tfm_ctx(tfm), NX_FC_SHA, NX_MODE_SHA);
+	return nx_crypto_ctx_init(crypto_shash_ctx(tfm), NX_FC_SHA, NX_MODE_SHA);
 }
 
-int nx_crypto_ctx_aes_xcbc_init(struct crypto_tfm *tfm)
+int nx_crypto_ctx_aes_xcbc_init(struct crypto_shash *tfm)
 {
-	return nx_crypto_ctx_init(crypto_tfm_ctx(tfm), NX_FC_AES,
+	return nx_crypto_ctx_init(crypto_shash_ctx(tfm), NX_FC_AES,
 				  NX_MODE_AES_XCBC_MAC);
 }
 
@@ -742,6 +740,11 @@ void nx_crypto_ctx_aead_exit(struct crypto_aead *tfm)
 	struct nx_crypto_ctx *nx_ctx = crypto_aead_ctx(tfm);
 
 	kfree_sensitive(nx_ctx->kmem);
+}
+
+void nx_crypto_ctx_shash_exit(struct crypto_shash *tfm)
+{
+	nx_crypto_ctx_exit(crypto_shash_ctx(tfm));
 }
 
 static int nx_probe(struct vio_dev *viodev, const struct vio_device_id *id)
