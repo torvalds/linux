@@ -26,14 +26,6 @@ struct sha1_state {
 	u8 buffer[SHA1_BLOCK_SIZE];
 };
 
-struct shash_desc;
-
-extern int crypto_sha1_update(struct shash_desc *desc, const u8 *data,
-			      unsigned int len);
-
-extern int crypto_sha1_finup(struct shash_desc *desc, const u8 *data,
-			     unsigned int len, u8 *hash);
-
 /*
  * An implementation of SHA-1's compression function.  Don't use in new code!
  * You shouldn't be using SHA-1, and even if you *have* to use SHA-1, this isn't
