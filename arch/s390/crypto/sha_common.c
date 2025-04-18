@@ -58,6 +58,27 @@ store:
 }
 EXPORT_SYMBOL_GPL(s390_sha_update);
 
+int s390_sha_update_blocks(struct shash_desc *desc, const u8 *data,
+			   unsigned int len)
+{
+	unsigned int bsize = crypto_shash_blocksize(desc->tfm);
+	struct s390_sha_ctx *ctx = shash_desc_ctx(desc);
+	unsigned int n;
+	int fc;
+
+	fc = ctx->func;
+	if (ctx->first_message_part)
+		fc |= test_facility(86) ? CPACF_KIMD_NIP : 0;
+
+	/* process as many blocks as possible */
+	n = (len / bsize) * bsize;
+	ctx->count += n;
+	cpacf_kimd(fc, ctx->state, data, n);
+	ctx->first_message_part = 0;
+	return len - n;
+}
+EXPORT_SYMBOL_GPL(s390_sha_update_blocks);
+
 static int s390_crypto_shash_parmsize(int func)
 {
 	switch (func) {
@@ -131,6 +152,59 @@ int s390_sha_final(struct shash_desc *desc, u8 *out)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(s390_sha_final);
+
+int s390_sha_finup(struct shash_desc *desc, const u8 *src, unsigned int len,
+		   u8 *out)
+{
+	struct s390_sha_ctx *ctx = shash_desc_ctx(desc);
+	int mbl_offset, fc;
+	u64 bits;
+
+	ctx->count += len;
+
+	bits = ctx->count * 8;
+	mbl_offset = s390_crypto_shash_parmsize(ctx->func);
+	if (mbl_offset < 0)
+		return -EINVAL;
+
+	mbl_offset = mbl_offset / sizeof(u32);
+
+	/* set total msg bit length (mbl) in CPACF parmblock */
+	switch (ctx->func) {
+	case CPACF_KLMD_SHA_1:
+	case CPACF_KLMD_SHA_256:
+		memcpy(ctx->state + mbl_offset, &bits, sizeof(bits));
+		break;
+	case CPACF_KLMD_SHA_512:
+		/*
+		 * the SHA512 parmblock has a 128-bit mbl field, clear
+		 * high-order u64 field, copy bits to low-order u64 field
+		 */
+		memset(ctx->state + mbl_offset, 0x00, sizeof(bits));
+		mbl_offset += sizeof(u64) / sizeof(u32);
+		memcpy(ctx->state + mbl_offset, &bits, sizeof(bits));
+		break;
+	case CPACF_KLMD_SHA3_224:
+	case CPACF_KLMD_SHA3_256:
+	case CPACF_KLMD_SHA3_384:
+	case CPACF_KLMD_SHA3_512:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	fc = ctx->func;
+	fc |= test_facility(86) ? CPACF_KLMD_DUFOP : 0;
+	if (ctx->first_message_part)
+		fc |= CPACF_KLMD_NIP;
+	cpacf_klmd(fc, ctx->state, src, len);
+
+	/* copy digest to out */
+	memcpy(out, ctx->state, crypto_shash_digestsize(desc->tfm));
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(s390_sha_finup);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("s390 SHA cipher common functions");
