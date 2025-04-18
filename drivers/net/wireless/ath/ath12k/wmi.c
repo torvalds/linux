@@ -6342,12 +6342,13 @@ static void ath12k_vdev_start_resp_event(struct ath12k_base *ab, struct sk_buff 
 	ar->last_wmi_vdev_start_status = 0;
 
 	status = le32_to_cpu(vdev_start_resp.status);
-
 	if (WARN_ON_ONCE(status)) {
 		ath12k_warn(ab, "vdev start resp error status %d (%s)\n",
 			    status, ath12k_wmi_vdev_resp_print(status));
 		ar->last_wmi_vdev_start_status = status;
 	}
+
+	ar->max_allowed_tx_power = (s8)le32_to_cpu(vdev_start_resp.max_allowed_tx_power);
 
 	complete(&ar->vdev_setup_done);
 

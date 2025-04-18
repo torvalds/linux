@@ -4162,6 +4162,7 @@ struct wmi_vdev_start_resp_event {
 	};
 	__le32 cfgd_tx_streams;
 	__le32 cfgd_rx_streams;
+	__le32 max_allowed_tx_power;
 } __packed;
 
 /* VDEV start response status codes */

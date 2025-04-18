@@ -811,6 +811,8 @@ struct ath12k {
 	u8 ftm_msgref;
 	struct ath12k_fw_stats fw_stats;
 	unsigned long last_tx_power_update;
+
+	s8 max_allowed_tx_power;
 };
 
 struct ath12k_hw {
