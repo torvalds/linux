@@ -677,7 +677,7 @@ static void free_memdev_fwctl(void *_fwctl_dev)
 	fwctl_put(fwctl_dev);
 }
 
-int devm_cxl_setup_fwctl(struct cxl_memdev *cxlmd)
+int devm_cxl_setup_fwctl(struct device *host, struct cxl_memdev *cxlmd)
 {
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_features_state *cxlfs;
@@ -700,7 +700,7 @@ int devm_cxl_setup_fwctl(struct cxl_memdev *cxlmd)
 	if (rc)
 		return rc;
 
-	return devm_add_action_or_reset(&cxlmd->dev, free_memdev_fwctl,
+	return devm_add_action_or_reset(host, free_memdev_fwctl,
 					no_free_ptr(fwctl_dev));
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_setup_fwctl, "CXL");

@@ -1780,7 +1780,7 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
-	rc = devm_cxl_setup_fwctl(cxlmd);
+	rc = devm_cxl_setup_fwctl(&pdev->dev, cxlmd);
 	if (rc)
 		dev_dbg(dev, "No CXL FWCTL setup\n");
 
