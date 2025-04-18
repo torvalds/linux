@@ -2149,7 +2149,7 @@ decay_va_pool_node(struct vmap_node *vn, bool full_decay)
 	LIST_HEAD(decay_list);
 	struct rb_root decay_root = RB_ROOT;
 	struct vmap_area *va, *nva;
-	unsigned long n_decay;
+	unsigned long n_decay, pool_len;
 	int i;
 
 	for (i = 0; i < MAX_VA_SIZE_PAGES; i++) {
@@ -2163,22 +2163,20 @@ decay_va_pool_node(struct vmap_node *vn, bool full_decay)
 		list_replace_init(&vn->pool[i].head, &tmp_list);
 		spin_unlock(&vn->pool_lock);
 
-		if (full_decay)
-			WRITE_ONCE(vn->pool[i].len, 0);
+		pool_len = n_decay = vn->pool[i].len;
+		WRITE_ONCE(vn->pool[i].len, 0);
 
 		/* Decay a pool by ~25% out of left objects. */
-		n_decay = vn->pool[i].len >> 2;
+		if (!full_decay)
+			n_decay >>= 2;
+		pool_len -= n_decay;
 
 		list_for_each_entry_safe(va, nva, &tmp_list, list) {
+			if (!n_decay--)
+				break;
+
 			list_del_init(&va->list);
 			merge_or_add_vmap_area(va, &decay_root, &decay_list);
-
-			if (!full_decay) {
-				WRITE_ONCE(vn->pool[i].len, vn->pool[i].len - 1);
-
-				if (!--n_decay)
-					break;
-			}
 		}
 
 		/*
@@ -2187,9 +2185,10 @@ decay_va_pool_node(struct vmap_node *vn, bool full_decay)
 		 * can populate the pool therefore a simple list replace
 		 * operation takes place here.
 		 */
-		if (!full_decay && !list_empty(&tmp_list)) {
+		if (!list_empty(&tmp_list)) {
 			spin_lock(&vn->pool_lock);
 			list_replace_init(&tmp_list, &vn->pool[i].head);
+			WRITE_ONCE(vn->pool[i].len, pool_len);
 			spin_unlock(&vn->pool_lock);
 		}
 	}
