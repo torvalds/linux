@@ -788,8 +788,18 @@ static int gmc_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(12, 0, 0):
 	case IP_VERSION(12, 0, 1):
-	case IP_VERSION(12, 1, 0):
 		set_bit(AMDGPU_GFXHUB(0), adev->vmhubs_mask);
+		set_bit(AMDGPU_MMHUB0(0), adev->vmhubs_mask);
+		/*
+		 * To fulfill 4-level page support,
+		 * vm size is 256TB (48bit), maximum size,
+		 * block size 512 (9bit)
+		 */
+		amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
+		break;
+	case IP_VERSION(12, 1, 0):
+		bitmap_set(adev->vmhubs_mask, AMDGPU_GFXHUB(0),
+				NUM_XCC(adev->gfx.xcc_mask));
 		set_bit(AMDGPU_MMHUB0(0), adev->vmhubs_mask);
 		/*
 		 * To fulfill 4-level page support,
