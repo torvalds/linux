@@ -14,7 +14,6 @@
 #include <linux/types.h>
 
 /* must be big enough for the largest SHA variant */
-#define SHA3_STATE_SIZE			200
 #define CPACF_MAX_PARMBLOCK_SIZE	SHA3_STATE_SIZE
 #define SHA_MAX_BLOCK_SIZE		SHA3_224_BLOCK_SIZE
 #define S390_SHA_CTX_SIZE		offsetof(struct s390_sha_ctx, buf)
