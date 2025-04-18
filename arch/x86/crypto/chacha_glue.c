@@ -176,6 +176,11 @@ static int __init chacha_simd_mod_init(void)
 }
 arch_initcall(chacha_simd_mod_init);
 
+static void __exit chacha_simd_mod_exit(void)
+{
+}
+module_exit(chacha_simd_mod_exit);
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Martin Willi <martin@strongswan.org>");
 MODULE_DESCRIPTION("ChaCha and HChaCha functions (x86_64 optimized)");

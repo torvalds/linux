@@ -64,6 +64,11 @@ static int __init riscv64_chacha_mod_init(void)
 }
 arch_initcall(riscv64_chacha_mod_init);
 
+static void __exit riscv64_chacha_mod_exit(void)
+{
+}
+module_exit(riscv64_chacha_mod_exit);
+
 MODULE_DESCRIPTION("ChaCha stream cipher (RISC-V optimized)");
 MODULE_AUTHOR("Jerry Shih <jerry.shih@sifive.com>");
 MODULE_LICENSE("GPL");

@@ -89,6 +89,11 @@ static int __init chacha_p10_init(void)
 }
 arch_initcall(chacha_p10_init);
 
+static void __exit chacha_p10_exit(void)
+{
+}
+module_exit(chacha_p10_exit);
+
 MODULE_DESCRIPTION("ChaCha stream cipher (P10 accelerated)");
 MODULE_AUTHOR("Danny Tsen <dtsen@linux.ibm.com>");
 MODULE_LICENSE("GPL v2");
