@@ -25,11 +25,6 @@ struct shash_desc;
 
 struct sha3_state {
 	u64		st[SHA3_STATE_SIZE / 8];
-	unsigned int	rsiz;
-	unsigned int	rsizw;
-
-	unsigned int	partial;
-	u8		buf[SHA3_224_BLOCK_SIZE];
 };
 
 int crypto_sha3_init(struct shash_desc *desc);
