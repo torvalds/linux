@@ -65,6 +65,8 @@ static void __init mds_apply_mitigation(void);
 static void __init md_clear_update_mitigation(void);
 static void __init md_clear_select_mitigation(void);
 static void __init taa_select_mitigation(void);
+static void __init taa_update_mitigation(void);
+static void __init taa_apply_mitigation(void);
 static void __init mmio_select_mitigation(void);
 static void __init srbds_select_mitigation(void);
 static void __init l1d_flush_select_mitigation(void);
@@ -194,6 +196,7 @@ void __init cpu_select_mitigations(void)
 	ssb_select_mitigation();
 	l1tf_select_mitigation();
 	mds_select_mitigation();
+	taa_select_mitigation();
 	md_clear_select_mitigation();
 	srbds_select_mitigation();
 	l1d_flush_select_mitigation();
@@ -210,8 +213,10 @@ void __init cpu_select_mitigations(void)
 	 * choices.
 	 */
 	mds_update_mitigation();
+	taa_update_mitigation();
 
 	mds_apply_mitigation();
+	taa_apply_mitigation();
 }
 
 /*
@@ -397,6 +402,11 @@ static const char * const taa_strings[] = {
 	[TAA_MITIGATION_TSX_DISABLED]	= "Mitigation: TSX disabled",
 };
 
+static bool __init taa_vulnerable(void)
+{
+	return boot_cpu_has_bug(X86_BUG_TAA) && boot_cpu_has(X86_FEATURE_RTM);
+}
+
 static void __init taa_select_mitigation(void)
 {
 	if (!boot_cpu_has_bug(X86_BUG_TAA)) {
@@ -410,48 +420,63 @@ static void __init taa_select_mitigation(void)
 		return;
 	}
 
-	if (cpu_mitigations_off()) {
+	if (cpu_mitigations_off())
 		taa_mitigation = TAA_MITIGATION_OFF;
+
+	/* Microcode will be checked in taa_update_mitigation(). */
+	if (taa_mitigation == TAA_MITIGATION_AUTO)
+		taa_mitigation = TAA_MITIGATION_VERW;
+
+	if (taa_mitigation != TAA_MITIGATION_OFF)
+		verw_clear_cpu_buf_mitigation_selected = true;
+}
+
+static void __init taa_update_mitigation(void)
+{
+	if (!taa_vulnerable() || cpu_mitigations_off())
 		return;
+
+	if (verw_clear_cpu_buf_mitigation_selected)
+		taa_mitigation = TAA_MITIGATION_VERW;
+
+	if (taa_mitigation == TAA_MITIGATION_VERW) {
+		/* Check if the requisite ucode is available. */
+		if (!boot_cpu_has(X86_FEATURE_MD_CLEAR))
+			taa_mitigation = TAA_MITIGATION_UCODE_NEEDED;
+
+		/*
+		 * VERW doesn't clear the CPU buffers when MD_CLEAR=1 and MDS_NO=1.
+		 * A microcode update fixes this behavior to clear CPU buffers. It also
+		 * adds support for MSR_IA32_TSX_CTRL which is enumerated by the
+		 * ARCH_CAP_TSX_CTRL_MSR bit.
+		 *
+		 * On MDS_NO=1 CPUs if ARCH_CAP_TSX_CTRL_MSR is not set, microcode
+		 * update is required.
+		 */
+		if ((x86_arch_cap_msr & ARCH_CAP_MDS_NO) &&
+		   !(x86_arch_cap_msr & ARCH_CAP_TSX_CTRL_MSR))
+			taa_mitigation = TAA_MITIGATION_UCODE_NEEDED;
 	}
 
-	/*
-	 * TAA mitigation via VERW is turned off if both
-	 * tsx_async_abort=off and mds=off are specified.
-	 */
-	if (taa_mitigation == TAA_MITIGATION_OFF &&
-	    mds_mitigation == MDS_MITIGATION_OFF)
-		return;
+	pr_info("%s\n", taa_strings[taa_mitigation]);
+}
 
-	if (boot_cpu_has(X86_FEATURE_MD_CLEAR))
-		taa_mitigation = TAA_MITIGATION_VERW;
-	else
-		taa_mitigation = TAA_MITIGATION_UCODE_NEEDED;
+static void __init taa_apply_mitigation(void)
+{
+	if (taa_mitigation == TAA_MITIGATION_VERW ||
+	    taa_mitigation == TAA_MITIGATION_UCODE_NEEDED) {
+		/*
+		 * TSX is enabled, select alternate mitigation for TAA which is
+		 * the same as MDS. Enable MDS static branch to clear CPU buffers.
+		 *
+		 * For guests that can't determine whether the correct microcode is
+		 * present on host, enable the mitigation for UCODE_NEEDED as well.
+		 */
+		setup_force_cpu_cap(X86_FEATURE_CLEAR_CPU_BUF);
 
-	/*
-	 * VERW doesn't clear the CPU buffers when MD_CLEAR=1 and MDS_NO=1.
-	 * A microcode update fixes this behavior to clear CPU buffers. It also
-	 * adds support for MSR_IA32_TSX_CTRL which is enumerated by the
-	 * ARCH_CAP_TSX_CTRL_MSR bit.
-	 *
-	 * On MDS_NO=1 CPUs if ARCH_CAP_TSX_CTRL_MSR is not set, microcode
-	 * update is required.
-	 */
-	if ( (x86_arch_cap_msr & ARCH_CAP_MDS_NO) &&
-	    !(x86_arch_cap_msr & ARCH_CAP_TSX_CTRL_MSR))
-		taa_mitigation = TAA_MITIGATION_UCODE_NEEDED;
-
-	/*
-	 * TSX is enabled, select alternate mitigation for TAA which is
-	 * the same as MDS. Enable MDS static branch to clear CPU buffers.
-	 *
-	 * For guests that can't determine whether the correct microcode is
-	 * present on host, enable the mitigation for UCODE_NEEDED as well.
-	 */
-	setup_force_cpu_cap(X86_FEATURE_CLEAR_CPU_BUF);
-
-	if (taa_nosmt || cpu_mitigations_auto_nosmt())
-		cpu_smt_disable(false);
+		if (taa_nosmt || cpu_mitigations_auto_nosmt())
+			cpu_smt_disable(false);
+	}
 }
 
 static int __init tsx_async_abort_parse_cmdline(char *str)
@@ -660,7 +685,6 @@ out:
 
 static void __init md_clear_select_mitigation(void)
 {
-	taa_select_mitigation();
 	mmio_select_mitigation();
 	rfds_select_mitigation();
 
