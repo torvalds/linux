@@ -3739,6 +3739,18 @@ static void ath12k_mac_vif_setup_ps(struct ath12k_link_vif *arvif)
 			    psmode, arvif->vdev_id, ret);
 }
 
+static bool ath12k_mac_supports_station_tpc(struct ath12k *ar,
+					    struct ath12k_vif *ahvif,
+					    const struct cfg80211_chan_def *chandef)
+{
+	return ath12k_wmi_supports_6ghz_cc_ext(ar) &&
+		test_bit(WMI_TLV_SERVICE_EXT_TPC_REG_SUPPORT, ar->ab->wmi_ab.svc_map) &&
+		ahvif->vdev_type == WMI_VDEV_TYPE_STA &&
+		ahvif->vdev_subtype == WMI_VDEV_SUBTYPE_NONE &&
+		chandef->chan &&
+		chandef->chan->band == NL80211_BAND_6GHZ;
+}
+
 static void ath12k_mac_bss_info_changed(struct ath12k *ar,
 					struct ath12k_link_vif *arvif,
 					struct ieee80211_bss_conf *info,
@@ -9358,6 +9370,15 @@ ath12k_mac_vdev_start_restart(struct ath12k_link_vif *arvif,
 		ath12k_warn(ab, "failed to synchronize setup for vdev %i %s: %d\n",
 			    arg.vdev_id, restart ? "restart" : "start", ret);
 		return ret;
+	}
+
+	/* TODO: For now we only set TPC power here. However when
+	 * channel changes, say CSA, it should be updated again.
+	 */
+	if (ath12k_mac_supports_station_tpc(ar, ahvif, chandef)) {
+		ath12k_mac_fill_reg_tpc_info(ar, arvif, ctx);
+		ath12k_wmi_send_vdev_set_tpc_power(ar, arvif->vdev_id,
+						   &arvif->reg_tpc_info);
 	}
 
 	ar->num_started_vdevs++;
