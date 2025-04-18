@@ -833,7 +833,7 @@ static int bcm_iproc_i2c_xfer_wait(struct bcm_iproc_i2c_dev *iproc_i2c,
  * The i2c quirks are set to enforce this rule.
  */
 static int bcm_iproc_i2c_xfer_internal(struct bcm_iproc_i2c_dev *iproc_i2c,
-					struct i2c_msg *msgs, bool process_call)
+				       struct i2c_msg *msgs, bool process_call)
 {
 	int i;
 	u8 addr;
@@ -1010,7 +1010,7 @@ static int bcm_iproc_i2c_cfg_speed(struct bcm_iproc_i2c_dev *iproc_i2c)
 				       "clock-frequency", &bus_speed);
 	if (ret < 0) {
 		dev_info(iproc_i2c->device,
-			"unable to interpret clock-frequency DT property\n");
+			 "unable to interpret clock-frequency DT property\n");
 		bus_speed = I2C_MAX_STANDARD_MODE_FREQ;
 	}
 
@@ -1099,9 +1099,8 @@ static int bcm_iproc_i2c_probe(struct platform_device *pdev)
 
 	adap = &iproc_i2c->adapter;
 	i2c_set_adapdata(adap, iproc_i2c);
-	snprintf(adap->name, sizeof(adap->name),
-		"Broadcom iProc (%s)",
-		of_node_full_name(iproc_i2c->device->of_node));
+	snprintf(adap->name, sizeof(adap->name), "Broadcom iProc (%s)",
+		 of_node_full_name(iproc_i2c->device->of_node));
 	adap->algo = &bcm_iproc_algo;
 	adap->quirks = &bcm_iproc_i2c_quirks;
 	adap->dev.parent = &pdev->dev;
