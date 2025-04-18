@@ -19,6 +19,7 @@
 
 #define SHA512_DIGEST_SIZE      64
 #define SHA512_BLOCK_SIZE       128
+#define SHA512_STATE_SIZE       80
 
 #define SHA224_H0	0xc1059ed8UL
 #define SHA224_H1	0x367cd507UL
