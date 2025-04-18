@@ -728,31 +728,31 @@ static int bcm_iproc_i2c_check_status(struct bcm_iproc_i2c_dev *iproc_i2c,
 		return 0;
 
 	case M_CMD_STATUS_LOST_ARB:
-		dev_dbg(iproc_i2c->device, "lost bus arbitration\n");
+		dev_err(iproc_i2c->device, "lost bus arbitration\n");
 		return -EAGAIN;
 
 	case M_CMD_STATUS_NACK_ADDR:
-		dev_dbg(iproc_i2c->device, "NAK addr:0x%02x\n", msg->addr);
+		dev_err(iproc_i2c->device, "NAK addr:0x%02x\n", msg->addr);
 		return -ENXIO;
 
 	case M_CMD_STATUS_NACK_DATA:
-		dev_dbg(iproc_i2c->device, "NAK data\n");
+		dev_err(iproc_i2c->device, "NAK data\n");
 		return -ENXIO;
 
 	case M_CMD_STATUS_TIMEOUT:
-		dev_dbg(iproc_i2c->device, "bus timeout\n");
+		dev_err(iproc_i2c->device, "bus timeout\n");
 		return -ETIMEDOUT;
 
 	case M_CMD_STATUS_FIFO_UNDERRUN:
-		dev_dbg(iproc_i2c->device, "FIFO under-run\n");
+		dev_err(iproc_i2c->device, "FIFO under-run\n");
 		return -ENXIO;
 
 	case M_CMD_STATUS_RX_FIFO_FULL:
-		dev_dbg(iproc_i2c->device, "RX FIFO full\n");
+		dev_err(iproc_i2c->device, "RX FIFO full\n");
 		return -ETIMEDOUT;
 
 	default:
-		dev_dbg(iproc_i2c->device, "unknown error code=%d\n", val);
+		dev_err(iproc_i2c->device, "unknown error code=%d\n", val);
 
 		/* re-initialize i2c for recovery */
 		bcm_iproc_i2c_enable_disable(iproc_i2c, false);
@@ -964,7 +964,7 @@ static int bcm_iproc_i2c_xfer(struct i2c_adapter *adapter,
 
 	ret = bcm_iproc_i2c_xfer_internal(iproc_i2c, msgs, process_call);
 	if (ret) {
-		dev_dbg(iproc_i2c->device, "xfer failed\n");
+		dev_err(iproc_i2c->device, "xfer failed\n");
 		return ret;
 	}
 
