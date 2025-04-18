@@ -51,13 +51,20 @@ static void __io_zcrx_unmap_area(struct io_zcrx_ifq *ifq,
 
 static void io_zcrx_unmap_area(struct io_zcrx_ifq *ifq, struct io_zcrx_area *area)
 {
+	guard(mutex)(&ifq->dma_lock);
+
 	if (area->is_mapped)
 		__io_zcrx_unmap_area(ifq, area, area->nia.num_niovs);
+	area->is_mapped = false;
 }
 
 static int io_zcrx_map_area(struct io_zcrx_ifq *ifq, struct io_zcrx_area *area)
 {
 	int i;
+
+	guard(mutex)(&ifq->dma_lock);
+	if (area->is_mapped)
+		return 0;
 
 	for (i = 0; i < area->nia.num_niovs; i++) {
 		struct net_iov *niov = &area->nia.niovs[i];
@@ -280,6 +287,7 @@ static struct io_zcrx_ifq *io_zcrx_ifq_alloc(struct io_ring_ctx *ctx)
 	ifq->ctx = ctx;
 	spin_lock_init(&ifq->lock);
 	spin_lock_init(&ifq->rq_lock);
+	mutex_init(&ifq->dma_lock);
 	return ifq;
 }
 
@@ -329,6 +337,7 @@ static void io_zcrx_ifq_free(struct io_zcrx_ifq *ifq)
 		put_device(ifq->dev);
 
 	io_free_rbuf_ring(ifq);
+	mutex_destroy(&ifq->dma_lock);
 	kfree(ifq);
 }
 
@@ -399,10 +408,6 @@ int io_register_zcrx_ifq(struct io_ring_ctx *ctx,
 	if (!ifq->dev)
 		goto err;
 	get_device(ifq->dev);
-
-	ret = io_zcrx_map_area(ifq, ifq->area);
-	if (ret)
-		goto err;
 
 	mp_param.mp_ops = &io_uring_pp_zc_ops;
 	mp_param.mp_priv = ifq;
@@ -624,6 +629,7 @@ static bool io_pp_zc_release_netmem(struct page_pool *pp, netmem_ref netmem)
 static int io_pp_zc_init(struct page_pool *pp)
 {
 	struct io_zcrx_ifq *ifq = io_pp_to_ifq(pp);
+	int ret;
 
 	if (WARN_ON_ONCE(!ifq))
 		return -EINVAL;
@@ -635,6 +641,10 @@ static int io_pp_zc_init(struct page_pool *pp)
 		return -EOPNOTSUPP;
 	if (pp->p.dma_dir != DMA_FROM_DEVICE)
 		return -EOPNOTSUPP;
+
+	ret = io_zcrx_map_area(ifq, ifq->area);
+	if (ret)
+		return ret;
 
 	percpu_ref_get(&ifq->ctx->refs);
 	return 0;
@@ -671,6 +681,9 @@ static void io_pp_uninstall(void *mp_priv, struct netdev_rx_queue *rxq)
 	struct io_zcrx_ifq *ifq = mp_priv;
 
 	io_zcrx_drop_netdev(ifq);
+	if (ifq->area)
+		io_zcrx_unmap_area(ifq, ifq->area);
+
 	p->mp_ops = NULL;
 	p->mp_priv = NULL;
 }
