@@ -183,9 +183,6 @@ static struct spi_offload_trigger
 
 	guard(mutex)(&trigger->lock);
 
-	if (!trigger->ops)
-		return ERR_PTR(-ENODEV);
-
 	if (trigger->ops->request) {
 		ret = trigger->ops->request(trigger, type, args->args, args->nargs);
 		if (ret)
