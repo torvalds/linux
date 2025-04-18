@@ -8312,6 +8312,43 @@ void ath12k_mac_11d_scan_stop_all(struct ath12k_base *ab)
 	}
 }
 
+static void ath12k_mac_determine_vdev_type(struct ieee80211_vif *vif,
+					   struct ath12k_vif *ahvif)
+{
+	ahvif->vdev_subtype = WMI_VDEV_SUBTYPE_NONE;
+
+	switch (vif->type) {
+	case NL80211_IFTYPE_UNSPECIFIED:
+	case NL80211_IFTYPE_STATION:
+		ahvif->vdev_type = WMI_VDEV_TYPE_STA;
+
+		if (vif->p2p)
+			ahvif->vdev_subtype = WMI_VDEV_SUBTYPE_P2P_CLIENT;
+
+		break;
+	case NL80211_IFTYPE_MESH_POINT:
+		ahvif->vdev_subtype = WMI_VDEV_SUBTYPE_MESH_11S;
+		fallthrough;
+	case NL80211_IFTYPE_AP:
+		ahvif->vdev_type = WMI_VDEV_TYPE_AP;
+
+		if (vif->p2p)
+			ahvif->vdev_subtype = WMI_VDEV_SUBTYPE_P2P_GO;
+
+		break;
+	case NL80211_IFTYPE_MONITOR:
+		ahvif->vdev_type = WMI_VDEV_TYPE_MONITOR;
+		break;
+	case NL80211_IFTYPE_P2P_DEVICE:
+		ahvif->vdev_type = WMI_VDEV_TYPE_STA;
+		ahvif->vdev_subtype = WMI_VDEV_SUBTYPE_P2P_DEVICE;
+		break;
+	default:
+		WARN_ON(1);
+		break;
+	}
+}
+
 int ath12k_mac_vdev_create(struct ath12k *ar, struct ath12k_link_vif *arvif)
 {
 	struct ath12k_hw *ah = ar->ah;
@@ -8355,39 +8392,8 @@ int ath12k_mac_vdev_create(struct ath12k *ar, struct ath12k_link_vif *arvif)
 	arvif->ar = ar;
 	vdev_id = __ffs64(ab->free_vdev_map);
 	arvif->vdev_id = vdev_id;
-	ahvif->vdev_subtype = WMI_VDEV_SUBTYPE_NONE;
-
-	switch (vif->type) {
-	case NL80211_IFTYPE_UNSPECIFIED:
-	case NL80211_IFTYPE_STATION:
-		ahvif->vdev_type = WMI_VDEV_TYPE_STA;
-
-		if (vif->p2p)
-			ahvif->vdev_subtype = WMI_VDEV_SUBTYPE_P2P_CLIENT;
-
-		break;
-	case NL80211_IFTYPE_MESH_POINT:
-		ahvif->vdev_subtype = WMI_VDEV_SUBTYPE_MESH_11S;
-		fallthrough;
-	case NL80211_IFTYPE_AP:
-		ahvif->vdev_type = WMI_VDEV_TYPE_AP;
-
-		if (vif->p2p)
-			ahvif->vdev_subtype = WMI_VDEV_SUBTYPE_P2P_GO;
-
-		break;
-	case NL80211_IFTYPE_MONITOR:
-		ahvif->vdev_type = WMI_VDEV_TYPE_MONITOR;
+	if (vif->type == NL80211_IFTYPE_MONITOR)
 		ar->monitor_vdev_id = vdev_id;
-		break;
-	case NL80211_IFTYPE_P2P_DEVICE:
-		ahvif->vdev_type = WMI_VDEV_TYPE_STA;
-		ahvif->vdev_subtype = WMI_VDEV_SUBTYPE_P2P_DEVICE;
-		break;
-	default:
-		WARN_ON(1);
-		break;
-	}
 
 	ath12k_dbg(ar->ab, ATH12K_DBG_MAC, "mac vdev create id %d type %d subtype %d map %llx\n",
 		   arvif->vdev_id, ahvif->vdev_type, ahvif->vdev_subtype,
@@ -8766,6 +8772,9 @@ static int ath12k_mac_op_add_interface(struct ieee80211_hw *hw,
 		vif->hw_queue[i] = ATH12K_HW_DEFAULT_QUEUE;
 
 	vif->driver_flags |= IEEE80211_VIF_SUPPORTS_UAPSD;
+
+	ath12k_mac_determine_vdev_type(vif, ahvif);
+
 	/* Defer vdev creation until assign_chanctx or hw_scan is initiated as driver
 	 * will not know if this interface is an ML vif at this point.
 	 */
