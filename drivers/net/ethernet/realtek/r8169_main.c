@@ -99,7 +99,7 @@ static const struct rtl_chip_info {
 	const char *fw_name;
 } rtl_chip_infos[] = {
 	/* 8126A family. */
-	{ 0x7cf, 0x64a,	RTL_GIGA_MAC_VER_71, "RTL8126A", FIRMWARE_8126A_3 },
+	{ 0x7cf, 0x64a,	RTL_GIGA_MAC_VER_70, "RTL8126A", FIRMWARE_8126A_3 },
 	{ 0x7cf, 0x649,	RTL_GIGA_MAC_VER_70, "RTL8126A", FIRMWARE_8126A_2 },
 
 	/* 8125BP family. */
@@ -2939,7 +2939,6 @@ static void rtl_hw_aspm_clkreq_enable(struct rtl8169_private *tp, bool enable)
 		rtl_mod_config5(tp, 0, ASPM_en);
 		switch (tp->mac_version) {
 		case RTL_GIGA_MAC_VER_70:
-		case RTL_GIGA_MAC_VER_71:
 			val8 = RTL_R8(tp, INT_CFG0_8125) | INT_CFG0_CLKREQEN;
 			RTL_W8(tp, INT_CFG0_8125, val8);
 			break;
@@ -2971,7 +2970,6 @@ static void rtl_hw_aspm_clkreq_enable(struct rtl8169_private *tp, bool enable)
 
 		switch (tp->mac_version) {
 		case RTL_GIGA_MAC_VER_70:
-		case RTL_GIGA_MAC_VER_71:
 			val8 = RTL_R8(tp, INT_CFG0_8125) & ~INT_CFG0_CLKREQEN;
 			RTL_W8(tp, INT_CFG0_8125, val8);
 			break;
@@ -3691,12 +3689,10 @@ static void rtl_hw_start_8125_common(struct rtl8169_private *tp)
 	/* disable new tx descriptor format */
 	r8168_mac_ocp_modify(tp, 0xeb58, 0x0001, 0x0000);
 
-	if (tp->mac_version == RTL_GIGA_MAC_VER_70 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_71)
+	if (tp->mac_version == RTL_GIGA_MAC_VER_70)
 		RTL_W8(tp, 0xD8, RTL_R8(tp, 0xD8) & ~0x02);
 
-	if (tp->mac_version == RTL_GIGA_MAC_VER_70 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_71)
+	if (tp->mac_version == RTL_GIGA_MAC_VER_70)
 		r8168_mac_ocp_modify(tp, 0xe614, 0x0700, 0x0400);
 	else if (tp->mac_version == RTL_GIGA_MAC_VER_63)
 		r8168_mac_ocp_modify(tp, 0xe614, 0x0700, 0x0200);
@@ -3714,8 +3710,7 @@ static void rtl_hw_start_8125_common(struct rtl8169_private *tp)
 	r8168_mac_ocp_modify(tp, 0xe056, 0x00f0, 0x0030);
 	r8168_mac_ocp_modify(tp, 0xe040, 0x1000, 0x0000);
 	r8168_mac_ocp_modify(tp, 0xea1c, 0x0003, 0x0001);
-	if (tp->mac_version == RTL_GIGA_MAC_VER_70 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_71)
+	if (tp->mac_version == RTL_GIGA_MAC_VER_70)
 		r8168_mac_ocp_modify(tp, 0xea1c, 0x0300, 0x0000);
 	else
 		r8168_mac_ocp_modify(tp, 0xea1c, 0x0004, 0x0000);
@@ -3838,7 +3833,6 @@ static void rtl_hw_config(struct rtl8169_private *tp)
 		[RTL_GIGA_MAC_VER_65] = rtl_hw_start_8125d,
 		[RTL_GIGA_MAC_VER_66] = rtl_hw_start_8125d,
 		[RTL_GIGA_MAC_VER_70] = rtl_hw_start_8126a,
-		[RTL_GIGA_MAC_VER_71] = rtl_hw_start_8126a,
 	};
 
 	if (hw_configs[tp->mac_version])
@@ -3862,7 +3856,6 @@ static void rtl_hw_start_8125(struct rtl8169_private *tp)
 		break;
 	case RTL_GIGA_MAC_VER_63:
 	case RTL_GIGA_MAC_VER_70:
-	case RTL_GIGA_MAC_VER_71:
 		for (i = 0xa00; i < 0xa80; i += 4)
 			RTL_W32(tp, i, 0);
 		RTL_W16(tp, INT_CFG1_8125, 0x0000);
