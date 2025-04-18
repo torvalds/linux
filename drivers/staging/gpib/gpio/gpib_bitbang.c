@@ -872,7 +872,6 @@ static int bb_take_control(struct gpib_board *board, int synchronous)
 {
 	dbg_printk(2, "%d\n", synchronous);
 	set_atn(board, 1);
-	set_bit(CIC_NUM, &board->status);
 	return 0;
 }
 
@@ -908,6 +907,7 @@ static void bb_interface_clear(struct gpib_board *board, int assert)
 		gpiod_direction_output(IFC, 0);
 		priv->talker_state = talker_idle;
 		priv->listener_state = listener_idle;
+		set_bit(CIC_NUM, &board->status);
 	} else {
 		gpiod_direction_output(IFC, 1);
 	}
