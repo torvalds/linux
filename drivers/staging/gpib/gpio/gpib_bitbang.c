@@ -66,7 +66,6 @@
 #include <linux/gpio/machine.h>
 #include <linux/gpio.h>
 #include <linux/irq.h>
-#include <linux/leds.h>
 
 static int sn7516x_used = 1, sn7516x;
 module_param(sn7516x_used, int, 0660);
@@ -136,19 +135,14 @@ enum lines_t {
 #define SN7516X_PINS 4
 #define NUM_PINS (GPIB_PINS + SN7516X_PINS)
 
-DEFINE_LED_TRIGGER(ledtrig_gpib);
-#define ACT_LED_ON do {							\
+#define ACT_LED_ON do {						\
 		if (ACT_LED)					\
-			gpiod_direction_output(ACT_LED, 1);		\
-		else							\
-			led_trigger_event(ledtrig_gpib, LED_FULL); }	\
-	while (0)
-#define ACT_LED_OFF do {						\
+			gpiod_direction_output(ACT_LED, 1);	\
+	} while (0)
+#define ACT_LED_OFF do {					\
 		if (ACT_LED)					\
-			gpiod_direction_output(ACT_LED, 0);		\
-		else							\
-			led_trigger_event(ledtrig_gpib, LED_OFF); }	\
-	while (0)
+			gpiod_direction_output(ACT_LED, 0);	\
+	} while (0)
 
 static struct gpio_desc *all_descriptors[GPIB_PINS + SN7516X_PINS];
 
@@ -1180,8 +1174,6 @@ try_again:
 	}
 	if (lookup_table)
 		gpiod_remove_lookup_table(lookup_table);
-	// Initialize LED trigger
-	led_trigger_register_simple("gpib", &ledtrig_gpib);
 	return retval;
 }
 
@@ -1192,8 +1184,6 @@ static void bb_detach(struct gpib_board *board)
 	dbg_printk(2, "Enter with data %p\n", board->private_data);
 	if (!board->private_data)
 		return;
-
-	led_trigger_unregister_simple(ledtrig_gpib);
 
 	bb_free_irq(board, &priv->irq_DAV, NAME "_DAV");
 	bb_free_irq(board, &priv->irq_NRFD, NAME "_NRFD");
@@ -1254,7 +1244,6 @@ static int bb_attach(struct gpib_board *board, const struct gpib_board_config *c
 		gpios_vector[&(D06) - &all_descriptors[0]] = YOGA_D06_pin_nr;
 		gpios_vector[&(PE)  - &all_descriptors[0]] = -1;
 		gpios_vector[&(DC)  - &all_descriptors[0]] = -1;
-		gpios_vector[&(ACT_LED)	 - &all_descriptors[0]] = -1;
 	} else {
 		dev_err(board->gpib_dev, "Unrecognized pin map %s\n", pin_map);
 		goto bb_attach_fail;
