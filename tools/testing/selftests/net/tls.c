@@ -1753,6 +1753,42 @@ TEST_F(tls_basic, rekey_tx)
 	EXPECT_EQ(memcmp(buf, test_str, send_len), 0);
 }
 
+TEST_F(tls_basic, disconnect)
+{
+	char const *test_str = "test_message";
+	int send_len = strlen(test_str) + 1;
+	struct tls_crypto_info_keys key;
+	struct sockaddr_in addr;
+	char buf[20];
+	int ret;
+
+	if (self->notls)
+		return;
+
+	tls_crypto_info_init(TLS_1_3_VERSION, TLS_CIPHER_AES_GCM_128,
+			     &key, 0);
+
+	ret = setsockopt(self->fd, SOL_TLS, TLS_TX, &key, key.len);
+	ASSERT_EQ(ret, 0);
+
+	/* Pre-queue the data so that setsockopt parses it but doesn't
+	 * dequeue it from the TCP socket. recvmsg would dequeue.
+	 */
+	EXPECT_EQ(send(self->fd, test_str, send_len, 0), send_len);
+
+	ret = setsockopt(self->cfd, SOL_TLS, TLS_RX, &key, key.len);
+	ASSERT_EQ(ret, 0);
+
+	addr.sin_family = AF_UNSPEC;
+	addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	addr.sin_port = 0;
+	ret = connect(self->cfd, &addr, sizeof(addr));
+	EXPECT_EQ(ret, -1);
+	EXPECT_EQ(errno, EOPNOTSUPP);
+
+	EXPECT_EQ(recv(self->cfd, buf, send_len, 0), send_len);
+}
+
 TEST_F(tls, rekey)
 {
 	char const *test_str_1 = "test_message_before_rekey";

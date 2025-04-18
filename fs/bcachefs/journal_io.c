@@ -1460,7 +1460,7 @@ fsck_err:
 
 static void journal_advance_devs_to_next_bucket(struct journal *j,
 						struct dev_alloc_list *devs,
-						unsigned sectors, u64 seq)
+						unsigned sectors, __le64 seq)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 

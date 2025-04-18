@@ -1043,7 +1043,7 @@ int rtnl_put_cacheinfo(struct sk_buff *skb, struct dst_entry *dst, u32 id,
 }
 EXPORT_SYMBOL_GPL(rtnl_put_cacheinfo);
 
-void netdev_set_operstate(struct net_device *dev, int newstate)
+void netif_set_operstate(struct net_device *dev, int newstate)
 {
 	unsigned int old = READ_ONCE(dev->operstate);
 
@@ -1052,9 +1052,9 @@ void netdev_set_operstate(struct net_device *dev, int newstate)
 			return;
 	} while (!try_cmpxchg(&dev->operstate, &old, newstate));
 
-	netdev_state_change(dev);
+	netif_state_change(dev);
 }
-EXPORT_SYMBOL(netdev_set_operstate);
+EXPORT_SYMBOL(netif_set_operstate);
 
 static void set_operstate(struct net_device *dev, unsigned char transition)
 {
@@ -1080,7 +1080,7 @@ static void set_operstate(struct net_device *dev, unsigned char transition)
 		break;
 	}
 
-	netdev_set_operstate(dev, operstate);
+	netif_set_operstate(dev, operstate);
 }
 
 static unsigned int rtnl_dev_get_flags(const struct net_device *dev)
@@ -3027,7 +3027,7 @@ static int do_setlink(const struct sk_buff *skb, struct net_device *dev,
 
 	err = validate_linkmsg(dev, tb, extack);
 	if (err < 0)
-		goto errout;
+		return err;
 
 	if (tb[IFLA_IFNAME])
 		nla_strscpy(ifname, tb[IFLA_IFNAME], IFNAMSIZ);
@@ -3396,7 +3396,7 @@ static int do_setlink(const struct sk_buff *skb, struct net_device *dev,
 errout:
 	if (status & DO_SETLINK_MODIFIED) {
 		if ((status & DO_SETLINK_NOTIFY) == DO_SETLINK_NOTIFY)
-			netdev_state_change(dev);
+			netif_state_change(dev);
 
 		if (err < 0)
 			net_warn_ratelimited("A link change request failed with some changes committed already. Interface %s may have been left with an inconsistent configuration, please check.\n",
@@ -3676,8 +3676,11 @@ struct net_device *rtnl_create_link(struct net *net, const char *ifname,
 				nla_len(tb[IFLA_BROADCAST]));
 	if (tb[IFLA_TXQLEN])
 		dev->tx_queue_len = nla_get_u32(tb[IFLA_TXQLEN]);
-	if (tb[IFLA_OPERSTATE])
+	if (tb[IFLA_OPERSTATE]) {
+		netdev_lock_ops(dev);
 		set_operstate(dev, nla_get_u8(tb[IFLA_OPERSTATE]));
+		netdev_unlock_ops(dev);
+	}
 	if (tb[IFLA_LINKMODE])
 		dev->link_mode = nla_get_u8(tb[IFLA_LINKMODE]);
 	if (tb[IFLA_GROUP])
