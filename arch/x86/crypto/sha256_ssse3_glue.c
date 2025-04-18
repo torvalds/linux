@@ -51,7 +51,7 @@ MODULE_DEVICE_TABLE(x86cpu, module_cpu_ids);
 
 static int _sha256_update(struct shash_desc *desc, const u8 *data,
 			  unsigned int len,
-			  crypto_sha256_block_fn *sha256_xform)
+			  sha256_block_fn *sha256_xform)
 {
 	int remain;
 
@@ -69,7 +69,7 @@ static int _sha256_update(struct shash_desc *desc, const u8 *data,
 }
 
 static int sha256_finup(struct shash_desc *desc, const u8 *data,
-	      unsigned int len, u8 *out, crypto_sha256_block_fn *sha256_xform)
+	      unsigned int len, u8 *out, sha256_block_fn *sha256_xform)
 {
 	kernel_fpu_begin();
 	sha256_base_do_finup(desc, data, len, sha256_xform);

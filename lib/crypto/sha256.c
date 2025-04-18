@@ -132,22 +132,15 @@ void sha256_transform_blocks(struct crypto_sha256_state *sst,
 }
 EXPORT_SYMBOL_GPL(sha256_transform_blocks);
 
-static void lib_sha256_transform_blocks(struct sha256_state *sctx,
-					const u8 *input, int blocks)
-{
-	sha256_transform_blocks((struct crypto_sha256_state *)sctx, input,
-				blocks);
-}
-
 void sha256_update(struct sha256_state *sctx, const u8 *data, unsigned int len)
 {
-	lib_sha256_base_do_update(sctx, data, len, lib_sha256_transform_blocks);
+	lib_sha256_base_do_update(sctx, data, len, sha256_transform_blocks);
 }
 EXPORT_SYMBOL(sha256_update);
 
 static void __sha256_final(struct sha256_state *sctx, u8 *out, int digest_size)
 {
-	lib_sha256_base_do_finalize(sctx, lib_sha256_transform_blocks);
+	lib_sha256_base_do_finalize(sctx, sha256_transform_blocks);
 	lib_sha256_base_finish(sctx, out, digest_size);
 }
 

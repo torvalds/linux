@@ -15,10 +15,8 @@
 #include <linux/types.h>
 #include <linux/unaligned.h>
 
-typedef void (sha256_block_fn)(struct sha256_state *sst, u8 const *src,
+typedef void (sha256_block_fn)(struct crypto_sha256_state *sst, u8 const *src,
 			       int blocks);
-typedef void (crypto_sha256_block_fn)(struct crypto_sha256_state *sst,
-				      u8 const *src, int blocks);
 
 static inline int sha224_base_init(struct shash_desc *desc)
 {
@@ -42,6 +40,7 @@ static inline int lib_sha256_base_do_update(struct sha256_state *sctx,
 					    sha256_block_fn *block_fn)
 {
 	unsigned int partial = sctx->count % SHA256_BLOCK_SIZE;
+	struct crypto_sha256_state *state = (void *)sctx;
 
 	sctx->count += len;
 
@@ -55,14 +54,14 @@ static inline int lib_sha256_base_do_update(struct sha256_state *sctx,
 			data += p;
 			len -= p;
 
-			block_fn(sctx, sctx->buf, 1);
+			block_fn(state, sctx->buf, 1);
 		}
 
 		blocks = len / SHA256_BLOCK_SIZE;
 		len %= SHA256_BLOCK_SIZE;
 
 		if (blocks) {
-			block_fn(sctx, data, blocks);
+			block_fn(state, data, blocks);
 			data += blocks * SHA256_BLOCK_SIZE;
 		}
 		partial = 0;
@@ -73,19 +72,9 @@ static inline int lib_sha256_base_do_update(struct sha256_state *sctx,
 	return 0;
 }
 
-static inline int sha256_base_do_update(struct shash_desc *desc,
-					const u8 *data,
-					unsigned int len,
-					sha256_block_fn *block_fn)
-{
-	struct sha256_state *sctx = shash_desc_ctx(desc);
-
-	return lib_sha256_base_do_update(sctx, data, len, block_fn);
-}
-
 static inline int lib_sha256_base_do_update_blocks(
 	struct crypto_sha256_state *sctx, const u8 *data, unsigned int len,
-	crypto_sha256_block_fn *block_fn)
+	sha256_block_fn *block_fn)
 {
 	unsigned int remain = len - round_down(len, SHA256_BLOCK_SIZE);
 
@@ -96,7 +85,7 @@ static inline int lib_sha256_base_do_update_blocks(
 
 static inline int sha256_base_do_update_blocks(
 	struct shash_desc *desc, const u8 *data, unsigned int len,
-	crypto_sha256_block_fn *block_fn)
+	sha256_block_fn *block_fn)
 {
 	return lib_sha256_base_do_update_blocks(shash_desc_ctx(desc), data,
 						len, block_fn);
@@ -104,7 +93,7 @@ static inline int sha256_base_do_update_blocks(
 
 static inline int lib_sha256_base_do_finup(struct crypto_sha256_state *sctx,
 					   const u8 *src, unsigned int len,
-					   crypto_sha256_block_fn *block_fn)
+					   sha256_block_fn *block_fn)
 {
 	unsigned int bit_offset = SHA256_BLOCK_SIZE / 8 - 1;
 	union {
@@ -126,7 +115,7 @@ static inline int lib_sha256_base_do_finup(struct crypto_sha256_state *sctx,
 
 static inline int sha256_base_do_finup(struct shash_desc *desc,
 				       const u8 *src, unsigned int len,
-				       crypto_sha256_block_fn *block_fn)
+				       sha256_block_fn *block_fn)
 {
 	struct crypto_sha256_state *sctx = shash_desc_ctx(desc);
 
@@ -144,23 +133,11 @@ static inline int sha256_base_do_finup(struct shash_desc *desc,
 static inline int lib_sha256_base_do_finalize(struct sha256_state *sctx,
 					      sha256_block_fn *block_fn)
 {
-	const int bit_offset = SHA256_BLOCK_SIZE - sizeof(__be64);
-	__be64 *bits = (__be64 *)(sctx->buf + bit_offset);
 	unsigned int partial = sctx->count % SHA256_BLOCK_SIZE;
+	struct crypto_sha256_state *state = (void *)sctx;
 
-	sctx->buf[partial++] = 0x80;
-	if (partial > bit_offset) {
-		memset(sctx->buf + partial, 0x0, SHA256_BLOCK_SIZE - partial);
-		partial = 0;
-
-		block_fn(sctx, sctx->buf, 1);
-	}
-
-	memset(sctx->buf + partial, 0x0, bit_offset - partial);
-	*bits = cpu_to_be64(sctx->count << 3);
-	block_fn(sctx, sctx->buf, 1);
-
-	return 0;
+	sctx->count -= partial;
+	return lib_sha256_base_do_finup(state, sctx->buf, partial, block_fn);
 }
 
 static inline int sha256_base_do_finalize(struct shash_desc *desc,
@@ -182,12 +159,11 @@ static inline int __sha256_base_finish(u32 state[SHA256_DIGEST_SIZE / 4],
 	return 0;
 }
 
-static inline int lib_sha256_base_finish(struct sha256_state *sctx, u8 *out,
-					 unsigned int digest_size)
+static inline void lib_sha256_base_finish(struct sha256_state *sctx, u8 *out,
+					  unsigned int digest_size)
 {
 	__sha256_base_finish(sctx->state, out, digest_size);
 	memzero_explicit(sctx, sizeof(*sctx));
-	return 0;
 }
 
 static inline int sha256_base_finish(struct shash_desc *desc, u8 *out)
