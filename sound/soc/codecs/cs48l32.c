@@ -3834,7 +3834,7 @@ static int cs48l32_runtime_suspend(struct device *dev)
 }
 
 static const struct dev_pm_ops cs48l32_pm_ops = {
-	SET_RUNTIME_PM_OPS(cs48l32_runtime_suspend, cs48l32_runtime_resume, NULL)
+	RUNTIME_PM_OPS(cs48l32_runtime_suspend, cs48l32_runtime_resume, NULL)
 };
 
 static int cs48l32_configure_clk32k(struct cs48l32 *cs48l32)
@@ -4057,7 +4057,7 @@ MODULE_DEVICE_TABLE(spi, cs48l32_spi_ids);
 static struct spi_driver cs48l32_spi_driver = {
 	.driver = {
 		.name		= "cs48l32",
-		.pm		= &cs48l32_pm_ops,
+		.pm		= pm_ptr(&cs48l32_pm_ops),
 		.of_match_table	= cs48l32_of_match,
 	},
 	.probe		= &cs48l32_spi_probe,
