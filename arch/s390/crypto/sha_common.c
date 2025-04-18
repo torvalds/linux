@@ -13,51 +13,6 @@
 #include <asm/cpacf.h>
 #include "sha.h"
 
-int s390_sha_update(struct shash_desc *desc, const u8 *data, unsigned int len)
-{
-	struct s390_sha_ctx *ctx = shash_desc_ctx(desc);
-	unsigned int bsize = crypto_shash_blocksize(desc->tfm);
-	unsigned int index, n;
-	int fc;
-
-	/* how much is already in the buffer? */
-	index = ctx->count % bsize;
-	ctx->count += len;
-
-	if ((index + len) < bsize)
-		goto store;
-
-	fc = ctx->func;
-	if (ctx->first_message_part)
-		fc |= CPACF_KIMD_NIP;
-
-	/* process one stored block */
-	if (index) {
-		memcpy(ctx->buf + index, data, bsize - index);
-		cpacf_kimd(fc, ctx->state, ctx->buf, bsize);
-		ctx->first_message_part = 0;
-		fc &= ~CPACF_KIMD_NIP;
-		data += bsize - index;
-		len -= bsize - index;
-		index = 0;
-	}
-
-	/* process as many blocks as possible */
-	if (len >= bsize) {
-		n = (len / bsize) * bsize;
-		cpacf_kimd(fc, ctx->state, data, n);
-		ctx->first_message_part = 0;
-		data += n;
-		len -= n;
-	}
-store:
-	if (len)
-		memcpy(ctx->buf + index , data, len);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(s390_sha_update);
-
 int s390_sha_update_blocks(struct shash_desc *desc, const u8 *data,
 			   unsigned int len)
 {
@@ -73,6 +28,13 @@ int s390_sha_update_blocks(struct shash_desc *desc, const u8 *data,
 	/* process as many blocks as possible */
 	n = (len / bsize) * bsize;
 	ctx->count += n;
+	switch (ctx->func) {
+	case CPACF_KLMD_SHA_512:
+	case CPACF_KLMD_SHA3_384:
+		if (ctx->count < n)
+			ctx->sha512.count_hi++;
+		break;
+	}
 	cpacf_kimd(fc, ctx->state, data, n);
 	ctx->first_message_part = 0;
 	return len - n;
@@ -98,61 +60,6 @@ static int s390_crypto_shash_parmsize(int func)
 	}
 }
 
-int s390_sha_final(struct shash_desc *desc, u8 *out)
-{
-	struct s390_sha_ctx *ctx = shash_desc_ctx(desc);
-	unsigned int bsize = crypto_shash_blocksize(desc->tfm);
-	u64 bits;
-	unsigned int n;
-	int mbl_offset, fc;
-
-	n = ctx->count % bsize;
-	bits = ctx->count * 8;
-	mbl_offset = s390_crypto_shash_parmsize(ctx->func);
-	if (mbl_offset < 0)
-		return -EINVAL;
-
-	mbl_offset = mbl_offset / sizeof(u32);
-
-	/* set total msg bit length (mbl) in CPACF parmblock */
-	switch (ctx->func) {
-	case CPACF_KLMD_SHA_1:
-	case CPACF_KLMD_SHA_256:
-		memcpy(ctx->state + mbl_offset, &bits, sizeof(bits));
-		break;
-	case CPACF_KLMD_SHA_512:
-		/*
-		 * the SHA512 parmblock has a 128-bit mbl field, clear
-		 * high-order u64 field, copy bits to low-order u64 field
-		 */
-		memset(ctx->state + mbl_offset, 0x00, sizeof(bits));
-		mbl_offset += sizeof(u64) / sizeof(u32);
-		memcpy(ctx->state + mbl_offset, &bits, sizeof(bits));
-		break;
-	case CPACF_KLMD_SHA3_224:
-	case CPACF_KLMD_SHA3_256:
-	case CPACF_KLMD_SHA3_384:
-	case CPACF_KLMD_SHA3_512:
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	fc = ctx->func;
-	fc |= test_facility(86) ? CPACF_KLMD_DUFOP : 0;
-	if (ctx->first_message_part)
-		fc |= CPACF_KLMD_NIP;
-	cpacf_klmd(fc, ctx->state, ctx->buf, n);
-
-	/* copy digest to out */
-	memcpy(out, ctx->state, crypto_shash_digestsize(desc->tfm));
-	/* wipe context */
-	memset(ctx, 0, sizeof *ctx);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(s390_sha_final);
-
 int s390_sha_finup(struct shash_desc *desc, const u8 *src, unsigned int len,
 		   u8 *out)
 {
@@ -171,17 +78,16 @@ int s390_sha_finup(struct shash_desc *desc, const u8 *src, unsigned int len,
 
 	/* set total msg bit length (mbl) in CPACF parmblock */
 	switch (ctx->func) {
+	case CPACF_KLMD_SHA_512:
+		/* The SHA512 parmblock has a 128-bit mbl field. */
+		if (ctx->count < len)
+			ctx->sha512.count_hi++;
+		ctx->sha512.count_hi <<= 3;
+		ctx->sha512.count_hi |= ctx->count >> 61;
+		mbl_offset += sizeof(u64) / sizeof(u32);
+		fallthrough;
 	case CPACF_KLMD_SHA_1:
 	case CPACF_KLMD_SHA_256:
-		memcpy(ctx->state + mbl_offset, &bits, sizeof(bits));
-		break;
-	case CPACF_KLMD_SHA_512:
-		/*
-		 * the SHA512 parmblock has a 128-bit mbl field, clear
-		 * high-order u64 field, copy bits to low-order u64 field
-		 */
-		memset(ctx->state + mbl_offset, 0x00, sizeof(bits));
-		mbl_offset += sizeof(u64) / sizeof(u32);
 		memcpy(ctx->state + mbl_offset, &bits, sizeof(bits));
 		break;
 	case CPACF_KLMD_SHA3_224:
