@@ -3732,9 +3732,18 @@ void fib6_nh_release_dsts(struct fib6_nh *fib6_nh)
 
 static int fib6_nh_prealloc_percpu(struct fib6_nh *fib6_nh, gfp_t gfp_flags)
 {
+	struct fib_nh_common *nhc = &fib6_nh->nh_common;
+
 	fib6_nh->rt6i_pcpu = alloc_percpu_gfp(struct rt6_info *, gfp_flags);
 	if (!fib6_nh->rt6i_pcpu)
 		return -ENOMEM;
+
+	nhc->nhc_pcpu_rth_output = alloc_percpu_gfp(struct rtable __rcu *,
+						    gfp_flags);
+	if (!nhc->nhc_pcpu_rth_output) {
+		free_percpu(fib6_nh->rt6i_pcpu);
+		return -ENOMEM;
+	}
 
 	return 0;
 }
