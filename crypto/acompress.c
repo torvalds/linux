@@ -292,7 +292,7 @@ int crypto_acomp_compress(struct acomp_req *req)
 	if (acomp_req_on_stack(req) && acomp_is_async(tfm))
 		return -EAGAIN;
 	if (crypto_acomp_req_chain(tfm) || acomp_request_issg(req))
-		crypto_acomp_reqtfm(req)->compress(req);
+		return crypto_acomp_reqtfm(req)->compress(req);
 	return acomp_do_req_chain(req, true);
 }
 EXPORT_SYMBOL_GPL(crypto_acomp_compress);
@@ -304,7 +304,7 @@ int crypto_acomp_decompress(struct acomp_req *req)
 	if (acomp_req_on_stack(req) && acomp_is_async(tfm))
 		return -EAGAIN;
 	if (crypto_acomp_req_chain(tfm) || acomp_request_issg(req))
-		crypto_acomp_reqtfm(req)->decompress(req);
+		return crypto_acomp_reqtfm(req)->decompress(req);
 	return acomp_do_req_chain(req, false);
 }
 EXPORT_SYMBOL_GPL(crypto_acomp_decompress);
