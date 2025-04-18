@@ -76,6 +76,7 @@ static void __init srbds_apply_mitigation(void);
 static void __init l1d_flush_select_mitigation(void);
 static void __init srso_select_mitigation(void);
 static void __init gds_select_mitigation(void);
+static void __init gds_apply_mitigation(void);
 
 /* The base value of the SPEC_CTRL MSR without task-specific bits set */
 u64 x86_spec_ctrl_base;
@@ -227,6 +228,7 @@ void __init cpu_select_mitigations(void)
 	mmio_apply_mitigation();
 	rfds_apply_mitigation();
 	srbds_apply_mitigation();
+	gds_apply_mitigation();
 }
 
 /*
@@ -831,6 +833,7 @@ early_param("l1d_flush", l1d_flush_parse_cmdline);
 
 enum gds_mitigations {
 	GDS_MITIGATION_OFF,
+	GDS_MITIGATION_AUTO,
 	GDS_MITIGATION_UCODE_NEEDED,
 	GDS_MITIGATION_FORCE,
 	GDS_MITIGATION_FULL,
@@ -839,7 +842,7 @@ enum gds_mitigations {
 };
 
 static enum gds_mitigations gds_mitigation __ro_after_init =
-	IS_ENABLED(CONFIG_MITIGATION_GDS) ? GDS_MITIGATION_FULL : GDS_MITIGATION_OFF;
+	IS_ENABLED(CONFIG_MITIGATION_GDS) ? GDS_MITIGATION_AUTO : GDS_MITIGATION_OFF;
 
 static const char * const gds_strings[] = {
 	[GDS_MITIGATION_OFF]		= "Vulnerable",
@@ -880,6 +883,7 @@ void update_gds_msr(void)
 	case GDS_MITIGATION_FORCE:
 	case GDS_MITIGATION_UCODE_NEEDED:
 	case GDS_MITIGATION_HYPERVISOR:
+	case GDS_MITIGATION_AUTO:
 		return;
 	}
 
@@ -903,26 +907,21 @@ static void __init gds_select_mitigation(void)
 
 	if (boot_cpu_has(X86_FEATURE_HYPERVISOR)) {
 		gds_mitigation = GDS_MITIGATION_HYPERVISOR;
-		goto out;
+		return;
 	}
 
 	if (cpu_mitigations_off())
 		gds_mitigation = GDS_MITIGATION_OFF;
 	/* Will verify below that mitigation _can_ be disabled */
 
+	if (gds_mitigation == GDS_MITIGATION_AUTO)
+		gds_mitigation = GDS_MITIGATION_FULL;
+
 	/* No microcode */
 	if (!(x86_arch_cap_msr & ARCH_CAP_GDS_CTRL)) {
-		if (gds_mitigation == GDS_MITIGATION_FORCE) {
-			/*
-			 * This only needs to be done on the boot CPU so do it
-			 * here rather than in update_gds_msr()
-			 */
-			setup_clear_cpu_cap(X86_FEATURE_AVX);
-			pr_warn("Microcode update needed! Disabling AVX as mitigation.\n");
-		} else {
+		if (gds_mitigation != GDS_MITIGATION_FORCE)
 			gds_mitigation = GDS_MITIGATION_UCODE_NEEDED;
-		}
-		goto out;
+		return;
 	}
 
 	/* Microcode has mitigation, use it */
@@ -943,9 +942,25 @@ static void __init gds_select_mitigation(void)
 		 */
 		gds_mitigation = GDS_MITIGATION_FULL_LOCKED;
 	}
+}
 
-	update_gds_msr();
-out:
+static void __init gds_apply_mitigation(void)
+{
+	if (!boot_cpu_has_bug(X86_BUG_GDS))
+		return;
+
+	/* Microcode is present */
+	if (x86_arch_cap_msr & ARCH_CAP_GDS_CTRL)
+		update_gds_msr();
+	else if (gds_mitigation == GDS_MITIGATION_FORCE) {
+		/*
+		 * This only needs to be done on the boot CPU so do it
+		 * here rather than in update_gds_msr()
+		 */
+		setup_clear_cpu_cap(X86_FEATURE_AVX);
+		pr_warn("Microcode update needed! Disabling AVX as mitigation.\n");
+	}
+
 	pr_info("%s\n", gds_strings[gds_mitigation]);
 }
 
