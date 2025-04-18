@@ -1462,8 +1462,6 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 		j->last_empty_seq = cur_seq - 1; /* to match j->seq */
 
 	spin_lock(&j->lock);
-
-	set_bit(JOURNAL_running, &j->flags);
 	j->last_flush_write = jiffies;
 
 	j->reservations.idx = journal_cur_seq(j);
@@ -1472,6 +1470,21 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 	spin_unlock(&j->lock);
 
 	return 0;
+}
+
+void bch2_journal_set_replay_done(struct journal *j)
+{
+	/*
+	 * journal_space_available must happen before setting JOURNAL_running
+	 * JOURNAL_running must happen before JOURNAL_replay_done
+	 */
+	spin_lock(&j->lock);
+	bch2_journal_space_available(j);
+
+	set_bit(JOURNAL_need_flush_write, &j->flags);
+	set_bit(JOURNAL_running, &j->flags);
+	set_bit(JOURNAL_replay_done, &j->flags);
+	spin_unlock(&j->lock);
 }
 
 /* init/exit: */
