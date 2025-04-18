@@ -306,7 +306,6 @@ struct bb_priv {
 	int dav_seq;
 	long all_irqs;
 	int dav_idle;
-	int atn_asserted;
 
 	enum talker_function_state talker_state;
 	enum listener_function_state listener_state;
@@ -614,7 +613,8 @@ static irqreturn_t bb_NRFD_interrupt(int irq, void *arg)
 		goto nrfd_exit;
 	}
 
-	if (priv->atn_asserted && priv->w_cnt >= priv->length) { // test for end of transfer
+	if (priv->w_cnt >= priv->length) { // test for missed NDAC end of transfer
+		dev_err(board->gpib_dev, "Unexpected NRFD exit\n");
 		priv->write_done = 1;
 		priv->w_busy = 0;
 		wake_up_interruptible(&board->wait);
@@ -686,14 +686,14 @@ static irqreturn_t bb_NDAC_interrupt(int irq, void *arg)
 
 	dbg_printk(3, "accepted %zu\n", priv->w_cnt - 1);
 
-	if (!priv->atn_asserted && priv->w_cnt >= priv->length) { // test for end of transfer
+	gpiod_set_value(DAV, 1); // Data not available
+	priv->dav_tx = 1;
+	priv->phase = 510;
+
+	if (priv->w_cnt >= priv->length) { // test for end of transfer
 		priv->write_done = 1;
 		priv->w_busy = 0;
 		wake_up_interruptible(&board->wait);
-	} else {
-		gpiod_set_value(DAV, 1); // Data not available
-		priv->dav_tx = 1;
-		priv->phase = 510;
 	}
 
 ndac_exit:
@@ -850,6 +850,7 @@ static void set_atn(struct gpib_board *board, int atn_asserted)
 			priv->listener_state = listener_addressed;
 		if (priv->talker_state == talker_active)
 			priv->talker_state = talker_addressed;
+		SET_DIR_WRITE(priv);  // need to be able to read bus NRFD/NDAC
 	} else {
 		if (priv->listener_state == listener_addressed) {
 			priv->listener_state = listener_active;
@@ -859,7 +860,6 @@ static void set_atn(struct gpib_board *board, int atn_asserted)
 			priv->talker_state = talker_active;
 	}
 	gpiod_direction_output(_ATN, !atn_asserted);
-	priv->atn_asserted = atn_asserted;
 }
 
 static int bb_take_control(struct gpib_board *board, int synchronous)
