@@ -10305,6 +10305,11 @@ ath12k_mac_op_unassign_vif_chanctx(struct ieee80211_hw *hw,
 		reinit_completion(&ar->completed_11d_scan);
 		ar->state_11d = ATH12K_11D_PREPARING;
 	}
+
+	if (ar->scan.arvif == arvif && ar->scan.state == ATH12K_SCAN_RUNNING) {
+		ath12k_scan_abort(ar);
+		ar->scan.arvif = NULL;
+	}
 }
 
 static int
