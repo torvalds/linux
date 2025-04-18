@@ -57,6 +57,7 @@ config MDIO_SUN4I
 config MDIO_XGENE
 	tristate "APM X-Gene SoC MDIO bus controller"
 	depends on ARCH_XGENE || COMPILE_TEST
+	depends on PHYLIB
 	help
 	  This module provides a driver for the MDIO busses found in the
 	  APM X-Gene SoC's.
