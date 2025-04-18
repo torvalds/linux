@@ -68,28 +68,18 @@ extern u64 boot_svsm_caa_pa;
 
 static __always_inline struct svsm_ca *svsm_get_caa(void)
 {
-	/*
-	 * Use rIP-relative references when called early in the boot. If
-	 * ->use_cas is set, then it is late in the boot and no need
-	 * to worry about rIP-relative references.
-	 */
-	if (RIP_REL_REF(sev_cfg).use_cas)
+	if (sev_cfg.use_cas)
 		return this_cpu_read(svsm_caa);
 	else
-		return RIP_REL_REF(boot_svsm_caa);
+		return boot_svsm_caa;
 }
 
 static __always_inline u64 svsm_get_caa_pa(void)
 {
-	/*
-	 * Use rIP-relative references when called early in the boot. If
-	 * ->use_cas is set, then it is late in the boot and no need
-	 * to worry about rIP-relative references.
-	 */
-	if (RIP_REL_REF(sev_cfg).use_cas)
+	if (sev_cfg.use_cas)
 		return this_cpu_read(svsm_caa_pa);
 	else
-		return RIP_REL_REF(boot_svsm_caa_pa);
+		return boot_svsm_caa_pa;
 }
 
 int svsm_perform_call_protocol(struct svsm_call *call);

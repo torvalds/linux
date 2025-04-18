@@ -462,15 +462,10 @@ int svsm_perform_call_protocol(struct svsm_call *call)
 	 */
 	flags = native_local_irq_save();
 
-	/*
-	 * Use rip-relative references when called early in the boot. If
-	 * ghcbs_initialized is set, then it is late in the boot and no need
-	 * to worry about rip-relative references in called functions.
-	 */
-	if (RIP_REL_REF(sev_cfg).ghcbs_initialized)
+	if (sev_cfg.ghcbs_initialized)
 		ghcb = __sev_get_ghcb(&state);
-	else if (RIP_REL_REF(boot_ghcb))
-		ghcb = RIP_REL_REF(boot_ghcb);
+	else if (boot_ghcb)
+		ghcb = boot_ghcb;
 	else
 		ghcb = NULL;
 
@@ -479,7 +474,7 @@ int svsm_perform_call_protocol(struct svsm_call *call)
 			   : svsm_perform_msr_protocol(call);
 	} while (ret == -EAGAIN);
 
-	if (RIP_REL_REF(sev_cfg).ghcbs_initialized)
+	if (sev_cfg.ghcbs_initialized)
 		__sev_put_ghcb(&state);
 
 	native_local_irq_restore(flags);
@@ -542,7 +537,7 @@ void __head early_snp_set_memory_private(unsigned long vaddr, unsigned long padd
 	 * This eliminates worries about jump tables or checking boot_cpu_data
 	 * in the cc_platform_has() function.
 	 */
-	if (!(RIP_REL_REF(sev_status) & MSR_AMD64_SEV_SNP_ENABLED))
+	if (!(sev_status & MSR_AMD64_SEV_SNP_ENABLED))
 		return;
 
 	 /*
@@ -561,7 +556,7 @@ void __head early_snp_set_memory_shared(unsigned long vaddr, unsigned long paddr
 	 * This eliminates worries about jump tables or checking boot_cpu_data
 	 * in the cc_platform_has() function.
 	 */
-	if (!(RIP_REL_REF(sev_status) & MSR_AMD64_SEV_SNP_ENABLED))
+	if (!(sev_status & MSR_AMD64_SEV_SNP_ENABLED))
 		return;
 
 	 /* Ask hypervisor to mark the memory pages shared in the RMP table. */
@@ -1356,8 +1351,8 @@ static __head void svsm_setup(struct cc_blob_sev_info *cc_info)
 	if (ret)
 		sev_es_terminate(SEV_TERM_SET_LINUX, GHCB_TERM_SVSM_CA_REMAP_FAIL);
 
-	RIP_REL_REF(boot_svsm_caa) = (struct svsm_ca *)pa;
-	RIP_REL_REF(boot_svsm_caa_pa) = pa;
+	boot_svsm_caa = (struct svsm_ca *)pa;
+	boot_svsm_caa_pa = pa;
 }
 
 bool __head snp_init(struct boot_params *bp)
