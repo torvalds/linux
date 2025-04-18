@@ -11,11 +11,16 @@
 
 #include <asm/simd.h>
 #include <asm/vector.h>
+#include <crypto/b128ops.h>
+#include <crypto/gf128mul.h>
 #include <crypto/ghash.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/simd.h>
-#include <linux/linkage.h>
+#include <crypto/utils.h>
+#include <linux/errno.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/string.h>
 
 asmlinkage void ghash_zvkg(be128 *accumulator, const be128 *key, const u8 *data,
 			   size_t len);
@@ -26,8 +31,6 @@ struct riscv64_ghash_tfm_ctx {
 
 struct riscv64_ghash_desc_ctx {
 	be128 accumulator;
-	u8 buffer[GHASH_BLOCK_SIZE];
-	u32 bytes;
 };
 
 static int riscv64_ghash_setkey(struct crypto_shash *tfm, const u8 *key,
@@ -78,50 +81,24 @@ static int riscv64_ghash_update(struct shash_desc *desc, const u8 *src,
 {
 	const struct riscv64_ghash_tfm_ctx *tctx = crypto_shash_ctx(desc->tfm);
 	struct riscv64_ghash_desc_ctx *dctx = shash_desc_ctx(desc);
-	unsigned int len;
 
-	if (dctx->bytes) {
-		if (dctx->bytes + srclen < GHASH_BLOCK_SIZE) {
-			memcpy(dctx->buffer + dctx->bytes, src, srclen);
-			dctx->bytes += srclen;
-			return 0;
-		}
-		memcpy(dctx->buffer + dctx->bytes, src,
-		       GHASH_BLOCK_SIZE - dctx->bytes);
-		riscv64_ghash_blocks(tctx, dctx, dctx->buffer,
-				     GHASH_BLOCK_SIZE);
-		src += GHASH_BLOCK_SIZE - dctx->bytes;
-		srclen -= GHASH_BLOCK_SIZE - dctx->bytes;
-		dctx->bytes = 0;
-	}
-
-	len = round_down(srclen, GHASH_BLOCK_SIZE);
-	if (len) {
-		riscv64_ghash_blocks(tctx, dctx, src, len);
-		src += len;
-		srclen -= len;
-	}
-
-	if (srclen) {
-		memcpy(dctx->buffer, src, srclen);
-		dctx->bytes = srclen;
-	}
-
-	return 0;
+	riscv64_ghash_blocks(tctx, dctx, src,
+			     round_down(srclen, GHASH_BLOCK_SIZE));
+	return srclen - round_down(srclen, GHASH_BLOCK_SIZE);
 }
 
-static int riscv64_ghash_final(struct shash_desc *desc, u8 *out)
+static int riscv64_ghash_finup(struct shash_desc *desc, const u8 *src,
+			       unsigned int len, u8 *out)
 {
 	const struct riscv64_ghash_tfm_ctx *tctx = crypto_shash_ctx(desc->tfm);
 	struct riscv64_ghash_desc_ctx *dctx = shash_desc_ctx(desc);
-	int i;
 
-	if (dctx->bytes) {
-		for (i = dctx->bytes; i < GHASH_BLOCK_SIZE; i++)
-			dctx->buffer[i] = 0;
+	if (len) {
+		u8 buf[GHASH_BLOCK_SIZE] = {};
 
-		riscv64_ghash_blocks(tctx, dctx, dctx->buffer,
-				     GHASH_BLOCK_SIZE);
+		memcpy(buf, src, len);
+		riscv64_ghash_blocks(tctx, dctx, buf, GHASH_BLOCK_SIZE);
+		memzero_explicit(buf, sizeof(buf));
 	}
 
 	memcpy(out, &dctx->accumulator, GHASH_DIGEST_SIZE);
@@ -131,7 +108,7 @@ static int riscv64_ghash_final(struct shash_desc *desc, u8 *out)
 static struct shash_alg riscv64_ghash_alg = {
 	.init = riscv64_ghash_init,
 	.update = riscv64_ghash_update,
-	.final = riscv64_ghash_final,
+	.finup = riscv64_ghash_finup,
 	.setkey = riscv64_ghash_setkey,
 	.descsize = sizeof(struct riscv64_ghash_desc_ctx),
 	.digestsize = GHASH_DIGEST_SIZE,
@@ -139,6 +116,7 @@ static struct shash_alg riscv64_ghash_alg = {
 		.cra_blocksize = GHASH_BLOCK_SIZE,
 		.cra_ctxsize = sizeof(struct riscv64_ghash_tfm_ctx),
 		.cra_priority = 300,
+		.cra_flags = CRYPTO_AHASH_ALG_BLOCK_ONLY,
 		.cra_name = "ghash",
 		.cra_driver_name = "ghash-riscv64-zvkg",
 		.cra_module = THIS_MODULE,

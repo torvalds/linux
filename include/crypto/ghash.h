@@ -7,7 +7,6 @@
 #define __CRYPTO_GHASH_H__
 
 #include <linux/types.h>
-#include <crypto/gf128mul.h>
 
 #define GHASH_BLOCK_SIZE	16
 #define GHASH_DIGEST_SIZE	16
