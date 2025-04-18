@@ -29,7 +29,7 @@ int s390_sha_update(struct shash_desc *desc, const u8 *data, unsigned int len)
 
 	fc = ctx->func;
 	if (ctx->first_message_part)
-		fc |= test_facility(86) ? CPACF_KIMD_NIP : 0;
+		fc |= CPACF_KIMD_NIP;
 
 	/* process one stored block */
 	if (index) {
@@ -68,7 +68,7 @@ int s390_sha_update_blocks(struct shash_desc *desc, const u8 *data,
 
 	fc = ctx->func;
 	if (ctx->first_message_part)
-		fc |= test_facility(86) ? CPACF_KIMD_NIP : 0;
+		fc |= CPACF_KIMD_NIP;
 
 	/* process as many blocks as possible */
 	n = (len / bsize) * bsize;
