@@ -2421,6 +2421,12 @@ operations:
             - gro-ipv4-max-size
             - af-spec
     -
+      name: newlink-ntf
+      doc: Notify that a link has been created
+      value: 16
+      notify: getlink
+      fixed-header: ifinfomsg
+    -
       name: dellink
       doc: Delete an existing link.
       attribute-set: link-attrs
