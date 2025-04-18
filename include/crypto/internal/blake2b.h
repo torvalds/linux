@@ -33,48 +33,6 @@ static inline void blake2b_set_nonlast(struct blake2b_state *state)
 typedef void (*blake2b_compress_t)(struct blake2b_state *state,
 				   const u8 *block, size_t nblocks, u32 inc);
 
-static inline void __blake2b_update(struct blake2b_state *state,
-				    const u8 *in, size_t inlen,
-				    blake2b_compress_t compress)
-{
-	const size_t fill = BLAKE2B_BLOCK_SIZE - state->buflen;
-
-	if (unlikely(!inlen))
-		return;
-	blake2b_set_nonlast(state);
-	if (inlen > fill) {
-		memcpy(state->buf + state->buflen, in, fill);
-		(*compress)(state, state->buf, 1, BLAKE2B_BLOCK_SIZE);
-		state->buflen = 0;
-		in += fill;
-		inlen -= fill;
-	}
-	if (inlen > BLAKE2B_BLOCK_SIZE) {
-		const size_t nblocks = DIV_ROUND_UP(inlen, BLAKE2B_BLOCK_SIZE);
-		/* Hash one less (full) block than strictly possible */
-		(*compress)(state, in, nblocks - 1, BLAKE2B_BLOCK_SIZE);
-		in += BLAKE2B_BLOCK_SIZE * (nblocks - 1);
-		inlen -= BLAKE2B_BLOCK_SIZE * (nblocks - 1);
-	}
-	memcpy(state->buf + state->buflen, in, inlen);
-	state->buflen += inlen;
-}
-
-static inline void __blake2b_final(struct blake2b_state *state, u8 *out,
-				   unsigned int outlen,
-				   blake2b_compress_t compress)
-{
-	int i;
-
-	blake2b_set_lastblock(state);
-	memset(state->buf + state->buflen, 0,
-	       BLAKE2B_BLOCK_SIZE - state->buflen); /* Padding */
-	(*compress)(state, state->buf, 1, state->buflen);
-	for (i = 0; i < ARRAY_SIZE(state->h); i++)
-		__cpu_to_le64s(&state->h[i]);
-	memcpy(out, state->h, outlen);
-}
-
 /* Helper functions for shash implementations of BLAKE2b */
 
 struct blake2b_tfm_ctx {
@@ -110,16 +68,6 @@ static inline int crypto_blake2b_init(struct shash_desc *desc)
 	       crypto_shash_update(desc, tctx->key, BLAKE2B_BLOCK_SIZE) : 0;
 }
 
-static inline int crypto_blake2b_update(struct shash_desc *desc,
-					const u8 *in, unsigned int inlen,
-					blake2b_compress_t compress)
-{
-	struct blake2b_state *state = shash_desc_ctx(desc);
-
-	__blake2b_update(state, in, inlen, compress);
-	return 0;
-}
-
 static inline int crypto_blake2b_update_bo(struct shash_desc *desc,
 					   const u8 *in, unsigned int inlen,
 					   blake2b_compress_t compress)
@@ -129,16 +77,6 @@ static inline int crypto_blake2b_update_bo(struct shash_desc *desc,
 	blake2b_set_nonlast(state);
 	compress(state, in, inlen / BLAKE2B_BLOCK_SIZE, BLAKE2B_BLOCK_SIZE);
 	return inlen - round_down(inlen, BLAKE2B_BLOCK_SIZE);
-}
-
-static inline int crypto_blake2b_final(struct shash_desc *desc, u8 *out,
-				       blake2b_compress_t compress)
-{
-	unsigned int outlen = crypto_shash_digestsize(desc->tfm);
-	struct blake2b_state *state = shash_desc_ctx(desc);
-
-	__blake2b_final(state, out, outlen, compress);
-	return 0;
 }
 
 static inline int crypto_blake2b_finup(struct shash_desc *desc, const u8 *in,
