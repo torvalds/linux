@@ -6132,5 +6132,6 @@ int ath12k_wmi_mlo_teardown(struct ath12k *ar);
 void ath12k_wmi_fw_stats_dump(struct ath12k *ar,
 			      struct ath12k_fw_stats *fw_stats, u32 stats_id,
 			      char *buf);
+bool ath12k_wmi_supports_6ghz_cc_ext(struct ath12k *ar);
 
 #endif

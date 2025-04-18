@@ -8753,7 +8753,10 @@ static int ath12k_mac_op_add_interface(struct ieee80211_hw *hw,
 {
 	struct ath12k_hw *ah = ath12k_hw_to_ah(hw);
 	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
+	struct ath12k_reg_info *reg_info;
 	struct ath12k_link_vif *arvif;
+	struct ath12k_base *ab;
+	struct ath12k *ar;
 	int i;
 
 	lockdep_assert_wiphy(hw->wiphy);
@@ -8774,6 +8777,18 @@ static int ath12k_mac_op_add_interface(struct ieee80211_hw *hw,
 	vif->driver_flags |= IEEE80211_VIF_SUPPORTS_UAPSD;
 
 	ath12k_mac_determine_vdev_type(vif, ahvif);
+
+	for_each_ar(ah, ar, i) {
+		if (!ath12k_wmi_supports_6ghz_cc_ext(ar))
+			continue;
+
+		ab = ar->ab;
+		reg_info = ab->reg_info[ar->pdev_idx];
+		ath12k_dbg(ab, ATH12K_DBG_MAC, "interface added to change reg rules\n");
+		ath12k_reg_handle_chan_list(ab, reg_info, ahvif->vdev_type,
+					    IEEE80211_REG_UNSET_AP);
+		break;
+	}
 
 	/* Defer vdev creation until assign_chanctx or hw_scan is initiated as driver
 	 * will not know if this interface is an ML vif at this point.
