@@ -264,8 +264,8 @@ static inline void iproc_i2c_wr_reg(struct bcm_iproc_i2c_dev *iproc_i2c,
 	}
 }
 
-static void bcm_iproc_i2c_slave_init(
-	struct bcm_iproc_i2c_dev *iproc_i2c, bool need_reset)
+static void bcm_iproc_i2c_slave_init(struct bcm_iproc_i2c_dev *iproc_i2c,
+				     bool need_reset)
 {
 	u32 val;
 
