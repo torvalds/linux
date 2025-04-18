@@ -6132,7 +6132,8 @@ static int ath12k_reg_chan_list_event(struct ath12k_base *ab, struct sk_buff *sk
 		goto fallback;
 	}
 
-	ret = ath12k_reg_handle_chan_list(ab, reg_info);
+	ret = ath12k_reg_handle_chan_list(ab, reg_info, WMI_VDEV_TYPE_UNSPEC,
+					  IEEE80211_REG_UNSET_AP);
 	if (ret) {
 		ath12k_warn(ab, "failed to handle chan list %d\n", ret);
 		goto fallback;

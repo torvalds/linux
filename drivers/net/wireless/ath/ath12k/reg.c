@@ -716,26 +716,67 @@ static bool ath12k_reg_is_world_alpha(char *alpha)
 	       (alpha[0] == 'n' && alpha[1] == 'a');
 }
 
+enum wmi_reg_6g_ap_type
+ath12k_reg_ap_pwr_convert(enum ieee80211_ap_reg_power power_type)
+{
+	switch (power_type) {
+	case IEEE80211_REG_LPI_AP:
+		return WMI_REG_INDOOR_AP;
+	case IEEE80211_REG_SP_AP:
+		return WMI_REG_STD_POWER_AP;
+	case IEEE80211_REG_VLP_AP:
+		return WMI_REG_VLP_AP;
+	default:
+		return WMI_REG_MAX_AP_TYPE;
+	}
+}
+
 struct ieee80211_regdomain *
 ath12k_reg_build_regd(struct ath12k_base *ab,
-		      struct ath12k_reg_info *reg_info)
+		      struct ath12k_reg_info *reg_info,
+		      enum wmi_vdev_type vdev_type,
+		      enum ieee80211_ap_reg_power power_type)
 {
 	struct ieee80211_regdomain *tmp_regd, *default_regd, *new_regd = NULL;
-	struct ath12k_reg_rule *reg_rule;
+	struct ath12k_reg_rule *reg_rule, *reg_rule_6ghz;
+	u32 flags, reg_6ghz_number, max_bw_6ghz;
 	u8 i = 0, j = 0, k = 0;
 	u8 num_rules;
 	u16 max_bw;
-	u32 flags;
 	char alpha2[3];
 
 	num_rules = reg_info->num_5g_reg_rules + reg_info->num_2g_reg_rules;
 
-	/* FIXME: Currently taking reg rules for 6G only from Indoor AP mode list.
-	 * This can be updated to choose the combination dynamically based on AP
-	 * type and client type, after complete 6G regulatory support is added.
-	 */
-	if (reg_info->is_ext_reg_event)
-		num_rules += reg_info->num_6g_reg_rules_ap[WMI_REG_INDOOR_AP];
+	if (reg_info->is_ext_reg_event) {
+		if (vdev_type == WMI_VDEV_TYPE_STA) {
+			enum wmi_reg_6g_ap_type ap_type;
+
+			ap_type = ath12k_reg_ap_pwr_convert(power_type);
+			if (ap_type == WMI_REG_MAX_AP_TYPE)
+				ap_type = WMI_REG_INDOOR_AP;
+
+			reg_6ghz_number = reg_info->num_6g_reg_rules_cl
+					[ap_type][WMI_REG_DEFAULT_CLIENT];
+			if (reg_6ghz_number == 0) {
+				ap_type = WMI_REG_INDOOR_AP;
+				reg_6ghz_number = reg_info->num_6g_reg_rules_cl
+						[ap_type][WMI_REG_DEFAULT_CLIENT];
+			}
+
+			reg_rule_6ghz = reg_info->reg_rules_6g_client_ptr
+					[ap_type][WMI_REG_DEFAULT_CLIENT];
+			max_bw_6ghz = reg_info->max_bw_6g_client
+					[ap_type][WMI_REG_DEFAULT_CLIENT];
+		} else {
+			reg_6ghz_number = reg_info->num_6g_reg_rules_ap
+						[WMI_REG_INDOOR_AP];
+			reg_rule_6ghz =
+				reg_info->reg_rules_6g_ap_ptr[WMI_REG_INDOOR_AP];
+			max_bw_6ghz = reg_info->max_bw_6g_ap[WMI_REG_INDOOR_AP];
+		}
+
+		num_rules += reg_6ghz_number;
+	}
 
 	if (!num_rules)
 		goto ret;
@@ -794,12 +835,10 @@ ath12k_reg_build_regd(struct ath12k_base *ab,
 			 */
 			flags = NL80211_RRF_AUTO_BW;
 			ath12k_reg_update_freq_range(&ab->reg_freq_5ghz, reg_rule);
-		} else if (reg_info->is_ext_reg_event &&
-			   reg_info->num_6g_reg_rules_ap[WMI_REG_INDOOR_AP] &&
-			(k < reg_info->num_6g_reg_rules_ap[WMI_REG_INDOOR_AP])) {
-			reg_rule = reg_info->reg_rules_6g_ap_ptr[WMI_REG_INDOOR_AP] + k++;
-			max_bw = min_t(u16, reg_rule->max_bw,
-				       reg_info->max_bw_6g_ap[WMI_REG_INDOOR_AP]);
+		} else if (reg_info->is_ext_reg_event && reg_6ghz_number &&
+			   (k < reg_6ghz_number)) {
+			reg_rule = reg_rule_6ghz + k++;
+			max_bw = min_t(u16, reg_rule->max_bw, max_bw_6ghz);
 			flags = NL80211_RRF_AUTO_BW;
 			ath12k_reg_update_freq_range(&ab->reg_freq_6ghz, reg_rule);
 		} else {
@@ -911,7 +950,9 @@ void ath12k_reg_reset_reg_info(struct ath12k_reg_info *reg_info)
 }
 
 int ath12k_reg_handle_chan_list(struct ath12k_base *ab,
-				struct ath12k_reg_info *reg_info)
+				struct ath12k_reg_info *reg_info,
+				enum wmi_vdev_type vdev_type,
+				enum ieee80211_ap_reg_power power_type)
 {
 	struct ieee80211_regdomain *regd = NULL;
 	struct ath12k *ar;
@@ -947,7 +988,7 @@ int ath12k_reg_handle_chan_list(struct ath12k_base *ab,
 		    reg_info->alpha2, 2))
 		return 0;
 
-	regd = ath12k_reg_build_regd(ab, reg_info);
+	regd = ath12k_reg_build_regd(ab, reg_info, vdev_type, power_type);
 	if (!regd)
 		return -EINVAL;
 
