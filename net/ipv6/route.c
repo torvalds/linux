@@ -3665,10 +3665,12 @@ int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
 		goto out;
 
 pcpu_alloc:
-	fib6_nh->rt6i_pcpu = alloc_percpu_gfp(struct rt6_info *, gfp_flags);
 	if (!fib6_nh->rt6i_pcpu) {
-		err = -ENOMEM;
-		goto out;
+		fib6_nh->rt6i_pcpu = alloc_percpu_gfp(struct rt6_info *, gfp_flags);
+		if (!fib6_nh->rt6i_pcpu) {
+			err = -ENOMEM;
+			goto out;
+		}
 	}
 
 	fib6_nh->fib_nh_dev = dev;
@@ -3728,6 +3730,15 @@ void fib6_nh_release_dsts(struct fib6_nh *fib6_nh)
 	}
 }
 
+static int fib6_nh_prealloc_percpu(struct fib6_nh *fib6_nh, gfp_t gfp_flags)
+{
+	fib6_nh->rt6i_pcpu = alloc_percpu_gfp(struct rt6_info *, gfp_flags);
+	if (!fib6_nh->rt6i_pcpu)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static struct fib6_info *ip6_route_info_create(struct fib6_config *cfg,
 					       gfp_t gfp_flags,
 					       struct netlink_ext_ack *extack)
@@ -3765,6 +3776,12 @@ static struct fib6_info *ip6_route_info_create(struct fib6_config *cfg,
 		goto free;
 	}
 
+	if (!cfg->fc_nh_id) {
+		err = fib6_nh_prealloc_percpu(&rt->fib6_nh[0], gfp_flags);
+		if (err)
+			goto free_metrics;
+	}
+
 	if (cfg->fc_flags & RTF_ADDRCONF)
 		rt->dst_nocount = true;
 
@@ -3789,6 +3806,8 @@ static struct fib6_info *ip6_route_info_create(struct fib6_config *cfg,
 	rt->fib6_src.plen = cfg->fc_src_len;
 #endif
 	return rt;
+free_metrics:
+	ip_fib_metrics_put(rt->fib6_metrics);
 free:
 	kfree(rt);
 err:
