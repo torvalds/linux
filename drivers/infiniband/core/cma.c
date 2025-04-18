@@ -144,19 +144,6 @@ struct iw_cm_id *rdma_iw_cm_id(struct rdma_cm_id *id)
 }
 EXPORT_SYMBOL(rdma_iw_cm_id);
 
-/**
- * rdma_res_to_id() - return the rdma_cm_id pointer for this restrack.
- * @res: rdma resource tracking entry pointer
- */
-struct rdma_cm_id *rdma_res_to_id(struct rdma_restrack_entry *res)
-{
-	struct rdma_id_private *id_priv =
-		container_of(res, struct rdma_id_private, res);
-
-	return &id_priv->id;
-}
-EXPORT_SYMBOL(rdma_res_to_id);
-
 static int cma_add_one(struct ib_device *device);
 static void cma_remove_one(struct ib_device *device, void *client_data);
 
