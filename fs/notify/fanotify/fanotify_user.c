@@ -1961,12 +1961,7 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 		return -EINVAL;
 
 	if (mark_cmd == FAN_MARK_FLUSH) {
-		if (mark_type == FAN_MARK_MOUNT)
-			fsnotify_clear_vfsmount_marks_by_group(group);
-		else if (mark_type == FAN_MARK_FILESYSTEM)
-			fsnotify_clear_sb_marks_by_group(group);
-		else
-			fsnotify_clear_inode_marks_by_group(group);
+		fsnotify_clear_marks_by_group(group, obj_type);
 		return 0;
 	}
 
