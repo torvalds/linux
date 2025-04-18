@@ -889,9 +889,13 @@ static int bb_request_system_control(struct gpib_board *board, int request_contr
 	if (!request_control)
 		return -EINVAL;
 
-	set_bit(CIC_NUM, &board->status);
-	// drive DAV & EOI false, enable NRFD & NDAC irqs
-	SET_DIR_WRITE(board->private_data);
+	gpiod_direction_output(REN, 1); /* user space must enable REN if needed */
+	gpiod_direction_output(IFC, 1); /* user space must toggle IFC if needed */
+	if (sn7516x)
+		gpiod_direction_output(DC, 0); /* enable ATN as output on SN75161/2 */
+
+	gpiod_direction_input(SRQ);
+
 	return 0;
 }
 
