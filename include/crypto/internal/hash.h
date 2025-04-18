@@ -11,6 +11,15 @@
 #include <crypto/algapi.h>
 #include <crypto/hash.h>
 
+/* Set this bit to handle partial blocks in the API. */
+#define CRYPTO_AHASH_ALG_BLOCK_ONLY	0x01000000
+
+/* Set this bit if final requires at least one byte. */
+#define CRYPTO_AHASH_ALG_FINAL_NONZERO	0x02000000
+
+/* Set this bit if finup can deal with multiple blocks. */
+#define CRYPTO_AHASH_ALG_FINUP_MAX	0x04000000
+
 #define HASH_FBREQ_ON_STACK(name, req) \
         char __##name##_req[sizeof(struct ahash_request) + \
                             MAX_SYNC_HASH_REQSIZE] CRYPTO_MINALIGN_ATTR; \
@@ -279,6 +288,12 @@ static inline struct ahash_request *ahash_fbreq_on_stack_init(
 	req->nbytes = old->nbytes;
 
 	return req;
+}
+
+/* Return the state size without partial block for block-only algorithms. */
+static inline unsigned int crypto_shash_coresize(struct crypto_shash *tfm)
+{
+	return crypto_shash_statesize(tfm) - crypto_shash_blocksize(tfm) - 1;
 }
 
 #endif	/* _CRYPTO_INTERNAL_HASH_H */

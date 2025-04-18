@@ -85,6 +85,8 @@ struct ahash_request {
  *	   transformation object. Data processing can happen synchronously
  *	   [SHASH] or asynchronously [AHASH] at this point. Driver must not use
  *	   req->result.
+ *	   For block-only algorithms, @update must return the number
+ *	   of bytes to store in the API partial block buffer.
  * @final: **[mandatory]** Retrieve result from the driver. This function finalizes the
  *	   transformation and retrieves the resulting hash from the driver and
  *	   pushes it back to upper layers. No data processing happens at this
@@ -906,6 +908,18 @@ int crypto_hash_digest(struct crypto_ahash *tfm, const u8 *data,
 int crypto_shash_export(struct shash_desc *desc, void *out);
 
 /**
+ * crypto_shash_export_core() - extract core state for message digest
+ * @desc: reference to the operational state handle whose state is exported
+ * @out: output buffer of sufficient size that can hold the hash state
+ *
+ * Export the hash state without the partial block buffer.
+ *
+ * Context: Softirq or process context.
+ * Return: 0 if the export creation was successful; < 0 if an error occurred
+ */
+int crypto_shash_export_core(struct shash_desc *desc, void *out);
+
+/**
  * crypto_shash_import() - import operational state
  * @desc: reference to the operational state handle the state imported into
  * @in: buffer holding the state
@@ -920,6 +934,18 @@ int crypto_shash_export(struct shash_desc *desc, void *out);
 int crypto_shash_import(struct shash_desc *desc, const void *in);
 
 /**
+ * crypto_shash_import_core() - import core state
+ * @desc: reference to the operational state handle the state imported into
+ * @in: buffer holding the state
+ *
+ * Import the hash state without the partial block buffer.
+ *
+ * Context: Softirq or process context.
+ * Return: 0 if the import was successful; < 0 if an error occurred
+ */
+int crypto_shash_import_core(struct shash_desc *desc, const void *in);
+
+/**
  * crypto_shash_init() - (re)initialize message digest
  * @desc: operational state handle that is already filled
  *
@@ -931,46 +957,7 @@ int crypto_shash_import(struct shash_desc *desc, const void *in);
  * Return: 0 if the message digest initialization was successful; < 0 if an
  *	   error occurred
  */
-static inline int crypto_shash_init(struct shash_desc *desc)
-{
-	struct crypto_shash *tfm = desc->tfm;
-
-	if (crypto_shash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
-		return -ENOKEY;
-
-	return crypto_shash_alg(tfm)->init(desc);
-}
-
-/**
- * crypto_shash_update() - add data to message digest for processing
- * @desc: operational state handle that is already initialized
- * @data: input data to be added to the message digest
- * @len: length of the input data
- *
- * Updates the message digest state of the operational state handle.
- *
- * Context: Softirq or process context.
- * Return: 0 if the message digest update was successful; < 0 if an error
- *	   occurred
- */
-int crypto_shash_update(struct shash_desc *desc, const u8 *data,
-			unsigned int len);
-
-/**
- * crypto_shash_final() - calculate message digest
- * @desc: operational state handle that is already filled with data
- * @out: output buffer filled with the message digest
- *
- * Finalize the message digest operation and create the message digest
- * based on all data added to the cipher handle. The message digest is placed
- * into the output buffer. The caller must ensure that the output buffer is
- * large enough by using crypto_shash_digestsize.
- *
- * Context: Softirq or process context.
- * Return: 0 if the message digest creation was successful; < 0 if an error
- *	   occurred
- */
-int crypto_shash_final(struct shash_desc *desc, u8 *out);
+int crypto_shash_init(struct shash_desc *desc);
 
 /**
  * crypto_shash_finup() - calculate message digest of buffer
@@ -989,6 +976,43 @@ int crypto_shash_final(struct shash_desc *desc, u8 *out);
  */
 int crypto_shash_finup(struct shash_desc *desc, const u8 *data,
 		       unsigned int len, u8 *out);
+
+/**
+ * crypto_shash_update() - add data to message digest for processing
+ * @desc: operational state handle that is already initialized
+ * @data: input data to be added to the message digest
+ * @len: length of the input data
+ *
+ * Updates the message digest state of the operational state handle.
+ *
+ * Context: Softirq or process context.
+ * Return: 0 if the message digest update was successful; < 0 if an error
+ *	   occurred
+ */
+static inline int crypto_shash_update(struct shash_desc *desc, const u8 *data,
+				      unsigned int len)
+{
+	return crypto_shash_finup(desc, data, len, NULL);
+}
+
+/**
+ * crypto_shash_final() - calculate message digest
+ * @desc: operational state handle that is already filled with data
+ * @out: output buffer filled with the message digest
+ *
+ * Finalize the message digest operation and create the message digest
+ * based on all data added to the cipher handle. The message digest is placed
+ * into the output buffer. The caller must ensure that the output buffer is
+ * large enough by using crypto_shash_digestsize.
+ *
+ * Context: Softirq or process context.
+ * Return: 0 if the message digest creation was successful; < 0 if an error
+ *	   occurred
+ */
+static inline int crypto_shash_final(struct shash_desc *desc, u8 *out)
+{
+	return crypto_shash_finup(desc, NULL, 0, out);
+}
 
 static inline void shash_desc_zero(struct shash_desc *desc)
 {

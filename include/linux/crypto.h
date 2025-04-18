@@ -136,6 +136,8 @@
 /* Set if the algorithm supports request chains and virtual addresses. */
 #define CRYPTO_ALG_REQ_CHAIN		0x00040000
 
+/* The high bits 0xff000000 are reserved for type-specific flags. */
+
 /*
  * Transform masks and values (for crt_flags).
  */
