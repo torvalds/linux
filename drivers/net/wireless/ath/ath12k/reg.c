@@ -710,9 +710,15 @@ static void ath12k_reg_update_freq_range(struct ath12k_reg_freq *reg_freq,
 		reg_freq->end_freq = reg_rule->end_freq;
 }
 
+static bool ath12k_reg_is_world_alpha(char *alpha)
+{
+	return (alpha[0] == '0' && alpha[1] == '0') ||
+	       (alpha[0] == 'n' && alpha[1] == 'a');
+}
+
 struct ieee80211_regdomain *
 ath12k_reg_build_regd(struct ath12k_base *ab,
-		      struct ath12k_reg_info *reg_info, bool intersect)
+		      struct ath12k_reg_info *reg_info)
 {
 	struct ieee80211_regdomain *tmp_regd, *default_regd, *new_regd = NULL;
 	struct ath12k_reg_rule *reg_rule;
@@ -842,9 +848,14 @@ ath12k_reg_build_regd(struct ath12k_base *ab,
 
 	tmp_regd->n_reg_rules = i;
 
-	if (intersect) {
-		default_regd = ab->default_regd[reg_info->phy_id];
-
+	/* Intersect new rules with default regd if a new country setting was
+	 * requested, i.e a default regd was already set during initialization
+	 * and the regd coming from this event has a valid country info.
+	 */
+	default_regd = ab->default_regd[reg_info->phy_id];
+	if (default_regd &&
+	    !ath12k_reg_is_world_alpha((char *)default_regd->alpha2) &&
+	    !ath12k_reg_is_world_alpha((char *)reg_info->alpha2)) {
 		/* Get a new regd by intersecting the received regd with
 		 * our default regd.
 		 */
@@ -899,22 +910,10 @@ void ath12k_reg_reset_reg_info(struct ath12k_reg_info *reg_info)
 	}
 }
 
-static bool ath12k_reg_is_world_alpha(char *alpha)
-{
-	if (alpha[0] == '0' && alpha[1] == '0')
-		return true;
-
-	if (alpha[0] == 'n' && alpha[1] == 'a')
-		return true;
-
-	return false;
-}
-
 int ath12k_reg_handle_chan_list(struct ath12k_base *ab,
 				struct ath12k_reg_info *reg_info)
 {
 	struct ieee80211_regdomain *regd = NULL;
-	bool intersect = false;
 	struct ath12k *ar;
 	int pdev_idx;
 
@@ -948,17 +947,7 @@ int ath12k_reg_handle_chan_list(struct ath12k_base *ab,
 		    reg_info->alpha2, 2))
 		return 0;
 
-	/* Intersect new rules with default regd if a new country setting was
-	 * requested, i.e a default regd was already set during initialization
-	 * and the regd coming from this event has a valid country info.
-	 */
-	if (ab->default_regd[pdev_idx] &&
-	    !ath12k_reg_is_world_alpha((char *)
-		ab->default_regd[pdev_idx]->alpha2) &&
-	    !ath12k_reg_is_world_alpha((char *)reg_info->alpha2))
-		intersect = true;
-
-	regd = ath12k_reg_build_regd(ab, reg_info, intersect);
+	regd = ath12k_reg_build_regd(ab, reg_info);
 	if (!regd)
 		return -EINVAL;
 
