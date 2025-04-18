@@ -3,28 +3,24 @@
 	    "ConfigCode": "0x00",
 	    "EventName": "rx_ops_num",
 	    "BriefDescription": "The number of all operations received by the HHA",
-	    "PublicDescription": "The number of all operations received by the HHA",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x01",
 	    "EventName": "rx_outer",
 	    "BriefDescription": "The number of all operations received by the HHA from another socket",
-	    "PublicDescription": "The number of all operations received by the HHA from another socket",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x02",
 	    "EventName": "rx_sccl",
 	    "BriefDescription": "The number of all operations received by the HHA from another SCCL in this socket",
-	    "PublicDescription": "The number of all operations received by the HHA from another SCCL in this socket",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x03",
 	    "EventName": "rx_ccix",
 	    "BriefDescription": "Count of the number of operations that HHA has received from CCIX",
-	    "PublicDescription": "Count of the number of operations that HHA has received from CCIX",
 	    "Unit": "hisi_sccl,hha"
    },
    {
@@ -49,42 +45,36 @@
 	    "ConfigCode": "0x1c",
 	    "EventName": "rd_ddr_64b",
 	    "BriefDescription": "The number of read operations sent by HHA to DDRC which size is 64 bytes",
-	    "PublicDescription": "The number of read operations sent by HHA to DDRC which size is 64bytes",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x1d",
 	    "EventName": "wr_ddr_64b",
 	    "BriefDescription": "The number of write operations sent by HHA to DDRC which size is 64 bytes",
-	    "PublicDescription": "The number of write operations sent by HHA to DDRC which size is 64 bytes",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x1e",
 	    "EventName": "rd_ddr_128b",
 	    "BriefDescription": "The number of read operations sent by HHA to DDRC which size is 128 bytes",
-	    "PublicDescription": "The number of read operations sent by HHA to DDRC which size is 128 bytes",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x1f",
 	    "EventName": "wr_ddr_128b",
 	    "BriefDescription": "The number of write operations sent by HHA to DDRC which size is 128 bytes",
-	    "PublicDescription": "The number of write operations sent by HHA to DDRC which size is 128 bytes",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x20",
 	    "EventName": "spill_num",
 	    "BriefDescription": "Count of the number of spill operations that the HHA has sent",
-	    "PublicDescription": "Count of the number of spill operations that the HHA has sent",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x21",
 	    "EventName": "spill_success",
 	    "BriefDescription": "Count of the number of successful spill operations that the HHA has sent",
-	    "PublicDescription": "Count of the number of successful spill operations that the HHA has sent",
 	    "Unit": "hisi_sccl,hha"
    },
    {
