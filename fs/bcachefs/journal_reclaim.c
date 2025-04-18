@@ -637,8 +637,6 @@ static u64 journal_seq_to_flush(struct journal *j)
 		/* Try to keep the journal at most half full: */
 		nr_buckets = ja->nr / 2;
 
-		nr_buckets = min(nr_buckets, ja->nr);
-
 		bucket_to_flush = (ja->cur_idx + nr_buckets) % ja->nr;
 		seq_to_flush = max(seq_to_flush,
 				   ja->bucket_seq[bucket_to_flush]);
