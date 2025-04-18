@@ -163,6 +163,7 @@ static const struct irq_domain_ops mip_middle_domain_ops = {
 static const struct msi_parent_ops mip_msi_parent_ops = {
 	.supported_flags	= MIP_MSI_FLAGS_SUPPORTED,
 	.required_flags		= MIP_MSI_FLAGS_REQUIRED,
+	.chip_flags		= MSI_CHIP_FLAG_SET_EOI | MSI_CHIP_FLAG_SET_ACK,
 	.bus_select_token       = DOMAIN_BUS_GENERIC_MSI,
 	.bus_select_mask	= MATCH_PCI_MSI,
 	.prefix			= "MIP-MSI-",

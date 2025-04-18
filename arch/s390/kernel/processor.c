@@ -294,6 +294,10 @@ static int __init setup_elf_platform(void)
 	case 0x3932:
 		strcpy(elf_platform, "z16");
 		break;
+	case 0x9175:
+	case 0x9176:
+		strcpy(elf_platform, "z17");
+		break;
 	}
 	return 0;
 }
