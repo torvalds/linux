@@ -281,7 +281,24 @@ static void __journal_entry_close(struct journal *j, unsigned closed_val, bool t
 
 	sectors = vstruct_blocks_plus(buf->data, c->block_bits,
 				      buf->u64s_reserved) << c->block_bits;
-	BUG_ON(sectors > buf->sectors);
+	if (unlikely(sectors > buf->sectors)) {
+		struct printbuf err = PRINTBUF;
+		err.atomic++;
+
+		prt_printf(&err, "journal entry overran reserved space: %u > %u\n",
+			   sectors, buf->sectors);
+		prt_printf(&err, "buf u64s %u u64s reserved %u cur_entry_u64s %u block_bits %u\n",
+			   le32_to_cpu(buf->data->u64s), buf->u64s_reserved,
+			   j->cur_entry_u64s,
+			   c->block_bits);
+		prt_printf(&err, "fatal error - emergency read only");
+		bch2_journal_halt_locked(j);
+
+		bch_err(c, "%s", err.buf);
+		printbuf_exit(&err);
+		return;
+	}
+
 	buf->sectors = sectors;
 
 	/*
