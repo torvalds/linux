@@ -1188,19 +1188,21 @@ attribute-sets:
         multi-attr: true
   -
     name: af-spec-attrs
+    name-prefix: af-
+    attr-max-name: af-max
     attributes:
       -
-        name: "inet"
+        name: inet
         type: nest
         value: 2
         nested-attributes: ifla-attrs
       -
-        name: "inet6"
+        name: inet6
         type: nest
         value: 10
         nested-attributes: ifla6-attrs
       -
-        name: "mctp"
+        name: mctp
         type: nest
         value: 45
         nested-attributes: mctp-attrs
