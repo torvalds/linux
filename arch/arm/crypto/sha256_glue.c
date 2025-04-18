@@ -10,58 +10,47 @@
  *   Author: Tim Chen <tim.c.chen@linux.intel.com>
  */
 
+#include <asm/neon.h>
 #include <crypto/internal/hash.h>
-#include <linux/crypto.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/mm.h>
-#include <linux/types.h>
-#include <linux/string.h>
 #include <crypto/sha2.h>
 #include <crypto/sha256_base.h>
-#include <asm/simd.h>
-#include <asm/neon.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 
 #include "sha256_glue.h"
 
-asmlinkage void sha256_block_data_order(struct sha256_state *state,
+asmlinkage void sha256_block_data_order(struct crypto_sha256_state *state,
 					const u8 *data, int num_blks);
 
-int crypto_sha256_arm_update(struct shash_desc *desc, const u8 *data,
-			     unsigned int len)
+static int crypto_sha256_arm_update(struct shash_desc *desc, const u8 *data,
+				    unsigned int len)
 {
 	/* make sure casting to sha256_block_fn() is safe */
-	BUILD_BUG_ON(offsetof(struct sha256_state, state) != 0);
+	BUILD_BUG_ON(offsetof(struct crypto_sha256_state, state) != 0);
 
-	return sha256_base_do_update(desc, data, len, sha256_block_data_order);
+	return sha256_base_do_update_blocks(desc, data, len,
+					    sha256_block_data_order);
 }
-EXPORT_SYMBOL(crypto_sha256_arm_update);
 
-static int crypto_sha256_arm_final(struct shash_desc *desc, u8 *out)
+static int crypto_sha256_arm_finup(struct shash_desc *desc, const u8 *data,
+				   unsigned int len, u8 *out)
 {
-	sha256_base_do_finalize(desc, sha256_block_data_order);
+	sha256_base_do_finup(desc, data, len, sha256_block_data_order);
 	return sha256_base_finish(desc, out);
 }
-
-int crypto_sha256_arm_finup(struct shash_desc *desc, const u8 *data,
-			    unsigned int len, u8 *out)
-{
-	sha256_base_do_update(desc, data, len, sha256_block_data_order);
-	return crypto_sha256_arm_final(desc, out);
-}
-EXPORT_SYMBOL(crypto_sha256_arm_finup);
 
 static struct shash_alg algs[] = { {
 	.digestsize	=	SHA256_DIGEST_SIZE,
 	.init		=	sha256_base_init,
 	.update		=	crypto_sha256_arm_update,
-	.final		=	crypto_sha256_arm_final,
 	.finup		=	crypto_sha256_arm_finup,
-	.descsize	=	sizeof(struct sha256_state),
+	.descsize	=	sizeof(struct crypto_sha256_state),
 	.base		=	{
 		.cra_name	=	"sha256",
 		.cra_driver_name =	"sha256-asm",
 		.cra_priority	=	150,
+		.cra_flags	=	CRYPTO_AHASH_ALG_BLOCK_ONLY |
+					CRYPTO_AHASH_ALG_FINUP_MAX,
 		.cra_blocksize	=	SHA256_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}
@@ -69,13 +58,14 @@ static struct shash_alg algs[] = { {
 	.digestsize	=	SHA224_DIGEST_SIZE,
 	.init		=	sha224_base_init,
 	.update		=	crypto_sha256_arm_update,
-	.final		=	crypto_sha256_arm_final,
 	.finup		=	crypto_sha256_arm_finup,
-	.descsize	=	sizeof(struct sha256_state),
+	.descsize	=	sizeof(struct crypto_sha256_state),
 	.base		=	{
 		.cra_name	=	"sha224",
 		.cra_driver_name =	"sha224-asm",
 		.cra_priority	=	150,
+		.cra_flags	=	CRYPTO_AHASH_ALG_BLOCK_ONLY |
+					CRYPTO_AHASH_ALG_FINUP_MAX,
 		.cra_blocksize	=	SHA224_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}
