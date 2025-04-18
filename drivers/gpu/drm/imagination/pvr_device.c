@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/stddef.h>
 #include <linux/types.h>
@@ -116,6 +117,21 @@ static int pvr_device_clk_init(struct pvr_device *pvr_dev)
 	pvr_dev->core_clk = core_clk;
 	pvr_dev->sys_clk = sys_clk;
 	pvr_dev->mem_clk = mem_clk;
+
+	return 0;
+}
+
+static int pvr_device_reset_init(struct pvr_device *pvr_dev)
+{
+	struct drm_device *drm_dev = from_pvr_device(pvr_dev);
+	struct reset_control *reset;
+
+	reset = devm_reset_control_get_optional_exclusive(drm_dev->dev, NULL);
+	if (IS_ERR(reset))
+		return dev_err_probe(drm_dev->dev, PTR_ERR(reset),
+				     "failed to get gpu reset line\n");
+
+	pvr_dev->reset = reset;
 
 	return 0;
 }
@@ -612,6 +628,11 @@ pvr_device_init(struct pvr_device *pvr_dev)
 
 	/* Enable and initialize clocks required for the device to operate. */
 	err = pvr_device_clk_init(pvr_dev);
+	if (err)
+		return err;
+
+	/* Get the reset line for the GPU */
+	err = pvr_device_reset_init(pvr_dev);
 	if (err)
 		return err;
 
