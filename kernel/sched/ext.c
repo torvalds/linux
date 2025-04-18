@@ -1811,6 +1811,12 @@ static void dsq_mod_nr(struct scx_dispatch_q *dsq, s32 delta)
 	WRITE_ONCE(dsq->nr, dsq->nr + delta);
 }
 
+static void refill_task_slice_dfl(struct task_struct *p)
+{
+	p->scx.slice = SCX_SLICE_DFL;
+	__scx_add_event(SCX_EV_REFILL_SLICE_DFL, 1);
+}
+
 static void dispatch_enqueue(struct scx_dispatch_q *dsq, struct task_struct *p,
 			     u64 enq_flags)
 {
@@ -2192,16 +2198,14 @@ local:
 	 * higher priority it becomes from scx_prio_less()'s POV.
 	 */
 	touch_core_sched(rq, p);
-	p->scx.slice = SCX_SLICE_DFL;
-	__scx_add_event(SCX_EV_REFILL_SLICE_DFL, 1);
+	refill_task_slice_dfl(p);
 local_norefill:
 	dispatch_enqueue(&rq->scx.local_dsq, p, enq_flags);
 	return;
 
 global:
 	touch_core_sched(rq, p);	/* see the comment in local: */
-	p->scx.slice = SCX_SLICE_DFL;
-	__scx_add_event(SCX_EV_REFILL_SLICE_DFL, 1);
+	refill_task_slice_dfl(p);
 	dispatch_enqueue(find_global_dsq(p), p, enq_flags);
 }
 
@@ -3290,10 +3294,8 @@ static struct task_struct *pick_task_scx(struct rq *rq)
 	 */
 	if (keep_prev) {
 		p = prev;
-		if (!p->scx.slice) {
-			p->scx.slice = SCX_SLICE_DFL;
-			__scx_add_event(SCX_EV_REFILL_SLICE_DFL, 1);
-		}
+		if (!p->scx.slice)
+			refill_task_slice_dfl(p);
 	} else {
 		p = first_local_task(rq);
 		if (!p) {
@@ -3308,8 +3310,7 @@ static struct task_struct *pick_task_scx(struct rq *rq)
 						p->comm, p->pid, __func__);
 				scx_warned_zero_slice = true;
 			}
-			p->scx.slice = SCX_SLICE_DFL;
-			__scx_add_event(SCX_EV_REFILL_SLICE_DFL, 1);
+			refill_task_slice_dfl(p);
 		}
 	}
 
@@ -3393,9 +3394,8 @@ static int select_task_rq_scx(struct task_struct *p, int prev_cpu, int wake_flag
 
 		cpu = scx_select_cpu_dfl(p, prev_cpu, wake_flags, NULL, 0);
 		if (cpu >= 0) {
-			p->scx.slice = SCX_SLICE_DFL;
+			refill_task_slice_dfl(p);
 			p->scx.ddsp_dsq_id = SCX_DSQ_LOCAL;
-			__scx_add_event(SCX_EV_REFILL_SLICE_DFL, 1);
 		} else {
 			cpu = prev_cpu;
 		}
