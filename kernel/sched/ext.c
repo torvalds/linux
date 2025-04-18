@@ -1515,10 +1515,10 @@ struct scx_event_stats {
 	s64		SCX_EV_ENQ_SKIP_MIGRATION_DISABLED;
 
 	/*
-	 * The total number of tasks enqueued (or pick_task-ed) with a
-	 * default time slice (SCX_SLICE_DFL).
+	 * Total number of times a task's time slice was refilled with the
+	 * default value (SCX_SLICE_DFL).
 	 */
-	s64		SCX_EV_ENQ_SLICE_DFL;
+	s64		SCX_EV_REFILL_SLICE_DFL;
 
 	/*
 	 * The total duration of bypass modes in nanoseconds.
@@ -2193,7 +2193,7 @@ local:
 	 */
 	touch_core_sched(rq, p);
 	p->scx.slice = SCX_SLICE_DFL;
-	__scx_add_event(SCX_EV_ENQ_SLICE_DFL, 1);
+	__scx_add_event(SCX_EV_REFILL_SLICE_DFL, 1);
 local_norefill:
 	dispatch_enqueue(&rq->scx.local_dsq, p, enq_flags);
 	return;
@@ -2201,7 +2201,7 @@ local_norefill:
 global:
 	touch_core_sched(rq, p);	/* see the comment in local: */
 	p->scx.slice = SCX_SLICE_DFL;
-	__scx_add_event(SCX_EV_ENQ_SLICE_DFL, 1);
+	__scx_add_event(SCX_EV_REFILL_SLICE_DFL, 1);
 	dispatch_enqueue(find_global_dsq(p), p, enq_flags);
 }
 
@@ -3292,7 +3292,7 @@ static struct task_struct *pick_task_scx(struct rq *rq)
 		p = prev;
 		if (!p->scx.slice) {
 			p->scx.slice = SCX_SLICE_DFL;
-			__scx_add_event(SCX_EV_ENQ_SLICE_DFL, 1);
+			__scx_add_event(SCX_EV_REFILL_SLICE_DFL, 1);
 		}
 	} else {
 		p = first_local_task(rq);
@@ -3309,7 +3309,7 @@ static struct task_struct *pick_task_scx(struct rq *rq)
 				scx_warned_zero_slice = true;
 			}
 			p->scx.slice = SCX_SLICE_DFL;
-			__scx_add_event(SCX_EV_ENQ_SLICE_DFL, 1);
+			__scx_add_event(SCX_EV_REFILL_SLICE_DFL, 1);
 		}
 	}
 
@@ -3395,7 +3395,7 @@ static int select_task_rq_scx(struct task_struct *p, int prev_cpu, int wake_flag
 		if (cpu >= 0) {
 			p->scx.slice = SCX_SLICE_DFL;
 			p->scx.ddsp_dsq_id = SCX_DSQ_LOCAL;
-			__scx_add_event(SCX_EV_ENQ_SLICE_DFL, 1);
+			__scx_add_event(SCX_EV_REFILL_SLICE_DFL, 1);
 		} else {
 			cpu = prev_cpu;
 		}
@@ -4368,7 +4368,7 @@ static ssize_t scx_attr_events_show(struct kobject *kobj,
 	at += scx_attr_event_show(buf, at, &events, SCX_EV_DISPATCH_KEEP_LAST);
 	at += scx_attr_event_show(buf, at, &events, SCX_EV_ENQ_SKIP_EXITING);
 	at += scx_attr_event_show(buf, at, &events, SCX_EV_ENQ_SKIP_MIGRATION_DISABLED);
-	at += scx_attr_event_show(buf, at, &events, SCX_EV_ENQ_SLICE_DFL);
+	at += scx_attr_event_show(buf, at, &events, SCX_EV_REFILL_SLICE_DFL);
 	at += scx_attr_event_show(buf, at, &events, SCX_EV_BYPASS_DURATION);
 	at += scx_attr_event_show(buf, at, &events, SCX_EV_BYPASS_DISPATCH);
 	at += scx_attr_event_show(buf, at, &events, SCX_EV_BYPASS_ACTIVATE);
@@ -5099,7 +5099,7 @@ static void scx_dump_state(struct scx_exit_info *ei, size_t dump_len)
 	scx_dump_event(s, &events, SCX_EV_DISPATCH_KEEP_LAST);
 	scx_dump_event(s, &events, SCX_EV_ENQ_SKIP_EXITING);
 	scx_dump_event(s, &events, SCX_EV_ENQ_SKIP_MIGRATION_DISABLED);
-	scx_dump_event(s, &events, SCX_EV_ENQ_SLICE_DFL);
+	scx_dump_event(s, &events, SCX_EV_REFILL_SLICE_DFL);
 	scx_dump_event(s, &events, SCX_EV_BYPASS_DURATION);
 	scx_dump_event(s, &events, SCX_EV_BYPASS_DISPATCH);
 	scx_dump_event(s, &events, SCX_EV_BYPASS_ACTIVATE);
@@ -7252,7 +7252,7 @@ __bpf_kfunc void scx_bpf_events(struct scx_event_stats *events,
 		scx_agg_event(&e_sys, e_cpu, SCX_EV_DISPATCH_KEEP_LAST);
 		scx_agg_event(&e_sys, e_cpu, SCX_EV_ENQ_SKIP_EXITING);
 		scx_agg_event(&e_sys, e_cpu, SCX_EV_ENQ_SKIP_MIGRATION_DISABLED);
-		scx_agg_event(&e_sys, e_cpu, SCX_EV_ENQ_SLICE_DFL);
+		scx_agg_event(&e_sys, e_cpu, SCX_EV_REFILL_SLICE_DFL);
 		scx_agg_event(&e_sys, e_cpu, SCX_EV_BYPASS_DURATION);
 		scx_agg_event(&e_sys, e_cpu, SCX_EV_BYPASS_DISPATCH);
 		scx_agg_event(&e_sys, e_cpu, SCX_EV_BYPASS_ACTIVATE);
