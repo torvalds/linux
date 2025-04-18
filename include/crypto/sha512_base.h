@@ -10,7 +10,10 @@
 
 #include <crypto/internal/hash.h>
 #include <crypto/sha2.h>
+#include <linux/compiler.h>
+#include <linux/math.h>
 #include <linux/string.h>
+#include <linux/types.h>
 #include <linux/unaligned.h>
 
 typedef void (sha512_block_fn)(struct sha512_state *sst, u8 const *src,
@@ -174,5 +177,8 @@ static inline int sha512_base_finish(struct shash_desc *desc, u8 *out)
 		put_unaligned_be64(sctx->state[i], digest++);
 	return 0;
 }
+
+void sha512_generic_block_fn(struct sha512_state *sst, u8 const *src,
+			     int blocks);
 
 #endif /* _CRYPTO_SHA512_BASE_H */

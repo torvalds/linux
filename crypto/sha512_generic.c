@@ -145,14 +145,15 @@ sha512_transform(u64 *state, const u8 *input)
 	state[4] += e; state[5] += f; state[6] += g; state[7] += h;
 }
 
-static void sha512_generic_block_fn(struct sha512_state *sst, u8 const *src,
-				    int blocks)
+void sha512_generic_block_fn(struct sha512_state *sst, u8 const *src,
+			     int blocks)
 {
 	while (blocks--) {
 		sha512_transform(sst->state, src);
 		src += SHA512_BLOCK_SIZE;
 	}
 }
+EXPORT_SYMBOL_GPL(sha512_generic_block_fn);
 
 int crypto_sha512_update(struct shash_desc *desc, const u8 *data,
 			unsigned int len)
