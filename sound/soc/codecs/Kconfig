@@ -2505,7 +2505,7 @@ config SND_SOC_WM8997
 	depends on MFD_WM8997 && MFD_ARIZONA
 
 config SND_SOC_WM8998
-	tristate
+	tristate "Wolfson Microelectronics WM8998 codec driver"
 	depends on MFD_WM8998 && MFD_ARIZONA
 
 config SND_SOC_WM9081
