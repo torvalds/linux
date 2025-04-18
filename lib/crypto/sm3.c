@@ -8,9 +8,11 @@
  * Copyright (C) 2021 Tianjia Zhang <tianjia.zhang@linux.alibaba.com>
  */
 
-#include <linux/module.h>
-#include <linux/unaligned.h>
 #include <crypto/sm3.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/string.h>
+#include <linux/unaligned.h>
 
 static const u32 ____cacheline_aligned K[64] = {
 	0x79cc4519, 0xf3988a32, 0xe7311465, 0xce6228cb,
@@ -178,68 +180,6 @@ void sm3_block_generic(struct sm3_state *sctx, u8 const *data, int blocks)
 	memzero_explicit(W, sizeof(W));
 }
 EXPORT_SYMBOL_GPL(sm3_block_generic);
-
-void sm3_update(struct sm3_state *sctx, const u8 *data, unsigned int len)
-{
-	unsigned int partial = sctx->count % SM3_BLOCK_SIZE;
-
-	sctx->count += len;
-
-	if ((partial + len) >= SM3_BLOCK_SIZE) {
-		int blocks;
-
-		if (partial) {
-			int p = SM3_BLOCK_SIZE - partial;
-
-			memcpy(sctx->buffer + partial, data, p);
-			data += p;
-			len -= p;
-
-			sm3_block_generic(sctx, sctx->buffer, 1);
-		}
-
-		blocks = len / SM3_BLOCK_SIZE;
-		len %= SM3_BLOCK_SIZE;
-
-		if (blocks) {
-			sm3_block_generic(sctx, data, blocks);
-			data += blocks * SM3_BLOCK_SIZE;
-		}
-
-		partial = 0;
-	}
-	if (len)
-		memcpy(sctx->buffer + partial, data, len);
-}
-EXPORT_SYMBOL_GPL(sm3_update);
-
-void sm3_final(struct sm3_state *sctx, u8 *out)
-{
-	const int bit_offset = SM3_BLOCK_SIZE - sizeof(u64);
-	__be64 *bits = (__be64 *)(sctx->buffer + bit_offset);
-	__be32 *digest = (__be32 *)out;
-	unsigned int partial = sctx->count % SM3_BLOCK_SIZE;
-	int i;
-
-	sctx->buffer[partial++] = 0x80;
-	if (partial > bit_offset) {
-		memset(sctx->buffer + partial, 0, SM3_BLOCK_SIZE - partial);
-		partial = 0;
-
-		sm3_block_generic(sctx, sctx->buffer, 1);
-	}
-
-	memset(sctx->buffer + partial, 0, bit_offset - partial);
-	*bits = cpu_to_be64(sctx->count << 3);
-	sm3_block_generic(sctx, sctx->buffer, 1);
-
-	for (i = 0; i < 8; i++)
-		put_unaligned_be32(sctx->state[i], digest++);
-
-	/* Zeroize sensitive information. */
-	memzero_explicit(sctx, sizeof(*sctx));
-}
-EXPORT_SYMBOL_GPL(sm3_final);
 
 MODULE_DESCRIPTION("Generic SM3 library");
 MODULE_LICENSE("GPL v2");
