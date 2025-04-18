@@ -405,7 +405,7 @@ SYM_CODE_START_LOCAL_NOALIGN(pr_char_8250)
 	inb	%dx, %al
 	testb	$XMTRDY, %al
 	jnz	.Lready
-	rep nop
+	pause
 	jmp .Lxmtrdy_loop
 
 .Lready:
@@ -426,7 +426,7 @@ SYM_CODE_START_LOCAL_NOALIGN(pr_char_8250_mmio32)
 	movb	(LSR*4)(%rdx), %ah
 	testb	$XMTRDY, %ah
 	jnz	.Lready_mmio
-	rep nop
+	pause
 	jmp .Lxmtrdy_loop_mmio
 
 .Lready_mmio:
