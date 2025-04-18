@@ -14,15 +14,12 @@
  * SHA224 Support Copyright 2007 Intel Corporation <jonathan.lynch@intel.com>
  */
 
-#include <linux/mm.h>
-#include <crypto/sha2.h>
-#include <crypto/sha256_base.h>
-#include <linux/init.h>
-#include <linux/types.h>
-#include <linux/module.h>
-#include <asm/byteorder.h>
 #include <asm/octeon/octeon.h>
 #include <crypto/internal/hash.h>
+#include <crypto/sha2.h>
+#include <crypto/sha256_base.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 
 #include "octeon-crypto.h"
 
@@ -30,7 +27,7 @@
  * We pass everything as 64-bit. OCTEON can handle misaligned data.
  */
 
-static void octeon_sha256_store_hash(struct sha256_state *sctx)
+static void octeon_sha256_store_hash(struct crypto_sha256_state *sctx)
 {
 	u64 *hash = (u64 *)sctx->state;
 
@@ -40,7 +37,7 @@ static void octeon_sha256_store_hash(struct sha256_state *sctx)
 	write_octeon_64bit_hash_dword(hash[3], 3);
 }
 
-static void octeon_sha256_read_hash(struct sha256_state *sctx)
+static void octeon_sha256_read_hash(struct crypto_sha256_state *sctx)
 {
 	u64 *hash = (u64 *)sctx->state;
 
@@ -50,158 +47,72 @@ static void octeon_sha256_read_hash(struct sha256_state *sctx)
 	hash[3] = read_octeon_64bit_hash_dword(3);
 }
 
-static void octeon_sha256_transform(const void *_block)
+static void octeon_sha256_transform(struct crypto_sha256_state *sctx,
+				    const u8 *src, int blocks)
 {
-	const u64 *block = _block;
+	do {
+		const u64 *block = (const u64 *)src;
 
-	write_octeon_64bit_block_dword(block[0], 0);
-	write_octeon_64bit_block_dword(block[1], 1);
-	write_octeon_64bit_block_dword(block[2], 2);
-	write_octeon_64bit_block_dword(block[3], 3);
-	write_octeon_64bit_block_dword(block[4], 4);
-	write_octeon_64bit_block_dword(block[5], 5);
-	write_octeon_64bit_block_dword(block[6], 6);
-	octeon_sha256_start(block[7]);
-}
+		write_octeon_64bit_block_dword(block[0], 0);
+		write_octeon_64bit_block_dword(block[1], 1);
+		write_octeon_64bit_block_dword(block[2], 2);
+		write_octeon_64bit_block_dword(block[3], 3);
+		write_octeon_64bit_block_dword(block[4], 4);
+		write_octeon_64bit_block_dword(block[5], 5);
+		write_octeon_64bit_block_dword(block[6], 6);
+		octeon_sha256_start(block[7]);
 
-static void __octeon_sha256_update(struct sha256_state *sctx, const u8 *data,
-				   unsigned int len)
-{
-	unsigned int partial;
-	unsigned int done;
-	const u8 *src;
-
-	partial = sctx->count % SHA256_BLOCK_SIZE;
-	sctx->count += len;
-	done = 0;
-	src = data;
-
-	if ((partial + len) >= SHA256_BLOCK_SIZE) {
-		if (partial) {
-			done = -partial;
-			memcpy(sctx->buf + partial, data,
-			       done + SHA256_BLOCK_SIZE);
-			src = sctx->buf;
-		}
-
-		do {
-			octeon_sha256_transform(src);
-			done += SHA256_BLOCK_SIZE;
-			src = data + done;
-		} while (done + SHA256_BLOCK_SIZE <= len);
-
-		partial = 0;
-	}
-	memcpy(sctx->buf + partial, src, len - done);
+		src += SHA256_BLOCK_SIZE;
+	} while (--blocks);
 }
 
 static int octeon_sha256_update(struct shash_desc *desc, const u8 *data,
 				unsigned int len)
 {
-	struct sha256_state *sctx = shash_desc_ctx(desc);
+	struct crypto_sha256_state *sctx = shash_desc_ctx(desc);
 	struct octeon_cop2_state state;
 	unsigned long flags;
-
-	/*
-	 * Small updates never reach the crypto engine, so the generic sha256 is
-	 * faster because of the heavyweight octeon_crypto_enable() /
-	 * octeon_crypto_disable().
-	 */
-	if ((sctx->count % SHA256_BLOCK_SIZE) + len < SHA256_BLOCK_SIZE)
-		return crypto_sha256_update(desc, data, len);
+	int remain;
 
 	flags = octeon_crypto_enable(&state);
 	octeon_sha256_store_hash(sctx);
 
-	__octeon_sha256_update(sctx, data, len);
+	remain = sha256_base_do_update_blocks(desc, data, len,
+					      octeon_sha256_transform);
 
 	octeon_sha256_read_hash(sctx);
 	octeon_crypto_disable(&state, flags);
-
-	return 0;
+	return remain;
 }
 
-static int octeon_sha256_final(struct shash_desc *desc, u8 *out)
+static int octeon_sha256_finup(struct shash_desc *desc, const u8 *src,
+			       unsigned int len, u8 *out)
 {
-	struct sha256_state *sctx = shash_desc_ctx(desc);
-	static const u8 padding[64] = { 0x80, };
+	struct crypto_sha256_state *sctx = shash_desc_ctx(desc);
 	struct octeon_cop2_state state;
-	__be32 *dst = (__be32 *)out;
-	unsigned int pad_len;
 	unsigned long flags;
-	unsigned int index;
-	__be64 bits;
-	int i;
-
-	/* Save number of bits. */
-	bits = cpu_to_be64(sctx->count << 3);
-
-	/* Pad out to 56 mod 64. */
-	index = sctx->count & 0x3f;
-	pad_len = (index < 56) ? (56 - index) : ((64+56) - index);
 
 	flags = octeon_crypto_enable(&state);
 	octeon_sha256_store_hash(sctx);
 
-	__octeon_sha256_update(sctx, padding, pad_len);
-
-	/* Append length (before padding). */
-	__octeon_sha256_update(sctx, (const u8 *)&bits, sizeof(bits));
+	sha256_base_do_finup(desc, src, len, octeon_sha256_transform);
 
 	octeon_sha256_read_hash(sctx);
 	octeon_crypto_disable(&state, flags);
-
-	/* Store state in digest */
-	for (i = 0; i < 8; i++)
-		dst[i] = cpu_to_be32(sctx->state[i]);
-
-	/* Zeroize sensitive information. */
-	memset(sctx, 0, sizeof(*sctx));
-
-	return 0;
-}
-
-static int octeon_sha224_final(struct shash_desc *desc, u8 *hash)
-{
-	u8 D[SHA256_DIGEST_SIZE];
-
-	octeon_sha256_final(desc, D);
-
-	memcpy(hash, D, SHA224_DIGEST_SIZE);
-	memzero_explicit(D, SHA256_DIGEST_SIZE);
-
-	return 0;
-}
-
-static int octeon_sha256_export(struct shash_desc *desc, void *out)
-{
-	struct sha256_state *sctx = shash_desc_ctx(desc);
-
-	memcpy(out, sctx, sizeof(*sctx));
-	return 0;
-}
-
-static int octeon_sha256_import(struct shash_desc *desc, const void *in)
-{
-	struct sha256_state *sctx = shash_desc_ctx(desc);
-
-	memcpy(sctx, in, sizeof(*sctx));
-	return 0;
+	return sha256_base_finish(desc, out);
 }
 
 static struct shash_alg octeon_sha256_algs[2] = { {
 	.digestsize	=	SHA256_DIGEST_SIZE,
 	.init		=	sha256_base_init,
 	.update		=	octeon_sha256_update,
-	.final		=	octeon_sha256_final,
-	.export		=	octeon_sha256_export,
-	.import		=	octeon_sha256_import,
-	.descsize	=	sizeof(struct sha256_state),
-	.statesize	=	sizeof(struct sha256_state),
+	.finup		=	octeon_sha256_finup,
+	.descsize	=	sizeof(struct crypto_sha256_state),
 	.base		=	{
 		.cra_name	=	"sha256",
 		.cra_driver_name=	"octeon-sha256",
 		.cra_priority	=	OCTEON_CR_OPCODE_PRIORITY,
+		.cra_flags	=	CRYPTO_AHASH_ALG_BLOCK_ONLY,
 		.cra_blocksize	=	SHA256_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}
@@ -209,11 +120,13 @@ static struct shash_alg octeon_sha256_algs[2] = { {
 	.digestsize	=	SHA224_DIGEST_SIZE,
 	.init		=	sha224_base_init,
 	.update		=	octeon_sha256_update,
-	.final		=	octeon_sha224_final,
-	.descsize	=	sizeof(struct sha256_state),
+	.finup		=	octeon_sha256_finup,
+	.descsize	=	sizeof(struct crypto_sha256_state),
 	.base		=	{
 		.cra_name	=	"sha224",
 		.cra_driver_name=	"octeon-sha224",
+		.cra_priority	=	OCTEON_CR_OPCODE_PRIORITY,
+		.cra_flags	=	CRYPTO_AHASH_ALG_BLOCK_ONLY,
 		.cra_blocksize	=	SHA224_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}
