@@ -53,48 +53,6 @@ enum ibsta_bits {
 		EVENT | LOK | REM | CIC | ATN | TACS | LACS | DTAS | DCAS | SRQI,
 };
 
-/* IBERR error codes */
-enum iberr_code {
-	EDVR = 0,		/* system error */
-	ECIC = 1,		/* not CIC */
-	ENOL = 2,		/* no listeners */
-	EADR = 3,		/* CIC and not addressed before I/O */
-	EARG = 4,		/* bad argument to function call */
-	ESAC = 5,		/* not SAC */
-	EABO = 6,		/* I/O operation was aborted */
-	ENEB = 7,		/* non-existent board (GPIB interface offline) */
-	EDMA = 8,		/* DMA hardware error detected */
-	EOIP = 10,		/* new I/O attempted with old I/O in progress  */
-	ECAP = 11,		/* no capability for intended opeation */
-	EFSO = 12,		/* file system operation error */
-	EBUS = 14,		/* bus error */
-	ESTB = 15,		/* lost serial poll bytes */
-	ESRQ = 16,		/* SRQ stuck on */
-	ETAB = 20	       /* Table Overflow */
-};
-
-/* Timeout values and meanings */
-enum gpib_timeout {
-	TNONE = 0,		/* Infinite timeout (disabled)	   */
-	T10us = 1,		/* Timeout of 10 usec (ideal)	   */
-	T30us = 2,		/* Timeout of 30 usec (ideal)	   */
-	T100us = 3,		/* Timeout of 100 usec (ideal)	   */
-	T300us = 4,		/* Timeout of 300 usec (ideal)	   */
-	T1ms = 5,		/* Timeout of 1 msec (ideal)	   */
-	T3ms = 6,		/* Timeout of 3 msec (ideal)	   */
-	T10ms = 7,		/* Timeout of 10 msec (ideal)	   */
-	T30ms = 8,		/* Timeout of 30 msec (ideal)	   */
-	T100ms = 9,		/* Timeout of 100 msec (ideal)	   */
-	T300ms = 10,	/* Timeout of 300 msec (ideal)	   */
-	T1s = 11,		/* Timeout of 1 sec (ideal)	   */
-	T3s = 12,		/* Timeout of 3 sec (ideal)	   */
-	T10s = 13,		/* Timeout of 10 sec (ideal)	   */
-	T30s = 14,		/* Timeout of 30 sec (ideal)	   */
-	T100s = 15,		/* Timeout of 100 sec (ideal)	   */
-	T300s = 16,		/* Timeout of 300 sec (ideal)	   */
-	T1000s = 17		/* Timeout of 1000 sec (maximum)   */
-};
-
 /* End-of-string (EOS) modes for use with ibeos */
 
 enum eos_flags {
