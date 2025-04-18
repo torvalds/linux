@@ -363,20 +363,20 @@ SYM_CODE_START_LOCAL_NOALIGN(swap_pages)
 	/* copy source page to swap page */
 	movq	kexec_pa_swap_page(%rip), %rdi
 	movl	$512, %ecx
-	rep ; movsq
+	rep movsq
 
 	/* copy destination page to source page */
 	movq	%rax, %rdi
 	movq	%rdx, %rsi
 	movl	$512, %ecx
-	rep ; movsq
+	rep movsq
 
 	/* copy swap page to destination page */
 	movq	%rdx, %rdi
 	movq	kexec_pa_swap_page(%rip), %rsi
 .Lnoswap:
 	movl	$512, %ecx
-	rep ; movsq
+	rep movsq
 
 	lea	PAGE_SIZE(%rax), %rsi
 	jmp	.Lloop
