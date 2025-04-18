@@ -55,9 +55,8 @@ int hw_sm750_map(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 		pr_err("mmio failed\n");
 		ret = -EFAULT;
 		goto exit;
-	} else {
-		pr_info("mmio virtual addr = %p\n", sm750_dev->pvReg);
 	}
+	pr_info("mmio virtual addr = %p\n", sm750_dev->pvReg);
 
 	sm750_dev->accel.dprBase = sm750_dev->pvReg + DE_BASE_ADDR_TYPE1;
 	sm750_dev->accel.dpPortBase = sm750_dev->pvReg + DE_PORT_ADDR_TYPE1;
@@ -84,9 +83,8 @@ int hw_sm750_map(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 		pr_err("Map video memory failed\n");
 		ret = -EFAULT;
 		goto exit;
-	} else {
-		pr_info("video memory vaddr = %p\n", sm750_dev->pvMem);
 	}
+	pr_info("video memory vaddr = %p\n", sm750_dev->pvMem);
 exit:
 	return ret;
 }
