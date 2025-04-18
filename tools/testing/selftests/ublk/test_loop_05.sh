@@ -12,17 +12,15 @@ fi
 
 _prep_test "loop" "write and verify test"
 
-backfile_0=$(_create_backfile 256M)
+_create_backfile 0 256M
 
-dev_id=$(_add_ublk_dev -q 2 -t loop "$backfile_0")
-_check_add_dev $TID $? "${backfile_0}"
+dev_id=$(_add_ublk_dev -q 2 -t loop "${UBLK_BACKFILES[0]}")
+_check_add_dev $TID $?
 
 # run fio over the ublk disk
 _run_fio_verify_io --filename=/dev/ublkb"${dev_id}" --size=256M
 ERR_CODE=$?
 
 _cleanup_test "loop"
-
-_remove_backfile "$backfile_0"
 
 _show_result $TID $ERR_CODE

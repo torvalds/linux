@@ -6,6 +6,9 @@ LDLIBS += -lpthread -lm -luring
 TEST_PROGS := test_generic_01.sh
 TEST_PROGS += test_generic_02.sh
 TEST_PROGS += test_generic_03.sh
+TEST_PROGS += test_generic_04.sh
+TEST_PROGS += test_generic_05.sh
+TEST_PROGS += test_generic_06.sh
 
 TEST_PROGS += test_null_01.sh
 TEST_PROGS += test_null_02.sh
@@ -21,12 +24,16 @@ TEST_PROGS += test_stripe_04.sh
 
 TEST_PROGS += test_stress_01.sh
 TEST_PROGS += test_stress_02.sh
+TEST_PROGS += test_stress_03.sh
+TEST_PROGS += test_stress_04.sh
+TEST_PROGS += test_stress_05.sh
 
 TEST_GEN_PROGS_EXTENDED = kublk
 
 include ../lib.mk
 
-$(TEST_GEN_PROGS_EXTENDED): kublk.c null.c file_backed.c common.c stripe.c
+$(TEST_GEN_PROGS_EXTENDED): kublk.c null.c file_backed.c common.c stripe.c \
+	fault_inject.c
 
 check:
 	shellcheck -x -f gcc *.sh
