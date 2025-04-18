@@ -8,7 +8,7 @@
 #define _GPIB_TYPES_H
 
 #ifdef __KERNEL__
-#include "gpib_user.h"
+#include "gpib.h"
 #include <linux/atomic.h>
 #include <linux/device.h>
 #include <linux/mutex.h>

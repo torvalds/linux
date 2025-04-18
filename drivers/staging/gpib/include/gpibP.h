@@ -11,7 +11,7 @@
 
 #include "gpib_types.h"
 #include "gpib_proto.h"
-#include "gpib_user.h"
+#include "gpib.h"
 #include "gpib_ioctl.h"
 
 #include <linux/fs.h>
