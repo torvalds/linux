@@ -87,6 +87,10 @@ struct amd_uncore {
 
 static struct amd_uncore uncores[UNCORE_TYPE_MAX];
 
+/* Interval for hrtimer, defaults to 60000 milliseconds */
+static unsigned int update_interval = 60 * MSEC_PER_SEC;
+module_param(update_interval, uint, 0444);
+
 static struct amd_uncore_pmu *event_to_amd_uncore_pmu(struct perf_event *event)
 {
 	return container_of(event->pmu, struct amd_uncore_pmu, pmu);
@@ -545,7 +549,7 @@ static int amd_uncore_ctx_init(struct amd_uncore *uncore, unsigned int cpu)
 			}
 
 			amd_uncore_init_hrtimer(curr);
-			curr->hrtimer_duration = 60LL * NSEC_PER_SEC;
+			curr->hrtimer_duration = (u64)update_interval * NSEC_PER_MSEC;
 
 			cpumask_set_cpu(cpu, &pmu->active_mask);
 		}
