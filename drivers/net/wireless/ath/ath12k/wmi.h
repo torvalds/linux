@@ -26,6 +26,7 @@ struct ath12k_base;
 struct ath12k;
 struct ath12k_link_vif;
 struct ath12k_fw_stats;
+struct ath12k_reg_tpc_power_info;
 
 /* There is no signed version of __le32, so for a temporary solution come
  * up with our own version. The idea is from fs/ntfs/endian.h.
@@ -386,6 +387,22 @@ enum wmi_tlv_cmd_id {
 	WMI_VDEV_SET_CUSTOM_AGGR_SIZE_CMDID,
 	WMI_VDEV_ENCRYPT_DECRYPT_DATA_REQ_CMDID,
 	WMI_VDEV_ADD_MAC_ADDR_TO_RX_FILTER_CMDID,
+	WMI_VDEV_SET_ARP_STAT_CMDID,
+	WMI_VDEV_GET_ARP_STAT_CMDID,
+	WMI_VDEV_GET_TX_POWER_CMDID,
+	WMI_VDEV_LIMIT_OFFCHAN_CMDID,
+	WMI_VDEV_SET_CUSTOM_SW_RETRY_TH_CMDID,
+	WMI_VDEV_CHAINMASK_CONFIG_CMDID,
+	WMI_VDEV_GET_BCN_RECEPTION_STATS_CMDID,
+	WMI_VDEV_GET_MWS_COEX_INFO_CMDID,
+	WMI_VDEV_DELETE_ALL_PEER_CMDID,
+	WMI_VDEV_BSS_MAX_IDLE_TIME_CMDID,
+	WMI_VDEV_AUDIO_SYNC_TRIGGER_CMDID,
+	WMI_VDEV_AUDIO_SYNC_QTIMER_CMDID,
+	WMI_VDEV_SET_PCL_CMDID,
+	WMI_VDEV_GET_BIG_DATA_CMDID,
+	WMI_VDEV_GET_BIG_DATA_P2_CMDID,
+	WMI_VDEV_SET_TPC_POWER_CMDID,
 	WMI_PEER_CREATE_CMDID = WMI_TLV_CMD(WMI_GRP_PEER),
 	WMI_PEER_DELETE_CMDID,
 	WMI_PEER_FLUSH_TIDS_CMDID,
@@ -1955,6 +1972,8 @@ enum wmi_tlv_tag {
 	WMI_TAG_TPC_STATS_REG_PWR_ALLOWED,
 	WMI_TAG_TPC_STATS_RATES_ARRAY,
 	WMI_TAG_TPC_STATS_CTL_PWR_TABLE_EVENT,
+	WMI_TAG_VDEV_SET_TPC_POWER_CMD = 0x3B5,
+	WMI_TAG_VDEV_CH_POWER_INFO,
 	WMI_TAG_EHT_RATE_SET = 0x3C4,
 	WMI_TAG_DCS_AWGN_INT_TYPE = 0x3C5,
 	WMI_TAG_MLO_TX_SEND_PARAMS,
@@ -5939,6 +5958,41 @@ struct wmi_tpc_stats_arg {
 	struct wmi_tpc_ctl_pwr_table_arg ctl_array;
 };
 
+struct wmi_vdev_ch_power_params {
+	__le32 tlv_header;
+
+	/* Channel center frequency (MHz) */
+	__le32 chan_cfreq;
+
+	/* Unit: dBm, either PSD/EIRP power for this frequency or
+	 * incremental for non-PSD BW
+	 */
+	__le32 tx_power;
+} __packed;
+
+struct wmi_vdev_set_tpc_power_cmd {
+	__le32 tlv_header;
+	__le32 vdev_id;
+
+	/* Value: 0 or 1, is PSD power or not */
+	__le32 psd_power;
+
+	 /* Maximum EIRP power (dBm units), valid only if power is PSD */
+	__le32 eirp_power;
+
+	/* Type: WMI_6GHZ_REG_TYPE, used for halphy CTL lookup */
+	__le32 power_type_6ghz;
+
+	/* This fixed_param TLV is followed by the below TLVs:
+	 * num_pwr_levels of wmi_vdev_ch_power_info
+	 * For PSD power, it is the PSD/EIRP power of the frequency (20 MHz chunks).
+	 * For non-PSD power, the power values are for 20, 40, and till
+	 * BSS BW power levels.
+	 * The num_pwr_levels will be checked by sw how many elements present
+	 * in the variable-length array.
+	 */
+} __packed;
+
 void ath12k_wmi_init_qcn9274(struct ath12k_base *ab,
 			     struct ath12k_wmi_resource_config_arg *config);
 void ath12k_wmi_init_wcn7850(struct ath12k_base *ab,
@@ -6134,5 +6188,8 @@ void ath12k_wmi_fw_stats_dump(struct ath12k *ar,
 			      struct ath12k_fw_stats *fw_stats, u32 stats_id,
 			      char *buf);
 bool ath12k_wmi_supports_6ghz_cc_ext(struct ath12k *ar);
+int ath12k_wmi_send_vdev_set_tpc_power(struct ath12k *ar,
+				       u32 vdev_id,
+				       struct ath12k_reg_tpc_power_info *param);
 
 #endif
