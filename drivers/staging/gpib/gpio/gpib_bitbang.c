@@ -1123,8 +1123,7 @@ static void release_gpios(void)
 
 static int allocate_gpios(struct gpib_board *board)
 {
-	int j, retval = 0;
-	bool error = false;
+	int j;
 	int table_index = 0;
 	char name[256];
 	struct gpio_desc *desc;
@@ -1135,8 +1134,8 @@ static int allocate_gpios(struct gpib_board *board)
 		return -ENOENT;
 	}
 
-	lookup_table = lookup_tables[0];
-	lookup_table->dev_id   = dev_name(board->gpib_dev);
+	lookup_table = lookup_tables[table_index];
+	lookup_table->dev_id = dev_name(board->gpib_dev);
 	gpiod_add_lookup_table(lookup_table);
 	dbg_printk(1, "Allocating gpios using table index %d\n", table_index);
 
@@ -1153,28 +1152,26 @@ try_again:
 			gpiod_remove_lookup_table(lookup_table);
 			table_index++;
 			lookup_table = lookup_tables[table_index];
-			if (lookup_table) {
-				dbg_printk(1, "Allocation failed,  now  using table_index %d\n",
-					   table_index);
-				lookup_table->dev_id = dev_name(board->gpib_dev);
-				gpiod_add_lookup_table(lookup_table);
-				goto try_again;
+			if (!lookup_table) {
+				dev_err(board->gpib_dev, "Unable to obtain gpio descriptor for pin %d error %ld\n",
+					gpios_vector[j], PTR_ERR(desc));
+				goto alloc_gpios_fail;
 			}
-			dev_err(board->gpib_dev, "Unable to obtain gpio descriptor for pin %d error %ld\n",
-				gpios_vector[j], PTR_ERR(desc));
-			error = true;
-			break;
+			dbg_printk(1, "Allocation failed, now using table_index %d\n", table_index);
+			lookup_table->dev_id = dev_name(board->gpib_dev);
+			gpiod_add_lookup_table(lookup_table);
+			goto try_again;
 		}
 		all_descriptors[j] = desc;
 	}
 
-	if (error) { /* undo what already done */
-		release_gpios();
-		retval = -1;
-	}
-	if (lookup_table)
-		gpiod_remove_lookup_table(lookup_table);
-	return retval;
+	gpiod_remove_lookup_table(lookup_table);
+
+	return 0;
+
+alloc_gpios_fail:
+	release_gpios();
+	return -1;
 }
 
 static void bb_detach(struct gpib_board *board)
