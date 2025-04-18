@@ -4,31 +4,14 @@
 #include "ddk750_chip.h"
 #include "ddk750_reg.h"
 #include "ddk750_dvi.h"
-#include "ddk750_sii164.h"
 
 /*
  * This global variable contains all the supported driver and its corresponding
  * function API. Please set the function pointer to NULL whenever the function
  * is not supported.
  */
-static struct dvi_ctrl_device dcft_supported_dvi_controller[] = {
-#ifdef DVI_CTRL_SII164
-	{
-		.init = sii164_init_chip,
-		.get_vendor_id = sii164_get_vendor_id,
-		.get_device_id = sii164_get_device_id,
-#ifdef SII164_FULL_FUNCTIONS
-		.reset_chip = sii164_reset_chip,
-		.get_chip_string = sii164_get_chip_string,
-		.set_power = sii164_set_power,
-		.enable_hot_plug_detection = sii164_enable_hot_plug_detection,
-		.is_connected = sii164_is_connected,
-		.check_interrupt = sii164_check_interrupt,
-		.clear_interrupt = sii164_clear_interrupt,
-#endif
-	},
-#endif
-};
+
+static struct dvi_ctrl_device dcft_supported_dvi_controller[] = { };
 
 int dvi_init(unsigned char edge_select,
 	     unsigned char bus_select,
