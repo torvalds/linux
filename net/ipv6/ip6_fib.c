@@ -1048,8 +1048,14 @@ static void fib6_purge_rt(struct fib6_info *rt, struct fib6_node *fn,
 	rt6_flush_exceptions(rt);
 	fib6_drop_pcpu_from(rt, table);
 
-	if (rt->nh && !list_empty(&rt->nh_list))
-		list_del_init(&rt->nh_list);
+	if (rt->nh) {
+		spin_lock(&rt->nh->lock);
+
+		if (!list_empty(&rt->nh_list))
+			list_del_init(&rt->nh_list);
+
+		spin_unlock(&rt->nh->lock);
+	}
 
 	if (refcount_read(&rt->fib6_ref) != 1) {
 		/* This route is used as dummy address holder in some split
@@ -1341,6 +1347,28 @@ add:
 	return 0;
 }
 
+static int fib6_add_rt2node_nh(struct fib6_node *fn, struct fib6_info *rt,
+			       struct nl_info *info, struct netlink_ext_ack *extack,
+			       struct list_head *purge_list)
+{
+	int err;
+
+	spin_lock(&rt->nh->lock);
+
+	if (rt->nh->dead) {
+		NL_SET_ERR_MSG(extack, "Nexthop has been deleted");
+		err = -EINVAL;
+	} else {
+		err = fib6_add_rt2node(fn, rt, info, extack, purge_list);
+		if (!err)
+			list_add(&rt->nh_list, &rt->nh->f6i_list);
+	}
+
+	spin_unlock(&rt->nh->lock);
+
+	return err;
+}
+
 static void fib6_start_gc(struct net *net, struct fib6_info *rt)
 {
 	if (!timer_pending(&net->ipv6.ip6_fib_timer) &&
@@ -1498,7 +1526,10 @@ int fib6_add(struct fib6_node *root, struct fib6_info *rt,
 	}
 #endif
 
-	err = fib6_add_rt2node(fn, rt, info, extack, &purge_list);
+	if (rt->nh)
+		err = fib6_add_rt2node_nh(fn, rt, info, extack, &purge_list);
+	else
+		err = fib6_add_rt2node(fn, rt, info, extack, &purge_list);
 	if (!err) {
 		struct fib6_info *iter, *next;
 
@@ -1508,8 +1539,6 @@ int fib6_add(struct fib6_node *root, struct fib6_info *rt,
 			fib6_info_release(iter);
 		}
 
-		if (rt->nh)
-			list_add(&rt->nh_list, &rt->nh->f6i_list);
 		__fib6_update_sernum_upto_root(rt, fib6_new_sernum(info->nl_net));
 
 		if (rt->fib6_flags & RTF_EXPIRES)
