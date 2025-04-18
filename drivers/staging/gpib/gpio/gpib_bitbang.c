@@ -516,7 +516,7 @@ static int bb_write(struct gpib_board *board, u8 *buffer, size_t length,
 		   gpiod_get_value(NRFD), gpiod_get_value(NDAC));
 
 	if (gpiod_get_value(NRFD) && gpiod_get_value(NDAC)) { /* check for listener */
-		retval = -ENODEV;
+		retval = -ENOTCONN;
 		goto write_end;
 	}
 
