@@ -1039,9 +1039,9 @@ static int bcm_iproc_i2c_cfg_speed(struct bcm_iproc_i2c_dev *iproc_i2c)
 
 static int bcm_iproc_i2c_probe(struct platform_device *pdev)
 {
-	int irq, ret = 0;
 	struct bcm_iproc_i2c_dev *iproc_i2c;
 	struct i2c_adapter *adap;
+	int irq, ret;
 
 	iproc_i2c = devm_kzalloc(&pdev->dev, sizeof(*iproc_i2c),
 				 GFP_KERNEL);
