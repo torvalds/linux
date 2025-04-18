@@ -1447,6 +1447,8 @@ attribute-sets:
         type: indexed-array
         sub-type: binary
         display-hint: ipv6
+        checks:
+          exact-len: 16
       -
         name: coupled-control
         type: u8
