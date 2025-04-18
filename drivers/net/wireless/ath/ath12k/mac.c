@@ -5772,12 +5772,15 @@ static int ath12k_mac_handle_link_sta_state(struct ieee80211_hw *hw,
 					    enum ieee80211_sta_state new_state)
 {
 	struct ieee80211_vif *vif = ath12k_ahvif_to_vif(arvif->ahvif);
+	struct ieee80211_bss_conf *link_conf;
 	struct ath12k *ar = arvif->ar;
+	struct ath12k_reg_info *reg_info;
+	struct ath12k_base *ab = ar->ab;
 	int ret = 0;
 
 	lockdep_assert_wiphy(hw->wiphy);
 
-	ath12k_dbg(ar->ab, ATH12K_DBG_MAC, "mac handle link %u sta %pM state %d -> %d\n",
+	ath12k_dbg(ab, ATH12K_DBG_MAC, "mac handle link %u sta %pM state %d -> %d\n",
 		   arsta->link_id, arsta->addr, old_state, new_state);
 
 	/* IEEE80211_STA_NONE -> IEEE80211_STA_NOTEXIST: Remove the station
@@ -5787,7 +5790,7 @@ static int ath12k_mac_handle_link_sta_state(struct ieee80211_hw *hw,
 	     new_state == IEEE80211_STA_NOTEXIST)) {
 		ret = ath12k_mac_station_remove(ar, arvif, arsta);
 		if (ret) {
-			ath12k_warn(ar->ab, "Failed to remove station: %pM for VDEV: %d\n",
+			ath12k_warn(ab, "Failed to remove station: %pM for VDEV: %d\n",
 				    arsta->addr, arvif->vdev_id);
 			goto exit;
 		}
@@ -5798,7 +5801,7 @@ static int ath12k_mac_handle_link_sta_state(struct ieee80211_hw *hw,
 	    new_state == IEEE80211_STA_NONE) {
 		ret = ath12k_mac_station_add(ar, arvif, arsta);
 		if (ret)
-			ath12k_warn(ar->ab, "Failed to add station: %pM for VDEV: %d\n",
+			ath12k_warn(ab, "Failed to add station: %pM for VDEV: %d\n",
 				    arsta->addr, arvif->vdev_id);
 
 	/* IEEE80211_STA_AUTH -> IEEE80211_STA_ASSOC: Send station assoc command for
@@ -5811,7 +5814,7 @@ static int ath12k_mac_handle_link_sta_state(struct ieee80211_hw *hw,
 		    vif->type == NL80211_IFTYPE_ADHOC)) {
 		ret = ath12k_mac_station_assoc(ar, arvif, arsta, false);
 		if (ret)
-			ath12k_warn(ar->ab, "Failed to associate station: %pM\n",
+			ath12k_warn(ab, "Failed to associate station: %pM\n",
 				    arsta->addr);
 
 	/* IEEE80211_STA_ASSOC -> IEEE80211_STA_AUTHORIZED: set peer status as
@@ -5820,9 +5823,20 @@ static int ath12k_mac_handle_link_sta_state(struct ieee80211_hw *hw,
 	} else if (old_state == IEEE80211_STA_ASSOC &&
 		   new_state == IEEE80211_STA_AUTHORIZED) {
 		ret = ath12k_mac_station_authorize(ar, arvif, arsta);
-		if (ret)
-			ath12k_warn(ar->ab, "Failed to authorize station: %pM\n",
+		if (ret) {
+			ath12k_warn(ab, "Failed to authorize station: %pM\n",
 				    arsta->addr);
+			goto exit;
+		}
+
+		if (ath12k_wmi_supports_6ghz_cc_ext(ar) &&
+		    arvif->ahvif->vdev_type == WMI_VDEV_TYPE_STA) {
+			link_conf = ath12k_mac_get_link_bss_conf(arvif);
+			reg_info = ab->reg_info[ar->pdev_idx];
+			ath12k_dbg(ab, ATH12K_DBG_MAC, "connection done, update reg rules\n");
+			ath12k_reg_handle_chan_list(ab, reg_info, arvif->ahvif->vdev_type,
+						    link_conf->power_type);
+		}
 
 	/* IEEE80211_STA_AUTHORIZED -> IEEE80211_STA_ASSOC: station may be in removal,
 	 * deauthorize it.
@@ -5841,7 +5855,7 @@ static int ath12k_mac_handle_link_sta_state(struct ieee80211_hw *hw,
 		    vif->type == NL80211_IFTYPE_ADHOC)) {
 		ret = ath12k_mac_station_disassoc(ar, arvif, arsta);
 		if (ret)
-			ath12k_warn(ar->ab, "Failed to disassociate station: %pM\n",
+			ath12k_warn(ab, "Failed to disassociate station: %pM\n",
 				    arsta->addr);
 	}
 
