@@ -402,6 +402,7 @@ operations:
             - ifindex
             - master
         reply:
+          value: 28
           attributes: *neighbour-all
     -
       name: newneigh-ntf
