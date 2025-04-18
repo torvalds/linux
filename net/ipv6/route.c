@@ -3740,38 +3740,6 @@ static struct fib6_info *ip6_route_info_create(struct fib6_config *cfg,
 	int err = -EINVAL;
 	int addr_type;
 
-	/* RTF_PCPU is an internal flag; can not be set by userspace */
-	if (cfg->fc_flags & RTF_PCPU) {
-		NL_SET_ERR_MSG(extack, "Userspace can not set RTF_PCPU");
-		goto out;
-	}
-
-	/* RTF_CACHE is an internal flag; can not be set by userspace */
-	if (cfg->fc_flags & RTF_CACHE) {
-		NL_SET_ERR_MSG(extack, "Userspace can not set RTF_CACHE");
-		goto out;
-	}
-
-	if (cfg->fc_type > RTN_MAX) {
-		NL_SET_ERR_MSG(extack, "Invalid route type");
-		goto out;
-	}
-
-	if (cfg->fc_dst_len > 128) {
-		NL_SET_ERR_MSG(extack, "Invalid prefix length");
-		goto out;
-	}
-	if (cfg->fc_src_len > 128) {
-		NL_SET_ERR_MSG(extack, "Invalid source address length");
-		goto out;
-	}
-#ifndef CONFIG_IPV6_SUBTREES
-	if (cfg->fc_src_len) {
-		NL_SET_ERR_MSG(extack,
-			       "Specifying source address requires IPV6_SUBTREES to be enabled");
-		goto out;
-	}
-#endif
 	if (cfg->fc_nh_id) {
 		nh = nexthop_find_by_id(net, cfg->fc_nh_id);
 		if (!nh) {
@@ -3836,11 +3804,6 @@ static struct fib6_info *ip6_route_info_create(struct fib6_config *cfg,
 	rt->fib6_src.plen = cfg->fc_src_len;
 #endif
 	if (nh) {
-		if (rt->fib6_src.plen) {
-			NL_SET_ERR_MSG(extack, "Nexthops can not be used with source routing");
-			err = -EINVAL;
-			goto out_free;
-		}
 		if (!nexthop_get(nh)) {
 			NL_SET_ERR_MSG(extack, "Nexthop has been deleted");
 			err = -ENOENT;
@@ -5238,6 +5201,48 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 			cfg->fc_expires = jiffies_to_clock_t(timeout * HZ);
 			cfg->fc_flags |= RTF_EXPIRES;
 		}
+	}
+
+	if (newroute) {
+		/* RTF_PCPU is an internal flag; can not be set by userspace */
+		if (cfg->fc_flags & RTF_PCPU) {
+			NL_SET_ERR_MSG(extack, "Userspace can not set RTF_PCPU");
+			goto errout;
+		}
+
+		/* RTF_CACHE is an internal flag; can not be set by userspace */
+		if (cfg->fc_flags & RTF_CACHE) {
+			NL_SET_ERR_MSG(extack, "Userspace can not set RTF_CACHE");
+			goto errout;
+		}
+
+		if (cfg->fc_type > RTN_MAX) {
+			NL_SET_ERR_MSG(extack, "Invalid route type");
+			goto errout;
+		}
+
+		if (cfg->fc_dst_len > 128) {
+			NL_SET_ERR_MSG(extack, "Invalid prefix length");
+			goto errout;
+		}
+
+#ifdef CONFIG_IPV6_SUBTREES
+		if (cfg->fc_src_len > 128) {
+			NL_SET_ERR_MSG(extack, "Invalid source address length");
+			goto errout;
+		}
+
+		if (cfg->fc_nh_id &&  cfg->fc_src_len) {
+			NL_SET_ERR_MSG(extack, "Nexthops can not be used with source routing");
+			goto errout;
+		}
+#else
+		if (cfg->fc_src_len) {
+			NL_SET_ERR_MSG(extack,
+				       "Specifying source address requires IPV6_SUBTREES to be enabled");
+			goto errout;
+		}
+#endif
 	}
 
 	err = 0;
