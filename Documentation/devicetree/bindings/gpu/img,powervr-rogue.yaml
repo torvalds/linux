@@ -64,6 +64,9 @@ properties:
 
   dma-coherent: true
 
+  resets:
+    maxItems: 1
+
 required:
   - compatible
   - reg
