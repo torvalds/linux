@@ -879,6 +879,118 @@ void ath12k_regd_update_work(struct work_struct *work)
 	}
 }
 
+void ath12k_reg_reset_reg_info(struct ath12k_reg_info *reg_info)
+{
+	u8 i, j;
+
+	if (!reg_info)
+		return;
+
+	kfree(reg_info->reg_rules_2g_ptr);
+	kfree(reg_info->reg_rules_5g_ptr);
+
+	if (reg_info->is_ext_reg_event) {
+		for (i = 0; i < WMI_REG_CURRENT_MAX_AP_TYPE; i++) {
+			kfree(reg_info->reg_rules_6g_ap_ptr[i]);
+
+			for (j = 0; j < WMI_REG_MAX_CLIENT_TYPE; j++)
+				kfree(reg_info->reg_rules_6g_client_ptr[i][j]);
+		}
+	}
+}
+
+static bool ath12k_reg_is_world_alpha(char *alpha)
+{
+	if (alpha[0] == '0' && alpha[1] == '0')
+		return true;
+
+	if (alpha[0] == 'n' && alpha[1] == 'a')
+		return true;
+
+	return false;
+}
+
+int ath12k_reg_handle_chan_list(struct ath12k_base *ab,
+				struct ath12k_reg_info *reg_info)
+{
+	struct ieee80211_regdomain *regd = NULL;
+	bool intersect = false;
+	struct ath12k *ar;
+	int pdev_idx;
+
+	if (reg_info->status_code != REG_SET_CC_STATUS_PASS) {
+		/* In case of failure to set the requested country,
+		 * firmware retains the current regd. We print a failure info
+		 * and return from here.
+		 */
+		ath12k_warn(ab, "Failed to set the requested Country regulatory setting\n");
+		return 0;
+	}
+
+	pdev_idx = reg_info->phy_id;
+	if (pdev_idx >= ab->num_radios) {
+		/* Process the event for phy0 only if single_pdev_only
+		 * is true. If pdev_idx is valid but not 0, discard the
+		 * event. Otherwise, it goes to fallback.
+		 */
+		if (ab->hw_params->single_pdev_only &&
+		    pdev_idx < ab->hw_params->num_rxdma_per_pdev)
+			return 0;
+		else
+			return -EINVAL;
+	}
+
+	/* Avoid multiple overwrites to default regd, during core
+	 * stop-start after mac registration.
+	 */
+	if (ab->default_regd[pdev_idx] && !ab->new_regd[pdev_idx] &&
+	    !memcmp(ab->default_regd[pdev_idx]->alpha2,
+		    reg_info->alpha2, 2))
+		return 0;
+
+	/* Intersect new rules with default regd if a new country setting was
+	 * requested, i.e a default regd was already set during initialization
+	 * and the regd coming from this event has a valid country info.
+	 */
+	if (ab->default_regd[pdev_idx] &&
+	    !ath12k_reg_is_world_alpha((char *)
+		ab->default_regd[pdev_idx]->alpha2) &&
+	    !ath12k_reg_is_world_alpha((char *)reg_info->alpha2))
+		intersect = true;
+
+	regd = ath12k_reg_build_regd(ab, reg_info, intersect);
+	if (!regd)
+		return -EINVAL;
+
+	spin_lock_bh(&ab->base_lock);
+	if (test_bit(ATH12K_FLAG_REGISTERED, &ab->dev_flags)) {
+		/* Once mac is registered, ar is valid and all CC events from
+		 * firmware is considered to be received due to user requests
+		 * currently.
+		 * Free previously built regd before assigning the newly
+		 * generated regd to ar. NULL pointer handling will be
+		 * taken care by kfree itself.
+		 */
+		ar = ab->pdevs[pdev_idx].ar;
+		kfree(ab->new_regd[pdev_idx]);
+		ab->new_regd[pdev_idx] = regd;
+		queue_work(ab->workqueue, &ar->regd_update_work);
+	} else {
+		/* Multiple events for the same *ar is not expected. But we
+		 * can still clear any previously stored default_regd if we
+		 * are receiving this event for the same radio by mistake.
+		 * NULL pointer handling will be taken care by kfree itself.
+		 */
+		kfree(ab->default_regd[pdev_idx]);
+		/* This regd would be applied during mac registration */
+		ab->default_regd[pdev_idx] = regd;
+	}
+	ab->dfs_region = reg_info->dfs_region;
+	spin_unlock_bh(&ab->base_lock);
+
+	return 0;
+}
+
 void ath12k_reg_init(struct ieee80211_hw *hw)
 {
 	hw->wiphy->regulatory_flags = REGULATORY_WIPHY_SELF_MANAGED;
