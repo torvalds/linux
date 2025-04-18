@@ -35,6 +35,7 @@ bcachefs-y		:=	\
 	disk_accounting.o	\
 	disk_groups.o		\
 	ec.o			\
+	enumerated_ref.o	\
 	errcode.o		\
 	error.o			\
 	extents.o		\
