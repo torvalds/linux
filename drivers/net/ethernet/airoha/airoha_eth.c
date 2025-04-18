@@ -735,7 +735,6 @@ free_frag:
 static int airoha_qdma_rx_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct airoha_queue *q = container_of(napi, struct airoha_queue, napi);
-	struct airoha_irq_bank *irq_bank = &q->qdma->irq_banks[0];
 	int cur, done = 0;
 
 	do {
@@ -743,9 +742,20 @@ static int airoha_qdma_rx_napi_poll(struct napi_struct *napi, int budget)
 		done += cur;
 	} while (cur && done < budget);
 
-	if (done < budget && napi_complete(napi))
-		airoha_qdma_irq_enable(irq_bank, QDMA_INT_REG_IDX1,
-				       RX_DONE_INT_MASK);
+	if (done < budget && napi_complete(napi)) {
+		struct airoha_qdma *qdma = q->qdma;
+		int i, qid = q - &qdma->q_rx[0];
+		int intr_reg = qid < RX_DONE_HIGH_OFFSET ? QDMA_INT_REG_IDX1
+							 : QDMA_INT_REG_IDX2;
+
+		for (i = 0; i < ARRAY_SIZE(qdma->irq_banks); i++) {
+			if (!(BIT(qid) & RX_IRQ_BANK_PIN_MASK(i)))
+				continue;
+
+			airoha_qdma_irq_enable(&qdma->irq_banks[i], intr_reg,
+					       BIT(qid % RX_DONE_HIGH_OFFSET));
+		}
+	}
 
 	return done;
 }
@@ -1178,17 +1188,24 @@ static int airoha_qdma_hw_init(struct airoha_qdma *qdma)
 {
 	int i;
 
-	/* clear pending irqs */
-	for (i = 0; i < ARRAY_SIZE(qdma->irq_banks[0].irqmask); i++)
+	for (i = 0; i < ARRAY_SIZE(qdma->irq_banks); i++) {
+		/* clear pending irqs */
 		airoha_qdma_wr(qdma, REG_INT_STATUS(i), 0xffffffff);
-
-	/* setup irqs */
+		/* setup rx irqs */
+		airoha_qdma_irq_enable(&qdma->irq_banks[i], QDMA_INT_REG_IDX0,
+				       INT_RX0_MASK(RX_IRQ_BANK_PIN_MASK(i)));
+		airoha_qdma_irq_enable(&qdma->irq_banks[i], QDMA_INT_REG_IDX1,
+				       INT_RX1_MASK(RX_IRQ_BANK_PIN_MASK(i)));
+		airoha_qdma_irq_enable(&qdma->irq_banks[i], QDMA_INT_REG_IDX2,
+				       INT_RX2_MASK(RX_IRQ_BANK_PIN_MASK(i)));
+		airoha_qdma_irq_enable(&qdma->irq_banks[i], QDMA_INT_REG_IDX3,
+				       INT_RX3_MASK(RX_IRQ_BANK_PIN_MASK(i)));
+	}
+	/* setup tx irqs */
 	airoha_qdma_irq_enable(&qdma->irq_banks[0], QDMA_INT_REG_IDX0,
-			       INT_IDX0_MASK);
-	airoha_qdma_irq_enable(&qdma->irq_banks[0], QDMA_INT_REG_IDX1,
-			       INT_IDX1_MASK);
+			       TX_COHERENT_LOW_INT_MASK | INT_TX_MASK);
 	airoha_qdma_irq_enable(&qdma->irq_banks[0], QDMA_INT_REG_IDX4,
-			       INT_IDX4_MASK);
+			       TX_COHERENT_HIGH_INT_MASK);
 
 	/* setup irq binding */
 	for (i = 0; i < ARRAY_SIZE(qdma->q_tx); i++) {
@@ -1235,6 +1252,7 @@ static irqreturn_t airoha_irq_handler(int irq, void *dev_instance)
 {
 	struct airoha_irq_bank *irq_bank = dev_instance;
 	struct airoha_qdma *qdma = irq_bank->qdma;
+	u32 rx_intr_mask = 0, rx_intr1, rx_intr2;
 	u32 intr[ARRAY_SIZE(irq_bank->irqmask)];
 	int i;
 
@@ -1247,17 +1265,24 @@ static irqreturn_t airoha_irq_handler(int irq, void *dev_instance)
 	if (!test_bit(DEV_STATE_INITIALIZED, &qdma->eth->state))
 		return IRQ_NONE;
 
-	if (intr[1] & RX_DONE_INT_MASK) {
-		airoha_qdma_irq_disable(irq_bank, QDMA_INT_REG_IDX1,
-					RX_DONE_INT_MASK);
+	rx_intr1 = intr[1] & RX_DONE_LOW_INT_MASK;
+	if (rx_intr1) {
+		airoha_qdma_irq_disable(irq_bank, QDMA_INT_REG_IDX1, rx_intr1);
+		rx_intr_mask |= rx_intr1;
+	}
 
-		for (i = 0; i < ARRAY_SIZE(qdma->q_rx); i++) {
-			if (!qdma->q_rx[i].ndesc)
-				continue;
+	rx_intr2 = intr[2] & RX_DONE_HIGH_INT_MASK;
+	if (rx_intr2) {
+		airoha_qdma_irq_disable(irq_bank, QDMA_INT_REG_IDX2, rx_intr2);
+		rx_intr_mask |= (rx_intr2 << 16);
+	}
 
-			if (intr[1] & BIT(i))
-				napi_schedule(&qdma->q_rx[i].napi);
-		}
+	for (i = 0; rx_intr_mask && i < ARRAY_SIZE(qdma->q_rx); i++) {
+		if (!qdma->q_rx[i].ndesc)
+			continue;
+
+		if (rx_intr_mask & BIT(i))
+			napi_schedule(&qdma->q_rx[i].napi);
 	}
 
 	if (intr[0] & INT_TX_MASK) {
