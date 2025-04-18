@@ -62,7 +62,7 @@
 		/* filled by u-boot */
 		bus-frequency = <0>;
 
-		wdt@200 {
+		watchdog@200 {
 			compatible = "mpc83xx_wdt";
 			reg = <0x200 0x100>;
 		};
