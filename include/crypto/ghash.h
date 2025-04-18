@@ -12,13 +12,14 @@
 #define GHASH_BLOCK_SIZE	16
 #define GHASH_DIGEST_SIZE	16
 
+struct gf128mul_4k;
+
 struct ghash_ctx {
 	struct gf128mul_4k *gf128;
 };
 
 struct ghash_desc_ctx {
 	u8 buffer[GHASH_BLOCK_SIZE];
-	u32 bytes;
 };
 
 #endif
