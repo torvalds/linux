@@ -141,6 +141,8 @@ u64 svsm_get_caa_pa(void)
 
 int svsm_perform_call_protocol(struct svsm_call *call);
 
+u8 snp_vmpl;
+
 /* Include code for early handlers */
 #include "../../coco/sev/shared.c"
 
