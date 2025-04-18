@@ -2,6 +2,7 @@
 
 name: rt-rule
 protocol: netlink-raw
+uapi-header: linux/fib_rules.h
 protonum: 0
 
 doc:
@@ -56,6 +57,7 @@ definitions:
   -
     name: fr-act
     type: enum
+    enum-name:
     entries:
       - unspec
       - to-tbl
@@ -90,6 +92,7 @@ definitions:
 attribute-sets:
   -
     name: fib-rule-attrs
+    name-prefix: fra-
     attributes:
       -
         name: dst
@@ -198,6 +201,7 @@ attribute-sets:
 operations:
   enum-model: directional
   fixed-header: fib-rule-hdr
+  name-prefix: rtm-
   list:
     -
       name: newrule
