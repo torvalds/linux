@@ -1191,6 +1191,10 @@ static void __init retbleed_select_mitigation(void)
 	case RETBLEED_CMD_STUFF:
 		if (IS_ENABLED(CONFIG_MITIGATION_CALL_DEPTH_TRACKING) &&
 		    spectre_v2_enabled == SPECTRE_V2_RETPOLINE) {
+			if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL) {
+				pr_err("WARNING: retbleed=stuff only supported for Intel CPUs.\n");
+				goto do_cmd_auto;
+			}
 			retbleed_mitigation = RETBLEED_MITIGATION_STUFF;
 
 		} else {
