@@ -1262,6 +1262,10 @@ static int bb_attach(struct gpib_board *board, const struct gpib_board_config *c
 		gpiod_direction_output(TE, 1);
 		gpiod_direction_output(PE, 1);
 	}
+/* Set main control lines to a known state */
+	gpiod_direction_output(IFC, 1);
+	gpiod_direction_output(REN, 1);
+	gpiod_direction_output(_ATN, 1);
 
 	if (strcmp(PINMAP_2, pin_map) == 0) { /* YOGA: enable level shifters */
 		gpiod_direction_output(YOGA_ENABLE, 1);
