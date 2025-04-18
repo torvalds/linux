@@ -107,5 +107,10 @@ static int __init neon_poly1305_mod_init(void)
 }
 arch_initcall(neon_poly1305_mod_init);
 
+static void __exit neon_poly1305_mod_exit(void)
+{
+}
+module_exit(neon_poly1305_mod_exit);
+
 MODULE_DESCRIPTION("Poly1305 authenticator (ARM64 optimized)");
 MODULE_LICENSE("GPL v2");

@@ -208,6 +208,11 @@ static int __init poly1305_simd_mod_init(void)
 }
 arch_initcall(poly1305_simd_mod_init);
 
+static void __exit poly1305_simd_mod_exit(void)
+{
+}
+module_exit(poly1305_simd_mod_exit);
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");
 MODULE_DESCRIPTION("Poly1305 authenticator");

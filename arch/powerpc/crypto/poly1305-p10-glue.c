@@ -127,6 +127,11 @@ static int __init poly1305_p10_init(void)
 }
 arch_initcall(poly1305_p10_init);
 
+static void __exit poly1305_p10_exit(void)
+{
+}
+module_exit(poly1305_p10_exit);
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Danny Tsen <dtsen@linux.ibm.com>");
 MODULE_DESCRIPTION("Optimized Poly1305 for P10");

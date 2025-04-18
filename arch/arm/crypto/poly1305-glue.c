@@ -116,5 +116,10 @@ static int __init arm_poly1305_mod_init(void)
 }
 arch_initcall(arm_poly1305_mod_init);
 
+static void __exit arm_poly1305_mod_exit(void)
+{
+}
+module_exit(arm_poly1305_mod_exit);
+
 MODULE_DESCRIPTION("Accelerated Poly1305 transform for ARM");
 MODULE_LICENSE("GPL v2");
