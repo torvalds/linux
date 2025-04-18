@@ -5315,7 +5315,7 @@ errout:
 struct rt6_nh {
 	struct fib6_info *fib6_info;
 	struct fib6_config r_cfg;
-	struct list_head next;
+	struct list_head list;
 };
 
 static int ip6_route_info_append(struct list_head *rt6_nh_list,
@@ -5325,7 +5325,7 @@ static int ip6_route_info_append(struct list_head *rt6_nh_list,
 	struct rt6_nh *nh;
 	int err = -EEXIST;
 
-	list_for_each_entry(nh, rt6_nh_list, next) {
+	list_for_each_entry(nh, rt6_nh_list, list) {
 		/* check if fib6_info already exists */
 		if (rt6_duplicate_nexthop(nh->fib6_info, rt))
 			return err;
@@ -5336,7 +5336,7 @@ static int ip6_route_info_append(struct list_head *rt6_nh_list,
 		return -ENOMEM;
 	nh->fib6_info = rt;
 	memcpy(&nh->r_cfg, r_cfg, sizeof(*r_cfg));
-	list_add_tail(&nh->next, rt6_nh_list);
+	list_add_tail(&nh->list, rt6_nh_list);
 
 	return 0;
 }
@@ -5479,7 +5479,7 @@ static int ip6_route_multipath_add(struct fib6_config *cfg,
 	info->skip_notify_kernel = 1;
 
 	err_nh = NULL;
-	list_for_each_entry(nh, &rt6_nh_list, next) {
+	list_for_each_entry(nh, &rt6_nh_list, list) {
 		err = __ip6_ins_rt(nh->fib6_info, info, extack);
 
 		if (err) {
@@ -5547,16 +5547,16 @@ add_errout:
 		ip6_route_mpath_notify(rt_notif, rt_last, info, nlflags);
 
 	/* Delete routes that were already added */
-	list_for_each_entry(nh, &rt6_nh_list, next) {
+	list_for_each_entry(nh, &rt6_nh_list, list) {
 		if (err_nh == nh)
 			break;
 		ip6_route_del(&nh->r_cfg, extack);
 	}
 
 cleanup:
-	list_for_each_entry_safe(nh, nh_safe, &rt6_nh_list, next) {
+	list_for_each_entry_safe(nh, nh_safe, &rt6_nh_list, list) {
 		fib6_info_release(nh->fib6_info);
-		list_del(&nh->next);
+		list_del(&nh->list);
 		kfree(nh);
 	}
 
