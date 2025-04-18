@@ -422,7 +422,7 @@ static __always_inline void vc_forward_exception(struct es_em_ctxt *ctxt)
 }
 
 /* Include code shared with pre-decompression boot stage */
-#include "shared.c"
+#include "sev-shared.c"
 
 noinstr void __sev_put_ghcb(struct ghcb_state *state)
 {
