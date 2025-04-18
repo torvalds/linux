@@ -19,7 +19,7 @@ struct dev_rot_state {
 	struct hid_sensor_common common_attributes;
 	struct hid_sensor_hub_attribute_info quaternion;
 	struct {
-		s32 sampled_vals[4] __aligned(16);
+		s32 sampled_vals[4];
 		aligned_s64 timestamp;
 	} scan;
 	int scale_pre_decml;
