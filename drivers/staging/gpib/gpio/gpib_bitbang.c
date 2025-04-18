@@ -883,16 +883,16 @@ static int bb_go_to_standby(struct gpib_board *board)
 	return 0;
 }
 
-static void bb_request_system_control(struct gpib_board *board, int request_control)
+static int bb_request_system_control(struct gpib_board *board, int request_control)
 {
 	dbg_printk(2, "%d\n", request_control);
-	if (request_control) {
-		set_bit(CIC_NUM, &board->status);
-		// drive DAV & EOI false, enable NRFD & NDAC irqs
-		SET_DIR_WRITE(board->private_data);
-	} else {
-		clear_bit(CIC_NUM, &board->status);
-	}
+	if (!request_control)
+		return -EINVAL;
+
+	set_bit(CIC_NUM, &board->status);
+	// drive DAV & EOI false, enable NRFD & NDAC irqs
+	SET_DIR_WRITE(board->private_data);
+	return 0;
 }
 
 static void bb_interface_clear(struct gpib_board *board, int assert)

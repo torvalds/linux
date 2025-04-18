@@ -100,7 +100,7 @@ struct gpib_interface {
 	 */
 	int (*go_to_standby)(struct gpib_board *board);
 	/* request/release control of the IFC and REN lines (system controller) */
-	void (*request_system_control)(struct gpib_board *board, int request_control);
+	int (*request_system_control)(struct gpib_board *board, int request_control);
 	/*
 	 * Asserts or de-asserts 'interface clear' (IFC) depending on
 	 * boolean value of 'assert'

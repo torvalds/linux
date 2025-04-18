@@ -68,11 +68,11 @@ static int hp82335_go_to_standby(struct gpib_board *board)
 	return tms9914_go_to_standby(board, &priv->tms9914_priv);
 }
 
-static void hp82335_request_system_control(struct gpib_board *board, int request_control)
+static int hp82335_request_system_control(struct gpib_board *board, int request_control)
 {
 	struct hp82335_priv *priv = board->private_data;
 
-	tms9914_request_system_control(board, &priv->tms9914_priv, request_control);
+	return tms9914_request_system_control(board, &priv->tms9914_priv, request_control);
 }
 
 static void hp82335_interface_clear(struct gpib_board *board, int assert)

@@ -83,11 +83,11 @@ static int cec_go_to_standby(struct gpib_board *board)
 	return nec7210_go_to_standby(board, &priv->nec7210_priv);
 }
 
-static void cec_request_system_control(struct gpib_board *board, int request_control)
+static int cec_request_system_control(struct gpib_board *board, int request_control)
 {
 	struct cec_priv *priv = board->private_data;
 
-	nec7210_request_system_control(board, &priv->nec7210_priv, request_control);
+	return nec7210_request_system_control(board, &priv->nec7210_priv, request_control);
 }
 
 static void cec_interface_clear(struct gpib_board *board, int assert)

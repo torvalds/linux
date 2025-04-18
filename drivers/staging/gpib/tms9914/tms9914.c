@@ -118,8 +118,8 @@ void tms9914_remote_enable(struct gpib_board *board, struct tms9914_priv *priv, 
 }
 EXPORT_SYMBOL_GPL(tms9914_remote_enable);
 
-void tms9914_request_system_control(struct gpib_board *board, struct tms9914_priv *priv,
-				    int request_control)
+int tms9914_request_system_control(struct gpib_board *board, struct tms9914_priv *priv,
+				   int request_control)
 {
 	if (request_control) {
 		write_byte(priv, AUX_RQC, AUXCR);
@@ -127,6 +127,7 @@ void tms9914_request_system_control(struct gpib_board *board, struct tms9914_pri
 		clear_bit(CIC_NUM, &board->status);
 		write_byte(priv, AUX_RLC, AUXCR);
 	}
+	return 0;
 }
 EXPORT_SYMBOL_GPL(tms9914_request_system_control);
 

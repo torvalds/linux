@@ -332,14 +332,15 @@ int nec7210_go_to_standby(struct gpib_board *board, struct nec7210_priv *priv)
 }
 EXPORT_SYMBOL(nec7210_go_to_standby);
 
-void nec7210_request_system_control(struct gpib_board *board, struct nec7210_priv *priv,
-				    int request_control)
+int nec7210_request_system_control(struct gpib_board *board, struct nec7210_priv *priv,
+				   int request_control)
 {
 	if (request_control == 0) {
 		write_byte(priv, AUX_CREN, AUXMR);
 		write_byte(priv, AUX_CIFC, AUXMR);
 		write_byte(priv, AUX_DSC, AUXMR);
 	}
+	return 0;
 }
 EXPORT_SYMBOL(nec7210_request_system_control);
 

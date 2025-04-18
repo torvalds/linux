@@ -422,12 +422,21 @@ int ibsic(struct gpib_board *board, unsigned int usec_duration)
 	return 0;
 }
 
-	/* FIXME make int */
-void ibrsc(struct gpib_board *board, int request_control)
+int ibrsc(struct gpib_board *board, int request_control)
 {
+	int retval;
+
+	if (!board->interface->request_system_control)
+		return -EPERM;
+
+	retval = board->interface->request_system_control(board, request_control);
+
+	if (retval)
+		return retval;
+
 	board->master = request_control != 0;
-	if (board->interface->request_system_control)
-		board->interface->request_system_control(board, request_control);
+
+	return  0;
 }
 
 /*

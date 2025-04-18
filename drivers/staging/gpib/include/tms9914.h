@@ -93,8 +93,8 @@ int tms9914_take_control(struct gpib_board *board, struct tms9914_priv *priv, in
 int tms9914_take_control_workaround(struct gpib_board *board, struct tms9914_priv *priv,
 				    int syncronous);
 int tms9914_go_to_standby(struct gpib_board *board, struct tms9914_priv *priv);
-void tms9914_request_system_control(struct gpib_board *board, struct tms9914_priv *priv,
-				    int request_control);
+int tms9914_request_system_control(struct gpib_board *board, struct tms9914_priv *priv,
+				   int request_control);
 void tms9914_interface_clear(struct gpib_board *board, struct tms9914_priv *priv, int assert);
 void tms9914_remote_enable(struct gpib_board *board, struct tms9914_priv *priv, int enable);
 int tms9914_enable_eos(struct gpib_board *board, struct tms9914_priv *priv, u8 eos_bytes,

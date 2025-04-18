@@ -1988,9 +1988,7 @@ static int request_system_control_ioctl(struct gpib_board *board, unsigned long 
 	if (retval)
 		return -EFAULT;
 
-	ibrsc(board, request_control);
-
-	return 0;
+	return ibrsc(board, request_control);
 }
 
 static int t1_delay_ioctl(struct gpib_board *board, unsigned long arg)

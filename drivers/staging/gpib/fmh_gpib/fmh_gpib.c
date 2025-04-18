@@ -86,12 +86,12 @@ static int fmh_gpib_go_to_standby(struct gpib_board *board)
 	return nec7210_go_to_standby(board, &priv->nec7210_priv);
 }
 
-static void fmh_gpib_request_system_control(struct gpib_board *board, int request_control)
+static int fmh_gpib_request_system_control(struct gpib_board *board, int request_control)
 {
 	struct fmh_priv *priv = board->private_data;
 	struct nec7210_priv *nec_priv = &priv->nec7210_priv;
 
-	nec7210_request_system_control(board, nec_priv, request_control);
+	return nec7210_request_system_control(board, nec_priv, request_control);
 }
 
 static void fmh_gpib_interface_clear(struct gpib_board *board, int assert)

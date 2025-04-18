@@ -31,7 +31,7 @@ int iblines(const struct gpib_board *board, short *lines);
 int ibrd(struct gpib_board *board, u8 *buf, size_t length, int *end_flag, size_t *bytes_read);
 int ibrpp(struct gpib_board *board, u8 *buf);
 int ibrsv2(struct gpib_board *board, u8 status_byte, int new_reason_for_service);
-void ibrsc(struct gpib_board *board, int request_control);
+int ibrsc(struct gpib_board *board, int request_control);
 int ibsic(struct gpib_board *board, unsigned int usec_duration);
 int ibsre(struct gpib_board *board, int enable);
 int ibpad(struct gpib_board *board, unsigned int addr);

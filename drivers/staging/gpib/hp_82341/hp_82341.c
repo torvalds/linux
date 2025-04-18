@@ -294,7 +294,7 @@ static int hp_82341_go_to_standby(struct gpib_board *board)
 	return tms9914_go_to_standby(board, &priv->tms9914_priv);
 }
 
-static void hp_82341_request_system_control(struct gpib_board *board, int request_control)
+static int hp_82341_request_system_control(struct gpib_board *board, int request_control)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
@@ -303,7 +303,7 @@ static void hp_82341_request_system_control(struct gpib_board *board, int reques
 	else
 		priv->mode_control_bits &= ~SYSTEM_CONTROLLER_BIT;
 	outb(priv->mode_control_bits, priv->iobase[0] + MODE_CONTROL_STATUS_REG);
-	tms9914_request_system_control(board, &priv->tms9914_priv, request_control);
+	return tms9914_request_system_control(board, &priv->tms9914_priv, request_control);
 }
 
 static void hp_82341_interface_clear(struct gpib_board *board, int assert)

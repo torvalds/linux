@@ -441,11 +441,11 @@ int ines_go_to_standby(struct gpib_board *board)
 	return nec7210_go_to_standby(board, &priv->nec7210_priv);
 }
 
-void ines_request_system_control(struct gpib_board *board, int request_control)
+int ines_request_system_control(struct gpib_board *board, int request_control)
 {
 	struct ines_priv *priv = board->private_data;
 
-	nec7210_request_system_control(board, &priv->nec7210_priv, request_control);
+	return nec7210_request_system_control(board, &priv->nec7210_priv, request_control);
 }
 
 void ines_interface_clear(struct gpib_board *board, int assert)

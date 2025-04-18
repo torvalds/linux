@@ -47,7 +47,7 @@ int ines_accel_write(struct gpib_board *board, u8 *buffer, size_t length,
 int ines_command(struct gpib_board *board, u8 *buffer, size_t length, size_t *bytes_written);
 int ines_take_control(struct gpib_board *board, int synchronous);
 int ines_go_to_standby(struct gpib_board *board);
-void ines_request_system_control(struct gpib_board *board, int request_control);
+int ines_request_system_control(struct gpib_board *board, int request_control);
 void ines_interface_clear(struct gpib_board *board, int assert);
 void ines_remote_enable(struct gpib_board *board, int enable);
 int ines_enable_eos(struct gpib_board *board, u8 eos_byte, int compare_8_bits);

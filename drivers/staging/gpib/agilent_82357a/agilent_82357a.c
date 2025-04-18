@@ -756,9 +756,7 @@ static int agilent_82357a_go_to_standby(struct gpib_board *board)
 	return 0;
 }
 
-//FIXME should change prototype to return int
-static void agilent_82357a_request_system_control(struct gpib_board *board,
-						  int request_control)
+static int agilent_82357a_request_system_control(struct gpib_board *board, int request_control)
 {
 	struct agilent_82357a_priv *a_priv = board->private_data;
 	struct usb_device *usb_dev;
@@ -767,7 +765,7 @@ static void agilent_82357a_request_system_control(struct gpib_board *board,
 	int i = 0;
 
 	if (!a_priv->bus_interface)
-		return; // -ENODEV;
+		return -ENODEV;
 
 	usb_dev = interface_to_usbdev(a_priv->bus_interface);
 	/* 82357B needs bit to be set in 9914 AUXCR register */
@@ -776,9 +774,7 @@ static void agilent_82357a_request_system_control(struct gpib_board *board,
 		writes[i].value = AUX_RQC;
 		a_priv->hw_control_bits |= SYSTEM_CONTROLLER;
 	} else {
-		writes[i].value = AUX_RLC;
-		a_priv->is_cic = 0;
-		a_priv->hw_control_bits &= ~SYSTEM_CONTROLLER;
+		return -EINVAL;
 	}
 	++i;
 	writes[i].address = HW_CONTROL;
@@ -787,7 +783,7 @@ static void agilent_82357a_request_system_control(struct gpib_board *board,
 	retval = agilent_82357a_write_registers(a_priv, writes, i);
 	if (retval)
 		dev_err(&usb_dev->dev, "write_registers() returned error\n");
-	return;// retval;
+	return retval;
 }
 
 static void agilent_82357a_interface_clear(struct gpib_board *board, int assert)
@@ -1593,7 +1589,7 @@ static int agilent_82357a_driver_resume(struct usb_interface *interface)
 {
 	struct usb_device *usb_dev = interface_to_usbdev(interface);
 	struct gpib_board *board;
-	int i, retval;
+	int i, retval = 0;
 
 	mutex_lock(&agilent_82357a_hotplug_lock);
 
@@ -1604,8 +1600,10 @@ static int agilent_82357a_driver_resume(struct usb_interface *interface)
 				break;
 		}
 	}
-	if (i == MAX_NUM_82357A_INTERFACES)
+	if (i == MAX_NUM_82357A_INTERFACES) {
+		retval = -ENOENT;
 		goto resume_exit;
+	}
 
 	struct agilent_82357a_priv *a_priv = board->private_data;
 
@@ -1628,7 +1626,7 @@ static int agilent_82357a_driver_resume(struct usb_interface *interface)
 			return retval;
 		}
 		// set/unset system controller
-		agilent_82357a_request_system_control(board, board->master);
+		retval = agilent_82357a_request_system_control(board, board->master);
 		// toggle ifc if master
 		if (board->master) {
 			agilent_82357a_interface_clear(board, 1);
@@ -1646,7 +1644,7 @@ static int agilent_82357a_driver_resume(struct usb_interface *interface)
 resume_exit:
 	mutex_unlock(&agilent_82357a_hotplug_lock);
 
-	return 0;
+	return retval;
 }
 
 static struct usb_driver agilent_82357a_bus_driver = {

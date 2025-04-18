@@ -578,7 +578,7 @@ static int cb7210_go_to_standby(struct gpib_board *board)
 	return nec7210_go_to_standby(board, &priv->nec7210_priv);
 }
 
-static void cb7210_request_system_control(struct gpib_board *board, int request_control)
+static int cb7210_request_system_control(struct gpib_board *board, int request_control)
 {
 	struct cb7210_priv *priv = board->private_data;
 	struct nec7210_priv *nec_priv = &priv->nec7210_priv;
@@ -589,7 +589,7 @@ static void cb7210_request_system_control(struct gpib_board *board, int request_
 		priv->hs_mode_bits &= ~HS_SYS_CONTROL;
 
 	cb7210_write_byte(priv, priv->hs_mode_bits, HS_MODE);
-	nec7210_request_system_control(board, nec_priv, request_control);
+	return nec7210_request_system_control(board, nec_priv, request_control);
 }
 
 static void cb7210_interface_clear(struct gpib_board *board, int assert)
