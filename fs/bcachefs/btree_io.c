@@ -13,6 +13,7 @@
 #include "buckets.h"
 #include "checksum.h"
 #include "debug.h"
+#include "enumerated_ref.h"
 #include "error.h"
 #include "extents.h"
 #include "io_write.h"
@@ -1931,7 +1932,7 @@ err:
 	btree_bounce_free(c, c->opts.btree_node_size, scrub->used_mempool, scrub->buf);
 	percpu_ref_put(&scrub->ca->io_ref[READ]);
 	kfree(scrub);
-	bch2_write_ref_put(c, BCH_WRITE_REF_btree_node_scrub);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_btree_node_scrub);
 }
 
 static void btree_node_scrub_endio(struct bio *bio)
@@ -1950,7 +1951,7 @@ int bch2_btree_node_scrub(struct btree_trans *trans,
 
 	struct bch_fs *c = trans->c;
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_btree_node_scrub))
+	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_btree_node_scrub))
 		return -BCH_ERR_erofs_no_writes;
 
 	struct extent_ptr_decoded pick;
@@ -2000,7 +2001,7 @@ err_free:
 	btree_bounce_free(c, c->opts.btree_node_size, used_mempool, buf);
 	percpu_ref_put(&ca->io_ref[READ]);
 err:
-	bch2_write_ref_put(c, BCH_WRITE_REF_btree_node_scrub);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_btree_node_scrub);
 	return ret;
 }
 

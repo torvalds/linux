@@ -17,6 +17,7 @@
 #include "data_update.h"
 #include "disk_groups.h"
 #include "ec.h"
+#include "enumerated_ref.h"
 #include "error.h"
 #include "io_read.h"
 #include "io_misc.h"
@@ -178,7 +179,7 @@ static noinline void promote_free(struct bch_read_bio *rbio)
 
 	bch2_data_update_exit(&op->write);
 
-	bch2_write_ref_put(c, BCH_WRITE_REF_promote);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_promote);
 	kfree_rcu(op, rcu);
 }
 
@@ -243,7 +244,7 @@ static struct bch_read_bio *__promote_alloc(struct btree_trans *trans,
 			return NULL;
 	}
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_promote))
+	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_promote))
 		return ERR_PTR(-BCH_ERR_nopromote_no_writes);
 
 	struct promote_op *op = kzalloc(sizeof(*op), GFP_KERNEL);
@@ -288,7 +289,7 @@ err:
 	/* We may have added to the rhashtable and thus need rcu freeing: */
 	kfree_rcu(op, rcu);
 err_put:
-	bch2_write_ref_put(c, BCH_WRITE_REF_promote);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_promote);
 	return ERR_PTR(ret);
 }
 

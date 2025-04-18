@@ -7,6 +7,7 @@
 #include "btree_update.h"
 #include "buckets.h"
 #include "clock.h"
+#include "enumerated_ref.h"
 #include "error.h"
 #include "extents.h"
 #include "extent_update.h"
@@ -219,7 +220,7 @@ static int bch2_flush_inode(struct bch_fs *c,
 	if (c->opts.journal_flush_disabled)
 		return 0;
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_fsync))
+	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_fsync))
 		return -EROFS;
 
 	u64 seq;
@@ -227,7 +228,7 @@ static int bch2_flush_inode(struct bch_fs *c,
 			bch2_get_inode_journal_seq_trans(trans, inode_inum(inode), &seq)) ?:
 		  bch2_journal_flush_seq(&c->journal, seq, TASK_INTERRUPTIBLE) ?:
 		  bch2_inode_flush_nocow_writes(c, inode);
-	bch2_write_ref_put(c, BCH_WRITE_REF_fsync);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_fsync);
 	return ret;
 }
 
@@ -818,7 +819,7 @@ long bch2_fallocate_dispatch(struct file *file, int mode,
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	long ret;
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_fallocate))
+	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_fallocate))
 		return -EROFS;
 
 	inode_lock(&inode->v);
@@ -842,7 +843,7 @@ long bch2_fallocate_dispatch(struct file *file, int mode,
 err:
 	bch2_pagecache_block_put(inode);
 	inode_unlock(&inode->v);
-	bch2_write_ref_put(c, BCH_WRITE_REF_fallocate);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_fallocate);
 
 	return bch2_err_class(ret);
 }

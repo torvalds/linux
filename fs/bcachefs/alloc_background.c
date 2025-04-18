@@ -17,6 +17,7 @@
 #include "debug.h"
 #include "disk_accounting.h"
 #include "ec.h"
+#include "enumerated_ref.h"
 #include "error.h"
 #include "lru.h"
 #include "recovery.h"
@@ -1381,7 +1382,7 @@ static void check_discard_freespace_key_work(struct work_struct *work)
 		container_of(work, struct check_discard_freespace_key_async, work);
 
 	bch2_trans_do(w->c, bch2_recheck_discard_freespace_key(trans, w->pos));
-	bch2_write_ref_put(w->c, BCH_WRITE_REF_check_discard_freespace_key);
+	enumerated_ref_put(&w->c->writes, BCH_WRITE_REF_check_discard_freespace_key);
 	kfree(w);
 }
 
@@ -1458,7 +1459,7 @@ delete:
 		if (!w)
 			goto out;
 
-		if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_check_discard_freespace_key)) {
+		if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_check_discard_freespace_key)) {
 			kfree(w);
 			goto out;
 		}
@@ -1953,14 +1954,14 @@ static void bch2_do_discards_work(struct work_struct *work)
 			      bch2_err_str(ret));
 
 	percpu_ref_put(&ca->io_ref[WRITE]);
-	bch2_write_ref_put(c, BCH_WRITE_REF_discard);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_discard);
 }
 
 void bch2_dev_do_discards(struct bch_dev *ca)
 {
 	struct bch_fs *c = ca->fs;
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_discard))
+	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_discard))
 		return;
 
 	if (!bch2_dev_get_ioref(c, ca->dev_idx, WRITE))
@@ -1971,7 +1972,7 @@ void bch2_dev_do_discards(struct bch_dev *ca)
 
 	percpu_ref_put(&ca->io_ref[WRITE]);
 put_write_ref:
-	bch2_write_ref_put(c, BCH_WRITE_REF_discard);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_discard);
 }
 
 void bch2_do_discards(struct bch_fs *c)
@@ -2048,7 +2049,7 @@ static void bch2_do_discards_fast_work(struct work_struct *work)
 
 	bch2_trans_put(trans);
 	percpu_ref_put(&ca->io_ref[WRITE]);
-	bch2_write_ref_put(c, BCH_WRITE_REF_discard_fast);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_discard_fast);
 }
 
 static void bch2_discard_one_bucket_fast(struct bch_dev *ca, u64 bucket)
@@ -2058,7 +2059,7 @@ static void bch2_discard_one_bucket_fast(struct bch_dev *ca, u64 bucket)
 	if (discard_in_flight_add(ca, bucket, false))
 		return;
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_discard_fast))
+	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_discard_fast))
 		return;
 
 	if (!bch2_dev_get_ioref(c, ca->dev_idx, WRITE))
@@ -2069,7 +2070,7 @@ static void bch2_discard_one_bucket_fast(struct bch_dev *ca, u64 bucket)
 
 	percpu_ref_put(&ca->io_ref[WRITE]);
 put_ref:
-	bch2_write_ref_put(c, BCH_WRITE_REF_discard_fast);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_discard_fast);
 }
 
 static int invalidate_one_bp(struct btree_trans *trans,
@@ -2263,14 +2264,14 @@ err:
 	bch2_trans_put(trans);
 	percpu_ref_put(&ca->io_ref[WRITE]);
 	bch2_bkey_buf_exit(&last_flushed, c);
-	bch2_write_ref_put(c, BCH_WRITE_REF_invalidate);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_invalidate);
 }
 
 void bch2_dev_do_invalidates(struct bch_dev *ca)
 {
 	struct bch_fs *c = ca->fs;
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_invalidate))
+	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_invalidate))
 		return;
 
 	if (!bch2_dev_get_ioref(c, ca->dev_idx, WRITE))
@@ -2281,7 +2282,7 @@ void bch2_dev_do_invalidates(struct bch_dev *ca)
 
 	percpu_ref_put(&ca->io_ref[WRITE]);
 put_ref:
-	bch2_write_ref_put(c, BCH_WRITE_REF_invalidate);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_invalidate);
 }
 
 void bch2_do_invalidates(struct bch_fs *c)

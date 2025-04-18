@@ -14,6 +14,7 @@
 #include "btree_locking.h"
 #include "buckets.h"
 #include "clock.h"
+#include "enumerated_ref.h"
 #include "error.h"
 #include "extents.h"
 #include "io_write.h"
@@ -2341,7 +2342,7 @@ static void async_btree_node_rewrite_work(struct work_struct *work)
 	closure_wake_up(&c->btree_node_rewrites_wait);
 
 	bch2_bkey_buf_exit(&a->key, c);
-	bch2_write_ref_put(c, BCH_WRITE_REF_node_rewrite);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_node_rewrite);
 	kfree(a);
 }
 
@@ -2363,7 +2364,7 @@ void bch2_btree_node_rewrite_async(struct bch_fs *c, struct btree *b)
 
 	spin_lock(&c->btree_node_rewrites_lock);
 	if (c->curr_recovery_pass > BCH_RECOVERY_PASS_journal_replay &&
-	    bch2_write_ref_tryget(c, BCH_WRITE_REF_node_rewrite)) {
+	    enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_node_rewrite)) {
 		list_add(&a->list, &c->btree_node_rewrites);
 		now = true;
 	} else if (!test_bit(BCH_FS_may_go_rw, &c->flags)) {
@@ -2402,7 +2403,7 @@ void bch2_do_pending_node_rewrites(struct bch_fs *c)
 		if (!a)
 			break;
 
-		bch2_write_ref_get(c, BCH_WRITE_REF_node_rewrite);
+		enumerated_ref_get(&c->writes, BCH_WRITE_REF_node_rewrite);
 		queue_work(c->btree_node_rewrite_worker, &a->work);
 	}
 }

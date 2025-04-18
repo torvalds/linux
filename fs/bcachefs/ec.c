@@ -16,6 +16,7 @@
 #include "disk_accounting.h"
 #include "disk_groups.h"
 #include "ec.h"
+#include "enumerated_ref.h"
 #include "error.h"
 #include "io_read.h"
 #include "io_write.h"
@@ -1011,14 +1012,14 @@ static void ec_stripe_delete_work(struct work_struct *work)
 				BCH_TRANS_COMMIT_no_enospc, ({
 			ec_stripe_delete(trans, lru_k.k->p.offset);
 		})));
-	bch2_write_ref_put(c, BCH_WRITE_REF_stripe_delete);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_stripe_delete);
 }
 
 void bch2_do_stripe_deletes(struct bch_fs *c)
 {
-	if (bch2_write_ref_tryget(c, BCH_WRITE_REF_stripe_delete) &&
+	if (enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_stripe_delete) &&
 	    !queue_work(c->write_ref_wq, &c->ec_stripe_delete_work))
-		bch2_write_ref_put(c, BCH_WRITE_REF_stripe_delete);
+		enumerated_ref_put(&c->writes, BCH_WRITE_REF_stripe_delete);
 }
 
 /* stripe creation: */
@@ -1412,15 +1413,15 @@ static void ec_stripe_create_work(struct work_struct *work)
 	while ((s = get_pending_stripe(c)))
 		ec_stripe_create(s);
 
-	bch2_write_ref_put(c, BCH_WRITE_REF_stripe_create);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_stripe_create);
 }
 
 void bch2_ec_do_stripe_creates(struct bch_fs *c)
 {
-	bch2_write_ref_get(c, BCH_WRITE_REF_stripe_create);
+	enumerated_ref_get(&c->writes, BCH_WRITE_REF_stripe_create);
 
 	if (!queue_work(system_long_wq, &c->ec_stripe_create_work))
-		bch2_write_ref_put(c, BCH_WRITE_REF_stripe_create);
+		enumerated_ref_put(&c->writes, BCH_WRITE_REF_stripe_create);
 }
 
 static void ec_stripe_new_set_pending(struct bch_fs *c, struct ec_stripe_head *h)

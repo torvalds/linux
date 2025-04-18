@@ -219,7 +219,7 @@
 #include "util.h"
 
 #ifdef CONFIG_BCACHEFS_DEBUG
-#define BCH_WRITE_REF_DEBUG
+#define ENUMERATED_REF_DEBUG
 #endif
 
 #ifndef dynamic_fault
@@ -483,6 +483,7 @@ enum bch_time_stats {
 #include "clock_types.h"
 #include "disk_groups_types.h"
 #include "ec_types.h"
+#include "enumerated_ref_types.h"
 #include "journal_types.h"
 #include "keylist_types.h"
 #include "quota_types.h"
@@ -733,11 +734,7 @@ struct bch_fs {
 	struct rw_semaphore	state_lock;
 
 	/* Counts outstanding writes, for clean transition to read-only */
-#ifdef BCH_WRITE_REF_DEBUG
-	atomic_long_t		writes[BCH_WRITE_REF_NR];
-#else
-	struct percpu_ref	writes;
-#endif
+	struct enumerated_ref	writes;
 	/*
 	 * Certain operations are only allowed in single threaded mode, during
 	 * recovery, and we want to assert that this is the case:
@@ -1114,54 +1111,6 @@ struct bch_fs {
 };
 
 extern struct wait_queue_head bch2_read_only_wait;
-
-static inline void bch2_write_ref_get(struct bch_fs *c, enum bch_write_ref ref)
-{
-#ifdef BCH_WRITE_REF_DEBUG
-	atomic_long_inc(&c->writes[ref]);
-#else
-	percpu_ref_get(&c->writes);
-#endif
-}
-
-static inline bool __bch2_write_ref_tryget(struct bch_fs *c, enum bch_write_ref ref)
-{
-#ifdef BCH_WRITE_REF_DEBUG
-	return !test_bit(BCH_FS_going_ro, &c->flags) &&
-		atomic_long_inc_not_zero(&c->writes[ref]);
-#else
-	return percpu_ref_tryget(&c->writes);
-#endif
-}
-
-static inline bool bch2_write_ref_tryget(struct bch_fs *c, enum bch_write_ref ref)
-{
-#ifdef BCH_WRITE_REF_DEBUG
-	return !test_bit(BCH_FS_going_ro, &c->flags) &&
-		atomic_long_inc_not_zero(&c->writes[ref]);
-#else
-	return percpu_ref_tryget_live(&c->writes);
-#endif
-}
-
-static inline void bch2_write_ref_put(struct bch_fs *c, enum bch_write_ref ref)
-{
-#ifdef BCH_WRITE_REF_DEBUG
-	long v = atomic_long_dec_return(&c->writes[ref]);
-
-	BUG_ON(v < 0);
-	if (v)
-		return;
-	for (unsigned i = 0; i < BCH_WRITE_REF_NR; i++)
-		if (atomic_long_read(&c->writes[i]))
-			return;
-
-	set_bit(BCH_FS_write_disable_complete, &c->flags);
-	wake_up(&bch2_read_only_wait);
-#else
-	percpu_ref_put(&c->writes);
-#endif
-}
 
 static inline bool bch2_ro_ref_tryget(struct bch_fs *c)
 {

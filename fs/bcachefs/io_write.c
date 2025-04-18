@@ -15,6 +15,7 @@
 #include "compress.h"
 #include "debug.h"
 #include "ec.h"
+#include "enumerated_ref.h"
 #include "error.h"
 #include "extent_update.h"
 #include "inode.h"
@@ -531,7 +532,7 @@ static void bch2_write_done(struct closure *cl)
 	bch2_disk_reservation_put(c, &op->res);
 
 	if (!(op->flags & BCH_WRITE_move))
-		bch2_write_ref_put(c, BCH_WRITE_REF_write);
+		enumerated_ref_put(&c->writes, BCH_WRITE_REF_write);
 	bch2_keylist_free(&op->insert_keys, op->inline_keys);
 
 	EBUG_ON(cl->parent);
@@ -1679,7 +1680,7 @@ CLOSURE_CALLBACK(bch2_write)
 	}
 
 	if (!(op->flags & BCH_WRITE_move) &&
-	    !bch2_write_ref_tryget(c, BCH_WRITE_REF_write)) {
+	    !enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_write)) {
 		op->error = -BCH_ERR_erofs_no_writes;
 		goto err;
 	}

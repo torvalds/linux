@@ -6,6 +6,7 @@
 #include "btree_key_cache.h"
 #include "btree_update.h"
 #include "buckets.h"
+#include "enumerated_ref.h"
 #include "errcode.h"
 #include "error.h"
 #include "fs.h"
@@ -1661,18 +1662,18 @@ void bch2_delete_dead_snapshots_work(struct work_struct *work)
 	set_worker_desc("bcachefs-delete-dead-snapshots/%s", c->name);
 
 	bch2_delete_dead_snapshots(c);
-	bch2_write_ref_put(c, BCH_WRITE_REF_delete_dead_snapshots);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_delete_dead_snapshots);
 }
 
 void bch2_delete_dead_snapshots_async(struct bch_fs *c)
 {
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_delete_dead_snapshots))
+	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_delete_dead_snapshots))
 		return;
 
 	BUG_ON(!test_bit(BCH_FS_may_go_rw, &c->flags));
 
 	if (!queue_work(c->write_ref_wq, &c->snapshot_delete_work))
-		bch2_write_ref_put(c, BCH_WRITE_REF_delete_dead_snapshots);
+		enumerated_ref_put(&c->writes, BCH_WRITE_REF_delete_dead_snapshots);
 }
 
 int __bch2_key_has_snapshot_overwrites(struct btree_trans *trans,

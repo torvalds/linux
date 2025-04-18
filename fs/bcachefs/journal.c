@@ -12,6 +12,7 @@
 #include "btree_update.h"
 #include "btree_write_buffer.h"
 #include "buckets.h"
+#include "enumerated_ref.h"
 #include "error.h"
 #include "journal.h"
 #include "journal_io.h"
@@ -989,11 +990,11 @@ int bch2_journal_meta(struct journal *j)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_journal))
+	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_journal))
 		return -BCH_ERR_erofs_no_writes;
 
 	int ret = __bch2_journal_meta(j);
-	bch2_write_ref_put(c, BCH_WRITE_REF_journal);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_journal);
 	return ret;
 }
 

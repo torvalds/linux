@@ -7,6 +7,7 @@
 #include "btree_update_interior.h"
 #include "btree_write_buffer.h"
 #include "disk_accounting.h"
+#include "enumerated_ref.h"
 #include "error.h"
 #include "extents.h"
 #include "journal.h"
@@ -629,11 +630,11 @@ int bch2_btree_write_buffer_tryflush(struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_btree_write_buffer))
+	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_btree_write_buffer))
 		return -BCH_ERR_erofs_no_writes;
 
 	int ret = bch2_btree_write_buffer_flush_nocheck_rw(trans);
-	bch2_write_ref_put(c, BCH_WRITE_REF_btree_write_buffer);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_btree_write_buffer);
 	return ret;
 }
 
@@ -692,7 +693,7 @@ static void bch2_btree_write_buffer_flush_work(struct work_struct *work)
 	} while (!ret && bch2_btree_write_buffer_should_flush(c));
 	mutex_unlock(&wb->flushing.lock);
 
-	bch2_write_ref_put(c, BCH_WRITE_REF_btree_write_buffer);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_btree_write_buffer);
 }
 
 static void wb_accounting_sort(struct btree_write_buffer *wb)
@@ -821,9 +822,9 @@ int bch2_journal_keys_to_write_buffer_end(struct bch_fs *c, struct journal_keys_
 		bch2_journal_pin_drop(&c->journal, &dst->wb->pin);
 
 	if (bch2_btree_write_buffer_should_flush(c) &&
-	    __bch2_write_ref_tryget(c, BCH_WRITE_REF_btree_write_buffer) &&
+	    __enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_btree_write_buffer) &&
 	    !queue_work(system_unbound_wq, &c->btree_write_buffer.flush_work))
-		bch2_write_ref_put(c, BCH_WRITE_REF_btree_write_buffer);
+		enumerated_ref_put(&c->writes, BCH_WRITE_REF_btree_write_buffer);
 
 	if (dst->wb == &wb->flushing)
 		mutex_unlock(&wb->flushing.lock);
