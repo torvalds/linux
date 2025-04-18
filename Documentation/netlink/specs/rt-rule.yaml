@@ -234,7 +234,7 @@ operations:
       name: newrule-ntf
       doc: Notify a rule creation
       value: 32
-      notify: newrule
+      notify: getrule
     -
       name: delrule
       doc: Remove an existing FIB rule
@@ -247,7 +247,7 @@ operations:
       name: delrule-ntf
       doc: Notify a rule deletion
       value: 33
-      notify: delrule
+      notify: getrule
     -
       name: getrule
       doc: Dump all FIB rules

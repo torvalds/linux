@@ -381,7 +381,7 @@ operations:
       name: delneigh-ntf
       doc: Notify a neighbour deletion
       value: 29
-      notify: delneigh
+      notify: getneigh
       fixed-header: ndmsg
     -
       name: getneigh
