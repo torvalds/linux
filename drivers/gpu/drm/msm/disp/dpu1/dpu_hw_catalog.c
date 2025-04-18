@@ -759,7 +759,7 @@ static const struct dpu_qos_lut_entry sc7180_qos_nrt[] = {
 #include "catalog/dpu_8_4_sa8775p.h"
 
 #include "catalog/dpu_9_0_sm8550.h"
-
+#include "catalog/dpu_9_1_sar2130p.h"
 #include "catalog/dpu_9_2_x1e80100.h"
 
 #include "catalog/dpu_10_0_sm8650.h"
