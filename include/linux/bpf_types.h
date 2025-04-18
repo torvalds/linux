@@ -2,8 +2,8 @@
 /* internal file - do not include directly */
 
 #ifdef CONFIG_NET
-BPF_PROG_TYPE(BPF_PROG_TYPE_SOCKET_FILTER, sk_filter,
-	      struct __sk_buff, struct sk_buff)
+BPF_PROG_TYPE(BPF_PROG_TYPE_SOCKET_FILTER, sk_filter, 
+		  struct __sk_buff, struct sk_buff)
 BPF_PROG_TYPE(BPF_PROG_TYPE_SCHED_CLS, tc_cls_act,
 	      struct __sk_buff, struct sk_buff)
 BPF_PROG_TYPE(BPF_PROG_TYPE_SCHED_ACT, tc_cls_act,
@@ -154,3 +154,7 @@ BPF_LINK_TYPE(BPF_LINK_TYPE_PERF_EVENT, perf)
 BPF_LINK_TYPE(BPF_LINK_TYPE_KPROBE_MULTI, kprobe_multi)
 BPF_LINK_TYPE(BPF_LINK_TYPE_STRUCT_OPS, struct_ops)
 BPF_LINK_TYPE(BPF_LINK_TYPE_UPROBE_MULTI, uprobe_multi)
+#ifdef CONFIG_BPF_BLOCK
+BPF_PROG_TYPE(BPF_PROG_TYPE_BIO, bio,
+              struct bpf_bio, struct bio)
+#endif

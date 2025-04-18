@@ -37,4 +37,4 @@ obj-$(CONFIG_BLK_INLINE_ENCRYPTION)	+= blk-crypto.o blk-crypto-profile.o \
 					   blk-crypto-sysfs.o
 obj-$(CONFIG_BLK_INLINE_ENCRYPTION_FALLBACK)	+= blk-crypto-fallback.o
 obj-$(CONFIG_BLOCK_HOLDER_DEPRECATED)	+= holder.o
-obj-$(CONFIG_BPF_BIO) += bpf_bio.o
+obj-$(CONFIG_BPF_BIO_OPS) += bpf_bio.o

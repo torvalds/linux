@@ -38,6 +38,12 @@ tprogs-y += task_fd_query
 tprogs-y += ibumad
 tprogs-y += hbm
 
+# Bio interposer sample program
+hostprogs-y += bio_interposer
+bio_interposer-objs := bio_interposer_user.o
+
+BPF_OBJ_BIO := bio_interposer.bpf.o
+
 # Libbpf dependencies
 LIBBPF_SRC = $(TOOLS_PATH)/lib/bpf
 LIBBPF_OUTPUT = $(abspath $(BPF_SAMPLES_PATH))/libbpf
@@ -122,6 +128,7 @@ always-y += task_fd_query_kern.o
 always-y += ibumad_kern.o
 always-y += hbm_out_kern.o
 always-y += hbm_edt_kern.o
+always-y += $(BPF_OBJ_BIO)
 
 COMMON_CFLAGS = $(TPROGS_USER_CFLAGS)
 TPROGS_LDFLAGS = $(TPROGS_USER_LDFLAGS)
@@ -390,3 +397,17 @@ $(obj)/%.o: $(src)/%.c
 ifeq ($(DWARF2BTF),y)
 	$(BTF_PAHOLE) -J $@
 endif
+
+$(obj)/bio_interposer.bpf.o: $(src)/bio_interposer.c
+	$(call cmd,clang)
+
+CLANG_FLAGS += -I$(obj)/../../../include -I$(obj)/../../../tools/include
+CLANG_FLAGS += -I$(obj)/../../../tools/lib/bpf
+
+# Recipe for BPF object file:
+cmd_clang = $(CLANG) -Wno-compare-distinct-pointer-types -Wno-unknown-warning-option \
+	    -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH) \
+	    -I$(srctree)/include -I$(srctree)/tools/include \
+	    -I$(srctree)/tools/lib/bpf \
+	    $(CLANG_FLAGS) \
+	    -c $< -o $@

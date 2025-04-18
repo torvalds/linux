@@ -25,8 +25,32 @@ sudo apt-get install build-essential libncurses-dev bison flex libssl-dev libelf
    scripts/config --enable CONFIG_BPF_SYSCALL
    scripts/config --enable CONFIG_BPF_JIT
    scripts/config --enable CONFIG_DEBUG_INFO_BTF
-   scripts/config --enable CONFIG_BPF_BIO
+   scripts/config --enable CONFIG_BPF_BIO_OPS
    ```
+2. Create certificates
+   ```bash
+   sudo mkdir -p /usr/local/src/debian
+   sudo apt install linux-source
+   sudo cp -v /usr/src/linux-source-*/debian/canonical-*.pem /usr/local/src/debian/
+   sudo apt purge linux-source*
+   ```
+
+   Update .config with
+   # Certificates for signature checking
+#
+CONFIG_MODULE_SIG_KEY="certs/signing_key.pem"
+CONFIG_MODULE_SIG_KEY_TYPE_RSA=y
+CONFIG_MODULE_SIG_KEY_TYPE_ECDSA=y
+CONFIG_SYSTEM_TRUSTED_KEYRING=y
+CONFIG_SYSTEM_TRUSTED_KEYS="/usr/local/src/debian/canonical-certs.pem"
+CONFIG_SYSTEM_EXTRA_CERTIFICATE=y
+CONFIG_SYSTEM_EXTRA_CERTIFICATE_SIZE=4096
+CONFIG_SECONDARY_TRUSTED_KEYRING=y
+CONFIG_SYSTEM_BLACKLIST_KEYRING=y
+CONFIG_SYSTEM_BLACKLIST_HASH_LIST=""
+CONFIG_SYSTEM_REVOCATION_LIST=y
+CONFIG_SYSTEM_REVOCATION_KEYS="/usr/local/src/debian/canonical-revoked-certs.pem"
+# end of Certificates for signature checking
 
 3. **Build the kernel**:
    ```bash

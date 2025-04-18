@@ -199,6 +199,19 @@ config BLK_INLINE_ENCRYPTION
 	  block layer handle encryption, so users can take
 	  advantage of inline encryption hardware if present.
 
+config BPF_BIO_OPS
+	bool "BPF Block I/O Operations"
+	depends on BPF_SYSCALL
+	help
+	  Enable support for BPF struct_ops to hook into block I/O operations 
+	  such as submit_bio() and bio_endio(). This allows BPF programs to 
+	  intercept, modify, or monitor block I/O operations.
+
+	  This can be used for implementing block filters, bio interposers,
+	  snapshots, and I/O tracing/debugging tools using BPF.
+
+	  If unsure, say N.
+
 config BLK_INLINE_ENCRYPTION_FALLBACK
 	bool "Enable crypto API fallback for blk-crypto"
 	depends on BLK_INLINE_ENCRYPTION
@@ -230,18 +243,5 @@ config BLK_MQ_STACKING
 	bool
 
 source "block/Kconfig.iosched"
-
-config BPF_BIO
-	bool "BPF programs for block I/O operations"
-	depends on BPF_SYSCALL
-	help
-	  Enable support for BPF programs to hook into block I/O operations.
-	  This allows for custom filtering, interposition, and tracing of
-	  block I/O operations using BPF programs.
-
-	  When no BPF program is attached, the performance impact is
-	  negligible due to static branch optimization.
-
-	  If unsure, say N.
 
 endif # BLOCK

@@ -1,0 +1,114 @@
+BIO Interposer - BPF Struct_ops for Block I/O
+=============================================
+
+Overview
+--------
+
+This sample demonstrates how BPF struct_ops can be used to attach to the Linux
+block I/O (bio) subsystem. It allows BPF programs to hook into both bio submission
+(submit_bio) and bio completion (bio_endio) paths, enabling a wide range of use cases:
+
+- Block I/O filtering/interception
+- Bio interposition
+- Block I/O snapshotting
+- I/O tracing and debugging
+- Performance analysis
+
+The implementation consists of:
+
+1. Kernel-side modifications:
+   - Enhanced bpf_bio_ops struct with fields for interposing on bio operations
+   - Additional helper functions to manipulate bio objects safely
+
+2. BPF program (bio_interposer.c):
+   - Hooks for submit_bio and bio_endio
+   - Maps for tracking statistics and latency
+   - Example filter based on device ID
+
+3. User-space loader (bio_interposer_user.c):
+   - Loads and attaches the BPF program
+   - Provides statistics on block I/O operations
+
+Use Cases
+---------
+
+### Block Filtering
+Filter specific types of I/O operations (e.g., block certain writes to
+specific regions of a device).
+
+### Bio Interposer
+Intercept all I/O operations, potentially modifying them before they reach
+the device, or redirecting them to a different device.
+
+### Snapshots
+Create snapshots of data by duplicating writes or redirecting them to a
+different location.
+
+### I/O Tracing
+Monitor all block I/O operations in real-time for debugging or analysis.
+
+Building
+--------
+
+To build the sample:
+
+```
+cd samples/bpf
+make
+```
+
+This will create the following files:
+- bio_interposer: User-space loader
+- bio_interposer.bpf.o: BPF object file
+
+Running
+-------
+
+Run the user-space loader to attach and use the BPF program:
+
+```
+./bio_interposer [-t seconds] [-d device_id]
+```
+
+Options:
+- `-t seconds`: Run for the specified number of seconds (default: until Ctrl-C)
+- `-d device_id`: Filter operations for a specific device ID (default: as set in BPF code)
+
+Example:
+```
+# Track all block I/O operations
+./bio_interposer
+
+# Track block I/O operations for device ID 8 for 60 seconds
+./bio_interposer -d 8 -t 60
+```
+
+The program will display I/O statistics every 10 seconds and a final summary
+when it exits.
+
+Extending
+---------
+
+The sample can be extended in several ways:
+
+1. Implement more advanced filtering based on:
+   - Sector ranges
+   - I/O sizes
+   - More complex device selection
+
+2. Add more sophisticated I/O interposition:
+   - Duplicate writes for backup/snapshot
+   - Add encryption/compression
+   - Implement caching layers
+
+3. Enhance statistics collection:
+   - Add histograms for I/O sizes
+   - Track sector access patterns
+   - Monitor queue depths
+
+Requirements
+-----------
+
+- Linux kernel with BPF support (5.10+)
+- LLVM/Clang toolchain (for compiling BPF programs)
+- libbpf development headers 
