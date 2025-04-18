@@ -542,7 +542,7 @@ static bool bcm_iproc_i2c_slave_isr(struct bcm_iproc_i2c_dev *iproc_i2c,
 static void bcm_iproc_i2c_read_valid_bytes(struct bcm_iproc_i2c_dev *iproc_i2c)
 {
 	struct i2c_msg *msg = iproc_i2c->msg;
-	uint32_t val;
+	u32 val;
 
 	/* Read valid data from RX FIFO */
 	while (iproc_i2c->rx_bytes < msg->len) {
@@ -977,7 +977,7 @@ static int bcm_iproc_i2c_xfer(struct i2c_adapter *adapter,
 	return num;
 }
 
-static uint32_t bcm_iproc_i2c_functionality(struct i2c_adapter *adap)
+static u32 bcm_iproc_i2c_functionality(struct i2c_adapter *adap)
 {
 	u32 val;
 
