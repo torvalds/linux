@@ -1066,6 +1066,8 @@ struct ath12k_base {
 	 */
 	struct ieee80211_regdomain *new_regd[MAX_RADIOS];
 
+	struct ath12k_reg_info *reg_info[MAX_RADIOS];
+
 	/* Current DFS Regulatory */
 	enum ath12k_dfs_region dfs_region;
 	struct ath12k_soc_dp_stats soc_stats;

@@ -6118,6 +6118,7 @@ static void ath12k_wmi_htc_tx_complete(struct ath12k_base *ab,
 static int ath12k_reg_chan_list_event(struct ath12k_base *ab, struct sk_buff *skb)
 {
 	struct ath12k_reg_info *reg_info;
+	u8 pdev_idx;
 	int ret;
 
 	reg_info = kzalloc(sizeof(*reg_info), GFP_ATOMIC);
@@ -6146,6 +6147,17 @@ static int ath12k_reg_chan_list_event(struct ath12k_base *ab, struct sk_buff *sk
 		ret = ATH12K_REG_STATUS_VALID;
 		goto mem_free;
 	}
+
+	/* free old reg_info if it exist */
+	pdev_idx = reg_info->phy_id;
+	if (ab->reg_info[pdev_idx]) {
+		ath12k_reg_reset_reg_info(ab->reg_info[pdev_idx]);
+		kfree(ab->reg_info[pdev_idx]);
+	}
+	/* reg_info is valid, we store it for later use
+	 * even below regd build failed
+	 */
+	ab->reg_info[pdev_idx] = reg_info;
 
 	ret = ath12k_reg_handle_chan_list(ab, reg_info, WMI_VDEV_TYPE_UNSPEC,
 					  IEEE80211_REG_UNSET_AP);

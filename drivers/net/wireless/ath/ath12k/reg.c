@@ -1040,6 +1040,12 @@ void ath12k_reg_free(struct ath12k_base *ab)
 	int i;
 
 	mutex_lock(&ab->core_lock);
+	for (i = 0; i < MAX_RADIOS; i++) {
+		ath12k_reg_reset_reg_info(ab->reg_info[i]);
+		kfree(ab->reg_info[i]);
+		ab->reg_info[i] = NULL;
+	}
+
 	for (i = 0; i < ab->hw_params->max_radios; i++) {
 		kfree(ab->default_regd[i]);
 		kfree(ab->new_regd[i]);
