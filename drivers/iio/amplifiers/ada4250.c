@@ -13,8 +13,7 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
-
-#include <linux/unaligned.h>
+#include <linux/types.h>
 
 /* ADA4250 Register Map */
 #define ADA4250_REG_GAIN_MUX        0x00
@@ -63,6 +62,7 @@ struct ada4250_state {
 	u8			gain;
 	int			offset_uv;
 	bool			refbuf_en;
+	__le16			reg_val_16 __aligned(IIO_DMA_MINALIGN);
 };
 
 /* ADA4250 Current Bias Source Settings: Disabled, Bandgap Reference, AVDD */
@@ -301,7 +301,6 @@ static int ada4250_init(struct ada4250_state *st)
 {
 	int ret;
 	u16 chip_id;
-	u8 data[2] __aligned(8) = {};
 	struct spi_device *spi = st->spi;
 
 	st->refbuf_en = device_property_read_bool(&spi->dev, "adi,refbuf-enable");
@@ -326,11 +325,12 @@ static int ada4250_init(struct ada4250_state *st)
 	if (ret)
 		return ret;
 
-	ret = regmap_bulk_read(st->regmap, ADA4250_REG_CHIP_ID, data, 2);
+	ret = regmap_bulk_read(st->regmap, ADA4250_REG_CHIP_ID, &st->reg_val_16,
+			       sizeof(st->reg_val_16));
 	if (ret)
 		return ret;
 
-	chip_id = get_unaligned_le16(data);
+	chip_id = le16_to_cpu(st->reg_val_16);
 
 	if (chip_id != ADA4250_CHIP_ID) {
 		dev_err(&spi->dev, "Invalid chip ID.\n");
