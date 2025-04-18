@@ -14,7 +14,7 @@
 #include <crypto/internal/hash.h>
 #include <crypto/internal/simd.h>
 #include <crypto/sha256_base.h>
-#include <linux/linkage.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 
 /*
@@ -22,50 +22,36 @@
  * It is assumed to be the first field.
  */
 asmlinkage void sha256_transform_zvknha_or_zvknhb_zvkb(
-	struct sha256_state *state, const u8 *data, int num_blocks);
+	struct crypto_sha256_state *state, const u8 *data, int num_blocks);
+
+static void sha256_block(struct crypto_sha256_state *state, const u8 *data,
+			 int num_blocks)
+{
+	/*
+	 * Ensure struct crypto_sha256_state begins directly with the SHA-256
+	 * 256-bit internal state, as this is what the asm function expects.
+	 */
+	BUILD_BUG_ON(offsetof(struct crypto_sha256_state, state) != 0);
+
+	if (crypto_simd_usable()) {
+		kernel_vector_begin();
+		sha256_transform_zvknha_or_zvknhb_zvkb(state, data, num_blocks);
+		kernel_vector_end();
+	} else
+		sha256_transform_blocks(state, data, num_blocks);
+}
 
 static int riscv64_sha256_update(struct shash_desc *desc, const u8 *data,
 				 unsigned int len)
 {
-	/*
-	 * Ensure struct sha256_state begins directly with the SHA-256
-	 * 256-bit internal state, as this is what the asm function expects.
-	 */
-	BUILD_BUG_ON(offsetof(struct sha256_state, state) != 0);
-
-	if (crypto_simd_usable()) {
-		kernel_vector_begin();
-		sha256_base_do_update(desc, data, len,
-				      sha256_transform_zvknha_or_zvknhb_zvkb);
-		kernel_vector_end();
-	} else {
-		crypto_sha256_update(desc, data, len);
-	}
-	return 0;
+	return sha256_base_do_update_blocks(desc, data, len, sha256_block);
 }
 
 static int riscv64_sha256_finup(struct shash_desc *desc, const u8 *data,
 				unsigned int len, u8 *out)
 {
-	if (crypto_simd_usable()) {
-		kernel_vector_begin();
-		if (len)
-			sha256_base_do_update(
-				desc, data, len,
-				sha256_transform_zvknha_or_zvknhb_zvkb);
-		sha256_base_do_finalize(
-			desc, sha256_transform_zvknha_or_zvknhb_zvkb);
-		kernel_vector_end();
-
-		return sha256_base_finish(desc, out);
-	}
-
-	return crypto_sha256_finup(desc, data, len, out);
-}
-
-static int riscv64_sha256_final(struct shash_desc *desc, u8 *out)
-{
-	return riscv64_sha256_finup(desc, NULL, 0, out);
+	sha256_base_do_finup(desc, data, len, sha256_block);
+	return sha256_base_finish(desc, out);
 }
 
 static int riscv64_sha256_digest(struct shash_desc *desc, const u8 *data,
@@ -79,13 +65,14 @@ static struct shash_alg riscv64_sha256_algs[] = {
 	{
 		.init = sha256_base_init,
 		.update = riscv64_sha256_update,
-		.final = riscv64_sha256_final,
 		.finup = riscv64_sha256_finup,
 		.digest = riscv64_sha256_digest,
-		.descsize = sizeof(struct sha256_state),
+		.descsize = sizeof(struct crypto_sha256_state),
 		.digestsize = SHA256_DIGEST_SIZE,
 		.base = {
 			.cra_blocksize = SHA256_BLOCK_SIZE,
+			.cra_flags = CRYPTO_AHASH_ALG_BLOCK_ONLY |
+				     CRYPTO_AHASH_ALG_FINUP_MAX,
 			.cra_priority = 300,
 			.cra_name = "sha256",
 			.cra_driver_name = "sha256-riscv64-zvknha_or_zvknhb-zvkb",
@@ -94,12 +81,13 @@ static struct shash_alg riscv64_sha256_algs[] = {
 	}, {
 		.init = sha224_base_init,
 		.update = riscv64_sha256_update,
-		.final = riscv64_sha256_final,
 		.finup = riscv64_sha256_finup,
-		.descsize = sizeof(struct sha256_state),
+		.descsize = sizeof(struct crypto_sha256_state),
 		.digestsize = SHA224_DIGEST_SIZE,
 		.base = {
 			.cra_blocksize = SHA224_BLOCK_SIZE,
+			.cra_flags = CRYPTO_AHASH_ALG_BLOCK_ONLY |
+				     CRYPTO_AHASH_ALG_FINUP_MAX,
 			.cra_priority = 300,
 			.cra_name = "sha224",
 			.cra_driver_name = "sha224-riscv64-zvknha_or_zvknhb-zvkb",

@@ -198,4 +198,7 @@ static inline int sha256_base_finish(struct shash_desc *desc, u8 *out)
 	return __sha256_base_finish(sctx->state, out, digest_size);
 }
 
+void sha256_transform_blocks(struct crypto_sha256_state *sst,
+			     const u8 *input, int blocks);
+
 #endif /* _CRYPTO_SHA256_BASE_H */
