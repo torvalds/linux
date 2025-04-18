@@ -13,15 +13,12 @@
  * Copyright (c) 2003 Kyle McMartin <kyle@debian.org>
  */
 
-#include <linux/mm.h>
-#include <crypto/sha2.h>
-#include <crypto/sha512_base.h>
-#include <linux/init.h>
-#include <linux/types.h>
-#include <linux/module.h>
-#include <asm/byteorder.h>
 #include <asm/octeon/octeon.h>
 #include <crypto/internal/hash.h>
+#include <crypto/sha2.h>
+#include <crypto/sha512_base.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 
 #include "octeon-crypto.h"
 
@@ -53,60 +50,31 @@ static void octeon_sha512_read_hash(struct sha512_state *sctx)
 	sctx->state[7] = read_octeon_64bit_hash_sha512(7);
 }
 
-static void octeon_sha512_transform(const void *_block)
+static void octeon_sha512_transform(struct sha512_state *sctx,
+				    const u8 *src, int blocks)
 {
-	const u64 *block = _block;
+	do {
+		const u64 *block = (const u64 *)src;
 
-	write_octeon_64bit_block_sha512(block[0], 0);
-	write_octeon_64bit_block_sha512(block[1], 1);
-	write_octeon_64bit_block_sha512(block[2], 2);
-	write_octeon_64bit_block_sha512(block[3], 3);
-	write_octeon_64bit_block_sha512(block[4], 4);
-	write_octeon_64bit_block_sha512(block[5], 5);
-	write_octeon_64bit_block_sha512(block[6], 6);
-	write_octeon_64bit_block_sha512(block[7], 7);
-	write_octeon_64bit_block_sha512(block[8], 8);
-	write_octeon_64bit_block_sha512(block[9], 9);
-	write_octeon_64bit_block_sha512(block[10], 10);
-	write_octeon_64bit_block_sha512(block[11], 11);
-	write_octeon_64bit_block_sha512(block[12], 12);
-	write_octeon_64bit_block_sha512(block[13], 13);
-	write_octeon_64bit_block_sha512(block[14], 14);
-	octeon_sha512_start(block[15]);
-}
+		write_octeon_64bit_block_sha512(block[0], 0);
+		write_octeon_64bit_block_sha512(block[1], 1);
+		write_octeon_64bit_block_sha512(block[2], 2);
+		write_octeon_64bit_block_sha512(block[3], 3);
+		write_octeon_64bit_block_sha512(block[4], 4);
+		write_octeon_64bit_block_sha512(block[5], 5);
+		write_octeon_64bit_block_sha512(block[6], 6);
+		write_octeon_64bit_block_sha512(block[7], 7);
+		write_octeon_64bit_block_sha512(block[8], 8);
+		write_octeon_64bit_block_sha512(block[9], 9);
+		write_octeon_64bit_block_sha512(block[10], 10);
+		write_octeon_64bit_block_sha512(block[11], 11);
+		write_octeon_64bit_block_sha512(block[12], 12);
+		write_octeon_64bit_block_sha512(block[13], 13);
+		write_octeon_64bit_block_sha512(block[14], 14);
+		octeon_sha512_start(block[15]);
 
-static void __octeon_sha512_update(struct sha512_state *sctx, const u8 *data,
-				   unsigned int len)
-{
-	unsigned int part_len;
-	unsigned int index;
-	unsigned int i;
-
-	/* Compute number of bytes mod 128. */
-	index = sctx->count[0] % SHA512_BLOCK_SIZE;
-
-	/* Update number of bytes. */
-	if ((sctx->count[0] += len) < len)
-		sctx->count[1]++;
-
-	part_len = SHA512_BLOCK_SIZE - index;
-
-	/* Transform as many times as possible. */
-	if (len >= part_len) {
-		memcpy(&sctx->buf[index], data, part_len);
-		octeon_sha512_transform(sctx->buf);
-
-		for (i = part_len; i + SHA512_BLOCK_SIZE <= len;
-			i += SHA512_BLOCK_SIZE)
-			octeon_sha512_transform(&data[i]);
-
-		index = 0;
-	} else {
-		i = 0;
-	}
-
-	/* Buffer remaining input. */
-	memcpy(&sctx->buf[index], &data[i], len - i);
+		src += SHA512_BLOCK_SIZE;
+	} while (--blocks);
 }
 
 static int octeon_sha512_update(struct shash_desc *desc, const u8 *data,
@@ -115,89 +83,48 @@ static int octeon_sha512_update(struct shash_desc *desc, const u8 *data,
 	struct sha512_state *sctx = shash_desc_ctx(desc);
 	struct octeon_cop2_state state;
 	unsigned long flags;
-
-	/*
-	 * Small updates never reach the crypto engine, so the generic sha512 is
-	 * faster because of the heavyweight octeon_crypto_enable() /
-	 * octeon_crypto_disable().
-	 */
-	if ((sctx->count[0] % SHA512_BLOCK_SIZE) + len < SHA512_BLOCK_SIZE)
-		return crypto_sha512_update(desc, data, len);
+	int remain;
 
 	flags = octeon_crypto_enable(&state);
 	octeon_sha512_store_hash(sctx);
 
-	__octeon_sha512_update(sctx, data, len);
+	remain = sha512_base_do_update_blocks(desc, data, len,
+					      octeon_sha512_transform);
 
 	octeon_sha512_read_hash(sctx);
 	octeon_crypto_disable(&state, flags);
-
-	return 0;
+	return remain;
 }
 
-static int octeon_sha512_final(struct shash_desc *desc, u8 *hash)
+static int octeon_sha512_finup(struct shash_desc *desc, const u8 *src,
+			       unsigned int len, u8 *hash)
 {
 	struct sha512_state *sctx = shash_desc_ctx(desc);
-	static u8 padding[128] = { 0x80, };
 	struct octeon_cop2_state state;
-	__be64 *dst = (__be64 *)hash;
-	unsigned int pad_len;
 	unsigned long flags;
-	unsigned int index;
-	__be64 bits[2];
-	int i;
-
-	/* Save number of bits. */
-	bits[1] = cpu_to_be64(sctx->count[0] << 3);
-	bits[0] = cpu_to_be64(sctx->count[1] << 3 | sctx->count[0] >> 61);
-
-	/* Pad out to 112 mod 128. */
-	index = sctx->count[0] & 0x7f;
-	pad_len = (index < 112) ? (112 - index) : ((128+112) - index);
 
 	flags = octeon_crypto_enable(&state);
 	octeon_sha512_store_hash(sctx);
 
-	__octeon_sha512_update(sctx, padding, pad_len);
-
-	/* Append length (before padding). */
-	__octeon_sha512_update(sctx, (const u8 *)bits, sizeof(bits));
+	sha512_base_do_finup(desc, src, len, octeon_sha512_transform);
 
 	octeon_sha512_read_hash(sctx);
 	octeon_crypto_disable(&state, flags);
-
-	/* Store state in digest. */
-	for (i = 0; i < 8; i++)
-		dst[i] = cpu_to_be64(sctx->state[i]);
-
-	/* Zeroize sensitive information. */
-	memset(sctx, 0, sizeof(struct sha512_state));
-
-	return 0;
-}
-
-static int octeon_sha384_final(struct shash_desc *desc, u8 *hash)
-{
-	u8 D[64];
-
-	octeon_sha512_final(desc, D);
-
-	memcpy(hash, D, 48);
-	memzero_explicit(D, 64);
-
-	return 0;
+	return sha512_base_finish(desc, hash);
 }
 
 static struct shash_alg octeon_sha512_algs[2] = { {
 	.digestsize	=	SHA512_DIGEST_SIZE,
 	.init		=	sha512_base_init,
 	.update		=	octeon_sha512_update,
-	.final		=	octeon_sha512_final,
-	.descsize	=	sizeof(struct sha512_state),
+	.finup		=	octeon_sha512_finup,
+	.descsize	=	SHA512_STATE_SIZE,
 	.base		=	{
 		.cra_name	=	"sha512",
 		.cra_driver_name=	"octeon-sha512",
 		.cra_priority	=	OCTEON_CR_OPCODE_PRIORITY,
+		.cra_flags	=	CRYPTO_AHASH_ALG_BLOCK_ONLY |
+					CRYPTO_AHASH_ALG_FINUP_MAX,
 		.cra_blocksize	=	SHA512_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}
@@ -205,12 +132,14 @@ static struct shash_alg octeon_sha512_algs[2] = { {
 	.digestsize	=	SHA384_DIGEST_SIZE,
 	.init		=	sha384_base_init,
 	.update		=	octeon_sha512_update,
-	.final		=	octeon_sha384_final,
-	.descsize	=	sizeof(struct sha512_state),
+	.finup		=	octeon_sha512_finup,
+	.descsize	=	SHA512_STATE_SIZE,
 	.base		=	{
 		.cra_name	=	"sha384",
 		.cra_driver_name=	"octeon-sha384",
 		.cra_priority	=	OCTEON_CR_OPCODE_PRIORITY,
+		.cra_flags	=	CRYPTO_AHASH_ALG_BLOCK_ONLY |
+					CRYPTO_AHASH_ALG_FINUP_MAX,
 		.cra_blocksize	=	SHA384_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}
