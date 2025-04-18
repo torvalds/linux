@@ -2460,7 +2460,6 @@ operations:
             - xdp
             - event
             - new-netnsid
-            - if-netnsid
             - target-netnsid
             - carrier-up-count
             - carrier-down-count
