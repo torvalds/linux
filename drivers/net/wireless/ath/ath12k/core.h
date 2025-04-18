@@ -342,6 +342,8 @@ struct ath12k_link_vif {
 
 	/* only used in station mode */
 	bool is_sta_assoc_link;
+
+	struct ath12k_reg_tpc_power_info reg_tpc_info;
 };
 
 struct ath12k_vif {

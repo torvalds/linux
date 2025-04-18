@@ -67,6 +67,46 @@ struct ath12k_mac_get_any_chanctx_conf_arg {
 	struct ieee80211_chanctx_conf *chanctx_conf;
 };
 
+/**
+ * struct ath12k_chan_power_info - TPE containing power info per channel chunk
+ * @chan_cfreq: channel center freq (MHz)
+ * e.g.
+ * channel 37/20 MHz,  it is 6135
+ * channel 37/40 MHz,  it is 6125
+ * channel 37/80 MHz,  it is 6145
+ * channel 37/160 MHz, it is 6185
+ * @tx_power: transmit power (dBm)
+ */
+struct ath12k_chan_power_info {
+	u16 chan_cfreq;
+	s8 tx_power;
+};
+
+/* ath12k only deals with 320 MHz, so 16 subchannels */
+#define ATH12K_NUM_PWR_LEVELS  16
+
+/**
+ * struct ath12k_reg_tpc_power_info - regulatory TPC power info
+ * @is_psd_power: is PSD power or not
+ * @eirp_power: Maximum EIRP power (dBm), valid only if power is PSD
+ * @ap_power_type: type of power (SP/LPI/VLP)
+ * @num_pwr_levels: number of power levels
+ * @reg_max: Array of maximum TX power (dBm) per PSD value
+ * @ap_constraint_power: AP constraint power (dBm)
+ * @tpe: TPE values processed from TPE IE
+ * @chan_power_info: power info to send to firmware
+ */
+struct ath12k_reg_tpc_power_info {
+	bool is_psd_power;
+	u8 eirp_power;
+	enum wmi_reg_6g_ap_type ap_power_type;
+	u8 num_pwr_levels;
+	u8 reg_max[ATH12K_NUM_PWR_LEVELS];
+	u8 ap_constraint_power;
+	s8 tpe[ATH12K_NUM_PWR_LEVELS];
+	struct ath12k_chan_power_info chan_power_info[ATH12K_NUM_PWR_LEVELS];
+};
+
 extern const struct htt_rx_ring_tlv_filter ath12k_mac_mon_status_filter_default;
 
 #define ATH12K_SCAN_11D_INTERVAL		600000
