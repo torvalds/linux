@@ -301,7 +301,7 @@ properties:
 
   interconnects:
     minItems: 1
-    maxItems: 2
+    maxItems: 3
 
   nvmem-cells:
     maxItems: 1
