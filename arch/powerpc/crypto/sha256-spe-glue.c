@@ -8,16 +8,13 @@
  * Copyright (c) 2015 Markus Stockhausen <stockhausen@collogia.de>
  */
 
+#include <asm/switch_to.h>
 #include <crypto/internal/hash.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/mm.h>
-#include <linux/types.h>
 #include <crypto/sha2.h>
 #include <crypto/sha256_base.h>
-#include <asm/byteorder.h>
-#include <asm/switch_to.h>
-#include <linux/hardirq.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/preempt.h>
 
 /*
  * MAX_BYTES defines the number of bytes that are allowed to be processed
@@ -47,151 +44,48 @@ static void spe_end(void)
 	preempt_enable();
 }
 
-static inline void ppc_sha256_clear_context(struct sha256_state *sctx)
+static void ppc_spe_sha256_block(struct crypto_sha256_state *sctx,
+				 const u8 *src, int blocks)
 {
-	int count = sizeof(struct sha256_state) >> 2;
-	u32 *ptr = (u32 *)sctx;
+	do {
+		/* cut input data into smaller blocks */
+		int unit = min(blocks, MAX_BYTES / SHA256_BLOCK_SIZE);
 
-	/* make sure we can clear the fast way */
-	BUILD_BUG_ON(sizeof(struct sha256_state) % 4);
-	do { *ptr++ = 0; } while (--count);
+		spe_begin();
+		ppc_spe_sha256_transform(sctx->state, src, unit);
+		spe_end();
+
+		src += unit * SHA256_BLOCK_SIZE;
+		blocks -= unit;
+	} while (blocks);
 }
 
 static int ppc_spe_sha256_update(struct shash_desc *desc, const u8 *data,
 			unsigned int len)
 {
-	struct sha256_state *sctx = shash_desc_ctx(desc);
-	const unsigned int offset = sctx->count & 0x3f;
-	const unsigned int avail = 64 - offset;
-	unsigned int bytes;
-	const u8 *src = data;
-
-	if (avail > len) {
-		sctx->count += len;
-		memcpy((char *)sctx->buf + offset, src, len);
-		return 0;
-	}
-
-	sctx->count += len;
-
-	if (offset) {
-		memcpy((char *)sctx->buf + offset, src, avail);
-
-		spe_begin();
-		ppc_spe_sha256_transform(sctx->state, (const u8 *)sctx->buf, 1);
-		spe_end();
-
-		len -= avail;
-		src += avail;
-	}
-
-	while (len > 63) {
-		/* cut input data into smaller blocks */
-		bytes = (len > MAX_BYTES) ? MAX_BYTES : len;
-		bytes = bytes & ~0x3f;
-
-		spe_begin();
-		ppc_spe_sha256_transform(sctx->state, src, bytes >> 6);
-		spe_end();
-
-		src += bytes;
-		len -= bytes;
-	}
-
-	memcpy((char *)sctx->buf, src, len);
-	return 0;
+	return sha256_base_do_update_blocks(desc, data, len,
+					    ppc_spe_sha256_block);
 }
 
-static int ppc_spe_sha256_final(struct shash_desc *desc, u8 *out)
+static int ppc_spe_sha256_finup(struct shash_desc *desc, const u8 *src,
+				unsigned int len, u8 *out)
 {
-	struct sha256_state *sctx = shash_desc_ctx(desc);
-	const unsigned int offset = sctx->count & 0x3f;
-	char *p = (char *)sctx->buf + offset;
-	int padlen;
-	__be64 *pbits = (__be64 *)(((char *)&sctx->buf) + 56);
-	__be32 *dst = (__be32 *)out;
-
-	padlen = 55 - offset;
-	*p++ = 0x80;
-
-	spe_begin();
-
-	if (padlen < 0) {
-		memset(p, 0x00, padlen + sizeof (u64));
-		ppc_spe_sha256_transform(sctx->state, sctx->buf, 1);
-		p = (char *)sctx->buf;
-		padlen = 56;
-	}
-
-	memset(p, 0, padlen);
-	*pbits = cpu_to_be64(sctx->count << 3);
-	ppc_spe_sha256_transform(sctx->state, sctx->buf, 1);
-
-	spe_end();
-
-	dst[0] = cpu_to_be32(sctx->state[0]);
-	dst[1] = cpu_to_be32(sctx->state[1]);
-	dst[2] = cpu_to_be32(sctx->state[2]);
-	dst[3] = cpu_to_be32(sctx->state[3]);
-	dst[4] = cpu_to_be32(sctx->state[4]);
-	dst[5] = cpu_to_be32(sctx->state[5]);
-	dst[6] = cpu_to_be32(sctx->state[6]);
-	dst[7] = cpu_to_be32(sctx->state[7]);
-
-	ppc_sha256_clear_context(sctx);
-	return 0;
-}
-
-static int ppc_spe_sha224_final(struct shash_desc *desc, u8 *out)
-{
-	__be32 D[SHA256_DIGEST_SIZE >> 2];
-	__be32 *dst = (__be32 *)out;
-
-	ppc_spe_sha256_final(desc, (u8 *)D);
-
-	/* avoid bytewise memcpy */
-	dst[0] = D[0];
-	dst[1] = D[1];
-	dst[2] = D[2];
-	dst[3] = D[3];
-	dst[4] = D[4];
-	dst[5] = D[5];
-	dst[6] = D[6];
-
-	/* clear sensitive data */
-	memzero_explicit(D, SHA256_DIGEST_SIZE);
-	return 0;
-}
-
-static int ppc_spe_sha256_export(struct shash_desc *desc, void *out)
-{
-	struct sha256_state *sctx = shash_desc_ctx(desc);
-
-	memcpy(out, sctx, sizeof(*sctx));
-	return 0;
-}
-
-static int ppc_spe_sha256_import(struct shash_desc *desc, const void *in)
-{
-	struct sha256_state *sctx = shash_desc_ctx(desc);
-
-	memcpy(sctx, in, sizeof(*sctx));
-	return 0;
+	sha256_base_do_finup(desc, src, len, ppc_spe_sha256_block);
+	return sha256_base_finish(desc, out);
 }
 
 static struct shash_alg algs[2] = { {
 	.digestsize	=	SHA256_DIGEST_SIZE,
 	.init		=	sha256_base_init,
 	.update		=	ppc_spe_sha256_update,
-	.final		=	ppc_spe_sha256_final,
-	.export		=	ppc_spe_sha256_export,
-	.import		=	ppc_spe_sha256_import,
-	.descsize	=	sizeof(struct sha256_state),
-	.statesize	=	sizeof(struct sha256_state),
+	.finup		=	ppc_spe_sha256_finup,
+	.descsize	=	sizeof(struct crypto_sha256_state),
 	.base		=	{
 		.cra_name	=	"sha256",
 		.cra_driver_name=	"sha256-ppc-spe",
 		.cra_priority	=	300,
+		.cra_flags	=	CRYPTO_AHASH_ALG_BLOCK_ONLY |
+					CRYPTO_AHASH_ALG_FINUP_MAX,
 		.cra_blocksize	=	SHA256_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}
@@ -199,15 +93,14 @@ static struct shash_alg algs[2] = { {
 	.digestsize	=	SHA224_DIGEST_SIZE,
 	.init		=	sha224_base_init,
 	.update		=	ppc_spe_sha256_update,
-	.final		=	ppc_spe_sha224_final,
-	.export		=	ppc_spe_sha256_export,
-	.import		=	ppc_spe_sha256_import,
-	.descsize	=	sizeof(struct sha256_state),
-	.statesize	=	sizeof(struct sha256_state),
+	.finup		=	ppc_spe_sha256_finup,
+	.descsize	=	sizeof(struct crypto_sha256_state),
 	.base		=	{
 		.cra_name	=	"sha224",
 		.cra_driver_name=	"sha224-ppc-spe",
 		.cra_priority	=	300,
+		.cra_flags	=	CRYPTO_AHASH_ALG_BLOCK_ONLY |
+					CRYPTO_AHASH_ALG_FINUP_MAX,
 		.cra_blocksize	=	SHA224_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}
