@@ -53,46 +53,6 @@ static inline int sha512_base_init(struct shash_desc *desc)
 	return 0;
 }
 
-static inline int sha512_base_do_update(struct shash_desc *desc,
-					const u8 *data,
-					unsigned int len,
-					sha512_block_fn *block_fn)
-{
-	struct sha512_state *sctx = shash_desc_ctx(desc);
-	unsigned int partial = sctx->count[0] % SHA512_BLOCK_SIZE;
-
-	sctx->count[0] += len;
-	if (sctx->count[0] < len)
-		sctx->count[1]++;
-
-	if (unlikely((partial + len) >= SHA512_BLOCK_SIZE)) {
-		int blocks;
-
-		if (partial) {
-			int p = SHA512_BLOCK_SIZE - partial;
-
-			memcpy(sctx->buf + partial, data, p);
-			data += p;
-			len -= p;
-
-			block_fn(sctx, sctx->buf, 1);
-		}
-
-		blocks = len / SHA512_BLOCK_SIZE;
-		len %= SHA512_BLOCK_SIZE;
-
-		if (blocks) {
-			block_fn(sctx, data, blocks);
-			data += blocks * SHA512_BLOCK_SIZE;
-		}
-		partial = 0;
-	}
-	if (len)
-		memcpy(sctx->buf + partial, data, len);
-
-	return 0;
-}
-
 static inline int sha512_base_do_update_blocks(struct shash_desc *desc,
 					       const u8 *data,
 					       unsigned int len,
@@ -138,30 +98,6 @@ static inline int sha512_base_do_finup(struct shash_desc *desc, const u8 *src,
 	block.b64[bit_offset + 1] = cpu_to_be64(sctx->count[0] << 3);
 	block_fn(sctx, block.u8, (bit_offset + 2) * 8 / SHA512_BLOCK_SIZE);
 	memzero_explicit(&block, sizeof(block));
-
-	return 0;
-}
-
-static inline int sha512_base_do_finalize(struct shash_desc *desc,
-					  sha512_block_fn *block_fn)
-{
-	const int bit_offset = SHA512_BLOCK_SIZE - sizeof(__be64[2]);
-	struct sha512_state *sctx = shash_desc_ctx(desc);
-	__be64 *bits = (__be64 *)(sctx->buf + bit_offset);
-	unsigned int partial = sctx->count[0] % SHA512_BLOCK_SIZE;
-
-	sctx->buf[partial++] = 0x80;
-	if (partial > bit_offset) {
-		memset(sctx->buf + partial, 0x0, SHA512_BLOCK_SIZE - partial);
-		partial = 0;
-
-		block_fn(sctx, sctx->buf, 1);
-	}
-
-	memset(sctx->buf + partial, 0x0, bit_offset - partial);
-	bits[0] = cpu_to_be64(sctx->count[1] << 3 | sctx->count[0] >> 61);
-	bits[1] = cpu_to_be64(sctx->count[0] << 3);
-	block_fn(sctx, sctx->buf, 1);
 
 	return 0;
 }
