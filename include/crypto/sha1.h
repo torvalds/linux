@@ -10,6 +10,7 @@
 
 #define SHA1_DIGEST_SIZE        20
 #define SHA1_BLOCK_SIZE         64
+#define SHA1_STATE_SIZE         offsetof(struct sha1_state, buffer)
 
 #define SHA1_H0		0x67452301UL
 #define SHA1_H1		0xefcdab89UL
