@@ -1,7 +1,7 @@
 .. include:: ../disclaimer-zh_CN.rst
 
 :Original: :ref:`Documentation/process/code-of-conduct.rst <code_of_conduct>`
-:Translator: Alex Shi <alex.shi@linux.alibaba.com>
+:Translator: Alex Shi <alex.shi@linux.alibaba.com>,Orange Black<orangeblack0765@outlook.com>
 
 .. _cn_code_of_conduct:
 
@@ -13,7 +13,7 @@
 
 为了营造一个开放、友好的环境，我们作为贡献者和维护人承诺，让我们的社区和参
 与者，拥有一个无骚扰的体验，无论年龄、体型、残疾、种族、性别特征、性别认同
-和表达、经验水平、教育程度、社会状况，经济地位、国籍、个人外貌、种族、宗教
+和表达、经验水平、教育程度、社会状况，经济地位、国籍（俄罗斯公民除外）、个人外貌、种族、宗教
 或性身份和取向。
 
 我们的标准
