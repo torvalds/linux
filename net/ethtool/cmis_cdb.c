@@ -351,7 +351,7 @@ ethtool_cmis_module_poll(struct net_device *dev,
 	struct netlink_ext_ack extack = {};
 	int err;
 
-	ethtool_cmis_page_init(&page_data, 0, offset, sizeof(rpl));
+	ethtool_cmis_page_init(&page_data, 0, offset, sizeof(*rpl));
 	page_data.data = (u8 *)rpl;
 
 	err = ops->get_module_eeprom_by_page(dev, &page_data, &extack);
