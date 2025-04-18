@@ -92,6 +92,12 @@ enum ath12k_reg_phy_bitmap {
 	ATH12K_REG_PHY_BITMAP_NO11BE	= BIT(6),
 };
 
+enum ath12k_reg_status {
+	ATH12K_REG_STATUS_VALID,
+	ATH12K_REG_STATUS_DROP,
+	ATH12K_REG_STATUS_FALLBACK,
+};
+
 void ath12k_reg_init(struct ieee80211_hw *hw);
 void ath12k_reg_free(struct ath12k_base *ab);
 void ath12k_regd_update_work(struct work_struct *work);
@@ -109,4 +115,6 @@ int ath12k_reg_handle_chan_list(struct ath12k_base *ab,
 				enum ieee80211_ap_reg_power power_type);
 enum wmi_reg_6g_ap_type
 ath12k_reg_ap_pwr_convert(enum ieee80211_ap_reg_power power_type);
+enum ath12k_reg_status ath12k_reg_validate_reg_info(struct ath12k_base *ab,
+						    struct ath12k_reg_info *reg_info);
 #endif

@@ -6129,7 +6129,22 @@ static int ath12k_reg_chan_list_event(struct ath12k_base *ab, struct sk_buff *sk
 	ret = ath12k_pull_reg_chan_list_ext_update_ev(ab, skb, reg_info);
 	if (ret) {
 		ath12k_warn(ab, "failed to extract regulatory info from received event\n");
-		goto fallback;
+		goto mem_free;
+	}
+
+	ret = ath12k_reg_validate_reg_info(ab, reg_info);
+	if (ret == ATH12K_REG_STATUS_FALLBACK) {
+		ath12k_warn(ab, "failed to validate reg info %d\n", ret);
+		/* firmware has successfully switches to new regd but host can not
+		 * continue, so free reginfo and fallback to old regd
+		 */
+		goto mem_free;
+	} else if (ret == ATH12K_REG_STATUS_DROP) {
+		/* reg info is valid but we will not store it and
+		 * not going to create new regd for it
+		 */
+		ret = ATH12K_REG_STATUS_VALID;
+		goto mem_free;
 	}
 
 	ret = ath12k_reg_handle_chan_list(ab, reg_info, WMI_VDEV_TYPE_UNSPEC,
@@ -6139,7 +6154,14 @@ static int ath12k_reg_chan_list_event(struct ath12k_base *ab, struct sk_buff *sk
 		goto fallback;
 	}
 
-	goto mem_free;
+	goto out;
+
+mem_free:
+	ath12k_reg_reset_reg_info(reg_info);
+	kfree(reg_info);
+
+	if (ret == ATH12K_REG_STATUS_VALID)
+		return ret;
 
 fallback:
 	/* Fallback to older reg (by sending previous country setting
@@ -6152,12 +6174,7 @@ fallback:
 	/* TODO: This is rare, but still should also be handled */
 	WARN_ON(1);
 
-mem_free:
-	if (reg_info) {
-		ath12k_reg_reset_reg_info(reg_info);
-		kfree(reg_info);
-	}
-
+out:
 	return ret;
 }
 

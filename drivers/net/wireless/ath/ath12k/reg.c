@@ -949,14 +949,10 @@ void ath12k_reg_reset_reg_info(struct ath12k_reg_info *reg_info)
 	}
 }
 
-int ath12k_reg_handle_chan_list(struct ath12k_base *ab,
-				struct ath12k_reg_info *reg_info,
-				enum wmi_vdev_type vdev_type,
-				enum ieee80211_ap_reg_power power_type)
+enum ath12k_reg_status ath12k_reg_validate_reg_info(struct ath12k_base *ab,
+						    struct ath12k_reg_info *reg_info)
 {
-	struct ieee80211_regdomain *regd = NULL;
-	struct ath12k *ar;
-	int pdev_idx;
+	int pdev_idx = reg_info->phy_id;
 
 	if (reg_info->status_code != REG_SET_CC_STATUS_PASS) {
 		/* In case of failure to set the requested country,
@@ -964,10 +960,9 @@ int ath12k_reg_handle_chan_list(struct ath12k_base *ab,
 		 * and return from here.
 		 */
 		ath12k_warn(ab, "Failed to set the requested Country regulatory setting\n");
-		return 0;
+		return ATH12K_REG_STATUS_DROP;
 	}
 
-	pdev_idx = reg_info->phy_id;
 	if (pdev_idx >= ab->num_radios) {
 		/* Process the event for phy0 only if single_pdev_only
 		 * is true. If pdev_idx is valid but not 0, discard the
@@ -975,9 +970,9 @@ int ath12k_reg_handle_chan_list(struct ath12k_base *ab,
 		 */
 		if (ab->hw_params->single_pdev_only &&
 		    pdev_idx < ab->hw_params->num_rxdma_per_pdev)
-			return 0;
+			return ATH12K_REG_STATUS_DROP;
 		else
-			return -EINVAL;
+			return ATH12K_REG_STATUS_FALLBACK;
 	}
 
 	/* Avoid multiple overwrites to default regd, during core
@@ -986,7 +981,19 @@ int ath12k_reg_handle_chan_list(struct ath12k_base *ab,
 	if (ab->default_regd[pdev_idx] && !ab->new_regd[pdev_idx] &&
 	    !memcmp(ab->default_regd[pdev_idx]->alpha2,
 		    reg_info->alpha2, 2))
-		return 0;
+		return ATH12K_REG_STATUS_DROP;
+
+	return ATH12K_REG_STATUS_VALID;
+}
+
+int ath12k_reg_handle_chan_list(struct ath12k_base *ab,
+				struct ath12k_reg_info *reg_info,
+				enum wmi_vdev_type vdev_type,
+				enum ieee80211_ap_reg_power power_type)
+{
+	struct ieee80211_regdomain *regd = NULL;
+	int pdev_idx = reg_info->phy_id;
+	struct ath12k *ar;
 
 	regd = ath12k_reg_build_regd(ab, reg_info, vdev_type, power_type);
 	if (!regd)
