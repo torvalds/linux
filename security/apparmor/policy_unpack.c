@@ -599,8 +599,8 @@ static bool unpack_secmark(struct aa_ext *e, struct aa_ruleset *rules)
 fail:
 	if (rules->secmark) {
 		for (i = 0; i < size; i++)
-			kfree(rules->secmark[i].label);
-		kfree(rules->secmark);
+			kfree_sensitive(rules->secmark[i].label);
+		kfree_sensitive(rules->secmark);
 		rules->secmark_count = 0;
 		rules->secmark = NULL;
 	}
