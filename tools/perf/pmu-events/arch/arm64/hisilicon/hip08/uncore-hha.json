@@ -30,15 +30,18 @@
    {
 	    "ConfigCode": "0x4",
 	    "EventName": "rx_wbi",
+	    "BriefDescription": "Count of the number of WriteBackI operations that HHA has received",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x5",
 	    "EventName": "rx_wbip",
+	    "BriefDescription": "Count of the number of WriteBackIPtl operations that HHA has received",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x11",
+	    "BriefDescription": "Count of the number of WriteThruIStash operations that HHA has received",
 	    "EventName": "rx_wtistash",
 	    "Unit": "hisi_sccl,hha"
    },
@@ -87,66 +90,79 @@
    {
 	    "ConfigCode": "0x23",
 	    "EventName": "bi_num",
+	    "BriefDescription": "Count of the number of HHA BackInvalid operations",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x32",
 	    "EventName": "mediated_num",
+	    "BriefDescription": "Count of the number of Mediated operations that the HHA has forwarded",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x33",
 	    "EventName": "tx_snp_num",
+	    "BriefDescription": "Count of the number of Snoop operations that the HHA has sent",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x34",
 	    "EventName": "tx_snp_outer",
+	    "BriefDescription": "Count of the number of Snoop operations that the HHA has sent to another socket",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x35",
 	    "EventName": "tx_snp_ccix",
+	    "BriefDescription": "Count of the number of Snoop operations that the HHA has sent to CCIX",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x38",
 	    "EventName": "rx_snprspdata",
+	    "BriefDescription": "Count of the number of SnprspData flit operations that HHA has received",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x3c",
 	    "EventName": "rx_snprsp_outer",
+	    "BriefDescription": "Count of the number of SnprspData operations that HHA has received from another socket",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x40",
 	    "EventName": "sdir-lookup",
+	    "BriefDescription": "Count of the number of HHA S-Dir lookup operations",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x41",
 	    "EventName": "edir-lookup",
+	    "BriefDescription": "Count of the number of HHA E-Dir lookup operations",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x42",
 	    "EventName": "sdir-hit",
+	    "BriefDescription": "Count of the number of HHA S-Dir hit operations",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x43",
 	    "EventName": "edir-hit",
+	    "BriefDescription": "Count of the number of HHA E-Dir hit operations",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x4c",
 	    "EventName": "sdir-home-migrate",
+	    "BriefDescription": "Count of the number of HHA S-Dir read home migrate operations",
 	    "Unit": "hisi_sccl,hha"
    },
    {
 	    "ConfigCode": "0x4d",
 	    "EventName": "edir-home-migrate",
+	    "BriefDescription": "Count of the number of HHA E-Dir read home migrate operations",
 	    "Unit": "hisi_sccl,hha"
    }
 ]
