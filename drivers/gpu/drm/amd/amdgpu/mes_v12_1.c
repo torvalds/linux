@@ -37,6 +37,7 @@ MODULE_FIRMWARE("amdgpu/gc_12_1_0_mes1.bin");
 MODULE_FIRMWARE("amdgpu/gc_12_1_0_uni_mes.bin");
 
 static int mes_v12_1_hw_init(struct amdgpu_ip_block *ip_block);
+static int mes_v12_1_xcc_hw_init(struct amdgpu_ip_block *ip_block, int xcc_id);
 static int mes_v12_1_hw_fini(struct amdgpu_ip_block *ip_block);
 static int mes_v12_1_kiq_hw_init(struct amdgpu_device *adev, uint32_t xcc_id);
 static int mes_v12_1_kiq_hw_fini(struct amdgpu_device *adev, uint32_t xcc_id);
@@ -683,7 +684,7 @@ static int mes_v12_1_set_hw_resources(struct amdgpu_mes *mes,
 
 	for (i = 0; i < 5; i++) {
 		mes_set_hw_res_pkt.gc_base[i] =
-			adev->reg_offset[GC_HWIP][GET_INST(GC, xcc_id)][i];
+			adev->reg_offset[GC_HWIP][0][i];
 		mes_set_hw_res_pkt.mmhub_base[i] =
 				adev->reg_offset[MMHUB_HWIP][0][i];
 		mes_set_hw_res_pkt.osssys_base[i] =
@@ -1683,7 +1684,7 @@ static int mes_v12_1_kiq_hw_init(struct amdgpu_device *adev, uint32_t xcc_id)
 	}
 
 	if (adev->mes.enable_legacy_queue_map) {
-		r = mes_v12_1_hw_init(ip_block);
+		r = mes_v12_1_xcc_hw_init(ip_block, xcc_id);
 		if (r)
 			goto failure;
 	}
