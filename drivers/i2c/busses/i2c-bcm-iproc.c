@@ -276,8 +276,8 @@ static void bcm_iproc_i2c_slave_init(
 		val |= BIT(CFG_RESET_SHIFT);
 		iproc_i2c_wr_reg(iproc_i2c, CFG_OFFSET, val);
 
-		/* wait 100 usec per spec */
-		udelay(100);
+		/* wait approximately 100 usec as per spec */
+		usleep_range(100, 200);
 
 		/* bring controller out of reset */
 		val &= ~(BIT(CFG_RESET_SHIFT));
@@ -687,8 +687,8 @@ static void bcm_iproc_i2c_init(struct bcm_iproc_i2c_dev *iproc_i2c)
 	val &= ~(BIT(CFG_EN_SHIFT));
 	iproc_i2c_wr_reg(iproc_i2c, CFG_OFFSET, val);
 
-	/* wait 100 usec per spec */
-	udelay(100);
+	/* wait approximately 100 usec as per spec */
+	usleep_range(100, 200);
 
 	/* bring controller out of reset */
 	val &= ~(BIT(CFG_RESET_SHIFT));
