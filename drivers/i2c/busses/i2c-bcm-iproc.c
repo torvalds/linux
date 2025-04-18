@@ -836,8 +836,8 @@ static int bcm_iproc_i2c_xfer_internal(struct bcm_iproc_i2c_dev *iproc_i2c,
 	struct i2c_msg *msg = &msgs[0];
 
 	/* check if bus is busy */
-	if (!!(iproc_i2c_rd_reg(iproc_i2c,
-				M_CMD_OFFSET) & BIT(M_CMD_START_BUSY_SHIFT))) {
+	if (iproc_i2c_rd_reg(iproc_i2c,
+			     M_CMD_OFFSET) & BIT(M_CMD_START_BUSY_SHIFT)) {
 		dev_warn(iproc_i2c->device, "bus is busy\n");
 		return -EBUSY;
 	}
