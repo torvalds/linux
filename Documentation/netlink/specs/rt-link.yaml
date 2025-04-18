@@ -2382,7 +2382,6 @@ operations:
             - txqlen
             - operstate
             - linkmode
-            - group
             - gso-max-size
             - gso-max-segs
             - gro-max-size
