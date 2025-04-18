@@ -14,6 +14,7 @@
 
 #define SM3_DIGEST_SIZE	32
 #define SM3_BLOCK_SIZE	64
+#define SM3_STATE_SIZE	40
 
 #define SM3_T1		0x79CC4519
 #define SM3_T2		0x7A879D8A
