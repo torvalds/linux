@@ -7,6 +7,7 @@
 #ifndef _NOLIBC_DIRENT_H
 #define _NOLIBC_DIRENT_H
 
+#include "compiler.h"
 #include "stdint.h"
 #include "types.h"
 
@@ -58,7 +59,7 @@ int closedir(DIR *dirp)
 static __attribute__((unused))
 int readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 {
-	char buf[sizeof(struct linux_dirent64) + NAME_MAX + 1];
+	char buf[sizeof(struct linux_dirent64) + NAME_MAX + 1] __nolibc_aligned_as(struct linux_dirent64);
 	struct linux_dirent64 *ldir = (void *)buf;
 	intptr_t i = (intptr_t)dirp;
 	int fd, ret;
