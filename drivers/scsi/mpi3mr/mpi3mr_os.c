@@ -2945,9 +2945,9 @@ void mpi3mr_add_event_wait_for_device_refresh(struct mpi3mr_ioc *mrioc)
  * @mrioc: Adapter instance reference
  * @event_reply: event data
  *
- * Identify whteher the event has to handled and acknowledged
- * and either process the event in the tophalf and/or schedule a
- * bottom half through mpi3mr_fwevt_worker.
+ * Identifies whether the event has to be handled and acknowledged,
+ * and either processes the event in the top-half and/or schedule a
+ * bottom-half through mpi3mr_fwevt_worker().
  *
  * Return: Nothing
  */
