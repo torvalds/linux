@@ -8,7 +8,7 @@
 use crate::{
     alloc::Flags,
     bindings,
-    device::Device,
+    device::{Bound, Device},
     error::{Error, Result},
     ffi::c_void,
     prelude::*,
@@ -45,7 +45,7 @@ struct DevresInner<T> {
 /// # Example
 ///
 /// ```no_run
-/// # use kernel::{bindings, c_str, device::Device, devres::Devres, io::{Io, IoRaw}};
+/// # use kernel::{bindings, c_str, device::{Bound, Device}, devres::Devres, io::{Io, IoRaw}};
 /// # use core::ops::Deref;
 ///
 /// // See also [`pci::Bar`] for a real example.
@@ -83,13 +83,10 @@ struct DevresInner<T> {
 ///         unsafe { Io::from_raw(&self.0) }
 ///    }
 /// }
-/// # fn no_run() -> Result<(), Error> {
-/// # // SAFETY: Invalid usage; just for the example to get an `ARef<Device>` instance.
-/// # let dev = unsafe { Device::get_device(core::ptr::null_mut()) };
-///
+/// # fn no_run(dev: &Device<Bound>) -> Result<(), Error> {
 /// // SAFETY: Invalid usage for example purposes.
 /// let iomem = unsafe { IoMem::<{ core::mem::size_of::<u32>() }>::new(0xBAAAAAAD)? };
-/// let devres = Devres::new(&dev, iomem, GFP_KERNEL)?;
+/// let devres = Devres::new(dev, iomem, GFP_KERNEL)?;
 ///
 /// let res = devres.try_access().ok_or(ENXIO)?;
 /// res.write8(0x42, 0x0);
@@ -99,7 +96,7 @@ struct DevresInner<T> {
 pub struct Devres<T>(Arc<DevresInner<T>>);
 
 impl<T> DevresInner<T> {
-    fn new(dev: &Device, data: T, flags: Flags) -> Result<Arc<DevresInner<T>>> {
+    fn new(dev: &Device<Bound>, data: T, flags: Flags) -> Result<Arc<DevresInner<T>>> {
         let inner = Arc::pin_init(
             pin_init!( DevresInner {
                 dev: dev.into(),
@@ -171,7 +168,7 @@ impl<T> DevresInner<T> {
 impl<T> Devres<T> {
     /// Creates a new [`Devres`] instance of the given `data`. The `data` encapsulated within the
     /// returned `Devres` instance' `data` will be revoked once the device is detached.
-    pub fn new(dev: &Device, data: T, flags: Flags) -> Result<Self> {
+    pub fn new(dev: &Device<Bound>, data: T, flags: Flags) -> Result<Self> {
         let inner = DevresInner::new(dev, data, flags)?;
 
         Ok(Devres(inner))
@@ -179,7 +176,7 @@ impl<T> Devres<T> {
 
     /// Same as [`Devres::new`], but does not return a `Devres` instance. Instead the given `data`
     /// is owned by devres and will be revoked / dropped, once the device is detached.
-    pub fn new_foreign_owned(dev: &Device, data: T, flags: Flags) -> Result {
+    pub fn new_foreign_owned(dev: &Device<Bound>, data: T, flags: Flags) -> Result {
         let _ = DevresInner::new(dev, data, flags)?;
 
         Ok(())
