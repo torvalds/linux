@@ -2055,11 +2055,8 @@ CLOSURE_CALLBACK(bch2_journal_write)
 	struct journal *j = container_of(w, struct journal, buf[w->idx]);
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_replicas_padded replicas;
-	unsigned nr_rw_members = 0;
+	unsigned nr_rw_members = dev_mask_nr(&c->rw_devs[BCH_DATA_journal]);
 	int ret;
-
-	for_each_rw_member(c, ca)
-		nr_rw_members++;
 
 	BUG_ON(BCH_SB_CLEAN(c->disk_sb.sb));
 	BUG_ON(!w->write_started);

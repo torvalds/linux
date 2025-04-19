@@ -2575,8 +2575,10 @@ u64 bch2_min_rw_member_capacity(struct bch_fs *c)
 {
 	u64 ret = U64_MAX;
 
-	for_each_rw_member(c, ca)
+	rcu_read_lock();
+	for_each_rw_member_rcu(c, ca)
 		ret = min(ret, ca->mi.nbuckets * ca->mi.bucket_size);
+	rcu_read_unlock();
 	return ret;
 }
 
@@ -2600,8 +2602,12 @@ static bool bch2_dev_has_open_write_point(struct bch_fs *c, struct bch_dev *ca)
 
 void bch2_dev_allocator_set_rw(struct bch_fs *c, struct bch_dev *ca, bool rw)
 {
+	/* BCH_DATA_free == all rw devs */
+
 	for (unsigned i = 0; i < ARRAY_SIZE(c->rw_devs); i++)
-		if (rw && (ca->mi.data_allowed & BIT(i)))
+		if (rw &&
+		    (i == BCH_DATA_free ||
+		     (ca->mi.data_allowed & BIT(i))))
 			set_bit(ca->dev_idx, c->rw_devs[i].d);
 		else
 			clear_bit(ca->dev_idx, c->rw_devs[i].d);

@@ -107,6 +107,9 @@ static inline struct bch_dev *__bch2_next_dev(struct bch_fs *c, struct bch_dev *
 #define for_each_online_member_rcu(_c, _ca)				\
 	for_each_member_device_rcu(_c, _ca, &(_c)->online_devs)
 
+#define for_each_rw_member_rcu(_c, _ca)					\
+	for_each_member_device_rcu(_c, _ca, &(_c)->rw_devs[BCH_DATA_free])
+
 static inline void bch2_dev_get(struct bch_dev *ca)
 {
 #ifdef CONFIG_BCACHEFS_DEBUG

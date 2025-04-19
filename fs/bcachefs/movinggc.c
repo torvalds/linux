@@ -279,7 +279,8 @@ unsigned long bch2_copygc_wait_amount(struct bch_fs *c)
 {
 	s64 wait = S64_MAX, fragmented_allowed, fragmented;
 
-	for_each_rw_member(c, ca) {
+	rcu_read_lock();
+	for_each_rw_member_rcu(c, ca) {
 		struct bch_dev_usage_full usage_full = bch2_dev_usage_full_read(ca);
 		struct bch_dev_usage usage;
 
@@ -296,6 +297,7 @@ unsigned long bch2_copygc_wait_amount(struct bch_fs *c)
 
 		wait = min(wait, max(0LL, fragmented_allowed - fragmented));
 	}
+	rcu_read_unlock();
 
 	return wait;
 }

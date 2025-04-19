@@ -627,7 +627,8 @@ static u64 journal_seq_to_flush(struct journal *j)
 
 	spin_lock(&j->lock);
 
-	for_each_rw_member(c, ca) {
+	rcu_read_lock();
+	for_each_rw_member_rcu(c, ca) {
 		struct journal_device *ja = &ca->journal;
 		unsigned nr_buckets, bucket_to_flush;
 
@@ -641,6 +642,7 @@ static u64 journal_seq_to_flush(struct journal *j)
 		seq_to_flush = max(seq_to_flush,
 				   ja->bucket_seq[bucket_to_flush]);
 	}
+	rcu_read_unlock();
 
 	/* Also flush if the pin fifo is more than half full */
 	seq_to_flush = max_t(s64, seq_to_flush,
