@@ -955,6 +955,8 @@ static void hybrid_set_cpu_capacity(struct cpudata *cpu)
 			      cpu->capacity_perf,
 			      cpu->pstate.max_pstate_physical);
 
+	topology_set_cpu_scale(cpu->cpu, arch_scale_cpu_capacity(cpu->cpu));
+
 	pr_debug("CPU%d: perf = %u, max. perf = %u, base perf = %d\n", cpu->cpu,
 		 cpu->capacity_perf, hybrid_max_perf_cpu->capacity_perf,
 		 cpu->pstate.max_pstate_physical);
