@@ -23,12 +23,12 @@
 		pwms = <&pwm2 0 25000 0>;
 	};
 
-	hdmi-con {
+	hdmi0-con {
 		compatible = "hdmi-connector";
 		type = "a";
 
 		port {
-			hdmi_con_in: endpoint {
+			hdmi0_con_in: endpoint {
 				remote-endpoint = <&hdmi0_out_con>;
 			};
 		};
@@ -125,7 +125,7 @@
 
 &hdmi0_out {
 	hdmi0_out_con: endpoint {
-		remote-endpoint = <&hdmi_con_in>;
+		remote-endpoint = <&hdmi0_con_in>;
 	};
 };
 
