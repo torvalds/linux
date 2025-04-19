@@ -16,6 +16,8 @@
 #include "loongson_i2s.h"
 #include "loongson_dma.h"
 
+#define DRIVER_NAME "loongson-i2s-pci"
+
 static bool loongson_i2s_wr_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
@@ -92,13 +94,12 @@ static int loongson_i2s_pci_probe(struct pci_dev *pdev,
 	i2s->dev = dev;
 	pci_set_drvdata(pdev, i2s);
 
-	ret = pcim_iomap_regions(pdev, 1 << 0, dev_name(dev));
-	if (ret < 0) {
-		dev_err(dev, "iomap_regions failed\n");
-		return ret;
+	i2s->reg_base = pcim_iomap_region(pdev, 0, DRIVER_NAME);
+	if (IS_ERR(i2s->reg_base)) {
+		dev_err(dev, "iomap_region failed\n");
+		return PTR_ERR(i2s->reg_base);
 	}
 
-	i2s->reg_base = pcim_iomap_table(pdev)[0];
 	i2s->regmap = devm_regmap_init_mmio(dev, i2s->reg_base,
 					    &loongson_i2s_regmap_config);
 	if (IS_ERR(i2s->regmap))
@@ -147,7 +148,7 @@ static const struct pci_device_id loongson_i2s_ids[] = {
 MODULE_DEVICE_TABLE(pci, loongson_i2s_ids);
 
 static struct pci_driver loongson_i2s_driver = {
-	.name = "loongson-i2s-pci",
+	.name = DRIVER_NAME,
 	.id_table = loongson_i2s_ids,
 	.probe = loongson_i2s_pci_probe,
 	.driver = {
