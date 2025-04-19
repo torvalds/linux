@@ -554,14 +554,12 @@ void bch2_target_to_text(struct printbuf *out, struct bch_fs *c, unsigned v)
 			? rcu_dereference(c->devs[t.dev])
 			: NULL;
 
-		if (ca && percpu_ref_tryget(&ca->io_ref[READ])) {
+		if (ca && ca->disk_sb.bdev)
 			prt_printf(out, "/dev/%s", ca->name);
-			percpu_ref_put(&ca->io_ref[READ]);
-		} else if (ca) {
+		else if (ca)
 			prt_printf(out, "offline device %u", t.dev);
-		} else {
+		else
 			prt_printf(out, "invalid device %u", t.dev);
-		}
 
 		rcu_read_unlock();
 		out->atomic--;
