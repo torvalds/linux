@@ -17,11 +17,9 @@ use crate::{
 
 pub extern crate alloc;
 
-// SAFETY: All zeros is equivalent to `None` (option layout optimization guarantee).
-//
-// In this case we are allowed to use `T: ?Sized`, since all zeros is the `None` variant and there
-// is no problem with a VTABLE pointer being null.
-unsafe impl<T: ?Sized> ZeroableOption for Box<T> {}
+// SAFETY: All zeros is equivalent to `None` (option layout optimization guarantee:
+// <https://doc.rust-lang.org/stable/std/option/index.html#representation>).
+unsafe impl<T> ZeroableOption for Box<T> {}
 
 /// Smart pointer that can initialize memory in-place.
 pub trait InPlaceInit<T>: Sized {

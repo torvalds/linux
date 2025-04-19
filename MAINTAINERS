@@ -7021,6 +7021,7 @@ L:	rust-for-linux@vger.kernel.org
 S:	Supported
 W:	https://rust-for-linux.com
 T:	git https://github.com/Rust-for-Linux/linux.git alloc-next
+F:	rust/helpers/dma.c
 F:	rust/kernel/dma.rs
 F:	samples/rust/rust_dma.rs
 
