@@ -181,3 +181,6 @@ sphinx_*/
 
 # Rust analyzer configuration
 /rust-project.json
+
+# OSX
+.DS_Store
