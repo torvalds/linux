@@ -1353,9 +1353,11 @@ static void intel_pstate_update_policies(void)
 		cpufreq_update_policy(cpu);
 }
 
-static void __intel_pstate_update_max_freq(struct cpudata *cpudata,
-					   struct cpufreq_policy *policy)
+static void __intel_pstate_update_max_freq(struct cpufreq_policy *policy,
+					   struct cpudata *cpudata)
 {
+	guard(cpufreq_policy_write)(policy);
+
 	if (hwp_active)
 		intel_pstate_get_hwp_cap(cpudata);
 
@@ -1365,42 +1367,34 @@ static void __intel_pstate_update_max_freq(struct cpudata *cpudata,
 	refresh_frequency_limits(policy);
 }
 
-static void intel_pstate_update_limits(unsigned int cpu)
+static bool intel_pstate_update_max_freq(struct cpudata *cpudata)
 {
-	struct cpufreq_policy *policy = cpufreq_cpu_acquire(cpu);
-	struct cpudata *cpudata;
+	struct cpufreq_policy *policy __free(put_cpufreq_policy);
 
+	policy = cpufreq_cpu_get(cpudata->cpu);
 	if (!policy)
-		return;
+		return false;
 
-	cpudata = all_cpu_data[cpu];
+	__intel_pstate_update_max_freq(policy, cpudata);
 
-	__intel_pstate_update_max_freq(cpudata, policy);
+	return true;
+}
 
-	/* Prevent the driver from being unregistered now. */
-	mutex_lock(&intel_pstate_driver_lock);
+static void intel_pstate_update_limits(struct cpufreq_policy *policy)
+{
+	struct cpudata *cpudata = all_cpu_data[policy->cpu];
 
-	cpufreq_cpu_release(policy);
+	__intel_pstate_update_max_freq(policy, cpudata);
 
 	hybrid_update_capacity(cpudata);
-
-	mutex_unlock(&intel_pstate_driver_lock);
 }
 
 static void intel_pstate_update_limits_for_all(void)
 {
 	int cpu;
 
-	for_each_possible_cpu(cpu) {
-		struct cpufreq_policy *policy = cpufreq_cpu_acquire(cpu);
-
-		if (!policy)
-			continue;
-
-		__intel_pstate_update_max_freq(all_cpu_data[cpu], policy);
-
-		cpufreq_cpu_release(policy);
-	}
+	for_each_possible_cpu(cpu)
+		intel_pstate_update_max_freq(all_cpu_data[cpu]);
 
 	mutex_lock(&hybrid_capacity_lock);
 
@@ -1840,13 +1834,8 @@ static void intel_pstate_notify_work(struct work_struct *work)
 {
 	struct cpudata *cpudata =
 		container_of(to_delayed_work(work), struct cpudata, hwp_notify_work);
-	struct cpufreq_policy *policy = cpufreq_cpu_acquire(cpudata->cpu);
 
-	if (policy) {
-		__intel_pstate_update_max_freq(cpudata, policy);
-
-		cpufreq_cpu_release(policy);
-
+	if (intel_pstate_update_max_freq(cpudata)) {
 		/*
 		 * The driver will not be unregistered while this function is
 		 * running, so update the capacity without acquiring the driver
