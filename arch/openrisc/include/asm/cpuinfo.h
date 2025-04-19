@@ -15,6 +15,9 @@
 #ifndef __ASM_OPENRISC_CPUINFO_H
 #define __ASM_OPENRISC_CPUINFO_H
 
+#include <asm/spr.h>
+#include <asm/spr_defs.h>
+
 struct cache_desc {
 	u32 size;
 	u32 sets;
@@ -33,5 +36,10 @@ struct cpuinfo_or1k {
 
 extern struct cpuinfo_or1k cpuinfo_or1k[NR_CPUS];
 extern void setup_cpuinfo(void);
+
+/*
+ * Check if the cache component exists.
+ */
+extern bool cpu_cache_is_present(const unsigned int cache_type);
 
 #endif /* __ASM_OPENRISC_CPUINFO_H */

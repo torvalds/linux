@@ -23,6 +23,9 @@
  */
 extern void local_dcache_page_flush(struct page *page);
 extern void local_icache_page_inv(struct page *page);
+extern void local_dcache_range_flush(unsigned long start, unsigned long end);
+extern void local_dcache_range_inv(unsigned long start, unsigned long end);
+extern void local_icache_range_inv(unsigned long start, unsigned long end);
 
 /*
  * Data cache flushing always happen on the local cpu. Instruction cache
@@ -37,6 +40,20 @@ extern void local_icache_page_inv(struct page *page);
 #define icache_page_inv(page)        smp_icache_page_inv(page)
 extern void smp_icache_page_inv(struct page *page);
 #endif /* CONFIG_SMP */
+
+/*
+ * Even if the actual block size is larger than L1_CACHE_BYTES, paddr
+ * can be incremented by L1_CACHE_BYTES. When paddr is written to the
+ * invalidate register, the entire cache line encompassing this address
+ * is invalidated. Each subsequent reference to the same cache line will
+ * not affect the invalidation process.
+ */
+#define local_dcache_block_flush(addr) \
+	local_dcache_range_flush(addr, addr + L1_CACHE_BYTES)
+#define local_dcache_block_inv(addr) \
+	local_dcache_range_inv(addr, addr + L1_CACHE_BYTES)
+#define local_icache_block_inv(addr) \
+	local_icache_range_inv(addr, addr + L1_CACHE_BYTES)
 
 /*
  * Synchronizes caches. Whenever a cpu writes executable code to memory, this
