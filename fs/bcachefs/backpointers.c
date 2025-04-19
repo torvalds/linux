@@ -478,7 +478,8 @@ found:
 
 	bytes = p.crc.compressed_size << 9;
 
-	struct bch_dev *ca = bch2_dev_get_ioref(c, dev, READ);
+	struct bch_dev *ca = bch2_dev_get_ioref(c, dev, READ,
+				BCH_DEV_READ_REF_check_extent_checksums);
 	if (!ca)
 		return false;
 
@@ -515,7 +516,8 @@ err:
 	if (bio)
 		bio_put(bio);
 	kvfree(data_buf);
-	percpu_ref_put(&ca->io_ref[READ]);
+	enumerated_ref_put(&ca->io_ref[READ],
+			   BCH_DEV_READ_REF_check_extent_checksums);
 	printbuf_exit(&buf);
 	return ret;
 }

@@ -295,7 +295,7 @@ void bch2_journal_do_discards(struct journal *j)
 
 	mutex_lock(&j->discard_lock);
 
-	for_each_rw_member(c, ca) {
+	for_each_rw_member(c, ca, BCH_DEV_WRITE_REF_journal_do_discards) {
 		struct journal_device *ja = &ca->journal;
 
 		while (should_discard_bucket(j, ja)) {

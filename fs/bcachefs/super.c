@@ -78,12 +78,27 @@ MODULE_DESCRIPTION("bcachefs filesystem");
 
 typedef DARRAY(struct bch_sb_handle) bch_sb_handles;
 
-const char * const bch2_fs_flag_strs[] = {
 #define x(n)		#n,
+const char * const bch2_fs_flag_strs[] = {
 	BCH_FS_FLAGS()
-#undef x
 	NULL
 };
+
+const char * const bch2_write_refs[] = {
+	BCH_WRITE_REFS()
+	NULL
+};
+
+const char * const bch2_dev_read_refs[] = {
+	BCH_DEV_READ_REFS()
+	NULL
+};
+
+const char * const bch2_dev_write_refs[] = {
+	BCH_DEV_WRITE_REFS()
+	NULL
+};
+#undef x
 
 static void __bch2_print_str(struct bch_fs *c, const char *prefix,
 			     const char *str, bool nonblocking)
@@ -469,7 +484,7 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 	for_each_online_member_rcu(c, ca)
 		if (ca->mi.state == BCH_MEMBER_STATE_rw) {
 			bch2_dev_allocator_add(c, ca);
-			percpu_ref_reinit(&ca->io_ref[WRITE]);
+			enumerated_ref_start(&ca->io_ref[WRITE]);
 		}
 	rcu_read_unlock();
 
@@ -645,6 +660,12 @@ void __bch2_fs_stop(struct bch_fs *c)
 	bch2_fs_read_only(c);
 	up_write(&c->state_lock);
 
+	for (unsigned i = 0; i < c->sb.nr_devices; i++) {
+		struct bch_dev *ca = rcu_dereference_protected(c->devs[i], true);
+		if (ca)
+			bch2_dev_io_ref_stop(ca, READ);
+	}
+
 	for_each_member_device(c, ca)
 		bch2_dev_unlink(ca);
 
@@ -673,8 +694,6 @@ void __bch2_fs_stop(struct bch_fs *c)
 
 void bch2_fs_free(struct bch_fs *c)
 {
-	unsigned i;
-
 	mutex_lock(&bch_fs_list_lock);
 	list_del(&c->list);
 	mutex_unlock(&bch_fs_list_lock);
@@ -682,7 +701,7 @@ void bch2_fs_free(struct bch_fs *c)
 	closure_sync(&c->cl);
 	closure_debug_destroy(&c->cl);
 
-	for (i = 0; i < c->sb.nr_devices; i++) {
+	for (unsigned i = 0; i < c->sb.nr_devices; i++) {
 		struct bch_dev *ca = rcu_dereference_protected(c->devs[i], true);
 
 		if (ca) {
@@ -1290,11 +1309,11 @@ static void bch2_dev_io_ref_stop(struct bch_dev *ca, int rw)
 	if (rw == READ)
 		clear_bit(ca->dev_idx, ca->fs->online_devs.d);
 
-	if (!percpu_ref_is_zero(&ca->io_ref[rw])) {
-		reinit_completion(&ca->io_ref_completion[rw]);
-		percpu_ref_kill(&ca->io_ref[rw]);
-		wait_for_completion(&ca->io_ref_completion[rw]);
-	}
+	if (!enumerated_ref_is_zero(&ca->io_ref[rw]))
+		enumerated_ref_stop(&ca->io_ref[rw],
+				    rw == READ
+				    ? bch2_dev_read_refs
+				    : bch2_dev_write_refs);
 }
 
 static void bch2_dev_release(struct kobject *kobj)
@@ -1306,8 +1325,8 @@ static void bch2_dev_release(struct kobject *kobj)
 
 static void bch2_dev_free(struct bch_dev *ca)
 {
-	WARN_ON(!percpu_ref_is_zero(&ca->io_ref[WRITE]));
-	WARN_ON(!percpu_ref_is_zero(&ca->io_ref[READ]));
+	WARN_ON(!enumerated_ref_is_zero(&ca->io_ref[WRITE]));
+	WARN_ON(!enumerated_ref_is_zero(&ca->io_ref[READ]));
 
 	cancel_work_sync(&ca->io_error_work);
 
@@ -1327,8 +1346,8 @@ static void bch2_dev_free(struct bch_dev *ca)
 	bch2_time_stats_quantiles_exit(&ca->io_latency[WRITE]);
 	bch2_time_stats_quantiles_exit(&ca->io_latency[READ]);
 
-	percpu_ref_exit(&ca->io_ref[WRITE]);
-	percpu_ref_exit(&ca->io_ref[READ]);
+	enumerated_ref_exit(&ca->io_ref[WRITE]);
+	enumerated_ref_exit(&ca->io_ref[READ]);
 #ifndef CONFIG_BCACHEFS_DEBUG
 	percpu_ref_exit(&ca->ref);
 #endif
@@ -1340,7 +1359,7 @@ static void __bch2_dev_offline(struct bch_fs *c, struct bch_dev *ca)
 
 	lockdep_assert_held(&c->state_lock);
 
-	if (percpu_ref_is_zero(&ca->io_ref[READ]))
+	if (enumerated_ref_is_zero(&ca->io_ref[READ]))
 		return;
 
 	__bch2_dev_read_only(c, ca);
@@ -1361,20 +1380,6 @@ static void bch2_dev_ref_complete(struct percpu_ref *ref)
 	complete(&ca->ref_completion);
 }
 #endif
-
-static void bch2_dev_io_ref_read_complete(struct percpu_ref *ref)
-{
-	struct bch_dev *ca = container_of(ref, struct bch_dev, io_ref[READ]);
-
-	complete(&ca->io_ref_completion[READ]);
-}
-
-static void bch2_dev_io_ref_write_complete(struct percpu_ref *ref)
-{
-	struct bch_dev *ca = container_of(ref, struct bch_dev, io_ref[WRITE]);
-
-	complete(&ca->io_ref_completion[WRITE]);
-}
 
 static void bch2_dev_unlink(struct bch_dev *ca)
 {
@@ -1437,8 +1442,6 @@ static struct bch_dev *__bch2_dev_alloc(struct bch_fs *c,
 
 	kobject_init(&ca->kobj, &bch2_dev_ktype);
 	init_completion(&ca->ref_completion);
-	init_completion(&ca->io_ref_completion[READ]);
-	init_completion(&ca->io_ref_completion[WRITE]);
 
 	INIT_WORK(&ca->io_error_work, bch2_io_error_work);
 
@@ -1464,10 +1467,8 @@ static struct bch_dev *__bch2_dev_alloc(struct bch_fs *c,
 
 	bch2_dev_allocator_background_init(ca);
 
-	if (percpu_ref_init(&ca->io_ref[READ], bch2_dev_io_ref_read_complete,
-			    PERCPU_REF_INIT_DEAD, GFP_KERNEL) ||
-	    percpu_ref_init(&ca->io_ref[WRITE], bch2_dev_io_ref_write_complete,
-			    PERCPU_REF_INIT_DEAD, GFP_KERNEL) ||
+	if (enumerated_ref_init(&ca->io_ref[READ],  BCH_DEV_READ_REF_NR,  NULL) ||
+	    enumerated_ref_init(&ca->io_ref[WRITE], BCH_DEV_WRITE_REF_NR, NULL) ||
 	    !(ca->sb_read_scratch = kmalloc(BCH_SB_READ_SCRATCH_BUF_SIZE, GFP_KERNEL)) ||
 	    bch2_dev_buckets_alloc(c, ca) ||
 	    !(ca->io_done	= alloc_percpu(*ca->io_done)))
@@ -1529,8 +1530,8 @@ static int __bch2_dev_attach_bdev(struct bch_dev *ca, struct bch_sb_handle *sb)
 		return -BCH_ERR_device_size_too_small;
 	}
 
-	BUG_ON(!percpu_ref_is_zero(&ca->io_ref[READ]));
-	BUG_ON(!percpu_ref_is_zero(&ca->io_ref[WRITE]));
+	BUG_ON(!enumerated_ref_is_zero(&ca->io_ref[READ]));
+	BUG_ON(!enumerated_ref_is_zero(&ca->io_ref[WRITE]));
 
 	ret = bch2_dev_journal_init(ca, sb->sb);
 	if (ret)
@@ -1549,7 +1550,7 @@ static int __bch2_dev_attach_bdev(struct bch_dev *ca, struct bch_sb_handle *sb)
 
 	ca->dev = ca->disk_sb.bdev->bd_dev;
 
-	percpu_ref_reinit(&ca->io_ref[READ]);
+	enumerated_ref_start(&ca->io_ref[READ]);
 
 	return 0;
 }
@@ -1662,8 +1663,8 @@ static void __bch2_dev_read_write(struct bch_fs *c, struct bch_dev *ca)
 	bch2_dev_allocator_add(c, ca);
 	bch2_recalc_capacity(c);
 
-	if (percpu_ref_is_zero(&ca->io_ref[WRITE]))
-		percpu_ref_reinit(&ca->io_ref[WRITE]);
+	if (enumerated_ref_is_zero(&ca->io_ref[WRITE]))
+		enumerated_ref_start(&ca->io_ref[WRITE]);
 
 	bch2_dev_do_discards(ca);
 }
@@ -1813,7 +1814,7 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 err:
 	if (test_bit(BCH_FS_rw, &c->flags) &&
 	    ca->mi.state == BCH_MEMBER_STATE_rw &&
-	    !percpu_ref_is_zero(&ca->io_ref[READ]))
+	    !enumerated_ref_is_zero(&ca->io_ref[READ]))
 		__bch2_dev_read_write(c, ca);
 	up_write(&c->state_lock);
 	return ret;
@@ -2112,7 +2113,7 @@ err:
 
 int bch2_fs_resize_on_mount(struct bch_fs *c)
 {
-	for_each_online_member(c, ca) {
+	for_each_online_member(c, ca, BCH_DEV_READ_REF_fs_resize_on_mount) {
 		u64 old_nbuckets = ca->mi.nbuckets;
 		u64 new_nbuckets = div64_u64(get_capacity(ca->disk_sb.bdev->bd_disk),
 					 ca->mi.bucket_size);
@@ -2123,7 +2124,8 @@ int bch2_fs_resize_on_mount(struct bch_fs *c)
 			int ret = bch2_dev_buckets_resize(c, ca, new_nbuckets);
 			bch_err_fn(ca, ret);
 			if (ret) {
-				percpu_ref_put(&ca->io_ref[READ]);
+				enumerated_ref_put(&ca->io_ref[READ],
+						   BCH_DEV_READ_REF_fs_resize_on_mount);
 				up_write(&c->state_lock);
 				return ret;
 			}
@@ -2141,7 +2143,8 @@ int bch2_fs_resize_on_mount(struct bch_fs *c)
 			if (ca->mi.freespace_initialized) {
 				ret = __bch2_dev_resize_alloc(ca, old_nbuckets, new_nbuckets);
 				if (ret) {
-					percpu_ref_put(&ca->io_ref[READ]);
+					enumerated_ref_put(&ca->io_ref[READ],
+							BCH_DEV_READ_REF_fs_resize_on_mount);
 					up_write(&c->state_lock);
 					return ret;
 				}

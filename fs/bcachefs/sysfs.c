@@ -176,14 +176,9 @@ read_attribute(btree_reserve_cache);
 read_attribute(open_buckets);
 read_attribute(open_buckets_partial);
 read_attribute(nocow_lock_table);
-read_attribute(write_refs);
 
-static const char * const bch2_write_refs[] = {
-#define x(n)	#n,
-	BCH_WRITE_REFS()
-#undef x
-	NULL
-};
+read_attribute(read_refs);
+read_attribute(write_refs);
 
 read_attribute(internal_uuid);
 read_attribute(disk_groups);
@@ -790,6 +785,12 @@ SHOW(bch2_dev)
 	if (opt_id >= 0)
 		return sysfs_opt_show(c, ca, opt_id, out);
 
+	if (attr == &sysfs_read_refs)
+		enumerated_ref_to_text(out, &ca->io_ref[READ], bch2_dev_read_refs);
+
+	if (attr == &sysfs_write_refs)
+		enumerated_ref_to_text(out, &ca->io_ref[WRITE], bch2_dev_write_refs);
+
 	return 0;
 }
 
@@ -845,6 +846,9 @@ struct attribute *bch2_dev_files[] = {
 	/* debug: */
 	&sysfs_alloc_debug,
 	&sysfs_open_buckets,
+
+	&sysfs_read_refs,
+	&sysfs_write_refs,
 	NULL
 };
 

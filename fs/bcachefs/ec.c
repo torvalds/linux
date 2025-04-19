@@ -701,6 +701,9 @@ static void ec_block_endio(struct bio *bio)
 	struct bch_dev *ca = ec_bio->ca;
 	struct closure *cl = bio->bi_private;
 	int rw = ec_bio->rw;
+	unsigned ref = rw == READ
+		? BCH_DEV_READ_REF_ec_block
+		: BCH_DEV_WRITE_REF_ec_block;
 
 	bch2_account_io_completion(ca, bio_data_dir(bio),
 				   ec_bio->submit_time, !bio->bi_status);
@@ -722,7 +725,7 @@ static void ec_block_endio(struct bio *bio)
 	}
 
 	bio_put(&ec_bio->bio);
-	percpu_ref_put(&ca->io_ref[rw]);
+	enumerated_ref_put(&ca->io_ref[rw], ref);
 	closure_put(cl);
 }
 
@@ -736,8 +739,11 @@ static void ec_block_io(struct bch_fs *c, struct ec_stripe_buf *buf,
 		? BCH_DATA_user
 		: BCH_DATA_parity;
 	int rw = op_is_write(opf);
+	unsigned ref = rw == READ
+		? BCH_DEV_READ_REF_ec_block
+		: BCH_DEV_WRITE_REF_ec_block;
 
-	struct bch_dev *ca = bch2_dev_get_ioref(c, ptr->dev, rw);
+	struct bch_dev *ca = bch2_dev_get_ioref(c, ptr->dev, rw, ref);
 	if (!ca) {
 		clear_bit(idx, buf->valid);
 		return;
@@ -783,14 +789,14 @@ static void ec_block_io(struct bch_fs *c, struct ec_stripe_buf *buf,
 		bch2_bio_map(&ec_bio->bio, buf->data[idx] + offset, b);
 
 		closure_get(cl);
-		percpu_ref_get(&ca->io_ref[rw]);
+		enumerated_ref_get(&ca->io_ref[rw], ref);
 
 		submit_bio(&ec_bio->bio);
 
 		offset += b;
 	}
 
-	percpu_ref_put(&ca->io_ref[rw]);
+	enumerated_ref_put(&ca->io_ref[rw], ref);
 }
 
 static int get_stripe_key_trans(struct btree_trans *trans, u64 idx,
@@ -1247,7 +1253,8 @@ static void zero_out_rest_of_ec_bucket(struct bch_fs *c,
 				       unsigned block,
 				       struct open_bucket *ob)
 {
-	struct bch_dev *ca = bch2_dev_get_ioref(c, ob->dev, WRITE);
+	struct bch_dev *ca = bch2_dev_get_ioref(c, ob->dev, WRITE,
+				BCH_DEV_WRITE_REF_ec_bucket_zero);
 	if (!ca) {
 		s->err = -BCH_ERR_erofs_no_writes;
 		return;
@@ -1263,7 +1270,7 @@ static void zero_out_rest_of_ec_bucket(struct bch_fs *c,
 			ob->sectors_free,
 			GFP_KERNEL, 0);
 
-	percpu_ref_put(&ca->io_ref[WRITE]);
+	enumerated_ref_put(&ca->io_ref[WRITE], BCH_DEV_WRITE_REF_ec_bucket_zero);
 
 	if (ret)
 		s->err = ret;

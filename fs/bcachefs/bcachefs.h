@@ -516,6 +516,51 @@ struct discard_in_flight {
 	u64			bucket:63;
 };
 
+#define BCH_DEV_READ_REFS()				\
+	x(bch2_online_devs)				\
+	x(trans_mark_dev_sbs)				\
+	x(read_fua_test)				\
+	x(sb_field_resize)				\
+	x(write_super)					\
+	x(journal_read)					\
+	x(fs_journal_alloc)				\
+	x(fs_resize_on_mount)				\
+	x(btree_node_read)				\
+	x(btree_node_read_all_replicas)			\
+	x(btree_node_scrub)				\
+	x(btree_node_write)				\
+	x(btree_node_scan)				\
+	x(btree_verify_replicas)			\
+	x(btree_node_ondisk_to_text)			\
+	x(io_read)					\
+	x(check_extent_checksums)			\
+	x(ec_block)
+
+enum bch_dev_read_ref {
+#define x(n) BCH_DEV_READ_REF_##n,
+	BCH_DEV_READ_REFS()
+#undef x
+	BCH_DEV_READ_REF_NR,
+};
+
+#define BCH_DEV_WRITE_REFS()				\
+	x(journal_write)				\
+	x(journal_do_discards)				\
+	x(dev_do_discards)				\
+	x(discard_one_bucket_fast)			\
+	x(do_invalidates)				\
+	x(nocow_flush)					\
+	x(io_write)					\
+	x(ec_block)					\
+	x(ec_bucket_zero)
+
+enum bch_dev_write_ref {
+#define x(n) BCH_DEV_WRITE_REF_##n,
+	BCH_DEV_WRITE_REFS()
+#undef x
+	BCH_DEV_WRITE_REF_NR,
+};
+
 struct bch_dev {
 	struct kobject		kobj;
 #ifdef CONFIG_BCACHEFS_DEBUG
@@ -526,8 +571,7 @@ struct bch_dev {
 	struct percpu_ref	ref;
 #endif
 	struct completion	ref_completion;
-	struct percpu_ref	io_ref[2];
-	struct completion	io_ref_completion[2];
+	struct enumerated_ref	io_ref[2];
 
 	struct bch_fs		*fs;
 

@@ -49,7 +49,8 @@ static void nocow_flush_endio(struct bio *_bio)
 	struct nocow_flush *bio = container_of(_bio, struct nocow_flush, bio);
 
 	closure_put(bio->cl);
-	percpu_ref_put(&bio->ca->io_ref[WRITE]);
+	enumerated_ref_put(&bio->ca->io_ref[WRITE],
+			   BCH_DEV_WRITE_REF_nocow_flush);
 	bio_put(&bio->bio);
 }
 
@@ -72,7 +73,8 @@ void bch2_inode_flush_nocow_writes_async(struct bch_fs *c,
 	for_each_set_bit(dev, devs.d, BCH_SB_MEMBERS_MAX) {
 		rcu_read_lock();
 		ca = rcu_dereference(c->devs[dev]);
-		if (ca && !percpu_ref_tryget(&ca->io_ref[WRITE]))
+		if (ca && !enumerated_ref_tryget(&ca->io_ref[WRITE],
+					BCH_DEV_WRITE_REF_nocow_flush))
 			ca = NULL;
 		rcu_read_unlock();
 

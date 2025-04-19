@@ -9,6 +9,9 @@
 #include <linux/math64.h>
 
 extern const char * const bch2_fs_flag_strs[];
+extern const char * const bch2_write_refs[];
+extern const char * const bch2_dev_read_refs[];
+extern const char * const bch2_dev_write_refs[];
 
 struct bch_fs *bch2_dev_to_fs(dev_t);
 struct bch_fs *bch2_uuid_to_fs(__uuid_t);

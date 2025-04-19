@@ -1326,7 +1326,7 @@ static void btree_node_read_work(struct work_struct *work)
 	while (1) {
 		retry = true;
 		bch_info(c, "retrying read");
-		ca = bch2_dev_get_ioref(c, rb->pick.ptr.dev, READ);
+		ca = bch2_dev_get_ioref(c, rb->pick.ptr.dev, READ, BCH_DEV_READ_REF_btree_node_read);
 		rb->have_ioref		= ca != NULL;
 		rb->start_time		= local_clock();
 		bio_reset(bio, NULL, REQ_OP_READ|REQ_SYNC|REQ_META);
@@ -1351,7 +1351,7 @@ start:
 					"btree read error %s for %s",
 					bch2_blk_status_to_str(bio->bi_status), buf.buf);
 		if (rb->have_ioref)
-			percpu_ref_put(&ca->io_ref[READ]);
+			enumerated_ref_put(&ca->io_ref[READ], BCH_DEV_READ_REF_btree_node_read);
 		rb->have_ioref = false;
 
 		bch2_mark_io_failure(&failed, &rb->pick, false);
@@ -1609,7 +1609,8 @@ static void btree_node_read_all_replicas_endio(struct bio *bio)
 		struct bch_dev *ca = bch2_dev_have_ref(c, rb->pick.ptr.dev);
 
 		bch2_latency_acct(ca, rb->start_time, READ);
-		percpu_ref_put(&ca->io_ref[READ]);
+		enumerated_ref_put(&ca->io_ref[READ],
+			BCH_DEV_READ_REF_btree_node_read_all_replicas);
 	}
 
 	ra->err[rb->idx] = bio->bi_status;
@@ -1649,7 +1650,8 @@ static int btree_node_read_all_replicas(struct bch_fs *c, struct btree *b, bool 
 
 	i = 0;
 	bkey_for_each_ptr_decode(k.k, ptrs, pick, entry) {
-		struct bch_dev *ca = bch2_dev_get_ioref(c, pick.ptr.dev, READ);
+		struct bch_dev *ca = bch2_dev_get_ioref(c, pick.ptr.dev, READ,
+					BCH_DEV_READ_REF_btree_node_read_all_replicas);
 		struct btree_read_bio *rb =
 			container_of(ra->bio[i], struct btree_read_bio, bio);
 		rb->c			= c;
@@ -1727,7 +1729,7 @@ void bch2_btree_node_read(struct btree_trans *trans, struct btree *b,
 		return;
 	}
 
-	ca = bch2_dev_get_ioref(c, pick.ptr.dev, READ);
+	ca = bch2_dev_get_ioref(c, pick.ptr.dev, READ, BCH_DEV_READ_REF_btree_node_read);
 
 	bio = bio_alloc_bioset(NULL,
 			       buf_pages(b->data, btree_buf_bytes(b)),
@@ -1930,7 +1932,7 @@ err:
 	printbuf_exit(&err);
 	bch2_bkey_buf_exit(&scrub->key, c);;
 	btree_bounce_free(c, c->opts.btree_node_size, scrub->used_mempool, scrub->buf);
-	percpu_ref_put(&scrub->ca->io_ref[READ]);
+	enumerated_ref_put(&scrub->ca->io_ref[READ], BCH_DEV_READ_REF_btree_node_scrub);
 	kfree(scrub);
 	enumerated_ref_put(&c->writes, BCH_WRITE_REF_btree_node_scrub);
 }
@@ -1959,7 +1961,8 @@ int bch2_btree_node_scrub(struct btree_trans *trans,
 	if (ret <= 0)
 		goto err;
 
-	struct bch_dev *ca = bch2_dev_get_ioref(c, pick.ptr.dev, READ);
+	struct bch_dev *ca = bch2_dev_get_ioref(c, pick.ptr.dev, READ,
+						BCH_DEV_READ_REF_btree_node_scrub);
 	if (!ca) {
 		ret = -BCH_ERR_device_offline;
 		goto err;
@@ -1999,7 +2002,7 @@ int bch2_btree_node_scrub(struct btree_trans *trans,
 	return 0;
 err_free:
 	btree_bounce_free(c, c->opts.btree_node_size, used_mempool, buf);
-	percpu_ref_put(&ca->io_ref[READ]);
+	enumerated_ref_put(&ca->io_ref[READ], BCH_DEV_READ_REF_btree_node_scrub);
 err:
 	enumerated_ref_put(&c->writes, BCH_WRITE_REF_btree_node_scrub);
 	return ret;
@@ -2169,7 +2172,8 @@ static void btree_node_write_endio(struct bio *bio)
 	 * btree writes yet (due to device removal/ro):
 	 */
 	if (wbio->have_ioref)
-		percpu_ref_put(&ca->io_ref[READ]);
+		enumerated_ref_put(&ca->io_ref[READ],
+				   BCH_DEV_READ_REF_btree_node_write);
 
 	if (parent) {
 		bio_put(bio);

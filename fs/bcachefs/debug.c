@@ -42,7 +42,8 @@ static bool bch2_btree_verify_replica(struct bch_fs *c, struct btree *b,
 	struct bio *bio;
 	bool failed = false, saw_error = false;
 
-	struct bch_dev *ca = bch2_dev_get_ioref(c, pick.ptr.dev, READ);
+	struct bch_dev *ca = bch2_dev_get_ioref(c, pick.ptr.dev, READ,
+				BCH_DEV_READ_REF_btree_verify_replicas);
 	if (!ca)
 		return false;
 
@@ -57,7 +58,8 @@ static bool bch2_btree_verify_replica(struct bch_fs *c, struct btree *b,
 	submit_bio_wait(bio);
 
 	bio_put(bio);
-	percpu_ref_put(&ca->io_ref[READ]);
+	enumerated_ref_put(&ca->io_ref[READ],
+			   BCH_DEV_READ_REF_btree_verify_replicas);
 
 	memcpy(n_ondisk, n_sorted, btree_buf_bytes(b));
 
@@ -196,7 +198,8 @@ void bch2_btree_node_ondisk_to_text(struct printbuf *out, struct bch_fs *c,
 		return;
 	}
 
-	ca = bch2_dev_get_ioref(c, pick.ptr.dev, READ);
+	ca = bch2_dev_get_ioref(c, pick.ptr.dev, READ,
+			BCH_DEV_READ_REF_btree_node_ondisk_to_text);
 	if (!ca) {
 		prt_printf(out, "error getting device to read from: not online\n");
 		return;
@@ -297,7 +300,8 @@ out:
 	if (bio)
 		bio_put(bio);
 	kvfree(n_ondisk);
-	percpu_ref_put(&ca->io_ref[READ]);
+	enumerated_ref_put(&ca->io_ref[READ],
+			   BCH_DEV_READ_REF_btree_node_ondisk_to_text);
 }
 
 #ifdef CONFIG_DEBUG_FS

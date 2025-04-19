@@ -260,11 +260,11 @@ struct bch_sb_field *bch2_sb_field_resize_id(struct bch_sb_handle *sb,
 
 		/* XXX: we're not checking that offline device have enough space */
 
-		for_each_online_member(c, ca) {
+		for_each_online_member(c, ca, BCH_DEV_READ_REF_sb_field_resize) {
 			struct bch_sb_handle *dev_sb = &ca->disk_sb;
 
 			if (bch2_sb_realloc(dev_sb, le32_to_cpu(dev_sb->sb->u64s) + d)) {
-				percpu_ref_put(&ca->io_ref[READ]);
+				enumerated_ref_put(&ca->io_ref[READ], BCH_DEV_READ_REF_sb_field_resize);
 				return NULL;
 			}
 		}
@@ -967,7 +967,7 @@ static void write_super_endio(struct bio *bio)
 	}
 
 	closure_put(&ca->fs->sb_write);
-	percpu_ref_put(&ca->io_ref[READ]);
+	enumerated_ref_put(&ca->io_ref[READ], BCH_DEV_READ_REF_write_super);
 }
 
 static void read_back_super(struct bch_fs *c, struct bch_dev *ca)
@@ -985,7 +985,7 @@ static void read_back_super(struct bch_fs *c, struct bch_dev *ca)
 
 	this_cpu_add(ca->io_done->sectors[READ][BCH_DATA_sb], bio_sectors(bio));
 
-	percpu_ref_get(&ca->io_ref[READ]);
+	enumerated_ref_get(&ca->io_ref[READ], BCH_DEV_READ_REF_write_super);
 	closure_bio_submit(bio, &c->sb_write);
 }
 
@@ -1011,7 +1011,7 @@ static void write_one_super(struct bch_fs *c, struct bch_dev *ca, unsigned idx)
 	this_cpu_add(ca->io_done->sectors[WRITE][BCH_DATA_sb],
 		     bio_sectors(bio));
 
-	percpu_ref_get(&ca->io_ref[READ]);
+	enumerated_ref_get(&ca->io_ref[READ], BCH_DEV_READ_REF_write_super);
 	closure_bio_submit(bio, &c->sb_write);
 }
 
@@ -1043,13 +1043,13 @@ int bch2_write_super(struct bch_fs *c)
 	 * For now, we expect to be able to call write_super() when we're not
 	 * yet RW:
 	 */
-	for_each_online_member(c, ca) {
+	for_each_online_member(c, ca, BCH_DEV_READ_REF_write_super) {
 		ret = darray_push(&online_devices, ca);
 		if (bch2_fs_fatal_err_on(ret, c, "%s: error allocating online devices", __func__)) {
-			percpu_ref_put(&ca->io_ref[READ]);
+			enumerated_ref_put(&ca->io_ref[READ], BCH_DEV_READ_REF_write_super);
 			goto out;
 		}
-		percpu_ref_get(&ca->io_ref[READ]);
+		enumerated_ref_get(&ca->io_ref[READ], BCH_DEV_READ_REF_write_super);
 	}
 
 	/* Make sure we're using the new magic numbers: */
@@ -1216,7 +1216,7 @@ out:
 	/* Make new options visible after they're persistent: */
 	bch2_sb_update(c);
 	darray_for_each(online_devices, ca)
-		percpu_ref_put(&(*ca)->io_ref[READ]);
+		enumerated_ref_put(&(*ca)->io_ref[READ], BCH_DEV_READ_REF_write_super);
 	darray_exit(&online_devices);
 	printbuf_exit(&err);
 	return ret;
