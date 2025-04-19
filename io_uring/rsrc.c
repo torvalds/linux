@@ -1058,8 +1058,6 @@ static int io_import_fixed(int ddir, struct iov_iter *iter,
 	size_t offset;
 	int ret;
 
-	if (WARN_ON_ONCE(!imu))
-		return -EFAULT;
 	ret = validate_fixed_range(buf_addr, len, imu);
 	if (unlikely(ret))
 		return ret;
