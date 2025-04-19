@@ -1438,6 +1438,7 @@ static int run_vfprintf(int min, int max)
 	return ret;
 }
 
+__attribute__((no_sanitize("undefined")))
 static int smash_stack(void)
 {
 	char buf[100];
