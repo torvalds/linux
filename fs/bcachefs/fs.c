@@ -2327,12 +2327,14 @@ static int bch2_show_devname(struct seq_file *seq, struct dentry *root)
 	struct bch_fs *c = root->d_sb->s_fs_info;
 	bool first = true;
 
-	for_each_online_member(c, ca) {
+	rcu_read_lock();
+	for_each_online_member_rcu(c, ca) {
 		if (!first)
 			seq_putc(seq, ':');
 		first = false;
 		seq_puts(seq, ca->disk_sb.sb_name);
 	}
+	rcu_read_unlock();
 
 	return 0;
 }
@@ -2529,15 +2531,16 @@ got_sb:
 
 	sb->s_bdi->ra_pages		= VM_READAHEAD_PAGES;
 
-	for_each_online_member(c, ca) {
+	rcu_read_lock();
+	for_each_online_member_rcu(c, ca) {
 		struct block_device *bdev = ca->disk_sb.bdev;
 
 		/* XXX: create an anonymous device for multi device filesystems */
 		sb->s_bdev	= bdev;
 		sb->s_dev	= bdev->bd_dev;
-		percpu_ref_put(&ca->io_ref[READ]);
 		break;
 	}
+	rcu_read_unlock();
 
 	c->dev = sb->s_dev;
 

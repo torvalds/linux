@@ -1105,7 +1105,7 @@ static bool bch2_fs_may_start(struct bch_fs *c)
 		break;
 	}
 
-	return bch2_have_enough_devs(c, bch2_online_devs(c), flags, true);
+	return bch2_have_enough_devs(c, c->online_devs, flags, true);
 }
 
 int bch2_fs_start(struct bch_fs *c)
@@ -1138,8 +1138,11 @@ int bch2_fs_start(struct bch_fs *c)
 		goto err;
 	}
 
-	for_each_online_member(c, ca)
-		bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx)->last_mount = cpu_to_le64(now);
+	rcu_read_lock();
+	for_each_online_member_rcu(c, ca)
+		bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx)->last_mount =
+		cpu_to_le64(now);
+	rcu_read_unlock();
 
 	/*
 	 * Dno't write superblock yet: recovery might have to downgrade
@@ -1294,6 +1297,9 @@ static int bch2_dev_in_fs(struct bch_sb_handle *fs,
 
 static void bch2_dev_io_ref_stop(struct bch_dev *ca, int rw)
 {
+	if (rw == READ)
+		clear_bit(ca->dev_idx, ca->fs->online_devs.d);
+
 	if (!percpu_ref_is_zero(&ca->io_ref[rw])) {
 		reinit_completion(&ca->io_ref_completion[rw]);
 		percpu_ref_kill(&ca->io_ref[rw]);
@@ -1577,6 +1583,8 @@ static int bch2_dev_attach_bdev(struct bch_fs *c, struct bch_sb_handle *sb)
 	if (ret)
 		return ret;
 
+	set_bit(ca->dev_idx, c->online_devs.d);
+
 	bch2_dev_sysfs_online(c, ca);
 
 	struct printbuf name = PRINTBUF;
@@ -1634,7 +1642,7 @@ bool bch2_dev_state_allowed(struct bch_fs *c, struct bch_dev *ca,
 			return true;
 
 		/* do we have enough devices to read from?  */
-		new_online_devs = bch2_online_devs(c);
+		new_online_devs = c->online_devs;
 		__clear_bit(ca->dev_idx, new_online_devs.d);
 
 		return bch2_have_enough_devs(c, new_online_devs, flags, false);

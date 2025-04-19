@@ -104,6 +104,9 @@ static inline struct bch_dev *__bch2_next_dev(struct bch_fs *c, struct bch_dev *
 	for (struct bch_dev *_ca = NULL;				\
 	     (_ca = __bch2_next_dev((_c), _ca, (_mask)));)
 
+#define for_each_online_member_rcu(_c, _ca)				\
+	for_each_member_device_rcu(_c, _ca, &(_c)->online_devs)
+
 static inline void bch2_dev_get(struct bch_dev *ca)
 {
 #ifdef CONFIG_BCACHEFS_DEBUG
@@ -305,17 +308,6 @@ static inline struct bch_dev *bch2_dev_get_ioref(struct bch_fs *c, unsigned dev,
 	if (ca)
 		percpu_ref_put(&ca->io_ref[rw]);
 	return NULL;
-}
-
-/* XXX kill, move to struct bch_fs */
-static inline struct bch_devs_mask bch2_online_devs(struct bch_fs *c)
-{
-	struct bch_devs_mask devs;
-
-	memset(&devs, 0, sizeof(devs));
-	for_each_online_member(c, ca)
-		__set_bit(ca->dev_idx, devs.d);
-	return devs;
 }
 
 extern const struct bch_sb_field_ops bch_sb_field_ops_members_v1;

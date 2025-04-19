@@ -613,11 +613,13 @@ static long bch2_ioctl_disk_get_idx(struct bch_fs *c,
 	if (!dev)
 		return -EINVAL;
 
-	for_each_online_member(c, ca)
+	rcu_read_lock();
+	for_each_online_member_rcu(c, ca)
 		if (ca->dev == dev) {
-			percpu_ref_put(&ca->io_ref[READ]);
+			rcu_read_unlock();
 			return ca->dev_idx;
 		}
+	rcu_read_unlock();
 
 	return -BCH_ERR_ENOENT_dev_idx_not_found;
 }

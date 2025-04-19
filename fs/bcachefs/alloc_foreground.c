@@ -1645,13 +1645,21 @@ static noinline void bch2_print_allocator_stuck(struct bch_fs *c)
 	printbuf_indent_sub(&buf, 2);
 	prt_newline(&buf);
 
-	for_each_online_member(c, ca) {
+	bch2_printbuf_make_room(&buf, 4096);
+
+	rcu_read_lock();
+	buf.atomic++;
+
+	for_each_online_member_rcu(c, ca) {
 		prt_printf(&buf, "Dev %u:\n", ca->dev_idx);
 		printbuf_indent_add(&buf, 2);
 		bch2_dev_alloc_debug_to_text(&buf, ca);
 		printbuf_indent_sub(&buf, 2);
 		prt_newline(&buf);
 	}
+
+	--buf.atomic;
+	rcu_read_unlock();
 
 	prt_printf(&buf, "Copygc debug:\n");
 	printbuf_indent_add(&buf, 2);

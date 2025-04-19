@@ -891,6 +891,7 @@ struct bch_fs {
 	struct workqueue_struct *write_ref_wq;
 
 	/* ALLOCATION */
+	struct bch_devs_mask	online_devs;
 	struct bch_devs_mask	rw_devs[BCH_DATA_NR];
 	unsigned long		rw_devs_change_count;
 
