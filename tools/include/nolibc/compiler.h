@@ -12,6 +12,12 @@
 #  define __nolibc_has_attribute(attr) 0
 #endif
 
+#if defined(__has_feature)
+#  define __nolibc_has_feature(feature) __has_feature(feature)
+#else
+#  define __nolibc_has_feature(feature) 0
+#endif
+
 #if __nolibc_has_attribute(naked)
 #  define __nolibc_entrypoint __attribute__((naked))
 #  define __nolibc_entrypoint_epilogue()
