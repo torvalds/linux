@@ -685,37 +685,34 @@ static bool io_coalesce_buffer(struct page ***pages, int *nr_pages,
 				struct io_imu_folio_data *data)
 {
 	struct page **page_array = *pages, **new_array = NULL;
-	int nr_pages_left = *nr_pages, i, j;
-	int nr_folios = data->nr_folios;
+	unsigned nr_pages_left = *nr_pages;
+	unsigned nr_folios = data->nr_folios;
+	unsigned i, j;
 
 	/* Store head pages only*/
-	new_array = kvmalloc_array(nr_folios, sizeof(struct page *),
-					GFP_KERNEL);
+	new_array = kvmalloc_array(nr_folios, sizeof(struct page *), GFP_KERNEL);
 	if (!new_array)
 		return false;
 
-	new_array[0] = compound_head(page_array[0]);
-	/*
-	 * The pages are bound to the folio, it doesn't
-	 * actually unpin them but drops all but one reference,
-	 * which is usually put down by io_buffer_unmap().
-	 */
-	if (data->nr_pages_head > 1)
-		unpin_user_folio(page_folio(new_array[0]), data->nr_pages_head - 1);
+	for (i = 0, j = 0; i < nr_folios; i++) {
+		struct page *p = compound_head(page_array[j]);
+		struct folio *folio = page_folio(p);
+		unsigned int nr;
 
-	j = data->nr_pages_head;
-	nr_pages_left -= data->nr_pages_head;
-	for (i = 1; i < nr_folios; i++) {
-		unsigned int nr_unpin;
+		WARN_ON_ONCE(i > 0 && p != page_array[j]);
 
-		new_array[i] = page_array[j];
-		nr_unpin = min_t(unsigned int, nr_pages_left - 1,
-					data->nr_pages_mid - 1);
-		if (nr_unpin)
-			unpin_user_folio(page_folio(new_array[i]), nr_unpin);
-		j += data->nr_pages_mid;
-		nr_pages_left -= data->nr_pages_mid;
+		nr = i ? data->nr_pages_mid : data->nr_pages_head;
+		nr = min(nr, nr_pages_left);
+		/* Drop all but one ref, the entire folio will remain pinned. */
+		if (nr > 1)
+			unpin_user_folio(folio, nr - 1);
+		j += nr;
+		nr_pages_left -= nr;
+		new_array[i] = p;
 	}
+
+	WARN_ON_ONCE(j != *nr_pages);
+
 	kvfree(page_array);
 	*pages = new_array;
 	*nr_pages = nr_folios;
