@@ -699,10 +699,9 @@ static bool io_coalesce_buffer(struct page ***pages, int *nr_pages,
 	 * The pages are bound to the folio, it doesn't
 	 * actually unpin them but drops all but one reference,
 	 * which is usually put down by io_buffer_unmap().
-	 * Note, needs a better helper.
 	 */
 	if (data->nr_pages_head > 1)
-		unpin_user_pages(&page_array[1], data->nr_pages_head - 1);
+		unpin_user_folio(page_folio(new_array[0]), data->nr_pages_head - 1);
 
 	j = data->nr_pages_head;
 	nr_pages_left -= data->nr_pages_head;
@@ -713,7 +712,7 @@ static bool io_coalesce_buffer(struct page ***pages, int *nr_pages,
 		nr_unpin = min_t(unsigned int, nr_pages_left - 1,
 					data->nr_pages_mid - 1);
 		if (nr_unpin)
-			unpin_user_pages(&page_array[j+1], nr_unpin);
+			unpin_user_folio(page_folio(new_array[i]), nr_unpin);
 		j += data->nr_pages_mid;
 		nr_pages_left -= data->nr_pages_mid;
 	}
