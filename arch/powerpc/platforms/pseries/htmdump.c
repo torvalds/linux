@@ -16,7 +16,10 @@ static u32 nodeindex;
 static u32 nodalchipindex;
 static u32 coreindexonchip;
 static u32 htmtype;
+static u32 htmconfigure;
 static struct dentry *htmdump_debugfs_dir;
+#define	HTM_ENABLE	1
+#define	HTM_DISABLE	0
 
 /*
  * Check the return code for H_HTM hcall.
@@ -108,6 +111,54 @@ static const struct file_operations htmdump_fops = {
 	.open	= simple_open,
 };
 
+static int  htmconfigure_set(void *data, u64 val)
+{
+	long rc, ret;
+
+	/*
+	 * value as 1 : configure HTM.
+	 * value as 0 : deconfigure HTM. Return -EINVAL for
+	 * other values.
+	 */
+	if (val == HTM_ENABLE) {
+		/*
+		 * Invoke H_HTM call with:
+		 * - operation as htm configure (H_HTM_OP_CONFIGURE)
+		 * - last three values are unused, hence set to zero
+		 */
+		rc = htm_hcall_wrapper(nodeindex, nodalchipindex, coreindexonchip,
+			   htmtype, H_HTM_OP_CONFIGURE, 0, 0, 0);
+	} else if (val == HTM_DISABLE) {
+		/*
+		 * Invoke H_HTM call with:
+		 * - operation as htm deconfigure (H_HTM_OP_DECONFIGURE)
+		 * - last three values are unused, hence set to zero
+		 */
+		rc = htm_hcall_wrapper(nodeindex, nodalchipindex, coreindexonchip,
+				htmtype, H_HTM_OP_DECONFIGURE, 0, 0, 0);
+	} else
+		return -EINVAL;
+
+	ret = htm_return_check(rc);
+	if (ret <= 0) {
+		pr_debug("H_HTM hcall failed, returning %ld\n", ret);
+		return ret;
+	}
+
+	/* Set htmconfigure if operation succeeds */
+	htmconfigure = val;
+
+	return 0;
+}
+
+static int htmconfigure_get(void *data, u64 *val)
+{
+	*val = htmconfigure;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(htmconfigure_fops, htmconfigure_get, htmconfigure_set, "%llu\n");
+
 static int htmdump_init_debugfs(void)
 {
 	htm_buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
@@ -128,6 +179,11 @@ static int htmdump_init_debugfs(void)
 	debugfs_create_u32("htmtype", 0600,
 			htmdump_debugfs_dir, &htmtype);
 	debugfs_create_file("trace", 0400, htmdump_debugfs_dir, htm_buf, &htmdump_fops);
+
+	/*
+	 * Debugfs interface files to control HTM operations:
+	 */
+	debugfs_create_file("htmconfigure", 0600, htmdump_debugfs_dir, NULL, &htmconfigure_fops);
 
 	return 0;
 }
