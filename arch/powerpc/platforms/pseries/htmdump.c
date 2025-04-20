@@ -14,6 +14,7 @@
 static void *htm_buf;
 static void *htm_status_buf;
 static void *htm_info_buf;
+static void *htm_caps_buf;
 static u32 nodeindex;
 static u32 nodalchipindex;
 static u32 coreindexonchip;
@@ -304,9 +305,40 @@ static ssize_t htminfo_read(struct file *filp, char __user *ubuf,
 	return simple_read_from_buffer(ubuf, count, ppos, htm_info_buf, to_copy);
 }
 
+static ssize_t htmcaps_read(struct file *filp, char __user *ubuf,
+			     size_t count, loff_t *ppos)
+{
+	void *htm_caps_buf = filp->private_data;
+	long rc, ret;
+
+	/*
+	 * Invoke H_HTM call with:
+	 * - operation as htm capabilities (H_HTM_OP_CAPABILITIES)
+	 * - last three values as addr, size (0x80 for Capabilities Output Buffer
+	 *   and zero
+	 */
+	rc = htm_hcall_wrapper(htmflags, nodeindex, nodalchipindex, coreindexonchip,
+				   htmtype, H_HTM_OP_CAPABILITIES, virt_to_phys(htm_caps_buf),
+				   0x80, 0);
+
+	ret = htm_return_check(rc);
+	if (ret <= 0) {
+		pr_debug("H_HTM hcall failed for op: H_HTM_OP_CAPABILITIES, returning %ld\n", ret);
+		return ret;
+	}
+
+	return simple_read_from_buffer(ubuf, count, ppos, htm_caps_buf, 0x80);
+}
+
 static const struct file_operations htminfo_fops = {
 	.llseek = NULL,
 	.read   = htminfo_read,
+	.open   = simple_open,
+};
+
+static const struct file_operations htmcaps_fops = {
+	.llseek = NULL,
+	.read   = htmcaps_read,
 	.open   = simple_open,
 };
 
@@ -417,8 +449,16 @@ static int htmdump_init_debugfs(void)
 		return -ENOMEM;
 	}
 
+	/* Debugfs interface file to present HTM capabilities */
+	htm_caps_buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!htm_caps_buf) {
+		pr_err("Failed to allocate htm caps buf\n");
+		return -ENOMEM;
+	}
+
 	debugfs_create_file("htmstatus", 0400, htmdump_debugfs_dir, htm_status_buf, &htmstatus_fops);
 	debugfs_create_file("htminfo", 0400, htmdump_debugfs_dir, htm_info_buf, &htminfo_fops);
+	debugfs_create_file("htmcaps", 0400, htmdump_debugfs_dir, htm_caps_buf, &htmcaps_fops);
 
 	return 0;
 }
