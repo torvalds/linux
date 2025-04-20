@@ -53,16 +53,19 @@ static void bch2_vfs_inode_init(struct btree_trans *, subvol_inum,
 				struct bch_subvolume *);
 
 /* Set VFS inode flags from bcachefs inode: */
-static inline void bch2_inode_flags_to_vfs(struct bch_inode_info *inode)
+static inline void bch2_inode_flags_to_vfs(struct bch_fs *c, struct bch_inode_info *inode)
 {
 	static const __maybe_unused unsigned bch_flags_to_vfs[] = {
 		[__BCH_INODE_sync]		= S_SYNC,
 		[__BCH_INODE_immutable]		= S_IMMUTABLE,
 		[__BCH_INODE_append]		= S_APPEND,
 		[__BCH_INODE_noatime]		= S_NOATIME,
-		[__BCH_INODE_casefolded]	= S_CASEFOLD,
 	};
+
 	set_flags(bch_flags_to_vfs, inode->ei_inode.bi_flags, inode->v.i_flags);
+
+	if (bch2_inode_casefold(c, &inode->ei_inode))
+		inode->v.i_flags |= S_CASEFOLD;
 }
 
 void bch2_inode_update_after_write(struct btree_trans *trans,
@@ -93,7 +96,7 @@ void bch2_inode_update_after_write(struct btree_trans *trans,
 
 	inode->ei_inode		= *bi;
 
-	bch2_inode_flags_to_vfs(inode);
+	bch2_inode_flags_to_vfs(c, inode);
 }
 
 int __must_check bch2_write_inode(struct bch_fs *c,
@@ -1470,7 +1473,6 @@ static const __maybe_unused unsigned bch_flags_to_uflags[] = {
 	[__BCH_INODE_append]		= FS_APPEND_FL,
 	[__BCH_INODE_nodump]		= FS_NODUMP_FL,
 	[__BCH_INODE_noatime]		= FS_NOATIME_FL,
-	[__BCH_INODE_casefolded]	= FS_CASEFOLD_FL,
 };
 
 /* bcachefs inode flags -> FS_IOC_FSGETXATTR: */
@@ -1486,13 +1488,14 @@ static int bch2_fileattr_get(struct dentry *dentry,
 			     struct fileattr *fa)
 {
 	struct bch_inode_info *inode = to_bch_ei(d_inode(dentry));
+	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 
 	fileattr_fill_xflags(fa, map_flags(bch_flags_to_xflags, inode->ei_inode.bi_flags));
 
 	if (inode->ei_inode.bi_fields_set & (1 << Inode_opt_project))
 		fa->fsx_xflags |= FS_XFLAG_PROJINHERIT;
 
-	if (inode->ei_inode.bi_flags & BCH_INODE_casefolded)
+	if (bch2_inode_casefold(c, &inode->ei_inode))
 		fa->flags |= FS_CASEFOLD_FL;
 
 	fa->fsx_projid = inode->ei_qid.q[QTYP_PRJ];
@@ -1504,6 +1507,8 @@ struct flags_set {
 	unsigned		flags;
 	unsigned		projid;
 	bool			set_project;
+	bool			set_casefold;
+	bool			casefold;
 };
 
 static int fssetxattr_inode_update_fn(struct btree_trans *trans,
@@ -1518,15 +1523,12 @@ static int fssetxattr_inode_update_fn(struct btree_trans *trans,
 	 * We're relying on btree locking here for exclusion with other ioctl
 	 * calls - use the flags in the btree (@bi), not inode->i_flags:
 	 */
-	unsigned newflags = s->flags;
-	unsigned oldflags = bi->bi_flags & s->mask;
-
 	if (!S_ISREG(bi->bi_mode) &&
 	    !S_ISDIR(bi->bi_mode) &&
-	    (newflags & (BCH_INODE_nodump|BCH_INODE_noatime)) != newflags)
+	    (s->flags & (BCH_INODE_nodump|BCH_INODE_noatime)) != s->flags)
 		return -EINVAL;
 
-	if ((newflags ^ oldflags) & BCH_INODE_casefolded) {
+	if (s->casefold != bch2_inode_casefold(c, bi)) {
 #ifdef CONFIG_UNICODE
 		int ret = 0;
 		/* Not supported on individual files. */
@@ -1546,6 +1548,10 @@ static int fssetxattr_inode_update_fn(struct btree_trans *trans,
 			return ret;
 
 		bch2_check_set_feature(c, BCH_FEATURE_casefolding);
+
+		bi->bi_casefold = s->casefold + 1;
+		bi->bi_fields_set |= BIT(Inode_opt_casefold);
+
 #else
 		printk(KERN_ERR "Cannot use casefolding on a kernel without CONFIG_UNICODE\n");
 		return -EOPNOTSUPP;
@@ -1558,7 +1564,7 @@ static int fssetxattr_inode_update_fn(struct btree_trans *trans,
 	}
 
 	bi->bi_flags &= ~s->mask;
-	bi->bi_flags |= newflags;
+	bi->bi_flags |= s->flags;
 
 	bi->bi_ctime = timespec_to_bch2_time(c, current_time(&inode->v));
 	return 0;
@@ -1598,6 +1604,11 @@ static int bch2_fileattr_set(struct mnt_idmap *idmap,
 
 	if (fa->flags_valid) {
 		s.mask = map_defined(bch_flags_to_uflags);
+
+		s.set_casefold = true;
+		s.casefold = (fa->flags & FS_CASEFOLD_FL) != 0;
+		fa->flags &= ~FS_CASEFOLD_FL;
+
 		s.flags |= map_flags_rev(bch_flags_to_uflags, fa->flags);
 		if (fa->flags)
 			return -EOPNOTSUPP;
