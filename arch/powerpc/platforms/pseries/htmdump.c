@@ -17,6 +17,7 @@ static u32 nodalchipindex;
 static u32 coreindexonchip;
 static u32 htmtype;
 static u32 htmconfigure;
+static u32 htmstart;
 static struct dentry *htmdump_debugfs_dir;
 #define	HTM_ENABLE	1
 #define	HTM_DISABLE	0
@@ -157,7 +158,55 @@ static int htmconfigure_get(void *data, u64 *val)
 	return 0;
 }
 
+static int  htmstart_set(void *data, u64 val)
+{
+	long rc, ret;
+
+	/*
+	 * value as 1: start HTM
+	 * value as 0: stop HTM
+	 * Return -EINVAL for other values.
+	 */
+	if (val == HTM_ENABLE) {
+		/*
+		 * Invoke H_HTM call with:
+		 * - operation as htm start (H_HTM_OP_START)
+		 * - last three values are unused, hence set to zero
+		 */
+		rc = htm_hcall_wrapper(nodeindex, nodalchipindex, coreindexonchip,
+			   htmtype, H_HTM_OP_START, 0, 0, 0);
+
+	} else if (val == HTM_DISABLE) {
+		/*
+		 * Invoke H_HTM call with:
+		 * - operation as htm stop (H_HTM_OP_STOP)
+		 * - last three values are unused, hence set to zero
+		 */
+		rc = htm_hcall_wrapper(nodeindex, nodalchipindex, coreindexonchip,
+				htmtype, H_HTM_OP_STOP, 0, 0, 0);
+	} else
+		return -EINVAL;
+
+	ret = htm_return_check(rc);
+	if (ret <= 0) {
+		pr_debug("H_HTM hcall failed, returning %ld\n", ret);
+		return ret;
+	}
+
+	/* Set htmstart if H_HTM_OP_START/H_HTM_OP_STOP operation succeeds */
+	htmstart = val;
+
+	return 0;
+}
+
+static int htmstart_get(void *data, u64 *val)
+{
+	*val = htmstart;
+	return 0;
+}
+
 DEFINE_SIMPLE_ATTRIBUTE(htmconfigure_fops, htmconfigure_get, htmconfigure_set, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(htmstart_fops, htmstart_get, htmstart_set, "%llu\n");
 
 static int htmdump_init_debugfs(void)
 {
@@ -184,6 +233,7 @@ static int htmdump_init_debugfs(void)
 	 * Debugfs interface files to control HTM operations:
 	 */
 	debugfs_create_file("htmconfigure", 0600, htmdump_debugfs_dir, NULL, &htmconfigure_fops);
+	debugfs_create_file("htmstart", 0600, htmdump_debugfs_dir, NULL, &htmstart_fops);
 
 	return 0;
 }
