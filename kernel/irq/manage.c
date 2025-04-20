@@ -2378,21 +2378,6 @@ static struct irqaction *__free_percpu_irq(unsigned int irq, void __percpu *dev_
 }
 
 /**
- * remove_percpu_irq - free a per-cpu interrupt
- * @irq:	Interrupt line to free
- * @act:	irqaction for the interrupt
- *
- * Used to remove interrupts statically setup by the early boot process.
- */
-void remove_percpu_irq(unsigned int irq, struct irqaction *act)
-{
-	struct irq_desc *desc = irq_to_desc(irq);
-
-	if (desc && irq_settings_is_per_cpu_devid(desc))
-		__free_percpu_irq(irq, act->percpu_dev_id);
-}
-
-/**
  * free_percpu_irq - free an interrupt allocated with request_percpu_irq
  * @irq:	Interrupt line to free
  * @dev_id:	Device identity to free
