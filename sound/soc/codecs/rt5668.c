@@ -799,49 +799,6 @@ static void rt5668_reset(struct regmap *regmap)
 	regmap_write(regmap, RT5668_RESET, 0);
 	regmap_write(regmap, RT5668_I2C_MODE, 1);
 }
-/**
- * rt5668_sel_asrc_clk_src - select ASRC clock source for a set of filters
- * @component: SoC audio component device.
- * @filter_mask: mask of filters.
- * @clk_src: clock source
- *
- * The ASRC function is for asynchronous MCLK and LRCK. Also, since RT5668 can
- * only support standard 32fs or 64fs i2s format, ASRC should be enabled to
- * support special i2s clock format such as Intel's 100fs(100 * sampling rate).
- * ASRC function will track i2s clock and generate a corresponding system clock
- * for codec. This function provides an API to select the clock source for a
- * set of filters specified by the mask. And the component driver will turn on
- * ASRC for these filters if ASRC is selected as their clock source.
- */
-int rt5668_sel_asrc_clk_src(struct snd_soc_component *component,
-		unsigned int filter_mask, unsigned int clk_src)
-{
-
-	switch (clk_src) {
-	case RT5668_CLK_SEL_SYS:
-	case RT5668_CLK_SEL_I2S1_ASRC:
-	case RT5668_CLK_SEL_I2S2_ASRC:
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	if (filter_mask & RT5668_DA_STEREO1_FILTER) {
-		snd_soc_component_update_bits(component, RT5668_PLL_TRACK_2,
-			RT5668_FILTER_CLK_SEL_MASK,
-			clk_src << RT5668_FILTER_CLK_SEL_SFT);
-	}
-
-	if (filter_mask & RT5668_AD_STEREO1_FILTER) {
-		snd_soc_component_update_bits(component, RT5668_PLL_TRACK_3,
-			RT5668_FILTER_CLK_SEL_MASK,
-			clk_src << RT5668_FILTER_CLK_SEL_SFT);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(rt5668_sel_asrc_clk_src);
 
 static int rt5668_button_detect(struct snd_soc_component *component)
 {
