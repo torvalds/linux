@@ -417,6 +417,11 @@ iwl_op_mode_mld_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		goto free_hw;
 	}
 
+	/* We are about to stop the FW. Notifications may require an
+	 * operational FW, so handle them all here before we stop.
+	 */
+	wiphy_work_flush(mld->wiphy, &mld->async_handlers_wk);
+
 	iwl_mld_stop_fw(mld);
 
 	wiphy_unlock(mld->wiphy);
