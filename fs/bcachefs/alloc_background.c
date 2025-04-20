@@ -2505,15 +2505,15 @@ void bch2_recalc_capacity(struct bch_fs *c)
 
 	lockdep_assert_held(&c->state_lock);
 
-	for_each_online_member(c, ca) {
-		struct backing_dev_info *bdi = ca->disk_sb.bdev->bd_disk->bdi;
+	rcu_read_lock();
+	for_each_member_device_rcu(c, ca, NULL) {
+		struct block_device *bdev = READ_ONCE(ca->disk_sb.bdev);
+		if (bdev)
+			ra_pages += bdev->bd_disk->bdi->ra_pages;
 
-		ra_pages += bdi->ra_pages;
-	}
+		if (ca->mi.state != BCH_MEMBER_STATE_rw)
+			continue;
 
-	bch2_set_ra_pages(c, ra_pages);
-
-	__for_each_online_member(c, ca, BIT(BCH_MEMBER_STATE_rw), READ) {
 		u64 dev_reserve = 0;
 
 		/*
@@ -2550,6 +2550,9 @@ void bch2_recalc_capacity(struct bch_fs *c)
 		bucket_size_max = max_t(unsigned, bucket_size_max,
 					ca->mi.bucket_size);
 	}
+	rcu_read_unlock();
+
+	bch2_set_ra_pages(c, ra_pages);
 
 	gc_reserve = c->opts.gc_reserve_bytes
 		? c->opts.gc_reserve_bytes >> 9
