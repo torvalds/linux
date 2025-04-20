@@ -13,6 +13,7 @@
 
 static void *htm_buf;
 static void *htm_status_buf;
+static void *htm_info_buf;
 static u32 nodeindex;
 static u32 nodalchipindex;
 static u32 coreindexonchip;
@@ -253,6 +254,48 @@ static const struct file_operations htmstatus_fops = {
 	.open	= simple_open,
 };
 
+static ssize_t htminfo_read(struct file *filp, char __user *ubuf,
+			     size_t count, loff_t *ppos)
+{
+	void *htm_info_buf = filp->private_data;
+	long rc, ret;
+	u64 *num_entries;
+	u64 to_copy;
+
+	/*
+	 * Invoke H_HTM call with:
+	 * - operation as htm status (H_HTM_OP_STATUS)
+	 * - last three values as addr, size and offset
+	 */
+	rc = htm_hcall_wrapper(nodeindex, nodalchipindex, coreindexonchip,
+				   htmtype, H_HTM_OP_DUMP_SYSPROC_CONF, virt_to_phys(htm_info_buf),
+				   PAGE_SIZE, 0);
+
+	ret = htm_return_check(rc);
+	if (ret <= 0) {
+		pr_debug("H_HTM hcall failed for op: H_HTM_OP_DUMP_SYSPROC_CONF, returning %ld\n", ret);
+		return ret;
+	}
+
+	/*
+	 * HTM status buffer, start of buffer + 0x10 gives the
+	 * number of HTM entries in the buffer. Each entry of processor
+	 * is 16 bytes.
+	 *
+	 * So total count to copy is:
+	 * 32 bytes (for first 5 fields) + (number of HTM entries * entry size)
+	 */
+	num_entries = htm_info_buf + 0x10;
+	to_copy = 32 + (be64_to_cpu(*num_entries) * 16);
+	return simple_read_from_buffer(ubuf, count, ppos, htm_info_buf, to_copy);
+}
+
+static const struct file_operations htminfo_fops = {
+	.llseek = NULL,
+	.read   = htminfo_read,
+	.open   = simple_open,
+};
+
 DEFINE_SIMPLE_ATTRIBUTE(htmconfigure_fops, htmconfigure_get, htmconfigure_set, "%llu\n");
 DEFINE_SIMPLE_ATTRIBUTE(htmstart_fops, htmstart_get, htmstart_set, "%llu\n");
 
@@ -290,7 +333,15 @@ static int htmdump_init_debugfs(void)
 		return -ENOMEM;
 	}
 
+	/* Debugfs interface file to present System Processor Configuration */
+	htm_info_buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!htm_info_buf) {
+		pr_err("Failed to allocate htm info buf\n");
+		return -ENOMEM;
+	}
+
 	debugfs_create_file("htmstatus", 0400, htmdump_debugfs_dir, htm_status_buf, &htmstatus_fops);
+	debugfs_create_file("htminfo", 0400, htmdump_debugfs_dir, htm_info_buf, &htminfo_fops);
 
 	return 0;
 }
