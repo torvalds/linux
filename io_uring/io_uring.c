@@ -359,6 +359,7 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	INIT_LIST_HEAD(&ctx->tctx_list);
 	ctx->submit_state.free_list.next = NULL;
 	INIT_HLIST_HEAD(&ctx->waitid_list);
+	xa_init_flags(&ctx->zcrx_ctxs, XA_FLAGS_ALLOC);
 #ifdef CONFIG_FUTEX
 	INIT_HLIST_HEAD(&ctx->futex_list);
 #endif
@@ -2889,7 +2890,7 @@ static __cold void io_ring_exit_work(struct work_struct *work)
 			io_cqring_overflow_kill(ctx);
 			mutex_unlock(&ctx->uring_lock);
 		}
-		if (ctx->ifq) {
+		if (!xa_empty(&ctx->zcrx_ctxs)) {
 			mutex_lock(&ctx->uring_lock);
 			io_shutdown_zcrx_ifqs(ctx);
 			mutex_unlock(&ctx->uring_lock);
