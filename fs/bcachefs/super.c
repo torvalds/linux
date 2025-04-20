@@ -471,10 +471,14 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 
 	clear_bit(BCH_FS_clean_shutdown, &c->flags);
 
-	__for_each_online_member(c, ca, BIT(BCH_MEMBER_STATE_rw), READ) {
-		bch2_dev_allocator_add(c, ca);
-		percpu_ref_reinit(&ca->io_ref[WRITE]);
-	}
+	rcu_read_lock();
+	for_each_online_member_rcu(c, ca)
+		if (ca->mi.state == BCH_MEMBER_STATE_rw) {
+			bch2_dev_allocator_add(c, ca);
+			percpu_ref_reinit(&ca->io_ref[WRITE]);
+		}
+	rcu_read_unlock();
+
 	bch2_recalc_capacity(c);
 
 	/*
@@ -1149,8 +1153,11 @@ int bch2_fs_start(struct bch_fs *c)
 	 */
 	mutex_unlock(&c->sb_lock);
 
-	for_each_rw_member(c, ca)
-		bch2_dev_allocator_add(c, ca);
+	rcu_read_lock();
+	for_each_online_member_rcu(c, ca)
+		if (ca->mi.state == BCH_MEMBER_STATE_rw)
+			bch2_dev_allocator_add(c, ca);
+	rcu_read_unlock();
 	bch2_recalc_capacity(c);
 	up_write(&c->state_lock);
 
