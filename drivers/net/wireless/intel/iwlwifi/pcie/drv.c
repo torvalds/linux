@@ -1736,11 +1736,13 @@ static int _iwl_pci_resume(struct device *device, bool restore)
 	 * Scratch value was altered, this means the device was powered off, we
 	 * need to reset it completely.
 	 * Note: MAC (bits 0:7) will be cleared upon suspend even with wowlan,
-	 * so assume that any bits there mean that the device is usable.
+	 * but not bits [15:8]. So if we have bits set in lower word, assume
+	 * the device is alive.
 	 * For older devices, just try silently to grab the NIC.
 	 */
 	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
-		if (!iwl_read32(trans, CSR_FUNC_SCRATCH))
+		if (!(iwl_read32(trans, CSR_FUNC_SCRATCH) &
+		      CSR_FUNC_SCRATCH_POWER_OFF_MASK))
 			device_was_powered_off = true;
 	} else {
 		/*
