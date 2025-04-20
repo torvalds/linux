@@ -245,9 +245,6 @@ static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 	if (!area->freelist)
 		goto err;
 
-	for (i = 0; i < nr_iovs; i++)
-		area->freelist[i] = i;
-
 	area->user_refs = kvmalloc_array(nr_iovs, sizeof(area->user_refs[0]),
 					GFP_KERNEL | __GFP_ZERO);
 	if (!area->user_refs)
