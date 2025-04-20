@@ -1185,8 +1185,7 @@ int io_recvzc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	struct io_recvzc *zc = io_kiocb_to_cmd(req, struct io_recvzc);
 	unsigned ifq_idx;
 
-	if (unlikely(sqe->file_index || sqe->addr2 || sqe->addr ||
-		     sqe->addr3))
+	if (unlikely(sqe->addr2 || sqe->addr || sqe->addr3))
 		return -EINVAL;
 
 	ifq_idx = READ_ONCE(sqe->zcrx_ifq_idx);
