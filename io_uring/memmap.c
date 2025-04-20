@@ -13,6 +13,7 @@
 #include "memmap.h"
 #include "kbuf.h"
 #include "rsrc.h"
+#include "zcrx.h"
 
 static void *io_mem_alloc_compound(struct page **pages, int nr_pages,
 				   size_t size, gfp_t gfp)
@@ -258,7 +259,8 @@ static struct io_mapped_region *io_mmap_get_region(struct io_ring_ctx *ctx,
 						   loff_t pgoff)
 {
 	loff_t offset = pgoff << PAGE_SHIFT;
-	unsigned int bgid;
+	unsigned int id;
+
 
 	switch (offset & IORING_OFF_MMAP_MASK) {
 	case IORING_OFF_SQ_RING:
@@ -267,12 +269,13 @@ static struct io_mapped_region *io_mmap_get_region(struct io_ring_ctx *ctx,
 	case IORING_OFF_SQES:
 		return &ctx->sq_region;
 	case IORING_OFF_PBUF_RING:
-		bgid = (offset & ~IORING_OFF_MMAP_MASK) >> IORING_OFF_PBUF_SHIFT;
-		return io_pbuf_get_region(ctx, bgid);
+		id = (offset & ~IORING_OFF_MMAP_MASK) >> IORING_OFF_PBUF_SHIFT;
+		return io_pbuf_get_region(ctx, id);
 	case IORING_MAP_OFF_PARAM_REGION:
 		return &ctx->param_region;
 	case IORING_MAP_OFF_ZCRX_REGION:
-		return &ctx->zcrx_region;
+		id = (offset & ~IORING_OFF_MMAP_MASK) >> IORING_OFF_ZCRX_SHIFT;
+		return io_zcrx_get_region(ctx, id);
 	}
 	return NULL;
 }
