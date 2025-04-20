@@ -20,6 +20,8 @@ static u32 coreindexonchip;
 static u32 htmtype;
 static u32 htmconfigure;
 static u32 htmstart;
+static u32 htmsetup;
+
 static struct dentry *htmdump_debugfs_dir;
 #define	HTM_ENABLE	1
 #define	HTM_DISABLE	0
@@ -296,8 +298,43 @@ static const struct file_operations htminfo_fops = {
 	.open   = simple_open,
 };
 
+static int  htmsetup_set(void *data, u64 val)
+{
+	long rc, ret;
+
+	/*
+	 * Input value: HTM buffer size in the power of 2
+	 * example: hex value 0x21 ( decimal: 33 ) is for
+	 * 8GB
+	 * Invoke H_HTM call with:
+	 * - operation as htm start (H_HTM_OP_SETUP)
+	 * - parameter 1 set to input value.
+	 * - last two values are unused, hence set to zero
+	 */
+	rc = htm_hcall_wrapper(nodeindex, nodalchipindex, coreindexonchip,
+			htmtype, H_HTM_OP_SETUP, val, 0, 0);
+
+	ret = htm_return_check(rc);
+	if (ret <= 0) {
+		pr_debug("H_HTM hcall failed for op: H_HTM_OP_SETUP, returning %ld\n", ret);
+		return ret;
+	}
+
+	/* Set htmsetup if H_HTM_OP_SETUP operation succeeds */
+	htmsetup = val;
+
+	return 0;
+}
+
+static int htmsetup_get(void *data, u64 *val)
+{
+	*val = htmsetup;
+	return 0;
+}
+
 DEFINE_SIMPLE_ATTRIBUTE(htmconfigure_fops, htmconfigure_get, htmconfigure_set, "%llu\n");
 DEFINE_SIMPLE_ATTRIBUTE(htmstart_fops, htmstart_get, htmstart_set, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(htmsetup_fops, htmsetup_get, htmsetup_set, "%llu\n");
 
 static int htmdump_init_debugfs(void)
 {
@@ -325,6 +362,7 @@ static int htmdump_init_debugfs(void)
 	 */
 	debugfs_create_file("htmconfigure", 0600, htmdump_debugfs_dir, NULL, &htmconfigure_fops);
 	debugfs_create_file("htmstart", 0600, htmdump_debugfs_dir, NULL, &htmstart_fops);
+	debugfs_create_file("htmsetup", 0600, htmdump_debugfs_dir, NULL, &htmsetup_fops);
 
 	/* Debugfs interface file to present status of HTM */
 	htm_status_buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
