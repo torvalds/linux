@@ -1410,9 +1410,8 @@ void otx2_free_pending_sqe(struct otx2_nic *pfvf)
 	}
 }
 
-static void otx2_xdp_sqe_add_sg(struct otx2_snd_queue *sq,
-				struct xdp_frame *xdpf,
-				u64 dma_addr, int len, int *offset, u16 flags)
+void otx2_xdp_sqe_add_sg(struct otx2_snd_queue *sq, struct xdp_frame *xdpf,
+			 u64 dma_addr, int len, int *offset, u16 flags)
 {
 	struct nix_sqe_sg_s *sg = NULL;
 	u64 *iova = NULL;
