@@ -2149,8 +2149,17 @@ static int damos_sysfs_add_quota_score(
 				sysfs_goal->target_value);
 		if (!goal)
 			return -ENOMEM;
-		if (sysfs_goal->metric == DAMOS_QUOTA_USER_INPUT)
+		switch (sysfs_goal->metric) {
+		case DAMOS_QUOTA_USER_INPUT:
 			goal->current_value = sysfs_goal->current_value;
+			break;
+		case DAMOS_QUOTA_NODE_MEM_USED_BP:
+		case DAMOS_QUOTA_NODE_MEM_FREE_BP:
+			goal->nid = sysfs_goal->nid;
+			break;
+		default:
+			break;
+		}
 		damos_add_quota_goal(quota, goal);
 	}
 	return 0;
