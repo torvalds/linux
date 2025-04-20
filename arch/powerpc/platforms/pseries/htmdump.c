@@ -12,6 +12,7 @@
 #include <asm/plpar_wrappers.h>
 
 static void *htm_buf;
+static void *htm_status_buf;
 static u32 nodeindex;
 static u32 nodalchipindex;
 static u32 coreindexonchip;
@@ -205,6 +206,53 @@ static int htmstart_get(void *data, u64 *val)
 	return 0;
 }
 
+static ssize_t htmstatus_read(struct file *filp, char __user *ubuf,
+			     size_t count, loff_t *ppos)
+{
+	void *htm_status_buf = filp->private_data;
+	long rc, ret;
+	u64 *num_entries;
+	u64 to_copy;
+	int htmstatus_flag;
+
+	/*
+	 * Invoke H_HTM call with:
+	 * - operation as htm status (H_HTM_OP_STATUS)
+	 * - last three values as addr, size and offset
+	 */
+	rc = htm_hcall_wrapper(nodeindex, nodalchipindex, coreindexonchip,
+				   htmtype, H_HTM_OP_STATUS, virt_to_phys(htm_status_buf),
+				   PAGE_SIZE, 0);
+
+	ret = htm_return_check(rc);
+	if (ret <= 0) {
+		pr_debug("H_HTM hcall failed for op: H_HTM_OP_STATUS, returning %ld\n", ret);
+		return ret;
+	}
+
+	/*
+	 * HTM status buffer, start of buffer + 0x10 gives the
+	 * number of HTM entries in the buffer. Each nest htm status
+	 * entry is 0x6 bytes where each core htm status entry is
+	 * 0x8 bytes.
+	 * So total count to copy is:
+	 * 32 bytes (for first 7 fields) + (number of HTM entries * entry size)
+	 */
+	num_entries = htm_status_buf + 0x10;
+	if (htmtype == 0x2)
+		htmstatus_flag = 0x8;
+	else
+		htmstatus_flag = 0x6;
+	to_copy = 32 + (be64_to_cpu(*num_entries) * htmstatus_flag);
+	return simple_read_from_buffer(ubuf, count, ppos, htm_status_buf, to_copy);
+}
+
+static const struct file_operations htmstatus_fops = {
+	.llseek = NULL,
+	.read	= htmstatus_read,
+	.open	= simple_open,
+};
+
 DEFINE_SIMPLE_ATTRIBUTE(htmconfigure_fops, htmconfigure_get, htmconfigure_set, "%llu\n");
 DEFINE_SIMPLE_ATTRIBUTE(htmstart_fops, htmstart_get, htmstart_set, "%llu\n");
 
@@ -234,6 +282,15 @@ static int htmdump_init_debugfs(void)
 	 */
 	debugfs_create_file("htmconfigure", 0600, htmdump_debugfs_dir, NULL, &htmconfigure_fops);
 	debugfs_create_file("htmstart", 0600, htmdump_debugfs_dir, NULL, &htmstart_fops);
+
+	/* Debugfs interface file to present status of HTM */
+	htm_status_buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!htm_status_buf) {
+		pr_err("Failed to allocate htmstatus buf\n");
+		return -ENOMEM;
+	}
+
+	debugfs_create_file("htmstatus", 0400, htmdump_debugfs_dir, htm_status_buf, &htmstatus_fops);
 
 	return 0;
 }
