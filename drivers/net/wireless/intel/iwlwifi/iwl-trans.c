@@ -555,7 +555,6 @@ void __releases(nic_access)
 iwl_trans_release_nic_access(struct iwl_trans *trans)
 {
 	iwl_trans_pcie_release_nic_access(trans);
-	__release(nic_access);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_release_nic_access);
 
