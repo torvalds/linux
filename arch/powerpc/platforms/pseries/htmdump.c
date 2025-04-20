@@ -21,10 +21,13 @@ static u32 htmtype;
 static u32 htmconfigure;
 static u32 htmstart;
 static u32 htmsetup;
+static u64 htmflags;
 
 static struct dentry *htmdump_debugfs_dir;
 #define	HTM_ENABLE	1
 #define	HTM_DISABLE	0
+#define	HTM_NOWRAP	1
+#define	HTM_WRAP	0
 
 /*
  * Check the return code for H_HTM hcall.
@@ -94,7 +97,7 @@ static ssize_t htmdump_read(struct file *filp, char __user *ubuf,
 	 * - operation as htm dump (H_HTM_OP_DUMP_DATA)
 	 * - last three values are address, size and offset
 	 */
-	rc = htm_hcall_wrapper(nodeindex, nodalchipindex, coreindexonchip,
+	rc = htm_hcall_wrapper(htmflags, nodeindex, nodalchipindex, coreindexonchip,
 				   htmtype, H_HTM_OP_DUMP_DATA, virt_to_phys(htm_buf),
 				   PAGE_SIZE, page);
 
@@ -119,6 +122,7 @@ static const struct file_operations htmdump_fops = {
 static int  htmconfigure_set(void *data, u64 val)
 {
 	long rc, ret;
+	unsigned long param1 = -1, param2 = -1;
 
 	/*
 	 * value as 1 : configure HTM.
@@ -129,17 +133,25 @@ static int  htmconfigure_set(void *data, u64 val)
 		/*
 		 * Invoke H_HTM call with:
 		 * - operation as htm configure (H_HTM_OP_CONFIGURE)
+		 * - If htmflags is set, param1 and param2 will be -1
+		 *   which is an indicator to use default htm mode reg mask
+		 *   and htm mode reg value.
 		 * - last three values are unused, hence set to zero
 		 */
-		rc = htm_hcall_wrapper(nodeindex, nodalchipindex, coreindexonchip,
-			   htmtype, H_HTM_OP_CONFIGURE, 0, 0, 0);
+		if (!htmflags) {
+			param1 = 0;
+			param2 = 0;
+		}
+
+		rc = htm_hcall_wrapper(htmflags, nodeindex, nodalchipindex, coreindexonchip,
+			   htmtype, H_HTM_OP_CONFIGURE, param1, param2, 0);
 	} else if (val == HTM_DISABLE) {
 		/*
 		 * Invoke H_HTM call with:
 		 * - operation as htm deconfigure (H_HTM_OP_DECONFIGURE)
 		 * - last three values are unused, hence set to zero
 		 */
-		rc = htm_hcall_wrapper(nodeindex, nodalchipindex, coreindexonchip,
+		rc = htm_hcall_wrapper(htmflags, nodeindex, nodalchipindex, coreindexonchip,
 				htmtype, H_HTM_OP_DECONFIGURE, 0, 0, 0);
 	} else
 		return -EINVAL;
@@ -177,7 +189,7 @@ static int  htmstart_set(void *data, u64 val)
 		 * - operation as htm start (H_HTM_OP_START)
 		 * - last three values are unused, hence set to zero
 		 */
-		rc = htm_hcall_wrapper(nodeindex, nodalchipindex, coreindexonchip,
+		rc = htm_hcall_wrapper(htmflags, nodeindex, nodalchipindex, coreindexonchip,
 			   htmtype, H_HTM_OP_START, 0, 0, 0);
 
 	} else if (val == HTM_DISABLE) {
@@ -186,7 +198,7 @@ static int  htmstart_set(void *data, u64 val)
 		 * - operation as htm stop (H_HTM_OP_STOP)
 		 * - last three values are unused, hence set to zero
 		 */
-		rc = htm_hcall_wrapper(nodeindex, nodalchipindex, coreindexonchip,
+		rc = htm_hcall_wrapper(htmflags, nodeindex, nodalchipindex, coreindexonchip,
 				htmtype, H_HTM_OP_STOP, 0, 0, 0);
 	} else
 		return -EINVAL;
@@ -223,7 +235,7 @@ static ssize_t htmstatus_read(struct file *filp, char __user *ubuf,
 	 * - operation as htm status (H_HTM_OP_STATUS)
 	 * - last three values as addr, size and offset
 	 */
-	rc = htm_hcall_wrapper(nodeindex, nodalchipindex, coreindexonchip,
+	rc = htm_hcall_wrapper(htmflags, nodeindex, nodalchipindex, coreindexonchip,
 				   htmtype, H_HTM_OP_STATUS, virt_to_phys(htm_status_buf),
 				   PAGE_SIZE, 0);
 
@@ -269,7 +281,7 @@ static ssize_t htminfo_read(struct file *filp, char __user *ubuf,
 	 * - operation as htm status (H_HTM_OP_STATUS)
 	 * - last three values as addr, size and offset
 	 */
-	rc = htm_hcall_wrapper(nodeindex, nodalchipindex, coreindexonchip,
+	rc = htm_hcall_wrapper(htmflags, nodeindex, nodalchipindex, coreindexonchip,
 				   htmtype, H_HTM_OP_DUMP_SYSPROC_CONF, virt_to_phys(htm_info_buf),
 				   PAGE_SIZE, 0);
 
@@ -311,7 +323,7 @@ static int  htmsetup_set(void *data, u64 val)
 	 * - parameter 1 set to input value.
 	 * - last two values are unused, hence set to zero
 	 */
-	rc = htm_hcall_wrapper(nodeindex, nodalchipindex, coreindexonchip,
+	rc = htm_hcall_wrapper(htmflags, nodeindex, nodalchipindex, coreindexonchip,
 			htmtype, H_HTM_OP_SETUP, val, 0, 0);
 
 	ret = htm_return_check(rc);
@@ -332,9 +344,35 @@ static int htmsetup_get(void *data, u64 *val)
 	return 0;
 }
 
+static int  htmflags_set(void *data, u64 val)
+{
+	/*
+	 * Input value:
+	 * Currently supported flag value is to enable/disable
+	 * HTM buffer wrap. wrap is used along with "configure"
+	 * to prevent HTM buffer from wrapping.
+	 * Writing 1 will set noWrap while configuring HTM
+	 */
+	if (val == HTM_NOWRAP)
+		htmflags = H_HTM_FLAGS_NOWRAP;
+	else if (val == HTM_WRAP)
+		htmflags = 0;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static int htmflags_get(void *data, u64 *val)
+{
+	*val = htmflags;
+	return 0;
+}
+
 DEFINE_SIMPLE_ATTRIBUTE(htmconfigure_fops, htmconfigure_get, htmconfigure_set, "%llu\n");
 DEFINE_SIMPLE_ATTRIBUTE(htmstart_fops, htmstart_get, htmstart_set, "%llu\n");
 DEFINE_SIMPLE_ATTRIBUTE(htmsetup_fops, htmsetup_get, htmsetup_set, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(htmflags_fops, htmflags_get, htmflags_set, "%llu\n");
 
 static int htmdump_init_debugfs(void)
 {
@@ -363,6 +401,7 @@ static int htmdump_init_debugfs(void)
 	debugfs_create_file("htmconfigure", 0600, htmdump_debugfs_dir, NULL, &htmconfigure_fops);
 	debugfs_create_file("htmstart", 0600, htmdump_debugfs_dir, NULL, &htmstart_fops);
 	debugfs_create_file("htmsetup", 0600, htmdump_debugfs_dir, NULL, &htmsetup_fops);
+	debugfs_create_file("htmflags", 0600, htmdump_debugfs_dir, NULL, &htmflags_fops);
 
 	/* Debugfs interface file to present status of HTM */
 	htm_status_buf = kmalloc(PAGE_SIZE, GFP_KERNEL);

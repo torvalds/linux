@@ -81,12 +81,12 @@ static inline long htm_call(unsigned long flags, unsigned long target,
                                  param1, param2, param3);
 }
 
-static inline long htm_hcall_wrapper(unsigned long nodeindex,
+static inline long htm_hcall_wrapper(unsigned long flags, unsigned long nodeindex,
                unsigned long nodalchipindex, unsigned long coreindexonchip,
 	       unsigned long type, unsigned long htm_op, unsigned long param1, unsigned long param2,
 	       unsigned long param3)
 {
-       return htm_call(H_HTM_FLAGS_HARDWARE_TARGET,
+	return htm_call(H_HTM_FLAGS_HARDWARE_TARGET | flags,
                        H_HTM_TARGET_NODE_INDEX(nodeindex) |
                        H_HTM_TARGET_NODAL_CHIP_INDEX(nodalchipindex) |
                        H_HTM_TARGET_CORE_INDEX_ON_CHIP(coreindexonchip),
