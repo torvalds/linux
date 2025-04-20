@@ -820,24 +820,6 @@ void rvu_npc_install_bcast_match_entry(struct rvu *rvu, u16 pcifunc,
 	rvu_mbox_handler_npc_install_flow(rvu, &req, &rsp);
 }
 
-void rvu_npc_enable_bcast_entry(struct rvu *rvu, u16 pcifunc, int nixlf,
-				bool enable)
-{
-	struct npc_mcam *mcam = &rvu->hw->mcam;
-	int blkaddr, index;
-
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
-	if (blkaddr < 0)
-		return;
-
-	/* Get 'pcifunc' of PF device */
-	pcifunc = pcifunc & ~RVU_PFVF_FUNC_MASK;
-
-	index = npc_get_nixlf_mcam_index(mcam, pcifunc, nixlf,
-					 NIXLF_BCAST_ENTRY);
-	npc_enable_mcam_entry(rvu, mcam, blkaddr, index, enable);
-}
-
 void rvu_npc_install_allmulti_entry(struct rvu *rvu, u16 pcifunc, int nixlf,
 				    u64 chan)
 {
