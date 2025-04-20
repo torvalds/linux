@@ -24,6 +24,7 @@
 
 	gpu@57000000 {
 		vdd-supply = <&vdd_gpu>;
+		status = "okay";
 	};
 
 	/* debug port */
