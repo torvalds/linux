@@ -18,20 +18,19 @@ static u32 coreindexonchip;
 static u32 htmtype;
 static struct dentry *htmdump_debugfs_dir;
 
-static ssize_t htmdump_read(struct file *filp, char __user *ubuf,
-			     size_t count, loff_t *ppos)
+/*
+ * Check the return code for H_HTM hcall.
+ * Return non-zero value (1) if either H_PARTIAL or H_SUCCESS
+ * is returned. For other return codes:
+ * Return zero if H_NOT_AVAILABLE.
+ * Return -EBUSY if hcall return busy.
+ * Return -EINVAL if any parameter or operation is not valid.
+ * Return -EPERM if HTM Virtualization Engine Technology code
+ * is not applied.
+ * Return -EIO if the HTM state is not valid.
+ */
+static ssize_t htm_return_check(long rc)
 {
-	void *htm_buf = filp->private_data;
-	unsigned long page, read_size, available;
-	loff_t offset;
-	long rc;
-
-	page = ALIGN_DOWN(*ppos, PAGE_SIZE);
-	offset = (*ppos) % PAGE_SIZE;
-
-	rc = htm_get_dump_hardware(nodeindex, nodalchipindex, coreindexonchip,
-				   htmtype, virt_to_phys(htm_buf), PAGE_SIZE, page);
-
 	switch (rc) {
 	case H_SUCCESS:
 	/* H_PARTIAL for the case where all available data can't be
@@ -63,6 +62,38 @@ static ssize_t htmdump_read(struct file *filp, char __user *ubuf,
 		return -EIO;
 	case H_AUTHORITY:
 		return -EPERM;
+	}
+
+	/*
+	 * Return 1 for H_SUCCESS/H_PARTIAL
+	 */
+	return 1;
+}
+
+static ssize_t htmdump_read(struct file *filp, char __user *ubuf,
+			     size_t count, loff_t *ppos)
+{
+	void *htm_buf = filp->private_data;
+	unsigned long page, read_size, available;
+	loff_t offset;
+	long rc, ret;
+
+	page = ALIGN_DOWN(*ppos, PAGE_SIZE);
+	offset = (*ppos) % PAGE_SIZE;
+
+	/*
+	 * Invoke H_HTM call with:
+	 * - operation as htm dump (H_HTM_OP_DUMP_DATA)
+	 * - last three values are address, size and offset
+	 */
+	rc = htm_hcall_wrapper(nodeindex, nodalchipindex, coreindexonchip,
+				   htmtype, H_HTM_OP_DUMP_DATA, virt_to_phys(htm_buf),
+				   PAGE_SIZE, page);
+
+	ret = htm_return_check(rc);
+	if (ret <= 0) {
+		pr_debug("H_HTM hcall failed for op: H_HTM_OP_DUMP_DATA, returning %ld\n", ret);
+		return ret;
 	}
 
 	available = PAGE_SIZE;
@@ -103,6 +134,12 @@ static int htmdump_init_debugfs(void)
 
 static int __init htmdump_init(void)
 {
+	/* Disable on kvm guest */
+	if (is_kvm_guest()) {
+		pr_info("htmdump not supported inside KVM guest\n");
+		return -EOPNOTSUPP;
+	}
+
 	if (htmdump_init_debugfs())
 		return -ENOMEM;
 
