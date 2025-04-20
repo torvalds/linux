@@ -167,12 +167,11 @@ static int io_allocate_rbuf_ring(struct io_zcrx_ifq *ifq,
 	if (size > rd->size)
 		return -EINVAL;
 
-	ret = io_create_region_mmap_safe(ifq->ctx, &ifq->ctx->zcrx_region, rd,
-					 IORING_MAP_OFF_ZCRX_REGION);
+	ret = io_create_region(ifq->ctx, &ifq->region, rd, IORING_MAP_OFF_ZCRX_REGION);
 	if (ret < 0)
 		return ret;
 
-	ptr = io_region_get_ptr(&ifq->ctx->zcrx_region);
+	ptr = io_region_get_ptr(&ifq->region);
 	ifq->rq_ring = (struct io_uring *)ptr;
 	ifq->rqes = (struct io_uring_zcrx_rqe *)(ptr + off);
 	return 0;
@@ -180,7 +179,10 @@ static int io_allocate_rbuf_ring(struct io_zcrx_ifq *ifq,
 
 static void io_free_rbuf_ring(struct io_zcrx_ifq *ifq)
 {
-	io_free_region(ifq->ctx, &ifq->ctx->zcrx_region);
+	if (WARN_ON_ONCE(ifq->ctx->ifq))
+		return;
+
+	io_free_region(ifq->ctx, &ifq->region);
 	ifq->rq_ring = NULL;
 	ifq->rqes = NULL;
 }
@@ -343,9 +345,9 @@ struct io_mapped_region *io_zcrx_get_region(struct io_ring_ctx *ctx,
 {
 	lockdep_assert_held(&ctx->mmap_lock);
 
-	if (id != 0)
+	if (id != 0 || !ctx->ifq)
 		return NULL;
-	return &ctx->zcrx_region;
+	return &ctx->ifq->region;
 }
 
 int io_register_zcrx_ifq(struct io_ring_ctx *ctx,
@@ -433,7 +435,8 @@ int io_register_zcrx_ifq(struct io_ring_ctx *ctx,
 		ret = -EFAULT;
 		goto err;
 	}
-	ctx->ifq = ifq;
+	scoped_guard(mutex, &ctx->mmap_lock)
+		ctx->ifq = ifq;
 	return 0;
 err:
 	io_zcrx_ifq_free(ifq);
@@ -449,7 +452,8 @@ void io_unregister_zcrx_ifqs(struct io_ring_ctx *ctx)
 	if (!ifq)
 		return;
 
-	ctx->ifq = NULL;
+	scoped_guard(mutex, &ctx->mmap_lock)
+		ctx->ifq = NULL;
 	io_zcrx_ifq_free(ifq);
 }
 

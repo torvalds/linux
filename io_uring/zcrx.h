@@ -39,6 +39,7 @@ struct io_zcrx_ifq {
 	netdevice_tracker		netdev_tracker;
 	spinlock_t			lock;
 	struct mutex			dma_lock;
+	struct io_mapped_region		region;
 };
 
 #if defined(CONFIG_IO_URING_ZCRX)
