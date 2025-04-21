@@ -1216,6 +1216,38 @@ pub const unsafe fn init_from_closure<T: ?Sized, E>(
     __internal::InitClosure(f, PhantomData)
 }
 
+/// Changes the to be initialized type.
+///
+/// # Safety
+///
+/// - `*mut U` must be castable to `*mut T` and any value of type `T` written through such a
+///   pointer must result in a valid `U`.
+#[expect(clippy::let_and_return)]
+pub const unsafe fn cast_pin_init<T, U, E>(init: impl PinInit<T, E>) -> impl PinInit<U, E> {
+    // SAFETY: initialization delegated to a valid initializer. Cast is valid by function safety
+    // requirements.
+    let res = unsafe { pin_init_from_closure(|ptr: *mut U| init.__pinned_init(ptr.cast::<T>())) };
+    // FIXME: remove the let statement once the nightly-MSRV allows it (1.78 otherwise encounters a
+    // cycle when computing the type returned by this function)
+    res
+}
+
+/// Changes the to be initialized type.
+///
+/// # Safety
+///
+/// - `*mut U` must be castable to `*mut T` and any value of type `T` written through such a
+///   pointer must result in a valid `U`.
+#[expect(clippy::let_and_return)]
+pub const unsafe fn cast_init<T, U, E>(init: impl Init<T, E>) -> impl Init<U, E> {
+    // SAFETY: initialization delegated to a valid initializer. Cast is valid by function safety
+    // requirements.
+    let res = unsafe { init_from_closure(|ptr: *mut U| init.__init(ptr.cast::<T>())) };
+    // FIXME: remove the let statement once the nightly-MSRV allows it (1.78 otherwise encounters a
+    // cycle when computing the type returned by this function)
+    res
+}
+
 /// An initializer that leaves the memory uninitialized.
 ///
 /// The initializer is a no-op. The `slot` memory is not changed.
