@@ -3,6 +3,8 @@
  * Copyright 2019 Advanced Micro Devices, Inc.
  */
 
+ #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/errno.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -458,7 +460,7 @@ static int __init amdtee_driver_init(void)
 
 	rc = psp_check_tee_status();
 	if (rc) {
-		pr_err("amd-tee driver: tee not present\n");
+		pr_err("tee not present\n");
 		return rc;
 	}
 
@@ -494,7 +496,6 @@ static int __init amdtee_driver_init(void)
 
 	drv_data->amdtee = amdtee;
 
-	pr_info("amd-tee driver initialization successful\n");
 	return 0;
 
 err_device_unregister:
@@ -510,7 +511,7 @@ err_kfree_drv_data:
 	kfree(drv_data);
 	drv_data = NULL;
 
-	pr_err("amd-tee driver initialization failed\n");
+	pr_err("initialization failed\n");
 	return rc;
 }
 module_init(amdtee_driver_init);
