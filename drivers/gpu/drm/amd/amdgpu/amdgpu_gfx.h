@@ -170,10 +170,46 @@ struct amdgpu_kiq {
 #define AMDGPU_GFX_MAX_SE 4
 #define AMDGPU_GFX_MAX_SH_PER_SE 2
 
+/**
+ * amdgpu_rb_config - Configure a single Render Backend (RB)
+ *
+ * Bad RBs are fused off and there is a harvest register the driver reads to
+ * determine which RB(s) are fused off so that the driver can configure the
+ * hardware state so that nothing gets sent to them. There are also user
+ * harvest registers that the driver can program to disable additional RBs,
+ * etc., for testing purposes.
+ */
 struct amdgpu_rb_config {
+	/**
+	 * @rb_backend_disable:
+	 *
+	 * The value captured from register RB_BACKEND_DISABLE indicates if the
+	 * RB backend is disabled or not.
+	 */
 	uint32_t rb_backend_disable;
+
+	/**
+	 * @user_rb_backend_disable:
+	 *
+	 * The value captured from register USER_RB_BACKEND_DISABLE indicates
+	 * if the User RB backend is disabled or not.
+	 */
 	uint32_t user_rb_backend_disable;
+
+	/**
+	 * @raster_config:
+	 *
+	 * To set up all of the states, it is necessary to have two registers
+	 * to keep all of the states. This field holds the first register.
+	 */
 	uint32_t raster_config;
+
+	/**
+	 * @raster_config_1:
+	 *
+	 * To set up all of the states, it is necessary to have two registers
+	 * to keep all of the states. This field holds the second register.
+	 */
 	uint32_t raster_config_1;
 };
 
@@ -221,6 +257,13 @@ struct amdgpu_gfx_config {
 	uint32_t macrotile_mode_array[16];
 
 	struct gb_addr_config gb_addr_config_fields;
+
+	/**
+	 * @rb_config:
+	 *
+	 * Matrix that keeps all the Render Backend (color and depth buffer
+	 * handling) configuration on the 3D engine.
+	 */
 	struct amdgpu_rb_config rb_config[AMDGPU_GFX_MAX_SE][AMDGPU_GFX_MAX_SH_PER_SE];
 
 	/* gfx configure feature */

@@ -33,6 +33,9 @@ we have a dedicated glossary for Display Core at
     CS
       Command Submission
 
+    CSB
+      Clear State Indirect Buffer
+
     CU
       Compute Unit
 
@@ -133,6 +136,9 @@ we have a dedicated glossary for Display Core at
 
     PSP
         Platform Security Processor
+
+    RB
+      Render Backends. Some people called it ROPs.
 
     RLC
       RunList Controller. This name is a remnant of past ages and doesn't have
