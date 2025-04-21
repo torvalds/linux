@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
+# (c) 2025, Sasha Levin <sashal@kernel.org>
 
 usage() {
 	echo "Usage: $(basename "$0") [--selftest] [--force] <commit-id> [commit-subject]"
