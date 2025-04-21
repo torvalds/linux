@@ -50,6 +50,9 @@
 #include "hns_roce_hem.h"
 #include "hns_roce_hw_v2.h"
 
+#define CREATE_TRACE_POINTS
+#include "hns_roce_trace.h"
+
 enum {
 	CMD_RST_PRC_OTHERS,
 	CMD_RST_PRC_SUCCESS,
@@ -5312,6 +5315,7 @@ static void v2_set_flushed_fields(struct ib_qp *ibqp,
 		return;
 
 	spin_lock_irqsave(&hr_qp->sq.lock, sq_flag);
+	trace_hns_sq_flush_cqe(hr_qp->qpn, hr_qp->sq.head, TRACE_SQ);
 	hr_reg_write(context, QPC_SQ_PRODUCER_IDX, hr_qp->sq.head);
 	hr_reg_clear(qpc_mask, QPC_SQ_PRODUCER_IDX);
 	hr_qp->state = IB_QPS_ERR;
@@ -5321,6 +5325,7 @@ static void v2_set_flushed_fields(struct ib_qp *ibqp,
 		return;
 
 	spin_lock_irqsave(&hr_qp->rq.lock, rq_flag);
+	trace_hns_rq_flush_cqe(hr_qp->qpn, hr_qp->rq.head, TRACE_RQ);
 	hr_reg_write(context, QPC_RQ_PRODUCER_IDX, hr_qp->rq.head);
 	hr_reg_clear(qpc_mask, QPC_RQ_PRODUCER_IDX);
 	spin_unlock_irqrestore(&hr_qp->rq.lock, rq_flag);
