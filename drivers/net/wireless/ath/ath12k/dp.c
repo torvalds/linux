@@ -933,7 +933,11 @@ int ath12k_dp_service_srng(struct ath12k_base *ab,
 				int id = i * ab->hw_params->num_rxdma_per_pdev + j;
 
 				if (ring_mask & BIT(id)) {
-					/* TODO: add monitor mode function */
+					work_done =
+					ath12k_dp_mon_process_ring(ab, id, napi, budget,
+								   0);
+					budget -= work_done;
+					tot_work_done += work_done;
 					if (budget <= 0)
 						goto done;
 				}
