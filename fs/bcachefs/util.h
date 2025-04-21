@@ -419,6 +419,8 @@ static inline void bch2_maybe_corrupt_bio(struct bio *bio, unsigned ratio)
 #define bch2_maybe_corrupt_bio(...)	do {} while (0)
 #endif
 
+void bch2_bio_to_text(struct printbuf *, struct bio *);
+
 static inline void memcpy_u64s_small(void *dst, const void *src,
 				     unsigned u64s)
 {
