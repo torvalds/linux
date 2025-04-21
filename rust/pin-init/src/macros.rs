@@ -1393,7 +1393,7 @@ macro_rules! __derive_zeroable {
         @body({
             $(
                 $(#[$($field_attr:tt)*])*
-                $field:ident : $field_ty:ty
+                $field_vis:vis $field:ident : $field_ty:ty
             ),* $(,)?
         }),
     ) => {
