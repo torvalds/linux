@@ -99,9 +99,6 @@ static int psp_v12_0_bootloader_load_sysdrv(struct psp_context *psp)
 	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35,
 	       psp_gfxdrv_command_reg);
 
-	/* there might be handshake issue with hardware which needs delay */
-	mdelay(20);
-
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
 			   0x80000000, 0x80000000, false);
 
@@ -138,8 +135,6 @@ static int psp_v12_0_bootloader_load_sos(struct psp_context *psp)
 	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35,
 	       psp_gfxdrv_command_reg);
 
-	/* there might be handshake issue with hardware which needs delay */
-	mdelay(20);
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_81),
 			   RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_81),
 			   0, true);
@@ -161,7 +156,6 @@ static void psp_v12_0_reroute_ih(struct psp_context *psp)
 	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_70, tmp);
 	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_64, GFX_CTRL_CMD_ID_GBR_IH_SET);
 
-	mdelay(20);
 	psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
 		     0x80000000, 0x8000FFFF, false);
 
@@ -173,7 +167,6 @@ static void psp_v12_0_reroute_ih(struct psp_context *psp)
 	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_70, tmp);
 	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_64, GFX_CTRL_CMD_ID_GBR_IH_SET);
 
-	mdelay(20);
 	psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
 		     0x80000000, 0x8000FFFF, false);
 }
@@ -200,9 +193,6 @@ static int psp_v12_0_ring_create(struct psp_context *psp,
 		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_101,
 					     GFX_CTRL_CMD_ID_INIT_GPCOM_RING);
 
-		/* there might be handshake issue with hardware which needs delay */
-		mdelay(20);
-
 		/* Wait for response flag (bit 31) in C2PMSG_101 */
 		ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_101),
 				   0x80000000, 0x8000FFFF, false);
@@ -221,9 +211,6 @@ static int psp_v12_0_ring_create(struct psp_context *psp,
 		psp_ring_reg = ring_type;
 		psp_ring_reg = psp_ring_reg << 16;
 		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_64, psp_ring_reg);
-
-		/* there might be handshake issue with hardware which needs delay */
-		mdelay(20);
 
 		/* Wait for response flag (bit 31) in C2PMSG_64 */
 		ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
@@ -246,9 +233,6 @@ static int psp_v12_0_ring_stop(struct psp_context *psp,
 	else
 		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_64,
 				     GFX_CTRL_CMD_ID_DESTROY_RINGS);
-
-	/* there might be handshake issue with hardware which needs delay */
-	mdelay(20);
 
 	/* Wait for response flag (bit 31) */
 	if (amdgpu_sriov_vf(adev))
