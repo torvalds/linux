@@ -210,6 +210,9 @@ int xe_eu_stall_init(struct xe_gt *gt)
 	struct xe_device *xe = gt_to_xe(gt);
 	int ret;
 
+	if (!xe_eu_stall_supported_on_platform(xe))
+		return 0;
+
 	gt->eu_stall = kzalloc(sizeof(*gt->eu_stall), GFP_KERNEL);
 	if (!gt->eu_stall) {
 		ret = -ENOMEM;
