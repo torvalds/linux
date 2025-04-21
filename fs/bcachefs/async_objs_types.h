@@ -2,7 +2,11 @@
 #ifndef _BCACHEFS_ASYNC_OBJS_TYPES_H
 #define _BCACHEFS_ASYNC_OBJS_TYPES_H
 
-#define BCH_ASYNC_OBJ_LISTS()
+#define BCH_ASYNC_OBJ_LISTS()						\
+	x(promote)							\
+	x(rbio)								\
+	x(btree_read_bio)						\
+	x(btree_write_bio)
 
 enum bch_async_obj_lists {
 #define x(n)		BCH_ASYNC_OBJ_LIST_##n,

@@ -12,6 +12,28 @@
 
 #include <linux/debugfs.h>
 
+static void promote_obj_to_text(struct printbuf *out, void *obj)
+{
+	bch2_promote_op_to_text(out, obj);
+}
+
+static void rbio_obj_to_text(struct printbuf *out, void *obj)
+{
+	bch2_read_bio_to_text(out, obj);
+}
+
+static void btree_read_bio_obj_to_text(struct printbuf *out, void *obj)
+{
+	struct btree_read_bio *rbio = obj;
+	bch2_btree_read_bio_to_text(out, rbio);
+}
+
+static void btree_write_bio_obj_to_text(struct printbuf *out, void *obj)
+{
+	struct btree_write_bio *wbio = obj;
+	bch2_bio_to_text(out, &wbio->wbio.bio);
+}
+
 static int bch2_async_obj_list_open(struct inode *inode, struct file *file)
 {
 	struct async_obj_list *list = inode->i_private;
@@ -65,7 +87,6 @@ static ssize_t bch2_async_obj_list_read(struct file *file, char __user *buf,
 	return ret ?: i->ret;
 }
 
-__maybe_unused
 static const struct file_operations async_obj_ops = {
 	.owner		= THIS_MODULE,
 	.open		= bch2_async_obj_list_open,

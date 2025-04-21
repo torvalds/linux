@@ -9,6 +9,7 @@
 #include "bcachefs.h"
 #include "alloc_background.h"
 #include "alloc_foreground.h"
+#include "async_objs.h"
 #include "btree_update.h"
 #include "buckets.h"
 #include "checksum.h"
@@ -88,18 +89,6 @@ static bool bch2_target_congested(struct bch_fs *c, u16 target)
 
 /* Cache promotion on read */
 
-struct promote_op {
-	struct rcu_head		rcu;
-	u64			start_time;
-
-	struct rhash_head	hash;
-	struct bpos		pos;
-
-	struct work_struct	work;
-	struct data_update	write;
-	struct bio_vec		bi_inline_vecs[]; /* must be last */
-};
-
 static const struct rhashtable_params bch_promote_params = {
 	.head_offset		= offsetof(struct promote_op, hash),
 	.key_offset		= offsetof(struct promote_op, pos),
@@ -176,6 +165,8 @@ static noinline void promote_free(struct bch_read_bio *rbio)
 	int ret = rhashtable_remove_fast(&c->promote_table, &op->hash,
 					 bch_promote_params);
 	BUG_ON(ret);
+
+	async_object_list_del(c, promote, op->list_idx);
 
 	bch2_data_update_exit(&op->write);
 
@@ -262,6 +253,10 @@ static struct bch_read_bio *__promote_alloc(struct btree_trans *trans,
 		goto err;
 	}
 
+	ret = async_object_list_add(c, promote, op, &op->list_idx);
+	if (ret < 0)
+		goto err_remove_hash;
+
 	ret = bch2_data_update_init(trans, NULL, NULL, &op->write,
 			writepoint_hashed((unsigned long) current),
 			&orig->opts,
@@ -273,7 +268,7 @@ static struct bch_read_bio *__promote_alloc(struct btree_trans *trans,
 	 * -BCH_ERR_ENOSPC_disk_reservation:
 	 */
 	if (ret)
-		goto err_remove_hash;
+		goto err_remove_list;
 
 	rbio_init_fragment(&op->write.rbio.bio, orig);
 	op->write.rbio.bounce	= true;
@@ -281,6 +276,8 @@ static struct bch_read_bio *__promote_alloc(struct btree_trans *trans,
 	op->write.op.end_io = promote_done;
 
 	return &op->write.rbio;
+err_remove_list:
+	async_object_list_del(c, promote, op->list_idx);
 err_remove_hash:
 	BUG_ON(rhashtable_remove_fast(&c->promote_table, &op->hash,
 				      bch_promote_params));
@@ -353,6 +350,18 @@ nopromote:
 	return NULL;
 }
 
+void bch2_promote_op_to_text(struct printbuf *out, struct promote_op *op)
+{
+	if (!op->write.read_done) {
+		prt_printf(out, "parent read: %px\n", op->write.rbio.parent);
+		printbuf_indent_add(out, 2);
+		bch2_read_bio_to_text(out, op->write.rbio.parent);
+		printbuf_indent_sub(out, 2);
+	}
+
+	bch2_data_update_to_text(out, &op->write);
+}
+
 /* Read */
 
 static int bch2_read_err_msg_trans(struct btree_trans *trans, struct printbuf *out,
@@ -421,6 +430,8 @@ static inline struct bch_read_bio *bch2_rbio_free(struct bch_read_bio *rbio)
 			else
 				promote_free(rbio);
 		} else {
+			async_object_list_del(rbio->c, rbio, rbio->list_idx);
+
 			if (rbio->bounce)
 				bch2_bio_free_pages_pool(rbio->c, &rbio->bio);
 
@@ -1245,6 +1256,8 @@ retry_pick:
 	rbio->bio.bi_opf	= orig->bio.bi_opf;
 	rbio->bio.bi_iter.bi_sector = pick.ptr.offset;
 	rbio->bio.bi_end_io	= bch2_read_endio;
+
+	async_object_list_add(c, rbio, rbio, &rbio->list_idx);
 
 	if (rbio->bounce)
 		trace_and_count(c, io_read_bounce, &rbio->bio);
