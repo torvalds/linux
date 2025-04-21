@@ -1513,3 +1513,47 @@ macro_rules! impl_tuple_zeroable {
 }
 
 impl_tuple_zeroable!(A, B, C, D, E, F, G, H, I, J);
+
+/// This trait allows creating an instance of `Self` which contains exactly one
+/// [structurally pinned value](https://doc.rust-lang.org/std/pin/index.html#projections-and-structural-pinning).
+///
+/// This is useful when using wrapper `struct`s like [`UnsafeCell`] or with new-type `struct`s.
+///
+/// # Examples
+///
+/// ```
+/// # use core::cell::UnsafeCell;
+/// # use pin_init::{pin_data, pin_init, Wrapper};
+///
+/// #[pin_data]
+/// struct Foo {}
+///
+/// #[pin_data]
+/// struct Bar {
+///     #[pin]
+///     content: UnsafeCell<Foo>
+/// };
+///
+/// let foo_initializer = pin_init!(Foo{});
+/// let initializer = pin_init!(Bar {
+///     content <- UnsafeCell::pin_init(foo_initializer)
+/// });
+/// ```
+pub trait Wrapper<T> {
+    /// Create an pin-initializer for a [`Self`] containing `T` form the `value_init` initializer.
+    fn pin_init<E>(value_init: impl PinInit<T, E>) -> impl PinInit<Self, E>;
+}
+
+impl<T> Wrapper<T> for UnsafeCell<T> {
+    fn pin_init<E>(value_init: impl PinInit<T, E>) -> impl PinInit<Self, E> {
+        // SAFETY: `UnsafeCell<T>` has a compatible layout to `T`.
+        unsafe { cast_pin_init(value_init) }
+    }
+}
+
+impl<T> Wrapper<T> for MaybeUninit<T> {
+    fn pin_init<E>(value_init: impl PinInit<T, E>) -> impl PinInit<Self, E> {
+        // SAFETY: `MaybeUninit<T>` has a compatible layout to `T`.
+        unsafe { cast_pin_init(value_init) }
+    }
+}
