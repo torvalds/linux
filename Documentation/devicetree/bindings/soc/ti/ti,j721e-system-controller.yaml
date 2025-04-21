@@ -26,6 +26,7 @@ properties:
   compatible:
     items:
       - enum:
+          - ti,am654-system-controller
           - ti,j7200-system-controller
           - ti,j721e-system-controller
           - ti,j721s2-system-controller
@@ -72,6 +73,18 @@ patternProperties:
     type: object
     description:
       The node corresponding to PCIe control register.
+
+  "^clock@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/soc/ti/ti,am654-serdes-ctrl.yaml#
+    description:
+      This is the Serdes Control region.
+
+  "^dss-oldi-io-ctrl@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/mfd/syscon.yaml#
+    description:
+      This is the DSS OLDI CTRL region.
 
 required:
   - compatible
