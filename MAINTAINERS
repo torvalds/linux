@@ -13995,6 +13995,8 @@ L:	linux-hwmon@vger.kernel.org
 S:	Supported
 W:	https://ez.analog.com/linux-software-drivers
 F:	Documentation/devicetree/bindings/hwmon/pmbus/adi,lt3074.yaml
+F:	Documentation/hwmon/lt3074.rst
+F:	drivers/hwmon/pmbus/lt3074.c
 
 LTC1660 DAC DRIVER
 M:	Marcus Folkesson <marcus.folkesson@gmail.com>
