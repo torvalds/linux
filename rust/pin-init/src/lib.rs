@@ -269,6 +269,10 @@
 #![forbid(missing_docs, unsafe_op_in_unsafe_fn)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "alloc", feature(allocator_api))]
+#![cfg_attr(
+    all(feature = "unsafe-pinned", CONFIG_RUSTC_HAS_UNSAFE_PINNED),
+    feature(unsafe_pinned)
+)]
 
 use core::{
     cell::UnsafeCell,
@@ -1555,5 +1559,13 @@ impl<T> Wrapper<T> for MaybeUninit<T> {
     fn pin_init<E>(value_init: impl PinInit<T, E>) -> impl PinInit<Self, E> {
         // SAFETY: `MaybeUninit<T>` has a compatible layout to `T`.
         unsafe { cast_pin_init(value_init) }
+    }
+}
+
+#[cfg(all(feature = "unsafe-pinned", CONFIG_RUSTC_HAS_UNSAFE_PINNED))]
+impl<T> Wrapper<T> for core::pin::UnsafePinned<T> {
+    fn pin_init<E>(init: impl PinInit<T, E>) -> impl PinInit<Self, E> {
+        // SAFETY: `UnsafePinned<T>` has a compatible layout to `T`.
+        unsafe { cast_pin_init(init) }
     }
 }
