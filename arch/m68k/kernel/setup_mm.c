@@ -484,7 +484,7 @@ static int hardware_proc_show(struct seq_file *m, void *v)
 	if (mach_get_model)
 		mach_get_model(model);
 	else
-		strcpy(model, "Unknown m68k");
+		strscpy(model, "Unknown m68k");
 
 	seq_printf(m, "Model:\t\t%s\n", model);
 	for (mem = 0, i = 0; i < m68k_num_memory; i++)
