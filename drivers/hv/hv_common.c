@@ -566,9 +566,11 @@ int hv_common_cpu_die(unsigned int cpu)
 	 * originally allocated memory is reused in hv_common_cpu_init().
 	 */
 
-	synic_eventring_tail = this_cpu_ptr(hv_synic_eventring_tail);
-	kfree(*synic_eventring_tail);
-	*synic_eventring_tail = NULL;
+	if (hv_root_partition()) {
+		synic_eventring_tail = this_cpu_ptr(hv_synic_eventring_tail);
+		kfree(*synic_eventring_tail);
+		*synic_eventring_tail = NULL;
+	}
 
 	return 0;
 }
