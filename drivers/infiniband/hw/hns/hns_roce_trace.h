@@ -85,6 +85,25 @@ DEFINE_EVENT(wqe_template, hns_srq_wqe,
 		      enum hns_roce_trace_type type),
 	     TP_ARGS(qpn, idx, wqe, len, id, type));
 
+TRACE_EVENT(hns_ae_info,
+	    TP_PROTO(int event_type, void *aeqe, unsigned int len),
+	    TP_ARGS(event_type, aeqe, len),
+
+	    TP_STRUCT__entry(__field(int, event_type)
+			     __array(__le32, aeqe,
+				     HNS_ROCE_V3_EQE_SIZE / sizeof(__le32))
+			     __field(u32, len)
+	    ),
+
+	    TP_fast_assign(__entry->event_type = event_type;
+			   __entry->len = len / sizeof(__le32);
+			   memcpy(__entry->aeqe, aeqe, len);
+	    ),
+
+	    TP_printk("event %2d aeqe: %s", __entry->event_type,
+		      __print_array(__entry->aeqe, __entry->len, sizeof(__le32)))
+);
+
 #endif /* __HNS_ROCE_TRACE_H */
 
 #undef TRACE_INCLUDE_FILE

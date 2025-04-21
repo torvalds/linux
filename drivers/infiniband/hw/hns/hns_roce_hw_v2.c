@@ -6260,6 +6260,7 @@ static irqreturn_t hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 		eq->sub_type = sub_type;
 		++eq->cons_index;
 		aeqe_found = IRQ_HANDLED;
+		trace_hns_ae_info(event_type, aeqe, eq->eqe_size);
 
 		atomic64_inc(&hr_dev->dfx_cnt[HNS_ROCE_DFX_AEQE_CNT]);
 
