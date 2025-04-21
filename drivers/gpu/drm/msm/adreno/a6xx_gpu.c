@@ -2268,7 +2268,7 @@ a6xx_create_private_address_space(struct msm_gpu *gpu)
 		return ERR_CAST(mmu);
 
 	return msm_gem_address_space_create(mmu,
-		"gpu", 0x100000000ULL,
+		"gpu", ADRENO_VM_START,
 		adreno_private_address_space_size(gpu));
 }
 

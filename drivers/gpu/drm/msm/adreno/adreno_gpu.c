@@ -236,14 +236,27 @@ adreno_iommu_create_address_space(struct msm_gpu *gpu,
 u64 adreno_private_address_space_size(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct adreno_smmu_priv *adreno_smmu = dev_get_drvdata(&gpu->pdev->dev);
+	const struct io_pgtable_cfg *ttbr1_cfg;
 
 	if (address_space_size)
 		return address_space_size;
 
-	if (adreno_gpu->info->address_space_size)
-		return adreno_gpu->info->address_space_size;
+	if (adreno_gpu->info->quirks & ADRENO_QUIRK_4GB_VA)
+		return SZ_4G;
 
-	return SZ_4G;
+	if (!adreno_smmu || !adreno_smmu->get_ttbr1_cfg)
+		return SZ_4G;
+
+	ttbr1_cfg = adreno_smmu->get_ttbr1_cfg(adreno_smmu->cookie);
+
+	/*
+	 * Userspace VM is actually using TTBR0, but both are the same size,
+	 * with b48 (sign bit) selecting which TTBRn to use.  So if IAS is
+	 * 48, the total (kernel+user) address space size is effectively
+	 * 49 bits.  But what userspace is control of is the lower 48.
+	 */
+	return BIT(ttbr1_cfg->ias) - ADRENO_VM_START;
 }
 
 #define ARM_SMMU_FSR_TF                 BIT(1)
