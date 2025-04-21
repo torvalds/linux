@@ -1321,6 +1321,8 @@ static int __hns_roce_cmq_send_one(struct hns_roce_dev *hr_dev,
 	tail = csq->head;
 
 	for (i = 0; i < num; i++) {
+		trace_hns_cmdq_req(hr_dev, &desc[i]);
+
 		csq->desc[csq->head++] = desc[i];
 		if (csq->head == csq->desc_num)
 			csq->head = 0;
@@ -1335,6 +1337,8 @@ static int __hns_roce_cmq_send_one(struct hns_roce_dev *hr_dev,
 	if (hns_roce_cmq_csq_done(hr_dev)) {
 		ret = 0;
 		for (i = 0; i < num; i++) {
+			trace_hns_cmdq_resp(hr_dev, &csq->desc[tail]);
+
 			/* check the result of hardware write back */
 			desc_ret = le16_to_cpu(csq->desc[tail++].retval);
 			if (tail == csq->desc_num)

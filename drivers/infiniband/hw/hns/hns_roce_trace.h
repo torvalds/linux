@@ -12,6 +12,7 @@
 #include <linux/tracepoint.h>
 #include <linux/string_choices.h>
 #include "hns_roce_device.h"
+#include "hns_roce_hw_v2.h"
 
 DECLARE_EVENT_CLASS(flush_head_template,
 		    TP_PROTO(unsigned long qpn, u32 pi,
@@ -168,6 +169,40 @@ TRACE_EVENT(hns_buf_attr,
 		      __entry->region1_size, __entry->region1_hopnum,
 		      __entry->region2_size, __entry->region2_hopnum)
 );
+
+DECLARE_EVENT_CLASS(cmdq,
+		    TP_PROTO(struct hns_roce_dev *hr_dev,
+			     struct hns_roce_cmq_desc *desc),
+		    TP_ARGS(hr_dev, desc),
+
+		    TP_STRUCT__entry(__string(dev_name, dev_name(hr_dev->dev))
+				     __field(u16, opcode)
+				     __field(u16, flag)
+				     __field(u16, retval)
+				     __array(__le32, data, 6)
+		    ),
+
+		    TP_fast_assign(__assign_str(dev_name);
+				   __entry->opcode = le16_to_cpu(desc->opcode);
+				   __entry->flag = le16_to_cpu(desc->flag);
+				   __entry->retval = le16_to_cpu(desc->retval);
+				   memcpy(__entry->data, desc->data, 6 * sizeof(__le32));
+		    ),
+
+		    TP_printk("%s cmdq opcode:0x%x, flag:0x%x, retval:0x%x, data:%s\n",
+			      __get_str(dev_name), __entry->opcode,
+			      __entry->flag, __entry->retval,
+			      __print_array(__entry->data, 6, sizeof(__le32)))
+);
+
+DEFINE_EVENT(cmdq, hns_cmdq_req,
+	     TP_PROTO(struct hns_roce_dev *hr_dev,
+		      struct hns_roce_cmq_desc *desc),
+	     TP_ARGS(hr_dev, desc));
+DEFINE_EVENT(cmdq, hns_cmdq_resp,
+	     TP_PROTO(struct hns_roce_dev *hr_dev,
+		      struct hns_roce_cmq_desc *desc),
+	     TP_ARGS(hr_dev, desc));
 
 #endif /* __HNS_ROCE_TRACE_H */
 
