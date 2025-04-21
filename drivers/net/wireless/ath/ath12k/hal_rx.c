@@ -447,16 +447,16 @@ void ath12k_hal_rx_reo_ent_paddr_get(struct ath12k_base *ab,
 }
 
 void ath12k_hal_rx_msdu_link_desc_set(struct ath12k_base *ab,
-				      struct hal_wbm_release_ring *dst_desc,
-				      struct hal_wbm_release_ring *src_desc,
+				      struct hal_wbm_release_ring *desc,
+				      struct ath12k_buffer_addr *buf_addr_info,
 				      enum hal_wbm_rel_bm_act action)
 {
-	dst_desc->buf_addr_info = src_desc->buf_addr_info;
-	dst_desc->info0 |= le32_encode_bits(HAL_WBM_REL_SRC_MODULE_SW,
-					    HAL_WBM_RELEASE_INFO0_REL_SRC_MODULE) |
-			   le32_encode_bits(action, HAL_WBM_RELEASE_INFO0_BM_ACTION) |
-			   le32_encode_bits(HAL_WBM_REL_DESC_TYPE_MSDU_LINK,
-					    HAL_WBM_RELEASE_INFO0_DESC_TYPE);
+	desc->buf_addr_info = *buf_addr_info;
+	desc->info0 |= le32_encode_bits(HAL_WBM_REL_SRC_MODULE_SW,
+					HAL_WBM_RELEASE_INFO0_REL_SRC_MODULE) |
+		    le32_encode_bits(action, HAL_WBM_RELEASE_INFO0_BM_ACTION) |
+		    le32_encode_bits(HAL_WBM_REL_DESC_TYPE_MSDU_LINK,
+				     HAL_WBM_RELEASE_INFO0_DESC_TYPE);
 }
 
 void ath12k_hal_reo_status_queue_stats(struct ath12k_base *ab, struct hal_tlv_64_hdr *tlv,
