@@ -152,11 +152,8 @@ void devfreq_get_freq_range(struct devfreq *devfreq,
 				(unsigned long)HZ_PER_KHZ * qos_max_freq);
 
 	/* Apply constraints from OPP interface */
-	*min_freq = max(*min_freq, devfreq->scaling_min_freq);
-	*max_freq = min(*max_freq, devfreq->scaling_max_freq);
-
-	if (*min_freq > *max_freq)
-		*min_freq = *max_freq;
+	*max_freq = clamp(*max_freq, devfreq->scaling_min_freq, devfreq->scaling_max_freq);
+	*min_freq = clamp(*min_freq, devfreq->scaling_min_freq, *max_freq);
 }
 EXPORT_SYMBOL(devfreq_get_freq_range);
 
