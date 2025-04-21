@@ -32,6 +32,12 @@
 //! will require the `std` feature, because stable compilers have neither `Box` nor `Arc` in no-std
 //! mode.
 //!
+//! ## Nightly needed for `unsafe-pinned` feature
+//!
+//! This feature enables the `Wrapper` implementation on the unstable `core::pin::UnsafePinned` type.
+//! This requires the [`unsafe_pinned` unstable feature](https://github.com/rust-lang/rust/issues/125735)
+//! and therefore a nightly compiler. Note that this feature is not enabled by default.
+//!
 //! # Overview
 //!
 //! To initialize a `struct` with an in-place constructor you will need two things:
