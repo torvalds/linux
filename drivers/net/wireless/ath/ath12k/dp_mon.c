@@ -2368,7 +2368,7 @@ ath12k_dp_mon_parse_rx_dest(struct ath12k *ar, struct ath12k_mon_data *pmon,
 
 		hal_status = ath12k_dp_mon_rx_parse_status_tlv(ar, pmon, tlv);
 
-		if (ar->monitor_started &&
+		if (ar->monitor_started && ar->ab->hw_params->rxdma1_enable &&
 		    ath12k_dp_mon_parse_rx_dest_tlv(ar, pmon, hal_status, tlv->value))
 			return HAL_RX_MON_STATUS_PPDU_DONE;
 
