@@ -229,6 +229,16 @@ static int fsl_rpmsg_probe(struct platform_device *pdev)
 	}
 	dai_drv->name = dai_name;
 
+	/* Setup cpu dai for sound card that sits on rpmsg-micfil-channel */
+	if (!strcmp(dai_name, "rpmsg-micfil-channel")) {
+		dai_drv->capture.channels_min = 1;
+		dai_drv->capture.channels_max = 8;
+		dai_drv->capture.rates = SNDRV_PCM_RATE_8000_48000;
+		dai_drv->capture.formats = SNDRV_PCM_FMTBIT_S32_LE;
+		if (of_device_is_compatible(np, "fsl,imx8mm-rpmsg-audio"))
+			dai_drv->capture.formats = SNDRV_PCM_FMTBIT_S16_LE;
+	}
+
 	if (of_property_read_bool(np, "fsl,enable-lpa")) {
 		rpmsg->enable_lpa = 1;
 		rpmsg->buffer_size = LPA_LARGE_BUFFER_SIZE;
