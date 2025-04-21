@@ -24,6 +24,8 @@
 
 /* 192kHz/32bit/2ch/60s size is 0x574e00 */
 #define LPA_LARGE_BUFFER_SIZE  (0x6000000)
+/* 16kHz/32bit/8ch/1s size is 0x7D000 */
+#define LPA_CAPTURE_BUFFER_SIZE (0x100000)
 
 static const unsigned int fsl_rpmsg_rates[] = {
 	8000, 11025, 16000, 22050, 44100,
@@ -241,9 +243,11 @@ static int fsl_rpmsg_probe(struct platform_device *pdev)
 
 	if (of_property_read_bool(np, "fsl,enable-lpa")) {
 		rpmsg->enable_lpa = 1;
-		rpmsg->buffer_size = LPA_LARGE_BUFFER_SIZE;
+		rpmsg->buffer_size[SNDRV_PCM_STREAM_PLAYBACK] = LPA_LARGE_BUFFER_SIZE;
+		rpmsg->buffer_size[SNDRV_PCM_STREAM_CAPTURE] = LPA_CAPTURE_BUFFER_SIZE;
 	} else {
-		rpmsg->buffer_size = IMX_DEFAULT_DMABUF_SIZE;
+		rpmsg->buffer_size[SNDRV_PCM_STREAM_PLAYBACK] = IMX_DEFAULT_DMABUF_SIZE;
+		rpmsg->buffer_size[SNDRV_PCM_STREAM_CAPTURE] = IMX_DEFAULT_DMABUF_SIZE;
 	}
 
 	/* Get the optional clocks */
