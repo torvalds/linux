@@ -600,7 +600,8 @@ static int ath12k_pci_ext_irq_config(struct ath12k_base *ab)
 		    ab->hw_params->ring_mask->rx_wbm_rel[i] ||
 		    ab->hw_params->ring_mask->reo_status[i] ||
 		    ab->hw_params->ring_mask->host2rxdma[i] ||
-		    ab->hw_params->ring_mask->rx_mon_dest[i]) {
+		    ab->hw_params->ring_mask->rx_mon_dest[i] ||
+		    ab->hw_params->ring_mask->rx_mon_status[i]) {
 			num_irq = 1;
 		}
 

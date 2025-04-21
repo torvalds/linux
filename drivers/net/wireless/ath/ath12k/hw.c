@@ -118,6 +118,10 @@ static const struct ath12k_hw_ops wcn7850_ops = {
 #define ATH12K_TX_MON_RING_MASK_0 0x1
 #define ATH12K_TX_MON_RING_MASK_1 0x2
 
+#define ATH12K_RX_MON_STATUS_RING_MASK_0 0x1
+#define ATH12K_RX_MON_STATUS_RING_MASK_1 0x2
+#define ATH12K_RX_MON_STATUS_RING_MASK_2 0x4
+
 /* Target firmware's Copy Engine configuration. */
 static const struct ce_pipe_config ath12k_target_ce_config_wlan_qcn9274[] = {
 	/* CE0: host->target HTC control and raw streams */
@@ -835,6 +839,12 @@ static const struct ath12k_hw_ring_mask ath12k_hw_ring_mask_wcn7850 = {
 		ATH12K_TX_RING_MASK_2,
 	},
 	.rx_mon_dest = {
+	},
+	.rx_mon_status = {
+		0, 0, 0, 0,
+		ATH12K_RX_MON_STATUS_RING_MASK_0,
+		ATH12K_RX_MON_STATUS_RING_MASK_1,
+		ATH12K_RX_MON_STATUS_RING_MASK_2,
 	},
 	.rx = {
 		0, 0, 0,
