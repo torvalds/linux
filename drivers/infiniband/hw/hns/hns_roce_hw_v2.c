@@ -741,6 +741,8 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp,
 		else
 			ret = set_ud_wqe(qp, wr, wqe, &sge_idx, owner_bit);
 
+		trace_hns_sq_wqe(qp->qpn, wqe_idx, wqe, 1 << qp->sq.wqe_shift,
+				 wr->wr_id, TRACE_SQ);
 		if (unlikely(ret)) {
 			*bad_wr = wr;
 			goto out;
@@ -810,6 +812,9 @@ static void fill_rq_wqe(struct hns_roce_qp *hr_qp, const struct ib_recv_wr *wr,
 
 	wqe = hns_roce_get_recv_wqe(hr_qp, wqe_idx);
 	fill_recv_sge_to_wqe(wr, wqe, max_sge, hr_qp->rq.rsv_sge);
+
+	trace_hns_rq_wqe(hr_qp->qpn, wqe_idx, wqe, 1 << hr_qp->rq.wqe_shift,
+			 wr->wr_id, TRACE_RQ);
 }
 
 static int hns_roce_v2_post_recv(struct ib_qp *ibqp,
@@ -987,6 +992,9 @@ static int hns_roce_v2_post_srq_recv(struct ib_srq *ibsrq,
 		fill_recv_sge_to_wqe(wr, wqe, max_sge, srq->rsv_sge);
 		fill_wqe_idx(srq, wqe_idx);
 		srq->wrid[wqe_idx] = wr->wr_id;
+
+		trace_hns_srq_wqe(srq->srqn, wqe_idx, wqe, 1 << srq->wqe_shift,
+				  wr->wr_id, TRACE_SRQ);
 	}
 
 	if (likely(nreq)) {
