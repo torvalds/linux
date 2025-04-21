@@ -1416,6 +1416,40 @@ ath12k_dp_mon_hal_rx_parse_user_info(const struct hal_receive_user_info *rx_usr_
 	}
 }
 
+static void ath12k_dp_mon_parse_rx_msdu_end_err(u32 info, u32 *errmap)
+{
+	if (info & RX_MSDU_END_INFO13_FCS_ERR)
+		*errmap |= HAL_RX_MPDU_ERR_FCS;
+
+	if (info & RX_MSDU_END_INFO13_DECRYPT_ERR)
+		*errmap |= HAL_RX_MPDU_ERR_DECRYPT;
+
+	if (info & RX_MSDU_END_INFO13_TKIP_MIC_ERR)
+		*errmap |= HAL_RX_MPDU_ERR_TKIP_MIC;
+
+	if (info & RX_MSDU_END_INFO13_A_MSDU_ERROR)
+		*errmap |= HAL_RX_MPDU_ERR_AMSDU_ERR;
+
+	if (info & RX_MSDU_END_INFO13_OVERFLOW_ERR)
+		*errmap |= HAL_RX_MPDU_ERR_OVERFLOW;
+
+	if (info & RX_MSDU_END_INFO13_MSDU_LEN_ERR)
+		*errmap |= HAL_RX_MPDU_ERR_MSDU_LEN;
+
+	if (info & RX_MSDU_END_INFO13_MPDU_LEN_ERR)
+		*errmap |= HAL_RX_MPDU_ERR_MPDU_LEN;
+}
+
+static void
+ath12k_dp_mon_parse_status_msdu_end(struct ath12k_mon_data *pmon,
+				    const struct hal_rx_msdu_end *msdu_end)
+{
+	ath12k_dp_mon_parse_rx_msdu_end_err(__le32_to_cpu(msdu_end->info2),
+					    &pmon->err_bitmap);
+	pmon->decap_format = le32_get_bits(msdu_end->info1,
+					   RX_MSDU_END_INFO11_DECAP_FORMAT);
+}
+
 static enum hal_rx_mon_status
 ath12k_dp_mon_rx_parse_status_tlv(struct ath12k *ar,
 				  struct ath12k_mon_data *pmon,
@@ -1655,6 +1689,7 @@ ath12k_dp_mon_rx_parse_status_tlv(struct ath12k *ar,
 	case HAL_MON_BUF_ADDR:
 		return HAL_RX_MON_STATUS_BUF_ADDR;
 	case HAL_RX_MSDU_END:
+		ath12k_dp_mon_parse_status_msdu_end(pmon, tlv_data);
 		return HAL_RX_MON_STATUS_MSDU_END;
 	case HAL_RX_MPDU_END:
 		return HAL_RX_MON_STATUS_MPDU_END;
@@ -2223,45 +2258,6 @@ static int ath12k_dp_pkt_set_pktlen(struct sk_buff *skb, u32 len)
 	return 0;
 }
 
-static void ath12k_dp_mon_parse_rx_msdu_end_err(u32 info, u32 *errmap)
-{
-	if (info & RX_MSDU_END_INFO13_FCS_ERR)
-		*errmap |= HAL_RX_MPDU_ERR_FCS;
-
-	if (info & RX_MSDU_END_INFO13_DECRYPT_ERR)
-		*errmap |= HAL_RX_MPDU_ERR_DECRYPT;
-
-	if (info & RX_MSDU_END_INFO13_TKIP_MIC_ERR)
-		*errmap |= HAL_RX_MPDU_ERR_TKIP_MIC;
-
-	if (info & RX_MSDU_END_INFO13_A_MSDU_ERROR)
-		*errmap |= HAL_RX_MPDU_ERR_AMSDU_ERR;
-
-	if (info & RX_MSDU_END_INFO13_OVERFLOW_ERR)
-		*errmap |= HAL_RX_MPDU_ERR_OVERFLOW;
-
-	if (info & RX_MSDU_END_INFO13_MSDU_LEN_ERR)
-		*errmap |= HAL_RX_MPDU_ERR_MSDU_LEN;
-
-	if (info & RX_MSDU_END_INFO13_MPDU_LEN_ERR)
-		*errmap |= HAL_RX_MPDU_ERR_MPDU_LEN;
-}
-
-static int
-ath12k_dp_mon_parse_status_msdu_end(struct ath12k_mon_data *pmon,
-				    const struct hal_rx_msdu_end *msdu_end)
-{
-	struct dp_mon_mpdu *mon_mpdu = pmon->mon_mpdu;
-
-	ath12k_dp_mon_parse_rx_msdu_end_err(__le32_to_cpu(msdu_end->info2),
-					    &mon_mpdu->err_bitmap);
-
-	mon_mpdu->decap_format = le32_get_bits(msdu_end->info1,
-					       RX_MSDU_END_INFO11_DECAP_FORMAT);
-
-	return 0;
-}
-
 static int
 ath12k_dp_mon_parse_status_buf(struct ath12k *ar,
 			       struct ath12k_mon_data *pmon,
@@ -2335,7 +2331,9 @@ ath12k_dp_mon_parse_rx_dest_tlv(struct ath12k *ar,
 		pmon->mon_mpdu = NULL;
 		break;
 	case HAL_RX_MON_STATUS_MSDU_END:
-		return ath12k_dp_mon_parse_status_msdu_end(pmon, tlv_data);
+		pmon->mon_mpdu->decap_format = pmon->decap_format;
+		pmon->mon_mpdu->err_bitmap = pmon->err_bitmap;
+		break;
 	default:
 		break;
 	}

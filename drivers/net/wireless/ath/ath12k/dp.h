@@ -121,6 +121,8 @@ struct ath12k_mon_data {
 	u32 mon_last_buf_cookie;
 	u64 mon_last_linkdesc_paddr;
 	u16 chan_noise_floor;
+	u32 err_bitmap;
+	u8 decap_format;
 
 	struct ath12k_pdev_mon_stats rx_mon_stats;
 	/* lock for monitor data */
