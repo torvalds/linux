@@ -9,6 +9,7 @@
 #include <linux/proc_fs.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
+#include <linux/string.h>
 
 #include <asm/machdep.h>
 #include <asm/vdso_datapage.h>
@@ -56,7 +57,7 @@ static int __init proc_ppc64_init(void)
 {
 	struct proc_dir_entry *pde;
 
-	strcpy((char *)systemcfg->eye_catcher, "SYSTEMCFG:PPC64");
+	strscpy(systemcfg->eye_catcher, "SYSTEMCFG:PPC64");
 	systemcfg->version.major = SYSTEMCFG_MAJOR;
 	systemcfg->version.minor = SYSTEMCFG_MINOR;
 	systemcfg->processor = mfspr(SPRN_PVR);
