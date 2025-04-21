@@ -10864,8 +10864,8 @@ static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
 		drm_old_conn_state = drm_atomic_get_old_connector_state(state,
 									connector);
 
-		if (IS_ERR(drm_new_conn_state)) {
-			ret = PTR_ERR_OR_ZERO(drm_new_conn_state);
+		if (WARN_ON(!drm_new_conn_state)) {
+			ret = -EINVAL;
 			goto fail;
 		}
 
