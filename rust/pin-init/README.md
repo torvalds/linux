@@ -222,7 +222,7 @@ the `kernel` crate. The [`sync`] module is a good starting point.
 
 [`sync`]: https://rust.docs.kernel.org/kernel/sync/index.html
 [pinning]: https://doc.rust-lang.org/std/pin/index.html
-[structurally pinned fields]: https://doc.rust-lang.org/std/pin/index.html#pinning-is-structural-for-field
+[structurally pinned fields]: https://doc.rust-lang.org/std/pin/index.html#projections-and-structural-pinning
 [stack]: https://docs.rs/pin-init/latest/pin_init/macro.stack_pin_init.html
 [`impl PinInit<Foo>`]: https://docs.rs/pin-init/latest/pin_init/trait.PinInit.html
 [`impl PinInit<T, E>`]: https://docs.rs/pin-init/latest/pin_init/trait.PinInit.html

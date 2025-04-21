@@ -247,7 +247,7 @@
 //! [`sync`]: https://rust.docs.kernel.org/kernel/sync/index.html
 //! [pinning]: https://doc.rust-lang.org/std/pin/index.html
 //! [structurally pinned fields]:
-//!     https://doc.rust-lang.org/std/pin/index.html#pinning-is-structural-for-field
+//!     https://doc.rust-lang.org/std/pin/index.html#projections-and-structural-pinning
 //! [stack]: crate::stack_pin_init
 #![cfg_attr(
     kernel,
