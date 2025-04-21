@@ -263,4 +263,10 @@
 
 #define RISCV_INSN_NOP4	_AC(0x00000013, U)
 
+#ifndef __ASSEMBLY__
+#define nop()           __asm__ __volatile__ ("nop")
+#define __nops(n)       ".rept  " #n "\nnop\n.endr\n"
+#define nops(n)         __asm__ __volatile__ (__nops(n))
+#endif
+
 #endif /* __ASM_INSN_DEF_H */
