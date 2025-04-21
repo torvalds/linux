@@ -19044,7 +19044,7 @@ F:	drivers/net/ethernet/pensando/
 PER-CPU MEMORY ALLOCATOR
 M:	Dennis Zhou <dennis@kernel.org>
 M:	Tejun Heo <tj@kernel.org>
-M:	Christoph Lameter <cl@linux.com>
+M:	Christoph Lameter <cl@gentwo.org>
 L:	linux-mm@kvack.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/dennis/percpu.git
@@ -22407,7 +22407,7 @@ F:	Documentation/devicetree/bindings/nvmem/layouts/kontron,sl28-vpd.yaml
 F:	drivers/nvmem/layouts/sl28vpd.c
 
 SLAB ALLOCATOR
-M:	Christoph Lameter <cl@linux.com>
+M:	Christoph Lameter <cl@gentwo.org>
 M:	David Rientjes <rientjes@google.com>
 M:	Andrew Morton <akpm@linux-foundation.org>
 M:	Vlastimil Babka <vbabka@suse.cz>

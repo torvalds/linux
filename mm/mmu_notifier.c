@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 2008  Qumranet, Inc.
  *  Copyright (C) 2008  SGI
- *             Christoph Lameter <cl@linux.com>
+ *             Christoph Lameter <cl@gentwo.org>
  */
 
 #include <linux/rculist.h>
