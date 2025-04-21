@@ -5039,10 +5039,8 @@ static void rtl_shutdown(struct pci_dev *pdev)
 	/* Restore original MAC address */
 	rtl_rar_set(tp, tp->dev->perm_addr);
 
-	if (system_state == SYSTEM_POWER_OFF && !tp->dash_enabled) {
-		pci_wake_from_d3(pdev, tp->saved_wolopts);
-		pci_set_power_state(pdev, PCI_D3hot);
-	}
+	if (system_state == SYSTEM_POWER_OFF && !tp->dash_enabled)
+		pci_prepare_to_sleep(pdev);
 }
 
 static void rtl_remove_one(struct pci_dev *pdev)
