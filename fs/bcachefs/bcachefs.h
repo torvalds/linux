@@ -209,6 +209,7 @@
 #include "btree_journal_iter_types.h"
 #include "disk_accounting_types.h"
 #include "errcode.h"
+#include "fast_list.h"
 #include "fifo.h"
 #include "nocow_locking_types.h"
 #include "opts.h"
@@ -474,6 +475,7 @@ enum bch_time_stats {
 };
 
 #include "alloc_types.h"
+#include "async_objs_types.h"
 #include "btree_gc_types.h"
 #include "btree_types.h"
 #include "btree_node_scan_types.h"
@@ -1027,6 +1029,10 @@ struct bch_fs {
 				nocow_locks;
 	struct rhashtable	promote_table;
 
+#ifdef CONFIG_BCACHEFS_ASYNC_OBJECT_LISTS
+	struct async_obj_list	async_objs[BCH_ASYNC_OBJ_NR];
+#endif
+
 	mempool_t		compression_bounce[2];
 	mempool_t		compress_workspace[BCH_COMPRESSION_OPT_NR];
 	size_t			zstd_workspace_size;
@@ -1115,6 +1121,7 @@ struct bch_fs {
 	/* DEBUG JUNK */
 	struct dentry		*fs_debug_dir;
 	struct dentry		*btree_debug_dir;
+	struct dentry		*async_obj_dir;
 	struct btree_debug	btree_debug[BTREE_ID_NR];
 	struct btree		*verify_data;
 	struct btree_node	*verify_ondisk;

@@ -8,6 +8,7 @@
 
 #include "bcachefs.h"
 #include "alloc_foreground.h"
+#include "async_objs.h"
 #include "bkey_methods.h"
 #include "btree_cache.h"
 #include "btree_io.h"
@@ -16,6 +17,7 @@
 #include "btree_update.h"
 #include "btree_update_interior.h"
 #include "buckets.h"
+#include "data_update.h"
 #include "debug.h"
 #include "error.h"
 #include "extents.h"
@@ -306,23 +308,7 @@ out:
 
 #ifdef CONFIG_DEBUG_FS
 
-/* XXX: bch_fs refcounting */
-
-struct dump_iter {
-	struct bch_fs		*c;
-	enum btree_id		id;
-	struct bpos		from;
-	struct bpos		prev_node;
-	u64			iter;
-
-	struct printbuf		buf;
-
-	char __user		*ubuf;	/* destination user buffer */
-	size_t			size;	/* size of requested read */
-	ssize_t			ret;	/* bytes read so far */
-};
-
-static ssize_t flush_buf(struct dump_iter *i)
+ssize_t bch2_debugfs_flush_buf(struct dump_iter *i)
 {
 	if (i->buf.pos) {
 		size_t bytes = min_t(size_t, i->buf.pos, i->size);
@@ -360,7 +346,7 @@ static int bch2_dump_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int bch2_dump_release(struct inode *inode, struct file *file)
+int bch2_dump_release(struct inode *inode, struct file *file)
 {
 	struct dump_iter *i = file->private_data;
 
@@ -378,7 +364,7 @@ static ssize_t bch2_read_btree(struct file *file, char __user *buf,
 	i->size	= size;
 	i->ret	= 0;
 
-	return flush_buf(i) ?:
+	return bch2_debugfs_flush_buf(i) ?:
 		bch2_trans_run(i->c,
 			for_each_btree_key(trans, iter, i->id, i->from,
 					   BTREE_ITER_prefetch|
@@ -387,7 +373,7 @@ static ssize_t bch2_read_btree(struct file *file, char __user *buf,
 				prt_newline(&i->buf);
 				bch2_trans_unlock(trans);
 				i->from = bpos_successor(iter.pos);
-				flush_buf(i);
+				bch2_debugfs_flush_buf(i);
 			}))) ?:
 		i->ret;
 }
@@ -408,7 +394,7 @@ static ssize_t bch2_read_btree_formats(struct file *file, char __user *buf,
 	i->size	= size;
 	i->ret	= 0;
 
-	ssize_t ret = flush_buf(i);
+	ssize_t ret = bch2_debugfs_flush_buf(i);
 	if (ret)
 		return ret;
 
@@ -422,7 +408,7 @@ static ssize_t bch2_read_btree_formats(struct file *file, char __user *buf,
 				? bpos_successor(b->key.k.p)
 				: b->key.k.p;
 
-			drop_locks_do(trans, flush_buf(i));
+			drop_locks_do(trans, bch2_debugfs_flush_buf(i));
 		}))) ?: i->ret;
 }
 
@@ -442,7 +428,7 @@ static ssize_t bch2_read_bfloat_failed(struct file *file, char __user *buf,
 	i->size	= size;
 	i->ret	= 0;
 
-	return flush_buf(i) ?:
+	return bch2_debugfs_flush_buf(i) ?:
 		bch2_trans_run(i->c,
 			for_each_btree_key(trans, iter, i->id, i->from,
 					   BTREE_ITER_prefetch|
@@ -460,7 +446,7 @@ static ssize_t bch2_read_bfloat_failed(struct file *file, char __user *buf,
 				bch2_bfloat_to_text(&i->buf, l->b, _k);
 				bch2_trans_unlock(trans);
 				i->from = bpos_successor(iter.pos);
-				flush_buf(i);
+				bch2_debugfs_flush_buf(i);
 			}))) ?:
 		i->ret;
 }
@@ -521,7 +507,7 @@ static ssize_t bch2_cached_btree_nodes_read(struct file *file, char __user *buf,
 		struct rhash_head *pos;
 		struct btree *b;
 
-		ret = flush_buf(i);
+		ret = bch2_debugfs_flush_buf(i);
 		if (ret)
 			return ret;
 
@@ -544,7 +530,7 @@ static ssize_t bch2_cached_btree_nodes_read(struct file *file, char __user *buf,
 		ret = -ENOMEM;
 
 	if (!ret)
-		ret = flush_buf(i);
+		ret = bch2_debugfs_flush_buf(i);
 
 	return ret ?: i->ret;
 }
@@ -618,7 +604,7 @@ restart:
 
 		closure_put(&trans->ref);
 
-		ret = flush_buf(i);
+		ret = bch2_debugfs_flush_buf(i);
 		if (ret)
 			goto unlocked;
 
@@ -631,7 +617,7 @@ unlocked:
 		ret = -ENOMEM;
 
 	if (!ret)
-		ret = flush_buf(i);
+		ret = bch2_debugfs_flush_buf(i);
 
 	return ret ?: i->ret;
 }
@@ -656,7 +642,7 @@ static ssize_t bch2_journal_pins_read(struct file *file, char __user *buf,
 	i->ret	= 0;
 
 	while (1) {
-		err = flush_buf(i);
+		err = bch2_debugfs_flush_buf(i);
 		if (err)
 			return err;
 
@@ -699,7 +685,7 @@ static ssize_t bch2_btree_updates_read(struct file *file, char __user *buf,
 		i->iter++;
 	}
 
-	err = flush_buf(i);
+	err = bch2_debugfs_flush_buf(i);
 	if (err)
 		return err;
 
@@ -757,7 +743,7 @@ static ssize_t btree_transaction_stats_read(struct file *file, char __user *buf,
 	while (1) {
 		struct btree_transaction_stats *s = &c->btree_transaction_stats[i->iter];
 
-		err = flush_buf(i);
+		err = bch2_debugfs_flush_buf(i);
 		if (err)
 			return err;
 
@@ -878,7 +864,7 @@ static ssize_t bch2_simple_print(struct file *file, char __user *buf,
 		ret = -ENOMEM;
 
 	if (!ret)
-		ret = flush_buf(i);
+		ret = bch2_debugfs_flush_buf(i);
 
 	return ret ?: i->ret;
 }
@@ -966,6 +952,8 @@ void bch2_fs_debug_init(struct bch_fs *c)
 
 	debugfs_create_file("write_points", 0400, c->fs_debug_dir,
 			    c->btree_debug, &write_points_ops);
+
+	bch2_fs_async_obj_debugfs_init(c);
 
 	c->btree_debug_dir = debugfs_create_dir("btrees", c->fs_debug_dir);
 	if (IS_ERR_OR_NULL(c->btree_debug_dir))

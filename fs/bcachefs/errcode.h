@@ -53,6 +53,7 @@
 	x(ENOMEM,			ENOMEM_dio_write_bioset_init)		\
 	x(ENOMEM,			ENOMEM_nocow_flush_bioset_init)		\
 	x(ENOMEM,			ENOMEM_promote_table_init)		\
+	x(ENOMEM,			ENOMEM_async_obj_init)			\
 	x(ENOMEM,			ENOMEM_compression_bounce_read_init)	\
 	x(ENOMEM,			ENOMEM_compression_bounce_write_init)	\
 	x(ENOMEM,			ENOMEM_compression_workspace_init)	\
