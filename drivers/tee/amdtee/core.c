@@ -6,18 +6,19 @@
  #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/errno.h>
+#include <linux/device.h>
+#include <linux/firmware.h>
 #include <linux/io.h>
+#include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/psp-tee.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/device.h>
 #include <linux/tee_core.h>
 #include <linux/types.h>
-#include <linux/mm.h>
 #include <linux/uaccess.h>
-#include <linux/firmware.h>
+
 #include "amdtee_private.h"
-#include <linux/psp-tee.h>
 
 static struct amdtee_driver_data *drv_data;
 static DEFINE_MUTEX(session_list_mutex);
