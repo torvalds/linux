@@ -86,9 +86,6 @@ struct dev_ctx {
 	unsigned int	fg:1;
 	unsigned int	recovery:1;
 
-	/* fault_inject */
-	long long	delay_us;
-
 	int _evtfd;
 	int _shmid;
 
