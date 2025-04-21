@@ -3000,6 +3000,33 @@ netdev_features_t wx_fix_features(struct net_device *netdev,
 }
 EXPORT_SYMBOL(wx_fix_features);
 
+#define WX_MAX_TUNNEL_HDR_LEN	80
+netdev_features_t wx_features_check(struct sk_buff *skb,
+				    struct net_device *netdev,
+				    netdev_features_t features)
+{
+	struct wx *wx = netdev_priv(netdev);
+
+	if (!skb->encapsulation)
+		return features;
+
+	if (wx->mac.type == wx_mac_em)
+		return features & ~NETIF_F_CSUM_MASK;
+
+	if (unlikely(skb_inner_mac_header(skb) - skb_transport_header(skb) >
+		     WX_MAX_TUNNEL_HDR_LEN))
+		return features & ~NETIF_F_CSUM_MASK;
+
+	if (skb->inner_protocol_type == ENCAP_TYPE_ETHER &&
+	    skb->inner_protocol != htons(ETH_P_IP) &&
+	    skb->inner_protocol != htons(ETH_P_IPV6) &&
+	    skb->inner_protocol != htons(ETH_P_TEB))
+		return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
+
+	return features;
+}
+EXPORT_SYMBOL(wx_features_check);
+
 void wx_set_ring(struct wx *wx, u32 new_tx_count,
 		 u32 new_rx_count, struct wx_ring *temp_ring)
 {
