@@ -196,6 +196,7 @@ enum resp_states rxe_odp_atomic_op(struct rxe_mr *mr, u64 iova, int opcode,
 				   u64 compare, u64 swap_add, u64 *orig_val);
 int rxe_odp_flush_pmem_iova(struct rxe_mr *mr, u64 iova,
 			    unsigned int length);
+enum resp_states rxe_odp_do_atomic_write(struct rxe_mr *mr, u64 iova, u64 value);
 #else /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
 static inline int
 rxe_odp_mr_init_user(struct rxe_dev *rxe, u64 start, u64 length, u64 iova,
@@ -219,11 +220,6 @@ static inline int rxe_odp_flush_pmem_iova(struct rxe_mr *mr, u64 iova,
 {
 	return -EOPNOTSUPP;
 }
-#endif /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
-
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-enum resp_states rxe_odp_do_atomic_write(struct rxe_mr *mr, u64 iova, u64 value);
-#else
 static inline enum resp_states rxe_odp_do_atomic_write(struct rxe_mr *mr,
 						       u64 iova, u64 value)
 {

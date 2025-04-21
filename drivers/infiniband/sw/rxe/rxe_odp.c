@@ -380,7 +380,6 @@ int rxe_odp_flush_pmem_iova(struct rxe_mr *mr, u64 iova,
 	return 0;
 }
 
-/* CONFIG_64BIT=y */
 enum resp_states rxe_odp_do_atomic_write(struct rxe_mr *mr, u64 iova, u64 value)
 {
 	struct ib_umem_odp *umem_odp = to_ib_umem_odp(mr->umem);

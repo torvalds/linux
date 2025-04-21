@@ -539,8 +539,6 @@ enum resp_states rxe_mr_do_atomic_op(struct rxe_mr *mr, u64 iova, int opcode,
 	return RESPST_NONE;
 }
 
-#if defined CONFIG_64BIT
-/* only implemented or called for 64 bit architectures */
 enum resp_states rxe_mr_do_atomic_write(struct rxe_mr *mr, u64 iova, u64 value)
 {
 	unsigned int page_offset;
@@ -580,12 +578,6 @@ enum resp_states rxe_mr_do_atomic_write(struct rxe_mr *mr, u64 iova, u64 value)
 
 	return RESPST_NONE;
 }
-#else
-enum resp_states rxe_mr_do_atomic_write(struct rxe_mr *mr, u64 iova, u64 value)
-{
-	return RESPST_ERR_UNSUPPORTED_OPCODE;
-}
-#endif
 
 int advance_dma_data(struct rxe_dma_info *dma, unsigned int length)
 {
