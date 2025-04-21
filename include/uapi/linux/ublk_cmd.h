@@ -51,6 +51,8 @@
 	_IOR('u', 0x13, struct ublksrv_ctrl_cmd)
 #define UBLK_U_CMD_DEL_DEV_ASYNC	\
 	_IOR('u', 0x14, struct ublksrv_ctrl_cmd)
+#define UBLK_U_CMD_UPDATE_SIZE		\
+	_IOWR('u', 0x15, struct ublksrv_ctrl_cmd)
 
 /*
  * 64bits are enough now, and it should be easy to extend in case of
@@ -210,6 +212,12 @@
  * - I/O issued while there is no ublk server is met with errors
  */
 #define UBLK_F_USER_RECOVERY_FAIL_IO (1ULL << 9)
+
+/*
+ * Resizing a block device is possible with UBLK_U_CMD_UPDATE_SIZE
+ * New size is passed in cmd->data[0] and is in units of sectors
+ */
+#define UBLK_F_UPDATE_SIZE		 (1ULL << 10)
 
 /* device state */
 #define UBLK_S_DEV_DEAD	0
