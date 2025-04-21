@@ -96,6 +96,7 @@ static void hwprobe_isa_ext0(struct riscv_hwprobe *pair,
 		 * presence in the hart_isa bitmap, are made.
 		 */
 		EXT_KEY(ZAAMO);
+		EXT_KEY(ZABHA);
 		EXT_KEY(ZACAS);
 		EXT_KEY(ZALRSC);
 		EXT_KEY(ZAWRS);
