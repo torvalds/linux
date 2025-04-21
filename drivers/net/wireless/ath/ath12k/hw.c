@@ -1380,7 +1380,7 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 				   BIT(NL80211_IFTYPE_P2P_DEVICE) |
 				   BIT(NL80211_IFTYPE_P2P_CLIENT) |
 				   BIT(NL80211_IFTYPE_P2P_GO),
-		.supports_monitor = false,
+		.supports_monitor = true,
 
 		.idle_ps = true,
 		.download_calib = false,
