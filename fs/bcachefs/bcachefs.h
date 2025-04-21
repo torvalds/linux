@@ -788,6 +788,8 @@ struct bch_fs {
 		unsigned long	errors_silent[BITS_TO_LONGS(BCH_FSCK_ERR_MAX)];
 		u64		btrees_lost_data;
 	}			sb;
+	DARRAY(enum bcachefs_metadata_version)
+				incompat_versions_requested;
 
 #ifdef CONFIG_UNICODE
 	struct unicode_map	*cf_encoding;
@@ -981,8 +983,8 @@ struct bch_fs {
 	mempool_t		compress_workspace[BCH_COMPRESSION_OPT_NR];
 	size_t			zstd_workspace_size;
 
-	struct crypto_sync_skcipher *chacha20;
-	struct crypto_shash	*poly1305;
+	struct bch_key		chacha20_key;
+	bool			chacha20_key_set;
 
 	atomic64_t		key_version;
 

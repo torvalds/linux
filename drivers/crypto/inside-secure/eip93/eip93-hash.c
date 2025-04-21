@@ -260,7 +260,8 @@ static int eip93_send_hash_req(struct crypto_async_request *async, u8 *data,
 	}
 
 again:
-	ret = eip93_put_descriptor(eip93, &cdesc);
+	scoped_guard(spinlock_irqsave, &eip93->ring->write_lock)
+		ret = eip93_put_descriptor(eip93, &cdesc);
 	if (ret) {
 		usleep_range(EIP93_RING_BUSY_DELAY,
 			     EIP93_RING_BUSY_DELAY * 2);

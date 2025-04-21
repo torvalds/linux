@@ -2103,6 +2103,9 @@ static int megasas_sdev_configure(struct scsi_device *sdev,
 	/* This sdev property may change post OCR */
 	megasas_set_dynamic_target_properties(sdev, lim, is_target_prop);
 
+	if (!MEGASAS_IS_LOGICAL(sdev))
+		sdev->no_vpd_size = 1;
+
 	mutex_unlock(&instance->reset_mutex);
 
 	return 0;
@@ -3662,8 +3665,10 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 
 		case MFI_STAT_SCSI_IO_FAILED:
 		case MFI_STAT_LD_INIT_IN_PROGRESS:
-			cmd->scmd->result =
-			    (DID_ERROR << 16) | hdr->scsi_status;
+			if (hdr->scsi_status == 0xf0)
+				cmd->scmd->result = (DID_ERROR << 16) | SAM_STAT_CHECK_CONDITION;
+			else
+				cmd->scmd->result = (DID_ERROR << 16) | hdr->scsi_status;
 			break;
 
 		case MFI_STAT_SCSI_DONE_WITH_ERROR:
@@ -6521,7 +6526,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 fail_start_watchdog:
 	if (instance->requestorId && !instance->skip_heartbeat_timer_del)
-		del_timer_sync(&instance->sriov_heartbeat_timer);
+		timer_delete_sync(&instance->sriov_heartbeat_timer);
 fail_get_ld_pd_list:
 	instance->instancet->disable_intr(instance);
 	megasas_destroy_irqs(instance);
@@ -7603,7 +7608,7 @@ fail_io_attach:
 	megasas_mgmt_info.instance[megasas_mgmt_info.max_index] = NULL;
 
 	if (instance->requestorId && !instance->skip_heartbeat_timer_del)
-		del_timer_sync(&instance->sriov_heartbeat_timer);
+		timer_delete_sync(&instance->sriov_heartbeat_timer);
 
 	instance->instancet->disable_intr(instance);
 	megasas_destroy_irqs(instance);
@@ -7743,7 +7748,7 @@ megasas_suspend(struct device *dev)
 
 	/* Shutdown SR-IOV heartbeat timer */
 	if (instance->requestorId && !instance->skip_heartbeat_timer_del)
-		del_timer_sync(&instance->sriov_heartbeat_timer);
+		timer_delete_sync(&instance->sriov_heartbeat_timer);
 
 	/* Stop the FW fault detection watchdog */
 	if (instance->adapter_type != MFI_SERIES)
@@ -7907,7 +7912,7 @@ megasas_resume(struct device *dev)
 
 fail_start_watchdog:
 	if (instance->requestorId && !instance->skip_heartbeat_timer_del)
-		del_timer_sync(&instance->sriov_heartbeat_timer);
+		timer_delete_sync(&instance->sriov_heartbeat_timer);
 fail_init_mfi:
 	megasas_free_ctrl_dma_buffers(instance);
 	megasas_free_ctrl_mem(instance);
@@ -7971,7 +7976,7 @@ static void megasas_detach_one(struct pci_dev *pdev)
 
 	/* Shutdown SR-IOV heartbeat timer */
 	if (instance->requestorId && !instance->skip_heartbeat_timer_del)
-		del_timer_sync(&instance->sriov_heartbeat_timer);
+		timer_delete_sync(&instance->sriov_heartbeat_timer);
 
 	/* Stop the FW fault detection watchdog */
 	if (instance->adapter_type != MFI_SERIES)

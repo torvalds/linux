@@ -340,7 +340,7 @@ void mt792x_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	mutex_unlock(&dev->mt76.mutex);
 
 	if (vif->bss_conf.csa_active) {
-		del_timer_sync(&mvif->csa_timer);
+		timer_delete_sync(&mvif->csa_timer);
 		cancel_work_sync(&mvif->csa_work);
 	}
 }

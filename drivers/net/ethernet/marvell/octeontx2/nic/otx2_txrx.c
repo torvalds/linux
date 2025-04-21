@@ -1559,12 +1559,11 @@ handle_xdp_verdict:
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(pfvf->netdev, prog, act);
-		break;
+		fallthrough;
 	case XDP_ABORTED:
-		if (xsk_buff)
-			xsk_buff_free(xsk_buff);
-		trace_xdp_exception(pfvf->netdev, prog, act);
-		break;
+		if (act == XDP_ABORTED)
+			trace_xdp_exception(pfvf->netdev, prog, act);
+		fallthrough;
 	case XDP_DROP:
 		cq->pool_ptrs++;
 		if (xsk_buff) {

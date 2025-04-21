@@ -432,7 +432,7 @@ static int pcwd_stop(void)
 	int stat_reg;
 
 	/* Stop the timer */
-	del_timer(&pcwd_private.timer);
+	timer_delete(&pcwd_private.timer);
 
 	/*  Disable the board  */
 	if (pcwd_private.revision == PCWD_REVISION_C) {

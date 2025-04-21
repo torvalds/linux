@@ -802,7 +802,7 @@ static int powernv_cpufreq_target_index(struct cpufreq_policy *policy,
 	if (gpstate_idx != new_index)
 		queue_gpstate_timer(gpstates);
 	else
-		del_timer_sync(&gpstates->timer);
+		timer_delete_sync(&gpstates->timer);
 
 gpstates_done:
 	freq_data.gpstate_id = idx_to_pstate(gpstate_idx);
@@ -880,7 +880,7 @@ static void powernv_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 	freq_data.gpstate_id = idx_to_pstate(powernv_pstate_info.min);
 	smp_call_function_single(policy->cpu, set_pstate, &freq_data, 1);
 	if (gpstates)
-		del_timer_sync(&gpstates->timer);
+		timer_delete_sync(&gpstates->timer);
 
 	kfree(policy->driver_data);
 }

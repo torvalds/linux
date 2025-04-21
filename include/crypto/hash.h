@@ -10,6 +10,7 @@
 
 #include <linux/atomic.h>
 #include <linux/crypto.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 
 /* Set this bit for virtual address instead of SG list. */
@@ -581,7 +582,10 @@ static inline struct ahash_request *ahash_request_alloc_noprof(
  * ahash_request_free() - zeroize and free the request data structure
  * @req: request data structure cipher handle to be freed
  */
-void ahash_request_free(struct ahash_request *req);
+static inline void ahash_request_free(struct ahash_request *req)
+{
+	kfree_sensitive(req);
+}
 
 static inline struct ahash_request *ahash_request_cast(
 	struct crypto_async_request *req)

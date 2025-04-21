@@ -89,12 +89,12 @@ enum {
 };
 
 static const struct fs_parameter_spec devpts_param_specs[] = {
-	fsparam_u32	("gid",		Opt_gid),
+	fsparam_gid	("gid",		Opt_gid),
 	fsparam_s32	("max",		Opt_max),
 	fsparam_u32oct	("mode",	Opt_mode),
 	fsparam_flag	("newinstance",	Opt_newinstance),
 	fsparam_u32oct	("ptmxmode",	Opt_ptmxmode),
-	fsparam_u32	("uid",		Opt_uid),
+	fsparam_uid	("uid",		Opt_uid),
 	{}
 };
 

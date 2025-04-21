@@ -842,7 +842,7 @@ static int sja1105_extts_enable(struct sja1105_private *priv,
 	if (on)
 		sja1105_ptp_extts_setup_timer(&priv->ptp_data);
 	else
-		del_timer_sync(&priv->ptp_data.extts_timer);
+		timer_delete_sync(&priv->ptp_data.extts_timer);
 
 	return 0;
 }
@@ -939,7 +939,7 @@ void sja1105_ptp_clock_unregister(struct dsa_switch *ds)
 	if (IS_ERR_OR_NULL(ptp_data->clock))
 		return;
 
-	del_timer_sync(&ptp_data->extts_timer);
+	timer_delete_sync(&ptp_data->extts_timer);
 	ptp_cancel_worker_sync(ptp_data->clock);
 	skb_queue_purge(&ptp_data->skb_txtstamp_queue);
 	skb_queue_purge(&ptp_data->skb_rxtstamp_queue);

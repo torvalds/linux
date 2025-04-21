@@ -174,6 +174,7 @@ enum cifs_param {
 	Opt_iocharset,
 	Opt_netbiosname,
 	Opt_servern,
+	Opt_nbsessinit,
 	Opt_ver,
 	Opt_vers,
 	Opt_sec,
@@ -216,6 +217,7 @@ struct smb3_fs_context {
 	char *iocharset;  /* local code page for mapping to and from Unicode */
 	char source_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* clnt nb name */
 	char target_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* srvr nb name */
+	int rfc1001_sessinit;
 	kuid_t cred_uid;
 	kuid_t linux_uid;
 	kgid_t linux_gid;
@@ -280,6 +282,9 @@ struct smb3_fs_context {
 	bool use_client_guid:1;
 	/* reuse existing guid for multichannel */
 	u8 client_guid[SMB2_CLIENT_GUID_SIZE];
+	/* User-specified original r/wsize value */
+	unsigned int vol_rsize;
+	unsigned int vol_wsize;
 	unsigned int bsize;
 	unsigned int rasize;
 	unsigned int rsize;

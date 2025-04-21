@@ -1198,7 +1198,7 @@ static int live_timeslice_rewind(void *arg)
 		ENGINE_TRACE(engine, "forcing tasklet for rewind\n");
 		while (i915_request_is_active(rq[A2])) { /* semaphore yield! */
 			/* Wait for the timeslice to kick in */
-			del_timer(&engine->execlists.timer);
+			timer_delete(&engine->execlists.timer);
 			tasklet_hi_schedule(&engine->sched_engine->tasklet);
 			intel_engine_flush_submission(engine);
 		}
@@ -2357,7 +2357,7 @@ static int __cancel_fail(struct live_preempt_cancel *arg)
 	/* force preempt reset [failure] */
 	while (!engine->execlists.pending[0])
 		intel_engine_flush_submission(engine);
-	del_timer_sync(&engine->execlists.preempt);
+	timer_delete_sync(&engine->execlists.preempt);
 	intel_engine_flush_submission(engine);
 
 	cancel_reset_timeout(engine);

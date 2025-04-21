@@ -110,7 +110,7 @@ static int mv_otg_cancel_timer(struct mv_otg *mvotg, unsigned int id)
 	timer = &mvotg->otg_ctrl.timer[id];
 
 	if (timer_pending(timer))
-		del_timer(timer);
+		timer_delete(timer);
 
 	return 0;
 }

@@ -469,7 +469,7 @@ bool rxrpc_input_call_event(struct rxrpc_call *call)
 
 out:
 	if (__rxrpc_call_is_complete(call)) {
-		del_timer_sync(&call->timer);
+		timer_delete_sync(&call->timer);
 		if (!test_bit(RXRPC_CALL_DISCONNECTED, &call->flags))
 			rxrpc_disconnect_call(call);
 		if (call->security)

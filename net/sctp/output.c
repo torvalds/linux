@@ -312,7 +312,7 @@ static enum sctp_xmit sctp_packet_bundle_sack(struct sctp_packet *pkt,
 					       SCTP_MIB_OUTCTRLCHUNKS);
 				asoc->stats.octrlchunks++;
 				asoc->peer.sack_needed = 0;
-				if (del_timer(timer))
+				if (timer_delete(timer))
 					sctp_association_put(asoc);
 			}
 		}

@@ -803,16 +803,14 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return err;
 
 	err = xe_device_probe_early(xe);
-
-	/*
-	 * In Boot Survivability mode, no drm card is exposed and driver is
-	 * loaded with bare minimum to allow for firmware to be flashed through
-	 * mei. If early probe fails, check if survivability mode is flagged by
-	 * HW to be enabled. In that case enable it and return success.
-	 */
 	if (err) {
-		if (xe_survivability_mode_required(xe) &&
-		    xe_survivability_mode_enable(xe))
+		/*
+		 * In Boot Survivability mode, no drm card is exposed and driver
+		 * is loaded with bare minimum to allow for firmware to be
+		 * flashed through mei. If early probe failed, but it managed to
+		 * enable survivability mode, return success.
+		 */
+		if (xe_survivability_mode_is_enabled(xe))
 			return 0;
 
 		return err;

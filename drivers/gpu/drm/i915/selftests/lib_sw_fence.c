@@ -74,7 +74,7 @@ void timed_fence_init(struct timed_fence *tf, unsigned long expires)
 
 void timed_fence_fini(struct timed_fence *tf)
 {
-	if (del_timer_sync(&tf->timer))
+	if (timer_delete_sync(&tf->timer))
 		i915_sw_fence_commit(&tf->fence);
 
 	destroy_timer_on_stack(&tf->timer);

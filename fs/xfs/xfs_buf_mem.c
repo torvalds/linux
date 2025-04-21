@@ -165,7 +165,7 @@ xmbuf_map_backing_mem(
 	folio_set_dirty(folio);
 	folio_unlock(folio);
 
-	bp->b_addr = folio_address(folio);
+	bp->b_addr = folio_address(folio) + offset_in_folio(folio, pos);
 	return 0;
 }
 

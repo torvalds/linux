@@ -20,15 +20,23 @@
 #include <sys/wait.h>
 #include <sys/eventfd.h>
 #include <sys/uio.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <linux/io_uring.h>
 #include <liburing.h>
-#include <linux/ublk_cmd.h>
+#include <semaphore.h>
+
+/* allow ublk_dep.h to override ublk_cmd.h */
 #include "ublk_dep.h"
+#include <linux/ublk_cmd.h>
 
 #define __maybe_unused __attribute__((unused))
 #define MAX_BACK_FILES   4
 #ifndef min
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #endif
+
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 
 /****************** part 1: libublk ********************/
 
@@ -42,8 +50,8 @@
 #define UBLKSRV_IO_IDLE_SECS		20
 
 #define UBLK_IO_MAX_BYTES               (1 << 20)
-#define UBLK_MAX_QUEUES                 4
-#define UBLK_QUEUE_DEPTH                128
+#define UBLK_MAX_QUEUES                 32
+#define UBLK_QUEUE_DEPTH                1024
 
 #define UBLK_DBG_DEV            (1U << 0)
 #define UBLK_DBG_QUEUE          (1U << 1)
@@ -54,6 +62,16 @@
 
 struct ublk_dev;
 struct ublk_queue;
+
+struct stripe_ctx {
+	/* stripe */
+	unsigned int    chunk_size;
+};
+
+struct fault_inject_ctx {
+	/* fault_inject */
+	unsigned long   delay_us;
+};
 
 struct dev_ctx {
 	char tgt_type[16];
@@ -66,11 +84,21 @@ struct dev_ctx {
 	unsigned int	logging:1;
 	unsigned int	all:1;
 	unsigned int	fg:1;
+	unsigned int	recovery:1;
 
-	/* stripe */
-	unsigned int    chunk_size;
+	/* fault_inject */
+	long long	delay_us;
 
 	int _evtfd;
+	int _shmid;
+
+	/* built from shmem, only for ublk_dump_dev() */
+	struct ublk_dev *shadow_dev;
+
+	union {
+		struct stripe_ctx 	stripe;
+		struct fault_inject_ctx fault_inject;
+	};
 };
 
 struct ublk_ctrl_cmd_data {
@@ -107,6 +135,14 @@ struct ublk_tgt_ops {
 	int (*queue_io)(struct ublk_queue *, int tag);
 	void (*tgt_io_done)(struct ublk_queue *,
 			int tag, const struct io_uring_cqe *);
+
+	/*
+	 * Target specific command line handling
+	 *
+	 * each option requires argument for target command line
+	 */
+	void (*parse_cmd_line)(struct dev_ctx *ctx, int argc, char *argv[]);
+	void (*usage)(const struct ublk_tgt_ops *ops);
 };
 
 struct ublk_tgt {
@@ -357,6 +393,7 @@ static inline int ublk_queue_use_zc(const struct ublk_queue *q)
 extern const struct ublk_tgt_ops null_tgt_ops;
 extern const struct ublk_tgt_ops loop_tgt_ops;
 extern const struct ublk_tgt_ops stripe_tgt_ops;
+extern const struct ublk_tgt_ops fault_inject_tgt_ops;
 
 void backing_file_tgt_deinit(struct ublk_dev *dev);
 int backing_file_tgt_init(struct ublk_dev *dev);

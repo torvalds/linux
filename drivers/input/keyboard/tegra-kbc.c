@@ -416,7 +416,7 @@ static void tegra_kbc_stop(struct tegra_kbc *kbc)
 	}
 
 	disable_irq(kbc->irq);
-	del_timer_sync(&kbc->timer);
+	timer_delete_sync(&kbc->timer);
 
 	clk_disable_unprepare(kbc->clk);
 }
@@ -703,7 +703,7 @@ static int tegra_kbc_suspend(struct device *dev)
 
 	if (device_may_wakeup(&pdev->dev)) {
 		disable_irq(kbc->irq);
-		del_timer_sync(&kbc->timer);
+		timer_delete_sync(&kbc->timer);
 		tegra_kbc_set_fifo_interrupt(kbc, false);
 
 		/* Forcefully clear the interrupt status */

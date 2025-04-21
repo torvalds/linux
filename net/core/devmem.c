@@ -8,7 +8,6 @@
  */
 
 #include <linux/dma-buf.h>
-#include <linux/ethtool_netlink.h>
 #include <linux/genalloc.h>
 #include <linux/mm.h>
 #include <linux/netdevice.h>
@@ -117,21 +116,19 @@ void net_devmem_unbind_dmabuf(struct net_devmem_dmabuf_binding *binding)
 	struct netdev_rx_queue *rxq;
 	unsigned long xa_idx;
 	unsigned int rxq_idx;
-	int err;
 
 	if (binding->list.next)
 		list_del(&binding->list);
 
 	xa_for_each(&binding->bound_rxqs, xa_idx, rxq) {
-		WARN_ON(rxq->mp_params.mp_priv != binding);
-
-		rxq->mp_params.mp_priv = NULL;
-		rxq->mp_params.mp_ops = NULL;
+		const struct pp_memory_provider_params mp_params = {
+			.mp_priv	= binding,
+			.mp_ops		= &dmabuf_devmem_ops,
+		};
 
 		rxq_idx = get_netdev_rx_queue_index(rxq);
 
-		err = netdev_rx_queue_restart(binding->dev, rxq_idx);
-		WARN_ON(err && err != -ENETDOWN);
+		__net_mp_close_rxq(binding->dev, rxq_idx, &mp_params);
 	}
 
 	xa_erase(&net_devmem_dmabuf_bindings, binding->id);
@@ -143,57 +140,28 @@ int net_devmem_bind_dmabuf_to_queue(struct net_device *dev, u32 rxq_idx,
 				    struct net_devmem_dmabuf_binding *binding,
 				    struct netlink_ext_ack *extack)
 {
+	struct pp_memory_provider_params mp_params = {
+		.mp_priv	= binding,
+		.mp_ops		= &dmabuf_devmem_ops,
+	};
 	struct netdev_rx_queue *rxq;
 	u32 xa_idx;
 	int err;
 
-	if (rxq_idx >= dev->real_num_rx_queues) {
-		NL_SET_ERR_MSG(extack, "rx queue index out of range");
-		return -ERANGE;
-	}
-
-	if (dev->cfg->hds_config != ETHTOOL_TCP_DATA_SPLIT_ENABLED) {
-		NL_SET_ERR_MSG(extack, "tcp-data-split is disabled");
-		return -EINVAL;
-	}
-
-	if (dev->cfg->hds_thresh) {
-		NL_SET_ERR_MSG(extack, "hds-thresh is not zero");
-		return -EINVAL;
-	}
-
-	rxq = __netif_get_rx_queue(dev, rxq_idx);
-	if (rxq->mp_params.mp_ops) {
-		NL_SET_ERR_MSG(extack, "designated queue already memory provider bound");
-		return -EEXIST;
-	}
-
-#ifdef CONFIG_XDP_SOCKETS
-	if (rxq->pool) {
-		NL_SET_ERR_MSG(extack, "designated queue already in use by AF_XDP");
-		return -EBUSY;
-	}
-#endif
-
-	err = xa_alloc(&binding->bound_rxqs, &xa_idx, rxq, xa_limit_32b,
-		       GFP_KERNEL);
+	err = __net_mp_open_rxq(dev, rxq_idx, &mp_params, extack);
 	if (err)
 		return err;
 
-	rxq->mp_params.mp_priv = binding;
-	rxq->mp_params.mp_ops = &dmabuf_devmem_ops;
-
-	err = netdev_rx_queue_restart(dev, rxq_idx);
+	rxq = __netif_get_rx_queue(dev, rxq_idx);
+	err = xa_alloc(&binding->bound_rxqs, &xa_idx, rxq, xa_limit_32b,
+		       GFP_KERNEL);
 	if (err)
-		goto err_xa_erase;
+		goto err_close_rxq;
 
 	return 0;
 
-err_xa_erase:
-	rxq->mp_params.mp_priv = NULL;
-	rxq->mp_params.mp_ops = NULL;
-	xa_erase(&binding->bound_rxqs, xa_idx);
-
+err_close_rxq:
+	__net_mp_close_rxq(dev, rxq_idx, &mp_params);
 	return err;
 }
 

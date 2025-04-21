@@ -109,7 +109,6 @@ enum smu_v13_0_6_caps {
 	SMU_CAP(OTHER_END_METRICS),
 	SMU_CAP(SET_UCLK_MAX),
 	SMU_CAP(PCIE_METRICS),
-	SMU_CAP(HST_LIMIT_METRICS),
 	SMU_CAP(MCA_DEBUG_MODE),
 	SMU_CAP(PER_INST_METRICS),
 	SMU_CAP(CTF_LIMIT),
@@ -325,8 +324,6 @@ static void smu_v13_0_14_init_caps(struct smu_context *smu)
 
 	if (fw_ver >= 0x05550E00)
 		smu_v13_0_6_cap_set(smu, SMU_CAP(OTHER_END_METRICS));
-	if (fw_ver >= 0x05551000)
-		smu_v13_0_6_cap_set(smu, SMU_CAP(HST_LIMIT_METRICS));
 	if (fw_ver >= 0x05550B00)
 		smu_v13_0_6_cap_set(smu, SMU_CAP(PER_INST_METRICS));
 	if (fw_ver >= 0x5551200)
@@ -342,7 +339,6 @@ static void smu_v13_0_12_init_caps(struct smu_context *smu)
 						     SMU_CAP(RMA_MSG),
 						     SMU_CAP(ACA_SYND),
 						     SMU_CAP(OTHER_END_METRICS),
-						     SMU_CAP(HST_LIMIT_METRICS),
 						     SMU_CAP(PER_INST_METRICS) };
 	uint32_t fw_ver = smu->smc_fw_version;
 
@@ -387,8 +383,6 @@ static void smu_v13_0_6_init_caps(struct smu_context *smu)
 		smu_v13_0_6_cap_clear(smu, SMU_CAP(RMA_MSG));
 		smu_v13_0_6_cap_clear(smu, SMU_CAP(ACA_SYND));
 
-		if (fw_ver >= 0x04556F00)
-			smu_v13_0_6_cap_set(smu, SMU_CAP(HST_LIMIT_METRICS));
 		if (fw_ver >= 0x04556A00)
 			smu_v13_0_6_cap_set(smu, SMU_CAP(PER_INST_METRICS));
 	} else {
@@ -408,8 +402,6 @@ static void smu_v13_0_6_init_caps(struct smu_context *smu)
 			smu_v13_0_6_cap_clear(smu, SMU_CAP(RMA_MSG));
 		if (fw_ver < 0x00555600)
 			smu_v13_0_6_cap_clear(smu, SMU_CAP(ACA_SYND));
-		if (pgm == 0 && fw_ver >= 0x557900)
-			smu_v13_0_6_cap_set(smu, SMU_CAP(HST_LIMIT_METRICS));
 	}
 	if (((pgm == 7) && (fw_ver >= 0x7550700)) ||
 	    ((pgm == 0) && (fw_ver >= 0x00557900)) ||
@@ -2674,13 +2666,6 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 				gpu_metrics->xcp_stats[i].gfx_busy_acc[idx] =
 					SMUQ10_ROUND(GET_GPU_METRIC_FIELD(GfxBusyAcc,
 									  version)[inst]);
-
-				if (smu_v13_0_6_cap_supported(
-					    smu, SMU_CAP(HST_LIMIT_METRICS)))
-					gpu_metrics->xcp_stats[i].gfx_below_host_limit_acc[idx] =
-						SMUQ10_ROUND(GET_GPU_METRIC_FIELD
-								(GfxclkBelowHostLimitAcc, version)
-								[inst]);
 				idx++;
 			}
 		}

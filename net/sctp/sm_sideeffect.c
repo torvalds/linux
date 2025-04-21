@@ -734,7 +734,7 @@ static void sctp_cmd_hb_timers_stop(struct sctp_cmd_seq *cmds,
 
 	list_for_each_entry(t, &asoc->peer.transport_addr_list,
 			transports) {
-		if (del_timer(&t->hb_timer))
+		if (timer_delete(&t->hb_timer))
 			sctp_transport_put(t);
 	}
 }
@@ -747,7 +747,7 @@ static void sctp_cmd_t3_rtx_timers_stop(struct sctp_cmd_seq *cmds,
 
 	list_for_each_entry(t, &asoc->peer.transport_addr_list,
 			transports) {
-		if (del_timer(&t->T3_rtx_timer))
+		if (timer_delete(&t->T3_rtx_timer))
 			sctp_transport_put(t);
 	}
 }
@@ -1557,7 +1557,7 @@ static int sctp_cmd_interpreter(enum sctp_event_type event_type,
 
 		case SCTP_CMD_TIMER_STOP:
 			timer = &asoc->timers[cmd->obj.to];
-			if (del_timer(timer))
+			if (timer_delete(timer))
 				sctp_association_put(asoc);
 			break;
 

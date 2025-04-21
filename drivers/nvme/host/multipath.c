@@ -427,7 +427,7 @@ static bool nvme_available_path(struct nvme_ns_head *head)
 	struct nvme_ns *ns;
 
 	if (!test_bit(NVME_NSHEAD_DISK_LIVE, &head->flags))
-		return NULL;
+		return false;
 
 	list_for_each_entry_srcu(ns, &head->list, siblings,
 				 srcu_read_lock_held(&head->srcu)) {
@@ -860,7 +860,7 @@ static int nvme_read_ana_log(struct nvme_ctrl *ctrl)
 	if (nr_change_groups)
 		mod_timer(&ctrl->anatt_timer, ctrl->anatt * HZ * 2 + jiffies);
 	else
-		del_timer_sync(&ctrl->anatt_timer);
+		timer_delete_sync(&ctrl->anatt_timer);
 out_unlock:
 	mutex_unlock(&ctrl->ana_lock);
 	return error;
@@ -900,7 +900,7 @@ void nvme_mpath_stop(struct nvme_ctrl *ctrl)
 {
 	if (!nvme_ctrl_use_ana(ctrl))
 		return;
-	del_timer_sync(&ctrl->anatt_timer);
+	timer_delete_sync(&ctrl->anatt_timer);
 	cancel_work_sync(&ctrl->ana_work);
 }
 
@@ -1051,6 +1051,13 @@ void nvme_mpath_add_sysfs_link(struct nvme_ns_head *head)
 
 	list_for_each_entry_rcu(ns, &head->list, siblings) {
 		/*
+		 * Ensure that ns path disk node is already added otherwise we
+		 * may get invalid kobj name for target
+		 */
+		if (!test_bit(GD_ADDED, &ns->disk->state))
+			continue;
+
+		/*
 		 * Avoid creating link if it already exists for the given path.
 		 * When path ana state transitions from optimized to non-
 		 * optimized or vice-versa, the nvme_mpath_set_live() is
@@ -1063,13 +1070,6 @@ void nvme_mpath_add_sysfs_link(struct nvme_ns_head *head)
 		 * against multiple nvme paths being simultaneously added.
 		 */
 		if (test_and_set_bit(NVME_NS_SYSFS_ATTR_LINK, &ns->flags))
-			continue;
-
-		/*
-		 * Ensure that ns path disk node is already added otherwise we
-		 * may get invalid kobj name for target
-		 */
-		if (!test_bit(GD_ADDED, &ns->disk->state))
 			continue;
 
 		target = disk_to_dev(ns->disk);

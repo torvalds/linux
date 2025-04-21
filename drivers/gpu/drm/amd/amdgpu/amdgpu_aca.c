@@ -195,6 +195,10 @@ static bool aca_bank_is_valid(struct aca_handle *handle, struct aca_bank *bank, 
 {
 	const struct aca_bank_ops *bank_ops = handle->bank_ops;
 
+	/* Parse all deferred errors with UMC aca handle */
+	if (ACA_BANK_ERR_IS_DEFFERED(bank))
+		return handle->hwip == ACA_HWIP_TYPE_UMC;
+
 	if (!aca_bank_hwip_is_matched(bank, handle->hwip))
 		return false;
 

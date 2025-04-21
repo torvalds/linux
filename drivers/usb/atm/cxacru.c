@@ -597,7 +597,7 @@ static int cxacru_start_wait_urb(struct urb *urb, struct completion *done,
 	timer_setup_on_stack(&timer.timer, cxacru_timeout_kill, 0);
 	mod_timer(&timer.timer, jiffies + msecs_to_jiffies(CMD_TIMEOUT));
 	wait_for_completion(done);
-	del_timer_sync(&timer.timer);
+	timer_delete_sync(&timer.timer);
 	destroy_timer_on_stack(&timer.timer);
 
 	if (actual_length)

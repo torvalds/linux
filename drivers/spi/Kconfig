@@ -937,9 +937,9 @@ config SPI_QCOM_QSPI
 	  QSPI(Quad SPI) driver for Qualcomm QSPI controller.
 
 config SPI_QPIC_SNAND
-	bool "QPIC SNAND controller"
+	tristate "QPIC SNAND controller"
 	depends on ARCH_QCOM || COMPILE_TEST
-	select MTD
+	depends on MTD
 	help
 	  QPIC_SNAND (QPIC SPI NAND) driver for Qualcomm QPIC controller.
 	  QPIC controller supports both parallel nand and serial nand.

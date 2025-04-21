@@ -747,9 +747,9 @@ static void tulip_down (struct net_device *dev)
 	napi_disable(&tp->napi);
 #endif
 
-	del_timer_sync (&tp->timer);
+	timer_delete_sync(&tp->timer);
 #ifdef CONFIG_TULIP_NAPI
-	del_timer_sync (&tp->oom_timer);
+	timer_delete_sync(&tp->oom_timer);
 #endif
 	spin_lock_irqsave (&tp->lock, flags);
 

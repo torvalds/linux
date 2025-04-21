@@ -1496,7 +1496,7 @@ exit_nomem:
 static void handle_setup_get_version_rsp(struct ipw_hardware *hw,
 		unsigned char vers_no)
 {
-	del_timer(&hw->setup_timer);
+	timer_delete(&hw->setup_timer);
 	hw->initializing = 0;
 	printk(KERN_INFO IPWIRELESS_PCCARD_NAME ": card is ready.\n");
 
@@ -1721,7 +1721,7 @@ void ipwireless_stop_interrupts(struct ipw_hardware *hw)
 	if (!hw->shutting_down) {
 		/* Tell everyone we are going down. */
 		hw->shutting_down = 1;
-		del_timer(&hw->setup_timer);
+		timer_delete(&hw->setup_timer);
 
 		/* Prevent the hardware from sending any more interrupts */
 		do_close_hardware(hw);

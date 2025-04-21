@@ -389,9 +389,9 @@ int bch2_journal_replay(struct bch_fs *c)
 	 * Now, replay any remaining keys in the order in which they appear in
 	 * the journal, unpinning those journal entries as we go:
 	 */
-	sort(keys_sorted.data, keys_sorted.nr,
-	     sizeof(keys_sorted.data[0]),
-	     journal_sort_seq_cmp, NULL);
+	sort_nonatomic(keys_sorted.data, keys_sorted.nr,
+		       sizeof(keys_sorted.data[0]),
+		       journal_sort_seq_cmp, NULL);
 
 	darray_for_each(keys_sorted, kp) {
 		cond_resched();
@@ -1125,7 +1125,10 @@ int bch2_fs_initialize(struct bch_fs *c)
 	 * journal_res_get() will crash if called before this has
 	 * set up the journal.pin FIFO and journal.cur pointer:
 	 */
-	bch2_fs_journal_start(&c->journal, 1);
+	ret = bch2_fs_journal_start(&c->journal, 1);
+	if (ret)
+		goto err;
+
 	set_bit(BCH_FS_accounting_replay_done, &c->flags);
 	bch2_journal_set_replay_done(&c->journal);
 

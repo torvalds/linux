@@ -136,7 +136,7 @@ static int ni_usb_nonblocking_send_bulk_msg(struct ni_usb_priv *ni_priv, void *d
 
 	retval = usb_submit_urb(ni_priv->bulk_urb, GFP_KERNEL);
 	if (retval) {
-		del_timer_sync(&ni_priv->bulk_timer);
+		timer_delete_sync(&ni_priv->bulk_timer);
 		usb_free_urb(ni_priv->bulk_urb);
 		ni_priv->bulk_urb = NULL;
 		dev_err(&usb_dev->dev, "failed to submit bulk out urb, retval=%i\n",
@@ -154,7 +154,7 @@ static int ni_usb_nonblocking_send_bulk_msg(struct ni_usb_priv *ni_priv, void *d
 		retval = ni_priv->bulk_urb->status;
 	}
 
-	del_timer_sync(&ni_priv->bulk_timer);
+	timer_delete_sync(&ni_priv->bulk_timer);
 	*actual_data_length = ni_priv->bulk_urb->actual_length;
 	mutex_lock(&ni_priv->bulk_transfer_lock);
 	usb_free_urb(ni_priv->bulk_urb);
@@ -222,7 +222,7 @@ static int ni_usb_nonblocking_receive_bulk_msg(struct ni_usb_priv *ni_priv,
 
 	retval = usb_submit_urb(ni_priv->bulk_urb, GFP_KERNEL);
 	if (retval) {
-		del_timer_sync(&ni_priv->bulk_timer);
+		timer_delete_sync(&ni_priv->bulk_timer);
 		usb_free_urb(ni_priv->bulk_urb);
 		ni_priv->bulk_urb = NULL;
 		dev_err(&usb_dev->dev, "failed to submit bulk in urb, retval=%i\n", retval);
@@ -256,7 +256,7 @@ static int ni_usb_nonblocking_receive_bulk_msg(struct ni_usb_priv *ni_priv,
 		if (ni_priv->bulk_urb->status)
 			retval = ni_priv->bulk_urb->status;
 	}
-	del_timer_sync(&ni_priv->bulk_timer);
+	timer_delete_sync(&ni_priv->bulk_timer);
 	*actual_data_length = ni_priv->bulk_urb->actual_length;
 	mutex_lock(&ni_priv->bulk_transfer_lock);
 	usb_free_urb(ni_priv->bulk_urb);

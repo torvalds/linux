@@ -271,7 +271,7 @@ static void iommu_dma_free_fq(struct iommu_dma_cookie *cookie)
 	if (!cookie->fq_domain)
 		return;
 
-	del_timer_sync(&cookie->fq_timer);
+	timer_delete_sync(&cookie->fq_timer);
 	if (cookie->options.qt == IOMMU_DMA_OPTS_SINGLE_QUEUE)
 		iommu_dma_free_fq_single(cookie->single_fq);
 	else
@@ -1754,7 +1754,7 @@ static size_t cookie_msi_granule(const struct iommu_domain *domain)
 		return PAGE_SIZE;
 	default:
 		BUG();
-	};
+	}
 }
 
 static struct list_head *cookie_msi_pages(const struct iommu_domain *domain)
@@ -1766,7 +1766,7 @@ static struct list_head *cookie_msi_pages(const struct iommu_domain *domain)
 		return &domain->msi_cookie->msi_page_list;
 	default:
 		BUG();
-	};
+	}
 }
 
 static struct iommu_dma_msi_page *iommu_dma_get_msi_page(struct device *dev,

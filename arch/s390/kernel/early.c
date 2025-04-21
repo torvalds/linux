@@ -22,6 +22,7 @@
 #include <asm/asm-extable.h>
 #include <linux/memblock.h>
 #include <asm/access-regs.h>
+#include <asm/asm-offsets.h>
 #include <asm/machine.h>
 #include <asm/diag.h>
 #include <asm/ebcdic.h>

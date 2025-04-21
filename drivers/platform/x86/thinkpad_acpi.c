@@ -367,6 +367,7 @@ static struct {
 	u32 beep_needs_two_args:1;
 	u32 mixer_no_level_control:1;
 	u32 battery_force_primary:1;
+	u32 platform_drv_registered:1;
 	u32 hotkey_poll_active:1;
 	u32 has_adaptive_kbd:1;
 	u32 kbd_lang:1;
@@ -8793,6 +8794,7 @@ static const struct attribute_group fan_driver_attr_group = {
 #define TPACPI_FAN_NS		0x0010		/* For EC with non-Standard register addresses */
 #define TPACPI_FAN_DECRPM	0x0020		/* For ECFW's with RPM in register as decimal */
 #define TPACPI_FAN_TPR		0x0040		/* Fan speed is in Ticks Per Revolution */
+#define TPACPI_FAN_NOACPI	0x0080		/* Don't use ACPI methods even if detected */
 
 static const struct tpacpi_quirk fan_quirk_table[] __initconst = {
 	TPACPI_QEC_IBM('1', 'Y', TPACPI_FAN_Q1),
@@ -8823,6 +8825,9 @@ static const struct tpacpi_quirk fan_quirk_table[] __initconst = {
 	TPACPI_Q_LNV3('N', '1', 'O', TPACPI_FAN_NOFAN),	/* X1 Tablet (2nd gen) */
 	TPACPI_Q_LNV3('R', '0', 'Q', TPACPI_FAN_DECRPM),/* L480 */
 	TPACPI_Q_LNV('8', 'F', TPACPI_FAN_TPR),		/* ThinkPad x120e */
+	TPACPI_Q_LNV3('R', '0', '0', TPACPI_FAN_NOACPI),/* E560 */
+	TPACPI_Q_LNV3('R', '1', '2', TPACPI_FAN_NOACPI),/* T495 */
+	TPACPI_Q_LNV3('R', '1', '3', TPACPI_FAN_NOACPI),/* T495s */
 };
 
 static int __init fan_init(struct ibm_init_struct *iibm)
@@ -8872,6 +8877,13 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 		pr_info("ECFW with fan RPM as decimal in EC register\n");
 		ecfw_with_fan_dec_rpm = 1;
 		tp_features.fan_ctrl_status_undef = 1;
+	}
+
+	if (quirks & TPACPI_FAN_NOACPI) {
+		/* E560, T495, T495s */
+		pr_info("Ignoring buggy ACPI fan access method\n");
+		fang_handle = NULL;
+		fanw_handle = NULL;
 	}
 
 	if (gfan_handle) {
@@ -11820,10 +11832,10 @@ static void thinkpad_acpi_module_exit(void)
 		platform_device_unregister(tpacpi_sensors_pdev);
 	}
 
-	if (tpacpi_pdev) {
+	if (tp_features.platform_drv_registered)
 		platform_driver_unregister(&tpacpi_pdriver);
+	if (tpacpi_pdev)
 		platform_device_unregister(tpacpi_pdev);
-	}
 
 	if (proc_dir)
 		remove_proc_entry(TPACPI_PROC_DIR, acpi_root_dir);
@@ -11893,9 +11905,8 @@ static int __init tpacpi_pdriver_probe(struct platform_device *pdev)
 
 static int __init tpacpi_hwmon_pdriver_probe(struct platform_device *pdev)
 {
-	tpacpi_hwmon = devm_hwmon_device_register_with_groups(
-		&tpacpi_sensors_pdev->dev, TPACPI_NAME, NULL, tpacpi_hwmon_groups);
-
+	tpacpi_hwmon = devm_hwmon_device_register_with_groups(&pdev->dev, TPACPI_NAME,
+							      NULL, tpacpi_hwmon_groups);
 	if (IS_ERR(tpacpi_hwmon))
 		pr_err("unable to register hwmon device\n");
 
@@ -11965,15 +11976,23 @@ static int __init thinkpad_acpi_module_init(void)
 		tp_features.quirks = dmi_id->driver_data;
 
 	/* Device initialization */
-	tpacpi_pdev = platform_create_bundle(&tpacpi_pdriver, tpacpi_pdriver_probe,
-					     NULL, 0, NULL, 0);
+	tpacpi_pdev = platform_device_register_simple(TPACPI_DRVR_NAME, PLATFORM_DEVID_NONE,
+						      NULL, 0);
 	if (IS_ERR(tpacpi_pdev)) {
 		ret = PTR_ERR(tpacpi_pdev);
 		tpacpi_pdev = NULL;
-		pr_err("unable to register platform device/driver bundle\n");
+		pr_err("unable to register platform device\n");
 		thinkpad_acpi_module_exit();
 		return ret;
 	}
+
+	ret = platform_driver_probe(&tpacpi_pdriver, tpacpi_pdriver_probe);
+	if (ret) {
+		pr_err("unable to register main platform driver\n");
+		thinkpad_acpi_module_exit();
+		return ret;
+	}
+	tp_features.platform_drv_registered = 1;
 
 	tpacpi_sensors_pdev = platform_create_bundle(&tpacpi_hwmon_pdriver,
 						     tpacpi_hwmon_pdriver_probe,

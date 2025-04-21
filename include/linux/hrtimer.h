@@ -231,8 +231,6 @@ static inline enum hrtimer_restart hrtimer_dummy_timeout(struct hrtimer *unused)
 /* Exported timer functions: */
 
 /* Initialize timers: */
-extern void hrtimer_init(struct hrtimer *timer, clockid_t which_clock,
-			 enum hrtimer_mode mode);
 extern void hrtimer_setup(struct hrtimer *timer, enum hrtimer_restart (*function)(struct hrtimer *),
 			  clockid_t clock_id, enum hrtimer_mode mode);
 extern void hrtimer_setup_on_stack(struct hrtimer *timer,
@@ -347,7 +345,7 @@ static inline void hrtimer_update_function(struct hrtimer *timer,
 	if (WARN_ON_ONCE(!function))
 		return;
 #endif
-	timer->function = function;
+	ACCESS_PRIVATE(timer, function) = function;
 }
 
 /* Forward a hrtimer so it expires after now: */

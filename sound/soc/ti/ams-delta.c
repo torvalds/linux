@@ -303,7 +303,7 @@ static void cx81801_close(struct tty_struct *tty)
 	struct snd_soc_component *component = tty->disc_data;
 	struct snd_soc_dapm_context *dapm;
 
-	del_timer_sync(&cx81801_timer);
+	timer_delete_sync(&cx81801_timer);
 
 	/* Prevent the hook switch from further changing the DAPM pins */
 	INIT_LIST_HEAD(&ams_delta_hook_switch.pins);

@@ -2017,7 +2017,7 @@ static void atmel_shutdown(struct uart_port *port)
 	 * Prevent any tasklets being scheduled during
 	 * cleanup
 	 */
-	del_timer_sync(&atmel_port->uart_timer);
+	timer_delete_sync(&atmel_port->uart_timer);
 
 	/* Make sure that no interrupt is on the fly */
 	synchronize_irq(port->irq);

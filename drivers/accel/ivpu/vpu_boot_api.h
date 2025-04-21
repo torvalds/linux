@@ -26,7 +26,7 @@
  * Minor version changes when API backward compatibility is preserved.
  * Resets to 0 if Major version is incremented.
  */
-#define VPU_BOOT_API_VER_MINOR 26
+#define VPU_BOOT_API_VER_MINOR 28
 
 /*
  * API header changed (field names, documentation, formatting) but API itself has not been changed
@@ -76,8 +76,15 @@ struct vpu_firmware_header {
 	 * submission queue size and device capabilities.
 	 */
 	u32 preemption_buffer_2_size;
+	/*
+	 * Maximum preemption buffer size that the FW can use: no need for the host
+	 * driver to allocate more space than that specified by these fields.
+	 * A value of 0 means no declared limit.
+	 */
+	u32 preemption_buffer_1_max_size;
+	u32 preemption_buffer_2_max_size;
 	/* Space reserved for future preemption-related fields. */
-	u32 preemption_reserved[6];
+	u32 preemption_reserved[4];
 	/* FW image read only section start address, 4KB aligned */
 	u64 ro_section_start_address;
 	/* FW image read only section size, 4KB aligned */
@@ -134,7 +141,7 @@ enum vpu_trace_destination {
 /*
  * Processor bit shifts (for loggable HW components).
  */
-#define VPU_TRACE_PROC_BIT_ARM	     0
+#define VPU_TRACE_PROC_BIT_RESERVED  0
 #define VPU_TRACE_PROC_BIT_LRT	     1
 #define VPU_TRACE_PROC_BIT_LNN	     2
 #define VPU_TRACE_PROC_BIT_SHV_0     3
