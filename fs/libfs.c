@@ -1656,7 +1656,7 @@ struct inode *alloc_anon_inode(struct super_block *s)
 	inode->i_mode = S_IFREG | S_IRUSR | S_IWUSR;
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();
-	inode->i_flags |= S_PRIVATE;
+	inode->i_flags |= S_PRIVATE | S_ANON_INODE;
 	simple_inode_init_ts(inode);
 	return inode;
 }

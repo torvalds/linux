@@ -804,7 +804,7 @@ static int pidfs_init_inode(struct inode *inode, void *data)
 	const struct pid *pid = data;
 
 	inode->i_private = data;
-	inode->i_flags |= S_PRIVATE;
+	inode->i_flags |= S_PRIVATE | S_ANON_INODE;
 	inode->i_mode |= S_IRWXU;
 	inode->i_op = &pidfs_inode_operations;
 	inode->i_fop = &pidfs_file_operations;
