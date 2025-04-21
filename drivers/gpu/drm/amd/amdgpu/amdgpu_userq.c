@@ -94,7 +94,8 @@ amdgpu_userq_wait_for_last_fence(struct amdgpu_userq_mgr *uq_mgr,
 	if (f && !dma_fence_is_signaled(f)) {
 		ret = dma_fence_wait_timeout(f, true, msecs_to_jiffies(100));
 		if (ret <= 0)
-			dev_err(adev->dev, "Timed out waiting for fence f=%p\n", f);
+			dev_err(adev->dev, "Timed out waiting for fence=%llu:%llu\n",
+				f->context, f->seqno);
 	}
 }
 
