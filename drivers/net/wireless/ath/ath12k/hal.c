@@ -2042,6 +2042,24 @@ int ath12k_hal_srng_src_num_free(struct ath12k_base *ab, struct hal_srng *srng,
 		return ((srng->ring_size - hp + tp) / srng->entry_size) - 1;
 }
 
+void *ath12k_hal_srng_src_next_peek(struct ath12k_base *ab,
+				    struct hal_srng *srng)
+{
+	void *desc;
+	u32 next_hp;
+
+	lockdep_assert_held(&srng->lock);
+
+	next_hp = (srng->u.src_ring.hp + srng->entry_size) % srng->ring_size;
+
+	if (next_hp == srng->u.src_ring.cached_tp)
+		return NULL;
+
+	desc = srng->ring_base_vaddr + next_hp;
+
+	return desc;
+}
+
 void *ath12k_hal_srng_src_get_next_entry(struct ath12k_base *ab,
 					 struct hal_srng *srng)
 {
@@ -2073,6 +2091,17 @@ void *ath12k_hal_srng_src_get_next_entry(struct ath12k_base *ab,
 	srng->u.src_ring.reap_hp = next_hp;
 
 	return desc;
+}
+
+void *ath12k_hal_srng_src_peek(struct ath12k_base *ab, struct hal_srng *srng)
+{
+	lockdep_assert_held(&srng->lock);
+
+	if (((srng->u.src_ring.hp + srng->entry_size) % srng->ring_size) ==
+	    srng->u.src_ring.cached_tp)
+		return NULL;
+
+	return srng->ring_base_vaddr + srng->u.src_ring.hp;
 }
 
 void *ath12k_hal_srng_src_reap_next(struct ath12k_base *ab,

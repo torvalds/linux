@@ -70,6 +70,16 @@ struct ath12k_pdev_mon_stats {
 	u32 dest_mpdu_drop;
 	u32 dup_mon_linkdesc_cnt;
 	u32 dup_mon_buf_cnt;
+	u32 dest_mon_stuck;
+	u32 dest_mon_not_reaped;
+};
+
+enum dp_mon_status_buf_state {
+	DP_MON_STATUS_MATCH,
+	DP_MON_STATUS_NO_DMA,
+	DP_MON_STATUS_LAG,
+	DP_MON_STATUS_LEAD,
+	DP_MON_STATUS_REPLINISH,
 };
 
 struct dp_link_desc_bank {
@@ -125,6 +135,7 @@ struct ath12k_mon_data {
 	u8 decap_format;
 
 	struct ath12k_pdev_mon_stats rx_mon_stats;
+	enum dp_mon_status_buf_state buf_state;
 	/* lock for monitor data */
 	spinlock_t mon_lock;
 	struct sk_buff_head rx_status_q;
@@ -348,6 +359,7 @@ struct ath12k_link_stats {
 
 struct ath12k_dp {
 	struct ath12k_base *ab;
+	u32 mon_dest_ring_stuck_cnt;
 	u8 num_bank_profiles;
 	/* protects the access and update of bank_profiles */
 	spinlock_t tx_bank_lock;
