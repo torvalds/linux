@@ -371,7 +371,7 @@ int css_rstat_init(struct cgroup_subsys_state *css)
 
 	if (!cgrp->rstat_base_cpu) {
 		cgrp->rstat_base_cpu = alloc_percpu(struct cgroup_rstat_base_cpu);
-		if (!cgrp->rstat_cpu) {
+		if (!cgrp->rstat_base_cpu) {
 			free_percpu(cgrp->rstat_cpu);
 			return -ENOMEM;
 		}
