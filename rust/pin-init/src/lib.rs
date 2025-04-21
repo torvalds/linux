@@ -413,6 +413,36 @@ pub use ::pin_init_internal::pinned_drop;
 /// ```
 pub use ::pin_init_internal::Zeroable;
 
+/// Derives the [`Zeroable`] trait for the given struct if all fields implement [`Zeroable`].
+///
+/// Contrary to the derive macro named [`macro@Zeroable`], this one silently fails when a field
+/// doesn't implement [`Zeroable`].
+///
+/// # Examples
+///
+/// ```
+/// use pin_init::MaybeZeroable;
+///
+/// // implmements `Zeroable`
+/// #[derive(MaybeZeroable)]
+/// pub struct DriverData {
+///     id: i64,
+///     buf_ptr: *mut u8,
+///     len: usize,
+/// }
+///
+/// // does not implmement `Zeroable`
+/// #[derive(MaybeZeroable)]
+/// pub struct DriverData2 {
+///     id: i64,
+///     buf_ptr: *mut u8,
+///     len: usize,
+///     // this field doesn't implement `Zeroable`
+///     other_data: &'static i32,
+/// }
+/// ```
+pub use ::pin_init_internal::MaybeZeroable;
+
 /// Initialize and pin a type directly on the stack.
 ///
 /// # Examples

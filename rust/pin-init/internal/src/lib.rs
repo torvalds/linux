@@ -47,3 +47,8 @@ pub fn pinned_drop(args: TokenStream, input: TokenStream) -> TokenStream {
 pub fn derive_zeroable(input: TokenStream) -> TokenStream {
     zeroable::derive(input.into()).into()
 }
+
+#[proc_macro_derive(MaybeZeroable)]
+pub fn maybe_derive_zeroable(input: TokenStream) -> TokenStream {
+    zeroable::maybe_derive(input.into()).into()
+}

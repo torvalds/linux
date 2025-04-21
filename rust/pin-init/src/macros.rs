@@ -1443,3 +1443,62 @@ macro_rules! __derive_zeroable {
         };
     };
 }
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __maybe_derive_zeroable {
+    (parse_input:
+        @sig(
+            $(#[$($struct_attr:tt)*])*
+            $vis:vis struct $name:ident
+            $(where $($whr:tt)*)?
+        ),
+        @impl_generics($($impl_generics:tt)*),
+        @ty_generics($($ty_generics:tt)*),
+        @body({
+            $(
+                $(#[$($field_attr:tt)*])*
+                $field_vis:vis $field:ident : $field_ty:ty
+            ),* $(,)?
+        }),
+    ) => {
+        // SAFETY: Every field type implements `Zeroable` and padding bytes may be zero.
+        #[automatically_derived]
+        unsafe impl<$($impl_generics)*> $crate::Zeroable for $name<$($ty_generics)*>
+        where
+            $(
+                // the `for<'__dummy>` HRTB makes this not error without the `trivial_bounds`
+                // feature <https://github.com/rust-lang/rust/issues/48214#issuecomment-2557829956>.
+                $field_ty: for<'__dummy> $crate::Zeroable,
+            )*
+            $($($whr)*)?
+        {}
+    };
+    (parse_input:
+        @sig(
+            $(#[$($struct_attr:tt)*])*
+            $vis:vis union $name:ident
+            $(where $($whr:tt)*)?
+        ),
+        @impl_generics($($impl_generics:tt)*),
+        @ty_generics($($ty_generics:tt)*),
+        @body({
+            $(
+                $(#[$($field_attr:tt)*])*
+                $field_vis:vis $field:ident : $field_ty:ty
+            ),* $(,)?
+        }),
+    ) => {
+        // SAFETY: Every field type implements `Zeroable` and padding bytes may be zero.
+        #[automatically_derived]
+        unsafe impl<$($impl_generics)*> $crate::Zeroable for $name<$($ty_generics)*>
+        where
+            $(
+                // the `for<'__dummy>` HRTB makes this not error without the `trivial_bounds`
+                // feature <https://github.com/rust-lang/rust/issues/48214#issuecomment-2557829956>.
+                $field_ty: for<'__dummy> $crate::Zeroable,
+            )*
+            $($($whr)*)?
+        {}
+    };
+}
