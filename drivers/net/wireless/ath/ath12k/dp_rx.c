@@ -414,8 +414,16 @@ static int ath12k_dp_rxdma_mon_buf_ring_free(struct ath12k_base *ab,
 static int ath12k_dp_rxdma_buf_free(struct ath12k_base *ab)
 {
 	struct ath12k_dp *dp = &ab->dp;
+	int i;
 
 	ath12k_dp_rxdma_mon_buf_ring_free(ab, &dp->rxdma_mon_buf_ring);
+
+	if (ab->hw_params->rxdma1_enable)
+		return 0;
+
+	for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++)
+		ath12k_dp_rxdma_mon_buf_ring_free(ab,
+						  &dp->rx_mon_status_refill_ring[i]);
 
 	return 0;
 }
@@ -430,7 +438,12 @@ static int ath12k_dp_rxdma_mon_ring_buf_setup(struct ath12k_base *ab,
 		ath12k_hal_srng_get_entrysize(ab, ringtype);
 
 	rx_ring->bufs_max = num_entries;
-	ath12k_dp_mon_buf_replenish(ab, rx_ring, num_entries);
+
+	if (ringtype == HAL_RXDMA_MONITOR_STATUS)
+		ath12k_dp_mon_status_bufs_replenish(ab, rx_ring,
+						    num_entries);
+	else
+		ath12k_dp_mon_buf_replenish(ab, rx_ring, num_entries);
 
 	return 0;
 }
@@ -451,7 +464,8 @@ static int ath12k_dp_rxdma_ring_buf_setup(struct ath12k_base *ab,
 static int ath12k_dp_rxdma_buf_setup(struct ath12k_base *ab)
 {
 	struct ath12k_dp *dp = &ab->dp;
-	int ret;
+	struct dp_rxdma_mon_ring *mon_ring;
+	int ret, i;
 
 	ret = ath12k_dp_rxdma_ring_buf_setup(ab, &dp->rx_refill_buf_ring);
 	if (ret) {
@@ -464,9 +478,19 @@ static int ath12k_dp_rxdma_buf_setup(struct ath12k_base *ab)
 		ret = ath12k_dp_rxdma_mon_ring_buf_setup(ab,
 							 &dp->rxdma_mon_buf_ring,
 							 HAL_RXDMA_MONITOR_BUF);
-		if (ret) {
+		if (ret)
 			ath12k_warn(ab,
 				    "failed to setup HAL_RXDMA_MONITOR_BUF\n");
+		return ret;
+	}
+
+	for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++) {
+		mon_ring = &dp->rx_mon_status_refill_ring[i];
+		ret = ath12k_dp_rxdma_mon_ring_buf_setup(ab, mon_ring,
+							 HAL_RXDMA_MONITOR_STATUS);
+		if (ret) {
+			ath12k_warn(ab,
+				    "failed to setup HAL_RXDMA_MONITOR_STATUS\n");
 			return ret;
 		}
 	}
@@ -4244,6 +4268,7 @@ void ath12k_dp_rx_process_reo_status(struct ath12k_base *ab)
 void ath12k_dp_rx_free(struct ath12k_base *ab)
 {
 	struct ath12k_dp *dp = &ab->dp;
+	struct dp_srng *srng;
 	int i;
 
 	ath12k_dp_srng_cleanup(ab, &dp->rx_refill_buf_ring.refill_buf_ring);
@@ -4251,6 +4276,10 @@ void ath12k_dp_rx_free(struct ath12k_base *ab)
 	for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++) {
 		if (ab->hw_params->rx_mac_buf_ring)
 			ath12k_dp_srng_cleanup(ab, &dp->rx_mac_buf_ring[i]);
+		if (!ab->hw_params->rxdma1_enable) {
+			srng = &dp->rx_mon_status_refill_ring[i].refill_buf_ring;
+			ath12k_dp_srng_cleanup(ab, srng);
+		}
 	}
 
 	for (i = 0; i < ab->hw_params->num_rxdma_dst_ring; i++)
@@ -4399,6 +4428,19 @@ int ath12k_dp_rx_htt_setup(struct ath12k_base *ab)
 				    ret);
 			return ret;
 		}
+	} else {
+		for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++) {
+			ring_id =
+				dp->rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
+			ret = ath12k_dp_tx_htt_srng_setup(ab, ring_id, i,
+							  HAL_RXDMA_MONITOR_STATUS);
+			if (ret) {
+				ath12k_warn(ab,
+					    "failed to configure mon_status_refill_ring%d %d\n",
+					    i, ret);
+				return ret;
+			}
+		}
 	}
 
 	ret = ab->hw_params->hw_ops->rxdma_ring_sel_config(ab);
@@ -4413,6 +4455,7 @@ int ath12k_dp_rx_htt_setup(struct ath12k_base *ab)
 int ath12k_dp_rx_alloc(struct ath12k_base *ab)
 {
 	struct ath12k_dp *dp = &ab->dp;
+	struct dp_srng *srng;
 	int i, ret;
 
 	idr_init(&dp->rxdma_mon_buf_ring.bufs_idr);
@@ -4459,6 +4502,23 @@ int ath12k_dp_rx_alloc(struct ath12k_base *ab)
 		if (ret) {
 			ath12k_warn(ab, "failed to setup HAL_RXDMA_MONITOR_BUF\n");
 			return ret;
+		}
+	} else {
+		for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++) {
+			idr_init(&dp->rx_mon_status_refill_ring[i].bufs_idr);
+			spin_lock_init(&dp->rx_mon_status_refill_ring[i].idr_lock);
+		}
+
+		for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++) {
+			srng = &dp->rx_mon_status_refill_ring[i].refill_buf_ring;
+			ret = ath12k_dp_srng_setup(ab, srng,
+						   HAL_RXDMA_MONITOR_STATUS, 0, i,
+						   DP_RXDMA_MON_STATUS_RING_SIZE);
+			if (ret) {
+				ath12k_warn(ab, "failed to setup mon status ring %d\n",
+					    i);
+				return ret;
+			}
 		}
 	}
 

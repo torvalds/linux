@@ -2493,6 +2493,94 @@ fail_alloc_skb:
 	return -ENOMEM;
 }
 
+int ath12k_dp_mon_status_bufs_replenish(struct ath12k_base *ab,
+					struct dp_rxdma_mon_ring *rx_ring,
+					int req_entries)
+{
+	enum hal_rx_buf_return_buf_manager mgr =
+		ab->hw_params->hal_params->rx_buf_rbm;
+	int num_free, num_remain, buf_id;
+	struct ath12k_buffer_addr *desc;
+	struct hal_srng *srng;
+	struct sk_buff *skb;
+	dma_addr_t paddr;
+	u32 cookie;
+
+	req_entries = min(req_entries, rx_ring->bufs_max);
+
+	srng = &ab->hal.srng_list[rx_ring->refill_buf_ring.ring_id];
+
+	spin_lock_bh(&srng->lock);
+
+	ath12k_hal_srng_access_begin(ab, srng);
+
+	num_free = ath12k_hal_srng_src_num_free(ab, srng, true);
+	if (!req_entries && (num_free > (rx_ring->bufs_max * 3) / 4))
+		req_entries = num_free;
+
+	req_entries = min(num_free, req_entries);
+	num_remain = req_entries;
+
+	while (num_remain > 0) {
+		skb = dev_alloc_skb(RX_MON_STATUS_BUF_SIZE);
+		if (!skb)
+			break;
+
+		if (!IS_ALIGNED((unsigned long)skb->data,
+				RX_MON_STATUS_BUF_ALIGN)) {
+			skb_pull(skb,
+				 PTR_ALIGN(skb->data, RX_MON_STATUS_BUF_ALIGN) -
+				 skb->data);
+		}
+
+		paddr = dma_map_single(ab->dev, skb->data,
+				       skb->len + skb_tailroom(skb),
+				       DMA_FROM_DEVICE);
+		if (dma_mapping_error(ab->dev, paddr))
+			goto fail_free_skb;
+
+		spin_lock_bh(&rx_ring->idr_lock);
+		buf_id = idr_alloc(&rx_ring->bufs_idr, skb, 0,
+				   rx_ring->bufs_max * 3, GFP_ATOMIC);
+		spin_unlock_bh(&rx_ring->idr_lock);
+		if (buf_id < 0)
+			goto fail_dma_unmap;
+		cookie = u32_encode_bits(buf_id, DP_RXDMA_BUF_COOKIE_BUF_ID);
+
+		desc = ath12k_hal_srng_src_get_next_entry(ab, srng);
+		if (!desc)
+			goto fail_buf_unassign;
+
+		ATH12K_SKB_RXCB(skb)->paddr = paddr;
+
+		num_remain--;
+
+		ath12k_hal_rx_buf_addr_info_set(desc, paddr, cookie, mgr);
+	}
+
+	ath12k_hal_srng_access_end(ab, srng);
+
+	spin_unlock_bh(&srng->lock);
+
+	return req_entries - num_remain;
+
+fail_buf_unassign:
+	spin_lock_bh(&rx_ring->idr_lock);
+	idr_remove(&rx_ring->bufs_idr, buf_id);
+	spin_unlock_bh(&rx_ring->idr_lock);
+fail_dma_unmap:
+	dma_unmap_single(ab->dev, paddr, skb->len + skb_tailroom(skb),
+			 DMA_FROM_DEVICE);
+fail_free_skb:
+	dev_kfree_skb_any(skb);
+
+	ath12k_hal_srng_access_end(ab, srng);
+
+	spin_unlock_bh(&srng->lock);
+
+	return req_entries - num_remain;
+}
+
 static struct dp_mon_tx_ppdu_info *
 ath12k_dp_mon_tx_get_ppdu_info(struct ath12k_mon_data *pmon,
 			       unsigned int ppdu_id,

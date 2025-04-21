@@ -1511,6 +1511,44 @@ int ath12k_dp_tx_htt_rx_monitor_mode_ring_config(struct ath12k *ar, bool reset)
 				return ret;
 			}
 		}
+		return 0;
+	}
+
+	if (!reset) {
+		for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++) {
+			ring_id = ab->dp.rx_mac_buf_ring[i].ring_id;
+			ret = ath12k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id,
+							       i,
+							       HAL_RXDMA_BUF,
+							       DP_RXDMA_REFILL_RING_SIZE,
+							       &tlv_filter);
+			if (ret) {
+				ath12k_err(ab,
+					   "failed to setup filter for mon rx buf %d\n",
+					   ret);
+				return ret;
+			}
+		}
+	}
+
+	for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++) {
+		ring_id = ab->dp.rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
+		if (!reset) {
+			tlv_filter.rx_filter =
+				HTT_RX_MON_FILTER_TLV_FLAGS_MON_STATUS_RING;
+		}
+
+		ret = ath12k_dp_tx_htt_rx_filter_setup(ab, ring_id,
+						       i,
+						       HAL_RXDMA_MONITOR_STATUS,
+						       RX_MON_STATUS_BUF_SIZE,
+						       &tlv_filter);
+		if (ret) {
+			ath12k_err(ab,
+				   "failed to setup filter for mon status buf %d\n",
+				   ret);
+			return ret;
+		}
 	}
 
 	return 0;
