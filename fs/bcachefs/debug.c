@@ -42,7 +42,7 @@ static bool bch2_btree_verify_replica(struct bch_fs *c, struct btree *b,
 	struct btree_node *n_sorted = c->verify_data->data;
 	struct bset *sorted, *inmemory = &b->data->keys;
 	struct bio *bio;
-	bool failed = false, saw_error = false;
+	bool failed = false;
 
 	struct bch_dev *ca = bch2_dev_get_ioref(c, pick.ptr.dev, READ,
 				BCH_DEV_READ_REF_btree_verify_replicas);
@@ -66,7 +66,7 @@ static bool bch2_btree_verify_replica(struct bch_fs *c, struct btree *b,
 	memcpy(n_ondisk, n_sorted, btree_buf_bytes(b));
 
 	v->written = 0;
-	if (bch2_btree_node_read_done(c, ca, v, false, &saw_error) || saw_error)
+	if (bch2_btree_node_read_done(c, ca, v, NULL, NULL))
 		return false;
 
 	n_sorted = c->verify_data->data;
