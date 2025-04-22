@@ -392,6 +392,8 @@ out:									\
 
 /* utility code common to all keys with pointers: */
 
+void bch2_io_failures_to_text(struct printbuf *, struct bch_fs *,
+			      struct bch_io_failures *);
 struct bch_dev_io_failures *bch2_dev_io_failures(struct bch_io_failures *,
 						 unsigned);
 void bch2_mark_io_failure(struct bch_io_failures *,

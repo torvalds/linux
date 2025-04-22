@@ -45,6 +45,46 @@ static void bch2_extent_crc_pack(union bch_extent_crc *,
 				 struct bch_extent_crc_unpacked,
 				 enum bch_extent_entry_type);
 
+void bch2_io_failures_to_text(struct printbuf *out,
+			      struct bch_fs *c,
+			      struct bch_io_failures *failed)
+{
+	static const char * const error_types[] = {
+		"io", "checksum", "ec reconstruct", NULL
+	};
+
+	for (struct bch_dev_io_failures *f = failed->devs;
+	     f < failed->devs + failed->nr;
+	     f++) {
+		bch2_printbuf_make_room(out, 1024);
+		rcu_read_lock();
+		out->atomic++;
+		struct bch_dev *ca = bch2_dev_rcu_noerror(c, f->dev);
+		if (ca)
+			prt_str(out, ca->name);
+		else
+			prt_printf(out, "(invalid device %u)", f->dev);
+		--out->atomic;
+		rcu_read_unlock();
+
+		prt_char(out, ' ');
+
+		unsigned errflags =
+			((!!f->failed_io)	<< 0) |
+			((!!f->failed_csum_nr)	<< 1) |
+			((!!f->failed_ec)	<< 2);
+
+		if (is_power_of_2(errflags)) {
+			prt_bitflags(out, error_types, errflags);
+			prt_str(out, " error");
+		} else {
+			prt_str(out, "errors: ");
+			prt_bitflags(out, error_types, errflags);
+		}
+		prt_newline(out);
+	}
+}
+
 struct bch_dev_io_failures *bch2_dev_io_failures(struct bch_io_failures *f,
 						 unsigned dev)
 {
