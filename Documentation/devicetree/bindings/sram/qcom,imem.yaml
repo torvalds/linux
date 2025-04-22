@@ -33,6 +33,7 @@ properties:
           - qcom,sdx55-imem
           - qcom,sdx65-imem
           - qcom,sm6375-imem
+          - qcom,sm7150-imem
           - qcom,sm8450-imem
       - const: syscon
       - const: simple-mfd
