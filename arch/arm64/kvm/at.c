@@ -492,7 +492,6 @@ struct mmu_config {
 	u64	sctlr;
 	u64	vttbr;
 	u64	vtcr;
-	u64	hcr;
 };
 
 static void __mmu_config_save(struct mmu_config *config)
@@ -515,13 +514,10 @@ static void __mmu_config_save(struct mmu_config *config)
 	config->sctlr	= read_sysreg_el1(SYS_SCTLR);
 	config->vttbr	= read_sysreg(vttbr_el2);
 	config->vtcr	= read_sysreg(vtcr_el2);
-	config->hcr	= read_sysreg(hcr_el2);
 }
 
 static void __mmu_config_restore(struct mmu_config *config)
 {
-	write_sysreg(config->hcr,	hcr_el2);
-
 	/*
 	 * ARM errata 1165522 and 1530923 require TGE to be 1 before
 	 * we update the guest state.
@@ -1271,8 +1267,8 @@ static u64 __kvm_at_s1e01_fast(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 	__load_stage2(mmu, mmu->arch);
 
 skip_mmu_switch:
-	/* Clear TGE, enable S2 translation, we're rolling */
-	write_sysreg((config.hcr & ~HCR_TGE) | HCR_VM,	hcr_el2);
+	/* Temporarily switch back to guest context */
+	write_sysreg(vcpu->arch.hcr_el2, hcr_el2);
 	isb();
 
 	switch (op) {
@@ -1303,6 +1299,8 @@ skip_mmu_switch:
 
 	if (!fail)
 		par = read_sysreg_par();
+
+	write_sysreg(HCR_HOST_VHE_FLAGS, hcr_el2);
 
 	if (!(vcpu_el2_e2h_is_set(vcpu) && vcpu_el2_tge_is_set(vcpu)))
 		__mmu_config_restore(&config);
