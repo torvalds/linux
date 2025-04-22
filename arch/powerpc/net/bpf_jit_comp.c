@@ -504,10 +504,11 @@ static int invoke_bpf_prog(u32 *image, u32 *ro_image, struct codegen_context *ct
 	EMIT(PPC_RAW_ADDI(_R3, _R1, regs_off));
 	if (!p->jited)
 		PPC_LI_ADDR(_R4, (unsigned long)p->insnsi);
-	if (!create_branch(&branch_insn, (u32 *)&ro_image[ctx->idx], (unsigned long)p->bpf_func,
-			   BRANCH_SET_LINK)) {
-		if (image)
-			image[ctx->idx] = ppc_inst_val(branch_insn);
+	/* Account for max possible instructions during dummy pass for size calculation */
+	if (image && !create_branch(&branch_insn, (u32 *)&ro_image[ctx->idx],
+				    (unsigned long)p->bpf_func,
+				    BRANCH_SET_LINK)) {
+		image[ctx->idx] = ppc_inst_val(branch_insn);
 		ctx->idx++;
 	} else {
 		EMIT(PPC_RAW_LL(_R12, _R25, offsetof(struct bpf_prog, bpf_func)));
@@ -889,7 +890,8 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_im
 			bpf_trampoline_restore_tail_call_cnt(image, ctx, func_frame_offset, r4_off);
 
 		/* Reserve space to patch branch instruction to skip fexit progs */
-		im->ip_after_call = &((u32 *)ro_image)[ctx->idx];
+		if (ro_image) /* image is NULL for dummy pass */
+			im->ip_after_call = &((u32 *)ro_image)[ctx->idx];
 		EMIT(PPC_RAW_NOP());
 	}
 
@@ -912,7 +914,8 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_im
 		}
 
 	if (flags & BPF_TRAMP_F_CALL_ORIG) {
-		im->ip_epilogue = &((u32 *)ro_image)[ctx->idx];
+		if (ro_image) /* image is NULL for dummy pass */
+			im->ip_epilogue = &((u32 *)ro_image)[ctx->idx];
 		PPC_LI_ADDR(_R3, im);
 		ret = bpf_jit_emit_func_call_rel(image, ro_image, ctx,
 						 (unsigned long)__bpf_tramp_exit);
@@ -973,25 +976,9 @@ int arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
 			     struct bpf_tramp_links *tlinks, void *func_addr)
 {
 	struct bpf_tramp_image im;
-	void *image;
 	int ret;
 
-	/*
-	 * Allocate a temporary buffer for __arch_prepare_bpf_trampoline().
-	 * This will NOT cause fragmentation in direct map, as we do not
-	 * call set_memory_*() on this buffer.
-	 *
-	 * We cannot use kvmalloc here, because we need image to be in
-	 * module memory range.
-	 */
-	image = bpf_jit_alloc_exec(PAGE_SIZE);
-	if (!image)
-		return -ENOMEM;
-
-	ret = __arch_prepare_bpf_trampoline(&im, image, image + PAGE_SIZE, image,
-					    m, flags, tlinks, func_addr);
-	bpf_jit_free_exec(image);
-
+	ret = __arch_prepare_bpf_trampoline(&im, NULL, NULL, NULL, m, flags, tlinks, func_addr);
 	return ret;
 }
 
