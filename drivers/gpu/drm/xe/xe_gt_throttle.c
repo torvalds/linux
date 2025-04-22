@@ -114,115 +114,115 @@ static u32 read_reason_vr_tdc(struct xe_gt *gt)
 	return tdc;
 }
 
-static ssize_t status_show(struct device *dev,
-			   struct device_attribute *attr,
-			   char *buff)
+static ssize_t status_show(struct kobject *kobj,
+			   struct kobj_attribute *attr, char *buff)
 {
+	struct device *dev = kobj_to_dev(kobj);
 	struct xe_gt *gt = dev_to_gt(dev);
 	bool status = !!read_status(gt);
 
 	return sysfs_emit(buff, "%u\n", status);
 }
-static DEVICE_ATTR_RO(status);
+static struct kobj_attribute attr_status = __ATTR_RO(status);
 
-static ssize_t reason_pl1_show(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buff)
+static ssize_t reason_pl1_show(struct kobject *kobj,
+			       struct kobj_attribute *attr, char *buff)
 {
+	struct device *dev = kobj_to_dev(kobj);
 	struct xe_gt *gt = dev_to_gt(dev);
 	bool pl1 = !!read_reason_pl1(gt);
 
 	return sysfs_emit(buff, "%u\n", pl1);
 }
-static DEVICE_ATTR_RO(reason_pl1);
+static struct kobj_attribute attr_reason_pl1 = __ATTR_RO(reason_pl1);
 
-static ssize_t reason_pl2_show(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buff)
+static ssize_t reason_pl2_show(struct kobject *kobj,
+			       struct kobj_attribute *attr, char *buff)
 {
+	struct device *dev = kobj_to_dev(kobj);
 	struct xe_gt *gt = dev_to_gt(dev);
 	bool pl2 = !!read_reason_pl2(gt);
 
 	return sysfs_emit(buff, "%u\n", pl2);
 }
-static DEVICE_ATTR_RO(reason_pl2);
+static struct kobj_attribute attr_reason_pl2 = __ATTR_RO(reason_pl2);
 
-static ssize_t reason_pl4_show(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buff)
+static ssize_t reason_pl4_show(struct kobject *kobj,
+			       struct kobj_attribute *attr, char *buff)
 {
+	struct device *dev = kobj_to_dev(kobj);
 	struct xe_gt *gt = dev_to_gt(dev);
 	bool pl4 = !!read_reason_pl4(gt);
 
 	return sysfs_emit(buff, "%u\n", pl4);
 }
-static DEVICE_ATTR_RO(reason_pl4);
+static struct kobj_attribute attr_reason_pl4 = __ATTR_RO(reason_pl4);
 
-static ssize_t reason_thermal_show(struct device *dev,
-				   struct device_attribute *attr,
-				   char *buff)
+static ssize_t reason_thermal_show(struct kobject *kobj,
+				   struct kobj_attribute *attr, char *buff)
 {
+	struct device *dev = kobj_to_dev(kobj);
 	struct xe_gt *gt = dev_to_gt(dev);
 	bool thermal = !!read_reason_thermal(gt);
 
 	return sysfs_emit(buff, "%u\n", thermal);
 }
-static DEVICE_ATTR_RO(reason_thermal);
+static struct kobj_attribute attr_reason_thermal = __ATTR_RO(reason_thermal);
 
-static ssize_t reason_prochot_show(struct device *dev,
-				   struct device_attribute *attr,
-				   char *buff)
+static ssize_t reason_prochot_show(struct kobject *kobj,
+				   struct kobj_attribute *attr, char *buff)
 {
+	struct device *dev = kobj_to_dev(kobj);
 	struct xe_gt *gt = dev_to_gt(dev);
 	bool prochot = !!read_reason_prochot(gt);
 
 	return sysfs_emit(buff, "%u\n", prochot);
 }
-static DEVICE_ATTR_RO(reason_prochot);
+static struct kobj_attribute attr_reason_prochot = __ATTR_RO(reason_prochot);
 
-static ssize_t reason_ratl_show(struct device *dev,
-				struct device_attribute *attr,
-				char *buff)
+static ssize_t reason_ratl_show(struct kobject *kobj,
+				struct kobj_attribute *attr, char *buff)
 {
+	struct device *dev = kobj_to_dev(kobj);
 	struct xe_gt *gt = dev_to_gt(dev);
 	bool ratl = !!read_reason_ratl(gt);
 
 	return sysfs_emit(buff, "%u\n", ratl);
 }
-static DEVICE_ATTR_RO(reason_ratl);
+static struct kobj_attribute attr_reason_ratl = __ATTR_RO(reason_ratl);
 
-static ssize_t reason_vr_thermalert_show(struct device *dev,
-					 struct device_attribute *attr,
-					 char *buff)
+static ssize_t reason_vr_thermalert_show(struct kobject *kobj,
+					 struct kobj_attribute *attr, char *buff)
 {
+	struct device *dev = kobj_to_dev(kobj);
 	struct xe_gt *gt = dev_to_gt(dev);
 	bool thermalert = !!read_reason_vr_thermalert(gt);
 
 	return sysfs_emit(buff, "%u\n", thermalert);
 }
-static DEVICE_ATTR_RO(reason_vr_thermalert);
+static struct kobj_attribute attr_reason_vr_thermalert = __ATTR_RO(reason_vr_thermalert);
 
-static ssize_t reason_vr_tdc_show(struct device *dev,
-				  struct device_attribute *attr,
-				  char *buff)
+static ssize_t reason_vr_tdc_show(struct kobject *kobj,
+				  struct kobj_attribute *attr, char *buff)
 {
+	struct device *dev = kobj_to_dev(kobj);
 	struct xe_gt *gt = dev_to_gt(dev);
 	bool tdc = !!read_reason_vr_tdc(gt);
 
 	return sysfs_emit(buff, "%u\n", tdc);
 }
-static DEVICE_ATTR_RO(reason_vr_tdc);
+static struct kobj_attribute attr_reason_vr_tdc = __ATTR_RO(reason_vr_tdc);
 
 static struct attribute *throttle_attrs[] = {
-	&dev_attr_status.attr,
-	&dev_attr_reason_pl1.attr,
-	&dev_attr_reason_pl2.attr,
-	&dev_attr_reason_pl4.attr,
-	&dev_attr_reason_thermal.attr,
-	&dev_attr_reason_prochot.attr,
-	&dev_attr_reason_ratl.attr,
-	&dev_attr_reason_vr_thermalert.attr,
-	&dev_attr_reason_vr_tdc.attr,
+	&attr_status.attr,
+	&attr_reason_pl1.attr,
+	&attr_reason_pl2.attr,
+	&attr_reason_pl4.attr,
+	&attr_reason_thermal.attr,
+	&attr_reason_prochot.attr,
+	&attr_reason_ratl.attr,
+	&attr_reason_vr_thermalert.attr,
+	&attr_reason_vr_tdc.attr,
 	NULL
 };
 
