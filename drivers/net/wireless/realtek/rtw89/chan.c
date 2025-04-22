@@ -557,7 +557,9 @@ static u32 rtw89_mcc_get_tbtt_ofst(struct rtw89_dev *rtwdev,
 	u64 sync_tsf = READ_ONCE(rtwvif_link->sync_bcn_tsf);
 	u32 remainder;
 
-	if (tsf < sync_tsf) {
+	if (role->is_go) {
+		sync_tsf = 0;
+	} else if (tsf < sync_tsf) {
 		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 			    "MCC get tbtt ofst: tsf might not update yet\n");
 		sync_tsf = 0;
@@ -1439,57 +1441,6 @@ static bool rtw89_mcc_duration_decision_on_bt(struct rtw89_dev *rtwdev)
 	return false;
 }
 
-static void rtw89_mcc_sync_tbtt(struct rtw89_dev *rtwdev,
-				struct rtw89_mcc_role *tgt,
-				struct rtw89_mcc_role *src,
-				bool ref_is_src)
-{
-	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
-	struct rtw89_mcc_config *config = &mcc->config;
-	u16 beacon_offset_us = ieee80211_tu_to_usec(config->beacon_offset);
-	u32 bcn_intvl_src_us = ieee80211_tu_to_usec(src->beacon_interval);
-	u32 cur_tbtt_ofst_src;
-	u32 tsf_ofst_tgt;
-	u32 remainder;
-	u64 tbtt_tgt;
-	u64 tsf_src;
-	int ret;
-
-	ret = rtw89_mac_port_get_tsf(rtwdev, src->rtwvif_link, &tsf_src);
-	if (ret) {
-		rtw89_warn(rtwdev, "MCC failed to get port tsf: %d\n", ret);
-		return;
-	}
-
-	cur_tbtt_ofst_src = rtw89_mcc_get_tbtt_ofst(rtwdev, src, tsf_src);
-
-	if (ref_is_src)
-		tbtt_tgt = tsf_src - cur_tbtt_ofst_src + beacon_offset_us;
-	else
-		tbtt_tgt = tsf_src - cur_tbtt_ofst_src +
-			   (bcn_intvl_src_us - beacon_offset_us);
-
-	div_u64_rem(tbtt_tgt, bcn_intvl_src_us, &remainder);
-	tsf_ofst_tgt = bcn_intvl_src_us - remainder;
-
-	config->sync.macid_tgt = tgt->rtwvif_link->mac_id;
-	config->sync.band_tgt = tgt->rtwvif_link->mac_idx;
-	config->sync.port_tgt = tgt->rtwvif_link->port;
-	config->sync.macid_src = src->rtwvif_link->mac_id;
-	config->sync.band_src = src->rtwvif_link->mac_idx;
-	config->sync.port_src = src->rtwvif_link->port;
-	config->sync.offset = tsf_ofst_tgt / 1024;
-	config->sync.enable = true;
-
-	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
-		    "MCC sync tbtt: tgt %d, src %d, offset %d\n",
-		    config->sync.macid_tgt, config->sync.macid_src,
-		    config->sync.offset);
-
-	rtw89_mac_port_tsf_sync(rtwdev, tgt->rtwvif_link, src->rtwvif_link,
-				config->sync.offset);
-}
-
 static int rtw89_mcc_fill_start_tsf(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
@@ -1497,17 +1448,19 @@ static int rtw89_mcc_fill_start_tsf(struct rtw89_dev *rtwdev)
 	struct rtw89_mcc_config *config = &mcc->config;
 	u32 bcn_intvl_ref_us = ieee80211_tu_to_usec(ref->beacon_interval);
 	u32 tob_ref_us = ieee80211_tu_to_usec(config->pattern.tob_ref);
-	struct rtw89_vif_link *rtwvif_link = ref->rtwvif_link;
 	u64 tsf, start_tsf;
 	u32 cur_tbtt_ofst;
 	u64 min_time;
+	u64 tsf_aux;
 	int ret;
 
-	ret = rtw89_mac_port_get_tsf(rtwdev, rtwvif_link, &tsf);
-	if (ret) {
-		rtw89_warn(rtwdev, "MCC failed to get port tsf: %d\n", ret);
+	if (rtw89_concurrent_via_mrc(rtwdev))
+		ret = __mrc_fw_req_tsf(rtwdev, &tsf, &tsf_aux);
+	else
+		ret = __mcc_fw_req_tsf(rtwdev, &tsf, &tsf_aux);
+
+	if (ret)
 		return ret;
-	}
 
 	min_time = tsf;
 	if (ref->is_go)
@@ -1521,6 +1474,7 @@ static int rtw89_mcc_fill_start_tsf(struct rtw89_dev *rtwdev)
 		start_tsf += bcn_intvl_ref_us;
 
 	config->start_tsf = start_tsf;
+	config->start_tsf_in_aux_domain = tsf_aux + start_tsf - tsf;
 	return 0;
 }
 
@@ -1537,13 +1491,11 @@ static int rtw89_mcc_fill_config(struct rtw89_dev *rtwdev)
 
 	switch (mcc->mode) {
 	case RTW89_MCC_MODE_GO_STA:
-		config->beacon_offset = RTW89_MCC_DFLT_BCN_OFST_TIME;
+		config->beacon_offset = rtw89_mcc_get_bcn_ofst(rtwdev);
 		if (ref->is_go) {
-			rtw89_mcc_sync_tbtt(rtwdev, ref, aux, false);
 			config->mcc_interval = ref->beacon_interval;
 			rtw89_mcc_set_duration_go_sta(rtwdev, ref, aux);
 		} else {
-			rtw89_mcc_sync_tbtt(rtwdev, aux, ref, true);
 			config->mcc_interval = aux->beacon_interval;
 			rtw89_mcc_set_duration_go_sta(rtwdev, aux, ref);
 		}
@@ -2000,30 +1952,24 @@ static void rtw89_mcc_handle_beacon_noa(struct rtw89_dev *rtwdev, bool enable)
 	struct rtw89_mcc_role *ref = &mcc->role_ref;
 	struct rtw89_mcc_role *aux = &mcc->role_aux;
 	struct rtw89_mcc_config *config = &mcc->config;
-	struct rtw89_mcc_pattern *pattern = &config->pattern;
-	struct rtw89_mcc_sync *sync = &config->sync;
 	struct ieee80211_p2p_noa_desc noa_desc = {};
-	u64 start_time = config->start_tsf;
 	u32 interval = config->mcc_interval;
 	struct rtw89_vif_link *rtwvif_go;
+	u64 start_time;
 	u32 duration;
 
 	if (mcc->mode != RTW89_MCC_MODE_GO_STA)
 		return;
 
 	if (ref->is_go) {
+		start_time = config->start_tsf;
 		rtwvif_go = ref->rtwvif_link;
 		start_time += ieee80211_tu_to_usec(ref->duration);
 		duration = config->mcc_interval - ref->duration;
 	} else if (aux->is_go) {
+		start_time = config->start_tsf_in_aux_domain;
 		rtwvif_go = aux->rtwvif_link;
-		start_time += ieee80211_tu_to_usec(pattern->tob_ref) +
-			      ieee80211_tu_to_usec(config->beacon_offset) +
-			      ieee80211_tu_to_usec(pattern->toa_aux);
 		duration = config->mcc_interval - aux->duration;
-
-		/* convert time domain from sta(ref) to GO(aux) */
-		start_time += ieee80211_tu_to_usec(sync->offset);
 	} else {
 		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 			    "MCC find no GO: skip updating beacon NoA\n");

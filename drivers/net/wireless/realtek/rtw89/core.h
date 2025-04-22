@@ -5697,6 +5697,7 @@ struct rtw89_mcc_config {
 	struct rtw89_mcc_pattern pattern;
 	struct rtw89_mcc_sync sync;
 	u64 start_tsf;
+	u64 start_tsf_in_aux_domain;
 	u16 mcc_interval; /* TU */
 	u16 beacon_offset; /* TU */
 };
