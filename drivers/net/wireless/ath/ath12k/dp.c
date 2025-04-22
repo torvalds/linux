@@ -361,7 +361,10 @@ u32 ath12k_dp_tx_get_vdev_bank_config(struct ath12k_base *ab,
 			u32_encode_bits(0, HAL_TX_BANK_CONFIG_EPD);
 
 	/* only valid if idx_lookup_override is not set in tcl_data_cmd */
-	bank_config |= u32_encode_bits(0, HAL_TX_BANK_CONFIG_INDEX_LOOKUP_EN);
+	if (ahvif->vdev_type == WMI_VDEV_TYPE_STA)
+		bank_config |= u32_encode_bits(1, HAL_TX_BANK_CONFIG_INDEX_LOOKUP_EN);
+	else
+		bank_config |= u32_encode_bits(0, HAL_TX_BANK_CONFIG_INDEX_LOOKUP_EN);
 
 	bank_config |= u32_encode_bits(arvif->hal_addr_search_flags & HAL_TX_ADDRX_EN,
 					HAL_TX_BANK_CONFIG_ADDRX_EN) |
@@ -1105,11 +1108,8 @@ static void ath12k_dp_update_vdev_search(struct ath12k_link_vif *arvif)
 {
 	switch (arvif->ahvif->vdev_type) {
 	case WMI_VDEV_TYPE_STA:
-		/* TODO: Verify the search type and flags since ast hash
-		 * is not part of peer mapv3
-		 */
 		arvif->hal_addr_search_flags = HAL_TX_ADDRY_EN;
-		arvif->search_type = HAL_TX_ADDR_SEARCH_DEFAULT;
+		arvif->search_type = HAL_TX_ADDR_SEARCH_INDEX;
 		break;
 	case WMI_VDEV_TYPE_AP:
 	case WMI_VDEV_TYPE_IBSS:

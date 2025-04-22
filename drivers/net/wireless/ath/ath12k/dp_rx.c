@@ -1840,8 +1840,12 @@ void ath12k_dp_htt_htc_t2h_msg_handler(struct ath12k_base *ab,
 					     HTT_T2H_PEER_MAP_INFO1_MAC_ADDR_H16);
 		ath12k_dp_get_mac_addr(le32_to_cpu(resp->peer_map_ev.mac_addr_l32),
 				       peer_mac_h16, mac_addr);
+		ast_hash = le32_get_bits(resp->peer_map_ev.info2,
+					 HTT_T2H_PEER_MAP3_INFO2_AST_HASH_VAL);
+		hw_peer_id = le32_get_bits(resp->peer_map_ev.info2,
+					   HTT_T2H_PEER_MAP3_INFO2_HW_PEER_ID);
 		ath12k_peer_map_event(ab, vdev_id, peer_id, mac_addr, ast_hash,
-				      peer_id);
+				      hw_peer_id);
 		break;
 	case HTT_T2H_MSG_TYPE_PEER_UNMAP:
 	case HTT_T2H_MSG_TYPE_PEER_UNMAP2:
