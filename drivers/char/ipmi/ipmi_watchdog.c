@@ -363,7 +363,7 @@ static int __ipmi_set_timeout(struct ipmi_smi_msg  *smi_msg,
 {
 	struct kernel_ipmi_msg            msg;
 	unsigned char                     data[6];
-	int                               rv;
+	int                               rv = 0;
 	struct ipmi_system_interface_addr addr;
 	int                               hbnow = 0;
 
@@ -405,14 +405,18 @@ static int __ipmi_set_timeout(struct ipmi_smi_msg  *smi_msg,
 	msg.cmd = IPMI_WDOG_SET_TIMER;
 	msg.data = data;
 	msg.data_len = sizeof(data);
-	rv = ipmi_request_supply_msgs(watchdog_user,
-				      (struct ipmi_addr *) &addr,
-				      0,
-				      &msg,
-				      NULL,
-				      smi_msg,
-				      recv_msg,
-				      1);
+	if (smi_msg)
+		rv = ipmi_request_supply_msgs(watchdog_user,
+					      (struct ipmi_addr *) &addr,
+					      0,
+					      &msg,
+					      NULL,
+					      smi_msg,
+					      recv_msg,
+					      1);
+	else
+		ipmi_panic_request_and_wait(watchdog_user,
+					    (struct ipmi_addr *) &addr, &msg);
 	if (rv)
 		pr_warn("set timeout error: %d\n", rv);
 	else if (send_heartbeat_now)
@@ -431,9 +435,7 @@ static int _ipmi_set_timeout(int do_heartbeat)
 
 	atomic_set(&msg_tofree, 2);
 
-	rv = __ipmi_set_timeout(&smi_msg,
-				&recv_msg,
-				&send_heartbeat_now);
+	rv = __ipmi_set_timeout(&smi_msg, &recv_msg, &send_heartbeat_now);
 	if (rv) {
 		atomic_set(&msg_tofree, 0);
 		return rv;
@@ -460,27 +462,10 @@ static int ipmi_set_timeout(int do_heartbeat)
 	return rv;
 }
 
-static atomic_t panic_done_count = ATOMIC_INIT(0);
-
-static void panic_smi_free(struct ipmi_smi_msg *msg)
-{
-	atomic_dec(&panic_done_count);
-}
-static void panic_recv_free(struct ipmi_recv_msg *msg)
-{
-	atomic_dec(&panic_done_count);
-}
-
-static struct ipmi_smi_msg panic_halt_heartbeat_smi_msg =
-	INIT_IPMI_SMI_MSG(panic_smi_free);
-static struct ipmi_recv_msg panic_halt_heartbeat_recv_msg =
-	INIT_IPMI_RECV_MSG(panic_recv_free);
-
 static void panic_halt_ipmi_heartbeat(void)
 {
 	struct kernel_ipmi_msg             msg;
 	struct ipmi_system_interface_addr addr;
-	int rv;
 
 	/*
 	 * Don't reset the timer if we have the timer turned off, that
@@ -497,23 +482,9 @@ static void panic_halt_ipmi_heartbeat(void)
 	msg.cmd = IPMI_WDOG_RESET_TIMER;
 	msg.data = NULL;
 	msg.data_len = 0;
-	atomic_add(2, &panic_done_count);
-	rv = ipmi_request_supply_msgs(watchdog_user,
-				      (struct ipmi_addr *) &addr,
-				      0,
-				      &msg,
-				      NULL,
-				      &panic_halt_heartbeat_smi_msg,
-				      &panic_halt_heartbeat_recv_msg,
-				      1);
-	if (rv)
-		atomic_sub(2, &panic_done_count);
+	ipmi_panic_request_and_wait(watchdog_user, (struct ipmi_addr *) &addr,
+				    &msg);
 }
-
-static struct ipmi_smi_msg panic_halt_smi_msg =
-	INIT_IPMI_SMI_MSG(panic_smi_free);
-static struct ipmi_recv_msg panic_halt_recv_msg =
-	INIT_IPMI_RECV_MSG(panic_recv_free);
 
 /*
  * Special call, doesn't claim any locks.  This is only to be called
@@ -526,22 +497,13 @@ static void panic_halt_ipmi_set_timeout(void)
 	int send_heartbeat_now;
 	int rv;
 
-	/* Wait for the messages to be free. */
-	while (atomic_read(&panic_done_count) != 0)
-		ipmi_poll_interface(watchdog_user);
-	atomic_add(2, &panic_done_count);
-	rv = __ipmi_set_timeout(&panic_halt_smi_msg,
-				&panic_halt_recv_msg,
-				&send_heartbeat_now);
+	rv = __ipmi_set_timeout(NULL, NULL, &send_heartbeat_now);
 	if (rv) {
-		atomic_sub(2, &panic_done_count);
 		pr_warn("Unable to extend the watchdog timeout\n");
 	} else {
 		if (send_heartbeat_now)
 			panic_halt_ipmi_heartbeat();
 	}
-	while (atomic_read(&panic_done_count) != 0)
-		ipmi_poll_interface(watchdog_user);
 }
 
 static int __ipmi_heartbeat(void)
