@@ -1455,9 +1455,10 @@ static int rtw89_mcc_fill_start_tsf(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
 	struct rtw89_mcc_role *ref = &mcc->role_ref;
+	struct rtw89_mcc_role *aux = &mcc->role_aux;
 	struct rtw89_mcc_config *config = &mcc->config;
 	u32 bcn_intvl_ref_us = ieee80211_tu_to_usec(ref->beacon_interval);
-	u32 tob_ref_us = ieee80211_tu_to_usec(config->pattern.tob_ref);
+	s32 tob_ref_us = ieee80211_tu_to_usec(config->pattern.tob_ref);
 	u64 tsf, start_tsf;
 	u32 cur_tbtt_ofst;
 	u64 min_time;
@@ -1473,15 +1474,15 @@ static int rtw89_mcc_fill_start_tsf(struct rtw89_dev *rtwdev)
 		return ret;
 
 	min_time = tsf;
-	if (ref->is_go)
+	if (ref->is_go || aux->is_go)
 		min_time += ieee80211_tu_to_usec(RTW89_MCC_SHORT_TRIGGER_TIME);
 	else
 		min_time += ieee80211_tu_to_usec(RTW89_MCC_LONG_TRIGGER_TIME);
 
 	cur_tbtt_ofst = rtw89_mcc_get_tbtt_ofst(rtwdev, ref, tsf);
 	start_tsf = tsf - cur_tbtt_ofst + bcn_intvl_ref_us - tob_ref_us;
-	while (start_tsf < min_time)
-		start_tsf += bcn_intvl_ref_us;
+	if (start_tsf < min_time)
+		start_tsf += roundup_u64(min_time - start_tsf, bcn_intvl_ref_us);
 
 	config->start_tsf = start_tsf;
 	config->start_tsf_in_aux_domain = tsf_aux + start_tsf - tsf;
