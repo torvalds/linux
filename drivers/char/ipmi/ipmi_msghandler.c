@@ -2284,6 +2284,7 @@ static int i_ipmi_request(struct ipmi_user     *user,
 {
 	struct ipmi_smi_msg *smi_msg;
 	struct ipmi_recv_msg *recv_msg;
+	int run_to_completion = READ_ONCE(intf->run_to_completion);
 	int rv = 0;
 
 	if (user) {
@@ -2317,7 +2318,8 @@ static int i_ipmi_request(struct ipmi_user     *user,
 		}
 	}
 
-	mutex_lock(&intf->users_mutex);
+	if (!run_to_completion)
+		mutex_lock(&intf->users_mutex);
 	if (intf->in_shutdown) {
 		rv = -ENODEV;
 		goto out_err;
@@ -2363,7 +2365,8 @@ out_err:
 
 		smi_send(intf, intf->handlers, smi_msg, priority);
 	}
-	mutex_unlock(&intf->users_mutex);
+	if (!run_to_completion)
+		mutex_unlock(&intf->users_mutex);
 
 out:
 	if (rv && user)
@@ -4559,7 +4562,7 @@ return_unspecified:
 	    && (msg->data[1] == IPMI_SEND_MSG_CMD)
 	    && (msg->user_data == NULL)) {
 
-		if (intf->in_shutdown)
+		if (intf->in_shutdown || intf->run_to_completion)
 			goto out;
 
 		/*
@@ -4631,6 +4634,9 @@ return_unspecified:
 		 */
 		struct ipmi_recv_msg *recv_msg;
 
+		if (intf->run_to_completion)
+			goto out;
+
 		chan = msg->data[2] & 0x0f;
 		if (chan >= IPMI_MAX_CHANNELS)
 			/* Invalid channel number */
@@ -4652,6 +4658,9 @@ process_response_response:
 	} else if ((msg->rsp[0] == ((IPMI_NETFN_APP_REQUEST|1) << 2))
 		   && (msg->rsp[1] == IPMI_GET_MSG_CMD)) {
 		struct ipmi_channel   *chans;
+
+		if (intf->run_to_completion)
+			goto out;
 
 		/* It's from the receive queue. */
 		chan = msg->rsp[3] & 0xf;
@@ -4727,6 +4736,9 @@ process_response_response:
 	} else if ((msg->rsp[0] == ((IPMI_NETFN_APP_REQUEST|1) << 2))
 		   && (msg->rsp[1] == IPMI_READ_EVENT_MSG_BUFFER_CMD)) {
 		/* It's an asynchronous event. */
+		if (intf->run_to_completion)
+			goto out;
+
 		requeue = handle_read_event_rsp(intf, msg);
 	} else {
 		/* It's a response from the local BMC. */
@@ -4855,15 +4867,6 @@ static void smi_work(struct work_struct *t)
 
 		list_del(&msg->link);
 
-		/*
-		 * I would like for this check (and user->destroyed)
-		 * to go away, but it's possible that an interface is
-		 * processing a message that belongs to the user while
-		 * the user is being deleted.  When that response
-		 * comes back, it could be queued after the user is
-		 * destroyed.  This is simpler than handling it in the
-		 * interface.
-		 */
 		if (refcount_read(&user->destroyed) == 0) {
 			ipmi_free_recv_msg(msg);
 		} else {
@@ -5222,9 +5225,9 @@ static void dummy_recv_done_handler(struct ipmi_recv_msg *msg)
 /*
  * Inside a panic, send a message and wait for a response.
  */
-static void ipmi_panic_request_and_wait(struct ipmi_smi *intf,
-					struct ipmi_addr *addr,
-					struct kernel_ipmi_msg *msg)
+static void _ipmi_panic_request_and_wait(struct ipmi_smi *intf,
+					 struct ipmi_addr *addr,
+					 struct kernel_ipmi_msg *msg)
 {
 	struct ipmi_smi_msg  smi_msg;
 	struct ipmi_recv_msg recv_msg;
@@ -5253,6 +5256,15 @@ static void ipmi_panic_request_and_wait(struct ipmi_smi *intf,
 	while (atomic_read(&panic_done_count) != 0)
 		ipmi_poll(intf);
 }
+
+void ipmi_panic_request_and_wait(struct ipmi_user *user,
+				 struct ipmi_addr *addr,
+				 struct kernel_ipmi_msg *msg)
+{
+	user->intf->run_to_completion = 1;
+	_ipmi_panic_request_and_wait(user->intf, addr, msg);
+}
+EXPORT_SYMBOL(ipmi_panic_request_and_wait);
 
 static void event_receiver_fetcher(struct ipmi_smi *intf,
 				   struct ipmi_recv_msg *msg)
@@ -5322,7 +5334,7 @@ static void send_panic_events(struct ipmi_smi *intf, char *str)
 	}
 
 	/* Send the event announcing the panic. */
-	ipmi_panic_request_and_wait(intf, &addr, &msg);
+	_ipmi_panic_request_and_wait(intf, &addr, &msg);
 
 	/*
 	 * On every interface, dump a bunch of OEM event holding the
@@ -5358,7 +5370,7 @@ static void send_panic_events(struct ipmi_smi *intf, char *str)
 	msg.data = NULL;
 	msg.data_len = 0;
 	intf->null_user_handler = device_id_fetcher;
-	ipmi_panic_request_and_wait(intf, &addr, &msg);
+	_ipmi_panic_request_and_wait(intf, &addr, &msg);
 
 	if (intf->local_event_generator) {
 		/* Request the event receiver from the local MC. */
@@ -5367,7 +5379,7 @@ static void send_panic_events(struct ipmi_smi *intf, char *str)
 		msg.data = NULL;
 		msg.data_len = 0;
 		intf->null_user_handler = event_receiver_fetcher;
-		ipmi_panic_request_and_wait(intf, &addr, &msg);
+		_ipmi_panic_request_and_wait(intf, &addr, &msg);
 	}
 	intf->null_user_handler = NULL;
 
@@ -5419,7 +5431,7 @@ static void send_panic_events(struct ipmi_smi *intf, char *str)
 		memcpy_and_pad(data+5, 11, p, size, '\0');
 		p += size;
 
-		ipmi_panic_request_and_wait(intf, &addr, &msg);
+		_ipmi_panic_request_and_wait(intf, &addr, &msg);
 	}
 }
 
