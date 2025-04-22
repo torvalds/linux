@@ -1014,21 +1014,38 @@ void xdp_set_features_flag(struct net_device *dev, xdp_features_t val)
 }
 EXPORT_SYMBOL_GPL(xdp_set_features_flag);
 
-void xdp_features_set_redirect_target(struct net_device *dev, bool support_sg)
+void xdp_features_set_redirect_target_locked(struct net_device *dev,
+					     bool support_sg)
 {
 	xdp_features_t val = (dev->xdp_features | NETDEV_XDP_ACT_NDO_XMIT);
 
 	if (support_sg)
 		val |= NETDEV_XDP_ACT_NDO_XMIT_SG;
-	xdp_set_features_flag(dev, val);
+	xdp_set_features_flag_locked(dev, val);
+}
+EXPORT_SYMBOL_GPL(xdp_features_set_redirect_target_locked);
+
+void xdp_features_set_redirect_target(struct net_device *dev, bool support_sg)
+{
+	netdev_lock(dev);
+	xdp_features_set_redirect_target_locked(dev, support_sg);
+	netdev_unlock(dev);
 }
 EXPORT_SYMBOL_GPL(xdp_features_set_redirect_target);
 
-void xdp_features_clear_redirect_target(struct net_device *dev)
+void xdp_features_clear_redirect_target_locked(struct net_device *dev)
 {
 	xdp_features_t val = dev->xdp_features;
 
 	val &= ~(NETDEV_XDP_ACT_NDO_XMIT | NETDEV_XDP_ACT_NDO_XMIT_SG);
-	xdp_set_features_flag(dev, val);
+	xdp_set_features_flag_locked(dev, val);
+}
+EXPORT_SYMBOL_GPL(xdp_features_clear_redirect_target_locked);
+
+void xdp_features_clear_redirect_target(struct net_device *dev)
+{
+	netdev_lock(dev);
+	xdp_features_clear_redirect_target_locked(dev);
+	netdev_unlock(dev);
 }
 EXPORT_SYMBOL_GPL(xdp_features_clear_redirect_target);
