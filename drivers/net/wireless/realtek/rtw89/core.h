@@ -3507,6 +3507,7 @@ struct rtw89_vif_link {
 	u8 hit_rule;
 	u8 last_noa_nr;
 	u64 sync_bcn_tsf;
+	bool rand_tsf_done;
 	bool trigger;
 	bool lsig_txop;
 	u8 tgt_ind;
