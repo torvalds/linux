@@ -2142,6 +2142,7 @@ static int rtw89_mcc_update(struct rtw89_dev *rtwdev)
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
 	struct rtw89_mcc_config *config = &mcc->config;
 	struct rtw89_mcc_config old_cfg = *config;
+	bool courtesy_changed;
 	bool sync_changed;
 	int ret;
 
@@ -2154,8 +2155,15 @@ static int rtw89_mcc_update(struct rtw89_dev *rtwdev)
 	if (ret)
 		return ret;
 
+	if (memcmp(&old_cfg.pattern.courtesy, &config->pattern.courtesy,
+		   sizeof(old_cfg.pattern.courtesy)) == 0)
+		courtesy_changed = false;
+	else
+		courtesy_changed = true;
+
 	if (old_cfg.pattern.plan != RTW89_MCC_PLAN_NO_BT ||
-	    config->pattern.plan != RTW89_MCC_PLAN_NO_BT) {
+	    config->pattern.plan != RTW89_MCC_PLAN_NO_BT ||
+	    courtesy_changed) {
 		if (rtw89_concurrent_via_mrc(rtwdev))
 			ret = __mrc_fw_start(rtwdev, true);
 		else
