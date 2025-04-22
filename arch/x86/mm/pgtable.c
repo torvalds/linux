@@ -360,7 +360,7 @@ static inline pgd_t *_pgd_alloc(struct mm_struct *mm)
 	 * We allocate one page for pgd.
 	 */
 	if (!SHARED_KERNEL_PMD)
-		return __pgd_alloc(mm, PGD_ALLOCATION_ORDER);
+		return __pgd_alloc(mm, pgd_allocation_order());
 
 	/*
 	 * Now PAE kernel is not running as a Xen domain. We can allocate
@@ -380,7 +380,7 @@ static inline void _pgd_free(struct mm_struct *mm, pgd_t *pgd)
 
 static inline pgd_t *_pgd_alloc(struct mm_struct *mm)
 {
-	return __pgd_alloc(mm, PGD_ALLOCATION_ORDER);
+	return __pgd_alloc(mm, pgd_allocation_order());
 }
 
 static inline void _pgd_free(struct mm_struct *mm, pgd_t *pgd)
