@@ -320,18 +320,22 @@ static inline void __set_pte_nosync(pte_t *ptep, pte_t pte)
 	WRITE_ONCE(*ptep, pte);
 }
 
-static inline void __set_pte(pte_t *ptep, pte_t pte)
+static inline void __set_pte_complete(pte_t pte)
 {
-	__set_pte_nosync(ptep, pte);
-
 	/*
 	 * Only if the new pte is valid and kernel, otherwise TLB maintenance
-	 * or update_mmu_cache() have the necessary barriers.
+	 * has the necessary barriers.
 	 */
 	if (pte_valid_not_user(pte)) {
 		dsb(ishst);
 		isb();
 	}
+}
+
+static inline void __set_pte(pte_t *ptep, pte_t pte)
+{
+	__set_pte_nosync(ptep, pte);
+	__set_pte_complete(pte);
 }
 
 static inline pte_t __ptep_get(pte_t *ptep)
@@ -658,12 +662,14 @@ static inline void __set_ptes_anysz(struct mm_struct *mm, pte_t *ptep,
 
 	for (;;) {
 		__check_safe_pte_update(mm, ptep, pte);
-		__set_pte(ptep, pte);
+		__set_pte_nosync(ptep, pte);
 		if (--nr == 0)
 			break;
 		ptep++;
 		pte = pte_advance_pfn(pte, stride);
 	}
+
+	__set_pte_complete(pte);
 }
 
 static inline void __set_ptes(struct mm_struct *mm,
