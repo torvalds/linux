@@ -482,11 +482,9 @@ static int vxlan_update_default_fdb_entry(struct vxlan_dev *vxlan, __be32 vni,
 					  struct netlink_ext_ack *extack)
 {
 	struct vxlan_rdst *dst = &vxlan->default_dst;
-	u32 hash_index;
 	int err = 0;
 
-	hash_index = fdb_head_index(vxlan, all_zeros_mac, vni);
-	spin_lock_bh(&vxlan->hash_lock[hash_index]);
+	spin_lock_bh(&vxlan->hash_lock);
 	if (remote_ip && !vxlan_addr_any(remote_ip)) {
 		err = vxlan_fdb_update(vxlan, all_zeros_mac,
 				       remote_ip,
@@ -498,7 +496,7 @@ static int vxlan_update_default_fdb_entry(struct vxlan_dev *vxlan, __be32 vni,
 				       dst->remote_ifindex,
 				       NTF_SELF, 0, true, extack);
 		if (err) {
-			spin_unlock_bh(&vxlan->hash_lock[hash_index]);
+			spin_unlock_bh(&vxlan->hash_lock);
 			return err;
 		}
 	}
@@ -511,7 +509,7 @@ static int vxlan_update_default_fdb_entry(struct vxlan_dev *vxlan, __be32 vni,
 				   dst->remote_ifindex,
 				   true);
 	}
-	spin_unlock_bh(&vxlan->hash_lock[hash_index]);
+	spin_unlock_bh(&vxlan->hash_lock);
 
 	return err;
 }
