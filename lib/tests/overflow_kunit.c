@@ -1210,6 +1210,10 @@ static void DEFINE_FLEX_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, __struct_size(empty->array), 0);
 	KUNIT_EXPECT_EQ(test, __member_size(empty->array), 0);
 
+	KUNIT_EXPECT_EQ(test, STACK_FLEX_ARRAY_SIZE(two, array), 2);
+	KUNIT_EXPECT_EQ(test, STACK_FLEX_ARRAY_SIZE(eight, array), 8);
+	KUNIT_EXPECT_EQ(test, STACK_FLEX_ARRAY_SIZE(empty, array), 0);
+
 	/* If __counted_by is not being used, array size will have the on-stack size. */
 	if (!IS_ENABLED(CONFIG_CC_HAS_COUNTED_BY))
 		array_size_override = 2 * sizeof(s16);
