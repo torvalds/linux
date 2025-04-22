@@ -71,23 +71,6 @@ static const struct bcmasp_stats bcmasp_gstrings_stats[] = {
 
 #define BCMASP_STATS_LEN	ARRAY_SIZE(bcmasp_gstrings_stats)
 
-static u16 bcmasp_stat_fixup_offset(struct bcmasp_intf *intf,
-				    const struct bcmasp_stats *s)
-{
-	struct bcmasp_priv *priv = intf->parent;
-
-	if (!strcmp("Frames Out(Buffer)", s->stat_string))
-		return priv->hw_info->rx_ctrl_fb_out_frame_count;
-
-	if (!strcmp("Frames Out(Filters)", s->stat_string))
-		return priv->hw_info->rx_ctrl_fb_filt_out_frame_count;
-
-	if (!strcmp("RX Buffer FIFO Depth", s->stat_string))
-		return priv->hw_info->rx_ctrl_fb_rx_fifo_depth;
-
-	return s->reg_offset;
-}
-
 static int bcmasp_get_sset_count(struct net_device *dev, int string_set)
 {
 	switch (string_set) {
@@ -126,7 +109,7 @@ static void bcmasp_update_mib_counters(struct bcmasp_intf *intf)
 		char *p;
 
 		s = &bcmasp_gstrings_stats[i];
-		offset = bcmasp_stat_fixup_offset(intf, s);
+		offset = s->reg_offset;
 		switch (s->type) {
 		case BCMASP_STAT_SOFT:
 			continue;
@@ -215,7 +198,7 @@ static int bcmasp_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 		memcpy(intf->sopass, wol->sopass, sizeof(wol->sopass));
 
 	mutex_lock(&priv->wol_lock);
-	priv->enable_wol(intf, !!intf->wolopts);
+	bcmasp_enable_wol(intf, !!intf->wolopts);
 	mutex_unlock(&priv->wol_lock);
 
 	return 0;

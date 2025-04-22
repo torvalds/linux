@@ -141,7 +141,7 @@ void bcmasp_flush_rx_port(struct bcmasp_intf *intf)
 		return;
 	}
 
-	rx_ctrl_core_wl(priv, mask, priv->hw_info->rx_ctrl_flush);
+	rx_ctrl_core_wl(priv, mask, ASP_RX_CTRL_FLUSH);
 }
 
 static void bcmasp_netfilt_hw_en_wake(struct bcmasp_priv *priv,
@@ -1108,7 +1108,7 @@ static int bcmasp_get_and_request_irq(struct bcmasp_priv *priv, int i)
 	return irq;
 }
 
-static void bcmasp_init_wol_shared(struct bcmasp_priv *priv)
+static void bcmasp_init_wol(struct bcmasp_priv *priv)
 {
 	struct platform_device *pdev = priv->pdev;
 	struct device *dev = &pdev->dev;
@@ -1125,7 +1125,7 @@ static void bcmasp_init_wol_shared(struct bcmasp_priv *priv)
 	device_set_wakeup_capable(&pdev->dev, 1);
 }
 
-static void bcmasp_enable_wol_shared(struct bcmasp_intf *intf, bool en)
+void bcmasp_enable_wol(struct bcmasp_intf *intf, bool en)
 {
 	struct bcmasp_priv *priv = intf->parent;
 	struct device *dev = &priv->pdev->dev;
@@ -1154,52 +1154,10 @@ static void bcmasp_enable_wol_shared(struct bcmasp_intf *intf, bool en)
 	}
 }
 
-static void bcmasp_wol_irq_destroy_shared(struct bcmasp_priv *priv)
+static void bcmasp_wol_irq_destroy(struct bcmasp_priv *priv)
 {
 	if (priv->wol_irq > 0)
 		free_irq(priv->wol_irq, priv);
-}
-
-static void bcmasp_init_wol_per_intf(struct bcmasp_priv *priv)
-{
-	struct platform_device *pdev = priv->pdev;
-	struct device *dev = &pdev->dev;
-	struct bcmasp_intf *intf;
-	int irq;
-
-	list_for_each_entry(intf, &priv->intfs, list) {
-		irq = bcmasp_get_and_request_irq(priv, intf->port + 1);
-		if (irq < 0) {
-			dev_warn(dev, "Failed to init WoL irq(port %d): %d\n",
-				 intf->port, irq);
-			continue;
-		}
-
-		intf->wol_irq = irq;
-		intf->wol_irq_enabled = false;
-		device_set_wakeup_capable(&pdev->dev, 1);
-	}
-}
-
-static void bcmasp_enable_wol_per_intf(struct bcmasp_intf *intf, bool en)
-{
-	struct device *dev = &intf->parent->pdev->dev;
-
-	if (en ^ intf->wol_irq_enabled)
-		irq_set_irq_wake(intf->wol_irq, en);
-
-	intf->wol_irq_enabled = en;
-	device_set_wakeup_enable(dev, en);
-}
-
-static void bcmasp_wol_irq_destroy_per_intf(struct bcmasp_priv *priv)
-{
-	struct bcmasp_intf *intf;
-
-	list_for_each_entry(intf, &priv->intfs, list) {
-		if (intf->wol_irq > 0)
-			free_irq(intf->wol_irq, priv);
-	}
 }
 
 static void bcmasp_eee_fixup(struct bcmasp_intf *intf, bool en)
@@ -1220,60 +1178,22 @@ static void bcmasp_eee_fixup(struct bcmasp_intf *intf, bool en)
 	usleep_range(50, 100);
 }
 
-static struct bcmasp_hw_info v20_hw_info = {
-	.rx_ctrl_flush = ASP_RX_CTRL_FLUSH,
-	.umac2fb = UMAC2FB_OFFSET,
-	.rx_ctrl_fb_out_frame_count = ASP_RX_CTRL_FB_OUT_FRAME_COUNT,
-	.rx_ctrl_fb_filt_out_frame_count = ASP_RX_CTRL_FB_FILT_OUT_FRAME_COUNT,
-	.rx_ctrl_fb_rx_fifo_depth = ASP_RX_CTRL_FB_RX_FIFO_DEPTH,
-};
-
-static const struct bcmasp_plat_data v20_plat_data = {
-	.init_wol = bcmasp_init_wol_per_intf,
-	.enable_wol = bcmasp_enable_wol_per_intf,
-	.destroy_wol = bcmasp_wol_irq_destroy_per_intf,
-	.core_clock_select = bcmasp_core_clock_select_one,
-	.hw_info = &v20_hw_info,
-};
-
-static struct bcmasp_hw_info v21_hw_info = {
-	.rx_ctrl_flush = ASP_RX_CTRL_FLUSH_2_1,
-	.umac2fb = UMAC2FB_OFFSET_2_1,
-	.rx_ctrl_fb_out_frame_count = ASP_RX_CTRL_FB_OUT_FRAME_COUNT_2_1,
-	.rx_ctrl_fb_filt_out_frame_count =
-		ASP_RX_CTRL_FB_FILT_OUT_FRAME_COUNT_2_1,
-	.rx_ctrl_fb_rx_fifo_depth = ASP_RX_CTRL_FB_RX_FIFO_DEPTH_2_1,
-};
-
 static const struct bcmasp_plat_data v21_plat_data = {
-	.init_wol = bcmasp_init_wol_shared,
-	.enable_wol = bcmasp_enable_wol_shared,
-	.destroy_wol = bcmasp_wol_irq_destroy_shared,
 	.core_clock_select = bcmasp_core_clock_select_one,
-	.hw_info = &v21_hw_info,
 };
 
 static const struct bcmasp_plat_data v22_plat_data = {
-	.init_wol = bcmasp_init_wol_shared,
-	.enable_wol = bcmasp_enable_wol_shared,
-	.destroy_wol = bcmasp_wol_irq_destroy_shared,
 	.core_clock_select = bcmasp_core_clock_select_many,
-	.hw_info = &v21_hw_info,
 	.eee_fixup = bcmasp_eee_fixup,
 };
 
 static void bcmasp_set_pdata(struct bcmasp_priv *priv, const struct bcmasp_plat_data *pdata)
 {
-	priv->init_wol = pdata->init_wol;
-	priv->enable_wol = pdata->enable_wol;
-	priv->destroy_wol = pdata->destroy_wol;
 	priv->core_clock_select = pdata->core_clock_select;
 	priv->eee_fixup = pdata->eee_fixup;
-	priv->hw_info = pdata->hw_info;
 }
 
 static const struct of_device_id bcmasp_of_match[] = {
-	{ .compatible = "brcm,asp-v2.0", .data = &v20_plat_data },
 	{ .compatible = "brcm,asp-v2.1", .data = &v21_plat_data },
 	{ .compatible = "brcm,asp-v2.2", .data = &v22_plat_data },
 	{ /* sentinel */ },
@@ -1281,9 +1201,8 @@ static const struct of_device_id bcmasp_of_match[] = {
 MODULE_DEVICE_TABLE(of, bcmasp_of_match);
 
 static const struct of_device_id bcmasp_mdio_of_match[] = {
-	{ .compatible = "brcm,asp-v2.2-mdio", },
 	{ .compatible = "brcm,asp-v2.1-mdio", },
-	{ .compatible = "brcm,asp-v2.0-mdio", },
+	{ .compatible = "brcm,asp-v2.2-mdio", },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, bcmasp_mdio_of_match);
@@ -1387,7 +1306,7 @@ static int bcmasp_probe(struct platform_device *pdev)
 	}
 
 	/* Check and enable WoL */
-	priv->init_wol(priv);
+	bcmasp_init_wol(priv);
 
 	/* Drop the clock reference count now and let ndo_open()/ndo_close()
 	 * manage it for us from now on.
@@ -1404,7 +1323,7 @@ static int bcmasp_probe(struct platform_device *pdev)
 		if (ret) {
 			netdev_err(intf->ndev,
 				   "failed to register net_device: %d\n", ret);
-			priv->destroy_wol(priv);
+			bcmasp_wol_irq_destroy(priv);
 			bcmasp_remove_intfs(priv);
 			goto of_put_exit;
 		}
@@ -1425,7 +1344,7 @@ static void bcmasp_remove(struct platform_device *pdev)
 	if (!priv)
 		return;
 
-	priv->destroy_wol(priv);
+	bcmasp_wol_irq_destroy(priv);
 	bcmasp_remove_intfs(priv);
 }
 

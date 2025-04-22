@@ -53,22 +53,15 @@
 #define ASP_RX_CTRL_FB_0_FRAME_COUNT		0x14
 #define ASP_RX_CTRL_FB_1_FRAME_COUNT		0x18
 #define ASP_RX_CTRL_FB_8_FRAME_COUNT		0x1c
-/* asp2.1 diverges offsets here */
-/* ASP2.0 */
-#define ASP_RX_CTRL_FB_OUT_FRAME_COUNT		0x20
-#define ASP_RX_CTRL_FB_FILT_OUT_FRAME_COUNT	0x24
-#define ASP_RX_CTRL_FLUSH			0x28
-#define  ASP_CTRL_UMAC0_FLUSH_MASK		(BIT(0) | BIT(12))
-#define  ASP_CTRL_UMAC1_FLUSH_MASK		(BIT(1) | BIT(13))
-#define  ASP_CTRL_SPB_FLUSH_MASK		(BIT(8) | BIT(20))
-#define ASP_RX_CTRL_FB_RX_FIFO_DEPTH		0x30
-/* ASP2.1 */
-#define ASP_RX_CTRL_FB_9_FRAME_COUNT_2_1	0x20
-#define ASP_RX_CTRL_FB_10_FRAME_COUNT_2_1	0x24
-#define ASP_RX_CTRL_FB_OUT_FRAME_COUNT_2_1	0x28
-#define ASP_RX_CTRL_FB_FILT_OUT_FRAME_COUNT_2_1	0x2c
-#define ASP_RX_CTRL_FLUSH_2_1			0x30
-#define ASP_RX_CTRL_FB_RX_FIFO_DEPTH_2_1	0x38
+#define ASP_RX_CTRL_FB_9_FRAME_COUNT		0x20
+#define ASP_RX_CTRL_FB_10_FRAME_COUNT		0x24
+#define ASP_RX_CTRL_FB_OUT_FRAME_COUNT		0x28
+#define ASP_RX_CTRL_FB_FILT_OUT_FRAME_COUNT	0x2c
+#define ASP_RX_CTRL_FLUSH			0x30
+#define  ASP_CTRL_UMAC0_FLUSH_MASK             (BIT(0) | BIT(12))
+#define  ASP_CTRL_UMAC1_FLUSH_MASK             (BIT(1) | BIT(13))
+#define  ASP_CTRL_SPB_FLUSH_MASK               (BIT(8) | BIT(20))
+#define ASP_RX_CTRL_FB_RX_FIFO_DEPTH		0x38
 
 #define ASP_RX_FILTER_OFFSET			0x80000
 #define  ASP_RX_FILTER_BLK_CTRL			0x0
@@ -345,9 +338,6 @@ struct bcmasp_intf {
 
 	u32				wolopts;
 	u8				sopass[SOPASS_MAX];
-	/* Used if per intf wol irq */
-	int				wol_irq;
-	unsigned int			wol_irq_enabled:1;
 };
 
 #define NUM_NET_FILTERS				32
@@ -370,21 +360,9 @@ struct bcmasp_mda_filter {
 	u8		mask[ETH_ALEN];
 };
 
-struct bcmasp_hw_info {
-	u32		rx_ctrl_flush;
-	u32		umac2fb;
-	u32		rx_ctrl_fb_out_frame_count;
-	u32		rx_ctrl_fb_filt_out_frame_count;
-	u32		rx_ctrl_fb_rx_fifo_depth;
-};
-
 struct bcmasp_plat_data {
-	void (*init_wol)(struct bcmasp_priv *priv);
-	void (*enable_wol)(struct bcmasp_intf *intf, bool en);
-	void (*destroy_wol)(struct bcmasp_priv *priv);
 	void (*core_clock_select)(struct bcmasp_priv *priv, bool slow);
 	void (*eee_fixup)(struct bcmasp_intf *priv, bool en);
-	struct bcmasp_hw_info		*hw_info;
 };
 
 struct bcmasp_priv {
@@ -399,14 +377,10 @@ struct bcmasp_priv {
 	int				wol_irq;
 	unsigned long			wol_irq_enabled_mask;
 
-	void (*init_wol)(struct bcmasp_priv *priv);
-	void (*enable_wol)(struct bcmasp_intf *intf, bool en);
-	void (*destroy_wol)(struct bcmasp_priv *priv);
 	void (*core_clock_select)(struct bcmasp_priv *priv, bool slow);
 	void (*eee_fixup)(struct bcmasp_intf *intf, bool en);
 
 	void __iomem			*base;
-	struct	bcmasp_hw_info		*hw_info;
 
 	struct list_head		intfs;
 
@@ -599,4 +573,5 @@ int bcmasp_netfilt_get_all_active(struct bcmasp_intf *intf, u32 *rule_locs,
 
 void bcmasp_netfilt_suspend(struct bcmasp_intf *intf);
 
+void bcmasp_enable_wol(struct bcmasp_intf *intf, bool en);
 #endif
