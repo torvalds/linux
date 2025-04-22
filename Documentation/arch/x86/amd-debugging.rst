@@ -52,6 +52,7 @@ report generated from this script to
 
 Spurious s2idle wakeups from an IRQ
 ===================================
+
 Spurious wakeups will generally have an IRQ set to ``/sys/power/pm_wakeup_irq``.
 This can be matched to ``/proc/interrupts`` to determine what device woke the system.
 
@@ -134,6 +135,7 @@ The ``amd_s2idle.py`` script will capture most of these artifacts for you.
 
 s2idle PM debug messages
 ========================
+
 During the s2idle flow on AMD systems, the ACPI LPS0 driver is responsible
 to check all uPEP constraints.  Failing uPEP constraints does not prevent
 s0i3 entry.  This means that if some constraints are not met, it is possible
@@ -160,6 +162,7 @@ After doing this, run the suspend cycle and look specifically for errors around:
 
 Historical examples of s2idle issues
 ====================================
+
 To help understand the types of issues that can occur and how to debug them,
 here are some historical examples of s2idle issues that have been resolved.
 
@@ -248,6 +251,7 @@ state entry.
 
 Runtime power consumption issues
 ================================
+
 Runtime power consumption is influenced by many factors, including but not
 limited to the configuration of the PCIe Active State Power Management (ASPM),
 the display brightness, the EPP policy of the CPU, and the power management
@@ -272,6 +276,7 @@ the battery life when more heavily biased towards performance.
 
 BIOS debug messages
 ===================
+
 Most OEM machines don't have a serial UART for outputting kernel or BIOS
 debug messages. However BIOS debug messages are useful for understanding
 both BIOS bugs and bugs with the Linux kernel drivers that call BIOS AML.
@@ -318,3 +323,46 @@ As mentioned above, parsing by hand can be tedious, especially with a lot of
 messages.  To help with this, a tool has been created at
 `amd-debug-tools <https://git.kernel.org/pub/scm/linux/kernel/git/superm1/amd-debug-tools.git/about/>`_
 to help parse the messages.
+
+Random reboot issues
+====================
+
+When a random reboot occurs, the high-level reason for the reboot is stored
+in a register that will persist onto the next boot.
+
+There are 6 classes of reasons for the reboot:
+ * Software induced
+ * Power state transition
+ * Pin induced
+ * Hardware induced
+ * Remote reset
+ * Internal CPU event
+
+.. csv-table::
+   :header: "Bit", "Type", "Reason"
+   :align: left
+
+   "0",  "Pin",      "thermal pin BP_THERMTRIP_L was tripped"
+   "1",  "Pin",      "power button was pressed for 4 seconds"
+   "2",  "Pin",      "shutdown pin was tripped"
+   "4",  "Remote",   "remote ASF power off command was received"
+   "9",  "Internal", "internal CPU thermal limit was tripped"
+   "16", "Pin",      "system reset pin BP_SYS_RST_L was tripped"
+   "17", "Software", "software issued PCI reset"
+   "18", "Software", "software wrote 0x4 to reset control register 0xCF9"
+   "19", "Software", "software wrote 0x6 to reset control register 0xCF9"
+   "20", "Software", "software wrote 0xE to reset control register 0xCF9"
+   "21", "ACPI-state", "ACPI power state transition occurred"
+   "22", "Pin",      "keyboard reset pin KB_RST_L was tripped"
+   "23", "Internal", "internal CPU shutdown event occurred"
+   "24", "Hardware", "system failed to boot before failed boot timer expired"
+   "25", "Hardware", "hardware watchdog timer expired"
+   "26", "Remote",   "remote ASF reset command was received"
+   "27", "Internal", "an uncorrected error caused a data fabric sync flood event"
+   "29", "Internal", "FCH and MP1 failed warm reset handshake"
+   "30", "Internal", "a parity error occurred"
+   "31", "Internal", "a software sync flood event occurred"
+
+This information is read by the kernel at bootup and printed into
+the syslog. When a random reboot occurs this message can be helpful
+to determine the next component to debug.
