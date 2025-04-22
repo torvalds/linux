@@ -203,8 +203,7 @@ int btrfs_alloc_stripe_hash_table(struct btrfs_fs_info *info)
 	struct btrfs_stripe_hash_table *x;
 	struct btrfs_stripe_hash *cur;
 	struct btrfs_stripe_hash *h;
-	int num_entries = 1 << BTRFS_STRIPE_HASH_TABLE_BITS;
-	int i;
+	unsigned int num_entries = 1U << BTRFS_STRIPE_HASH_TABLE_BITS;
 
 	if (info->stripe_hash_table)
 		return 0;
@@ -225,7 +224,7 @@ int btrfs_alloc_stripe_hash_table(struct btrfs_fs_info *info)
 
 	h = table->table;
 
-	for (i = 0; i < num_entries; i++) {
+	for (unsigned int i = 0; i < num_entries; i++) {
 		cur = h + i;
 		INIT_LIST_HEAD(&cur->hash_list);
 		spin_lock_init(&cur->lock);
