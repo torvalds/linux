@@ -116,6 +116,9 @@
 };
 
 &blsp_uart1 {
+	pinctrl-0 = <&blsp_uart1_default>;
+	pinctrl-1 = <&blsp_uart1_sleep>;
+	pinctrl-names = "default", "sleep";
 	status = "okay";
 };
 
@@ -128,6 +131,9 @@
 };
 
 &blsp_uart2 {
+	pinctrl-0 = <&blsp_uart2_default>;
+	pinctrl-1 = <&blsp_uart2_sleep>;
+	pinctrl-names = "default", "sleep";
 	status = "okay";
 };
 
