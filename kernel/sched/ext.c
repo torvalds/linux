@@ -7113,13 +7113,32 @@ __bpf_kfunc void scx_bpf_cpuperf_set(s32 cpu, u32 perf)
 	}
 
 	if (ops_cpu_valid(cpu, NULL)) {
-		struct rq *rq = cpu_rq(cpu);
+		struct rq *rq = cpu_rq(cpu), *locked_rq = scx_locked_rq();
+		struct rq_flags rf;
+
+		/*
+		 * When called with an rq lock held, restrict the operation
+		 * to the corresponding CPU to prevent ABBA deadlocks.
+		 */
+		if (locked_rq && rq != locked_rq) {
+			scx_ops_error("Invalid target CPU %d", cpu);
+			return;
+		}
+
+		/*
+		 * If no rq lock is held, allow to operate on any CPU by
+		 * acquiring the corresponding rq lock.
+		 */
+		if (!locked_rq) {
+			rq_lock_irqsave(rq, &rf);
+			update_rq_clock(rq);
+		}
 
 		rq->scx.cpuperf_target = perf;
+		cpufreq_update_util(rq, 0);
 
-		rcu_read_lock_sched_notrace();
-		cpufreq_update_util(cpu_rq(cpu), 0);
-		rcu_read_unlock_sched_notrace();
+		if (!locked_rq)
+			rq_unlock_irqrestore(rq, &rf);
 	}
 }
 
