@@ -1981,9 +1981,7 @@ static void amdgpu_gfx_kfd_sch_ctrl(struct amdgpu_device *adev, u32 idx,
 		if (adev->gfx.userq_sch_req_count[idx] == 0) {
 			cancel_delayed_work_sync(&adev->gfx.enforce_isolation[idx].work);
 			if (!adev->gfx.userq_sch_inactive[idx]) {
-#ifdef CONFIG_DRM_AMDGPU_NAVI3X_USERQ
 				amdgpu_userq_stop_sched_for_enforce_isolation(adev, idx);
-#endif
 				if (adev->kfd.init_complete)
 					amdgpu_amdkfd_stop_sched(adev, idx);
 				adev->gfx.userq_sch_inactive[idx] = true;
@@ -2041,9 +2039,8 @@ void amdgpu_gfx_enforce_isolation_handler(struct work_struct *work)
 		/* Tell KFD to resume the runqueue */
 		WARN_ON_ONCE(!adev->gfx.userq_sch_inactive[idx]);
 		WARN_ON_ONCE(adev->gfx.userq_sch_req_count[idx]);
-#ifdef CONFIG_DRM_AMDGPU_NAVI3X_USERQ
+
 		amdgpu_userq_start_sched_for_enforce_isolation(adev, idx);
-#endif
 		if (adev->kfd.init_complete)
 			amdgpu_amdkfd_start_sched(adev, idx);
 		adev->gfx.userq_sch_inactive[idx] = false;

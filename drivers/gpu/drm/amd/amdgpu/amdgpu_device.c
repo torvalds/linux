@@ -3513,9 +3513,7 @@ static int amdgpu_device_ip_fini_early(struct amdgpu_device *adev)
 	amdgpu_device_set_cg_state(adev, AMD_CG_STATE_UNGATE);
 
 	amdgpu_amdkfd_suspend(adev, false);
-#ifdef CONFIG_DRM_AMDGPU_NAVI3X_USERQ
 	amdgpu_userq_suspend(adev);
-#endif
 
 	/* Workaround for ASICs need to disable SMC first */
 	amdgpu_device_smu_fini_early(adev);
@@ -5086,9 +5084,7 @@ int amdgpu_device_suspend(struct drm_device *dev, bool notify_clients)
 
 	if (!adev->in_s0ix) {
 		amdgpu_amdkfd_suspend(adev, adev->in_runpm);
-#ifdef CONFIG_DRM_AMDGPU_NAVI3X_USERQ
 		amdgpu_userq_suspend(adev);
-#endif
 	}
 
 	r = amdgpu_device_evict_resources(adev);
@@ -5156,11 +5152,10 @@ int amdgpu_device_resume(struct drm_device *dev, bool notify_clients)
 		r = amdgpu_amdkfd_resume(adev, adev->in_runpm);
 		if (r)
 			goto exit;
-#ifdef CONFIG_DRM_AMDGPU_NAVI3X_USERQ
+
 		r = amdgpu_userq_resume(adev);
 		if (r)
 			goto exit;
-#endif
 	}
 
 	r = amdgpu_device_ip_late_init(adev);

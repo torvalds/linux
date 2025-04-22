@@ -1416,7 +1416,6 @@ static int gfx_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(12, 0, 0):
 	case IP_VERSION(12, 0, 1):
-#ifdef CONFIG_DRM_AMDGPU_NAVI3X_USERQ
 		if (!adev->gfx.disable_uq &&
 		    adev->gfx.me_fw_version  >= 2780 &&
 		    adev->gfx.pfp_fw_version >= 2840 &&
@@ -1425,7 +1424,6 @@ static int gfx_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 			adev->userq_funcs[AMDGPU_HW_IP_GFX] = &userq_mes_funcs;
 			adev->userq_funcs[AMDGPU_HW_IP_COMPUTE] = &userq_mes_funcs;
 		}
-#endif
 		break;
 	default:
 		break;
