@@ -473,7 +473,6 @@ struct btrfs_io_stripe {
 	struct btrfs_device *dev;
 	/* Block mapping. */
 	u64 physical;
-	u64 length;
 	bool rst_search_commit_root;
 	/* For the endio handler. */
 	struct btrfs_io_context *bioc;
