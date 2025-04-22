@@ -18203,7 +18203,7 @@ R:	Sabrina Dubroca <sd@queasysnail.net>
 L:	openvpn-devel@lists.sourceforge.net (subscribers-only)
 L:	netdev@vger.kernel.org
 S:	Supported
-T:	git https://github.com/OpenVPN/linux-kernel-ovpn.git
+T:	git https://github.com/OpenVPN/ovpn-net-next.git
 F:	Documentation/netlink/specs/ovpn.yaml
 F:	drivers/net/ovpn/
 F:	include/uapi/linux/ovpn.h
