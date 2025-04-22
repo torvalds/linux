@@ -39,6 +39,11 @@ struct fgt_masks hfgitr_masks;
 struct fgt_masks hdfgrtr_masks;
 struct fgt_masks hdfgwtr_masks;
 struct fgt_masks hafgrtr_masks;
+struct fgt_masks hfgrtr2_masks;
+struct fgt_masks hfgwtr2_masks;
+struct fgt_masks hfgitr2_masks;
+struct fgt_masks hdfgrtr2_masks;
+struct fgt_masks hdfgwtr2_masks;
 
 extern void kvm_nvhe_prepare_backtrace(unsigned long fp, unsigned long pc);
 

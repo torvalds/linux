@@ -1045,6 +1045,22 @@ int kvm_init_nv_sysregs(struct kvm_vcpu *vcpu)
 	get_reg_fixed_bits(kvm, HAFGRTR_EL2, &res0, &res1);
 	set_sysreg_masks(kvm, HAFGRTR_EL2, res0, res1);
 
+	/* HFG[RW]TR2_EL2 */
+	get_reg_fixed_bits(kvm, HFGRTR2_EL2, &res0, &res1);
+	set_sysreg_masks(kvm, HFGRTR2_EL2, res0, res1);
+	get_reg_fixed_bits(kvm, HFGWTR2_EL2, &res0, &res1);
+	set_sysreg_masks(kvm, HFGWTR2_EL2, res0, res1);
+
+	/* HDFG[RW]TR2_EL2 */
+	get_reg_fixed_bits(kvm, HDFGRTR2_EL2, &res0, &res1);
+	set_sysreg_masks(kvm, HDFGRTR2_EL2, res0, res1);
+	get_reg_fixed_bits(kvm, HDFGWTR2_EL2, &res0, &res1);
+	set_sysreg_masks(kvm, HDFGWTR2_EL2, res0, res1);
+
+	/* HFGITR2_EL2 */
+	get_reg_fixed_bits(kvm, HFGITR2_EL2, &res0, &res1);
+	set_sysreg_masks(kvm, HFGITR2_EL2, res0, res1);
+
 	/* TCR2_EL2 */
 	res0 = TCR2_EL2_RES0;
 	res1 = TCR2_EL2_RES1;

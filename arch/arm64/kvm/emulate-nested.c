@@ -2060,6 +2060,11 @@ FGT_MASKS(hfgitr_masks, HFGITR_EL2_RES0);
 FGT_MASKS(hdfgrtr_masks, HDFGRTR_EL2_RES0);
 FGT_MASKS(hdfgwtr_masks, HDFGWTR_EL2_RES0);
 FGT_MASKS(hafgrtr_masks, HAFGRTR_EL2_RES0);
+FGT_MASKS(hfgrtr2_masks, HFGRTR2_EL2_RES0);
+FGT_MASKS(hfgwtr2_masks, HFGWTR2_EL2_RES0);
+FGT_MASKS(hfgitr2_masks, HFGITR2_EL2_RES0);
+FGT_MASKS(hdfgrtr2_masks, HDFGRTR2_EL2_RES0);
+FGT_MASKS(hdfgwtr2_masks, HDFGWTR2_EL2_RES0);
 
 static __init bool aggregate_fgt(union trap_config tc)
 {
@@ -2080,6 +2085,18 @@ static __init bool aggregate_fgt(union trap_config tc)
 		break;
 	case HFGITR_GROUP:
 		rmasks = &hfgitr_masks;
+		wmasks = NULL;
+		break;
+	case HFGRTR2_GROUP:
+		rmasks = &hfgrtr2_masks;
+		wmasks = &hfgwtr2_masks;
+		break;
+	case HDFGRTR2_GROUP:
+		rmasks = &hdfgrtr2_masks;
+		wmasks = &hdfgwtr2_masks;
+		break;
+	case HFGITR2_GROUP:
+		rmasks = &hfgitr2_masks;
 		wmasks = NULL;
 		break;
 	}
@@ -2141,6 +2158,11 @@ static __init int check_all_fgt_masks(int ret)
 		&hdfgrtr_masks,
 		&hdfgwtr_masks,
 		&hafgrtr_masks,
+		&hfgrtr2_masks,
+		&hfgwtr2_masks,
+		&hfgitr2_masks,
+		&hdfgrtr2_masks,
+		&hdfgwtr2_masks,
 	};
 	int err = 0;
 

@@ -279,6 +279,11 @@ enum fgt_group_id {
 	HDFGWTR_GROUP = HDFGRTR_GROUP,
 	HFGITR_GROUP,
 	HAFGRTR_GROUP,
+	HFGRTR2_GROUP,
+	HFGWTR2_GROUP = HFGRTR2_GROUP,
+	HDFGRTR2_GROUP,
+	HDFGWTR2_GROUP = HDFGRTR2_GROUP,
+	HFGITR2_GROUP,
 
 	/* Must be last */
 	__NR_FGT_GROUP_IDS__
@@ -625,6 +630,11 @@ extern struct fgt_masks hfgitr_masks;
 extern struct fgt_masks hdfgrtr_masks;
 extern struct fgt_masks hdfgwtr_masks;
 extern struct fgt_masks hafgrtr_masks;
+extern struct fgt_masks hfgrtr2_masks;
+extern struct fgt_masks hfgwtr2_masks;
+extern struct fgt_masks hfgitr2_masks;
+extern struct fgt_masks hdfgrtr2_masks;
+extern struct fgt_masks hdfgwtr2_masks;
 
 extern struct fgt_masks kvm_nvhe_sym(hfgrtr_masks);
 extern struct fgt_masks kvm_nvhe_sym(hfgwtr_masks);
@@ -632,6 +642,11 @@ extern struct fgt_masks kvm_nvhe_sym(hfgitr_masks);
 extern struct fgt_masks kvm_nvhe_sym(hdfgrtr_masks);
 extern struct fgt_masks kvm_nvhe_sym(hdfgwtr_masks);
 extern struct fgt_masks kvm_nvhe_sym(hafgrtr_masks);
+extern struct fgt_masks kvm_nvhe_sym(hfgrtr2_masks);
+extern struct fgt_masks kvm_nvhe_sym(hfgwtr2_masks);
+extern struct fgt_masks kvm_nvhe_sym(hfgitr2_masks);
+extern struct fgt_masks kvm_nvhe_sym(hdfgrtr2_masks);
+extern struct fgt_masks kvm_nvhe_sym(hdfgwtr2_masks);
 
 struct kvm_cpu_context {
 	struct user_pt_regs regs;	/* sp = sp_el0 */
