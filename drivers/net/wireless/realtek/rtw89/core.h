@@ -5640,6 +5640,8 @@ struct rtw89_mcc_role {
 	struct rtw89_mcc_policy policy;
 	struct rtw89_mcc_limit limit;
 
+	const struct rtw89_mcc_courtesy_cfg *crtz;
+
 	/* only valid when running with FW MRC mechanism */
 	u8 slot_idx;
 
@@ -5657,11 +5659,14 @@ struct rtw89_mcc_bt_role {
 	u16 duration; /* TU */
 };
 
-struct rtw89_mcc_courtesy {
-	bool enable;
+struct rtw89_mcc_courtesy_cfg {
 	u8 slot_num;
-	u8 macid_src;
 	u8 macid_tgt;
+};
+
+struct rtw89_mcc_courtesy {
+	struct rtw89_mcc_courtesy_cfg ref;
+	struct rtw89_mcc_courtesy_cfg aux;
 };
 
 enum rtw89_mcc_plan {

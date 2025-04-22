@@ -31,6 +31,14 @@
 #define RTW89_MCC_DFLT_TX_NULL_EARLY 3
 #define RTW89_MCC_DFLT_COURTESY_SLOT 3
 
+#define RTW89_MCC_REQ_COURTESY_TIME 5
+#define RTW89_MCC_REQ_COURTESY(pattern, role)			\
+({								\
+	const struct rtw89_mcc_pattern *p = pattern;		\
+	p->tob_ ## role <= RTW89_MCC_REQ_COURTESY_TIME ||	\
+	p->toa_ ## role <= RTW89_MCC_REQ_COURTESY_TIME;		\
+})
+
 #define NUM_OF_RTW89_MCC_ROLES 2
 
 enum rtw89_chanctx_pause_reasons {

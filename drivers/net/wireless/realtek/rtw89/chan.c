@@ -942,37 +942,44 @@ static void rtw89_mcc_assign_pattern(struct rtw89_dev *rtwdev,
 	struct rtw89_mcc_role *aux = &mcc->role_aux;
 	struct rtw89_mcc_config *config = &mcc->config;
 	struct rtw89_mcc_pattern *pattern = &config->pattern;
+	struct rtw89_mcc_courtesy_cfg *crtz;
 
 	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 		    "MCC assign pattern: ref {%d | %d}, aux {%d | %d}\n",
 		    new->tob_ref, new->toa_ref, new->tob_aux, new->toa_aux);
 
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "MCC pattern plan: %d\n", new->plan);
+
 	*pattern = *new;
 	memset(&pattern->courtesy, 0, sizeof(pattern->courtesy));
 
-	if (pattern->tob_aux <= 0 || pattern->toa_aux <= 0) {
-		pattern->courtesy.macid_tgt = aux->rtwvif_link->mac_id;
-		pattern->courtesy.macid_src = ref->rtwvif_link->mac_id;
-		pattern->courtesy.slot_num = RTW89_MCC_DFLT_COURTESY_SLOT;
-		pattern->courtesy.enable = true;
-	} else if (pattern->tob_ref <= 0 || pattern->toa_ref <= 0) {
-		pattern->courtesy.macid_tgt = ref->rtwvif_link->mac_id;
-		pattern->courtesy.macid_src = aux->rtwvif_link->mac_id;
-		pattern->courtesy.slot_num = RTW89_MCC_DFLT_COURTESY_SLOT;
-		pattern->courtesy.enable = true;
+	if (RTW89_MCC_REQ_COURTESY(pattern, aux)) {
+		crtz = &pattern->courtesy.ref;
+		ref->crtz = crtz;
+
+		crtz->macid_tgt = aux->rtwvif_link->mac_id;
+		crtz->slot_num = RTW89_MCC_DFLT_COURTESY_SLOT;
+
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MCC courtesy ref: tgt %d, slot %d\n",
+			    crtz->macid_tgt, crtz->slot_num);
+	} else {
+		ref->crtz = NULL;
 	}
 
-	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
-		    "MCC pattern flags: plan %d, courtesy_en %d\n",
-		    pattern->plan, pattern->courtesy.enable);
+	if (RTW89_MCC_REQ_COURTESY(pattern, ref)) {
+		crtz = &pattern->courtesy.aux;
+		aux->crtz = crtz;
 
-	if (!pattern->courtesy.enable)
-		return;
+		crtz->macid_tgt = ref->rtwvif_link->mac_id;
+		crtz->slot_num = RTW89_MCC_DFLT_COURTESY_SLOT;
 
-	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
-		    "MCC pattern courtesy: tgt %d, src %d, slot %d\n",
-		    pattern->courtesy.macid_tgt, pattern->courtesy.macid_src,
-		    pattern->courtesy.slot_num);
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MCC courtesy aux: tgt %d, slot %d\n",
+			    crtz->macid_tgt, crtz->slot_num);
+	} else {
+		aux->crtz = NULL;
+	}
 }
 
 /* The follow-up roughly shows the relationship between the parameters
@@ -1528,10 +1535,8 @@ bottom:
 
 static int __mcc_fw_add_role(struct rtw89_dev *rtwdev, struct rtw89_mcc_role *role)
 {
+	const struct rtw89_mcc_courtesy_cfg *crtz = role->crtz;
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
-	struct rtw89_mcc_config *config = &mcc->config;
-	struct rtw89_mcc_pattern *pattern = &config->pattern;
-	struct rtw89_mcc_courtesy *courtesy = &pattern->courtesy;
 	struct rtw89_mcc_policy *policy = &role->policy;
 	struct rtw89_fw_mcc_add_req req = {};
 	const struct rtw89_chan *chan;
@@ -1554,9 +1559,9 @@ static int __mcc_fw_add_role(struct rtw89_dev *rtwdev, struct rtw89_mcc_role *ro
 	req.duration = role->duration;
 	req.btc_in_2g = false;
 
-	if (courtesy->enable && courtesy->macid_src == req.macid) {
-		req.courtesy_target = courtesy->macid_tgt;
-		req.courtesy_num = courtesy->slot_num;
+	if (crtz) {
+		req.courtesy_target = crtz->macid_tgt;
+		req.courtesy_num = crtz->slot_num;
 		req.courtesy_en = true;
 	}
 
@@ -1736,26 +1741,23 @@ static void __mrc_fw_add_courtesy(struct rtw89_dev *rtwdev,
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
 	struct rtw89_mcc_role *ref = &mcc->role_ref;
 	struct rtw89_mcc_role *aux = &mcc->role_aux;
-	struct rtw89_mcc_config *config = &mcc->config;
-	struct rtw89_mcc_pattern *pattern = &config->pattern;
-	struct rtw89_mcc_courtesy *courtesy = &pattern->courtesy;
 	struct rtw89_fw_mrc_add_slot_arg *slot_arg_src;
-	u8 slot_idx_tgt;
 
-	if (!courtesy->enable)
-		return;
-
-	if (courtesy->macid_src == ref->rtwvif_link->mac_id) {
+	if (ref->crtz) {
 		slot_arg_src = &arg->slots[ref->slot_idx];
-		slot_idx_tgt = aux->slot_idx;
-	} else {
-		slot_arg_src = &arg->slots[aux->slot_idx];
-		slot_idx_tgt = ref->slot_idx;
+
+		slot_arg_src->courtesy_target = aux->slot_idx;
+		slot_arg_src->courtesy_period = ref->crtz->slot_num;
+		slot_arg_src->courtesy_en = true;
 	}
 
-	slot_arg_src->courtesy_target = slot_idx_tgt;
-	slot_arg_src->courtesy_period = courtesy->slot_num;
-	slot_arg_src->courtesy_en = true;
+	if (aux->crtz) {
+		slot_arg_src = &arg->slots[aux->slot_idx];
+
+		slot_arg_src->courtesy_target = ref->slot_idx;
+		slot_arg_src->courtesy_period = aux->crtz->slot_num;
+		slot_arg_src->courtesy_en = true;
+	}
 }
 
 static int __mrc_fw_start(struct rtw89_dev *rtwdev, bool replace)
