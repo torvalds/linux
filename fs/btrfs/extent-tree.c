@@ -2821,6 +2821,7 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
 	struct extent_io_tree *unpin;
 	u64 start;
 	u64 end;
+	int unpin_error = 0;
 	int ret;
 
 	unpin = &trans->transaction->pinned_extents;
@@ -2841,7 +2842,22 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
 
 		btrfs_clear_extent_dirty(unpin, start, end, &cached_state);
 		ret = unpin_extent_range(fs_info, start, end, true);
-		BUG_ON(ret);
+		/*
+		 * If we get an error unpinning an extent range, store the first
+		 * error to return later after trying to unpin all ranges and do
+		 * the sync discards. Our caller will abort the transaction
+		 * (which already wrote new superblocks) and on the next mount
+		 * the space will be available as it was pinned by in-memory
+		 * only structures in this phase.
+		 */
+		if (ret) {
+			btrfs_err_rl(fs_info,
+"failed to unpin extent range [%llu, %llu] when committing transaction %llu: %s (%d)",
+				     start, end, trans->transid,
+				     btrfs_decode_error(ret), ret);
+			if (!unpin_error)
+				unpin_error = ret;
+		}
 		mutex_unlock(&fs_info->unused_bg_unpin_mutex);
 		btrfs_free_extent_state(cached_state);
 		cond_resched();
@@ -2888,7 +2904,7 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
 		}
 	}
 
-	return 0;
+	return unpin_error;
 }
 
 /*

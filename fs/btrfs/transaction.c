@@ -2554,7 +2554,9 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	wake_up(&cur_trans->commit_wait);
 	btrfs_trans_state_lockdep_release(fs_info, BTRFS_LOCKDEP_TRANS_SUPER_COMMITTED);
 
-	btrfs_finish_extent_commit(trans);
+	ret = btrfs_finish_extent_commit(trans);
+	if (ret)
+		goto scrub_continue;
 
 	if (test_bit(BTRFS_TRANS_HAVE_FREE_BGS, &cur_trans->flags))
 		btrfs_clear_space_info_full(fs_info);
