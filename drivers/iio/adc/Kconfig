@@ -129,8 +129,9 @@ config AD7173
 	tristate "Analog Devices AD7173 driver"
 	depends on SPI_MASTER
 	select AD_SIGMA_DELTA
-	select GPIO_REGMAP if GPIOLIB
-	select REGMAP_SPI if GPIOLIB
+	select GPIOLIB
+	select GPIO_REGMAP
+	select REGMAP_SPI
 	help
 	  Say yes here to build support for Analog Devices AD7173 and similar ADC
 	  Currently supported models:

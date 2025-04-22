@@ -230,10 +230,8 @@ struct ad7173_state {
 	unsigned long long *config_cnts;
 	struct clk *ext_clk;
 	struct clk_hw int_clk_hw;
-#if IS_ENABLED(CONFIG_GPIOLIB)
 	struct regmap *reg_gpiocon_regmap;
 	struct gpio_regmap *gpio_regmap;
-#endif
 };
 
 static unsigned int ad4115_sinc5_data_rates[] = {
@@ -287,8 +285,6 @@ static const char *const ad7173_ref_sel_str[] = {
 static const char *const ad7173_clk_sel[] = {
 	"ext-clk", "xtal"
 };
-
-#if IS_ENABLED(CONFIG_GPIOLIB)
 
 static const struct regmap_range ad7173_range_gpio[] = {
 	regmap_reg_range(AD7173_REG_GPIO, AD7173_REG_GPIO),
@@ -543,12 +539,6 @@ static int ad7173_gpio_init(struct ad7173_state *st)
 
 	return 0;
 }
-#else
-static int ad7173_gpio_init(struct ad7173_state *st)
-{
-	return 0;
-}
-#endif /* CONFIG_GPIOLIB */
 
 static struct ad7173_state *ad_sigma_delta_to_ad7173(struct ad_sigma_delta *sd)
 {
@@ -1797,10 +1787,7 @@ static int ad7173_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	if (IS_ENABLED(CONFIG_GPIOLIB))
-		return ad7173_gpio_init(st);
-
-	return 0;
+	return ad7173_gpio_init(st);
 }
 
 static const struct of_device_id ad7173_of_match[] = {
