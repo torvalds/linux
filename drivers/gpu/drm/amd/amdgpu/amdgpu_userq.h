@@ -153,7 +153,8 @@ void amdgpu_userq_reset_work(struct work_struct *work);
 void amdgpu_userq_pre_reset(struct amdgpu_device *adev);
 int amdgpu_userq_post_reset(struct amdgpu_device *adev, bool vram_lost);
 
-int amdgpu_userq_input_va_validate(struct amdgpu_usermode_queue *queue,
+int amdgpu_userq_input_va_validate(struct amdgpu_device *adev,
+				   struct amdgpu_usermode_queue *queue,
 				   u64 addr, u64 expected_size);
 int amdgpu_userq_gem_va_unmap_validate(struct amdgpu_device *adev,
 				       struct amdgpu_bo_va_mapping *mapping,

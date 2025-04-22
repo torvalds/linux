@@ -827,7 +827,7 @@ static int gmc_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 	 * Set the internal MC address mask This is the max address of the GPU's
 	 * internal address space.
 	 */
-	adev->gmc.mc_mask = 0xffffffffffffULL; /* 48 bit MC */
+	adev->gmc.mc_mask = AMDGPU_GMC_HOLE_MASK;
 
 	r = dma_set_mask_and_coherent(adev->dev, DMA_BIT_MASK(44));
 	if (r) {

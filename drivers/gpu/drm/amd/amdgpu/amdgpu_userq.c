@@ -166,7 +166,8 @@ static int amdgpu_userq_buffer_va_list_add(struct amdgpu_usermode_queue *queue,
 	return 0;
 }
 
-int amdgpu_userq_input_va_validate(struct amdgpu_usermode_queue *queue,
+int amdgpu_userq_input_va_validate(struct amdgpu_device *adev,
+				   struct amdgpu_usermode_queue *queue,
 				   u64 addr, u64 expected_size)
 {
 	struct amdgpu_bo_va_mapping *va_map;
@@ -730,9 +731,9 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	db_info.doorbell_offset = args->in.doorbell_offset;
 
 	/* Validate the userq virtual address.*/
-	if (amdgpu_userq_input_va_validate(queue, args->in.queue_va, args->in.queue_size) ||
-	    amdgpu_userq_input_va_validate(queue, args->in.rptr_va, AMDGPU_GPU_PAGE_SIZE) ||
-	    amdgpu_userq_input_va_validate(queue, args->in.wptr_va, AMDGPU_GPU_PAGE_SIZE)) {
+	if (amdgpu_userq_input_va_validate(adev, queue, args->in.queue_va, args->in.queue_size) ||
+	    amdgpu_userq_input_va_validate(adev, queue, args->in.rptr_va, AMDGPU_GPU_PAGE_SIZE) ||
+	    amdgpu_userq_input_va_validate(adev, queue, args->in.wptr_va, AMDGPU_GPU_PAGE_SIZE)) {
 		r = -EINVAL;
 		kfree(queue);
 		goto unlock;
