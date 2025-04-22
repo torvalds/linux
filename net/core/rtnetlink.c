@@ -2390,12 +2390,12 @@ static int rtnl_valid_dump_ifinfo_req(const struct nlmsghdr *nlh,
 	if (strict_check) {
 		struct ifinfomsg *ifm;
 
-		if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ifm))) {
+		ifm = nlmsg_payload(nlh, sizeof(*ifm));
+		if (!ifm) {
 			NL_SET_ERR_MSG(extack, "Invalid header for link dump");
 			return -EINVAL;
 		}
 
-		ifm = nlmsg_data(nlh);
 		if (ifm->__ifi_pad || ifm->ifi_type || ifm->ifi_flags ||
 		    ifm->ifi_change) {
 			NL_SET_ERR_MSG(extack, "Invalid values in header for link dump request");
@@ -4084,7 +4084,8 @@ static int rtnl_valid_getlink_req(struct sk_buff *skb,
 	struct ifinfomsg *ifm;
 	int i, err;
 
-	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ifm))) {
+	ifm = nlmsg_payload(nlh, sizeof(*ifm));
+	if (!ifm) {
 		NL_SET_ERR_MSG(extack, "Invalid header for get link");
 		return -EINVAL;
 	}
@@ -4093,7 +4094,6 @@ static int rtnl_valid_getlink_req(struct sk_buff *skb,
 		return nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFLA_MAX,
 					      ifla_policy, extack);
 
-	ifm = nlmsg_data(nlh);
 	if (ifm->__ifi_pad || ifm->ifi_type || ifm->ifi_flags ||
 	    ifm->ifi_change) {
 		NL_SET_ERR_MSG(extack, "Invalid values in header for get link request");
@@ -5052,12 +5052,12 @@ static int valid_fdb_get_strict(const struct nlmsghdr *nlh,
 	struct ndmsg *ndm;
 	int err, i;
 
-	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ndm))) {
+	ndm = nlmsg_payload(nlh, sizeof(*ndm));
+	if (!ndm) {
 		NL_SET_ERR_MSG(extack, "Invalid header for fdb get request");
 		return -EINVAL;
 	}
 
-	ndm = nlmsg_data(nlh);
 	if (ndm->ndm_pad1  || ndm->ndm_pad2  || ndm->ndm_state ||
 	    ndm->ndm_type) {
 		NL_SET_ERR_MSG(extack, "Invalid values in header for fdb get request");
@@ -5324,12 +5324,12 @@ static int valid_bridge_getlink_req(const struct nlmsghdr *nlh,
 	if (strict_check) {
 		struct ifinfomsg *ifm;
 
-		if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ifm))) {
+		ifm = nlmsg_payload(nlh, sizeof(*ifm));
+		if (!ifm) {
 			NL_SET_ERR_MSG(extack, "Invalid header for bridge link dump");
 			return -EINVAL;
 		}
 
-		ifm = nlmsg_data(nlh);
 		if (ifm->__ifi_pad || ifm->ifi_type || ifm->ifi_flags ||
 		    ifm->ifi_change || ifm->ifi_index) {
 			NL_SET_ERR_MSG(extack, "Invalid values in header for bridge link dump request");
@@ -6221,15 +6221,14 @@ static int rtnl_valid_stats_req(const struct nlmsghdr *nlh, bool strict_check,
 {
 	struct if_stats_msg *ifsm;
 
-	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ifsm))) {
+	ifsm = nlmsg_payload(nlh, sizeof(*ifsm));
+	if (!ifsm) {
 		NL_SET_ERR_MSG(extack, "Invalid header for stats dump");
 		return -EINVAL;
 	}
 
 	if (!strict_check)
 		return 0;
-
-	ifsm = nlmsg_data(nlh);
 
 	/* only requests using strict checks can pass data to influence
 	 * the dump. The legacy exception is filter_mask.
@@ -6458,12 +6457,12 @@ static int rtnl_mdb_valid_dump_req(const struct nlmsghdr *nlh,
 {
 	struct br_port_msg *bpm;
 
-	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*bpm))) {
+	bpm = nlmsg_payload(nlh, sizeof(*bpm));
+	if (!bpm) {
 		NL_SET_ERR_MSG(extack, "Invalid header for mdb dump request");
 		return -EINVAL;
 	}
 
-	bpm = nlmsg_data(nlh);
 	if (bpm->ifindex) {
 		NL_SET_ERR_MSG(extack, "Filtering by device index is not supported for mdb dump request");
 		return -EINVAL;
