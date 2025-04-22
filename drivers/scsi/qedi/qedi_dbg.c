@@ -103,25 +103,3 @@ qedi_dbg_info(struct qedi_dbg_ctx *qedi, const char *func, u32 line,
 ret:
 	va_end(va);
 }
-
-int
-qedi_create_sysfs_attr(struct Scsi_Host *shost, struct sysfs_bin_attrs *iter)
-{
-	int ret = 0;
-
-	for (; iter->name; iter++) {
-		ret = sysfs_create_bin_file(&shost->shost_gendev.kobj,
-					    iter->attr);
-		if (ret)
-			pr_err("Unable to create sysfs %s attr, err(%d).\n",
-			       iter->name, ret);
-	}
-	return ret;
-}
-
-void
-qedi_remove_sysfs_attr(struct Scsi_Host *shost, struct sysfs_bin_attrs *iter)
-{
-	for (; iter->name; iter++)
-		sysfs_remove_bin_file(&shost->shost_gendev.kobj, iter->attr);
-}
