@@ -5,6 +5,9 @@
  * EVM Board Schematics(j784s4): https://www.ti.com/lit/zip/sprr458
  * EVM Board Schematics(j742s2): https://www.ti.com/lit/zip/SPAC001
  */
+
+#include <dt-bindings/phy/phy-cadence.h>
+
 / {
 	chosen {
 		stdout-path = "serial2:115200n8";
@@ -1407,10 +1410,13 @@
 
 &pcie1_rc {
 	status = "okay";
+	clocks = <&k3_clks 333 0>, <&serdes0 CDNS_TORRENT_REFCLK_DRIVER>;
+	clock-names = "fck", "pcie_refclk";
 	num-lanes = <2>;
 	reset-gpios = <&exp1 2 GPIO_ACTIVE_HIGH>;
 	phys = <&serdes0_pcie1_link>;
 	phy-names = "pcie-phy";
+	ti,syscon-acspcie-proxy-ctrl = <&acspcie0_proxy_ctrl 0x1>;
 };
 
 &serdes1 {
