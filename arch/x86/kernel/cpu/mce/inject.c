@@ -24,7 +24,7 @@
 #include <linux/pci.h>
 #include <linux/uaccess.h>
 
-#include <asm/amd_nb.h>
+#include <asm/amd/nb.h>
 #include <asm/apic.h>
 #include <asm/irq_vectors.h>
 #include <asm/mce.h>

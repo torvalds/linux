@@ -10,7 +10,7 @@ config BLK_DEV_DRBD
 	tristate "DRBD Distributed Replicated Block Device support"
 	depends on PROC_FS && INET
 	select LRU_CACHE
-	select LIBCRC32C
+	select CRC32
 	help
 
 	  NOTE: In order to authenticate connections you have to select
