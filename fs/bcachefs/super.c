@@ -1004,12 +1004,49 @@ static void print_mount_opts(struct bch_fs *c)
 	printbuf_exit(&p);
 }
 
+static bool bch2_fs_may_start(struct bch_fs *c)
+{
+	struct bch_dev *ca;
+	unsigned i, flags = 0;
+
+	if (c->opts.very_degraded)
+		flags |= BCH_FORCE_IF_DEGRADED|BCH_FORCE_IF_LOST;
+
+	if (c->opts.degraded)
+		flags |= BCH_FORCE_IF_DEGRADED;
+
+	if (!c->opts.degraded &&
+	    !c->opts.very_degraded) {
+		mutex_lock(&c->sb_lock);
+
+		for (i = 0; i < c->disk_sb.sb->nr_devices; i++) {
+			if (!bch2_member_exists(c->disk_sb.sb, i))
+				continue;
+
+			ca = bch2_dev_locked(c, i);
+
+			if (!bch2_dev_is_online(ca) &&
+			    (ca->mi.state == BCH_MEMBER_STATE_rw ||
+			     ca->mi.state == BCH_MEMBER_STATE_ro)) {
+				mutex_unlock(&c->sb_lock);
+				return false;
+			}
+		}
+		mutex_unlock(&c->sb_lock);
+	}
+
+	return bch2_have_enough_devs(c, bch2_online_devs(c), flags, true);
+}
+
 int bch2_fs_start(struct bch_fs *c)
 {
 	time64_t now = ktime_get_real_seconds();
 	int ret = 0;
 
 	print_mount_opts(c);
+
+	if (!bch2_fs_may_start(c))
+		return -BCH_ERR_insufficient_devices_to_start;
 
 	down_write(&c->state_lock);
 	mutex_lock(&c->sb_lock);
@@ -1535,40 +1572,6 @@ bool bch2_dev_state_allowed(struct bch_fs *c, struct bch_dev *ca,
 	default:
 		BUG();
 	}
-}
-
-static bool bch2_fs_may_start(struct bch_fs *c)
-{
-	struct bch_dev *ca;
-	unsigned i, flags = 0;
-
-	if (c->opts.very_degraded)
-		flags |= BCH_FORCE_IF_DEGRADED|BCH_FORCE_IF_LOST;
-
-	if (c->opts.degraded)
-		flags |= BCH_FORCE_IF_DEGRADED;
-
-	if (!c->opts.degraded &&
-	    !c->opts.very_degraded) {
-		mutex_lock(&c->sb_lock);
-
-		for (i = 0; i < c->disk_sb.sb->nr_devices; i++) {
-			if (!bch2_member_exists(c->disk_sb.sb, i))
-				continue;
-
-			ca = bch2_dev_locked(c, i);
-
-			if (!bch2_dev_is_online(ca) &&
-			    (ca->mi.state == BCH_MEMBER_STATE_rw ||
-			     ca->mi.state == BCH_MEMBER_STATE_ro)) {
-				mutex_unlock(&c->sb_lock);
-				return false;
-			}
-		}
-		mutex_unlock(&c->sb_lock);
-	}
-
-	return bch2_have_enough_devs(c, bch2_online_devs(c), flags, true);
 }
 
 static void __bch2_dev_read_only(struct bch_fs *c, struct bch_dev *ca)
@@ -2205,11 +2208,6 @@ struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 		}
 	}
 	up_write(&c->state_lock);
-
-	if (!bch2_fs_may_start(c)) {
-		ret = -BCH_ERR_insufficient_devices_to_start;
-		goto err_print;
-	}
 
 	if (!c->opts.nostart) {
 		ret = bch2_fs_start(c);
