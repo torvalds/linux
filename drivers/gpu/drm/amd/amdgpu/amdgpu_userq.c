@@ -753,11 +753,13 @@ amdgpu_userq_evict(struct amdgpu_userq_mgr *uq_mgr,
 	schedule_delayed_work(&uq_mgr->resume_work, 0);
 }
 
-int amdgpu_userq_mgr_init(struct amdgpu_userq_mgr *userq_mgr, struct amdgpu_device *adev)
+int amdgpu_userq_mgr_init(struct amdgpu_userq_mgr *userq_mgr, struct drm_file *file_priv,
+			  struct amdgpu_device *adev)
 {
 	mutex_init(&userq_mgr->userq_mutex);
 	idr_init_base(&userq_mgr->userq_idr, 1);
 	userq_mgr->adev = adev;
+	userq_mgr->file = file_priv;
 
 	mutex_lock(&adev->userq_mutex);
 	list_add(&userq_mgr->list, &adev->userq_mgr_list);
