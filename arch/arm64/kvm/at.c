@@ -456,6 +456,11 @@ static int walk_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 	if (check_output_size(desc & GENMASK(47, va_bottom), wi))
 		goto addrsz;
 
+	if (!(desc & PTE_AF)) {
+		fail_s1_walk(wr, ESR_ELx_FSC_ACCESS_L(level), false);
+		return -EACCES;
+	}
+
 	va_bottom += contiguous_bit_shift(desc, wi, level);
 
 	wr->failed = false;
@@ -1209,7 +1214,8 @@ compute_par:
  * If the translation is unsuccessful, the value may only contain
  * PAR_EL1.F, and cannot be taken at face value. It isn't an
  * indication of the translation having failed, only that the fast
- * path did not succeed, *unless* it indicates a S1 permission fault.
+ * path did not succeed, *unless* it indicates a S1 permission or
+ * access fault.
  */
 static u64 __kvm_at_s1e01_fast(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 {
@@ -1312,19 +1318,29 @@ static bool par_check_s1_perm_fault(u64 par)
 		 !(par & SYS_PAR_EL1_S));
 }
 
+static bool par_check_s1_access_fault(u64 par)
+{
+	u8 fst = FIELD_GET(SYS_PAR_EL1_FST, par);
+
+	return  ((fst & ESR_ELx_FSC_TYPE) == ESR_ELx_FSC_ACCESS &&
+		 !(par & SYS_PAR_EL1_S));
+}
+
 void __kvm_at_s1e01(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 {
 	u64 par = __kvm_at_s1e01_fast(vcpu, op, vaddr);
 
 	/*
-	 * If PAR_EL1 reports that AT failed on a S1 permission fault, we
-	 * know for sure that the PTW was able to walk the S1 tables and
-	 * there's nothing else to do.
+	 * If PAR_EL1 reports that AT failed on a S1 permission or access
+	 * fault, we know for sure that the PTW was able to walk the S1
+	 * tables and there's nothing else to do.
 	 *
 	 * If AT failed for any other reason, then we must walk the guest S1
 	 * to emulate the instruction.
 	 */
-	if ((par & SYS_PAR_EL1_F) && !par_check_s1_perm_fault(par))
+	if ((par & SYS_PAR_EL1_F) &&
+	    !par_check_s1_perm_fault(par) &&
+	    !par_check_s1_access_fault(par))
 		par = handle_at_slow(vcpu, op, vaddr);
 
 	vcpu_write_sys_reg(vcpu, par, PAR_EL1);
