@@ -98,7 +98,7 @@ static void sg2044_msi_irq_ack(struct irq_data *d)
 {
 	struct sg204x_msi_chipdata *data = irq_data_get_irq_chip_data(d);
 
-	writel(0, (u32 *)data->reg_clr + d->hwirq);
+	writel(0, (u32 __iomem *)data->reg_clr + d->hwirq);
 	irq_chip_ack_parent(d);
 }
 
