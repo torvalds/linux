@@ -787,6 +787,9 @@ fill:
 	}
 
 	tsf_lmt = (tsf & GENMASK_ULL(63, 32)) | start_time;
+	if (tsf_lmt < tsf)
+		tsf_lmt += roundup_u64(tsf - tsf_lmt, interval);
+
 	max_toa_us = rtw89_mcc_get_tbtt_ofst(rtwdev, mcc_role, tsf_lmt);
 	max_dur_us = interval - duration;
 	max_tob_us = max_dur_us - max_toa_us;
