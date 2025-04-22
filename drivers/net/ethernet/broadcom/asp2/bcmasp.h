@@ -363,6 +363,10 @@ struct bcmasp_mda_filter {
 struct bcmasp_plat_data {
 	void (*core_clock_select)(struct bcmasp_priv *priv, bool slow);
 	void (*eee_fixup)(struct bcmasp_intf *priv, bool en);
+	unsigned int num_mda_filters;
+	unsigned int num_net_filters;
+	unsigned int tx_chan_offset;
+	unsigned int rx_ctrl_offset;
 };
 
 struct bcmasp_priv {
@@ -379,12 +383,16 @@ struct bcmasp_priv {
 
 	void (*core_clock_select)(struct bcmasp_priv *priv, bool slow);
 	void (*eee_fixup)(struct bcmasp_intf *intf, bool en);
+	unsigned int			num_mda_filters;
+	unsigned int			num_net_filters;
+	unsigned int			tx_chan_offset;
+	unsigned int			rx_ctrl_offset;
 
 	void __iomem			*base;
 
 	struct list_head		intfs;
 
-	struct bcmasp_mda_filter	mda_filters[NUM_MDA_FILTERS];
+	struct bcmasp_mda_filter	*mda_filters;
 
 	/* MAC destination address filters lock */
 	spinlock_t			mda_lock;
@@ -392,7 +400,7 @@ struct bcmasp_priv {
 	/* Protects accesses to ASP_CTRL_CLOCK_CTRL */
 	spinlock_t			clk_lock;
 
-	struct bcmasp_net_filter	net_filters[NUM_NET_FILTERS];
+	struct bcmasp_net_filter	*net_filters;
 
 	/* Network filter lock */
 	struct mutex			net_lock;
@@ -482,8 +490,8 @@ BCMASP_FP_IO_MACRO_Q(rx_edpkt_cfg);
 #define  PKT_OFFLOAD_EPKT_IP(x)		((x) << 21)
 #define  PKT_OFFLOAD_EPKT_TP(x)		((x) << 19)
 #define  PKT_OFFLOAD_EPKT_LEN(x)	((x) << 16)
-#define  PKT_OFFLOAD_EPKT_CSUM_L3	BIT(15)
-#define  PKT_OFFLOAD_EPKT_CSUM_L2	BIT(14)
+#define  PKT_OFFLOAD_EPKT_CSUM_L4	BIT(15)
+#define  PKT_OFFLOAD_EPKT_CSUM_L3	BIT(14)
 #define  PKT_OFFLOAD_EPKT_ID(x)		((x) << 12)
 #define  PKT_OFFLOAD_EPKT_SEQ(x)	((x) << 10)
 #define  PKT_OFFLOAD_EPKT_TS(x)		((x) << 8)
@@ -515,11 +523,26 @@ BCMASP_CORE_IO_MACRO(intr2, ASP_INTR2_OFFSET);
 BCMASP_CORE_IO_MACRO(wakeup_intr2, ASP_WAKEUP_INTR2_OFFSET);
 BCMASP_CORE_IO_MACRO(tx_analytics, ASP_TX_ANALYTICS_OFFSET);
 BCMASP_CORE_IO_MACRO(rx_analytics, ASP_RX_ANALYTICS_OFFSET);
-BCMASP_CORE_IO_MACRO(rx_ctrl, ASP_RX_CTRL_OFFSET);
 BCMASP_CORE_IO_MACRO(rx_filter, ASP_RX_FILTER_OFFSET);
 BCMASP_CORE_IO_MACRO(rx_edpkt, ASP_EDPKT_OFFSET);
 BCMASP_CORE_IO_MACRO(ctrl, ASP_CTRL_OFFSET);
 BCMASP_CORE_IO_MACRO(ctrl2, ASP_CTRL2_OFFSET);
+
+#define BCMASP_CORE_IO_MACRO_OFFSET(name, offset)			\
+static inline u32 name##_core_rl(struct bcmasp_priv *priv,		\
+				 u32 off)				\
+{									\
+	u32 reg = readl_relaxed(priv->base + priv->name##_offset +	\
+				(offset) + off);			\
+	return reg;							\
+}									\
+static inline void name##_core_wl(struct bcmasp_priv *priv,		\
+				  u32 val, u32 off)			\
+{									\
+	writel_relaxed(val, priv->base + priv->name##_offset +		\
+		       (offset) + off);					\
+}
+BCMASP_CORE_IO_MACRO_OFFSET(rx_ctrl, ASP_RX_CTRL_OFFSET);
 
 struct bcmasp_intf *bcmasp_interface_create(struct bcmasp_priv *priv,
 					    struct device_node *ndev_dn, int i);
