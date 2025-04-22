@@ -22,6 +22,8 @@
 #include <asm/setup.h>
 #include <asm/firmware.h>
 
+#define cpu_to_be_ulong __PASTE(cpu_to_be, BITS_PER_LONG)
+
 #ifdef CONFIG_CRASH_DUMP
 void machine_crash_shutdown(struct pt_regs *regs)
 {
@@ -144,16 +146,9 @@ int __init overlaps_crashkernel(unsigned long start, unsigned long size)
 }
 
 /* Values we need to export to the second kernel via the device tree. */
-static phys_addr_t kernel_end;
 static phys_addr_t crashk_base;
 static phys_addr_t crashk_size;
 static unsigned long long mem_limit;
-
-static struct property kernel_end_prop = {
-	.name = "linux,kernel-end",
-	.length = sizeof(phys_addr_t),
-	.value = &kernel_end,
-};
 
 static struct property crashk_base_prop = {
 	.name = "linux,crashkernel-base",
@@ -172,8 +167,6 @@ static struct property memory_limit_prop = {
 	.length = sizeof(unsigned long long),
 	.value = &mem_limit,
 };
-
-#define cpu_to_be_ulong	__PASTE(cpu_to_be, BITS_PER_LONG)
 
 static void __init export_crashk_values(struct device_node *node)
 {
@@ -198,6 +191,15 @@ static void __init export_crashk_values(struct device_node *node)
 	mem_limit = cpu_to_be_ulong(memory_limit);
 	of_update_property(node, &memory_limit_prop);
 }
+#endif /* CONFIG_CRASH_RESERVE */
+
+static phys_addr_t kernel_end;
+
+static struct property kernel_end_prop = {
+	.name = "linux,kernel-end",
+	.length = sizeof(phys_addr_t),
+	.value = &kernel_end,
+};
 
 static int __init kexec_setup(void)
 {
@@ -208,16 +210,17 @@ static int __init kexec_setup(void)
 		return -ENOENT;
 
 	/* remove any stale properties so ours can be found */
-	of_remove_property(node, of_find_property(node, kernel_end_prop.name, NULL));
+	of_remove_property(node, of_find_property(node, kernel_end_prop.name,
+						  NULL));
 
 	/* information needed by userspace when using default_machine_kexec */
 	kernel_end = cpu_to_be_ulong(__pa(_end));
 	of_add_property(node, &kernel_end_prop);
 
+#ifdef CONFIG_CRASH_RESERVE
 	export_crashk_values(node);
-
+#endif
 	of_node_put(node);
 	return 0;
 }
 late_initcall(kexec_setup);
-#endif /* CONFIG_CRASH_RESERVE */
