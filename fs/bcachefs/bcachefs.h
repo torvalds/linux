@@ -295,6 +295,16 @@ do {									\
 		bch2_print(_c, __VA_ARGS__);				\
 } while (0)
 
+#define bch2_print_str_ratelimited(_c, ...)				\
+do {									\
+	static DEFINE_RATELIMIT_STATE(_rs,				\
+				      DEFAULT_RATELIMIT_INTERVAL,	\
+				      DEFAULT_RATELIMIT_BURST);		\
+									\
+	if (__ratelimit(&_rs))						\
+		bch2_print_str(_c, __VA_ARGS__);			\
+} while (0)
+
 #define bch_info(c, fmt, ...) \
 	bch2_print(c, KERN_INFO bch2_fmt(c, fmt), ##__VA_ARGS__)
 #define bch_info_ratelimited(c, fmt, ...) \

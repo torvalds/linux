@@ -582,7 +582,6 @@ static void bch2_rbio_retry(struct work_struct *work)
 		.inum	= rbio->read_pos.inode,
 	};
 	struct bch_io_failures failed = { .nr = 0 };
-	int orig_error = rbio->ret;
 
 	struct btree_trans *trans = bch2_trans_get(c);
 
@@ -623,10 +622,11 @@ static void bch2_rbio_retry(struct work_struct *work)
 	if (ret) {
 		rbio->ret = ret;
 		rbio->bio.bi_status = BLK_STS_IOERR;
-	} else if (orig_error != -BCH_ERR_data_read_retry_csum_err_maybe_userspace &&
-		   orig_error != -BCH_ERR_data_read_ptr_stale_race &&
-		   !failed.nr) {
+	}
+
+	if (failed.nr || ret) {
 		struct printbuf buf = PRINTBUF;
+		bch2_log_msg_start(c, &buf);
 
 		lockrestart_do(trans,
 			bch2_inum_offset_err_msg_trans(trans, &buf,
@@ -634,9 +634,22 @@ static void bch2_rbio_retry(struct work_struct *work)
 					read_pos.offset << 9));
 		if (rbio->data_update)
 			prt_str(&buf, "(internal move) ");
-		prt_str(&buf, "successful retry");
 
-		bch_err_ratelimited(c, "%s", buf.buf);
+		prt_str(&buf, "data read error, ");
+		if (!ret)
+			prt_str(&buf, "successful retry");
+		else
+			prt_str(&buf, bch2_err_str(ret));
+		prt_newline(&buf);
+
+		if (!bkey_deleted(&sk.k->k)) {
+			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(sk.k));
+			prt_newline(&buf);
+		}
+
+		bch2_io_failures_to_text(&buf, c, &failed);
+
+		bch2_print_str_ratelimited(c, KERN_ERR, buf.buf);
 		printbuf_exit(&buf);
 	}
 
@@ -669,27 +682,6 @@ static void bch2_rbio_error(struct bch_read_bio *rbio,
 
 		bch2_rbio_done(rbio);
 	}
-}
-
-static void bch2_read_io_err(struct work_struct *work)
-{
-	struct bch_read_bio *rbio =
-		container_of(work, struct bch_read_bio, work);
-	struct bio *bio = &rbio->bio;
-	struct bch_fs *c	= rbio->c;
-	struct bch_dev *ca = rbio->have_ioref ? bch2_dev_have_ref(c, rbio->pick.ptr.dev) : NULL;
-	struct printbuf buf = PRINTBUF;
-
-	bch2_read_err_msg(c, &buf, rbio, rbio->read_pos);
-	prt_printf(&buf, "data read error: %s", bch2_blk_status_to_str(bio->bi_status));
-
-	if (ca)
-		bch_err_ratelimited(ca, "%s", buf.buf);
-	else
-		bch_err_ratelimited(c, "%s", buf.buf);
-
-	printbuf_exit(&buf);
-	bch2_rbio_error(rbio, -BCH_ERR_data_read_retry_io_err, bio->bi_status);
 }
 
 static int __bch2_rbio_narrow_crcs(struct btree_trans *trans,
@@ -753,31 +745,6 @@ static noinline void bch2_rbio_narrow_crcs(struct bch_read_bio *rbio)
 {
 	bch2_trans_commit_do(rbio->c, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			     __bch2_rbio_narrow_crcs(trans, rbio));
-}
-
-static void bch2_read_csum_err(struct work_struct *work)
-{
-	struct bch_read_bio *rbio =
-		container_of(work, struct bch_read_bio, work);
-	struct bch_fs *c	= rbio->c;
-	struct bio *src		= &rbio->bio;
-	struct bch_extent_crc_unpacked crc = rbio->pick.crc;
-	struct nonce nonce = extent_nonce(rbio->version, crc);
-	struct bch_csum csum = bch2_checksum_bio(c, crc.csum_type, nonce, src);
-	struct printbuf buf = PRINTBUF;
-
-	bch2_read_err_msg(c, &buf, rbio, rbio->read_pos);
-	prt_str(&buf, "data ");
-	bch2_csum_err_msg(&buf, crc.csum_type, rbio->pick.crc.csum, csum);
-
-	struct bch_dev *ca = rbio->have_ioref ? bch2_dev_have_ref(c, rbio->pick.ptr.dev) : NULL;
-	if (ca)
-		bch_err_ratelimited(ca, "%s", buf.buf);
-	else
-		bch_err_ratelimited(c, "%s", buf.buf);
-
-	bch2_rbio_error(rbio, -BCH_ERR_data_read_retry_csum_err, BLK_STS_IOERR);
-	printbuf_exit(&buf);
 }
 
 static void bch2_read_decompress_err(struct work_struct *work)
@@ -940,7 +907,7 @@ out:
 	memalloc_nofs_restore(nofs_flags);
 	return;
 csum_err:
-	bch2_rbio_punt(rbio, bch2_read_csum_err, RBIO_CONTEXT_UNBOUND, system_unbound_wq);
+	bch2_rbio_error(rbio, -BCH_ERR_data_read_retry_csum_err, BLK_STS_IOERR);
 	goto out;
 decompression_err:
 	bch2_rbio_punt(rbio, bch2_read_decompress_err, RBIO_CONTEXT_UNBOUND, system_unbound_wq);
@@ -966,7 +933,7 @@ static void bch2_read_endio(struct bio *bio)
 		rbio->bio.bi_end_io = rbio->end_io;
 
 	if (unlikely(bio->bi_status)) {
-		bch2_rbio_punt(rbio, bch2_read_io_err, RBIO_CONTEXT_UNBOUND, system_unbound_wq);
+		bch2_rbio_error(rbio, -BCH_ERR_data_read_retry_io_err, bio->bi_status);
 		return;
 	}
 
@@ -1292,14 +1259,6 @@ retry_pick:
 
 	if (likely(!rbio->pick.do_ec_reconstruct)) {
 		if (unlikely(!rbio->have_ioref)) {
-			struct printbuf buf = PRINTBUF;
-			bch2_read_err_msg_trans(trans, &buf, rbio, read_pos);
-			prt_printf(&buf, "no device to read from:\n  ");
-			bch2_bkey_val_to_text(&buf, c, k);
-
-			bch_err_ratelimited(c, "%s", buf.buf);
-			printbuf_exit(&buf);
-
 			bch2_rbio_error(rbio,
 					-BCH_ERR_data_read_retry_device_offline,
 					BLK_STS_IOERR);
