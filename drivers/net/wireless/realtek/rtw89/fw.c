@@ -5308,12 +5308,12 @@ int rtw89_fw_h2c_add_pkt_offload(struct rtw89_dev *rtwdev, u8 *id,
 }
 
 static
-int rtw89_fw_h2c_scan_list_offload(struct rtw89_dev *rtwdev, int ch_num,
-				   struct list_head *chan_list)
+int rtw89_fw_h2c_scan_list_offload_ax(struct rtw89_dev *rtwdev, int ch_num,
+				      struct list_head *chan_list)
 {
 	struct rtw89_wait_info *wait = &rtwdev->mac.fw_ofld_wait;
 	struct rtw89_h2c_chinfo_elem *elem;
-	struct rtw89_mac_chinfo *ch_info;
+	struct rtw89_mac_chinfo_ax *ch_info;
 	struct rtw89_h2c_chinfo *h2c;
 	struct sk_buff *skb;
 	unsigned int cond;
@@ -6648,10 +6648,10 @@ static int rtw89_hw_scan_update_probe_req(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
-static int rtw89_update_6ghz_rnr_chan(struct rtw89_dev *rtwdev,
-				      struct ieee80211_scan_ies *ies,
-				      struct cfg80211_scan_request *req,
-				      struct rtw89_mac_chinfo *ch_info)
+static int rtw89_update_6ghz_rnr_chan_ax(struct rtw89_dev *rtwdev,
+					 struct ieee80211_scan_ies *ies,
+					 struct cfg80211_scan_request *req,
+					 struct rtw89_mac_chinfo_ax *ch_info)
 {
 	struct rtw89_vif_link *rtwvif_link = rtwdev->scan_info.scanning_vif;
 	struct list_head *pkt_list = rtwdev->scan_info.pkt_list;
@@ -6723,7 +6723,7 @@ out:
 
 static void rtw89_pno_scan_add_chan_ax(struct rtw89_dev *rtwdev,
 				       int chan_type, int ssid_num,
-				       struct rtw89_mac_chinfo *ch_info)
+				       struct rtw89_mac_chinfo_ax *ch_info)
 {
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
 	struct rtw89_pktofld_info *info;
@@ -6771,9 +6771,9 @@ static void rtw89_pno_scan_add_chan_ax(struct rtw89_dev *rtwdev,
 	}
 }
 
-static void rtw89_hw_scan_add_chan(struct rtw89_dev *rtwdev, int chan_type,
-				   int ssid_num,
-				   struct rtw89_mac_chinfo *ch_info)
+static void rtw89_hw_scan_add_chan_ax(struct rtw89_dev *rtwdev, int chan_type,
+				      int ssid_num,
+				      struct rtw89_mac_chinfo_ax *ch_info)
 {
 	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
 	struct rtw89_vif_link *rtwvif_link = rtwdev->scan_info.scanning_vif;
@@ -6804,7 +6804,7 @@ static void rtw89_hw_scan_add_chan(struct rtw89_dev *rtwdev, int chan_type,
 		}
 	}
 
-	ret = rtw89_update_6ghz_rnr_chan(rtwdev, ies, req, ch_info);
+	ret = rtw89_update_6ghz_rnr_chan_ax(rtwdev, ies, req, ch_info);
 	if (ret)
 		rtw89_warn(rtwdev, "RNR fails: %d\n", ret);
 
@@ -6960,7 +6960,7 @@ int rtw89_pno_scan_add_chan_list_ax(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
 	struct cfg80211_sched_scan_request *nd_config = rtw_wow->nd_config;
-	struct rtw89_mac_chinfo	*ch_info, *tmp;
+	struct rtw89_mac_chinfo_ax *ch_info, *tmp;
 	struct ieee80211_channel *channel;
 	struct list_head chan_list;
 	int list_len;
@@ -6994,7 +6994,7 @@ int rtw89_pno_scan_add_chan_list_ax(struct rtw89_dev *rtwdev,
 		rtw89_pno_scan_add_chan_ax(rtwdev, type, nd_config->n_match_sets, ch_info);
 		list_add_tail(&ch_info->list, &chan_list);
 	}
-	ret = rtw89_fw_h2c_scan_list_offload(rtwdev, list_len, &chan_list);
+	ret = rtw89_fw_h2c_scan_list_offload_ax(rtwdev, list_len, &chan_list);
 
 out:
 	list_for_each_entry_safe(ch_info, tmp, &chan_list, list) {
@@ -7010,7 +7010,7 @@ int rtw89_hw_scan_add_chan_list_ax(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_vif *rtwvif = rtwvif_link->rtwvif;
 	struct cfg80211_scan_request *req = rtwvif->scan_req;
-	struct rtw89_mac_chinfo	*ch_info, *tmp;
+	struct rtw89_mac_chinfo_ax *ch_info, *tmp;
 	struct ieee80211_channel *channel;
 	struct list_head chan_list;
 	bool random_seq = req->flags & NL80211_SCAN_FLAG_RANDOM_SN;
@@ -7049,7 +7049,7 @@ int rtw89_hw_scan_add_chan_list_ax(struct rtw89_dev *rtwdev,
 			type = RTW89_CHAN_DFS;
 		else
 			type = RTW89_CHAN_ACTIVE;
-		rtw89_hw_scan_add_chan(rtwdev, type, req->n_ssids, ch_info);
+		rtw89_hw_scan_add_chan_ax(rtwdev, type, req->n_ssids, ch_info);
 
 		if (connected &&
 		    off_chan_time + ch_info->period > RTW89_OFF_CHAN_TIME) {
@@ -7063,7 +7063,7 @@ int rtw89_hw_scan_add_chan_list_ax(struct rtw89_dev *rtwdev,
 			type = RTW89_CHAN_OPERATE;
 			tmp->period = req->duration_mandatory ?
 				      req->duration : RTW89_CHANNEL_TIME;
-			rtw89_hw_scan_add_chan(rtwdev, type, 0, tmp);
+			rtw89_hw_scan_add_chan_ax(rtwdev, type, 0, tmp);
 			list_add_tail(&tmp->list, &chan_list);
 			off_chan_time = 0;
 			list_len++;
@@ -7072,7 +7072,7 @@ int rtw89_hw_scan_add_chan_list_ax(struct rtw89_dev *rtwdev,
 		off_chan_time += ch_info->period;
 	}
 	rtwdev->scan_info.last_chan_idx = idx;
-	ret = rtw89_fw_h2c_scan_list_offload(rtwdev, list_len, &chan_list);
+	ret = rtw89_fw_h2c_scan_list_offload_ax(rtwdev, list_len, &chan_list);
 
 out:
 	list_for_each_entry_safe(ch_info, tmp, &chan_list, list) {

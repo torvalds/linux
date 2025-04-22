@@ -335,7 +335,7 @@ struct rtw89_fw_macid_pause_sleep_grp {
 
 #define RTW89_BCN_LOSS_CNT 60
 
-struct rtw89_mac_chinfo {
+struct rtw89_mac_chinfo_ax {
 	u8 period;
 	u8 dwell_time;
 	u8 central_ch;
