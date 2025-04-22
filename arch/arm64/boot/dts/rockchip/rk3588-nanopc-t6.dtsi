@@ -174,8 +174,6 @@
 		gpio = <&gpio1 RK_PD2 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&typec5v_pwren>;
-		regulator-always-on;
-		regulator-boot-on;
 		regulator-name = "vbus5v0_typec";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
@@ -188,8 +186,6 @@
 		gpio = <&gpio4 RK_PB0 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb5v_pwren>;
-		regulator-always-on;
-		regulator-boot-on;
 		regulator-name = "vbus5v0_usb";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
@@ -465,24 +461,30 @@
 };
 
 &i2c6 {
-	clock-frequency = <200000>;
 	status = "okay";
 
-	fusb302: typec-portc@22 {
+	usbc0: usb-typec@22 {
 		compatible = "fcs,fusb302";
 		reg = <0x22>;
 		interrupt-parent = <&gpio0>;
 		interrupts = <RK_PD3 IRQ_TYPE_LEVEL_LOW>;
-		pinctrl-0 = <&usbc0_int>;
 		pinctrl-names = "default";
+		pinctrl-0 = <&usbc0_int>;
 		vbus-supply = <&vbus5v0_typec>;
+		status = "okay";
 
 		connector {
 			compatible = "usb-c-connector";
 			data-role = "dual";
 			label = "USB-C";
-			power-role = "source";
+			op-sink-microwatt = <1000000>;
+			/* fusb302 supports PD Rev 2.0 Ver 1.2 */
+			pd-revision = /bits/ 8 <0x2 0x0 0x1 0x2>;
+			power-role = "dual";
+			sink-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
 			source-pdos = <PDO_FIXED(5000, 2000, PDO_FIXED_USB_COMM)>;
+			try-power-role = "source";
+			typec-power-opmode = "1.5A";
 
 			ports {
 				#address-cells = <1>;
@@ -1135,9 +1137,8 @@
 };
 
 &usb_host0_xhci {
-	dr_mode = "host";
-	status = "okay";
 	usb-role-switch;
+	status = "okay";
 
 	port {
 		usb_host0_xhci_drd_sw: endpoint {
