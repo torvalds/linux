@@ -95,6 +95,7 @@ config APPLE_ADMAC
 
 config ARM_DMA350
 	tristate "Arm DMA-350 support"
+	depends on ARM || ARM64 || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
