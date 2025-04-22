@@ -46,6 +46,7 @@
 #include <linux/random.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/types.h>
 
 #include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
@@ -1105,9 +1106,13 @@ static irqreturn_t bmp280_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct bmp280_data *data = iio_priv(indio_dev);
-	u32 adc_temp, adc_press, comp_press;
-	s32 t_fine, comp_temp;
-	s32 *chans = (s32 *)data->sensor_data;
+	u32 adc_temp, adc_press;
+	s32 t_fine;
+	struct {
+		u32 comp_press;
+		s32 comp_temp;
+		aligned_s64 timestamp;
+	} buffer;
 	int ret;
 
 	guard(mutex)(&data->lock);
@@ -1127,7 +1132,7 @@ static irqreturn_t bmp280_trigger_handler(int irq, void *p)
 		goto out;
 	}
 
-	comp_temp = bmp280_compensate_temp(data, adc_temp);
+	buffer.comp_temp = bmp280_compensate_temp(data, adc_temp);
 
 	/* Pressure calculations */
 	adc_press = FIELD_GET(BMP280_MEAS_TRIM_MASK, get_unaligned_be24(&data->buf[0]));
@@ -1137,13 +1142,9 @@ static irqreturn_t bmp280_trigger_handler(int irq, void *p)
 	}
 
 	t_fine = bmp280_calc_t_fine(data, adc_temp);
-	comp_press = bmp280_compensate_press(data, adc_press, t_fine);
+	buffer.comp_press = bmp280_compensate_press(data, adc_press, t_fine);
 
-	chans[0] = comp_press;
-	chans[1] = comp_temp;
-
-	iio_push_to_buffers_with_ts(indio_dev, data->sensor_data,
-				    sizeof(data->sensor_data),
+	iio_push_to_buffers_with_ts(indio_dev, &buffer, sizeof(buffer),
 				    iio_get_time_ns(indio_dev));
 
 out:
@@ -1226,9 +1227,14 @@ static irqreturn_t bme280_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct bmp280_data *data = iio_priv(indio_dev);
-	u32 adc_temp, adc_press, adc_humidity, comp_press, comp_humidity;
-	s32 t_fine, comp_temp;
-	s32 *chans = (s32 *)data->sensor_data;
+	u32 adc_temp, adc_press, adc_humidity;
+	s32 t_fine;
+	struct {
+		u32 comp_press;
+		s32 comp_temp;
+		u32 comp_humidity;
+		aligned_s64 timestamp;
+	} buffer;
 	int ret;
 
 	guard(mutex)(&data->lock);
@@ -1248,7 +1254,7 @@ static irqreturn_t bme280_trigger_handler(int irq, void *p)
 		goto out;
 	}
 
-	comp_temp = bmp280_compensate_temp(data, adc_temp);
+	buffer.comp_temp = bmp280_compensate_temp(data, adc_temp);
 
 	/* Pressure calculations */
 	adc_press = FIELD_GET(BMP280_MEAS_TRIM_MASK, get_unaligned_be24(&data->buf[0]));
@@ -1258,7 +1264,7 @@ static irqreturn_t bme280_trigger_handler(int irq, void *p)
 	}
 
 	t_fine = bmp280_calc_t_fine(data, adc_temp);
-	comp_press = bmp280_compensate_press(data, adc_press, t_fine);
+	buffer.comp_press = bmp280_compensate_press(data, adc_press, t_fine);
 
 	/* Humidity calculations */
 	adc_humidity = get_unaligned_be16(&data->buf[6]);
@@ -1268,14 +1274,10 @@ static irqreturn_t bme280_trigger_handler(int irq, void *p)
 		goto out;
 	}
 
-	comp_humidity = bme280_compensate_humidity(data, adc_humidity, t_fine);
+	buffer.comp_humidity = bme280_compensate_humidity(data, adc_humidity,
+							  t_fine);
 
-	chans[0] = comp_press;
-	chans[1] = comp_temp;
-	chans[2] = comp_humidity;
-
-	iio_push_to_buffers_with_ts(indio_dev, data->sensor_data,
-				    sizeof(data->sensor_data),
+	iio_push_to_buffers_with_ts(indio_dev, &buffer, sizeof(buffer),
 				    iio_get_time_ns(indio_dev));
 
 out:
@@ -1901,9 +1903,13 @@ static irqreturn_t bmp380_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct bmp280_data *data = iio_priv(indio_dev);
-	u32 adc_temp, adc_press, comp_press;
-	s32 t_fine, comp_temp;
-	s32 *chans = (s32 *)data->sensor_data;
+	u32 adc_temp, adc_press;
+	s32 t_fine;
+	struct {
+		u32 comp_press;
+		s32 comp_temp;
+		aligned_s64 timestamp;
+	} buffer;
 	int ret;
 
 	guard(mutex)(&data->lock);
@@ -1923,7 +1929,7 @@ static irqreturn_t bmp380_trigger_handler(int irq, void *p)
 		goto out;
 	}
 
-	comp_temp = bmp380_compensate_temp(data, adc_temp);
+	buffer.comp_temp = bmp380_compensate_temp(data, adc_temp);
 
 	/* Pressure calculations */
 	adc_press = get_unaligned_le24(&data->buf[0]);
@@ -1933,13 +1939,9 @@ static irqreturn_t bmp380_trigger_handler(int irq, void *p)
 	}
 
 	t_fine = bmp380_calc_t_fine(data, adc_temp);
-	comp_press = bmp380_compensate_press(data, adc_press, t_fine);
+	buffer.comp_press = bmp380_compensate_press(data, adc_press, t_fine);
 
-	chans[0] = comp_press;
-	chans[1] = comp_temp;
-
-	iio_push_to_buffers_with_ts(indio_dev, data->sensor_data,
-				    sizeof(data->sensor_data),
+	iio_push_to_buffers_with_ts(indio_dev, &buffer, sizeof(buffer),
 				    iio_get_time_ns(indio_dev));
 
 out:
@@ -2611,7 +2613,12 @@ static irqreturn_t bmp580_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct bmp280_data *data = iio_priv(indio_dev);
-	int ret, offset;
+	struct {
+		__le32 comp_temp;
+		__le32 comp_press;
+		aligned_s64 timestamp;
+	} buffer;
+	int ret;
 
 	guard(mutex)(&data->lock);
 
@@ -2623,18 +2630,13 @@ static irqreturn_t bmp580_trigger_handler(int irq, void *p)
 		goto out;
 	}
 
-	offset = 0;
-
 	/* Pressure calculations */
-	memcpy(&data->sensor_data[offset], &data->buf[3], 3);
-
-	offset += sizeof(s32);
+	memcpy(&buffer.comp_press, &data->buf[3], 3);
 
 	/* Temperature calculations */
-	memcpy(&data->sensor_data[offset], &data->buf[0], 3);
+	memcpy(&buffer.comp_temp, &data->buf[0], 3);
 
-	iio_push_to_buffers_with_ts(indio_dev, data->sensor_data,
-				    sizeof(data->sensor_data),
+	iio_push_to_buffers_with_ts(indio_dev, &buffer, sizeof(buffer),
 				    iio_get_time_ns(indio_dev));
 
 out:
@@ -2956,25 +2958,25 @@ static irqreturn_t bmp180_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct bmp280_data *data = iio_priv(indio_dev);
-	int ret, comp_temp, comp_press;
-	s32 *chans = (s32 *)data->sensor_data;
+	struct {
+		u32 comp_press;
+		s32 comp_temp;
+		aligned_s64 timestamp;
+	} buffer;
+	int ret;
 
 	guard(mutex)(&data->lock);
 
-	ret = bmp180_read_temp(data, &comp_temp);
+	ret = bmp180_read_temp(data, &buffer.comp_temp);
 	if (ret)
 		goto out;
 
 
-	ret = bmp180_read_press(data, &comp_press);
+	ret = bmp180_read_press(data, &buffer.comp_press);
 	if (ret)
 		goto out;
 
-	chans[0] = comp_press;
-	chans[1] = comp_temp;
-
-	iio_push_to_buffers_with_ts(indio_dev, data->sensor_data,
-				    sizeof(data->sensor_data),
+	iio_push_to_buffers_with_ts(indio_dev, &buffer, sizeof(buffer),
 				    iio_get_time_ns(indio_dev));
 
 out:
