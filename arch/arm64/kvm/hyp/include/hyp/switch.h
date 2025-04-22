@@ -87,6 +87,21 @@ static inline void __activate_traps_fpsimd32(struct kvm_vcpu *vcpu)
 		case HAFGRTR_EL2:					\
 			m = &hafgrtr_masks;				\
 			break;						\
+		case HFGRTR2_EL2:					\
+			m = &hfgrtr2_masks;				\
+			break;						\
+		case HFGWTR2_EL2:					\
+			m = &hfgwtr2_masks;				\
+			break;						\
+		case HFGITR2_EL2:					\
+			m = &hfgitr2_masks;				\
+			break;						\
+		case HDFGRTR2_EL2:					\
+			m = &hdfgrtr2_masks;				\
+			break;						\
+		case HDFGWTR2_EL2:					\
+			m = &hdfgwtr2_masks;				\
+			break;						\
 		default:						\
 			BUILD_BUG_ON(1);				\
 		}							\
@@ -119,6 +134,17 @@ static inline void __activate_traps_fpsimd32(struct kvm_vcpu *vcpu)
 			break;						\
 		case HAFGRTR_EL2:					\
 			id = HAFGRTR_GROUP;				\
+			break;						\
+		case HFGRTR2_EL2:					\
+		case HFGWTR2_EL2:					\
+			id = HFGRTR2_GROUP;				\
+			break;						\
+		case HFGITR2_EL2:					\
+			id = HFGITR2_GROUP;				\
+			break;						\
+		case HDFGRTR2_EL2:					\
+		case HDFGWTR2_EL2:					\
+			id = HDFGRTR2_GROUP;				\
 			break;						\
 		default:						\
 			BUILD_BUG_ON(1);				\
@@ -182,6 +208,15 @@ static inline void __activate_traps_hfgxtr(struct kvm_vcpu *vcpu)
 
 	if (cpu_has_amu())
 		update_fgt_traps(hctxt, vcpu, kvm, HAFGRTR_EL2);
+
+	if (!cpus_have_final_cap(ARM64_HAS_FGT2))
+	    return;
+
+	update_fgt_traps(hctxt, vcpu, kvm, HFGRTR2_EL2);
+	update_fgt_traps(hctxt, vcpu, kvm, HFGWTR2_EL2);
+	update_fgt_traps(hctxt, vcpu, kvm, HFGITR2_EL2);
+	update_fgt_traps(hctxt, vcpu, kvm, HDFGRTR2_EL2);
+	update_fgt_traps(hctxt, vcpu, kvm, HDFGWTR2_EL2);
 }
 
 #define __deactivate_fgt(htcxt, vcpu, reg)				\
@@ -205,6 +240,15 @@ static inline void __deactivate_traps_hfgxtr(struct kvm_vcpu *vcpu)
 
 	if (cpu_has_amu())
 		__deactivate_fgt(hctxt, vcpu, HAFGRTR_EL2);
+
+	if (!cpus_have_final_cap(ARM64_HAS_FGT2))
+	    return;
+
+	__deactivate_fgt(hctxt, vcpu, HFGRTR2_EL2);
+	__deactivate_fgt(hctxt, vcpu, HFGWTR2_EL2);
+	__deactivate_fgt(hctxt, vcpu, HFGITR2_EL2);
+	__deactivate_fgt(hctxt, vcpu, HDFGRTR2_EL2);
+	__deactivate_fgt(hctxt, vcpu, HDFGWTR2_EL2);
 }
 
 static inline void  __activate_traps_mpam(struct kvm_vcpu *vcpu)
