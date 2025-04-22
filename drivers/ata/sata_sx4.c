@@ -1301,32 +1301,32 @@ static unsigned int pdc20621_dimm_init(struct ata_host *host)
 	}
 
 	if (dimm_test) {
-		u8 test_parttern1[40] =
+		u8 test_pattern1[40] =
 			{0x55,0xAA,'P','r','o','m','i','s','e',' ',
 			'N','o','t',' ','Y','e','t',' ',
 			'D','e','f','i','n','e','d',' ',
 			'1','.','1','0',
 			'9','8','0','3','1','6','1','2',0,0};
-		u8 test_parttern2[40] = {0};
+		u8 test_pattern2[40] = {0};
 
-		pdc20621_put_to_dimm(host, test_parttern2, 0x10040, 40);
-		pdc20621_put_to_dimm(host, test_parttern2, 0x40, 40);
+		pdc20621_put_to_dimm(host, test_pattern2, 0x10040, 40);
+		pdc20621_put_to_dimm(host, test_pattern2, 0x40, 40);
 
-		pdc20621_put_to_dimm(host, test_parttern1, 0x10040, 40);
-		pdc20621_get_from_dimm(host, test_parttern2, 0x40, 40);
-		dev_info(host->dev, "DIMM test pattern 1: %x, %x, %s\n", test_parttern2[0],
-		       test_parttern2[1], &(test_parttern2[2]));
-		pdc20621_get_from_dimm(host, test_parttern2, 0x10040,
+		pdc20621_put_to_dimm(host, test_pattern1, 0x10040, 40);
+		pdc20621_get_from_dimm(host, test_pattern2, 0x40, 40);
+		dev_info(host->dev, "DIMM test pattern 1: %x, %x, %s\n", test_pattern2[0],
+		       test_pattern2[1], &(test_pattern2[2]));
+		pdc20621_get_from_dimm(host, test_pattern2, 0x10040,
 				       40);
 		dev_info(host->dev, "DIMM test pattern 2: %x, %x, %s\n",
-			 test_parttern2[0],
-			 test_parttern2[1], &(test_parttern2[2]));
+			 test_pattern2[0],
+			 test_pattern2[1], &(test_pattern2[2]));
 
-		pdc20621_put_to_dimm(host, test_parttern1, 0x40, 40);
-		pdc20621_get_from_dimm(host, test_parttern2, 0x40, 40);
+		pdc20621_put_to_dimm(host, test_pattern1, 0x40, 40);
+		pdc20621_get_from_dimm(host, test_pattern2, 0x40, 40);
 		dev_info(host->dev, "DIMM test pattern 3: %x, %x, %s\n",
-			 test_parttern2[0],
-			 test_parttern2[1], &(test_parttern2[2]));
+			 test_pattern2[0],
+			 test_pattern2[1], &(test_pattern2[2]));
 	}
 
 	/* ECC initiliazation. */
