@@ -239,8 +239,8 @@ static u32 nvmet_connect_result(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq)
 	bool needs_auth = nvmet_has_auth(ctrl, sq);
 	key_serial_t keyid = nvmet_queue_tls_keyid(sq);
 
-	/* Do not authenticate I/O queues for secure concatenation */
-	if (ctrl->concat && sq->qid)
+	/* Do not authenticate I/O queues */
+	if (sq->qid)
 		needs_auth = false;
 
 	if (keyid)

@@ -280,9 +280,12 @@ void nvmet_destroy_auth(struct nvmet_ctrl *ctrl)
 
 bool nvmet_check_auth_status(struct nvmet_req *req)
 {
-	if (req->sq->ctrl->host_key &&
-	    !req->sq->authenticated)
-		return false;
+	if (req->sq->ctrl->host_key) {
+		if (req->sq->qid > 0)
+			return true;
+		if (!req->sq->authenticated)
+			return false;
+	}
 	return true;
 }
 
