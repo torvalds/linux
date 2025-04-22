@@ -34,6 +34,7 @@
 #include <linux/dmi.h>
 #include <linux/acpi.h>
 #include <linux/io.h>
+#include <asm/amd/fch.h>
 
 #include "i2c-piix4.h"
 
@@ -80,12 +81,11 @@
 #define SB800_PIIX4_PORT_IDX_MASK	0x06
 #define SB800_PIIX4_PORT_IDX_SHIFT	1
 
-/* On kerncz and Hudson2, SmBus0Sel is at bit 20:19 of PMx00 DecodeEn */
-#define SB800_PIIX4_PORT_IDX_KERNCZ		0x02
-#define SB800_PIIX4_PORT_IDX_MASK_KERNCZ	0x18
+/* SmBus0Sel is at bit 20:19 of PMx00 DecodeEn */
+#define SB800_PIIX4_PORT_IDX_KERNCZ		(FCH_PM_DECODEEN + 0x02)
+#define SB800_PIIX4_PORT_IDX_MASK_KERNCZ	(FCH_PM_DECODEEN_SMBUS0SEL >> 16)
 #define SB800_PIIX4_PORT_IDX_SHIFT_KERNCZ	3
 
-#define SB800_PIIX4_FCH_PM_ADDR			0xFED80300
 #define SB800_PIIX4_FCH_PM_SIZE			8
 #define SB800_ASF_ACPI_PATH			"\\_SB.ASFC"
 
@@ -162,19 +162,19 @@ int piix4_sb800_region_request(struct device *dev, struct sb800_mmio_cfg *mmio_c
 	if (mmio_cfg->use_mmio) {
 		void __iomem *addr;
 
-		if (!request_mem_region_muxed(SB800_PIIX4_FCH_PM_ADDR,
+		if (!request_mem_region_muxed(FCH_PM_BASE,
 					      SB800_PIIX4_FCH_PM_SIZE,
 					      "sb800_piix4_smb")) {
 			dev_err(dev,
 				"SMBus base address memory region 0x%x already in use.\n",
-				SB800_PIIX4_FCH_PM_ADDR);
+				FCH_PM_BASE);
 			return -EBUSY;
 		}
 
-		addr = ioremap(SB800_PIIX4_FCH_PM_ADDR,
+		addr = ioremap(FCH_PM_BASE,
 			       SB800_PIIX4_FCH_PM_SIZE);
 		if (!addr) {
-			release_mem_region(SB800_PIIX4_FCH_PM_ADDR,
+			release_mem_region(FCH_PM_BASE,
 					   SB800_PIIX4_FCH_PM_SIZE);
 			dev_err(dev, "SMBus base address mapping failed.\n");
 			return -ENOMEM;
@@ -201,7 +201,7 @@ void piix4_sb800_region_release(struct device *dev, struct sb800_mmio_cfg *mmio_
 {
 	if (mmio_cfg->use_mmio) {
 		iounmap(mmio_cfg->addr);
-		release_mem_region(SB800_PIIX4_FCH_PM_ADDR,
+		release_mem_region(FCH_PM_BASE,
 				   SB800_PIIX4_FCH_PM_SIZE);
 		return;
 	}
