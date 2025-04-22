@@ -1362,9 +1362,6 @@ static void gfx_v12_1_setup_rb(struct amdgpu_device *adev)
 	adev->gfx.config.num_rbs = hweight32(active_rb_bitmap);
 }
 
-#define LDS_APP_BASE           0x2000
-#define SCRATCH_APP_BASE       0x4
-
 static void gfx_v12_1_xcc_init_compute_vmid(struct amdgpu_device *adev,
 					    int xcc_id)
 {
@@ -1374,12 +1371,13 @@ static void gfx_v12_1_xcc_init_compute_vmid(struct amdgpu_device *adev,
 
 	/*
 	 * Configure apertures:
-	 * LDS:         0x60000000'00000000 - 0x60000001'00000000 (4GB)
-	 * Scratch:     0x60000001'00000000 - 0x60000002'00000000 (4GB)
-	 * GPUVM:       0x60010000'00000000 - 0x60020000'00000000 (1TB)
+	 * LDS:         0x20000000'00000000 - 0x20000001'00000000 (4GB)
+	 * Scratch:     0x10000000'00000000 - 0x10000001'00000000 (4GB)
 	 */
-	sh_mem_bases = (LDS_APP_BASE << SH_MEM_BASES__SHARED_BASE__SHIFT) |
-			(SCRATCH_APP_BASE << SH_MEM_BASES__PRIVATE_BASE__SHIFT);
+	sh_mem_bases = REG_SET_FIELD(0, SH_MEM_BASES, PRIVATE_BASE,
+				     (adev->gmc.private_aperture_start >> 58));
+	sh_mem_bases = REG_SET_FIELD(sh_mem_bases, SH_MEM_BASES, SHARED_BASE,
+				     (adev->gmc.shared_aperture_start >> 48));
 
 	mutex_lock(&adev->srbm_mutex);
 	for (i = adev->vm_manager.first_kfd_vmid; i < AMDGPU_NUM_VMID; i++) {
