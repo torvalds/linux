@@ -1274,6 +1274,8 @@ static int bch2_fill_extent(struct bch_fs *c,
 	struct bkey_s_c k = bkey_i_to_s_c(fe->kbuf.k);
 	unsigned flags = fe->flags;
 
+	BUG_ON(!k.k->size);
+
 	if (bkey_extent_is_direct_data(k.k)) {
 		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 		const union bch_extent_entry *entry;
@@ -1326,36 +1328,6 @@ static int bch2_fill_extent(struct bch_fs *c,
 	}
 }
 
-static int bch2_fiemap_extent(struct btree_trans *trans,
-			      struct btree_iter *iter, struct bkey_s_c k,
-			      struct bch_fiemap_extent *cur)
-{
-	s64 offset_into_extent	= iter->pos.offset - bkey_start_offset(k.k);
-	unsigned sectors	= k.k->size - offset_into_extent;
-
-	bch2_bkey_buf_reassemble(&cur->kbuf, trans->c, k);
-
-	enum btree_id data_btree = BTREE_ID_extents;
-	int ret = bch2_read_indirect_extent(trans, &data_btree, &offset_into_extent,
-					    &cur->kbuf);
-	if (ret)
-		return ret;
-
-	k = bkey_i_to_s_c(cur->kbuf.k);
-	sectors = min_t(unsigned, sectors, k.k->size - offset_into_extent);
-
-	bch2_cut_front(POS(k.k->p.inode,
-			   bkey_start_offset(k.k) + offset_into_extent),
-		       cur->kbuf.k);
-	bch2_key_resize(&cur->kbuf.k->k, sectors);
-	cur->kbuf.k->k.p = iter->pos;
-	cur->kbuf.k->k.p.offset += cur->kbuf.k->k.size;
-
-	cur->flags = 0;
-
-	return 0;
-}
-
 /*
  * Scan a range of an inode for data in pagecache.
  *
@@ -1371,12 +1343,18 @@ bch2_fiemap_hole_pagecache(struct inode *vinode, u64 *start, u64 *end,
 	dstart = bch2_seek_pagecache_data(vinode, *start, *end, 0, nonblock);
 	if (dstart < 0)
 		return dstart;
-	if (dstart >= *end)
-		return -ENOENT;
+
+	if (dstart == *end) {
+		*start = dstart;
+		return 0;
+	}
 
 	dend = bch2_seek_pagecache_hole(vinode, dstart, *end, 0, nonblock);
 	if (dend < 0)
 		return dend;
+
+	/* race */
+	BUG_ON(dstart == dend);
 
 	*start = dstart;
 	*end = dend;
@@ -1387,18 +1365,15 @@ bch2_fiemap_hole_pagecache(struct inode *vinode, u64 *start, u64 *end,
  * Scan a range of pagecache that corresponds to a file mapping hole in the
  * extent btree. If data is found, fake up an extent key so it looks like a
  * delalloc extent to the rest of the fiemap processing code.
- *
- * Returns 0 if cached data was found, -ENOENT if not.
  */
 static int
-bch2_fiemap_hole(struct btree_trans *trans, struct inode *vinode, u64 start,
-		 u64 end, struct bch_fiemap_extent *cur)
+bch2_next_fiemap_pagecache_extent(struct btree_trans *trans, struct bch_inode_info *inode,
+				  u64 start, u64 end, struct bch_fiemap_extent *cur)
 {
-	struct bch_fs		*c = vinode->i_sb->s_fs_info;
-	struct bch_inode_info	*ei = to_bch_ei(vinode);
+	struct bch_fs		*c = trans->c;
 	struct bkey_i_extent	*delextent;
 	struct bch_extent_ptr	ptr = {};
-	loff_t			dstart = start, dend = end;
+	loff_t			dstart = start << 9, dend = end << 9;
 	int			ret;
 
 	/*
@@ -1411,13 +1386,10 @@ bch2_fiemap_hole(struct btree_trans *trans, struct inode *vinode, u64 start,
 	 * fundamentally racy with writeback anyways. Therefore, just report the
 	 * range as delalloc regardless of whether we have to cycle trans locks.
 	 */
-	ret = bch2_fiemap_hole_pagecache(vinode, &dstart, &dend, true);
-	if (ret == -EAGAIN) {
-		/* open coded drop_locks_do() to relock even on error */
-		bch2_trans_unlock(trans);
-		ret = bch2_fiemap_hole_pagecache(vinode, &dstart, &dend, false);
-		bch2_trans_relock(trans);
-	}
+	ret = bch2_fiemap_hole_pagecache(&inode->v, &dstart, &dend, true);
+	if (ret == -EAGAIN)
+		ret = drop_locks_do(trans,
+			bch2_fiemap_hole_pagecache(&inode->v, &dstart, &dend, false));
 	if (ret < 0)
 		return ret;
 
@@ -1428,13 +1400,88 @@ bch2_fiemap_hole(struct btree_trans *trans, struct inode *vinode, u64 start,
 	 */
 	bch2_bkey_buf_realloc(&cur->kbuf, c, sizeof(*delextent) / sizeof(u64));
 	delextent = bkey_extent_init(cur->kbuf.k);
-	delextent->k.p = POS(ei->v.i_ino, dstart >> 9);
-	bch2_key_resize(&delextent->k, (dend - dstart) >> 9);
+	delextent->k.p = POS(inode->ei_inum.inum, dend >> 9);
+	delextent->k.size = (dend - dstart) >> 9;
 	bch2_bkey_append_ptr(&delextent->k_i, ptr);
 
 	cur->flags = FIEMAP_EXTENT_DELALLOC;
 
 	return 0;
+}
+
+static int bch2_next_fiemap_extent(struct btree_trans *trans,
+				   struct bch_inode_info *inode,
+				   u64 start, u64 end,
+				   struct bch_fiemap_extent *cur)
+{
+	u32 snapshot;
+	int ret = bch2_subvolume_get_snapshot(trans, inode->ei_inum.subvol, &snapshot);
+	if (ret)
+		return ret;
+
+	struct btree_iter iter;
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
+			     SPOS(inode->ei_inum.inum, start, snapshot), 0);
+
+	struct bkey_s_c k =
+		bch2_btree_iter_peek_max(trans, &iter, POS(inode->ei_inum.inum, end));
+	ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	ret = bch2_next_fiemap_pagecache_extent(trans, inode, start, end, cur);
+	if (ret)
+		goto err;
+
+	struct bpos pagecache_start = bkey_start_pos(&cur->kbuf.k->k);
+
+	/*
+	 * Does the pagecache or the btree take precedence?
+	 *
+	 * It _should_ be the pagecache, so that we correctly report delalloc
+	 * extents when dirty in the pagecache (we're COW, after all).
+	 *
+	 * But we'd have to add per-sector writeback tracking to
+	 * bch_folio_state, otherwise we report delalloc extents for clean
+	 * cached data in the pagecache.
+	 *
+	 * We should do this, but even then fiemap won't report stable mappings:
+	 * on bcachefs data moves around in the background (copygc, rebalance)
+	 * and we don't provide a way for userspace to lock that out.
+	 */
+	if (k.k &&
+	    bkey_le(bpos_max(iter.pos, bkey_start_pos(k.k)),
+		    pagecache_start)) {
+		bch2_bkey_buf_reassemble(&cur->kbuf, trans->c, k);
+		bch2_cut_front(iter.pos, cur->kbuf.k);
+		bch2_cut_back(POS(inode->ei_inum.inum, end), cur->kbuf.k);
+		cur->flags = 0;
+	} else if (k.k) {
+		bch2_cut_back(bkey_start_pos(k.k), cur->kbuf.k);
+	}
+
+	if (cur->kbuf.k->k.type == KEY_TYPE_reflink_p) {
+		unsigned sectors = cur->kbuf.k->k.size;
+		s64 offset_into_extent = 0;
+		enum btree_id data_btree = BTREE_ID_extents;
+		int ret = bch2_read_indirect_extent(trans, &data_btree, &offset_into_extent,
+						    &cur->kbuf);
+		if (ret)
+			goto err;
+
+		struct bkey_i *k = cur->kbuf.k;
+		sectors = min_t(unsigned, sectors, k->k.size - offset_into_extent);
+
+		bch2_cut_front(POS(k->k.p.inode,
+				   bkey_start_offset(&k->k) + offset_into_extent),
+			       k);
+		bch2_key_resize(&k->k, sectors);
+		k->k.p = iter.pos;
+		k->k.p.offset += k->k.size;
+	}
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
 }
 
 static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
@@ -1443,109 +1490,61 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	struct bch_fs *c = vinode->i_sb->s_fs_info;
 	struct bch_inode_info *ei = to_bch_ei(vinode);
 	struct btree_trans *trans;
-	struct btree_iter iter;
-	struct bkey_s_c k;
 	struct bch_fiemap_extent cur, prev;
-	bool have_extent = false;
 	int ret = 0;
 
 	ret = fiemap_prep(&ei->v, info, start, &len, 0);
 	if (ret)
 		return ret;
 
-	struct bpos end = POS(ei->v.i_ino, (start + len) >> 9);
 	if (start + len < start)
 		return -EINVAL;
 
 	start >>= 9;
+	u64 end = (start + len) >> 9;
 
 	bch2_bkey_buf_init(&cur.kbuf);
 	bch2_bkey_buf_init(&prev.kbuf);
+	bkey_init(&prev.kbuf.k->k);
+
 	trans = bch2_trans_get(c);
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
-			     POS(ei->v.i_ino, start), 0);
-
-	while (!ret || bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
-		bool have_delalloc = false;
-
-		bch2_trans_begin(trans);
-
-		u32 snapshot;
-		ret = bch2_subvolume_get_snapshot(trans, ei->ei_inum.subvol, &snapshot);
+	while (start < end) {
+		ret = lockrestart_do(trans,
+			bch2_next_fiemap_extent(trans, ei, start, end, &cur));
 		if (ret)
-			continue;
+			goto err;
 
-		bch2_btree_iter_set_snapshot(trans, &iter, snapshot);
+		BUG_ON(bkey_start_offset(&cur.kbuf.k->k) < start);
+		BUG_ON(cur.kbuf.k->k.p.offset > end);
 
-		k = bch2_btree_iter_peek_max(trans, &iter, end);
-		ret = bkey_err(k);
-		if (ret)
-			continue;
-
-		if (!k.k)
+		if (bkey_start_offset(&cur.kbuf.k->k) == end)
 			break;
 
-		/*
-		 * If a hole exists before the start of the extent key, scan the
-		 * range for pagecache data that might be pending writeback and
-		 * thus not yet exist in the extent tree.
-		 */
-		if (iter.pos.offset > start) {
-			ret = bch2_fiemap_hole(trans, vinode, start << 9,
-					       iter.pos.offset << 9, &cur);
-			if (!ret)
-				have_delalloc = true;
-			else if (ret != -ENOENT)
-				break;
-		}
-
-		 /* process the current key if there's no delalloc to report */
-		if (!have_delalloc) {
-			if (!bkey_extent_is_data(k.k) &&
-			    k.k->type != KEY_TYPE_reservation) {
-				start = bkey_start_offset(k.k) + k.k->size;
-				bch2_btree_iter_advance(trans, &iter);
-				continue;
-			}
-
-			ret = bch2_fiemap_extent(trans, &iter, k, &cur);
-			if (ret)
-				break;
-		}
-
-		/*
-		 * Store the current extent in prev so we can flag the last
-		 * extent on the way out.
-		 */
-		bch2_bkey_buf_realloc(&prev.kbuf, c, cur.kbuf.k->k.u64s);
 		start = cur.kbuf.k->k.p.offset;
 
-		if (have_extent) {
+		if (!bkey_deleted(&prev.kbuf.k->k)) {
 			bch2_trans_unlock(trans);
 			ret = bch2_fill_extent(c, info, &prev);
 			if (ret)
-				break;
+				goto err;
 		}
 
-		bkey_copy(prev.kbuf.k, cur.kbuf.k);
+		bch2_bkey_buf_copy(&prev.kbuf, c, cur.kbuf.k);
 		prev.flags = cur.flags;
-		have_extent = true;
-
-		bch2_btree_iter_set_pos(trans, &iter, POS(iter.pos.inode, start));
 	}
-	bch2_trans_iter_exit(trans, &iter);
 
-	if (!ret && have_extent) {
+	if (!bkey_deleted(&prev.kbuf.k->k)) {
 		bch2_trans_unlock(trans);
 		prev.flags |= FIEMAP_EXTENT_LAST;
 		ret = bch2_fill_extent(c, info, &prev);
 	}
-
+err:
 	bch2_trans_put(trans);
 	bch2_bkey_buf_exit(&cur.kbuf, c);
 	bch2_bkey_buf_exit(&prev.kbuf, c);
-	return ret < 0 ? ret : 0;
+
+	return bch2_err_class(ret < 0 ? ret : 0);
 }
 
 static const struct vm_operations_struct bch_vm_ops = {
