@@ -163,9 +163,6 @@ struct mapped_device {
 #define DMF_POST_SUSPENDING 8
 #define DMF_EMULATE_ZONE_APPEND 9
 
-void disable_discard(struct mapped_device *md);
-void disable_write_zeroes(struct mapped_device *md);
-
 static inline sector_t dm_get_size(struct mapped_device *md)
 {
 	return get_capacity(md->disk);

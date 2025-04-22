@@ -217,10 +217,10 @@ static void dm_done(struct request *clone, blk_status_t error, bool mapped)
 	if (unlikely(error == BLK_STS_TARGET)) {
 		if (req_op(clone) == REQ_OP_DISCARD &&
 		    !clone->q->limits.max_discard_sectors)
-			disable_discard(tio->md);
+			blk_queue_disable_discard(tio->md->queue);
 		else if (req_op(clone) == REQ_OP_WRITE_ZEROES &&
 			 !clone->q->limits.max_write_zeroes_sectors)
-			disable_write_zeroes(tio->md);
+			blk_queue_disable_write_zeroes(tio->md->queue);
 	}
 
 	switch (r) {

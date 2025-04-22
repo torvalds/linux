@@ -1082,22 +1082,6 @@ static inline struct queue_limits *dm_get_queue_limits(struct mapped_device *md)
 	return &md->queue->limits;
 }
 
-void disable_discard(struct mapped_device *md)
-{
-	struct queue_limits *limits = dm_get_queue_limits(md);
-
-	/* device doesn't really support DISCARD, disable it */
-	limits->max_hw_discard_sectors = 0;
-}
-
-void disable_write_zeroes(struct mapped_device *md)
-{
-	struct queue_limits *limits = dm_get_queue_limits(md);
-
-	/* device doesn't really support WRITE ZEROES, disable it */
-	limits->max_write_zeroes_sectors = 0;
-}
-
 static bool swap_bios_limit(struct dm_target *ti, struct bio *bio)
 {
 	return unlikely((bio->bi_opf & REQ_SWAP) != 0) && unlikely(ti->limit_swap_bios);
@@ -1115,10 +1099,10 @@ static void clone_endio(struct bio *bio)
 	if (unlikely(error == BLK_STS_TARGET)) {
 		if (bio_op(bio) == REQ_OP_DISCARD &&
 		    !bdev_max_discard_sectors(bio->bi_bdev))
-			disable_discard(md);
+			blk_queue_disable_discard(md->queue);
 		else if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
 			 !bdev_write_zeroes_sectors(bio->bi_bdev))
-			disable_write_zeroes(md);
+			blk_queue_disable_write_zeroes(md->queue);
 	}
 
 	if (static_branch_unlikely(&zoned_enabled) &&
