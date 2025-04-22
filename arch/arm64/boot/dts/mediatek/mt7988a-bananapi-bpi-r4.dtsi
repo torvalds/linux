@@ -397,3 +397,7 @@
 &watchdog {
 	status = "okay";
 };
+
+&xsphy {
+	status = "okay";
+};
