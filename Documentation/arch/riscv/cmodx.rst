@@ -10,13 +10,45 @@ modified by the program itself. Instruction storage and the instruction cache
 program must enforce its own synchronization with the unprivileged fence.i
 instruction.
 
-However, the default Linux ABI prohibits the use of fence.i in userspace
-applications. At any point the scheduler may migrate a task onto a new hart. If
-migration occurs after the userspace synchronized the icache and instruction
-storage with fence.i, the icache on the new hart will no longer be clean. This
-is due to the behavior of fence.i only affecting the hart that it is called on.
-Thus, the hart that the task has been migrated to may not have synchronized
-instruction storage and icache.
+CMODX in the Kernel Space
+---------------------
+
+Dynamic ftrace
+---------------------
+
+Essentially, dynamic ftrace directs the control flow by inserting a function
+call at each patchable function entry, and patches it dynamically at runtime to
+enable or disable the redirection. In the case of RISC-V, 2 instructions,
+AUIPC + JALR, are required to compose a function call. However, it is impossible
+to patch 2 instructions and expect that a concurrent read-side executes them
+without a race condition. This series makes atmoic code patching possible in
+RISC-V ftrace. Kernel preemption makes things even worse as it allows the old
+state to persist across the patching process with stop_machine().
+
+In order to get rid of stop_machine() and run dynamic ftrace with full kernel
+preemption, we partially initialize each patchable function entry at boot-time,
+setting the first instruction to AUIPC, and the second to NOP. Now, atmoic
+patching is possible because the kernel only has to update one instruction.
+According to Ziccif, as long as an instruction is naturally aligned, the ISA
+guarantee an  atomic update.
+
+By fixing down the first instruction, AUIPC, the range of the ftrace trampoline
+is limited to +-2K from the predetermined target, ftrace_caller, due to the lack
+of immediate encoding space in RISC-V. To address the issue, we introduce
+CALL_OPS, where an 8B naturally align metadata is added in front of each
+pacthable function. The metadata is resolved at the first trampoline, then the
+execution can be derect to another custom trampoline.
+
+CMODX in the User Space
+---------------------
+
+Though fence.i is an unprivileged instruction, the default Linux ABI prohibits
+the use of fence.i in userspace applications. At any point the scheduler may
+migrate a task onto a new hart. If migration occurs after the userspace
+synchronized the icache and instruction storage with fence.i, the icache on the
+new hart will no longer be clean. This is due to the behavior of fence.i only
+affecting the hart that it is called on. Thus, the hart that the task has been
+migrated to may not have synchronized instruction storage and icache.
 
 There are two ways to solve this problem: use the riscv_flush_icache() syscall,
 or use the ``PR_RISCV_SET_ICACHE_FLUSH_CTX`` prctl() and emit fence.i in
