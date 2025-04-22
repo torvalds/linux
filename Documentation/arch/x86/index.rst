@@ -25,6 +25,7 @@ x86-specific Documentation
    shstk
    iommu
    intel_txt
+   amd-debugging
    amd-memory-encryption
    amd_hsmp
    tdx
