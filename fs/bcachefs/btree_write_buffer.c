@@ -428,10 +428,10 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 		 */
 		trace_and_count(c, write_buffer_flush_slowpath, trans, slowpath, wb->flushing.keys.nr);
 
-		sort(wb->flushing.keys.data,
-		     wb->flushing.keys.nr,
-		     sizeof(wb->flushing.keys.data[0]),
-		     wb_key_seq_cmp, NULL);
+		sort_nonatomic(wb->flushing.keys.data,
+			       wb->flushing.keys.nr,
+			       sizeof(wb->flushing.keys.data[0]),
+			       wb_key_seq_cmp, NULL);
 
 		darray_for_each(wb->flushing.keys, i) {
 			if (!i->journal_seq)

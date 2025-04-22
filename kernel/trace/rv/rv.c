@@ -225,7 +225,12 @@ bool rv_is_nested_monitor(struct rv_monitor_def *mdef)
  */
 bool rv_is_container_monitor(struct rv_monitor_def *mdef)
 {
-	struct rv_monitor_def *next = list_next_entry(mdef, list);
+	struct rv_monitor_def *next;
+
+	if (list_is_last(&mdef->list, &rv_monitors_list))
+		return false;
+
+	next = list_next_entry(mdef, list);
 
 	return next->parent == mdef->monitor || !mdef->monitor->enable;
 }

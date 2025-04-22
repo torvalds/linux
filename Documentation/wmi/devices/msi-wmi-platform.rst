@@ -138,6 +138,10 @@ input data, the meaning of which depends on the subfeature being accessed.
 The output buffer contains a single byte which signals success or failure (``0x00`` on failure)
 and 31 bytes of output data, the meaning if which depends on the subfeature being accessed.
 
+.. note::
+   The ACPI control method responsible for handling the WMI method calls is not thread-safe.
+   This is a firmware bug that needs to be handled inside the driver itself.
+
 WMI method Get_EC()
 -------------------
 

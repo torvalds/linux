@@ -1895,7 +1895,6 @@ int iwl_mld_wowlan_resume(struct iwl_mld *mld)
 	int link_id;
 	int ret;
 	bool fw_err = false;
-	bool keep_connection;
 
 	lockdep_assert_wiphy(mld->wiphy);
 
@@ -1965,7 +1964,7 @@ int iwl_mld_wowlan_resume(struct iwl_mld *mld)
 		iwl_mld_process_netdetect_res(mld, bss_vif, &resume_data);
 		mld->netdetect = false;
 	} else {
-		keep_connection =
+		bool keep_connection =
 			iwl_mld_process_wowlan_status(mld, bss_vif,
 						      resume_data.wowlan_status);
 
@@ -1973,10 +1972,9 @@ int iwl_mld_wowlan_resume(struct iwl_mld *mld)
 		if (keep_connection)
 			iwl_mld_unblock_emlsr(mld, bss_vif,
 					      IWL_MLD_EMLSR_BLOCKED_WOWLAN);
+		else
+			ieee80211_resume_disconnect(bss_vif);
 	}
-
-	if (!mld->netdetect && !keep_connection)
-		ieee80211_resume_disconnect(bss_vif);
 
 	goto out;
 
