@@ -3525,10 +3525,13 @@ static int snd_rme_digiface_controls_create(struct usb_mixer_interface *mixer)
 #define SND_DJM_CAP_RECOUT	0x0a
 #define SND_DJM_CAP_RECOUT_NOMIC	0x0e
 #define SND_DJM_CAP_NONE	0x0f
+#define SND_DJM_CAP_FXSEND	0x10
 #define SND_DJM_CAP_CH1PFADER	0x11
 #define SND_DJM_CAP_CH2PFADER	0x12
 #define SND_DJM_CAP_CH3PFADER	0x13
 #define SND_DJM_CAP_CH4PFADER	0x14
+#define SND_DJM_CAP_EXT1SEND	0x21
+#define SND_DJM_CAP_EXT2SEND	0x22
 #define SND_DJM_CAP_CH1PREFADER	0x31
 #define SND_DJM_CAP_CH2PREFADER	0x32
 #define SND_DJM_CAP_CH3PREFADER	0x33
@@ -3559,6 +3562,7 @@ static int snd_rme_digiface_controls_create(struct usb_mixer_interface *mixer)
 #define SND_DJM_750MK2_IDX	0x4
 #define SND_DJM_450_IDX		0x5
 #define SND_DJM_A9_IDX		0x6
+#define SND_DJM_V10_IDX	0x7
 
 
 #define SND_DJM_CTL(_name, suffix, _default_value, _windex) { \
@@ -3598,8 +3602,8 @@ static const char *snd_djm_get_label_caplevel_common(u16 wvalue)
 	}
 };
 
-// The DJM-A9 has different capture levels than other, older models
-static const char *snd_djm_get_label_caplevel_a9(u16 wvalue)
+// Models like DJM-A9 or DJM-V10 have different capture levels than others
+static const char *snd_djm_get_label_caplevel_high(u16 wvalue)
 {
 	switch (wvalue) {
 	case 0x0000:	return "+15dB";
@@ -3627,6 +3631,7 @@ static const char *snd_djm_get_label_cap_common(u16 wvalue)
 	case SND_DJM_CAP_RECOUT_NOMIC:	return "Rec Out without Mic";
 	case SND_DJM_CAP_AUX:		return "Aux";
 	case SND_DJM_CAP_NONE:		return "None";
+	case SND_DJM_CAP_FXSEND:	return "FX SEND";
 	case SND_DJM_CAP_CH1PREFADER:	return "Pre Fader Ch1";
 	case SND_DJM_CAP_CH2PREFADER:	return "Pre Fader Ch2";
 	case SND_DJM_CAP_CH3PREFADER:	return "Pre Fader Ch3";
@@ -3635,6 +3640,8 @@ static const char *snd_djm_get_label_cap_common(u16 wvalue)
 	case SND_DJM_CAP_CH2PFADER:	return "Post Fader Ch2";
 	case SND_DJM_CAP_CH3PFADER:	return "Post Fader Ch3";
 	case SND_DJM_CAP_CH4PFADER:	return "Post Fader Ch4";
+	case SND_DJM_CAP_EXT1SEND:	return "EXT1 SEND";
+	case SND_DJM_CAP_EXT2SEND:	return "EXT2 SEND";
 	default:			return NULL;
 	}
 };
@@ -3653,7 +3660,8 @@ static const char *snd_djm_get_label_cap_850(u16 wvalue)
 static const char *snd_djm_get_label_caplevel(u8 device_idx, u16 wvalue)
 {
 	switch (device_idx) {
-	case SND_DJM_A9_IDX:		return snd_djm_get_label_caplevel_a9(wvalue);
+	case SND_DJM_A9_IDX:		return snd_djm_get_label_caplevel_high(wvalue);
+	case SND_DJM_V10_IDX:		return snd_djm_get_label_caplevel_high(wvalue);
 	default:			return snd_djm_get_label_caplevel_common(wvalue);
 	}
 };
@@ -3853,6 +3861,50 @@ static const struct snd_djm_ctl snd_djm_ctls_a9[] = {
 	SND_DJM_CTL("Ch4 Input",     a9_cap5, 2, SND_DJM_WINDEX_CAP)
 };
 
+// DJM-V10
+static const u16 snd_djm_opts_v10_cap_level[] = {
+	0x0000, 0x0100, 0x0200, 0x0300, 0x0400, 0x0500
+};
+static const u16 snd_djm_opts_v10_cap1[] = {
+	0x0103,
+	0x0100, 0x0102, 0x0106, 0x0110, 0x0107,
+	0x0108, 0x0109, 0x010a, 0x0121, 0x0122
+};
+static const u16 snd_djm_opts_v10_cap2[] = {
+	0x0200, 0x0202, 0x0206, 0x0210, 0x0207,
+	0x0208, 0x0209, 0x020a, 0x0221, 0x0222
+};
+static const u16 snd_djm_opts_v10_cap3[] = {
+	0x0303,
+	0x0300, 0x0302, 0x0306, 0x0310, 0x0307,
+	0x0308, 0x0309, 0x030a, 0x0321, 0x0322
+};
+static const u16 snd_djm_opts_v10_cap4[] = {
+	0x0403,
+	0x0400, 0x0402, 0x0406, 0x0410, 0x0407,
+	0x0408, 0x0409, 0x040a, 0x0421, 0x0422
+};
+static const u16 snd_djm_opts_v10_cap5[] = {
+	0x0500, 0x0502, 0x0506, 0x0510, 0x0507,
+	0x0508, 0x0509, 0x050a, 0x0521, 0x0522
+};
+static const u16 snd_djm_opts_v10_cap6[] = {
+	0x0603,
+	0x0600, 0x0602, 0x0606, 0x0610, 0x0607,
+	0x0608, 0x0609, 0x060a, 0x0621, 0x0622
+};
+
+static const struct snd_djm_ctl snd_djm_ctls_v10[] = {
+	SND_DJM_CTL("Master Capture Level Capture Switch", v10_cap_level, 0, SND_DJM_WINDEX_CAPLVL),
+	SND_DJM_CTL("Capture Ch1 Capture Switch", v10_cap1, 2, SND_DJM_WINDEX_CAP),
+	SND_DJM_CTL("Capture Ch2 Capture Switch", v10_cap2, 2, SND_DJM_WINDEX_CAP),
+	SND_DJM_CTL("Capture Ch3 Capture Switch", v10_cap3, 0, SND_DJM_WINDEX_CAP),
+	SND_DJM_CTL("Capture Ch4 Capture Switch", v10_cap4, 0, SND_DJM_WINDEX_CAP),
+	SND_DJM_CTL("Capture Ch5 Capture Switch", v10_cap5, 0, SND_DJM_WINDEX_CAP),
+	SND_DJM_CTL("Capture Ch6 Capture Switch", v10_cap6, 0, SND_DJM_WINDEX_CAP)
+	// playback channels are fixed and controlled by hardware knobs on the mixer
+};
+
 static const struct snd_djm_device snd_djm_devices[] = {
 	[SND_DJM_250MK2_IDX] = SND_DJM_DEVICE(250mk2),
 	[SND_DJM_750_IDX] = SND_DJM_DEVICE(750),
@@ -3861,6 +3913,7 @@ static const struct snd_djm_device snd_djm_devices[] = {
 	[SND_DJM_750MK2_IDX] = SND_DJM_DEVICE(750mk2),
 	[SND_DJM_450_IDX] = SND_DJM_DEVICE(450),
 	[SND_DJM_A9_IDX] = SND_DJM_DEVICE(a9),
+	[SND_DJM_V10_IDX] = SND_DJM_DEVICE(v10),
 };
 
 
@@ -4150,6 +4203,9 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 		break;
 	case USB_ID(0x2b73, 0x003c): /* Pioneer DJ / AlphaTheta DJM-A9 */
 		err = snd_djm_controls_create(mixer, SND_DJM_A9_IDX);
+		break;
+	case USB_ID(0x2b73, 0x0034): /* Pioneer DJ DJM-V10 */
+		err = snd_djm_controls_create(mixer, SND_DJM_V10_IDX);
 		break;
 	}
 
