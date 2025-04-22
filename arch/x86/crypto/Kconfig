@@ -4,7 +4,7 @@ menu "Accelerated Cryptographic Algorithms for CPU (x86)"
 
 config CRYPTO_CURVE25519_X86
 	tristate
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_KPP
 	select CRYPTO_LIB_CURVE25519_GENERIC
 	select CRYPTO_ARCH_HAVE_LIB_CURVE25519
@@ -17,7 +17,6 @@ config CRYPTO_CURVE25519_X86
 
 config CRYPTO_AES_NI_INTEL
 	tristate "Ciphers: AES, modes: ECB, CBC, CTS, CTR, XCTR, XTS, GCM (AES-NI/VAES)"
-	depends on X86
 	select CRYPTO_AEAD
 	select CRYPTO_LIB_AES
 	select CRYPTO_LIB_GF128MUL
@@ -37,7 +36,7 @@ config CRYPTO_AES_NI_INTEL
 
 config CRYPTO_BLOWFISH_X86_64
 	tristate "Ciphers: Blowfish, modes: ECB, CBC"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_BLOWFISH_COMMON
 	imply CRYPTO_CTR
@@ -49,7 +48,7 @@ config CRYPTO_BLOWFISH_X86_64
 
 config CRYPTO_CAMELLIA_X86_64
 	tristate "Ciphers: Camellia with modes: ECB, CBC"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_SKCIPHER
 	imply CRYPTO_CTR
 	help
@@ -60,7 +59,7 @@ config CRYPTO_CAMELLIA_X86_64
 
 config CRYPTO_CAMELLIA_AESNI_AVX_X86_64
 	tristate "Ciphers: Camellia with modes: ECB, CBC (AES-NI/AVX)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_CAMELLIA_X86_64
 	imply CRYPTO_XTS
@@ -73,7 +72,7 @@ config CRYPTO_CAMELLIA_AESNI_AVX_X86_64
 
 config CRYPTO_CAMELLIA_AESNI_AVX2_X86_64
 	tristate "Ciphers: Camellia with modes: ECB, CBC (AES-NI/AVX2)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_CAMELLIA_AESNI_AVX_X86_64
 	help
 	  Length-preserving ciphers: Camellia with ECB and CBC modes
@@ -84,7 +83,7 @@ config CRYPTO_CAMELLIA_AESNI_AVX2_X86_64
 
 config CRYPTO_CAST5_AVX_X86_64
 	tristate "Ciphers: CAST5 with modes: ECB, CBC (AVX)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_CAST5
 	select CRYPTO_CAST_COMMON
@@ -100,7 +99,7 @@ config CRYPTO_CAST5_AVX_X86_64
 
 config CRYPTO_CAST6_AVX_X86_64
 	tristate "Ciphers: CAST6 with modes: ECB, CBC (AVX)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_CAST6
 	select CRYPTO_CAST_COMMON
@@ -117,7 +116,7 @@ config CRYPTO_CAST6_AVX_X86_64
 
 config CRYPTO_DES3_EDE_X86_64
 	tristate "Ciphers: Triple DES EDE with modes: ECB, CBC"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_LIB_DES
 	imply CRYPTO_CTR
@@ -131,7 +130,7 @@ config CRYPTO_DES3_EDE_X86_64
 
 config CRYPTO_SERPENT_SSE2_X86_64
 	tristate "Ciphers: Serpent with modes: ECB, CBC (SSE2)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_SERPENT
 	imply CRYPTO_CTR
@@ -146,7 +145,7 @@ config CRYPTO_SERPENT_SSE2_X86_64
 
 config CRYPTO_SERPENT_SSE2_586
 	tristate "Ciphers: Serpent with modes: ECB, CBC (32-bit with SSE2)"
-	depends on X86 && !64BIT
+	depends on !64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_SERPENT
 	imply CRYPTO_CTR
@@ -161,7 +160,7 @@ config CRYPTO_SERPENT_SSE2_586
 
 config CRYPTO_SERPENT_AVX_X86_64
 	tristate "Ciphers: Serpent with modes: ECB, CBC (AVX)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_SERPENT
 	imply CRYPTO_XTS
@@ -177,7 +176,7 @@ config CRYPTO_SERPENT_AVX_X86_64
 
 config CRYPTO_SERPENT_AVX2_X86_64
 	tristate "Ciphers: Serpent with modes: ECB, CBC (AVX2)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_SERPENT_AVX_X86_64
 	help
 	  Length-preserving ciphers: Serpent cipher algorithm
@@ -190,7 +189,7 @@ config CRYPTO_SERPENT_AVX2_X86_64
 
 config CRYPTO_SM4_AESNI_AVX_X86_64
 	tristate "Ciphers: SM4 with modes: ECB, CBC, CTR (AES-NI/AVX)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_ALGAPI
 	select CRYPTO_SM4
@@ -210,7 +209,7 @@ config CRYPTO_SM4_AESNI_AVX_X86_64
 
 config CRYPTO_SM4_AESNI_AVX2_X86_64
 	tristate "Ciphers: SM4 with modes: ECB, CBC, CTR (AES-NI/AVX2)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_ALGAPI
 	select CRYPTO_SM4
@@ -231,7 +230,7 @@ config CRYPTO_SM4_AESNI_AVX2_X86_64
 
 config CRYPTO_TWOFISH_586
 	tristate "Ciphers: Twofish (32-bit)"
-	depends on (X86 || UML_X86) && !64BIT
+	depends on !64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_TWOFISH_COMMON
 	imply CRYPTO_CTR
@@ -242,7 +241,7 @@ config CRYPTO_TWOFISH_586
 
 config CRYPTO_TWOFISH_X86_64
 	tristate "Ciphers: Twofish"
-	depends on (X86 || UML_X86) && 64BIT
+	depends on 64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_TWOFISH_COMMON
 	imply CRYPTO_CTR
@@ -253,7 +252,7 @@ config CRYPTO_TWOFISH_X86_64
 
 config CRYPTO_TWOFISH_X86_64_3WAY
 	tristate "Ciphers: Twofish with modes: ECB, CBC (3-way parallel)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_TWOFISH_COMMON
 	select CRYPTO_TWOFISH_X86_64
@@ -268,7 +267,7 @@ config CRYPTO_TWOFISH_X86_64_3WAY
 
 config CRYPTO_TWOFISH_AVX_X86_64
 	tristate "Ciphers: Twofish with modes: ECB, CBC (AVX)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_TWOFISH_COMMON
 	select CRYPTO_TWOFISH_X86_64
@@ -285,7 +284,7 @@ config CRYPTO_TWOFISH_AVX_X86_64
 
 config CRYPTO_ARIA_AESNI_AVX_X86_64
 	tristate "Ciphers: ARIA with modes: ECB, CTR (AES-NI/AVX/GFNI)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_ALGAPI
 	select CRYPTO_ARIA
@@ -302,7 +301,7 @@ config CRYPTO_ARIA_AESNI_AVX_X86_64
 
 config CRYPTO_ARIA_AESNI_AVX2_X86_64
 	tristate "Ciphers: ARIA with modes: ECB, CTR (AES-NI/AVX2/GFNI)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_ALGAPI
 	select CRYPTO_ARIA
@@ -320,7 +319,7 @@ config CRYPTO_ARIA_AESNI_AVX2_X86_64
 
 config CRYPTO_ARIA_GFNI_AVX512_X86_64
 	tristate "Ciphers: ARIA with modes: ECB, CTR (AVX512/GFNI)"
-	depends on X86 && 64BIT && AS_GFNI
+	depends on 64BIT && AS_GFNI
 	select CRYPTO_SKCIPHER
 	select CRYPTO_ALGAPI
 	select CRYPTO_ARIA
@@ -338,14 +337,14 @@ config CRYPTO_ARIA_GFNI_AVX512_X86_64
 
 config CRYPTO_CHACHA20_X86_64
 	tristate
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_LIB_CHACHA_GENERIC
 	select CRYPTO_ARCH_HAVE_LIB_CHACHA
 	default CRYPTO_LIB_CHACHA_INTERNAL
 
 config CRYPTO_AEGIS128_AESNI_SSE2
 	tristate "AEAD ciphers: AEGIS-128 (AES-NI/SSE4.1)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_AEAD
 	help
 	  AEGIS-128 AEAD algorithm
@@ -356,7 +355,7 @@ config CRYPTO_AEGIS128_AESNI_SSE2
 
 config CRYPTO_NHPOLY1305_SSE2
 	tristate "Hash functions: NHPoly1305 (SSE2)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_NHPOLY1305
 	help
 	  NHPoly1305 hash function for Adiantum
@@ -366,7 +365,7 @@ config CRYPTO_NHPOLY1305_SSE2
 
 config CRYPTO_NHPOLY1305_AVX2
 	tristate "Hash functions: NHPoly1305 (AVX2)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_NHPOLY1305
 	help
 	  NHPoly1305 hash function for Adiantum
@@ -376,7 +375,7 @@ config CRYPTO_NHPOLY1305_AVX2
 
 config CRYPTO_BLAKE2S_X86
 	bool "Hash functions: BLAKE2s (SSSE3/AVX-512)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_LIB_BLAKE2S_GENERIC
 	select CRYPTO_ARCH_HAVE_LIB_BLAKE2S
 	help
@@ -388,7 +387,7 @@ config CRYPTO_BLAKE2S_X86
 
 config CRYPTO_POLYVAL_CLMUL_NI
 	tristate "Hash functions: POLYVAL (CLMUL-NI)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_POLYVAL
 	help
 	  POLYVAL hash function for HCTR2
@@ -398,13 +397,13 @@ config CRYPTO_POLYVAL_CLMUL_NI
 
 config CRYPTO_POLY1305_X86_64
 	tristate
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_ARCH_HAVE_LIB_POLY1305
 	default CRYPTO_LIB_POLY1305_INTERNAL
 
 config CRYPTO_SHA1_SSSE3
 	tristate "Hash functions: SHA-1 (SSSE3/AVX/AVX2/SHA-NI)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_SHA1
 	select CRYPTO_HASH
 	help
@@ -418,7 +417,7 @@ config CRYPTO_SHA1_SSSE3
 
 config CRYPTO_SHA256_SSSE3
 	tristate "Hash functions: SHA-224 and SHA-256 (SSSE3/AVX/AVX2/SHA-NI)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_SHA256
 	select CRYPTO_HASH
 	help
@@ -432,7 +431,7 @@ config CRYPTO_SHA256_SSSE3
 
 config CRYPTO_SHA512_SSSE3
 	tristate "Hash functions: SHA-384 and SHA-512 (SSSE3/AVX/AVX2)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_SHA512
 	select CRYPTO_HASH
 	help
@@ -445,7 +444,7 @@ config CRYPTO_SHA512_SSSE3
 
 config CRYPTO_SM3_AVX_X86_64
 	tristate "Hash functions: SM3 (AVX)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_HASH
 	select CRYPTO_LIB_SM3
 	help
@@ -458,7 +457,7 @@ config CRYPTO_SM3_AVX_X86_64
 
 config CRYPTO_GHASH_CLMUL_NI_INTEL
 	tristate "Hash functions: GHASH (CLMUL-NI)"
-	depends on X86 && 64BIT
+	depends on 64BIT
 	select CRYPTO_CRYPTD
 	help
 	  GCM GHASH hash function (NIST SP800-38D)
