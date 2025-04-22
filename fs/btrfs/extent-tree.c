@@ -2875,14 +2875,10 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
 	 */
 	deleted_bgs = &trans->transaction->deleted_bgs;
 	list_for_each_entry_safe(block_group, tmp, deleted_bgs, bg_list) {
-		u64 trimmed = 0;
-
 		ret = -EROFS;
 		if (!TRANS_ABORTED(trans))
-			ret = btrfs_discard_extent(fs_info,
-						   block_group->start,
-						   block_group->length,
-						   &trimmed);
+			ret = btrfs_discard_extent(fs_info, block_group->start,
+						   block_group->length, NULL);
 
 		/*
 		 * Not strictly necessary to lock, as the block_group should be
