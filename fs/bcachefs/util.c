@@ -252,6 +252,16 @@ void bch2_prt_u64_base2(struct printbuf *out, u64 v)
 	bch2_prt_u64_base2_nbits(out, v, fls64(v) ?: 1);
 }
 
+static bool string_is_spaces(const char *str)
+{
+	while (*str) {
+		if (*str != ' ')
+			return false;
+		str++;
+	}
+	return true;
+}
+
 void bch2_print_string_as_lines(const char *prefix, const char *lines,
 				bool nonblocking)
 {
@@ -272,6 +282,9 @@ void bch2_print_string_as_lines(const char *prefix, const char *lines,
 
 	while (*lines) {
 		p = strchrnul(lines, '\n');
+		if (!*p && string_is_spaces(lines))
+			break;
+
 		printk("%s%.*s\n", prefix, (int) (p - lines), lines);
 		if (!*p)
 			break;
