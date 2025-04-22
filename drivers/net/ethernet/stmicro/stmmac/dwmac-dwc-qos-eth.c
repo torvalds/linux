@@ -136,10 +136,11 @@ static int dwc_qos_probe(struct platform_device *pdev,
 #define AUTO_CAL_STATUS 0x880c
 #define  AUTO_CAL_STATUS_ACTIVE BIT(31)
 
-static void tegra_eqos_fix_speed(void *priv, int speed, unsigned int mode)
+static void tegra_eqos_fix_speed(void *bsp_priv, int speed, unsigned int mode)
 {
-	struct tegra_eqos *eqos = priv;
+	struct tegra_eqos *eqos = bsp_priv;
 	bool needs_calibration = false;
+	struct stmmac_priv *priv;
 	u32 value;
 	int err;
 
@@ -158,6 +159,11 @@ static void tegra_eqos_fix_speed(void *priv, int speed, unsigned int mode)
 	}
 
 	if (needs_calibration) {
+		priv = netdev_priv(dev_get_drvdata(eqos->dev));
+
+		/* Calibration should be done with the MDIO bus idle */
+		mutex_lock(&priv->mii->mdio_lock);
+
 		/* calibrate */
 		value = readl(eqos->regs + SDMEMCOMPPADCTRL);
 		value |= SDMEMCOMPPADCTRL_PAD_E_INPUT_OR_E_PWRD;
@@ -191,6 +197,8 @@ static void tegra_eqos_fix_speed(void *priv, int speed, unsigned int mode)
 		value = readl(eqos->regs + SDMEMCOMPPADCTRL);
 		value &= ~SDMEMCOMPPADCTRL_PAD_E_INPUT_OR_E_PWRD;
 		writel(value, eqos->regs + SDMEMCOMPPADCTRL);
+
+		mutex_unlock(&priv->mii->mdio_lock);
 	} else {
 		value = readl(eqos->regs + AUTO_CAL_CONFIG);
 		value &= ~AUTO_CAL_CONFIG_ENABLE;
