@@ -511,8 +511,8 @@ static int flakey_map(struct dm_target *ti, struct bio *bio)
 		pb->bio_submitted = true;
 
 		/*
-		 * Error reads if neither corrupt_bio_byte or drop_writes or error_writes are set.
-		 * Otherwise, flakey_end_io() will decide if the reads should be modified.
+		 * If ERROR_READS isn't set flakey_end_io() will decide if the
+		 * reads should be modified.
 		 */
 		if (bio_data_dir(bio) == READ) {
 			if (test_bit(ERROR_READS, &fc->flags))
@@ -589,13 +589,6 @@ static int flakey_end_io(struct dm_target *ti, struct bio *bio,
 			u32 rem = do_div(rnd, PROBABILITY_BASE);
 			if (rem < fc->random_read_corrupt)
 				corrupt_bio_random(bio);
-		}
-		if (test_bit(ERROR_READS, &fc->flags)) {
-			/*
-			 * Error read during the down_interval if drop_writes
-			 * and error_writes were not configured.
-			 */
-			*error = BLK_STS_IOERR;
 		}
 	}
 
