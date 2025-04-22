@@ -2577,7 +2577,10 @@ struct bkey_s_c bch2_btree_iter_peek_prev_min(struct btree_trans *trans, struct 
 					      struct bpos end)
 {
 	if ((iter->flags & (BTREE_ITER_is_extents|BTREE_ITER_filter_snapshots)) &&
-	   !bkey_eq(iter->pos, POS_MAX)) {
+	   !bkey_eq(iter->pos, POS_MAX) &&
+	   !((iter->flags & BTREE_ITER_is_extents) &&
+	     iter->pos.offset == U64_MAX)) {
+
 		/*
 		 * bkey_start_pos(), for extents, is not monotonically
 		 * increasing until after filtering for snapshots:
