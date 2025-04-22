@@ -207,6 +207,7 @@ enum bq24190_chip {
 	BQ24190,
 	BQ24192,
 	BQ24192i,
+	BQ24193,
 	BQ24196,
 	BQ24296,
 	BQ24297,
@@ -2021,6 +2022,17 @@ static const struct bq24190_chip_info bq24190_chip_info_tbl[] = {
 		.get_ntc_status = bq24190_charger_get_ntc_status,
 		.set_otg_vbus = bq24190_set_otg_vbus,
 	},
+	[BQ24193] = {
+		.ichg_array_size = ARRAY_SIZE(bq24190_ccc_ichg_values),
+#ifdef CONFIG_REGULATOR
+		.vbus_desc = &bq24190_vbus_desc,
+#endif
+		.check_chip = bq24190_check_chip,
+		.set_chg_config = bq24190_battery_set_chg_config,
+		.ntc_fault_mask = BQ24190_REG_F_NTC_FAULT_MASK,
+		.get_ntc_status = bq24190_charger_get_ntc_status,
+		.set_otg_vbus = bq24190_set_otg_vbus,
+	},
 	[BQ24196] = {
 		.ichg_array_size = ARRAY_SIZE(bq24190_ccc_ichg_values),
 #ifdef CONFIG_REGULATOR
@@ -2308,6 +2320,7 @@ static const struct i2c_device_id bq24190_i2c_ids[] = {
 	{ "bq24190", (kernel_ulong_t)&bq24190_chip_info_tbl[BQ24190] },
 	{ "bq24192", (kernel_ulong_t)&bq24190_chip_info_tbl[BQ24192] },
 	{ "bq24192i", (kernel_ulong_t)&bq24190_chip_info_tbl[BQ24192i] },
+	{ "bq24193", (kernel_ulong_t)&bq24190_chip_info_tbl[BQ24193] },
 	{ "bq24196", (kernel_ulong_t)&bq24190_chip_info_tbl[BQ24196] },
 	{ "bq24296", (kernel_ulong_t)&bq24190_chip_info_tbl[BQ24296] },
 	{ "bq24297", (kernel_ulong_t)&bq24190_chip_info_tbl[BQ24297] },
@@ -2319,6 +2332,7 @@ static const struct of_device_id bq24190_of_match[] = {
 	{ .compatible = "ti,bq24190", .data = &bq24190_chip_info_tbl[BQ24190] },
 	{ .compatible = "ti,bq24192", .data = &bq24190_chip_info_tbl[BQ24192] },
 	{ .compatible = "ti,bq24192i", .data = &bq24190_chip_info_tbl[BQ24192i] },
+	{ .compatible = "ti,bq24193", .data = &bq24190_chip_info_tbl[BQ24193] },
 	{ .compatible = "ti,bq24196", .data = &bq24190_chip_info_tbl[BQ24196] },
 	{ .compatible = "ti,bq24296", .data = &bq24190_chip_info_tbl[BQ24296] },
 	{ .compatible = "ti,bq24297", .data = &bq24190_chip_info_tbl[BQ24297] },
