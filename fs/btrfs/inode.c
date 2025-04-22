@@ -1568,8 +1568,8 @@ static noinline void submit_compressed_extents(struct btrfs_work *work, bool do_
 		PAGE_SHIFT;
 
 	while (!list_empty(&async_chunk->extents)) {
-		async_extent = list_entry(async_chunk->extents.next,
-					  struct async_extent, list);
+		async_extent = list_first_entry(&async_chunk->extents,
+						struct async_extent, list);
 		list_del(&async_extent->list);
 		submit_one_async_extent(async_chunk, async_extent, &alloc_hint);
 	}
@@ -8520,7 +8520,7 @@ static int start_delalloc_inodes(struct btrfs_root *root,
 		struct btrfs_inode *inode;
 		struct inode *tmp_inode;
 
-		inode = list_entry(splice.next, struct btrfs_inode, delalloc_inodes);
+		inode = list_first_entry(&splice, struct btrfs_inode, delalloc_inodes);
 
 		list_move_tail(&inode->delalloc_inodes, &root->delalloc_inodes);
 

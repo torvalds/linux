@@ -3134,8 +3134,8 @@ void btrfs_backref_cleanup_node(struct btrfs_backref_cache *cache,
 		return;
 
 	while (!list_empty(&node->upper)) {
-		edge = list_entry(node->upper.next, struct btrfs_backref_edge,
-				  list[LOWER]);
+		edge = list_first_entry(&node->upper, struct btrfs_backref_edge,
+					list[LOWER]);
 		list_del(&edge->list[LOWER]);
 		list_del(&edge->list[UPPER]);
 		btrfs_backref_free_edge(cache, edge);
@@ -3473,8 +3473,8 @@ int btrfs_backref_add_tree_node(struct btrfs_trans_handle *trans,
 		 * type BTRFS_TREE_BLOCK_REF_KEY
 		 */
 		ASSERT(list_is_singular(&cur->upper));
-		edge = list_entry(cur->upper.next, struct btrfs_backref_edge,
-				  list[LOWER]);
+		edge = list_first_entry(&cur->upper, struct btrfs_backref_edge,
+					list[LOWER]);
 		ASSERT(list_empty(&edge->list[UPPER]));
 		exist = edge->node[UPPER];
 		/*

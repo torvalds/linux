@@ -519,9 +519,8 @@ static void btrfs_clear_rbio_cache(struct btrfs_fs_info *info)
 
 	spin_lock(&table->cache_lock);
 	while (!list_empty(&table->stripe_cache)) {
-		rbio = list_entry(table->stripe_cache.next,
-				  struct btrfs_raid_bio,
-				  stripe_cache);
+		rbio = list_first_entry(&table->stripe_cache,
+					struct btrfs_raid_bio, stripe_cache);
 		__remove_rbio_from_cache(rbio);
 	}
 	spin_unlock(&table->cache_lock);
@@ -1702,8 +1701,8 @@ static void raid_unplug(struct blk_plug_cb *cb, bool from_schedule)
 	list_sort(NULL, &plug->rbio_list, plug_cmp);
 
 	while (!list_empty(&plug->rbio_list)) {
-		cur = list_entry(plug->rbio_list.next,
-				 struct btrfs_raid_bio, plug_list);
+		cur = list_first_entry(&plug->rbio_list,
+				       struct btrfs_raid_bio, plug_list);
 		list_del_init(&cur->plug_list);
 
 		if (rbio_is_full(cur)) {

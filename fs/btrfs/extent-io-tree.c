@@ -42,7 +42,7 @@ static inline void btrfs_extent_state_leak_debug_check(void)
 	struct extent_state *state;
 
 	while (!list_empty(&states)) {
-		state = list_entry(states.next, struct extent_state, leak_list);
+		state = list_first_entry(&states, struct extent_state, leak_list);
 		pr_err("BTRFS: state leak: start %llu end %llu state %u in tree %d refs %d\n",
 		       state->start, state->end, state->state,
 		       extent_state_in_tree(state),

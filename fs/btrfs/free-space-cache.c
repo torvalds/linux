@@ -1080,9 +1080,8 @@ int write_cache_extent_entries(struct btrfs_io_ctl *io_ctl,
 
 	/* Get the cluster for this block_group if it exists */
 	if (block_group && !list_empty(&block_group->cluster_list)) {
-		cluster = list_entry(block_group->cluster_list.next,
-				     struct btrfs_free_cluster,
-				     block_group_list);
+		cluster = list_first_entry(&block_group->cluster_list,
+					   struct btrfs_free_cluster, block_group_list);
 	}
 
 	if (!node && cluster) {
@@ -2342,9 +2341,8 @@ again:
 		struct rb_node *node;
 		struct btrfs_free_space *entry;
 
-		cluster = list_entry(block_group->cluster_list.next,
-				     struct btrfs_free_cluster,
-				     block_group_list);
+		cluster = list_first_entry(&block_group->cluster_list,
+					   struct btrfs_free_cluster, block_group_list);
 		spin_lock(&cluster->lock);
 		node = rb_first(&cluster->root);
 		if (!node) {

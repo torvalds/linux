@@ -196,8 +196,8 @@ static struct btrfs_backref_node *walk_up_backref(
 	int idx = *index;
 
 	while (!list_empty(&node->upper)) {
-		edge = list_entry(node->upper.next,
-				  struct btrfs_backref_edge, list[LOWER]);
+		edge = list_first_entry(&node->upper, struct btrfs_backref_edge,
+					list[LOWER]);
 		edges[idx++] = edge;
 		node = edge->node[UPPER];
 	}
@@ -223,8 +223,8 @@ static struct btrfs_backref_node *walk_down_backref(
 			idx--;
 			continue;
 		}
-		edge = list_entry(edge->list[LOWER].next,
-				  struct btrfs_backref_edge, list[LOWER]);
+		edge = list_first_entry(&edge->list[LOWER], struct btrfs_backref_edge,
+					list[LOWER]);
 		edges[idx - 1] = edge;
 		*index = idx;
 		return edge->node[UPPER];
@@ -348,8 +348,8 @@ static bool handle_useless_nodes(struct reloc_control *rc,
 			struct btrfs_backref_edge *edge;
 			struct btrfs_backref_node *lower;
 
-			edge = list_entry(cur->lower.next,
-					struct btrfs_backref_edge, list[UPPER]);
+			edge = list_first_entry(&cur->lower, struct btrfs_backref_edge,
+						list[UPPER]);
 			list_del(&edge->list[UPPER]);
 			list_del(&edge->list[LOWER]);
 			lower = edge->node[LOWER];
@@ -1698,8 +1698,8 @@ again:
 	rc->merge_reloc_tree = true;
 
 	while (!list_empty(&rc->reloc_roots)) {
-		reloc_root = list_entry(rc->reloc_roots.next,
-					struct btrfs_root, root_list);
+		reloc_root = list_first_entry(&rc->reloc_roots,
+					      struct btrfs_root, root_list);
 		list_del_init(&reloc_root->root_list);
 
 		root = btrfs_get_fs_root(fs_info, reloc_root->root_key.offset,
@@ -1814,8 +1814,7 @@ again:
 
 	while (!list_empty(&reloc_roots)) {
 		found = 1;
-		reloc_root = list_entry(reloc_roots.next,
-					struct btrfs_root, root_list);
+		reloc_root = list_first_entry(&reloc_roots, struct btrfs_root, root_list);
 
 		root = btrfs_get_fs_root(fs_info, reloc_root->root_key.offset,
 					 false);
@@ -2110,8 +2109,8 @@ static noinline_for_stack u64 calcu_metadata_size(struct reloc_control *rc,
 			if (list_empty(&next->upper))
 				break;
 
-			edge = list_entry(next->upper.next,
-					struct btrfs_backref_edge, list[LOWER]);
+			edge = list_first_entry(&next->upper, struct btrfs_backref_edge,
+						list[LOWER]);
 			edges[index++] = edge;
 			next = edge->node[UPPER];
 		}
@@ -2357,8 +2356,8 @@ static int finish_pending_nodes(struct btrfs_trans_handle *trans,
 
 	for (level = 0; level < BTRFS_MAX_LEVEL; level++) {
 		while (!list_empty(&cache->pending[level])) {
-			node = list_entry(cache->pending[level].next,
-					  struct btrfs_backref_node, list);
+			node = list_first_entry(&cache->pending[level],
+						struct btrfs_backref_node, list);
 			list_move_tail(&node->list, &list);
 			BUG_ON(!node->pending);
 
@@ -2396,8 +2395,8 @@ static void update_processed_blocks(struct reloc_control *rc,
 			if (list_empty(&next->upper))
 				break;
 
-			edge = list_entry(next->upper.next,
-					struct btrfs_backref_edge, list[LOWER]);
+			edge = list_first_entry(&next->upper, struct btrfs_backref_edge,
+						list[LOWER]);
 			edges[index++] = edge;
 			next = edge->node[UPPER];
 		}
@@ -4183,8 +4182,7 @@ int btrfs_recover_relocation(struct btrfs_fs_info *fs_info)
 	rc->merge_reloc_tree = true;
 
 	while (!list_empty(&reloc_roots)) {
-		reloc_root = list_entry(reloc_roots.next,
-					struct btrfs_root, root_list);
+		reloc_root = list_first_entry(&reloc_roots, struct btrfs_root, root_list);
 		list_del(&reloc_root->root_list);
 
 		if (btrfs_root_refs(&reloc_root->root_item) == 0) {
@@ -4277,7 +4275,7 @@ int btrfs_reloc_clone_csums(struct btrfs_ordered_extent *ordered)
 
 	while (!list_empty(&list)) {
 		struct btrfs_ordered_sum *sums =
-			list_entry(list.next, struct btrfs_ordered_sum, list);
+			list_first_entry(&list, struct btrfs_ordered_sum, list);
 
 		list_del_init(&sums->list);
 

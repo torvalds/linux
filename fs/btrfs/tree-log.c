@@ -860,9 +860,9 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 				struct btrfs_ordered_sum *sums;
 				struct btrfs_root *csum_root;
 
-				sums = list_entry(ordered_sums.next,
-						struct btrfs_ordered_sum,
-						list);
+				sums = list_first_entry(&ordered_sums,
+							struct btrfs_ordered_sum,
+							list);
 				csum_root = btrfs_csum_root(fs_info,
 							    sums->logical);
 				if (!ret)
@@ -4667,9 +4667,9 @@ static int log_extent_csums(struct btrfs_trans_handle *trans,
 	ret = 0;
 
 	while (!list_empty(&ordered_sums)) {
-		struct btrfs_ordered_sum *sums = list_entry(ordered_sums.next,
-						   struct btrfs_ordered_sum,
-						   list);
+		struct btrfs_ordered_sum *sums = list_first_entry(&ordered_sums,
+								  struct btrfs_ordered_sum,
+								  list);
 		if (!ret)
 			ret = log_csums(trans, inode, log_root, sums);
 		list_del(&sums->list);
@@ -4947,7 +4947,7 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 	list_sort(NULL, &extents, extent_cmp);
 process:
 	while (!list_empty(&extents)) {
-		em = list_entry(extents.next, struct extent_map, list);
+		em = list_first_entry(&extents, struct extent_map, list);
 
 		list_del_init(&em->list);
 
