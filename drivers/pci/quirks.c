@@ -38,14 +38,10 @@
 
 static bool pcie_lbms_seen(struct pci_dev *dev, u16 lnksta)
 {
-	unsigned long count;
-	int ret;
+	if (test_bit(PCI_LINK_LBMS_SEEN, &dev->priv_flags))
+		return true;
 
-	ret = pcie_lbms_count(dev, &count);
-	if (ret < 0)
-		return lnksta & PCI_EXP_LNKSTA_LBMS;
-
-	return count > 0;
+	return lnksta & PCI_EXP_LNKSTA_LBMS;
 }
 
 /*
