@@ -105,6 +105,10 @@ properties:
               - bananapi,bpi-r4
           - const: mediatek,mt7988a
       - items:
+          - const: bananapi,bpi-r4-2g5
+          - const: bananapi,bpi-r4
+          - const: mediatek,mt7988a
+      - items:
           - enum:
               - mediatek,mt8127-moose
           - const: mediatek,mt8127
