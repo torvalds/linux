@@ -1004,6 +1004,7 @@ static void __rtw89_mcc_calc_pattern_loose(struct rtw89_dev *rtwdev,
 	struct rtw89_mcc_role *ref = &mcc->role_ref;
 	struct rtw89_mcc_role *aux = &mcc->role_aux;
 	struct rtw89_mcc_config *config = &mcc->config;
+	u16 mcc_intvl = config->mcc_interval;
 	u16 bcn_ofst = config->beacon_offset;
 	u16 bt_dur_in_mid = 0;
 	u16 max_bcn_ofst;
@@ -1037,7 +1038,7 @@ calc:
 
 	res = bcn_ofst - bt_dur_in_mid;
 	upper = min_t(s16, ref->duration, res);
-	lower = 0;
+	lower = max_t(s16, 0, ref->duration - (mcc_intvl - bcn_ofst));
 
 	if (ref->limit.enable) {
 		upper = min_t(s16, upper, ref->limit.max_toa);
