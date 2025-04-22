@@ -1159,6 +1159,8 @@ static void rtw89_ops_sw_scan_start(struct ieee80211_hw *hw,
 		return;
 	}
 
+	rtw89_leave_lps(rtwdev);
+
 	rtw89_core_scan_start(rtwdev, rtwvif_link, mac_addr, false);
 }
 
@@ -1211,7 +1213,13 @@ static int rtw89_ops_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		return -ENOLINK;
 	}
 
-	rtw89_hw_scan_start(rtwdev, rtwvif_link, req);
+	rtw89_leave_lps(rtwdev);
+	rtw89_leave_ips_by_hwflags(rtwdev);
+
+	ret = rtw89_hw_scan_start(rtwdev, rtwvif_link, req);
+	if (ret)
+		return ret;
+
 	ret = rtw89_hw_scan_offload(rtwdev, rtwvif_link, true);
 	if (ret) {
 		rtw89_hw_scan_abort(rtwdev, rtwvif_link);

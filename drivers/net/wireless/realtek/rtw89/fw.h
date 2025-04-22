@@ -4716,9 +4716,9 @@ int rtw89_fw_msg_reg(struct rtw89_dev *rtwdev,
 		     struct rtw89_mac_c2h_info *c2h_info);
 int rtw89_fw_h2c_fw_log(struct rtw89_dev *rtwdev, bool enable);
 void rtw89_fw_st_dbg_dump(struct rtw89_dev *rtwdev);
-void rtw89_hw_scan_start(struct rtw89_dev *rtwdev,
-			 struct rtw89_vif_link *rtwvif_link,
-			 struct ieee80211_scan_request *scan_req);
+int rtw89_hw_scan_start(struct rtw89_dev *rtwdev,
+			struct rtw89_vif_link *rtwvif_link,
+			struct ieee80211_scan_request *scan_req);
 void rtw89_hw_scan_complete(struct rtw89_dev *rtwdev,
 			    struct rtw89_vif_link *rtwvif_link,
 			    bool aborted);
@@ -4727,12 +4727,18 @@ int rtw89_hw_scan_offload(struct rtw89_dev *rtwdev,
 			  bool enable);
 void rtw89_hw_scan_abort(struct rtw89_dev *rtwdev,
 			 struct rtw89_vif_link *rtwvif_link);
+int rtw89_hw_scan_prep_chan_list_ax(struct rtw89_dev *rtwdev,
+				    struct rtw89_vif_link *rtwvif_link);
+void rtw89_hw_scan_free_chan_list_ax(struct rtw89_dev *rtwdev);
 int rtw89_hw_scan_add_chan_list_ax(struct rtw89_dev *rtwdev,
-				   struct rtw89_vif_link *rtwvif_link, bool connected);
+				   struct rtw89_vif_link *rtwvif_link);
 int rtw89_pno_scan_add_chan_list_ax(struct rtw89_dev *rtwdev,
 				    struct rtw89_vif_link *rtwvif_link);
+int rtw89_hw_scan_prep_chan_list_be(struct rtw89_dev *rtwdev,
+				    struct rtw89_vif_link *rtwvif_link);
+void rtw89_hw_scan_free_chan_list_be(struct rtw89_dev *rtwdev);
 int rtw89_hw_scan_add_chan_list_be(struct rtw89_dev *rtwdev,
-				   struct rtw89_vif_link *rtwvif_link, bool connected);
+				   struct rtw89_vif_link *rtwvif_link);
 int rtw89_pno_scan_add_chan_list_be(struct rtw89_dev *rtwdev,
 				    struct rtw89_vif_link *rtwvif_link);
 int rtw89_fw_h2c_trigger_cpu_exception(struct rtw89_dev *rtwdev);

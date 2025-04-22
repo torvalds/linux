@@ -15,6 +15,8 @@
 #include "util.h"
 #include "wow.h"
 
+static bool rtw89_is_any_vif_connected_or_connecting(struct rtw89_dev *rtwdev);
+
 struct rtw89_eapol_2_of_2 {
 	u8 gtkbody[14];
 	u8 key_des_ver;
@@ -6535,7 +6537,7 @@ void rtw89_fw_st_dbg_dump(struct rtw89_dev *rtwdev)
 	rtw89_fw_prog_cnt_dump(rtwdev);
 }
 
-static void rtw89_release_pkt_list(struct rtw89_dev *rtwdev)
+static void rtw89_hw_scan_release_pkt_list(struct rtw89_dev *rtwdev)
 {
 	struct list_head *pkt_list = rtwdev->scan_info.pkt_list;
 	struct rtw89_pktofld_info *info, *tmp;
@@ -6552,6 +6554,23 @@ static void rtw89_release_pkt_list(struct rtw89_dev *rtwdev)
 			kfree(info);
 		}
 	}
+}
+
+static void rtw89_hw_scan_cleanup(struct rtw89_dev *rtwdev,
+				  struct rtw89_vif_link *rtwvif_link)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
+	struct rtw89_vif *rtwvif = rtwvif_link->rtwvif;
+
+	mac->free_chan_list(rtwdev);
+	rtw89_hw_scan_release_pkt_list(rtwdev);
+
+	rtwvif->scan_req = NULL;
+	rtwvif->scan_ies = NULL;
+	scan_info->scanning_vif = NULL;
+	scan_info->abort = false;
+	scan_info->connected = false;
 }
 
 static bool rtw89_is_6ghz_wildcard_probe_req(struct rtw89_dev *rtwdev,
@@ -6622,7 +6641,8 @@ out:
 }
 
 static int rtw89_hw_scan_update_probe_req(struct rtw89_dev *rtwdev,
-					  struct rtw89_vif_link *rtwvif_link)
+					  struct rtw89_vif_link *rtwvif_link,
+					  const u8 *mac_addr)
 {
 	struct rtw89_vif *rtwvif = rtwvif_link->rtwvif;
 	struct cfg80211_scan_request *req = rtwvif->scan_req;
@@ -6631,7 +6651,7 @@ static int rtw89_hw_scan_update_probe_req(struct rtw89_dev *rtwdev,
 	int ret;
 
 	for (i = 0; i < num; i++) {
-		skb = ieee80211_probereq_get(rtwdev->hw, rtwvif_link->mac_addr,
+		skb = ieee80211_probereq_get(rtwdev->hw, mac_addr,
 					     req->ssids[i].ssid,
 					     req->ssids[i].ssid_len,
 					     req->ie_len);
@@ -7005,24 +7025,24 @@ out:
 	return ret;
 }
 
-int rtw89_hw_scan_add_chan_list_ax(struct rtw89_dev *rtwdev,
-				   struct rtw89_vif_link *rtwvif_link, bool connected)
+int rtw89_hw_scan_prep_chan_list_ax(struct rtw89_dev *rtwdev,
+				    struct rtw89_vif_link *rtwvif_link)
 {
+	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
 	struct rtw89_vif *rtwvif = rtwvif_link->rtwvif;
 	struct cfg80211_scan_request *req = rtwvif->scan_req;
 	struct rtw89_mac_chinfo_ax *ch_info, *tmp;
 	struct ieee80211_channel *channel;
 	struct list_head chan_list;
 	bool random_seq = req->flags & NL80211_SCAN_FLAG_RANDOM_SN;
-	int list_len, off_chan_time = 0;
 	enum rtw89_chan_type type;
-	int ret = 0;
+	int off_chan_time = 0;
+	int ret;
 	u32 idx;
 
 	INIT_LIST_HEAD(&chan_list);
-	for (idx = rtwdev->scan_info.last_chan_idx, list_len = 0;
-	     idx < req->n_channels && list_len < RTW89_SCAN_LIST_LIMIT_AX;
-	     idx++, list_len++) {
+
+	for (idx = 0; idx < req->n_channels; idx++) {
 		channel = req->channels[idx];
 		ch_info = kzalloc(sizeof(*ch_info), GFP_KERNEL);
 		if (!ch_info) {
@@ -7051,7 +7071,7 @@ int rtw89_hw_scan_add_chan_list_ax(struct rtw89_dev *rtwdev,
 			type = RTW89_CHAN_ACTIVE;
 		rtw89_hw_scan_add_chan_ax(rtwdev, type, req->n_ssids, ch_info);
 
-		if (connected &&
+		if (scan_info->connected &&
 		    off_chan_time + ch_info->period > RTW89_OFF_CHAN_TIME) {
 			tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
 			if (!tmp) {
@@ -7066,16 +7086,56 @@ int rtw89_hw_scan_add_chan_list_ax(struct rtw89_dev *rtwdev,
 			rtw89_hw_scan_add_chan_ax(rtwdev, type, 0, tmp);
 			list_add_tail(&tmp->list, &chan_list);
 			off_chan_time = 0;
-			list_len++;
 		}
 		list_add_tail(&ch_info->list, &chan_list);
 		off_chan_time += ch_info->period;
 	}
-	rtwdev->scan_info.last_chan_idx = idx;
-	ret = rtw89_fw_h2c_scan_list_offload_ax(rtwdev, list_len, &chan_list);
+
+	list_splice_tail(&chan_list, &scan_info->chan_list);
+	return 0;
 
 out:
 	list_for_each_entry_safe(ch_info, tmp, &chan_list, list) {
+		list_del(&ch_info->list);
+		kfree(ch_info);
+	}
+
+	return ret;
+}
+
+void rtw89_hw_scan_free_chan_list_ax(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
+	struct rtw89_mac_chinfo_ax *ch_info, *tmp;
+
+	list_for_each_entry_safe(ch_info, tmp, &scan_info->chan_list, list) {
+		list_del(&ch_info->list);
+		kfree(ch_info);
+	}
+}
+
+int rtw89_hw_scan_add_chan_list_ax(struct rtw89_dev *rtwdev,
+				   struct rtw89_vif_link *rtwvif_link)
+{
+	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
+	struct rtw89_mac_chinfo_ax *ch_info, *tmp;
+	unsigned int list_len = 0;
+	struct list_head list;
+	int ret;
+
+	INIT_LIST_HEAD(&list);
+
+	list_for_each_entry_safe(ch_info, tmp, &scan_info->chan_list, list) {
+		list_move_tail(&ch_info->list, &list);
+
+		list_len++;
+		if (list_len == RTW89_SCAN_LIST_LIMIT_AX)
+			break;
+	}
+
+	ret = rtw89_fw_h2c_scan_list_offload_ax(rtwdev, list_len, &list);
+
+	list_for_each_entry_safe(ch_info, tmp, &list, list) {
 		list_del(&ch_info->list);
 		kfree(ch_info);
 	}
@@ -7136,25 +7196,24 @@ out:
 	return ret;
 }
 
-int rtw89_hw_scan_add_chan_list_be(struct rtw89_dev *rtwdev,
-				   struct rtw89_vif_link *rtwvif_link, bool connected)
+int rtw89_hw_scan_prep_chan_list_be(struct rtw89_dev *rtwdev,
+				    struct rtw89_vif_link *rtwvif_link)
 {
+	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
 	struct rtw89_vif *rtwvif = rtwvif_link->rtwvif;
 	struct cfg80211_scan_request *req = rtwvif->scan_req;
 	struct rtw89_mac_chinfo_be *ch_info, *tmp;
 	struct ieee80211_channel *channel;
 	struct list_head chan_list;
 	enum rtw89_chan_type type;
-	int list_len, ret;
 	bool random_seq;
+	int ret;
 	u32 idx;
 
 	random_seq = !!(req->flags & NL80211_SCAN_FLAG_RANDOM_SN);
 	INIT_LIST_HEAD(&chan_list);
 
-	for (idx = rtwdev->scan_info.last_chan_idx, list_len = 0;
-	     idx < req->n_channels && list_len < RTW89_SCAN_LIST_LIMIT_BE;
-	     idx++, list_len++) {
+	for (idx = 0; idx < req->n_channels; idx++) {
 		channel = req->channels[idx];
 		ch_info = kzalloc(sizeof(*ch_info), GFP_KERNEL);
 		if (!ch_info) {
@@ -7184,9 +7243,8 @@ int rtw89_hw_scan_add_chan_list_be(struct rtw89_dev *rtwdev,
 		list_add_tail(&ch_info->list, &chan_list);
 	}
 
-	rtwdev->scan_info.last_chan_idx = idx;
-	ret = rtw89_fw_h2c_scan_list_offload_be(rtwdev, list_len, &chan_list,
-						rtwvif_link);
+	list_splice_tail(&chan_list, &scan_info->chan_list);
+	return 0;
 
 out:
 	list_for_each_entry_safe(ch_info, tmp, &chan_list, list) {
@@ -7197,25 +7255,67 @@ out:
 	return ret;
 }
 
+void rtw89_hw_scan_free_chan_list_be(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
+	struct rtw89_mac_chinfo_be *ch_info, *tmp;
+
+	list_for_each_entry_safe(ch_info, tmp, &scan_info->chan_list, list) {
+		list_del(&ch_info->list);
+		kfree(ch_info);
+	}
+}
+
+int rtw89_hw_scan_add_chan_list_be(struct rtw89_dev *rtwdev,
+				   struct rtw89_vif_link *rtwvif_link)
+{
+	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
+	struct rtw89_mac_chinfo_be *ch_info, *tmp;
+	unsigned int list_len = 0;
+	struct list_head list;
+	int ret;
+
+	INIT_LIST_HEAD(&list);
+
+	list_for_each_entry_safe(ch_info, tmp, &scan_info->chan_list, list) {
+		list_move_tail(&ch_info->list, &list);
+
+		list_len++;
+		if (list_len == RTW89_SCAN_LIST_LIMIT_BE)
+			break;
+	}
+
+	ret = rtw89_fw_h2c_scan_list_offload_be(rtwdev, list_len, &list,
+						rtwvif_link);
+
+	list_for_each_entry_safe(ch_info, tmp, &list, list) {
+		list_del(&ch_info->list);
+		kfree(ch_info);
+	}
+
+	return ret;
+}
+
 static int rtw89_hw_scan_prehandle(struct rtw89_dev *rtwdev,
-				   struct rtw89_vif_link *rtwvif_link, bool connected)
+				   struct rtw89_vif_link *rtwvif_link,
+				   const u8 *mac_addr)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	int ret;
 
-	ret = rtw89_hw_scan_update_probe_req(rtwdev, rtwvif_link);
+	ret = rtw89_hw_scan_update_probe_req(rtwdev, rtwvif_link, mac_addr);
 	if (ret) {
 		rtw89_err(rtwdev, "Update probe request failed\n");
 		goto out;
 	}
-	ret = mac->add_chan_list(rtwdev, rtwvif_link, connected);
+	ret = mac->prep_chan_list(rtwdev, rtwvif_link);
 out:
 	return ret;
 }
 
-void rtw89_hw_scan_start(struct rtw89_dev *rtwdev,
-			 struct rtw89_vif_link *rtwvif_link,
-			 struct ieee80211_scan_request *scan_req)
+int rtw89_hw_scan_start(struct rtw89_dev *rtwdev,
+			struct rtw89_vif_link *rtwvif_link,
+			struct ieee80211_scan_request *scan_req)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	struct cfg80211_scan_request *req = &scan_req->req;
@@ -7225,23 +7325,32 @@ void rtw89_hw_scan_start(struct rtw89_dev *rtwdev,
 	u32 rx_fltr = rtwdev->hal.rx_fltr;
 	u8 mac_addr[ETH_ALEN];
 	u32 reg;
+	int ret;
 
 	/* clone op and keep it during scan */
 	rtwdev->scan_info.op_chan = *chan;
 
+	rtwdev->scan_info.connected = rtw89_is_any_vif_connected_or_connecting(rtwdev);
 	rtwdev->scan_info.scanning_vif = rtwvif_link;
-	rtwdev->scan_info.last_chan_idx = 0;
 	rtwdev->scan_info.abort = false;
 	rtwvif->scan_ies = &scan_req->ies;
 	rtwvif->scan_req = req;
-	ieee80211_stop_queues(rtwdev->hw);
-	rtw89_mac_port_cfg_rx_sync(rtwdev, rtwvif_link, false);
 
 	if (req->flags & NL80211_SCAN_FLAG_RANDOM_ADDR)
 		get_random_mask_addr(mac_addr, req->mac_addr,
 				     req->mac_addr_mask);
 	else
 		ether_addr_copy(mac_addr, rtwvif_link->mac_addr);
+
+	ret = rtw89_hw_scan_prehandle(rtwdev, rtwvif_link, mac_addr);
+	if (ret) {
+		rtw89_hw_scan_cleanup(rtwdev, rtwvif_link);
+		return ret;
+	}
+
+	ieee80211_stop_queues(rtwdev->hw);
+	rtw89_mac_port_cfg_rx_sync(rtwdev, rtwvif_link, false);
+
 	rtw89_core_scan_start(rtwdev, rtwvif_link, mac_addr, true);
 
 	rx_fltr &= ~B_AX_A_BCN_CHK_EN;
@@ -7252,6 +7361,8 @@ void rtw89_hw_scan_start(struct rtw89_dev *rtwdev,
 	rtw89_write32_mask(rtwdev, reg, B_AX_RX_FLTR_CFG_MASK, rx_fltr);
 
 	rtw89_chanctx_pause(rtwdev, RTW89_CHANCTX_PAUSE_REASON_HW_SCAN);
+
+	return 0;
 }
 
 struct rtw89_hw_scan_complete_cb_data {
@@ -7262,19 +7373,15 @@ struct rtw89_hw_scan_complete_cb_data {
 static int rtw89_hw_scan_complete_cb(struct rtw89_dev *rtwdev, void *data)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
-	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
 	struct rtw89_hw_scan_complete_cb_data *cb_data = data;
 	struct rtw89_vif_link *rtwvif_link = cb_data->rtwvif_link;
 	struct cfg80211_scan_info info = {
 		.aborted = cb_data->aborted,
 	};
-	struct rtw89_vif *rtwvif;
 	u32 reg;
 
 	if (!rtwvif_link)
 		return -EINVAL;
-
-	rtwvif = rtwvif_link->rtwvif;
 
 	reg = rtw89_mac_reg_by_idx(rtwdev, mac->rx_fltr, rtwvif_link->mac_idx);
 	rtw89_write32_mask(rtwdev, reg, B_AX_RX_FLTR_CFG_MASK, rtwdev->hal.rx_fltr);
@@ -7285,12 +7392,7 @@ static int rtw89_hw_scan_complete_cb(struct rtw89_dev *rtwdev, void *data)
 	rtw89_mac_port_cfg_rx_sync(rtwdev, rtwvif_link, true);
 	rtw89_mac_enable_beacon_for_ap_vifs(rtwdev, true);
 
-	rtw89_release_pkt_list(rtwdev);
-	rtwvif->scan_req = NULL;
-	rtwvif->scan_ies = NULL;
-	scan_info->last_chan_idx = 0;
-	scan_info->scanning_vif = NULL;
-	scan_info->abort = false;
+	rtw89_hw_scan_cleanup(rtwdev, rtwvif_link);
 
 	return 0;
 }
@@ -7365,11 +7467,11 @@ int rtw89_hw_scan_offload(struct rtw89_dev *rtwdev,
 	if (!rtwvif_link)
 		return -EINVAL;
 
-	connected = rtw89_is_any_vif_connected_or_connecting(rtwdev);
+	connected = rtwdev->scan_info.connected;
 	opt.enable = enable;
 	opt.target_ch_mode = connected;
 	if (enable) {
-		ret = rtw89_hw_scan_prehandle(rtwdev, rtwvif_link, connected);
+		ret = mac->add_chan_list(rtwdev, rtwvif_link);
 		if (ret)
 			goto out;
 	}

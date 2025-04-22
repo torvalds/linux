@@ -5424,9 +5424,10 @@ struct rtw89_early_h2c {
 struct rtw89_hw_scan_info {
 	struct rtw89_vif_link *scanning_vif;
 	struct list_head pkt_list[NUM_NL80211_BANDS];
+	struct list_head chan_list;
 	struct rtw89_chan op_chan;
+	bool connected;
 	bool abort;
-	u32 last_chan_idx;
 };
 
 enum rtw89_phy_bb_gain_band {

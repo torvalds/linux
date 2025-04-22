@@ -4899,11 +4899,11 @@ rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 	struct rtw89_vif_link *rtwvif_link = rtwdev->scan_info.scanning_vif;
 	struct rtw89_vif *rtwvif;
 	struct rtw89_chan new;
-	u32 last_chan = rtwdev->scan_info.last_chan_idx, report_tsf;
 	u16 actual_period, expect_period;
 	u8 reason, status, tx_fail, band;
 	u8 mac_idx, sw_def, fw_def;
 	u8 ver = U8_MAX;
+	u32 report_tsf;
 	u16 chan;
 	int ret;
 
@@ -4962,7 +4962,7 @@ rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 			return;
 
 		if (rtwvif_link && rtwvif->scan_req &&
-		    last_chan < rtwvif->scan_req->n_channels) {
+		    !list_empty(&rtwdev->scan_info.chan_list)) {
 			ret = rtw89_hw_scan_offload(rtwdev, rtwvif_link, true);
 			if (ret) {
 				rtw89_hw_scan_abort(rtwdev, rtwvif_link);
@@ -6889,6 +6889,8 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 
 	.is_txq_empty = mac_is_txq_empty_ax,
 
+	.prep_chan_list = rtw89_hw_scan_prep_chan_list_ax,
+	.free_chan_list = rtw89_hw_scan_free_chan_list_ax,
 	.add_chan_list = rtw89_hw_scan_add_chan_list_ax,
 	.add_chan_list_pno = rtw89_pno_scan_add_chan_list_ax,
 	.scan_offload = rtw89_fw_h2c_scan_offload_ax,

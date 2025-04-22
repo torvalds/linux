@@ -1031,8 +1031,11 @@ struct rtw89_mac_gen_def {
 
 	bool (*is_txq_empty)(struct rtw89_dev *rtwdev);
 
+	int (*prep_chan_list)(struct rtw89_dev *rtwdev,
+			      struct rtw89_vif_link *rtwvif_link);
+	void (*free_chan_list)(struct rtw89_dev *rtwdev);
 	int (*add_chan_list)(struct rtw89_dev *rtwdev,
-			     struct rtw89_vif_link *rtwvif_link, bool connected);
+			     struct rtw89_vif_link *rtwvif_link);
 	int (*add_chan_list_pno)(struct rtw89_dev *rtwdev,
 				 struct rtw89_vif_link *rtwvif_link);
 	int (*scan_offload)(struct rtw89_dev *rtwdev,
