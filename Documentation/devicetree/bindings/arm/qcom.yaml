@@ -90,6 +90,7 @@ description: |
         sm6350
         sm6375
         sm7125
+        sm7150
         sm7225
         sm7325
         sm8150
@@ -1039,6 +1040,11 @@ properties:
               - xiaomi,curtana
               - xiaomi,joyeuse
           - const: qcom,sm7125
+
+      - items:
+          - enum:
+              - google,sunfish
+          - const: qcom,sm7150
 
       - items:
           - enum:
