@@ -1921,6 +1921,26 @@ int btrfs_lock_extent_bits(struct extent_io_tree *tree, u64 start, u64 end, u32 
 	return err;
 }
 
+/*
+ * Get the extent state that follows the given extent state.
+ * This is meant to be used in a context where we know no other tasks can
+ * concurrently modify the tree.
+ */
+struct extent_state *btrfs_next_extent_state(struct extent_io_tree *tree,
+					     struct extent_state *state)
+{
+	struct extent_state *next;
+
+	spin_lock(&tree->lock);
+	ASSERT(extent_state_in_tree(state));
+	next = next_state(state);
+	if (next)
+		refcount_inc(&next->refs);
+	spin_unlock(&tree->lock);
+
+	return next;
+}
+
 void __cold btrfs_extent_state_free_cachep(void)
 {
 	btrfs_extent_state_leak_debug_check();

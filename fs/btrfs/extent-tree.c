@@ -2818,28 +2818,24 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_block_group *block_group, *tmp;
 	struct list_head *deleted_bgs;
-	struct extent_io_tree *unpin;
+	struct extent_io_tree *unpin = &trans->transaction->pinned_extents;
+	struct extent_state *cached_state = NULL;
 	u64 start;
 	u64 end;
 	int unpin_error = 0;
 	int ret;
 
-	unpin = &trans->transaction->pinned_extents;
+	mutex_lock(&fs_info->unused_bg_unpin_mutex);
+	btrfs_find_first_extent_bit(unpin, 0, &start, &end, EXTENT_DIRTY, &cached_state);
 
-	while (!TRANS_ABORTED(trans)) {
-		struct extent_state *cached_state = NULL;
-
-		mutex_lock(&fs_info->unused_bg_unpin_mutex);
-		if (!btrfs_find_first_extent_bit(unpin, 0, &start, &end,
-						 EXTENT_DIRTY, &cached_state)) {
-			mutex_unlock(&fs_info->unused_bg_unpin_mutex);
-			break;
-		}
+	while (!TRANS_ABORTED(trans) && cached_state) {
+		struct extent_state *next_state;
 
 		if (btrfs_test_opt(fs_info, DISCARD_SYNC))
 			ret = btrfs_discard_extent(fs_info, start,
 						   end + 1 - start, NULL);
 
+		next_state = btrfs_next_extent_state(unpin, cached_state);
 		btrfs_clear_extent_dirty(unpin, start, end, &cached_state);
 		ret = unpin_extent_range(fs_info, start, end, true);
 		/*
@@ -2858,10 +2854,27 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
 			if (!unpin_error)
 				unpin_error = ret;
 		}
-		mutex_unlock(&fs_info->unused_bg_unpin_mutex);
+
 		btrfs_free_extent_state(cached_state);
-		cond_resched();
+
+		if (need_resched()) {
+			btrfs_free_extent_state(next_state);
+			mutex_unlock(&fs_info->unused_bg_unpin_mutex);
+			cond_resched();
+			cached_state = NULL;
+			mutex_lock(&fs_info->unused_bg_unpin_mutex);
+			btrfs_find_first_extent_bit(unpin, 0, &start, &end,
+						    EXTENT_DIRTY, &cached_state);
+		} else {
+			cached_state = next_state;
+			if (cached_state) {
+				start = cached_state->start;
+				end = cached_state->end;
+			}
+		}
 	}
+	mutex_unlock(&fs_info->unused_bg_unpin_mutex);
+	btrfs_free_extent_state(cached_state);
 
 	if (btrfs_test_opt(fs_info, DISCARD_ASYNC)) {
 		btrfs_discard_calc_delay(&fs_info->discard_ctl);

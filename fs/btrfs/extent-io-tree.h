@@ -243,4 +243,7 @@ static inline int btrfs_unlock_dio_extent(struct extent_io_tree *tree, u64 start
 						cached, NULL);
 }
 
+struct extent_state *btrfs_next_extent_state(struct extent_io_tree *tree,
+					     struct extent_state *state);
+
 #endif /* BTRFS_EXTENT_IO_TREE_H */
