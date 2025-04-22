@@ -10110,7 +10110,7 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 	struct hwrm_ver_get_input *req;
 	u16 fw_maj, fw_min, fw_bld, fw_rsv;
 	u32 dev_caps_cfg, hwrm_ver;
-	int rc, len;
+	int rc, len, max_tmo_secs;
 
 	rc = hwrm_req_init(bp, req, HWRM_VER_GET);
 	if (rc)
@@ -10183,9 +10183,12 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 	bp->hwrm_cmd_max_timeout = le16_to_cpu(resp->max_req_timeout) * 1000;
 	if (!bp->hwrm_cmd_max_timeout)
 		bp->hwrm_cmd_max_timeout = HWRM_CMD_MAX_TIMEOUT;
-	else if (bp->hwrm_cmd_max_timeout > HWRM_CMD_MAX_TIMEOUT)
-		netdev_warn(bp->dev, "Device requests max timeout of %d seconds, may trigger hung task watchdog\n",
-			    bp->hwrm_cmd_max_timeout / 1000);
+	max_tmo_secs = bp->hwrm_cmd_max_timeout / 1000;
+	if (bp->hwrm_cmd_max_timeout > HWRM_CMD_MAX_TIMEOUT ||
+	    max_tmo_secs > CONFIG_DEFAULT_HUNG_TASK_TIMEOUT) {
+		netdev_warn(bp->dev, "Device requests max timeout of %d seconds, may trigger hung task watchdog (kernel default %ds)\n",
+			    max_tmo_secs, CONFIG_DEFAULT_HUNG_TASK_TIMEOUT);
+	}
 
 	if (resp->hwrm_intf_maj_8b >= 1) {
 		bp->hwrm_max_req_len = le16_to_cpu(resp->max_req_win_len);
