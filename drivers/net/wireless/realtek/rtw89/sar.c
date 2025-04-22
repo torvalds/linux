@@ -695,9 +695,9 @@ static void rtw89_tas_init(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_tas_info *tas = &rtwdev->tas;
+	const struct rtw89_acpi_policy_tas *ptr;
 	struct rtw89_acpi_dsm_result res = {};
 	int ret;
-	u8 val;
 
 	if (!chip->support_tas)
 		return;
@@ -709,8 +709,9 @@ static void rtw89_tas_init(struct rtw89_dev *rtwdev)
 		return;
 	}
 
-	val = res.u.value;
-	switch (val) {
+	ptr = res.u.policy_tas;
+
+	switch (ptr->enable) {
 	case 0:
 		tas->enable = false;
 		break;
@@ -723,8 +724,13 @@ static void rtw89_tas_init(struct rtw89_dev *rtwdev)
 
 	if (!tas->enable) {
 		rtw89_debug(rtwdev, RTW89_DBG_SAR, "TAS not enable\n");
-		return;
+		goto out;
 	}
+
+	tas->enabled_countries = ptr->enabled_countries;
+
+out:
+	kfree(ptr);
 }
 
 void rtw89_tas_reset(struct rtw89_dev *rtwdev, bool force)

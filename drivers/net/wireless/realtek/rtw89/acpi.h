@@ -31,6 +31,13 @@ enum rtw89_acpi_policy_mode {
 	RTW89_ACPI_POLICY_ALLOW = 1,
 };
 
+enum rtw89_acpi_conf_tas {
+	RTW89_ACPI_CONF_TAS_US = BIT(0),
+	RTW89_ACPI_CONF_TAS_CA = BIT(1),
+	RTW89_ACPI_CONF_TAS_KR = BIT(2),
+	RTW89_ACPI_CONF_TAS_OTHERS = BIT(7),
+};
+
 struct rtw89_acpi_country_code {
 	/* below are allowed:
 	 * * ISO alpha2 country code
@@ -59,12 +66,21 @@ struct rtw89_acpi_policy_6ghz_sp {
 	u8 rsvd;
 } __packed;
 
+struct rtw89_acpi_policy_tas {
+	u8 signature[4];
+	u8 revision;
+	u8 enable;
+	u8 enabled_countries;
+	u8 rsvd[3];
+} __packed;
+
 struct rtw89_acpi_dsm_result {
 	union {
 		u8 value;
 		/* caller needs to free it after using */
 		struct rtw89_acpi_policy_6ghz *policy_6ghz;
 		struct rtw89_acpi_policy_6ghz_sp *policy_6ghz_sp;
+		struct rtw89_acpi_policy_tas *policy_tas;
 	} u;
 };
 

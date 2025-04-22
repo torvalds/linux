@@ -4753,6 +4753,7 @@ enum rtw89_tas_state {
 struct rtw89_tas_info {
 	u16 tx_ratio_history[RTW89_TAS_TX_RATIO_WINDOW];
 	u64 txpwr_history[RTW89_TAS_TXPWR_WINDOW];
+	u8 enabled_countries;
 	u8 txpwr_head_idx;
 	u8 txpwr_tail_idx;
 	u8 tx_ratio_idx;

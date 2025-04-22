@@ -759,11 +759,22 @@ static void rtw89_regd_apply_policy_tas(struct rtw89_dev *rtwdev)
 	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
 	const struct rtw89_regd *regd = regulatory->regd;
 	struct rtw89_tas_info *tas = &rtwdev->tas;
+	u8 tas_country;
 
 	if (!tas->enable)
 		return;
 
-	tas->block_regd = !test_bit(RTW89_REGD_FUNC_TAS, regd->func_bitmap);
+	if (memcmp("US", regd->alpha2, 2) == 0)
+		tas_country = RTW89_ACPI_CONF_TAS_US;
+	else if (memcmp("CA", regd->alpha2, 2) == 0)
+		tas_country = RTW89_ACPI_CONF_TAS_CA;
+	else if (memcmp("KR", regd->alpha2, 2) == 0)
+		tas_country = RTW89_ACPI_CONF_TAS_KR;
+	else
+		tas_country = RTW89_ACPI_CONF_TAS_OTHERS;
+
+	tas->block_regd = !(tas->enabled_countries & tas_country &&
+			    test_bit(RTW89_REGD_FUNC_TAS, regd->func_bitmap));
 }
 
 static void rtw89_regd_apply_policy_ant_gain(struct rtw89_dev *rtwdev)
