@@ -892,14 +892,14 @@ done_nolock:
 		remove_rbio_from_cache(rbio);
 }
 
-static void rbio_endio_bio_list(struct bio *cur, blk_status_t err)
+static void rbio_endio_bio_list(struct bio *cur, blk_status_t status)
 {
 	struct bio *next;
 
 	while (cur) {
 		next = cur->bi_next;
 		cur->bi_next = NULL;
-		cur->bi_status = err;
+		cur->bi_status = status;
 		bio_endio(cur);
 		cur = next;
 	}
@@ -909,7 +909,7 @@ static void rbio_endio_bio_list(struct bio *cur, blk_status_t err)
  * this frees the rbio and runs through all the bios in the
  * bio_list and calls end_io on them
  */
-static void rbio_orig_end_io(struct btrfs_raid_bio *rbio, blk_status_t err)
+static void rbio_orig_end_io(struct btrfs_raid_bio *rbio, blk_status_t status)
 {
 	struct bio *cur = bio_list_get(&rbio->bio_list);
 	struct bio *extra;
@@ -938,9 +938,9 @@ static void rbio_orig_end_io(struct btrfs_raid_bio *rbio, blk_status_t err)
 	extra = bio_list_get(&rbio->bio_list);
 	free_raid_bio(rbio);
 
-	rbio_endio_bio_list(cur, err);
+	rbio_endio_bio_list(cur, status);
 	if (extra)
-		rbio_endio_bio_list(extra, err);
+		rbio_endio_bio_list(extra, status);
 }
 
 /*
