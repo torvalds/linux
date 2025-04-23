@@ -741,6 +741,7 @@ enum {
 #define EXT4_EX_NOCACHE				0x40000000
 #define EXT4_EX_FORCE_CACHE			0x20000000
 #define EXT4_EX_NOFAIL				0x10000000
+#define EXT4_EX_FILTER				0x70000000
 
 /*
  * Flags used by ext4_free_blocks
