@@ -256,7 +256,7 @@ int btrfs_read_extent_buffer(struct extent_buffer *eb,
 /*
  * Checksum a dirty tree block before IO.
  */
-blk_status_t btree_csum_one_bio(struct btrfs_bio *bbio)
+int btree_csum_one_bio(struct btrfs_bio *bbio)
 {
 	struct extent_buffer *eb = bbio->private;
 	struct btrfs_fs_info *fs_info = eb->fs_info;
@@ -267,9 +267,9 @@ blk_status_t btree_csum_one_bio(struct btrfs_bio *bbio)
 
 	/* Btree blocks are always contiguous on disk. */
 	if (WARN_ON_ONCE(bbio->file_offset != eb->start))
-		return BLK_STS_IOERR;
+		return -EIO;
 	if (WARN_ON_ONCE(bbio->bio.bi_iter.bi_size != eb->len))
-		return BLK_STS_IOERR;
+		return -EIO;
 
 	/*
 	 * If an extent_buffer is marked as EXTENT_BUFFER_ZONED_ZEROOUT, don't
@@ -278,13 +278,13 @@ blk_status_t btree_csum_one_bio(struct btrfs_bio *bbio)
 	 */
 	if (test_bit(EXTENT_BUFFER_ZONED_ZEROOUT, &eb->bflags)) {
 		memzero_extent_buffer(eb, 0, eb->len);
-		return BLK_STS_OK;
+		return 0;
 	}
 
 	if (WARN_ON_ONCE(found_start != eb->start))
-		return BLK_STS_IOERR;
+		return -EIO;
 	if (WARN_ON(!btrfs_meta_folio_test_uptodate(eb->folios[0], eb)))
-		return BLK_STS_IOERR;
+		return -EIO;
 
 	ASSERT(memcmp_extent_buffer(eb, fs_info->fs_devices->metadata_uuid,
 				    offsetof(struct btrfs_header, fsid),
@@ -312,7 +312,7 @@ blk_status_t btree_csum_one_bio(struct btrfs_bio *bbio)
 		goto error;
 	}
 	write_extent_buffer(eb, result, 0, fs_info->csum_size);
-	return BLK_STS_OK;
+	return 0;
 
 error:
 	btrfs_print_tree(eb, 0);
@@ -326,7 +326,7 @@ error:
 	 */
 	WARN_ON(IS_ENABLED(CONFIG_BTRFS_DEBUG) ||
 		btrfs_header_owner(eb) == BTRFS_TREE_LOG_OBJECTID);
-	return errno_to_blk_status(ret);
+	return ret;
 }
 
 static bool check_tree_block_fsid(struct extent_buffer *eb)
