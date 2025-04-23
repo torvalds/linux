@@ -182,7 +182,7 @@ static void assert_dp_port(struct intel_dp *intel_dp, bool state)
 
 static void assert_edp_pll(struct intel_display *display, bool state)
 {
-	bool cur_state = intel_de_read(display, DP_A) & DP_PLL_ENABLE;
+	bool cur_state = intel_de_read(display, DP_A) & EDP_PLL_ENABLE;
 
 	INTEL_DISPLAY_STATE_WARN(display, cur_state != state,
 				 "eDP PLL state assertion failure (expected %s, current %s)\n",
@@ -204,12 +204,12 @@ static void ilk_edp_pll_on(struct intel_dp *intel_dp,
 	drm_dbg_kms(display->drm, "enabling eDP PLL for clock %d\n",
 		    pipe_config->port_clock);
 
-	intel_dp->DP &= ~DP_PLL_FREQ_MASK;
+	intel_dp->DP &= ~EDP_PLL_FREQ_MASK;
 
 	if (pipe_config->port_clock == 162000)
-		intel_dp->DP |= DP_PLL_FREQ_162MHZ;
+		intel_dp->DP |= EDP_PLL_FREQ_162MHZ;
 	else
-		intel_dp->DP |= DP_PLL_FREQ_270MHZ;
+		intel_dp->DP |= EDP_PLL_FREQ_270MHZ;
 
 	intel_de_write(display, DP_A, intel_dp->DP);
 	intel_de_posting_read(display, DP_A);
@@ -224,7 +224,7 @@ static void ilk_edp_pll_on(struct intel_dp *intel_dp,
 	if (display->platform.ironlake)
 		intel_wait_for_vblank_if_active(display, !crtc->pipe);
 
-	intel_dp->DP |= DP_PLL_ENABLE;
+	intel_dp->DP |= EDP_PLL_ENABLE;
 
 	intel_de_write(display, DP_A, intel_dp->DP);
 	intel_de_posting_read(display, DP_A);
@@ -242,7 +242,7 @@ static void ilk_edp_pll_off(struct intel_dp *intel_dp,
 
 	drm_dbg_kms(display->drm, "disabling eDP PLL\n");
 
-	intel_dp->DP &= ~DP_PLL_ENABLE;
+	intel_dp->DP &= ~EDP_PLL_ENABLE;
 
 	intel_de_write(display, DP_A, intel_dp->DP);
 	intel_de_posting_read(display, DP_A);
@@ -285,13 +285,13 @@ bool g4x_dp_port_enabled(struct intel_display *display,
 
 	/* asserts want to know the pipe even if the port is disabled */
 	if (display->platform.ivybridge && port == PORT_A)
-		*pipe = (val & DP_PIPE_SEL_MASK_IVB) >> DP_PIPE_SEL_SHIFT_IVB;
+		*pipe = REG_FIELD_GET(DP_PIPE_SEL_MASK_IVB, val);
 	else if (HAS_PCH_CPT(display) && port != PORT_A)
 		ret &= cpt_dp_port_selected(display, port, pipe);
 	else if (display->platform.cherryview)
-		*pipe = (val & DP_PIPE_SEL_MASK_CHV) >> DP_PIPE_SEL_SHIFT_CHV;
+		*pipe = REG_FIELD_GET(DP_PIPE_SEL_MASK_CHV, val);
 	else
-		*pipe = (val & DP_PIPE_SEL_MASK) >> DP_PIPE_SEL_SHIFT;
+		*pipe = REG_FIELD_GET(DP_PIPE_SEL_MASK, val);
 
 	return ret;
 }
@@ -386,13 +386,12 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 	if (display->platform.g4x && tmp & DP_COLOR_RANGE_16_235)
 		pipe_config->limited_color_range = true;
 
-	pipe_config->lane_count =
-		((tmp & DP_PORT_WIDTH_MASK) >> DP_PORT_WIDTH_SHIFT) + 1;
+	pipe_config->lane_count = REG_FIELD_GET(DP_PORT_WIDTH_MASK, tmp) + 1;
 
 	g4x_dp_get_m_n(pipe_config);
 
 	if (port == PORT_A) {
-		if ((intel_de_read(display, DP_A) & DP_PLL_FREQ_MASK) == DP_PLL_FREQ_162MHZ)
+		if ((intel_de_read(display, DP_A) & EDP_PLL_FREQ_MASK) == EDP_PLL_FREQ_162MHZ)
 			pipe_config->port_clock = 162000;
 		else
 			pipe_config->port_clock = 270000;

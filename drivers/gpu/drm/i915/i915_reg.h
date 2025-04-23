@@ -1397,88 +1397,50 @@
 #define VLV_DP_B		_MMIO(VLV_DISPLAY_BASE + 0x64100)
 #define VLV_DP_C		_MMIO(VLV_DISPLAY_BASE + 0x64200)
 #define CHV_DP_D		_MMIO(VLV_DISPLAY_BASE + 0x64300)
-#define   DP_PORT_EN			(1 << 31)
-#define   DP_PIPE_SEL_SHIFT		30
-#define   DP_PIPE_SEL_MASK		(1 << 30)
-#define   DP_PIPE_SEL(pipe)		((pipe) << 30)
-#define   DP_PIPE_SEL_SHIFT_IVB		29
-#define   DP_PIPE_SEL_MASK_IVB		(3 << 29)
-#define   DP_PIPE_SEL_IVB(pipe)		((pipe) << 29)
+#define   DP_PORT_EN			REG_BIT(31)
+#define   DP_PIPE_SEL_MASK		REG_GENMASK(30, 30)
+#define   DP_PIPE_SEL(pipe)		REG_FIELD_PREP(DP_PIPE_SEL_MASK, (pipe))
+#define   DP_PIPE_SEL_MASK_IVB		REG_GENMASK(30, 29)
+#define   DP_PIPE_SEL_IVB(pipe)		REG_FIELD_PREP(DP_PIPE_SEL_MASK_IVB, (pipe))
 #define   DP_PIPE_SEL_SHIFT_CHV		16
-#define   DP_PIPE_SEL_MASK_CHV		(3 << 16)
-#define   DP_PIPE_SEL_CHV(pipe)		((pipe) << 16)
-
-/* Link training mode - select a suitable mode for each stage */
-#define   DP_LINK_TRAIN_PAT_1		(0 << 28)
-#define   DP_LINK_TRAIN_PAT_2		(1 << 28)
-#define   DP_LINK_TRAIN_PAT_IDLE	(2 << 28)
-#define   DP_LINK_TRAIN_OFF		(3 << 28)
-#define   DP_LINK_TRAIN_MASK		(3 << 28)
-#define   DP_LINK_TRAIN_SHIFT		28
-
-/* CPT Link training mode */
-#define   DP_LINK_TRAIN_PAT_1_CPT	(0 << 8)
-#define   DP_LINK_TRAIN_PAT_2_CPT	(1 << 8)
-#define   DP_LINK_TRAIN_PAT_IDLE_CPT	(2 << 8)
-#define   DP_LINK_TRAIN_OFF_CPT		(3 << 8)
-#define   DP_LINK_TRAIN_MASK_CPT	(7 << 8)
-#define   DP_LINK_TRAIN_SHIFT_CPT	8
-
-/* Signal voltages. These are mostly controlled by the other end */
-#define   DP_VOLTAGE_0_4		(0 << 25)
-#define   DP_VOLTAGE_0_6		(1 << 25)
-#define   DP_VOLTAGE_0_8		(2 << 25)
-#define   DP_VOLTAGE_1_2		(3 << 25)
-#define   DP_VOLTAGE_MASK		(7 << 25)
-#define   DP_VOLTAGE_SHIFT		25
-
-/* Signal pre-emphasis levels, like voltages, the other end tells us what
- * they want
- */
-#define   DP_PRE_EMPHASIS_0		(0 << 22)
-#define   DP_PRE_EMPHASIS_3_5		(1 << 22)
-#define   DP_PRE_EMPHASIS_6		(2 << 22)
-#define   DP_PRE_EMPHASIS_9_5		(3 << 22)
-#define   DP_PRE_EMPHASIS_MASK		(7 << 22)
-#define   DP_PRE_EMPHASIS_SHIFT		22
-
-/* How many wires to use. I guess 3 was too hard */
-#define   DP_PORT_WIDTH(width)		(((width) - 1) << 19)
-#define   DP_PORT_WIDTH_MASK		(7 << 19)
-#define   DP_PORT_WIDTH_SHIFT		19
-
-/* Mystic DPCD version 1.1 special mode */
-#define   DP_ENHANCED_FRAMING		(1 << 18)
-
-/* eDP */
-#define   DP_PLL_FREQ_270MHZ		(0 << 16)
-#define   DP_PLL_FREQ_162MHZ		(1 << 16)
-#define   DP_PLL_FREQ_MASK		(3 << 16)
-
-/* locked once port is enabled */
-#define   DP_PORT_REVERSAL		(1 << 15)
-
-/* eDP */
-#define   DP_PLL_ENABLE			(1 << 14)
-
-/* sends the clock on lane 15 of the PEG for debug */
-#define   DP_CLOCK_OUTPUT_ENABLE	(1 << 13)
-
-#define   DP_SCRAMBLING_DISABLE		(1 << 12)
-#define   DP_SCRAMBLING_DISABLE_IRONLAKE	(1 << 7)
-
-/* limit RGB values to avoid confusing TVs */
-#define   DP_COLOR_RANGE_16_235		(1 << 8)
-
-/* Turn on the audio link */
-#define   DP_AUDIO_OUTPUT_ENABLE	(1 << 6)
-
-/* vs and hs sync polarity */
-#define   DP_SYNC_VS_HIGH		(1 << 4)
-#define   DP_SYNC_HS_HIGH		(1 << 3)
-
-/* A fantasy */
-#define   DP_DETECTED			(1 << 2)
+#define   DP_PIPE_SEL_MASK_CHV		REG_GENMASK(17, 16)
+#define   DP_PIPE_SEL_CHV(pipe)		REG_FIELD_PREP(DP_PIPE_SEL_MASK_CHV, (pipe))
+#define   DP_LINK_TRAIN_MASK		REG_GENMASK(29, 28)
+#define   DP_LINK_TRAIN_PAT_1		REG_FIELD_PREP(DP_LINK_TRAIN_MASK, 0)
+#define   DP_LINK_TRAIN_PAT_2		REG_FIELD_PREP(DP_LINK_TRAIN_MASK, 1)
+#define   DP_LINK_TRAIN_PAT_IDLE	REG_FIELD_PREP(DP_LINK_TRAIN_MASK, 2)
+#define   DP_LINK_TRAIN_OFF		REG_FIELD_PREP(DP_LINK_TRAIN_MASK, 3)
+#define   DP_LINK_TRAIN_MASK_CPT	REG_GENMASK(10, 8)
+#define   DP_LINK_TRAIN_PAT_1_CPT	REG_FIELD_PREP(DP_LINK_TRAIN_MASK_CPT, 0)
+#define   DP_LINK_TRAIN_PAT_2_CPT	REG_FIELD_PREP(DP_LINK_TRAIN_MASK_CPT, 1)
+#define   DP_LINK_TRAIN_PAT_IDLE_CPT	REG_FIELD_PREP(DP_LINK_TRAIN_MASK_CPT, 2)
+#define   DP_LINK_TRAIN_OFF_CPT		REG_FIELD_PREP(DP_LINK_TRAIN_MASK_CPT, 3)
+#define   DP_VOLTAGE_MASK		REG_GENMASK(27, 25)
+#define   DP_VOLTAGE_0_4		REG_FIELD_PREP(DP_VOLTAGE_MASK, 0)
+#define   DP_VOLTAGE_0_6		REG_FIELD_PREP(DP_VOLTAGE_MASK, 1)
+#define   DP_VOLTAGE_0_8		REG_FIELD_PREP(DP_VOLTAGE_MASK, 2)
+#define   DP_VOLTAGE_1_2		REG_FIELD_PREP(DP_VOLTAGE_MASK, 3)
+#define   DP_PRE_EMPHASIS_MASK		REG_GENMASK(24, 22)
+#define   DP_PRE_EMPHASIS_0		REG_FIELD_PREP(DP_PRE_EMPHASIS_MASK, 0)
+#define   DP_PRE_EMPHASIS_3_5		REG_FIELD_PREP(DP_PRE_EMPHASIS_MASK, 1)
+#define   DP_PRE_EMPHASIS_6		REG_FIELD_PREP(DP_PRE_EMPHASIS_MASK, 2)
+#define   DP_PRE_EMPHASIS_9_5		REG_FIELD_PREP(DP_PRE_EMPHASIS_MASK, 3)
+#define   DP_PORT_WIDTH_MASK		REG_GENMASK(21, 19)
+#define   DP_PORT_WIDTH(width)		REG_FIELD_PREP(DP_PORT_WIDTH_MASK, (width) - 1)
+#define   DP_ENHANCED_FRAMING		REG_BIT(18)
+#define   EDP_PLL_FREQ_MASK		REG_GENMASK(17, 16)
+#define   EDP_PLL_FREQ_270MHZ		REG_FIELD_PREP(EDP_PLL_FREQ_MASK, 0)
+#define   EDP_PLL_FREQ_162MHZ		REG_FIELD_PREP(EDP_PLL_FREQ_MASK, 1)
+#define   DP_PORT_REVERSAL		REG_BIT(15)
+#define   EDP_PLL_ENABLE		REG_BIT(14)
+#define   DP_CLOCK_OUTPUT_ENABLE	REG_BIT(13)
+#define   DP_SCRAMBLING_DISABLE		REG_BIT(12)
+#define   DP_SCRAMBLING_DISABLE_ILK	REG_BIT(7)
+#define   DP_COLOR_RANGE_16_235		REG_BIT(8)
+#define   DP_AUDIO_OUTPUT_ENABLE	REG_BIT(6)
+#define   DP_SYNC_VS_HIGH		REG_BIT(4)
+#define   DP_SYNC_HS_HIGH		REG_BIT(3)
+#define   DP_DETECTED			REG_BIT(2)
 
 /*
  * Computing GMCH M and N values for the Display Port link
