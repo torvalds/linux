@@ -2978,6 +2978,7 @@ static inline bool ext4_mb_cr_expensive(enum criteria cr)
 void ext4_inode_csum_set(struct inode *inode, struct ext4_inode *raw,
 			 struct ext4_inode_info *ei);
 int ext4_inode_is_fast_symlink(struct inode *inode);
+void ext4_check_map_extents_env(struct inode *inode);
 struct buffer_head *ext4_getblk(handle_t *, struct inode *, ext4_lblk_t, int);
 struct buffer_head *ext4_bread(handle_t *, struct inode *, ext4_lblk_t, int);
 int ext4_bread_batch(struct inode *inode, ext4_lblk_t block, int bh_count,

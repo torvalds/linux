@@ -416,6 +416,32 @@ int ext4_issue_zeroout(struct inode *inode, ext4_lblk_t lblk, ext4_fsblk_t pblk,
 	return ret;
 }
 
+/*
+ * For generic regular files, when updating the extent tree, Ext4 should
+ * hold the i_rwsem and invalidate_lock exclusively. This ensures
+ * exclusion against concurrent page faults, as well as reads and writes.
+ */
+#ifdef CONFIG_EXT4_DEBUG
+void ext4_check_map_extents_env(struct inode *inode)
+{
+	if (EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY)
+		return;
+
+	if (!S_ISREG(inode->i_mode) ||
+	    IS_NOQUOTA(inode) || IS_VERITY(inode) ||
+	    is_special_ino(inode->i_sb, inode->i_ino) ||
+	    (inode->i_state & (I_FREEING | I_WILL_FREE | I_NEW)) ||
+	    ext4_test_inode_flag(inode, EXT4_INODE_EA_INODE) ||
+	    ext4_verity_in_progress(inode))
+		return;
+
+	WARN_ON_ONCE(!inode_is_locked(inode) &&
+		     !rwsem_is_locked(&inode->i_mapping->invalidate_lock));
+}
+#else
+void ext4_check_map_extents_env(struct inode *inode) {}
+#endif
+
 #define check_block_validity(inode, map)	\
 	__check_block_validity((inode), __func__, __LINE__, (map))
 
