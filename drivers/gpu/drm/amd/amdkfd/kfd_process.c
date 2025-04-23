@@ -900,6 +900,8 @@ struct kfd_process *kfd_create_process(struct task_struct *thread)
 		kfd_procfs_add_sysfs_files(process);
 		kfd_procfs_add_sysfs_counters(process);
 
+		kfd_debugfs_add_process(process);
+
 		init_waitqueue_head(&process->wait_irq_drain);
 	}
 out:
@@ -1176,6 +1178,7 @@ static void kfd_process_wq_release(struct work_struct *work)
 		dma_fence_signal(ef);
 
 	kfd_process_remove_sysfs(p);
+	kfd_debugfs_remove_process(p);
 
 	kfd_process_kunmap_signal_bo(p);
 	kfd_process_free_outstanding_kfd_bos(p);
