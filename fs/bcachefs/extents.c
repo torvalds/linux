@@ -56,6 +56,14 @@ void bch2_io_failures_to_text(struct printbuf *out,
 	for (struct bch_dev_io_failures *f = failed->devs;
 	     f < failed->devs + failed->nr;
 	     f++) {
+		unsigned errflags =
+			((!!f->failed_io)	<< 0) |
+			((!!f->failed_csum_nr)	<< 1) |
+			((!!f->failed_ec)	<< 2);
+
+		if (!errflags)
+			continue;
+
 		bch2_printbuf_make_room(out, 1024);
 		rcu_read_lock();
 		out->atomic++;
@@ -68,11 +76,6 @@ void bch2_io_failures_to_text(struct printbuf *out,
 		rcu_read_unlock();
 
 		prt_char(out, ' ');
-
-		unsigned errflags =
-			((!!f->failed_io)	<< 0) |
-			((!!f->failed_csum_nr)	<< 1) |
-			((!!f->failed_ec)	<< 2);
 
 		if (is_power_of_2(errflags)) {
 			prt_bitflags(out, error_types, errflags);
@@ -117,6 +120,22 @@ void bch2_mark_io_failure(struct bch_io_failures *failed,
 		f->failed_io = true;
 	else
 		f->failed_csum_nr++;
+}
+
+void bch2_mark_btree_validate_failure(struct bch_io_failures *failed,
+				      unsigned dev)
+{
+	struct bch_dev_io_failures *f = bch2_dev_io_failures(failed, dev);
+
+	if (!f) {
+		BUG_ON(failed->nr >= ARRAY_SIZE(failed->devs));
+
+		f = &failed->devs[failed->nr++];
+		memset(f, 0, sizeof(*f));
+		f->dev = dev;
+	}
+
+	f->failed_btree_validate = true;
 }
 
 static inline u64 dev_latency(struct bch_dev *ca)
@@ -219,6 +238,7 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 
 			if (ca && ca->mi.state != BCH_MEMBER_STATE_failed) {
 				have_io_errors	|= f->failed_io;
+				have_io_errors	|= f->failed_btree_validate;
 				have_io_errors	|= f->failed_ec;
 			}
 			have_csum_errors	|= !!f->failed_csum_nr;
@@ -226,6 +246,7 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 			if (p.has_ec && (f->failed_io || f->failed_csum_nr))
 				p.do_ec_reconstruct = true;
 			else if (f->failed_io ||
+				 f->failed_btree_validate ||
 				 f->failed_csum_nr > c->opts.checksum_err_retry_nr)
 				continue;
 		}

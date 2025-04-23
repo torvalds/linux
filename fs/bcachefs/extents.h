@@ -398,6 +398,7 @@ struct bch_dev_io_failures *bch2_dev_io_failures(struct bch_io_failures *,
 						 unsigned);
 void bch2_mark_io_failure(struct bch_io_failures *,
 			  struct extent_ptr_decoded *, bool);
+void bch2_mark_btree_validate_failure(struct bch_io_failures *, unsigned);
 int bch2_bkey_pick_read_device(struct bch_fs *, struct bkey_s_c,
 			       struct bch_io_failures *,
 			       struct extent_ptr_decoded *, int);
