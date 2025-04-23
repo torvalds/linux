@@ -2,7 +2,7 @@
 
 config DRM_AMDGPU
 	tristate "AMD GPU"
-	depends on DRM && PCI && MMU
+	depends on DRM && PCI
 	depends on !UML
 	select FW_LOADER
 	select DRM_CLIENT
@@ -68,7 +68,6 @@ config DRM_AMDGPU_CIK
 config DRM_AMDGPU_USERPTR
 	bool "Always enable userptr write support"
 	depends on DRM_AMDGPU
-	depends on MMU
 	select HMM_MIRROR
 	select MMU_NOTIFIER
 	help
