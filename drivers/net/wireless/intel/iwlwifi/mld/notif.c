@@ -662,9 +662,13 @@ void iwl_mld_async_handlers_wk(struct wiphy *wiphy, struct wiphy_work *wk)
 	}
 }
 
-void iwl_mld_purge_async_handlers_list(struct iwl_mld *mld)
+void iwl_mld_cancel_async_notifications(struct iwl_mld *mld)
 {
 	struct iwl_async_handler_entry *entry, *tmp;
+
+	lockdep_assert_wiphy(mld->wiphy);
+
+	wiphy_work_cancel(mld->wiphy, &mld->async_handlers_wk);
 
 	spin_lock_bh(&mld->async_handlers_lock);
 	list_for_each_entry_safe(entry, tmp, &mld->async_handlers_list, list) {

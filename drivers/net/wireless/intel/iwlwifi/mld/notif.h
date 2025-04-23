@@ -15,7 +15,7 @@ void iwl_mld_rx_rss(struct iwl_op_mode *op_mode, struct napi_struct *napi,
 
 void iwl_mld_async_handlers_wk(struct wiphy *wiphy, struct wiphy_work *wk);
 
-void iwl_mld_purge_async_handlers_list(struct iwl_mld *mld);
+void iwl_mld_cancel_async_notifications(struct iwl_mld *mld);
 
 enum iwl_mld_object_type {
 	IWL_MLD_OBJECT_TYPE_NONE,

@@ -541,14 +541,10 @@ void iwl_mld_mac80211_stop(struct ieee80211_hw *hw, bool suspend)
 	    (IS_ENABLED(CONFIG_PM_SLEEP) && iwl_mld_no_wowlan_suspend(mld)))
 		iwl_mld_stop_fw(mld);
 
-	/* HW is stopped, no more coming RX. OTOH, the worker can't run as the
-	 * wiphy lock is held. Cancel it in case it was scheduled just before
-	 * we stopped the HW.
+	/* HW is stopped, no more coming RX. Cancel all notifications in
+	 * case they were sent just before stopping the HW.
 	 */
-	wiphy_work_cancel(mld->wiphy, &mld->async_handlers_wk);
-
-	/* Empty out the list, as the worker won't do that */
-	iwl_mld_purge_async_handlers_list(mld);
+	iwl_mld_cancel_async_notifications(mld);
 
 	/* Clear in_hw_restart flag when stopping the hw, as mac80211 won't
 	 * execute the restart.
