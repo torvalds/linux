@@ -318,7 +318,8 @@ static int pca9532_gpio_request_pin(struct gpio_chip *gc, unsigned offset)
 	return -EBUSY;
 }
 
-static void pca9532_gpio_set_value(struct gpio_chip *gc, unsigned offset, int val)
+static int pca9532_gpio_set_value(struct gpio_chip *gc, unsigned int offset,
+				  int val)
 {
 	struct pca9532_data *data = gpiochip_get_data(gc);
 	struct pca9532_led *led = &data->leds[offset];
@@ -329,6 +330,8 @@ static void pca9532_gpio_set_value(struct gpio_chip *gc, unsigned offset, int va
 		led->state = PCA9532_OFF;
 
 	pca9532_setled(led);
+
+	return 0;
 }
 
 static int pca9532_gpio_get_value(struct gpio_chip *gc, unsigned offset)
@@ -351,9 +354,7 @@ static int pca9532_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
 
 static int pca9532_gpio_direction_output(struct gpio_chip *gc, unsigned offset, int val)
 {
-	pca9532_gpio_set_value(gc, offset, val);
-
-	return 0;
+	return pca9532_gpio_set_value(gc, offset, val);
 }
 #endif /* CONFIG_LEDS_PCA9532_GPIO */
 
@@ -472,7 +473,7 @@ static int pca9532_configure(struct i2c_client *client,
 		data->gpio.label = "gpio-pca9532";
 		data->gpio.direction_input = pca9532_gpio_direction_input;
 		data->gpio.direction_output = pca9532_gpio_direction_output;
-		data->gpio.set = pca9532_gpio_set_value;
+		data->gpio.set_rv = pca9532_gpio_set_value;
 		data->gpio.get = pca9532_gpio_get_value;
 		data->gpio.request = pca9532_gpio_request_pin;
 		data->gpio.can_sleep = 1;
