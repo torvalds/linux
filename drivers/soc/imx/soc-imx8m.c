@@ -31,7 +31,8 @@
 struct imx8_soc_data {
 	char *name;
 	const char *ocotp_compatible;
-	int (*soc_revision)(struct platform_device *pdev, u32 *socrev, u64 *socuid);
+	int (*soc_revision)(struct platform_device *pdev, u32 *socrev);
+	int (*soc_uid)(struct platform_device *pdev, u64 *socuid);
 };
 
 struct imx8_soc_drvdata {
@@ -55,7 +56,19 @@ static u32 imx8mq_soc_revision_from_atf(void)
 static inline u32 imx8mq_soc_revision_from_atf(void) { return 0; };
 #endif
 
-static int imx8mq_soc_revision(struct platform_device *pdev, u32 *socrev, u64 *socuid)
+static int imx8m_soc_uid(struct platform_device *pdev, u64 *socuid)
+{
+	struct imx8_soc_drvdata *drvdata = platform_get_drvdata(pdev);
+	void __iomem *ocotp_base = drvdata->ocotp_base;
+
+	*socuid = readl_relaxed(ocotp_base + OCOTP_UID_HIGH);
+	*socuid <<= 32;
+	*socuid |= readl_relaxed(ocotp_base + OCOTP_UID_LOW);
+
+	return 0;
+}
+
+static int imx8mq_soc_revision(struct platform_device *pdev, u32 *socrev)
 {
 	struct imx8_soc_drvdata *drvdata = platform_get_drvdata(pdev);
 	void __iomem *ocotp_base = drvdata->ocotp_base;
@@ -73,30 +86,24 @@ static int imx8mq_soc_revision(struct platform_device *pdev, u32 *socrev, u64 *s
 			rev = REV_B1;
 	}
 
-	*socuid = readl_relaxed(ocotp_base + OCOTP_UID_HIGH);
-	*socuid <<= 32;
-	*socuid |= readl_relaxed(ocotp_base + OCOTP_UID_LOW);
-
 	*socrev = rev;
 
 	return 0;
 }
 
-static int imx8mm_soc_uid(struct platform_device *pdev, u64 *socuid)
+static int imx8mp_soc_uid(struct platform_device *pdev, u64 *socuid)
 {
 	struct imx8_soc_drvdata *drvdata = platform_get_drvdata(pdev);
 	void __iomem *ocotp_base = drvdata->ocotp_base;
-	u32 offset = of_machine_is_compatible("fsl,imx8mp") ?
-		     IMX8MP_OCOTP_UID_OFFSET : 0;
 
-	*socuid = readl_relaxed(ocotp_base + OCOTP_UID_HIGH + offset);
+	*socuid = readl_relaxed(ocotp_base + OCOTP_UID_HIGH + IMX8MP_OCOTP_UID_OFFSET);
 	*socuid <<= 32;
-	*socuid |= readl_relaxed(ocotp_base + OCOTP_UID_LOW + offset);
+	*socuid |= readl_relaxed(ocotp_base + OCOTP_UID_LOW + IMX8MP_OCOTP_UID_OFFSET);
 
 	return 0;
 }
 
-static int imx8mm_soc_revision(struct platform_device *pdev, u32 *socrev, u64 *socuid)
+static int imx8mm_soc_revision(struct platform_device *pdev, u32 *socrev)
 {
 	struct device_node *np __free(device_node) =
 		of_find_compatible_node(NULL, NULL, "fsl,imx8mm-anatop");
@@ -113,7 +120,7 @@ static int imx8mm_soc_revision(struct platform_device *pdev, u32 *socrev, u64 *s
 
 	iounmap(anatop_base);
 
-	return imx8mm_soc_uid(pdev, socuid);
+	return 0;
 }
 
 static int imx8m_soc_prepare(struct platform_device *pdev, const char *ocotp_compatible)
@@ -156,24 +163,28 @@ static const struct imx8_soc_data imx8mq_soc_data = {
 	.name = "i.MX8MQ",
 	.ocotp_compatible = "fsl,imx8mq-ocotp",
 	.soc_revision = imx8mq_soc_revision,
+	.soc_uid = imx8m_soc_uid,
 };
 
 static const struct imx8_soc_data imx8mm_soc_data = {
 	.name = "i.MX8MM",
 	.ocotp_compatible = "fsl,imx8mm-ocotp",
 	.soc_revision = imx8mm_soc_revision,
+	.soc_uid = imx8m_soc_uid,
 };
 
 static const struct imx8_soc_data imx8mn_soc_data = {
 	.name = "i.MX8MN",
 	.ocotp_compatible = "fsl,imx8mm-ocotp",
 	.soc_revision = imx8mm_soc_revision,
+	.soc_uid = imx8m_soc_uid,
 };
 
 static const struct imx8_soc_data imx8mp_soc_data = {
 	.name = "i.MX8MP",
 	.ocotp_compatible = "fsl,imx8mm-ocotp",
 	.soc_revision = imx8mm_soc_revision,
+	.soc_uid = imx8mp_soc_uid,
 };
 
 static __maybe_unused const struct of_device_id imx8_soc_match[] = {
@@ -240,7 +251,14 @@ static int imx8m_soc_probe(struct platform_device *pdev)
 			return ret;
 
 		if (data->soc_revision) {
-			ret = data->soc_revision(pdev, &soc_rev, &soc_uid);
+			ret = data->soc_revision(pdev, &soc_rev);
+			if (ret) {
+				imx8m_soc_unprepare(pdev);
+				return ret;
+			}
+		}
+		if (data->soc_uid) {
+			ret = data->soc_uid(pdev, &soc_uid);
 			if (ret) {
 				imx8m_soc_unprepare(pdev);
 				return ret;
