@@ -2011,18 +2011,31 @@ static void pqi_dev_info(struct pqi_ctrl_info *ctrl_info,
 			PQI_DEV_INFO_BUFFER_LENGTH - count,
 			"-:-");
 
-	if (pqi_is_logical_device(device))
+	if (pqi_is_logical_device(device)) {
 		count += scnprintf(buffer + count,
 			PQI_DEV_INFO_BUFFER_LENGTH - count,
 			" %08x%08x",
 			*((u32 *)&device->scsi3addr),
 			*((u32 *)&device->scsi3addr[4]));
-	else
+	} else if (ctrl_info->rpl_extended_format_4_5_supported) {
+		if (device->device_type == SA_DEVICE_TYPE_NVME)
+			count += scnprintf(buffer + count,
+					PQI_DEV_INFO_BUFFER_LENGTH - count,
+					" %016llx%016llx",
+					get_unaligned_be64(&device->wwid[0]),
+					get_unaligned_be64(&device->wwid[8]));
+		else
+			count += scnprintf(buffer + count,
+					PQI_DEV_INFO_BUFFER_LENGTH - count,
+					" %016llx",
+					get_unaligned_be64(&device->wwid[0]));
+	} else {
 		count += scnprintf(buffer + count,
 			PQI_DEV_INFO_BUFFER_LENGTH - count,
-			" %016llx%016llx",
-			get_unaligned_be64(&device->wwid[0]),
-			get_unaligned_be64(&device->wwid[8]));
+			" %016llx",
+			get_unaligned_be64(&device->wwid[0]));
+	}
+
 
 	count += scnprintf(buffer + count, PQI_DEV_INFO_BUFFER_LENGTH - count,
 		" %s %.8s %.16s ",
