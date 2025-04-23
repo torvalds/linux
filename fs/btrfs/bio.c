@@ -675,7 +675,7 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 	struct btrfs_io_context *bioc = NULL;
 	struct btrfs_io_stripe smap;
 	blk_status_t status;
-	int error;
+	int ret;
 
 	if (!bbio->inode || btrfs_is_data_reloc_root(inode->root))
 		smap.rst_search_commit_root = true;
@@ -683,10 +683,10 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 		smap.rst_search_commit_root = false;
 
 	btrfs_bio_counter_inc_blocked(fs_info);
-	error = btrfs_map_block(fs_info, btrfs_op(bio), logical, &map_length,
-				&bioc, &smap, &mirror_num);
-	if (error) {
-		status = errno_to_blk_status(error);
+	ret = btrfs_map_block(fs_info, btrfs_op(bio), logical, &map_length,
+			      &bioc, &smap, &mirror_num);
+	if (ret) {
+		status = errno_to_blk_status(ret);
 		btrfs_bio_counter_dec(fs_info);
 		goto end_bbio;
 	}
@@ -714,8 +714,8 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 	 */
 	if (bio_op(bio) == REQ_OP_READ && is_data_bbio(bbio)) {
 		bbio->saved_iter = bio->bi_iter;
-		error = btrfs_lookup_bio_sums(bbio);
-		status = errno_to_blk_status(error);
+		ret = btrfs_lookup_bio_sums(bbio);
+		status = errno_to_blk_status(ret);
 		if (status)
 			goto fail;
 	}
@@ -748,8 +748,8 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 			    btrfs_wq_submit_bio(bbio, bioc, &smap, mirror_num))
 				goto done;
 
-			error = btrfs_bio_csum(bbio);
-			status = errno_to_blk_status(error);
+			ret = btrfs_bio_csum(bbio);
+			status = errno_to_blk_status(ret);
 			if (status)
 				goto fail;
 		} else if (use_append ||
