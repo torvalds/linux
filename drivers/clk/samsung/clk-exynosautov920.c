@@ -18,6 +18,7 @@
 
 /* NOTE: Must be equal to the last clock ID increased by one */
 #define CLKS_NR_TOP			(DOUT_CLKCMU_TAA_NOC + 1)
+#define CLKS_NR_CPUCL0			(CLK_DOUT_CLUSTER0_PERIPHCLK + 1)
 #define CLKS_NR_PERIC0			(CLK_DOUT_PERIC0_I3C + 1)
 #define CLKS_NR_PERIC1			(CLK_DOUT_PERIC1_I3C + 1)
 #define CLKS_NR_MISC			(CLK_DOUT_MISC_OSC_DIV2 + 1)
@@ -1004,6 +1005,135 @@ static void __init exynosautov920_cmu_top_init(struct device_node *np)
 /* Register CMU_TOP early, as it's a dependency for other early domains */
 CLK_OF_DECLARE(exynosautov920_cmu_top, "samsung,exynosautov920-cmu-top",
 	       exynosautov920_cmu_top_init);
+
+/* ---- CMU_CPUCL0 --------------------------------------------------------- */
+
+/* Register Offset definitions for CMU_CPUCL0 (0x1EC00000) */
+#define PLL_LOCKTIME_PLL_CPUCL0				0x0000
+#define PLL_CON0_PLL_CPUCL0				0x0100
+#define PLL_CON1_PLL_CPUCL0				0x0104
+#define PLL_CON3_PLL_CPUCL0				0x010c
+#define PLL_CON0_MUX_CLKCMU_CPUCL0_CLUSTER_USER		0x0600
+#define PLL_CON0_MUX_CLKCMU_CPUCL0_DBG_USER		0x0610
+#define PLL_CON0_MUX_CLKCMU_CPUCL0_SWITCH_USER		0x0620
+
+#define CLK_CON_MUX_MUX_CLK_CPUCL0_CLUSTER		0x1000
+#define CLK_CON_MUX_MUX_CLK_CPUCL0_CORE			0x1004
+
+#define CLK_CON_DIV_DIV_CLK_CLUSTER0_ACLK		0x1800
+#define CLK_CON_DIV_DIV_CLK_CLUSTER0_ATCLK		0x1804
+#define CLK_CON_DIV_DIV_CLK_CLUSTER0_MPCLK		0x1808
+#define CLK_CON_DIV_DIV_CLK_CLUSTER0_PCLK		0x180c
+#define CLK_CON_DIV_DIV_CLK_CLUSTER0_PERIPHCLK		0x1810
+#define CLK_CON_DIV_DIV_CLK_CPUCL0_DBG_NOC		0x181c
+#define CLK_CON_DIV_DIV_CLK_CPUCL0_DBG_PCLKDBG		0x1820
+#define CLK_CON_DIV_DIV_CLK_CPUCL0_NOCP			0x1824
+
+static const unsigned long cpucl0_clk_regs[] __initconst = {
+	PLL_LOCKTIME_PLL_CPUCL0,
+	PLL_CON0_PLL_CPUCL0,
+	PLL_CON1_PLL_CPUCL0,
+	PLL_CON3_PLL_CPUCL0,
+	PLL_CON0_MUX_CLKCMU_CPUCL0_CLUSTER_USER,
+	PLL_CON0_MUX_CLKCMU_CPUCL0_DBG_USER,
+	PLL_CON0_MUX_CLKCMU_CPUCL0_SWITCH_USER,
+	CLK_CON_MUX_MUX_CLK_CPUCL0_CLUSTER,
+	CLK_CON_MUX_MUX_CLK_CPUCL0_CORE,
+	CLK_CON_DIV_DIV_CLK_CLUSTER0_ACLK,
+	CLK_CON_DIV_DIV_CLK_CLUSTER0_ATCLK,
+	CLK_CON_DIV_DIV_CLK_CLUSTER0_MPCLK,
+	CLK_CON_DIV_DIV_CLK_CLUSTER0_PCLK,
+	CLK_CON_DIV_DIV_CLK_CLUSTER0_PERIPHCLK,
+	CLK_CON_DIV_DIV_CLK_CPUCL0_DBG_NOC,
+	CLK_CON_DIV_DIV_CLK_CPUCL0_DBG_PCLKDBG,
+	CLK_CON_DIV_DIV_CLK_CPUCL0_NOCP,
+};
+
+/* List of parent clocks for Muxes in CMU_CPUCL0 */
+PNAME(mout_pll_cpucl0_p)		 = { "oscclk", "fout_cpucl0_pll" };
+PNAME(mout_cpucl0_cluster_user_p)	 = { "oscclk", "dout_clkcmu_cpucl0_cluster" };
+PNAME(mout_cpucl0_dbg_user_p)		 = { "oscclk", "dout_clkcmu_cpucl0_dbg" };
+PNAME(mout_cpucl0_switch_user_p)	 = { "oscclk", "dout_clkcmu_cpucl0_switch" };
+PNAME(mout_cpucl0_cluster_p)		 = { "oscclk", "mout_cpucl0_cluster_user",
+						"mout_cpucl0_switch_user"};
+PNAME(mout_cpucl0_core_p)		 = { "oscclk", "mout_pll_cpucl0",
+						"mout_cpucl0_switch_user"};
+
+static const struct samsung_pll_rate_table cpu_pll_rates[] __initconst = {
+	PLL_35XX_RATE(38400000U, 2400000000U, 250, 4, 0),
+	PLL_35XX_RATE(38400000U, 2304000000U, 240, 4, 0),
+	PLL_35XX_RATE(38400000U, 2208000000U, 230, 4, 0),
+	PLL_35XX_RATE(38400000U, 2112000000U, 220, 4, 0),
+	PLL_35XX_RATE(38400000U, 2016000000U, 210, 4, 0),
+	PLL_35XX_RATE(38400000U, 1824000000U, 190, 4, 0),
+	PLL_35XX_RATE(38400000U, 1680000000U, 175, 4, 0),
+	PLL_35XX_RATE(38400000U, 1344000000U, 140, 4, 0),
+	PLL_35XX_RATE(38400000U, 1152000000U, 120, 4, 0),
+	PLL_35XX_RATE(38400000U, 576000000U, 120, 4, 1),
+	PLL_35XX_RATE(38400000U, 288000000U, 120, 4, 2),
+};
+
+static const struct samsung_pll_clock cpucl0_pll_clks[] __initconst = {
+	/* CMU_CPUCL0_PURECLKCOMP */
+	PLL(pll_531x, CLK_FOUT_CPUCL0_PLL, "fout_cpucl0_pll", "oscclk",
+	    PLL_LOCKTIME_PLL_CPUCL0, PLL_CON3_PLL_CPUCL0, cpu_pll_rates),
+};
+
+static const struct samsung_mux_clock cpucl0_mux_clks[] __initconst = {
+	MUX(CLK_MOUT_PLL_CPUCL0, "mout_pll_cpucl0", mout_pll_cpucl0_p,
+	    PLL_CON0_PLL_CPUCL0, 4, 1),
+	MUX(CLK_MOUT_CPUCL0_CLUSTER_USER, "mout_cpucl0_cluster_user", mout_cpucl0_cluster_user_p,
+	    PLL_CON0_MUX_CLKCMU_CPUCL0_CLUSTER_USER, 4, 1),
+	MUX(CLK_MOUT_CPUCL0_DBG_USER, "mout_cpucl0_dbg_user", mout_cpucl0_dbg_user_p,
+	    PLL_CON0_MUX_CLKCMU_CPUCL0_DBG_USER, 4, 1),
+	MUX(CLK_MOUT_CPUCL0_SWITCH_USER, "mout_cpucl0_switch_user", mout_cpucl0_switch_user_p,
+	    PLL_CON0_MUX_CLKCMU_CPUCL0_SWITCH_USER, 4, 1),
+	MUX(CLK_MOUT_CPUCL0_CLUSTER, "mout_cpucl0_cluster", mout_cpucl0_cluster_p,
+	    CLK_CON_MUX_MUX_CLK_CPUCL0_CLUSTER, 0, 2),
+	MUX(CLK_MOUT_CPUCL0_CORE, "mout_cpucl0_core", mout_cpucl0_core_p,
+	    CLK_CON_MUX_MUX_CLK_CPUCL0_CORE, 0, 2),
+};
+
+static const struct samsung_div_clock cpucl0_div_clks[] __initconst = {
+	DIV(CLK_DOUT_CLUSTER0_ACLK, "dout_cluster0_aclk",
+	    "mout_cpucl0_cluster", CLK_CON_DIV_DIV_CLK_CLUSTER0_ACLK, 0, 4),
+	DIV(CLK_DOUT_CLUSTER0_ATCLK, "dout_cluster0_atclk",
+	    "mout_cpucl0_cluster", CLK_CON_DIV_DIV_CLK_CLUSTER0_ATCLK, 0, 4),
+	DIV(CLK_DOUT_CLUSTER0_MPCLK, "dout_cluster0_mpclk",
+	    "mout_cpucl0_cluster", CLK_CON_DIV_DIV_CLK_CLUSTER0_MPCLK, 0, 4),
+	DIV(CLK_DOUT_CLUSTER0_PCLK, "dout_cluster0_pclk",
+	    "mout_cpucl0_cluster", CLK_CON_DIV_DIV_CLK_CLUSTER0_PCLK, 0, 4),
+	DIV(CLK_DOUT_CLUSTER0_PERIPHCLK, "dout_cluster0_periphclk",
+	    "mout_cpucl0_cluster", CLK_CON_DIV_DIV_CLK_CLUSTER0_PERIPHCLK, 0, 4),
+	DIV(CLK_DOUT_CPUCL0_DBG_NOC, "dout_cpucl0_dbg_noc",
+	    "mout_cpucl0_dbg_user", CLK_CON_DIV_DIV_CLK_CPUCL0_DBG_NOC, 0, 3),
+	DIV(CLK_DOUT_CPUCL0_DBG_PCLKDBG, "dout_cpucl0_dbg_pclkdbg",
+	    "mout_cpucl0_dbg_user", CLK_CON_DIV_DIV_CLK_CPUCL0_DBG_PCLKDBG, 0, 3),
+	DIV(CLK_DOUT_CPUCL0_NOCP, "dout_cpucl0_nocp",
+	    "mout_cpucl0_cluster", CLK_CON_DIV_DIV_CLK_CPUCL0_NOCP, 0, 4),
+};
+
+static const struct samsung_cmu_info cpucl0_cmu_info __initconst = {
+	.pll_clks		= cpucl0_pll_clks,
+	.nr_pll_clks		= ARRAY_SIZE(cpucl0_pll_clks),
+	.mux_clks		= cpucl0_mux_clks,
+	.nr_mux_clks		= ARRAY_SIZE(cpucl0_mux_clks),
+	.div_clks		= cpucl0_div_clks,
+	.nr_div_clks		= ARRAY_SIZE(cpucl0_div_clks),
+	.nr_clk_ids		= CLKS_NR_CPUCL0,
+	.clk_regs		= cpucl0_clk_regs,
+	.nr_clk_regs		= ARRAY_SIZE(cpucl0_clk_regs),
+	.clk_name		= "cpucl0",
+};
+
+static void __init exynosautov920_cmu_cpucl0_init(struct device_node *np)
+{
+	exynos_arm64_register_cmu(NULL, np, &cpucl0_cmu_info);
+}
+
+/* Register CMU_CPUCL0 early, as CPU clocks should be available ASAP */
+CLK_OF_DECLARE(exynosautov920_cmu_cpucl0, "samsung,exynosautov920-cmu-cpucl0",
+	       exynosautov920_cmu_cpucl0_init);
 
 /* ---- CMU_PERIC0 --------------------------------------------------------- */
 
