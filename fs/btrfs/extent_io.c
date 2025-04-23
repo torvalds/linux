@@ -3068,10 +3068,9 @@ static bool check_eb_alignment(struct btrfs_fs_info *fs_info, u64 start)
 		return true;
 	}
 
-	if (fs_info->nodesize < PAGE_SIZE &&
-	    offset_in_page(start) + fs_info->nodesize > PAGE_SIZE) {
+	if (fs_info->nodesize < PAGE_SIZE && !IS_ALIGNED(start, fs_info->nodesize)) {
 		btrfs_err(fs_info,
-		"tree block crosses page boundary, start %llu nodesize %u",
+		"tree block is not nodesize aligned, start %llu nodesize %u",
 			  start, fs_info->nodesize);
 		return true;
 	}
