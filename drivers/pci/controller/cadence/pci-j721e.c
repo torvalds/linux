@@ -475,7 +475,7 @@ static int j721e_pcie_probe(struct platform_device *pdev)
 
 	switch (mode) {
 	case PCI_MODE_RC:
-		if (!IS_ENABLED(CONFIG_PCIE_CADENCE_HOST))
+		if (!IS_ENABLED(CONFIG_PCI_J721E_HOST))
 			return -ENODEV;
 
 		bridge = devm_pci_alloc_host_bridge(dev, sizeof(*rc));
@@ -494,7 +494,7 @@ static int j721e_pcie_probe(struct platform_device *pdev)
 		pcie->cdns_pcie = cdns_pcie;
 		break;
 	case PCI_MODE_EP:
-		if (!IS_ENABLED(CONFIG_PCIE_CADENCE_EP))
+		if (!IS_ENABLED(CONFIG_PCI_J721E_EP))
 			return -ENODEV;
 
 		ep = devm_kzalloc(dev, sizeof(*ep), GFP_KERNEL);
