@@ -1313,18 +1313,15 @@ void sync_bdevs(bool wait)
 void bdev_statx(struct path *path, struct kstat *stat,
 		u32 request_mask)
 {
-	struct inode *backing_inode;
 	struct block_device *bdev;
 
-	backing_inode = d_backing_inode(path->dentry);
-
 	/*
-	 * Note that backing_inode is the inode of a block device node file,
-	 * not the block device's internal inode.  Therefore it is *not* valid
-	 * to use I_BDEV() here; the block device has to be looked up by i_rdev
+	 * Note that d_backing_inode() returns the block device node inode, not
+	 * the block device's internal inode.  Therefore it is *not* valid to
+	 * use I_BDEV() here; the block device has to be looked up by i_rdev
 	 * instead.
 	 */
-	bdev = blkdev_get_no_open(backing_inode->i_rdev);
+	bdev = blkdev_get_no_open(d_backing_inode(path->dentry)->i_rdev);
 	if (!bdev)
 		return;
 
