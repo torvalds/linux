@@ -440,8 +440,10 @@ static int rxgk_secure_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 		return PTR_ERR(gk) == -ESTALE ? -EKEYREJECTED : PTR_ERR(gk);
 
 	ret = key_validate(call->conn->key);
-	if (ret < 0)
+	if (ret < 0) {
+		rxgk_put(gk);
 		return ret;
+	}
 
 	call->security_enctype = gk->krb5->etype;
 	txb->cksum = htons(gk->key_number);
@@ -483,7 +485,7 @@ static int rxgk_verify_packet_integrity(struct rxrpc_call *call,
 
 	hdr = kzalloc(sizeof(*hdr), GFP_NOFS);
 	if (!hdr)
-		return -ENOMEM;
+		goto put_gk;
 
 	hdr->epoch	= htonl(call->conn->proto.epoch);
 	hdr->cid	= htonl(call->cid);
@@ -505,6 +507,7 @@ static int rxgk_verify_packet_integrity(struct rxrpc_call *call,
 		sp->len = len;
 	}
 
+put_gk:
 	rxgk_put(gk);
 	_leave(" = %d", ret);
 	return ret;
@@ -594,6 +597,7 @@ static int rxgk_verify_packet(struct rxrpc_call *call, struct sk_buff *skb)
 	call->security_enctype = gk->krb5->etype;
 	switch (call->conn->security_level) {
 	case RXRPC_SECURITY_PLAIN:
+		rxgk_put(gk);
 		return 0;
 	case RXRPC_SECURITY_AUTH:
 		return rxgk_verify_packet_integrity(call, gk, skb);
@@ -969,7 +973,7 @@ static int rxgk_construct_response(struct rxrpc_connection *conn,
 
 	ret = rxgk_pad_out(response, authx_len, authx_offset + authx_len);
 	if (ret < 0)
-		return ret;
+		goto error;
 	len = authx_offset + authx_len + ret;
 
 	if (len != response->len) {
