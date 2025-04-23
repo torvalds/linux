@@ -512,11 +512,11 @@ static void btrfs_submit_bio(struct bio *bio, struct btrfs_io_context *bioc,
 	}
 }
 
-static blk_status_t btrfs_bio_csum(struct btrfs_bio *bbio)
+static int btrfs_bio_csum(struct btrfs_bio *bbio)
 {
 	if (bbio->bio.bi_opf & REQ_META)
-		return errno_to_blk_status(btree_csum_one_bio(bbio));
-	return errno_to_blk_status(btrfs_csum_one_bio(bbio));
+		return btree_csum_one_bio(bbio);
+	return btrfs_csum_one_bio(bbio);
 }
 
 /*
@@ -543,11 +543,11 @@ static void run_one_async_start(struct btrfs_work *work)
 {
 	struct async_submit_bio *async =
 		container_of(work, struct async_submit_bio, work);
-	blk_status_t ret;
+	int ret;
 
 	ret = btrfs_bio_csum(async->bbio);
 	if (ret)
-		async->bbio->bio.bi_status = ret;
+		async->bbio->bio.bi_status = errno_to_blk_status(ret);
 }
 
 /*
@@ -748,7 +748,8 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 			    btrfs_wq_submit_bio(bbio, bioc, &smap, mirror_num))
 				goto done;
 
-			ret = btrfs_bio_csum(bbio);
+			error = btrfs_bio_csum(bbio);
+			ret = errno_to_blk_status(error);
 			if (ret)
 				goto fail;
 		} else if (use_append ||
