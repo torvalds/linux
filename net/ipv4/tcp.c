@@ -4165,6 +4165,8 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 		info->tcpi_options |= TCPI_OPT_SYN_DATA;
 	if (tp->tcp_usec_ts)
 		info->tcpi_options |= TCPI_OPT_USEC_TS;
+	if (tp->syn_fastopen_child)
+		info->tcpi_options |= TCPI_OPT_TFO_CHILD;
 
 	info->tcpi_rto = jiffies_to_usecs(icsk->icsk_rto);
 	info->tcpi_ato = jiffies_to_usecs(min_t(u32, icsk->icsk_ack.ato,
