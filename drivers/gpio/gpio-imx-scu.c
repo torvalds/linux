@@ -52,7 +52,8 @@ static int imx_scu_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return level;
 }
 
-static void imx_scu_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
+static int imx_scu_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			    int value)
 {
 	struct scu_gpio_priv *priv = gpiochip_get_data(chip);
 	int err;
@@ -65,6 +66,8 @@ static void imx_scu_gpio_set(struct gpio_chip *chip, unsigned int offset, int va
 	if (err)
 		dev_err(priv->dev, "SCU set (%d) failed: %d\n",
 				scu_rsrc_arr[offset], err);
+
+	return err;
 }
 
 static int imx_scu_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
@@ -99,7 +102,7 @@ static int imx_scu_gpio_probe(struct platform_device *pdev)
 	gc->ngpio = ARRAY_SIZE(scu_rsrc_arr);
 	gc->label = dev_name(dev);
 	gc->get = imx_scu_gpio_get;
-	gc->set = imx_scu_gpio_set;
+	gc->set_rv = imx_scu_gpio_set;
 	gc->get_direction = imx_scu_gpio_get_direction;
 
 	platform_set_drvdata(pdev, priv);
