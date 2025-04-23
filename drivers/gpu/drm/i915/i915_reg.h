@@ -866,6 +866,7 @@
 #define   FP_M2_DIV_MASK	0x0000003f
 #define   FP_M2_PINEVIEW_DIV_MASK	0x000000ff
 #define   FP_M2_DIV_SHIFT		 0
+
 #define DPLL_TEST	_MMIO(0x606c)
 #define   DPLLB_TEST_SDVO_DIV_1		(0 << 22)
 #define   DPLLB_TEST_SDVO_DIV_2		(1 << 22)
@@ -877,11 +878,13 @@
 #define   DPLLA_TEST_N_BYPASS		(1 << 3)
 #define   DPLLA_TEST_M_BYPASS		(1 << 2)
 #define   DPLLA_INPUT_BUFFER_ENABLE	(1 << 0)
+
 #define D_STATE		_MMIO(0x6104)
 #define  DSTATE_GFX_RESET_I830			(1 << 6)
 #define  DSTATE_PLL_D3_OFF			(1 << 3)
 #define  DSTATE_GFX_CLOCK_GATING		(1 << 1)
 #define  DSTATE_DOT_CLOCK_GATING		(1 << 0)
+
 #define DSPCLK_GATE_D(__i915)		_MMIO(DISPLAY_MMIO_BASE(__i915) + 0x6200)
 # define DPUNIT_B_CLOCK_GATE_DISABLE		(1 << 30) /* 965 */
 # define VSUNIT_CLOCK_GATE_DISABLE		(1 << 29) /* 965 */
@@ -1050,7 +1053,6 @@
 /*
  * Overlay regs
  */
-
 #define OVADD			_MMIO(0x30000)
 #define DOVSTA			_MMIO(0x30008)
 #define OC_BUF			(0x3 << 20)
@@ -1106,7 +1108,6 @@
 /*
  * Display engine regs
  */
-
 /* Pipe/transcoder A timing regs */
 #define _TRANS_HTOTAL_A		0x60000
 #define _TRANS_HTOTAL_B		0x61000
@@ -2746,7 +2747,6 @@
  * functionality covered in PCH_PORT_HOTPLUG is split into
  * SHOTPLUG_CTL_DDI and SHOTPLUG_CTL_TC.
  */
-
 #define SHOTPLUG_CTL_DDI				_MMIO(0xc4030)
 #define   SHOTPLUG_CTL_DDI_HPD_ENABLE(hpd_pin)			(0x8 << (_HPD_PIN_DDI(hpd_pin) * 4))
 #define   SHOTPLUG_CTL_DDI_HPD_OUTPUT_DATA(hpd_pin)		(0x4 << (_HPD_PIN_DDI(hpd_pin) * 4))
@@ -2826,7 +2826,6 @@
 #define  TRANS_DPLL_ENABLE(pipe)	(1 << ((pipe) * 4 + 3))
 
 /* transcoder */
-
 #define _PCH_TRANS_HTOTAL_A		0xe0000
 #define _PCH_TRANS_HTOTAL_B		0xe1000
 #define PCH_TRANS_HTOTAL(pipe)		_MMIO_PIPE(pipe, _PCH_TRANS_HTOTAL_A, _PCH_TRANS_HTOTAL_B)
@@ -3757,7 +3756,6 @@ enum skl_power_gate {
 /*
  * SKL Clocks
  */
-
 /* CDCLK_CTL */
 #define CDCLK_CTL			_MMIO(0x46000)
 #define  CDCLK_FREQ_SEL_MASK		REG_GENMASK(27, 26)
