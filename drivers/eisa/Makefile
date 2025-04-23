@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 # Makefile for the Linux device tree
 
-obj-$(CONFIG_EISA)	        += devlist.h eisa-bus.o
+always-$(CONFIG_EISA)		+= devlist.h
+obj-$(CONFIG_EISA)	        += eisa-bus.o
 obj-${CONFIG_EISA_PCI_EISA}     += pci_eisa.o
 
 # virtual_root.o should be the last EISA root device to initialize,
