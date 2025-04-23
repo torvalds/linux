@@ -3795,26 +3795,25 @@ static void reset_balance_state(struct btrfs_fs_info *fs_info)
  * Balance filters.  Return 1 if chunk should be filtered out
  * (should not be balanced).
  */
-static int chunk_profiles_filter(u64 chunk_type,
-				 struct btrfs_balance_args *bargs)
+static bool chunk_profiles_filter(u64 chunk_type, struct btrfs_balance_args *bargs)
 {
 	chunk_type = chunk_to_extended(chunk_type) &
 				BTRFS_EXTENDED_PROFILE_MASK;
 
 	if (bargs->profiles & chunk_type)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
-static int chunk_usage_range_filter(struct btrfs_fs_info *fs_info, u64 chunk_offset,
-			      struct btrfs_balance_args *bargs)
+static bool chunk_usage_range_filter(struct btrfs_fs_info *fs_info, u64 chunk_offset,
+				     struct btrfs_balance_args *bargs)
 {
 	struct btrfs_block_group *cache;
 	u64 chunk_used;
 	u64 user_thresh_min;
 	u64 user_thresh_max;
-	int ret = 1;
+	bool ret = true;
 
 	cache = btrfs_lookup_block_group(fs_info, chunk_offset);
 	chunk_used = cache->used;
@@ -3832,18 +3831,18 @@ static int chunk_usage_range_filter(struct btrfs_fs_info *fs_info, u64 chunk_off
 		user_thresh_max = mult_perc(cache->length, bargs->usage_max);
 
 	if (user_thresh_min <= chunk_used && chunk_used < user_thresh_max)
-		ret = 0;
+		ret = false;
 
 	btrfs_put_block_group(cache);
 	return ret;
 }
 
-static int chunk_usage_filter(struct btrfs_fs_info *fs_info,
-		u64 chunk_offset, struct btrfs_balance_args *bargs)
+static bool chunk_usage_filter(struct btrfs_fs_info *fs_info, u64 chunk_offset,
+			       struct btrfs_balance_args *bargs)
 {
 	struct btrfs_block_group *cache;
 	u64 chunk_used, user_thresh;
-	int ret = 1;
+	bool ret = true;
 
 	cache = btrfs_lookup_block_group(fs_info, chunk_offset);
 	chunk_used = cache->used;
@@ -3856,15 +3855,14 @@ static int chunk_usage_filter(struct btrfs_fs_info *fs_info,
 		user_thresh = mult_perc(cache->length, bargs->usage);
 
 	if (chunk_used < user_thresh)
-		ret = 0;
+		ret = false;
 
 	btrfs_put_block_group(cache);
 	return ret;
 }
 
-static int chunk_devid_filter(struct extent_buffer *leaf,
-			      struct btrfs_chunk *chunk,
-			      struct btrfs_balance_args *bargs)
+static bool chunk_devid_filter(struct extent_buffer *leaf, struct btrfs_chunk *chunk,
+			       struct btrfs_balance_args *bargs)
 {
 	struct btrfs_stripe *stripe;
 	int num_stripes = btrfs_chunk_num_stripes(leaf, chunk);
@@ -3873,10 +3871,10 @@ static int chunk_devid_filter(struct extent_buffer *leaf,
 	for (i = 0; i < num_stripes; i++) {
 		stripe = btrfs_stripe_nr(chunk, i);
 		if (btrfs_stripe_devid(leaf, stripe) == bargs->devid)
-			return 0;
+			return false;
 	}
 
-	return 1;
+	return true;
 }
 
 static u64 calc_data_stripes(u64 type, int num_stripes)
@@ -3889,9 +3887,8 @@ static u64 calc_data_stripes(u64 type, int num_stripes)
 }
 
 /* [pstart, pend) */
-static int chunk_drange_filter(struct extent_buffer *leaf,
-			       struct btrfs_chunk *chunk,
-			       struct btrfs_balance_args *bargs)
+static bool chunk_drange_filter(struct extent_buffer *leaf, struct btrfs_chunk *chunk,
+				struct btrfs_balance_args *bargs)
 {
 	struct btrfs_stripe *stripe;
 	int num_stripes = btrfs_chunk_num_stripes(leaf, chunk);
@@ -3902,7 +3899,7 @@ static int chunk_drange_filter(struct extent_buffer *leaf,
 	int i;
 
 	if (!(bargs->flags & BTRFS_BALANCE_ARGS_DEVID))
-		return 0;
+		return false;
 
 	type = btrfs_chunk_type(leaf, chunk);
 	factor = calc_data_stripes(type, num_stripes);
@@ -3918,56 +3915,53 @@ static int chunk_drange_filter(struct extent_buffer *leaf,
 
 		if (stripe_offset < bargs->pend &&
 		    stripe_offset + stripe_length > bargs->pstart)
-			return 0;
+			return false;
 	}
 
-	return 1;
+	return true;
 }
 
 /* [vstart, vend) */
-static int chunk_vrange_filter(struct extent_buffer *leaf,
-			       struct btrfs_chunk *chunk,
-			       u64 chunk_offset,
-			       struct btrfs_balance_args *bargs)
+static bool chunk_vrange_filter(struct extent_buffer *leaf, struct btrfs_chunk *chunk,
+				u64 chunk_offset, struct btrfs_balance_args *bargs)
 {
 	if (chunk_offset < bargs->vend &&
 	    chunk_offset + btrfs_chunk_length(leaf, chunk) > bargs->vstart)
 		/* at least part of the chunk is inside this vrange */
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
-static int chunk_stripes_range_filter(struct extent_buffer *leaf,
-			       struct btrfs_chunk *chunk,
-			       struct btrfs_balance_args *bargs)
+static bool chunk_stripes_range_filter(struct extent_buffer *leaf,
+				       struct btrfs_chunk *chunk,
+				       struct btrfs_balance_args *bargs)
 {
 	int num_stripes = btrfs_chunk_num_stripes(leaf, chunk);
 
 	if (bargs->stripes_min <= num_stripes
 			&& num_stripes <= bargs->stripes_max)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
-static int chunk_soft_convert_filter(u64 chunk_type,
-				     struct btrfs_balance_args *bargs)
+static bool chunk_soft_convert_filter(u64 chunk_type, struct btrfs_balance_args *bargs)
 {
 	if (!(bargs->flags & BTRFS_BALANCE_ARGS_CONVERT))
-		return 0;
+		return false;
 
 	chunk_type = chunk_to_extended(chunk_type) &
 				BTRFS_EXTENDED_PROFILE_MASK;
 
 	if (bargs->target == chunk_type)
-		return 1;
+		return true;
 
-	return 0;
+	return false;
 }
 
-static int should_balance_chunk(struct extent_buffer *leaf,
-				struct btrfs_chunk *chunk, u64 chunk_offset)
+static bool should_balance_chunk(struct extent_buffer *leaf, struct btrfs_chunk *chunk,
+				 u64 chunk_offset)
 {
 	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	struct btrfs_balance_control *bctl = fs_info->balance_ctl;
@@ -3977,7 +3971,7 @@ static int should_balance_chunk(struct extent_buffer *leaf,
 	/* type filter */
 	if (!((chunk_type & BTRFS_BLOCK_GROUP_TYPE_MASK) &
 	      (bctl->flags & BTRFS_BALANCE_TYPE_MASK))) {
-		return 0;
+		return false;
 	}
 
 	if (chunk_type & BTRFS_BLOCK_GROUP_DATA)
@@ -3990,46 +3984,46 @@ static int should_balance_chunk(struct extent_buffer *leaf,
 	/* profiles filter */
 	if ((bargs->flags & BTRFS_BALANCE_ARGS_PROFILES) &&
 	    chunk_profiles_filter(chunk_type, bargs)) {
-		return 0;
+		return false;
 	}
 
 	/* usage filter */
 	if ((bargs->flags & BTRFS_BALANCE_ARGS_USAGE) &&
 	    chunk_usage_filter(fs_info, chunk_offset, bargs)) {
-		return 0;
+		return false;
 	} else if ((bargs->flags & BTRFS_BALANCE_ARGS_USAGE_RANGE) &&
 	    chunk_usage_range_filter(fs_info, chunk_offset, bargs)) {
-		return 0;
+		return false;
 	}
 
 	/* devid filter */
 	if ((bargs->flags & BTRFS_BALANCE_ARGS_DEVID) &&
 	    chunk_devid_filter(leaf, chunk, bargs)) {
-		return 0;
+		return false;
 	}
 
 	/* drange filter, makes sense only with devid filter */
 	if ((bargs->flags & BTRFS_BALANCE_ARGS_DRANGE) &&
 	    chunk_drange_filter(leaf, chunk, bargs)) {
-		return 0;
+		return false;
 	}
 
 	/* vrange filter */
 	if ((bargs->flags & BTRFS_BALANCE_ARGS_VRANGE) &&
 	    chunk_vrange_filter(leaf, chunk, chunk_offset, bargs)) {
-		return 0;
+		return false;
 	}
 
 	/* stripes filter */
 	if ((bargs->flags & BTRFS_BALANCE_ARGS_STRIPES_RANGE) &&
 	    chunk_stripes_range_filter(leaf, chunk, bargs)) {
-		return 0;
+		return false;
 	}
 
 	/* soft profile changing mode */
 	if ((bargs->flags & BTRFS_BALANCE_ARGS_SOFT) &&
 	    chunk_soft_convert_filter(chunk_type, bargs)) {
-		return 0;
+		return false;
 	}
 
 	/*
@@ -4037,7 +4031,7 @@ static int should_balance_chunk(struct extent_buffer *leaf,
 	 */
 	if ((bargs->flags & BTRFS_BALANCE_ARGS_LIMIT)) {
 		if (bargs->limit == 0)
-			return 0;
+			return false;
 		else
 			bargs->limit--;
 	} else if ((bargs->flags & BTRFS_BALANCE_ARGS_LIMIT_RANGE)) {
@@ -4047,12 +4041,12 @@ static int should_balance_chunk(struct extent_buffer *leaf,
 		 * about the count of all chunks that satisfy the filters.
 		 */
 		if (bargs->limit_max == 0)
-			return 0;
+			return false;
 		else
 			bargs->limit_max--;
 	}
 
-	return 1;
+	return true;
 }
 
 static int __btrfs_balance(struct btrfs_fs_info *fs_info)

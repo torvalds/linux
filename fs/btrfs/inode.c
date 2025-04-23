@@ -3733,9 +3733,9 @@ out:
  *
  * slot is the slot the inode is in, objectid is the objectid of the inode
  */
-static noinline int acls_after_inode_item(struct extent_buffer *leaf,
-					  int slot, u64 objectid,
-					  int *first_xattr_slot)
+static noinline bool acls_after_inode_item(struct extent_buffer *leaf,
+					   int slot, u64 objectid,
+					   int *first_xattr_slot)
 {
 	u32 nritems = btrfs_header_nritems(leaf);
 	struct btrfs_key found_key;
@@ -3757,7 +3757,7 @@ static noinline int acls_after_inode_item(struct extent_buffer *leaf,
 
 		/* we found a different objectid, there must not be acls */
 		if (found_key.objectid != objectid)
-			return 0;
+			return false;
 
 		/* we found an xattr, assume we've got an acl */
 		if (found_key.type == BTRFS_XATTR_ITEM_KEY) {
@@ -3765,7 +3765,7 @@ static noinline int acls_after_inode_item(struct extent_buffer *leaf,
 				*first_xattr_slot = slot;
 			if (found_key.offset == xattr_access ||
 			    found_key.offset == xattr_default)
-				return 1;
+				return true;
 		}
 
 		/*
@@ -3773,7 +3773,7 @@ static noinline int acls_after_inode_item(struct extent_buffer *leaf,
 		 * be any acls later on
 		 */
 		if (found_key.type > BTRFS_XATTR_ITEM_KEY)
-			return 0;
+			return false;
 
 		slot++;
 		scanned++;
@@ -3793,7 +3793,7 @@ static noinline int acls_after_inode_item(struct extent_buffer *leaf,
 	 */
 	if (*first_xattr_slot == -1)
 		*first_xattr_slot = slot;
-	return 1;
+	return true;
 }
 
 static int btrfs_init_file_extent_tree(struct btrfs_inode *inode)

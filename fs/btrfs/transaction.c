@@ -538,15 +538,15 @@ static void wait_current_trans(struct btrfs_fs_info *fs_info)
 	}
 }
 
-static int may_wait_transaction(struct btrfs_fs_info *fs_info, int type)
+static bool may_wait_transaction(struct btrfs_fs_info *fs_info, int type)
 {
 	if (test_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags))
-		return 0;
+		return false;
 
 	if (type == TRANS_START)
-		return 1;
+		return true;
 
-	return 0;
+	return false;
 }
 
 static inline bool need_reserve_reloc_root(struct btrfs_root *root)

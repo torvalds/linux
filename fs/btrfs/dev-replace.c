@@ -1265,16 +1265,16 @@ static int btrfs_dev_replace_kthread(void *data)
 	return 0;
 }
 
-int __pure btrfs_dev_replace_is_ongoing(struct btrfs_dev_replace *dev_replace)
+bool __pure btrfs_dev_replace_is_ongoing(struct btrfs_dev_replace *dev_replace)
 {
 	if (!dev_replace->is_valid)
-		return 0;
+		return false;
 
 	switch (dev_replace->replace_state) {
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_NEVER_STARTED:
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_FINISHED:
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_CANCELED:
-		return 0;
+		return false;
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_STARTED:
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_SUSPENDED:
 		/*
@@ -1289,7 +1289,7 @@ int __pure btrfs_dev_replace_is_ongoing(struct btrfs_dev_replace *dev_replace)
 		 */
 		break;
 	}
-	return 1;
+	return true;
 }
 
 void btrfs_bio_counter_sub(struct btrfs_fs_info *fs_info, s64 amount)

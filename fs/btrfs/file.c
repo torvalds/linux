@@ -508,20 +508,19 @@ out:
 	return ret;
 }
 
-static int extent_mergeable(struct extent_buffer *leaf, int slot,
-			    u64 objectid, u64 bytenr, u64 orig_offset,
-			    u64 *start, u64 *end)
+static bool extent_mergeable(struct extent_buffer *leaf, int slot, u64 objectid,
+			     u64 bytenr, u64 orig_offset, u64 *start, u64 *end)
 {
 	struct btrfs_file_extent_item *fi;
 	struct btrfs_key key;
 	u64 extent_end;
 
 	if (slot < 0 || slot >= btrfs_header_nritems(leaf))
-		return 0;
+		return false;
 
 	btrfs_item_key_to_cpu(leaf, &key, slot);
 	if (key.objectid != objectid || key.type != BTRFS_EXTENT_DATA_KEY)
-		return 0;
+		return false;
 
 	fi = btrfs_item_ptr(leaf, slot, struct btrfs_file_extent_item);
 	if (btrfs_file_extent_type(leaf, fi) != BTRFS_FILE_EXTENT_REG ||
@@ -530,15 +529,15 @@ static int extent_mergeable(struct extent_buffer *leaf, int slot,
 	    btrfs_file_extent_compression(leaf, fi) ||
 	    btrfs_file_extent_encryption(leaf, fi) ||
 	    btrfs_file_extent_other_encoding(leaf, fi))
-		return 0;
+		return false;
 
 	extent_end = key.offset + btrfs_file_extent_num_bytes(leaf, fi);
 	if ((*start && *start != key.offset) || (*end && *end != extent_end))
-		return 0;
+		return false;
 
 	*start = key.offset;
 	*end = extent_end;
-	return 1;
+	return true;
 }
 
 /*
@@ -2002,33 +2001,33 @@ static int btrfs_file_mmap(struct file	*filp, struct vm_area_struct *vma)
 	return 0;
 }
 
-static int hole_mergeable(struct btrfs_inode *inode, struct extent_buffer *leaf,
-			  int slot, u64 start, u64 end)
+static bool hole_mergeable(struct btrfs_inode *inode, struct extent_buffer *leaf,
+			   int slot, u64 start, u64 end)
 {
 	struct btrfs_file_extent_item *fi;
 	struct btrfs_key key;
 
 	if (slot < 0 || slot >= btrfs_header_nritems(leaf))
-		return 0;
+		return false;
 
 	btrfs_item_key_to_cpu(leaf, &key, slot);
 	if (key.objectid != btrfs_ino(inode) ||
 	    key.type != BTRFS_EXTENT_DATA_KEY)
-		return 0;
+		return false;
 
 	fi = btrfs_item_ptr(leaf, slot, struct btrfs_file_extent_item);
 
 	if (btrfs_file_extent_type(leaf, fi) != BTRFS_FILE_EXTENT_REG)
-		return 0;
+		return false;
 
 	if (btrfs_file_extent_disk_bytenr(leaf, fi))
-		return 0;
+		return false;
 
 	if (key.offset == end)
-		return 1;
+		return true;
 	if (key.offset + btrfs_file_extent_num_bytes(leaf, fi) == start)
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
 static int fill_holes(struct btrfs_trans_handle *trans,

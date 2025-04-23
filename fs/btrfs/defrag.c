@@ -105,15 +105,15 @@ static int btrfs_insert_inode_defrag(struct btrfs_inode *inode,
 	return 0;
 }
 
-static inline int need_auto_defrag(struct btrfs_fs_info *fs_info)
+static inline bool need_auto_defrag(struct btrfs_fs_info *fs_info)
 {
 	if (!btrfs_test_opt(fs_info, AUTO_DEFRAG))
-		return 0;
+		return false;
 
 	if (btrfs_fs_closing(fs_info))
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 /*

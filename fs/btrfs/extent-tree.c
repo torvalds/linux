@@ -409,15 +409,15 @@ static u64 hash_extent_data_ref_item(struct extent_buffer *leaf,
 				    btrfs_extent_data_ref_offset(leaf, ref));
 }
 
-static int match_extent_data_ref(struct extent_buffer *leaf,
-				 struct btrfs_extent_data_ref *ref,
-				 u64 root_objectid, u64 owner, u64 offset)
+static bool match_extent_data_ref(struct extent_buffer *leaf,
+				  struct btrfs_extent_data_ref *ref,
+				  u64 root_objectid, u64 owner, u64 offset)
 {
 	if (btrfs_extent_data_ref_root(leaf, ref) != root_objectid ||
 	    btrfs_extent_data_ref_objectid(leaf, ref) != owner ||
 	    btrfs_extent_data_ref_offset(leaf, ref) != offset)
-		return 0;
-	return 1;
+		return false;
+	return true;
 }
 
 static noinline int lookup_extent_data_ref(struct btrfs_trans_handle *trans,

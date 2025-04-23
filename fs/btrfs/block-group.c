@@ -3869,14 +3869,14 @@ static void force_metadata_allocation(struct btrfs_fs_info *info)
 	}
 }
 
-static int should_alloc_chunk(const struct btrfs_fs_info *fs_info,
-			      const struct btrfs_space_info *sinfo, int force)
+static bool should_alloc_chunk(const struct btrfs_fs_info *fs_info,
+			       const struct btrfs_space_info *sinfo, int force)
 {
 	u64 bytes_used = btrfs_space_info_used(sinfo, false);
 	u64 thresh;
 
 	if (force == CHUNK_ALLOC_FORCE)
-		return 1;
+		return true;
 
 	/*
 	 * in limited mode, we want to have some free space up to
@@ -3887,12 +3887,12 @@ static int should_alloc_chunk(const struct btrfs_fs_info *fs_info,
 		thresh = max_t(u64, SZ_64M, mult_perc(thresh, 1));
 
 		if (sinfo->total_bytes - bytes_used < thresh)
-			return 1;
+			return true;
 	}
 
 	if (bytes_used + SZ_2M < mult_perc(sinfo->total_bytes, 80))
-		return 0;
-	return 1;
+		return false;
+	return true;
 }
 
 int btrfs_force_chunk_alloc(struct btrfs_trans_handle *trans, u64 type)

@@ -1446,8 +1446,8 @@ out:
 	return ret;
 }
 
-static noinline int key_in_sk(const struct btrfs_key *key,
-			      const struct btrfs_ioctl_search_key *sk)
+static noinline bool key_in_sk(const struct btrfs_key *key,
+			       const struct btrfs_ioctl_search_key *sk)
 {
 	struct btrfs_key test;
 	int ret;
@@ -1458,7 +1458,7 @@ static noinline int key_in_sk(const struct btrfs_key *key,
 
 	ret = btrfs_comp_cpu_keys(key, &test);
 	if (ret < 0)
-		return 0;
+		return false;
 
 	test.objectid = sk->max_objectid;
 	test.type = sk->max_type;
@@ -1466,8 +1466,8 @@ static noinline int key_in_sk(const struct btrfs_key *key,
 
 	ret = btrfs_comp_cpu_keys(key, &test);
 	if (ret > 0)
-		return 0;
-	return 1;
+		return false;
+	return true;
 }
 
 static noinline int copy_to_sk(struct btrfs_path *path,

@@ -1152,11 +1152,11 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 /*
  * subvolumes are identified by ino 256
  */
-static inline int is_subvolume_inode(struct inode *inode)
+static inline bool is_subvolume_inode(struct inode *inode)
 {
 	if (inode && inode->i_ino == BTRFS_FIRST_FREE_OBJECTID)
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
 static struct dentry *mount_subvol(const char *subvol_name, u64 subvol_objectid,
