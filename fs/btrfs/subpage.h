@@ -93,7 +93,6 @@ enum btrfs_folio_type {
 	BTRFS_SUBPAGE_DATA,
 };
 
-#if PAGE_SIZE > BTRFS_MIN_BLOCKSIZE
 /*
  * Subpage support for metadata is more complex, as we can have dummy extent
  * buffers, where folios have no mapping to determine the owning inode.
@@ -114,19 +113,6 @@ static inline bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info,
 		ASSERT(is_data_inode(BTRFS_I(folio->mapping->host)));
 	return fs_info->sectorsize < folio_size(folio);
 }
-#else
-static inline bool btrfs_meta_is_subpage(const struct btrfs_fs_info *fs_info)
-{
-	return false;
-}
-static inline bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info,
-				    struct folio *folio)
-{
-	if (folio->mapping && folio->mapping->host)
-		ASSERT(is_data_inode(BTRFS_I(folio->mapping->host)));
-	return false;
-}
-#endif
 
 int btrfs_attach_folio_state(const struct btrfs_fs_info *fs_info,
 			     struct folio *folio, enum btrfs_folio_type type);
