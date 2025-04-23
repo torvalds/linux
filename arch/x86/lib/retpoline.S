@@ -371,6 +371,15 @@ SYM_FUNC_END(call_depth_return_thunk)
 
 .macro ITS_THUNK reg
 
+/*
+ * If CFI paranoid is used then the ITS thunk starts with opcodes (0xea; jne 1b)
+ * that complete the fineibt_paranoid caller sequence.
+ */
+1:	.byte 0xea
+SYM_INNER_LABEL(__x86_indirect_paranoid_thunk_\reg, SYM_L_GLOBAL)
+	UNWIND_HINT_UNDEFINED
+	ANNOTATE_NOENDBR
+	jne 1b
 SYM_INNER_LABEL(__x86_indirect_its_thunk_\reg, SYM_L_GLOBAL)
 	UNWIND_HINT_UNDEFINED
 	ANNOTATE_NOENDBR
@@ -378,19 +387,19 @@ SYM_INNER_LABEL(__x86_indirect_its_thunk_\reg, SYM_L_GLOBAL)
 	jmp *%\reg
 	int3
 	.align 32, 0xcc		/* fill to the end of the line */
-	.skip  32, 0xcc		/* skip to the next upper half */
+	.skip  32 - (__x86_indirect_its_thunk_\reg - 1b), 0xcc /* skip to the next upper half */
 .endm
 
 /* ITS mitigation requires thunks be aligned to upper half of cacheline */
 .align 64, 0xcc
-.skip 32, 0xcc
-SYM_CODE_START(__x86_indirect_its_thunk_array)
+.skip 29, 0xcc
 
 #define GEN(reg) ITS_THUNK reg
 #include <asm/GEN-for-each-reg.h>
 #undef GEN
 
 	.align 64, 0xcc
+SYM_FUNC_ALIAS(__x86_indirect_its_thunk_array, __x86_indirect_its_thunk_rax)
 SYM_CODE_END(__x86_indirect_its_thunk_array)
 
 .align 64, 0xcc
