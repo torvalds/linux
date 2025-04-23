@@ -2371,6 +2371,7 @@ static int read_one_block_group(struct btrfs_fs_info *info,
 	cache->commit_used = cache->used;
 	cache->flags = btrfs_stack_block_group_flags(bgi);
 	cache->global_root_id = btrfs_stack_block_group_chunk_objectid(bgi);
+	cache->space_info = btrfs_find_space_info(info, cache->flags);
 
 	set_free_space_tree_thresholds(cache);
 
@@ -2449,6 +2450,7 @@ static int read_one_block_group(struct btrfs_fs_info *info,
 		btrfs_remove_free_space_cache(cache);
 		goto error;
 	}
+
 	trace_btrfs_add_block_group(info, cache, 0);
 	btrfs_add_bg_to_space_info(info, cache);
 
@@ -2493,6 +2495,7 @@ static int fill_dummy_bgs(struct btrfs_fs_info *fs_info)
 		bg->cached = BTRFS_CACHE_FINISHED;
 		bg->used = map->chunk_len;
 		bg->flags = map->type;
+		bg->space_info = btrfs_find_space_info(fs_info, bg->flags);
 		ret = btrfs_add_block_group_cache(bg);
 		/*
 		 * We may have some valid block group cache added already, in

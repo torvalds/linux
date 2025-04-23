@@ -359,31 +359,29 @@ out:
 void btrfs_add_bg_to_space_info(struct btrfs_fs_info *info,
 				struct btrfs_block_group *block_group)
 {
-	struct btrfs_space_info *found;
+	struct btrfs_space_info *space_info = block_group->space_info;
 	int factor, index;
 
 	factor = btrfs_bg_type_to_factor(block_group->flags);
 
-	found = btrfs_find_space_info(info, block_group->flags);
-	ASSERT(found);
-	spin_lock(&found->lock);
-	found->total_bytes += block_group->length;
-	found->disk_total += block_group->length * factor;
-	found->bytes_used += block_group->used;
-	found->disk_used += block_group->used * factor;
-	found->bytes_readonly += block_group->bytes_super;
-	btrfs_space_info_update_bytes_zone_unusable(found, block_group->zone_unusable);
+	spin_lock(&space_info->lock);
+	space_info->total_bytes += block_group->length;
+	space_info->disk_total += block_group->length * factor;
+	space_info->bytes_used += block_group->used;
+	space_info->disk_used += block_group->used * factor;
+	space_info->bytes_readonly += block_group->bytes_super;
+	btrfs_space_info_update_bytes_zone_unusable(space_info, block_group->zone_unusable);
 	if (block_group->length > 0)
-		found->full = 0;
-	btrfs_try_granting_tickets(info, found);
-	spin_unlock(&found->lock);
+		space_info->full = 0;
+	btrfs_try_granting_tickets(info, space_info);
+	spin_unlock(&space_info->lock);
 
-	block_group->space_info = found;
+	block_group->space_info = space_info;
 
 	index = btrfs_bg_flags_to_raid_index(block_group->flags);
-	down_write(&found->groups_sem);
-	list_add_tail(&block_group->list, &found->block_groups[index]);
-	up_write(&found->groups_sem);
+	down_write(&space_info->groups_sem);
+	list_add_tail(&block_group->list, &space_info->block_groups[index]);
+	up_write(&space_info->groups_sem);
 }
 
 struct btrfs_space_info *btrfs_find_space_info(struct btrfs_fs_info *info,
