@@ -717,7 +717,8 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 		if (m_lut_params.pwl) {
 			if (mpc->funcs->mcm.populate_lut)
 				mpc->funcs->mcm.populate_lut(mpc, m_lut_params, lut_bank_a, mpcc_id);
-			mpc->funcs->program_lut_mode(mpc, MCM_LUT_SHAPER, MCM_LUT_ENABLE, lut_bank_a, mpcc_id);
+			if (mpc->funcs->program_lut_mode)
+				mpc->funcs->program_lut_mode(mpc, MCM_LUT_SHAPER, MCM_LUT_ENABLE, lut_bank_a, mpcc_id);
 		}
 	}
 
