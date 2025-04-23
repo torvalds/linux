@@ -202,8 +202,8 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 		dpage = nth_page(dpage, doff / PAGE_SIZE);
 		doff = offset_in_page(doff);
 
-		n = dlen / PAGE_SIZE;
-		n += (offset_in_page(dlen) + doff - 1) / PAGE_SIZE;
+		n = (dlen - 1) / PAGE_SIZE;
+		n += (offset_in_page(dlen - 1) + doff) / PAGE_SIZE;
 		if (PageHighMem(dpage + n) &&
 		    size_add(doff, dlen) > PAGE_SIZE)
 			return -ENOSYS;
@@ -224,8 +224,8 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 			spage = nth_page(spage, soff / PAGE_SIZE);
 			soff = offset_in_page(soff);
 
-			n = slen / PAGE_SIZE;
-			n += (offset_in_page(slen) + soff - 1) / PAGE_SIZE;
+			n = (slen - 1) / PAGE_SIZE;
+			n += (offset_in_page(slen - 1) + soff) / PAGE_SIZE;
 			if (PageHighMem(nth_page(spage, n)) &&
 			    size_add(soff, slen) > PAGE_SIZE)
 				break;
