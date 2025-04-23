@@ -683,7 +683,6 @@ static struct platform_driver pm8xxx_rtc_driver = {
 
 module_platform_driver(pm8xxx_rtc_driver);
 
-MODULE_ALIAS("platform:rtc-pm8xxx");
 MODULE_DESCRIPTION("PMIC8xxx RTC driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Anirudh Ghayal <aghayal@codeaurora.org>");
