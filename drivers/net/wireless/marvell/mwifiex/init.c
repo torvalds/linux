@@ -524,6 +524,9 @@ int mwifiex_init_fw(struct mwifiex_adapter *adapter)
 
 	adapter->hw_status = MWIFIEX_HW_STATUS_READY;
 
+	if (adapter->if_ops.init_fw_port)
+		adapter->if_ops.init_fw_port(adapter);
+
 	return 0;
 }
 
