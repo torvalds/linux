@@ -2291,9 +2291,8 @@ static int rmw_read_wait_recover(struct btrfs_raid_bio *rbio)
 static void raid_wait_write_end_io(struct bio *bio)
 {
 	struct btrfs_raid_bio *rbio = bio->bi_private;
-	blk_status_t err = bio->bi_status;
 
-	if (err)
+	if (bio->bi_status)
 		rbio_update_error_bitmap(rbio, bio);
 	bio_put(bio);
 	if (atomic_dec_and_test(&rbio->stripes_pending))
