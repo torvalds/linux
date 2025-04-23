@@ -2748,8 +2748,8 @@ static noinline_for_stack int prealloc_file_extent_cluster(struct reloc_control 
 	btrfs_inode_unlock(inode, 0);
 
 	if (cur_offset < prealloc_end)
-		btrfs_free_reserved_data_space_noquota(inode->root->fs_info,
-					       prealloc_end + 1 - cur_offset);
+		btrfs_free_reserved_data_space_noquota(inode,
+						       prealloc_end + 1 - cur_offset);
 	return ret;
 }
 

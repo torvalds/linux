@@ -151,7 +151,7 @@ int btrfs_check_data_free_space(struct btrfs_inode *inode,
 	/* Use new btrfs_qgroup_reserve_data to reserve precious data space. */
 	ret = btrfs_qgroup_reserve_data(inode, reserved, start, len);
 	if (ret < 0) {
-		btrfs_free_reserved_data_space_noquota(fs_info, len);
+		btrfs_free_reserved_data_space_noquota(inode, len);
 		extent_changeset_free(*reserved);
 		*reserved = NULL;
 	} else {
@@ -168,9 +168,9 @@ int btrfs_check_data_free_space(struct btrfs_inode *inode,
  * which we can't sleep and is sure it won't affect qgroup reserved space.
  * Like clear_bit_hook().
  */
-void btrfs_free_reserved_data_space_noquota(struct btrfs_fs_info *fs_info,
-					    u64 len)
+void btrfs_free_reserved_data_space_noquota(struct btrfs_inode *inode, u64 len)
 {
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_space_info *data_sinfo;
 
 	ASSERT(IS_ALIGNED(len, fs_info->sectorsize));
@@ -196,7 +196,7 @@ void btrfs_free_reserved_data_space(struct btrfs_inode *inode,
 	      round_down(start, fs_info->sectorsize);
 	start = round_down(start, fs_info->sectorsize);
 
-	btrfs_free_reserved_data_space_noquota(fs_info, len);
+	btrfs_free_reserved_data_space_noquota(inode, len);
 	btrfs_qgroup_free_data(inode, reserved, start, len, NULL);
 }
 

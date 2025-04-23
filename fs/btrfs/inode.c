@@ -2596,7 +2596,7 @@ void btrfs_clear_delalloc_extent(struct btrfs_inode *inode,
 		    !btrfs_is_free_space_inode(inode) &&
 		    !(state->state & EXTENT_NORESERVE) &&
 		    (bits & EXTENT_CLEAR_DATA_RESV))
-			btrfs_free_reserved_data_space_noquota(fs_info, len);
+			btrfs_free_reserved_data_space_noquota(inode, len);
 
 		percpu_counter_add_batch(&fs_info->delalloc_bytes, -len,
 					 fs_info->delalloc_batch);
@@ -9734,7 +9734,7 @@ out_free_data_space:
 	 * bytes_may_use.
 	 */
 	if (!extent_reserved)
-		btrfs_free_reserved_data_space_noquota(fs_info, disk_num_bytes);
+		btrfs_free_reserved_data_space_noquota(inode, disk_num_bytes);
 out_unlock:
 	btrfs_unlock_extent(io_tree, start, end, &cached_state);
 out_folios:
