@@ -24,6 +24,7 @@
 #define OCOTP_UID_HIGH			0x420
 
 #define IMX8MP_OCOTP_UID_OFFSET		0x10
+#define IMX8MP_OCOTP_UID_HIGH		0xE00
 
 /* Same as ANADIG_DIGPROG_IMX7D */
 #define ANADIG_DIGPROG_IMX8MM	0x800
@@ -96,9 +97,13 @@ static int imx8mp_soc_uid(struct platform_device *pdev, u64 *socuid)
 	struct imx8_soc_drvdata *drvdata = platform_get_drvdata(pdev);
 	void __iomem *ocotp_base = drvdata->ocotp_base;
 
-	*socuid = readl_relaxed(ocotp_base + OCOTP_UID_HIGH + IMX8MP_OCOTP_UID_OFFSET);
-	*socuid <<= 32;
-	*socuid |= readl_relaxed(ocotp_base + OCOTP_UID_LOW + IMX8MP_OCOTP_UID_OFFSET);
+	socuid[0] = readl_relaxed(ocotp_base + OCOTP_UID_HIGH + IMX8MP_OCOTP_UID_OFFSET);
+	socuid[0] <<= 32;
+	socuid[0] |= readl_relaxed(ocotp_base + OCOTP_UID_LOW + IMX8MP_OCOTP_UID_OFFSET);
+
+	socuid[1] = readl_relaxed(ocotp_base + IMX8MP_OCOTP_UID_HIGH + 0x10);
+	socuid[1] <<= 32;
+	socuid[1] |= readl_relaxed(ocotp_base + IMX8MP_OCOTP_UID_HIGH);
 
 	return 0;
 }
@@ -220,7 +225,7 @@ static int imx8m_soc_probe(struct platform_device *pdev)
 	const struct of_device_id *id;
 	struct soc_device *soc_dev;
 	u32 soc_rev = 0;
-	u64 soc_uid = 0;
+	u64 soc_uid[2] = {0, 0};
 	int ret;
 
 	soc_dev_attr = devm_kzalloc(dev, sizeof(*soc_dev_attr), GFP_KERNEL);
@@ -258,7 +263,7 @@ static int imx8m_soc_probe(struct platform_device *pdev)
 			}
 		}
 		if (data->soc_uid) {
-			ret = data->soc_uid(pdev, &soc_uid);
+			ret = data->soc_uid(pdev, soc_uid);
 			if (ret) {
 				imx8m_soc_unprepare(pdev);
 				return ret;
@@ -271,7 +276,12 @@ static int imx8m_soc_probe(struct platform_device *pdev)
 	if (!soc_dev_attr->revision)
 		return -ENOMEM;
 
-	soc_dev_attr->serial_number = devm_kasprintf(dev, GFP_KERNEL, "%016llX", soc_uid);
+	if (soc_uid[1])
+		soc_dev_attr->serial_number = devm_kasprintf(dev, GFP_KERNEL, "%016llX%016llX",
+							     soc_uid[1], soc_uid[0]);
+	else
+		soc_dev_attr->serial_number = devm_kasprintf(dev, GFP_KERNEL, "%016llX",
+							     soc_uid[0]);
 	if (!soc_dev_attr->serial_number)
 		return -ENOMEM;
 
