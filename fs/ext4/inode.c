@@ -650,11 +650,14 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 		return -EFSCORRUPTED;
 
 	/*
-	 * Do not allow caching of unrelated ranges of extents during I/O
-	 * submission.
+	 * Callers from the context of data submission are the only exceptions
+	 * for regular files that do not hold the i_rwsem or invalidate_lock.
+	 * However, caching unrelated ranges is not permitted.
 	 */
 	if (flags & EXT4_GET_BLOCKS_IO_SUBMIT)
 		WARN_ON_ONCE(!(flags & EXT4_EX_NOCACHE));
+	else
+		ext4_check_map_extents_env(inode);
 
 	/* Lookup extent status tree firstly */
 	if (!(EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY) &&
@@ -1800,6 +1803,8 @@ static int ext4_da_map_blocks(struct inode *inode, struct ext4_map_blocks *map)
 	map->m_flags = 0;
 	ext_debug(inode, "max_blocks %u, logical block %lu\n", map->m_len,
 		  (unsigned long) map->m_lblk);
+
+	ext4_check_map_extents_env(inode);
 
 	/* Lookup extent status tree firstly */
 	if (ext4_es_lookup_extent(inode, map->m_lblk, NULL, &es)) {
@@ -4113,6 +4118,7 @@ int ext4_punch_hole(struct file *file, loff_t offset, loff_t length)
 		ext4_lblk_t hole_len = end_lblk - start_lblk;
 
 		ext4_fc_track_inode(handle, inode);
+		ext4_check_map_extents_env(inode);
 		down_write(&EXT4_I(inode)->i_data_sem);
 		ext4_discard_preallocations(inode);
 
@@ -4266,8 +4272,9 @@ int ext4_truncate(struct inode *inode)
 		goto out_stop;
 
 	ext4_fc_track_inode(handle, inode);
-	down_write(&EXT4_I(inode)->i_data_sem);
+	ext4_check_map_extents_env(inode);
 
+	down_write(&EXT4_I(inode)->i_data_sem);
 	ext4_discard_preallocations(inode);
 
 	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))

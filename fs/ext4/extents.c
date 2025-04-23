@@ -611,6 +611,8 @@ int ext4_ext_precache(struct inode *inode)
 	if (!ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
 		return 0;	/* not an extent-mapped inode */
 
+	ext4_check_map_extents_env(inode);
+
 	down_read(&ei->i_data_sem);
 	depth = ext_depth(inode);
 
@@ -5342,6 +5344,8 @@ static int ext4_collapse_range(struct file *file, loff_t offset, loff_t len)
 	start_lblk = offset >> inode->i_blkbits;
 	end_lblk = (offset + len) >> inode->i_blkbits;
 
+	ext4_check_map_extents_env(inode);
+
 	down_write(&EXT4_I(inode)->i_data_sem);
 	ext4_discard_preallocations(inode);
 	ext4_es_remove_extent(inode, start_lblk, EXT_MAX_BLOCKS - start_lblk);
@@ -5442,6 +5446,8 @@ static int ext4_insert_range(struct file *file, loff_t offset, loff_t len)
 
 	start_lblk = offset >> inode->i_blkbits;
 	len_lblk = len >> inode->i_blkbits;
+
+	ext4_check_map_extents_env(inode);
 
 	down_write(&EXT4_I(inode)->i_data_sem);
 	ext4_discard_preallocations(inode);
