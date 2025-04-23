@@ -215,8 +215,8 @@ static int cp2112_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 	return 0;
 }
 
-static void cp2112_gpio_set_unlocked(struct cp2112_device *dev,
-				     unsigned int offset, int value)
+static int cp2112_gpio_set_unlocked(struct cp2112_device *dev,
+				    unsigned int offset, int value)
 {
 	struct hid_device *hdev = dev->hdev;
 	u8 *buf = dev->in_out_buffer;
@@ -231,16 +231,18 @@ static void cp2112_gpio_set_unlocked(struct cp2112_device *dev,
 				 HID_REQ_SET_REPORT);
 	if (ret < 0)
 		hid_err(hdev, "error setting GPIO values: %d\n", ret);
+
+	return ret;
 }
 
-static void cp2112_gpio_set(struct gpio_chip *chip, unsigned int offset,
-			    int value)
+static int cp2112_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			   int value)
 {
 	struct cp2112_device *dev = gpiochip_get_data(chip);
 
 	guard(mutex)(&dev->lock);
 
-	cp2112_gpio_set_unlocked(dev, offset, value);
+	return cp2112_gpio_set_unlocked(dev, offset, value);
 }
 
 static int cp2112_gpio_get_all(struct gpio_chip *chip)
@@ -1286,7 +1288,7 @@ static int cp2112_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	dev->gc.label			= "cp2112_gpio";
 	dev->gc.direction_input		= cp2112_gpio_direction_input;
 	dev->gc.direction_output	= cp2112_gpio_direction_output;
-	dev->gc.set			= cp2112_gpio_set;
+	dev->gc.set_rv			= cp2112_gpio_set;
 	dev->gc.get			= cp2112_gpio_get;
 	dev->gc.base			= -1;
 	dev->gc.ngpio			= CP2112_GPIO_MAX_GPIO;
