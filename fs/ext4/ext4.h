@@ -3055,6 +3055,17 @@ extern void ext4_da_update_reserve_space(struct inode *inode,
 extern int ext4_issue_zeroout(struct inode *inode, ext4_lblk_t lblk,
 			      ext4_fsblk_t pblk, ext4_lblk_t len);
 
+static inline bool is_special_ino(struct super_block *sb, unsigned long ino)
+{
+	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
+
+	return (ino < EXT4_FIRST_INO(sb) && ino != EXT4_ROOT_INO) ||
+		ino == le32_to_cpu(es->s_usr_quota_inum) ||
+		ino == le32_to_cpu(es->s_grp_quota_inum) ||
+		ino == le32_to_cpu(es->s_prj_quota_inum) ||
+		ino == le32_to_cpu(es->s_orphan_file_inum);
+}
+
 /* indirect.c */
 extern int ext4_ind_map_blocks(handle_t *handle, struct inode *inode,
 				struct ext4_map_blocks *map, int flags);
