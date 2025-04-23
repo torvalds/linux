@@ -437,4 +437,3 @@ module_platform_driver(jz4740_rtc_driver);
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("RTC driver for the JZ4740 SoC\n");
-MODULE_ALIAS("platform:jz4740-rtc");
