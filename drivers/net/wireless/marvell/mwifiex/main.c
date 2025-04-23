@@ -581,12 +581,9 @@ static int _mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 
 	adapter->init_wait_q_woken = false;
 	ret = mwifiex_init_fw(adapter);
-	if (ret == -1) {
+	if (ret == -1)
 		goto err_init_fw;
-	} else if (!ret) {
-		adapter->hw_status = MWIFIEX_HW_STATUS_READY;
-		goto done;
-	}
+
 	/* Wait for mwifiex_init to complete */
 	if (!adapter->mfg_mode) {
 		wait_event_interruptible(adapter->init_wait_q,
