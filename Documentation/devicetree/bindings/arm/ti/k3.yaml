@@ -140,6 +140,13 @@ properties:
               - ti,j721s2-evm
           - const: ti,j721s2
 
+      - description: K3 J721s2 SoC Phytec SoM based boards
+        items:
+          - enum:
+              - phytec,am68-phyboard-izar
+          - const: phytec,am68-phycore-som
+          - const: ti,j721s2
+
       - description: K3 J722S SoC and Boards
         items:
           - enum:
