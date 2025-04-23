@@ -1307,8 +1307,7 @@ static int qcom_spi_send_cmdaddr(struct qcom_nand_controller *snandc,
 		snandc->qspi->addr1 = cpu_to_le32(s_op.addr1_reg << 16);
 		snandc->qspi->addr2 = cpu_to_le32(s_op.addr2_reg);
 		snandc->qspi->cmd = cpu_to_le32(cmd);
-		qcom_spi_block_erase(snandc);
-		return 0;
+		return qcom_spi_block_erase(snandc);
 	default:
 		break;
 	}
