@@ -373,6 +373,15 @@ struct sched_ext_ops {
 	 * @running: A task is starting to run on its associated CPU
 	 * @p: task starting to run
 	 *
+	 * Note that this callback may be called from a CPU other than the
+	 * one the task is going to run on. This can happen when a task
+	 * property is changed (i.e., affinity), since scx_next_task_scx(),
+	 * which triggers this callback, may run on a CPU different from
+	 * the task's assigned CPU.
+	 *
+	 * Therefore, always use scx_bpf_task_cpu(@p) to determine the
+	 * target CPU the task is going to use.
+	 *
 	 * See ->runnable() for explanation on the task state notifiers.
 	 */
 	void (*running)(struct task_struct *p);
@@ -381,6 +390,15 @@ struct sched_ext_ops {
 	 * @stopping: A task is stopping execution
 	 * @p: task stopping to run
 	 * @runnable: is task @p still runnable?
+	 *
+	 * Note that this callback may be called from a CPU other than the
+	 * one the task was running on. This can happen when a task
+	 * property is changed (i.e., affinity), since dequeue_task_scx(),
+	 * which triggers this callback, may run on a CPU different from
+	 * the task's assigned CPU.
+	 *
+	 * Therefore, always use scx_bpf_task_cpu(@p) to retrieve the CPU
+	 * the task was running on.
 	 *
 	 * See ->runnable() for explanation on the task state notifiers. If
 	 * !@runnable, ->quiescent() will be invoked after this operation
