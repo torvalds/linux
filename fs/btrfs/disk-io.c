@@ -635,10 +635,15 @@ struct extent_buffer *read_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr,
 
 }
 
-static void __setup_root(struct btrfs_root *root, struct btrfs_fs_info *fs_info,
-			 u64 objectid)
+static struct btrfs_root *btrfs_alloc_root(struct btrfs_fs_info *fs_info,
+					   u64 objectid, gfp_t flags)
 {
+	struct btrfs_root *root;
 	bool dummy = btrfs_is_testing(fs_info);
+
+	root = kzalloc(sizeof(*root), flags);
+	if (!root)
+		return NULL;
 
 	memset(&root->root_key, 0, sizeof(root->root_key));
 	memset(&root->root_item, 0, sizeof(root->root_item));
@@ -706,14 +711,7 @@ static void __setup_root(struct btrfs_root *root, struct btrfs_fs_info *fs_info,
 	list_add_tail(&root->leak_list, &fs_info->allocated_roots);
 	spin_unlock(&fs_info->fs_roots_radix_lock);
 #endif
-}
 
-static struct btrfs_root *btrfs_alloc_root(struct btrfs_fs_info *fs_info,
-					   u64 objectid, gfp_t flags)
-{
-	struct btrfs_root *root = kzalloc(sizeof(*root), flags);
-	if (root)
-		__setup_root(root, fs_info, objectid);
 	return root;
 }
 
