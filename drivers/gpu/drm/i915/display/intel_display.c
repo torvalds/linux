@@ -2426,6 +2426,8 @@ static int intel_crtc_vblank_delay(const struct intel_crtc_state *crtc_state)
 	if (intel_crtc_needs_wa_14015401596(crtc_state))
 		vblank_delay = max(vblank_delay, 1);
 
+	vblank_delay = max(vblank_delay, intel_psr_min_vblank_delay(crtc_state));
+
 	return vblank_delay;
 }
 

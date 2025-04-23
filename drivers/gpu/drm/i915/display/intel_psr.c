@@ -2348,6 +2348,45 @@ void intel_psr_trigger_frame_change_event(struct intel_dsb *dsb,
 				   CURSURFLIVE(display, crtc->pipe), 0);
 }
 
+/**
+ * intel_psr_min_vblank_delay - Minimum vblank delay needed by PSR
+ * @crtc_state: the crtc state
+ *
+ * Return minimum vblank delay needed by PSR.
+ */
+int intel_psr_min_vblank_delay(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+
+	if (!crtc_state->has_psr || DISPLAY_VER(display) < 20)
+		return 0;
+
+	/*
+	 * Comment on SRD_STATUS register in Bspec for LunarLake and onwards:
+	 *
+	 * To deterministically capture the transition of the state machine
+	 * going from SRDOFFACK to IDLE, the delayed V. Blank should be at least
+	 * one line after the non-delayed V. Blank.
+	 *
+	 * Legacy TG: TRANS_SET_CONTEXT_LATENCY > 0
+	 * VRR TG: TRANS_VRR_CTL[ VRR Guardband ] < (TRANS_VRR_VMAX[ VRR Vmax ]
+	 * - TRANS_VTOTAL[ Vertical Active ])
+	 *
+	 * SRD_STATUS is used only by PSR1 on PantherLake.
+	 * SRD_STATUS is used by PSR1 and Panel Replay DP on LunarLake.
+	 */
+
+	if (DISPLAY_VER(display) >= 30 && (crtc_state->has_panel_replay ||
+					   crtc_state->has_sel_update))
+		return 0;
+	else if (DISPLAY_VER(display) < 30 && (crtc_state->has_sel_update ||
+					       intel_crtc_has_type(crtc_state,
+								   INTEL_OUTPUT_EDP)))
+		return 0;
+	else
+		return 1;
+}
+
 static u32 man_trk_ctl_enable_bit_get(struct intel_display *display)
 {
 	return display->platform.alderlake_p || DISPLAY_VER(display) >= 14 ? 0 :
