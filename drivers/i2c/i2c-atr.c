@@ -240,6 +240,7 @@ i2c_atr_find_mapping_by_addr(struct i2c_atr_chan *chan, u16 addr)
 	struct i2c_atr *atr = chan->atr;
 	struct i2c_atr_alias_pair *c2a;
 	struct list_head *alias_pairs;
+	bool found = false;
 	u16 alias;
 	int ret;
 
@@ -258,11 +259,14 @@ i2c_atr_find_mapping_by_addr(struct i2c_atr_chan *chan, u16 addr)
 		if (unlikely(list_empty(alias_pairs)))
 			return NULL;
 
-		list_for_each_entry_reverse(c2a, alias_pairs, node)
-			if (!c2a->fixed)
+		list_for_each_entry_reverse(c2a, alias_pairs, node) {
+			if (!c2a->fixed) {
+				found = true;
 				break;
+			}
+		}
 
-		if (c2a->fixed)
+		if (!found)
 			return NULL;
 
 		atr->ops->detach_addr(atr, chan->chan_id, c2a->addr);
