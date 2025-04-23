@@ -220,17 +220,20 @@ static void ops_free_list(const struct pernet_operations *ops,
 static void ops_undo_list(const struct list_head *ops_list,
 			  const struct pernet_operations *ops,
 			  struct list_head *net_exit_list,
-			  bool expedite_rcu, bool hold_rtnl)
+			  bool expedite_rcu)
 {
 	const struct pernet_operations *saved_ops;
+	bool hold_rtnl = false;
 
 	if (!ops)
 		ops = list_entry(ops_list, typeof(*ops), list);
 
 	saved_ops = ops;
 
-	list_for_each_entry_continue_reverse(ops, ops_list, list)
+	list_for_each_entry_continue_reverse(ops, ops_list, list) {
+		hold_rtnl |= !!ops->exit_rtnl;
 		ops_pre_exit_list(ops, net_exit_list);
+	}
 
 	/* Another CPU might be rcu-iterating the list, wait for it.
 	 * This needs to be before calling the exit() notifiers, so the
@@ -257,11 +260,10 @@ static void ops_undo_list(const struct list_head *ops_list,
 static void ops_undo_single(struct pernet_operations *ops,
 			    struct list_head *net_exit_list)
 {
-	bool hold_rtnl = !!ops->exit_rtnl;
 	LIST_HEAD(ops_list);
 
 	list_add(&ops->list, &ops_list);
-	ops_undo_list(&ops_list, NULL, net_exit_list, false, hold_rtnl);
+	ops_undo_list(&ops_list, NULL, net_exit_list, false);
 	list_del(&ops->list);
 }
 
@@ -452,7 +454,7 @@ out_undo:
 	 * for the pernet modules whose init functions did not fail.
 	 */
 	list_add(&net->exit_list, &net_exit_list);
-	ops_undo_list(&pernet_list, ops, &net_exit_list, false, true);
+	ops_undo_list(&pernet_list, ops, &net_exit_list, false);
 	rcu_barrier();
 	goto out;
 }
@@ -681,7 +683,7 @@ static void cleanup_net(struct work_struct *work)
 		list_add_tail(&net->exit_list, &net_exit_list);
 	}
 
-	ops_undo_list(&pernet_list, NULL, &net_exit_list, true, true);
+	ops_undo_list(&pernet_list, NULL, &net_exit_list, true);
 
 	up_read(&pernet_ops_rwsem);
 
