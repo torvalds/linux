@@ -4809,7 +4809,7 @@ static int check_igot_inode(struct inode *inode, ext4_iget_flags flags,
 	return 0;
 
 error:
-	ext4_error_inode(inode, function, line, 0, err_str);
+	ext4_error_inode(inode, function, line, 0, "%s", err_str);
 	return -EFSCORRUPTED;
 }
 
