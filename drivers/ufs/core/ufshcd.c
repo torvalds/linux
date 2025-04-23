@@ -8143,7 +8143,7 @@ static void ufshcd_wb_probe(struct ufs_hba *hba, const u8 *desc_buf)
 	dev_info->wb_buffer_type = desc_buf[DEVICE_DESC_PARAM_WB_TYPE];
 
 	dev_info->ext_wb_sup =  get_unaligned_be16(desc_buf +
-						DEVICE_DESC_PARAM_EXT_UFS_FEATURE_SUP);
+						DEVICE_DESC_PARAM_EXT_WB_SUP);
 
 	dev_info->b_presrv_uspc_en =
 		desc_buf[DEVICE_DESC_PARAM_WB_PRESRV_USRSPC_EN];
