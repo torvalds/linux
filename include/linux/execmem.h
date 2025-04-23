@@ -53,7 +53,7 @@ enum execmem_range_flags {
 	EXECMEM_ROX_CACHE	= (1 << 1),
 };
 
-#ifdef CONFIG_ARCH_HAS_EXECMEM_ROX
+#if defined(CONFIG_ARCH_HAS_EXECMEM_ROX) && defined(CONFIG_EXECMEM)
 /**
  * execmem_fill_trapping_insns - set memory to contain instructions that
  *				 will trap
@@ -93,9 +93,15 @@ int execmem_make_temp_rw(void *ptr, size_t size);
  * Return: 0 on success or negative error code on failure.
  */
 int execmem_restore_rox(void *ptr, size_t size);
+
+/*
+ * Called from mark_readonly(), where the system transitions to ROX.
+ */
+void execmem_cache_make_ro(void);
 #else
 static inline int execmem_make_temp_rw(void *ptr, size_t size) { return 0; }
 static inline int execmem_restore_rox(void *ptr, size_t size) { return 0; }
+static inline void execmem_cache_make_ro(void) { }
 #endif
 
 /**
