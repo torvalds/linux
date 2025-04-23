@@ -341,6 +341,11 @@ void iwl_mld_stop_fw(struct iwl_mld *mld)
 
 	iwl_trans_stop_device(mld->trans);
 
+	/* HW is stopped, no more coming RX. Cancel all notifications in
+	 * case they were sent just before stopping the HW.
+	 */
+	iwl_mld_cancel_async_notifications(mld);
+
 	mld->fw_status.running = false;
 }
 
