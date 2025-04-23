@@ -3409,6 +3409,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 	tp->rack.reo_wnd_persist = 0;
 	tp->rack.dsack_seen = 0;
 	tp->syn_data_acked = 0;
+	tp->syn_fastopen_child = 0;
 	tp->rx_opt.saw_tstamp = 0;
 	tp->rx_opt.dsack = 0;
 	tp->rx_opt.num_sacks = 0;
