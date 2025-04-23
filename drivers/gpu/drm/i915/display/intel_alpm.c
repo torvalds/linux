@@ -376,15 +376,54 @@ void intel_alpm_configure(struct intel_dp *intel_dp,
 	intel_dp->alpm_parameters.transcoder = crtc_state->cpu_transcoder;
 }
 
+void intel_alpm_pre_plane_update(struct intel_atomic_state *state,
+				 struct intel_crtc *crtc)
+{
+	struct intel_display *display = to_intel_display(state);
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
+	struct intel_encoder *encoder;
+
+	if (DISPLAY_VER(display) < 20)
+		return;
+
+	if (crtc_state->has_lobf || crtc_state->has_lobf == old_crtc_state->has_lobf)
+		return;
+
+	for_each_intel_encoder_mask(display->drm, encoder,
+				    crtc_state->uapi.encoder_mask) {
+		struct intel_dp *intel_dp;
+
+		if (!intel_encoder_is_dp(encoder))
+			continue;
+
+		intel_dp = enc_to_intel_dp(encoder);
+
+		if (!intel_dp_is_edp(intel_dp))
+			continue;
+
+		if (old_crtc_state->has_lobf) {
+			intel_de_write(display, ALPM_CTL(display, cpu_transcoder), 0);
+			drm_dbg_kms(display->drm, "Link off between frames (LOBF) disabled\n");
+		}
+	}
+}
+
 void intel_alpm_post_plane_update(struct intel_atomic_state *state,
 				  struct intel_crtc *crtc)
 {
 	struct intel_display *display = to_intel_display(state);
 	const struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
 	struct intel_encoder *encoder;
 
-	if (!crtc_state->has_lobf && !crtc_state->has_psr)
+	if ((!crtc_state->has_lobf ||
+	     crtc_state->has_lobf == old_crtc_state->has_lobf) && !crtc_state->has_psr)
 		return;
 
 	for_each_intel_encoder_mask(display->drm, encoder,
