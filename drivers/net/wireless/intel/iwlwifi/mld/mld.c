@@ -425,7 +425,6 @@ iwl_op_mode_mld_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	if (ret) {
 		wiphy_unlock(mld->wiphy);
 		rtnl_unlock();
-		iwl_fw_flush_dumps(&mld->fwrt);
 		goto free_hw;
 	}
 

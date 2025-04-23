@@ -327,7 +327,7 @@ int iwl_mld_load_fw(struct iwl_mld *mld)
 
 	return 0;
 err:
-	iwl_trans_stop_device(mld->trans);
+	iwl_mld_stop_fw(mld);
 	return ret;
 }
 
@@ -502,7 +502,7 @@ int iwl_mld_start_fw(struct iwl_mld *mld)
 	ret = iwl_mld_load_fw(mld);
 	if (IWL_FW_CHECK(mld, ret, "Failed to start firmware %d\n", ret)) {
 		iwl_fw_dbg_error_collect(&mld->fwrt, FW_DBG_TRIGGER_DRIVER);
-		goto error;
+		return ret;
 	}
 
 	IWL_DEBUG_INFO(mld, "uCode started.\n");
