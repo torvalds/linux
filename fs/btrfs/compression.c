@@ -576,7 +576,7 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio)
 	struct extent_map *em;
 	unsigned long pflags;
 	int memstall = 0;
-	blk_status_t ret;
+	blk_status_t status;
 	int ret2;
 
 	/* we need the actual starting offset of this extent in the file */
@@ -584,7 +584,7 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio)
 	em = btrfs_lookup_extent_mapping(em_tree, file_offset, fs_info->sectorsize);
 	read_unlock(&em_tree->lock);
 	if (!em) {
-		ret = BLK_STS_IOERR;
+		status = BLK_STS_IOERR;
 		goto out;
 	}
 
@@ -608,13 +608,13 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio)
 	cb->nr_folios = DIV_ROUND_UP(compressed_len, PAGE_SIZE);
 	cb->compressed_folios = kcalloc(cb->nr_folios, sizeof(struct folio *), GFP_NOFS);
 	if (!cb->compressed_folios) {
-		ret = BLK_STS_RESOURCE;
+		status = BLK_STS_RESOURCE;
 		goto out_free_bio;
 	}
 
 	ret2 = btrfs_alloc_folio_array(cb->nr_folios, cb->compressed_folios);
 	if (ret2) {
-		ret = BLK_STS_RESOURCE;
+		status = BLK_STS_RESOURCE;
 		goto out_free_compressed_pages;
 	}
 
@@ -637,7 +637,7 @@ out_free_compressed_pages:
 out_free_bio:
 	bio_put(&cb->bbio.bio);
 out:
-	btrfs_bio_end_io(bbio, ret);
+	btrfs_bio_end_io(bbio, status);
 }
 
 /*
