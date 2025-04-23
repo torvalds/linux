@@ -2,6 +2,7 @@
 
 name: rt-link
 protocol: netlink-raw
+uapi-header: linux/rtnetlink.h
 protonum: 0
 
 doc:
@@ -11,6 +12,9 @@ definitions:
   -
     name: ifinfo-flags
     type: flags
+    header: linux/if.h
+    enum-name: net-device-flags
+    name-prefix: iff-
     entries:
       -
         name: up
@@ -53,6 +57,7 @@ definitions:
   -
     name: vlan-protocols
     type: enum
+    enum-name:
     entries:
       -
         name: 8021q
@@ -754,6 +759,7 @@ definitions:
   -
     name: vlan-flags
     type: flags
+    enum-name:
     entries:
       - reorder-hdr
       - gvrp
@@ -840,6 +846,7 @@ definitions:
   -
     name: ifla-vf-link-state-enum
     type: enum
+    enum-name:
     entries:
       - auto
       - enable
@@ -906,6 +913,7 @@ definitions:
   -
     name: rtext-filter
     type: flags
+    enum-name:
     entries:
       - vf
       - brvlan
@@ -918,6 +926,7 @@ definitions:
   -
     name: netkit-policy
     type: enum
+    enum-name:
     entries:
       -
         name: forward
@@ -928,6 +937,7 @@ definitions:
   -
     name: netkit-mode
     type: enum
+    enum-name: netkit-mode
     entries:
       - name: l2
       - name: l3
@@ -935,6 +945,7 @@ definitions:
   -
     name: netkit-scrub
     type: enum
+    enum-name:
     entries:
       - name: none
       - name: default
@@ -1177,24 +1188,27 @@ attribute-sets:
         multi-attr: true
   -
     name: af-spec-attrs
+    name-prefix: af-
+    attr-max-name: af-max
     attributes:
       -
-        name: "inet"
+        name: inet
         type: nest
         value: 2
         nested-attributes: ifla-attrs
       -
-        name: "inet6"
+        name: inet6
         type: nest
         value: 10
         nested-attributes: ifla6-attrs
       -
-        name: "mctp"
+        name: mctp
         type: nest
         value: 45
         nested-attributes: mctp-attrs
   -
     name: vfinfo-list-attrs
+    name-prefix: ifla-vf-
     attributes:
       -
         name: info
@@ -1203,6 +1217,7 @@ attribute-sets:
         multi-attr: true
   -
     name: vfinfo-attrs
+    name-prefix: ifla-vf-
     attributes:
       -
         name: mac
@@ -1257,6 +1272,7 @@ attribute-sets:
         type: binary
   -
     name: vf-stats-attrs
+    name-prefix: ifla-vf-stats-
     attributes:
       -
         name: rx-packets
@@ -1288,6 +1304,8 @@ attribute-sets:
         type: u64
   -
     name: vf-vlan-attrs
+    name-prefix: ifla-vf-vlan-
+    attr-max-name: ifla-vf-vlan-info-max
     attributes:
       -
         name: info
@@ -1296,12 +1314,15 @@ attribute-sets:
         multi-attr: true
   -
     name: vf-ports-attrs
+    name-prefix: ifla-
     attributes: []
   -
     name: port-self-attrs
+    name-prefix: ifla-
     attributes: []
   -
     name: linkinfo-attrs
+    name-prefix: ifla-info-
     attributes:
       -
         name: kind
@@ -1426,6 +1447,8 @@ attribute-sets:
         type: indexed-array
         sub-type: binary
         display-hint: ipv6
+        checks:
+          exact-len: 16
       -
         name: coupled-control
         type: u8
@@ -1855,6 +1878,7 @@ attribute-sets:
   -
     name: linkinfo-vti-attrs
     name-prefix: ifla-vti-
+    header: linux/if_tunnel.h
     attributes:
       -
         name: link
@@ -2107,7 +2131,7 @@ attribute-sets:
         byte-order: big-endian
   -
     name: ifla-vlan-qos
-    name-prefix: ifla-vlan-qos
+    name-prefix: ifla-vlan-qos-
     attributes:
       -
         name: mapping
@@ -2123,6 +2147,7 @@ attribute-sets:
         type: u32
   -
     name: xdp-attrs
+    name-prefix: ifla-xdp-
     attributes:
       -
         name: fd
@@ -2150,6 +2175,7 @@ attribute-sets:
         type: s32
   -
     name: ifla-attrs
+    name-prefix: ifla-inet-
     attributes:
       -
         name: conf
@@ -2157,6 +2183,7 @@ attribute-sets:
         struct: ipv4-devconf
   -
     name: ifla6-attrs
+    name-prefix: ifla-inet6-
     attributes:
       -
         name: flags
@@ -2222,6 +2249,7 @@ attribute-sets:
         type: binary
   -
     name: link-offload-xstats
+    name-prefix: ifla-offload-xstats-
     attributes:
       -
         name: cpu-hit
@@ -2236,6 +2264,7 @@ attribute-sets:
         type: binary
   -
     name: hw-s-info-one
+    name-prefix: ifla-offload-xstats-hw-s-info-
     attributes:
       -
         name: request
@@ -2245,6 +2274,8 @@ attribute-sets:
         type: u8
   -
     name: link-dpll-pin-attrs
+    name-prefix: dpll-a-
+    header: linux/dpll.h
     attributes:
       -
         name: id
@@ -2357,6 +2388,7 @@ sub-messages:
 
 operations:
   enum-model: directional
+  name-prefix: rtm-
   list:
     -
       name: newlink
@@ -2367,7 +2399,6 @@ operations:
         request:
           value: 16
           attributes: &link-new-attrs
-            - ifi-index
             - ifname
             - net-ns-pid
             - net-ns-fd
@@ -2383,13 +2414,18 @@ operations:
             - txqlen
             - operstate
             - linkmode
-            - group
             - gso-max-size
             - gso-max-segs
             - gro-max-size
             - gso-ipv4-max-size
             - gro-ipv4-max-size
             - af-spec
+    -
+      name: newlink-ntf
+      doc: Notify that a link has been created
+      value: 16
+      notify: getlink
+      fixed-header: ifinfomsg
     -
       name: dellink
       doc: Delete an existing link.
@@ -2399,7 +2435,6 @@ operations:
         request:
           value: 17
           attributes:
-            - ifi-index
             - ifname
     -
       name: getlink
@@ -2410,7 +2445,6 @@ operations:
         request:
           value: 18
           attributes:
-            - ifi-index
             - ifname
             - alt-ifname
             - ext-mask
@@ -2418,11 +2452,6 @@ operations:
         reply:
           value: 16
           attributes: &link-all-attrs
-            - ifi-family
-            - ifi-type
-            - ifi-index
-            - ifi-flags
-            - ifi-change
             - address
             - broadcast
             - ifname
@@ -2468,7 +2497,6 @@ operations:
             - xdp
             - event
             - new-netnsid
-            - if-netnsid
             - target-netnsid
             - carrier-up-count
             - carrier-down-count
@@ -2515,14 +2543,9 @@ operations:
       do:
         request:
           value: 94
-          attributes:
-            - ifindex
         reply:
           value: 92
           attributes: &link-stats-attrs
-            - family
-            - ifindex
-            - filter-mask
             - link-64
             - link-xstats
             - link-xstats-slave

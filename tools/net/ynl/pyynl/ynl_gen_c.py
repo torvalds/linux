@@ -2909,7 +2909,7 @@ def main():
             cw.p(f'#include "{hdr_file}"')
             cw.p('#include "ynl.h"')
         headers = []
-    for definition in parsed['definitions']:
+    for definition in parsed['definitions'] + parsed['attribute-sets']:
         if 'header' in definition:
             headers.append(definition['header'])
     if args.mode == 'user':
