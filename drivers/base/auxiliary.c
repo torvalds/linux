@@ -481,13 +481,13 @@ struct auxiliary_device *__devm_auxiliary_device_create(struct device *dev,
 	int ret;
 
 	auxdev = auxiliary_device_create(dev, modname, devname, platform_data, id);
-	if (IS_ERR(auxdev))
-		return auxdev;
+	if (!auxdev)
+		return NULL;
 
 	ret = devm_add_action_or_reset(dev, auxiliary_device_destroy,
 				       auxdev);
 	if (ret)
-		return ERR_PTR(ret);
+		return NULL;
 
 	return auxdev;
 }
