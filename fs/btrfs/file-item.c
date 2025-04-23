@@ -735,7 +735,7 @@ fail:
 /*
  * Calculate checksums of the data contained inside a bio.
  */
-blk_status_t btrfs_csum_one_bio(struct btrfs_bio *bbio)
+int btrfs_csum_one_bio(struct btrfs_bio *bbio)
 {
 	struct btrfs_ordered_extent *ordered = bbio->ordered;
 	struct btrfs_inode *inode = bbio->inode;
@@ -757,7 +757,7 @@ blk_status_t btrfs_csum_one_bio(struct btrfs_bio *bbio)
 	memalloc_nofs_restore(nofs_flag);
 
 	if (!sums)
-		return BLK_STS_RESOURCE;
+		return -ENOMEM;
 
 	sums->len = bio->bi_iter.bi_size;
 	INIT_LIST_HEAD(&sums->list);

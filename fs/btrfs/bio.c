@@ -516,7 +516,7 @@ static blk_status_t btrfs_bio_csum(struct btrfs_bio *bbio)
 {
 	if (bbio->bio.bi_opf & REQ_META)
 		return btree_csum_one_bio(bbio);
-	return btrfs_csum_one_bio(bbio);
+	return errno_to_blk_status(btrfs_csum_one_bio(bbio));
 }
 
 /*
