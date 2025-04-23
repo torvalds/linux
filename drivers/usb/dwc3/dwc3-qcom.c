@@ -832,7 +832,6 @@ static void dwc3_qcom_remove(struct platform_device *pdev)
 	reset_control_assert(qcom->resets);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int dwc3_qcom_pm_suspend(struct device *dev)
 {
 	struct dwc3 *dwc = dev_get_drvdata(dev);
@@ -886,12 +885,7 @@ static int dwc3_qcom_prepare(struct device *dev)
 
 	return dwc3_pm_prepare(dwc);
 }
-#else
-#define dwc3_qcom_complete NULL
-#define dwc3_qcom_prepare NULL
-#endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PM
 static int dwc3_qcom_runtime_suspend(struct device *dev)
 {
 	struct dwc3 *dwc = dev_get_drvdata(dev);
@@ -922,14 +916,13 @@ static int dwc3_qcom_runtime_idle(struct device *dev)
 {
 	return dwc3_runtime_idle(dev_get_drvdata(dev));
 }
-#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops dwc3_qcom_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(dwc3_qcom_pm_suspend, dwc3_qcom_pm_resume)
-	SET_RUNTIME_PM_OPS(dwc3_qcom_runtime_suspend, dwc3_qcom_runtime_resume,
+	SYSTEM_SLEEP_PM_OPS(dwc3_qcom_pm_suspend, dwc3_qcom_pm_resume)
+	RUNTIME_PM_OPS(dwc3_qcom_runtime_suspend, dwc3_qcom_runtime_resume,
 			   dwc3_qcom_runtime_idle)
-	.complete = dwc3_qcom_complete,
-	.prepare = dwc3_qcom_prepare,
+	.complete = pm_sleep_ptr(dwc3_qcom_complete),
+	.prepare = pm_sleep_ptr(dwc3_qcom_prepare),
 };
 
 static const struct of_device_id dwc3_qcom_of_match[] = {
@@ -943,7 +936,7 @@ static struct platform_driver dwc3_qcom_driver = {
 	.remove		= dwc3_qcom_remove,
 	.driver		= {
 		.name	= "dwc3-qcom",
-		.pm	= &dwc3_qcom_dev_pm_ops,
+		.pm	= pm_ptr(&dwc3_qcom_dev_pm_ops),
 		.of_match_table	= dwc3_qcom_of_match,
 	},
 };
