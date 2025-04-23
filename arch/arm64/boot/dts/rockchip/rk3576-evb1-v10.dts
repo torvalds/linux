@@ -691,6 +691,17 @@
 	};
 };
 
+&pcie1 {
+	reset-gpios = <&gpio4 RK_PC4 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc3v3_pcie1>;
+
+	/*
+	 * Disable usb_drd1_dwc3 if enabling pcie1 and set Dial_Switch_1
+	 * to low state according to the schematic of page 17.
+	 */
+	status = "disabled";
+};
+
 &pinctrl {
 	usb {
 		usb_host_pwren: usb-host-pwren {
