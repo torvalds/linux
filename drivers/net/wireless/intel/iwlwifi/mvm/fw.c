@@ -651,11 +651,6 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_POINT_AFTER_ALIVE,
 			       NULL);
 
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
-		mvm->trans->step_urm = !!(iwl_read_umac_prph(mvm->trans,
-							     CNVI_PMU_STEP_FLOW) &
-						CNVI_PMU_STEP_FLOW_FORCE_URM);
-
 	/* Send init config command to mark that we are sending NVM access
 	 * commands
 	 */

@@ -379,6 +379,11 @@ void iwl_trans_pcie_gen2_fw_alive(struct iwl_trans *trans)
 
 	iwl_pcie_get_rf_name(trans);
 	mutex_unlock(&trans_pcie->mutex);
+
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+		trans->step_urm = !!(iwl_read_umac_prph(trans,
+							CNVI_PMU_STEP_FLOW) &
+					CNVI_PMU_STEP_FLOW_FORCE_URM);
 }
 
 static bool iwl_pcie_set_ltr(struct iwl_trans *trans)

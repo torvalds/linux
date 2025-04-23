@@ -266,10 +266,6 @@ static int iwl_mld_run_fw_init_sequence(struct iwl_mld *mld)
 	if (ret)
 		return ret;
 
-	mld->trans->step_urm =
-		!!(iwl_read_umac_prph(mld->trans, CNVI_PMU_STEP_FLOW) &
-		   CNVI_PMU_STEP_FLOW_FORCE_URM);
-
 	ret = iwl_pnvm_load(mld->trans, &mld->notif_wait,
 			    &mld->fw->ucode_capa);
 	if (ret) {
