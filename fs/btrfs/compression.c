@@ -577,7 +577,7 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio)
 	unsigned long pflags;
 	int memstall = 0;
 	blk_status_t status;
-	int ret2;
+	int ret;
 
 	/* we need the actual starting offset of this extent in the file */
 	read_lock(&em_tree->lock);
@@ -612,8 +612,8 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio)
 		goto out_free_bio;
 	}
 
-	ret2 = btrfs_alloc_folio_array(cb->nr_folios, cb->compressed_folios);
-	if (ret2) {
+	ret = btrfs_alloc_folio_array(cb->nr_folios, cb->compressed_folios);
+	if (ret) {
 		status = BLK_STS_RESOURCE;
 		goto out_free_compressed_pages;
 	}
