@@ -115,8 +115,11 @@ static inline struct btrfs_space_info *data_sinfo_for_inode(const struct btrfs_i
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 
-	if (btrfs_is_zoned(fs_info) && btrfs_is_data_reloc_root(inode->root))
-		return fs_info->data_sinfo->sub_group[SUB_GROUP_DATA_RELOC];
+	if (btrfs_is_zoned(fs_info) && btrfs_is_data_reloc_root(inode->root)) {
+		ASSERT(fs_info->data_sinfo->sub_group[0]->subgroup_id ==
+		       BTRFS_SUB_GROUP_DATA_RELOC);
+		return fs_info->data_sinfo->sub_group[0];
+	}
 	return fs_info->data_sinfo;
 }
 
