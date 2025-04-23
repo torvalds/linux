@@ -1989,7 +1989,7 @@ static int snd_ali_resources(struct snd_ali *codec)
 	int err;
 
 	dev_dbg(codec->card->dev, "resources allocation ...\n");
-	err = pci_request_regions(codec->pci, "ALI 5451");
+	err = pcim_request_all_regions(codec->pci, "ALI 5451");
 	if (err < 0)
 		return err;
 	codec->port = pci_resource_start(codec->pci, 0);
