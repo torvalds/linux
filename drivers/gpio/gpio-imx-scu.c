@@ -37,9 +37,6 @@ static int imx_scu_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	int level;
 	int err;
 
-	if (offset >= chip->ngpio)
-		return -EINVAL;
-
 	mutex_lock(&priv->lock);
 
 	/* to read PIN state via scu api */
@@ -60,9 +57,6 @@ static void imx_scu_gpio_set(struct gpio_chip *chip, unsigned int offset, int va
 	struct scu_gpio_priv *priv = gpiochip_get_data(chip);
 	int err;
 
-	if (offset >= chip->ngpio)
-		return;
-
 	mutex_lock(&priv->lock);
 
 	/* to set PIN output level via scu api */
@@ -77,9 +71,6 @@ static void imx_scu_gpio_set(struct gpio_chip *chip, unsigned int offset, int va
 
 static int imx_scu_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
-	if (offset >= chip->ngpio)
-		return -EINVAL;
-
 	return GPIO_LINE_DIRECTION_OUT;
 }
 
