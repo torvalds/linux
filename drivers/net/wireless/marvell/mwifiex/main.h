@@ -1150,7 +1150,7 @@ void mwifiex_process_sta_txpd(struct mwifiex_private *priv,
 			      struct sk_buff *skb);
 void mwifiex_process_uap_txpd(struct mwifiex_private *priv,
 			      struct sk_buff *skb);
-int mwifiex_sta_init_cmd(struct mwifiex_private *, u8 first_sta, bool init);
+int mwifiex_sta_init_cmd(struct mwifiex_private *, u8 first_sta);
 int mwifiex_cmd_802_11_scan(struct host_cmd_ds_command *cmd,
 			    struct mwifiex_scan_cmd_config *scan_cfg);
 void mwifiex_queue_scan_cmd(struct mwifiex_private *priv,

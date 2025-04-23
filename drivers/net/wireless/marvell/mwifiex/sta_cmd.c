@@ -2243,7 +2243,7 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
  *      - Set 11d control
  *      - Set MAC control (this must be the last command to initialize firmware)
  */
-int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
+int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	int ret;

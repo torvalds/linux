@@ -1126,7 +1126,7 @@ mwifiex_change_vif_to_p2p(struct net_device *dev,
 			     HostCmd_ACT_GEN_SET, 0, NULL, true))
 		return -1;
 
-	if (mwifiex_sta_init_cmd(priv, false, false))
+	if (mwifiex_sta_init_cmd(priv, false))
 		return -1;
 
 	return 0;
@@ -1167,7 +1167,7 @@ mwifiex_change_vif_to_sta_adhoc(struct net_device *dev,
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_SET_BSS_MODE,
 			     HostCmd_ACT_GEN_SET, 0, NULL, true))
 		return -1;
-	if (mwifiex_sta_init_cmd(priv, false, false))
+	if (mwifiex_sta_init_cmd(priv, false))
 		return -1;
 
 	return 0;
@@ -1204,7 +1204,7 @@ mwifiex_change_vif_to_ap(struct net_device *dev,
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_SET_BSS_MODE,
 			     HostCmd_ACT_GEN_SET, 0, NULL, true))
 		return -1;
-	if (mwifiex_sta_init_cmd(priv, false, false))
+	if (mwifiex_sta_init_cmd(priv, false))
 		return -1;
 
 	return 0;
@@ -3110,7 +3110,7 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 		if (ret)
 			goto err_set_bss_mode;
 
-		ret = mwifiex_sta_init_cmd(priv, false, false);
+		ret = mwifiex_sta_init_cmd(priv, false);
 		if (ret)
 			goto err_sta_init;
 	}
