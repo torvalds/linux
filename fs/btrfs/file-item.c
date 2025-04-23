@@ -794,11 +794,11 @@ int btrfs_csum_one_bio(struct btrfs_bio *bbio)
  * record the updated logical address on Zone Append completion.
  * Allocate just the structure with an empty sums array here for that case.
  */
-blk_status_t btrfs_alloc_dummy_sum(struct btrfs_bio *bbio)
+int btrfs_alloc_dummy_sum(struct btrfs_bio *bbio)
 {
 	bbio->sums = kmalloc(sizeof(*bbio->sums), GFP_NOFS);
 	if (!bbio->sums)
-		return BLK_STS_RESOURCE;
+		return -ENOMEM;
 	bbio->sums->len = bbio->bio.bi_iter.bi_size;
 	bbio->sums->logical = bbio->bio.bi_iter.bi_sector << SECTOR_SHIFT;
 	btrfs_add_ordered_sum(bbio->ordered, bbio->sums);
