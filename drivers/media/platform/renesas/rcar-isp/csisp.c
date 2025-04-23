@@ -465,7 +465,18 @@ static const struct media_entity_operations risp_entity_ops = {
 static int risp_probe_resources(struct rcar_isp *isp,
 				struct platform_device *pdev)
 {
-	isp->csbase = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
+	struct resource *res;
+
+	/*
+	 * For backward compatibility allow cs base to be the only reg if no
+	 * reg-names are set in DT.
+	 */
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cs");
+	if (!res)
+		isp->csbase = devm_platform_ioremap_resource(pdev, 0);
+	else
+		isp->csbase = devm_ioremap_resource(&pdev->dev, res);
+
 	if (IS_ERR(isp->csbase))
 		return PTR_ERR(isp->csbase);
 
