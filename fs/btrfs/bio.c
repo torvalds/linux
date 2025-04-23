@@ -714,7 +714,8 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 	 */
 	if (bio_op(bio) == REQ_OP_READ && is_data_bbio(bbio)) {
 		bbio->saved_iter = bio->bi_iter;
-		ret = btrfs_lookup_bio_sums(bbio);
+		error = btrfs_lookup_bio_sums(bbio);
+		ret = errno_to_blk_status(error);
 		if (ret)
 			goto fail;
 	}

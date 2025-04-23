@@ -336,7 +336,7 @@ out:
  *
  * Return: BLK_STS_RESOURCE if allocating memory fails, BLK_STS_OK otherwise.
  */
-blk_status_t btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
+int btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 {
 	struct btrfs_inode *inode = bbio->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
@@ -347,12 +347,12 @@ blk_status_t btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 	u32 orig_len = bio->bi_iter.bi_size;
 	u64 orig_disk_bytenr = bio->bi_iter.bi_sector << SECTOR_SHIFT;
 	const unsigned int nblocks = orig_len >> fs_info->sectorsize_bits;
-	blk_status_t ret = BLK_STS_OK;
+	int ret = 0;
 	u32 bio_offset = 0;
 
 	if ((inode->flags & BTRFS_INODE_NODATASUM) ||
 	    test_bit(BTRFS_FS_STATE_NO_DATA_CSUMS, &fs_info->fs_state))
-		return BLK_STS_OK;
+		return 0;
 
 	/*
 	 * This function is only called for read bio.
@@ -369,12 +369,12 @@ blk_status_t btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 	ASSERT(bio_op(bio) == REQ_OP_READ);
 	path = btrfs_alloc_path();
 	if (!path)
-		return BLK_STS_RESOURCE;
+		return -ENOMEM;
 
 	if (nblocks * csum_size > BTRFS_BIO_INLINE_CSUM_SIZE) {
 		bbio->csum = kmalloc_array(nblocks, csum_size, GFP_NOFS);
 		if (!bbio->csum)
-			return BLK_STS_RESOURCE;
+			return -ENOMEM;
 	} else {
 		bbio->csum = bbio->csum_inline;
 	}
@@ -406,7 +406,7 @@ blk_status_t btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 		count = search_csum_tree(fs_info, path, cur_disk_bytenr,
 					 orig_len - bio_offset, csum_dst);
 		if (count < 0) {
-			ret = errno_to_blk_status(count);
+			ret = count;
 			if (bbio->csum != bbio->csum_inline)
 				kfree(bbio->csum);
 			bbio->csum = NULL;
