@@ -1815,6 +1815,7 @@ struct intel_dp {
 		u8 aux_less_wake_lines;
 		u8 silence_period_sym_clocks;
 		u8 lfps_half_cycle_num_of_syms;
+		bool lobf_disable_debug;
 	} alpm_parameters;
 
 	u8 alpm_dpcd;
