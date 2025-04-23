@@ -120,9 +120,40 @@
  *      memory.  Hence, we will reclaim written/unwritten/hole extents from
  *      the tree under a heavy memory pressure.
  *
+ * ==========================================================================
+ * 3. Assurance of Ext4 extent status tree consistency
+ *
+ * When mapping blocks, Ext4 queries the extent status tree first and should
+ * always trusts that the extent status tree is consistent and up to date.
+ * Therefore, it is important to adheres to the following rules when createing,
+ * modifying and removing extents.
+ *
+ *  1. Besides fastcommit replay, when Ext4 creates or queries block mappings,
+ *     the extent information should always be processed through the extent
+ *     status tree instead of being organized manually through the on-disk
+ *     extent tree.
+ *
+ *  2. When updating the extent tree, Ext4 should acquire the i_data_sem
+ *     exclusively and update the extent status tree atomically. If the extents
+ *     to be modified are large enough to exceed the range that a single
+ *     i_data_sem can process (as ext4_datasem_ensure_credits() may drop
+ *     i_data_sem to restart a transaction), it must (e.g. as ext4_punch_hole()
+ *     does):
+ *
+ *     a) Hold the i_rwsem and invalidate_lock exclusively. This ensures
+ *        exclusion against page faults, as well as reads and writes that may
+ *        concurrently modify the extent status tree.
+ *     b) Evict all page cache in the affected range and recommend rebuilding
+ *        or dropping the extent status tree after modifying the on-disk
+ *        extent tree. This ensures exclusion against concurrent writebacks
+ *        that do not hold those locks but only holds a folio lock.
+ *
+ *  3. Based on the rules above, when querying block mappings, Ext4 should at
+ *     least hold the i_rwsem or invalidate_lock or folio lock(s) for the
+ *     specified querying range.
  *
  * ==========================================================================
- * 3. Performance analysis
+ * 4. Performance analysis
  *
  *   --	overhead
  *	1. There is a cache extent for write access, so if writes are
@@ -134,7 +165,7 @@
  *
  *
  * ==========================================================================
- * 4. TODO list
+ * 5. TODO list
  *
  *   -- Refactor delayed space reservation
  *
