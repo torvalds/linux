@@ -11,15 +11,13 @@
 #include <crypto/scatterwalk.h>
 #include <linux/cryptouser.h>
 #include <linux/cpumask.h>
-#include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/page-flags.h>
 #include <linux/percpu.h>
 #include <linux/scatterlist.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
-#include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
@@ -79,7 +77,7 @@ static void crypto_acomp_exit_tfm(struct crypto_tfm *tfm)
 		alg->exit(acomp);
 
 	if (acomp_is_async(acomp))
-		crypto_free_acomp(acomp->fb);
+		crypto_free_acomp(crypto_acomp_fb(acomp));
 }
 
 static int crypto_acomp_init_tfm(struct crypto_tfm *tfm)
@@ -88,8 +86,6 @@ static int crypto_acomp_init_tfm(struct crypto_tfm *tfm)
 	struct acomp_alg *alg = crypto_acomp_alg(acomp);
 	struct crypto_acomp *fb = NULL;
 	int err;
-
-	acomp->fb = acomp;
 
 	if (tfm->__crt_alg->cra_type != &crypto_acomp_type)
 		return crypto_init_scomp_ops_async(tfm);
@@ -104,7 +100,7 @@ static int crypto_acomp_init_tfm(struct crypto_tfm *tfm)
 		if (crypto_acomp_reqsize(fb) > MAX_SYNC_COMP_REQSIZE)
 			goto out_free_fb;
 
-		acomp->fb = fb;
+		tfm->fb = crypto_acomp_tfm(fb);
 	}
 
 	acomp->compress = alg->compress;
@@ -569,25 +565,6 @@ int acomp_walk_virt(struct acomp_walk *__restrict walk,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(acomp_walk_virt);
-
-struct acomp_req *acomp_request_clone(struct acomp_req *req,
-				      size_t total, gfp_t gfp)
-{
-	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
-	struct acomp_req *nreq;
-
-	nreq = kmalloc(total, gfp);
-	if (!nreq) {
-		acomp_request_set_tfm(req, tfm->fb);
-		req->base.flags = CRYPTO_TFM_REQ_ON_STACK;
-		return req;
-	}
-
-	memcpy(nreq, req, total);
-	acomp_request_set_tfm(req, tfm);
-	return req;
-}
-EXPORT_SYMBOL_GPL(acomp_request_clone);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Asynchronous compression type");

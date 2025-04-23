@@ -272,13 +272,18 @@ static inline bool crypto_ahash_req_chain(struct crypto_ahash *tfm)
 	return crypto_tfm_req_chain(&tfm->base);
 }
 
+static inline struct crypto_ahash *crypto_ahash_fb(struct crypto_ahash *tfm)
+{
+	return __crypto_ahash_cast(crypto_ahash_tfm(tfm)->fb);
+}
+
 static inline struct ahash_request *ahash_fbreq_on_stack_init(
 	char *buf, struct ahash_request *old)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(old);
 	struct ahash_request *req = (void *)buf;
 
-	ahash_request_set_tfm(req, tfm->fb);
+	ahash_request_set_tfm(req, crypto_ahash_fb(tfm));
 	req->base.flags = CRYPTO_TFM_REQ_ON_STACK;
 	ahash_request_set_callback(req, ahash_request_flags(old), NULL, NULL);
 	req->base.flags &= ~CRYPTO_AHASH_REQ_PRIVATE;

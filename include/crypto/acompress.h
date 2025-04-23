@@ -114,7 +114,6 @@ struct crypto_acomp {
 	int (*compress)(struct acomp_req *req);
 	int (*decompress)(struct acomp_req *req);
 	unsigned int reqsize;
-	struct crypto_acomp *fb;
 	struct crypto_tfm base;
 };
 
@@ -553,7 +552,11 @@ static inline struct acomp_req *acomp_request_on_stack_init(
 	return req;
 }
 
-struct acomp_req *acomp_request_clone(struct acomp_req *req,
-				      size_t total, gfp_t gfp);
+static inline struct acomp_req *acomp_request_clone(struct acomp_req *req,
+						    size_t total, gfp_t gfp)
+{
+	return container_of(crypto_request_clone(&req->base, total, gfp),
+			    struct acomp_req, base);
+}
 
 #endif

@@ -220,13 +220,18 @@ static inline u32 acomp_request_flags(struct acomp_req *req)
 	return crypto_request_flags(&req->base) & ~CRYPTO_ACOMP_REQ_PRIVATE;
 }
 
+static inline struct crypto_acomp *crypto_acomp_fb(struct crypto_acomp *tfm)
+{
+	return __crypto_acomp_tfm(crypto_acomp_tfm(tfm)->fb);
+}
+
 static inline struct acomp_req *acomp_fbreq_on_stack_init(
 	char *buf, struct acomp_req *old)
 {
 	struct crypto_acomp *tfm = crypto_acomp_reqtfm(old);
 	struct acomp_req *req = (void *)buf;
 
-	acomp_request_set_tfm(req, tfm->fb);
+	acomp_request_set_tfm(req, crypto_acomp_fb(tfm));
 	req->base.flags = CRYPTO_TFM_REQ_ON_STACK;
 	acomp_request_set_callback(req, acomp_request_flags(old), NULL, NULL);
 	req->base.flags &= ~CRYPTO_ACOMP_REQ_PRIVATE;

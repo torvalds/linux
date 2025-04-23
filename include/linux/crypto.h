@@ -14,7 +14,7 @@
 
 #include <linux/completion.h>
 #include <linux/errno.h>
-#include <linux/refcount.h>
+#include <linux/refcount_types.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 
@@ -411,9 +411,11 @@ struct crypto_tfm {
 	u32 crt_flags;
 
 	int node;
-	
+
+	struct crypto_tfm *fb;
+
 	void (*exit)(struct crypto_tfm *tfm);
-	
+
 	struct crypto_alg *__crt_alg;
 
 	void *__crt_ctx[] CRYPTO_MINALIGN_ATTR;
@@ -508,6 +510,9 @@ static inline void crypto_request_set_tfm(struct crypto_async_request *req,
 	req->tfm = tfm;
 	req->flags &= ~CRYPTO_TFM_REQ_ON_STACK;
 }
+
+struct crypto_async_request *crypto_request_clone(
+	struct crypto_async_request *req, size_t total, gfp_t gfp);
 
 #endif	/* _LINUX_CRYPTO_H */
 

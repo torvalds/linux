@@ -246,7 +246,6 @@ struct crypto_ahash {
 	bool using_shash; /* Underlying algorithm is shash, not ahash */
 	unsigned int statesize;
 	unsigned int reqsize;
-	struct crypto_ahash *fb;
 	struct crypto_tfm base;
 };
 
@@ -1035,7 +1034,11 @@ static inline struct ahash_request *ahash_request_on_stack_init(
 	return req;
 }
 
-struct ahash_request *ahash_request_clone(struct ahash_request *req,
-					  size_t total, gfp_t gfp);
+static inline struct ahash_request *ahash_request_clone(
+	struct ahash_request *req, size_t total, gfp_t gfp)
+{
+	return container_of(crypto_request_clone(&req->base, total, gfp),
+			    struct ahash_request, base);
+}
 
 #endif	/* _CRYPTO_HASH_H */

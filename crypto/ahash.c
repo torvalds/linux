@@ -12,13 +12,11 @@
  * Copyright (c) 2008 Loc Ho <lho@amcc.com>
  */
 
-#include <crypto/scatterwalk.h>
 #include <linux/cryptouser.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/string.h>
@@ -301,7 +299,8 @@ int crypto_ahash_setkey(struct crypto_ahash *tfm, const u8 *key,
 
 		err = alg->setkey(tfm, key, keylen);
 		if (!err && ahash_is_async(tfm))
-			err = crypto_ahash_setkey(tfm->fb, key, keylen);
+			err = crypto_ahash_setkey(crypto_ahash_fb(tfm),
+						  key, keylen);
 		if (unlikely(err)) {
 			ahash_set_needkey(tfm, alg);
 			return err;
@@ -732,7 +731,7 @@ static void crypto_ahash_exit_tfm(struct crypto_tfm *tfm)
 		tfm->__crt_alg->cra_exit(tfm);
 
 	if (ahash_is_async(hash))
-		crypto_free_ahash(hash->fb);
+		crypto_free_ahash(crypto_ahash_fb(hash));
 }
 
 static int crypto_ahash_init_tfm(struct crypto_tfm *tfm)
@@ -745,8 +744,6 @@ static int crypto_ahash_init_tfm(struct crypto_tfm *tfm)
 	crypto_ahash_set_statesize(hash, alg->halg.statesize);
 	crypto_ahash_set_reqsize(hash, crypto_tfm_alg_reqsize(tfm));
 
-	hash->fb = hash;
-
 	if (tfm->__crt_alg->cra_type == &crypto_shash_type)
 		return crypto_init_ahash_using_shash(tfm);
 
@@ -756,7 +753,7 @@ static int crypto_ahash_init_tfm(struct crypto_tfm *tfm)
 		if (IS_ERR(fb))
 			return PTR_ERR(fb);
 
-		hash->fb = fb;
+		tfm->fb = crypto_ahash_tfm(fb);
 	}
 
 	ahash_set_needkey(hash, alg);
@@ -1036,7 +1033,7 @@ EXPORT_SYMBOL_GPL(ahash_request_free);
 int crypto_hash_digest(struct crypto_ahash *tfm, const u8 *data,
 		       unsigned int len, u8 *out)
 {
-	HASH_REQUEST_ON_STACK(req, tfm->fb);
+	HASH_REQUEST_ON_STACK(req, crypto_ahash_fb(tfm));
 	int err;
 
 	ahash_request_set_callback(req, 0, NULL, NULL);
@@ -1048,25 +1045,6 @@ int crypto_hash_digest(struct crypto_ahash *tfm, const u8 *data,
 	return err;
 }
 EXPORT_SYMBOL_GPL(crypto_hash_digest);
-
-struct ahash_request *ahash_request_clone(struct ahash_request *req,
-					  size_t total, gfp_t gfp)
-{
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct ahash_request *nreq;
-
-	nreq = kmalloc(total, gfp);
-	if (!nreq) {
-		ahash_request_set_tfm(req, tfm->fb);
-		req->base.flags = CRYPTO_TFM_REQ_ON_STACK;
-		return req;
-	}
-
-	memcpy(nreq, req, total);
-	ahash_request_set_tfm(req, tfm);
-	return req;
-}
-EXPORT_SYMBOL_GPL(ahash_request_clone);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Asynchronous cryptographic hash type");
