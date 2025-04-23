@@ -226,11 +226,6 @@ static void iwl_mld_fill_mac_cmd_sta(struct iwl_mld *mld,
 	if (vif->probe_req_reg && vif->cfg.assoc && vif->p2p)
 		cmd->filter_flags |=
 			cpu_to_le32(MAC_CFG_FILTER_ACCEPT_PROBE_REQ);
-
-	if (vif->p2p)
-		cmd->client.ctwin =
-			cpu_to_le32(vif->bss_conf.p2p_noa_attr.oppps_ctwindow &
-				    IEEE80211_P2P_OPPPS_CTWINDOW_MASK);
 }
 
 static void iwl_mld_fill_mac_cmd_ap(struct iwl_mld *mld,
