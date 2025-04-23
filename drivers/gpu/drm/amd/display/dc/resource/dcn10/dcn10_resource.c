@@ -1246,6 +1246,10 @@ struct stream_encoder *dcn10_find_first_free_match_stream_enc_for_link(
 			if (link->ep_type == DISPLAY_ENDPOINT_PHY && pool->stream_enc[i]->id ==
 					link->link_enc->preferred_engine)
 				return pool->stream_enc[i];
+
+			if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA && pool->stream_enc[i]->id ==
+					link->dpia_preferred_eng_id)
+				return pool->stream_enc[i];
 		}
 	}
 
