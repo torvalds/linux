@@ -48,6 +48,7 @@
 #include "intel_psr_regs.h"
 #include "intel_snps_phy.h"
 #include "intel_vblank.h"
+#include "intel_vrr.h"
 #include "skl_universal_plane.h"
 
 /**
@@ -2358,7 +2359,15 @@ int intel_psr_min_vblank_delay(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 
-	if (!crtc_state->has_psr || DISPLAY_VER(display) < 20)
+	if (!crtc_state->has_psr)
+		return 0;
+
+	/* Wa_14015401596 */
+	if (intel_vrr_possible(crtc_state) && IS_DISPLAY_VER(display, 13, 14))
+		return 1;
+
+	/* Rest is for SRD_STATUS needed on LunarLake and onwards */
+	if (DISPLAY_VER(display) < 20)
 		return 0;
 
 	/*

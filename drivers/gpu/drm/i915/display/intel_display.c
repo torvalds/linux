@@ -2406,14 +2406,6 @@ static int intel_crtc_compute_pipe_mode(struct intel_crtc_state *crtc_state)
 	return 0;
 }
 
-static bool intel_crtc_needs_wa_14015401596(const struct intel_crtc_state *crtc_state)
-{
-	struct intel_display *display = to_intel_display(crtc_state);
-
-	return intel_vrr_possible(crtc_state) && crtc_state->has_psr &&
-		IS_DISPLAY_VER(display, 13, 14);
-}
-
 static int intel_crtc_vblank_delay(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
@@ -2421,10 +2413,6 @@ static int intel_crtc_vblank_delay(const struct intel_crtc_state *crtc_state)
 
 	if (!HAS_DSB(display))
 		return 0;
-
-	/* Wa_14015401596 */
-	if (intel_crtc_needs_wa_14015401596(crtc_state))
-		vblank_delay = max(vblank_delay, 1);
 
 	vblank_delay = max(vblank_delay, intel_psr_min_vblank_delay(crtc_state));
 
