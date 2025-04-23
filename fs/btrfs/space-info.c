@@ -1836,10 +1836,10 @@ int btrfs_reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
  * This will reserve bytes from the data space info.  If there is not enough
  * space then we will attempt to flush space as specified by flush.
  */
-int btrfs_reserve_data_bytes(struct btrfs_fs_info *fs_info, u64 bytes,
+int btrfs_reserve_data_bytes(struct btrfs_space_info *space_info, u64 bytes,
 			     enum btrfs_reserve_flush_enum flush)
 {
-	struct btrfs_space_info *data_sinfo = fs_info->data_sinfo;
+	struct btrfs_fs_info *fs_info = space_info->fs_info;
 	int ret;
 
 	ASSERT(flush == BTRFS_RESERVE_FLUSH_DATA ||
@@ -1847,12 +1847,12 @@ int btrfs_reserve_data_bytes(struct btrfs_fs_info *fs_info, u64 bytes,
 	       flush == BTRFS_RESERVE_NO_FLUSH);
 	ASSERT(!current->journal_info || flush != BTRFS_RESERVE_FLUSH_DATA);
 
-	ret = __reserve_bytes(fs_info, data_sinfo, bytes, flush);
+	ret = __reserve_bytes(fs_info, space_info, bytes, flush);
 	if (ret == -ENOSPC) {
 		trace_btrfs_space_reservation(fs_info, "space_info:enospc",
-					      data_sinfo->flags, bytes, 1);
+					      space_info->flags, bytes, 1);
 		if (btrfs_test_opt(fs_info, ENOSPC_DEBUG))
-			btrfs_dump_space_info(fs_info, data_sinfo, bytes, 0);
+			btrfs_dump_space_info(fs_info, space_info, bytes, 0);
 	}
 	return ret;
 }
