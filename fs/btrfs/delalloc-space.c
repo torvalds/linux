@@ -111,6 +111,15 @@
  *  making error handling and cleanup easier.
  */
 
+static inline struct btrfs_space_info *data_sinfo_for_inode(const struct btrfs_inode *inode)
+{
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+
+	if (btrfs_is_zoned(fs_info) && btrfs_is_data_reloc_root(inode->root))
+		return fs_info->data_sinfo->sub_group[SUB_GROUP_DATA_RELOC];
+	return fs_info->data_sinfo;
+}
+
 int btrfs_alloc_data_chunk_ondemand(const struct btrfs_inode *inode, u64 bytes)
 {
 	struct btrfs_root *root = inode->root;
@@ -123,7 +132,7 @@ int btrfs_alloc_data_chunk_ondemand(const struct btrfs_inode *inode, u64 bytes)
 	if (btrfs_is_free_space_inode(inode))
 		flush = BTRFS_RESERVE_FLUSH_FREE_SPACE_INODE;
 
-	return btrfs_reserve_data_bytes(fs_info->data_sinfo, bytes, flush);
+	return btrfs_reserve_data_bytes(data_sinfo_for_inode(inode), bytes, flush);
 }
 
 int btrfs_check_data_free_space(struct btrfs_inode *inode,
@@ -144,7 +153,7 @@ int btrfs_check_data_free_space(struct btrfs_inode *inode,
 	else if (btrfs_is_free_space_inode(inode))
 		flush = BTRFS_RESERVE_FLUSH_FREE_SPACE_INODE;
 
-	ret = btrfs_reserve_data_bytes(fs_info->data_sinfo, len, flush);
+	ret = btrfs_reserve_data_bytes(data_sinfo_for_inode(inode), len, flush);
 	if (ret < 0)
 		return ret;
 
@@ -171,12 +180,10 @@ int btrfs_check_data_free_space(struct btrfs_inode *inode,
 void btrfs_free_reserved_data_space_noquota(struct btrfs_inode *inode, u64 len)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct btrfs_space_info *data_sinfo;
 
 	ASSERT(IS_ALIGNED(len, fs_info->sectorsize));
 
-	data_sinfo = fs_info->data_sinfo;
-	btrfs_space_info_free_bytes_may_use(data_sinfo, len);
+	btrfs_space_info_free_bytes_may_use(data_sinfo_for_inode(inode), len);
 }
 
 /*
