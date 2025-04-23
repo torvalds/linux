@@ -11,6 +11,7 @@
 #ifndef __LINUX_OPP_H__
 #define __LINUX_OPP_H__
 
+#include <linux/cleanup.h>
 #include <linux/energy_model.h>
 #include <linux/err.h>
 #include <linux/notifier.h>
@@ -578,6 +579,12 @@ static inline int dev_pm_opp_of_find_icc_paths(struct device *dev, struct opp_ta
 	return -EOPNOTSUPP;
 }
 #endif
+
+/* Scope based cleanup macro for OPP reference counting */
+DEFINE_FREE(put_opp, struct dev_pm_opp *, if (!IS_ERR_OR_NULL(_T)) dev_pm_opp_put(_T))
+
+/* Scope based cleanup macro for OPP table reference counting */
+DEFINE_FREE(put_opp_table, struct opp_table *, if (!IS_ERR_OR_NULL(_T)) dev_pm_opp_put_opp_table(_T))
 
 /* OPP Configuration helpers */
 
