@@ -740,15 +740,17 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 	}
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r)
+	if (!r) {
+		ret = -EINVAL;
 		goto clk_disable;
+	}
 	res = *r;
 	res.end = res.start + SDM845_QSCRATCH_BASE_OFFSET;
 
 	qcom->qscratch_base = devm_ioremap(dev, res.end, SDM845_QSCRATCH_SIZE);
-	if (IS_ERR(qcom->qscratch_base)) {
-		dev_err(dev, "failed to map qscratch region: %pe\n", qcom->qscratch_base);
-		ret = PTR_ERR(qcom->qscratch_base);
+	if (!qcom->qscratch_base) {
+		dev_err(dev, "failed to map qscratch region\n");
+		ret = -ENOMEM;
 		goto clk_disable;
 	}
 
