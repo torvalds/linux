@@ -431,7 +431,8 @@ static const struct snd_soc_acpi_link_adr ptl_cs42l43_l3[] = {
 		.mask = BIT(3),
 		.num_adr = ARRAY_SIZE(cs42l43_3_adr),
 		.adr_d = cs42l43_3_adr,
-	}
+	},
+	{}
 };
 
 static const struct snd_soc_acpi_link_adr ptl_rt722_only[] = {
