@@ -55,7 +55,7 @@ struct ghcb *boot_ghcb __section(".data");
 u64 sev_hv_features __ro_after_init;
 
 /* Secrets page physical address from the CC blob */
-static u64 secrets_pa __ro_after_init;
+u64 sev_secrets_pa __ro_after_init;
 
 /* For early boot SVSM communication */
 struct svsm_ca boot_svsm_ca_page __aligned(PAGE_SIZE);
@@ -1367,7 +1367,7 @@ bool __head snp_init(struct boot_params *bp)
 		return false;
 
 	if (cc_info->secrets_phys && cc_info->secrets_len == PAGE_SIZE)
-		secrets_pa = cc_info->secrets_phys;
+		sev_secrets_pa = cc_info->secrets_phys;
 	else
 		return false;
 

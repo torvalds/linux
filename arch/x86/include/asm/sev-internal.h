@@ -5,6 +5,7 @@
 extern struct ghcb boot_ghcb_page;
 extern struct ghcb *boot_ghcb;
 extern u64 sev_hv_features;
+extern u64 sev_secrets_pa;
 
 /* #VC handler runtime per-CPU data */
 struct sev_es_runtime_data {

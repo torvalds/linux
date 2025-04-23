@@ -80,9 +80,6 @@ static const char * const sev_status_feat_names[] = {
 	[MSR_AMD64_SNP_SMT_PROT_BIT]		= "SMTProt",
 };
 
-/* Secrets page physical address from the CC blob */
-static u64 secrets_pa __ro_after_init;
-
 /*
  * For Secure TSC guests, the BSP fetches TSC_INFO using SNP guest messaging and
  * initializes snp_tsc_scale and snp_tsc_offset. These values are replicated
@@ -109,7 +106,7 @@ static u64 __init get_snp_jump_table_addr(void)
 	void __iomem *mem;
 	u64 addr;
 
-	mem = ioremap_encrypted(secrets_pa, PAGE_SIZE);
+	mem = ioremap_encrypted(sev_secrets_pa, PAGE_SIZE);
 	if (!mem) {
 		pr_err("Unable to locate AP jump table address: failed to map the SNP secrets page.\n");
 		return 0;
@@ -1599,7 +1596,7 @@ struct snp_msg_desc *snp_msg_alloc(void)
 	if (!mdesc)
 		return ERR_PTR(-ENOMEM);
 
-	mem = ioremap_encrypted(secrets_pa, PAGE_SIZE);
+	mem = ioremap_encrypted(sev_secrets_pa, PAGE_SIZE);
 	if (!mem)
 		goto e_free_mdesc;
 
