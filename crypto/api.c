@@ -570,7 +570,7 @@ void *crypto_clone_tfm(const struct crypto_type *frontend,
 
 	tfm = (struct crypto_tfm *)(mem + frontend->tfmsize);
 	tfm->crt_flags = otfm->crt_flags;
-	tfm->exit = otfm->exit;
+	tfm->fb = tfm;
 
 out:
 	return mem;

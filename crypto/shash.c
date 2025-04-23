@@ -413,6 +413,9 @@ struct crypto_shash *crypto_clone_shash(struct crypto_shash *hash)
 		}
 	}
 
+	if (alg->exit_tfm)
+		crypto_shash_tfm(nhash)->exit = crypto_shash_exit_tfm;
+
 	return nhash;
 }
 EXPORT_SYMBOL_GPL(crypto_clone_shash);
