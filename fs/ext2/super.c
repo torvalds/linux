@@ -601,7 +601,8 @@ static int ext2_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	case Opt_dax:
 #ifdef CONFIG_FS_DAX
 		ext2_msg_fc(fc, KERN_WARNING,
-		    "DAX enabled. Warning: EXPERIMENTAL, use at your own risk");
+		    "DAX enabled. Warning: DAX support in ext2 driver is deprecated"
+		    " and will be removed at the end of 2025. Please use ext4 driver instead.");
 		ctx_set_mount_opt(ctx, EXT2_MOUNT_DAX);
 #else
 		ext2_msg_fc(fc, KERN_INFO, "dax option not supported");
