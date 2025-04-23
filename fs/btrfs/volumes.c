@@ -5959,7 +5959,7 @@ static int btrfs_read_rr(const struct btrfs_chunk_map *map, int first, int num_s
 
 static int find_live_mirror(struct btrfs_fs_info *fs_info,
 			    struct btrfs_chunk_map *map, int first,
-			    int dev_replace_is_ongoing)
+			    bool dev_replace_is_ongoing)
 {
 	const enum btrfs_read_policy policy = READ_ONCE(fs_info->fs_devices->read_policy);
 	int i;
@@ -6567,7 +6567,7 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	int num_copies;
 	struct btrfs_io_context *bioc = NULL;
 	struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
-	int dev_replace_is_ongoing = 0;
+	bool dev_replace_is_ongoing = false;
 	u16 num_alloc_stripes;
 	u64 max_len;
 
