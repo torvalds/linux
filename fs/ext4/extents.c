@@ -4963,10 +4963,11 @@ int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 {
 	int error = 0;
 
+	inode_lock_shared(inode);
 	if (fieinfo->fi_flags & FIEMAP_FLAG_CACHE) {
 		error = ext4_ext_precache(inode);
 		if (error)
-			return error;
+			goto unlock;
 		fieinfo->fi_flags &= ~FIEMAP_FLAG_CACHE;
 	}
 
@@ -4977,15 +4978,19 @@ int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	 */
 	error = ext4_fiemap_check_ranges(inode, start, &len);
 	if (error)
-		return error;
+		goto unlock;
 
 	if (fieinfo->fi_flags & FIEMAP_FLAG_XATTR) {
 		fieinfo->fi_flags &= ~FIEMAP_FLAG_XATTR;
-		return iomap_fiemap(inode, fieinfo, start, len,
-				    &ext4_iomap_xattr_ops);
+		error = iomap_fiemap(inode, fieinfo, start, len,
+				     &ext4_iomap_xattr_ops);
+	} else {
+		error = iomap_fiemap(inode, fieinfo, start, len,
+				     &ext4_iomap_report_ops);
 	}
-
-	return iomap_fiemap(inode, fieinfo, start, len, &ext4_iomap_report_ops);
+unlock:
+	inode_unlock_shared(inode);
+	return error;
 }
 
 int ext4_get_es_cache(struct inode *inode, struct fiemap_extent_info *fieinfo,
