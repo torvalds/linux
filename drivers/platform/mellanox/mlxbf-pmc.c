@@ -33,7 +33,7 @@
 #define MLXBF_PMC_EVENT_SET_BF3 2
 #define MLXBF_PMC_EVENT_INFO_LEN 100
 
-#define MLXBF_PMC_MAX_BLOCKS 30
+#define MLXBF_PMC_MAX_BLOCKS 40
 #define MLXBF_PMC_MAX_ATTRS 70
 #define MLXBF_PMC_INFO_SZ 4
 #define MLXBF_PMC_REG_SIZE 8
@@ -139,6 +139,7 @@ struct mlxbf_pmc_block_info {
  * @pdev: The kernel structure representing the device
  * @total_blocks: Total number of blocks
  * @tile_count: Number of tiles in the system
+ * @apt_enable: Info on enabled APTs
  * @llt_enable: Info on enabled LLTs
  * @mss_enable: Info on enabled MSSs
  * @group_num: Group number assigned to each valid block
@@ -154,6 +155,7 @@ struct mlxbf_pmc_context {
 	struct platform_device *pdev;
 	u32 total_blocks;
 	u32 tile_count;
+	u8 apt_enable;
 	u8 llt_enable;
 	u8 mss_enable;
 	u32 group_num;
@@ -893,6 +895,107 @@ static const struct mlxbf_pmc_events mlxbf_pmc_clock_events[] = {
 	{ 0x6c, "REFERENCE_WINDOW_WIDTH_REF_156" },
 };
 
+static const struct mlxbf_pmc_events mlxbf_pmc_gga_events[] = {
+	{ 0, "GGA_PERF_DESC_WQE_STRB" },
+	{ 5, "GGA_PERF_DESC_CQE_STRB" },
+	{ 8, "GGA_PERF_DESC_TPT_REQUEST_STRB" },
+	{ 17, "GGA_PERF_DESC_TPT_RESPONSESTRB" },
+	{ 120, "GGA_PERF_DESC_ENGINE0_IN_DATA_STRB" },
+	{ 121, "GGA_PERF_DESC_ENGINE1_IN_DATA_STRB" },
+	{ 122, "GGA_PERF_DESC_ENGINE2_IN_DATA_STRB" },
+	{ 123, "GGA_PERF_DESC_ENGINE3_IN_DATA_STRB" },
+	{ 124, "GGA_PERF_DESC_ENGINE4_IN_DATA_STRB" },
+	{ 125, "GGA_PERF_DESC_ENGINE5_IN_DATA_STRB" },
+	{ 126, "GGA_PERF_DESC_ENGINE6_IN_DATA_STRB" },
+	{ 127, "GGA_PERF_DESC_ENGINE7_IN_DATA_STRB" },
+	{ 128, "GGA_PERF_DESC_ENGINE8_IN_DATA_STRB" },
+	{ 129, "GGA_PERF_DESC_ENGINE9_IN_DATA_STRB" },
+	{ 130, "GGA_PERF_DESC_ENGINE10_IN_DATA_STRB" },
+	{ 131, "GGA_PERF_DESC_ENGINE11_IN_DATA_STRB" },
+	{ 132, "GGA_PERF_DESC_ENGINE12_IN_DATA_STRB" },
+	{ 133, "GGA_PERF_DESC_ENGINE13_IN_DATA_STRB" },
+	{ 134, "GGA_PERF_DESC_ENGINE14_IN_DATA_STRB" },
+	{ 195, "GGA_PERF_DESC_ENGINE0_OUT_DATA_STRB" },
+	{ 196, "GGA_PERF_DESC_ENGINE1_OUT_DATA_STRB" },
+	{ 197, "GGA_PERF_DESC_ENGINE2_OUT_DATA_STRB" },
+	{ 198, "GGA_PERF_DESC_ENGINE3_OUT_DATA_STRB" },
+	{ 199, "GGA_PERF_DESC_ENGINE4_OUT_DATA_STRB" },
+	{ 200, "GGA_PERF_DESC_ENGINE5_OUT_DATA_STRB" },
+	{ 201, "GGA_PERF_DESC_ENGINE6_OUT_DATA_STRB" },
+	{ 202, "GGA_PERF_DESC_ENGINE7_OUT_DATA_STRB" },
+	{ 203, "GGA_PERF_DESC_ENGINE8_OUT_DATA_STRB" },
+	{ 204, "GGA_PERF_DESC_ENGINE9_OUT_DATA_STRB" },
+	{ 205, "GGA_PERF_DESC_ENGINE10_OUT_DATA_STRB" },
+	{ 206, "GGA_PERF_DESC_ENGINE11_OUT_DATA_STRB" },
+	{ 207, "GGA_PERF_DESC_ENGINE12_OUT_DATA_STRB" },
+	{ 208, "GGA_PERF_DESC_ENGINE13_OUT_DATA_STRB" },
+	{ 209, "GGA_PERF_DESC_ENGINE14_OUT_DATA_STRB" },
+};
+
+static const struct mlxbf_pmc_events mlxbf_pmc_apt_events[] = {
+	{ 0, "APT_DATA_0" },
+	{ 1, "APT_DATA_1" },
+	{ 2, "APT_DATA_2" },
+	{ 3, "APT_DATA_3" },
+	{ 4, "APT_DATA_4" },
+	{ 5, "APT_DATA_5" },
+	{ 6, "APT_DATA_6" },
+	{ 7, "APT_DATA_7" },
+	{ 8, "APT_DATA_8" },
+	{ 9, "APT_DATA_9" },
+	{ 10, "APT_DATA_10" },
+	{ 11, "APT_DATA_11" },
+	{ 12, "APT_DATA_12" },
+	{ 13, "APT_DATA_13" },
+	{ 14, "APT_DATA_14" },
+	{ 15, "APT_DATA_15" },
+	{ 16, "APT_DATA_16" },
+	{ 17, "APT_DATA_17" },
+	{ 18, "APT_DATA_18" },
+	{ 19, "APT_DATA_19" },
+	{ 20, "APT_DATA_20" },
+	{ 21, "APT_DATA_21" },
+};
+
+static const struct mlxbf_pmc_events mlxbf_pmc_emi_events[] = {
+	{ 0, "MCH_WR_IN_MCH_REQ_IN_STRB" },
+	{ 10, "MCH_RD_IN_MCH_REQ_IN_STRB" },
+	{ 20, "MCH_RD_RESP_DATA_MCH_RESP_OUT_STRB" },
+	{ 98, "EMI_ARBITER_EARB2CTRL_STRB" },
+	{ 99, "EMI_ARBITER_EARB2CTRL_RAS_STRB" },
+	{ 100, "EMI_ARBITER_EARB2CTRL_CAS_STRB" },
+};
+
+static const struct mlxbf_pmc_events mlxbf_pmc_prnf_events[] = {
+	{ 0, "PRNF_DMA_RD_TLP_REQ" },
+	{ 1, "PRNF_DMA_RD_ICMC_BYPASS_REQ" },
+	{ 8, "PRNF_DMA_RD_TLP_SENT_TO_CHI" },
+	{ 11, "PRNF_DMA_RD_CHI_RES" },
+	{ 17, "PRNF_DMA_RD_TLP_RES_SENT" },
+	{ 18, "PRNF_DMA_WR_WR0_SLICE_ALLOC_RO" },
+	{ 19, "PRNF_DMA_WR_WR0_SLICE_ALLOC_NRO" },
+	{ 24, "PRNF_DMA_WR_WR1_SLICE_ALLOC_RO" },
+	{ 25, "PRNF_DMA_WR_WR1_SLICE_ALLOC_NRO" },
+	{ 30, "PRNF_PIO_POSTED_REQ_PUSH" },
+	{ 31, "PRNF_PIO_POSTED_REQ_POP" },
+	{ 32, "PRNF_PIO_NP_REQ_PUSH" },
+	{ 33, "PRNF_PIO_NP_REQ_POP" },
+	{ 34, "PRNF_PIO_COMP_RO_PUSH" },
+	{ 35, "PRNF_PIO_COMP_RO_POP" },
+	{ 36, "PRNF_PIO_COMP_NRO_PUSH" },
+	{ 37, "PRNF_PIO_COMP_NRO_POP" },
+};
+
+static const struct mlxbf_pmc_events mlxbf_pmc_msn_events[] = {
+	{ 46, "MSN_CORE_MMA_WQE_DONE_PUSH_STRB" },
+	{ 116, "MSN_CORE_MSN2MMA_WQE_STRB" },
+	{ 164, "MSN_CORE_WQE_TOP_TILE_WQE_STRB" },
+	{ 168, "MSN_CORE_TPT_TOP_GGA_REQ_STRB" },
+	{ 171, "MSN_CORE_TPT_TOP_MMA_REQ_STRB" },
+	{ 174, "MSN_CORE_TPT_TOP_GGA_RES_STRB" },
+	{ 177, "MSN_CORE_TPT_TOP_MMA_RES_STRB" },
+};
+
 static struct mlxbf_pmc_context *pmc;
 
 /* UUID used to probe ATF service. */
@@ -1069,6 +1172,21 @@ static const struct mlxbf_pmc_events *mlxbf_pmc_event_list(const char *blk, size
 	} else if (strstr(blk, "clock_measure")) {
 		events = mlxbf_pmc_clock_events;
 		size = ARRAY_SIZE(mlxbf_pmc_clock_events);
+	} else if (strstr(blk, "gga")) {
+		events = mlxbf_pmc_gga_events;
+		size = ARRAY_SIZE(mlxbf_pmc_gga_events);
+	} else if (strstr(blk, "apt")) {
+		events = mlxbf_pmc_apt_events;
+		size = ARRAY_SIZE(mlxbf_pmc_apt_events);
+	} else if (strstr(blk, "emi")) {
+		events = mlxbf_pmc_emi_events;
+		size = ARRAY_SIZE(mlxbf_pmc_emi_events);
+	} else if (strstr(blk, "prnf")) {
+		events = mlxbf_pmc_prnf_events;
+		size = ARRAY_SIZE(mlxbf_pmc_prnf_events);
+	} else if (strstr(blk, "msn")) {
+		events = mlxbf_pmc_msn_events;
+		size = ARRAY_SIZE(mlxbf_pmc_msn_events);
 	} else {
 		events = NULL;
 		size = 0;
@@ -2056,6 +2174,18 @@ static int mlxbf_pmc_map_counters(struct device *dev)
 				continue;
 		}
 
+		/* Create sysfs only for enabled EMI blocks */
+		if (strstr(pmc->block_name[i], "emi") &&
+		    pmc->event_set == MLXBF_PMC_EVENT_SET_BF3) {
+			unsigned int emi_num;
+
+			if (sscanf(pmc->block_name[i], "emi%u", &emi_num) != 1)
+				continue;
+
+			if (!((pmc->mss_enable >> (emi_num / 2)) & 0x1))
+				continue;
+		}
+
 		/* Create sysfs only for enabled LLT blocks */
 		if (strstr(pmc->block_name[i], "llt_miss")) {
 			unsigned int llt_num;
@@ -2072,6 +2202,17 @@ static int mlxbf_pmc_map_counters(struct device *dev)
 				continue;
 
 			if (!((pmc->llt_enable >> llt_num) & 0x1))
+				continue;
+		}
+
+		/* Create sysfs only for enabled APT blocks */
+		if (strstr(pmc->block_name[i], "apt")) {
+			unsigned int apt_num;
+
+			if (sscanf(pmc->block_name[i], "apt%u", &apt_num) != 1)
+				continue;
+
+			if (!((pmc->apt_enable >> apt_num) & 0x1))
 				continue;
 		}
 
@@ -2171,13 +2312,17 @@ static int mlxbf_pmc_probe(struct platform_device *pdev)
 		return -EFAULT;
 
 	if (device_property_read_u32(dev, "tile_num", &pmc->tile_count)) {
+		if (device_property_read_u8(dev, "apt_enable", &pmc->apt_enable)) {
+			dev_warn(dev, "Number of APTs undefined, ignoring blocks\n");
+			pmc->apt_enable = 0;
+		}
 		if (device_property_read_u8(dev, "llt_enable", &pmc->llt_enable)) {
-			dev_err(dev, "Number of tiles/LLTs undefined\n");
-			return -EINVAL;
+			dev_warn(dev, "Number of LLTs undefined, ignoring blocks\n");
+			pmc->llt_enable = 0;
 		}
 		if (device_property_read_u8(dev, "mss_enable", &pmc->mss_enable)) {
-			dev_err(dev, "Number of tiles/MSSs undefined\n");
-			return -EINVAL;
+			dev_warn(dev, "Number of MSSs undefined, ignoring blocks\n");
+			pmc->mss_enable = 0;
 		}
 	}
 
