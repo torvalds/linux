@@ -1327,6 +1327,8 @@ struct ov08x40 {
 
 	/* True if the device has been identified */
 	bool identified;
+
+	unsigned long link_freq_bitmap;
 };
 
 #define to_ov08x40(_sd)	container_of(_sd, struct ov08x40, sd)
@@ -2061,7 +2063,6 @@ static int ov08x40_init_controls(struct ov08x40 *ov08x)
 	s64 pixel_rate_min;
 	s64 pixel_rate_max;
 	const struct ov08x40_mode *mode;
-	u32 max;
 	int ret;
 
 	ctrl_hdlr = &ov08x->ctrl_handler;
@@ -2071,12 +2072,11 @@ static int ov08x40_init_controls(struct ov08x40 *ov08x)
 
 	mutex_init(&ov08x->mutex);
 	ctrl_hdlr->lock = &ov08x->mutex;
-	max = ARRAY_SIZE(link_freq_menu_items) - 1;
 	ov08x->link_freq = v4l2_ctrl_new_int_menu(ctrl_hdlr,
 						  &ov08x40_ctrl_ops,
 						  V4L2_CID_LINK_FREQ,
-						  max,
-						  0,
+						  __fls(ov08x->link_freq_bitmap),
+						  __ffs(ov08x->link_freq_bitmap),
 						  link_freq_menu_items);
 	if (ov08x->link_freq)
 		ov08x->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
@@ -2172,7 +2172,7 @@ static int ov08x40_check_hwcfg(struct ov08x40 *ov08x, struct device *dev)
 	};
 	struct fwnode_handle *ep;
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	unsigned int i, j;
+	unsigned int i;
 	int ret;
 	u32 xvclk_rate;
 
@@ -2242,21 +2242,11 @@ static int ov08x40_check_hwcfg(struct ov08x40 *ov08x, struct device *dev)
 		ret = -EINVAL;
 		goto out_err;
 	}
-
-	for (i = 0; i < ARRAY_SIZE(link_freq_menu_items); i++) {
-		for (j = 0; j < bus_cfg.nr_of_link_frequencies; j++) {
-			if (link_freq_menu_items[i] ==
-				bus_cfg.link_frequencies[j])
-				break;
-		}
-
-		if (j == bus_cfg.nr_of_link_frequencies) {
-			dev_err(dev, "no link frequency %lld supported\n",
-				link_freq_menu_items[i]);
-			ret = -EINVAL;
-			goto out_err;
-		}
-	}
+	ret = v4l2_link_freq_to_bitmap(dev, bus_cfg.link_frequencies,
+				       bus_cfg.nr_of_link_frequencies,
+				       link_freq_menu_items,
+				       ARRAY_SIZE(link_freq_menu_items),
+				       &ov08x->link_freq_bitmap);
 
 out_err:
 	v4l2_fwnode_endpoint_free(&bus_cfg);
