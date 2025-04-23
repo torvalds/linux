@@ -642,7 +642,7 @@ static int blkdev_open(struct inode *inode, struct file *filp)
 	if (ret)
 		return ret;
 
-	bdev = blkdev_get_no_open(inode->i_rdev);
+	bdev = blkdev_get_no_open(inode->i_rdev, true);
 	if (!bdev)
 		return -ENXIO;
 
