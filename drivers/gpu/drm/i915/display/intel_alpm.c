@@ -13,6 +13,7 @@
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dp_aux.h"
+#include "intel_psr.h"
 #include "intel_psr_regs.h"
 
 bool intel_alpm_aux_wake_supported(struct intel_dp *intel_dp)
@@ -331,8 +332,8 @@ static void lnl_alpm_configure(struct intel_dp *intel_dp,
 	enum port port = dp_to_dig_port(intel_dp)->base.port;
 	u32 alpm_ctl;
 
-	if (DISPLAY_VER(display) < 20 ||
-	    (!crtc_state->has_sel_update && !intel_dp_is_edp(intel_dp)))
+	if (DISPLAY_VER(display) < 20 || (!intel_psr_needs_alpm(intel_dp, crtc_state) &&
+					  !crtc_state->has_lobf))
 		return;
 
 	mutex_lock(&intel_dp->alpm_parameters.lock);

@@ -4192,3 +4192,9 @@ void intel_psr_connector_debugfs_add(struct intel_connector *connector)
 		debugfs_create_file("i915_psr_status", 0444, root,
 				    connector, &i915_psr_status_fops);
 }
+
+bool intel_psr_needs_alpm(struct intel_dp *intel_dp, const struct intel_crtc_state *crtc_state)
+{
+	return intel_dp_is_edp(intel_dp) && (crtc_state->has_sel_update ||
+					     crtc_state->has_panel_replay);
+}

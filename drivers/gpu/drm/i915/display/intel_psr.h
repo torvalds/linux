@@ -75,5 +75,6 @@ void intel_psr_trigger_frame_change_event(struct intel_dsb *dsb,
 					  struct intel_crtc *crtc);
 void intel_psr_connector_debugfs_add(struct intel_connector *connector);
 void intel_psr_debugfs_register(struct intel_display *display);
+bool intel_psr_needs_alpm(struct intel_dp *intel_dp, const struct intel_crtc_state *crtc_state);
 
 #endif /* __INTEL_PSR_H__ */
