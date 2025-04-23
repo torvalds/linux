@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018, 2020-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018, 2020-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -146,6 +146,7 @@ struct iwl_phy_context_cmd_v1 {
  * @sbb_ctrl_channel_loc: location of the control channel
  * @puncture_mask: bitmap of punctured subchannels
  * @dsp_cfg_flags: set to 0
+ * @secondary_ctrl_chnl_loc: location of secondary control channel
  * @reserved: reserved to align to 64 bit
  */
 struct iwl_phy_context_cmd {
@@ -164,11 +165,13 @@ struct iwl_phy_context_cmd {
 		};
 	};
 	__le32 dsp_cfg_flags;
-	__le32 reserved;
+	u8 secondary_ctrl_chnl_loc;
+	u8 reserved[3];
 } __packed; /* PHY_CONTEXT_CMD_API_VER_3,
 	     * PHY_CONTEXT_CMD_API_VER_4,
 	     * PHY_CONTEXT_CMD_API_VER_5,
-	     * PHY_CONTEXT_CMD_API_VER_6
+	     * PHY_CONTEXT_CMD_API_VER_6,
+	     * PHY_CONTEXT_CMD_API_S_VER_7
 	     */
 
 #endif /* __iwl_fw_api_phy_ctxt_h__ */
