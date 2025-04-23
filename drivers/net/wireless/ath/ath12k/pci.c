@@ -1734,8 +1734,6 @@ static void ath12k_pci_remove(struct pci_dev *pdev)
 
 	if (test_bit(ATH12K_FLAG_QMI_FAIL, &ab->dev_flags)) {
 		ath12k_pci_power_down(ab, false);
-		ath12k_qmi_deinit_service(ab);
-		ath12k_core_hw_group_unassign(ab);
 		goto qmi_fail;
 	}
 
@@ -1743,9 +1741,10 @@ static void ath12k_pci_remove(struct pci_dev *pdev)
 
 	cancel_work_sync(&ab->reset_work);
 	cancel_work_sync(&ab->dump_work);
-	ath12k_core_deinit(ab);
+	ath12k_core_hw_group_cleanup(ab->ag);
 
 qmi_fail:
+	ath12k_core_deinit(ab);
 	ath12k_fw_unmap(ab);
 	ath12k_mhi_unregister(ab_pci);
 

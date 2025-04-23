@@ -2014,7 +2014,7 @@ static void ath12k_core_hw_group_destroy(struct ath12k_hw_group *ag)
 	}
 }
 
-static void ath12k_core_hw_group_cleanup(struct ath12k_hw_group *ag)
+void ath12k_core_hw_group_cleanup(struct ath12k_hw_group *ag)
 {
 	struct ath12k_base *ab;
 	int i;
@@ -2160,10 +2160,9 @@ err:
 
 void ath12k_core_deinit(struct ath12k_base *ab)
 {
-	ath12k_core_panic_notifier_unregister(ab);
-	ath12k_core_hw_group_cleanup(ab->ag);
 	ath12k_core_hw_group_destroy(ab->ag);
 	ath12k_core_hw_group_unassign(ab);
+	ath12k_core_panic_notifier_unregister(ab);
 }
 
 void ath12k_core_free(struct ath12k_base *ab)
