@@ -495,10 +495,10 @@ static int pca955x_set_value(struct gpio_chip *gc, unsigned int offset,
 	return pca955x_led_set(&led->led_cdev, PCA955X_GPIO_LOW);
 }
 
-static void pca955x_gpio_set_value(struct gpio_chip *gc, unsigned int offset,
-				   int val)
+static int pca955x_gpio_set_value(struct gpio_chip *gc, unsigned int offset,
+				  int val)
 {
-	pca955x_set_value(gc, offset, val);
+	return pca955x_set_value(gc, offset, val);
 }
 
 static int pca955x_gpio_get_value(struct gpio_chip *gc, unsigned int offset)
@@ -737,7 +737,7 @@ static int pca955x_probe(struct i2c_client *client)
 	pca955x->gpio.label = "gpio-pca955x";
 	pca955x->gpio.direction_input = pca955x_gpio_direction_input;
 	pca955x->gpio.direction_output = pca955x_gpio_direction_output;
-	pca955x->gpio.set = pca955x_gpio_set_value;
+	pca955x->gpio.set_rv = pca955x_gpio_set_value;
 	pca955x->gpio.get = pca955x_gpio_get_value;
 	pca955x->gpio.request = pca955x_gpio_request_pin;
 	pca955x->gpio.free = pca955x_gpio_free_pin;
