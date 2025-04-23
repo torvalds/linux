@@ -55,6 +55,12 @@ properties:
     description:
       RTC alarm is not owned by the OS
 
+  qcom,uefi-rtc-info:
+    type: boolean
+    description:
+      RTC offset is stored as a four-byte GPS time offset in a 12-byte UEFI
+      variable 882f8c2b-9646-435f-8de5-f208ff80c1bd-RTCInfo
+
   wakeup-source: true
 
 required:
