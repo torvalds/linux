@@ -846,6 +846,11 @@ static inline const char *btrfs_dev_name(const struct btrfs_device *device)
 		return rcu_str_deref(device->name);
 }
 
+static inline void btrfs_warn_unknown_chunk_allocation(enum btrfs_chunk_allocation_policy pol)
+{
+	WARN_ONCE(1, "unknown allocation policy %d, fallback to regular", pol);
+}
+
 void btrfs_commit_device_sizes(struct btrfs_transaction *trans);
 
 struct list_head * __attribute_const__ btrfs_get_fs_uuids(void);
