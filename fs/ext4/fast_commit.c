@@ -917,7 +917,8 @@ static int ext4_fc_write_inode_data(struct inode *inode, u32 *crc)
 	while (cur_lblk_off <= new_blk_size) {
 		map.m_lblk = cur_lblk_off;
 		map.m_len = new_blk_size - cur_lblk_off + 1;
-		ret = ext4_map_blocks(NULL, inode, &map, 0);
+		ret = ext4_map_blocks(NULL, inode, &map,
+				      EXT4_GET_BLOCKS_IO_SUBMIT);
 		if (ret < 0)
 			return -ECANCELED;
 
