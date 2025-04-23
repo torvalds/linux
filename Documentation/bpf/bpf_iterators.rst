@@ -323,8 +323,8 @@ Now, in the userspace program, pass the pointer of struct to the
 
 ::
 
-  link = bpf_program__attach_iter(prog, &opts); iter_fd =
-  bpf_iter_create(bpf_link__fd(link));
+  link = bpf_program__attach_iter(prog, &opts);
+  iter_fd = bpf_iter_create(bpf_link__fd(link));
 
 If both *tid* and *pid* are zero, an iterator created from this struct
 ``bpf_iter_attach_opts`` will include every opened file of every task in the
