@@ -125,7 +125,8 @@ intel_pch_type(const struct intel_display *display, unsigned short id)
 		drm_dbg_kms(display->drm, "Found SunrisePoint PCH\n");
 		drm_WARN_ON(display->drm,
 			    !display->platform.skylake &&
-			    !display->platform.kabylake);
+			    !display->platform.kabylake &&
+			    !display->platform.coffeelake);
 		return PCH_SPT;
 	case INTEL_PCH_SPT_LP_DEVICE_ID_TYPE:
 		drm_dbg_kms(display->drm, "Found SunrisePoint LP PCH\n");
