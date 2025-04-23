@@ -8,6 +8,7 @@
 #include <linux/string.h>
 #include <linux/etherdevice.h>
 #include <linux/phylink.h>
+#include <net/udp_tunnel.h>
 #include <net/ip.h>
 #include <linux/if_vlan.h>
 
@@ -537,6 +538,39 @@ void txgbe_do_reset(struct net_device *netdev)
 		txgbe_reset(wx);
 }
 
+static int txgbe_udp_tunnel_sync(struct net_device *dev, unsigned int table)
+{
+	struct wx *wx = netdev_priv(dev);
+	struct udp_tunnel_info ti;
+
+	udp_tunnel_nic_get_port(dev, table, 0, &ti);
+	switch (ti.type) {
+	case UDP_TUNNEL_TYPE_VXLAN:
+		wr32(wx, TXGBE_CFG_VXLAN, ntohs(ti.port));
+		break;
+	case UDP_TUNNEL_TYPE_VXLAN_GPE:
+		wr32(wx, TXGBE_CFG_VXLAN_GPE, ntohs(ti.port));
+		break;
+	case UDP_TUNNEL_TYPE_GENEVE:
+		wr32(wx, TXGBE_CFG_GENEVE, ntohs(ti.port));
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static const struct udp_tunnel_nic_info txgbe_udp_tunnels = {
+	.sync_table	= txgbe_udp_tunnel_sync,
+	.flags		= UDP_TUNNEL_NIC_INFO_OPEN_ONLY,
+	.tables		= {
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_VXLAN, },
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_VXLAN_GPE, },
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_GENEVE, },
+	},
+};
+
 static const struct net_device_ops txgbe_netdev_ops = {
 	.ndo_open               = txgbe_open,
 	.ndo_stop               = txgbe_close,
@@ -545,6 +579,7 @@ static const struct net_device_ops txgbe_netdev_ops = {
 	.ndo_set_rx_mode        = wx_set_rx_mode,
 	.ndo_set_features       = wx_set_features,
 	.ndo_fix_features       = wx_fix_features,
+	.ndo_features_check     = wx_features_check,
 	.ndo_validate_addr      = eth_validate_addr,
 	.ndo_set_mac_address    = wx_set_mac,
 	.ndo_get_stats64        = wx_get_stats64,
@@ -632,6 +667,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 	wx->driver_name = txgbe_driver_name;
 	txgbe_set_ethtool_ops(netdev);
 	netdev->netdev_ops = &txgbe_netdev_ops;
+	netdev->udp_tunnel_nic_info = &txgbe_udp_tunnels;
 
 	/* setup the private structure */
 	err = txgbe_sw_init(wx);
@@ -677,6 +713,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 	netdev->features |= NETIF_F_HIGHDMA;
 	netdev->hw_features |= NETIF_F_GRO;
 	netdev->features |= NETIF_F_GRO;
+	netdev->features |= NETIF_F_RX_UDP_TUNNEL_PORT;
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 	netdev->priv_flags |= IFF_SUPP_NOFCS;
