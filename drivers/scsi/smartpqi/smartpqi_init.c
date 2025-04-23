@@ -67,6 +67,7 @@ static struct pqi_cmd_priv *pqi_cmd_priv(struct scsi_cmnd *cmd)
 static void pqi_verify_structures(void);
 static void pqi_take_ctrl_offline(struct pqi_ctrl_info *ctrl_info,
 	enum pqi_ctrl_shutdown_reason ctrl_shutdown_reason);
+static void pqi_take_ctrl_devices_offline(struct pqi_ctrl_info *ctrl_info);
 static void pqi_ctrl_offline_worker(struct work_struct *work);
 static int pqi_scan_scsi_devices(struct pqi_ctrl_info *ctrl_info);
 static void pqi_scan_start(struct Scsi_Host *shost);
@@ -9128,6 +9129,7 @@ static void pqi_take_ctrl_offline_deferred(struct pqi_ctrl_info *ctrl_info)
 	pqi_ctrl_wait_until_quiesced(ctrl_info);
 	pqi_fail_all_outstanding_requests(ctrl_info);
 	pqi_ctrl_unblock_requests(ctrl_info);
+	pqi_take_ctrl_devices_offline(ctrl_info);
 }
 
 static void pqi_ctrl_offline_worker(struct work_struct *work)
@@ -9200,6 +9202,27 @@ static void pqi_take_ctrl_offline(struct pqi_ctrl_info *ctrl_info,
 		"controller offline: reason code 0x%x (%s)\n",
 		ctrl_shutdown_reason, pqi_ctrl_shutdown_reason_to_string(ctrl_shutdown_reason));
 	schedule_work(&ctrl_info->ctrl_offline_work);
+}
+
+static void pqi_take_ctrl_devices_offline(struct pqi_ctrl_info *ctrl_info)
+{
+	int rc;
+	unsigned long flags;
+	struct pqi_scsi_dev *device;
+
+	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
+	list_for_each_entry(device, &ctrl_info->scsi_device_list, scsi_device_list_entry) {
+		rc = list_is_last(&device->scsi_device_list_entry, &ctrl_info->scsi_device_list);
+		if (rc)
+			continue;
+
+		/*
+		 * Is the sdev pointer NULL?
+		 */
+		if (device->sdev)
+			scsi_device_set_state(device->sdev, SDEV_OFFLINE);
+	}
+	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
 }
 
 static void pqi_print_ctrl_info(struct pci_dev *pci_dev,
