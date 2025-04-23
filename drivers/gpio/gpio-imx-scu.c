@@ -88,7 +88,10 @@ static int imx_scu_gpio_probe(struct platform_device *pdev)
 		return ret;
 
 	priv->dev = dev;
-	mutex_init(&priv->lock);
+
+	ret = devm_mutex_init(&pdev->dev, &priv->lock);
+	if (ret)
+		return ret;
 
 	gc = &priv->chip;
 	gc->base = -1;
