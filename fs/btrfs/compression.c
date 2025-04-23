@@ -285,12 +285,12 @@ static noinline void end_compressed_writeback(const struct compressed_bio *cb)
 	unsigned long index = cb->start >> PAGE_SHIFT;
 	unsigned long end_index = (cb->start + cb->len - 1) >> PAGE_SHIFT;
 	struct folio_batch fbatch;
-	const int error = blk_status_to_errno(cb->bbio.bio.bi_status);
 	int i;
 	int ret;
 
-	if (error)
-		mapping_set_error(inode->i_mapping, error);
+	ret = blk_status_to_errno(cb->bbio.bio.bi_status);
+	if (ret)
+		mapping_set_error(inode->i_mapping, ret);
 
 	folio_batch_init(&fbatch);
 	while (index <= end_index) {
