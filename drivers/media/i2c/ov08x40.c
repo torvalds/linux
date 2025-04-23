@@ -10,6 +10,7 @@
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
+#include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
@@ -1325,6 +1326,9 @@ struct ov08x40 {
 	/* Mutex for serialized access */
 	struct mutex mutex;
 
+	/* data lanes */
+	u8 mipi_lanes;
+
 	/* True if the device has been identified */
 	bool identified;
 
@@ -1744,6 +1748,15 @@ static int ov08x40_set_ctrl(struct v4l2_ctrl *ctrl)
 	return ret;
 }
 
+static bool filter_by_mipi_lanes(const void *array, size_t index,
+				 const void *context)
+{
+	const struct ov08x40_mode *mode = array;
+	const struct ov08x40 *ov08x = context;
+
+	return mode->lanes == ov08x->mipi_lanes;
+}
+
 static const struct v4l2_ctrl_ops ov08x40_ctrl_ops = {
 	.s_ctrl = ov08x40_set_ctrl,
 };
@@ -1765,18 +1778,28 @@ static int ov08x40_enum_frame_size(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
-	if (fse->index >= ARRAY_SIZE(supported_modes))
-		return -EINVAL;
+	struct ov08x40 *ov08x = to_ov08x40(sd);
+	size_t i, count = 0;
 
 	if (fse->code != MEDIA_BUS_FMT_SGRBG10_1X10)
 		return -EINVAL;
 
-	fse->min_width = supported_modes[fse->index].width;
-	fse->max_width = fse->min_width;
-	fse->min_height = supported_modes[fse->index].height;
-	fse->max_height = fse->min_height;
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		if (!filter_by_mipi_lanes(&supported_modes[i], i, ov08x))
+			continue;
 
-	return 0;
+		if (count == fse->index) {
+			fse->min_width = supported_modes[i].width;
+			fse->max_width = fse->min_width;
+			fse->min_height = supported_modes[i].height;
+			fse->max_height = fse->min_height;
+			return 0;
+		}
+
+		count++;
+	}
+
+	return -EINVAL;
 }
 
 static void ov08x40_update_pad_format(const struct ov08x40_mode *mode,
@@ -1839,10 +1862,13 @@ ov08x40_set_pad_format(struct v4l2_subdev *sd,
 	if (fmt->format.code != MEDIA_BUS_FMT_SGRBG10_1X10)
 		fmt->format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
 
-	mode = v4l2_find_nearest_size(supported_modes,
-				      ARRAY_SIZE(supported_modes),
-				      width, height,
-				      fmt->format.width, fmt->format.height);
+	mode = v4l2_find_nearest_size_conditional(supported_modes,
+						  ARRAY_SIZE(supported_modes),
+						  width, height,
+						  fmt->format.width,
+						  fmt->format.height,
+						  filter_by_mipi_lanes,
+						  ov08x);
 	ov08x40_update_pad_format(mode, fmt);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
@@ -2230,7 +2256,12 @@ static int ov08x40_check_hwcfg(struct ov08x40 *ov08x, struct device *dev)
 		goto out_err;
 	}
 
-	if (bus_cfg.bus.mipi_csi2.num_data_lanes != OV08X40_DATA_LANES) {
+	switch (bus_cfg.bus.mipi_csi2.num_data_lanes) {
+	case 2:
+	case 4:
+		ov08x->mipi_lanes = bus_cfg.bus.mipi_csi2.num_data_lanes;
+		break;
+	default:
 		dev_err(dev, "number of CSI2 data lanes %d is not supported\n",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
