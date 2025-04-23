@@ -3728,10 +3728,14 @@ out:
 }
 
 /*
- * very simple check to peek ahead in the leaf looking for xattrs.  If we
- * don't find any xattrs, we know there can't be any acls.
+ * Look ahead in the leaf for xattrs. If we don't find any then we know there
+ * can't be any ACLs.
  *
- * slot is the slot the inode is in, objectid is the objectid of the inode
+ * @leaf:       the eb leaf where to search
+ * @slot:       the slot the inode is in
+ * @objectid:   the objectid of the inode
+ *
+ * Return true if there is xattr/ACL, false otherwise.
  */
 static noinline bool acls_after_inode_item(struct extent_buffer *leaf,
 					   int slot, u64 objectid,
@@ -3755,11 +3759,11 @@ static noinline bool acls_after_inode_item(struct extent_buffer *leaf,
 	while (slot < nritems) {
 		btrfs_item_key_to_cpu(leaf, &found_key, slot);
 
-		/* we found a different objectid, there must not be acls */
+		/* We found a different objectid, there must be no ACLs. */
 		if (found_key.objectid != objectid)
 			return false;
 
-		/* we found an xattr, assume we've got an acl */
+		/* We found an xattr, assume we've got an ACL. */
 		if (found_key.type == BTRFS_XATTR_ITEM_KEY) {
 			if (*first_xattr_slot == -1)
 				*first_xattr_slot = slot;
@@ -3769,8 +3773,8 @@ static noinline bool acls_after_inode_item(struct extent_buffer *leaf,
 		}
 
 		/*
-		 * we found a key greater than an xattr key, there can't
-		 * be any acls later on
+		 * We found a key greater than an xattr key, there can't be any
+		 * ACLs later on.
 		 */
 		if (found_key.type > BTRFS_XATTR_ITEM_KEY)
 			return false;
@@ -3779,17 +3783,22 @@ static noinline bool acls_after_inode_item(struct extent_buffer *leaf,
 		scanned++;
 
 		/*
-		 * it goes inode, inode backrefs, xattrs, extents,
-		 * so if there are a ton of hard links to an inode there can
-		 * be a lot of backrefs.  Don't waste time searching too hard,
-		 * this is just an optimization
+		 * The item order goes like:
+		 * - inode
+		 * - inode backrefs
+		 * - xattrs
+		 * - extents,
+		 *
+		 * so if there are lots of hard links to an inode there can be
+		 * a lot of backrefs.  Don't waste time searching too hard,
+		 * this is just an optimization.
 		 */
 		if (scanned >= 8)
 			break;
 	}
-	/* we hit the end of the leaf before we found an xattr or
-	 * something larger than an xattr.  We have to assume the inode
-	 * has acls
+	/*
+	 * We hit the end of the leaf before we found an xattr or something
+	 * larger than an xattr.  We have to assume the inode has ACLs.
 	 */
 	if (*first_xattr_slot == -1)
 		*first_xattr_slot = slot;
