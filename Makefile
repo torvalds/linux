@@ -2,7 +2,7 @@
 VERSION = 6
 PATCHLEVEL = 15
 SUBLEVEL = 0
-EXTRAVERSION = -rc1
+EXTRAVERSION = -rc2
 NAME = Baby Opossum Posse
 
 # *DOCUMENTATION*
@@ -1067,6 +1067,9 @@ KBUILD_CFLAGS  += -fno-stack-check
 ifdef CONFIG_CC_IS_GCC
 KBUILD_CFLAGS   += -fconserve-stack
 endif
+
+# Ensure compilers do not transform certain loops into calls to wcslen()
+KBUILD_CFLAGS += -fno-builtin-wcslen
 
 # change __FILE__ to the relative path to the source directory
 ifdef building_out_of_srctree

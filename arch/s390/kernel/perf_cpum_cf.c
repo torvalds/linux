@@ -442,7 +442,7 @@ static void cpum_cf_make_setsize(enum cpumf_ctr_set ctrset)
 			ctrset_size = 48;
 		else if (cpumf_ctr_info.csvn >= 3 && cpumf_ctr_info.csvn <= 5)
 			ctrset_size = 128;
-		else if (cpumf_ctr_info.csvn == 6 || cpumf_ctr_info.csvn == 7)
+		else if (cpumf_ctr_info.csvn >= 6 && cpumf_ctr_info.csvn <= 8)
 			ctrset_size = 160;
 		break;
 	case CPUMF_CTR_SET_MT_DIAG:
@@ -858,18 +858,13 @@ static int cpumf_pmu_event_type(struct perf_event *event)
 static int cpumf_pmu_event_init(struct perf_event *event)
 {
 	unsigned int type = event->attr.type;
-	int err;
+	int err = -ENOENT;
 
 	if (type == PERF_TYPE_HARDWARE || type == PERF_TYPE_RAW)
 		err = __hw_perf_event_init(event, type);
 	else if (event->pmu->type == type)
 		/* Registered as unknown PMU */
 		err = __hw_perf_event_init(event, cpumf_pmu_event_type(event));
-	else
-		return -ENOENT;
-
-	if (unlikely(err) && event->destroy)
-		event->destroy(event);
 
 	return err;
 }
@@ -1819,8 +1814,6 @@ static int cfdiag_event_init(struct perf_event *event)
 	event->destroy = hw_perf_event_destroy;
 
 	err = cfdiag_event_init2(event);
-	if (unlikely(err))
-		event->destroy(event);
 out:
 	return err;
 }

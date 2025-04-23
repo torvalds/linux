@@ -117,6 +117,8 @@ fail:
  */
 void sctp_transport_free(struct sctp_transport *transport)
 {
+	transport->dead = 1;
+
 	/* Try to delete the heartbeat timer.  */
 	if (timer_delete(&transport->hb_timer))
 		sctp_transport_put(transport);
