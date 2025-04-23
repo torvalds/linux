@@ -674,7 +674,7 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 	bool use_append = btrfs_use_zone_append(bbio);
 	struct btrfs_io_context *bioc = NULL;
 	struct btrfs_io_stripe smap;
-	blk_status_t ret;
+	blk_status_t status;
 	int error;
 
 	if (!bbio->inode || btrfs_is_data_reloc_root(inode->root))
@@ -686,7 +686,7 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 	error = btrfs_map_block(fs_info, btrfs_op(bio), logical, &map_length,
 				&bioc, &smap, &mirror_num);
 	if (error) {
-		ret = errno_to_blk_status(error);
+		status = errno_to_blk_status(error);
 		btrfs_bio_counter_dec(fs_info);
 		goto end_bbio;
 	}
@@ -700,7 +700,7 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 
 		split = btrfs_split_bio(fs_info, bbio, map_length);
 		if (IS_ERR(split)) {
-			ret = errno_to_blk_status(PTR_ERR(split));
+			status = errno_to_blk_status(PTR_ERR(split));
 			btrfs_bio_counter_dec(fs_info);
 			goto end_bbio;
 		}
@@ -715,8 +715,8 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 	if (bio_op(bio) == REQ_OP_READ && is_data_bbio(bbio)) {
 		bbio->saved_iter = bio->bi_iter;
 		error = btrfs_lookup_bio_sums(bbio);
-		ret = errno_to_blk_status(error);
-		if (ret)
+		status = errno_to_blk_status(error);
+		if (status)
 			goto fail;
 	}
 
@@ -749,14 +749,14 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 				goto done;
 
 			error = btrfs_bio_csum(bbio);
-			ret = errno_to_blk_status(error);
-			if (ret)
+			status = errno_to_blk_status(error);
+			if (status)
 				goto fail;
 		} else if (use_append ||
 			   (btrfs_is_zoned(fs_info) && inode &&
 			    inode->flags & BTRFS_INODE_NODATASUM)) {
-			ret = btrfs_alloc_dummy_sum(bbio);
-			if (ret)
+			status = btrfs_alloc_dummy_sum(bbio);
+			if (status)
 				goto fail;
 		}
 	}
@@ -777,10 +777,10 @@ fail:
 		ASSERT(bbio->bio.bi_pool == &btrfs_clone_bioset);
 		ASSERT(remaining);
 
-		btrfs_bio_end_io(remaining, ret);
+		btrfs_bio_end_io(remaining, status);
 	}
 end_bbio:
-	btrfs_bio_end_io(bbio, ret);
+	btrfs_bio_end_io(bbio, status);
 	/* Do not submit another chunk */
 	return true;
 }
