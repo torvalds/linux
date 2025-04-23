@@ -3,7 +3,7 @@
 
 #include <asm/config.h>
 
-#if defined(LKL_CONFIG_BIG_ENDIAN)
+#if defined(LKL_CONFIG_CPU_BIG_ENDIAN)
 #include <linux/byteorder/big_endian.h>
 #else
 #include <linux/byteorder/little_endian.h>

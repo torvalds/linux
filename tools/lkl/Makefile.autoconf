@@ -119,8 +119,9 @@ define nt_host
 endef
 
 define s390_host
-  $(call set_kernel_config_h,LKL_CONFIG_ENDIAN,1)
+  $(call set_kernel_config_h,LKL_CONFIG_CPU_BIG_ENDIAN,1)
   $(call set_kernel_config,BIG_ENDIAN,y)
+  $(call set_kernel_config,CPU_BIG_ENDIAN,y)
 endef
 
 define 64bit_host
@@ -296,7 +297,7 @@ define do_autoconf
   $(eval EXEC_FMT := $(shell echo $(LD_FMT) | cut -d "-" -f1))
   $(call set_kernel_config,OUTPUT_FORMAT,\"$(LD_FMT)\")
   $(if $(or $(filter $(EXEC_FMT),elf64),$(filter $(LD_FMT),pe-x86-64)),$(call 64bit_host))
-  $(if $(filter $(EXEC_FMT),elf64-s390),$(call s390_host))
+  $(if $(filter $(LD_FMT),elf64-s390),$(call s390_host))
   $(if $(filter $(EXEC_FMT),$(POSIX_HOSTS)),$(call posix_host,$(LD_FMT)))
   $(if $(filter $(EXEC_FMT),$(NT_HOSTS)),$(call nt_host,$(LD_FMT)))
   $(if $(and $(filter yes,$(kasan)),$(filter $(LD_FMT),$(KASAN_HOSTS))),$(call kasan_enable,$(LD_FMT)))
