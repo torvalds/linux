@@ -1224,6 +1224,10 @@ static void btrfs_async_reclaim_metadata_space(struct work_struct *work)
 	fs_info = container_of(work, struct btrfs_fs_info, async_reclaim_work);
 	space_info = btrfs_find_space_info(fs_info, BTRFS_BLOCK_GROUP_METADATA);
 	do_async_reclaim_metadata_space(space_info);
+	for (int i = 0; i < BTRFS_SPACE_INFO_SUB_GROUP_MAX; i++) {
+		if (space_info->sub_group[i])
+			do_async_reclaim_metadata_space(space_info->sub_group[i]);
+	}
 }
 
 /*
@@ -1452,6 +1456,9 @@ static void btrfs_async_reclaim_data_space(struct work_struct *work)
 	fs_info = container_of(work, struct btrfs_fs_info, async_data_reclaim_work);
 	space_info = fs_info->data_sinfo;
 	do_async_reclaim_data_space(space_info);
+	for (int i = 0; i < BTRFS_SPACE_INFO_SUB_GROUP_MAX; i++)
+		if (space_info->sub_group[i])
+			do_async_reclaim_data_space(space_info->sub_group[i]);
 }
 
 void btrfs_init_async_reclaim_work(struct btrfs_fs_info *fs_info)
