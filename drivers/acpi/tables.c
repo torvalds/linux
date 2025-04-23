@@ -719,8 +719,12 @@ int __init acpi_locate_initial_tables(void)
 	}
 
 	status = acpi_initialize_tables(initial_tables, ACPI_MAX_TABLES, 0);
-	if (ACPI_FAILURE(status))
+	if (ACPI_FAILURE(status)) {
+		const char *msg = acpi_format_exception(status);
+
+		pr_warn("Failed to initialize tables, status=0x%x (%s)", status, msg);
 		return -EINVAL;
+	}
 
 	return 0;
 }
