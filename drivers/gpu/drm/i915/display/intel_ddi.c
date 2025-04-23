@@ -36,6 +36,7 @@
 #include "i915_reg.h"
 #include "i915_utils.h"
 #include "icl_dsi.h"
+#include "intel_alpm.h"
 #include "intel_audio.h"
 #include "intel_audio_regs.h"
 #include "intel_backlight.h"
@@ -3554,6 +3555,7 @@ static void intel_ddi_disable_dp(struct intel_atomic_state *state,
 	intel_dp->link.active = false;
 
 	intel_psr_disable(intel_dp, old_crtc_state);
+	intel_alpm_disable(intel_dp);
 	intel_edp_backlight_off(old_conn_state);
 	/* Disable the decompression in DP Sink */
 	intel_dp_sink_disable_decompression(state,
