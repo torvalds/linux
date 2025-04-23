@@ -1188,8 +1188,8 @@ static void _find_current_opp(struct device *dev, struct opp_table *opp_table)
 	 */
 	if (IS_ERR(opp)) {
 		mutex_lock(&opp_table->lock);
-		opp = list_first_entry(&opp_table->opp_list, struct dev_pm_opp, node);
-		dev_pm_opp_get(opp);
+		opp = dev_pm_opp_get(list_first_entry(&opp_table->opp_list,
+						      struct dev_pm_opp, node));
 		mutex_unlock(&opp_table->lock);
 	}
 
@@ -1329,8 +1329,7 @@ static int _set_opp(struct device *dev, struct opp_table *opp_table,
 	dev_pm_opp_put(old_opp);
 
 	/* Make sure current_opp doesn't get freed */
-	dev_pm_opp_get(opp);
-	opp_table->current_opp = opp;
+	opp_table->current_opp = dev_pm_opp_get(opp);
 
 	return ret;
 }
@@ -1724,9 +1723,10 @@ static void _opp_kref_release(struct kref *kref)
 	kfree(opp);
 }
 
-void dev_pm_opp_get(struct dev_pm_opp *opp)
+struct dev_pm_opp *dev_pm_opp_get(struct dev_pm_opp *opp)
 {
 	kref_get(&opp->kref);
+	return opp;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_get);
 
@@ -2706,8 +2706,7 @@ struct dev_pm_opp *dev_pm_opp_xlate_required_opp(struct opp_table *src_table,
 
 			list_for_each_entry(opp, &src_table->opp_list, node) {
 				if (opp == src_opp) {
-					dest_opp = opp->required_opps[i];
-					dev_pm_opp_get(dest_opp);
+					dest_opp = dev_pm_opp_get(opp->required_opps[i]);
 					break;
 				}
 			}
