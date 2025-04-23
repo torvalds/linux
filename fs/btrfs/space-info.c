@@ -299,6 +299,11 @@ static int create_space_info(struct btrfs_fs_info *info, u64 flags)
 			ret = create_space_info_sub_group(space_info, flags,
 							  BTRFS_SUB_GROUP_DATA_RELOC,
 							  0);
+		else if (flags & BTRFS_BLOCK_GROUP_METADATA)
+			ret = create_space_info_sub_group(space_info, flags,
+							  BTRFS_SUB_GROUP_TREELOG,
+							  0);
+
 		if (ret)
 			return ret;
 	}
