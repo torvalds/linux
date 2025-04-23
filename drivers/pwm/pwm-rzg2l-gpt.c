@@ -270,15 +270,19 @@ static int rzg2l_gpt_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * prescale and period can NOT be modified when there are multiple IOs
 	 * in use with different settings.
 	 */
-	if (rzg2l_gpt->channel_request_count[ch] > 1 && period_ticks != rzg2l_gpt->period_ticks[ch])
-		return -EBUSY;
+	if (rzg2l_gpt->channel_request_count[ch] > 1) {
+		if (period_ticks < rzg2l_gpt->period_ticks[ch])
+			return -EBUSY;
+		else
+			period_ticks = rzg2l_gpt->period_ticks[ch];
+	}
 
 	prescale = rzg2l_gpt_calculate_prescale(rzg2l_gpt, period_ticks);
 	pv = rzg2l_gpt_calculate_pv_or_dc(period_ticks, prescale);
 
 	duty_ticks = mul_u64_u64_div_u64(state->duty_cycle, rzg2l_gpt->rate_khz, USEC_PER_SEC);
-	if (duty_ticks > RZG2L_MAX_TICKS)
-		duty_ticks = RZG2L_MAX_TICKS;
+	if (duty_ticks > period_ticks)
+		duty_ticks = period_ticks;
 	dc = rzg2l_gpt_calculate_pv_or_dc(duty_ticks, prescale);
 
 	/*
