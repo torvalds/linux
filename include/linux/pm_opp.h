@@ -100,7 +100,7 @@ struct dev_pm_opp_data {
 #if defined(CONFIG_PM_OPP)
 
 struct opp_table *dev_pm_opp_get_opp_table(struct device *dev);
-void dev_pm_opp_get_opp_table_ref(struct opp_table *opp_table);
+struct opp_table *dev_pm_opp_get_opp_table_ref(struct opp_table *opp_table);
 void dev_pm_opp_put_opp_table(struct opp_table *opp_table);
 
 unsigned long dev_pm_opp_get_bw(struct dev_pm_opp *opp, bool peak, int index);
@@ -207,7 +207,10 @@ static inline struct opp_table *dev_pm_opp_get_opp_table_indexed(struct device *
 	return ERR_PTR(-EOPNOTSUPP);
 }
 
-static inline void dev_pm_opp_get_opp_table_ref(struct opp_table *opp_table) {}
+static inline struct opp_table *dev_pm_opp_get_opp_table_ref(struct opp_table *opp_table)
+{
+	return opp_table;
+}
 
 static inline void dev_pm_opp_put_opp_table(struct opp_table *opp_table) {}
 

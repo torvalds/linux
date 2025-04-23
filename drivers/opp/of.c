@@ -60,10 +60,8 @@ struct opp_table *_managed_opp(struct device *dev, int index)
 			 * But the OPPs will be considered as shared only if the
 			 * OPP table contains a "opp-shared" property.
 			 */
-			if (opp_table->shared_opp == OPP_TABLE_ACCESS_SHARED) {
-				dev_pm_opp_get_opp_table_ref(opp_table);
-				managed_table = opp_table;
-			}
+			if (opp_table->shared_opp == OPP_TABLE_ACCESS_SHARED)
+				managed_table = dev_pm_opp_get_opp_table_ref(opp_table);
 
 			break;
 		}
@@ -405,8 +403,7 @@ static void lazy_link_required_opp_table(struct opp_table *new_table)
 				continue;
 			}
 
-			required_opp_tables[i] = new_table;
-			dev_pm_opp_get_opp_table_ref(new_table);
+			required_opp_tables[i] = dev_pm_opp_get_opp_table_ref(new_table);
 
 			/* Link OPPs now */
 			ret = lazy_link_required_opps(opp_table, new_table, i);
