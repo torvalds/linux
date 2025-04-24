@@ -52,7 +52,8 @@ static void iwl_mld_print_emlsr_blocked(struct iwl_mld *mld, u32 mask)
 	HOW(BT_COEX)			\
 	HOW(CHAN_LOAD)			\
 	HOW(RFI)			\
-	HOW(FW_REQUEST)
+	HOW(FW_REQUEST)			\
+	HOW(INVALID)
 
 static const char *
 iwl_mld_get_emlsr_exit_string(enum iwl_mld_emlsr_exit exit)
@@ -647,7 +648,7 @@ iwl_mld_emlsr_disallowed_with_link(struct iwl_mld *mld,
 
 	conf = wiphy_dereference(wiphy, vif->link_conf[link->link_id]);
 	if (WARN_ON_ONCE(!conf))
-		return false;
+		return IWL_MLD_EMLSR_EXIT_INVALID;
 
 	if (link->chandef->chan->band == NL80211_BAND_2GHZ && mld->bt_is_active)
 		ret |= IWL_MLD_EMLSR_EXIT_BT_COEX;

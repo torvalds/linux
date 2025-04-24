@@ -59,6 +59,7 @@ enum iwl_mld_emlsr_blocked {
  *	loaded enough to justify EMLSR.
  * @IWL_MLD_EMLSR_EXIT_RFI: Exit EMLSR due to RFI
  * @IWL_MLD_EMLSR_EXIT_FW_REQUEST: Exit EMLSR because the FW requested it
+ * @IWL_MLD_EMLSR_EXIT_INVALID: internal exit reason due to invalid data
  */
 enum iwl_mld_emlsr_exit {
 	IWL_MLD_EMLSR_EXIT_BLOCK		= 0x1,
@@ -72,6 +73,7 @@ enum iwl_mld_emlsr_exit {
 	IWL_MLD_EMLSR_EXIT_CHAN_LOAD		= 0x100,
 	IWL_MLD_EMLSR_EXIT_RFI			= 0x200,
 	IWL_MLD_EMLSR_EXIT_FW_REQUEST		= 0x400,
+	IWL_MLD_EMLSR_EXIT_INVALID		= 0x800,
 };
 
 /**
