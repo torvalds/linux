@@ -467,12 +467,18 @@ static void iwl_mld_fill_chanctx_stats(struct ieee80211_hw *hw,
 
 	old_load = phy->avg_channel_load_not_by_us;
 	new_load = le32_to_cpu(per_phy[phy->fw_id].channel_load_not_by_us);
-	if (IWL_FW_CHECK(phy->mld, new_load > 100, "Invalid channel load %u\n",
-			 new_load))
+
+	if (IWL_FW_CHECK(phy->mld,
+			 new_load != IWL_STATS_UNKNOWN_CHANNEL_LOAD &&
+				new_load > 100,
+			 "Invalid channel load %u\n", new_load))
 		return;
 
-	/* give a weight of 0.5 for the old value */
-	phy->avg_channel_load_not_by_us = (new_load >> 1) + (old_load >> 1);
+	if (new_load != IWL_STATS_UNKNOWN_CHANNEL_LOAD) {
+		/* update giving a weight of 0.5 for the old value */
+		phy->avg_channel_load_not_by_us = (new_load >> 1) +
+						  (old_load >> 1);
+	}
 
 	iwl_mld_emlsr_check_chan_load(hw, phy, old_load);
 }
