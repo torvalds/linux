@@ -2111,7 +2111,7 @@ static inline bool folio_maybe_mapped_shared(struct folio *folio)
 	 */
 	if (mapcount <= 1)
 		return false;
-	return folio_test_large_maybe_mapped_shared(folio);
+	return test_bit(FOLIO_MM_IDS_SHARED_BITNUM, &folio->_mm_ids);
 }
 
 #ifndef HAVE_ARCH_MAKE_FOLIO_ACCESSIBLE

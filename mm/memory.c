@@ -3768,7 +3768,7 @@ static bool __wp_can_reuse_large_anon_folio(struct folio *folio,
 	 * If all folio references are from mappings, and all mappings are in
 	 * the page tables of this MM, then this folio is exclusive to this MM.
 	 */
-	if (folio_test_large_maybe_mapped_shared(folio))
+	if (test_bit(FOLIO_MM_IDS_SHARED_BITNUM, &folio->_mm_ids))
 		return false;
 
 	VM_WARN_ON_ONCE(folio_test_ksm(folio));
@@ -3791,7 +3791,7 @@ static bool __wp_can_reuse_large_anon_folio(struct folio *folio,
 	folio_lock_large_mapcount(folio);
 	VM_WARN_ON_ONCE_FOLIO(folio_large_mapcount(folio) > folio_ref_count(folio), folio);
 
-	if (folio_test_large_maybe_mapped_shared(folio))
+	if (test_bit(FOLIO_MM_IDS_SHARED_BITNUM, &folio->_mm_ids))
 		goto unlock;
 	if (folio_large_mapcount(folio) != folio_ref_count(folio))
 		goto unlock;
