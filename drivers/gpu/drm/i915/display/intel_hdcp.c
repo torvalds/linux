@@ -254,7 +254,7 @@ static bool intel_hdcp2_prerequisite(struct intel_connector *connector)
 
 	/* If MTL+ make sure gsc is loaded and proxy is setup */
 	if (USE_HDCP_GSC(display)) {
-		if (!intel_hdcp_gsc_check_status(display))
+		if (!intel_hdcp_gsc_check_status(display->drm))
 			return false;
 	}
 

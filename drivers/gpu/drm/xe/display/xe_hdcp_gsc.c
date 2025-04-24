@@ -30,9 +30,9 @@ struct intel_hdcp_gsc_context {
 
 #define HDCP_GSC_HEADER_SIZE sizeof(struct intel_gsc_mtl_header)
 
-bool intel_hdcp_gsc_check_status(struct intel_display *display)
+bool intel_hdcp_gsc_check_status(struct drm_device *drm)
 {
-	struct xe_device *xe = to_xe_device(display->drm);
+	struct xe_device *xe = to_xe_device(drm);
 	struct xe_tile *tile = xe_device_get_root_tile(xe);
 	struct xe_gt *gt = tile->media_gt;
 	struct xe_gsc *gsc = &gt->uc.gsc;
@@ -64,10 +64,9 @@ out:
 }
 
 /*This function helps allocate memory for the command that we will send to gsc cs */
-static int intel_hdcp_gsc_initialize_message(struct intel_display *display,
+static int intel_hdcp_gsc_initialize_message(struct xe_device *xe,
 					     struct intel_hdcp_gsc_context *gsc_context)
 {
-	struct xe_device *xe = to_xe_device(display->drm);
 	struct xe_bo *bo = NULL;
 	u64 cmd_in, cmd_out;
 	int ret = 0;
@@ -79,7 +78,7 @@ static int intel_hdcp_gsc_initialize_message(struct intel_display *display,
 				  XE_BO_FLAG_GGTT);
 
 	if (IS_ERR(bo)) {
-		drm_err(display->drm, "Failed to allocate bo for HDCP streaming command!\n");
+		drm_err(&xe->drm, "Failed to allocate bo for HDCP streaming command!\n");
 		ret = PTR_ERR(bo);
 		goto out;
 	}
@@ -97,8 +96,9 @@ out:
 	return ret;
 }
 
-struct intel_hdcp_gsc_context *intel_hdcp_gsc_context_alloc(struct intel_display *display)
+struct intel_hdcp_gsc_context *intel_hdcp_gsc_context_alloc(struct drm_device *drm)
 {
+	struct xe_device *xe = to_xe_device(drm);
 	struct intel_hdcp_gsc_context *gsc_context;
 	int ret;
 
@@ -110,9 +110,9 @@ struct intel_hdcp_gsc_context *intel_hdcp_gsc_context_alloc(struct intel_display
 	 * NOTE: No need to lock the comp mutex here as it is already
 	 * going to be taken before this function called
 	 */
-	ret = intel_hdcp_gsc_initialize_message(display, gsc_context);
+	ret = intel_hdcp_gsc_initialize_message(xe, gsc_context);
 	if (ret) {
-		drm_err(display->drm, "Could not initialize gsc_context\n");
+		drm_err(&xe->drm, "Could not initialize gsc_context\n");
 		kfree(gsc_context);
 		gsc_context = ERR_PTR(ret);
 	}

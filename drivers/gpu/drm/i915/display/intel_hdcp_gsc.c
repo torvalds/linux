@@ -19,14 +19,14 @@ struct intel_hdcp_gsc_context {
 	void *hdcp_cmd_out;
 };
 
-bool intel_hdcp_gsc_check_status(struct intel_display *display)
+bool intel_hdcp_gsc_check_status(struct drm_device *drm)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
+	struct drm_i915_private *i915 = to_i915(drm);
 	struct intel_gt *gt = i915->media_gt;
 	struct intel_gsc_uc *gsc = gt ? &gt->uc.gsc : NULL;
 
 	if (!gsc || !intel_uc_fw_is_running(&gsc->fw)) {
-		drm_dbg_kms(display->drm,
+		drm_dbg_kms(&i915->drm,
 			    "GSC components required for HDCP2.2 are not ready\n");
 		return false;
 	}
@@ -87,9 +87,9 @@ out_unpin:
 	return err;
 }
 
-struct intel_hdcp_gsc_context *intel_hdcp_gsc_context_alloc(struct intel_display *display)
+struct intel_hdcp_gsc_context *intel_hdcp_gsc_context_alloc(struct drm_device *drm)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
+	struct drm_i915_private *i915 = to_i915(drm);
 	struct intel_hdcp_gsc_context *gsc_context;
 	int ret;
 
@@ -103,7 +103,7 @@ struct intel_hdcp_gsc_context *intel_hdcp_gsc_context_alloc(struct intel_display
 	 */
 	ret = intel_hdcp_gsc_initialize_message(i915, gsc_context);
 	if (ret) {
-		drm_err(display->drm, "Could not initialize gsc_context\n");
+		drm_err(&i915->drm, "Could not initialize gsc_context\n");
 		kfree(gsc_context);
 		gsc_context = ERR_PTR(ret);
 	}

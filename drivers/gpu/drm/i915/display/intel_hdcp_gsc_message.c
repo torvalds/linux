@@ -645,7 +645,7 @@ int intel_hdcp_gsc_init(struct intel_display *display)
 
 	mutex_lock(&display->hdcp.hdcp_mutex);
 
-	gsc_context = intel_hdcp_gsc_context_alloc(display);
+	gsc_context = intel_hdcp_gsc_context_alloc(display->drm);
 	if (IS_ERR(gsc_context)) {
 		ret = PTR_ERR(gsc_context);
 		kfree(arbiter);
