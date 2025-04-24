@@ -61,7 +61,7 @@ struct opp_table *_managed_opp(struct device *dev, int index)
 			 * OPP table contains a "opp-shared" property.
 			 */
 			if (opp_table->shared_opp == OPP_TABLE_ACCESS_SHARED) {
-				_get_opp_table_kref(opp_table);
+				dev_pm_opp_get_opp_table_ref(opp_table);
 				managed_table = opp_table;
 			}
 
@@ -117,7 +117,7 @@ static struct opp_table *_find_table_of_opp_np(struct device_node *opp_np)
 	mutex_lock(&opp_table_lock);
 	list_for_each_entry(opp_table, &opp_tables, node) {
 		if (opp_table_np == opp_table->np) {
-			_get_opp_table_kref(opp_table);
+			dev_pm_opp_get_opp_table_ref(opp_table);
 			mutex_unlock(&opp_table_lock);
 			return opp_table;
 		}
@@ -406,7 +406,7 @@ static void lazy_link_required_opp_table(struct opp_table *new_table)
 			}
 
 			required_opp_tables[i] = new_table;
-			_get_opp_table_kref(new_table);
+			dev_pm_opp_get_opp_table_ref(new_table);
 
 			/* Link OPPs now */
 			ret = lazy_link_required_opps(opp_table, new_table, i);

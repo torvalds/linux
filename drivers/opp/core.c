@@ -59,7 +59,7 @@ static struct opp_table *_find_opp_table_unlocked(struct device *dev)
 
 	list_for_each_entry(opp_table, &opp_tables, node) {
 		if (_find_opp_dev(dev, opp_table)) {
-			_get_opp_table_kref(opp_table);
+			dev_pm_opp_get_opp_table_ref(opp_table);
 			return opp_table;
 		}
 	}
@@ -1688,14 +1688,9 @@ static void _opp_table_kref_release(struct kref *kref)
 	kfree(opp_table);
 }
 
-void _get_opp_table_kref(struct opp_table *opp_table)
-{
-	kref_get(&opp_table->kref);
-}
-
 void dev_pm_opp_get_opp_table_ref(struct opp_table *opp_table)
 {
-	_get_opp_table_kref(opp_table);
+	kref_get(&opp_table->kref);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_opp_table_ref);
 
