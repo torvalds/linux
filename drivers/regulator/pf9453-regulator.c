@@ -214,7 +214,7 @@ static const struct regmap_config pf9453_regmap_config = {
 	.val_bits = 8,
 	.volatile_table = &pf9453_volatile_regs,
 	.max_register = PF9453_MAX_REG - 1,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 /*
