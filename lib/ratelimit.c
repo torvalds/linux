@@ -33,7 +33,7 @@ int ___ratelimit(struct ratelimit_state *rs, const char *func)
 	int interval = READ_ONCE(rs->interval);
 	int burst = READ_ONCE(rs->burst);
 	unsigned long flags;
-	int ret;
+	int ret = 0;
 
 	/*
 	 * Zero interval says never limit, otherwise, non-positive burst
@@ -51,8 +51,6 @@ int ___ratelimit(struct ratelimit_state *rs, const char *func)
 
 		/* Force re-initialization once re-enabled. */
 		rs->flags &= ~RATELIMIT_INITIALIZED;
-		if (!ret)
-			ratelimit_state_inc_miss(rs);
 		goto unlock_ret;
 	}
 
@@ -110,18 +108,16 @@ int ___ratelimit(struct ratelimit_state *rs, const char *func)
 
 		if (n_left > 0) {
 			n_left = atomic_dec_return(&rs->rs_n_left);
-			if (n_left >= 0) {
+			if (n_left >= 0)
 				ret = 1;
-				goto unlock_ret;
-			}
 		}
 	}
 
-	ratelimit_state_inc_miss(rs);
-	ret = 0;
-
 unlock_ret:
 	raw_spin_unlock_irqrestore(&rs->lock, flags);
+
+	if (!ret)
+		ratelimit_state_inc_miss(rs);
 
 	return ret;
 }
