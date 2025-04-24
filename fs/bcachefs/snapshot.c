@@ -1743,10 +1743,6 @@ int bch2_snapshots_read(struct bch_fs *c)
 	BUG_ON(!test_bit(BCH_FS_new_fs, &c->flags) &&
 	       test_bit(BCH_FS_may_go_rw, &c->flags));
 
-	if (bch2_err_matches(ret, EIO) ||
-	    (c->sb.btrees_lost_data & BIT_ULL(BTREE_ID_snapshots)))
-		ret = bch2_run_explicit_recovery_pass_persistent(c, BCH_RECOVERY_PASS_reconstruct_snapshots);
-
 	return ret;
 }
 

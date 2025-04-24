@@ -95,6 +95,10 @@ int bch2_btree_lost_data(struct bch_fs *c, enum btree_id btree)
 	case BTREE_ID_accounting:
 		ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_check_allocations) ?: ret;
 		goto out;
+	case BTREE_ID_snapshots:
+		ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_reconstruct_snapshots) ?: ret;
+		ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_scan_for_btree_nodes) ?: ret;
+		goto out;
 	default:
 		ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_scan_for_btree_nodes) ?: ret;
 		goto out;
