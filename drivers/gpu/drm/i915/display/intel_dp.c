@@ -3104,6 +3104,76 @@ intel_dp_queue_modeset_retry_for_link(struct intel_atomic_state *state,
 	}
 }
 
+int intel_dp_compute_min_hblank(struct intel_crtc_state *crtc_state,
+				const struct drm_connector_state *conn_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	const struct drm_display_mode *adjusted_mode =
+					&crtc_state->hw.adjusted_mode;
+	struct intel_connector *connector = to_intel_connector(conn_state->connector);
+	int symbol_size = intel_dp_is_uhbr(crtc_state) ? 32 : 8;
+	/*
+	 * min symbol cycles is 3(BS,VBID, BE) for 128b/132b and
+	 * 5(BS, VBID, MVID, MAUD, BE) for 8b/10b
+	 */
+	int min_sym_cycles = intel_dp_is_uhbr(crtc_state) ? 3 : 5;
+	bool is_mst = intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST);
+	int num_joined_pipes = intel_crtc_num_joined_pipes(crtc_state);
+	int min_hblank;
+	int max_lane_count = 4;
+	int hactive_sym_cycles, htotal_sym_cycles;
+	int dsc_slices = 0;
+	int link_bpp_x16;
+
+	if (DISPLAY_VER(display) < 30)
+		return 0;
+
+	/* MIN_HBLANK should be set only for 8b/10b MST or for 128b/132b SST/MST */
+	if (!is_mst && !intel_dp_is_uhbr(crtc_state))
+		return 0;
+
+	if (crtc_state->dsc.compression_enable) {
+		dsc_slices = intel_dp_dsc_get_slice_count(connector,
+							  adjusted_mode->crtc_clock,
+							  adjusted_mode->crtc_hdisplay,
+							  num_joined_pipes);
+		if (!dsc_slices) {
+			drm_dbg(display->drm, "failed to calculate dsc slice count\n");
+			return -EINVAL;
+		}
+	}
+
+	if (crtc_state->dsc.compression_enable)
+		link_bpp_x16 = crtc_state->dsc.compressed_bpp_x16;
+	else
+		link_bpp_x16 = fxp_q4_from_int(intel_dp_output_bpp(crtc_state->output_format,
+								   crtc_state->pipe_bpp));
+
+	/* Calculate min Hblank Link Layer Symbol Cycle Count for 8b/10b MST & 128b/132b */
+	hactive_sym_cycles = drm_dp_link_symbol_cycles(max_lane_count,
+						       adjusted_mode->hdisplay,
+						       dsc_slices,
+						       link_bpp_x16,
+						       symbol_size, is_mst);
+	htotal_sym_cycles = adjusted_mode->htotal * hactive_sym_cycles /
+			     adjusted_mode->hdisplay;
+
+	min_hblank = htotal_sym_cycles - hactive_sym_cycles;
+	/* minimum Hblank calculation: https://groups.vesa.org/wg/DP/document/20494 */
+	min_hblank = max(min_hblank, min_sym_cycles);
+
+	/*
+	 * adjust the BlankingStart/BlankingEnd framing control from
+	 * the calculated value
+	 */
+	min_hblank = min_hblank - 2;
+
+	min_hblank = min(10, min_hblank);
+	crtc_state->min_hblank = min_hblank;
+
+	return 0;
+}
+
 int
 intel_dp_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_state *pipe_config,
@@ -3202,6 +3272,10 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 				       intel_dp_bw_fec_overhead(pipe_config->fec_enable),
 				       &pipe_config->dp_m_n);
 	}
+
+	ret = intel_dp_compute_min_hblank(pipe_config, conn_state);
+	if (ret)
+		return ret;
 
 	/* FIXME: abstract this better */
 	if (pipe_config->splitter.enable)
