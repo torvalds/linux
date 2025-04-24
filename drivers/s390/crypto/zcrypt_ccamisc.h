@@ -208,15 +208,6 @@ int cca_query_crypto_facility(u16 cardnr, u16 domain,
 			      u8 *varray, size_t *varraylen);
 
 /*
- * Search for a matching crypto card based on the Master Key
- * Verification Pattern provided inside a secure key.
- * Works with CCA AES data and cipher keys.
- * Returns < 0 on failure, 0 if CURRENT MKVP matches and
- * 1 if OLD MKVP matches.
- */
-int cca_findcard(const u8 *key, u16 *pcardnr, u16 *pdomain, int verify);
-
-/*
  * Build a list of cca apqns meeting the following constrains:
  * - apqn is online and is in fact a CCA apqn
  * - if cardnr is not FFFF only apqns with this cardnr
