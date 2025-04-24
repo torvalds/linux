@@ -141,13 +141,13 @@ static int __bch2_run_explicit_recovery_pass(struct printbuf *out,
 	if (pass < BCH_RECOVERY_PASS_set_may_go_rw &&
 	    c->curr_recovery_pass >= BCH_RECOVERY_PASS_set_may_go_rw) {
 		if (print)
-			prt_printf(out, "need recovery pass %s (%u), but already rw",
+			prt_printf(out, "need recovery pass %s (%u), but already rw\n",
 				   bch2_recovery_passes[pass], pass);
 		return -BCH_ERR_cannot_rewind_recovery;
 	}
 
 	if (print)
-		prt_printf(out, "running explicit recovery pass %s (%u), currently at %s (%u)",
+		prt_printf(out, "running explicit recovery pass %s (%u), currently at %s (%u)\n",
 			   bch2_recovery_passes[pass], pass,
 			   bch2_recovery_passes[c->curr_recovery_pass], c->curr_recovery_pass);
 
@@ -194,14 +194,15 @@ int bch2_run_explicit_recovery_pass(struct bch_fs *c,
 }
 
 int bch2_run_explicit_recovery_pass_persistent(struct bch_fs *c,
-					       enum bch_recovery_pass pass)
+						struct printbuf *out,
+						enum bch_recovery_pass pass)
 {
 	lockdep_assert_held(&c->sb_lock);
 
 	struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
 	__set_bit_le64(bch2_recovery_pass_to_stable(pass), ext->recovery_passes_required);
 
-	return bch2_run_explicit_recovery_pass(c, pass);
+	return bch2_run_explicit_recovery_pass_printbuf(c, out, pass);
 }
 
 static void bch2_clear_recovery_pass_required(struct bch_fs *c,
