@@ -1656,7 +1656,7 @@ bool dc_wake_and_execute_gpint(const struct dc_context *ctx, enum dmub_gpint_com
 	return result;
 }
 
-void dc_dmub_srv_fams2_update_config(struct dc *dc,
+static void dc_dmub_srv_rb_based_fams2_update_config(struct dc *dc,
 		struct dc_state *context,
 		bool enable)
 {
@@ -1720,6 +1720,63 @@ void dc_dmub_srv_fams2_update_config(struct dc *dc,
 	}
 
 	dm_execute_dmub_cmd_list(dc->ctx, num_cmds, cmd, DM_DMUB_WAIT_TYPE_WAIT);
+}
+
+static void dc_dmub_srv_ib_based_fams2_update_config(struct dc *dc,
+		struct dc_state *context,
+		bool enable)
+{
+	struct dmub_fams2_config_v2 *config = (struct dmub_fams2_config_v2 *)dc->ctx->dmub_srv->dmub->ib_mem_gart.cpu_addr;
+	union dmub_rb_cmd cmd;
+	uint32_t i;
+
+	memset(config, 0, sizeof(*config));
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.ib_fams2_config.header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
+	cmd.ib_fams2_config.header.sub_type = DMUB_CMD__FAMS2_IB_CONFIG;
+
+	cmd.ib_fams2_config.ib_data.src.quad_part = dc->ctx->dmub_srv->dmub->ib_mem_gart.gpu_addr;
+	cmd.ib_fams2_config.ib_data.size = sizeof(*config);
+
+	if (enable && context->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable) {
+		/* copy static feature configuration overrides */
+		config->global.features.bits.enable_stall_recovery = dc->debug.fams2_config.bits.enable_stall_recovery;
+		config->global.features.bits.enable_offload_flip = dc->debug.fams2_config.bits.enable_offload_flip;
+		config->global.features.bits.enable_debug = dc->debug.fams2_config.bits.enable_debug;
+
+		/* send global configuration parameters */
+		memcpy(&config->global, &context->bw_ctx.bw.dcn.fams2_global_config,
+			sizeof(struct dmub_cmd_fams2_global_config));
+
+		/* construct per-stream configs */
+		for (i = 0; i < context->bw_ctx.bw.dcn.fams2_global_config.num_streams; i++) {
+			/* copy stream static base state */
+			memcpy(&config->stream_v1[i].base,
+				&context->bw_ctx.bw.dcn.fams2_stream_base_params[i],
+				sizeof(config->stream_v1[i].base));
+
+			/* copy stream static sub-state */
+			memcpy(&config->stream_v1[i].sub_state,
+				&context->bw_ctx.bw.dcn.fams2_stream_sub_params[i],
+				sizeof(config->stream_v1[i].sub_state));
+		}
+	}
+
+	config->global.features.bits.enable_visual_confirm = dc->debug.visual_confirm == VISUAL_CONFIRM_FAMS2;
+	config->global.features.bits.enable = enable;
+
+	dm_execute_dmub_cmd_list(dc->ctx, 1, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+}
+
+void dc_dmub_srv_fams2_update_config(struct dc *dc,
+		struct dc_state *context,
+		bool enable)
+{
+	if (dc->debug.fams_version.major == 2)
+		dc_dmub_srv_rb_based_fams2_update_config(dc, context, enable);
+	if (dc->debug.fams_version.major == 3)
+		dc_dmub_srv_ib_based_fams2_update_config(dc, context, enable);
 }
 
 void dc_dmub_srv_fams2_drr_update(struct dc *dc,

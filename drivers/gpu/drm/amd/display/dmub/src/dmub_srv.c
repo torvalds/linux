@@ -65,6 +65,9 @@
 /* Default scratch mem size. */
 #define DMUB_SCRATCH_MEM_SIZE (1024)
 
+/* Default indirect buffer size. */
+#define DMUB_IB_MEM_SIZE (1280)
+
 /* Number of windows in use. */
 #define DMUB_NUM_WINDOWS (DMUB_WINDOW_TOTAL)
 /* Base addresses. */
@@ -559,6 +562,7 @@ enum dmub_status
 	window_sizes[DMUB_WINDOW_5_TRACEBUFF] = trace_buffer_size;
 	window_sizes[DMUB_WINDOW_6_FW_STATE] = fw_state_size;
 	window_sizes[DMUB_WINDOW_7_SCRATCH_MEM] = DMUB_SCRATCH_MEM_SIZE;
+	window_sizes[DMUB_WINDOW_IB_MEM] = DMUB_IB_MEM_SIZE;
 	window_sizes[DMUB_WINDOW_SHARED_STATE] = max(DMUB_FW_HEADER_SHARED_STATE_SIZE, shared_state_size);
 
 	out->fb_size =
@@ -645,6 +649,7 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 	struct dmub_fb *tracebuff_fb = params->fb[DMUB_WINDOW_5_TRACEBUFF];
 	struct dmub_fb *fw_state_fb = params->fb[DMUB_WINDOW_6_FW_STATE];
 	struct dmub_fb *scratch_mem_fb = params->fb[DMUB_WINDOW_7_SCRATCH_MEM];
+	struct dmub_fb *ib_mem_gart = params->fb[DMUB_WINDOW_IB_MEM];
 	struct dmub_fb *shared_state_fb = params->fb[DMUB_WINDOW_SHARED_STATE];
 
 	struct dmub_rb_init_params rb_params, outbox0_rb_params;
@@ -655,7 +660,7 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		return DMUB_STATUS_INVALID;
 
 	if (!inst_fb || !stack_fb || !data_fb || !bios_fb || !mail_fb ||
-		!tracebuff_fb || !fw_state_fb || !scratch_mem_fb) {
+		!tracebuff_fb || !fw_state_fb || !scratch_mem_fb || !ib_mem_gart) {
 		ASSERT(0);
 		return DMUB_STATUS_INVALID;
 	}
@@ -740,6 +745,8 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 	dmub->shared_state = shared_state_fb->cpu_addr;
 
 	dmub->scratch_mem_fb = *scratch_mem_fb;
+
+	dmub->ib_mem_gart = *ib_mem_gart;
 
 	if (dmub->hw_funcs.setup_windows)
 		dmub->hw_funcs.setup_windows(dmub, &cw2, &cw3, &cw4, &cw5, &cw6, &region6);
