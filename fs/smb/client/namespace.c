@@ -283,7 +283,6 @@ struct vfsmount *cifs_d_automount(struct path *path)
 		return newmnt;
 	}
 
-	mntget(newmnt); /* prevent immediate expiration */
 	mnt_set_expiry(newmnt, &cifs_automount_list);
 	schedule_delayed_work(&cifs_automount_task,
 			      cifs_mountpoint_expiry_timeout);

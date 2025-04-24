@@ -1203,3 +1203,10 @@ should use d_drop();d_splice_alias() and return the result of the latter.
 If a positive dentry cannot be returned for some reason, in-kernel
 clients such as cachefiles, nfsd, smb/server may not perform ideally but
 will fail-safe.
+
+---
+
+**mandatory**
+
+Calling conventions for ->d_automount() have changed; we should *not* grab
+an extra reference to new mount - it should be returned with refcount 1.

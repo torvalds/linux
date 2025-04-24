@@ -319,9 +319,6 @@ static struct vfsmount *fuse_dentry_automount(struct path *path)
 
 	/* Create the submount */
 	mnt = fc_mount(fsc);
-	if (!IS_ERR(mnt))
-		mntget(mnt);
-
 	put_fs_context(fsc);
 	return mnt;
 }

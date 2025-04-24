@@ -3902,10 +3902,6 @@ int finish_automount(struct vfsmount *m, const struct path *path)
 		return PTR_ERR(m);
 
 	mnt = real_mount(m);
-	/* The new mount record should have at least 2 refs to prevent it being
-	 * expired before we get a chance to add it
-	 */
-	BUG_ON(mnt_get_count(mnt) < 2);
 
 	if (m->mnt_sb == path->mnt->mnt_sb &&
 	    m->mnt_root == dentry) {
@@ -3938,7 +3934,6 @@ int finish_automount(struct vfsmount *m, const struct path *path)
 	unlock_mount(mp);
 	if (unlikely(err))
 		goto discard;
-	mntput(m);
 	return 0;
 
 discard_locked:
@@ -3951,7 +3946,6 @@ discard:
 		list_del_init(&mnt->mnt_expire);
 		namespace_unlock();
 	}
-	mntput(m);
 	mntput(m);
 	return err;
 }
@@ -3989,11 +3983,14 @@ void mark_mounts_for_expiry(struct list_head *mounts)
 
 	/* extract from the expiration list every vfsmount that matches the
 	 * following criteria:
+	 * - already mounted
 	 * - only referenced by its parent vfsmount
 	 * - still marked for expiry (marked on the last call here; marks are
 	 *   cleared by mntput())
 	 */
 	list_for_each_entry_safe(mnt, next, mounts, mnt_expire) {
+		if (!is_mounted(&mnt->mnt))
+			continue;
 		if (!xchg(&mnt->mnt_expiry_mark, 1) ||
 			propagate_mount_busy(mnt, 1))
 			continue;
