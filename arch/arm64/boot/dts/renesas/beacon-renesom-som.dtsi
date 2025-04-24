@@ -300,7 +300,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	brcmf: bcrmf@1 {
+	brcmf: wifi@1 {
 		reg = <1>;
 		compatible = "brcm,bcm4329-fmac";
 		interrupts-extended = <&gpio1 27 IRQ_TYPE_LEVEL_LOW>;
