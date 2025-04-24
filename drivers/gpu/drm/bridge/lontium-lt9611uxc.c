@@ -775,9 +775,9 @@ static int lt9611uxc_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	lt9611uxc = devm_kzalloc(dev, sizeof(*lt9611uxc), GFP_KERNEL);
-	if (!lt9611uxc)
-		return -ENOMEM;
+	lt9611uxc = devm_drm_bridge_alloc(dev, struct lt9611uxc, bridge, &lt9611uxc_bridge_funcs);
+	if (IS_ERR(lt9611uxc))
+		return PTR_ERR(lt9611uxc);
 
 	lt9611uxc->dev = dev;
 	lt9611uxc->client = client;
@@ -856,7 +856,6 @@ retry:
 
 	i2c_set_clientdata(client, lt9611uxc);
 
-	lt9611uxc->bridge.funcs = &lt9611uxc_bridge_funcs;
 	lt9611uxc->bridge.of_node = client->dev.of_node;
 	lt9611uxc->bridge.ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID;
 	if (lt9611uxc->hpd_supported)
