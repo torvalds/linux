@@ -7485,6 +7485,7 @@ static void ath12k_mac_op_tx(struct ieee80211_hw *hw,
 	struct ath12k_peer *peer;
 	unsigned long links_map;
 	bool is_mcast = false;
+	bool is_dvlan = false;
 	struct ethhdr *eth;
 	bool is_prb_rsp;
 	u16 mcbc_gsn;
@@ -7550,7 +7551,14 @@ static void ath12k_mac_op_tx(struct ieee80211_hw *hw,
 	if (vif->type == NL80211_IFTYPE_AP && vif->p2p)
 		ath12k_mac_add_p2p_noa_ie(ar, vif, skb, is_prb_rsp);
 
-	if (!vif->valid_links || !is_mcast ||
+	/* Checking if it is a DVLAN frame */
+	if (!test_bit(ATH12K_FLAG_HW_CRYPTO_DISABLED, &ar->ab->dev_flags) &&
+	    !(skb_cb->flags & ATH12K_SKB_HW_80211_ENCAP) &&
+	    !(skb_cb->flags & ATH12K_SKB_CIPHER_SET) &&
+	    ieee80211_has_protected(hdr->frame_control))
+		is_dvlan = true;
+
+	if (!vif->valid_links || !is_mcast || is_dvlan ||
 	    test_bit(ATH12K_FLAG_RAW_MODE, &ar->ab->dev_flags)) {
 		ret = ath12k_dp_tx(ar, arvif, skb, false, 0, is_mcast);
 		if (unlikely(ret)) {
