@@ -83,13 +83,11 @@ nouveau_local_fence(struct dma_fence *fence, struct nouveau_drm *drm)
 void
 nouveau_fence_context_kill(struct nouveau_fence_chan *fctx, int error)
 {
-	struct nouveau_fence *fence;
+	struct nouveau_fence *fence, *tmp;
 	unsigned long flags;
 
 	spin_lock_irqsave(&fctx->lock, flags);
-	while (!list_empty(&fctx->pending)) {
-		fence = list_entry(fctx->pending.next, typeof(*fence), head);
-
+	list_for_each_entry_safe(fence, tmp, &fctx->pending, head) {
 		if (error && !dma_fence_is_signaled_locked(&fence->base))
 			dma_fence_set_error(&fence->base, error);
 
@@ -130,13 +128,11 @@ nouveau_fence_context_free(struct nouveau_fence_chan *fctx)
 static int
 nouveau_fence_update(struct nouveau_channel *chan, struct nouveau_fence_chan *fctx)
 {
-	struct nouveau_fence *fence;
+	struct nouveau_fence *fence, *tmp;
 	int drop = 0;
 	u32 seq = fctx->read(chan);
 
-	while (!list_empty(&fctx->pending)) {
-		fence = list_entry(fctx->pending.next, typeof(*fence), head);
-
+	list_for_each_entry_safe(fence, tmp, &fctx->pending, head) {
 		if ((int)(seq - fence->base.seqno) < 0)
 			break;
 
@@ -151,15 +147,14 @@ nouveau_fence_uevent_work(struct work_struct *work)
 {
 	struct nouveau_fence_chan *fctx = container_of(work, struct nouveau_fence_chan,
 						       uevent_work);
+	struct nouveau_channel *chan;
+	struct nouveau_fence *fence;
 	unsigned long flags;
 	int drop = 0;
 
 	spin_lock_irqsave(&fctx->lock, flags);
-	if (!list_empty(&fctx->pending)) {
-		struct nouveau_fence *fence;
-		struct nouveau_channel *chan;
-
-		fence = list_entry(fctx->pending.next, typeof(*fence), head);
+	fence = list_first_entry_or_null(&fctx->pending, typeof(*fence), head);
+	if (fence) {
 		chan = rcu_dereference_protected(fence->channel, lockdep_is_held(&fctx->lock));
 		if (nouveau_fence_update(chan, fctx))
 			drop = 1;
