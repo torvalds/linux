@@ -773,8 +773,8 @@ iwl_mld_channel_load_allows_emlsr(struct iwl_mld *mld,
 	if (a->chandef->width <= b->chandef->width)
 		return true;
 
-	bw_a = nl80211_chan_width_to_mhz(a->chandef->width);
-	bw_b = nl80211_chan_width_to_mhz(b->chandef->width);
+	bw_a = cfg80211_chandef_get_width(a->chandef);
+	bw_b = cfg80211_chandef_get_width(b->chandef);
 	ratio = bw_a / bw_b;
 
 	switch (ratio) {
