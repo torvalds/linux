@@ -40,17 +40,14 @@ static DEFINE_XARRAY_ALLOC1(opp_configs);
 static bool _find_opp_dev(const struct device *dev, struct opp_table *opp_table)
 {
 	struct opp_device *opp_dev;
-	bool found = false;
 
-	mutex_lock(&opp_table->lock);
+	guard(mutex)(&opp_table->lock);
+
 	list_for_each_entry(opp_dev, &opp_table->dev_list, node)
-		if (opp_dev->dev == dev) {
-			found = true;
-			break;
-		}
+		if (opp_dev->dev == dev)
+			return true;
 
-	mutex_unlock(&opp_table->lock);
-	return found;
+	return false;
 }
 
 static struct opp_table *_find_opp_table_unlocked(struct device *dev)
@@ -78,18 +75,13 @@ static struct opp_table *_find_opp_table_unlocked(struct device *dev)
  */
 struct opp_table *_find_opp_table(struct device *dev)
 {
-	struct opp_table *opp_table;
-
 	if (IS_ERR_OR_NULL(dev)) {
 		pr_err("%s: Invalid parameters\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
 
-	mutex_lock(&opp_table_lock);
-	opp_table = _find_opp_table_unlocked(dev);
-	mutex_unlock(&opp_table_lock);
-
-	return opp_table;
+	guard(mutex)(&opp_table_lock);
+	return _find_opp_table_unlocked(dev);
 }
 
 /*
@@ -359,24 +351,22 @@ unsigned long dev_pm_opp_get_max_volt_latency(struct device *dev)
 	if (!uV)
 		return 0;
 
-	mutex_lock(&opp_table->lock);
+	scoped_guard(mutex, &opp_table->lock) {
+		for (i = 0; i < count; i++) {
+			uV[i].min = ~0;
+			uV[i].max = 0;
 
-	for (i = 0; i < count; i++) {
-		uV[i].min = ~0;
-		uV[i].max = 0;
+			list_for_each_entry(opp, &opp_table->opp_list, node) {
+				if (!opp->available)
+					continue;
 
-		list_for_each_entry(opp, &opp_table->opp_list, node) {
-			if (!opp->available)
-				continue;
-
-			if (opp->supplies[i].u_volt_min < uV[i].min)
-				uV[i].min = opp->supplies[i].u_volt_min;
-			if (opp->supplies[i].u_volt_max > uV[i].max)
-				uV[i].max = opp->supplies[i].u_volt_max;
+				if (opp->supplies[i].u_volt_min < uV[i].min)
+					uV[i].min = opp->supplies[i].u_volt_min;
+				if (opp->supplies[i].u_volt_max > uV[i].max)
+					uV[i].max = opp->supplies[i].u_volt_max;
+			}
 		}
 	}
-
-	mutex_unlock(&opp_table->lock);
 
 	/*
 	 * The caller needs to ensure that opp_table (and hence the regulator)
@@ -438,14 +428,12 @@ int _get_opp_count(struct opp_table *opp_table)
 	struct dev_pm_opp *opp;
 	int count = 0;
 
-	mutex_lock(&opp_table->lock);
+	guard(mutex)(&opp_table->lock);
 
 	list_for_each_entry(opp, &opp_table->opp_list, node) {
 		if (opp->available)
 			count++;
 	}
-
-	mutex_unlock(&opp_table->lock);
 
 	return count;
 }
@@ -535,7 +523,7 @@ static struct dev_pm_opp *_opp_table_find_key(struct opp_table *opp_table,
 	if (assert && !assert(opp_table, index))
 		return ERR_PTR(-EINVAL);
 
-	mutex_lock(&opp_table->lock);
+	guard(mutex)(&opp_table->lock);
 
 	list_for_each_entry(temp_opp, &opp_table->opp_list, node) {
 		if (temp_opp->available == available) {
@@ -549,8 +537,6 @@ static struct dev_pm_opp *_opp_table_find_key(struct opp_table *opp_table,
 		*key = read(opp, index);
 		dev_pm_opp_get(opp);
 	}
-
-	mutex_unlock(&opp_table->lock);
 
 	return opp;
 }
@@ -1166,10 +1152,9 @@ static void _find_current_opp(struct device *dev, struct opp_table *opp_table)
 	 * make special checks to validate current_opp.
 	 */
 	if (IS_ERR(opp)) {
-		mutex_lock(&opp_table->lock);
+		guard(mutex)(&opp_table->lock);
 		opp = dev_pm_opp_get(list_first_entry(&opp_table->opp_list,
 						      struct dev_pm_opp, node));
-		mutex_unlock(&opp_table->lock);
 	}
 
 	opp_table->current_opp = opp;
@@ -1426,9 +1411,8 @@ struct opp_device *_add_opp_dev(const struct device *dev,
 	/* Initialize opp-dev */
 	opp_dev->dev = dev;
 
-	mutex_lock(&opp_table->lock);
-	list_add(&opp_dev->node, &opp_table->dev_list);
-	mutex_unlock(&opp_table->lock);
+	scoped_guard(mutex, &opp_table->lock)
+		list_add(&opp_dev->node, &opp_table->dev_list);
 
 	/* Create debugfs entries for the opp_table */
 	opp_debug_register(opp_dev, opp_table);
@@ -1721,16 +1705,14 @@ void dev_pm_opp_remove(struct device *dev, unsigned long freq)
 	if (!assert_single_clk(opp_table, 0))
 		return;
 
-	mutex_lock(&opp_table->lock);
-
-	list_for_each_entry(iter, &opp_table->opp_list, node) {
-		if (iter->rates[0] == freq) {
-			opp = iter;
-			break;
+	scoped_guard(mutex, &opp_table->lock) {
+		list_for_each_entry(iter, &opp_table->opp_list, node) {
+			if (iter->rates[0] == freq) {
+				opp = iter;
+				break;
+			}
 		}
 	}
-
-	mutex_unlock(&opp_table->lock);
 
 	if (opp) {
 		dev_pm_opp_put(opp);
@@ -1747,22 +1729,20 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_remove);
 static struct dev_pm_opp *_opp_get_next(struct opp_table *opp_table,
 					bool dynamic)
 {
-	struct dev_pm_opp *opp = NULL, *temp;
+	struct dev_pm_opp *opp;
 
-	mutex_lock(&opp_table->lock);
-	list_for_each_entry(temp, &opp_table->opp_list, node) {
+	guard(mutex)(&opp_table->lock);
+
+	list_for_each_entry(opp, &opp_table->opp_list, node) {
 		/*
 		 * Refcount must be dropped only once for each OPP by OPP core,
 		 * do that with help of "removed" flag.
 		 */
-		if (!temp->removed && dynamic == temp->dynamic) {
-			opp = temp;
-			break;
-		}
+		if (!opp->removed && dynamic == opp->dynamic)
+			return opp;
 	}
 
-	mutex_unlock(&opp_table->lock);
-	return opp;
+	return NULL;
 }
 
 /*
@@ -1786,19 +1766,13 @@ static void _opp_remove_all(struct opp_table *opp_table, bool dynamic)
 
 bool _opp_remove_all_static(struct opp_table *opp_table)
 {
-	mutex_lock(&opp_table->lock);
+	scoped_guard(mutex, &opp_table->lock) {
+		if (!opp_table->parsed_static_opps)
+			return false;
 
-	if (!opp_table->parsed_static_opps) {
-		mutex_unlock(&opp_table->lock);
-		return false;
+		if (--opp_table->parsed_static_opps)
+			return true;
 	}
-
-	if (--opp_table->parsed_static_opps) {
-		mutex_unlock(&opp_table->lock);
-		return true;
-	}
-
-	mutex_unlock(&opp_table->lock);
 
 	_opp_remove_all(opp_table, false);
 	return true;
@@ -2003,17 +1977,15 @@ int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
 	struct list_head *head;
 	int ret;
 
-	mutex_lock(&opp_table->lock);
-	head = &opp_table->opp_list;
+	scoped_guard(mutex, &opp_table->lock) {
+		head = &opp_table->opp_list;
 
-	ret = _opp_is_duplicate(dev, new_opp, opp_table, &head);
-	if (ret) {
-		mutex_unlock(&opp_table->lock);
-		return ret;
+		ret = _opp_is_duplicate(dev, new_opp, opp_table, &head);
+		if (ret)
+			return ret;
+
+		list_add(&new_opp->node, head);
 	}
-
-	list_add(&new_opp->node, head);
-	mutex_unlock(&opp_table->lock);
 
 	new_opp->opp_table = opp_table;
 	kref_init(&new_opp->kref);
@@ -2660,17 +2632,16 @@ struct dev_pm_opp *dev_pm_opp_xlate_required_opp(struct opp_table *src_table,
 		return ERR_PTR(-EBUSY);
 
 	for (i = 0; i < src_table->required_opp_count; i++) {
-		if (src_table->required_opp_tables[i] == dst_table) {
-			mutex_lock(&src_table->lock);
+		if (src_table->required_opp_tables[i] != dst_table)
+			continue;
 
+		scoped_guard(mutex, &src_table->lock) {
 			list_for_each_entry(opp, &src_table->opp_list, node) {
 				if (opp == src_opp) {
 					dest_opp = dev_pm_opp_get(opp->required_opps[i]);
 					break;
 				}
 			}
-
-			mutex_unlock(&src_table->lock);
 			break;
 		}
 	}
@@ -2702,7 +2673,6 @@ int dev_pm_opp_xlate_performance_state(struct opp_table *src_table,
 				       unsigned int pstate)
 {
 	struct dev_pm_opp *opp;
-	int dest_pstate = -EINVAL;
 	int i;
 
 	/*
@@ -2736,22 +2706,17 @@ int dev_pm_opp_xlate_performance_state(struct opp_table *src_table,
 		return -EINVAL;
 	}
 
-	mutex_lock(&src_table->lock);
+	guard(mutex)(&src_table->lock);
 
 	list_for_each_entry(opp, &src_table->opp_list, node) {
-		if (opp->level == pstate) {
-			dest_pstate = opp->required_opps[i]->level;
-			goto unlock;
-		}
+		if (opp->level == pstate)
+			return opp->required_opps[i]->level;
 	}
 
 	pr_err("%s: Couldn't find matching OPP (%p: %p)\n", __func__, src_table,
 	       dst_table);
 
-unlock:
-	mutex_unlock(&src_table->lock);
-
-	return dest_pstate;
+	return -EINVAL;
 }
 
 /**
@@ -2820,25 +2785,21 @@ static int _opp_set_availability(struct device *dev, unsigned long freq,
 	if (!assert_single_clk(opp_table, 0))
 		return -EINVAL;
 
-	mutex_lock(&opp_table->lock);
+	scoped_guard(mutex, &opp_table->lock) {
+		/* Do we have the frequency? */
+		list_for_each_entry(tmp_opp, &opp_table->opp_list, node) {
+			if (tmp_opp->rates[0] == freq) {
+				opp = dev_pm_opp_get(tmp_opp);
 
-	/* Do we have the frequency? */
-	list_for_each_entry(tmp_opp, &opp_table->opp_list, node) {
-		if (tmp_opp->rates[0] == freq) {
-			opp = dev_pm_opp_get(tmp_opp);
+				/* Is update really needed? */
+				if (opp->available == availability_req)
+					return 0;
 
-			/* Is update really needed? */
-			if (opp->available == availability_req) {
-				mutex_unlock(&opp_table->lock);
-				return 0;
+				opp->available = availability_req;
+				break;
 			}
-
-			opp->available = availability_req;
-			break;
 		}
 	}
-
-	mutex_unlock(&opp_table->lock);
 
 	if (IS_ERR(opp))
 		return PTR_ERR(opp);
@@ -2886,28 +2847,24 @@ int dev_pm_opp_adjust_voltage(struct device *dev, unsigned long freq,
 	if (!assert_single_clk(opp_table, 0))
 		return -EINVAL;
 
-	mutex_lock(&opp_table->lock);
+	scoped_guard(mutex, &opp_table->lock) {
+		/* Do we have the frequency? */
+		list_for_each_entry(tmp_opp, &opp_table->opp_list, node) {
+			if (tmp_opp->rates[0] == freq) {
+				opp = dev_pm_opp_get(tmp_opp);
 
-	/* Do we have the frequency? */
-	list_for_each_entry(tmp_opp, &opp_table->opp_list, node) {
-		if (tmp_opp->rates[0] == freq) {
-			opp = dev_pm_opp_get(tmp_opp);
+				/* Is update really needed? */
+				if (opp->supplies->u_volt == u_volt)
+					return 0;
 
-			/* Is update really needed? */
-			if (opp->supplies->u_volt == u_volt) {
-				mutex_unlock(&opp_table->lock);
-				return 0;
+				opp->supplies->u_volt = u_volt;
+				opp->supplies->u_volt_min = u_volt_min;
+				opp->supplies->u_volt_max = u_volt_max;
+
+				break;
 			}
-
-			opp->supplies->u_volt = u_volt;
-			opp->supplies->u_volt_min = u_volt_min;
-			opp->supplies->u_volt_max = u_volt_max;
-
-			break;
 		}
 	}
-
-	mutex_unlock(&opp_table->lock);
 
 	if (IS_ERR(opp))
 		return PTR_ERR(opp);

@@ -76,17 +76,12 @@ static struct dev_pm_opp *_find_opp_of_np(struct opp_table *opp_table,
 {
 	struct dev_pm_opp *opp;
 
-	mutex_lock(&opp_table->lock);
+	guard(mutex)(&opp_table->lock);
 
 	list_for_each_entry(opp, &opp_table->opp_list, node) {
-		if (opp->np == opp_np) {
-			dev_pm_opp_get(opp);
-			mutex_unlock(&opp_table->lock);
-			return opp;
-		}
+		if (opp->np == opp_np)
+			return dev_pm_opp_get(opp);
 	}
-
-	mutex_unlock(&opp_table->lock);
 
 	return NULL;
 }
@@ -105,19 +100,15 @@ static struct opp_table *_find_table_of_opp_np(struct device_node *opp_np)
 
 	opp_table_np = of_get_parent(opp_np);
 	if (!opp_table_np)
-		goto err;
+		return ERR_PTR(-ENODEV);
 
-	mutex_lock(&opp_table_lock);
+	guard(mutex)(&opp_table_lock);
+
 	list_for_each_entry(opp_table, &opp_tables, node) {
-		if (opp_table_np == opp_table->np) {
-			dev_pm_opp_get_opp_table_ref(opp_table);
-			mutex_unlock(&opp_table_lock);
-			return opp_table;
-		}
+		if (opp_table_np == opp_table->np)
+			return dev_pm_opp_get_opp_table_ref(opp_table);
 	}
-	mutex_unlock(&opp_table_lock);
 
-err:
 	return ERR_PTR(-ENODEV);
 }
 
@@ -142,9 +133,8 @@ static void _opp_table_free_required_tables(struct opp_table *opp_table)
 	opp_table->required_opp_count = 0;
 	opp_table->required_opp_tables = NULL;
 
-	mutex_lock(&opp_table_lock);
+	guard(mutex)(&opp_table_lock);
 	list_del(&opp_table->lazy);
-	mutex_unlock(&opp_table_lock);
 }
 
 /*
@@ -201,9 +191,8 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 		 * The OPP table is not held while allocating the table, take it
 		 * now to avoid corruption to the lazy_opp_tables list.
 		 */
-		mutex_lock(&opp_table_lock);
+		guard(mutex)(&opp_table_lock);
 		list_add(&opp_table->lazy, &lazy_opp_tables);
-		mutex_unlock(&opp_table_lock);
 	}
 }
 
@@ -357,7 +346,7 @@ static void lazy_link_required_opp_table(struct opp_table *new_table)
 	struct dev_pm_opp *opp;
 	int i, ret;
 
-	mutex_lock(&opp_table_lock);
+	guard(mutex)(&opp_table_lock);
 
 	list_for_each_entry_safe(opp_table, temp, &lazy_opp_tables, lazy) {
 		struct device_node *opp_np __free(device_node);
@@ -408,8 +397,6 @@ static void lazy_link_required_opp_table(struct opp_table *new_table)
 				_required_opps_available(opp, opp_table->required_opp_count);
 		}
 	}
-
-	mutex_unlock(&opp_table_lock);
 }
 
 static int _bandwidth_supported(struct device *dev, struct opp_table *opp_table)
@@ -970,15 +957,14 @@ static int _of_add_opp_table_v2(struct device *dev, struct opp_table *opp_table)
 	struct dev_pm_opp *opp;
 
 	/* OPP table is already initialized for the device */
-	mutex_lock(&opp_table->lock);
-	if (opp_table->parsed_static_opps) {
-		opp_table->parsed_static_opps++;
-		mutex_unlock(&opp_table->lock);
-		return 0;
-	}
+	scoped_guard(mutex, &opp_table->lock) {
+		if (opp_table->parsed_static_opps) {
+			opp_table->parsed_static_opps++;
+			return 0;
+		}
 
-	opp_table->parsed_static_opps = 1;
-	mutex_unlock(&opp_table->lock);
+		opp_table->parsed_static_opps = 1;
+	}
 
 	/* We have opp-table node now, iterate over it and add OPPs */
 	for_each_available_child_of_node(opp_table->np, np) {
@@ -1018,15 +1004,14 @@ static int _of_add_opp_table_v1(struct device *dev, struct opp_table *opp_table)
 	const __be32 *val;
 	int nr, ret = 0;
 
-	mutex_lock(&opp_table->lock);
-	if (opp_table->parsed_static_opps) {
-		opp_table->parsed_static_opps++;
-		mutex_unlock(&opp_table->lock);
-		return 0;
-	}
+	scoped_guard(mutex, &opp_table->lock) {
+		if (opp_table->parsed_static_opps) {
+			opp_table->parsed_static_opps++;
+			return 0;
+		}
 
-	opp_table->parsed_static_opps = 1;
-	mutex_unlock(&opp_table->lock);
+		opp_table->parsed_static_opps = 1;
+	}
 
 	prop = of_find_property(dev->of_node, "operating-points", NULL);
 	if (!prop) {
