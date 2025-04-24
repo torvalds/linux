@@ -452,9 +452,9 @@ static int aspire_ec_probe(struct i2c_client *client)
 	int ret;
 	u8 tmp;
 
-	ec = devm_kzalloc(dev, sizeof(*ec), GFP_KERNEL);
-	if (!ec)
-		return -ENOMEM;
+	ec = devm_drm_bridge_alloc(dev, struct aspire_ec, bridge, &aspire_ec_bridge_funcs);
+	if (IS_ERR(ec))
+		return PTR_ERR(ec);
 
 	ec->client = client;
 	i2c_set_clientdata(client, ec);
@@ -497,7 +497,6 @@ static int aspire_ec_probe(struct i2c_client *client)
 	fwnode = device_get_named_child_node(dev, "connector");
 	if (fwnode) {
 		INIT_WORK(&ec->work, aspire_ec_bridge_update_hpd_work);
-		ec->bridge.funcs = &aspire_ec_bridge_funcs;
 		ec->bridge.of_node = to_of_node(fwnode);
 		ec->bridge.ops = DRM_BRIDGE_OP_HPD;
 		ec->bridge.type = DRM_MODE_CONNECTOR_USB;
