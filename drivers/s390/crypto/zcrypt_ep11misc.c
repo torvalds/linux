@@ -1353,13 +1353,12 @@ out:
 
 int ep11_clr2keyblob(u16 card, u16 domain, u32 keybitsize, u32 keygenflags,
 		     const u8 *clrkey, u8 *keybuf, u32 *keybufsize,
-		     u32 keytype)
+		     u32 keytype, u32 xflags)
 {
 	int rc;
 	void *mem;
 	u8 encbuf[64], *kek;
 	size_t clrkeylen, keklen, encbuflen = sizeof(encbuf);
-	const u32 xflags = 0;
 
 	if (keybitsize == 128 || keybitsize == 192 || keybitsize == 256) {
 		clrkeylen = keybitsize / 8;
@@ -1420,7 +1419,8 @@ EXPORT_SYMBOL(ep11_clr2keyblob);
 
 int ep11_kblob2protkey(u16 card, u16 dom,
 		       const u8 *keyblob, u32 keybloblen,
-		       u8 *protkey, u32 *protkeylen, u32 *protkeytype)
+		       u8 *protkey, u32 *protkeylen, u32 *protkeytype,
+		       u32 xflags)
 {
 	struct ep11kblob_header *hdr;
 	struct ep11keyblob *key;
@@ -1436,7 +1436,6 @@ int ep11_kblob2protkey(u16 card, u16 dom,
 	} __packed * wki;
 	u8 *wkbuf = NULL;
 	int rc = -EIO;
-	const u32 xflags = 0;
 
 	if (ep11_kb_decode((u8 *)keyblob, keybloblen, &hdr, NULL, &key, &keylen))
 		return -EINVAL;
@@ -1542,14 +1541,13 @@ out:
 EXPORT_SYMBOL(ep11_kblob2protkey);
 
 int ep11_findcard2(u32 *apqns, u32 *nr_apqns, u16 cardnr, u16 domain,
-		   int minhwtype, int minapi, const u8 *wkvp)
+		   int minhwtype, int minapi, const u8 *wkvp, u32 xflags)
 {
 	struct zcrypt_device_status_ext *device_status;
 	struct ep11_domain_info edi;
 	struct ep11_card_info eci;
 	u32 _nr_apqns = 0;
 	int i, card, dom;
-	const u32 xflags = 0;
 
 	/* occupy the device status memory */
 	mutex_lock(&dev_status_mem_mutex);

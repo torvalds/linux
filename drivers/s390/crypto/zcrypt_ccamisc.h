@@ -160,44 +160,47 @@ int cca_check_sececckeytoken(debug_info_t *dbg, int dbflvl,
 /*
  * Generate (random) CCA AES DATA secure key.
  */
-int cca_genseckey(u16 cardnr, u16 domain, u32 keybitsize, u8 *seckey);
+int cca_genseckey(u16 cardnr, u16 domain, u32 keybitsize, u8 *seckey,
+		  u32 xflags);
 
 /*
  * Generate CCA AES DATA secure key with given clear key value.
  */
 int cca_clr2seckey(u16 cardnr, u16 domain, u32 keybitsize,
-		   const u8 *clrkey, u8 *seckey);
+		   const u8 *clrkey, u8 *seckey, u32 xflags);
 
 /*
  * Derive proteced key from an CCA AES DATA secure key.
  */
 int cca_sec2protkey(u16 cardnr, u16 domain,
 		    const u8 *seckey, u8 *protkey, u32 *protkeylen,
-		    u32 *protkeytype);
+		    u32 *protkeytype, u32 xflags);
 
 /*
  * Generate (random) CCA AES CIPHER secure key.
  */
 int cca_gencipherkey(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
-		     u8 *keybuf, u32 *keybufsize);
+		     u8 *keybuf, u32 *keybufsize, u32 xflags);
 
 /*
  * Derive proteced key from CCA AES cipher secure key.
  */
 int cca_cipher2protkey(u16 cardnr, u16 domain, const u8 *ckey,
-		       u8 *protkey, u32 *protkeylen, u32 *protkeytype);
+		       u8 *protkey, u32 *protkeylen, u32 *protkeytype,
+		       u32 xflags);
 
 /*
  * Build CCA AES CIPHER secure key with a given clear key value.
  */
 int cca_clr2cipherkey(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
-		      const u8 *clrkey, u8 *keybuf, u32 *keybufsize);
+		      const u8 *clrkey, u8 *keybuf, u32 *keybufsize,
+		      u32 xflags);
 
 /*
  * Derive proteced key from CCA ECC secure private key.
  */
 int cca_ecc2protkey(u16 cardnr, u16 domain, const u8 *key,
-		    u8 *protkey, u32 *protkeylen, u32 *protkeytype);
+		    u8 *protkey, u32 *protkeylen, u32 *protkeytype, u32 xflags);
 
 /*
  * Query cryptographic facility from CCA adapter
@@ -205,7 +208,8 @@ int cca_ecc2protkey(u16 cardnr, u16 domain, const u8 *key,
 int cca_query_crypto_facility(u16 cardnr, u16 domain,
 			      const char *keyword,
 			      u8 *rarray, size_t *rarraylen,
-			      u8 *varray, size_t *varraylen);
+			      u8 *varray, size_t *varraylen,
+			      u32 xflags);
 
 /*
  * Build a list of cca apqns meeting the following constrains:
@@ -223,7 +227,8 @@ int cca_query_crypto_facility(u16 cardnr, u16 domain,
  * If no apqn meeting the criteria is found, -ENODEV is returned.
  */
 int cca_findcard2(u32 *apqns, u32 *nr_apqns, u16 cardnr, u16 domain,
-		  int minhwtype, int mktype, u64 cur_mkvp, u64 old_mkvp);
+		  int minhwtype, int mktype, u64 cur_mkvp, u64 old_mkvp,
+		  u32 xflags);
 
 #define AES_MK_SET  0
 #define APKA_MK_SET 1

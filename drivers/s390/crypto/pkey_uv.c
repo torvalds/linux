@@ -191,7 +191,8 @@ static int uv_get_size_and_type(u16 secret_type, u32 *pkeysize, u32 *pkeytype)
 static int uv_key2protkey(const struct pkey_apqn *_apqns __always_unused,
 			  size_t _nr_apqns __always_unused,
 			  const u8 *key, u32 keylen,
-			  u8 *protkey, u32 *protkeylen, u32 *keyinfo)
+			  u8 *protkey, u32 *protkeylen, u32 *keyinfo,
+			  u32 _xflags __always_unused)
 {
 	struct uvsecrettoken *t = (struct uvsecrettoken *)key;
 	u32 pkeysize, pkeytype;
@@ -233,7 +234,8 @@ out:
 static int uv_verifykey(const u8 *key, u32 keylen,
 			u16 *_card __always_unused,
 			u16 *_dom __always_unused,
-			u32 *keytype, u32 *keybitsize, u32 *flags)
+			u32 *keytype, u32 *keybitsize, u32 *flags,
+			u32 xflags __always_unused)
 {
 	struct uvsecrettoken *t = (struct uvsecrettoken *)key;
 	struct uv_secret_list_item_hdr secret_meta_data;

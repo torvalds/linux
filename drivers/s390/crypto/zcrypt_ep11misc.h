@@ -123,7 +123,7 @@ int ep11_genaeskey(u16 card, u16 domain, u32 keybitsize, u32 keygenflags,
  */
 int ep11_clr2keyblob(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
 		     const u8 *clrkey, u8 *keybuf, u32 *keybufsize,
-		     u32 keytype);
+		     u32 keytype, u32 xflags);
 
 /*
  * Build a list of ep11 apqns meeting the following constrains:
@@ -143,13 +143,14 @@ int ep11_clr2keyblob(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
  * If no apqn meeting the criteria is found, -ENODEV is returned.
  */
 int ep11_findcard2(u32 *apqns, u32 *nr_apqns, u16 cardnr, u16 domain,
-		   int minhwtype, int minapi, const u8 *wkvp);
+		   int minhwtype, int minapi, const u8 *wkvp, u32 xflags);
 
 /*
  * Derive proteced key from EP11 key blob (AES and ECC keys).
  */
 int ep11_kblob2protkey(u16 card, u16 dom, const u8 *key, u32 keylen,
-		       u8 *protkey, u32 *protkeylen, u32 *protkeytype);
+		       u8 *protkey, u32 *protkeylen, u32 *protkeytype,
+		       u32 xflags);
 
 int zcrypt_ep11misc_init(void);
 void zcrypt_ep11misc_exit(void);
