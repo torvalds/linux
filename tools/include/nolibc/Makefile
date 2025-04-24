@@ -101,5 +101,14 @@ headers_standalone: headers
 	$(Q)$(MAKE) -C $(srctree) headers
 	$(Q)$(MAKE) -C $(srctree) headers_install INSTALL_HDR_PATH=$(OUTPUT)sysroot
 
+# GCC uses "s390", clang "systemz"
+CLANG_CROSS_FLAGS := $(subst --target=s390-linux,--target=systemz-linux,$(CLANG_CROSS_FLAGS))
+
+headers_check: headers_standalone
+	for header in $(filter-out crt.h std.h,$(all_files)); do \
+		$(CC) $(CLANG_CROSS_FLAGS) -Wall -Werror -nostdinc -fsyntax-only -x c /dev/null \
+			-I$(or $(objtree),$(srctree))/usr/include -include $$header -include $$header || exit 1; \
+	done
+
 clean:
 	$(call QUIET_CLEAN, nolibc) rm -rf "$(OUTPUT)sysroot"
