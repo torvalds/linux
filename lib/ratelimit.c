@@ -43,11 +43,8 @@ int ___ratelimit(struct ratelimit_state *rs, const char *func)
 		WARN_ONCE(interval < 0 || burst < 0, "Negative interval (%d) or burst (%d): Uninitialized ratelimit_state structure?\n", interval, burst);
 		ret = interval == 0 || burst > 0;
 		if (!(READ_ONCE(rs->flags) & RATELIMIT_INITIALIZED) || (!interval && !burst) ||
-		    !raw_spin_trylock_irqsave(&rs->lock, flags)) {
-			if (!ret)
-				ratelimit_state_inc_miss(rs);
-			return ret;
-		}
+		    !raw_spin_trylock_irqsave(&rs->lock, flags))
+			goto nolock_ret;
 
 		/* Force re-initialization once re-enabled. */
 		rs->flags &= ~RATELIMIT_INITIALIZED;
@@ -116,6 +113,7 @@ int ___ratelimit(struct ratelimit_state *rs, const char *func)
 unlock_ret:
 	raw_spin_unlock_irqrestore(&rs->lock, flags);
 
+nolock_ret:
 	if (!ret)
 		ratelimit_state_inc_miss(rs);
 
