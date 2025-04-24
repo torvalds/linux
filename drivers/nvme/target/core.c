@@ -859,6 +859,13 @@ u16 nvmet_check_cqid(struct nvmet_ctrl *ctrl, u16 cqid)
 	return NVME_SC_SUCCESS;
 }
 
+u16 nvmet_check_io_cqid(struct nvmet_ctrl *ctrl, u16 cqid)
+{
+	if (!cqid)
+		return NVME_SC_QID_INVALID | NVME_STATUS_DNR;
+	return nvmet_check_cqid(ctrl, cqid);
+}
+
 u16 nvmet_cq_create(struct nvmet_ctrl *ctrl, struct nvmet_cq *cq,
 		    u16 qid, u16 size)
 {
