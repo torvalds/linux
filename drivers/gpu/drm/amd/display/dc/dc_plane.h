@@ -37,4 +37,7 @@ void dc_plane_state_release(struct dc_plane_state *plane_state);
 void dc_plane_force_dcc_and_tiling_disable(struct dc_plane_state *plane_state,
 					   bool clear_tiling);
 
+
+void dc_plane_copy_config(struct dc_plane_state *dst, const struct dc_plane_state *src);
+
 #endif /* _DC_PLANE_H_ */

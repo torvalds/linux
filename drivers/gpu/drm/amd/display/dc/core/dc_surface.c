@@ -294,3 +294,17 @@ void dc_plane_force_dcc_and_tiling_disable(struct dc_plane_state *plane_state,
 			dc->hwss.clear_surface_dcc_and_tiling(pipe_ctx, plane_state, clear_tiling);
 	}
 }
+
+void dc_plane_copy_config(struct dc_plane_state *dst, const struct dc_plane_state *src)
+{
+	struct kref temp_refcount;
+
+	/* backup persistent info */
+	memcpy(&temp_refcount, &dst->refcount, sizeof(struct kref));
+
+	/* copy all configuration information */
+	memcpy(dst, src, sizeof(struct dc_plane_state));
+
+	/* restore persistent info */
+	memcpy(&dst->refcount, &temp_refcount, sizeof(struct kref));
+}

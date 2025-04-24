@@ -36,6 +36,7 @@
 #include "resource.h"
 #include "dc_state.h"
 #include "dc_state_priv.h"
+#include "dc_plane.h"
 #include "dc_plane_priv.h"
 #include "dc_stream_priv.h"
 
@@ -3320,7 +3321,7 @@ static void backup_planes_and_stream_state(
 		return;
 
 	for (i = 0; i < status->plane_count; i++) {
-		scratch->plane_states[i] = *status->plane_states[i];
+		dc_plane_copy_config(&scratch->plane_states[i], status->plane_states[i]);
 	}
 	scratch->stream_state = *stream;
 }
@@ -3336,10 +3337,7 @@ static void restore_planes_and_stream_state(
 		return;
 
 	for (i = 0; i < status->plane_count; i++) {
-		/* refcount will always be valid, restore everything else */
-		struct kref refcount = status->plane_states[i]->refcount;
-		*status->plane_states[i] = scratch->plane_states[i];
-		status->plane_states[i]->refcount = refcount;
+		dc_plane_copy_config(status->plane_states[i], &scratch->plane_states[i]);
 	}
 	*stream = scratch->stream_state;
 }
