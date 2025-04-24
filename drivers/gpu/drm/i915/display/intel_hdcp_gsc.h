@@ -12,7 +12,6 @@
 struct intel_display;
 struct intel_hdcp_gsc_context;
 
-bool intel_hdcp_gsc_cs_required(struct intel_display *display);
 ssize_t intel_hdcp_gsc_msg_send(struct intel_hdcp_gsc_context *gsc_context,
 				void *msg_in, size_t msg_in_len,
 				void *msg_out, size_t msg_out_len);

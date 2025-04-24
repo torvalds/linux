@@ -30,11 +30,6 @@ struct intel_hdcp_gsc_context {
 
 #define HDCP_GSC_HEADER_SIZE sizeof(struct intel_gsc_mtl_header)
 
-bool intel_hdcp_gsc_cs_required(struct intel_display *display)
-{
-	return DISPLAY_VER(display) >= 14;
-}
-
 bool intel_hdcp_gsc_check_status(struct intel_display *display)
 {
 	struct xe_device *xe = to_xe_device(display->drm);

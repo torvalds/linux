@@ -19,11 +19,6 @@ struct intel_hdcp_gsc_context {
 	void *hdcp_cmd_out;
 };
 
-bool intel_hdcp_gsc_cs_required(struct intel_display *display)
-{
-	return DISPLAY_VER(display) >= 14;
-}
-
 bool intel_hdcp_gsc_check_status(struct intel_display *display)
 {
 	struct drm_i915_private *i915 = to_i915(display->drm);

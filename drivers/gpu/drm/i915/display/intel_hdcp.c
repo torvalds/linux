@@ -32,6 +32,8 @@
 #include "intel_hdcp_shim.h"
 #include "intel_pcode.h"
 
+#define USE_HDCP_GSC(__display)		(DISPLAY_VER(__display) >= 14)
+
 #define KEY_LOAD_TRIES	5
 #define HDCP2_LC_RETRY_CNT			3
 
@@ -251,7 +253,7 @@ static bool intel_hdcp2_prerequisite(struct intel_connector *connector)
 		return false;
 
 	/* If MTL+ make sure gsc is loaded and proxy is setup */
-	if (intel_hdcp_gsc_cs_required(display)) {
+	if (USE_HDCP_GSC(display)) {
 		if (!intel_hdcp_gsc_check_status(display))
 			return false;
 	}
@@ -2340,7 +2342,7 @@ static int initialize_hdcp_port_data(struct intel_connector *connector,
 
 static bool is_hdcp2_supported(struct intel_display *display)
 {
-	if (intel_hdcp_gsc_cs_required(display))
+	if (USE_HDCP_GSC(display))
 		return true;
 
 	if (!IS_ENABLED(CONFIG_INTEL_MEI_HDCP))
@@ -2364,7 +2366,7 @@ void intel_hdcp_component_init(struct intel_display *display)
 
 	display->hdcp.comp_added = true;
 	mutex_unlock(&display->hdcp.hdcp_mutex);
-	if (intel_hdcp_gsc_cs_required(display))
+	if (USE_HDCP_GSC(display))
 		ret = intel_hdcp_gsc_init(display);
 	else
 		ret = component_add_typed(display->drm->dev, &i915_hdcp_ops,
@@ -2639,7 +2641,7 @@ void intel_hdcp_component_fini(struct intel_display *display)
 	display->hdcp.comp_added = false;
 	mutex_unlock(&display->hdcp.hdcp_mutex);
 
-	if (intel_hdcp_gsc_cs_required(display))
+	if (USE_HDCP_GSC(display))
 		intel_hdcp_gsc_fini(display);
 	else
 		component_del(display->drm->dev, &i915_hdcp_ops);
