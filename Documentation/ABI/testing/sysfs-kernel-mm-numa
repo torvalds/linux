@@ -16,9 +16,13 @@ Description:	Enable/disable demoting pages during reclaim
 		Allowing page migration during reclaim enables these
 		systems to migrate pages from fast tiers to slow tiers
 		when the fast tier is under pressure.  This migration
-		is performed before swap.  It may move data to a NUMA
-		node that does not fall into the cpuset of the
-		allocating process which might be construed to violate
-		the guarantees of cpusets.  This should not be enabled
-		on systems which need strict cpuset location
-		guarantees.
+		is performed before swap if an eligible numa node is
+		present in cpuset.mems for the cgroup (or if cpuset v1
+		is being used). If cpusets.mems changes at runtime, it
+		may move data to a NUMA node that does not fall into the
+		cpuset of the new cpusets.mems, which might be construed
+		to violate the guarantees of cpusets.  Shared memory,
+		such as libraries, owned by another cgroup may still be
+		demoted and result in memory use on a node not present
+		in cpusets.mem. This should not be enabled on systems
+		which need strict cpuset location guarantees.
