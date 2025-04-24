@@ -17371,7 +17371,7 @@ T:	git git://git.infradead.org/nvme.git
 F:	drivers/nvme/target/
 
 NVMEM FRAMEWORK
-M:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
+M:	Srinivas Kandagatla <srini@kernel.org>
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/srini/nvmem.git
 F:	Documentation/ABI/stable/sysfs-bus-nvmem
@@ -19576,7 +19576,7 @@ S:	Supported
 F:	drivers/crypto/intel/qat/
 
 QCOM AUDIO (ASoC) DRIVERS
-M:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
+M:	Srinivas Kandagatla <srini@kernel.org>
 L:	linux-sound@vger.kernel.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Supported
@@ -19876,7 +19876,7 @@ F:	Documentation/devicetree/bindings/net/qcom,ethqos.yaml
 F:	drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-ethqos.c
 
 QUALCOMM FASTRPC DRIVER
-M:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
+M:	Srinivas Kandagatla <srini@kernel.org>
 M:	Amol Maheshwari <amahesh@qti.qualcomm.com>
 L:	linux-arm-msm@vger.kernel.org
 L:	dri-devel@lists.freedesktop.org
@@ -21931,7 +21931,7 @@ S:	Maintained
 F:	drivers/media/rc/serial_ir.c
 
 SERIAL LOW-POWER INTER-CHIP MEDIA BUS (SLIMbus)
-M:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
+M:	Srinivas Kandagatla <srini@kernel.org>
 L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/slimbus/
@@ -22664,9 +22664,15 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/sound.git
 F:	Documentation/devicetree/bindings/sound/
 F:	Documentation/sound/soc/
 F:	include/dt-bindings/sound/
+F:	include/sound/cs-amp-lib.h
+F:	include/sound/cs35l*
+F:	include/sound/cs4271.h
+F:	include/sound/cs42l*
+F:	include/sound/madera-pdata.h
 F:	include/sound/soc*
 F:	include/sound/sof.h
 F:	include/sound/sof/
+F:	include/sound/wm*.h
 F:	include/trace/events/sof*.h
 F:	include/uapi/sound/asoc.h
 F:	sound/soc/
