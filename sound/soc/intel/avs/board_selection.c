@@ -472,14 +472,6 @@ static int avs_register_i2s_board(struct avs_dev *adev, struct snd_soc_acpi_mach
 		return -ENODEV;
 	}
 
-	uid = mach->mach_params.i2s_link_mask;
-	if (avs_mach_singular_ssp(mach))
-		uid = (uid << AVS_CHANNELS_MAX) + avs_mach_ssp_tdm(mach, avs_mach_ssp_port(mach));
-
-	name = devm_kasprintf(adev->dev, GFP_KERNEL, "%s.%d-platform", mach->drv_name, uid);
-	if (!name)
-		return -ENOMEM;
-
 	pdata = mach->pdata;
 	if (!pdata)
 		pdata = devm_kzalloc(adev->dev, sizeof(*pdata), GFP_KERNEL);
@@ -487,6 +479,14 @@ static int avs_register_i2s_board(struct avs_dev *adev, struct snd_soc_acpi_mach
 		return -ENOMEM;
 	pdata->obsolete_card_names = obsolete_card_names;
 	mach->pdata = pdata;
+
+	uid = mach->mach_params.i2s_link_mask;
+	if (avs_mach_singular_ssp(mach))
+		uid = (uid << AVS_CHANNELS_MAX) + avs_mach_ssp_tdm(mach, avs_mach_ssp_port(mach));
+
+	name = devm_kasprintf(adev->dev, GFP_KERNEL, "%s.%d-platform", mach->drv_name, uid);
+	if (!name)
+		return -ENOMEM;
 
 	ret = avs_i2s_platform_register(adev, name, mach->mach_params.i2s_link_mask, pdata->tdms);
 	if (ret < 0)
