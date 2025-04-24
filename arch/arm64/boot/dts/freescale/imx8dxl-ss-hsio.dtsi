@@ -50,5 +50,7 @@
 	};
 
 	pcie0_ep: pcie-ep@5f010000 {
+		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "dma";
 	};
 };
