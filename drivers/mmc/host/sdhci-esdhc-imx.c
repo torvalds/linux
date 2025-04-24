@@ -1634,6 +1634,7 @@ static void sdhci_esdhc_imx_hwinit(struct sdhci_host *host)
 	}
 }
 
+#ifdef CONFIG_PM_SLEEP
 static void sdhc_esdhc_tuning_save(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -1688,6 +1689,7 @@ static void sdhc_esdhc_tuning_restore(struct sdhci_host *host)
 		       host->ioaddr + ESDHC_TUNE_CTRL_STATUS);
 	}
 }
+#endif
 
 static void esdhc_cqe_enable(struct mmc_host *mmc)
 {
