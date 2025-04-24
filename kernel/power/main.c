@@ -594,7 +594,7 @@ power_attr(pm_print_times);
 
 static inline void pm_print_times_init(void)
 {
-	pm_print_times_enabled = !!initcall_debug;
+	pm_print_times_enabled = initcall_debug;
 }
 
 static ssize_t pm_wakeup_irq_show(struct kobject *kobj,
