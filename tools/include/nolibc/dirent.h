@@ -4,6 +4,9 @@
  * Copyright (C) 2025 Thomas Weißschuh <linux@weissschuh.net>
  */
 
+/* make sure to include all global symbols */
+#include "nolibc.h"
+
 #ifndef _NOLIBC_DIRENT_H
 #define _NOLIBC_DIRENT_H
 
@@ -93,8 +96,5 @@ int readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 	*result = entry;
 	return 0;
 }
-
-/* make sure to include all global symbols */
-#include "nolibc.h"
 
 #endif /* _NOLIBC_DIRENT_H */

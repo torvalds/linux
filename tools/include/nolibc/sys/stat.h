@@ -4,6 +4,9 @@
  * Copyright (C) 2017-2021 Willy Tarreau <w@1wt.eu>
  */
 
+/* make sure to include all global symbols */
+#include "../nolibc.h"
+
 #ifndef _NOLIBC_SYS_STAT_H
 #define _NOLIBC_SYS_STAT_H
 
@@ -66,9 +69,5 @@ int stat(const char *path, struct stat *buf)
 
 	return 0;
 }
-
-
-/* make sure to include all global symbols */
-#include "../nolibc.h"
 
 #endif /* _NOLIBC_SYS_STAT_H */

@@ -4,6 +4,9 @@
  * Copyright (C) 2017-2021 Willy Tarreau <w@1wt.eu>
  */
 
+/* make sure to include all global symbols */
+#include "../nolibc.h"
+
 #ifndef _NOLIBC_SYS_AUXV_H
 #define _NOLIBC_SYS_AUXV_H
 
@@ -34,8 +37,5 @@ unsigned long getauxval(unsigned long type)
 
 	return ret;
 }
-
-/* make sure to include all global symbols */
-#include "../nolibc.h"
 
 #endif /* _NOLIBC_SYS_AUXV_H */

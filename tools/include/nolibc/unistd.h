@@ -4,6 +4,9 @@
  * Copyright (C) 2017-2022 Willy Tarreau <w@1wt.eu>
  */
 
+/* make sure to include all global symbols */
+#include "nolibc.h"
+
 #ifndef _NOLIBC_UNISTD_H
 #define _NOLIBC_UNISTD_H
 
@@ -55,8 +58,5 @@ int tcsetpgrp(int fd, pid_t pid)
 {
 	return ioctl(fd, TIOCSPGRP, &pid);
 }
-
-/* make sure to include all global symbols */
-#include "nolibc.h"
 
 #endif /* _NOLIBC_UNISTD_H */

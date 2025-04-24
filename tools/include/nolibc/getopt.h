@@ -5,6 +5,9 @@
  * Copyright (C) 2025 Thomas Weißschuh <linux@weissschuh.net>
  */
 
+/* make sure to include all global symbols */
+#include "nolibc.h"
+
 #ifndef _NOLIBC_GETOPT_H
 #define _NOLIBC_GETOPT_H
 
@@ -94,8 +97,5 @@ int getopt(int argc, char * const argv[], const char *optstring)
 	}
 	return c;
 }
-
-/* make sure to include all global symbols */
-#include "nolibc.h"
 
 #endif /* _NOLIBC_GETOPT_H */

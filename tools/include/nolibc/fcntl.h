@@ -4,6 +4,9 @@
  * Copyright (C) 2017-2021 Willy Tarreau <w@1wt.eu>
  */
 
+/* make sure to include all global symbols */
+#include "nolibc.h"
+
 #ifndef _NOLIBC_FCNTL_H
 #define _NOLIBC_FCNTL_H
 
@@ -62,8 +65,5 @@ int open(const char *path, int flags, ...)
 
 	return __sysret(sys_open(path, flags, mode));
 }
-
-/* make sure to include all global symbols */
-#include "nolibc.h"
 
 #endif /* _NOLIBC_FCNTL_H */

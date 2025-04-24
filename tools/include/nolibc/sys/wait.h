@@ -4,6 +4,9 @@
  * Copyright (C) 2017-2021 Willy Tarreau <w@1wt.eu>
  */
 
+/* make sure to include all global symbols */
+#include "../nolibc.h"
+
 #ifndef _NOLIBC_SYS_WAIT_H
 #define _NOLIBC_SYS_WAIT_H
 
@@ -109,9 +112,5 @@ pid_t waitpid(pid_t pid, int *status, int options)
 
 	return info.si_pid;
 }
-
-
-/* make sure to include all global symbols */
-#include "../nolibc.h"
 
 #endif /* _NOLIBC_SYS_WAIT_H */
