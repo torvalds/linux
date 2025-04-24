@@ -823,7 +823,7 @@ static ssize_t lg4ff_alternate_modes_show(struct device *dev, struct device_attr
 	for (i = 0; i < LG4FF_MODE_MAX_IDX; i++) {
 		if (entry->wdata.alternate_modes & BIT(i)) {
 			/* Print tag and full name */
-			count += scnprintf(buf + count, PAGE_SIZE - count, "%s: %s",
+			count += sysfs_emit_at(buf, count, "%s: %s",
 					   lg4ff_alternate_modes[i].tag,
 					   !lg4ff_alternate_modes[i].product_id ? entry->wdata.real_name : lg4ff_alternate_modes[i].name);
 			if (count >= PAGE_SIZE - 1)
@@ -832,9 +832,9 @@ static ssize_t lg4ff_alternate_modes_show(struct device *dev, struct device_attr
 			/* Mark the currently active mode with an asterisk */
 			if (lg4ff_alternate_modes[i].product_id == entry->wdata.product_id ||
 			    (lg4ff_alternate_modes[i].product_id == 0 && entry->wdata.product_id == entry->wdata.real_product_id))
-				count += scnprintf(buf + count, PAGE_SIZE - count, " *\n");
+				count += sysfs_emit_at(buf, count, " *\n");
 			else
-				count += scnprintf(buf + count, PAGE_SIZE - count, "\n");
+				count += sysfs_emit_at(buf, count, "\n");
 
 			if (count >= PAGE_SIZE - 1)
 				return count;
