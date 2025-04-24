@@ -8,7 +8,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/clk.h>
 #include <linux/reset.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>

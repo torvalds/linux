@@ -35,6 +35,7 @@ TARGETS += filesystems/epoll
 TARGETS += filesystems/fat
 TARGETS += filesystems/overlayfs
 TARGETS += filesystems/statmount
+TARGETS += filesystems/mount-notify
 TARGETS += firmware
 TARGETS += fpu
 TARGETS += ftrace

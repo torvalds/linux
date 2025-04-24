@@ -60,6 +60,9 @@ patternProperties:
       bus-width:
         enum: [1, 4]
 
+    required:
+      - compatible
+
     unevaluatedProperties: false
 
 required:

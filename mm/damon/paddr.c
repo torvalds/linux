@@ -236,6 +236,9 @@ static bool damos_pa_filter_out(struct damos *scheme, struct folio *folio)
 {
 	struct damos_filter *filter;
 
+	if (scheme->core_filters_allowed)
+		return false;
+
 	damos_for_each_filter(filter, scheme) {
 		if (damos_pa_filter_match(filter, folio))
 			return !filter->allow;

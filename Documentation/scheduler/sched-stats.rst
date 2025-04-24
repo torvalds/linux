@@ -88,7 +88,7 @@ One of these is produced per domain for each cpu described. (Note that if
 CONFIG_SMP is not defined, *no* domains are utilized and these lines
 will not appear in the output. <name> is an extension to the domain field
 that prints the name of the corresponding sched domain. It can appear in
-schedstat version 17 and above, and requires CONFIG_SCHED_DEBUG.)
+schedstat version 17 and above.
 
 domain<N> <name> <cpumask> 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45
 

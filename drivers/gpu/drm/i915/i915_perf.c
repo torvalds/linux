@@ -3359,9 +3359,8 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 		"opening stream oa config uuid=%s\n",
 		  stream->oa_config->uuid);
 
-	hrtimer_init(&stream->poll_check_timer,
-		     CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	stream->poll_check_timer.function = oa_poll_check_timer_cb;
+	hrtimer_setup(&stream->poll_check_timer, oa_poll_check_timer_cb, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL);
 	init_waitqueue_head(&stream->poll_wq);
 	spin_lock_init(&stream->oa_buffer.ptr_lock);
 	mutex_init(&stream->lock);

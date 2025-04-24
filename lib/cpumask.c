@@ -7,38 +7,6 @@
 #include <linux/memblock.h>
 #include <linux/numa.h>
 
-/**
- * cpumask_next_wrap - helper to implement for_each_cpu_wrap
- * @n: the cpu prior to the place to search
- * @mask: the cpumask pointer
- * @start: the start point of the iteration
- * @wrap: assume @n crossing @start terminates the iteration
- *
- * Return: >= nr_cpu_ids on completion
- *
- * Note: the @wrap argument is required for the start condition when
- * we cannot assume @start is set in @mask.
- */
-unsigned int cpumask_next_wrap(int n, const struct cpumask *mask, int start, bool wrap)
-{
-	unsigned int next;
-
-again:
-	next = cpumask_next(n, mask);
-
-	if (wrap && n < start && next >= start) {
-		return nr_cpumask_bits;
-
-	} else if (next >= nr_cpumask_bits) {
-		wrap = true;
-		n = -1;
-		goto again;
-	}
-
-	return next;
-}
-EXPORT_SYMBOL(cpumask_next_wrap);
-
 /* These are not inline because of header tangles. */
 #ifdef CONFIG_CPUMASK_OFFSTACK
 /**
@@ -171,8 +139,7 @@ unsigned int cpumask_any_and_distribute(const struct cpumask *src1p,
 	/* NOTE: our first selection will skip 0. */
 	prev = __this_cpu_read(distribute_cpu_mask_prev);
 
-	next = find_next_and_bit_wrap(cpumask_bits(src1p), cpumask_bits(src2p),
-					nr_cpumask_bits, prev + 1);
+	next = cpumask_next_and_wrap(prev, src1p, src2p);
 	if (next < nr_cpu_ids)
 		__this_cpu_write(distribute_cpu_mask_prev, next);
 
@@ -192,7 +159,7 @@ unsigned int cpumask_any_distribute(const struct cpumask *srcp)
 
 	/* NOTE: our first selection will skip 0. */
 	prev = __this_cpu_read(distribute_cpu_mask_prev);
-	next = find_next_bit_wrap(cpumask_bits(srcp), nr_cpumask_bits, prev + 1);
+	next = cpumask_next_wrap(prev, srcp);
 	if (next < nr_cpu_ids)
 		__this_cpu_write(distribute_cpu_mask_prev, next);
 

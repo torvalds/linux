@@ -667,7 +667,6 @@ static struct cpufreq_driver powernow_driver = {
 	.init		= powernow_cpu_init,
 	.exit		= powernow_cpu_exit,
 	.name		= "powernow-k7",
-	.attr		= cpufreq_generic_attr,
 };
 
 static int __init powernow_init(void)

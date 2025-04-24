@@ -1021,8 +1021,8 @@ struct journal_buf *bch2_next_write_buffer_flush_journal_buf(struct journal *j,
 
 /* allocate journal on a device: */
 
-static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
-					 bool new_fs, struct closure *cl)
+static int bch2_set_nr_journal_buckets_iter(struct bch_dev *ca, unsigned nr,
+					    bool new_fs, struct closure *cl)
 {
 	struct bch_fs *c = ca->fs;
 	struct journal_device *ja = &ca->journal;
@@ -1150,26 +1150,20 @@ err_free:
 	return ret;
 }
 
-/*
- * Allocate more journal space at runtime - not currently making use if it, but
- * the code works:
- */
-int bch2_set_nr_journal_buckets(struct bch_fs *c, struct bch_dev *ca,
-				unsigned nr)
+static int bch2_set_nr_journal_buckets_loop(struct bch_fs *c, struct bch_dev *ca,
+					    unsigned nr, bool new_fs)
 {
 	struct journal_device *ja = &ca->journal;
-	struct closure cl;
 	int ret = 0;
 
+	struct closure cl;
 	closure_init_stack(&cl);
-
-	down_write(&c->state_lock);
 
 	/* don't handle reducing nr of buckets yet: */
 	if (nr < ja->nr)
-		goto unlock;
+		return 0;
 
-	while (ja->nr < nr) {
+	while (!ret && ja->nr < nr) {
 		struct disk_reservation disk_res = { 0, 0, 0 };
 
 		/*
@@ -1182,27 +1176,38 @@ int bch2_set_nr_journal_buckets(struct bch_fs *c, struct bch_dev *ca,
 		 * filesystem-wide allocation will succeed, this is a device
 		 * specific allocation - we can hang here:
 		 */
+		if (!new_fs) {
+			ret = bch2_disk_reservation_get(c, &disk_res,
+							bucket_to_sector(ca, nr - ja->nr), 1, 0);
+			if (ret)
+				break;
+		}
 
-		ret = bch2_disk_reservation_get(c, &disk_res,
-						bucket_to_sector(ca, nr - ja->nr), 1, 0);
-		if (ret)
-			break;
+		ret = bch2_set_nr_journal_buckets_iter(ca, nr, new_fs, &cl);
 
-		ret = __bch2_set_nr_journal_buckets(ca, nr, false, &cl);
+		if (ret == -BCH_ERR_bucket_alloc_blocked ||
+		    ret == -BCH_ERR_open_buckets_empty)
+			ret = 0; /* wait and retry */
 
 		bch2_disk_reservation_put(c, &disk_res);
-
 		closure_sync(&cl);
-
-		if (ret &&
-		    ret != -BCH_ERR_bucket_alloc_blocked &&
-		    ret != -BCH_ERR_open_buckets_empty)
-			break;
 	}
 
-	bch_err_fn(c, ret);
-unlock:
+	return ret;
+}
+
+/*
+ * Allocate more journal space at runtime - not currently making use if it, but
+ * the code works:
+ */
+int bch2_set_nr_journal_buckets(struct bch_fs *c, struct bch_dev *ca,
+				unsigned nr)
+{
+	down_write(&c->state_lock);
+	int ret = bch2_set_nr_journal_buckets_loop(c, ca, nr, false);
 	up_write(&c->state_lock);
+
+	bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -1228,7 +1233,7 @@ int bch2_dev_journal_alloc(struct bch_dev *ca, bool new_fs)
 		     min(1 << 13,
 			 (1 << 24) / ca->mi.bucket_size));
 
-	ret = __bch2_set_nr_journal_buckets(ca, nr, new_fs, NULL);
+	ret = bch2_set_nr_journal_buckets_loop(ca->fs, ca, nr, new_fs);
 err:
 	bch_err_fn(ca, ret);
 	return ret;

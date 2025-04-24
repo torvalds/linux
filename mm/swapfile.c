@@ -653,7 +653,8 @@ static void relocate_cluster(struct swap_info_struct *si,
 		return;
 
 	if (!ci->count) {
-		free_cluster(si, ci);
+		if (ci->flags != CLUSTER_FLAG_FREE)
+			free_cluster(si, ci);
 	} else if (ci->count != SWAPFILE_CLUSTER) {
 		if (ci->flags != CLUSTER_FLAG_FRAG)
 			move_cluster(si, ci, &si->frag_clusters[ci->order],
@@ -857,6 +858,10 @@ static void swap_reclaim_full_clusters(struct swap_info_struct *si, bool force)
 			}
 			offset++;
 		}
+
+		/* in case no swap cache is reclaimed */
+		if (ci->flags == CLUSTER_FLAG_NONE)
+			relocate_cluster(si, ci);
 
 		unlock_cluster(ci);
 		if (to_scan <= 0)
@@ -2641,7 +2646,6 @@ static void wait_for_allocation(struct swap_info_struct *si)
 	for (offset = 0; offset < end; offset += SWAPFILE_CLUSTER) {
 		ci = lock_cluster(si, offset);
 		unlock_cluster(ci);
-		offset += SWAPFILE_CLUSTER;
 	}
 }
 
@@ -3542,6 +3546,10 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage, int nr)
 	int err, i;
 
 	si = swp_swap_info(entry);
+	if (WARN_ON_ONCE(!si)) {
+		pr_err("%s%08lx\n", Bad_file, entry.val);
+		return -EINVAL;
+	}
 
 	offset = swp_offset(entry);
 	VM_WARN_ON(nr > SWAPFILE_CLUSTER - offset % SWAPFILE_CLUSTER);

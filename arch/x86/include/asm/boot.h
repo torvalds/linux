@@ -74,7 +74,7 @@
 # define BOOT_STACK_SIZE	0x1000
 #endif
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 extern unsigned int output_len;
 extern const unsigned long kernel_text_size;
 extern const unsigned long kernel_total_size;

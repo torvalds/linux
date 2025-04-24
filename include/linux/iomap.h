@@ -56,6 +56,13 @@ struct vm_fault;
  *
  * IOMAP_F_BOUNDARY indicates that I/O and I/O completions for this iomap must
  * never be merged with the mapping before it.
+ *
+ * IOMAP_F_ANON_WRITE indicates that (write) I/O does not have a target block
+ * assigned to it yet and the file system will do that in the bio submission
+ * handler, splitting the I/O as needed.
+ *
+ * IOMAP_F_ATOMIC_BIO indicates that (write) I/O will be issued as an atomic
+ * bio, i.e. set REQ_ATOMIC.
  */
 #define IOMAP_F_NEW		(1U << 0)
 #define IOMAP_F_DIRTY		(1U << 1)
@@ -68,6 +75,8 @@ struct vm_fault;
 #endif /* CONFIG_BUFFER_HEAD */
 #define IOMAP_F_XATTR		(1U << 5)
 #define IOMAP_F_BOUNDARY	(1U << 6)
+#define IOMAP_F_ANON_WRITE	(1U << 7)
+#define IOMAP_F_ATOMIC_BIO	(1U << 8)
 
 /*
  * Flags set by the core iomap code during operations:
@@ -111,6 +120,8 @@ struct iomap {
 
 static inline sector_t iomap_sector(const struct iomap *iomap, loff_t pos)
 {
+	if (iomap->flags & IOMAP_F_ANON_WRITE)
+		return U64_MAX; /* invalid */
 	return (iomap->addr + pos - iomap->offset) >> SECTOR_SHIFT;
 }
 
@@ -182,7 +193,8 @@ struct iomap_folio_ops {
 #else
 #define IOMAP_DAX		0
 #endif /* CONFIG_FS_DAX */
-#define IOMAP_ATOMIC		(1 << 9)
+#define IOMAP_ATOMIC		(1 << 9) /* torn-write protection */
+#define IOMAP_DONTCACHE		(1 << 10)
 
 struct iomap_ops {
 	/*
@@ -211,8 +223,10 @@ struct iomap_ops {
  *	calls to iomap_iter().  Treat as read-only in the body.
  * @len: The remaining length of the file segment we're operating on.
  *	It is updated at the same time as @pos.
- * @processed: The number of bytes processed by the body in the most recent
- *	iteration, or a negative errno. 0 causes the iteration to stop.
+ * @iter_start_pos: The original start pos for the current iomap. Used for
+ *	incremental iter advance.
+ * @status: Status of the most recent iteration. Zero on success or a negative
+ *	errno on error.
  * @flags: Zero or more of the iomap_begin flags above.
  * @iomap: Map describing the I/O iteration
  * @srcmap: Source map for COW operations
@@ -221,7 +235,8 @@ struct iomap_iter {
 	struct inode *inode;
 	loff_t pos;
 	u64 len;
-	s64 processed;
+	loff_t iter_start_pos;
+	int status;
 	unsigned flags;
 	struct iomap iomap;
 	struct iomap srcmap;
@@ -229,6 +244,26 @@ struct iomap_iter {
 };
 
 int iomap_iter(struct iomap_iter *iter, const struct iomap_ops *ops);
+int iomap_iter_advance(struct iomap_iter *iter, u64 *count);
+
+/**
+ * iomap_length_trim - trimmed length of the current iomap iteration
+ * @iter: iteration structure
+ * @pos: File position to trim from.
+ * @len: Length of the mapping to trim to.
+ *
+ * Returns a trimmed length that the operation applies to for the current
+ * iteration.
+ */
+static inline u64 iomap_length_trim(const struct iomap_iter *iter, loff_t pos,
+		u64 len)
+{
+	u64 end = iter->iomap.offset + iter->iomap.length;
+
+	if (iter->srcmap.type != IOMAP_HOLE)
+		end = min(end, iter->srcmap.offset + iter->srcmap.length);
+	return min(len, end - pos);
+}
 
 /**
  * iomap_length - length of the current iomap iteration
@@ -238,11 +273,17 @@ int iomap_iter(struct iomap_iter *iter, const struct iomap_ops *ops);
  */
 static inline u64 iomap_length(const struct iomap_iter *iter)
 {
-	u64 end = iter->iomap.offset + iter->iomap.length;
+	return iomap_length_trim(iter, iter->pos, iter->len);
+}
 
-	if (iter->srcmap.type != IOMAP_HOLE)
-		end = min(end, iter->srcmap.offset + iter->srcmap.length);
-	return min(iter->len, end - iter->pos);
+/**
+ * iomap_iter_advance_full - advance by the full length of current map
+ */
+static inline int iomap_iter_advance_full(struct iomap_iter *iter)
+{
+	u64 length = iomap_length(iter);
+
+	return iomap_iter_advance(iter, &length);
 }
 
 /**
@@ -306,12 +347,11 @@ bool iomap_dirty_folio(struct address_space *mapping, struct folio *folio);
 int iomap_file_unshare(struct inode *inode, loff_t pos, loff_t len,
 		const struct iomap_ops *ops);
 int iomap_zero_range(struct inode *inode, loff_t pos, loff_t len,
-		bool *did_zero, const struct iomap_ops *ops);
+		bool *did_zero, const struct iomap_ops *ops, void *private);
 int iomap_truncate_page(struct inode *inode, loff_t pos, bool *did_zero,
-		const struct iomap_ops *ops);
-vm_fault_t iomap_page_mkwrite(struct vm_fault *vmf,
-			const struct iomap_ops *ops);
-
+		const struct iomap_ops *ops, void *private);
+vm_fault_t iomap_page_mkwrite(struct vm_fault *vmf, const struct iomap_ops *ops,
+		void *private);
 typedef void (*iomap_punch_t)(struct inode *inode, loff_t offset, loff_t length,
 		struct iomap *iomap);
 void iomap_write_delalloc_release(struct inode *inode, loff_t start_byte,
@@ -328,16 +368,42 @@ sector_t iomap_bmap(struct address_space *mapping, sector_t bno,
 		const struct iomap_ops *ops);
 
 /*
+ * Flags for iomap_ioend->io_flags.
+ */
+/* shared COW extent */
+#define IOMAP_IOEND_SHARED		(1U << 0)
+/* unwritten extent */
+#define IOMAP_IOEND_UNWRITTEN		(1U << 1)
+/* don't merge into previous ioend */
+#define IOMAP_IOEND_BOUNDARY		(1U << 2)
+/* is direct I/O */
+#define IOMAP_IOEND_DIRECT		(1U << 3)
+
+/*
+ * Flags that if set on either ioend prevent the merge of two ioends.
+ * (IOMAP_IOEND_BOUNDARY also prevents merges, but only one-way)
+ */
+#define IOMAP_IOEND_NOMERGE_FLAGS \
+	(IOMAP_IOEND_SHARED | IOMAP_IOEND_UNWRITTEN | IOMAP_IOEND_DIRECT)
+
+/*
  * Structure for writeback I/O completions.
+ *
+ * File systems implementing ->submit_ioend (for buffered I/O) or ->submit_io
+ * for direct I/O) can split a bio generated by iomap.  In that case the parent
+ * ioend it was split from is recorded in ioend->io_parent.
  */
 struct iomap_ioend {
 	struct list_head	io_list;	/* next ioend in chain */
-	u16			io_type;
-	u16			io_flags;	/* IOMAP_F_* */
+	u16			io_flags;	/* IOMAP_IOEND_* */
 	struct inode		*io_inode;	/* file being written to */
-	size_t			io_size;	/* size of data within eof */
+	size_t			io_size;	/* size of the extent */
+	atomic_t		io_remaining;	/* completetion defer count */
+	int			io_error;	/* stashed away status */
+	struct iomap_ioend	*io_parent;	/* parent for completions */
 	loff_t			io_offset;	/* offset in the file */
 	sector_t		io_sector;	/* start sector of ioend */
+	void			*io_private;	/* file system private data */
 	struct bio		io_bio;		/* MUST BE LAST! */
 };
 
@@ -362,12 +428,14 @@ struct iomap_writeback_ops {
 			  loff_t offset, unsigned len);
 
 	/*
-	 * Optional, allows the file systems to perform actions just before
-	 * submitting the bio and/or override the bio end_io handler for complex
-	 * operations like copy on write extent manipulation or unwritten extent
-	 * conversions.
+	 * Optional, allows the file systems to hook into bio submission,
+	 * including overriding the bi_end_io handler.
+	 *
+	 * Returns 0 if the bio was successfully submitted, or a negative
+	 * error code if status was non-zero or another error happened and
+	 * the bio could not be submitted.
 	 */
-	int (*prepare_ioend)(struct iomap_ioend *ioend, int status);
+	int (*submit_ioend)(struct iomap_writepage_ctx *wpc, int status);
 
 	/*
 	 * Optional, allows the file system to discard state on a page where
@@ -383,6 +451,10 @@ struct iomap_writepage_ctx {
 	u32			nr_folios;	/* folios added to the ioend */
 };
 
+struct iomap_ioend *iomap_init_ioend(struct inode *inode, struct bio *bio,
+		loff_t file_offset, u16 ioend_flags);
+struct iomap_ioend *iomap_split_ioend(struct iomap_ioend *ioend,
+		unsigned int max_len, bool is_append);
 void iomap_finish_ioends(struct iomap_ioend *ioend, int error);
 void iomap_ioend_try_merge(struct iomap_ioend *ioend,
 		struct list_head *more_ioends);
@@ -453,5 +525,7 @@ int iomap_swapfile_activate(struct swap_info_struct *sis,
 #else
 # define iomap_swapfile_activate(sis, swapfile, pagespan, ops)	(-EIO)
 #endif /* CONFIG_SWAP */
+
+extern struct bio_set iomap_ioend_bioset;
 
 #endif /* LINUX_IOMAP_H */

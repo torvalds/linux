@@ -74,20 +74,14 @@ static int bch2_bucket_is_movable(struct btree_trans *trans,
 				  struct move_bucket *b, u64 time)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	struct bch_alloc_v4 _a;
-	const struct bch_alloc_v4 *a;
-	int ret;
 
-	if (bch2_bucket_is_open(trans->c,
-				b->k.bucket.inode,
-				b->k.bucket.offset))
+	if (bch2_bucket_is_open(c, b->k.bucket.inode, b->k.bucket.offset))
 		return 0;
 
-	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_alloc,
-			       b->k.bucket, BTREE_ITER_cached);
-	ret = bkey_err(k);
+	struct btree_iter iter;
+	struct bkey_s_c k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_alloc,
+				       b->k.bucket, BTREE_ITER_cached);
+	int ret = bkey_err(k);
 	if (ret)
 		return ret;
 
@@ -95,13 +89,18 @@ static int bch2_bucket_is_movable(struct btree_trans *trans,
 	if (!ca)
 		goto out;
 
-	a = bch2_alloc_to_v4(k, &_a);
+	if (ca->mi.state != BCH_MEMBER_STATE_rw ||
+	    !bch2_dev_is_online(ca))
+		goto out_put;
+
+	struct bch_alloc_v4 _a;
+	const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &_a);
 	b->k.gen	= a->gen;
 	b->sectors	= bch2_bucket_sectors_dirty(*a);
 	u64 lru_idx	= alloc_lru_idx_fragmentation(*a, ca);
 
 	ret = lru_idx && lru_idx <= time;
-
+out_put:
 	bch2_dev_put(ca);
 out:
 	bch2_trans_iter_exit(trans, &iter);

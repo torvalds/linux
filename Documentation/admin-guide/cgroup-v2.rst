@@ -1076,15 +1076,20 @@ cpufreq governor about the minimum desired frequency which should always be
 provided by a CPU, as well as the maximum desired frequency, which should not
 be exceeded by a CPU.
 
-WARNING: cgroup2 doesn't yet support control of realtime processes. For
-a kernel built with the CONFIG_RT_GROUP_SCHED option enabled for group
-scheduling of realtime processes, the cpu controller can only be enabled
-when all RT processes are in the root cgroup.  This limitation does
-not apply if CONFIG_RT_GROUP_SCHED is disabled.  Be aware that system
-management software may already have placed RT processes into nonroot
-cgroups during the system boot process, and these processes may need
-to be moved to the root cgroup before the cpu controller can be enabled
-with a CONFIG_RT_GROUP_SCHED enabled kernel.
+WARNING: cgroup2 cpu controller doesn't yet fully support the control of
+realtime processes. For a kernel built with the CONFIG_RT_GROUP_SCHED option
+enabled for group scheduling of realtime processes, the cpu controller can only
+be enabled when all RT processes are in the root cgroup. Be aware that system
+management software may already have placed RT processes into non-root cgroups
+during the system boot process, and these processes may need to be moved to the
+root cgroup before the cpu controller can be enabled with a
+CONFIG_RT_GROUP_SCHED enabled kernel.
+
+With CONFIG_RT_GROUP_SCHED disabled, this limitation does not apply and some of
+the interface files either affect realtime processes or account for them. See
+the following section for details. Only the cpu controller is affected by
+CONFIG_RT_GROUP_SCHED. Other controllers can be used for the resource control of
+realtime processes irrespective of CONFIG_RT_GROUP_SCHED.
 
 
 CPU Interface Files

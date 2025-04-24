@@ -19,6 +19,8 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
+#include "../pidfd/pidfd.h"
+
 /*
  * Ignore the checkpatch warning, as per the C99 standard, section 7.14.1.1:
  *
@@ -48,11 +50,6 @@ static void handle_fatal(int c)
 		return;
 
 	siglongjmp(signal_jmp_buf, c);
-}
-
-static int pidfd_open(pid_t pid, unsigned int flags)
-{
-	return syscall(SYS_pidfd_open, pid, flags);
 }
 
 static ssize_t sys_process_madvise(int pidfd, const struct iovec *iovec,
@@ -370,13 +367,9 @@ TEST_F(guard_pages, multi_vma)
 TEST_F(guard_pages, process_madvise)
 {
 	const unsigned long page_size = self->page_size;
-	pid_t pid = getpid();
-	int pidfd = pidfd_open(pid, 0);
 	char *ptr_region, *ptr1, *ptr2, *ptr3;
 	ssize_t count;
 	struct iovec vec[6];
-
-	ASSERT_NE(pidfd, -1);
 
 	/* Reserve region to map over. */
 	ptr_region = mmap(NULL, 100 * page_size, PROT_NONE,
@@ -425,7 +418,7 @@ TEST_F(guard_pages, process_madvise)
 	ASSERT_EQ(munmap(&ptr_region[99 * page_size], page_size), 0);
 
 	/* Now guard in one step. */
-	count = sys_process_madvise(pidfd, vec, 6, MADV_GUARD_INSTALL, 0);
+	count = sys_process_madvise(PIDFD_SELF, vec, 6, MADV_GUARD_INSTALL, 0);
 
 	/* OK we don't have permission to do this, skip. */
 	if (count == -1 && errno == EPERM)
@@ -446,7 +439,7 @@ TEST_F(guard_pages, process_madvise)
 	ASSERT_FALSE(try_read_write_buf(&ptr3[19 * page_size]));
 
 	/* Now do the same with unguard... */
-	count = sys_process_madvise(pidfd, vec, 6, MADV_GUARD_REMOVE, 0);
+	count = sys_process_madvise(PIDFD_SELF, vec, 6, MADV_GUARD_REMOVE, 0);
 
 	/* ...and everything should now succeed. */
 
@@ -463,7 +456,6 @@ TEST_F(guard_pages, process_madvise)
 	ASSERT_EQ(munmap(ptr1, 10 * page_size), 0);
 	ASSERT_EQ(munmap(ptr2, 5 * page_size), 0);
 	ASSERT_EQ(munmap(ptr3, 20 * page_size), 0);
-	close(pidfd);
 }
 
 /* Assert that unmapping ranges does not leave guard markers behind. */

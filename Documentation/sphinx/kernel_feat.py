@@ -1,7 +1,7 @@
 # coding=utf-8
 # SPDX-License-Identifier: GPL-2.0
 #
-u"""
+"""
     kernel-feat
     ~~~~~~~~~~~
 
@@ -56,7 +56,7 @@ def setup(app):
 
 class KernelFeat(Directive):
 
-    u"""KernelFeat (``kernel-feat``) directive"""
+    """KernelFeat (``kernel-feat``) directive"""
 
     required_arguments = 1
     optional_arguments = 2

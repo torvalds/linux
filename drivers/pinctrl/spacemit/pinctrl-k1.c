@@ -1044,7 +1044,7 @@ static struct platform_driver k1_pinctrl_driver = {
 		.of_match_table		= k1_pinctrl_ids,
 	},
 };
-module_platform_driver(k1_pinctrl_driver);
+builtin_platform_driver(k1_pinctrl_driver);
 
 MODULE_AUTHOR("Yixun Lan <dlan@gentoo.org>");
 MODULE_DESCRIPTION("Pinctrl driver for the SpacemiT K1 SoC");

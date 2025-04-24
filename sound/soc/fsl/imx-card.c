@@ -518,6 +518,7 @@ static int imx_card_parse_of(struct imx_card_data *data)
 	struct snd_soc_dai_link *link;
 	struct dai_link_data *link_data;
 	struct of_phandle_args args;
+	bool playback_only, capture_only;
 	int ret, num_links;
 	u32 asrc_fmt = 0;
 	u32 width;
@@ -678,6 +679,10 @@ static int imx_card_parse_of(struct imx_card_data *data)
 		} else {
 			link->ops = &imx_aif_ops;
 		}
+
+		graph_util_parse_link_direction(np, &playback_only, &capture_only);
+		link->playback_only = playback_only;
+		link->capture_only = capture_only;
 
 		/* Get dai fmt */
 		ret = simple_util_parse_daifmt(dev, np, codec,

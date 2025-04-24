@@ -169,20 +169,13 @@ static size_t sof_ipc4_fw_parse_basefw_ext_man(struct snd_sof_dev *sdev)
 	return payload_offset;
 }
 
-static int sof_ipc4_load_library_by_uuid(struct snd_sof_dev *sdev,
-					 unsigned long lib_id, const guid_t *uuid)
+static int sof_ipc4_load_library(struct snd_sof_dev *sdev, unsigned long lib_id,
+				 const char *lib_filename, bool optional)
 {
 	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 	struct sof_ipc4_fw_library *fw_lib;
-	const char *fw_filename;
 	ssize_t payload_offset;
 	int ret, i, err;
-
-	if (!sdev->pdata->fw_lib_prefix) {
-		dev_err(sdev->dev,
-			"Library loading is not supported due to not set library path\n");
-		return -EINVAL;
-	}
 
 	if (!ipc4_data->load_library) {
 		dev_err(sdev->dev, "Library loading is not supported on this platform\n");
@@ -193,20 +186,25 @@ static int sof_ipc4_load_library_by_uuid(struct snd_sof_dev *sdev,
 	if (!fw_lib)
 		return -ENOMEM;
 
-	fw_filename = kasprintf(GFP_KERNEL, "%s/%pUL.bin",
-				sdev->pdata->fw_lib_prefix, uuid);
-	if (!fw_filename) {
-		ret = -ENOMEM;
-		goto free_fw_lib;
+	if (optional) {
+		ret = firmware_request_nowarn(&fw_lib->sof_fw.fw, lib_filename,
+					      sdev->dev);
+		if (ret < 0) {
+			/* optional library, override the error */
+			ret = 0;
+			goto free_fw_lib;
+		}
+	} else {
+		ret = request_firmware(&fw_lib->sof_fw.fw, lib_filename,
+				       sdev->dev);
+		if (ret < 0) {
+			dev_err(sdev->dev, "Library file '%s' is missing\n",
+				lib_filename);
+			goto free_fw_lib;
+		}
 	}
 
-	ret = request_firmware(&fw_lib->sof_fw.fw, fw_filename, sdev->dev);
-	if (ret < 0) {
-		dev_err(sdev->dev, "Library file '%s' is missing\n", fw_filename);
-		goto free_filename;
-	} else {
-		dev_dbg(sdev->dev, "Library file '%s' loaded\n", fw_filename);
-	}
+	dev_dbg(sdev->dev, "Library file '%s' loaded\n", lib_filename);
 
 	payload_offset = sof_ipc4_fw_parse_ext_man(sdev, fw_lib);
 	if (payload_offset <= 0) {
@@ -251,18 +249,113 @@ static int sof_ipc4_load_library_by_uuid(struct snd_sof_dev *sdev,
 	if (unlikely(ret))
 		goto release;
 
-	kfree(fw_filename);
-
 	return 0;
 
 release:
 	release_firmware(fw_lib->sof_fw.fw);
 	/* Allocated within sof_ipc4_fw_parse_ext_man() */
 	devm_kfree(sdev->dev, fw_lib->modules);
-free_filename:
-	kfree(fw_filename);
 free_fw_lib:
 	devm_kfree(sdev->dev, fw_lib);
+
+	return ret;
+}
+
+/**
+ * sof_ipc4_complete_split_release - loads the library parts of a split firmware
+ * @sdev: SOF device
+ *
+ * With IPC4 the firmware can be a single binary or a split release.
+ * - single binary: only the basefw
+ * - split release: basefw and two libraries (openmodules, debug)
+ *
+ * With split firmware release it is also allowed that for example only the
+ * debug library is present (the openmodules content is built in the basefw).
+ *
+ * To handle the permutations try to load the openmodules then the debug
+ * libraries as optional ones after the basefw boot.
+ *
+ * The libraries for the split release are stored alongside the basefw on the
+ * filesystem.
+ */
+int sof_ipc4_complete_split_release(struct snd_sof_dev *sdev)
+{
+	static const char * const lib_bundle[] = { "openmodules", "debug" };
+	const char *fw_filename = sdev->pdata->fw_filename;
+	const char *lib_filename, *p;
+	size_t lib_name_base_size;
+	unsigned long lib_id = 1;
+	char *lib_name_base;
+	int i;
+
+	p = strstr(fw_filename, ".ri");
+	if (!p || strlen(p) != 3) {
+		dev_info(sdev->dev,
+			 "%s: Firmware name '%s' is missing .ri extension\n",
+			 __func__, fw_filename);
+		return 0;
+	}
+
+	/* Space for the firmware basename + '\0', without the extension */
+	lib_name_base_size = strlen(fw_filename) - 2;
+	lib_name_base = kzalloc(lib_name_base_size, GFP_KERNEL);
+	if (!lib_name_base)
+		return -ENOMEM;
+
+	/*
+	 * strscpy will 0 terminate the copied string, removing the '.ri' from
+	 * the end of the fw_filename, for example:
+	 * fw_filename:		"sof-ptl.ri\0"
+	 * lib_name_base:	"sof-ptl\0"
+	 */
+	strscpy(lib_name_base, fw_filename, lib_name_base_size);
+
+	for (i = 0; i < ARRAY_SIZE(lib_bundle); i++) {
+		int ret;
+
+		lib_filename = kasprintf(GFP_KERNEL, "%s/%s-%s.ri",
+					 sdev->pdata->fw_filename_prefix,
+					 lib_name_base, lib_bundle[i]);
+		if (!lib_filename) {
+			kfree(lib_name_base);
+			return -ENOMEM;
+		}
+
+		ret = sof_ipc4_load_library(sdev, lib_id, lib_filename, true);
+		if (ret)
+			dev_warn(sdev->dev, "%s: Failed to load %s: %d\n",
+				 __func__, lib_filename, ret);
+		else
+			lib_id++;
+
+		kfree(lib_filename);
+	}
+
+	kfree(lib_name_base);
+
+	return 0;
+}
+
+static int sof_ipc4_load_library_by_uuid(struct snd_sof_dev *sdev,
+					 unsigned long lib_id, const guid_t *uuid)
+{
+	const char *lib_filename;
+	int ret;
+
+	if (!sdev->pdata->fw_lib_prefix) {
+		dev_err(sdev->dev,
+			"Library loading is not supported due to not set library path\n");
+		return -EINVAL;
+	}
+
+	lib_filename = kasprintf(GFP_KERNEL, "%s/%pUL.bin",
+				 sdev->pdata->fw_lib_prefix, uuid);
+	if (!lib_filename)
+		return -ENOMEM;
+
+	ret = sof_ipc4_load_library(sdev, lib_id, lib_filename, false);
+
+	kfree(lib_filename);
 
 	return ret;
 }
@@ -401,6 +494,39 @@ int sof_ipc4_query_fw_configuration(struct snd_sof_dev *sdev)
 			break;
 		case SOF_IPC4_FW_CONTEXT_SAVE:
 			ipc4_data->fw_context_save = *tuple->value;
+			break;
+		default:
+			break;
+		}
+
+		offset += sizeof(*tuple) + tuple->size;
+	}
+
+	/* Get the hardware configuration */
+	msg.primary = SOF_IPC4_MSG_TARGET(SOF_IPC4_MODULE_MSG);
+	msg.primary |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
+	msg.primary |= SOF_IPC4_MOD_ID(SOF_IPC4_MOD_INIT_BASEFW_MOD_ID);
+	msg.primary |= SOF_IPC4_MOD_INSTANCE(SOF_IPC4_MOD_INIT_BASEFW_INSTANCE_ID);
+	msg.extension = SOF_IPC4_MOD_EXT_MSG_PARAM_ID(SOF_IPC4_FW_PARAM_HW_CONFIG_GET);
+
+	msg.data_size = sdev->ipc->max_payload_size;
+
+	ret = iops->set_get_data(sdev, &msg, msg.data_size, false);
+	if (ret)
+		goto out;
+
+	offset = 0;
+	while (offset < msg.data_size) {
+		tuple = (struct sof_ipc4_tuple *)((u8 *)msg.data_ptr + offset);
+
+		switch (tuple->type) {
+		case SOF_IPC4_HW_CFG_INTEL_MIC_PRIVACY_CAPS:
+			if (ipc4_data->intel_configure_mic_privacy) {
+				struct sof_ipc4_intel_mic_privacy_cap *caps;
+
+				caps = (struct sof_ipc4_intel_mic_privacy_cap *)tuple->value;
+				ipc4_data->intel_configure_mic_privacy(sdev, caps);
+			}
 			break;
 		default:
 			break;

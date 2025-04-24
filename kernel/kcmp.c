@@ -145,7 +145,7 @@ SYSCALL_DEFINE5(kcmp, pid_t, pid1, pid_t, pid2, int, type,
 	 */
 	task1 = find_task_by_vpid(pid1);
 	task2 = find_task_by_vpid(pid2);
-	if (!task1 || !task2)
+	if (unlikely(!task1 || !task2))
 		goto err_no_task;
 
 	get_task_struct(task1);

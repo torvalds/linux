@@ -147,8 +147,7 @@ static void __init m68k_parse_bootinfo(const struct bi_record *record)
 			break;
 
 		case BI_COMMAND_LINE:
-			strscpy(m68k_command_line, data,
-				sizeof(m68k_command_line));
+			strscpy(m68k_command_line, data);
 			break;
 
 		case BI_RNG_SEED: {

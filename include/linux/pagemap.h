@@ -1044,21 +1044,23 @@ static inline pgoff_t page_pgoff(const struct folio *folio,
 	return folio->index + folio_page_idx(folio, page);
 }
 
+/**
+ * folio_pos - Returns the byte position of this folio in its file.
+ * @folio: The folio.
+ */
+static inline loff_t folio_pos(const struct folio *folio)
+{
+	return ((loff_t)folio->index) * PAGE_SIZE;
+}
+
 /*
  * Return byte-offset into filesystem object for page.
  */
 static inline loff_t page_offset(struct page *page)
 {
-	return ((loff_t)page->index) << PAGE_SHIFT;
-}
+	struct folio *folio = page_folio(page);
 
-/**
- * folio_pos - Returns the byte position of this folio in its file.
- * @folio: The folio.
- */
-static inline loff_t folio_pos(struct folio *folio)
-{
-	return page_offset(&folio->page);
+	return folio_pos(folio) + folio_page_idx(folio, page) * PAGE_SIZE;
 }
 
 /*
@@ -1599,34 +1601,6 @@ static inline ssize_t folio_mkwrite_check_truncate(struct folio *folio,
 	if (folio->index > index || !offset)
 		return -EFAULT;
 	/* folio is partially inside EOF */
-	return offset;
-}
-
-/**
- * page_mkwrite_check_truncate - check if page was truncated
- * @page: the page to check
- * @inode: the inode to check the page against
- *
- * Returns the number of bytes in the page up to EOF,
- * or -EFAULT if the page was truncated.
- */
-static inline int page_mkwrite_check_truncate(struct page *page,
-					      struct inode *inode)
-{
-	loff_t size = i_size_read(inode);
-	pgoff_t index = size >> PAGE_SHIFT;
-	int offset = offset_in_page(size);
-
-	if (page->mapping != inode->i_mapping)
-		return -EFAULT;
-
-	/* page is wholly inside EOF */
-	if (page->index < index)
-		return PAGE_SIZE;
-	/* page is wholly past EOF */
-	if (page->index > index || !offset)
-		return -EFAULT;
-	/* page is partially inside EOF */
 	return offset;
 }
 

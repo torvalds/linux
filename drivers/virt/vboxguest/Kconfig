@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config VBOXGUEST
 	tristate "Virtual Box Guest integration support"
-	depends on (ARM64 || X86) && PCI && INPUT
+	depends on (ARM64 || X86 || COMPILE_TEST) && PCI && INPUT
+	depends on HAS_IOPORT
 	help
 	  This is a driver for the Virtual Box Guest PCI device used in
 	  Virtual Box virtual machines. Enabling this driver will add

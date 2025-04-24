@@ -1198,11 +1198,11 @@ static int pac1921_match_acpi_device(struct iio_dev *indio_dev)
 
 	label = devm_kstrdup(dev, status->package.elements[0].string.pointer,
 			     GFP_KERNEL);
+	ACPI_FREE(status);
 	if (!label)
 		return -ENOMEM;
 
 	indio_dev->label = label;
-	ACPI_FREE(status);
 
 	return 0;
 }

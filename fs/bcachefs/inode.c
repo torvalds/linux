@@ -1198,6 +1198,7 @@ void bch2_inode_opts_get(struct bch_io_opts *opts, struct bch_fs *c,
 		opts->_name##_from_inode = true;			\
 	} else {							\
 		opts->_name = c->opts._name;				\
+		opts->_name##_from_inode = false;			\
 	}
 	BCH_INODE_OPTS()
 #undef x

@@ -10,6 +10,8 @@
 #include <asm/setup.h>
 #include <asm/mce.h>
 
+#include <linux/platform_data/x86/apple.h>
+
 #if defined(CONFIG_X86_IO_APIC) && defined(CONFIG_SMP) && defined(CONFIG_PCI)
 
 static void quirk_intel_irqbalance(struct pci_dev *dev)

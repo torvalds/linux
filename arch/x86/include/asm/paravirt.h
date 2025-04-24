@@ -6,7 +6,7 @@
 
 #include <asm/paravirt_types.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 struct mm_struct;
 #endif
 
@@ -15,7 +15,7 @@ struct mm_struct;
 #include <asm/asm.h>
 #include <asm/nospec-branch.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/bug.h>
 #include <linux/types.h>
 #include <linux/cpumask.h>
@@ -89,11 +89,6 @@ static inline void __flush_tlb_multi(const struct cpumask *cpumask,
 				      const struct flush_tlb_info *info)
 {
 	PVOP_VCALL2(mmu.flush_tlb_multi, cpumask, info);
-}
-
-static inline void paravirt_tlb_remove_table(struct mmu_gather *tlb, void *table)
-{
-	PVOP_VCALL2(mmu.tlb_remove_table, tlb, table);
 }
 
 static inline void paravirt_arch_exit_mmap(struct mm_struct *mm)
@@ -720,7 +715,7 @@ static __always_inline unsigned long arch_local_irq_save(void)
 extern void default_banner(void);
 void native_pv_lock_init(void) __init;
 
-#else  /* __ASSEMBLY__ */
+#else  /* __ASSEMBLER__ */
 
 #ifdef CONFIG_X86_64
 #ifdef CONFIG_PARAVIRT_XXL
@@ -740,18 +735,18 @@ void native_pv_lock_init(void) __init;
 #endif /* CONFIG_PARAVIRT_XXL */
 #endif	/* CONFIG_X86_64 */
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #else  /* CONFIG_PARAVIRT */
 # define default_banner x86_init_noop
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 static inline void native_pv_lock_init(void)
 {
 }
 #endif
 #endif /* !CONFIG_PARAVIRT */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #ifndef CONFIG_PARAVIRT_XXL
 static inline void paravirt_enter_mmap(struct mm_struct *mm)
 {
@@ -769,5 +764,5 @@ static inline void paravirt_set_cap(void)
 {
 }
 #endif
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* _ASM_X86_PARAVIRT_H */

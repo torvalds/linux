@@ -226,7 +226,7 @@ legacy:
  * @nr: Bit to set
  * @addr: Address to count from
  *
- * This operation may be reordered on other architectures than x86.
+ * This is an atomic fully-ordered operation (implied full memory barrier).
  */
 static __always_inline int arch_test_and_set_bit(int nr, volatile unsigned long *addr)
 {
@@ -238,7 +238,7 @@ static __always_inline int arch_test_and_set_bit(int nr, volatile unsigned long 
  * @nr: Bit to clear
  * @addr: Address to count from
  *
- * This operation can be reordered on other architectures other than x86.
+ * This is an atomic fully-ordered operation (implied full memory barrier).
  */
 static __always_inline int arch_test_and_clear_bit(int nr, volatile unsigned long *addr)
 {

@@ -167,11 +167,11 @@ static void __noreturn tdx_panic(const char *msg)
 		/* Define register order according to the GHCI */
 		struct { u64 r14, r15, rbx, rdi, rsi, r8, r9, rdx; };
 
-		char str[64];
+		char bytes[64] __nonstring;
 	} message;
 
 	/* VMM assumes '\0' in byte 65, if the message took all 64 bytes */
-	strtomem_pad(message.str, msg, '\0');
+	strtomem_pad(message.bytes, msg, '\0');
 
 	args.r8  = message.r8;
 	args.r9  = message.r9;

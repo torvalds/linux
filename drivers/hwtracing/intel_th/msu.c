@@ -105,23 +105,32 @@ struct msc_iter {
 
 /**
  * struct msc - MSC device representation
- * @reg_base:		register window base address
+ * @reg_base:		register window base address for the entire MSU
+ * @msu_base:		register window base address for this MSC
  * @thdev:		intel_th_device pointer
  * @mbuf:		MSU buffer, if assigned
- * @mbuf_priv		MSU buffer's private data, if @mbuf
+ * @mbuf_priv:		MSU buffer's private data, if @mbuf
+ * @work:		a work to stop the trace when the buffer is full
  * @win_list:		list of windows in multiblock mode
  * @single_sgt:		single mode buffer
  * @cur_win:		current window
+ * @switch_on_unlock:	window to switch to when it becomes available
  * @nr_pages:		total number of pages allocated for this buffer
  * @single_sz:		amount of data in single mode
  * @single_wrap:	single mode wrap occurred
  * @base:		buffer's base pointer
  * @base_addr:		buffer's base address
+ * @orig_addr:		MSC0 buffer's base address
+ * @orig_sz:		MSC0 buffer's size
  * @user_count:		number of users of the buffer
  * @mmap_count:		number of mappings
  * @buf_mutex:		mutex to serialize access to buffer-related bits
+ * @iter_list:		list of open file descriptor iterators
+ * @stop_on_full:	stop the trace if the current window is full
  * @enabled:		MSC is enabled
  * @wrap:		wrapping is enabled
+ * @do_irq:		IRQ resource is available, handle interrupts
+ * @multi_is_broken:	multiblock mode enabled (not disabled by PCI drvdata)
  * @mode:		MSC operating mode
  * @burst_len:		write burst length
  * @index:		number of this MSC in the MSU

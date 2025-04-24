@@ -2867,11 +2867,10 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 			return -EINVAL;
 		}
 	}
-
-	hrtimer_init(&uap->trigger_start_tx, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	hrtimer_init(&uap->trigger_stop_tx, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	uap->trigger_start_tx.function = pl011_trigger_start_tx;
-	uap->trigger_stop_tx.function = pl011_trigger_stop_tx;
+	hrtimer_setup(&uap->trigger_start_tx, pl011_trigger_start_tx, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL);
+	hrtimer_setup(&uap->trigger_stop_tx, pl011_trigger_stop_tx, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL);
 
 	ret = pl011_setup_port(&dev->dev, uap, &dev->res, portnr);
 	if (ret)

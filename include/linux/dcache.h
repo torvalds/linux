@@ -203,34 +203,34 @@ struct dentry_operations {
 #define DCACHE_NFSFS_RENAMED		BIT(12)
      /* this dentry has been "silly renamed" and has to be deleted on the last
       * dput() */
-#define DCACHE_FSNOTIFY_PARENT_WATCHED	BIT(14)
+#define DCACHE_FSNOTIFY_PARENT_WATCHED	BIT(13)
      /* Parent inode is watched by some fsnotify listener */
 
-#define DCACHE_DENTRY_KILLED		BIT(15)
+#define DCACHE_DENTRY_KILLED		BIT(14)
 
-#define DCACHE_MOUNTED			BIT(16) /* is a mountpoint */
-#define DCACHE_NEED_AUTOMOUNT		BIT(17) /* handle automount on this dir */
-#define DCACHE_MANAGE_TRANSIT		BIT(18) /* manage transit from this dirent */
+#define DCACHE_MOUNTED			BIT(15) /* is a mountpoint */
+#define DCACHE_NEED_AUTOMOUNT		BIT(16) /* handle automount on this dir */
+#define DCACHE_MANAGE_TRANSIT		BIT(17) /* manage transit from this dirent */
 #define DCACHE_MANAGED_DENTRY \
 	(DCACHE_MOUNTED|DCACHE_NEED_AUTOMOUNT|DCACHE_MANAGE_TRANSIT)
 
-#define DCACHE_LRU_LIST			BIT(19)
+#define DCACHE_LRU_LIST			BIT(18)
 
-#define DCACHE_ENTRY_TYPE		(7 << 20) /* bits 20..22 are for storing type: */
-#define DCACHE_MISS_TYPE		(0 << 20) /* Negative dentry */
-#define DCACHE_WHITEOUT_TYPE		(1 << 20) /* Whiteout dentry (stop pathwalk) */
-#define DCACHE_DIRECTORY_TYPE		(2 << 20) /* Normal directory */
-#define DCACHE_AUTODIR_TYPE		(3 << 20) /* Lookupless directory (presumed automount) */
-#define DCACHE_REGULAR_TYPE		(4 << 20) /* Regular file type */
-#define DCACHE_SPECIAL_TYPE		(5 << 20) /* Other file type */
-#define DCACHE_SYMLINK_TYPE		(6 << 20) /* Symlink */
+#define DCACHE_ENTRY_TYPE		(7 << 19) /* bits 19..21 are for storing type: */
+#define DCACHE_MISS_TYPE		(0 << 19) /* Negative dentry */
+#define DCACHE_WHITEOUT_TYPE		(1 << 19) /* Whiteout dentry (stop pathwalk) */
+#define DCACHE_DIRECTORY_TYPE		(2 << 19) /* Normal directory */
+#define DCACHE_AUTODIR_TYPE		(3 << 19) /* Lookupless directory (presumed automount) */
+#define DCACHE_REGULAR_TYPE		(4 << 19) /* Regular file type */
+#define DCACHE_SPECIAL_TYPE		(5 << 19) /* Other file type */
+#define DCACHE_SYMLINK_TYPE		(6 << 19) /* Symlink */
 
-#define DCACHE_NOKEY_NAME		BIT(25) /* Encrypted name encoded without key */
-#define DCACHE_OP_REAL			BIT(26)
+#define DCACHE_NOKEY_NAME		BIT(22) /* Encrypted name encoded without key */
+#define DCACHE_OP_REAL			BIT(23)
 
-#define DCACHE_PAR_LOOKUP		BIT(28) /* being looked up (with parent locked shared) */
-#define DCACHE_DENTRY_CURSOR		BIT(29)
-#define DCACHE_NORCU			BIT(30) /* No RCU delay for freeing */
+#define DCACHE_PAR_LOOKUP		BIT(24) /* being looked up (with parent locked shared) */
+#define DCACHE_DENTRY_CURSOR		BIT(25)
+#define DCACHE_NORCU			BIT(26) /* No RCU delay for freeing */
 
 extern seqlock_t rename_lock;
 
@@ -253,7 +253,6 @@ extern struct dentry * d_splice_alias(struct inode *, struct dentry *);
 extern struct dentry * d_add_ci(struct dentry *, struct inode *, struct qstr *);
 extern bool d_same_name(const struct dentry *dentry, const struct dentry *parent,
 			const struct qstr *name);
-extern struct dentry * d_exact_alias(struct dentry *, struct inode *);
 extern struct dentry *d_find_any_alias(struct inode *inode);
 extern struct dentry * d_obtain_alias(struct inode *);
 extern struct dentry * d_obtain_root(struct inode *);

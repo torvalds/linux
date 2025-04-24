@@ -73,8 +73,12 @@ __do_hyp_init:
 	eret
 SYM_CODE_END(__kvm_hyp_init)
 
+/*
+ * Initialize EL2 CPU state to sane values.
+ *
+ * HCR_EL2.E2H must have been initialized already.
+ */
 SYM_CODE_START_LOCAL(__kvm_init_el2_state)
-	/* Initialize EL2 CPU state to sane values. */
 	init_el2_state				// Clobbers x0..x2
 	finalise_el2_state
 	ret
@@ -206,9 +210,9 @@ SYM_CODE_START_LOCAL(__kvm_hyp_init_cpu)
 
 2:	msr	SPsel, #1			// We want to use SP_EL{1,2}
 
-	bl	__kvm_init_el2_state
+	init_el2_hcr	0
 
-	__init_el2_nvhe_prepare_eret
+	bl	__kvm_init_el2_state
 
 	/* Enable MMU, set vectors and stack. */
 	mov	x0, x28

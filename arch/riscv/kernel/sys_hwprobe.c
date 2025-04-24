@@ -450,8 +450,7 @@ static int do_riscv_hwprobe(struct riscv_hwprobe __user *pairs,
 
 static int __init init_hwprobe_vdso_data(void)
 {
-	struct vdso_data *vd = __arch_get_k_vdso_data();
-	struct arch_vdso_time_data *avd = &vd->arch_data;
+	struct vdso_arch_data *avd = vdso_k_arch_data;
 	u64 id_bitsmash = 0;
 	struct riscv_hwprobe pair;
 	int key;

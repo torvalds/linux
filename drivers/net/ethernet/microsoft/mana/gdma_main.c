@@ -134,9 +134,10 @@ static int mana_gd_detect_devices(struct pci_dev *pdev)
 	struct gdma_list_devices_resp resp = {};
 	struct gdma_general_req req = {};
 	struct gdma_dev_id dev;
-	u32 i, max_num_devs;
+	int found_dev = 0;
 	u16 dev_type;
 	int err;
+	u32 i;
 
 	mana_gd_init_req_hdr(&req.hdr, GDMA_LIST_DEVICES, sizeof(req),
 			     sizeof(resp));
@@ -148,11 +149,16 @@ static int mana_gd_detect_devices(struct pci_dev *pdev)
 		return err ? err : -EPROTO;
 	}
 
-	max_num_devs = min_t(u32, MAX_NUM_GDMA_DEVICES, resp.num_of_devs);
-
-	for (i = 0; i < max_num_devs; i++) {
+	for (i = 0; i < GDMA_DEV_LIST_SIZE &&
+	     found_dev < resp.num_of_devs; i++) {
 		dev = resp.devs[i];
 		dev_type = dev.type;
+
+		/* Skip empty devices */
+		if (dev.as_uint32 == 0)
+			continue;
+
+		found_dev++;
 
 		/* HWC is already detected in mana_hwc_create_channel(). */
 		if (dev_type == GDMA_DEVICE_HWC)
@@ -1547,6 +1553,7 @@ unmap_bar:
 	 * adapter-MTU file and apc->mana_pci_debugfs folder.
 	 */
 	debugfs_remove_recursive(gc->mana_pci_debugfs);
+	gc->mana_pci_debugfs = NULL;
 	pci_iounmap(pdev, bar0_va);
 free_gc:
 	pci_set_drvdata(pdev, NULL);
@@ -1568,6 +1575,8 @@ static void mana_gd_remove(struct pci_dev *pdev)
 	mana_gd_cleanup(pdev);
 
 	debugfs_remove_recursive(gc->mana_pci_debugfs);
+
+	gc->mana_pci_debugfs = NULL;
 
 	pci_iounmap(pdev, gc->bar0_va);
 
@@ -1622,6 +1631,8 @@ static void mana_gd_shutdown(struct pci_dev *pdev)
 
 	debugfs_remove_recursive(gc->mana_pci_debugfs);
 
+	gc->mana_pci_debugfs = NULL;
+
 	pci_disable_device(pdev);
 }
 
@@ -1648,8 +1659,10 @@ static int __init mana_driver_init(void)
 	mana_debugfs_root = debugfs_create_dir("mana", NULL);
 
 	err = pci_register_driver(&mana_driver);
-	if (err)
+	if (err) {
 		debugfs_remove(mana_debugfs_root);
+		mana_debugfs_root = NULL;
+	}
 
 	return err;
 }
@@ -1659,6 +1672,8 @@ static void __exit mana_driver_exit(void)
 	pci_unregister_driver(&mana_driver);
 
 	debugfs_remove(mana_debugfs_root);
+
+	mana_debugfs_root = NULL;
 }
 
 module_init(mana_driver_init);

@@ -401,7 +401,7 @@ do {									\
 	_ret;								\
 })
 
-size_t bch2_rand_range(size_t);
+u64 bch2_get_random_u64_below(u64);
 
 void memcpy_to_bio(struct bio *, struct bvec_iter, const void *);
 void memcpy_from_bio(void *, struct bio *, struct bvec_iter);

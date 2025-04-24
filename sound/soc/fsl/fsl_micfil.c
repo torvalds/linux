@@ -19,6 +19,7 @@
 #include <linux/dma/imx-dma.h>
 #include <sound/dmaengine_pcm.h>
 #include <sound/pcm.h>
+#include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
 #include <sound/core.h>
@@ -78,6 +79,7 @@ struct fsl_micfil {
 	struct fsl_micfil_verid verid;
 	struct fsl_micfil_param param;
 	bool mclk_flag;  /* mclk enable flag */
+	bool dec_bypass;
 };
 
 struct fsl_micfil_soc_data {
@@ -129,7 +131,7 @@ static struct fsl_micfil_soc_data fsl_micfil_imx943 = {
 	.fifos = 8,
 	.fifo_depth = 32,
 	.dataline =  0xf,
-	.formats = SNDRV_PCM_FMTBIT_S32_LE,
+	.formats = SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_DSD_U32_BE,
 	.use_edma = true,
 	.use_verid = true,
 	.volume_sx = false,
@@ -724,14 +726,14 @@ static int fsl_micfil_trigger(struct snd_pcm_substream *substream, int cmd,
 		if (ret)
 			return ret;
 
-		if (micfil->vad_enabled)
+		if (micfil->vad_enabled && !micfil->dec_bypass)
 			fsl_micfil_hwvad_enable(micfil);
 
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		if (micfil->vad_enabled)
+		if (micfil->vad_enabled && !micfil->dec_bypass)
 			fsl_micfil_hwvad_disable(micfil);
 
 		/* Disable the module */
@@ -778,8 +780,9 @@ static int fsl_micfil_hw_params(struct snd_pcm_substream *substream,
 {
 	struct fsl_micfil *micfil = snd_soc_dai_get_drvdata(dai);
 	unsigned int channels = params_channels(params);
+	snd_pcm_format_t format = params_format(params);
 	unsigned int rate = params_rate(params);
-	int clk_div = 8;
+	int clk_div = 8, mclk_rate, div_multiply_k;
 	int osr = MICFIL_OSR_DEFAULT;
 	int ret;
 
@@ -801,13 +804,49 @@ static int fsl_micfil_hw_params(struct snd_pcm_substream *substream,
 
 	micfil->mclk_flag = true;
 
-	ret = clk_set_rate(micfil->mclk, rate * clk_div * osr * 8);
+	/* floor(K * CLKDIV) */
+	switch (micfil->quality) {
+	case QUALITY_HIGH:
+		div_multiply_k = clk_div >> 1;
+		break;
+	case QUALITY_LOW:
+	case QUALITY_VLOW1:
+		div_multiply_k = clk_div << 1;
+		break;
+	case QUALITY_VLOW2:
+		div_multiply_k = clk_div << 2;
+		break;
+	case QUALITY_MEDIUM:
+	case QUALITY_VLOW0:
+	default:
+		div_multiply_k = clk_div;
+		break;
+	}
+
+	if (format == SNDRV_PCM_FORMAT_DSD_U32_BE) {
+		micfil->dec_bypass = true;
+		/*
+		 * According to equation 29 in RM:
+		 * MCLK_CLK_ROOT = PDM CLK rate * 2 * floor(K * CLKDIV)
+		 * PDM CLK rate = rate * physical bit width (32)
+		 */
+		mclk_rate = rate * div_multiply_k * 32 * 2;
+	} else {
+		micfil->dec_bypass = false;
+		mclk_rate = rate * clk_div * osr * 8;
+	}
+
+	ret = clk_set_rate(micfil->mclk, mclk_rate);
 	if (ret)
 		return ret;
 
 	ret = micfil_set_quality(micfil);
 	if (ret)
 		return ret;
+
+	regmap_update_bits(micfil->regmap, REG_MICFIL_CTRL2,
+			   MICFIL_CTRL2_DEC_BYPASS,
+			   micfil->dec_bypass ? MICFIL_CTRL2_DEC_BYPASS : 0);
 
 	ret = regmap_update_bits(micfil->regmap, REG_MICFIL_CTRL2,
 				 MICFIL_CTRL2_CLKDIV | MICFIL_CTRL2_CICOSR,
@@ -1473,11 +1512,8 @@ static int fsl_micfil_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops fsl_micfil_pm_ops = {
-	SET_RUNTIME_PM_OPS(fsl_micfil_runtime_suspend,
-			   fsl_micfil_runtime_resume,
-			   NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	RUNTIME_PM_OPS(fsl_micfil_runtime_suspend, fsl_micfil_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 static struct platform_driver fsl_micfil_driver = {
@@ -1485,7 +1521,7 @@ static struct platform_driver fsl_micfil_driver = {
 	.remove = fsl_micfil_remove,
 	.driver = {
 		.name = "fsl-micfil-dai",
-		.pm = &fsl_micfil_pm_ops,
+		.pm = pm_ptr(&fsl_micfil_pm_ops),
 		.of_match_table = fsl_micfil_dt_ids,
 	},
 };

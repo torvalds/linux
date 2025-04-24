@@ -140,7 +140,7 @@ void native_machine_crash_shutdown(struct pt_regs *regs)
 	x86_platform.guest.enc_kexec_begin();
 	x86_platform.guest.enc_kexec_finish();
 
-	crash_save_cpu(regs, safe_smp_processor_id());
+	crash_save_cpu(regs, smp_processor_id());
 }
 
 #if defined(CONFIG_KEXEC_FILE) || defined(CONFIG_CRASH_HOTPLUG)

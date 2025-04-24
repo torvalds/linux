@@ -606,7 +606,7 @@ typedef struct _MPI2_CONFIG_REPLY {
 
 typedef struct _MPI2_CONFIG_PAGE_MAN_0 {
 	MPI2_CONFIG_PAGE_HEADER Header;                     /*0x00 */
-	U8                      ChipName[16];               /*0x04 */
+	U8                      ChipName[16] __nonstring;   /*0x04 */
 	U8                      ChipRevision[8];            /*0x14 */
 	U8                      BoardName[16];              /*0x1C */
 	U8                      BoardAssembly[16];          /*0x2C */

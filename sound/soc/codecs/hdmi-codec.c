@@ -281,6 +281,7 @@ static const struct hdmi_codec_cea_spk_alloc hdmi_codec_channel_alloc[] = {
 struct hdmi_codec_priv {
 	struct hdmi_codec_pdata hcd;
 	uint8_t eld[MAX_ELD_BYTES];
+	struct snd_parsed_hdmi_eld eld_parsed;
 	struct snd_pcm_chmap *chmap_info;
 	unsigned int chmap_idx;
 	struct mutex lock;
@@ -288,6 +289,7 @@ struct hdmi_codec_priv {
 	struct snd_soc_jack *jack;
 	unsigned int jack_status;
 	u8 iec_status[AES_IEC958_STATUS_SIZE];
+	struct snd_info_entry *proc_entry;
 };
 
 static const struct snd_soc_dapm_widget hdmi_widgets[] = {
@@ -468,6 +470,9 @@ static int hdmi_codec_startup(struct snd_pcm_substream *substream,
 					    hcp->eld, sizeof(hcp->eld));
 		if (ret)
 			goto err;
+
+		snd_parse_eld(dai->dev, &hcp->eld_parsed,
+			      hcp->eld, sizeof(hcp->eld));
 
 		ret = snd_pcm_hw_constraint_eld(substream->runtime, hcp->eld);
 		if (ret)
@@ -825,8 +830,54 @@ static int hdmi_codec_pcm_new(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
+#ifdef CONFIG_SND_PROC_FS
+static void print_eld_info(struct snd_info_entry *entry,
+			   struct snd_info_buffer *buffer)
+{
+	struct hdmi_codec_priv *hcp = entry->private_data;
+
+	snd_print_eld_info(&hcp->eld_parsed, buffer);
+}
+
+static int hdmi_dai_proc_new(struct hdmi_codec_priv *hcp,
+			     struct snd_soc_dai *dai)
+{
+	struct snd_info_entry *entry;
+	char name[32];
+	int err;
+
+	snprintf(name, sizeof(name), "eld#%d", dai->id);
+	err = snd_card_proc_new(dai->component->card->snd_card, name, &entry);
+	if (err < 0)
+		return err;
+
+	snd_info_set_text_ops(entry, hcp, print_eld_info);
+	hcp->proc_entry = entry;
+
+	return 0;
+}
+
+static void hdmi_dai_proc_free(struct hdmi_codec_priv *hcp)
+{
+	snd_info_free_entry(hcp->proc_entry);
+	hcp->proc_entry = NULL;
+}
+#else
+static int hdmi_dai_proc_new(struct hdmi_codec_priv *hcp,
+			     struct snd_soc_dai *dai)
+{
+	return 0;
+}
+
+static void hdmi_dai_proc_free(struct hdmi_codec_priv *hcp)
+{
+}
+#endif
+
 static int hdmi_dai_probe(struct snd_soc_dai *dai)
 {
+	struct hdmi_codec_priv *hcp =
+		snd_soc_component_get_drvdata(dai->component);
 	struct snd_soc_dapm_context *dapm;
 	struct hdmi_codec_daifmt *daifmt;
 	struct snd_soc_dapm_route route[] = {
@@ -859,6 +910,15 @@ static int hdmi_dai_probe(struct snd_soc_dai *dai)
 
 	snd_soc_dai_dma_data_set_playback(dai, daifmt);
 
+	return hdmi_dai_proc_new(hcp, dai);
+}
+
+static int hdmi_dai_remove(struct snd_soc_dai *dai)
+{
+	struct hdmi_codec_priv *hcp =
+		snd_soc_component_get_drvdata(dai->component);
+
+	hdmi_dai_proc_free(hcp);
 	return 0;
 }
 
@@ -875,11 +935,18 @@ static void hdmi_codec_jack_report(struct hdmi_codec_priv *hcp,
 static void plugged_cb(struct device *dev, bool plugged)
 {
 	struct hdmi_codec_priv *hcp = dev_get_drvdata(dev);
+	int ret;
 
 	if (plugged) {
 		if (hcp->hcd.ops->get_eld) {
 			hcp->hcd.ops->get_eld(dev->parent, hcp->hcd.data,
 					    hcp->eld, sizeof(hcp->eld));
+			ret = snd_parse_eld(dev, &hcp->eld_parsed,
+					    hcp->eld, sizeof(hcp->eld));
+			if (ret < 0)
+				dev_dbg(dev, "Failed to parse ELD: %d\n", ret);
+			else
+				snd_show_eld(dev, &hcp->eld_parsed);
 		}
 		hdmi_codec_jack_report(hcp, SND_JACK_LINEOUT);
 	} else {
@@ -926,6 +993,7 @@ static int hdmi_dai_spdif_probe(struct snd_soc_dai *dai)
 
 static const struct snd_soc_dai_ops hdmi_codec_i2s_dai_ops = {
 	.probe				= hdmi_dai_probe,
+	.remove				= hdmi_dai_remove,
 	.startup			= hdmi_codec_startup,
 	.shutdown			= hdmi_codec_shutdown,
 	.hw_params			= hdmi_codec_hw_params,

@@ -40,7 +40,7 @@ Supported chips:
 
 .. [2]  There is a separate abituguru3 driver for these motherboards,
 	the abituguru (without the 3 !) driver will not work on these
-	motherboards (and visa versa)!
+	motherboards (and vice versa)!
 
 Authors:
 	- Hans de Goede <j.w.r.degoede@hhs.nl>,

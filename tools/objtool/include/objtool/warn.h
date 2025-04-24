@@ -43,8 +43,10 @@ static inline char *offstr(struct section *sec, unsigned long offset)
 
 #define WARN(format, ...)				\
 	fprintf(stderr,					\
-		"%s: warning: objtool: " format "\n",	\
-		objname, ##__VA_ARGS__)
+		"%s: %s: objtool: " format "\n",	\
+		objname,				\
+		opts.werror ? "error" : "warning",	\
+		##__VA_ARGS__)
 
 #define WARN_FUNC(format, sec, offset, ...)		\
 ({							\
@@ -53,14 +55,22 @@ static inline char *offstr(struct section *sec, unsigned long offset)
 	free(_str);					\
 })
 
+#define WARN_LIMIT 2
+
 #define WARN_INSN(insn, format, ...)					\
 ({									\
 	struct instruction *_insn = (insn);				\
-	if (!_insn->sym || !_insn->sym->warned)				\
+	BUILD_BUG_ON(WARN_LIMIT > 2);					\
+	if (!_insn->sym || _insn->sym->warnings < WARN_LIMIT) {		\
 		WARN_FUNC(format, _insn->sec, _insn->offset,		\
 			  ##__VA_ARGS__);				\
-	if (_insn->sym)							\
-		_insn->sym->warned = 1;					\
+		if (_insn->sym)						\
+			_insn->sym->warnings++;				\
+	} else if (_insn->sym && _insn->sym->warnings == WARN_LIMIT) {	\
+		WARN_FUNC("skipping duplicate warning(s)",		\
+			  _insn->sec, _insn->offset);			\
+		_insn->sym->warnings++;					\
+	}								\
 })
 
 #define BT_INSN(insn, format, ...)				\

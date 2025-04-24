@@ -108,7 +108,7 @@ struct pipe_inode_info {
 #ifdef CONFIG_WATCH_QUEUE
 	bool note_loss;
 #endif
-	struct page *tmp_page;
+	struct page *tmp_page[2];
 	struct fasync_struct *fasync_readers;
 	struct fasync_struct *fasync_writers;
 	struct pipe_buffer *bufs;
@@ -177,16 +177,6 @@ static inline bool pipe_has_watch_queue(const struct pipe_inode_info *pipe)
 }
 
 /**
- * pipe_empty - Return true if the pipe is empty
- * @head: The pipe ring head pointer
- * @tail: The pipe ring tail pointer
- */
-static inline bool pipe_empty(unsigned int head, unsigned int tail)
-{
-	return head == tail;
-}
-
-/**
  * pipe_occupancy - Return number of slots used in the pipe
  * @head: The pipe ring head pointer
  * @tail: The pipe ring tail pointer
@@ -194,6 +184,16 @@ static inline bool pipe_empty(unsigned int head, unsigned int tail)
 static inline unsigned int pipe_occupancy(unsigned int head, unsigned int tail)
 {
 	return (pipe_index_t)(head - tail);
+}
+
+/**
+ * pipe_empty - Return true if the pipe is empty
+ * @head: The pipe ring head pointer
+ * @tail: The pipe ring tail pointer
+ */
+static inline bool pipe_empty(unsigned int head, unsigned int tail)
+{
+	return !pipe_occupancy(head, tail);
 }
 
 /**
@@ -206,6 +206,33 @@ static inline bool pipe_full(unsigned int head, unsigned int tail,
 			     unsigned int limit)
 {
 	return pipe_occupancy(head, tail) >= limit;
+}
+
+/**
+ * pipe_is_full - Return true if the pipe is full
+ * @pipe: the pipe
+ */
+static inline bool pipe_is_full(const struct pipe_inode_info *pipe)
+{
+	return pipe_full(pipe->head, pipe->tail, pipe->max_usage);
+}
+
+/**
+ * pipe_is_empty - Return true if the pipe is empty
+ * @pipe: the pipe
+ */
+static inline bool pipe_is_empty(const struct pipe_inode_info *pipe)
+{
+	return pipe_empty(pipe->head, pipe->tail);
+}
+
+/**
+ * pipe_buf_usage - Return how many pipe buffers are in use
+ * @pipe: the pipe
+ */
+static inline unsigned int pipe_buf_usage(const struct pipe_inode_info *pipe)
+{
+	return pipe_occupancy(pipe->head, pipe->tail);
 }
 
 /**

@@ -10,7 +10,7 @@
 #include <objtool/warn.h>
 #include <objtool/endianness.h>
 
-int orc_dump(const char *_objname)
+int orc_dump(const char *filename)
 {
 	int fd, nr_entries, i, *orc_ip = NULL, orc_size = 0;
 	struct orc_entry *orc = NULL;
@@ -26,12 +26,9 @@ int orc_dump(const char *_objname)
 	Elf_Data *data, *symtab = NULL, *rela_orc_ip = NULL;
 	struct elf dummy_elf = {};
 
-
-	objname = _objname;
-
 	elf_version(EV_CURRENT);
 
-	fd = open(objname, O_RDONLY);
+	fd = open(filename, O_RDONLY);
 	if (fd == -1) {
 		perror("open");
 		return -1;

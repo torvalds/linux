@@ -29,15 +29,16 @@ struct opts {
 
 	/* options: */
 	bool backtrace;
-	bool backup;
 	bool dryrun;
 	bool link;
 	bool mnop;
 	bool module;
 	bool no_unreachable;
+	const char *output;
 	bool sec_address;
 	bool stats;
 	bool verbose;
+	bool werror;
 };
 
 extern struct opts opts;

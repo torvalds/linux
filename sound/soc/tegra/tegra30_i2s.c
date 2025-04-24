@@ -35,7 +35,7 @@
 
 #define DRV_NAME "tegra30-i2s"
 
-static __maybe_unused int tegra30_i2s_runtime_suspend(struct device *dev)
+static int tegra30_i2s_runtime_suspend(struct device *dev)
 {
 	struct tegra30_i2s *i2s = dev_get_drvdata(dev);
 
@@ -46,7 +46,7 @@ static __maybe_unused int tegra30_i2s_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static __maybe_unused int tegra30_i2s_runtime_resume(struct device *dev)
+static int tegra30_i2s_runtime_resume(struct device *dev)
 {
 	struct tegra30_i2s *i2s = dev_get_drvdata(dev);
 	int ret;
@@ -547,17 +547,16 @@ static void tegra30_i2s_platform_remove(struct platform_device *pdev)
 }
 
 static const struct dev_pm_ops tegra30_i2s_pm_ops = {
-	SET_RUNTIME_PM_OPS(tegra30_i2s_runtime_suspend,
-			   tegra30_i2s_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	RUNTIME_PM_OPS(tegra30_i2s_runtime_suspend,
+		       tegra30_i2s_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 static struct platform_driver tegra30_i2s_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = tegra30_i2s_of_match,
-		.pm = &tegra30_i2s_pm_ops,
+		.pm = pm_ptr(&tegra30_i2s_pm_ops),
 	},
 	.probe = tegra30_i2s_platform_probe,
 	.remove = tegra30_i2s_platform_remove,

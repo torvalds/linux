@@ -224,7 +224,6 @@ static void pistachio_internal_dac_remove(struct platform_device *pdev)
 	regulator_disable(dac->supply);
 }
 
-#ifdef CONFIG_PM
 static int pistachio_internal_dac_rt_resume(struct device *dev)
 {
 	struct pistachio_internal_dac *dac = dev_get_drvdata(dev);
@@ -251,11 +250,10 @@ static int pistachio_internal_dac_rt_suspend(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops pistachio_internal_dac_pm_ops = {
-	SET_RUNTIME_PM_OPS(pistachio_internal_dac_rt_suspend,
-			pistachio_internal_dac_rt_resume, NULL)
+	RUNTIME_PM_OPS(pistachio_internal_dac_rt_suspend,
+		       pistachio_internal_dac_rt_resume, NULL)
 };
 
 static const struct of_device_id pistachio_internal_dac_of_match[] = {
@@ -268,7 +266,7 @@ static struct platform_driver pistachio_internal_dac_plat_driver = {
 	.driver = {
 		.name = "img-pistachio-internal-dac",
 		.of_match_table = pistachio_internal_dac_of_match,
-		.pm = &pistachio_internal_dac_pm_ops
+		.pm = pm_ptr(&pistachio_internal_dac_pm_ops)
 	},
 	.probe = pistachio_internal_dac_probe,
 	.remove = pistachio_internal_dac_remove

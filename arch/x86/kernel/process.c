@@ -93,7 +93,12 @@ EXPORT_PER_CPU_SYMBOL_GPL(__tss_limit_invalid);
  */
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
-	memcpy(dst, src, arch_task_struct_size);
+	/* init_task is not dynamically sized (incomplete FPU state) */
+	if (unlikely(src == &init_task))
+		memcpy_and_pad(dst, arch_task_struct_size, src, sizeof(init_task), 0);
+	else
+		memcpy(dst, src, arch_task_struct_size);
+
 #ifdef CONFIG_VM86
 	dst->thread.vm86 = NULL;
 #endif
@@ -1043,7 +1048,7 @@ unsigned long __get_wchan(struct task_struct *p)
 	return addr;
 }
 
-long do_arch_prctl_common(int option, unsigned long arg2)
+SYSCALL_DEFINE2(arch_prctl, int, option, unsigned long, arg2)
 {
 	switch (option) {
 	case ARCH_GET_CPUID:
@@ -1058,5 +1063,13 @@ long do_arch_prctl_common(int option, unsigned long arg2)
 		return fpu_xstate_prctl(option, arg2);
 	}
 
+	if (!in_ia32_syscall())
+		return do_arch_prctl_64(current, option, arg2);
+
 	return -EINVAL;
+}
+
+SYSCALL_DEFINE0(ni_syscall)
+{
+	return -ENOSYS;
 }

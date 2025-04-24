@@ -10,6 +10,7 @@
 #include <linux/blk-mq.h>
 #include <linux/blk_types.h>
 #include <linux/blkdev.h>
+#include <linux/cpumask.h>
 #include <linux/cred.h>
 #include <linux/device/faux.h>
 #include <linux/errname.h>

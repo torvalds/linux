@@ -1,6 +1,7 @@
 This is a place for planning the ongoing long-term work in the GPIO
 subsystem.
 
+===============================================================================
 
 GPIO descriptors
 
@@ -48,6 +49,7 @@ Work items:
   numberspace accessors from <linux/gpio.h> and eventually delete
   <linux/gpio.h> altogether.
 
+-------------------------------------------------------------------------------
 
 Get rid of <linux/of_gpio.h>
 
@@ -75,6 +77,7 @@ Work items:
 - Delete <linux/of_gpio.h> when all the above is complete and everything
   uses <linux/gpio/consumer.h> or <linux/gpio/driver.h> instead.
 
+-------------------------------------------------------------------------------
 
 Get rid of <linux/gpio/legacy-of-mm-gpiochip.h>
 
@@ -85,15 +88,7 @@ Work items:
   to_of_mm_gpio_chip(), of_mm_gpiochip_add_data(), of_mm_gpiochip_remove(),
   CONFIG_OF_GPIO_MM_GPIOCHIP from the kernel.
 
-
-Get rid of <linux/gpio.h>
-
-This legacy header is a one stop shop for anything GPIO is closely tied
-to the global GPIO numberspace. The endgame of the above refactorings will
-be the removal of <linux/gpio.h> and from that point only the specialized
-headers under <linux/gpio/*.h> will be used. This requires all the above to
-be completed and is expected to take a long time.
-
+-------------------------------------------------------------------------------
 
 Collect drivers
 
@@ -108,6 +103,7 @@ At the same time it makes sense to get rid of code duplication in existing or
 new coming drivers. For example, gpio-ml-ioh should be incorporated into
 gpio-pch.
 
+-------------------------------------------------------------------------------
 
 Generic MMIO GPIO
 
@@ -128,6 +124,7 @@ Work items:
   helpers (x86 inb()/outb()) and convert port-mapped I/O drivers to use
   this with dry-coding and sending to maintainers to test
 
+-------------------------------------------------------------------------------
 
 Generic regmap GPIO
 
@@ -135,6 +132,7 @@ In the very similar way to Generic MMIO GPIO convert the users which can
 take advantage of using regmap over direct IO accessors. Note, even in
 MMIO case the regmap MMIO with gpio-regmap.c is preferable over gpio-mmio.c.
 
+-------------------------------------------------------------------------------
 
 GPIOLIB irqchip
 
@@ -144,53 +142,7 @@ try to cover any generic kind of irqchip cascaded from a GPIO.
 - Look over and identify any remaining easily converted drivers and
   dry-code conversions to gpiolib irqchip for maintainers to test
 
-
-Increase integration with pin control
-
-There are already ways to use pin control as back-end for GPIO and
-it may make sense to bring these subsystems closer. One reason for
-creating pin control as its own subsystem was that we could avoid any
-use of the global GPIO numbers. Once the above is complete, it may
-make sense to simply join the subsystems into one and make pin
-multiplexing, pin configuration, GPIO, etc selectable options in one
-and the same pin control and GPIO subsystem.
-
-
-Debugfs in place of sysfs
-
-The old sysfs code that enables simple uses of GPIOs from the
-command line is still popular despite the existance of the proper
-character device. The reason is that it is simple to use on
-root filesystems where you only have a minimal set of tools such
-as "cat", "echo" etc.
-
-The old sysfs still need to be strongly deprecated and removed
-as it relies on the global GPIO numberspace that assume a strict
-order of global GPIO numbers that do not change between boots
-and is independent of probe order.
-
-To solve this and provide an ABI that people can use for hacks
-and development, implement a debugfs interface to manipulate
-GPIO lines that can do everything that sysfs can do today: one
-directory per gpiochip and one file entry per line:
-
-/sys/kernel/debug/gpiochip/gpiochip0
-/sys/kernel/debug/gpiochip/gpiochip0/gpio0
-/sys/kernel/debug/gpiochip/gpiochip0/gpio1
-/sys/kernel/debug/gpiochip/gpiochip0/gpio2
-/sys/kernel/debug/gpiochip/gpiochip0/gpio3
-...
-/sys/kernel/debug/gpiochip/gpiochip1
-/sys/kernel/debug/gpiochip/gpiochip1/gpio0
-/sys/kernel/debug/gpiochip/gpiochip1/gpio1
-...
-
-The exact files and design of the debugfs interface can be
-discussed but the idea is to provide a low-level access point
-for debugging and hacking and to expose all lines without the
-need of any exporting. Also provide ample ammunition to shoot
-oneself in the foot, because this is debugfs after all.
-
+-------------------------------------------------------------------------------
 
 Moving over to immutable irq_chip structures
 
@@ -209,3 +161,28 @@ A small number of drivers have been converted (pl061, tegra186, msm,
 amd, apple), and can be used as examples of how to proceed with this
 conversion. Note that drivers using the generic irqchip framework
 cannot be converted yet, but watch this space!
+
+-------------------------------------------------------------------------------
+
+Convert all GPIO chips to using the new, value returning line setters
+
+struct gpio_chip's set() and set_multiple() callbacks are now deprecated. They
+return void and thus do not allow drivers to indicate failure to set the line
+value back to the caller.
+
+We've now added new variants - set_rv() and set_multiple_rv() that return an
+integer. Let's convert all GPIO drivers treewide to use the new callbacks,
+remove the old ones and finally rename the new ones back to the old names.
+
+-------------------------------------------------------------------------------
+
+Extend the sysfs ABI to allow exporting lines by their HW offsets
+
+The need to support the sysfs GPIO class is one of the main obstacles to
+removing the global GPIO numberspace from the kernel. In order to wean users
+off using global numbers from user-space, extend the existing interface with
+new per-gpiochip export/unexport attributes that allow to refer to GPIOs using
+their hardware offsets within the chip.
+
+Encourage users to switch to using them and eventually remove the existing
+global export/unexport attribues.

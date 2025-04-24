@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2003-2014, 2018-2021, 2023-2024 Intel Corporation
+ * Copyright (C) 2003-2014, 2018-2021, 2023-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -1855,6 +1855,7 @@ dma_addr_t iwl_pcie_get_sgt_tb_phys(struct sg_table *sgt, unsigned int offset,
  * @cmd_meta: command meta to store the scatter list information for unmapping
  * @hdr: output argument for TSO headers
  * @hdr_room: requested length for TSO headers
+ * @offset: offset into the data from which mapping should start
  *
  * Allocate space for a scatter gather list and TSO headers and map the SKB
  * using the scatter gather list. The SKB is unmapped again when the page is
@@ -1864,9 +1865,12 @@ dma_addr_t iwl_pcie_get_sgt_tb_phys(struct sg_table *sgt, unsigned int offset,
  */
 struct sg_table *iwl_pcie_prep_tso(struct iwl_trans *trans, struct sk_buff *skb,
 				   struct iwl_cmd_meta *cmd_meta,
-				   u8 **hdr, unsigned int hdr_room)
+				   u8 **hdr, unsigned int hdr_room,
+				   unsigned int offset)
 {
 	struct sg_table *sgt;
+	unsigned int n_segments = skb_shinfo(skb)->nr_frags + 1;
+	int orig_nents;
 
 	if (WARN_ON_ONCE(skb_has_frag_list(skb)))
 		return NULL;
@@ -1874,8 +1878,7 @@ struct sg_table *iwl_pcie_prep_tso(struct iwl_trans *trans, struct sk_buff *skb,
 	*hdr = iwl_pcie_get_page_hdr(trans,
 				     hdr_room + __alignof__(struct sg_table) +
 				     sizeof(struct sg_table) +
-				     (skb_shinfo(skb)->nr_frags + 1) *
-				     sizeof(struct scatterlist),
+				     n_segments * sizeof(struct scatterlist),
 				     skb);
 	if (!*hdr)
 		return NULL;
@@ -1883,13 +1886,14 @@ struct sg_table *iwl_pcie_prep_tso(struct iwl_trans *trans, struct sk_buff *skb,
 	sgt = (void *)PTR_ALIGN(*hdr + hdr_room, __alignof__(struct sg_table));
 	sgt->sgl = (void *)(sgt + 1);
 
-	sg_init_table(sgt->sgl, skb_shinfo(skb)->nr_frags + 1);
+	sg_init_table(sgt->sgl, n_segments);
 
 	/* Only map the data, not the header (it is copied to the TSO page) */
-	sgt->orig_nents = skb_to_sgvec(skb, sgt->sgl, skb_headlen(skb),
-				       skb->data_len);
-	if (WARN_ON_ONCE(sgt->orig_nents <= 0))
+	orig_nents = skb_to_sgvec(skb, sgt->sgl, offset, skb->len - offset);
+	if (WARN_ON_ONCE(orig_nents <= 0))
 		return NULL;
+
+	sgt->orig_nents = orig_nents;
 
 	/* And map the entire SKB */
 	if (dma_map_sgtable(trans->dev, sgt, DMA_TO_DEVICE, 0) < 0)
@@ -1939,7 +1943,8 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 		(3 + snap_ip_tcp_hdrlen + sizeof(struct ethhdr)) + iv_len;
 
 	/* Our device supports 9 segments at most, it will fit in 1 page */
-	sgt = iwl_pcie_prep_tso(trans, skb, out_meta, &start_hdr, hdr_room);
+	sgt = iwl_pcie_prep_tso(trans, skb, out_meta, &start_hdr, hdr_room,
+				snap_ip_tcp_hdrlen + hdr_len + iv_len);
 	if (!sgt)
 		return -ENOMEM;
 

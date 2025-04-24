@@ -129,6 +129,9 @@ config CC_HAS_COUNTED_BY
 	# https://github.com/llvm/llvm-project/pull/112636
 	depends on !(CC_IS_CLANG && CLANG_VERSION < 190103)
 
+config CC_HAS_MULTIDIMENSIONAL_NONSTRING
+	def_bool $(success,echo 'char tag[][4] __attribute__((__nonstring__)) = { };' | $(CC) $(CLANG_FLAGS) -x c - -c -o /dev/null -Werror)
+
 config RUSTC_HAS_COERCE_POINTEE
 	def_bool RUSTC_VERSION >= 108400
 
@@ -1195,7 +1198,8 @@ config CPUSETS_V1
 	help
 	  Legacy cgroup v1 cpusets controller which has been deprecated by
 	  cgroup v2 implementation. The v1 is there for legacy applications
-	  which haven't migrated to the new cgroup v2 interface yet. If you
+	  which haven't migrated to the new cgroup v2 interface yet. Legacy
+	  interface includes cpuset filesystem and /proc/<pid>/cpuset. If you
 	  do not have any such application then you are completely fine leaving
 	  this option disabled.
 
@@ -1203,7 +1207,7 @@ config CPUSETS_V1
 
 config PROC_PID_CPUSET
 	bool "Include legacy /proc/<pid>/cpuset file"
-	depends on CPUSETS
+	depends on CPUSETS_V1
 	default y
 
 config CGROUP_DEVICE
@@ -1453,6 +1457,13 @@ config INITRAMFS_PRESERVE_MTIME
 	  setting deferred until after creation of any child entries.
 
 	  If unsure, say Y.
+
+config INITRAMFS_TEST
+	bool "Test initramfs cpio archive extraction" if !KUNIT_ALL_TESTS
+	depends on BLK_DEV_INITRD && KUNIT=y
+	default KUNIT_ALL_TESTS
+	help
+	  Build KUnit tests for initramfs. See Documentation/dev-tools/kunit
 
 choice
 	prompt "Compiler optimization level"
@@ -1869,11 +1880,6 @@ config KALLSYMS_ALL
 
 	  Say N unless you really need all symbols, or kernel live patching.
 
-config KALLSYMS_ABSOLUTE_PERCPU
-	bool
-	depends on KALLSYMS
-	default X86_64 && SMP
-
 # end of the "standard kernel features (expert users)" menu
 
 config ARCH_HAS_MEMBARRIER_CALLBACKS
@@ -1973,7 +1979,7 @@ config RUST
 	depends on !MODVERSIONS || GENDWARFKSYMS
 	depends on !GCC_PLUGIN_RANDSTRUCT
 	depends on !RANDSTRUCT
-	depends on !DEBUG_INFO_BTF || PAHOLE_HAS_LANG_EXCLUDE
+	depends on !DEBUG_INFO_BTF || (PAHOLE_HAS_LANG_EXCLUDE && !LTO)
 	depends on !CFI_CLANG || HAVE_CFI_ICALL_NORMALIZE_INTEGERS_RUSTC
 	select CFI_ICALL_NORMALIZE_INTEGERS if CFI_CLANG
 	depends on !CALL_PADDING || RUSTC_VERSION >= 108100

@@ -13,7 +13,7 @@
 #include <asm/cpufeatures.h>
 #include <asm/alternative.h>
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 #define ASM_CLAC \
 	ALTERNATIVE "", "clac", X86_FEATURE_SMAP
@@ -21,7 +21,7 @@
 #define ASM_STAC \
 	ALTERNATIVE "", "stac", X86_FEATURE_SMAP
 
-#else /* __ASSEMBLY__ */
+#else /* __ASSEMBLER__ */
 
 static __always_inline void clac(void)
 {
@@ -61,6 +61,6 @@ static __always_inline void smap_restore(unsigned long flags)
 #define ASM_STAC \
 	ALTERNATIVE("", "stac", X86_FEATURE_SMAP)
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_X86_SMAP_H */

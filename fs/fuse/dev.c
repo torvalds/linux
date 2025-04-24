@@ -77,7 +77,7 @@ void fuse_set_initialized(struct fuse_conn *fc)
 static bool fuse_block_alloc(struct fuse_conn *fc, bool for_background)
 {
 	return !fc->initialized || (for_background && fc->blocked) ||
-	       (fc->io_uring && !fuse_uring_ready(fc));
+	       (fc->io_uring && fc->connected && !fuse_uring_ready(fc));
 }
 
 static void fuse_drop_waiting(struct fuse_conn *fc)
@@ -1457,7 +1457,7 @@ static ssize_t fuse_dev_splice_read(struct file *in, loff_t *ppos,
 	if (ret < 0)
 		goto out;
 
-	if (pipe_occupancy(pipe->head, pipe->tail) + cs.nr_segs > pipe->max_usage) {
+	if (pipe_buf_usage(pipe) + cs.nr_segs > pipe->max_usage) {
 		ret = -EIO;
 		goto out;
 	}
@@ -2107,7 +2107,7 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 				     struct file *out, loff_t *ppos,
 				     size_t len, unsigned int flags)
 {
-	unsigned int head, tail, mask, count;
+	unsigned int head, tail, count;
 	unsigned nbuf;
 	unsigned idx;
 	struct pipe_buffer *bufs;
@@ -2124,8 +2124,7 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 
 	head = pipe->head;
 	tail = pipe->tail;
-	mask = pipe->ring_size - 1;
-	count = head - tail;
+	count = pipe_occupancy(head, tail);
 
 	bufs = kvmalloc_array(count, sizeof(struct pipe_buffer), GFP_KERNEL);
 	if (!bufs) {
@@ -2135,8 +2134,8 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 
 	nbuf = 0;
 	rem = 0;
-	for (idx = tail; idx != head && rem < len; idx++)
-		rem += pipe->bufs[idx & mask].len;
+	for (idx = tail; !pipe_empty(head, idx) && rem < len; idx++)
+		rem += pipe_buf(pipe, idx)->len;
 
 	ret = -EINVAL;
 	if (rem < len)
@@ -2147,10 +2146,10 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 		struct pipe_buffer *ibuf;
 		struct pipe_buffer *obuf;
 
-		if (WARN_ON(nbuf >= count || tail == head))
+		if (WARN_ON(nbuf >= count || pipe_empty(head, tail)))
 			goto out_free;
 
-		ibuf = &pipe->bufs[tail & mask];
+		ibuf = pipe_buf(pipe, tail);
 		obuf = &bufs[nbuf];
 
 		if (rem >= ibuf->len) {

@@ -106,7 +106,7 @@
 #define TDX_PS_1G	2
 #define TDX_PS_NR	(TDX_PS_1G + 1)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/compiler_attributes.h>
 
@@ -177,5 +177,5 @@ static __always_inline u64 hcall_func(u64 exit_reason)
         return exit_reason;
 }
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 #endif /* _ASM_X86_SHARED_TDX_H */

@@ -180,10 +180,6 @@ Dump-capture kernel config options (Arch Dependent, i386 and x86_64)
 1) On i386, enable high memory support under "Processor type and
    features"::
 
-	CONFIG_HIGHMEM64G=y
-
-   or::
-
 	CONFIG_HIGHMEM4G
 
 2) With CONFIG_SMP=y, usually nr_cpus=1 need specified on the kernel

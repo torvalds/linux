@@ -1451,9 +1451,6 @@ xfs_dax_read_fault(
 
 	trace_xfs_read_fault(ip, order);
 
-	ret = filemap_fsnotify_fault(vmf);
-	if (unlikely(ret))
-		return ret;
 	xfs_ilock(ip, XFS_MMAPLOCK_SHARED);
 	ret = xfs_dax_fault_locked(vmf, order, false);
 	xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
@@ -1482,16 +1479,6 @@ xfs_write_fault(
 	vm_fault_t		ret;
 
 	trace_xfs_write_fault(ip, order);
-	/*
-	 * Usually we get here from ->page_mkwrite callback but in case of DAX
-	 * we will get here also for ordinary write fault. Handle HSM
-	 * notifications for that case.
-	 */
-	if (IS_DAX(inode)) {
-		ret = filemap_fsnotify_fault(vmf);
-		if (unlikely(ret))
-			return ret;
-	}
 
 	sb_start_pagefault(inode->i_sb);
 	file_update_time(vmf->vma->vm_file);
@@ -1511,7 +1498,8 @@ xfs_write_fault(
 	if (IS_DAX(inode))
 		ret = xfs_dax_fault_locked(vmf, order, true);
 	else
-		ret = iomap_page_mkwrite(vmf, &xfs_buffered_write_iomap_ops);
+		ret = iomap_page_mkwrite(vmf, &xfs_buffered_write_iomap_ops,
+				NULL);
 	xfs_iunlock(ip, lock_mode);
 
 	sb_end_pagefault(inode->i_sb);
@@ -1626,7 +1614,8 @@ const struct file_operations xfs_file_operations = {
 	.fadvise	= xfs_file_fadvise,
 	.remap_file_range = xfs_file_remap_range,
 	.fop_flags	= FOP_MMAP_SYNC | FOP_BUFFER_RASYNC |
-			  FOP_BUFFER_WASYNC | FOP_DIO_PARALLEL_WRITE,
+			  FOP_BUFFER_WASYNC | FOP_DIO_PARALLEL_WRITE |
+			  FOP_DONTCACHE,
 };
 
 const struct file_operations xfs_dir_file_operations = {

@@ -430,9 +430,11 @@ static ssize_t freezer_write(struct kernfs_open_file *of,
 
 	if (strcmp(buf, freezer_state_strs(0)) == 0)
 		freeze = false;
-	else if (strcmp(buf, freezer_state_strs(CGROUP_FROZEN)) == 0)
+	else if (strcmp(buf, freezer_state_strs(CGROUP_FROZEN)) == 0) {
+		pr_info_once("Freezing with imperfect legacy cgroup freezer. "
+			     "See cgroup.freeze of cgroup v2\n");
 		freeze = true;
-	else
+	} else
 		return -EINVAL;
 
 	freezer_change_state(css_freezer(of_css(of)), freeze);

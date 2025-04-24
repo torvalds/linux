@@ -831,18 +831,12 @@ static void lcd_init(void)
 	struct charlcd *charlcd;
 	struct hd44780_common *hdc;
 
-	hdc = hd44780_common_alloc();
-	if (!hdc)
+	charlcd = hd44780_common_alloc();
+	if (!charlcd)
 		return;
 
-	charlcd = charlcd_alloc();
-	if (!charlcd) {
-		kfree(hdc);
-		return;
-	}
-
+	hdc = charlcd->drvdata;
 	hdc->hd44780 = &lcd;
-	charlcd->drvdata = hdc;
 
 	/*
 	 * Init lcd struct with load-time values to preserve exact
@@ -1664,7 +1658,7 @@ err_lcd_unreg:
 	if (lcd.enabled)
 		charlcd_unregister(lcd.charlcd);
 err_unreg_device:
-	kfree(lcd.charlcd);
+	hd44780_common_free(lcd.charlcd);
 	lcd.charlcd = NULL;
 	parport_unregister_device(pprt);
 	pprt = NULL;
@@ -1691,8 +1685,7 @@ static void panel_detach(struct parport *port)
 	if (lcd.enabled) {
 		charlcd_unregister(lcd.charlcd);
 		lcd.initialized = false;
-		kfree(lcd.charlcd->drvdata);
-		kfree(lcd.charlcd);
+		hd44780_common_free(lcd.charlcd);
 		lcd.charlcd = NULL;
 	}
 

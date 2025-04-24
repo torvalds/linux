@@ -482,7 +482,7 @@ static const struct sdw_device_id rt711_id[] = {
 };
 MODULE_DEVICE_TABLE(sdw, rt711_id);
 
-static int __maybe_unused rt711_dev_suspend(struct device *dev)
+static int rt711_dev_suspend(struct device *dev)
 {
 	struct rt711_priv *rt711 = dev_get_drvdata(dev);
 
@@ -498,7 +498,7 @@ static int __maybe_unused rt711_dev_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused rt711_dev_system_suspend(struct device *dev)
+static int rt711_dev_system_suspend(struct device *dev)
 {
 	struct rt711_priv *rt711 = dev_get_drvdata(dev);
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
@@ -528,7 +528,7 @@ static int __maybe_unused rt711_dev_system_suspend(struct device *dev)
 
 #define RT711_PROBE_TIMEOUT 5000
 
-static int __maybe_unused rt711_dev_resume(struct device *dev)
+static int rt711_dev_resume(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct rt711_priv *rt711 = dev_get_drvdata(dev);
@@ -564,14 +564,14 @@ regmap_sync:
 }
 
 static const struct dev_pm_ops rt711_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(rt711_dev_system_suspend, rt711_dev_resume)
-	SET_RUNTIME_PM_OPS(rt711_dev_suspend, rt711_dev_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(rt711_dev_system_suspend, rt711_dev_resume)
+	RUNTIME_PM_OPS(rt711_dev_suspend, rt711_dev_resume, NULL)
 };
 
 static struct sdw_driver rt711_sdw_driver = {
 	.driver = {
 		.name = "rt711",
-		.pm = &rt711_pm,
+		.pm = pm_ptr(&rt711_pm),
 	},
 	.probe = rt711_sdw_probe,
 	.remove = rt711_sdw_remove,

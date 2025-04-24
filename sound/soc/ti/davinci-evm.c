@@ -152,7 +152,7 @@ static struct snd_soc_dai_link evm_dai_tlv320aic3x = {
 	.stream_name	= "AIC3X",
 	.ops            = &evm_ops,
 	.init           = evm_aic3x_init,
-	.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_CBM_CFM |
+	.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_CBP_CFP |
 		   SND_SOC_DAIFMT_IB_NF,
 	SND_SOC_DAILINK_REG(evm),
 };

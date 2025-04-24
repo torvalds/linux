@@ -63,8 +63,8 @@ what id ``k11000`` corresponds to in the second or third idmapping. The
 straightforward algorithm to use is to apply the inverse of the first idmapping,
 mapping ``k11000`` up to ``u1000``. Afterwards, we can map ``u1000`` down using
 either the second idmapping mapping or third idmapping mapping. The second
-idmapping would map ``u1000`` down to ``21000``. The third idmapping would map
-``u1000`` down to ``u31000``.
+idmapping would map ``u1000`` down to ``k21000``. The third idmapping would map
+``u1000`` down to ``k31000``.
 
 If we were given the same task for the following three idmappings::
 

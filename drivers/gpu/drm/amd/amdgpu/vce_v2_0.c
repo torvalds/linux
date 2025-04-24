@@ -284,7 +284,7 @@ static int vce_v2_0_stop(struct amdgpu_device *adev)
 		return 0;
 	}
 
-	ip_block = amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_VCN);
+	ip_block = amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_VCE);
 	if (!ip_block)
 		return -EINVAL;
 

@@ -16,6 +16,7 @@
 #include <linux/gpio/driver.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
+#include <linux/spinlock.h>
 #include <linux/srcu.h>
 #include <linux/workqueue.h>
 
@@ -32,6 +33,8 @@
  * @chip: pointer to the corresponding gpiochip, holding static
  * data for this device
  * @descs: array of ngpio descriptors.
+ * @valid_mask: If not %NULL, holds bitmask of GPIOs which are valid to be
+ * used from the chip.
  * @desc_srcu: ensures consistent state of GPIO descriptors exposed to users
  * @ngpio: the number of GPIO lines on this GPIO device, equal to the size
  * of the @descs array.
@@ -45,6 +48,7 @@
  * @list: links gpio_device:s together for traversal
  * @line_state_notifier: used to notify subscribers about lines being
  *                       requested, released or reconfigured
+ * @line_state_lock: RW-spinlock protecting the line state notifier
  * @line_state_wq: used to emit line state events from a separate thread in
  *                 process context
  * @device_notifier: used to notify character device wait queues about the GPIO
@@ -65,6 +69,7 @@ struct gpio_device {
 	struct module		*owner;
 	struct gpio_chip __rcu	*chip;
 	struct gpio_desc	*descs;
+	unsigned long		*valid_mask;
 	struct srcu_struct	desc_srcu;
 	unsigned int		base;
 	u16			ngpio;
@@ -72,7 +77,8 @@ struct gpio_device {
 	const char		*label;
 	void			*data;
 	struct list_head        list;
-	struct atomic_notifier_head line_state_notifier;
+	struct raw_notifier_head line_state_notifier;
+	rwlock_t		line_state_lock;
 	struct workqueue_struct	*line_state_wq;
 	struct blocking_notifier_head device_notifier;
 	struct srcu_struct	srcu;
@@ -183,24 +189,24 @@ struct gpio_desc {
 	struct gpio_device	*gdev;
 	unsigned long		flags;
 /* flag symbols are bit numbers */
-#define FLAG_REQUESTED	0
-#define FLAG_IS_OUT	1
-#define FLAG_EXPORT	2	/* protected by sysfs_lock */
-#define FLAG_SYSFS	3	/* exported via /sys/class/gpio/control */
-#define FLAG_ACTIVE_LOW	6	/* value has active low */
-#define FLAG_OPEN_DRAIN	7	/* Gpio is open drain type */
-#define FLAG_OPEN_SOURCE 8	/* Gpio is open source type */
-#define FLAG_USED_AS_IRQ 9	/* GPIO is connected to an IRQ */
-#define FLAG_IRQ_IS_ENABLED 10	/* GPIO is connected to an enabled IRQ */
-#define FLAG_IS_HOGGED	11	/* GPIO is hogged */
-#define FLAG_TRANSITORY 12	/* GPIO may lose value in sleep or reset */
-#define FLAG_PULL_UP    13	/* GPIO has pull up enabled */
-#define FLAG_PULL_DOWN  14	/* GPIO has pull down enabled */
-#define FLAG_BIAS_DISABLE    15	/* GPIO has pull disabled */
-#define FLAG_EDGE_RISING     16	/* GPIO CDEV detects rising edge events */
-#define FLAG_EDGE_FALLING    17	/* GPIO CDEV detects falling edge events */
-#define FLAG_EVENT_CLOCK_REALTIME	18 /* GPIO CDEV reports REALTIME timestamps in events */
-#define FLAG_EVENT_CLOCK_HTE		19 /* GPIO CDEV reports hardware timestamps in events */
+#define FLAG_REQUESTED			0
+#define FLAG_IS_OUT			1
+#define FLAG_EXPORT			2	/* protected by sysfs_lock */
+#define FLAG_SYSFS			3	/* exported via /sys/class/gpio/control */
+#define FLAG_ACTIVE_LOW			6	/* value has active low */
+#define FLAG_OPEN_DRAIN			7	/* Gpio is open drain type */
+#define FLAG_OPEN_SOURCE		8	/* Gpio is open source type */
+#define FLAG_USED_AS_IRQ		9	/* GPIO is connected to an IRQ */
+#define FLAG_IRQ_IS_ENABLED		10	/* GPIO is connected to an enabled IRQ */
+#define FLAG_IS_HOGGED			11	/* GPIO is hogged */
+#define FLAG_TRANSITORY			12	/* GPIO may lose value in sleep or reset */
+#define FLAG_PULL_UP			13	/* GPIO has pull up enabled */
+#define FLAG_PULL_DOWN			14	/* GPIO has pull down enabled */
+#define FLAG_BIAS_DISABLE		15	/* GPIO has pull disabled */
+#define FLAG_EDGE_RISING		16	/* GPIO CDEV detects rising edge events */
+#define FLAG_EDGE_FALLING		17	/* GPIO CDEV detects falling edge events */
+#define FLAG_EVENT_CLOCK_REALTIME	18	/* GPIO CDEV reports REALTIME timestamps in events */
+#define FLAG_EVENT_CLOCK_HTE		19	/* GPIO CDEV reports hardware timestamps in events */
 
 	/* Connection label */
 	struct gpio_desc_label __rcu *label;
