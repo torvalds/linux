@@ -5628,6 +5628,22 @@ static void _free_event(struct perf_event *event)
 }
 
 /*
+ * Used to free events which have a known refcount of 1, such as in error paths
+ * of inherited events.
+ */
+static void free_event(struct perf_event *event)
+{
+	if (WARN(atomic_long_cmpxchg(&event->refcount, 1, 0) != 1,
+				     "unexpected event refcount: %ld; ptr=%p\n",
+				     atomic_long_read(&event->refcount), event)) {
+		/* leak to avoid use-after-free */
+		return;
+	}
+
+	_free_event(event);
+}
+
+/*
  * Remove user event from the owner task.
  */
 static void perf_remove_from_owner(struct perf_event *event)
@@ -14184,7 +14200,7 @@ inherit_event(struct perf_event *parent_event,
 
 	pmu_ctx = find_get_pmu_context(child_event->pmu, child_ctx, child_event);
 	if (IS_ERR(pmu_ctx)) {
-		put_event(child_event);
+		free_event(child_event);
 		return ERR_CAST(pmu_ctx);
 	}
 	child_event->pmu_ctx = pmu_ctx;
@@ -14199,7 +14215,7 @@ inherit_event(struct perf_event *parent_event,
 	if (is_orphaned_event(parent_event) ||
 	    !atomic_long_inc_not_zero(&parent_event->refcount)) {
 		mutex_unlock(&parent_event->child_mutex);
-		put_event(child_event);
+		free_event(child_event);
 		return NULL;
 	}
 
