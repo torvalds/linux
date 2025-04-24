@@ -229,7 +229,8 @@ ath12k_phymodes[NUM_NL80211_BANDS][ATH12K_CHAN_WIDTH_NUM] = {
 const struct htt_rx_ring_tlv_filter ath12k_mac_mon_status_filter_default = {
 	.rx_filter = HTT_RX_FILTER_TLV_FLAGS_MPDU_START |
 		     HTT_RX_FILTER_TLV_FLAGS_PPDU_END |
-		     HTT_RX_FILTER_TLV_FLAGS_PPDU_END_STATUS_DONE,
+		     HTT_RX_FILTER_TLV_FLAGS_PPDU_END_STATUS_DONE |
+		     HTT_RX_FILTER_TLV_FLAGS_PPDU_START_USER_INFO,
 	.pkt_filter_flags0 = HTT_RX_FP_MGMT_FILTER_FLAGS0,
 	.pkt_filter_flags1 = HTT_RX_FP_MGMT_FILTER_FLAGS1,
 	.pkt_filter_flags2 = HTT_RX_FP_CTRL_FILTER_FLASG2,
