@@ -378,10 +378,6 @@ again:
 						      b->c.level, cur_k.k->k.p);
 			if (ret)
 				break;
-
-			ret = bch2_btree_lost_data(c, b->c.btree_id);
-			if (ret)
-				break;
 			continue;
 		}
 
@@ -543,9 +539,6 @@ int bch2_check_topology(struct bch_fs *c)
 		bch2_btree_id_to_text(&buf, i);
 
 		if (r->error) {
-			ret = bch2_btree_lost_data(c, i);
-			if (ret)
-				break;
 reconstruct_root:
 			bch_info(c, "btree root %s unreadable, must recover from scan", buf.buf);
 
