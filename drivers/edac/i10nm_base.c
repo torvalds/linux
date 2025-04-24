@@ -327,10 +327,10 @@ static void show_retry_rd_err_log(struct decoded_addr *res, char *msg,
 {
 	int i, j, n, ch = res->channel, pch = res->cs & 1;
 	struct skx_imc *imc = &res->dev->imc[res->imc];
-	u32 offset, status_mask;
+	u64 log, corr, status_mask;
 	struct reg_rrl *rrl;
-	u64 log, corr;
 	bool scrub;
+	u32 offset;
 	u8 width;
 
 	if (!imc->mbase)
