@@ -805,8 +805,28 @@ iwl_mld_valid_emlsr_pair(struct ieee80211_vif *vif,
 	    iwl_mld_emlsr_disallowed_with_link(mld, vif, b, false))
 		return false;
 
-	if (a->chandef->chan->band == b->chandef->chan->band)
-		reason_mask |= IWL_MLD_EMLSR_EXIT_EQUAL_BAND;
+	if (a->chandef->chan->band == b->chandef->chan->band) {
+		const struct cfg80211_chan_def *c_low = a->chandef;
+		const struct cfg80211_chan_def *c_high = b->chandef;
+		u32 c_low_upper_edge, c_high_lower_edge;
+
+		if (c_low->chan->center_freq > c_high->chan->center_freq)
+			swap(c_low, c_high);
+
+		c_low_upper_edge = c_low->chan->center_freq +
+				   cfg80211_chandef_get_width(c_low) / 2;
+		c_high_lower_edge = c_high->chan->center_freq -
+				    cfg80211_chandef_get_width(c_high) / 2;
+
+		if (a->chandef->chan->band == NL80211_BAND_5GHZ &&
+		    c_low_upper_edge <= 5330 && c_high_lower_edge >= 5490) {
+			/* This case is fine - HW/FW can deal with it, there's
+			 * enough separation between the two channels.
+			 */
+		} else {
+			reason_mask |= IWL_MLD_EMLSR_EXIT_EQUAL_BAND;
+		}
+	}
 	if (!iwl_mld_channel_load_allows_emlsr(mld, vif, a, b))
 		reason_mask |= IWL_MLD_EMLSR_EXIT_CHAN_LOAD;
 
