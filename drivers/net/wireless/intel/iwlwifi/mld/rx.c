@@ -1160,8 +1160,6 @@ static void iwl_mld_add_rtap_sniffer_config(struct iwl_mld *mld,
 
 static void iwl_mld_rx_fill_status(struct iwl_mld *mld, struct sk_buff *skb,
 				   struct iwl_mld_rx_phy_data *phy_data,
-				   struct iwl_rx_mpdu_desc *mpdu_desc,
-				   struct ieee80211_hdr *hdr,
 				   int queue)
 {
 	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
@@ -1170,44 +1168,12 @@ static void iwl_mld_rx_fill_status(struct iwl_mld *mld, struct sk_buff *skb,
 	u8 stbc = u32_get_bits(rate_n_flags, RATE_MCS_STBC_MSK);
 	bool is_sgi = rate_n_flags & RATE_MCS_SGI_MSK;
 
-	if (WARN_ON_ONCE(phy_data->with_data && (!mpdu_desc || !hdr)))
-		return;
-
-	/* Keep packets with CRC errors (and with overrun) for monitor mode
-	 * (otherwise the firmware discards them) but mark them as bad.
-	 */
-	if (phy_data->with_data &&
-	    (!(mpdu_desc->status & cpu_to_le32(IWL_RX_MPDU_STATUS_CRC_OK)) ||
-	     !(mpdu_desc->status & cpu_to_le32(IWL_RX_MPDU_STATUS_OVERRUN_OK)))) {
-		IWL_DEBUG_RX(mld, "Bad CRC or FIFO: 0x%08X.\n",
-			     le32_to_cpu(mpdu_desc->status));
-		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
-	}
-
 	phy_data->info_type = IWL_RX_PHY_INFO_TYPE_NONE;
 
-	if (phy_data->with_data &&
-	    likely(!(phy_data->phy_info & IWL_RX_MPDU_PHY_TSF_OVERLOAD))) {
-		rx_status->mactime =
-			le64_to_cpu(mpdu_desc->v3.tsf_on_air_rise);
-
-		/* TSF as indicated by the firmware is at INA time */
-		rx_status->flag |= RX_FLAG_MACTIME_PLCP_START;
-	} else {
+	if (phy_data->phy_info & IWL_RX_MPDU_PHY_TSF_OVERLOAD)
 		phy_data->info_type =
 			le32_get_bits(phy_data->data1,
 				      IWL_RX_PHY_DATA1_INFO_TYPE_MASK);
-	}
-
-	/* management stuff on default queue */
-	if (!queue && phy_data->with_data &&
-	    unlikely(ieee80211_is_beacon(hdr->frame_control) ||
-		     ieee80211_is_probe_resp(hdr->frame_control))) {
-		rx_status->boottime_ns = ktime_get_boottime_ns();
-
-		if (mld->scan.pass_all_sched_res == SCHED_SCAN_PASS_ALL_STATE_ENABLED)
-			mld->scan.pass_all_sched_res = SCHED_SCAN_PASS_ALL_STATE_FOUND;
-	}
 
 	/* set the preamble flag if appropriate */
 	if (format == RATE_MCS_CCK_MSK &&
@@ -1812,7 +1778,36 @@ void iwl_mld_rx_mpdu(struct iwl_mld *mld, struct napi_struct *napi,
 	if (!queue && (phy_data.phy_info & IWL_RX_MPDU_PHY_AMPDU))
 		iwl_mld_rx_update_ampdu_ref(mld, &phy_data, rx_status);
 
-	iwl_mld_rx_fill_status(mld, skb, &phy_data, mpdu_desc, hdr, queue);
+	/* Keep packets with CRC errors (and with overrun) for monitor mode
+	 * (otherwise the firmware discards them) but mark them as bad.
+	 */
+	if (!(mpdu_desc->status & cpu_to_le32(IWL_RX_MPDU_STATUS_CRC_OK)) ||
+	    !(mpdu_desc->status & cpu_to_le32(IWL_RX_MPDU_STATUS_OVERRUN_OK))) {
+		IWL_DEBUG_RX(mld, "Bad CRC or FIFO: 0x%08X.\n",
+			     le32_to_cpu(mpdu_desc->status));
+		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
+	}
+
+	if (likely(!(phy_data.phy_info & IWL_RX_MPDU_PHY_TSF_OVERLOAD))) {
+		rx_status->mactime =
+			le64_to_cpu(mpdu_desc->v3.tsf_on_air_rise);
+
+		/* TSF as indicated by the firmware is at INA time */
+		rx_status->flag |= RX_FLAG_MACTIME_PLCP_START;
+	}
+
+	/* management stuff on default queue */
+	if (!queue && unlikely(ieee80211_is_beacon(hdr->frame_control) ||
+			       ieee80211_is_probe_resp(hdr->frame_control))) {
+		rx_status->boottime_ns = ktime_get_boottime_ns();
+
+		if (mld->scan.pass_all_sched_res ==
+				SCHED_SCAN_PASS_ALL_STATE_ENABLED)
+			mld->scan.pass_all_sched_res =
+				SCHED_SCAN_PASS_ALL_STATE_FOUND;
+	}
+
+	iwl_mld_rx_fill_status(mld, skb, &phy_data, queue);
 
 	if (iwl_mld_rx_crypto(mld, sta, hdr, rx_status, mpdu_desc, queue,
 			      le32_to_cpu(pkt->len_n_flags), &crypto_len))
@@ -2024,7 +2019,7 @@ void iwl_mld_rx_monitor_no_data(struct iwl_mld *mld, struct napi_struct *napi,
 	rx_status->freq = ieee80211_channel_to_frequency(channel,
 							 rx_status->band);
 
-	iwl_mld_rx_fill_status(mld, skb, &phy_data, NULL, NULL, queue);
+	iwl_mld_rx_fill_status(mld, skb, &phy_data, queue);
 
 	/* No more radiotap info should be added after this point.
 	 * Mark it as mac header for upper layers to know where
