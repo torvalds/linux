@@ -55,6 +55,13 @@ config LEDS_BRIGHTNESS_HW_CHANGED
 
 	  See Documentation/ABI/testing/sysfs-class-led for details.
 
+config LEDS_KUNIT_TEST
+	tristate "KUnit tests for LEDs"
+	depends on KUNIT && LEDS_CLASS
+	default KUNIT_ALL_TESTS
+	help
+	  Say Y here to enable KUnit testing for the LEDs framework.
+
 comment "LED drivers"
 
 config LEDS_88PM860X
