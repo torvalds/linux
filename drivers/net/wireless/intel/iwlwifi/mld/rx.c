@@ -33,7 +33,6 @@ struct iwl_mld_rx_phy_data {
 	u32 gp2_on_air_rise;
 	u16 phy_info;
 	u8 energy_a, energy_b;
-	u8 channel;
 };
 
 static void
@@ -43,7 +42,6 @@ iwl_mld_fill_phy_data(struct iwl_rx_mpdu_desc *desc,
 	phy_data->phy_info = le16_to_cpu(desc->phy_info);
 	phy_data->rate_n_flags = le32_to_cpu(desc->v3.rate_n_flags);
 	phy_data->gp2_on_air_rise = le32_to_cpu(desc->v3.gp2_on_air_rise);
-	phy_data->channel = desc->v3.channel;
 	phy_data->energy_a = desc->v3.energy_a;
 	phy_data->energy_b = desc->v3.energy_b;
 	phy_data->data0 = desc->v3.phy_data0;
@@ -1735,15 +1733,11 @@ static void iwl_mld_rx_update_ampdu_ref(struct iwl_mld *mld,
 }
 
 static void
-iwl_mld_fill_rx_status_band_freq(struct iwl_mld_rx_phy_data *phy_data,
-				 struct iwl_rx_mpdu_desc *mpdu_desc,
-				 struct ieee80211_rx_status *rx_status)
+iwl_mld_fill_rx_status_band_freq(struct ieee80211_rx_status *rx_status,
+				 u8 band, u8 channel)
 {
-	u8 band = u8_get_bits(mpdu_desc->mac_phy_band,
-			      IWL_RX_MPDU_MAC_PHY_BAND_BAND_MASK);
-
 	rx_status->band = iwl_mld_phy_band_to_nl80211(band);
-	rx_status->freq = ieee80211_channel_to_frequency(phy_data->channel,
+	rx_status->freq = ieee80211_channel_to_frequency(channel,
 							 rx_status->band);
 }
 
@@ -1758,7 +1752,7 @@ void iwl_mld_rx_mpdu(struct iwl_mld *mld, struct napi_struct *napi,
 	struct sk_buff *skb;
 	size_t mpdu_desc_size = sizeof(*mpdu_desc);
 	bool drop = false;
-	u8 crypto_len = 0;
+	u8 crypto_len = 0, band;
 	u32 pkt_len = iwl_rx_packet_payload_len(pkt);
 	u32 mpdu_len;
 	enum iwl_mld_reorder_result reorder_res;
@@ -1802,7 +1796,11 @@ void iwl_mld_rx_mpdu(struct iwl_mld *mld, struct napi_struct *napi,
 	rx_status = IEEE80211_SKB_RXCB(skb);
 
 	/* this is needed early */
-	iwl_mld_fill_rx_status_band_freq(&phy_data, mpdu_desc, rx_status);
+	band = u8_get_bits(mpdu_desc->mac_phy_band,
+			   IWL_RX_MPDU_MAC_PHY_BAND_BAND_MASK);
+	iwl_mld_fill_rx_status_band_freq(rx_status, band,
+					 mpdu_desc->v3.channel);
+
 
 	rcu_read_lock();
 
@@ -1956,6 +1954,7 @@ void iwl_mld_rx_monitor_no_data(struct iwl_mld *mld, struct napi_struct *napi,
 	struct ieee80211_rx_status *rx_status;
 	struct sk_buff *skb;
 	u32 format, rssi;
+	u8 channel;
 
 	if (unlikely(mld->fw_status.in_hw_restart))
 		return;
@@ -1968,9 +1967,10 @@ void iwl_mld_rx_monitor_no_data(struct iwl_mld *mld, struct napi_struct *napi,
 	desc = (void *)pkt->data;
 
 	rssi = le32_to_cpu(desc->rssi);
+	channel = u32_get_bits(rssi, RX_NO_DATA_CHANNEL_MSK);
+
 	phy_data.energy_a = u32_get_bits(rssi, RX_NO_DATA_CHAIN_A_MSK);
 	phy_data.energy_b = u32_get_bits(rssi, RX_NO_DATA_CHAIN_B_MSK);
-	phy_data.channel = u32_get_bits(rssi, RX_NO_DATA_CHANNEL_MSK);
 	phy_data.data0 = desc->phy_info[0];
 	phy_data.data1 = desc->phy_info[1];
 	phy_data.phy_info = IWL_RX_MPDU_PHY_TSF_OVERLOAD;
@@ -2018,10 +2018,10 @@ void iwl_mld_rx_monitor_no_data(struct iwl_mld *mld, struct napi_struct *napi,
 		break;
 	}
 
-	rx_status->band = phy_data.channel > 14 ? NL80211_BAND_5GHZ :
+	rx_status->band = channel > 14 ? NL80211_BAND_5GHZ :
 		NL80211_BAND_2GHZ;
 
-	rx_status->freq = ieee80211_channel_to_frequency(phy_data.channel,
+	rx_status->freq = ieee80211_channel_to_frequency(channel,
 							 rx_status->band);
 
 	iwl_mld_rx_fill_status(mld, skb, &phy_data, NULL, NULL, queue);
