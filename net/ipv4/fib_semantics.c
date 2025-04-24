@@ -2170,34 +2170,45 @@ static bool fib_good_nh(const struct fib_nh *nh)
 	return !!(state & NUD_VALID);
 }
 
-void fib_select_multipath(struct fib_result *res, int hash)
+void fib_select_multipath(struct fib_result *res, int hash,
+			  const struct flowi4 *fl4)
 {
 	struct fib_info *fi = res->fi;
 	struct net *net = fi->fib_net;
-	bool first = false;
+	bool found = false;
+	bool use_neigh;
+	__be32 saddr;
 
 	if (unlikely(res->fi->nh)) {
 		nexthop_path_fib_result(res, hash);
 		return;
 	}
 
+	use_neigh = READ_ONCE(net->ipv4.sysctl_fib_multipath_use_neigh);
+	saddr = fl4 ? fl4->saddr : 0;
+
 	change_nexthops(fi) {
-		if (READ_ONCE(net->ipv4.sysctl_fib_multipath_use_neigh)) {
-			if (!fib_good_nh(nexthop_nh))
-				continue;
-			if (!first) {
-				res->nh_sel = nhsel;
-				res->nhc = &nexthop_nh->nh_common;
-				first = true;
-			}
+		if (use_neigh && !fib_good_nh(nexthop_nh))
+			continue;
+
+		if (!found) {
+			res->nh_sel = nhsel;
+			res->nhc = &nexthop_nh->nh_common;
+			found = !saddr || nexthop_nh->nh_saddr == saddr;
 		}
 
 		if (hash > atomic_read(&nexthop_nh->fib_nh_upper_bound))
 			continue;
 
-		res->nh_sel = nhsel;
-		res->nhc = &nexthop_nh->nh_common;
-		return;
+		if (!saddr || nexthop_nh->nh_saddr == saddr) {
+			res->nh_sel = nhsel;
+			res->nhc = &nexthop_nh->nh_common;
+			return;
+		}
+
+		if (found)
+			return;
+
 	} endfor_nexthops(fi);
 }
 #endif
@@ -2212,7 +2223,7 @@ void fib_select_path(struct net *net, struct fib_result *res,
 	if (fib_info_num_path(res->fi) > 1) {
 		int h = fib_multipath_hash(net, fl4, skb, NULL);
 
-		fib_select_multipath(res, h);
+		fib_select_multipath(res, h, fl4);
 	}
 	else
 #endif
