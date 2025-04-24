@@ -2419,6 +2419,9 @@ mt7531_setup_common(struct dsa_switch *ds)
 	struct mt7530_priv *priv = ds->priv;
 	int ret, i;
 
+	ds->assisted_learning_on_cpu_port = true;
+	ds->mtu_enforcement_ingress = true;
+
 	mt753x_trap_frames(priv);
 
 	/* Enable and reset MIB counters */
@@ -2570,9 +2573,6 @@ mt7531_setup(struct dsa_switch *ds)
 	ret = mt7531_setup_common(ds);
 	if (ret)
 		return ret;
-
-	ds->assisted_learning_on_cpu_port = true;
-	ds->mtu_enforcement_ingress = true;
 
 	return 0;
 }

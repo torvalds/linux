@@ -3191,6 +3191,12 @@ M:	Dinh Nguyen <dinguyen@kernel.org>
 S:	Maintained
 F:	drivers/clk/socfpga/
 
+ARM/SOCFPGA DWMAC GLUE LAYER
+M:	Maxime Chevallier <maxime.chevallier@bootlin.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/net/socfpga-dwmac.txt
+F:	drivers/net/ethernet/stmicro/stmmac/dwmac-socfpga.c
+
 ARM/SOCFPGA EDAC BINDINGS
 M:	Matthew Gerlach <matthew.gerlach@altera.com>
 S:	Maintained
@@ -16812,6 +16818,7 @@ F:	Documentation/networking/net_cachelines/net_device.rst
 F:	drivers/connector/
 F:	drivers/net/
 F:	drivers/ptp/
+F:	drivers/s390/net/
 F:	include/dt-bindings/net/
 F:	include/linux/cn_proc.h
 F:	include/linux/etherdevice.h
@@ -16821,6 +16828,7 @@ F:	include/linux/fddidevice.h
 F:	include/linux/hippidevice.h
 F:	include/linux/if_*
 F:	include/linux/inetdevice.h
+F:	include/linux/ism.h
 F:	include/linux/netdev*
 F:	include/linux/platform_data/wiznet.h
 F:	include/uapi/linux/cn_proc.h
@@ -21312,6 +21320,7 @@ L:	linux-s390@vger.kernel.org
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/s390/net/
+F:	include/linux/ism.h
 
 S390 PCI SUBSYSTEM
 M:	Niklas Schnelle <schnelle@linux.ibm.com>
