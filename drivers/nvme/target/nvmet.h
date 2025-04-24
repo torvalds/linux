@@ -141,8 +141,10 @@ static inline struct device *nvmet_ns_dev(struct nvmet_ns *ns)
 }
 
 struct nvmet_cq {
+	struct nvmet_ctrl	*ctrl;
 	u16			qid;
 	u16			size;
+	refcount_t		ref;
 };
 
 struct nvmet_sq {
@@ -247,6 +249,7 @@ struct nvmet_pr_log_mgr {
 struct nvmet_ctrl {
 	struct nvmet_subsys	*subsys;
 	struct nvmet_sq		**sqs;
+	struct nvmet_cq		**cqs;
 
 	void			*drvdata;
 
@@ -571,12 +574,17 @@ void nvmet_execute_set_features(struct nvmet_req *req);
 void nvmet_execute_get_features(struct nvmet_req *req);
 void nvmet_execute_keep_alive(struct nvmet_req *req);
 
-u16 nvmet_check_cqid(struct nvmet_ctrl *ctrl, u16 cqid);
-u16 nvmet_check_io_cqid(struct nvmet_ctrl *ctrl, u16 cqid);
+u16 nvmet_check_cqid(struct nvmet_ctrl *ctrl, u16 cqid, bool create);
+u16 nvmet_check_io_cqid(struct nvmet_ctrl *ctrl, u16 cqid, bool create);
+void nvmet_cq_init(struct nvmet_cq *cq);
 void nvmet_cq_setup(struct nvmet_ctrl *ctrl, struct nvmet_cq *cq, u16 qid,
 		u16 size);
 u16 nvmet_cq_create(struct nvmet_ctrl *ctrl, struct nvmet_cq *cq, u16 qid,
 		u16 size);
+void nvmet_cq_destroy(struct nvmet_cq *cq);
+bool nvmet_cq_get(struct nvmet_cq *cq);
+void nvmet_cq_put(struct nvmet_cq *cq);
+bool nvmet_cq_in_use(struct nvmet_cq *cq);
 u16 nvmet_check_sqid(struct nvmet_ctrl *ctrl, u16 sqid, bool create);
 void nvmet_sq_setup(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq, u16 qid,
 		u16 size);
