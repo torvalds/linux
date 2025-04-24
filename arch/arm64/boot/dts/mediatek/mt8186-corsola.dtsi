@@ -161,6 +161,13 @@
 		#size-cells = <2>;
 		ranges;
 
+		afe_dma_mem: audio-dma-pool {
+			compatible = "shared-dma-pool";
+			size = <0 0x100000>;
+			alignment = <0 0x10>;
+			no-map;
+		};
+
 		adsp_dma_mem: memory@61000000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0x61000000 0 0x100000>;
@@ -310,6 +317,7 @@
 };
 
 &afe {
+	memory-region = <&afe_dma_mem>;
 	status = "okay";
 };
 
