@@ -847,6 +847,11 @@ int __bch2_unlink(struct inode *vdir, struct dentry *dentry,
 		 */
 		set_nlink(&inode->v, 0);
 	}
+
+	if (IS_CASEFOLDED(vdir)) {
+		d_invalidate(dentry);
+		d_prune_aliases(&inode->v);
+	}
 err:
 	bch2_trans_put(trans);
 	bch2_unlock_inodes(INODE_UPDATE_LOCK, dir, inode);
