@@ -150,8 +150,7 @@ static blk_status_t nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	nvme_start_request(req);
 	iod->cmd.common.flags |= NVME_CMD_SGL_METABUF;
 	iod->req.port = queue->ctrl->port;
-	if (!nvmet_req_init(&iod->req, &queue->nvme_cq,
-			&queue->nvme_sq, &nvme_loop_ops))
+	if (!nvmet_req_init(&iod->req, &queue->nvme_sq, &nvme_loop_ops))
 		return BLK_STS_OK;
 
 	if (blk_rq_nr_phys_segments(req)) {
@@ -183,8 +182,7 @@ static void nvme_loop_submit_async_event(struct nvme_ctrl *arg)
 	iod->cmd.common.command_id = NVME_AQ_BLK_MQ_DEPTH;
 	iod->cmd.common.flags |= NVME_CMD_SGL_METABUF;
 
-	if (!nvmet_req_init(&iod->req, &queue->nvme_cq, &queue->nvme_sq,
-			&nvme_loop_ops)) {
+	if (!nvmet_req_init(&iod->req, &queue->nvme_sq, &nvme_loop_ops)) {
 		dev_err(ctrl->ctrl.device, "failed async event work\n");
 		return;
 	}

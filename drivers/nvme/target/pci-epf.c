@@ -1597,8 +1597,7 @@ static void nvmet_pci_epf_exec_iod_work(struct work_struct *work)
 		goto complete;
 	}
 
-	if (!nvmet_req_init(req, &iod->cq->nvme_cq, &iod->sq->nvme_sq,
-			    &nvmet_pci_epf_fabrics_ops))
+	if (!nvmet_req_init(req, &iod->sq->nvme_sq, &nvmet_pci_epf_fabrics_ops))
 		goto complete;
 
 	iod->data_len = nvmet_req_transfer_len(req);

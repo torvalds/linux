@@ -1156,13 +1156,13 @@ static u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 	return ret;
 }
 
-bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
-		struct nvmet_sq *sq, const struct nvmet_fabrics_ops *ops)
+bool nvmet_req_init(struct nvmet_req *req, struct nvmet_sq *sq,
+		const struct nvmet_fabrics_ops *ops)
 {
 	u8 flags = req->cmd->common.flags;
 	u16 status;
 
-	req->cq = cq;
+	req->cq = sq->cq;
 	req->sq = sq;
 	req->ops = ops;
 	req->sg = NULL;
