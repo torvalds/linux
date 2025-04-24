@@ -193,30 +193,13 @@ int bch2_run_explicit_recovery_pass(struct bch_fs *c,
 	return ret;
 }
 
-int bch2_run_explicit_recovery_pass_persistent_locked(struct bch_fs *c,
+int bch2_run_explicit_recovery_pass_persistent(struct bch_fs *c,
 					       enum bch_recovery_pass pass)
 {
 	lockdep_assert_held(&c->sb_lock);
 
 	struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
 	__set_bit_le64(bch2_recovery_pass_to_stable(pass), ext->recovery_passes_required);
-
-	return bch2_run_explicit_recovery_pass(c, pass);
-}
-
-int bch2_run_explicit_recovery_pass_persistent(struct bch_fs *c,
-					       enum bch_recovery_pass pass)
-{
-	enum bch_recovery_pass_stable s = bch2_recovery_pass_to_stable(pass);
-
-	mutex_lock(&c->sb_lock);
-	struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
-
-	if (!test_bit_le64(s, ext->recovery_passes_required)) {
-		__set_bit_le64(s, ext->recovery_passes_required);
-		bch2_write_super(c);
-	}
-	mutex_unlock(&c->sb_lock);
 
 	return bch2_run_explicit_recovery_pass(c, pass);
 }
