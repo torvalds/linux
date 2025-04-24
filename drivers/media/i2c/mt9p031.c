@@ -1093,6 +1093,7 @@ static int mt9p031_parse_properties(struct mt9p031 *mt9p031, struct device *dev)
 static int mt9p031_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
+	const struct mt9p031_model_info *info;
 	struct mt9p031 *mt9p031;
 	unsigned int i;
 	int ret;
@@ -1113,7 +1114,8 @@ static int mt9p031_probe(struct i2c_client *client)
 
 	mt9p031->output_control	= MT9P031_OUTPUT_CONTROL_DEF;
 	mt9p031->mode2 = MT9P031_READ_MODE_2_ROW_BLC;
-	mt9p031->code = (uintptr_t)device_get_match_data(&client->dev);
+	info = device_get_match_data(&client->dev);
+	mt9p031->code = info->code;
 
 	mt9p031->regulators[0].supply = "vdd";
 	mt9p031->regulators[1].supply = "vdd_io";
