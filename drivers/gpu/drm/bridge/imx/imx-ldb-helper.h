@@ -88,8 +88,7 @@ int ldb_init_helper(struct ldb *ldb);
 
 int ldb_find_next_bridge_helper(struct ldb *ldb);
 
-void ldb_add_bridge_helper(struct ldb *ldb,
-			   const struct drm_bridge_funcs *bridge_funcs);
+void ldb_add_bridge_helper(struct ldb *ldb);
 
 void ldb_remove_bridge_helper(struct ldb *ldb);
 

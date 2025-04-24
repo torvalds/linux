@@ -190,8 +190,7 @@ int ldb_find_next_bridge_helper(struct ldb *ldb)
 }
 EXPORT_SYMBOL_GPL(ldb_find_next_bridge_helper);
 
-void ldb_add_bridge_helper(struct ldb *ldb,
-			   const struct drm_bridge_funcs *bridge_funcs)
+void ldb_add_bridge_helper(struct ldb *ldb)
 {
 	struct ldb_channel *ldb_ch;
 	int i;
@@ -203,7 +202,6 @@ void ldb_add_bridge_helper(struct ldb *ldb,
 			continue;
 
 		ldb_ch->bridge.driver_private = ldb_ch;
-		ldb_ch->bridge.funcs = bridge_funcs;
 		ldb_ch->bridge.of_node = ldb_ch->np;
 
 		drm_bridge_add(&ldb_ch->bridge);
