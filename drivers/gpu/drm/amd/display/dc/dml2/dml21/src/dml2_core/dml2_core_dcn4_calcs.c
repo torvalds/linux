@@ -4897,11 +4897,11 @@ static double get_urgent_bandwidth_required(
 		l->adj_factor_cur_pre = UrgentBurstFactorCursorPre[k];
 
 		bool is_phantom = dml_is_phantom_pipe(&display_cfg->plane_descriptors[k]);
-		bool exclude_this_plane = 0;
+		bool exclude_this_plane = false;
 
 		// Exclude phantom pipe in bw calculation for non svp prefetch state
 		if (state_type != dml2_core_internal_soc_state_svp_prefetch && is_phantom)
-			exclude_this_plane = 1;
+			exclude_this_plane = true;
 
 		// The qualified row bandwidth, qual_row_bw, accounts for the regular non-flip row bandwidth when there is no possible immediate flip or HostVM invalidation flip.
 		// The qual_row_bw is zero if HostVM is possible and only non-zero and equal to row_bw(i) if immediate flip is not allowed for that pipe.
@@ -7092,13 +7092,13 @@ static unsigned int get_qos_param_index(unsigned long uclk_freq_khz, const struc
 static unsigned int get_active_min_uclk_dpm_index(unsigned long uclk_freq_khz, const struct dml2_soc_state_table *clk_table)
 {
 	unsigned int i;
-	bool clk_entry_found = 0;
+	bool clk_entry_found = false;
 
 	for (i = 0; i < clk_table->uclk.num_clk_values; i++) {
 		DML_LOG_VERBOSE("DML::%s: clk_table.uclk.clk_values_khz[%d] = %ld\n", __func__, i, clk_table->uclk.clk_values_khz[i]);
 
 		if (uclk_freq_khz == clk_table->uclk.clk_values_khz[i]) {
-			clk_entry_found = 1;
+			clk_entry_found = true;
 			break;
 		}
 	}
@@ -9058,7 +9058,7 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 
 	for (k = 0; k < mode_lib->ms.num_active_planes; ++k) {
 		double line_time_us = (double)display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.h_total / ((double)display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.pixel_clock_khz / 1000);
-		bool cursor_not_enough_urgent_latency_hiding = 0;
+		bool cursor_not_enough_urgent_latency_hiding = false;
 
 		if (display_cfg->plane_descriptors[k].cursor.num_cursors > 0) {
 			calculate_cursor_req_attributes(
@@ -11025,7 +11025,7 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 		mode_lib->soc.qos_parameters.qos_params.dcn4x.fabric_max_transport_latency_margin);
 
 	for (k = 0; k < s->num_active_planes; ++k) {
-		bool cursor_not_enough_urgent_latency_hiding = 0;
+		bool cursor_not_enough_urgent_latency_hiding = false;
 		s->line_times[k] = display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.h_total /
 			((double)display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.pixel_clock_khz / 1000);
 
@@ -12127,10 +12127,10 @@ void dml2_core_calcs_get_dpte_row_height(
 
 static bool is_dual_plane(enum dml2_source_format_class source_format)
 {
-	bool ret_val = 0;
+	bool ret_val = false;
 
 	if ((source_format == dml2_420_12) || (source_format == dml2_420_8) || (source_format == dml2_420_10) || (source_format == dml2_rgbe_alpha))
-		ret_val = 1;
+		ret_val = true;
 
 	return ret_val;
 }

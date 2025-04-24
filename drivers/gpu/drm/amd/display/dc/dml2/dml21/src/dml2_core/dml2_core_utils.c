@@ -533,13 +533,13 @@ unsigned int dml2_core_utils_get_qos_param_index(unsigned long uclk_freq_khz, co
 unsigned int dml2_core_utils_get_active_min_uclk_dpm_index(unsigned long uclk_freq_khz, const struct dml2_soc_state_table *clk_table)
 {
 	unsigned int i;
-	bool clk_entry_found = 0;
+	bool clk_entry_found = false;
 
 	for (i = 0; i < clk_table->uclk.num_clk_values; i++) {
 		DML_LOG_VERBOSE("DML::%s: clk_table.uclk.clk_values_khz[%d] = %ld\n", __func__, i, clk_table->uclk.clk_values_khz[i]);
 
 		if (uclk_freq_khz == clk_table->uclk.clk_values_khz[i]) {
-			clk_entry_found = 1;
+			clk_entry_found = true;
 			break;
 		}
 	}
@@ -555,10 +555,10 @@ unsigned int dml2_core_utils_get_active_min_uclk_dpm_index(unsigned long uclk_fr
 
 bool dml2_core_utils_is_dual_plane(enum dml2_source_format_class source_format)
 {
-	bool ret_val = 0;
+	bool ret_val = false;
 
 	if (dml2_core_utils_is_420(source_format) || dml2_core_utils_is_422_planar(source_format) || (source_format == dml2_rgbe_alpha))
-		ret_val = 1;
+		ret_val = true;
 
 	return ret_val;
 }
