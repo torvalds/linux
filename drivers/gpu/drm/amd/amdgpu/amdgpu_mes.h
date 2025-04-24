@@ -266,7 +266,7 @@ struct mes_resume_gang_input {
 	uint64_t	gang_context_addr;
 };
 
-struct mes_reset_legacy_queue_input {
+struct mes_reset_queue_input {
 	uint32_t                           queue_type;
 	uint32_t                           doorbell_offset;
 	bool                               use_mmio;
@@ -276,6 +276,7 @@ struct mes_reset_legacy_queue_input {
 	uint64_t                           mqd_addr;
 	uint64_t                           wptr_addr;
 	uint32_t                           vmid;
+	bool                               legacy_gfx;
 };
 
 enum mes_misc_opcode {
@@ -363,8 +364,8 @@ struct amdgpu_mes_funcs {
 	int (*misc_op)(struct amdgpu_mes *mes,
 		       struct mes_misc_op_input *input);
 
-	int (*reset_legacy_queue)(struct amdgpu_mes *mes,
-				  struct mes_reset_legacy_queue_input *input);
+	int (*reset_hw_queue)(struct amdgpu_mes *mes,
+			      struct mes_reset_queue_input *input);
 };
 
 #define amdgpu_mes_kiq_hw_init(adev) (adev)->mes.kiq_hw_init((adev))

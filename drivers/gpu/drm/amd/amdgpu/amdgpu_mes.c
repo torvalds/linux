@@ -335,7 +335,7 @@ int amdgpu_mes_reset_legacy_queue(struct amdgpu_device *adev,
 				  unsigned int vmid,
 				  bool use_mmio)
 {
-	struct mes_reset_legacy_queue_input queue_input;
+	struct mes_reset_queue_input queue_input;
 	int r;
 
 	memset(&queue_input, 0, sizeof(queue_input));
@@ -349,8 +349,10 @@ int amdgpu_mes_reset_legacy_queue(struct amdgpu_device *adev,
 	queue_input.wptr_addr = ring->wptr_gpu_addr;
 	queue_input.vmid = vmid;
 	queue_input.use_mmio = use_mmio;
+	if (ring->funcs->type == AMDGPU_RING_TYPE_GFX)
+		queue_input.legacy_gfx = true;
 
-	r = adev->mes.funcs->reset_legacy_queue(&adev->mes, &queue_input);
+	r = adev->mes.funcs->reset_hw_queue(&adev->mes, &queue_input);
 	if (r)
 		DRM_ERROR("failed to reset legacy queue\n");
 

@@ -836,8 +836,8 @@ static void mes_v12_0_enable_unmapped_doorbell_handling(
 	WREG32_SOC15(GC, 0, regCP_UNMAPPED_DOORBELL, data);
 }
 
-static int mes_v12_0_reset_legacy_queue(struct amdgpu_mes *mes,
-					struct mes_reset_legacy_queue_input *input)
+static int mes_v12_0_reset_hw_queue(struct amdgpu_mes *mes,
+				    struct mes_reset_queue_input *input)
 {
 	union MESAPI__RESET mes_reset_queue_pkt;
 	int pipe;
@@ -856,7 +856,7 @@ static int mes_v12_0_reset_legacy_queue(struct amdgpu_mes *mes,
 	mes_reset_queue_pkt.queue_type =
 		convert_to_mes_queue_type(input->queue_type);
 
-	if (mes_reset_queue_pkt.queue_type == MES_QUEUE_TYPE_GFX) {
+	if (input->legacy_gfx) {
 		mes_reset_queue_pkt.reset_legacy_gfx = 1;
 		mes_reset_queue_pkt.pipe_id_lp = input->pipe_id;
 		mes_reset_queue_pkt.queue_id_lp = input->queue_id;
@@ -887,7 +887,7 @@ static const struct amdgpu_mes_funcs mes_v12_0_funcs = {
 	.suspend_gang = mes_v12_0_suspend_gang,
 	.resume_gang = mes_v12_0_resume_gang,
 	.misc_op = mes_v12_0_misc_op,
-	.reset_legacy_queue = mes_v12_0_reset_legacy_queue,
+	.reset_hw_queue = mes_v12_0_reset_hw_queue,
 };
 
 static int mes_v12_0_allocate_ucode_buffer(struct amdgpu_device *adev,
