@@ -6,7 +6,6 @@
 #ifndef __INTEL_HDCP_GSC_H__
 #define __INTEL_HDCP_GSC_H__
 
-#include <linux/err.h>
 #include <linux/types.h>
 
 struct drm_device;
