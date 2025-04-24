@@ -182,7 +182,7 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 	prph_sc_ctrl->step_cfg.mbx_addr_1 = cpu_to_le32(trans->mbx_addr_1_step);
 
 	/* allocate ucode sections in dram and set addresses */
-	ret = iwl_pcie_init_fw_sec(trans, fw, &prph_scratch->dram);
+	ret = iwl_pcie_init_fw_sec(trans, fw, &prph_scratch->dram.common);
 	if (ret)
 		goto err_free_prph_scratch;
 
@@ -219,8 +219,23 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 		cpu_to_le64(trans_pcie->prph_info_dma_addr);
 	ctxt_info_gen3->prph_scratch_base_addr =
 		cpu_to_le64(trans_pcie->prph_scratch_dma_addr);
-	ctxt_info_gen3->prph_scratch_size =
-		cpu_to_le32(sizeof(*prph_scratch));
+
+	/*
+	 * This code assumes the FSEQ is last and we can make that
+	 * optional; old devices _should_ be fine with a bigger size,
+	 * but in simulation we check the size more precisely.
+	 */
+	BUILD_BUG_ON(offsetofend(typeof(*prph_scratch), dram.common) +
+		     sizeof(prph_scratch->dram.fseq_img) !=
+		     sizeof(*prph_scratch));
+	if (control_flags_ext & IWL_PRPH_SCRATCH_EXT_EXT_FSEQ)
+		ctxt_info_gen3->prph_scratch_size =
+			cpu_to_le32(sizeof(*prph_scratch));
+	else
+		ctxt_info_gen3->prph_scratch_size =
+			cpu_to_le32(offsetofend(typeof(*prph_scratch),
+						dram.common));
+
 	ctxt_info_gen3->cr_head_idx_arr_base_addr =
 		cpu_to_le64(trans_pcie->rxq->rb_stts_dma);
 	ctxt_info_gen3->tr_tail_idx_arr_base_addr =

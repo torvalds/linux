@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2020, 2022, 2024 Intel Corporation
+ * Copyright (C) 2018-2020, 2022, 2024-2025 Intel Corporation
  */
 #ifndef __iwl_context_info_file_h__
 #define __iwl_context_info_file_h__
@@ -78,13 +78,13 @@ struct iwl_context_info_control {
 } __packed;
 
 /**
- * struct iwl_context_info_dram - images DRAM map
+ * struct iwl_context_info_dram_nonfseq - images DRAM map
  * each entry in the map represents a DRAM chunk of up to 32 KB
  * @umac_img: UMAC image DRAM map
  * @lmac_img: LMAC image DRAM map
  * @virtual_img: paged image DRAM map
  */
-struct iwl_context_info_dram {
+struct iwl_context_info_dram_nonfseq {
 	__le64 umac_img[IWL_MAX_DRAM_ENTRY];
 	__le64 lmac_img[IWL_MAX_DRAM_ENTRY];
 	__le64 virtual_img[IWL_MAX_DRAM_ENTRY];
@@ -177,7 +177,7 @@ struct iwl_context_info {
 	struct iwl_context_info_early_dbg_cfg edbg_cfg;
 	struct iwl_context_info_pnvm_cfg pnvm_cfg;
 	__le32 reserved2[16];
-	struct iwl_context_info_dram dram;
+	struct iwl_context_info_dram_nonfseq dram;
 	__le32 reserved3[16];
 } __packed;
 
@@ -186,7 +186,7 @@ void iwl_pcie_ctxt_info_free(struct iwl_trans *trans);
 void iwl_pcie_ctxt_info_free_paging(struct iwl_trans *trans);
 int iwl_pcie_init_fw_sec(struct iwl_trans *trans,
 			 const struct fw_img *fw,
-			 struct iwl_context_info_dram *ctxt_dram);
+			 struct iwl_context_info_dram_nonfseq *ctxt_dram);
 void *iwl_pcie_ctxt_info_dma_alloc_coherent(struct iwl_trans *trans,
 					    size_t size,
 					    dma_addr_t *phys);

@@ -78,11 +78,13 @@ enum iwl_prph_scratch_flags {
 
 /**
  * enum iwl_prph_scratch_ext_flags - PRPH scratch control ext flags
+ * @IWL_PRPH_SCRATCH_EXT_EXT_FSEQ: external FSEQ image provided
  * @IWL_PRPH_SCRATCH_EXT_URM_FW: switch to URM mode based on fw setting
  * @IWL_PRPH_SCRATCH_EXT_URM_PERM: switch to permanent URM mode
  * @IWL_PRPH_SCRATCH_EXT_32KHZ_CLK_VALID: use external 32 KHz clock
  */
 enum iwl_prph_scratch_ext_flags {
+	IWL_PRPH_SCRATCH_EXT_EXT_FSEQ		= BIT(0),
 	IWL_PRPH_SCRATCH_EXT_URM_FW		= BIT(4),
 	IWL_PRPH_SCRATCH_EXT_URM_PERM		= BIT(5),
 	IWL_PRPH_SCRATCH_EXT_32KHZ_CLK_VALID	= BIT(8),
@@ -202,6 +204,19 @@ struct iwl_prph_scratch_ctrl_cfg {
 	struct iwl_prph_scratch_step_cfg step_cfg;
 } __packed; /* PERIPH_SCRATCH_CTRL_CFG_S */
 
+#define IWL_NUM_DRAM_FSEQ_ENTRIES	8
+
+/**
+ * struct iwl_context_info_dram_fseq - images DRAM map (with fseq)
+ * each entry in the map represents a DRAM chunk of up to 32 KB
+ * @common: UMAC/LMAC/virtual images
+ * @fseq_img: FSEQ image DRAM map
+ */
+struct iwl_context_info_dram_fseq {
+	struct iwl_context_info_dram_nonfseq common;
+	__le64 fseq_img[IWL_NUM_DRAM_FSEQ_ENTRIES];
+} __packed; /* PERIPH_SCRATCH_DRAM_MAP_S */
+
 /**
  * struct iwl_prph_scratch - peripheral scratch mapping
  * @ctrl_cfg: control and configuration of prph scratch
@@ -215,7 +230,7 @@ struct iwl_prph_scratch {
 	__le32 fseq_override;
 	__le32 step_analog_params;
 	__le32 reserved[8];
-	struct iwl_context_info_dram dram;
+	struct iwl_context_info_dram_fseq dram;
 } __packed; /* PERIPH_SCRATCH_S */
 
 /**
