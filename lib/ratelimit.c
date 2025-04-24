@@ -40,6 +40,7 @@ int ___ratelimit(struct ratelimit_state *rs, const char *func)
 	 * says always limit.
 	 */
 	if (interval <= 0 || burst <= 0) {
+		WARN_ONCE(interval < 0 || burst < 0, "Negative interval (%d) or burst (%d): Uninitialized ratelimit_state structure?\n", interval, burst);
 		ret = interval == 0 || burst > 0;
 		if (!(READ_ONCE(rs->flags) & RATELIMIT_INITIALIZED) || (!interval && !burst) ||
 		    !raw_spin_trylock_irqsave(&rs->lock, flags)) {
