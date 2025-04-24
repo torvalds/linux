@@ -23619,6 +23619,13 @@ L:	linux-i2c@vger.kernel.org
 S:	Supported
 F:	drivers/i2c/busses/i2c-designware-*
 
+SYNOPSYS DESIGNWARE I2C DRIVER - AMDISP
+M:	Nirujogi Pratap <pratap.nirujogi@amd.com>
+M:	Bin Du <bin.du@amd.com>
+L:	linux-i2c@vger.kernel.org
+S:	Maintained
+F:	drivers/i2c/busses/i2c-designware-amdisp.c
+
 SYNOPSYS DESIGNWARE MMC/SD/SDIO DRIVER
 M:	Jaehoon Chung <jh80.chung@samsung.com>
 L:	linux-mmc@vger.kernel.org
