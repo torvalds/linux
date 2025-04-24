@@ -99,7 +99,7 @@ out:
 	return ret;
 }
 
-struct intel_hdcp_gsc_context *intel_hdcp_gsc_hdcp2_init(struct intel_display *display)
+struct intel_hdcp_gsc_context *intel_hdcp_gsc_context_alloc(struct intel_display *display)
 {
 	struct intel_hdcp_gsc_context *gsc_context;
 	int ret;
@@ -122,7 +122,7 @@ struct intel_hdcp_gsc_context *intel_hdcp_gsc_hdcp2_init(struct intel_display *d
 	return gsc_context;
 }
 
-void intel_hdcp_gsc_free_message(struct intel_hdcp_gsc_context *gsc_context)
+void intel_hdcp_gsc_context_free(struct intel_hdcp_gsc_context *gsc_context)
 {
 	if (!gsc_context)
 		return;
