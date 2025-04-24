@@ -107,6 +107,133 @@ static int amdgpu_ih_clientid_vcns[] = {
 	SOC15_IH_CLIENTID_VCN1
 };
 
+static void vcn_v2_5_idle_work_handler(struct work_struct *work)
+{
+	struct amdgpu_vcn_inst *vcn_inst =
+		container_of(work, struct amdgpu_vcn_inst, idle_work.work);
+	struct amdgpu_device *adev = vcn_inst->adev;
+	unsigned int fences = 0, fence[AMDGPU_MAX_VCN_INSTANCES] = {0};
+	unsigned int i, j;
+	int r = 0;
+
+	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		struct amdgpu_vcn_inst *v = &adev->vcn.inst[i];
+
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
+
+		for (j = 0; j < v->num_enc_rings; ++j)
+			fence[i] += amdgpu_fence_count_emitted(&v->ring_enc[j]);
+
+		/* Only set DPG pause for VCN3 or below, VCN4 and above will be handled by FW */
+		if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG &&
+		    !v->using_unified_queue) {
+			struct dpg_pause_state new_state;
+
+			if (fence[i] ||
+			    unlikely(atomic_read(&v->dpg_enc_submission_cnt)))
+				new_state.fw_based = VCN_DPG_STATE__PAUSE;
+			else
+				new_state.fw_based = VCN_DPG_STATE__UNPAUSE;
+
+			v->pause_dpg_mode(v, &new_state);
+		}
+
+		fence[i] += amdgpu_fence_count_emitted(&v->ring_dec);
+		fences += fence[i];
+
+	}
+
+	if (!fences && !atomic_read(&adev->vcn.inst[0].total_submission_cnt)) {
+		amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCN,
+						       AMD_PG_STATE_GATE);
+		mutex_lock(&adev->vcn.workload_profile_mutex);
+		if (adev->vcn.workload_profile_active) {
+			r = amdgpu_dpm_switch_power_profile(adev, PP_SMC_POWER_PROFILE_VIDEO,
+							    false);
+			if (r)
+				dev_warn(adev->dev, "(%d) failed to disable video power profile mode\n", r);
+			adev->vcn.workload_profile_active = false;
+		}
+		mutex_unlock(&adev->vcn.workload_profile_mutex);
+	} else {
+		schedule_delayed_work(&adev->vcn.inst[0].idle_work, VCN_IDLE_TIMEOUT);
+	}
+}
+
+static void vcn_v2_5_ring_begin_use(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	struct amdgpu_vcn_inst *v = &adev->vcn.inst[ring->me];
+	int r = 0;
+
+	atomic_inc(&adev->vcn.inst[0].total_submission_cnt);
+
+	cancel_delayed_work_sync(&adev->vcn.inst[0].idle_work);
+
+	/* We can safely return early here because we've cancelled the
+	 * the delayed work so there is no one else to set it to false
+	 * and we don't care if someone else sets it to true.
+	 */
+	if (adev->vcn.workload_profile_active)
+		goto pg_lock;
+
+	mutex_lock(&adev->vcn.workload_profile_mutex);
+	if (!adev->vcn.workload_profile_active) {
+		r = amdgpu_dpm_switch_power_profile(adev, PP_SMC_POWER_PROFILE_VIDEO,
+						    true);
+		if (r)
+			dev_warn(adev->dev, "(%d) failed to switch to video power profile mode\n", r);
+		adev->vcn.workload_profile_active = true;
+	}
+	mutex_unlock(&adev->vcn.workload_profile_mutex);
+
+pg_lock:
+	mutex_lock(&adev->vcn.inst[0].vcn_pg_lock);
+	amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCN,
+					       AMD_PG_STATE_UNGATE);
+
+	/* Only set DPG pause for VCN3 or below, VCN4 and above will be handled by FW */
+	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG &&
+	    !v->using_unified_queue) {
+		struct dpg_pause_state new_state;
+
+		if (ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC) {
+			atomic_inc(&v->dpg_enc_submission_cnt);
+			new_state.fw_based = VCN_DPG_STATE__PAUSE;
+		} else {
+			unsigned int fences = 0;
+			unsigned int i;
+
+			for (i = 0; i < v->num_enc_rings; ++i)
+				fences += amdgpu_fence_count_emitted(&v->ring_enc[i]);
+
+			if (fences || atomic_read(&v->dpg_enc_submission_cnt))
+				new_state.fw_based = VCN_DPG_STATE__PAUSE;
+			else
+				new_state.fw_based = VCN_DPG_STATE__UNPAUSE;
+		}
+		v->pause_dpg_mode(v, &new_state);
+	}
+	mutex_unlock(&adev->vcn.inst[0].vcn_pg_lock);
+}
+
+static void vcn_v2_5_ring_end_use(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+
+	/* Only set DPG pause for VCN3 or below, VCN4 and above will be handled by FW */
+	if (ring->adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG &&
+	    ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC &&
+	    !adev->vcn.inst[ring->me].using_unified_queue)
+		atomic_dec(&adev->vcn.inst[ring->me].dpg_enc_submission_cnt);
+
+	atomic_dec(&adev->vcn.inst[0].total_submission_cnt);
+
+	schedule_delayed_work(&adev->vcn.inst[0].idle_work,
+			      VCN_IDLE_TIMEOUT);
+}
+
 /**
  * vcn_v2_5_early_init - set function pointers and load microcode
  *
@@ -200,6 +327,9 @@ static int vcn_v2_5_sw_init(struct amdgpu_ip_block *ip_block)
 		r = amdgpu_vcn_sw_init(adev, j);
 		if (r)
 			return r;
+
+		/* Override the work func */
+		adev->vcn.inst[j].idle_work.work.func = vcn_v2_5_idle_work_handler;
 
 		amdgpu_vcn_setup_ucode(adev, j);
 
@@ -1661,8 +1791,8 @@ static const struct amdgpu_ring_funcs vcn_v2_5_dec_ring_vm_funcs = {
 	.insert_start = vcn_v2_0_dec_ring_insert_start,
 	.insert_end = vcn_v2_0_dec_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
-	.begin_use = amdgpu_vcn_ring_begin_use,
-	.end_use = amdgpu_vcn_ring_end_use,
+	.begin_use = vcn_v2_5_ring_begin_use,
+	.end_use = vcn_v2_5_ring_end_use,
 	.emit_wreg = vcn_v2_0_dec_ring_emit_wreg,
 	.emit_reg_wait = vcn_v2_0_dec_ring_emit_reg_wait,
 	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
@@ -1759,8 +1889,8 @@ static const struct amdgpu_ring_funcs vcn_v2_5_enc_ring_vm_funcs = {
 	.insert_nop = amdgpu_ring_insert_nop,
 	.insert_end = vcn_v2_0_enc_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
-	.begin_use = amdgpu_vcn_ring_begin_use,
-	.end_use = amdgpu_vcn_ring_end_use,
+	.begin_use = vcn_v2_5_ring_begin_use,
+	.end_use = vcn_v2_5_ring_end_use,
 	.emit_wreg = vcn_v2_0_enc_ring_emit_wreg,
 	.emit_reg_wait = vcn_v2_0_enc_ring_emit_reg_wait,
 	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,

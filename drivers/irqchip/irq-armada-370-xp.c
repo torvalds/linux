@@ -564,7 +564,7 @@ static void mpic_reenable_percpu(struct mpic *mpic)
 
 static int mpic_starting_cpu(unsigned int cpu)
 {
-	struct mpic *mpic = irq_get_default_host()->host_data;
+	struct mpic *mpic = irq_get_default_domain()->host_data;
 
 	mpic_perf_init(mpic);
 	mpic_smp_cpu_init(mpic);
@@ -700,7 +700,7 @@ static void mpic_handle_cascade_irq(struct irq_desc *desc)
 
 static void __exception_irq_entry mpic_handle_irq(struct pt_regs *regs)
 {
-	struct mpic *mpic = irq_get_default_host()->host_data;
+	struct mpic *mpic = irq_get_default_domain()->host_data;
 	irq_hw_number_t i;
 	u32 irqstat;
 
@@ -880,7 +880,7 @@ static int __init mpic_of_init(struct device_node *node, struct device_node *par
 	}
 
 	if (mpic_is_ipi_available(mpic)) {
-		irq_set_default_host(mpic->domain);
+		irq_set_default_domain(mpic->domain);
 		set_handle_irq(mpic_handle_irq);
 #ifdef CONFIG_SMP
 		err = mpic_ipi_init(mpic, node);

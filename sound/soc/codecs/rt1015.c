@@ -753,10 +753,10 @@ static int rt1015_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	unsigned int reg_val = 0, reg_val2 = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		reg_val |= RT1015_TCON_TDM_MS_M;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		reg_val |= RT1015_TCON_TDM_MS_S;
 		break;
 	default:
@@ -1105,15 +1105,15 @@ MODULE_DEVICE_TABLE(i2c, rt1015_i2c_id);
 #if defined(CONFIG_OF)
 static const struct of_device_id rt1015_of_match[] = {
 	{ .compatible = "realtek,rt1015", },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rt1015_of_match);
 #endif
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt1015_acpi_match[] = {
-	{"10EC1015", 0,},
-	{},
+	{ "10EC1015" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt1015_acpi_match);
 #endif

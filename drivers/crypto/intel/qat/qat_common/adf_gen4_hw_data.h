@@ -179,5 +179,6 @@ int adf_gen4_bank_state_save(struct adf_accel_dev *accel_dev, u32 bank_number,
 			     struct bank_state *state);
 int adf_gen4_bank_state_restore(struct adf_accel_dev *accel_dev,
 				u32 bank_number, struct bank_state *state);
+bool adf_gen4_services_supported(unsigned long service_mask);
 
 #endif

@@ -17,6 +17,8 @@ Release prepend support by Breno Leitao <leitao@debian.org>, Jul 7 2023
 
 Userdata append support by Matthew Wood <thepacketgeek@gmail.com>, Jan 22 2024
 
+Sysdata append support by Breno Leitao <leitao@debian.org>, Jan 15 2025
+
 Please send bug reports to Matt Mackall <mpm@selenic.com>
 Satyam Sharma <satyam.sharma@gmail.com>, and Cong Wang <xiyou.wangcong@gmail.com>
 
@@ -45,7 +47,7 @@ following format::
 	r             if present, prepend kernel version (release) to the message
 	src-port      source for UDP packets (defaults to 6665)
 	src-ip        source IP to use (interface address)
-	dev           network interface (eth0)
+	dev           network interface name (eth0) or MAC address
 	tgt-port      port for logging agent (6666)
 	tgt-ip        IP address for logging agent
 	tgt-macaddr   ethernet MAC address for logging agent (broadcast)
@@ -61,6 +63,10 @@ or::
 or using IPv6::
 
  insmod netconsole netconsole=@/,@fd00:1:2:3::1/
+
+or using a MAC address to select the egress interface::
+
+   linux netconsole=4444@10.0.0.1/22:33:44:55:66:77,9353@10.0.0.2/12:34:56:78:9a:bc
 
 It also supports logging to multiple remote agents by specifying
 parameters for the multiple agents separated by semicolons and the
@@ -237,6 +243,102 @@ Delete `userdata` entries with `rmdir`::
      val2
 
    It is recommended to not write user data values with newlines.
+
+Task name auto population in userdata
+-------------------------------------
+
+Inside the netconsole configfs hierarchy, there is a file called
+`taskname_enabled` under the `userdata` directory. This file is used to enable
+or disable the automatic task name population feature. This feature
+automatically populates the current task name that is scheduled in the CPU
+sneding the message.
+
+To enable task name auto-population::
+
+  echo 1 > /sys/kernel/config/netconsole/target1/userdata/taskname_enabled
+
+When this option is enabled, the netconsole messages will include an additional
+line in the userdata field with the format `taskname=<task name>`. This allows
+the receiver of the netconsole messages to easily find which application was
+currently scheduled when that message was generated, providing extra context
+for kernel messages and helping to categorize them.
+
+Example::
+
+  echo "This is a message" > /dev/kmsg
+  12,607,22085407756,-;This is a message
+   taskname=echo
+
+In this example, the message was generated while "echo" was the current
+scheduled process.
+
+Kernel release auto population in userdata
+------------------------------------------
+
+Within the netconsole configfs hierarchy, there is a file named `release_enabled`
+located in the `userdata` directory. This file controls the kernel release
+(version) auto-population feature, which appends the kernel release information
+to userdata dictionary in every message sent.
+
+To enable the release auto-population::
+
+  echo 1 > /sys/kernel/config/netconsole/target1/userdata/release_enabled
+
+Example::
+
+  echo "This is a message" > /dev/kmsg
+  12,607,22085407756,-;This is a message
+   release=6.14.0-rc6-01219-g3c027fbd941d
+
+.. note::
+
+   This feature provides the same data as the "release prepend" feature.
+   However, in this case, the release information is appended to the userdata
+   dictionary rather than being included in the message header.
+
+
+CPU number auto population in userdata
+--------------------------------------
+
+Inside the netconsole configfs hierarchy, there is a file called
+`cpu_nr` under the `userdata` directory. This file is used to enable or disable
+the automatic CPU number population feature. This feature automatically
+populates the CPU number that is sending the message.
+
+To enable the CPU number auto-population::
+
+  echo 1 > /sys/kernel/config/netconsole/target1/userdata/cpu_nr
+
+When this option is enabled, the netconsole messages will include an additional
+line in the userdata field with the format `cpu=<cpu_number>`. This allows the
+receiver of the netconsole messages to easily differentiate and demultiplex
+messages originating from different CPUs, which is particularly useful when
+dealing with parallel log output.
+
+Example::
+
+  echo "This is a message" > /dev/kmsg
+  12,607,22085407756,-;This is a message
+   cpu=42
+
+In this example, the message was sent by CPU 42.
+
+.. note::
+
+   If the user has set a conflicting `cpu` key in the userdata dictionary,
+   both keys will be reported, with the kernel-populated entry appearing after
+   the user one. For example::
+
+     # User-defined CPU entry
+     mkdir -p /sys/kernel/config/netconsole/target1/userdata/cpu
+     echo "1" > /sys/kernel/config/netconsole/target1/userdata/cpu/value
+
+   Output might look like::
+
+     12,607,22085407756,-;This is a message
+      cpu=1
+      cpu=42    # kernel-populated value
+
 
 Extended console:
 =================

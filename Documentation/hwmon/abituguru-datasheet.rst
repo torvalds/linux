@@ -6,9 +6,9 @@ First of all, what I know about uGuru is no fact based on any help, hints or
 datasheet from Abit. The data I have got on uGuru have I assembled through
 my weak knowledge in "backwards engineering".
 And just for the record, you may have noticed uGuru isn't a chip developed by
-Abit, as they claim it to be. It's really just an microprocessor (uC) created by
+Abit, as they claim it to be. It's really just a microprocessor (uC) created by
 Winbond (W83L950D). And no, reading the manual for this specific uC or
-mailing  Windbond for help won't give any useful data about uGuru, as it is
+mailing Winbond for help won't give any useful data about uGuru, as it is
 the program inside the uC that is responding to calls.
 
 Olle Sandberg <ollebull@gmail.com>, 2005-05-25
@@ -35,7 +35,7 @@ As far as known the uGuru is always placed at and using the (ISA) I/O-ports
 ports are holding for detection. We will refer to 0xE0 as CMD (command-port)
 and 0xE4 as DATA because Abit refers to them with these names.
 
-If DATA holds 0x00 or 0x08 and CMD holds 0x00 or 0xAC an uGuru could be
+If DATA holds 0x00 or 0x08 and CMD holds 0x00 or 0xAC a uGuru could be
 present. We have to check for two different values at data-port, because
 after a reboot uGuru will hold 0x00 here, but if the driver is removed and
 later on attached again data-port will hold 0x08, more about this later.
@@ -46,7 +46,7 @@ have to test CMD for two different values. On these uGuru's DATA will initially
 hold 0x09 and will only hold 0x08 after reading CMD first, so CMD must be read
 first!
 
-To be really sure an uGuru is present a test read of one or more register
+To be really sure a uGuru is present a test read of one or more register
 sets should be done.
 
 

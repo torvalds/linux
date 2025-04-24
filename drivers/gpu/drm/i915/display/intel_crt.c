@@ -532,8 +532,6 @@ static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 {
 	struct intel_display *display = to_intel_display(connector->dev);
 	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
-	struct drm_i915_private *dev_priv = to_i915(connector->dev);
-	bool reenable_hpd;
 	u32 adpa;
 	bool ret;
 	u32 save_adpa;
@@ -550,7 +548,7 @@ static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 	 *
 	 * Just disable HPD interrupts here to prevent this
 	 */
-	reenable_hpd = intel_hpd_disable(dev_priv, crt->base.hpd_pin);
+	intel_hpd_block(&crt->base);
 
 	save_adpa = adpa = intel_de_read(display, crt->adpa_reg);
 	drm_dbg_kms(display->drm,
@@ -577,8 +575,7 @@ static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 	drm_dbg_kms(display->drm,
 		    "valleyview hotplug adpa=0x%x, result %d\n", adpa, ret);
 
-	if (reenable_hpd)
-		intel_hpd_enable(dev_priv, crt->base.hpd_pin);
+	intel_hpd_clear_and_unblock(&crt->base);
 
 	return ret;
 }
@@ -609,7 +606,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 
 	for (i = 0; i < tries ; i++) {
 		/* turn on the FORCE_DETECT */
-		i915_hotplug_interrupt_update(dev_priv,
+		i915_hotplug_interrupt_update(display,
 					      CRT_HOTPLUG_FORCE_DETECT,
 					      CRT_HOTPLUG_FORCE_DETECT);
 		/* wait for FORCE_DETECT to go off */
@@ -627,7 +624,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 	intel_de_write(display, PORT_HOTPLUG_STAT(display),
 		       CRT_HOTPLUG_INT_STATUS);
 
-	i915_hotplug_interrupt_update(dev_priv, CRT_HOTPLUG_FORCE_DETECT, 0);
+	i915_hotplug_interrupt_update(display, CRT_HOTPLUG_FORCE_DETECT, 0);
 
 	return ret;
 }
@@ -880,7 +877,7 @@ intel_crt_detect(struct drm_connector *connector,
 
 	wakeref = intel_display_power_get(display, encoder->power_domain);
 
-	if (I915_HAS_HOTPLUG(display)) {
+	if (HAS_HOTPLUG(display)) {
 		/* We can not rely on the HPD pin always being correctly wired
 		 * up, for example many KVM do not pass it through, and so
 		 * only trust an assertion that the monitor is connected.
@@ -904,7 +901,7 @@ intel_crt_detect(struct drm_connector *connector,
 	 * broken monitor (without edid) to work behind a broken kvm (that fails
 	 * to have the right resistors for HP detection) needs to fix this up.
 	 * For now just bail out. */
-	if (I915_HAS_HOTPLUG(display)) {
+	if (HAS_HOTPLUG(display)) {
 		status = connector_status_disconnected;
 		goto out;
 	}
@@ -1084,7 +1081,7 @@ void intel_crt_init(struct intel_display *display)
 
 	crt->base.power_domain = POWER_DOMAIN_PORT_CRT;
 
-	if (I915_HAS_HOTPLUG(display) &&
+	if (HAS_HOTPLUG(display) &&
 	    !dmi_check_system(intel_spurious_crt_detect)) {
 		crt->base.hpd_pin = HPD_CRT;
 		crt->base.hotplug = intel_encoder_hotplug;

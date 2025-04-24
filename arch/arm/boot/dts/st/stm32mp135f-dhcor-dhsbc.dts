@@ -176,7 +176,7 @@
 	gpio-line-names = "", "", "", "",
 			  "", "DHSBC_USB_PWR_CC1", "", "",
 			  "", "", "", "DHSBC_nETH1_RST",
-			  "", "DHCOR_HW-CODING_0", "", "";
+			  "", "DHCOR_HW-CODING_0", "", "DHSBC_HW-CODE_2";
 };
 
 &gpiob {
@@ -197,7 +197,7 @@
 	gpio-line-names = "", "", "", "",
 			  "", "DHCOR_RAM-CODING_0", "", "",
 			  "", "DHCOR_RAM-CODING_1", "", "",
-			  "", "", "", "";
+			  "", "DHSBC_HW-CODE_1", "", "";
 };
 
 &gpioe {
@@ -219,6 +219,13 @@
 			  "", "", "", "",
 			  "DHSBC_nETH2_RST", "DHCOR_BT_DEV_WAKE", "", "",
 			  "DHSBC_ETH1_INTB", "", "", "DHSBC_ETH2_INTB";
+};
+
+&gpioh {
+	gpio-line-names = "", "", "", "DHSBC_HW-CODE_0",
+			  "", "", "", "",
+			  "", "", "", "",
+			  "", "", "", "";
 };
 
 &gpioi {
@@ -296,6 +303,9 @@
 	st33htph: tpm@0 {
 		compatible = "st,st33htpm-spi", "tcg,tpm_tis-spi";
 		reg = <0>;
+		interrupt-parent = <&gpioe>;
+		interrupts = <9 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&gpioe 12 GPIO_ACTIVE_LOW>;
 		spi-max-frequency = <24000000>;
 	};
 };
@@ -418,4 +428,20 @@
 		self-powered;
 		type = "micro";
 	};
+};
+
+/* LDO2 is expansion connector 3V3 supply on STM32MP13xx DHCOR DHSBC rev.200 */
+&vdd_ldo2 {
+	regulator-always-on;
+	regulator-boot-on;
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+};
+
+/* LDO5 is carrier board 3V3 supply on STM32MP13xx DHCOR DHSBC rev.200 */
+&vdd_sd {
+	regulator-always-on;
+	regulator-boot-on;
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
 };

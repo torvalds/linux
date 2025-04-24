@@ -9,6 +9,7 @@
  */
 .pushsection .noinstr.text, "ax"
 SYM_FUNC_START(native_save_fl)
+	ENDBR
 	pushf
 	pop %_ASM_AX
 	RET

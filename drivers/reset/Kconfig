@@ -96,6 +96,13 @@ config RESET_HSDK
 	help
 	  This enables the reset controller driver for HSDK board.
 
+config RESET_IMX_SCU
+	tristate "i.MX8Q Reset Driver"
+	depends on IMX_SCU && HAVE_ARM_SMCCC
+	depends on (ARM64 && ARCH_MXC) || COMPILE_TEST
+	help
+          This enables the reset controller driver for i.MX8QM/i.MX8QXP
+
 config RESET_IMX7
 	tristate "i.MX7/8 Reset Driver"
 	depends on HAS_IOMEM

@@ -59,6 +59,7 @@ static void init_ev_encodes(void)
 	ev_shift_thd_stop = 32;
 
 	switch (pvr) {
+	case POWER11:
 	case POWER10:
 		ev_mask_thd_cmp = 0x3ffff;
 		ev_shift_thd_cmp = 0;
@@ -91,7 +92,7 @@ static void init_ev_encodes(void)
 }
 
 /* Return the extended regs mask value */
-static u64 perf_get_platform_reg_mask(void)
+u64 perf_get_platform_reg_mask(void)
 {
 	if (have_hwcap2(PPC_FEATURE2_ARCH_3_1))
 		return PERF_POWER10_MASK;
@@ -129,8 +130,14 @@ int platform_check_for_tests(void)
 	 * Check for supported platforms
 	 * for sampling test
 	 */
-	if ((pvr != POWER10) && (pvr != POWER9))
+	switch (pvr) {
+	case POWER11:
+	case POWER10:
+	case POWER9:
+		break;
+	default:
 		goto out;
+	}
 
 	/*
 	 * Check PMU driver registered by looking for
@@ -490,6 +497,13 @@ int get_thresh_cmp_val(struct event event)
  * Utility function to check for generic compat PMU
  * by comparing base_platform value from auxv and real
  * PVR value.
+ * auxv_base_platform() func gives information of "base platform"
+ * corresponding to PVR value. Incase, if the distro doesn't
+ * support platform PVR (missing cputable support), base platform
+ * in auxv will have a default value other than the real PVR's.
+ * In this case, ISAv3 PMU (generic compat PMU) will be registered
+ * in the system. auxv_generic_compat_pmu() makes use of the base
+ * platform value from auxv to do this check.
  */
 static bool auxv_generic_compat_pmu(void)
 {
@@ -499,6 +513,8 @@ static bool auxv_generic_compat_pmu(void)
 		base_pvr = POWER9;
 	else if (!strcmp(auxv_base_platform(), "power10"))
 		base_pvr = POWER10;
+	else if (!strcmp(auxv_base_platform(), "power11"))
+		base_pvr = POWER11;
 
 	return (!base_pvr);
 }

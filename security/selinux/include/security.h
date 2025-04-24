@@ -202,6 +202,12 @@ static inline bool selinux_policycap_netlink_xperm(void)
 		selinux_state.policycap[POLICYDB_CAP_NETLINK_XPERM]);
 }
 
+static inline bool selinux_policycap_netif_wildcard(void)
+{
+	return READ_ONCE(
+		selinux_state.policycap[POLICYDB_CAP_NETIF_WILDCARD]);
+}
+
 struct selinux_policy_convert_data;
 
 struct selinux_load_state {
@@ -301,7 +307,7 @@ int security_ib_pkey_sid(u64 subnet_prefix, u16 pkey_num, u32 *out_sid);
 
 int security_ib_endport_sid(const char *dev_name, u8 port_num, u32 *out_sid);
 
-int security_netif_sid(char *name, u32 *if_sid);
+int security_netif_sid(const char *name, u32 *if_sid);
 
 int security_node_sid(u16 domain, void *addr, u32 addrlen, u32 *out_sid);
 

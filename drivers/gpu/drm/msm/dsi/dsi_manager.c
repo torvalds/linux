@@ -434,12 +434,13 @@ static enum drm_mode_status dsi_mgr_bridge_mode_valid(struct drm_bridge *bridge,
 }
 
 static int dsi_mgr_bridge_attach(struct drm_bridge *bridge,
+				 struct drm_encoder *encoder,
 				 enum drm_bridge_attach_flags flags)
 {
 	int id = dsi_mgr_bridge_get_id(bridge);
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 
-	return drm_bridge_attach(bridge->encoder, msm_dsi->next_bridge,
+	return drm_bridge_attach(encoder, msm_dsi->next_bridge,
 				 bridge, flags);
 }
 

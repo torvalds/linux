@@ -614,10 +614,11 @@ static int amdgpu_virt_write_vf2pf_data(struct amdgpu_device *adev)
 	vf2pf_info->decode_usage = 0;
 
 	vf2pf_info->dummy_page_addr = (uint64_t)adev->dummy_page_addr;
-	vf2pf_info->mes_info_addr = (uint64_t)adev->mes.resource_1_gpu_addr;
-
-	if (adev->mes.resource_1) {
-		vf2pf_info->mes_info_size = adev->mes.resource_1->tbo.base.size;
+	if (amdgpu_sriov_is_mes_info_enable(adev)) {
+		vf2pf_info->mes_info_addr =
+			(uint64_t)(adev->mes.resource_1_gpu_addr[0] + AMDGPU_GPU_PAGE_SIZE);
+		vf2pf_info->mes_info_size =
+			adev->mes.resource_1[0]->tbo.base.size - AMDGPU_GPU_PAGE_SIZE;
 	}
 	vf2pf_info->checksum =
 		amd_sriov_msg_checksum(

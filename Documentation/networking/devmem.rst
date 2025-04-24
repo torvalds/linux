@@ -256,7 +256,7 @@ Testing
 =======
 
 More realistic example code can be found in the kernel source under
-``tools/testing/selftests/net/ncdevmem.c``
+``tools/testing/selftests/drivers/net/hw/ncdevmem.c``
 
 ncdevmem is a devmem TCP netcat. It works very similarly to netcat, but
 receives data directly into a udmabuf.
@@ -268,8 +268,7 @@ ncdevmem has a validation mode as well that expects a repeating pattern of
 incoming data and validates it as such. For example, you can launch
 ncdevmem on the server by::
 
-	ncdevmem -s <server IP> -c <client IP> -f eth1 -d 3 -n 0000:06:00.0 -l \
-		 -p 5201 -v 7
+	ncdevmem -s <server IP> -c <client IP> -f <ifname> -l -p 5201 -v 7
 
 On client side, use regular netcat to send TX data to ncdevmem process
 on the server::

@@ -405,8 +405,7 @@ static bool parse_cipher_name(char *essiv_cipher_name, const char *cra_name)
 	if (len >= CRYPTO_MAX_ALG_NAME)
 		return false;
 
-	memcpy(essiv_cipher_name, p, len);
-	essiv_cipher_name[len] = '\0';
+	strscpy(essiv_cipher_name, p, len + 1);
 	return true;
 }
 

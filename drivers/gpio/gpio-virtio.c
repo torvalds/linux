@@ -350,19 +350,6 @@ static void virtio_gpio_irq_bus_sync_unlock(struct irq_data *d)
 	mutex_unlock(&vgpio->irq_lock);
 }
 
-static struct irq_chip vgpio_irq_chip = {
-	.name			= "virtio-gpio",
-	.irq_enable		= virtio_gpio_irq_enable,
-	.irq_disable		= virtio_gpio_irq_disable,
-	.irq_mask		= virtio_gpio_irq_mask,
-	.irq_unmask		= virtio_gpio_irq_unmask,
-	.irq_set_type		= virtio_gpio_irq_set_type,
-
-	/* These are required to implement irqchip for slow busses */
-	.irq_bus_lock		= virtio_gpio_irq_bus_lock,
-	.irq_bus_sync_unlock	= virtio_gpio_irq_bus_sync_unlock,
-};
-
 static bool ignore_irq(struct virtio_gpio *vgpio, int gpio,
 		       struct vgpio_irq_line *irq_line)
 {
@@ -542,6 +529,7 @@ static int virtio_gpio_probe(struct virtio_device *vdev)
 	struct virtio_gpio_config config;
 	struct device *dev = &vdev->dev;
 	struct virtio_gpio *vgpio;
+	struct irq_chip *gpio_irq_chip;
 	u32 gpio_names_size;
 	u16 ngpio;
 	int ret, i;
@@ -591,13 +579,26 @@ static int virtio_gpio_probe(struct virtio_device *vdev)
 		if (!vgpio->irq_lines)
 			return -ENOMEM;
 
+		gpio_irq_chip = devm_kzalloc(dev, sizeof(*gpio_irq_chip), GFP_KERNEL);
+		if (!gpio_irq_chip)
+			return -ENOMEM;
+
+		gpio_irq_chip->name = dev_name(dev);
+		gpio_irq_chip->irq_enable = virtio_gpio_irq_enable;
+		gpio_irq_chip->irq_disable = virtio_gpio_irq_disable;
+		gpio_irq_chip->irq_mask = virtio_gpio_irq_mask;
+		gpio_irq_chip->irq_unmask = virtio_gpio_irq_unmask;
+		gpio_irq_chip->irq_set_type = virtio_gpio_irq_set_type;
+		gpio_irq_chip->irq_bus_lock = virtio_gpio_irq_bus_lock;
+		gpio_irq_chip->irq_bus_sync_unlock = virtio_gpio_irq_bus_sync_unlock;
+
 		/* The event comes from the outside so no parent handler */
 		vgpio->gc.irq.parent_handler	= NULL;
 		vgpio->gc.irq.num_parents	= 0;
 		vgpio->gc.irq.parents		= NULL;
 		vgpio->gc.irq.default_type	= IRQ_TYPE_NONE;
 		vgpio->gc.irq.handler		= handle_level_irq;
-		vgpio->gc.irq.chip		= &vgpio_irq_chip;
+		vgpio->gc.irq.chip		= gpio_irq_chip;
 
 		for (i = 0; i < ngpio; i++) {
 			vgpio->irq_lines[i].type = VIRTIO_GPIO_IRQ_TYPE_NONE;

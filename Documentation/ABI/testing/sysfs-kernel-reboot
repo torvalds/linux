@@ -30,3 +30,11 @@ KernelVersion:	5.11
 Contact:	Matteo Croce <mcroce@microsoft.com>
 Description:	Don't wait for any other CPUs on reboot and
 		avoid anything that could hang.
+
+What:		/sys/kernel/reboot/hw_protection
+Date:		April 2025
+KernelVersion:	6.15
+Contact:	Ahmad Fatoum <a.fatoum@pengutronix.de>
+Description:	Hardware protection action taken on critical events like
+		overtemperature or imminent voltage loss.
+		Valid values are: reboot shutdown

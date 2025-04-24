@@ -17,6 +17,8 @@
 #define HBG_MDIO_OP_TIMEOUT_US		(1 * 1000 * 1000)
 #define HBG_MDIO_OP_INTERVAL_US		(5 * 1000)
 
+#define HBG_NP_LINK_FAIL_RETRY_TIMES	5
+
 static void hbg_mdio_set_command(struct hbg_mac *mac, u32 cmd)
 {
 	hbg_reg_write(HBG_MAC_GET_PRIV(mac), HBG_REG_MDIO_COMMAND_ADDR, cmd);
@@ -125,6 +127,26 @@ static void hbg_flowctrl_cfg(struct hbg_priv *priv)
 
 	phy_get_pause(phydev, &tx_pause, &rx_pause);
 	hbg_hw_set_pause_enable(priv, tx_pause, rx_pause);
+}
+
+void hbg_fix_np_link_fail(struct hbg_priv *priv)
+{
+	struct device *dev = &priv->pdev->dev;
+
+	if (priv->stats.np_link_fail_cnt >= HBG_NP_LINK_FAIL_RETRY_TIMES) {
+		dev_err(dev, "failed to fix the MAC link status\n");
+		priv->stats.np_link_fail_cnt = 0;
+		return;
+	}
+
+	priv->stats.np_link_fail_cnt++;
+	dev_err(dev, "failed to link between MAC and PHY, try to fix...\n");
+
+	/* Replace phy_reset() with phy_stop() and phy_start(),
+	 * as suggested by Andrew.
+	 */
+	hbg_phy_stop(priv);
+	hbg_phy_start(priv);
 }
 
 static void hbg_phy_adjust_link(struct net_device *netdev)

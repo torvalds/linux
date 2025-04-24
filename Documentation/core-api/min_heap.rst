@@ -47,8 +47,8 @@ Example:
 
     #define MIN_HEAP_PREALLOCATED(_type, _name, _nr)
     struct _name {
-        int nr;         /* Number of elements in the heap */
-        int size;       /* Maximum number of elements that can be held */
+        size_t nr;         /* Number of elements in the heap */
+        size_t size;       /* Maximum number of elements that can be held */
         _type *data;    /* Pointer to the heap data */
         _type preallocated[_nr];  /* Static preallocated array */
     }

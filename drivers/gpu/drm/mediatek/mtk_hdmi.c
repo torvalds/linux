@@ -1269,6 +1269,7 @@ static const struct drm_edid *mtk_hdmi_bridge_edid_read(struct drm_bridge *bridg
 }
 
 static int mtk_hdmi_bridge_attach(struct drm_bridge *bridge,
+				  struct drm_encoder *encoder,
 				  enum drm_bridge_attach_flags flags)
 {
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
@@ -1281,7 +1282,7 @@ static int mtk_hdmi_bridge_attach(struct drm_bridge *bridge,
 	}
 
 	if (hdmi->next_bridge) {
-		ret = drm_bridge_attach(bridge->encoder, hdmi->next_bridge,
+		ret = drm_bridge_attach(encoder, hdmi->next_bridge,
 					bridge, flags);
 		if (ret)
 			return ret;

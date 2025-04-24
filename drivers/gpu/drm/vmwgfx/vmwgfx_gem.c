@@ -140,7 +140,7 @@ static const struct vm_operations_struct vmw_vm_ops = {
 	.close = ttm_bo_vm_close,
 };
 
-static const struct drm_gem_object_funcs vmw_gem_object_funcs = {
+const struct drm_gem_object_funcs vmw_gem_object_funcs = {
 	.free = vmw_gem_object_free,
 	.open = vmw_gem_object_open,
 	.close = vmw_gem_object_close,
@@ -153,20 +153,6 @@ static const struct drm_gem_object_funcs vmw_gem_object_funcs = {
 	.mmap = vmw_gem_mmap,
 	.vm_ops = &vmw_vm_ops,
 };
-
-int vmw_gem_object_create(struct vmw_private *vmw,
-			  struct vmw_bo_params *params,
-			  struct vmw_bo **p_vbo)
-{
-	int ret = vmw_bo_create(vmw, params, p_vbo);
-
-	if (ret != 0)
-		goto out_no_bo;
-
-	(*p_vbo)->tbo.base.funcs = &vmw_gem_object_funcs;
-out_no_bo:
-	return ret;
-}
 
 int vmw_gem_object_create_with_handle(struct vmw_private *dev_priv,
 				      struct drm_file *filp,
@@ -183,7 +169,7 @@ int vmw_gem_object_create_with_handle(struct vmw_private *dev_priv,
 		.pin = false
 	};
 
-	ret = vmw_gem_object_create(dev_priv, &params, p_vbo);
+	ret = vmw_bo_create(dev_priv, &params, p_vbo);
 	if (ret != 0)
 		goto out_no_bo;
 

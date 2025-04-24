@@ -3420,7 +3420,7 @@ static int ql_adapter_down(struct ql3_adapter *qdev, int do_reset)
 		pci_disable_msi(qdev->pdev);
 	}
 
-	del_timer_sync(&qdev->adapter_timer);
+	timer_delete_sync(&qdev->adapter_timer);
 
 	napi_disable(&qdev->napi);
 

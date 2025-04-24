@@ -1936,7 +1936,7 @@ static int pp_od_clk_voltage_attr_update(struct amdgpu_device *adev, struct amdg
 	if (gc_ver == IP_VERSION(9, 4, 3) ||
 	    gc_ver == IP_VERSION(9, 4, 4) ||
 	    gc_ver == IP_VERSION(9, 5, 0)) {
-		if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev))
+		if (amdgpu_sriov_multi_vf_mode(adev))
 			*states = ATTR_STATE_UNSUPPORTED;
 		return 0;
 	}
@@ -1971,7 +1971,7 @@ static int pp_dpm_dcefclk_attr_update(struct amdgpu_device *adev, struct amdgpu_
 	 * setting should not be allowed from VF if not in one VF mode.
 	 */
 	if (gc_ver >= IP_VERSION(10, 0, 0) ||
-	    (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev))) {
+	    (amdgpu_sriov_multi_vf_mode(adev))) {
 		dev_attr->attr.mode &= ~S_IWUGO;
 		dev_attr->store = NULL;
 	}
@@ -2314,13 +2314,22 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 		    gc_ver == IP_VERSION(9, 0, 1))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(vcn_busy_percent)) {
-		if (!(gc_ver == IP_VERSION(10, 3, 1) ||
-			  gc_ver == IP_VERSION(10, 3, 3) ||
-			  gc_ver == IP_VERSION(10, 3, 6) ||
-			  gc_ver == IP_VERSION(10, 3, 7) ||
-			  gc_ver == IP_VERSION(11, 0, 1) ||
-			  gc_ver == IP_VERSION(11, 0, 4) ||
-			  gc_ver == IP_VERSION(11, 5, 0)))
+		if (!(gc_ver == IP_VERSION(9, 3, 0) ||
+		      gc_ver == IP_VERSION(10, 3, 1) ||
+		      gc_ver == IP_VERSION(10, 3, 3) ||
+		      gc_ver == IP_VERSION(10, 3, 6) ||
+		      gc_ver == IP_VERSION(10, 3, 7) ||
+		      gc_ver == IP_VERSION(11, 0, 0) ||
+		      gc_ver == IP_VERSION(11, 0, 1) ||
+		      gc_ver == IP_VERSION(11, 0, 2) ||
+		      gc_ver == IP_VERSION(11, 0, 3) ||
+		      gc_ver == IP_VERSION(11, 0, 4) ||
+		      gc_ver == IP_VERSION(11, 5, 0) ||
+		      gc_ver == IP_VERSION(11, 5, 1) ||
+		      gc_ver == IP_VERSION(11, 5, 2) ||
+		      gc_ver == IP_VERSION(11, 5, 3) ||
+		      gc_ver == IP_VERSION(12, 0, 0) ||
+		      gc_ver == IP_VERSION(12, 0, 1)))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pcie_bw)) {
 		/* PCIe Perf counters won't work on APU nodes */
@@ -2341,6 +2350,8 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 		case IP_VERSION(11, 0, 1):
 		case IP_VERSION(11, 0, 2):
 		case IP_VERSION(11, 0, 3):
+		case IP_VERSION(12, 0, 0):
+		case IP_VERSION(12, 0, 1):
 			*states = ATTR_STATE_SUPPORTED;
 			break;
 		default:

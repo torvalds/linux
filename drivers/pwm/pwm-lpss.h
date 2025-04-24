@@ -10,7 +10,6 @@
 #ifndef __PWM_LPSS_H
 #define __PWM_LPSS_H
 
-#include <linux/pwm.h>
 #include <linux/types.h>
 
 #include <linux/platform_data/x86/pwm-lpss.h>

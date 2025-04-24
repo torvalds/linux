@@ -22,7 +22,9 @@
  *
  */
 
-#include "i915_drv.h"
+#include <drm/drm_print.h>
+
+#include "i915_utils.h"
 #include "i9xx_plane_regs.h"
 #include "intel_color.h"
 #include "intel_color_regs.h"
@@ -405,14 +407,13 @@ static void icl_read_csc(struct intel_crtc_state *crtc_state)
 static bool ilk_limited_range(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 
 	/* icl+ have dedicated output CSC */
 	if (DISPLAY_VER(display) >= 11)
 		return false;
 
 	/* pre-hsw have TRANSCONF_COLOR_RANGE_SELECT */
-	if (DISPLAY_VER(display) < 7 || IS_IVYBRIDGE(i915))
+	if (DISPLAY_VER(display) < 7 || display->platform.ivybridge)
 		return false;
 
 	return crtc_state->limited_color_range;
@@ -516,7 +517,6 @@ static void ilk_csc_convert_ctm(const struct intel_crtc_state *crtc_state,
 static void ilk_assign_csc(struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	bool limited_color_range = ilk_csc_limited_range(crtc_state);
 
 	if (crtc_state->hw.ctm) {
@@ -538,7 +538,7 @@ static void ilk_assign_csc(struct intel_crtc_state *crtc_state)
 		 * LUT is needed but CSC is not we need to load an
 		 * identity matrix.
 		 */
-		drm_WARN_ON(display->drm, !IS_GEMINILAKE(i915));
+		drm_WARN_ON(display->drm, !display->platform.geminilake);
 
 		ilk_csc_copy(display, &crtc_state->csc, &ilk_csc_matrix_identity);
 	} else {
@@ -3983,12 +3983,10 @@ int intel_color_init(struct intel_display *display)
 
 void intel_color_init_hooks(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	if (HAS_GMCH(display)) {
-		if (IS_CHERRYVIEW(i915))
+		if (display->platform.cherryview)
 			display->funcs.color = &chv_color_funcs;
-		else if (IS_VALLEYVIEW(i915))
+		else if (display->platform.valleyview)
 			display->funcs.color = &vlv_color_funcs;
 		else if (DISPLAY_VER(display) >= 4)
 			display->funcs.color = &i965_color_funcs;
@@ -4005,7 +4003,7 @@ void intel_color_init_hooks(struct intel_display *display)
 			display->funcs.color = &skl_color_funcs;
 		else if (DISPLAY_VER(display) == 8)
 			display->funcs.color = &bdw_color_funcs;
-		else if (IS_HASWELL(i915))
+		else if (display->platform.haswell)
 			display->funcs.color = &hsw_color_funcs;
 		else if (DISPLAY_VER(display) == 7)
 			display->funcs.color = &ivb_color_funcs;

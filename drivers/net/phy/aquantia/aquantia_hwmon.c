@@ -172,33 +172,13 @@ static const struct hwmon_ops aqr_hwmon_ops = {
 	.write = aqr_hwmon_write,
 };
 
-static u32 aqr_hwmon_chip_config[] = {
-	HWMON_C_REGISTER_TZ,
-	0,
-};
-
-static const struct hwmon_channel_info aqr_hwmon_chip = {
-	.type = hwmon_chip,
-	.config = aqr_hwmon_chip_config,
-};
-
-static u32 aqr_hwmon_temp_config[] = {
-	HWMON_T_INPUT |
-	HWMON_T_MAX | HWMON_T_MIN |
-	HWMON_T_MAX_ALARM | HWMON_T_MIN_ALARM |
-	HWMON_T_CRIT | HWMON_T_LCRIT |
-	HWMON_T_CRIT_ALARM | HWMON_T_LCRIT_ALARM,
-	0,
-};
-
-static const struct hwmon_channel_info aqr_hwmon_temp = {
-	.type = hwmon_temp,
-	.config = aqr_hwmon_temp_config,
-};
-
 static const struct hwmon_channel_info * const aqr_hwmon_info[] = {
-	&aqr_hwmon_chip,
-	&aqr_hwmon_temp,
+	HWMON_CHANNEL_INFO(chip, HWMON_C_REGISTER_TZ),
+	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT |
+			   HWMON_T_MAX | HWMON_T_MIN |
+			   HWMON_T_MAX_ALARM | HWMON_T_MIN_ALARM |
+			   HWMON_T_CRIT | HWMON_T_LCRIT |
+			   HWMON_T_CRIT_ALARM | HWMON_T_LCRIT_ALARM),
 	NULL,
 };
 

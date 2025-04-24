@@ -9,8 +9,8 @@ title: Xilinx Zynq Platforms
 maintainers:
   - Michal Simek <michal.simek@amd.com>
 
-description: |
-  Xilinx boards with Zynq-7000 SOC or Zynq UltraScale+ MPSoC
+description:
+  AMD/Xilinx boards with ARM 32/64bits cores
 
 properties:
   $nodename:
@@ -186,6 +186,13 @@ properties:
         items:
           - const: qemu,mbv
           - const: amd,mbv
+
+      - description: Xilinx Versal NET VN-X revA platform
+        items:
+          enum:
+            - xlnx,versal-net-vnx-revA
+            - xlnx,versal-net-vnx
+            - xlnx,versal-net
 
 additionalProperties: true
 

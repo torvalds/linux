@@ -145,7 +145,7 @@ Rust standard library source
 ****************************
 
 The Rust standard library source is required because the build system will
-cross-compile ``core`` and ``alloc``.
+cross-compile ``core``.
 
 If ``rustup`` is being used, run::
 

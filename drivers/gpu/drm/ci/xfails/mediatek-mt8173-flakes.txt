@@ -46,3 +46,10 @@ kms_prop_blob@invalid-set-prop
 # IGT Version: 1.29-g33adea9eb
 # Linux Version: 6.13.0-rc2
 kms_bw@connected-linear-tiling-1-displays-2160x1440p
+
+# Board Name: mt8173-elm-hana
+# Bug Report: https://lore.kernel.org/linux-mediatek/d25442b9-0b6b-433c-8e23-997840fad305@collabora.com/T/#u
+# Failure Rate: 20
+# IGT Version: 1.30-g04bedb923
+# Linux Version: 6.14.0-rc4
+kms_flip@flip-vs-wf_vblank-interruptible

@@ -42,3 +42,8 @@ then of course these rules will not apply strictly.)
   deprecating old major versions, then this should only be done as a
   last option, and be stated clearly in all communications.
 
+* Firmware files that affect the User API (UAPI) shall not introduce
+  changes that break existing userspace programs. Updates to such firmware
+  must ensure backward compatibility with existing userspace applications.
+  This includes maintaining consistent interfaces and behaviors that
+  userspace programs rely on.

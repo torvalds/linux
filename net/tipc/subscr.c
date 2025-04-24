@@ -177,7 +177,7 @@ void tipc_sub_unsubscribe(struct tipc_subscription *sub)
 {
 	tipc_nametbl_unsubscribe(sub);
 	if (sub->evt.s.timeout != TIPC_WAIT_FOREVER)
-		del_timer_sync(&sub->timer);
+		timer_delete_sync(&sub->timer);
 	list_del(&sub->sub_list);
 	tipc_sub_put(sub);
 }

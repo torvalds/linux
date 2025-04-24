@@ -581,7 +581,7 @@ struct dpll {
 struct intel_atomic_state {
 	struct drm_atomic_state base;
 
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 
 	struct __intel_global_objs_state *global_objs;
 	int num_global_objs;
@@ -1620,7 +1620,7 @@ struct intel_psr {
 	bool sink_support;
 	bool source_support;
 	bool enabled;
-	bool paused;
+	int pause_counter;
 	enum pipe pipe;
 	enum transcoder transcoder;
 	bool active;
@@ -1658,7 +1658,6 @@ struct intel_dp {
 	int link_rate;
 	u8 lane_count;
 	u8 sink_count;
-	bool link_trained;
 	bool needs_modeset_retry;
 	bool use_max_params;
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
@@ -1683,6 +1682,7 @@ struct intel_dp {
 	int common_rates[DP_MAX_SUPPORTED_RATES];
 	struct {
 		/* TODO: move the rest of link specific fields to here */
+		bool active;
 		/* common rate,lane_count configs in bw order */
 		int num_configs;
 #define INTEL_DP_MAX_LANE_COUNT			4
@@ -1739,7 +1739,7 @@ struct intel_dp {
 	struct {
 		struct intel_dp_mst_encoder *stream_encoders[I915_MAX_PIPES];
 		struct drm_dp_mst_topology_mgr mgr;
-		int active_links;
+		int active_streams;
 	} mst;
 
 	u32 (*get_aux_clock_divider)(struct intel_dp *dp, int index);

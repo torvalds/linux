@@ -48,7 +48,7 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 static void rs_close(struct tty_struct *tty, struct file * filp)
 {
 	if (tty->count == 1)
-		del_timer_sync(&serial_timer);
+		timer_delete_sync(&serial_timer);
 }
 
 

@@ -538,6 +538,7 @@ static int venc_get_clocks(struct venc_device *venc)
  */
 
 static int venc_bridge_attach(struct drm_bridge *bridge,
+			      struct drm_encoder *encoder,
 			      enum drm_bridge_attach_flags flags)
 {
 	struct venc_device *venc = drm_bridge_to_venc(bridge);
@@ -545,7 +546,7 @@ static int venc_bridge_attach(struct drm_bridge *bridge,
 	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
 		return -EINVAL;
 
-	return drm_bridge_attach(bridge->encoder, venc->output.next_bridge,
+	return drm_bridge_attach(encoder, venc->output.next_bridge,
 				 bridge, flags);
 }
 

@@ -10,10 +10,10 @@
 #include "std.h"
 
 /* system includes */
-#include <asm/unistd.h>
-#include <asm/signal.h>  /* for SIGCHLD */
-#include <asm/ioctls.h>
-#include <asm/mman.h>
+#include <linux/unistd.h>
+#include <linux/signal.h>  /* for SIGCHLD */
+#include <linux/termios.h>
+#include <linux/mman.h>
 #include <linux/fs.h>
 #include <linux/loop.h>
 #include <linux/time.h>
@@ -23,7 +23,6 @@
 #include <linux/prctl.h>
 #include <linux/resource.h>
 #include <linux/utsname.h>
-#include <linux/signal.h>
 
 #include "arch.h"
 #include "errno.h"
@@ -532,20 +531,16 @@ uid_t getuid(void)
 
 
 /*
- * int ioctl(int fd, unsigned long req, void *value);
+ * int ioctl(int fd, unsigned long cmd, ... arg);
  */
 
 static __attribute__((unused))
-int sys_ioctl(int fd, unsigned long req, void *value)
+long sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
-	return my_syscall3(__NR_ioctl, fd, req, value);
+	return my_syscall3(__NR_ioctl, fd, cmd, arg);
 }
 
-static __attribute__((unused))
-int ioctl(int fd, unsigned long req, void *value)
-{
-	return __sysret(sys_ioctl(fd, req, value));
-}
+#define ioctl(fd, cmd, arg) __sysret(sys_ioctl(fd, cmd, (unsigned long)(arg)))
 
 /*
  * int kill(pid_t pid, int signal);
@@ -602,9 +597,36 @@ off_t sys_lseek(int fd, off_t offset, int whence)
 }
 
 static __attribute__((unused))
+int sys_llseek(int fd, unsigned long offset_high, unsigned long offset_low,
+	       __kernel_loff_t *result, int whence)
+{
+#ifdef __NR_llseek
+	return my_syscall5(__NR_llseek, fd, offset_high, offset_low, result, whence);
+#else
+	return __nolibc_enosys(__func__, fd, offset_high, offset_low, result, whence);
+#endif
+}
+
+static __attribute__((unused))
 off_t lseek(int fd, off_t offset, int whence)
 {
-	return __sysret(sys_lseek(fd, offset, whence));
+	__kernel_loff_t loff = 0;
+	off_t result;
+	int ret;
+
+	result = sys_lseek(fd, offset, whence);
+	if (result == -ENOSYS) {
+		/* Only exists on 32bit where nolibc off_t is also 32bit */
+		ret = sys_llseek(fd, 0, offset, &loff, whence);
+		if (ret < 0)
+			result = ret;
+		else if (loff != (off_t)loff)
+			result = -EOVERFLOW;
+		else
+			result = loff;
+	}
+
+	return __sysret(result);
 }
 
 
@@ -742,6 +764,31 @@ int mount(const char *src, const char *tgt,
 	return __sysret(sys_mount(src, tgt, fst, flags, data));
 }
 
+/*
+ * int openat(int dirfd, const char *path, int flags[, mode_t mode]);
+ */
+
+static __attribute__((unused))
+int sys_openat(int dirfd, const char *path, int flags, mode_t mode)
+{
+	return my_syscall4(__NR_openat, dirfd, path, flags, mode);
+}
+
+static __attribute__((unused))
+int openat(int dirfd, const char *path, int flags, ...)
+{
+	mode_t mode = 0;
+
+	if (flags & O_CREAT) {
+		va_list args;
+
+		va_start(args, flags);
+		mode = va_arg(args, mode_t);
+		va_end(args);
+	}
+
+	return __sysret(sys_openat(dirfd, path, flags, mode));
+}
 
 /*
  * int open(const char *path, int flags[, mode_t mode]);
@@ -750,13 +797,7 @@ int mount(const char *src, const char *tgt,
 static __attribute__((unused))
 int sys_open(const char *path, int flags, mode_t mode)
 {
-#ifdef __NR_openat
 	return my_syscall4(__NR_openat, AT_FDCWD, path, flags, mode);
-#elif defined(__NR_open)
-	return my_syscall3(__NR_open, path, flags, mode);
-#else
-	return __nolibc_enosys(__func__, path, flags, mode);
-#endif
 }
 
 static __attribute__((unused))
@@ -768,7 +809,7 @@ int open(const char *path, int flags, ...)
 		va_list args;
 
 		va_start(args, flags);
-		mode = va_arg(args, int);
+		mode = va_arg(args, mode_t);
 		va_end(args);
 	}
 

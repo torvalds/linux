@@ -77,46 +77,37 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/signal.h>
-#include <linux/sched/signal.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/stat.h>
-#include <linux/dcache.h>
-#include <linux/namei.h>
-#include <linux/socket.h>
-#include <linux/un.h>
-#include <linux/fcntl.h>
-#include <linux/filter.h>
-#include <linux/termios.h>
-#include <linux/sockios.h>
-#include <linux/net.h>
-#include <linux/in.h>
-#include <linux/fs.h>
-#include <linux/slab.h>
-#include <linux/uaccess.h>
-#include <linux/skbuff.h>
-#include <linux/netdevice.h>
-#include <net/net_namespace.h>
-#include <net/sock.h>
-#include <net/tcp_states.h>
-#include <net/af_unix.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <net/scm.h>
-#include <linux/init.h>
-#include <linux/poll.h>
-#include <linux/rtnetlink.h>
-#include <linux/mount.h>
-#include <net/checksum.h>
-#include <linux/security.h>
-#include <linux/splice.h>
-#include <linux/freezer.h>
-#include <linux/file.h>
-#include <linux/btf_ids.h>
 #include <linux/bpf-cgroup.h>
+#include <linux/btf_ids.h>
+#include <linux/dcache.h>
+#include <linux/errno.h>
+#include <linux/fcntl.h>
+#include <linux/file.h>
+#include <linux/filter.h>
+#include <linux/fs.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/mount.h>
+#include <linux/namei.h>
+#include <linux/poll.h>
+#include <linux/proc_fs.h>
+#include <linux/sched/signal.h>
+#include <linux/security.h>
+#include <linux/seq_file.h>
+#include <linux/skbuff.h>
+#include <linux/slab.h>
+#include <linux/socket.h>
+#include <linux/splice.h>
+#include <linux/string.h>
+#include <linux/uaccess.h>
+#include <net/af_unix.h>
+#include <net/net_namespace.h>
+#include <net/scm.h>
+#include <net/tcp_states.h>
+#include <uapi/linux/sockios.h>
+#include <uapi/linux/termios.h>
+
+#include "af_unix.h"
 
 static atomic_long_t unix_nr_socks;
 static struct hlist_head bsd_socket_buckets[UNIX_HASH_SIZE / 2];
@@ -1508,7 +1499,6 @@ out:
 }
 
 static long unix_wait_for_peer(struct sock *other, long timeo)
-	__releases(&unix_sk(other)->lock)
 {
 	struct unix_sock *u = unix_sk(other);
 	int sched;

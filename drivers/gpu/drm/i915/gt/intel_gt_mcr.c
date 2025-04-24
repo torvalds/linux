@@ -121,9 +121,8 @@ void intel_gt_mcr_init(struct intel_gt *gt)
 		gt->info.mslice_mask =
 			intel_slicemask_from_xehp_dssmask(gt->info.sseu.subslice_mask,
 							  GEN_DSS_PER_MSLICE);
-		gt->info.mslice_mask |=
-			(intel_uncore_read(gt->uncore, GEN10_MIRROR_FUSE3) &
-			 GEN12_MEML3_EN_MASK);
+		gt->info.mslice_mask |= REG_FIELD_GET(GEN12_MEML3_EN_MASK,
+						      intel_uncore_read(gt->uncore, GEN10_MIRROR_FUSE3));
 
 		if (!gt->info.mslice_mask) /* should be impossible! */
 			gt_warn(gt, "mslice mask all zero!\n");

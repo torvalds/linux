@@ -640,10 +640,10 @@ static int cs43130_set_sp_fmt(int dai_id, unsigned int bitwidth_sclk,
 	}
 
 	switch (cs43130->dais[dai_id].dai_mode) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		dai_mode_val = 0;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		dai_mode_val = 1;
 		break;
 	default:
@@ -851,7 +851,7 @@ static int cs43130_dsd_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	if (cs43130->dais[dai->id].dai_mode == SND_SOC_DAIFMT_CBM_CFM)
+	if (cs43130->dais[dai->id].dai_mode == SND_SOC_DAIFMT_CBP_CFP)
 		regmap_update_bits(cs43130->regmap, CS43130_DSD_INT_CFG,
 				   CS43130_DSD_MASTER, CS43130_DSD_MASTER);
 	else
@@ -951,7 +951,7 @@ static int cs43130_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	if (!sclk && cs43130->dais[dai->id].dai_mode == SND_SOC_DAIFMT_CBM_CFM)
+	if (!sclk && cs43130->dais[dai->id].dai_mode == SND_SOC_DAIFMT_CBP_CFP)
 		/* Calculate SCLK in master mode if unassigned */
 		sclk = params_rate(params) * bitwidth_dai *
 		       params_channels(params);
@@ -1516,11 +1516,11 @@ static int cs43130_pcm_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	struct cs43130_private *cs43130 = snd_soc_component_get_drvdata(component);
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
-		cs43130->dais[codec_dai->id].dai_mode = SND_SOC_DAIFMT_CBS_CFS;
+	case SND_SOC_DAIFMT_CBC_CFC:
+		cs43130->dais[codec_dai->id].dai_mode = SND_SOC_DAIFMT_CBC_CFC;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
-		cs43130->dais[codec_dai->id].dai_mode = SND_SOC_DAIFMT_CBM_CFM;
+	case SND_SOC_DAIFMT_CBP_CFP:
+		cs43130->dais[codec_dai->id].dai_mode = SND_SOC_DAIFMT_CBP_CFP;
 		break;
 	default:
 		dev_err(cs43130->dev, "unsupported mode\n");
@@ -1579,11 +1579,11 @@ static int cs43130_dsd_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	struct cs43130_private *cs43130 = snd_soc_component_get_drvdata(component);
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
-		cs43130->dais[codec_dai->id].dai_mode = SND_SOC_DAIFMT_CBS_CFS;
+	case SND_SOC_DAIFMT_CBC_CFC:
+		cs43130->dais[codec_dai->id].dai_mode = SND_SOC_DAIFMT_CBC_CFC;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
-		cs43130->dais[codec_dai->id].dai_mode = SND_SOC_DAIFMT_CBM_CFM;
+	case SND_SOC_DAIFMT_CBP_CFP:
+		cs43130->dais[codec_dai->id].dai_mode = SND_SOC_DAIFMT_CBP_CFP;
 		break;
 	default:
 		dev_err(cs43130->dev, "Unsupported DAI format.\n");
@@ -2672,7 +2672,7 @@ static void cs43130_i2c_remove(struct i2c_client *client)
 	regulator_bulk_disable(CS43130_NUM_SUPPLIES, cs43130->supplies);
 }
 
-static int __maybe_unused cs43130_runtime_suspend(struct device *dev)
+static int cs43130_runtime_suspend(struct device *dev)
 {
 	struct cs43130_private *cs43130 = dev_get_drvdata(dev);
 
@@ -2691,7 +2691,7 @@ static int __maybe_unused cs43130_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused cs43130_runtime_resume(struct device *dev)
+static int cs43130_runtime_resume(struct device *dev)
 {
 	struct cs43130_private *cs43130 = dev_get_drvdata(dev);
 	int ret;
@@ -2727,8 +2727,7 @@ err:
 }
 
 static const struct dev_pm_ops cs43130_runtime_pm = {
-	SET_RUNTIME_PM_OPS(cs43130_runtime_suspend, cs43130_runtime_resume,
-			   NULL)
+	RUNTIME_PM_OPS(cs43130_runtime_suspend, cs43130_runtime_resume, NULL)
 };
 
 #if IS_ENABLED(CONFIG_OF)
@@ -2768,7 +2767,7 @@ static struct i2c_driver cs43130_i2c_driver = {
 		.name			= "cs43130",
 		.of_match_table		= of_match_ptr(cs43130_of_match),
 		.acpi_match_table	= ACPI_PTR(cs43130_acpi_match),
-		.pm			= &cs43130_runtime_pm,
+		.pm			= pm_ptr(&cs43130_runtime_pm),
 	},
 	.id_table	= cs43130_i2c_id,
 	.probe		= cs43130_i2c_probe,

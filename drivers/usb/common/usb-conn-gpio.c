@@ -158,7 +158,7 @@ static int usb_conn_psy_register(struct usb_conn_info *info)
 	struct device *dev = info->dev;
 	struct power_supply_desc *desc = &info->desc;
 	struct power_supply_config cfg = {
-		.of_node = dev->of_node,
+		.fwnode = dev_fwnode(dev),
 	};
 
 	desc->name = "usb-charger";

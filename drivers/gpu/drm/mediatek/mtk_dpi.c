@@ -765,6 +765,7 @@ static int mtk_dpi_bridge_atomic_check(struct drm_bridge *bridge,
 }
 
 static int mtk_dpi_bridge_attach(struct drm_bridge *bridge,
+				 struct drm_encoder *encoder,
 				 enum drm_bridge_attach_flags flags)
 {
 	struct mtk_dpi *dpi = bridge_to_dpi(bridge);
@@ -783,7 +784,7 @@ static int mtk_dpi_bridge_attach(struct drm_bridge *bridge,
 					     "Failed to get bridge\n");
 	}
 
-	return drm_bridge_attach(bridge->encoder, dpi->next_bridge,
+	return drm_bridge_attach(encoder, dpi->next_bridge,
 				 &dpi->bridge, flags);
 }
 

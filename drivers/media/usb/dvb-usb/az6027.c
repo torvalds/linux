@@ -1062,7 +1062,7 @@ static u32 az6027_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm az6027_i2c_algo = {
+static const struct i2c_algorithm az6027_i2c_algo = {
 	.master_xfer   = az6027_i2c_xfer,
 	.functionality = az6027_i2c_func,
 };
@@ -1107,7 +1107,7 @@ enum {
 	ELGATO_EYETV_SAT_V3,
 };
 
-static struct usb_device_id az6027_usb_table[] = {
+static const struct usb_device_id az6027_usb_table[] = {
 	DVB_USB_DEV(AZUREWAVE, AZUREWAVE_AZ6027),
 	DVB_USB_DEV(TERRATEC, TERRATEC_DVBS2CI_V1),
 	DVB_USB_DEV(TERRATEC, TERRATEC_DVBS2CI_V2),

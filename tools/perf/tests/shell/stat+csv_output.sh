@@ -44,6 +44,7 @@ function commachecker()
 	;; "--per-die")		exp=8
 	;; "--per-cluster")	exp=8
 	;; "--per-cache")	exp=8
+	;; "--metric-only")	exp=2
 	esac
 
 	while read line
@@ -75,6 +76,7 @@ check_interval "CSV" "$perf_cmd"
 check_event "CSV" "$perf_cmd"
 check_per_thread "CSV" "$perf_cmd"
 check_per_node "CSV" "$perf_cmd"
+check_metric_only "CSV" "$perf_cmd"
 if [ $skip_test -ne 1 ]
 then
 	check_system_wide_no_aggr "CSV" "$perf_cmd"

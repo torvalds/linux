@@ -64,7 +64,7 @@ struct bch_write_op {
 	struct bpos		pos;
 	struct bversion		version;
 
-	/* For BCH_WRITE_DATA_ENCODED: */
+	/* For BCH_WRITE_data_encoded: */
 	struct bch_extent_crc_unpacked crc;
 
 	struct write_point_specifier write_point;

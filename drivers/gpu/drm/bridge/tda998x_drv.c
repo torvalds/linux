@@ -1365,6 +1365,7 @@ static int tda998x_connector_init(struct tda998x_priv *priv,
 /* DRM bridge functions */
 
 static int tda998x_bridge_attach(struct drm_bridge *bridge,
+				 struct drm_encoder *encoder,
 				 enum drm_bridge_attach_flags flags)
 {
 	struct tda998x_priv *priv = bridge_to_tda998x_priv(bridge);
@@ -1763,7 +1764,7 @@ static void tda998x_destroy(struct device *dev)
 	if (priv->hdmi->irq)
 		free_irq(priv->hdmi->irq, priv);
 
-	del_timer_sync(&priv->edid_delay_timer);
+	timer_delete_sync(&priv->edid_delay_timer);
 	cancel_work_sync(&priv->detect_work);
 
 	i2c_unregister_device(priv->cec);

@@ -6,8 +6,9 @@
 
 /dts-v1/;
 
-#include "imx6ul-tqma6ul1.dtsi"
+#include "imx6ul-tqma6ul2.dtsi"
 #include "mba6ulx.dtsi"
+#include "imx6ul-tqma6ul1.dtsi"
 
 / {
 	model = "TQ-Systems TQMa6UL1 SoM on MBa6ULx board";

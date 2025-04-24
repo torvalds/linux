@@ -160,7 +160,7 @@ static struct configfs_attribute *cscfg_config_view_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type cscfg_config_view_type = {
+static const struct config_item_type cscfg_config_view_type = {
 	.ct_owner = THIS_MODULE,
 	.ct_attrs = cscfg_config_view_attrs,
 };
@@ -170,7 +170,7 @@ static struct configfs_attribute *cscfg_config_preset_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type cscfg_config_preset_type = {
+static const struct config_item_type cscfg_config_preset_type = {
 	.ct_owner = THIS_MODULE,
 	.ct_attrs = cscfg_config_preset_attrs,
 };
@@ -272,7 +272,7 @@ static struct configfs_attribute *cscfg_feature_view_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type cscfg_feature_view_type = {
+static const struct config_item_type cscfg_feature_view_type = {
 	.ct_owner = THIS_MODULE,
 	.ct_attrs = cscfg_feature_view_attrs,
 };
@@ -309,7 +309,7 @@ static struct configfs_attribute *cscfg_param_view_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type cscfg_param_view_type = {
+static const struct config_item_type cscfg_param_view_type = {
 	.ct_owner = THIS_MODULE,
 	.ct_attrs = cscfg_param_view_attrs,
 };
@@ -380,7 +380,7 @@ static struct config_group *cscfg_create_feature_group(struct cscfg_feature_desc
 	return &feat_view->group;
 }
 
-static struct config_item_type cscfg_configs_type = {
+static const struct config_item_type cscfg_configs_type = {
 	.ct_owner = THIS_MODULE,
 };
 
@@ -414,7 +414,7 @@ void cscfg_configfs_del_config(struct cscfg_config_desc *config_desc)
 	}
 }
 
-static struct config_item_type cscfg_features_type = {
+static const struct config_item_type cscfg_features_type = {
 	.ct_owner = THIS_MODULE,
 };
 

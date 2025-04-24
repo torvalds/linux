@@ -1113,10 +1113,10 @@ static const struct drm_connector_funcs analogix_dp_connector_funcs = {
 };
 
 static int analogix_dp_bridge_attach(struct drm_bridge *bridge,
+				     struct drm_encoder *encoder,
 				     enum drm_bridge_attach_flags flags)
 {
 	struct analogix_dp_device *dp = bridge->driver_private;
-	struct drm_encoder *encoder = dp->encoder;
 	struct drm_connector *connector = NULL;
 	int ret = 0;
 

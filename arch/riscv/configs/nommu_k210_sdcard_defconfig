@@ -27,7 +27,7 @@ CONFIG_NR_CPUS=2
 CONFIG_CMDLINE="earlycon console=ttySIF0 root=/dev/mmcblk0p1 rootwait ro"
 CONFIG_CMDLINE_FORCE=y
 CONFIG_BUILTIN_DTB=y
-CONFIG_BUILTIN_DTB_SOURCE="canaan/k210_generic"
+CONFIG_BUILTIN_DTB_NAME="canaan/k210_generic"
 # CONFIG_SECCOMP is not set
 # CONFIG_STACKPROTECTOR is not set
 # CONFIG_GCC_PLUGINS is not set

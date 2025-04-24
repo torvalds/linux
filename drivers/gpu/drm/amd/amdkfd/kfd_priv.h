@@ -1389,6 +1389,24 @@ int pqm_get_queue_checkpoint_info(struct process_queue_manager *pqm,
 #define KFD_FENCE_COMPLETED (100)
 #define KFD_FENCE_INIT   (10)
 
+/**
+ * enum kfd_config_dequeue_wait_counts_cmd - Command for configuring
+ *  dequeue wait counts.
+ *
+ * @KFD_DEQUEUE_WAIT_INIT: Set optimized dequeue wait counts for a
+ *	certain ASICs. For these ASICs, this is default value used by RESET
+ * @KFD_DEQUEUE_WAIT_RESET: Reset dequeue wait counts to the optimized value
+ *	for certain ASICs. For others set it to default hardware reset value
+ * @KFD_DEQUEUE_WAIT_SET_SCH_WAVE: Set context switch latency wait
+ *
+ */
+enum kfd_config_dequeue_wait_counts_cmd {
+	KFD_DEQUEUE_WAIT_INIT = 1,
+	KFD_DEQUEUE_WAIT_RESET = 2,
+	KFD_DEQUEUE_WAIT_SET_SCH_WAVE = 3
+};
+
+
 struct packet_manager {
 	struct device_queue_manager *dqm;
 	struct kernel_queue *priv_queue;
@@ -1414,8 +1432,8 @@ struct packet_manager_funcs {
 	int (*unmap_queues)(struct packet_manager *pm, uint32_t *buffer,
 			enum kfd_unmap_queues_filter mode,
 			uint32_t filter_param, bool reset);
-	int (*set_grace_period)(struct packet_manager *pm, uint32_t *buffer,
-			uint32_t grace_period);
+	int (*config_dequeue_wait_counts)(struct packet_manager *pm, uint32_t *buffer,
+			enum kfd_config_dequeue_wait_counts_cmd cmd, uint32_t value);
 	int (*query_status)(struct packet_manager *pm, uint32_t *buffer,
 			uint64_t fence_address,	uint64_t fence_value);
 	int (*release_mem)(uint64_t gpu_addr, uint32_t *buffer);
@@ -1426,7 +1444,7 @@ struct packet_manager_funcs {
 	int set_resources_size;
 	int map_queues_size;
 	int unmap_queues_size;
-	int set_grace_period_size;
+	int config_dequeue_wait_counts_size;
 	int query_status_size;
 	int release_mem_size;
 };
@@ -1449,7 +1467,9 @@ int pm_send_unmap_queue(struct packet_manager *pm,
 
 void pm_release_ib(struct packet_manager *pm);
 
-int pm_update_grace_period(struct packet_manager *pm, uint32_t grace_period);
+int pm_config_dequeue_wait_counts(struct packet_manager *pm,
+			enum kfd_config_dequeue_wait_counts_cmd cmd,
+			uint32_t wait_counts_config);
 
 /* Following PM funcs can be shared among VI and AI */
 unsigned int pm_build_pm4_header(unsigned int opcode, size_t packet_size);

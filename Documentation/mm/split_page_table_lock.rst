@@ -4,7 +4,7 @@ Split page table lock
 
 Originally, mm->page_table_lock spinlock protected all page tables of the
 mm_struct. But this approach leads to poor page fault scalability of
-multi-threaded applications due high contention on the lock. To improve
+multi-threaded applications due to high contention on the lock. To improve
 scalability, split page table lock was introduced.
 
 With split page table lock we have separate per-table lock to serialize

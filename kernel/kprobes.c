@@ -1547,7 +1547,7 @@ static int check_kprobe_address_safe(struct kprobe *p,
 	/* Ensure the address is in a text area, and find a module if exists. */
 	*probed_mod = NULL;
 	if (!core_kernel_text((unsigned long) p->addr)) {
-		guard(preempt)();
+		guard(rcu)();
 		*probed_mod = __module_text_address((unsigned long) p->addr);
 		if (!(*probed_mod))
 			return -EINVAL;

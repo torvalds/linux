@@ -34,6 +34,7 @@ to_display_connector(struct drm_bridge *bridge)
 }
 
 static int display_connector_attach(struct drm_bridge *bridge,
+				    struct drm_encoder *encoder,
 				    enum drm_bridge_attach_flags flags)
 {
 	return flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR ? 0 : -EINVAL;

@@ -797,7 +797,7 @@ static void writecache_flush(struct dm_writecache *wc)
 	bool need_flush_after_free;
 
 	wc->uncommitted_blocks = 0;
-	del_timer(&wc->autocommit_timer);
+	timer_delete(&wc->autocommit_timer);
 
 	if (list_empty(&wc->lru))
 		return;
@@ -927,8 +927,8 @@ static void writecache_suspend(struct dm_target *ti)
 	struct dm_writecache *wc = ti->private;
 	bool flush_on_suspend;
 
-	del_timer_sync(&wc->autocommit_timer);
-	del_timer_sync(&wc->max_age_timer);
+	timer_delete_sync(&wc->autocommit_timer);
+	timer_delete_sync(&wc->max_age_timer);
 
 	wc_lock(wc);
 	writecache_flush(wc);

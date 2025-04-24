@@ -24,3 +24,47 @@
 		reg = <0x0 0x80000000 0x2 0x00000000>;
 	};
 };
+
+&spi_nand {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		bootloader@0 {
+			label = "bootloader";
+			reg = <0x00000000 0x00080000>;
+			read-only;
+		};
+
+		art@200000 {
+			label = "art";
+			reg = <0x00200000 0x00400000>;
+		};
+
+		tclinux@600000 {
+			label = "tclinux";
+			reg = <0x00600000 0x03200000>;
+		};
+
+		tclinux_slave@3800000 {
+			label = "tclinux_alt";
+			reg = <0x03800000 0x03200000>;
+		};
+
+		rootfs_data@6a00000 {
+			label = "rootfs_data";
+			reg = <0x06a00000 0x01400000>;
+		};
+
+		reserved_bmt@7e00000 {
+			label = "reserved_bmt";
+			reg = <0x07e00000 0x00200000>;
+			read-only;
+		};
+	};
+};
+
+&i2c0 {
+	status = "okay";
+};

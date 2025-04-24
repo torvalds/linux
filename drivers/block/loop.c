@@ -45,8 +45,6 @@ enum {
 	Lo_deleting,
 };
 
-struct loop_func_table;
-
 struct loop_device {
 	int		lo_number;
 	loff_t		lo_offset;
@@ -54,7 +52,8 @@ struct loop_device {
 	int		lo_flags;
 	char		lo_file_name[LO_NAME_SIZE];
 
-	struct file *	lo_backing_file;
+	struct file	*lo_backing_file;
+	unsigned int	lo_min_dio_size;
 	struct block_device *lo_device;
 
 	gfp_t		old_gfp_mask;
@@ -169,29 +168,14 @@ static loff_t get_loop_size(struct loop_device *lo, struct file *file)
  * of backing device, and the logical block size of loop is bigger than that of
  * the backing device.
  */
-static bool lo_bdev_can_use_dio(struct loop_device *lo,
-		struct block_device *backing_bdev)
-{
-	unsigned int sb_bsize = bdev_logical_block_size(backing_bdev);
-
-	if (queue_logical_block_size(lo->lo_queue) < sb_bsize)
-		return false;
-	if (lo->lo_offset & (sb_bsize - 1))
-		return false;
-	return true;
-}
-
 static bool lo_can_use_dio(struct loop_device *lo)
 {
-	struct inode *inode = lo->lo_backing_file->f_mapping->host;
-
 	if (!(lo->lo_backing_file->f_mode & FMODE_CAN_ODIRECT))
 		return false;
-
-	if (S_ISBLK(inode->i_mode))
-		return lo_bdev_can_use_dio(lo, I_BDEV(inode));
-	if (inode->i_sb->s_bdev)
-		return lo_bdev_can_use_dio(lo, inode->i_sb->s_bdev);
+	if (queue_logical_block_size(lo->lo_queue) < lo->lo_min_dio_size)
+		return false;
+	if (lo->lo_offset & (lo->lo_min_dio_size - 1))
+		return false;
 	return true;
 }
 
@@ -205,20 +189,12 @@ static bool lo_can_use_dio(struct loop_device *lo)
  */
 static inline void loop_update_dio(struct loop_device *lo)
 {
-	bool dio_in_use = lo->lo_flags & LO_FLAGS_DIRECT_IO;
-
 	lockdep_assert_held(&lo->lo_mutex);
 	WARN_ON_ONCE(lo->lo_state == Lo_bound &&
 		     lo->lo_queue->mq_freeze_depth == 0);
 
-	if (lo->lo_backing_file->f_flags & O_DIRECT)
-		lo->lo_flags |= LO_FLAGS_DIRECT_IO;
 	if ((lo->lo_flags & LO_FLAGS_DIRECT_IO) && !lo_can_use_dio(lo))
 		lo->lo_flags &= ~LO_FLAGS_DIRECT_IO;
-
-	/* flush dirty pages before starting to issue direct I/O */
-	if ((lo->lo_flags & LO_FLAGS_DIRECT_IO) && !dio_in_use)
-		vfs_fsync(lo->lo_backing_file, 0);
 }
 
 /**
@@ -541,6 +517,28 @@ static void loop_reread_partitions(struct loop_device *lo)
 			__func__, lo->lo_number, lo->lo_file_name, rc);
 }
 
+static unsigned int loop_query_min_dio_size(struct loop_device *lo)
+{
+	struct file *file = lo->lo_backing_file;
+	struct block_device *sb_bdev = file->f_mapping->host->i_sb->s_bdev;
+	struct kstat st;
+
+	/*
+	 * Use the minimal dio alignment of the file system if provided.
+	 */
+	if (!vfs_getattr(&file->f_path, &st, STATX_DIOALIGN, 0) &&
+	    (st.result_mask & STATX_DIOALIGN))
+		return st.dio_offset_align;
+
+	/*
+	 * In a perfect world this wouldn't be needed, but as of Linux 6.13 only
+	 * a handful of file systems support the STATX_DIOALIGN flag.
+	 */
+	if (sb_bdev)
+		return bdev_logical_block_size(sb_bdev);
+	return SECTOR_SIZE;
+}
+
 static inline int is_loop_device(struct file *file)
 {
 	struct inode *i = file->f_mapping->host;
@@ -571,6 +569,17 @@ static int loop_validate_file(struct file *file, struct block_device *bdev)
 	if (!S_ISREG(inode->i_mode) && !S_ISBLK(inode->i_mode))
 		return -EINVAL;
 	return 0;
+}
+
+static void loop_assign_backing_file(struct loop_device *lo, struct file *file)
+{
+	lo->lo_backing_file = file;
+	lo->old_gfp_mask = mapping_gfp_mask(file->f_mapping);
+	mapping_set_gfp_mask(file->f_mapping,
+			lo->old_gfp_mask & ~(__GFP_IO | __GFP_FS));
+	if (lo->lo_backing_file->f_flags & O_DIRECT)
+		lo->lo_flags |= LO_FLAGS_DIRECT_IO;
+	lo->lo_min_dio_size = loop_query_min_dio_size(lo);
 }
 
 /*
@@ -622,14 +631,18 @@ static int loop_change_fd(struct loop_device *lo, struct block_device *bdev,
 	if (get_loop_size(lo, file) != get_loop_size(lo, old_file))
 		goto out_err;
 
+	/*
+	 * We might switch to direct I/O mode for the loop device, write back
+	 * all dirty data the page cache now that so that the individual I/O
+	 * operations don't have to do that.
+	 */
+	vfs_fsync(file, 0);
+
 	/* and ... switch */
 	disk_force_media_change(lo->lo_disk);
 	memflags = blk_mq_freeze_queue(lo->lo_queue);
 	mapping_set_gfp_mask(old_file->f_mapping, lo->old_gfp_mask);
-	lo->lo_backing_file = file;
-	lo->old_gfp_mask = mapping_gfp_mask(file->f_mapping);
-	mapping_set_gfp_mask(file->f_mapping,
-			     lo->old_gfp_mask & ~(__GFP_IO|__GFP_FS));
+	loop_assign_backing_file(lo, file);
 	loop_update_dio(lo);
 	blk_mq_unfreeze_queue(lo->lo_queue, memflags);
 	partscan = lo->lo_flags & LO_FLAGS_PARTSCAN;
@@ -971,12 +984,11 @@ loop_set_status_from_info(struct loop_device *lo,
 	return 0;
 }
 
-static unsigned int loop_default_blocksize(struct loop_device *lo,
-		struct block_device *backing_bdev)
+static unsigned int loop_default_blocksize(struct loop_device *lo)
 {
-	/* In case of direct I/O, match underlying block size */
-	if ((lo->lo_backing_file->f_flags & O_DIRECT) && backing_bdev)
-		return bdev_logical_block_size(backing_bdev);
+	/* In case of direct I/O, match underlying minimum I/O size */
+	if (lo->lo_flags & LO_FLAGS_DIRECT_IO)
+		return lo->lo_min_dio_size;
 	return SECTOR_SIZE;
 }
 
@@ -994,7 +1006,7 @@ static void loop_update_limits(struct loop_device *lo, struct queue_limits *lim,
 		backing_bdev = inode->i_sb->s_bdev;
 
 	if (!bsize)
-		bsize = loop_default_blocksize(lo, backing_bdev);
+		bsize = loop_default_blocksize(lo);
 
 	loop_get_discard_config(lo, &granularity, &max_discard_sectors);
 
@@ -1019,7 +1031,6 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
 			  const struct loop_config *config)
 {
 	struct file *file = fget(config->fd);
-	struct address_space *mapping;
 	struct queue_limits lim;
 	int error;
 	loff_t size;
@@ -1055,8 +1066,6 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
 	if (error)
 		goto out_unlock;
 
-	mapping = file->f_mapping;
-
 	if ((config->info.lo_flags & ~LOOP_CONFIGURE_SETTABLE_FLAGS) != 0) {
 		error = -EINVAL;
 		goto out_unlock;
@@ -1088,9 +1097,7 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
 	set_disk_ro(lo->lo_disk, (lo->lo_flags & LO_FLAGS_READ_ONLY) != 0);
 
 	lo->lo_device = bdev;
-	lo->lo_backing_file = file;
-	lo->old_gfp_mask = mapping_gfp_mask(mapping);
-	mapping_set_gfp_mask(mapping, lo->old_gfp_mask & ~(__GFP_IO|__GFP_FS));
+	loop_assign_backing_file(lo, file);
 
 	lim = queue_limits_start_update(lo->lo_queue);
 	loop_update_limits(lo, &lim, config->block_size);
@@ -1098,6 +1105,13 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
 	error = queue_limits_commit_update(lo->lo_queue, &lim);
 	if (error)
 		goto out_unlock;
+
+	/*
+	 * We might switch to direct I/O mode for the loop device, write back
+	 * all dirty data the page cache now that so that the individual I/O
+	 * operations don't have to do that.
+	 */
+	vfs_fsync(file, 0);
 
 	loop_update_dio(lo);
 	loop_sysfs_init(lo);

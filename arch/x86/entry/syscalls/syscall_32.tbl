@@ -396,7 +396,7 @@
 381	i386	pkey_alloc		sys_pkey_alloc
 382	i386	pkey_free		sys_pkey_free
 383	i386	statx			sys_statx
-384	i386	arch_prctl		sys_arch_prctl			compat_sys_arch_prctl
+384	i386	arch_prctl		sys_arch_prctl
 385	i386	io_pgetevents		sys_io_pgetevents_time32	compat_sys_io_pgetevents
 386	i386	rseq			sys_rseq
 393	i386	semget			sys_semget
@@ -472,3 +472,4 @@
 464	i386	getxattrat		sys_getxattrat
 465	i386	listxattrat		sys_listxattrat
 466	i386	removexattrat		sys_removexattrat
+467	i386	open_tree_attr		sys_open_tree_attr

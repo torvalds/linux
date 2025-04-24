@@ -209,7 +209,7 @@ static ssize_t ssif_bmc_write(struct file *file, const char __user *buf, size_t 
 	if (ret)
 		goto exit;
 
-	del_timer(&ssif_bmc->response_timer);
+	timer_delete(&ssif_bmc->response_timer);
 	ssif_bmc->response_timer_inited = false;
 
 	memcpy(&ssif_bmc->response, &msg, count);

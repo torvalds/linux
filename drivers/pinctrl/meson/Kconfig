@@ -67,6 +67,17 @@ config PINCTRL_MESON_S4
 	select PINCTRL_MESON_AXG_PMX
 	default y
 
+config PINCTRL_AMLOGIC_A4
+	bool "AMLOGIC pincontrol"
+	depends on ARM64
+	default y
+	help
+	  This is the driver for the pin controller found on Amlogic SoCs.
+
+	  This driver is simplify subsequent support for new amlogic SoCs,
+	  to support new Amlogic SoCs, only need to add the corresponding dts file,
+	  no additional binding header files or C file are added.
+
 config PINCTRL_AMLOGIC_C3
 	tristate "Amlogic C3 SoC pinctrl driver"
 	depends on ARM64

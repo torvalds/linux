@@ -458,7 +458,7 @@ static void cw1200_unregister_common(struct ieee80211_hw *dev)
 
 	ieee80211_unregister_hw(dev);
 
-	del_timer_sync(&priv->mcast_timeout);
+	timer_delete_sync(&priv->mcast_timeout);
 	cw1200_unregister_bh(priv);
 
 	cw1200_debug_release(priv);

@@ -532,8 +532,8 @@ struct drm_mode_config {
 	 */
 	struct list_head privobj_list;
 
-	int min_width, min_height;
-	int max_width, max_height;
+	unsigned int min_width, min_height;
+	unsigned int max_width, max_height;
 	const struct drm_mode_config_funcs *funcs;
 
 	/* output poll support */

@@ -109,6 +109,10 @@ Contact:	Martin K. Petersen <martin.petersen@oracle.com>
 Description:
 		Indicates whether a storage device is capable of storing
 		integrity metadata. Set if the device is T10 PI-capable.
+		This flag is set to 1 if the storage media is formatted
+		with T10 Protection Information. If the storage media is
+		not formatted with T10 Protection Information, this flag
+		is set to 0.
 
 
 What:		/sys/block/<disk>/integrity/format
@@ -117,6 +121,13 @@ Contact:	Martin K. Petersen <martin.petersen@oracle.com>
 Description:
 		Metadata format for integrity capable block device.
 		E.g. T10-DIF-TYPE1-CRC.
+		This field describes the type of T10 Protection Information
+		that the block device can send and receive.
+		If the device can store application integrity metadata but
+		no T10 Protection Information profile is used, this field
+		contains "nop".
+		If the device does not support integrity metadata, this
+		field contains "none".
 
 
 What:		/sys/block/<disk>/integrity/protection_interval_bytes
@@ -142,7 +153,17 @@ Date:		June 2008
 Contact:	Martin K. Petersen <martin.petersen@oracle.com>
 Description:
 		Number of bytes of integrity tag space available per
-		512 bytes of data.
+		protection_interval_bytes, which is typically
+		the device's logical block size.
+		This field describes the size of the application tag
+		if the storage device is formatted with T10 Protection
+		Information and permits use of the application tag.
+		The tag_size is reported in bytes and indicates the
+		space available for adding an opaque tag to each block
+		(protection_interval_bytes).
+		If the device does not support T10 Protection Information
+		(even if the device provides application integrity
+		metadata space), this field is set to 0.
 
 
 What:		/sys/block/<disk>/integrity/write_generate
@@ -229,6 +250,17 @@ Description:
 		encryption, refer to Documentation/block/inline-encryption.rst.
 
 
+What:		/sys/block/<disk>/queue/crypto/hw_wrapped_keys
+Date:		February 2025
+Contact:	linux-block@vger.kernel.org
+Description:
+		[RO] The presence of this file indicates that the device
+		supports hardware-wrapped inline encryption keys, i.e. key blobs
+		that can only be unwrapped and used by dedicated hardware.  For
+		more information about hardware-wrapped inline encryption keys,
+		see Documentation/block/inline-encryption.rst.
+
+
 What:		/sys/block/<disk>/queue/crypto/max_dun_bits
 Date:		February 2022
 Contact:	linux-block@vger.kernel.org
@@ -265,6 +297,15 @@ Contact:	linux-block@vger.kernel.org
 Description:
 		[RO] This file shows the number of keyslots the device has for
 		use with inline encryption.
+
+
+What:		/sys/block/<disk>/queue/crypto/raw_keys
+Date:		February 2025
+Contact:	linux-block@vger.kernel.org
+Description:
+		[RO] The presence of this file indicates that the device
+		supports raw inline encryption keys, i.e. keys that are managed
+		in raw, plaintext form in software.
 
 
 What:		/sys/block/<disk>/queue/dax

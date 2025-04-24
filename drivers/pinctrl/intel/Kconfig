@@ -39,7 +39,6 @@ config PINCTRL_INTEL
 
 config PINCTRL_INTEL_PLATFORM
 	tristate "Intel pinctrl and GPIO platform driver"
-	depends on ACPI
 	select PINCTRL_INTEL
 	help
 	  This pinctrl driver provides an interface that allows configuring
@@ -141,7 +140,6 @@ config PINCTRL_METEORLAKE
 
 config PINCTRL_METEORPOINT
 	tristate "Intel Meteor Point pinctrl and GPIO driver"
-	depends on ACPI
 	select PINCTRL_INTEL
 	help
 	  Meteor Point is the PCH of Intel Meteor Lake. This pinctrl driver

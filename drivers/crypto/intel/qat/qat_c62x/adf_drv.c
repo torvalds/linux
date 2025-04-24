@@ -126,7 +126,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adf_init_hw_data_c62x(accel_dev->hw_device);
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &accel_pci_dev->revid);
 	pci_read_config_dword(pdev, ADF_DEVICE_FUSECTL_OFFSET,
-			      &hw_data->fuses);
+			      &hw_data->fuses[ADF_FUSECTL0]);
 	pci_read_config_dword(pdev, ADF_C62X_SOFTSTRAP_CSR_OFFSET,
 			      &hw_data->straps);
 
@@ -169,7 +169,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw_data->accel_capabilities_mask = hw_data->get_accel_cap(accel_dev);
 
 	/* Find and map all the device's BARS */
-	i = (hw_data->fuses & ADF_DEVICE_FUSECTL_MASK) ? 1 : 0;
+	i = (hw_data->fuses[ADF_FUSECTL0] & ADF_DEVICE_FUSECTL_MASK) ? 1 : 0;
 	bar_mask = pci_select_bars(pdev, IORESOURCE_MEM);
 	for_each_set_bit(bar_nr, &bar_mask, ADF_PCI_MAX_BARS * 2) {
 		struct adf_bar *bar = &accel_pci_dev->pci_bars[i++];

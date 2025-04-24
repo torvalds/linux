@@ -121,6 +121,12 @@ static const struct ieee80211_iface_combination wfx_iface_combinations[] = {
 	}
 };
 
+#ifdef CONFIG_PM
+static const struct wiphy_wowlan_support wfx_wowlan_support = {
+	.flags = WIPHY_WOWLAN_ANY | WIPHY_WOWLAN_DISCONNECT,
+};
+#endif
+
 static const struct ieee80211_ops wfx_ops = {
 	.start                   = wfx_start,
 	.stop                    = wfx_stop,
@@ -153,6 +159,11 @@ static const struct ieee80211_ops wfx_ops = {
 	.unassign_vif_chanctx    = wfx_unassign_vif_chanctx,
 	.remain_on_channel       = wfx_remain_on_channel,
 	.cancel_remain_on_channel = wfx_cancel_remain_on_channel,
+#ifdef CONFIG_PM
+	.suspend                 = wfx_suspend,
+	.resume                  = wfx_resume,
+	.set_wakeup              = wfx_set_wakeup,
+#endif
 };
 
 bool wfx_api_older_than(struct wfx_dev *wdev, int major, int minor)
@@ -289,6 +300,9 @@ struct wfx_dev *wfx_init_common(struct device *dev, const struct wfx_platform_da
 					NL80211_PROBE_RESP_OFFLOAD_SUPPORT_P2P |
 					NL80211_PROBE_RESP_OFFLOAD_SUPPORT_80211U;
 	hw->wiphy->features |= NL80211_FEATURE_AP_SCAN;
+#ifdef CONFIG_PM
+	hw->wiphy->wowlan = &wfx_wowlan_support;
+#endif
 	hw->wiphy->flags |= WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
 	hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
 	hw->wiphy->max_remain_on_channel_duration = 5000;

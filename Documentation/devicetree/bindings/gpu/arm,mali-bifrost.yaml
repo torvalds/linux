@@ -17,6 +17,7 @@ properties:
     oneOf:
       - items:
           - enum:
+              - allwinner,sun50i-h616-mali
               - amlogic,meson-g12a-mali
               - mediatek,mt8183-mali
               - mediatek,mt8183b-mali
@@ -24,6 +25,7 @@ properties:
               - realtek,rtd1619-mali
               - renesas,r9a07g044-mali
               - renesas,r9a07g054-mali
+              - renesas,r9a09g057-mali
               - rockchip,px30-mali
               - rockchip,rk3562-mali
               - rockchip,rk3568-mali
@@ -143,6 +145,7 @@ allOf:
             enum:
               - renesas,r9a07g044-mali
               - renesas,r9a07g054-mali
+              - renesas,r9a09g057-mali
     then:
       properties:
         interrupts:

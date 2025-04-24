@@ -67,21 +67,21 @@ static void __init clk_boston_setup(struct device_node *np)
 
 	hw = clk_hw_register_fixed_rate(NULL, "input", NULL, 0, in_freq);
 	if (IS_ERR(hw)) {
-		pr_err("failed to register input clock: %ld\n", PTR_ERR(hw));
+		pr_err("failed to register input clock: %pe\n", hw);
 		goto fail_input;
 	}
 	onecell->hws[BOSTON_CLK_INPUT] = hw;
 
 	hw = clk_hw_register_fixed_rate(NULL, "sys", "input", 0, sys_freq);
 	if (IS_ERR(hw)) {
-		pr_err("failed to register sys clock: %ld\n", PTR_ERR(hw));
+		pr_err("failed to register sys clock: %pe\n", hw);
 		goto fail_sys;
 	}
 	onecell->hws[BOSTON_CLK_SYS] = hw;
 
 	hw = clk_hw_register_fixed_rate(NULL, "cpu", "input", 0, cpu_freq);
 	if (IS_ERR(hw)) {
-		pr_err("failed to register cpu clock: %ld\n", PTR_ERR(hw));
+		pr_err("failed to register cpu clock: %pe\n", hw);
 		goto fail_cpu;
 	}
 	onecell->hws[BOSTON_CLK_CPU] = hw;

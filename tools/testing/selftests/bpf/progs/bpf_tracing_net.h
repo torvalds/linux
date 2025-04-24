@@ -15,7 +15,11 @@
 #define SO_KEEPALIVE		9
 #define SO_PRIORITY		12
 #define SO_REUSEPORT		15
+#if defined(__TARGET_ARCH_powerpc)
+#define SO_RCVLOWAT		16
+#else
 #define SO_RCVLOWAT		18
+#endif
 #define SO_BINDTODEVICE		25
 #define SO_MARK			36
 #define SO_MAX_PACING_RATE	47
@@ -49,6 +53,7 @@
 #define TCP_SAVED_SYN		28
 #define TCP_CA_NAME_MAX		16
 #define TCP_NAGLE_OFF		1
+#define TCP_RTO_MAX_MS		44
 
 #define TCP_ECN_OK              1
 #define TCP_ECN_QUEUE_CWR       2

@@ -10,6 +10,7 @@ SYSFS_KERNEL_DIR="/sys/kernel"
 SYSFS_KLP_DIR="$SYSFS_KERNEL_DIR/livepatch"
 SYSFS_DEBUG_DIR="$SYSFS_KERNEL_DIR/debug"
 SYSFS_KPROBES_DIR="$SYSFS_DEBUG_DIR/kprobes"
+SYSFS_TRACING_DIR="$SYSFS_DEBUG_DIR/tracing"
 
 # Kselftest framework requirement - SKIP code is 4
 ksft_skip=4
@@ -62,6 +63,9 @@ function push_config() {
 			awk -F'[: ]' '{print "file " $1 " line " $2 " " $4}')
 	FTRACE_ENABLED=$(sysctl --values kernel.ftrace_enabled)
 	KPROBE_ENABLED=$(cat "$SYSFS_KPROBES_DIR/enabled")
+	TRACING_ON=$(cat "$SYSFS_TRACING_DIR/tracing_on")
+	CURRENT_TRACER=$(cat "$SYSFS_TRACING_DIR/current_tracer")
+	FTRACE_FILTER=$(cat "$SYSFS_TRACING_DIR/set_ftrace_filter")
 }
 
 function pop_config() {
@@ -73,6 +77,17 @@ function pop_config() {
 	fi
 	if [[ -n "$KPROBE_ENABLED" ]]; then
 		echo "$KPROBE_ENABLED" > "$SYSFS_KPROBES_DIR/enabled"
+	fi
+	if [[ -n "$TRACING_ON" ]]; then
+		echo "$TRACING_ON" > "$SYSFS_TRACING_DIR/tracing_on"
+	fi
+	if [[ -n "$CURRENT_TRACER" ]]; then
+		echo "$CURRENT_TRACER" > "$SYSFS_TRACING_DIR/current_tracer"
+	fi
+	if [[ -n "$FTRACE_FILTER" ]]; then
+		echo "$FTRACE_FILTER" \
+			| sed -e "/#### all functions enabled ####/d" \
+			> "$SYSFS_TRACING_DIR/set_ftrace_filter"
 	fi
 }
 
@@ -351,4 +366,38 @@ function check_sysfs_value() {
 	if test "$value" != "$expected_value" ; then
 		die "Unexpected value in $path: $expected_value vs. $value"
 	fi
+}
+
+# cleanup_tracing() - stop and clean up function tracing
+function cleanup_tracing() {
+	echo 0 > "$SYSFS_TRACING_DIR/tracing_on"
+	echo "" > "$SYSFS_TRACING_DIR/set_ftrace_filter"
+	echo "nop" > "$SYSFS_TRACING_DIR/current_tracer"
+	echo "" > "$SYSFS_TRACING_DIR/trace"
+}
+
+# trace_function(function) - start tracing of a function
+#	function - to be traced function
+function trace_function() {
+	local function="$1"; shift
+
+	cleanup_tracing
+
+	echo "function" > "$SYSFS_TRACING_DIR/current_tracer"
+	echo "$function" > "$SYSFS_TRACING_DIR/set_ftrace_filter"
+	echo 1 > "$SYSFS_TRACING_DIR/tracing_on"
+}
+
+# check_traced_functions(functions...) - check whether each function appeared in the trace log
+#	functions - list of functions to be checked
+function check_traced_functions() {
+	local function
+
+	for function in "$@"; do
+		if ! grep -Fwq "$function" "$SYSFS_TRACING_DIR/trace" ; then
+			die "Function ($function) did not appear in the trace"
+		fi
+	done
+
+	cleanup_tracing
 }

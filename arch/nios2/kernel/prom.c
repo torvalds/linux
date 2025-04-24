@@ -32,7 +32,7 @@ void __init early_init_devtree(void *params)
 	}
 #endif
 
-#ifdef CONFIG_NIOS2_DTB_SOURCE_BOOL
+#ifdef CONFIG_BUILTIN_DTB
 	if (be32_to_cpu((__be32) *dtb) == OF_DT_HEADER)
 		params = (void *)__dtb_start;
 #endif

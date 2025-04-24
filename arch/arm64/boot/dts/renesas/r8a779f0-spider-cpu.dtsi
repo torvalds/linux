@@ -101,6 +101,7 @@
 &hscif0 {
 	pinctrl-0 = <&hscif0_pins>;
 	pinctrl-names = "default";
+	bootph-all;
 
 	uart-has-rtscts;
 	status = "okay";

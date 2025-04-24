@@ -432,7 +432,28 @@ union hdmi_encoded_link_bw {
 		uint8_t BW_32Gbps:1;
 		uint8_t BW_40Gbps:1;
 		uint8_t BW_48Gbps:1;
-		uint8_t RESERVED:1; // Bit 7
+		uint8_t FRL_LINK_TRAINING_FINISHED:1; // Bit 7
+	} bits;
+	uint8_t raw;
+};
+
+union hdmi_tx_link_status {
+	struct {
+		uint8_t HDMI_TX_LINK_ACTIVE_STATUS:1;
+		uint8_t HDMI_TX_READY_STATUS:1;
+		uint8_t RESERVED:6;
+	} bits;
+	uint8_t raw;
+};
+
+union autonomous_mode_and_frl_link_status {
+	struct {
+		uint8_t FRL_LT_IN_PROGRESS_STATUS:1;
+		uint8_t FRL_LT_LINK_CONFIG_IN_PROGRESS:3;
+		uint8_t RESERVED:1;
+		uint8_t FALLBACK_POLICY:1;
+		uint8_t FALLBACK_POLICY_VALID:1;
+		uint8_t REGULATED_AUTONOMOUS_MODE_SUPPORTED:1;
 	} bits;
 	uint8_t raw;
 };
@@ -1166,6 +1187,7 @@ struct dc_dongle_caps {
 	uint32_t dp_hdmi_max_bpc;
 	uint32_t dp_hdmi_max_pixel_clk_in_khz;
 	uint32_t dp_hdmi_frl_max_link_bw_in_kbps;
+	uint32_t dp_hdmi_regulated_autonomous_mode_support;
 	struct dc_dongle_dfp_cap_ext dfp_cap_ext;
 };
 
@@ -1393,6 +1415,9 @@ struct dp_trace {
 #endif
 #ifndef DP_LTTPR_ALPM_CAPABILITIES
 #define DP_LTTPR_ALPM_CAPABILITIES              0xF0009
+#endif
+#ifndef DP_REGULATED_AUTONOMOUS_MODE_SUPPORTED_AND_HDMI_LINK_TRAINING_STATUS
+#define DP_REGULATED_AUTONOMOUS_MODE_SUPPORTED_AND_HDMI_LINK_TRAINING_STATUS	0x303C
 #endif
 #ifndef DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE
 #define DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE	0x50

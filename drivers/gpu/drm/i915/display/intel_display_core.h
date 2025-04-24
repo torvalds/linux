@@ -80,7 +80,7 @@ struct intel_display_funcs {
 /* functions used for watermark calcs for display. */
 struct intel_wm_funcs {
 	/* update_wm is for legacy wm management */
-	void (*update_wm)(struct drm_i915_private *dev_priv);
+	void (*update_wm)(struct intel_display *display);
 	int (*compute_watermarks)(struct intel_atomic_state *state,
 				  struct intel_crtc *crtc);
 	void (*initial_watermarks)(struct intel_atomic_state *state,
@@ -90,8 +90,8 @@ struct intel_wm_funcs {
 	void (*optimize_watermarks)(struct intel_atomic_state *state,
 				    struct intel_crtc *crtc);
 	int (*compute_global_watermarks)(struct intel_atomic_state *state);
-	void (*get_hw_state)(struct drm_i915_private *i915);
-	void (*sanitize)(struct drm_i915_private *i915);
+	void (*get_hw_state)(struct intel_display *display);
+	void (*sanitize)(struct intel_display *display);
 };
 
 struct intel_audio_state {
@@ -160,6 +160,7 @@ struct intel_hotplug {
 	struct {
 		unsigned long last_jiffies;
 		int count;
+		int blocked_count;
 		enum {
 			HPD_ENABLED = 0,
 			HPD_DISABLED = 1,
@@ -170,8 +171,8 @@ struct intel_hotplug {
 	u32 retry_bits;
 	struct delayed_work reenable_work;
 
-	u32 long_port_mask;
-	u32 short_port_mask;
+	u32 long_hpd_pin_mask;
+	u32 short_hpd_pin_mask;
 	struct work_struct dig_port_work;
 
 	struct work_struct poll_init_work;

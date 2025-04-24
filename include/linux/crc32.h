@@ -8,33 +8,32 @@
 #include <linux/types.h>
 #include <linux/bitrev.h>
 
-u32 __pure crc32_le_arch(u32 crc, const u8 *p, size_t len);
-u32 __pure crc32_le_base(u32 crc, const u8 *p, size_t len);
-u32 __pure crc32_be_arch(u32 crc, const u8 *p, size_t len);
-u32 __pure crc32_be_base(u32 crc, const u8 *p, size_t len);
-u32 __pure crc32c_le_arch(u32 crc, const u8 *p, size_t len);
-u32 __pure crc32c_le_base(u32 crc, const u8 *p, size_t len);
+u32 crc32_le_arch(u32 crc, const u8 *p, size_t len);
+u32 crc32_le_base(u32 crc, const u8 *p, size_t len);
+u32 crc32_be_arch(u32 crc, const u8 *p, size_t len);
+u32 crc32_be_base(u32 crc, const u8 *p, size_t len);
+u32 crc32c_arch(u32 crc, const u8 *p, size_t len);
+u32 crc32c_base(u32 crc, const u8 *p, size_t len);
 
-static inline u32 __pure crc32_le(u32 crc, const u8 *p, size_t len)
+static inline u32 crc32_le(u32 crc, const void *p, size_t len)
 {
 	if (IS_ENABLED(CONFIG_CRC32_ARCH))
 		return crc32_le_arch(crc, p, len);
 	return crc32_le_base(crc, p, len);
 }
 
-static inline u32 __pure crc32_be(u32 crc, const u8 *p, size_t len)
+static inline u32 crc32_be(u32 crc, const void *p, size_t len)
 {
 	if (IS_ENABLED(CONFIG_CRC32_ARCH))
 		return crc32_be_arch(crc, p, len);
 	return crc32_be_base(crc, p, len);
 }
 
-/* TODO: leading underscores should be dropped once callers have been updated */
-static inline u32 __pure __crc32c_le(u32 crc, const u8 *p, size_t len)
+static inline u32 crc32c(u32 crc, const void *p, size_t len)
 {
 	if (IS_ENABLED(CONFIG_CRC32_ARCH))
-		return crc32c_le_arch(crc, p, len);
-	return crc32c_le_base(crc, p, len);
+		return crc32c_arch(crc, p, len);
+	return crc32c_base(crc, p, len);
 }
 
 /*
@@ -45,7 +44,7 @@ static inline u32 __pure __crc32c_le(u32 crc, const u8 *p, size_t len)
  */
 #define CRC32_LE_OPTIMIZATION	BIT(0) /* crc32_le() is optimized */
 #define CRC32_BE_OPTIMIZATION	BIT(1) /* crc32_be() is optimized */
-#define CRC32C_OPTIMIZATION	BIT(2) /* __crc32c_le() is optimized */
+#define CRC32C_OPTIMIZATION	BIT(2) /* crc32c() is optimized */
 #if IS_ENABLED(CONFIG_CRC32_ARCH)
 u32 crc32_optimizations(void);
 #else
@@ -70,36 +69,34 @@ static inline u32 crc32_optimizations(void) { return 0; }
  * 	   with the same initializer as crc1, and crc2 seed was 0. See
  * 	   also crc32_combine_test().
  */
-u32 __attribute_const__ crc32_le_shift(u32 crc, size_t len);
+u32 crc32_le_shift(u32 crc, size_t len);
 
 static inline u32 crc32_le_combine(u32 crc1, u32 crc2, size_t len2)
 {
 	return crc32_le_shift(crc1, len2) ^ crc2;
 }
 
+u32 crc32c_shift(u32 crc, size_t len);
+
 /**
- * __crc32c_le_combine - Combine two crc32c check values into one. For two
- * 			 sequences of bytes, seq1 and seq2 with lengths len1
- * 			 and len2, __crc32c_le() check values were calculated
- * 			 for each, crc1 and crc2.
+ * crc32c_combine - Combine two crc32c check values into one. For two sequences
+ *		    of bytes, seq1 and seq2 with lengths len1 and len2, crc32c()
+ *		    check values were calculated for each, crc1 and crc2.
  *
  * @crc1: crc32c of the first block
  * @crc2: crc32c of the second block
  * @len2: length of the second block
  *
- * Return: The __crc32c_le() check value of seq1 and seq2 concatenated,
- * 	   requiring only crc1, crc2, and len2. Note: If seq_full denotes
- * 	   the concatenated memory area of seq1 with seq2, and crc_full
- * 	   the __crc32c_le() value of seq_full, then crc_full ==
- * 	   __crc32c_le_combine(crc1, crc2, len2) when crc_full was
- * 	   seeded with the same initializer as crc1, and crc2 seed
- * 	   was 0. See also crc32c_combine_test().
+ * Return: The crc32c() check value of seq1 and seq2 concatenated, requiring
+ *	   only crc1, crc2, and len2. Note: If seq_full denotes the concatenated
+ *	   memory area of seq1 with seq2, and crc_full the crc32c() value of
+ *	   seq_full, then crc_full == crc32c_combine(crc1, crc2, len2) when
+ *	   crc_full was seeded with the same initializer as crc1, and crc2 seed
+ *	   was 0. See also crc_combine_test().
  */
-u32 __attribute_const__ __crc32c_le_shift(u32 crc, size_t len);
-
-static inline u32 __crc32c_le_combine(u32 crc1, u32 crc2, size_t len2)
+static inline u32 crc32c_combine(u32 crc1, u32 crc2, size_t len2)
 {
-	return __crc32c_le_shift(crc1, len2) ^ crc2;
+	return crc32c_shift(crc1, len2) ^ crc2;
 }
 
 #define crc32(seed, data, length)  crc32_le(seed, (unsigned char const *)(data), length)

@@ -76,8 +76,6 @@ pvr_gem_object_flags_validate(u64 flags)
 		 DRM_PVR_BO_ALLOW_CPU_USERSPACE_ACCESS),
 	};
 
-	int i;
-
 	/*
 	 * Check for bits set in undefined regions. Reserved regions refer to
 	 * options that can only be set by the kernel. These are explicitly
@@ -91,7 +89,7 @@ pvr_gem_object_flags_validate(u64 flags)
 	 * Check for all combinations of flags marked as invalid in the array
 	 * above.
 	 */
-	for (i = 0; i < ARRAY_SIZE(invalid_combinations); ++i) {
+	for (int i = 0; i < ARRAY_SIZE(invalid_combinations); ++i) {
 		u64 combo = invalid_combinations[i];
 
 		if ((flags & combo) == combo)
@@ -203,7 +201,7 @@ pvr_gem_object_vmap(struct pvr_gem_object *pvr_obj)
 
 	dma_resv_lock(obj->resv, NULL);
 
-	err = drm_gem_shmem_vmap(shmem_obj, &map);
+	err = drm_gem_shmem_vmap_locked(shmem_obj, &map);
 	if (err)
 		goto err_unlock;
 
@@ -257,7 +255,7 @@ pvr_gem_object_vunmap(struct pvr_gem_object *pvr_obj)
 			dma_sync_sgtable_for_device(dev, shmem_obj->sgt, DMA_BIDIRECTIONAL);
 	}
 
-	drm_gem_shmem_vunmap(shmem_obj, &map);
+	drm_gem_shmem_vunmap_locked(shmem_obj, &map);
 
 	dma_resv_unlock(obj->resv);
 }

@@ -3,6 +3,7 @@
 #define _ASM_POWERPC_VDSO_H
 
 #define VDSO_VERSION_STRING	LINUX_2.6.15
+#define __VDSO_PAGES		4
 
 #ifndef __ASSEMBLY__
 

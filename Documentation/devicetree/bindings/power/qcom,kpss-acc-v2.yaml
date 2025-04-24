@@ -18,7 +18,9 @@ description:
 
 properties:
   compatible:
-    const: qcom,kpss-acc-v2
+    enum:
+      - qcom,kpss-acc-v2
+      - qcom,msm8916-acc
 
   reg:
     items:

@@ -129,25 +129,32 @@ static bool kvm_is_mmio_pfn(kvm_pfn_t pfn)
 }
 
 /*
- * Returns true if the SPTE has bits that may be set without holding mmu_lock.
- * The caller is responsible for checking if the SPTE is shadow-present, and
- * for determining whether or not the caller cares about non-leaf SPTEs.
+ * Returns true if the SPTE needs to be updated atomically due to having bits
+ * that may be changed without holding mmu_lock, and for which KVM must not
+ * lose information.  E.g. KVM must not drop Dirty bit information.  The caller
+ * is responsible for checking if the SPTE is shadow-present, and for
+ * determining whether or not the caller cares about non-leaf SPTEs.
  */
-bool spte_has_volatile_bits(u64 spte)
+bool spte_needs_atomic_update(u64 spte)
 {
+	/* SPTEs can be made Writable bit by KVM's fast page fault handler. */
 	if (!is_writable_pte(spte) && is_mmu_writable_spte(spte))
 		return true;
 
-	if (is_access_track_spte(spte))
+	/*
+	 * A/D-disabled SPTEs can be access-tracked by aging, and access-tracked
+	 * SPTEs can be restored by KVM's fast page fault handler.
+	 */
+	if (!spte_ad_enabled(spte))
 		return true;
 
-	if (spte_ad_enabled(spte)) {
-		if (!(spte & shadow_accessed_mask) ||
-		    (is_writable_pte(spte) && !(spte & shadow_dirty_mask)))
-			return true;
-	}
-
-	return false;
+	/*
+	 * Dirty and Accessed bits can be set by the CPU.  Ignore the Accessed
+	 * bit, as KVM tolerates false negatives/positives, e.g. KVM doesn't
+	 * invalidate TLBs when aging SPTEs, and so it's safe to clobber the
+	 * Accessed bit (and rare in practice).
+	 */
+	return is_writable_pte(spte) && !(spte & shadow_dirty_mask);
 }
 
 bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,

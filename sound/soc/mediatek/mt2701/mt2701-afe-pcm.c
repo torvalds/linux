@@ -1462,15 +1462,15 @@ static const struct of_device_id mt2701_afe_pcm_dt_match[] = {
 MODULE_DEVICE_TABLE(of, mt2701_afe_pcm_dt_match);
 
 static const struct dev_pm_ops mt2701_afe_pm_ops = {
-	SET_RUNTIME_PM_OPS(mt2701_afe_runtime_suspend,
-			   mt2701_afe_runtime_resume, NULL)
+	RUNTIME_PM_OPS(mt2701_afe_runtime_suspend,
+		       mt2701_afe_runtime_resume, NULL)
 };
 
 static struct platform_driver mt2701_afe_pcm_driver = {
 	.driver = {
 		   .name = "mt2701-audio",
 		   .of_match_table = mt2701_afe_pcm_dt_match,
-		   .pm = &mt2701_afe_pm_ops,
+		   .pm = pm_ptr(&mt2701_afe_pm_ops),
 	},
 	.probe = mt2701_afe_pcm_dev_probe,
 	.remove = mt2701_afe_pcm_dev_remove,

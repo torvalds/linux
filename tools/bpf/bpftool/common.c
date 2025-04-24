@@ -461,10 +461,11 @@ int get_fd_type(int fd)
 		p_err("can't read link type: %s", strerror(errno));
 		return -1;
 	}
-	if (n == sizeof(path)) {
+	if (n == sizeof(buf)) {
 		p_err("can't read link type: path too long!");
 		return -1;
 	}
+	buf[n] = '\0';
 
 	if (strstr(buf, "bpf-map"))
 		return BPF_OBJ_MAP;
@@ -713,7 +714,7 @@ ifindex_to_arch(__u32 ifindex, __u64 ns_dev, __u64 ns_ino, const char **opt)
 	int vendor_id;
 
 	if (!ifindex_to_name_ns(ifindex, ns_dev, ns_ino, devname)) {
-		p_err("Can't get net device name for ifindex %d: %s", ifindex,
+		p_err("Can't get net device name for ifindex %u: %s", ifindex,
 		      strerror(errno));
 		return NULL;
 	}
@@ -738,7 +739,7 @@ ifindex_to_arch(__u32 ifindex, __u64 ns_dev, __u64 ns_ino, const char **opt)
 	/* No NFP support in LLVM, we have no valid triple to return. */
 	default:
 		p_err("Can't get arch name for device vendor id 0x%04x",
-		      vendor_id);
+		      (unsigned int)vendor_id);
 		return NULL;
 	}
 }

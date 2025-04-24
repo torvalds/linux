@@ -70,4 +70,4 @@ config SMB_SERVER_CHECK_CAP_NET_ADMIN
 config SMB_SERVER_KERBEROS5
 	bool "Support for Kerberos 5"
 	depends on SMB_SERVER
-	default n
+	default y

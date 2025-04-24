@@ -1082,6 +1082,11 @@ like flow control, FEC and more.
        need to replace the cable/transceiver.
      - Error
 
+   * - `total_success_recovery_phy`
+     - The number of total successful recovery events of any type during
+       ports reset cycle.
+     - Error
+
    * - `rx_out_of_buffer`
      - Number of times receive queue had no software buffers allocated for the
        adapter's incoming traffic.

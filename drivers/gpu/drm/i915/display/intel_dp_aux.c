@@ -247,7 +247,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	u32 aux_clock_divider;
 	enum intel_display_power_domain aux_domain;
 	intel_wakeref_t aux_wakeref;
-	intel_wakeref_t pps_wakeref;
+	intel_wakeref_t pps_wakeref = NULL;
 	int i, ret, recv_bytes;
 	int try, clock = 0;
 	u32 status;
@@ -272,7 +272,20 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	aux_domain = intel_aux_power_domain(dig_port);
 
 	aux_wakeref = intel_display_power_get(display, aux_domain);
-	pps_wakeref = intel_pps_lock(intel_dp);
+
+	/*
+	 * The PPS state needs to be locked for:
+	 * - eDP on all platforms, since AUX transfers on eDP need VDD power
+	 *   (either forced or via panel power) which depends on the PPS
+	 *   state.
+	 * - non-eDP on platforms where the PPS is a pipe instance (VLV/CHV),
+	 *   since changing the PPS state (via a parallel modeset for
+	 *   instance) may interfere with the AUX transfers on a non-eDP
+	 *   output as well.
+	 */
+	if (intel_dp_is_edp(intel_dp) ||
+	    display->platform.valleyview || display->platform.cherryview)
+		pps_wakeref = intel_pps_lock(intel_dp);
 
 	/*
 	 * We will be called with VDD already enabled for dpcd/edid/oui reads.
@@ -430,7 +443,9 @@ out:
 	if (vdd)
 		intel_pps_vdd_off_unlocked(intel_dp, false);
 
-	intel_pps_unlock(intel_dp, pps_wakeref);
+	if (pps_wakeref)
+		intel_pps_unlock(intel_dp, pps_wakeref);
+
 	intel_display_power_put_async(display, aux_domain, aux_wakeref);
 out_unlock:
 	intel_digital_port_unlock(encoder);

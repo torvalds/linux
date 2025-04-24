@@ -1201,11 +1201,9 @@ static void wacom_intuos_bt_process_data(struct wacom_wac *wacom,
 
 static int wacom_intuos_bt_irq(struct wacom_wac *wacom, size_t len)
 {
-	unsigned char data[WACOM_PKGLEN_MAX];
+	u8 *data = kmemdup(wacom->data, len, GFP_KERNEL);
 	int i = 1;
 	unsigned power_raw, battery_capacity, bat_charging, ps_connected;
-
-	memcpy(data, wacom->data, len);
 
 	switch (data[0]) {
 	case 0x04:
@@ -1230,8 +1228,10 @@ static int wacom_intuos_bt_irq(struct wacom_wac *wacom, size_t len)
 		dev_dbg(wacom->pen_input->dev.parent,
 				"Unknown report: %d,%d size:%zu\n",
 				data[0], data[1], len);
-		return 0;
+		break;
 	}
+
+	kfree(data);
 	return 0;
 }
 

@@ -31,10 +31,11 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
-#include "i915_drv.h"
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "intel_connector.h"
 #include "intel_de.h"
 #include "intel_display_driver.h"
@@ -129,13 +130,13 @@ static struct intel_dvo *intel_attached_dvo(struct intel_connector *connector)
 
 static bool intel_dvo_connector_get_hw_state(struct intel_connector *connector)
 {
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 	struct intel_encoder *encoder = intel_attached_encoder(connector);
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
 	enum port port = encoder->port;
 	u32 tmp;
 
-	tmp = intel_de_read(i915, DVO(port));
+	tmp = intel_de_read(display, DVO(port));
 
 	if (!(tmp & DVO_ENABLE))
 		return false;
@@ -146,11 +147,11 @@ static bool intel_dvo_connector_get_hw_state(struct intel_connector *connector)
 static bool intel_dvo_get_hw_state(struct intel_encoder *encoder,
 				   enum pipe *pipe)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	enum port port = encoder->port;
 	u32 tmp;
 
-	tmp = intel_de_read(i915, DVO(port));
+	tmp = intel_de_read(display, DVO(port));
 
 	*pipe = REG_FIELD_GET(DVO_PIPE_SEL_MASK, tmp);
 
@@ -160,13 +161,13 @@ static bool intel_dvo_get_hw_state(struct intel_encoder *encoder,
 static void intel_dvo_get_config(struct intel_encoder *encoder,
 				 struct intel_crtc_state *pipe_config)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	enum port port = encoder->port;
 	u32 tmp, flags = 0;
 
 	pipe_config->output_types |= BIT(INTEL_OUTPUT_DVO);
 
-	tmp = intel_de_read(i915, DVO(port));
+	tmp = intel_de_read(display, DVO(port));
 	if (tmp & DVO_HSYNC_ACTIVE_HIGH)
 		flags |= DRM_MODE_FLAG_PHSYNC;
 	else
@@ -186,14 +187,14 @@ static void intel_disable_dvo(struct intel_atomic_state *state,
 			      const struct intel_crtc_state *old_crtc_state,
 			      const struct drm_connector_state *old_conn_state)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
 	enum port port = encoder->port;
 
 	intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, false);
 
-	intel_de_rmw(i915, DVO(port), DVO_ENABLE, 0);
-	intel_de_posting_read(i915, DVO(port));
+	intel_de_rmw(display, DVO(port), DVO_ENABLE, 0);
+	intel_de_posting_read(display, DVO(port));
 }
 
 static void intel_enable_dvo(struct intel_atomic_state *state,
@@ -201,7 +202,7 @@ static void intel_enable_dvo(struct intel_atomic_state *state,
 			     const struct intel_crtc_state *pipe_config,
 			     const struct drm_connector_state *conn_state)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
 	enum port port = encoder->port;
 
@@ -209,8 +210,8 @@ static void intel_enable_dvo(struct intel_atomic_state *state,
 					 &pipe_config->hw.mode,
 					 &pipe_config->hw.adjusted_mode);
 
-	intel_de_rmw(i915, DVO(port), 0, DVO_ENABLE);
-	intel_de_posting_read(i915, DVO(port));
+	intel_de_rmw(display, DVO(port), 0, DVO_ENABLE);
+	intel_de_posting_read(display, DVO(port));
 
 	intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, true);
 }
@@ -288,7 +289,7 @@ static void intel_dvo_pre_enable(struct intel_atomic_state *state,
 				 const struct intel_crtc_state *pipe_config,
 				 const struct drm_connector_state *conn_state)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	const struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	enum port port = encoder->port;
@@ -296,7 +297,7 @@ static void intel_dvo_pre_enable(struct intel_atomic_state *state,
 	u32 dvo_val;
 
 	/* Save the active data order, since I don't know what it should be set to. */
-	dvo_val = intel_de_read(i915, DVO(port)) &
+	dvo_val = intel_de_read(display, DVO(port)) &
 		  (DVO_DEDICATED_INT_ENABLE |
 		   DVO_PRESERVE_MASK | DVO_ACT_DATA_ORDER_MASK);
 	dvo_val |= DVO_DATA_ORDER_FP | DVO_BORDER_ENABLE |
@@ -309,10 +310,10 @@ static void intel_dvo_pre_enable(struct intel_atomic_state *state,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 		dvo_val |= DVO_VSYNC_ACTIVE_HIGH;
 
-	intel_de_write(i915, DVO_SRCDIM(port),
+	intel_de_write(display, DVO_SRCDIM(port),
 		       DVO_SRCDIM_HORIZONTAL(adjusted_mode->crtc_hdisplay) |
 		       DVO_SRCDIM_VERTICAL(adjusted_mode->crtc_vdisplay));
-	intel_de_write(i915, DVO(port), dvo_val);
+	intel_de_write(display, DVO(port), dvo_val);
 }
 
 static enum drm_connector_status
@@ -320,10 +321,9 @@ intel_dvo_detect(struct drm_connector *_connector, bool force)
 {
 	struct intel_display *display = to_intel_display(_connector->dev);
 	struct intel_connector *connector = to_intel_connector(_connector);
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
 
-	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s]\n",
+	drm_dbg_kms(display->drm, "[CONNECTOR:%d:%s]\n",
 		    connector->base.base.id, connector->base.name);
 
 	if (!intel_display_device_enabled(display))
@@ -414,11 +414,10 @@ static int intel_dvo_connector_type(const struct intel_dvo_device *dvo)
 	}
 }
 
-static bool intel_dvo_init_dev(struct drm_i915_private *dev_priv,
+static bool intel_dvo_init_dev(struct intel_display *display,
 			       struct intel_dvo *intel_dvo,
 			       const struct intel_dvo_device *dvo)
 {
-	struct intel_display *display = &dev_priv->display;
 	struct i2c_adapter *i2c;
 	u32 dpll[I915_MAX_PIPES];
 	enum pipe pipe;
@@ -458,15 +457,15 @@ static bool intel_dvo_init_dev(struct drm_i915_private *dev_priv,
 	 * the clock enabled before we attempt to initialize
 	 * the device.
 	 */
-	for_each_pipe(dev_priv, pipe)
-		dpll[pipe] = intel_de_rmw(dev_priv, DPLL(dev_priv, pipe), 0,
+	for_each_pipe(display, pipe)
+		dpll[pipe] = intel_de_rmw(display, DPLL(display, pipe), 0,
 					  DPLL_DVO_2X_MODE);
 
 	ret = dvo->dev_ops->init(&intel_dvo->dev, i2c);
 
 	/* restore the DVO 2x clock state to original */
-	for_each_pipe(dev_priv, pipe) {
-		intel_de_write(dev_priv, DPLL(dev_priv, pipe), dpll[pipe]);
+	for_each_pipe(display, pipe) {
+		intel_de_write(display, DPLL(display, pipe), dpll[pipe]);
 	}
 
 	intel_gmbus_force_bit(i2c, false);
@@ -474,14 +473,14 @@ static bool intel_dvo_init_dev(struct drm_i915_private *dev_priv,
 	return ret;
 }
 
-static bool intel_dvo_probe(struct drm_i915_private *i915,
+static bool intel_dvo_probe(struct intel_display *display,
 			    struct intel_dvo *intel_dvo)
 {
 	int i;
 
 	/* Now, try to find a controller */
 	for (i = 0; i < ARRAY_SIZE(intel_dvo_devices); i++) {
-		if (intel_dvo_init_dev(i915, intel_dvo,
+		if (intel_dvo_init_dev(display, intel_dvo,
 				       &intel_dvo_devices[i]))
 			return true;
 	}
@@ -489,9 +488,8 @@ static bool intel_dvo_probe(struct drm_i915_private *i915,
 	return false;
 }
 
-void intel_dvo_init(struct drm_i915_private *i915)
+void intel_dvo_init(struct intel_display *display)
 {
-	struct intel_display *display = &i915->display;
 	struct intel_connector *connector;
 	struct intel_encoder *encoder;
 	struct intel_dvo *intel_dvo;
@@ -518,7 +516,7 @@ void intel_dvo_init(struct drm_i915_private *i915)
 	encoder->pre_enable = intel_dvo_pre_enable;
 	connector->get_hw_state = intel_dvo_connector_get_hw_state;
 
-	if (!intel_dvo_probe(i915, intel_dvo)) {
+	if (!intel_dvo_probe(display, intel_dvo)) {
 		kfree(intel_dvo);
 		intel_connector_free(connector);
 		return;
@@ -535,12 +533,12 @@ void intel_dvo_init(struct drm_i915_private *i915)
 		encoder->cloneable = BIT(INTEL_OUTPUT_ANALOG) |
 			BIT(INTEL_OUTPUT_DVO);
 
-	drm_encoder_init(&i915->drm, &encoder->base,
+	drm_encoder_init(display->drm, &encoder->base,
 			 &intel_dvo_enc_funcs,
 			 intel_dvo_encoder_type(&intel_dvo->dev),
 			 "DVO %c", port_name(encoder->port));
 
-	drm_dbg_kms(&i915->drm, "[ENCODER:%d:%s] detected %s\n",
+	drm_dbg_kms(display->drm, "[ENCODER:%d:%s] detected %s\n",
 		    encoder->base.base.id, encoder->base.name,
 		    intel_dvo->dev.name);
 
@@ -549,7 +547,7 @@ void intel_dvo_init(struct drm_i915_private *i915)
 			DRM_CONNECTOR_POLL_DISCONNECT;
 	connector->base.polled = connector->polled;
 
-	drm_connector_init_with_ddc(&i915->drm, &connector->base,
+	drm_connector_init_with_ddc(display->drm, &connector->base,
 				    &intel_dvo_connector_funcs,
 				    intel_dvo_connector_type(&intel_dvo->dev),
 				    intel_gmbus_get_adapter(display, GMBUS_PIN_DPC));

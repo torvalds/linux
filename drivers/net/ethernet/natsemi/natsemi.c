@@ -3179,7 +3179,7 @@ static int netdev_close(struct net_device *dev)
 	 * the final WOL settings?
 	 */
 
-	del_timer_sync(&np->timer);
+	timer_delete_sync(&np->timer);
 	disable_irq(irq);
 	spin_lock_irq(&np->lock);
 	natsemi_irq_disable(dev);
@@ -3278,7 +3278,7 @@ static int __maybe_unused natsemi_suspend(struct device *dev_d)
 	if (netif_running (dev)) {
 		const int irq = np->pci_dev->irq;
 
-		del_timer_sync(&np->timer);
+		timer_delete_sync(&np->timer);
 
 		disable_irq(irq);
 		spin_lock_irq(&np->lock);

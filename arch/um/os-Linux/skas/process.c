@@ -166,7 +166,7 @@ static void get_skas_faultinfo(int pid, struct faultinfo *fi)
 static void handle_segv(int pid, struct uml_pt_regs *regs)
 {
 	get_skas_faultinfo(pid, &regs->faultinfo);
-	segv(regs->faultinfo, 0, 1, NULL);
+	segv(regs->faultinfo, 0, 1, NULL, NULL);
 }
 
 static void handle_trap(int pid, struct uml_pt_regs *regs)
@@ -525,7 +525,7 @@ void userspace(struct uml_pt_regs *regs)
 					get_skas_faultinfo(pid,
 							   &regs->faultinfo);
 					(*sig_info[SIGSEGV])(SIGSEGV, (struct siginfo *)&si,
-							     regs);
+							     regs, NULL);
 				}
 				else handle_segv(pid, regs);
 				break;
@@ -533,7 +533,7 @@ void userspace(struct uml_pt_regs *regs)
 				handle_trap(pid, regs);
 				break;
 			case SIGTRAP:
-				relay_signal(SIGTRAP, (struct siginfo *)&si, regs);
+				relay_signal(SIGTRAP, (struct siginfo *)&si, regs, NULL);
 				break;
 			case SIGALRM:
 				break;
@@ -543,7 +543,7 @@ void userspace(struct uml_pt_regs *regs)
 			case SIGFPE:
 			case SIGWINCH:
 				block_signals_trace();
-				(*sig_info[sig])(sig, (struct siginfo *)&si, regs);
+				(*sig_info[sig])(sig, (struct siginfo *)&si, regs, NULL);
 				unblock_signals_trace();
 				break;
 			default:

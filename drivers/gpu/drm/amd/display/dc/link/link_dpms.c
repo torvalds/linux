@@ -2291,22 +2291,7 @@ static bool allocate_usb4_bandwidth_for_stream(struct dc_stream_state *stream, i
 	link->dpia_bw_alloc_config.dp_overhead = link_dp_dpia_get_dp_overhead_in_dp_tunneling(link);
 	req_bw += link->dpia_bw_alloc_config.dp_overhead;
 
-	if (link_dp_dpia_allocate_usb4_bandwidth_for_stream(link, req_bw)) {
-		if (req_bw <= link->dpia_bw_alloc_config.allocated_bw) {
-			DC_LOG_DEBUG("%s, Success in allocate bw for link(%d), allocated_bw(%d), dp_overhead(%d)\n",
-					__func__, link->link_index, link->dpia_bw_alloc_config.allocated_bw,
-					link->dpia_bw_alloc_config.dp_overhead);
-		} else {
-			// Cannot get the required bandwidth.
-			DC_LOG_ERROR("%s, Failed to allocate bw for link(%d), allocated_bw(%d), dp_overhead(%d)\n",
-					__func__, link->link_index, link->dpia_bw_alloc_config.allocated_bw,
-					link->dpia_bw_alloc_config.dp_overhead);
-			return false;
-		}
-	} else {
-		DC_LOG_DEBUG("%s, usb4 request bw timeout\n", __func__);
-		return false;
-	}
+	link_dp_dpia_allocate_usb4_bandwidth_for_stream(link, req_bw);
 
 	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
 		int i = 0;

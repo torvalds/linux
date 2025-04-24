@@ -198,7 +198,7 @@ void squashfs_cache_delete(struct squashfs_cache *cache)
 {
 	int i, j;
 
-	if (cache == NULL)
+	if (IS_ERR(cache) || cache == NULL)
 		return;
 
 	for (i = 0; i < cache->entries; i++) {

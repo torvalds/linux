@@ -358,6 +358,9 @@ struct amdgpu_vcn {
 
 	bool			per_inst_fw;
 	unsigned		fw_version;
+
+	bool			workload_profile_active;
+	struct mutex            workload_profile_mutex;
 };
 
 struct amdgpu_fw_shared_rb_ptrs_struct {

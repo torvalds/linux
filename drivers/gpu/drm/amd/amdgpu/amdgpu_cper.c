@@ -455,10 +455,10 @@ calc:
 		return umin(rec_len, chunk);
 }
 
-void amdgpu_cper_ring_write(struct amdgpu_ring *ring,
-					      void *src, int count)
+void amdgpu_cper_ring_write(struct amdgpu_ring *ring, void *src, int count)
 {
 	u64 pos, wptr_old, rptr = *ring->rptr_cpu_addr & ring->ptr_mask;
+	int rec_cnt_dw = count >> 2;
 	u32 chunk, ent_sz;
 	u8 *s = (u8 *)src;
 
@@ -485,6 +485,9 @@ void amdgpu_cper_ring_write(struct amdgpu_ring *ring,
 		s += chunk;
 	}
 
+	if (ring->count_dw < rec_cnt_dw)
+		ring->count_dw = 0;
+
 	/* the buffer is overflow, adjust rptr */
 	if (((wptr_old < rptr) && (rptr <= ring->wptr)) ||
 	    ((ring->wptr < wptr_old) && (wptr_old < rptr)) ||
@@ -501,12 +504,10 @@ void amdgpu_cper_ring_write(struct amdgpu_ring *ring,
 			pos = rptr;
 		} while (!amdgpu_cper_is_hdr(ring, rptr));
 	}
-	mutex_unlock(&ring->adev->cper.ring_lock);
 
-	if (ring->count_dw >= (count >> 2))
-		ring->count_dw -= (count >> 2);
-	else
-		ring->count_dw = 0;
+	if (ring->count_dw >= rec_cnt_dw)
+		ring->count_dw -= rec_cnt_dw;
+	mutex_unlock(&ring->adev->cper.ring_lock);
 }
 
 static u64 amdgpu_cper_ring_get_rptr(struct amdgpu_ring *ring)

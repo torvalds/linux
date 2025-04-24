@@ -482,6 +482,8 @@ struct amdgpu_gfx {
 
 	atomic_t			total_submission_cnt;
 	struct delayed_work		idle_work;
+	bool				workload_profile_active;
+	struct mutex                    workload_profile_mutex;
 };
 
 struct amdgpu_gfx_ras_reg_entry {

@@ -34,9 +34,6 @@ int					/* error */
 xfs_rtmount_inodes(
 	struct xfs_mount	*mp);	/* file system mount structure */
 
-void xfs_rt_resv_free(struct xfs_mount *mp);
-int xfs_rt_resv_init(struct xfs_mount *mp);
-
 /*
  * Grow the realtime area of the filesystem.
  */
@@ -65,8 +62,6 @@ xfs_rtmount_init(
 }
 # define xfs_rtmount_inodes(m)  (((mp)->m_sb.sb_rblocks == 0)? 0 : (-ENOSYS))
 # define xfs_rtunmount_inodes(m)
-# define xfs_rt_resv_free(mp)				((void)0)
-# define xfs_rt_resv_init(mp)				(0)
 
 static inline int
 xfs_growfs_check_rtgeom(const struct xfs_mount *mp,

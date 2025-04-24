@@ -133,7 +133,6 @@ int memblock_mark_nomap(phys_addr_t base, phys_addr_t size);
 int memblock_clear_nomap(phys_addr_t base, phys_addr_t size);
 int memblock_reserved_mark_noinit(phys_addr_t base, phys_addr_t size);
 
-void memblock_free_all(void);
 void memblock_free(void *ptr, size_t size);
 void reset_all_zones_managed_pages(void);
 

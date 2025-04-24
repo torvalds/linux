@@ -50,7 +50,6 @@ config GPIB_CEC_PCI
 	tristate "CEC PCI board"
 	depends on PCI
 	depends on HAS_IOPORT
-	depends on !X86_PAE
 	select GPIB_COMMON
 	select GPIB_NEC7210
 	help
@@ -64,7 +63,6 @@ config GPIB_NI_PCI_ISA
 	tristate "NI PCI/ISA compatible boards"
 	depends on ISA_BUS || PCI || PCMCIA
 	depends on HAS_IOPORT
-	depends on !X86_PAE
 	depends on PCMCIA || !PCMCIA
 	depends on HAS_IOPORT_MAP
 	select GPIB_COMMON
@@ -90,7 +88,6 @@ config GPIB_CB7210
        tristate "Measurement Computing compatible boards"
 	depends on HAS_IOPORT
 	depends on ISA_BUS || PCI || PCMCIA
-	depends on !X86_PAE
 	depends on PCMCIA || !PCMCIA
        select GPIB_COMMON
 	select GPIB_NEC7210
@@ -169,7 +166,6 @@ config GPIB_HP82341
        tristate "HP82341x"
        select GPIB_COMMON
        select GPIB_TMS9914
-       depends on BROKEN
        depends on ISA_BUS || EISA
        help
          GPIB driver for HP82341 A/B/C/D boards
@@ -182,7 +178,6 @@ config GPIB_INES
 	depends on PCI || ISA_BUS || PCMCIA
 	depends on PCMCIA || !PCMCIA
 	depends on HAS_IOPORT
-	depends on !X86_PAE
        select GPIB_COMMON
        select GPIB_NEC7210
        help

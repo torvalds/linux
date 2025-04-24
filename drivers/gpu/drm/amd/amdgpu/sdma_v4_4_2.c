@@ -672,12 +672,11 @@ static uint32_t sdma_v4_4_2_rb_cntl(struct amdgpu_ring *ring, uint32_t rb_cntl)
  * @adev: amdgpu_device pointer
  * @i: instance to resume
  * @restore: used to restore wptr when restart
- * @guilty: boolean indicating whether this queue is the guilty one (caused the timeout/error)
  *
  * Set up the gfx DMA ring buffers and enable them.
  * Returns 0 for success, error for failure.
  */
-static void sdma_v4_4_2_gfx_resume(struct amdgpu_device *adev, unsigned int i, bool restore, bool guilty)
+static void sdma_v4_4_2_gfx_resume(struct amdgpu_device *adev, unsigned int i, bool restore)
 {
 	struct amdgpu_ring *ring = &adev->sdma.instance[i].ring;
 	u32 rb_cntl, ib_cntl, wptr_poll_cntl;
@@ -714,7 +713,7 @@ static void sdma_v4_4_2_gfx_resume(struct amdgpu_device *adev, unsigned int i, b
 	/* For the guilty queue, set RPTR to the current wptr to skip bad commands,
 	 * It is not a guilty queue, restore cache_rptr and continue execution.
 	 */
-	if (guilty)
+	if (adev->sdma.instance[i].gfx_guilty)
 		rwptr = ring->wptr;
 	else
 		rwptr = ring->cached_rptr;
@@ -779,12 +778,11 @@ static void sdma_v4_4_2_gfx_resume(struct amdgpu_device *adev, unsigned int i, b
  * @adev: amdgpu_device pointer
  * @i: instance to resume
  * @restore: boolean to say restore needed or not
- * @guilty: boolean indicating whether this queue is the guilty one (caused the timeout/error)
  *
  * Set up the page DMA ring buffers and enable them.
  * Returns 0 for success, error for failure.
  */
-static void sdma_v4_4_2_page_resume(struct amdgpu_device *adev, unsigned int i, bool restore, bool guilty)
+static void sdma_v4_4_2_page_resume(struct amdgpu_device *adev, unsigned int i, bool restore)
 {
 	struct amdgpu_ring *ring = &adev->sdma.instance[i].page;
 	u32 rb_cntl, ib_cntl, wptr_poll_cntl;
@@ -803,7 +801,7 @@ static void sdma_v4_4_2_page_resume(struct amdgpu_device *adev, unsigned int i, 
 	/* For the guilty queue, set RPTR to the current wptr to skip bad commands,
 	 * It is not a guilty queue, restore cache_rptr and continue execution.
 	 */
-	if (guilty)
+	if (adev->sdma.instance[i].page_guilty)
 		rwptr = ring->wptr;
 	else
 		rwptr = ring->cached_rptr;
@@ -989,9 +987,9 @@ static int sdma_v4_4_2_inst_start(struct amdgpu_device *adev,
 		uint32_t temp;
 
 		WREG32_SDMA(i, regSDMA_SEM_WAIT_FAIL_TIMER_CNTL, 0);
-		sdma_v4_4_2_gfx_resume(adev, i, restore, adev->sdma.gfx_guilty);
+		sdma_v4_4_2_gfx_resume(adev, i, restore);
 		if (adev->sdma.has_page_queue)
-			sdma_v4_4_2_page_resume(adev, i, restore, adev->sdma.page_guilty);
+			sdma_v4_4_2_page_resume(adev, i, restore);
 
 		/* set utc l1 enable flag always to 1 */
 		temp = RREG32_SDMA(i, regSDMA_CNTL);
@@ -1445,6 +1443,11 @@ static int sdma_v4_4_2_sw_init(struct amdgpu_ip_block *ip_block)
 	}
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
+		mutex_init(&adev->sdma.instance[i].engine_reset_mutex);
+		/* Initialize guilty flags for GFX and PAGE queues */
+		adev->sdma.instance[i].gfx_guilty = false;
+		adev->sdma.instance[i].page_guilty = false;
+
 		ring = &adev->sdma.instance[i].ring;
 		ring->ring_obj = NULL;
 		ring->use_doorbell = true;
@@ -1506,9 +1509,6 @@ static int sdma_v4_4_2_sw_init(struct amdgpu_ip_block *ip_block)
 	r = amdgpu_sdma_sysfs_reset_mask_init(adev);
 	if (r)
 		return r;
-	/* Initialize guilty flags for GFX and PAGE queues */
-	adev->sdma.gfx_guilty = false;
-	adev->sdma.page_guilty = false;
 
 	return r;
 }
@@ -1666,7 +1666,16 @@ static int sdma_v4_4_2_reset_queue(struct amdgpu_ring *ring, unsigned int vmid)
 {
 	struct amdgpu_device *adev = ring->adev;
 	u32 id = GET_INST(SDMA0, ring->me);
-	return amdgpu_sdma_reset_engine(adev, id, true);
+	int r;
+
+	if (!(adev->sdma.supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE))
+		return -EOPNOTSUPP;
+
+	amdgpu_amdkfd_suspend(adev, false);
+	r = amdgpu_sdma_reset_engine(adev, id);
+	amdgpu_amdkfd_resume(adev, false);
+
+	return r;
 }
 
 static int sdma_v4_4_2_stop_queue(struct amdgpu_device *adev, uint32_t instance_id)
@@ -1679,9 +1688,11 @@ static int sdma_v4_4_2_stop_queue(struct amdgpu_device *adev, uint32_t instance_
 		return -EINVAL;
 
 	/* Check if this queue is the guilty one */
-	adev->sdma.gfx_guilty = sdma_v4_4_2_is_queue_selected(adev, instance_id, false);
+	adev->sdma.instance[instance_id].gfx_guilty =
+		sdma_v4_4_2_is_queue_selected(adev, instance_id, false);
 	if (adev->sdma.has_page_queue)
-		adev->sdma.page_guilty = sdma_v4_4_2_is_queue_selected(adev, instance_id, true);
+		adev->sdma.instance[instance_id].page_guilty =
+			sdma_v4_4_2_is_queue_selected(adev, instance_id, true);
 
 	/* Cache the rptr before reset, after the reset,
 	* all of the registers will be reset to 0
@@ -2347,6 +2358,9 @@ static void sdma_v4_4_2_set_vm_pte_funcs(struct amdgpu_device *adev)
  */
 static void sdma_v4_4_2_update_reset_mask(struct amdgpu_device *adev)
 {
+	/* per queue reset not supported for SRIOV */
+	if (amdgpu_sriov_vf(adev))
+		return;
 
 	/*
 	 * the user queue relies on MEC fw and pmfw when the sdma queue do reset.
@@ -2532,7 +2546,7 @@ static int sdma_v4_4_2_aca_bank_parser(struct aca_handle *handle, struct aca_ban
 						     1ULL);
 		break;
 	case ACA_SMU_TYPE_CE:
-		bank->aca_err_type = ACA_BANK_ERR_CE_DE_DECODE(bank);
+		bank->aca_err_type = ACA_ERROR_TYPE_CE;
 		ret = aca_error_cache_log_bank_error(handle, &info, bank->aca_err_type,
 						     ACA_REG__MISC0__ERRCNT(misc0));
 		break;

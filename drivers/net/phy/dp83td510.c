@@ -204,9 +204,190 @@ struct dp83td510_priv {
 #define DP83TD510E_UNKN_030E				0x30e
 #define DP83TD510E_030E_VAL				0x2520
 
+#define DP83TD510E_LEDS_CFG_1				0x460
+#define DP83TD510E_LED_FN(idx, val)		(((val) & 0xf) << ((idx) * 4))
+#define DP83TD510E_LED_FN_MASK(idx)			(0xf << ((idx) * 4))
+/* link OK */
+#define DP83TD510E_LED_MODE_LINK_OK			0x0
+/* TX/RX activity */
+#define DP83TD510E_LED_MODE_TX_RX_ACTIVITY		0x1
+/* TX activity */
+#define DP83TD510E_LED_MODE_TX_ACTIVITY			0x2
+/* RX activity */
+#define DP83TD510E_LED_MODE_RX_ACTIVITY			0x3
+/* LR */
+#define DP83TD510E_LED_MODE_LR				0x4
+/* SR */
+#define DP83TD510E_LED_MODE_SR				0x5
+/* LED SPEED: High for 10Base-T */
+#define DP83TD510E_LED_MODE_LED_SPEED			0x6
+/* Duplex mode */
+#define DP83TD510E_LED_MODE_DUPLEX			0x7
+/* link + blink on activity with stretch option */
+#define DP83TD510E_LED_MODE_LINK_BLINK			0x8
+/* blink on activity with stretch option */
+#define DP83TD510E_LED_MODE_BLINK_ACTIVITY		0x9
+/* blink on tx activity with stretch option */
+#define DP83TD510E_LED_MODE_BLINK_TX			0xa
+/* blink on rx activity with stretch option */
+#define DP83TD510E_LED_MODE_BLINK_RX			0xb
+/* link_lost */
+#define DP83TD510E_LED_MODE_LINK_LOST			0xc
+/* PRBS error: toggles on error */
+#define DP83TD510E_LED_MODE_PRBS_ERROR			0xd
+/* XMII TX/RX Error with stretch option */
+#define DP83TD510E_LED_MODE_XMII_ERR			0xe
+
+#define DP83TD510E_LED_COUNT				4
+
+#define DP83TD510E_LEDS_CFG_2				0x469
+#define DP83TD510E_LED_POLARITY(idx)			BIT((idx) * 4 + 2)
+#define DP83TD510E_LED_DRV_VAL(idx)			BIT((idx) * 4 + 1)
+#define DP83TD510E_LED_DRV_EN(idx)			BIT((idx) * 4)
+
 #define DP83TD510E_ALCD_STAT				0xa9f
 #define DP83TD510E_ALCD_COMPLETE			BIT(15)
 #define DP83TD510E_ALCD_CABLE_LENGTH			GENMASK(10, 0)
+
+static int dp83td510_led_brightness_set(struct phy_device *phydev, u8 index,
+					enum led_brightness brightness)
+{
+	u32 val;
+
+	if (index >= DP83TD510E_LED_COUNT)
+		return -EINVAL;
+
+	val = DP83TD510E_LED_DRV_EN(index);
+
+	if (brightness)
+		val |= DP83TD510E_LED_DRV_VAL(index);
+
+	return phy_modify_mmd(phydev, MDIO_MMD_VEND2, DP83TD510E_LEDS_CFG_2,
+			      DP83TD510E_LED_DRV_VAL(index) |
+			      DP83TD510E_LED_DRV_EN(index), val);
+}
+
+static int dp83td510_led_mode(u8 index, unsigned long rules)
+{
+	if (index >= DP83TD510E_LED_COUNT)
+		return -EINVAL;
+
+	switch (rules) {
+	case BIT(TRIGGER_NETDEV_LINK):
+		return DP83TD510E_LED_MODE_LINK_OK;
+	case BIT(TRIGGER_NETDEV_LINK_10):
+		return DP83TD510E_LED_MODE_LED_SPEED;
+	case BIT(TRIGGER_NETDEV_FULL_DUPLEX):
+		return DP83TD510E_LED_MODE_DUPLEX;
+	case BIT(TRIGGER_NETDEV_TX):
+		return DP83TD510E_LED_MODE_TX_ACTIVITY;
+	case BIT(TRIGGER_NETDEV_RX):
+		return DP83TD510E_LED_MODE_RX_ACTIVITY;
+	case BIT(TRIGGER_NETDEV_TX) | BIT(TRIGGER_NETDEV_RX):
+		return DP83TD510E_LED_MODE_TX_RX_ACTIVITY;
+	case BIT(TRIGGER_NETDEV_LINK) | BIT(TRIGGER_NETDEV_TX) |
+			BIT(TRIGGER_NETDEV_RX):
+		return DP83TD510E_LED_MODE_LINK_BLINK;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int dp83td510_led_hw_is_supported(struct phy_device *phydev, u8 index,
+					 unsigned long rules)
+{
+	int ret;
+
+	ret = dp83td510_led_mode(index, rules);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static int dp83td510_led_hw_control_set(struct phy_device *phydev, u8 index,
+					unsigned long rules)
+{
+	int mode, ret;
+
+	mode = dp83td510_led_mode(index, rules);
+	if (mode < 0)
+		return mode;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_VEND2, DP83TD510E_LEDS_CFG_1,
+			     DP83TD510E_LED_FN_MASK(index),
+			     DP83TD510E_LED_FN(index, mode));
+	if (ret)
+		return ret;
+
+	return phy_modify_mmd(phydev, MDIO_MMD_VEND2, DP83TD510E_LEDS_CFG_2,
+				DP83TD510E_LED_DRV_EN(index), 0);
+}
+
+static int dp83td510_led_hw_control_get(struct phy_device *phydev,
+					u8 index, unsigned long *rules)
+{
+	int val;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_VEND2, DP83TD510E_LEDS_CFG_1);
+	if (val < 0)
+		return val;
+
+	val &= DP83TD510E_LED_FN_MASK(index);
+	val >>= index * 4;
+
+	switch (val) {
+	case DP83TD510E_LED_MODE_LINK_OK:
+		*rules = BIT(TRIGGER_NETDEV_LINK);
+		break;
+	/* LED mode: LED SPEED (10BaseT1L indicator) */
+	case DP83TD510E_LED_MODE_LED_SPEED:
+		*rules = BIT(TRIGGER_NETDEV_LINK_10);
+		break;
+	case DP83TD510E_LED_MODE_DUPLEX:
+		*rules = BIT(TRIGGER_NETDEV_FULL_DUPLEX);
+		break;
+	case DP83TD510E_LED_MODE_TX_ACTIVITY:
+		*rules = BIT(TRIGGER_NETDEV_TX);
+		break;
+	case DP83TD510E_LED_MODE_RX_ACTIVITY:
+		*rules = BIT(TRIGGER_NETDEV_RX);
+		break;
+	case DP83TD510E_LED_MODE_TX_RX_ACTIVITY:
+		*rules = BIT(TRIGGER_NETDEV_TX) | BIT(TRIGGER_NETDEV_RX);
+		break;
+	case DP83TD510E_LED_MODE_LINK_BLINK:
+		*rules = BIT(TRIGGER_NETDEV_LINK) |
+			 BIT(TRIGGER_NETDEV_TX) |
+			 BIT(TRIGGER_NETDEV_RX);
+		break;
+	default:
+		*rules = 0;
+		break;
+	}
+
+	return 0;
+}
+
+static int dp83td510_led_polarity_set(struct phy_device *phydev, int index,
+				      unsigned long modes)
+{
+	u16 polarity = DP83TD510E_LED_POLARITY(index);
+	u32 mode;
+
+	for_each_set_bit(mode, &modes, __PHY_LED_MODES_NUM) {
+		switch (mode) {
+		case PHY_LED_ACTIVE_LOW:
+			polarity = 0;
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	return phy_modify_mmd(phydev, MDIO_MMD_VEND2, DP83TD510E_LEDS_CFG_2,
+			      DP83TD510E_LED_POLARITY(index), polarity);
+}
 
 /**
  * dp83td510_update_stats - Update the PHY statistics for the DP83TD510 PHY.
@@ -711,6 +892,12 @@ static struct phy_driver dp83td510_driver[] = {
 	.cable_test_get_status = dp83td510_cable_test_get_status,
 	.get_phy_stats	= dp83td510_get_phy_stats,
 	.update_stats	= dp83td510_update_stats,
+
+	.led_brightness_set = dp83td510_led_brightness_set,
+	.led_hw_is_supported = dp83td510_led_hw_is_supported,
+	.led_hw_control_set = dp83td510_led_hw_control_set,
+	.led_hw_control_get = dp83td510_led_hw_control_get,
+	.led_polarity_set = dp83td510_led_polarity_set,
 
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,

@@ -80,7 +80,7 @@ bypass the setting of AMUSERENR_EL0 to trap accesses from EL0 (userspace) to
 EL1 (kernel). Therefore, firmware should still ensure accesses to AMU registers
 are not trapped in EL2/EL3.
 
-The fixed counters of AMUv1 are accessible though the following system
+The fixed counters of AMUv1 are accessible through the following system
 register definitions:
 
  - SYS_AMEVCNTR0_CORE_EL0

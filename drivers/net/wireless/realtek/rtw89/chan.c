@@ -8,6 +8,7 @@
 #include "fw.h"
 #include "mac.h"
 #include "ps.h"
+#include "sar.h"
 #include "util.h"
 
 static void rtw89_swap_chanctx(struct rtw89_dev *rtwdev,
@@ -155,7 +156,7 @@ int rtw89_iterate_entity_chan(struct rtw89_dev *rtwdev,
 	int ret;
 	u8 idx;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	for_each_set_bit(idx,  hal->entity_map, NUM_OF_RTW89_CHANCTX) {
 		chan = rtw89_chan_get(rtwdev, idx);
@@ -310,7 +311,7 @@ const struct rtw89_chan *__rtw89_mgnt_chan_get(struct rtw89_dev *rtwdev,
 	enum rtw89_entity_mode mode;
 	u8 role_index;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	if (unlikely(link_index >= __RTW89_MLD_MAX_LINK_NUM)) {
 		WARN(1, "link index %u is invalid (max link inst num: %d)\n",
@@ -366,7 +367,7 @@ static void rtw89_entity_recalc_mgnt_roles(struct rtw89_dev *rtwdev)
 	u8 pos = 0;
 	int i, j;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	for (i = 0; i < RTW89_MAX_INTERFACE_NUM; i++)
 		mgnt->active_roles[i] = NULL;
@@ -427,7 +428,7 @@ enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev)
 	struct rtw89_chan chan;
 	u8 idx;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	bitmap_copy(recalc_map, hal->entity_map, NUM_OF_RTW89_CHANCTX);
 
@@ -2390,7 +2391,7 @@ static void rtw89_mcc_update_limit(struct rtw89_dev *rtwdev)
 	rtw89_iterate_mcc_roles(rtwdev, rtw89_mcc_upd_lmt_iterator, NULL);
 }
 
-void rtw89_chanctx_work(struct work_struct *work)
+void rtw89_chanctx_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
 						chanctx_work.work);
@@ -2401,12 +2402,10 @@ void rtw89_chanctx_work(struct work_struct *work)
 	int ret;
 	int i;
 
-	mutex_lock(&rtwdev->mutex);
+	lockdep_assert_wiphy(wiphy);
 
-	if (hal->entity_pause) {
-		mutex_unlock(&rtwdev->mutex);
+	if (hal->entity_pause)
 		return;
-	}
 
 	for (i = 0; i < NUM_OF_RTW89_CHANCTX_CHANGES; i++) {
 		if (test_and_clear_bit(i, hal->changes))
@@ -2445,8 +2444,6 @@ void rtw89_chanctx_work(struct work_struct *work)
 	default:
 		break;
 	}
-
-	mutex_unlock(&rtwdev->mutex);
 }
 
 void rtw89_queue_chanctx_change(struct rtw89_dev *rtwdev,
@@ -2477,8 +2474,8 @@ void rtw89_queue_chanctx_change(struct rtw89_dev *rtwdev,
 	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 		    "queue chanctx work for mode %d with delay %d us\n",
 		    mode, delay);
-	ieee80211_queue_delayed_work(rtwdev->hw, &rtwdev->chanctx_work,
-				     usecs_to_jiffies(delay));
+	wiphy_delayed_work_queue(rtwdev->hw->wiphy, &rtwdev->chanctx_work,
+				 usecs_to_jiffies(delay));
 }
 
 void rtw89_queue_chanctx_work(struct rtw89_dev *rtwdev)
@@ -2491,7 +2488,7 @@ void rtw89_chanctx_track(struct rtw89_dev *rtwdev)
 	struct rtw89_hal *hal = &rtwdev->hal;
 	enum rtw89_entity_mode mode;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	if (hal->entity_pause)
 		return;
@@ -2512,7 +2509,7 @@ void rtw89_chanctx_pause(struct rtw89_dev *rtwdev,
 	struct rtw89_hal *hal = &rtwdev->hal;
 	enum rtw89_entity_mode mode;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	if (hal->entity_pause)
 		return;
@@ -2555,7 +2552,7 @@ void rtw89_chanctx_proceed(struct rtw89_dev *rtwdev,
 	enum rtw89_entity_mode mode;
 	int ret;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	if (unlikely(!hal->entity_pause)) {
 		rtw89_chanctx_proceed_cb(rtwdev, cb_parm);
@@ -2677,6 +2674,7 @@ int rtw89_chanctx_ops_assign_vif(struct rtw89_dev *rtwdev,
 	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_entity_mgnt *mgnt = &hal->entity_mgnt;
 	struct rtw89_entity_weight w = {};
+	int ret;
 
 	rtwvif_link->chanctx_idx = cfg->idx;
 	rtwvif_link->chanctx_assigned = true;
@@ -2696,7 +2694,13 @@ int rtw89_chanctx_ops_assign_vif(struct rtw89_dev *rtwdev,
 	rtw89_swap_chanctx(rtwdev, cfg->idx, RTW89_CHANCTX_0);
 
 out:
-	return rtw89_set_channel(rtwdev);
+	ret = rtw89_set_channel(rtwdev);
+	if (ret)
+		return ret;
+
+	rtw89_tas_reset(rtwdev, true);
+
+	return 0;
 }
 
 void rtw89_chanctx_ops_unassign_vif(struct rtw89_dev *rtwdev,

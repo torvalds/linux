@@ -94,6 +94,11 @@ static u16 in_to_opcode(void *in)
 	return MLX5_GET(mbox_in, in, opcode);
 }
 
+static u16 in_to_uid(void *in)
+{
+	return MLX5_GET(mbox_in, in, uid);
+}
+
 /* Returns true for opcodes that might be triggered very frequently and throttle
  * the command interface. Limit their command slots usage.
  */
@@ -823,7 +828,7 @@ static void cmd_status_print(struct mlx5_core_dev *dev, void *in, void *out)
 
 	opcode = in_to_opcode(in);
 	op_mod = MLX5_GET(mbox_in, in, op_mod);
-	uid    = MLX5_GET(mbox_in, in, uid);
+	uid    = in_to_uid(in);
 	status = MLX5_GET(mbox_out, out, status);
 
 	if (!uid && opcode != MLX5_CMD_OP_DESTROY_MKEY &&
@@ -1871,6 +1876,17 @@ static int is_manage_pages(void *in)
 	return in_to_opcode(in) == MLX5_CMD_OP_MANAGE_PAGES;
 }
 
+static bool mlx5_has_privileged_uid(struct mlx5_core_dev *dev)
+{
+	return !xa_empty(&dev->cmd.vars.privileged_uids);
+}
+
+static bool mlx5_cmd_is_privileged_uid(struct mlx5_core_dev *dev,
+				       u16 uid)
+{
+	return !!xa_load(&dev->cmd.vars.privileged_uids, uid);
+}
+
 /*  Notes:
  *    1. Callback functions may not sleep
  *    2. Page queue commands do not support asynchrous completion
@@ -1881,7 +1897,9 @@ static int cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 {
 	struct mlx5_cmd_msg *inb, *outb;
 	u16 opcode = in_to_opcode(in);
-	bool throttle_op;
+	bool throttle_locked = false;
+	bool unpriv_locked = false;
+	u16 uid = in_to_uid(in);
 	int pages_queue;
 	gfp_t gfp;
 	u8 token;
@@ -1890,12 +1908,17 @@ static int cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 	if (mlx5_cmd_is_down(dev) || !opcode_allowed(&dev->cmd, opcode))
 		return -ENXIO;
 
-	throttle_op = mlx5_cmd_is_throttle_opcode(opcode);
-	if (throttle_op) {
-		if (callback) {
-			if (down_trylock(&dev->cmd.vars.throttle_sem))
-				return -EBUSY;
-		} else {
+	if (!callback) {
+		/* The semaphore is already held for callback commands. It was
+		 * acquired in mlx5_cmd_exec_cb()
+		 */
+		if (uid && mlx5_has_privileged_uid(dev)) {
+			if (!mlx5_cmd_is_privileged_uid(dev, uid)) {
+				unpriv_locked = true;
+				down(&dev->cmd.vars.unprivileged_sem);
+			}
+		} else if (mlx5_cmd_is_throttle_opcode(opcode)) {
+			throttle_locked = true;
 			down(&dev->cmd.vars.throttle_sem);
 		}
 	}
@@ -1941,8 +1964,11 @@ out_out:
 out_in:
 	free_msg(dev, inb);
 out_up:
-	if (throttle_op)
+	if (throttle_locked)
 		up(&dev->cmd.vars.throttle_sem);
+	if (unpriv_locked)
+		up(&dev->cmd.vars.unprivileged_sem);
+
 	return err;
 }
 
@@ -2104,18 +2130,22 @@ static void mlx5_cmd_exec_cb_handler(int status, void *_work)
 	struct mlx5_async_work *work = _work;
 	struct mlx5_async_ctx *ctx;
 	struct mlx5_core_dev *dev;
-	u16 opcode;
+	bool throttle_locked;
+	bool unpriv_locked;
 
 	ctx = work->ctx;
 	dev = ctx->dev;
-	opcode = work->opcode;
+	throttle_locked = work->throttle_locked;
+	unpriv_locked = work->unpriv_locked;
 	status = cmd_status_err(dev, status, work->opcode, work->op_mod, work->out);
 	work->user_callback(status, work);
 	/* Can't access "work" from this point on. It could have been freed in
 	 * the callback.
 	 */
-	if (mlx5_cmd_is_throttle_opcode(opcode))
+	if (throttle_locked)
 		up(&dev->cmd.vars.throttle_sem);
+	if (unpriv_locked)
+		up(&dev->cmd.vars.unprivileged_sem);
 	if (atomic_dec_and_test(&ctx->num_inflight))
 		complete(&ctx->inflight_done);
 }
@@ -2124,6 +2154,8 @@ int mlx5_cmd_exec_cb(struct mlx5_async_ctx *ctx, void *in, int in_size,
 		     void *out, int out_size, mlx5_async_cbk_t callback,
 		     struct mlx5_async_work *work)
 {
+	struct mlx5_core_dev *dev = ctx->dev;
+	u16 uid;
 	int ret;
 
 	work->ctx = ctx;
@@ -2131,11 +2163,43 @@ int mlx5_cmd_exec_cb(struct mlx5_async_ctx *ctx, void *in, int in_size,
 	work->opcode = in_to_opcode(in);
 	work->op_mod = MLX5_GET(mbox_in, in, op_mod);
 	work->out = out;
+	work->throttle_locked = false;
+	work->unpriv_locked = false;
+	uid = in_to_uid(in);
+
 	if (WARN_ON(!atomic_inc_not_zero(&ctx->num_inflight)))
 		return -EIO;
-	ret = cmd_exec(ctx->dev, in, in_size, out, out_size,
+
+	if (uid && mlx5_has_privileged_uid(dev)) {
+		if (!mlx5_cmd_is_privileged_uid(dev, uid)) {
+			if (down_trylock(&dev->cmd.vars.unprivileged_sem)) {
+				ret = -EBUSY;
+				goto dec_num_inflight;
+			}
+			work->unpriv_locked = true;
+		}
+	} else if (mlx5_cmd_is_throttle_opcode(in_to_opcode(in))) {
+		if (down_trylock(&dev->cmd.vars.throttle_sem)) {
+			ret = -EBUSY;
+			goto dec_num_inflight;
+		}
+		work->throttle_locked = true;
+	}
+
+	ret = cmd_exec(dev, in, in_size, out, out_size,
 		       mlx5_cmd_exec_cb_handler, work, false);
-	if (ret && atomic_dec_and_test(&ctx->num_inflight))
+	if (ret)
+		goto sem_up;
+
+	return 0;
+
+sem_up:
+	if (work->throttle_locked)
+		up(&dev->cmd.vars.throttle_sem);
+	if (work->unpriv_locked)
+		up(&dev->cmd.vars.unprivileged_sem);
+dec_num_inflight:
+	if (atomic_dec_and_test(&ctx->num_inflight))
 		complete(&ctx->inflight_done);
 
 	return ret;
@@ -2371,10 +2435,16 @@ int mlx5_cmd_enable(struct mlx5_core_dev *dev)
 	sema_init(&cmd->vars.sem, cmd->vars.max_reg_cmds);
 	sema_init(&cmd->vars.pages_sem, 1);
 	sema_init(&cmd->vars.throttle_sem, DIV_ROUND_UP(cmd->vars.max_reg_cmds, 2));
+	sema_init(&cmd->vars.unprivileged_sem,
+		  DIV_ROUND_UP(cmd->vars.max_reg_cmds, 2));
+
+	xa_init(&cmd->vars.privileged_uids);
 
 	cmd->pool = dma_pool_create("mlx5_cmd", mlx5_core_dma_dev(dev), size, align, 0);
-	if (!cmd->pool)
-		return -ENOMEM;
+	if (!cmd->pool) {
+		err = -ENOMEM;
+		goto err_destroy_xa;
+	}
 
 	err = alloc_cmd_page(dev, cmd);
 	if (err)
@@ -2408,6 +2478,8 @@ err_cmd_page:
 	free_cmd_page(dev, cmd);
 err_free_pool:
 	dma_pool_destroy(cmd->pool);
+err_destroy_xa:
+	xa_destroy(&dev->cmd.vars.privileged_uids);
 	return err;
 }
 
@@ -2420,6 +2492,7 @@ void mlx5_cmd_disable(struct mlx5_core_dev *dev)
 	destroy_msg_cache(dev);
 	free_cmd_page(dev, cmd);
 	dma_pool_destroy(cmd->pool);
+	xa_destroy(&dev->cmd.vars.privileged_uids);
 }
 
 void mlx5_cmd_set_state(struct mlx5_core_dev *dev,
@@ -2427,3 +2500,18 @@ void mlx5_cmd_set_state(struct mlx5_core_dev *dev,
 {
 	dev->cmd.state = cmdif_state;
 }
+
+int mlx5_cmd_add_privileged_uid(struct mlx5_core_dev *dev, u16 uid)
+{
+	return xa_insert(&dev->cmd.vars.privileged_uids, uid,
+			 xa_mk_value(uid), GFP_KERNEL);
+}
+EXPORT_SYMBOL(mlx5_cmd_add_privileged_uid);
+
+void mlx5_cmd_remove_privileged_uid(struct mlx5_core_dev *dev, u16 uid)
+{
+	void *data = xa_erase(&dev->cmd.vars.privileged_uids, uid);
+
+	WARN(!data, "Privileged UID %u does not exist\n", uid);
+}
+EXPORT_SYMBOL(mlx5_cmd_remove_privileged_uid);

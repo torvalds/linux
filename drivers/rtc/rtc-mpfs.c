@@ -266,17 +266,12 @@ static int mpfs_rtc_probe(struct platform_device *pdev)
 	writel(prescaler, rtcdev->base + PRESCALER_REG);
 	dev_info(&pdev->dev, "prescaler set to: %lu\n", prescaler);
 
-	device_init_wakeup(&pdev->dev, true);
-	ret = dev_pm_set_wake_irq(&pdev->dev, wakeup_irq);
+	devm_device_init_wakeup(&pdev->dev);
+	ret = devm_pm_set_wake_irq(&pdev->dev, wakeup_irq);
 	if (ret)
 		dev_err(&pdev->dev, "failed to enable irq wake\n");
 
 	return devm_rtc_register_device(rtcdev->rtc);
-}
-
-static void mpfs_rtc_remove(struct platform_device *pdev)
-{
-	dev_pm_clear_wake_irq(&pdev->dev);
 }
 
 static const struct of_device_id mpfs_rtc_of_match[] = {
@@ -288,7 +283,6 @@ MODULE_DEVICE_TABLE(of, mpfs_rtc_of_match);
 
 static struct platform_driver mpfs_rtc_driver = {
 	.probe = mpfs_rtc_probe,
-	.remove = mpfs_rtc_remove,
 	.driver	= {
 		.name = "mpfs_rtc",
 		.of_match_table = mpfs_rtc_of_match,

@@ -458,6 +458,9 @@ struct ceph_mds_client {
 	atomic_t                stopping_blockers;
 	struct completion	stopping_waiter;
 
+	atomic64_t		dirty_folios;
+	wait_queue_head_t	flush_end_wq;
+
 	atomic64_t		quotarealms_count; /* # realms with quota */
 	/*
 	 * We keep a list of inodes we don't see in the mountpoint but that we

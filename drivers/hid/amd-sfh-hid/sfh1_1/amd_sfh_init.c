@@ -212,6 +212,8 @@ static int amd_sfh1_1_hid_client_init(struct amd_mp2_dev *privdata)
 			switch (cl_data->sensor_idx[i]) {
 			case HPD_IDX:
 				privdata->dev_en.is_hpd_present = true;
+				privdata->dev_en.is_hpd_enabled = true;
+				amd_sfh_toggle_hpd(privdata, false);
 				break;
 			case ALS_IDX:
 				privdata->dev_en.is_als_present = true;
@@ -255,6 +257,10 @@ static void amd_sfh_resume(struct amd_mp2_dev *mp2)
 	}
 
 	for (i = 0; i < cl_data->num_hid_devices; i++) {
+		/* leave HPD alone; policy is controlled by sysfs */
+		if (cl_data->sensor_idx[i] == HPD_IDX)
+			continue;
+
 		if (cl_data->sensor_sts[i] == SENSOR_DISABLED) {
 			info.sensor_idx = cl_data->sensor_idx[i];
 			mp2->mp2_ops->start(mp2, info);
@@ -285,8 +291,10 @@ static void amd_sfh_suspend(struct amd_mp2_dev *mp2)
 	}
 
 	for (i = 0; i < cl_data->num_hid_devices; i++) {
-		if (cl_data->sensor_idx[i] != HPD_IDX &&
-		    cl_data->sensor_sts[i] == SENSOR_ENABLED) {
+		/* leave HPD alone; policy is controlled by sysfs */
+		if (cl_data->sensor_idx[i] == HPD_IDX)
+			continue;
+		if (cl_data->sensor_sts[i] == SENSOR_ENABLED) {
 			mp2->mp2_ops->stop(mp2, cl_data->sensor_idx[i]);
 			status = amd_sfh_wait_for_response
 					(mp2, cl_data->sensor_idx[i], DISABLE_SENSOR);
@@ -302,6 +310,44 @@ static void amd_sfh_suspend(struct amd_mp2_dev *mp2)
 
 	cancel_delayed_work_sync(&cl_data->work_buffer);
 	amd_sfh_clear_intr(mp2);
+}
+
+void amd_sfh_toggle_hpd(struct amd_mp2_dev *mp2, bool enabled)
+{
+	struct amdtp_cl_data *cl_data = mp2->cl_data;
+	struct amd_mp2_sensor_info info;
+	int i, status;
+
+	if (mp2->dev_en.is_hpd_enabled == enabled)
+		return;
+
+	for (i = 0; i < cl_data->num_hid_devices; i++) {
+		if (cl_data->sensor_idx[i] != HPD_IDX)
+			continue;
+		info.sensor_idx = cl_data->sensor_idx[i];
+		if (enabled) {
+			mp2->mp2_ops->start(mp2, info);
+			status = amd_sfh_wait_for_response
+					(mp2, cl_data->sensor_idx[i], ENABLE_SENSOR);
+			if (status == 0)
+				status = SENSOR_ENABLED;
+			if (status == SENSOR_ENABLED)
+				cl_data->sensor_sts[i] = SENSOR_ENABLED;
+		} else {
+			mp2->mp2_ops->stop(mp2, cl_data->sensor_idx[i]);
+			status = amd_sfh_wait_for_response
+					(mp2, cl_data->sensor_idx[i], DISABLE_SENSOR);
+			if (status == 0)
+				status = SENSOR_DISABLED;
+			if (status != SENSOR_ENABLED)
+				cl_data->sensor_sts[i] = SENSOR_DISABLED;
+		}
+		dev_dbg(&mp2->pdev->dev, "toggle sid 0x%x (%s) status 0x%x\n",
+			cl_data->sensor_idx[i], get_sensor_name(cl_data->sensor_idx[i]),
+			cl_data->sensor_sts[i]);
+		break;
+	}
+	mp2->dev_en.is_hpd_enabled = enabled;
 }
 
 static void amd_mp2_pci_remove(void *privdata)

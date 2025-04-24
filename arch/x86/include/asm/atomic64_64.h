@@ -22,14 +22,14 @@ static __always_inline void arch_atomic64_set(atomic64_t *v, s64 i)
 
 static __always_inline void arch_atomic64_add(s64 i, atomic64_t *v)
 {
-	asm volatile(LOCK_PREFIX "addq %1,%0"
+	asm_inline volatile(LOCK_PREFIX "addq %1, %0"
 		     : "=m" (v->counter)
 		     : "er" (i), "m" (v->counter) : "memory");
 }
 
 static __always_inline void arch_atomic64_sub(s64 i, atomic64_t *v)
 {
-	asm volatile(LOCK_PREFIX "subq %1,%0"
+	asm_inline volatile(LOCK_PREFIX "subq %1, %0"
 		     : "=m" (v->counter)
 		     : "er" (i), "m" (v->counter) : "memory");
 }
@@ -42,7 +42,7 @@ static __always_inline bool arch_atomic64_sub_and_test(s64 i, atomic64_t *v)
 
 static __always_inline void arch_atomic64_inc(atomic64_t *v)
 {
-	asm volatile(LOCK_PREFIX "incq %0"
+	asm_inline volatile(LOCK_PREFIX "incq %0"
 		     : "=m" (v->counter)
 		     : "m" (v->counter) : "memory");
 }
@@ -50,7 +50,7 @@ static __always_inline void arch_atomic64_inc(atomic64_t *v)
 
 static __always_inline void arch_atomic64_dec(atomic64_t *v)
 {
-	asm volatile(LOCK_PREFIX "decq %0"
+	asm_inline volatile(LOCK_PREFIX "decq %0"
 		     : "=m" (v->counter)
 		     : "m" (v->counter) : "memory");
 }
@@ -110,7 +110,7 @@ static __always_inline s64 arch_atomic64_xchg(atomic64_t *v, s64 new)
 
 static __always_inline void arch_atomic64_and(s64 i, atomic64_t *v)
 {
-	asm volatile(LOCK_PREFIX "andq %1,%0"
+	asm_inline volatile(LOCK_PREFIX "andq %1, %0"
 			: "+m" (v->counter)
 			: "er" (i)
 			: "memory");
@@ -128,7 +128,7 @@ static __always_inline s64 arch_atomic64_fetch_and(s64 i, atomic64_t *v)
 
 static __always_inline void arch_atomic64_or(s64 i, atomic64_t *v)
 {
-	asm volatile(LOCK_PREFIX "orq %1,%0"
+	asm_inline volatile(LOCK_PREFIX "orq %1, %0"
 			: "+m" (v->counter)
 			: "er" (i)
 			: "memory");
@@ -146,7 +146,7 @@ static __always_inline s64 arch_atomic64_fetch_or(s64 i, atomic64_t *v)
 
 static __always_inline void arch_atomic64_xor(s64 i, atomic64_t *v)
 {
-	asm volatile(LOCK_PREFIX "xorq %1,%0"
+	asm_inline volatile(LOCK_PREFIX "xorq %1, %0"
 			: "+m" (v->counter)
 			: "er" (i)
 			: "memory");

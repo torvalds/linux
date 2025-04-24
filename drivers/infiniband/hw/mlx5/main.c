@@ -47,6 +47,7 @@
 #include <rdma/uverbs_ioctl.h>
 #include <rdma/mlx5_user_ioctl_verbs.h>
 #include <rdma/mlx5_user_ioctl_cmds.h>
+#include <rdma/ib_ucaps.h>
 #include "macsec.h"
 #include "data_direct.h"
 
@@ -1934,6 +1935,12 @@ static int set_ucontext_resp(struct ib_ucontext *uctx,
 	return 0;
 }
 
+static bool uctx_rdma_ctrl_is_enabled(u64 enabled_caps)
+{
+	return UCAP_ENABLED(enabled_caps, RDMA_UCAP_MLX5_CTRL_LOCAL) ||
+	       UCAP_ENABLED(enabled_caps, RDMA_UCAP_MLX5_CTRL_OTHER_VHCA);
+}
+
 static int mlx5_ib_alloc_ucontext(struct ib_ucontext *uctx,
 				  struct ib_udata *udata)
 {
@@ -1976,10 +1983,17 @@ static int mlx5_ib_alloc_ucontext(struct ib_ucontext *uctx,
 		return -EINVAL;
 
 	if (req.flags & MLX5_IB_ALLOC_UCTX_DEVX) {
-		err = mlx5_ib_devx_create(dev, true);
+		err = mlx5_ib_devx_create(dev, true, uctx->enabled_caps);
 		if (err < 0)
 			goto out_ctx;
 		context->devx_uid = err;
+
+		if (uctx_rdma_ctrl_is_enabled(uctx->enabled_caps)) {
+			err = mlx5_cmd_add_privileged_uid(dev->mdev,
+							  context->devx_uid);
+			if (err)
+				goto out_devx;
+		}
 	}
 
 	lib_uar_4k = req.lib_caps & MLX5_LIB_CAP_4K_UAR;
@@ -1994,7 +2008,7 @@ static int mlx5_ib_alloc_ucontext(struct ib_ucontext *uctx,
 	/* updates req->total_num_bfregs */
 	err = calc_total_bfregs(dev, lib_uar_4k, &req, bfregi);
 	if (err)
-		goto out_devx;
+		goto out_ucap;
 
 	mutex_init(&bfregi->lock);
 	bfregi->lib_uar_4k = lib_uar_4k;
@@ -2002,7 +2016,7 @@ static int mlx5_ib_alloc_ucontext(struct ib_ucontext *uctx,
 				GFP_KERNEL);
 	if (!bfregi->count) {
 		err = -ENOMEM;
-		goto out_devx;
+		goto out_ucap;
 	}
 
 	bfregi->sys_pages = kcalloc(bfregi->num_sys_pages,
@@ -2066,6 +2080,11 @@ out_sys_pages:
 out_count:
 	kfree(bfregi->count);
 
+out_ucap:
+	if (req.flags & MLX5_IB_ALLOC_UCTX_DEVX &&
+	    uctx_rdma_ctrl_is_enabled(uctx->enabled_caps))
+		mlx5_cmd_remove_privileged_uid(dev->mdev, context->devx_uid);
+
 out_devx:
 	if (req.flags & MLX5_IB_ALLOC_UCTX_DEVX)
 		mlx5_ib_devx_destroy(dev, context->devx_uid);
@@ -2110,8 +2129,12 @@ static void mlx5_ib_dealloc_ucontext(struct ib_ucontext *ibcontext)
 	kfree(bfregi->sys_pages);
 	kfree(bfregi->count);
 
-	if (context->devx_uid)
+	if (context->devx_uid) {
+		if (uctx_rdma_ctrl_is_enabled(ibcontext->enabled_caps))
+			mlx5_cmd_remove_privileged_uid(dev->mdev,
+						       context->devx_uid);
 		mlx5_ib_devx_destroy(dev, context->devx_uid);
+	}
 }
 
 static phys_addr_t uar_index2pfn(struct mlx5_ib_dev *dev,
@@ -4201,8 +4224,47 @@ static int mlx5_ib_init_var_table(struct mlx5_ib_dev *dev)
 	return (var_table->bitmap) ? 0 : -ENOMEM;
 }
 
+static void mlx5_ib_cleanup_ucaps(struct mlx5_ib_dev *dev)
+{
+	if (MLX5_CAP_GEN(dev->mdev, uctx_cap) & MLX5_UCTX_CAP_RDMA_CTRL)
+		ib_remove_ucap(RDMA_UCAP_MLX5_CTRL_LOCAL);
+
+	if (MLX5_CAP_GEN(dev->mdev, uctx_cap) &
+	    MLX5_UCTX_CAP_RDMA_CTRL_OTHER_VHCA)
+		ib_remove_ucap(RDMA_UCAP_MLX5_CTRL_OTHER_VHCA);
+}
+
+static int mlx5_ib_init_ucaps(struct mlx5_ib_dev *dev)
+{
+	int ret;
+
+	if (MLX5_CAP_GEN(dev->mdev, uctx_cap) & MLX5_UCTX_CAP_RDMA_CTRL) {
+		ret = ib_create_ucap(RDMA_UCAP_MLX5_CTRL_LOCAL);
+		if (ret)
+			return ret;
+	}
+
+	if (MLX5_CAP_GEN(dev->mdev, uctx_cap) &
+	    MLX5_UCTX_CAP_RDMA_CTRL_OTHER_VHCA) {
+		ret = ib_create_ucap(RDMA_UCAP_MLX5_CTRL_OTHER_VHCA);
+		if (ret)
+			goto remove_local;
+	}
+
+	return 0;
+
+remove_local:
+	if (MLX5_CAP_GEN(dev->mdev, uctx_cap) & MLX5_UCTX_CAP_RDMA_CTRL)
+		ib_remove_ucap(RDMA_UCAP_MLX5_CTRL_LOCAL);
+	return ret;
+}
+
 static void mlx5_ib_stage_caps_cleanup(struct mlx5_ib_dev *dev)
 {
+	if (MLX5_CAP_GEN_2_64(dev->mdev, general_obj_types_127_64) &
+	    MLX5_HCA_CAP_2_GENERAL_OBJECT_TYPES_RDMA_CTRL)
+		mlx5_ib_cleanup_ucaps(dev);
+
 	bitmap_free(dev->var_table.bitmap);
 }
 
@@ -4249,6 +4311,13 @@ static int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 	if (MLX5_CAP_GEN_64(dev->mdev, general_obj_types) &
 			MLX5_GENERAL_OBJ_TYPES_CAP_VIRTIO_NET_Q) {
 		err = mlx5_ib_init_var_table(dev);
+		if (err)
+			return err;
+	}
+
+	if (MLX5_CAP_GEN_2_64(dev->mdev, general_obj_types_127_64) &
+	    MLX5_HCA_CAP_2_GENERAL_OBJECT_TYPES_RDMA_CTRL) {
+		err = mlx5_ib_init_ucaps(dev);
 		if (err)
 			return err;
 	}

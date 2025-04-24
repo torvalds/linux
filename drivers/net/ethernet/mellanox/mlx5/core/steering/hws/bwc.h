@@ -24,8 +24,8 @@ struct mlx5hws_bwc_matcher {
 	struct mlx5hws_matcher *matcher;
 	struct mlx5hws_match_template *mt;
 	struct mlx5hws_action_template *at[MLX5HWS_BWC_MATCHER_ATTACH_AT_NUM];
+	u32 priority;
 	u8 num_of_at;
-	u16 priority;
 	u8 size_log;
 	atomic_t num_of_rules;
 	struct list_head *rules;

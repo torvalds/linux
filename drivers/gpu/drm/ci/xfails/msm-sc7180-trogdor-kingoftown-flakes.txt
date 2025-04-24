@@ -32,3 +32,10 @@ kms_lease@page-flip-implicit-plane
 # IGT Version: 1.29-g33adea9eb
 # Linux Version: 6.13.0-rc2
 kms_plane@plane-position-hole-dpms
+
+# Board Name: sc7180-trogdor-kingoftown
+# Bug Report: https://gitlab.freedesktop.org/drm/msm/-/issues/73
+# Failure Rate: 20
+# IGT Version: 1.30-g04bedb923
+# Linux Version: 6.14.0-rc4
+kms_plane@plane-position-covered

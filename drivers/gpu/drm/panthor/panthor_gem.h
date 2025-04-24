@@ -112,7 +112,7 @@ panthor_kernel_bo_vmap(struct panthor_kernel_bo *bo)
 	if (bo->kmap)
 		return 0;
 
-	ret = drm_gem_vmap_unlocked(bo->obj, &map);
+	ret = drm_gem_vmap(bo->obj, &map);
 	if (ret)
 		return ret;
 
@@ -126,7 +126,7 @@ panthor_kernel_bo_vunmap(struct panthor_kernel_bo *bo)
 	if (bo->kmap) {
 		struct iosys_map map = IOSYS_MAP_INIT_VADDR(bo->kmap);
 
-		drm_gem_vunmap_unlocked(bo->obj, &map);
+		drm_gem_vunmap(bo->obj, &map);
 		bo->kmap = NULL;
 	}
 }

@@ -161,6 +161,7 @@ static bool __is_ras_eeprom_supported(struct amdgpu_device *adev)
 	case IP_VERSION(13, 0, 10):
 		return true;
 	case IP_VERSION(13, 0, 6):
+	case IP_VERSION(13, 0, 12):
 	case IP_VERSION(13, 0, 14):
 		return (adev->gmc.is_app_apu) ? false : true;
 	default:
@@ -223,6 +224,7 @@ static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 		return true;
 	case IP_VERSION(13, 0, 6):
 	case IP_VERSION(13, 0, 10):
+	case IP_VERSION(13, 0, 12):
 	case IP_VERSION(13, 0, 14):
 		control->i2c_address = EEPROM_I2C_MADDR_4;
 		return true;
@@ -413,8 +415,10 @@ static void amdgpu_ras_set_eeprom_table_version(struct amdgpu_ras_eeprom_control
 
 	switch (amdgpu_ip_version(adev, UMC_HWIP, 0)) {
 	case IP_VERSION(8, 10, 0):
-	case IP_VERSION(12, 0, 0):
 		hdr->version = RAS_TABLE_VER_V2_1;
+		return;
+	case IP_VERSION(12, 0, 0):
+		hdr->version = RAS_TABLE_VER_V3;
 		return;
 	default:
 		hdr->version = RAS_TABLE_VER_V1;
@@ -443,7 +447,7 @@ int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 	hdr->header = RAS_TABLE_HDR_VAL;
 	amdgpu_ras_set_eeprom_table_version(control);
 
-	if (hdr->version == RAS_TABLE_VER_V2_1) {
+	if (hdr->version >= RAS_TABLE_VER_V2_1) {
 		hdr->first_rec_offset = RAS_RECORD_START_V2_1;
 		hdr->tbl_size = RAS_TABLE_HEADER_SIZE +
 				RAS_TABLE_V2_1_INFO_SIZE;
@@ -461,7 +465,7 @@ int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 	}
 
 	csum = __calc_hdr_byte_sum(control);
-	if (hdr->version == RAS_TABLE_VER_V2_1)
+	if (hdr->version >= RAS_TABLE_VER_V2_1)
 		csum += __calc_ras_info_byte_sum(control);
 	csum = -csum;
 	hdr->checksum = csum;
@@ -727,9 +731,14 @@ amdgpu_ras_eeprom_append_table(struct amdgpu_ras_eeprom_control *control,
 				     - control->ras_fri)
 		% control->ras_max_record_count;
 
-	control->ras_num_mca_recs += num;
-	control->ras_num_bad_pages += num * adev->umc.retire_unit;
+	/*old asics only save pa to eeprom like before*/
+	if (IP_VERSION_MAJ(amdgpu_ip_version(adev, UMC_HWIP, 0)) < 12)
+		control->ras_num_pa_recs += num;
+	else
+		control->ras_num_mca_recs += num;
 
+	control->ras_num_bad_pages = control->ras_num_pa_recs +
+				control->ras_num_mca_recs * adev->umc.retire_unit;
 Out:
 	kfree(buf);
 	return res;
@@ -752,7 +761,7 @@ amdgpu_ras_eeprom_update_header(struct amdgpu_ras_eeprom_control *control)
 			"Saved bad pages %d reaches threshold value %d\n",
 			control->ras_num_bad_pages, ras->bad_page_cnt_threshold);
 		control->tbl_hdr.header = RAS_TABLE_HDR_BAD;
-		if (control->tbl_hdr.version == RAS_TABLE_VER_V2_1) {
+		if (control->tbl_hdr.version >= RAS_TABLE_VER_V2_1) {
 			control->tbl_rai.rma_status = GPU_RETIRED__ECC_REACH_THRESHOLD;
 			control->tbl_rai.health_percent = 0;
 		}
@@ -765,7 +774,7 @@ amdgpu_ras_eeprom_update_header(struct amdgpu_ras_eeprom_control *control)
 		amdgpu_dpm_send_rma_reason(adev);
 	}
 
-	if (control->tbl_hdr.version == RAS_TABLE_VER_V2_1)
+	if (control->tbl_hdr.version >= RAS_TABLE_VER_V2_1)
 		control->tbl_hdr.tbl_size = RAS_TABLE_HEADER_SIZE +
 					    RAS_TABLE_V2_1_INFO_SIZE +
 					    control->ras_num_recs * RAS_TABLE_RECORD_SIZE;
@@ -805,7 +814,7 @@ amdgpu_ras_eeprom_update_header(struct amdgpu_ras_eeprom_control *control)
 	 * now calculate gpu health percent
 	 */
 	if (amdgpu_bad_page_threshold != 0 &&
-	    control->tbl_hdr.version == RAS_TABLE_VER_V2_1 &&
+	    control->tbl_hdr.version >= RAS_TABLE_VER_V2_1 &&
 	    control->ras_num_bad_pages <= ras->bad_page_cnt_threshold)
 		control->tbl_rai.health_percent = ((ras->bad_page_cnt_threshold -
 						   control->ras_num_bad_pages) * 100) /
@@ -818,7 +827,7 @@ amdgpu_ras_eeprom_update_header(struct amdgpu_ras_eeprom_control *control)
 		csum += *pp;
 
 	csum += __calc_hdr_byte_sum(control);
-	if (control->tbl_hdr.version == RAS_TABLE_VER_V2_1)
+	if (control->tbl_hdr.version >= RAS_TABLE_VER_V2_1)
 		csum += __calc_ras_info_byte_sum(control);
 	/* avoid sign extension when assigning to "checksum" */
 	csum = -csum;
@@ -1035,7 +1044,7 @@ uint32_t amdgpu_ras_eeprom_max_record_count(struct amdgpu_ras_eeprom_control *co
 	/* get available eeprom table version first before eeprom table init */
 	amdgpu_ras_set_eeprom_table_version(control);
 
-	if (control->tbl_hdr.version == RAS_TABLE_VER_V2_1)
+	if (control->tbl_hdr.version >= RAS_TABLE_VER_V2_1)
 		return RAS_MAX_RECORD_COUNT_V2_1;
 	else
 		return RAS_MAX_RECORD_COUNT;
@@ -1280,7 +1289,7 @@ static int __verify_ras_table_checksum(struct amdgpu_ras_eeprom_control *control
 	int buf_size, res;
 	u8  csum, *buf, *pp;
 
-	if (control->tbl_hdr.version == RAS_TABLE_VER_V2_1)
+	if (control->tbl_hdr.version >= RAS_TABLE_VER_V2_1)
 		buf_size = RAS_TABLE_HEADER_SIZE +
 			   RAS_TABLE_V2_1_INFO_SIZE +
 			   control->ras_num_recs * RAS_TABLE_RECORD_SIZE;
@@ -1383,7 +1392,7 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control)
 
 	__decode_table_header_from_buf(hdr, buf);
 
-	if (hdr->version == RAS_TABLE_VER_V2_1) {
+	if (hdr->version >= RAS_TABLE_VER_V2_1) {
 		control->ras_num_recs = RAS_NUM_RECS_V2_1(hdr);
 		control->ras_record_offset = RAS_RECORD_START_V2_1;
 		control->ras_max_record_count = RAS_MAX_RECORD_COUNT_V2_1;
@@ -1423,7 +1432,7 @@ int amdgpu_ras_eeprom_check(struct amdgpu_ras_eeprom_control *control)
 		DRM_DEBUG_DRIVER("Found existing EEPROM table with %d records",
 				 control->ras_num_bad_pages);
 
-		if (hdr->version == RAS_TABLE_VER_V2_1) {
+		if (hdr->version >= RAS_TABLE_VER_V2_1) {
 			res = __read_table_ras_info(control);
 			if (res)
 				return res;
@@ -1443,7 +1452,7 @@ int amdgpu_ras_eeprom_check(struct amdgpu_ras_eeprom_control *control)
 					ras->bad_page_cnt_threshold);
 	} else if (hdr->header == RAS_TABLE_HDR_BAD &&
 		   amdgpu_bad_page_threshold != 0) {
-		if (hdr->version == RAS_TABLE_VER_V2_1) {
+		if (hdr->version >= RAS_TABLE_VER_V2_1) {
 			res = __read_table_ras_info(control);
 			if (res)
 				return res;

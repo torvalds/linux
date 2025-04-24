@@ -56,17 +56,6 @@ bool __nd_attach_ndns(struct device *dev, struct nd_namespace_common *attach,
 	return true;
 }
 
-bool nd_attach_ndns(struct device *dev, struct nd_namespace_common *attach,
-		struct nd_namespace_common **_ndns)
-{
-	bool claimed;
-
-	nvdimm_bus_lock(&attach->dev);
-	claimed = __nd_attach_ndns(dev, attach, _ndns);
-	nvdimm_bus_unlock(&attach->dev);
-	return claimed;
-}
-
 static bool is_idle(struct device *dev, struct nd_namespace_common *ndns)
 {
 	struct nd_region *nd_region = to_nd_region(dev->parent);

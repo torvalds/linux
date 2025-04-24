@@ -11,12 +11,12 @@
 #include <asm/io.h>
 
 void __iomem *ioremap_prot(phys_addr_t phys_addr, size_t size,
-			   unsigned long prot)
+			   pgprot_t prot)
 {
 	unsigned long pfn = __phys_to_pfn((phys_addr));
 	WARN_ON(pfn_valid(pfn));
 
-	return generic_ioremap_prot(phys_addr, size, __pgprot(prot));
+	return generic_ioremap_prot(phys_addr, size, prot);
 }
 EXPORT_SYMBOL(ioremap_prot);
 

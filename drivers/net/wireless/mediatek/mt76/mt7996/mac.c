@@ -53,26 +53,48 @@ static const struct mt7996_dfs_radar_spec jp_radar_specs = {
 };
 
 static struct mt76_wcid *mt7996_rx_get_wcid(struct mt7996_dev *dev,
-					    u16 idx, bool unicast)
+					    u16 idx, u8 band_idx)
 {
-	struct mt7996_sta *sta;
+	struct mt7996_sta_link *msta_link;
+	struct mt7996_sta *msta;
+	struct mt7996_vif *mvif;
 	struct mt76_wcid *wcid;
+	int i;
 
 	if (idx >= ARRAY_SIZE(dev->mt76.wcid))
 		return NULL;
 
 	wcid = rcu_dereference(dev->mt76.wcid[idx]);
-	if (unicast || !wcid)
+	if (!wcid)
+		return NULL;
+
+	if (!mt7996_band_valid(dev, band_idx))
+		return NULL;
+
+	if (wcid->phy_idx == band_idx)
 		return wcid;
 
-	if (!wcid->sta)
+	msta_link = container_of(wcid, struct mt7996_sta_link, wcid);
+	msta = msta_link->sta;
+	if (!msta || !msta->vif)
 		return NULL;
 
-	sta = container_of(wcid, struct mt7996_sta, wcid);
-	if (!sta->vif)
-		return NULL;
+	mvif = msta->vif;
+	for (i = 0; i < ARRAY_SIZE(mvif->mt76.link); i++) {
+		struct mt76_vif_link *mlink;
 
-	return &sta->vif->deflink.sta.wcid;
+		mlink = rcu_dereference(mvif->mt76.link[i]);
+		if (!mlink)
+			continue;
+
+		if (mlink->band_idx != band_idx)
+			continue;
+
+		msta_link = rcu_dereference(msta->link[i]);
+		break;
+	}
+
+	return &msta_link->wcid;
 }
 
 bool mt7996_mac_wtbl_update(struct mt7996_dev *dev, int idx, u32 mask)
@@ -100,10 +122,13 @@ static void mt7996_mac_sta_poll(struct mt7996_dev *dev)
 		[IEEE80211_AC_VI] = 4,
 		[IEEE80211_AC_VO] = 6
 	};
+	struct mt7996_sta_link *msta_link;
+	struct mt76_vif_link *mlink;
 	struct ieee80211_sta *sta;
 	struct mt7996_sta *msta;
 	u32 tx_time[IEEE80211_NUM_ACS], rx_time[IEEE80211_NUM_ACS];
 	LIST_HEAD(sta_poll_list);
+	struct mt76_wcid *wcid;
 	int i;
 
 	spin_lock_bh(&dev->mt76.sta_poll_lock);
@@ -123,25 +148,28 @@ static void mt7996_mac_sta_poll(struct mt7996_dev *dev)
 			spin_unlock_bh(&dev->mt76.sta_poll_lock);
 			break;
 		}
-		msta = list_first_entry(&sta_poll_list,
-					struct mt7996_sta, wcid.poll_list);
-		list_del_init(&msta->wcid.poll_list);
+		msta_link = list_first_entry(&sta_poll_list,
+					     struct mt7996_sta_link,
+					     wcid.poll_list);
+		msta = msta_link->sta;
+		wcid = &msta_link->wcid;
+		list_del_init(&wcid->poll_list);
 		spin_unlock_bh(&dev->mt76.sta_poll_lock);
 
-		idx = msta->wcid.idx;
+		idx = wcid->idx;
 
 		/* refresh peer's airtime reporting */
 		addr = mt7996_mac_wtbl_lmac_addr(dev, idx, 20);
 
 		for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-			u32 tx_last = msta->airtime_ac[i];
-			u32 rx_last = msta->airtime_ac[i + 4];
+			u32 tx_last = msta_link->airtime_ac[i];
+			u32 rx_last = msta_link->airtime_ac[i + 4];
 
-			msta->airtime_ac[i] = mt76_rr(dev, addr);
-			msta->airtime_ac[i + 4] = mt76_rr(dev, addr + 4);
+			msta_link->airtime_ac[i] = mt76_rr(dev, addr);
+			msta_link->airtime_ac[i + 4] = mt76_rr(dev, addr + 4);
 
-			tx_time[i] = msta->airtime_ac[i] - tx_last;
-			rx_time[i] = msta->airtime_ac[i + 4] - rx_last;
+			tx_time[i] = msta_link->airtime_ac[i] - tx_last;
+			rx_time[i] = msta_link->airtime_ac[i + 4] - rx_last;
 
 			if ((tx_last | rx_last) & BIT(30))
 				clear = true;
@@ -152,10 +180,11 @@ static void mt7996_mac_sta_poll(struct mt7996_dev *dev)
 		if (clear) {
 			mt7996_mac_wtbl_update(dev, idx,
 					       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
-			memset(msta->airtime_ac, 0, sizeof(msta->airtime_ac));
+			memset(msta_link->airtime_ac, 0,
+			       sizeof(msta_link->airtime_ac));
 		}
 
-		if (!msta->wcid.sta)
+		if (!wcid->sta)
 			continue;
 
 		sta = container_of((void *)msta, struct ieee80211_sta,
@@ -181,26 +210,21 @@ static void mt7996_mac_sta_poll(struct mt7996_dev *dev)
 		rssi[2] = to_rssi(GENMASK(23, 16), val);
 		rssi[3] = to_rssi(GENMASK(31, 14), val);
 
-		msta->ack_signal =
-			mt76_rx_signal(msta->vif->deflink.phy->mt76->antenna_mask, rssi);
+		mlink = rcu_dereference(msta->vif->mt76.link[wcid->link_id]);
+		if (mlink) {
+			struct mt76_phy *mphy = mt76_vif_link_phy(mlink);
 
-		ewma_avg_signal_add(&msta->avg_ack_signal, -msta->ack_signal);
+			if (mphy)
+				msta_link->ack_signal =
+					mt76_rx_signal(mphy->antenna_mask,
+						       rssi);
+		}
+
+		ewma_avg_signal_add(&msta_link->avg_ack_signal,
+				    -msta_link->ack_signal);
 	}
 
 	rcu_read_unlock();
-}
-
-void mt7996_mac_enable_rtscts(struct mt7996_dev *dev,
-			      struct ieee80211_vif *vif, bool enable)
-{
-	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
-	u32 addr;
-
-	addr = mt7996_mac_wtbl_lmac_addr(dev, mvif->deflink.sta.wcid.idx, 5);
-	if (enable)
-		mt76_set(dev, addr, BIT(5));
-	else
-		mt76_clear(dev, addr, BIT(5));
 }
 
 /* The HW does not translate the mac header to 802.3 for mesh point */
@@ -474,11 +498,15 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, enum mt76_rxq_id q,
 
 	unicast = FIELD_GET(MT_RXD3_NORMAL_ADDR_TYPE, rxd3) == MT_RXD3_NORMAL_U2M;
 	idx = FIELD_GET(MT_RXD1_NORMAL_WLAN_IDX, rxd1);
-	status->wcid = mt7996_rx_get_wcid(dev, idx, unicast);
+	status->wcid = mt7996_rx_get_wcid(dev, idx, band_idx);
 
 	if (status->wcid) {
-		msta = container_of(status->wcid, struct mt7996_sta, wcid);
-		mt76_wcid_add_poll(&dev->mt76, &msta->wcid);
+		struct mt7996_sta_link *msta_link;
+
+		msta_link = container_of(status->wcid, struct mt7996_sta_link,
+					 wcid);
+		msta = msta_link->sta;
+		mt76_wcid_add_poll(&dev->mt76, &msta_link->wcid);
 	}
 
 	status->freq = mphy->chandef.chan->center_freq;
@@ -717,9 +745,8 @@ mt7996_mac_write_txwi_8023(struct mt7996_dev *dev, __le32 *txwi,
 	u32 val;
 
 	if (wcid->sta) {
-		struct ieee80211_sta *sta;
+		struct ieee80211_sta *sta = wcid_to_sta(wcid);
 
-		sta = container_of((void *)wcid, struct ieee80211_sta, drv_priv);
 		wmm = sta->wme;
 	}
 
@@ -746,7 +773,9 @@ mt7996_mac_write_txwi_8023(struct mt7996_dev *dev, __le32 *txwi,
 
 static void
 mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
-			    struct sk_buff *skb, struct ieee80211_key_conf *key)
+			    struct sk_buff *skb,
+			    struct ieee80211_key_conf *key,
+			    struct mt76_wcid *wcid)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
@@ -754,6 +783,7 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
 	bool multicast = is_multicast_ether_addr(hdr->addr1);
 	u8 tid = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
 	__le16 fc = hdr->frame_control, sc = hdr->seq_ctrl;
+	u16 seqno = le16_to_cpu(sc);
 	u8 fc_type, fc_stype;
 	u32 val;
 
@@ -773,8 +803,7 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
 	    info->flags & IEEE80211_TX_CTL_USE_MINRATE)
 		val |= MT_TXD1_FIXED_RATE;
 
-	if (key && multicast && ieee80211_is_robust_mgmt_frame(skb) &&
-	    key->cipher == WLAN_CIPHER_SUITE_AES_CMAC) {
+	if (key && multicast && ieee80211_is_robust_mgmt_frame(skb)) {
 		val |= MT_TXD1_BIP;
 		txwi[3] &= ~cpu_to_le32(MT_TXD3_PROTECT_FRAME);
 	}
@@ -804,9 +833,13 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
 		txwi[3] |= cpu_to_le32(MT_TXD3_REM_TX_COUNT);
 	}
 
-	if (info->flags & IEEE80211_TX_CTL_INJECTED) {
-		u16 seqno = le16_to_cpu(sc);
+	if (multicast && ieee80211_vif_is_mld(info->control.vif)) {
+		val = MT_TXD3_SN_VALID |
+		      FIELD_PREP(MT_TXD3_SEQ, IEEE80211_SEQ_TO_SN(seqno));
+		txwi[3] |= cpu_to_le32(val);
+	}
 
+	if (info->flags & IEEE80211_TX_CTL_INJECTED) {
 		if (ieee80211_is_back_req(hdr->frame_control)) {
 			struct ieee80211_bar *bar;
 
@@ -819,6 +852,19 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
 		txwi[3] |= cpu_to_le32(val);
 		txwi[3] &= ~cpu_to_le32(MT_TXD3_HW_AMSDU);
 	}
+
+	if (ieee80211_vif_is_mld(info->control.vif) &&
+	    (multicast || unlikely(skb->protocol == cpu_to_be16(ETH_P_PAE))))
+		txwi[5] |= cpu_to_le32(MT_TXD5_FL);
+
+	if (ieee80211_is_nullfunc(fc) && ieee80211_has_a4(fc) &&
+	    ieee80211_vif_is_mld(info->control.vif)) {
+		txwi[5] |= cpu_to_le32(MT_TXD5_FL);
+		txwi[6] |= cpu_to_le32(MT_TXD6_DIS_MAT);
+	}
+
+	if (!wcid->sta && ieee80211_is_mgmt(fc))
+		txwi[6] |= cpu_to_le32(MT_TXD6_DIS_MAT);
 }
 
 void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
@@ -832,7 +878,9 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
 	u8 band_idx = (info->hw_queue & MT_TX_HW_QUEUE_PHY) >> 2;
 	u8 p_fmt, q_idx, omac_idx = 0, wmm_idx = 0;
 	bool is_8023 = info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP;
-	struct mt76_vif_link *mvif;
+	struct mt76_vif_link *mlink = NULL;
+	struct mt7996_vif *mvif;
+	unsigned int link_id;
 	u16 tx_count = 15;
 	u32 val;
 	bool inband_disc = !!(changed & (BSS_CHANGED_UNSOL_BCAST_PROBE_RESP |
@@ -840,11 +888,20 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
 	bool beacon = !!(changed & (BSS_CHANGED_BEACON |
 				    BSS_CHANGED_BEACON_ENABLED)) && (!inband_disc);
 
-	mvif = vif ? (struct mt76_vif_link *)vif->drv_priv : NULL;
-	if (mvif) {
-		omac_idx = mvif->omac_idx;
-		wmm_idx = mvif->wmm_idx;
-		band_idx = mvif->band_idx;
+	if (wcid != &dev->mt76.global_wcid)
+		link_id = wcid->link_id;
+	else
+		link_id = u32_get_bits(info->control.flags,
+				       IEEE80211_TX_CTRL_MLO_LINK);
+
+	mvif = vif ? (struct mt7996_vif *)vif->drv_priv : NULL;
+	if (mvif)
+		mlink = rcu_dereference(mvif->mt76.link[link_id]);
+
+	if (mlink) {
+		omac_idx = mlink->omac_idx;
+		wmm_idx = mlink->wmm_idx;
+		band_idx = mlink->band_idx;
 	}
 
 	if (inband_disc) {
@@ -891,7 +948,10 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
 		val |= MT_TXD5_TX_STATUS_HOST;
 	txwi[5] = cpu_to_le32(val);
 
-	val = MT_TXD6_DIS_MAT | MT_TXD6_DAS;
+	val = MT_TXD6_DAS;
+	if (q_idx >= MT_LMAC_ALTX0 && q_idx <= MT_LMAC_BCN0)
+		val |= MT_TXD6_DIS_MAT;
+
 	if (is_mt7996(&dev->mt76))
 		val |= FIELD_PREP(MT_TXD6_MSDU_CNT, 1);
 	else if (is_8023 || !ieee80211_is_mgmt(hdr->frame_control))
@@ -903,23 +963,25 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
 	if (is_8023)
 		mt7996_mac_write_txwi_8023(dev, txwi, skb, wcid);
 	else
-		mt7996_mac_write_txwi_80211(dev, txwi, skb, key);
+		mt7996_mac_write_txwi_80211(dev, txwi, skb, key, wcid);
 
 	if (txwi[1] & cpu_to_le32(MT_TXD1_FIXED_RATE)) {
 		bool mcast = ieee80211_is_data(hdr->frame_control) &&
 			     is_multicast_ether_addr(hdr->addr1);
 		u8 idx = MT7996_BASIC_RATES_TBL;
 
-		if (mvif) {
-			if (mcast && mvif->mcast_rates_idx)
-				idx = mvif->mcast_rates_idx;
-			else if (beacon && mvif->beacon_rates_idx)
-				idx = mvif->beacon_rates_idx;
+		if (mlink) {
+			if (mcast && mlink->mcast_rates_idx)
+				idx = mlink->mcast_rates_idx;
+			else if (beacon && mlink->beacon_rates_idx)
+				idx = mlink->beacon_rates_idx;
 			else
-				idx = mvif->basic_rates_idx;
+				idx = mlink->basic_rates_idx;
 		}
 
 		val = FIELD_PREP(MT_TXD6_TX_RATE, idx) | MT_TXD6_FIXED_BW;
+		if (mcast)
+			val |= MT_TXD6_DIS_MAT;
 		txwi[6] |= cpu_to_le32(val);
 		txwi[3] |= cpu_to_le32(MT_TXD3_BA_DISABLE);
 	}
@@ -984,8 +1046,14 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 
 	if (vif) {
 		struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+		struct mt76_vif_link *mlink = NULL;
 
-		txp->fw.bss_idx = mvif->deflink.mt76.idx;
+		if (wcid->offchannel)
+			mlink = rcu_dereference(mvif->mt76.offchannel_link);
+		if (!mlink)
+			mlink = &mvif->deflink.mt76;
+
+		txp->fw.bss_idx = mlink->idx;
 	}
 
 	txp->fw.token = cpu_to_le16(id);
@@ -1027,9 +1095,10 @@ u32 mt7996_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
 static void
 mt7996_tx_check_aggr(struct ieee80211_sta *sta, struct sk_buff *skb)
 {
-	struct mt7996_sta *msta;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	bool is_8023 = info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP;
+	struct mt7996_sta_link *msta_link;
+	struct mt7996_sta *msta;
 	u16 fc, tid;
 
 	if (!sta || !(sta->deflink.ht_cap.ht_supported || sta->deflink.he_cap.has_he))
@@ -1058,7 +1127,9 @@ mt7996_tx_check_aggr(struct ieee80211_sta *sta, struct sk_buff *skb)
 		return;
 
 	msta = (struct mt7996_sta *)sta->drv_priv;
-	if (!test_and_set_bit(tid, &msta->wcid.ampdu_state))
+	msta_link = &msta->deflink;
+
+	if (!test_and_set_bit(tid, &msta_link->wcid.ampdu_state))
 		ieee80211_start_tx_ba_session(sta, tid, 0);
 }
 
@@ -1136,7 +1207,7 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
 		 */
 		info = le32_to_cpu(*cur_info);
 		if (info & MT_TXFREE_INFO_PAIR) {
-			struct mt7996_sta *msta;
+			struct mt7996_sta_link *msta_link;
 			u16 idx;
 
 			idx = FIELD_GET(MT_TXFREE_INFO_WLAN_ID, info);
@@ -1145,8 +1216,9 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
 			if (!sta)
 				continue;
 
-			msta = container_of(wcid, struct mt7996_sta, wcid);
-			mt76_wcid_add_poll(&dev->mt76, &msta->wcid);
+			msta_link = container_of(wcid, struct mt7996_sta_link,
+						 wcid);
+			mt76_wcid_add_poll(&dev->mt76, &msta_link->wcid);
 			continue;
 		} else if (info & MT_TXFREE_INFO_HEADER) {
 			u32 tx_retries = 0, tx_failed = 0;
@@ -1230,7 +1302,7 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
 		struct ieee80211_sta *sta;
 		u8 tid;
 
-		sta = container_of((void *)wcid, struct ieee80211_sta, drv_priv);
+		sta = wcid_to_sta(wcid);
 		tid = FIELD_GET(MT_TXS0_TID, txs);
 		ieee80211_refresh_tx_agg_session_timer(sta, tid);
 	}
@@ -1344,7 +1416,7 @@ out:
 
 static void mt7996_mac_add_txs(struct mt7996_dev *dev, void *data)
 {
-	struct mt7996_sta *msta = NULL;
+	struct mt7996_sta_link *msta_link;
 	struct mt76_wcid *wcid;
 	__le32 *txs_data = data;
 	u16 wcidx;
@@ -1365,14 +1437,13 @@ static void mt7996_mac_add_txs(struct mt7996_dev *dev, void *data)
 	if (!wcid)
 		goto out;
 
-	msta = container_of(wcid, struct mt7996_sta, wcid);
-
 	mt7996_mac_add_txs_skb(dev, wcid, pid, txs_data);
 
 	if (!wcid->sta)
 		goto out;
 
-	mt76_wcid_add_poll(&dev->mt76, &msta->wcid);
+	msta_link = container_of(wcid, struct mt7996_sta_link, wcid);
+	mt76_wcid_add_poll(&dev->mt76, &msta_link->wcid);
 
 out:
 	rcu_read_unlock();
@@ -1399,7 +1470,7 @@ bool mt7996_rx_check(struct mt76_dev *mdev, void *data, int len)
 		mt7996_mac_tx_free(dev, data, len);
 		return false;
 	case PKT_TYPE_TXS:
-		for (rxd += 4; rxd + 8 <= end; rxd += 8)
+		for (rxd += MT_TXS_HDR_SIZE; rxd + MT_TXS_SIZE <= end; rxd += MT_TXS_SIZE)
 			mt7996_mac_add_txs(dev, rxd);
 		return false;
 	case PKT_TYPE_RX_FW_MONITOR:
@@ -1442,7 +1513,7 @@ void mt7996_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 		mt7996_mcu_rx_event(dev, skb);
 		break;
 	case PKT_TYPE_TXS:
-		for (rxd += 4; rxd + 8 <= end; rxd += 8)
+		for (rxd += MT_TXS_HDR_SIZE; rxd + MT_TXS_SIZE <= end; rxd += MT_TXS_SIZE)
 			mt7996_mac_add_txs(dev, rxd);
 		dev_kfree_skb(skb);
 		break;
@@ -2239,38 +2310,70 @@ void mt7996_mac_update_stats(struct mt7996_phy *phy)
 void mt7996_mac_sta_rc_work(struct work_struct *work)
 {
 	struct mt7996_dev *dev = container_of(work, struct mt7996_dev, rc_work);
+	struct ieee80211_bss_conf *link_conf;
+	struct ieee80211_link_sta *link_sta;
+	struct mt7996_sta_link *msta_link;
+	struct mt7996_vif_link *link;
+	struct mt76_vif_link *mlink;
 	struct ieee80211_sta *sta;
 	struct ieee80211_vif *vif;
 	struct mt7996_sta *msta;
-	u32 changed;
+	struct mt7996_vif *mvif;
 	LIST_HEAD(list);
+	u32 changed;
+	u8 link_id;
 
+	rcu_read_lock();
 	spin_lock_bh(&dev->mt76.sta_poll_lock);
 	list_splice_init(&dev->sta_rc_list, &list);
 
 	while (!list_empty(&list)) {
-		msta = list_first_entry(&list, struct mt7996_sta, rc_list);
-		list_del_init(&msta->rc_list);
-		changed = msta->changed;
-		msta->changed = 0;
+		msta_link = list_first_entry(&list, struct mt7996_sta_link,
+					     rc_list);
+		list_del_init(&msta_link->rc_list);
+
+		changed = msta_link->changed;
+		msta_link->changed = 0;
+
+		sta = wcid_to_sta(&msta_link->wcid);
+		link_id = msta_link->wcid.link_id;
+		msta = msta_link->sta;
+		mvif = msta->vif;
+		vif = container_of((void *)mvif, struct ieee80211_vif, drv_priv);
+
+		mlink = rcu_dereference(mvif->mt76.link[link_id]);
+		if (!mlink)
+			continue;
+
+		link_sta = rcu_dereference(sta->link[link_id]);
+		if (!link_sta)
+			continue;
+
+		link_conf = rcu_dereference(vif->link_conf[link_id]);
+		if (!link_conf)
+			continue;
+
 		spin_unlock_bh(&dev->mt76.sta_poll_lock);
 
-		sta = container_of((void *)msta, struct ieee80211_sta, drv_priv);
-		vif = container_of((void *)msta->vif, struct ieee80211_vif, drv_priv);
+		link = (struct mt7996_vif_link *)mlink;
 
 		if (changed & (IEEE80211_RC_SUPP_RATES_CHANGED |
 			       IEEE80211_RC_NSS_CHANGED |
 			       IEEE80211_RC_BW_CHANGED))
-			mt7996_mcu_add_rate_ctrl(dev, vif, sta, true);
+			mt7996_mcu_add_rate_ctrl(dev, vif, link_conf,
+						 link_sta, link, msta_link,
+						 true);
 
 		if (changed & IEEE80211_RC_SMPS_CHANGED)
-			mt7996_mcu_set_fixed_field(dev, vif, sta, NULL,
+			mt7996_mcu_set_fixed_field(dev, link_sta, link,
+						   msta_link, NULL,
 						   RATE_PARAM_MMPS_UPDATE);
 
 		spin_lock_bh(&dev->mt76.sta_poll_lock);
 	}
 
 	spin_unlock_bh(&dev->mt76.sta_poll_lock);
+	rcu_read_unlock();
 }
 
 void mt7996_mac_work(struct work_struct *work)
@@ -2538,7 +2641,7 @@ static int mt7996_mac_check_twt_req(struct ieee80211_twt_setup *twt)
 }
 
 static bool
-mt7996_mac_twt_param_equal(struct mt7996_sta *msta,
+mt7996_mac_twt_param_equal(struct mt7996_sta_link *msta_link,
 			   struct ieee80211_twt_params *twt_agrt)
 {
 	u16 type = le16_to_cpu(twt_agrt->req_type);
@@ -2549,10 +2652,10 @@ mt7996_mac_twt_param_equal(struct mt7996_sta *msta,
 	for (i = 0; i < MT7996_MAX_STA_TWT_AGRT; i++) {
 		struct mt7996_twt_flow *f;
 
-		if (!(msta->twt.flowid_mask & BIT(i)))
+		if (!(msta_link->twt.flowid_mask & BIT(i)))
 			continue;
 
-		f = &msta->twt.flow[i];
+		f = &msta_link->twt.flow[i];
 		if (f->duration == twt_agrt->min_twt_dur &&
 		    f->mantissa == twt_agrt->mantissa &&
 		    f->exp == exp &&
@@ -2572,6 +2675,7 @@ void mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
 	enum ieee80211_twt_setup_cmd setup_cmd = TWT_SETUP_CMD_REJECT;
 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
 	struct ieee80211_twt_params *twt_agrt = (void *)twt->params;
+	struct mt7996_sta_link *msta_link = &msta->deflink;
 	u16 req_type = le16_to_cpu(twt_agrt->req_type);
 	enum ieee80211_twt_setup_cmd sta_setup_cmd;
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
@@ -2586,7 +2690,8 @@ void mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
 	if (dev->twt.n_agrt == MT7996_MAX_TWT_AGRT)
 		goto unlock;
 
-	if (hweight8(msta->twt.flowid_mask) == ARRAY_SIZE(msta->twt.flow))
+	if (hweight8(msta_link->twt.flowid_mask) ==
+	    ARRAY_SIZE(msta_link->twt.flow))
 		goto unlock;
 
 	if (twt_agrt->min_twt_dur < MT7996_MIN_TWT_DUR) {
@@ -2595,10 +2700,10 @@ void mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
 		goto unlock;
 	}
 
-	if (mt7996_mac_twt_param_equal(msta, twt_agrt))
+	if (mt7996_mac_twt_param_equal(msta_link, twt_agrt))
 		goto unlock;
 
-	flowid = ffs(~msta->twt.flowid_mask) - 1;
+	flowid = ffs(~msta_link->twt.flowid_mask) - 1;
 	twt_agrt->req_type &= ~cpu_to_le16(IEEE80211_TWT_REQTYPE_FLOWID);
 	twt_agrt->req_type |= le16_encode_bits(flowid,
 					       IEEE80211_TWT_REQTYPE_FLOWID);
@@ -2607,10 +2712,10 @@ void mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
 	exp = FIELD_GET(IEEE80211_TWT_REQTYPE_WAKE_INT_EXP, req_type);
 	sta_setup_cmd = FIELD_GET(IEEE80211_TWT_REQTYPE_SETUP_CMD, req_type);
 
-	flow = &msta->twt.flow[flowid];
+	flow = &msta_link->twt.flow[flowid];
 	memset(flow, 0, sizeof(*flow));
 	INIT_LIST_HEAD(&flow->list);
-	flow->wcid = msta->wcid.idx;
+	flow->wcid = msta_link->wcid.idx;
 	flow->table_id = table_id;
 	flow->id = flowid;
 	flow->duration = twt_agrt->min_twt_dur;
@@ -2628,7 +2733,7 @@ void mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
 
 		flow->sched = true;
 		flow->start_tsf = mt7996_mac_twt_sched_list_add(dev, flow);
-		curr_tsf = __mt7996_get_tsf(hw, msta->vif);
+		curr_tsf = __mt7996_get_tsf(hw, &msta->vif->deflink);
 		div_u64_rem(curr_tsf - flow->start_tsf, interval, &rem);
 		flow_tsf = curr_tsf + interval - rem;
 		twt_agrt->twt = cpu_to_le64(flow_tsf);
@@ -2637,12 +2742,13 @@ void mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
 	}
 	flow->tsf = le64_to_cpu(twt_agrt->twt);
 
-	if (mt7996_mcu_twt_agrt_update(dev, msta->vif, flow, MCU_TWT_AGRT_ADD))
+	if (mt7996_mcu_twt_agrt_update(dev, &msta->vif->deflink, flow,
+				       MCU_TWT_AGRT_ADD))
 		goto unlock;
 
 	setup_cmd = TWT_SETUP_CMD_ACCEPT;
 	dev->twt.table_mask |= BIT(table_id);
-	msta->twt.flowid_mask |= BIT(flowid);
+	msta_link->twt.flowid_mask |= BIT(flowid);
 	dev->twt.n_agrt++;
 
 unlock:
@@ -2655,26 +2761,26 @@ out:
 }
 
 void mt7996_mac_twt_teardown_flow(struct mt7996_dev *dev,
-				  struct mt7996_sta *msta,
+				  struct mt7996_vif_link *link,
+				  struct mt7996_sta_link *msta_link,
 				  u8 flowid)
 {
 	struct mt7996_twt_flow *flow;
 
 	lockdep_assert_held(&dev->mt76.mutex);
 
-	if (flowid >= ARRAY_SIZE(msta->twt.flow))
+	if (flowid >= ARRAY_SIZE(msta_link->twt.flow))
 		return;
 
-	if (!(msta->twt.flowid_mask & BIT(flowid)))
+	if (!(msta_link->twt.flowid_mask & BIT(flowid)))
 		return;
 
-	flow = &msta->twt.flow[flowid];
-	if (mt7996_mcu_twt_agrt_update(dev, msta->vif, flow,
-				       MCU_TWT_AGRT_DELETE))
+	flow = &msta_link->twt.flow[flowid];
+	if (mt7996_mcu_twt_agrt_update(dev, link, flow, MCU_TWT_AGRT_DELETE))
 		return;
 
 	list_del_init(&flow->list);
-	msta->twt.flowid_mask &= ~BIT(flowid);
+	msta_link->twt.flowid_mask &= ~BIT(flowid);
 	dev->twt.table_mask &= ~BIT(flow->table_id);
 	dev->twt.n_agrt--;
 }

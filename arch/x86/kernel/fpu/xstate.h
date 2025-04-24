@@ -94,30 +94,33 @@ static inline int update_pkru_in_sigframe(struct xregs_state __user *buf, u64 ma
 /* XSAVE/XRSTOR wrapper functions */
 
 #ifdef CONFIG_X86_64
-#define REX_PREFIX	"0x48, "
+#define REX_SUFFIX	"64"
 #else
-#define REX_PREFIX
+#define REX_SUFFIX
 #endif
 
-/* These macros all use (%edi)/(%rdi) as the single memory argument. */
-#define XSAVE		".byte " REX_PREFIX "0x0f,0xae,0x27"
-#define XSAVEOPT	".byte " REX_PREFIX "0x0f,0xae,0x37"
-#define XSAVEC		".byte " REX_PREFIX "0x0f,0xc7,0x27"
-#define XSAVES		".byte " REX_PREFIX "0x0f,0xc7,0x2f"
-#define XRSTOR		".byte " REX_PREFIX "0x0f,0xae,0x2f"
-#define XRSTORS		".byte " REX_PREFIX "0x0f,0xc7,0x1f"
+#define XSAVE		"xsave" REX_SUFFIX " %[xa]"
+#define XSAVEOPT	"xsaveopt" REX_SUFFIX " %[xa]"
+#define XSAVEC		"xsavec" REX_SUFFIX " %[xa]"
+#define XSAVES		"xsaves" REX_SUFFIX " %[xa]"
+#define XRSTOR		"xrstor" REX_SUFFIX " %[xa]"
+#define XRSTORS		"xrstors" REX_SUFFIX " %[xa]"
 
 /*
  * After this @err contains 0 on success or the trap number when the
  * operation raises an exception.
+ *
+ * The [xa] input parameter below represents the struct xregs_state pointer
+ * and the asm symbolic name for the argument used in the XSAVE/XRSTOR insns
+ * above.
  */
 #define XSTATE_OP(op, st, lmask, hmask, err)				\
 	asm volatile("1:" op "\n\t"					\
 		     "xor %[err], %[err]\n"				\
-		     "2:\n\t"						\
+		     "2:\n"						\
 		     _ASM_EXTABLE_TYPE(1b, 2b, EX_TYPE_FAULT_MCE_SAFE)	\
 		     : [err] "=a" (err)					\
-		     : "D" (st), "m" (*st), "a" (lmask), "d" (hmask)	\
+		     : [xa] "m" (*(st)), "a" (lmask), "d" (hmask)	\
 		     : "memory")
 
 /*
@@ -137,12 +140,12 @@ static inline int update_pkru_in_sigframe(struct xregs_state __user *buf, u64 ma
 				   XSAVEOPT, X86_FEATURE_XSAVEOPT,	\
 				   XSAVEC,   X86_FEATURE_XSAVEC,	\
 				   XSAVES,   X86_FEATURE_XSAVES)	\
-		     "\n"						\
+		     "\n\t"						\
 		     "xor %[err], %[err]\n"				\
 		     "3:\n"						\
 		     _ASM_EXTABLE_TYPE_REG(1b, 3b, EX_TYPE_EFAULT_REG, %[err]) \
 		     : [err] "=r" (err)					\
-		     : "D" (st), "m" (*st), "a" (lmask), "d" (hmask)	\
+		     : [xa] "m" (*(st)), "a" (lmask), "d" (hmask)	\
 		     : "memory")
 
 /*
@@ -156,7 +159,7 @@ static inline int update_pkru_in_sigframe(struct xregs_state __user *buf, u64 ma
 		     "3:\n"						\
 		     _ASM_EXTABLE_TYPE(1b, 3b, EX_TYPE_FPU_RESTORE)	\
 		     :							\
-		     : "D" (st), "m" (*st), "a" (lmask), "d" (hmask)	\
+		     : [xa] "m" (*(st)), "a" (lmask), "d" (hmask)	\
 		     : "memory")
 
 #if defined(CONFIG_X86_64) && defined(CONFIG_X86_DEBUG_FPU)

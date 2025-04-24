@@ -31,14 +31,10 @@
 #define	ACP63_LRCLK_DIV_FIELD		GENMASK(12, 2)
 #define	ACP63_BCLK_DIV_FIELD		GENMASK(23, 13)
 
-static inline void acp_set_i2s_clk(struct acp_dev_data *adata, int dai_id)
+static inline void acp_set_i2s_clk(struct acp_chip_info *chip, int dai_id)
 {
 	u32 i2s_clk_reg, val;
-	struct acp_chip_info *chip;
-	struct device *dev;
 
-	dev = adata->dev;
-	chip = dev_get_platdata(dev);
 	switch (dai_id) {
 	case I2S_SP_INSTANCE:
 		i2s_clk_reg = ACP_I2STDM0_MSTRCLKGEN;
@@ -55,36 +51,37 @@ static inline void acp_set_i2s_clk(struct acp_dev_data *adata, int dai_id)
 	}
 
 	val  = I2S_MASTER_MODE_ENABLE;
-	if (adata->tdm_mode)
+	if (chip->tdm_mode)
 		val |= BIT(1);
 
 	switch (chip->acp_rev) {
 	case ACP63_PCI_ID:
 	case ACP70_PCI_ID:
 	case ACP71_PCI_ID:
-		val |= FIELD_PREP(ACP63_LRCLK_DIV_FIELD, adata->lrclk_div);
-		val |= FIELD_PREP(ACP63_BCLK_DIV_FIELD, adata->bclk_div);
+		val |= FIELD_PREP(ACP63_LRCLK_DIV_FIELD, chip->lrclk_div);
+		val |= FIELD_PREP(ACP63_BCLK_DIV_FIELD, chip->bclk_div);
 		break;
 	default:
-		val |= FIELD_PREP(LRCLK_DIV_FIELD, adata->lrclk_div);
-		val |= FIELD_PREP(BCLK_DIV_FIELD, adata->bclk_div);
+		val |= FIELD_PREP(LRCLK_DIV_FIELD, chip->lrclk_div);
+		val |= FIELD_PREP(BCLK_DIV_FIELD, chip->bclk_div);
 	}
-	writel(val, adata->acp_base + i2s_clk_reg);
+	writel(val, chip->base + i2s_clk_reg);
 }
 
 static int acp_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 			   unsigned int fmt)
 {
-	struct acp_dev_data *adata = snd_soc_dai_get_drvdata(cpu_dai);
+	struct device *dev = cpu_dai->component->dev;
+	struct acp_chip_info *chip = dev_get_platdata(dev);
 	int mode;
 
 	mode = fmt & SND_SOC_DAIFMT_FORMAT_MASK;
 	switch (mode) {
 	case SND_SOC_DAIFMT_I2S:
-		adata->tdm_mode = TDM_DISABLE;
+		chip->tdm_mode = TDM_DISABLE;
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
-		adata->tdm_mode = TDM_ENABLE;
+		chip->tdm_mode = TDM_ENABLE;
 		break;
 	default:
 		return -EINVAL;
@@ -96,7 +93,6 @@ static int acp_i2s_set_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask, u32 rx_mas
 				int slots, int slot_width)
 {
 	struct device *dev = dai->component->dev;
-	struct acp_dev_data *adata = snd_soc_dai_get_drvdata(dai);
 	struct acp_chip_info *chip;
 	struct acp_stream *stream;
 	int slot_len, no_of_slots;
@@ -157,35 +153,35 @@ static int acp_i2s_set_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask, u32 rx_mas
 
 	slots = no_of_slots;
 
-	spin_lock_irq(&adata->acp_lock);
-	list_for_each_entry(stream, &adata->stream_list, list) {
+	spin_lock_irq(&chip->acp_lock);
+	list_for_each_entry(stream, &chip->stream_list, list) {
 		switch (chip->acp_rev) {
 		case ACP_RN_PCI_ID:
 		case ACP_RMB_PCI_ID:
 			if (tx_mask && stream->dir == SNDRV_PCM_STREAM_PLAYBACK)
-				adata->tdm_tx_fmt[stream->dai_id - 1] =
+				chip->tdm_tx_fmt[stream->dai_id - 1] =
 					FRM_LEN | (slots << 15) | (slot_len << 18);
 			else if (rx_mask && stream->dir == SNDRV_PCM_STREAM_CAPTURE)
-				adata->tdm_rx_fmt[stream->dai_id - 1] =
+				chip->tdm_rx_fmt[stream->dai_id - 1] =
 					FRM_LEN | (slots << 15) | (slot_len << 18);
 			break;
 		case ACP63_PCI_ID:
 		case ACP70_PCI_ID:
 		case ACP71_PCI_ID:
 			if (tx_mask && stream->dir == SNDRV_PCM_STREAM_PLAYBACK)
-				adata->tdm_tx_fmt[stream->dai_id - 1] =
+				chip->tdm_tx_fmt[stream->dai_id - 1] =
 						FRM_LEN | (slots << 13) | (slot_len << 18);
 			else if (rx_mask && stream->dir == SNDRV_PCM_STREAM_CAPTURE)
-				adata->tdm_rx_fmt[stream->dai_id - 1] =
+				chip->tdm_rx_fmt[stream->dai_id - 1] =
 						FRM_LEN | (slots << 13) | (slot_len << 18);
 			break;
 		default:
 			dev_err(dev, "Unknown chip revision %d\n", chip->acp_rev);
-			spin_unlock_irq(&adata->acp_lock);
+			spin_unlock_irq(&chip->acp_lock);
 			return -EINVAL;
 		}
 	}
-	spin_unlock_irq(&adata->acp_lock);
+	spin_unlock_irq(&chip->acp_lock);
 	return 0;
 }
 
@@ -193,15 +189,15 @@ static int acp_i2s_hwparams(struct snd_pcm_substream *substream, struct snd_pcm_
 			    struct snd_soc_dai *dai)
 {
 	struct device *dev = dai->component->dev;
-	struct acp_dev_data *adata;
+	struct acp_chip_info *chip;
 	struct acp_resource *rsrc;
 	u32 val;
 	u32 xfer_resolution;
 	u32 reg_val, fmt_reg, tdm_fmt;
 	u32 lrclk_div_val, bclk_div_val;
 
-	adata = snd_soc_dai_get_drvdata(dai);
-	rsrc = adata->rsrc;
+	chip = dev_get_platdata(dev);
+	rsrc = chip->rsrc;
 
 	/* These values are as per Hardware Spec */
 	switch (params_format(params)) {
@@ -240,7 +236,7 @@ static int acp_i2s_hwparams(struct snd_pcm_substream *substream, struct snd_pcm_
 			dev_err(dev, "Invalid dai id %x\n", dai->driver->id);
 			return -EINVAL;
 		}
-		adata->xfer_tx_resolution[dai->driver->id - 1] = xfer_resolution;
+		chip->xfer_tx_resolution[dai->driver->id - 1] = xfer_resolution;
 	} else {
 		switch (dai->driver->id) {
 		case I2S_BT_INSTANCE:
@@ -259,22 +255,22 @@ static int acp_i2s_hwparams(struct snd_pcm_substream *substream, struct snd_pcm_
 			dev_err(dev, "Invalid dai id %x\n", dai->driver->id);
 			return -EINVAL;
 		}
-		adata->xfer_rx_resolution[dai->driver->id - 1] = xfer_resolution;
+		chip->xfer_rx_resolution[dai->driver->id - 1] = xfer_resolution;
 	}
 
-	val = readl(adata->acp_base + reg_val);
+	val = readl(chip->base + reg_val);
 	val &= ~ACP3x_ITER_IRER_SAMP_LEN_MASK;
 	val = val | (xfer_resolution  << 3);
-	writel(val, adata->acp_base + reg_val);
+	writel(val, chip->base + reg_val);
 
-	if (adata->tdm_mode) {
-		val = readl(adata->acp_base + reg_val);
-		writel(val | BIT(1), adata->acp_base + reg_val);
+	if (chip->tdm_mode) {
+		val = readl(chip->base + reg_val);
+		writel(val | BIT(1), chip->base + reg_val);
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			tdm_fmt = adata->tdm_tx_fmt[dai->driver->id - 1];
+			tdm_fmt = chip->tdm_tx_fmt[dai->driver->id - 1];
 		else
-			tdm_fmt = adata->tdm_rx_fmt[dai->driver->id - 1];
-		writel(tdm_fmt, adata->acp_base + fmt_reg);
+			tdm_fmt = chip->tdm_rx_fmt[dai->driver->id - 1];
+		writel(tdm_fmt, chip->base + fmt_reg);
 	}
 
 	if (rsrc->soc_mclk) {
@@ -377,8 +373,8 @@ static int acp_i2s_hwparams(struct snd_pcm_substream *substream, struct snd_pcm_
 		default:
 			break;
 		}
-		adata->lrclk_div = lrclk_div_val;
-		adata->bclk_div = bclk_div_val;
+		chip->lrclk_div = lrclk_div_val;
+		chip->bclk_div = bclk_div_val;
 	}
 	return 0;
 }
@@ -387,8 +383,8 @@ static int acp_i2s_trigger(struct snd_pcm_substream *substream, int cmd, struct 
 {
 	struct acp_stream *stream = substream->runtime->private_data;
 	struct device *dev = dai->component->dev;
-	struct acp_dev_data *adata = dev_get_drvdata(dev);
-	struct acp_resource *rsrc = adata->rsrc;
+	struct acp_chip_info *chip = dev_get_platdata(dev);
+	struct acp_resource *rsrc = chip->rsrc;
 	u32 val, period_bytes, reg_val, ier_val, water_val, buf_size, buf_reg;
 
 	period_bytes = frames_to_bytes(substream->runtime, substream->runtime->period_size);
@@ -398,20 +394,20 @@ static int acp_i2s_trigger(struct snd_pcm_substream *substream, int cmd, struct 
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		stream->bytescount = acp_get_byte_count(adata, stream->dai_id, substream->stream);
+		stream->bytescount = acp_get_byte_count(chip, stream->dai_id, substream->stream);
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			switch (dai->driver->id) {
 			case I2S_BT_INSTANCE:
-				water_val = ACP_BT_TX_INTR_WATERMARK_SIZE(adata);
+				water_val = ACP_BT_TX_INTR_WATERMARK_SIZE(chip);
 				reg_val = ACP_BTTDM_ITER;
 				ier_val = ACP_BTTDM_IER;
-				buf_reg = ACP_BT_TX_RINGBUFSIZE(adata);
+				buf_reg = ACP_BT_TX_RINGBUFSIZE(chip);
 				break;
 			case I2S_SP_INSTANCE:
-				water_val = ACP_I2S_TX_INTR_WATERMARK_SIZE(adata);
+				water_val = ACP_I2S_TX_INTR_WATERMARK_SIZE(chip);
 				reg_val = ACP_I2STDM_ITER;
 				ier_val = ACP_I2STDM_IER;
-				buf_reg = ACP_I2S_TX_RINGBUFSIZE(adata);
+				buf_reg = ACP_I2S_TX_RINGBUFSIZE(chip);
 				break;
 			case I2S_HS_INSTANCE:
 				water_val = ACP_HS_TX_INTR_WATERMARK_SIZE;
@@ -426,16 +422,16 @@ static int acp_i2s_trigger(struct snd_pcm_substream *substream, int cmd, struct 
 		} else {
 			switch (dai->driver->id) {
 			case I2S_BT_INSTANCE:
-				water_val = ACP_BT_RX_INTR_WATERMARK_SIZE(adata);
+				water_val = ACP_BT_RX_INTR_WATERMARK_SIZE(chip);
 				reg_val = ACP_BTTDM_IRER;
 				ier_val = ACP_BTTDM_IER;
-				buf_reg = ACP_BT_RX_RINGBUFSIZE(adata);
+				buf_reg = ACP_BT_RX_RINGBUFSIZE(chip);
 				break;
 			case I2S_SP_INSTANCE:
-				water_val = ACP_I2S_RX_INTR_WATERMARK_SIZE(adata);
+				water_val = ACP_I2S_RX_INTR_WATERMARK_SIZE(chip);
 				reg_val = ACP_I2STDM_IRER;
 				ier_val = ACP_I2STDM_IER;
-				buf_reg = ACP_I2S_RX_RINGBUFSIZE(adata);
+				buf_reg = ACP_I2S_RX_RINGBUFSIZE(chip);
 				break;
 			case I2S_HS_INSTANCE:
 				water_val = ACP_HS_RX_INTR_WATERMARK_SIZE;
@@ -449,14 +445,14 @@ static int acp_i2s_trigger(struct snd_pcm_substream *substream, int cmd, struct 
 			}
 		}
 
-		writel(period_bytes, adata->acp_base + water_val);
-		writel(buf_size, adata->acp_base + buf_reg);
+		writel(period_bytes, chip->base + water_val);
+		writel(buf_size, chip->base + buf_reg);
 		if (rsrc->soc_mclk)
-			acp_set_i2s_clk(adata, dai->driver->id);
-		val = readl(adata->acp_base + reg_val);
+			acp_set_i2s_clk(chip, dai->driver->id);
+		val = readl(chip->base + reg_val);
 		val = val | BIT(0);
-		writel(val, adata->acp_base + reg_val);
-		writel(1, adata->acp_base + ier_val);
+		writel(val, chip->base + reg_val);
+		writel(1, chip->base + ier_val);
 		return 0;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -493,19 +489,19 @@ static int acp_i2s_trigger(struct snd_pcm_substream *substream, int cmd, struct 
 				return -EINVAL;
 			}
 		}
-		val = readl(adata->acp_base + reg_val);
+		val = readl(chip->base + reg_val);
 		val = val & ~BIT(0);
-		writel(val, adata->acp_base + reg_val);
+		writel(val, chip->base + reg_val);
 
-		if (!(readl(adata->acp_base + ACP_BTTDM_ITER) & BIT(0)) &&
-		    !(readl(adata->acp_base + ACP_BTTDM_IRER) & BIT(0)))
-			writel(0, adata->acp_base + ACP_BTTDM_IER);
-		if (!(readl(adata->acp_base + ACP_I2STDM_ITER) & BIT(0)) &&
-		    !(readl(adata->acp_base + ACP_I2STDM_IRER) & BIT(0)))
-			writel(0, adata->acp_base + ACP_I2STDM_IER);
-		if (!(readl(adata->acp_base + ACP_HSTDM_ITER) & BIT(0)) &&
-		    !(readl(adata->acp_base + ACP_HSTDM_IRER) & BIT(0)))
-			writel(0, adata->acp_base + ACP_HSTDM_IER);
+		if (!(readl(chip->base + ACP_BTTDM_ITER) & BIT(0)) &&
+		    !(readl(chip->base + ACP_BTTDM_IRER) & BIT(0)))
+			writel(0, chip->base + ACP_BTTDM_IER);
+		if (!(readl(chip->base + ACP_I2STDM_ITER) & BIT(0)) &&
+		    !(readl(chip->base + ACP_I2STDM_IRER) & BIT(0)))
+			writel(0, chip->base + ACP_I2STDM_IER);
+		if (!(readl(chip->base + ACP_HSTDM_ITER) & BIT(0)) &&
+		    !(readl(chip->base + ACP_HSTDM_IRER) & BIT(0)))
+			writel(0, chip->base + ACP_HSTDM_IER);
 		return 0;
 	default:
 		return -EINVAL;
@@ -517,9 +513,8 @@ static int acp_i2s_trigger(struct snd_pcm_substream *substream, int cmd, struct 
 static int acp_i2s_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
 	struct device *dev = dai->component->dev;
-	struct acp_dev_data *adata = dev_get_drvdata(dev);
-	struct acp_chip_info *chip;
-	struct acp_resource *rsrc = adata->rsrc;
+	struct acp_chip_info *chip = dev_get_platdata(dev);
+	struct acp_resource *rsrc = chip->rsrc;
 	struct acp_stream *stream = substream->runtime->private_data;
 	u32 reg_dma_size = 0, reg_fifo_size = 0, reg_fifo_addr = 0;
 	u32 phy_addr = 0, acp_fifo_addr = 0, ext_int_ctrl;
@@ -529,56 +524,56 @@ static int acp_i2s_prepare(struct snd_pcm_substream *substream, struct snd_soc_d
 	switch (dai->driver->id) {
 	case I2S_SP_INSTANCE:
 		if (dir == SNDRV_PCM_STREAM_PLAYBACK) {
-			reg_dma_size = ACP_I2S_TX_DMA_SIZE(adata);
+			reg_dma_size = ACP_I2S_TX_DMA_SIZE(chip);
 			acp_fifo_addr = rsrc->sram_pte_offset +
 						SP_PB_FIFO_ADDR_OFFSET;
-			reg_fifo_addr =	ACP_I2S_TX_FIFOADDR(adata);
-			reg_fifo_size = ACP_I2S_TX_FIFOSIZE(adata);
+			reg_fifo_addr =	ACP_I2S_TX_FIFOADDR(chip);
+			reg_fifo_size = ACP_I2S_TX_FIFOSIZE(chip);
 
 			if (chip->acp_rev >= ACP70_PCI_ID)
 				phy_addr = ACP7x_I2S_SP_TX_MEM_WINDOW_START;
 			else
 				phy_addr = I2S_SP_TX_MEM_WINDOW_START + stream->reg_offset;
-			writel(phy_addr, adata->acp_base + ACP_I2S_TX_RINGBUFADDR(adata));
+			writel(phy_addr, chip->base + ACP_I2S_TX_RINGBUFADDR(chip));
 		} else {
-			reg_dma_size = ACP_I2S_RX_DMA_SIZE(adata);
+			reg_dma_size = ACP_I2S_RX_DMA_SIZE(chip);
 			acp_fifo_addr = rsrc->sram_pte_offset +
 						SP_CAPT_FIFO_ADDR_OFFSET;
-			reg_fifo_addr = ACP_I2S_RX_FIFOADDR(adata);
-			reg_fifo_size = ACP_I2S_RX_FIFOSIZE(adata);
+			reg_fifo_addr = ACP_I2S_RX_FIFOADDR(chip);
+			reg_fifo_size = ACP_I2S_RX_FIFOSIZE(chip);
 
 			if (chip->acp_rev >= ACP70_PCI_ID)
 				phy_addr = ACP7x_I2S_SP_RX_MEM_WINDOW_START;
 			else
 				phy_addr = I2S_SP_RX_MEM_WINDOW_START + stream->reg_offset;
-			writel(phy_addr, adata->acp_base + ACP_I2S_RX_RINGBUFADDR(adata));
+			writel(phy_addr, chip->base + ACP_I2S_RX_RINGBUFADDR(chip));
 		}
 		break;
 	case I2S_BT_INSTANCE:
 		if (dir == SNDRV_PCM_STREAM_PLAYBACK) {
-			reg_dma_size = ACP_BT_TX_DMA_SIZE(adata);
+			reg_dma_size = ACP_BT_TX_DMA_SIZE(chip);
 			acp_fifo_addr = rsrc->sram_pte_offset +
 						BT_PB_FIFO_ADDR_OFFSET;
-			reg_fifo_addr = ACP_BT_TX_FIFOADDR(adata);
-			reg_fifo_size = ACP_BT_TX_FIFOSIZE(adata);
+			reg_fifo_addr = ACP_BT_TX_FIFOADDR(chip);
+			reg_fifo_size = ACP_BT_TX_FIFOSIZE(chip);
 
 			if (chip->acp_rev >= ACP70_PCI_ID)
 				phy_addr = ACP7x_I2S_BT_TX_MEM_WINDOW_START;
 			else
 				phy_addr = I2S_BT_TX_MEM_WINDOW_START + stream->reg_offset;
-			writel(phy_addr, adata->acp_base + ACP_BT_TX_RINGBUFADDR(adata));
+			writel(phy_addr, chip->base + ACP_BT_TX_RINGBUFADDR(chip));
 		} else {
-			reg_dma_size = ACP_BT_RX_DMA_SIZE(adata);
+			reg_dma_size = ACP_BT_RX_DMA_SIZE(chip);
 			acp_fifo_addr = rsrc->sram_pte_offset +
 						BT_CAPT_FIFO_ADDR_OFFSET;
-			reg_fifo_addr = ACP_BT_RX_FIFOADDR(adata);
-			reg_fifo_size = ACP_BT_RX_FIFOSIZE(adata);
+			reg_fifo_addr = ACP_BT_RX_FIFOADDR(chip);
+			reg_fifo_size = ACP_BT_RX_FIFOSIZE(chip);
 
 			if (chip->acp_rev >= ACP70_PCI_ID)
 				phy_addr = ACP7x_I2S_BT_RX_MEM_WINDOW_START;
 			else
 				phy_addr = I2S_BT_TX_MEM_WINDOW_START + stream->reg_offset;
-			writel(phy_addr, adata->acp_base + ACP_BT_RX_RINGBUFADDR(adata));
+			writel(phy_addr, chip->base + ACP_BT_RX_RINGBUFADDR(chip));
 		}
 		break;
 	case I2S_HS_INSTANCE:
@@ -593,7 +588,7 @@ static int acp_i2s_prepare(struct snd_pcm_substream *substream, struct snd_soc_d
 				phy_addr = ACP7x_I2S_HS_TX_MEM_WINDOW_START;
 			else
 				phy_addr = I2S_HS_TX_MEM_WINDOW_START + stream->reg_offset;
-			writel(phy_addr, adata->acp_base + ACP_HS_TX_RINGBUFADDR);
+			writel(phy_addr, chip->base + ACP_HS_TX_RINGBUFADDR);
 		} else {
 			reg_dma_size = ACP_HS_RX_DMA_SIZE;
 			acp_fifo_addr = rsrc->sram_pte_offset +
@@ -605,7 +600,7 @@ static int acp_i2s_prepare(struct snd_pcm_substream *substream, struct snd_soc_d
 				phy_addr = ACP7x_I2S_HS_RX_MEM_WINDOW_START;
 			else
 				phy_addr = I2S_HS_RX_MEM_WINDOW_START + stream->reg_offset;
-			writel(phy_addr, adata->acp_base + ACP_HS_RX_RINGBUFADDR);
+			writel(phy_addr, chip->base + ACP_HS_RX_RINGBUFADDR);
 		}
 		break;
 	default:
@@ -613,11 +608,11 @@ static int acp_i2s_prepare(struct snd_pcm_substream *substream, struct snd_soc_d
 		return -EINVAL;
 	}
 
-	writel(DMA_SIZE, adata->acp_base + reg_dma_size);
-	writel(acp_fifo_addr, adata->acp_base + reg_fifo_addr);
-	writel(FIFO_SIZE, adata->acp_base + reg_fifo_size);
+	writel(DMA_SIZE, chip->base + reg_dma_size);
+	writel(acp_fifo_addr, chip->base + reg_fifo_addr);
+	writel(FIFO_SIZE, chip->base + reg_fifo_size);
 
-	ext_int_ctrl = readl(ACP_EXTERNAL_INTR_CNTL(adata, rsrc->irqp_used));
+	ext_int_ctrl = readl(ACP_EXTERNAL_INTR_CNTL(chip, rsrc->irqp_used));
 	ext_int_ctrl |= BIT(I2S_RX_THRESHOLD(rsrc->offset)) |
 			BIT(BT_RX_THRESHOLD(rsrc->offset)) |
 			BIT(I2S_TX_THRESHOLD(rsrc->offset)) |
@@ -625,7 +620,7 @@ static int acp_i2s_prepare(struct snd_pcm_substream *substream, struct snd_soc_d
 			BIT(HS_RX_THRESHOLD(rsrc->offset)) |
 			BIT(HS_TX_THRESHOLD(rsrc->offset));
 
-	writel(ext_int_ctrl, ACP_EXTERNAL_INTR_CNTL(adata, rsrc->irqp_used));
+	writel(ext_int_ctrl, ACP_EXTERNAL_INTR_CNTL(chip, rsrc->irqp_used));
 
 	return 0;
 }
@@ -634,8 +629,8 @@ static int acp_i2s_startup(struct snd_pcm_substream *substream, struct snd_soc_d
 {
 	struct acp_stream *stream = substream->runtime->private_data;
 	struct device *dev = dai->component->dev;
-	struct acp_dev_data *adata = dev_get_drvdata(dev);
-	struct acp_resource *rsrc = adata->rsrc;
+	struct acp_chip_info *chip = dev_get_platdata(dev);
+	struct acp_resource *rsrc = chip->rsrc;
 	unsigned int dir = substream->stream;
 	unsigned int irq_bit = 0;
 

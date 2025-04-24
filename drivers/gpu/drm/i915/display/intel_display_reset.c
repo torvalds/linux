@@ -107,14 +107,14 @@ void intel_display_reset_finish(struct intel_display *display, bool test_only)
 		intel_display_driver_init_hw(display);
 		intel_clock_gating_init(i915);
 		intel_cx0_pll_power_save_wa(display);
-		intel_hpd_init(i915);
+		intel_hpd_init(display);
 
 		ret = __intel_display_driver_resume(display, state, ctx);
 		if (ret)
 			drm_err(display->drm,
 				"Restoring old state failed with %i\n", ret);
 
-		intel_hpd_poll_disable(i915);
+		intel_hpd_poll_disable(display);
 	}
 
 	drm_atomic_state_put(state);

@@ -1160,8 +1160,8 @@ static int port_states_transition_allowed(struct hfi1_pportdata *ppd,
 	if (ret == HFI_TRANSITION_DISALLOWED ||
 	    ret == HFI_TRANSITION_UNDEFINED) {
 		pr_warn("invalid logical state transition %s -> %s\n",
-			opa_lstate_name(logical_old),
-			opa_lstate_name(logical_new));
+			ib_port_state_to_str(logical_old),
+			ib_port_state_to_str(logical_new));
 		return ret;
 	}
 

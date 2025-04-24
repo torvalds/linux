@@ -350,9 +350,9 @@ out:
  *
  */
 
-static int v9fs_vfs_mkdir_dotl(struct mnt_idmap *idmap,
-			       struct inode *dir, struct dentry *dentry,
-			       umode_t omode)
+static struct dentry *v9fs_vfs_mkdir_dotl(struct mnt_idmap *idmap,
+					  struct inode *dir, struct dentry *dentry,
+					  umode_t omode)
 {
 	int err;
 	struct v9fs_session_info *v9ses;
@@ -407,8 +407,8 @@ static int v9fs_vfs_mkdir_dotl(struct mnt_idmap *idmap,
 			 err);
 		goto error;
 	}
-	v9fs_fid_add(dentry, &fid);
 	v9fs_set_create_acl(inode, fid, dacl, pacl);
+	v9fs_fid_add(dentry, &fid);
 	d_instantiate(dentry, inode);
 	err = 0;
 	inc_nlink(dir);
@@ -417,7 +417,7 @@ error:
 	p9_fid_put(fid);
 	v9fs_put_acl(dacl, pacl);
 	p9_fid_put(dfid);
-	return err;
+	return ERR_PTR(err);
 }
 
 static int

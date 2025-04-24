@@ -10,10 +10,12 @@
 #define VID_UGEE 0x28BD /* VID is shared with SinoWealth and Glorious and prob others */
 #define PID_ARTIST_PRO14_GEN2 0x095A
 #define PID_ARTIST_PRO16_GEN2 0x095B
+#define PID_ARTIST_PRO19_GEN2 0x096A
 
 HID_BPF_CONFIG(
 	HID_DEVICE(BUS_USB, HID_GROUP_GENERIC, VID_UGEE, PID_ARTIST_PRO14_GEN2),
-	HID_DEVICE(BUS_USB, HID_GROUP_GENERIC, VID_UGEE, PID_ARTIST_PRO16_GEN2)
+	HID_DEVICE(BUS_USB, HID_GROUP_GENERIC, VID_UGEE, PID_ARTIST_PRO16_GEN2),
+	HID_DEVICE(BUS_USB, HID_GROUP_GENERIC, VID_UGEE, PID_ARTIST_PRO19_GEN2)
 );
 
 /*
@@ -22,7 +24,7 @@ HID_BPF_CONFIG(
  * - when the eraser button is pressed and the stylus is touching the tablet,
  *   the device sends Tip Switch instead of sending Eraser
  *
- * This descriptor uses physical dimensions of the 16" device.
+ * This descriptor uses the physical dimensions of the 16" device.
  */
 static const __u8 fixed_rdesc[] = {
 	0x05, 0x0d,                    // Usage Page (Digitizers)             0
@@ -100,6 +102,12 @@ int BPF_PROG(hid_fix_rdesc_xppen_artistpro16gen2, struct hid_bpf_ctx *hctx)
 		data[62] = 0x62;
 		data[73] = 0x1c;
 		data[72] = 0xfd;
+	} else if (hctx->hid->product == PID_ARTIST_PRO19_GEN2) {
+		/* 19" screen reports 16.101" x 9.057" */
+		data[63] = 0x3e;
+		data[62] = 0xe5;
+		data[73] = 0x23;
+		data[72] = 0x61;
 	}
 
 	return sizeof(fixed_rdesc);
@@ -177,6 +185,27 @@ static const __u16 angle_offsets_vertical_16[128] = {
 	188, 186, 184, 182, 180, 178, 176, 174, 172
 };
 
+/* 19" inch screen 16.101" x 9.057" */
+static const __u16 angle_offsets_horizontal_19[128] = {
+	0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 25, 27, 29, 31, 33, 35, 37, 39, 41,
+	42, 44, 46, 48, 50, 51, 53, 55, 57, 58, 60, 62, 63, 65, 67, 68, 70, 71, 73, 74, 76,
+	77, 79, 80, 82, 83, 84, 86, 87, 88, 89, 90, 92, 93, 94, 95, 96, 97, 98, 99, 100,
+	101, 102, 103, 104, 104, 105, 106, 106, 107, 108, 108, 109, 109, 110, 110, 111,
+	111, 112, 112, 112, 112, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113, 113,
+	113, 113, 112, 112, 112, 112, 111, 111, 110, 110, 109, 109, 108, 108, 107, 106,
+	106, 105, 104, 104, 103, 102, 101, 100, 99, 98, 97, 96, 95, 94, 93, 92, 90
+};
+static const __u16 angle_offsets_vertical_19[128] = {
+	0, 4, 7, 11, 14, 18, 21, 25, 28, 32, 35, 38, 42, 45, 49, 52, 56, 59, 62, 66, 69, 72,
+	75, 79, 82, 85, 88, 91, 95, 98, 101, 104, 107, 110, 113, 116, 118, 121, 124, 127,
+	129, 132, 135, 137, 140, 142, 145, 147, 150, 152, 154, 157, 159, 161, 163, 165, 167,
+	169, 171, 173, 174, 176, 178, 179, 181, 183, 184, 185, 187, 188, 189, 190, 192, 193,
+	194, 195, 195, 196, 197, 198, 198, 199, 199, 200, 200, 201, 201, 201, 201, 201, 201,
+	201, 201, 201, 201, 201, 200, 200, 199, 199, 198, 198, 197, 196, 195, 195, 194, 193,
+	192, 190, 189, 188, 187, 185, 184, 183, 181, 179, 178, 176, 174, 173, 171, 169, 167,
+	165, 163, 161
+};
+
 static void compensate_coordinates_by_tilt(__u8 *data, const __u8 idx,
 		const __s8 tilt, const __u16 (*compensation_table)[128])
 {
@@ -241,12 +270,19 @@ static int xppen_16_fix_angle_offset(struct hid_bpf_ctx *hctx)
 	__s8 tilt_x = (__s8) data[8];
 	__s8 tilt_y = (__s8) data[9];
 
-	if (hctx->hid->product == PID_ARTIST_PRO14_GEN2) {
+	switch (hctx->hid->product) {
+	case PID_ARTIST_PRO14_GEN2:
 		compensate_coordinates_by_tilt(data, 2, tilt_x, &angle_offsets_horizontal_14);
 		compensate_coordinates_by_tilt(data, 4, tilt_y, &angle_offsets_vertical_14);
-	} else if (hctx->hid->product == PID_ARTIST_PRO16_GEN2) {
+		break;
+	case PID_ARTIST_PRO16_GEN2:
 		compensate_coordinates_by_tilt(data, 2, tilt_x, &angle_offsets_horizontal_16);
 		compensate_coordinates_by_tilt(data, 4, tilt_y, &angle_offsets_vertical_16);
+		break;
+	case PID_ARTIST_PRO19_GEN2:
+		compensate_coordinates_by_tilt(data, 2, tilt_x, &angle_offsets_horizontal_19);
+		compensate_coordinates_by_tilt(data, 4, tilt_y, &angle_offsets_vertical_19);
+		break;
 	}
 
 	return 0;

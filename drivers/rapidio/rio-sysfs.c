@@ -114,7 +114,7 @@ static struct attribute *rio_dev_attrs[] = {
 
 static ssize_t
 rio_read_config(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *bin_attr,
+		const struct bin_attribute *bin_attr,
 		char *buf, loff_t off, size_t count)
 {
 	struct rio_dev *dev = to_rio_dev(kobj_to_dev(kobj));
@@ -185,7 +185,7 @@ rio_read_config(struct file *filp, struct kobject *kobj,
 
 static ssize_t
 rio_write_config(struct file *filp, struct kobject *kobj,
-		 struct bin_attribute *bin_attr,
+		 const struct bin_attribute *bin_attr,
 		 char *buf, loff_t off, size_t count)
 {
 	struct rio_dev *dev = to_rio_dev(kobj_to_dev(kobj));
@@ -241,17 +241,17 @@ rio_write_config(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute rio_config_attr = {
+static const struct bin_attribute rio_config_attr = {
 	.attr = {
 		 .name = "config",
 		 .mode = S_IRUGO | S_IWUSR,
 		 },
 	.size = RIO_MAINT_SPACE_SZ,
-	.read = rio_read_config,
-	.write = rio_write_config,
+	.read_new = rio_read_config,
+	.write_new = rio_write_config,
 };
 
-static struct bin_attribute *rio_dev_bin_attrs[] = {
+static const struct bin_attribute *const rio_dev_bin_attrs[] = {
 	&rio_config_attr,
 	NULL,
 };
@@ -278,7 +278,7 @@ static umode_t rio_dev_is_attr_visible(struct kobject *kobj,
 static const struct attribute_group rio_dev_group = {
 	.attrs		= rio_dev_attrs,
 	.is_visible	= rio_dev_is_attr_visible,
-	.bin_attrs	= rio_dev_bin_attrs,
+	.bin_attrs_new	= rio_dev_bin_attrs,
 };
 
 const struct attribute_group *rio_dev_groups[] = {

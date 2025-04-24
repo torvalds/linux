@@ -58,6 +58,7 @@ static const struct drm_connector_funcs panel_bridge_connector_funcs = {
 };
 
 static int panel_bridge_attach(struct drm_bridge *bridge,
+			       struct drm_encoder *encoder,
 			       enum drm_bridge_attach_flags flags)
 {
 	struct panel_bridge *panel_bridge = drm_bridge_to_panel_bridge(bridge);
@@ -81,7 +82,7 @@ static int panel_bridge_attach(struct drm_bridge *bridge,
 	drm_panel_bridge_set_orientation(connector, bridge);
 
 	drm_connector_attach_encoder(&panel_bridge->connector,
-					  bridge->encoder);
+					  encoder);
 
 	if (bridge->dev->registered) {
 		if (connector->funcs->reset)

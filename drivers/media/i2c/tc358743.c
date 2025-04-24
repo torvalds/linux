@@ -2201,7 +2201,7 @@ static int tc358743_probe(struct i2c_client *client)
 err_work_queues:
 	cec_unregister_adapter(state->cec_adap);
 	if (!state->i2c_client->irq) {
-		del_timer(&state->timer);
+		timer_delete(&state->timer);
 		flush_work(&state->work_i2c_poll);
 	}
 	cancel_delayed_work(&state->delayed_work_enable_hotplug);
@@ -2218,7 +2218,7 @@ static void tc358743_remove(struct i2c_client *client)
 	struct tc358743_state *state = to_state(sd);
 
 	if (!state->i2c_client->irq) {
-		del_timer_sync(&state->timer);
+		timer_delete_sync(&state->timer);
 		flush_work(&state->work_i2c_poll);
 	}
 	cancel_delayed_work_sync(&state->delayed_work_enable_hotplug);

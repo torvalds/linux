@@ -731,7 +731,7 @@ static void asd_dl_tasklet_handler(unsigned long data)
 			goto next_1;
 		} else if (ascb->scb->header.opcode == EMPTY_SCB) {
 			goto out;
-		} else if (!ascb->uldd_timer && !del_timer(&ascb->timer)) {
+		} else if (!ascb->uldd_timer && !timer_delete(&ascb->timer)) {
 			goto next_1;
 		}
 		spin_lock_irqsave(&seq->pend_q_lock, flags);

@@ -15,7 +15,6 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
-#include <linux/fb.h>
 #include <linux/backlight.h>
 
 #include <cpu/dac.h>

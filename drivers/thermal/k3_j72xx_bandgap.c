@@ -460,13 +460,13 @@ static int k3_j72xx_bandgap_probe(struct platform_device *pdev)
 		goto err_alloc;
 	}
 
-	ref_table = kzalloc(sizeof(*ref_table) * TABLE_SIZE, GFP_KERNEL);
+	ref_table = kcalloc(TABLE_SIZE, sizeof(*ref_table), GFP_KERNEL);
 	if (!ref_table) {
 		ret = -ENOMEM;
 		goto err_alloc;
 	}
 
-	derived_table = devm_kzalloc(bgp->dev, sizeof(*derived_table) * TABLE_SIZE,
+	derived_table = devm_kcalloc(bgp->dev, TABLE_SIZE, sizeof(*derived_table),
 				     GFP_KERNEL);
 	if (!derived_table) {
 		ret = -ENOMEM;

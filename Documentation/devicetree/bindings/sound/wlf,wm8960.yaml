@@ -75,6 +75,10 @@ properties:
       enable DACLRC pin. If shared-lrclk is present, no need to enable DAC for
       captrue.
 
+  port:
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
+
 required:
   - compatible
   - reg

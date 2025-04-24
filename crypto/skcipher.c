@@ -22,6 +22,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/string_choices.h>
 #include <net/netlink.h>
 #include "skcipher.h"
 
@@ -38,26 +39,6 @@ static const struct crypto_type crypto_skcipher_type;
 
 static int skcipher_walk_next(struct skcipher_walk *walk);
 
-static inline void skcipher_map_src(struct skcipher_walk *walk)
-{
-	walk->src.virt.addr = scatterwalk_map(&walk->in);
-}
-
-static inline void skcipher_map_dst(struct skcipher_walk *walk)
-{
-	walk->dst.virt.addr = scatterwalk_map(&walk->out);
-}
-
-static inline void skcipher_unmap_src(struct skcipher_walk *walk)
-{
-	scatterwalk_unmap(walk->src.virt.addr);
-}
-
-static inline void skcipher_unmap_dst(struct skcipher_walk *walk)
-{
-	scatterwalk_unmap(walk->dst.virt.addr);
-}
-
 static inline gfp_t skcipher_walk_gfp(struct skcipher_walk *walk)
 {
 	return walk->flags & SKCIPHER_WALK_SLEEP ? GFP_KERNEL : GFP_ATOMIC;
@@ -67,14 +48,6 @@ static inline struct skcipher_alg *__crypto_skcipher_alg(
 	struct crypto_alg *alg)
 {
 	return container_of(alg, struct skcipher_alg, base);
-}
-
-static int skcipher_done_slow(struct skcipher_walk *walk, unsigned int bsize)
-{
-	u8 *addr = PTR_ALIGN(walk->buffer, walk->alignmask + 1);
-
-	scatterwalk_copychunks(addr, &walk->out, bsize, 1);
-	return 0;
 }
 
 /**
@@ -111,15 +84,13 @@ int skcipher_walk_done(struct skcipher_walk *walk, int res)
 	if (likely(!(walk->flags & (SKCIPHER_WALK_SLOW |
 				    SKCIPHER_WALK_COPY |
 				    SKCIPHER_WALK_DIFF)))) {
-unmap_src:
-		skcipher_unmap_src(walk);
+		scatterwalk_advance(&walk->in, n);
 	} else if (walk->flags & SKCIPHER_WALK_DIFF) {
-		skcipher_unmap_dst(walk);
-		goto unmap_src;
+		scatterwalk_done_src(&walk->in, n);
 	} else if (walk->flags & SKCIPHER_WALK_COPY) {
-		skcipher_map_dst(walk);
-		memcpy(walk->dst.virt.addr, walk->page, n);
-		skcipher_unmap_dst(walk);
+		scatterwalk_advance(&walk->in, n);
+		scatterwalk_map(&walk->out);
+		memcpy(walk->out.addr, walk->page, n);
 	} else { /* SKCIPHER_WALK_SLOW */
 		if (res > 0) {
 			/*
@@ -131,19 +102,18 @@ unmap_src:
 			res = -EINVAL;
 			total = 0;
 		} else
-			n = skcipher_done_slow(walk, n);
+			memcpy_to_scatterwalk(&walk->out, walk->out.addr, n);
+		goto dst_done;
 	}
+
+	scatterwalk_done_dst(&walk->out, n);
+dst_done:
 
 	if (res > 0)
 		res = 0;
 
 	walk->total = total;
 	walk->nbytes = 0;
-
-	scatterwalk_advance(&walk->in, n);
-	scatterwalk_advance(&walk->out, n);
-	scatterwalk_done(&walk->in, 0, total);
-	scatterwalk_done(&walk->out, 1, total);
 
 	if (total) {
 		if (walk->flags & SKCIPHER_WALK_SLEEP)
@@ -174,7 +144,7 @@ static int skcipher_next_slow(struct skcipher_walk *walk, unsigned int bsize)
 {
 	unsigned alignmask = walk->alignmask;
 	unsigned n;
-	u8 *buffer;
+	void *buffer;
 
 	if (!walk->buffer)
 		walk->buffer = walk->page;
@@ -188,10 +158,11 @@ static int skcipher_next_slow(struct skcipher_walk *walk, unsigned int bsize)
 			return skcipher_walk_done(walk, -ENOMEM);
 		walk->buffer = buffer;
 	}
-	walk->dst.virt.addr = PTR_ALIGN(buffer, alignmask + 1);
-	walk->src.virt.addr = walk->dst.virt.addr;
 
-	scatterwalk_copychunks(walk->src.virt.addr, &walk->in, bsize, 0);
+	buffer = PTR_ALIGN(buffer, alignmask + 1);
+	memcpy_from_scatterwalk(buffer, &walk->in, bsize);
+	walk->out.__addr = buffer;
+	walk->in.__addr = walk->out.addr;
 
 	walk->nbytes = bsize;
 	walk->flags |= SKCIPHER_WALK_SLOW;
@@ -201,14 +172,18 @@ static int skcipher_next_slow(struct skcipher_walk *walk, unsigned int bsize)
 
 static int skcipher_next_copy(struct skcipher_walk *walk)
 {
-	u8 *tmp = walk->page;
+	void *tmp = walk->page;
 
-	skcipher_map_src(walk);
-	memcpy(tmp, walk->src.virt.addr, walk->nbytes);
-	skcipher_unmap_src(walk);
+	scatterwalk_map(&walk->in);
+	memcpy(tmp, walk->in.addr, walk->nbytes);
+	scatterwalk_unmap(&walk->in);
+	/*
+	 * walk->in is advanced later when the number of bytes actually
+	 * processed (which might be less than walk->nbytes) is known.
+	 */
 
-	walk->src.virt.addr = tmp;
-	walk->dst.virt.addr = tmp;
+	walk->in.__addr = tmp;
+	walk->out.__addr = tmp;
 	return 0;
 }
 
@@ -218,15 +193,15 @@ static int skcipher_next_fast(struct skcipher_walk *walk)
 
 	diff = offset_in_page(walk->in.offset) -
 	       offset_in_page(walk->out.offset);
-	diff |= (u8 *)scatterwalk_page(&walk->in) -
-		(u8 *)scatterwalk_page(&walk->out);
+	diff |= (u8 *)(sg_page(walk->in.sg) + (walk->in.offset >> PAGE_SHIFT)) -
+		(u8 *)(sg_page(walk->out.sg) + (walk->out.offset >> PAGE_SHIFT));
 
-	skcipher_map_src(walk);
-	walk->dst.virt.addr = walk->src.virt.addr;
+	scatterwalk_map(&walk->out);
+	walk->in.__addr = walk->out.__addr;
 
 	if (diff) {
 		walk->flags |= SKCIPHER_WALK_DIFF;
-		skcipher_map_dst(walk);
+		scatterwalk_map(&walk->in);
 	}
 
 	return 0;
@@ -305,13 +280,15 @@ static int skcipher_walk_first(struct skcipher_walk *walk)
 	return skcipher_walk_next(walk);
 }
 
-int skcipher_walk_virt(struct skcipher_walk *walk,
-		       struct skcipher_request *req, bool atomic)
+int skcipher_walk_virt(struct skcipher_walk *__restrict walk,
+		       struct skcipher_request *__restrict req, bool atomic)
 {
-	const struct skcipher_alg *alg =
-		crypto_skcipher_alg(crypto_skcipher_reqtfm(req));
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct skcipher_alg *alg;
 
 	might_sleep_if(req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP);
+
+	alg = crypto_skcipher_alg(tfm);
 
 	walk->total = req->cryptlen;
 	walk->nbytes = 0;
@@ -328,14 +305,9 @@ int skcipher_walk_virt(struct skcipher_walk *walk,
 	scatterwalk_start(&walk->in, req->src);
 	scatterwalk_start(&walk->out, req->dst);
 
-	/*
-	 * Accessing 'alg' directly generates better code than using the
-	 * crypto_skcipher_blocksize() and similar helper functions here, as it
-	 * prevents the algorithm pointer from being repeatedly reloaded.
-	 */
-	walk->blocksize = alg->base.cra_blocksize;
-	walk->ivsize = alg->co.ivsize;
-	walk->alignmask = alg->base.cra_alignmask;
+	walk->blocksize = crypto_skcipher_blocksize(tfm);
+	walk->ivsize = crypto_skcipher_ivsize(tfm);
+	walk->alignmask = crypto_skcipher_alignmask(tfm);
 
 	if (alg->co.base.cra_type != &crypto_skcipher_type)
 		walk->stride = alg->co.chunksize;
@@ -346,10 +318,11 @@ int skcipher_walk_virt(struct skcipher_walk *walk,
 }
 EXPORT_SYMBOL_GPL(skcipher_walk_virt);
 
-static int skcipher_walk_aead_common(struct skcipher_walk *walk,
-				     struct aead_request *req, bool atomic)
+static int skcipher_walk_aead_common(struct skcipher_walk *__restrict walk,
+				     struct aead_request *__restrict req,
+				     bool atomic)
 {
-	const struct aead_alg *alg = crypto_aead_alg(crypto_aead_reqtfm(req));
+	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 
 	walk->nbytes = 0;
 	walk->iv = req->iv;
@@ -362,30 +335,20 @@ static int skcipher_walk_aead_common(struct skcipher_walk *walk,
 	if (unlikely(!walk->total))
 		return 0;
 
-	scatterwalk_start(&walk->in, req->src);
-	scatterwalk_start(&walk->out, req->dst);
+	scatterwalk_start_at_pos(&walk->in, req->src, req->assoclen);
+	scatterwalk_start_at_pos(&walk->out, req->dst, req->assoclen);
 
-	scatterwalk_copychunks(NULL, &walk->in, req->assoclen, 2);
-	scatterwalk_copychunks(NULL, &walk->out, req->assoclen, 2);
-
-	scatterwalk_done(&walk->in, 0, walk->total);
-	scatterwalk_done(&walk->out, 0, walk->total);
-
-	/*
-	 * Accessing 'alg' directly generates better code than using the
-	 * crypto_aead_blocksize() and similar helper functions here, as it
-	 * prevents the algorithm pointer from being repeatedly reloaded.
-	 */
-	walk->blocksize = alg->base.cra_blocksize;
-	walk->stride = alg->chunksize;
-	walk->ivsize = alg->ivsize;
-	walk->alignmask = alg->base.cra_alignmask;
+	walk->blocksize = crypto_aead_blocksize(tfm);
+	walk->stride = crypto_aead_chunksize(tfm);
+	walk->ivsize = crypto_aead_ivsize(tfm);
+	walk->alignmask = crypto_aead_alignmask(tfm);
 
 	return skcipher_walk_first(walk);
 }
 
-int skcipher_walk_aead_encrypt(struct skcipher_walk *walk,
-			       struct aead_request *req, bool atomic)
+int skcipher_walk_aead_encrypt(struct skcipher_walk *__restrict walk,
+			       struct aead_request *__restrict req,
+			       bool atomic)
 {
 	walk->total = req->cryptlen;
 
@@ -393,8 +356,9 @@ int skcipher_walk_aead_encrypt(struct skcipher_walk *walk,
 }
 EXPORT_SYMBOL_GPL(skcipher_walk_aead_encrypt);
 
-int skcipher_walk_aead_decrypt(struct skcipher_walk *walk,
-			       struct aead_request *req, bool atomic)
+int skcipher_walk_aead_decrypt(struct skcipher_walk *__restrict walk,
+			       struct aead_request *__restrict req,
+			       bool atomic)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 
@@ -612,7 +576,7 @@ static void crypto_skcipher_show(struct seq_file *m, struct crypto_alg *alg)
 
 	seq_printf(m, "type         : skcipher\n");
 	seq_printf(m, "async        : %s\n",
-		   alg->cra_flags & CRYPTO_ALG_ASYNC ?  "yes" : "no");
+		   str_yes_no(alg->cra_flags & CRYPTO_ALG_ASYNC));
 	seq_printf(m, "blocksize    : %u\n", alg->cra_blocksize);
 	seq_printf(m, "min keysize  : %u\n", skcipher->min_keysize);
 	seq_printf(m, "max keysize  : %u\n", skcipher->max_keysize);
@@ -681,6 +645,7 @@ struct crypto_sync_skcipher *crypto_alloc_sync_skcipher(
 
 	/* Only sync algorithms allowed. */
 	mask |= CRYPTO_ALG_ASYNC | CRYPTO_ALG_SKCIPHER_REQSIZE_LARGE;
+	type &= ~(CRYPTO_ALG_ASYNC | CRYPTO_ALG_SKCIPHER_REQSIZE_LARGE);
 
 	tfm = crypto_alloc_tfm(alg_name, &crypto_skcipher_type, type, mask);
 

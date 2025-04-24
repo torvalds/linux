@@ -88,7 +88,7 @@ const struct pmc_bit_map cnp_pfear_map[] = {
 	{}
 };
 
-const struct pmc_bit_map *ext_cnp_pfear_map[] = {
+static const struct pmc_bit_map *ext_cnp_pfear_map[] = {
 	/*
 	 * Check intel_pmc_core_ids[] users of cnp_reg_map for
 	 * a list of core SoCs using this.
@@ -97,7 +97,7 @@ const struct pmc_bit_map *ext_cnp_pfear_map[] = {
 	NULL
 };
 
-const struct pmc_bit_map cnp_slps0_dbg0_map[] = {
+static const struct pmc_bit_map cnp_slps0_dbg0_map[] = {
 	{"AUDIO_D3",		BIT(0)},
 	{"OTG_D3",		BIT(1)},
 	{"XHCI_D3",		BIT(2)},
@@ -110,7 +110,7 @@ const struct pmc_bit_map cnp_slps0_dbg0_map[] = {
 	{}
 };
 
-const struct pmc_bit_map cnp_slps0_dbg1_map[] = {
+static const struct pmc_bit_map cnp_slps0_dbg1_map[] = {
 	{"SDIO_PLL_OFF",	BIT(0)},
 	{"USB2_PLL_OFF",	BIT(1)},
 	{"AUDIO_PLL_OFF",	BIT(2)},
@@ -127,7 +127,7 @@ const struct pmc_bit_map cnp_slps0_dbg1_map[] = {
 	{}
 };
 
-const struct pmc_bit_map cnp_slps0_dbg2_map[] = {
+static const struct pmc_bit_map cnp_slps0_dbg2_map[] = {
 	{"MPHY_CORE_GATED",	BIT(0)},
 	{"CSME_GATED",		BIT(1)},
 	{"USB2_SUS_GATED",	BIT(2)},
@@ -274,20 +274,9 @@ int cnl_resume(struct pmc_dev *pmcdev)
 	return pmc_core_resume_common(pmcdev);
 }
 
-int cnp_core_init(struct pmc_dev *pmcdev)
-{
-	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
-	int ret;
+struct pmc_dev_info cnp_pmc_dev = {
+	.map = &cnp_reg_map,
+	.suspend = cnl_suspend,
+	.resume = cnl_resume,
+};
 
-	pmcdev->suspend = cnl_suspend;
-	pmcdev->resume = cnl_resume;
-
-	pmc->map = &cnp_reg_map;
-	ret = get_primary_reg_base(pmc);
-	if (ret)
-		return ret;
-
-	pmc_core_get_low_power_modes(pmcdev);
-
-	return 0;
-}

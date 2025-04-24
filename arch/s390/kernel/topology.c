@@ -6,6 +6,7 @@
 #define KMSG_COMPONENT "cpu"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/cpufeature.h>
 #include <linux/workqueue.h>
 #include <linux/memblock.h>
 #include <linux/uaccess.h>
@@ -240,7 +241,7 @@ int topology_set_cpu_management(int fc)
 {
 	int cpu, rc;
 
-	if (!MACHINE_HAS_TOPOLOGY)
+	if (!cpu_has_topology())
 		return -EOPNOTSUPP;
 	if (fc)
 		rc = ptf(PTF_VERTICAL);
@@ -315,13 +316,13 @@ static int __arch_update_cpu_topology(void)
 	hd_status = 0;
 	rc = 0;
 	mutex_lock(&smp_cpu_state_mutex);
-	if (MACHINE_HAS_TOPOLOGY) {
+	if (cpu_has_topology()) {
 		rc = 1;
 		store_topology(info);
 		tl_to_masks(info);
 	}
 	update_cpu_masks();
-	if (!MACHINE_HAS_TOPOLOGY)
+	if (!cpu_has_topology())
 		topology_update_polarization_simple();
 	if (cpu_management == 1)
 		hd_status = hd_enable_hiperdispatch();
@@ -376,7 +377,7 @@ static void set_topology_timer(void)
 
 void topology_expect_change(void)
 {
-	if (!MACHINE_HAS_TOPOLOGY)
+	if (!cpu_has_topology())
 		return;
 	/* This is racy, but it doesn't matter since it is just a heuristic.
 	 * Worst case is that we poll in a higher frequency for a bit longer.
@@ -500,7 +501,7 @@ int topology_cpu_init(struct cpu *cpu)
 	int rc;
 
 	rc = sysfs_create_group(&cpu->dev.kobj, &topology_cpu_attr_group);
-	if (rc || !MACHINE_HAS_TOPOLOGY)
+	if (rc || !cpu_has_topology())
 		return rc;
 	rc = sysfs_create_group(&cpu->dev.kobj, &topology_extra_cpu_attr_group);
 	if (rc)
@@ -569,12 +570,12 @@ void __init topology_init_early(void)
 
 	set_sched_topology(s390_topology);
 	if (topology_mode == TOPOLOGY_MODE_UNINITIALIZED) {
-		if (MACHINE_HAS_TOPOLOGY)
+		if (cpu_has_topology())
 			topology_mode = TOPOLOGY_MODE_HW;
 		else
 			topology_mode = TOPOLOGY_MODE_SINGLE;
 	}
-	if (!MACHINE_HAS_TOPOLOGY)
+	if (!cpu_has_topology())
 		goto out;
 	tl_info = memblock_alloc_or_panic(PAGE_SIZE, PAGE_SIZE);
 	info = tl_info;
@@ -596,7 +597,7 @@ static inline int topology_get_mode(int enabled)
 {
 	if (!enabled)
 		return TOPOLOGY_MODE_SINGLE;
-	return MACHINE_HAS_TOPOLOGY ? TOPOLOGY_MODE_HW : TOPOLOGY_MODE_PACKAGE;
+	return cpu_has_topology() ? TOPOLOGY_MODE_HW : TOPOLOGY_MODE_PACKAGE;
 }
 
 static inline int topology_is_enabled(void)
@@ -686,7 +687,7 @@ static int __init topology_init(void)
 	int rc = 0;
 
 	timer_setup(&topology_timer, topology_timer_fn, TIMER_DEFERRABLE);
-	if (MACHINE_HAS_TOPOLOGY)
+	if (cpu_has_topology())
 		set_topology_timer();
 	else
 		topology_update_polarization_simple();

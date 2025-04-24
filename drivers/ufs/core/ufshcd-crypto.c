@@ -72,11 +72,11 @@ static int ufshcd_crypto_keyslot_program(struct blk_crypto_profile *profile,
 
 	if (ccap_array[cap_idx].algorithm_id == UFS_CRYPTO_ALG_AES_XTS) {
 		/* In XTS mode, the blk_crypto_key's size is already doubled */
-		memcpy(cfg.crypto_key, key->raw, key->size/2);
+		memcpy(cfg.crypto_key, key->bytes, key->size/2);
 		memcpy(cfg.crypto_key + UFS_CRYPTO_KEY_MAX_SIZE/2,
-		       key->raw + key->size/2, key->size/2);
+		       key->bytes + key->size/2, key->size/2);
 	} else {
-		memcpy(cfg.crypto_key, key->raw, key->size);
+		memcpy(cfg.crypto_key, key->bytes, key->size);
 	}
 
 	ufshcd_program_key(hba, &cfg, slot);
@@ -185,6 +185,7 @@ int ufshcd_hba_init_crypto_capabilities(struct ufs_hba *hba)
 	hba->crypto_profile.ll_ops = ufshcd_crypto_ops;
 	/* UFS only supports 8 bytes for any DUN */
 	hba->crypto_profile.max_dun_bytes_supported = 8;
+	hba->crypto_profile.key_types_supported = BLK_CRYPTO_KEY_TYPE_RAW;
 	hba->crypto_profile.dev = hba->dev;
 
 	/*

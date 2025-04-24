@@ -151,6 +151,9 @@ struct wm8904_pdata {
 	int num_retune_mobile_cfgs;
 	struct wm8904_retune_mobile_cfg *retune_mobile_cfgs;
 
+	bool in1l_as_dmicdat1;
+	bool in1r_as_dmicdat2;
+
 	u32 gpio_cfg[WM8904_GPIO_REGS];
 	u32 mic_cfg[WM8904_MIC_REGS];
 };

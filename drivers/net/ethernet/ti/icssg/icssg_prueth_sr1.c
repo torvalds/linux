@@ -84,7 +84,7 @@ static int emac_send_command_sr1(struct prueth_emac *emac, u32 cmd)
 	__le32 *data = emac->cmd_data;
 	dma_addr_t desc_dma, buf_dma;
 	struct prueth_tx_chn *tx_chn;
-	void **swdata;
+	struct prueth_swdata *swdata;
 	int ret = 0;
 	u32 *epib;
 
@@ -122,7 +122,8 @@ static int emac_send_command_sr1(struct prueth_emac *emac, u32 cmd)
 
 	cppi5_hdesc_attach_buf(first_desc, buf_dma, pkt_len, buf_dma, pkt_len);
 	swdata = cppi5_hdesc_get_swdata(first_desc);
-	*swdata = data;
+	swdata->type = PRUETH_SWDATA_CMD;
+	swdata->data.cmd = le32_to_cpu(data[0]);
 
 	cppi5_hdesc_set_pktlen(first_desc, pkt_len);
 	desc_dma = k3_cppi_desc_pool_virt2dma(tx_chn->desc_pool, first_desc);
@@ -268,16 +269,16 @@ static int emac_phy_connect(struct prueth_emac *emac)
  * Returns skb pointer if packet found else NULL
  * Caller must free the returned skb.
  */
-static struct sk_buff *prueth_process_rx_mgm(struct prueth_emac *emac,
-					     u32 flow_id)
+static struct page *prueth_process_rx_mgm(struct prueth_emac *emac,
+					  u32 flow_id)
 {
 	struct prueth_rx_chn *rx_chn = &emac->rx_mgm_chn;
 	struct net_device *ndev = emac->ndev;
 	struct cppi5_host_desc_t *desc_rx;
-	struct sk_buff *skb, *new_skb;
+	struct page *page, *new_page;
+	struct prueth_swdata *swdata;
 	dma_addr_t desc_dma, buf_dma;
-	u32 buf_dma_len, pkt_len;
-	void **swdata;
+	u32 buf_dma_len;
 	int ret;
 
 	ret = k3_udma_glue_pop_rx_chn(rx_chn->rx_chn, flow_id, &desc_dma);
@@ -299,34 +300,31 @@ static struct sk_buff *prueth_process_rx_mgm(struct prueth_emac *emac,
 	}
 
 	swdata = cppi5_hdesc_get_swdata(desc_rx);
-	skb = *swdata;
+	page = swdata->data.page;
 	cppi5_hdesc_get_obuf(desc_rx, &buf_dma, &buf_dma_len);
-	pkt_len = cppi5_hdesc_get_pktlen(desc_rx);
 
 	dma_unmap_single(rx_chn->dma_dev, buf_dma, buf_dma_len, DMA_FROM_DEVICE);
 	k3_cppi_desc_pool_free(rx_chn->desc_pool, desc_rx);
 
-	new_skb = netdev_alloc_skb_ip_align(ndev, PRUETH_MAX_PKT_SIZE);
+	new_page = page_pool_dev_alloc_pages(rx_chn->pg_pool);
 	/* if allocation fails we drop the packet but push the
 	 * descriptor back to the ring with old skb to prevent a stall
 	 */
-	if (!new_skb) {
+	if (!new_page) {
 		netdev_err(ndev,
-			   "skb alloc failed, dropped mgm pkt from flow %d\n",
+			   "page alloc failed, dropped mgm pkt from flow %d\n",
 			   flow_id);
-		new_skb = skb;
-		skb = NULL;	/* return NULL */
-	} else {
-		/* return the filled skb */
-		skb_put(skb, pkt_len);
+		new_page = page;
+		page = NULL;	/* return NULL */
 	}
 
 	/* queue another DMA */
-	ret = prueth_dma_rx_push(emac, new_skb, &emac->rx_mgm_chn);
+	ret = prueth_dma_rx_push_mapped(emac, &emac->rx_chns, new_page,
+					PRUETH_MAX_PKT_SIZE);
 	if (WARN_ON(ret < 0))
-		dev_kfree_skb_any(new_skb);
+		page_pool_recycle_direct(rx_chn->pg_pool, new_page);
 
-	return skb;
+	return page;
 }
 
 static void prueth_tx_ts_sr1(struct prueth_emac *emac,
@@ -362,14 +360,14 @@ static void prueth_tx_ts_sr1(struct prueth_emac *emac,
 static irqreturn_t prueth_rx_mgm_ts_thread_sr1(int irq, void *dev_id)
 {
 	struct prueth_emac *emac = dev_id;
-	struct sk_buff *skb;
+	struct page *page;
 
-	skb = prueth_process_rx_mgm(emac, PRUETH_RX_MGM_FLOW_TIMESTAMP_SR1);
-	if (!skb)
+	page = prueth_process_rx_mgm(emac, PRUETH_RX_MGM_FLOW_TIMESTAMP_SR1);
+	if (!page)
 		return IRQ_NONE;
 
-	prueth_tx_ts_sr1(emac, (void *)skb->data);
-	dev_kfree_skb_any(skb);
+	prueth_tx_ts_sr1(emac, (void *)page_address(page));
+	page_pool_recycle_direct(page->pp, page);
 
 	return IRQ_HANDLED;
 }
@@ -377,15 +375,15 @@ static irqreturn_t prueth_rx_mgm_ts_thread_sr1(int irq, void *dev_id)
 static irqreturn_t prueth_rx_mgm_rsp_thread(int irq, void *dev_id)
 {
 	struct prueth_emac *emac = dev_id;
-	struct sk_buff *skb;
+	struct page *page;
 	u32 rsp;
 
-	skb = prueth_process_rx_mgm(emac, PRUETH_RX_MGM_FLOW_RESPONSE_SR1);
-	if (!skb)
+	page = prueth_process_rx_mgm(emac, PRUETH_RX_MGM_FLOW_RESPONSE_SR1);
+	if (!page)
 		return IRQ_NONE;
 
 	/* Process command response */
-	rsp = le32_to_cpu(*(__le32 *)skb->data) & 0xffff0000;
+	rsp = le32_to_cpu(*(__le32 *)page_address(page)) & 0xffff0000;
 	if (rsp == ICSSG_SHUTDOWN_CMD_SR1) {
 		netdev_dbg(emac->ndev, "f/w Shutdown cmd resp %x\n", rsp);
 		complete(&emac->cmd_complete);
@@ -394,7 +392,7 @@ static irqreturn_t prueth_rx_mgm_rsp_thread(int irq, void *dev_id)
 		complete(&emac->cmd_complete);
 	}
 
-	dev_kfree_skb_any(skb);
+	page_pool_recycle_direct(page->pp, page);
 
 	return IRQ_HANDLED;
 }

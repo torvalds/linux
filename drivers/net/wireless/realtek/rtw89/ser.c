@@ -156,9 +156,9 @@ static void ser_state_run(struct rtw89_ser *ser, u8 evt)
 	rtw89_debug(rtwdev, RTW89_DBG_SER, "ser: %s receive %s\n",
 		    ser_st_name(ser), ser_ev_name(ser, evt));
 
-	mutex_lock(&rtwdev->mutex);
+	wiphy_lock(rtwdev->hw->wiphy);
 	rtw89_leave_lps(rtwdev);
-	mutex_unlock(&rtwdev->mutex);
+	wiphy_unlock(rtwdev->hw->wiphy);
 
 	ser->st_tbl[ser->state].st_func(ser, evt);
 }
@@ -483,10 +483,13 @@ static void ser_l1_reset_pre_st_hdl(struct rtw89_ser *ser, u8 evt)
 static void ser_reset_trx_st_hdl(struct rtw89_ser *ser, u8 evt)
 {
 	struct rtw89_dev *rtwdev = container_of(ser, struct rtw89_dev, ser);
+	struct wiphy *wiphy = rtwdev->hw->wiphy;
 
 	switch (evt) {
 	case SER_EV_STATE_IN:
-		cancel_delayed_work_sync(&rtwdev->track_work);
+		wiphy_lock(wiphy);
+		wiphy_delayed_work_cancel(wiphy, &rtwdev->track_work);
+		wiphy_unlock(wiphy);
 		drv_stop_tx(ser);
 
 		if (hal_stop_dma(ser)) {
@@ -517,8 +520,8 @@ static void ser_reset_trx_st_hdl(struct rtw89_ser *ser, u8 evt)
 		hal_enable_dma(ser);
 		drv_resume_rx(ser);
 		drv_resume_tx(ser);
-		ieee80211_queue_delayed_work(rtwdev->hw, &rtwdev->track_work,
-					     RTW89_TRACK_WORK_PERIOD);
+		wiphy_delayed_work_queue(wiphy, &rtwdev->track_work,
+					 RTW89_TRACK_WORK_PERIOD);
 		break;
 
 	default:
@@ -708,9 +711,9 @@ static void ser_l2_reset_st_hdl(struct rtw89_ser *ser, u8 evt)
 
 	switch (evt) {
 	case SER_EV_STATE_IN:
-		mutex_lock(&rtwdev->mutex);
+		wiphy_lock(rtwdev->hw->wiphy);
 		ser_l2_reset_st_pre_hdl(ser);
-		mutex_unlock(&rtwdev->mutex);
+		wiphy_unlock(rtwdev->hw->wiphy);
 
 		ieee80211_restart_hw(rtwdev->hw);
 		ser_set_alarm(ser, SER_RECFG_TIMEOUT, SER_EV_L2_RECFG_TIMEOUT);

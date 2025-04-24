@@ -11,8 +11,34 @@
 #ifndef __ASM_S390_SYSINFO_H
 #define __ASM_S390_SYSINFO_H
 
-#include <asm/bitsperlong.h>
 #include <linux/uuid.h>
+#include <asm/bitsperlong.h>
+#include <asm/asm.h>
+
+/*
+ * stsi - store system information
+ *
+ * Returns the current configuration level if function code 0 was specified.
+ * Otherwise returns 0 on success or a negative value on error.
+ */
+static inline int stsi(void *sysinfo, int fc, int sel1, int sel2)
+{
+	int r0 = (fc << 28) | sel1;
+	int cc;
+
+	asm volatile(
+		"	lr	%%r0,%[r0]\n"
+		"	lr	%%r1,%[r1]\n"
+		"	stsi	%[sysinfo]\n"
+		"	lr	%[r0],%%r0\n"
+		CC_IPM(cc)
+		: CC_OUT(cc, cc), [r0] "+d" (r0), [sysinfo] "=Q" (*(char *)sysinfo)
+		: [r1] "d" (sel2)
+		: CC_CLOBBER_LIST("0", "1", "memory"));
+	if (cc == 3)
+		return -EOPNOTSUPP;
+	return fc ? 0 : (unsigned int)r0 >> 28;
+}
 
 struct sysinfo_1_1_1 {
 	unsigned char p:1;

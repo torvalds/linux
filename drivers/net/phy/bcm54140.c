@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/phy.h>
 
+#include "phylib.h"
 #include "bcm-phy-lib.h"
 
 /* RDB per-port registers

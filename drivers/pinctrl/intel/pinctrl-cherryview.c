@@ -1631,9 +1631,8 @@ static int chv_pinctrl_probe(struct platform_device *pdev)
 	pctrl->soc = soc_data;
 
 	pctrl->ncommunities = pctrl->soc->ncommunities;
-	pctrl->communities = devm_kmemdup(dev, pctrl->soc->communities,
-					  pctrl->ncommunities * sizeof(*pctrl->communities),
-					  GFP_KERNEL);
+	pctrl->communities = devm_kmemdup_array(dev, pctrl->soc->communities, pctrl->ncommunities,
+						sizeof(*pctrl->soc->communities), GFP_KERNEL);
 	if (!pctrl->communities)
 		return -ENOMEM;
 

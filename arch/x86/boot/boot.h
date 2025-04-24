@@ -16,7 +16,7 @@
 
 #define STACK_SIZE	1024	/* Minimum number of bytes for stack */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/stdarg.h>
 #include <linux/types.h>
@@ -327,6 +327,6 @@ void probe_cards(int unsafe);
 /* video-vesa.c */
 void vesa_store_edid(void);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* BOOT_BOOT_H */

@@ -500,26 +500,6 @@ static int mtk_memif_set_rate_fs(struct mtk_base_afe *afe,
 	return 0;
 }
 
-int mtk_memif_set_rate(struct mtk_base_afe *afe,
-		       int id, unsigned int rate)
-{
-	int fs = 0;
-
-	if (!afe->get_dai_fs) {
-		dev_err(afe->dev, "%s(), error, afe->get_dai_fs == NULL\n",
-			__func__);
-		return -EINVAL;
-	}
-
-	fs = afe->get_dai_fs(afe, id, rate);
-
-	if (fs < 0)
-		return -EINVAL;
-
-	return mtk_memif_set_rate_fs(afe, id, fs);
-}
-EXPORT_SYMBOL_GPL(mtk_memif_set_rate);
-
 int mtk_memif_set_rate_substream(struct snd_pcm_substream *substream,
 				 int id, unsigned int rate)
 {

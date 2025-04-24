@@ -370,15 +370,10 @@ bool dc_link_should_enable_fec(const struct dc_link *link)
 	return link->dc->link_srv->dp_should_enable_fec(link);
 }
 
-int dc_link_dp_dpia_handle_usb4_bandwidth_allocation_for_link(
+void dc_link_dp_dpia_handle_usb4_bandwidth_allocation_for_link(
 		struct dc_link *link, int peak_bw)
 {
-	return link->dc->link_srv->dpia_handle_usb4_bandwidth_allocation_for_link(link, peak_bw);
-}
-
-void dc_link_handle_usb4_bw_alloc_response(struct dc_link *link, uint8_t bw, uint8_t result)
-{
-	link->dc->link_srv->dpia_handle_bw_alloc_response(link, bw, result);
+	link->dc->link_srv->dpia_handle_usb4_bandwidth_allocation_for_link(link, peak_bw);
 }
 
 bool dc_link_check_link_loss_status(

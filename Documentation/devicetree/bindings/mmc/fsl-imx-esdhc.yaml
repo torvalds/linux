@@ -57,6 +57,7 @@ properties:
               - fsl,imx8mp-usdhc
               - fsl,imx8ulp-usdhc
               - fsl,imx93-usdhc
+              - fsl,imx94-usdhc
               - fsl,imx95-usdhc
           - const: fsl,imx8mm-usdhc
       - items:

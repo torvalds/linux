@@ -809,9 +809,13 @@ static void raid0_quiesce(struct mddev *mddev, int quiesce)
 
 static struct md_personality raid0_personality=
 {
-	.name		= "raid0",
-	.level		= 0,
-	.owner		= THIS_MODULE,
+	.head = {
+		.type	= MD_PERSONALITY,
+		.id	= ID_RAID0,
+		.name	= "raid0",
+		.owner	= THIS_MODULE,
+	},
+
 	.make_request	= raid0_make_request,
 	.run		= raid0_run,
 	.free		= raid0_free,
@@ -822,14 +826,14 @@ static struct md_personality raid0_personality=
 	.error_handler	= raid0_error,
 };
 
-static int __init raid0_init (void)
+static int __init raid0_init(void)
 {
-	return register_md_personality (&raid0_personality);
+	return register_md_submodule(&raid0_personality.head);
 }
 
-static void raid0_exit (void)
+static void __exit raid0_exit(void)
 {
-	unregister_md_personality (&raid0_personality);
+	unregister_md_submodule(&raid0_personality.head);
 }
 
 module_init(raid0_init);

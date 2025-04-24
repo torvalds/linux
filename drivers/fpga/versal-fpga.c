@@ -69,7 +69,7 @@ static struct platform_driver versal_fpga_driver = {
 	.probe = versal_fpga_probe,
 	.driver = {
 		.name = "versal_fpga_manager",
-		.of_match_table = of_match_ptr(versal_fpga_of_match),
+		.of_match_table = versal_fpga_of_match,
 	},
 };
 module_platform_driver(versal_fpga_driver);

@@ -23,7 +23,8 @@ struct imx_legacy_bridge {
 #define to_imx_legacy_bridge(bridge)	container_of(bridge, struct imx_legacy_bridge, base)
 
 static int imx_legacy_bridge_attach(struct drm_bridge *bridge,
-				   enum drm_bridge_attach_flags flags)
+				    struct drm_encoder *encoder,
+				    enum drm_bridge_attach_flags flags)
 {
 	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
 		return -EINVAL;
@@ -76,9 +77,9 @@ struct drm_bridge *devm_imx_drm_legacy_bridge(struct device *dev,
 	imx_bridge->base.ops = DRM_BRIDGE_OP_MODES;
 	imx_bridge->base.type = type;
 
-       ret = devm_drm_bridge_add(dev, &imx_bridge->base);
-       if (ret)
-               return ERR_PTR(ret);
+	ret = devm_drm_bridge_add(dev, &imx_bridge->base);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return &imx_bridge->base;
 }

@@ -36,51 +36,6 @@ struct cb7210_priv {
 	unsigned in_fifo_half_full : 1;
 };
 
-// interrupt service routines
-irqreturn_t cb_pci_interrupt(int irq, void *arg);
-irqreturn_t cb7210_interrupt(int irq, void *arg);
-irqreturn_t cb7210_internal_interrupt(gpib_board_t *board);
-
-// interface functions
-int cb7210_read(gpib_board_t *board, uint8_t *buffer, size_t length,
-		int *end, size_t *bytes_read);
-int cb7210_accel_read(gpib_board_t *board, uint8_t *buffer, size_t length,
-		      int *end, size_t *bytes_read);
-int cb7210_write(gpib_board_t *board, uint8_t *buffer, size_t length,
-		 int send_eoi, size_t *bytes_written);
-int cb7210_accel_write(gpib_board_t *board, uint8_t *buffer, size_t length,
-		       int send_eoi, size_t *bytes_written);
-int cb7210_command(gpib_board_t *board, uint8_t *buffer, size_t length, size_t *bytes_written);
-int cb7210_take_control(gpib_board_t *board, int synchronous);
-int cb7210_go_to_standby(gpib_board_t *board);
-void cb7210_request_system_control(gpib_board_t *board, int request_control);
-void cb7210_interface_clear(gpib_board_t *board, int assert);
-void cb7210_remote_enable(gpib_board_t *board, int enable);
-int cb7210_enable_eos(gpib_board_t *board, uint8_t eos_byte,
-		      int compare_8_bits);
-void cb7210_disable_eos(gpib_board_t *board);
-unsigned int cb7210_update_status(gpib_board_t *board, unsigned int clear_mask);
-int cb7210_primary_address(gpib_board_t *board, unsigned int address);
-int cb7210_secondary_address(gpib_board_t *board, unsigned int address,
-			     int enable);
-int cb7210_parallel_poll(gpib_board_t *board, uint8_t *result);
-void cb7210_serial_poll_response(gpib_board_t *board, uint8_t status);
-uint8_t cb7210_serial_poll_status(gpib_board_t *board);
-void cb7210_parallel_poll_configure(gpib_board_t *board, uint8_t configuration);
-void cb7210_parallel_poll_response(gpib_board_t *board, int ist);
-int cb7210_line_status(const gpib_board_t *board);
-unsigned int cb7210_t1_delay(gpib_board_t *board, unsigned int nano_sec);
-void cb7210_return_to_local(gpib_board_t *board);
-
-// utility functions
-void cb7210_generic_detach(gpib_board_t *board);
-int cb7210_generic_attach(gpib_board_t *board);
-int cb7210_init(struct cb7210_priv *priv, gpib_board_t *board);
-
-// pcmcia init/cleanup
-int cb_pcmcia_init_module(void);
-void cb_pcmcia_cleanup_module(void);
-
 // pci-gpib register offset
 static const int cb7210_reg_offset = 1;
 

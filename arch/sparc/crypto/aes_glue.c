@@ -321,7 +321,7 @@ static void ctr_crypt_final(const struct crypto_sparc64_aes_ctx *ctx,
 {
 	u8 *ctrblk = walk->iv;
 	u64 keystream[AES_BLOCK_SIZE / sizeof(u64)];
-	u8 *src = walk->src.virt.addr;
+	const u8 *src = walk->src.virt.addr;
 	u8 *dst = walk->dst.virt.addr;
 	unsigned int nbytes = walk->nbytes;
 

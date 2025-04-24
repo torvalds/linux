@@ -180,7 +180,7 @@ There are seven callbacks:
     struct contains two fields: offset and full_len. Offset is
     where the message starts in the skb, and full_len is the
     the length of the message. skb->len - offset may be greater
-    then full_len since strparser does not trim the skb.
+    than full_len since strparser does not trim the skb.
 
     ::
 
