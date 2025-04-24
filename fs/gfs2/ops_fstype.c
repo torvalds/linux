@@ -163,7 +163,7 @@ static int gfs2_check_sb(struct gfs2_sbd *sdp, int silent)
 		return -EINVAL;
 	}
 
-	if (sb->sb_bsize < 512 || sb->sb_bsize > PAGE_SIZE ||
+	if (sb->sb_bsize < SECTOR_SIZE || sb->sb_bsize > PAGE_SIZE ||
 	    (sb->sb_bsize & (sb->sb_bsize - 1))) {
 		pr_warn("Invalid block size\n");
 		return -EINVAL;
@@ -224,8 +224,8 @@ static int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector, int silent)
 	if (unlikely(!sb))
 		return -ENOMEM;
 	err = bdev_rw_virt(sdp->sd_vfs->s_bdev,
-			sector * (sdp->sd_vfs->s_blocksize >> 9), sb, PAGE_SIZE,
-			REQ_OP_READ | REQ_META);
+			   sector << (sdp->sd_vfs->s_blocksize_bits - SECTOR_SHIFT),
+			   sb, PAGE_SIZE, REQ_OP_READ | REQ_META);
 	if (err) {
 		pr_warn("error %d reading superblock\n", err);
 		kfree(sb);
@@ -257,7 +257,7 @@ static int gfs2_read_sb(struct gfs2_sbd *sdp, int silent)
 		return error;
 	}
 
-	sdp->sd_fsb2bb_shift = sdp->sd_sb.sb_bsize_shift - 9;
+	sdp->sd_fsb2bb_shift = sdp->sd_sb.sb_bsize_shift - SECTOR_SHIFT;
 	sdp->sd_fsb2bb = BIT(sdp->sd_fsb2bb_shift);
 	sdp->sd_diptrs = (sdp->sd_sb.sb_bsize -
 			  sizeof(struct gfs2_dinode)) / sizeof(u64);
@@ -1155,12 +1155,12 @@ static int gfs2_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	/* Set up the buffer cache and fill in some fake block size values
 	   to allow us to read-in the on-disk superblock. */
-	sdp->sd_sb.sb_bsize = sb_min_blocksize(sb, 512);
+	sdp->sd_sb.sb_bsize = sb_min_blocksize(sb, SECTOR_SIZE);
 	error = -EINVAL;
 	if (!sdp->sd_sb.sb_bsize)
 		goto fail_free;
 	sdp->sd_sb.sb_bsize_shift = sb->s_blocksize_bits;
-	sdp->sd_fsb2bb_shift = sdp->sd_sb.sb_bsize_shift - 9;
+	sdp->sd_fsb2bb_shift = sdp->sd_sb.sb_bsize_shift - SECTOR_SHIFT;
 	sdp->sd_fsb2bb = BIT(sdp->sd_fsb2bb_shift);
 
 	sdp->sd_tune.gt_logd_secs = sdp->sd_args.ar_commit;
