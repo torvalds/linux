@@ -1034,4 +1034,23 @@ void dmub_srv_cmd_get_response(struct dmub_srv *dmub,
  */
 enum dmub_status dmub_srv_sync_inboxes(struct dmub_srv *dmub);
 
+/**
+ * dmub_srv_wait_for_inbox_free() - Waits for space in the DMUB inbox to free up
+ * @dmub: the dmub service
+ * @timeout_us: the maximum number of microseconds to wait
+ * @num_free_required: number of free entries required
+ *
+ * Waits until the DMUB buffer is freed to the specified number.
+ *  The maximum wait time is given in microseconds to prevent spinning
+ * forever.
+ *
+ * Return:
+ *   DMUB_STATUS_OK - success
+ *   DMUB_STATUS_TIMEOUT - wait for buffer to flush timed out
+ *   DMUB_STATUS_INVALID - unspecified error
+ */
+enum dmub_status dmub_srv_wait_for_inbox_free(struct dmub_srv *dmub,
+		uint32_t timeout_us,
+		uint32_t num_free_required);
+
 #endif /* _DMUB_SRV_H_ */

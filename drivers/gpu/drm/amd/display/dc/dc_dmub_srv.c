@@ -207,7 +207,7 @@ static bool dc_dmub_srv_fb_cmd_list_queue_execute(struct dc_dmub_srv *dc_dmub_sr
 				return false;
 
 			do {
-				status = dmub_srv_wait_for_idle(dmub, 100000);
+				status = dmub_srv_wait_for_inbox_free(dmub, 100000, count - i);
 			} while (dc_dmub_srv->ctx->dc->debug.disable_timeout && status != DMUB_STATUS_OK);
 
 			/* Requeue the command. */
