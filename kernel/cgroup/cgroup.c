@@ -5708,11 +5708,11 @@ static struct cgroup *cgroup_create(struct cgroup *parent, const char *name,
 	 */
 	ret = css_rstat_init(&cgrp->self);
 	if (ret)
-		goto out_stat_exit;
+		goto out_kernfs_remove;
 
 	ret = psi_cgroup_alloc(cgrp);
 	if (ret)
-		goto out_kernfs_remove;
+		goto out_stat_exit;
 
 	if (cgrp->root == &cgrp_dfl_root) {
 		ret = cgroup_bpf_inherit(cgrp);
