@@ -817,7 +817,7 @@ nvmet_fc_alloc_target_queue(struct nvmet_fc_tgt_assoc *assoc,
 	nvmet_fc_prep_fcp_iodlist(assoc->tgtport, queue);
 
 	nvmet_cq_init(&queue->nvme_cq);
-	ret = nvmet_sq_init(&queue->nvme_sq);
+	ret = nvmet_sq_init(&queue->nvme_sq, &queue->nvme_cq);
 	if (ret)
 		goto out_fail_iodlist;
 

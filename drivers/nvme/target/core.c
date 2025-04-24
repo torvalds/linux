@@ -905,6 +905,11 @@ u16 nvmet_cq_create(struct nvmet_ctrl *ctrl, struct nvmet_cq *cq,
 	if (status != NVME_SC_SUCCESS)
 		return status;
 
+	if (!kref_get_unless_zero(&ctrl->ref))
+		return NVME_SC_INTERNAL | NVME_STATUS_DNR;
+	cq->ctrl = ctrl;
+
+	nvmet_cq_init(cq);
 	nvmet_cq_setup(ctrl, cq, qid, size);
 
 	return NVME_SC_SUCCESS;
@@ -928,7 +933,7 @@ u16 nvmet_check_sqid(struct nvmet_ctrl *ctrl, u16 sqid,
 }
 
 u16 nvmet_sq_create(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq,
-		    u16 sqid, u16 size)
+		    struct nvmet_cq *cq, u16 sqid, u16 size)
 {
 	u16 status;
 	int ret;
@@ -940,7 +945,7 @@ u16 nvmet_sq_create(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq,
 	if (status != NVME_SC_SUCCESS)
 		return status;
 
-	ret = nvmet_sq_init(sq);
+	ret = nvmet_sq_init(sq, cq);
 	if (ret) {
 		status = NVME_SC_INTERNAL | NVME_STATUS_DNR;
 		goto ctrl_put;
@@ -972,6 +977,7 @@ void nvmet_sq_destroy(struct nvmet_sq *sq)
 	wait_for_completion(&sq->free_done);
 	percpu_ref_exit(&sq->ref);
 	nvmet_auth_sq_free(sq);
+	nvmet_cq_put(sq->cq);
 
 	/*
 	 * we must reference the ctrl again after waiting for inflight IO
@@ -1004,18 +1010,23 @@ static void nvmet_sq_free(struct percpu_ref *ref)
 	complete(&sq->free_done);
 }
 
-int nvmet_sq_init(struct nvmet_sq *sq)
+int nvmet_sq_init(struct nvmet_sq *sq, struct nvmet_cq *cq)
 {
 	int ret;
+
+	if (!nvmet_cq_get(cq))
+		return -EINVAL;
 
 	ret = percpu_ref_init(&sq->ref, nvmet_sq_free, 0, GFP_KERNEL);
 	if (ret) {
 		pr_err("percpu_ref init failed!\n");
+		nvmet_cq_put(cq);
 		return ret;
 	}
 	init_completion(&sq->free_done);
 	init_completion(&sq->confirm_done);
 	nvmet_auth_sq_init(sq);
+	sq->cq = cq;
 
 	return 0;
 }

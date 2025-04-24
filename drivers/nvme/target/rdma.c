@@ -1438,7 +1438,7 @@ nvmet_rdma_alloc_queue(struct nvmet_rdma_device *ndev,
 	}
 
 	nvmet_cq_init(&queue->nvme_cq);
-	ret = nvmet_sq_init(&queue->nvme_sq);
+	ret = nvmet_sq_init(&queue->nvme_sq, &queue->nvme_cq);
 	if (ret) {
 		ret = NVME_RDMA_CM_NO_RSC;
 		goto out_free_queue;

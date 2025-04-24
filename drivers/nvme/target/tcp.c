@@ -1912,7 +1912,7 @@ static void nvmet_tcp_alloc_queue(struct nvmet_tcp_port *port,
 		goto out_ida_remove;
 
 	nvmet_cq_init(&queue->nvme_cq);
-	ret = nvmet_sq_init(&queue->nvme_sq);
+	ret = nvmet_sq_init(&queue->nvme_sq, &queue->nvme_cq);
 	if (ret)
 		goto out_free_connect;
 

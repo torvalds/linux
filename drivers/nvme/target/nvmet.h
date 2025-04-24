@@ -150,6 +150,7 @@ struct nvmet_cq {
 struct nvmet_sq {
 	struct nvmet_ctrl	*ctrl;
 	struct percpu_ref	ref;
+	struct nvmet_cq		*cq;
 	u16			qid;
 	u16			size;
 	u32			sqhd;
@@ -427,7 +428,7 @@ struct nvmet_fabrics_ops {
 	u16 (*get_max_queue_size)(const struct nvmet_ctrl *ctrl);
 
 	/* Operations mandatory for PCI target controllers */
-	u16 (*create_sq)(struct nvmet_ctrl *ctrl, u16 sqid, u16 flags,
+	u16 (*create_sq)(struct nvmet_ctrl *ctrl, u16 sqid, u16 cqid, u16 flags,
 			 u16 qsize, u64 prp1);
 	u16 (*delete_sq)(struct nvmet_ctrl *ctrl, u16 sqid);
 	u16 (*create_cq)(struct nvmet_ctrl *ctrl, u16 cqid, u16 flags,
@@ -588,10 +589,10 @@ bool nvmet_cq_in_use(struct nvmet_cq *cq);
 u16 nvmet_check_sqid(struct nvmet_ctrl *ctrl, u16 sqid, bool create);
 void nvmet_sq_setup(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq, u16 qid,
 		u16 size);
-u16 nvmet_sq_create(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq, u16 qid,
-		u16 size);
+u16 nvmet_sq_create(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq,
+	struct nvmet_cq *cq, u16 qid, u16 size);
 void nvmet_sq_destroy(struct nvmet_sq *sq);
-int nvmet_sq_init(struct nvmet_sq *sq);
+int nvmet_sq_init(struct nvmet_sq *sq, struct nvmet_cq *cq);
 
 void nvmet_ctrl_fatal_error(struct nvmet_ctrl *ctrl);
 
