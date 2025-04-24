@@ -11,7 +11,7 @@
 #include "intel_hdcp_gsc.h"
 #include "intel_hdcp_gsc_message.h"
 
-int
+static int
 intel_hdcp_gsc_initiate_session(struct device *dev, struct hdcp_port_data *data,
 				struct hdcp2_ake_init *ake_data)
 {
@@ -65,7 +65,7 @@ intel_hdcp_gsc_initiate_session(struct device *dev, struct hdcp_port_data *data,
 	return 0;
 }
 
-int
+static int
 intel_hdcp_gsc_verify_receiver_cert_prepare_km(struct device *dev,
 					       struct hdcp_port_data *data,
 					       struct hdcp2_ake_send_cert *rx_cert,
@@ -135,7 +135,7 @@ intel_hdcp_gsc_verify_receiver_cert_prepare_km(struct device *dev,
 	return 0;
 }
 
-int
+static int
 intel_hdcp_gsc_verify_hprime(struct device *dev, struct hdcp_port_data *data,
 			     struct hdcp2_ake_send_hprime *rx_hprime)
 {
@@ -185,7 +185,7 @@ intel_hdcp_gsc_verify_hprime(struct device *dev, struct hdcp_port_data *data,
 	return 0;
 }
 
-int
+static int
 intel_hdcp_gsc_store_pairing_info(struct device *dev, struct hdcp_port_data *data,
 				  struct hdcp2_ake_send_pairing_info *pairing_info)
 {
@@ -237,7 +237,7 @@ intel_hdcp_gsc_store_pairing_info(struct device *dev, struct hdcp_port_data *dat
 	return 0;
 }
 
-int
+static int
 intel_hdcp_gsc_initiate_locality_check(struct device *dev,
 				       struct hdcp_port_data *data,
 				       struct hdcp2_lc_init *lc_init_data)
@@ -286,7 +286,7 @@ intel_hdcp_gsc_initiate_locality_check(struct device *dev,
 	return 0;
 }
 
-int
+static int
 intel_hdcp_gsc_verify_lprime(struct device *dev, struct hdcp_port_data *data,
 			     struct hdcp2_lc_send_lprime *rx_lprime)
 {
@@ -338,9 +338,10 @@ intel_hdcp_gsc_verify_lprime(struct device *dev, struct hdcp_port_data *data,
 	return 0;
 }
 
-int intel_hdcp_gsc_get_session_key(struct device *dev,
-				   struct hdcp_port_data *data,
-				   struct hdcp2_ske_send_eks *ske_data)
+static int
+intel_hdcp_gsc_get_session_key(struct device *dev,
+			       struct hdcp_port_data *data,
+			       struct hdcp2_ske_send_eks *ske_data)
 {
 	struct wired_cmd_get_session_key_in get_skey_in = {};
 	struct wired_cmd_get_session_key_out get_skey_out = {};
@@ -388,7 +389,7 @@ int intel_hdcp_gsc_get_session_key(struct device *dev,
 	return 0;
 }
 
-int
+static int
 intel_hdcp_gsc_repeater_check_flow_prepare_ack(struct device *dev,
 					       struct hdcp_port_data *data,
 					       struct hdcp2_rep_send_receiverid_list
@@ -454,9 +455,10 @@ intel_hdcp_gsc_repeater_check_flow_prepare_ack(struct device *dev,
 	return 0;
 }
 
-int intel_hdcp_gsc_verify_mprime(struct device *dev,
-				 struct hdcp_port_data *data,
-				 struct hdcp2_rep_stream_ready *stream_ready)
+static int
+intel_hdcp_gsc_verify_mprime(struct device *dev,
+			     struct hdcp_port_data *data,
+			     struct hdcp2_rep_stream_ready *stream_ready)
 {
 	struct wired_cmd_repeater_auth_stream_req_in *verify_mprime_in;
 	struct wired_cmd_repeater_auth_stream_req_out verify_mprime_out = {};
@@ -519,8 +521,8 @@ int intel_hdcp_gsc_verify_mprime(struct device *dev,
 	return 0;
 }
 
-int intel_hdcp_gsc_enable_authentication(struct device *dev,
-					 struct hdcp_port_data *data)
+static int intel_hdcp_gsc_enable_authentication(struct device *dev,
+						struct hdcp_port_data *data)
 {
 	struct wired_cmd_enable_auth_in enable_auth_in = {};
 	struct wired_cmd_enable_auth_out enable_auth_out = {};
@@ -566,7 +568,7 @@ int intel_hdcp_gsc_enable_authentication(struct device *dev,
 	return 0;
 }
 
-int
+static int
 intel_hdcp_gsc_close_session(struct device *dev, struct hdcp_port_data *data)
 {
 	struct wired_cmd_close_session_in session_close_in = {};
@@ -611,4 +613,54 @@ intel_hdcp_gsc_close_session(struct device *dev, struct hdcp_port_data *data)
 	}
 
 	return 0;
+}
+
+static const struct i915_hdcp_ops gsc_hdcp_ops = {
+	.initiate_hdcp2_session = intel_hdcp_gsc_initiate_session,
+	.verify_receiver_cert_prepare_km =
+				intel_hdcp_gsc_verify_receiver_cert_prepare_km,
+	.verify_hprime = intel_hdcp_gsc_verify_hprime,
+	.store_pairing_info = intel_hdcp_gsc_store_pairing_info,
+	.initiate_locality_check = intel_hdcp_gsc_initiate_locality_check,
+	.verify_lprime = intel_hdcp_gsc_verify_lprime,
+	.get_session_key = intel_hdcp_gsc_get_session_key,
+	.repeater_check_flow_prepare_ack =
+				intel_hdcp_gsc_repeater_check_flow_prepare_ack,
+	.verify_mprime = intel_hdcp_gsc_verify_mprime,
+	.enable_hdcp_authentication = intel_hdcp_gsc_enable_authentication,
+	.close_hdcp_session = intel_hdcp_gsc_close_session,
+};
+
+int intel_hdcp_gsc_init(struct intel_display *display)
+{
+	struct i915_hdcp_arbiter *arbiter;
+	int ret;
+
+	arbiter = kzalloc(sizeof(*arbiter), GFP_KERNEL);
+	if (!arbiter)
+		return -ENOMEM;
+
+	mutex_lock(&display->hdcp.hdcp_mutex);
+
+	ret = intel_hdcp_gsc_hdcp2_init(display);
+	if (ret) {
+		kfree(arbiter);
+		goto out;
+	}
+
+	display->hdcp.arbiter = arbiter;
+	display->hdcp.arbiter->hdcp_dev = display->drm->dev;
+	display->hdcp.arbiter->ops = &gsc_hdcp_ops;
+
+out:
+	mutex_unlock(&display->hdcp.hdcp_mutex);
+
+	return ret;
+}
+
+void intel_hdcp_gsc_fini(struct intel_display *display)
+{
+	intel_hdcp_gsc_free_message(display);
+	kfree(display->hdcp.arbiter);
+	display->hdcp.arbiter = NULL;
 }

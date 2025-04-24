@@ -27,6 +27,7 @@
 #include "intel_dp_mst.h"
 #include "intel_hdcp.h"
 #include "intel_hdcp_gsc.h"
+#include "intel_hdcp_gsc_message.h"
 #include "intel_hdcp_regs.h"
 #include "intel_hdcp_shim.h"
 #include "intel_pcode.h"

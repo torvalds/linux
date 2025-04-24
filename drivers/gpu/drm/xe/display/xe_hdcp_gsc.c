@@ -9,7 +9,6 @@
 
 #include "abi/gsc_command_header_abi.h"
 #include "intel_hdcp_gsc.h"
-#include "intel_hdcp_gsc_message.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_device_types.h"
@@ -100,7 +99,7 @@ out:
 	return ret;
 }
 
-static int intel_hdcp_gsc_hdcp2_init(struct intel_display *display)
+int intel_hdcp_gsc_hdcp2_init(struct intel_display *display)
 {
 	struct intel_hdcp_gsc_message *hdcp_message;
 	int ret;
@@ -125,58 +124,15 @@ static int intel_hdcp_gsc_hdcp2_init(struct intel_display *display)
 	return ret;
 }
 
-static const struct i915_hdcp_ops gsc_hdcp_ops = {
-	.initiate_hdcp2_session = intel_hdcp_gsc_initiate_session,
-	.verify_receiver_cert_prepare_km =
-				intel_hdcp_gsc_verify_receiver_cert_prepare_km,
-	.verify_hprime = intel_hdcp_gsc_verify_hprime,
-	.store_pairing_info = intel_hdcp_gsc_store_pairing_info,
-	.initiate_locality_check = intel_hdcp_gsc_initiate_locality_check,
-	.verify_lprime = intel_hdcp_gsc_verify_lprime,
-	.get_session_key = intel_hdcp_gsc_get_session_key,
-	.repeater_check_flow_prepare_ack =
-				intel_hdcp_gsc_repeater_check_flow_prepare_ack,
-	.verify_mprime = intel_hdcp_gsc_verify_mprime,
-	.enable_hdcp_authentication = intel_hdcp_gsc_enable_authentication,
-	.close_hdcp_session = intel_hdcp_gsc_close_session,
-};
-
-int intel_hdcp_gsc_init(struct intel_display *display)
+void intel_hdcp_gsc_free_message(struct intel_display *display)
 {
-	struct i915_hdcp_arbiter *data;
-	int ret;
-
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	mutex_lock(&display->hdcp.hdcp_mutex);
-	display->hdcp.arbiter = data;
-	display->hdcp.arbiter->hdcp_dev = display->drm->dev;
-	display->hdcp.arbiter->ops = &gsc_hdcp_ops;
-	ret = intel_hdcp_gsc_hdcp2_init(display);
-	if (ret)
-		kfree(data);
-
-	mutex_unlock(&display->hdcp.hdcp_mutex);
-
-	return ret;
-}
-
-void intel_hdcp_gsc_fini(struct intel_display *display)
-{
-	struct intel_hdcp_gsc_message *hdcp_message =
-					display->hdcp.hdcp_message;
-	struct i915_hdcp_arbiter *arb = display->hdcp.arbiter;
+	struct intel_hdcp_gsc_message *hdcp_message = display->hdcp.hdcp_message;
 
 	if (hdcp_message) {
 		xe_bo_unpin_map_no_vm(hdcp_message->hdcp_bo);
 		kfree(hdcp_message);
 		display->hdcp.hdcp_message = NULL;
 	}
-
-	kfree(arb);
-	display->hdcp.arbiter = NULL;
 }
 
 static int xe_gsc_send_sync(struct xe_device *xe,

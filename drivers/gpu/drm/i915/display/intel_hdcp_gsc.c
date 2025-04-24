@@ -11,7 +11,6 @@
 #include "i915_drv.h"
 #include "i915_utils.h"
 #include "intel_hdcp_gsc.h"
-#include "intel_hdcp_gsc_message.h"
 
 struct intel_hdcp_gsc_message {
 	struct i915_vma *vma;
@@ -91,23 +90,7 @@ out_unpin:
 	return err;
 }
 
-static const struct i915_hdcp_ops gsc_hdcp_ops = {
-	.initiate_hdcp2_session = intel_hdcp_gsc_initiate_session,
-	.verify_receiver_cert_prepare_km =
-				intel_hdcp_gsc_verify_receiver_cert_prepare_km,
-	.verify_hprime = intel_hdcp_gsc_verify_hprime,
-	.store_pairing_info = intel_hdcp_gsc_store_pairing_info,
-	.initiate_locality_check = intel_hdcp_gsc_initiate_locality_check,
-	.verify_lprime = intel_hdcp_gsc_verify_lprime,
-	.get_session_key = intel_hdcp_gsc_get_session_key,
-	.repeater_check_flow_prepare_ack =
-				intel_hdcp_gsc_repeater_check_flow_prepare_ack,
-	.verify_mprime = intel_hdcp_gsc_verify_mprime,
-	.enable_hdcp_authentication = intel_hdcp_gsc_enable_authentication,
-	.close_hdcp_session = intel_hdcp_gsc_close_session,
-};
-
-static int intel_hdcp_gsc_hdcp2_init(struct intel_display *display)
+int intel_hdcp_gsc_hdcp2_init(struct intel_display *display)
 {
 	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_hdcp_gsc_message *hdcp_message;
@@ -131,7 +114,7 @@ static int intel_hdcp_gsc_hdcp2_init(struct intel_display *display)
 	return ret;
 }
 
-static void intel_hdcp_gsc_free_message(struct intel_display *display)
+void intel_hdcp_gsc_free_message(struct intel_display *display)
 {
 	struct intel_hdcp_gsc_message *hdcp_message =
 					display->hdcp.hdcp_message;
@@ -140,31 +123,6 @@ static void intel_hdcp_gsc_free_message(struct intel_display *display)
 	hdcp_message->hdcp_cmd_out = NULL;
 	i915_vma_unpin_and_release(&hdcp_message->vma, I915_VMA_RELEASE_MAP);
 	kfree(hdcp_message);
-}
-
-int intel_hdcp_gsc_init(struct intel_display *display)
-{
-	struct i915_hdcp_arbiter *data;
-	int ret;
-
-	data = kzalloc(sizeof(struct i915_hdcp_arbiter), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	mutex_lock(&display->hdcp.hdcp_mutex);
-	display->hdcp.arbiter = data;
-	display->hdcp.arbiter->hdcp_dev = display->drm->dev;
-	display->hdcp.arbiter->ops = &gsc_hdcp_ops;
-	ret = intel_hdcp_gsc_hdcp2_init(display);
-	mutex_unlock(&display->hdcp.hdcp_mutex);
-
-	return ret;
-}
-
-void intel_hdcp_gsc_fini(struct intel_display *display)
-{
-	intel_hdcp_gsc_free_message(display);
-	kfree(display->hdcp.arbiter);
 }
 
 static int intel_gsc_send_sync(struct drm_i915_private *i915,
