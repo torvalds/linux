@@ -147,41 +147,23 @@ static int psp_v12_0_ring_create(struct psp_context *psp,
 	struct psp_ring *ring = &psp->km_ring;
 	struct amdgpu_device *adev = psp->adev;
 
-	if (amdgpu_sriov_vf(psp->adev)) {
-		/* Write low address of the ring to C2PMSG_102 */
-		psp_ring_reg = lower_32_bits(ring->ring_mem_mc_addr);
-		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_102, psp_ring_reg);
-		/* Write high address of the ring to C2PMSG_103 */
-		psp_ring_reg = upper_32_bits(ring->ring_mem_mc_addr);
-		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_103, psp_ring_reg);
+	/* Write low address of the ring to C2PMSG_69 */
+	psp_ring_reg = lower_32_bits(ring->ring_mem_mc_addr);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_69, psp_ring_reg);
+	/* Write high address of the ring to C2PMSG_70 */
+	psp_ring_reg = upper_32_bits(ring->ring_mem_mc_addr);
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_70, psp_ring_reg);
+	/* Write size of ring to C2PMSG_71 */
+	psp_ring_reg = ring->ring_size;
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_71, psp_ring_reg);
+	/* Write the ring initialization command to C2PMSG_64 */
+	psp_ring_reg = ring_type;
+	psp_ring_reg = psp_ring_reg << 16;
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_64, psp_ring_reg);
 
-		/* Write the ring initialization command to C2PMSG_101 */
-		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_101,
-					     GFX_CTRL_CMD_ID_INIT_GPCOM_RING);
-
-		/* Wait for response flag (bit 31) in C2PMSG_101 */
-		ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_101),
-				   0x80000000, 0x8000FFFF, false);
-
-	} else {
-		/* Write low address of the ring to C2PMSG_69 */
-		psp_ring_reg = lower_32_bits(ring->ring_mem_mc_addr);
-		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_69, psp_ring_reg);
-		/* Write high address of the ring to C2PMSG_70 */
-		psp_ring_reg = upper_32_bits(ring->ring_mem_mc_addr);
-		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_70, psp_ring_reg);
-		/* Write size of ring to C2PMSG_71 */
-		psp_ring_reg = ring->ring_size;
-		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_71, psp_ring_reg);
-		/* Write the ring initialization command to C2PMSG_64 */
-		psp_ring_reg = ring_type;
-		psp_ring_reg = psp_ring_reg << 16;
-		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_64, psp_ring_reg);
-
-		/* Wait for response flag (bit 31) in C2PMSG_64 */
-		ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
-				   0x80000000, 0x8000FFFF, false);
-	}
+	/* Wait for response flag (bit 31) in C2PMSG_64 */
+	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
+			   0x80000000, 0x8000FFFF, false);
 
 	return ret;
 }
