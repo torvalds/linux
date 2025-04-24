@@ -217,6 +217,10 @@
 	status = "okay";
 };
 
+&hdmi0_sound {
+	status = "okay";
+};
+
 &i2c0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c0m2_xfer>;
@@ -267,6 +271,10 @@
 		clock-output-names = "hym8563";
 		wakeup-source;
 	};
+};
+
+&i2s5_8ch {
+	status = "okay";
 };
 
 &pd_gpu {
