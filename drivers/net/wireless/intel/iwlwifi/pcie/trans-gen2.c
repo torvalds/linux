@@ -117,13 +117,23 @@ void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
 				 trans_pcie->fw_reset_state != FW_RESET_REQUESTED,
 				 FW_RESET_TIMEOUT);
 	if (!ret || trans_pcie->fw_reset_state == FW_RESET_ERROR) {
-		u32 inta_hw = iwl_read32(trans, CSR_MSIX_HW_INT_CAUSES_AD);
+		bool reset_done;
+		u32 inta_hw;
+
+		if (trans_pcie->msix_enabled) {
+			inta_hw = iwl_read32(trans, CSR_MSIX_HW_INT_CAUSES_AD);
+			reset_done =
+				inta_hw & MSIX_HW_INT_CAUSES_REG_RESET_DONE;
+		} else {
+			inta_hw = iwl_read32(trans, CSR_INT_MASK);
+			reset_done = inta_hw & CSR_INT_BIT_RESET_DONE;
+		}
 
 		IWL_ERR(trans,
-			"timeout waiting for FW reset ACK (inta_hw=0x%x)\n",
-			inta_hw);
+			"timeout waiting for FW reset ACK (inta_hw=0x%x, reset_done %d)\n",
+			inta_hw, reset_done);
 
-		if (!(inta_hw & MSIX_HW_INT_CAUSES_REG_RESET_DONE)) {
+		if (!reset_done) {
 			struct iwl_fw_error_dump_mode mode = {
 				.type = IWL_ERR_TYPE_RESET_HS_TIMEOUT,
 				.context = IWL_ERR_CONTEXT_FROM_OPMODE,
