@@ -1281,6 +1281,7 @@ struct amdgpu_device {
 	bool                            debug_enable_ras_aca;
 	bool                            debug_exp_resets;
 	bool                            debug_disable_gpu_ring_reset;
+	bool                            debug_vm_userptr;
 
 	/* Protection for the following isolation structure */
 	struct mutex                    enforce_isolation_mutex;
