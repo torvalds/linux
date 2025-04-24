@@ -782,29 +782,6 @@ static int rvin_setup(struct rvin_dev *vin)
 		break;
 	}
 
-	/* Make sure input interface and input format is valid. */
-	if (vin->info->model == RCAR_GEN3 || vin->info->model == RCAR_GEN4) {
-		switch (vnmc & VNMC_INF_MASK) {
-		case VNMC_INF_YUV8_BT656:
-		case VNMC_INF_YUV10_BT656:
-		case VNMC_INF_YUV16:
-		case VNMC_INF_RGB666:
-			if (vin->is_csi) {
-				vin_err(vin, "Invalid setting in MIPI CSI2\n");
-				return -EINVAL;
-			}
-			break;
-		case VNMC_INF_RAW8:
-			if (!vin->is_csi) {
-				vin_err(vin, "Invalid setting in Digital Pins\n");
-				return -EINVAL;
-			}
-			break;
-		default:
-			break;
-		}
-	}
-
 	/* Enable VSYNC Field Toggle mode after one VSYNC input */
 	if (vin->info->model == RCAR_GEN3 || vin->info->model == RCAR_GEN4)
 		dmr2 = VNDMR2_FTEV;
