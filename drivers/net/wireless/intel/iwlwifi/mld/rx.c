@@ -1739,9 +1739,9 @@ iwl_mld_fill_rx_status_band_freq(struct iwl_mld_rx_phy_data *phy_data,
 				 struct iwl_rx_mpdu_desc *mpdu_desc,
 				 struct ieee80211_rx_status *rx_status)
 {
-	enum nl80211_band band;
+	u8 band = u8_get_bits(mpdu_desc->mac_phy_band,
+			      IWL_RX_MPDU_MAC_PHY_BAND_BAND_MASK);
 
-	band = BAND_IN_RX_STATUS(mpdu_desc->mac_phy_idx);
 	rx_status->band = iwl_mld_phy_band_to_nl80211(band);
 	rx_status->freq = ieee80211_channel_to_frequency(phy_data->channel,
 							 rx_status->band);
