@@ -648,13 +648,18 @@ static struct bch_inode_info *bch2_lookup_trans(struct btree_trans *trans,
 			const struct qstr *name)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter dirent_iter = {};
 	subvol_inum inum = {};
 	struct printbuf buf = PRINTBUF;
 
+	struct qstr lookup_name;
+	int ret = bch2_maybe_casefold(trans, dir_hash_info, name, &lookup_name);
+	if (ret)
+		return ERR_PTR(ret);
+
+	struct btree_iter dirent_iter = {};
 	struct bkey_s_c k = bch2_hash_lookup(trans, &dirent_iter, bch2_dirent_hash_desc,
-					     dir_hash_info, dir, name, 0);
-	int ret = bkey_err(k);
+					     dir_hash_info, dir, &lookup_name, 0);
+	ret = bkey_err(k);
 	if (ret)
 		return ERR_PTR(ret);
 
