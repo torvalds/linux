@@ -66,7 +66,8 @@
 					 DMA_STATUS_TPS | DMA_STATUS_TI  | \
 					 DMA_STATUS_MSK_COMMON_LOONGSON)
 
-#define PCI_DEVICE_ID_LOONGSON_GMAC	0x7a03
+#define PCI_DEVICE_ID_LOONGSON_GMAC1	0x7a03
+#define PCI_DEVICE_ID_LOONGSON_GMAC2	0x7a23
 #define PCI_DEVICE_ID_LOONGSON_GNET	0x7a13
 #define DWMAC_CORE_MULTICHAN_V1	0x10	/* Loongson custom ID 0x10 */
 #define DWMAC_CORE_MULTICHAN_V2	0x12	/* Loongson custom ID 0x12 */
@@ -371,7 +372,7 @@ static struct mac_device_info *loongson_dwmac_setup(void *apriv)
 	/* Loongson GMAC doesn't support the flow control. Loongson GNET
 	 * without multi-channel doesn't support the half-duplex link mode.
 	 */
-	if (pdev->device == PCI_DEVICE_ID_LOONGSON_GMAC) {
+	if (pdev->device != PCI_DEVICE_ID_LOONGSON_GNET) {
 		mac->link.caps = MAC_10 | MAC_100 | MAC_1000;
 	} else {
 		if (ld->multichan)
@@ -659,7 +660,8 @@ static SIMPLE_DEV_PM_OPS(loongson_dwmac_pm_ops, loongson_dwmac_suspend,
 			 loongson_dwmac_resume);
 
 static const struct pci_device_id loongson_dwmac_id_table[] = {
-	{ PCI_DEVICE_DATA(LOONGSON, GMAC, &loongson_gmac_pci_info) },
+	{ PCI_DEVICE_DATA(LOONGSON, GMAC1, &loongson_gmac_pci_info) },
+	{ PCI_DEVICE_DATA(LOONGSON, GMAC2, &loongson_gmac_pci_info) },
 	{ PCI_DEVICE_DATA(LOONGSON, GNET, &loongson_gnet_pci_info) },
 	{}
 };
