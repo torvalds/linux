@@ -78,30 +78,6 @@ EXPORT_SYMBOL(strnlen);
 #endif
 
 /**
- * strcpy - Copy a %NUL terminated string
- * @dest: Where to copy the string to
- * @src: Where to copy the string from
- *
- * returns a pointer to @dest
- */
-#ifdef __HAVE_ARCH_STRCPY
-char *strcpy(char *dest, const char *src)
-{
-	char *ret = dest;
-
-	asm volatile(
-		"	lghi	0,0\n"
-		"0:	mvst	%[dest],%[src]\n"
-		"	jo	0b\n"
-		: [dest] "+&a" (dest), [src] "+&a" (src)
-		:
-		: "cc", "memory", "0");
-	return ret;
-}
-EXPORT_SYMBOL(strcpy);
-#endif
-
-/**
  * strcat - Append one %NUL-terminated string to another
  * @dest: The string to be appended to
  * @src: The string to append to it
