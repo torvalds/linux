@@ -112,23 +112,16 @@ static struct io_ev_fd *io_eventfd_grab(struct io_ring_ctx *ctx)
 	return NULL;
 }
 
-void io_eventfd_signal(struct io_ring_ctx *ctx)
+void io_eventfd_signal(struct io_ring_ctx *ctx, bool cqe_event)
 {
+	bool skip = false, put_ref = true;
 	struct io_ev_fd *ev_fd;
 
 	ev_fd = io_eventfd_grab(ctx);
-	if (ev_fd)
-		io_eventfd_release(ev_fd, __io_eventfd_signal(ev_fd));
-}
+	if (!ev_fd)
+		return;
 
-void io_eventfd_flush_signal(struct io_ring_ctx *ctx)
-{
-	struct io_ev_fd *ev_fd;
-
-	ev_fd = io_eventfd_grab(ctx);
-	if (ev_fd) {
-		bool skip, put_ref = true;
-
+	if (cqe_event) {
 		/*
 		 * Eventfd should only get triggered when at least one event
 		 * has been posted. Some applications rely on the eventfd
@@ -142,12 +135,11 @@ void io_eventfd_flush_signal(struct io_ring_ctx *ctx)
 		skip = ctx->cached_cq_tail == ev_fd->last_cq_tail;
 		ev_fd->last_cq_tail = ctx->cached_cq_tail;
 		spin_unlock(&ctx->completion_lock);
-
-		if (!skip)
-			put_ref = __io_eventfd_signal(ev_fd);
-
-		io_eventfd_release(ev_fd, put_ref);
 	}
+
+	if (!skip)
+		put_ref = __io_eventfd_signal(ev_fd);
+	io_eventfd_release(ev_fd, put_ref);
 }
 
 int io_eventfd_register(struct io_ring_ctx *ctx, void __user *arg,
