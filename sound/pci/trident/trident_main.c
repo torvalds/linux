@@ -3533,7 +3533,7 @@ int snd_trident_create(struct snd_card *card,
 	trident->midi_port = TRID_REG(trident, T4D_MPU401_BASE);
 	pci_set_master(pci);
 
-	err = pci_request_regions(pci, "Trident Audio");
+	err = pcim_request_all_regions(pci, "Trident Audio");
 	if (err < 0)
 		return err;
 	trident->port = pci_resource_start(pci, 0);
