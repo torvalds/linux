@@ -253,7 +253,7 @@ nouveau_fence_done(struct nouveau_fence *fence)
 	struct nouveau_channel *chan;
 	unsigned long flags;
 
-	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->base.flags))
+	if (dma_fence_is_signaled(&fence->base))
 		return true;
 
 	spin_lock_irqsave(&fctx->lock, flags);
