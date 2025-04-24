@@ -841,36 +841,6 @@ int uv_find_secret(const u8 secret_id[UV_SECRET_ID_LEN],
 EXPORT_SYMBOL_GPL(uv_find_secret);
 
 /**
- * uv_get_secret_metadata() - get secret metadata for a given secret id.
- * @secret_id: search pattern.
- * @secret: output data, containing the secret's metadata.
- *
- * Search for a secret with the given secret_id in the Ultravisor secret store.
- *
- * Context: might sleep.
- *
- * Return:
- * * %0:	- Found entry; secret->idx and secret->type are valid.
- * * %ENOENT	- No entry found.
- * * %ENODEV:	- Not supported: UV not available or command not available.
- * * %EIO:	- Other unexpected UV error.
- */
-int uv_get_secret_metadata(const u8 secret_id[UV_SECRET_ID_LEN],
-			   struct uv_secret_list_item_hdr *secret)
-{
-	struct uv_secret_list *buf;
-	int rc;
-
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-	rc = uv_find_secret(secret_id, buf, secret);
-	kfree(buf);
-	return rc;
-}
-EXPORT_SYMBOL_GPL(uv_get_secret_metadata);
-
-/**
  * uv_retrieve_secret() - get the secret value for the secret index.
  * @secret_idx: Secret index for which the secret should be retrieved.
  * @buf: Buffer to store retrieved secret.
