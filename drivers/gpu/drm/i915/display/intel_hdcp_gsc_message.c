@@ -8,6 +8,7 @@
 
 #include "i915_drv.h"
 #include "intel_display_types.h"
+#include "intel_hdcp_gsc.h"
 #include "intel_hdcp_gsc_message.h"
 
 int
