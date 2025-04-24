@@ -17,6 +17,7 @@
 
 #define AIROHA_MAX_NUM_GDM_PORTS	4
 #define AIROHA_MAX_NUM_QDMA		2
+#define AIROHA_MAX_NUM_IRQ_BANKS	4
 #define AIROHA_MAX_DSA_PORTS		7
 #define AIROHA_MAX_NUM_RSTS		3
 #define AIROHA_MAX_NUM_XSI_RSTS		5
@@ -452,16 +453,33 @@ struct airoha_flow_table_entry {
 	unsigned long cookie;
 };
 
-struct airoha_qdma {
-	struct airoha_eth *eth;
-	void __iomem *regs;
+/* RX queue to IRQ mapping: BIT(q) in IRQ(n) */
+#define RX_IRQ0_BANK_PIN_MASK			0x839f
+#define RX_IRQ1_BANK_PIN_MASK			0x7fe00000
+#define RX_IRQ2_BANK_PIN_MASK			0x20
+#define RX_IRQ3_BANK_PIN_MASK			0x40
+#define RX_IRQ_BANK_PIN_MASK(_n)		\
+	(((_n) == 3) ? RX_IRQ3_BANK_PIN_MASK :	\
+	 ((_n) == 2) ? RX_IRQ2_BANK_PIN_MASK :	\
+	 ((_n) == 1) ? RX_IRQ1_BANK_PIN_MASK :	\
+	 RX_IRQ0_BANK_PIN_MASK)
+
+struct airoha_irq_bank {
+	struct airoha_qdma *qdma;
 
 	/* protect concurrent irqmask accesses */
 	spinlock_t irq_lock;
 	u32 irqmask[QDMA_INT_REG_MAX];
 	int irq;
+};
+
+struct airoha_qdma {
+	struct airoha_eth *eth;
+	void __iomem *regs;
 
 	atomic_t users;
+
+	struct airoha_irq_bank irq_banks[AIROHA_MAX_NUM_IRQ_BANKS];
 
 	struct airoha_tx_irq_queue q_tx_irq[AIROHA_NUM_TX_IRQ];
 
