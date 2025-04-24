@@ -58,7 +58,7 @@ int ___ratelimit(struct ratelimit_state *rs, const char *func)
 	 * the current lock owner is just about to reset it.
 	 */
 	if (!raw_spin_trylock_irqsave(&rs->lock, flags)) {
-		if (READ_ONCE(rs->flags) & RATELIMIT_INITIALIZED && burst &&
+		if (READ_ONCE(rs->flags) & RATELIMIT_INITIALIZED &&
 		    atomic_read(&rs->rs_n_left) > 0 && atomic_dec_return(&rs->rs_n_left) >= 0)
 			ret = 1;
 		goto nolock_ret;
@@ -90,7 +90,7 @@ int ___ratelimit(struct ratelimit_state *rs, const char *func)
 	}
 
 	/* Note that the burst might be taken by a parallel call. */
-	if (burst && atomic_read(&rs->rs_n_left) > 0 && atomic_dec_return(&rs->rs_n_left) >= 0)
+	if (atomic_read(&rs->rs_n_left) > 0 && atomic_dec_return(&rs->rs_n_left) >= 0)
 		ret = 1;
 
 unlock_ret:
