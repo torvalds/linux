@@ -83,6 +83,8 @@ struct stmmac_pci_info {
 static void loongson_default_data(struct pci_dev *pdev,
 				  struct plat_stmmacenet_data *plat)
 {
+	struct loongson_data *ld = plat->bsp_priv;
+
 	/* Get bus_id, this can be overwritten later */
 	plat->bus_id = pci_dev_id(pdev);
 
@@ -116,17 +118,6 @@ static void loongson_default_data(struct pci_dev *pdev,
 
 	plat->dma_cfg->pbl = 32;
 	plat->dma_cfg->pblx8 = true;
-}
-
-static int loongson_gmac_data(struct pci_dev *pdev,
-			      struct plat_stmmacenet_data *plat)
-{
-	struct loongson_data *ld;
-	int i;
-
-	ld = plat->bsp_priv;
-
-	loongson_default_data(pdev, plat);
 
 	if (ld->loongson_id == DWMAC_CORE_LS_MULTICHAN) {
 		plat->rx_queues_to_use = CHANNEL_NUM;
@@ -135,12 +126,18 @@ static int loongson_gmac_data(struct pci_dev *pdev,
 		/* Only channel 0 supports checksum,
 		 * so turn off checksum to enable multiple channels.
 		 */
-		for (i = 1; i < CHANNEL_NUM; i++)
+		for (int i = 1; i < CHANNEL_NUM; i++)
 			plat->tx_queues_cfg[i].coe_unsupported = 1;
 	} else {
 		plat->tx_queues_to_use = 1;
 		plat->rx_queues_to_use = 1;
 	}
+}
+
+static int loongson_gmac_data(struct pci_dev *pdev,
+			      struct plat_stmmacenet_data *plat)
+{
+	loongson_default_data(pdev, plat);
 
 	plat->phy_interface = PHY_INTERFACE_MODE_RGMII_ID;
 
@@ -172,26 +169,7 @@ static void loongson_gnet_fix_speed(void *priv, int speed, unsigned int mode)
 static int loongson_gnet_data(struct pci_dev *pdev,
 			      struct plat_stmmacenet_data *plat)
 {
-	struct loongson_data *ld;
-	int i;
-
-	ld = plat->bsp_priv;
-
 	loongson_default_data(pdev, plat);
-
-	if (ld->loongson_id == DWMAC_CORE_LS_MULTICHAN) {
-		plat->rx_queues_to_use = CHANNEL_NUM;
-		plat->tx_queues_to_use = CHANNEL_NUM;
-
-		/* Only channel 0 supports checksum,
-		 * so turn off checksum to enable multiple channels.
-		 */
-		for (i = 1; i < CHANNEL_NUM; i++)
-			plat->tx_queues_cfg[i].coe_unsupported = 1;
-	} else {
-		plat->tx_queues_to_use = 1;
-		plat->rx_queues_to_use = 1;
-	}
 
 	plat->phy_interface = PHY_INTERFACE_MODE_GMII;
 	plat->mdio_bus_data->phy_mask = ~(u32)BIT(2);
