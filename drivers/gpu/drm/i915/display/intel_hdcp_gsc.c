@@ -174,8 +174,8 @@ static int intel_gsc_send_sync(struct drm_i915_private *i915,
  * will follow
  */
 ssize_t intel_hdcp_gsc_msg_send(struct intel_hdcp_gsc_context *gsc_context,
-				u8 *msg_in, size_t msg_in_len,
-				u8 *msg_out, size_t msg_out_len)
+				void *msg_in, size_t msg_in_len,
+				void *msg_out, size_t msg_out_len)
 {
 	struct drm_i915_private *i915 = gsc_context->i915;
 	struct intel_gt *gt = i915->media_gt;

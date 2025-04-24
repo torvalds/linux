@@ -161,8 +161,8 @@ static int xe_gsc_send_sync(struct xe_device *xe,
 }
 
 ssize_t intel_hdcp_gsc_msg_send(struct intel_hdcp_gsc_context *gsc_context,
-				u8 *msg_in, size_t msg_in_len,
-				u8 *msg_out, size_t msg_out_len)
+				void *msg_in, size_t msg_in_len,
+				void *msg_out, size_t msg_out_len)
 {
 	struct xe_device *xe = gsc_context->xe;
 	const size_t max_msg_size = PAGE_SIZE - HDCP_GSC_HEADER_SIZE;
