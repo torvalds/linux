@@ -249,21 +249,19 @@ nouveau_fence_emit(struct nouveau_fence *fence)
 bool
 nouveau_fence_done(struct nouveau_fence *fence)
 {
-	if (fence->base.ops == &nouveau_fence_ops_legacy ||
-	    fence->base.ops == &nouveau_fence_ops_uevent) {
-		struct nouveau_fence_chan *fctx = nouveau_fctx(fence);
-		struct nouveau_channel *chan;
-		unsigned long flags;
+	struct nouveau_fence_chan *fctx = nouveau_fctx(fence);
+	struct nouveau_channel *chan;
+	unsigned long flags;
 
-		if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->base.flags))
-			return true;
+	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->base.flags))
+		return true;
 
-		spin_lock_irqsave(&fctx->lock, flags);
-		chan = rcu_dereference_protected(fence->channel, lockdep_is_held(&fctx->lock));
-		if (chan)
-			nouveau_fence_update(chan, fctx);
-		spin_unlock_irqrestore(&fctx->lock, flags);
-	}
+	spin_lock_irqsave(&fctx->lock, flags);
+	chan = rcu_dereference_protected(fence->channel, lockdep_is_held(&fctx->lock));
+	if (chan)
+		nouveau_fence_update(chan, fctx);
+	spin_unlock_irqrestore(&fctx->lock, flags);
+
 	return dma_fence_is_signaled(&fence->base);
 }
 
