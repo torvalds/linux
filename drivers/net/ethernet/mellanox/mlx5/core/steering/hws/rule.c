@@ -655,6 +655,124 @@ int mlx5hws_rule_move_hws_add(struct mlx5hws_rule *rule,
 	return 0;
 }
 
+static u8 hws_rule_ethertype_to_matcher_ipv(u32 ethertype)
+{
+	switch (ethertype) {
+	case ETH_P_IP:
+		return MLX5HWS_MATCHER_IPV_4;
+	case ETH_P_IPV6:
+		return MLX5HWS_MATCHER_IPV_6;
+	default:
+		return MLX5HWS_MATCHER_IPV_UNSET;
+	}
+}
+
+static u8 hws_rule_ip_version_to_matcher_ipv(u32 ip_version)
+{
+	switch (ip_version) {
+	case 4:
+		return MLX5HWS_MATCHER_IPV_4;
+	case 6:
+		return MLX5HWS_MATCHER_IPV_6;
+	default:
+		return MLX5HWS_MATCHER_IPV_UNSET;
+	}
+}
+
+static int hws_rule_check_outer_ip_version(struct mlx5hws_matcher *matcher,
+					   u32 *match_param)
+{
+	struct mlx5hws_context *ctx = matcher->tbl->ctx;
+	u8 outer_ipv_ether = MLX5HWS_MATCHER_IPV_UNSET;
+	u8 outer_ipv_ip = MLX5HWS_MATCHER_IPV_UNSET;
+	u8 outer_ipv, ver;
+
+	if (matcher->matches_outer_ethertype) {
+		ver = MLX5_GET(fte_match_param, match_param,
+			       outer_headers.ethertype);
+		outer_ipv_ether = hws_rule_ethertype_to_matcher_ipv(ver);
+	}
+	if (matcher->matches_outer_ip_version) {
+		ver = MLX5_GET(fte_match_param, match_param,
+			       outer_headers.ip_version);
+		outer_ipv_ip = hws_rule_ip_version_to_matcher_ipv(ver);
+	}
+
+	if (outer_ipv_ether != MLX5HWS_MATCHER_IPV_UNSET &&
+	    outer_ipv_ip != MLX5HWS_MATCHER_IPV_UNSET &&
+	    outer_ipv_ether != outer_ipv_ip) {
+		mlx5hws_err(ctx, "Rule matches on inconsistent outer ethertype and ip version\n");
+		return -EINVAL;
+	}
+
+	outer_ipv = outer_ipv_ether != MLX5HWS_MATCHER_IPV_UNSET ?
+		    outer_ipv_ether : outer_ipv_ip;
+	if (outer_ipv != MLX5HWS_MATCHER_IPV_UNSET &&
+	    matcher->outer_ip_version != MLX5HWS_MATCHER_IPV_UNSET &&
+	    outer_ipv != matcher->outer_ip_version) {
+		mlx5hws_err(ctx, "Matcher and rule disagree on outer IP version\n");
+		return -EINVAL;
+	}
+	matcher->outer_ip_version = outer_ipv;
+
+	return 0;
+}
+
+static int hws_rule_check_inner_ip_version(struct mlx5hws_matcher *matcher,
+					   u32 *match_param)
+{
+	struct mlx5hws_context *ctx = matcher->tbl->ctx;
+	u8 inner_ipv_ether = MLX5HWS_MATCHER_IPV_UNSET;
+	u8 inner_ipv_ip = MLX5HWS_MATCHER_IPV_UNSET;
+	u8 inner_ipv, ver;
+
+	if (matcher->matches_inner_ethertype) {
+		ver = MLX5_GET(fte_match_param, match_param,
+			       inner_headers.ethertype);
+		inner_ipv_ether = hws_rule_ethertype_to_matcher_ipv(ver);
+	}
+	if (matcher->matches_inner_ip_version) {
+		ver = MLX5_GET(fte_match_param, match_param,
+			       inner_headers.ip_version);
+		inner_ipv_ip = hws_rule_ip_version_to_matcher_ipv(ver);
+	}
+
+	if (inner_ipv_ether != MLX5HWS_MATCHER_IPV_UNSET &&
+	    inner_ipv_ip != MLX5HWS_MATCHER_IPV_UNSET &&
+	    inner_ipv_ether != inner_ipv_ip) {
+		mlx5hws_err(ctx, "Rule matches on inconsistent inner ethertype and ip version\n");
+		return -EINVAL;
+	}
+
+	inner_ipv = inner_ipv_ether != MLX5HWS_MATCHER_IPV_UNSET ?
+		    inner_ipv_ether : inner_ipv_ip;
+	if (inner_ipv != MLX5HWS_MATCHER_IPV_UNSET &&
+	    matcher->inner_ip_version != MLX5HWS_MATCHER_IPV_UNSET &&
+	    inner_ipv != matcher->inner_ip_version) {
+		mlx5hws_err(ctx, "Matcher and rule disagree on inner IP version\n");
+		return -EINVAL;
+	}
+	matcher->inner_ip_version = inner_ipv;
+
+	return 0;
+}
+
+static int hws_rule_check_ip_version(struct mlx5hws_matcher *matcher,
+				     u32 *match_param)
+{
+	int ret;
+
+	ret = hws_rule_check_outer_ip_version(matcher, match_param);
+	if (unlikely(ret))
+		return ret;
+
+	ret = hws_rule_check_inner_ip_version(matcher, match_param);
+	if (unlikely(ret))
+		return ret;
+
+	return 0;
+}
+
 int mlx5hws_rule_create(struct mlx5hws_matcher *matcher,
 			u8 mt_idx,
 			u32 *match_param,
@@ -664,6 +782,10 @@ int mlx5hws_rule_create(struct mlx5hws_matcher *matcher,
 			struct mlx5hws_rule *rule_handle)
 {
 	int ret;
+
+	ret = hws_rule_check_ip_version(matcher, match_param);
+	if (unlikely(ret))
+		return ret;
 
 	rule_handle->matcher = matcher;
 

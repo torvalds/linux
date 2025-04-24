@@ -385,6 +385,30 @@ static int hws_matcher_bind_at(struct mlx5hws_matcher *matcher)
 	return 0;
 }
 
+static void hws_matcher_set_ip_version_match(struct mlx5hws_matcher *matcher)
+{
+	int i;
+
+	for (i = 0; i < matcher->mt->fc_sz; i++) {
+		switch (matcher->mt->fc[i].fname) {
+		case MLX5HWS_DEFINER_FNAME_ETH_TYPE_O:
+			matcher->matches_outer_ethertype = 1;
+			break;
+		case MLX5HWS_DEFINER_FNAME_ETH_L3_TYPE_O:
+			matcher->matches_outer_ip_version = 1;
+			break;
+		case MLX5HWS_DEFINER_FNAME_ETH_TYPE_I:
+			matcher->matches_inner_ethertype = 1;
+			break;
+		case MLX5HWS_DEFINER_FNAME_ETH_L3_TYPE_I:
+			matcher->matches_inner_ip_version = 1;
+			break;
+		default:
+			break;
+		}
+	}
+}
+
 static int hws_matcher_bind_mt(struct mlx5hws_matcher *matcher)
 {
 	struct mlx5hws_context *ctx = matcher->tbl->ctx;
@@ -400,6 +424,8 @@ static int hws_matcher_bind_mt(struct mlx5hws_matcher *matcher)
 			return ret;
 		}
 	}
+
+	hws_matcher_set_ip_version_match(matcher);
 
 	/* Create an STE pool per matcher*/
 	pool_attr.table_type = matcher->tbl->type;

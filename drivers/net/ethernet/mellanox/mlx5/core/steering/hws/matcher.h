@@ -50,6 +50,12 @@ struct mlx5hws_matcher_match_ste {
 	struct mlx5hws_pool *pool;
 };
 
+enum {
+	MLX5HWS_MATCHER_IPV_UNSET = 0,
+	MLX5HWS_MATCHER_IPV_4 = 1,
+	MLX5HWS_MATCHER_IPV_6 = 2,
+};
+
 struct mlx5hws_matcher {
 	struct mlx5hws_table *tbl;
 	struct mlx5hws_matcher_attr attr;
@@ -61,6 +67,12 @@ struct mlx5hws_matcher {
 	u8 num_of_action_stes;
 	/* enum mlx5hws_matcher_flags */
 	u8 flags;
+	u8 matches_outer_ethertype:1;
+	u8 matches_outer_ip_version:1;
+	u8 matches_inner_ethertype:1;
+	u8 matches_inner_ip_version:1;
+	u8 outer_ip_version:2;
+	u8 inner_ip_version:2;
 	u32 end_ft_id;
 	struct mlx5hws_matcher *col_matcher;
 	struct mlx5hws_matcher *resize_dst;
