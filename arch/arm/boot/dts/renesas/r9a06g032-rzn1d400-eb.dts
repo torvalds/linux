@@ -147,6 +147,14 @@
 		pinmux = <RZN1_PINMUX(96, RZN1_FUNC_SDIO)>;
 		drive-strength = <12>;
 	};
+
+	pins_uart2: pins-uart2 {
+		pinmux = <RZN1_PINMUX(105, RZN1_FUNC_UART2)>,
+			 <RZN1_PINMUX(106, RZN1_FUNC_UART2)>,
+			 <RZN1_PINMUX(107, RZN1_FUNC_UART2)>,
+			 <RZN1_PINMUX(108, RZN1_FUNC_UART2)>;
+		bias-disable;
+	};
 };
 
 &sdio1 {
@@ -222,4 +230,11 @@
 	phy-mode = "rgmii-id";
 	phy-handle = <&switch0phy1>;
 	status = "okay";
+};
+
+&uart2 {
+	pinctrl-0 = <&pins_uart2>;
+	pinctrl-names = "default";
+	status = "okay";
+	uart-has-rtscts;
 };
