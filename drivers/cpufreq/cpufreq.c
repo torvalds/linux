@@ -2807,7 +2807,7 @@ static int cpufreq_boost_trigger_state(int state)
 
 	cpus_read_lock();
 	for_each_active_policy(policy) {
-		if (!policy->boost_supported)
+		if (!policy->boost_supported || policy->boost_enabled == state)
 			continue;
 
 		policy->boost_enabled = state;
