@@ -50,6 +50,10 @@ MODULE_DESCRIPTION("Cryptographic Coprocessor interface, " \
 		   "Copyright IBM Corp. 2001, 2012");
 MODULE_LICENSE("GPL");
 
+unsigned int zcrypt_mempool_threshold = 5;
+module_param_named(mempool_threshold, zcrypt_mempool_threshold, uint, 0440);
+MODULE_PARM_DESC(mempool_threshold, "CCA and EP11 request/reply mempool minimal items (min: 1)");
+
 /*
  * zcrypt tracepoint functions
  */
@@ -2144,13 +2148,23 @@ int __init zcrypt_api_init(void)
 {
 	int rc;
 
+	/* make sure the mempool threshold is >= 1 */
+	if (zcrypt_mempool_threshold < 1) {
+		rc = -EINVAL;
+		goto out;
+	}
+
 	rc = zcrypt_debug_init();
 	if (rc)
 		goto out;
 
 	rc = zcdn_init();
 	if (rc)
-		goto out;
+		goto out_zcdn_init_failed;
+
+	rc = zcrypt_ccamisc_init();
+	if (rc)
+		goto out_ccamisc_init_failed;
 
 	/* Register the request sprayer. */
 	rc = misc_register(&zcrypt_misc_device);
@@ -2163,7 +2177,10 @@ int __init zcrypt_api_init(void)
 	return 0;
 
 out_misc_register_failed:
+	zcrypt_ccamisc_exit();
+out_ccamisc_init_failed:
 	zcdn_exit();
+out_zcdn_init_failed:
 	zcrypt_debug_exit();
 out:
 	return rc;

@@ -139,6 +139,8 @@ extern atomic_t zcrypt_rescan_req;
 extern spinlock_t zcrypt_list_lock;
 extern struct list_head zcrypt_card_list;
 
+extern unsigned int zcrypt_mempool_threshold;
+
 #define for_each_zcrypt_card(_zc) \
 	list_for_each_entry(_zc, &zcrypt_card_list, list)
 
