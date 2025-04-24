@@ -473,7 +473,7 @@ static void iwl_mvm_phy_filter_init(struct iwl_mvm *mvm,
 				    struct iwl_phy_specific_cfg *phy_filters)
 {
 #ifdef CONFIG_ACPI
-	*phy_filters = mvm->phy_filters;
+	*phy_filters = mvm->fwrt.phy_filters;
 #endif /* CONFIG_ACPI */
 }
 
@@ -1265,7 +1265,7 @@ void iwl_mvm_get_bios_tables(struct iwl_mvm *mvm)
 		}
 	}
 
-	iwl_acpi_get_phy_filters(&mvm->fwrt, &mvm->phy_filters);
+	iwl_acpi_get_phy_filters(&mvm->fwrt, &mvm->fwrt.phy_filters);
 
 	if (iwl_bios_get_eckv(&mvm->fwrt, &mvm->ext_clock_valid))
 		IWL_DEBUG_RADIO(mvm, "ECKV table doesn't exist in BIOS\n");
