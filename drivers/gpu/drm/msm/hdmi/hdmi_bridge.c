@@ -498,16 +498,15 @@ int msm_hdmi_bridge_init(struct hdmi *hdmi)
 	struct hdmi_bridge *hdmi_bridge;
 	int ret;
 
-	hdmi_bridge = devm_kzalloc(hdmi->dev->dev,
-			sizeof(*hdmi_bridge), GFP_KERNEL);
-	if (!hdmi_bridge)
-		return -ENOMEM;
+	hdmi_bridge = devm_drm_bridge_alloc(hdmi->dev->dev, struct hdmi_bridge, base,
+					    &msm_hdmi_bridge_funcs);
+	if (IS_ERR(hdmi_bridge))
+		return PTR_ERR(hdmi_bridge);
 
 	hdmi_bridge->hdmi = hdmi;
 	INIT_WORK(&hdmi_bridge->hpd_work, msm_hdmi_hotplug_work);
 
 	bridge = &hdmi_bridge->base;
-	bridge->funcs = &msm_hdmi_bridge_funcs;
 	bridge->ddc = hdmi->i2c;
 	bridge->type = DRM_MODE_CONNECTOR_HDMIA;
 	bridge->vendor = "Qualcomm";
