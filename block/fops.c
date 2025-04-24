@@ -451,12 +451,13 @@ static int blkdev_get_block(struct inode *inode, sector_t iblock,
 static int blkdev_writepages(struct address_space *mapping,
 		struct writeback_control *wbc)
 {
+	struct folio *folio = NULL;
 	struct blk_plug plug;
 	int err;
 
 	blk_start_plug(&plug);
-	err = write_cache_pages(mapping, wbc, block_write_full_folio,
-			blkdev_get_block);
+	while ((folio = writeback_iter(mapping, wbc, folio, &err)))
+		err = block_write_full_folio(folio, wbc, blkdev_get_block);
 	blk_finish_plug(&plug);
 
 	return err;
