@@ -783,7 +783,7 @@ static int rvin_setup(struct rvin_dev *vin)
 	}
 
 	/* Make sure input interface and input format is valid. */
-	if (vin->info->model == RCAR_GEN3) {
+	if (vin->info->model == RCAR_GEN3 || vin->info->model == RCAR_GEN4) {
 		switch (vnmc & VNMC_INF_MASK) {
 		case VNMC_INF_YUV8_BT656:
 		case VNMC_INF_YUV10_BT656:
@@ -806,7 +806,7 @@ static int rvin_setup(struct rvin_dev *vin)
 	}
 
 	/* Enable VSYNC Field Toggle mode after one VSYNC input */
-	if (vin->info->model == RCAR_GEN3)
+	if (vin->info->model == RCAR_GEN3 || vin->info->model == RCAR_GEN4)
 		dmr2 = VNDMR2_FTEV;
 	else
 		dmr2 = VNDMR2_FTEV | VNDMR2_VLV(1);
@@ -906,7 +906,7 @@ static int rvin_setup(struct rvin_dev *vin)
 		if (input_is_yuv == output_is_yuv)
 			vnmc |= VNMC_BPS;
 
-		if (vin->info->model == RCAR_GEN3) {
+		if (vin->info->model == RCAR_GEN3 || vin->info->model == RCAR_GEN4) {
 			/* Select between CSI-2 and parallel input */
 			if (vin->is_csi)
 				vnmc &= ~VNMC_DPINE;
@@ -1287,7 +1287,7 @@ static int rvin_mc_validate_format(struct rvin_dev *vin, struct v4l2_subdev *sd,
 
 	if (rvin_scaler_needed(vin)) {
 		/* Gen3 can't scale NV12 */
-		if (vin->info->model == RCAR_GEN3 &&
+		if ((vin->info->model == RCAR_GEN3 || vin->info->model == RCAR_GEN4) &&
 		    vin->format.pixelformat == V4L2_PIX_FMT_NV12)
 			return -EPIPE;
 

@@ -1273,7 +1273,7 @@ static const struct rvin_info rcar_info_r8a77995 = {
 };
 
 static const struct rvin_info rcar_info_gen4 = {
-	.model = RCAR_GEN3,
+	.model = RCAR_GEN4,
 	.use_mc = true,
 	.use_isp = true,
 	.nv12 = true,
