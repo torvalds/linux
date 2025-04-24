@@ -643,7 +643,7 @@ iwl_mld_emlsr_disallowed_with_link(struct iwl_mld *mld,
 {
 	struct wiphy *wiphy = mld->wiphy;
 	struct ieee80211_bss_conf *conf;
-	enum iwl_mld_emlsr_exit ret = 0;
+	u32 ret = 0;
 
 	conf = wiphy_dereference(wiphy, vif->link_conf[link->link_id]);
 	if (WARN_ON_ONCE(!conf))
