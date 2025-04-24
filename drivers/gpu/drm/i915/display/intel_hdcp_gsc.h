@@ -19,7 +19,7 @@ ssize_t intel_hdcp_gsc_msg_send(struct drm_i915_private *i915, u8 *msg_in,
 				size_t msg_out_len);
 bool intel_hdcp_gsc_check_status(struct intel_display *display);
 
-int intel_hdcp_gsc_hdcp2_init(struct intel_display *display);
-void intel_hdcp_gsc_free_message(struct intel_display *display);
+struct intel_hdcp_gsc_message *intel_hdcp_gsc_hdcp2_init(struct intel_display *display);
+void intel_hdcp_gsc_free_message(struct intel_hdcp_gsc_message *hdcp_message);
 
 #endif /* __INTEL_HDCP_GCS_H__ */

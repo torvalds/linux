@@ -90,37 +90,35 @@ out_unpin:
 	return err;
 }
 
-int intel_hdcp_gsc_hdcp2_init(struct intel_display *display)
+struct intel_hdcp_gsc_message *intel_hdcp_gsc_hdcp2_init(struct intel_display *display)
 {
 	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_hdcp_gsc_message *hdcp_message;
 	int ret;
 
 	hdcp_message = kzalloc(sizeof(*hdcp_message), GFP_KERNEL);
-
 	if (!hdcp_message)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	/*
 	 * NOTE: No need to lock the comp mutex here as it is already
 	 * going to be taken before this function called
 	 */
-	display->hdcp.hdcp_message = hdcp_message;
 	ret = intel_hdcp_gsc_initialize_message(i915, hdcp_message);
-
-	if (ret)
+	if (ret) {
 		drm_err(display->drm, "Could not initialize hdcp_message\n");
+		kfree(hdcp_message);
+		hdcp_message = ERR_PTR(ret);
+	}
 
-	return ret;
+	return hdcp_message;
 }
 
-void intel_hdcp_gsc_free_message(struct intel_display *display)
+void intel_hdcp_gsc_free_message(struct intel_hdcp_gsc_message *hdcp_message)
 {
-	struct intel_hdcp_gsc_message *hdcp_message =
-					display->hdcp.hdcp_message;
+	if (!hdcp_message)
+		return;
 
-	hdcp_message->hdcp_cmd_in = NULL;
-	hdcp_message->hdcp_cmd_out = NULL;
 	i915_vma_unpin_and_release(&hdcp_message->vma, I915_VMA_RELEASE_MAP);
 	kfree(hdcp_message);
 }

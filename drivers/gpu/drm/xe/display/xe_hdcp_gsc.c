@@ -99,15 +99,14 @@ out:
 	return ret;
 }
 
-int intel_hdcp_gsc_hdcp2_init(struct intel_display *display)
+struct intel_hdcp_gsc_message *intel_hdcp_gsc_hdcp2_init(struct intel_display *display)
 {
 	struct intel_hdcp_gsc_message *hdcp_message;
 	int ret;
 
 	hdcp_message = kzalloc(sizeof(*hdcp_message), GFP_KERNEL);
-
 	if (!hdcp_message)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	/*
 	 * NOTE: No need to lock the comp mutex here as it is already
@@ -117,22 +116,19 @@ int intel_hdcp_gsc_hdcp2_init(struct intel_display *display)
 	if (ret) {
 		drm_err(display->drm, "Could not initialize hdcp_message\n");
 		kfree(hdcp_message);
-		return ret;
+		hdcp_message = ERR_PTR(ret);
 	}
 
-	display->hdcp.hdcp_message = hdcp_message;
-	return ret;
+	return hdcp_message;
 }
 
-void intel_hdcp_gsc_free_message(struct intel_display *display)
+void intel_hdcp_gsc_free_message(struct intel_hdcp_gsc_message *hdcp_message)
 {
-	struct intel_hdcp_gsc_message *hdcp_message = display->hdcp.hdcp_message;
+	if (!hdcp_message)
+		return;
 
-	if (hdcp_message) {
-		xe_bo_unpin_map_no_vm(hdcp_message->hdcp_bo);
-		kfree(hdcp_message);
-		display->hdcp.hdcp_message = NULL;
-	}
+	xe_bo_unpin_map_no_vm(hdcp_message->hdcp_bo);
+	kfree(hdcp_message);
 }
 
 static int xe_gsc_send_sync(struct xe_device *xe,
