@@ -1577,6 +1577,7 @@ static void nvmet_tcp_release_queue_work(struct work_struct *w)
 	nvmet_sq_put_tls_key(&queue->nvme_sq);
 	nvmet_tcp_uninit_data_in_cmds(queue);
 	nvmet_sq_destroy(&queue->nvme_sq);
+	nvmet_cq_put(&queue->nvme_cq);
 	cancel_work_sync(&queue->io_work);
 	nvmet_tcp_free_cmd_data_in_buffers(queue);
 	/* ->sock will be released by fput() */
@@ -1910,6 +1911,7 @@ static void nvmet_tcp_alloc_queue(struct nvmet_tcp_port *port,
 	if (ret)
 		goto out_ida_remove;
 
+	nvmet_cq_init(&queue->nvme_cq);
 	ret = nvmet_sq_init(&queue->nvme_sq);
 	if (ret)
 		goto out_free_connect;
@@ -1953,6 +1955,7 @@ out_destroy_sq:
 	mutex_unlock(&nvmet_tcp_queue_mutex);
 	nvmet_sq_destroy(&queue->nvme_sq);
 out_free_connect:
+	nvmet_cq_put(&queue->nvme_cq);
 	nvmet_tcp_free_cmd(&queue->connect);
 out_ida_remove:
 	ida_free(&nvmet_tcp_queue_ida, queue->idx);
