@@ -242,11 +242,6 @@ static inline u64 dev_buckets_available(struct bch_dev *ca,
 
 /* Filesystem usage: */
 
-static inline unsigned dev_usage_u64s(void)
-{
-	return sizeof(struct bch_dev_usage) / sizeof(u64);
-}
-
 struct bch_fs_usage_short
 bch2_fs_usage_read_short(struct bch_fs *);
 

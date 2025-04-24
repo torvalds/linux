@@ -607,13 +607,16 @@ static void amd_pstate_update_min_max_limit(struct cpufreq_policy *policy)
 	union perf_cached perf = READ_ONCE(cpudata->perf);
 
 	perf.max_limit_perf = freq_to_perf(perf, cpudata->nominal_freq, policy->max);
-	perf.min_limit_perf = freq_to_perf(perf, cpudata->nominal_freq, policy->min);
-
-	if (cpudata->policy == CPUFREQ_POLICY_PERFORMANCE)
-		perf.min_limit_perf = min(perf.nominal_perf, perf.max_limit_perf);
-
 	WRITE_ONCE(cpudata->max_limit_freq, policy->max);
-	WRITE_ONCE(cpudata->min_limit_freq, policy->min);
+
+	if (cpudata->policy == CPUFREQ_POLICY_PERFORMANCE) {
+		perf.min_limit_perf = min(perf.nominal_perf, perf.max_limit_perf);
+		WRITE_ONCE(cpudata->min_limit_freq, min(cpudata->nominal_freq, cpudata->max_limit_freq));
+	} else {
+		perf.min_limit_perf = freq_to_perf(perf, cpudata->nominal_freq, policy->min);
+		WRITE_ONCE(cpudata->min_limit_freq, policy->min);
+	}
+
 	WRITE_ONCE(cpudata->perf, perf);
 }
 
@@ -791,16 +794,6 @@ static void amd_perf_ctl_reset(unsigned int cpu)
 	wrmsrl_on_cpu(cpu, MSR_AMD_PERF_CTL, 0);
 }
 
-/*
- * Set amd-pstate preferred core enable can't be done directly from cpufreq callbacks
- * due to locking, so queue the work for later.
- */
-static void amd_pstste_sched_prefcore_workfn(struct work_struct *work)
-{
-	sched_set_itmt_support();
-}
-static DECLARE_WORK(sched_prefcore_work, amd_pstste_sched_prefcore_workfn);
-
 #define CPPC_MAX_PERF	U8_MAX
 
 static void amd_pstate_init_prefcore(struct amd_cpudata *cpudata)
@@ -811,14 +804,8 @@ static void amd_pstate_init_prefcore(struct amd_cpudata *cpudata)
 
 	cpudata->hw_prefcore = true;
 
-	/*
-	 * The priorities can be set regardless of whether or not
-	 * sched_set_itmt_support(true) has been called and it is valid to
-	 * update them at any time after it has been called.
-	 */
+	/* Priorities must be initialized before ITMT support can be toggled on. */
 	sched_set_itmt_core_prio((int)READ_ONCE(cpudata->prefcore_ranking), cpudata->cpu);
-
-	schedule_work(&sched_prefcore_work);
 }
 
 static void amd_pstate_update_limits(unsigned int cpu)
@@ -1193,6 +1180,9 @@ static ssize_t show_energy_performance_preference(
 
 static void amd_pstate_driver_cleanup(void)
 {
+	if (amd_pstate_prefcore)
+		sched_clear_itmt_support();
+
 	cppc_state = AMD_PSTATE_DISABLE;
 	current_pstate_driver = NULL;
 }
@@ -1234,6 +1224,10 @@ static int amd_pstate_register_driver(int mode)
 		amd_pstate_driver_cleanup();
 		return ret;
 	}
+
+	/* Enable ITMT support once all CPUs have initialized their asym priorities. */
+	if (amd_pstate_prefcore)
+		sched_set_itmt_support();
 
 	return 0;
 }

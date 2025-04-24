@@ -26,6 +26,11 @@
 #include "zcrx.h"
 #include "rsrc.h"
 
+static inline struct io_zcrx_ifq *io_pp_to_ifq(struct page_pool *pp)
+{
+	return pp->mp_priv;
+}
+
 #define IO_DMA_ATTR (DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING)
 
 static void __io_zcrx_unmap_area(struct io_zcrx_ifq *ifq,
@@ -46,13 +51,20 @@ static void __io_zcrx_unmap_area(struct io_zcrx_ifq *ifq,
 
 static void io_zcrx_unmap_area(struct io_zcrx_ifq *ifq, struct io_zcrx_area *area)
 {
+	guard(mutex)(&ifq->dma_lock);
+
 	if (area->is_mapped)
 		__io_zcrx_unmap_area(ifq, area, area->nia.num_niovs);
+	area->is_mapped = false;
 }
 
 static int io_zcrx_map_area(struct io_zcrx_ifq *ifq, struct io_zcrx_area *area)
 {
 	int i;
+
+	guard(mutex)(&ifq->dma_lock);
+	if (area->is_mapped)
+		return 0;
 
 	for (i = 0; i < area->nia.num_niovs; i++) {
 		struct net_iov *niov = &area->nia.niovs[i];
@@ -275,6 +287,7 @@ static struct io_zcrx_ifq *io_zcrx_ifq_alloc(struct io_ring_ctx *ctx)
 	ifq->ctx = ctx;
 	spin_lock_init(&ifq->lock);
 	spin_lock_init(&ifq->rq_lock);
+	mutex_init(&ifq->dma_lock);
 	return ifq;
 }
 
@@ -324,6 +337,7 @@ static void io_zcrx_ifq_free(struct io_zcrx_ifq *ifq)
 		put_device(ifq->dev);
 
 	io_free_rbuf_ring(ifq);
+	mutex_destroy(&ifq->dma_lock);
 	kfree(ifq);
 }
 
@@ -354,7 +368,8 @@ int io_register_zcrx_ifq(struct io_ring_ctx *ctx,
 		return -EFAULT;
 	if (copy_from_user(&rd, u64_to_user_ptr(reg.region_ptr), sizeof(rd)))
 		return -EFAULT;
-	if (memchr_inv(&reg.__resv, 0, sizeof(reg.__resv)))
+	if (memchr_inv(&reg.__resv, 0, sizeof(reg.__resv)) ||
+	    reg.__resv2 || reg.zcrx_id)
 		return -EINVAL;
 	if (reg.if_rxq == -1 || !reg.rq_entries || reg.flags)
 		return -EINVAL;
@@ -393,10 +408,6 @@ int io_register_zcrx_ifq(struct io_ring_ctx *ctx,
 	if (!ifq->dev)
 		goto err;
 	get_device(ifq->dev);
-
-	ret = io_zcrx_map_area(ifq, ifq->area);
-	if (ret)
-		goto err;
 
 	mp_param.mp_ops = &io_uring_pp_zc_ops;
 	mp_param.mp_priv = ifq;
@@ -585,7 +596,7 @@ static void io_zcrx_refill_slow(struct page_pool *pp, struct io_zcrx_ifq *ifq)
 
 static netmem_ref io_pp_zc_alloc_netmems(struct page_pool *pp, gfp_t gfp)
 {
-	struct io_zcrx_ifq *ifq = pp->mp_priv;
+	struct io_zcrx_ifq *ifq = io_pp_to_ifq(pp);
 
 	/* pp should already be ensuring that */
 	if (unlikely(pp->alloc.count))
@@ -617,7 +628,8 @@ static bool io_pp_zc_release_netmem(struct page_pool *pp, netmem_ref netmem)
 
 static int io_pp_zc_init(struct page_pool *pp)
 {
-	struct io_zcrx_ifq *ifq = pp->mp_priv;
+	struct io_zcrx_ifq *ifq = io_pp_to_ifq(pp);
+	int ret;
 
 	if (WARN_ON_ONCE(!ifq))
 		return -EINVAL;
@@ -630,13 +642,17 @@ static int io_pp_zc_init(struct page_pool *pp)
 	if (pp->p.dma_dir != DMA_FROM_DEVICE)
 		return -EOPNOTSUPP;
 
+	ret = io_zcrx_map_area(ifq, ifq->area);
+	if (ret)
+		return ret;
+
 	percpu_ref_get(&ifq->ctx->refs);
 	return 0;
 }
 
 static void io_pp_zc_destroy(struct page_pool *pp)
 {
-	struct io_zcrx_ifq *ifq = pp->mp_priv;
+	struct io_zcrx_ifq *ifq = io_pp_to_ifq(pp);
 	struct io_zcrx_area *area = ifq->area;
 
 	if (WARN_ON_ONCE(area->free_count != area->nia.num_niovs))
@@ -665,6 +681,9 @@ static void io_pp_uninstall(void *mp_priv, struct netdev_rx_queue *rxq)
 	struct io_zcrx_ifq *ifq = mp_priv;
 
 	io_zcrx_drop_netdev(ifq);
+	if (ifq->area)
+		io_zcrx_unmap_area(ifq, ifq->area);
+
 	p->mp_ops = NULL;
 	p->mp_priv = NULL;
 }
@@ -791,7 +810,7 @@ static int io_zcrx_recv_frag(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 
 	niov = netmem_to_net_iov(frag->netmem);
 	if (niov->pp->mp_ops != &io_uring_pp_zc_ops ||
-	    niov->pp->mp_priv != ifq)
+	    io_pp_to_ifq(niov->pp) != ifq)
 		return -EFAULT;
 
 	if (!io_zcrx_queue_cqe(req, niov, ifq, off + skb_frag_off(frag), len))
