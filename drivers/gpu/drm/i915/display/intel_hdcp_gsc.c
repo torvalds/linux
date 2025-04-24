@@ -13,6 +13,7 @@
 #include "intel_hdcp_gsc.h"
 
 struct intel_hdcp_gsc_context {
+	struct drm_i915_private *i915;
 	struct i915_vma *vma;
 	void *hdcp_cmd_in;
 	void *hdcp_cmd_out;
@@ -80,6 +81,7 @@ static int intel_hdcp_gsc_initialize_message(struct drm_i915_private *i915,
 	gsc_context->hdcp_cmd_in = cmd_in;
 	gsc_context->hdcp_cmd_out = cmd_out;
 	gsc_context->vma = vma;
+	gsc_context->i915 = i915;
 
 	return 0;
 
@@ -171,14 +173,14 @@ static int intel_gsc_send_sync(struct drm_i915_private *i915,
  * gsc cs memory header as stated in specs after which the normal HDCP payload
  * will follow
  */
-ssize_t intel_hdcp_gsc_msg_send(struct drm_i915_private *i915, u8 *msg_in,
-				size_t msg_in_len, u8 *msg_out,
-				size_t msg_out_len)
+ssize_t intel_hdcp_gsc_msg_send(struct intel_hdcp_gsc_context *gsc_context,
+				u8 *msg_in, size_t msg_in_len,
+				u8 *msg_out, size_t msg_out_len)
 {
+	struct drm_i915_private *i915 = gsc_context->i915;
 	struct intel_gt *gt = i915->media_gt;
 	struct intel_gsc_mtl_header *header_in, *header_out;
 	const size_t max_msg_size = PAGE_SIZE - sizeof(*header_in);
-	struct intel_hdcp_gsc_context *gsc_context;
 	u64 addr_in, addr_out, host_session_id;
 	u32 reply_size, msg_size_in, msg_size_out;
 	int ret, tries = 0;
@@ -191,7 +193,6 @@ ssize_t intel_hdcp_gsc_msg_send(struct drm_i915_private *i915, u8 *msg_in,
 
 	msg_size_in = msg_in_len + sizeof(*header_in);
 	msg_size_out = msg_out_len + sizeof(*header_out);
-	gsc_context = i915->display.hdcp.gsc_context;
 	header_in = gsc_context->hdcp_cmd_in;
 	header_out = gsc_context->hdcp_cmd_out;
 	addr_in = i915_ggtt_offset(gsc_context->vma);

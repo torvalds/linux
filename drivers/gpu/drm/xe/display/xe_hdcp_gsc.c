@@ -22,6 +22,7 @@
 #define HECI_MEADDRESS_HDCP 18
 
 struct intel_hdcp_gsc_context {
+	struct xe_device *xe;
 	struct xe_bo *hdcp_bo;
 	u64 hdcp_cmd_in;
 	u64 hdcp_cmd_out;
@@ -95,6 +96,8 @@ static int intel_hdcp_gsc_initialize_message(struct intel_display *display,
 	gsc_context->hdcp_bo = bo;
 	gsc_context->hdcp_cmd_in = cmd_in;
 	gsc_context->hdcp_cmd_out = cmd_out;
+	gsc_context->xe = xe;
+
 out:
 	return ret;
 }
@@ -157,12 +160,12 @@ static int xe_gsc_send_sync(struct xe_device *xe,
 	return ret;
 }
 
-ssize_t intel_hdcp_gsc_msg_send(struct xe_device *xe, u8 *msg_in,
-				size_t msg_in_len, u8 *msg_out,
-				size_t msg_out_len)
+ssize_t intel_hdcp_gsc_msg_send(struct intel_hdcp_gsc_context *gsc_context,
+				u8 *msg_in, size_t msg_in_len,
+				u8 *msg_out, size_t msg_out_len)
 {
+	struct xe_device *xe = gsc_context->xe;
 	const size_t max_msg_size = PAGE_SIZE - HDCP_GSC_HEADER_SIZE;
-	struct intel_hdcp_gsc_context *gsc_context;
 	u64 host_session_id;
 	u32 msg_size_in, msg_size_out;
 	u32 addr_out_off, addr_in_wr_off = 0;
@@ -175,7 +178,6 @@ ssize_t intel_hdcp_gsc_msg_send(struct xe_device *xe, u8 *msg_in,
 
 	msg_size_in = msg_in_len + HDCP_GSC_HEADER_SIZE;
 	msg_size_out = msg_out_len + HDCP_GSC_HEADER_SIZE;
-	gsc_context = xe->display.hdcp.gsc_context;
 	addr_out_off = PAGE_SIZE;
 
 	host_session_id = xe_gsc_create_host_session_id();
