@@ -430,7 +430,7 @@ struct intel_display {
 		 * reused when sending message to gsc cs.
 		 * this is only populated post Meteorlake
 		 */
-		struct intel_hdcp_gsc_message *hdcp_message;
+		struct intel_hdcp_gsc_context *gsc_context;
 		/* Mutex to protect the above hdcp related values. */
 		struct mutex hdcp_mutex;
 	} hdcp;

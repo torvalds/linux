@@ -633,7 +633,7 @@ static const struct i915_hdcp_ops gsc_hdcp_ops = {
 
 int intel_hdcp_gsc_init(struct intel_display *display)
 {
-	struct intel_hdcp_gsc_message *hdcp_message;
+	struct intel_hdcp_gsc_context *gsc_context;
 	struct i915_hdcp_arbiter *arbiter;
 	int ret = 0;
 
@@ -643,9 +643,9 @@ int intel_hdcp_gsc_init(struct intel_display *display)
 
 	mutex_lock(&display->hdcp.hdcp_mutex);
 
-	hdcp_message = intel_hdcp_gsc_hdcp2_init(display);
-	if (IS_ERR(hdcp_message)) {
-		ret = PTR_ERR(hdcp_message);
+	gsc_context = intel_hdcp_gsc_hdcp2_init(display);
+	if (IS_ERR(gsc_context)) {
+		ret = PTR_ERR(gsc_context);
 		kfree(arbiter);
 		goto out;
 	}
@@ -653,7 +653,7 @@ int intel_hdcp_gsc_init(struct intel_display *display)
 	display->hdcp.arbiter = arbiter;
 	display->hdcp.arbiter->hdcp_dev = display->drm->dev;
 	display->hdcp.arbiter->ops = &gsc_hdcp_ops;
-	display->hdcp.hdcp_message = hdcp_message;
+	display->hdcp.gsc_context = gsc_context;
 
 out:
 	mutex_unlock(&display->hdcp.hdcp_mutex);
@@ -663,8 +663,8 @@ out:
 
 void intel_hdcp_gsc_fini(struct intel_display *display)
 {
-	intel_hdcp_gsc_free_message(display->hdcp.hdcp_message);
-	display->hdcp.hdcp_message = NULL;
+	intel_hdcp_gsc_free_message(display->hdcp.gsc_context);
+	display->hdcp.gsc_context = NULL;
 	kfree(display->hdcp.arbiter);
 	display->hdcp.arbiter = NULL;
 }

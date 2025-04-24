@@ -21,7 +21,7 @@
 
 #define HECI_MEADDRESS_HDCP 18
 
-struct intel_hdcp_gsc_message {
+struct intel_hdcp_gsc_context {
 	struct xe_bo *hdcp_bo;
 	u64 hdcp_cmd_in;
 	u64 hdcp_cmd_out;
@@ -69,7 +69,7 @@ out:
 
 /*This function helps allocate memory for the command that we will send to gsc cs */
 static int intel_hdcp_gsc_initialize_message(struct intel_display *display,
-					     struct intel_hdcp_gsc_message *hdcp_message)
+					     struct intel_hdcp_gsc_context *gsc_context)
 {
 	struct xe_device *xe = to_xe_device(display->drm);
 	struct xe_bo *bo = NULL;
@@ -92,57 +92,57 @@ static int intel_hdcp_gsc_initialize_message(struct intel_display *display,
 	cmd_out = cmd_in + PAGE_SIZE;
 	xe_map_memset(xe, &bo->vmap, 0, 0, bo->size);
 
-	hdcp_message->hdcp_bo = bo;
-	hdcp_message->hdcp_cmd_in = cmd_in;
-	hdcp_message->hdcp_cmd_out = cmd_out;
+	gsc_context->hdcp_bo = bo;
+	gsc_context->hdcp_cmd_in = cmd_in;
+	gsc_context->hdcp_cmd_out = cmd_out;
 out:
 	return ret;
 }
 
-struct intel_hdcp_gsc_message *intel_hdcp_gsc_hdcp2_init(struct intel_display *display)
+struct intel_hdcp_gsc_context *intel_hdcp_gsc_hdcp2_init(struct intel_display *display)
 {
-	struct intel_hdcp_gsc_message *hdcp_message;
+	struct intel_hdcp_gsc_context *gsc_context;
 	int ret;
 
-	hdcp_message = kzalloc(sizeof(*hdcp_message), GFP_KERNEL);
-	if (!hdcp_message)
+	gsc_context = kzalloc(sizeof(*gsc_context), GFP_KERNEL);
+	if (!gsc_context)
 		return ERR_PTR(-ENOMEM);
 
 	/*
 	 * NOTE: No need to lock the comp mutex here as it is already
 	 * going to be taken before this function called
 	 */
-	ret = intel_hdcp_gsc_initialize_message(display, hdcp_message);
+	ret = intel_hdcp_gsc_initialize_message(display, gsc_context);
 	if (ret) {
-		drm_err(display->drm, "Could not initialize hdcp_message\n");
-		kfree(hdcp_message);
-		hdcp_message = ERR_PTR(ret);
+		drm_err(display->drm, "Could not initialize gsc_context\n");
+		kfree(gsc_context);
+		gsc_context = ERR_PTR(ret);
 	}
 
-	return hdcp_message;
+	return gsc_context;
 }
 
-void intel_hdcp_gsc_free_message(struct intel_hdcp_gsc_message *hdcp_message)
+void intel_hdcp_gsc_free_message(struct intel_hdcp_gsc_context *gsc_context)
 {
-	if (!hdcp_message)
+	if (!gsc_context)
 		return;
 
-	xe_bo_unpin_map_no_vm(hdcp_message->hdcp_bo);
-	kfree(hdcp_message);
+	xe_bo_unpin_map_no_vm(gsc_context->hdcp_bo);
+	kfree(gsc_context);
 }
 
 static int xe_gsc_send_sync(struct xe_device *xe,
-			    struct intel_hdcp_gsc_message *hdcp_message,
+			    struct intel_hdcp_gsc_context *gsc_context,
 			    u32 msg_size_in, u32 msg_size_out,
 			    u32 addr_out_off)
 {
-	struct xe_gt *gt = hdcp_message->hdcp_bo->tile->media_gt;
-	struct iosys_map *map = &hdcp_message->hdcp_bo->vmap;
+	struct xe_gt *gt = gsc_context->hdcp_bo->tile->media_gt;
+	struct iosys_map *map = &gsc_context->hdcp_bo->vmap;
 	struct xe_gsc *gsc = &gt->uc.gsc;
 	int ret;
 
-	ret = xe_gsc_pkt_submit_kernel(gsc, hdcp_message->hdcp_cmd_in, msg_size_in,
-				       hdcp_message->hdcp_cmd_out, msg_size_out);
+	ret = xe_gsc_pkt_submit_kernel(gsc, gsc_context->hdcp_cmd_in, msg_size_in,
+				       gsc_context->hdcp_cmd_out, msg_size_out);
 	if (ret) {
 		drm_err(&xe->drm, "failed to send gsc HDCP msg (%d)\n", ret);
 		return ret;
@@ -162,7 +162,7 @@ ssize_t intel_hdcp_gsc_msg_send(struct xe_device *xe, u8 *msg_in,
 				size_t msg_out_len)
 {
 	const size_t max_msg_size = PAGE_SIZE - HDCP_GSC_HEADER_SIZE;
-	struct intel_hdcp_gsc_message *hdcp_message;
+	struct intel_hdcp_gsc_context *gsc_context;
 	u64 host_session_id;
 	u32 msg_size_in, msg_size_out;
 	u32 addr_out_off, addr_in_wr_off = 0;
@@ -175,15 +175,15 @@ ssize_t intel_hdcp_gsc_msg_send(struct xe_device *xe, u8 *msg_in,
 
 	msg_size_in = msg_in_len + HDCP_GSC_HEADER_SIZE;
 	msg_size_out = msg_out_len + HDCP_GSC_HEADER_SIZE;
-	hdcp_message = xe->display.hdcp.hdcp_message;
+	gsc_context = xe->display.hdcp.gsc_context;
 	addr_out_off = PAGE_SIZE;
 
 	host_session_id = xe_gsc_create_host_session_id();
 	xe_pm_runtime_get_noresume(xe);
-	addr_in_wr_off = xe_gsc_emit_header(xe, &hdcp_message->hdcp_bo->vmap,
+	addr_in_wr_off = xe_gsc_emit_header(xe, &gsc_context->hdcp_bo->vmap,
 					    addr_in_wr_off, HECI_MEADDRESS_HDCP,
 					    host_session_id, msg_in_len);
-	xe_map_memcpy_to(xe, &hdcp_message->hdcp_bo->vmap, addr_in_wr_off,
+	xe_map_memcpy_to(xe, &gsc_context->hdcp_bo->vmap, addr_in_wr_off,
 			 msg_in, msg_in_len);
 	/*
 	 * Keep sending request in case the pending bit is set no need to add
@@ -192,7 +192,7 @@ ssize_t intel_hdcp_gsc_msg_send(struct xe_device *xe, u8 *msg_in,
 	 * 20 times each message 50 ms apart
 	 */
 	do {
-		ret = xe_gsc_send_sync(xe, hdcp_message, msg_size_in, msg_size_out,
+		ret = xe_gsc_send_sync(xe, gsc_context, msg_size_in, msg_size_out,
 				       addr_out_off);
 
 		/* Only try again if gsc says so */
@@ -206,7 +206,7 @@ ssize_t intel_hdcp_gsc_msg_send(struct xe_device *xe, u8 *msg_in,
 	if (ret)
 		goto out;
 
-	xe_map_memcpy_from(xe, msg_out, &hdcp_message->hdcp_bo->vmap,
+	xe_map_memcpy_from(xe, msg_out, &gsc_context->hdcp_bo->vmap,
 			   addr_out_off + HDCP_GSC_HEADER_SIZE,
 			   msg_out_len);
 
