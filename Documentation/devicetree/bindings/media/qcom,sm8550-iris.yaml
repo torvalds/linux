@@ -22,6 +22,7 @@ properties:
               - qcom,sa8775p-iris
           - const: qcom,sm8550-iris
       - enum:
+          - qcom,qcs8300-iris
           - qcom,sm8550-iris
           - qcom,sm8650-iris
 
