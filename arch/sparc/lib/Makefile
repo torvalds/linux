@@ -54,4 +54,4 @@ obj-$(CONFIG_SPARC64) += iomap.o
 obj-$(CONFIG_SPARC32) += atomic32.o
 obj-$(CONFIG_SPARC64) += PeeCeeI.o
 obj-$(CONFIG_CRC32_ARCH) += crc32-sparc.o
-crc32-sparc-y := crc32_glue.o crc32c_asm.o
+crc32-sparc-y := crc32.o crc32c_asm.o

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Glue code for CRC32C optimized for sparc64 crypto opcodes.
+/* CRC32c (Castagnoli), sparc64 crc32c opcode accelerated
  *
  * This is based largely upon arch/x86/crypto/crc32c-intel.c
  *
