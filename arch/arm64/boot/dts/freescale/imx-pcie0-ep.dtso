@@ -6,12 +6,10 @@
 /dts-v1/;
 /plugin/;
 
-&pcie {
+&pcie0 {
 	status = "disabled";
 };
 
-&pcie_ep {
-	pinctrl-0 = <&pinctrl_pcie0>;
-	pinctrl-names = "default";
+&pcie0_ep {
 	status = "okay";
 };
