@@ -169,20 +169,16 @@ const int landlock_abi_version = 7;
  *        the new ruleset.
  * @size: Size of the pointed &struct landlock_ruleset_attr (needed for
  *        backward and forward compatibility).
- * @flags: Supported value:
+ * @flags: Supported values:
+ *
  *         - %LANDLOCK_CREATE_RULESET_VERSION
  *         - %LANDLOCK_CREATE_RULESET_ERRATA
  *
  * This system call enables to create a new Landlock ruleset, and returns the
  * related file descriptor on success.
  *
- * If @flags is %LANDLOCK_CREATE_RULESET_VERSION and @attr is NULL and @size is
- * 0, then the returned value is the highest supported Landlock ABI version
- * (starting at 1).
- *
- * If @flags is %LANDLOCK_CREATE_RULESET_ERRATA and @attr is NULL and @size is
- * 0, then the returned value is a bitmask of fixed issues for the current
- * Landlock ABI version.
+ * If %LANDLOCK_CREATE_RULESET_VERSION or %LANDLOCK_CREATE_RULESET_ERRATA is
+ * set, then @attr must be NULL and @size must be 0.
  *
  * Possible returned errors are:
  *
@@ -191,6 +187,9 @@ const int landlock_abi_version = 7;
  * - %E2BIG: @attr or @size inconsistencies;
  * - %EFAULT: @attr or @size inconsistencies;
  * - %ENOMSG: empty &landlock_ruleset_attr.handled_access_fs.
+ *
+ * .. kernel-doc:: include/uapi/linux/landlock.h
+ *     :identifiers: landlock_create_ruleset_flags
  */
 SYSCALL_DEFINE3(landlock_create_ruleset,
 		const struct landlock_ruleset_attr __user *const, attr,
@@ -452,17 +451,14 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
  * @ruleset_fd: File descriptor tied to the ruleset to merge with the target.
  * @flags: Supported values:
  *
- * - %LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF
- * - %LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON
- * - %LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF
+ *         - %LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF
+ *         - %LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON
+ *         - %LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF
  *
  * This system call enables to enforce a Landlock ruleset on the current
  * thread.  Enforcing a ruleset requires that the task has %CAP_SYS_ADMIN in its
  * namespace or is running with no_new_privs.  This avoids scenarios where
  * unprivileged tasks can affect the behavior of privileged children.
- *
- * It is allowed to only pass the %LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF
- * flag with a @ruleset_fd value of -1.
  *
  * Possible returned errors are:
  *
@@ -475,6 +471,9 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
  *   %CAP_SYS_ADMIN in its namespace.
  * - %E2BIG: The maximum number of stacked rulesets is reached for the current
  *   thread.
+ *
+ * .. kernel-doc:: include/uapi/linux/landlock.h
+ *     :identifiers: landlock_restrict_self_flags
  */
 SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
 		flags)

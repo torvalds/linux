@@ -16,6 +16,7 @@
 #include <linux/path.h>
 #include <linux/pid.h>
 #include <linux/sched.h>
+#include <linux/signal.h>
 #include <linux/uidgid.h>
 
 #include "access.h"
@@ -99,8 +100,7 @@ static struct landlock_details *get_current_details(void)
 		return ERR_PTR(-ENOMEM);
 
 	memcpy(details->exe_path, path_str, path_size);
-	WARN_ON_ONCE(current_cred() != current_real_cred());
-	details->pid = get_pid(task_pid(current));
+	details->pid = get_pid(task_tgid(current));
 	details->uid = from_kuid(&init_user_ns, current_uid());
 	get_task_comm(details->comm, current);
 	return details;
