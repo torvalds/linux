@@ -65,38 +65,11 @@ static bool __io_eventfd_signal(struct io_ev_fd *ev_fd)
 
 /*
  * Trigger if eventfd_async isn't set, or if it's set and the caller is
- * an async worker. If ev_fd isn't valid, obviously return false.
+ * an async worker.
  */
 static bool io_eventfd_trigger(struct io_ev_fd *ev_fd)
 {
-	if (ev_fd)
-		return !ev_fd->eventfd_async || io_wq_current_is_worker();
-	return false;
-}
-
-/*
- * On success, returns with an ev_fd reference grabbed and the RCU read
- * lock held.
- */
-static struct io_ev_fd *io_eventfd_grab(struct io_ring_ctx *ctx)
-{
-	struct io_ev_fd *ev_fd;
-
-	/*
-	 * rcu_dereference ctx->io_ev_fd once and use it for both for checking
-	 * and eventfd_signal
-	 */
-	ev_fd = rcu_dereference(ctx->io_ev_fd);
-
-	/*
-	 * Check again if ev_fd exists in case an io_eventfd_unregister call
-	 * completed between the NULL check of ctx->io_ev_fd at the start of
-	 * the function and rcu_read_lock.
-	 */
-	if (io_eventfd_trigger(ev_fd) && refcount_inc_not_zero(&ev_fd->refs))
-		return ev_fd;
-
-	return NULL;
+	return !ev_fd->eventfd_async || io_wq_current_is_worker();
 }
 
 void io_eventfd_signal(struct io_ring_ctx *ctx, bool cqe_event)
@@ -108,8 +81,15 @@ void io_eventfd_signal(struct io_ring_ctx *ctx, bool cqe_event)
 		return;
 
 	guard(rcu)();
-	ev_fd = io_eventfd_grab(ctx);
+	ev_fd = rcu_dereference(ctx->io_ev_fd);
+	/*
+	 * Check again if ev_fd exists in case an io_eventfd_unregister call
+	 * completed between the NULL check of ctx->io_ev_fd at the start of
+	 * the function and rcu_read_lock.
+	 */
 	if (!ev_fd)
+		return;
+	if (!io_eventfd_trigger(ev_fd) || !refcount_inc_not_zero(&ev_fd->refs))
 		return;
 
 	if (cqe_event) {
