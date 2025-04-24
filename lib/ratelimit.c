@@ -88,17 +88,10 @@ int ___ratelimit(struct ratelimit_state *rs, const char *func)
 			}
 		}
 	}
-	if (burst) {
-		int n_left = atomic_read(&rs->rs_n_left);
 
-		/* The burst might have been taken by a parallel call. */
-
-		if (n_left > 0) {
-			n_left = atomic_dec_return(&rs->rs_n_left);
-			if (n_left >= 0)
-				ret = 1;
-		}
-	}
+	/* Note that the burst might be taken by a parallel call. */
+	if (burst && atomic_read(&rs->rs_n_left) > 0 && atomic_dec_return(&rs->rs_n_left) >= 0)
+		ret = 1;
 
 unlock_ret:
 	raw_spin_unlock_irqrestore(&rs->lock, flags);
