@@ -2153,7 +2153,7 @@
 			};
 		};
 
-		pcie: pcie@33800000 {
+		pcie0: pcie: pcie@33800000 {
 			compatible = "fsl,imx8mp-pcie";
 			reg = <0x33800000 0x400000>, <0x1ff00000 0x80000>;
 			reg-names = "dbi", "config";
@@ -2191,7 +2191,7 @@
 			status = "disabled";
 		};
 
-		pcie_ep: pcie-ep@33800000 {
+		pcie0_ep: pcie_ep: pcie-ep@33800000 {
 			compatible = "fsl,imx8mp-pcie-ep";
 			reg = <0x33800000 0x100000>,
 			      <0x18000000 0x8000000>,
