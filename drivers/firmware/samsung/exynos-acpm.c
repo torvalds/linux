@@ -661,20 +661,20 @@ static void devm_acpm_release(struct device *dev, void *res)
 }
 
 /**
- * acpm_get_by_phandle() - get the ACPM handle using DT phandle.
- * @dev:        device pointer requesting ACPM handle.
- * @property:   property name containing phandle on ACPM node.
+ * acpm_get_by_node() - get the ACPM handle using node pointer.
+ * @dev:	device pointer requesting ACPM handle.
+ * @np:		ACPM device tree node.
  *
  * Return: pointer to handle on success, ERR_PTR(-errno) otherwise.
  */
 static const struct acpm_handle *acpm_get_by_node(struct device *dev,
-						  struct device_node *acpm_np)
+						  struct device_node *np)
 {
 	struct platform_device *pdev;
 	struct device_link *link;
 	struct acpm_info *acpm;
 
-	pdev = of_find_device_by_node(acpm_np);
+	pdev = of_find_device_by_node(np);
 	if (!pdev)
 		return ERR_PTR(-EPROBE_DEFER);
 
