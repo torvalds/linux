@@ -463,7 +463,6 @@ struct pds_core_lif_getattr_cmd {
  * @rsvd:       Word boundary padding
  * @comp_index: Index in the descriptor ring for which this is the completion
  * @state:	LIF state (enum pds_core_lif_state)
- * @name:	LIF name string, 0 terminated
  * @features:	Features (enum pds_core_hw_features)
  * @rsvd2:      Word boundary padding
  * @color:	Color bit
