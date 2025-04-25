@@ -768,7 +768,7 @@ static inline bool pidfs_pid_valid(struct pid *pid, const struct path *path,
 {
 	enum pid_type type;
 
-	if (flags & PIDFD_CLONE)
+	if (flags & PIDFD_STALE)
 		return true;
 
 	/*
@@ -777,10 +777,14 @@ static inline bool pidfs_pid_valid(struct pid *pid, const struct path *path,
 	 * pidfd has been allocated perform another check that the pid
 	 * is still alive. If it is exit information is available even
 	 * if the task gets reaped before the pidfd is returned to
-	 * userspace. The only exception is PIDFD_CLONE where no task
-	 * linkage has been established for @pid yet and the kernel is
-	 * in the middle of process creation so there's nothing for
-	 * pidfs to miss.
+	 * userspace. The only exception are indicated by PIDFD_STALE:
+	 *
+	 * (1) The kernel is in the middle of task creation and thus no
+	 *     task linkage has been established yet.
+	 * (2) The caller knows @pid has been registered in pidfs at a
+	 *     time when the task was still alive.
+	 *
+	 * In both cases exit information will have been reported.
 	 */
 	if (flags & PIDFD_THREAD)
 		type = PIDTYPE_PID;
@@ -874,11 +878,11 @@ struct file *pidfs_alloc_file(struct pid *pid, unsigned int flags)
 	int ret;
 
 	/*
-	 * Ensure that PIDFD_CLONE can be passed as a flag without
+	 * Ensure that PIDFD_STALE can be passed as a flag without
 	 * overloading other uapi pidfd flags.
 	 */
-	BUILD_BUG_ON(PIDFD_CLONE == PIDFD_THREAD);
-	BUILD_BUG_ON(PIDFD_CLONE == PIDFD_NONBLOCK);
+	BUILD_BUG_ON(PIDFD_STALE == PIDFD_THREAD);
+	BUILD_BUG_ON(PIDFD_STALE == PIDFD_NONBLOCK);
 
 	ret = path_from_stashed(&pid->stashed, pidfs_mnt, get_pid(pid), &path);
 	if (ret < 0)
@@ -887,7 +891,7 @@ struct file *pidfs_alloc_file(struct pid *pid, unsigned int flags)
 	if (!pidfs_pid_valid(pid, &path, flags))
 		return ERR_PTR(-ESRCH);
 
-	flags &= ~PIDFD_CLONE;
+	flags &= ~PIDFD_STALE;
 	pidfd_file = dentry_open(&path, flags, current_cred());
 	/* Raise PIDFD_THREAD explicitly as do_dentry_open() strips it. */
 	if (!IS_ERR(pidfd_file))
