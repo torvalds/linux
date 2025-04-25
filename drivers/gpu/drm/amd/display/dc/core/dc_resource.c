@@ -3911,6 +3911,10 @@ enum dc_status resource_map_pool_resources(
 		if (!dc->link_srv->dp_decide_link_settings(stream,
 				&pipe_ctx->link_config.dp_link_settings))
 			return DC_FAIL_DP_LINK_BANDWIDTH;
+
+		dc->link_srv->dp_decide_tunnel_settings(stream,
+				&pipe_ctx->link_config.dp_tunnel_settings);
+
 		if (dc->link_srv->dp_get_encoding_format(
 				&pipe_ctx->link_config.dp_link_settings) == DP_128b_132b_ENCODING) {
 			pipe_ctx->stream_res.hpo_dp_stream_enc =

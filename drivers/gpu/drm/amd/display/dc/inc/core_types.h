@@ -384,7 +384,9 @@ struct link_resource {
 
 struct link_config {
 	struct dc_link_settings dp_link_settings;
+	struct dc_tunnel_settings dp_tunnel_settings;
 };
+
 union pipe_update_flags {
 	struct {
 		uint32_t enable : 1;

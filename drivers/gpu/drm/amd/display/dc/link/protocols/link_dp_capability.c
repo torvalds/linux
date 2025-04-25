@@ -2021,11 +2021,9 @@ static bool retrieve_link_cap(struct dc_link *link)
 			sizeof(link->dpcd_caps.max_uncompressed_pixel_rate_cap.raw));
 
 	/* Read DP tunneling information. */
-	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
-		status = dpcd_get_tunneling_device_data(link);
-		if (status != DC_OK)
-			dm_error("%s: Read DP tunneling device data failed.\n", __func__);
-	}
+	status = dpcd_get_tunneling_device_data(link);
+	if (status != DC_OK)
+		dm_error("%s: Read DP tunneling device data failed.\n", __func__);
 
 	retrieve_cable_id(link);
 	dpcd_write_cable_id_to_dprx(link);
