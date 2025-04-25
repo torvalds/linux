@@ -556,7 +556,7 @@ void intel_alpm_disable(struct intel_dp *intel_dp)
 	struct intel_display *display = to_intel_display(intel_dp);
 	enum transcoder cpu_transcoder = intel_dp->alpm_parameters.transcoder;
 
-	if (DISPLAY_VER(display) < 20)
+	if (DISPLAY_VER(display) < 20 || !intel_dp->alpm_dpcd)
 		return;
 
 	mutex_lock(&intel_dp->alpm_parameters.lock);
