@@ -6,15 +6,15 @@
 
 #include "ixgbe_type.h"
 
-int ixgbe_aci_send_cmd(struct ixgbe_hw *hw, struct ixgbe_aci_desc *desc,
+int ixgbe_aci_send_cmd(struct ixgbe_hw *hw, struct libie_aq_desc *desc,
 		       void *buf, u16 buf_size);
 bool ixgbe_aci_check_event_pending(struct ixgbe_hw *hw);
 int ixgbe_aci_get_event(struct ixgbe_hw *hw, struct ixgbe_aci_event *e,
 			bool *pending);
-void ixgbe_fill_dflt_direct_cmd_desc(struct ixgbe_aci_desc *desc, u16 opcode);
-int ixgbe_acquire_res(struct ixgbe_hw *hw, enum ixgbe_aci_res_ids res,
-		      enum ixgbe_aci_res_access_type access, u32 timeout);
-void ixgbe_release_res(struct ixgbe_hw *hw, enum ixgbe_aci_res_ids res);
+void ixgbe_fill_dflt_direct_cmd_desc(struct libie_aq_desc *desc, u16 opcode);
+int ixgbe_acquire_res(struct ixgbe_hw *hw, enum libie_aq_res_id res,
+		      enum libie_aq_res_access_type access, u32 timeout);
+void ixgbe_release_res(struct ixgbe_hw *hw, enum libie_aq_res_id res);
 int ixgbe_aci_list_caps(struct ixgbe_hw *hw, void *buf, u16 buf_size,
 			u32 *cap_count, enum ixgbe_aci_opc opc);
 int ixgbe_discover_dev_caps(struct ixgbe_hw *hw,
@@ -62,7 +62,7 @@ int ixgbe_aci_get_netlist_node(struct ixgbe_hw *hw,
 			       struct ixgbe_aci_cmd_get_link_topo *cmd,
 			       u8 *node_part_number, u16 *node_handle);
 int ixgbe_acquire_nvm(struct ixgbe_hw *hw,
-		      enum ixgbe_aci_res_access_type access);
+		      enum libie_aq_res_access_type access);
 void ixgbe_release_nvm(struct ixgbe_hw *hw);
 int ixgbe_aci_read_nvm(struct ixgbe_hw *hw, u16 module_typeid, u32 offset,
 		       u16 length, void *data, bool last_command,

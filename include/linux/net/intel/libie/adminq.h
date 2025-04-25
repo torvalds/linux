@@ -146,8 +146,10 @@ LIBIE_CHECK_STRUCT_LEN(16, libie_aqc_list_caps);
 
 /* Device/Function buffer entry, repeated per reported capability */
 #define LIBIE_AQC_CAPS_VALID_FUNCTIONS			0x0005
+#define LIBIE_AQC_MAX_VALID_FUNCTIONS			0x8
 #define LIBIE_AQC_CAPS_SRIOV				0x0012
 #define LIBIE_AQC_CAPS_VF				0x0013
+#define LIBIE_AQC_CAPS_VMDQ				0x0014
 #define LIBIE_AQC_CAPS_VSI				0x0017
 #define LIBIE_AQC_CAPS_DCB				0x0018
 #define LIBIE_AQC_CAPS_RSS				0x0040
@@ -165,9 +167,15 @@ LIBIE_CHECK_STRUCT_LEN(16, libie_aqc_list_caps);
 #define LIBIE_AQC_CAPS_PENDING_NET_VER			0x004D
 #define LIBIE_AQC_CAPS_RDMA				0x0051
 #define LIBIE_AQC_CAPS_SENSOR_READING			0x0067
+#define LIBIE_AQC_INLINE_IPSEC				0x0070
+#define LIBIE_AQC_CAPS_NUM_ENABLED_PORTS		0x0072
 #define LIBIE_AQC_CAPS_PCIE_RESET_AVOIDANCE		0x0076
 #define LIBIE_AQC_CAPS_POST_UPDATE_RESET_RESTRICT	0x0077
 #define LIBIE_AQC_CAPS_NVM_MGMT				0x0080
+#define LIBIE_AQC_CAPS_EXT_TOPO_DEV_IMG0		0x0081
+#define LIBIE_AQC_CAPS_EXT_TOPO_DEV_IMG1		0x0082
+#define LIBIE_AQC_CAPS_EXT_TOPO_DEV_IMG2		0x0083
+#define LIBIE_AQC_CAPS_EXT_TOPO_DEV_IMG3		0x0084
 #define LIBIE_AQC_CAPS_TX_SCHED_TOPO_COMP_MODE		0x0085
 #define LIBIE_AQC_CAPS_NAC_TOPOLOGY			0x0087
 #define LIBIE_AQC_CAPS_FW_LAG_SUPPORT			0x0092
@@ -236,13 +244,21 @@ LIBIE_CHECK_STRUCT_LEN(32, libie_aq_desc);
 /* FW defined boundary for a large buffer, 4k >= Large buffer > 512 bytes */
 #define LIBIE_AQ_LG_BUF				512
 
+/* Flags sub-structure
+ * |0  |1  |2  |3  |4  |5  |6  |7  |8  |9  |10 |11 |12 |13 |14 |15 |
+ * |DD |CMP|ERR|VFE| * *  RESERVED * * |LB |RD |VFC|BUF|SI |EI |FE |
+ */
 #define LIBIE_AQ_FLAG_DD			BIT(0)	/* 0x1    */
 #define LIBIE_AQ_FLAG_CMP			BIT(1)	/* 0x2    */
 #define LIBIE_AQ_FLAG_ERR			BIT(2)	/* 0x4    */
+#define LIBIE_AQ_FLAG_VFE			BIT(3)	/* 0x8    */
 #define LIBIE_AQ_FLAG_LB			BIT(9)	/* 0x200  */
 #define LIBIE_AQ_FLAG_RD			BIT(10)	/* 0x400  */
+#define LIBIE_AQ_FLAG_VFC			BIT(11) /* 0x800  */
 #define LIBIE_AQ_FLAG_BUF			BIT(12)	/* 0x1000 */
 #define LIBIE_AQ_FLAG_SI			BIT(13)	/* 0x2000 */
+#define LIBIE_AQ_FLAG_EI			BIT(14)	/* 0x4000 */
+#define LIBIE_AQ_FLAG_FE			BIT(15)	/* 0x8000 */
 
 /* error codes */
 enum libie_aq_err {
