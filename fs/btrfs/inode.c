@@ -4775,20 +4775,34 @@ out_notrans:
 	return ret;
 }
 
+static bool is_inside_block(u64 bytenr, u64 blockstart, u32 blocksize)
+{
+	ASSERT(IS_ALIGNED(blockstart, blocksize), "blockstart=%llu blocksize=%u",
+		blockstart, blocksize);
+
+	if (blockstart <= bytenr && bytenr <= blockstart + blocksize - 1)
+		return true;
+	return false;
+}
+
 /*
- * Read, zero a chunk and write a block.
+ * Handle the truncation of a fs block.
  *
- * @inode - inode that we're zeroing
- * @from - the offset to start zeroing
- * @len - the length to zero, 0 to zero the entire range respective to the
- *	offset
- * @front - zero up to the offset instead of from the offset on
+ * @inode  - inode that we're zeroing
+ * @offset - the file offset of the block to truncate
+ *           The value must be inside [@start, @end], and the function will do
+ *           extra checks if the block that covers @offset needs to be zeroed.
+ * @start  - the start file offset of the range we want to zero
+ * @end    - the end (inclusive) file offset of the range we want to zero.
  *
- * This will find the block for the "from" offset and cow the block and zero the
- * part we want to zero.  This is used with truncate and hole punching.
+ * If the range is not block aligned, read out the folio that covers @offset,
+ * and if needed zero blocks that are inside the folio and covered by [@start, @end).
+ * If @start or @end + 1 lands inside a block, that block will be marked dirty
+ * for writeback.
+ *
+ * This is utilized by hole punch, zero range, file expansion.
  */
-int btrfs_truncate_block(struct btrfs_inode *inode, loff_t from, loff_t len,
-			 int front)
+int btrfs_truncate_block(struct btrfs_inode *inode, u64 offset, u64 start, u64 end)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct address_space *mapping = inode->vfs_inode.i_mapping;
@@ -4798,20 +4812,49 @@ int btrfs_truncate_block(struct btrfs_inode *inode, loff_t from, loff_t len,
 	struct extent_changeset *data_reserved = NULL;
 	bool only_release_metadata = false;
 	u32 blocksize = fs_info->sectorsize;
-	pgoff_t index = from >> PAGE_SHIFT;
-	unsigned offset = from & (blocksize - 1);
+	pgoff_t index = (offset >> PAGE_SHIFT);
 	struct folio *folio;
 	gfp_t mask = btrfs_alloc_write_mask(mapping);
 	size_t write_bytes = blocksize;
 	int ret = 0;
+	const bool in_head_block = is_inside_block(offset, round_down(start, blocksize),
+						   blocksize);
+	const bool in_tail_block = is_inside_block(offset, round_down(end, blocksize),
+						   blocksize);
+	bool need_truncate_head = false;
+	bool need_truncate_tail = false;
+	u64 zero_start;
+	u64 zero_end;
 	u64 block_start;
 	u64 block_end;
 
-	if (IS_ALIGNED(offset, blocksize) &&
-	    (!len || IS_ALIGNED(len, blocksize)))
+	/* @offset should be inside the range. */
+	ASSERT(start <= offset && offset <= end, "offset=%llu start=%llu end=%llu",
+	       offset, start, end);
+
+	/* The range is aligned at both ends. */
+	if (IS_ALIGNED(start, blocksize) && IS_ALIGNED(end + 1, blocksize))
 		goto out;
 
-	block_start = round_down(from, blocksize);
+	/*
+	 * @offset may not be inside the head nor tail block. In that case we
+	 * don't need to do anything.
+	 */
+	if (!in_head_block && !in_tail_block)
+		goto out;
+
+	/*
+	 * Skip the truncatioin if the range in the target block is already aligned.
+	 * The seemingly complex check will also handle the same block case.
+	 */
+	if (in_head_block && !IS_ALIGNED(start, blocksize))
+		need_truncate_head = true;
+	if (in_tail_block && !IS_ALIGNED(end + 1, blocksize))
+		need_truncate_tail = true;
+	if (!need_truncate_head && !need_truncate_tail)
+		goto out;
+
+	block_start = round_down(offset, blocksize);
 	block_end = block_start + blocksize - 1;
 
 	ret = btrfs_check_data_free_space(inode, &data_reserved, block_start,
@@ -4891,17 +4934,26 @@ again:
 		goto out_unlock;
 	}
 
-	if (offset != blocksize) {
-		if (!len)
-			len = blocksize - offset;
-		if (front)
-			folio_zero_range(folio, block_start - folio_pos(folio),
-					 offset);
-		else
-			folio_zero_range(folio,
-					 (block_start - folio_pos(folio)) + offset,
-					 len);
+	if (end == (u64)-1) {
+		/*
+		 * We're truncating beyond EOF, the remaining blocks normally are
+		 * already holes thus no need to zero again, but it's possible for
+		 * fs block size < page size cases to have memory mapped writes
+		 * to pollute ranges beyond EOF.
+		 *
+		 * In that case although such polluted blocks beyond EOF will
+		 * not reach disk, it still affects our page caches.
+		 */
+		zero_start = max_t(u64, folio_pos(folio), start);
+		zero_end = min_t(u64, folio_pos(folio) + folio_size(folio) - 1,
+				 end);
+	} else {
+		zero_start = max_t(u64, block_start, start);
+		zero_end = min_t(u64, block_end, end);
 	}
+	folio_zero_range(folio, zero_start - folio_pos(folio),
+			 zero_end - zero_start + 1);
+
 	btrfs_folio_clear_checked(fs_info, folio, block_start,
 				  block_end + 1 - block_start);
 	btrfs_folio_set_dirty(fs_info, folio, block_start,
@@ -5003,7 +5055,7 @@ int btrfs_cont_expand(struct btrfs_inode *inode, loff_t oldsize, loff_t size)
 	 * rest of the block before we expand the i_size, otherwise we could
 	 * expose stale data.
 	 */
-	ret = btrfs_truncate_block(inode, oldsize, 0, 0);
+	ret = btrfs_truncate_block(inode, oldsize, oldsize, -1);
 	if (ret)
 		return ret;
 
@@ -7637,7 +7689,8 @@ static int btrfs_truncate(struct btrfs_inode *inode, bool skip_writeback)
 		btrfs_end_transaction(trans);
 		btrfs_btree_balance_dirty(fs_info);
 
-		ret = btrfs_truncate_block(inode, inode->vfs_inode.i_size, 0, 0);
+		ret = btrfs_truncate_block(inode, inode->vfs_inode.i_size,
+					   inode->vfs_inode.i_size, (u64)-1);
 		if (ret)
 			goto out;
 		trans = btrfs_start_transaction(root, 1);
