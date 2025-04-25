@@ -846,7 +846,7 @@ static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENOMEM;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	i = pci_request_regions(pdev, DRV_NAME);
+	i = pcim_request_all_regions(pdev, DRV_NAME);
 	if (i)
 		goto err_pci_request_regions;
 
