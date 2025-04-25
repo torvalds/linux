@@ -282,6 +282,10 @@
 	status = "okay";
 };
 
+&udc {
+	status = "okay";
+};
+
 &wdt0 {
 	timeout-sec = <60>;
 	status = "okay";
