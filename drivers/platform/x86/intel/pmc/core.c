@@ -1355,6 +1355,50 @@ static u32 pmc_core_find_guid(struct pmc_info *list, const struct pmc_reg_map *m
 	return 0;
 }
 
+/*
+ * This function retrieves low power mode requirement data from PMC Low
+ * Power Mode (LPM) table.
+ *
+ * In telemetry space, the LPM table contains a 4 byte header followed
+ * by 8 consecutive mode blocks (one for each LPM mode). Each block
+ * has a 4 byte header followed by a set of registers that describe the
+ * IP state requirements for the given mode. The IP mapping is platform
+ * specific but the same for each block, making for easy analysis.
+ * Platforms only use a subset of the space to track the requirements
+ * for their IPs. Callers provide the requirement registers they use as
+ * a list of indices. Each requirement register is associated with an
+ * IP map that's maintained by the caller.
+ *
+ * Header
+ * +----+----------------------------+----------------------------+
+ * |  0 |      REVISION              |      ENABLED MODES         |
+ * +----+--------------+-------------+-------------+--------------+
+ *
+ * Low Power Mode 0 Block
+ * +----+--------------+-------------+-------------+--------------+
+ * |  1 |     SUB ID   |     SIZE    |   MAJOR     |   MINOR      |
+ * +----+--------------+-------------+-------------+--------------+
+ * |  2 |           LPM0 Requirements 0                           |
+ * +----+---------------------------------------------------------+
+ * |    |                  ...                                    |
+ * +----+---------------------------------------------------------+
+ * | 29 |           LPM0 Requirements 27                          |
+ * +----+---------------------------------------------------------+
+ *
+ * ...
+ *
+ * Low Power Mode 7 Block
+ * +----+--------------+-------------+-------------+--------------+
+ * |    |     SUB ID   |     SIZE    |   MAJOR     |   MINOR      |
+ * +----+--------------+-------------+-------------+--------------+
+ * | 60 |           LPM7 Requirements 0                           |
+ * +----+---------------------------------------------------------+
+ * |    |                  ...                                    |
+ * +----+---------------------------------------------------------+
+ * | 87 |           LPM7 Requirements 27                          |
+ * +----+---------------------------------------------------------+
+ *
+ */
 static int pmc_core_get_lpm_req(struct pmc_dev *pmcdev, struct pmc *pmc, struct pci_dev *pcidev)
 {
 	struct telem_endpoint *ep;
@@ -1374,8 +1418,7 @@ static int pmc_core_get_lpm_req(struct pmc_dev *pmcdev, struct pmc *pmc, struct 
 
 	ep = pmt_telem_find_and_register_endpoint(pcidev, guid, 0);
 	if (IS_ERR(ep)) {
-		dev_dbg(&pmcdev->pdev->dev, "couldn't get telem endpoint %ld",
-			PTR_ERR(ep));
+		dev_dbg(&pmcdev->pdev->dev, "couldn't get telem endpoint %pe", ep);
 		return -EPROBE_DEFER;
 	}
 
@@ -1387,49 +1430,6 @@ static int pmc_core_get_lpm_req(struct pmc_dev *pmcdev, struct pmc *pmc, struct 
 		goto unregister_ep;
 	}
 
-	/*
-	 * PMC Low Power Mode (LPM) table
-	 *
-	 * In telemetry space, the LPM table contains a 4 byte header followed
-	 * by 8 consecutive mode blocks (one for each LPM mode). Each block
-	 * has a 4 byte header followed by a set of registers that describe the
-	 * IP state requirements for the given mode. The IP mapping is platform
-	 * specific but the same for each block, making for easy analysis.
-	 * Platforms only use a subset of the space to track the requirements
-	 * for their IPs. Callers provide the requirement registers they use as
-	 * a list of indices. Each requirement register is associated with an
-	 * IP map that's maintained by the caller.
-	 *
-	 * Header
-	 * +----+----------------------------+----------------------------+
-	 * |  0 |      REVISION              |      ENABLED MODES         |
-	 * +----+--------------+-------------+-------------+--------------+
-	 *
-	 * Low Power Mode 0 Block
-	 * +----+--------------+-------------+-------------+--------------+
-	 * |  1 |     SUB ID   |     SIZE    |   MAJOR     |   MINOR      |
-	 * +----+--------------+-------------+-------------+--------------+
-	 * |  2 |           LPM0 Requirements 0                           |
-	 * +----+---------------------------------------------------------+
-	 * |    |                  ...                                    |
-	 * +----+---------------------------------------------------------+
-	 * | 29 |           LPM0 Requirements 27                          |
-	 * +----+---------------------------------------------------------+
-	 *
-	 * ...
-	 *
-	 * Low Power Mode 7 Block
-	 * +----+--------------+-------------+-------------+--------------+
-	 * |    |     SUB ID   |     SIZE    |   MAJOR     |   MINOR      |
-	 * +----+--------------+-------------+-------------+--------------+
-	 * | 60 |           LPM7 Requirements 0                           |
-	 * +----+---------------------------------------------------------+
-	 * |    |                  ...                                    |
-	 * +----+---------------------------------------------------------+
-	 * | 87 |           LPM7 Requirements 27                          |
-	 * +----+---------------------------------------------------------+
-	 *
-	 */
 	mode_offset = LPM_HEADER_OFFSET + LPM_MODE_OFFSET;
 	pmc_for_each_mode(mode, pmcdev) {
 		u32 *req_offset = pmc->lpm_req_regs + (mode * num_maps);
@@ -1442,7 +1442,6 @@ static int pmc_core_get_lpm_req(struct pmc_dev *pmcdev, struct pmc *pmc, struct 
 			if (ret) {
 				dev_err(&pmcdev->pdev->dev,
 					"couldn't read Low Power Mode requirements: %d\n", ret);
-				devm_kfree(&pmcdev->pdev->dev, pmc->lpm_req_regs);
 				goto unregister_ep;
 			}
 			++req_offset;
