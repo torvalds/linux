@@ -144,30 +144,54 @@ __bpf_kfunc void css_rstat_updated(struct cgroup_subsys_state *css, int cpu)
  * @head: current head of the list (= subtree root)
  * @child: first child of the root
  * @cpu: target cpu
- * Return: A new singly linked list of cgroups to be flush
+ * Return: A new singly linked list of cgroups to be flushed
  *
  * Iteratively traverse down the cgroup_rstat_cpu updated tree level by
  * level and push all the parents first before their next level children
- * into a singly linked list built from the tail backward like "pushing"
- * cgroups into a stack. The root is pushed by the caller.
+ * into a singly linked list via the rstat_flush_next pointer built from the
+ * tail backward like "pushing" cgroups into a stack. The root is pushed by
+ * the caller.
  */
 static struct cgroup *cgroup_rstat_push_children(struct cgroup *head,
 						 struct cgroup *child, int cpu)
 {
-	struct cgroup *chead = child;	/* Head of child cgroup level */
+	struct cgroup *cnext = child;	/* Next head of child cgroup level */
 	struct cgroup *ghead = NULL;	/* Head of grandchild cgroup level */
 	struct cgroup *parent, *grandchild;
 	struct cgroup_rstat_cpu *crstatc;
 
 	child->rstat_flush_next = NULL;
 
+	/*
+	 * The cgroup_rstat_lock must be held for the whole duration from
+	 * here as the rstat_flush_next list is being constructed to when
+	 * it is consumed later in css_rstat_flush().
+	 */
+	lockdep_assert_held(&cgroup_rstat_lock);
+
+	/*
+	 * Notation: -> updated_next pointer
+	 *	     => rstat_flush_next pointer
+	 *
+	 * Assuming the following sample updated_children lists:
+	 *  P: C1 -> C2 -> P
+	 *  C1: G11 -> G12 -> C1
+	 *  C2: G21 -> G22 -> C2
+	 *
+	 * After 1st iteration:
+	 *  head => C2 => C1 => NULL
+	 *  ghead => G21 => G11 => NULL
+	 *
+	 * After 2nd iteration:
+	 *  head => G12 => G11 => G22 => G21 => C2 => C1 => NULL
+	 */
 next_level:
-	while (chead) {
-		child = chead;
-		chead = child->rstat_flush_next;
+	while (cnext) {
+		child = cnext;
+		cnext = child->rstat_flush_next;
 		parent = cgroup_parent(child);
 
-		/* updated_next is parent cgroup terminated */
+		/* updated_next is parent cgroup terminated if !NULL */
 		while (child != parent) {
 			child->rstat_flush_next = head;
 			head = child;
@@ -185,7 +209,7 @@ next_level:
 	}
 
 	if (ghead) {
-		chead = ghead;
+		cnext = ghead;
 		ghead = NULL;
 		goto next_level;
 	}
