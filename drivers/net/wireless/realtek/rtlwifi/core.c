@@ -58,17 +58,6 @@ void rtl_rfreg_delay(struct ieee80211_hw *hw, enum radio_path rfpath, u32 addr,
 }
 EXPORT_SYMBOL(rtl_rfreg_delay);
 
-void rtl_bb_delay(struct ieee80211_hw *hw, u32 addr, u32 data)
-{
-	if (addr >= 0xf9 && addr <= 0xfe) {
-		rtl_addr_delay(addr);
-	} else {
-		rtl_set_bbreg(hw, addr, MASKDWORD, data);
-		udelay(1);
-	}
-}
-EXPORT_SYMBOL(rtl_bb_delay);
-
 static void rtl_fw_do_work(const struct firmware *firmware, void *context,
 			   bool is_wow)
 {
