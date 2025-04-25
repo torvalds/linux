@@ -345,6 +345,16 @@ config SENSORS_KBATT
 	  This driver can also be built as a module. If so, the module
 	  will be called kbatt.
 
+config SENSORS_KFAN
+	tristate "KEBA fan controller support"
+	depends on KEBA_CP500
+	help
+	  This driver supports the fan controller found in KEBA system
+	  FPGA devices.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called kfan.
+
 config SENSORS_FAM15H_POWER
 	tristate "AMD Family 15h processor power"
 	depends on X86 && PCI && CPU_SUP_AMD

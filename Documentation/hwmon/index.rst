@@ -107,6 +107,7 @@ Hardware Monitoring Kernel Drivers
    k10temp
    k8temp
    kbatt
+   kfan
    lan966x
    lineage-pem
    lm25066
