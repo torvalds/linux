@@ -852,6 +852,12 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 			fences[num_fences++] = fence;
 		}
 
+		/*
+		 * Keep only the latest fences to reduce the number of values
+		 * given back to userspace.
+		 */
+		num_fences = dma_fence_dedup_array(fences, num_fences);
+
 		waitq = idr_find(&userq_mgr->userq_idr, wait_info->waitq_id);
 		if (!waitq)
 			goto free_fences;
