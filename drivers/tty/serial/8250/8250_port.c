@@ -2993,6 +2993,8 @@ static int serial8250_request_std_resource(struct uart_8250_port *up)
 		if (!request_region(port->iobase, size, "serial"))
 			return -EBUSY;
 		return 0;
+	case UPIO_UNKNOWN:
+		break;
 	}
 
 	return 0;
@@ -3024,6 +3026,8 @@ static void serial8250_release_std_resource(struct uart_8250_port *up)
 	case UPIO_HUB6:
 	case UPIO_PORT:
 		release_region(port->iobase, size);
+		break;
+	case UPIO_UNKNOWN:
 		break;
 	}
 }

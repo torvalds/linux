@@ -461,7 +461,7 @@ static int univ8250_console_match(struct console *co, char *name, int idx,
 				  char *options)
 {
 	char match[] = "uart";	/* 8250-specific earlycon name */
-	unsigned char iotype;
+	enum uart_iotype iotype;
 	resource_size_t addr;
 	int i;
 

@@ -190,6 +190,8 @@ static void wr_reg(const struct uart_port *port, u32 reg, u32 val)
 	case UPIO_MEM32:
 		writel_relaxed(val, portaddr(port, reg));
 		break;
+	default:
+		break;
 	}
 }
 
@@ -2712,6 +2714,8 @@ static void wr_reg_barrier(const struct uart_port *port, u32 reg, u32 val)
 		break;
 	case UPIO_MEM32:
 		writel(val, portaddr(port, reg));
+		break;
+	default:
 		break;
 	}
 }

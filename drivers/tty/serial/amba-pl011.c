@@ -2476,7 +2476,7 @@ static int pl011_console_setup(struct console *co, char *options)
 static int pl011_console_match(struct console *co, char *name, int idx,
 			       char *options)
 {
-	unsigned char iotype;
+	enum uart_iotype iotype;
 	resource_size_t addr;
 	int i;
 

@@ -2178,8 +2178,8 @@ uart_get_console(struct uart_port *ports, int nr, struct console *co)
  *
  * Returns: 0 on success or -%EINVAL on failure
  */
-int uart_parse_earlycon(char *p, unsigned char *iotype, resource_size_t *addr,
-			char **options)
+int uart_parse_earlycon(char *p, enum uart_iotype *iotype,
+			resource_size_t *addr, char **options)
 {
 	if (strncmp(p, "mmio,", 5) == 0) {
 		*iotype = UPIO_MEM;
@@ -3289,9 +3289,9 @@ bool uart_match_port(const struct uart_port *port1,
 	case UPIO_AU:
 	case UPIO_TSI:
 		return port1->mapbase == port2->mapbase;
+	default:
+		return false;
 	}
-
-	return false;
 }
 EXPORT_SYMBOL(uart_match_port);
 

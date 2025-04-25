@@ -403,6 +403,8 @@ static inline void lpuart32_write(struct uart_port *port, u32 val,
 	case UPIO_MEM32BE:
 		iowrite32be(val, port->membase + off);
 		break;
+	default:
+		break;
 	}
 }
 
@@ -563,8 +565,9 @@ static dma_addr_t lpuart_dma_datareg_addr(struct lpuart_port *sport)
 		return sport->port.mapbase + UARTDATA;
 	case UPIO_MEM32BE:
 		return sport->port.mapbase + UARTDATA + sizeof(u32) - 1;
+	default:
+		return sport->port.mapbase + UARTDR;
 	}
-	return sport->port.mapbase + UARTDR;
 }
 
 static int lpuart_dma_tx_request(struct uart_port *port)
