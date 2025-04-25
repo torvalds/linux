@@ -958,15 +958,19 @@ static int awcc_hwmon_temps_init(struct wmi_device *wdev)
 	return 0;
 }
 
-static char *awcc_get_fan_label(struct device *dev, u32 temp_count, u8 temp_id)
+static char *awcc_get_fan_label(unsigned long *fan_temps)
 {
+	unsigned int temp_count = bitmap_weight(fan_temps, AWCC_ID_BITMAP_SIZE);
 	char *label;
+	u8 temp_id;
 
 	switch (temp_count) {
 	case 0:
 		label = "Independent Fan";
 		break;
 	case 1:
+		temp_id = find_first_bit(fan_temps, AWCC_ID_BITMAP_SIZE);
+
 		switch (temp_id) {
 		case AWCC_TEMP_SENSOR_CPU:
 			label = "Processor Fan";
@@ -996,7 +1000,6 @@ static int awcc_hwmon_fans_init(struct wmi_device *wdev)
 	u32 min_rpm, max_rpm, temp_count, temp_id;
 	struct awcc_fan_data *fan_data;
 	unsigned int i, j;
-	char *label;
 	int ret;
 	u8 id;
 
@@ -1039,14 +1042,10 @@ static int awcc_hwmon_fans_init(struct wmi_device *wdev)
 			__set_bit(temp_id, fan_temps);
 		}
 
-		label = awcc_get_fan_label(&wdev->dev, temp_count, temp_id);
-		if (!label)
-			return -ENOMEM;
-
 		fan_data->id = id;
 		fan_data->min_rpm = min_rpm;
 		fan_data->max_rpm = max_rpm;
-		fan_data->label = label;
+		fan_data->label = awcc_get_fan_label(fan_temps);
 		bitmap_gather(gather, fan_temps, priv->temp_sensors, AWCC_ID_BITMAP_SIZE);
 		bitmap_copy(&fan_data->auto_channels_temp, gather, BITS_PER_LONG);
 		priv->fan_data[i] = fan_data;
