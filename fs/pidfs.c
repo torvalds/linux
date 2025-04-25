@@ -768,7 +768,7 @@ static inline bool pidfs_pid_valid(struct pid *pid, const struct path *path,
 {
 	enum pid_type type;
 
-	if (flags & PIDFD_CLONE)
+	if (flags & PIDFD_STALE)
 		return true;
 
 	/*
@@ -777,10 +777,14 @@ static inline bool pidfs_pid_valid(struct pid *pid, const struct path *path,
 	 * pidfd has been allocated perform another check that the pid
 	 * is still alive. If it is exit information is available even
 	 * if the task gets reaped before the pidfd is returned to
-	 * userspace. The only exception is PIDFD_CLONE where no task
-	 * linkage has been established for @pid yet and the kernel is
-	 * in the middle of process creation so there's nothing for
-	 * pidfs to miss.
+	 * userspace. The only exception are indicated by PIDFD_STALE:
+	 *
+	 * (1) The kernel is in the middle of task creation and thus no
+	 *     task linkage has been established yet.
+	 * (2) The caller knows @pid has been registered in pidfs at a
+	 *     time when the task was still alive.
+	 *
+	 * In both cases exit information will have been reported.
 	 */
 	if (flags & PIDFD_THREAD)
 		type = PIDTYPE_PID;
@@ -874,11 +878,11 @@ struct file *pidfs_alloc_file(struct pid *pid, unsigned int flags)
 	int ret;
 
 	/*
-	 * Ensure that PIDFD_CLONE can be passed as a flag without
+	 * Ensure that PIDFD_STALE can be passed as a flag without
 	 * overloading other uapi pidfd flags.
 	 */
-	BUILD_BUG_ON(PIDFD_CLONE == PIDFD_THREAD);
-	BUILD_BUG_ON(PIDFD_CLONE == PIDFD_NONBLOCK);
+	BUILD_BUG_ON(PIDFD_STALE == PIDFD_THREAD);
+	BUILD_BUG_ON(PIDFD_STALE == PIDFD_NONBLOCK);
 
 	ret = path_from_stashed(&pid->stashed, pidfs_mnt, get_pid(pid), &path);
 	if (ret < 0)
@@ -887,13 +891,72 @@ struct file *pidfs_alloc_file(struct pid *pid, unsigned int flags)
 	if (!pidfs_pid_valid(pid, &path, flags))
 		return ERR_PTR(-ESRCH);
 
-	flags &= ~PIDFD_CLONE;
+	flags &= ~PIDFD_STALE;
 	pidfd_file = dentry_open(&path, flags, current_cred());
 	/* Raise PIDFD_THREAD explicitly as do_dentry_open() strips it. */
 	if (!IS_ERR(pidfd_file))
 		pidfd_file->f_flags |= (flags & PIDFD_THREAD);
 
 	return pidfd_file;
+}
+
+/**
+ * pidfs_register_pid - register a struct pid in pidfs
+ * @pid: pid to pin
+ *
+ * Register a struct pid in pidfs. Needs to be paired with
+ * pidfs_put_pid() to not risk leaking the pidfs dentry and inode.
+ *
+ * Return: On success zero, on error a negative error code is returned.
+ */
+int pidfs_register_pid(struct pid *pid)
+{
+	struct path path __free(path_put) = {};
+	int ret;
+
+	might_sleep();
+
+	if (!pid)
+		return 0;
+
+	ret = path_from_stashed(&pid->stashed, pidfs_mnt, get_pid(pid), &path);
+	if (unlikely(ret))
+		return ret;
+	/* Keep the dentry and only put the reference to the mount. */
+	path.dentry = NULL;
+	return 0;
+}
+
+/**
+ * pidfs_get_pid - pin a struct pid through pidfs
+ * @pid: pid to pin
+ *
+ * Similar to pidfs_register_pid() but only valid if the caller knows
+ * there's a reference to the @pid through a dentry already that can't
+ * go away.
+ */
+void pidfs_get_pid(struct pid *pid)
+{
+	if (!pid)
+		return;
+	WARN_ON_ONCE(!stashed_dentry_get(&pid->stashed));
+}
+
+/**
+ * pidfs_put_pid - drop a pidfs reference
+ * @pid: pid to drop
+ *
+ * Drop a reference to @pid via pidfs. This is only safe if the
+ * reference has been taken via pidfs_get_pid().
+ */
+void pidfs_put_pid(struct pid *pid)
+{
+	might_sleep();
+
+	if (!pid)
+		return;
+	VFS_WARN_ON_ONCE(!pid->stashed);
+	dput(pid->stashed);
 }
 
 static void pidfs_inode_init_once(void *data)
