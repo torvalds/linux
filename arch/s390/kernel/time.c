@@ -69,8 +69,6 @@ unsigned char ptff_function_mask[16];
 
 static unsigned long lpar_offset;
 static unsigned long initial_leap_seconds;
-static unsigned long tod_steering_end;
-static long tod_steering_delta;
 
 /*
  * Get time offsets with PTFF
@@ -80,9 +78,7 @@ void __init time_early_init(void)
 	struct ptff_qto qto;
 	struct ptff_qui qui;
 
-	/* Initialize TOD steering parameters */
-	tod_steering_end = tod_clock_base.tod;
-	vdso_k_time_data->arch_data.tod_steering_end = tod_steering_end;
+	vdso_k_time_data->arch_data.tod_delta = tod_clock_base.tod;
 
 	if (!test_facility(28))
 		return;
@@ -226,21 +222,7 @@ void __init read_persistent_wall_and_boot_offset(struct timespec64 *wall_time,
 
 static u64 read_tod_clock(struct clocksource *cs)
 {
-	unsigned long now, adj;
-
-	preempt_disable(); /* protect from changes to steering parameters */
-	now = get_tod_clock();
-	adj = tod_steering_end - now;
-	if (unlikely((s64) adj > 0))
-		/*
-		 * manually steer by 1 cycle every 2^16 cycles. This
-		 * corresponds to shifting the tod delta by 15. 1s is
-		 * therefore steered in ~9h. The adjust will decrease
-		 * over time, until it finally reaches 0.
-		 */
-		now += (tod_steering_delta < 0) ? (adj >> 15) : -(adj >> 15);
-	preempt_enable();
-	return now;
+	return get_tod_clock_monotonic();
 }
 
 static struct clocksource clocksource_tod = {
@@ -369,26 +351,11 @@ static inline int check_sync_clock(void)
  */
 static void clock_sync_global(long delta)
 {
-	unsigned long now, adj;
 	struct ptff_qto qto;
 
 	/* Fixup the monotonic sched clock. */
 	tod_clock_base.eitod += delta;
-	/* Adjust TOD steering parameters. */
-	now = get_tod_clock();
-	adj = tod_steering_end - now;
-	if (unlikely((s64) adj >= 0))
-		/* Calculate how much of the old adjustment is left. */
-		tod_steering_delta = (tod_steering_delta < 0) ?
-			-(adj >> 15) : (adj >> 15);
-	tod_steering_delta += delta;
-	if ((abs(tod_steering_delta) >> 48) != 0)
-		panic("TOD clock sync offset %li is too large to drift\n",
-		      tod_steering_delta);
-	tod_steering_end = now + (abs(tod_steering_delta) << 15);
-	vdso_k_time_data->arch_data.tod_steering_end = tod_steering_end;
-	vdso_k_time_data->arch_data.tod_steering_delta = tod_steering_delta;
-
+	vdso_k_time_data->arch_data.tod_delta = tod_clock_base.tod;
 	/* Update LPAR offset. */
 	if (ptff_query(PTFF_QTO) && ptff(&qto, sizeof(qto), PTFF_QTO) == 0)
 		lpar_offset = qto.tod_epoch_difference;
