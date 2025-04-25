@@ -8,7 +8,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
-#include "ksft.h"
+#include "../../net/lib/ksft.h"
 
 int main(int argc, char *argv[])
 {

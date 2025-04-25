@@ -8,7 +8,6 @@ TEST_INCLUDES := $(wildcard lib/py/*.py) \
 
 TEST_GEN_FILES := \
 	napi_id_helper \
-	xdp_helper \
 # end of TEST_GEN_FILES
 
 TEST_PROGS := \
