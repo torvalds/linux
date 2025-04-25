@@ -413,7 +413,6 @@ struct pmc {
  * struct pmc_dev - pmc device structure
  * @devs:		pointer to an array of pmc pointers
  * @pdev:		pointer to platform_device struct
- * @ssram_pcidev:	pointer to pci device struct for the PMC SSRAM
  * @crystal_freq:	crystal frequency from cpuid
  * @dbgfs_dir:		path to debugfs interface
  * @pmc_xram_read_bit:	flag to indicate whether PMC XRAM shadow registers
@@ -433,7 +432,6 @@ struct pmc_dev {
 	struct pmc *pmcs[MAX_NUM_PMC];
 	struct dentry *dbgfs_dir;
 	struct platform_device *pdev;
-	struct pci_dev *ssram_pcidev;
 	unsigned int crystal_freq;
 	int pmc_xram_read_bit;
 	struct mutex lock; /* generic mutex lock for PMC Core */
@@ -510,12 +508,7 @@ void pmc_core_get_low_power_modes(struct pmc_dev *pmcdev);
 void pmc_core_punit_pmt_init(struct pmc_dev *pmcdev, u32 guid);
 void pmc_core_set_device_d3(unsigned int device);
 
-int pmc_core_ssram_init(struct pmc_dev *pmcdev, int func);
-
 int generic_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info);
-const struct pmc_reg_map *pmc_core_find_regmap(struct pmc_info *list, u16 devid);
-int pmc_core_pmc_add(struct pmc_dev *pmcdev, u64 pwrm_base,
-		     const struct pmc_reg_map *reg_map, unsigned int pmc_index);
 
 extern struct pmc_dev_info spt_pmc_dev;
 extern struct pmc_dev_info cnp_pmc_dev;
