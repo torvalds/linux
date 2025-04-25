@@ -450,11 +450,14 @@ int brcmf_fweh_activate_events(struct brcmf_if *ifp)
 	brcmf_dbg(EVENT, "enable event IF\n");
 	setbit(fweh->event_mask, BRCMF_E_IF);
 
+	/* allow per-vendor method to activate firmware events */
+	if (!brcmf_fwvid_activate_events(ifp))
+		return 0;
+
 	err = brcmf_fil_iovar_data_set(ifp, "event_msgs", fweh->event_mask,
 				       fweh->event_mask_len);
 	if (err)
 		bphy_err(fweh->drvr, "Set event_msgs error (%d)\n", err);
-
 	return err;
 }
 

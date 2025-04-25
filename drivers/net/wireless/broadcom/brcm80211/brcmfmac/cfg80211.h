@@ -13,6 +13,8 @@
 #include "fwil_types.h"
 #include "p2p.h"
 
+#define	DOT11_MGMT_HDR_LEN		24	/* d11 management header len */
+
 #define BRCMF_SCAN_IE_LEN_MAX		2048
 
 #define WL_NUM_SCAN_MAX			10
@@ -142,6 +144,21 @@ enum brcmf_profile_fwauth {
 };
 
 /**
+ * enum brcmf_mgmt_tx_status - mgmt frame tx status
+ *
+ * @BRCMF_MGMT_TX_ACK: mgmt frame acked
+ * @BRCMF_MGMT_TX_NOACK: mgmt frame not acked
+ * @BRCMF_MGMT_TX_OFF_CHAN_COMPLETED: off-channel complete
+ * @BRCMF_MGMT_TX_SEND_FRAME: mgmt frame tx is in progres
+ */
+enum brcmf_mgmt_tx_status {
+	BRCMF_MGMT_TX_ACK,
+	BRCMF_MGMT_TX_NOACK,
+	BRCMF_MGMT_TX_OFF_CHAN_COMPLETED,
+	BRCMF_MGMT_TX_SEND_FRAME
+};
+
+/**
  * struct brcmf_cfg80211_profile - profile information.
  *
  * @bssid: bssid of joined/joining ibss.
@@ -211,6 +228,9 @@ struct vif_saved_ie {
  * @profile: profile information.
  * @sme_state: SME state using enum brcmf_vif_status bits.
  * @list: linked list.
+ * @mgmt_tx: completion for management frame transmit.
+ * @mgmt_tx_status: status of last management frame sent to firmware.
+ * @mgmt_tx_id:
  * @mgmt_rx_reg: registered rx mgmt frame types.
  * @mbss: Multiple BSS type, set if not first AP (not relevant for P2P).
  * @cqm_rssi_low: Lower RSSI limit for CQM monitoring
@@ -224,6 +244,9 @@ struct brcmf_cfg80211_vif {
 	unsigned long sme_state;
 	struct vif_saved_ie saved_ie;
 	struct list_head list;
+	struct completion mgmt_tx;
+	unsigned long mgmt_tx_status;
+	u32 mgmt_tx_id;
 	u16 mgmt_rx_reg;
 	bool mbss;
 	int is_11d;
@@ -468,5 +491,7 @@ void brcmf_abort_scanning(struct brcmf_cfg80211_info *cfg);
 void brcmf_cfg80211_free_netdev(struct net_device *ndev);
 
 int brcmf_set_wsec(struct brcmf_if *ifp, const u8 *key, u16 key_len, u16 flags);
+int brcmf_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
+			   struct cfg80211_mgmt_tx_params *params, u64 *cookie);
 
 #endif /* BRCMFMAC_CFG80211_H */
