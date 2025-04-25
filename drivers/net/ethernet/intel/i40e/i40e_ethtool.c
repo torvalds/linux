@@ -1918,13 +1918,13 @@ static int i40e_get_eeprom(struct net_device *netdev,
 		ret_val = i40e_aq_read_nvm(hw, 0x0, offset, len,
 				(u8 *)eeprom_buff + (I40E_NVM_SECTOR_SIZE * i),
 				last, NULL);
-		if (ret_val && hw->aq.asq_last_status == I40E_AQ_RC_EPERM) {
+		if (ret_val && hw->aq.asq_last_status == LIBIE_AQ_RC_EPERM) {
 			dev_info(&pf->pdev->dev,
 				 "read NVM failed, invalid offset 0x%x\n",
 				 offset);
 			break;
 		} else if (ret_val &&
-			   hw->aq.asq_last_status == I40E_AQ_RC_EACCES) {
+			   hw->aq.asq_last_status == LIBIE_AQ_RC_EACCES) {
 			dev_info(&pf->pdev->dev,
 				 "read NVM failed, access, offset 0x%x\n",
 				 offset);
@@ -5249,9 +5249,9 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 	DECLARE_BITMAP(orig_flags, I40E_PF_FLAGS_NBITS);
 	DECLARE_BITMAP(new_flags, I40E_PF_FLAGS_NBITS);
 	struct i40e_netdev_priv *np = netdev_priv(dev);
-	enum i40e_admin_queue_err adq_err;
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
+	enum libie_aq_err adq_err;
 	u32 reset_needed = 0;
 	int status;
 	u32 i, j;
@@ -5371,7 +5371,7 @@ flags_complete:
 		valid_flags = I40E_AQ_SET_SWITCH_CFG_PROMISC;
 		ret = i40e_aq_set_switch_config(&pf->hw, sw_flags, valid_flags,
 						0, NULL);
-		if (ret && pf->hw.aq.asq_last_status != I40E_AQ_RC_ESRCH) {
+		if (ret && pf->hw.aq.asq_last_status != LIBIE_AQ_RC_ESRCH) {
 			dev_info(&pf->pdev->dev,
 				 "couldn't set switch config bits, err %pe aq_err %s\n",
 				 ERR_PTR(ret),
@@ -5438,16 +5438,16 @@ flags_complete:
 			if (status) {
 				adq_err = pf->hw.aq.asq_last_status;
 				switch (adq_err) {
-				case I40E_AQ_RC_EEXIST:
+				case LIBIE_AQ_RC_EEXIST:
 					dev_warn(&pf->pdev->dev,
 						 "FW LLDP agent is already running\n");
 					reset_needed = 0;
 					break;
-				case I40E_AQ_RC_EPERM:
+				case LIBIE_AQ_RC_EPERM:
 					dev_warn(&pf->pdev->dev,
 						 "Device configuration forbids SW from starting the LLDP agent.\n");
 					return -EINVAL;
-				case I40E_AQ_RC_EAGAIN:
+				case LIBIE_AQ_RC_EAGAIN:
 					dev_warn(&pf->pdev->dev,
 						 "Stop FW LLDP agent command is still being processed, please try again in a second.\n");
 					return -EBUSY;

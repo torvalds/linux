@@ -2340,14 +2340,14 @@ void i40e_aqc_del_filters(struct i40e_vsi *vsi, const char *vsi_name,
 			  int num_del, int *retval)
 {
 	struct i40e_hw *hw = &vsi->back->hw;
-	enum i40e_admin_queue_err aq_status;
+	enum libie_aq_err aq_status;
 	int aq_ret;
 
 	aq_ret = i40e_aq_remove_macvlan_v2(hw, vsi->seid, list, num_del, NULL,
 					   &aq_status);
 
 	/* Explicitly ignore and do not report when firmware returns ENOENT */
-	if (aq_ret && !(aq_status == I40E_AQ_RC_ENOENT)) {
+	if (aq_ret && !(aq_status == LIBIE_AQ_RC_ENOENT)) {
 		*retval = -EIO;
 		dev_info(&vsi->back->pdev->dev,
 			 "ignoring delete macvlan error on %s, err %pe, aq_err %s\n",
@@ -2375,7 +2375,7 @@ void i40e_aqc_add_filters(struct i40e_vsi *vsi, const char *vsi_name,
 			  int num_add)
 {
 	struct i40e_hw *hw = &vsi->back->hw;
-	enum i40e_admin_queue_err aq_status;
+	enum libie_aq_err aq_status;
 	int fcnt;
 
 	i40e_aq_add_macvlan_v2(hw, vsi->seid, list, num_add, NULL, &aq_status);
@@ -5997,8 +5997,8 @@ int i40e_set_bw_limit(struct i40e_vsi *vsi, u16 seid, u64 max_tx_rate)
  **/
 static void i40e_remove_queue_channels(struct i40e_vsi *vsi)
 {
-	enum i40e_admin_queue_err last_aq_status;
 	struct i40e_cloud_filter *cfilter;
+	enum libie_aq_err last_aq_status;
 	struct i40e_channel *ch, *ch_tmp;
 	struct i40e_pf *pf = vsi->back;
 	struct hlist_node *node;
@@ -6539,7 +6539,7 @@ static int i40e_validate_and_set_switch_mode(struct i40e_vsi *vsi)
 	ret = i40e_aq_set_switch_config(hw, pf->last_sw_conf_flags,
 					pf->last_sw_conf_valid_flags,
 					mode, NULL);
-	if (ret && hw->aq.asq_last_status != I40E_AQ_RC_ESRCH)
+	if (ret && hw->aq.asq_last_status != LIBIE_AQ_RC_ESRCH)
 		dev_err(&pf->pdev->dev,
 			"couldn't set switch config bits, err %pe aq_err %s\n",
 			ERR_PTR(ret),
@@ -7214,7 +7214,7 @@ static int i40e_init_pf_dcb(struct i40e_pf *pf)
 			dev_dbg(&pf->pdev->dev,
 				"DCBX offload is supported for this PF.\n");
 		}
-	} else if (pf->hw.aq.asq_last_status == I40E_AQ_RC_EPERM) {
+	} else if (pf->hw.aq.asq_last_status == LIBIE_AQ_RC_EPERM) {
 		dev_info(&pf->pdev->dev, "FW LLDP disabled for this PF.\n");
 		set_bit(I40E_FLAG_FW_LLDP_DIS, pf->flags);
 	} else {
@@ -9419,8 +9419,7 @@ bool i40e_dcb_need_reconfig(struct i40e_pf *pf,
 static int i40e_handle_lldp_event(struct i40e_pf *pf,
 				  struct i40e_arq_event_info *e)
 {
-	struct i40e_aqc_lldp_get_mib *mib =
-		(struct i40e_aqc_lldp_get_mib *)&e->desc.params.raw;
+	struct i40e_aqc_lldp_get_mib *mib = libie_aq_raw(&e->desc);
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_dcbx_config tmp_dcbx_cfg;
 	bool need_reconfig = false;
@@ -9559,8 +9558,7 @@ void i40e_do_reset_safe(struct i40e_pf *pf, u32 reset_flags)
 static void i40e_handle_lan_overflow_event(struct i40e_pf *pf,
 					   struct i40e_arq_event_info *e)
 {
-	struct i40e_aqc_lan_overflow *data =
-		(struct i40e_aqc_lan_overflow *)&e->desc.params.raw;
+	struct i40e_aqc_lan_overflow *data = libie_aq_raw(&e->desc);
 	u32 queue = le32_to_cpu(data->prtdcb_rupto);
 	u32 qtx_ctl = le32_to_cpu(data->otx_ctl);
 	struct i40e_hw *hw = &pf->hw;
@@ -10080,8 +10078,7 @@ static void i40e_reset_subtask(struct i40e_pf *pf)
 static void i40e_handle_link_event(struct i40e_pf *pf,
 				   struct i40e_arq_event_info *e)
 {
-	struct i40e_aqc_get_link_status *status =
-		(struct i40e_aqc_get_link_status *)&e->desc.params.raw;
+	struct i40e_aqc_get_link_status *status = libie_aq_raw(&e->desc);
 
 	/* Do a new status request to re-enable LSE reporting
 	 * and load new status information into the hw struct
@@ -10453,12 +10450,12 @@ static int i40e_reconstitute_veb(struct i40e_veb *veb)
 static int i40e_get_capabilities(struct i40e_pf *pf,
 				 enum i40e_admin_queue_opc list_type)
 {
-	struct i40e_aqc_list_capabilities_element_resp *cap_buf;
+	struct libie_aqc_list_caps_elem *cap_buf;
 	u16 data_size;
 	int buf_len;
 	int err;
 
-	buf_len = 40 * sizeof(struct i40e_aqc_list_capabilities_element_resp);
+	buf_len = 40 * sizeof(struct libie_aqc_list_caps_elem);
 	do {
 		cap_buf = kzalloc(buf_len, GFP_KERNEL);
 		if (!cap_buf)
@@ -10471,10 +10468,10 @@ static int i40e_get_capabilities(struct i40e_pf *pf,
 		/* data loaded, buffer no longer needed */
 		kfree(cap_buf);
 
-		if (pf->hw.aq.asq_last_status == I40E_AQ_RC_ENOMEM) {
+		if (pf->hw.aq.asq_last_status == LIBIE_AQ_RC_ENOMEM) {
 			/* retry with a larger buffer */
 			buf_len = data_size;
-		} else if (pf->hw.aq.asq_last_status != I40E_AQ_RC_OK || err) {
+		} else if (pf->hw.aq.asq_last_status != LIBIE_AQ_RC_OK || err) {
 			dev_info(&pf->pdev->dev,
 				 "capability discovery failed, err %pe aq_err %s\n",
 				 ERR_PTR(err),
@@ -15029,7 +15026,7 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit, bool lock_acqui
 		valid_flags = I40E_AQ_SET_SWITCH_CFG_PROMISC;
 		ret = i40e_aq_set_switch_config(&pf->hw, flags, valid_flags, 0,
 						NULL);
-		if (ret && pf->hw.aq.asq_last_status != I40E_AQ_RC_ESRCH) {
+		if (ret && pf->hw.aq.asq_last_status != LIBIE_AQ_RC_ESRCH) {
 			dev_info(&pf->pdev->dev,
 				 "couldn't set switch config bits, err %pe aq_err %s\n",
 				 ERR_PTR(ret),

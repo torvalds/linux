@@ -18,7 +18,7 @@ static int i40e_alloc_adminq_asq_ring(struct i40e_hw *hw)
 
 	ret_code = i40e_allocate_dma_mem(hw, &hw->aq.asq.desc_buf,
 					 (hw->aq.num_asq_entries *
-					 sizeof(struct i40e_aq_desc)),
+					 sizeof(struct libie_aq_desc)),
 					 I40E_ADMINQ_DESC_ALIGNMENT);
 	if (ret_code)
 		return ret_code;
@@ -44,7 +44,7 @@ static int i40e_alloc_adminq_arq_ring(struct i40e_hw *hw)
 
 	ret_code = i40e_allocate_dma_mem(hw, &hw->aq.arq.desc_buf,
 					 (hw->aq.num_arq_entries *
-					 sizeof(struct i40e_aq_desc)),
+					 sizeof(struct libie_aq_desc)),
 					 I40E_ADMINQ_DESC_ALIGNMENT);
 
 	return ret_code;
@@ -80,7 +80,7 @@ static void i40e_free_adminq_arq(struct i40e_hw *hw)
  **/
 static int i40e_alloc_arq_bufs(struct i40e_hw *hw)
 {
-	struct i40e_aq_desc *desc;
+	struct libie_aq_desc *desc;
 	struct i40e_dma_mem *bi;
 	int ret_code;
 	int i;
@@ -108,9 +108,9 @@ static int i40e_alloc_arq_bufs(struct i40e_hw *hw)
 		/* now configure the descriptors for use */
 		desc = I40E_ADMINQ_DESC(hw->aq.arq, i);
 
-		desc->flags = cpu_to_le16(I40E_AQ_FLAG_BUF);
+		desc->flags = cpu_to_le16(LIBIE_AQ_FLAG_BUF);
 		if (hw->aq.arq_buf_size > I40E_AQ_LARGE_BUF)
-			desc->flags |= cpu_to_le16(I40E_AQ_FLAG_LB);
+			desc->flags |= cpu_to_le16(LIBIE_AQ_FLAG_LB);
 		desc->opcode = 0;
 		/* This is in accordance with Admin queue design, there is no
 		 * register for buffer size configuration
@@ -119,12 +119,12 @@ static int i40e_alloc_arq_bufs(struct i40e_hw *hw)
 		desc->retval = 0;
 		desc->cookie_high = 0;
 		desc->cookie_low = 0;
-		desc->params.external.addr_high =
+		desc->params.generic.addr_high =
 			cpu_to_le32(upper_32_bits(bi->pa));
-		desc->params.external.addr_low =
+		desc->params.generic.addr_low =
 			cpu_to_le32(lower_32_bits(bi->pa));
-		desc->params.external.param0 = 0;
-		desc->params.external.param1 = 0;
+		desc->params.generic.param0 = 0;
+		desc->params.generic.param1 = 0;
 	}
 
 alloc_arq_bufs:
@@ -691,8 +691,8 @@ static u16 i40e_clean_asq(struct i40e_hw *hw)
 	struct i40e_adminq_ring *asq = &(hw->aq.asq);
 	struct i40e_asq_cmd_details *details;
 	u16 ntc = asq->next_to_clean;
-	struct i40e_aq_desc desc_cb;
-	struct i40e_aq_desc *desc;
+	struct libie_aq_desc desc_cb;
+	struct libie_aq_desc *desc;
 
 	desc = I40E_ADMINQ_DESC(*asq, ntc);
 	details = I40E_ADMINQ_DETAILS(*asq, ntc);
@@ -750,7 +750,7 @@ static bool i40e_asq_done(struct i40e_hw *hw)
  **/
 static int
 i40e_asq_send_command_atomic_exec(struct i40e_hw *hw,
-				  struct i40e_aq_desc *desc,
+				  struct libie_aq_desc *desc,
 				  void *buff, /* can be NULL */
 				  u16  buff_size,
 				  struct i40e_asq_cmd_details *cmd_details,
@@ -758,7 +758,7 @@ i40e_asq_send_command_atomic_exec(struct i40e_hw *hw,
 {
 	struct i40e_dma_mem *dma_buff = NULL;
 	struct i40e_asq_cmd_details *details;
-	struct i40e_aq_desc *desc_on_ring;
+	struct libie_aq_desc *desc_on_ring;
 	bool cmd_completed = false;
 	u16  retval = 0;
 	int status = 0;
@@ -771,7 +771,7 @@ i40e_asq_send_command_atomic_exec(struct i40e_hw *hw,
 		goto asq_send_command_error;
 	}
 
-	hw->aq.asq_last_status = I40E_AQ_RC_OK;
+	hw->aq.asq_last_status = LIBIE_AQ_RC_OK;
 
 	val = rd32(hw, I40E_PF_ATQH);
 	if (val >= hw->aq.num_asq_entries) {
@@ -851,9 +851,9 @@ i40e_asq_send_command_atomic_exec(struct i40e_hw *hw,
 		/* Update the address values in the desc with the pa value
 		 * for respective buffer
 		 */
-		desc_on_ring->params.external.addr_high =
+		desc_on_ring->params.generic.addr_high =
 				cpu_to_le32(upper_32_bits(dma_buff->pa));
-		desc_on_ring->params.external.addr_low =
+		desc_on_ring->params.generic.addr_low =
 				cpu_to_le32(lower_32_bits(dma_buff->pa));
 	}
 
@@ -905,13 +905,13 @@ i40e_asq_send_command_atomic_exec(struct i40e_hw *hw,
 			retval &= 0xff;
 		}
 		cmd_completed = true;
-		if ((enum i40e_admin_queue_err)retval == I40E_AQ_RC_OK)
+		if ((enum libie_aq_err)retval == LIBIE_AQ_RC_OK)
 			status = 0;
-		else if ((enum i40e_admin_queue_err)retval == I40E_AQ_RC_EBUSY)
+		else if ((enum libie_aq_err)retval == LIBIE_AQ_RC_EBUSY)
 			status = -EBUSY;
 		else
 			status = -EIO;
-		hw->aq.asq_last_status = (enum i40e_admin_queue_err)retval;
+		hw->aq.asq_last_status = (enum libie_aq_err)retval;
 	}
 
 	i40e_debug(hw, I40E_DEBUG_AQ_COMMAND,
@@ -954,7 +954,7 @@ asq_send_command_error:
  **/
 int
 i40e_asq_send_command_atomic(struct i40e_hw *hw,
-			     struct i40e_aq_desc *desc,
+			     struct libie_aq_desc *desc,
 			     void *buff, /* can be NULL */
 			     u16  buff_size,
 			     struct i40e_asq_cmd_details *cmd_details,
@@ -972,7 +972,7 @@ i40e_asq_send_command_atomic(struct i40e_hw *hw,
 }
 
 int
-i40e_asq_send_command(struct i40e_hw *hw, struct i40e_aq_desc *desc,
+i40e_asq_send_command(struct i40e_hw *hw, struct libie_aq_desc *desc,
 		      void *buff, /* can be NULL */ u16  buff_size,
 		      struct i40e_asq_cmd_details *cmd_details)
 {
@@ -996,12 +996,12 @@ i40e_asq_send_command(struct i40e_hw *hw, struct i40e_aq_desc *desc,
  **/
 int
 i40e_asq_send_command_atomic_v2(struct i40e_hw *hw,
-				struct i40e_aq_desc *desc,
+				struct libie_aq_desc *desc,
 				void *buff, /* can be NULL */
 				u16  buff_size,
 				struct i40e_asq_cmd_details *cmd_details,
 				bool is_atomic_context,
-				enum i40e_admin_queue_err *aq_status)
+				enum libie_aq_err *aq_status)
 {
 	int status;
 
@@ -1023,13 +1023,13 @@ i40e_asq_send_command_atomic_v2(struct i40e_hw *hw,
  *
  *  Fill the desc with default values
  **/
-void i40e_fill_default_direct_cmd_desc(struct i40e_aq_desc *desc,
+void i40e_fill_default_direct_cmd_desc(struct libie_aq_desc *desc,
 				       u16 opcode)
 {
 	/* zero out the desc */
-	memset((void *)desc, 0, sizeof(struct i40e_aq_desc));
+	memset((void *)desc, 0, sizeof(struct libie_aq_desc));
 	desc->opcode = cpu_to_le16(opcode);
-	desc->flags = cpu_to_le16(I40E_AQ_FLAG_SI);
+	desc->flags = cpu_to_le16(LIBIE_AQ_FLAG_SI);
 }
 
 /**
@@ -1047,7 +1047,7 @@ int i40e_clean_arq_element(struct i40e_hw *hw,
 			   u16 *pending)
 {
 	u16 ntc = hw->aq.arq.next_to_clean;
-	struct i40e_aq_desc *desc;
+	struct libie_aq_desc *desc;
 	struct i40e_dma_mem *bi;
 	int ret_code = 0;
 	u16 desc_idx;
@@ -1081,9 +1081,9 @@ int i40e_clean_arq_element(struct i40e_hw *hw,
 	desc_idx = ntc;
 
 	hw->aq.arq_last_status =
-		(enum i40e_admin_queue_err)le16_to_cpu(desc->retval);
+		(enum libie_aq_err)le16_to_cpu(desc->retval);
 	flags = le16_to_cpu(desc->flags);
-	if (flags & I40E_AQ_FLAG_ERR) {
+	if (flags & LIBIE_AQ_FLAG_ERR) {
 		ret_code = -EIO;
 		i40e_debug(hw,
 			   I40E_DEBUG_AQ_MESSAGE,
@@ -1107,14 +1107,14 @@ int i40e_clean_arq_element(struct i40e_hw *hw,
 	 * size
 	 */
 	bi = &hw->aq.arq.r.arq_bi[ntc];
-	memset((void *)desc, 0, sizeof(struct i40e_aq_desc));
+	memset((void *)desc, 0, sizeof(struct libie_aq_desc));
 
-	desc->flags = cpu_to_le16(I40E_AQ_FLAG_BUF);
+	desc->flags = cpu_to_le16(LIBIE_AQ_FLAG_BUF);
 	if (hw->aq.arq_buf_size > I40E_AQ_LARGE_BUF)
-		desc->flags |= cpu_to_le16(I40E_AQ_FLAG_LB);
+		desc->flags |= cpu_to_le16(LIBIE_AQ_FLAG_LB);
 	desc->datalen = cpu_to_le16((u16)bi->size);
-	desc->params.external.addr_high = cpu_to_le32(upper_32_bits(bi->pa));
-	desc->params.external.addr_low = cpu_to_le32(lower_32_bits(bi->pa));
+	desc->params.generic.addr_high = cpu_to_le32(upper_32_bits(bi->pa));
+	desc->params.generic.addr_low = cpu_to_le32(lower_32_bits(bi->pa));
 
 	/* set tail = the last cleaned desc index. */
 	wr32(hw, I40E_PF_ARQT, ntc);

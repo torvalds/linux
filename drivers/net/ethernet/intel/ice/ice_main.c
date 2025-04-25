@@ -7951,6 +7951,10 @@ const char *ice_aq_str(enum libie_aq_err aq_err)
 		return "ICE_AQ_RC_EBADMAN";
 	case LIBIE_AQ_RC_EBADBUF:
 		return "ICE_AQ_RC_EBADBUF";
+	case LIBIE_AQ_RC_EIO:
+		return "ICE_AQ_RC_EIO";
+	case LIBIE_AQ_RC_EACCES:
+		return "ICE_AQ_RC_EACCES";
 	}
 
 	return "ICE_AQ_RC_UNKNOWN";

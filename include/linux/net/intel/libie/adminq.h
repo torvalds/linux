@@ -145,17 +145,26 @@ struct libie_aqc_list_caps {
 LIBIE_CHECK_STRUCT_LEN(16, libie_aqc_list_caps);
 
 /* Device/Function buffer entry, repeated per reported capability */
+#define LIBIE_AQC_CAPS_SWITCH_MODE			0x0001
+#define LIBIE_AQC_CAPS_MNG_MODE				0x0002
+#define LIBIE_AQC_CAPS_NPAR_ACTIVE			0x0003
+#define LIBIE_AQC_CAPS_OS2BMC_CAP			0x0004
 #define LIBIE_AQC_CAPS_VALID_FUNCTIONS			0x0005
 #define LIBIE_AQC_MAX_VALID_FUNCTIONS			0x8
 #define LIBIE_AQC_CAPS_SRIOV				0x0012
 #define LIBIE_AQC_CAPS_VF				0x0013
 #define LIBIE_AQC_CAPS_VMDQ				0x0014
+#define LIBIE_AQC_CAPS_8021QBG				0x0015
+#define LIBIE_AQC_CAPS_8021QBR				0x0016
 #define LIBIE_AQC_CAPS_VSI				0x0017
 #define LIBIE_AQC_CAPS_DCB				0x0018
+#define LIBIE_AQC_CAPS_FCOE				0x0021
+#define LIBIE_AQC_CAPS_ISCSI				0x0022
 #define LIBIE_AQC_CAPS_RSS				0x0040
 #define LIBIE_AQC_CAPS_RXQS				0x0041
 #define LIBIE_AQC_CAPS_TXQS				0x0042
 #define LIBIE_AQC_CAPS_MSIX				0x0043
+#define LIBIE_AQC_CAPS_VF_MSIX				0x0044
 #define LIBIE_AQC_CAPS_FD				0x0045
 #define LIBIE_AQC_CAPS_1588				0x0046
 #define LIBIE_AQC_CAPS_MAX_MTU				0x0047
@@ -166,6 +175,10 @@ LIBIE_CHECK_STRUCT_LEN(16, libie_aqc_list_caps);
 #define LIBIE_AQC_CAPS_NET_VER				0x004C
 #define LIBIE_AQC_CAPS_PENDING_NET_VER			0x004D
 #define LIBIE_AQC_CAPS_RDMA				0x0051
+#define LIBIE_AQC_CAPS_LED				0x0061
+#define LIBIE_AQC_CAPS_SDP				0x0062
+#define LIBIE_AQC_CAPS_MDIO				0x0063
+#define LIBIE_AQC_CAPS_WSR_PROT				0x0064
 #define LIBIE_AQC_CAPS_SENSOR_READING			0x0067
 #define LIBIE_AQC_INLINE_IPSEC				0x0070
 #define LIBIE_AQC_CAPS_NUM_ENABLED_PORTS		0x0072
@@ -181,6 +194,8 @@ LIBIE_CHECK_STRUCT_LEN(16, libie_aqc_list_caps);
 #define LIBIE_AQC_CAPS_FW_LAG_SUPPORT			0x0092
 #define LIBIE_AQC_BIT_ROCEV2_LAG			0x01
 #define LIBIE_AQC_BIT_SRIOV_LAG				0x02
+#define LIBIE_AQC_CAPS_FLEX10				0x00F1
+#define LIBIE_AQC_CAPS_CEM				0x00F2
 
 /**
  * struct libie_aqc_list_caps_elem - Getting list of caps elements
@@ -266,8 +281,10 @@ enum libie_aq_err {
 	LIBIE_AQ_RC_EPERM	= 1,  /* Operation not permitted */
 	LIBIE_AQ_RC_ENOENT	= 2,  /* No such element */
 	LIBIE_AQ_RC_ESRCH	= 3,  /* Bad opcode */
+	LIBIE_AQ_RC_EIO		= 5,  /* I/O error */
 	LIBIE_AQ_RC_EAGAIN	= 8,  /* Try again */
 	LIBIE_AQ_RC_ENOMEM	= 9,  /* Out of memory */
+	LIBIE_AQ_RC_EACCES	= 10, /* Permission denied */
 	LIBIE_AQ_RC_EBUSY	= 12, /* Device or resource busy */
 	LIBIE_AQ_RC_EEXIST	= 13, /* Object already exists */
 	LIBIE_AQ_RC_EINVAL	= 14, /* Invalid argument */
