@@ -1037,9 +1037,9 @@ static void __touch_mnt_namespace(struct mnt_namespace *ns)
 }
 
 /*
- * vfsmount lock must be held for write
+ * locks: mount_lock[write_seqlock]
  */
-static struct mountpoint *unhash_mnt(struct mount *mnt)
+static void __umount_mnt(struct mount *mnt, struct list_head *shrink_list)
 {
 	struct mountpoint *mp;
 	struct mount *parent = mnt->mnt_parent;
@@ -1052,15 +1052,15 @@ static struct mountpoint *unhash_mnt(struct mount *mnt)
 	hlist_del_init(&mnt->mnt_mp_list);
 	mp = mnt->mnt_mp;
 	mnt->mnt_mp = NULL;
-	return mp;
+	__put_mountpoint(mp, shrink_list);
 }
 
 /*
- * vfsmount lock must be held for write
+ * locks: mount_lock[write_seqlock], namespace_sem[excl] (for ex_mountpoints)
  */
 static void umount_mnt(struct mount *mnt)
 {
-	put_mountpoint(unhash_mnt(mnt));
+	__umount_mnt(mnt, &ex_mountpoints);
 }
 
 /*
@@ -1451,7 +1451,7 @@ static void mntput_no_expire(struct mount *mnt)
 	if (unlikely(!list_empty(&mnt->mnt_mounts))) {
 		struct mount *p, *tmp;
 		list_for_each_entry_safe(p, tmp, &mnt->mnt_mounts,  mnt_child) {
-			__put_mountpoint(unhash_mnt(p), &list);
+			__umount_mnt(p, &list);
 			hlist_add_head(&p->mnt_umount, &mnt->mnt_stuck_children);
 		}
 	}
