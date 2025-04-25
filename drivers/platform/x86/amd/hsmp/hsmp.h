@@ -23,6 +23,7 @@
 
 #define HSMP_CDEV_NAME		"hsmp_cdev"
 #define HSMP_DEVNODE_NAME	"hsmp"
+#define ACPI_HSMP_DEVICE_HID    "AMDI0097"
 
 struct hsmp_mbaddr_info {
 	u32 base_addr;
