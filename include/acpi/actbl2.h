@@ -1741,6 +1741,8 @@ struct acpi_msct_proximity {
 /*******************************************************************************
  *
  * MRRM - Memory Range and Region Mapping (MRRM) table
+ * Conforms to "Intel Resource Director Technology Architecture Specification"
+ * Version 1.1, January 2025
  *
  ******************************************************************************/
 
@@ -1756,13 +1758,13 @@ struct acpi_table_mrrm {
 #define ACPI_MRRM_FLAGS_REGION_ASSIGNMENT_OS    (1<<0)
 
 /*******************************************************************************
- *
- * Memory Range entry - Memory Range entry in MRRM table
- *
- ******************************************************************************/
+	*
+	* Memory Range entry - Memory Range entry in MRRM table
+	*
+	******************************************************************************/
 
-struct acpi_table_mrrm_mem_range_entry {
-	ACPI_SUBTABLE_HEADER_16 header;
+struct acpi_mrrm_mem_range_entry {
+	struct acpi_subtable_header_16 header;
 	u32 reserved0;		/* Reserved */
 	u64 addr_base;		/* Base addr of the mem range */
 	u64 addr_len;		/* Length of the mem range */
