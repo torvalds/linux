@@ -2360,8 +2360,25 @@ void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t min_vm_size,
 			   unsigned max_bits)
 {
 	unsigned int max_size = 1 << (max_bits - 30);
+	bool sys_5level_pgtable = false;
 	unsigned int vm_size;
 	uint64_t tmp;
+
+#ifdef CONFIG_X86_64
+	/*
+	 * Refer to function configure_5level_paging() for details.
+	 */
+	sys_5level_pgtable = (native_read_cr4() & X86_CR4_LA57);
+#endif
+
+	/*
+	 * If GPU supports 5-level page table, but system uses 4-level page table,
+	 * then use 4-level page table on GPU
+	 */
+	if (max_level == 4 && !sys_5level_pgtable) {
+		min_vm_size = 256 * 1024;
+		max_level = 3;
+	}
 
 	/* adjust vm size first */
 	if (amdgpu_vm_size != -1) {
@@ -2405,6 +2422,9 @@ void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t min_vm_size,
 	tmp = DIV_ROUND_UP(fls64(tmp) - 1, 9) - 1;
 	adev->vm_manager.num_level = min_t(unsigned int, max_level, tmp);
 	switch (adev->vm_manager.num_level) {
+	case 4:
+		adev->vm_manager.root_level = AMDGPU_VM_PDB3;
+		break;
 	case 3:
 		adev->vm_manager.root_level = AMDGPU_VM_PDB2;
 		break;
