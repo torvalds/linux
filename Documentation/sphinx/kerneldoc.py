@@ -48,7 +48,8 @@ from kdoc_files import KernelFiles
 from kdoc_output import RestFormat
 
 __version__  = '1.0'
-use_kfiles = False
+kfiles = None
+logger = logging.getLogger('kerneldoc')
 
 def cmd_str(cmd):
     """
@@ -86,7 +87,6 @@ class KernelDocDirective(Directive):
         'functions': directives.unchanged,
     }
     has_content = False
-    logger = logging.getLogger('kerneldoc')
     verbose = 0
 
     parse_args = {}
@@ -204,7 +204,7 @@ class KernelDocDirective(Directive):
         node = nodes.section()
 
         try:
-            self.logger.verbose("calling kernel-doc '%s'" % (" ".join(cmd)))
+            logger.verbose("calling kernel-doc '%s'" % (" ".join(cmd)))
 
             p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             out, err = p.communicate()
@@ -214,14 +214,14 @@ class KernelDocDirective(Directive):
             if p.returncode != 0:
                 sys.stderr.write(err)
 
-                self.logger.warning("kernel-doc '%s' failed with return code %d"
+                logger.warning("kernel-doc '%s' failed with return code %d"
                                     % (" ".join(cmd), p.returncode))
                 return [nodes.error(None, nodes.paragraph(text = "kernel-doc missing"))]
             elif env.config.kerneldoc_verbosity > 0:
                 sys.stderr.write(err)
 
         except Exception as e:  # pylint: disable=W0703
-            self.logger.warning("kernel-doc '%s' processing failed with: %s" %
+            logger.warning("kernel-doc '%s' processing failed with: %s" %
                                 (" ".join(cmd), str(e)))
             return [nodes.error(None, nodes.paragraph(text = "kernel-doc missing"))]
 
@@ -261,7 +261,7 @@ class KernelDocDirective(Directive):
             self.do_parse(result, node)
 
         except Exception as e:  # pylint: disable=W0703
-            self.logger.warning("kernel-doc '%s' processing failed with: %s" %
+            logger.warning("kernel-doc '%s' processing failed with: %s" %
                                 (cmd_str(cmd), str(e)))
             return [nodes.error(None, nodes.paragraph(text = "kernel-doc missing"))]
 
@@ -292,11 +292,9 @@ class KernelDocDirective(Directive):
         return node.children
 
     def run(self):
-        global use_kfiles
+        global kfiles
 
-        if use_kfiles:
-            out_style = RestFormat()
-            kfiles = KernelFiles(out_style=out_style, logger=self.logger)
+        if kfiles:
             return self.run_kdoc(kfiles)
         else:
             return self.run_cmd()
@@ -306,13 +304,14 @@ class KernelDocDirective(Directive):
             self.state.nested_parse(result, 0, node, match_titles=1)
 
 def setup_kfiles(app):
-    global use_kfiles
+    global kfiles
 
     kerneldoc_bin = app.env.config.kerneldoc_bin
 
     if kerneldoc_bin and kerneldoc_bin.endswith("kernel-doc.py"):
         print("Using Python kernel-doc")
-        use_kfiles = True
+        out_style = RestFormat()
+        kfiles = KernelFiles(out_style=out_style, logger=logger)
     else:
         print(f"Using {kerneldoc_bin}")
 
