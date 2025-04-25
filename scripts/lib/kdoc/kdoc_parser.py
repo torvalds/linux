@@ -12,7 +12,6 @@ Read a C language source or header FILE and extract embedded
 documentation comments
 """
 
-import argparse
 import re
 from pprint import pformat
 
@@ -104,6 +103,97 @@ class state:
         "_ERROR",
     ]
 
+SECTION_DEFAULT = "Description"  # default section
+
+class KernelEntry:
+
+    def __init__(self, config, ln):
+        self.config = config
+
+        self.contents = ""
+        self.function = ""
+        self.sectcheck = ""
+        self.struct_actual = ""
+        self.prototype = ""
+
+        self.warnings = []
+
+        self.parameterlist = []
+        self.parameterdescs = {}
+        self.parametertypes = {}
+        self.parameterdesc_start_lines = {}
+
+        self.section_start_lines = {}
+        self.sectionlist = []
+        self.sections = {}
+
+        self.anon_struct_union = False
+
+        self.leading_space = None
+
+        # State flags
+        self.brcount = 0
+
+        self.in_doc_sect = False
+        self.declaration_start_line = ln + 1
+
+    # TODO: rename to emit_message after removal of kernel-doc.pl
+    def emit_msg(self, log_msg, warning=True):
+        """Emit a message"""
+
+        if not warning:
+            self.config.log.info(log_msg)
+            return
+
+        # Delegate warning output to output logic, as this way it
+        # will report warnings/info only for symbols that are output
+
+        self.warnings.append(log_msg)
+        return
+
+    def dump_section(self, start_new=True):
+        """
+        Dumps section contents to arrays/hashes intended for that purpose.
+        """
+
+        name = self.section
+        contents = self.contents
+
+        if type_param.match(name):
+            name = type_param.group(1)
+
+            self.parameterdescs[name] = contents
+            self.parameterdesc_start_lines[name] = self.new_start_line
+
+            self.sectcheck += name + " "
+            self.new_start_line = 0
+
+        elif name == "@...":
+            name = "..."
+            self.parameterdescs[name] = contents
+            self.sectcheck += name + " "
+            self.parameterdesc_start_lines[name] = self.new_start_line
+            self.new_start_line = 0
+
+        else:
+            if name in self.sections and self.sections[name] != "":
+                # Only warn on user-specified duplicate section names
+                if name != SECTION_DEFAULT:
+                    self.emit_msg(self.new_start_line,
+                                  f"duplicate section name '{name}'\n")
+                self.sections[name] += contents
+            else:
+                self.sections[name] = contents
+                self.sectionlist.append(name)
+                self.section_start_lines[name] = self.new_start_line
+                self.new_start_line = 0
+
+#        self.config.log.debug("Section: %s : %s", name, pformat(vars(self)))
+
+        if start_new:
+            self.section = SECTION_DEFAULT
+            self.contents = ""
+
 
 class KernelDoc:
     """
@@ -113,7 +203,6 @@ class KernelDoc:
 
     # Section names
 
-    section_default = "Description"  # default section
     section_intro = "Introduction"
     section_context = "Context"
     section_return = "Return"
@@ -136,67 +225,27 @@ class KernelDoc:
         # Place all potential outputs into an array
         self.entries = []
 
-    # TODO: rename to emit_message after removal of kernel-doc.pl
-    def emit_warning(self, ln, msg, warning=True):
+    def emit_msg(self, ln, msg, warning=True):
         """Emit a message"""
 
         log_msg = f"{self.fname}:{ln} {msg}"
 
-        if not warning:
-            self.config.log.info(log_msg)
-            return
-
         if self.entry:
-            # Delegate warning output to output logic, as this way it
-            # will report warnings/info only for symbols that are output
-
-            self.entry.warnings.append(log_msg)
+            self.entry.emit_msg(log_msg, warning)
             return
 
-        self.config.log.warning(log_msg)
+        if warning:
+            self.config.log.warning(log_msg)
+        else:
+            self.config.log.info(log_msg)
 
     def dump_section(self, start_new=True):
         """
         Dumps section contents to arrays/hashes intended for that purpose.
         """
 
-        name = self.entry.section
-        contents = self.entry.contents
-
-        if type_param.match(name):
-            name = type_param.group(1)
-
-            self.entry.parameterdescs[name] = contents
-            self.entry.parameterdesc_start_lines[name] = self.entry.new_start_line
-
-            self.entry.sectcheck += name + " "
-            self.entry.new_start_line = 0
-
-        elif name == "@...":
-            name = "..."
-            self.entry.parameterdescs[name] = contents
-            self.entry.sectcheck += name + " "
-            self.entry.parameterdesc_start_lines[name] = self.entry.new_start_line
-            self.entry.new_start_line = 0
-
-        else:
-            if name in self.entry.sections and self.entry.sections[name] != "":
-                # Only warn on user-specified duplicate section names
-                if name != self.section_default:
-                    self.emit_warning(self.entry.new_start_line,
-                                      f"duplicate section name '{name}'\n")
-                self.entry.sections[name] += contents
-            else:
-                self.entry.sections[name] = contents
-                self.entry.sectionlist.append(name)
-                self.entry.section_start_lines[name] = self.entry.new_start_line
-                self.entry.new_start_line = 0
-
-#        self.config.log.debug("Section: %s : %s", name, pformat(vars(self.entry)))
-
-        if start_new:
-            self.entry.section = self.section_default
-            self.entry.contents = ""
+        if self.entry:
+            self.entry.dump_section(start_new)
 
     # TODO: rename it to store_declaration after removal of kernel-doc.pl
     def output_declaration(self, dtype, name, **args):
@@ -241,36 +290,11 @@ class KernelDoc:
         variables used by the state machine.
         """
 
-        self.entry = argparse.Namespace
-
-        self.entry.contents = ""
-        self.entry.function = ""
-        self.entry.sectcheck = ""
-        self.entry.struct_actual = ""
-        self.entry.prototype = ""
-
-        self.entry.warnings = []
-
-        self.entry.parameterlist = []
-        self.entry.parameterdescs = {}
-        self.entry.parametertypes = {}
-        self.entry.parameterdesc_start_lines = {}
-
-        self.entry.section_start_lines = {}
-        self.entry.sectionlist = []
-        self.entry.sections = {}
-
-        self.entry.anon_struct_union = False
-
-        self.entry.leading_space = None
+        self.entry = KernelEntry(self.config, ln)
 
         # State flags
         self.state = state.NORMAL
         self.inline_doc_state = state.INLINE_NA
-        self.entry.brcount = 0
-
-        self.entry.in_doc_sect = False
-        self.entry.declaration_start_line = ln + 1
 
     def push_parameter(self, ln, decl_type, param, dtype,
                        org_arg, declaration_name):
@@ -328,8 +352,8 @@ class KernelDoc:
                 else:
                     dname = f"{decl_type} member"
 
-                self.emit_warning(ln,
-                                  f"{dname} '{param}' not described in '{declaration_name}'")
+                self.emit_msg(ln,
+                              f"{dname} '{param}' not described in '{declaration_name}'")
 
         # Strip spaces from param so that it is one continuous string on
         # parameterlist. This fixes a problem where check_sections()
@@ -393,7 +417,7 @@ class KernelDoc:
                 if r.match(arg):
                     param = r.group(1)
                 else:
-                    self.emit_warning(ln, f"Invalid param: {arg}")
+                    self.emit_msg(ln, f"Invalid param: {arg}")
                     param = arg
 
                 dtype = KernRe(r'([^\(]+\(\*?)\s*' + re.escape(param)).sub(r'\1', arg)
@@ -409,7 +433,7 @@ class KernelDoc:
                 if r.match(arg):
                     param = r.group(1)
                 else:
-                    self.emit_warning(ln, f"Invalid param: {arg}")
+                    self.emit_msg(ln, f"Invalid param: {arg}")
                     param = arg
 
                 dtype = KernRe(r'([^\(]+\(\*?)\s*' + re.escape(param)).sub(r'\1', arg)
@@ -442,7 +466,7 @@ class KernelDoc:
                     if KernRe(r'^(\*+)\s*(.*)').match(param):
                         r = KernRe(r'^(\*+)\s*(.*)')
                         if not r.match(param):
-                            self.emit_warning(ln, f"Invalid param: {param}")
+                            self.emit_msg(ln, f"Invalid param: {param}")
                             continue
 
                         param = r.group(1)
@@ -455,7 +479,7 @@ class KernelDoc:
                     elif KernRe(r'(.*?):(\w+)').search(param):
                         r = KernRe(r'(.*?):(\w+)')
                         if not r.match(param):
-                            self.emit_warning(ln, f"Invalid param: {param}")
+                            self.emit_msg(ln, f"Invalid param: {param}")
                             continue
 
                         if dtype != "":  # Skip unnamed bit-fields
@@ -503,8 +527,8 @@ class KernelDoc:
                 else:
                     dname = f"{decl_type} member"
 
-                self.emit_warning(ln,
-                                  f"Excess {dname} '{sects[sx]}' description in '{decl_name}'")
+                self.emit_msg(ln,
+                              f"Excess {dname} '{sects[sx]}' description in '{decl_name}'")
 
     def check_return_section(self, ln, declaration_name, return_type):
         """
@@ -521,8 +545,8 @@ class KernelDoc:
             return
 
         if not self.entry.sections.get("Return", None):
-            self.emit_warning(ln,
-                              f"No description found for return value of '{declaration_name}'")
+            self.emit_msg(ln,
+                          f"No description found for return value of '{declaration_name}'")
 
     def dump_struct(self, ln, proto):
         """
@@ -561,12 +585,12 @@ class KernelDoc:
                 members = r.group(2)
 
         if not members:
-            self.emit_warning(ln, f"{proto} error: Cannot parse struct or union!")
+            self.emit_msg(ln, f"{proto} error: Cannot parse struct or union!")
             return
 
         if self.entry.identifier != declaration_name:
-            self.emit_warning(ln,
-                              f"expecting prototype for {decl_type} {self.entry.identifier}. Prototype was for {decl_type} {declaration_name} instead\n")
+            self.emit_msg(ln,
+                          f"expecting prototype for {decl_type} {self.entry.identifier}. Prototype was for {decl_type} {declaration_name} instead\n")
             return
 
         args_pattern = r'([^,)]+)'
@@ -835,16 +859,16 @@ class KernelDoc:
                 members = r.group(2).rstrip()
 
         if not members:
-            self.emit_warning(ln, f"{proto}: error: Cannot parse enum!")
+            self.emit_msg(ln, f"{proto}: error: Cannot parse enum!")
             return
 
         if self.entry.identifier != declaration_name:
             if self.entry.identifier == "":
-                self.emit_warning(ln,
-                                  f"{proto}: wrong kernel-doc identifier on prototype")
+                self.emit_msg(ln,
+                              f"{proto}: wrong kernel-doc identifier on prototype")
             else:
-                self.emit_warning(ln,
-                                  f"expecting prototype for enum {self.entry.identifier}. Prototype was for enum {declaration_name} instead")
+                self.emit_msg(ln,
+                              f"expecting prototype for enum {self.entry.identifier}. Prototype was for enum {declaration_name} instead")
             return
 
         if not declaration_name:
@@ -861,14 +885,14 @@ class KernelDoc:
             self.entry.parameterlist.append(arg)
             if arg not in self.entry.parameterdescs:
                 self.entry.parameterdescs[arg] = self.undescribed
-                self.emit_warning(ln,
-                                  f"Enum value '{arg}' not described in enum '{declaration_name}'")
+                self.emit_msg(ln,
+                              f"Enum value '{arg}' not described in enum '{declaration_name}'")
             member_set.add(arg)
 
         for k in self.entry.parameterdescs:
             if k not in member_set:
-                self.emit_warning(ln,
-                                  f"Excess enum value '%{k}' description in '{declaration_name}'")
+                self.emit_msg(ln,
+                              f"Excess enum value '%{k}' description in '{declaration_name}'")
 
         self.output_declaration('enum', declaration_name,
                                 enum=declaration_name,
@@ -1023,13 +1047,13 @@ class KernelDoc:
                     found = True
                     break
         if not found:
-            self.emit_warning(ln,
-                              f"cannot understand function prototype: '{prototype}'")
+            self.emit_msg(ln,
+                          f"cannot understand function prototype: '{prototype}'")
             return
 
         if self.entry.identifier != declaration_name:
-            self.emit_warning(ln,
-                              f"expecting prototype for {self.entry.identifier}(). Prototype was for {declaration_name}() instead")
+            self.emit_msg(ln,
+                          f"expecting prototype for {self.entry.identifier}(). Prototype was for {declaration_name}() instead")
             return
 
         prms = " ".join(self.entry.parameterlist)
@@ -1092,8 +1116,8 @@ class KernelDoc:
             args = r.group(3)
 
             if self.entry.identifier != declaration_name:
-                self.emit_warning(ln,
-                                  f"expecting prototype for typedef {self.entry.identifier}. Prototype was for typedef {declaration_name} instead\n")
+                self.emit_msg(ln,
+                              f"expecting prototype for typedef {self.entry.identifier}. Prototype was for typedef {declaration_name} instead\n")
                 return
 
             decl_type = 'function'
@@ -1124,7 +1148,8 @@ class KernelDoc:
             declaration_name = r.group(1)
 
             if self.entry.identifier != declaration_name:
-                self.emit_warning(ln, f"expecting prototype for typedef {self.entry.identifier}. Prototype was for typedef {declaration_name} instead\n")
+                self.emit_msg(ln,
+                              f"expecting prototype for typedef {self.entry.identifier}. Prototype was for typedef {declaration_name} instead\n")
                 return
 
             self.output_declaration('typedef', declaration_name,
@@ -1135,7 +1160,7 @@ class KernelDoc:
                                     purpose=self.entry.declaration_purpose)
             return
 
-        self.emit_warning(ln, "error: Cannot parse typedef!")
+        self.emit_msg(ln, "error: Cannot parse typedef!")
 
     @staticmethod
     def process_export(function_set, line):
@@ -1232,7 +1257,7 @@ class KernelDoc:
             self.state = state.BODY
 
             # if there's no @param blocks need to set up default section here
-            self.entry.section = self.section_default
+            self.entry.section = SECTION_DEFAULT
             self.entry.new_start_line = ln + 1
 
             r = KernRe("[-:](.*)")
@@ -1248,28 +1273,28 @@ class KernelDoc:
                 self.entry.declaration_purpose = ""
 
             if not self.entry.is_kernel_comment:
-                self.emit_warning(ln,
-                                  f"This comment starts with '/**', but isn't a kernel-doc comment. Refer Documentation/doc-guide/kernel-doc.rst\n{line}")
+                self.emit_msg(ln,
+                              f"This comment starts with '/**', but isn't a kernel-doc comment. Refer Documentation/doc-guide/kernel-doc.rst\n{line}")
                 self.state = state.NORMAL
 
             if not self.entry.declaration_purpose and self.config.wshort_desc:
-                self.emit_warning(ln,
-                                  f"missing initial short description on line:\n{line}")
+                self.emit_msg(ln,
+                              f"missing initial short description on line:\n{line}")
 
             if not self.entry.identifier and self.entry.decl_type != "enum":
-                self.emit_warning(ln,
-                                  f"wrong kernel-doc identifier on line:\n{line}")
+                self.emit_msg(ln,
+                              f"wrong kernel-doc identifier on line:\n{line}")
                 self.state = state.NORMAL
 
             if self.config.verbose:
-                self.emit_warning(ln,
-                                  f"Scanning doc for {self.entry.decl_type} {self.entry.identifier}",
+                self.emit_msg(ln,
+                              f"Scanning doc for {self.entry.decl_type} {self.entry.identifier}",
                                   warning=False)
 
             return
 
         # Failed to find an identifier. Emit a warning
-        self.emit_warning(ln, f"Cannot find identifier on line:\n{line}")
+        self.emit_msg(ln, f"Cannot find identifier on line:\n{line}")
 
     def process_body(self, ln, line):
         """
@@ -1280,7 +1305,7 @@ class KernelDoc:
             r = KernRe(r"\s*\*\s?\S")
             if r.match(line):
                 self.dump_section()
-                self.entry.section = self.section_default
+                self.entry.section = SECTION_DEFAULT
                 self.entry.new_start_line = ln
                 self.entry.contents = ""
 
@@ -1325,7 +1350,7 @@ class KernelDoc:
             # Look for doc_com + <text> + doc_end:
             r = KernRe(r'\s*\*\s*[a-zA-Z_0-9:\.]+\*/')
             if r.match(line):
-                self.emit_warning(ln, f"suspicious ending line: {line}")
+                self.emit_msg(ln, f"suspicious ending line: {line}")
 
             self.entry.prototype = ""
             self.entry.new_start_line = ln + 1
@@ -1343,7 +1368,7 @@ class KernelDoc:
                     self.entry.new_start_line = ln
                     self.state = state.BODY
                 else:
-                    if self.entry.section != self.section_default:
+                    if self.entry.section != SECTION_DEFAULT:
                         self.state = state.BODY_WITH_BLANK_LINE
                     else:
                         self.state = state.BODY
@@ -1388,7 +1413,7 @@ class KernelDoc:
             return
 
         # Unknown line, ignore
-        self.emit_warning(ln, f"bad line: {line}")
+        self.emit_msg(ln, f"bad line: {line}")
 
     def process_inline(self, ln, line):
         """STATE_INLINE: docbook comments within a prototype."""
@@ -1421,8 +1446,8 @@ class KernelDoc:
                     self.entry.contents = ""
 
             elif self.inline_doc_state == state.INLINE_NAME:
-                self.emit_warning(ln,
-                                  f"Incorrect use of kernel-doc format: {line}")
+                self.emit_msg(ln,
+                              f"Incorrect use of kernel-doc format: {line}")
 
                 self.inline_doc_state = state.INLINE_ERROR
 
@@ -1494,8 +1519,8 @@ class KernelDoc:
             tracepointargs = r.group(1)
 
         if not tracepointname or not tracepointargs:
-            self.emit_warning(ln,
-                              f"Unrecognized tracepoint format:\n{proto}\n")
+            self.emit_msg(ln,
+                          f"Unrecognized tracepoint format:\n{proto}\n")
         else:
             proto = f"static inline void trace_{tracepointname}({tracepointargs})"
             self.entry.identifier = f"trace_{self.entry.identifier}"
