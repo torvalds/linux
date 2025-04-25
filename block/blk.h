@@ -94,6 +94,9 @@ static inline void blk_wait_io(struct completion *done)
 		wait_for_completion_io(done);
 }
 
+struct block_device *blkdev_get_no_open(dev_t dev, bool autoload);
+void blkdev_put_no_open(struct block_device *bdev);
+
 #define BIO_INLINE_VECS 4
 struct bio_vec *bvec_alloc(mempool_t *pool, unsigned short *nr_vecs,
 		gfp_t gfp_mask);
