@@ -1116,15 +1116,9 @@ static void __attach_mnt(struct mount *mnt, struct mount *parent)
  * @parent:  the parent
  * @mnt:     the new mount
  * @mp:      the new mountpoint
- * @beneath: whether to mount @mnt beneath or on top of @parent
  *
- * If @beneath is false, mount @mnt at @mp on @parent. Then attach @mnt
+ * Mount @mnt at @mp on @parent. Then attach @mnt
  * to @parent's child mount list and to @mount_hashtable.
- *
- * If @beneath is true, remove @mnt from its current parent and
- * mountpoint and mount it on @mp on @parent, and mount @parent on the
- * old parent and old mountpoint of @mnt. Finally, attach @parent to
- * @mnt_hashtable and @parent->mnt_parent->mnt_mounts.
  *
  * Note, when __attach_mnt() is called @mnt->mnt_parent already points
  * to the correct parent.
@@ -1133,18 +1127,9 @@ static void __attach_mnt(struct mount *mnt, struct mount *parent)
  *          to have been acquired in that order.
  */
 static void attach_mnt(struct mount *mnt, struct mount *parent,
-		       struct mountpoint *mp, bool beneath)
+		       struct mountpoint *mp)
 {
-	if (beneath)
-		mnt_set_mountpoint_beneath(mnt, parent, mp);
-	else
-		mnt_set_mountpoint(parent, mp, mnt);
-	/*
-	 * Note, @mnt->mnt_parent has to be used. If @mnt was mounted
-	 * beneath @parent then @mnt will need to be attached to
-	 * @parent's old parent, not @parent. IOW, @mnt->mnt_parent
-	 * isn't the same mount as @parent.
-	 */
+	mnt_set_mountpoint(parent, mp, mnt);
 	__attach_mnt(mnt, mnt->mnt_parent);
 }
 
@@ -1157,7 +1142,7 @@ void mnt_change_mountpoint(struct mount *parent, struct mountpoint *mp, struct m
 	hlist_del_init(&mnt->mnt_mp_list);
 	hlist_del_init_rcu(&mnt->mnt_hash);
 
-	attach_mnt(mnt, parent, mp, false);
+	attach_mnt(mnt, parent, mp);
 
 	put_mountpoint(old_mp);
 	mnt_add_count(old_parent, -1);
@@ -2295,7 +2280,7 @@ struct mount *copy_tree(struct mount *src_root, struct dentry *dentry,
 				goto out;
 			lock_mount_hash();
 			list_add_tail(&dst_mnt->mnt_list, &res->mnt_list);
-			attach_mnt(dst_mnt, dst_parent, src_parent->mnt_mp, false);
+			attach_mnt(dst_mnt, dst_parent, src_parent->mnt_mp);
 			unlock_mount_hash();
 		}
 	}
@@ -2743,10 +2728,12 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 	}
 
 	if (moving) {
-		if (beneath)
-			dest_mp = smp;
 		unhash_mnt(source_mnt);
-		attach_mnt(source_mnt, top_mnt, dest_mp, beneath);
+		if (beneath)
+			mnt_set_mountpoint_beneath(source_mnt, top_mnt, smp);
+		else
+			mnt_set_mountpoint(top_mnt, dest_mp, source_mnt);
+		__attach_mnt(source_mnt, source_mnt->mnt_parent);
 		mnt_notify_add(source_mnt);
 		touch_mnt_namespace(source_mnt->mnt_ns);
 	} else {
@@ -4827,9 +4814,9 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 		root_mnt->mnt.mnt_flags &= ~MNT_LOCKED;
 	}
 	/* mount old root on put_old */
-	attach_mnt(root_mnt, old_mnt, old_mp, false);
+	attach_mnt(root_mnt, old_mnt, old_mp);
 	/* mount new_root on / */
-	attach_mnt(new_mnt, root_parent, root_mp, false);
+	attach_mnt(new_mnt, root_parent, root_mp);
 	mnt_add_count(root_parent, -1);
 	touch_mnt_namespace(current->nsproxy->mnt_ns);
 	/* A moved mount should not expire automatically */
