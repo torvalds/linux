@@ -865,6 +865,7 @@ int amdgpu_userq_stop_sched_for_enforce_isolation(struct amdgpu_device *adev,
 	adev->userq_halt_for_enforce_isolation = true;
 	list_for_each_entry_safe(uqm, tmp, &adev->userq_mgr_list, list) {
 		cancel_delayed_work_sync(&uqm->resume_work);
+		mutex_lock(&uqm->userq_mutex);
 		idr_for_each_entry(&uqm->userq_idr, queue, queue_id) {
 			if (((queue->queue_type == AMDGPU_HW_IP_GFX) ||
 			     (queue->queue_type == AMDGPU_HW_IP_COMPUTE)) &&
@@ -874,6 +875,7 @@ int amdgpu_userq_stop_sched_for_enforce_isolation(struct amdgpu_device *adev,
 					ret = r;
 			}
 		}
+		mutex_unlock(&uqm->userq_mutex);
 	}
 	mutex_unlock(&adev->userq_mutex);
 	return ret;
@@ -897,6 +899,7 @@ int amdgpu_userq_start_sched_for_enforce_isolation(struct amdgpu_device *adev,
 		dev_warn(adev->dev, "userq scheduling already started!\n");
 	adev->userq_halt_for_enforce_isolation = false;
 	list_for_each_entry_safe(uqm, tmp, &adev->userq_mgr_list, list) {
+		mutex_lock(&uqm->userq_mutex);
 		idr_for_each_entry(&uqm->userq_idr, queue, queue_id) {
 			if (((queue->queue_type == AMDGPU_HW_IP_GFX) ||
 			     (queue->queue_type == AMDGPU_HW_IP_COMPUTE)) &&
@@ -906,6 +909,7 @@ int amdgpu_userq_start_sched_for_enforce_isolation(struct amdgpu_device *adev,
 					ret = r;
 			}
 		}
+		mutex_unlock(&uqm->userq_mutex);
 	}
 	mutex_unlock(&adev->userq_mutex);
 	return ret;
