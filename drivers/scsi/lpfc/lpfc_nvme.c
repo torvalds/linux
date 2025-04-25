@@ -2508,7 +2508,10 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				 "6031 RemotePort Registration failed "
 				 "err: %d, DID x%06x ref %u\n",
 				 ret, ndlp->nlp_DID, kref_read(&ndlp->kref));
-		lpfc_nlp_put(ndlp);
+
+		/* Only release reference if one was taken for this request */
+		if (!oldrport)
+			lpfc_nlp_put(ndlp);
 	}
 
 	return ret;
@@ -2614,7 +2617,8 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	 * clear any rport state until the transport calls back.
 	 */
 
-	if (ndlp->nlp_type & NLP_NVME_TARGET) {
+	if ((ndlp->nlp_type & NLP_NVME_TARGET) ||
+	    (remoteport->port_role & FC_PORT_ROLE_NVME_TARGET)) {
 		/* No concern about the role change on the nvme remoteport.
 		 * The transport will update it.
 		 */
