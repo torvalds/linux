@@ -103,12 +103,6 @@ static const struct file_operations fops_simulate_fw_crash = {
 	.llseek = default_llseek,
 };
 
-void ath12k_debugfs_pdev_create(struct ath12k_base *ab)
-{
-	debugfs_create_file("simulate_fw_crash", 0600, ab->debugfs_soc, ab,
-			    &fops_simulate_fw_crash);
-}
-
 static ssize_t ath12k_write_tpc_stats_type(struct file *file,
 					   const char __user *user_buf,
 					   size_t count, loff_t *ppos)
@@ -1025,6 +1019,199 @@ void ath12k_debugfs_op_vif_add(struct ieee80211_hw *hw,
 
 	debugfs_create_file("link_stats", 0400, vif->debugfs_dir, ahvif,
 			    &ath12k_fops_link_stats);
+}
+
+static ssize_t ath12k_debugfs_dump_device_dp_stats(struct file *file,
+						   char __user *user_buf,
+						   size_t count, loff_t *ppos)
+{
+	struct ath12k_base *ab = file->private_data;
+	struct ath12k_device_dp_stats *device_stats = &ab->device_stats;
+	int len = 0, i, j, ret;
+	struct ath12k *ar;
+	const int size = 4096;
+	static const char *rxdma_err[HAL_REO_ENTR_RING_RXDMA_ECODE_MAX] = {
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_OVERFLOW_ERR] = "Overflow",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_MPDU_LEN_ERR] = "MPDU len",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_FCS_ERR] = "FCS",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_DECRYPT_ERR] = "Decrypt",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_TKIP_MIC_ERR] = "TKIP MIC",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_UNECRYPTED_ERR] = "Unencrypt",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_MSDU_LEN_ERR] = "MSDU len",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_MSDU_LIMIT_ERR] = "MSDU limit",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_WIFI_PARSE_ERR] = "WiFi parse",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_AMSDU_PARSE_ERR] = "AMSDU parse",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_SA_TIMEOUT_ERR] = "SA timeout",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_DA_TIMEOUT_ERR] = "DA timeout",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_FLOW_TIMEOUT_ERR] = "Flow timeout",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_FLUSH_REQUEST_ERR] = "Flush req",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_AMSDU_FRAG_ERR] = "AMSDU frag",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_MULTICAST_ECHO_ERR] = "Multicast echo",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_AMSDU_MISMATCH_ERR] = "AMSDU mismatch",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_UNAUTH_WDS_ERR] = "Unauth WDS",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_GRPCAST_AMSDU_WDS_ERR] = "AMSDU or WDS"};
+
+	static const char *reo_err[HAL_REO_DEST_RING_ERROR_CODE_MAX] = {
+		[HAL_REO_DEST_RING_ERROR_CODE_DESC_ADDR_ZERO] = "Desc addr zero",
+		[HAL_REO_DEST_RING_ERROR_CODE_DESC_INVALID] = "Desc inval",
+		[HAL_REO_DEST_RING_ERROR_CODE_AMPDU_IN_NON_BA] =  "AMPDU in non BA",
+		[HAL_REO_DEST_RING_ERROR_CODE_NON_BA_DUPLICATE] = "Non BA dup",
+		[HAL_REO_DEST_RING_ERROR_CODE_BA_DUPLICATE] = "BA dup",
+		[HAL_REO_DEST_RING_ERROR_CODE_FRAME_2K_JUMP] = "Frame 2k jump",
+		[HAL_REO_DEST_RING_ERROR_CODE_BAR_2K_JUMP] = "BAR 2k jump",
+		[HAL_REO_DEST_RING_ERROR_CODE_FRAME_OOR] = "Frame OOR",
+		[HAL_REO_DEST_RING_ERROR_CODE_BAR_OOR] = "BAR OOR",
+		[HAL_REO_DEST_RING_ERROR_CODE_NO_BA_SESSION] = "No BA session",
+		[HAL_REO_DEST_RING_ERROR_CODE_FRAME_SN_EQUALS_SSN] = "Frame SN equal SSN",
+		[HAL_REO_DEST_RING_ERROR_CODE_PN_CHECK_FAILED] = "PN check fail",
+		[HAL_REO_DEST_RING_ERROR_CODE_2K_ERR_FLAG_SET] = "2k err",
+		[HAL_REO_DEST_RING_ERROR_CODE_PN_ERR_FLAG_SET] = "PN err",
+		[HAL_REO_DEST_RING_ERROR_CODE_DESC_BLOCKED] = "Desc blocked"};
+
+	static const char *wbm_rel_src[HAL_WBM_REL_SRC_MODULE_MAX] = {
+		[HAL_WBM_REL_SRC_MODULE_TQM] = "TQM",
+		[HAL_WBM_REL_SRC_MODULE_RXDMA] = "Rxdma",
+		[HAL_WBM_REL_SRC_MODULE_REO] = "Reo",
+		[HAL_WBM_REL_SRC_MODULE_FW] = "FW",
+		[HAL_WBM_REL_SRC_MODULE_SW] = "SW"};
+
+	char *buf __free(kfree) = kzalloc(size, GFP_KERNEL);
+
+	if (!buf)
+		return -ENOMEM;
+
+	len += scnprintf(buf + len, size - len, "DEVICE RX STATS:\n\n");
+	len += scnprintf(buf + len, size - len, "err ring pkts: %u\n",
+			 device_stats->err_ring_pkts);
+	len += scnprintf(buf + len, size - len, "Invalid RBM: %u\n\n",
+			 device_stats->invalid_rbm);
+	len += scnprintf(buf + len, size - len, "RXDMA errors:\n");
+
+	for (i = 0; i < HAL_REO_ENTR_RING_RXDMA_ECODE_MAX; i++)
+		len += scnprintf(buf + len, size - len, "%s: %u\n",
+				 rxdma_err[i], device_stats->rxdma_error[i]);
+
+	len += scnprintf(buf + len, size - len, "\nREO errors:\n");
+
+	for (i = 0; i < HAL_REO_DEST_RING_ERROR_CODE_MAX; i++)
+		len += scnprintf(buf + len, size - len, "%s: %u\n",
+				 reo_err[i], device_stats->reo_error[i]);
+
+	len += scnprintf(buf + len, size - len, "\nHAL REO errors:\n");
+
+	for (i = 0; i < DP_REO_DST_RING_MAX; i++)
+		len += scnprintf(buf + len, size - len,
+				 "ring%d: %u\n", i,
+				 device_stats->hal_reo_error[i]);
+
+	len += scnprintf(buf + len, size - len, "\nDEVICE TX STATS:\n");
+	len += scnprintf(buf + len, size - len, "\nTCL Ring Full Failures:\n");
+
+	for (i = 0; i < DP_TCL_NUM_RING_MAX; i++)
+		len += scnprintf(buf + len, size - len, "ring%d: %u\n",
+				 i, device_stats->tx_err.desc_na[i]);
+
+	len += scnprintf(buf + len, size - len,
+			 "\nMisc Transmit Failures: %d\n",
+			 atomic_read(&device_stats->tx_err.misc_fail));
+
+	len += scnprintf(buf + len, size - len, "\ntx_wbm_rel_source:");
+
+	for (i = 0; i < HAL_WBM_REL_SRC_MODULE_MAX; i++)
+		len += scnprintf(buf + len, size - len, " %d:%u",
+				 i, device_stats->tx_wbm_rel_source[i]);
+
+	len += scnprintf(buf + len, size - len, "\n");
+
+	len += scnprintf(buf + len, size - len, "\ntqm_rel_reason:");
+
+	for (i = 0; i < MAX_TQM_RELEASE_REASON; i++)
+		len += scnprintf(buf + len, size - len, " %d:%u",
+				 i, device_stats->tqm_rel_reason[i]);
+
+	len += scnprintf(buf + len, size - len, "\n");
+
+	len += scnprintf(buf + len, size - len, "\nfw_tx_status:");
+
+	for (i = 0; i < MAX_FW_TX_STATUS; i++)
+		len += scnprintf(buf + len, size - len, " %d:%u",
+				 i, device_stats->fw_tx_status[i]);
+
+	len += scnprintf(buf + len, size - len, "\n");
+
+	len += scnprintf(buf + len, size - len, "\ntx_enqueued:");
+
+	for (i = 0; i < DP_TCL_NUM_RING_MAX; i++)
+		len += scnprintf(buf + len, size - len, " %d:%u", i,
+				 device_stats->tx_enqueued[i]);
+
+	len += scnprintf(buf + len, size - len, "\n");
+
+	len += scnprintf(buf + len, size - len, "\ntx_completed:");
+
+	for (i = 0; i < DP_TCL_NUM_RING_MAX; i++)
+		len += scnprintf(buf + len, size - len, " %d:%u",
+				 i, device_stats->tx_completed[i]);
+
+	len += scnprintf(buf + len, size - len, "\n");
+
+	for (i = 0; i < ab->num_radios; i++) {
+		ar = ath12k_mac_get_ar_by_pdev_id(ab, DP_SW2HW_MACID(i));
+		if (ar) {
+			len += scnprintf(buf + len, size - len,
+					"\nradio%d tx_pending: %u\n", i,
+					atomic_read(&ar->dp.num_tx_pending));
+		}
+	}
+
+	len += scnprintf(buf + len, size - len, "\nREO Rx Received:\n");
+
+	for (i = 0; i < DP_REO_DST_RING_MAX; i++) {
+		len += scnprintf(buf + len, size - len, "Ring%d:", i + 1);
+
+		for (j = 0; j < ATH12K_MAX_DEVICES; j++) {
+			len += scnprintf(buf + len, size - len,
+					"\t%d:%u", j,
+					 device_stats->reo_rx[i][j]);
+		}
+
+		len += scnprintf(buf + len, size - len, "\n");
+	}
+
+	len += scnprintf(buf + len, size - len, "\nRx WBM REL SRC Errors:\n");
+
+	for (i = 0; i < HAL_WBM_REL_SRC_MODULE_MAX; i++) {
+		len += scnprintf(buf + len, size - len, "%s:", wbm_rel_src[i]);
+
+		for (j = 0; j < ATH12K_MAX_DEVICES; j++) {
+			len += scnprintf(buf + len,
+					 size - len,
+					 "\t%d:%u", j,
+					 device_stats->rx_wbm_rel_source[i][j]);
+		}
+
+		len += scnprintf(buf + len, size - len, "\n");
+	}
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+
+	return ret;
+}
+
+static const struct file_operations fops_device_dp_stats = {
+	.read = ath12k_debugfs_dump_device_dp_stats,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+void ath12k_debugfs_pdev_create(struct ath12k_base *ab)
+{
+	debugfs_create_file("simulate_fw_crash", 0600, ab->debugfs_soc, ab,
+			    &fops_simulate_fw_crash);
+
+	debugfs_create_file("device_dp_stats", 0400, ab->debugfs_soc, ab,
+			    &fops_device_dp_stats);
 }
 
 void ath12k_debugfs_soc_create(struct ath12k_base *ab)
