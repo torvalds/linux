@@ -251,9 +251,9 @@ void *acpi_os_acquire_object(struct acpi_memory_list *cache)
 	} else {
 		/* The cache is empty, create a new object */
 
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
 		ACPI_MEM_TRACKING(cache->total_allocated++);
 
-#ifdef ACPI_DBG_TRACK_ALLOCATIONS
 		if ((cache->total_allocated - cache->total_freed) >
 		    cache->max_occupied) {
 			cache->max_occupied =
