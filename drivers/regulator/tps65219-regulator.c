@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// Regulator driver for TPS65215/TPS65219 PMIC
+// TPS65214/TPS65215/TPS65219 PMIC Regulator Driver
 //
 // Copyright (C) 2022 BayLibre Incorporated - https://www.baylibre.com/
 // Copyright (C) 2024 Texas Instruments Incorporated - https://www.ti.com/
@@ -29,6 +29,11 @@ struct tps65219_regulator_irq_type {
 	unsigned long event;
 };
 
+static struct tps65219_regulator_irq_type tps65215_regulator_irq_types[] = {
+	{ "SENSOR_3_WARM", "SENSOR3", "warm temperature", REGULATOR_EVENT_OVER_TEMP_WARN},
+	{ "SENSOR_3_HOT", "SENSOR3", "hot temperature", REGULATOR_EVENT_OVER_TEMP},
+};
+
 static struct tps65219_regulator_irq_type tps65219_regulator_irq_types[] = {
 	{ "LDO3_SCG", "LDO3", "short circuit to ground", REGULATOR_EVENT_REGULATION_OUT },
 	{ "LDO3_OC", "LDO3", "overcurrent", REGULATOR_EVENT_OVER_CURRENT },
@@ -40,9 +45,11 @@ static struct tps65219_regulator_irq_type tps65219_regulator_irq_types[] = {
 	{ "LDO4_RV", "LDO4", "residual voltage", REGULATOR_EVENT_OVER_VOLTAGE_WARN },
 	{ "LDO3_RV_SD", "LDO3", "residual voltage on shutdown", REGULATOR_EVENT_OVER_VOLTAGE_WARN },
 	{ "LDO4_RV_SD", "LDO4", "residual voltage on shutdown", REGULATOR_EVENT_OVER_VOLTAGE_WARN },
+	{ "SENSOR_3_WARM", "SENSOR3", "warm temperature", REGULATOR_EVENT_OVER_TEMP_WARN},
+	{ "SENSOR_3_HOT", "SENSOR3", "hot temperature", REGULATOR_EVENT_OVER_TEMP},
 };
 
-/*  All of TPS65215's irq types are the same as common_regulator_irq_types */
+/*  All of TPS65214's irq types are the same as common_regulator_irq_types */
 static struct tps65219_regulator_irq_type common_regulator_irq_types[] = {
 	{ "LDO1_SCG", "LDO1", "short circuit to ground", REGULATOR_EVENT_REGULATION_OUT },
 	{ "LDO1_OC", "LDO1", "overcurrent", REGULATOR_EVENT_OVER_CURRENT },
@@ -75,11 +82,9 @@ static struct tps65219_regulator_irq_type common_regulator_irq_types[] = {
 	 REGULATOR_EVENT_OVER_VOLTAGE_WARN },
 	{ "LDO1_RV_SD", "LDO1", "residual voltage on shutdown", REGULATOR_EVENT_OVER_VOLTAGE_WARN },
 	{ "LDO2_RV_SD", "LDO2", "residual voltage on shutdown", REGULATOR_EVENT_OVER_VOLTAGE_WARN },
-	{ "SENSOR_3_WARM", "SENSOR3", "warm temperature", REGULATOR_EVENT_OVER_TEMP_WARN},
 	{ "SENSOR_2_WARM", "SENSOR2", "warm temperature", REGULATOR_EVENT_OVER_TEMP_WARN },
 	{ "SENSOR_1_WARM", "SENSOR1", "warm temperature", REGULATOR_EVENT_OVER_TEMP_WARN },
 	{ "SENSOR_0_WARM", "SENSOR0", "warm temperature", REGULATOR_EVENT_OVER_TEMP_WARN },
-	{ "SENSOR_3_HOT", "SENSOR3", "hot temperature", REGULATOR_EVENT_OVER_TEMP},
 	{ "SENSOR_2_HOT", "SENSOR2", "hot temperature", REGULATOR_EVENT_OVER_TEMP },
 	{ "SENSOR_1_HOT", "SENSOR1", "hot temperature", REGULATOR_EVENT_OVER_TEMP },
 	{ "SENSOR_0_HOT", "SENSOR0", "hot temperature", REGULATOR_EVENT_OVER_TEMP },
@@ -131,6 +136,12 @@ static const struct linear_range bucks_ranges[] = {
 static const struct linear_range ldo_1_range[] = {
 	REGULATOR_LINEAR_RANGE(600000, 0x0, 0x37, 50000),
 	REGULATOR_LINEAR_RANGE(3400000, 0x38, 0x3f, 0),
+};
+
+static const struct linear_range tps65214_ldo_1_2_range[] = {
+	REGULATOR_LINEAR_RANGE(600000, 0x0, 0x2, 0),
+	REGULATOR_LINEAR_RANGE(650000, 0x3, 0x37, 50000),
+	REGULATOR_LINEAR_RANGE(3300000, 0x38, 0x3F, 0),
 };
 
 static const struct linear_range tps65215_ldo_2_range[] = {
@@ -251,6 +262,32 @@ static const struct regulator_desc common_regs[] = {
 			   TPS65219_REG_ENABLE_CTRL,
 			   TPS65219_ENABLE_BUCK3_EN_MASK, 0, 0, bucks_ranges,
 			   3, 0, 0, NULL, 0, 0),
+};
+
+static const struct regulator_desc tps65214_regs[] = {
+	// TPS65214's LDO3 pin maps to TPS65219's LDO3 pin
+	TPS65219_REGULATOR("LDO1", "ldo1", TPS65214_LDO_1,
+			   REGULATOR_VOLTAGE, ldos_3_4_ops, 64,
+			   TPS65214_REG_LDO1_VOUT,
+			   TPS65219_BUCKS_LDOS_VOUT_VSET_MASK,
+			   TPS65219_REG_ENABLE_CTRL,
+			   TPS65219_ENABLE_LDO3_EN_MASK, 0, 0, tps65214_ldo_1_2_range,
+			   3, 0, 0, NULL, 0, 0),
+	TPS65219_REGULATOR("LDO2", "ldo2", TPS65214_LDO_2,
+			   REGULATOR_VOLTAGE, ldos_3_4_ops, 64,
+			   TPS65214_REG_LDO2_VOUT,
+			   TPS65219_BUCKS_LDOS_VOUT_VSET_MASK,
+			   TPS65219_REG_ENABLE_CTRL,
+			   TPS65219_ENABLE_LDO2_EN_MASK, 0, 0, tps65214_ldo_1_2_range,
+			   3, 0, 0, NULL, 0, 0),
+};
+
+static const struct regulator_desc tps65215_regs[] = {
+	/*
+	 *  TPS65215's LDO1 is the same as TPS65219's LDO1. LDO1 is
+	 *  configurable as load switch and bypass-mode.
+	 *  TPS65215's LDO2 is the same as TPS65219's LDO3
+	 */
 	TPS65219_REGULATOR("LDO1", "ldo1", TPS65219_LDO_1,
 			   REGULATOR_VOLTAGE, ldos_1_2_ops, 64,
 			   TPS65219_REG_LDO1_VOUT,
@@ -258,10 +295,6 @@ static const struct regulator_desc common_regs[] = {
 			   TPS65219_REG_ENABLE_CTRL,
 			   TPS65219_ENABLE_LDO1_EN_MASK, 0, 0, ldo_1_range,
 			   2, 0, 0, NULL, 0, TPS65219_LDOS_BYP_CONFIG_MASK),
-};
-
-static const struct regulator_desc tps65215_regs[] = {
-	// TPS65215's LDO2 is the same as TPS65219's LDO3
 	TPS65219_REGULATOR("LDO2", "ldo2", TPS65215_LDO_2,
 			   REGULATOR_VOLTAGE, ldos_3_4_ops, 64,
 			   TPS65215_REG_LDO2_VOUT,
@@ -272,6 +305,13 @@ static const struct regulator_desc tps65215_regs[] = {
 };
 
 static const struct regulator_desc tps65219_regs[] = {
+	TPS65219_REGULATOR("LDO1", "ldo1", TPS65219_LDO_1,
+			   REGULATOR_VOLTAGE, ldos_1_2_ops, 64,
+			   TPS65219_REG_LDO1_VOUT,
+			   TPS65219_BUCKS_LDOS_VOUT_VSET_MASK,
+			   TPS65219_REG_ENABLE_CTRL,
+			   TPS65219_ENABLE_LDO1_EN_MASK, 0, 0, ldo_1_range,
+			   2, 0, 0, NULL, 0, TPS65219_LDOS_BYP_CONFIG_MASK),
 	TPS65219_REGULATOR("LDO2", "ldo2", TPS65219_LDO_2,
 			   REGULATOR_VOLTAGE, ldos_1_2_ops, 64,
 			   TPS65219_REG_LDO2_VOUT,
@@ -326,13 +366,23 @@ struct tps65219_chip_data {
 };
 
 static struct tps65219_chip_data chip_info_table[] = {
+	[TPS65214] = {
+		.rdesc = tps65214_regs,
+		.rdesc_size = ARRAY_SIZE(tps65214_regs),
+		.common_rdesc = common_regs,
+		.common_rdesc_size = ARRAY_SIZE(common_regs),
+		.irq_types = NULL,
+		.dev_irq_size = 0,
+		.common_irq_types = common_regulator_irq_types,
+		.common_irq_size = ARRAY_SIZE(common_regulator_irq_types),
+	},
 	[TPS65215] = {
 		.rdesc = tps65215_regs,
 		.rdesc_size = ARRAY_SIZE(tps65215_regs),
 		.common_rdesc = common_regs,
 		.common_rdesc_size = ARRAY_SIZE(common_regs),
-		.irq_types = NULL,
-		.dev_irq_size = 0,
+		.irq_types = tps65215_regulator_irq_types,
+		.dev_irq_size = ARRAY_SIZE(tps65215_regulator_irq_types),
 		.common_irq_types = common_regulator_irq_types,
 		.common_irq_size = ARRAY_SIZE(common_regulator_irq_types),
 	},
@@ -436,6 +486,7 @@ static int tps65219_regulator_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id tps65219_regulator_id_table[] = {
+	{ "tps65214-regulator", TPS65214 },
 	{ "tps65215-regulator", TPS65215 },
 	{ "tps65219-regulator", TPS65219 },
 	{ /* sentinel */ }
@@ -454,5 +505,5 @@ static struct platform_driver tps65219_regulator_driver = {
 module_platform_driver(tps65219_regulator_driver);
 
 MODULE_AUTHOR("Jerome Neanne <j-neanne@baylibre.com>");
-MODULE_DESCRIPTION("TPS65215/TPS65219 voltage regulator driver");
+MODULE_DESCRIPTION("TPS65214/TPS65215/TPS65219 Regulator driver");
 MODULE_LICENSE("GPL");
