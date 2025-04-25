@@ -43,7 +43,7 @@
 // - RISC-V Vector SM3 Secure Hash extension ('Zvksh')
 // - RISC-V Vector Cryptography Bit-manipulation extension ('Zvkb')
 
-#include <linux/cfi_types.h>
+#include <linux/linkage.h>
 
 .text
 .option arch, +zvksh, +zvkb
@@ -81,7 +81,7 @@
 .endm
 
 // void sm3_transform_zvksh_zvkb(u32 state[8], const u8 *data, int num_blocks);
-SYM_TYPED_FUNC_START(sm3_transform_zvksh_zvkb)
+SYM_FUNC_START(sm3_transform_zvksh_zvkb)
 
 	// Load the state and endian-swap each 32-bit word.
 	vsetivli	zero, 8, e32, m2, ta, ma

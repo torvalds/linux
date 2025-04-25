@@ -43,7 +43,7 @@
 // - RISC-V Vector SHA-2 Secure Hash extension ('Zvknha' or 'Zvknhb')
 // - RISC-V Vector Cryptography Bit-manipulation extension ('Zvkb')
 
-#include <linux/cfi_types.h>
+#include <linux/linkage.h>
 
 .text
 .option arch, +zvknha, +zvkb
@@ -108,7 +108,7 @@
 
 // void sha256_transform_zvknha_or_zvknhb_zvkb(u32 state[8], const u8 *data,
 //					       int num_blocks);
-SYM_TYPED_FUNC_START(sha256_transform_zvknha_or_zvknhb_zvkb)
+SYM_FUNC_START(sha256_transform_zvknha_or_zvknhb_zvkb)
 
 	// Load the round constants into K0-K15.
 	vsetivli	zero, 4, e32, m1, ta, ma
