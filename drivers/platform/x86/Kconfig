@@ -1224,6 +1224,8 @@ config OXP_EC
 		reasons, this driver also provides hwmon functionality to Ayaneo
 		devices and the OrangePi Neo.
 
+source "drivers/platform/x86/tuxedo/Kconfig"
+
 endif # X86_PLATFORM_DEVICES
 
 config P2SB

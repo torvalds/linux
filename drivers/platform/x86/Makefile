@@ -152,6 +152,9 @@ obj-$(CONFIG_SIEMENS_SIMATIC_IPC)	+= siemens/
 # Silicom
 obj-$(CONFIG_SILICOM_PLATFORM)		+= silicom-platform.o
 
+# TUXEDO
+obj-y					+= tuxedo/
+
 # Winmate
 obj-$(CONFIG_WINMATE_FM07_KEYS)		+= winmate-fm07-keys.o
 
