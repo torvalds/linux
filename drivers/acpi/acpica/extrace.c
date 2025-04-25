@@ -149,6 +149,57 @@ acpi_ex_trace_point(acpi_trace_event_type type,
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ex_trace_args
+ *
+ * PARAMETERS:  params            - AML method arguments
+ *              count             - numer of method arguments
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Trace any arguments
+ *
+ ******************************************************************************/
+
+void
+acpi_ex_trace_args(union acpi_operand_object **params, u32 count)
+{
+	u32 i;
+
+	ACPI_FUNCTION_NAME(ex_trace_args);
+
+	for (i = 0; i < count; i++) {
+		union acpi_operand_object *obj_desc = params[i];
+
+		if (!i) {
+			ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT, " "));
+		}
+
+		switch (obj_desc->common.type) {
+		case ACPI_TYPE_INTEGER:
+			ACPI_DEBUG_PRINT_RAW((ACPI_DB_TRACE_POINT, "%llx", obj_desc->integer.value));
+			break;
+		case ACPI_TYPE_STRING:
+			if (!obj_desc->string.length) {
+				ACPI_DEBUG_PRINT_RAW((ACPI_DB_TRACE_POINT, "NULL"));
+				continue;
+			}
+			if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_TRACE_POINT, _COMPONENT))
+				acpi_ut_print_string(obj_desc->string.pointer, ACPI_UINT8_MAX);
+			break;
+		default:
+			ACPI_DEBUG_PRINT_RAW((ACPI_DB_TRACE_POINT, "Unknown"));
+			break;
+		}
+		if (i+1 == count) {
+			ACPI_DEBUG_PRINT_RAW((ACPI_DB_TRACE_POINT, "\n"));
+		} else {
+			ACPI_DEBUG_PRINT_RAW((ACPI_DB_TRACE_POINT, ", "));
+		}
+	}
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ex_start_trace_method
  *
  * PARAMETERS:  method_node         - Node of the method
