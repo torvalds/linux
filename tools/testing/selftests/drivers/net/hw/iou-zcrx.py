@@ -8,10 +8,11 @@ from lib.py import NetDrvEpEnv
 from lib.py import bkg, cmd, defer, ethtool, wait_port_listen
 
 
-def _get_rx_ring_entries(cfg):
+def _get_current_settings(cfg):
     output = ethtool(f"-g {cfg.ifname}", host=cfg.remote).stdout
-    values = re.findall(r'RX:\s+(\d+)', output)
-    return int(values[1])
+    rx_ring = re.findall(r'RX:\s+(\d+)', output)
+    hds_thresh = re.findall(r'HDS thresh:\s+(\d+)', output)
+    return (int(rx_ring[1]), int(hds_thresh[1]))
 
 
 def _get_combined_channels(cfg):
@@ -32,11 +33,12 @@ def test_zcrx(cfg) -> None:
     combined_chans = _get_combined_channels(cfg)
     if combined_chans < 2:
         raise KsftSkipEx('at least 2 combined channels required')
-    rx_ring = _get_rx_ring_entries(cfg)
-
+    (rx_ring, hds_thresh) = _get_current_settings(cfg)
 
     ethtool(f"-G {cfg.ifname} tcp-data-split on", host=cfg.remote)
     defer(ethtool, f"-G {cfg.ifname} tcp-data-split auto", host=cfg.remote)
+    ethtool(f"-G {cfg.ifname} hds-thresh 0", host=cfg.remote)
+    defer(ethtool, f"-G {cfg.ifname} hds-thresh {hds_thresh}", host=cfg.remote)
     ethtool(f"-G {cfg.ifname} rx 64", host=cfg.remote)
     defer(ethtool, f"-G {cfg.ifname} rx {rx_ring}", host=cfg.remote)
     ethtool(f"-X {cfg.ifname} equal {combined_chans - 1}", host=cfg.remote)
@@ -57,10 +59,12 @@ def test_zcrx_oneshot(cfg) -> None:
     combined_chans = _get_combined_channels(cfg)
     if combined_chans < 2:
         raise KsftSkipEx('at least 2 combined channels required')
-    rx_ring = _get_rx_ring_entries(cfg)
+    (rx_ring, hds_thresh) = _get_current_settings(cfg)
 
     ethtool(f"-G {cfg.ifname} tcp-data-split on", host=cfg.remote)
     defer(ethtool, f"-G {cfg.ifname} tcp-data-split auto", host=cfg.remote)
+    ethtool(f"-G {cfg.ifname} hds-thresh 0", host=cfg.remote)
+    defer(ethtool, f"-G {cfg.ifname} hds-thresh {hds_thresh}", host=cfg.remote)
     ethtool(f"-G {cfg.ifname} rx 64", host=cfg.remote)
     defer(ethtool, f"-G {cfg.ifname} rx {rx_ring}", host=cfg.remote)
     ethtool(f"-X {cfg.ifname} equal {combined_chans - 1}", host=cfg.remote)
