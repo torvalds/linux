@@ -1029,8 +1029,7 @@ static inline struct ahash_request *ahash_request_on_stack_init(
 {
 	struct ahash_request *req = (void *)buf;
 
-	ahash_request_set_tfm(req, tfm);
-	req->base.flags = CRYPTO_TFM_REQ_ON_STACK;
+	crypto_stack_request_init(&req->base, crypto_ahash_tfm(tfm));
 	return req;
 }
 

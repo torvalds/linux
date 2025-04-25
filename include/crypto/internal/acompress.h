@@ -231,8 +231,8 @@ static inline struct acomp_req *acomp_fbreq_on_stack_init(
 	struct crypto_acomp *tfm = crypto_acomp_reqtfm(old);
 	struct acomp_req *req = (void *)buf;
 
-	acomp_request_set_tfm(req, crypto_acomp_fb(tfm));
-	req->base.flags = CRYPTO_TFM_REQ_ON_STACK;
+	crypto_stack_request_init(&req->base,
+				  crypto_acomp_tfm(crypto_acomp_fb(tfm)));
 	acomp_request_set_callback(req, acomp_request_flags(old), NULL, NULL);
 	req->base.flags &= ~CRYPTO_ACOMP_REQ_PRIVATE;
 	req->base.flags |= old->base.flags & CRYPTO_ACOMP_REQ_PRIVATE;

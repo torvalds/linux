@@ -547,8 +547,7 @@ static inline struct acomp_req *acomp_request_on_stack_init(
 {
 	struct acomp_req *req = (void *)buf;
 
-	acomp_request_set_tfm(req, tfm);
-	req->base.flags = CRYPTO_TFM_REQ_ON_STACK;
+	crypto_stack_request_init(&req->base, crypto_acomp_tfm(tfm));
 	return req;
 }
 
