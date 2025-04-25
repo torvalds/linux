@@ -1276,14 +1276,13 @@ static int uart_get_icount(struct tty_struct *tty,
 	struct uart_state *state = tty->driver_data;
 	struct uart_icount cnow;
 	struct uart_port *uport;
+	unsigned long flags;
 
-	uport = uart_port_ref(state);
+	uport = uart_port_ref_lock(state, &flags);
 	if (!uport)
 		return -EIO;
-	uart_port_lock_irq(uport);
 	memcpy(&cnow, &uport->icount, sizeof(struct uart_icount));
-	uart_port_unlock_irq(uport);
-	uart_port_deref(uport);
+	uart_port_unlock_deref(uport, flags);
 
 	icount->cts         = cnow.cts;
 	icount->dsr         = cnow.dsr;
@@ -1915,9 +1914,10 @@ static bool uart_carrier_raised(struct tty_port *port)
 {
 	struct uart_state *state = container_of(port, struct uart_state, port);
 	struct uart_port *uport;
+	unsigned long flags;
 	int mctrl;
 
-	uport = uart_port_ref(state);
+	uport = uart_port_ref_lock(state, &flags);
 	/*
 	 * Should never observe uport == NULL since checks for hangup should
 	 * abort the tty_port_block_til_ready() loop before checking for carrier
@@ -1926,11 +1926,9 @@ static bool uart_carrier_raised(struct tty_port *port)
 	 */
 	if (WARN_ON(!uport))
 		return true;
-	uart_port_lock_irq(uport);
 	uart_enable_ms(uport);
 	mctrl = uport->ops->get_mctrl(uport);
-	uart_port_unlock_irq(uport);
-	uart_port_deref(uport);
+	uart_port_unlock_deref(uport, flags);
 
 	return mctrl & TIOCM_CAR;
 }
