@@ -49,7 +49,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 
 		ctx->ddr = pcim_iomap(pci, 0, 0);
 		if (!ctx->ddr)
-			return -EINVAL;
+			return -ENOMEM;
 
 		dev_dbg(ctx->dev, "sst: DDR Ptr %p\n", ctx->ddr);
 	} else {
@@ -59,7 +59,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 	ctx->shim_phy_add = pci_resource_start(pci, 1);
 	ctx->shim = pcim_iomap(pci, 1, 0);
 	if (!ctx->shim)
-		return -EINVAL;
+		return -ENOMEM;
 
 	dev_dbg(ctx->dev, "SST Shim Ptr %p\n", ctx->shim);
 
@@ -67,7 +67,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 	ctx->mailbox_add = pci_resource_start(pci, 2);
 	ctx->mailbox = pcim_iomap(pci, 2, 0);
 	if (!ctx->mailbox)
-		return -EINVAL;
+		return -ENOMEM;
 
 	dev_dbg(ctx->dev, "SRAM Ptr %p\n", ctx->mailbox);
 
@@ -76,7 +76,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 	ctx->iram_base = pci_resource_start(pci, 3);
 	ctx->iram = pcim_iomap(pci, 3, 0);
 	if (!ctx->iram)
-		return -EINVAL;
+		return -ENOMEM;
 
 	dev_dbg(ctx->dev, "IRAM Ptr %p\n", ctx->iram);
 
@@ -85,7 +85,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 	ctx->dram_base = pci_resource_start(pci, 4);
 	ctx->dram = pcim_iomap(pci, 4, 0);
 	if (!ctx->dram)
-		return -EINVAL;
+		return -ENOMEM;
 
 	dev_dbg(ctx->dev, "DRAM Ptr %p\n", ctx->dram);
 	return 0;
