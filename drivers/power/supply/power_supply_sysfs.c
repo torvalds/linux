@@ -33,7 +33,7 @@ struct power_supply_attr {
 [POWER_SUPPLY_PROP_ ## _name] =			\
 {						\
 	.prop_name = #_name,			\
-	.attr_name = #_name "\0",		\
+	.attr_name = #_name,			\
 	.text_values = _text,			\
 	.text_values_len = _len,		\
 }

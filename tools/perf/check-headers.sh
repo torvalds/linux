@@ -20,6 +20,7 @@ FILES=(
   "include/uapi/linux/stat.h"
   "include/linux/bits.h"
   "include/vdso/bits.h"
+  "include/linux/cfi_types.h"
   "include/linux/const.h"
   "include/vdso/const.h"
   "include/vdso/unaligned.h"

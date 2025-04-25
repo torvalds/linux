@@ -470,8 +470,8 @@ static void ivpu_job_destroy(struct ivpu_job *job)
 	struct ivpu_device *vdev = job->vdev;
 	u32 i;
 
-	ivpu_dbg(vdev, JOB, "Job destroyed: id %3u ctx %2d engine %d",
-		 job->job_id, job->file_priv->ctx.id, job->engine_idx);
+	ivpu_dbg(vdev, JOB, "Job destroyed: id %3u ctx %2d cmdq_id %u engine %d",
+		 job->job_id, job->file_priv->ctx.id, job->cmdq_id, job->engine_idx);
 
 	for (i = 0; i < job->bo_count; i++)
 		if (job->bos[i])
@@ -564,8 +564,8 @@ static int ivpu_job_signal_and_destroy(struct ivpu_device *vdev, u32 job_id, u32
 	dma_fence_signal(job->done_fence);
 
 	trace_job("done", job);
-	ivpu_dbg(vdev, JOB, "Job complete:  id %3u ctx %2d engine %d status 0x%x\n",
-		 job->job_id, job->file_priv->ctx.id, job->engine_idx, job_status);
+	ivpu_dbg(vdev, JOB, "Job complete:  id %3u ctx %2d cmdq_id %u engine %d status 0x%x\n",
+		 job->job_id, job->file_priv->ctx.id, job->cmdq_id, job->engine_idx, job_status);
 
 	ivpu_job_destroy(job);
 	ivpu_stop_job_timeout_detection(vdev);
@@ -664,8 +664,8 @@ static int ivpu_job_submit(struct ivpu_job *job, u8 priority, u32 cmdq_id)
 	}
 
 	trace_job("submit", job);
-	ivpu_dbg(vdev, JOB, "Job submitted: id %3u ctx %2d engine %d prio %d addr 0x%llx next %d\n",
-		 job->job_id, file_priv->ctx.id, job->engine_idx, cmdq->priority,
+	ivpu_dbg(vdev, JOB, "Job submitted: id %3u ctx %2d cmdq_id %u engine %d prio %d addr 0x%llx next %d\n",
+		 job->job_id, file_priv->ctx.id, cmdq->id, job->engine_idx, cmdq->priority,
 		 job->cmd_buf_vpu_addr, cmdq->jobq->header.tail);
 
 	mutex_unlock(&file_priv->lock);
@@ -777,7 +777,8 @@ static int ivpu_submit(struct drm_file *file, struct ivpu_file_priv *file_priv, 
 		goto err_free_handles;
 	}
 
-	ivpu_dbg(vdev, JOB, "Submit ioctl: ctx %u buf_count %u\n", file_priv->ctx.id, buffer_count);
+	ivpu_dbg(vdev, JOB, "Submit ioctl: ctx %u cmdq_id %u buf_count %u\n",
+		 file_priv->ctx.id, cmdq_id, buffer_count);
 
 	job = ivpu_job_create(file_priv, engine, buffer_count);
 	if (!job) {

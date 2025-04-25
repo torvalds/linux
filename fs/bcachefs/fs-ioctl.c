@@ -69,7 +69,7 @@ static int bch2_inode_flags_set(struct btree_trans *trans,
 		if (ret < 0)
 			return ret;
 
-		ret = bch2_request_incompat_feature(c,bcachefs_metadata_version_casefolding);
+		ret = bch2_request_incompat_feature(c, bcachefs_metadata_version_casefolding);
 		if (ret)
 			return ret;
 

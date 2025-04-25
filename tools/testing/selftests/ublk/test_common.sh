@@ -30,18 +30,26 @@ _run_fio_verify_io() {
 }
 
 _create_backfile() {
-	local my_size=$1
-	local my_file
+	local index=$1
+	local new_size=$2
+	local old_file
+	local new_file
 
-	my_file=$(mktemp ublk_file_"${my_size}"_XXXXX)
-	truncate -s "${my_size}" "${my_file}"
-	echo "$my_file"
+	old_file="${UBLK_BACKFILES[$index]}"
+	[ -f "$old_file" ] && rm -f "$old_file"
+
+	new_file=$(mktemp ublk_file_"${new_size}"_XXXXX)
+	truncate -s "${new_size}" "${new_file}"
+	UBLK_BACKFILES["$index"]="$new_file"
 }
 
-_remove_backfile() {
-	local file=$1
+_remove_files() {
+	local file
 
-	[ -f "$file" ] && rm -f "$file"
+	for file in "${UBLK_BACKFILES[@]}"; do
+		[ -f "$file" ] && rm -f "$file"
+	done
+	[ -f "$UBLK_TMP" ] && rm -f "$UBLK_TMP"
 }
 
 _create_tmp_dir() {
@@ -106,6 +114,7 @@ _prep_test() {
 	local type=$1
 	shift 1
 	modprobe ublk_drv > /dev/null 2>&1
+	UBLK_TMP=$(mktemp ublk_test_XXXXX)
 	[ "$UBLK_TEST_QUIET" -eq 0 ] && echo "ublk $type: $*"
 }
 
@@ -129,7 +138,10 @@ _show_result()
 			echo "$1 : [FAIL]"
 		fi
 	fi
-	[ "$2" -ne 0 ] && exit "$2"
+	if [ "$2" -ne 0 ]; then
+		_remove_files
+		exit "$2"
+	fi
 	return 0
 }
 
@@ -138,16 +150,16 @@ _check_add_dev()
 {
 	local tid=$1
 	local code=$2
-	shift 2
+
 	if [ "${code}" -ne 0 ]; then
-		_remove_test_files "$@"
 		_show_result "${tid}" "${code}"
 	fi
 }
 
 _cleanup_test() {
 	"${UBLK_PROG}" del -a
-	rm -f "$UBLK_TMP"
+
+	_remove_files
 }
 
 _have_feature()
@@ -158,9 +170,11 @@ _have_feature()
 	return 1
 }
 
-_add_ublk_dev() {
-	local kublk_temp;
+_create_ublk_dev() {
 	local dev_id;
+	local cmd=$1
+
+	shift 1
 
 	if [ ! -c /dev/ublk-control ]; then
 		return ${UBLK_SKIP_CODE}
@@ -171,17 +185,34 @@ _add_ublk_dev() {
 		fi
 	fi
 
-	kublk_temp=$(mktemp /tmp/kublk-XXXXXX)
-	if ! "${UBLK_PROG}" add "$@" > "${kublk_temp}" 2>&1; then
+	if ! dev_id=$("${UBLK_PROG}" "$cmd" "$@" | grep "dev id" | awk -F '[ :]' '{print $3}'); then
 		echo "fail to add ublk dev $*"
-		rm -f "${kublk_temp}"
 		return 255
 	fi
-
-	dev_id=$(grep "dev id" "${kublk_temp}" | awk -F '[ :]' '{print $3}')
 	udevadm settle
-	rm -f "${kublk_temp}"
-	echo "${dev_id}"
+
+	if [[ "$dev_id" =~ ^[0-9]+$ ]]; then
+		echo "${dev_id}"
+	else
+		return 255
+	fi
+}
+
+_add_ublk_dev() {
+	_create_ublk_dev "add" "$@"
+}
+
+_recover_ublk_dev() {
+	local dev_id
+	local state
+
+	dev_id=$(_create_ublk_dev "recover" "$@")
+	for ((j=0;j<20;j++)); do
+		state=$(_get_ublk_dev_state "${dev_id}")
+		[ "$state" == "LIVE" ] && break
+		sleep 1
+	done
+	echo "$state"
 }
 
 # kill the ublk daemon and return ublk device state
@@ -220,7 +251,7 @@ __run_io_and_remove()
 	local kill_server=$3
 
 	fio --name=job1 --filename=/dev/ublkb"${dev_id}" --ioengine=libaio \
-		--rw=readwrite --iodepth=64 --size="${size}" --numjobs=4 \
+		--rw=readwrite --iodepth=256 --size="${size}" --numjobs=4 \
 		--runtime=20 --time_based > /dev/null 2>&1 &
 	sleep 2
 	if [ "${kill_server}" = "yes" ]; then
@@ -238,15 +269,80 @@ __run_io_and_remove()
 	wait
 }
 
+run_io_and_remove()
+{
+	local size=$1
+	local dev_id
+	shift 1
+
+	dev_id=$(_add_ublk_dev "$@")
+	_check_add_dev "$TID" $?
+
+	[ "$UBLK_TEST_QUIET" -eq 0 ] && echo "run ublk IO vs. remove device(ublk add $*)"
+	if ! __run_io_and_remove "$dev_id" "${size}" "no"; then
+		echo "/dev/ublkc$dev_id isn't removed"
+		exit 255
+	fi
+}
+
+run_io_and_kill_daemon()
+{
+	local size=$1
+	local dev_id
+	shift 1
+
+	dev_id=$(_add_ublk_dev "$@")
+	_check_add_dev "$TID" $?
+
+	[ "$UBLK_TEST_QUIET" -eq 0 ] && echo "run ublk IO vs kill ublk server(ublk add $*)"
+	if ! __run_io_and_remove "$dev_id" "${size}" "yes"; then
+		echo "/dev/ublkc$dev_id isn't removed res ${res}"
+		exit 255
+	fi
+}
+
+run_io_and_recover()
+{
+	local state
+	local dev_id
+
+	dev_id=$(_add_ublk_dev "$@")
+	_check_add_dev "$TID" $?
+
+	fio --name=job1 --filename=/dev/ublkb"${dev_id}" --ioengine=libaio \
+		--rw=readwrite --iodepth=256 --size="${size}" --numjobs=4 \
+		--runtime=20 --time_based > /dev/null 2>&1 &
+	sleep 4
+
+	state=$(__ublk_kill_daemon "${dev_id}" "QUIESCED")
+	if [ "$state" != "QUIESCED" ]; then
+		echo "device isn't quiesced($state) after killing daemon"
+		return 255
+	fi
+
+	state=$(_recover_ublk_dev -n "$dev_id" "$@")
+	if [ "$state" != "LIVE" ]; then
+		echo "faile to recover to LIVE($state)"
+		return 255
+	fi
+
+	if ! __remove_ublk_dev_return "${dev_id}"; then
+		echo "delete dev ${dev_id} failed"
+		return 255
+	fi
+	wait
+}
+
+
 _ublk_test_top_dir()
 {
 	cd "$(dirname "$0")" && pwd
 }
 
-UBLK_TMP=$(mktemp ublk_test_XXXXX)
 UBLK_PROG=$(_ublk_test_top_dir)/kublk
 UBLK_TEST_QUIET=1
 UBLK_TEST_SHOW_RESULT=1
+UBLK_BACKFILES=()
 export UBLK_PROG
 export UBLK_TEST_QUIET
 export UBLK_TEST_SHOW_RESULT

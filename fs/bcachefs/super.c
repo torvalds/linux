@@ -589,6 +589,7 @@ static void __bch2_fs_free(struct bch_fs *c)
 		free_percpu(c->online_reserved);
 	}
 
+	darray_exit(&c->incompat_versions_requested);
 	darray_exit(&c->btree_roots_extra);
 	free_percpu(c->pcpu);
 	free_percpu(c->usage);
@@ -1011,6 +1012,11 @@ static void print_mount_opts(struct bch_fs *c)
 		prt_str(&p, first ? " opts=" : ",");
 		first = false;
 		bch2_opt_to_text(&p, c, c->disk_sb.sb, opt, v, OPT_SHOW_MOUNT_STYLE);
+	}
+
+	if (c->sb.version_incompat_allowed != c->sb.version) {
+		prt_printf(&p, "\n  allowing incompatible features above ");
+		bch2_version_to_text(&p, c->sb.version_incompat_allowed);
 	}
 
 	bch_info(c, "%s", p.buf);
@@ -1757,7 +1763,8 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 	up_write(&c->state_lock);
 	return 0;
 err:
-	if (ca->mi.state == BCH_MEMBER_STATE_rw &&
+	if (test_bit(BCH_FS_rw, &c->flags) &&
+	    ca->mi.state == BCH_MEMBER_STATE_rw &&
 	    !percpu_ref_is_zero(&ca->io_ref[READ]))
 		__bch2_dev_read_write(c, ca);
 	up_write(&c->state_lock);
