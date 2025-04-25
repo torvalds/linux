@@ -4,7 +4,7 @@
 #ifndef _PDS_CORE_ADMINQ_H_
 #define _PDS_CORE_ADMINQ_H_
 
-#define PDSC_ADMINQ_MAX_POLL_INTERVAL	256
+#define PDSC_ADMINQ_MAX_POLL_INTERVAL	256000	/* usecs */
 
 enum pds_core_adminq_flags {
 	PDS_AQ_FLAG_FASTPOLL	= BIT(1),	/* completion poll at 1ms */
