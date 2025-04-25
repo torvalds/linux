@@ -2334,11 +2334,15 @@ enum dc_status dc_commit_streams(struct dc *dc, struct dc_commit_streams_params 
 	for (i = 0; i < params->stream_count; i++) {
 		struct dc_stream_state *stream = params->streams[i];
 		struct dc_stream_status *status = dc_stream_get_status(stream);
+		struct dc_sink *sink = stream->sink;
 
 		/* revalidate streams */
-		res = dc_validate_stream(dc, stream);
-		if (res != DC_OK)
-			return res;
+		if (!dc_is_virtual_signal(sink->sink_signal)) {
+			res = dc_validate_stream(dc, stream);
+			if (res != DC_OK)
+				return res;
+		}
+
 
 		dc_stream_log(dc, stream);
 
