@@ -1327,4 +1327,8 @@ typedef enum {
 #define ACPI_FLEX_ARRAY(TYPE, NAME)     TYPE NAME[0]
 #endif
 
+#ifndef ACPI_NONSTRING
+#define ACPI_NONSTRING		/* No terminating NUL character */
+#endif
+
 #endif				/* __ACTYPES_H__ */
