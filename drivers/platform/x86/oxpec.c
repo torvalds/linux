@@ -64,36 +64,36 @@ static enum oxp_board board;
 static struct device *oxp_dev;
 
 /* Fan reading and PWM */
-#define OXP_SENSOR_FAN_REG             0x76 /* Fan reading is 2 registers long */
-#define OXP_2_SENSOR_FAN_REG           0x58 /* Fan reading is 2 registers long */
-#define OXP_SENSOR_PWM_ENABLE_REG      0x4A /* PWM enable is 1 register long */
-#define OXP_SENSOR_PWM_REG             0x4B /* PWM reading is 1 register long */
-#define PWM_MODE_AUTO                  0x00
-#define PWM_MODE_MANUAL                0x01
+#define OXP_SENSOR_FAN_REG		0x76 /* Fan reading is 2 registers long */
+#define OXP_2_SENSOR_FAN_REG		0x58 /* Fan reading is 2 registers long */
+#define OXP_SENSOR_PWM_ENABLE_REG	0x4A /* PWM enable is 1 register long */
+#define OXP_SENSOR_PWM_REG		0x4B /* PWM reading is 1 register long */
+#define PWM_MODE_AUTO			0x00
+#define PWM_MODE_MANUAL			0x01
 
 /* OrangePi fan reading and PWM */
-#define ORANGEPI_SENSOR_FAN_REG        0x78 /* Fan reading is 2 registers long */
-#define ORANGEPI_SENSOR_PWM_ENABLE_REG 0x40 /* PWM enable is 1 register long */
-#define ORANGEPI_SENSOR_PWM_REG        0x38 /* PWM reading is 1 register long */
+#define ORANGEPI_SENSOR_FAN_REG		0x78 /* Fan reading is 2 registers long */
+#define ORANGEPI_SENSOR_PWM_ENABLE_REG	0x40 /* PWM enable is 1 register long */
+#define ORANGEPI_SENSOR_PWM_REG		0x38 /* PWM reading is 1 register long */
 
 /* Turbo button takeover function
  * Different boards have different values and EC registers
  * for the same function
  */
-#define OXP_TURBO_SWITCH_REG           0xF1 /* Mini Pro, OneXFly, AOKZOE */
-#define OXP_2_TURBO_SWITCH_REG         0xEB /* OXP2 and X1 */
-#define OXP_MINI_TURBO_SWITCH_REG      0x1E /* Mini AO7 */
+#define OXP_TURBO_SWITCH_REG		0xF1 /* Mini Pro, OneXFly, AOKZOE */
+#define OXP_2_TURBO_SWITCH_REG		0xEB /* OXP2 and X1 */
+#define OXP_MINI_TURBO_SWITCH_REG	0x1E /* Mini AO7 */
 
-#define OXP_MINI_TURBO_TAKE_VAL        0x01 /* Mini AO7 */
-#define OXP_TURBO_TAKE_VAL             0x40 /* All other models */
+#define OXP_MINI_TURBO_TAKE_VAL		0x01 /* Mini AO7 */
+#define OXP_TURBO_TAKE_VAL		0x40 /* All other models */
 
-#define OXP_TURBO_RETURN_VAL           0x00 /* Common return val */
+#define OXP_TURBO_RETURN_VAL		0x00 /* Common return val */
 
 /* X1 Turbo LED */
-#define OXP_X1_TURBO_LED_REG           0x57
+#define OXP_X1_TURBO_LED_REG		0x57
 
-#define OXP_X1_TURBO_LED_OFF           0x01
-#define OXP_X1_TURBO_LED_ON            0x02
+#define OXP_X1_TURBO_LED_OFF		0x01
+#define OXP_X1_TURBO_LED_ON		0x02
 
 /* Battery extension settings */
 #define EC_CHARGE_CONTROL_BEHAVIOURS	(BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_AUTO) |		\
