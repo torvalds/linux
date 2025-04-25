@@ -423,8 +423,6 @@ struct pci_dev {
 	struct resource resource[DEVICE_COUNT_RESOURCE]; /* I/O and memory regions + expansion ROMs */
 	struct resource driver_exclusive_resource;	 /* driver exclusive resource ranges */
 
-	bool		match_driver;		/* Skip attaching driver */
-
 	unsigned int	transparent:1;		/* Subtractive decode bridge */
 	unsigned int	io_window:1;		/* Bridge has I/O window */
 	unsigned int	pref_window:1;		/* Bridge has pref mem window */

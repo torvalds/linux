@@ -1507,7 +1507,7 @@ static int pci_bus_match(struct device *dev, const struct device_driver *drv)
 	struct pci_driver *pci_drv;
 	const struct pci_device_id *found_id;
 
-	if (!pci_dev->match_driver)
+	if (pci_dev_binding_disallowed(pci_dev))
 		return 0;
 
 	pci_drv = (struct pci_driver *)to_pci_driver(drv);
