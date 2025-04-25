@@ -3035,15 +3035,15 @@ struct acpi_ras2_pcc_desc {
 
 /* RAS2 Platform Communication Channel Shared Memory Region */
 
-struct acpi_ras2_shared_memory {
+struct acpi_ras2_shmem {
 	u32 signature;
 	u16 command;
 	u16 status;
 	u16 version;
 	u8 features[16];
-	u8 set_capabilities[16];
-	u16 num_parameter_blocks;
-	u32 set_capabilities_status;
+	u8 set_caps[16];
+	u16 num_param_blks;
+	u32 set_caps_status;
 };
 
 /* RAS2 Parameter Block Structure for PATROL_SCRUB */
@@ -3056,11 +3056,11 @@ struct acpi_ras2_parameter_block {
 
 /* RAS2 Parameter Block Structure for PATROL_SCRUB */
 
-struct acpi_ras2_patrol_scrub_parameter {
+struct acpi_ras2_patrol_scrub_param {
 	struct acpi_ras2_parameter_block header;
-	u16 patrol_scrub_command;
-	u64 requested_address_range[2];
-	u64 actual_address_range[2];
+	u16 command;
+	u64 req_addr_range[2];
+	u64 actl_addr_range[2];
 	u32 flags;
 	u32 scrub_params_out;
 	u32 scrub_params_in;
