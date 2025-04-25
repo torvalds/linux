@@ -155,6 +155,13 @@ struct acpi_aspt_acpi_mbox_regs {
 	u64 reserved2[2];
 };
 
+/* Larger subtable header (when Length can exceed 255) */
+
+struct acpi_subtable_header_16 {
+	u16 type;
+	u16 length;
+};
+
 /*******************************************************************************
  *
  * ASF - Alert Standard Format table (Signature "ASF!")
