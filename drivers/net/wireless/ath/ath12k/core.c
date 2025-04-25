@@ -1834,9 +1834,9 @@ static int ath12k_core_get_wsi_info(struct ath12k_hw_group *ag,
 		of_node_put(next_rx_endpoint);
 
 		device_count++;
-		if (device_count > ATH12K_MAX_SOCS) {
+		if (device_count > ATH12K_MAX_DEVICES) {
 			ath12k_warn(ab, "device count in DT %d is more than limit %d\n",
-				    device_count, ATH12K_MAX_SOCS);
+				    device_count, ATH12K_MAX_DEVICES);
 			of_node_put(next_wsi_dev);
 			return -EINVAL;
 		}
