@@ -238,7 +238,8 @@ int xe_guc_ct_init(struct xe_guc_ct *ct)
 	bo = xe_managed_bo_create_pin_map(xe, tile, guc_ct_size(),
 					  XE_BO_FLAG_SYSTEM |
 					  XE_BO_FLAG_GGTT |
-					  XE_BO_FLAG_GGTT_INVALIDATE);
+					  XE_BO_FLAG_GGTT_INVALIDATE |
+					  XE_BO_FLAG_PINNED_NORESTORE);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
@@ -1828,10 +1829,10 @@ static void ct_dead_print(struct xe_dead_ct *dead)
 		return;
 	}
 
-	drm_printf(&lp, "CTB is dead - reason=0x%X\n", dead->reason);
 
 	/* Can't generate a genuine core dump at this point, so just do the good bits */
 	drm_puts(&lp, "**** Xe Device Coredump ****\n");
+	drm_printf(&lp, "Reason: CTB is dead - 0x%X\n", dead->reason);
 	xe_device_snapshot_print(xe, &lp);
 
 	drm_printf(&lp, "**** GT #%d ****\n", gt->info.id);

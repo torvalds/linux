@@ -376,6 +376,11 @@ static void guc_waklv_init(struct xe_guc_ads *ads)
 					GUC_WORKAROUND_KLV_ID_BACK_TO_BACK_RCS_ENGINE_RESET,
 					&offset, &remain);
 
+	if (GUC_FIRMWARE_VER(&gt->uc.guc) >= MAKE_GUC_VER(70, 44, 0) && XE_WA(gt, 16026508708))
+		guc_waklv_enable_simple(ads,
+					GUC_WA_KLV_RESET_BB_STACK_PTR_ON_VF_SWITCH,
+					&offset, &remain);
+
 	size = guc_ads_waklv_size(ads) - remain;
 	if (!size)
 		return;
@@ -414,7 +419,8 @@ int xe_guc_ads_init(struct xe_guc_ads *ads)
 	bo = xe_managed_bo_create_pin_map(xe, tile, guc_ads_size(ads) + MAX_GOLDEN_LRC_SIZE,
 					  XE_BO_FLAG_SYSTEM |
 					  XE_BO_FLAG_GGTT |
-					  XE_BO_FLAG_GGTT_INVALIDATE);
+					  XE_BO_FLAG_GGTT_INVALIDATE |
+					  XE_BO_FLAG_PINNED_NORESTORE);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
@@ -490,24 +496,52 @@ static void fill_engine_enable_masks(struct xe_gt *gt,
 		       engine_enable_mask(gt, XE_ENGINE_CLASS_OTHER));
 }
 
-static void guc_prep_golden_lrc_null(struct xe_guc_ads *ads)
+/*
+ * Write the offsets corresponding to the golden LRCs. The actual data is
+ * populated later by guc_golden_lrc_populate()
+ */
+static void guc_golden_lrc_init(struct xe_guc_ads *ads)
 {
 	struct xe_device *xe = ads_to_xe(ads);
+	struct xe_gt *gt = ads_to_gt(ads);
 	struct iosys_map info_map = IOSYS_MAP_INIT_OFFSET(ads_to_map(ads),
 			offsetof(struct __guc_ads_blob, system_info));
-	u8 guc_class;
+	size_t alloc_size, real_size;
+	u32 addr_ggtt, offset;
+	int class;
 
-	for (guc_class = 0; guc_class <= GUC_MAX_ENGINE_CLASSES; ++guc_class) {
+	offset = guc_ads_golden_lrc_offset(ads);
+	addr_ggtt = xe_bo_ggtt_addr(ads->bo) + offset;
+
+	for (class = 0; class < XE_ENGINE_CLASS_MAX; ++class) {
+		u8 guc_class;
+
+		guc_class = xe_engine_class_to_guc_class(class);
+
 		if (!info_map_read(xe, &info_map,
 				   engine_enabled_masks[guc_class]))
 			continue;
 
+		real_size = xe_gt_lrc_size(gt, class);
+		alloc_size = PAGE_ALIGN(real_size);
+
+		/*
+		 * This interface is slightly confusing. We need to pass the
+		 * base address of the full golden context and the size of just
+		 * the engine state, which is the section of the context image
+		 * that starts after the execlists LRC registers. This is
+		 * required to allow the GuC to restore just the engine state
+		 * when a watchdog reset occurs.
+		 * We calculate the engine state size by removing the size of
+		 * what comes before it in the context image (which is identical
+		 * on all engines).
+		 */
 		ads_blob_write(ads, ads.eng_state_size[guc_class],
-			       guc_ads_golden_lrc_size(ads) -
-			       xe_lrc_skip_size(xe));
+			       real_size - xe_lrc_skip_size(xe));
 		ads_blob_write(ads, ads.golden_context_lrca[guc_class],
-			       xe_bo_ggtt_addr(ads->bo) +
-			       guc_ads_golden_lrc_offset(ads));
+			       addr_ggtt);
+
+		addr_ggtt += alloc_size;
 	}
 }
 
@@ -682,8 +716,8 @@ static int guc_capture_prep_lists(struct xe_guc_ads *ads)
 	}
 
 	if (ads->capture_size != PAGE_ALIGN(total_size))
-		xe_gt_dbg(gt, "ADS capture alloc size changed from %d to %d\n",
-			  ads->capture_size, PAGE_ALIGN(total_size));
+		xe_gt_dbg(gt, "Updated ADS capture size %d (was %d)\n",
+			  PAGE_ALIGN(total_size), ads->capture_size);
 	return PAGE_ALIGN(total_size);
 }
 
@@ -857,7 +891,7 @@ void xe_guc_ads_populate_minimal(struct xe_guc_ads *ads)
 
 	xe_map_memset(ads_to_xe(ads), ads_to_map(ads), 0, 0, ads->bo->size);
 	guc_policies_init(ads);
-	guc_prep_golden_lrc_null(ads);
+	guc_golden_lrc_init(ads);
 	guc_mapping_table_init_invalid(gt, &info_map);
 	guc_doorbell_init(ads);
 
@@ -883,7 +917,7 @@ void xe_guc_ads_populate(struct xe_guc_ads *ads)
 	guc_policies_init(ads);
 	fill_engine_enable_masks(gt, &info_map);
 	guc_mmio_reg_state_init(ads);
-	guc_prep_golden_lrc_null(ads);
+	guc_golden_lrc_init(ads);
 	guc_mapping_table_init(gt, &info_map);
 	guc_capture_prep_lists(ads);
 	guc_doorbell_init(ads);
@@ -903,18 +937,22 @@ void xe_guc_ads_populate(struct xe_guc_ads *ads)
 		       guc_ads_private_data_offset(ads));
 }
 
-static void guc_populate_golden_lrc(struct xe_guc_ads *ads)
+/*
+ * After the golden LRC's are recorded for each engine class by the first
+ * submission, copy them to the ADS, as initialized earlier by
+ * guc_golden_lrc_init().
+ */
+static void guc_golden_lrc_populate(struct xe_guc_ads *ads)
 {
 	struct xe_device *xe = ads_to_xe(ads);
 	struct xe_gt *gt = ads_to_gt(ads);
 	struct iosys_map info_map = IOSYS_MAP_INIT_OFFSET(ads_to_map(ads),
 			offsetof(struct __guc_ads_blob, system_info));
 	size_t total_size = 0, alloc_size, real_size;
-	u32 addr_ggtt, offset;
+	u32 offset;
 	int class;
 
 	offset = guc_ads_golden_lrc_offset(ads);
-	addr_ggtt = xe_bo_ggtt_addr(ads->bo) + offset;
 
 	for (class = 0; class < XE_ENGINE_CLASS_MAX; ++class) {
 		u8 guc_class;
@@ -931,26 +969,9 @@ static void guc_populate_golden_lrc(struct xe_guc_ads *ads)
 		alloc_size = PAGE_ALIGN(real_size);
 		total_size += alloc_size;
 
-		/*
-		 * This interface is slightly confusing. We need to pass the
-		 * base address of the full golden context and the size of just
-		 * the engine state, which is the section of the context image
-		 * that starts after the execlists LRC registers. This is
-		 * required to allow the GuC to restore just the engine state
-		 * when a watchdog reset occurs.
-		 * We calculate the engine state size by removing the size of
-		 * what comes before it in the context image (which is identical
-		 * on all engines).
-		 */
-		ads_blob_write(ads, ads.eng_state_size[guc_class],
-			       real_size - xe_lrc_skip_size(xe));
-		ads_blob_write(ads, ads.golden_context_lrca[guc_class],
-			       addr_ggtt);
-
 		xe_map_memcpy_to(xe, ads_to_map(ads), offset,
 				 gt->default_lrc[class], real_size);
 
-		addr_ggtt += alloc_size;
 		offset += alloc_size;
 	}
 
@@ -959,7 +980,7 @@ static void guc_populate_golden_lrc(struct xe_guc_ads *ads)
 
 void xe_guc_ads_populate_post_load(struct xe_guc_ads *ads)
 {
-	guc_populate_golden_lrc(ads);
+	guc_golden_lrc_populate(ads);
 }
 
 static int guc_ads_action_update_policies(struct xe_guc_ads *ads, u32 policy_offset)

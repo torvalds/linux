@@ -138,6 +138,7 @@ int xe_mmio_probe_early(struct xe_device *xe)
 
 	return devm_add_action_or_reset(xe->drm.dev, mmio_fini, xe);
 }
+ALLOW_ERROR_INJECTION(xe_mmio_probe_early, ERRNO); /* See xe_pci_probe() */
 
 /**
  * xe_mmio_init() - Initialize an MMIO instance
@@ -204,8 +205,9 @@ void xe_mmio_write32(struct xe_mmio *mmio, struct xe_reg reg, u32 val)
 
 	trace_xe_reg_rw(mmio, true, addr, val, sizeof(val));
 
-	if (!reg.vf && mmio->sriov_vf_gt)
-		xe_gt_sriov_vf_write32(mmio->sriov_vf_gt, reg, val);
+	if (!reg.vf && IS_SRIOV_VF(mmio->tile->xe))
+		xe_gt_sriov_vf_write32(mmio->sriov_vf_gt ?:
+				       mmio->tile->primary_gt, reg, val);
 	else
 		writel(val, mmio->regs + addr);
 }
@@ -218,8 +220,9 @@ u32 xe_mmio_read32(struct xe_mmio *mmio, struct xe_reg reg)
 	/* Wa_15015404425 */
 	mmio_flush_pending_writes(mmio);
 
-	if (!reg.vf && mmio->sriov_vf_gt)
-		val = xe_gt_sriov_vf_read32(mmio->sriov_vf_gt, reg);
+	if (!reg.vf && IS_SRIOV_VF(mmio->tile->xe))
+		val = xe_gt_sriov_vf_read32(mmio->sriov_vf_gt ?:
+					    mmio->tile->primary_gt, reg);
 	else
 		val = readl(mmio->regs + addr);
 
