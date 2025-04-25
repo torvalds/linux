@@ -11,7 +11,11 @@ maintainers:
 
 properties:
   compatible:
-    const: rockchip,rk3399-dwc3
+    oneOf:
+      - items:
+          - const: rockchip,rv1126-dwc3
+          - const: rockchip,rk3399-dwc3
+      - const: rockchip,rk3399-dwc3
 
   '#address-cells':
     const: 2

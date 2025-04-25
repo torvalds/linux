@@ -53,6 +53,12 @@ static const struct __extcon_info {
 		.name = "USB-HOST",
 	},
 
+	[EXTCON_USB_VBUS_EN] = {
+		.type = EXTCON_TYPE_USB,
+		.id = EXTCON_USB_VBUS_EN,
+		.name = "USB_VBUS_EN",
+	},
+
 	/* Charging external connector */
 	[EXTCON_CHG_USB_SDP] = {
 		.type = EXTCON_TYPE_CHG | EXTCON_TYPE_USB,

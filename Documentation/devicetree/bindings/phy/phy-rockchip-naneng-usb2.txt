@@ -1,0 +1,74 @@
+ROCKCHIP USB2.0 PHY WITH NANENG IP BLOCK
+
+Required properties (phy (parent) node):
+ - compatible : should be one of the listed compatibles:
+	* "rockchip,rv1126-usb2phy"
+ - reg : the address offset of grf for usb-phy configuration.
+ - rockchip,grf : phandle to the syscon managing the "general register files"
+ - clocks : phandle + phy specifier pair, for the input clocks of phy.
+ - clock-names : input clocks name of phy.
+ - resets : phandle + reset specifier pairs.
+ - reset-names : reset names of phy.
+ - #clock-cells : should be 0.
+ - clock-output-names : specify the 480m output clock name.
+
+Optional properties:
+ - assigned-clocks : phandle of usb 480m clock.
+ - assigned-clock-parents : parent of usb 480m clock, select between
+		 usb-phy output 480m and xin24m.
+		 Refer to clk/clock-bindings.txt for generic clock
+		 consumer properties.
+ - vbus-supply : regulator phandle for vbus power source.
+ - wakeup-source : enable bvalid irq and linestate wakeup when suspend.
+			only work when suspend wakeup-config is not work.
+ - vup-gpios : gpio phandle for pull-up resistor on DM. this property
+		is specially provided to RV1126/RV1109 in order to
+		increase the amplitude of chirpK and successfully
+		complete high speed handshake.
+
+Required nodes : a sub-node is required for each port the phy provides.
+		 The sub-node name is used to identify host or otg port,
+		 and shall be the following entries:
+	* "otg-port" : the name of otg port.
+	* "host-port" : the name of host port.
+
+Required properties (port (child) node):
+ - #phy-cells : must be 0. See ./phy-bindings.txt for details.
+ - interrupts : specify an interrupt for each entry in interrupt-names.
+ - interrupt-names : a list which should be one of the following cases:
+	Regular case:
+	* "otg-id" : for the otg id interrupt.
+	* "otg-bvalid" : for the otg vbus interrupt.
+	* "linestate" : for the host/otg linestate interrupt.
+	* "disconnect" : for the host/otg disconnect interrupt.
+
+Optional properties:
+ - phy-supply : phandle to a regulator that provides power to VBUS.
+		See ./phy-bindings.txt for details.
+ - rockchip,vbus-always-on: when set, indicates that the otg vbus
+		is always powered on.
+
+Example:
+
+u2phy1: usb2-phy@ff4c8000 {
+	compatible = "rockchip,rv1126-usb2phy";
+	reg = <0xff4c8000 0x8000>;
+	rockchip,grf = <&grf>;
+	clocks = <&pmucru CLK_USBPHY_HOST_REF>, <&cru PCLK_USBPHY_HOST>;
+	clock-names = "phyclk", "pclk";
+	assigned-clocks = <&cru USB480M>;
+	assigned-clock-parents = <&u2phy1>;
+	resets = <&cru SRST_USBPHYPOR_HOST>, <&cru SRST_USBPHY_HOST_P>;
+	reset-names = "u2phy", "u2phy-apb";
+	#clock-cells = <0>;
+	clock-output-names = "usb480m_phy";
+	status = "disabled";
+
+	u2phy_host: host-port {
+		#phy-cells = <0>;
+		interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "linestate", "disconnect";
+		status = "disabled";
+	};
+};

@@ -158,6 +158,16 @@
 		reg = <0xfe8a0180 0x20>;
 	};
 
+	qos_usb_host: qos@fe810000 {
+		compatible = "rockchip,rv1126-qos", "syscon";
+		reg = <0xfe810000 0x20>;
+	};
+
+	qos_usb_otg: qos@fe810080 {
+		compatible = "rockchip,rv1126-qos", "syscon";
+		reg = <0xfe810080 0x20>;
+	};
+
 	gic: interrupt-controller@feff0000 {
 		compatible = "arm,gic-400";
 		interrupt-controller;
@@ -220,6 +230,18 @@
 					 <&qos_rga_wr>,
 					 <&qos_vop>,
 					 <&qos_iep>;
+				#power-domain-cells = <0>;
+			};
+
+			power-domain@RV1126_PD_USB {
+				reg = <RV1126_PD_USB>;
+				clocks = <&cru HCLK_USBHOST>,
+				<&cru HCLK_USBHOST_ARB>,
+				<&cru CLK_USBHOST_UTMI_OHCI>,
+				<&cru ACLK_USBOTG>,
+				<&cru CLK_USBOTG_REF>;
+				pm_qos = <&qos_usb_host>,
+				<&qos_usb_otg>;
 				#power-domain-cells = <0>;
 			};
 		};
@@ -386,6 +408,52 @@
 		clock-names = "apb_pclk";
 	};
 
+	u2phy0: usb2phy@ff4c0000 {
+		compatible = "rockchip,rv1126-usb2phy";
+		reg = <0xff4c0000 0x8000>;
+		rockchip,grf = <&grf>;
+		clocks = <&pmucru CLK_USBPHY_OTG_REF>, <&cru PCLK_USBPHY_OTG>;
+		clock-names = "phyclk", "pclk";
+		resets = <&cru SRST_USBPHYPOR_OTG>, <&cru SRST_USBPHY_OTG_P>;
+		reset-names = "u2phy", "u2phy-apb";
+		#clock-cells = <0>;
+		status = "disabled";
+
+		u2phy_otg: otg-port {
+			#phy-cells = <0>;
+			interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "otg-bvalid", "otg-id",
+					  "linestate", "disconnect";
+			status = "disabled";
+		};
+	};
+
+	u2phy1: usb2phy@ff4c8000 {
+		compatible = "rockchip,rv1126-usb2phy";
+		reg = <0xff4c8000 0x8000>;
+		rockchip,grf = <&grf>;
+		clocks = <&pmucru CLK_USBPHY_HOST_REF>, <&cru PCLK_USBPHY_HOST>;
+		clock-names = "phyclk", "pclk";
+		#clock-cells = <0>;
+		assigned-clocks = <&cru USB480M>;
+		assigned-clock-parents = <&u2phy1>;
+		clock-output-names = "usb480m_phy";
+		resets = <&cru SRST_USBPHYPOR_HOST>, <&cru SRST_USBPHY_HOST_P>;
+		reset-names = "u2phy", "u2phy-apb";
+		status = "disabled";
+
+		u2phy_host: host-port {
+			#phy-cells = <0>;
+			interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "linestate", "disconnect";
+			status = "disabled";
+		};
+	};
+
 	i2c3: i2c@ff520000 {
 		compatible = "rockchip,rv1126-i2c", "rockchip,rk3399-i2c";
 		reg = <0xff520000 0x1000>;
@@ -521,6 +589,61 @@
 		pinctrl-0 = <&uart5m0_xfer>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		status = "disabled";
+	};
+
+	usbdrd: usb0 {
+		compatible = "rockchip,rv1126-dwc3", "rockchip,rk3399-dwc3";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		clocks = <&cru CLK_USBOTG_REF>, <&cru ACLK_USBOTG>,
+			<&cru HCLK_PDUSB>;
+		clock-names = "ref_clk", "bus_clk", "hclk";
+		resets = <&cru SRST_USBOTG_A>;
+		reset-names = "usb3-otg";
+		status = "disabled";
+
+		usbdrd_dwc3: usb@ffd00000 {
+			compatible = "snps,dwc3";
+			reg = <0xffd00000 0x100000>;
+			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
+			dr_mode = "otg";
+			maximum-speed = "high-speed";
+			phys = <&u2phy_otg>;
+			phy-names = "usb2-phy";
+			phy_type = "utmi_wide";
+			power-domains = <&power RV1126_PD_USB>;
+			snps,dis_enblslpm_quirk;
+			snps,dis-u2-freeclk-exists-quirk;
+			snps,dis_u2_susphy_quirk;
+			snps,dis-del-phy-power-chg-quirk;
+			snps,dis-tx-ipgap-linecheck-quirk;
+			status = "disabled";
+		};
+	};
+
+	usb_host0_ehci: usb@ffe00000 {
+		compatible = "generic-ehci";
+		reg = <0xffe00000 0x10000>;
+		interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_USBHOST>, <&cru HCLK_USBHOST_ARB>,
+			<&u2phy1>;
+		phys = <&u2phy_host>;
+		phy-names = "usb";
+		power-domains = <&power RV1126_PD_USB>;
+		status = "disabled";
+	};
+
+	usb_host0_ohci: usb@ffe10000 {
+		compatible = "generic-ohci";
+		reg = <0xffe10000 0x10000>;
+		interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_USBHOST>, <&cru HCLK_USBHOST_ARB>,
+			<&u2phy1>;
+		phys = <&u2phy_host>;
+		phy-names = "usb";
+		power-domains = <&power RV1126_PD_USB>;
 		status = "disabled";
 	};
 
