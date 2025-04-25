@@ -1114,7 +1114,7 @@ static int rtase_open(struct net_device *dev)
 		/* request other interrupts to handle multiqueue */
 		for (i = 1; i < tp->int_nums; i++) {
 			ivec = &tp->int_vector[i];
-			snprintf(ivec->name, sizeof(ivec->name), "%s_int%i",
+			snprintf(ivec->name, sizeof(ivec->name), "%s_int%u",
 				 tp->dev->name, i);
 			ret = request_irq(ivec->irq, rtase_q_interrupt, 0,
 					  ivec->name, ivec);
