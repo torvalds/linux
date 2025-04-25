@@ -294,6 +294,7 @@ config ICE
 	select AUXILIARY_BUS
 	select DIMLIB
 	select LIBIE
+	select LIBIE_ADMINQ
 	select NET_DEVLINK
 	select PACKING
 	select PLDMFW

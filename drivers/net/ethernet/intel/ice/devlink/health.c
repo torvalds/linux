@@ -204,7 +204,7 @@ static void ice_config_health_events(struct ice_pf *pf, bool enable)
 	if (ret)
 		dev_err(ice_pf_to_dev(pf), "Failed to %s firmware health events, err %d aq_err %s\n",
 			str_enable_disable(enable), ret,
-			ice_aq_str(pf->hw.adminq.sq_last_status));
+			libie_aq_str(pf->hw.adminq.sq_last_status));
 }
 
 /**
