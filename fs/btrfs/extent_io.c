@@ -3031,15 +3031,13 @@ again:
 			goto again;
 		}
 		xa_unlock_irq(&fs_info->buffer_tree);
-		goto free_eb;
+		btrfs_release_extent_buffer(eb);
+		return exists;
 	}
 	xa_unlock_irq(&fs_info->buffer_tree);
 	check_buffer_tree_ref(eb);
 
 	return eb;
-free_eb:
-	btrfs_release_extent_buffer(eb);
-	return exists;
 #else
 	/* Stub to avoid linker error when compiled with optimizations turned off. */
 	return NULL;
