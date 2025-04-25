@@ -1764,7 +1764,7 @@ struct acpi_table_mrrm {
 	******************************************************************************/
 
 struct acpi_mrrm_mem_range_entry {
-	struct acpi_subtable_header_16 header;
+	struct acpi_subtbl_hdr_16 header;
 	u32 reserved0;		/* Reserved */
 	u64 addr_base;		/* Base addr of the mem range */
 	u64 addr_len;		/* Length of the mem range */

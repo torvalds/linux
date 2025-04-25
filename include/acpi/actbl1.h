@@ -157,7 +157,7 @@ struct acpi_aspt_acpi_mbox_regs {
 
 /* Larger subtable header (when Length can exceed 255) */
 
-struct acpi_subtable_header_16 {
+struct acpi_subtbl_hdr_16 {
 	u16 type;
 	u16 length;
 };
