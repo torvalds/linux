@@ -1027,6 +1027,8 @@ static int awcc_hwmon_fans_init(struct wmi_device *wdev)
 		if (ret)
 			return ret;
 
+		bitmap_zero(fan_temps, AWCC_ID_BITMAP_SIZE);
+
 		for (j = 0; j < temp_count; j++) {
 			ret = awcc_get_fan_sensors(wdev, AWCC_OP_GET_FAN_TEMP_ID,
 						   id, j, &temp_id);
@@ -1048,8 +1050,6 @@ static int awcc_hwmon_fans_init(struct wmi_device *wdev)
 		bitmap_gather(gather, fan_temps, priv->temp_sensors, AWCC_ID_BITMAP_SIZE);
 		bitmap_copy(&fan_data->auto_channels_temp, gather, BITS_PER_LONG);
 		priv->fan_data[i] = fan_data;
-
-		bitmap_zero(fan_temps, AWCC_ID_BITMAP_SIZE);
 	}
 
 	return 0;
