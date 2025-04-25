@@ -735,6 +735,7 @@ Description:	Support configuring fault injection type, should be
 		FAULT_BLKADDR_CONSISTENCE        0x000080000
 		FAULT_NO_SEGMENT                 0x000100000
 		FAULT_INCONSISTENT_FOOTER        0x000200000
+		FAULT_TIMEOUT                    0x000400000 (1000ms)
 		===========================      ===========
 
 What:		/sys/fs/f2fs/<disk>/discard_io_aware_gran

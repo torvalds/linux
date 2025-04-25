@@ -63,6 +63,7 @@ enum {
 	FAULT_BLKADDR_CONSISTENCE,
 	FAULT_NO_SEGMENT,
 	FAULT_INCONSISTENT_FOOTER,
+	FAULT_TIMEOUT,
 	FAULT_MAX,
 };
 
@@ -612,6 +613,9 @@ enum {
 
 /* congestion wait timeout value, default: 20ms */
 #define	DEFAULT_IO_TIMEOUT	(msecs_to_jiffies(20))
+
+/* timeout value injected, default: 1000ms */
+#define DEFAULT_FAULT_TIMEOUT	(msecs_to_jiffies(1000))
 
 /* maximum retry quota flush count */
 #define DEFAULT_RETRY_QUOTA_FLUSH_COUNT		8
@@ -4813,6 +4817,19 @@ static inline void f2fs_io_schedule_timeout(long timeout)
 {
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	io_schedule_timeout(timeout);
+}
+
+static inline void f2fs_io_schedule_timeout_killable(long timeout)
+{
+	while (timeout) {
+		if (fatal_signal_pending(current))
+			return;
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		io_schedule_timeout(DEFAULT_IO_TIMEOUT);
+		if (timeout <= DEFAULT_IO_TIMEOUT)
+			return;
+		timeout -= DEFAULT_IO_TIMEOUT;
+	}
 }
 
 static inline void f2fs_handle_page_eio(struct f2fs_sb_info *sbi,
