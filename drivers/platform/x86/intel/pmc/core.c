@@ -1681,7 +1681,6 @@ static void pmc_core_clean_structure(struct platform_device *pdev)
 		pmt_telem_unregister_endpoint(pmcdev->punit_ep);
 
 	platform_set_drvdata(pdev, NULL);
-	mutex_destroy(&pmcdev->lock);
 }
 
 static int pmc_core_probe(struct platform_device *pdev)
@@ -1726,7 +1725,9 @@ static int pmc_core_probe(struct platform_device *pdev)
 	if (!pmcdev->pkgc_res_cnt)
 		return -ENOMEM;
 
-	mutex_init(&pmcdev->lock);
+	ret = devm_mutex_init(&pdev->dev, &pmcdev->lock);
+	if (ret)
+		return ret;
 
 	if (pmc_dev_info->init)
 		ret = pmc_dev_info->init(pmcdev, pmc_dev_info);
