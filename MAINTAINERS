@@ -25204,9 +25204,13 @@ S:	Maintained
 F:	drivers/usb/typec/mux/pi3usb30532.c
 
 USB TYPEC PORT CONTROLLER DRIVERS
+M:	Badhri Jagan Sridharan <badhri@google.com>
 L:	linux-usb@vger.kernel.org
-S:	Orphan
-F:	drivers/usb/typec/tcpm/
+S:	Maintained
+F:	drivers/usb/typec/tcpm/tcpci.c
+F:	drivers/usb/typec/tcpm/tcpm.c
+F:	include/linux/usb/tcpci.h
+F:	include/linux/usb/tcpm.h
 
 USB TYPEC TUSB1046 MUX DRIVER
 M:	Romain Gantois <romain.gantois@bootlin.com>
