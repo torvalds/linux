@@ -101,6 +101,17 @@ Res0	63:32
 Field	31:0	DTRTX
 EndSysreg
 
+Sysreg	MDSELR_EL1	2	0	0	4	2
+Res0	63:6
+Field	5:4	BANK
+Res0	3:0
+EndSysreg
+
+Sysreg	MDSTEPOP_EL1	2	0	0	5	2
+Res0	63:32
+Field	31:0	OPCODE
+EndSysreg
+
 Sysreg	OSECCR_EL1	2	0	0	6	2
 Res0	63:32
 Field	31:0	EDECCR
@@ -109,6 +120,285 @@ EndSysreg
 Sysreg	OSLAR_EL1	2	0	1	0	4
 Res0	63:1
 Field	0	OSLK
+EndSysreg
+
+Sysreg	SPMACCESSR_EL1	2	0	9	13	3
+UnsignedEnum	63:62	P31
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	61:60	P30
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	59:58	P29
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	57:56	P28
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	55:54	P27
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	53:52	P26
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	51:50	P25
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	49:48	P24
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	47:46	P23
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	45:44	P22
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	43:42	P21
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	41:40	P20
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	39:38	P19
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	37:36	P18
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	35:34	P17
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	33:32	P16
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	31:30	P15
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	29:28	P14
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	27:26	P13
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	25:24	P12
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	23:22	P11
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	21:20	P10
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	19:18	P9
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	17:16	P8
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	15:14	P7
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	13:12	P6
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	11:10	P5
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	9:8	P4
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	7:6	P3
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	5:4	P2
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	3:2	P1
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+UnsignedEnum	1:0	P0
+	0b00	TRAP_RW
+	0b01	TRAP_W
+	0b11	NOTRAP
+EndEnum
+EndSysreg
+
+Sysreg	SPMACCESSR_EL12	2	5	9	13	3
+Mapping	SPMACCESSR_EL1
+EndSysreg
+
+Sysreg	SPMIIDR_EL1	2	0	9	13	4
+Res0	63:32
+Field	31:20	ProductID
+Field	19:16	Variant
+Field	15:12	Revision
+Field	11:0	Implementer
+EndSysreg
+
+Sysreg	SPMDEVARCH_EL1	2	0	9	13	5
+Res0	63:32
+Field	31:21	ARCHITECT
+Field	20	PRESENT
+Field	19:16	REVISION
+Field	15:12	ARCHVER
+Field	11:0	ARCHPART
+EndSysreg
+
+Sysreg	SPMDEVAFF_EL1	2	0	9	13	6
+Res0	63:40
+Field	39:32	Aff3
+Field	31	F0V
+Field	30	U
+Res0	29:25
+Field	24	MT
+Field	23:16	Aff2
+Field	15:8	Aff1
+Field	7:0	Aff0
+EndSysreg
+
+Sysreg	SPMCFGR_EL1	2	0	9	13	7
+Res0	63:32
+Field	31:28	NCG
+Res0	27:25
+Field	24	HDBG
+Field	23	TRO
+Field	22	SS
+Field	21	FZO
+Field	20	MSI
+Field	19	RAO
+Res0	18
+Field	17	NA
+Field	16	EX
+Field	15:14	RAZ
+Field	13:8	SIZE
+Field	7:0	N
+EndSysreg
+
+Sysreg	SPMINTENSET_EL1	2	0	9	14	1
+Field	63:0	P
+EndSysreg
+
+Sysreg	SPMINTENCLR_EL1	2	0	9	14	2
+Field	63:0	P
+EndSysreg
+
+Sysreg	PMCCNTSVR_EL1	2	0	14	11	7
+Field	63:0	CCNT
+EndSysreg
+
+Sysreg	PMICNTSVR_EL1	2	0	14	12	0
+Field	63:0	ICNT
+EndSysreg
+
+Sysreg	SPMCR_EL0	2	3	9	12	0
+Res0	63:12
+Field	11	TRO
+Field	10	HDBG
+Field	9	FZO
+Field	8	NA
+Res0	7:5
+Field	4	EX
+Res0	3:2
+Field	1	P
+Field	0	E
+EndSysreg
+
+Sysreg	SPMCNTENSET_EL0	2	3	9	12	1
+Field	63:0	P
+EndSysreg
+
+Sysreg	SPMCNTENCLR_EL0	2	3	9	12	2
+Field	63:0	P
+EndSysreg
+
+Sysreg	SPMOVSCLR_EL0	2	3	9	12	3
+Field	63:0	P
+EndSysreg
+
+Sysreg	SPMZR_EL0       2	3	9	12	4
+Field   63:0      P
+EndSysreg
+
+Sysreg	SPMSELR_EL0	2	3	9	12	5
+Res0	63:10
+Field	9:4	SYSPMUSEL
+Res0	3:2
+Field	1:0	BANK
+EndSysreg
+
+Sysreg	SPMOVSSET_EL0	2	3	9	14	3
+Field	63:0	P
+EndSysreg
+
+Sysreg	SPMSCR_EL1	2	7	9	14	7
+Field	63:32	IMPDEF
+Field	31	RAO
+Res0	30:5
+Field	4	NAO
+Res0	3:1
+Field	0	SO
 EndSysreg
 
 Sysreg ID_PFR0_EL1	3	0	0	1	0
@@ -2432,6 +2722,16 @@ Field	1	ExTRE
 Field	0	E0TRE
 EndSysreg
 
+Sysreg	TRCITECR_EL1	3	0	1	2	3
+Res0	63:2
+Field	1	E1E
+Field	0	E0E
+EndSysreg
+
+Sysreg	TRCITECR_EL12	3	5	1	2	3
+Mapping	TRCITECR_EL1
+EndSysreg
+
 Sysreg	SMPRI_EL1	3	0	1	2	4
 Res0	63:4
 Field	3:0	PRIORITY
@@ -2665,6 +2965,16 @@ Field	16	COLL
 Field	15:0	MSS
 EndSysreg
 
+Sysreg	PMSDSFR_EL1	3	0	9	10	4
+Field	63:0	S
+EndSysreg
+
+Sysreg	PMBMAR_EL1	3	0	9	10	5
+Res0	63:10
+Field	9:8	SH
+Field	7:0	Attr
+EndSysreg
+
 Sysreg	PMBIDR_EL1	3	0	9	10	7
 Res0	63:12
 Enum	11:8	EA
@@ -2678,6 +2988,21 @@ Field	4	P
 Field	3:0	ALIGN
 EndSysreg
 
+Sysreg	TRBMPAM_EL1	3	0	9	11	5
+Res0	63:27
+Field	26	EN
+Field	25:24	MPAM_SP
+Field	23:16	PMG
+Field	15:0	PARTID
+EndSysreg
+
+Sysreg	PMSSCR_EL1	3	0	9	13	3
+Res0	63:33
+Field	32	NC
+Res0	31:1
+Field	0	SS
+EndSysreg
+
 Sysreg	PMUACR_EL1	3	0	9	14	4
 Res0	63:33
 Field	32	F0
@@ -2685,9 +3010,27 @@ Field	31	C
 Field	30:0	P
 EndSysreg
 
+Sysreg	PMECR_EL1	3	0	9	14	5
+Res0	63:5
+Field	4:3	SSE
+Field	2	KPME
+Field	1:0	PMEE
+EndSysreg
+
+Sysreg	PMIAR_EL1	3	0	9	14	7
+Field	63:0	ADDRESS
+EndSysreg
+
 Sysreg	PMSELR_EL0	3	3	9	12	5
 Res0	63:5
 Field	4:0	SEL
+EndSysreg
+
+Sysreg	PMZR_EL0        3	3	9	13	4
+Res0	63:33
+Field	32	F0
+Field	31	C
+Field	30:0	P
 EndSysreg
 
 SysregFields	CONTEXTIDR_ELx
