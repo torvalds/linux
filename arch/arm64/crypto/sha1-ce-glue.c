@@ -79,8 +79,10 @@ static int sha1_ce_finup(struct shash_desc *desc, const u8 *data,
 		data += len - remain;
 		len = remain;
 	}
-	if (!finalized)
+	if (!finalized) {
+		sctx->finalize = 0;
 		sha1_base_do_finup(desc, data, len, sha1_ce_transform);
+	}
 	return sha1_base_finish(desc, out);
 }
 
