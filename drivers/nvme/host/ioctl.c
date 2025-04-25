@@ -729,7 +729,7 @@ int nvme_ns_head_ioctl(struct block_device *bdev, blk_mode_t mode,
 
 	/*
 	 * Handle ioctls that apply to the controller instead of the namespace
-	 * seperately and drop the ns SRCU reference early.  This avoids a
+	 * separately and drop the ns SRCU reference early.  This avoids a
 	 * deadlock when deleting namespaces using the passthrough interface.
 	 */
 	if (is_ctrl_ioctl(cmd))

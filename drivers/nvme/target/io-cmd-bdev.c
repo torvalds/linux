@@ -133,7 +133,7 @@ u16 blk_to_nvme_status(struct nvmet_req *req, blk_status_t blk_sts)
 	 * Right now there exists M : 1 mapping between block layer error
 	 * to the NVMe status code (see nvme_error_status()). For consistency,
 	 * when we reverse map we use most appropriate NVMe Status code from
-	 * the group of the NVMe staus codes used in the nvme_error_status().
+	 * the group of the NVMe status codes used in the nvme_error_status().
 	 */
 	switch (blk_sts) {
 	case BLK_STS_NOSPC:

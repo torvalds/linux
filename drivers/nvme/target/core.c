@@ -644,7 +644,7 @@ void nvmet_ns_disable(struct nvmet_ns *ns)
 	 * Now that we removed the namespaces from the lookup list, we
 	 * can kill the per_cpu ref and wait for any remaining references
 	 * to be dropped, as well as a RCU grace period for anyone only
-	 * using the namepace under rcu_read_lock().  Note that we can't
+	 * using the namespace under rcu_read_lock().  Note that we can't
 	 * use call_rcu here as we need to ensure the namespaces have
 	 * been fully destroyed before unloading the module.
 	 */
