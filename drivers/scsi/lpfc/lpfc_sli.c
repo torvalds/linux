@@ -3926,11 +3926,18 @@ void lpfc_poll_eratt(struct timer_list *t)
 	uint64_t sli_intr, cnt;
 
 	phba = from_timer(phba, t, eratt_poll);
-	if (!test_bit(HBA_SETUP, &phba->hba_flag))
-		return;
 
 	if (test_bit(FC_UNLOADING, &phba->pport->load_flag))
 		return;
+
+	if (phba->sli_rev == LPFC_SLI_REV4 &&
+	    !test_bit(HBA_SETUP, &phba->hba_flag)) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+				"0663 HBA still initializing 0x%lx, restart "
+				"timer\n",
+				phba->hba_flag);
+		goto restart_timer;
+	}
 
 	/* Here we will also keep track of interrupts per sec of the hba */
 	sli_intr = phba->sli.slistat.sli_intr;
@@ -3950,13 +3957,16 @@ void lpfc_poll_eratt(struct timer_list *t)
 	/* Check chip HA register for error event */
 	eratt = lpfc_sli_check_eratt(phba);
 
-	if (eratt)
+	if (eratt) {
 		/* Tell the worker thread there is work to do */
 		lpfc_worker_wake_up(phba);
-	else
-		/* Restart the timer for next eratt poll */
-		mod_timer(&phba->eratt_poll,
-			  jiffies + secs_to_jiffies(phba->eratt_poll_interval));
+		return;
+	}
+
+restart_timer:
+	/* Restart the timer for next eratt poll */
+	mod_timer(&phba->eratt_poll,
+		  jiffies + secs_to_jiffies(phba->eratt_poll_interval));
 	return;
 }
 
