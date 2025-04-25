@@ -297,8 +297,8 @@ static const struct amdgpu_pcs_ras_field xgmi3x16_pcs_ras_fields[] = {
 static u32 xgmi_v6_4_get_link_status(struct amdgpu_device *adev, int global_link_num)
 {
 	const u32 smn_xgmi_6_4_pcs_state_hist1[2] = { 0x11a00070, 0x11b00070 };
-	const u32 smn_xgmi_6_4_1_pcs_state_hist1[2] = { 0x11b00070,
-							0x12100070 };
+	const u32 smn_xgmi_6_4_1_pcs_state_hist1[2] = { 0x12100070,
+							0x11b00070 };
 	u32 i, n;
 	u64 addr;
 
