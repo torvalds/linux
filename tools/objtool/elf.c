@@ -573,6 +573,30 @@ err:
 }
 
 /*
+ * @sym's idx has changed.  Update the sh_info in group sections.
+ */
+static void elf_update_group_sh_info(struct elf *elf, Elf32_Word symtab_idx,
+				     Elf32_Word new_idx, Elf32_Word old_idx)
+{
+	struct section *sec;
+
+	list_for_each_entry(sec, &elf->sections, list) {
+		if (sec->sh.sh_type != SHT_GROUP)
+			continue;
+		if (sec->sh.sh_link == symtab_idx &&
+		    sec->sh.sh_info == old_idx) {
+			sec->sh.sh_info = new_idx;
+			mark_sec_changed(elf, sec, true);
+			/*
+			 * Each ELF group should have a unique symbol key.
+			 * Return early on match.
+			 */
+			return;
+		}
+	}
+}
+
+/*
  * @sym's idx has changed.  Update the relocs which reference it.
  */
 static int elf_update_sym_relocs(struct elf *elf, struct symbol *sym)
@@ -745,7 +769,7 @@ __elf_create_symbol(struct elf *elf, struct symbol *sym)
 
 	/*
 	 * Move the first global symbol, as per sh_info, into a new, higher
-	 * symbol index. This fees up a spot for a new local symbol.
+	 * symbol index. This frees up a spot for a new local symbol.
 	 */
 	first_non_local = symtab->sh.sh_info;
 	old = find_symbol_by_index(elf, first_non_local);
@@ -763,6 +787,7 @@ __elf_create_symbol(struct elf *elf, struct symbol *sym)
 		if (elf_update_sym_relocs(elf, old))
 			return NULL;
 
+		elf_update_group_sh_info(elf, symtab->idx, new_idx, first_non_local);
 		new_idx = first_non_local;
 	}
 
