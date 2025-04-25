@@ -809,11 +809,11 @@ static int gmc_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 		for (i = 0; i < hweight32(adev->aid_mask); i++)
 			set_bit(AMDGPU_MMHUB0(i), adev->vmhubs_mask);
 		/*
-		 * To fulfill 4-level page support,
-		 * vm size is 256TB (48bit), maximum size,
+		 * To fulfill 5-level page support,
+		 * vm size is 128PetaByte (57bit), maximum size,
 		 * block size 512 (9bit)
 		 */
-		amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
+		amdgpu_vm_adjust_size(adev, 128 * 1024 * 1024, 9, 4, 57);
 		break;
 	default:
 		break;
