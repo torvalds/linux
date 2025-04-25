@@ -52,7 +52,8 @@ static int crypto_blake2b_finup_neon(struct shash_desc *desc, const u8 *in,
 		.base.cra_driver_name	= driver_name,			\
 		.base.cra_priority	= 200,				\
 		.base.cra_flags		= CRYPTO_ALG_OPTIONAL_KEY |	\
-					  CRYPTO_AHASH_ALG_BLOCK_ONLY,	\
+					  CRYPTO_AHASH_ALG_BLOCK_ONLY |	\
+					  CRYPTO_AHASH_ALG_FINAL_NONZERO, \
 		.base.cra_blocksize	= BLAKE2B_BLOCK_SIZE,		\
 		.base.cra_ctxsize	= sizeof(struct blake2b_tfm_ctx), \
 		.base.cra_module	= THIS_MODULE,			\
