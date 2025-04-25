@@ -4785,6 +4785,52 @@ static bool is_inside_block(u64 bytenr, u64 blockstart, u32 blocksize)
 	return false;
 }
 
+static int truncate_block_zero_beyond_eof(struct btrfs_inode *inode, u64 start)
+{
+	const pgoff_t index = (start >> PAGE_SHIFT);
+	struct address_space *mapping = inode->vfs_inode.i_mapping;
+	struct folio *folio;
+	u64 zero_start;
+	u64 zero_end;
+	int ret = 0;
+
+again:
+	folio = filemap_lock_folio(mapping, index);
+	/* No folio present. */
+	if (IS_ERR(folio))
+		return 0;
+
+	if (!folio_test_uptodate(folio)) {
+		ret = btrfs_read_folio(NULL, folio);
+		folio_lock(folio);
+		if (folio->mapping != mapping) {
+			folio_unlock(folio);
+			folio_put(folio);
+			goto again;
+		}
+		if (!folio_test_uptodate(folio)) {
+			ret = -EIO;
+			goto out_unlock;
+		}
+	}
+	folio_wait_writeback(folio);
+
+	/*
+	 * We do not need to lock extents nor wait for OE, as it's already
+	 * beyond EOF.
+	 */
+
+	zero_start = max_t(u64, folio_pos(folio), start);
+	zero_end = folio_pos(folio) + folio_size(folio) - 1;
+	folio_zero_range(folio, zero_start - folio_pos(folio),
+			 zero_end - zero_start + 1);
+
+out_unlock:
+	folio_unlock(folio);
+	folio_put(folio);
+	return ret;
+}
+
 /*
  * Handle the truncation of a fs block.
  *
@@ -4833,8 +4879,15 @@ int btrfs_truncate_block(struct btrfs_inode *inode, u64 offset, u64 start, u64 e
 	       offset, start, end);
 
 	/* The range is aligned at both ends. */
-	if (IS_ALIGNED(start, blocksize) && IS_ALIGNED(end + 1, blocksize))
+	if (IS_ALIGNED(start, blocksize) && IS_ALIGNED(end + 1, blocksize)) {
+		/*
+		 * For block size < page size case, we may have polluted blocks
+		 * beyond EOF. So we also need to zero them out.
+		 */
+		if (end == (u64)-1 && blocksize < PAGE_SIZE)
+			ret = truncate_block_zero_beyond_eof(inode, start);
 		goto out;
+	}
 
 	/*
 	 * @offset may not be inside the head nor tail block. In that case we
