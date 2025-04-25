@@ -406,19 +406,19 @@ static ssize_t tt_toggle_store(struct device *dev,
 			       size_t count)
 {
 	bool value;
-	int rval;
+	int ret;
 
-	rval = kstrtobool(buf, &value);
-	if (rval)
-		return rval;
+	ret = kstrtobool(buf, &value);
+	if (ret)
+		return ret;
 
 	if (value) {
-		rval = tt_toggle_enable();
+		ret = tt_toggle_enable();
 	} else {
-		rval = tt_toggle_disable();
+		ret = tt_toggle_disable();
 	}
-	if (rval)
-		return rval;
+	if (ret)
+		return ret;
 
 	return count;
 }
