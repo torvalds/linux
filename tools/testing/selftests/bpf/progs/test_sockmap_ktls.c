@@ -6,6 +6,7 @@
 int cork_byte;
 int push_start;
 int push_end;
+int apply_bytes;
 
 struct {
 	__uint(type, BPF_MAP_TYPE_SOCKMAP);
@@ -23,4 +24,13 @@ int prog_sk_policy(struct sk_msg_md *msg)
 		bpf_msg_push_data(msg, push_start, push_end, 0);
 
 	return SK_PASS;
+}
+
+SEC("sk_msg")
+int prog_sk_policy_redir(struct sk_msg_md *msg)
+{
+	int two = 2;
+
+	bpf_msg_apply_bytes(msg, apply_bytes);
+	return bpf_msg_redirect_map(msg, &sock_map, two, 0);
 }
