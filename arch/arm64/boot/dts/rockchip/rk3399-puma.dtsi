@@ -585,10 +585,6 @@
 	u2phy1_otg: otg-port {
 		status = "okay";
 	};
-
-	u2phy1_host: host-port {
-		status = "okay";
-	};
 };
 
 &usbdrd3_1 {
@@ -621,12 +617,4 @@
 		vdd-supply = <&vcc1v2_phy>;
 		vdd2-supply = <&vcc3v3_sys>;
 	};
-};
-
-&usb_host1_ehci {
-	status = "okay";
-};
-
-&usb_host1_ohci {
-	status = "okay";
 };
