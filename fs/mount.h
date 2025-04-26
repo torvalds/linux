@@ -44,7 +44,6 @@ struct mountpoint {
 	struct hlist_node m_hash;
 	struct dentry *m_dentry;
 	struct hlist_head m_list;
-	int m_count;
 };
 
 struct mount {
