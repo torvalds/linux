@@ -1076,33 +1076,6 @@ void mnt_set_mountpoint(struct mount *mnt,
 	hlist_add_head(&child_mnt->mnt_mp_list, &mp->m_list);
 }
 
-/**
- * mnt_set_mountpoint_beneath - mount a mount beneath another one
- *
- * @new_parent: the source mount
- * @top_mnt:    the mount beneath which @new_parent is mounted
- * @new_mp:     the new mountpoint of @top_mnt on @new_parent
- *
- * Remove @top_mnt from its current mountpoint @top_mnt->mnt_mp and
- * parent @top_mnt->mnt_parent and mount it on top of @new_parent at
- * @new_mp. And mount @new_parent on the old parent and old
- * mountpoint of @top_mnt.
- *
- * Context: This function expects namespace_lock() and lock_mount_hash()
- *          to have been acquired in that order.
- */
-static void mnt_set_mountpoint_beneath(struct mount *new_parent,
-				       struct mount *top_mnt,
-				       struct mountpoint *new_mp)
-{
-	struct mount *old_top_parent = top_mnt->mnt_parent;
-	struct mountpoint *old_top_mp = top_mnt->mnt_mp;
-
-	mnt_set_mountpoint(old_top_parent, old_top_mp, new_parent);
-	mnt_change_mountpoint(new_parent, new_mp, top_mnt);
-}
-
-
 static void __attach_mnt(struct mount *mnt, struct mount *parent)
 {
 	hlist_add_head_rcu(&mnt->mnt_hash,
@@ -2729,10 +2702,9 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 
 	if (moving) {
 		unhash_mnt(source_mnt);
+		mnt_set_mountpoint(dest_mnt, dest_mp, source_mnt);
 		if (beneath)
-			mnt_set_mountpoint_beneath(source_mnt, top_mnt, smp);
-		else
-			mnt_set_mountpoint(top_mnt, dest_mp, source_mnt);
+			mnt_change_mountpoint(source_mnt, smp, top_mnt);
 		__attach_mnt(source_mnt, source_mnt->mnt_parent);
 		mnt_notify_add(source_mnt);
 		touch_mnt_namespace(source_mnt->mnt_ns);
@@ -2745,10 +2717,9 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 				move_from_ns(p, &head);
 			list_del_init(&head);
 		}
+		mnt_set_mountpoint(dest_mnt, dest_mp, source_mnt);
 		if (beneath)
-			mnt_set_mountpoint_beneath(source_mnt, top_mnt, smp);
-		else
-			mnt_set_mountpoint(dest_mnt, dest_mp, source_mnt);
+			mnt_change_mountpoint(source_mnt, smp, top_mnt);
 		commit_tree(source_mnt);
 	}
 
