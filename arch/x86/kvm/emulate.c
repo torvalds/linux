@@ -267,10 +267,55 @@ static void invalidate_registers(struct x86_emulate_ctxt *ctxt)
 		     X86_EFLAGS_PF|X86_EFLAGS_CF)
 
 #ifdef CONFIG_X86_64
-#define ON64(x) x
+#define ON64(x...) x
 #else
-#define ON64(x)
+#define ON64(x...)
 #endif
+
+#define EM_ASM_START(op) \
+static int em_##op(struct x86_emulate_ctxt *ctxt) \
+{ \
+	unsigned long flags = (ctxt->eflags & EFLAGS_MASK) | X86_EFLAGS_IF; \
+	int bytes = 1, ok = 1; \
+	if (!(ctxt->d & ByteOp)) \
+		bytes = ctxt->dst.bytes; \
+	switch (bytes) {
+
+#define __EM_ASM(str) \
+		asm("push %[flags]; popf \n\t" \
+		    "10: " str \
+		    "pushf; pop %[flags] \n\t" \
+		    "11: \n\t" \
+		    : "+a" (ctxt->dst.val), \
+		      "+d" (ctxt->src.val), \
+		      [flags] "+D" (flags), \
+		      "+S" (ok) \
+		    : "c" (ctxt->src2.val))
+
+#define __EM_ASM_1(op, dst) \
+		__EM_ASM(#op " %%" #dst " \n\t")
+
+#define __EM_ASM_1_EX(op, dst) \
+		__EM_ASM(#op " %%" #dst " \n\t" \
+			 _ASM_EXTABLE_TYPE_REG(10b, 11f, EX_TYPE_ZERO_REG, %%esi))
+
+#define __EM_ASM_2(op, dst, src) \
+		__EM_ASM(#op " %%" #src ", %%" #dst " \n\t")
+
+#define EM_ASM_END \
+	} \
+	ctxt->eflags = (ctxt->eflags & ~EFLAGS_MASK) | (flags & EFLAGS_MASK); \
+	return !ok ? emulate_de(ctxt) : X86EMUL_CONTINUE; \
+}
+
+/* 1-operand, using "a" (dst) */
+#define EM_ASM_1(op) \
+	EM_ASM_START(op) \
+	case 1: __EM_ASM_1(op##b, al); break; \
+	case 2: __EM_ASM_1(op##w, ax); break; \
+	case 4: __EM_ASM_1(op##l, eax); break; \
+	ON64(case 8: __EM_ASM_1(op##q, rax); break;) \
+	EM_ASM_END
 
 /*
  * fastop functions have a special calling convention:
@@ -1002,10 +1047,10 @@ FASTOP3WCL(shrd);
 
 FASTOP2W(imul);
 
-FASTOP1(not);
-FASTOP1(neg);
-FASTOP1(inc);
-FASTOP1(dec);
+EM_ASM_1(not);
+EM_ASM_1(neg);
+EM_ASM_1(inc);
+EM_ASM_1(dec);
 
 FASTOP2CL(rol);
 FASTOP2CL(ror);
@@ -4021,8 +4066,8 @@ static const struct opcode group2[] = {
 static const struct opcode group3[] = {
 	F(DstMem | SrcImm | NoWrite, em_test),
 	F(DstMem | SrcImm | NoWrite, em_test),
-	F(DstMem | SrcNone | Lock, em_not),
-	F(DstMem | SrcNone | Lock, em_neg),
+	I(DstMem | SrcNone | Lock, em_not),
+	I(DstMem | SrcNone | Lock, em_neg),
 	F(DstXacc | Src2Mem, em_mul_ex),
 	F(DstXacc | Src2Mem, em_imul_ex),
 	F(DstXacc | Src2Mem, em_div_ex),
@@ -4030,14 +4075,14 @@ static const struct opcode group3[] = {
 };
 
 static const struct opcode group4[] = {
-	F(ByteOp | DstMem | SrcNone | Lock, em_inc),
-	F(ByteOp | DstMem | SrcNone | Lock, em_dec),
+	I(ByteOp | DstMem | SrcNone | Lock, em_inc),
+	I(ByteOp | DstMem | SrcNone | Lock, em_dec),
 	N, N, N, N, N, N,
 };
 
 static const struct opcode group5[] = {
-	F(DstMem | SrcNone | Lock,		em_inc),
-	F(DstMem | SrcNone | Lock,		em_dec),
+	I(DstMem | SrcNone | Lock,		em_inc),
+	I(DstMem | SrcNone | Lock,		em_dec),
 	I(SrcMem | NearBranch | IsBranch,       em_call_near_abs),
 	I(SrcMemFAddr | ImplicitOps | IsBranch, em_call_far),
 	I(SrcMem | NearBranch | IsBranch,       em_jmp_abs),
@@ -4237,7 +4282,7 @@ static const struct opcode opcode_table[256] = {
 	/* 0x38 - 0x3F */
 	F6ALU(NoWrite, em_cmp), N, N,
 	/* 0x40 - 0x4F */
-	X8(F(DstReg, em_inc)), X8(F(DstReg, em_dec)),
+	X8(I(DstReg, em_inc)), X8(I(DstReg, em_dec)),
 	/* 0x50 - 0x57 */
 	X8(I(SrcReg | Stack, em_push)),
 	/* 0x58 - 0x5F */
