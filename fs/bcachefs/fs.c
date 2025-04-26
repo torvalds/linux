@@ -66,6 +66,8 @@ static inline void bch2_inode_flags_to_vfs(struct bch_fs *c, struct bch_inode_in
 
 	if (bch2_inode_casefold(c, &inode->ei_inode))
 		inode->v.i_flags |= S_CASEFOLD;
+	else
+		inode->v.i_flags &= ~S_CASEFOLD;
 }
 
 void bch2_inode_update_after_write(struct btree_trans *trans,
@@ -848,10 +850,8 @@ int __bch2_unlink(struct inode *vdir, struct dentry *dentry,
 		set_nlink(&inode->v, 0);
 	}
 
-	if (IS_CASEFOLDED(vdir)) {
+	if (IS_CASEFOLDED(vdir))
 		d_invalidate(dentry);
-		d_prune_aliases(&inode->v);
-	}
 err:
 	bch2_trans_put(trans);
 	bch2_unlock_inodes(INODE_UPDATE_LOCK, dir, inode);
@@ -2570,6 +2570,11 @@ got_sb:
 	ret = bch2_fs_start(c);
 	if (ret)
 		goto err_put_super;
+
+#ifdef CONFIG_UNICODE
+	sb->s_encoding = c->cf_encoding;
+#endif
+	generic_set_sb_d_ops(sb);
 
 	vinode = bch2_vfs_inode_get(c, BCACHEFS_ROOT_SUBVOL_INUM);
 	ret = PTR_ERR_OR_ZERO(vinode);
