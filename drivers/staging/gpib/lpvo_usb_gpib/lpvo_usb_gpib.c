@@ -916,7 +916,6 @@ static int usb_gpib_request_system_control(struct gpib_board *board, int request
 	if (!request_control)
 		return -EINVAL;
 
-	set_bit(CIC_NUM, &board->status);
 	DIA_LOG(1, "done with %d -> %lx\n", request_control, board->status);
 	return 0;
 }
