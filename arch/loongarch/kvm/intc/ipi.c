@@ -111,7 +111,7 @@ static int send_ipi_data(struct kvm_vcpu *vcpu, gpa_t addr, uint64_t data)
 		ret = kvm_io_bus_read(vcpu, KVM_IOCSR_BUS, addr, sizeof(val), &val);
 		srcu_read_unlock(&vcpu->kvm->srcu, idx);
 		if (unlikely(ret)) {
-			kvm_err("%s: : read date from addr %llx failed\n", __func__, addr);
+			kvm_err("%s: : read data from addr %llx failed\n", __func__, addr);
 			return ret;
 		}
 		/* Construct the mask by scanning the bit 27-30 */
@@ -127,7 +127,7 @@ static int send_ipi_data(struct kvm_vcpu *vcpu, gpa_t addr, uint64_t data)
 	ret = kvm_io_bus_write(vcpu, KVM_IOCSR_BUS, addr, sizeof(val), &val);
 	srcu_read_unlock(&vcpu->kvm->srcu, idx);
 	if (unlikely(ret))
-		kvm_err("%s: : write date to addr %llx failed\n", __func__, addr);
+		kvm_err("%s: : write data to addr %llx failed\n", __func__, addr);
 
 	return ret;
 }
