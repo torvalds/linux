@@ -725,7 +725,7 @@ static int alloc_wq_table(int max_wqs)
 
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
 		entry = per_cpu_ptr(wq_table, cpu);
-		entry->wqs = kcalloc(max_wqs, sizeof(struct wq *), GFP_KERNEL);
+		entry->wqs = kcalloc(max_wqs, sizeof(*entry->wqs), GFP_KERNEL);
 		if (!entry->wqs) {
 			free_wq_table();
 			return -ENOMEM;
