@@ -1983,8 +1983,11 @@ static int do_umount(struct mount *mnt, int flags)
 	namespace_lock();
 	lock_mount_hash();
 
-	/* Recheck MNT_LOCKED with the locks held */
+	/* Repeat the earlier racy checks, now that we are holding the locks */
 	retval = -EINVAL;
+	if (!check_mnt(mnt))
+		goto out;
+
 	if (mnt->mnt.mnt_flags & MNT_LOCKED)
 		goto out;
 
@@ -1993,16 +1996,14 @@ static int do_umount(struct mount *mnt, int flags)
 
 	event++;
 	if (flags & MNT_DETACH) {
-		if (mnt_ns_attached(mnt) || !list_empty(&mnt->mnt_list))
-			umount_tree(mnt, UMOUNT_PROPAGATE);
+		umount_tree(mnt, UMOUNT_PROPAGATE);
 		retval = 0;
 	} else {
 		smp_mb(); // paired with __legitimize_mnt()
 		shrink_submounts(mnt);
 		retval = -EBUSY;
 		if (!propagate_mount_busy(mnt, 2)) {
-			if (mnt_ns_attached(mnt) || !list_empty(&mnt->mnt_list))
-				umount_tree(mnt, UMOUNT_PROPAGATE|UMOUNT_SYNC);
+			umount_tree(mnt, UMOUNT_PROPAGATE|UMOUNT_SYNC);
 			retval = 0;
 		}
 	}
