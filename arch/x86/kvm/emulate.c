@@ -302,6 +302,9 @@ static int em_##op(struct x86_emulate_ctxt *ctxt) \
 #define __EM_ASM_2(op, dst, src) \
 		__EM_ASM(#op " %%" #src ", %%" #dst " \n\t")
 
+#define __EM_ASM_3(op, dst, src, src2) \
+		__EM_ASM(#op " %%" #src2 ", %%" #src ", %%" #dst " \n\t")
+
 #define EM_ASM_END \
 	} \
 	ctxt->eflags = (ctxt->eflags & ~EFLAGS_MASK) | (flags & EFLAGS_MASK); \
@@ -370,6 +373,16 @@ static int em_##op(struct x86_emulate_ctxt *ctxt) \
 	case 4: __EM_ASM_2(op##l, eax, cl); break; \
 	ON64(case 8: __EM_ASM_2(op##q, rax, cl); break;) \
 	EM_ASM_END
+
+/* 3-operand, using "a" (dst), "d" (src) and CL (src2) */
+#define EM_ASM_3WCL(op) \
+	EM_ASM_START(op) \
+	case 1: break; \
+	case 2: __EM_ASM_3(op##w, ax, dx, cl); break; \
+	case 4: __EM_ASM_3(op##l, eax, edx, cl); break; \
+	ON64(case 8: __EM_ASM_3(op##q, rax, rdx, cl); break;) \
+	EM_ASM_END
+
 
 /*
  * fastop functions have a special calling convention:
@@ -1097,8 +1110,8 @@ EM_ASM_1SRC2(imul, imul_ex);
 EM_ASM_1SRC2EX(div, div_ex);
 EM_ASM_1SRC2EX(idiv, idiv_ex);
 
-FASTOP3WCL(shld);
-FASTOP3WCL(shrd);
+EM_ASM_3WCL(shld);
+EM_ASM_3WCL(shrd);
 
 EM_ASM_2W(imul);
 
@@ -4496,14 +4509,14 @@ static const struct opcode twobyte_table[256] = {
 	I(Stack | Src2FS, em_push_sreg), I(Stack | Src2FS, em_pop_sreg),
 	II(ImplicitOps, em_cpuid, cpuid),
 	I(DstMem | SrcReg | ModRM | BitOp | NoWrite, em_bt),
-	F(DstMem | SrcReg | Src2ImmByte | ModRM, em_shld),
-	F(DstMem | SrcReg | Src2CL | ModRM, em_shld), N, N,
+	I(DstMem | SrcReg | Src2ImmByte | ModRM, em_shld),
+	I(DstMem | SrcReg | Src2CL | ModRM, em_shld), N, N,
 	/* 0xA8 - 0xAF */
 	I(Stack | Src2GS, em_push_sreg), I(Stack | Src2GS, em_pop_sreg),
 	II(EmulateOnUD | ImplicitOps, em_rsm, rsm),
 	I(DstMem | SrcReg | ModRM | BitOp | Lock | PageTable, em_bts),
-	F(DstMem | SrcReg | Src2ImmByte | ModRM, em_shrd),
-	F(DstMem | SrcReg | Src2CL | ModRM, em_shrd),
+	I(DstMem | SrcReg | Src2ImmByte | ModRM, em_shrd),
+	I(DstMem | SrcReg | Src2CL | ModRM, em_shrd),
 	GD(0, &group15), I(DstReg | SrcMem | ModRM, em_imul),
 	/* 0xB0 - 0xB7 */
 	I2bv(DstMem | SrcReg | ModRM | Lock | PageTable | SrcWrite, em_cmpxchg),
