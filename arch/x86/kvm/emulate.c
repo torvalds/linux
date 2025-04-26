@@ -167,7 +167,6 @@
 #define Unaligned   ((u64)2 << 41)  /* Explicitly unaligned (e.g. MOVDQU) */
 #define Avx         ((u64)3 << 41)  /* Advanced Vector Extensions */
 #define Aligned16   ((u64)4 << 41)  /* Aligned to 16 byte boundary (e.g. FXSAVE) */
-#define Fastop      ((u64)1 << 44)  /* Use opcode::u.fastop */
 #define NoWrite     ((u64)1 << 45)  /* No writeback */
 #define SrcWrite    ((u64)1 << 46)  /* Write back src operand */
 #define NoMod	    ((u64)1 << 47)  /* Mod field is ignored */
@@ -203,7 +202,6 @@ struct opcode {
 		const struct escape *esc;
 		const struct instr_dual *idual;
 		const struct mode_dual *mdual;
-		void (*fastop)(struct fastop *fake);
 	} u;
 	int (*check_perm)(struct x86_emulate_ctxt *ctxt);
 };
@@ -382,152 +380,6 @@ static int em_##op(struct x86_emulate_ctxt *ctxt) \
 	case 4: __EM_ASM_3(op##l, eax, edx, cl); break; \
 	ON64(case 8: __EM_ASM_3(op##q, rax, rdx, cl); break;) \
 	EM_ASM_END
-
-
-/*
- * fastop functions have a special calling convention:
- *
- * dst:    rax        (in/out)
- * src:    rdx        (in/out)
- * src2:   rcx        (in)
- * flags:  rflags     (in/out)
- * ex:     rsi        (in:fastop pointer, out:zero if exception)
- *
- * Moreover, they are all exactly FASTOP_SIZE bytes long, so functions for
- * different operand sizes can be reached by calculation, rather than a jump
- * table (which would be bigger than the code).
- *
- * The 16 byte alignment, considering 5 bytes for the RET thunk, 3 for ENDBR
- * and 1 for the straight line speculation INT3, leaves 7 bytes for the
- * body of the function.  Currently none is larger than 4.
- */
-static int fastop(struct x86_emulate_ctxt *ctxt, fastop_t fop);
-
-#define FASTOP_SIZE	16
-
-#define __FOP_FUNC(name) \
-	".align " __stringify(FASTOP_SIZE) " \n\t" \
-	".type " name ", @function \n\t" \
-	name ":\n\t" \
-	ASM_ENDBR \
-	IBT_NOSEAL(name)
-
-#define FOP_FUNC(name) \
-	__FOP_FUNC(#name)
-
-#define __FOP_RET(name) \
-	"11: " ASM_RET \
-	".size " name ", .-" name "\n\t"
-
-#define FOP_RET(name) \
-	__FOP_RET(#name)
-
-#define __FOP_START(op, align) \
-	extern void em_##op(struct fastop *fake); \
-	asm(".pushsection .text, \"ax\" \n\t" \
-	    ".global em_" #op " \n\t" \
-	    ".align " __stringify(align) " \n\t" \
-	    "em_" #op ":\n\t"
-
-#define FOP_START(op) __FOP_START(op, FASTOP_SIZE)
-
-#define FOP_END \
-	    ".popsection")
-
-#define __FOPNOP(name) \
-	__FOP_FUNC(name) \
-	__FOP_RET(name)
-
-#define FOPNOP() \
-	__FOPNOP(__stringify(__UNIQUE_ID(nop)))
-
-#define FOP1E(op,  dst) \
-	__FOP_FUNC(#op "_" #dst) \
-	"10: " #op " %" #dst " \n\t" \
-	__FOP_RET(#op "_" #dst)
-
-#define FOP1EEX(op,  dst) \
-	FOP1E(op, dst) _ASM_EXTABLE_TYPE_REG(10b, 11b, EX_TYPE_ZERO_REG, %%esi)
-
-#define FASTOP1(op) \
-	FOP_START(op) \
-	FOP1E(op##b, al) \
-	FOP1E(op##w, ax) \
-	FOP1E(op##l, eax) \
-	ON64(FOP1E(op##q, rax))	\
-	FOP_END
-
-/* 1-operand, using src2 (for MUL/DIV r/m) */
-#define FASTOP1SRC2(op, name) \
-	FOP_START(name) \
-	FOP1E(op, cl) \
-	FOP1E(op, cx) \
-	FOP1E(op, ecx) \
-	ON64(FOP1E(op, rcx)) \
-	FOP_END
-
-/* 1-operand, using src2 (for MUL/DIV r/m), with exceptions */
-#define FASTOP1SRC2EX(op, name) \
-	FOP_START(name) \
-	FOP1EEX(op, cl) \
-	FOP1EEX(op, cx) \
-	FOP1EEX(op, ecx) \
-	ON64(FOP1EEX(op, rcx)) \
-	FOP_END
-
-#define FOP2E(op,  dst, src)	   \
-	__FOP_FUNC(#op "_" #dst "_" #src) \
-	#op " %" #src ", %" #dst " \n\t" \
-	__FOP_RET(#op "_" #dst "_" #src)
-
-#define FASTOP2(op) \
-	FOP_START(op) \
-	FOP2E(op##b, al, dl) \
-	FOP2E(op##w, ax, dx) \
-	FOP2E(op##l, eax, edx) \
-	ON64(FOP2E(op##q, rax, rdx)) \
-	FOP_END
-
-/* 2 operand, word only */
-#define FASTOP2W(op) \
-	FOP_START(op) \
-	FOPNOP() \
-	FOP2E(op##w, ax, dx) \
-	FOP2E(op##l, eax, edx) \
-	ON64(FOP2E(op##q, rax, rdx)) \
-	FOP_END
-
-/* 2 operand, src is CL */
-#define FASTOP2CL(op) \
-	FOP_START(op) \
-	FOP2E(op##b, al, cl) \
-	FOP2E(op##w, ax, cl) \
-	FOP2E(op##l, eax, cl) \
-	ON64(FOP2E(op##q, rax, cl)) \
-	FOP_END
-
-/* 2 operand, src and dest are reversed */
-#define FASTOP2R(op, name) \
-	FOP_START(name) \
-	FOP2E(op##b, dl, al) \
-	FOP2E(op##w, dx, ax) \
-	FOP2E(op##l, edx, eax) \
-	ON64(FOP2E(op##q, rdx, rax)) \
-	FOP_END
-
-#define FOP3E(op,  dst, src, src2) \
-	__FOP_FUNC(#op "_" #dst "_" #src "_" #src2) \
-	#op " %" #src2 ", %" #src ", %" #dst " \n\t"\
-	__FOP_RET(#op "_" #dst "_" #src "_" #src2)
-
-/* 3-operand, word-only, src2=cl */
-#define FASTOP3WCL(op) \
-	FOP_START(op) \
-	FOPNOP() \
-	FOP3E(op##w, ax, dx, cl) \
-	FOP3E(op##l, eax, edx, cl) \
-	ON64(FOP3E(op##q, rax, rdx, cl)) \
-	FOP_END
 
 static int em_salc(struct x86_emulate_ctxt *ctxt)
 {
@@ -4052,7 +3904,6 @@ static int check_perm_out(struct x86_emulate_ctxt *ctxt)
 #define MD(_f, _m) { .flags = ((_f) | ModeDual), .u.mdual = (_m) }
 #define E(_f, _e) { .flags = ((_f) | Escape | ModRM), .u.esc = (_e) }
 #define I(_f, _e) { .flags = (_f), .u.execute = (_e) }
-#define F(_f, _e) { .flags = (_f) | Fastop, .u.fastop = (_e) }
 #define II(_f, _e, _i) \
 	{ .flags = (_f)|Intercept, .u.execute = (_e), .intercept = x86_intercept_##_i }
 #define IIP(_f, _e, _i, _p) \
@@ -5158,24 +5009,6 @@ static void fetch_possible_mmx_operand(struct operand *op)
 		kvm_read_mmx_reg(op->addr.mm, &op->mm_val);
 }
 
-static int fastop(struct x86_emulate_ctxt *ctxt, fastop_t fop)
-{
-	ulong flags = (ctxt->eflags & EFLAGS_MASK) | X86_EFLAGS_IF;
-
-	if (!(ctxt->d & ByteOp))
-		fop += __ffs(ctxt->dst.bytes) * FASTOP_SIZE;
-
-	asm("push %[flags]; popf; " CALL_NOSPEC " ; pushf; pop %[flags]\n"
-	    : "+a"(ctxt->dst.val), "+d"(ctxt->src.val), [flags]"+D"(flags),
-	      [thunk_target]"+S"(fop), ASM_CALL_CONSTRAINT
-	    : "c"(ctxt->src2.val));
-
-	ctxt->eflags = (ctxt->eflags & ~EFLAGS_MASK) | (flags & EFLAGS_MASK);
-	if (!fop) /* exception is returned in fop variable */
-		return emulate_de(ctxt);
-	return X86EMUL_CONTINUE;
-}
-
 void init_decode_cache(struct x86_emulate_ctxt *ctxt)
 {
 	/* Clear fields that are set conditionally but read without a guard. */
@@ -5340,10 +5173,7 @@ special_insn:
 		ctxt->eflags &= ~X86_EFLAGS_RF;
 
 	if (ctxt->execute) {
-		if (ctxt->d & Fastop)
-			rc = fastop(ctxt, ctxt->fop);
-		else
-			rc = ctxt->execute(ctxt);
+		rc = ctxt->execute(ctxt);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		goto writeback;
