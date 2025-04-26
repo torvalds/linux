@@ -1021,7 +1021,7 @@ int rtw89_build_phy_tbl_from_elm(struct rtw89_dev *rtwdev,
 	}
 
 	n_regs = le32_to_cpu(elm->size) / sizeof(tbl->regs[0]);
-	regs = kcalloc(n_regs, sizeof(tbl->regs[0]), GFP_KERNEL);
+	regs = kcalloc(n_regs, sizeof(*regs), GFP_KERNEL);
 	if (!regs)
 		goto out;
 
