@@ -395,9 +395,10 @@ pub use ::pin_init_internal::pin_data;
 /// ```
 pub use ::pin_init_internal::pinned_drop;
 
-/// Derives the [`Zeroable`] trait for the given struct.
+/// Derives the [`Zeroable`] trait for the given `struct` or `union`.
 ///
-/// This can only be used for structs where every field implements the [`Zeroable`] trait.
+/// This can only be used for `struct`s/`union`s where every field implements the [`Zeroable`]
+/// trait.
 ///
 /// # Examples
 ///
@@ -406,14 +407,25 @@ pub use ::pin_init_internal::pinned_drop;
 ///
 /// #[derive(Zeroable)]
 /// pub struct DriverData {
-///     id: i64,
+///     pub(crate) id: i64,
 ///     buf_ptr: *mut u8,
 ///     len: usize,
 /// }
 /// ```
+///
+/// ```
+/// use pin_init::Zeroable;
+///
+/// #[derive(Zeroable)]
+/// pub union SignCast {
+///     signed: i64,
+///     unsigned: u64,
+/// }
+/// ```
 pub use ::pin_init_internal::Zeroable;
 
-/// Derives the [`Zeroable`] trait for the given struct if all fields implement [`Zeroable`].
+/// Derives the [`Zeroable`] trait for the given `struct` or `union` if all fields implement
+/// [`Zeroable`].
 ///
 /// Contrary to the derive macro named [`macro@Zeroable`], this one silently fails when a field
 /// doesn't implement [`Zeroable`].
@@ -426,7 +438,7 @@ pub use ::pin_init_internal::Zeroable;
 /// // implmements `Zeroable`
 /// #[derive(MaybeZeroable)]
 /// pub struct DriverData {
-///     id: i64,
+///     pub(crate) id: i64,
 ///     buf_ptr: *mut u8,
 ///     len: usize,
 /// }
@@ -434,7 +446,7 @@ pub use ::pin_init_internal::Zeroable;
 /// // does not implmement `Zeroable`
 /// #[derive(MaybeZeroable)]
 /// pub struct DriverData2 {
-///     id: i64,
+///     pub(crate) id: i64,
 ///     buf_ptr: *mut u8,
 ///     len: usize,
 ///     // this field doesn't implement `Zeroable`
