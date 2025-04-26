@@ -2570,7 +2570,7 @@ enum mnt_tree_flags_t {
 /**
  * attach_recursive_mnt - attach a source mount tree
  * @source_mnt: mount tree to be attached
- * @top_mnt:    mount that @source_mnt will be mounted on or mounted beneath
+ * @dest_mnt:   mount that @source_mnt will be mounted on
  * @dest_mp:    the mountpoint @source_mnt will be mounted at
  * @flags:      modify how @source_mnt is supposed to be attached
  *
@@ -2635,20 +2635,20 @@ enum mnt_tree_flags_t {
  *         Otherwise a negative error code is returned.
  */
 static int attach_recursive_mnt(struct mount *source_mnt,
-				struct mount *top_mnt,
+				struct mount *dest_mnt,
 				struct mountpoint *dest_mp,
 				enum mnt_tree_flags_t flags)
 {
 	struct user_namespace *user_ns = current->nsproxy->mnt_ns->user_ns;
 	HLIST_HEAD(tree_list);
-	struct mnt_namespace *ns = top_mnt->mnt_ns;
+	struct mnt_namespace *ns = dest_mnt->mnt_ns;
 	struct mountpoint *smp;
 	struct mountpoint *shorter = NULL;
-	struct mount *child, *dest_mnt, *p;
+	struct mount *child, *p;
 	struct mount *top;
 	struct hlist_node *n;
 	int err = 0;
-	bool moving = flags & MNT_TREE_MOVE, beneath = flags & MNT_TREE_BENEATH;
+	bool moving = flags & MNT_TREE_MOVE;
 
 	/*
 	 * Preallocate a mountpoint in case the new mounts need to be
@@ -2668,11 +2668,6 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 		if (err)
 			goto out;
 	}
-
-	if (beneath)
-		dest_mnt = top_mnt->mnt_parent;
-	else
-		dest_mnt = top_mnt;
 
 	if (IS_MNT_SHARED(dest_mnt)) {
 		err = invent_group_ids(source_mnt, true);
@@ -3688,7 +3683,7 @@ static int do_move_mount(struct path *old_path,
 	if (mount_is_ancestor(old, p))
 		goto out;
 
-	err = attach_recursive_mnt(old, real_mount(new_path->mnt), mp, flags);
+	err = attach_recursive_mnt(old, p, mp, flags);
 	if (err)
 		goto out;
 
