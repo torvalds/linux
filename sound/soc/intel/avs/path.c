@@ -131,9 +131,9 @@ int avs_path_set_constraint(struct avs_dev *adev, struct avs_tplg_path_template 
 	list_for_each_entry(path_template, &template->path_list, node)
 		i++;
 
-	rlist = kcalloc(i, sizeof(rlist), GFP_KERNEL);
-	clist = kcalloc(i, sizeof(clist), GFP_KERNEL);
-	slist = kcalloc(i, sizeof(slist), GFP_KERNEL);
+	rlist = kcalloc(i, sizeof(*rlist), GFP_KERNEL);
+	clist = kcalloc(i, sizeof(*clist), GFP_KERNEL);
+	slist = kcalloc(i, sizeof(*slist), GFP_KERNEL);
 
 	i = 0;
 	list_for_each_entry(path_template, &template->path_list, node) {
