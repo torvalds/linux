@@ -2817,7 +2817,7 @@ static int vc_translate_unicode(struct vc_data *vc, int c, bool *rescan)
 	if ((c & 0xc0) == 0x80) {
 		/* Unexpected continuation byte? */
 		if (!vc->vc_utf_count)
-			goto bad_sequence;
+			return 0xfffd;
 
 		vc->vc_utf_char = (vc->vc_utf_char << 6) | (c & 0x3f);
 		vc->vc_npar++;
@@ -2829,17 +2829,17 @@ static int vc_translate_unicode(struct vc_data *vc, int c, bool *rescan)
 		/* Reject overlong sequences */
 		if (c <= utf8_length_changes[vc->vc_npar - 1] ||
 				c > utf8_length_changes[vc->vc_npar])
-			goto bad_sequence;
+			return 0xfffd;
 
 		return vc_sanitize_unicode(c);
 	}
 
 	/* Single ASCII byte or first byte of a sequence received */
 	if (vc->vc_utf_count) {
-		/* A continuation byte was expected */
+		/* Continuation byte expected */
 		*rescan = true;
 		vc->vc_utf_count = 0;
-		goto bad_sequence;
+		return 0xfffd;
 	}
 
 	/* Nothing to do if an ASCII byte was received */
@@ -2858,14 +2858,11 @@ static int vc_translate_unicode(struct vc_data *vc, int c, bool *rescan)
 		vc->vc_utf_count = 3;
 		vc->vc_utf_char = (c & 0x07);
 	} else {
-		goto bad_sequence;
+		return 0xfffd;
 	}
 
 need_more_bytes:
 	return -1;
-
-bad_sequence:
-	return 0xfffd;
 }
 
 static int vc_translate(struct vc_data *vc, int *c, bool *rescan)
