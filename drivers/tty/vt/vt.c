@@ -2964,15 +2964,13 @@ static int vc_con_write_normal(struct vc_data *vc, int tc, int c,
 					goto out;
 				}
 			}
-			/* padding for the legacy display like done below */
-			tc = ' ';
 		}
 	}
 
 	/* Now try to find out how to display it */
 	tc = conv_uni_to_pc(vc, tc);
 	if (tc & ~charmask) {
-		if (tc == -1)
+		if (tc == -1 || tc == -2)
 			return -1; /* nothing to display */
 
 		/* Glyph not found */
