@@ -473,9 +473,9 @@ static int gmin_subdev_add(struct gmin_subdev *gs)
 
 	dev_info(dev, "%s: ACPI path is %pfw\n", __func__, dev_fwnode(dev));
 
-	/*WA:CHT requires XTAL clock as PLL is not stable.*/
+	/* WA:CHT requires XTAL clock as PLL is not stable. */
 	gs->clock_src = gmin_get_var_int(dev, false, "ClkSrc",
-				         VLV2_CLK_PLL_19P2MHZ);
+					 VLV2_CLK_PLL_19P2MHZ);
 
 	/*
 	 * Get ACPI _PR0 derived clock here already because it is used
