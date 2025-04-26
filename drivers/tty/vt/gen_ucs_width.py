@@ -132,48 +132,12 @@ def generate_ucs_width():
         ranges.append((start, prev))
         return ranges
 
-    # Function to split ranges into BMP (16-bit) and non-BMP (above 16-bit)
-    def split_ranges_by_size(ranges):
-        bmp_ranges = []
-        non_bmp_ranges = []
-
-        for start, end in ranges:
-            if end <= 0xFFFF:
-                bmp_ranges.append((start, end))
-            elif start > 0xFFFF:
-                non_bmp_ranges.append((start, end))
-            else:
-                # Split the range at 0xFFFF
-                bmp_ranges.append((start, 0xFFFF))
-                non_bmp_ranges.append((0x10000, end))
-
-        return bmp_ranges, non_bmp_ranges
-
     # Extract ranges for each width
     zero_width_ranges = ranges_optimize(width_map, 0)
     double_width_ranges = ranges_optimize(width_map, 2)
 
-    # Split ranges into BMP and non-BMP
-    zero_width_bmp, zero_width_non_bmp = split_ranges_by_size(zero_width_ranges)
-    double_width_bmp, double_width_non_bmp = split_ranges_by_size(double_width_ranges)
-
     # Get Unicode version information
     unicode_version = unicodedata.unidata_version
-
-    # Function to generate code point description comments
-    def get_code_point_comment(start, end):
-        try:
-            start_char_desc = unicodedata.name(chr(start))
-            if start == end:
-                return f"/* {start_char_desc} */"
-            else:
-                end_char_desc = unicodedata.name(chr(end))
-                return f"/* {start_char_desc} - {end_char_desc} */"
-        except:
-            if start == end:
-                return f"/* U+{start:04X} */"
-            else:
-                return f"/* U+{start:04X} - U+{end:04X} */"
 
     # Generate C implementation file
     with open(c_file, 'w') as f:
@@ -192,77 +156,62 @@ def generate_ucs_width():
 #include <linux/bsearch.h>
 #include <linux/consolemap.h>
 
-struct interval16 {{
-	uint16_t first;
-	uint16_t last;
-}};
-
-struct interval32 {{
+struct interval {{
 	uint32_t first;
 	uint32_t last;
 }};
 
-/* Zero-width character ranges (BMP - Basic Multilingual Plane, U+0000 to U+FFFF) */
-static const struct interval16 zero_width_bmp[] = {{
+/* Zero-width character ranges */
+static const struct interval zero_width_ranges[] = {{
 """)
 
-        for start, end in zero_width_bmp:
-            comment = get_code_point_comment(start, end)
-            f.write(f"\t{{ 0x{start:04X}, 0x{end:04X} }}, {comment}\n")
+        for start, end in zero_width_ranges:
+            try:
+                start_char_desc = unicodedata.name(chr(start)) if start < 0x10000 else f"U+{start:05X}"
+                if start == end:
+                    comment = f"/* {start_char_desc} */"
+                else:
+                    end_char_desc = unicodedata.name(chr(end)) if end < 0x10000 else f"U+{end:05X}"
+                    comment = f"/* {start_char_desc} - {end_char_desc} */"
+            except:
+                if start == end:
+                    comment = f"/* U+{start:05X} */"
+                else:
+                    comment = f"/* U+{start:05X} - U+{end:05X} */"
 
-        f.write("""\
-};
-
-/* Zero-width character ranges (non-BMP, U+10000 and above) */
-static const struct interval32 zero_width_non_bmp[] = {
-""")
-
-        for start, end in zero_width_non_bmp:
-            comment = get_code_point_comment(start, end)
             f.write(f"\t{{ 0x{start:05X}, 0x{end:05X} }}, {comment}\n")
 
         f.write("""\
 };
 
-/* Double-width character ranges (BMP - Basic Multilingual Plane, U+0000 to U+FFFF) */
-static const struct interval16 double_width_bmp[] = {
+/* Double-width character ranges */
+static const struct interval double_width_ranges[] = {
 """)
 
-        for start, end in double_width_bmp:
-            comment = get_code_point_comment(start, end)
-            f.write(f"\t{{ 0x{start:04X}, 0x{end:04X} }}, {comment}\n")
+        for start, end in double_width_ranges:
+            try:
+                start_char_desc = unicodedata.name(chr(start)) if start < 0x10000 else f"U+{start:05X}"
+                if start == end:
+                    comment = f"/* {start_char_desc} */"
+                else:
+                    end_char_desc = unicodedata.name(chr(end)) if end < 0x10000 else f"U+{end:05X}"
+                    comment = f"/* {start_char_desc} - {end_char_desc} */"
+            except:
+                if start == end:
+                    comment = f"/* U+{start:05X} */"
+                else:
+                    comment = f"/* U+{start:05X} - U+{end:05X} */"
 
-        f.write("""\
-};
-
-/* Double-width character ranges (non-BMP, U+10000 and above) */
-static const struct interval32 double_width_non_bmp[] = {
-""")
-
-        for start, end in double_width_non_bmp:
-            comment = get_code_point_comment(start, end)
             f.write(f"\t{{ 0x{start:05X}, 0x{end:05X} }}, {comment}\n")
 
         f.write("""\
 };
 
 
-static int ucs_cmp16(const void *key, const void *element)
-{
-	uint16_t cp = *(uint16_t *)key;
-	const struct interval16 *e = element;
-
-	if (cp > e->last)
-		return 1;
-	if (cp < e->first)
-		return -1;
-	return 0;
-}
-
-static int ucs_cmp32(const void *key, const void *element)
+static int ucs_cmp(const void *key, const void *element)
 {
 	uint32_t cp = *(uint32_t *)key;
-	const struct interval32 *e = element;
+	const struct interval *e = element;
 
 	if (cp > e->last)
 		return 1;
@@ -271,22 +220,13 @@ static int ucs_cmp32(const void *key, const void *element)
 	return 0;
 }
 
-static bool is_in_interval16(uint16_t cp, const struct interval16 *intervals, size_t count)
+static bool is_in_interval(uint32_t cp, const struct interval *intervals, size_t count)
 {
 	if (cp < intervals[0].first || cp > intervals[count - 1].last)
 		return false;
 
 	return __inline_bsearch(&cp, intervals, count,
-				sizeof(*intervals), ucs_cmp16) != NULL;
-}
-
-static bool is_in_interval32(uint32_t cp, const struct interval32 *intervals, size_t count)
-{
-	if (cp < intervals[0].first || cp > intervals[count - 1].last)
-		return false;
-
-	return __inline_bsearch(&cp, intervals, count,
-				sizeof(*intervals), ucs_cmp32) != NULL;
+				sizeof(*intervals), ucs_cmp) != NULL;
 }
 
 /**
@@ -297,9 +237,7 @@ static bool is_in_interval32(uint32_t cp, const struct interval32 *intervals, si
  */
 bool ucs_is_zero_width(uint32_t cp)
 {
-	return (cp <= 0xFFFF)
-	       ? is_in_interval16(cp, zero_width_bmp, ARRAY_SIZE(zero_width_bmp))
-	       : is_in_interval32(cp, zero_width_non_bmp, ARRAY_SIZE(zero_width_non_bmp));
+	return is_in_interval(cp, zero_width_ranges, ARRAY_SIZE(zero_width_ranges));
 }
 
 /**
@@ -310,27 +248,17 @@ bool ucs_is_zero_width(uint32_t cp)
  */
 bool ucs_is_double_width(uint32_t cp)
 {
-	return (cp <= 0xFFFF)
-	       ? is_in_interval16(cp, double_width_bmp, ARRAY_SIZE(double_width_bmp))
-	       : is_in_interval32(cp, double_width_non_bmp, ARRAY_SIZE(double_width_non_bmp));
+	return is_in_interval(cp, double_width_ranges, ARRAY_SIZE(double_width_ranges));
 }
 """)
 
     # Print summary
-    zero_width_bmp_count = sum(end - start + 1 for start, end in zero_width_bmp)
-    zero_width_non_bmp_count = sum(end - start + 1 for start, end in zero_width_non_bmp)
-    double_width_bmp_count = sum(end - start + 1 for start, end in double_width_bmp)
-    double_width_non_bmp_count = sum(end - start + 1 for start, end in double_width_non_bmp)
-
-    total_zero_width = zero_width_bmp_count + zero_width_non_bmp_count
-    total_double_width = double_width_bmp_count + double_width_non_bmp_count
+    zero_width_count = sum(end - start + 1 for start, end in zero_width_ranges)
+    double_width_count = sum(end - start + 1 for start, end in double_width_ranges)
 
     print(f"Generated {c_file} with:")
-    print(f"- {len(zero_width_bmp)} zero-width BMP ranges (16-bit) covering ~{zero_width_bmp_count} code points")
-    print(f"- {len(zero_width_non_bmp)} zero-width non-BMP ranges (32-bit) covering ~{zero_width_non_bmp_count} code points")
-    print(f"- {len(double_width_bmp)} double-width BMP ranges (16-bit) covering ~{double_width_bmp_count} code points")
-    print(f"- {len(double_width_non_bmp)} double-width non-BMP ranges (32-bit) covering ~{double_width_non_bmp_count} code points")
-    print(f"Total: {len(zero_width_bmp) + len(zero_width_non_bmp) + len(double_width_bmp) + len(double_width_non_bmp)} ranges covering ~{total_zero_width + total_double_width} code points")
+    print(f"- {len(zero_width_ranges)} zero-width ranges covering ~{zero_width_count} code points")
+    print(f"- {len(double_width_ranges)} double-width ranges covering ~{double_width_count} code points")
 
 if __name__ == "__main__":
     generate_ucs_width()
