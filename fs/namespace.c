@@ -2643,7 +2643,7 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 	HLIST_HEAD(tree_list);
 	struct mnt_namespace *ns = top_mnt->mnt_ns;
 	struct mountpoint *smp;
-	struct mountpoint *secondary = NULL;
+	struct mountpoint *shorter = NULL;
 	struct mount *child, *dest_mnt, *p;
 	struct mount *top;
 	struct hlist_node *n;
@@ -2655,14 +2655,12 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 	 * mounted beneath mounts on the same mountpoint.
 	 */
 	for (top = source_mnt; unlikely(top->overmount); top = top->overmount) {
-		if (!secondary && is_mnt_ns_file(top->mnt.mnt_root))
-			secondary = top->mnt_mp;
+		if (!shorter && is_mnt_ns_file(top->mnt.mnt_root))
+			shorter = top->mnt_mp;
 	}
 	smp = get_mountpoint(top->mnt.mnt_root);
 	if (IS_ERR(smp))
 		return PTR_ERR(smp);
-	if (!secondary)
-		secondary = smp;
 
 	/* Is there space to add these mounts to the mount namespace? */
 	if (!moving) {
@@ -2706,9 +2704,14 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 	}
 
 	mnt_set_mountpoint(dest_mnt, dest_mp, source_mnt);
-	if (beneath)
-		mnt_change_mountpoint(top, smp, top_mnt);
-	commit_tree(source_mnt);
+	/*
+	 * Now the original copy is in the same state as the secondaries -
+	 * its root attached to mountpoint, but not hashed and all mounts
+	 * in it are either in our namespace or in no namespace at all.
+	 * Add the original to the list of copies and deal with the
+	 * rest of work for all of them uniformly.
+	 */
+	hlist_add_head(&source_mnt->mnt_hash, &tree_list);
 
 	hlist_for_each_entry_safe(child, n, &tree_list, mnt_hash) {
 		struct mount *q;
@@ -2719,10 +2722,13 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 		q = __lookup_mnt(&child->mnt_parent->mnt,
 				 child->mnt_mountpoint);
 		if (q) {
+			struct mountpoint *mp = smp;
 			struct mount *r = child;
 			while (unlikely(r->overmount))
 				r = r->overmount;
-			mnt_change_mountpoint(r, secondary, q);
+			if (unlikely(shorter) && child != source_mnt)
+				mp = shorter;
+			mnt_change_mountpoint(r, mp, q);
 		}
 		commit_tree(child);
 	}
