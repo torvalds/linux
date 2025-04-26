@@ -701,21 +701,21 @@ static noinline bool xdp_copy_frags_from_zc(struct sk_buff *skb,
 		const skb_frag_t *frag = &xinfo->frags[i];
 		u32 len = skb_frag_size(frag);
 		u32 offset, truesize = len;
-		netmem_ref netmem;
+		struct page *page;
 
-		netmem = page_pool_dev_alloc_netmem(pp, &offset, &truesize);
-		if (unlikely(!netmem)) {
+		page = page_pool_dev_alloc(pp, &offset, &truesize);
+		if (unlikely(!page)) {
 			sinfo->nr_frags = i;
 			return false;
 		}
 
-		memcpy(__netmem_address(netmem) + offset,
-		       __netmem_address(frag->netmem) + skb_frag_off(frag),
+		memcpy(page_address(page) + offset,
+		       skb_frag_page(frag) + skb_frag_off(frag),
 		       LARGEST_ALIGN(len));
-		__skb_fill_netmem_desc_noacc(sinfo, i, netmem, offset, len);
+		__skb_fill_page_desc_noacc(sinfo, i, page, offset, len);
 
 		tsize += truesize;
-		pfmemalloc |= netmem_is_pfmemalloc(netmem);
+		pfmemalloc |= page_is_pfmemalloc(page);
 	}
 
 	xdp_update_skb_shared_info(skb, nr_frags, xinfo->xdp_frags_size,
