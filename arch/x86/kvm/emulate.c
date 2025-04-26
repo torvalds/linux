@@ -344,6 +344,15 @@ static int em_##op(struct x86_emulate_ctxt *ctxt) \
 	ON64(case 8: __EM_ASM_2(op##q, rax, rdx); break;) \
 	EM_ASM_END
 
+/* 2-operand, using "a" (dst) and CL (src2) */
+#define EM_ASM_2CL(op) \
+	EM_ASM_START(op) \
+	case 1: __EM_ASM_2(op##b, al, cl); break; \
+	case 2: __EM_ASM_2(op##w, ax, cl); break; \
+	case 4: __EM_ASM_2(op##l, eax, cl); break; \
+	ON64(case 8: __EM_ASM_2(op##q, rax, cl); break;) \
+	EM_ASM_END
+
 /*
  * fastop functions have a special calling convention:
  *
@@ -1080,13 +1089,13 @@ EM_ASM_1(neg);
 EM_ASM_1(inc);
 EM_ASM_1(dec);
 
-FASTOP2CL(rol);
-FASTOP2CL(ror);
-FASTOP2CL(rcl);
-FASTOP2CL(rcr);
-FASTOP2CL(shl);
-FASTOP2CL(shr);
-FASTOP2CL(sar);
+EM_ASM_2CL(rol);
+EM_ASM_2CL(ror);
+EM_ASM_2CL(rcl);
+EM_ASM_2CL(rcr);
+EM_ASM_2CL(shl);
+EM_ASM_2CL(shr);
+EM_ASM_2CL(sar);
 
 EM_ASM_2W(bsf);
 EM_ASM_2W(bsr);
@@ -4079,14 +4088,14 @@ static const struct opcode group1A[] = {
 };
 
 static const struct opcode group2[] = {
-	F(DstMem | ModRM, em_rol),
-	F(DstMem | ModRM, em_ror),
-	F(DstMem | ModRM, em_rcl),
-	F(DstMem | ModRM, em_rcr),
-	F(DstMem | ModRM, em_shl),
-	F(DstMem | ModRM, em_shr),
-	F(DstMem | ModRM, em_shl),
-	F(DstMem | ModRM, em_sar),
+	I(DstMem | ModRM, em_rol),
+	I(DstMem | ModRM, em_ror),
+	I(DstMem | ModRM, em_rcl),
+	I(DstMem | ModRM, em_rcr),
+	I(DstMem | ModRM, em_shl),
+	I(DstMem | ModRM, em_shr),
+	I(DstMem | ModRM, em_shl),
+	I(DstMem | ModRM, em_sar),
 };
 
 static const struct opcode group3[] = {
