@@ -9,10 +9,8 @@ from lib.py import bkg, cmd, defer, ethtool, rand_port, wait_port_listen
 
 
 def _get_current_settings(cfg):
-    output = ethtool(f"-g {cfg.ifname}", host=cfg.remote).stdout
-    rx_ring = re.findall(r'RX:\s+(\d+)', output)
-    hds_thresh = re.findall(r'HDS thresh:\s+(\d+)', output)
-    return (int(rx_ring[1]), int(hds_thresh[1]))
+    output = ethtool(f"-g {cfg.ifname}", json=True, host=cfg.remote)[0]
+    return (output['rx'], output['hds-thresh'])
 
 
 def _get_combined_channels(cfg):
