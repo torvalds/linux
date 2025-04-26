@@ -512,7 +512,7 @@ static bool is_in_interval32(uint32_t cp, const struct interval32 *intervals, si
 /**
  * Determine if a Unicode code point is zero-width.
  *
- * @param cp: Unicode code point (UCS-4)
+ * @param ucs: Unicode code point (UCS-4)
  * Return: true if the character is zero-width, false otherwise
  */
 bool ucs_is_zero_width(uint32_t cp)
@@ -525,7 +525,7 @@ bool ucs_is_zero_width(uint32_t cp)
 /**
  * Determine if a Unicode code point is double-width.
  *
- * @param cp: Unicode code point (UCS-4)
+ * @param ucs: Unicode code point (UCS-4)
  * Return: true if the character is double-width, false otherwise
  */
 bool ucs_is_double_width(uint32_t cp)

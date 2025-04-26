@@ -147,8 +147,8 @@ static int recomposition_compare(const void *key, const void *element)
 /**
  * Attempt to recompose two Unicode characters into a single character.
  *
- * @param base: Base Unicode code point (UCS-4)
- * @param combining: Combining mark Unicode code point (UCS-4)
+ * @param previous: Previous Unicode code point (UCS-4)
+ * @param current: Current Unicode code point (UCS-4)
  * Return: Recomposed Unicode code point, or 0 if no recomposition is possible
  */
 uint32_t ucs_recompose(uint32_t base, uint32_t combining)
@@ -159,6 +159,7 @@ uint32_t ucs_recompose(uint32_t base, uint32_t combining)
 		return 0;
 
 	struct compare_key key = { base, combining };
+
 	struct recomposition *result =
 		__inline_bsearch(&key, recomposition_table,
 				 ARRAY_SIZE(recomposition_table),
