@@ -272,12 +272,7 @@ run_test()
 		"" \
 		"${isochron_dat}"
 
-	# Count all received packets by looking at the non-zero RX timestamps
-	received=$(isochron report \
-		--input-file "${isochron_dat}" \
-		--printf-format "%u\n" --printf-args "R" | \
-		grep -w -v '0' | wc -l)
-
+	received=$(isochron_report_num_received "${isochron_dat}")
 	if [ "${received}" = "${expected}" ]; then
 		RET=0
 	else

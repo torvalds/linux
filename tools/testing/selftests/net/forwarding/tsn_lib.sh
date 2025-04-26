@@ -247,3 +247,14 @@ isochron_do()
 
 	cpufreq_restore ${ISOCHRON_CPU}
 }
+
+isochron_report_num_received()
+{
+	local isochron_dat=$1; shift
+
+	# Count all received packets by looking at the non-zero RX timestamps
+	isochron report \
+		--input-file "${isochron_dat}" \
+		--printf-format "%u\n" --printf-args "R" | \
+		grep -w -v '0' | wc -l
+}
