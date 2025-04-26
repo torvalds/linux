@@ -1172,15 +1172,17 @@ static void commit_tree(struct mount *mnt)
 
 	BUG_ON(parent == mnt);
 
-	list_add_tail(&head, &mnt->mnt_list);
-	while (!list_empty(&head)) {
-		m = list_first_entry(&head, typeof(*m), mnt_list);
-		list_del(&m->mnt_list);
+	if (!mnt_ns_attached(mnt)) {
+		list_add_tail(&head, &mnt->mnt_list);
+		while (!list_empty(&head)) {
+			m = list_first_entry(&head, typeof(*m), mnt_list);
+			list_del(&m->mnt_list);
 
-		mnt_add_to_ns(n, m);
+			mnt_add_to_ns(n, m);
+		}
+		n->nr_mounts += n->pending_mounts;
+		n->pending_mounts = 0;
 	}
-	n->nr_mounts += n->pending_mounts;
-	n->pending_mounts = 0;
 
 	make_visible(mnt);
 	touch_mnt_namespace(n);
@@ -2691,12 +2693,7 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 
 	if (moving) {
 		unhash_mnt(source_mnt);
-		mnt_set_mountpoint(dest_mnt, dest_mp, source_mnt);
-		if (beneath)
-			mnt_change_mountpoint(top, smp, top_mnt);
-		make_visible(source_mnt);
 		mnt_notify_add(source_mnt);
-		touch_mnt_namespace(source_mnt->mnt_ns);
 	} else {
 		if (source_mnt->mnt_ns) {
 			LIST_HEAD(head);
@@ -2706,11 +2703,12 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 				move_from_ns(p, &head);
 			list_del_init(&head);
 		}
-		mnt_set_mountpoint(dest_mnt, dest_mp, source_mnt);
-		if (beneath)
-			mnt_change_mountpoint(top, smp, top_mnt);
-		commit_tree(source_mnt);
 	}
+
+	mnt_set_mountpoint(dest_mnt, dest_mp, source_mnt);
+	if (beneath)
+		mnt_change_mountpoint(top, smp, top_mnt);
+	commit_tree(source_mnt);
 
 	hlist_for_each_entry_safe(child, n, &tree_list, mnt_hash) {
 		struct mount *q;
