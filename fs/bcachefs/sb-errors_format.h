@@ -46,7 +46,7 @@ enum bch_fsck_flags {
 	x(btree_node_unsupported_version,			 34,	0)		\
 	x(btree_node_bset_older_than_sb_min,			 35,	0)		\
 	x(btree_node_bset_newer_than_sb,			 36,	0)		\
-	x(btree_node_data_missing,				 37,	0)		\
+	x(btree_node_data_missing,				 37,	FSCK_AUTOFIX)	\
 	x(btree_node_bset_after_end,				 38,	0)		\
 	x(btree_node_replicas_sectors_written_mismatch,		 39,	0)		\
 	x(btree_node_replicas_data_mismatch,			 40,	0)		\
