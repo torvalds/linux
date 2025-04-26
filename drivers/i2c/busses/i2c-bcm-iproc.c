@@ -224,11 +224,6 @@ static void slave_rx_tasklet_fn(unsigned long);
 		| BIT(IS_S_TX_UNDERRUN_SHIFT) | BIT(IS_S_RX_FIFO_FULL_SHIFT)\
 		| BIT(IS_S_RX_THLD_SHIFT))
 
-static int bcm_iproc_i2c_reg_slave(struct i2c_client *slave);
-static int bcm_iproc_i2c_unreg_slave(struct i2c_client *slave);
-static void bcm_iproc_i2c_enable_disable(struct bcm_iproc_i2c_dev *iproc_i2c,
-					 bool enable);
-
 static inline u32 iproc_i2c_rd_reg(struct bcm_iproc_i2c_dev *iproc_i2c,
 				   u32 offset)
 {
@@ -314,6 +309,19 @@ static void bcm_iproc_i2c_slave_init(struct bcm_iproc_i2c_dev *iproc_i2c,
 	val |= BIT(IE_S_START_BUSY_SHIFT);
 	iproc_i2c->slave_int_mask = val;
 	iproc_i2c_wr_reg(iproc_i2c, IE_OFFSET, val);
+}
+
+static void bcm_iproc_i2c_enable_disable(struct bcm_iproc_i2c_dev *iproc_i2c,
+					 bool enable)
+{
+	u32 val;
+
+	val = iproc_i2c_rd_reg(iproc_i2c, CFG_OFFSET);
+	if (enable)
+		val |= BIT(CFG_EN_SHIFT);
+	else
+		val &= ~BIT(CFG_EN_SHIFT);
+	iproc_i2c_wr_reg(iproc_i2c, CFG_OFFSET, val);
 }
 
 static bool bcm_iproc_i2c_check_slave_status
@@ -707,19 +715,6 @@ static void bcm_iproc_i2c_init(struct bcm_iproc_i2c_dev *iproc_i2c)
 	iproc_i2c_wr_reg(iproc_i2c, IS_OFFSET, 0xffffffff);
 }
 
-static void bcm_iproc_i2c_enable_disable(struct bcm_iproc_i2c_dev *iproc_i2c,
-					 bool enable)
-{
-	u32 val;
-
-	val = iproc_i2c_rd_reg(iproc_i2c, CFG_OFFSET);
-	if (enable)
-		val |= BIT(CFG_EN_SHIFT);
-	else
-		val &= ~BIT(CFG_EN_SHIFT);
-	iproc_i2c_wr_reg(iproc_i2c, CFG_OFFSET, val);
-}
-
 static int bcm_iproc_i2c_check_status(struct bcm_iproc_i2c_dev *iproc_i2c,
 				      struct i2c_msg *msg)
 {
@@ -988,6 +983,63 @@ static u32 bcm_iproc_i2c_functionality(struct i2c_adapter *adap)
 	return val;
 }
 
+static int bcm_iproc_i2c_reg_slave(struct i2c_client *slave)
+{
+	struct bcm_iproc_i2c_dev *iproc_i2c = i2c_get_adapdata(slave->adapter);
+
+	if (iproc_i2c->slave)
+		return -EBUSY;
+
+	if (slave->flags & I2C_CLIENT_TEN)
+		return -EAFNOSUPPORT;
+
+	iproc_i2c->slave = slave;
+
+	tasklet_init(&iproc_i2c->slave_rx_tasklet, slave_rx_tasklet_fn,
+		     (unsigned long)iproc_i2c);
+
+	bcm_iproc_i2c_slave_init(iproc_i2c, false);
+
+	return 0;
+}
+
+static int bcm_iproc_i2c_unreg_slave(struct i2c_client *slave)
+{
+	struct bcm_iproc_i2c_dev *iproc_i2c = i2c_get_adapdata(slave->adapter);
+	u32 tmp;
+
+	if (!iproc_i2c->slave)
+		return -EINVAL;
+
+	disable_irq(iproc_i2c->irq);
+
+	tasklet_kill(&iproc_i2c->slave_rx_tasklet);
+
+	/* disable all slave interrupts */
+	tmp = iproc_i2c_rd_reg(iproc_i2c, IE_OFFSET);
+	tmp &= ~(IE_S_ALL_INTERRUPT_MASK <<
+			IE_S_ALL_INTERRUPT_SHIFT);
+	iproc_i2c_wr_reg(iproc_i2c, IE_OFFSET, tmp);
+
+	/* Erase the slave address programmed */
+	tmp = iproc_i2c_rd_reg(iproc_i2c, S_CFG_SMBUS_ADDR_OFFSET);
+	tmp &= ~BIT(S_CFG_EN_NIC_SMB_ADDR3_SHIFT);
+	iproc_i2c_wr_reg(iproc_i2c, S_CFG_SMBUS_ADDR_OFFSET, tmp);
+
+	/* flush TX/RX FIFOs */
+	tmp = (BIT(S_FIFO_RX_FLUSH_SHIFT) | BIT(S_FIFO_TX_FLUSH_SHIFT));
+	iproc_i2c_wr_reg(iproc_i2c, S_FIFO_CTRL_OFFSET, tmp);
+
+	/* clear all pending slave interrupts */
+	iproc_i2c_wr_reg(iproc_i2c, IS_OFFSET, ISR_MASK_SLAVE);
+
+	iproc_i2c->slave = NULL;
+
+	enable_irq(iproc_i2c->irq);
+
+	return 0;
+}
+
 static struct i2c_algorithm bcm_iproc_algo = {
 	.master_xfer = bcm_iproc_i2c_xfer,
 	.functionality = bcm_iproc_i2c_functionality,
@@ -1172,62 +1224,6 @@ static const struct dev_pm_ops bcm_iproc_i2c_pm_ops = {
 	.suspend_late = &bcm_iproc_i2c_suspend,
 	.resume_early = &bcm_iproc_i2c_resume
 };
-
-static int bcm_iproc_i2c_reg_slave(struct i2c_client *slave)
-{
-	struct bcm_iproc_i2c_dev *iproc_i2c = i2c_get_adapdata(slave->adapter);
-
-	if (iproc_i2c->slave)
-		return -EBUSY;
-
-	if (slave->flags & I2C_CLIENT_TEN)
-		return -EAFNOSUPPORT;
-
-	iproc_i2c->slave = slave;
-
-	tasklet_init(&iproc_i2c->slave_rx_tasklet, slave_rx_tasklet_fn,
-		     (unsigned long)iproc_i2c);
-
-	bcm_iproc_i2c_slave_init(iproc_i2c, false);
-	return 0;
-}
-
-static int bcm_iproc_i2c_unreg_slave(struct i2c_client *slave)
-{
-	u32 tmp;
-	struct bcm_iproc_i2c_dev *iproc_i2c = i2c_get_adapdata(slave->adapter);
-
-	if (!iproc_i2c->slave)
-		return -EINVAL;
-
-	disable_irq(iproc_i2c->irq);
-
-	tasklet_kill(&iproc_i2c->slave_rx_tasklet);
-
-	/* disable all slave interrupts */
-	tmp = iproc_i2c_rd_reg(iproc_i2c, IE_OFFSET);
-	tmp &= ~(IE_S_ALL_INTERRUPT_MASK <<
-			IE_S_ALL_INTERRUPT_SHIFT);
-	iproc_i2c_wr_reg(iproc_i2c, IE_OFFSET, tmp);
-
-	/* Erase the slave address programmed */
-	tmp = iproc_i2c_rd_reg(iproc_i2c, S_CFG_SMBUS_ADDR_OFFSET);
-	tmp &= ~BIT(S_CFG_EN_NIC_SMB_ADDR3_SHIFT);
-	iproc_i2c_wr_reg(iproc_i2c, S_CFG_SMBUS_ADDR_OFFSET, tmp);
-
-	/* flush TX/RX FIFOs */
-	tmp = (BIT(S_FIFO_RX_FLUSH_SHIFT) | BIT(S_FIFO_TX_FLUSH_SHIFT));
-	iproc_i2c_wr_reg(iproc_i2c, S_FIFO_CTRL_OFFSET, tmp);
-
-	/* clear all pending slave interrupts */
-	iproc_i2c_wr_reg(iproc_i2c, IS_OFFSET, ISR_MASK_SLAVE);
-
-	iproc_i2c->slave = NULL;
-
-	enable_irq(iproc_i2c->irq);
-
-	return 0;
-}
 
 static const struct of_device_id bcm_iproc_i2c_of_match[] = {
 	{
