@@ -1133,6 +1133,7 @@ properties:
       - items:
           - enum:
               - asus,vivobook-s15
+              - asus,zenbook-a14-ux3407ra
               - dell,xps13-9345
               - hp,omnibook-x14
               - lenovo,yoga-slim7x
@@ -1144,6 +1145,7 @@ properties:
 
       - items:
           - enum:
+              - asus,zenbook-a14-ux3407qa
               - qcom,x1p42100-crd
           - const: qcom,x1p42100
 
