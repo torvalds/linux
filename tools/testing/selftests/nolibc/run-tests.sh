@@ -26,6 +26,7 @@ all_archs=(
 	s390x s390
 	loongarch
 	sparc32 sparc64
+	m68k
 )
 archs="${all_archs[@]}"
 
@@ -183,6 +184,10 @@ test_arch() {
 	esac
 	printf '%-15s' "$arch:"
 	if [ "$arch" = "s390" ] && ([ "$llvm" = "1" ] || [ "$test_mode" = "user" ]); then
+		echo "Unsupported configuration"
+		return
+	fi
+	if [ "$arch" = "m68k" ] && [ "$llvm" = "1" ]; then
 		echo "Unsupported configuration"
 		return
 	fi
