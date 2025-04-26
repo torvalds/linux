@@ -23,7 +23,7 @@ static int bch2_subvolume_missing(struct bch_fs *c, u32 subvolid)
 	prt_printf(&buf, "missing subvolume %u", subvolid);
 	bool print = bch2_count_fsck_err(c, subvol_missing, &buf);
 
-	int ret = bch2_run_explicit_recovery_pass_printbuf(c, &buf,
+	int ret = bch2_run_explicit_recovery_pass_persistent(c, &buf,
 					BCH_RECOVERY_PASS_check_inodes);
 	if (print)
 		bch2_print_str(c, KERN_ERR, buf.buf);

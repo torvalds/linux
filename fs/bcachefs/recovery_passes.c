@@ -162,7 +162,7 @@ static int __bch2_run_explicit_recovery_pass(struct printbuf *out,
 	}
 }
 
-int bch2_run_explicit_recovery_pass_printbuf(struct bch_fs *c,
+static int bch2_run_explicit_recovery_pass_printbuf(struct bch_fs *c,
 				    struct printbuf *out,
 				    enum bch_recovery_pass pass)
 {
