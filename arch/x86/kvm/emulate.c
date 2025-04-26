@@ -317,6 +317,24 @@ static int em_##op(struct x86_emulate_ctxt *ctxt) \
 	ON64(case 8: __EM_ASM_1(op##q, rax); break;) \
 	EM_ASM_END
 
+/* 1-operand, using "c" (src2) */
+#define EM_ASM_1SRC2(op, name) \
+	EM_ASM_START(name) \
+	case 1: __EM_ASM_1(op##b, cl); break; \
+	case 2: __EM_ASM_1(op##w, cx); break; \
+	case 4: __EM_ASM_1(op##l, ecx); break; \
+	ON64(case 8: __EM_ASM_1(op##q, rcx); break;) \
+	EM_ASM_END
+
+/* 1-operand, using "c" (src2) with exception */
+#define EM_ASM_1SRC2EX(op, name) \
+	EM_ASM_START(name) \
+	case 1: __EM_ASM_1_EX(op##b, cl); break; \
+	case 2: __EM_ASM_1_EX(op##w, cx); break; \
+	case 4: __EM_ASM_1_EX(op##l, ecx); break; \
+	ON64(case 8: __EM_ASM_1_EX(op##q, rcx); break;) \
+	EM_ASM_END
+
 /* 2-operand, using "a" (dst), "d" (src) */
 #define EM_ASM_2(op) \
 	EM_ASM_START(op) \
@@ -1074,10 +1092,10 @@ EM_ASM_2(cmp);
 EM_ASM_2(test);
 EM_ASM_2(xadd);
 
-FASTOP1SRC2(mul, mul_ex);
-FASTOP1SRC2(imul, imul_ex);
-FASTOP1SRC2EX(div, div_ex);
-FASTOP1SRC2EX(idiv, idiv_ex);
+EM_ASM_1SRC2(mul, mul_ex);
+EM_ASM_1SRC2(imul, imul_ex);
+EM_ASM_1SRC2EX(div, div_ex);
+EM_ASM_1SRC2EX(idiv, idiv_ex);
 
 FASTOP3WCL(shld);
 FASTOP3WCL(shrd);
@@ -4103,10 +4121,10 @@ static const struct opcode group3[] = {
 	I(DstMem | SrcImm | NoWrite, em_test),
 	I(DstMem | SrcNone | Lock, em_not),
 	I(DstMem | SrcNone | Lock, em_neg),
-	F(DstXacc | Src2Mem, em_mul_ex),
-	F(DstXacc | Src2Mem, em_imul_ex),
-	F(DstXacc | Src2Mem, em_div_ex),
-	F(DstXacc | Src2Mem, em_idiv_ex),
+	I(DstXacc | Src2Mem, em_mul_ex),
+	I(DstXacc | Src2Mem, em_imul_ex),
+	I(DstXacc | Src2Mem, em_div_ex),
+	I(DstXacc | Src2Mem, em_idiv_ex),
 };
 
 static const struct opcode group4[] = {
