@@ -52,24 +52,24 @@ int bch2_btree_lost_data(struct bch_fs *c,
 	}
 
 	/* Once we have runtime self healing for topology errors we won't need this: */
-	ret = bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_topology) ?: ret;
+	ret = __bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_topology) ?: ret;
 
 	/* Btree node accounting will be off: */
 	__set_bit_le64(BCH_FSCK_ERR_accounting_mismatch, ext->errors_silent);
-	ret = bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_allocations) ?: ret;
+	ret = __bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_allocations) ?: ret;
 
 #ifdef CONFIG_BCACHEFS_DEBUG
 	/*
 	 * These are much more minor, and don't need to be corrected right away,
 	 * but in debug mode we want the next fsck run to be clean:
 	 */
-	ret = bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_lrus) ?: ret;
-	ret = bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_backpointers_to_extents) ?: ret;
+	ret = __bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_lrus) ?: ret;
+	ret = __bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_backpointers_to_extents) ?: ret;
 #endif
 
 	switch (btree) {
 	case BTREE_ID_alloc:
-		ret = bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_alloc_info) ?: ret;
+		ret = __bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_alloc_info) ?: ret;
 
 		__set_bit_le64(BCH_FSCK_ERR_alloc_key_data_type_wrong, ext->errors_silent);
 		__set_bit_le64(BCH_FSCK_ERR_alloc_key_gen_wrong, ext->errors_silent);
@@ -79,30 +79,30 @@ int bch2_btree_lost_data(struct bch_fs *c,
 		__set_bit_le64(BCH_FSCK_ERR_alloc_key_stripe_redundancy_wrong, ext->errors_silent);
 		goto out;
 	case BTREE_ID_backpointers:
-		ret = bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_btree_backpointers) ?: ret;
-		ret = bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_extents_to_backpointers) ?: ret;
+		ret = __bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_btree_backpointers) ?: ret;
+		ret = __bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_extents_to_backpointers) ?: ret;
 		goto out;
 	case BTREE_ID_need_discard:
-		ret = bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_alloc_info) ?: ret;
+		ret = __bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_alloc_info) ?: ret;
 		goto out;
 	case BTREE_ID_freespace:
-		ret = bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_alloc_info) ?: ret;
+		ret = __bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_alloc_info) ?: ret;
 		goto out;
 	case BTREE_ID_bucket_gens:
-		ret = bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_alloc_info) ?: ret;
+		ret = __bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_alloc_info) ?: ret;
 		goto out;
 	case BTREE_ID_lru:
-		ret = bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_alloc_info) ?: ret;
+		ret = __bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_alloc_info) ?: ret;
 		goto out;
 	case BTREE_ID_accounting:
-		ret = bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_allocations) ?: ret;
+		ret = __bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_check_allocations) ?: ret;
 		goto out;
 	case BTREE_ID_snapshots:
-		ret = bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_reconstruct_snapshots) ?: ret;
-		ret = bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_scan_for_btree_nodes) ?: ret;
+		ret = __bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_reconstruct_snapshots) ?: ret;
+		ret = __bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_scan_for_btree_nodes) ?: ret;
 		goto out;
 	default:
-		ret = bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_scan_for_btree_nodes) ?: ret;
+		ret = __bch2_run_explicit_recovery_pass_persistent(c, msg, BCH_RECOVERY_PASS_scan_for_btree_nodes) ?: ret;
 		goto out;
 	}
 out:

@@ -13,6 +13,8 @@ int bch2_run_explicit_recovery_pass_printbuf(struct bch_fs *,
 				    enum bch_recovery_pass);
 int bch2_run_explicit_recovery_pass(struct bch_fs *, enum bch_recovery_pass);
 
+int __bch2_run_explicit_recovery_pass_persistent(struct bch_fs *, struct printbuf *,
+					       enum bch_recovery_pass);
 int bch2_run_explicit_recovery_pass_persistent(struct bch_fs *, struct printbuf *,
 					       enum bch_recovery_pass);
 

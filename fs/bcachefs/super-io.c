@@ -623,6 +623,9 @@ static void bch2_sb_update(struct bch_fs *c)
 
 	struct bch_sb_field_ext *ext = bch2_sb_field_get(src, ext);
 	if (ext) {
+		c->sb.recovery_passes_required =
+			bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
+
 		le_bitvector_to_cpu(c->sb.errors_silent, (void *) ext->errors_silent,
 				    sizeof(c->sb.errors_silent) * 8);
 		c->sb.btrees_lost_data = le64_to_cpu(ext->btrees_lost_data);

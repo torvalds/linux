@@ -193,9 +193,9 @@ int bch2_run_explicit_recovery_pass(struct bch_fs *c,
 	return ret;
 }
 
-int bch2_run_explicit_recovery_pass_persistent(struct bch_fs *c,
-						struct printbuf *out,
-						enum bch_recovery_pass pass)
+int __bch2_run_explicit_recovery_pass_persistent(struct bch_fs *c,
+						 struct printbuf *out,
+						 enum bch_recovery_pass pass)
 {
 	lockdep_assert_held(&c->sb_lock);
 
@@ -203,6 +203,20 @@ int bch2_run_explicit_recovery_pass_persistent(struct bch_fs *c,
 	__set_bit_le64(bch2_recovery_pass_to_stable(pass), ext->recovery_passes_required);
 
 	return bch2_run_explicit_recovery_pass_printbuf(c, out, pass);
+}
+
+int bch2_run_explicit_recovery_pass_persistent(struct bch_fs *c,
+					       struct printbuf *out,
+					       enum bch_recovery_pass pass)
+{
+	if (c->sb.recovery_passes_required & BIT_ULL(pass))
+		return 0;
+
+	mutex_lock(&c->sb_lock);
+	int ret = __bch2_run_explicit_recovery_pass_persistent(c, out, pass);
+	mutex_unlock(&c->sb_lock);
+
+	return ret;
 }
 
 static void bch2_clear_recovery_pass_required(struct bch_fs *c,

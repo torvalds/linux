@@ -844,6 +844,7 @@ struct bch_fs {
 		unsigned	nsec_per_time_unit;
 		u64		features;
 		u64		compat;
+		u64		recovery_passes_required;
 		unsigned long	errors_silent[BITS_TO_LONGS(BCH_FSCK_ERR_MAX)];
 		u64		btrees_lost_data;
 	}			sb;
