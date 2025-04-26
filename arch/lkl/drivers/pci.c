@@ -44,7 +44,7 @@ static int lkl_pci_override_resource(struct pci_dev *dev, void *data)
 	int i;
 	struct resource *r;
 	resource_size_t start, size;
-	void *remapped_start = NULL;
+	void *remapped_start;
 
 	if (dev->devfn != 0)
 		return 0;
@@ -67,6 +67,8 @@ static int lkl_pci_override_resource(struct pci_dev *dev, void *data)
 				remapped_start =
 					lkl_ops->pci_ops->resource_alloc(
 						dev->sysdata, size, i);
+			} else {
+				remapped_start = NULL;
 			}
 
 			if (remapped_start) {
