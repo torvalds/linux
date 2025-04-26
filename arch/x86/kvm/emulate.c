@@ -529,11 +529,14 @@ static int fastop(struct x86_emulate_ctxt *ctxt, fastop_t fop);
 	ON64(FOP3E(op##q, rax, rdx, cl)) \
 	FOP_END
 
-FOP_START(salc)
-FOP_FUNC(salc)
-"pushf; sbb %al, %al; popf \n\t"
-FOP_RET(salc)
-FOP_END;
+static int em_salc(struct x86_emulate_ctxt *ctxt)
+{
+	/*
+	 * Set AL 0xFF if CF is set, or 0x00 when clear.
+	 */
+	ctxt->dst.val = 0xFF * !!(ctxt->eflags & X86_EFLAGS_CF);
+	return X86EMUL_CONTINUE;
+}
 
 /*
  * XXX: inoutclob user must know where the argument is being expanded.
@@ -4423,7 +4426,7 @@ static const struct opcode opcode_table[256] = {
 	G(Src2CL | ByteOp, group2), G(Src2CL, group2),
 	I(DstAcc | SrcImmUByte | No64, em_aam),
 	I(DstAcc | SrcImmUByte | No64, em_aad),
-	F(DstAcc | ByteOp | No64, em_salc),
+	I(DstAcc | ByteOp | No64, em_salc),
 	I(DstAcc | SrcXLat | ByteOp, em_mov),
 	/* 0xD8 - 0xDF */
 	N, E(0, &escape_d9), N, E(0, &escape_db), N, E(0, &escape_dd), N, N,
