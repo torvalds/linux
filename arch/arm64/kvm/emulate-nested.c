@@ -2215,11 +2215,11 @@ static u64 kvm_get_sysreg_res0(struct kvm *kvm, enum vcpu_sysreg sr)
 	return masks->mask[sr - __VNCR_START__].res0;
 }
 
-static bool check_fgt_bit(struct kvm_vcpu *vcpu, bool is_read,
-			  u64 val, const union trap_config tc)
+static bool check_fgt_bit(struct kvm_vcpu *vcpu, enum vcpu_sysreg sr,
+			  const union trap_config tc)
 {
 	struct kvm *kvm = vcpu->kvm;
-	enum vcpu_sysreg sr;
+	u64 val;
 
 	/*
 	 * KVM doesn't know about any FGTs that apply to the host, and hopefully
@@ -2227,6 +2227,8 @@ static bool check_fgt_bit(struct kvm_vcpu *vcpu, bool is_read,
 	 */
 	if (is_hyp_ctxt(vcpu))
 		return false;
+
+	val = __vcpu_sys_reg(vcpu, sr);
 
 	if (tc.pol)
 		return (val & BIT(tc.bit));
@@ -2242,38 +2244,17 @@ static bool check_fgt_bit(struct kvm_vcpu *vcpu, bool is_read,
 	if (val & BIT(tc.bit))
 		return false;
 
-	switch ((enum fgt_group_id)tc.fgt) {
-	case HFGRTR_GROUP:
-		sr = is_read ? HFGRTR_EL2 : HFGWTR_EL2;
-		break;
-
-	case HDFGRTR_GROUP:
-		sr = is_read ? HDFGRTR_EL2 : HDFGWTR_EL2;
-		break;
-
-	case HAFGRTR_GROUP:
-		sr = HAFGRTR_EL2;
-		break;
-
-	case HFGITR_GROUP:
-		sr = HFGITR_EL2;
-		break;
-
-	default:
-		WARN_ONCE(1, "Unhandled FGT group");
-		return false;
-	}
-
 	return !(kvm_get_sysreg_res0(kvm, sr) & BIT(tc.bit));
 }
 
 bool triage_sysreg_trap(struct kvm_vcpu *vcpu, int *sr_index)
 {
+	enum vcpu_sysreg fgtreg;
 	union trap_config tc;
 	enum trap_behaviour b;
 	bool is_read;
 	u32 sysreg;
-	u64 esr, val;
+	u64 esr;
 
 	esr = kvm_vcpu_get_esr(vcpu);
 	sysreg = esr_sys64_to_sysreg(esr);
@@ -2320,25 +2301,19 @@ bool triage_sysreg_trap(struct kvm_vcpu *vcpu, int *sr_index)
 		break;
 
 	case HFGRTR_GROUP:
-		if (is_read)
-			val = __vcpu_sys_reg(vcpu, HFGRTR_EL2);
-		else
-			val = __vcpu_sys_reg(vcpu, HFGWTR_EL2);
+		fgtreg = is_read ? HFGRTR_EL2 : HFGWTR_EL2;
 		break;
 
 	case HDFGRTR_GROUP:
-		if (is_read)
-			val = __vcpu_sys_reg(vcpu, HDFGRTR_EL2);
-		else
-			val = __vcpu_sys_reg(vcpu, HDFGWTR_EL2);
+		fgtreg = is_read ? HDFGRTR_EL2 : HDFGWTR_EL2;
 		break;
 
 	case HAFGRTR_GROUP:
-		val = __vcpu_sys_reg(vcpu, HAFGRTR_EL2);
+		fgtreg = HAFGRTR_EL2;
 		break;
 
 	case HFGITR_GROUP:
-		val = __vcpu_sys_reg(vcpu, HFGITR_EL2);
+		fgtreg = HFGITR_EL2;
 		switch (tc.fgf) {
 			u64 tmp;
 
@@ -2359,7 +2334,7 @@ bool triage_sysreg_trap(struct kvm_vcpu *vcpu, int *sr_index)
 		goto local;
 	}
 
-	if (tc.fgt != __NO_FGT_GROUP__ && check_fgt_bit(vcpu, is_read, val, tc))
+	if (tc.fgt != __NO_FGT_GROUP__ && check_fgt_bit(vcpu, fgtreg, tc))
 		goto inject;
 
 	b = compute_trap_behaviour(vcpu, tc);
