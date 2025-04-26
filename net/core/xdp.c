@@ -698,7 +698,8 @@ static noinline bool xdp_copy_frags_from_zc(struct sk_buff *skb,
 	nr_frags = xinfo->nr_frags;
 
 	for (u32 i = 0; i < nr_frags; i++) {
-		u32 len = skb_frag_size(&xinfo->frags[i]);
+		const skb_frag_t *frag = &xinfo->frags[i];
+		u32 len = skb_frag_size(frag);
 		u32 offset, truesize = len;
 		netmem_ref netmem;
 
@@ -708,8 +709,8 @@ static noinline bool xdp_copy_frags_from_zc(struct sk_buff *skb,
 			return false;
 		}
 
-		memcpy(__netmem_address(netmem),
-		       __netmem_address(xinfo->frags[i].netmem),
+		memcpy(__netmem_address(netmem) + offset,
+		       __netmem_address(frag->netmem) + skb_frag_off(frag),
 		       LARGEST_ALIGN(len));
 		__skb_fill_netmem_desc_noacc(sinfo, i, netmem, offset, len);
 
