@@ -2953,15 +2953,8 @@ static int vc_con_write_normal(struct vc_data *vc, int tc, int c,
 				 * double-width.
 				 */
 			} else {
-				/* try recomposition */
-				prev_c = ucs_recompose(prev_c, c);
-				if (prev_c != 0) {
-					vc_con_rewind(vc);
-					c = prev_c;
-				} else {
-					/* Otherwise zero-width code points are ignored */
-					goto out;
-				}
+				/* Otherwise zero-width code points are ignored */
+				goto out;
 			}
 		}
 	}
