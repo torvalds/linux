@@ -266,6 +266,7 @@ run_test()
 		"${base_time}" \
 		"${CYCLE_TIME_NS}" \
 		"${SHIFT_TIME_NS}" \
+		"${GATE_DURATION_NS}" \
 		"${NUM_PKTS}" \
 		"${STREAM_VID}" \
 		"${STREAM_PRIO}" \

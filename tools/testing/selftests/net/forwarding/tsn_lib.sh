@@ -182,6 +182,7 @@ isochron_do()
 	local base_time=$1; shift
 	local cycle_time=$1; shift
 	local shift_time=$1; shift
+	local window_size=$1; shift
 	local num_pkts=$1; shift
 	local vid=$1; shift
 	local priority=$1; shift
@@ -210,6 +211,10 @@ isochron_do()
 
 	if ! [ -z "${shift_time}" ]; then
 		extra_args="${extra_args} --shift-time=${shift_time}"
+	fi
+
+	if ! [ -z "${window_size}" ]; then
+		extra_args="${extra_args} --window-size=${window_size}"
 	fi
 
 	if [ "${use_l2}" = "true" ]; then
