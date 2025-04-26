@@ -443,15 +443,6 @@ static void vc_uniscr_scroll(struct vc_data *vc, unsigned int top,
 	}
 }
 
-static u32 vc_uniscr_getc(struct vc_data *vc, int relative_pos)
-{
-	int pos = vc->state.x + vc->vc_need_wrap + relative_pos;
-
-	if (vc->vc_uni_lines && pos >= 0 && pos < vc->vc_cols)
-		return vc->vc_uni_lines[vc->state.y][pos];
-	return 0;
-}
-
 static void vc_uniscr_copy_area(u32 **dst_lines,
 				unsigned int dst_cols,
 				unsigned int dst_rows,
@@ -2914,49 +2905,18 @@ static bool vc_is_control(struct vc_data *vc, int tc, int c)
 	return false;
 }
 
-static void vc_con_rewind(struct vc_data *vc)
-{
-	if (vc->state.x && !vc->vc_need_wrap) {
-		vc->vc_pos -= 2;
-		vc->state.x--;
-	}
-	vc->vc_need_wrap = 0;
-}
-
 static int vc_con_write_normal(struct vc_data *vc, int tc, int c,
 		struct vc_draw_region *draw)
 {
-	int next_c, prev_c;
+	int next_c;
 	unsigned char vc_attr = vc->vc_attr;
 	u16 himask = vc->vc_hi_font_mask, charmask = himask ? 0x1ff : 0xff;
 	u8 width = 1;
 	bool inverse = false;
 
 	if (vc->vc_utf && !vc->vc_disp_ctrl) {
-		if (ucs_is_double_width(c)) {
+		if (ucs_is_double_width(c))
 			width = 2;
-		} else if (ucs_is_zero_width(c)) {
-			prev_c = vc_uniscr_getc(vc, -1);
-			if (prev_c == ' ' &&
-			    ucs_is_double_width(vc_uniscr_getc(vc, -2))) {
-				/*
-				 * Let's merge this zero-width code point with
-				 * the preceding double-width code point by
-				 * replacing the existing whitespace padding.
-				 */
-				vc_con_rewind(vc);
-			} else if (c == 0xfe0f && prev_c != 0) {
-				/*
-				 * VS16 (U+FE0F) is special. Let it have a
-				 * width of 1 when preceded by a single-width
-				 * code point effectively making the later
-				 * double-width.
-				 */
-			} else {
-				/* Otherwise zero-width code points are ignored */
-				goto out;
-			}
-		}
 	}
 
 	/* Now try to find out how to display it */
@@ -3035,8 +2995,6 @@ static int vc_con_write_normal(struct vc_data *vc, int tc, int c,
 			tc = ' ';
 		next_c = ' ';
 	}
-
-out:
 	notify_write(vc, c);
 
 	if (inverse)
