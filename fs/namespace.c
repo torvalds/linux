@@ -2562,9 +2562,8 @@ int count_mounts(struct mnt_namespace *ns, struct mount *mnt)
 }
 
 enum mnt_tree_flags_t {
-	MNT_TREE_MOVE = BIT(0),
-	MNT_TREE_BENEATH = BIT(1),
-	MNT_TREE_PROPAGATION = BIT(2),
+	MNT_TREE_BENEATH = BIT(0),
+	MNT_TREE_PROPAGATION = BIT(1),
 };
 
 /**
@@ -2572,7 +2571,6 @@ enum mnt_tree_flags_t {
  * @source_mnt: mount tree to be attached
  * @dest_mnt:   mount that @source_mnt will be mounted on
  * @dest_mp:    the mountpoint @source_mnt will be mounted at
- * @flags:      modify how @source_mnt is supposed to be attached
  *
  *  NOTE: in the table below explains the semantics when a source mount
  *  of a given type is attached to a destination mount of a given type.
@@ -2636,8 +2634,7 @@ enum mnt_tree_flags_t {
  */
 static int attach_recursive_mnt(struct mount *source_mnt,
 				struct mount *dest_mnt,
-				struct mountpoint *dest_mp,
-				enum mnt_tree_flags_t flags)
+				struct mountpoint *dest_mp)
 {
 	struct user_namespace *user_ns = current->nsproxy->mnt_ns->user_ns;
 	HLIST_HEAD(tree_list);
@@ -2648,7 +2645,7 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 	struct mount *top;
 	struct hlist_node *n;
 	int err = 0;
-	bool moving = flags & MNT_TREE_MOVE;
+	bool moving = mnt_has_parent(source_mnt);
 
 	/*
 	 * Preallocate a mountpoint in case the new mounts need to be
@@ -2871,7 +2868,7 @@ static int graft_tree(struct mount *mnt, struct mount *p, struct mountpoint *mp)
 	      d_is_dir(mnt->mnt.mnt_root))
 		return -ENOTDIR;
 
-	return attach_recursive_mnt(mnt, p, mp, 0);
+	return attach_recursive_mnt(mnt, p, mp);
 }
 
 /*
@@ -3613,8 +3610,6 @@ static int do_move_mount(struct path *old_path,
 	p = real_mount(new_path->mnt);
 	parent = old->mnt_parent;
 	attached = mnt_has_parent(old);
-	if (attached)
-		flags |= MNT_TREE_MOVE;
 	old_mp = old->mnt_mp;
 	ns = old->mnt_ns;
 
@@ -3668,7 +3663,6 @@ static int do_move_mount(struct path *old_path,
 
 		err = -EINVAL;
 		p = p->mnt_parent;
-		flags |= MNT_TREE_BENEATH;
 	}
 
 	/*
@@ -3683,7 +3677,7 @@ static int do_move_mount(struct path *old_path,
 	if (mount_is_ancestor(old, p))
 		goto out;
 
-	err = attach_recursive_mnt(old, p, mp, flags);
+	err = attach_recursive_mnt(old, p, mp);
 	if (err)
 		goto out;
 
