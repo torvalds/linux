@@ -1580,7 +1580,7 @@ impl_tuple_zeroable!(A, B, C, D, E, F, G, H, I, J);
 /// });
 /// ```
 pub trait Wrapper<T> {
-    /// Create an pin-initializer for a [`Self`] containing `T` form the `value_init` initializer.
+    /// Creates an pin-initializer for a [`Self`] containing `T` from the `value_init` initializer.
     fn pin_init<E>(value_init: impl PinInit<T, E>) -> impl PinInit<Self, E>;
 }
 
