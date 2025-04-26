@@ -642,7 +642,7 @@ where:
   * ``dest`` is the destination port;
   * ``syn``, ``ack``, ``fin`` are the TCP flags used; for a more detailed view,
     see this `diagram
-    <http://www.eventhelix.com/Realtimemantra/Networking/Tcp.pdf>`_.
+    <https://www.eventhelix.com/networking/tcp/Tcp.pdf>`_.
 
 The structure of a `UDP header
 <https://en.wikipedia.org/wiki/User_Datagram_Protocol#Packet_structure>`_
