@@ -87,8 +87,6 @@ static struct device *oxp_dev;
 #define OXP_MINI_TURBO_TAKE_VAL		0x01 /* Mini AO7 */
 #define OXP_TURBO_TAKE_VAL		0x40 /* All other models */
 
-#define OXP_TURBO_RETURN_VAL		0x00 /* Common return val */
-
 /* X1 Turbo LED */
 #define OXP_X1_TURBO_LED_REG		0x57
 
@@ -328,61 +326,6 @@ static int write_to_ec(u8 reg, u8 value)
 	return ret;
 }
 
-/* Turbo button toggle functions */
-static int tt_toggle_enable(void)
-{
-	u8 reg;
-	u8 val;
-
-	switch (board) {
-	case oxp_mini_amd_a07:
-		reg = OXP_MINI_TURBO_SWITCH_REG;
-		val = OXP_MINI_TURBO_TAKE_VAL;
-		break;
-	case aok_zoe_a1:
-	case oxp_fly:
-	case oxp_mini_amd_pro:
-		reg = OXP_TURBO_SWITCH_REG;
-		val = OXP_TURBO_TAKE_VAL;
-		break;
-	case oxp_2:
-	case oxp_x1:
-		reg = OXP_2_TURBO_SWITCH_REG;
-		val = OXP_TURBO_TAKE_VAL;
-		break;
-	default:
-		return -EINVAL;
-	}
-	return write_to_ec(reg, val);
-}
-
-static int tt_toggle_disable(void)
-{
-	u8 reg;
-	u8 val;
-
-	switch (board) {
-	case oxp_mini_amd_a07:
-		reg = OXP_MINI_TURBO_SWITCH_REG;
-		val = OXP_TURBO_RETURN_VAL;
-		break;
-	case aok_zoe_a1:
-	case oxp_fly:
-	case oxp_mini_amd_pro:
-		reg = OXP_TURBO_SWITCH_REG;
-		val = OXP_TURBO_RETURN_VAL;
-		break;
-	case oxp_2:
-	case oxp_x1:
-		reg = OXP_2_TURBO_SWITCH_REG;
-		val = OXP_TURBO_RETURN_VAL;
-		break;
-	default:
-		return -EINVAL;
-	}
-	return write_to_ec(reg, val);
-}
-
 /* Callbacks for turbo toggle attribute */
 static umode_t tt_toggle_is_visible(struct kobject *kobj,
 				    struct attribute *attr, int n)
@@ -405,18 +348,46 @@ static ssize_t tt_toggle_store(struct device *dev,
 			       struct device_attribute *attr, const char *buf,
 			       size_t count)
 {
-	bool value;
+	u8 reg, mask, val;
+	long raw_val;
+	bool enable;
 	int ret;
 
-	ret = kstrtobool(buf, &value);
+	ret = kstrtobool(buf, &enable);
 	if (ret)
 		return ret;
 
-	if (value) {
-		ret = tt_toggle_enable();
-	} else {
-		ret = tt_toggle_disable();
+	switch (board) {
+	case oxp_mini_amd_a07:
+		reg = OXP_MINI_TURBO_SWITCH_REG;
+		mask = OXP_MINI_TURBO_TAKE_VAL;
+		break;
+	case aok_zoe_a1:
+	case oxp_fly:
+	case oxp_mini_amd_pro:
+		reg = OXP_TURBO_SWITCH_REG;
+		mask = OXP_TURBO_TAKE_VAL;
+		break;
+	case oxp_2:
+	case oxp_x1:
+		reg = OXP_2_TURBO_SWITCH_REG;
+		mask = OXP_TURBO_TAKE_VAL;
+		break;
+	default:
+		return -EINVAL;
 	}
+
+	ret = read_from_ec(reg, 1, &raw_val);
+	if (ret)
+		return ret;
+
+	val = raw_val;
+	if (enable)
+		val |= mask;
+	else
+		val &= ~mask;
+
+	ret = write_to_ec(reg, val);
 	if (ret)
 		return ret;
 
@@ -426,22 +397,25 @@ static ssize_t tt_toggle_store(struct device *dev,
 static ssize_t tt_toggle_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
+	u8 reg, mask;
 	int retval;
 	long val;
-	u8 reg;
 
 	switch (board) {
 	case oxp_mini_amd_a07:
 		reg = OXP_MINI_TURBO_SWITCH_REG;
+		mask = OXP_MINI_TURBO_TAKE_VAL;
 		break;
 	case aok_zoe_a1:
 	case oxp_fly:
 	case oxp_mini_amd_pro:
 		reg = OXP_TURBO_SWITCH_REG;
+		mask = OXP_TURBO_TAKE_VAL;
 		break;
 	case oxp_2:
 	case oxp_x1:
 		reg = OXP_2_TURBO_SWITCH_REG;
+		mask = OXP_TURBO_TAKE_VAL;
 		break;
 	default:
 		return -EINVAL;
@@ -451,7 +425,7 @@ static ssize_t tt_toggle_show(struct device *dev,
 	if (retval)
 		return retval;
 
-	return sysfs_emit(buf, "%d\n", !!val);
+	return sysfs_emit(buf, "%d\n", (val & mask) == mask);
 }
 
 static DEVICE_ATTR_RW(tt_toggle);
