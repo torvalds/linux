@@ -449,6 +449,7 @@ static int ccs_pll_calculate_vt_tree(struct device *dev,
 		return 0;
 	}
 
+	dev_dbg(dev, "unable to compute VT pre_pll divisor\n");
 	return -EINVAL;
 }
 
@@ -888,8 +889,7 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	}
 
 	if (rval) {
-		dev_dbg(dev, "unable to compute pre_pll divisor\n");
-
+		dev_dbg(dev, "unable to compute OP pre_pll divisor\n");
 		return rval;
 	}
 
