@@ -298,8 +298,7 @@ struct iwl_tx_cmd_gen3 {
 	__le32 rate_n_flags;
 	u8 reserved[8];
 	struct ieee80211_hdr hdr[];
-} __packed; /* TX_CMD_API_S_VER_8,
-	     * TX_CMD_API_S_VER_10,
+} __packed; /* TX_CMD_API_S_VER_10,
 	     * TX_CMD_API_S_VER_11
 	     */
 
