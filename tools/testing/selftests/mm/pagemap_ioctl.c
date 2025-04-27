@@ -112,7 +112,7 @@ int init_uffd(void)
 	return 0;
 }
 
-int wp_init(void *lpBaseAddress, int dwRegionSize)
+int wp_init(void *lpBaseAddress, long dwRegionSize)
 {
 	struct uffdio_register uffdio_register;
 	struct uffdio_writeprotect wp;
@@ -136,7 +136,7 @@ int wp_init(void *lpBaseAddress, int dwRegionSize)
 	return 0;
 }
 
-int wp_free(void *lpBaseAddress, int dwRegionSize)
+int wp_free(void *lpBaseAddress, long dwRegionSize)
 {
 	struct uffdio_register uffdio_register;
 
