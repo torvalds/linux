@@ -193,6 +193,10 @@
 		nvidia,invert-interrupt;
 	};
 
+	gpu@17000000 {
+		status = "okay";
+	};
+
 	bpmp {
 		i2c {
 			status = "okay";
