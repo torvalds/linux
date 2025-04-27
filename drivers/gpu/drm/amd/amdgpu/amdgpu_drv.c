@@ -1115,11 +1115,12 @@ module_param_named(rebar, amdgpu_rebar, int, 0444);
 
 /**
  * DOC: user_queue (int)
- * Enable user queues on systems that support user queues.
- * -1 = auto (ASIC specific default)
- *  0 = user queues disabled
- *  1 = user queues enabled and kernel queues enabled (if supported)
- *  2 = user queues enabled and kernel queues disabled
+ * Enable user queues on systems that support user queues. Possible values:
+ *
+ * - -1 = auto (ASIC specific default)
+ * -  0 = user queues disabled
+ * -  1 = user queues enabled and kernel queues enabled (if supported)
+ * -  2 = user queues enabled and kernel queues disabled
  */
 MODULE_PARM_DESC(user_queue, "Enable user queues (-1 = auto (default), 0 = disable, 1 = enable, 2 = enable UQs and disable KQs)");
 module_param_named(user_queue, amdgpu_user_queue, int, 0444);
