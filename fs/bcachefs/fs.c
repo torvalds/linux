@@ -1464,8 +1464,8 @@ static int bch2_next_fiemap_extent(struct btree_trans *trans,
 		unsigned sectors = cur->kbuf.k->k.size;
 		s64 offset_into_extent = 0;
 		enum btree_id data_btree = BTREE_ID_extents;
-		int ret = bch2_read_indirect_extent(trans, &data_btree, &offset_into_extent,
-						    &cur->kbuf);
+		ret = bch2_read_indirect_extent(trans, &data_btree, &offset_into_extent,
+						&cur->kbuf);
 		if (ret)
 			goto err;
 
