@@ -26567,8 +26567,6 @@ M:	Dragan Cvetic <dragan.cvetic@amd.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/misc/xlnx,sd-fec.yaml
 F:	Documentation/misc-devices/xilinx_sdfec.rst
-F:	drivers/misc/Kconfig
-F:	drivers/misc/Makefile
 F:	drivers/misc/xilinx_sdfec.c
 F:	include/uapi/misc/xilinx_sdfec.h
 
