@@ -110,10 +110,6 @@ config SND_HDA_SCODEC_CS35L41
 	select SND_HDA_GENERIC
 	select REGMAP_IRQ
 
-config SND_HDA_CS_DSP_CONTROLS
-	tristate
-	select FW_CS_DSP
-
 config SND_HDA_SCODEC_COMPONENT
 	tristate
 
@@ -125,7 +121,6 @@ config SND_HDA_SCODEC_CS35L41_I2C
 	depends on SND_SOC
 	select SND_SOC_CS35L41_LIB
 	select SND_HDA_SCODEC_CS35L41
-	select SND_HDA_CS_DSP_CONTROLS
 	select SND_SOC_CS_AMP_LIB
 	help
 	  Say Y or M here to include CS35L41 I2C HD-audio side codec support
@@ -142,7 +137,6 @@ config SND_HDA_SCODEC_CS35L41_SPI
 	depends on SND_SOC
 	select SND_SOC_CS35L41_LIB
 	select SND_HDA_SCODEC_CS35L41
-	select SND_HDA_CS_DSP_CONTROLS
 	select SND_SOC_CS_AMP_LIB
 	help
 	  Say Y or M here to include CS35L41 SPI HD-audio side codec support
@@ -165,7 +159,6 @@ config SND_HDA_SCODEC_CS35L56_I2C
 	select SND_SOC_CS35L56_SHARED
 	select SND_HDA_SCODEC_CS35L56
 	select SND_HDA_CIRRUS_SCODEC
-	select SND_HDA_CS_DSP_CONTROLS
 	select SND_SOC_CS_AMP_LIB
 	help
 	  Say Y or M here to include CS35L56 amplifier support with
@@ -182,7 +175,6 @@ config SND_HDA_SCODEC_CS35L56_SPI
 	select SND_SOC_CS35L56_SHARED
 	select SND_HDA_SCODEC_CS35L56
 	select SND_HDA_CIRRUS_SCODEC
-	select SND_HDA_CS_DSP_CONTROLS
 	select SND_SOC_CS_AMP_LIB
 	help
 	  Say Y or M here to include CS35L56 amplifier support with

@@ -20,7 +20,6 @@
 #include "cirrus_scodec.h"
 #include "cs35l56_hda.h"
 #include "hda_component.h"
-#include "hda_cs_dsp_ctl.h"
 #include "hda_generic.h"
 
  /*
@@ -1118,7 +1117,6 @@ EXPORT_SYMBOL_NS_GPL(cs35l56_hda_pm_ops, "SND_HDA_SCODEC_CS35L56");
 MODULE_DESCRIPTION("CS35L56 HDA Driver");
 MODULE_IMPORT_NS("FW_CS_DSP");
 MODULE_IMPORT_NS("SND_HDA_CIRRUS_SCODEC");
-MODULE_IMPORT_NS("SND_HDA_CS_DSP_CONTROLS");
 MODULE_IMPORT_NS("SND_SOC_CS35L56_SHARED");
 MODULE_IMPORT_NS("SND_SOC_CS_AMP_LIB");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
