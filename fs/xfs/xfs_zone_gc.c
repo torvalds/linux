@@ -290,8 +290,6 @@ xfs_zone_gc_query_cb(
 	return 0;
 }
 
-#define cmp_int(l, r)		((l > r) - (l < r))
-
 static int
 xfs_zone_gc_rmap_rec_cmp(
 	const void			*a,
