@@ -3049,3 +3049,36 @@ u8 *hci_conn_key_enc_size(struct hci_conn *conn)
 
 	return NULL;
 }
+
+int hci_ethtool_ts_info(unsigned int index, int sk_proto,
+			struct kernel_ethtool_ts_info *info)
+{
+	struct hci_dev *hdev;
+
+	hdev = hci_dev_get(index);
+	if (!hdev)
+		return -ENODEV;
+
+	info->so_timestamping =
+		SOF_TIMESTAMPING_RX_SOFTWARE |
+		SOF_TIMESTAMPING_SOFTWARE;
+	info->phc_index = -1;
+	info->tx_types = BIT(HWTSTAMP_TX_OFF);
+	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE);
+
+	switch (sk_proto) {
+	case BTPROTO_ISO:
+	case BTPROTO_L2CAP:
+		info->so_timestamping |= SOF_TIMESTAMPING_TX_SOFTWARE;
+		info->so_timestamping |= SOF_TIMESTAMPING_TX_COMPLETION;
+		break;
+	case BTPROTO_SCO:
+		info->so_timestamping |= SOF_TIMESTAMPING_TX_SOFTWARE;
+		if (hci_dev_test_flag(hdev, HCI_SCO_FLOWCTL))
+			info->so_timestamping |= SOF_TIMESTAMPING_TX_COMPLETION;
+		break;
+	}
+
+	hci_dev_put(hdev);
+	return 0;
+}
