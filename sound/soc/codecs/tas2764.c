@@ -876,7 +876,7 @@ static int tas2764_i2c_probe(struct i2c_client *client)
 	if (!tas2764)
 		return -ENOMEM;
 
-	tas2764->devid = (enum tas2764_devid)of_device_get_match_data(&client->dev);
+	tas2764->devid = (kernel_ulong_t)of_device_get_match_data(&client->dev);
 
 	tas2764->dev = &client->dev;
 	tas2764->irq = client->irq;
