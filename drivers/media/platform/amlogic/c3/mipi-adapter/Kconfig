@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config VIDEO_C3_MIPI_ADAPTER
+	tristate "Amlogic C3 MIPI adapter"
+	depends on ARCH_MESON || COMPILE_TEST
+	depends on VIDEO_DEV
+	depends on OF
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  Video4Linux2 driver for Amlogic C3 MIPI adapter.
+	  C3 MIPI adapter mainly responsible for organizing
+	  MIPI data and sending raw data to ISP pipeline.
+
+	  To compile this driver as a module choose m here.
