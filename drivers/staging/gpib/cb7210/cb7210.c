@@ -1247,12 +1247,7 @@ static int cb_gpib_config_iteration(struct pcmcia_device *link, void *priv_data)
 
 static int cb_gpib_config(struct pcmcia_device  *link)
 {
-	struct pcmcia_device *handle;
-	struct local_info *dev;
 	int retval;
-
-	handle = link;
-	dev = link->priv;
 
 	retval = pcmcia_loop_config(link, &cb_gpib_config_iteration, NULL);
 	if (retval) {
