@@ -189,12 +189,10 @@ static void copy_from_brd(void *dst, struct brd_device *brd,
 /*
  * Process a single bvec of a bio.
  */
-static int brd_do_bvec(struct brd_device *brd, struct page *page,
-			unsigned int len, unsigned int off, blk_opf_t opf,
-			sector_t sector)
+static int brd_rw_bvec(struct brd_device *brd, struct bio_vec *bv,
+		blk_opf_t opf, sector_t sector)
 {
 	void *mem;
-	int err = 0;
 
 	if (op_is_write(opf)) {
 		/*
@@ -202,24 +200,23 @@ static int brd_do_bvec(struct brd_device *brd, struct page *page,
 		 * block or filesystem layers from page reclaim.
 		 */
 		gfp_t gfp = opf & REQ_NOWAIT ? GFP_NOWAIT : GFP_NOIO;
+		int err;
 
-		err = copy_to_brd_setup(brd, sector, len, gfp);
+		err = copy_to_brd_setup(brd, sector, bv->bv_len, gfp);
 		if (err)
-			goto out;
+			return err;
 	}
 
-	mem = kmap_atomic(page);
+	mem = kmap_atomic(bv->bv_page);
 	if (!op_is_write(opf)) {
-		copy_from_brd(mem + off, brd, sector, len);
-		flush_dcache_page(page);
+		copy_from_brd(mem + bv->bv_offset, brd, sector, bv->bv_len);
+		flush_dcache_page(bv->bv_page);
 	} else {
-		flush_dcache_page(page);
-		copy_to_brd(brd, mem + off, sector, len);
+		flush_dcache_page(bv->bv_page);
+		copy_to_brd(brd, mem + bv->bv_offset, sector, bv->bv_len);
 	}
 	kunmap_atomic(mem);
-
-out:
-	return err;
+	return 0;
 }
 
 static void brd_do_discard(struct brd_device *brd, sector_t sector, u32 size)
@@ -255,15 +252,9 @@ static void brd_submit_bio(struct bio *bio)
 	}
 
 	bio_for_each_segment(bvec, bio, iter) {
-		unsigned int len = bvec.bv_len;
 		int err;
 
-		/* Don't support un-aligned buffer */
-		WARN_ON_ONCE((bvec.bv_offset & (SECTOR_SIZE - 1)) ||
-				(len & (SECTOR_SIZE - 1)));
-
-		err = brd_do_bvec(brd, bvec.bv_page, len, bvec.bv_offset,
-				  bio->bi_opf, sector);
+		err = brd_rw_bvec(brd, &bvec, bio->bi_opf, sector);
 		if (err) {
 			if (err == -ENOMEM && bio->bi_opf & REQ_NOWAIT) {
 				bio_wouldblock_error(bio);
@@ -272,7 +263,7 @@ static void brd_submit_bio(struct bio *bio)
 			bio_io_error(bio);
 			return;
 		}
-		sector += len >> SECTOR_SHIFT;
+		sector += bvec.bv_len >> SECTOR_SHIFT;
 	}
 
 	bio_endio(bio);
