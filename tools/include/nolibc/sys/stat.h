@@ -17,6 +17,9 @@
 /*
  * int statx(int fd, const char *path, int flags, unsigned int mask, struct statx *buf);
  * int stat(const char *path, struct stat *buf);
+ * int fstatat(int fd, const char *path, struct stat *buf, int flag);
+ * int fstat(int fildes, struct stat *buf);
+ * int lstat(const char *path, struct stat *buf);
  */
 
 static __attribute__((unused))
@@ -37,12 +40,12 @@ int statx(int fd, const char *path, int flags, unsigned int mask, struct statx *
 
 
 static __attribute__((unused))
-int stat(const char *path, struct stat *buf)
+int fstatat(int fd, const char *path, struct stat *buf, int flag)
 {
 	struct statx statx;
 	long ret;
 
-	ret = __sysret(sys_statx(AT_FDCWD, path, AT_NO_AUTOMOUNT, STATX_BASIC_STATS, &statx));
+	ret = __sysret(sys_statx(fd, path, flag | AT_NO_AUTOMOUNT, STATX_BASIC_STATS, &statx));
 	if (ret == -1)
 		return ret;
 
@@ -68,6 +71,24 @@ int stat(const char *path, struct stat *buf)
 	buf->st_ctim.tv_nsec = statx.stx_ctime.tv_nsec;
 
 	return 0;
+}
+
+static __attribute__((unused))
+int stat(const char *path, struct stat *buf)
+{
+	return fstatat(AT_FDCWD, path, buf, 0);
+}
+
+static __attribute__((unused))
+int fstat(int fildes, struct stat *buf)
+{
+	return fstatat(fildes, "", buf, AT_EMPTY_PATH);
+}
+
+static __attribute__((unused))
+int lstat(const char *path, struct stat *buf)
+{
+	return fstatat(AT_FDCWD, path, buf, AT_SYMLINK_NOFOLLOW);
 }
 
 #endif /* _NOLIBC_SYS_STAT_H */
