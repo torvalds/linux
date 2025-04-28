@@ -712,6 +712,25 @@ static inline u8 rtw89_core_get_qsel(struct rtw89_dev *rtwdev, u8 tid)
 	}
 }
 
+static inline u8
+rtw89_core_get_qsel_mgmt(struct rtw89_dev *rtwdev, struct rtw89_core_tx_request *tx_req)
+{
+	struct rtw89_tx_desc_info *desc_info = &tx_req->desc_info;
+	struct rtw89_vif_link *rtwvif_link = tx_req->rtwvif_link;
+
+	if (desc_info->hiq) {
+		if (rtwvif_link->mac_idx == RTW89_MAC_1)
+			return RTW89_TX_QSEL_B1_HI;
+		else
+			return RTW89_TX_QSEL_B0_HI;
+	}
+
+	if (rtwvif_link->mac_idx == RTW89_MAC_1)
+		return RTW89_TX_QSEL_B1_MGMT;
+	else
+		return RTW89_TX_QSEL_B0_MGMT;
+}
+
 static inline u8 rtw89_core_get_ch_dma(struct rtw89_dev *rtwdev, u8 qsel)
 {
 	switch (qsel) {

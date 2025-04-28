@@ -673,7 +673,7 @@ rtw89_core_tx_update_mgmt_info(struct rtw89_dev *rtwdev,
 	struct sk_buff *skb = tx_req->skb;
 	u8 qsel, ch_dma;
 
-	qsel = desc_info->hiq ? RTW89_TX_QSEL_B0_HI : RTW89_TX_QSEL_B0_MGMT;
+	qsel = rtw89_core_get_qsel_mgmt(rtwdev, tx_req);
 	ch_dma = rtw89_core_get_ch_dma(rtwdev, qsel);
 
 	desc_info->qsel = qsel;
