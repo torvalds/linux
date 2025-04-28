@@ -100,27 +100,6 @@ static void brd_free_pages(struct brd_device *brd)
 }
 
 /*
- * copy_to_brd_setup must be called before copy_to_brd. It may sleep.
- */
-static int copy_to_brd_setup(struct brd_device *brd, sector_t sector, size_t n,
-			     gfp_t gfp)
-{
-	unsigned int offset = (sector & (PAGE_SECTORS-1)) << SECTOR_SHIFT;
-	size_t copy;
-	int ret;
-
-	copy = min_t(size_t, n, PAGE_SIZE - offset);
-	ret = brd_insert_page(brd, sector, gfp);
-	if (ret)
-		return ret;
-	if (copy < n) {
-		sector += copy >> SECTOR_SHIFT;
-		ret = brd_insert_page(brd, sector, gfp);
-	}
-	return ret;
-}
-
-/*
  * Copy n bytes from src to the brd starting at sector. Does not sleep.
  */
 static void copy_to_brd(struct brd_device *brd, const void *src,
@@ -129,27 +108,13 @@ static void copy_to_brd(struct brd_device *brd, const void *src,
 	struct page *page;
 	void *dst;
 	unsigned int offset = (sector & (PAGE_SECTORS-1)) << SECTOR_SHIFT;
-	size_t copy;
 
-	copy = min_t(size_t, n, PAGE_SIZE - offset);
 	page = brd_lookup_page(brd, sector);
 	BUG_ON(!page);
 
 	dst = kmap_atomic(page);
-	memcpy(dst + offset, src, copy);
+	memcpy(dst + offset, src, n);
 	kunmap_atomic(dst);
-
-	if (copy < n) {
-		src += copy;
-		sector += copy >> SECTOR_SHIFT;
-		copy = n - copy;
-		page = brd_lookup_page(brd, sector);
-		BUG_ON(!page);
-
-		dst = kmap_atomic(page);
-		memcpy(dst, src, copy);
-		kunmap_atomic(dst);
-	}
 }
 
 /*
@@ -161,62 +126,60 @@ static void copy_from_brd(void *dst, struct brd_device *brd,
 	struct page *page;
 	void *src;
 	unsigned int offset = (sector & (PAGE_SECTORS-1)) << SECTOR_SHIFT;
-	size_t copy;
 
-	copy = min_t(size_t, n, PAGE_SIZE - offset);
 	page = brd_lookup_page(brd, sector);
 	if (page) {
 		src = kmap_atomic(page);
-		memcpy(dst, src + offset, copy);
+		memcpy(dst, src + offset, n);
 		kunmap_atomic(src);
 	} else
-		memset(dst, 0, copy);
-
-	if (copy < n) {
-		dst += copy;
-		sector += copy >> SECTOR_SHIFT;
-		copy = n - copy;
-		page = brd_lookup_page(brd, sector);
-		if (page) {
-			src = kmap_atomic(page);
-			memcpy(dst, src, copy);
-			kunmap_atomic(src);
-		} else
-			memset(dst, 0, copy);
-	}
+		memset(dst, 0, n);
 }
 
 /*
- * Process a single bvec of a bio.
+ * Process a single segment.  The segment is capped to not cross page boundaries
+ * in both the bio and the brd backing memory.
  */
-static int brd_rw_bvec(struct brd_device *brd, struct bio_vec *bv,
-		blk_opf_t opf, sector_t sector)
+static bool brd_rw_bvec(struct brd_device *brd, struct bio *bio)
 {
+	struct bio_vec bv = bio_iter_iovec(bio, bio->bi_iter);
+	sector_t sector = bio->bi_iter.bi_sector;
+	u32 offset = (sector & (PAGE_SECTORS - 1)) << SECTOR_SHIFT;
+	blk_opf_t opf = bio->bi_opf;
 	void *mem;
 
+	bv.bv_len = min_t(u32, bv.bv_len, PAGE_SIZE - offset);
+
 	if (op_is_write(opf)) {
+		int err;
+
 		/*
 		 * Must use NOIO because we don't want to recurse back into the
 		 * block or filesystem layers from page reclaim.
 		 */
-		gfp_t gfp = opf & REQ_NOWAIT ? GFP_NOWAIT : GFP_NOIO;
-		int err;
-
-		err = copy_to_brd_setup(brd, sector, bv->bv_len, gfp);
-		if (err)
-			return err;
+		err = brd_insert_page(brd, sector,
+				(opf & REQ_NOWAIT) ? GFP_NOWAIT : GFP_NOIO);
+		if (err) {
+			if (err == -ENOMEM && (opf & REQ_NOWAIT))
+				bio_wouldblock_error(bio);
+			else
+				bio_io_error(bio);
+			return false;
+		}
 	}
 
-	mem = bvec_kmap_local(bv);
+	mem = bvec_kmap_local(&bv);
 	if (!op_is_write(opf)) {
-		copy_from_brd(mem, brd, sector, bv->bv_len);
-		flush_dcache_page(bv->bv_page);
+		copy_from_brd(mem, brd, sector, bv.bv_len);
+		flush_dcache_page(bv.bv_page);
 	} else {
-		flush_dcache_page(bv->bv_page);
-		copy_to_brd(brd, mem, sector, bv->bv_len);
+		flush_dcache_page(bv.bv_page);
+		copy_to_brd(brd, mem, sector, bv.bv_len);
 	}
 	kunmap_local(mem);
-	return 0;
+
+	bio_advance_iter_single(bio, &bio->bi_iter, bv.bv_len);
+	return true;
 }
 
 static void brd_do_discard(struct brd_device *brd, sector_t sector, u32 size)
@@ -241,8 +204,6 @@ static void brd_do_discard(struct brd_device *brd, sector_t sector, u32 size)
 static void brd_submit_bio(struct bio *bio)
 {
 	struct brd_device *brd = bio->bi_bdev->bd_disk->private_data;
-	struct bio_vec bvec;
-	struct bvec_iter iter;
 
 	if (unlikely(op_is_discard(bio->bi_opf))) {
 		brd_do_discard(brd, bio->bi_iter.bi_sector,
@@ -251,19 +212,10 @@ static void brd_submit_bio(struct bio *bio)
 		return;
 	}
 
-	bio_for_each_segment(bvec, bio, iter) {
-		int err;
-
-		err = brd_rw_bvec(brd, &bvec, bio->bi_opf, iter.bi_sector);
-		if (err) {
-			if (err == -ENOMEM && bio->bi_opf & REQ_NOWAIT) {
-				bio_wouldblock_error(bio);
-				return;
-			}
-			bio_io_error(bio);
+	do {
+		if (!brd_rw_bvec(brd, bio))
 			return;
-		}
-	}
+	} while (bio->bi_iter.bi_size);
 
 	bio_endio(bio);
 }
