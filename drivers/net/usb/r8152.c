@@ -26,7 +26,7 @@
 #include <linux/atomic.h>
 #include <linux/acpi.h>
 #include <linux/firmware.h>
-#include <crypto/hash.h>
+#include <crypto/sha2.h>
 #include <linux/usb/r8152.h>
 #include <net/gso.h>
 
@@ -4628,48 +4628,16 @@ out:
 static long rtl8152_fw_verify_checksum(struct r8152 *tp,
 				       struct fw_header *fw_hdr, size_t size)
 {
-	unsigned char checksum[sizeof(fw_hdr->checksum)];
-	struct crypto_shash *alg;
-	struct shash_desc *sdesc;
-	size_t len;
-	long rc;
+	u8 checksum[sizeof(fw_hdr->checksum)];
 
-	alg = crypto_alloc_shash("sha256", 0, 0);
-	if (IS_ERR(alg)) {
-		rc = PTR_ERR(alg);
-		goto out;
-	}
+	BUILD_BUG_ON(sizeof(checksum) != SHA256_DIGEST_SIZE);
+	sha256(fw_hdr->version, size - sizeof(checksum), checksum);
 
-	if (crypto_shash_digestsize(alg) != sizeof(fw_hdr->checksum)) {
-		rc = -EFAULT;
-		dev_err(&tp->intf->dev, "digestsize incorrect (%u)\n",
-			crypto_shash_digestsize(alg));
-		goto free_shash;
-	}
-
-	len = sizeof(*sdesc) + crypto_shash_descsize(alg);
-	sdesc = kmalloc(len, GFP_KERNEL);
-	if (!sdesc) {
-		rc = -ENOMEM;
-		goto free_shash;
-	}
-	sdesc->tfm = alg;
-
-	len = size - sizeof(fw_hdr->checksum);
-	rc = crypto_shash_digest(sdesc, fw_hdr->version, len, checksum);
-	kfree(sdesc);
-	if (rc)
-		goto free_shash;
-
-	if (memcmp(fw_hdr->checksum, checksum, sizeof(fw_hdr->checksum))) {
+	if (memcmp(fw_hdr->checksum, checksum, sizeof(checksum))) {
 		dev_err(&tp->intf->dev, "checksum fail\n");
-		rc = -EFAULT;
+		return -EFAULT;
 	}
-
-free_shash:
-	crypto_free_shash(alg);
-out:
-	return rc;
+	return 0;
 }
 
 static long rtl8152_check_firmware(struct r8152 *tp, struct rtl_fw *rtl_fw)
