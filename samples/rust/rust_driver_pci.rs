@@ -83,12 +83,12 @@ impl pci::Driver for SampleDriver {
             GFP_KERNEL,
         )?;
 
-        let res = drvdata
-            .bar
-            .try_access_with(|b| Self::testdev(info, b))
-            .ok_or(ENXIO)??;
-
-        dev_info!(pdev.as_ref(), "pci-testdev data-match count: {}\n", res);
+        let bar = drvdata.bar.access(pdev.as_ref())?;
+        dev_info!(
+            pdev.as_ref(),
+            "pci-testdev data-match count: {}\n",
+            Self::testdev(info, bar)?
+        );
 
         Ok(drvdata.into())
     }
