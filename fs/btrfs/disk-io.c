@@ -3317,7 +3317,7 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	/*
 	 * Read super block and check the signature bytes only
 	 */
-	disk_super = btrfs_read_dev_super(fs_devices->latest_dev->bdev);
+	disk_super = btrfs_read_disk_super(fs_devices->latest_dev->bdev, 0, false);
 	if (IS_ERR(disk_super)) {
 		ret = PTR_ERR(disk_super);
 		goto fail_alloc;
@@ -3710,34 +3710,6 @@ static void btrfs_end_super_write(struct bio *bio)
 	}
 
 	bio_put(bio);
-}
-
-struct btrfs_super_block *btrfs_read_dev_super(struct block_device *bdev)
-{
-	struct btrfs_super_block *super, *latest = NULL;
-	int i;
-	u64 transid = 0;
-
-	/* we would like to check all the supers, but that would make
-	 * a btrfs mount succeed after a mkfs from a different FS.
-	 * So, we need to add a special mount option to scan for
-	 * later supers, using BTRFS_SUPER_MIRROR_MAX instead
-	 */
-	for (i = 0; i < 1; i++) {
-		super = btrfs_read_disk_super(bdev, i, false);
-		if (IS_ERR(super))
-			continue;
-
-		if (!latest || btrfs_super_generation(super) > transid) {
-			if (latest)
-				btrfs_release_disk_super(super);
-
-			latest = super;
-			transid = btrfs_super_generation(super);
-		}
-	}
-
-	return super;
 }
 
 /*
