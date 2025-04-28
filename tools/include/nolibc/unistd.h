@@ -20,6 +20,34 @@
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
 
+#define F_OK 0
+#define X_OK 1
+#define W_OK 2
+#define R_OK 4
+
+/*
+ * int access(const char *path, int amode);
+ * int faccessat(int fd, const char *path, int amode, int flag);
+ */
+
+static __attribute__((unused))
+int sys_faccessat(int fd, const char *path, int amode, int flag)
+{
+       return my_syscall4(__NR_faccessat, fd, path, amode, flag);
+}
+
+static __attribute__((unused))
+int faccessat(int fd, const char *path, int amode, int flag)
+{
+	return __sysret(sys_faccessat(fd, path, amode, flag));
+}
+
+static __attribute__((unused))
+int access(const char *path, int amode)
+{
+	return faccessat(AT_FDCWD, path, amode, 0);
+}
+
 
 static __attribute__((unused))
 int msleep(unsigned int msecs)
