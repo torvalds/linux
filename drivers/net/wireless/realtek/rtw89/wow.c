@@ -1086,8 +1086,7 @@ static int rtw89_wow_set_wakeups(struct rtw89_dev *rtwdev,
 		rtw89_wow_init_pno(rtwdev, wowlan->nd_config);
 
 	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
-		/* use the link on HW-0 to do wow flow */
-		rtwvif_link = rtw89_vif_get_link_inst(rtwvif, 0);
+		rtwvif_link = rtw89_get_designated_link(rtwvif);
 		if (!rtwvif_link)
 			continue;
 

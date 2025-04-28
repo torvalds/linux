@@ -3380,6 +3380,7 @@ struct rtw89_sec_cam_entry {
 
 struct rtw89_sta_link {
 	struct rtw89_sta *rtwsta;
+	struct list_head dlink_schd;
 	unsigned int link_id;
 
 	u8 mac_id;
@@ -3446,8 +3447,6 @@ enum rtw89_roc_state {
 	RTW89_ROC_MGMT,
 };
 
-#define RTW89_ROC_BY_LINK_INDEX 0
-
 struct rtw89_roc {
 	struct ieee80211_channel chan;
 	struct wiphy_delayed_work roc_work;
@@ -3487,6 +3486,7 @@ struct rtw89_p2p_noa_setter {
 
 struct rtw89_vif_link {
 	struct rtw89_vif *rtwvif;
+	struct list_head dlink_schd;
 	unsigned int link_id;
 
 	bool chanctx_assigned; /* only valid when running with chanctx_ops */
@@ -5878,6 +5878,7 @@ struct rtw89_vif {
 	struct rtw89_roc roc;
 	bool offchan;
 
+	struct list_head dlink_pool;
 	u8 links_inst_valid_num;
 	DECLARE_BITMAP(links_inst_map, __RTW89_MLD_MAX_LINK_NUM);
 	struct rtw89_vif_link *links[IEEE80211_MLD_MAX_NUM_LINKS];
@@ -5917,6 +5918,7 @@ struct rtw89_sta {
 
 	DECLARE_BITMAP(pairwise_sec_cam_map, RTW89_MAX_SEC_CAM_NUM);
 
+	struct list_head dlink_pool;
 	u8 links_inst_valid_num;
 	DECLARE_BITMAP(links_inst_map, __RTW89_MLD_MAX_LINK_NUM);
 	struct rtw89_sta_link *links[IEEE80211_MLD_MAX_NUM_LINKS];
@@ -6011,6 +6013,12 @@ rtw89_assoc_link_rcu_dereference(struct rtw89_dev *rtwdev, u8 macid)
 {
 	return rcu_dereference(rtwdev->assoc_link_on_macid[macid]);
 }
+
+#define rtw89_get_designated_link(links_holder) \
+({ \
+	typeof(links_holder) p = links_holder; \
+	list_first_entry_or_null(&p->dlink_pool, typeof(*p->links_inst), dlink_schd); \
+})
 
 static inline int rtw89_hci_tx_write(struct rtw89_dev *rtwdev,
 				     struct rtw89_core_tx_request *tx_req)

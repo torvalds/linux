@@ -1133,22 +1133,20 @@ int rtw89_core_tx_write(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 	struct rtw89_vif_link *rtwvif_link;
 	int ret;
 
-	/* By default, driver writes tx via the link on HW-0. And then,
-	 * according to links' status, HW can change tx to another link.
-	 */
-
 	if (rtwsta) {
-		rtwsta_link = rtw89_sta_get_link_inst(rtwsta, 0);
+		rtwsta_link = rtw89_get_designated_link(rtwsta);
 		if (unlikely(!rtwsta_link)) {
-			rtw89_err(rtwdev, "tx: find no sta link on HW-0\n");
+			rtw89_err(rtwdev, "tx: find no sta designated link\n");
 			return -ENOLINK;
 		}
-	}
 
-	rtwvif_link = rtw89_vif_get_link_inst(rtwvif, 0);
-	if (unlikely(!rtwvif_link)) {
-		rtw89_err(rtwdev, "tx: find no vif link on HW-0\n");
-		return -ENOLINK;
+		rtwvif_link = rtwsta_link->rtwvif_link;
+	} else {
+		rtwvif_link = rtw89_get_designated_link(rtwvif);
+		if (unlikely(!rtwvif_link)) {
+			rtw89_err(rtwdev, "tx: find no vif designated link\n");
+			return -ENOLINK;
+		}
 	}
 
 	tx_req.skb = skb;
@@ -3147,9 +3145,9 @@ static bool rtw89_core_txq_agg_wait(struct rtw89_dev *rtwdev,
 	if (!rtwsta)
 		return false;
 
-	rtwsta_link = rtw89_sta_get_link_inst(rtwsta, 0);
+	rtwsta_link = rtw89_get_designated_link(rtwsta);
 	if (unlikely(!rtwsta_link)) {
-		rtw89_err(rtwdev, "agg wait: find no link on HW-0\n");
+		rtw89_err(rtwdev, "agg wait: find no designated link\n");
 		return false;
 	}
 
@@ -3372,10 +3370,9 @@ void rtw89_roc_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	rtw89_leave_ips_by_hwflags(rtwdev);
 	rtw89_leave_lps(rtwdev);
 
-	rtwvif_link = rtw89_vif_get_link_inst(rtwvif, RTW89_ROC_BY_LINK_INDEX);
+	rtwvif_link = rtw89_get_designated_link(rtwvif);
 	if (unlikely(!rtwvif_link)) {
-		rtw89_err(rtwdev, "roc start: find no link on HW-%u\n",
-			  RTW89_ROC_BY_LINK_INDEX);
+		rtw89_err(rtwdev, "roc start: find no designated link\n");
 		return;
 	}
 
@@ -4806,6 +4803,7 @@ struct rtw89_vif_link *rtw89_vif_set_link(struct rtw89_vif *rtwvif,
 
 	set_bit(index, rtwvif->links_inst_map);
 	rtwvif->links[link_id] = rtwvif_link;
+	list_add_tail(&rtwvif_link->dlink_schd, &rtwvif->dlink_pool);
 	return rtwvif_link;
 
 err:
@@ -4826,6 +4824,7 @@ void rtw89_vif_unset_link(struct rtw89_vif *rtwvif, unsigned int link_id)
 	index = rtw89_vif_link_inst_get_index(link);
 	clear_bit(index, rtwvif->links_inst_map);
 	*container = NULL;
+	list_del(&link->dlink_schd);
 }
 
 struct rtw89_sta_link *rtw89_sta_set_link(struct rtw89_sta *rtwsta,
@@ -4856,6 +4855,7 @@ struct rtw89_sta_link *rtw89_sta_set_link(struct rtw89_sta *rtwsta,
 
 	set_bit(index, rtwsta->links_inst_map);
 	rtwsta->links[link_id] = rtwsta_link;
+	list_add_tail(&rtwsta_link->dlink_schd, &rtwsta->dlink_pool);
 	return rtwsta_link;
 
 err:
@@ -4876,6 +4876,7 @@ void rtw89_sta_unset_link(struct rtw89_sta *rtwsta, unsigned int link_id)
 	index = rtw89_sta_link_inst_get_index(link);
 	clear_bit(index, rtwsta->links_inst_map);
 	*container = NULL;
+	list_del(&link->dlink_schd);
 }
 
 int rtw89_core_init(struct rtw89_dev *rtwdev)

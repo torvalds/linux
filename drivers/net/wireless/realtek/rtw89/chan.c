@@ -694,19 +694,13 @@ static void rtw89_mcc_role_macid_sta_iter(void *data, struct ieee80211_sta *sta)
 	struct rtw89_vif *target = mcc_role->rtwvif_link->rtwvif;
 	struct rtw89_sta *rtwsta = sta_to_rtwsta(sta);
 	struct rtw89_vif *rtwvif = rtwsta->rtwvif;
-	struct rtw89_dev *rtwdev = rtwsta->rtwdev;
-	struct rtw89_sta_link *rtwsta_link;
+	u8 macid;
 
 	if (rtwvif != target)
 		return;
 
-	rtwsta_link = rtw89_sta_get_link_inst(rtwsta, 0);
-	if (unlikely(!rtwsta_link)) {
-		rtw89_err(rtwdev, "mcc sta macid: find no link on HW-0\n");
-		return;
-	}
-
-	rtw89_mcc_role_fw_macid_bitmap_set_bit(mcc_role, rtwsta_link->mac_id);
+	macid = rtw89_sta_get_main_macid(rtwsta);
+	rtw89_mcc_role_fw_macid_bitmap_set_bit(mcc_role, macid);
 }
 
 static void rtw89_mcc_fill_role_macid_bitmap(struct rtw89_dev *rtwdev,
