@@ -71,8 +71,13 @@ struct crypto_sha256_state {
 };
 
 struct sha256_state {
-	u32 state[SHA256_DIGEST_SIZE / 4];
-	u64 count;
+	union {
+		struct crypto_sha256_state ctx;
+		struct {
+			u32 state[SHA256_DIGEST_SIZE / 4];
+			u64 count;
+		};
+	};
 	u8 buf[SHA256_BLOCK_SIZE];
 };
 

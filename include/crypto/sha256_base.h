@@ -8,6 +8,7 @@
 #ifndef _CRYPTO_SHA256_BASE_H
 #define _CRYPTO_SHA256_BASE_H
 
+#include <crypto/internal/blockhash.h>
 #include <crypto/internal/hash.h>
 #include <crypto/sha2.h>
 #include <linux/math.h>
@@ -40,35 +41,10 @@ static inline int lib_sha256_base_do_update(struct sha256_state *sctx,
 					    sha256_block_fn *block_fn)
 {
 	unsigned int partial = sctx->count % SHA256_BLOCK_SIZE;
-	struct crypto_sha256_state *state = (void *)sctx;
 
 	sctx->count += len;
-
-	if (unlikely((partial + len) >= SHA256_BLOCK_SIZE)) {
-		int blocks;
-
-		if (partial) {
-			int p = SHA256_BLOCK_SIZE - partial;
-
-			memcpy(sctx->buf + partial, data, p);
-			data += p;
-			len -= p;
-
-			block_fn(state, sctx->buf, 1);
-		}
-
-		blocks = len / SHA256_BLOCK_SIZE;
-		len %= SHA256_BLOCK_SIZE;
-
-		if (blocks) {
-			block_fn(state, data, blocks);
-			data += blocks * SHA256_BLOCK_SIZE;
-		}
-		partial = 0;
-	}
-	if (len)
-		memcpy(sctx->buf + partial, data, len);
-
+	BLOCK_HASH_UPDATE_BLOCKS(block_fn, &sctx->ctx, data, len,
+				 SHA256_BLOCK_SIZE, sctx->buf, partial);
 	return 0;
 }
 
@@ -138,14 +114,6 @@ static inline int lib_sha256_base_do_finalize(struct sha256_state *sctx,
 
 	sctx->count -= partial;
 	return lib_sha256_base_do_finup(state, sctx->buf, partial, block_fn);
-}
-
-static inline int sha256_base_do_finalize(struct shash_desc *desc,
-					  sha256_block_fn *block_fn)
-{
-	struct sha256_state *sctx = shash_desc_ctx(desc);
-
-	return lib_sha256_base_do_finalize(sctx, block_fn);
 }
 
 static inline int __sha256_base_finish(u32 state[SHA256_DIGEST_SIZE / 4],
