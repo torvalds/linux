@@ -85,6 +85,8 @@ MODULE_FIRMWARE("amdgpu/psp_14_0_4_ta.bin");
 
 #define regMP1_PUB_SCRATCH0	0x3b10090
 
+#define PSP13_BL_STATUS_SIZE 100
+
 static int psp_v13_0_init_microcode(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
@@ -151,6 +153,32 @@ static bool psp_v13_0_is_sos_alive(struct psp_context *psp)
 	return sol_reg != 0x0;
 }
 
+static void psp_v13_0_bootloader_print_status(struct psp_context *psp,
+					      const char *msg)
+{
+	struct amdgpu_device *adev = psp->adev;
+	u32 bl_status_reg;
+	char bl_status_msg[PSP13_BL_STATUS_SIZE];
+	int i, at;
+
+	if (amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6) ||
+	    amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 12) ||
+	    amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 14)) {
+		at = 0;
+		for_each_inst(i, adev->aid_mask) {
+			bl_status_reg =
+				(SOC15_REG_OFFSET(MP0, 0, regMP0_SMN_C2PMSG_92)
+				 << 2) +
+				adev->asic_funcs->encode_ext_smn_addressing(i);
+			at += snprintf(bl_status_msg + at,
+				       PSP13_BL_STATUS_SIZE - at,
+				       " status(%02i): 0x%08x", i,
+				       RREG32_PCIE_EXT(bl_status_reg));
+		}
+		dev_info(adev->dev, "%s - %s", msg, bl_status_msg);
+	}
+}
+
 static int psp_v13_0_wait_for_vmbx_ready(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
@@ -196,6 +224,9 @@ static int psp_v13_0_wait_for_bootloader(struct psp_context *psp)
 
 		if (ret == 0)
 			return 0;
+		if (retry_loop && !(retry_loop % 10))
+			psp_v13_0_bootloader_print_status(
+				psp, "Waiting for bootloader completion");
 	}
 
 	return ret;
