@@ -181,6 +181,44 @@ impl<T> Devres<T> {
 
         Ok(())
     }
+
+    /// Obtain `&'a T`, bypassing the [`Revocable`].
+    ///
+    /// This method allows to directly obtain a `&'a T`, bypassing the [`Revocable`], by presenting
+    /// a `&'a Device<Bound>` of the same [`Device`] this [`Devres`] instance has been created with.
+    ///
+    /// # Errors
+    ///
+    /// An error is returned if `dev` does not match the same [`Device`] this [`Devres`] instance
+    /// has been created with.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use kernel::{device::Core, devres::Devres, pci};
+    ///
+    /// fn from_core(dev: &pci::Device<Core>, devres: Devres<pci::Bar<0x4>>) -> Result {
+    ///     let bar = devres.access(dev.as_ref())?;
+    ///
+    ///     let _ = bar.read32(0x0);
+    ///
+    ///     // might_sleep()
+    ///
+    ///     bar.write32(0x42, 0x0);
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
+    pub fn access<'a>(&'a self, dev: &'a Device<Bound>) -> Result<&'a T> {
+        if self.0.dev.as_raw() != dev.as_raw() {
+            return Err(EINVAL);
+        }
+
+        // SAFETY: `dev` being the same device as the device this `Devres` has been created for
+        // proves that `self.0.data` hasn't been revoked and is guaranteed to not be revoked as
+        // long as `dev` lives; `dev` lives at least as long as `self`.
+        Ok(unsafe { self.deref().access() })
+    }
 }
 
 impl<T> Deref for Devres<T> {
