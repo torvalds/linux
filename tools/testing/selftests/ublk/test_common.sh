@@ -17,8 +17,8 @@ _get_disk_dev_t() {
 	local minor
 
 	dev=/dev/ublkb"${dev_id}"
-	major=$(stat -c '%Hr' "$dev")
-	minor=$(stat -c '%Lr' "$dev")
+	major="0x"$(stat -c '%t' "$dev")
+	minor="0x"$(stat -c '%T' "$dev")
 
 	echo $(( (major & 0xfff) << 20 | (minor & 0xfffff) ))
 }

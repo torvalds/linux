@@ -13,8 +13,8 @@
 
 #include <linux/dcache.h>
 
-static int bch2_casefold(struct btree_trans *trans, const struct bch_hash_info *info,
-				const struct qstr *str, struct qstr *out_cf)
+int bch2_casefold(struct btree_trans *trans, const struct bch_hash_info *info,
+		  const struct qstr *str, struct qstr *out_cf)
 {
 	*out_cf = (struct qstr) QSTR_INIT(NULL, 0);
 
@@ -33,18 +33,6 @@ static int bch2_casefold(struct btree_trans *trans, const struct bch_hash_info *
 #else
 	return -EOPNOTSUPP;
 #endif
-}
-
-static inline int bch2_maybe_casefold(struct btree_trans *trans,
-				      const struct bch_hash_info *info,
-				      const struct qstr *str, struct qstr *out_cf)
-{
-	if (likely(!info->cf_encoding)) {
-		*out_cf = *str;
-		return 0;
-	} else {
-		return bch2_casefold(trans, info, str, out_cf);
-	}
 }
 
 static unsigned bch2_dirent_name_bytes(struct bkey_s_c_dirent d)
