@@ -154,8 +154,9 @@ void pdsc_debugfs_add_qcq(struct pdsc *pdsc, struct pdsc_qcq *qcq)
 		debugfs_create_u32("index", 0400, intr_dentry, &intr->index);
 		debugfs_create_u32("vector", 0400, intr_dentry, &intr->vector);
 
-		intr_ctrl_regset = kzalloc(sizeof(*intr_ctrl_regset),
-					   GFP_KERNEL);
+		intr_ctrl_regset = devm_kzalloc(pdsc->dev,
+						sizeof(*intr_ctrl_regset),
+						GFP_KERNEL);
 		if (!intr_ctrl_regset)
 			return;
 		intr_ctrl_regset->regs = intr_ctrl_regs;
