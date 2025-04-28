@@ -14,6 +14,7 @@
 #include <linux/fpga/adi-axi-common.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/of.h>
 #include <linux/module.h>
 #include <linux/overflow.h>
@@ -739,11 +740,15 @@ static int spi_engine_setup(struct spi_device *device)
 {
 	struct spi_controller *host = device->controller;
 	struct spi_engine *spi_engine = spi_controller_get_devdata(host);
+	unsigned int reg;
 
 	if (device->mode & SPI_CS_HIGH)
 		spi_engine->cs_inv |= BIT(spi_get_chipselect(device, 0));
 	else
 		spi_engine->cs_inv &= ~BIT(spi_get_chipselect(device, 0));
+
+	writel_relaxed(SPI_ENGINE_CMD_SYNC(0),
+		       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
 
 	writel_relaxed(SPI_ENGINE_CMD_CS_INV(spi_engine->cs_inv),
 		       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
@@ -755,7 +760,11 @@ static int spi_engine_setup(struct spi_device *device)
 	writel_relaxed(SPI_ENGINE_CMD_ASSERT(0, 0xff),
 		       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
 
-	return 0;
+	writel_relaxed(SPI_ENGINE_CMD_SYNC(1),
+		       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
+
+	return readl_relaxed_poll_timeout(spi_engine->base + SPI_ENGINE_REG_SYNC_ID,
+					  reg, reg == 1, 1, 1000);
 }
 
 static int spi_engine_transfer_one_message(struct spi_controller *host,
