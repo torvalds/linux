@@ -672,6 +672,7 @@ static void
 svc_rqst_free(struct svc_rqst *rqstp)
 {
 	folio_batch_release(&rqstp->rq_fbatch);
+	kfree(rqstp->rq_bvec);
 	svc_release_buffer(rqstp);
 	if (rqstp->rq_scratch_page)
 		put_page(rqstp->rq_scratch_page);
@@ -708,6 +709,12 @@ svc_prepare_thread(struct svc_serv *serv, struct svc_pool *pool, int node)
 		goto out_enomem;
 
 	if (!svc_init_buffer(rqstp, serv, node))
+		goto out_enomem;
+
+	rqstp->rq_bvec = kcalloc_node(rqstp->rq_maxpages,
+				      sizeof(struct bio_vec),
+				      GFP_KERNEL, node);
+	if (!rqstp->rq_bvec)
 		goto out_enomem;
 
 	rqstp->rq_err = -EAGAIN; /* No error yet */
