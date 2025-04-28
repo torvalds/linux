@@ -46,16 +46,13 @@ static void rtc_time64_to_tm_test_date_range(struct kunit *test, int years)
 
 	struct rtc_time result;
 	time64_t secs;
-	s64 days;
 
 	for (secs = 0; secs <= total_secs; secs += 86400) {
 
 		rtc_time64_to_tm(secs, &result);
 
-		days = div_s64(secs, 86400);
-
 		#define FAIL_MSG "%d/%02d/%02d (%2d) : %lld", \
-			year, month, mday, yday, days
+			year, month, mday, yday, secs
 
 		KUNIT_ASSERT_EQ_MSG(test, year - 1900, result.tm_year, FAIL_MSG);
 		KUNIT_ASSERT_EQ_MSG(test, month - 1, result.tm_mon, FAIL_MSG);
