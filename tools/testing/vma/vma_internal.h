@@ -56,6 +56,8 @@ extern unsigned long dac_mmap_min_addr;
 #define VM_PFNMAP	0x00000400
 #define VM_LOCKED	0x00002000
 #define VM_IO           0x00004000
+#define VM_SEQ_READ	0x00008000	/* App will access data sequentially */
+#define VM_RAND_READ	0x00010000	/* App will not benefit from clustered reads */
 #define VM_DONTEXPAND	0x00040000
 #define VM_LOCKONFAULT	0x00080000
 #define VM_ACCOUNT	0x00100000
@@ -70,6 +72,20 @@ extern unsigned long dac_mmap_min_addr;
 #define VM_ACCESS_FLAGS (VM_READ | VM_WRITE | VM_EXEC)
 #define VM_SPECIAL (VM_IO | VM_DONTEXPAND | VM_PFNMAP | VM_MIXEDMAP)
 
+#ifdef CONFIG_STACK_GROWSUP
+#define VM_STACK	VM_GROWSUP
+#define VM_STACK_EARLY	VM_GROWSDOWN
+#else
+#define VM_STACK	VM_GROWSDOWN
+#define VM_STACK_EARLY	0
+#endif
+
+#define DEFAULT_MAP_WINDOW	((1UL << 47) - PAGE_SIZE)
+#define TASK_SIZE_LOW		DEFAULT_MAP_WINDOW
+#define TASK_SIZE_MAX		DEFAULT_MAP_WINDOW
+#define STACK_TOP		TASK_SIZE_LOW
+#define STACK_TOP_MAX		TASK_SIZE_MAX
+
 /* This mask represents all the VMA flag bits used by mlock */
 #define VM_LOCKED_MASK	(VM_LOCKED | VM_LOCKONFAULT)
 
@@ -81,6 +97,10 @@ extern unsigned long dac_mmap_min_addr;
 #define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_TSK_EXEC
 
 #define VM_STARTGAP_FLAGS (VM_GROWSDOWN | VM_SHADOW_STACK)
+
+#define VM_STACK_DEFAULT_FLAGS VM_DATA_DEFAULT_FLAGS
+#define VM_STACK_FLAGS	(VM_STACK | VM_STACK_DEFAULT_FLAGS | VM_ACCOUNT)
+#define VM_STACK_INCOMPLETE_SETUP (VM_RAND_READ | VM_SEQ_READ | VM_STACK_EARLY)
 
 #define RLIMIT_STACK		3	/* max stack size */
 #define RLIMIT_MEMLOCK		8	/* max locked-in-memory address space */
@@ -1278,6 +1298,18 @@ static inline void free_pgd_range(struct mmu_gather *tlb,
 	(void)end;
 	(void)floor;
 	(void)ceiling;
+}
+
+static inline int ksm_execve(struct mm_struct *mm)
+{
+	(void)mm;
+
+	return 0;
+}
+
+static inline void ksm_exit(struct mm_struct *mm)
+{
+	(void)mm;
 }
 
 #endif	/* __MM_VMA_INTERNAL_H */
