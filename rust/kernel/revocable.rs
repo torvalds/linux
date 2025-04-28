@@ -139,6 +139,18 @@ impl<T> Revocable<T> {
         self.try_access().map(|t| f(&*t))
     }
 
+    /// Directly access the revocable wrapped object.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure this [`Revocable`] instance hasn't been revoked and won't be revoked
+    /// as long as the returned `&T` lives.
+    pub unsafe fn access(&self) -> &T {
+        // SAFETY: By the safety requirement of this function it is guaranteed that
+        // `self.data.get()` is a valid pointer to an instance of `T`.
+        unsafe { &*self.data.get() }
+    }
+
     /// # Safety
     ///
     /// Callers must ensure that there are no more concurrent users of the revocable object.
