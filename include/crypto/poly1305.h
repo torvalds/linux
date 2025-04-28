@@ -7,7 +7,6 @@
 #define _CRYPTO_POLY1305_H
 
 #include <linux/types.h>
-#include <linux/crypto.h>
 
 #define POLY1305_BLOCK_SIZE	16
 #define POLY1305_KEY_SIZE	32
@@ -38,6 +37,17 @@ struct poly1305_state {
 	};
 };
 
+/* Combined state for block function. */
+struct poly1305_block_state {
+	/* accumulator */
+	struct poly1305_state h;
+	/* key */
+	union {
+		struct poly1305_key opaque_r[CONFIG_CRYPTO_LIB_POLY1305_RSIZE];
+		struct poly1305_core_key core_r;
+	};
+};
+
 struct poly1305_desc_ctx {
 	/* partial buffer */
 	u8 buf[POLY1305_BLOCK_SIZE];
@@ -45,12 +55,15 @@ struct poly1305_desc_ctx {
 	unsigned int buflen;
 	/* finalize key */
 	u32 s[4];
-	/* accumulator */
-	struct poly1305_state h;
-	/* key */
 	union {
-		struct poly1305_key opaque_r[CONFIG_CRYPTO_LIB_POLY1305_RSIZE];
-		struct poly1305_core_key core_r;
+		struct {
+			struct poly1305_state h;
+			union {
+				struct poly1305_key opaque_r[CONFIG_CRYPTO_LIB_POLY1305_RSIZE];
+				struct poly1305_core_key core_r;
+			};
+		};
+		struct poly1305_block_state state;
 	};
 };
 
