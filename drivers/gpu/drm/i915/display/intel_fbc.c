@@ -252,9 +252,12 @@ static u16 intel_fbc_override_cfb_stride(const struct intel_plane_state *plane_s
 	 * Gen9 hw miscalculates cfb stride for linear as
 	 * PLANE_STRIDE*512 instead of PLANE_STRIDE*64, so
 	 * we always need to use the override there.
+	 *
+	 * wa_14022269668 For bmg, always program the FBC_STRIDE before fbc enable
 	 */
 	if (stride != stride_aligned ||
-	    (DISPLAY_VER(display) == 9 && fb->modifier == DRM_FORMAT_MOD_LINEAR))
+	    (DISPLAY_VER(display) == 9 && fb->modifier == DRM_FORMAT_MOD_LINEAR) ||
+	    display->platform.battlemage)
 		return stride_aligned * 4 / 64;
 
 	return 0;
