@@ -25,6 +25,24 @@ struct apml_mbox_msg {
 	__u32 fw_ret_code;
 };
 
+struct apml_cpuid_msg {
+	/*
+	 * CPUID input
+	 * [0]...[3] cpuid func,
+	 * [4][5] cpuid: thread
+	 * [6] cpuid: ext function & read eax/ebx or ecx/edx
+	 *	[7:0] -> bits [7:4] -> ext function &
+	 *	bit [0] read eax/ebx or ecx/edx
+	 * CPUID output
+	 */
+	__u64 cpu_in_out;
+	/*
+	 * Status code for CPUID read
+	 */
+	__u32 fw_ret_code;
+	__u32 pad;
+};
+
 /*
  * AMD sideband interface base IOCTL
  */
@@ -47,5 +65,24 @@ struct apml_mbox_msg {
  * "-EPROTOTYPE" error is returned to provide additional error details
  */
 #define SBRMI_IOCTL_MBOX_CMD		_IOWR(SB_BASE_IOCTL_NR, 0, struct apml_mbox_msg)
+
+/**
+ * DOC: SBRMI_IOCTL_CPUID_CMD
+ *
+ * @Parameters
+ *
+ * @struct apml_cpuid_msg
+ *	Pointer to the &struct apml_cpuid_msg that will contain the protocol
+ *	information
+ *
+ * @Description
+ * IOCTL command for APML messages using generic _IOWR
+ * The IOCTL provides userspace access to AMD sideband cpuid protocol
+ * - CPUID protocol to get CPU details for Function/Ext Function
+ * at thread level
+ * - returning "-EFAULT" if none of the above
+ * "-EPROTOTYPE" error is returned to provide additional error details
+ */
+#define SBRMI_IOCTL_CPUID_CMD		_IOWR(SB_BASE_IOCTL_NR, 1, struct apml_cpuid_msg)
 
 #endif /*_AMD_APML_H_*/
