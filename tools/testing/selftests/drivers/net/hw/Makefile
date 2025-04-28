@@ -21,6 +21,7 @@ TEST_PROGS = \
 	rss_ctx.py \
 	rss_input_xfrm.py \
 	tso.py \
+	xsk_reconfig.py \
 	#
 
 TEST_FILES := \
