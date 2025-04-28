@@ -636,20 +636,22 @@ svc_destroy(struct svc_serv **servp)
 EXPORT_SYMBOL_GPL(svc_destroy);
 
 static bool
-svc_init_buffer(struct svc_rqst *rqstp, unsigned int size, int node)
+svc_init_buffer(struct svc_rqst *rqstp, const struct svc_serv *serv, int node)
 {
-	unsigned long pages, ret;
+	unsigned long ret;
 
-	pages = size / PAGE_SIZE + 1; /* extra page as we hold both request and reply.
-				       * We assume one is at most one page
-				       */
-	WARN_ON_ONCE(pages > RPCSVC_MAXPAGES);
-	if (pages > RPCSVC_MAXPAGES)
-		pages = RPCSVC_MAXPAGES;
+	rqstp->rq_maxpages = svc_serv_maxpages(serv);
 
-	ret = alloc_pages_bulk_node(GFP_KERNEL, node, pages,
+	/* rq_pages' last entry is NULL for historical reasons. */
+	rqstp->rq_pages = kcalloc_node(rqstp->rq_maxpages + 1,
+				       sizeof(struct page *),
+				       GFP_KERNEL, node);
+	if (!rqstp->rq_pages)
+		return false;
+
+	ret = alloc_pages_bulk_node(GFP_KERNEL, node, rqstp->rq_maxpages,
 				    rqstp->rq_pages);
-	return ret == pages;
+	return ret == rqstp->rq_maxpages;
 }
 
 /*
@@ -658,11 +660,12 @@ svc_init_buffer(struct svc_rqst *rqstp, unsigned int size, int node)
 static void
 svc_release_buffer(struct svc_rqst *rqstp)
 {
-	unsigned int i;
+	unsigned long i;
 
-	for (i = 0; i < ARRAY_SIZE(rqstp->rq_pages); i++)
+	for (i = 0; i < rqstp->rq_maxpages; i++)
 		if (rqstp->rq_pages[i])
 			put_page(rqstp->rq_pages[i]);
+	kfree(rqstp->rq_pages);
 }
 
 static void
@@ -704,7 +707,7 @@ svc_prepare_thread(struct svc_serv *serv, struct svc_pool *pool, int node)
 	if (!rqstp->rq_resp)
 		goto out_enomem;
 
-	if (!svc_init_buffer(rqstp, serv->sv_max_mesg, node))
+	if (!svc_init_buffer(rqstp, serv, node))
 		goto out_enomem;
 
 	rqstp->rq_err = -EAGAIN; /* No error yet */
@@ -896,7 +899,7 @@ EXPORT_SYMBOL_GPL(svc_set_num_threads);
 bool svc_rqst_replace_page(struct svc_rqst *rqstp, struct page *page)
 {
 	struct page **begin = rqstp->rq_pages;
-	struct page **end = &rqstp->rq_pages[RPCSVC_MAXPAGES];
+	struct page **end = &rqstp->rq_pages[rqstp->rq_maxpages];
 
 	if (unlikely(rqstp->rq_next_page < begin || rqstp->rq_next_page > end)) {
 		trace_svc_replace_page_err(rqstp);

@@ -205,7 +205,8 @@ struct svc_rqst {
 	struct xdr_stream	rq_res_stream;
 	struct page		*rq_scratch_page;
 	struct xdr_buf		rq_res;
-	struct page		*rq_pages[RPCSVC_MAXPAGES + 1];
+	unsigned long		rq_maxpages;	/* num of entries in rq_pages */
+	struct page *		*rq_pages;
 	struct page *		*rq_respages;	/* points into rq_pages */
 	struct page *		*rq_next_page; /* next reply page to use */
 	struct page *		*rq_page_end;  /* one past the last page */
