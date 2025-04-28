@@ -419,7 +419,7 @@ static int wm_coeff_tlv_put(struct snd_kcontrol *kctl,
 	void *scratch __free(kvfree) = vmemdup_user(bytes, size);
 
 	if (IS_ERR(scratch))
-		return PTR_ERR(no_free_ptr(scratch));
+		return PTR_ERR(scratch);
 
 	return cs_dsp_coeff_lock_and_write_ctrl(cs_ctl, 0, scratch, size);
 }
