@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2024 Intel Corporation
+ * Copyright (C) 2024-2025 Intel Corporation
  */
 
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/pm_runtime.h>
+#include <linux/units.h>
 
 #include "ivpu_drv.h"
 #include "ivpu_gem.h"
@@ -90,10 +92,55 @@ sched_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 static DEVICE_ATTR_RO(sched_mode);
 
+/**
+ * DOC: npu_max_frequency
+ *
+ * The npu_max_frequency shows maximum frequency in MHz of the NPU's data
+ * processing unit
+ */
+static ssize_t
+npu_max_frequency_mhz_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+	struct ivpu_device *vdev = to_ivpu_device(drm);
+	u32 freq = ivpu_hw_dpu_max_freq_get(vdev);
+
+	return sysfs_emit(buf, "%lu\n", freq / HZ_PER_MHZ);
+}
+
+static DEVICE_ATTR_RO(npu_max_frequency_mhz);
+
+/**
+ * DOC: npu_current_frequency_mhz
+ *
+ * The npu_current_frequency_mhz shows current frequency in MHz of the NPU's
+ * data processing unit
+ */
+static ssize_t
+npu_current_frequency_mhz_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+	struct ivpu_device *vdev = to_ivpu_device(drm);
+	u32 freq = 0;
+
+	/* Read frequency only if device is active, otherwise frequency is 0 */
+	if (pm_runtime_get_if_active(vdev->drm.dev) > 0) {
+		freq = ivpu_hw_dpu_freq_get(vdev);
+
+		pm_runtime_put_autosuspend(vdev->drm.dev);
+	}
+
+	return sysfs_emit(buf, "%lu\n", freq / HZ_PER_MHZ);
+}
+
+static DEVICE_ATTR_RO(npu_current_frequency_mhz);
+
 static struct attribute *ivpu_dev_attrs[] = {
 	&dev_attr_npu_busy_time_us.attr,
 	&dev_attr_npu_memory_utilization.attr,
 	&dev_attr_sched_mode.attr,
+	&dev_attr_npu_max_frequency_mhz.attr,
+	&dev_attr_npu_current_frequency_mhz.attr,
 	NULL,
 };
 

@@ -889,7 +889,7 @@ int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 			if (le32_to_cpu(ver.soc_id) == QCA_WCN3950_SOC_ID_T)
 				variant = "t";
 			else if (le32_to_cpu(ver.soc_id) == QCA_WCN3950_SOC_ID_S)
-				variant = "u";
+				variant = "s";
 
 			snprintf(config.fwname, sizeof(config.fwname),
 				 "qca/cmnv%02x%s.bin", rom_ver, variant);

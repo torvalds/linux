@@ -333,9 +333,9 @@ static ssize_t secure_boot_fuse_state_show(struct device *dev,
 			else
 				status = valid ? "Invalid" : "Free";
 		}
-		buf_len += sysfs_emit(buf + buf_len, "%d:%s ", key, status);
+		buf_len += sysfs_emit_at(buf, buf_len, "%d:%s ", key, status);
 	}
-	buf_len += sysfs_emit(buf + buf_len, "\n");
+	buf_len += sysfs_emit_at(buf, buf_len, "\n");
 
 	return buf_len;
 }
