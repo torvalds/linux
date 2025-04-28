@@ -98,6 +98,7 @@
 #include "sys.h"
 #include "sys/auxv.h"
 #include "sys/mman.h"
+#include "sys/random.h"
 #include "sys/stat.h"
 #include "sys/syscall.h"
 #include "sys/time.h"

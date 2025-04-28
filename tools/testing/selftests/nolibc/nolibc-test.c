@@ -20,6 +20,7 @@
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/prctl.h>
+#include <sys/random.h>
 #include <sys/reboot.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
@@ -807,6 +808,26 @@ static int test_dirent(void)
 	return 0;
 }
 
+int test_getrandom(void)
+{
+	uint64_t rng = 0;
+	ssize_t ret;
+
+	ret = getrandom(&rng, sizeof(rng), GRND_NONBLOCK);
+	if (ret == -1 && errno == EAGAIN)
+		return 0; /* No entropy available yet */
+
+	if (ret != sizeof(rng))
+		return ret;
+
+	if (!rng) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	return 0;
+}
+
 int test_getpagesize(void)
 {
 	int x = getpagesize();
@@ -1124,6 +1145,7 @@ int run_syscall(int min, int max)
 		CASE_TEST(getdents64_root);   EXPECT_SYSNE(1, test_getdents64("/"), -1); break;
 		CASE_TEST(getdents64_null);   EXPECT_SYSER(1, test_getdents64("/dev/null"), -1, ENOTDIR); break;
 		CASE_TEST(directories);       EXPECT_SYSZR(proc, test_dirent()); break;
+		CASE_TEST(getrandom);         EXPECT_SYSZR(1, test_getrandom()); break;
 		CASE_TEST(gettimeofday_tv);   EXPECT_SYSZR(1, gettimeofday(&tv, NULL)); break;
 		CASE_TEST(gettimeofday_tv_tz);EXPECT_SYSZR(1, gettimeofday(&tv, &tz)); break;
 		CASE_TEST(getpagesize);       EXPECT_SYSZR(1, test_getpagesize()); break;
