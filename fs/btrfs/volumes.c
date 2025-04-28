@@ -1325,48 +1325,58 @@ void btrfs_release_disk_super(struct btrfs_super_block *super)
 	put_page(page);
 }
 
-static struct btrfs_super_block *btrfs_read_disk_super(struct block_device *bdev,
-						       u64 bytenr, u64 bytenr_orig)
+struct btrfs_super_block *btrfs_read_disk_super(struct block_device *bdev,
+						int copy_num, bool drop_cache)
 {
-	struct btrfs_super_block *disk_super;
+	struct btrfs_super_block *super;
 	struct page *page;
-	void *p;
-	pgoff_t index;
+	u64 bytenr, bytenr_orig;
+	struct address_space *mapping = bdev->bd_mapping;
+	int ret;
 
-	/* make sure our super fits in the device */
-	if (bytenr + PAGE_SIZE >= bdev_nr_bytes(bdev))
+	bytenr_orig = btrfs_sb_offset(copy_num);
+	ret = btrfs_sb_log_location_bdev(bdev, copy_num, READ, &bytenr);
+	if (ret < 0) {
+		if (ret == -ENOENT)
+			ret = -EINVAL;
+		return ERR_PTR(ret);
+	}
+
+	if (bytenr + BTRFS_SUPER_INFO_SIZE >= bdev_nr_bytes(bdev))
 		return ERR_PTR(-EINVAL);
 
-	/* make sure our super fits in the page */
-	if (sizeof(*disk_super) > PAGE_SIZE)
-		return ERR_PTR(-EINVAL);
+	if (drop_cache) {
+		/* This should only be called with the primary sb. */
+		ASSERT(copy_num == 0);
 
-	/* make sure our super doesn't straddle pages on disk */
-	index = bytenr >> PAGE_SHIFT;
-	if ((bytenr + sizeof(*disk_super) - 1) >> PAGE_SHIFT != index)
-		return ERR_PTR(-EINVAL);
+		/*
+		 * Drop the page of the primary superblock, so later read will
+		 * always read from the device.
+		 */
+		invalidate_inode_pages2_range(mapping, bytenr >> PAGE_SHIFT,
+				      (bytenr + BTRFS_SUPER_INFO_SIZE) >> PAGE_SHIFT);
+	}
 
-	/* pull in the page with our super */
-	page = read_cache_page_gfp(bdev->bd_mapping, index, GFP_KERNEL);
-
+	page = read_cache_page_gfp(mapping, bytenr >> PAGE_SHIFT, GFP_NOFS);
 	if (IS_ERR(page))
 		return ERR_CAST(page);
 
-	p = page_address(page);
-
-	/* align our pointer to the offset of the super block */
-	disk_super = p + offset_in_page(bytenr);
-
-	if (btrfs_super_bytenr(disk_super) != bytenr_orig ||
-	    btrfs_super_magic(disk_super) != BTRFS_MAGIC) {
-		btrfs_release_disk_super(p);
+	super = page_address(page);
+	if (btrfs_super_magic(super) != BTRFS_MAGIC ||
+	    btrfs_super_bytenr(super) != bytenr_orig) {
+		btrfs_release_disk_super(super);
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (disk_super->label[0] && disk_super->label[BTRFS_LABEL_SIZE - 1])
-		disk_super->label[BTRFS_LABEL_SIZE - 1] = 0;
+	/*
+	 * Make sure the last byte of label is properly NUL termiated.  We use
+	 * '%s' to print the label, if not properly NUL termiated we can access
+	 * beyond the label.
+	 */
+	if (super->label[0] && super->label[BTRFS_LABEL_SIZE - 1])
+		super->label[BTRFS_LABEL_SIZE - 1] = 0;
 
-	return disk_super;
+	return super;
 }
 
 int btrfs_forget_devices(dev_t devt)
@@ -1437,9 +1447,7 @@ struct btrfs_device *btrfs_scan_one_device(const char *path, blk_mode_t flags,
 	bool new_device_added = false;
 	struct btrfs_device *device = NULL;
 	struct file *bdev_file;
-	u64 bytenr;
 	dev_t devt;
-	int ret;
 
 	lockdep_assert_held(&uuid_mutex);
 
@@ -1457,20 +1465,7 @@ struct btrfs_device *btrfs_scan_one_device(const char *path, blk_mode_t flags,
 	if (IS_ERR(bdev_file))
 		return ERR_CAST(bdev_file);
 
-	/*
-	 * We would like to check all the super blocks, but doing so would
-	 * allow a mount to succeed after a mkfs from a different filesystem.
-	 * Currently, recovery from a bad primary btrfs superblock is done
-	 * using the userspace command 'btrfs check --super'.
-	 */
-	ret = btrfs_sb_log_location_bdev(file_bdev(bdev_file), 0, READ, &bytenr);
-	if (ret) {
-		device = ERR_PTR(ret);
-		goto error_bdev_put;
-	}
-
-	disk_super = btrfs_read_disk_super(file_bdev(bdev_file), bytenr,
-					   btrfs_sb_offset(0));
+	disk_super = btrfs_read_disk_super(file_bdev(bdev_file), 0, false);
 	if (IS_ERR(disk_super)) {
 		device = ERR_CAST(disk_super);
 		goto error_bdev_put;
@@ -2136,7 +2131,7 @@ static void btrfs_scratch_superblock(struct btrfs_fs_info *fs_info,
 	const u64 bytenr = btrfs_sb_offset(copy_num);
 	int ret;
 
-	disk_super = btrfs_read_disk_super(bdev, bytenr, bytenr);
+	disk_super = btrfs_read_disk_super(bdev, copy_num, false);
 	if (IS_ERR(disk_super))
 		return;
 

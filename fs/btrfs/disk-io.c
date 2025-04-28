@@ -3712,57 +3712,6 @@ static void btrfs_end_super_write(struct bio *bio)
 	bio_put(bio);
 }
 
-struct btrfs_super_block *btrfs_read_dev_one_super(struct block_device *bdev,
-						   int copy_num, bool drop_cache)
-{
-	struct btrfs_super_block *super;
-	struct page *page;
-	u64 bytenr, bytenr_orig;
-	struct address_space *mapping = bdev->bd_mapping;
-	int ret;
-
-	bytenr_orig = btrfs_sb_offset(copy_num);
-	ret = btrfs_sb_log_location_bdev(bdev, copy_num, READ, &bytenr);
-	if (ret == -ENOENT)
-		return ERR_PTR(-EINVAL);
-	else if (ret)
-		return ERR_PTR(ret);
-
-	if (bytenr + BTRFS_SUPER_INFO_SIZE >= bdev_nr_bytes(bdev))
-		return ERR_PTR(-EINVAL);
-
-	if (drop_cache) {
-		/* This should only be called with the primary sb. */
-		ASSERT(copy_num == 0);
-
-		/*
-		 * Drop the page of the primary superblock, so later read will
-		 * always read from the device.
-		 */
-		invalidate_inode_pages2_range(mapping,
-				bytenr >> PAGE_SHIFT,
-				(bytenr + BTRFS_SUPER_INFO_SIZE) >> PAGE_SHIFT);
-	}
-
-	page = read_cache_page_gfp(mapping, bytenr >> PAGE_SHIFT, GFP_NOFS);
-	if (IS_ERR(page))
-		return ERR_CAST(page);
-
-	super = page_address(page);
-	if (btrfs_super_magic(super) != BTRFS_MAGIC) {
-		btrfs_release_disk_super(super);
-		return ERR_PTR(-ENODATA);
-	}
-
-	if (btrfs_super_bytenr(super) != bytenr_orig) {
-		btrfs_release_disk_super(super);
-		return ERR_PTR(-EINVAL);
-	}
-
-	return super;
-}
-
-
 struct btrfs_super_block *btrfs_read_dev_super(struct block_device *bdev)
 {
 	struct btrfs_super_block *super, *latest = NULL;
@@ -3775,7 +3724,7 @@ struct btrfs_super_block *btrfs_read_dev_super(struct block_device *bdev)
 	 * later supers, using BTRFS_SUPER_MIRROR_MAX instead
 	 */
 	for (i = 0; i < 1; i++) {
-		super = btrfs_read_dev_one_super(bdev, i, false);
+		super = btrfs_read_disk_super(bdev, i, false);
 		if (IS_ERR(super))
 			continue;
 
