@@ -155,6 +155,10 @@ typedef __bitwise unsigned int vm_fault_t;
  */
 #define pr_warn_once pr_err
 
+#define data_race(expr) expr
+
+#define ASSERT_EXCLUSIVE_WRITER(x)
+
 struct kref {
 	refcount_t refcount;
 };
@@ -255,6 +259,8 @@ struct file {
 
 #define VMA_LOCK_OFFSET	0x40000000
 
+typedef struct { unsigned long v; } freeptr_t;
+
 struct vm_area_struct {
 	/* The first cache line has the info for VMA tree walking. */
 
@@ -264,9 +270,7 @@ struct vm_area_struct {
 			unsigned long vm_start;
 			unsigned long vm_end;
 		};
-#ifdef CONFIG_PER_VMA_LOCK
-		struct rcu_head vm_rcu;	/* Used for deferred freeing. */
-#endif
+		freeptr_t vm_freeptr; /* Pointer used by SLAB_TYPESAFE_BY_RCU */
 	};
 
 	struct mm_struct *vm_mm;	/* The address space we belong to. */
@@ -463,6 +467,65 @@ struct pagetable_move_control {
 		.len_in = len_,						\
 	}
 
+struct kmem_cache_args {
+	/**
+	 * @align: The required alignment for the objects.
+	 *
+	 * %0 means no specific alignment is requested.
+	 */
+	unsigned int align;
+	/**
+	 * @useroffset: Usercopy region offset.
+	 *
+	 * %0 is a valid offset, when @usersize is non-%0
+	 */
+	unsigned int useroffset;
+	/**
+	 * @usersize: Usercopy region size.
+	 *
+	 * %0 means no usercopy region is specified.
+	 */
+	unsigned int usersize;
+	/**
+	 * @freeptr_offset: Custom offset for the free pointer
+	 * in &SLAB_TYPESAFE_BY_RCU caches
+	 *
+	 * By default &SLAB_TYPESAFE_BY_RCU caches place the free pointer
+	 * outside of the object. This might cause the object to grow in size.
+	 * Cache creators that have a reason to avoid this can specify a custom
+	 * free pointer offset in their struct where the free pointer will be
+	 * placed.
+	 *
+	 * Note that placing the free pointer inside the object requires the
+	 * caller to ensure that no fields are invalidated that are required to
+	 * guard against object recycling (See &SLAB_TYPESAFE_BY_RCU for
+	 * details).
+	 *
+	 * Using %0 as a value for @freeptr_offset is valid. If @freeptr_offset
+	 * is specified, %use_freeptr_offset must be set %true.
+	 *
+	 * Note that @ctor currently isn't supported with custom free pointers
+	 * as a @ctor requires an external free pointer.
+	 */
+	unsigned int freeptr_offset;
+	/**
+	 * @use_freeptr_offset: Whether a @freeptr_offset is used.
+	 */
+	bool use_freeptr_offset;
+	/**
+	 * @ctor: A constructor for the objects.
+	 *
+	 * The constructor is invoked for each object in a newly allocated slab
+	 * page. It is the cache user's responsibility to free object in the
+	 * same state as after calling the constructor, or deal appropriately
+	 * with any differences between a freshly constructed and a reallocated
+	 * object.
+	 *
+	 * %NULL means no constructor.
+	 */
+	void (*ctor)(void *);
+};
+
 static inline void vma_iter_invalidate(struct vma_iterator *vmi)
 {
 	mas_pause(&vmi->mas);
@@ -547,31 +610,38 @@ static inline void vma_init(struct vm_area_struct *vma, struct mm_struct *mm)
 	vma->vm_lock_seq = UINT_MAX;
 }
 
-static inline struct vm_area_struct *vm_area_alloc(struct mm_struct *mm)
+struct kmem_cache {
+	const char *name;
+	size_t object_size;
+	struct kmem_cache_args *args;
+};
+
+static inline struct kmem_cache *__kmem_cache_create(const char *name,
+						     size_t object_size,
+						     struct kmem_cache_args *args)
 {
-	struct vm_area_struct *vma = calloc(1, sizeof(struct vm_area_struct));
+	struct kmem_cache *ret = malloc(sizeof(struct kmem_cache));
 
-	if (!vma)
-		return NULL;
+	ret->name = name;
+	ret->object_size = object_size;
+	ret->args = args;
 
-	vma_init(vma, mm);
-
-	return vma;
+	return ret;
 }
 
-static inline struct vm_area_struct *vm_area_dup(struct vm_area_struct *orig)
+#define kmem_cache_create(__name, __object_size, __args, ...)           \
+	__kmem_cache_create((__name), (__object_size), (__args))
+
+static inline void *kmem_cache_alloc(struct kmem_cache *s, gfp_t gfpflags)
 {
-	struct vm_area_struct *new = calloc(1, sizeof(struct vm_area_struct));
+	(void)gfpflags;
 
-	if (!new)
-		return NULL;
+	return calloc(s->object_size, 1);
+}
 
-	memcpy(new, orig, sizeof(*new));
-	refcount_set(&new->vm_refcnt, 0);
-	new->vm_lock_seq = UINT_MAX;
-	INIT_LIST_HEAD(&new->anon_vma_chain);
-
-	return new;
+static inline void kmem_cache_free(struct kmem_cache *s, void *x)
+{
+	free(x);
 }
 
 /*
@@ -736,11 +806,6 @@ static inline void fput(struct file *)
 
 static inline void mpol_put(struct mempolicy *)
 {
-}
-
-static inline void vm_area_free(struct vm_area_struct *vma)
-{
-	free(vma);
 }
 
 static inline void lru_add_drain(void)
@@ -1310,6 +1375,34 @@ static inline int ksm_execve(struct mm_struct *mm)
 static inline void ksm_exit(struct mm_struct *mm)
 {
 	(void)mm;
+}
+
+static inline void vma_lock_init(struct vm_area_struct *vma, bool reset_refcnt)
+{
+	(void)vma;
+	(void)reset_refcnt;
+}
+
+static inline void vma_numab_state_init(struct vm_area_struct *vma)
+{
+	(void)vma;
+}
+
+static inline void vma_numab_state_free(struct vm_area_struct *vma)
+{
+	(void)vma;
+}
+
+static inline void dup_anon_vma_name(struct vm_area_struct *orig_vma,
+				     struct vm_area_struct *new_vma)
+{
+	(void)orig_vma;
+	(void)new_vma;
+}
+
+static inline void free_anon_vma_name(struct vm_area_struct *vma)
+{
+	(void)vma;
 }
 
 #endif	/* __MM_VMA_INTERNAL_H */

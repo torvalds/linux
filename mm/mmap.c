@@ -1554,7 +1554,7 @@ static const struct ctl_table mmap_table[] = {
 #endif /* CONFIG_SYSCTL */
 
 /*
- * initialise the percpu counter for VM
+ * initialise the percpu counter for VM, initialise VMA state.
  */
 void __init mmap_init(void)
 {
@@ -1565,6 +1565,7 @@ void __init mmap_init(void)
 #ifdef CONFIG_SYSCTL
 	register_sysctl_init("vm", mmap_table);
 #endif
+	vma_state_init();
 }
 
 /*

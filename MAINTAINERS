@@ -15683,6 +15683,7 @@ F:	mm/mseal.c
 F:	mm/vma.c
 F:	mm/vma.h
 F:	mm/vma_exec.c
+F:	mm/vma_init.c
 F:	mm/vma_internal.h
 F:	tools/testing/selftests/mm/merge.c
 F:	tools/testing/vma/

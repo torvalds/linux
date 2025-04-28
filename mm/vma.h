@@ -550,6 +550,12 @@ int __vm_munmap(unsigned long start, size_t len, bool unlock);
 
 int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma);
 
+/* vma_init.h, shared between CONFIG_MMU and nommu. */
+void __init vma_state_init(void);
+struct vm_area_struct *vm_area_alloc(struct mm_struct *mm);
+struct vm_area_struct *vm_area_dup(struct vm_area_struct *orig);
+void vm_area_free(struct vm_area_struct *vma);
+
 /* vma_exec.c */
 #ifdef CONFIG_MMU
 int create_init_stack_vma(struct mm_struct *mm, struct vm_area_struct **vmap,
