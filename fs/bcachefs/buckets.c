@@ -1307,13 +1307,11 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	old_bucket_gens = rcu_dereference_protected(ca->bucket_gens, 1);
 
 	if (resize) {
-		bucket_gens->nbuckets = min(bucket_gens->nbuckets,
-					    old_bucket_gens->nbuckets);
-		bucket_gens->nbuckets_minus_first =
-			bucket_gens->nbuckets - bucket_gens->first_bucket;
+		u64 copy = min(bucket_gens->nbuckets,
+			       old_bucket_gens->nbuckets);
 		memcpy(bucket_gens->b,
 		       old_bucket_gens->b,
-		       bucket_gens->nbuckets);
+		       sizeof(bucket_gens->b[0]) * copy);
 	}
 
 	rcu_assign_pointer(ca->bucket_gens, bucket_gens);
