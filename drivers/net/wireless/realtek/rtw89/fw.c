@@ -5753,7 +5753,7 @@ flex_member:
 					    RTW89_H2C_SCANOFLD_BE_OPCH_W2_PKTS_CTRL) |
 			   le32_encode_bits(0,
 					    RTW89_H2C_SCANOFLD_BE_OPCH_W2_SW_DEF) |
-			   le32_encode_bits(2,
+			   le32_encode_bits(rtw89_is_mlo_1_1(rtwdev) ? 1 : 2,
 					    RTW89_H2C_SCANOFLD_BE_OPCH_W2_SS);
 
 		opch->w3 = le32_encode_bits(RTW89_SCANOFLD_PKT_NONE,
