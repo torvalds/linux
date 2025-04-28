@@ -1805,9 +1805,8 @@ char *fourcc_string(char *buf, char *end, const u32 *fourcc,
 	orig = get_unaligned(fourcc);
 	switch (fmt[2]) {
 	case 'h':
-		break;
-	case 'n':
-		orig = swab32(orig);
+		if (fmt[3] == 'R')
+			orig = swab32(orig);
 		break;
 	case 'l':
 		orig = (__force u32)cpu_to_le32(orig);
@@ -2397,6 +2396,12 @@ early_param("no_hash_pointers", no_hash_pointers_enable);
  *       read the documentation (path below) first.
  * - 'NF' For a netdev_features_t
  * - '4cc' V4L2 or DRM FourCC code, with endianness and raw numerical value.
+ * - '4c[h[R]lb]' For generic FourCC code with raw numerical value. Both are
+ *	 displayed in the big-endian format. This is the opposite of V4L2 or
+ *	 DRM FourCCs.
+ *	 The additional specifiers define what endianness is used to load
+ *	 the stored bytes. The data might be interpreted using the host,
+ *	 reversed host byte order, little-endian, or big-endian.
  * - 'h[CDN]' For a variable-length buffer, it prints it as a hex string with
  *            a certain separator (' ' by default):
  *              C colon
