@@ -221,7 +221,7 @@ static int cgroup_has_attached_progs(int cgroup_fd)
 	for (i = 0; i < ARRAY_SIZE(cgroup_attach_types); i++) {
 		int count = count_attached_bpf_progs(cgroup_fd, cgroup_attach_types[i]);
 
-		if (count < 0)
+		if (count < 0 && errno != EINVAL)
 			return -1;
 
 		if (count > 0) {
