@@ -269,7 +269,7 @@ static int tegra_aes_do_one_req(struct crypto_engine *engine, void *areq)
 	unsigned int cmdlen, key1_id, key2_id;
 	int ret;
 
-	rctx->iv = (u32 *)req->iv;
+	rctx->iv = (ctx->alg == SE_ALG_ECB) ? NULL : (u32 *)req->iv;
 	rctx->len = req->cryptlen;
 	key1_id = ctx->key1_id;
 	key2_id = ctx->key2_id;
@@ -497,9 +497,6 @@ static int tegra_aes_crypt(struct skcipher_request *req, bool encrypt)
 
 	if (!req->cryptlen)
 		return 0;
-
-	if (ctx->alg == SE_ALG_ECB)
-		req->iv = NULL;
 
 	rctx->encrypt = encrypt;
 

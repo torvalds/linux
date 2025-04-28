@@ -43,13 +43,13 @@ struct decon_data {
 	unsigned int wincon_burstlen_shift;
 };
 
-static struct decon_data exynos7_decon_data = {
+static const struct decon_data exynos7_decon_data = {
 	.vidw_buf_start_base = 0x80,
 	.shadowcon_win_protect_shift = 10,
 	.wincon_burstlen_shift = 11,
 };
 
-static struct decon_data exynos7870_decon_data = {
+static const struct decon_data exynos7870_decon_data = {
 	.vidw_buf_start_base = 0x880,
 	.shadowcon_win_protect_shift = 8,
 	.wincon_burstlen_shift = 10,

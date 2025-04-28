@@ -13,8 +13,8 @@
 
 #include <linux/dcache.h>
 
-static int bch2_casefold(struct btree_trans *trans, const struct bch_hash_info *info,
-				const struct qstr *str, struct qstr *out_cf)
+int bch2_casefold(struct btree_trans *trans, const struct bch_hash_info *info,
+		  const struct qstr *str, struct qstr *out_cf)
 {
 	*out_cf = (struct qstr) QSTR_INIT(NULL, 0);
 
@@ -33,18 +33,6 @@ static int bch2_casefold(struct btree_trans *trans, const struct bch_hash_info *
 #else
 	return -EOPNOTSUPP;
 #endif
-}
-
-static inline int bch2_maybe_casefold(struct btree_trans *trans,
-				      const struct bch_hash_info *info,
-				      const struct qstr *str, struct qstr *out_cf)
-{
-	if (likely(!info->cf_encoding)) {
-		*out_cf = *str;
-		return 0;
-	} else {
-		return bch2_casefold(trans, info, str, out_cf);
-	}
 }
 
 static unsigned bch2_dirent_name_bytes(struct bkey_s_c_dirent d)
@@ -287,8 +275,8 @@ static void dirent_init_casefolded_name(struct bkey_i_dirent *dirent,
 	EBUG_ON(!dirent->v.d_casefold);
 	EBUG_ON(!cf_name->len);
 
-	dirent->v.d_cf_name_block.d_name_len = name->len;
-	dirent->v.d_cf_name_block.d_cf_name_len = cf_name->len;
+	dirent->v.d_cf_name_block.d_name_len = cpu_to_le16(name->len);
+	dirent->v.d_cf_name_block.d_cf_name_len = cpu_to_le16(cf_name->len);
 	memcpy(&dirent->v.d_cf_name_block.d_names[0], name->name, name->len);
 	memcpy(&dirent->v.d_cf_name_block.d_names[name->len], cf_name->name, cf_name->len);
 	memset(&dirent->v.d_cf_name_block.d_names[name->len + cf_name->len], 0,

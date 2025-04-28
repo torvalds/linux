@@ -553,7 +553,7 @@ void dwmac1000_get_ptptime(void __iomem *ptpaddr, u64 *ptp_time)
 	u64 ns;
 
 	ns = readl(ptpaddr + GMAC_PTP_ATNR);
-	ns += readl(ptpaddr + GMAC_PTP_ATSR) * NSEC_PER_SEC;
+	ns += (u64)readl(ptpaddr + GMAC_PTP_ATSR) * NSEC_PER_SEC;
 
 	*ptp_time = ns;
 }
