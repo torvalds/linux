@@ -211,7 +211,6 @@ static bool verify_sha256_digest(u32 patch_id, u32 cur_rev, const u8 *data, unsi
 {
 	struct patch_digest *pd = NULL;
 	u8 digest[SHA256_DIGEST_SIZE];
-	struct sha256_state s;
 	int i;
 
 	if (x86_family(bsp_cpuid_1_eax) < 0x17 ||
@@ -230,9 +229,7 @@ static bool verify_sha256_digest(u32 patch_id, u32 cur_rev, const u8 *data, unsi
 		return false;
 	}
 
-	sha256_init(&s);
-	sha256_update(&s, data, len);
-	sha256_final(&s, digest);
+	sha256(data, len, digest);
 
 	if (memcmp(digest, pd->sha256, sizeof(digest))) {
 		pr_err("Patch 0x%x SHA256 digest mismatch!\n", patch_id);
