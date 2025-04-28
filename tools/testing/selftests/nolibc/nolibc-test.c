@@ -38,6 +38,7 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <time.h>
 #include <unistd.h>
 #include <limits.h>
 #include <ctype.h>
@@ -1081,6 +1082,7 @@ int run_syscall(int min, int max)
 {
 	struct timeval tv;
 	struct timezone tz;
+	struct timespec ts;
 	struct stat stat_buf;
 	int euid0;
 	int proc;
@@ -1114,6 +1116,9 @@ int run_syscall(int min, int max)
 		switch (test + __LINE__ + 1) {
 		CASE_TEST(access);            EXPECT_SYSZR(proc, access("/proc/self", R_OK)); break;
 		CASE_TEST(access_bad);        EXPECT_SYSER(proc, access("/proc/self", W_OK), -1, EPERM); break;
+		CASE_TEST(clock_getres);      EXPECT_SYSZR(1, clock_getres(CLOCK_MONOTONIC, &ts)); break;
+		CASE_TEST(clock_gettime);     EXPECT_SYSZR(1, clock_gettime(CLOCK_MONOTONIC, &ts)); break;
+		CASE_TEST(clock_settime);     EXPECT_SYSER(1, clock_settime(CLOCK_MONOTONIC, &ts), -1, EINVAL); break;
 		CASE_TEST(getpid);            EXPECT_SYSNE(1, getpid(), -1); break;
 		CASE_TEST(getppid);           EXPECT_SYSNE(1, getppid(), -1); break;
 		CASE_TEST(gettid);            EXPECT_SYSNE(has_gettid, gettid(), -1); break;

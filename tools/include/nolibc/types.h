@@ -187,6 +187,8 @@ struct stat {
 	union { time_t st_ctime; struct timespec st_ctim; }; /* time of last status change */
 };
 
+typedef __kernel_clockid_t clockid_t;
+
 /* WARNING, it only deals with the 4096 first majors and 256 first minors */
 #define makedev(major, minor) ((dev_t)((((major) & 0xfff) << 8) | ((minor) & 0xff)))
 #define major(dev) ((unsigned int)(((dev) >> 8) & 0xfff))
