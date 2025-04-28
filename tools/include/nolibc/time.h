@@ -15,6 +15,7 @@
 #include "types.h"
 #include "sys.h"
 
+#include <linux/signal.h>
 #include <linux/time.h>
 
 static __inline__
@@ -118,6 +119,91 @@ time_t time(time_t *tptr)
 	if (tptr)
 		*tptr = tv.tv_sec;
 	return tv.tv_sec;
+}
+
+
+/*
+ * int timer_create(clockid_t clockid, struct sigevent *evp, timer_t *timerid);
+ * int timer_gettime(timer_t timerid, struct itimerspec *curr_value);
+ * int timer_settime(timer_t timerid, int flags, const struct itimerspec *new_value, struct itimerspec *old_value);
+ */
+
+static __attribute__((unused))
+int sys_timer_create(clockid_t clockid, struct sigevent *evp, timer_t *timerid)
+{
+	return my_syscall3(__NR_timer_create, clockid, evp, timerid);
+}
+
+static __attribute__((unused))
+int timer_create(clockid_t clockid, struct sigevent *evp, timer_t *timerid)
+{
+	return __sysret(sys_timer_create(clockid, evp, timerid));
+}
+
+static __attribute__((unused))
+int sys_timer_delete(timer_t timerid)
+{
+	return my_syscall1(__NR_timer_delete, timerid);
+}
+
+static __attribute__((unused))
+int timer_delete(timer_t timerid)
+{
+	return __sysret(sys_timer_delete(timerid));
+}
+
+static __attribute__((unused))
+int sys_timer_gettime(timer_t timerid, struct itimerspec *curr_value)
+{
+#if defined(__NR_timer_gettime)
+	return my_syscall2(__NR_timer_gettime, timerid, curr_value);
+#elif defined(__NR_timer_gettime64)
+	struct __kernel_itimerspec kcurr_value;
+	int ret;
+
+	ret = my_syscall2(__NR_timer_gettime64, timerid, &kcurr_value);
+	__nolibc_timespec_kernel_to_user(&kcurr_value.it_interval, &curr_value->it_interval);
+	__nolibc_timespec_kernel_to_user(&kcurr_value.it_value, &curr_value->it_value);
+	return ret;
+#else
+	return __nolibc_enosys(__func__, timerid, curr_value);
+#endif
+}
+
+static __attribute__((unused))
+int timer_gettime(timer_t timerid, struct itimerspec *curr_value)
+{
+	return __sysret(sys_timer_gettime(timerid, curr_value));
+}
+
+static __attribute__((unused))
+int sys_timer_settime(timer_t timerid, int flags,
+		      const struct itimerspec *new_value, struct itimerspec *old_value)
+{
+#if defined(__NR_timer_settime)
+	return my_syscall4(__NR_timer_settime, timerid, flags, new_value, old_value);
+#elif defined(__NR_timer_settime64)
+	struct __kernel_itimerspec knew_value, kold_value;
+	int ret;
+
+	__nolibc_timespec_user_to_kernel(&new_value->it_value, &knew_value.it_value);
+	__nolibc_timespec_user_to_kernel(&new_value->it_interval, &knew_value.it_interval);
+	ret = my_syscall4(__NR_timer_settime64, timerid, flags, &knew_value, &kold_value);
+	if (old_value) {
+		__nolibc_timespec_kernel_to_user(&kold_value.it_interval, &old_value->it_interval);
+		__nolibc_timespec_kernel_to_user(&kold_value.it_value, &old_value->it_value);
+	}
+	return ret;
+#else
+	return __nolibc_enosys(__func__, timerid, flags, new_value, old_value);
+#endif
+}
+
+static __attribute__((unused))
+int timer_settime(timer_t timerid, int flags,
+		  const struct itimerspec *new_value, struct itimerspec *old_value)
+{
+	return __sysret(sys_timer_settime(timerid, flags, new_value, old_value));
 }
 
 #endif /* _NOLIBC_TIME_H */
