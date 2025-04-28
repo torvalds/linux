@@ -332,21 +332,6 @@ out:
 	return ret;
 }
 
-static struct mount *find_topper(struct mount *mnt)
-{
-	/* If there is exactly one mount covering mnt completely return it. */
-	struct mount *child;
-
-	if (!list_is_singular(&mnt->mnt_mounts))
-		return NULL;
-
-	child = list_first_entry(&mnt->mnt_mounts, struct mount, mnt_child);
-	if (child->mnt_mountpoint != mnt->mnt.mnt_root)
-		return NULL;
-
-	return child;
-}
-
 /*
  * return true if the refcount is greater than count
  */
@@ -404,11 +389,7 @@ bool propagation_would_overmount(const struct mount *from,
  */
 int propagate_mount_busy(struct mount *mnt, int refcnt)
 {
-	struct mount *m, *child, *topper;
 	struct mount *parent = mnt->mnt_parent;
-
-	if (mnt == parent)
-		return do_refcount_check(mnt, refcnt);
 
 	/*
 	 * quickly check if the current mount can be unmounted.
@@ -418,23 +399,27 @@ int propagate_mount_busy(struct mount *mnt, int refcnt)
 	if (!list_empty(&mnt->mnt_mounts) || do_refcount_check(mnt, refcnt))
 		return 1;
 
-	for (m = propagation_next(parent, parent); m;
+	if (mnt == parent)
+		return 0;
+
+	for (struct mount *m = propagation_next(parent, parent); m;
 	     		m = propagation_next(m, parent)) {
-		int count = 1;
-		child = __lookup_mnt(&m->mnt, mnt->mnt_mountpoint);
+		struct list_head *head;
+		struct mount *child = __lookup_mnt(&m->mnt, mnt->mnt_mountpoint);
+
 		if (!child)
 			continue;
 
-		/* Is there exactly one mount on the child that covers
-		 * it completely whose reference should be ignored?
-		 */
-		topper = find_topper(child);
-		if (topper)
-			count += 1;
-		else if (!list_empty(&child->mnt_mounts))
-			continue;
-
-		if (do_refcount_check(child, count))
+		head = &child->mnt_mounts;
+		if (!list_empty(head)) {
+			/*
+			 * a mount that covers child completely wouldn't prevent
+			 * it being pulled out; any other would.
+			 */
+			if (!list_is_singular(head) || !child->overmount)
+				continue;
+		}
+		if (do_refcount_check(child, 1))
 			return 1;
 	}
 	return 0;

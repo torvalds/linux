@@ -1075,7 +1075,6 @@ void mnt_set_mountpoint(struct mount *mnt,
 			struct mountpoint *mp,
 			struct mount *child_mnt)
 {
-	mnt_add_count(mnt, 1);	/* essentially, that's mntget */
 	child_mnt->mnt_mountpoint = mp->m_dentry;
 	child_mnt->mnt_parent = mnt;
 	child_mnt->mnt_mp = mp;
@@ -1118,7 +1117,6 @@ static void attach_mnt(struct mount *mnt, struct mount *parent,
 void mnt_change_mountpoint(struct mount *parent, struct mountpoint *mp, struct mount *mnt)
 {
 	struct mountpoint *old_mp = mnt->mnt_mp;
-	struct mount *old_parent = mnt->mnt_parent;
 
 	list_del_init(&mnt->mnt_child);
 	hlist_del_init(&mnt->mnt_mp_list);
@@ -1127,7 +1125,6 @@ void mnt_change_mountpoint(struct mount *parent, struct mountpoint *mp, struct m
 	attach_mnt(mnt, parent, mp);
 
 	maybe_free_mountpoint(old_mp, &ex_mountpoints);
-	mnt_add_count(old_parent, -1);
 }
 
 static inline struct mount *node_to_mount(struct rb_node *node)
@@ -1652,23 +1649,19 @@ const struct seq_operations mounts_op = {
 int may_umount_tree(struct vfsmount *m)
 {
 	struct mount *mnt = real_mount(m);
-	int actual_refs = 0;
-	int minimum_refs = 0;
-	struct mount *p;
-	BUG_ON(!m);
+	bool busy = false;
 
 	/* write lock needed for mnt_get_count */
 	lock_mount_hash();
-	for (p = mnt; p; p = next_mnt(p, mnt)) {
-		actual_refs += mnt_get_count(p);
-		minimum_refs += 2;
+	for (struct mount *p = mnt; p; p = next_mnt(p, mnt)) {
+		if (mnt_get_count(p) > (p == mnt ? 2 : 1)) {
+			busy = true;
+			break;
+		}
 	}
 	unlock_mount_hash();
 
-	if (actual_refs > minimum_refs)
-		return 0;
-
-	return 1;
+	return !busy;
 }
 
 EXPORT_SYMBOL(may_umount_tree);
@@ -1869,7 +1862,6 @@ static void umount_tree(struct mount *mnt, enum umount_tree_flags how)
 
 		disconnect = disconnect_mount(p, how);
 		if (mnt_has_parent(p)) {
-			mnt_add_count(p->mnt_parent, -1);
 			if (!disconnect) {
 				/* Don't forget about p */
 				list_add_tail(&p->mnt_child, &p->mnt_parent->mnt_mounts);
@@ -1946,7 +1938,7 @@ static int do_umount(struct mount *mnt, int flags)
 		 * all race cases, but it's a slowpath.
 		 */
 		lock_mount_hash();
-		if (mnt_get_count(mnt) != 2) {
+		if (!list_empty(&mnt->mnt_mounts) || mnt_get_count(mnt) != 2) {
 			unlock_mount_hash();
 			return -EBUSY;
 		}
@@ -3683,9 +3675,7 @@ static int do_move_mount(struct path *old_path,
 out:
 	unlock_mount(&mp);
 	if (!err) {
-		if (!is_anon_ns(ns)) {
-			mntput_no_expire(parent);
-		} else {
+		if (is_anon_ns(ns)) {
 			/* Make sure we notice when we leak mounts. */
 			VFS_WARN_ON_ONCE(!mnt_ns_empty(ns));
 			free_mnt_ns(ns);
@@ -4753,7 +4743,6 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 	/* mount new_root on / */
 	attach_mnt(new_mnt, root_parent, root_mnt->mnt_mp);
 	umount_mnt(root_mnt);
-	mnt_add_count(root_parent, -1);
 	/* mount old root on put_old */
 	attach_mnt(root_mnt, old_mnt, old_mp.mp);
 	touch_mnt_namespace(current->nsproxy->mnt_ns);
@@ -4766,8 +4755,6 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 	error = 0;
 out4:
 	unlock_mount(&old_mp);
-	if (!error)
-		mntput_no_expire(ex_parent);
 out3:
 	path_put(&root);
 out2:
