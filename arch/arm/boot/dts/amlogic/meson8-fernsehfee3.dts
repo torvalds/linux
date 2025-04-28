@@ -85,6 +85,10 @@
 	};
 };
 
+&cpu0 {
+	cpu-supply = <&vcck>;
+};
+
 &ethmac {
 	status = "okay";
 	pinctrl-0 = <&eth_pins>;
@@ -117,6 +121,87 @@
 		compatible = "ricoh,rn5t618";
 		reg = <0x32>;
 		system-power-controller;
+
+		regulators {
+			vcck: DCDC1 {
+				regulator-name = "VCCK";
+				regulator-min-microvolt = <825000>;
+				regulator-max-microvolt = <1150000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			vddee: DCDC2 {
+				/* the output is also used as VDDAO */
+				regulator-name = "VDD_EE";
+				regulator-min-microvolt = <950000>;
+				regulator-max-microvolt = <1150000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			DCDC3 {
+				regulator-name = "VDD_DDR";
+				regulator-min-microvolt = <1500000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			LDO1 {
+				regulator-name = "VDDIO_AO28";
+				regulator-min-microvolt = <2900000>;
+				regulator-max-microvolt = <2900000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			LDO2 {
+				regulator-name = "VDDIO_AO18";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			vcc1v8_usb: LDO3 {
+				regulator-name = "VCC1V8_USB";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+			};
+
+			LDO4 {
+				/* This one appears to be unused */
+				regulator-name = "VCC2V8";
+				regulator-min-microvolt = <2850000>;
+				regulator-max-microvolt = <2850000>;
+			};
+
+			LDO5 {
+				regulator-name = "AVDD1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			LDORTC1 {
+				regulator-name = "VDD_LDO";
+				regulator-min-microvolt = <2700000>;
+				regulator-max-microvolt = <2700000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			LDORTC2 {
+				regulator-name = "RTC_0V9";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <900000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+		};
 	};
 
 	eeprom@50 {
@@ -135,6 +220,10 @@
 	pinctrl-names = "default";
 
 	/* TODO: SiI9293 HDMI receiver @ 0x39 */
+};
+
+&mali {
+	mali-supply = <&vddee>;
 };
 
 &sdhc {
@@ -188,6 +277,7 @@
 
 &usb0_phy {
 	status = "okay";
+	phy-supply = <&vcc1v8_usb>;
 };
 
 &usb1 {
@@ -206,6 +296,7 @@
 
 &usb1_phy {
 	status = "okay";
+	phy-supply = <&vcc1v8_usb>;
 };
 
 &ir_receiver {
