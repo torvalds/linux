@@ -784,8 +784,8 @@ config CRYPTO_AEGIS128_SIMD
 config CRYPTO_CHACHA20POLY1305
 	tristate "ChaCha20-Poly1305"
 	select CRYPTO_CHACHA20
-	select CRYPTO_POLY1305
 	select CRYPTO_AEAD
+	select CRYPTO_LIB_POLY1305
 	select CRYPTO_MANAGER
 	help
 	  ChaCha20 stream cipher and Poly1305 authenticator combined
