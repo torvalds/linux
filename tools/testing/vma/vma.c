@@ -28,6 +28,7 @@ unsigned long stack_guard_gap = 256UL<<PAGE_SHIFT;
  * Directly import the VMA implementation here. Our vma_internal.h wrapper
  * provides userland-equivalent functionality for everything vma.c uses.
  */
+#include "../../../mm/vma_exec.c"
 #include "../../../mm/vma.c"
 
 const struct vm_operations_struct vma_dummy_vm_ops;

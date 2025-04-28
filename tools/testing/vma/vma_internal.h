@@ -421,6 +421,28 @@ struct vm_unmapped_area_info {
 	unsigned long start_gap;
 };
 
+struct pagetable_move_control {
+	struct vm_area_struct *old; /* Source VMA. */
+	struct vm_area_struct *new; /* Destination VMA. */
+	unsigned long old_addr; /* Address from which the move begins. */
+	unsigned long old_end; /* Exclusive address at which old range ends. */
+	unsigned long new_addr; /* Address to move page tables to. */
+	unsigned long len_in; /* Bytes to remap specified by user. */
+
+	bool need_rmap_locks; /* Do rmap locks need to be taken? */
+	bool for_stack; /* Is this an early temp stack being moved? */
+};
+
+#define PAGETABLE_MOVE(name, old_, new_, old_addr_, new_addr_, len_)	\
+	struct pagetable_move_control name = {				\
+		.old = old_,						\
+		.new = new_,						\
+		.old_addr = old_addr_,					\
+		.old_end = (old_addr_) + (len_),			\
+		.new_addr = new_addr_,					\
+		.len_in = len_,						\
+	}
+
 static inline void vma_iter_invalidate(struct vma_iterator *vmi)
 {
 	mas_pause(&vmi->mas);
@@ -1238,6 +1260,24 @@ static inline int mapping_map_writable(struct address_space *mapping)
 	} while (!__sync_bool_compare_and_swap(&mapping->i_mmap_writable, c, c+1));
 
 	return 0;
+}
+
+static inline unsigned long move_page_tables(struct pagetable_move_control *pmc)
+{
+	(void)pmc;
+
+	return 0;
+}
+
+static inline void free_pgd_range(struct mmu_gather *tlb,
+			unsigned long addr, unsigned long end,
+			unsigned long floor, unsigned long ceiling)
+{
+	(void)tlb;
+	(void)addr;
+	(void)end;
+	(void)floor;
+	(void)ceiling;
 }
 
 #endif	/* __MM_VMA_INTERNAL_H */
