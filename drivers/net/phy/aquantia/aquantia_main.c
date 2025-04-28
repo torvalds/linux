@@ -516,8 +516,7 @@ static int aqr105_read_status(struct phy_device *phydev)
 	if (!phydev->link || phydev->autoneg == AUTONEG_DISABLE)
 		return 0;
 
-	/**
-	 * The status register is not immediately correct on line side link up.
+	/* The status register is not immediately correct on line side link up.
 	 * Poll periodically until it reflects the correct ON state.
 	 * Only return fail for read error, timeout defaults to OFF state.
 	 */
@@ -634,8 +633,7 @@ static int aqr107_read_status(struct phy_device *phydev)
 	if (!phydev->link || phydev->autoneg == AUTONEG_DISABLE)
 		return 0;
 
-	/**
-	 * The status register is not immediately correct on line side link up.
+	/* The status register is not immediately correct on line side link up.
 	 * Poll periodically until it reflects the correct ON state.
 	 * Only return fail for read error, timeout defaults to OFF state.
 	 */
