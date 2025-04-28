@@ -13,6 +13,7 @@
 #include "std.h"
 #include "arch.h"
 #include "errno.h"
+#include "fcntl.h"
 #include "types.h"
 #include "sys.h"
 #include "stdarg.h"
@@ -53,6 +54,32 @@ FILE *fdopen(int fd, const char *mode __attribute__((unused)))
 		return NULL;
 	}
 	return (FILE*)(intptr_t)~fd;
+}
+
+static __attribute__((unused))
+FILE *fopen(const char *pathname, const char *mode)
+{
+	int flags, fd;
+
+	switch (*mode) {
+	case 'r':
+		flags = O_RDONLY;
+		break;
+	case 'w':
+		flags = O_WRONLY | O_CREAT | O_TRUNC;
+		break;
+	case 'a':
+		flags = O_WRONLY | O_CREAT | O_APPEND;
+		break;
+	default:
+		SET_ERRNO(EINVAL); return NULL;
+	}
+
+	if (mode[1] == '+')
+		flags = (flags & ~(O_RDONLY | O_WRONLY)) | O_RDWR;
+
+	fd = open(pathname, flags, 0666);
+	return fdopen(fd, mode);
 }
 
 /* provides the fd of stream. */
