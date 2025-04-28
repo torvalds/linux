@@ -932,11 +932,10 @@ static int nxp_fspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	struct nxp_fspi *f = spi_controller_get_devdata(mem->spi->controller);
 	int err = 0;
 
-	mutex_lock(&f->lock);
+	guard(mutex)(&f->lock);
 
 	err = pm_runtime_get_sync(f->dev);
 	if (err < 0) {
-		mutex_unlock(&f->lock);
 		dev_err(f->dev, "Failed to enable clock %d\n", __LINE__);
 		return err;
 	}
@@ -972,7 +971,6 @@ static int nxp_fspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	pm_runtime_mark_last_busy(f->dev);
 	pm_runtime_put_autosuspend(f->dev);
 
-	mutex_unlock(&f->lock);
 	return err;
 }
 
