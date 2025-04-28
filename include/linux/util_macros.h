@@ -85,7 +85,7 @@
  * @ptr: A pointer to assign if @cond is true.
  *
  * PTR_IF(IS_ENABLED(CONFIG_FOO), ptr) evaluates to @ptr if CONFIG_FOO is set
- * to 'y' or 'm', or to NULL otherwise. The (ptr) argument must be a pointer.
+ * to 'y' or 'm', or to NULL otherwise. The @ptr argument must be a pointer.
  *
  * The macro can be very useful to help compiler dropping dead code.
  *
