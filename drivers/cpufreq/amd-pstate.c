@@ -1559,19 +1559,17 @@ static int amd_pstate_epp_set_policy(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int amd_pstate_epp_cpu_online(struct cpufreq_policy *policy)
+static int amd_pstate_cpu_online(struct cpufreq_policy *policy)
 {
-	pr_debug("AMD CPU Core %d going online\n", policy->cpu);
-
 	return amd_pstate_cppc_enable(policy);
 }
 
-static int amd_pstate_epp_cpu_offline(struct cpufreq_policy *policy)
+static int amd_pstate_cpu_offline(struct cpufreq_policy *policy)
 {
 	return 0;
 }
 
-static int amd_pstate_epp_suspend(struct cpufreq_policy *policy)
+static int amd_pstate_suspend(struct cpufreq_policy *policy)
 {
 	struct amd_cpudata *cpudata = policy->driver_data;
 
@@ -1609,6 +1607,9 @@ static struct cpufreq_driver amd_pstate_driver = {
 	.fast_switch    = amd_pstate_fast_switch,
 	.init		= amd_pstate_cpu_init,
 	.exit		= amd_pstate_cpu_exit,
+	.online		= amd_pstate_cpu_online,
+	.offline	= amd_pstate_cpu_offline,
+	.suspend	= amd_pstate_suspend,
 	.set_boost	= amd_pstate_set_boost,
 	.update_limits	= amd_pstate_update_limits,
 	.name		= "amd-pstate",
@@ -1621,9 +1622,9 @@ static struct cpufreq_driver amd_pstate_epp_driver = {
 	.setpolicy	= amd_pstate_epp_set_policy,
 	.init		= amd_pstate_epp_cpu_init,
 	.exit		= amd_pstate_epp_cpu_exit,
-	.offline	= amd_pstate_epp_cpu_offline,
-	.online		= amd_pstate_epp_cpu_online,
-	.suspend	= amd_pstate_epp_suspend,
+	.offline	= amd_pstate_cpu_offline,
+	.online		= amd_pstate_cpu_online,
+	.suspend	= amd_pstate_suspend,
 	.resume		= amd_pstate_epp_resume,
 	.update_limits	= amd_pstate_update_limits,
 	.set_boost	= amd_pstate_set_boost,
