@@ -15,6 +15,7 @@
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
 #include <asm/elf.h>
+#include <asm/opcodes.h>
 #include <asm/pstate.h>
 #include <crypto/internal/hash.h>
 #include <crypto/md5.h>
@@ -23,8 +24,6 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/unaligned.h>
-
-#include "opcodes.h"
 
 struct sparc_md5_state {
 	__le32 hash[MD5_HASH_WORDS];
