@@ -201,7 +201,7 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
 
 	inodes = list_lru_shrink_count(&sb->s_inode_lru, sc);
 	dentries = list_lru_shrink_count(&sb->s_dentry_lru, sc);
-	total_objects = dentries + inodes + fs_objects + 1;
+	total_objects = dentries + inodes + fs_objects;
 	if (!total_objects)
 		total_objects = 1;
 
