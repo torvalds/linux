@@ -1040,11 +1040,11 @@ module_param_named(user_partt_mode, amdgpu_user_partt_mode, uint, 0444);
 /**
  * DOC: enforce_isolation (int)
  * enforce process isolation between graphics and compute.
- * (-1 = auto, 0 = disable, 1 = enable, 2 = enable legacy mode)
+ * (-1 = auto, 0 = disable, 1 = enable, 2 = enable legacy mode, 3 = enable without cleaner shader)
  */
 module_param_named(enforce_isolation, amdgpu_enforce_isolation, int, 0444);
 MODULE_PARM_DESC(enforce_isolation,
-"enforce process isolation between graphics and compute. (-1 = auto, 0 = disable, 1 = enable, 2 = enable legacy mode)");
+"enforce process isolation between graphics and compute. (-1 = auto, 0 = disable, 1 = enable, 2 = enable legacy mode, 3 = enable without cleaner shader)");
 
 /**
  * DOC: modeset (int)

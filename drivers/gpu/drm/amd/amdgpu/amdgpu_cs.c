@@ -310,6 +310,10 @@ static int amdgpu_cs_pass1(struct amdgpu_cs_parser *p,
 			p->jobs[i]->enforce_isolation = true;
 			p->jobs[i]->run_cleaner_shader = false;
 			break;
+		case AMDGPU_ENFORCE_ISOLATION_NO_CLEANER_SHADER:
+			p->jobs[i]->enforce_isolation = true;
+			p->jobs[i]->run_cleaner_shader = false;
+			break;
 		}
 	}
 	p->gang_leader = p->jobs[p->gang_leader_idx];
