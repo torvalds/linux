@@ -27,6 +27,7 @@
 #include <sys/syscall.h>
 #include <sys/sysmacros.h>
 #include <sys/time.h>
+#include <sys/timerfd.h>
 #include <sys/utsname.h>
 #include <sys/wait.h>
 #include <dirent.h>
@@ -955,6 +956,52 @@ err:
 	return ret;
 }
 
+int test_timerfd(void)
+{
+	struct itimerspec timerspec;
+	int timer, ret;
+
+	timer = timerfd_create(CLOCK_MONOTONIC, 0);
+	if (timer == -1)
+		return -1;
+
+	timerspec = (struct itimerspec) {
+		.it_value.tv_sec = 1000000,
+	};
+	ret = timerfd_settime(timer, 0, &timerspec, NULL);
+	if (ret)
+		goto err;
+
+	timerspec = (struct itimerspec) {
+		.it_value.tv_sec = -1,
+		.it_value.tv_nsec = -1,
+		.it_interval.tv_sec = -1,
+		.it_interval.tv_nsec = -1,
+	};
+	ret = timerfd_gettime(timer, &timerspec);
+	if (ret)
+		goto err;
+
+	errno = EINVAL;
+	ret = -1;
+
+	if (timerspec.it_interval.tv_sec || timerspec.it_interval.tv_nsec)
+		goto err;
+
+	if (timerspec.it_value.tv_sec > 1000000)
+		goto err;
+
+	ret = close(timer);
+	if (ret)
+		return ret;
+
+	return 0;
+
+err:
+	close(timer);
+	return ret;
+}
+
 int test_uname(void)
 {
 	struct utsname buf;
@@ -1237,6 +1284,7 @@ int run_syscall(int min, int max)
 		CASE_TEST(stat_timestamps);   EXPECT_SYSZR(1, test_stat_timestamps()); break;
 		CASE_TEST(symlink_root);      EXPECT_SYSER(1, symlink("/", "/"), -1, EEXIST); break;
 		CASE_TEST(timer);             EXPECT_SYSZR(1, test_timer()); break;
+		CASE_TEST(timerfd);           EXPECT_SYSZR(1, test_timerfd()); break;
 		CASE_TEST(uname);             EXPECT_SYSZR(proc, test_uname()); break;
 		CASE_TEST(uname_fault);       EXPECT_SYSER(1, uname(NULL), -1, EFAULT); break;
 		CASE_TEST(unlink_root);       EXPECT_SYSER(1, unlink("/"), -1, EISDIR); break;

@@ -53,6 +53,7 @@ all_files := \
 		sys/stat.h \
 		sys/syscall.h \
 		sys/time.h \
+		sys/timerfd.h \
 		sys/types.h \
 		sys/wait.h \
 		time.h \
