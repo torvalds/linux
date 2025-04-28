@@ -5407,12 +5407,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_null,
 		.fips_allowed = 1,
 	}, {
-		.alg = "poly1305",
-		.test = alg_test_hash,
-		.suite = {
-			.hash = __VECS(poly1305_tv_template)
-		}
-	}, {
 		.alg = "polyval",
 		.test = alg_test_hash,
 		.suite = {
