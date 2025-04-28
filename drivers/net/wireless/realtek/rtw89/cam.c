@@ -469,6 +469,10 @@ int rtw89_cam_sec_key_add(struct rtw89_dev *rtwdev,
 	bool ext_key = false;
 	int ret;
 
+	if (ieee80211_vif_is_mld(vif) && !chip->hw_mlo_bmc_crypto &&
+	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
+		return -EOPNOTSUPP;
+
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
 		hw_key_type = RTW89_SEC_KEY_TYPE_WEP40;

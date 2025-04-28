@@ -793,6 +793,7 @@ const struct rtw89_chip_info rtw8852bt_chip_info = {
 	.hw_sec_hdr		= false,
 	.hw_mgmt_tx_encrypt     = false,
 	.hw_tkip_crypto		= true,
+	.hw_mlo_bmc_crypto	= false,
 	.rf_path_num		= 2,
 	.tx_nss			= 2,
 	.rx_nss			= 2,
