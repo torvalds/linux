@@ -207,15 +207,15 @@ static int brd_rw_bvec(struct brd_device *brd, struct bio_vec *bv,
 			return err;
 	}
 
-	mem = kmap_atomic(bv->bv_page);
+	mem = bvec_kmap_local(bv);
 	if (!op_is_write(opf)) {
-		copy_from_brd(mem + bv->bv_offset, brd, sector, bv->bv_len);
+		copy_from_brd(mem, brd, sector, bv->bv_len);
 		flush_dcache_page(bv->bv_page);
 	} else {
 		flush_dcache_page(bv->bv_page);
-		copy_to_brd(brd, mem + bv->bv_offset, sector, bv->bv_len);
+		copy_to_brd(brd, mem, sector, bv->bv_len);
 	}
-	kunmap_atomic(mem);
+	kunmap_local(mem);
 	return 0;
 }
 
