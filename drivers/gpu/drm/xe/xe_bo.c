@@ -2930,19 +2930,17 @@ int xe_bo_migrate(struct xe_bo *bo, u32 mem_type)
 /**
  * xe_bo_evict - Evict an object to evict placement
  * @bo: The buffer object to migrate.
- * @force_alloc: Set force_alloc in ttm_operation_ctx
  *
  * On successful completion, the object memory will be moved to evict
  * placement. This function blocks until the object has been fully moved.
  *
  * Return: 0 on success. Negative error code on failure.
  */
-int xe_bo_evict(struct xe_bo *bo, bool force_alloc)
+int xe_bo_evict(struct xe_bo *bo)
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,
 		.no_wait_gpu = false,
-		.force_alloc = force_alloc,
 		.gfp_retry_mayfail = true,
 	};
 	struct ttm_placement placement;

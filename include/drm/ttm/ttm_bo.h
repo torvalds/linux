@@ -172,7 +172,6 @@ struct ttm_bo_kmap_obj {
  * @gfp_retry_mayfail: Set the __GFP_RETRY_MAYFAIL when allocation pages.
  * @allow_res_evict: Allow eviction of reserved BOs. Can be used when multiple
  * BOs share the same reservation object.
- * @force_alloc: Don't check the memory account during suspend or CPU page
  * faults. Should only be used by TTM internally.
  * @resv: Reservation object to allow reserved evictions with.
  * @bytes_moved: Statistics on how many bytes have been moved.
@@ -185,7 +184,6 @@ struct ttm_operation_ctx {
 	bool no_wait_gpu;
 	bool gfp_retry_mayfail;
 	bool allow_res_evict;
-	bool force_alloc;
 	struct dma_resv *resv;
 	uint64_t bytes_moved;
 };
