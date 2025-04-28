@@ -102,8 +102,16 @@ int bch2_trans_update_extent_overwrite(struct btree_trans *, struct btree_iter *
 int bch2_bkey_get_empty_slot(struct btree_trans *, struct btree_iter *,
 			     enum btree_id, struct bpos);
 
-int __must_check bch2_trans_update(struct btree_trans *, struct btree_iter *,
-				   struct bkey_i *, enum btree_iter_update_trigger_flags);
+int __must_check bch2_trans_update_ip(struct btree_trans *, struct btree_iter *,
+				      struct bkey_i *, enum btree_iter_update_trigger_flags,
+				      unsigned long);
+
+static inline int __must_check
+bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
+		  struct bkey_i *k, enum btree_iter_update_trigger_flags flags)
+{
+	return bch2_trans_update_ip(trans, iter, k, flags, _THIS_IP_);
+}
 
 struct jset_entry *__bch2_trans_jset_entry_alloc(struct btree_trans *, unsigned);
 

@@ -484,7 +484,7 @@ struct bkey_i_alloc_v4 *bch2_trans_start_alloc_update(struct btree_trans *trans,
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = bch2_trans_update(trans, &iter, &a->k_i, flags);
+	ret = bch2_trans_update_ip(trans, &iter, &a->k_i, flags, _RET_IP_);
 	bch2_trans_iter_exit(trans, &iter);
 	return unlikely(ret) ? ERR_PTR(ret) : a;
 }

@@ -511,8 +511,9 @@ static noinline int bch2_trans_update_get_key_cache(struct btree_trans *trans,
 	return 0;
 }
 
-int __must_check bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
-				   struct bkey_i *k, enum btree_iter_update_trigger_flags flags)
+int __must_check bch2_trans_update_ip(struct btree_trans *trans, struct btree_iter *iter,
+				      struct bkey_i *k, enum btree_iter_update_trigger_flags flags,
+				      unsigned long ip)
 {
 	kmsan_check_memory(k, bkey_bytes(&k->k));
 
@@ -548,7 +549,7 @@ int __must_check bch2_trans_update(struct btree_trans *trans, struct btree_iter 
 		path_idx = iter->key_cache_path;
 	}
 
-	return bch2_trans_update_by_path(trans, path_idx, k, flags, _RET_IP_);
+	return bch2_trans_update_by_path(trans, path_idx, k, flags, ip);
 }
 
 int bch2_btree_insert_clone_trans(struct btree_trans *trans,
