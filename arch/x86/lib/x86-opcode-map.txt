@@ -147,7 +147,7 @@ AVXcode:
 # 0x60 - 0x6f
 60: PUSHA/PUSHAD (i64)
 61: POPA/POPAD (i64)
-62: BOUND Gv,Ma (i64) | EVEX (Prefix)
+62: BOUND Gv,Ma (i64) | EVEX (Prefix),(o64)
 63: ARPL Ew,Gw (i64) | MOVSXD Gv,Ev (o64)
 64: SEG=FS (Prefix)
 65: SEG=GS (Prefix)
@@ -253,8 +253,8 @@ c0: Grp2 Eb,Ib (1A)
 c1: Grp2 Ev,Ib (1A)
 c2: RETN Iw (f64)
 c3: RETN
-c4: LES Gz,Mp (i64) | VEX+2byte (Prefix)
-c5: LDS Gz,Mp (i64) | VEX+1byte (Prefix)
+c4: LES Gz,Mp (i64) | VEX+2byte (Prefix),(o64)
+c5: LDS Gz,Mp (i64) | VEX+1byte (Prefix),(o64)
 c6: Grp11A Eb,Ib (1A)
 c7: Grp11B Ev,Iz (1A)
 c8: ENTER Iw,Ib
