@@ -142,6 +142,7 @@ struct spi_engine_offload {
 	unsigned long flags;
 	unsigned int offload_num;
 	unsigned int spi_mode_config;
+	u8 bits_per_word;
 };
 
 struct spi_engine {
@@ -267,6 +268,8 @@ static int spi_engine_precompile_message(struct spi_message *msg)
 {
 	unsigned int clk_div, max_hz = msg->spi->controller->max_speed_hz;
 	struct spi_transfer *xfer;
+	u8 min_bits_per_word = U8_MAX;
+	u8 max_bits_per_word = 0;
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		/* If we have an offload transfer, we can't rx to buffer */
@@ -275,6 +278,24 @@ static int spi_engine_precompile_message(struct spi_message *msg)
 
 		clk_div = DIV_ROUND_UP(max_hz, xfer->speed_hz);
 		xfer->effective_speed_hz = max_hz / min(clk_div, 256U);
+
+		if (xfer->len) {
+			min_bits_per_word = min(min_bits_per_word, xfer->bits_per_word);
+			max_bits_per_word = max(max_bits_per_word, xfer->bits_per_word);
+		}
+	}
+
+	/*
+	 * If all xfers in the message use the same bits_per_word, we can
+	 * provide some optimization when using SPI offload.
+	 */
+	if (msg->offload) {
+		struct spi_engine_offload *priv = msg->offload->priv;
+
+		if (min_bits_per_word == max_bits_per_word)
+			priv->bits_per_word = min_bits_per_word;
+		else
+			priv->bits_per_word = 0;
 	}
 
 	return 0;
@@ -306,6 +327,12 @@ static void spi_engine_compile_message(struct spi_message *msg, bool dry,
 	if (msg->offload) {
 		priv = msg->offload->priv;
 		priv->spi_mode_config = spi_engine_get_config(spi);
+
+		/*
+		 * If all xfers use the same bits_per_word, it can be optimized
+		 * in the same way.
+		 */
+		bits_per_word = priv->bits_per_word;
 	} else {
 		spi_engine_program_add_cmd(p, dry,
 			SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CONFIG,
@@ -861,6 +888,11 @@ static int spi_engine_trigger_enable(struct spi_offload *offload)
 	writel_relaxed(SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CONFIG,
 					    priv->spi_mode_config),
 		       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
+
+	if (priv->bits_per_word)
+		writel_relaxed(SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_XFER_BITS,
+						    priv->bits_per_word),
+			       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
 
 	writel_relaxed(SPI_ENGINE_CMD_SYNC(1),
 		spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
