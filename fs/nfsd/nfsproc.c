@@ -212,7 +212,7 @@ nfsd_proc_read(struct svc_rqst *rqstp)
 		SVCFH_fmt(&argp->fh),
 		argp->count, argp->offset);
 
-	argp->count = min_t(u32, argp->count, NFSSVC_MAXBLKSIZE_V2);
+	argp->count = min_t(u32, argp->count, NFS_MAXDATA);
 	argp->count = min_t(u32, argp->count, rqstp->rq_res.buflen);
 
 	resp->pages = rqstp->rq_next_page;
@@ -707,7 +707,7 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_argzero = sizeof(struct nfsd_readargs),
 		.pc_ressize = sizeof(struct nfsd_readres),
 		.pc_cachetype = RC_NOCACHE,
-		.pc_xdrressize = ST+AT+1+NFSSVC_MAXBLKSIZE_V2/4,
+		.pc_xdrressize = ST+AT+1+NFS_MAXDATA/4,
 		.pc_name = "READ",
 	},
 	[NFSPROC_WRITECACHE] = {
