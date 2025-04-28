@@ -93,9 +93,9 @@ $code.=<<___;
 #endif
 
 #ifdef	__KERNEL__
-# define poly1305_init   poly1305_init_mips
-# define poly1305_blocks poly1305_blocks_mips
-# define poly1305_emit   poly1305_emit_mips
+# define poly1305_init   poly1305_block_init_arch
+# define poly1305_blocks poly1305_blocks_arch
+# define poly1305_emit   poly1305_emit_arch
 #endif
 
 #if defined(__MIPSEB__) && !defined(MIPSEB)
@@ -565,9 +565,9 @@ $code.=<<___;
 #endif
 
 #ifdef	__KERNEL__
-# define poly1305_init   poly1305_init_mips
-# define poly1305_blocks poly1305_blocks_mips
-# define poly1305_emit   poly1305_emit_mips
+# define poly1305_init   poly1305_block_init_arch
+# define poly1305_blocks poly1305_blocks_arch
+# define poly1305_emit   poly1305_emit_arch
 #endif
 
 #if defined(__MIPSEB__) && !defined(MIPSEB)
