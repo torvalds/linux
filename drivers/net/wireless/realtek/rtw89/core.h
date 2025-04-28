@@ -3454,6 +3454,7 @@ struct rtw89_roc {
 	enum ieee80211_roc_type type;
 	enum rtw89_roc_state state;
 	int duration;
+	unsigned int link_id;
 };
 
 #define RTW89_P2P_MAX_NOA_NUM 2
@@ -4851,6 +4852,7 @@ struct rtw89_hal {
 	bool no_mcs_12_13;
 
 	atomic_t roc_chanctx_idx;
+	u8 roc_link_index;
 
 	DECLARE_BITMAP(changes, NUM_OF_RTW89_CHANCTX_CHANGES);
 	DECLARE_BITMAP(entity_map, NUM_OF_RTW89_CHANCTX);

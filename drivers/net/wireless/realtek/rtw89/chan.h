@@ -103,7 +103,7 @@ void rtw89_config_entity_chandef(struct rtw89_dev *rtwdev,
 				 enum rtw89_chanctx_idx idx,
 				 const struct cfg80211_chan_def *chandef);
 void rtw89_config_roc_chandef(struct rtw89_dev *rtwdev,
-			      enum rtw89_chanctx_idx idx,
+			      struct rtw89_vif_link *rtwvif_link,
 			      const struct cfg80211_chan_def *chandef);
 void rtw89_entity_init(struct rtw89_dev *rtwdev);
 enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev);
