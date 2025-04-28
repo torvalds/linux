@@ -1155,7 +1155,7 @@ int btrfs_write_marked_extents(struct btrfs_fs_info *fs_info,
 		if (!ret)
 			ret = filemap_fdatawrite_range(mapping, start, end);
 		if (!ret && wait_writeback)
-			ret = filemap_fdatawait_range(mapping, start, end);
+			btrfs_btree_wait_writeback_range(fs_info, start, end);
 		btrfs_free_extent_state(cached_state);
 		if (ret)
 			break;
@@ -1175,7 +1175,6 @@ int btrfs_write_marked_extents(struct btrfs_fs_info *fs_info,
 static int __btrfs_wait_marked_extents(struct btrfs_fs_info *fs_info,
 				       struct extent_io_tree *dirty_pages)
 {
-	struct address_space *mapping = fs_info->btree_inode->i_mapping;
 	struct extent_state *cached_state = NULL;
 	u64 start = 0;
 	u64 end;
@@ -1196,7 +1195,7 @@ static int __btrfs_wait_marked_extents(struct btrfs_fs_info *fs_info,
 		if (ret == -ENOMEM)
 			ret = 0;
 		if (!ret)
-			ret = filemap_fdatawait_range(mapping, start, end);
+			btrfs_btree_wait_writeback_range(fs_info, start, end);
 		btrfs_free_extent_state(cached_state);
 		if (ret)
 			break;
