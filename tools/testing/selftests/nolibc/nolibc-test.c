@@ -1318,6 +1318,8 @@ int run_stdlib(int min, int max)
 		CASE_TEST(tolower_noop);            EXPECT_EQ(1, tolower('a'), 'a'); break;
 		CASE_TEST(toupper);                 EXPECT_EQ(1, toupper('a'), 'A'); break;
 		CASE_TEST(toupper_noop);            EXPECT_EQ(1, toupper('A'), 'A'); break;
+		CASE_TEST(abs);                     EXPECT_EQ(1, abs(-10), 10); break;
+		CASE_TEST(abs_noop);                EXPECT_EQ(1, abs(10), 10); break;
 
 		case __LINE__:
 			return ret; /* must be last */

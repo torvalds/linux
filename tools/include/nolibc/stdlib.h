@@ -32,6 +32,24 @@ static __attribute__((unused)) char itoa_buffer[21];
  * As much as possible, please keep functions alphabetically sorted.
  */
 
+static __inline__
+int abs(int j)
+{
+	return j >= 0 ? j : -j;
+}
+
+static __inline__
+long labs(long j)
+{
+	return j >= 0 ? j : -j;
+}
+
+static __inline__
+long long llabs(long long j)
+{
+	return j >= 0 ? j : -j;
+}
+
 /* must be exported, as it's used by libgcc for various divide functions */
 void abort(void);
 __attribute__((weak,unused,noreturn,section(".text.nolibc_abort")))
