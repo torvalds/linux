@@ -142,7 +142,7 @@ static void qcom_spi_set_read_loc_first(struct qcom_nand_controller *snandc,
 	else if (reg == NAND_READ_LOCATION_1)
 		snandc->regs->read_location1 = locreg_val;
 	else if (reg == NAND_READ_LOCATION_2)
-		snandc->regs->read_location1 = locreg_val;
+		snandc->regs->read_location2 = locreg_val;
 	else if (reg == NAND_READ_LOCATION_3)
 		snandc->regs->read_location3 = locreg_val;
 }
