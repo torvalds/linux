@@ -4007,8 +4007,9 @@ out:
 int rtw89_fw_h2c_join_info(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
 			   struct rtw89_sta_link *rtwsta_link, bool dis_conn)
 {
-	struct sk_buff *skb;
 	u8 mac_id = rtwsta_link ? rtwsta_link->mac_id : rtwvif_link->mac_id;
+	struct ieee80211_vif *vif = rtwvif_link_to_vif(rtwvif_link);
+	bool is_mld = ieee80211_vif_is_mld(vif);
 	u8 self_role = rtwvif_link->self_role;
 	enum rtw89_fw_sta_type sta_type;
 	u8 net_type = rtwvif_link->net_type;
@@ -4016,6 +4017,8 @@ int rtw89_fw_h2c_join_info(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwv
 	struct rtw89_h2c_join *h2c;
 	u32 len = sizeof(*h2c);
 	bool format_v1 = false;
+	struct sk_buff *skb;
+	u8 main_mac_id;
 	int ret;
 
 	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE) {
@@ -4058,7 +4061,26 @@ int rtw89_fw_h2c_join_info(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwv
 
 	sta_type = rtw89_fw_get_sta_type(rtwdev, rtwvif_link, rtwsta_link);
 
-	h2c_v1->w1 = le32_encode_bits(sta_type, RTW89_H2C_JOININFO_W1_STA_TYPE);
+	if (rtwsta_link)
+		main_mac_id = rtw89_sta_get_main_macid(rtwsta_link->rtwsta);
+	else
+		main_mac_id = rtw89_vif_get_main_macid(rtwvif_link->rtwvif);
+
+	h2c_v1->w1 = le32_encode_bits(sta_type, RTW89_H2C_JOININFO_W1_STA_TYPE) |
+		     le32_encode_bits(is_mld, RTW89_H2C_JOININFO_W1_IS_MLD) |
+		     le32_encode_bits(main_mac_id, RTW89_H2C_JOININFO_W1_MAIN_MACID) |
+		     le32_encode_bits(RTW89_H2C_JOININFO_MLO_MODE_MLSR,
+				      RTW89_H2C_JOININFO_W1_MLO_MODE) |
+		     le32_encode_bits(0, RTW89_H2C_JOININFO_W1_EMLSR_CAB) |
+		     le32_encode_bits(0, RTW89_H2C_JOININFO_W1_NSTR_EN) |
+		     le32_encode_bits(0, RTW89_H2C_JOININFO_W1_INIT_PWR_STATE) |
+		     le32_encode_bits(IEEE80211_EML_CAP_EMLSR_PADDING_DELAY_256US,
+				      RTW89_H2C_JOININFO_W1_EMLSR_PADDING) |
+		     le32_encode_bits(IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY_256US,
+				      RTW89_H2C_JOININFO_W1_EMLSR_TRANS_DELAY) |
+		     le32_encode_bits(0, RTW89_H2C_JOININFO_W2_MACID_EXT) |
+		     le32_encode_bits(0, RTW89_H2C_JOININFO_W2_MAIN_MACID_EXT);
+
 	h2c_v1->w2 = 0;
 
 done:
