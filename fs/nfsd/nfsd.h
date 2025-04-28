@@ -44,9 +44,14 @@ bool nfsd_support_version(int vers);
 #include "stats.h"
 
 /*
- * Maximum blocksizes supported by daemon under various circumstances.
+ * Default and maximum payload size (NFS READ or WRITE), in bytes.
+ * The default is historical, and the maximum is an implementation
+ * limit.
  */
-#define NFSSVC_MAXBLKSIZE       RPCSVC_MAXPAYLOAD
+enum {
+	NFSSVC_DEFBLKSIZE       = 1 * 1024 * 1024,
+	NFSSVC_MAXBLKSIZE       = RPCSVC_MAXPAYLOAD,
+};
 
 struct readdir_cd {
 	__be32			err;	/* 0, nfserr, or nfserr_eof */
