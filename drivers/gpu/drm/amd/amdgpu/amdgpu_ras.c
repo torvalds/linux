@@ -2165,7 +2165,7 @@ void amdgpu_ras_interrupt_fatal_error_handler(struct amdgpu_device *adev)
 	/* Fatal error events are handled on host side */
 	if (amdgpu_sriov_vf(adev))
 		return;
-	/**
+	/*
 	 * If the current interrupt is caused by a non-fatal RAS error, skip
 	 * check for fatal error. For fatal errors, FED status of all devices
 	 * in XGMI hive gets set when the first device gets fatal error
