@@ -54,9 +54,9 @@
  */
 
 #include <linux/linkage.h>
-#include <linux/cfi_types.h>
+#include <linux/objtool.h>
 
-#define DIGEST_PTR	%rdi	/* 1st arg */
+#define STATE_PTR	%rdi	/* 1st arg */
 #define DATA_PTR	%rsi	/* 2nd arg */
 #define NUM_BLKS	%rdx	/* 3rd arg */
 
@@ -98,24 +98,20 @@
 .endm
 
 /*
- * Intel SHA Extensions optimized implementation of a SHA-256 update function
+ * Intel SHA Extensions optimized implementation of a SHA-256 block function
  *
- * The function takes a pointer to the current hash values, a pointer to the
- * input data, and a number of 64 byte blocks to process.  Once all blocks have
- * been processed, the digest pointer is  updated with the resulting hash value.
- * The function only processes complete blocks, there is no functionality to
- * store partial blocks.  All message padding and hash value initialization must
- * be done outside the update function.
+ * This function takes a pointer to the current SHA-256 state, a pointer to the
+ * input data, and the number of 64-byte blocks to process.  Once all blocks
+ * have been processed, the state is updated with the new state.  This function
+ * only processes complete blocks.  State initialization, buffering of partial
+ * blocks, and digest finalization is expected to be handled elsewhere.
  *
- * void sha256_ni_transform(uint32_t *digest, const void *data,
-		uint32_t numBlocks);
- * digest : pointer to digest
- * data: pointer to input data
- * numBlocks: Number of blocks to process
+ * void sha256_ni_transform(u32 state[SHA256_STATE_WORDS],
+ *			    const u8 *data, size_t nblocks);
  */
-
 .text
-SYM_TYPED_FUNC_START(sha256_ni_transform)
+SYM_FUNC_START(sha256_ni_transform)
+	ANNOTATE_NOENDBR	# since this is called only via static_call
 
 	shl		$6, NUM_BLKS		/*  convert to bytes */
 	jz		.Ldone_hash
@@ -126,8 +122,8 @@ SYM_TYPED_FUNC_START(sha256_ni_transform)
 	 * Need to reorder these appropriately
 	 * DCBA, HGFE -> ABEF, CDGH
 	 */
-	movdqu		0*16(DIGEST_PTR), STATE0	/* DCBA */
-	movdqu		1*16(DIGEST_PTR), STATE1	/* HGFE */
+	movdqu		0*16(STATE_PTR), STATE0		/* DCBA */
+	movdqu		1*16(STATE_PTR), STATE1		/* HGFE */
 
 	movdqa		STATE0, TMP
 	punpcklqdq	STATE1, STATE0			/* FEBA */
@@ -166,8 +162,8 @@ SYM_TYPED_FUNC_START(sha256_ni_transform)
 	pshufd		$0xB1, STATE0, STATE0		/* HGFE */
 	pshufd		$0x1B, STATE1, STATE1		/* DCBA */
 
-	movdqu		STATE1, 0*16(DIGEST_PTR)
-	movdqu		STATE0, 1*16(DIGEST_PTR)
+	movdqu		STATE1, 0*16(STATE_PTR)
+	movdqu		STATE0, 1*16(STATE_PTR)
 
 .Ldone_hash:
 

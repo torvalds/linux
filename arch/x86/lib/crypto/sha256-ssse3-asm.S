@@ -47,7 +47,7 @@
 ########################################################################
 
 #include <linux/linkage.h>
-#include <linux/cfi_types.h>
+#include <linux/objtool.h>
 
 ## assume buffers not aligned
 #define    MOVDQ movdqu
@@ -348,15 +348,13 @@ a = TMP_
 .endm
 
 ########################################################################
-## void sha256_transform_ssse3(struct sha256_state *state, const u8 *data,
-##			       int blocks);
-## arg 1 : pointer to state
-##	   (struct sha256_state is assumed to begin with u32 state[8])
-## arg 2 : pointer to input data
-## arg 3 : Num blocks
+## void sha256_transform_ssse3(u32 state[SHA256_STATE_WORDS],
+##			       const u8 *data, size_t nblocks);
 ########################################################################
 .text
-SYM_TYPED_FUNC_START(sha256_transform_ssse3)
+SYM_FUNC_START(sha256_transform_ssse3)
+	ANNOTATE_NOENDBR	# since this is called only via static_call
+
 	pushq   %rbx
 	pushq   %r12
 	pushq   %r13

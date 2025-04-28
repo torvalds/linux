@@ -49,7 +49,7 @@
 ########################################################################
 
 #include <linux/linkage.h>
-#include <linux/cfi_types.h>
+#include <linux/objtool.h>
 
 ## assume buffers not aligned
 #define	VMOVDQ vmovdqu
@@ -518,13 +518,13 @@ STACK_SIZE	= _CTX      + _CTX_SIZE
 .endm
 
 ########################################################################
-## void sha256_transform_rorx(struct sha256_state *state, const u8 *data, int blocks)
-## arg 1 : pointer to state
-## arg 2 : pointer to input data
-## arg 3 : Num blocks
+## void sha256_transform_rorx(u32 state[SHA256_STATE_WORDS],
+##			      const u8 *data, size_t nblocks);
 ########################################################################
 .text
-SYM_TYPED_FUNC_START(sha256_transform_rorx)
+SYM_FUNC_START(sha256_transform_rorx)
+	ANNOTATE_NOENDBR	# since this is called only via static_call
+
 	pushq	%rbx
 	pushq	%r12
 	pushq	%r13
