@@ -40,16 +40,16 @@ static int thunder_mdiobus_pci_probe(struct pci_dev *pdev,
 		return err;
 	}
 
-	err = pci_request_regions(pdev, KBUILD_MODNAME);
+	err = pcim_request_all_regions(pdev, KBUILD_MODNAME);
 	if (err) {
-		dev_err(&pdev->dev, "pci_request_regions failed\n");
+		dev_err(&pdev->dev, "pcim_request_all_regions failed\n");
 		goto err_disable_device;
 	}
 
 	nexus->bar0 = pcim_iomap(pdev, 0, pci_resource_len(pdev, 0));
 	if (!nexus->bar0) {
 		err = -ENOMEM;
-		goto err_release_regions;
+		goto err_disable_device;
 	}
 
 	i = 0;
@@ -107,9 +107,6 @@ static int thunder_mdiobus_pci_probe(struct pci_dev *pdev,
 	}
 	return 0;
 
-err_release_regions:
-	pci_release_regions(pdev);
-
 err_disable_device:
 	pci_set_drvdata(pdev, NULL);
 	return err;
@@ -129,7 +126,6 @@ static void thunder_mdiobus_pci_remove(struct pci_dev *pdev)
 		mdiobus_unregister(bus->mii_bus);
 		oct_mdio_writeq(0, bus->register_base + SMI_EN);
 	}
-	pci_release_regions(pdev);
 	pci_set_drvdata(pdev, NULL);
 }
 
