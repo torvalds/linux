@@ -6,7 +6,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/mfd/twl.h>
@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -37,7 +36,7 @@ struct twl4030_board_params {
 	unsigned int ramp_delay_value;
 	unsigned int offset_cncl_path;
 	unsigned int hs_extmute:1;
-	int hs_extmute_gpio;
+	struct gpio_desc *hs_extmute_gpio;
 };
 
 /* codec private data */
@@ -211,8 +210,7 @@ twl4030_get_board_param_values(struct twl4030_board_params *board_params,
 	if (!of_property_read_u32(node, "ti,hs_extmute", &value))
 		board_params->hs_extmute = value;
 
-	board_params->hs_extmute_gpio = of_get_named_gpio(node, "ti,hs_extmute_gpio", 0);
-	if (gpio_is_valid(board_params->hs_extmute_gpio))
+	if (of_property_present(node, "ti,hs_extmute_gpio"))
 		board_params->hs_extmute = 1;
 }
 
@@ -240,7 +238,7 @@ twl4030_get_board_params(struct snd_soc_component *component)
 	return board_params;
 }
 
-static void twl4030_init_chip(struct snd_soc_component *component)
+static int twl4030_init_chip(struct snd_soc_component *component)
 {
 	struct twl4030_board_params *board_params;
 	struct twl4030_priv *twl4030 = snd_soc_component_get_drvdata(component);
@@ -250,23 +248,19 @@ static void twl4030_init_chip(struct snd_soc_component *component)
 	board_params = twl4030_get_board_params(component);
 
 	if (board_params && board_params->hs_extmute) {
-		if (gpio_is_valid(board_params->hs_extmute_gpio)) {
-			int ret;
+		board_params->hs_extmute_gpio = devm_gpiod_get_optional(component->dev,
+									"ti,hs_extmute",
+									GPIOD_OUT_LOW);
+		if (IS_ERR(board_params->hs_extmute_gpio))
+			return dev_err_probe(component->dev, PTR_ERR(board_params->hs_extmute_gpio),
+					     "Failed to get hs_extmute GPIO\n");
 
-			if (!board_params->hs_extmute_gpio)
-				dev_warn(component->dev,
-					"Extmute GPIO is 0 is this correct?\n");
-
-			ret = gpio_request_one(board_params->hs_extmute_gpio,
-					       GPIOF_OUT_INIT_LOW,
-					       "hs_extmute");
-			if (ret) {
-				dev_err(component->dev,
-					"Failed to get hs_extmute GPIO\n");
-				board_params->hs_extmute_gpio = -1;
-			}
+		if (board_params->hs_extmute_gpio) {
+			gpiod_set_consumer_name(board_params->hs_extmute_gpio, "hs_extmute");
 		} else {
 			u8 pin_mux;
+
+			dev_info(component->dev, "use TWL4030 GPIO6\n");
 
 			/* Set TWL4030 GPIO6 as EXTMUTE signal */
 			twl_i2c_read_u8(TWL4030_MODULE_INTBR, &pin_mux,
@@ -295,7 +289,7 @@ static void twl4030_init_chip(struct snd_soc_component *component)
 
 	/* Machine dependent setup */
 	if (!board_params)
-		return;
+		return 0;
 
 	twl4030->board_params = board_params;
 
@@ -330,6 +324,8 @@ static void twl4030_init_chip(struct snd_soc_component *component)
 		  TWL4030_CNCL_OFFSET_START));
 
 	twl4030_codec_enable(component, 0);
+
+	return 0;
 }
 
 static void twl4030_apll_enable(struct snd_soc_component *component, int enable)
@@ -712,8 +708,8 @@ static void headset_ramp(struct snd_soc_component *component, int ramp)
 	/* Enable external mute control, this dramatically reduces
 	 * the pop-noise */
 	if (board_params && board_params->hs_extmute) {
-		if (gpio_is_valid(board_params->hs_extmute_gpio)) {
-			gpio_set_value(board_params->hs_extmute_gpio, 1);
+		if (board_params->hs_extmute_gpio) {
+			gpiod_set_value(board_params->hs_extmute_gpio, 1);
 		} else {
 			hs_pop |= TWL4030_EXTMUTE;
 			twl4030_write(component, TWL4030_REG_HS_POPN_SET, hs_pop);
@@ -748,8 +744,8 @@ static void headset_ramp(struct snd_soc_component *component, int ramp)
 
 	/* Disable external mute */
 	if (board_params && board_params->hs_extmute) {
-		if (gpio_is_valid(board_params->hs_extmute_gpio)) {
-			gpio_set_value(board_params->hs_extmute_gpio, 0);
+		if (board_params->hs_extmute_gpio) {
+			gpiod_set_value(board_params->hs_extmute_gpio, 0);
 		} else {
 			hs_pop &= ~TWL4030_EXTMUTE;
 			twl4030_write(component, TWL4030_REG_HS_POPN_SET, hs_pop);
@@ -2166,24 +2162,11 @@ static int twl4030_soc_probe(struct snd_soc_component *component)
 	/* Set the defaults, and power up the codec */
 	twl4030->sysclk = twl4030_audio_get_mclk() / 1000;
 
-	twl4030_init_chip(component);
-
-	return 0;
-}
-
-static void twl4030_soc_remove(struct snd_soc_component *component)
-{
-	struct twl4030_priv *twl4030 = snd_soc_component_get_drvdata(component);
-	struct twl4030_board_params *board_params = twl4030->board_params;
-
-	if (board_params && board_params->hs_extmute &&
-	    gpio_is_valid(board_params->hs_extmute_gpio))
-		gpio_free(board_params->hs_extmute_gpio);
+	return twl4030_init_chip(component);
 }
 
 static const struct snd_soc_component_driver soc_component_dev_twl4030 = {
 	.probe			= twl4030_soc_probe,
-	.remove			= twl4030_soc_remove,
 	.read			= twl4030_read,
 	.write			= twl4030_write,
 	.set_bias_level		= twl4030_set_bias_level,
