@@ -481,6 +481,14 @@
 			gpio-ranges = <&pinctrl_cbus 0 0 120>;
 		};
 
+		i2c_b_pins: i2c-b {
+			mux {
+				groups = "i2c_sda_b", "i2c_sck_b";
+				function = "i2c_b";
+				bias-disable;
+			};
+		};
+
 		sd_a_pins: sd-a {
 			mux {
 				groups = "sd_d0_a", "sd_d1_a", "sd_d2_a",
@@ -522,6 +530,16 @@
 				groups = "sdxc_d0_b", "sdxc_d13_b",
 					 "sdxc_clk_b", "sdxc_cmd_b";
 				function = "sdxc_b";
+				bias-pull-up;
+			};
+		};
+
+		sdxc_c_pins: sdxc-c {
+			mux {
+				groups = "sdxc_d0_c", "sdxc_d13_c",
+					"sdxc_clk_c", "sdxc_cmd_c",
+					"sdxc_d47_c";
+				function = "sdxc_c";
 				bias-pull-up;
 			};
 		};
