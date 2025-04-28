@@ -1168,6 +1168,24 @@ static const struct spi_controller_mem_caps nxp_fspi_mem_caps = {
 	.per_op_freq = true,
 };
 
+static void nxp_fspi_cleanup(void *data)
+{
+	struct nxp_fspi *f = data;
+
+	/* enable clock first since there is register access */
+	pm_runtime_get_sync(f->dev);
+
+	/* disable the hardware */
+	fspi_writel(f, FSPI_MCR0_MDIS, f->iobase + FSPI_MCR0);
+
+	pm_runtime_disable(f->dev);
+	pm_runtime_put_noidle(f->dev);
+	nxp_fspi_clk_disable_unprep(f);
+
+	if (f->ahb_addr)
+		iounmap(f->ahb_addr);
+}
+
 static int nxp_fspi_probe(struct platform_device *pdev)
 {
 	struct spi_controller *ctlr;
@@ -1263,25 +1281,11 @@ static int nxp_fspi_probe(struct platform_device *pdev)
 	ctlr->mem_caps = &nxp_fspi_mem_caps;
 	ctlr->dev.of_node = np;
 
+	ret = devm_add_action_or_reset(dev, nxp_fspi_cleanup, f);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to register nxp_fspi_cleanup\n");
+
 	return devm_spi_register_controller(&pdev->dev, ctlr);
-}
-
-static void nxp_fspi_remove(struct platform_device *pdev)
-{
-	struct nxp_fspi *f = platform_get_drvdata(pdev);
-
-	/* enable clock first since there is reigster access */
-	pm_runtime_get_sync(f->dev);
-
-	/* disable the hardware */
-	fspi_writel(f, FSPI_MCR0_MDIS, f->iobase + FSPI_MCR0);
-
-	pm_runtime_disable(f->dev);
-	pm_runtime_put_noidle(f->dev);
-	nxp_fspi_clk_disable_unprep(f);
-
-	if (f->ahb_addr)
-		iounmap(f->ahb_addr);
 }
 
 static int nxp_fspi_runtime_suspend(struct device *dev)
@@ -1361,7 +1365,6 @@ static struct platform_driver nxp_fspi_driver = {
 		.pm = pm_ptr(&nxp_fspi_pm_ops),
 	},
 	.probe          = nxp_fspi_probe,
-	.remove		= nxp_fspi_remove,
 };
 module_platform_driver(nxp_fspi_driver);
 
