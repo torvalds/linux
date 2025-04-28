@@ -162,6 +162,7 @@ struct spi_engine {
 	unsigned int offload_sdo_mem_size;
 	struct spi_offload *offload;
 	u32 offload_caps;
+	bool offload_requires_sync;
 };
 
 static void spi_engine_program_add_cmd(struct spi_engine_program *p,
@@ -702,6 +703,8 @@ static void spi_engine_offload_unprepare(struct spi_offload *offload)
 
 static int spi_engine_optimize_message(struct spi_message *msg)
 {
+	struct spi_controller *host = msg->spi->controller;
+	struct spi_engine *spi_engine = spi_controller_get_devdata(host);
 	struct spi_engine_program p_dry, *p;
 	int ret;
 
@@ -718,8 +721,13 @@ static int spi_engine_optimize_message(struct spi_message *msg)
 
 	spi_engine_compile_message(msg, false, p);
 
-	spi_engine_program_add_cmd(p, false, SPI_ENGINE_CMD_SYNC(
-		msg->offload ? 0 : AXI_SPI_ENGINE_CUR_MSG_SYNC_ID));
+	/*
+	 * Non-offload needs SYNC for completion interrupt. Older versions of
+	 * the IP core also need SYNC for offload to work properly.
+	 */
+	if (!msg->offload || spi_engine->offload_requires_sync)
+		spi_engine_program_add_cmd(p, false, SPI_ENGINE_CMD_SYNC(
+			msg->offload ? 0 : AXI_SPI_ENGINE_CUR_MSG_SYNC_ID));
 
 	msg->opt_state = p;
 
@@ -1054,6 +1062,9 @@ static int spi_engine_probe(struct platform_device *pdev)
 		spi_engine->offload_ctrl_mem_size = SPI_ENGINE_OFFLOAD_CMD_FIFO_SIZE;
 		spi_engine->offload_sdo_mem_size = SPI_ENGINE_OFFLOAD_SDO_FIFO_SIZE;
 	}
+
+	/* IP v1.5 dropped the requirement for SYNC in offload messages. */
+	spi_engine->offload_requires_sync = ADI_AXI_PCORE_VER_MINOR(version) < 5;
 
 	writel_relaxed(0x00, spi_engine->base + SPI_ENGINE_REG_RESET);
 	writel_relaxed(0xff, spi_engine->base + SPI_ENGINE_REG_INT_PENDING);
