@@ -43,6 +43,21 @@ struct apml_cpuid_msg {
 	__u32 pad;
 };
 
+struct apml_mcamsr_msg {
+	/*
+	 * MCAMSR input
+	 * [0]...[3] mca msr func,
+	 * [4][5] thread
+	 * MCAMSR output
+	 */
+	__u64 mcamsr_in_out;
+	/*
+	 * Status code for MCA/MSR access
+	 */
+	__u32 fw_ret_code;
+	__u32 pad;
+};
+
 /*
  * AMD sideband interface base IOCTL
  */
@@ -84,5 +99,23 @@ struct apml_cpuid_msg {
  * "-EPROTOTYPE" error is returned to provide additional error details
  */
 #define SBRMI_IOCTL_CPUID_CMD		_IOWR(SB_BASE_IOCTL_NR, 1, struct apml_cpuid_msg)
+
+/**
+ * DOC: SBRMI_IOCTL_MCAMSR_CMD
+ *
+ * @Parameters
+ *
+ * @struct apml_mcamsr_msg
+ *	Pointer to the &struct apml_mcamsr_msg that will contain the protocol
+ *	information
+ *
+ * @Description
+ * IOCTL command for APML messages using generic _IOWR
+ * The IOCTL provides userspace access to AMD sideband MCAMSR protocol
+ * - MCAMSR protocol to get MCA bank details for Function at thread level
+ * - returning "-EFAULT" if none of the above
+ * "-EPROTOTYPE" error is returned to provide additional error details
+ */
+#define SBRMI_IOCTL_MCAMSR_CMD		_IOWR(SB_BASE_IOCTL_NR, 2, struct apml_mcamsr_msg)
 
 #endif /*_AMD_APML_H_*/
