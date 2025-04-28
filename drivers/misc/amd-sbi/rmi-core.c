@@ -350,6 +350,33 @@ exit_unlock:
 	return ret;
 }
 
+static int apml_rmi_reg_xfer(struct sbrmi_data *data,
+			     struct apml_reg_xfer_msg __user *arg)
+{
+	struct apml_reg_xfer_msg msg = { 0 };
+	unsigned int data_read;
+	int ret;
+
+	/* Copy the structure from user */
+	if (copy_from_user(&msg, arg, sizeof(struct apml_reg_xfer_msg)))
+		return -EFAULT;
+
+	mutex_lock(&data->lock);
+	if (msg.rflag) {
+		ret = regmap_read(data->regmap, msg.reg_addr, &data_read);
+		if (!ret)
+			msg.data_in_out = data_read;
+	} else {
+		ret = regmap_write(data->regmap, msg.reg_addr, msg.data_in_out);
+	}
+
+	mutex_unlock(&data->lock);
+
+	if (msg.rflag && !ret)
+		return copy_to_user(arg, &msg, sizeof(struct apml_reg_xfer_msg));
+	return ret;
+}
+
 static int apml_mailbox_xfer(struct sbrmi_data *data, struct apml_mbox_msg __user *arg)
 {
 	struct apml_mbox_msg msg = { 0 };
@@ -414,6 +441,8 @@ static long sbrmi_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		return apml_cpuid_xfer(data, argp);
 	case SBRMI_IOCTL_MCAMSR_CMD:
 		return apml_mcamsr_xfer(data, argp);
+	case SBRMI_IOCTL_REG_XFER_CMD:
+		return apml_rmi_reg_xfer(data, argp);
 	default:
 		return -ENOTTY;
 	}
