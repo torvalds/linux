@@ -256,11 +256,11 @@ static unsigned int dw_pcie_ep_get_rebar_offset(struct dw_pcie *pci,
 		return offset;
 
 	reg = dw_pcie_readl_dbi(pci, offset + PCI_REBAR_CTRL);
-	nbars = (reg & PCI_REBAR_CTRL_NBAR_MASK) >> PCI_REBAR_CTRL_NBAR_SHIFT;
+	nbars = FIELD_GET(PCI_REBAR_CTRL_NBAR_MASK, reg);
 
 	for (i = 0; i < nbars; i++, offset += PCI_REBAR_CTRL) {
 		reg = dw_pcie_readl_dbi(pci, offset + PCI_REBAR_CTRL);
-		bar_index = reg & PCI_REBAR_CTRL_BAR_IDX;
+		bar_index = FIELD_GET(PCI_REBAR_CTRL_BAR_IDX, reg);
 		if (bar_index == bar)
 			return offset;
 	}
@@ -875,8 +875,7 @@ static void dw_pcie_ep_init_non_sticky_registers(struct dw_pcie *pci)
 
 	if (offset) {
 		reg = dw_pcie_readl_dbi(pci, offset + PCI_REBAR_CTRL);
-		nbars = (reg & PCI_REBAR_CTRL_NBAR_MASK) >>
-			PCI_REBAR_CTRL_NBAR_SHIFT;
+		nbars = FIELD_GET(PCI_REBAR_CTRL_NBAR_MASK, reg);
 
 		/*
 		 * PCIe r6.0, sec 7.8.6.2 require us to support at least one
@@ -897,7 +896,7 @@ static void dw_pcie_ep_init_non_sticky_registers(struct dw_pcie *pci)
 			 * is why RESBAR_CAP_REG is written here.
 			 */
 			val = dw_pcie_readl_dbi(pci, offset + PCI_REBAR_CTRL);
-			bar = val & PCI_REBAR_CTRL_BAR_IDX;
+			bar = FIELD_GET(PCI_REBAR_CTRL_BAR_IDX, val);
 			if (ep->epf_bar[bar])
 				pci_epc_bar_size_to_rebar_cap(ep->epf_bar[bar]->size, &val);
 			else
