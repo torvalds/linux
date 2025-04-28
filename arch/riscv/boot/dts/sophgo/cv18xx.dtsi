@@ -341,7 +341,7 @@
 					   1024 1024 1024 1024>;
 			snps,priority = <0 1 2 3 4 5 6 7>;
 			snps,dma-masters = <2>;
-			snps,data-width = <4>;
+			snps,data-width = <2>;
 			status = "disabled";
 		};
 
