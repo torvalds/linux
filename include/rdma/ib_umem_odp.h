@@ -8,6 +8,7 @@
 
 #include <rdma/ib_umem.h>
 #include <rdma/ib_verbs.h>
+#include <linux/hmm.h>
 
 struct ib_umem_odp {
 	struct ib_umem umem;
@@ -66,19 +67,6 @@ static inline size_t ib_umem_odp_num_pages(struct ib_umem_odp *umem_odp)
 	return (ib_umem_end(umem_odp) - ib_umem_start(umem_odp)) >>
 	       umem_odp->page_shift;
 }
-
-/*
- * The lower 2 bits of the DMA address signal the R/W permissions for
- * the entry. To upgrade the permissions, provide the appropriate
- * bitmask to the map_dma_pages function.
- *
- * Be aware that upgrading a mapped address might result in change of
- * the DMA address for the page.
- */
-#define ODP_READ_ALLOWED_BIT  (1<<0ULL)
-#define ODP_WRITE_ALLOWED_BIT (1<<1ULL)
-
-#define ODP_DMA_ADDR_MASK (~(ODP_READ_ALLOWED_BIT | ODP_WRITE_ALLOWED_BIT))
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 

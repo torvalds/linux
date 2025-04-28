@@ -27,7 +27,7 @@ static bool rxe_ib_invalidate_range(struct mmu_interval_notifier *mni,
 	start = max_t(u64, ib_umem_start(umem_odp), range->start);
 	end = min_t(u64, ib_umem_end(umem_odp), range->end);
 
-	/* update umem_odp->dma_list */
+	/* update umem_odp->map.pfn_list */
 	ib_umem_odp_unmap_dma_pages(umem_odp, start, end);
 
 	mutex_unlock(&umem_odp->umem_mutex);
@@ -45,12 +45,11 @@ static int rxe_odp_do_pagefault_and_lock(struct rxe_mr *mr, u64 user_va, int bcn
 {
 	struct ib_umem_odp *umem_odp = to_ib_umem_odp(mr->umem);
 	bool fault = !(flags & RXE_PAGEFAULT_SNAPSHOT);
-	u64 access_mask;
+	u64 access_mask = 0;
 	int np;
 
-	access_mask = ODP_READ_ALLOWED_BIT;
 	if (umem_odp->umem.writable && !(flags & RXE_PAGEFAULT_RDONLY))
-		access_mask |= ODP_WRITE_ALLOWED_BIT;
+		access_mask |= HMM_PFN_WRITE;
 
 	/*
 	 * ib_umem_odp_map_dma_and_lock() locks umem_mutex on success.
@@ -138,7 +137,7 @@ static inline bool rxe_check_pagefault(struct ib_umem_odp *umem_odp,
 	while (addr < iova + length) {
 		idx = (addr - ib_umem_start(umem_odp)) >> umem_odp->page_shift;
 
-		if (!(umem_odp->dma_list[idx] & perm)) {
+		if (!(umem_odp->map.pfn_list[idx] & perm)) {
 			need_fault = true;
 			break;
 		}
@@ -162,15 +161,14 @@ static int rxe_odp_map_range_and_lock(struct rxe_mr *mr, u64 iova, int length, u
 {
 	struct ib_umem_odp *umem_odp = to_ib_umem_odp(mr->umem);
 	bool need_fault;
-	u64 perm;
+	u64 perm = 0;
 	int err;
 
 	if (unlikely(length < 1))
 		return -EINVAL;
 
-	perm = ODP_READ_ALLOWED_BIT;
 	if (!(flags & RXE_PAGEFAULT_RDONLY))
-		perm |= ODP_WRITE_ALLOWED_BIT;
+		perm |= HMM_PFN_WRITE;
 
 	mutex_lock(&umem_odp->umem_mutex);
 
