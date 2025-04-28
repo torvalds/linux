@@ -108,6 +108,13 @@ int clock_settime(clockid_t clockid, struct timespec *tp)
 }
 
 
+static __inline__
+double difftime(time_t time1, time_t time2)
+{
+	return time1 - time2;
+}
+
+
 static __attribute__((unused))
 time_t time(time_t *tptr)
 {
