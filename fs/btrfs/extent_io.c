@@ -1866,19 +1866,17 @@ static void set_btree_ioerr(struct extent_buffer *eb)
  * context.
  */
 static struct extent_buffer *find_extent_buffer_nolock(
-		const struct btrfs_fs_info *fs_info, u64 start)
+		struct btrfs_fs_info *fs_info, u64 start)
 {
 	struct extent_buffer *eb;
+	unsigned long index = (start >> fs_info->sectorsize_bits);
 
 	rcu_read_lock();
-	eb = radix_tree_lookup(&fs_info->buffer_radix,
-			       start >> fs_info->sectorsize_bits);
-	if (eb && atomic_inc_not_zero(&eb->refs)) {
-		rcu_read_unlock();
-		return eb;
-	}
+	eb = xa_load(&fs_info->buffer_tree, index);
+	if (eb && !atomic_inc_not_zero(&eb->refs))
+		eb = NULL;
 	rcu_read_unlock();
-	return NULL;
+	return eb;
 }
 
 static void end_bbio_meta_write(struct btrfs_bio *bbio)
@@ -2742,11 +2740,10 @@ static void detach_extent_buffer_folio(const struct extent_buffer *eb, struct fo
 
 	if (!btrfs_meta_is_subpage(fs_info)) {
 		/*
-		 * We do this since we'll remove the pages after we've
-		 * removed the eb from the radix tree, so we could race
-		 * and have this page now attached to the new eb.  So
-		 * only clear folio if it's still connected to
-		 * this eb.
+		 * We do this since we'll remove the pages after we've removed
+		 * the eb from the xarray, so we could race and have this page
+		 * now attached to the new eb.  So only clear folio if it's
+		 * still connected to this eb.
 		 */
 		if (folio_test_private(folio) && folio_get_private(folio) == eb) {
 			BUG_ON(test_bit(EXTENT_BUFFER_DIRTY, &eb->bflags));
@@ -2911,9 +2908,9 @@ static void check_buffer_tree_ref(struct extent_buffer *eb)
 {
 	int refs;
 	/*
-	 * The TREE_REF bit is first set when the extent_buffer is added
-	 * to the radix tree. It is also reset, if unset, when a new reference
-	 * is created by find_extent_buffer.
+	 * The TREE_REF bit is first set when the extent_buffer is added to the
+	 * xarray. It is also reset, if unset, when a new reference is created
+	 * by find_extent_buffer.
 	 *
 	 * It is only cleared in two cases: freeing the last non-tree
 	 * reference to the extent_buffer when its STALE bit is set or
@@ -2925,13 +2922,12 @@ static void check_buffer_tree_ref(struct extent_buffer *eb)
 	 * conditions between the calls to check_buffer_tree_ref in those
 	 * codepaths and clearing TREE_REF in try_release_extent_buffer.
 	 *
-	 * The actual lifetime of the extent_buffer in the radix tree is
-	 * adequately protected by the refcount, but the TREE_REF bit and
-	 * its corresponding reference are not. To protect against this
-	 * class of races, we call check_buffer_tree_ref from the codepaths
-	 * which trigger io. Note that once io is initiated, TREE_REF can no
-	 * longer be cleared, so that is the moment at which any such race is
-	 * best fixed.
+	 * The actual lifetime of the extent_buffer in the xarray is adequately
+	 * protected by the refcount, but the TREE_REF bit and its corresponding
+	 * reference are not. To protect against this class of races, we call
+	 * check_buffer_tree_ref() from the code paths which trigger io. Note that
+	 * once io is initiated, TREE_REF can no longer be cleared, so that is
+	 * the moment at which any such race is best fixed.
 	 */
 	refs = atomic_read(&eb->refs);
 	if (refs >= 2 && test_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags))
@@ -2995,23 +2991,25 @@ struct extent_buffer *alloc_test_extent_buffer(struct btrfs_fs_info *fs_info,
 		return ERR_PTR(-ENOMEM);
 	eb->fs_info = fs_info;
 again:
-	ret = radix_tree_preload(GFP_NOFS);
-	if (ret) {
-		exists = ERR_PTR(ret);
+	xa_lock_irq(&fs_info->buffer_tree);
+	exists = __xa_cmpxchg(&fs_info->buffer_tree, start >> fs_info->sectorsize_bits,
+			      NULL, eb, GFP_NOFS);
+	if (xa_is_err(exists)) {
+		ret = xa_err(exists);
+		xa_unlock_irq(&fs_info->buffer_tree);
+		btrfs_release_extent_buffer(eb);
+		return ERR_PTR(ret);
+	}
+	if (exists) {
+		if (!atomic_inc_not_zero(&exists->refs)) {
+			/* The extent buffer is being freed, retry. */
+			xa_unlock_irq(&fs_info->buffer_tree);
+			goto again;
+		}
+		xa_unlock_irq(&fs_info->buffer_tree);
 		goto free_eb;
 	}
-	spin_lock(&fs_info->buffer_lock);
-	ret = radix_tree_insert(&fs_info->buffer_radix,
-				start >> fs_info->sectorsize_bits, eb);
-	spin_unlock(&fs_info->buffer_lock);
-	radix_tree_preload_end();
-	if (ret == -EEXIST) {
-		exists = find_extent_buffer(fs_info, start);
-		if (exists)
-			goto free_eb;
-		else
-			goto again;
-	}
+	xa_unlock_irq(&fs_info->buffer_tree);
 	check_buffer_tree_ref(eb);
 
 	return eb;
@@ -3032,9 +3030,9 @@ static struct extent_buffer *grab_extent_buffer(struct btrfs_fs_info *fs_info,
 	lockdep_assert_held(&folio->mapping->i_private_lock);
 
 	/*
-	 * For subpage case, we completely rely on radix tree to ensure we
-	 * don't try to insert two ebs for the same bytenr.  So here we always
-	 * return NULL and just continue.
+	 * For subpage case, we completely rely on xarray to ensure we don't try
+	 * to insert two ebs for the same bytenr.  So here we always return NULL
+	 * and just continue.
 	 */
 	if (btrfs_meta_is_subpage(fs_info))
 		return NULL;
@@ -3165,7 +3163,7 @@ finish:
 	/*
 	 * To inform we have an extra eb under allocation, so that
 	 * detach_extent_buffer_page() won't release the folio private when the
-	 * eb hasn't been inserted into radix tree yet.
+	 * eb hasn't been inserted into the xarray yet.
 	 *
 	 * The ref will be decreased when the eb releases the page, in
 	 * detach_extent_buffer_page().  Thus needs no special handling in the
@@ -3299,10 +3297,9 @@ reallocate:
 
 		/*
 		 * We can't unlock the pages just yet since the extent buffer
-		 * hasn't been properly inserted in the radix tree, this
-		 * opens a race with btree_release_folio which can free a page
-		 * while we are still filling in all pages for the buffer and
-		 * we could crash.
+		 * hasn't been properly inserted into the xarray, this opens a
+		 * race with btree_release_folio() which can free a page while we
+		 * are still filling in all pages for the buffer and we could crash.
 		 */
 	}
 	if (uptodate)
@@ -3311,23 +3308,25 @@ reallocate:
 	if (page_contig)
 		eb->addr = folio_address(eb->folios[0]) + offset_in_page(eb->start);
 again:
-	ret = radix_tree_preload(GFP_NOFS);
-	if (ret)
+	xa_lock_irq(&fs_info->buffer_tree);
+	existing_eb = __xa_cmpxchg(&fs_info->buffer_tree,
+				   start >> fs_info->sectorsize_bits, NULL, eb,
+				   GFP_NOFS);
+	if (xa_is_err(existing_eb)) {
+		ret = xa_err(existing_eb);
+		xa_unlock_irq(&fs_info->buffer_tree);
 		goto out;
-
-	spin_lock(&fs_info->buffer_lock);
-	ret = radix_tree_insert(&fs_info->buffer_radix,
-				start >> fs_info->sectorsize_bits, eb);
-	spin_unlock(&fs_info->buffer_lock);
-	radix_tree_preload_end();
-	if (ret == -EEXIST) {
-		ret = 0;
-		existing_eb = find_extent_buffer(fs_info, start);
-		if (existing_eb)
-			goto out;
-		else
-			goto again;
 	}
+	if (existing_eb) {
+		if (!atomic_inc_not_zero(&existing_eb->refs)) {
+			xa_unlock_irq(&fs_info->buffer_tree);
+			goto again;
+		}
+		xa_unlock_irq(&fs_info->buffer_tree);
+		goto out;
+	}
+	xa_unlock_irq(&fs_info->buffer_tree);
+
 	/* add one reference for the tree */
 	check_buffer_tree_ref(eb);
 
@@ -3397,10 +3396,23 @@ static int release_extent_buffer(struct extent_buffer *eb)
 
 		spin_unlock(&eb->refs_lock);
 
-		spin_lock(&fs_info->buffer_lock);
-		radix_tree_delete_item(&fs_info->buffer_radix,
-				       eb->start >> fs_info->sectorsize_bits, eb);
-		spin_unlock(&fs_info->buffer_lock);
+		/*
+		 * We're erasing, theoretically there will be no allocations, so
+		 * just use GFP_ATOMIC.
+		 *
+		 * We use cmpxchg instead of erase because we do not know if
+		 * this eb is actually in the tree or not, we could be cleaning
+		 * up an eb that we allocated but never inserted into the tree.
+		 * Thus use cmpxchg to remove it from the tree if it is there,
+		 * or leave the other entry if this isn't in the tree.
+		 *
+		 * The documentation says that putting a NULL value is the same
+		 * as erase as long as XA_FLAGS_ALLOC is not set, which it isn't
+		 * in this case.
+		 */
+		xa_cmpxchg_irq(&fs_info->buffer_tree,
+			       eb->start >> fs_info->sectorsize_bits, eb, NULL,
+			       GFP_ATOMIC);
 
 		btrfs_leak_debug_del_eb(eb);
 		/* Should be safe to release folios at this point. */
@@ -4231,71 +4243,17 @@ void memmove_extent_buffer(const struct extent_buffer *dst,
 	}
 }
 
-#define GANG_LOOKUP_SIZE	16
-static struct extent_buffer *get_next_extent_buffer(
-		const struct btrfs_fs_info *fs_info, struct folio *folio, u64 bytenr)
-{
-	struct extent_buffer *gang[GANG_LOOKUP_SIZE];
-	struct extent_buffer *found = NULL;
-	u64 folio_start = folio_pos(folio);
-	u64 cur = folio_start;
-
-	ASSERT(in_range(bytenr, folio_start, PAGE_SIZE));
-	lockdep_assert_held(&fs_info->buffer_lock);
-
-	while (cur < folio_start + PAGE_SIZE) {
-		int ret;
-		int i;
-
-		ret = radix_tree_gang_lookup(&fs_info->buffer_radix,
-				(void **)gang, cur >> fs_info->sectorsize_bits,
-				min_t(unsigned int, GANG_LOOKUP_SIZE,
-				      PAGE_SIZE / fs_info->nodesize));
-		if (ret == 0)
-			goto out;
-		for (i = 0; i < ret; i++) {
-			/* Already beyond page end */
-			if (gang[i]->start >= folio_start + PAGE_SIZE)
-				goto out;
-			/* Found one */
-			if (gang[i]->start >= bytenr) {
-				found = gang[i];
-				goto out;
-			}
-		}
-		cur = gang[ret - 1]->start + gang[ret - 1]->len;
-	}
-out:
-	return found;
-}
-
 static int try_release_subpage_extent_buffer(struct folio *folio)
 {
 	struct btrfs_fs_info *fs_info = folio_to_fs_info(folio);
-	u64 cur = folio_pos(folio);
-	const u64 end = cur + PAGE_SIZE;
+	struct extent_buffer *eb;
+	unsigned long start = (folio_pos(folio) >> fs_info->sectorsize_bits);
+	unsigned long index = start;
+	unsigned long end = index + (PAGE_SIZE >> fs_info->sectorsize_bits) - 1;
 	int ret;
 
-	while (cur < end) {
-		struct extent_buffer *eb = NULL;
-
-		/*
-		 * Unlike try_release_extent_buffer() which uses folio private
-		 * to grab buffer, for subpage case we rely on radix tree, thus
-		 * we need to ensure radix tree consistency.
-		 *
-		 * We also want an atomic snapshot of the radix tree, thus go
-		 * with spinlock rather than RCU.
-		 */
-		spin_lock(&fs_info->buffer_lock);
-		eb = get_next_extent_buffer(fs_info, folio, cur);
-		if (!eb) {
-			/* No more eb in the page range after or at cur */
-			spin_unlock(&fs_info->buffer_lock);
-			break;
-		}
-		cur = eb->start + eb->len;
-
+	xa_lock_irq(&fs_info->buffer_tree);
+	xa_for_each_range(&fs_info->buffer_tree, index, eb, start, end) {
 		/*
 		 * The same as try_release_extent_buffer(), to ensure the eb
 		 * won't disappear out from under us.
@@ -4303,10 +4261,9 @@ static int try_release_subpage_extent_buffer(struct folio *folio)
 		spin_lock(&eb->refs_lock);
 		if (atomic_read(&eb->refs) != 1 || extent_buffer_under_io(eb)) {
 			spin_unlock(&eb->refs_lock);
-			spin_unlock(&fs_info->buffer_lock);
-			break;
+			continue;
 		}
-		spin_unlock(&fs_info->buffer_lock);
+		xa_unlock_irq(&fs_info->buffer_tree);
 
 		/*
 		 * If tree ref isn't set then we know the ref on this eb is a
@@ -4324,7 +4281,10 @@ static int try_release_subpage_extent_buffer(struct folio *folio)
 		 * release_extent_buffer() will release the refs_lock.
 		 */
 		release_extent_buffer(eb);
+		xa_lock_irq(&fs_info->buffer_tree);
 	}
+	xa_unlock_irq(&fs_info->buffer_tree);
+
 	/*
 	 * Finally to check if we have cleared folio private, as if we have
 	 * released all ebs in the page, the folio private should be cleared now.

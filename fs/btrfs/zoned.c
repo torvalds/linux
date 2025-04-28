@@ -2171,27 +2171,15 @@ static void wait_eb_writebacks(struct btrfs_block_group *block_group)
 {
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	const u64 end = block_group->start + block_group->length;
-	struct radix_tree_iter iter;
 	struct extent_buffer *eb;
-	void __rcu **slot;
+	unsigned long index, start = (block_group->start >> fs_info->sectorsize_bits);
 
 	rcu_read_lock();
-	radix_tree_for_each_slot(slot, &fs_info->buffer_radix, &iter,
-				 block_group->start >> fs_info->sectorsize_bits) {
-		eb = radix_tree_deref_slot(slot);
-		if (!eb)
-			continue;
-		if (radix_tree_deref_retry(eb)) {
-			slot = radix_tree_iter_retry(&iter);
-			continue;
-		}
-
+	xa_for_each_start(&fs_info->buffer_tree, index, eb, start) {
 		if (eb->start < block_group->start)
 			continue;
 		if (eb->start >= end)
 			break;
-
-		slot = radix_tree_iter_resume(slot, &iter);
 		rcu_read_unlock();
 		wait_on_extent_buffer_writeback(eb);
 		rcu_read_lock();
