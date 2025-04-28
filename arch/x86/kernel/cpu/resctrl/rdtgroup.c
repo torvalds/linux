@@ -3553,6 +3553,22 @@ static void mkdir_rdt_prepare_rmid_free(struct rdtgroup *rgrp)
 		free_rmid(rgrp->closid, rgrp->mon.rmid);
 }
 
+/*
+ * We allow creating mon groups only with in a directory called "mon_groups"
+ * which is present in every ctrl_mon group. Check if this is a valid
+ * "mon_groups" directory.
+ *
+ * 1. The directory should be named "mon_groups".
+ * 2. The mon group itself should "not" be named "mon_groups".
+ *   This makes sure "mon_groups" directory always has a ctrl_mon group
+ *   as parent.
+ */
+static bool is_mon_groups(struct kernfs_node *kn, const char *name)
+{
+	return (!strcmp(rdt_kn_name(kn), "mon_groups") &&
+		strcmp(name, "mon_groups"));
+}
+
 static int mkdir_rdt_prepare(struct kernfs_node *parent_kn,
 			     const char *name, umode_t mode,
 			     enum rdt_group_type rtype, struct rdtgroup **r)
@@ -3565,6 +3581,15 @@ static int mkdir_rdt_prepare(struct kernfs_node *parent_kn,
 	prdtgrp = rdtgroup_kn_lock_live(parent_kn);
 	if (!prdtgrp) {
 		ret = -ENODEV;
+		goto out_unlock;
+	}
+
+	/*
+	 * Check that the parent directory for a monitor group is a "mon_groups"
+	 * directory.
+	 */
+	if (rtype == RDTMON_GROUP && !is_mon_groups(parent_kn, name)) {
+		ret = -EPERM;
 		goto out_unlock;
 	}
 
@@ -3751,22 +3776,6 @@ out_unlock:
 	return ret;
 }
 
-/*
- * We allow creating mon groups only with in a directory called "mon_groups"
- * which is present in every ctrl_mon group. Check if this is a valid
- * "mon_groups" directory.
- *
- * 1. The directory should be named "mon_groups".
- * 2. The mon group itself should "not" be named "mon_groups".
- *   This makes sure "mon_groups" directory always has a ctrl_mon group
- *   as parent.
- */
-static bool is_mon_groups(struct kernfs_node *kn, const char *name)
-{
-	return (!strcmp(rdt_kn_name(kn), "mon_groups") &&
-		strcmp(name, "mon_groups"));
-}
-
 static int rdtgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 			  umode_t mode)
 {
@@ -3782,11 +3791,8 @@ static int rdtgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 	if (resctrl_arch_alloc_capable() && parent_kn == rdtgroup_default.kn)
 		return rdtgroup_mkdir_ctrl_mon(parent_kn, name, mode);
 
-	/*
-	 * If RDT monitoring is supported and the parent directory is a valid
-	 * "mon_groups" directory, add a monitoring subdirectory.
-	 */
-	if (resctrl_arch_mon_capable() && is_mon_groups(parent_kn, name))
+	/* Else, attempt to add a monitoring subdirectory. */
+	if (resctrl_arch_mon_capable())
 		return rdtgroup_mkdir_mon(parent_kn, name, mode);
 
 	return -EPERM;

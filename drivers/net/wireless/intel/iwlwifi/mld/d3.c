@@ -1099,7 +1099,8 @@ iwl_mld_set_netdetect_info(struct iwl_mld *mld,
 		if (!match)
 			return;
 
-		netdetect_info->matches[netdetect_info->n_matches++] = match;
+		netdetect_info->matches[netdetect_info->n_matches] = match;
+		netdetect_info->n_matches++;
 
 		/* We inverted the order of the SSIDs in the scan
 		 * request, so invert the index here.
@@ -1116,9 +1117,11 @@ iwl_mld_set_netdetect_info(struct iwl_mld *mld,
 
 		for_each_set_bit(j,
 				 (unsigned long *)&matches[i].matching_channels[0],
-				 sizeof(matches[i].matching_channels))
-			match->channels[match->n_channels++] =
+				 sizeof(matches[i].matching_channels)) {
+			match->channels[match->n_channels] =
 				netdetect_cfg->channels[j]->center_freq;
+			match->n_channels++;
+		}
 	}
 }
 
@@ -1895,7 +1898,6 @@ int iwl_mld_wowlan_resume(struct iwl_mld *mld)
 	int link_id;
 	int ret;
 	bool fw_err = false;
-	bool keep_connection;
 
 	lockdep_assert_wiphy(mld->wiphy);
 
@@ -1965,7 +1967,7 @@ int iwl_mld_wowlan_resume(struct iwl_mld *mld)
 		iwl_mld_process_netdetect_res(mld, bss_vif, &resume_data);
 		mld->netdetect = false;
 	} else {
-		keep_connection =
+		bool keep_connection =
 			iwl_mld_process_wowlan_status(mld, bss_vif,
 						      resume_data.wowlan_status);
 
@@ -1973,10 +1975,9 @@ int iwl_mld_wowlan_resume(struct iwl_mld *mld)
 		if (keep_connection)
 			iwl_mld_unblock_emlsr(mld, bss_vif,
 					      IWL_MLD_EMLSR_BLOCKED_WOWLAN);
+		else
+			ieee80211_resume_disconnect(bss_vif);
 	}
-
-	if (!mld->netdetect && !keep_connection)
-		ieee80211_resume_disconnect(bss_vif);
 
 	goto out;
 

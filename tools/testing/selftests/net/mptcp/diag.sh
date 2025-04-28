@@ -206,9 +206,8 @@ chk_dump_one()
 	local token
 	local msg
 
-	ss_token="$(ss -inmHMN $ns | grep 'token:' |\
-		    head -n 1 |\
-		    sed 's/.*token:\([0-9a-f]*\).*/\1/')"
+	ss_token="$(ss -inmHMN $ns |
+		    mptcp_lib_get_info_value "token" "token")"
 
 	token="$(ip netns exec $ns ./mptcp_diag -t $ss_token |\
 		 awk -F':[ \t]+' '/^token/ {print $2}')"

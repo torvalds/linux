@@ -212,7 +212,7 @@ config NF_CT_PROTO_SCTP
 	bool 'SCTP protocol connection tracking support'
 	depends on NETFILTER_ADVANCED
 	default y
-	select LIBCRC32C
+	select CRC32
 	help
 	  With this option enabled, the layer 3 independent connection
 	  tracking code will be able to do state tracking on SCTP connections.
@@ -475,7 +475,7 @@ endif # NF_CONNTRACK
 
 config NF_TABLES
 	select NETFILTER_NETLINK
-	select LIBCRC32C
+	select CRC32
 	tristate "Netfilter nf_tables support"
 	help
 	  nftables is the new packet classification framework that intends to

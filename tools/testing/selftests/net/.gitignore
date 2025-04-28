@@ -39,6 +39,7 @@ scm_rights
 sk_bind_sendto_listen
 sk_connect_zero_addr
 sk_so_peek_off
+skf_net_off
 socket
 so_incoming_cpu
 so_netns_cookie

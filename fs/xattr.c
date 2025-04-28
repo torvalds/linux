@@ -703,7 +703,7 @@ static int path_setxattrat(int dfd, const char __user *pathname,
 		return error;
 
 	filename = getname_maybe_null(pathname, at_flags);
-	if (!filename) {
+	if (!filename && dfd >= 0) {
 		CLASS(fd, f)(dfd);
 		if (fd_empty(f))
 			error = -EBADF;
@@ -847,7 +847,7 @@ static ssize_t path_getxattrat(int dfd, const char __user *pathname,
 		return error;
 
 	filename = getname_maybe_null(pathname, at_flags);
-	if (!filename) {
+	if (!filename && dfd >= 0) {
 		CLASS(fd, f)(dfd);
 		if (fd_empty(f))
 			return -EBADF;

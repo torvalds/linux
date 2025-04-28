@@ -151,6 +151,7 @@ static const struct irq_domain_ops sg2042_msi_middle_domain_ops = {
 static const struct msi_parent_ops sg2042_msi_parent_ops = {
 	.required_flags		= SG2042_MSI_FLAGS_REQUIRED,
 	.supported_flags	= SG2042_MSI_FLAGS_SUPPORTED,
+	.chip_flags		= MSI_CHIP_FLAG_SET_ACK,
 	.bus_select_mask	= MATCH_PCI_MSI,
 	.bus_select_token	= DOMAIN_BUS_NEXUS,
 	.prefix			= "SG2042-",

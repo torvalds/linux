@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef BLK_THROTTLE_H
 #define BLK_THROTTLE_H
 
