@@ -12,6 +12,8 @@
 
 #define private(name) SEC(".data." #name) __hidden __attribute__((aligned(8)))
 
+struct bpf_sk_buff_ptr;
+
 u32 bpf_skb_get_hash(struct sk_buff *p) __ksym;
 void bpf_kfree_skb(struct sk_buff *p) __ksym;
 void bpf_qdisc_skb_drop(struct sk_buff *p, struct bpf_sk_buff_ptr *to_free) __ksym;
