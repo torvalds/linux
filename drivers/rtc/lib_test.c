@@ -41,15 +41,15 @@ static void rtc_time64_to_tm_test_date_range(struct kunit *test, int years)
 	 */
 	time64_t total_secs = ((time64_t)years) / 400 * 146097 * 86400;
 
-	int year	= 1970;
+	int year	= 1900;
 	int month	= 1;
 	int mday	= 1;
 	int yday	= 1;
-	int wday	= 4; /* Jan 1st 1970 was a Thursday */
+	int wday	= 1; /* Jan 1st 1900 was a Monday */
 
 	struct rtc_time result;
 	time64_t secs;
-	const time64_t sec_offset = ((1 * 60) + 2) * 60 + 3;
+	const time64_t sec_offset = RTC_TIMESTAMP_BEGIN_1900 + ((1 * 60) + 2) * 60 + 3;
 
 	for (secs = 0; secs <= total_secs; secs += 86400) {
 
@@ -72,7 +72,7 @@ static void rtc_time64_to_tm_test_date_range(struct kunit *test, int years)
 }
 
 /*
- * Checks every day in a 160000 years interval starting on 1970-01-01
+ * Checks every day in a 160000 years interval starting on 1900-01-01
  * against the expected result.
  */
 static void rtc_time64_to_tm_test_date_range_160000(struct kunit *test)
@@ -81,7 +81,7 @@ static void rtc_time64_to_tm_test_date_range_160000(struct kunit *test)
 }
 
 /*
- * Checks every day in a 1000 years interval starting on 1970-01-01
+ * Checks every day in a 1000 years interval starting on 1900-01-01
  * against the expected result.
  */
 static void rtc_time64_to_tm_test_date_range_1000(struct kunit *test)
