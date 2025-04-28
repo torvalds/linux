@@ -100,43 +100,6 @@ static void brd_free_pages(struct brd_device *brd)
 }
 
 /*
- * Copy n bytes from src to the brd starting at sector. Does not sleep.
- */
-static void copy_to_brd(struct brd_device *brd, const void *src,
-			sector_t sector, size_t n)
-{
-	struct page *page;
-	void *dst;
-	unsigned int offset = (sector & (PAGE_SECTORS-1)) << SECTOR_SHIFT;
-
-	page = brd_lookup_page(brd, sector);
-	BUG_ON(!page);
-
-	dst = kmap_atomic(page);
-	memcpy(dst + offset, src, n);
-	kunmap_atomic(dst);
-}
-
-/*
- * Copy n bytes to dst from the brd starting at sector. Does not sleep.
- */
-static void copy_from_brd(void *dst, struct brd_device *brd,
-			sector_t sector, size_t n)
-{
-	struct page *page;
-	void *src;
-	unsigned int offset = (sector & (PAGE_SECTORS-1)) << SECTOR_SHIFT;
-
-	page = brd_lookup_page(brd, sector);
-	if (page) {
-		src = kmap_atomic(page);
-		memcpy(dst, src + offset, n);
-		kunmap_atomic(src);
-	} else
-		memset(dst, 0, n);
-}
-
-/*
  * Process a single segment.  The segment is capped to not cross page boundaries
  * in both the bio and the brd backing memory.
  */
@@ -146,7 +109,8 @@ static bool brd_rw_bvec(struct brd_device *brd, struct bio *bio)
 	sector_t sector = bio->bi_iter.bi_sector;
 	u32 offset = (sector & (PAGE_SECTORS - 1)) << SECTOR_SHIFT;
 	blk_opf_t opf = bio->bi_opf;
-	void *mem;
+	struct page *page;
+	void *kaddr;
 
 	bv.bv_len = min_t(u32, bv.bv_len, PAGE_SIZE - offset);
 
@@ -168,15 +132,19 @@ static bool brd_rw_bvec(struct brd_device *brd, struct bio *bio)
 		}
 	}
 
-	mem = bvec_kmap_local(&bv);
-	if (!op_is_write(opf)) {
-		copy_from_brd(mem, brd, sector, bv.bv_len);
-		flush_dcache_page(bv.bv_page);
+	page = brd_lookup_page(brd, sector);
+
+	kaddr = bvec_kmap_local(&bv);
+	if (op_is_write(opf)) {
+		BUG_ON(!page);
+		memcpy_to_page(page, offset, kaddr, bv.bv_len);
 	} else {
-		flush_dcache_page(bv.bv_page);
-		copy_to_brd(brd, mem, sector, bv.bv_len);
+		if (page)
+			memcpy_from_page(kaddr, page, offset, bv.bv_len);
+		else
+			memset(kaddr, 0, bv.bv_len);
 	}
-	kunmap_local(mem);
+	kunmap_local(kaddr);
 
 	bio_advance_iter_single(bio, &bio->bi_iter, bv.bv_len);
 	return true;
