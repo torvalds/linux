@@ -141,6 +141,7 @@ struct spi_engine_offload {
 	struct spi_engine *spi_engine;
 	unsigned long flags;
 	unsigned int offload_num;
+	unsigned int spi_mode_config;
 };
 
 struct spi_engine {
@@ -284,6 +285,7 @@ static void spi_engine_compile_message(struct spi_message *msg, bool dry,
 {
 	struct spi_device *spi = msg->spi;
 	struct spi_controller *host = spi->controller;
+	struct spi_engine_offload *priv;
 	struct spi_transfer *xfer;
 	int clk_div, new_clk_div, inst_ns;
 	bool keep_cs = false;
@@ -297,9 +299,18 @@ static void spi_engine_compile_message(struct spi_message *msg, bool dry,
 
 	clk_div = 1;
 
-	spi_engine_program_add_cmd(p, dry,
-		SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CONFIG,
-			spi_engine_get_config(spi)));
+	/*
+	 * As an optimization, SPI offload sets once this when the offload is
+	 * enabled instead of repeating the instruction in each message.
+	 */
+	if (msg->offload) {
+		priv = msg->offload->priv;
+		priv->spi_mode_config = spi_engine_get_config(spi);
+	} else {
+		spi_engine_program_add_cmd(p, dry,
+			SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CONFIG,
+				spi_engine_get_config(spi)));
+	}
 
 	xfer = list_first_entry(&msg->transfers, struct spi_transfer, transfer_list);
 	spi_engine_gen_cs(p, dry, spi, !xfer->cs_off);
@@ -842,6 +853,22 @@ static int spi_engine_trigger_enable(struct spi_offload *offload)
 	struct spi_engine_offload *priv = offload->priv;
 	struct spi_engine *spi_engine = priv->spi_engine;
 	unsigned int reg;
+	int ret;
+
+	writel_relaxed(SPI_ENGINE_CMD_SYNC(0),
+		spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
+
+	writel_relaxed(SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CONFIG,
+					    priv->spi_mode_config),
+		       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
+
+	writel_relaxed(SPI_ENGINE_CMD_SYNC(1),
+		spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
+
+	ret = readl_relaxed_poll_timeout(spi_engine->base + SPI_ENGINE_REG_SYNC_ID,
+					 reg, reg == 1, 1, 1000);
+	if (ret)
+		return ret;
 
 	reg = readl_relaxed(spi_engine->base +
 			    SPI_ENGINE_REG_OFFLOAD_CTRL(priv->offload_num));
