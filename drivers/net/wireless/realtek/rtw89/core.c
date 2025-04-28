@@ -203,6 +203,23 @@ static const struct ieee80211_iface_combination rtw89_iface_combs[] = {
 	},
 };
 
+static const u8 rtw89_ext_capa_sta[] = {
+	[2] = WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT,
+	[7] = WLAN_EXT_CAPA8_OPMODE_NOTIF,
+};
+
+static const struct wiphy_iftype_ext_capab rtw89_iftypes_ext_capa[] = {
+	{
+		.iftype = NL80211_IFTYPE_STATION,
+		.extended_capabilities = rtw89_ext_capa_sta,
+		.extended_capabilities_mask = rtw89_ext_capa_sta,
+		.extended_capabilities_len = sizeof(rtw89_ext_capa_sta),
+		/* relevant only if EHT is supported */
+		.eml_capabilities = 0,
+		.mld_capa_and_ops = 0,
+	},
+};
+
 #define RTW89_6GHZ_SPAN_HEAD 6145
 #define RTW89_6GHZ_SPAN_IDX(center_freq) \
 	((((int)(center_freq) - RTW89_6GHZ_SPAN_HEAD) / 5) / 2)
@@ -5316,8 +5333,11 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 	if (chip->chip_gen == RTW89_CHIP_BE)
 		hw->wiphy->flags |= WIPHY_FLAG_DISABLE_WEXT;
 
-	if (rtwdev->support_mlo)
+	if (rtwdev->support_mlo) {
 		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_MLO;
+		hw->wiphy->iftype_ext_capab = rtw89_iftypes_ext_capa;
+		hw->wiphy->num_iftype_ext_capab = ARRAY_SIZE(rtw89_iftypes_ext_capa);
+	}
 
 	hw->wiphy->features |= NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
 
