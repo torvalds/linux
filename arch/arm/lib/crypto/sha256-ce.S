@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * sha2-ce-core.S - SHA-224/256 secure hash using ARMv8 Crypto Extensions
+ * sha256-ce.S - SHA-224/256 secure hash using ARMv8 Crypto Extensions
  *
  * Copyright (C) 2015 Linaro Ltd.
  * Author: Ard Biesheuvel <ard.biesheuvel@linaro.org>
@@ -67,10 +67,10 @@
 	.word		0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 
 	/*
-	 * void sha2_ce_transform(struct sha256_state *sst, u8 const *src,
-				  int blocks);
+	 * void sha256_ce_transform(u32 state[SHA256_STATE_WORDS],
+	 *			    const u8 *data, size_t nblocks);
 	 */
-ENTRY(sha2_ce_transform)
+ENTRY(sha256_ce_transform)
 	/* load state */
 	vld1.32		{dga-dgb}, [r0]
 
@@ -120,4 +120,4 @@ ENTRY(sha2_ce_transform)
 	/* store new state */
 	vst1.32		{dga-dgb}, [r0]
 	bx		lr
-ENDPROC(sha2_ce_transform)
+ENDPROC(sha256_ce_transform)
