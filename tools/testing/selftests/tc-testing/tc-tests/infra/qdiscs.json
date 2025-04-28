@@ -538,5 +538,40 @@
             "$TC qdisc del dev $DUMMY handle 1:0 root",
             "$IP addr del 10.10.10.10/24 dev $DUMMY || true"
         ]
+    },
+    {
+        "id": "62c4",
+        "name": "Test HTB with FQ_CODEL - basic functionality",
+        "category": [
+            "qdisc",
+            "htb",
+            "fq_codel"
+        ],
+        "plugins": {
+            "requires": [
+                "nsPlugin",
+                "scapyPlugin"
+            ]
+        },
+        "setup": [
+            "$TC qdisc add dev $DEV1 root handle 1: htb default 11",
+            "$TC class add dev $DEV1 parent 1: classid 1:1 htb rate 10kbit",
+            "$TC class add dev $DEV1 parent 1:1 classid 1:11 htb rate 10kbit prio 0 quantum 1486",
+            "$TC qdisc add dev $DEV1 parent 1:11 fq_codel quantum 300 noecn",
+            "sleep 0.5"
+        ],
+        "scapy": {
+            "iface": "$DEV0",
+            "count": 5,
+            "packet": "Ether()/IP(dst='10.10.10.1', src='10.10.10.10')/TCP(sport=12345, dport=80)"
+        },
+        "cmdUnderTest": "$TC -s qdisc show dev $DEV1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -s qdisc show dev $DEV1 | grep -A 5 'qdisc fq_codel'",
+        "matchPattern": "Sent [0-9]+ bytes [0-9]+ pkt",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 handle 1: root"
+        ]
     }
 ]
