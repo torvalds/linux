@@ -1654,10 +1654,7 @@ static void rtw89_core_rx_process_phy_ppdu_iter(void *data,
 	u8 evm_pos = 0;
 	int i;
 
-	/* FIXME: For single link, taking link on HW-0 here is okay. But, when
-	 * enabling multiple active links, we should determine the right link.
-	 */
-	rtwsta_link = rtw89_sta_get_link_inst(rtwsta, 0);
+	rtwsta_link = rtw89_sta_get_link_inst(rtwsta, phy_ppdu->phy_idx);
 	if (unlikely(!rtwsta_link))
 		return;
 
@@ -2182,8 +2179,10 @@ static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 	struct rtw89_pkt_stat *pkt_stat = &rtwdev->phystat.cur_pkt_stat;
 	struct rtw89_rx_desc_info *desc_info = iter_data->desc_info;
 	struct sk_buff *skb = iter_data->skb;
+	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct rtw89_rx_phy_ppdu *phy_ppdu = iter_data->phy_ppdu;
+	bool is_mld = ieee80211_vif_is_mld(vif);
 	struct ieee80211_bss_conf *bss_conf;
 	struct rtw89_vif_link *rtwvif_link;
 	const u8 *bssid = iter_data->bssid;
@@ -2195,10 +2194,7 @@ static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 
 	rcu_read_lock();
 
-	/* FIXME: For single link, taking link on HW-0 here is okay. But, when
-	 * enabling multiple active links, we should determine the right link.
-	 */
-	rtwvif_link = rtw89_vif_get_link_inst(rtwvif, 0);
+	rtwvif_link = rtw89_vif_get_link_inst(rtwvif, desc_info->bb_sel);
 	if (unlikely(!rtwvif_link))
 		goto out;
 
@@ -2213,6 +2209,11 @@ static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 
 	if (!ether_addr_equal(bss_conf->bssid, bssid))
 		goto out;
+
+	if (is_mld) {
+		rx_status->link_valid = true;
+		rx_status->link_id = rtwvif_link->link_id;
+	}
 
 	if (ieee80211_is_beacon(hdr->frame_control)) {
 		if (vif->type == NL80211_IFTYPE_STATION &&
@@ -2512,7 +2513,8 @@ static void rtw89_core_rx_process_ppdu_sts(struct rtw89_dev *rtwdev,
 					     .len = skb->len,
 					     .to_self = desc_info->addr1_match,
 					     .rate = desc_info->data_rate,
-					     .mac_id = desc_info->mac_id};
+					     .mac_id = desc_info->mac_id,
+					     .phy_idx = desc_info->bb_sel};
 	int ret;
 
 	if (desc_info->mac_info_valid) {
@@ -2623,6 +2625,7 @@ void rtw89_core_query_rxdesc_v2(struct rtw89_dev *rtwdev,
 	desc_info->shift = le32_get_bits(rxd_s->dword0, BE_RXD_SHIFT_MASK);
 	desc_info->long_rxdesc = le32_get_bits(rxd_s->dword0, BE_RXD_LONG_RXD);
 	desc_info->pkt_type = le32_get_bits(rxd_s->dword0, BE_RXD_RPKT_TYPE_MASK);
+	desc_info->bb_sel = le32_get_bits(rxd_s->dword0, BE_RXD_BB_SEL);
 	if (desc_info->pkt_type == RTW89_CORE_RX_TYPE_PPDU_STAT)
 		desc_info->mac_info_valid = true;
 
@@ -2695,10 +2698,7 @@ void rtw89_core_stats_sta_rx_status_iter(void *data, struct ieee80211_sta *sta)
 	struct rtw89_sta_link *rtwsta_link;
 	u8 mac_id = iter_data->mac_id;
 
-	/* FIXME: For single link, taking link on HW-0 here is okay. But, when
-	 * enabling multiple active links, we should determine the right link.
-	 */
-	rtwsta_link = rtw89_sta_get_link_inst(rtwsta, 0);
+	rtwsta_link = rtw89_sta_get_link_inst(rtwsta, desc_info->bb_sel);
 	if (unlikely(!rtwsta_link))
 		return;
 

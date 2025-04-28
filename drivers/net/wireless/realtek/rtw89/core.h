@@ -798,6 +798,7 @@ struct rtw89_rx_phy_ppdu {
 	u8 rssi[RF_PATH_MAX];
 	u8 mac_id;
 	u8 chan_idx;
+	u8 phy_idx;
 	u8 ie;
 	u16 rate;
 	u8 rpl_avg;
