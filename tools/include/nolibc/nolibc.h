@@ -106,6 +106,7 @@
 #include "sys/wait.h"
 #include "ctype.h"
 #include "elf.h"
+#include "sched.h"
 #include "signal.h"
 #include "unistd.h"
 #include "stdio.h"

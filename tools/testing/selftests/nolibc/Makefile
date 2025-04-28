@@ -109,6 +109,8 @@ DEFCONFIG            = $(DEFCONFIG_$(XARCH))
 
 EXTRACONFIG_m68k      = -e CONFIG_BLK_DEV_INITRD
 EXTRACONFIG           = $(EXTRACONFIG_$(XARCH))
+EXTRACONFIG_arm       = -e CONFIG_NAMESPACES
+EXTRACONFIG_armthumb  = -e CONFIG_NAMESPACES
 
 # optional tests to run (default = all)
 TEST =
