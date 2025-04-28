@@ -952,10 +952,8 @@ enum dmub_status dmub_srv_wait_for_pending(struct dmub_srv *dmub,
 			!dmub->hw_funcs.get_inbox1_wptr)
 		return DMUB_STATUS_INVALID;
 
-	/* take a snapshot of the required mailbox state */
-	scratch_inbox1.rb.wrpt = dmub->hw_funcs.get_inbox1_wptr(dmub);
-
 	for (i = 0; i <= timeout_us; i += polling_interval_us) {
+			scratch_inbox1.rb.wrpt = dmub->hw_funcs.get_inbox1_wptr(dmub);
 			scratch_inbox1.rb.rptr = dmub->hw_funcs.get_inbox1_rptr(dmub);
 
 		scratch_reg_inbox0.is_pending = scratch_reg_inbox0.is_pending &&
@@ -976,30 +974,6 @@ enum dmub_status dmub_srv_wait_for_pending(struct dmub_srv *dmub,
 	}
 
 	return DMUB_STATUS_TIMEOUT;
-}
-
-static enum dmub_status dmub_srv_update_inbox_status(struct dmub_srv *dmub)
-{
-	uint32_t rptr;
-
-	/* update inbox1 state */
-		rptr = dmub->hw_funcs.get_inbox1_rptr(dmub);
-
-	if (rptr > dmub->inbox1.rb.capacity)
-		return DMUB_STATUS_HW_FAILURE;
-
-	if (dmub->inbox1.rb.rptr > rptr) {
-		/* rb wrapped */
-		dmub->inbox1.num_reported += (rptr + dmub->inbox1.rb.capacity - dmub->inbox1.rb.rptr) / DMUB_RB_CMD_SIZE;
-	} else {
-		dmub->inbox1.num_reported += (rptr - dmub->inbox1.rb.rptr) / DMUB_RB_CMD_SIZE;
-	}
-	dmub->inbox1.rb.rptr = rptr;
-
-	/* update reg_inbox0 */
-	dmub_srv_update_reg_inbox0_status(dmub);
-
-	return DMUB_STATUS_OK;
 }
 
 enum dmub_status dmub_srv_wait_for_idle(struct dmub_srv *dmub,
@@ -1352,4 +1326,34 @@ enum dmub_status dmub_srv_wait_for_inbox_free(struct dmub_srv *dmub,
 	}
 
 	return DMUB_STATUS_TIMEOUT;
+}
+
+enum dmub_status dmub_srv_update_inbox_status(struct dmub_srv *dmub)
+{
+	uint32_t rptr;
+
+	if (!dmub->hw_init)
+		return DMUB_STATUS_INVALID;
+
+	if (dmub->power_state != DMUB_POWER_STATE_D0)
+		return DMUB_STATUS_POWER_STATE_D3;
+
+	/* update inbox1 state */
+	rptr = dmub->hw_funcs.get_inbox1_rptr(dmub);
+
+	if (rptr > dmub->inbox1.rb.capacity)
+		return DMUB_STATUS_HW_FAILURE;
+
+	if (dmub->inbox1.rb.rptr > rptr) {
+		/* rb wrapped */
+		dmub->inbox1.num_reported += (rptr + dmub->inbox1.rb.capacity - dmub->inbox1.rb.rptr) / DMUB_RB_CMD_SIZE;
+	} else {
+		dmub->inbox1.num_reported += (rptr - dmub->inbox1.rb.rptr) / DMUB_RB_CMD_SIZE;
+	}
+	dmub->inbox1.rb.rptr = rptr;
+
+	/* update reg_inbox0 */
+	dmub_srv_update_reg_inbox0_status(dmub);
+
+	return DMUB_STATUS_OK;
 }

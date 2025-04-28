@@ -207,7 +207,7 @@ static bool dc_dmub_srv_fb_cmd_list_queue_execute(struct dc_dmub_srv *dc_dmub_sr
 				return false;
 
 			do {
-				status = dmub_srv_wait_for_inbox_free(dmub, 100000, count - i);
+					status = dmub_srv_wait_for_inbox_free(dmub, 100000, count - i);
 			} while (dc_dmub_srv->ctx->dc->debug.disable_timeout && status != DMUB_STATUS_OK);
 
 			/* Requeue the command. */
@@ -247,6 +247,9 @@ bool dc_dmub_srv_cmd_list_queue_execute(struct dc_dmub_srv *dc_dmub_srv,
 		} else {
 			res = dc_dmub_srv_fb_cmd_list_queue_execute(dc_dmub_srv, count, cmd_list);
 		}
+
+		if (res)
+			res = dmub_srv_update_inbox_status(dc_dmub_srv->dmub) == DMUB_STATUS_OK;
 	}
 
 	return res;
