@@ -45,7 +45,7 @@ void bch2_fs_free(struct bch_fs *);
 void bch2_fs_stop(struct bch_fs *);
 
 int bch2_fs_start(struct bch_fs *);
-struct bch_fs *bch2_fs_open(char * const *, unsigned, struct bch_opts);
+struct bch_fs *bch2_fs_open(darray_const_str *, struct bch_opts *);
 
 extern const struct blk_holder_ops bch2_sb_handle_bdev_ops;
 

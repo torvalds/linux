@@ -807,7 +807,7 @@ static int bch2_fs_init_rw(struct bch_fs *c)
 	return 0;
 }
 
-static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts,
+static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts *opts,
 				    bch_sb_handles *sbs)
 {
 	struct bch_fs *c;
@@ -821,7 +821,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts,
 		goto out;
 	}
 
-	c->stdio = (void *)(unsigned long) opts.stdio;
+	c->stdio = (void *)(unsigned long) opts->stdio;
 
 	__module_get(THIS_MODULE);
 
@@ -921,7 +921,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts,
 	if (ret)
 		goto err;
 
-	bch2_opts_apply(&c->opts, opts);
+	bch2_opts_apply(&c->opts, *opts);
 
 	c->btree_key_cache_btrees |= 1U << BTREE_ID_alloc;
 	if (c->opts.inodes_use_key_cache)
@@ -2273,8 +2273,8 @@ static inline int sb_cmp(struct bch_sb *l, struct bch_sb *r)
 		cmp_int(le64_to_cpu(l->write_time), le64_to_cpu(r->write_time));
 }
 
-struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
-			    struct bch_opts opts)
+struct bch_fs *bch2_fs_open(darray_const_str *devices,
+			    struct bch_opts *opts)
 {
 	bch_sb_handles sbs = {};
 	struct bch_fs *c = NULL;
@@ -2285,26 +2285,26 @@ struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 	if (!try_module_get(THIS_MODULE))
 		return ERR_PTR(-ENODEV);
 
-	if (!nr_devices) {
+	if (!devices->nr) {
 		ret = -EINVAL;
 		goto err;
 	}
 
-	ret = darray_make_room(&sbs, nr_devices);
+	ret = darray_make_room(&sbs, devices->nr);
 	if (ret)
 		goto err;
 
-	for (unsigned i = 0; i < nr_devices; i++) {
+	darray_for_each(*devices, i) {
 		struct bch_sb_handle sb = { NULL };
 
-		ret = bch2_read_super(devices[i], &opts, &sb);
+		ret = bch2_read_super(*i, opts, &sb);
 		if (ret)
 			goto err;
 
 		BUG_ON(darray_push(&sbs, sb));
 	}
 
-	if (opts.nochanges && !opts.read_only) {
+	if (opts->nochanges && !opts->read_only) {
 		ret = -BCH_ERR_erofs_nochanges;
 		goto err_print;
 	}
@@ -2314,7 +2314,7 @@ struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 			best = sb;
 
 	darray_for_each_reverse(sbs, sb) {
-		ret = bch2_dev_in_fs(best, sb, &opts);
+		ret = bch2_dev_in_fs(best, sb, opts);
 
 		if (ret == -BCH_ERR_device_has_been_removed ||
 		    ret == -BCH_ERR_device_splitbrain) {
@@ -2358,7 +2358,7 @@ out:
 	return c;
 err_print:
 	pr_err("bch_fs_open err opening %s: %s",
-	       devices[0], bch2_err_str(ret));
+	       devices->data[0], bch2_err_str(ret));
 err:
 	if (!IS_ERR_OR_NULL(c))
 		bch2_fs_stop(c);

@@ -1016,14 +1016,14 @@ u64 *bch2_acc_percpu_u64s(u64 __percpu *p, unsigned nr)
 	return ret;
 }
 
-void bch2_darray_str_exit(darray_str *d)
+void bch2_darray_str_exit(darray_const_str *d)
 {
 	darray_for_each(*d, i)
 		kfree(*i);
 	darray_exit(d);
 }
 
-int bch2_split_devs(const char *_dev_name, darray_str *ret)
+int bch2_split_devs(const char *_dev_name, darray_const_str *ret)
 {
 	darray_init(ret);
 

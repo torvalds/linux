@@ -2441,7 +2441,7 @@ static int bch2_fs_get_tree(struct fs_context *fc)
 	struct inode *vinode;
 	struct bch2_opts_parse *opts_parse = fc->fs_private;
 	struct bch_opts opts = opts_parse->opts;
-	darray_str devs;
+	darray_const_str devs;
 	darray_fs devs_to_fs = {};
 	int ret;
 
@@ -2465,7 +2465,7 @@ static int bch2_fs_get_tree(struct fs_context *fc)
 	if (!IS_ERR(sb))
 		goto got_sb;
 
-	c = bch2_fs_open(devs.data, devs.nr, opts);
+	c = bch2_fs_open(&devs, &opts);
 	ret = PTR_ERR_OR_ZERO(c);
 	if (ret)
 		goto err;

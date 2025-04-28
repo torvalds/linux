@@ -21,6 +21,7 @@ struct {								\
 
 typedef DARRAY(char)	darray_char;
 typedef DARRAY(char *)	darray_str;
+typedef DARRAY(const char *) darray_const_str;
 
 typedef DARRAY(u8)	darray_u8;
 typedef DARRAY(u16)	darray_u16;
