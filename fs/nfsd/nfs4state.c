@@ -4406,7 +4406,7 @@ nfsd4_sequence(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 				    nfserr_rep_too_big;
 	if (xdr_restrict_buflen(xdr, buflen - rqstp->rq_auth_slack))
 		goto out_put_session;
-	svc_reserve(rqstp, buflen);
+	svc_reserve_auth(rqstp, buflen);
 
 	status = nfs_ok;
 	/* Success! accept new slot seqid */
