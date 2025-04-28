@@ -241,12 +241,12 @@ static void brd_do_discard(struct brd_device *brd, sector_t sector, u32 size)
 static void brd_submit_bio(struct bio *bio)
 {
 	struct brd_device *brd = bio->bi_bdev->bd_disk->private_data;
-	sector_t sector = bio->bi_iter.bi_sector;
 	struct bio_vec bvec;
 	struct bvec_iter iter;
 
 	if (unlikely(op_is_discard(bio->bi_opf))) {
-		brd_do_discard(brd, sector, bio->bi_iter.bi_size);
+		brd_do_discard(brd, bio->bi_iter.bi_sector,
+				bio->bi_iter.bi_size);
 		bio_endio(bio);
 		return;
 	}
@@ -254,7 +254,7 @@ static void brd_submit_bio(struct bio *bio)
 	bio_for_each_segment(bvec, bio, iter) {
 		int err;
 
-		err = brd_rw_bvec(brd, &bvec, bio->bi_opf, sector);
+		err = brd_rw_bvec(brd, &bvec, bio->bi_opf, iter.bi_sector);
 		if (err) {
 			if (err == -ENOMEM && bio->bi_opf & REQ_NOWAIT) {
 				bio_wouldblock_error(bio);
@@ -263,7 +263,6 @@ static void brd_submit_bio(struct bio *bio)
 			bio_io_error(bio);
 			return;
 		}
-		sector += bvec.bv_len >> SECTOR_SHIFT;
 	}
 
 	bio_endio(bio);
