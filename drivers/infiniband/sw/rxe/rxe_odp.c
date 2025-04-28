@@ -205,7 +205,7 @@ static int __rxe_odp_mr_copy(struct rxe_mr *mr, u64 iova, void *addr,
 	while (length > 0) {
 		u8 *src, *dest;
 
-		page = hmm_pfn_to_page(umem_odp->pfn_list[idx]);
+		page = hmm_pfn_to_page(umem_odp->map.pfn_list[idx]);
 		user_va = kmap_local_page(page);
 		if (!user_va)
 			return -EFAULT;
@@ -289,7 +289,7 @@ static enum resp_states rxe_odp_do_atomic_op(struct rxe_mr *mr, u64 iova,
 
 	idx = rxe_odp_iova_to_index(umem_odp, iova);
 	page_offset = rxe_odp_iova_to_page_offset(umem_odp, iova);
-	page = hmm_pfn_to_page(umem_odp->pfn_list[idx]);
+	page = hmm_pfn_to_page(umem_odp->map.pfn_list[idx]);
 	if (!page)
 		return RESPST_ERR_RKEY_VIOLATION;
 
@@ -355,7 +355,7 @@ int rxe_odp_flush_pmem_iova(struct rxe_mr *mr, u64 iova,
 		index = rxe_odp_iova_to_index(umem_odp, iova);
 		page_offset = rxe_odp_iova_to_page_offset(umem_odp, iova);
 
-		page = hmm_pfn_to_page(umem_odp->pfn_list[index]);
+		page = hmm_pfn_to_page(umem_odp->map.pfn_list[index]);
 		if (!page) {
 			mutex_unlock(&umem_odp->umem_mutex);
 			return -EFAULT;
@@ -401,7 +401,7 @@ enum resp_states rxe_odp_do_atomic_write(struct rxe_mr *mr, u64 iova, u64 value)
 
 	page_offset = rxe_odp_iova_to_page_offset(umem_odp, iova);
 	index = rxe_odp_iova_to_index(umem_odp, iova);
-	page = hmm_pfn_to_page(umem_odp->pfn_list[index]);
+	page = hmm_pfn_to_page(umem_odp->map.pfn_list[index]);
 	if (!page) {
 		mutex_unlock(&umem_odp->umem_mutex);
 		return RESPST_ERR_RKEY_VIOLATION;
