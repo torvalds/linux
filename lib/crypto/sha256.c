@@ -11,148 +11,105 @@
  * Copyright (c) 2014 Red Hat Inc.
  */
 
-#include <linux/unaligned.h>
-#include <crypto/sha256_base.h>
+#include <crypto/internal/sha2.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/string.h>
+#include <linux/unaligned.h>
 
-static const u32 SHA256_K[] = {
-	0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
-	0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
-	0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
-	0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-	0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
-	0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-	0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
-	0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
-	0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
-	0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
-	0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3,
-	0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-	0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
-	0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-	0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
-	0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
-};
+/*
+ * If __DISABLE_EXPORTS is defined, then this file is being compiled for a
+ * pre-boot environment.  In that case, ignore the kconfig options, pull the
+ * generic code into the same translation unit, and use that only.
+ */
+#ifdef __DISABLE_EXPORTS
+#include "sha256-generic.c"
+#endif
 
-static inline u32 Ch(u32 x, u32 y, u32 z)
+static inline void sha256_blocks(u32 state[SHA256_STATE_WORDS], const u8 *data,
+				 size_t nblocks, bool force_generic)
 {
-	return z ^ (x & (y ^ z));
+#if IS_ENABLED(CONFIG_CRYPTO_ARCH_HAVE_LIB_SHA256) && !defined(__DISABLE_EXPORTS)
+	if (!force_generic)
+		return sha256_blocks_arch(state, data, nblocks);
+#endif
+	sha256_blocks_generic(state, data, nblocks);
 }
 
-static inline u32 Maj(u32 x, u32 y, u32 z)
+static inline void __sha256_update(struct sha256_state *sctx, const u8 *data,
+				   size_t len, bool force_generic)
 {
-	return (x & y) | (z & (x | y));
-}
+	size_t partial = sctx->count % SHA256_BLOCK_SIZE;
 
-#define e0(x)       (ror32(x, 2) ^ ror32(x, 13) ^ ror32(x, 22))
-#define e1(x)       (ror32(x, 6) ^ ror32(x, 11) ^ ror32(x, 25))
-#define s0(x)       (ror32(x, 7) ^ ror32(x, 18) ^ (x >> 3))
-#define s1(x)       (ror32(x, 17) ^ ror32(x, 19) ^ (x >> 10))
+	sctx->count += len;
 
-static inline void LOAD_OP(int I, u32 *W, const u8 *input)
-{
-	W[I] = get_unaligned_be32((__u32 *)input + I);
-}
+	if (partial + len >= SHA256_BLOCK_SIZE) {
+		size_t nblocks;
 
-static inline void BLEND_OP(int I, u32 *W)
-{
-	W[I] = s1(W[I-2]) + W[I-7] + s0(W[I-15]) + W[I-16];
-}
+		if (partial) {
+			size_t l = SHA256_BLOCK_SIZE - partial;
 
-#define SHA256_ROUND(i, a, b, c, d, e, f, g, h) do {		\
-	u32 t1, t2;						\
-	t1 = h + e1(e) + Ch(e, f, g) + SHA256_K[i] + W[i];	\
-	t2 = e0(a) + Maj(a, b, c);				\
-	d += t1;						\
-	h = t1 + t2;						\
-} while (0)
+			memcpy(&sctx->buf[partial], data, l);
+			data += l;
+			len -= l;
 
-static void sha256_transform(u32 *state, const u8 *input, u32 *W)
-{
-	u32 a, b, c, d, e, f, g, h;
-	int i;
+			sha256_blocks(sctx->state, sctx->buf, 1, force_generic);
+		}
 
-	/* load the input */
-	for (i = 0; i < 16; i += 8) {
-		LOAD_OP(i + 0, W, input);
-		LOAD_OP(i + 1, W, input);
-		LOAD_OP(i + 2, W, input);
-		LOAD_OP(i + 3, W, input);
-		LOAD_OP(i + 4, W, input);
-		LOAD_OP(i + 5, W, input);
-		LOAD_OP(i + 6, W, input);
-		LOAD_OP(i + 7, W, input);
+		nblocks = len / SHA256_BLOCK_SIZE;
+		len %= SHA256_BLOCK_SIZE;
+
+		if (nblocks) {
+			sha256_blocks(sctx->state, data, nblocks,
+				      force_generic);
+			data += nblocks * SHA256_BLOCK_SIZE;
+		}
+		partial = 0;
 	}
-
-	/* now blend */
-	for (i = 16; i < 64; i += 8) {
-		BLEND_OP(i + 0, W);
-		BLEND_OP(i + 1, W);
-		BLEND_OP(i + 2, W);
-		BLEND_OP(i + 3, W);
-		BLEND_OP(i + 4, W);
-		BLEND_OP(i + 5, W);
-		BLEND_OP(i + 6, W);
-		BLEND_OP(i + 7, W);
-	}
-
-	/* load the state into our registers */
-	a = state[0];  b = state[1];  c = state[2];  d = state[3];
-	e = state[4];  f = state[5];  g = state[6];  h = state[7];
-
-	/* now iterate */
-	for (i = 0; i < 64; i += 8) {
-		SHA256_ROUND(i + 0, a, b, c, d, e, f, g, h);
-		SHA256_ROUND(i + 1, h, a, b, c, d, e, f, g);
-		SHA256_ROUND(i + 2, g, h, a, b, c, d, e, f);
-		SHA256_ROUND(i + 3, f, g, h, a, b, c, d, e);
-		SHA256_ROUND(i + 4, e, f, g, h, a, b, c, d);
-		SHA256_ROUND(i + 5, d, e, f, g, h, a, b, c);
-		SHA256_ROUND(i + 6, c, d, e, f, g, h, a, b);
-		SHA256_ROUND(i + 7, b, c, d, e, f, g, h, a);
-	}
-
-	state[0] += a; state[1] += b; state[2] += c; state[3] += d;
-	state[4] += e; state[5] += f; state[6] += g; state[7] += h;
+	if (len)
+		memcpy(&sctx->buf[partial], data, len);
 }
-
-void sha256_transform_blocks(struct crypto_sha256_state *sst,
-			     const u8 *input, int blocks)
-{
-	u32 W[64];
-
-	do {
-		sha256_transform(sst->state, input, W);
-		input += SHA256_BLOCK_SIZE;
-	} while (--blocks);
-
-	memzero_explicit(W, sizeof(W));
-}
-EXPORT_SYMBOL_GPL(sha256_transform_blocks);
 
 void sha256_update(struct sha256_state *sctx, const u8 *data, unsigned int len)
 {
-	lib_sha256_base_do_update(sctx, data, len, sha256_transform_blocks);
+	__sha256_update(sctx, data, len, false);
 }
 EXPORT_SYMBOL(sha256_update);
 
-static void __sha256_final(struct sha256_state *sctx, u8 *out, int digest_size)
+static inline void __sha256_final(struct sha256_state *sctx, u8 *out,
+				  size_t digest_size, bool force_generic)
 {
-	lib_sha256_base_do_finalize(sctx, sha256_transform_blocks);
-	lib_sha256_base_finish(sctx, out, digest_size);
+	const size_t bit_offset = SHA256_BLOCK_SIZE - sizeof(__be64);
+	__be64 *bits = (__be64 *)&sctx->buf[bit_offset];
+	size_t partial = sctx->count % SHA256_BLOCK_SIZE;
+	size_t i;
+
+	sctx->buf[partial++] = 0x80;
+	if (partial > bit_offset) {
+		memset(&sctx->buf[partial], 0, SHA256_BLOCK_SIZE - partial);
+		sha256_blocks(sctx->state, sctx->buf, 1, force_generic);
+		partial = 0;
+	}
+
+	memset(&sctx->buf[partial], 0, bit_offset - partial);
+	*bits = cpu_to_be64(sctx->count << 3);
+	sha256_blocks(sctx->state, sctx->buf, 1, force_generic);
+
+	for (i = 0; i < digest_size; i += 4)
+		put_unaligned_be32(sctx->state[i / 4], out + i);
+
+	memzero_explicit(sctx, sizeof(*sctx));
 }
 
 void sha256_final(struct sha256_state *sctx, u8 *out)
 {
-	__sha256_final(sctx, out, 32);
+	__sha256_final(sctx, out, SHA256_DIGEST_SIZE, false);
 }
 EXPORT_SYMBOL(sha256_final);
 
 void sha224_final(struct sha256_state *sctx, u8 *out)
 {
-	__sha256_final(sctx, out, 28);
+	__sha256_final(sctx, out, SHA224_DIGEST_SIZE, false);
 }
 EXPORT_SYMBOL(sha224_final);
 
@@ -165,6 +122,27 @@ void sha256(const u8 *data, unsigned int len, u8 *out)
 	sha256_final(&sctx, out);
 }
 EXPORT_SYMBOL(sha256);
+
+#if IS_ENABLED(CONFIG_CRYPTO_SHA256) && !defined(__DISABLE_EXPORTS)
+void sha256_update_generic(struct sha256_state *sctx,
+			   const u8 *data, size_t len)
+{
+	__sha256_update(sctx, data, len, true);
+}
+EXPORT_SYMBOL(sha256_update_generic);
+
+void sha256_final_generic(struct sha256_state *sctx, u8 out[SHA256_DIGEST_SIZE])
+{
+	__sha256_final(sctx, out, SHA256_DIGEST_SIZE, true);
+}
+EXPORT_SYMBOL(sha256_final_generic);
+
+void sha224_final_generic(struct sha256_state *sctx, u8 out[SHA224_DIGEST_SIZE])
+{
+	__sha256_final(sctx, out, SHA224_DIGEST_SIZE, true);
+}
+EXPORT_SYMBOL(sha224_final_generic);
+#endif
 
 MODULE_DESCRIPTION("SHA-256 Algorithm");
 MODULE_LICENSE("GPL");

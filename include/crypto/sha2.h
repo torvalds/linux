@@ -13,6 +13,7 @@
 
 #define SHA256_DIGEST_SIZE      32
 #define SHA256_BLOCK_SIZE       64
+#define SHA256_STATE_WORDS      8
 
 #define SHA384_DIGEST_SIZE      48
 #define SHA384_BLOCK_SIZE       128
@@ -66,7 +67,7 @@ extern const u8 sha384_zero_message_hash[SHA384_DIGEST_SIZE];
 extern const u8 sha512_zero_message_hash[SHA512_DIGEST_SIZE];
 
 struct crypto_sha256_state {
-	u32 state[SHA256_DIGEST_SIZE / 4];
+	u32 state[SHA256_STATE_WORDS];
 	u64 count;
 };
 
@@ -74,7 +75,7 @@ struct sha256_state {
 	union {
 		struct crypto_sha256_state ctx;
 		struct {
-			u32 state[SHA256_DIGEST_SIZE / 4];
+			u32 state[SHA256_STATE_WORDS];
 			u64 count;
 		};
 	};
@@ -86,16 +87,6 @@ struct sha512_state {
 	u64 count[2];
 	u8 buf[SHA512_BLOCK_SIZE];
 };
-
-/*
- * Stand-alone implementation of the SHA256 algorithm. It is designed to
- * have as little dependencies as possible so it can be used in the
- * kexec_file purgatory. In other cases you should generally use the
- * hash APIs from include/crypto/hash.h. Especially when hashing large
- * amounts of data as those APIs may be hw-accelerated.
- *
- * For details see lib/crypto/sha256.c
- */
 
 static inline void sha256_init(struct sha256_state *sctx)
 {
