@@ -3786,7 +3786,8 @@ static void cm_process_send_error(struct cm_id_private *cm_id_priv,
 	spin_lock_irq(&cm_id_priv->lock);
 	if (msg != cm_id_priv->msg) {
 		spin_unlock_irq(&cm_id_priv->lock);
-		cm_free_priv_msg(msg);
+		cm_free_msg(msg);
+		cm_deref_id(cm_id_priv);
 		return;
 	}
 	cm_free_priv_msg(msg);
