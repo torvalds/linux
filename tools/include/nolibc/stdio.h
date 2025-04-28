@@ -20,6 +20,8 @@
 #include "string.h"
 #include "compiler.h"
 
+static const char *strerror(int errnum);
+
 #ifndef EOF
 #define EOF (-1)
 #endif
@@ -292,6 +294,11 @@ int __nolibc_printf(__nolibc_printf_cb cb, intptr_t state, size_t n, const char 
 				if (!outstr)
 					outstr="(null)";
 			}
+#ifndef NOLIBC_IGNORE_ERRNO
+			else if (c == 'm') {
+				outstr = strerror(errno);
+			}
+#endif /* NOLIBC_IGNORE_ERRNO */
 			else if (c == '%') {
 				/* queue it verbatim */
 				continue;

@@ -1393,6 +1393,23 @@ static int test_scanf(void)
 	return 0;
 }
 
+int test_strerror(void)
+{
+	char buf[100];
+	ssize_t ret;
+
+	memset(buf, 'A', sizeof(buf));
+
+	errno = EINVAL;
+	ret = snprintf(buf, sizeof(buf), "%m");
+	if (is_nolibc) {
+		if (ret < 6 || memcmp(buf, "errno=", 6))
+			return 1;
+	}
+
+	return 0;
+}
+
 static int run_printf(int min, int max)
 {
 	int test;
@@ -1421,6 +1438,7 @@ static int run_printf(int min, int max)
 		CASE_TEST(number_width); EXPECT_VFPRINTF(10, "         1", "%10d", 1); break;
 		CASE_TEST(width_trunc);  EXPECT_VFPRINTF(25, "                    ", "%25d", 1); break;
 		CASE_TEST(scanf);        EXPECT_ZR(1, test_scanf()); break;
+		CASE_TEST(strerror);     EXPECT_ZR(1, test_strerror()); break;
 		case __LINE__:
 			return ret; /* must be last */
 		/* note: do not set any defaults so as to permit holes above */
