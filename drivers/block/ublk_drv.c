@@ -2148,9 +2148,6 @@ static inline struct request *__ublk_check_and_get_req(struct ublk_device *ub,
 {
 	struct request *req;
 
-	if (!ublk_need_req_ref(ubq))
-		return NULL;
-
 	req = blk_mq_tag_to_rq(ub->tag_set.tags[ubq->q_id], tag);
 	if (!req)
 		return NULL;
