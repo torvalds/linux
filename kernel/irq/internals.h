@@ -191,30 +191,6 @@ static inline class_irqdesc_lock_t class_irqdesc_lock_constructor(unsigned int i
 
 #define scoped_irqdesc		((struct irq_desc *)(__guard_ptr(irqdesc_lock)(&scope)))
 
-static inline struct irq_desc *
-irq_get_desc_buslock(unsigned int irq, unsigned long *flags, unsigned int check)
-{
-	return __irq_get_desc_lock(irq, flags, true, check);
-}
-
-static inline void
-irq_put_desc_busunlock(struct irq_desc *desc, unsigned long flags)
-{
-	__irq_put_desc_unlock(desc, flags, true);
-}
-
-static inline struct irq_desc *
-irq_get_desc_lock(unsigned int irq, unsigned long *flags, unsigned int check)
-{
-	return __irq_get_desc_lock(irq, flags, false, check);
-}
-
-static inline void
-irq_put_desc_unlock(struct irq_desc *desc, unsigned long flags)
-{
-	__irq_put_desc_unlock(desc, flags, false);
-}
-
 #define __irqd_to_state(d) ACCESS_PRIVATE((d)->common, state_use_accessors)
 
 static inline unsigned int irqd_get(struct irq_data *d)
