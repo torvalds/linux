@@ -888,22 +888,17 @@ EXPORT_SYMBOL(irq_set_irq_wake);
  * particular irq has been exclusively allocated or is available
  * for driver use.
  */
-int can_request_irq(unsigned int irq, unsigned long irqflags)
+bool can_request_irq(unsigned int irq, unsigned long irqflags)
 {
-	unsigned long flags;
-	struct irq_desc *desc = irq_get_desc_lock(irq, &flags, 0);
-	int canrequest = 0;
+	scoped_irqdesc_get_and_lock(irq, IRQ_GET_DESC_CHECK_GLOBAL) {
+		struct irq_desc *desc = scoped_irqdesc;
 
-	if (!desc)
-		return 0;
-
-	if (irq_settings_can_request(desc)) {
-		if (!desc->action ||
-		    irqflags & desc->action->flags & IRQF_SHARED)
-			canrequest = 1;
+		if (irq_settings_can_request(desc)) {
+			if (!desc->action || irqflags & desc->action->flags & IRQF_SHARED)
+				return true;
+		}
 	}
-	irq_put_desc_unlock(desc, flags);
-	return canrequest;
+	return false;
 }
 
 int __irq_set_trigger(struct irq_desc *desc, unsigned long flags)
