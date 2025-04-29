@@ -270,6 +270,30 @@ tc_rule_handle_stats_get()
 		  .options.actions[0].stats$selector"
 }
 
+# attach a qdisc with two children match/no-match and a flower filter to match
+tc_set_flower_counter() {
+	local -r ns=$1
+	local -r ipver=$2
+	local -r dev=$3
+	local -r flower_expr=$4
+
+	tc -n $ns qdisc add dev $dev root handle 1: prio bands 2 \
+			priomap 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+	tc -n $ns qdisc add dev $dev parent 1:1 handle 11: pfifo
+	tc -n $ns qdisc add dev $dev parent 1:2 handle 12: pfifo
+
+	tc -n $ns filter add dev $dev parent 1: protocol ipv$ipver \
+			flower $flower_expr classid 1:2
+}
+
+tc_get_flower_counter() {
+	local -r ns=$1
+	local -r dev=$2
+
+	tc -n $ns -j -s qdisc show dev $dev handle 12: | jq .[0].packets
+}
+
 ret_set_ksft_status()
 {
 	local ksft_status=$1; shift
