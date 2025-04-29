@@ -359,33 +359,42 @@ vsp1_get_format_info_by_index(struct vsp1_device *vsp1, unsigned int index,
  * space and limitations of the VSP1. It should be used in the video device and
  * subdev set format handlers.
  *
- * For now, simply hardcode the color space fields to the VSP1 defaults based
- * on the media bus code.
+ * The colorspace and xfer_func fields are freely configurable, as they are out
+ * of scope for VSP processing. The encoding and quantization is hardcoded for
+ * non-YUV formats, and can be configured for YUV formats.
  */
 void vsp1_adjust_color_space(u32 code, u32 *colorspace, u8 *xfer_func,
 			     u8 *encoding, u8 *quantization)
 {
+	if (*colorspace == V4L2_COLORSPACE_DEFAULT ||
+	    *colorspace >= V4L2_COLORSPACE_LAST)
+		*colorspace = code == MEDIA_BUS_FMT_AYUV8_1X32
+			    ? V4L2_COLORSPACE_SMPTE170M
+			    : V4L2_COLORSPACE_SRGB;
+
+	if (*xfer_func == V4L2_XFER_FUNC_DEFAULT ||
+	    *xfer_func >= V4L2_XFER_FUNC_LAST)
+		*xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(*colorspace);
+
 	switch (code) {
 	case MEDIA_BUS_FMT_ARGB8888_1X32:
 	default:
-		*colorspace = V4L2_COLORSPACE_SRGB;
-		*xfer_func = V4L2_XFER_FUNC_SRGB;
 		*encoding = V4L2_YCBCR_ENC_601;
 		*quantization = V4L2_QUANTIZATION_FULL_RANGE;
 		break;
 
 	case MEDIA_BUS_FMT_AHSV8888_1X32:
-		*colorspace = V4L2_COLORSPACE_SRGB;
-		*xfer_func = V4L2_XFER_FUNC_SRGB;
 		*encoding = V4L2_HSV_ENC_256;
 		*quantization = V4L2_QUANTIZATION_FULL_RANGE;
 		break;
 
 	case MEDIA_BUS_FMT_AYUV8_1X32:
-		*colorspace = V4L2_COLORSPACE_SMPTE170M;
-		*xfer_func = V4L2_XFER_FUNC_709;
-		*encoding = V4L2_YCBCR_ENC_601;
-		*quantization = V4L2_QUANTIZATION_LIM_RANGE;
+		if (*encoding != V4L2_YCBCR_ENC_601 &&
+		    *encoding != V4L2_YCBCR_ENC_709)
+			*encoding = V4L2_YCBCR_ENC_601;
+		if (*quantization != V4L2_QUANTIZATION_FULL_RANGE &&
+		    *quantization != V4L2_QUANTIZATION_LIM_RANGE)
+			*quantization = V4L2_QUANTIZATION_LIM_RANGE;
 		break;
 	}
 }
