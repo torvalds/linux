@@ -2021,6 +2021,94 @@ out:
 	return r;
 }
 
+/*
+ * Perform a minimal read from the given path to find out whether the
+ * path still works.  If a path error occurs, fail it.
+ */
+static int probe_path(struct pgpath *pgpath)
+{
+	struct block_device *bdev = pgpath->path.dev->bdev;
+	unsigned int read_size = bdev_logical_block_size(bdev);
+	struct page *page;
+	struct bio *bio;
+	blk_status_t status;
+	int r = 0;
+
+	if (WARN_ON_ONCE(read_size > PAGE_SIZE))
+		return -EINVAL;
+
+	page = alloc_page(GFP_KERNEL);
+	if (!page)
+		return -ENOMEM;
+
+	/* Perform a minimal read: Sector 0, length read_size */
+	bio = bio_alloc(bdev, 1, REQ_OP_READ, GFP_KERNEL);
+	if (!bio) {
+		r = -ENOMEM;
+		goto out;
+	}
+
+	bio->bi_iter.bi_sector = 0;
+	__bio_add_page(bio, page, read_size, 0);
+	submit_bio_wait(bio);
+	status = bio->bi_status;
+	bio_put(bio);
+
+	if (status && blk_path_error(status))
+		fail_path(pgpath);
+
+out:
+	__free_page(page);
+	return r;
+}
+
+/*
+ * Probe all active paths in current_pg to find out whether they still work.
+ * Fail all paths that do not work.
+ *
+ * Return -ENOTCONN if no valid path is left (even outside of current_pg). We
+ * cannot probe paths in other pgs without switching current_pg, so if valid
+ * paths are only in different pgs, they may or may not work. Additionally
+ * we should not probe paths in a pathgroup that is in the process of
+ * Initializing. Userspace can submit a request and we'll switch and wait
+ * for the pathgroup to be initialized. If the request fails, it may need to
+ * probe again.
+ */
+static int probe_active_paths(struct multipath *m)
+{
+	struct pgpath *pgpath;
+	struct priority_group *pg;
+	unsigned long flags;
+	int r = 0;
+
+	mutex_lock(&m->work_mutex);
+
+	spin_lock_irqsave(&m->lock, flags);
+	if (test_bit(MPATHF_QUEUE_IO, &m->flags))
+		pg = NULL;
+	else
+		pg = m->current_pg;
+	spin_unlock_irqrestore(&m->lock, flags);
+
+	if (pg) {
+		list_for_each_entry(pgpath, &pg->pgpaths, list) {
+			if (!pgpath->is_active)
+				continue;
+
+			r = probe_path(pgpath);
+			if (r < 0)
+				goto out;
+		}
+	}
+
+	if (!atomic_read(&m->nr_valid_paths))
+		r = -ENOTCONN;
+
+out:
+	mutex_unlock(&m->work_mutex);
+	return r;
+}
+
 static int multipath_prepare_ioctl(struct dm_target *ti,
 				   struct block_device **bdev,
 				   unsigned int cmd, unsigned long arg,
@@ -2030,6 +2118,16 @@ static int multipath_prepare_ioctl(struct dm_target *ti,
 	struct pgpath *pgpath;
 	unsigned long flags;
 	int r;
+
+	if (_IOC_TYPE(cmd) == DM_IOCTL) {
+		*forward = false;
+		switch (cmd) {
+		case DM_MPATH_PROBE_PATHS:
+			return probe_active_paths(m);
+		default:
+			return -ENOTTY;
+		}
+	}
 
 	pgpath = READ_ONCE(m->current_pgpath);
 	if (!pgpath || !mpath_double_check_test_bit(MPATHF_QUEUE_IO, m))
@@ -2182,7 +2280,7 @@ static int multipath_busy(struct dm_target *ti)
  */
 static struct target_type multipath_target = {
 	.name = "multipath",
-	.version = {1, 14, 0},
+	.version = {1, 15, 0},
 	.features = DM_TARGET_SINGLETON | DM_TARGET_IMMUTABLE |
 		    DM_TARGET_PASSES_INTEGRITY,
 	.module = THIS_MODULE,
