@@ -580,6 +580,7 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 		iTCO_wdt_set_timeout(&p->wddev, WATCHDOG_TIMEOUT);
 		dev_info(dev, "timeout value out of range, using %d\n",
 			WATCHDOG_TIMEOUT);
+		heartbeat = WATCHDOG_TIMEOUT;
 	}
 
 	watchdog_stop_on_reboot(&p->wddev);
