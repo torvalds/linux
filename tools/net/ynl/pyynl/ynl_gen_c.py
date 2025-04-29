@@ -2787,7 +2787,11 @@ def render_uapi(family, cw):
 
 
 def _render_user_ntf_entry(ri, op):
-    ri.cw.block_start(line=f"[{op.enum_name}] = ")
+    if not ri.family.is_classic():
+        ri.cw.block_start(line=f"[{op.enum_name}] = ")
+    else:
+        crud_op = ri.family.req_by_value[op.rsp_value]
+        ri.cw.block_start(line=f"[{crud_op.enum_name}] = ")
     ri.cw.p(f".alloc_sz\t= sizeof({type_name(ri, 'event')}),")
     ri.cw.p(f".cb\t\t= {op_prefix(ri, 'reply', deref=True)}_parse,")
     ri.cw.p(f".policy\t\t= &{ri.struct['reply'].render_name}_nest,")
