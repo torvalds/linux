@@ -215,6 +215,9 @@ static const struct vsp1_format_info vsp1_video_gen2_formats[] = {
 	  VI6_FMT_YUYV_422, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
 	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
 	  1, { 16, 0, 0 }, false, true, 2, 1, false },
+};
+
+static const struct vsp1_format_info vsp1_video_hsit_formats[] = {
 	{ V4L2_PIX_FMT_HSV24, MEDIA_BUS_FMT_AHSV8888_1X32,
 	  VI6_FMT_RGB_888, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
 	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
@@ -255,6 +258,16 @@ const struct vsp1_format_info *vsp1_get_format_info(struct vsp1_device *vsp1,
 		}
 	}
 
+	if (vsp1_feature(vsp1, VSP1_HAS_HSIT)) {
+		for (i = 0; i < ARRAY_SIZE(vsp1_video_hsit_formats); ++i) {
+			const struct vsp1_format_info *info =
+				&vsp1_video_hsit_formats[i];
+
+			if (info->fourcc == fourcc)
+				return info;
+		}
+	}
+
 	return NULL;
 }
 
@@ -285,6 +298,12 @@ vsp1_get_format_info_by_index(struct vsp1_device *vsp1, unsigned int index,
 				return &vsp1_video_gen2_formats[index];
 		}
 
+		if (vsp1_feature(vsp1, VSP1_HAS_HSIT)) {
+			index -= ARRAY_SIZE(vsp1_video_gen2_formats);
+			if (index < ARRAY_SIZE(vsp1_video_hsit_formats))
+				return &vsp1_video_hsit_formats[index];
+		}
+
 		return NULL;
 	}
 
@@ -302,6 +321,19 @@ vsp1_get_format_info_by_index(struct vsp1_device *vsp1, unsigned int index,
 		for (i = 0; i < ARRAY_SIZE(vsp1_video_gen2_formats); ++i) {
 			const struct vsp1_format_info *info =
 				&vsp1_video_gen2_formats[i];
+
+			if (info->mbus == code) {
+				if (!index)
+					return info;
+				index--;
+			}
+		}
+	}
+
+	if (vsp1_feature(vsp1, VSP1_HAS_HSIT)) {
+		for (i = 0; i < ARRAY_SIZE(vsp1_video_hsit_formats); ++i) {
+			const struct vsp1_format_info *info =
+				&vsp1_video_hsit_formats[i];
 
 			if (info->mbus == code) {
 				if (!index)
