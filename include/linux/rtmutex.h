@@ -18,7 +18,7 @@
 #include <linux/rbtree_types.h>
 #include <linux/spinlock_types_raw.h>
 
-extern int max_lock_depth; /* for sysctl */
+extern int max_lock_depth;
 
 struct rt_mutex_base {
 	raw_spinlock_t		wait_lock;

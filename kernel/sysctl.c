@@ -59,9 +59,6 @@
 #include <asm/nmi.h>
 #include <asm/io.h>
 #endif
-#ifdef CONFIG_RT_MUTEXES
-#include <linux/rtmutex.h>
-#endif
 
 /* shared constants to be used in various sysctls */
 const int sysctl_vals[] = { 0, 1, 2, 3, 4, 100, 200, 1000, 3000, INT_MAX, 65535, -1 };
@@ -1705,15 +1702,6 @@ static const struct ctl_table kern_table[] = {
 		.procname	= "ignore-unaligned-usertrap",
 		.data		= &no_unaligned_warning,
 		.maxlen		= sizeof (int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-#endif
-#ifdef CONFIG_RT_MUTEXES
-	{
-		.procname	= "max_lock_depth",
-		.data		= &max_lock_depth,
-		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
