@@ -4429,17 +4429,40 @@ static int rtw89_init_he_eht_cap(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
+static struct ieee80211_supported_band *
+rtw89_core_sband_dup(struct rtw89_dev *rtwdev,
+		     const struct ieee80211_supported_band *sband)
+{
+	struct ieee80211_supported_band *dup;
+
+	dup = devm_kmemdup(rtwdev->dev, sband, sizeof(*sband), GFP_KERNEL);
+	if (!dup)
+		return NULL;
+
+	dup->channels = devm_kmemdup(rtwdev->dev, sband->channels,
+				     sizeof(*sband->channels) * sband->n_channels,
+				     GFP_KERNEL);
+	if (!dup->channels)
+		return NULL;
+
+	dup->bitrates = devm_kmemdup(rtwdev->dev, sband->bitrates,
+				     sizeof(*sband->bitrates) * sband->n_bitrates,
+				     GFP_KERNEL);
+	if (!dup->bitrates)
+		return NULL;
+
+	return dup;
+}
+
 static int rtw89_core_set_supported_band(struct rtw89_dev *rtwdev)
 {
 	struct ieee80211_hw *hw = rtwdev->hw;
 	struct ieee80211_supported_band *sband;
-	u32 size = sizeof(struct ieee80211_supported_band);
 	u8 support_bands = rtwdev->chip->support_bands;
-	struct device *dev = rtwdev->dev;
 	int ret;
 
 	if (support_bands & BIT(NL80211_BAND_2GHZ)) {
-		sband = devm_kmemdup(dev, &rtw89_sband_2ghz, size, GFP_KERNEL);
+		sband = rtw89_core_sband_dup(rtwdev, &rtw89_sband_2ghz);
 		if (!sband)
 			return -ENOMEM;
 		rtw89_init_ht_cap(rtwdev, &sband->ht_cap);
@@ -4450,7 +4473,7 @@ static int rtw89_core_set_supported_band(struct rtw89_dev *rtwdev)
 	}
 
 	if (support_bands & BIT(NL80211_BAND_5GHZ)) {
-		sband = devm_kmemdup(dev, &rtw89_sband_5ghz, size, GFP_KERNEL);
+		sband = rtw89_core_sband_dup(rtwdev, &rtw89_sband_5ghz);
 		if (!sband)
 			return -ENOMEM;
 		rtw89_init_ht_cap(rtwdev, &sband->ht_cap);
@@ -4462,7 +4485,7 @@ static int rtw89_core_set_supported_band(struct rtw89_dev *rtwdev)
 	}
 
 	if (support_bands & BIT(NL80211_BAND_6GHZ)) {
-		sband = devm_kmemdup(dev, &rtw89_sband_6ghz, size, GFP_KERNEL);
+		sband = rtw89_core_sband_dup(rtwdev, &rtw89_sband_6ghz);
 		if (!sband)
 			return -ENOMEM;
 		ret = rtw89_init_he_eht_cap(rtwdev, NL80211_BAND_6GHZ, sband);
