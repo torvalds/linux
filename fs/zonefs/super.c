@@ -1113,11 +1113,12 @@ static int zonefs_read_super(struct super_block *sb)
 	u32 crc, stored_crc;
 	int ret;
 
-	super = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	super = kmalloc(ZONEFS_SUPER_SIZE, GFP_KERNEL);
 	if (!super)
 		return -ENOMEM;
 
-	ret = bdev_rw_virt(sb->s_bdev, 0, super, PAGE_SIZE, REQ_OP_READ);
+	ret = bdev_rw_virt(sb->s_bdev, 0, super, ZONEFS_SUPER_SIZE,
+			   REQ_OP_READ);
 	if (ret)
 		goto free_super;
 
