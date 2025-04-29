@@ -1135,6 +1135,11 @@ static int b53_setup(struct dsa_switch *ds)
 	 */
 	ds->untag_bridge_pvid = dev->tag_protocol == DSA_TAG_PROTO_NONE;
 
+	/* The switch does not tell us the original VLAN for untagged
+	 * packets, so keep the CPU port always tagged.
+	 */
+	ds->untag_vlan_aware_bridge_pvid = true;
+
 	ret = b53_reset_switch(dev);
 	if (ret) {
 		dev_err(ds->dev, "failed to reset switch\n");
@@ -1544,6 +1549,9 @@ int b53_vlan_add(struct dsa_switch *ds, int port,
 
 	if (vlan->vid == 0 && vlan->vid == b53_default_pvid(dev))
 		untagged = true;
+
+	if (vlan->vid > 0 && dsa_is_cpu_port(ds, port))
+		untagged = false;
 
 	vl->members |= BIT(port);
 	if (untagged && !b53_vlan_port_needs_forced_tagged(ds, port))
