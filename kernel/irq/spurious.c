@@ -60,37 +60,35 @@ bool irq_wait_for_poll(struct irq_desc *desc)
 /*
  * Recovery handler for misrouted interrupts.
  */
-static int try_one_irq(struct irq_desc *desc, bool force)
+static bool try_one_irq(struct irq_desc *desc, bool force)
 {
-	irqreturn_t ret = IRQ_NONE;
 	struct irqaction *action;
+	bool ret = false;
 
-	raw_spin_lock(&desc->lock);
+	guard(raw_spinlock)(&desc->lock);
 
 	/*
 	 * PER_CPU, nested thread interrupts and interrupts explicitly
 	 * marked polled are excluded from polling.
 	 */
-	if (irq_settings_is_per_cpu(desc) ||
-	    irq_settings_is_nested_thread(desc) ||
+	if (irq_settings_is_per_cpu(desc) || irq_settings_is_nested_thread(desc) ||
 	    irq_settings_is_polled(desc))
-		goto out;
+		return false;
 
 	/*
 	 * Do not poll disabled interrupts unless the spurious
 	 * disabled poller asks explicitly.
 	 */
 	if (irqd_irq_disabled(&desc->irq_data) && !force)
-		goto out;
+		return false;
 
 	/*
 	 * All handlers must agree on IRQF_SHARED, so we test just the
 	 * first.
 	 */
 	action = desc->action;
-	if (!action || !(action->flags & IRQF_SHARED) ||
-	    (action->flags & __IRQF_TIMER))
-		goto out;
+	if (!action || !(action->flags & IRQF_SHARED) || (action->flags & __IRQF_TIMER))
+		return false;
 
 	/* Already running on another processor */
 	if (irqd_irq_inprogress(&desc->irq_data)) {
@@ -99,21 +97,19 @@ static int try_one_irq(struct irq_desc *desc, bool force)
 		 * CPU to go looking for our mystery interrupt too
 		 */
 		desc->istate |= IRQS_PENDING;
-		goto out;
+		return false;
 	}
 
 	/* Mark it poll in progress */
 	desc->istate |= IRQS_POLL_INPROGRESS;
 	do {
 		if (handle_irq_event(desc) == IRQ_HANDLED)
-			ret = IRQ_HANDLED;
+			ret = true;
 		/* Make sure that there is still a valid action */
 		action = desc->action;
 	} while ((desc->istate & IRQS_PENDING) && action);
 	desc->istate &= ~IRQS_POLL_INPROGRESS;
-out:
-	raw_spin_unlock(&desc->lock);
-	return ret == IRQ_HANDLED;
+	return ret;
 }
 
 static int misrouted_irq(int irq)
@@ -192,7 +188,6 @@ static void __report_bad_irq(struct irq_desc *desc, irqreturn_t action_ret)
 {
 	unsigned int irq = irq_desc_get_irq(desc);
 	struct irqaction *action;
-	unsigned long flags;
 
 	if (bad_action_ret(action_ret))
 		pr_err("irq event %d: bogus return value %x\n", irq, action_ret);
@@ -207,14 +202,13 @@ static void __report_bad_irq(struct irq_desc *desc, irqreturn_t action_ret)
 	 * with something else removing an action. It's ok to take
 	 * desc->lock here. See synchronize_irq().
 	 */
-	raw_spin_lock_irqsave(&desc->lock, flags);
+	guard(raw_spinlock_irqsave)(&desc->lock);
 	for_each_action_of_desc(desc, action) {
 		pr_err("[<%p>] %ps", action->handler, action->handler);
 		if (action->thread_fn)
 			pr_cont(" threaded [<%p>] %ps", action->thread_fn, action->thread_fn);
 		pr_cont("\n");
 	}
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
 static void report_bad_irq(struct irq_desc *desc, irqreturn_t action_ret)
