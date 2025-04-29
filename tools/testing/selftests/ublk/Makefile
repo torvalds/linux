@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 
 CFLAGS += -O3 -Wl,-no-as-needed -Wall -I $(top_srcdir)
+ifneq ($(WERROR),0)
+	CFLAGS += -Werror
+endif
+
 LDLIBS += -lpthread -lm -luring
 
 TEST_PROGS := test_generic_01.sh
