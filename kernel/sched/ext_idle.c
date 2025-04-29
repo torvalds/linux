@@ -744,7 +744,8 @@ void __scx_update_idle(struct rq *rq, bool idle, bool do_notify)
 	 * Idle transitions are indicated by do_notify being set to true,
 	 * managed by put_prev_task_idle()/set_next_task_idle().
 	 */
-	if (SCX_HAS_OP(update_idle) && do_notify && !scx_rq_bypassing(rq))
+	if (SCX_HAS_OP(scx_root, update_idle) &&
+	    do_notify && !scx_rq_bypassing(rq))
 		SCX_CALL_OP(SCX_KF_REST, update_idle, rq, cpu_of(rq), idle);
 
 	/*
