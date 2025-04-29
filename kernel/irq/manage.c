@@ -43,8 +43,6 @@ static void __synchronize_hardirq(struct irq_desc *desc, bool sync_chip)
 	bool inprogress;
 
 	do {
-		unsigned long flags;
-
 		/*
 		 * Wait until we're out of the critical section.  This might
 		 * give the wrong answer due to the lack of memory barriers.
@@ -53,7 +51,7 @@ static void __synchronize_hardirq(struct irq_desc *desc, bool sync_chip)
 			cpu_relax();
 
 		/* Ok, that indicated we're done: double-check carefully. */
-		raw_spin_lock_irqsave(&desc->lock, flags);
+		guard(raw_spinlock_irqsave)(&desc->lock);
 		inprogress = irqd_irq_inprogress(&desc->irq_data);
 
 		/*
@@ -69,8 +67,6 @@ static void __synchronize_hardirq(struct irq_desc *desc, bool sync_chip)
 			__irq_get_irqchip_state(irqd, IRQCHIP_STATE_ACTIVE,
 						&inprogress);
 		}
-		raw_spin_unlock_irqrestore(&desc->lock, flags);
-
 		/* Oops, that failed? */
 	} while (inprogress);
 }
@@ -458,16 +454,12 @@ static int __irq_set_affinity(unsigned int irq, const struct cpumask *mask,
 			      bool force)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
-	unsigned long flags;
-	int ret;
 
 	if (!desc)
 		return -EINVAL;
 
-	raw_spin_lock_irqsave(&desc->lock, flags);
-	ret = irq_set_affinity_locked(irq_desc_get_irq_data(desc), mask, force);
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
-	return ret;
+	guard(raw_spinlock_irqsave)(&desc->lock);
+	return irq_set_affinity_locked(irq_desc_get_irq_data(desc), mask, force);
 }
 
 /**
@@ -522,17 +514,16 @@ static void irq_affinity_notify(struct work_struct *work)
 		container_of(work, struct irq_affinity_notify, work);
 	struct irq_desc *desc = irq_to_desc(notify->irq);
 	cpumask_var_t cpumask;
-	unsigned long flags;
 
 	if (!desc || !alloc_cpumask_var(&cpumask, GFP_KERNEL))
 		goto out;
 
-	raw_spin_lock_irqsave(&desc->lock, flags);
-	if (irq_move_pending(&desc->irq_data))
-		irq_get_pending(cpumask, desc);
-	else
-		cpumask_copy(cpumask, desc->irq_common_data.affinity);
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
+	scoped_guard(raw_spinlock_irqsave, &desc->lock) {
+		if (irq_move_pending(&desc->irq_data))
+			irq_get_pending(cpumask, desc);
+		else
+			cpumask_copy(cpumask, desc->irq_common_data.affinity);
+	}
 
 	notify->notify(notify, cpumask);
 
@@ -556,7 +547,6 @@ int irq_set_affinity_notifier(unsigned int irq, struct irq_affinity_notify *noti
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	struct irq_affinity_notify *old_notify;
-	unsigned long flags;
 
 	/* The release function is promised process context */
 	might_sleep();
@@ -571,10 +561,10 @@ int irq_set_affinity_notifier(unsigned int irq, struct irq_affinity_notify *noti
 		INIT_WORK(&notify->work, irq_affinity_notify);
 	}
 
-	raw_spin_lock_irqsave(&desc->lock, flags);
-	old_notify = desc->affinity_notify;
-	desc->affinity_notify = notify;
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
+	scoped_guard(raw_spinlock_irqsave, &desc->lock) {
+		old_notify = desc->affinity_notify;
+		desc->affinity_notify = notify;
+	}
 
 	if (old_notify) {
 		if (cancel_work_sync(&old_notify->work)) {
@@ -595,7 +585,8 @@ EXPORT_SYMBOL_GPL(irq_set_affinity_notifier);
 int irq_setup_affinity(struct irq_desc *desc)
 {
 	struct cpumask *set = irq_default_affinity;
-	int ret, node = irq_desc_get_node(desc);
+	int node = irq_desc_get_node(desc);
+
 	static DEFINE_RAW_SPINLOCK(mask_lock);
 	static struct cpumask mask;
 
@@ -603,7 +594,7 @@ int irq_setup_affinity(struct irq_desc *desc)
 	if (!__irq_can_set_affinity(desc))
 		return 0;
 
-	raw_spin_lock(&mask_lock);
+	guard(raw_spinlock)(&mask_lock);
 	/*
 	 * Preserve the managed affinity setting and a userspace affinity
 	 * setup, but make sure that one of the targets is online.
@@ -628,9 +619,7 @@ int irq_setup_affinity(struct irq_desc *desc)
 		if (cpumask_intersects(&mask, nodemask))
 			cpumask_and(&mask, &mask, nodemask);
 	}
-	ret = irq_do_set_affinity(&desc->irq_data, &mask, false);
-	raw_spin_unlock(&mask_lock);
-	return ret;
+	return irq_do_set_affinity(&desc->irq_data, &mask, false);
 }
 #else
 /* Wrapper for ALPHA specific affinity selector magic */
@@ -1072,19 +1061,19 @@ static void irq_thread_check_affinity(struct irq_desc *desc, struct irqaction *a
 		return;
 	}
 
-	raw_spin_lock_irq(&desc->lock);
-	/*
-	 * This code is triggered unconditionally. Check the affinity
-	 * mask pointer. For CPU_MASK_OFFSTACK=n this is optimized out.
-	 */
-	if (cpumask_available(desc->irq_common_data.affinity)) {
-		const struct cpumask *m;
+	scoped_guard(raw_spinlock_irq, &desc->lock) {
+		/*
+		 * This code is triggered unconditionally. Check the affinity
+		 * mask pointer. For CPU_MASK_OFFSTACK=n this is optimized out.
+		 */
+		if (cpumask_available(desc->irq_common_data.affinity)) {
+			const struct cpumask *m;
 
-		m = irq_data_get_effective_affinity_mask(&desc->irq_data);
-		cpumask_copy(mask, m);
-		valid = true;
+			m = irq_data_get_effective_affinity_mask(&desc->irq_data);
+			cpumask_copy(mask, m);
+			valid = true;
+		}
 	}
-	raw_spin_unlock_irq(&desc->lock);
 
 	if (valid)
 		set_cpus_allowed_ptr(current, mask);
@@ -1252,9 +1241,8 @@ static void irq_wake_secondary(struct irq_desc *desc, struct irqaction *action)
 	if (WARN_ON_ONCE(!secondary))
 		return;
 
-	raw_spin_lock_irq(&desc->lock);
+	guard(raw_spinlock_irq)(&desc->lock);
 	__irq_wake_thread(desc, secondary);
-	raw_spin_unlock_irq(&desc->lock);
 }
 
 /*
@@ -1335,12 +1323,11 @@ void irq_wake_thread(unsigned int irq, void *dev_id)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	struct irqaction *action;
-	unsigned long flags;
 
 	if (!desc || WARN_ON(irq_settings_is_per_cpu_devid(desc)))
 		return;
 
-	raw_spin_lock_irqsave(&desc->lock, flags);
+	guard(raw_spinlock_irqsave)(&desc->lock);
 	for_each_action_of_desc(desc, action) {
 		if (action->dev_id == dev_id) {
 			if (action->thread)
@@ -1348,7 +1335,6 @@ void irq_wake_thread(unsigned int irq, void *dev_id)
 			break;
 		}
 	}
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 EXPORT_SYMBOL_GPL(irq_wake_thread);
 
@@ -1979,9 +1965,8 @@ static struct irqaction *__free_irq(struct irq_desc *desc, void *dev_id)
 		 * There is no interrupt on the fly anymore. Deactivate it
 		 * completely.
 		 */
-		raw_spin_lock_irqsave(&desc->lock, flags);
-		irq_domain_deactivate_irq(&desc->irq_data);
-		raw_spin_unlock_irqrestore(&desc->lock, flags);
+		scoped_guard(raw_spinlock_irqsave, &desc->lock)
+			irq_domain_deactivate_irq(&desc->irq_data);
 
 		irq_release_resources(desc);
 		chip_bus_sync_unlock(desc);
@@ -2066,8 +2051,6 @@ static const void *__cleanup_nmi(unsigned int irq, struct irq_desc *desc)
 const void *free_nmi(unsigned int irq, void *dev_id)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
-	unsigned long flags;
-	const void *devname;
 
 	if (!desc || WARN_ON(!irq_is_nmi(desc)))
 		return NULL;
@@ -2079,14 +2062,9 @@ const void *free_nmi(unsigned int irq, void *dev_id)
 	if (WARN_ON(desc->depth == 0))
 		disable_nmi_nosync(irq);
 
-	raw_spin_lock_irqsave(&desc->lock, flags);
-
+	guard(raw_spinlock_irqsave)(&desc->lock);
 	irq_nmi_teardown(desc);
-	devname = __cleanup_nmi(irq, desc);
-
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
-
-	return devname;
+	return __cleanup_nmi(irq, desc);
 }
 
 /**
@@ -2290,7 +2268,6 @@ int request_nmi(unsigned int irq, irq_handler_t handler,
 {
 	struct irqaction *action;
 	struct irq_desc *desc;
-	unsigned long flags;
 	int retval;
 
 	if (irq == IRQ_NOTCONNECTED)
@@ -2332,20 +2309,16 @@ int request_nmi(unsigned int irq, irq_handler_t handler,
 	if (retval)
 		goto err_irq_setup;
 
-	raw_spin_lock_irqsave(&desc->lock, flags);
-
-	/* Setup NMI state */
-	desc->istate |= IRQS_NMI;
-	retval = irq_nmi_setup(desc);
-	if (retval) {
-		__cleanup_nmi(irq, desc);
-		raw_spin_unlock_irqrestore(&desc->lock, flags);
-		return -EINVAL;
+	scoped_guard(raw_spinlock_irqsave, &desc->lock) {
+		/* Setup NMI state */
+		desc->istate |= IRQS_NMI;
+		retval = irq_nmi_setup(desc);
+		if (retval) {
+			__cleanup_nmi(irq, desc);
+			return -EINVAL;
+		}
+		return 0;
 	}
-
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
-
-	return 0;
 
 err_irq_setup:
 	irq_chip_pm_put(&desc->irq_data);
@@ -2445,43 +2418,34 @@ static struct irqaction *__free_percpu_irq(unsigned int irq, void __percpu *dev_
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	struct irqaction *action;
-	unsigned long flags;
 
 	WARN(in_interrupt(), "Trying to free IRQ %d from IRQ context!\n", irq);
 
 	if (!desc)
 		return NULL;
 
-	raw_spin_lock_irqsave(&desc->lock, flags);
+	scoped_guard(raw_spinlock_irqsave, &desc->lock) {
+		action = desc->action;
+		if (!action || action->percpu_dev_id != dev_id) {
+			WARN(1, "Trying to free already-free IRQ %d\n", irq);
+			return NULL;
+		}
 
-	action = desc->action;
-	if (!action || action->percpu_dev_id != dev_id) {
-		WARN(1, "Trying to free already-free IRQ %d\n", irq);
-		goto bad;
+		if (!cpumask_empty(desc->percpu_enabled)) {
+			WARN(1, "percpu IRQ %d still enabled on CPU%d!\n",
+			     irq, cpumask_first(desc->percpu_enabled));
+			return NULL;
+		}
+
+		/* Found it - now remove it from the list of entries: */
+		desc->action = NULL;
+		desc->istate &= ~IRQS_NMI;
 	}
-
-	if (!cpumask_empty(desc->percpu_enabled)) {
-		WARN(1, "percpu IRQ %d still enabled on CPU%d!\n",
-		     irq, cpumask_first(desc->percpu_enabled));
-		goto bad;
-	}
-
-	/* Found it - now remove it from the list of entries: */
-	desc->action = NULL;
-
-	desc->istate &= ~IRQS_NMI;
-
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
 
 	unregister_handler_proc(irq, action);
-
 	irq_chip_pm_put(&desc->irq_data);
 	module_put(desc->owner);
 	return action;
-
-bad:
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
-	return NULL;
 }
 
 /**
@@ -2651,7 +2615,6 @@ int request_percpu_nmi(unsigned int irq, irq_handler_t handler,
 {
 	struct irqaction *action;
 	struct irq_desc *desc;
-	unsigned long flags;
 	int retval;
 
 	if (!handler)
@@ -2687,10 +2650,8 @@ int request_percpu_nmi(unsigned int irq, irq_handler_t handler,
 	if (retval)
 		goto err_irq_setup;
 
-	raw_spin_lock_irqsave(&desc->lock, flags);
+	guard(raw_spinlock_irqsave)(&desc->lock);
 	desc->istate |= IRQS_NMI;
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
-
 	return 0;
 
 err_irq_setup:
