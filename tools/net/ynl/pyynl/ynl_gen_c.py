@@ -809,6 +809,12 @@ class Struct:
             raise Exception("Inheriting different members not supported")
         self.inherited = [c_lower(x) for x in sorted(self._inherited)]
 
+    def free_needs_iter(self):
+        for _, attr in self.attr_list:
+            if attr.free_needs_iter():
+                return True
+        return False
+
 
 class EnumEntry(SpecEnumEntry):
     def __init__(self, enum_set, yaml, prev, value_start):
@@ -2156,11 +2162,9 @@ def print_wrapped_type(ri):
 
 
 def _free_type_members_iter(ri, struct):
-    for _, attr in struct.member_list():
-        if attr.free_needs_iter():
-            ri.cw.p('unsigned int i;')
-            ri.cw.nl()
-            break
+    if struct.free_needs_iter():
+        ri.cw.p('unsigned int i;')
+        ri.cw.nl()
 
 
 def _free_type_members(ri, var, struct, ref=''):
