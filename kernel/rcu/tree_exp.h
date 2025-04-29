@@ -751,12 +751,8 @@ static void rcu_exp_handler(void *unused)
 	struct task_struct *t = current;
 
 	/*
-	 * First, is there no need for a quiescent state from this CPU,
-	 * or is this CPU already looking for a quiescent state for the
-	 * current grace period?  If either is the case, just leave.
-	 * However, this should not happen due to the preemptible
-	 * sync_sched_exp_online_cleanup() implementation being a no-op,
-	 * so warn if this does happen.
+	 * WARN if the CPU is unexpectedly already looking for a
+	 * QS or has already reported one.
 	 */
 	ASSERT_EXCLUSIVE_WRITER_SCOPED(rdp->cpu_no_qs.b.exp);
 	if (WARN_ON_ONCE(!(READ_ONCE(rnp->expmask) & rdp->grpmask) ||
@@ -801,11 +797,6 @@ static void rcu_exp_handler(void *unused)
 
 	// Fourth and finally, negative nesting depth should not happen.
 	WARN_ON_ONCE(1);
-}
-
-/* PREEMPTION=y, so no PREEMPTION=n expedited grace period to clean up after. */
-static void sync_sched_exp_online_cleanup(int cpu)
-{
 }
 
 /*
@@ -883,38 +874,6 @@ static void rcu_exp_handler(void *unused)
 		return;
 	}
 	rcu_exp_need_qs();
-}
-
-/* Send IPI for expedited cleanup if needed at end of CPU-hotplug operation. */
-static void sync_sched_exp_online_cleanup(int cpu)
-{
-	unsigned long flags;
-	int my_cpu;
-	struct rcu_data *rdp;
-	int ret;
-	struct rcu_node *rnp;
-
-	rdp = per_cpu_ptr(&rcu_data, cpu);
-	rnp = rdp->mynode;
-	my_cpu = get_cpu();
-	/* Quiescent state either not needed or already requested, leave. */
-	if (!(READ_ONCE(rnp->expmask) & rdp->grpmask) ||
-	    READ_ONCE(rdp->cpu_no_qs.b.exp)) {
-		put_cpu();
-		return;
-	}
-	/* Quiescent state needed on current CPU, so set it up locally. */
-	if (my_cpu == cpu) {
-		local_irq_save(flags);
-		rcu_exp_need_qs();
-		local_irq_restore(flags);
-		put_cpu();
-		return;
-	}
-	/* Quiescent state needed on some other CPU, send IPI. */
-	ret = smp_call_function_single(cpu, rcu_exp_handler, NULL, 0);
-	put_cpu();
-	WARN_ON_ONCE(ret);
 }
 
 /*
