@@ -2022,7 +2022,9 @@ out:
 }
 
 static int multipath_prepare_ioctl(struct dm_target *ti,
-				   struct block_device **bdev)
+				   struct block_device **bdev,
+				   unsigned int cmd, unsigned long arg,
+				   bool *forward)
 {
 	struct multipath *m = ti->private;
 	struct pgpath *pgpath;
