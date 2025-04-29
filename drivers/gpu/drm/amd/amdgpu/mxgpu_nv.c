@@ -67,6 +67,8 @@ static int xgpu_nv_mailbox_rcv_msg(struct amdgpu_device *adev,
 	reg = RREG32_NO_KIQ(mmMAILBOX_MSGBUF_RCV_DW0);
 	if (reg == IDH_FAIL)
 		r = -EINVAL;
+	if (reg == IDH_UNRECOV_ERR_NOTIFICATION)
+		r = -ENODEV;
 	else if (reg != event)
 		return -ENOENT;
 
@@ -103,6 +105,7 @@ static int xgpu_nv_poll_msg(struct amdgpu_device *adev, enum idh_event event)
 {
 	int r;
 	uint64_t timeout, now;
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
 	now = (uint64_t)ktime_to_ms(ktime_get());
 	timeout = now + NV_MAILBOX_POLL_MSG_TIMEDOUT;
@@ -110,8 +113,16 @@ static int xgpu_nv_poll_msg(struct amdgpu_device *adev, enum idh_event event)
 	do {
 		r = xgpu_nv_mailbox_rcv_msg(adev, event);
 		if (!r) {
-			dev_dbg(adev->dev, "rcv_msg 0x%x after %llu ms\n", event, NV_MAILBOX_POLL_MSG_TIMEDOUT - timeout + now);
+			dev_dbg(adev->dev, "rcv_msg 0x%x after %llu ms\n",
+					event, NV_MAILBOX_POLL_MSG_TIMEDOUT - timeout + now);
 			return 0;
+		} else if (r == -ENODEV) {
+			if (!amdgpu_ras_is_rma(adev)) {
+				ras->is_rma = true;
+				dev_err(adev->dev, "VF is in an unrecoverable state. "
+						"Runtime Services are halted.\n");
+			}
+			return r;
 		}
 
 		msleep(10);
@@ -166,6 +177,10 @@ static int xgpu_nv_send_access_requests_with_param(struct amdgpu_device *adev,
 	enum idh_event event = -1;
 
 send_request:
+
+	if (amdgpu_ras_is_rma(adev))
+		return -ENODEV;
+
 	xgpu_nv_mailbox_trans_msg(adev, req, data1, data2, data3);
 
 	switch (req) {
@@ -323,6 +338,7 @@ static void xgpu_nv_mailbox_flr_work(struct work_struct *work)
 {
 	struct amdgpu_virt *virt = container_of(work, struct amdgpu_virt, flr_work);
 	struct amdgpu_device *adev = container_of(virt, struct amdgpu_device, virt);
+	struct amdgpu_reset_context reset_context = { 0 };
 
 	amdgpu_virt_fini_data_exchange(adev);
 
@@ -333,8 +349,6 @@ static void xgpu_nv_mailbox_flr_work(struct work_struct *work)
 		adev->gfx_timeout == MAX_SCHEDULE_TIMEOUT ||
 		adev->compute_timeout == MAX_SCHEDULE_TIMEOUT ||
 		adev->video_timeout == MAX_SCHEDULE_TIMEOUT)) {
-		struct amdgpu_reset_context reset_context;
-		memset(&reset_context, 0, sizeof(reset_context));
 
 		reset_context.method = AMD_RESET_METHOD_NONE;
 		reset_context.reset_req_dev = adev;
@@ -380,12 +394,26 @@ static int xgpu_nv_mailbox_rcv_irq(struct amdgpu_device *adev,
 				   struct amdgpu_iv_entry *entry)
 {
 	enum idh_event event = xgpu_nv_mailbox_peek_msg(adev);
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
 	switch (event) {
 	case IDH_RAS_BAD_PAGES_NOTIFICATION:
 		xgpu_nv_mailbox_send_ack(adev);
 		if (amdgpu_sriov_runtime(adev))
 			schedule_work(&adev->virt.bad_pages_work);
+		break;
+	case IDH_UNRECOV_ERR_NOTIFICATION:
+		xgpu_nv_mailbox_send_ack(adev);
+		if (!amdgpu_ras_is_rma(adev)) {
+			ras->is_rma = true;
+			dev_err(adev->dev, "VF is in an unrecoverable state. Runtime Services are halted.\n");
+		}
+
+		if (amdgpu_sriov_runtime(adev))
+			WARN_ONCE(!amdgpu_reset_domain_schedule(adev->reset_domain,
+						&adev->virt.flr_work),
+					"Failed to queue work! at %s",
+					__func__);
 		break;
 	case IDH_FLR_NOTIFICATION:
 		if (amdgpu_sriov_runtime(adev))

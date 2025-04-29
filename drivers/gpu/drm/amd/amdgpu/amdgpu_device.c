@@ -6150,6 +6150,11 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 	/* Actual ASIC resets if needed.*/
 	/* Host driver will handle XGMI hive reset for SRIOV */
 	if (amdgpu_sriov_vf(adev)) {
+
+		/* Bail out of reset early */
+		if (amdgpu_ras_is_rma(adev))
+			return -ENODEV;
+
 		if (amdgpu_ras_get_fed_status(adev) || amdgpu_virt_rcvd_ras_interrupt(adev)) {
 			dev_dbg(adev->dev, "Detected RAS error, wait for FLR completion\n");
 			amdgpu_ras_set_fed(adev, true);

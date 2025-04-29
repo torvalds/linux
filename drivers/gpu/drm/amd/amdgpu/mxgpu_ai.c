@@ -324,6 +324,7 @@ static int xgpu_ai_mailbox_rcv_irq(struct amdgpu_device *adev,
 				   struct amdgpu_iv_entry *entry)
 {
 	enum idh_event event = xgpu_ai_mailbox_peek_msg(adev);
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
 	switch (event) {
 	case IDH_RAS_BAD_PAGES_NOTIFICATION:
@@ -331,12 +332,22 @@ static int xgpu_ai_mailbox_rcv_irq(struct amdgpu_device *adev,
 		if (amdgpu_sriov_runtime(adev))
 			schedule_work(&adev->virt.bad_pages_work);
 		break;
+	case IDH_UNRECOV_ERR_NOTIFICATION:
+		xgpu_ai_mailbox_send_ack(adev);
+		ras->is_rma = true;
+		dev_err(adev->dev, "VF is in an unrecoverable state. Runtime Services are halted.\n");
+		if (amdgpu_sriov_runtime(adev))
+			WARN_ONCE(!amdgpu_reset_domain_schedule(adev->reset_domain,
+					&adev->virt.flr_work),
+					"Failed to queue work! at %s",
+					__func__);
+		break;
 	case IDH_FLR_NOTIFICATION:
 		if (amdgpu_sriov_runtime(adev))
 			WARN_ONCE(!amdgpu_reset_domain_schedule(adev->reset_domain,
-								&adev->virt.flr_work),
-				  "Failed to queue work! at %s",
-				  __func__);
+						&adev->virt.flr_work),
+					"Failed to queue work! at %s",
+					__func__);
 		break;
 	case IDH_QUERY_ALIVE:
 		xgpu_ai_mailbox_send_ack(adev);
