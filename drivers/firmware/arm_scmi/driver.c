@@ -11,7 +11,7 @@
  * various power domain DVFS including the core/cluster, certain system
  * clocks configuration, thermal sensors and many others.
  *
- * Copyright (C) 2018-2024 ARM Ltd.
+ * Copyright (C) 2018-2025 ARM Ltd.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -38,6 +38,7 @@
 
 #include "common.h"
 #include "notify.h"
+#include "quirks.h"
 
 #include "raw_mode.h"
 
@@ -3102,6 +3103,18 @@ static const struct scmi_desc *scmi_transport_setup(struct device *dev)
 	return &trans->desc;
 }
 
+static void scmi_enable_matching_quirks(struct scmi_info *info)
+{
+	struct scmi_revision_info *rev = &info->version;
+
+	dev_dbg(info->dev, "Looking for quirks matching: %s/%s/0x%08X\n",
+		rev->vendor_id, rev->sub_vendor_id, rev->impl_ver);
+
+	/* Enable applicable quirks */
+	scmi_quirks_enable(info->dev, rev->vendor_id,
+			   rev->sub_vendor_id, rev->impl_ver);
+}
+
 static int scmi_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -3222,6 +3235,8 @@ static int scmi_probe(struct platform_device *pdev)
 	mutex_lock(&scmi_list_mutex);
 	list_add_tail(&info->node, &scmi_list);
 	mutex_unlock(&scmi_list_mutex);
+
+	scmi_enable_matching_quirks(info);
 
 	for_each_available_child_of_node(np, child) {
 		u32 prot_id;
@@ -3381,6 +3396,8 @@ static struct dentry *scmi_debugfs_init(void)
 
 static int __init scmi_driver_init(void)
 {
+	scmi_quirks_initialize();
+
 	/* Bail out if no SCMI transport was configured */
 	if (WARN_ON(!IS_ENABLED(CONFIG_ARM_SCMI_HAVE_TRANSPORT)))
 		return -EINVAL;
