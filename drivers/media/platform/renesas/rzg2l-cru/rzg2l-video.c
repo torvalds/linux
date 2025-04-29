@@ -345,8 +345,6 @@ bool rzg2l_fifo_empty(struct rzg2l_cru_dev *cru)
 	amnfifopntr_w = amnfifopntr & AMnFIFOPNTR_FIFOWPNTR;
 	amnfifopntr_r_y =
 		(amnfifopntr & AMnFIFOPNTR_FIFORPNTR_Y) >> 16;
-	if (amnfifopntr_w == amnfifopntr_r_y)
-		return true;
 
 	return amnfifopntr_w == amnfifopntr_r_y;
 }
