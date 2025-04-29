@@ -785,7 +785,7 @@ static unsigned int pmu_visibility(const struct kvm_vcpu *vcpu,
 static u64 reset_pmu_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 {
 	u64 mask = BIT(ARMV8_PMU_CYCLE_IDX);
-	u8 n = vcpu->kvm->arch.pmcr_n;
+	u8 n = vcpu->kvm->arch.nr_pmu_counters;
 
 	if (n)
 		mask |= GENMASK(n - 1, 0);
@@ -1216,8 +1216,9 @@ static int set_pmcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 	 * with the existing KVM behavior.
 	 */
 	if (!kvm_vm_has_ran_once(kvm) &&
+	    !vcpu_has_nv(vcpu)	      &&
 	    new_n <= kvm_arm_pmu_get_max_counters(kvm))
-		kvm->arch.pmcr_n = new_n;
+		kvm->arch.nr_pmu_counters = new_n;
 
 	mutex_unlock(&kvm->arch.config_lock);
 
@@ -2570,16 +2571,33 @@ static bool access_mdcr(struct kvm_vcpu *vcpu,
 			struct sys_reg_params *p,
 			const struct sys_reg_desc *r)
 {
-	u64 old = __vcpu_sys_reg(vcpu, MDCR_EL2);
+	u64 hpmn, val, old = __vcpu_sys_reg(vcpu, MDCR_EL2);
 
-	if (!access_rw(vcpu, p, r))
-		return false;
+	if (!p->is_write) {
+		p->regval = old;
+		return true;
+	}
+
+	val = p->regval;
+	hpmn = FIELD_GET(MDCR_EL2_HPMN, val);
 
 	/*
-	 * Request a reload of the PMU to enable/disable the counters affected
-	 * by HPME.
+	 * If HPMN is out of bounds, limit it to what we actually
+	 * support. This matches the UNKNOWN definition of the field
+	 * in that case, and keeps the emulation simple. Sort of.
 	 */
-	if ((old ^ __vcpu_sys_reg(vcpu, MDCR_EL2)) & MDCR_EL2_HPME)
+	if (hpmn > vcpu->kvm->arch.nr_pmu_counters) {
+		hpmn = vcpu->kvm->arch.nr_pmu_counters;
+		u64_replace_bits(val, hpmn, MDCR_EL2_HPMN);
+	}
+
+	__vcpu_sys_reg(vcpu, MDCR_EL2) = val;
+
+	/*
+	 * Request a reload of the PMU to enable/disable the counters
+	 * affected by HPME.
+	 */
+	if ((old ^ val) & MDCR_EL2_HPME)
 		kvm_make_request(KVM_REQ_RELOAD_PMU, vcpu);
 
 	return true;
@@ -2698,6 +2716,12 @@ static int set_imp_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 	.set_user = set_imp_id_reg,			\
 	.reset = reset_imp_id_reg,			\
 	.val = mask,					\
+	}
+
+static u64 reset_mdcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
+{
+	__vcpu_sys_reg(vcpu, r->reg) = vcpu->kvm->arch.nr_pmu_counters;
+	return vcpu->kvm->arch.nr_pmu_counters;
 }
 
 /*
@@ -3243,7 +3267,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	EL2_REG(SCTLR_EL2, access_rw, reset_val, SCTLR_EL2_RES1),
 	EL2_REG(ACTLR_EL2, access_rw, reset_val, 0),
 	EL2_REG_VNCR(HCR_EL2, reset_hcr, 0),
-	EL2_REG(MDCR_EL2, access_mdcr, reset_val, 0),
+	EL2_REG(MDCR_EL2, access_mdcr, reset_mdcr, 0),
 	EL2_REG(CPTR_EL2, access_rw, reset_val, CPTR_NVHE_EL2_RES1),
 	EL2_REG_VNCR(HSTR_EL2, reset_val, 0),
 	EL2_REG_VNCR(HFGRTR_EL2, reset_val, 0),
