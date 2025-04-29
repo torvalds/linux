@@ -323,7 +323,7 @@ static int rzg2l_cru_initialize_image_conv(struct rzg2l_cru_dev *cru,
 	return 0;
 }
 
-bool rz3e_fifo_empty(struct rzg2l_cru_dev *cru)
+bool rzg3e_fifo_empty(struct rzg2l_cru_dev *cru)
 {
 	u32 amnfifopntr = rzg2l_cru_read(cru, AMnFIFOPNTR);
 

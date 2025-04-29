@@ -366,7 +366,7 @@ static const struct rzg2l_cru_info rzg3e_cru_info = {
 	.irq_handler = rzg3e_cru_irq,
 	.enable_interrupts = rzg3e_cru_enable_interrupts,
 	.disable_interrupts = rzg3e_cru_disable_interrupts,
-	.fifo_empty = rz3e_fifo_empty,
+	.fifo_empty = rzg3e_fifo_empty,
 	.csi_setup = rzg3e_cru_csi2_setup,
 };
 
