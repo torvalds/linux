@@ -62,6 +62,9 @@
  */
 #define AMDGPU_GMC_FAULT_TIMEOUT	5000ULL
 
+/* XNACK flags */
+#define AMDGPU_GMC_XNACK_FLAG_CHAIN BIT(0)
+
 struct firmware;
 
 enum amdgpu_memory_partition {
@@ -301,6 +304,7 @@ struct amdgpu_gmc {
 	struct amdgpu_xgmi xgmi;
 	struct amdgpu_irq_src	ecc_irq;
 	int noretry;
+	uint32_t xnack_flags;
 
 	uint32_t	vmid0_page_table_block_size;
 	uint32_t	vmid0_page_table_depth;

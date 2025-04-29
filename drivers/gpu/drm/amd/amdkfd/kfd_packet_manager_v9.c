@@ -203,6 +203,8 @@ static int pm_set_resources_v9(struct packet_manager *pm, uint32_t *buffer,
 			queue_type__mes_set_resources__hsa_interface_queue_hiq;
 	packet->bitfields2.vmid_mask = res->vmid_mask;
 	packet->bitfields2.unmap_latency = KFD_UNMAP_LATENCY_MS / 100;
+	if (pm->dqm->dev->adev->gmc.xnack_flags & AMDGPU_GMC_XNACK_FLAG_CHAIN)
+		packet->bitfields2.enb_xnack_retry_disable_check = 1;
 	packet->bitfields7.oac_mask = res->oac_mask;
 	packet->bitfields8.gds_heap_base = res->gds_heap_base;
 	packet->bitfields8.gds_heap_size = res->gds_heap_size;

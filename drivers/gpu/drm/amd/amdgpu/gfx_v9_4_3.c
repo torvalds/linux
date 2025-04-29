@@ -1273,6 +1273,22 @@ static void gfx_v9_4_3_xcc_init_gds_vmid(struct amdgpu_device *adev, int xcc_id)
 	}
 }
 
+/* For ASICs that needs xnack chain and MEC version supports, set SG_CONFIG1
+ * DISABLE_XNACK_CHECK_IN_RETRY_DISABLE bit and inform KFD to set xnack_chain
+ * bit in SET_RESOURCES
+ */
+static void gfx_v9_4_3_xcc_init_sq(struct amdgpu_device *adev, int xcc_id)
+{
+	uint32_t data;
+
+	if (!(adev->gmc.xnack_flags & AMDGPU_GMC_XNACK_FLAG_CHAIN))
+		return;
+
+	data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regSQ_CONFIG1);
+	data = REG_SET_FIELD(data, SQ_CONFIG1, DISABLE_XNACK_CHECK_IN_RETRY_DISABLE, 1);
+	WREG32_SOC15(GC, xcc_id, regSQ_CONFIG1, data);
+}
+
 static void gfx_v9_4_3_xcc_constants_init(struct amdgpu_device *adev,
 					  int xcc_id)
 {
@@ -1317,6 +1333,7 @@ static void gfx_v9_4_3_xcc_constants_init(struct amdgpu_device *adev,
 
 	gfx_v9_4_3_xcc_init_compute_vmid(adev, xcc_id);
 	gfx_v9_4_3_xcc_init_gds_vmid(adev, xcc_id);
+	gfx_v9_4_3_xcc_init_sq(adev, xcc_id);
 }
 
 static void gfx_v9_4_3_constants_init(struct amdgpu_device *adev)
@@ -1328,6 +1345,20 @@ static void gfx_v9_4_3_constants_init(struct amdgpu_device *adev)
 	gfx_v9_4_3_get_cu_info(adev, &adev->gfx.cu_info);
 	adev->gfx.config.db_debug2 =
 		RREG32_SOC15(GC, GET_INST(GC, 0), regDB_DEBUG2);
+
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
+	/* ToDo: GC 9.4.4 */
+	case IP_VERSION(9, 4, 3):
+		if (adev->gfx.mec_fw_version >= 184)
+			adev->gmc.xnack_flags |= AMDGPU_GMC_XNACK_FLAG_CHAIN;
+		break;
+	case IP_VERSION(9, 5, 0):
+		if (adev->gfx.mec_fw_version >= 23)
+			adev->gmc.xnack_flags |= AMDGPU_GMC_XNACK_FLAG_CHAIN;
+		break;
+	default:
+		break;
+	}
 
 	for (i = 0; i < num_xcc; i++)
 		gfx_v9_4_3_xcc_constants_init(adev, i);
