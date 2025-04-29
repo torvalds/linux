@@ -277,6 +277,7 @@ struct mes_reset_queue_input {
 	uint64_t                           wptr_addr;
 	uint32_t                           vmid;
 	bool                               legacy_gfx;
+	bool                               is_kq;
 };
 
 enum mes_misc_opcode {
