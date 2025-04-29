@@ -39,6 +39,9 @@
 #define DELL_DDV_SUPPORTED_VERSION_MAX	3
 #define DELL_DDV_GUID	"8A42EA14-4F2A-FD45-6422-0087F7A7E608"
 
+/* Battery indices 1, 2 and 3 */
+#define DELL_DDV_NUM_BATTERIES		3
+
 #define DELL_EPPID_LENGTH	20
 #define DELL_EPPID_EXT_LENGTH	23
 
@@ -105,6 +108,8 @@ struct dell_wmi_ddv_sensors {
 struct dell_wmi_ddv_data {
 	struct acpi_battery_hook hook;
 	struct device_attribute eppid_attr;
+	struct mutex translation_cache_lock;	/* Protects the translation cache */
+	struct power_supply *translation_cache[DELL_DDV_NUM_BATTERIES];
 	struct dell_wmi_ddv_sensors fans;
 	struct dell_wmi_ddv_sensors temps;
 	struct wmi_device *wdev;
@@ -639,15 +644,78 @@ err_release:
 	return ret;
 }
 
-static int dell_wmi_ddv_battery_index(struct acpi_device *acpi_dev, u32 *index)
+static int dell_wmi_ddv_battery_translate(struct dell_wmi_ddv_data *data,
+					  struct power_supply *battery, u32 *index)
 {
-	const char *uid_str;
+	u32 serial_dec, serial_hex, serial;
+	union power_supply_propval val;
+	int ret;
 
-	uid_str = acpi_device_uid(acpi_dev);
-	if (!uid_str)
-		return -ENODEV;
+	guard(mutex)(&data->translation_cache_lock);
 
-	return kstrtou32(uid_str, 10, index);
+	for (int i = 0; i < ARRAY_SIZE(data->translation_cache); i++) {
+		if (data->translation_cache[i] == battery) {
+			dev_dbg(&data->wdev->dev, "Translation cache hit for battery index %u\n",
+				i + 1);
+			*index = i + 1;
+			return 0;
+		}
+	}
+
+	dev_dbg(&data->wdev->dev, "Translation cache miss\n");
+
+	/* Perform a translation between a ACPI battery and a battery index */
+
+	ret = power_supply_get_property(battery, POWER_SUPPLY_PROP_SERIAL_NUMBER, &val);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Some devices display the serial number of the ACPI battery (string!) as a decimal
+	 * number while other devices display it as a hexadecimal number. Because of this we
+	 * have to check both cases.
+	 */
+	ret = kstrtou32(val.strval, 16, &serial_hex);
+	if (ret < 0)
+		return ret;	/* Should never fail */
+
+	ret = kstrtou32(val.strval, 10, &serial_dec);
+	if (ret < 0)
+		serial_dec = 0; /* Can fail, thus we only mark serial_dec as invalid */
+
+	for (int i = 0; i < ARRAY_SIZE(data->translation_cache); i++) {
+		ret = dell_wmi_ddv_query_integer(data->wdev, DELL_DDV_BATTERY_SERIAL_NUMBER, i + 1,
+						 &serial);
+		if (ret < 0)
+			return ret;
+
+		/* A serial number of 0 signals that this index is not associated with a battery */
+		if (!serial)
+			continue;
+
+		if (serial == serial_dec || serial == serial_hex) {
+			dev_dbg(&data->wdev->dev, "Translation cache update for battery index %u\n",
+				i + 1);
+			data->translation_cache[i] = battery;
+			*index = i + 1;
+			return 0;
+		}
+	}
+
+	return -ENODEV;
+}
+
+static void dell_wmi_battery_invalidate(struct dell_wmi_ddv_data *data,
+					struct power_supply *battery)
+{
+	guard(mutex)(&data->translation_cache_lock);
+
+	for (int i = 0; i < ARRAY_SIZE(data->translation_cache); i++) {
+		if (data->translation_cache[i] == battery) {
+			data->translation_cache[i] = NULL;
+			return;
+		}
+	}
 }
 
 static ssize_t eppid_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -657,7 +725,7 @@ static ssize_t eppid_show(struct device *dev, struct device_attribute *attr, cha
 	u32 index;
 	int ret;
 
-	ret = dell_wmi_ddv_battery_index(to_acpi_device(dev->parent), &index);
+	ret = dell_wmi_ddv_battery_translate(data, to_power_supply(dev), &index);
 	if (ret < 0)
 		return ret;
 
@@ -684,7 +752,7 @@ static int dell_wmi_ddv_get_property(struct power_supply *psy, const struct powe
 	u32 index, value;
 	int ret;
 
-	ret = dell_wmi_ddv_battery_index(to_acpi_device(psy->dev.parent), &index);
+	ret = dell_wmi_ddv_battery_translate(data, psy, &index);
 	if (ret < 0)
 		return ret;
 
@@ -719,13 +787,12 @@ static const struct power_supply_ext dell_wmi_ddv_extension = {
 static int dell_wmi_ddv_add_battery(struct power_supply *battery, struct acpi_battery_hook *hook)
 {
 	struct dell_wmi_ddv_data *data = container_of(hook, struct dell_wmi_ddv_data, hook);
-	u32 index;
 	int ret;
 
-	/* Return 0 instead of error to avoid being unloaded */
-	ret = dell_wmi_ddv_battery_index(to_acpi_device(battery->dev.parent), &index);
-	if (ret < 0)
-		return 0;
+	/*
+	 * We cannot do the battery matching here since the battery might be absent, preventing
+	 * us from reading the serial number.
+	 */
 
 	ret = device_create_file(&battery->dev, &data->eppid_attr);
 	if (ret < 0)
@@ -749,11 +816,19 @@ static int dell_wmi_ddv_remove_battery(struct power_supply *battery, struct acpi
 	device_remove_file(&battery->dev, &data->eppid_attr);
 	power_supply_unregister_extension(battery, &dell_wmi_ddv_extension);
 
+	dell_wmi_battery_invalidate(data, battery);
+
 	return 0;
 }
 
 static int dell_wmi_ddv_battery_add(struct dell_wmi_ddv_data *data)
 {
+	int ret;
+
+	ret = devm_mutex_init(&data->wdev->dev, &data->translation_cache_lock);
+	if (ret < 0)
+		return ret;
+
 	data->hook.name = "Dell DDV Battery Extension";
 	data->hook.add_battery = dell_wmi_ddv_add_battery;
 	data->hook.remove_battery = dell_wmi_ddv_remove_battery;

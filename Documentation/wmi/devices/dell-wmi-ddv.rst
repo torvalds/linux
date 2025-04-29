@@ -260,14 +260,6 @@ Some machines like the Dell Inspiron 3505 only support a single battery and thus
 ignore the battery index. Because of this the driver depends on the ACPI battery
 hook mechanism to discover batteries.
 
-.. note::
-   The ACPI battery matching algorithm currently used inside the driver is
-   outdated and does not match the algorithm described above. The reasons for
-   this are differences in the handling of the ToHexString() ACPI opcode between
-   Linux and Windows, which distorts the serial number of ACPI batteries on many
-   machines. Until this issue is resolved, the driver cannot use the above
-   algorithm.
-
 Reverse-Engineering the DDV WMI interface
 =========================================
 
