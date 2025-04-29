@@ -197,6 +197,9 @@ static int dlm_check_protocol_and_dlm_running(unsigned int x)
 		break;
 	case 1:
 		/* SCTP */
+		if (!IS_ENABLED(CONFIG_IP_SCTP))
+			return -EOPNOTSUPP;
+
 		break;
 	default:
 		return -EINVAL;
