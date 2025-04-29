@@ -11,6 +11,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/firmware.h>
+#include <linux/minmax.h>
 #include <linux/regmap.h>
 #include <sound/soc.h>
 #include "aw88399.h"
@@ -872,11 +873,7 @@ static int aw_dev_dsp_update_container(struct aw_device *aw_dev,
 		goto error_operation;
 
 	for (i = 0; i < len; i += AW88399_MAX_RAM_WRITE_BYTE_SIZE) {
-		if ((len - i) < AW88399_MAX_RAM_WRITE_BYTE_SIZE)
-			tmp_len = len - i;
-		else
-			tmp_len = AW88399_MAX_RAM_WRITE_BYTE_SIZE;
-
+		tmp_len = min(len - i, AW88399_MAX_RAM_WRITE_BYTE_SIZE);
 		ret = regmap_raw_write(aw_dev->regmap, AW88399_DSPMDAT_REG,
 					&data[i], tmp_len);
 		if (ret)
