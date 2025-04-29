@@ -1994,7 +1994,7 @@ static int btrfs_init_workqueues(struct btrfs_fs_info *fs_info)
 		btrfs_alloc_ordered_workqueue(fs_info, "qgroup-rescan",
 					      ordered_flags);
 	fs_info->discard_ctl.discard_workers =
-		alloc_ordered_workqueue("btrfs_discard", WQ_FREEZABLE);
+		alloc_ordered_workqueue("btrfs-discard", WQ_FREEZABLE);
 
 	if (!(fs_info->workers &&
 	      fs_info->delalloc_workers && fs_info->flush_workers &&
