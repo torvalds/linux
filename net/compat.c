@@ -70,6 +70,7 @@ int __get_compat_msghdr(struct msghdr *kmsg,
 	} else {
 		kmsg->msg_name = NULL;
 		kmsg->msg_namelen = 0;
+		kmsg->msg_namelen = 1;
 	}
 
 	if (msg->msg_iovlen > UIO_MAXIOV)
