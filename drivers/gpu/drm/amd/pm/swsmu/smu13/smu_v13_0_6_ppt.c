@@ -396,6 +396,8 @@ static void smu_v13_0_6_init_caps(struct smu_context *smu)
 			smu_v13_0_6_cap_set(smu, SMU_CAP(STATIC_METRICS));
 			smu_v13_0_6_cap_set(smu, SMU_CAP(BOARD_VOLTAGE));
 		}
+		if (fw_ver >= 0x00558000)
+			smu_v13_0_6_cap_set(smu, SMU_CAP(PLDM_VERSION));
 	}
 	if (((pgm == 7) && (fw_ver >= 0x7550700)) ||
 	    ((pgm == 0) && (fw_ver >= 0x00557900)) ||
@@ -752,6 +754,11 @@ static void smu_v13_0_6_fill_static_metrics_table(struct smu_context *smu,
 	}
 
 	dpm_context->board_volt = static_metrics->InputTelemetryVoltageInmV;
+
+	if (smu_v13_0_6_cap_supported(smu, SMU_CAP(PLDM_VERSION)) &&
+	    static_metrics->pldmVersion[0] != 0xFFFFFFFF)
+		smu->adev->firmware.pldm_version =
+			static_metrics->pldmVersion[0];
 }
 
 int smu_v13_0_6_get_static_metrics_table(struct smu_context *smu)
