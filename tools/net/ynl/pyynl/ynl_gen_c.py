@@ -1015,7 +1015,7 @@ class Family(SpecFamily):
 
         # dict space-name -> 'request': set(attrs), 'reply': set(attrs)
         self.root_sets = dict()
-        # dict space-name -> set('request', 'reply')
+        # dict space-name -> Struct
         self.pure_nested_structs = dict()
 
         self._mark_notify()
