@@ -480,26 +480,24 @@ int irq_force_affinity(unsigned int irq, const struct cpumask *cpumask)
 }
 EXPORT_SYMBOL_GPL(irq_force_affinity);
 
-int __irq_apply_affinity_hint(unsigned int irq, const struct cpumask *m,
-			      bool setaffinity)
+int __irq_apply_affinity_hint(unsigned int irq, const struct cpumask *m, bool setaffinity)
 {
-	unsigned long flags;
-	struct irq_desc *desc = irq_get_desc_lock(irq, &flags, IRQ_GET_DESC_CHECK_GLOBAL);
+	int ret = -EINVAL;
 
-	if (!desc)
-		return -EINVAL;
-	desc->affinity_hint = m;
-	irq_put_desc_unlock(desc, flags);
-	if (m && setaffinity)
+	scoped_irqdesc_get_and_lock(irq, IRQ_GET_DESC_CHECK_GLOBAL) {
+		scoped_irqdesc->affinity_hint = m;
+		ret = 0;
+	}
+
+	if (!ret && m && setaffinity)
 		__irq_set_affinity(irq, m, false);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(__irq_apply_affinity_hint);
 
 static void irq_affinity_notify(struct work_struct *work)
 {
-	struct irq_affinity_notify *notify =
-		container_of(work, struct irq_affinity_notify, work);
+	struct irq_affinity_notify *notify = container_of(work, struct irq_affinity_notify, work);
 	struct irq_desc *desc = irq_to_desc(notify->irq);
 	cpumask_var_t cpumask;
 
