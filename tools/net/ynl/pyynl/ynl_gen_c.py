@@ -175,7 +175,8 @@ class Type(SpecAttr):
     def arg_member(self, ri):
         member = self._complex_member_type(ri)
         if member:
-            arg = [member + ' *' + self.c_name]
+            spc = ' ' if member[-1] != '*' else ''
+            arg = [member + spc + '*' + self.c_name]
             if self.presence_type() == 'count':
                 arg += ['unsigned int n_' + self.c_name]
             return arg
@@ -189,7 +190,8 @@ class Type(SpecAttr):
             ptr = '*' if self.is_multi_val() else ''
             if self.is_recursive_for_op(ri):
                 ptr = '*'
-            ri.cw.p(f"{member} {ptr}{self.c_name};")
+            spc = ' ' if member[-1] != '*' else ''
+            ri.cw.p(f"{member}{spc}{ptr}{self.c_name};")
             return
         members = self.arg_member(ri)
         for one in members:
@@ -638,6 +640,8 @@ class TypeMultiAttr(Type):
     def _complex_member_type(self, ri):
         if 'type' not in self.attr or self.attr['type'] == 'nest':
             return self.nested_struct_type
+        elif self.attr['type'] == 'string':
+            return 'struct ynl_string *'
         elif self.attr['type'] in scalars:
             scalar_pfx = '__' if ri.ku_space == 'user' else ''
             return scalar_pfx + self.attr['type']
@@ -645,12 +649,18 @@ class TypeMultiAttr(Type):
             raise Exception(f"Sub-type {self.attr['type']} not supported yet")
 
     def free_needs_iter(self):
-        return 'type' not in self.attr or self.attr['type'] == 'nest'
+        return self.attr['type'] in {'nest', 'string'}
 
     def _free_lines(self, ri, var, ref):
         lines = []
         if self.attr['type'] in scalars:
             lines += [f"free({var}->{ref}{self.c_name});"]
+        elif self.attr['type'] == 'string':
+            lines += [
+                f"for (i = 0; i < {var}->{ref}n_{self.c_name}; i++)",
+                f"free({var}->{ref}{self.c_name}[i]);",
+                f"free({var}->{ref}{self.c_name});",
+            ]
         elif 'type' not in self.attr or self.attr['type'] == 'nest':
             lines += [
                 f"for (i = 0; i < {var}->{ref}n_{self.c_name}; i++)",
@@ -675,6 +685,9 @@ class TypeMultiAttr(Type):
             put_type = self.type
             ri.cw.p(f"for (i = 0; i < {var}->n_{self.c_name}; i++)")
             ri.cw.p(f"ynl_attr_put_{put_type}(nlh, {self.enum_name}, {var}->{self.c_name}[i]);")
+        elif self.attr['type'] == 'string':
+            ri.cw.p(f"for (i = 0; i < {var}->n_{self.c_name}; i++)")
+            ri.cw.p(f"ynl_attr_put_str(nlh, {self.enum_name}, {var}->{self.c_name}[i]->str);")
         elif 'type' not in self.attr or self.attr['type'] == 'nest':
             ri.cw.p(f"for (i = 0; i < {var}->n_{self.c_name}; i++)")
             self._attr_put_line(ri, var, f"{self.nested_render_name}_put(nlh, " +
@@ -1834,8 +1847,16 @@ def _multi_parse(ri, struct, init_lines, local_vars):
             ri.cw.p('return YNL_PARSE_CB_ERROR;')
         elif aspec.type in scalars:
             ri.cw.p(f"dst->{aspec.c_name}[i] = ynl_attr_get_{aspec.type}(attr);")
+        elif aspec.type == 'string':
+            ri.cw.p('unsigned int len;')
+            ri.cw.nl()
+            ri.cw.p('len = strnlen(ynl_attr_get_str(attr), ynl_attr_data_len(attr));')
+            ri.cw.p(f'dst->{aspec.c_name}[i] = malloc(sizeof(struct ynl_string) + len + 1);')
+            ri.cw.p(f"dst->{aspec.c_name}[i]->len = len;")
+            ri.cw.p(f"memcpy(dst->{aspec.c_name}[i]->str, ynl_attr_get_str(attr), len);")
+            ri.cw.p(f"dst->{aspec.c_name}[i]->str[len] = 0;")
         else:
-            raise Exception('Nest parsing type not supported yet')
+            raise Exception(f'Nest parsing of type {aspec.type} not supported yet')
         ri.cw.p('i++;')
         ri.cw.block_end()
         ri.cw.block_end()
