@@ -429,23 +429,27 @@ u64 __vgic_v3_get_gic_config(void)
 	/*
 	 * To check whether we have a MMIO-based (GICv2 compatible)
 	 * CPU interface, we need to disable the system register
-	 * view. To do that safely, we have to prevent any interrupt
-	 * from firing (which would be deadly).
+	 * view.
 	 *
-	 * Note that this only makes sense on VHE, as interrupts are
-	 * already masked for nVHE as part of the exception entry to
-	 * EL2.
-	 */
-	if (has_vhe())
-		flags = local_daif_save();
-
-	/*
 	 * Table 11-2 "Permitted ICC_SRE_ELx.SRE settings" indicates
 	 * that to be able to set ICC_SRE_EL1.SRE to 0, all the
 	 * interrupt overrides must be set. You've got to love this.
+	 *
+	 * As we always run VHE with HCR_xMO set, no extra xMO
+	 * manipulation is required in that case.
+	 *
+	 * To safely disable SRE, we have to prevent any interrupt
+	 * from firing (which would be deadly). This only makes sense
+	 * on VHE, as interrupts are already masked for nVHE as part
+	 * of the exception entry to EL2.
 	 */
-	sysreg_clear_set(hcr_el2, 0, HCR_AMO | HCR_FMO | HCR_IMO);
-	isb();
+	if (has_vhe()) {
+		flags = local_daif_save();
+	} else {
+		sysreg_clear_set(hcr_el2, 0, HCR_AMO | HCR_FMO | HCR_IMO);
+		isb();
+	}
+
 	write_gicreg(0, ICC_SRE_EL1);
 	isb();
 
@@ -453,11 +457,13 @@ u64 __vgic_v3_get_gic_config(void)
 
 	write_gicreg(sre, ICC_SRE_EL1);
 	isb();
-	sysreg_clear_set(hcr_el2, HCR_AMO | HCR_FMO | HCR_IMO, 0);
-	isb();
 
-	if (has_vhe())
+	if (has_vhe()) {
 		local_daif_restore(flags);
+	} else {
+		sysreg_clear_set(hcr_el2, HCR_AMO | HCR_FMO | HCR_IMO, 0);
+		isb();
+	}
 
 	val  = (val & ICC_SRE_EL1_SRE) ? 0 : (1ULL << 63);
 	val |= read_gicreg(ICH_VTR_EL2);
