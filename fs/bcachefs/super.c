@@ -1894,6 +1894,7 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 		goto err_unlock;
 	}
 	unsigned dev_idx = ret;
+	ret = 0;
 
 	/* success: */
 
@@ -1913,27 +1914,29 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 
-	ret = bch2_dev_usage_init(ca, false);
-	if (ret)
-		goto err_late;
+	if (test_bit(BCH_FS_started, &c->flags)) {
+		ret = bch2_dev_usage_init(ca, false);
+		if (ret)
+			goto err_late;
 
-	ret = bch2_trans_mark_dev_sb(c, ca, BTREE_TRIGGER_transactional);
-	bch_err_msg(ca, ret, "marking new superblock");
-	if (ret)
-		goto err_late;
+		ret = bch2_trans_mark_dev_sb(c, ca, BTREE_TRIGGER_transactional);
+		bch_err_msg(ca, ret, "marking new superblock");
+		if (ret)
+			goto err_late;
 
-	ret = bch2_fs_freespace_init(c);
-	bch_err_msg(ca, ret, "initializing free space");
-	if (ret)
-		goto err_late;
+		ret = bch2_fs_freespace_init(c);
+		bch_err_msg(ca, ret, "initializing free space");
+		if (ret)
+			goto err_late;
 
-	if (ca->mi.state == BCH_MEMBER_STATE_rw)
-		__bch2_dev_read_write(c, ca);
+		if (ca->mi.state == BCH_MEMBER_STATE_rw)
+			__bch2_dev_read_write(c, ca);
 
-	ret = bch2_dev_journal_alloc(ca, false);
-	bch_err_msg(c, ret, "allocating journal");
-	if (ret)
-		goto err_late;
+		ret = bch2_dev_journal_alloc(ca, false);
+		bch_err_msg(c, ret, "allocating journal");
+		if (ret)
+			goto err_late;
+	}
 
 	up_write(&c->state_lock);
 out:
