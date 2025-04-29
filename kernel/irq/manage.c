@@ -2634,22 +2634,13 @@ int prepare_percpu_nmi(unsigned int irq)
  */
 void teardown_percpu_nmi(unsigned int irq)
 {
-	unsigned long flags;
-	struct irq_desc *desc;
-
 	WARN_ON(preemptible());
 
-	desc = irq_get_desc_lock(irq, &flags,
-				 IRQ_GET_DESC_CHECK_PERCPU);
-	if (!desc)
-		return;
-
-	if (WARN_ON(!irq_is_nmi(desc)))
-		goto out;
-
-	irq_nmi_teardown(desc);
-out:
-	irq_put_desc_unlock(desc, flags);
+	scoped_irqdesc_get_and_lock(irq, IRQ_GET_DESC_CHECK_PERCPU) {
+		if (WARN_ON(!irq_is_nmi(scoped_irqdesc)))
+			return;
+		irq_nmi_teardown(scoped_irqdesc);
+	}
 }
 
 static int __irq_get_irqchip_state(struct irq_data *data, enum irqchip_irq_state which, bool *state)
