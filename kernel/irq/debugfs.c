@@ -160,7 +160,7 @@ static int irq_debug_show(struct seq_file *m, void *p)
 	struct irq_desc *desc = m->private;
 	struct irq_data *data;
 
-	raw_spin_lock_irq(&desc->lock);
+	guard(raw_spinlock_irq)(&desc->lock);
 	data = irq_desc_get_irq_data(desc);
 	seq_printf(m, "handler:  %ps\n", desc->handle_irq);
 	seq_printf(m, "device:   %s\n", desc->dev_name);
@@ -178,7 +178,6 @@ static int irq_debug_show(struct seq_file *m, void *p)
 	seq_printf(m, "node:     %d\n", irq_data_get_node(data));
 	irq_debug_show_masks(m, desc);
 	irq_debug_show_data(m, data, 0);
-	raw_spin_unlock_irq(&desc->lock);
 	return 0;
 }
 
