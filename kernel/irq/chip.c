@@ -653,20 +653,26 @@ static void cond_unmask_eoi_irq(struct irq_desc *desc, struct irq_chip *chip)
 	}
 }
 
+static inline void cond_eoi_irq(struct irq_chip *chip, struct irq_data *data)
+{
+	if (!(chip->flags & IRQCHIP_EOI_IF_HANDLED))
+		chip->irq_eoi(data);
+}
+
 /**
- *	handle_fasteoi_irq - irq handler for transparent controllers
- *	@desc:	the interrupt description structure for this irq
+ * handle_fasteoi_irq - irq handler for transparent controllers
+ * @desc:	the interrupt description structure for this irq
  *
- *	Only a single callback will be issued to the chip: an ->eoi()
- *	call when the interrupt has been serviced. This enables support
- *	for modern forms of interrupt handlers, which handle the flow
- *	details in hardware, transparently.
+ * Only a single callback will be issued to the chip: an ->eoi() call when
+ * the interrupt has been serviced. This enables support for modern forms
+ * of interrupt handlers, which handle the flow details in hardware,
+ * transparently.
  */
 void handle_fasteoi_irq(struct irq_desc *desc)
 {
 	struct irq_chip *chip = desc->irq_data.chip;
 
-	raw_spin_lock(&desc->lock);
+	guard(raw_spinlock)(&desc->lock);
 
 	/*
 	 * When an affinity change races with IRQ handling, the next interrupt
@@ -676,19 +682,14 @@ void handle_fasteoi_irq(struct irq_desc *desc)
 	if (!irq_can_handle_pm(desc)) {
 		if (irqd_needs_resend_when_in_progress(&desc->irq_data))
 			desc->istate |= IRQS_PENDING;
-		goto out;
+		cond_eoi_irq(chip, &desc->irq_data);
+		return;
 	}
 
-	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
-
-	/*
-	 * If its disabled or no action available
-	 * then mask it and get out of here:
-	 */
-	if (unlikely(!desc->action || irqd_irq_disabled(&desc->irq_data))) {
-		desc->istate |= IRQS_PENDING;
+	if (!irq_can_handle_actions(desc)) {
 		mask_irq(desc);
-		goto out;
+		cond_eoi_irq(chip, &desc->irq_data);
+		return;
 	}
 
 	kstat_incr_irqs_this_cpu(desc);
@@ -704,13 +705,6 @@ void handle_fasteoi_irq(struct irq_desc *desc)
 	 */
 	if (unlikely(desc->istate & IRQS_PENDING))
 		check_irq_resend(desc, false);
-
-	raw_spin_unlock(&desc->lock);
-	return;
-out:
-	if (!(chip->flags & IRQCHIP_EOI_IF_HANDLED))
-		chip->irq_eoi(&desc->irq_data);
-	raw_spin_unlock(&desc->lock);
 }
 EXPORT_SYMBOL_GPL(handle_fasteoi_irq);
 
