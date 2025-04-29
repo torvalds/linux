@@ -2606,32 +2606,19 @@ err_out:
  */
 int prepare_percpu_nmi(unsigned int irq)
 {
-	unsigned long flags;
-	struct irq_desc *desc;
-	int ret = 0;
+	int ret = -EINVAL;
 
 	WARN_ON(preemptible());
 
-	desc = irq_get_desc_lock(irq, &flags,
-				 IRQ_GET_DESC_CHECK_PERCPU);
-	if (!desc)
-		return -EINVAL;
+	scoped_irqdesc_get_and_lock(irq, IRQ_GET_DESC_CHECK_PERCPU) {
+		if (WARN(!irq_is_nmi(scoped_irqdesc),
+			 "prepare_percpu_nmi called for a non-NMI interrupt: irq %u\n", irq))
+			return -EINVAL;
 
-	if (WARN(!irq_is_nmi(desc),
-		 KERN_ERR "prepare_percpu_nmi called for a non-NMI interrupt: irq %u\n",
-		 irq)) {
-		ret = -EINVAL;
-		goto out;
+		ret = irq_nmi_setup(scoped_irqdesc);
+		if (ret)
+			pr_err("Failed to setup NMI delivery: irq %u\n", irq);
 	}
-
-	ret = irq_nmi_setup(desc);
-	if (ret) {
-		pr_err("Failed to setup NMI delivery: irq %u\n", irq);
-		goto out;
-	}
-
-out:
-	irq_put_desc_unlock(desc, flags);
 	return ret;
 }
 
