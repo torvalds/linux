@@ -58,6 +58,7 @@ struct vsp1_uif;
 #define VSP1_HAS_EXT_DL		BIT(10)
 #define VSP1_HAS_NON_ZERO_LBA	BIT(11)
 #define VSP1_HAS_IIF		BIT(12)
+#define VSP1_HAS_HSIT		BIT(13)
 
 struct vsp1_device_info {
 	u32 version;
