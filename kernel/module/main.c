@@ -1562,12 +1562,11 @@ static void __layout_sections(struct module *mod, struct load_info *info, bool i
 {
 	unsigned int m, i;
 
+	/*
+	 * { Mask of required section header flags,
+	 *   Mask of excluded section header flags }
+	 */
 	static const unsigned long masks[][2] = {
-		/*
-		 * NOTE: all executable code must be the first section
-		 * in this array; otherwise modify the text_size
-		 * finder in the two loops below
-		 */
 		{ SHF_EXECINSTR | SHF_ALLOC, ARCH_SHF_SMALL },
 		{ SHF_ALLOC, SHF_WRITE | ARCH_SHF_SMALL },
 		{ SHF_RO_AFTER_INIT | SHF_ALLOC, ARCH_SHF_SMALL },
