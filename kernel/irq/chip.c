@@ -1049,25 +1049,21 @@ EXPORT_SYMBOL_GPL(irq_modify_status);
  */
 void irq_cpu_online(void)
 {
-	struct irq_desc *desc;
-	struct irq_chip *chip;
-	unsigned long flags;
 	unsigned int irq;
 
 	for_each_active_irq(irq) {
-		desc = irq_to_desc(irq);
+		struct irq_desc *desc = irq_to_desc(irq);
+		struct irq_chip *chip;
+
 		if (!desc)
 			continue;
 
-		raw_spin_lock_irqsave(&desc->lock, flags);
-
+		guard(raw_spinlock_irqsave)(&desc->lock);
 		chip = irq_data_get_irq_chip(&desc->irq_data);
 		if (chip && chip->irq_cpu_online &&
 		    (!(chip->flags & IRQCHIP_ONOFFLINE_ENABLED) ||
 		     !irqd_irq_disabled(&desc->irq_data)))
 			chip->irq_cpu_online(&desc->irq_data);
-
-		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 }
 
@@ -1079,25 +1075,21 @@ void irq_cpu_online(void)
  */
 void irq_cpu_offline(void)
 {
-	struct irq_desc *desc;
-	struct irq_chip *chip;
-	unsigned long flags;
 	unsigned int irq;
 
 	for_each_active_irq(irq) {
-		desc = irq_to_desc(irq);
+		struct irq_desc *desc = irq_to_desc(irq);
+		struct irq_chip *chip;
+
 		if (!desc)
 			continue;
 
-		raw_spin_lock_irqsave(&desc->lock, flags);
-
+		guard(raw_spinlock_irqsave)(&desc->lock);
 		chip = irq_data_get_irq_chip(&desc->irq_data);
 		if (chip && chip->irq_cpu_offline &&
 		    (!(chip->flags & IRQCHIP_ONOFFLINE_ENABLED) ||
 		     !irqd_irq_disabled(&desc->irq_data)))
 			chip->irq_cpu_offline(&desc->irq_data);
-
-		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 }
 #endif
