@@ -4196,29 +4196,6 @@ static void init_dsq(struct scx_dispatch_q *dsq, u64 dsq_id)
 	dsq->id = dsq_id;
 }
 
-static struct scx_dispatch_q *create_dsq(u64 dsq_id, int node)
-{
-	struct scx_dispatch_q *dsq;
-	int ret;
-
-	if (dsq_id & SCX_DSQ_FLAG_BUILTIN)
-		return ERR_PTR(-EINVAL);
-
-	dsq = kmalloc_node(sizeof(*dsq), GFP_KERNEL, node);
-	if (!dsq)
-		return ERR_PTR(-ENOMEM);
-
-	init_dsq(dsq, dsq_id);
-
-	ret = rhashtable_lookup_insert_fast(&dsq_hash, &dsq->hash_node,
-					    dsq_hash_params);
-	if (ret) {
-		kfree(dsq);
-		return ERR_PTR(ret);
-	}
-	return dsq;
-}
-
 static void free_dsq_irq_workfn(struct irq_work *irq_work)
 {
 	struct llist_node *to_free = llist_del_all(&dsqs_to_free);
@@ -6712,10 +6689,27 @@ __bpf_kfunc_start_defs();
  */
 __bpf_kfunc s32 scx_bpf_create_dsq(u64 dsq_id, s32 node)
 {
+	struct scx_dispatch_q *dsq;
+	s32 ret;
+
 	if (unlikely(node >= (int)nr_node_ids ||
 		     (node < 0 && node != NUMA_NO_NODE)))
 		return -EINVAL;
-	return PTR_ERR_OR_ZERO(create_dsq(dsq_id, node));
+
+	if (unlikely(dsq_id & SCX_DSQ_FLAG_BUILTIN))
+		return -EINVAL;
+
+	dsq = kmalloc_node(sizeof(*dsq), GFP_KERNEL, node);
+	if (!dsq)
+		return -ENOMEM;
+
+	init_dsq(dsq, dsq_id);
+
+	ret = rhashtable_lookup_insert_fast(&dsq_hash, &dsq->hash_node,
+					    dsq_hash_params);
+	if (ret)
+		kfree(dsq);
+	return ret;
 }
 
 __bpf_kfunc_end_defs();
