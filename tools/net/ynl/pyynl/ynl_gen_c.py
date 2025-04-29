@@ -747,6 +747,23 @@ class TypeArrayNest(Type):
                      '}']
         return get_lines, None, local_vars
 
+    def attr_put(self, ri, var):
+        ri.cw.p(f'array = ynl_attr_nest_start(nlh, {self.enum_name});')
+        if self.sub_type in scalars:
+            put_type = self.sub_type
+            ri.cw.block_start(line=f'for (i = 0; i < {var}->n_{self.c_name}; i++)')
+            ri.cw.p(f"ynl_attr_put_{put_type}(nlh, i, {var}->{self.c_name}[i]);")
+            ri.cw.block_end()
+        else:
+            raise Exception(f"Put for ArrayNest sub-type {self.attr['sub-type']} not supported, yet")
+        ri.cw.p('ynl_attr_nest_end(nlh, array);')
+
+    def _setter_lines(self, ri, member, presence):
+        # For multi-attr we have a count, not presence, hack up the presence
+        presence = presence[:-(len('_present.') + len(self.c_name))] + "n_" + self.c_name
+        return [f"{member} = {self.c_name};",
+                f"{presence} = n_{self.c_name};"]
+
 
 class TypeNestTypeValue(Type):
     def _complex_member_type(self, ri):
@@ -1728,10 +1745,15 @@ def put_req_nested(ri, struct):
     local_vars.append('struct nlattr *nest;')
     init_lines.append("nest = ynl_attr_nest_start(nlh, attr_type);")
 
+    has_anest = False
+    has_count = False
     for _, arg in struct.member_list():
-        if arg.presence_type() == 'count':
-            local_vars.append('unsigned int i;')
-            break
+        has_anest |= arg.type == 'indexed-array'
+        has_count |= arg.presence_type() == 'count'
+    if has_anest:
+        local_vars.append('struct nlattr *array;')
+    if has_count:
+        local_vars.append('unsigned int i;')
 
     put_req_nested_prototype(ri, struct, suffix='')
     ri.cw.block_start()
