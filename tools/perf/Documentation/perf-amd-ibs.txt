@@ -85,6 +85,15 @@ System-wide profile, uOps event, sampling period: 100000, L3MissOnly (Zen4 onwar
 
 	# perf record -e ibs_op/cnt_ctl=1,l3missonly=1/ -c 100000 -a
 
+System-wide profile, cycles event, sampling period: 100000, LdLat filtering (Zen5
+onward)
+
+	# perf record -e ibs_op/ldlat=128/ -c 100000 -a
+
+	Supported load latency threshold values are 128 to 2048 (both inclusive).
+	Latency value which is a multiple of 128 incurs a little less profiling
+	overhead compared to other values.
+
 Per process(upstream v6.2 onward), uOps event, sampling period: 100000
 
 	# perf record -e ibs_op/cnt_ctl=1/ -c 100000 -p 1234

@@ -19,6 +19,7 @@
 
 static u32 cpu_family, cpu_model, ibs_fetch_type, ibs_op_type;
 static bool zen4_ibs_extensions;
+static bool ldlat_cap;
 
 static void pr_ibs_fetch_ctl(union ibs_fetch_ctl reg)
 {
@@ -78,14 +79,20 @@ static void pr_ic_ibs_extd_ctl(union ic_ibs_extd_ctl reg)
 static void pr_ibs_op_ctl(union ibs_op_ctl reg)
 {
 	char l3_miss_only[sizeof(" L3MissOnly _")] = "";
+	char ldlat[sizeof(" LdLatThrsh __ LdLatEn _")] = "";
 
 	if (zen4_ibs_extensions)
 		snprintf(l3_miss_only, sizeof(l3_miss_only), " L3MissOnly %d", reg.l3_miss_only);
 
-	printf("ibs_op_ctl:\t%016llx MaxCnt %9d%s En %d Val %d CntCtl %d=%s CurCnt %9d\n",
+	if (ldlat_cap) {
+		snprintf(ldlat, sizeof(ldlat), " LdLatThrsh %2d LdLatEn %d",
+			 reg.ldlat_thrsh, reg.ldlat_en);
+	}
+
+	printf("ibs_op_ctl:\t%016llx MaxCnt %9d%s En %d Val %d CntCtl %d=%s CurCnt %9d%s\n",
 		reg.val, ((reg.opmaxcnt_ext << 16) | reg.opmaxcnt) << 4, l3_miss_only,
 		reg.op_en, reg.op_val, reg.cnt_ctl,
-		reg.cnt_ctl ? "uOps" : "cycles", reg.opcurcnt);
+		reg.cnt_ctl ? "uOps" : "cycles", reg.opcurcnt, ldlat);
 }
 
 static void pr_ibs_op_data(union ibs_op_data reg)
@@ -330,6 +337,9 @@ bool evlist__has_amd_ibs(struct evlist *evlist)
 
 	if (perf_env__find_pmu_cap(env, "ibs_op", "zen4_ibs_extensions"))
 		zen4_ibs_extensions = 1;
+
+	if (perf_env__find_pmu_cap(env, "ibs_op", "ldlat"))
+		ldlat_cap = 1;
 
 	if (ibs_fetch_type || ibs_op_type) {
 		if (!cpu_family)
