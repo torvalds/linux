@@ -533,7 +533,7 @@ static void lowcomms_state_change(struct sock *sk)
 	/* SCTP layer is not calling sk_data_ready when the connection
 	 * is done, so we catch the signal through here.
 	 */
-	if (sk->sk_shutdown == RCV_SHUTDOWN)
+	if (sk->sk_shutdown & RCV_SHUTDOWN)
 		lowcomms_data_ready(sk);
 }
 
