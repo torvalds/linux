@@ -31,7 +31,7 @@ int sdw_irq_create(struct sdw_bus *bus,
 {
 	bus->irq_chip.name = dev_name(bus->dev);
 
-	bus->domain = irq_domain_create_linear(fwnode, SDW_MAX_DEVICES,
+	bus->domain = irq_domain_create_linear(fwnode, SDW_FW_MAX_DEVICES,
 					       &sdw_domain_ops, bus);
 	if (!bus->domain) {
 		dev_err(bus->dev, "Failed to add IRQ domain\n");
@@ -50,12 +50,12 @@ static void sdw_irq_dispose_mapping(void *data)
 {
 	struct sdw_slave *slave = data;
 
-	irq_dispose_mapping(irq_find_mapping(slave->bus->domain, slave->dev_num));
+	irq_dispose_mapping(slave->irq);
 }
 
 void sdw_irq_create_mapping(struct sdw_slave *slave)
 {
-	slave->irq = irq_create_mapping(slave->bus->domain, slave->dev_num);
+	slave->irq = irq_create_mapping(slave->bus->domain, slave->index);
 	if (!slave->irq)
 		dev_warn(&slave->dev, "Failed to map IRQ\n");
 
