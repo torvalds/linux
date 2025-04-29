@@ -697,6 +697,7 @@ struct qcm_process_device {
 	uint32_t num_gws;
 	uint32_t num_oac;
 	uint32_t sh_hidden_private_base;
+	uint32_t vm_cntx_cntl;
 
 	/* CWSR memory */
 	struct kgd_mem *cwsr_mem;

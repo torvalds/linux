@@ -256,6 +256,7 @@ static int add_queue_mes(struct device_queue_manager *dqm, struct queue *q,
 
 	queue_input.exclusively_scheduled = q->properties.is_gws;
 	queue_input.sh_mem_config_data = qpd->sh_mem_config;
+	queue_input.vm_cntx_cntl = qpd->vm_cntx_cntl;
 
 	amdgpu_mes_lock(&adev->mes);
 	r = adev->mes.funcs->add_hw_queue(&adev->mes, &queue_input);

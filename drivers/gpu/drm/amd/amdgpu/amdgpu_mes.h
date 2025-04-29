@@ -254,6 +254,7 @@ struct mes_add_queue_input {
 	uint32_t	queue_size;
 	uint32_t	exclusively_scheduled;
 	uint32_t	sh_mem_config_data;
+	uint32_t	vm_cntx_cntl;
 };
 
 struct mes_remove_queue_input {
