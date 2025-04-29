@@ -32,6 +32,8 @@
 	SNDRV_PCM_FMTBIT_S24_LE | \
 	SNDRV_PCM_FMTBIT_S32_LE)
 
+#define TASDEVICE_CRC8_POLYNOMIAL		0x4d
+
 /* PAGE Control Register (available in page0 of each book) */
 #define TASDEVICE_PAGE_SELECT		0x00
 #define TASDEVICE_BOOKCTL_PAGE		0x00
@@ -193,6 +195,7 @@ struct tasdevice_priv {
 	bool force_fwload_status;
 	bool playback_started;
 	bool isacpi;
+	bool isspi;
 	bool is_user_space_calidata;
 	unsigned int global_addr;
 
@@ -210,41 +213,31 @@ struct tasdevice_priv {
 	int (*tasdevice_load_block)(struct tasdevice_priv *tas_priv,
 		struct tasdev_blk *block);
 
+	int (*change_chn_book)(struct tasdevice_priv *tas_priv,
+		unsigned short chn, int book);
+	int (*update_bits)(struct tasdevice_priv *tas_priv,
+		unsigned short chn, unsigned int reg, unsigned int mask,
+		unsigned int value);
+	int (*dev_read)(struct tasdevice_priv *tas_priv,
+		unsigned short chn, unsigned int reg, unsigned int *value);
+	int (*dev_bulk_read)(struct tasdevice_priv *tas_priv,
+		unsigned short chn, unsigned int reg, unsigned char *p_data,
+		unsigned int n_length);
 	int (*save_calibration)(struct tasdevice_priv *tas_priv);
 	void (*apply_calibration)(struct tasdevice_priv *tas_priv);
 };
 
-void tasdevice_reset(struct tasdevice_priv *tas_dev);
-int tascodec_init(struct tasdevice_priv *tas_priv, void *codec,
-	struct module *module,
-	void (*cont)(const struct firmware *fw, void *context));
-struct tasdevice_priv *tasdevice_kzalloc(struct i2c_client *i2c);
-int tasdevice_init(struct tasdevice_priv *tas_priv);
-void tasdevice_remove(struct tasdevice_priv *tas_priv);
-int tasdevice_save_calibration(struct tasdevice_priv *tas_priv);
-void tasdevice_apply_calibration(struct tasdevice_priv *tas_priv);
-int tasdev_chn_switch(struct tasdevice_priv *tas_priv,
-	unsigned short chn);
 int tasdevice_dev_read(struct tasdevice_priv *tas_priv,
 	unsigned short chn, unsigned int reg, unsigned int *value);
+int tasdevice_dev_bulk_read(struct tasdevice_priv *tas_priv,
+	unsigned short chn, unsigned int reg, unsigned char *p_data,
+	unsigned int n_length);
 int tasdevice_dev_write(struct tasdevice_priv *tas_priv,
 	unsigned short chn, unsigned int reg, unsigned int value);
 int tasdevice_dev_bulk_write(
 	struct tasdevice_priv *tas_priv, unsigned short chn,
 	unsigned int reg, unsigned char *p_data, unsigned int n_length);
-int tasdevice_dev_bulk_read(struct tasdevice_priv *tas_priv,
-	unsigned short chn, unsigned int reg, unsigned char *p_data,
-	unsigned int n_length);
-int tasdevice_dev_update_bits(
-	struct tasdevice_priv *tasdevice, unsigned short chn,
-	unsigned int reg, unsigned int mask, unsigned int value);
-int tasdevice_amp_putvol(struct tasdevice_priv *tas_priv,
-	struct snd_ctl_elem_value *ucontrol, struct soc_mixer_control *mc);
-int tasdevice_amp_getvol(struct tasdevice_priv *tas_priv,
-	struct snd_ctl_elem_value *ucontrol, struct soc_mixer_control *mc);
-int tasdevice_digital_putvol(struct tasdevice_priv *tas_priv,
-	struct snd_ctl_elem_value *ucontrol, struct soc_mixer_control *mc);
-int tasdevice_digital_getvol(struct tasdevice_priv *tas_priv,
-	struct snd_ctl_elem_value *ucontrol, struct soc_mixer_control *mc);
-
+void tasdevice_remove(struct tasdevice_priv *tas_priv);
+int tasdevice_save_calibration(struct tasdevice_priv *tas_priv);
+void tasdevice_apply_calibration(struct tasdevice_priv *tas_priv);
 #endif /* __TAS2781_H__ */
