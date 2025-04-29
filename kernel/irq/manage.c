@@ -2678,24 +2678,14 @@ static int __irq_get_irqchip_state(struct irq_data *data, enum irqchip_irq_state
  * This function should be called with preemption disabled if the interrupt
  * controller has per-cpu registers.
  */
-int irq_get_irqchip_state(unsigned int irq, enum irqchip_irq_state which,
-			  bool *state)
+int irq_get_irqchip_state(unsigned int irq, enum irqchip_irq_state which, bool *state)
 {
-	struct irq_desc *desc;
-	struct irq_data *data;
-	unsigned long flags;
-	int err = -EINVAL;
+	scoped_irqdesc_get_and_buslock(irq, 0) {
+		struct irq_data *data = irq_desc_get_irq_data(scoped_irqdesc);
 
-	desc = irq_get_desc_buslock(irq, &flags, 0);
-	if (!desc)
-		return err;
-
-	data = irq_desc_get_irq_data(desc);
-
-	err = __irq_get_irqchip_state(data, which, state);
-
-	irq_put_desc_busunlock(desc, flags);
-	return err;
+		return __irq_get_irqchip_state(data, which, state);
+	}
+	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(irq_get_irqchip_state);
 
