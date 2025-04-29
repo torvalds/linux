@@ -118,9 +118,6 @@ The date is encoded in the following manner:
 - bits 5 to 8 contain the manufacture month.
 - bits 9 to 15 contain the manufacture year biased by 1980.
 
-.. note::
-   The data format needs to be verified on more machines.
-
 WMI method BatterySerialNumber()
 --------------------------------
 

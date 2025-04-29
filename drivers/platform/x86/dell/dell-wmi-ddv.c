@@ -8,6 +8,7 @@
 #define pr_format(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/acpi.h>
+#include <linux/bitfield.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/device/driver.h>
@@ -41,6 +42,10 @@
 
 /* Battery indices 1, 2 and 3 */
 #define DELL_DDV_NUM_BATTERIES		3
+
+#define SBS_MANUFACTURE_YEAR_MASK	GENMASK(15, 9)
+#define SBS_MANUFACTURE_MONTH_MASK	GENMASK(8, 5)
+#define SBS_MANUFACTURE_DAY_MASK	GENMASK(4, 0)
 
 #define DELL_EPPID_LENGTH	20
 #define DELL_EPPID_EXT_LENGTH	23
@@ -744,6 +749,50 @@ static ssize_t eppid_show(struct device *dev, struct device_attribute *attr, cha
 	return ret;
 }
 
+static int dell_wmi_ddv_get_manufacture_date(struct dell_wmi_ddv_data *data, u32 index,
+					     enum power_supply_property psp,
+					     union power_supply_propval *val)
+{
+	u16 year, month, day;
+	u32 value;
+	int ret;
+
+	ret = dell_wmi_ddv_query_integer(data->wdev, DELL_DDV_BATTERY_MANUFACTURE_DATE,
+					 index, &value);
+	if (ret < 0)
+		return ret;
+	if (value > U16_MAX)
+		return -ENXIO;
+
+	/*
+	 * Some devices report a invalid manufacture date value
+	 * like 0.0.1980. Because of this we have to check the
+	 * whole value before exposing parts of it to user space.
+	 */
+	year = FIELD_GET(SBS_MANUFACTURE_YEAR_MASK, value) + 1980;
+	month = FIELD_GET(SBS_MANUFACTURE_MONTH_MASK, value);
+	if (month < 1 || month > 12)
+		return -ENODATA;
+
+	day = FIELD_GET(SBS_MANUFACTURE_DAY_MASK, value);
+	if (day < 1 || day > 31)
+		return -ENODATA;
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_MANUFACTURE_YEAR:
+		val->intval = year;
+		return 0;
+	case POWER_SUPPLY_PROP_MANUFACTURE_MONTH:
+		val->intval = month;
+		return 0;
+	case POWER_SUPPLY_PROP_MANUFACTURE_DAY:
+		val->intval = day;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static int dell_wmi_ddv_get_property(struct power_supply *psy, const struct power_supply_ext *ext,
 				     void *drvdata, enum power_supply_property psp,
 				     union power_supply_propval *val)
@@ -768,6 +817,10 @@ static int dell_wmi_ddv_get_property(struct power_supply *psy, const struct powe
 		 */
 		val->intval = value - 2732;
 		return 0;
+	case POWER_SUPPLY_PROP_MANUFACTURE_YEAR:
+	case POWER_SUPPLY_PROP_MANUFACTURE_MONTH:
+	case POWER_SUPPLY_PROP_MANUFACTURE_DAY:
+		return dell_wmi_ddv_get_manufacture_date(data, index, psp, val);
 	default:
 		return -EINVAL;
 	}
@@ -775,6 +828,9 @@ static int dell_wmi_ddv_get_property(struct power_supply *psy, const struct powe
 
 static const enum power_supply_property dell_wmi_ddv_properties[] = {
 	POWER_SUPPLY_PROP_TEMP,
+	POWER_SUPPLY_PROP_MANUFACTURE_YEAR,
+	POWER_SUPPLY_PROP_MANUFACTURE_MONTH,
+	POWER_SUPPLY_PROP_MANUFACTURE_DAY,
 };
 
 static const struct power_supply_ext dell_wmi_ddv_extension = {
