@@ -34,26 +34,22 @@ struct irqaction chained_action = {
 };
 
 /**
- *	irq_set_chip - set the irq chip for an irq
- *	@irq:	irq number
- *	@chip:	pointer to irq chip description structure
+ * irq_set_chip - set the irq chip for an irq
+ * @irq:	irq number
+ * @chip:	pointer to irq chip description structure
  */
 int irq_set_chip(unsigned int irq, const struct irq_chip *chip)
 {
-	unsigned long flags;
-	struct irq_desc *desc = irq_get_desc_lock(irq, &flags, 0);
+	int ret = -EINVAL;
 
-	if (!desc)
-		return -EINVAL;
-
-	desc->irq_data.chip = (struct irq_chip *)(chip ?: &no_irq_chip);
-	irq_put_desc_unlock(desc, flags);
-	/*
-	 * For !CONFIG_SPARSE_IRQ make the irq show up in
-	 * allocated_irqs.
-	 */
-	irq_mark_irq(irq);
-	return 0;
+	scoped_irqdesc_get_and_lock(irq, 0) {
+		scoped_irqdesc->irq_data.chip = (struct irq_chip *)(chip ?: &no_irq_chip);
+		ret = 0;
+	}
+	/* For !CONFIG_SPARSE_IRQ make the irq show up in allocated_irqs. */
+	if (!ret)
+		irq_mark_irq(irq);
+	return ret;
 }
 EXPORT_SYMBOL(irq_set_chip);
 
