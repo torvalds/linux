@@ -88,7 +88,7 @@ static struct acp_card_drvdata sof_nau8821_max98388_data = {
 
 static int acp_sof_probe(struct platform_device *pdev)
 {
-	struct snd_soc_card *card = NULL;
+	struct snd_soc_card *card;
 	struct device *dev = &pdev->dev;
 	struct snd_soc_acpi_mach *mach = dev_get_platdata(&pdev->dev);
 	const struct dmi_system_id *dmi_id;
