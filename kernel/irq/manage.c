@@ -395,14 +395,8 @@ int irq_set_affinity_locked(struct irq_data *data, const struct cpumask *mask,
  * an interrupt which is already started or which has already been configured
  * as managed will also fail, as these mean invalid init state or double init.
  */
-int irq_update_affinity_desc(unsigned int irq,
-			     struct irq_affinity_desc *affinity)
+int irq_update_affinity_desc(unsigned int irq, struct irq_affinity_desc *affinity)
 {
-	struct irq_desc *desc;
-	unsigned long flags;
-	bool activated;
-	int ret = 0;
-
 	/*
 	 * Supporting this with the reservation scheme used by x86 needs
 	 * some more thought. Fail it for now.
@@ -410,44 +404,38 @@ int irq_update_affinity_desc(unsigned int irq,
 	if (IS_ENABLED(CONFIG_GENERIC_IRQ_RESERVATION_MODE))
 		return -EOPNOTSUPP;
 
-	desc = irq_get_desc_buslock(irq, &flags, 0);
-	if (!desc)
-		return -EINVAL;
+	scoped_irqdesc_get_and_buslock(irq, 0) {
+		struct irq_desc *desc = scoped_irqdesc;
+		bool activated;
 
-	/* Requires the interrupt to be shut down */
-	if (irqd_is_started(&desc->irq_data)) {
-		ret = -EBUSY;
-		goto out_unlock;
+		/* Requires the interrupt to be shut down */
+		if (irqd_is_started(&desc->irq_data))
+			return -EBUSY;
+
+		/* Interrupts which are already managed cannot be modified */
+		if (irqd_affinity_is_managed(&desc->irq_data))
+			return -EBUSY;
+		/*
+		 * Deactivate the interrupt. That's required to undo
+		 * anything an earlier activation has established.
+		 */
+		activated = irqd_is_activated(&desc->irq_data);
+		if (activated)
+			irq_domain_deactivate_irq(&desc->irq_data);
+
+		if (affinity->is_managed) {
+			irqd_set(&desc->irq_data, IRQD_AFFINITY_MANAGED);
+			irqd_set(&desc->irq_data, IRQD_MANAGED_SHUTDOWN);
+		}
+
+		cpumask_copy(desc->irq_common_data.affinity, &affinity->mask);
+
+		/* Restore the activation state */
+		if (activated)
+			irq_domain_activate_irq(&desc->irq_data, false);
+		return 0;
 	}
-
-	/* Interrupts which are already managed cannot be modified */
-	if (irqd_affinity_is_managed(&desc->irq_data)) {
-		ret = -EBUSY;
-		goto out_unlock;
-	}
-
-	/*
-	 * Deactivate the interrupt. That's required to undo
-	 * anything an earlier activation has established.
-	 */
-	activated = irqd_is_activated(&desc->irq_data);
-	if (activated)
-		irq_domain_deactivate_irq(&desc->irq_data);
-
-	if (affinity->is_managed) {
-		irqd_set(&desc->irq_data, IRQD_AFFINITY_MANAGED);
-		irqd_set(&desc->irq_data, IRQD_MANAGED_SHUTDOWN);
-	}
-
-	cpumask_copy(desc->irq_common_data.affinity, &affinity->mask);
-
-	/* Restore the activation state */
-	if (activated)
-		irq_domain_activate_irq(&desc->irq_data, false);
-
-out_unlock:
-	irq_put_desc_busunlock(desc, flags);
-	return ret;
+	return -EINVAL;
 }
 
 static int __irq_set_affinity(unsigned int irq, const struct cpumask *mask,
