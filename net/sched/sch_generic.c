@@ -1002,14 +1002,14 @@ struct Qdisc *qdisc_create_dflt(struct netdev_queue *dev_queue,
 {
 	struct Qdisc *sch;
 
-	if (!try_module_get(ops->owner)) {
+	if (!bpf_try_module_get(ops, ops->owner)) {
 		NL_SET_ERR_MSG(extack, "Failed to increase module reference counter");
 		return NULL;
 	}
 
 	sch = qdisc_alloc(dev_queue, ops, extack);
 	if (IS_ERR(sch)) {
-		module_put(ops->owner);
+		bpf_module_put(ops, ops->owner);
 		return NULL;
 	}
 	sch->parent = parentid;
