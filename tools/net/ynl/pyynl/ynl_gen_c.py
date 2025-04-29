@@ -183,10 +183,10 @@ class Type(SpecAttr):
         raise Exception(f"Struct member not implemented for class type {self.type}")
 
     def struct_member(self, ri):
-        if self.is_multi_val():
-            ri.cw.p(f"unsigned int n_{self.c_name};")
         member = self._complex_member_type(ri)
         if member:
+            if self.is_multi_val():
+                ri.cw.p(f"unsigned int n_{self.c_name};")
             ptr = '*' if self.is_multi_val() else ''
             if self.is_recursive_for_op(ri):
                 ptr = '*'
@@ -728,12 +728,22 @@ class TypeArrayNest(Type):
         elif self.attr['sub-type'] in scalars:
             scalar_pfx = '__' if ri.ku_space == 'user' else ''
             return scalar_pfx + self.attr['sub-type']
+        elif self.attr['sub-type'] == 'binary' and 'exact-len' in self.checks:
+            return None  # use arg_member()
         else:
             raise Exception(f"Sub-type {self.attr['sub-type']} not supported yet")
+
+    def arg_member(self, ri):
+        if self.sub_type == 'binary' and 'exact-len' in self.checks:
+            return [f'unsigned char (*{self.c_name})[{self.checks["exact-len"]}]',
+                    f'unsigned int n_{self.c_name}']
+        return super().arg_member(ri)
 
     def _attr_typol(self):
         if self.attr['sub-type'] in scalars:
             return f'.type = YNL_PT_U{c_upper(self.sub_type[1:])}, '
+        elif self.attr['sub-type'] == 'binary' and 'exact-len' in self.checks:
+            return f'.type = YNL_PT_BINARY, .len = {self.checks["exact-len"]}, '
         else:
             return f'.type = YNL_PT_NEST, .nest = &{self.nested_render_name}_nest, '
 
@@ -754,6 +764,9 @@ class TypeArrayNest(Type):
             ri.cw.block_start(line=f'for (i = 0; i < {var}->n_{self.c_name}; i++)')
             ri.cw.p(f"ynl_attr_put_{put_type}(nlh, i, {var}->{self.c_name}[i]);")
             ri.cw.block_end()
+        elif self.sub_type == 'binary' and 'exact-len' in self.checks:
+            ri.cw.p(f'for (i = 0; i < {var}->n_{self.c_name}; i++)')
+            ri.cw.p(f"ynl_attr_put(nlh, i, {var}->{self.c_name}[i], {self.checks['exact-len']});")
         else:
             raise Exception(f"Put for ArrayNest sub-type {self.attr['sub-type']} not supported, yet")
         ri.cw.p('ynl_attr_nest_end(nlh, array);')
@@ -964,7 +977,7 @@ class AttrSet(SpecAttrSet):
         elif elem['type'] == 'nest':
             t = TypeNest(self.family, self, elem, value)
         elif elem['type'] == 'indexed-array' and 'sub-type' in elem:
-            if elem["sub-type"] in ['nest', 'u32']:
+            if elem["sub-type"] in ['binary', 'nest', 'u32']:
                 t = TypeArrayNest(self.family, self, elem, value)
             else:
                 raise Exception(f'new_attr: unsupported sub-type {elem["sub-type"]}')
@@ -1786,7 +1799,7 @@ def _multi_parse(ri, struct, init_lines, local_vars):
     needs_parg = False
     for arg, aspec in struct.member_list():
         if aspec['type'] == 'indexed-array' and 'sub-type' in aspec:
-            if aspec["sub-type"] == 'nest':
+            if aspec["sub-type"] in {'binary', 'nest'}:
                 local_vars.append(f'const struct nlattr *attr_{aspec.c_name};')
                 array_nests.add(arg)
             elif aspec['sub-type'] in scalars:
@@ -1859,6 +1872,9 @@ def _multi_parse(ri, struct, init_lines, local_vars):
             ri.cw.p('return YNL_PARSE_CB_ERROR;')
         elif aspec.sub_type in scalars:
             ri.cw.p(f"dst->{aspec.c_name}[i] = ynl_attr_get_{aspec.sub_type}(attr);")
+        elif aspec.sub_type == 'binary' and 'exact-len' in aspec.checks:
+            # Length is validated by typol
+            ri.cw.p(f'memcpy(dst->{aspec.c_name}[i], ynl_attr_data(attr), {aspec.checks["exact-len"]});')
         else:
             raise Exception(f"Nest parsing type not supported in {aspec['name']}")
         ri.cw.p('i++;')
