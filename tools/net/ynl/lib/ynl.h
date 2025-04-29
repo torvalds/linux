@@ -80,6 +80,7 @@ struct ynl_sock {
 
 	struct nlmsghdr *nlh;
 	const struct ynl_policy_nest *req_policy;
+	size_t req_hdr_len;
 	unsigned char *tx_buf;
 	unsigned char *rx_buf;
 	unsigned char raw_buf[];

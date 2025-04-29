@@ -1311,8 +1311,15 @@ class RenderInfo:
         self.op = op
 
         self.fixed_hdr = None
+        self.fixed_hdr_len = 'ys->family->hdr_len'
         if op and op.fixed_header:
             self.fixed_hdr = 'struct ' + c_lower(op.fixed_header)
+            if op.fixed_header != family.fixed_header:
+                if family.is_classic():
+                    self.fixed_hdr_len = f"sizeof({self.fixed_hdr})"
+                else:
+                    raise Exception(f"Per-op fixed header not supported, yet")
+
 
         # 'do' and 'dump' response parsing is identical
         self.type_consistent = True
@@ -1799,6 +1806,11 @@ def _multi_parse(ri, struct, init_lines, local_vars):
         if ri.fixed_hdr:
             local_vars += ['void *hdr;']
         iter_line = "ynl_attr_for_each(attr, nlh, yarg->ys->family->hdr_len)"
+        if ri.op.fixed_header != ri.family.fixed_header:
+            if ri.family.is_classic():
+                iter_line = f"ynl_attr_for_each(attr, nlh, sizeof({ri.fixed_hdr}))"
+            else:
+                raise Exception(f"Per-op fixed header not supported, yet")
 
     array_nests = set()
     multi_attrs = set()
@@ -2016,6 +2028,7 @@ def print_req(ri):
         ri.cw.p(f"nlh = ynl_gemsg_start_req(ys, {ri.nl.get_family_id()}, {ri.op.enum_name}, 1);")
 
     ri.cw.p(f"ys->req_policy = &{ri.struct['request'].render_name}_nest;")
+    ri.cw.p(f"ys->req_hdr_len = {ri.fixed_hdr_len};")
     if 'reply' in ri.op[ri.op_mode]:
         ri.cw.p(f"yrs.yarg.rsp_policy = &{ri.struct['reply'].render_name}_nest;")
     ri.cw.nl()
@@ -2095,6 +2108,7 @@ def print_dump(ri):
 
     if "request" in ri.op[ri.op_mode]:
         ri.cw.p(f"ys->req_policy = &{ri.struct['request'].render_name}_nest;")
+        ri.cw.p(f"ys->req_hdr_len = {ri.fixed_hdr_len};")
         ri.cw.nl()
         for _, attr in ri.struct["request"].member_list():
             attr.attr_put(ri, "req")
@@ -2914,7 +2928,8 @@ def render_user_family(family, cw, prototype):
         cw.p(f'.is_classic\t= true,')
         cw.p(f'.classic_id\t= {family.get("protonum")},')
     if family.is_classic():
-        cw.p(f'.hdr_len\t= sizeof(struct {c_lower(family.fixed_header)}),')
+        if family.fixed_header:
+            cw.p(f'.hdr_len\t= sizeof(struct {c_lower(family.fixed_header)}),')
     elif family.fixed_header:
         cw.p(f'.hdr_len\t= sizeof(struct genlmsghdr) + sizeof(struct {c_lower(family.fixed_header)}),')
     else:
