@@ -5236,6 +5236,39 @@ static struct kthread_worker *scx_create_rt_helper(const char *name)
 	return helper;
 }
 
+static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops)
+{
+	struct scx_sched *sch;
+	int ret;
+
+	sch = kzalloc(sizeof(*sch), GFP_KERNEL);
+	if (!sch)
+		return ERR_PTR(-ENOMEM);
+
+	sch->exit_info = alloc_exit_info(ops->exit_dump_len);
+	if (!sch->exit_info) {
+		ret = -ENOMEM;
+		goto err_free_sch;
+	}
+
+	atomic_set(&sch->exit_kind, SCX_EXIT_NONE);
+	sch->ops = *ops;
+	ops->priv = sch;
+
+	sch->kobj.kset = scx_kset;
+	ret = kobject_init_and_add(&sch->kobj, &scx_ktype, NULL, "root");
+	if (ret < 0)
+		goto err_free_ei;
+
+	return sch;
+
+err_free_ei:
+	free_exit_info(sch->exit_info);
+err_free_sch:
+	kfree(sch);
+	return ERR_PTR(ret);
+}
+
 static void check_hotplug_seq(const struct sched_ext_ops *ops)
 {
 	unsigned long long global_hotplug_seq;
@@ -5348,26 +5381,11 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 		goto err_unlock;
 	}
 
-	sch = kzalloc(sizeof(*sch), GFP_KERNEL);
-	if (!sch) {
-		ret = -ENOMEM;
+	sch = scx_alloc_and_add_sched(ops);
+	if (IS_ERR(sch)) {
+		ret = PTR_ERR(sch);
 		goto err_unlock;
 	}
-
-	sch->exit_info = alloc_exit_info(ops->exit_dump_len);
-	if (!sch->exit_info) {
-		ret = -ENOMEM;
-		goto err_free;
-	}
-
-	sch->kobj.kset = scx_kset;
-	ret = kobject_init_and_add(&sch->kobj, &scx_ktype, NULL, "root");
-	if (ret < 0)
-		goto err_free;
-
-	atomic_set(&sch->exit_kind, SCX_EXIT_NONE);
-	sch->ops = *ops;
-	ops->priv = sch;
 
 	/*
 	 * Transition to ENABLING and clear exit info to arm the disable path.
@@ -5566,10 +5584,6 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 
 	return 0;
 
-err_free:
-	if (sch->exit_info)
-		free_exit_info(sch->exit_info);
-	kfree(sch);
 err_unlock:
 	mutex_unlock(&scx_enable_mutex);
 	return ret;
