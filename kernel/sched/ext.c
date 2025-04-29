@@ -1651,7 +1651,7 @@ static DEFINE_PER_CPU(struct scx_event_stats, event_stats_cpu);
 } while (0)
 
 
-static void scx_bpf_events(struct scx_event_stats *events, size_t events__sz);
+static void scx_read_events(struct scx_event_stats *events);
 
 static enum scx_enable_state scx_enable_state(void)
 {
@@ -4458,7 +4458,7 @@ static ssize_t scx_attr_events_show(struct kobject *kobj,
 	struct scx_event_stats events;
 	int at = 0;
 
-	scx_bpf_events(&events, sizeof(events));
+	scx_read_events(&events);
 	at += scx_attr_event_show(buf, at, &events, SCX_EV_SELECT_CPU_FALLBACK);
 	at += scx_attr_event_show(buf, at, &events, SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE);
 	at += scx_attr_event_show(buf, at, &events, SCX_EV_DISPATCH_KEEP_LAST);
@@ -5182,7 +5182,7 @@ static void scx_dump_state(struct scx_exit_info *ei, size_t dump_len)
 	dump_line(&s, "Event counters");
 	dump_line(&s, "--------------");
 
-	scx_bpf_events(&events, sizeof(events));
+	scx_read_events(&events);
 	scx_dump_event(s, &events, SCX_EV_SELECT_CPU_FALLBACK);
 	scx_dump_event(s, &events, SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE);
 	scx_dump_event(s, &events, SCX_EV_DISPATCH_KEEP_LAST);
@@ -7407,6 +7407,27 @@ __bpf_kfunc u64 scx_bpf_now(void)
 	return clock;
 }
 
+static void scx_read_events(struct scx_event_stats *events)
+{
+	struct scx_event_stats *e_cpu;
+	int cpu;
+
+	/* Aggregate per-CPU event counters into @events. */
+	memset(events, 0, sizeof(*events));
+	for_each_possible_cpu(cpu) {
+		e_cpu = per_cpu_ptr(&event_stats_cpu, cpu);
+		scx_agg_event(events, e_cpu, SCX_EV_SELECT_CPU_FALLBACK);
+		scx_agg_event(events, e_cpu, SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE);
+		scx_agg_event(events, e_cpu, SCX_EV_DISPATCH_KEEP_LAST);
+		scx_agg_event(events, e_cpu, SCX_EV_ENQ_SKIP_EXITING);
+		scx_agg_event(events, e_cpu, SCX_EV_ENQ_SKIP_MIGRATION_DISABLED);
+		scx_agg_event(events, e_cpu, SCX_EV_REFILL_SLICE_DFL);
+		scx_agg_event(events, e_cpu, SCX_EV_BYPASS_DURATION);
+		scx_agg_event(events, e_cpu, SCX_EV_BYPASS_DISPATCH);
+		scx_agg_event(events, e_cpu, SCX_EV_BYPASS_ACTIVATE);
+	}
+}
+
 /*
  * scx_bpf_events - Get a system-wide event counter to
  * @events: output buffer from a BPF program
@@ -7415,23 +7436,9 @@ __bpf_kfunc u64 scx_bpf_now(void)
 __bpf_kfunc void scx_bpf_events(struct scx_event_stats *events,
 				size_t events__sz)
 {
-	struct scx_event_stats e_sys, *e_cpu;
-	int cpu;
+	struct scx_event_stats e_sys;
 
-	/* Aggregate per-CPU event counters into the system-wide counters. */
-	memset(&e_sys, 0, sizeof(e_sys));
-	for_each_possible_cpu(cpu) {
-		e_cpu = per_cpu_ptr(&event_stats_cpu, cpu);
-		scx_agg_event(&e_sys, e_cpu, SCX_EV_SELECT_CPU_FALLBACK);
-		scx_agg_event(&e_sys, e_cpu, SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE);
-		scx_agg_event(&e_sys, e_cpu, SCX_EV_DISPATCH_KEEP_LAST);
-		scx_agg_event(&e_sys, e_cpu, SCX_EV_ENQ_SKIP_EXITING);
-		scx_agg_event(&e_sys, e_cpu, SCX_EV_ENQ_SKIP_MIGRATION_DISABLED);
-		scx_agg_event(&e_sys, e_cpu, SCX_EV_REFILL_SLICE_DFL);
-		scx_agg_event(&e_sys, e_cpu, SCX_EV_BYPASS_DURATION);
-		scx_agg_event(&e_sys, e_cpu, SCX_EV_BYPASS_DISPATCH);
-		scx_agg_event(&e_sys, e_cpu, SCX_EV_BYPASS_ACTIVATE);
-	}
+	scx_read_events(&e_sys);
 
 	/*
 	 * We cannot entirely trust a BPF-provided size since a BPF program
