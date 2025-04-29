@@ -136,6 +136,8 @@ static int vsp1_du_pipeline_setup_rpf(struct vsp1_device *vsp1,
 	format.format.height = input->crop.height + input->crop.top;
 	format.format.code = rpf->fmtinfo->mbus;
 	format.format.field = V4L2_FIELD_NONE;
+	format.format.ycbcr_enc = input->ycbcr_enc;
+	format.format.quantization = input->quantization;
 
 	ret = v4l2_subdev_call(&rpf->entity.subdev, pad, set_fmt, NULL,
 			       &format);
@@ -876,6 +878,8 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int pipe_index,
 	input->crop = cfg->src;
 	input->compose = cfg->dst;
 	input->zpos = cfg->zpos;
+	input->ycbcr_enc = cfg->color_encoding;
+	input->quantization = cfg->color_range;
 
 	drm_pipe->pipe.inputs[rpf_index] = rpf;
 
