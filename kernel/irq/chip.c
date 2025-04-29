@@ -450,48 +450,6 @@ void unmask_threaded_irq(struct irq_desc *desc)
 	unmask_irq(desc);
 }
 
-/*
- *	handle_nested_irq - Handle a nested irq from a irq thread
- *	@irq:	the interrupt number
- *
- *	Handle interrupts which are nested into a threaded interrupt
- *	handler. The handler function is called inside the calling
- *	threads context.
- */
-void handle_nested_irq(unsigned int irq)
-{
-	struct irq_desc *desc = irq_to_desc(irq);
-	struct irqaction *action;
-	irqreturn_t action_ret;
-
-	might_sleep();
-
-	raw_spin_lock_irq(&desc->lock);
-
-	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
-
-	action = desc->action;
-	if (unlikely(!action || irqd_irq_disabled(&desc->irq_data))) {
-		desc->istate |= IRQS_PENDING;
-		raw_spin_unlock_irq(&desc->lock);
-		return;
-	}
-
-	kstat_incr_irqs_this_cpu(desc);
-	atomic_inc(&desc->threads_active);
-	raw_spin_unlock_irq(&desc->lock);
-
-	action_ret = IRQ_NONE;
-	for_each_action_of_desc(desc, action)
-		action_ret |= action->thread_fn(action->irq, action->dev_id);
-
-	if (!irq_settings_no_debug(desc))
-		note_interrupt(desc, action_ret);
-
-	wake_threads_waitq(desc);
-}
-EXPORT_SYMBOL_GPL(handle_nested_irq);
-
 static bool irq_check_poll(struct irq_desc *desc)
 {
 	if (!(desc->istate & IRQS_POLL_INPROGRESS))
@@ -542,6 +500,42 @@ static inline bool irq_can_handle(struct irq_desc *desc)
 
 	return irq_can_handle_actions(desc);
 }
+
+/**
+ * handle_nested_irq - Handle a nested irq from a irq thread
+ * @irq:	the interrupt number
+ *
+ * Handle interrupts which are nested into a threaded interrupt
+ * handler. The handler function is called inside the calling threads
+ * context.
+ */
+void handle_nested_irq(unsigned int irq)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+	struct irqaction *action;
+	irqreturn_t action_ret;
+
+	might_sleep();
+
+	scoped_guard(raw_spinlock_irq, &desc->lock) {
+		if (irq_can_handle_actions(desc))
+			return;
+
+		action = desc->action;
+		kstat_incr_irqs_this_cpu(desc);
+		atomic_inc(&desc->threads_active);
+	}
+
+	action_ret = IRQ_NONE;
+	for_each_action_of_desc(desc, action)
+		action_ret |= action->thread_fn(action->irq, action->dev_id);
+
+	if (!irq_settings_no_debug(desc))
+		note_interrupt(desc, action_ret);
+
+	wake_threads_waitq(desc);
+}
+EXPORT_SYMBOL_GPL(handle_nested_irq);
 
 /**
  *	handle_simple_irq - Simple and software-decoded IRQs.
