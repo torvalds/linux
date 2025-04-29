@@ -4356,6 +4356,12 @@ void rcutree_report_cpu_dead(void)
 	 * may introduce a new READ-side while it is actually off the QS masks.
 	 */
 	lockdep_assert_irqs_disabled();
+	/*
+	 * CPUHP_AP_SMPCFD_DYING was the last call for rcu_exp_handler() execution.
+	 * The requested QS must have been reported on the last context switch
+	 * from stop machine to idle.
+	 */
+	WARN_ON_ONCE(rdp->cpu_no_qs.b.exp);
 	// Do any dangling deferred wakeups.
 	do_nocb_deferred_wakeup(rdp);
 
