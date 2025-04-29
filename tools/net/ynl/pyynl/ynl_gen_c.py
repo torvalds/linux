@@ -1294,6 +1294,9 @@ class RenderInfo:
     def type_empty(self, key):
         return len(self.struct[key].attr_list) == 0 and self.fixed_hdr is None
 
+    def needs_nlflags(self, direction):
+        return self.op_mode == 'do' and direction == 'request' and self.family.is_classic()
+
 
 class CodeWriter:
     def __init__(self, nlib, out_file=None, overwrite=True):
@@ -1924,7 +1927,7 @@ def print_req(ri):
     ri.cw.write_func_lvar(local_vars)
 
     if ri.family.is_classic():
-        ri.cw.p(f"nlh = ynl_msg_start_req(ys, {ri.op.enum_name});")
+        ri.cw.p(f"nlh = ynl_msg_start_req(ys, {ri.op.enum_name}, req->_nlmsg_flags);")
     else:
         ri.cw.p(f"nlh = ynl_gemsg_start_req(ys, {ri.nl.get_family_id()}, {ri.op.enum_name}, 1);")
 
@@ -2053,6 +2056,16 @@ def print_free_prototype(ri, direction, suffix=';'):
     ri.cw.write_func_prot('void', f"{name}_free", [f"struct {struct_name} *{arg}"], suffix=suffix)
 
 
+def print_nlflags_set(ri, direction):
+    name = op_prefix(ri, direction)
+    ri.cw.write_func_prot(f'static inline void', f"{name}_set_nlflags",
+                          [f"struct {name} *req", "__u16 nl_flags"])
+    ri.cw.block_start()
+    ri.cw.p('req->_nlmsg_flags = nl_flags;')
+    ri.cw.block_end()
+    ri.cw.nl()
+
+
 def _print_type(ri, direction, struct):
     suffix = f'_{ri.type_name}{direction_to_suffix[direction]}'
     if not direction and ri.type_name_conflict:
@@ -2063,6 +2076,9 @@ def _print_type(ri, direction, struct):
 
     ri.cw.block_start(line=f"struct {ri.family.c_name}{suffix}")
 
+    if ri.needs_nlflags(direction):
+        ri.cw.p('__u16 _nlmsg_flags;')
+        ri.cw.nl()
     if ri.fixed_hdr:
         ri.cw.p(ri.fixed_hdr + ' _hdr;')
         ri.cw.nl()
@@ -2101,6 +2117,9 @@ def print_type_full(ri, struct):
 def print_type_helpers(ri, direction, deref=False):
     print_free_prototype(ri, direction)
     ri.cw.nl()
+
+    if ri.needs_nlflags(direction):
+        print_nlflags_set(ri, direction)
 
     if ri.ku_space == 'user' and direction == 'request':
         for _, attr in ri.struct[direction].member_list():
