@@ -938,6 +938,14 @@ class AttrSet(SpecAttrSet):
 
 class Operation(SpecOperation):
     def __init__(self, family, yaml, req_value, rsp_value):
+        # Fill in missing operation properties (for fixed hdr-only msgs)
+        for mode in ['do', 'dump', 'event']:
+            for direction in ['request', 'reply']:
+                try:
+                    yaml[mode][direction].setdefault('attributes', [])
+                except KeyError:
+                    pass
+
         super().__init__(family, yaml, req_value, rsp_value)
 
         self.render_name = c_lower(family.ident_name + '_' + self.name)
