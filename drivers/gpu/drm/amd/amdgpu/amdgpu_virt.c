@@ -1488,3 +1488,16 @@ bool amdgpu_virt_ras_telemetry_block_en(struct amdgpu_device *adev,
 
 	return true;
 }
+
+/*
+ * amdgpu_virt_request_bad_pages() - request bad pages
+ * @adev: amdgpu device.
+ * Send command to GPU hypervisor to write new bad pages into the shared PF2VF region
+ */
+void amdgpu_virt_request_bad_pages(struct amdgpu_device *adev)
+{
+	struct amdgpu_virt *virt = &adev->virt;
+
+	if (virt->ops && virt->ops->req_bad_pages)
+		virt->ops->req_bad_pages(adev);
+}
