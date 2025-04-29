@@ -72,23 +72,23 @@ struct s390_kmac_sha2_ctx {
 	u8 param[MAX_DIGEST_SIZE + MAX_IMBL_SIZE + MAX_BLOCK_SIZE];
 	union s390_kmac_gr0 gr0;
 	u8 buf[MAX_BLOCK_SIZE];
-	unsigned int buflen;
+	u64 buflen[2];
 };
 
 /*
  * kmac_sha2_set_imbl - sets the input message bit-length based on the blocksize
  */
-static inline void kmac_sha2_set_imbl(u8 *param, unsigned int buflen,
-				      unsigned int blocksize)
+static inline void kmac_sha2_set_imbl(u8 *param, u64 buflen_lo,
+				      u64 buflen_hi, unsigned int blocksize)
 {
 	u8 *imbl = param + SHA2_IMBL_OFFSET(blocksize);
 
 	switch (blocksize) {
 	case SHA256_BLOCK_SIZE:
-		*(u64 *)imbl = (u64)buflen * BITS_PER_BYTE;
+		*(u64 *)imbl = buflen_lo * BITS_PER_BYTE;
 		break;
 	case SHA512_BLOCK_SIZE:
-		*(u128 *)imbl = (u128)buflen * BITS_PER_BYTE;
+		*(u128 *)imbl = (((u128)buflen_hi << 64) + buflen_lo) << 3;
 		break;
 	default:
 		break;
@@ -176,7 +176,8 @@ static int s390_hmac_sha2_init(struct shash_desc *desc)
 	memcpy(ctx->param + SHA2_KEY_OFFSET(bs),
 	       tfm_ctx->key, bs);
 
-	ctx->buflen = 0;
+	ctx->buflen[0] = 0;
+	ctx->buflen[1] = 0;
 	ctx->gr0.reg = 0;
 	switch (crypto_shash_digestsize(desc->tfm)) {
 	case SHA224_DIGEST_SIZE:
@@ -206,8 +207,10 @@ static int s390_hmac_sha2_update(struct shash_desc *desc,
 	unsigned int offset, n;
 
 	/* check current buffer */
-	offset = ctx->buflen % bs;
-	ctx->buflen += len;
+	offset = ctx->buflen[0] % bs;
+	ctx->buflen[0] += len;
+	if (ctx->buflen[0] < len)
+		ctx->buflen[1]++;
 	if (offset + len < bs)
 		goto store;
 
@@ -243,8 +246,8 @@ static int s390_hmac_sha2_final(struct shash_desc *desc, u8 *out)
 	unsigned int bs = crypto_shash_blocksize(desc->tfm);
 
 	ctx->gr0.iimp = 0;
-	kmac_sha2_set_imbl(ctx->param, ctx->buflen, bs);
-	_cpacf_kmac(&ctx->gr0.reg, ctx->param, ctx->buf, ctx->buflen % bs);
+	kmac_sha2_set_imbl(ctx->param, ctx->buflen[0], ctx->buflen[1], bs);
+	_cpacf_kmac(&ctx->gr0.reg, ctx->param, ctx->buf, ctx->buflen[0] % bs);
 	memcpy(out, ctx->param, crypto_shash_digestsize(desc->tfm));
 
 	return 0;
@@ -262,7 +265,7 @@ static int s390_hmac_sha2_digest(struct shash_desc *desc,
 		return rc;
 
 	ctx->gr0.iimp = 0;
-	kmac_sha2_set_imbl(ctx->param, len,
+	kmac_sha2_set_imbl(ctx->param, len, 0,
 			   crypto_shash_blocksize(desc->tfm));
 	_cpacf_kmac(&ctx->gr0.reg, ctx->param, data, len);
 	memcpy(out, ctx->param, ds);
