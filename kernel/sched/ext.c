@@ -766,6 +766,63 @@ enum scx_opi {
 	SCX_OPI_END			= SCX_OP_IDX(init),
 };
 
+/*
+ * Collection of event counters. Event types are placed in descending order.
+ */
+struct scx_event_stats {
+	/*
+	 * If ops.select_cpu() returns a CPU which can't be used by the task,
+	 * the core scheduler code silently picks a fallback CPU.
+	 */
+	s64		SCX_EV_SELECT_CPU_FALLBACK;
+
+	/*
+	 * When dispatching to a local DSQ, the CPU may have gone offline in
+	 * the meantime. In this case, the task is bounced to the global DSQ.
+	 */
+	s64		SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE;
+
+	/*
+	 * If SCX_OPS_ENQ_LAST is not set, the number of times that a task
+	 * continued to run because there were no other tasks on the CPU.
+	 */
+	s64		SCX_EV_DISPATCH_KEEP_LAST;
+
+	/*
+	 * If SCX_OPS_ENQ_EXITING is not set, the number of times that a task
+	 * is dispatched to a local DSQ when exiting.
+	 */
+	s64		SCX_EV_ENQ_SKIP_EXITING;
+
+	/*
+	 * If SCX_OPS_ENQ_MIGRATION_DISABLED is not set, the number of times a
+	 * migration disabled task skips ops.enqueue() and is dispatched to its
+	 * local DSQ.
+	 */
+	s64		SCX_EV_ENQ_SKIP_MIGRATION_DISABLED;
+
+	/*
+	 * Total number of times a task's time slice was refilled with the
+	 * default value (SCX_SLICE_DFL).
+	 */
+	s64		SCX_EV_REFILL_SLICE_DFL;
+
+	/*
+	 * The total duration of bypass modes in nanoseconds.
+	 */
+	s64		SCX_EV_BYPASS_DURATION;
+
+	/*
+	 * The number of tasks dispatched in the bypassing mode.
+	 */
+	s64		SCX_EV_BYPASS_DISPATCH;
+
+	/*
+	 * The number of times the bypassing mode has been activated.
+	 */
+	s64		SCX_EV_BYPASS_ACTIVATE;
+};
+
 struct scx_sched {
 	struct sched_ext_ops	ops;
 	DECLARE_BITMAP(has_op, SCX_OPI_END);
@@ -1541,63 +1598,6 @@ static struct task_struct *scx_task_iter_next_locked(struct scx_task_iter *iter)
 
 	return p;
 }
-
-/*
- * Collection of event counters. Event types are placed in descending order.
- */
-struct scx_event_stats {
-	/*
-	 * If ops.select_cpu() returns a CPU which can't be used by the task,
-	 * the core scheduler code silently picks a fallback CPU.
-	 */
-	s64		SCX_EV_SELECT_CPU_FALLBACK;
-
-	/*
-	 * When dispatching to a local DSQ, the CPU may have gone offline in
-	 * the meantime. In this case, the task is bounced to the global DSQ.
-	 */
-	s64		SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE;
-
-	/*
-	 * If SCX_OPS_ENQ_LAST is not set, the number of times that a task
-	 * continued to run because there were no other tasks on the CPU.
-	 */
-	s64		SCX_EV_DISPATCH_KEEP_LAST;
-
-	/*
-	 * If SCX_OPS_ENQ_EXITING is not set, the number of times that a task
-	 * is dispatched to a local DSQ when exiting.
-	 */
-	s64		SCX_EV_ENQ_SKIP_EXITING;
-
-	/*
-	 * If SCX_OPS_ENQ_MIGRATION_DISABLED is not set, the number of times a
-	 * migration disabled task skips ops.enqueue() and is dispatched to its
-	 * local DSQ.
-	 */
-	s64		SCX_EV_ENQ_SKIP_MIGRATION_DISABLED;
-
-	/*
-	 * Total number of times a task's time slice was refilled with the
-	 * default value (SCX_SLICE_DFL).
-	 */
-	s64		SCX_EV_REFILL_SLICE_DFL;
-
-	/*
-	 * The total duration of bypass modes in nanoseconds.
-	 */
-	s64		SCX_EV_BYPASS_DURATION;
-
-	/*
-	 * The number of tasks dispatched in the bypassing mode.
-	 */
-	s64		SCX_EV_BYPASS_DISPATCH;
-
-	/*
-	 * The number of times the bypassing mode has been activated.
-	 */
-	s64		SCX_EV_BYPASS_ACTIVATE;
-};
 
 /*
  * The event counter is organized by a per-CPU variable to minimize the
