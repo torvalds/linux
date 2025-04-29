@@ -2286,35 +2286,25 @@ err_out:
 
 void enable_percpu_irq(unsigned int irq, unsigned int type)
 {
-	unsigned int cpu = smp_processor_id();
-	unsigned long flags;
-	struct irq_desc *desc = irq_get_desc_lock(irq, &flags, IRQ_GET_DESC_CHECK_PERCPU);
+	scoped_irqdesc_get_and_lock(irq, IRQ_GET_DESC_CHECK_PERCPU) {
+		struct irq_desc *desc = scoped_irqdesc;
 
-	if (!desc)
-		return;
+		/*
+		 * If the trigger type is not specified by the caller, then
+		 * use the default for this interrupt.
+		 */
+		type &= IRQ_TYPE_SENSE_MASK;
+		if (type == IRQ_TYPE_NONE)
+			type = irqd_get_trigger_type(&desc->irq_data);
 
-	/*
-	 * If the trigger type is not specified by the caller, then
-	 * use the default for this interrupt.
-	 */
-	type &= IRQ_TYPE_SENSE_MASK;
-	if (type == IRQ_TYPE_NONE)
-		type = irqd_get_trigger_type(&desc->irq_data);
-
-	if (type != IRQ_TYPE_NONE) {
-		int ret;
-
-		ret = __irq_set_trigger(desc, type);
-
-		if (ret) {
-			WARN(1, "failed to set type for IRQ%d\n", irq);
-			goto out;
+		if (type != IRQ_TYPE_NONE) {
+			if (__irq_set_trigger(desc, type)) {
+				WARN(1, "failed to set type for IRQ%d\n", irq);
+				return;
+			}
 		}
+		irq_percpu_enable(desc, smp_processor_id());
 	}
-
-	irq_percpu_enable(desc, cpu);
-out:
-	irq_put_desc_unlock(desc, flags);
 }
 EXPORT_SYMBOL_GPL(enable_percpu_irq);
 
