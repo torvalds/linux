@@ -107,6 +107,18 @@ config BATTERY_ACT8945A
 	  Say Y here to enable support for power supply provided by
 	  Active-semi ActivePath ACT8945A charger.
 
+config BATTERY_CHAGALL
+	tristate "Pegatron Chagall battery driver"
+	depends on I2C
+	depends on LEDS_CLASS
+	help
+	  Say Y to include support for Cypress CG7153AM IC based battery
+	  fuel gauge with custom firmware found in Pegatron Chagall based
+	  tablet line.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called chagall-battery.
+
 config BATTERY_CPCAP
 	tristate "Motorola CPCAP PMIC battery driver"
 	depends on MFD_CPCAP && IIO
