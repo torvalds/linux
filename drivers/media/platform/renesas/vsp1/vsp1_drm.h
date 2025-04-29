@@ -59,7 +59,7 @@ struct vsp1_drm {
 	struct vsp1_drm_pipeline pipe[VSP1_MAX_LIF];
 	struct mutex lock;
 
-	struct {
+	struct vsp1_drm_input {
 		struct v4l2_rect crop;
 		struct v4l2_rect compose;
 		unsigned int zpos;
