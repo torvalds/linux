@@ -138,14 +138,6 @@ static const struct vsp1_format_info vsp1_video_formats[] = {
 	  VI6_FMT_ARGB_8888, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
 	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
 	  1, { 32, 0, 0 }, false, false, 1, 1, false },
-	{ V4L2_PIX_FMT_HSV24, MEDIA_BUS_FMT_AHSV8888_1X32,
-	  VI6_FMT_RGB_888, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
-	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
-	  1, { 24, 0, 0 }, false, false, 1, 1, false },
-	{ V4L2_PIX_FMT_HSV32, MEDIA_BUS_FMT_AHSV8888_1X32,
-	  VI6_FMT_ARGB_8888, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
-	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
-	  1, { 32, 0, 0 }, false, false, 1, 1, false },
 	{ V4L2_PIX_FMT_RGBX1010102, MEDIA_BUS_FMT_ARGB8888_1X32,
 	  VI6_FMT_RGB10_RGB10A2_A2RGB10,
 	  VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS,
@@ -162,10 +154,6 @@ static const struct vsp1_format_info vsp1_video_formats[] = {
 	  VI6_FMT_YUYV_422, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
 	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
 	  1, { 16, 0, 0 }, false, false, 2, 1, false },
-	{ V4L2_PIX_FMT_VYUY, MEDIA_BUS_FMT_AYUV8_1X32,
-	  VI6_FMT_YUYV_422, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
-	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
-	  1, { 16, 0, 0 }, false, true, 2, 1, false },
 	{ V4L2_PIX_FMT_YUYV, MEDIA_BUS_FMT_AYUV8_1X32,
 	  VI6_FMT_YUYV_422, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
 	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
@@ -222,6 +210,21 @@ static const struct vsp1_format_info vsp1_video_formats[] = {
 	  1, { 32, 0, 0 }, false, false, 2, 1, false },
 };
 
+static const struct vsp1_format_info vsp1_video_gen2_formats[] = {
+	{ V4L2_PIX_FMT_VYUY, MEDIA_BUS_FMT_AYUV8_1X32,
+	  VI6_FMT_YUYV_422, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
+	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
+	  1, { 16, 0, 0 }, false, true, 2, 1, false },
+	{ V4L2_PIX_FMT_HSV24, MEDIA_BUS_FMT_AHSV8888_1X32,
+	  VI6_FMT_RGB_888, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
+	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
+	  1, { 24, 0, 0 }, false, false, 1, 1, false },
+	{ V4L2_PIX_FMT_HSV32, MEDIA_BUS_FMT_AHSV8888_1X32,
+	  VI6_FMT_ARGB_8888, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
+	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
+	  1, { 32, 0, 0 }, false, false, 1, 1, false },
+};
+
 /**
  * vsp1_get_format_info - Retrieve format information for a 4CC
  * @vsp1: the VSP1 device
@@ -235,21 +238,77 @@ const struct vsp1_format_info *vsp1_get_format_info(struct vsp1_device *vsp1,
 {
 	unsigned int i;
 
-	/* Special case, the VYUY and HSV formats are supported on Gen2 only. */
-	if (vsp1->info->gen != 2) {
-		switch (fourcc) {
-		case V4L2_PIX_FMT_VYUY:
-		case V4L2_PIX_FMT_HSV24:
-		case V4L2_PIX_FMT_HSV32:
-			return NULL;
-		}
-	}
-
 	for (i = 0; i < ARRAY_SIZE(vsp1_video_formats); ++i) {
 		const struct vsp1_format_info *info = &vsp1_video_formats[i];
 
 		if (info->fourcc == fourcc)
 			return info;
+	}
+
+	if (vsp1->info->gen == 2) {
+		for (i = 0; i < ARRAY_SIZE(vsp1_video_gen2_formats); ++i) {
+			const struct vsp1_format_info *info =
+				&vsp1_video_gen2_formats[i];
+
+			if (info->fourcc == fourcc)
+				return info;
+		}
+	}
+
+	return NULL;
+}
+
+/**
+ * vsp1_get_format_info_by_index - Enumerate format information
+ * @vsp1: the VSP1 device
+ * @index: the format index
+ * @code: media bus code to limit enumeration
+ *
+ * Return a pointer to the format information structure corresponding to the
+ * given index, or NULL if the index exceeds the supported formats list. If the
+ * @code parameter is not zero, only formats compatible with the media bus code
+ * will be enumerated.
+ */
+const struct vsp1_format_info *
+vsp1_get_format_info_by_index(struct vsp1_device *vsp1, unsigned int index,
+			      u32 code)
+{
+	unsigned int i;
+
+	if (!code) {
+		if (index < ARRAY_SIZE(vsp1_video_formats))
+			return &vsp1_video_formats[index];
+
+		if (vsp1->info->gen == 2) {
+			index -= ARRAY_SIZE(vsp1_video_formats);
+			if (index < ARRAY_SIZE(vsp1_video_gen2_formats))
+				return &vsp1_video_gen2_formats[index];
+		}
+
+		return NULL;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(vsp1_video_formats); ++i) {
+		const struct vsp1_format_info *info = &vsp1_video_formats[i];
+
+		if (info->mbus == code) {
+			if (!index)
+				return info;
+			index--;
+		}
+	}
+
+	if (vsp1->info->gen == 2) {
+		for (i = 0; i < ARRAY_SIZE(vsp1_video_gen2_formats); ++i) {
+			const struct vsp1_format_info *info =
+				&vsp1_video_gen2_formats[i];
+
+			if (info->mbus == code) {
+				if (!index)
+					return info;
+				index--;
+			}
+		}
 	}
 
 	return NULL;
