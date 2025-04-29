@@ -61,6 +61,25 @@ static void mlx5_cleanup_ttc_rules(struct mlx5_ttc_table *ttc)
 	}
 }
 
+static const char *mlx5_traffic_types_names[MLX5_NUM_TT] = {
+	[MLX5_TT_IPV4_TCP] =  "TT_IPV4_TCP",
+	[MLX5_TT_IPV6_TCP] =  "TT_IPV6_TCP",
+	[MLX5_TT_IPV4_UDP] =  "TT_IPV4_UDP",
+	[MLX5_TT_IPV6_UDP] =  "TT_IPV6_UDP",
+	[MLX5_TT_IPV4_IPSEC_AH] = "TT_IPV4_IPSEC_AH",
+	[MLX5_TT_IPV6_IPSEC_AH] = "TT_IPV6_IPSEC_AH",
+	[MLX5_TT_IPV4_IPSEC_ESP] = "TT_IPV4_IPSEC_ESP",
+	[MLX5_TT_IPV6_IPSEC_ESP] = "TT_IPV6_IPSEC_ESP",
+	[MLX5_TT_IPV4] = "TT_IPV4",
+	[MLX5_TT_IPV6] = "TT_IPV6",
+	[MLX5_TT_ANY] = "TT_ANY"
+};
+
+const char *mlx5_ttc_get_name(enum mlx5_traffic_types tt)
+{
+	return mlx5_traffic_types_names[tt];
+}
+
 struct mlx5_etype_proto {
 	u16 etype;
 	u8 proto;

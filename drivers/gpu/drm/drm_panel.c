@@ -74,8 +74,9 @@ EXPORT_SYMBOL(drm_panel_init);
  * drm_panel_add - add a panel to the global registry
  * @panel: panel to add
  *
- * Add a panel to the global registry so that it can be looked up by display
- * drivers.
+ * Add a panel to the global registry so that it can be looked
+ * up by display drivers. The panel to be added must have been
+ * allocated by devm_drm_panel_alloc().
  */
 void drm_panel_add(struct drm_panel *panel)
 {
@@ -105,21 +106,21 @@ EXPORT_SYMBOL(drm_panel_remove);
  *
  * Calling this function will enable power and deassert any reset signals to
  * the panel. After this has completed it is possible to communicate with any
- * integrated circuitry via a command bus.
- *
- * Return: 0 on success or a negative error code on failure.
+ * integrated circuitry via a command bus. This function cannot fail (as it is
+ * called from the pre_enable call chain). There will always be a call to
+ * drm_panel_disable() afterwards.
  */
-int drm_panel_prepare(struct drm_panel *panel)
+void drm_panel_prepare(struct drm_panel *panel)
 {
 	struct drm_panel_follower *follower;
 	int ret;
 
 	if (!panel)
-		return -EINVAL;
+		return;
 
 	if (panel->prepared) {
 		dev_warn(panel->dev, "Skipping prepare of already prepared panel\n");
-		return 0;
+		return;
 	}
 
 	mutex_lock(&panel->follower_lock);
@@ -138,11 +139,8 @@ int drm_panel_prepare(struct drm_panel *panel)
 				 follower->funcs->panel_prepared, ret);
 	}
 
-	ret = 0;
 exit:
 	mutex_unlock(&panel->follower_lock);
-
-	return ret;
 }
 EXPORT_SYMBOL(drm_panel_prepare);
 
@@ -154,16 +152,14 @@ EXPORT_SYMBOL(drm_panel_prepare);
  * reset, turn off power supplies, ...). After this function has completed, it
  * is usually no longer possible to communicate with the panel until another
  * call to drm_panel_prepare().
- *
- * Return: 0 on success or a negative error code on failure.
  */
-int drm_panel_unprepare(struct drm_panel *panel)
+void drm_panel_unprepare(struct drm_panel *panel)
 {
 	struct drm_panel_follower *follower;
 	int ret;
 
 	if (!panel)
-		return -EINVAL;
+		return;
 
 	/*
 	 * If you are seeing the warning below it likely means one of two things:
@@ -176,7 +172,7 @@ int drm_panel_unprepare(struct drm_panel *panel)
 	 */
 	if (!panel->prepared) {
 		dev_warn(panel->dev, "Skipping unprepare of already unprepared panel\n");
-		return 0;
+		return;
 	}
 
 	mutex_lock(&panel->follower_lock);
@@ -195,11 +191,8 @@ int drm_panel_unprepare(struct drm_panel *panel)
 	}
 	panel->prepared = false;
 
-	ret = 0;
 exit:
 	mutex_unlock(&panel->follower_lock);
-
-	return ret;
 }
 EXPORT_SYMBOL(drm_panel_unprepare);
 
@@ -209,26 +202,26 @@ EXPORT_SYMBOL(drm_panel_unprepare);
  *
  * Calling this function will cause the panel display drivers to be turned on
  * and the backlight to be enabled. Content will be visible on screen after
- * this call completes.
- *
- * Return: 0 on success or a negative error code on failure.
+ * this call completes. This function cannot fail (as it is called from the
+ * enable call chain). There will always be a call to drm_panel_disable()
+ * afterwards.
  */
-int drm_panel_enable(struct drm_panel *panel)
+void drm_panel_enable(struct drm_panel *panel)
 {
 	int ret;
 
 	if (!panel)
-		return -EINVAL;
+		return;
 
 	if (panel->enabled) {
 		dev_warn(panel->dev, "Skipping enable of already enabled panel\n");
-		return 0;
+		return;
 	}
 
 	if (panel->funcs && panel->funcs->enable) {
 		ret = panel->funcs->enable(panel);
 		if (ret < 0)
-			return ret;
+			return;
 	}
 	panel->enabled = true;
 
@@ -236,8 +229,6 @@ int drm_panel_enable(struct drm_panel *panel)
 	if (ret < 0)
 		DRM_DEV_INFO(panel->dev, "failed to enable backlight: %d\n",
 			     ret);
-
-	return 0;
 }
 EXPORT_SYMBOL(drm_panel_enable);
 
@@ -248,15 +239,13 @@ EXPORT_SYMBOL(drm_panel_enable);
  * This will typically turn off the panel's backlight or disable the display
  * drivers. For smart panels it should still be possible to communicate with
  * the integrated circuitry via any command bus after this call.
- *
- * Return: 0 on success or a negative error code on failure.
  */
-int drm_panel_disable(struct drm_panel *panel)
+void drm_panel_disable(struct drm_panel *panel)
 {
 	int ret;
 
 	if (!panel)
-		return -EINVAL;
+		return;
 
 	/*
 	 * If you are seeing the warning below it likely means one of two things:
@@ -269,7 +258,7 @@ int drm_panel_disable(struct drm_panel *panel)
 	 */
 	if (!panel->enabled) {
 		dev_warn(panel->dev, "Skipping disable of already disabled panel\n");
-		return 0;
+		return;
 	}
 
 	ret = backlight_disable(panel->backlight);
@@ -280,11 +269,9 @@ int drm_panel_disable(struct drm_panel *panel)
 	if (panel->funcs && panel->funcs->disable) {
 		ret = panel->funcs->disable(panel);
 		if (ret < 0)
-			return ret;
+			return;
 	}
 	panel->enabled = false;
-
-	return 0;
 }
 EXPORT_SYMBOL(drm_panel_disable);
 
@@ -316,6 +303,93 @@ int drm_panel_get_modes(struct drm_panel *panel,
 	return 0;
 }
 EXPORT_SYMBOL(drm_panel_get_modes);
+
+static void __drm_panel_free(struct kref *kref)
+{
+	struct drm_panel *panel = container_of(kref, struct drm_panel, refcount);
+
+	kfree(panel->container);
+}
+
+/**
+ * drm_panel_get - Acquire a panel reference
+ * @panel: DRM panel
+ *
+ * This function increments the panel's refcount.
+ * Returns:
+ * Pointer to @panel
+ */
+struct drm_panel *drm_panel_get(struct drm_panel *panel)
+{
+	if (!panel)
+		return panel;
+
+	kref_get(&panel->refcount);
+
+	return panel;
+}
+EXPORT_SYMBOL(drm_panel_get);
+
+/**
+ * drm_panel_put - Release a panel reference
+ * @panel: DRM panel
+ *
+ * This function decrements the panel's reference count and frees the
+ * object if the reference count drops to zero.
+ */
+void drm_panel_put(struct drm_panel *panel)
+{
+	if (panel)
+		kref_put(&panel->refcount, __drm_panel_free);
+}
+EXPORT_SYMBOL(drm_panel_put);
+
+/**
+ * drm_panel_put_void - wrapper to drm_panel_put() taking a void pointer
+ *
+ * @data: pointer to @struct drm_panel, cast to a void pointer
+ *
+ * Wrapper of drm_panel_put() to be used when a function taking a void
+ * pointer is needed, for example as a devm action.
+ */
+static void drm_panel_put_void(void *data)
+{
+	struct drm_panel *panel = (struct drm_panel *)data;
+
+	drm_panel_put(panel);
+}
+
+void *__devm_drm_panel_alloc(struct device *dev, size_t size, size_t offset,
+			     const struct drm_panel_funcs *funcs,
+			     int connector_type)
+{
+	void *container;
+	struct drm_panel *panel;
+	int err;
+
+	if (!funcs) {
+		dev_warn(dev, "Missing funcs pointer\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	container = kzalloc(size, GFP_KERNEL);
+	if (!container)
+		return ERR_PTR(-ENOMEM);
+
+	panel = container + offset;
+	panel->container = container;
+	panel->funcs = funcs;
+	kref_init(&panel->refcount);
+
+	err = devm_add_action_or_reset(dev, drm_panel_put_void, panel);
+	if (err)
+		return ERR_PTR(err);
+
+	drm_panel_init(panel, dev, funcs, connector_type);
+
+	return container;
+}
+EXPORT_SYMBOL(__devm_drm_panel_alloc);
 
 #ifdef CONFIG_OF
 /**

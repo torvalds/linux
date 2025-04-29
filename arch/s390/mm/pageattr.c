@@ -3,6 +3,7 @@
  * Copyright IBM Corp. 2011
  * Author(s): Jan Glauber <jang@linux.vnet.ibm.com>
  */
+#include <linux/cpufeature.h>
 #include <linux/hugetlb.h>
 #include <linux/proc_fs.h>
 #include <linux/vmalloc.h>
@@ -27,7 +28,7 @@ void __storage_key_init_range(unsigned long start, unsigned long end)
 	unsigned long boundary, size;
 
 	while (start < end) {
-		if (MACHINE_HAS_EDAT1) {
+		if (cpu_has_edat1()) {
 			/* set storage keys for a 1MB frame */
 			size = 1UL << 20;
 			boundary = (start + size) & ~(size - 1);
@@ -63,7 +64,7 @@ static void pgt_set(unsigned long *old, unsigned long new, unsigned long addr,
 	unsigned long *table, mask;
 
 	mask = 0;
-	if (MACHINE_HAS_EDAT2) {
+	if (cpu_has_edat2()) {
 		switch (dtt) {
 		case CRDTE_DTT_REGION3:
 			mask = ~(PTRS_PER_PUD * sizeof(pud_t) - 1);
@@ -77,7 +78,7 @@ static void pgt_set(unsigned long *old, unsigned long new, unsigned long addr,
 		}
 		table = (unsigned long *)((unsigned long)old & mask);
 		crdte(*old, new, table, dtt, addr, get_lowcore()->kernel_asce.val);
-	} else if (MACHINE_HAS_IDTE) {
+	} else if (cpu_has_idte()) {
 		cspg(old, *old, new);
 	} else {
 		csp((unsigned int *)old + 1, *old, new);
@@ -373,7 +374,7 @@ int __set_memory(unsigned long addr, unsigned long numpages, unsigned long flags
 	unsigned long end;
 	int rc;
 
-	if (!MACHINE_HAS_NX)
+	if (!cpu_has_nx())
 		flags &= ~(SET_MEMORY_NX | SET_MEMORY_X);
 	if (!flags)
 		return 0;

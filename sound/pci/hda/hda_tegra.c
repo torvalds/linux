@@ -125,7 +125,7 @@ static void hda_tegra_init(struct hda_tegra *hda)
 /*
  * power management
  */
-static int __maybe_unused hda_tegra_suspend(struct device *dev)
+static int hda_tegra_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	int rc;
@@ -138,7 +138,7 @@ static int __maybe_unused hda_tegra_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused hda_tegra_resume(struct device *dev)
+static int hda_tegra_resume(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	int rc;
@@ -151,7 +151,7 @@ static int __maybe_unused hda_tegra_resume(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused hda_tegra_runtime_suspend(struct device *dev)
+static int hda_tegra_runtime_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
@@ -170,7 +170,7 @@ static int __maybe_unused hda_tegra_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused hda_tegra_runtime_resume(struct device *dev)
+static int hda_tegra_runtime_resume(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
@@ -204,10 +204,8 @@ static int __maybe_unused hda_tegra_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops hda_tegra_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(hda_tegra_suspend, hda_tegra_resume)
-	SET_RUNTIME_PM_OPS(hda_tegra_runtime_suspend,
-			   hda_tegra_runtime_resume,
-			   NULL)
+	SYSTEM_SLEEP_PM_OPS(hda_tegra_suspend, hda_tegra_resume)
+	RUNTIME_PM_OPS(hda_tegra_runtime_suspend, hda_tegra_runtime_resume, NULL)
 };
 
 static int hda_tegra_dev_disconnect(struct snd_device *device)
@@ -602,7 +600,7 @@ static void hda_tegra_shutdown(struct platform_device *pdev)
 static struct platform_driver tegra_platform_hda = {
 	.driver = {
 		.name = "tegra-hda",
-		.pm = &hda_tegra_pm,
+		.pm = pm_ptr(&hda_tegra_pm),
 		.of_match_table = hda_tegra_match,
 	},
 	.probe = hda_tegra_probe,

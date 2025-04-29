@@ -15,7 +15,7 @@
  * #include <trace/events/sched.h>
  */
 #include <rv_trace.h>
-
+%%INCLUDE_PARENT%%
 /*
  * This is the self-generated part of the monitor. Generally, there is no need
  * to touch this section.
@@ -74,7 +74,7 @@ static struct rv_monitor rv_%%MODEL_NAME%% = {
 
 static int __init register_%%MODEL_NAME%%(void)
 {
-	rv_register_monitor(&rv_%%MODEL_NAME%%);
+	rv_register_monitor(&rv_%%MODEL_NAME%%, %%PARENT%%);
 	return 0;
 }
 

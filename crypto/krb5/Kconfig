@@ -1,0 +1,26 @@
+config CRYPTO_KRB5
+	tristate "Kerberos 5 crypto"
+	select CRYPTO_MANAGER
+	select CRYPTO_KRB5ENC
+	select CRYPTO_AUTHENC
+	select CRYPTO_SKCIPHER
+	select CRYPTO_HASH_INFO
+	select CRYPTO_HMAC
+	select CRYPTO_CMAC
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
+	select CRYPTO_SHA512
+	select CRYPTO_CBC
+	select CRYPTO_CTS
+	select CRYPTO_AES
+	select CRYPTO_CAMELLIA
+	help
+	  Provide a library for provision of Kerberos-5-based crypto.  This is
+	  intended for network filesystems to use.
+
+config CRYPTO_KRB5_SELFTESTS
+	bool "Kerberos 5 crypto selftests"
+	depends on CRYPTO_KRB5
+	help
+	  Turn on some self-testing for the kerberos 5 crypto functions.  These
+	  will be performed on module load or boot, if compiled in.

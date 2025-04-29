@@ -91,15 +91,15 @@ print_bpf_output(void *private_data, int cpu, struct perf_event_header *event)
 		jsonw_end_object(json_wtr);
 	} else {
 		if (e->header.type == PERF_RECORD_SAMPLE) {
-			printf("== @%lld.%09lld CPU: %d index: %d =====\n",
+			printf("== @%llu.%09llu CPU: %d index: %d =====\n",
 			       e->time / 1000000000ULL, e->time % 1000000000ULL,
 			       cpu, idx);
 			fprint_hex(stdout, e->data, e->size, " ");
 			printf("\n");
 		} else if (e->header.type == PERF_RECORD_LOST) {
-			printf("lost %lld events\n", lost->lost);
+			printf("lost %llu events\n", lost->lost);
 		} else {
-			printf("unknown event type=%d size=%d\n",
+			printf("unknown event type=%u size=%u\n",
 			       e->header.type, e->header.size);
 		}
 	}

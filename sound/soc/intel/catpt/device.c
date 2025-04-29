@@ -28,7 +28,7 @@
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
-static int __maybe_unused catpt_suspend(struct device *dev)
+static int catpt_suspend(struct device *dev)
 {
 	struct catpt_dev *cdev = dev_get_drvdata(dev);
 	struct dma_chan *chan;
@@ -72,7 +72,7 @@ release_dma_chan:
 	return catpt_dsp_power_down(cdev);
 }
 
-static int __maybe_unused catpt_resume(struct device *dev)
+static int catpt_resume(struct device *dev)
 {
 	struct catpt_dev *cdev = dev_get_drvdata(dev);
 	int ret, i;
@@ -106,7 +106,7 @@ static int __maybe_unused catpt_resume(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused catpt_runtime_suspend(struct device *dev)
+static int catpt_runtime_suspend(struct device *dev)
 {
 	if (!try_module_get(dev->driver->owner)) {
 		dev_info(dev, "module unloading, skipping suspend\n");
@@ -117,14 +117,14 @@ static int __maybe_unused catpt_runtime_suspend(struct device *dev)
 	return catpt_suspend(dev);
 }
 
-static int __maybe_unused catpt_runtime_resume(struct device *dev)
+static int catpt_runtime_resume(struct device *dev)
 {
 	return catpt_resume(dev);
 }
 
 static const struct dev_pm_ops catpt_dev_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(catpt_suspend, catpt_resume)
-	SET_RUNTIME_PM_OPS(catpt_runtime_suspend, catpt_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(catpt_suspend, catpt_resume)
+	RUNTIME_PM_OPS(catpt_runtime_suspend, catpt_runtime_resume, NULL)
 };
 
 /* machine board owned by CATPT is removed with this hook */
@@ -378,7 +378,7 @@ static struct platform_driver catpt_acpi_driver = {
 	.driver = {
 		.name = "intel_catpt",
 		.acpi_match_table = catpt_ids,
-		.pm = &catpt_dev_pm,
+		.pm = pm_ptr(&catpt_dev_pm),
 		.dev_groups = catpt_attr_groups,
 	},
 };

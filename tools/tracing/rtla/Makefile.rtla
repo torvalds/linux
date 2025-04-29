@@ -34,6 +34,8 @@ INSTALL		:= install
 MKDIR		:= mkdir
 STRIP		:= strip
 BINDIR		:= /usr/bin
+CTAGS		:= ctags
+ETAGS		:= ctags -e
 
 .PHONY: install
 install: doc_install
@@ -47,6 +49,18 @@ install: doc_install
 	@test ! -f $(DESTDIR)$(BINDIR)/timerlat || $(RM) $(DESTDIR)$(BINDIR)/timerlat
 	@$(LN) -s rtla $(DESTDIR)$(BINDIR)/timerlat
 
+.PHONY: tags
+tags:
+	$(CTAGS) -R --extras=+f --c-kinds=+p src
+
+.PHONY: TAGS
+TAGS:
+	$(ETAGS) -R --extras=+f --c-kinds=+p src
+
+.PHONY: tags_clean
+tags_clean:
+	$(RM) tags TAGS
+
 .PHONY: doc doc_clean doc_install
 doc:
 	$(MAKE) -C $(DOCSRC)
@@ -57,8 +71,7 @@ doc_clean:
 doc_install:
 	$(MAKE) -C $(DOCSRC) install
 
-# This section is neesary for the tarball, when the tarball
-# support is removed, we can delete these entries.
+# This section is necessary to make the rtla tarball
 NAME		:= rtla
 DIRS		:= src
 FILES		:= Makefile README.txt

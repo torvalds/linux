@@ -50,7 +50,6 @@
 #include <linux/memfd.h>
 #include <linux/dma-buf.h>
 #include <linux/udmabuf.h>
-#include <libmnl/libmnl.h>
 #include <linux/types.h>
 #include <linux/netlink.h>
 #include <linux/genetlink.h>

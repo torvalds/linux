@@ -26,4 +26,13 @@
 
 extern const struct amdgpu_ip_block_version vcn_v4_0_3_ip_block;
 
+void vcn_v4_0_3_enc_ring_emit_reg_wait(struct amdgpu_ring *ring, uint32_t reg,
+				       uint32_t val, uint32_t mask);
+
+void vcn_v4_0_3_enc_ring_emit_wreg(struct amdgpu_ring *ring, uint32_t reg,
+				   uint32_t val);
+void vcn_v4_0_3_enc_ring_emit_vm_flush(struct amdgpu_ring *ring,
+				       unsigned int vmid, uint64_t pd_addr);
+void vcn_v4_0_3_ring_emit_hdp_flush(struct amdgpu_ring *ring);
+
 #endif /* __VCN_V4_0_3_H__ */

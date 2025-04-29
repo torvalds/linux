@@ -13,11 +13,12 @@
 # define KEXEC_CONTROL_PAGE_SIZE	4096
 # define KEXEC_CONTROL_CODE_MAX_SIZE	2048
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/string.h>
 #include <linux/kernel.h>
 
+#include <asm/asm.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
 
@@ -71,41 +72,32 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 	if (oldregs) {
 		memcpy(newregs, oldregs, sizeof(*newregs));
 	} else {
-#ifdef CONFIG_X86_32
-		asm volatile("movl %%ebx,%0" : "=m"(newregs->bx));
-		asm volatile("movl %%ecx,%0" : "=m"(newregs->cx));
-		asm volatile("movl %%edx,%0" : "=m"(newregs->dx));
-		asm volatile("movl %%esi,%0" : "=m"(newregs->si));
-		asm volatile("movl %%edi,%0" : "=m"(newregs->di));
-		asm volatile("movl %%ebp,%0" : "=m"(newregs->bp));
-		asm volatile("movl %%eax,%0" : "=m"(newregs->ax));
-		asm volatile("movl %%esp,%0" : "=m"(newregs->sp));
-		asm volatile("movl %%ss, %%eax;" :"=a"(newregs->ss));
-		asm volatile("movl %%cs, %%eax;" :"=a"(newregs->cs));
-		asm volatile("movl %%ds, %%eax;" :"=a"(newregs->ds));
-		asm volatile("movl %%es, %%eax;" :"=a"(newregs->es));
-		asm volatile("pushfl; popl %0" :"=m"(newregs->flags));
-#else
-		asm volatile("movq %%rbx,%0" : "=m"(newregs->bx));
-		asm volatile("movq %%rcx,%0" : "=m"(newregs->cx));
-		asm volatile("movq %%rdx,%0" : "=m"(newregs->dx));
-		asm volatile("movq %%rsi,%0" : "=m"(newregs->si));
-		asm volatile("movq %%rdi,%0" : "=m"(newregs->di));
-		asm volatile("movq %%rbp,%0" : "=m"(newregs->bp));
-		asm volatile("movq %%rax,%0" : "=m"(newregs->ax));
-		asm volatile("movq %%rsp,%0" : "=m"(newregs->sp));
-		asm volatile("movq %%r8,%0" : "=m"(newregs->r8));
-		asm volatile("movq %%r9,%0" : "=m"(newregs->r9));
-		asm volatile("movq %%r10,%0" : "=m"(newregs->r10));
-		asm volatile("movq %%r11,%0" : "=m"(newregs->r11));
-		asm volatile("movq %%r12,%0" : "=m"(newregs->r12));
-		asm volatile("movq %%r13,%0" : "=m"(newregs->r13));
-		asm volatile("movq %%r14,%0" : "=m"(newregs->r14));
-		asm volatile("movq %%r15,%0" : "=m"(newregs->r15));
-		asm volatile("movl %%ss, %%eax;" :"=a"(newregs->ss));
-		asm volatile("movl %%cs, %%eax;" :"=a"(newregs->cs));
-		asm volatile("pushfq; popq %0" :"=m"(newregs->flags));
+		asm volatile("mov %%" _ASM_BX ",%0" : "=m"(newregs->bx));
+		asm volatile("mov %%" _ASM_CX ",%0" : "=m"(newregs->cx));
+		asm volatile("mov %%" _ASM_DX ",%0" : "=m"(newregs->dx));
+		asm volatile("mov %%" _ASM_SI ",%0" : "=m"(newregs->si));
+		asm volatile("mov %%" _ASM_DI ",%0" : "=m"(newregs->di));
+		asm volatile("mov %%" _ASM_BP ",%0" : "=m"(newregs->bp));
+		asm volatile("mov %%" _ASM_AX ",%0" : "=m"(newregs->ax));
+		asm volatile("mov %%" _ASM_SP ",%0" : "=m"(newregs->sp));
+#ifdef CONFIG_X86_64
+		asm volatile("mov %%r8,%0" : "=m"(newregs->r8));
+		asm volatile("mov %%r9,%0" : "=m"(newregs->r9));
+		asm volatile("mov %%r10,%0" : "=m"(newregs->r10));
+		asm volatile("mov %%r11,%0" : "=m"(newregs->r11));
+		asm volatile("mov %%r12,%0" : "=m"(newregs->r12));
+		asm volatile("mov %%r13,%0" : "=m"(newregs->r13));
+		asm volatile("mov %%r14,%0" : "=m"(newregs->r14));
+		asm volatile("mov %%r15,%0" : "=m"(newregs->r15));
 #endif
+		asm volatile("mov %%ss,%k0" : "=a"(newregs->ss));
+		asm volatile("mov %%cs,%k0" : "=a"(newregs->cs));
+#ifdef CONFIG_X86_32
+		asm volatile("mov %%ds,%k0" : "=a"(newregs->ds));
+		asm volatile("mov %%es,%k0" : "=a"(newregs->es));
+#endif
+		asm volatile("pushf\n\t"
+			     "pop %0" : "=m"(newregs->flags));
 		newregs->ip = _THIS_IP_;
 	}
 }
@@ -225,6 +217,6 @@ unsigned int arch_crash_get_elfcorehdr_size(void);
 #define crash_get_elfcorehdr_size arch_crash_get_elfcorehdr_size
 #endif
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_X86_KEXEC_H */

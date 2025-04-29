@@ -77,7 +77,7 @@ static void update_shadow_pdps(struct intel_vgpu_workload *workload)
 }
 
 /*
- * when populating shadow ctx from guest, we should not overrride oa related
+ * When populating shadow ctx from guest, we should not override oa related
  * registers, so that they will not be overlapped by guest oa configs. Thus
  * made it possible to capture oa data from host for both host and guests.
  */
@@ -528,9 +528,10 @@ static int prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 	int ret;
 
 	list_for_each_entry(bb, &workload->shadow_bb, list) {
-		/* For privilge batch buffer and not wa_ctx, the bb_start_cmd_va
+		/*
+		 * For privilege batch buffer and not wa_ctx, the bb_start_cmd_va
 		 * is only updated into ring_scan_buffer, not real ring address
-		 * allocated in later copy_workload_to_ring_buffer. pls be noted
+		 * allocated in later copy_workload_to_ring_buffer. Please be noted
 		 * shadow_ring_buffer_va is now pointed to real ring buffer va
 		 * in copy_workload_to_ring_buffer.
 		 */
@@ -546,7 +547,7 @@ static int prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 		 * here, rather than switch to shadow bb's gma
 		 * address, we directly use original batch buffer's
 		 * gma address, and send original bb to hardware
-		 * directly
+		 * directly.
 		 */
 		if (!bb->ppgtt) {
 			i915_gem_ww_ctx_init(&ww, false);
@@ -1774,7 +1775,7 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu,
 }
 
 /**
- * intel_vgpu_queue_workload - Qeue a vGPU workload
+ * intel_vgpu_queue_workload - Queue a vGPU workload
  * @workload: the workload to queue in
  */
 void intel_vgpu_queue_workload(struct intel_vgpu_workload *workload)

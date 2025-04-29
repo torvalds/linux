@@ -130,3 +130,10 @@ kms_lease@page-flip-implicit-plane
 # IGT Version: 1.28-ga73311079
 # Linux Version: 6.11.0-rc5
 kms_flip@flip-vs-expired-vblank
+
+# Board Name: sdm845-cheza-r3
+# Bug Report: https://gitlab.freedesktop.org/drm/msm/-/issues/75
+# Failure Rate: 20
+# IGT Version: 1.30-g04bedb923
+# Linux Version: 6.14.0-rc4
+kms_flip@plain-flip-ts-check-interruptible

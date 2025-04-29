@@ -14,6 +14,7 @@
 #include "xe_gt_sriov_vf.h"
 #include "xe_guc.h"
 #include "xe_guc_pc.h"
+#include "xe_guc_engine_activity.h"
 #include "xe_huc.h"
 #include "xe_sriov.h"
 #include "xe_uc_fw.h"
@@ -210,6 +211,8 @@ int xe_uc_init_hw(struct xe_uc *uc)
 	if (ret)
 		return ret;
 
+	xe_guc_engine_activity_enable_stats(&uc->guc);
+
 	/* We don't fail the driver load if HuC fails to auth, but let's warn */
 	ret = xe_huc_auth(&uc->huc, XE_HUC_AUTH_VIA_GUC);
 	xe_gt_assert(uc_to_gt(uc), !ret);
@@ -286,19 +289,6 @@ int xe_uc_suspend(struct xe_uc *uc)
 	xe_uc_stop(uc);
 
 	return xe_guc_suspend(&uc->guc);
-}
-
-/**
- * xe_uc_remove() - Clean up the UC structures before driver removal
- * @uc: the UC object
- *
- * This function should only act on objects/structures that must be cleaned
- * before the driver removal callback is complete and therefore can't be
- * deferred to a drmm action.
- */
-void xe_uc_remove(struct xe_uc *uc)
-{
-	xe_gsc_remove(&uc->gsc);
 }
 
 /**

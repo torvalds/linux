@@ -1197,7 +1197,7 @@ static int hp_wmi_update_info(struct hp_wmi_sensors *state,
 	if (time_after(jiffies, info->last_updated + HZ)) {
 		mutex_lock(&state->lock);
 
-		wobj = hp_wmi_get_wobj(HP_WMI_NUMERIC_SENSOR_GUID, instance);
+		wobj = wmidev_block_query(state->wdev, instance);
 		if (!wobj) {
 			ret = -EIO;
 			goto out_unlock;
@@ -1745,7 +1745,7 @@ static int init_numeric_sensors(struct hp_wmi_sensors *state,
 		return -ENOMEM;
 
 	for (i = 0, info = info_arr; i < icount; i++, info++) {
-		wobj = hp_wmi_get_wobj(HP_WMI_NUMERIC_SENSOR_GUID, i);
+		wobj = wmidev_block_query(state->wdev, i);
 		if (!wobj)
 			return -EIO;
 

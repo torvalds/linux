@@ -317,12 +317,6 @@ extern void iommu_flush_tce(struct iommu_table *tbl);
 extern enum dma_data_direction iommu_tce_direction(unsigned long tce);
 extern unsigned long iommu_direction_to_tce_perm(enum dma_data_direction dir);
 
-#ifdef CONFIG_PPC_CELL_NATIVE
-extern bool iommu_fixed_is_weak;
-#else
-#define iommu_fixed_is_weak false
-#endif
-
 extern const struct dma_map_ops dma_iommu_ops;
 
 #endif /* __KERNEL__ */

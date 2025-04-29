@@ -699,8 +699,8 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 				tulip_start_rxtx(tp);
 			}
 			/*
-			 * NB: t21142_lnk_change() does a del_timer_sync(), so be careful if this
-			 * call is ever done under the spinlock
+			 * NB: t21142_lnk_change() does a timer_delete_sync(), so be careful
+			 * if this call is ever done under the spinlock
 			 */
 			if (csr5 & (TPLnkPass | TPLnkFail | 0x08000000)) {
 				if (tp->link_change)

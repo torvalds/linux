@@ -3450,7 +3450,7 @@ static const char *keys[KEY_MAX + 1] = {
 	[KEY_MACRO_RECORD_START] = "MacroRecordStart",
 	[KEY_MACRO_RECORD_STOP] = "MacroRecordStop",
 	[KEY_MARK_WAYPOINT] = "MarkWayPoint",	[KEY_MEDIA_REPEAT] = "MediaRepeat",
-	[KEY_MEDIA_TOP_MENU] = "MediaTopMenu",	[KEY_MESSENGER] = "Messanger",
+	[KEY_MEDIA_TOP_MENU] = "MediaTopMenu",	[KEY_MESSENGER] = "Messenger",
 	[KEY_NAV_CHART] = "NavChar",		[KEY_NAV_INFO] = "NavInfo",
 	[KEY_NEWS] = "News",			[KEY_NEXT_ELEMENT] = "NextElement",
 	[KEY_NEXT_FAVORITE] = "NextFavorite",	[KEY_NOTIFICATION_CENTER] = "NotificationCenter",

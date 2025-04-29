@@ -492,7 +492,7 @@ static int cm32181_probe(struct i2c_client *client)
 
 	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret) {
-		dev_err(dev, "%s: regist device failed\n", __func__);
+		dev_err(dev, "%s: register device failed\n", __func__);
 		return ret;
 	}
 

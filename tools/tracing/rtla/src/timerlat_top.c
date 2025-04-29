@@ -15,44 +15,10 @@
 #include <sched.h>
 #include <pthread.h>
 
-#include "utils.h"
-#include "osnoise.h"
 #include "timerlat.h"
 #include "timerlat_aa.h"
 #include "timerlat_u.h"
-
-struct timerlat_top_params {
-	char			*cpus;
-	cpu_set_t		monitored_cpus;
-	char			*trace_output;
-	char			*cgroup_name;
-	unsigned long long	runtime;
-	long long		stop_us;
-	long long		stop_total_us;
-	long long		timerlat_period_us;
-	long long		print_stack;
-	int			sleep_time;
-	int			output_divisor;
-	int			duration;
-	int			quiet;
-	int			set_sched;
-	int			dma_latency;
-	int			no_aa;
-	int			aa_only;
-	int			dump_tasks;
-	int			cgroup;
-	int			hk_cpus;
-	int			user_top;
-	int			user_workload;
-	int			kernel_workload;
-	int			pretty_output;
-	int			warmup;
-	int			buffer_size;
-	int			deepest_idle_state;
-	cpu_set_t		hk_cpu_set;
-	struct sched_attr	sched_param;
-	struct trace_events	*events;
-};
+#include "timerlat_bpf.h"
 
 struct timerlat_top_cpu {
 	unsigned long long	irq_count;
@@ -162,8 +128,12 @@ timerlat_top_update(struct osnoise_tool *tool, int cpu,
 		    unsigned long long thread,
 		    unsigned long long latency)
 {
+	struct timerlat_params *params = tool->params;
 	struct timerlat_top_data *data = tool->data;
 	struct timerlat_top_cpu *cpu_data = &data->cpu_data[cpu];
+
+	if (params->output_divisor)
+		latency = latency / params->output_divisor;
 
 	if (!thread) {
 		cpu_data->irq_count++;
@@ -194,7 +164,7 @@ timerlat_top_handler(struct trace_seq *s, struct tep_record *record,
 		     struct tep_event *event, void *context)
 {
 	struct trace_instance *trace = context;
-	struct timerlat_top_params *params;
+	struct timerlat_params *params;
 	unsigned long long latency, thread;
 	struct osnoise_tool *top;
 	int cpu = record->cpu;
@@ -213,9 +183,79 @@ timerlat_top_handler(struct trace_seq *s, struct tep_record *record,
 }
 
 /*
+ * timerlat_top_bpf_pull_data - copy data from BPF maps into userspace
+ */
+static int timerlat_top_bpf_pull_data(struct osnoise_tool *tool)
+{
+	struct timerlat_top_data *data = tool->data;
+	int i, err;
+	long long value_irq[data->nr_cpus],
+		  value_thread[data->nr_cpus],
+		  value_user[data->nr_cpus];
+
+	/* Pull summary */
+	err = timerlat_bpf_get_summary_value(SUMMARY_CURRENT,
+					     value_irq, value_thread, value_user,
+					     data->nr_cpus);
+	if (err)
+		return err;
+	for (i = 0; i < data->nr_cpus; i++) {
+		data->cpu_data[i].cur_irq = value_irq[i];
+		data->cpu_data[i].cur_thread = value_thread[i];
+		data->cpu_data[i].cur_user = value_user[i];
+	}
+
+	err = timerlat_bpf_get_summary_value(SUMMARY_COUNT,
+					     value_irq, value_thread, value_user,
+					     data->nr_cpus);
+	if (err)
+		return err;
+	for (i = 0; i < data->nr_cpus; i++) {
+		data->cpu_data[i].irq_count = value_irq[i];
+		data->cpu_data[i].thread_count = value_thread[i];
+		data->cpu_data[i].user_count = value_user[i];
+	}
+
+	err = timerlat_bpf_get_summary_value(SUMMARY_MIN,
+					     value_irq, value_thread, value_user,
+					     data->nr_cpus);
+	if (err)
+		return err;
+	for (i = 0; i < data->nr_cpus; i++) {
+		data->cpu_data[i].min_irq = value_irq[i];
+		data->cpu_data[i].min_thread = value_thread[i];
+		data->cpu_data[i].min_user = value_user[i];
+	}
+
+	err = timerlat_bpf_get_summary_value(SUMMARY_MAX,
+					     value_irq, value_thread, value_user,
+					     data->nr_cpus);
+	if (err)
+		return err;
+	for (i = 0; i < data->nr_cpus; i++) {
+		data->cpu_data[i].max_irq = value_irq[i];
+		data->cpu_data[i].max_thread = value_thread[i];
+		data->cpu_data[i].max_user = value_user[i];
+	}
+
+	err = timerlat_bpf_get_summary_value(SUMMARY_SUM,
+					     value_irq, value_thread, value_user,
+					     data->nr_cpus);
+	if (err)
+		return err;
+	for (i = 0; i < data->nr_cpus; i++) {
+		data->cpu_data[i].sum_irq = value_irq[i];
+		data->cpu_data[i].sum_thread = value_thread[i];
+		data->cpu_data[i].sum_user = value_user[i];
+	}
+
+	return 0;
+}
+
+/*
  * timerlat_top_header - print the header of the tool output
  */
-static void timerlat_top_header(struct timerlat_top_params *params, struct osnoise_tool *top)
+static void timerlat_top_header(struct timerlat_params *params, struct osnoise_tool *top)
 {
 	struct trace_seq *s = top->trace.seq;
 	char duration[26];
@@ -226,7 +266,7 @@ static void timerlat_top_header(struct timerlat_top_params *params, struct osnoi
 		trace_seq_printf(s, "\033[2;37;40m");
 
 	trace_seq_printf(s, "                                     Timer Latency                                              ");
-	if (params->user_top)
+	if (params->user_data)
 		trace_seq_printf(s, "                                         ");
 
 	if (params->pretty_output)
@@ -237,7 +277,7 @@ static void timerlat_top_header(struct timerlat_top_params *params, struct osnoi
 			params->output_divisor == 1 ? "ns" : "us",
 			params->output_divisor == 1 ? "ns" : "us");
 
-	if (params->user_top) {
+	if (params->user_data) {
 		trace_seq_printf(s, "      |    Ret user Timer Latency (%s)",
 				params->output_divisor == 1 ? "ns" : "us");
 	}
@@ -247,7 +287,7 @@ static void timerlat_top_header(struct timerlat_top_params *params, struct osnoi
 		trace_seq_printf(s, "\033[2;30;47m");
 
 	trace_seq_printf(s, "CPU COUNT      |      cur       min       avg       max |      cur       min       avg       max");
-	if (params->user_top)
+	if (params->user_data)
 		trace_seq_printf(s, " |      cur       min       avg       max");
 
 	if (params->pretty_output)
@@ -263,14 +303,10 @@ static const char *no_value = "        -";
 static void timerlat_top_print(struct osnoise_tool *top, int cpu)
 {
 
-	struct timerlat_top_params *params = top->params;
+	struct timerlat_params *params = top->params;
 	struct timerlat_top_data *data = top->data;
 	struct timerlat_top_cpu *cpu_data = &data->cpu_data[cpu];
-	int divisor = params->output_divisor;
 	struct trace_seq *s = top->trace.seq;
-
-	if (divisor == 0)
-		return;
 
 	/*
 	 * Skip if no data is available: is this cpu offline?
@@ -286,23 +322,23 @@ static void timerlat_top_print(struct osnoise_tool *top, int cpu)
 	if (!cpu_data->irq_count) {
 		trace_seq_printf(s, "%s %s %s %s |", no_value, no_value, no_value, no_value);
 	} else {
-		trace_seq_printf(s, "%9llu ", cpu_data->cur_irq / params->output_divisor);
-		trace_seq_printf(s, "%9llu ", cpu_data->min_irq / params->output_divisor);
-		trace_seq_printf(s, "%9llu ", (cpu_data->sum_irq / cpu_data->irq_count) / divisor);
-		trace_seq_printf(s, "%9llu |", cpu_data->max_irq / divisor);
+		trace_seq_printf(s, "%9llu ", cpu_data->cur_irq);
+		trace_seq_printf(s, "%9llu ", cpu_data->min_irq);
+		trace_seq_printf(s, "%9llu ", cpu_data->sum_irq / cpu_data->irq_count);
+		trace_seq_printf(s, "%9llu |", cpu_data->max_irq);
 	}
 
 	if (!cpu_data->thread_count) {
 		trace_seq_printf(s, "%s %s %s %s", no_value, no_value, no_value, no_value);
 	} else {
-		trace_seq_printf(s, "%9llu ", cpu_data->cur_thread / divisor);
-		trace_seq_printf(s, "%9llu ", cpu_data->min_thread / divisor);
+		trace_seq_printf(s, "%9llu ", cpu_data->cur_thread);
+		trace_seq_printf(s, "%9llu ", cpu_data->min_thread);
 		trace_seq_printf(s, "%9llu ",
-				(cpu_data->sum_thread / cpu_data->thread_count) / divisor);
-		trace_seq_printf(s, "%9llu", cpu_data->max_thread / divisor);
+				cpu_data->sum_thread / cpu_data->thread_count);
+		trace_seq_printf(s, "%9llu", cpu_data->max_thread);
 	}
 
-	if (!params->user_top) {
+	if (!params->user_data) {
 		trace_seq_printf(s, "\n");
 		return;
 	}
@@ -312,11 +348,11 @@ static void timerlat_top_print(struct osnoise_tool *top, int cpu)
 	if (!cpu_data->user_count) {
 		trace_seq_printf(s, "%s %s %s %s\n", no_value, no_value, no_value, no_value);
 	} else {
-		trace_seq_printf(s, "%9llu ", cpu_data->cur_user / divisor);
-		trace_seq_printf(s, "%9llu ", cpu_data->min_user / divisor);
+		trace_seq_printf(s, "%9llu ", cpu_data->cur_user);
+		trace_seq_printf(s, "%9llu ", cpu_data->min_user);
 		trace_seq_printf(s, "%9llu ",
-				(cpu_data->sum_user / cpu_data->user_count) / divisor);
-		trace_seq_printf(s, "%9llu\n", cpu_data->max_user / divisor);
+				cpu_data->sum_user / cpu_data->user_count);
+		trace_seq_printf(s, "%9llu\n", cpu_data->max_user);
 	}
 }
 
@@ -327,14 +363,10 @@ static void
 timerlat_top_print_sum(struct osnoise_tool *top, struct timerlat_top_cpu *summary)
 {
 	const char *split = "----------------------------------------";
-	struct timerlat_top_params *params = top->params;
+	struct timerlat_params *params = top->params;
 	unsigned long long count = summary->irq_count;
-	int divisor = params->output_divisor;
 	struct trace_seq *s = top->trace.seq;
 	int e = 0;
-
-	if (divisor == 0)
-		return;
 
 	/*
 	 * Skip if no data is available: is this cpu offline?
@@ -348,7 +380,7 @@ timerlat_top_print_sum(struct osnoise_tool *top, struct timerlat_top_cpu *summar
 	}
 
 	trace_seq_printf(s, "%.*s|%.*s|%.*s", 15, split, 40, split, 39, split);
-	if (params->user_top)
+	if (params->user_data)
 		trace_seq_printf(s, "-|%.*s", 39, split);
 	trace_seq_printf(s, "\n");
 
@@ -358,22 +390,22 @@ timerlat_top_print_sum(struct osnoise_tool *top, struct timerlat_top_cpu *summar
 		trace_seq_printf(s, "          %s %s %s |", no_value, no_value, no_value);
 	} else {
 		trace_seq_printf(s, "          ");
-		trace_seq_printf(s, "%9llu ", summary->min_irq / params->output_divisor);
-		trace_seq_printf(s, "%9llu ", (summary->sum_irq / summary->irq_count) / divisor);
-		trace_seq_printf(s, "%9llu |", summary->max_irq / divisor);
+		trace_seq_printf(s, "%9llu ", summary->min_irq);
+		trace_seq_printf(s, "%9llu ", summary->sum_irq / summary->irq_count);
+		trace_seq_printf(s, "%9llu |", summary->max_irq);
 	}
 
 	if (!summary->thread_count) {
 		trace_seq_printf(s, "%s %s %s %s", no_value, no_value, no_value, no_value);
 	} else {
 		trace_seq_printf(s, "          ");
-		trace_seq_printf(s, "%9llu ", summary->min_thread / divisor);
+		trace_seq_printf(s, "%9llu ", summary->min_thread);
 		trace_seq_printf(s, "%9llu ",
-				(summary->sum_thread / summary->thread_count) / divisor);
-		trace_seq_printf(s, "%9llu", summary->max_thread / divisor);
+				summary->sum_thread / summary->thread_count);
+		trace_seq_printf(s, "%9llu", summary->max_thread);
 	}
 
-	if (!params->user_top) {
+	if (!params->user_data) {
 		trace_seq_printf(s, "\n");
 		return;
 	}
@@ -384,10 +416,10 @@ timerlat_top_print_sum(struct osnoise_tool *top, struct timerlat_top_cpu *summar
 		trace_seq_printf(s, "          %s %s %s |", no_value, no_value, no_value);
 	} else {
 		trace_seq_printf(s, "          ");
-		trace_seq_printf(s, "%9llu ", summary->min_user / divisor);
+		trace_seq_printf(s, "%9llu ", summary->min_user);
 		trace_seq_printf(s, "%9llu ",
-				(summary->sum_user / summary->user_count) / divisor);
-		trace_seq_printf(s, "%9llu\n", summary->max_user / divisor);
+				summary->sum_user / summary->user_count);
+		trace_seq_printf(s, "%9llu\n", summary->max_user);
 	}
 }
 
@@ -404,7 +436,7 @@ static void clear_terminal(struct trace_seq *seq)
  * timerlat_print_stats - print data for all cpus
  */
 static void
-timerlat_print_stats(struct timerlat_top_params *params, struct osnoise_tool *top)
+timerlat_print_stats(struct timerlat_params *params, struct osnoise_tool *top)
 {
 	struct trace_instance *trace = &top->trace;
 	struct timerlat_top_cpu summary;
@@ -505,10 +537,10 @@ static void timerlat_top_usage(char *usage)
 /*
  * timerlat_top_parse_args - allocs, parse and fill the cmd line parameters
  */
-static struct timerlat_top_params
+static struct timerlat_params
 *timerlat_top_parse_args(int argc, char **argv)
 {
-	struct timerlat_top_params *params;
+	struct timerlat_params *params;
 	struct trace_events *tevent;
 	long long auto_thresh;
 	int retval;
@@ -690,7 +722,7 @@ static struct timerlat_top_params
 			params->user_workload = true;
 			/* fallback: -u implies -U */
 		case 'U':
-			params->user_top = true;
+			params->user_data = true;
 			break;
 		case '0': /* trigger */
 			if (params->events) {
@@ -765,103 +797,13 @@ static struct timerlat_top_params
  * timerlat_top_apply_config - apply the top configs to the initialized tool
  */
 static int
-timerlat_top_apply_config(struct osnoise_tool *top, struct timerlat_top_params *params)
+timerlat_top_apply_config(struct osnoise_tool *top, struct timerlat_params *params)
 {
 	int retval;
-	int i;
 
-	if (!params->sleep_time)
-		params->sleep_time = 1;
-
-	if (params->cpus) {
-		retval = osnoise_set_cpus(top->context, params->cpus);
-		if (retval) {
-			err_msg("Failed to apply CPUs config\n");
-			goto out_err;
-		}
-	} else {
-		for (i = 0; i < sysconf(_SC_NPROCESSORS_CONF); i++)
-			CPU_SET(i, &params->monitored_cpus);
-	}
-
-	if (params->stop_us) {
-		retval = osnoise_set_stop_us(top->context, params->stop_us);
-		if (retval) {
-			err_msg("Failed to set stop us\n");
-			goto out_err;
-		}
-	}
-
-	if (params->stop_total_us) {
-		retval = osnoise_set_stop_total_us(top->context, params->stop_total_us);
-		if (retval) {
-			err_msg("Failed to set stop total us\n");
-			goto out_err;
-		}
-	}
-
-
-	if (params->timerlat_period_us) {
-		retval = osnoise_set_timerlat_period_us(top->context, params->timerlat_period_us);
-		if (retval) {
-			err_msg("Failed to set timerlat period\n");
-			goto out_err;
-		}
-	}
-
-
-	if (params->print_stack) {
-		retval = osnoise_set_print_stack(top->context, params->print_stack);
-		if (retval) {
-			err_msg("Failed to set print stack\n");
-			goto out_err;
-		}
-	}
-
-	if (params->hk_cpus) {
-		retval = sched_setaffinity(getpid(), sizeof(params->hk_cpu_set),
-					   &params->hk_cpu_set);
-		if (retval == -1) {
-			err_msg("Failed to set rtla to the house keeping CPUs\n");
-			goto out_err;
-		}
-	} else if (params->cpus) {
-		/*
-		 * Even if the user do not set a house-keeping CPU, try to
-		 * move rtla to a CPU set different to the one where the user
-		 * set the workload to run.
-		 *
-		 * No need to check results as this is an automatic attempt.
-		 */
-		auto_house_keeping(&params->monitored_cpus);
-	}
-
-	/*
-	 * If the user did not specify a type of thread, try user-threads first.
-	 * Fall back to kernel threads otherwise.
-	 */
-	if (!params->kernel_workload && !params->user_top) {
-		retval = tracefs_file_exists(NULL, "osnoise/per_cpu/cpu0/timerlat_fd");
-		if (retval) {
-			debug_msg("User-space interface detected, setting user-threads\n");
-			params->user_workload = 1;
-			params->user_top = 1;
-		} else {
-			debug_msg("User-space interface not detected, setting kernel-threads\n");
-			params->kernel_workload = 1;
-		}
-	}
-
-	/*
-	* Set workload according to type of thread if the kernel supports it.
-	* On kernels without support, user threads will have already failed
-	* on missing timerlat_fd, and kernel threads do not need it.
-	*/
-	retval = osnoise_set_workload(top->context, params->kernel_workload);
-	if (retval < -1) {
-		err_msg("Failed to set OSNOISE_WORKLOAD option\n");
+	retval = timerlat_apply_config(top, params);
+	if (retval)
 		goto out_err;
-	}
 
 	if (isatty(STDOUT_FILENO) && !params->quiet)
 		params->pretty_output = 1;
@@ -876,7 +818,7 @@ out_err:
  * timerlat_init_top - initialize a timerlat top tool with parameters
  */
 static struct osnoise_tool
-*timerlat_init_top(struct timerlat_top_params *params)
+*timerlat_init_top(struct timerlat_params *params)
 {
 	struct osnoise_tool *top;
 	int nr_cpus;
@@ -924,7 +866,7 @@ static void stop_top(int sig)
  * timerlat_top_set_signals - handles the signal to stop the tool
  */
 static void
-timerlat_top_set_signals(struct timerlat_top_params *params)
+timerlat_top_set_signals(struct timerlat_params *params)
 {
 	signal(SIGINT, stop_top);
 	if (params->duration) {
@@ -933,9 +875,114 @@ timerlat_top_set_signals(struct timerlat_top_params *params)
 	}
 }
 
+/*
+ * timerlat_top_main_loop - main loop to process events
+ */
+static int
+timerlat_top_main_loop(struct osnoise_tool *top,
+		       struct osnoise_tool *record,
+		       struct timerlat_params *params,
+		       struct timerlat_u_params *params_u)
+{
+	struct trace_instance *trace = &top->trace;
+	int retval;
+
+	while (!stop_tracing) {
+		sleep(params->sleep_time);
+
+		if (params->aa_only && !osnoise_trace_is_off(top, record))
+			continue;
+
+		retval = tracefs_iterate_raw_events(trace->tep,
+						    trace->inst,
+						    NULL,
+						    0,
+						    collect_registered_events,
+						    trace);
+		if (retval < 0) {
+			err_msg("Error iterating on events\n");
+			return retval;
+		}
+
+		if (!params->quiet)
+			timerlat_print_stats(params, top);
+
+		if (osnoise_trace_is_off(top, record))
+			break;
+
+		/* is there still any user-threads ? */
+		if (params->user_workload) {
+			if (params_u->stopped_running) {
+				debug_msg("timerlat user space threads stopped!\n");
+				break;
+			}
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * timerlat_top_bpf_main_loop - main loop to process events (BPF variant)
+ */
+static int
+timerlat_top_bpf_main_loop(struct osnoise_tool *top,
+			   struct osnoise_tool *record,
+			   struct timerlat_params *params,
+			   struct timerlat_u_params *params_u)
+{
+	int retval, wait_retval;
+
+	if (params->aa_only) {
+		/* Auto-analysis only, just wait for stop tracing */
+		timerlat_bpf_wait(-1);
+		return 0;
+	}
+
+	if (params->quiet) {
+		/* Quiet mode: wait for stop and then, print results */
+		timerlat_bpf_wait(-1);
+
+		retval = timerlat_top_bpf_pull_data(top);
+		if (retval) {
+			err_msg("Error pulling BPF data\n");
+			return retval;
+		}
+
+		return 0;
+	}
+
+	/* Pull and display data in a loop */
+	while (!stop_tracing) {
+		wait_retval = timerlat_bpf_wait(params->sleep_time);
+
+		retval = timerlat_top_bpf_pull_data(top);
+		if (retval) {
+			err_msg("Error pulling BPF data\n");
+			return retval;
+		}
+
+		timerlat_print_stats(params, top);
+
+		if (wait_retval == 1)
+			/* Stopping requested by tracer */
+			break;
+
+		/* is there still any user-threads ? */
+		if (params->user_workload) {
+			if (params_u->stopped_running) {
+				debug_msg("timerlat user space threads stopped!\n");
+				break;
+			}
+		}
+	}
+
+	return 0;
+}
+
 int timerlat_top_main(int argc, char *argv[])
 {
-	struct timerlat_top_params *params;
+	struct timerlat_params *params;
 	struct osnoise_tool *record = NULL;
 	struct timerlat_u_params params_u;
 	struct osnoise_tool *top = NULL;
@@ -947,6 +994,7 @@ int timerlat_top_main(int argc, char *argv[])
 	char *max_lat;
 	int retval;
 	int nr_cpus, i;
+	bool no_bpf = false;
 
 	params = timerlat_top_parse_args(argc, argv);
 	if (!params)
@@ -972,6 +1020,23 @@ int timerlat_top_main(int argc, char *argv[])
 	*/
 	top_inst = trace;
 
+	if (getenv("RTLA_NO_BPF") && strncmp(getenv("RTLA_NO_BPF"), "1", 2) == 0) {
+		debug_msg("RTLA_NO_BPF set, disabling BPF\n");
+		no_bpf = true;
+	}
+
+	if (!no_bpf && !tep_find_event_by_name(trace->tep, "osnoise", "timerlat_sample")) {
+		debug_msg("osnoise:timerlat_sample missing, disabling BPF\n");
+		no_bpf = true;
+	}
+
+	if (!no_bpf) {
+		retval = timerlat_bpf_init(params);
+		if (retval) {
+			debug_msg("Could not enable BPF\n");
+			no_bpf = true;
+		}
+	}
 
 	retval = enable_timerlat(trace);
 	if (retval) {
@@ -987,7 +1052,7 @@ int timerlat_top_main(int argc, char *argv[])
 		}
 	}
 
-	if (params->cgroup && !params->user_top) {
+	if (params->cgroup && !params->user_data) {
 		retval = set_comm_cgroup("timerlat/", params->cgroup_name);
 		if (!retval) {
 			err_msg("Failed to move threads to cgroup\n");
@@ -1046,15 +1111,9 @@ int timerlat_top_main(int argc, char *argv[])
 	}
 
 	if (!params->no_aa) {
-		if (params->aa_only) {
-			/* as top is not used for display, use it for aa */
-			aa = top;
-		} else  {
-			/* otherwise, a new instance is needed */
-			aa = osnoise_init_tool("timerlat_aa");
-			if (!aa)
-				goto out_top;
-		}
+		aa = osnoise_init_tool("timerlat_aa");
+		if (!aa)
+			goto out_top;
 
 		retval = timerlat_aa_init(aa, params->dump_tasks);
 		if (retval) {
@@ -1105,44 +1164,31 @@ int timerlat_top_main(int argc, char *argv[])
 	 */
 	if (params->trace_output)
 		trace_instance_start(&record->trace);
-	if (!params->no_aa && aa != top)
+	if (!params->no_aa)
 		trace_instance_start(&aa->trace);
-	trace_instance_start(trace);
+	if (no_bpf) {
+		trace_instance_start(trace);
+	} else {
+		retval = timerlat_bpf_attach();
+		if (retval) {
+			err_msg("Error attaching BPF program\n");
+			goto out_top;
+		}
+	}
 
 	top->start_time = time(NULL);
 	timerlat_top_set_signals(params);
 
-	while (!stop_tracing) {
-		sleep(params->sleep_time);
+	if (no_bpf)
+		retval = timerlat_top_main_loop(top, record, params, &params_u);
+	else
+		retval = timerlat_top_bpf_main_loop(top, record, params, &params_u);
 
-		if (params->aa_only && !osnoise_trace_is_off(top, record))
-			continue;
+	if (retval)
+		goto out_top;
 
-		retval = tracefs_iterate_raw_events(trace->tep,
-						    trace->inst,
-						    NULL,
-						    0,
-						    collect_registered_events,
-						    trace);
-		if (retval < 0) {
-			err_msg("Error iterating on events\n");
-			goto out_top;
-		}
-
-		if (!params->quiet)
-			timerlat_print_stats(params, top);
-
-		if (osnoise_trace_is_off(top, record))
-			break;
-
-		/* is there still any user-threads ? */
-		if (params->user_workload) {
-			if (params_u.stopped_running) {
-				debug_msg("timerlat user space threads stopped!\n");
-				break;
-			}
-		}
-	}
+	if (!no_bpf)
+		timerlat_bpf_detach();
 
 	if (params->user_workload && !params_u.stopped_running) {
 		params_u.should_run = 0;
@@ -1159,10 +1205,8 @@ int timerlat_top_main(int argc, char *argv[])
 		if (!params->no_aa)
 			timerlat_auto_analysis(params->stop_us, params->stop_total_us);
 
-		if (params->trace_output) {
-			printf("  Saving trace to %s\n", params->trace_output);
-			save_trace_to_file(record->trace.inst, params->trace_output);
-		}
+		save_trace_to_file(record ? record->trace.inst : NULL,
+				   params->trace_output);
 	} else if (params->aa_only) {
 		/*
 		 * If the trace did not stop with --aa-only, at least print the

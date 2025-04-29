@@ -95,6 +95,21 @@ static int slpc_restore_freq(struct intel_guc_slpc *slpc, u32 min, u32 max)
 	return 0;
 }
 
+static u64 slpc_measure_power(struct intel_rps *rps, int *freq)
+{
+	u64 x[5];
+	int i;
+
+	for (i = 0; i < 5; i++)
+		x[i] = __measure_power(5);
+
+	*freq = (*freq + intel_rps_read_actual_frequency(rps)) / 2;
+
+	/* A simple triangle filter for better result stability */
+	sort(x, 5, sizeof(*x), cmp_u64, NULL);
+	return div_u64(x[1] + 2 * x[2] + x[3], 4);
+}
+
 static u64 measure_power_at_freq(struct intel_gt *gt, int *freq, u64 *power)
 {
 	int err = 0;
@@ -103,7 +118,7 @@ static u64 measure_power_at_freq(struct intel_gt *gt, int *freq, u64 *power)
 	if (err)
 		return err;
 	*freq = intel_rps_read_actual_frequency(&gt->rps);
-	*power = measure_power(&gt->rps, freq);
+	*power = slpc_measure_power(&gt->rps, freq);
 
 	return err;
 }

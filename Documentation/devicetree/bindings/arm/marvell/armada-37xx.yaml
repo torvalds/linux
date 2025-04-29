@@ -18,6 +18,7 @@ properties:
         items:
           - enum:
               - cznic,turris-mox
+              - glinet,gl-mv1000
               - globalscale,espressobin
               - marvell,armada-3720-db
               - methode,edpu

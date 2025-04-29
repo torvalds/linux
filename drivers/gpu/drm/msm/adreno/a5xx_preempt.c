@@ -182,7 +182,7 @@ void a5xx_preempt_irq(struct msm_gpu *gpu)
 		return;
 
 	/* Delete the preemption watchdog timer */
-	del_timer(&a5xx_gpu->preempt_timer);
+	timer_delete(&a5xx_gpu->preempt_timer);
 
 	/*
 	 * The hardware should be setting CP_CONTEXT_SWITCH_CNTL to zero before

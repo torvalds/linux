@@ -6,13 +6,11 @@
 
 #ifndef __ASSEMBLY__
 
-extern struct vdso_data *vdso_data;
-
 int vdso_getcpu_init(void);
 
 #endif /* __ASSEMBLY__ */
 
-#define __VVAR_PAGES	2
+#define __VDSO_PAGES	4
 
 #define VDSO_VERSION_STRING	LINUX_2.6.29
 

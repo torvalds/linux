@@ -2662,7 +2662,7 @@ static int skge_down(struct net_device *dev)
 	netif_tx_disable(dev);
 
 	if (is_genesis(hw) && hw->phy_type == SK_PHY_XMAC)
-		del_timer_sync(&skge->link_timer);
+		timer_delete_sync(&skge->link_timer);
 
 	napi_disable(&skge->napi);
 	netif_carrier_off(dev);

@@ -49,6 +49,10 @@ properties:
       Indicates that the output is a BT.656-4 compatible stream.
     type: boolean
 
+  interrupts:
+    items:
+      - description: The GPIO connected to the INTRQ pin.
+
   port:
     $ref: /schemas/graph.yaml#/$defs/port-base
     unevaluatedProperties: false

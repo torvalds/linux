@@ -815,7 +815,7 @@ static void enable_nopath_timeout(struct multipath *m)
 
 static void disable_nopath_timeout(struct multipath *m)
 {
-	del_timer_sync(&m->nopath_timer);
+	timer_delete_sync(&m->nopath_timer);
 }
 
 /*

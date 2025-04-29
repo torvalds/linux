@@ -525,7 +525,7 @@ static void tusb_musb_try_idle(struct musb *musb, unsigned long timeout)
 			&& (musb->xceiv->otg->state == OTG_STATE_A_WAIT_BCON))) {
 		dev_dbg(musb->controller, "%s active, deleting timer\n",
 			usb_otg_state_string(musb->xceiv->otg->state));
-		del_timer(&musb->dev_timer);
+		timer_delete(&musb->dev_timer);
 		last_timer = jiffies;
 		return;
 	}
@@ -875,7 +875,7 @@ static irqreturn_t tusb_musb_interrupt(int irq, void *__hci)
 	}
 
 	if (int_src & TUSB_INT_SRC_USB_IP_CONN)
-		del_timer(&musb->dev_timer);
+		timer_delete(&musb->dev_timer);
 
 	/* OTG state change reports (annoyingly) not issued by Mentor core */
 	if (int_src & (TUSB_INT_SRC_VBUS_SENSE_CHNG
@@ -984,7 +984,7 @@ static void tusb_musb_disable(struct musb *musb)
 	musb_writel(tbase, TUSB_DMA_INT_MASK, 0x7fffffff);
 	musb_writel(tbase, TUSB_GPIO_INT_MASK, 0x1ff);
 
-	del_timer(&musb->dev_timer);
+	timer_delete(&musb->dev_timer);
 
 	if (is_dma_capable() && !dma_off) {
 		printk(KERN_WARNING "%s %s: dma still active\n",
@@ -1174,7 +1174,7 @@ static int tusb_musb_exit(struct musb *musb)
 {
 	struct tusb6010_glue *glue = dev_get_drvdata(musb->controller->parent);
 
-	del_timer_sync(&musb->dev_timer);
+	timer_delete_sync(&musb->dev_timer);
 	the_musb = NULL;
 
 	gpiod_set_value(glue->enable, 0);

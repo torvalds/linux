@@ -879,7 +879,7 @@ const char *sym_get_string_value(struct symbol *sym)
 	default:
 		;
 	}
-	return (const char *)sym->curr.val;
+	return sym->curr.val;
 }
 
 bool sym_is_changeable(const struct symbol *sym)

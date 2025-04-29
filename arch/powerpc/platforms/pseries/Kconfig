@@ -23,6 +23,7 @@ config PPC_PSERIES
 	select FORCE_SMP
 	select SWIOTLB
 	select ARCH_SUPPORTS_PER_VMA_LOCK
+	select PPC_RADIX_BROADCAST_TLBIE
 	default y
 
 config PARAVIRT
@@ -127,6 +128,15 @@ config CMM
 	  makes sense for a system running in an LPAR where the unused pages
 	  will be reused for other LPARs. The interface allows firmware to
 	  balance memory across many LPARs.
+
+config HTMDUMP
+	tristate "PowerVM data dumper"
+	depends on PPC_PSERIES && DEBUG_FS
+	default m
+	help
+	  Select this option, if you want to enable the kernel debugfs
+	  interface to dump the Hardware Trace Macro (HTM) function data
+	  in the LPAR.
 
 config HV_PERF_CTRS
 	bool "Hypervisor supplied PMU events (24x7 & GPCI)"

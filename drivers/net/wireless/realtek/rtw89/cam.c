@@ -476,6 +476,12 @@ int rtw89_cam_sec_key_add(struct rtw89_dev *rtwdev,
 	case WLAN_CIPHER_SUITE_WEP104:
 		hw_key_type = RTW89_SEC_KEY_TYPE_WEP104;
 		break;
+	case WLAN_CIPHER_SUITE_TKIP:
+		if (!chip->hw_tkip_crypto)
+			return -EOPNOTSUPP;
+		hw_key_type = RTW89_SEC_KEY_TYPE_TKIP;
+		key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
+		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		hw_key_type = RTW89_SEC_KEY_TYPE_CCMP128;
 		if (!chip->hw_mgmt_tx_encrypt)

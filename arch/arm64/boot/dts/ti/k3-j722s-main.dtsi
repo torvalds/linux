@@ -154,6 +154,189 @@
 		};
 	};
 
+	ti_csi2rx1: ticsi2rx@30122000 {
+		compatible = "ti,j721e-csi2rx-shim";
+		reg = <0x00 0x30122000 0x00 0x1000>;
+		ranges;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		dmas = <&main_bcdma_csi 0 0x5100 0>;
+		dma-names = "rx0";
+		power-domains = <&k3_pds 247 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
+
+		cdns_csi2rx1: csi-bridge@30121000 {
+			compatible = "ti,j721e-csi2rx", "cdns,csi2rx";
+			reg = <0x00 0x30121000 0x00 0x1000>;
+			clocks = <&k3_clks 247 0>, <&k3_clks 247 3>, <&k3_clks 247 0>,
+				 <&k3_clks 247 0>, <&k3_clks 247 4>, <&k3_clks 247 4>;
+			clock-names = "sys_clk", "p_clk", "pixel_if0_clk",
+				      "pixel_if1_clk", "pixel_if2_clk", "pixel_if3_clk";
+			phys = <&dphy1>;
+			phy-names = "dphy";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				csi1_port0: port@0 {
+					reg = <0>;
+					status = "disabled";
+				};
+
+				csi1_port1: port@1 {
+					reg = <1>;
+					status = "disabled";
+				};
+
+				csi1_port2: port@2 {
+					reg = <2>;
+					status = "disabled";
+				};
+
+				csi1_port3: port@3 {
+					reg = <3>;
+					status = "disabled";
+				};
+
+				csi1_port4: port@4 {
+					reg = <4>;
+					status = "disabled";
+				};
+			};
+		};
+	};
+
+	ti_csi2rx2: ticsi2rx@30142000 {
+		compatible = "ti,j721e-csi2rx-shim";
+		reg = <0x00 0x30142000 0x00 0x1000>;
+		ranges;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		power-domains = <&k3_pds 248 TI_SCI_PD_EXCLUSIVE>;
+		dmas = <&main_bcdma_csi 0 0x5200 0>;
+		dma-names = "rx0";
+		status = "disabled";
+
+		cdns_csi2rx2: csi-bridge@30141000 {
+			compatible = "ti,j721e-csi2rx", "cdns,csi2rx";
+			reg = <0x00 0x30141000 0x00 0x1000>;
+			clocks = <&k3_clks 248 0>, <&k3_clks 248 3>, <&k3_clks 248 0>,
+				 <&k3_clks 248 0>, <&k3_clks 248 4>, <&k3_clks 248 4>;
+			clock-names = "sys_clk", "p_clk", "pixel_if0_clk",
+				      "pixel_if1_clk", "pixel_if2_clk", "pixel_if3_clk";
+			phys = <&dphy2>;
+			phy-names = "dphy";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				csi2_port0: port@0 {
+					reg = <0>;
+					status = "disabled";
+				};
+
+				csi2_port1: port@1 {
+					reg = <1>;
+					status = "disabled";
+				};
+
+				csi2_port2: port@2 {
+					reg = <2>;
+					status = "disabled";
+				};
+
+				csi2_port3: port@3 {
+					reg = <3>;
+					status = "disabled";
+				};
+
+				csi2_port4: port@4 {
+					reg = <4>;
+					status = "disabled";
+				};
+			};
+		};
+	};
+
+	ti_csi2rx3: ticsi2rx@30162000 {
+		compatible = "ti,j721e-csi2rx-shim";
+		reg = <0x00 0x30162000 0x00 0x1000>;
+		ranges;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		dmas = <&main_bcdma_csi 0 0x5300 0>;
+		dma-names = "rx0";
+		power-domains = <&k3_pds 249 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
+
+		cdns_csi2rx3: csi-bridge@30161000 {
+			compatible = "ti,j721e-csi2rx", "cdns,csi2rx";
+			reg = <0x00 0x30161000 0x00 0x1000>;
+			clocks = <&k3_clks 249 0>, <&k3_clks 249 3>, <&k3_clks 249 0>,
+				 <&k3_clks 249 0>, <&k3_clks 249 4>, <&k3_clks 249 4>;
+			clock-names = "sys_clk", "p_clk", "pixel_if0_clk",
+				      "pixel_if1_clk", "pixel_if2_clk", "pixel_if3_clk";
+			phys = <&dphy3>;
+			phy-names = "dphy";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				csi3_port0: port@0 {
+					reg = <0>;
+					status = "disabled";
+				};
+
+				csi3_port1: port@1 {
+					reg = <1>;
+					status = "disabled";
+				};
+
+				csi3_port2: port@2 {
+					reg = <2>;
+					status = "disabled";
+				};
+
+				csi3_port3: port@3 {
+					reg = <3>;
+					status = "disabled";
+				};
+
+				csi3_port4: port@4 {
+					reg = <4>;
+					status = "disabled";
+				};
+			};
+		};
+	};
+
+	dphy1: phy@30130000 {
+		compatible = "cdns,dphy-rx";
+		reg = <0x00 0x30130000 0x00 0x1100>;
+		#phy-cells = <0>;
+		power-domains = <&k3_pds 251 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
+	};
+
+	dphy2: phy@30150000 {
+		compatible = "cdns,dphy-rx";
+		reg = <0x00 0x30150000 0x00 0x1100>;
+		#phy-cells = <0>;
+		power-domains = <&k3_pds 252 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
+	};
+
+	dphy3: phy@30170000 {
+		compatible = "cdns,dphy-rx";
+		reg = <0x00 0x30170000 0x00 0x1100>;
+		#phy-cells = <0>;
+		power-domains = <&k3_pds 253 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
+	};
+
 	main_r5fss0: r5fss@78400000 {
 		compatible = "ti,am62-r5fss";
 		#address-cells = <1>;
@@ -204,6 +387,16 @@
 	};
 };
 
+&main_bcdma_csi {
+	compatible = "ti,j722s-dmss-bcdma-csi";
+	reg = <0x00 0x4e230000 0x00 0x100>,
+	      <0x00 0x4e180000 0x00 0x20000>,
+	      <0x00 0x4e300000 0x00 0x10000>,
+	      <0x00 0x4e100000 0x00 0x80000>;
+	reg-names = "gcfg", "rchanrt", "tchanrt", "ringrt";
+	ti,sci-rm-range-tchan = <0x22>;
+};
+
 /* MCU domain overrides */
 
 &mcu_r5fss0_core0 {
@@ -249,21 +442,6 @@
 
 &inta_main_dmss {
 	ti,interrupt-ranges = <7 71 21>;
-};
-
-&main_pmx0 {
-	pinctrl-single,gpio-range =
-		<&main_pmx0_range 0 32 PIN_GPIO_RANGE_IOPAD>,
-		<&main_pmx0_range 33 38 PIN_GPIO_RANGE_IOPAD>,
-		<&main_pmx0_range 72 17 PIN_GPIO_RANGE_IOPAD>,
-		<&main_pmx0_range 101 25 PIN_GPIO_RANGE_IOPAD>,
-		<&main_pmx0_range 137 5 PIN_GPIO_RANGE_IOPAD>,
-		<&main_pmx0_range 143 3 PIN_GPIO_RANGE_IOPAD>,
-		<&main_pmx0_range 149 2 PIN_GPIO_RANGE_IOPAD>;
-
-	main_pmx0_range: gpio-range {
-		#pinctrl-single,gpio-range-cells = <3>;
-	};
 };
 
 &main_gpio0 {

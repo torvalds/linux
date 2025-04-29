@@ -1,0 +1,129 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/sophgo,sg2042-pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sophgo SG2042 Pin Controller
+
+maintainers:
+  - Inochi Amaoto <inochiama@outlook.com>
+
+properties:
+  compatible:
+    enum:
+      - sophgo,sg2042-pinctrl
+      - sophgo,sg2044-pinctrl
+
+  reg:
+    maxItems: 1
+
+patternProperties:
+  '-cfg$':
+    type: object
+    description:
+      A pinctrl node should contain at least one subnode representing the
+      pinctrl groups available on the machine.
+
+    additionalProperties: false
+
+    patternProperties:
+      '-pins$':
+        type: object
+        description: |
+          Each subnode will list the pins it needs, and how they should
+          be configured, with regard to muxer configuration, bias input
+          enable/disable, input schmitt trigger enable, drive strength
+          output enable/disable state. For configuration detail,
+          refer to https://github.com/sophgo/sophgo-doc/.
+
+        allOf:
+          - $ref: pincfg-node.yaml#
+          - $ref: pinmux-node.yaml#
+
+        properties:
+          pinmux:
+            description: |
+              The list of GPIOs and their mux settings that properties in the
+              node apply to. This should be set using the PINMUX macro.
+
+          bias-disable: true
+
+          bias-pull-up:
+            type: boolean
+
+          bias-pull-down:
+            type: boolean
+
+          drive-strength-microamp:
+            description: typical current when output low level.
+
+          input-schmitt-enable: true
+
+          input-schmitt-disable: true
+
+        required:
+          - pinmux
+
+        additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: sophgo,sg2042-pinctrl
+    then:
+      patternProperties:
+        '-cfg$':
+          patternProperties:
+            '-pins$':
+              properties:
+                drive-strength-microamp:
+                  enum: [ 5400, 8100, 10700, 13400,
+                          16100, 18800, 21400, 24100,
+                          26800, 29400, 32100, 34800,
+                          37400, 40100, 42800, 45400 ]
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: sophgo,sg2044-pinctrl
+    then:
+      patternProperties:
+        '-cfg$':
+          patternProperties:
+            '-pins$':
+              properties:
+                drive-strength-microamp:
+                  enum: [ 3200, 6400, 9600, 12700,
+                          15900, 19100, 22200, 25300,
+                          29500, 32700, 35900, 39000,
+                          42000, 45200, 48300, 51400]
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/pinctrl/pinctrl-sg2042.h>
+
+    pinctrl@30011000 {
+        compatible = "sophgo,sg2042-pinctrl";
+        reg = <30011000 0x1000>;
+
+        uart0_cfg: uart0-cfg {
+            uart0-pins {
+                pinmux = <PINMUX(PIN_UART0_TX, 0)>,
+                         <PINMUX(PIN_UART0_RX, 0)>;
+                bias-pull-up;
+                drive-strength-microamp = <13400>;
+            };
+        };
+    };
+
+...

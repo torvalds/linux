@@ -101,7 +101,7 @@ static struct adf_hw_device_class adf_4xxx_class = {
 
 static u32 get_ae_mask(struct adf_hw_device_data *self)
 {
-	u32 me_disable = self->fuses;
+	u32 me_disable = self->fuses[ADF_FUSECTL4];
 
 	return ~me_disable & ADF_4XXX_ACCELENGINES_MASK;
 }
@@ -178,8 +178,7 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 	}
 
 	switch (adf_get_service_enabled(accel_dev)) {
-	case SVC_CY:
-	case SVC_CY2:
+	case SVC_SYM_ASYM:
 		return capabilities_sym | capabilities_asym;
 	case SVC_DC:
 		return capabilities_dc;
@@ -196,10 +195,8 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 	case SVC_ASYM:
 		return capabilities_asym;
 	case SVC_ASYM_DC:
-	case SVC_DC_ASYM:
 		return capabilities_asym | capabilities_dc;
 	case SVC_SYM_DC:
-	case SVC_DC_SYM:
 		return capabilities_sym | capabilities_dc;
 	default:
 		return 0;
@@ -241,8 +238,7 @@ static u32 uof_get_num_objs(struct adf_accel_dev *accel_dev)
 static const struct adf_fw_config *get_fw_config(struct adf_accel_dev *accel_dev)
 {
 	switch (adf_get_service_enabled(accel_dev)) {
-	case SVC_CY:
-	case SVC_CY2:
+	case SVC_SYM_ASYM:
 		return adf_fw_cy_config;
 	case SVC_DC:
 		return adf_fw_dc_config;
@@ -253,10 +249,8 @@ static const struct adf_fw_config *get_fw_config(struct adf_accel_dev *accel_dev
 	case SVC_ASYM:
 		return adf_fw_asym_config;
 	case SVC_ASYM_DC:
-	case SVC_DC_ASYM:
 		return adf_fw_asym_dc_config;
 	case SVC_SYM_DC:
-	case SVC_DC_SYM:
 		return adf_fw_sym_dc_config;
 	default:
 		return NULL;
@@ -466,6 +460,7 @@ void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data, u32 dev_id)
 	hw_data->get_hb_clock = adf_gen4_get_heartbeat_clock;
 	hw_data->num_hb_ctrs = ADF_NUM_HB_CNT_PER_AE;
 	hw_data->clock_frequency = ADF_4XXX_AE_FREQ;
+	hw_data->services_supported = adf_gen4_services_supported;
 
 	adf_gen4_set_err_mask(&hw_data->dev_err_mask);
 	adf_gen4_init_hw_csr_ops(&hw_data->csr_ops);

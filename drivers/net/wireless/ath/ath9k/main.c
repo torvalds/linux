@@ -123,7 +123,7 @@ void ath9k_ps_wakeup(struct ath_softc *sc)
 	if (++sc->ps_usecount != 1)
 		goto unlock;
 
-	del_timer_sync(&sc->sleep_timer);
+	timer_delete_sync(&sc->sleep_timer);
 	power_mode = sc->sc_ah->power_mode;
 	ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
 
@@ -2418,7 +2418,7 @@ static void ath9k_cancel_pending_offchannel(struct ath_softc *sc)
 		ath_dbg(common, CHAN_CTX,
 			"%s: Aborting RoC\n", __func__);
 
-		del_timer_sync(&sc->offchannel.timer);
+		timer_delete_sync(&sc->offchannel.timer);
 		if (sc->offchannel.state >= ATH_OFFCHANNEL_ROC_START)
 			ath_roc_complete(sc, ATH_ROC_COMPLETE_ABORT);
 	}
@@ -2427,7 +2427,7 @@ static void ath9k_cancel_pending_offchannel(struct ath_softc *sc)
 		ath_dbg(common, CHAN_CTX,
 			"%s: Aborting HW scan\n", __func__);
 
-		del_timer_sync(&sc->offchannel.timer);
+		timer_delete_sync(&sc->offchannel.timer);
 		ath_scan_complete(sc, true);
 	}
 }
@@ -2476,7 +2476,7 @@ static void ath9k_cancel_hw_scan(struct ieee80211_hw *hw,
 	ath_dbg(common, CHAN_CTX, "Cancel HW scan on vif: %pM\n", vif->addr);
 
 	mutex_lock(&sc->mutex);
-	del_timer_sync(&sc->offchannel.timer);
+	timer_delete_sync(&sc->offchannel.timer);
 	ath_scan_complete(sc, true);
 	mutex_unlock(&sc->mutex);
 }
@@ -2526,7 +2526,7 @@ static int ath9k_cancel_remain_on_channel(struct ieee80211_hw *hw,
 	mutex_lock(&sc->mutex);
 
 	ath_dbg(common, CHAN_CTX, "Cancel RoC\n");
-	del_timer_sync(&sc->offchannel.timer);
+	timer_delete_sync(&sc->offchannel.timer);
 
 	if (sc->offchannel.roc_vif) {
 		if (sc->offchannel.state >= ATH_OFFCHANNEL_ROC_START)

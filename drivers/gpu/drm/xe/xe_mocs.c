@@ -781,7 +781,9 @@ void xe_mocs_dump(struct xe_gt *gt, struct drm_printer *p)
 	flags = get_mocs_settings(xe, &table);
 
 	xe_pm_runtime_get_noresume(xe);
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	fw_ref = xe_force_wake_get(gt_to_fw(gt),
+				   flags & HAS_LNCF_MOCS ?
+				   XE_FORCEWAKE_ALL : XE_FW_GT);
 	if (!fw_ref)
 		goto err_fw;
 

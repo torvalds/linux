@@ -204,7 +204,6 @@ static int snd_vx222_probe(struct pci_dev *pci,
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int snd_vx222_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
@@ -221,18 +220,14 @@ static int snd_vx222_resume(struct device *dev)
 	return snd_vx_resume(&vx->core);
 }
 
-static SIMPLE_DEV_PM_OPS(snd_vx222_pm, snd_vx222_suspend, snd_vx222_resume);
-#define SND_VX222_PM_OPS	&snd_vx222_pm
-#else
-#define SND_VX222_PM_OPS	NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(snd_vx222_pm, snd_vx222_suspend, snd_vx222_resume);
 
 static struct pci_driver vx222_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_vx222_ids,
 	.probe = snd_vx222_probe,
 	.driver = {
-		.pm = SND_VX222_PM_OPS,
+		.pm = pm_ptr(&snd_vx222_pm),
 	},
 };
 

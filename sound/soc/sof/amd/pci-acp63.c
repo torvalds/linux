@@ -28,7 +28,6 @@
 #define ACP6x_REG_END			0x125C000
 
 static const struct sof_amd_acp_desc acp63_chip_info = {
-	.host_bridge_id = HOST_BRIDGE_ACP63,
 	.pgfsm_base	= ACP6X_PGFSM_BASE,
 	.ext_intr_enb = ACP6X_EXTERNAL_INTR_ENB,
 	.ext_intr_cntl = ACP6X_EXTERNAL_INTR_CNTL,
@@ -105,7 +104,7 @@ static struct pci_driver snd_sof_pci_amd_acp63_driver = {
 	.probe = acp63_pci_probe,
 	.remove = acp63_pci_remove,
 	.driver = {
-		.pm = &sof_pci_pm,
+		.pm = pm_ptr(&sof_pci_pm),
 	},
 };
 module_pci_driver(snd_sof_pci_amd_acp63_driver);

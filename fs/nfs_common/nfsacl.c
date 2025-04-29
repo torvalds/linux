@@ -42,7 +42,7 @@ struct nfsacl_encode_desc {
 };
 
 struct nfsacl_simple_acl {
-	struct posix_acl acl;
+	struct posix_acl_hdr acl;
 	struct posix_acl_entry ace[4];
 };
 
@@ -112,7 +112,8 @@ int nfsacl_encode(struct xdr_buf *buf, unsigned int base, struct inode *inode,
 	    xdr_encode_word(buf, base, entries))
 		return -EINVAL;
 	if (encode_entries && acl && acl->a_count == 3) {
-		struct posix_acl *acl2 = &aclbuf.acl;
+		struct posix_acl *acl2 =
+			container_of(&aclbuf.acl, struct posix_acl, hdr);
 
 		/* Avoid the use of posix_acl_alloc().  nfsacl_encode() is
 		 * invoked in contexts where a memory allocation failure is
@@ -177,7 +178,8 @@ bool nfs_stream_encode_acl(struct xdr_stream *xdr, struct inode *inode,
 		return false;
 
 	if (encode_entries && acl && acl->a_count == 3) {
-		struct posix_acl *acl2 = &aclbuf.acl;
+		struct posix_acl *acl2 =
+			container_of(&aclbuf.acl, struct posix_acl, hdr);
 
 		/* Avoid the use of posix_acl_alloc().  nfsacl_encode() is
 		 * invoked in contexts where a memory allocation failure is

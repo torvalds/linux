@@ -59,6 +59,16 @@ static struct kobject *rpc_sysfs_object_alloc(const char *name,
 	return NULL;
 }
 
+static inline struct rpc_clnt *
+rpc_sysfs_client_kobj_get_clnt(struct kobject *kobj)
+{
+	struct rpc_sysfs_client *c = container_of(kobj,
+		struct rpc_sysfs_client, kobject);
+	struct rpc_clnt *ret = c->clnt;
+
+	return refcount_inc_not_zero(&ret->cl_count) ? ret : NULL;
+}
+
 static inline struct rpc_xprt *
 rpc_sysfs_xprt_kobj_get_xprt(struct kobject *kobj)
 {
@@ -84,6 +94,51 @@ rpc_sysfs_xprt_switch_kobj_get_xprt(struct kobject *kobj)
 		struct rpc_sysfs_xprt_switch, kobject);
 
 	return xprt_switch_get(x->xprt_switch);
+}
+
+static ssize_t rpc_sysfs_clnt_version_show(struct kobject *kobj,
+					   struct kobj_attribute *attr,
+					   char *buf)
+{
+	struct rpc_clnt *clnt = rpc_sysfs_client_kobj_get_clnt(kobj);
+	ssize_t ret;
+
+	if (!clnt)
+		return sprintf(buf, "<closed>\n");
+
+	ret = sprintf(buf, "%u", clnt->cl_vers);
+	refcount_dec(&clnt->cl_count);
+	return ret;
+}
+
+static ssize_t rpc_sysfs_clnt_program_show(struct kobject *kobj,
+					   struct kobj_attribute *attr,
+					   char *buf)
+{
+	struct rpc_clnt *clnt = rpc_sysfs_client_kobj_get_clnt(kobj);
+	ssize_t ret;
+
+	if (!clnt)
+		return sprintf(buf, "<closed>\n");
+
+	ret = sprintf(buf, "%s", clnt->cl_program->name);
+	refcount_dec(&clnt->cl_count);
+	return ret;
+}
+
+static ssize_t rpc_sysfs_clnt_max_connect_show(struct kobject *kobj,
+					       struct kobj_attribute *attr,
+					       char *buf)
+{
+	struct rpc_clnt *clnt = rpc_sysfs_client_kobj_get_clnt(kobj);
+	ssize_t ret;
+
+	if (!clnt)
+		return sprintf(buf, "<closed>\n");
+
+	ret = sprintf(buf, "%u\n", clnt->cl_max_connect);
+	refcount_dec(&clnt->cl_count);
+	return ret;
 }
 
 static ssize_t rpc_sysfs_xprt_dstaddr_show(struct kobject *kobj,
@@ -127,6 +182,31 @@ static ssize_t rpc_sysfs_xprt_srcaddr_show(struct kobject *kobj,
 		ret = sprintf(buf, "<not a socket>\n");
 	xprt_put(xprt);
 	return ret;
+}
+
+static const char *xprtsec_strings[] = {
+	[RPC_XPRTSEC_NONE] = "none",
+	[RPC_XPRTSEC_TLS_ANON] = "tls-anon",
+	[RPC_XPRTSEC_TLS_X509] = "tls-x509",
+};
+
+static ssize_t rpc_sysfs_xprt_xprtsec_show(struct kobject *kobj,
+					   struct kobj_attribute *attr,
+					   char *buf)
+{
+	struct rpc_xprt *xprt = rpc_sysfs_xprt_kobj_get_xprt(kobj);
+	ssize_t ret;
+
+	if (!xprt) {
+		ret = sprintf(buf, "<closed>\n");
+		goto out;
+	}
+
+	ret = sprintf(buf, "%s\n", xprtsec_strings[xprt->xprtsec.policy]);
+	xprt_put(xprt);
+out:
+	return ret;
+
 }
 
 static ssize_t rpc_sysfs_xprt_info_show(struct kobject *kobj,
@@ -206,6 +286,14 @@ static ssize_t rpc_sysfs_xprt_state_show(struct kobject *kobj,
 	return ret;
 }
 
+static ssize_t rpc_sysfs_xprt_del_xprt_show(struct kobject *kobj,
+					    struct kobj_attribute *attr,
+					    char *buf)
+{
+	return sprintf(buf, "# delete this xprt\n");
+}
+
+
 static ssize_t rpc_sysfs_xprt_switch_info_show(struct kobject *kobj,
 					       struct kobj_attribute *attr,
 					       char *buf)
@@ -223,6 +311,55 @@ static ssize_t rpc_sysfs_xprt_switch_info_show(struct kobject *kobj,
 		      atomic_long_read(&xprt_switch->xps_queuelen));
 	xprt_switch_put(xprt_switch);
 	return ret;
+}
+
+static ssize_t rpc_sysfs_xprt_switch_add_xprt_show(struct kobject *kobj,
+						   struct kobj_attribute *attr,
+						   char *buf)
+{
+	return sprintf(buf, "# add one xprt to this xprt_switch\n");
+}
+
+static ssize_t rpc_sysfs_xprt_switch_add_xprt_store(struct kobject *kobj,
+						    struct kobj_attribute *attr,
+						    const char *buf, size_t count)
+{
+	struct rpc_xprt_switch *xprt_switch =
+		rpc_sysfs_xprt_switch_kobj_get_xprt(kobj);
+	struct xprt_create xprt_create_args;
+	struct rpc_xprt *xprt, *new;
+
+	if (!xprt_switch)
+		return 0;
+
+	xprt = rpc_xprt_switch_get_main_xprt(xprt_switch);
+	if (!xprt)
+		goto out;
+
+	xprt_create_args.ident = xprt->xprt_class->ident;
+	xprt_create_args.net = xprt->xprt_net;
+	xprt_create_args.dstaddr = (struct sockaddr *)&xprt->addr;
+	xprt_create_args.addrlen = xprt->addrlen;
+	xprt_create_args.servername = xprt->servername;
+	xprt_create_args.bc_xprt = xprt->bc_xprt;
+	xprt_create_args.xprtsec = xprt->xprtsec;
+	xprt_create_args.connect_timeout = xprt->connect_timeout;
+	xprt_create_args.reconnect_timeout = xprt->max_reconnect_timeout;
+
+	new = xprt_create_transport(&xprt_create_args);
+	if (IS_ERR_OR_NULL(new)) {
+		count = PTR_ERR(new);
+		goto out_put_xprt;
+	}
+
+	rpc_xprt_switch_add_xprt(xprt_switch, new);
+	xprt_put(new);
+
+out_put_xprt:
+	xprt_put(xprt);
+out:
+	xprt_switch_put(xprt_switch);
+	return count;
 }
 
 static ssize_t rpc_sysfs_xprt_dstaddr_store(struct kobject *kobj,
@@ -335,6 +472,40 @@ out_put:
 	return count;
 }
 
+static ssize_t rpc_sysfs_xprt_del_xprt(struct kobject *kobj,
+				       struct kobj_attribute *attr,
+				       const char *buf, size_t count)
+{
+	struct rpc_xprt *xprt = rpc_sysfs_xprt_kobj_get_xprt(kobj);
+	struct rpc_xprt_switch *xps = rpc_sysfs_xprt_kobj_get_xprt_switch(kobj);
+
+	if (!xprt || !xps) {
+		count = 0;
+		goto out;
+	}
+
+	if (xprt->main) {
+		count = -EINVAL;
+		goto release_tasks;
+	}
+
+	if (wait_on_bit_lock(&xprt->state, XPRT_LOCKED, TASK_KILLABLE)) {
+		count = -EINTR;
+		goto out_put;
+	}
+
+	xprt_set_offline_locked(xprt, xps);
+	xprt_delete_locked(xprt, xps);
+
+release_tasks:
+	xprt_release_write(xprt, NULL);
+out_put:
+	xprt_put(xprt);
+	xprt_switch_put(xps);
+out:
+	return count;
+}
+
 int rpc_sysfs_init(void)
 {
 	rpc_sunrpc_kset = kset_create_and_add("sunrpc", NULL, kernel_kobj);
@@ -398,11 +569,31 @@ static const void *rpc_sysfs_xprt_namespace(const struct kobject *kobj)
 			    kobject)->xprt->xprt_net;
 }
 
+static struct kobj_attribute rpc_sysfs_clnt_version = __ATTR(rpc_version,
+	0444, rpc_sysfs_clnt_version_show, NULL);
+
+static struct kobj_attribute rpc_sysfs_clnt_program = __ATTR(program,
+	0444, rpc_sysfs_clnt_program_show, NULL);
+
+static struct kobj_attribute rpc_sysfs_clnt_max_connect = __ATTR(max_connect,
+	0444, rpc_sysfs_clnt_max_connect_show, NULL);
+
+static struct attribute *rpc_sysfs_rpc_clnt_attrs[] = {
+	&rpc_sysfs_clnt_version.attr,
+	&rpc_sysfs_clnt_program.attr,
+	&rpc_sysfs_clnt_max_connect.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(rpc_sysfs_rpc_clnt);
+
 static struct kobj_attribute rpc_sysfs_xprt_dstaddr = __ATTR(dstaddr,
 	0644, rpc_sysfs_xprt_dstaddr_show, rpc_sysfs_xprt_dstaddr_store);
 
 static struct kobj_attribute rpc_sysfs_xprt_srcaddr = __ATTR(srcaddr,
 	0644, rpc_sysfs_xprt_srcaddr_show, NULL);
+
+static struct kobj_attribute rpc_sysfs_xprt_xprtsec = __ATTR(xprtsec,
+	0644, rpc_sysfs_xprt_xprtsec_show, NULL);
 
 static struct kobj_attribute rpc_sysfs_xprt_info = __ATTR(xprt_info,
 	0444, rpc_sysfs_xprt_info_show, NULL);
@@ -410,11 +601,16 @@ static struct kobj_attribute rpc_sysfs_xprt_info = __ATTR(xprt_info,
 static struct kobj_attribute rpc_sysfs_xprt_change_state = __ATTR(xprt_state,
 	0644, rpc_sysfs_xprt_state_show, rpc_sysfs_xprt_state_change);
 
+static struct kobj_attribute rpc_sysfs_xprt_del = __ATTR(del_xprt,
+	0644, rpc_sysfs_xprt_del_xprt_show, rpc_sysfs_xprt_del_xprt);
+
 static struct attribute *rpc_sysfs_xprt_attrs[] = {
 	&rpc_sysfs_xprt_dstaddr.attr,
 	&rpc_sysfs_xprt_srcaddr.attr,
+	&rpc_sysfs_xprt_xprtsec.attr,
 	&rpc_sysfs_xprt_info.attr,
 	&rpc_sysfs_xprt_change_state.attr,
+	&rpc_sysfs_xprt_del.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(rpc_sysfs_xprt);
@@ -422,14 +618,20 @@ ATTRIBUTE_GROUPS(rpc_sysfs_xprt);
 static struct kobj_attribute rpc_sysfs_xprt_switch_info =
 	__ATTR(xprt_switch_info, 0444, rpc_sysfs_xprt_switch_info_show, NULL);
 
+static struct kobj_attribute rpc_sysfs_xprt_switch_add_xprt =
+	__ATTR(add_xprt, 0644, rpc_sysfs_xprt_switch_add_xprt_show,
+		rpc_sysfs_xprt_switch_add_xprt_store);
+
 static struct attribute *rpc_sysfs_xprt_switch_attrs[] = {
 	&rpc_sysfs_xprt_switch_info.attr,
+	&rpc_sysfs_xprt_switch_add_xprt.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(rpc_sysfs_xprt_switch);
 
 static const struct kobj_type rpc_sysfs_client_type = {
 	.release = rpc_sysfs_client_release,
+	.default_groups = rpc_sysfs_rpc_clnt_groups,
 	.sysfs_ops = &kobj_sysfs_ops,
 	.namespace = rpc_sysfs_client_namespace,
 };

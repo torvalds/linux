@@ -83,6 +83,11 @@ static const struct mfd_cell s2mpu02_devs[] = {
 	{ .name = "s2mpu02-regulator", },
 };
 
+static const struct mfd_cell s2mpu05_devs[] = {
+	{ .name = "s2mpu05-regulator", },
+	{ .name = "s2mps15-rtc", },
+};
+
 static const struct of_device_id sec_dt_match[] = {
 	{
 		.compatible = "samsung,s5m8767-pmic",
@@ -108,6 +113,9 @@ static const struct of_device_id sec_dt_match[] = {
 	}, {
 		.compatible = "samsung,s2mpu02-pmic",
 		.data = (void *)S2MPU02,
+	}, {
+		.compatible = "samsung,s2mpu05-pmic",
+		.data = (void *)S2MPU05,
 	}, {
 		/* Sentinel */
 	},
@@ -373,6 +381,10 @@ static int sec_pmic_probe(struct i2c_client *i2c)
 	case S2MPU02:
 		sec_devs = s2mpu02_devs;
 		num_sec_devs = ARRAY_SIZE(s2mpu02_devs);
+		break;
+	case S2MPU05:
+		sec_devs = s2mpu05_devs;
+		num_sec_devs = ARRAY_SIZE(s2mpu05_devs);
 		break;
 	default:
 		dev_err(&i2c->dev, "Unsupported device type (%lu)\n",

@@ -53,6 +53,40 @@
 	};
 };
 
+&nor0 {
+	status = "okay";
+	bank-width = <1>;
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		partition@0 {
+			label = "nor-fsbl-uboot";
+			reg = <0x0 0x100000>;
+		};
+		partition@100000 {
+			label = "nor-linux";
+			reg = <0x100000 0x500000>;
+		};
+		partition@600000 {
+			label = "nor-device-tree";
+			reg = <0x600000 0x20000>;
+		};
+		partition@620000 {
+			label = "nor-rootfs";
+			reg = <0x620000 0x5e0000>;
+		};
+		partition@c00000 {
+			label = "nor-bitstream";
+			reg = <0xc00000 0x400000>;
+		};
+	};
+};
+
+&smcc {
+	status = "okay";
+};
+
 &spi1 {
 	status = "okay";
 	num-cs = <4>;
@@ -60,5 +94,6 @@
 };
 
 &uart1 {
+	bootph-all;
 	status = "okay";
 };

@@ -48,6 +48,7 @@ struct imx8qxp_pxl2dpi {
 #define bridge_to_p2d(b)	container_of(b, struct imx8qxp_pxl2dpi, bridge)
 
 static int imx8qxp_pxl2dpi_bridge_attach(struct drm_bridge *bridge,
+					 struct drm_encoder *encoder,
 					 enum drm_bridge_attach_flags flags)
 {
 	struct imx8qxp_pxl2dpi *p2d = bridge->driver_private;
@@ -58,7 +59,7 @@ static int imx8qxp_pxl2dpi_bridge_attach(struct drm_bridge *bridge,
 		return -EINVAL;
 	}
 
-	return drm_bridge_attach(bridge->encoder,
+	return drm_bridge_attach(encoder,
 				 p2d->next_bridge, bridge,
 				 DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 }

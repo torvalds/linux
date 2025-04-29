@@ -77,14 +77,14 @@ iSCSI Extensions for RDMA (iSER)
    :internal:
 
 .. kernel-doc:: drivers/infiniband/ulp/iser/iscsi_iser.c
-   :functions: iscsi_iser_pdu_alloc iser_initialize_task_headers \
-	iscsi_iser_task_init iscsi_iser_mtask_xmit iscsi_iser_task_xmit \
-	iscsi_iser_cleanup_task iscsi_iser_check_protection \
-	iscsi_iser_conn_create iscsi_iser_conn_bind \
-	iscsi_iser_conn_start iscsi_iser_conn_stop \
-	iscsi_iser_session_destroy iscsi_iser_session_create \
-	iscsi_iser_set_param iscsi_iser_ep_connect iscsi_iser_ep_poll \
-	iscsi_iser_ep_disconnect
+   :functions: iscsi_iser_pdu_alloc iser_initialize_task_headers
+               iscsi_iser_task_init iscsi_iser_mtask_xmit iscsi_iser_task_xmit
+               iscsi_iser_cleanup_task iscsi_iser_check_protection
+               iscsi_iser_conn_create iscsi_iser_conn_bind
+               iscsi_iser_conn_start iscsi_iser_conn_stop
+               iscsi_iser_session_destroy iscsi_iser_session_create
+               iscsi_iser_set_param iscsi_iser_ep_connect iscsi_iser_ep_poll
+               iscsi_iser_ep_disconnect
 
 .. kernel-doc:: drivers/infiniband/ulp/iser/iser_initiator.c
    :internal:

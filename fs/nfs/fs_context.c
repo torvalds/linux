@@ -50,6 +50,7 @@ enum nfs_param {
 	Opt_clientaddr,
 	Opt_cto,
 	Opt_alignwrite,
+	Opt_fatal_neterrors,
 	Opt_fg,
 	Opt_fscache,
 	Opt_fscache_flag,
@@ -72,6 +73,8 @@ enum nfs_param {
 	Opt_posix,
 	Opt_proto,
 	Opt_rdirplus,
+	Opt_rdirplus_none,
+	Opt_rdirplus_force,
 	Opt_rdma,
 	Opt_resvport,
 	Opt_retrans,
@@ -93,6 +96,20 @@ enum nfs_param {
 	Opt_wsize,
 	Opt_write,
 	Opt_xprtsec,
+};
+
+enum {
+	Opt_fatal_neterrors_default,
+	Opt_fatal_neterrors_enetunreach,
+	Opt_fatal_neterrors_none,
+};
+
+static const struct constant_table nfs_param_enums_fatal_neterrors[] = {
+	{ "default",			Opt_fatal_neterrors_default },
+	{ "ENETDOWN:ENETUNREACH",	Opt_fatal_neterrors_enetunreach },
+	{ "ENETUNREACH:ENETDOWN",	Opt_fatal_neterrors_enetunreach },
+	{ "none",			Opt_fatal_neterrors_none },
+	{}
 };
 
 enum {
@@ -151,6 +168,8 @@ static const struct fs_parameter_spec nfs_fs_parameters[] = {
 	fsparam_string("clientaddr",	Opt_clientaddr),
 	fsparam_flag_no("cto",		Opt_cto),
 	fsparam_flag_no("alignwrite",	Opt_alignwrite),
+	fsparam_enum("fatal_neterrors", Opt_fatal_neterrors,
+		     nfs_param_enums_fatal_neterrors),
 	fsparam_flag  ("fg",		Opt_fg),
 	fsparam_flag_no("fsc",		Opt_fscache_flag),
 	fsparam_string("fsc",		Opt_fscache),
@@ -174,7 +193,8 @@ static const struct fs_parameter_spec nfs_fs_parameters[] = {
 	fsparam_u32   ("port",		Opt_port),
 	fsparam_flag_no("posix",	Opt_posix),
 	fsparam_string("proto",		Opt_proto),
-	fsparam_flag_no("rdirplus",	Opt_rdirplus),
+	fsparam_flag_no("rdirplus", Opt_rdirplus), // rdirplus|nordirplus
+	fsparam_string("rdirplus",  Opt_rdirplus), // rdirplus=...
 	fsparam_flag  ("rdma",		Opt_rdma),
 	fsparam_flag_no("resvport",	Opt_resvport),
 	fsparam_u32   ("retrans",	Opt_retrans),
@@ -285,6 +305,12 @@ static const struct constant_table nfs_xprtsec_policies[] = {
 	{ "none",	Opt_xprtsec_none },
 	{ "tls",	Opt_xprtsec_tls },
 	{ "mtls",	Opt_xprtsec_mtls },
+	{}
+};
+
+static const struct constant_table nfs_rdirplus_tokens[] = {
+	{ "none",	Opt_rdirplus_none },
+	{ "force",	Opt_rdirplus_force },
 	{}
 };
 
@@ -636,10 +662,25 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 			ctx->flags &= ~NFS_MOUNT_NOACL;
 		break;
 	case Opt_rdirplus:
-		if (result.negated)
+		if (result.negated) {
+			ctx->flags &= ~NFS_MOUNT_FORCE_RDIRPLUS;
 			ctx->flags |= NFS_MOUNT_NORDIRPLUS;
-		else
-			ctx->flags &= ~NFS_MOUNT_NORDIRPLUS;
+		} else if (!param->string) {
+			ctx->flags &= ~(NFS_MOUNT_NORDIRPLUS | NFS_MOUNT_FORCE_RDIRPLUS);
+		} else {
+			switch (lookup_constant(nfs_rdirplus_tokens, param->string, -1)) {
+			case Opt_rdirplus_none:
+				ctx->flags &= ~NFS_MOUNT_FORCE_RDIRPLUS;
+				ctx->flags |= NFS_MOUNT_NORDIRPLUS;
+				break;
+			case Opt_rdirplus_force:
+				ctx->flags &= ~NFS_MOUNT_NORDIRPLUS;
+				ctx->flags |= NFS_MOUNT_FORCE_RDIRPLUS;
+				break;
+			default:
+				goto out_invalid_value;
+			}
+		}
 		break;
 	case Opt_sharecache:
 		if (result.negated)
@@ -871,6 +912,25 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		if (result.uint_32 < 1 || result.uint_32 > NFS_MAX_TRANSPORTS)
 			goto out_of_bounds;
 		ctx->nfs_server.max_connect = result.uint_32;
+		break;
+	case Opt_fatal_neterrors:
+		trace_nfs_mount_assign(param->key, param->string);
+		switch (result.uint_32) {
+		case Opt_fatal_neterrors_default:
+			if (fc->net_ns != &init_net)
+				ctx->flags |= NFS_MOUNT_NETUNREACH_FATAL;
+			else
+				ctx->flags &= ~NFS_MOUNT_NETUNREACH_FATAL;
+			break;
+		case Opt_fatal_neterrors_enetunreach:
+			ctx->flags |= NFS_MOUNT_NETUNREACH_FATAL;
+			break;
+		case Opt_fatal_neterrors_none:
+			ctx->flags &= ~NFS_MOUNT_NETUNREACH_FATAL;
+			break;
+		default:
+			goto out_invalid_value;
+		}
 		break;
 	case Opt_lookupcache:
 		trace_nfs_mount_assign(param->key, param->string);
@@ -1650,6 +1710,9 @@ static int nfs_init_fs_context(struct fs_context *fc)
 		ctx->xprtsec.policy	= RPC_XPRTSEC_NONE;
 		ctx->xprtsec.cert_serial	= TLS_NO_CERT;
 		ctx->xprtsec.privkey_serial	= TLS_NO_PRIVKEY;
+
+		if (fc->net_ns != &init_net)
+			ctx->flags |= NFS_MOUNT_NETUNREACH_FATAL;
 
 		fc->s_iflags		|= SB_I_STABLE_WRITES;
 	}

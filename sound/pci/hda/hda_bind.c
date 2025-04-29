@@ -185,7 +185,7 @@ int __hda_codec_driver_register(struct hda_codec_driver *drv, const char *name,
 	drv->core.driver.probe = hda_codec_driver_probe;
 	drv->core.driver.remove = hda_codec_driver_remove;
 	drv->core.driver.shutdown = hda_codec_driver_shutdown;
-	drv->core.driver.pm = &hda_codec_driver_pm;
+	drv->core.driver.pm = pm_ptr(&hda_codec_driver_pm);
 	drv->core.type = HDA_DEV_LEGACY;
 	drv->core.match = hda_codec_match;
 	drv->core.unsol_event = hda_codec_unsol_event;

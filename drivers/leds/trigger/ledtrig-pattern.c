@@ -94,7 +94,7 @@ static void pattern_trig_timer_cancel(struct pattern_trig_data *data)
 	if (data->type == PATTERN_TYPE_HR)
 		hrtimer_cancel(&data->hrtimer);
 	else
-		del_timer_sync(&data->timer);
+		timer_delete_sync(&data->timer);
 }
 
 static void pattern_trig_timer_restart(struct pattern_trig_data *data,
@@ -483,8 +483,8 @@ static int pattern_trig_activate(struct led_classdev *led_cdev)
 	data->led_cdev = led_cdev;
 	led_set_trigger_data(led_cdev, data);
 	timer_setup(&data->timer, pattern_trig_timer_function, 0);
-	hrtimer_init(&data->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	data->hrtimer.function = pattern_trig_hrtimer_function;
+	hrtimer_setup(&data->hrtimer, pattern_trig_hrtimer_function, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL);
 	led_cdev->activated = true;
 
 	if (led_cdev->flags & LED_INIT_DEFAULT_TRIGGER) {

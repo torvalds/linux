@@ -62,8 +62,7 @@ static inline void chacha_init_consts(u32 *state)
 	state[3]  = CHACHA_CONSTANT_TE_K;
 }
 
-void chacha_init_arch(u32 *state, const u32 *key, const u8 *iv);
-static inline void chacha_init_generic(u32 *state, const u32 *key, const u8 *iv)
+static inline void chacha_init(u32 *state, const u32 *key, const u8 *iv)
 {
 	chacha_init_consts(state);
 	state[4]  = key[0];
@@ -78,14 +77,6 @@ static inline void chacha_init_generic(u32 *state, const u32 *key, const u8 *iv)
 	state[13] = get_unaligned_le32(iv +  4);
 	state[14] = get_unaligned_le32(iv +  8);
 	state[15] = get_unaligned_le32(iv + 12);
-}
-
-static inline void chacha_init(u32 *state, const u32 *key, const u8 *iv)
-{
-	if (IS_ENABLED(CONFIG_CRYPTO_ARCH_HAVE_LIB_CHACHA))
-		chacha_init_arch(state, key, iv);
-	else
-		chacha_init_generic(state, key, iv);
 }
 
 void chacha_crypt_arch(u32 *state, u8 *dst, const u8 *src,

@@ -943,7 +943,6 @@ static int max98390_probe(struct snd_soc_component *component)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int max98390_suspend(struct device *dev)
 {
 	struct max98390_priv *max98390 = dev_get_drvdata(dev);
@@ -967,10 +966,9 @@ static int max98390_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops max98390_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(max98390_suspend, max98390_resume)
+	SYSTEM_SLEEP_PM_OPS(max98390_suspend, max98390_resume)
 };
 
 static const struct snd_soc_component_driver soc_codec_dev_max98390 = {
@@ -1130,7 +1128,7 @@ static struct i2c_driver max98390_i2c_driver = {
 		.name = "max98390",
 		.of_match_table = of_match_ptr(max98390_of_match),
 		.acpi_match_table = ACPI_PTR(max98390_acpi_match),
-		.pm = &max98390_pm,
+		.pm = pm_ptr(&max98390_pm),
 	},
 	.probe = max98390_i2c_probe,
 	.id_table = max98390_i2c_id,

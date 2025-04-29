@@ -99,9 +99,9 @@ static int st1202_pwm_pattern_write(struct st1202_chip *chip, int led_num,
 	value_h = (u8)(value >> 8);
 
 	/*
-	 *  Datasheet: Register address low = 1Eh + 2*(xh) + 18h*(yh),
-	 *  where x is the channel number (led number) in hexadecimal (x = 00h .. 0Bh)
-	 *  and y is the pattern number in hexadecimal (y = 00h .. 07h)
+	 * Datasheet: Register address low = 1Eh + 2*(xh) + 18h*(yh),
+	 * where x is the channel number (led number) in hexadecimal (x = 00h .. 0Bh)
+	 * and y is the pattern number in hexadecimal (y = 00h .. 07h)
 	 */
 	ret = st1202_write_reg(chip, (ST1202_PATTERN_PWM + (led_num * 2) + 0x18 * pattern),
 				value_l);
@@ -189,9 +189,8 @@ static int st1202_channel_set(struct st1202_chip *chip, int led_num, bool active
 static int st1202_led_set(struct led_classdev *ldev, enum led_brightness value)
 {
 	struct st1202_led *led = cdev_to_st1202_led(ldev);
-	struct st1202_chip *chip = led->chip;
 
-	return st1202_channel_set(chip, led->led_num, value == LED_OFF ? false : true);
+	return st1202_channel_set(led->chip, led->led_num, !!value);
 }
 
 static int st1202_led_pattern_clear(struct led_classdev *ldev)
@@ -261,8 +260,6 @@ static int st1202_dt_init(struct st1202_chip *chip)
 	int err, reg;
 
 	for_each_available_child_of_node_scoped(dev_of_node(dev), child) {
-		struct led_init_data init_data = {};
-
 		err = of_property_read_u32(child, "reg", &reg);
 		if (err)
 			return dev_err_probe(dev, err, "Invalid register\n");
@@ -276,15 +273,6 @@ static int st1202_dt_init(struct st1202_chip *chip)
 		led->led_cdev.pattern_set = st1202_led_pattern_set;
 		led->led_cdev.pattern_clear = st1202_led_pattern_clear;
 		led->led_cdev.default_trigger = "pattern";
-
-		init_data.fwnode = led->fwnode;
-		init_data.devicename = "st1202";
-		init_data.default_label = ":";
-
-		err = devm_led_classdev_register_ext(dev, &led->led_cdev, &init_data);
-		if (err < 0)
-			return dev_err_probe(dev, err, "Failed to register LED class device\n");
-
 		led->led_cdev.brightness_set = st1202_brightness_set;
 		led->led_cdev.brightness_get = st1202_brightness_get;
 	}
@@ -299,8 +287,8 @@ static int st1202_setup(struct st1202_chip *chip)
 	guard(mutex)(&chip->lock);
 
 	/*
-	 * Once the supply voltage is applied, the LED1202 executes some internal checks,
-	 * afterwords it stops the oscillator and puts the internal LDO in quiescent mode.
+	 * Once the supply voltage is applied, the LED1202 executes some internal checks.
+	 * Afterwards, it stops the oscillator and puts the internal LDO in quiescent mode.
 	 * To start the device, EN bit must be set inside the “Device Enable” register at
 	 * address 01h. As soon as EN is set, the LED1202 loads the adjustment parameters
 	 * from the internal non-volatile memory and performs an auto-calibration procedure
@@ -356,18 +344,21 @@ static int st1202_probe(struct i2c_client *client)
 	if (!chip)
 		return -ENOMEM;
 
-	devm_mutex_init(&client->dev, &chip->lock);
-	chip->client = client;
-
-	ret = st1202_dt_init(chip);
+	ret = devm_mutex_init(&client->dev, &chip->lock);
 	if (ret < 0)
 		return ret;
+	chip->client = client;
 
 	ret = st1202_setup(chip);
 	if (ret < 0)
 		return ret;
 
+	ret = st1202_dt_init(chip);
+	if (ret < 0)
+		return ret;
+
 	for (int i = 0; i < ST1202_MAX_LEDS; i++) {
+		struct led_init_data init_data = {};
 		led = &chip->leds[i];
 		led->chip = chip;
 		led->led_num = i;
@@ -384,6 +375,15 @@ static int st1202_probe(struct i2c_client *client)
 		if (ret < 0)
 			return dev_err_probe(&client->dev, ret,
 					"Failed to clear LED pattern\n");
+
+		init_data.fwnode = led->fwnode;
+		init_data.devicename = "st1202";
+		init_data.default_label = ":";
+
+		ret = devm_led_classdev_register_ext(&client->dev, &led->led_cdev, &init_data);
+		if (ret < 0)
+			return dev_err_probe(&client->dev, ret,
+					"Failed to register LED class device\n");
 	}
 
 	return 0;

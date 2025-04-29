@@ -154,6 +154,7 @@ struct ivpu_device {
 	struct mutex submitted_jobs_lock; /* Protects submitted_jobs */
 	struct xarray submitted_jobs_xa;
 	struct ivpu_ipc_consumer job_done_consumer;
+	atomic_t job_timeout_counter;
 
 	atomic64_t unique_id_counter;
 

@@ -22,12 +22,20 @@
  */
 #define PCIE_STD_NUM_TLP_HEADERLOG     4
 #define PCIE_STD_MAX_TLP_PREFIXLOG     4
+#define PCIE_STD_MAX_TLP_HEADERLOG	(PCIE_STD_NUM_TLP_HEADERLOG + 10)
 
 struct pci_dev;
 
 struct pcie_tlp_log {
-	u32 dw[PCIE_STD_NUM_TLP_HEADERLOG];
-	u32 prefix[PCIE_STD_MAX_TLP_PREFIXLOG];
+	union {
+		u32 dw[PCIE_STD_MAX_TLP_HEADERLOG];
+		struct {
+			u32 _do_not_use[PCIE_STD_NUM_TLP_HEADERLOG];
+			u32 prefix[PCIE_STD_MAX_TLP_PREFIXLOG];
+		};
+	};
+	u8 header_len;		/* Length of the Logged TLP Header in DWORDs */
+	bool flit;		/* TLP was logged when in Flit mode */
 };
 
 struct aer_capability_regs {

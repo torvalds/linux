@@ -25,6 +25,7 @@
 #include <sys/mman.h>
 
 #include <linux/ptrace.h>
+#include "../kselftest.h"
 
 /* Common system call numbers */
 #define SYS_READ	  0
@@ -313,7 +314,7 @@ static void test_syscall_numbering(void)
 	 * The MSB is supposed to be ignored, so we loop over a few
 	 * to test that out.
 	 */
-	for (size_t i = 0; i < sizeof(msbs)/sizeof(msbs[0]); i++) {
+	for (size_t i = 0; i < ARRAY_SIZE(msbs); i++) {
 		int msb = msbs[i];
 		run("Checking system calls with msb = %d (0x%x)\n",
 		    msb, msb);

@@ -150,6 +150,8 @@ static void panthor_gpu_init_info(struct panthor_device *ptdev)
 
 static void panthor_gpu_irq_handler(struct panthor_device *ptdev, u32 status)
 {
+	gpu_write(ptdev, GPU_INT_CLEAR, status);
+
 	if (status & GPU_IRQ_FAULT) {
 		u32 fault_status = gpu_read(ptdev, GPU_FAULT_STATUS);
 		u64 address = ((u64)gpu_read(ptdev, GPU_FAULT_ADDR_HI) << 32) |

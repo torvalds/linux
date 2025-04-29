@@ -998,7 +998,7 @@ static bool is_buf_attr_valid(struct hns_roce_dev *hr_dev,
 	if (attr->region_count > ARRAY_SIZE(attr->region) ||
 	    attr->region_count < 1 || attr->page_shift < HNS_HW_PAGE_SHIFT) {
 		ibdev_err(ibdev,
-			  "invalid buf attr, region count %d, page shift %u.\n",
+			  "invalid buf attr, region count %u, page shift %u.\n",
 			  attr->region_count, attr->page_shift);
 		return false;
 	}

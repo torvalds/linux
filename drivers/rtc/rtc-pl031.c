@@ -74,6 +74,8 @@
  * @st_weekday: if this is an ST Microelectronics silicon version that need
  *	the weekday fix
  * @irqflags: special IRQ flags per variant
+ * @range_min: minimum date/time supported by the RTC
+ * @range_max: maximum date/time supported by the RTC
  */
 struct pl031_vendor_data {
 	struct rtc_class_ops ops;
@@ -284,8 +286,6 @@ static void pl031_remove(struct amba_device *adev)
 {
 	struct pl031_local *ldata = dev_get_drvdata(&adev->dev);
 
-	dev_pm_clear_wake_irq(&adev->dev);
-	device_init_wakeup(&adev->dev, false);
 	if (adev->irq[0])
 		free_irq(adev->irq[0], ldata);
 	amba_release_regions(adev);
@@ -350,7 +350,7 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 		}
 	}
 
-	device_init_wakeup(&adev->dev, true);
+	devm_device_init_wakeup(&adev->dev);
 	ldata->rtc = devm_rtc_allocate_device(&adev->dev);
 	if (IS_ERR(ldata->rtc)) {
 		ret = PTR_ERR(ldata->rtc);
@@ -373,7 +373,7 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 				  vendor->irqflags, "rtc-pl031", ldata);
 		if (ret)
 			goto out;
-		dev_pm_set_wake_irq(&adev->dev, adev->irq[0]);
+		devm_pm_set_wake_irq(&adev->dev, adev->irq[0]);
 	}
 	return 0;
 

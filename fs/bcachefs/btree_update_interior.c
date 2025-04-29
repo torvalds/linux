@@ -35,6 +35,8 @@ static const char * const bch2_btree_update_modes[] = {
 	NULL
 };
 
+static void bch2_btree_update_to_text(struct printbuf *, struct btree_update *);
+
 static int bch2_btree_insert_node(struct btree_update *, struct btree_trans *,
 				  btree_path_idx_t, struct btree *, struct keylist *);
 static void bch2_btree_update_add_new_node(struct btree_update *, struct btree *);
@@ -54,6 +56,8 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 	struct bkey_buf prev;
 	int ret = 0;
 
+	printbuf_indent_add_nextline(&buf, 2);
+
 	BUG_ON(b->key.k.type == KEY_TYPE_btree_ptr_v2 &&
 	       !bpos_eq(bkey_i_to_btree_ptr_v2(&b->key)->v.min_key,
 			b->data->min_key));
@@ -64,19 +68,20 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 
 	if (b == btree_node_root(c, b)) {
 		if (!bpos_eq(b->data->min_key, POS_MIN)) {
-			printbuf_reset(&buf);
+			ret = __bch2_topology_error(c, &buf);
+
 			bch2_bpos_to_text(&buf, b->data->min_key);
 			log_fsck_err(trans, btree_root_bad_min_key,
 				      "btree root with incorrect min_key: %s", buf.buf);
-			goto topology_repair;
+			goto out;
 		}
 
 		if (!bpos_eq(b->data->max_key, SPOS_MAX)) {
-			printbuf_reset(&buf);
+			ret = __bch2_topology_error(c, &buf);
 			bch2_bpos_to_text(&buf, b->data->max_key);
 			log_fsck_err(trans, btree_root_bad_max_key,
 				      "btree root with incorrect max_key: %s", buf.buf);
-			goto topology_repair;
+			goto out;
 		}
 	}
 
@@ -94,20 +99,19 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 			: bpos_successor(prev.k->k.p);
 
 		if (!bpos_eq(expected_min, bp.v->min_key)) {
-			bch2_topology_error(c);
+			ret = __bch2_topology_error(c, &buf);
 
-			printbuf_reset(&buf);
-			prt_str(&buf, "end of prev node doesn't match start of next node\n  in ");
+			prt_str(&buf, "end of prev node doesn't match start of next node\nin ");
 			bch2_btree_id_level_to_text(&buf, b->c.btree_id, b->c.level);
 			prt_str(&buf, " node ");
 			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
-			prt_str(&buf, "\n  prev ");
+			prt_str(&buf, "\nprev ");
 			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(prev.k));
-			prt_str(&buf, "\n  next ");
+			prt_str(&buf, "\nnext ");
 			bch2_bkey_val_to_text(&buf, c, k);
 
 			log_fsck_err(trans, btree_node_topology_bad_min_key, "%s", buf.buf);
-			goto topology_repair;
+			goto out;
 		}
 
 		bch2_bkey_buf_reassemble(&prev, c, k);
@@ -115,29 +119,25 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 	}
 
 	if (bkey_deleted(&prev.k->k)) {
-		bch2_topology_error(c);
+		ret = __bch2_topology_error(c, &buf);
 
-		printbuf_reset(&buf);
-		prt_str(&buf, "empty interior node\n  in ");
+		prt_str(&buf, "empty interior node\nin ");
 		bch2_btree_id_level_to_text(&buf, b->c.btree_id, b->c.level);
 		prt_str(&buf, " node ");
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
 
 		log_fsck_err(trans, btree_node_topology_empty_interior_node, "%s", buf.buf);
-		goto topology_repair;
 	} else if (!bpos_eq(prev.k->k.p, b->key.k.p)) {
-		bch2_topology_error(c);
+		ret = __bch2_topology_error(c, &buf);
 
-		printbuf_reset(&buf);
-		prt_str(&buf, "last child node doesn't end at end of parent node\n  in ");
+		prt_str(&buf, "last child node doesn't end at end of parent node\nin ");
 		bch2_btree_id_level_to_text(&buf, b->c.btree_id, b->c.level);
 		prt_str(&buf, " node ");
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
-		prt_str(&buf, "\n  last key ");
+		prt_str(&buf, "\nlast key ");
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(prev.k));
 
 		log_fsck_err(trans, btree_node_topology_bad_max_key, "%s", buf.buf);
-		goto topology_repair;
 	}
 out:
 fsck_err:
@@ -145,9 +145,6 @@ fsck_err:
 	bch2_bkey_buf_exit(&prev, c);
 	printbuf_exit(&buf);
 	return ret;
-topology_repair:
-	ret = bch2_topology_error(c);
-	goto out;
 }
 
 /* Calculate ideal packed bkey format for new btree nodes: */
@@ -649,6 +646,14 @@ static int btree_update_nodes_written_trans(struct btree_trans *trans,
 	return 0;
 }
 
+/* If the node has been reused, we might be reading uninitialized memory - that's fine: */
+static noinline __no_kmsan_checks bool btree_node_seq_matches(struct btree *b, __le64 seq)
+{
+	struct btree_node *b_data = READ_ONCE(b->data);
+
+	return (b_data ? b_data->keys.seq : 0) == seq;
+}
+
 static void btree_update_nodes_written(struct btree_update *as)
 {
 	struct bch_fs *c = as->c;
@@ -677,17 +682,9 @@ static void btree_update_nodes_written(struct btree_update *as)
 	 * on disk:
 	 */
 	for (i = 0; i < as->nr_old_nodes; i++) {
-		__le64 seq;
-
 		b = as->old_nodes[i];
 
-		bch2_trans_begin(trans);
-		btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_read);
-		seq = b->data ? b->data->keys.seq : 0;
-		six_unlock_read(&b->c.lock);
-		bch2_trans_unlock_long(trans);
-
-		if (seq == as->old_nodes_seq[i])
+		if (btree_node_seq_matches(b, as->old_nodes_seq[i]))
 			wait_on_bit_io(&b->flags, BTREE_NODE_write_in_flight_inner,
 				       TASK_UNINTERRUPTIBLE);
 	}
@@ -1271,7 +1268,8 @@ err:
 	bch2_btree_update_free(as, trans);
 	if (!bch2_err_matches(ret, ENOSPC) &&
 	    !bch2_err_matches(ret, EROFS) &&
-	    ret != -BCH_ERR_journal_reclaim_would_deadlock)
+	    ret != -BCH_ERR_journal_reclaim_would_deadlock &&
+	    ret != -BCH_ERR_journal_shutdown)
 		bch_err_fn_ratelimited(c, ret);
 	return ERR_PTR(ret);
 }
@@ -1782,10 +1780,23 @@ static int bch2_btree_insert_node(struct btree_update *as, struct btree_trans *t
 	int ret;
 
 	lockdep_assert_held(&c->gc_lock);
-	BUG_ON(!btree_node_intent_locked(path, b->c.level));
 	BUG_ON(!b->c.level);
 	BUG_ON(!as || as->b);
 	bch2_verify_keylist_sorted(keys);
+
+	if (!btree_node_intent_locked(path, b->c.level)) {
+		struct printbuf buf = PRINTBUF;
+		bch2_log_msg_start(c, &buf);
+		prt_printf(&buf, "%s(): node not locked at level %u\n",
+			   __func__, b->c.level);
+		bch2_btree_update_to_text(&buf, as);
+		bch2_btree_path_to_text(&buf, trans, path_idx);
+
+		bch2_print_string_as_lines(KERN_ERR, buf.buf);
+		printbuf_exit(&buf);
+		bch2_fs_emergency_read_only(c);
+		return -EIO;
+	}
 
 	ret = bch2_btree_node_lock_write(trans, path, &b->c);
 	if (ret)
@@ -2007,18 +2018,22 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 	}
 
 	if (!bpos_eq(bpos_successor(prev->data->max_key), next->data->min_key)) {
-		struct printbuf buf1 = PRINTBUF, buf2 = PRINTBUF;
+		struct printbuf buf = PRINTBUF;
 
-		bch2_bpos_to_text(&buf1, prev->data->max_key);
-		bch2_bpos_to_text(&buf2, next->data->min_key);
-		bch_err(c,
-			"%s(): btree topology error:\n"
-			"  prev ends at   %s\n"
-			"  next starts at %s",
-			__func__, buf1.buf, buf2.buf);
-		printbuf_exit(&buf1);
-		printbuf_exit(&buf2);
-		ret = bch2_topology_error(c);
+		printbuf_indent_add_nextline(&buf, 2);
+		prt_printf(&buf, "%s(): ", __func__);
+		ret = __bch2_topology_error(c, &buf);
+		prt_newline(&buf);
+
+		prt_printf(&buf, "prev ends at   ");
+		bch2_bpos_to_text(&buf, prev->data->max_key);
+		prt_newline(&buf);
+
+		prt_printf(&buf, "next starts at ");
+		bch2_bpos_to_text(&buf, next->data->min_key);
+
+		bch_err(c, "%s", buf.buf);
+		printbuf_exit(&buf);
 		goto err;
 	}
 
@@ -2126,6 +2141,31 @@ err_free_update:
 	goto out;
 }
 
+static int get_iter_to_node(struct btree_trans *trans, struct btree_iter *iter,
+			    struct btree *b)
+{
+	bch2_trans_node_iter_init(trans, iter, b->c.btree_id, b->key.k.p,
+				  BTREE_MAX_DEPTH, b->c.level,
+				  BTREE_ITER_intent);
+	int ret = bch2_btree_iter_traverse(trans, iter);
+	if (ret)
+		goto err;
+
+	/* has node been freed? */
+	if (btree_iter_path(trans, iter)->l[b->c.level].b != b) {
+		/* node has been freed: */
+		BUG_ON(!btree_node_dying(b));
+		ret = -BCH_ERR_btree_node_dying;
+		goto err;
+	}
+
+	BUG_ON(!btree_node_hashed(b));
+	return 0;
+err:
+	bch2_trans_iter_exit(trans, iter);
+	return ret;
+}
+
 int bch2_btree_node_rewrite(struct btree_trans *trans,
 			    struct btree_iter *iter,
 			    struct btree *b,
@@ -2191,6 +2231,61 @@ err:
 	goto out;
 }
 
+static int bch2_btree_node_rewrite_key(struct btree_trans *trans,
+				       enum btree_id btree, unsigned level,
+				       struct bkey_i *k, unsigned flags)
+{
+	struct btree_iter iter;
+	bch2_trans_node_iter_init(trans, &iter,
+				  btree, k->k.p,
+				  BTREE_MAX_DEPTH, level, 0);
+	struct btree *b = bch2_btree_iter_peek_node(trans, &iter);
+	int ret = PTR_ERR_OR_ZERO(b);
+	if (ret)
+		goto out;
+
+	bool found = b && btree_ptr_hash_val(&b->key) == btree_ptr_hash_val(k);
+	ret = found
+		? bch2_btree_node_rewrite(trans, &iter, b, flags)
+		: -ENOENT;
+out:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
+int bch2_btree_node_rewrite_pos(struct btree_trans *trans,
+				enum btree_id btree, unsigned level,
+				struct bpos pos, unsigned flags)
+{
+	BUG_ON(!level);
+
+	/* Traverse one depth lower to get a pointer to the node itself: */
+	struct btree_iter iter;
+	bch2_trans_node_iter_init(trans, &iter, btree, pos, 0, level - 1, 0);
+	struct btree *b = bch2_btree_iter_peek_node(trans, &iter);
+	int ret = PTR_ERR_OR_ZERO(b);
+	if (ret)
+		goto err;
+
+	ret = bch2_btree_node_rewrite(trans, &iter, b, flags);
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
+int bch2_btree_node_rewrite_key_get_iter(struct btree_trans *trans,
+					 struct btree *b, unsigned flags)
+{
+	struct btree_iter iter;
+	int ret = get_iter_to_node(trans, &iter, b);
+	if (ret)
+		return ret == -BCH_ERR_btree_node_dying ? 0 : ret;
+
+	ret = bch2_btree_node_rewrite(trans, &iter, b, flags);
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
 struct async_btree_rewrite {
 	struct bch_fs		*c;
 	struct work_struct	work;
@@ -2200,58 +2295,17 @@ struct async_btree_rewrite {
 	struct bkey_buf		key;
 };
 
-static int async_btree_node_rewrite_trans(struct btree_trans *trans,
-					  struct async_btree_rewrite *a)
-{
-	struct btree_iter iter;
-	bch2_trans_node_iter_init(trans, &iter,
-				  a->btree_id, a->key.k->k.p,
-				  BTREE_MAX_DEPTH, a->level, 0);
-	struct btree *b = bch2_btree_iter_peek_node(&iter);
-	int ret = PTR_ERR_OR_ZERO(b);
-	if (ret)
-		goto out;
-
-	bool found = b && btree_ptr_hash_val(&b->key) == btree_ptr_hash_val(a->key.k);
-	ret = found
-		? bch2_btree_node_rewrite(trans, &iter, b, 0)
-		: -ENOENT;
-
-#if 0
-	/* Tracepoint... */
-	if (!ret || ret == -ENOENT) {
-		struct bch_fs *c = trans->c;
-		struct printbuf buf = PRINTBUF;
-
-		if (!ret) {
-			prt_printf(&buf, "rewrite node:\n  ");
-			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(a->key.k));
-		} else {
-			prt_printf(&buf, "node to rewrite not found:\n  want: ");
-			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(a->key.k));
-			prt_printf(&buf, "\n  got:  ");
-			if (b)
-				bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
-			else
-				prt_str(&buf, "(null)");
-		}
-		bch_info(c, "%s", buf.buf);
-		printbuf_exit(&buf);
-	}
-#endif
-out:
-	bch2_trans_iter_exit(trans, &iter);
-	return ret;
-}
-
 static void async_btree_node_rewrite_work(struct work_struct *work)
 {
 	struct async_btree_rewrite *a =
 		container_of(work, struct async_btree_rewrite, work);
 	struct bch_fs *c = a->c;
 
-	int ret = bch2_trans_do(c, async_btree_node_rewrite_trans(trans, a));
-	if (ret != -ENOENT)
+	int ret = bch2_trans_do(c, bch2_btree_node_rewrite_key(trans,
+						a->btree_id, a->level, a->key.k, 0));
+	if (ret != -ENOENT &&
+	    !bch2_err_matches(ret, EROFS) &&
+	    ret != -BCH_ERR_journal_shutdown)
 		bch_err_fn_ratelimited(c, ret);
 
 	spin_lock(&c->btree_node_rewrites_lock);
@@ -2352,7 +2406,7 @@ static int __bch2_btree_node_update_key(struct btree_trans *trans,
 					bool skip_triggers)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter iter2 = { NULL };
+	struct btree_iter iter2 = {};
 	struct btree *parent;
 	int ret;
 
@@ -2376,7 +2430,7 @@ static int __bch2_btree_node_update_key(struct btree_trans *trans,
 
 	parent = btree_node_parent(btree_iter_path(trans, iter), b);
 	if (parent) {
-		bch2_trans_copy_iter(&iter2, iter);
+		bch2_trans_copy_iter(trans, &iter2, iter);
 
 		iter2.path = bch2_btree_path_make_mut(trans, iter2.path,
 				iter2.flags & BTREE_ITER_intent,
@@ -2390,7 +2444,7 @@ static int __bch2_btree_node_update_key(struct btree_trans *trans,
 
 		trans->paths_sorted = false;
 
-		ret   = bch2_btree_iter_traverse(&iter2) ?:
+		ret   = bch2_btree_iter_traverse(trans, &iter2) ?:
 			bch2_trans_update(trans, &iter2, new_key, BTREE_TRIGGER_norun);
 		if (ret)
 			goto err;
@@ -2494,30 +2548,15 @@ int bch2_btree_node_update_key_get_iter(struct btree_trans *trans,
 					unsigned commit_flags, bool skip_triggers)
 {
 	struct btree_iter iter;
-	int ret;
-
-	bch2_trans_node_iter_init(trans, &iter, b->c.btree_id, b->key.k.p,
-				  BTREE_MAX_DEPTH, b->c.level,
-				  BTREE_ITER_intent);
-	ret = bch2_btree_iter_traverse(&iter);
+	int ret = get_iter_to_node(trans, &iter, b);
 	if (ret)
-		goto out;
-
-	/* has node been freed? */
-	if (btree_iter_path(trans, &iter)->l[b->c.level].b != b) {
-		/* node has been freed: */
-		BUG_ON(!btree_node_dying(b));
-		goto out;
-	}
-
-	BUG_ON(!btree_node_hashed(b));
+		return ret == -BCH_ERR_btree_node_dying ? 0 : ret;
 
 	bch2_bkey_drop_ptrs(bkey_i_to_s(new_key), ptr,
 			    !bch2_bkey_has_device(bkey_i_to_s(&b->key), ptr->dev));
 
 	ret = bch2_btree_node_update_key(trans, &iter, b, new_key,
 					 commit_flags, skip_triggers);
-out:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }

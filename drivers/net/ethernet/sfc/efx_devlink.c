@@ -19,6 +19,7 @@
 #include "mae.h"
 #include "ef100_rep.h"
 #endif
+#include "efx_reflash.h"
 
 struct efx_devlink {
 	struct efx_nic *efx;
@@ -615,7 +616,19 @@ static int efx_devlink_info_get(struct devlink *devlink,
 	return 0;
 }
 
+static int efx_devlink_flash_update(struct devlink *devlink,
+				    struct devlink_flash_update_params *params,
+				    struct netlink_ext_ack *extack)
+{
+	struct efx_devlink *devlink_private = devlink_priv(devlink);
+	struct efx_nic *efx = devlink_private->efx;
+
+	return efx_reflash_flash_firmware(efx, params->fw, extack);
+}
+
 static const struct devlink_ops sfc_devlink_ops = {
+	.supported_flash_update_params	= 0,
+	.flash_update			= efx_devlink_flash_update,
 	.info_get			= efx_devlink_info_get,
 };
 

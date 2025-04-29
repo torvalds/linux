@@ -309,15 +309,10 @@ static int parse_source_files(const char *objfile, struct md4_ctx *md)
 
 	cmd = xmalloc(strlen(objfile) + sizeof("..cmd"));
 
-	base = strrchr(objfile, '/');
-	if (base) {
-		base++;
-		dirlen = base - objfile;
-		sprintf(cmd, "%.*s.%s.cmd", dirlen, objfile, base);
-	} else {
-		dirlen = 0;
-		sprintf(cmd, ".%s.cmd", objfile);
-	}
+	base = get_basename(objfile);
+	dirlen = base - objfile;
+	sprintf(cmd, "%.*s.%s.cmd", dirlen, objfile, base);
+
 	dir = xmalloc(dirlen + 1);
 	strncpy(dir, objfile, dirlen);
 	dir[dirlen] = '\0';
@@ -335,7 +330,7 @@ static int parse_source_files(const char *objfile, struct md4_ctx *md)
 			line++;
 		p = line;
 
-		if (strncmp(line, "source_", sizeof("source_")-1) == 0) {
+		if (strstarts(line, "source_")) {
 			p = strrchr(line, ' ');
 			if (!p) {
 				warn("malformed line: %s\n", line);
@@ -349,7 +344,7 @@ static int parse_source_files(const char *objfile, struct md4_ctx *md)
 			}
 			continue;
 		}
-		if (strncmp(line, "deps_", sizeof("deps_")-1) == 0) {
+		if (strstarts(line, "deps_")) {
 			check_files = 1;
 			continue;
 		}

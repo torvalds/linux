@@ -44,7 +44,7 @@ static int test_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	timeout = rtc_tm_to_time64(&alrm->time) - ktime_get_real_seconds();
 	timeout -= rtd->offset;
 
-	del_timer(&rtd->alarm);
+	timer_delete(&rtd->alarm);
 
 	expires = jiffies + timeout * HZ;
 	if (expires > U32_MAX)
@@ -86,7 +86,7 @@ static int test_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 	if (enable)
 		add_timer(&rtd->alarm);
 	else
-		del_timer(&rtd->alarm);
+		timer_delete(&rtd->alarm);
 
 	return 0;
 }

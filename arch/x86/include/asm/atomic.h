@@ -30,14 +30,14 @@ static __always_inline void arch_atomic_set(atomic_t *v, int i)
 
 static __always_inline void arch_atomic_add(int i, atomic_t *v)
 {
-	asm volatile(LOCK_PREFIX "addl %1,%0"
+	asm_inline volatile(LOCK_PREFIX "addl %1, %0"
 		     : "+m" (v->counter)
 		     : "ir" (i) : "memory");
 }
 
 static __always_inline void arch_atomic_sub(int i, atomic_t *v)
 {
-	asm volatile(LOCK_PREFIX "subl %1,%0"
+	asm_inline volatile(LOCK_PREFIX "subl %1, %0"
 		     : "+m" (v->counter)
 		     : "ir" (i) : "memory");
 }
@@ -50,14 +50,14 @@ static __always_inline bool arch_atomic_sub_and_test(int i, atomic_t *v)
 
 static __always_inline void arch_atomic_inc(atomic_t *v)
 {
-	asm volatile(LOCK_PREFIX "incl %0"
+	asm_inline volatile(LOCK_PREFIX "incl %0"
 		     : "+m" (v->counter) :: "memory");
 }
 #define arch_atomic_inc arch_atomic_inc
 
 static __always_inline void arch_atomic_dec(atomic_t *v)
 {
-	asm volatile(LOCK_PREFIX "decl %0"
+	asm_inline volatile(LOCK_PREFIX "decl %0"
 		     : "+m" (v->counter) :: "memory");
 }
 #define arch_atomic_dec arch_atomic_dec
@@ -116,7 +116,7 @@ static __always_inline int arch_atomic_xchg(atomic_t *v, int new)
 
 static __always_inline void arch_atomic_and(int i, atomic_t *v)
 {
-	asm volatile(LOCK_PREFIX "andl %1,%0"
+	asm_inline volatile(LOCK_PREFIX "andl %1, %0"
 			: "+m" (v->counter)
 			: "ir" (i)
 			: "memory");
@@ -134,7 +134,7 @@ static __always_inline int arch_atomic_fetch_and(int i, atomic_t *v)
 
 static __always_inline void arch_atomic_or(int i, atomic_t *v)
 {
-	asm volatile(LOCK_PREFIX "orl %1,%0"
+	asm_inline volatile(LOCK_PREFIX "orl %1, %0"
 			: "+m" (v->counter)
 			: "ir" (i)
 			: "memory");
@@ -152,7 +152,7 @@ static __always_inline int arch_atomic_fetch_or(int i, atomic_t *v)
 
 static __always_inline void arch_atomic_xor(int i, atomic_t *v)
 {
-	asm volatile(LOCK_PREFIX "xorl %1,%0"
+	asm_inline volatile(LOCK_PREFIX "xorl %1, %0"
 			: "+m" (v->counter)
 			: "ir" (i)
 			: "memory");

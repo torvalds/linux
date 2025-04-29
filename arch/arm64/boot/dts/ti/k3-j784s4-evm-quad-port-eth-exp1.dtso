@@ -102,13 +102,6 @@
 		gpios = <16 GPIO_ACTIVE_HIGH>;
 		output-low;
 	};
-
-	/* Toggle MUX2 for MDIO lines */
-	mux-sel-hog {
-		gpio-hog;
-		gpios = <13 GPIO_ACTIVE_HIGH>, <14 GPIO_ACTIVE_HIGH>, <15 GPIO_ACTIVE_HIGH>;
-		output-high;
-	};
 };
 
 &main_pmx0 {

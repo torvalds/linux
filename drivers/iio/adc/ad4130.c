@@ -6,6 +6,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
+#include <linux/cleanup.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
@@ -203,7 +204,7 @@ enum ad4130_mode {
 	AD4130_MODE_IDLE = 0b0100,
 };
 
-enum ad4130_filter_mode {
+enum ad4130_filter_type {
 	AD4130_FILTER_SINC4,
 	AD4130_FILTER_SINC4_SINC1,
 	AD4130_FILTER_SINC3,
@@ -223,6 +224,10 @@ enum ad4130_pin_function {
 	AD4130_PIN_FN_VBIAS = BIT(3),
 };
 
+/*
+ * If you make adaptations in this struct, you most likely also have to adapt
+ * ad4130_setup_info_eq(), too.
+ */
 struct ad4130_setup_info {
 	unsigned int			iout0_val;
 	unsigned int			iout1_val;
@@ -230,7 +235,7 @@ struct ad4130_setup_info {
 	unsigned int			pga;
 	unsigned int			fs;
 	u32				ref_sel;
-	enum ad4130_filter_mode		filter_mode;
+	enum ad4130_filter_type		filter_type;
 	bool				ref_bufp;
 	bool				ref_bufm;
 };
@@ -251,7 +256,7 @@ struct ad4130_chan_info {
 };
 
 struct ad4130_filter_config {
-	enum ad4130_filter_mode		filter_mode;
+	enum ad4130_filter_type		filter_type;
 	unsigned int			odr_div;
 	unsigned int			fs_max;
 	enum iio_available_type		samp_freq_avail_type;
@@ -337,9 +342,9 @@ static const unsigned int ad4130_burnout_current_na_tbl[AD4130_BURNOUT_MAX] = {
 	[AD4130_BURNOUT_4000NA] = 4000,
 };
 
-#define AD4130_VARIABLE_ODR_CONFIG(_filter_mode, _odr_div, _fs_max)	\
+#define AD4130_VARIABLE_ODR_CONFIG(_filter_type, _odr_div, _fs_max)	\
 {									\
-		.filter_mode = (_filter_mode),				\
+		.filter_type = (_filter_type),				\
 		.odr_div = (_odr_div),					\
 		.fs_max = (_fs_max),					\
 		.samp_freq_avail_type = IIO_AVAIL_RANGE,		\
@@ -350,9 +355,9 @@ static const unsigned int ad4130_burnout_current_na_tbl[AD4130_BURNOUT_MAX] = {
 		},							\
 }
 
-#define AD4130_FIXED_ODR_CONFIG(_filter_mode, _odr_div)			\
+#define AD4130_FIXED_ODR_CONFIG(_filter_type, _odr_div)			\
 {									\
-		.filter_mode = (_filter_mode),				\
+		.filter_type = (_filter_type),				\
 		.odr_div = (_odr_div),					\
 		.fs_max = AD4130_FILTER_SELECT_MIN,			\
 		.samp_freq_avail_type = IIO_AVAIL_LIST,			\
@@ -374,7 +379,7 @@ static const struct ad4130_filter_config ad4130_filter_configs[] = {
 	AD4130_FIXED_ODR_CONFIG(AD4130_FILTER_SINC3_PF4,      148),
 };
 
-static const char * const ad4130_filter_modes_str[] = {
+static const char * const ad4130_filter_types_str[] = {
 	[AD4130_FILTER_SINC4] = "sinc4",
 	[AD4130_FILTER_SINC4_SINC1] = "sinc4+sinc1",
 	[AD4130_FILTER_SINC3] = "sinc3",
@@ -591,6 +596,40 @@ static irqreturn_t ad4130_irq_handler(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
+static bool ad4130_setup_info_eq(struct ad4130_setup_info *a,
+				 struct ad4130_setup_info *b)
+{
+	/*
+	 * This is just to make sure that the comparison is adapted after
+	 * struct ad4130_setup_info was changed.
+	 */
+	static_assert(sizeof(*a) ==
+		      sizeof(struct {
+				     unsigned int iout0_val;
+				     unsigned int iout1_val;
+				     unsigned int burnout;
+				     unsigned int pga;
+				     unsigned int fs;
+				     u32 ref_sel;
+				     enum ad4130_filter_type filter_type;
+				     bool ref_bufp;
+				     bool ref_bufm;
+			     }));
+
+	if (a->iout0_val != b->iout0_val ||
+	    a->iout1_val != b->iout1_val ||
+	    a->burnout != b->burnout ||
+	    a->pga != b->pga ||
+	    a->fs != b->fs ||
+	    a->ref_sel != b->ref_sel ||
+	    a->filter_type != b->filter_type ||
+	    a->ref_bufp != b->ref_bufp ||
+	    a->ref_bufm != b->ref_bufm)
+		return false;
+
+	return true;
+}
+
 static int ad4130_find_slot(struct ad4130_state *st,
 			    struct ad4130_setup_info *target_setup_info,
 			    unsigned int *slot, bool *overwrite)
@@ -604,8 +643,7 @@ static int ad4130_find_slot(struct ad4130_state *st,
 		struct ad4130_slot_info *slot_info = &st->slots_info[i];
 
 		/* Immediately accept a matching setup info. */
-		if (!memcmp(target_setup_info, &slot_info->setup,
-			    sizeof(*target_setup_info))) {
+		if (ad4130_setup_info_eq(target_setup_info, &slot_info->setup)) {
 			*slot = i;
 			return 0;
 		}
@@ -691,7 +729,7 @@ static int ad4130_write_slot_setup(struct ad4130_state *st,
 	if (ret)
 		return ret;
 
-	val = FIELD_PREP(AD4130_FILTER_MODE_MASK, setup_info->filter_mode) |
+	val = FIELD_PREP(AD4130_FILTER_MODE_MASK, setup_info->filter_type) |
 	      FIELD_PREP(AD4130_FILTER_SELECT_MASK, setup_info->fs);
 
 	ret = regmap_write(st->regmap, AD4130_FILTER_X_REG(slot), val);
@@ -835,11 +873,11 @@ static int ad4130_set_channel_enable(struct ad4130_state *st,
  * (used in ad4130_fs_to_freq)
  */
 
-static void ad4130_freq_to_fs(enum ad4130_filter_mode filter_mode,
+static void ad4130_freq_to_fs(enum ad4130_filter_type filter_type,
 			      int val, int val2, unsigned int *fs)
 {
 	const struct ad4130_filter_config *filter_config =
-		&ad4130_filter_configs[filter_mode];
+		&ad4130_filter_configs[filter_type];
 	u64 dividend, divisor;
 	int temp;
 
@@ -858,11 +896,11 @@ static void ad4130_freq_to_fs(enum ad4130_filter_mode filter_mode,
 	*fs = temp;
 }
 
-static void ad4130_fs_to_freq(enum ad4130_filter_mode filter_mode,
+static void ad4130_fs_to_freq(enum ad4130_filter_type filter_type,
 			      unsigned int fs, int *val, int *val2)
 {
 	const struct ad4130_filter_config *filter_config =
-		&ad4130_filter_configs[filter_mode];
+		&ad4130_filter_configs[filter_type];
 	unsigned int dividend, divisor;
 	u64 temp;
 
@@ -874,7 +912,7 @@ static void ad4130_fs_to_freq(enum ad4130_filter_mode filter_mode,
 	*val = div_u64_rem(temp, NANO, val2);
 }
 
-static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
+static int ad4130_set_filter_type(struct iio_dev *indio_dev,
 				  const struct iio_chan_spec *chan,
 				  unsigned int val)
 {
@@ -882,17 +920,17 @@ static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
 	unsigned int channel = chan->scan_index;
 	struct ad4130_chan_info *chan_info = &st->chans_info[channel];
 	struct ad4130_setup_info *setup_info = &chan_info->setup;
-	enum ad4130_filter_mode old_filter_mode;
+	enum ad4130_filter_type old_filter_type;
 	int freq_val, freq_val2;
 	unsigned int old_fs;
 	int ret = 0;
 
 	guard(mutex)(&st->lock);
-	if (setup_info->filter_mode == val)
+	if (setup_info->filter_type == val)
 		return 0;
 
 	old_fs = setup_info->fs;
-	old_filter_mode = setup_info->filter_mode;
+	old_filter_type = setup_info->filter_type;
 
 	/*
 	 * When switching between filter modes, try to match the ODR as
@@ -900,48 +938,55 @@ static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
 	 * using the old filter mode, then convert it back into FS using
 	 * the new filter mode.
 	 */
-	ad4130_fs_to_freq(setup_info->filter_mode, setup_info->fs,
+	ad4130_fs_to_freq(setup_info->filter_type, setup_info->fs,
 			  &freq_val, &freq_val2);
 
 	ad4130_freq_to_fs(val, freq_val, freq_val2, &setup_info->fs);
 
-	setup_info->filter_mode = val;
+	setup_info->filter_type = val;
 
 	ret = ad4130_write_channel_setup(st, channel, false);
 	if (ret) {
 		setup_info->fs = old_fs;
-		setup_info->filter_mode = old_filter_mode;
+		setup_info->filter_type = old_filter_type;
 		return ret;
 	}
 
 	return 0;
 }
 
-static int ad4130_get_filter_mode(struct iio_dev *indio_dev,
+static int ad4130_get_filter_type(struct iio_dev *indio_dev,
 				  const struct iio_chan_spec *chan)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	unsigned int channel = chan->scan_index;
 	struct ad4130_setup_info *setup_info = &st->chans_info[channel].setup;
-	enum ad4130_filter_mode filter_mode;
+	enum ad4130_filter_type filter_type;
 
 	guard(mutex)(&st->lock);
-	filter_mode = setup_info->filter_mode;
+	filter_type = setup_info->filter_type;
 
-	return filter_mode;
+	return filter_type;
 }
 
-static const struct iio_enum ad4130_filter_mode_enum = {
-	.items = ad4130_filter_modes_str,
-	.num_items = ARRAY_SIZE(ad4130_filter_modes_str),
-	.set = ad4130_set_filter_mode,
-	.get = ad4130_get_filter_mode,
+static const struct iio_enum ad4130_filter_type_enum = {
+	.items = ad4130_filter_types_str,
+	.num_items = ARRAY_SIZE(ad4130_filter_types_str),
+	.set = ad4130_set_filter_type,
+	.get = ad4130_get_filter_type,
 };
 
-static const struct iio_chan_spec_ext_info ad4130_filter_mode_ext_info[] = {
-	IIO_ENUM("filter_mode", IIO_SEPARATE, &ad4130_filter_mode_enum),
+static const struct iio_chan_spec_ext_info ad4130_ext_info[] = {
+	/*
+	 * `filter_type` is the standardized IIO ABI for digital filtering.
+	 * `filter_mode` is just kept for backwards compatibility.
+	 */
+	IIO_ENUM("filter_mode", IIO_SEPARATE, &ad4130_filter_type_enum),
 	IIO_ENUM_AVAILABLE("filter_mode", IIO_SHARED_BY_TYPE,
-			   &ad4130_filter_mode_enum),
+			   &ad4130_filter_type_enum),
+	IIO_ENUM("filter_type", IIO_SEPARATE, &ad4130_filter_type_enum),
+	IIO_ENUM_AVAILABLE("filter_type", IIO_SHARED_BY_TYPE,
+			   &ad4130_filter_type_enum),
 	{ }
 };
 
@@ -955,7 +1000,7 @@ static const struct iio_chan_spec ad4130_channel_template = {
 			      BIT(IIO_CHAN_INFO_SAMP_FREQ),
 	.info_mask_separate_available = BIT(IIO_CHAN_INFO_SCALE) |
 					BIT(IIO_CHAN_INFO_SAMP_FREQ),
-	.ext_info = ad4130_filter_mode_ext_info,
+	.ext_info = ad4130_ext_info,
 	.scan_type = {
 		.sign = 'u',
 		.endianness = IIO_BE,
@@ -1005,7 +1050,7 @@ static int ad4130_set_channel_freq(struct ad4130_state *st,
 	guard(mutex)(&st->lock);
 	old_fs = setup_info->fs;
 
-	ad4130_freq_to_fs(setup_info->filter_mode, val, val2, &fs);
+	ad4130_freq_to_fs(setup_info->filter_type, val, val2, &fs);
 
 	if (fs == setup_info->fs)
 		return 0;
@@ -1060,13 +1105,11 @@ static int _ad4130_read_sample(struct iio_dev *indio_dev, unsigned int channel,
 static int ad4130_read_sample(struct iio_dev *indio_dev, unsigned int channel,
 			      int *val)
 {
-	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-		struct ad4130_state *st = iio_priv(indio_dev);
+	struct ad4130_state *st = iio_priv(indio_dev);
 
-		guard(mutex)(&st->lock);
-		return _ad4130_read_sample(indio_dev, channel, val);
-	}
-	unreachable();
+	guard(mutex)(&st->lock);
+
+	return _ad4130_read_sample(indio_dev, channel, val);
 }
 
 static int ad4130_read_raw(struct iio_dev *indio_dev,
@@ -1076,10 +1119,16 @@ static int ad4130_read_raw(struct iio_dev *indio_dev,
 	struct ad4130_state *st = iio_priv(indio_dev);
 	unsigned int channel = chan->scan_index;
 	struct ad4130_setup_info *setup_info = &st->chans_info[channel].setup;
+	int ret;
 
 	switch (info) {
 	case IIO_CHAN_INFO_RAW:
-		return ad4130_read_sample(indio_dev, channel, val);
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+
+		ret = ad4130_read_sample(indio_dev, channel, val);
+		iio_device_release_direct(indio_dev);
+		return ret;
 	case IIO_CHAN_INFO_SCALE: {
 		guard(mutex)(&st->lock);
 		*val = st->scale_tbls[setup_info->ref_sel][setup_info->pga][0];
@@ -1093,7 +1142,7 @@ static int ad4130_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SAMP_FREQ: {
 		guard(mutex)(&st->lock);
-		ad4130_fs_to_freq(setup_info->filter_mode, setup_info->fs,
+		ad4130_fs_to_freq(setup_info->filter_type, setup_info->fs,
 				  val, val2);
 
 		return IIO_VAL_INT_PLUS_NANO;
@@ -1123,7 +1172,7 @@ static int ad4130_read_avail(struct iio_dev *indio_dev,
 		return IIO_AVAIL_LIST;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		scoped_guard(mutex, &st->lock) {
-			filter_config = &ad4130_filter_configs[setup_info->filter_mode];
+			filter_config = &ad4130_filter_configs[setup_info->filter_type];
 		}
 
 		*vals = (int *)filter_config->samp_freq_avail;

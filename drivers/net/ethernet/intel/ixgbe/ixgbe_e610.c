@@ -1122,7 +1122,7 @@ static bool ixgbe_is_media_cage_present(struct ixgbe_hw *hw)
 	 * returns error (ENOENT), then no cage present. If no cage present then
 	 * connection type is backplane or BASE-T.
 	 */
-	return ixgbe_aci_get_netlist_node(hw, cmd, NULL, NULL);
+	return !ixgbe_aci_get_netlist_node(hw, cmd, NULL, NULL);
 }
 
 /**
@@ -1453,9 +1453,11 @@ enum ixgbe_media_type ixgbe_get_media_type_e610(struct ixgbe_hw *hw)
 			hw->link.link_info.phy_type_low = 0;
 		} else {
 			highest_bit = fls64(le64_to_cpu(pcaps.phy_type_low));
-			if (highest_bit)
+			if (highest_bit) {
 				hw->link.link_info.phy_type_low =
 					BIT_ULL(highest_bit - 1);
+				hw->link.link_info.phy_type_high = 0;
+			}
 		}
 	}
 

@@ -705,6 +705,8 @@ tcp_retries2 - INTEGER
 	seconds and is a lower bound for the effective timeout.
 	TCP will effectively time out at the first RTO which exceeds the
 	hypothetical timeout.
+	If tcp_rto_max_ms is decreased, it is recommended to also
+	change tcp_retries2.
 
 	RFC 1122 recommends at least 100 seconds for the timeout,
 	which corresponds to a value of at least 8.
@@ -1227,8 +1229,8 @@ tcp_pingpong_thresh - INTEGER
 tcp_rto_min_us - INTEGER
 	Minimal TCP retransmission timeout (in microseconds). Note that the
 	rto_min route option has the highest precedence for configuring this
-	setting, followed by the TCP_BPF_RTO_MIN socket option, followed by
-	this tcp_rto_min_us sysctl.
+	setting, followed by the TCP_BPF_RTO_MIN and TCP_RTO_MIN_US socket
+	options, followed by this tcp_rto_min_us sysctl.
 
 	The recommended practice is to use a value less or equal to 200000
 	microseconds.
@@ -1236,6 +1238,17 @@ tcp_rto_min_us - INTEGER
 	Possible Values: 1 - INT_MAX
 
 	Default: 200000
+
+tcp_rto_max_ms - INTEGER
+	Maximal TCP retransmission timeout (in ms).
+	Note that TCP_RTO_MAX_MS socket option has higher precedence.
+
+	When changing tcp_rto_max_ms, it is important to understand
+	that tcp_retries2 might need a change.
+
+	Possible Values: 1000 - 120,000
+
+	Default: 120,000
 
 UDP variables
 =============

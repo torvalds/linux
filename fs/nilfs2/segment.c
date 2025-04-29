@@ -2424,7 +2424,7 @@ static void nilfs_segctor_accept(struct nilfs_sc_info *sci)
 	 * the area protected by sc_state_lock.
 	 */
 	if (thread_is_alive)
-		del_timer_sync(&sci->sc_timer);
+		timer_delete_sync(&sci->sc_timer);
 }
 
 /**

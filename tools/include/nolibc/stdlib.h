@@ -30,6 +30,7 @@ static __attribute__((unused)) char itoa_buffer[21];
  */
 
 /* must be exported, as it's used by libgcc for various divide functions */
+void abort(void);
 __attribute__((weak,unused,noreturn,section(".text.nolibc_abort")))
 void abort(void)
 {

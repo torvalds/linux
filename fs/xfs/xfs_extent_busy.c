@@ -671,7 +671,7 @@ xfs_extent_busy_wait_all(
 	while ((pag = xfs_perag_next(mp, pag)))
 		xfs_extent_busy_wait_group(pag_group(pag));
 
-	if (xfs_has_rtgroups(mp))
+	if (xfs_has_rtgroups(mp) && !xfs_has_zoned(mp))
 		while ((rtg = xfs_rtgroup_next(mp, rtg)))
 			xfs_extent_busy_wait_group(rtg_group(rtg));
 }

@@ -373,7 +373,7 @@ static void tw686x_remove(struct pci_dev *pci_dev)
 
 	tw686x_video_free(dev);
 	tw686x_audio_free(dev);
-	del_timer_sync(&dev->dma_delay_timer);
+	timer_delete_sync(&dev->dma_delay_timer);
 
 	pci_iounmap(pci_dev, dev->mmio);
 	pci_release_regions(pci_dev);

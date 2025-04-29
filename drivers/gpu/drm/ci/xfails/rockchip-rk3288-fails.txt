@@ -5,6 +5,5 @@ core_setmaster_vs_auth,Crash
 dumb_buffer@create-clear,Crash
 fbdev@pan,Crash
 kms_cursor_legacy@basic-flip-before-cursor-legacy,Fail
-kms_flip@flip-vs-modeset-vs-hang,Crash
 kms_prop_blob@invalid-set-prop,Crash
 kms_prop_blob@invalid-set-prop-any,Crash

@@ -208,6 +208,13 @@ static void __maybe_unused of_dump_addr(const char *s, const __be32 *addr, int n
 static void __maybe_unused of_dump_addr(const char *s, const __be32 *addr, int na) { }
 #endif
 
+static inline bool is_pseudo_property(const char *prop_name)
+{
+	return !of_prop_cmp(prop_name, "name") ||
+		!of_prop_cmp(prop_name, "phandle") ||
+		!of_prop_cmp(prop_name, "linux,phandle");
+}
+
 #if IS_ENABLED(CONFIG_KUNIT)
 int __of_address_resource_bounds(struct resource *r, u64 start, u64 size);
 #endif

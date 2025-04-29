@@ -1630,8 +1630,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 			 * as the receiver acknowledged any data.
 			 */
 			if (asoc->state == SCTP_STATE_SHUTDOWN_PENDING &&
-			    del_timer(&asoc->timers
-				[SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD]))
+			    timer_delete(&asoc->timers[SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD]))
 					sctp_association_put(asoc);
 
 			/* Mark the destination transport address as
@@ -1688,7 +1687,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 		 * address.
 		 */
 		if (!transport->flight_size) {
-			if (del_timer(&transport->T3_rtx_timer))
+			if (timer_delete(&transport->T3_rtx_timer))
 				sctp_transport_put(transport);
 		} else if (restart_timer) {
 			if (!mod_timer(&transport->T3_rtx_timer,

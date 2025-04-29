@@ -1966,7 +1966,6 @@ static int __snd_echo_probe(struct pci_dev *pci,
 	struct snd_card *card;
 	struct echoaudio *chip;
 	char *dsp;
-	__maybe_unused int i;
 	int err;
 
 	if (dev >= SNDRV_CARDS)
@@ -1976,7 +1975,6 @@ static int __snd_echo_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	i = 0;
 	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
 				sizeof(*chip), &card);
 	if (err < 0)
@@ -2080,7 +2078,7 @@ static int __snd_echo_probe(struct pci_dev *pci,
 #ifdef ECHOCARD_HAS_DIGITAL_MODE_SWITCH
 	/* Creates a list of available digital modes */
 	chip->num_digital_modes = 0;
-	for (i = 0; i < 6; i++)
+	for (int i = 0; i < 6; i++)
 		if (chip->digital_modes & (1 << i))
 			chip->digital_mode_list[chip->num_digital_modes++] = i;
 
@@ -2092,7 +2090,7 @@ static int __snd_echo_probe(struct pci_dev *pci,
 #ifdef ECHOCARD_HAS_EXTERNAL_CLOCK
 	/* Creates a list of available clock sources */
 	chip->num_clock_sources = 0;
-	for (i = 0; i < 10; i++)
+	for (int i = 0; i < 10; i++)
 		if (chip->input_clock_types & (1 << i))
 			chip->clock_source_list[chip->num_clock_sources++] = i;
 

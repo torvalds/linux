@@ -113,7 +113,7 @@ static const struct regmap_config bq24257_regmap_config = {
 	.val_bits = 8,
 
 	.max_register = BQ24257_REG_7,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.volatile_reg = bq24257_is_volatile_reg,
 };

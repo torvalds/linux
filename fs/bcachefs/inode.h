@@ -277,6 +277,7 @@ static inline bool bch2_inode_should_have_single_bp(struct bch_inode_unpacked *i
 	bool inode_has_bp = inode->bi_dir || inode->bi_dir_offset;
 
 	return S_ISDIR(inode->bi_mode) ||
+		inode->bi_subvol ||
 		(!inode->bi_nlink && inode_has_bp);
 }
 

@@ -58,6 +58,7 @@ SYM_CODE_END(asm_fred_entrypoint_kernel)
 
 #if IS_ENABLED(CONFIG_KVM_INTEL)
 SYM_FUNC_START(asm_fred_entry_from_kvm)
+	ANNOTATE_NOENDBR
 	push %rbp
 	mov %rsp, %rbp
 

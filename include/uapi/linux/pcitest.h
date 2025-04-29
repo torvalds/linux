@@ -23,6 +23,12 @@
 #define PCITEST_BARS		_IO('P', 0xa)
 #define PCITEST_CLEAR_IRQ	_IO('P', 0x10)
 
+#define PCITEST_IRQ_TYPE_UNDEFINED	-1
+#define PCITEST_IRQ_TYPE_INTX		0
+#define PCITEST_IRQ_TYPE_MSI		1
+#define PCITEST_IRQ_TYPE_MSIX		2
+#define PCITEST_IRQ_TYPE_AUTO		3
+
 #define PCITEST_FLAGS_USE_DMA	0x00000001
 
 struct pci_endpoint_test_xfer_param {

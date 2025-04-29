@@ -124,9 +124,8 @@ static nokprobe_inline bool trace_kprobe_module_exist(struct trace_kprobe *tk)
 	if (!p)
 		return true;
 	*p = '\0';
-	rcu_read_lock_sched();
-	ret = !!find_module(tk->symbol);
-	rcu_read_unlock_sched();
+	scoped_guard(rcu)
+		ret = !!find_module(tk->symbol);
 	*p = ':';
 
 	return ret;
@@ -796,12 +795,10 @@ static struct module *try_module_get_by_name(const char *name)
 {
 	struct module *mod;
 
-	rcu_read_lock_sched();
+	guard(rcu)();
 	mod = find_module(name);
 	if (mod && !try_module_get(mod))
 		mod = NULL;
-	rcu_read_unlock_sched();
-
 	return mod;
 }
 #else
@@ -1007,8 +1004,11 @@ static int trace_kprobe_create_internal(int argc, const char *argv[],
 		argc = new_argc;
 		argv = new_argv;
 	}
-	if (argc > MAX_TRACE_ARGS)
+	if (argc > MAX_TRACE_ARGS) {
+		trace_probe_log_set_index(2);
+		trace_probe_log_err(0, TOO_MANY_ARGS);
 		return -E2BIG;
+	}
 
 	ret = traceprobe_expand_dentry_args(argc, argv, &dbuf);
 	if (ret)

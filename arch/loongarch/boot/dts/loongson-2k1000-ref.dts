@@ -90,11 +90,6 @@
 
 	#address-cells = <1>;
 	#size-cells = <0>;
-	spidev@0 {
-		compatible = "rohm,dh2228fv";
-		spi-max-frequency = <100000000>;
-		reg = <0>;
-	};
 };
 
 &ehci0 {

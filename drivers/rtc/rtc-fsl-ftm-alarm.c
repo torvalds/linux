@@ -309,7 +309,7 @@ static const struct of_device_id ftm_rtc_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ftm_rtc_match);
 
-static const struct acpi_device_id ftm_imx_acpi_ids[] = {
+static const struct acpi_device_id ftm_imx_acpi_ids[] __maybe_unused = {
 	{"NXP0014",},
 	{ }
 };

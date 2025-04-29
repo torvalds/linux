@@ -922,7 +922,7 @@ void iscsit_stop_nopin_response_timer(struct iscsit_conn *conn)
 	conn->nopin_response_timer_flags |= ISCSI_TF_STOP;
 	spin_unlock_bh(&conn->nopin_timer_lock);
 
-	del_timer_sync(&conn->nopin_response_timer);
+	timer_delete_sync(&conn->nopin_response_timer);
 
 	spin_lock_bh(&conn->nopin_timer_lock);
 	conn->nopin_response_timer_flags &= ~ISCSI_TF_RUNNING;
@@ -989,7 +989,7 @@ void iscsit_stop_nopin_timer(struct iscsit_conn *conn)
 	conn->nopin_timer_flags |= ISCSI_TF_STOP;
 	spin_unlock_bh(&conn->nopin_timer_lock);
 
-	del_timer_sync(&conn->nopin_timer);
+	timer_delete_sync(&conn->nopin_timer);
 
 	spin_lock_bh(&conn->nopin_timer_lock);
 	conn->nopin_timer_flags &= ~ISCSI_TF_RUNNING;

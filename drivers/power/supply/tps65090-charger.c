@@ -259,7 +259,7 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 
 	psy_cfg.supplied_to		= pdata->supplied_to;
 	psy_cfg.num_supplicants		= pdata->num_supplicants;
-	psy_cfg.of_node			= pdev->dev.of_node;
+	psy_cfg.fwnode			= dev_fwnode(&pdev->dev);
 	psy_cfg.drv_data		= cdata;
 
 	cdata->ac = devm_power_supply_register(&pdev->dev, &tps65090_charger_desc,

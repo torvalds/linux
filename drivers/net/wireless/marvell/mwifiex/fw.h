@@ -454,6 +454,11 @@ enum mwifiex_channel_flags {
 #define HostCmd_RET_BIT                       0x8000
 #define HostCmd_ACT_GEN_GET                   0x0000
 #define HostCmd_ACT_GEN_SET                   0x0001
+#define HOST_CMD_ACT_GEN_SET                  0x0001
+/* Add this non-CamelCase-style macro to comply with checkpatch requirements.
+ *  This macro will eventually replace all existing CamelCase-style macros in
+ *  the future for consistency.
+ */
 #define HostCmd_ACT_GEN_REMOVE                0x0004
 #define HostCmd_ACT_BITWISE_SET               0x0002
 #define HostCmd_ACT_BITWISE_CLR               0x0003
@@ -2352,6 +2357,14 @@ struct host_cmd_ds_add_station {
 	u8 tlv[];
 } __packed;
 
+#define MWIFIEX_CFG_TYPE_CAL 0x2
+
+struct host_cmd_ds_802_11_cfg_data {
+	__le16 action;
+	__le16 type;
+	__le16 data_len;
+} __packed;
+
 struct host_cmd_ds_command {
 	__le16 command;
 	__le16 size;
@@ -2431,6 +2444,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_pkt_aggr_ctrl pkt_aggr_ctrl;
 		struct host_cmd_ds_sta_configure sta_cfg;
 		struct host_cmd_ds_add_station sta_info;
+		struct host_cmd_ds_802_11_cfg_data cfg_data;
 	} params;
 } __packed;
 

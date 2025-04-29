@@ -1,0 +1,116 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * dts file for Xilinx Versal Net VNX board revA
+ *
+ * (C) Copyright 2022, Xilinx, Inc.
+ * (C) Copyright 2022 - 2025, Advanced Micro Devices, Inc.
+ *
+ * Michal Simek <michal.simek@amd.com>
+ */
+
+/dts-v1/;
+
+#include "versal-net.dtsi"
+#include "versal-net-clk.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	compatible = "xlnx,versal-net-vnx-revA", "xlnx,versal-net-vnx", "xlnx,versal-net";
+	model = "Xilinx Versal NET VNX revA";
+	dma-coherent;
+
+	memory: memory@0 {
+		reg = <0 0 0 0x80000000>;
+		device_type = "memory";
+	};
+
+	memory_hi: memory@800000000 {
+		reg = <8 0 3 0x80000000>;
+		device_type = "memory";
+	};
+
+	memory_hi2: memory@50000000000 {
+		reg = <0x500 0 4 0>;
+		device_type = "memory";
+	};
+
+	chosen {
+		bootargs = "console=ttyAMA1,115200n8";
+		stdout-path = "serial1:115200n8";
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		rsc_tbl_carveout: rproc@bbf14000 {
+			reg = <0 0xbbf14000 0 0x1000>;
+			no-map;
+		};
+		rpu0vdev0vring0: rpu0vdev0vring0@bbf15000 {
+			reg = <0 0xbbf15000 0 0x1000>;
+			no-map;
+		};
+		rpu0vdev0vring1: rpu0vdev0vring1@bbf16000 {
+			reg = <0 0xbbf16000 0 0x1000>;
+			no-map;
+		};
+		rpu0vdev0buffer: rpu0vdev0buffer@bbf17000 {
+			reg = <0 0xbbf17000 0 0xD000>;
+			no-map;
+		};
+		reserve_others: reserveothers@0 {
+			reg = <0 0x0 0 0x1c200000>;
+			no-map;
+		};
+		pdi_update: pdiupdate@1c200000 {
+			reg = <0 0x1c200000 0 0x6000000>;
+			no-map;
+		};
+		reserve_optee_atf: reserveopteeatf@22200000 {
+			reg = <0 0x22200000 0 0x4100000>;
+			no-map;
+		};
+	};
+};
+
+&gem1 {
+	status = "okay";
+	iommus = <&smmu 0x235>;
+	phy-handle = <&phy>;
+	phy-mode = "rmii";
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		phy: ethernet-phy@4 {
+			reg = <4>;
+		};
+	};
+};
+
+&ospi {
+	num-cs = <2>;
+	iommus = <&smmu 0x245>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+};
+
+&sdhci1 {
+	status = "okay";
+	iommus = <&smmu 0x243>;
+	non-removable;
+	disable-wp;
+	no-sd;
+	no-sdio;
+	cap-mmc-hw-reset;
+	bus-width = <8>;
+	no-1-8-v;
+};
+
+&serial1 {
+	status = "okay";
+};
+
+&smmu {
+	status = "okay";
+};

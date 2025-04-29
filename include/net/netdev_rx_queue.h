@@ -16,6 +16,7 @@ struct netdev_rx_queue {
 	struct rps_dev_flow_table __rcu	*rps_flow_table;
 #endif
 	struct kobject			kobj;
+	const struct attribute_group	**groups;
 	struct net_device		*dev;
 	netdevice_tracker		dev_tracker;
 
@@ -23,7 +24,7 @@ struct netdev_rx_queue {
 	struct xsk_buff_pool            *pool;
 #endif
 	/* NAPI instance for the queue
-	 * Readers and writers must hold RTNL
+	 * "ops protected", see comment about net_device::lock
 	 */
 	struct napi_struct		*napi;
 	struct pp_memory_provider_params mp_params;

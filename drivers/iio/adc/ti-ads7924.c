@@ -251,11 +251,8 @@ static const struct iio_info ads7924_info = {
 	.read_raw = ads7924_read_raw,
 };
 
-static int ads7924_get_channels_config(struct i2c_client *client,
-				       struct iio_dev *indio_dev)
+static int ads7924_get_channels_config(struct device *dev)
 {
-	struct ads7924_data *priv = iio_priv(indio_dev);
-	struct device *dev = priv->dev;
 	struct fwnode_handle *node;
 	int num_channels = 0;
 
@@ -380,7 +377,7 @@ static int ads7924_probe(struct i2c_client *client)
 	indio_dev->num_channels = ARRAY_SIZE(ads7924_channels);
 	indio_dev->info = &ads7924_info;
 
-	ret = ads7924_get_channels_config(client, indio_dev);
+	ret = ads7924_get_channels_config(dev);
 	if (ret < 0)
 		return dev_err_probe(dev, ret,
 				     "failed to get channels configuration\n");

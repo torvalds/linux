@@ -1322,9 +1322,6 @@ static int ov08x40_power_on(struct device *dev)
 	struct ov08x40 *ov08x = to_ov08x40(sd);
 	int ret;
 
-	if (is_acpi_node(dev_fwnode(dev)))
-		return 0;
-
 	ret = clk_prepare_enable(ov08x->xvclk);
 	if (ret < 0) {
 		dev_err(dev, "failed to enable xvclk\n");
@@ -1359,9 +1356,6 @@ static int ov08x40_power_off(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov08x40 *ov08x = to_ov08x40(sd);
-
-	if (is_acpi_node(dev_fwnode(dev)))
-		return 0;
 
 	gpiod_set_value_cansleep(ov08x->reset_gpio, 1);
 	regulator_bulk_disable(ARRAY_SIZE(ov08x40_supply_names),
@@ -1400,7 +1394,7 @@ static int ov08x40_read_reg(struct ov08x40 *ov08x,
 
 	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
 	if (ret != ARRAY_SIZE(msgs))
-		return -EIO;
+		return ret < 0 ? ret : -EIO;
 
 	*val = be32_to_cpu(data_be);
 
@@ -1469,7 +1463,7 @@ static int ov08x40_write_reg(struct ov08x40 *ov08x,
 			     u16 reg, u32 len, u32 __val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&ov08x->sd);
-	int buf_i, val_i;
+	int buf_i, val_i, ret;
 	u8 buf[6], *val_p;
 	__be32 val;
 
@@ -1487,8 +1481,9 @@ static int ov08x40_write_reg(struct ov08x40 *ov08x,
 	while (val_i < 4)
 		buf[buf_i++] = val_p[val_i++];
 
-	if (i2c_master_send(client, buf, len + 2) != len + 2)
-		return -EIO;
+	ret = i2c_master_send(client, buf, len + 2);
+	if (ret != len + 2)
+		return ret < 0 ? ret : -EIO;
 
 	return 0;
 }
@@ -1937,6 +1932,35 @@ static int ov08x40_stop_streaming(struct ov08x40 *ov08x)
 				 OV08X40_REG_VALUE_08BIT, OV08X40_MODE_STANDBY);
 }
 
+/* Verify chip ID */
+static int ov08x40_identify_module(struct ov08x40 *ov08x)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&ov08x->sd);
+	int ret;
+	u32 val;
+
+	if (ov08x->identified)
+		return 0;
+
+	ret = ov08x40_read_reg(ov08x, OV08X40_REG_CHIP_ID,
+			       OV08X40_REG_VALUE_24BIT, &val);
+	if (ret) {
+		dev_err(&client->dev, "error reading chip-id register: %d\n", ret);
+		return ret;
+	}
+
+	if (val != OV08X40_CHIP_ID) {
+		dev_err(&client->dev, "chip id mismatch: %x!=%x\n",
+			OV08X40_CHIP_ID, val);
+		return -ENXIO;
+	}
+
+	dev_dbg(&client->dev, "chip id 0x%x\n", val);
+	ov08x->identified = true;
+
+	return 0;
+}
+
 static int ov08x40_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct ov08x40 *ov08x = to_ov08x40(sd);
@@ -1949,6 +1973,10 @@ static int ov08x40_set_stream(struct v4l2_subdev *sd, int enable)
 		ret = pm_runtime_resume_and_get(&client->dev);
 		if (ret < 0)
 			goto err_unlock;
+
+		ret = ov08x40_identify_module(ov08x);
+		if (ret)
+			goto err_rpm_put;
 
 		/*
 		 * Apply default & customized values
@@ -1972,32 +2000,6 @@ err_unlock:
 	mutex_unlock(&ov08x->mutex);
 
 	return ret;
-}
-
-/* Verify chip ID */
-static int ov08x40_identify_module(struct ov08x40 *ov08x)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&ov08x->sd);
-	int ret;
-	u32 val;
-
-	if (ov08x->identified)
-		return 0;
-
-	ret = ov08x40_read_reg(ov08x, OV08X40_REG_CHIP_ID,
-			       OV08X40_REG_VALUE_24BIT, &val);
-	if (ret)
-		return ret;
-
-	if (val != OV08X40_CHIP_ID) {
-		dev_err(&client->dev, "chip id mismatch: %x!=%x\n",
-			OV08X40_CHIP_ID, val);
-		return -ENXIO;
-	}
-
-	ov08x->identified = true;
-
-	return 0;
 }
 
 static const struct v4l2_subdev_video_ops ov08x40_video_ops = {
@@ -2151,65 +2153,69 @@ static int ov08x40_check_hwcfg(struct ov08x40 *ov08x, struct device *dev)
 	int ret;
 	u32 xvclk_rate;
 
-	if (!fwnode)
-		return -ENXIO;
-
-	if (!is_acpi_node(fwnode)) {
-		ov08x->xvclk = devm_clk_get(dev, NULL);
-		if (IS_ERR(ov08x->xvclk)) {
-			dev_err(dev, "could not get xvclk clock (%pe)\n",
-				ov08x->xvclk);
-			return PTR_ERR(ov08x->xvclk);
-		}
-
-		xvclk_rate = clk_get_rate(ov08x->xvclk);
-
-		ov08x->reset_gpio = devm_gpiod_get_optional(dev, "reset",
-							    GPIOD_OUT_LOW);
-		if (IS_ERR(ov08x->reset_gpio))
-			return PTR_ERR(ov08x->reset_gpio);
-
-		for (i = 0; i < ARRAY_SIZE(ov08x40_supply_names); i++)
-			ov08x->supplies[i].supply = ov08x40_supply_names[i];
-
-		ret = devm_regulator_bulk_get(dev,
-					      ARRAY_SIZE(ov08x40_supply_names),
-					      ov08x->supplies);
-		if (ret)
-			return ret;
-	} else {
-		ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
-					       &xvclk_rate);
-		if (ret) {
-			dev_err(dev, "can't get clock frequency");
-			return ret;
-		}
-	}
-
-	if (xvclk_rate != OV08X40_XVCLK) {
-		dev_err(dev, "external clock %d is not supported",
-			xvclk_rate);
-		return -EINVAL;
-	}
-
+	/*
+	 * Sometimes the fwnode graph is initialized by the bridge driver.
+	 * Bridge drivers doing this also add sensor properties, wait for this.
+	 */
 	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
 	if (!ep)
-		return -ENXIO;
+		return dev_err_probe(dev, -EPROBE_DEFER,
+				     "waiting for fwnode graph endpoint\n");
 
 	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
 	fwnode_handle_put(ep);
 	if (ret)
-		return ret;
+		return dev_err_probe(dev, ret, "parsing endpoint failed\n");
+
+	ov08x->reset_gpio = devm_gpiod_get_optional(dev, "reset",
+						    GPIOD_OUT_HIGH);
+	if (IS_ERR(ov08x->reset_gpio)) {
+		ret = dev_err_probe(dev, PTR_ERR(ov08x->reset_gpio),
+				    "getting reset GPIO\n");
+		goto out_err;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(ov08x40_supply_names); i++)
+		ov08x->supplies[i].supply = ov08x40_supply_names[i];
+
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(ov08x40_supply_names),
+				      ov08x->supplies);
+	if (ret)
+		goto out_err;
+
+	ov08x->xvclk = devm_clk_get_optional(dev, NULL);
+	if (IS_ERR(ov08x->xvclk)) {
+		ret = dev_err_probe(dev, PTR_ERR(ov08x->xvclk),
+				    "getting xvclk\n");
+		goto out_err;
+	}
+	if (ov08x->xvclk) {
+		xvclk_rate = clk_get_rate(ov08x->xvclk);
+	} else {
+		ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
+					       &xvclk_rate);
+		if (ret) {
+			dev_err(dev, "can't get clock frequency\n");
+			goto out_err;
+		}
+	}
+
+	if (xvclk_rate != OV08X40_XVCLK) {
+		dev_err(dev, "external clock %d is not supported\n",
+			xvclk_rate);
+		ret = -EINVAL;
+		goto out_err;
+	}
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != OV08X40_DATA_LANES) {
-		dev_err(dev, "number of CSI2 data lanes %d is not supported",
+		dev_err(dev, "number of CSI2 data lanes %d is not supported\n",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
 		goto out_err;
 	}
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(dev, "no link frequencies defined");
+		dev_err(dev, "no link frequencies defined\n");
 		ret = -EINVAL;
 		goto out_err;
 	}
@@ -2222,7 +2228,7 @@ static int ov08x40_check_hwcfg(struct ov08x40 *ov08x, struct device *dev)
 		}
 
 		if (j == bus_cfg.nr_of_link_frequencies) {
-			dev_err(dev, "no link frequency %lld supported",
+			dev_err(dev, "no link frequency %lld supported\n",
 				link_freq_menu_items[i]);
 			ret = -EINVAL;
 			goto out_err;
@@ -2246,10 +2252,8 @@ static int ov08x40_probe(struct i2c_client *client)
 
 	/* Check HW config */
 	ret = ov08x40_check_hwcfg(ov08x, &client->dev);
-	if (ret) {
-		dev_err(&client->dev, "failed to check hwcfg: %d", ret);
+	if (ret)
 		return ret;
-	}
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&ov08x->sd, client, &ov08x40_subdev_ops);
@@ -2264,10 +2268,8 @@ static int ov08x40_probe(struct i2c_client *client)
 
 		/* Check module identity */
 		ret = ov08x40_identify_module(ov08x);
-		if (ret) {
-			dev_err(&client->dev, "failed to find sensor: %d\n", ret);
+		if (ret)
 			goto probe_power_off;
-		}
 	}
 
 	/* Set default mode to max resolution */
@@ -2324,10 +2326,13 @@ static void ov08x40_remove(struct i2c_client *client)
 	ov08x40_free_controls(ov08x);
 
 	pm_runtime_disable(&client->dev);
+	if (!pm_runtime_status_suspended(&client->dev))
+		ov08x40_power_off(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-
-	ov08x40_power_off(&client->dev);
 }
+
+static DEFINE_RUNTIME_DEV_PM_OPS(ov08x40_pm_ops, ov08x40_power_off,
+				 ov08x40_power_on, NULL);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id ov08x40_acpi_ids[] = {
@@ -2349,6 +2354,7 @@ static struct i2c_driver ov08x40_i2c_driver = {
 		.name = "ov08x40",
 		.acpi_match_table = ACPI_PTR(ov08x40_acpi_ids),
 		.of_match_table = ov08x40_of_match,
+		.pm = pm_sleep_ptr(&ov08x40_pm_ops),
 	},
 	.probe = ov08x40_probe,
 	.remove = ov08x40_remove,

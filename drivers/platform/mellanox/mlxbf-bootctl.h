@@ -103,6 +103,11 @@
  */
 #define MLNX_HANDLE_OS_UP    0x82000014
 
+/*
+ * SMC function ID to get and clear the RTC low voltage bit
+ */
+#define MLNX_HANDLE_GET_RTC_LOW_BATT   0x82000023
+
 /* SMC function IDs for SiP Service queries */
 #define MLXBF_BOOTCTL_SIP_SVC_CALL_COUNT	0x8200ff00
 #define MLXBF_BOOTCTL_SIP_SVC_UID		0x8200ff01

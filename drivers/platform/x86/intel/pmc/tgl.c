@@ -18,7 +18,7 @@ enum pch_type {
 	PCH_LP
 };
 
-const struct pmc_bit_map tgl_pfear_map[] = {
+static const struct pmc_bit_map tgl_pfear_map[] = {
 	{"PSF9",		BIT(0)},
 	{"RES_66",		BIT(1)},
 	{"RES_67",		BIT(2)},
@@ -29,7 +29,7 @@ const struct pmc_bit_map tgl_pfear_map[] = {
 	{}
 };
 
-const struct pmc_bit_map *ext_tgl_pfear_map[] = {
+static const struct pmc_bit_map *ext_tgl_pfear_map[] = {
 	/*
 	 * Check intel_pmc_core_ids[] users of tgl_reg_map for
 	 * a list of core SoCs using this.
@@ -39,7 +39,7 @@ const struct pmc_bit_map *ext_tgl_pfear_map[] = {
 	NULL
 };
 
-const struct pmc_bit_map tgl_clocksource_status_map[] = {
+static const struct pmc_bit_map tgl_clocksource_status_map[] = {
 	{"USB2PLL_OFF_STS",			BIT(18)},
 	{"PCIe/USB3.1_Gen2PLL_OFF_STS",		BIT(19)},
 	{"PCIe_Gen3PLL_OFF_STS",		BIT(20)},
@@ -55,7 +55,7 @@ const struct pmc_bit_map tgl_clocksource_status_map[] = {
 	{}
 };
 
-const struct pmc_bit_map tgl_power_gating_status_map[] = {
+static const struct pmc_bit_map tgl_power_gating_status_map[] = {
 	{"CSME_PG_STS",				BIT(0)},
 	{"SATA_PG_STS",				BIT(1)},
 	{"xHCI_PG_STS",				BIT(2)},
@@ -83,7 +83,7 @@ const struct pmc_bit_map tgl_power_gating_status_map[] = {
 	{}
 };
 
-const struct pmc_bit_map tgl_d3_status_map[] = {
+static const struct pmc_bit_map tgl_d3_status_map[] = {
 	{"ADSP_D3_STS",				BIT(0)},
 	{"SATA_D3_STS",				BIT(1)},
 	{"xHCI0_D3_STS",			BIT(2)},
@@ -98,7 +98,7 @@ const struct pmc_bit_map tgl_d3_status_map[] = {
 	{}
 };
 
-const struct pmc_bit_map tgl_vnn_req_status_map[] = {
+static const struct pmc_bit_map tgl_vnn_req_status_map[] = {
 	{"GPIO_COM0_VNN_REQ_STS",		BIT(1)},
 	{"GPIO_COM1_VNN_REQ_STS",		BIT(2)},
 	{"GPIO_COM2_VNN_REQ_STS",		BIT(3)},
@@ -123,7 +123,7 @@ const struct pmc_bit_map tgl_vnn_req_status_map[] = {
 	{}
 };
 
-const struct pmc_bit_map tgl_vnn_misc_status_map[] = {
+static const struct pmc_bit_map tgl_vnn_misc_status_map[] = {
 	{"CPU_C10_REQ_STS_0",			BIT(0)},
 	{"PCIe_LPM_En_REQ_STS_3",		BIT(3)},
 	{"ITH_REQ_STS_5",			BIT(5)},
@@ -175,7 +175,7 @@ const struct pmc_bit_map tgl_signal_status_map[] = {
 	{}
 };
 
-const struct pmc_bit_map *tgl_lpm_maps[] = {
+static const struct pmc_bit_map *tgl_lpm_maps[] = {
 	tgl_clocksource_status_map,
 	tgl_power_gating_status_map,
 	tgl_d3_status_map,
@@ -185,7 +185,7 @@ const struct pmc_bit_map *tgl_lpm_maps[] = {
 	NULL
 };
 
-const struct pmc_reg_map tgl_reg_map = {
+static const struct pmc_reg_map tgl_reg_map = {
 	.pfear_sts = ext_tgl_pfear_map,
 	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
 	.slp_s0_res_counter_step = TGL_PMC_SLP_S0_RES_COUNTER_STEP,
@@ -210,7 +210,7 @@ const struct pmc_reg_map tgl_reg_map = {
 	.etr3_offset = ETR3_OFFSET,
 };
 
-const struct pmc_reg_map tgl_h_reg_map = {
+static const struct pmc_reg_map tgl_h_reg_map = {
 	.pfear_sts = ext_tgl_pfear_map,
 	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
 	.slp_s0_res_counter_step = TGL_PMC_SLP_S0_RES_COUNTER_STEP,
@@ -285,35 +285,28 @@ free_acpi_obj:
 	ACPI_FREE(out_obj);
 }
 
-int tgl_l_core_init(struct pmc_dev *pmcdev)
+static int tgl_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info)
 {
-	return tgl_core_generic_init(pmcdev, PCH_LP);
-}
-
-int tgl_core_init(struct pmc_dev *pmcdev)
-{
-	return tgl_core_generic_init(pmcdev, PCH_H);
-}
-
-int tgl_core_generic_init(struct pmc_dev *pmcdev, int pch_tp)
-{
-	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
 	int ret;
 
-	if (pch_tp == PCH_H)
-		pmc->map = &tgl_h_reg_map;
-	else
-		pmc->map = &tgl_reg_map;
-
-	pmcdev->suspend = cnl_suspend;
-	pmcdev->resume = cnl_resume;
-
-	ret = get_primary_reg_base(pmc);
+	ret = generic_core_init(pmcdev, pmc_dev_info);
 	if (ret)
 		return ret;
 
-	pmc_core_get_low_power_modes(pmcdev);
 	pmc_core_get_tgl_lpm_reqs(pmcdev->pdev);
-
 	return 0;
 }
+
+struct pmc_dev_info tgl_l_pmc_dev = {
+	.map = &tgl_reg_map,
+	.suspend = cnl_suspend,
+	.resume = cnl_resume,
+	.init = tgl_core_init,
+};
+
+struct pmc_dev_info tgl_pmc_dev = {
+	.map = &tgl_h_reg_map,
+	.suspend = cnl_suspend,
+	.resume = cnl_resume,
+	.init = tgl_core_init,
+};

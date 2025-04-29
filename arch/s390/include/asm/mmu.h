@@ -22,10 +22,7 @@ typedef struct {
 	 * The following bitfields need a down_write on the mm
 	 * semaphore when they are written to. As they are only
 	 * written once, they can be read without a lock.
-	 *
-	 * The mmu context allocates 4K page tables.
 	 */
-	unsigned int alloc_pgste:1;
 	/* The mmu context uses extended page tables. */
 	unsigned int has_pgste:1;
 	/* The mmu context uses storage keys. */

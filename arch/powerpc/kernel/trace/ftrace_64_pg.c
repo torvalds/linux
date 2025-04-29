@@ -120,10 +120,8 @@ static struct module *ftrace_lookup_module(struct dyn_ftrace *rec)
 {
 	struct module *mod;
 
-	preempt_disable();
-	mod = __module_text_address(rec->ip);
-	preempt_enable();
-
+	scoped_guard(rcu)
+		mod = __module_text_address(rec->ip);
 	if (!mod)
 		pr_err("No module loaded at addr=%lx\n", rec->ip);
 

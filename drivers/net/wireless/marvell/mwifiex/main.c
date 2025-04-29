@@ -54,7 +54,7 @@ const u16 mwifiex_1d_to_wmm_queue[8] = { 1, 0, 0, 1, 2, 2, 3, 3 };
  * proper cleanup before exiting.
  */
 static int mwifiex_register(void *card, struct device *dev,
-			    struct mwifiex_if_ops *if_ops, void **padapter)
+			    const struct mwifiex_if_ops *if_ops, void **padapter)
 {
 	struct mwifiex_adapter *adapter;
 	int i;
@@ -307,7 +307,7 @@ process_start:
 		if (IS_CARD_RX_RCVD(adapter)) {
 			adapter->data_received = false;
 			adapter->pm_wakeup_fw_try = false;
-			del_timer(&adapter->wakeup_timer);
+			timer_delete(&adapter->wakeup_timer);
 			if (adapter->ps_state == PS_STATE_SLEEP)
 				adapter->ps_state = PS_STATE_AWAKE;
 		} else {
@@ -691,10 +691,6 @@ err_dnld_fw:
 
 	init_failed = true;
 done:
-	if (adapter->cal_data) {
-		release_firmware(adapter->cal_data);
-		adapter->cal_data = NULL;
-	}
 	if (adapter->firmware) {
 		release_firmware(adapter->firmware);
 		adapter->firmware = NULL;
@@ -1713,7 +1709,7 @@ err_exit:
  */
 int
 mwifiex_add_card(void *card, struct completion *fw_done,
-		 struct mwifiex_if_ops *if_ops, u8 iface_type,
+		 const struct mwifiex_if_ops *if_ops, u8 iface_type,
 		 struct device *dev)
 {
 	struct mwifiex_adapter *adapter;

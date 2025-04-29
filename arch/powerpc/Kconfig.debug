@@ -216,13 +216,6 @@ config PPC_EARLY_DEBUG_RTAS_PANEL
 	help
 	  Select this to enable early debugging via the RTAS panel.
 
-config PPC_EARLY_DEBUG_RTAS_CONSOLE
-	bool "RTAS Console"
-	depends on PPC_RTAS
-	select UDBG_RTAS_CONSOLE
-	help
-	  Select this to enable early debugging via the RTAS console.
-
 config PPC_EARLY_DEBUG_PAS_REALMODE
 	bool "PA Semi real mode"
 	depends on PPC_PASEMI

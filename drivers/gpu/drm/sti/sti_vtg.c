@@ -380,23 +380,15 @@ static int vtg_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct sti_vtg *vtg;
-	struct resource *res;
 	int ret;
 
 	vtg = devm_kzalloc(dev, sizeof(*vtg), GFP_KERNEL);
 	if (!vtg)
 		return -ENOMEM;
-
-	/* Get Memory ressources */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		DRM_ERROR("Get memory resource failed\n");
-		return -ENOMEM;
-	}
-	vtg->regs = devm_ioremap(dev, res->start, resource_size(res));
-	if (!vtg->regs) {
+	vtg->regs = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(vtg->regs)) {
 		DRM_ERROR("failed to remap I/O memory\n");
-		return -ENOMEM;
+		return PTR_ERR(vtg->regs);
 	}
 
 	vtg->irq = platform_get_irq(pdev, 0);

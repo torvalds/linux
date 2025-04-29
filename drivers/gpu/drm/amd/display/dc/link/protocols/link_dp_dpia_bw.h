@@ -59,9 +59,8 @@ bool link_dp_dpia_set_dptx_usb4_bw_alloc_support(struct dc_link *link);
  * @link: pointer to the dc_link struct instance
  * @req_bw: Bw requested by the stream
  *
- * return: true if allocated successfully
  */
-bool link_dp_dpia_allocate_usb4_bandwidth_for_stream(struct dc_link *link, int req_bw);
+void link_dp_dpia_allocate_usb4_bandwidth_for_stream(struct dc_link *link, int req_bw);
 
 /*
  * Handle the USB4 BW Allocation related functionality here:
@@ -71,21 +70,8 @@ bool link_dp_dpia_allocate_usb4_bandwidth_for_stream(struct dc_link *link, int r
  * @link: pointer to the dc_link struct instance
  * @peak_bw: Peak bw used by the link/sink
  *
- * return: allocated bw else return 0
  */
-int dpia_handle_usb4_bandwidth_allocation_for_link(struct dc_link *link, int peak_bw);
-
-/*
- * Handle function for when the status of the Request above is complete.
- * We will find out the result of allocating on CM and update structs.
- *
- * @link: pointer to the dc_link struct instance
- * @bw: Allocated or Estimated BW depending on the result
- * @result: Response type
- *
- * return: none
- */
-void dpia_handle_bw_alloc_response(struct dc_link *link, uint8_t bw, uint8_t result);
+void dpia_handle_usb4_bandwidth_allocation_for_link(struct dc_link *link, int peak_bw);
 
 /*
  * Handle the validation of total BW here and confirm that the bw used by each
@@ -107,5 +93,15 @@ bool dpia_validate_usb4_bw(struct dc_link **link, int *bw_needed, const unsigned
  * return: DP overheads in DP tunneling
  */
 int link_dp_dpia_get_dp_overhead_in_dp_tunneling(struct dc_link *link);
+
+/*
+ * Handle DP BW allocation status register
+ *
+ * @link: pointer to the dc_link struct instance
+ * @status: content of DP tunneling status register
+ *
+ * return: none
+ */
+void link_dp_dpia_handle_bw_alloc_status(struct dc_link *link, uint8_t status);
 
 #endif /* DC_INC_LINK_DP_DPIA_BW_H_ */

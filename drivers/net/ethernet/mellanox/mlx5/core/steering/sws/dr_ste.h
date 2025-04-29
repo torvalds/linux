@@ -210,6 +210,10 @@ struct mlx5dr_ste_ctx {
 	void (*set_encap_l3)(u8 *hw_ste_p, u8 *frst_s_action,
 			     u8 *scnd_d_action, u32 reformat_id,
 			     int size);
+	void (*set_insert_hdr)(u8 *hw_ste_p, u8 *d_action, u32 reformat_id,
+			       u8 anchor, u8 offset, int size);
+	void (*set_remove_hdr)(u8 *hw_ste_p, u8 *s_action, u8 anchor,
+			       u8 offset, int size);
 	/* Send */
 	void (*prepare_for_postsend)(u8 *hw_ste_p, u32 ste_size);
 };

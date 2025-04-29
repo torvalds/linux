@@ -91,7 +91,6 @@ struct servreg_loc_pfr_resp {
 	struct qmi_response_type_v01 rsp;
 };
 
-extern const struct qmi_elem_info servreg_location_entry_ei[];
 extern const struct qmi_elem_info servreg_get_domain_list_req_ei[];
 extern const struct qmi_elem_info servreg_get_domain_list_resp_ei[];
 extern const struct qmi_elem_info servreg_register_listener_req_ei[];

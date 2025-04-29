@@ -33,11 +33,12 @@ struct meson_encoder_dsi {
 	container_of(x, struct meson_encoder_dsi, bridge)
 
 static int meson_encoder_dsi_attach(struct drm_bridge *bridge,
+				    struct drm_encoder *encoder,
 				    enum drm_bridge_attach_flags flags)
 {
 	struct meson_encoder_dsi *encoder_dsi = bridge_to_meson_encoder_dsi(bridge);
 
-	return drm_bridge_attach(bridge->encoder, encoder_dsi->next_bridge,
+	return drm_bridge_attach(encoder, encoder_dsi->next_bridge,
 				 &encoder_dsi->bridge, flags);
 }
 

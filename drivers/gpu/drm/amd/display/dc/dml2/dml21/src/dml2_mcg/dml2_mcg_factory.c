@@ -15,7 +15,7 @@ bool dml2_mcg_create(enum dml2_project_id project_id, struct dml2_mcg_instance *
 {
 	bool result = false;
 
-	if (!out)
+	if (out == 0)
 		return false;
 
 	memset(out, 0, sizeof(struct dml2_mcg_instance));

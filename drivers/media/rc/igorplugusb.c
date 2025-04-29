@@ -223,7 +223,7 @@ static int igorplugusb_probe(struct usb_interface *intf,
 	return 0;
 fail:
 	usb_poison_urb(ir->urb);
-	del_timer(&ir->timer);
+	timer_delete(&ir->timer);
 	usb_unpoison_urb(ir->urb);
 	usb_free_urb(ir->urb);
 	rc_free_device(ir->rc);
@@ -238,7 +238,7 @@ static void igorplugusb_disconnect(struct usb_interface *intf)
 
 	rc_unregister_device(ir->rc);
 	usb_poison_urb(ir->urb);
-	del_timer_sync(&ir->timer);
+	timer_delete_sync(&ir->timer);
 	usb_set_intfdata(intf, NULL);
 	usb_unpoison_urb(ir->urb);
 	usb_free_urb(ir->urb);

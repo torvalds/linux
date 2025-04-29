@@ -90,7 +90,7 @@ static int clear_uie(struct rtc_device *rtc)
 		rtc->stop_uie_polling = 1;
 		if (rtc->uie_timer_active) {
 			spin_unlock_irq(&rtc->irq_lock);
-			del_timer_sync(&rtc->uie_timer);
+			timer_delete_sync(&rtc->uie_timer);
 			spin_lock_irq(&rtc->irq_lock);
 			rtc->uie_timer_active = 0;
 		}

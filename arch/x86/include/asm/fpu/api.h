@@ -16,10 +16,9 @@
 
 /*
  * Use kernel_fpu_begin/end() if you intend to use FPU in kernel context. It
- * disables preemption so be careful if you intend to use it for long periods
- * of time.
- * If you intend to use the FPU in irq/softirq you need to check first with
- * irq_fpu_usable() if it is possible.
+ * disables preemption and softirq processing, so be careful if you intend to
+ * use it for long periods of time.  Kernel-mode FPU cannot be used in all
+ * contexts -- see irq_fpu_usable() for details.
  */
 
 /* Kernel FPU states to initialize in kernel_fpu_begin_mask() */
@@ -50,10 +49,10 @@ static inline void kernel_fpu_begin(void)
 }
 
 /*
- * Use fpregs_lock() while editing CPU's FPU registers or fpu->fpstate.
- * A context switch will (and softirq might) save CPU's FPU registers to
- * fpu->fpstate.regs and set TIF_NEED_FPU_LOAD leaving CPU's FPU registers in
- * a random state.
+ * Use fpregs_lock() while editing CPU's FPU registers or fpu->fpstate, or while
+ * using the FPU in kernel mode.  A context switch will (and softirq might) save
+ * CPU's FPU registers to fpu->fpstate.regs and set TIF_NEED_FPU_LOAD leaving
+ * CPU's FPU registers in a random state.
  *
  * local_bh_disable() protects against both preemption and soft interrupts
  * on !RT kernels.
@@ -63,8 +62,6 @@ static inline void kernel_fpu_begin(void)
  * preemptible. Disabling preemption is the right choice here as bottom
  * half processing is always in thread context on RT kernels so it
  * implicitly prevents bottom half processing as well.
- *
- * Disabling preemption also serializes against kernel_fpu_begin().
  */
 static inline void fpregs_lock(void)
 {

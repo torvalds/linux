@@ -234,28 +234,22 @@ static int bch2_run_recovery_pass(struct bch_fs *c, enum bch_recovery_pass pass)
 
 int bch2_run_online_recovery_passes(struct bch_fs *c)
 {
-	int ret = 0;
-
-	down_read(&c->state_lock);
-
 	for (unsigned i = 0; i < ARRAY_SIZE(recovery_pass_fns); i++) {
 		struct recovery_pass_fn *p = recovery_pass_fns + i;
 
 		if (!(p->when & PASS_ONLINE))
 			continue;
 
-		ret = bch2_run_recovery_pass(c, i);
+		int ret = bch2_run_recovery_pass(c, i);
 		if (bch2_err_matches(ret, BCH_ERR_restart_recovery)) {
 			i = c->curr_recovery_pass;
 			continue;
 		}
 		if (ret)
-			break;
+			return ret;
 	}
 
-	up_read(&c->state_lock);
-
-	return ret;
+	return 0;
 }
 
 int bch2_run_recovery_passes(struct bch_fs *c)

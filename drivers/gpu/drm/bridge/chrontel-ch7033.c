@@ -268,13 +268,14 @@ static void ch7033_hpd_event(void *arg, enum drm_connector_status status)
 }
 
 static int ch7033_bridge_attach(struct drm_bridge *bridge,
+				struct drm_encoder *encoder,
 				enum drm_bridge_attach_flags flags)
 {
 	struct ch7033_priv *priv = bridge_to_ch7033_priv(bridge);
 	struct drm_connector *connector = &priv->connector;
 	int ret;
 
-	ret = drm_bridge_attach(bridge->encoder, priv->next_bridge, bridge,
+	ret = drm_bridge_attach(encoder, priv->next_bridge, bridge,
 				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 	if (ret)
 		return ret;
@@ -305,7 +306,7 @@ static int ch7033_bridge_attach(struct drm_bridge *bridge,
 		return ret;
 	}
 
-	return drm_connector_attach_encoder(&priv->connector, bridge->encoder);
+	return drm_connector_attach_encoder(&priv->connector, encoder);
 }
 
 static void ch7033_bridge_detach(struct drm_bridge *bridge)

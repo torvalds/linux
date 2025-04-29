@@ -27,7 +27,7 @@ endif
 
 INCLUDE		:= -Iinclude/
 CFLAGS		:= -g -DVERSION=\"$(VERSION)\" $(FOPTS) $(WOPTS) $(EXTRA_CFLAGS) $(INCLUDE)
-LDFLAGS		:= -ggdb $(EXTRA_LDFLAGS)
+LDFLAGS		:= -ggdb $(LDFLAGS) $(EXTRA_LDFLAGS)
 
 INSTALL		:= install
 MKDIR		:= mkdir

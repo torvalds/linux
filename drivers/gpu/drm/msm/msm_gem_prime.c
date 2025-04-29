@@ -50,7 +50,7 @@ int msm_gem_prime_pin(struct drm_gem_object *obj)
 	struct page **pages;
 	int ret = 0;
 
-	if (obj->import_attach)
+	if (drm_gem_is_imported(obj))
 		return 0;
 
 	pages = msm_gem_pin_pages_locked(obj);
@@ -62,7 +62,7 @@ int msm_gem_prime_pin(struct drm_gem_object *obj)
 
 void msm_gem_prime_unpin(struct drm_gem_object *obj)
 {
-	if (obj->import_attach)
+	if (drm_gem_is_imported(obj))
 		return;
 
 	msm_gem_unpin_pages_locked(obj);

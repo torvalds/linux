@@ -167,7 +167,7 @@ static int lrw_xor_tweak(struct skcipher_request *req, bool second_pass)
 
 	while (w.nbytes) {
 		unsigned int avail = w.nbytes;
-		be128 *wsrc;
+		const be128 *wsrc;
 		be128 *wdst;
 
 		wsrc = w.src.virt.addr;

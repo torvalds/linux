@@ -1280,8 +1280,8 @@ out_root_unlock:
 }
 EXPORT_SYMBOL(configfs_depend_item_unlocked);
 
-static int configfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
-			  struct dentry *dentry, umode_t mode)
+static struct dentry *configfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+				     struct dentry *dentry, umode_t mode)
 {
 	int ret = 0;
 	int module_got = 0;
@@ -1461,7 +1461,7 @@ out_put:
 	put_fragment(frag);
 
 out:
-	return ret;
+	return ERR_PTR(ret);
 }
 
 static int configfs_rmdir(struct inode *dir, struct dentry *dentry)

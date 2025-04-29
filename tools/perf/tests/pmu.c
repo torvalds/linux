@@ -452,9 +452,9 @@ static int test__name_cmp(struct test_suite *test __maybe_unused, int subtest __
 }
 
 /**
- * Test perf_pmu__match() that's used to search for a PMU given a name passed
+ * Test perf_pmu__wildcard_match() that's used to search for a PMU given a name passed
  * on the command line. The name that's passed may also be a filename type glob
- * match. If the name does not match, perf_pmu__match() attempts to match the
+ * match. If the name does not match, perf_pmu__wildcard_match() attempts to match the
  * alias of the PMU, if provided.
  */
 static int test__pmu_match(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
@@ -463,41 +463,44 @@ static int test__pmu_match(struct test_suite *test __maybe_unused, int subtest _
 		.name = "pmuname",
 	};
 
-	TEST_ASSERT_EQUAL("Exact match", perf_pmu__match(&test_pmu, "pmuname"),	     true);
-	TEST_ASSERT_EQUAL("Longer token", perf_pmu__match(&test_pmu, "longertoken"), false);
-	TEST_ASSERT_EQUAL("Shorter token", perf_pmu__match(&test_pmu, "pmu"),	     false);
+#define TEST_PMU_MATCH(msg, to_match, expect)				\
+	TEST_ASSERT_EQUAL(msg, perf_pmu__wildcard_match(&test_pmu, to_match), expect)
+
+	TEST_PMU_MATCH("Exact match", "pmuname", true);
+	TEST_PMU_MATCH("Longer token", "longertoken", false);
+	TEST_PMU_MATCH("Shorter token", "pmu", false);
 
 	test_pmu.name = "pmuname_10";
-	TEST_ASSERT_EQUAL("Diff suffix_", perf_pmu__match(&test_pmu, "pmuname_2"),  false);
-	TEST_ASSERT_EQUAL("Sub suffix_",  perf_pmu__match(&test_pmu, "pmuname_1"),  true);
-	TEST_ASSERT_EQUAL("Same suffix_", perf_pmu__match(&test_pmu, "pmuname_10"), true);
-	TEST_ASSERT_EQUAL("No suffix_",   perf_pmu__match(&test_pmu, "pmuname"),    true);
-	TEST_ASSERT_EQUAL("Underscore_",  perf_pmu__match(&test_pmu, "pmuname_"),   true);
-	TEST_ASSERT_EQUAL("Substring_",   perf_pmu__match(&test_pmu, "pmuna"),      false);
+	TEST_PMU_MATCH("Diff suffix_", "pmuname_2", false);
+	TEST_PMU_MATCH("Sub suffix_", "pmuname_1", true);
+	TEST_PMU_MATCH("Same suffix_", "pmuname_10", true);
+	TEST_PMU_MATCH("No suffix_", "pmuname", true);
+	TEST_PMU_MATCH("Underscore_", "pmuname_", true);
+	TEST_PMU_MATCH("Substring_", "pmuna", false);
 
 	test_pmu.name = "pmuname_ab23";
-	TEST_ASSERT_EQUAL("Diff suffix hex_", perf_pmu__match(&test_pmu, "pmuname_2"),    false);
-	TEST_ASSERT_EQUAL("Sub suffix hex_",  perf_pmu__match(&test_pmu, "pmuname_ab"),   true);
-	TEST_ASSERT_EQUAL("Same suffix hex_", perf_pmu__match(&test_pmu, "pmuname_ab23"), true);
-	TEST_ASSERT_EQUAL("No suffix hex_",   perf_pmu__match(&test_pmu, "pmuname"),      true);
-	TEST_ASSERT_EQUAL("Underscore hex_",  perf_pmu__match(&test_pmu, "pmuname_"),     true);
-	TEST_ASSERT_EQUAL("Substring hex_",   perf_pmu__match(&test_pmu, "pmuna"),	 false);
+	TEST_PMU_MATCH("Diff suffix hex_", "pmuname_2", false);
+	TEST_PMU_MATCH("Sub suffix hex_", "pmuname_ab", true);
+	TEST_PMU_MATCH("Same suffix hex_", "pmuname_ab23", true);
+	TEST_PMU_MATCH("No suffix hex_", "pmuname", true);
+	TEST_PMU_MATCH("Underscore hex_", "pmuname_", true);
+	TEST_PMU_MATCH("Substring hex_", "pmuna", false);
 
 	test_pmu.name = "pmuname10";
-	TEST_ASSERT_EQUAL("Diff suffix", perf_pmu__match(&test_pmu, "pmuname2"),  false);
-	TEST_ASSERT_EQUAL("Sub suffix",  perf_pmu__match(&test_pmu, "pmuname1"),  true);
-	TEST_ASSERT_EQUAL("Same suffix", perf_pmu__match(&test_pmu, "pmuname10"), true);
-	TEST_ASSERT_EQUAL("No suffix",   perf_pmu__match(&test_pmu, "pmuname"),   true);
-	TEST_ASSERT_EQUAL("Underscore",  perf_pmu__match(&test_pmu, "pmuname_"),  false);
-	TEST_ASSERT_EQUAL("Substring",   perf_pmu__match(&test_pmu, "pmuna"),     false);
+	TEST_PMU_MATCH("Diff suffix", "pmuname2", false);
+	TEST_PMU_MATCH("Sub suffix", "pmuname1", true);
+	TEST_PMU_MATCH("Same suffix", "pmuname10", true);
+	TEST_PMU_MATCH("No suffix", "pmuname", true);
+	TEST_PMU_MATCH("Underscore", "pmuname_", false);
+	TEST_PMU_MATCH("Substring", "pmuna", false);
 
 	test_pmu.name = "pmunameab23";
-	TEST_ASSERT_EQUAL("Diff suffix hex", perf_pmu__match(&test_pmu, "pmuname2"),    false);
-	TEST_ASSERT_EQUAL("Sub suffix hex",  perf_pmu__match(&test_pmu, "pmunameab"),   true);
-	TEST_ASSERT_EQUAL("Same suffix hex", perf_pmu__match(&test_pmu, "pmunameab23"), true);
-	TEST_ASSERT_EQUAL("No suffix hex",   perf_pmu__match(&test_pmu, "pmuname"),     true);
-	TEST_ASSERT_EQUAL("Underscore hex",  perf_pmu__match(&test_pmu, "pmuname_"),    false);
-	TEST_ASSERT_EQUAL("Substring hex",   perf_pmu__match(&test_pmu, "pmuna"),	false);
+	TEST_PMU_MATCH("Diff suffix hex", "pmuname2", false);
+	TEST_PMU_MATCH("Sub suffix hex", "pmunameab", true);
+	TEST_PMU_MATCH("Same suffix hex", "pmunameab23", true);
+	TEST_PMU_MATCH("No suffix hex", "pmuname", true);
+	TEST_PMU_MATCH("Underscore hex", "pmuname_", false);
+	TEST_PMU_MATCH("Substring hex",   "pmuna", false);
 
 	/*
 	 * 2 hex chars or less are not considered suffixes so it shouldn't be
@@ -505,7 +508,7 @@ static int test__pmu_match(struct test_suite *test __maybe_unused, int subtest _
 	 * false results here than above.
 	 */
 	test_pmu.name = "pmuname_a3";
-	TEST_ASSERT_EQUAL("Diff suffix 2 hex_", perf_pmu__match(&test_pmu, "pmuname_2"),  false);
+	TEST_PMU_MATCH("Diff suffix 2 hex_", "pmuname_2", false);
 	/*
 	 * This one should be false, but because pmuname_a3 ends in 3 which is
 	 * decimal, it's not possible to determine if it's a short hex suffix or
@@ -513,19 +516,19 @@ static int test__pmu_match(struct test_suite *test __maybe_unused, int subtest _
 	 * length of decimal suffix. Run the test anyway and expect the wrong
 	 * result. And slightly fuzzy matching shouldn't do too much harm.
 	 */
-	TEST_ASSERT_EQUAL("Sub suffix 2 hex_",  perf_pmu__match(&test_pmu, "pmuname_a"),  true);
-	TEST_ASSERT_EQUAL("Same suffix 2 hex_", perf_pmu__match(&test_pmu, "pmuname_a3"), true);
-	TEST_ASSERT_EQUAL("No suffix 2 hex_",   perf_pmu__match(&test_pmu, "pmuname"),    false);
-	TEST_ASSERT_EQUAL("Underscore 2 hex_",  perf_pmu__match(&test_pmu, "pmuname_"),   false);
-	TEST_ASSERT_EQUAL("Substring 2 hex_",   perf_pmu__match(&test_pmu, "pmuna"),	  false);
+	TEST_PMU_MATCH("Sub suffix 2 hex_", "pmuname_a", true);
+	TEST_PMU_MATCH("Same suffix 2 hex_", "pmuname_a3", true);
+	TEST_PMU_MATCH("No suffix 2 hex_", "pmuname", false);
+	TEST_PMU_MATCH("Underscore 2 hex_", "pmuname_", false);
+	TEST_PMU_MATCH("Substring 2 hex_", "pmuna", false);
 
 	test_pmu.name = "pmuname_5";
-	TEST_ASSERT_EQUAL("Glob 1", perf_pmu__match(&test_pmu, "pmu*"),		   true);
-	TEST_ASSERT_EQUAL("Glob 2", perf_pmu__match(&test_pmu, "nomatch*"),	   false);
-	TEST_ASSERT_EQUAL("Seq 1",  perf_pmu__match(&test_pmu, "pmuname_[12345]"), true);
-	TEST_ASSERT_EQUAL("Seq 2",  perf_pmu__match(&test_pmu, "pmuname_[67890]"), false);
-	TEST_ASSERT_EQUAL("? 1",    perf_pmu__match(&test_pmu, "pmuname_?"),	   true);
-	TEST_ASSERT_EQUAL("? 2",    perf_pmu__match(&test_pmu, "pmuname_1?"),	   false);
+	TEST_PMU_MATCH("Glob 1", "pmu*", true);
+	TEST_PMU_MATCH("Glob 2", "nomatch*", false);
+	TEST_PMU_MATCH("Seq 1", "pmuname_[12345]", true);
+	TEST_PMU_MATCH("Seq 2", "pmuname_[67890]", false);
+	TEST_PMU_MATCH("? 1", "pmuname_?", true);
+	TEST_PMU_MATCH("? 2", "pmuname_1?", false);
 
 	return TEST_OK;
 }

@@ -9,6 +9,7 @@
 #include <linux/stacktrace.h>
 #include <linux/uaccess.h>
 #include <linux/compat.h>
+#include <asm/asm-offsets.h>
 #include <asm/stacktrace.h>
 #include <asm/unwind.h>
 #include <asm/kprobes.h>

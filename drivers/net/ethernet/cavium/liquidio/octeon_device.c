@@ -1433,22 +1433,6 @@ int octeon_wait_for_ddr_init(struct octeon_device *oct, u32 *timeout)
 }
 EXPORT_SYMBOL_GPL(octeon_wait_for_ddr_init);
 
-/* Get the octeon id assigned to the octeon device passed as argument.
- *  This function is exported to other modules.
- *  @param dev - octeon device pointer passed as a void *.
- *  @return octeon device id
- */
-int lio_get_device_id(void *dev)
-{
-	struct octeon_device *octeon_dev = (struct octeon_device *)dev;
-	u32 i;
-
-	for (i = 0; i < MAX_OCTEON_DEVICES; i++)
-		if (octeon_device[i] == octeon_dev)
-			return octeon_dev->octeon_id;
-	return -1;
-}
-
 void lio_enable_irq(struct octeon_droq *droq, struct octeon_instr_queue *iq)
 {
 	u64 instr_cnt;

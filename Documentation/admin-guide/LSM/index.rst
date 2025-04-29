@@ -48,3 +48,4 @@ subdirectories.
    Yama
    SafeSetID
    ipe
+   landlock

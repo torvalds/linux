@@ -193,7 +193,7 @@ static inline int __must_check class_create_file(const struct class *class,
 static inline void class_remove_file(const struct class *class,
 				     const struct class_attribute *attr)
 {
-	return class_remove_file_ns(class, attr, NULL);
+	class_remove_file_ns(class, attr, NULL);
 }
 
 /* Simple class attribute that is just a static string */

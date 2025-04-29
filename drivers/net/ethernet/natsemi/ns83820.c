@@ -1527,7 +1527,7 @@ static int ns83820_stop(struct net_device *ndev)
 	struct ns83820 *dev = PRIV(ndev);
 
 	/* FIXME: protect against interrupt handler? */
-	del_timer_sync(&dev->tx_watchdog);
+	timer_delete_sync(&dev->tx_watchdog);
 
 	ns83820_disable_interrupts(dev);
 

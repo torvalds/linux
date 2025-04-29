@@ -108,3 +108,19 @@ Contact:	intel-xe@lists.freedesktop.org
 Description:	RO. Package current voltage in millivolt.
 
 		Only supported for particular Intel Xe graphics platforms.
+
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/temp2_input
+Date:		March 2025
+KernelVersion:	6.14
+Contact:	intel-xe@lists.freedesktop.org
+Description:	RO. Package temperature in millidegree Celsius.
+
+		Only supported for particular Intel Xe graphics platforms.
+
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/temp3_input
+Date:		March 2025
+KernelVersion:	6.14
+Contact:	intel-xe@lists.freedesktop.org
+Description:	RO. VRAM temperature in millidegree Celsius.
+
+		Only supported for particular Intel Xe graphics platforms.

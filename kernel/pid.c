@@ -88,20 +88,6 @@ struct pid_namespace init_pid_ns = {
 };
 EXPORT_SYMBOL_GPL(init_pid_ns);
 
-/*
- * Note: disable interrupts while the pidmap_lock is held as an
- * interrupt might come in and do read_lock(&tasklist_lock).
- *
- * If we don't disable interrupts there is a nasty deadlock between
- * detach_pid()->free_pid() and another cpu that does
- * spin_lock(&pidmap_lock) followed by an interrupt routine that does
- * read_lock(&tasklist_lock);
- *
- * After we clean up the tasklist_lock and know there are no
- * irq handlers that take it we can leave the interrupts enabled.
- * For now it is easier to be safe than to prove it can't happen.
- */
-
 static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(pidmap_lock);
 seqcount_spinlock_t pidmap_lock_seq = SEQCNT_SPINLOCK_ZERO(pidmap_lock_seq, &pidmap_lock);
 
@@ -128,11 +114,11 @@ static void delayed_put_pid(struct rcu_head *rhp)
 
 void free_pid(struct pid *pid)
 {
-	/* We can be called with write_lock_irq(&tasklist_lock) held */
 	int i;
-	unsigned long flags;
 
-	spin_lock_irqsave(&pidmap_lock, flags);
+	lockdep_assert_not_held(&tasklist_lock);
+
+	spin_lock(&pidmap_lock);
 	for (i = 0; i <= pid->level; i++) {
 		struct upid *upid = pid->numbers + i;
 		struct pid_namespace *ns = upid->ns;
@@ -155,9 +141,21 @@ void free_pid(struct pid *pid)
 		idr_remove(&ns->idr, upid->nr);
 	}
 	pidfs_remove_pid(pid);
-	spin_unlock_irqrestore(&pidmap_lock, flags);
+	spin_unlock(&pidmap_lock);
 
 	call_rcu(&pid->rcu, delayed_put_pid);
+}
+
+void free_pids(struct pid **pids)
+{
+	int tmp;
+
+	/*
+	 * This can batch pidmap_lock.
+	 */
+	for (tmp = PIDTYPE_MAX; --tmp >= 0; )
+		if (pids[tmp])
+			free_pid(pids[tmp]);
 }
 
 struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
@@ -211,7 +209,7 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
 		}
 
 		idr_preload(GFP_KERNEL);
-		spin_lock_irq(&pidmap_lock);
+		spin_lock(&pidmap_lock);
 
 		if (tid) {
 			nr = idr_alloc(&tmp->idr, NULL, tid,
@@ -238,7 +236,7 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
 			nr = idr_alloc_cyclic(&tmp->idr, NULL, pid_min,
 					      pid_max, GFP_ATOMIC);
 		}
-		spin_unlock_irq(&pidmap_lock);
+		spin_unlock(&pidmap_lock);
 		idr_preload_end();
 
 		if (nr < 0) {
@@ -272,7 +270,7 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
 
 	upid = pid->numbers + ns->level;
 	idr_preload(GFP_KERNEL);
-	spin_lock_irq(&pidmap_lock);
+	spin_lock(&pidmap_lock);
 	if (!(ns->pid_allocated & PIDNS_ADDING))
 		goto out_unlock;
 	pidfs_add_pid(pid);
@@ -281,18 +279,18 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
 		idr_replace(&upid->ns->idr, pid, upid->nr);
 		upid->ns->pid_allocated++;
 	}
-	spin_unlock_irq(&pidmap_lock);
+	spin_unlock(&pidmap_lock);
 	idr_preload_end();
 
 	return pid;
 
 out_unlock:
-	spin_unlock_irq(&pidmap_lock);
+	spin_unlock(&pidmap_lock);
 	idr_preload_end();
 	put_pid_ns(ns);
 
 out_free:
-	spin_lock_irq(&pidmap_lock);
+	spin_lock(&pidmap_lock);
 	while (++i <= ns->level) {
 		upid = pid->numbers + i;
 		idr_remove(&upid->ns->idr, upid->nr);
@@ -302,7 +300,7 @@ out_free:
 	if (ns->pid_allocated == PIDNS_ADDING)
 		idr_set_cursor(&ns->idr, 0);
 
-	spin_unlock_irq(&pidmap_lock);
+	spin_unlock(&pidmap_lock);
 
 	kmem_cache_free(ns->pid_cachep, pid);
 	return ERR_PTR(retval);
@@ -310,9 +308,9 @@ out_free:
 
 void disable_pid_allocation(struct pid_namespace *ns)
 {
-	spin_lock_irq(&pidmap_lock);
+	spin_lock(&pidmap_lock);
 	ns->pid_allocated &= ~PIDNS_ADDING;
-	spin_unlock_irq(&pidmap_lock);
+	spin_unlock(&pidmap_lock);
 }
 
 struct pid *find_pid_ns(int nr, struct pid_namespace *ns)
@@ -339,17 +337,23 @@ static struct pid **task_pid_ptr(struct task_struct *task, enum pid_type type)
  */
 void attach_pid(struct task_struct *task, enum pid_type type)
 {
-	struct pid *pid = *task_pid_ptr(task, type);
+	struct pid *pid;
+
+	lockdep_assert_held_write(&tasklist_lock);
+
+	pid = *task_pid_ptr(task, type);
 	hlist_add_head_rcu(&task->pid_links[type], &pid->tasks[type]);
 }
 
-static void __change_pid(struct task_struct *task, enum pid_type type,
-			struct pid *new)
+static void __change_pid(struct pid **pids, struct task_struct *task,
+			 enum pid_type type, struct pid *new)
 {
-	struct pid **pid_ptr = task_pid_ptr(task, type);
-	struct pid *pid;
+	struct pid **pid_ptr, *pid;
 	int tmp;
 
+	lockdep_assert_held_write(&tasklist_lock);
+
+	pid_ptr = task_pid_ptr(task, type);
 	pid = *pid_ptr;
 
 	hlist_del_rcu(&task->pid_links[type]);
@@ -364,18 +368,19 @@ static void __change_pid(struct task_struct *task, enum pid_type type,
 		if (pid_has_task(pid, tmp))
 			return;
 
-	free_pid(pid);
+	WARN_ON(pids[type]);
+	pids[type] = pid;
 }
 
-void detach_pid(struct task_struct *task, enum pid_type type)
+void detach_pid(struct pid **pids, struct task_struct *task, enum pid_type type)
 {
-	__change_pid(task, type, NULL);
+	__change_pid(pids, task, type, NULL);
 }
 
-void change_pid(struct task_struct *task, enum pid_type type,
+void change_pid(struct pid **pids, struct task_struct *task, enum pid_type type,
 		struct pid *pid)
 {
-	__change_pid(task, type, pid);
+	__change_pid(pids, task, type, pid);
 	attach_pid(task, type);
 }
 
@@ -385,6 +390,8 @@ void exchange_tids(struct task_struct *left, struct task_struct *right)
 	struct pid *pid2 = right->thread_pid;
 	struct hlist_head *head1 = &pid1->tasks[PIDTYPE_PID];
 	struct hlist_head *head2 = &pid2->tasks[PIDTYPE_PID];
+
+	lockdep_assert_held_write(&tasklist_lock);
 
 	/* Swap the single entry tid lists */
 	hlists_swap_heads_rcu(head1, head2);
@@ -403,6 +410,7 @@ void transfer_pid(struct task_struct *old, struct task_struct *new,
 			   enum pid_type type)
 {
 	WARN_ON_ONCE(type == PIDTYPE_PID);
+	lockdep_assert_held_write(&tasklist_lock);
 	hlist_replace_rcu(&old->pid_links[type], &new->pid_links[type]);
 }
 
@@ -564,15 +572,29 @@ struct pid *pidfd_get_pid(unsigned int fd, unsigned int *flags)
  */
 struct task_struct *pidfd_get_task(int pidfd, unsigned int *flags)
 {
-	unsigned int f_flags;
+	unsigned int f_flags = 0;
 	struct pid *pid;
 	struct task_struct *task;
+	enum pid_type type;
 
-	pid = pidfd_get_pid(pidfd, &f_flags);
-	if (IS_ERR(pid))
-		return ERR_CAST(pid);
+	switch (pidfd) {
+	case  PIDFD_SELF_THREAD:
+		type = PIDTYPE_PID;
+		pid = get_task_pid(current, type);
+		break;
+	case  PIDFD_SELF_THREAD_GROUP:
+		type = PIDTYPE_TGID;
+		pid = get_task_pid(current, type);
+		break;
+	default:
+		pid = pidfd_get_pid(pidfd, &f_flags);
+		if (IS_ERR(pid))
+			return ERR_CAST(pid);
+		type = PIDTYPE_TGID;
+		break;
+	}
 
-	task = get_pid_task(pid, PIDTYPE_TGID);
+	task = get_pid_task(pid, type);
 	put_pid(pid);
 	if (!task)
 		return ERR_PTR(-ESRCH);

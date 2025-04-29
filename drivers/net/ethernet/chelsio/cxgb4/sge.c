@@ -4996,9 +4996,9 @@ void t4_sge_stop(struct adapter *adap)
 	struct sge *s = &adap->sge;
 
 	if (s->rx_timer.function)
-		del_timer_sync(&s->rx_timer);
+		timer_delete_sync(&s->rx_timer);
 	if (s->tx_timer.function)
-		del_timer_sync(&s->tx_timer);
+		timer_delete_sync(&s->tx_timer);
 
 	if (is_offload(adap)) {
 		struct sge_uld_txq_info *txq_info;

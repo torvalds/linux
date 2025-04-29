@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # description: event trigger - test inter-event histogram trigger snapshot action
 # requires: set_event snapshot events/sched/sched_process_fork/hist "onchange(var)":README "snapshot()":README ping:program
+# flags: instance
 
 fail() { #msg
     echo $1
@@ -26,5 +27,7 @@ fi
 if ! grep -q "comm=ping" snapshot; then
     fail "Failed to create snapshot action inter-event histogram"
 fi
+
+echo '!hist:keys=comm:newprio=prio:onchange($newprio).save(comm,prio):onchange($newprio).snapshot() if comm=="ping"' >> events/sched/sched_waking/trigger
 
 exit 0

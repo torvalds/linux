@@ -41,9 +41,19 @@ static const struct spi_device_id bmg160_spi_id[] = {
 
 MODULE_DEVICE_TABLE(spi, bmg160_spi_id);
 
+static const struct of_device_id bmg160_of_match[] = {
+	{ .compatible = "bosch,bmg160" },
+	{ .compatible = "bosch,bmi055_gyro" },
+	{ .compatible = "bosch,bmi088_gyro" },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(of, bmg160_of_match);
+
 static struct spi_driver bmg160_spi_driver = {
 	.driver = {
 		.name	= "bmg160_spi",
+		.of_match_table = bmg160_of_match,
 		.pm	= &bmg160_pm_ops,
 	},
 	.probe		= bmg160_spi_probe,

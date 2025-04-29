@@ -26,32 +26,88 @@
 #define ACP3x_REG_START	0x1240000
 #define ACP3x_REG_END	0x125C000
 
-static struct platform_device *dmic_dev;
-static struct platform_device *pdev;
+static irqreturn_t irq_handler(int irq, void *data)
+{
+	struct acp_chip_info *chip = data;
 
-static const struct resource acp_res[] = {
-	{
-		.start = 0,
-		.end = ACP3x_REG_END - ACP3x_REG_START,
-		.name = "acp_mem",
-		.flags = IORESOURCE_MEM,
-	},
-	{
-		.start = 0,
-		.end = 0,
-		.name = "acp_dai_irq",
-		.flags = IORESOURCE_IRQ,
-	},
-};
+	if (chip && chip->acp_hw_ops && chip->acp_hw_ops->irq)
+		return chip->acp_hw_ops->irq(irq, chip);
+
+	return IRQ_NONE;
+}
+static void acp_fill_platform_dev_info(struct platform_device_info *pdevinfo,
+				       struct device *parent,
+				       struct fwnode_handle *fw_node,
+				       char *name, unsigned int id,
+				       const struct resource *res,
+				       unsigned int num_res,
+				       const void *data,
+				       size_t size_data)
+{
+	pdevinfo->name = name;
+	pdevinfo->id = id;
+	pdevinfo->parent = parent;
+	pdevinfo->num_res = num_res;
+	pdevinfo->res = res;
+	pdevinfo->data = data;
+	pdevinfo->size_data = size_data;
+	pdevinfo->fwnode = fw_node;
+}
+
+static int create_acp_platform_devs(struct pci_dev *pci, struct acp_chip_info *chip, u32 addr)
+{
+	struct platform_device_info pdevinfo;
+	struct device *parent;
+	int ret;
+
+	parent = &pci->dev;
+
+	if (chip->is_i2s_config || chip->is_pdm_dev) {
+		chip->res = devm_kzalloc(&pci->dev, sizeof(struct resource), GFP_KERNEL);
+		if (!chip->res) {
+			ret = -ENOMEM;
+			goto err;
+		}
+		chip->res->flags = IORESOURCE_MEM;
+		chip->res->start = addr;
+		chip->res->end = addr + (ACP3x_REG_END - ACP3x_REG_START);
+		memset(&pdevinfo, 0, sizeof(pdevinfo));
+	}
+
+	memset(&pdevinfo, 0, sizeof(pdevinfo));
+	acp_fill_platform_dev_info(&pdevinfo, parent, NULL, chip->name,
+				   0, chip->res, 1, chip, sizeof(*chip));
+
+	chip->acp_plat_dev = platform_device_register_full(&pdevinfo);
+	if (IS_ERR(chip->acp_plat_dev)) {
+		dev_err(&pci->dev,
+			"cannot register %s device\n", pdevinfo.name);
+		ret = PTR_ERR(chip->acp_plat_dev);
+		goto err;
+	}
+	if (chip->is_pdm_dev && chip->is_pdm_config) {
+		chip->dmic_codec_dev = platform_device_register_data(&pci->dev,
+								     "dmic-codec",
+								     PLATFORM_DEVID_NONE,
+								     NULL, 0);
+		if (IS_ERR(chip->dmic_codec_dev)) {
+			dev_err(&pci->dev, "failed to create DMIC device\n");
+			ret = PTR_ERR(chip->dmic_codec_dev);
+			goto unregister_acp_plat_dev;
+		}
+	}
+	return 0;
+unregister_acp_plat_dev:
+	platform_device_unregister(chip->acp_plat_dev);
+err:
+	return ret;
+}
 
 static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
-	struct platform_device_info pdevinfo;
 	struct device *dev = &pci->dev;
-	const struct resource *res_acp;
 	struct acp_chip_info *chip;
-	struct resource *res;
-	unsigned int flag, addr, num_res, i;
+	unsigned int flag, addr;
 	int ret;
 
 	flag = snd_amd_acp_find_config(pci);
@@ -75,24 +131,32 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 
 	pci_set_master(pci);
 
-	res_acp = acp_res;
-	num_res = ARRAY_SIZE(acp_res);
 	chip->acp_rev = pci->revision;
 	switch (pci->revision) {
 	case 0x01:
 		chip->name = "acp_asoc_renoir";
+		chip->rsrc = &rn_rsrc;
+		chip->acp_hw_ops_init = acp31_hw_ops_init;
+		chip->machines = &snd_soc_acpi_amd_acp_machines;
 		break;
 	case 0x6f:
 		chip->name = "acp_asoc_rembrandt";
+		chip->rsrc = &rmb_rsrc;
+		chip->acp_hw_ops_init = acp6x_hw_ops_init;
+		chip->machines = &snd_soc_acpi_amd_rmb_acp_machines;
 		break;
 	case 0x63:
 		chip->name = "acp_asoc_acp63";
+		chip->rsrc = &acp63_rsrc;
+		chip->acp_hw_ops_init = acp63_hw_ops_init;
+		chip->machines = &snd_soc_acpi_amd_acp63_acp_machines;
 		break;
 	case 0x70:
-		chip->name = "acp_asoc_acp70";
-		break;
 	case 0x71:
 		chip->name = "acp_asoc_acp70";
+		chip->rsrc = &acp70_rsrc;
+		chip->acp_hw_ops_init = acp70_hw_ops_init;
+		chip->machines = &snd_soc_acpi_amd_acp70_acp_machines;
 		break;
 	default:
 		dev_err(dev, "Unsupported device revision:0x%x\n", pci->revision);
@@ -100,64 +164,46 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 		goto release_regions;
 	}
 	chip->flag = flag;
-	dmic_dev = platform_device_register_data(dev, "dmic-codec", PLATFORM_DEVID_NONE, NULL, 0);
-	if (IS_ERR(dmic_dev)) {
-		dev_err(dev, "failed to create DMIC device\n");
-		ret = PTR_ERR(dmic_dev);
-		goto release_regions;
-	}
 
 	addr = pci_resource_start(pci, 0);
 	chip->base = devm_ioremap(&pci->dev, addr, pci_resource_len(pci, 0));
 	if (!chip->base) {
 		ret = -ENOMEM;
-		goto unregister_dmic_dev;
+		goto release_regions;
 	}
 
-	ret = acp_init(chip);
+	chip->addr = addr;
+
+	chip->acp_hw_ops_init(chip);
+	ret = acp_hw_init(chip);
 	if (ret)
-		goto unregister_dmic_dev;
+		goto release_regions;
+
+	ret = devm_request_irq(dev, pci->irq, irq_handler,
+			       IRQF_SHARED, "ACP_I2S_IRQ", chip);
+	if (ret) {
+		dev_err(&pci->dev, "ACP I2S IRQ request failed %d\n", ret);
+		goto de_init;
+	}
 
 	check_acp_config(pci, chip);
 	if (!chip->is_pdm_dev && !chip->is_i2s_config)
 		goto skip_pdev_creation;
 
-	res = devm_kcalloc(&pci->dev, num_res, sizeof(struct resource), GFP_KERNEL);
-	if (!res) {
-		ret = -ENOMEM;
-		goto unregister_dmic_dev;
+	ret = create_acp_platform_devs(pci, chip, addr);
+	if (ret < 0) {
+		dev_err(&pci->dev, "ACP platform devices creation failed\n");
+		goto de_init;
 	}
 
-	for (i = 0; i < num_res; i++, res_acp++) {
-		res[i].name = res_acp->name;
-		res[i].flags = res_acp->flags;
-		res[i].start = addr + res_acp->start;
-		res[i].end = addr + res_acp->end;
-		if (res_acp->flags == IORESOURCE_IRQ) {
-			res[i].start = pci->irq;
-			res[i].end = res[i].start;
-		}
-	}
+	chip->chip_pdev = chip->acp_plat_dev;
+	chip->dev = &chip->acp_plat_dev->dev;
 
-	memset(&pdevinfo, 0, sizeof(pdevinfo));
+	acp_machine_select(chip);
 
-	pdevinfo.name = chip->name;
-	pdevinfo.id = 0;
-	pdevinfo.parent = &pci->dev;
-	pdevinfo.num_res = num_res;
-	pdevinfo.res = &res[0];
-	pdevinfo.data = chip;
-	pdevinfo.size_data = sizeof(*chip);
-
-	pdev = platform_device_register_full(&pdevinfo);
-	if (IS_ERR(pdev)) {
-		dev_err(&pci->dev, "cannot register %s device\n", pdevinfo.name);
-		ret = PTR_ERR(pdev);
-		goto unregister_dmic_dev;
-	}
-
+	INIT_LIST_HEAD(&chip->stream_list);
+	spin_lock_init(&chip->acp_lock);
 skip_pdev_creation:
-	chip->chip_pdev = pdev;
 	dev_set_drvdata(&pci->dev, chip);
 	pm_runtime_set_autosuspend_delay(&pci->dev, 2000);
 	pm_runtime_use_autosuspend(&pci->dev);
@@ -165,8 +211,8 @@ skip_pdev_creation:
 	pm_runtime_allow(&pci->dev);
 	return ret;
 
-unregister_dmic_dev:
-	platform_device_unregister(dmic_dev);
+de_init:
+	acp_hw_deinit(chip);
 release_regions:
 	pci_release_regions(pci);
 disable_pci:
@@ -175,41 +221,38 @@ disable_pci:
 	return ret;
 };
 
-static int __maybe_unused snd_acp_suspend(struct device *dev)
+static int snd_acp_suspend(struct device *dev)
 {
 	struct acp_chip_info *chip;
 	int ret;
 
 	chip = dev_get_drvdata(dev);
-	ret = acp_deinit(chip);
+	ret = acp_hw_deinit(chip);
 	if (ret)
 		dev_err(dev, "ACP de-init failed\n");
 	return ret;
 }
 
-static int __maybe_unused snd_acp_resume(struct device *dev)
+static int snd_acp_resume(struct device *dev)
 {
 	struct acp_chip_info *chip;
-	struct acp_dev_data *adata;
-	struct device child;
 	int ret;
 
 	chip = dev_get_drvdata(dev);
-	ret = acp_init(chip);
+	ret = acp_hw_init(chip);
 	if (ret)
 		dev_err(dev, "ACP init failed\n");
-	if (chip->chip_pdev) {
-		child = chip->chip_pdev->dev;
-		adata = dev_get_drvdata(&child);
-		if (adata)
-			acp_enable_interrupts(adata);
-	}
+
+	ret = acp_hw_en_interrupts(chip);
+	if (ret)
+		dev_err(dev, "ACP en-interrupts failed\n");
+
 	return ret;
 }
 
 static const struct dev_pm_ops acp_pm_ops = {
-	SET_RUNTIME_PM_OPS(snd_acp_suspend, snd_acp_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(snd_acp_suspend, snd_acp_resume)
+	RUNTIME_PM_OPS(snd_acp_suspend, snd_acp_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(snd_acp_suspend, snd_acp_resume)
 };
 
 static void acp_pci_remove(struct pci_dev *pci)
@@ -220,11 +263,14 @@ static void acp_pci_remove(struct pci_dev *pci)
 	chip = pci_get_drvdata(pci);
 	pm_runtime_forbid(&pci->dev);
 	pm_runtime_get_noresume(&pci->dev);
-	if (dmic_dev)
-		platform_device_unregister(dmic_dev);
-	if (pdev)
-		platform_device_unregister(pdev);
-	ret = acp_deinit(chip);
+	if (chip->dmic_codec_dev)
+		platform_device_unregister(chip->dmic_codec_dev);
+	if (chip->acp_plat_dev)
+		platform_device_unregister(chip->acp_plat_dev);
+	if (chip->mach_dev)
+		platform_device_unregister(chip->mach_dev);
+
+	ret = acp_hw_deinit(chip);
 	if (ret)
 		dev_err(&pci->dev, "ACP de-init failed\n");
 }
@@ -243,7 +289,7 @@ static struct pci_driver snd_amd_acp_pci_driver = {
 	.probe = acp_pci_probe,
 	.remove = acp_pci_remove,
 	.driver = {
-		.pm = &acp_pm_ops,
+		.pm = pm_ptr(&acp_pm_ops),
 	},
 };
 module_pci_driver(snd_amd_acp_pci_driver);

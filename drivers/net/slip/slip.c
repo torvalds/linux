@@ -899,8 +899,8 @@ static void slip_close(struct tty_struct *tty)
 
 	/* VSV = very important to remove timers */
 #ifdef CONFIG_SLIP_SMART
-	del_timer_sync(&sl->keepalive_timer);
-	del_timer_sync(&sl->outfill_timer);
+	timer_delete_sync(&sl->keepalive_timer);
+	timer_delete_sync(&sl->outfill_timer);
 #endif
 	/* Flush network side */
 	unregister_netdev(sl->dev);
@@ -1137,7 +1137,7 @@ static int slip_ioctl(struct tty_struct *tty, unsigned int cmd,
 					jiffies + sl->keepalive * HZ);
 			set_bit(SLF_KEEPTEST, &sl->flags);
 		} else
-			del_timer(&sl->keepalive_timer);
+			timer_delete(&sl->keepalive_timer);
 		spin_unlock_bh(&sl->lock);
 		return 0;
 
@@ -1162,7 +1162,7 @@ static int slip_ioctl(struct tty_struct *tty, unsigned int cmd,
 						jiffies + sl->outfill * HZ);
 			set_bit(SLF_OUTWAIT, &sl->flags);
 		} else
-			del_timer(&sl->outfill_timer);
+			timer_delete(&sl->outfill_timer);
 		spin_unlock_bh(&sl->lock);
 		return 0;
 
@@ -1217,7 +1217,7 @@ static int sl_siocdevprivate(struct net_device *dev, struct ifreq *rq,
 						jiffies + sl->keepalive * HZ);
 			set_bit(SLF_KEEPTEST, &sl->flags);
 		} else
-			del_timer(&sl->keepalive_timer);
+			timer_delete(&sl->keepalive_timer);
 		break;
 
 	case SIOCGKEEPALIVE:
@@ -1235,7 +1235,7 @@ static int sl_siocdevprivate(struct net_device *dev, struct ifreq *rq,
 						jiffies + sl->outfill * HZ);
 			set_bit(SLF_OUTWAIT, &sl->flags);
 		} else
-			del_timer(&sl->outfill_timer);
+			timer_delete(&sl->outfill_timer);
 		break;
 
 	case SIOCGOUTFILL:
@@ -1421,7 +1421,7 @@ static void sl_keepalive(struct timer_list *t)
 			/* keepalive still high :(, we must hangup */
 			if (sl->outfill)
 				/* outfill timer must be deleted too */
-				(void)del_timer(&sl->outfill_timer);
+				(void) timer_delete(&sl->outfill_timer);
 			printk(KERN_DEBUG "%s: no packets received during keepalive timeout, hangup.\n", sl->dev->name);
 			/* this must hangup tty & close slip */
 			tty_hangup(sl->tty);

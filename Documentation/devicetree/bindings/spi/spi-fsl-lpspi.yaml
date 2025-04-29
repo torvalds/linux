@@ -24,6 +24,7 @@ properties:
           - enum:
               - fsl,imx8ulp-spi
               - fsl,imx93-spi
+              - fsl,imx94-spi
               - fsl,imx95-spi
           - const: fsl,imx7ulp-spi
   reg:

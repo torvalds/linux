@@ -117,7 +117,7 @@ int BPF_PROG(handle_fexit_ret, int arg, struct file *ret)
 
 	bpf_probe_read_kernel(&buf, 8, ret);
 	bpf_probe_read_kernel(&buf, 8, (char *)ret + 256);
-	*(volatile long long *)ret;
+	*(volatile int *)ret;
 	*(volatile int *)&ret->f_mode;
 	return 0;
 }

@@ -7,7 +7,7 @@
 
 / {
 	model = "GL.iNet GL-MV1000";
-	compatible = "glinet,gl-mv1000", "marvell,armada3720";
+	compatible = "glinet,gl-mv1000", "marvell,armada3720", "marvell,armada3710";
 
 	aliases {
 		led-boot = &led_power;

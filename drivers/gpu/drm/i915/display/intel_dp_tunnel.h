@@ -20,7 +20,8 @@ struct intel_dp;
 struct intel_encoder;
 struct intel_link_bw_limits;
 
-#if IS_ENABLED(CONFIG_DRM_I915_DP_TUNNEL) && defined(I915)
+#if (IS_ENABLED(CONFIG_DRM_I915_DP_TUNNEL) && defined(I915)) || \
+	(IS_ENABLED(CONFIG_DRM_XE_DP_TUNNEL) && !defined(I915))
 
 int intel_dp_tunnel_detect(struct intel_dp *intel_dp, struct drm_modeset_acquire_ctx *ctx);
 void intel_dp_tunnel_disconnect(struct intel_dp *intel_dp);
@@ -127,6 +128,6 @@ intel_dp_tunnel_mgr_init(struct intel_display *display)
 
 static inline void intel_dp_tunnel_mgr_cleanup(struct intel_display *display) {}
 
-#endif /* CONFIG_DRM_I915_DP_TUNNEL */
+#endif /* CONFIG_DRM_I915_DP_TUNNEL || CONFIG_DRM_XE_DP_TUNNEL */
 
 #endif /* __INTEL_DP_TUNNEL_H__ */

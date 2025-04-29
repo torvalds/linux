@@ -371,25 +371,25 @@
 };
 
 &cp0_gpio2 {
-	sata_reset {
+	sata-reset-hog {
 		gpio-hog;
 		gpios = <1 GPIO_ACTIVE_HIGH>;
 		output-high;
 	};
 
-	lte_reset {
+	lte-reset-hog {
 		gpio-hog;
 		gpios = <2 GPIO_ACTIVE_LOW>;
 		output-low;
 	};
 
-	wlan_disable {
+	wlan_disable-hog {
 		gpio-hog;
 		gpios = <19 GPIO_ACTIVE_LOW>;
 		output-low;
 	};
 
-	lte_disable {
+	lte-disable-hog {
 		gpio-hog;
 		gpios = <21 GPIO_ACTIVE_LOW>;
 		output-low;

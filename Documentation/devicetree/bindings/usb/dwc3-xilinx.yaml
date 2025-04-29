@@ -101,7 +101,6 @@ examples:
     #include <dt-bindings/dma/xlnx-zynqmp-dpdma.h>
     #include <dt-bindings/power/xlnx-zynqmp-power.h>
     #include <dt-bindings/reset/xlnx-zynqmp-resets.h>
-    #include <dt-bindings/clock/xlnx-zynqmp-clk.h>
     #include <dt-bindings/reset/xlnx-zynqmp-resets.h>
     #include <dt-bindings/phy/phy.h>
     axi {
@@ -113,7 +112,7 @@ examples:
             #size-cells = <0x2>;
             compatible = "xlnx,zynqmp-dwc3";
             reg = <0x0 0xff9d0000 0x0 0x100>;
-            clocks = <&zynqmp_clk USB0_BUS_REF>, <&zynqmp_clk USB3_DUAL_REF>;
+            clocks = <&zynqmp_clk 32>, <&zynqmp_clk 34>;
             clock-names = "bus_clk", "ref_clk";
             power-domains = <&zynqmp_firmware PD_USB_0>;
             resets = <&zynqmp_reset ZYNQMP_RESET_USB1_CORERESET>,

@@ -5,6 +5,8 @@
 
 #include <linux/bitops.h>
 
+#include <drm/drm_print.h>
+
 #include "i915_reg.h"
 #include "i915_utils.h"
 #include "intel_atomic.h"
@@ -609,7 +611,7 @@ intel_pmdemand_program_params(struct intel_display *display,
 		goto unlock;
 
 	drm_dbg_kms(display->drm,
-		    "initate pmdemand request values: (0x%x 0x%x)\n",
+		    "initiate pmdemand request values: (0x%x 0x%x)\n",
 		    mod_reg1, mod_reg2);
 
 	intel_de_rmw(display, XELPDP_INITIATE_PMDEMAND_REQUEST(1), 0,

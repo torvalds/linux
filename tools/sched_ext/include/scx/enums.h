@@ -14,7 +14,8 @@ static inline void __ENUM_set(u64 *val, char *type, char *name)
 	bool res;
 
 	res = __COMPAT_read_enum(type, name, val);
-	SCX_BUG_ON(!res, "enum not found(%s)", name);
+	if (!res)
+		*val = 0;
 }
 
 #define SCX_ENUM_SET(skel, type, name) do {			\

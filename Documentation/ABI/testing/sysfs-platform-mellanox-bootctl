@@ -150,3 +150,13 @@ Description:
 		The "mfg_lock" sysfs attribute is write-only.
                 A successful write to this attribute will latch the
                 board-level attributes into EEPROM, making them read-only.
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/rtc_battery
+Date:		June 2025
+KernelVersion:	6.15
+Contact:	"Xiangrong Li <xiangrongl@nvidia.com>"
+Description:
+		The "rtc_battery" sysfs attribute is read-only.
+		A successful read from this attribute returns the status of
+		the board's RTC battery. The RTC battery status register is
+		also cleared upon successful read operation.

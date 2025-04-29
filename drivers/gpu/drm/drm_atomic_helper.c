@@ -3409,6 +3409,9 @@ EXPORT_SYMBOL(drm_atomic_helper_disable_all);
  * This implies a reset of all active components available between the CRTC and
  * connectors.
  *
+ * A variant of this function exists with
+ * drm_bridge_helper_reset_crtc(), dedicated to bridges.
+ *
  * NOTE: This relies on resetting &drm_crtc_state.connectors_changed.
  * For drivers which optimize out unnecessary modesets this will result in
  * a no-op commit, achieving nothing.

@@ -458,7 +458,7 @@
 			clks: ccm@73fd4000 {
 				compatible = "fsl,imx51-ccm";
 				reg = <0x73fd4000 0x4000>;
-				interrupts = <0 71 0x04 0 72 0x04>;
+				interrupts = <71>, <72>;
 				#clock-cells = <1>;
 			};
 		};

@@ -2059,7 +2059,7 @@ static void rsnd_remove(struct platform_device *pdev)
 		remove_func[i](priv);
 }
 
-static int __maybe_unused rsnd_suspend(struct device *dev)
+static int rsnd_suspend(struct device *dev)
 {
 	struct rsnd_priv *priv = dev_get_drvdata(dev);
 
@@ -2068,7 +2068,7 @@ static int __maybe_unused rsnd_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused rsnd_resume(struct device *dev)
+static int rsnd_resume(struct device *dev)
 {
 	struct rsnd_priv *priv = dev_get_drvdata(dev);
 
@@ -2076,13 +2076,13 @@ static int __maybe_unused rsnd_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops rsnd_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(rsnd_suspend, rsnd_resume)
+	SYSTEM_SLEEP_PM_OPS(rsnd_suspend, rsnd_resume)
 };
 
 static struct platform_driver rsnd_driver = {
 	.driver	= {
 		.name	= "rcar_sound",
-		.pm	= &rsnd_pm_ops,
+		.pm	= pm_ptr(&rsnd_pm_ops),
 		.of_match_table = rsnd_of_match,
 	},
 	.probe		= rsnd_probe,

@@ -51,7 +51,7 @@ int llc_conn_ac_clear_remote_busy(struct sock *sk, struct sk_buff *skb)
 		struct llc_pdu_sn *pdu = llc_pdu_sn_hdr(skb);
 
 		llc->remote_busy_flag = 0;
-		del_timer(&llc->busy_state_timer.timer);
+		timer_delete(&llc->busy_state_timer.timer);
 		nr = LLC_I_GET_NR(pdu);
 		llc_conn_resend_i_pdu_as_cmd(sk, nr, 0);
 	}
@@ -191,7 +191,7 @@ int llc_conn_ac_stop_rej_tmr_if_data_flag_eq_2(struct sock *sk,
 	struct llc_sock *llc = llc_sk(sk);
 
 	if (llc->data_flag == 2)
-		del_timer(&llc->rej_sent_timer.timer);
+		timer_delete(&llc->rej_sent_timer.timer);
 	return 0;
 }
 
@@ -1111,9 +1111,9 @@ int llc_conn_ac_stop_other_timers(struct sock *sk, struct sk_buff *skb)
 {
 	struct llc_sock *llc = llc_sk(sk);
 
-	del_timer(&llc->rej_sent_timer.timer);
-	del_timer(&llc->pf_cycle_timer.timer);
-	del_timer(&llc->busy_state_timer.timer);
+	timer_delete(&llc->rej_sent_timer.timer);
+	timer_delete(&llc->pf_cycle_timer.timer);
+	timer_delete(&llc->busy_state_timer.timer);
 	llc->ack_must_be_send = 0;
 	llc->ack_pf = 0;
 	return 0;
@@ -1149,7 +1149,7 @@ int llc_conn_ac_start_ack_tmr_if_not_running(struct sock *sk,
 
 int llc_conn_ac_stop_ack_timer(struct sock *sk, struct sk_buff *skb)
 {
-	del_timer(&llc_sk(sk)->ack_timer.timer);
+	timer_delete(&llc_sk(sk)->ack_timer.timer);
 	return 0;
 }
 
@@ -1157,14 +1157,14 @@ int llc_conn_ac_stop_p_timer(struct sock *sk, struct sk_buff *skb)
 {
 	struct llc_sock *llc = llc_sk(sk);
 
-	del_timer(&llc->pf_cycle_timer.timer);
+	timer_delete(&llc->pf_cycle_timer.timer);
 	llc_conn_set_p_flag(sk, 0);
 	return 0;
 }
 
 int llc_conn_ac_stop_rej_timer(struct sock *sk, struct sk_buff *skb)
 {
-	del_timer(&llc_sk(sk)->rej_sent_timer.timer);
+	timer_delete(&llc_sk(sk)->rej_sent_timer.timer);
 	return 0;
 }
 
@@ -1180,7 +1180,7 @@ int llc_conn_ac_upd_nr_received(struct sock *sk, struct sk_buff *skb)
 	/* On loopback we don't queue I frames in unack_pdu_q queue. */
 	if (acked > 0 || (llc->dev->flags & IFF_LOOPBACK)) {
 		llc->retry_count = 0;
-		del_timer(&llc->ack_timer.timer);
+		timer_delete(&llc->ack_timer.timer);
 		if (llc->failed_data_req) {
 			/* already, we did not accept data from upper layer
 			 * (tx_window full or unacceptable state). Now, we

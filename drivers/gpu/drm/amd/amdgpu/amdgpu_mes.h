@@ -56,7 +56,7 @@ enum amdgpu_mes_priority_level {
 
 struct amdgpu_mes_funcs;
 
-enum admgpu_mes_pipe {
+enum amdgpu_mes_pipe {
 	AMDGPU_MES_SCHED_PIPE = 0,
 	AMDGPU_MES_KIQ_PIPE,
 	AMDGPU_MAX_MES_PIPES = 2,
@@ -143,9 +143,9 @@ struct amdgpu_mes {
 	const struct amdgpu_mes_funcs   *funcs;
 
 	/* mes resource_1 bo*/
-	struct amdgpu_bo    *resource_1;
-	uint64_t            resource_1_gpu_addr;
-	void                *resource_1_addr;
+	struct amdgpu_bo    *resource_1[AMDGPU_MAX_MES_PIPES];
+	uint64_t            resource_1_gpu_addr[AMDGPU_MAX_MES_PIPES];
+	void                *resource_1_addr[AMDGPU_MAX_MES_PIPES];
 
 };
 
@@ -534,6 +534,6 @@ static inline void amdgpu_mes_unlock(struct amdgpu_mes *mes)
 
 bool amdgpu_mes_suspend_resume_all_supported(struct amdgpu_device *adev);
 
-int amdgpu_mes_set_enforce_isolation(struct amdgpu_device *adev, uint32_t node_id, bool enable);
+int amdgpu_mes_update_enforce_isolation(struct amdgpu_device *adev);
 
 #endif /* __AMDGPU_MES_H__ */

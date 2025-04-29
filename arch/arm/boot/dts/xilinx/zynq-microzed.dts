@@ -11,8 +11,9 @@
 	compatible = "avnet,zynq-microzed", "xlnx,zynq-microzed", "xlnx,zynq-7000";
 
 	aliases {
-		ethernet0 = &gem0;
 		serial0 = &uart1;
+		spi0 = &qspi;
+		mmc0 = &sdhci0;
 	};
 
 	memory@0 {
@@ -35,6 +36,11 @@
 	ps-clk-frequency = <33333333>;
 };
 
+&qspi {
+	bootph-all;
+	status = "okay";
+};
+
 &gem0 {
 	status = "okay";
 	phy-mode = "rgmii-id";
@@ -46,10 +52,12 @@
 };
 
 &sdhci0 {
+	bootph-all;
 	status = "okay";
 };
 
 &uart1 {
+	bootph-all;
 	status = "okay";
 };
 

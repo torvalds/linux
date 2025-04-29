@@ -13,6 +13,7 @@
 #include <asm/sections.h>
 #include <asm/physmem_info.h>
 #include <asm/facility.h>
+#include <asm/machine.h>
 #include "sclp.h"
 #include "sclp_rw.h"
 
@@ -333,6 +334,18 @@ int __init sclp_early_get_hsa_size(unsigned long *hsa_size)
 	if (sclp_info_sccb.hsa_size)
 		*hsa_size = (sclp_info_sccb.hsa_size - 1) * PAGE_SIZE;
 	return 0;
+}
+
+void __init sclp_early_detect_machine_features(void)
+{
+	struct read_info_sccb *sccb = &sclp_info_sccb;
+
+	if (!sclp_info_sccb_valid)
+		return;
+	if (sccb->fac85 & 0x02)
+		set_machine_feature(MFEATURE_ESOP);
+	if (sccb->fac91 & 0x40)
+		set_machine_feature(MFEATURE_TLB_GUEST);
 }
 
 #define SCLP_STORAGE_INFO_FACILITY     0x0000400000000000UL

@@ -2900,7 +2900,7 @@ static void wsa_macro_remove(struct platform_device *pdev)
 	clk_disable_unprepare(wsa->fsgen);
 }
 
-static int __maybe_unused wsa_macro_runtime_suspend(struct device *dev)
+static int wsa_macro_runtime_suspend(struct device *dev)
 {
 	struct wsa_macro *wsa = dev_get_drvdata(dev);
 
@@ -2914,7 +2914,7 @@ static int __maybe_unused wsa_macro_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused wsa_macro_runtime_resume(struct device *dev)
+static int wsa_macro_runtime_resume(struct device *dev)
 {
 	struct wsa_macro *wsa = dev_get_drvdata(dev);
 	int ret;
@@ -2950,7 +2950,7 @@ err_npl:
 }
 
 static const struct dev_pm_ops wsa_macro_pm_ops = {
-	SET_RUNTIME_PM_OPS(wsa_macro_runtime_suspend, wsa_macro_runtime_resume, NULL)
+	RUNTIME_PM_OPS(wsa_macro_runtime_suspend, wsa_macro_runtime_resume, NULL)
 };
 
 static const struct of_device_id wsa_macro_dt_match[] = {
@@ -2977,7 +2977,7 @@ static struct platform_driver wsa_macro_driver = {
 	.driver = {
 		.name = "wsa_macro",
 		.of_match_table = wsa_macro_dt_match,
-		.pm = &wsa_macro_pm_ops,
+		.pm = pm_ptr(&wsa_macro_pm_ops),
 	},
 	.probe = wsa_macro_probe,
 	.remove = wsa_macro_remove,

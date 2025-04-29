@@ -5,7 +5,7 @@
 //! It is called from a panic handler, so it should't allocate memory and
 //! does all the work on the stack or on the provided buffers. For
 //! simplification, it only supports low error correction, and applies the
-//! first mask (checkerboard). It will draw the smallest QRcode that can
+//! first mask (checkerboard). It will draw the smallest QR code that can
 //! contain the string passed as parameter. To get the most compact
 //! QR code, the start of the URL is encoded as binary, and the
 //! compressed kmsg is encoded as numeric.
@@ -27,7 +27,7 @@
 //! * <https://github.com/erwanvivien/fast_qr>
 //! * <https://github.com/bjguillot/qr>
 
-use kernel::str::CStr;
+use kernel::{prelude::*, str::CStr};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 struct Version(usize);
@@ -315,7 +315,7 @@ impl Segment<'_> {
         }
     }
 
-    // Returns the size of the length field in bits, depending on QR Version.
+    /// Returns the size of the length field in bits, depending on QR Version.
     fn length_bits_count(&self, version: Version) -> usize {
         let Version(v) = version;
         match self {
@@ -331,7 +331,7 @@ impl Segment<'_> {
         }
     }
 
-    // Number of characters in the segment.
+    /// Number of characters in the segment.
     fn character_count(&self) -> usize {
         match self {
             Segment::Binary(data) => data.len(),
@@ -415,7 +415,7 @@ impl Iterator for SegmentIterator<'_> {
                         self.carry_len -= out_len;
                         let pow = u64::pow(10, self.carry_len as u32);
                         let out = (self.carry / pow) as u16;
-                        self.carry = self.carry % pow;
+                        self.carry %= pow;
                         Some((out, NUM_CHARS_BITS[out_len]))
                     }
                 }
@@ -507,7 +507,7 @@ impl EncodedMsg<'_> {
         }
         self.push(&mut offset, (MODE_STOP, 4));
 
-        let pad_offset = (offset + 7) / 8;
+        let pad_offset = offset.div_ceil(8);
         for i in pad_offset..self.version.max_data() {
             self.data[i] = PADDING[(i & 1) ^ (pad_offset & 1)];
         }
@@ -569,8 +569,8 @@ struct EncodedMsgIterator<'a> {
 impl Iterator for EncodedMsgIterator<'_> {
     type Item = u8;
 
-    // Send the bytes in interleaved mode, first byte of first block of group1,
-    // then first byte of second block of group1, ...
+    /// Send the bytes in interleaved mode, first byte of first block of group1,
+    /// then first byte of second block of group1, ...
     fn next(&mut self) -> Option<Self::Item> {
         let em = self.em;
         let blocks = em.g1_blocks + em.g2_blocks;
@@ -621,7 +621,7 @@ struct QrImage<'a> {
 impl QrImage<'_> {
     fn new<'a, 'b>(em: &'b EncodedMsg<'b>, qrdata: &'a mut [u8]) -> QrImage<'a> {
         let width = em.version.width();
-        let stride = (width + 7) / 8;
+        let stride = width.div_ceil(8);
         let data = qrdata;
 
         let mut qr_image = QrImage {
@@ -638,7 +638,7 @@ impl QrImage<'_> {
         self.data.fill(0);
     }
 
-    // Set pixel to light color.
+    /// Set pixel to light color.
     fn set(&mut self, x: u8, y: u8) {
         let off = y as usize * self.stride as usize + x as usize / 8;
         let mut v = self.data[off];
@@ -646,13 +646,13 @@ impl QrImage<'_> {
         self.data[off] = v;
     }
 
-    // Invert a module color.
+    /// Invert a module color.
     fn xor(&mut self, x: u8, y: u8) {
         let off = y as usize * self.stride as usize + x as usize / 8;
         self.data[off] ^= 0x80 >> (x % 8);
     }
 
-    // Draw a light square at (x, y) top left corner.
+    /// Draw a light square at (x, y) top left corner.
     fn draw_square(&mut self, x: u8, y: u8, size: u8) {
         for k in 0..size {
             self.set(x + k, y);
@@ -784,7 +784,7 @@ impl QrImage<'_> {
         vinfo != 0 && ((x >= pos && x < pos + 3 && y < 6) || (y >= pos && y < pos + 3 && x < 6))
     }
 
-    // Returns true if the module is reserved (Not usable for data and EC).
+    /// Returns true if the module is reserved (Not usable for data and EC).
     fn is_reserved(&self, x: u8, y: u8) -> bool {
         self.is_alignment(x, y)
             || self.is_finder(x, y)
@@ -793,13 +793,14 @@ impl QrImage<'_> {
             || self.is_version_info(x, y)
     }
 
-    // Last module to draw, at bottom left corner.
+    /// Last module to draw, at bottom left corner.
     fn is_last(&self, x: u8, y: u8) -> bool {
         x == 0 && y == self.width - 1
     }
 
-    // Move to the next module according to QR code order.
-    // From bottom right corner, to bottom left corner.
+    /// Move to the next module according to QR code order.
+    ///
+    /// From bottom right corner, to bottom left corner.
     fn next(&self, x: u8, y: u8) -> (u8, u8) {
         let x_adj = if x <= 6 { x + 1 } else { x };
         let column_type = (self.width - x_adj) % 4;
@@ -812,7 +813,7 @@ impl QrImage<'_> {
         }
     }
 
-    // Find next module that can hold data.
+    /// Find next module that can hold data.
     fn next_available(&self, x: u8, y: u8) -> (u8, u8) {
         let (mut x, mut y) = self.next(x, y);
         while self.is_reserved(x, y) && !self.is_last(x, y) {
@@ -841,7 +842,7 @@ impl QrImage<'_> {
         }
     }
 
-    // Apply checkerboard mask to all non-reserved modules.
+    /// Apply checkerboard mask to all non-reserved modules.
     fn apply_mask(&mut self) {
         for x in 0..self.width {
             for y in 0..self.width {
@@ -852,7 +853,7 @@ impl QrImage<'_> {
         }
     }
 
-    // Draw the QR code with the provided data iterator.
+    /// Draw the QR code with the provided data iterator.
     fn draw_all(&mut self, data: impl Iterator<Item = u8>) {
         // First clear the table, as it may have already some data.
         self.clear();
@@ -873,16 +874,16 @@ impl QrImage<'_> {
 ///
 /// * `url`: The base URL of the QR code. It will be encoded as Binary segment.
 /// * `data`: A pointer to the binary data, to be encoded. if URL is NULL, it
-///    will be encoded as binary segment, otherwise it will be encoded
-///    efficiently as a numeric segment, and appended to the URL.
+///   will be encoded as binary segment, otherwise it will be encoded
+///   efficiently as a numeric segment, and appended to the URL.
 /// * `data_len`: Length of the data, that needs to be encoded, must be less
-///    than data_size.
+///   than `data_size`.
 /// * `data_size`: Size of data buffer, it should be at least 4071 bytes to hold
-///    a V40 QR code. It will then be overwritten with the QR code image.
+///   a V40 QR code. It will then be overwritten with the QR code image.
 /// * `tmp`: A temporary buffer that the QR code encoder will use, to write the
-///    segments and ECC.
+///   segments and ECC.
 /// * `tmp_size`: Size of the temporary buffer, it must be at least 3706 bytes
-///    long for V40.
+///   long for V40.
 ///
 /// # Safety
 ///
@@ -891,7 +892,7 @@ impl QrImage<'_> {
 /// * `tmp` must be valid for reading and writing for `tmp_size` bytes.
 ///
 /// They must remain valid for the duration of the function call.
-#[no_mangle]
+#[export]
 pub unsafe extern "C" fn drm_panic_qr_generate(
     url: *const kernel::ffi::c_char,
     data: *mut u8,
@@ -942,8 +943,13 @@ pub unsafe extern "C" fn drm_panic_qr_generate(
 /// * If `url_len` > 0, remove the 2 segments header/length and also count the
 ///   conversion to numeric segments.
 /// * If `url_len` = 0, only removes 3 bytes for 1 binary segment.
-#[no_mangle]
-pub extern "C" fn drm_panic_qr_max_data_size(version: u8, url_len: usize) -> usize {
+///
+/// # Safety
+///
+/// Always safe to call.
+// Required to be unsafe due to the `#[export]` annotation.
+#[export]
+pub unsafe extern "C" fn drm_panic_qr_max_data_size(version: u8, url_len: usize) -> usize {
     #[expect(clippy::manual_range_contains)]
     if version < 1 || version > 40 {
         return 0;

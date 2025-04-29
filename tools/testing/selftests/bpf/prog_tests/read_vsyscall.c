@@ -24,6 +24,7 @@ struct read_ret_desc {
 	{ .name = "copy_from_user", .ret = -EFAULT },
 	{ .name = "copy_from_user_task", .ret = -EFAULT },
 	{ .name = "copy_from_user_str", .ret = -EFAULT },
+	{ .name = "copy_from_user_task_str", .ret = -EFAULT },
 };
 
 void test_read_vsyscall(void)

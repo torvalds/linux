@@ -63,7 +63,7 @@ static const struct of_device_id rk_spdif_match[] __maybe_unused = {
 };
 MODULE_DEVICE_TABLE(of, rk_spdif_match);
 
-static int __maybe_unused rk_spdif_runtime_suspend(struct device *dev)
+static int rk_spdif_runtime_suspend(struct device *dev)
 {
 	struct rk_spdif_dev *spdif = dev_get_drvdata(dev);
 
@@ -74,7 +74,7 @@ static int __maybe_unused rk_spdif_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused rk_spdif_runtime_resume(struct device *dev)
+static int rk_spdif_runtime_resume(struct device *dev)
 {
 	struct rk_spdif_dev *spdif = dev_get_drvdata(dev);
 	int ret;
@@ -374,8 +374,7 @@ static void rk_spdif_remove(struct platform_device *pdev)
 }
 
 static const struct dev_pm_ops rk_spdif_pm_ops = {
-	SET_RUNTIME_PM_OPS(rk_spdif_runtime_suspend, rk_spdif_runtime_resume,
-			   NULL)
+	RUNTIME_PM_OPS(rk_spdif_runtime_suspend, rk_spdif_runtime_resume, NULL)
 };
 
 static struct platform_driver rk_spdif_driver = {
@@ -384,7 +383,7 @@ static struct platform_driver rk_spdif_driver = {
 	.driver = {
 		.name = "rockchip-spdif",
 		.of_match_table = of_match_ptr(rk_spdif_match),
-		.pm = &rk_spdif_pm_ops,
+		.pm = pm_ptr(&rk_spdif_pm_ops),
 	},
 };
 module_platform_driver(rk_spdif_driver);

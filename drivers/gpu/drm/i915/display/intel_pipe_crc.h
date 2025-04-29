@@ -9,7 +9,6 @@
 #include <linux/types.h>
 
 struct drm_crtc;
-struct drm_i915_private;
 struct intel_crtc;
 
 #ifdef CONFIG_DEBUG_FS

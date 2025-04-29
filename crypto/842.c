@@ -18,17 +18,16 @@
  * drivers/crypto/nx/nx-842-crypto.c
  */
 
+#include <crypto/internal/scompress.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/crypto.h>
 #include <linux/sw842.h>
-#include <crypto/internal/scompress.h>
 
 struct crypto842_ctx {
 	void *wmem;	/* working memory for compress */
 };
 
-static void *crypto842_alloc_ctx(struct crypto_scomp *tfm)
+static void *crypto842_alloc_ctx(void)
 {
 	void *ctx;
 
@@ -39,36 +38,9 @@ static void *crypto842_alloc_ctx(struct crypto_scomp *tfm)
 	return ctx;
 }
 
-static int crypto842_init(struct crypto_tfm *tfm)
-{
-	struct crypto842_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	ctx->wmem = crypto842_alloc_ctx(NULL);
-	if (IS_ERR(ctx->wmem))
-		return -ENOMEM;
-
-	return 0;
-}
-
-static void crypto842_free_ctx(struct crypto_scomp *tfm, void *ctx)
+static void crypto842_free_ctx(void *ctx)
 {
 	kfree(ctx);
-}
-
-static void crypto842_exit(struct crypto_tfm *tfm)
-{
-	struct crypto842_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	crypto842_free_ctx(NULL, ctx->wmem);
-}
-
-static int crypto842_compress(struct crypto_tfm *tfm,
-			      const u8 *src, unsigned int slen,
-			      u8 *dst, unsigned int *dlen)
-{
-	struct crypto842_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	return sw842_compress(src, slen, dst, dlen, ctx->wmem);
 }
 
 static int crypto842_scompress(struct crypto_scomp *tfm,
@@ -78,33 +50,12 @@ static int crypto842_scompress(struct crypto_scomp *tfm,
 	return sw842_compress(src, slen, dst, dlen, ctx);
 }
 
-static int crypto842_decompress(struct crypto_tfm *tfm,
-				const u8 *src, unsigned int slen,
-				u8 *dst, unsigned int *dlen)
-{
-	return sw842_decompress(src, slen, dst, dlen);
-}
-
 static int crypto842_sdecompress(struct crypto_scomp *tfm,
 				 const u8 *src, unsigned int slen,
 				 u8 *dst, unsigned int *dlen, void *ctx)
 {
 	return sw842_decompress(src, slen, dst, dlen);
 }
-
-static struct crypto_alg alg = {
-	.cra_name		= "842",
-	.cra_driver_name	= "842-generic",
-	.cra_priority		= 100,
-	.cra_flags		= CRYPTO_ALG_TYPE_COMPRESS,
-	.cra_ctxsize		= sizeof(struct crypto842_ctx),
-	.cra_module		= THIS_MODULE,
-	.cra_init		= crypto842_init,
-	.cra_exit		= crypto842_exit,
-	.cra_u			= { .compress = {
-	.coa_compress		= crypto842_compress,
-	.coa_decompress		= crypto842_decompress } }
-};
 
 static struct scomp_alg scomp = {
 	.alloc_ctx		= crypto842_alloc_ctx,
@@ -121,25 +72,12 @@ static struct scomp_alg scomp = {
 
 static int __init crypto842_mod_init(void)
 {
-	int ret;
-
-	ret = crypto_register_alg(&alg);
-	if (ret)
-		return ret;
-
-	ret = crypto_register_scomp(&scomp);
-	if (ret) {
-		crypto_unregister_alg(&alg);
-		return ret;
-	}
-
-	return ret;
+	return crypto_register_scomp(&scomp);
 }
 subsys_initcall(crypto842_mod_init);
 
 static void __exit crypto842_mod_exit(void)
 {
-	crypto_unregister_alg(&alg);
 	crypto_unregister_scomp(&scomp);
 }
 module_exit(crypto842_mod_exit);

@@ -190,7 +190,7 @@ void __init flipper_pic_probe(void)
 	flipper_irq_host = flipper_pic_init(np);
 	BUG_ON(!flipper_irq_host);
 
-	irq_set_default_host(flipper_irq_host);
+	irq_set_default_domain(flipper_irq_host);
 
 	of_node_put(np);
 }

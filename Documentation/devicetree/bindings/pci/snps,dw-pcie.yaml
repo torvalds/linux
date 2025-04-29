@@ -113,6 +113,8 @@ properties:
               enum: [ smu, mpu ]
             - description: Tegra234 aperture
               enum: [ ecam ]
+            - description: AMD MDB PCIe SLCR region
+              const: slcr
     allOf:
       - contains:
           const: dbi

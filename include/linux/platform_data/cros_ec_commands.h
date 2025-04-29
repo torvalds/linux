@@ -5046,6 +5046,7 @@ struct ec_response_pd_status {
 #define PD_EVENT_DATA_SWAP         BIT(3)
 #define PD_EVENT_TYPEC             BIT(4)
 #define PD_EVENT_PPM               BIT(5)
+#define PD_EVENT_INIT              BIT(6)
 
 struct ec_response_host_event_status {
 	uint32_t status; /* PD MCU host event status */

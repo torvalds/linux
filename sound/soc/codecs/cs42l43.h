@@ -78,6 +78,8 @@ struct cs42l43_codec {
 
 	bool use_ring_sense;
 	unsigned int tip_debounce_ms;
+	unsigned int tip_fall_db_ms;
+	unsigned int tip_rise_db_ms;
 	unsigned int bias_low;
 	unsigned int bias_sense_ua;
 	unsigned int bias_ramp_ms;
@@ -95,6 +97,7 @@ struct cs42l43_codec {
 	bool button_detect_running;
 	bool jack_present;
 	int jack_override;
+	bool suspend_jack_debounce;
 
 	struct work_struct hp_ilimit_work;
 	struct delayed_work hp_ilimit_clear_work;

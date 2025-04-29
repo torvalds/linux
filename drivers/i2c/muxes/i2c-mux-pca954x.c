@@ -414,7 +414,7 @@ static irqreturn_t pca954x_irq_handler(int irq, void *dev_id)
 
 	pending = (ret >> PCA954X_IRQ_OFFSET) & (BIT(data->chip->nchans) - 1);
 	for_each_set_bit(i, &pending, data->chip->nchans)
-		handle_nested_irq(irq_linear_revmap(data->irq, i));
+		handle_nested_irq(irq_find_mapping(data->irq, i));
 
 	return IRQ_RETVAL(pending);
 }

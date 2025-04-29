@@ -6,9 +6,3 @@
  */
 
 #include "armada-ap810-ap0-octa-core.dtsi"
-
-/ {
-	model = "Marvell 8080 board";
-	compatible = "marvell,armada-8080", "marvell,armada-ap810-octa",
-				"marvell,armada-ap810";
-};

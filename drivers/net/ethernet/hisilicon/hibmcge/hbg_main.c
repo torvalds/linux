@@ -5,7 +5,9 @@
 #include <linux/if_vlan.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
+#include <linux/phy.h>
 #include "hbg_common.h"
+#include "hbg_diagnose.h"
 #include "hbg_err.h"
 #include "hbg_ethtool.h"
 #include "hbg_hw.h"
@@ -13,6 +15,9 @@
 #include "hbg_mdio.h"
 #include "hbg_txrx.h"
 #include "hbg_debugfs.h"
+
+#define HBG_SUPPORT_FEATURES (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | \
+			     NETIF_F_RXCSUM)
 
 static void hbg_all_irq_enable(struct hbg_priv *priv, bool enabled)
 {
@@ -214,6 +219,10 @@ static void hbg_net_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 	char *buf = ring->tout_log_buf;
 	u32 pos = 0;
 
+	priv->stats.tx_timeout_cnt++;
+
+	pos += scnprintf(buf + pos, HBG_TX_TIMEOUT_BUF_LEN - pos,
+			 "tx_timeout cnt: %llu\n", priv->stats.tx_timeout_cnt);
 	pos += scnprintf(buf + pos, HBG_TX_TIMEOUT_BUF_LEN - pos,
 			 "ring used num: %u, fifo used num: %u\n",
 			 hbg_get_queue_used_num(ring),
@@ -226,6 +235,39 @@ static void hbg_net_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 	netdev_info(netdev, "%s", buf);
 }
 
+static void hbg_net_get_stats(struct net_device *netdev,
+			      struct rtnl_link_stats64 *stats)
+{
+	struct hbg_priv *priv = netdev_priv(netdev);
+	struct hbg_stats *h_stats = &priv->stats;
+
+	hbg_update_stats(priv);
+	dev_get_tstats64(netdev, stats);
+
+	/* fifo empty */
+	stats->tx_fifo_errors += h_stats->tx_drop_cnt;
+
+	stats->tx_dropped += h_stats->tx_excessive_length_drop_cnt +
+			     h_stats->tx_drop_cnt;
+	stats->tx_errors += h_stats->tx_add_cs_fail_cnt +
+			    h_stats->tx_bufrl_err_cnt +
+			    h_stats->tx_underrun_err_cnt +
+			    h_stats->tx_crc_err_cnt;
+	stats->rx_errors += h_stats->rx_data_error_cnt;
+	stats->multicast += h_stats->rx_mc_pkt_cnt;
+	stats->rx_dropped += h_stats->rx_desc_drop;
+	stats->rx_length_errors += h_stats->rx_frame_very_long_err_cnt +
+				   h_stats->rx_frame_long_err_cnt +
+				   h_stats->rx_frame_runt_err_cnt +
+				   h_stats->rx_frame_short_err_cnt +
+				   h_stats->rx_lengthfield_err_cnt;
+	stats->rx_frame_errors += h_stats->rx_desc_l2_err_cnt +
+				  h_stats->rx_desc_l3l4_err_cnt;
+	stats->rx_fifo_errors += h_stats->rx_overflow_cnt +
+				 h_stats->rx_overrun_cnt;
+	stats->rx_crc_errors += h_stats->rx_fcs_error_cnt;
+}
+
 static const struct net_device_ops hbg_netdev_ops = {
 	.ndo_open		= hbg_net_open,
 	.ndo_stop		= hbg_net_stop,
@@ -235,7 +277,61 @@ static const struct net_device_ops hbg_netdev_ops = {
 	.ndo_change_mtu		= hbg_net_change_mtu,
 	.ndo_tx_timeout		= hbg_net_tx_timeout,
 	.ndo_set_rx_mode	= hbg_net_set_rx_mode,
+	.ndo_get_stats64	= hbg_net_get_stats,
+	.ndo_eth_ioctl		= phy_do_ioctl_running,
 };
+
+static void hbg_service_task(struct work_struct *work)
+{
+	struct hbg_priv *priv = container_of(work, struct hbg_priv,
+					     service_task.work);
+
+	if (test_and_clear_bit(HBG_NIC_STATE_NEED_RESET, &priv->state))
+		hbg_err_reset(priv);
+
+	if (test_and_clear_bit(HBG_NIC_STATE_NP_LINK_FAIL, &priv->state))
+		hbg_fix_np_link_fail(priv);
+
+	hbg_diagnose_message_push(priv);
+
+	/* The type of statistics register is u32,
+	 * To prevent the statistics register from overflowing,
+	 * the driver dumps the statistics every 30 seconds.
+	 */
+	if (time_after(jiffies, priv->last_update_stats_time + 30 * HZ)) {
+		hbg_update_stats(priv);
+		priv->last_update_stats_time = jiffies;
+	}
+
+	schedule_delayed_work(&priv->service_task,
+			      msecs_to_jiffies(MSEC_PER_SEC));
+}
+
+void hbg_err_reset_task_schedule(struct hbg_priv *priv)
+{
+	set_bit(HBG_NIC_STATE_NEED_RESET, &priv->state);
+	schedule_delayed_work(&priv->service_task, 0);
+}
+
+void hbg_np_link_fail_task_schedule(struct hbg_priv *priv)
+{
+	set_bit(HBG_NIC_STATE_NP_LINK_FAIL, &priv->state);
+	schedule_delayed_work(&priv->service_task, 0);
+}
+
+static void hbg_cancel_delayed_work_sync(void *data)
+{
+	cancel_delayed_work_sync(data);
+}
+
+static int hbg_delaywork_init(struct hbg_priv *priv)
+{
+	INIT_DELAYED_WORK(&priv->service_task, hbg_service_task);
+	schedule_delayed_work(&priv->service_task, 0);
+	return devm_add_action_or_reset(&priv->pdev->dev,
+					hbg_cancel_delayed_work_sync,
+					&priv->service_task);
+}
 
 static int hbg_mac_filter_init(struct hbg_priv *priv)
 {
@@ -288,6 +384,10 @@ static int hbg_init(struct hbg_priv *priv)
 		return ret;
 
 	ret = hbg_mac_filter_init(priv);
+	if (ret)
+		return ret;
+
+	ret = hbg_delaywork_init(priv);
 	if (ret)
 		return ret;
 
@@ -349,6 +449,9 @@ static int hbg_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		return ret;
 
+	/* set default features */
+	netdev->features |= HBG_SUPPORT_FEATURES;
+	netdev->hw_features |= HBG_SUPPORT_FEATURES;
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 
 	netdev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;

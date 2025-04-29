@@ -778,6 +778,14 @@ config LEDS_MAX77650
 	help
 	  LEDs driver for MAX77650 family of PMICs from Maxim Integrated.
 
+config LEDS_MAX77705
+	tristate "LED support for Maxim MAX77705 PMIC"
+	depends on MFD_MAX77705
+	depends on LEDS_CLASS
+	depends on LEDS_CLASS_MULTICOLOR
+	help
+	  LED driver for MAX77705 PMIC from Maxim Integrated.
+
 config LEDS_MAX8997
 	tristate "LED support for MAX8997 PMIC"
 	depends on LEDS_CLASS && MFD_MAX8997
@@ -924,7 +932,8 @@ config LEDS_USER
 config LEDS_NIC78BX
 	tristate "LED support for NI PXI NIC78bx devices"
 	depends on LEDS_CLASS
-	depends on X86 && ACPI
+	depends on HAS_IOPORT
+	depends on X86 || COMPILE_TEST
 	help
 	  This option enables support for the User1 and User2 LEDs on NI
 	  PXI NIC78bx devices.
@@ -971,6 +980,7 @@ config LEDS_ST1202
 	depends on I2C
 	depends on OF
 	select LEDS_TRIGGERS
+	select LEDS_TRIGGER_PATTERN
 	help
 	  Say Y to enable support for LEDs connected to LED1202
 	  LED driver chips accessed via the I2C bus.
@@ -1014,7 +1024,7 @@ source "drivers/leds/rgb/Kconfig"
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 
-comment "Simple LED drivers"
-source "drivers/leds/simple/Kconfig"
+comment "Simatic LED drivers"
+source "drivers/leds/simatic/Kconfig"
 
 endif # NEW_LEDS

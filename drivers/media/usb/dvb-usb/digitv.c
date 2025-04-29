@@ -88,7 +88,7 @@ static u32 digitv_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm digitv_i2c_algo = {
+static const struct i2c_algorithm digitv_i2c_algo = {
 	.master_xfer   = digitv_i2c_xfer,
 	.functionality = digitv_i2c_func,
 };
@@ -299,7 +299,7 @@ enum {
 	ANCHOR_NEBULA_DIGITV,
 };
 
-static struct usb_device_id digitv_table[] = {
+static const struct usb_device_id digitv_table[] = {
 	DVB_USB_DEV(ANCHOR, ANCHOR_NEBULA_DIGITV),
 	{ }
 };

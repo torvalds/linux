@@ -199,7 +199,7 @@ static u32 technisat_usb2_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm technisat_usb2_i2c_algo = {
+static const struct i2c_algorithm technisat_usb2_i2c_algo = {
 	.master_xfer   = technisat_usb2_i2c_xfer,
 	.functionality = technisat_usb2_i2c_func,
 };
@@ -693,7 +693,7 @@ enum {
 	TECHNISAT_USB2_DVB_S2,
 };
 
-static struct usb_device_id technisat_usb2_id_table[] = {
+static const struct usb_device_id technisat_usb2_id_table[] = {
 	DVB_USB_DEV(TECHNISAT, TECHNISAT_USB2_DVB_S2),
 	{ }
 };

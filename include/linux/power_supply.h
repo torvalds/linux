@@ -274,7 +274,6 @@ struct power_supply_desc {
 	int (*property_is_writeable)(struct power_supply *psy,
 				     enum power_supply_property psp);
 	void (*external_power_changed)(struct power_supply *psy);
-	void (*set_charged)(struct power_supply *psy);
 
 	/*
 	 * Set if thermal zone should not be created for this power supply.
@@ -316,7 +315,6 @@ struct power_supply {
 
 	char **supplied_from;
 	size_t num_supplies;
-	struct device_node *of_node;
 
 	/* Driver private data */
 	void *drv_data;
@@ -852,7 +850,6 @@ extern int power_supply_am_i_supplied(struct power_supply *psy);
 int power_supply_get_property_from_supplier(struct power_supply *psy,
 					    enum power_supply_property psp,
 					    union power_supply_propval *val);
-extern int power_supply_set_battery_charged(struct power_supply *psy);
 
 static inline bool
 power_supply_supports_maintenance_charging(struct power_supply_battery_info *info)

@@ -7,11 +7,29 @@
 #ifndef __ASM_SMP_H
 #define __ASM_SMP_H
 
-#include <asm/sigp.h>
-#include <asm/lowcore.h>
 #include <asm/processor.h>
+#include <asm/lowcore.h>
+#include <asm/machine.h>
+#include <asm/sigp.h>
 
-#define raw_smp_processor_id()	(get_lowcore()->cpu_nr)
+static __always_inline unsigned int raw_smp_processor_id(void)
+{
+	unsigned long lc_cpu_nr;
+	unsigned int cpu;
+
+	BUILD_BUG_ON(sizeof_field(struct lowcore, cpu_nr) != sizeof(cpu));
+	lc_cpu_nr = offsetof(struct lowcore, cpu_nr);
+	asm_inline(
+		ALTERNATIVE("   ly      %[cpu],%[offzero](%%r0)\n",
+			    "   ly      %[cpu],%[offalt](%%r0)\n",
+			    ALT_FEATURE(MFEATURE_LOWCORE))
+		: [cpu] "=d" (cpu)
+		: [offzero] "i" (lc_cpu_nr),
+		  [offalt] "i" (lc_cpu_nr + LOWCORE_ALT_ADDRESS),
+		  "m" (((struct lowcore *)0)->cpu_nr));
+	return cpu;
+}
+
 #define arch_scale_cpu_capacity smp_cpu_get_capacity
 
 extern struct mutex smp_cpu_state_mutex;

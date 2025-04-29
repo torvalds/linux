@@ -17,6 +17,10 @@
 
 #include "pinctrl-sunxi.h"
 
+#define PINCTRL_SUN4I_A10	BIT(0)
+#define PINCTRL_SUN7I_A20	BIT(1)
+#define PINCTRL_SUN8I_R40	BIT(2)
+
 static const struct sunxi_desc_pin sun4i_a10_pins[] = {
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(A, 0),
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
@@ -1295,8 +1299,8 @@ static int sun4i_a10_pinctrl_probe(struct platform_device *pdev)
 {
 	unsigned long variant = (unsigned long)of_device_get_match_data(&pdev->dev);
 
-	return sunxi_pinctrl_init_with_variant(pdev, &sun4i_a10_pinctrl_data,
-					       variant);
+	return sunxi_pinctrl_init_with_flags(pdev, &sun4i_a10_pinctrl_data,
+					     variant);
 }
 
 static const struct of_device_id sun4i_a10_pinctrl_match[] = {

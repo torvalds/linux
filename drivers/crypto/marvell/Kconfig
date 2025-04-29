@@ -24,7 +24,7 @@ config CRYPTO_DEV_OCTEONTX_CPT
 	tristate "Support for Marvell OcteonTX CPT driver"
 	depends on ARCH_THUNDER || COMPILE_TEST
 	depends on PCI_MSI && 64BIT
-	depends on CRYPTO_LIB_AES
+	select CRYPTO_LIB_AES
 	select CRYPTO_SKCIPHER
 	select CRYPTO_HASH
 	select CRYPTO_AEAD
@@ -41,10 +41,10 @@ config CRYPTO_DEV_OCTEONTX2_CPT
 	tristate "Marvell OcteonTX2 CPT driver"
 	depends on ARCH_THUNDER2 || COMPILE_TEST
 	depends on PCI_MSI && 64BIT
-	depends on CRYPTO_LIB_AES
 	depends on NET_VENDOR_MARVELL
 	select OCTEONTX2_MBOX
 	select CRYPTO_DEV_MARVELL
+	select CRYPTO_LIB_AES
 	select CRYPTO_SKCIPHER
 	select CRYPTO_HASH
 	select CRYPTO_AEAD

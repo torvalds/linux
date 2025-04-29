@@ -90,14 +90,14 @@ void amdgpu_dm_hpd_fini(struct amdgpu_device *adev);
  * amdgpu_dm_irq_suspend - disable ASIC interrupt during suspend.
  *
  */
-int amdgpu_dm_irq_suspend(struct amdgpu_device *adev);
+void amdgpu_dm_irq_suspend(struct amdgpu_device *adev);
 
 /**
  * amdgpu_dm_irq_resume_early - enable HPDRX ASIC interrupts during resume.
  * amdgpu_dm_irq_resume - enable ASIC interrupt during resume.
  *
  */
-int amdgpu_dm_irq_resume_early(struct amdgpu_device *adev);
-int amdgpu_dm_irq_resume_late(struct amdgpu_device *adev);
+void amdgpu_dm_irq_resume_early(struct amdgpu_device *adev);
+void amdgpu_dm_irq_resume_late(struct amdgpu_device *adev);
 
 #endif /* __AMDGPU_DM_IRQ_H__ */

@@ -36,41 +36,41 @@ struct ines_priv {
 };
 
 // interface functions
-int ines_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end, size_t *bytes_read);
-int ines_write(gpib_board_t *board, uint8_t *buffer, size_t length,
+int ines_read(struct gpib_board *board, uint8_t *buffer, size_t length, int *end, size_t *bytes_read);
+int ines_write(struct gpib_board *board, uint8_t *buffer, size_t length,
 	       int send_eoi, size_t *bytes_written);
-int ines_accel_read(gpib_board_t *board, uint8_t *buffer, size_t length,
+int ines_accel_read(struct gpib_board *board, uint8_t *buffer, size_t length,
 		    int *end, size_t *bytes_read);
-int ines_accel_write(gpib_board_t *board, uint8_t *buffer, size_t length,
+int ines_accel_write(struct gpib_board *board, uint8_t *buffer, size_t length,
 		     int send_eoi, size_t *bytes_written);
-int ines_command(gpib_board_t *board, uint8_t *buffer, size_t length, size_t *bytes_written);
-int ines_take_control(gpib_board_t *board, int synchronous);
-int ines_go_to_standby(gpib_board_t *board);
-void ines_request_system_control(gpib_board_t *board, int request_control);
-void ines_interface_clear(gpib_board_t *board, int assert);
-void ines_remote_enable(gpib_board_t *board, int enable);
-int ines_enable_eos(gpib_board_t *board, uint8_t eos_byte, int compare_8_bits);
-void ines_disable_eos(gpib_board_t *board);
-unsigned int ines_update_status(gpib_board_t *board, unsigned int clear_mask);
-int ines_primary_address(gpib_board_t *board, unsigned int address);
-int ines_secondary_address(gpib_board_t *board, unsigned int address, int enable);
-int ines_parallel_poll(gpib_board_t *board, uint8_t *result);
-void ines_parallel_poll_configure(gpib_board_t *board, uint8_t config);
-void ines_parallel_poll_response(gpib_board_t *board, int ist);
-void ines_serial_poll_response(gpib_board_t *board, uint8_t status);
-uint8_t ines_serial_poll_status(gpib_board_t *board);
-int ines_line_status(const gpib_board_t *board);
-unsigned int ines_t1_delay(gpib_board_t *board, unsigned int nano_sec);
-void ines_return_to_local(gpib_board_t *board);
+int ines_command(struct gpib_board *board, uint8_t *buffer, size_t length, size_t *bytes_written);
+int ines_take_control(struct gpib_board *board, int synchronous);
+int ines_go_to_standby(struct gpib_board *board);
+void ines_request_system_control(struct gpib_board *board, int request_control);
+void ines_interface_clear(struct gpib_board *board, int assert);
+void ines_remote_enable(struct gpib_board *board, int enable);
+int ines_enable_eos(struct gpib_board *board, uint8_t eos_byte, int compare_8_bits);
+void ines_disable_eos(struct gpib_board *board);
+unsigned int ines_update_status(struct gpib_board *board, unsigned int clear_mask);
+int ines_primary_address(struct gpib_board *board, unsigned int address);
+int ines_secondary_address(struct gpib_board *board, unsigned int address, int enable);
+int ines_parallel_poll(struct gpib_board *board, uint8_t *result);
+void ines_parallel_poll_configure(struct gpib_board *board, uint8_t config);
+void ines_parallel_poll_response(struct gpib_board *board, int ist);
+void ines_serial_poll_response(struct gpib_board *board, uint8_t status);
+uint8_t ines_serial_poll_status(struct gpib_board *board);
+int ines_line_status(const struct gpib_board *board);
+int ines_t1_delay(struct gpib_board *board, unsigned int nano_sec);
+void ines_return_to_local(struct gpib_board *board);
 
 // interrupt service routines
 irqreturn_t ines_pci_interrupt(int irq, void *arg);
-irqreturn_t ines_interrupt(gpib_board_t *board);
+irqreturn_t ines_interrupt(struct gpib_board *board);
 
 // utility functions
-void ines_free_private(gpib_board_t *board);
-int ines_generic_attach(gpib_board_t *board);
-void ines_online(struct ines_priv *priv, const gpib_board_t *board, int use_accel);
+void ines_free_private(struct gpib_board *board);
+int ines_generic_attach(struct gpib_board *board);
+void ines_online(struct ines_priv *priv, const struct gpib_board *board, int use_accel);
 void ines_set_xfer_counter(struct ines_priv *priv, unsigned int count);
 
 /* inb/outb wrappers */

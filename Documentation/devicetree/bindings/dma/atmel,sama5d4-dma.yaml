@@ -32,6 +32,9 @@ properties:
               - microchip,sam9x60-dma
               - microchip,sam9x7-dma
           - const: atmel,sama5d4-dma
+      - items:
+          - const: microchip,sama7d65-dma
+          - const: microchip,sama7g5-dma
 
   "#dma-cells":
     description: |

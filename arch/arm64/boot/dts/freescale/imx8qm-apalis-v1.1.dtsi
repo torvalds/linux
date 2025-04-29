@@ -9,8 +9,6 @@
 
 / {
 	model = "Toradex Apalis iMX8QM V1.1";
-	compatible = "toradex,apalis-imx8-v1.1",
-		     "fsl,imx8qm";
 };
 
 /* TODO: Cooling Maps */

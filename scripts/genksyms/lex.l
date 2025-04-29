@@ -176,10 +176,10 @@ repeat:
   switch (lexstate)
     {
     case ST_NORMAL:
+      APP;
       switch (token)
 	{
 	case IDENT:
-	  APP;
 	  {
 	    int r = is_reserved_word(yytext, yyleng);
 	    if (r >= 0)
@@ -224,13 +224,11 @@ repeat:
 	  break;
 
 	case '[':
-	  APP;
 	  lexstate = ST_BRACKET;
 	  count = 1;
 	  goto repeat;
 
 	case '{':
-	  APP;
 	  if (dont_want_brace_phrase)
 	    break;
 	  lexstate = ST_BRACE;
@@ -238,12 +236,10 @@ repeat:
 	  goto repeat;
 
 	case '=': case ':':
-	  APP;
 	  lexstate = ST_EXPRESSION;
 	  break;
 
 	default:
-	  APP;
 	  break;
 	}
       break;

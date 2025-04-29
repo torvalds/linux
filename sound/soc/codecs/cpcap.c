@@ -11,10 +11,20 @@
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
 #include <linux/mfd/motorola-cpcap.h>
 #include <sound/core.h>
+#include <linux/input.h>
+#include <sound/jack.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
+
+/* Register 8 - CPCAP_REG_INTS1  --- Interrupt Sense 1 */
+#define CPCAP_BIT_HS_S                    9  /* Headset */
+#define CPCAP_BIT_MB2_S                   10 /* Mic Bias2 */
+
+/* Register 9 - CPCAP_REG_INTS2   --- Interrupt Sense 2 */
+#define CPCAP_BIT_PTT_S                   11 /* Push To Talk */
 
 /* Register 512 CPCAP_REG_VAUDIOC --- Audio Regulator and Bias Voltage */
 #define CPCAP_BIT_AUDIO_LOW_PWR           6
@@ -260,6 +270,10 @@ struct cpcap_audio {
 	int codec_clk_id;
 	int codec_freq;
 	int codec_format;
+	struct regulator *vaudio;
+	int hsirq;
+	int mb2irq;
+	struct snd_soc_jack jack;
 };
 
 static int cpcap_st_workaround(struct snd_soc_dapm_widget *w,
@@ -1626,16 +1640,122 @@ static int cpcap_audio_reset(struct snd_soc_component *component,
 	return 0;
 }
 
+static irqreturn_t cpcap_hs_irq_thread(int irq, void *data)
+{
+	struct snd_soc_component *component = data;
+	struct cpcap_audio *cpcap = snd_soc_component_get_drvdata(component);
+	struct regmap *regmap = cpcap->regmap;
+	int status = 0;
+	int mask = SND_JACK_HEADSET;
+	int val;
+
+	if (!regmap_test_bits(regmap, CPCAP_REG_INTS1, BIT(CPCAP_BIT_HS_S))) {
+		val = BIT(CPCAP_BIT_MB_ON2) | BIT(CPCAP_BIT_PTT_CMP_EN);
+		regmap_update_bits(regmap, CPCAP_REG_TXI, val, val);
+
+		val = BIT(CPCAP_BIT_ST_HS_CP_EN);
+		regmap_update_bits(regmap, CPCAP_REG_RXOA, val, val);
+
+		regulator_set_mode(cpcap->vaudio, REGULATOR_MODE_NORMAL);
+
+		/* Give PTTS time to settle */
+		msleep(20);
+
+		if (!regmap_test_bits(regmap, CPCAP_REG_INTS2,
+				      BIT(CPCAP_BIT_PTT_S))) {
+			/* Headphones detected. (May also be a headset with the
+			 * MFB pressed.)
+			 */
+			status = SND_JACK_HEADPHONE;
+			dev_info(component->dev, "HP plugged in\n");
+		} else if (regmap_test_bits(regmap, CPCAP_REG_INTS1,
+					    BIT(CPCAP_BIT_MB2_S)) == 1) {
+			status = SND_JACK_HEADSET;
+			dev_info(component->dev, "HS plugged in\n");
+		} else
+			dev_info(component->dev, "Unsupported HS plugged in\n");
+	} else {
+		bool mic = cpcap->jack.status & SND_JACK_MICROPHONE;
+
+		dev_info(component->dev, "H%s disconnect\n", mic ? "S" : "P");
+		val = BIT(CPCAP_BIT_MB_ON2) | BIT(CPCAP_BIT_PTT_CMP_EN);
+		regmap_update_bits(cpcap->regmap, CPCAP_REG_TXI, val, 0);
+
+		val = BIT(CPCAP_BIT_ST_HS_CP_EN);
+		regmap_update_bits(cpcap->regmap, CPCAP_REG_RXOA, val, 0);
+
+		regulator_set_mode(cpcap->vaudio, REGULATOR_MODE_STANDBY);
+
+		mask |= SND_JACK_BTN_0;
+	}
+
+	snd_soc_jack_report(&cpcap->jack, status, mask);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t cpcap_mb2_irq_thread(int irq, void *data)
+{
+	struct snd_soc_component *component = data;
+	struct cpcap_audio *cpcap = snd_soc_component_get_drvdata(component);
+	struct regmap *regmap = cpcap->regmap;
+	int status = 0;
+	int mb2;
+	int ptt;
+
+	if (regmap_test_bits(regmap, CPCAP_REG_INTS1, BIT(CPCAP_BIT_HS_S)) == 1)
+		return IRQ_HANDLED;
+
+	mb2 = regmap_test_bits(regmap, CPCAP_REG_INTS1, BIT(CPCAP_BIT_MB2_S));
+	ptt = regmap_test_bits(regmap, CPCAP_REG_INTS2, BIT(CPCAP_BIT_PTT_S));
+
+	/* Initial detection might have been with MFB pressed */
+	if (!(cpcap->jack.status & SND_JACK_MICROPHONE)) {
+		if (ptt == 1 && mb2 == 1) {
+			dev_info(component->dev, "MIC plugged in\n");
+			snd_soc_jack_report(&cpcap->jack, SND_JACK_MICROPHONE,
+					    SND_JACK_MICROPHONE);
+		}
+
+		return IRQ_HANDLED;
+	}
+
+	if (!mb2 || !ptt)
+		status = SND_JACK_BTN_0;
+
+	snd_soc_jack_report(&cpcap->jack, status, SND_JACK_BTN_0);
+
+	return IRQ_HANDLED;
+}
+
 static int cpcap_soc_probe(struct snd_soc_component *component)
 {
+	struct platform_device *pdev = to_platform_device(component->dev);
+	struct snd_soc_card *card = component->card;
 	struct cpcap_audio *cpcap;
 	int err;
 
 	cpcap = devm_kzalloc(component->dev, sizeof(*cpcap), GFP_KERNEL);
 	if (!cpcap)
 		return -ENOMEM;
+
 	snd_soc_component_set_drvdata(component, cpcap);
 	cpcap->component = component;
+
+	cpcap->vaudio = devm_regulator_get(component->dev, "VAUDIO");
+	if (IS_ERR(cpcap->vaudio))
+		return dev_err_probe(component->dev, PTR_ERR(cpcap->vaudio),
+				     "Cannot get VAUDIO regulator\n");
+
+	err = snd_soc_card_jack_new(card, "Headphones",
+				    SND_JACK_HEADSET | SND_JACK_BTN_0,
+				    &cpcap->jack);
+	if (err < 0) {
+		dev_err(component->dev, "Cannot create HS jack: %i\n", err);
+		return err;
+	}
+
+	snd_jack_set_key(cpcap->jack.jack, SND_JACK_BTN_0, KEY_MEDIA);
 
 	cpcap->regmap = dev_get_regmap(component->dev->parent, NULL);
 	if (!cpcap->regmap)
@@ -1646,17 +1766,95 @@ static int cpcap_soc_probe(struct snd_soc_component *component)
 	if (err)
 		return err;
 
-	return cpcap_audio_reset(component, false);
+	cpcap->hsirq = platform_get_irq_byname(pdev, "hs");
+	if (cpcap->hsirq < 0)
+		return cpcap->hsirq;
+
+	err = devm_request_threaded_irq(component->dev, cpcap->hsirq, NULL,
+					cpcap_hs_irq_thread,
+					IRQF_TRIGGER_RISING |
+					IRQF_TRIGGER_FALLING |
+					IRQF_ONESHOT,
+					"cpcap-codec-hs",
+					component);
+	if (err) {
+		dev_warn(component->dev, "no HS irq%i: %i\n",
+			 cpcap->hsirq, err);
+		return err;
+	}
+
+	cpcap->mb2irq = platform_get_irq_byname(pdev, "mb2");
+	if (cpcap->mb2irq < 0)
+		return cpcap->mb2irq;
+
+	err = devm_request_threaded_irq(component->dev, cpcap->mb2irq, NULL,
+					cpcap_mb2_irq_thread,
+					IRQF_TRIGGER_RISING |
+					IRQF_TRIGGER_FALLING |
+					IRQF_ONESHOT,
+					"cpcap-codec-mb2",
+					component);
+	if (err) {
+		dev_warn(component->dev, "no MB2 irq%i: %i\n",
+			 cpcap->mb2irq, err);
+		return err;
+	}
+
+	err = cpcap_audio_reset(component, false);
+	if (err)
+		return err;
+
+	cpcap_hs_irq_thread(cpcap->hsirq, component);
+
+	enable_irq_wake(cpcap->hsirq);
+	enable_irq_wake(cpcap->mb2irq);
+
+	return 0;
+}
+
+static void cpcap_soc_remove(struct snd_soc_component *component)
+{
+	struct cpcap_audio *cpcap = snd_soc_component_get_drvdata(component);
+
+	disable_irq_wake(cpcap->hsirq);
+	disable_irq_wake(cpcap->mb2irq);
+}
+
+static int cpcap_set_bias_level(struct snd_soc_component *component,
+		enum snd_soc_bias_level level)
+{
+	struct cpcap_audio *cpcap = snd_soc_component_get_drvdata(component);
+
+	/* VAIDIO should be kept in normal mode in order MIC/PTT to work */
+	if (cpcap->jack.status & SND_JACK_MICROPHONE)
+		return 0;
+
+	switch (level) {
+	case SND_SOC_BIAS_OFF:
+		break;
+	case SND_SOC_BIAS_PREPARE:
+		regulator_set_mode(cpcap->vaudio, REGULATOR_MODE_NORMAL);
+		break;
+	case SND_SOC_BIAS_STANDBY:
+		regulator_set_mode(cpcap->vaudio, REGULATOR_MODE_STANDBY);
+		break;
+	case SND_SOC_BIAS_ON:
+		break;
+	}
+
+	return 0;
 }
 
 static const struct snd_soc_component_driver soc_codec_dev_cpcap = {
 	.probe			= cpcap_soc_probe,
+	.remove			= cpcap_soc_remove,
 	.controls		= cpcap_snd_controls,
 	.num_controls		= ARRAY_SIZE(cpcap_snd_controls),
 	.dapm_widgets		= cpcap_dapm_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(cpcap_dapm_widgets),
 	.dapm_routes		= intercon,
 	.num_dapm_routes	= ARRAY_SIZE(intercon),
+	.set_bias_level		= cpcap_set_bias_level,
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,

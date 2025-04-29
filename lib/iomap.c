@@ -111,7 +111,7 @@ EXPORT_SYMBOL(ioread16be);
 EXPORT_SYMBOL(ioread32);
 EXPORT_SYMBOL(ioread32be);
 
-#ifdef readq
+#ifdef CONFIG_64BIT
 static u64 pio_read64_lo_hi(unsigned long port)
 {
 	u64 lo, hi;
@@ -153,21 +153,21 @@ static u64 pio_read64be_hi_lo(unsigned long port)
 }
 
 __no_kmsan_checks
-u64 ioread64_lo_hi(const void __iomem *addr)
+u64 __ioread64_lo_hi(const void __iomem *addr)
 {
 	IO_COND(addr, return pio_read64_lo_hi(port), return readq(addr));
 	return 0xffffffffffffffffULL;
 }
 
 __no_kmsan_checks
-u64 ioread64_hi_lo(const void __iomem *addr)
+u64 __ioread64_hi_lo(const void __iomem *addr)
 {
 	IO_COND(addr, return pio_read64_hi_lo(port), return readq(addr));
 	return 0xffffffffffffffffULL;
 }
 
 __no_kmsan_checks
-u64 ioread64be_lo_hi(const void __iomem *addr)
+u64 __ioread64be_lo_hi(const void __iomem *addr)
 {
 	IO_COND(addr, return pio_read64be_lo_hi(port),
 		return mmio_read64be(addr));
@@ -175,19 +175,19 @@ u64 ioread64be_lo_hi(const void __iomem *addr)
 }
 
 __no_kmsan_checks
-u64 ioread64be_hi_lo(const void __iomem *addr)
+u64 __ioread64be_hi_lo(const void __iomem *addr)
 {
 	IO_COND(addr, return pio_read64be_hi_lo(port),
 		return mmio_read64be(addr));
 	return 0xffffffffffffffffULL;
 }
 
-EXPORT_SYMBOL(ioread64_lo_hi);
-EXPORT_SYMBOL(ioread64_hi_lo);
-EXPORT_SYMBOL(ioread64be_lo_hi);
-EXPORT_SYMBOL(ioread64be_hi_lo);
+EXPORT_SYMBOL(__ioread64_lo_hi);
+EXPORT_SYMBOL(__ioread64_hi_lo);
+EXPORT_SYMBOL(__ioread64be_lo_hi);
+EXPORT_SYMBOL(__ioread64be_hi_lo);
 
-#endif /* readq */
+#endif /* CONFIG_64BIT */
 
 #ifndef pio_write16be
 #define pio_write16be(val,port) outw(swab16(val),port)
@@ -236,7 +236,7 @@ EXPORT_SYMBOL(iowrite16be);
 EXPORT_SYMBOL(iowrite32);
 EXPORT_SYMBOL(iowrite32be);
 
-#ifdef writeq
+#ifdef CONFIG_64BIT
 static void pio_write64_lo_hi(u64 val, unsigned long port)
 {
 	outl(val, port);
@@ -261,7 +261,7 @@ static void pio_write64be_hi_lo(u64 val, unsigned long port)
 	pio_write32be(val, port + sizeof(u32));
 }
 
-void iowrite64_lo_hi(u64 val, void __iomem *addr)
+void __iowrite64_lo_hi(u64 val, void __iomem *addr)
 {
 	/* Make sure uninitialized memory isn't copied to devices. */
 	kmsan_check_memory(&val, sizeof(val));
@@ -269,7 +269,7 @@ void iowrite64_lo_hi(u64 val, void __iomem *addr)
 		writeq(val, addr));
 }
 
-void iowrite64_hi_lo(u64 val, void __iomem *addr)
+void __iowrite64_hi_lo(u64 val, void __iomem *addr)
 {
 	/* Make sure uninitialized memory isn't copied to devices. */
 	kmsan_check_memory(&val, sizeof(val));
@@ -277,7 +277,7 @@ void iowrite64_hi_lo(u64 val, void __iomem *addr)
 		writeq(val, addr));
 }
 
-void iowrite64be_lo_hi(u64 val, void __iomem *addr)
+void __iowrite64be_lo_hi(u64 val, void __iomem *addr)
 {
 	/* Make sure uninitialized memory isn't copied to devices. */
 	kmsan_check_memory(&val, sizeof(val));
@@ -285,7 +285,7 @@ void iowrite64be_lo_hi(u64 val, void __iomem *addr)
 		mmio_write64be(val, addr));
 }
 
-void iowrite64be_hi_lo(u64 val, void __iomem *addr)
+void __iowrite64be_hi_lo(u64 val, void __iomem *addr)
 {
 	/* Make sure uninitialized memory isn't copied to devices. */
 	kmsan_check_memory(&val, sizeof(val));
@@ -293,12 +293,12 @@ void iowrite64be_hi_lo(u64 val, void __iomem *addr)
 		mmio_write64be(val, addr));
 }
 
-EXPORT_SYMBOL(iowrite64_lo_hi);
-EXPORT_SYMBOL(iowrite64_hi_lo);
-EXPORT_SYMBOL(iowrite64be_lo_hi);
-EXPORT_SYMBOL(iowrite64be_hi_lo);
+EXPORT_SYMBOL(__iowrite64_lo_hi);
+EXPORT_SYMBOL(__iowrite64_hi_lo);
+EXPORT_SYMBOL(__iowrite64be_lo_hi);
+EXPORT_SYMBOL(__iowrite64be_hi_lo);
 
-#endif /* readq */
+#endif /* CONFIG_64BIT */
 
 /*
  * These are the "repeat MMIO read/write" functions.

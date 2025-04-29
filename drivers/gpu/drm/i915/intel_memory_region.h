@@ -85,6 +85,8 @@ struct intel_memory_region {
 	void *region_private;
 };
 
+bool intel_memory_type_is_local(enum intel_memory_type mem_type);
+
 struct intel_memory_region *
 intel_memory_region_lookup(struct drm_i915_private *i915,
 			   u16 class, u16 instance);
@@ -107,6 +109,7 @@ void intel_memory_regions_driver_release(struct drm_i915_private *i915);
 struct intel_memory_region *
 intel_memory_region_by_type(struct drm_i915_private *i915,
 			    enum intel_memory_type mem_type);
+const char *intel_memory_type_str(enum intel_memory_type type);
 
 __printf(2, 3) void
 intel_memory_region_set_name(struct intel_memory_region *mem,

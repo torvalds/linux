@@ -583,7 +583,7 @@ vxlan_test_flush_by_remote_attributes()
 	$IP link del dev vx10
 	$IP link add name vx10 type vxlan dstport "$VXPORT" external
 
-	# For multicat FDB entries, the VXLAN driver stores a linked list of
+	# For multicast FDB entries, the VXLAN driver stores a linked list of
 	# remotes for a given key. Verify that only the expected remotes are
 	# flushed.
 	multicast_fdb_entries_add

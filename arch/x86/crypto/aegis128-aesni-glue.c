@@ -71,10 +71,9 @@ static void crypto_aegis128_aesni_process_ad(
 
 	scatterwalk_start(&walk, sg_src);
 	while (assoclen != 0) {
-		unsigned int size = scatterwalk_clamp(&walk, assoclen);
+		unsigned int size = scatterwalk_next(&walk, assoclen);
+		const u8 *src = walk.addr;
 		unsigned int left = size;
-		void *mapped = scatterwalk_map(&walk);
-		const u8 *src = (const u8 *)mapped;
 
 		if (pos + size >= AEGIS128_BLOCK_SIZE) {
 			if (pos > 0) {
@@ -97,9 +96,7 @@ static void crypto_aegis128_aesni_process_ad(
 		pos += left;
 		assoclen -= size;
 
-		scatterwalk_unmap(mapped);
-		scatterwalk_advance(&walk, size);
-		scatterwalk_done(&walk, 0, assoclen);
+		scatterwalk_done_src(&walk, size);
 	}
 
 	if (pos > 0) {

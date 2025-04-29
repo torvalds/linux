@@ -9,6 +9,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <sound/core.h>
@@ -25,6 +26,7 @@ module_param(wakeup_delay, uint, 0644);
 
 struct dmic {
 	struct gpio_desc *gpio_en;
+	struct regulator *vref;
 	int wakeup_delay;
 	/* Delay after DMIC mode switch */
 	int modeswitch_delay;
@@ -55,11 +57,18 @@ static int dmic_aif_event(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol, int event) {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct dmic *dmic = snd_soc_component_get_drvdata(component);
+	int ret = 0;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		if (dmic->gpio_en)
 			gpiod_set_value_cansleep(dmic->gpio_en, 1);
+
+		if (dmic->vref) {
+			ret = regulator_enable(dmic->vref);
+			if (ret)
+				return ret;
+		}
 
 		if (dmic->wakeup_delay)
 			msleep(dmic->wakeup_delay);
@@ -67,10 +76,14 @@ static int dmic_aif_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMD:
 		if (dmic->gpio_en)
 			gpiod_set_value_cansleep(dmic->gpio_en, 0);
+
+		if (dmic->vref)
+			ret = regulator_disable(dmic->vref);
+
 		break;
 	}
 
-	return 0;
+	return ret;
 }
 
 static struct snd_soc_dai_driver dmic_dai = {
@@ -85,7 +98,9 @@ static struct snd_soc_dai_driver dmic_dai = {
 			| SNDRV_PCM_FMTBIT_S16_LE
 			| SNDRV_PCM_FMTBIT_DSD_U8
 			| SNDRV_PCM_FMTBIT_DSD_U16_LE
-			| SNDRV_PCM_FMTBIT_DSD_U32_LE,
+			| SNDRV_PCM_FMTBIT_DSD_U32_LE
+			| SNDRV_PCM_FMTBIT_DSD_U16_BE
+			| SNDRV_PCM_FMTBIT_DSD_U32_BE,
 	},
 	.ops    = &dmic_dai_ops,
 };
@@ -97,6 +112,14 @@ static int dmic_component_probe(struct snd_soc_component *component)
 	dmic = devm_kzalloc(component->dev, sizeof(*dmic), GFP_KERNEL);
 	if (!dmic)
 		return -ENOMEM;
+
+	dmic->vref = devm_regulator_get_optional(component->dev, "vref");
+	if (IS_ERR(dmic->vref)) {
+		if (PTR_ERR(dmic->vref) != -ENODEV)
+			return dev_err_probe(component->dev, PTR_ERR(dmic->vref),
+					     "Failed to get vref\n");
+		dmic->vref = NULL;
+	}
 
 	dmic->gpio_en = devm_gpiod_get_optional(component->dev,
 						"dmicen", GPIOD_OUT_LOW);

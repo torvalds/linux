@@ -472,7 +472,7 @@ static int __init xics_allocate_domain(void)
 		return -ENOMEM;
 	}
 
-	irq_set_default_host(xics_host);
+	irq_set_default_domain(xics_host);
 	return 0;
 }
 

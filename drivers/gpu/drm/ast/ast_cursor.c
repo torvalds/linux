@@ -37,6 +37,7 @@
  */
 
 /* define for signature structure */
+#define AST_HWC_SIGNATURE_SIZE		SZ_32
 #define AST_HWC_SIGNATURE_CHECKSUM	0x00
 #define AST_HWC_SIGNATURE_SizeX		0x04
 #define AST_HWC_SIGNATURE_SizeY		0x08
@@ -44,6 +45,21 @@
 #define AST_HWC_SIGNATURE_Y		0x10
 #define AST_HWC_SIGNATURE_HOTSPOTX	0x14
 #define AST_HWC_SIGNATURE_HOTSPOTY	0x18
+
+static unsigned long ast_cursor_vram_size(void)
+{
+	return AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE;
+}
+
+long ast_cursor_vram_offset(struct ast_device *ast)
+{
+	unsigned long size = ast_cursor_vram_size();
+
+	if (size > ast->vram_size)
+		return -EINVAL;
+
+	return ALIGN_DOWN(ast->vram_size - size, SZ_8);
+}
 
 static u32 ast_cursor_calculate_checksum(const void *src, unsigned int width, unsigned int height)
 {
@@ -75,7 +91,7 @@ static u32 ast_cursor_calculate_checksum(const void *src, unsigned int width, un
 static void ast_set_cursor_image(struct ast_device *ast, const u8 *src,
 				 unsigned int width, unsigned int height)
 {
-	u8 __iomem *dst = ast->cursor_plane.base.vaddr;
+	u8 __iomem *dst = ast_plane_vaddr(&ast->cursor_plane.base);
 	u32 csum;
 
 	csum = ast_cursor_calculate_checksum(src, width, height);
@@ -177,7 +193,7 @@ static void ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 	struct ast_device *ast = to_ast_device(plane->dev);
 	struct drm_rect damage;
 	u64 dst_off = ast_plane->offset;
-	u8 __iomem *dst = ast_plane->vaddr; /* TODO: Use mapping abstraction properly */
+	u8 __iomem *dst = ast_plane_vaddr(ast_plane); /* TODO: Use mapping abstraction properly */
 	u8 __iomem *sig = dst + AST_HWC_SIZE; /* TODO: Use mapping abstraction properly */
 	unsigned int offset_x, offset_y;
 	u16 x, y;
@@ -274,25 +290,16 @@ int ast_cursor_plane_init(struct ast_device *ast)
 	struct ast_cursor_plane *ast_cursor_plane = &ast->cursor_plane;
 	struct ast_plane *ast_plane = &ast_cursor_plane->base;
 	struct drm_plane *cursor_plane = &ast_plane->base;
-	size_t size;
-	void __iomem *vaddr;
-	u64 offset;
+	unsigned long size;
+	long offset;
 	int ret;
 
-	/*
-	 * Allocate backing storage for cursors. The BOs are permanently
-	 * pinned to the top end of the VRAM.
-	 */
+	size = ast_cursor_vram_size();
+	offset = ast_cursor_vram_offset(ast);
+	if (offset < 0)
+		return offset;
 
-	size = roundup(AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE, PAGE_SIZE);
-
-	if (ast->vram_fb_available < size)
-		return -ENOMEM;
-
-	vaddr = ast->vram + ast->vram_fb_available - size;
-	offset = ast->vram_fb_available - size;
-
-	ret = ast_plane_init(dev, ast_plane, vaddr, offset, size,
+	ret = ast_plane_init(dev, ast_plane, offset, size,
 			     0x01, &ast_cursor_plane_funcs,
 			     ast_cursor_plane_formats, ARRAY_SIZE(ast_cursor_plane_formats),
 			     NULL, DRM_PLANE_TYPE_CURSOR);
@@ -302,8 +309,6 @@ int ast_cursor_plane_init(struct ast_device *ast)
 	}
 	drm_plane_helper_add(cursor_plane, &ast_cursor_plane_helper_funcs);
 	drm_plane_enable_fb_damage_clips(cursor_plane);
-
-	ast->vram_fb_available -= size;
 
 	return 0;
 }

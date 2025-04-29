@@ -501,7 +501,7 @@ int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 	 * if we find it, it will take precedence. This is on the Integrator/AP
 	 * which only has this option for PL110 graphics.
 	 */
-	 if (versatile_clcd_type == INTEGRATOR_CLCD_CM) {
+	if (versatile_clcd_type == INTEGRATOR_CLCD_CM) {
 		np = of_find_matching_node_and_match(NULL, impd1_clcd_of_match,
 						     &clcd_id);
 		if (np)

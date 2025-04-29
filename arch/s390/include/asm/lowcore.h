@@ -10,6 +10,7 @@
 #define _ASM_S390_LOWCORE_H
 
 #include <linux/types.h>
+#include <asm/machine.h>
 #include <asm/ptrace.h>
 #include <asm/ctlreg.h>
 #include <asm/cpu.h>
@@ -126,7 +127,7 @@ struct lowcore {
 	__u64	int_clock;			/* 0x0318 */
 	__u8	pad_0x0320[0x0328-0x0320];	/* 0x0320 */
 	__u64	clock_comparator;		/* 0x0328 */
-	__u64	boot_clock[2];			/* 0x0330 */
+	__u8	pad_0x0330[0x0340-0x0330];	/* 0x0330 */
 
 	/* Current process. */
 	__u64	current_task;			/* 0x0340 */
@@ -163,9 +164,7 @@ struct lowcore {
 	__u32	spinlock_index;			/* 0x03b0 */
 	__u8	pad_0x03b4[0x03b8-0x03b4];	/* 0x03b4 */
 	__u64	percpu_offset;			/* 0x03b8 */
-	__u8	pad_0x03c0[0x03c8-0x03c0];	/* 0x03c0 */
-	__u64	machine_flags;			/* 0x03c8 */
-	__u8	pad_0x03d0[0x0400-0x03d0];	/* 0x03d0 */
+	__u8	pad_0x03c0[0x0400-0x03c0];	/* 0x03c0 */
 
 	__u32	return_lpswe;			/* 0x0400 */
 	__u32	return_mcck_lpswe;		/* 0x0404 */
@@ -222,9 +221,12 @@ static __always_inline struct lowcore *get_lowcore(void)
 
 	if (__is_defined(__DECOMPRESSOR))
 		return NULL;
-	asm(ALTERNATIVE("llilh %[lc],0", "llilh %[lc],%[alt]", ALT_LOWCORE)
-	    : [lc] "=d" (lc)
-	    : [alt] "i" (LOWCORE_ALT_ADDRESS >> 16));
+	asm_inline(
+		ALTERNATIVE("	lghi	%[lc],0",
+			    "	llilh	%[lc],%[alt]",
+			    ALT_FEATURE(MFEATURE_LOWCORE))
+		: [lc] "=d" (lc)
+		: [alt] "i" (LOWCORE_ALT_ADDRESS >> 16));
 	return lc;
 }
 
@@ -238,15 +240,15 @@ static inline void set_prefix(__u32 address)
 #else /* __ASSEMBLY__ */
 
 .macro GET_LC reg
-	ALTERNATIVE "llilh	\reg,0",					\
+	ALTERNATIVE "lghi	\reg,0",					\
 		__stringify(llilh	\reg, LOWCORE_ALT_ADDRESS >> 16),	\
-		ALT_LOWCORE
+		ALT_FEATURE(MFEATURE_LOWCORE)
 .endm
 
 .macro STMG_LC start, end, savearea
 	ALTERNATIVE "stmg	\start, \end, \savearea",				\
 		__stringify(stmg	\start, \end, LOWCORE_ALT_ADDRESS + \savearea),	\
-		ALT_LOWCORE
+		ALT_FEATURE(MFEATURE_LOWCORE)
 .endm
 
 #endif /* __ASSEMBLY__ */

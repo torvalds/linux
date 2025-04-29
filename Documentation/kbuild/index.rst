@@ -23,6 +23,8 @@ Kernel Build System
     llvm
     gendwarfksyms
 
+    bash-completion
+
 .. only::  subproject and html
 
    Indices

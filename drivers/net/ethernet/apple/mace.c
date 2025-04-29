@@ -523,7 +523,7 @@ static inline void mace_set_timeout(struct net_device *dev)
     struct mace_data *mp = netdev_priv(dev);
 
     if (mp->timeout_active)
-	del_timer(&mp->tx_timeout);
+	timer_delete(&mp->tx_timeout);
     mp->tx_timeout.expires = jiffies + TX_TIMEOUT;
     add_timer(&mp->tx_timeout);
     mp->timeout_active = 1;
@@ -676,7 +676,7 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 
     i = mp->tx_empty;
     while (in_8(&mb->pr) & XMTSV) {
-	del_timer(&mp->tx_timeout);
+	timer_delete(&mp->tx_timeout);
 	mp->timeout_active = 0;
 	/*
 	 * Clear any interrupt indication associated with this status

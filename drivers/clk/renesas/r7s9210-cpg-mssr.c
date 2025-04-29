@@ -170,11 +170,12 @@ static struct clk * __init rza2_cpg_clk_register(struct device *dev,
 	if (IS_ERR(parent))
 		return ERR_CAST(parent);
 
-	switch (core->id) {
-	case CLK_MAIN:
+	switch (core->type) {
+	case CLK_TYPE_RZA_MAIN:
+		r7s9210_update_clk_table(parent, base);
 		break;
 
-	case CLK_PLL:
+	case CLK_TYPE_RZA_PLL:
 		if (cpg_mode)
 			mult = 44;	/* Divider 1 is 1/2 */
 		else
@@ -184,9 +185,6 @@ static struct clk * __init rza2_cpg_clk_register(struct device *dev,
 	default:
 		return ERR_PTR(-EINVAL);
 	}
-
-	if (core->id == CLK_MAIN)
-		r7s9210_update_clk_table(parent, base);
 
 	return clk_register_fixed_factor(NULL, core->name,
 					 __clk_get_name(parent), 0, mult, div);

@@ -639,7 +639,7 @@ static void ir_do_keyup(struct rc_dev *dev, bool sync)
 		return;
 
 	dev_dbg(&dev->dev, "keyup key 0x%04x\n", dev->last_keycode);
-	del_timer(&dev->timer_repeat);
+	timer_delete(&dev->timer_repeat);
 	input_report_key(dev->input_dev, dev->last_keycode, 0);
 	led_trigger_event(led_feedback, LED_OFF);
 	if (sync)
@@ -2021,8 +2021,8 @@ void rc_unregister_device(struct rc_dev *dev)
 	if (dev->driver_type == RC_DRIVER_IR_RAW)
 		ir_raw_event_unregister(dev);
 
-	del_timer_sync(&dev->timer_keyup);
-	del_timer_sync(&dev->timer_repeat);
+	timer_delete_sync(&dev->timer_keyup);
+	timer_delete_sync(&dev->timer_repeat);
 
 	mutex_lock(&dev->lock);
 	if (dev->users && dev->close)

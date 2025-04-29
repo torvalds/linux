@@ -513,6 +513,7 @@ static bool s390_cpumsf_make_event(size_t pos,
 				.period = 1
 			    };
 	union perf_event event;
+	int ret;
 
 	memset(&event, 0, sizeof(event));
 	if (basic->CL == 1)	/* Native LPAR mode */
@@ -536,8 +537,9 @@ static bool s390_cpumsf_make_event(size_t pos,
 	pr_debug4("%s pos:%#zx ip:%#" PRIx64 " P:%d CL:%d pid:%d.%d cpumode:%d cpu:%d\n",
 		 __func__, pos, sample.ip, basic->P, basic->CL, sample.pid,
 		 sample.tid, sample.cpumode, sample.cpu);
-	if (perf_session__deliver_synth_event(sfq->sf->session, &event,
-					      &sample)) {
+	ret = perf_session__deliver_synth_event(sfq->sf->session, &event, &sample);
+	perf_sample__exit(&sample);
+	if (ret) {
 		pr_err("s390 Auxiliary Trace: failed to deliver event\n");
 		return false;
 	}

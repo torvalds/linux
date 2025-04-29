@@ -32,6 +32,9 @@ properties:
       - national,lm89
       - national,lm90
       - national,lm99
+      - nuvoton,nct7716
+      - nuvoton,nct7717
+      - nuvoton,nct7718
       - nxp,sa56004
       - onnn,nct1008
       - ti,tmp451
@@ -120,6 +123,8 @@ allOf:
               - dallas,max6659
               - dallas,max6695
               - dallas,max6696
+              - nuvoton,nct7716
+              - nuvoton,nct7717
     then:
       patternProperties:
         "^channel@([0-2])$":
@@ -155,6 +160,7 @@ allOf:
               - national,lm89
               - national,lm90
               - national,lm99
+              - nuvoton,nct7718
               - nxp,sa56004
               - winbond,w83l771
     then:

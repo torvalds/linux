@@ -345,15 +345,19 @@ config UML_RTC
 	  by providing a fake RTC clock that causes a wakeup at the right
 	  time.
 
-config UML_PCI_OVER_VIRTIO
-	bool "Enable PCI over VIRTIO device simulation"
-	# in theory, just VIRTIO is enough, but that causes recursion
-	depends on VIRTIO_UML
+config UML_PCI
+	bool
 	select FORCE_PCI
 	select UML_IOMEM_EMULATION
 	select UML_DMA_EMULATION
 	select PCI_MSI
 	select PCI_LOCKLESS_CONFIG
+
+config UML_PCI_OVER_VIRTIO
+	bool "Enable PCI over VIRTIO device simulation"
+	# in theory, just VIRTIO is enough, but that causes recursion
+	depends on VIRTIO_UML
+	select UML_PCI
 
 config UML_PCI_OVER_VIRTIO_DEVICE_ID
 	int "set the virtio device ID for PCI emulation"

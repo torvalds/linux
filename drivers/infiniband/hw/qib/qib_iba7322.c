@@ -2512,7 +2512,7 @@ static void qib_7322_mini_quiet_serdes(struct qib_pportdata *ppd)
 
 	ppd->cpspec->chase_end = 0;
 	if (ppd->cpspec->chase_timer.function) /* if initted */
-		del_timer_sync(&ppd->cpspec->chase_timer);
+		timer_delete_sync(&ppd->cpspec->chase_timer);
 
 	/*
 	 * Despite the name, actually disables IBC as well. Do it when
@@ -4239,7 +4239,7 @@ static int qib_7322_set_ib_cfg(struct qib_pportdata *ppd, int which, u32 val)
 			 * wait forpending timer, but don't clear .data (ppd)!
 			 */
 			if (ppd->cpspec->chase_timer.expires) {
-				del_timer_sync(&ppd->cpspec->chase_timer);
+				timer_delete_sync(&ppd->cpspec->chase_timer);
 				ppd->cpspec->chase_timer.expires = 0;
 			}
 			break;

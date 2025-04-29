@@ -10,6 +10,7 @@
 #include "internal.h"
 
 static unsigned __read_mostly afs_volume_record_life = 60 * 60;
+static atomic_t afs_volume_debug_id;
 
 static void afs_destroy_volume(struct work_struct *work);
 
@@ -59,7 +60,7 @@ static void afs_remove_volume_from_cell(struct afs_volume *volume)
 	struct afs_cell *cell = volume->cell;
 
 	if (!hlist_unhashed(&volume->proc_link)) {
-		trace_afs_volume(volume->vid, refcount_read(&cell->ref),
+		trace_afs_volume(volume->debug_id, volume->vid, refcount_read(&volume->ref),
 				 afs_volume_trace_remove);
 		write_seqlock(&cell->volume_lock);
 		hlist_del_rcu(&volume->proc_link);
@@ -84,6 +85,7 @@ static struct afs_volume *afs_alloc_volume(struct afs_fs_context *params,
 	if (!volume)
 		goto error_0;
 
+	volume->debug_id	= atomic_inc_return(&afs_volume_debug_id);
 	volume->vid		= vldb->vid[params->type];
 	volume->update_at	= ktime_get_real_seconds() + afs_volume_record_life;
 	volume->cell		= afs_get_cell(params->cell, afs_cell_trace_get_vol);
@@ -115,7 +117,7 @@ static struct afs_volume *afs_alloc_volume(struct afs_fs_context *params,
 
 	*_slist = slist;
 	rcu_assign_pointer(volume->servers, slist);
-	trace_afs_volume(volume->vid, 1, afs_volume_trace_alloc);
+	trace_afs_volume(volume->debug_id, volume->vid, 1, afs_volume_trace_alloc);
 	return volume;
 
 error_1:
@@ -247,7 +249,7 @@ static void afs_destroy_volume(struct work_struct *work)
 	afs_remove_volume_from_cell(volume);
 	afs_put_serverlist(volume->cell->net, slist);
 	afs_put_cell(volume->cell, afs_cell_trace_put_vol);
-	trace_afs_volume(volume->vid, refcount_read(&volume->ref),
+	trace_afs_volume(volume->debug_id, volume->vid, refcount_read(&volume->ref),
 			 afs_volume_trace_free);
 	kfree_rcu(volume, rcu);
 
@@ -262,7 +264,7 @@ bool afs_try_get_volume(struct afs_volume *volume, enum afs_volume_trace reason)
 	int r;
 
 	if (__refcount_inc_not_zero(&volume->ref, &r)) {
-		trace_afs_volume(volume->vid, r + 1, reason);
+		trace_afs_volume(volume->debug_id, volume->vid, r + 1, reason);
 		return true;
 	}
 	return false;
@@ -278,7 +280,7 @@ struct afs_volume *afs_get_volume(struct afs_volume *volume,
 		int r;
 
 		__refcount_inc(&volume->ref, &r);
-		trace_afs_volume(volume->vid, r + 1, reason);
+		trace_afs_volume(volume->debug_id, volume->vid, r + 1, reason);
 	}
 	return volume;
 }
@@ -290,12 +292,13 @@ struct afs_volume *afs_get_volume(struct afs_volume *volume,
 void afs_put_volume(struct afs_volume *volume, enum afs_volume_trace reason)
 {
 	if (volume) {
+		unsigned int debug_id = volume->debug_id;
 		afs_volid_t vid = volume->vid;
 		bool zero;
 		int r;
 
 		zero = __refcount_dec_and_test(&volume->ref, &r);
-		trace_afs_volume(vid, r - 1, reason);
+		trace_afs_volume(debug_id, vid, r - 1, reason);
 		if (zero)
 			schedule_work(&volume->destructor);
 	}

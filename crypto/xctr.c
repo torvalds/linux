@@ -78,7 +78,7 @@ static int crypto_xctr_crypt_inplace(struct skcipher_walk *walk,
 		   crypto_cipher_alg(tfm)->cia_encrypt;
 	unsigned long alignmask = crypto_cipher_alignmask(tfm);
 	unsigned int nbytes = walk->nbytes;
-	u8 *data = walk->src.virt.addr;
+	u8 *data = walk->dst.virt.addr;
 	u8 tmp[XCTR_BLOCKSIZE + MAX_CIPHER_ALIGNMASK];
 	u8 *keystream = PTR_ALIGN(tmp + 0, alignmask + 1);
 	__le32 ctr32 = cpu_to_le32(byte_ctr / XCTR_BLOCKSIZE + 1);

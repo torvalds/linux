@@ -74,20 +74,14 @@ static int bch2_bucket_is_movable(struct btree_trans *trans,
 				  struct move_bucket *b, u64 time)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	struct bch_alloc_v4 _a;
-	const struct bch_alloc_v4 *a;
-	int ret;
 
-	if (bch2_bucket_is_open(trans->c,
-				b->k.bucket.inode,
-				b->k.bucket.offset))
+	if (bch2_bucket_is_open(c, b->k.bucket.inode, b->k.bucket.offset))
 		return 0;
 
-	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_alloc,
-			       b->k.bucket, BTREE_ITER_cached);
-	ret = bkey_err(k);
+	struct btree_iter iter;
+	struct bkey_s_c k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_alloc,
+				       b->k.bucket, BTREE_ITER_cached);
+	int ret = bkey_err(k);
 	if (ret)
 		return ret;
 
@@ -95,13 +89,18 @@ static int bch2_bucket_is_movable(struct btree_trans *trans,
 	if (!ca)
 		goto out;
 
-	a = bch2_alloc_to_v4(k, &_a);
+	if (ca->mi.state != BCH_MEMBER_STATE_rw ||
+	    !bch2_dev_is_online(ca))
+		goto out_put;
+
+	struct bch_alloc_v4 _a;
+	const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &_a);
 	b->k.gen	= a->gen;
 	b->sectors	= bch2_bucket_sectors_dirty(*a);
 	u64 lru_idx	= alloc_lru_idx_fragmentation(*a, ca);
 
 	ret = lru_idx && lru_idx <= time;
-
+out_put:
 	bch2_dev_put(ca);
 out:
 	bch2_trans_iter_exit(trans, &iter);
@@ -168,8 +167,8 @@ static int bch2_copygc_get_buckets(struct moving_context *ctxt,
 	bch2_trans_begin(trans);
 
 	ret = for_each_btree_key_max(trans, iter, BTREE_ID_lru,
-				  lru_pos(BCH_LRU_FRAGMENTATION_START, 0, 0),
-				  lru_pos(BCH_LRU_FRAGMENTATION_START, U64_MAX, LRU_TIME_MAX),
+				  lru_pos(BCH_LRU_BUCKET_FRAGMENTATION, 0, 0),
+				  lru_pos(BCH_LRU_BUCKET_FRAGMENTATION, U64_MAX, LRU_TIME_MAX),
 				  0, k, ({
 		struct move_bucket b = { .k.bucket = u64_to_bucket(k.k->p.offset) };
 		int ret2 = 0;
@@ -281,7 +280,11 @@ unsigned long bch2_copygc_wait_amount(struct bch_fs *c)
 	s64 wait = S64_MAX, fragmented_allowed, fragmented;
 
 	for_each_rw_member(c, ca) {
-		struct bch_dev_usage usage = bch2_dev_usage_read(ca);
+		struct bch_dev_usage_full usage_full = bch2_dev_usage_full_read(ca);
+		struct bch_dev_usage usage;
+
+		for (unsigned i = 0; i < BCH_DATA_NR; i++)
+			usage.buckets[i] = usage_full.d[i].buckets;
 
 		fragmented_allowed = ((__dev_buckets_available(ca, usage, BCH_WATERMARK_stripe) *
 				       ca->mi.bucket_size) >> 1);
@@ -289,7 +292,7 @@ unsigned long bch2_copygc_wait_amount(struct bch_fs *c)
 
 		for (unsigned i = 0; i < BCH_DATA_NR; i++)
 			if (data_type_movable(i))
-				fragmented += usage.d[i].fragmented;
+				fragmented += usage_full.d[i].fragmented;
 
 		wait = min(wait, max(0LL, fragmented_allowed - fragmented));
 	}
@@ -318,6 +321,17 @@ void bch2_copygc_wait_to_text(struct printbuf *out, struct bch_fs *c)
 	prt_printf(out, "Currently calculated wait:\t");
 	prt_human_readable_u64(out, bch2_copygc_wait_amount(c));
 	prt_newline(out);
+
+	rcu_read_lock();
+	struct task_struct *t = rcu_dereference(c->copygc_thread);
+	if (t)
+		get_task_struct(t);
+	rcu_read_unlock();
+
+	if (t) {
+		bch2_prt_task_backtrace(out, t, 0, GFP_KERNEL);
+		put_task_struct(t);
+	}
 }
 
 static int bch2_copygc_thread(void *arg)

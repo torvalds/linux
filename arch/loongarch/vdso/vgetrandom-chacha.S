@@ -58,9 +58,7 @@ SYM_FUNC_START(__arch_chacha20_blocks_nostack)
 #define copy0		t5
 #define copy1		t6
 #define copy2		t7
-
-/* Reuse i as copy3 */
-#define copy3		i
+#define copy3		t8
 
 /* Packs to be used with OP_4REG */
 #define line0		state0, state1, state2, state3
@@ -99,6 +97,7 @@ SYM_FUNC_START(__arch_chacha20_blocks_nostack)
 	li.w		copy0, 0x61707865
 	li.w		copy1, 0x3320646e
 	li.w		copy2, 0x79622d32
+	li.w		copy3, 0x6b206574
 
 	ld.w		cnt_lo, counter, 0
 	ld.w		cnt_hi, counter, 4
@@ -108,7 +107,7 @@ SYM_FUNC_START(__arch_chacha20_blocks_nostack)
 	move		state0, copy0
 	move		state1, copy1
 	move		state2, copy2
-	li.w		state3, 0x6b206574
+	move		state3, copy3
 
 	/* state[4,5,..,11] = key */
 	ld.w		state4, key, 0
@@ -166,12 +165,6 @@ SYM_FUNC_START(__arch_chacha20_blocks_nostack)
 
 	addi.w		i, i, -1
 	bnez		i, .Lpermute
-
-	/*
-	 * copy[3] = "expa", materialize it here because copy[3] shares the
-	 * same register with i which just became dead.
-	 */
-	li.w		copy3, 0x6b206574
 
 	/* output[0,1,2,3] = copy[0,1,2,3] + state[0,1,2,3] */
 	OP_4REG	add.w	line0, copy

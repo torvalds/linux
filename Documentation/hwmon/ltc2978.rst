@@ -5,6 +5,22 @@ Kernel driver ltc2978
 
 Supported chips:
 
+  * Analog Devices LT7170
+
+    Prefix: 'lt7170'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/en/products/lt7170.html
+
+  * Analog Devices LT7171
+
+    Prefix: 'lt7171'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/en/products/lt7171.html
+
   * Linear Technology LTC2972
 
     Prefix: 'ltc2972'
@@ -151,6 +167,14 @@ Supported chips:
 
     Datasheet: https://www.analog.com/en/products/ltm4644
 
+   * Linear Technology LTM4673
+
+    Prefix: 'ltm4673'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/en/products/ltm4673
+
    * Linear Technology LTM4675
 
     Prefix: 'ltm4675'
@@ -215,6 +239,8 @@ Author: Guenter Roeck <linux@roeck-us.net>
 Description
 -----------
 
+- LT7170 and LT7171 are 20 A, 16 V, single- or dual-phase Silent Switcher
+- step-down regulators with Digital Power System Management.
 - LTC2974 and LTC2975 are quad digital power supply managers.
 - LTC2978 is an octal power supply monitor.
 - LTC2977 is a pin compatible replacement for LTC2978.
@@ -292,6 +318,7 @@ in1_reset_history	Reset input voltage history.
 
 in[N]_label		"vout[1-8]".
 
+			- LT7170, LT7171: N=2
 			- LTC2972: N=2-3
 			- LTC2974, LTC2975: N=2-5
 			- LTC2977, LTC2979, LTC2980, LTM2987: N=2-9
@@ -330,6 +357,8 @@ in[N]_reset_history	Reset output voltage history.
 
 temp[N]_input		Measured temperature.
 
+			- On LT7170 and LT7171, temp1 reports the chip
+			  temperature.
 			- On LTC2972, temp[1-2] report external temperatures,
 			  and temp 3 reports the chip temperature.
 			- On LTC2974 and LTC2975, temp[1-4] report external
@@ -403,9 +432,9 @@ power[N]_input		Measured output power.
 
 curr1_label		"iin".
 
-			LTC3880, LTC3883, LTC3884, LTC3886, LTC3887, LTC3889,
-			LTM4644, LTM4675, LTM4676, LTM4677, LTM4678, LTM4680,
-			and LTM4700 only.
+			LT7170, LT7171, LTC3880, LTC3883, LTC3884, LTC3886,
+			LTC3887, LTC3889, LTM4644, LTM4675, LTM4676, LTM4677,
+			LTM4678, LTM4680, and LTM4700 only.
 
 curr1_input		Measured input current.
 
@@ -423,6 +452,7 @@ curr1_reset_history	Reset input current history.
 
 curr[N]_label		"iout[1-4]".
 
+			- LT7170, LT7171: N=1
 			- LTC2972: N-1-2
 			- LTC2974, LTC2975: N=1-4
 			- LTC2977, LTC2979, LTC2980, LTM2987: not supported

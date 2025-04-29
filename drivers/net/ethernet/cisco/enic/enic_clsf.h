@@ -26,7 +26,7 @@ static inline void enic_rfs_timer_start(struct enic *enic)
 
 static inline void enic_rfs_timer_stop(struct enic *enic)
 {
-	del_timer_sync(&enic->rfs_h.rfs_may_expire);
+	timer_delete_sync(&enic->rfs_h.rfs_may_expire);
 }
 #else
 static inline void enic_rfs_timer_start(struct enic *enic) {}

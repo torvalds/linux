@@ -78,16 +78,6 @@ int pnp_register_protocol(struct pnp_protocol *protocol)
 	return ret;
 }
 
-/**
- * pnp_unregister_protocol - removes a pnp protocol from the pnp layer
- * @protocol: pointer to the corresponding pnp_protocol structure
- */
-void pnp_unregister_protocol(struct pnp_protocol *protocol)
-{
-	pnp_remove_protocol(protocol);
-	device_unregister(&protocol->dev);
-}
-
 static void pnp_free_ids(struct pnp_dev *dev)
 {
 	struct pnp_id *id;
@@ -218,12 +208,6 @@ int pnp_add_device(struct pnp_dev *dev)
 	dev_dbg(&dev->dev, "%s device, IDs%s (%s)\n", dev->protocol->name, buf,
 		dev->active ? "active" : "disabled");
 	return 0;
-}
-
-void __pnp_remove_device(struct pnp_dev *dev)
-{
-	pnp_delist_device(dev);
-	device_unregister(&dev->dev);
 }
 
 static int __init pnp_init(void)

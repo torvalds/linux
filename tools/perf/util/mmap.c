@@ -244,9 +244,8 @@ static void build_node_mask(int node, struct mmap_cpu_mask *mask)
 {
 	int idx, nr_cpus;
 	struct perf_cpu cpu;
-	const struct perf_cpu_map *cpu_map = NULL;
+	struct perf_cpu_map *cpu_map = cpu_map__online();
 
-	cpu_map = cpu_map__online();
 	if (!cpu_map)
 		return;
 
@@ -256,6 +255,7 @@ static void build_node_mask(int node, struct mmap_cpu_mask *mask)
 		if (cpu__get_node(cpu) == node)
 			__set_bit(cpu.cpu, mask->bits);
 	}
+	perf_cpu_map__put(cpu_map);
 }
 
 static int perf_mmap__setup_affinity_mask(struct mmap *map, struct mmap_params *mp)
@@ -355,15 +355,4 @@ int perf_mmap__push(struct mmap *md, void *to,
 	perf_mmap__consume(&md->core);
 out:
 	return rc;
-}
-
-int mmap_cpu_mask__duplicate(struct mmap_cpu_mask *original, struct mmap_cpu_mask *clone)
-{
-	clone->nbits = original->nbits;
-	clone->bits  = bitmap_zalloc(original->nbits);
-	if (!clone->bits)
-		return -ENOMEM;
-
-	memcpy(clone->bits, original->bits, MMAP_CPU_MASK_BYTES(original));
-	return 0;
 }

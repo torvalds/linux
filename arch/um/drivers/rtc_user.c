@@ -39,7 +39,7 @@ int uml_rtc_start(bool timetravel)
 		}
 
 		/* apparently timerfd won't send SIGIO, use workaround */
-		sigio_broken(uml_rtc_irq_fds[0]);
+		sigio_broken();
 		err = add_sigio_fd(uml_rtc_irq_fds[0]);
 		if (err < 0) {
 			close(uml_rtc_irq_fds[0]);

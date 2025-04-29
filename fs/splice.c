@@ -200,7 +200,6 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
 	unsigned int spd_pages = spd->nr_pages;
 	unsigned int tail = pipe->tail;
 	unsigned int head = pipe->head;
-	unsigned int mask = pipe->ring_size - 1;
 	ssize_t ret = 0;
 	int page_nr = 0;
 
@@ -214,7 +213,7 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
 	}
 
 	while (!pipe_full(head, tail, pipe->max_usage)) {
-		struct pipe_buffer *buf = &pipe->bufs[head & mask];
+		struct pipe_buffer *buf = pipe_buf(pipe, head);
 
 		buf->page = spd->pages[page_nr];
 		buf->offset = spd->partial[page_nr].offset;
@@ -247,7 +246,6 @@ ssize_t add_to_pipe(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
 {
 	unsigned int head = pipe->head;
 	unsigned int tail = pipe->tail;
-	unsigned int mask = pipe->ring_size - 1;
 	int ret;
 
 	if (unlikely(!pipe->readers)) {
@@ -256,7 +254,7 @@ ssize_t add_to_pipe(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
 	} else if (pipe_full(head, tail, pipe->max_usage)) {
 		ret = -EAGAIN;
 	} else {
-		pipe->bufs[head & mask] = *buf;
+		*pipe_buf(pipe, head) = *buf;
 		pipe->head = head + 1;
 		return buf->len;
 	}
@@ -331,7 +329,7 @@ ssize_t copy_splice_read(struct file *in, loff_t *ppos,
 	int i;
 
 	/* Work out how much data we can actually add into the pipe */
-	used = pipe_occupancy(pipe->head, pipe->tail);
+	used = pipe_buf_usage(pipe);
 	npages = max_t(ssize_t, pipe->max_usage - used, 0);
 	len = min_t(size_t, len, npages * PAGE_SIZE);
 	npages = DIV_ROUND_UP(len, PAGE_SIZE);
@@ -447,11 +445,10 @@ static int splice_from_pipe_feed(struct pipe_inode_info *pipe, struct splice_des
 {
 	unsigned int head = pipe->head;
 	unsigned int tail = pipe->tail;
-	unsigned int mask = pipe->ring_size - 1;
 	int ret;
 
 	while (!pipe_empty(head, tail)) {
-		struct pipe_buffer *buf = &pipe->bufs[tail & mask];
+		struct pipe_buffer *buf = pipe_buf(pipe, tail);
 
 		sd->len = buf->len;
 		if (sd->len > sd->total_len)
@@ -495,8 +492,7 @@ static int splice_from_pipe_feed(struct pipe_inode_info *pipe, struct splice_des
 static inline bool eat_empty_buffer(struct pipe_inode_info *pipe)
 {
 	unsigned int tail = pipe->tail;
-	unsigned int mask = pipe->ring_size - 1;
-	struct pipe_buffer *buf = &pipe->bufs[tail & mask];
+	struct pipe_buffer *buf = pipe_buf(pipe, tail);
 
 	if (unlikely(!buf->len)) {
 		pipe_buf_release(pipe, buf);
@@ -527,7 +523,7 @@ static int splice_from_pipe_next(struct pipe_inode_info *pipe, struct splice_des
 		return -ERESTARTSYS;
 
 repeat:
-	while (pipe_empty(pipe->head, pipe->tail)) {
+	while (pipe_is_empty(pipe)) {
 		if (!pipe->writers)
 			return 0;
 
@@ -690,7 +686,7 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 	while (sd.total_len) {
 		struct kiocb kiocb;
 		struct iov_iter from;
-		unsigned int head, tail, mask;
+		unsigned int head, tail;
 		size_t left;
 		int n;
 
@@ -711,12 +707,11 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 
 		head = pipe->head;
 		tail = pipe->tail;
-		mask = pipe->ring_size - 1;
 
 		/* build the vector */
 		left = sd.total_len;
 		for (n = 0; !pipe_empty(head, tail) && left && n < nbufs; tail++) {
-			struct pipe_buffer *buf = &pipe->bufs[tail & mask];
+			struct pipe_buffer *buf = pipe_buf(pipe, tail);
 			size_t this_len = buf->len;
 
 			/* zero-length bvecs are not supported, skip them */
@@ -752,7 +747,7 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 		/* dismiss the fully eaten buffers, adjust the partial one */
 		tail = pipe->tail;
 		while (ret) {
-			struct pipe_buffer *buf = &pipe->bufs[tail & mask];
+			struct pipe_buffer *buf = pipe_buf(pipe, tail);
 			if (ret >= buf->len) {
 				ret -= buf->len;
 				buf->len = 0;
@@ -809,7 +804,7 @@ ssize_t splice_to_socket(struct pipe_inode_info *pipe, struct file *out,
 	pipe_lock(pipe);
 
 	while (len > 0) {
-		unsigned int head, tail, mask, bc = 0;
+		unsigned int head, tail, bc = 0;
 		size_t remain = len;
 
 		/*
@@ -820,7 +815,7 @@ ssize_t splice_to_socket(struct pipe_inode_info *pipe, struct file *out,
 		if (signal_pending(current))
 			break;
 
-		while (pipe_empty(pipe->head, pipe->tail)) {
+		while (pipe_is_empty(pipe)) {
 			ret = 0;
 			if (!pipe->writers)
 				goto out;
@@ -846,10 +841,9 @@ ssize_t splice_to_socket(struct pipe_inode_info *pipe, struct file *out,
 
 		head = pipe->head;
 		tail = pipe->tail;
-		mask = pipe->ring_size - 1;
 
 		while (!pipe_empty(head, tail)) {
-			struct pipe_buffer *buf = &pipe->bufs[tail & mask];
+			struct pipe_buffer *buf = pipe_buf(pipe, tail);
 			size_t seg;
 
 			if (!buf->len) {
@@ -894,7 +888,7 @@ ssize_t splice_to_socket(struct pipe_inode_info *pipe, struct file *out,
 		len -= ret;
 		tail = pipe->tail;
 		while (ret > 0) {
-			struct pipe_buffer *buf = &pipe->bufs[tail & mask];
+			struct pipe_buffer *buf = pipe_buf(pipe, tail);
 			size_t seg = min_t(size_t, ret, buf->len);
 
 			buf->offset += seg;
@@ -968,7 +962,7 @@ static ssize_t do_splice_read(struct file *in, loff_t *ppos,
 		return 0;
 
 	/* Don't try to read more the pipe has space for. */
-	p_space = pipe->max_usage - pipe_occupancy(pipe->head, pipe->tail);
+	p_space = pipe->max_usage - pipe_buf_usage(pipe);
 	len = min_t(size_t, len, p_space << PAGE_SHIFT);
 
 	if (unlikely(len > MAX_RW_COUNT))
@@ -1080,7 +1074,7 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 	more = sd->flags & SPLICE_F_MORE;
 	sd->flags |= SPLICE_F_MORE;
 
-	WARN_ON_ONCE(!pipe_empty(pipe->head, pipe->tail));
+	WARN_ON_ONCE(!pipe_is_empty(pipe));
 
 	while (len) {
 		size_t read_len;
@@ -1268,7 +1262,7 @@ static int wait_for_space(struct pipe_inode_info *pipe, unsigned flags)
 			send_sig(SIGPIPE, current, 0);
 			return -EPIPE;
 		}
-		if (!pipe_full(pipe->head, pipe->tail, pipe->max_usage))
+		if (!pipe_is_full(pipe))
 			return 0;
 		if (flags & SPLICE_F_NONBLOCK)
 			return -EAGAIN;
@@ -1652,13 +1646,13 @@ static int ipipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
 	 * Check the pipe occupancy without the inode lock first. This function
 	 * is speculative anyways, so missing one is ok.
 	 */
-	if (!pipe_empty(pipe->head, pipe->tail))
+	if (!pipe_is_empty(pipe))
 		return 0;
 
 	ret = 0;
 	pipe_lock(pipe);
 
-	while (pipe_empty(pipe->head, pipe->tail)) {
+	while (pipe_is_empty(pipe)) {
 		if (signal_pending(current)) {
 			ret = -ERESTARTSYS;
 			break;
@@ -1688,13 +1682,13 @@ static int opipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
 	 * Check pipe occupancy without the inode lock first. This function
 	 * is speculative anyways, so missing one is ok.
 	 */
-	if (!pipe_full(pipe->head, pipe->tail, pipe->max_usage))
+	if (!pipe_is_full(pipe))
 		return 0;
 
 	ret = 0;
 	pipe_lock(pipe);
 
-	while (pipe_full(pipe->head, pipe->tail, pipe->max_usage)) {
+	while (pipe_is_full(pipe)) {
 		if (!pipe->readers) {
 			send_sig(SIGPIPE, current, 0);
 			ret = -EPIPE;
@@ -1725,7 +1719,6 @@ static int splice_pipe_to_pipe(struct pipe_inode_info *ipipe,
 	struct pipe_buffer *ibuf, *obuf;
 	unsigned int i_head, o_head;
 	unsigned int i_tail, o_tail;
-	unsigned int i_mask, o_mask;
 	int ret = 0;
 	bool input_wakeup = false;
 
@@ -1747,9 +1740,7 @@ retry:
 	pipe_double_lock(ipipe, opipe);
 
 	i_tail = ipipe->tail;
-	i_mask = ipipe->ring_size - 1;
 	o_head = opipe->head;
-	o_mask = opipe->ring_size - 1;
 
 	do {
 		size_t o_len;
@@ -1792,8 +1783,8 @@ retry:
 			goto retry;
 		}
 
-		ibuf = &ipipe->bufs[i_tail & i_mask];
-		obuf = &opipe->bufs[o_head & o_mask];
+		ibuf = pipe_buf(ipipe, i_tail);
+		obuf = pipe_buf(opipe, o_head);
 
 		if (len >= ibuf->len) {
 			/*
@@ -1862,7 +1853,6 @@ static ssize_t link_pipe(struct pipe_inode_info *ipipe,
 	struct pipe_buffer *ibuf, *obuf;
 	unsigned int i_head, o_head;
 	unsigned int i_tail, o_tail;
-	unsigned int i_mask, o_mask;
 	ssize_t ret = 0;
 
 	/*
@@ -1873,9 +1863,7 @@ static ssize_t link_pipe(struct pipe_inode_info *ipipe,
 	pipe_double_lock(ipipe, opipe);
 
 	i_tail = ipipe->tail;
-	i_mask = ipipe->ring_size - 1;
 	o_head = opipe->head;
-	o_mask = opipe->ring_size - 1;
 
 	do {
 		if (!opipe->readers) {
@@ -1896,8 +1884,8 @@ static ssize_t link_pipe(struct pipe_inode_info *ipipe,
 		    pipe_full(o_head, o_tail, opipe->max_usage))
 			break;
 
-		ibuf = &ipipe->bufs[i_tail & i_mask];
-		obuf = &opipe->bufs[o_head & o_mask];
+		ibuf = pipe_buf(ipipe, i_tail);
+		obuf = pipe_buf(opipe, o_head);
 
 		/*
 		 * Get a reference to this pipe buffer,

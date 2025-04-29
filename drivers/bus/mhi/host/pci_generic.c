@@ -297,6 +297,19 @@ static const struct mhi_pci_dev_info mhi_qcom_qdu100_info = {
 	.sideband_wake = false,
 };
 
+static const struct mhi_channel_config mhi_qcom_sa8775p_channels[] = {
+	MHI_CHANNEL_CONFIG_UL(46, "IP_SW0", 2048, 1),
+	MHI_CHANNEL_CONFIG_DL(47, "IP_SW0", 2048, 2),
+};
+
+static struct mhi_event_config mhi_qcom_sa8775p_events[] = {
+	/* first ring is control+data ring */
+	MHI_EVENT_CONFIG_CTRL(0, 64),
+	/* Software channels dedicated event ring */
+	MHI_EVENT_CONFIG_SW_DATA(1, 64),
+	MHI_EVENT_CONFIG_SW_DATA(2, 64),
+};
+
 static const struct mhi_channel_config modem_qcom_v1_mhi_channels[] = {
 	MHI_CHANNEL_CONFIG_UL(4, "DIAG", 16, 1),
 	MHI_CHANNEL_CONFIG_DL(5, "DIAG", 16, 1),
@@ -327,6 +340,15 @@ static struct mhi_event_config modem_qcom_v1_mhi_events[] = {
 	MHI_EVENT_CONFIG_HW_DATA(5, 2048, 101)
 };
 
+static const struct mhi_controller_config mhi_qcom_sa8775p_config = {
+	.max_channels = 128,
+	.timeout_ms = 8000,
+	.num_channels = ARRAY_SIZE(mhi_qcom_sa8775p_channels),
+	.ch_cfg = mhi_qcom_sa8775p_channels,
+	.num_events = ARRAY_SIZE(mhi_qcom_sa8775p_events),
+	.event_cfg = mhi_qcom_sa8775p_events,
+};
+
 static const struct mhi_controller_config modem_qcom_v2_mhiv_config = {
 	.max_channels = 128,
 	.timeout_ms = 8000,
@@ -344,6 +366,16 @@ static const struct mhi_controller_config modem_qcom_v1_mhiv_config = {
 	.ch_cfg = modem_qcom_v1_mhi_channels,
 	.num_events = ARRAY_SIZE(modem_qcom_v1_mhi_events),
 	.event_cfg = modem_qcom_v1_mhi_events,
+};
+
+static const struct mhi_pci_dev_info mhi_qcom_sa8775p_info = {
+	.name = "qcom-sa8775p",
+	.edl_trigger = false,
+	.config = &mhi_qcom_sa8775p_config,
+	.bar_num = MHI_PCI_DEFAULT_BAR_NUM,
+	.dma_data_width = 32,
+	.mru_default = 32768,
+	.sideband_wake = false,
 };
 
 static const struct mhi_pci_dev_info mhi_qcom_sdx75_info = {
@@ -772,6 +804,8 @@ static const struct mhi_pci_dev_info mhi_netprisma_fcun69_info = {
 
 /* Keep the list sorted based on the PID. New VID should be added as the last entry */
 static const struct pci_device_id mhi_pci_id_table[] = {
+	{PCI_DEVICE(PCI_VENDOR_ID_QCOM, 0x0116),
+		.driver_data = (kernel_ulong_t) &mhi_qcom_sa8775p_info },
 	{ PCI_DEVICE(PCI_VENDOR_ID_QCOM, 0x0304),
 		.driver_data = (kernel_ulong_t) &mhi_qcom_sdx24_info },
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_QCOM, 0x0306, PCI_VENDOR_ID_QCOM, 0x010c),
@@ -1062,7 +1096,7 @@ static void mhi_pci_recovery_work(struct work_struct *work)
 
 	dev_warn(&pdev->dev, "device recovery started\n");
 
-	del_timer(&mhi_pdev->health_check_timer);
+	timer_delete(&mhi_pdev->health_check_timer);
 	pm_runtime_forbid(&pdev->dev);
 
 	/* Clean up MHI state */
@@ -1095,8 +1129,9 @@ static void mhi_pci_recovery_work(struct work_struct *work)
 err_unprepare:
 	mhi_unprepare_after_power_down(mhi_cntrl);
 err_try_reset:
-	if (pci_reset_function(pdev))
-		dev_err(&pdev->dev, "Recovery failed\n");
+	err = pci_try_reset_function(pdev);
+	if (err)
+		dev_err(&pdev->dev, "Recovery failed: %d\n", err);
 }
 
 static void health_check(struct timer_list *t)
@@ -1258,7 +1293,7 @@ static void mhi_pci_remove(struct pci_dev *pdev)
 	struct mhi_pci_device *mhi_pdev = pci_get_drvdata(pdev);
 	struct mhi_controller *mhi_cntrl = &mhi_pdev->mhi_cntrl;
 
-	del_timer_sync(&mhi_pdev->health_check_timer);
+	timer_delete_sync(&mhi_pdev->health_check_timer);
 	cancel_work_sync(&mhi_pdev->recovery_work);
 
 	if (test_and_clear_bit(MHI_PCI_DEV_STARTED, &mhi_pdev->status)) {
@@ -1286,7 +1321,7 @@ static void mhi_pci_reset_prepare(struct pci_dev *pdev)
 
 	dev_info(&pdev->dev, "reset\n");
 
-	del_timer(&mhi_pdev->health_check_timer);
+	timer_delete(&mhi_pdev->health_check_timer);
 
 	/* Clean up MHI state */
 	if (test_and_clear_bit(MHI_PCI_DEV_STARTED, &mhi_pdev->status)) {
@@ -1396,7 +1431,7 @@ static int  __maybe_unused mhi_pci_runtime_suspend(struct device *dev)
 	if (test_and_set_bit(MHI_PCI_DEV_SUSPENDED, &mhi_pdev->status))
 		return 0;
 
-	del_timer(&mhi_pdev->health_check_timer);
+	timer_delete(&mhi_pdev->health_check_timer);
 	cancel_work_sync(&mhi_pdev->recovery_work);
 
 	if (!test_bit(MHI_PCI_DEV_STARTED, &mhi_pdev->status) ||

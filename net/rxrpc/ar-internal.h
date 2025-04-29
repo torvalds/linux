@@ -344,6 +344,7 @@ struct rxrpc_peer {
 	struct hlist_head	error_targets;	/* targets for net error distribution */
 	struct rb_root		service_conns;	/* Service connections */
 	struct list_head	keepalive_link;	/* Link in net->peer_keepalive[] */
+	unsigned long		app_data;	/* Application data (e.g. afs_server) */
 	time64_t		last_tx_at;	/* Last time packet sent here */
 	seqlock_t		service_conn_lock;
 	spinlock_t		lock;		/* access lock */
@@ -360,7 +361,6 @@ struct rxrpc_peer {
 	u8			pmtud_jumbo;	/* Max jumbo packets for the MTU */
 	bool			ackr_adv_pmtud;	/* T if the peer advertises path-MTU */
 	unsigned int		ackr_max_data;	/* Maximum data advertised by peer */
-	seqcount_t		mtu_lock;	/* Lockless MTU access management */
 	unsigned int		if_mtu;		/* Local interface MTU (- hdrsize) for this peer */
 	unsigned int		max_data;	/* Maximum packet data capacity for this peer */
 	unsigned short		hdrsize;	/* header size (IP + UDP + RxRPC) */

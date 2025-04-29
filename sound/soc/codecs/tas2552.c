@@ -138,7 +138,6 @@ static const struct snd_soc_dapm_route tas2552_audio_map[] = {
 	{"ASI OUT", NULL, "DMIC"}
 };
 
-#ifdef CONFIG_PM
 static void tas2552_sw_shutdown(struct tas2552_data *tas2552, int sw_shutdown)
 {
 	u8 cfg1_reg = 0;
@@ -152,7 +151,6 @@ static void tas2552_sw_shutdown(struct tas2552_data *tas2552, int sw_shutdown)
 	snd_soc_component_update_bits(tas2552->component, TAS2552_CFG_1, TAS2552_SWS,
 			    cfg1_reg);
 }
-#endif
 
 static int tas2552_setup_pll(struct snd_soc_component *component,
 			     struct snd_pcm_hw_params *params)
@@ -480,7 +478,6 @@ static int tas2552_mute(struct snd_soc_dai *dai, int mute, int direction)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 static int tas2552_runtime_suspend(struct device *dev)
 {
 	struct tas2552_data *tas2552 = dev_get_drvdata(dev);
@@ -508,11 +505,9 @@ static int tas2552_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops tas2552_pm = {
-	SET_RUNTIME_PM_OPS(tas2552_runtime_suspend, tas2552_runtime_resume,
-			   NULL)
+	RUNTIME_PM_OPS(tas2552_runtime_suspend, tas2552_runtime_resume, NULL)
 };
 
 static const struct snd_soc_dai_ops tas2552_speaker_dai_ops = {
@@ -768,7 +763,7 @@ static struct i2c_driver tas2552_i2c_driver = {
 	.driver = {
 		.name = "tas2552",
 		.of_match_table = of_match_ptr(tas2552_of_match),
-		.pm = &tas2552_pm,
+		.pm = pm_ptr(&tas2552_pm),
 	},
 	.probe = tas2552_probe,
 	.remove = tas2552_i2c_remove,

@@ -146,7 +146,7 @@ void a6xx_preempt_irq(struct msm_gpu *gpu)
 		return;
 
 	/* Delete the preemption watchdog timer */
-	del_timer(&a6xx_gpu->preempt_timer);
+	timer_delete(&a6xx_gpu->preempt_timer);
 
 	/*
 	 * The hardware should be setting the stop bit of CP_CONTEXT_SWITCH_CNTL

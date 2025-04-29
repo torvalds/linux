@@ -729,7 +729,7 @@ static int rtq9128_probe(struct i2c_client *i2c)
 	return devm_snd_soc_register_component(dev, &rtq9128_comp_driver, &rtq9128_dai, 1);
 }
 
-static int __maybe_unused rtq9128_pm_runtime_suspend(struct device *dev)
+static int rtq9128_pm_runtime_suspend(struct device *dev)
 {
 	struct rtq9128_data *data = dev_get_drvdata(dev);
 	struct regmap *regmap = dev_get_regmap(dev, NULL);
@@ -746,7 +746,7 @@ static int __maybe_unused rtq9128_pm_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused rtq9128_pm_runtime_resume(struct device *dev)
+static int rtq9128_pm_runtime_resume(struct device *dev)
 {
 	struct rtq9128_data *data = dev_get_drvdata(dev);
 	struct regmap *regmap = dev_get_regmap(dev, NULL);
@@ -764,8 +764,8 @@ static int __maybe_unused rtq9128_pm_runtime_resume(struct device *dev)
 	return regcache_sync(regmap);
 }
 
-static const struct dev_pm_ops __maybe_unused rtq9128_pm_ops = {
-	SET_RUNTIME_PM_OPS(rtq9128_pm_runtime_suspend, rtq9128_pm_runtime_resume, NULL)
+static const struct dev_pm_ops rtq9128_pm_ops = {
+	RUNTIME_PM_OPS(rtq9128_pm_runtime_suspend, rtq9128_pm_runtime_resume, NULL)
 };
 
 static const struct of_device_id rtq9128_device_table[] = {

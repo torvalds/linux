@@ -11,7 +11,6 @@
 #include "errcode.h"
 #include "extents.h"
 #include "fs.h"
-#include "fs-common.h"
 #include "fs-io.h"
 #include "fs-ioctl.h"
 #include "fs-io-buffered.h"
@@ -22,6 +21,7 @@
 #include "io_read.h"
 #include "journal.h"
 #include "keylist.h"
+#include "namei.h"
 #include "quota.h"
 #include "rebalance.h"
 #include "snapshot.h"
@@ -88,7 +88,7 @@ int __must_check bch2_write_inode(struct bch_fs *c,
 				  void *p, unsigned fields)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
-	struct btree_iter iter = { NULL };
+	struct btree_iter iter = {};
 	struct bch_inode_unpacked inode_u;
 	int ret;
 retry:
@@ -641,7 +641,9 @@ static struct bch_inode_info *bch2_lookup_trans(struct btree_trans *trans,
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = bch2_dirent_read_target(trans, dir, bkey_s_c_to_dirent(k), &inum);
+	struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
+
+	ret = bch2_dirent_read_target(trans, dir, d, &inum);
 	if (ret > 0)
 		ret = -ENOENT;
 	if (ret)
@@ -651,30 +653,30 @@ static struct bch_inode_info *bch2_lookup_trans(struct btree_trans *trans,
 	if (inode)
 		goto out;
 
+	/*
+	 * Note: if check/repair needs it, we commit before
+	 * bch2_inode_hash_init_insert(), as after that point we can't take a
+	 * restart - not in the top level loop with a commit_do(), like we
+	 * usually do:
+	 */
+
 	struct bch_subvolume subvol;
 	struct bch_inode_unpacked inode_u;
 	ret =   bch2_subvolume_get(trans, inum.subvol, true, &subvol) ?:
 		bch2_inode_find_by_inum_nowarn_trans(trans, inum, &inode_u) ?:
+		bch2_check_dirent_target(trans, &dirent_iter, d, &inode_u, false) ?:
+		bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc) ?:
 		PTR_ERR_OR_ZERO(inode = bch2_inode_hash_init_insert(trans, inum, &inode_u, &subvol));
 
+	/*
+	 * don't remove it: check_inodes might find another inode that points
+	 * back to this dirent
+	 */
 	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT),
-				c, "dirent to missing inode:\n  %s",
-				(bch2_bkey_val_to_text(&buf, c, k), buf.buf));
+				c, "dirent to missing inode:\n%s",
+				(bch2_bkey_val_to_text(&buf, c, d.s_c), buf.buf));
 	if (ret)
 		goto err;
-
-	/* regular files may have hardlinks: */
-	if (bch2_fs_inconsistent_on(bch2_inode_should_have_single_bp(&inode_u) &&
-				    !bkey_eq(k.k->p, POS(inode_u.bi_dir, inode_u.bi_dir_offset)),
-				    c,
-				    "dirent points to inode that does not point back:\n  %s",
-				    (bch2_bkey_val_to_text(&buf, c, k),
-				     prt_printf(&buf, "\n  "),
-				     bch2_inode_unpacked_to_text(&buf, &inode_u),
-				     buf.buf))) {
-		ret = -ENOENT;
-		goto err;
-	}
 out:
 	bch2_trans_iter_exit(trans, &dirent_iter);
 	printbuf_exit(&buf);
@@ -697,6 +699,23 @@ static struct dentry *bch2_lookup(struct inode *vdir, struct dentry *dentry,
 							  &hash, &dentry->d_name)));
 	if (IS_ERR(inode))
 		inode = NULL;
+
+#ifdef CONFIG_UNICODE
+	if (!inode && IS_CASEFOLDED(vdir)) {
+		/*
+		 * Do not cache a negative dentry in casefolded directories
+		 * as it would need to be invalidated in the following situation:
+		 * - Lookup file "blAH" in a casefolded directory
+		 * - Creation of file "BLAH" in a casefolded directory
+		 * - Lookup file "blAH" in a casefolded directory
+		 * which would fail if we had a negative dentry.
+		 *
+		 * We should come back to this when VFS has a method to handle
+		 * this edgecase.
+		 */
+		return NULL;
+	}
+#endif
 
 	return d_splice_alias(&inode->v, dentry);
 }
@@ -858,10 +877,10 @@ err:
 	return bch2_err_class(ret);
 }
 
-static int bch2_mkdir(struct mnt_idmap *idmap,
-		      struct inode *vdir, struct dentry *dentry, umode_t mode)
+static struct dentry *bch2_mkdir(struct mnt_idmap *idmap,
+				 struct inode *vdir, struct dentry *dentry, umode_t mode)
 {
-	return bch2_mknod(idmap, vdir, dentry, mode|S_IFDIR, 0);
+	return ERR_PTR(bch2_mknod(idmap, vdir, dentry, mode|S_IFDIR, 0));
 }
 
 static int bch2_rename2(struct mnt_idmap *idmap,
@@ -1056,7 +1075,7 @@ int bch2_setattr_nonsize(struct mnt_idmap *idmap,
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_qid qid;
 	struct btree_trans *trans;
-	struct btree_iter inode_iter = { NULL };
+	struct btree_iter inode_iter = {};
 	struct bch_inode_unpacked inode_u;
 	struct posix_acl *acl = NULL;
 	kuid_t kuid;
@@ -1311,9 +1330,9 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 		if (ret)
 			continue;
 
-		bch2_btree_iter_set_snapshot(&iter, snapshot);
+		bch2_btree_iter_set_snapshot(trans, &iter, snapshot);
 
-		k = bch2_btree_iter_peek_max(&iter, end);
+		k = bch2_btree_iter_peek_max(trans, &iter, end);
 		ret = bkey_err(k);
 		if (ret)
 			continue;
@@ -1323,7 +1342,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 
 		if (!bkey_extent_is_data(k.k) &&
 		    k.k->type != KEY_TYPE_reservation) {
-			bch2_btree_iter_advance(&iter);
+			bch2_btree_iter_advance(trans, &iter);
 			continue;
 		}
 
@@ -1361,7 +1380,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 		bkey_copy(prev.k, cur.k);
 		have_extent = true;
 
-		bch2_btree_iter_set_pos(&iter,
+		bch2_btree_iter_set_pos(trans, &iter,
 			POS(iter.pos.inode, iter.pos.offset + sectors));
 	}
 	bch2_trans_iter_exit(trans, &iter);
@@ -1678,17 +1697,17 @@ retry:
 	if (ret)
 		goto err;
 
-	bch2_btree_iter_set_snapshot(&iter1, snapshot);
-	bch2_btree_iter_set_snapshot(&iter2, snapshot);
+	bch2_btree_iter_set_snapshot(trans, &iter1, snapshot);
+	bch2_btree_iter_set_snapshot(trans, &iter2, snapshot);
 
 	ret = bch2_inode_find_by_inum_trans(trans, inode_inum(inode), &inode_u);
 	if (ret)
 		goto err;
 
 	if (inode_u.bi_dir == dir->ei_inode.bi_inum) {
-		bch2_btree_iter_set_pos(&iter1, POS(inode_u.bi_dir, inode_u.bi_dir_offset));
+		bch2_btree_iter_set_pos(trans, &iter1, POS(inode_u.bi_dir, inode_u.bi_dir_offset));
 
-		k = bch2_btree_iter_peek_slot(&iter1);
+		k = bch2_btree_iter_peek_slot(trans, &iter1);
 		ret = bkey_err(k);
 		if (ret)
 			goto err;
@@ -1712,7 +1731,7 @@ retry:
 		 * File with multiple hardlinks and our backref is to the wrong
 		 * directory - linear search:
 		 */
-		for_each_btree_key_continue_norestart(iter2, 0, k, ret) {
+		for_each_btree_key_continue_norestart(trans, iter2, 0, k, ret) {
 			if (k.k->p.inode > dir->ei_inode.bi_inum)
 				break;
 
@@ -1802,7 +1821,8 @@ static void bch2_vfs_inode_init(struct btree_trans *trans,
 		break;
 	}
 
-	mapping_set_large_folios(inode->v.i_mapping);
+	mapping_set_folio_min_order(inode->v.i_mapping,
+				    get_order(trans->c->opts.block_size));
 }
 
 static void bch2_free_inode(struct inode *vinode)
@@ -2008,44 +2028,6 @@ static struct bch_fs *bch2_path_to_fs(const char *path)
 	return c ?: ERR_PTR(-ENOENT);
 }
 
-static int bch2_remount(struct super_block *sb, int *flags,
-			struct bch_opts opts)
-{
-	struct bch_fs *c = sb->s_fs_info;
-	int ret = 0;
-
-	opt_set(opts, read_only, (*flags & SB_RDONLY) != 0);
-
-	if (opts.read_only != c->opts.read_only) {
-		down_write(&c->state_lock);
-
-		if (opts.read_only) {
-			bch2_fs_read_only(c);
-
-			sb->s_flags |= SB_RDONLY;
-		} else {
-			ret = bch2_fs_read_write(c);
-			if (ret) {
-				bch_err(c, "error going rw: %i", ret);
-				up_write(&c->state_lock);
-				ret = -EINVAL;
-				goto err;
-			}
-
-			sb->s_flags &= ~SB_RDONLY;
-		}
-
-		c->opts.read_only = opts.read_only;
-
-		up_write(&c->state_lock);
-	}
-
-	if (opt_defined(opts, errors))
-		c->opts.errors = opts.errors;
-err:
-	return bch2_err_class(ret);
-}
-
 static int bch2_show_devname(struct seq_file *seq, struct dentry *root)
 {
 	struct bch_fs *c = root->d_sb->s_fs_info;
@@ -2192,17 +2174,21 @@ static int bch2_fs_get_tree(struct fs_context *fc)
 	if (ret)
 		goto err;
 
+	if (opt_defined(opts, discard))
+		set_bit(BCH_FS_discard_mount_opt_set, &c->flags);
+
 	/* Some options can't be parsed until after the fs is started: */
 	opts = bch2_opts_empty();
-	ret = bch2_parse_mount_opts(c, &opts, NULL, opts_parse->parse_later.buf);
+	ret = bch2_parse_mount_opts(c, &opts, NULL, opts_parse->parse_later.buf, false);
 	if (ret)
 		goto err_stop_fs;
 
 	bch2_opts_apply(&c->opts, opts);
 
-	ret = bch2_fs_start(c);
-	if (ret)
-		goto err_stop_fs;
+	/*
+	 * need to initialise sb and set c->vfs_sb _before_ starting fs,
+	 * for blk_holder_ops
+	 */
 
 	sb = sget(fc->fs_type, NULL, bch2_set_super, fc->sb_flags|SB_NOSEC, c);
 	ret = PTR_ERR_OR_ZERO(sb);
@@ -2251,7 +2237,7 @@ got_sb:
 		/* XXX: create an anonymous device for multi device filesystems */
 		sb->s_bdev	= bdev;
 		sb->s_dev	= bdev->bd_dev;
-		percpu_ref_put(&ca->io_ref);
+		percpu_ref_put(&ca->io_ref[READ]);
 		break;
 	}
 
@@ -2263,6 +2249,10 @@ got_sb:
 #endif
 
 	sb->s_shrink->seeks = 0;
+
+	ret = bch2_fs_start(c);
+	if (ret)
+		goto err_put_super;
 
 	vinode = bch2_vfs_inode_get(c, BCACHEFS_ROOT_SUBVOL_INUM);
 	ret = PTR_ERR_OR_ZERO(vinode);
@@ -2300,7 +2290,8 @@ err_stop_fs:
 	goto err;
 
 err_put_super:
-	__bch2_fs_stop(c);
+	if (!sb->s_root)
+		__bch2_fs_stop(c);
 	deactivate_locked_super(sb);
 	goto err;
 }
@@ -2343,6 +2334,8 @@ static int bch2_fs_parse_param(struct fs_context *fc,
 	int ret = bch2_parse_one_mount_opt(c, &opts->opts,
 					   &opts->parse_later, param->key,
 					   param->string);
+	if (ret)
+		pr_err("Error parsing option %s: %s", param->key, bch2_err_str(ret));
 
 	return bch2_err_class(ret);
 }
@@ -2351,8 +2344,39 @@ static int bch2_fs_reconfigure(struct fs_context *fc)
 {
 	struct super_block *sb = fc->root->d_sb;
 	struct bch2_opts_parse *opts = fc->fs_private;
+	struct bch_fs *c = sb->s_fs_info;
+	int ret = 0;
 
-	return bch2_remount(sb, &fc->sb_flags, opts->opts);
+	opt_set(opts->opts, read_only, (fc->sb_flags & SB_RDONLY) != 0);
+
+	if (opts->opts.read_only != c->opts.read_only) {
+		down_write(&c->state_lock);
+
+		if (opts->opts.read_only) {
+			bch2_fs_read_only(c);
+
+			sb->s_flags |= SB_RDONLY;
+		} else {
+			ret = bch2_fs_read_write(c);
+			if (ret) {
+				bch_err(c, "error going rw: %i", ret);
+				up_write(&c->state_lock);
+				ret = -EINVAL;
+				goto err;
+			}
+
+			sb->s_flags &= ~SB_RDONLY;
+		}
+
+		c->opts.read_only = opts->opts.read_only;
+
+		up_write(&c->state_lock);
+	}
+
+	if (opt_defined(opts->opts, errors))
+		c->opts.errors = opts->opts.errors;
+err:
+	return bch2_err_class(ret);
 }
 
 static const struct fs_context_operations bch2_context_ops = {
@@ -2396,7 +2420,7 @@ static struct file_system_type bcache_fs_type = {
 	.name			= "bcachefs",
 	.init_fs_context	= bch2_init_fs_context,
 	.kill_sb		= bch2_kill_sb,
-	.fs_flags		= FS_REQUIRES_DEV | FS_ALLOW_IDMAP,
+	.fs_flags		= FS_REQUIRES_DEV | FS_ALLOW_IDMAP | FS_LBS,
 };
 
 MODULE_ALIAS_FS("bcachefs");

@@ -19,12 +19,8 @@ struct mod_arch_specific
 #define Elf_Dyn		Elf64_Dyn
 #define Elf_Ehdr	Elf64_Ehdr
 #define Elf_Addr	Elf64_Addr
-#ifdef CONFIG_MODULES_USE_ELF_REL
 #define Elf_Rel		Elf64_Rel
-#endif
-#ifdef CONFIG_MODULES_USE_ELF_RELA
 #define Elf_Rela	Elf64_Rela
-#endif
 #define ELF_R_TYPE(X)	ELF64_R_TYPE(X)
 #define ELF_R_SYM(X)	ELF64_R_SYM(X)
 
@@ -36,12 +32,8 @@ struct mod_arch_specific
 #define Elf_Dyn		Elf32_Dyn
 #define Elf_Ehdr	Elf32_Ehdr
 #define Elf_Addr	Elf32_Addr
-#ifdef CONFIG_MODULES_USE_ELF_REL
 #define Elf_Rel		Elf32_Rel
-#endif
-#ifdef CONFIG_MODULES_USE_ELF_RELA
 #define Elf_Rela	Elf32_Rela
-#endif
 #define ELF_R_TYPE(X)	ELF32_R_TYPE(X)
 #define ELF_R_SYM(X)	ELF32_R_SYM(X)
 #endif

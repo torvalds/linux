@@ -4,6 +4,10 @@
  *   copyright            : (C) 2002, 2004 by Frank Mori Hess              *
  ***************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define dev_fmt pr_fmt
+#define DRV_NAME KBUILD_MODNAME
+
 #include "agilent_82350b.h"
 #include <linux/delay.h>
 #include <linux/ioport.h>
@@ -20,8 +24,14 @@
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GPIB driver for Agilent 82350b");
 
-int agilent_82350b_accel_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end,
-			      size_t *bytes_read)
+static int read_transfer_counter(struct agilent_82350b_priv *a_priv);
+static unsigned short read_and_clear_event_status(struct gpib_board *board);
+static void set_transfer_counter(struct agilent_82350b_priv *a_priv, int count);
+static int agilent_82350b_write(struct gpib_board *board, uint8_t *buffer,
+				size_t length, int send_eoi, size_t *bytes_written);
+
+static int agilent_82350b_accel_read(struct gpib_board *board, uint8_t *buffer,
+				     size_t length, int *end, size_t *bytes_read)
 
 {
 	struct agilent_82350b_priv *a_priv = board->private_data;
@@ -48,9 +58,6 @@ int agilent_82350b_accel_read(gpib_board_t *board, uint8_t *buffer, size_t lengt
 
 		retval = tms9914_read(board, tms_priv, buffer, 1, end, &num_bytes);
 		*bytes_read += num_bytes;
-		if (retval < 0)
-			dev_err(board->gpib_dev, "%s: tms9914_read failed retval=%i\n",
-				driver_name, retval);
 		if (retval < 0 || *end)
 			return retval;
 		++buffer;
@@ -66,10 +73,7 @@ int agilent_82350b_accel_read(gpib_board_t *board, uint8_t *buffer, size_t lengt
 		int j;
 		int count;
 
-		if (num_fifo_bytes - i < agilent_82350b_fifo_size)
-			block_size = num_fifo_bytes - i;
-		else
-			block_size = agilent_82350b_fifo_size;
+		block_size = min(num_fifo_bytes - i, agilent_82350b_fifo_size);
 		set_transfer_counter(a_priv, block_size);
 		writeb(ENABLE_TI_TO_SRAM | DIRECTION_GPIB_TO_HOST,
 		       a_priv->gpib_base + SRAM_ACCESS_CONTROL_REG);
@@ -86,7 +90,6 @@ int agilent_82350b_accel_read(gpib_board_t *board, uint8_t *buffer, size_t lengt
 						  test_bit(DEV_CLEAR_BN, &tms_priv->state) ||
 						  test_bit(TIMO_NUM, &board->status));
 		if (retval) {
-			dev_dbg(board->gpib_dev, "%s: read wait interrupted\n", driver_name);
 			retval = -ERESTARTSYS;
 			break;
 		}
@@ -100,13 +103,10 @@ int agilent_82350b_accel_read(gpib_board_t *board, uint8_t *buffer, size_t lengt
 			*end = 1;
 		}
 		if (test_bit(TIMO_NUM, &board->status)) {
-			dev_err(board->gpib_dev, "%s: read timed out\n", driver_name);
 			retval = -ETIMEDOUT;
 			break;
 		}
 		if (test_bit(DEV_CLEAR_BN, &tms_priv->state)) {
-			dev_err(board->gpib_dev, "%s: device clear interrupted read\n",
-				driver_name);
 			retval = -EINTR;
 			break;
 		}
@@ -130,30 +130,24 @@ int agilent_82350b_accel_read(gpib_board_t *board, uint8_t *buffer, size_t lengt
 	return 0;
 }
 
-static int translate_wait_return_value(gpib_board_t *board, int retval)
+static int translate_wait_return_value(struct gpib_board *board, int retval)
 
 {
 	struct agilent_82350b_priv *a_priv = board->private_data;
 	struct tms9914_priv *tms_priv = &a_priv->tms9914_priv;
 
-	if (retval) {
-		dev_err(board->gpib_dev, "%s: write wait interrupted\n", driver_name);
+	if (retval)
 		return -ERESTARTSYS;
-	}
-	if (test_bit(TIMO_NUM, &board->status)) {
-		dev_err(board->gpib_dev, "%s: write timed out\n", driver_name);
+	if (test_bit(TIMO_NUM, &board->status))
 		return -ETIMEDOUT;
-	}
-	if (test_bit(DEV_CLEAR_BN, &tms_priv->state)) {
-		dev_err(board->gpib_dev, "%s: device clear interrupted write\n", driver_name);
+	if (test_bit(DEV_CLEAR_BN, &tms_priv->state))
 		return -EINTR;
-	}
 	return 0;
 }
 
-int agilent_82350b_accel_write(gpib_board_t *board, uint8_t *buffer, size_t length, int send_eoi,
-			       size_t *bytes_written)
-
+static int agilent_82350b_accel_write(struct gpib_board *board, uint8_t *buffer,
+				      size_t length, int send_eoi,
+				      size_t *bytes_written)
 {
 	struct agilent_82350b_priv *a_priv = board->private_data;
 	struct tms9914_priv *tms_priv = &a_priv->tms9914_priv;
@@ -174,10 +168,8 @@ int agilent_82350b_accel_write(gpib_board_t *board, uint8_t *buffer, size_t leng
 
 	event_status = read_and_clear_event_status(board);
 
-	//pr_info("ag_ac_wr: event status 0x%x tms state 0x%lx\n", event_status, tms_priv->state);
-
 #ifdef EXPERIMENTAL
-	pr_info("ag_ac_wr: wait for previous BO to complete if any\n");
+	// wait for previous BO to complete if any
 	retval = wait_event_interruptible(board->wait,
 					  test_bit(DEV_CLEAR_BN, &tms_priv->state) ||
 					  test_bit(WRITE_READY_BN, &tms_priv->state) ||
@@ -188,22 +180,16 @@ int agilent_82350b_accel_write(gpib_board_t *board, uint8_t *buffer, size_t leng
 		return retval;
 #endif
 
-	//pr_info("ag_ac_wr: sending first byte\n");
 	retval = agilent_82350b_write(board, buffer, 1, 0, &num_bytes);
 	*bytes_written += num_bytes;
 	if (retval < 0)
 		return retval;
 
-	//pr_info("ag_ac_wr: %ld bytes eoi %d tms state 0x%lx\n",length, send_eoi, tms_priv->state);
-
 	write_byte(tms_priv, tms_priv->imr0_bits & ~HR_BOIE, IMR0);
 	for (i = 1; i < fifotransferlength;) {
 		clear_bit(WRITE_READY_BN, &tms_priv->state);
 
-		if (fifotransferlength - i < agilent_82350b_fifo_size)
-			block_size = fifotransferlength - i;
-		else
-			block_size = agilent_82350b_fifo_size;
+		block_size = min(fifotransferlength - i, agilent_82350b_fifo_size);
 		set_transfer_counter(a_priv, block_size);
 		for (j = 0; j < block_size; ++j, ++i) {
 			// load data into board's sram
@@ -211,13 +197,8 @@ int agilent_82350b_accel_write(gpib_board_t *board, uint8_t *buffer, size_t leng
 		}
 		writeb(ENABLE_TI_TO_SRAM, a_priv->gpib_base + SRAM_ACCESS_CONTROL_REG);
 
-		//pr_info("ag_ac_wr: send block: %d bytes tms 0x%lx\n", block_size,
-		// tms_priv->state);
-
-		if (agilent_82350b_fifo_is_halted(a_priv)) {
+		if (agilent_82350b_fifo_is_halted(a_priv))
 			writeb(RESTART_STREAM_BIT, a_priv->gpib_base + STREAM_STATUS_REG);
-			//	pr_info("ag_ac_wr: needed restart\n");
-		}
 
 		retval = wait_event_interruptible(board->wait,
 						  ((event_status =
@@ -227,7 +208,6 @@ int agilent_82350b_accel_write(gpib_board_t *board, uint8_t *buffer, size_t leng
 						  test_bit(TIMO_NUM, &board->status));
 		writeb(0, a_priv->gpib_base + SRAM_ACCESS_CONTROL_REG);
 		num_bytes = block_size - read_transfer_counter(a_priv);
-		//pr_info("ag_ac_wr: sent  %ld bytes tms 0x%lx\n", num_bytes, tms_priv->state);
 
 		*bytes_written += num_bytes;
 		retval = translate_wait_return_value(board, retval);
@@ -239,9 +219,6 @@ int agilent_82350b_accel_write(gpib_board_t *board, uint8_t *buffer, size_t leng
 		return retval;
 
 	if (send_eoi) {
-		//pr_info("ag_ac_wr: sending last byte with eoi byte no:   %d\n",
-		// fifotransferlength+1);
-
 		retval = agilent_82350b_write(board, buffer + fifotransferlength, 1, send_eoi,
 					      &num_bytes);
 		*bytes_written += num_bytes;
@@ -251,8 +228,7 @@ int agilent_82350b_accel_write(gpib_board_t *board, uint8_t *buffer, size_t leng
 	return 0;
 }
 
-unsigned short read_and_clear_event_status(gpib_board_t *board)
-
+static unsigned short read_and_clear_event_status(struct gpib_board *board)
 {
 	struct agilent_82350b_priv *a_priv = board->private_data;
 	unsigned long flags;
@@ -265,12 +241,12 @@ unsigned short read_and_clear_event_status(gpib_board_t *board)
 	return status;
 }
 
-irqreturn_t agilent_82350b_interrupt(int irq, void *arg)
+static irqreturn_t agilent_82350b_interrupt(int irq, void *arg)
 
 {
 	int tms9914_status1 = 0, tms9914_status2 = 0;
 	int event_status;
-	gpib_board_t *board = arg;
+	struct gpib_board *board = arg;
 	struct agilent_82350b_priv *a_priv = board->private_data;
 	unsigned long flags;
 	irqreturn_t retval = IRQ_NONE;
@@ -286,7 +262,6 @@ irqreturn_t agilent_82350b_interrupt(int irq, void *arg)
 		tms9914_interrupt_have_status(board, &a_priv->tms9914_priv, tms9914_status1,
 					      tms9914_status2);
 	}
-//pr_info("event_status=0x%x s1 %x s2 %x\n", event_status,tms9914_status1,tms9914_status2);
 //write-clear status bits
 	if (event_status & (BUFFER_END_STATUS_BIT | TERM_COUNT_STATUS_BIT)) {
 		writeb(event_status & (BUFFER_END_STATUS_BIT | TERM_COUNT_STATUS_BIT),
@@ -298,12 +273,9 @@ irqreturn_t agilent_82350b_interrupt(int irq, void *arg)
 	return retval;
 }
 
-void agilent_82350b_detach(gpib_board_t *board);
+static void agilent_82350b_detach(struct gpib_board *board);
 
-const char *driver_name = "agilent_82350b";
-
-int read_transfer_counter(struct agilent_82350b_priv *a_priv)
-
+static int read_transfer_counter(struct agilent_82350b_priv *a_priv)
 {
 	int lo, mid, value;
 
@@ -314,8 +286,7 @@ int read_transfer_counter(struct agilent_82350b_priv *a_priv)
 	return value;
 }
 
-void set_transfer_counter(struct agilent_82350b_priv *a_priv, int count)
-
+static void set_transfer_counter(struct agilent_82350b_priv *a_priv, int count)
 {
 	int complement = -count;
 
@@ -326,17 +297,16 @@ void set_transfer_counter(struct agilent_82350b_priv *a_priv, int count)
 }
 
 // wrappers for interface functions
-int agilent_82350b_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end,
-			size_t *bytes_read)
-
+static int agilent_82350b_read(struct gpib_board *board, uint8_t *buffer,
+			       size_t length, int *end, size_t *bytes_read)
 {
 	struct agilent_82350b_priv *priv = board->private_data;
 
 	return tms9914_read(board, &priv->tms9914_priv, buffer, length, end, bytes_read);
 }
 
-int agilent_82350b_write(gpib_board_t *board, uint8_t *buffer, size_t length, int send_eoi,
-			 size_t *bytes_written)
+static int agilent_82350b_write(struct gpib_board *board, uint8_t *buffer,
+				size_t length, int send_eoi, size_t *bytes_written)
 
 {
 	struct agilent_82350b_priv *priv = board->private_data;
@@ -344,8 +314,8 @@ int agilent_82350b_write(gpib_board_t *board, uint8_t *buffer, size_t length, in
 	return tms9914_write(board, &priv->tms9914_priv, buffer, length, send_eoi, bytes_written);
 }
 
-int agilent_82350b_command(gpib_board_t *board, uint8_t *buffer, size_t length,
-			   size_t *bytes_written)
+static int agilent_82350b_command(struct gpib_board *board, uint8_t *buffer,
+				  size_t length, size_t *bytes_written)
 
 {
 	struct agilent_82350b_priv *priv = board->private_data;
@@ -353,7 +323,7 @@ int agilent_82350b_command(gpib_board_t *board, uint8_t *buffer, size_t length,
 	return tms9914_command(board, &priv->tms9914_priv, buffer, length, bytes_written);
 }
 
-int agilent_82350b_take_control(gpib_board_t *board, int synchronous)
+static int agilent_82350b_take_control(struct gpib_board *board, int synchronous)
 
 {
 	struct agilent_82350b_priv *priv = board->private_data;
@@ -361,7 +331,7 @@ int agilent_82350b_take_control(gpib_board_t *board, int synchronous)
 	return tms9914_take_control_workaround(board, &priv->tms9914_priv, synchronous);
 }
 
-int agilent_82350b_go_to_standby(gpib_board_t *board)
+static int agilent_82350b_go_to_standby(struct gpib_board *board)
 
 {
 	struct agilent_82350b_priv *priv = board->private_data;
@@ -369,7 +339,8 @@ int agilent_82350b_go_to_standby(gpib_board_t *board)
 	return tms9914_go_to_standby(board, &priv->tms9914_priv);
 }
 
-void agilent_82350b_request_system_control(gpib_board_t *board, int request_control)
+static void agilent_82350b_request_system_control(struct gpib_board *board,
+						  int request_control)
 
 {
 	struct agilent_82350b_priv *a_priv = board->private_data;
@@ -387,7 +358,7 @@ void agilent_82350b_request_system_control(gpib_board_t *board, int request_cont
 	tms9914_request_system_control(board, &a_priv->tms9914_priv, request_control);
 }
 
-void agilent_82350b_interface_clear(gpib_board_t *board, int assert)
+static void agilent_82350b_interface_clear(struct gpib_board *board, int assert)
 
 {
 	struct agilent_82350b_priv *priv = board->private_data;
@@ -395,104 +366,96 @@ void agilent_82350b_interface_clear(gpib_board_t *board, int assert)
 	tms9914_interface_clear(board, &priv->tms9914_priv, assert);
 }
 
-void agilent_82350b_remote_enable(gpib_board_t *board, int enable)
-
+static void agilent_82350b_remote_enable(struct gpib_board *board, int enable)
 {
 	struct agilent_82350b_priv *priv = board->private_data;
 
 	tms9914_remote_enable(board, &priv->tms9914_priv, enable);
 }
 
-int agilent_82350b_enable_eos(gpib_board_t *board, uint8_t eos_byte, int compare_8_bits)
-
+static int agilent_82350b_enable_eos(struct gpib_board *board, uint8_t eos_byte,
+				     int compare_8_bits)
 {
 	struct agilent_82350b_priv *priv = board->private_data;
 
 	return tms9914_enable_eos(board, &priv->tms9914_priv, eos_byte, compare_8_bits);
 }
 
-void agilent_82350b_disable_eos(gpib_board_t *board)
-
+static void agilent_82350b_disable_eos(struct gpib_board *board)
 {
 	struct agilent_82350b_priv *priv = board->private_data;
 
 	tms9914_disable_eos(board, &priv->tms9914_priv);
 }
 
-unsigned int agilent_82350b_update_status(gpib_board_t *board, unsigned int clear_mask)
-
+static unsigned int agilent_82350b_update_status(struct gpib_board *board,
+						 unsigned int clear_mask)
 {
 	struct agilent_82350b_priv *priv = board->private_data;
 
 	return tms9914_update_status(board, &priv->tms9914_priv, clear_mask);
 }
 
-int agilent_82350b_primary_address(gpib_board_t *board, unsigned int address)
-
+static int agilent_82350b_primary_address(struct gpib_board *board,
+					  unsigned int address)
 {
 	struct agilent_82350b_priv *priv = board->private_data;
 
 	return tms9914_primary_address(board, &priv->tms9914_priv, address);
 }
 
-int agilent_82350b_secondary_address(gpib_board_t *board, unsigned int address, int enable)
-
+static int agilent_82350b_secondary_address(struct gpib_board *board,
+					    unsigned int address, int enable)
 {
 	struct agilent_82350b_priv *priv = board->private_data;
 
 	return tms9914_secondary_address(board, &priv->tms9914_priv, address, enable);
 }
 
-int agilent_82350b_parallel_poll(gpib_board_t *board, uint8_t *result)
-
+static int agilent_82350b_parallel_poll(struct gpib_board *board, uint8_t *result)
 {
 	struct agilent_82350b_priv *priv = board->private_data;
 
 	return tms9914_parallel_poll(board, &priv->tms9914_priv, result);
 }
 
-void agilent_82350b_parallel_poll_configure(gpib_board_t *board, uint8_t config)
-
+static void agilent_82350b_parallel_poll_configure(struct gpib_board *board,
+						   uint8_t config)
 {
 	struct agilent_82350b_priv *priv = board->private_data;
 
 	tms9914_parallel_poll_configure(board, &priv->tms9914_priv, config);
 }
 
-void agilent_82350b_parallel_poll_response(gpib_board_t *board, int ist)
-
+static void agilent_82350b_parallel_poll_response(struct gpib_board *board, int ist)
 {
 	struct agilent_82350b_priv *priv = board->private_data;
 
 	tms9914_parallel_poll_response(board, &priv->tms9914_priv, ist);
 }
 
-void agilent_82350b_serial_poll_response(gpib_board_t *board, uint8_t status)
-
+static void agilent_82350b_serial_poll_response(struct gpib_board *board, uint8_t status)
 {
 	struct agilent_82350b_priv *priv = board->private_data;
 
 	tms9914_serial_poll_response(board, &priv->tms9914_priv, status);
 }
 
-uint8_t agilent_82350b_serial_poll_status(gpib_board_t *board)
-
+static uint8_t agilent_82350b_serial_poll_status(struct gpib_board *board)
 {
 	struct agilent_82350b_priv *priv = board->private_data;
 
 	return tms9914_serial_poll_status(board, &priv->tms9914_priv);
 }
 
-int agilent_82350b_line_status(const gpib_board_t *board)
-
+static int agilent_82350b_line_status(const struct gpib_board *board)
 {
 	struct agilent_82350b_priv *priv = board->private_data;
 
 	return tms9914_line_status(board, &priv->tms9914_priv);
 }
 
-unsigned int agilent_82350b_t1_delay(gpib_board_t *board, unsigned int nanosec)
-
+static int agilent_82350b_t1_delay(struct gpib_board *board, unsigned int nanosec)
 {
 	struct agilent_82350b_priv *a_priv = board->private_data;
 	static const int nanosec_per_clock = 30;
@@ -507,16 +470,14 @@ unsigned int agilent_82350b_t1_delay(gpib_board_t *board, unsigned int nanosec)
 	return value * nanosec_per_clock;
 }
 
-void agilent_82350b_return_to_local(gpib_board_t *board)
-
+static void agilent_82350b_return_to_local(struct gpib_board *board)
 {
 	struct agilent_82350b_priv *priv = board->private_data;
 
 	tms9914_return_to_local(board, &priv->tms9914_priv);
 }
 
-int agilent_82350b_allocate_private(gpib_board_t *board)
-
+static int agilent_82350b_allocate_private(struct gpib_board *board)
 {
 	board->private_data = kzalloc(sizeof(struct agilent_82350b_priv), GFP_KERNEL);
 	if (!board->private_data)
@@ -524,15 +485,14 @@ int agilent_82350b_allocate_private(gpib_board_t *board)
 	return 0;
 }
 
-void agilent_82350b_free_private(gpib_board_t *board)
-
+static void agilent_82350b_free_private(struct gpib_board *board)
 {
 	kfree(board->private_data);
 	board->private_data = NULL;
 }
 
-static int init_82350a_hardware(gpib_board_t *board, const gpib_board_config_t *config)
-
+static int init_82350a_hardware(struct gpib_board *board,
+				const gpib_board_config_t *config)
 {
 	struct agilent_82350b_priv *a_priv = board->private_data;
 	static const unsigned int firmware_length = 5302;
@@ -557,11 +517,10 @@ static int init_82350a_hardware(gpib_board_t *board, const gpib_board_config_t *
 		return 0;
 	// need to programme borg
 	if (!config->init_data || config->init_data_length != firmware_length) {
-		dev_err(board->gpib_dev, "%s: the 82350A board requires firmware after powering on.\n",
-			driver_name);
+		dev_err(board->gpib_dev, "the 82350A board requires firmware after powering on.\n");
 		return -EIO;
 	}
-	dev_info(board->gpib_dev, "%s: Loading firmware...\n", driver_name);
+	dev_dbg(board->gpib_dev, "Loading firmware...\n");
 
 	// tickle the borg
 	writel(plx_cntrl_static_bits | PLX9050_USER3_DATA_BIT,
@@ -580,7 +539,7 @@ static int init_82350a_hardware(gpib_board_t *board, const gpib_board_config_t *
 			usleep_range(10, 20);
 		}
 		if (j == timeout) {
-			dev_err(board->gpib_dev, "%s: timed out loading firmware.\n", driver_name);
+			dev_err(board->gpib_dev, "timed out loading firmware.\n");
 			return -ETIMEDOUT;
 		}
 		writeb(firmware_data[i], a_priv->gpib_base + CONFIG_DATA_REG);
@@ -591,15 +550,14 @@ static int init_82350a_hardware(gpib_board_t *board, const gpib_board_config_t *
 		usleep_range(10, 20);
 	}
 	if (j == timeout) {
-		dev_err(board->gpib_dev, "%s: timed out waiting for firmware load to complete.\n",
-			driver_name);
+		dev_err(board->gpib_dev, "timed out waiting for firmware load to complete.\n");
 		return -ETIMEDOUT;
 	}
-	dev_info(board->gpib_dev, "%s: ...done.\n", driver_name);
+	dev_dbg(board->gpib_dev, " ...done.\n");
 	return 0;
 }
 
-static int test_sram(gpib_board_t *board)
+static int test_sram(struct gpib_board *board)
 
 {
 	struct agilent_82350b_priv *a_priv = board->private_data;
@@ -617,19 +575,19 @@ static int test_sram(gpib_board_t *board)
 		unsigned int read_value = readb(a_priv->sram_base + i);
 
 		if ((i & byte_mask) != read_value) {
-			dev_err(board->gpib_dev, "%s: SRAM test failed at %d wanted %d got %d\n",
-				driver_name, i, (i & byte_mask), read_value);
+			dev_err(board->gpib_dev, "SRAM test failed at %d wanted %d got %d\n",
+				i, (i & byte_mask), read_value);
 			return -EIO;
 		}
 		if (need_resched())
 			schedule();
 	}
-	dev_info(board->gpib_dev, "%s: SRAM test passed 0x%x bytes checked\n",
-		 driver_name, sram_length);
+	dev_dbg(board->gpib_dev, "SRAM test passed 0x%x bytes checked\n", sram_length);
 	return 0;
 }
 
-static int agilent_82350b_generic_attach(gpib_board_t *board, const gpib_board_config_t *config,
+static int agilent_82350b_generic_attach(struct gpib_board *board,
+					 const gpib_board_config_t *config,
 					 int use_fifos)
 
 {
@@ -653,14 +611,14 @@ static int agilent_82350b_generic_attach(gpib_board_t *board, const gpib_board_c
 						 PCI_DEVICE_ID_82350B, NULL);
 	if (a_priv->pci_device) {
 		a_priv->model = MODEL_82350B;
-		dev_info(board->gpib_dev, "%s: Agilent 82350B board found\n", driver_name);
+		dev_dbg(board->gpib_dev, "Agilent 82350B board found\n");
 
 	} else	{
 		a_priv->pci_device = gpib_pci_get_device(config, PCI_VENDOR_ID_AGILENT,
 							 PCI_DEVICE_ID_82351A, NULL);
 		if (a_priv->pci_device)	{
 			a_priv->model = MODEL_82351A;
-			dev_info(board->gpib_dev, "%s: Agilent 82351B board found\n", driver_name);
+			dev_dbg(board->gpib_dev, "Agilent 82351B board found\n");
 
 		} else {
 			a_priv->pci_device = gpib_pci_get_subsys(config, PCI_VENDOR_ID_PLX,
@@ -670,46 +628,40 @@ static int agilent_82350b_generic_attach(gpib_board_t *board, const gpib_board_c
 								 a_priv->pci_device);
 			if (a_priv->pci_device) {
 				a_priv->model = MODEL_82350A;
-				dev_info(board->gpib_dev, "%s: HP/Agilent 82350A board found\n",
-					 driver_name);
+				dev_dbg(board->gpib_dev, "HP/Agilent 82350A board found\n");
 			} else {
-				dev_err(board->gpib_dev, "%s: no 82350/82351 board found\n",
-					driver_name);
+				dev_err(board->gpib_dev, "no 82350/82351 board found\n");
 				return -ENODEV;
 			}
 		}
 	}
 	if (pci_enable_device(a_priv->pci_device)) {
-		dev_err(board->gpib_dev, "%s: error enabling pci device\n", driver_name);
+		dev_err(board->gpib_dev, "error enabling pci device\n");
 		return -EIO;
 	}
-	if (pci_request_regions(a_priv->pci_device, driver_name))
-		return -EIO;
+	if (pci_request_regions(a_priv->pci_device, DRV_NAME))
+		return -ENOMEM;
 	switch (a_priv->model) {
 	case MODEL_82350A:
 		a_priv->plx_base = ioremap(pci_resource_start(a_priv->pci_device, PLX_MEM_REGION),
 					   pci_resource_len(a_priv->pci_device, PLX_MEM_REGION));
-		dev_dbg(board->gpib_dev, "%s: plx base address remapped to 0x%p\n",
-			driver_name, a_priv->plx_base);
+		dev_dbg(board->gpib_dev, "plx base address remapped to 0x%p\n", a_priv->plx_base);
 		a_priv->gpib_base = ioremap(pci_resource_start(a_priv->pci_device,
 							       GPIB_82350A_REGION),
 					    pci_resource_len(a_priv->pci_device,
 							     GPIB_82350A_REGION));
-		dev_dbg(board->gpib_dev, "%s: gpib base address remapped to 0x%p\n",
-			driver_name, a_priv->gpib_base);
+		dev_dbg(board->gpib_dev, "chip base address remapped to 0x%p\n", a_priv->gpib_base);
 		tms_priv->mmiobase = a_priv->gpib_base + TMS9914_BASE_REG;
 		a_priv->sram_base = ioremap(pci_resource_start(a_priv->pci_device,
 							       SRAM_82350A_REGION),
 					    pci_resource_len(a_priv->pci_device,
 							     SRAM_82350A_REGION));
-		dev_dbg(board->gpib_dev, "%s: sram base address remapped to 0x%p\n",
-			driver_name, a_priv->sram_base);
+		dev_dbg(board->gpib_dev, "sram base address remapped to 0x%p\n", a_priv->sram_base);
 		a_priv->borg_base = ioremap(pci_resource_start(a_priv->pci_device,
 							       BORG_82350A_REGION),
 					    pci_resource_len(a_priv->pci_device,
 							     BORG_82350A_REGION));
-		dev_dbg(board->gpib_dev, "%s: borg base address remapped to 0x%p\n",
-			driver_name, a_priv->borg_base);
+		dev_dbg(board->gpib_dev, "borg base address remapped to 0x%p\n", a_priv->borg_base);
 
 		retval = init_82350a_hardware(board, config);
 		if (retval < 0)
@@ -719,21 +671,18 @@ static int agilent_82350b_generic_attach(gpib_board_t *board, const gpib_board_c
 	case MODEL_82351A:
 		a_priv->gpib_base = ioremap(pci_resource_start(a_priv->pci_device, GPIB_REGION),
 					    pci_resource_len(a_priv->pci_device, GPIB_REGION));
-		dev_dbg(board->gpib_dev, "%s: gpib base address remapped to 0x%p\n",
-			driver_name, a_priv->gpib_base);
+		dev_dbg(board->gpib_dev, "chip base address remapped to 0x%p\n", a_priv->gpib_base);
 		tms_priv->mmiobase = a_priv->gpib_base + TMS9914_BASE_REG;
 		a_priv->sram_base = ioremap(pci_resource_start(a_priv->pci_device, SRAM_REGION),
 					    pci_resource_len(a_priv->pci_device, SRAM_REGION));
-		dev_dbg(board->gpib_dev, "%s: sram base address remapped to 0x%p\n",
-			driver_name, a_priv->sram_base);
+		dev_dbg(board->gpib_dev, "sram base address remapped to 0x%p\n", a_priv->sram_base);
 		a_priv->misc_base = ioremap(pci_resource_start(a_priv->pci_device, MISC_REGION),
 					    pci_resource_len(a_priv->pci_device, MISC_REGION));
-		dev_dbg(board->gpib_dev, "%s: misc base address remapped to 0x%p\n",
-			driver_name, a_priv->misc_base);
+		dev_dbg(board->gpib_dev, "misc base address remapped to 0x%p\n", a_priv->misc_base);
 		break;
 	default:
-		pr_err("%s: invalid board\n", driver_name);
-		return -1;
+		dev_err(board->gpib_dev, "invalid board\n");
+		return -ENODEV;
 	}
 
 	retval = test_sram(board);
@@ -741,12 +690,12 @@ static int agilent_82350b_generic_attach(gpib_board_t *board, const gpib_board_c
 		return retval;
 
 	if (request_irq(a_priv->pci_device->irq, agilent_82350b_interrupt,
-			IRQF_SHARED, driver_name, board)) {
-		pr_err("%s: can't request IRQ %d\n", driver_name, a_priv->pci_device->irq);
+			IRQF_SHARED, DRV_NAME, board)) {
+		dev_err(board->gpib_dev, "failed to obtain irq %d\n", a_priv->pci_device->irq);
 		return -EIO;
 	}
 	a_priv->irq = a_priv->pci_device->irq;
-	dev_dbg(board->gpib_dev, "%s: IRQ %d\n", driver_name, a_priv->irq);
+	dev_dbg(board->gpib_dev, " IRQ %d\n", a_priv->irq);
 
 	writeb(0, a_priv->gpib_base + SRAM_ACCESS_CONTROL_REG);
 	a_priv->card_mode_bits = ENABLE_PCI_IRQ_BIT;
@@ -780,20 +729,19 @@ static int agilent_82350b_generic_attach(gpib_board_t *board, const gpib_board_c
 	return 0;
 }
 
-int agilent_82350b_unaccel_attach(gpib_board_t *board, const gpib_board_config_t *config)
-
+static int agilent_82350b_unaccel_attach(struct gpib_board *board,
+					 const gpib_board_config_t *config)
 {
 	return agilent_82350b_generic_attach(board, config, 0);
 }
 
-int agilent_82350b_accel_attach(gpib_board_t *board, const gpib_board_config_t *config)
-
+static int agilent_82350b_accel_attach(struct gpib_board *board,
+				       const gpib_board_config_t *config)
 {
 	return agilent_82350b_generic_attach(board, config, 1);
 }
 
-void agilent_82350b_detach(gpib_board_t *board)
-
+static void agilent_82350b_detach(struct gpib_board *board)
 {
 	struct agilent_82350b_priv *a_priv = board->private_data;
 	struct tms9914_priv *tms_priv;
@@ -848,6 +796,7 @@ static gpib_interface_t agilent_82350b_unaccel_interface = {
 	.primary_address = agilent_82350b_primary_address,
 	.secondary_address = agilent_82350b_secondary_address,
 	.serial_poll_response = agilent_82350b_serial_poll_response,
+	.serial_poll_status = agilent_82350b_serial_poll_status,
 	.t1_delay = agilent_82350b_t1_delay,
 	.return_to_local = agilent_82350b_return_to_local,
 };
@@ -875,6 +824,7 @@ static gpib_interface_t agilent_82350b_interface = {
 	.primary_address = agilent_82350b_primary_address,
 	.secondary_address = agilent_82350b_secondary_address,
 	.serial_poll_response = agilent_82350b_serial_poll_response,
+	.serial_poll_status = agilent_82350b_serial_poll_status,
 	.t1_delay = agilent_82350b_t1_delay,
 	.return_to_local = agilent_82350b_return_to_local,
 };
@@ -895,31 +845,30 @@ static const struct pci_device_id agilent_82350b_pci_table[] = {
 MODULE_DEVICE_TABLE(pci, agilent_82350b_pci_table);
 
 static struct pci_driver agilent_82350b_pci_driver = {
-	.name = "agilent_82350b",
+	.name = DRV_NAME,
 	.id_table = agilent_82350b_pci_table,
 	.probe = &agilent_82350b_pci_probe
 };
 
 static int __init agilent_82350b_init_module(void)
-
 {
 	int result;
 
 	result = pci_register_driver(&agilent_82350b_pci_driver);
 	if (result) {
-		pr_err("agilent_82350b: pci_register_driver failed: error = %d\n", result);
+		pr_err("pci_register_driver failed: error = %d\n", result);
 		return result;
 	}
 
 	result = gpib_register_driver(&agilent_82350b_unaccel_interface, THIS_MODULE);
 	if (result) {
-		pr_err("agilent_82350b: gpib_register_driver failed: error = %d\n", result);
+		pr_err("gpib_register_driver failed: error = %d\n", result);
 		goto err_unaccel;
 	}
 
 	result = gpib_register_driver(&agilent_82350b_interface, THIS_MODULE);
 	if (result) {
-		pr_err("agilent_82350b: gpib_register_driver failed: error = %d\n", result);
+		pr_err("gpib_register_driver failed: error = %d\n", result);
 		goto err_interface;
 	}
 
@@ -934,7 +883,6 @@ err_unaccel:
 }
 
 static void __exit agilent_82350b_exit_module(void)
-
 {
 	gpib_unregister_driver(&agilent_82350b_interface);
 	gpib_unregister_driver(&agilent_82350b_unaccel_interface);

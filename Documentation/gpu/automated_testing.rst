@@ -115,6 +115,10 @@ created (eg. https://gitlab.freedesktop.org/janedoe/linux/-/pipelines)
 5. The various jobs will be run and when the pipeline is finished, all jobs
 should be green unless a regression has been found.
 
+6. Warnings in the pipeline indicate that lockdep
+(see Documentation/locking/lockdep-design.rst) issues have been detected
+during the tests.
+
 
 How to update test expectations
 ===============================

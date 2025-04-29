@@ -22,6 +22,7 @@
 #include "xe_guc.h"
 #include "xe_irq.h"
 #include "xe_pcode.h"
+#include "xe_pxp.h"
 #include "xe_trace.h"
 #include "xe_wa.h"
 
@@ -90,7 +91,7 @@ static struct lockdep_map xe_pm_runtime_nod3cold_map = {
  */
 bool xe_rpm_reclaim_safe(const struct xe_device *xe)
 {
-	return !xe->d3cold.capable && !xe->info.has_sriov;
+	return !xe->d3cold.capable;
 }
 
 static void xe_rpm_lockmap_acquire(const struct xe_device *xe)
@@ -122,6 +123,10 @@ int xe_pm_suspend(struct xe_device *xe)
 	drm_dbg(&xe->drm, "Suspending device\n");
 	trace_xe_pm_suspend(xe, __builtin_return_address(0));
 
+	err = xe_pxp_pm_suspend(xe->pxp);
+	if (err)
+		goto err;
+
 	for_each_gt(gt, xe, id)
 		xe_gt_suspend_prepare(gt);
 
@@ -130,14 +135,12 @@ int xe_pm_suspend(struct xe_device *xe)
 	/* FIXME: Super racey... */
 	err = xe_bo_evict_all(xe);
 	if (err)
-		goto err;
+		goto err_pxp;
 
 	for_each_gt(gt, xe, id) {
 		err = xe_gt_suspend(gt);
-		if (err) {
-			xe_display_pm_resume(xe);
-			goto err;
-		}
+		if (err)
+			goto err_display;
 	}
 
 	xe_irq_suspend(xe);
@@ -146,6 +149,11 @@ int xe_pm_suspend(struct xe_device *xe)
 
 	drm_dbg(&xe->drm, "Device suspended\n");
 	return 0;
+
+err_display:
+	xe_display_pm_resume(xe);
+err_pxp:
+	xe_pxp_pm_resume(xe->pxp);
 err:
 	drm_dbg(&xe->drm, "Device suspend failed %d\n", err);
 	return err;
@@ -194,6 +202,8 @@ int xe_pm_resume(struct xe_device *xe)
 	err = xe_bo_restore_user(xe);
 	if (err)
 		goto err;
+
+	xe_pxp_pm_resume(xe->pxp);
 
 	drm_dbg(&xe->drm, "Device resumed\n");
 	return 0;
@@ -267,6 +277,15 @@ int xe_pm_init_early(struct xe_device *xe)
 }
 ALLOW_ERROR_INJECTION(xe_pm_init_early, ERRNO); /* See xe_pci_probe() */
 
+static u32 vram_threshold_value(struct xe_device *xe)
+{
+	/* FIXME: D3Cold temporarily disabled by default on BMG */
+	if (xe->info.platform == XE_BATTLEMAGE)
+		return 0;
+
+	return DEFAULT_VRAM_THRESHOLD;
+}
+
 /**
  * xe_pm_init - Initialize Xe Power Management
  * @xe: xe device instance
@@ -277,6 +296,7 @@ ALLOW_ERROR_INJECTION(xe_pm_init_early, ERRNO); /* See xe_pci_probe() */
  */
 int xe_pm_init(struct xe_device *xe)
 {
+	u32 vram_threshold;
 	int err;
 
 	/* For now suspend/resume is only allowed with GuC */
@@ -290,7 +310,8 @@ int xe_pm_init(struct xe_device *xe)
 		if (err)
 			return err;
 
-		err = xe_pm_set_vram_threshold(xe, DEFAULT_VRAM_THRESHOLD);
+		vram_threshold = vram_threshold_value(xe);
+		err = xe_pm_set_vram_threshold(xe, vram_threshold);
 		if (err)
 			return err;
 	}
@@ -389,6 +410,10 @@ int xe_pm_runtime_suspend(struct xe_device *xe)
 	 */
 	xe_rpm_lockmap_acquire(xe);
 
+	err = xe_pxp_pm_suspend(xe->pxp);
+	if (err)
+		goto out;
+
 	/*
 	 * Applying lock for entire list op as xe_ttm_bo_destroy and xe_bo_move_notify
 	 * also checks and deletes bo entry from user fault list.
@@ -404,22 +429,27 @@ int xe_pm_runtime_suspend(struct xe_device *xe)
 	if (xe->d3cold.allowed) {
 		err = xe_bo_evict_all(xe);
 		if (err)
-			goto out;
+			goto out_resume;
 	}
 
 	for_each_gt(gt, xe, id) {
 		err = xe_gt_suspend(gt);
 		if (err)
-			goto out;
+			goto out_resume;
 	}
 
 	xe_irq_suspend(xe);
 
 	xe_display_pm_runtime_suspend_late(xe);
 
+	xe_rpm_lockmap_release(xe);
+	xe_pm_write_callback_task(xe, NULL);
+	return 0;
+
+out_resume:
+	xe_display_pm_runtime_resume(xe);
+	xe_pxp_pm_resume(xe->pxp);
 out:
-	if (err)
-		xe_display_pm_runtime_resume(xe);
 	xe_rpm_lockmap_release(xe);
 	xe_pm_write_callback_task(xe, NULL);
 	return err;
@@ -471,6 +501,8 @@ int xe_pm_runtime_resume(struct xe_device *xe)
 		if (err)
 			goto out;
 	}
+
+	xe_pxp_pm_resume(xe->pxp);
 
 out:
 	xe_rpm_lockmap_release(xe);

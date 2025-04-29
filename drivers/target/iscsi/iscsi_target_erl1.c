@@ -1227,7 +1227,7 @@ void iscsit_stop_dataout_timer(struct iscsit_cmd *cmd)
 	cmd->dataout_timer_flags |= ISCSI_TF_STOP;
 	spin_unlock_bh(&cmd->dataout_timeout_lock);
 
-	del_timer_sync(&cmd->dataout_timer);
+	timer_delete_sync(&cmd->dataout_timer);
 
 	spin_lock_bh(&cmd->dataout_timeout_lock);
 	cmd->dataout_timer_flags &= ~ISCSI_TF_RUNNING;

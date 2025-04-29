@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <dt-bindings/clock/mediatek,mtmips-sysc.h>
 
 / {
 	#address-cells = <1>;
@@ -16,11 +17,6 @@
 		};
 	};
 
-	resetc: reset-controller {
-		compatible = "ralink,rt2880-reset";
-		#reset-cells = <1>;
-	};
-
 	cpuintc: interrupt-controller {
 		#address-cells = <0>;
 		#interrupt-cells = <1>;
@@ -36,9 +32,11 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		sysc: system-controller@0 {
-			compatible = "ralink,mt7620a-sysc", "syscon";
+		sysc: syscon@0 {
+			compatible = "ralink,mt7628-sysc", "syscon";
 			reg = <0x0 0x60>;
+			#clock-cells = <1>;
+			#reset-cells = <1>;
 		};
 
 		pinmux: pinmux@60 {
@@ -138,7 +136,7 @@
 			compatible = "mediatek,mt7621-wdt";
 			reg = <0x100 0x30>;
 
-			resets = <&resetc 8>;
+			resets = <&sysc 8>;
 			reset-names = "wdt";
 
 			interrupt-parent = <&intc>;
@@ -154,7 +152,7 @@
 			interrupt-controller;
 			#interrupt-cells = <1>;
 
-			resets = <&resetc 9>;
+			resets = <&sysc 9>;
 			reset-names = "intc";
 
 			interrupt-parent = <&cpuintc>;
@@ -190,7 +188,9 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinmux_spi_spi>;
 
-			resets = <&resetc 18>;
+			clocks = <&sysc MT76X8_CLK_SPI1>;
+
+			resets = <&sysc 18>;
 			reset-names = "spi";
 
 			#address-cells = <1>;
@@ -206,7 +206,9 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinmux_i2c_i2c>;
 
-			resets = <&resetc 16>;
+			clocks = <&sysc MT76X8_CLK_I2C>;
+
+			resets = <&sysc 16>;
 			reset-names = "i2c";
 
 			#address-cells = <1>;
@@ -222,7 +224,9 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinmux_uart0_uart>;
 
-			resets = <&resetc 12>;
+			clocks = <&sysc MT76X8_CLK_UART0>;
+
+			resets = <&sysc 12>;
 			reset-names = "uart0";
 
 			interrupt-parent = <&intc>;
@@ -238,7 +242,9 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinmux_uart1_uart>;
 
-			resets = <&resetc 19>;
+			clocks = <&sysc MT76X8_CLK_UART1>;
+
+			resets = <&sysc 19>;
 			reset-names = "uart1";
 
 			interrupt-parent = <&intc>;
@@ -254,7 +260,9 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinmux_uart2_uart>;
 
-			resets = <&resetc 20>;
+			clocks = <&sysc MT76X8_CLK_UART2>;
+
+			resets = <&sysc 20>;
 			reset-names = "uart2";
 
 			interrupt-parent = <&intc>;
@@ -271,7 +279,7 @@
 		#phy-cells = <0>;
 
 		ralink,sysctl = <&sysc>;
-		resets = <&resetc 22 &resetc 25>;
+		resets = <&sysc 22 &sysc 25>;
 		reset-names = "host", "device";
 	};
 
@@ -289,6 +297,8 @@
 	wmac: wmac@10300000 {
 		compatible = "mediatek,mt7628-wmac";
 		reg = <0x10300000 0x100000>;
+
+		clocks = <&sysc MT76X8_CLK_WMAC>;
 
 		interrupt-parent = <&cpuintc>;
 		interrupts = <6>;

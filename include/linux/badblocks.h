@@ -48,11 +48,11 @@ struct badblocks_context {
 	int		ack;
 };
 
-int badblocks_check(struct badblocks *bb, sector_t s, int sectors,
-		   sector_t *first_bad, int *bad_sectors);
-int badblocks_set(struct badblocks *bb, sector_t s, int sectors,
-			int acknowledged);
-int badblocks_clear(struct badblocks *bb, sector_t s, int sectors);
+int badblocks_check(struct badblocks *bb, sector_t s, sector_t sectors,
+		    sector_t *first_bad, sector_t *bad_sectors);
+bool badblocks_set(struct badblocks *bb, sector_t s, sector_t sectors,
+		   int acknowledged);
+bool badblocks_clear(struct badblocks *bb, sector_t s, sector_t sectors);
 void ack_all_badblocks(struct badblocks *bb);
 ssize_t badblocks_show(struct badblocks *bb, char *page, int unack);
 ssize_t badblocks_store(struct badblocks *bb, const char *page, size_t len,

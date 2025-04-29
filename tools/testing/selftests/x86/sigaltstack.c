@@ -14,6 +14,8 @@
 #include <sys/resource.h>
 #include <setjmp.h>
 
+#include "helpers.h"
+
 /* sigaltstack()-enforced minimum stack */
 #define ENFORCED_MINSIGSTKSZ	2048
 
@@ -26,30 +28,6 @@ static int nerrs;
 static bool sigalrm_expected;
 
 static unsigned long at_minstack_size;
-
-static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
-		       int flags)
-{
-	struct sigaction sa;
-
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_sigaction = handler;
-	sa.sa_flags = SA_SIGINFO | flags;
-	sigemptyset(&sa.sa_mask);
-	if (sigaction(sig, &sa, 0))
-		err(1, "sigaction");
-}
-
-static void clearhandler(int sig)
-{
-	struct sigaction sa;
-
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_handler = SIG_DFL;
-	sigemptyset(&sa.sa_mask);
-	if (sigaction(sig, &sa, 0))
-		err(1, "sigaction");
-}
 
 static int setup_altstack(void *start, unsigned long size)
 {

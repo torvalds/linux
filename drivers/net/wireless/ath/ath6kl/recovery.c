@@ -25,7 +25,7 @@ static void ath6kl_recovery_work(struct work_struct *work)
 
 	ar->state = ATH6KL_STATE_RECOVERY;
 
-	del_timer_sync(&ar->fw_recovery.hb_timer);
+	timer_delete_sync(&ar->fw_recovery.hb_timer);
 
 	ath6kl_init_hw_restart(ar);
 
@@ -119,7 +119,7 @@ void ath6kl_recovery_cleanup(struct ath6kl *ar)
 
 	set_bit(RECOVERY_CLEANUP, &ar->flag);
 
-	del_timer_sync(&ar->fw_recovery.hb_timer);
+	timer_delete_sync(&ar->fw_recovery.hb_timer);
 	cancel_work_sync(&ar->fw_recovery.recovery_work);
 }
 

@@ -78,6 +78,13 @@ TRACE_DEFINE_ENUM(___GFP_LAST_BIT);
 
 #define gfpflag_string(flag) {(__force unsigned long)flag, #flag}
 
+/*
+ * For the values that match the bits, use the TRACE_GFP_FLAGS
+ * which will allow any updates to be included automatically.
+ */
+#undef TRACE_GFP_EM
+#define TRACE_GFP_EM(a) gfpflag_string(__GFP_##a),
+
 #define __def_gfpflag_names			\
 	gfpflag_string(GFP_TRANSHUGE),		\
 	gfpflag_string(GFP_TRANSHUGE_LIGHT),	\
@@ -91,41 +98,13 @@ TRACE_DEFINE_ENUM(___GFP_LAST_BIT);
 	gfpflag_string(GFP_NOIO),		\
 	gfpflag_string(GFP_NOWAIT),		\
 	gfpflag_string(GFP_DMA),		\
-	gfpflag_string(__GFP_HIGHMEM),		\
 	gfpflag_string(GFP_DMA32),		\
-	gfpflag_string(__GFP_HIGH),		\
-	gfpflag_string(__GFP_IO),		\
-	gfpflag_string(__GFP_FS),		\
-	gfpflag_string(__GFP_NOWARN),		\
-	gfpflag_string(__GFP_RETRY_MAYFAIL),	\
-	gfpflag_string(__GFP_NOFAIL),		\
-	gfpflag_string(__GFP_NORETRY),		\
-	gfpflag_string(__GFP_COMP),		\
-	gfpflag_string(__GFP_ZERO),		\
-	gfpflag_string(__GFP_NOMEMALLOC),	\
-	gfpflag_string(__GFP_MEMALLOC),		\
-	gfpflag_string(__GFP_HARDWALL),		\
-	gfpflag_string(__GFP_THISNODE),		\
-	gfpflag_string(__GFP_RECLAIMABLE),	\
-	gfpflag_string(__GFP_MOVABLE),		\
-	gfpflag_string(__GFP_ACCOUNT),		\
-	gfpflag_string(__GFP_WRITE),		\
 	gfpflag_string(__GFP_RECLAIM),		\
-	gfpflag_string(__GFP_DIRECT_RECLAIM),	\
-	gfpflag_string(__GFP_KSWAPD_RECLAIM),	\
-	gfpflag_string(__GFP_ZEROTAGS)
-
-#ifdef CONFIG_KASAN_HW_TAGS
-#define __def_gfpflag_names_kasan ,			\
-	gfpflag_string(__GFP_SKIP_ZERO),		\
-	gfpflag_string(__GFP_SKIP_KASAN)
-#else
-#define __def_gfpflag_names_kasan
-#endif
+	TRACE_GFP_FLAGS				\
+	{ 0, NULL }
 
 #define show_gfp_flags(flags)						\
-	(flags) ? __print_flags(flags, "|",				\
-	__def_gfpflag_names __def_gfpflag_names_kasan			\
+	(flags) ? __print_flags(flags, "|", __def_gfpflag_names		\
 	) : "none"
 
 #ifdef CONFIG_MMU

@@ -8,6 +8,7 @@
 #include <asm/sections.h>
 #include <asm/lowcore.h>
 #include <asm/setup.h>
+#include <asm/timex.h>
 #include <asm/sclp.h>
 #include <asm/uv.h>
 #include "boot.h"
@@ -199,8 +200,7 @@ static void boot_console_earlyprintk(const char *buf)
 static char *add_timestamp(char *buf)
 {
 #ifdef CONFIG_PRINTK_TIME
-	union tod_clock *boot_clock = (union tod_clock *)&get_lowcore()->boot_clock;
-	unsigned long ns = tod_to_ns(get_tod_clock() - boot_clock->tod);
+	unsigned long ns = tod_to_ns(__get_tod_clock_monotonic());
 	char ts[MAX_NUMLEN];
 
 	*buf++ = '[';

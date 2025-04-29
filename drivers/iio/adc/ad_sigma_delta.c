@@ -339,6 +339,7 @@ int ad_sd_calibrate(struct ad_sigma_delta *sigma_delta,
 out:
 	sigma_delta->keep_cs_asserted = false;
 	ad_sigma_delta_set_mode(sigma_delta, AD_SD_MODE_IDLE);
+	ad_sigma_delta_disable_one(sigma_delta, channel);
 	sigma_delta->bus_locked = false;
 	spi_bus_unlock(sigma_delta->spi->controller);
 
@@ -386,11 +387,12 @@ int ad_sigma_delta_single_conversion(struct iio_dev *indio_dev,
 	unsigned int data_reg;
 	int ret = 0;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
 
-	ad_sigma_delta_set_channel(sigma_delta, chan->address);
+	ret = ad_sigma_delta_set_channel(sigma_delta, chan->address);
+	if (ret)
+		goto out_release;
 
 	spi_bus_lock(sigma_delta->spi->controller);
 	sigma_delta->bus_locked = true;
@@ -431,7 +433,8 @@ out_unlock:
 	sigma_delta->keep_cs_asserted = false;
 	sigma_delta->bus_locked = false;
 	spi_bus_unlock(sigma_delta->spi->controller);
-	iio_device_release_direct_mode(indio_dev);
+out_release:
+	iio_device_release_direct(indio_dev);
 
 	if (ret)
 		return ret;
@@ -801,10 +804,15 @@ int ad_sd_init(struct ad_sigma_delta *sigma_delta, struct iio_dev *indio_dev,
 
 	spin_lock_init(&sigma_delta->irq_lock);
 
-	if (info->irq_line)
-		sigma_delta->irq_line = info->irq_line;
-	else
+	if (info->has_named_irqs) {
+		sigma_delta->irq_line = fwnode_irq_get_byname(dev_fwnode(&spi->dev),
+							      "rdy");
+		if (sigma_delta->irq_line < 0)
+			return dev_err_probe(&spi->dev, sigma_delta->irq_line,
+					     "Interrupt 'rdy' is required\n");
+	} else {
 		sigma_delta->irq_line = spi->irq;
+	}
 
 	sigma_delta->rdy_gpiod = devm_gpiod_get_optional(&spi->dev, "rdy", GPIOD_IN);
 	if (IS_ERR(sigma_delta->rdy_gpiod))

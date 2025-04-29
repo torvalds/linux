@@ -104,7 +104,7 @@ static void imx_snvs_pwrkey_act(void *pdata)
 {
 	struct pwrkey_drv_data *pd = pdata;
 
-	del_timer_sync(&pd->check_timer);
+	timer_delete_sync(&pd->check_timer);
 }
 
 static int imx_snvs_pwrkey_probe(struct platform_device *pdev)

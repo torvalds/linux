@@ -97,9 +97,10 @@ y en otros lugares con respecto al envío de parches del kernel de Linux.
     ``MODULE_PARM_DESC()``.
 
 18) Todas las nuevas interfaces de espacio de usuario están documentadas
-    en ``Documentation/ABI/``. Consulte ``Documentation/ABI/README`` para
-    obtener más información. Los parches que cambian las interfaces del
-    espacio de usuario deben ser CCed a linux-api@vger.kernel.org.
+    en ``Documentation/ABI/``. Consulte Documentation/admin-guide/abi.rst
+    (o ``Documentation/ABI/README``) para obtener más información.
+    Los parches que cambian las interfaces del espacio de usuario deben
+    ser CCed a linux-api@vger.kernel.org.
 
 19) Se ha comprobado con la inyección de al menos errores de asignación
     de slab y página. Consulte ``Documentation/fault-injection/``.

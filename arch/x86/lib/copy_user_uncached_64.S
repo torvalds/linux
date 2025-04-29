@@ -5,6 +5,7 @@
 
 #include <linux/export.h>
 #include <linux/linkage.h>
+#include <linux/objtool.h>
 #include <asm/asm.h>
 
 /*
@@ -27,6 +28,7 @@
  * rax uncopied bytes or 0 if successful.
  */
 SYM_FUNC_START(__copy_user_nocache)
+	ANNOTATE_NOENDBR
 	/* If destination is not 7-byte aligned, we'll have to align it */
 	testb $7,%dil
 	jne .Lalign

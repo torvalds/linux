@@ -16,6 +16,7 @@
 #include <linux/list.h>
 #include <linux/jhash.h>
 #include <linux/errno.h>
+#include <linux/hashtable.h>
 #include <net/9p/9p.h>
 
 /**
@@ -33,8 +34,8 @@ struct errormap {
 	struct hlist_node list;
 };
 
-#define ERRHASHSZ		32
-static struct hlist_head hash_errmap[ERRHASHSZ];
+#define ERRHASH_BITS 5
+static DEFINE_HASHTABLE(hash_errmap, ERRHASH_BITS);
 
 /* FixMe - reduce to a reasonable size */
 static struct errormap errmap[] = {
@@ -176,18 +177,14 @@ static struct errormap errmap[] = {
 int p9_error_init(void)
 {
 	struct errormap *c;
-	int bucket;
-
-	/* initialize hash table */
-	for (bucket = 0; bucket < ERRHASHSZ; bucket++)
-		INIT_HLIST_HEAD(&hash_errmap[bucket]);
+	u32 hash;
 
 	/* load initial error map into hash table */
 	for (c = errmap; c->name; c++) {
 		c->namelen = strlen(c->name);
-		bucket = jhash(c->name, c->namelen, 0) % ERRHASHSZ;
+		hash = jhash(c->name, c->namelen, 0);
 		INIT_HLIST_NODE(&c->list);
-		hlist_add_head(&c->list, &hash_errmap[bucket]);
+		hash_add(hash_errmap, &c->list, hash);
 	}
 
 	return 1;
@@ -205,12 +202,12 @@ int p9_errstr2errno(char *errstr, int len)
 {
 	int errno;
 	struct errormap *c;
-	int bucket;
+	u32 hash;
 
 	errno = 0;
 	c = NULL;
-	bucket = jhash(errstr, len, 0) % ERRHASHSZ;
-	hlist_for_each_entry(c, &hash_errmap[bucket], list) {
+	hash = jhash(errstr, len, 0);
+	hash_for_each_possible(hash_errmap, c, list, hash) {
 		if (c->namelen == len && !memcmp(c->name, errstr, len)) {
 			errno = c->val;
 			break;

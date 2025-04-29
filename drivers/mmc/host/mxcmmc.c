@@ -352,7 +352,7 @@ static void mxcmci_dma_callback(void *data)
 	struct mxcmci_host *host = data;
 	u32 stat;
 
-	del_timer(&host->watchdog);
+	timer_delete(&host->watchdog);
 
 	stat = mxcmci_readl(host, MMC_REG_STATUS);
 
@@ -737,7 +737,7 @@ static irqreturn_t mxcmci_irq(int irq, void *devid)
 		mxcmci_cmd_done(host, stat);
 
 	if (mxcmci_use_dma(host) && (stat & STATUS_WRITE_OP_DONE)) {
-		del_timer(&host->watchdog);
+		timer_delete(&host->watchdog);
 		mxcmci_data_done(host, stat);
 	}
 

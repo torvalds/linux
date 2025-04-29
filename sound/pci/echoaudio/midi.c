@@ -264,7 +264,7 @@ static void snd_echo_midi_output_trigger(struct snd_rawmidi_substream *substream
 		if (chip->tinuse) {
 			chip->tinuse = 0;
 			spin_unlock_irq(&chip->lock);
-			del_timer_sync(&chip->timer);
+			timer_delete_sync(&chip->timer);
 			dev_dbg(chip->card->dev, "Timer removed\n");
 			return;
 		}

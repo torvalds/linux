@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <errno.h>
+#include "enum_defs.autogen.h"
 
 typedef uint8_t u8;
 typedef uint16_t u16;

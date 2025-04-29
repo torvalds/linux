@@ -179,7 +179,7 @@ delete_mid(struct mid_q_entry *mid)
  * Our basic "send data to server" function. Should be called with srv_mutex
  * held. The caller is responsible for handling the results.
  */
-static int
+int
 smb_send_kvec(struct TCP_Server_Info *server, struct msghdr *smb_msg,
 	      size_t *sent)
 {
@@ -893,6 +893,9 @@ cifs_sync_mid_result(struct mid_q_entry *mid, struct TCP_Server_Info *server)
 		break;
 	case MID_SHUTDOWN:
 		rc = -EHOSTDOWN;
+		break;
+	case MID_RC:
+		rc = mid->mid_rc;
 		break;
 	default:
 		if (!(mid->mid_flags & MID_DELETED)) {

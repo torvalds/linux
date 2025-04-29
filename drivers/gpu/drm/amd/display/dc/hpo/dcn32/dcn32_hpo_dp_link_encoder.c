@@ -41,7 +41,7 @@
 #define CTX \
 	enc3->base.ctx
 
-static bool dcn32_hpo_dp_link_enc_is_in_alt_mode(
+bool dcn32_hpo_dp_link_enc_is_in_alt_mode(
 		struct hpo_dp_link_encoder *enc)
 {
 	struct dcn31_hpo_dp_link_encoder *enc3 = DCN3_1_HPO_DP_LINK_ENC_FROM_HPO_LINK_ENC(enc);

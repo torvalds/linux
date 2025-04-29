@@ -1098,18 +1098,18 @@ static int wm8993_set_dai_fmt(struct snd_soc_dai *dai,
 	aif4 &= ~WM8993_LRCLK_DIR;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		wm8993->master = 0;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFM:
+	case SND_SOC_DAIFMT_CBC_CFP:
 		aif4 |= WM8993_LRCLK_DIR;
 		wm8993->master = 1;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFS:
+	case SND_SOC_DAIFMT_CBP_CFC:
 		aif1 |= WM8993_BCLK_DIR;
 		wm8993->master = 1;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		aif1 |= WM8993_BCLK_DIR;
 		aif4 |= WM8993_LRCLK_DIR;
 		wm8993->master = 1;

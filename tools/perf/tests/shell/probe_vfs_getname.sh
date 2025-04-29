@@ -8,6 +8,7 @@
 . "$(dirname $0)"/lib/probe.sh
 
 skip_if_no_perf_probe || exit 2
+[ "$(id -u)" = 0 ] || exit 2
 
 # shellcheck source=lib/probe_vfs_getname.sh
 . "$(dirname $0)"/lib/probe_vfs_getname.sh

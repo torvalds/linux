@@ -106,26 +106,15 @@ enum eos_flags {
 
 /* GPIB Bus Control Lines bit vector */
 enum bus_control_line {
-	ValidDAV = 0x01,
-	ValidNDAC = 0x02,
-	ValidNRFD = 0x04,
-	ValidIFC = 0x08,
-	ValidREN = 0x10,
-	ValidSRQ = 0x20,
-	ValidATN = 0x40,
-	ValidEOI = 0x80,
-	ValidALL = 0xff,
-	BusDAV = 0x0100,		/* DAV	line status bit */
-	BusNDAC = 0x0200,		/* NDAC line status bit */
-	BusNRFD = 0x0400,		/* NRFD line status bit */
-	BusIFC = 0x0800,		/* IFC	line status bit */
-	BusREN = 0x1000,		/* REN	line status bit */
-	BusSRQ = 0x2000,		/* SRQ	line status bit */
-	BusATN = 0x4000,		/* ATN	line status bit */
-	BusEOI = 0x8000		/* EOI	line status bit */
-};
-
-enum old_bus_control_line {
+	VALID_DAV = 0x01,
+	VALID_NDAC = 0x02,
+	VALID_NRFD = 0x04,
+	VALID_IFC = 0x08,
+	VALID_REN = 0x10,
+	VALID_SRQ = 0x20,
+	VALID_ATN = 0x40,
+	VALID_EOI = 0x80,
+	VALID_ALL = 0xff,
 	BUS_DAV = 0x0100,		/* DAV	line status bit */
 	BUS_NDAC = 0x0200,		/* NDAC line status bit */
 	BUS_NRFD = 0x0400,		/* NRFD line status bit */

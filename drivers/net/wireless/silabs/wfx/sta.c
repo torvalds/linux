@@ -10,6 +10,7 @@
 
 #include "sta.h"
 #include "wfx.h"
+#include "bus.h"
 #include "fwio.h"
 #include "bh.h"
 #include "key.h"
@@ -802,6 +803,30 @@ void wfx_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 			wfx_hif_set_block_ack_policy(wvif, 0x00, 0x00);
 	}
 }
+
+#ifdef CONFIG_PM
+int wfx_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
+{
+	/* FIXME: hardware also support WIPHY_WOWLAN_MAGIC_PKT and other filters */
+	if (!wowlan->any || !wowlan->disconnect)
+		return -EINVAL;
+	return 0;
+}
+
+int wfx_resume(struct ieee80211_hw *hw)
+{
+	return 0;
+}
+
+void wfx_set_wakeup(struct ieee80211_hw *hw, bool enabled)
+{
+	struct wfx_dev *wdev = hw->priv;
+
+	if (enabled)
+		dev_info(wdev->dev, "support for WoWLAN is experimental\n");
+	wdev->hwbus_ops->set_wakeup(wdev->hwbus_priv, enabled);
+}
+#endif
 
 int wfx_start(struct ieee80211_hw *hw)
 {

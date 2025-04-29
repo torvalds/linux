@@ -18,12 +18,10 @@
 
 __HEAD
 SYM_CODE_START(startup_continue)
-	larl	%r1,tod_clock_base
-	GET_LC	%r2
-	mvc	0(16,%r1),__LC_BOOT_CLOCK(%r2)
 #
 # Setup stack
 #
+	GET_LC	%r2
 	larl	%r14,init_task
 	stg	%r14,__LC_CURRENT(%r2)
 	larl	%r15,init_thread_union+STACK_INIT_OFFSET

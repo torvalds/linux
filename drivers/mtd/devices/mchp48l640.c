@@ -23,6 +23,7 @@
 #include <linux/spi/flash.h>
 #include <linux/spi/spi.h>
 #include <linux/of.h>
+#include <linux/string_choices.h>
 
 struct mchp48_caps {
 	unsigned int size;
@@ -128,11 +129,11 @@ static int mchp48l640_write_prepare(struct mchp48l640_flash *flash, bool enable)
 	mutex_unlock(&flash->lock);
 
 	if (ret)
-		dev_err(&flash->spi->dev, "write %sable failed ret: %d",
-			(enable ? "en" : "dis"), ret);
+		dev_err(&flash->spi->dev, "write %s failed ret: %d",
+			str_enable_disable(enable), ret);
 
-	dev_dbg(&flash->spi->dev, "write %sable success ret: %d",
-		(enable ? "en" : "dis"), ret);
+	dev_dbg(&flash->spi->dev, "write %s success ret: %d",
+		str_enable_disable(enable), ret);
 	if (enable)
 		return mchp48l640_waitforbit(flash, MCHP48L640_STATUS_WEL, true);
 

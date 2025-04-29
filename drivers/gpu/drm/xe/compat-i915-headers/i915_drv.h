@@ -13,7 +13,6 @@
 #include <drm/drm_drv.h>
 
 #include "i915_utils.h"
-#include "intel_runtime_pm.h"
 #include "xe_device.h" /* for xe_device_has_flat_ccs() */
 #include "xe_device_types.h"
 
@@ -94,14 +93,6 @@ static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 #define HAS_FLAT_CCS(xe) (xe_device_has_flat_ccs(xe))
 
 #define HAS_128_BYTE_Y_TILING(xe) (xe || 1)
-
-#define I915_PRIORITY_DISPLAY 0
-struct i915_sched_attr {
-	int priority;
-};
-#define i915_gem_fence_wait_priority(fence, attr) do { (void) attr; } while (0)
-
-#define FORCEWAKE_ALL XE_FORCEWAKE_ALL
 
 #ifdef CONFIG_ARM64
 /*

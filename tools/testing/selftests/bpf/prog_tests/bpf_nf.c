@@ -72,9 +72,12 @@ static void test_bpf_nf_ct(int mode)
 	if (!ASSERT_OK(system(cmd), cmd))
 		goto end;
 
-	srv_port = (mode == TEST_XDP) ? 5005 : 5006;
-	srv_fd = start_server(AF_INET, SOCK_STREAM, "127.0.0.1", srv_port, TIMEOUT_MS);
+	srv_fd = start_server(AF_INET, SOCK_STREAM, "127.0.0.1", 0, TIMEOUT_MS);
 	if (!ASSERT_GE(srv_fd, 0, "start_server"))
+		goto end;
+
+	srv_port = get_socket_local_port(srv_fd);
+	if (!ASSERT_GE(srv_port, 0, "get_sock_local_port"))
 		goto end;
 
 	client_fd = connect_to_server(srv_fd);
@@ -91,7 +94,7 @@ static void test_bpf_nf_ct(int mode)
 	skel->bss->saddr = peer_addr.sin_addr.s_addr;
 	skel->bss->sport = peer_addr.sin_port;
 	skel->bss->daddr = peer_addr.sin_addr.s_addr;
-	skel->bss->dport = htons(srv_port);
+	skel->bss->dport = srv_port;
 
 	if (mode == TEST_XDP)
 		prog_fd = bpf_program__fd(skel->progs.nf_xdp_ct_test);

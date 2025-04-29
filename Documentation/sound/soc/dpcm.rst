@@ -147,14 +147,16 @@ For the example above we have to define 4 FE DAI links and 6 BE DAI links. The
 FE DAI links are defined as follows :-
 ::
 
+ SND_SOC_DAILINK_DEFS(pcm0,
+	DAILINK_COMP_ARRAY(COMP_CPU("System Pin")),
+	DAILINK_COMP_ARRAY(COMP_DUMMY()),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("dsp-audio")));
+
   static struct snd_soc_dai_link machine_dais[] = {
 	{
 		.name = "PCM0 System",
 		.stream_name = "System Playback",
-		.cpu_dai_name = "System Pin",
-		.platform_name = "dsp-audio",
-		.codec_name = "snd-soc-dummy",
-		.codec_dai_name = "snd-soc-dummy-dai",
+		SND_SOC_DAILINK_REG(pcm0),
 		.dynamic = 1,
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
 	},
@@ -174,15 +176,16 @@ dynamic and will change depending on runtime config.
 The BE DAIs are configured as follows :-
 ::
 
+ SND_SOC_DAILINK_DEFS(headset,
+	DAILINK_COMP_ARRAY(COMP_CPU("ssp-dai.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("rt5640.0-001c", "rt5640-aif1")));
+
   static struct snd_soc_dai_link machine_dais[] = {
 	.....< FE DAI links here >
 	{
 		.name = "Codec Headset",
-		.cpu_dai_name = "ssp-dai.0",
-		.platform_name = "snd-soc-dummy",
+		SND_SOC_DAILINK_REG(headset),
 		.no_pcm = 1,
-		.codec_name = "rt5640.0-001c",
-		.codec_dai_name = "rt5640-aif1",
 		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
 		.be_hw_params_fixup = hswult_ssp0_fixup,
@@ -362,7 +365,7 @@ The machine driver sets some additional parameters to the DAI link i.e.
 		.codec_dai_name = "modem-aif1",
 		.codec_name = "modem",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
-				| SND_SOC_DAIFMT_CBM_CFM,
+				| SND_SOC_DAIFMT_CBP_CFP,
 		.c2c_params = &dai_params,
 		.num_c2c_params = 1,
 	}

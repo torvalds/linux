@@ -170,5 +170,9 @@
 #define RPM_SMD_BIMC_FREQ_LOG			124
 #define RPM_SMD_LN_BB_CLK_PIN			125
 #define RPM_SMD_LN_BB_A_CLK_PIN			126
+#define RPM_SMD_BB_CLK3				127
+#define RPM_SMD_BB_CLK3_A			128
+#define RPM_SMD_BB_CLK3_PIN			129
+#define RPM_SMD_BB_CLK3_A_PIN			130
 
 #endif

@@ -158,26 +158,6 @@ out_err:
 	return ret;
 }
 
-int perf_data__update_dir(struct perf_data *data)
-{
-	int i;
-
-	if (WARN_ON(!data->is_dir))
-		return -EINVAL;
-
-	for (i = 0; i < data->dir.nr; i++) {
-		struct perf_data_file *file = &data->dir.files[i];
-		struct stat st;
-
-		if (fstat(file->fd, &st))
-			return -1;
-
-		file->size = st.st_size;
-	}
-
-	return 0;
-}
-
 static bool check_pipe(struct perf_data *data)
 {
 	struct stat st;

@@ -5,6 +5,7 @@
 #include <linux/pgtable.h>
 #include <asm/abs_lowcore.h>
 #include <asm/page-states.h>
+#include <asm/machine.h>
 #include <asm/ebcdic.h>
 #include <asm/sclp.h>
 #include <asm/sections.h>
@@ -34,29 +35,14 @@ int vmalloc_size_set;
 
 static inline int __diag308(unsigned long subcode, void *addr)
 {
-	unsigned long reg1, reg2;
-	union register_pair r1;
-	psw_t old;
+	union register_pair r1 = { .even = (unsigned long)addr, .odd = 0 };
 
-	r1.even = (unsigned long) addr;
-	r1.odd	= 0;
-	asm volatile(
-		"	mvc	0(16,%[psw_old]),0(%[psw_pgm])\n"
-		"	epsw	%[reg1],%[reg2]\n"
-		"	st	%[reg1],0(%[psw_pgm])\n"
-		"	st	%[reg2],4(%[psw_pgm])\n"
-		"	larl	%[reg1],1f\n"
-		"	stg	%[reg1],8(%[psw_pgm])\n"
+	asm_inline volatile(
 		"	diag	%[r1],%[subcode],0x308\n"
-		"1:	mvc	0(16,%[psw_pgm]),0(%[psw_old])\n"
-		: [r1] "+&d" (r1.pair),
-		  [reg1] "=&d" (reg1),
-		  [reg2] "=&a" (reg2),
-		  "+Q" (get_lowcore()->program_new_psw),
-		  "=Q" (old)
-		: [subcode] "d" (subcode),
-		  [psw_old] "a" (&old),
-		  [psw_pgm] "a" (&get_lowcore()->program_new_psw)
+		"0:\n"
+		EX_TABLE(0b, 0b)
+		: [r1] "+d" (r1.pair)
+		: [subcode] "d" (subcode)
 		: "cc", "memory");
 	return r1.odd;
 }
@@ -295,6 +281,9 @@ void parse_boot_command_line(void)
 		if (!strcmp(param, "facilities") && val)
 			modify_fac_list(val);
 
+		if (!strcmp(param, "debug-alternative"))
+			alt_debug_setup(val);
+
 		if (!strcmp(param, "nokaslr"))
 			__kaslr_enabled = 0;
 
@@ -312,7 +301,7 @@ void parse_boot_command_line(void)
 		}
 #endif
 		if (!strcmp(param, "relocate_lowcore") && test_facility(193))
-			relocate_lowcore = 1;
+			set_machine_feature(MFEATURE_LOWCORE);
 		if (!strcmp(param, "earlyprintk"))
 			boot_earlyprintk = true;
 		if (!strcmp(param, "debug"))

@@ -264,6 +264,7 @@ static int fence_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 {
 	struct intel_gvt *gvt = vgpu->gvt;
 	unsigned int fence_num = offset_to_fence_num(off);
+	intel_wakeref_t wakeref;
 	int ret;
 
 	ret = sanitize_fence_mmio_access(vgpu, fence_num, p_data, bytes);
@@ -271,10 +272,10 @@ static int fence_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 		return ret;
 	write_vreg(vgpu, off, p_data, bytes);
 
-	mmio_hw_access_pre(gvt->gt);
+	wakeref = mmio_hw_access_pre(gvt->gt);
 	intel_vgpu_write_fence(vgpu, fence_num,
 			vgpu_vreg64(vgpu, fence_num_to_offset(fence_num)));
-	mmio_hw_access_post(gvt->gt);
+	mmio_hw_access_post(gvt->gt, wakeref);
 	return 0;
 }
 
@@ -513,7 +514,7 @@ static u32 bdw_vgpu_get_dp_bitrate(struct intel_vgpu *vgpu, enum port port)
 
 		switch (wrpll_ctl & WRPLL_REF_MASK) {
 		case WRPLL_REF_PCH_SSC:
-			refclk = vgpu->gvt->gt->i915->display.dpll.ref_clks.ssc;
+			refclk = 135000;
 			break;
 		case WRPLL_REF_LCPLL:
 			refclk = 2700000;
@@ -544,7 +545,7 @@ out:
 static u32 bxt_vgpu_get_dp_bitrate(struct intel_vgpu *vgpu, enum port port)
 {
 	u32 dp_br = 0;
-	int refclk = vgpu->gvt->gt->i915->display.dpll.ref_clks.nssc;
+	int refclk = 100000;
 	enum dpio_phy phy = DPIO_PHY0;
 	enum dpio_channel ch = DPIO_CH0;
 	struct dpll clock = {};
@@ -689,11 +690,11 @@ static void vgpu_update_refresh_rate(struct intel_vgpu *vgpu)
 		u32 new_rate = 0;
 		u32 *old_rate = &(intel_vgpu_port(vgpu, vgpu->display.port_num)->vrefresh_k);
 
-		/* Calcuate pixel clock by (ls_clk * M / N) */
+		/* Calculate pixel clock by (ls_clk * M / N) */
 		pixel_clk = div_u64(mul_u32_u32(link_m, dp_br), link_n);
 		pixel_clk *= MSEC_PER_SEC;
 
-		/* Calcuate refresh rate by (pixel_clk / (h_total * v_total)) */
+		/* Calculate refresh rate by (pixel_clk / (h_total * v_total)) */
 		new_rate = DIV64_U64_ROUND_CLOSEST(mul_u64_u32_shr(pixel_clk, MSEC_PER_SEC, 0), mul_u32_u32(htotal + 1, vtotal + 1));
 
 		if (*old_rate != new_rate)
@@ -1975,10 +1976,12 @@ static int mmio_read_from_hw(struct intel_vgpu *vgpu,
 	    vgpu == gvt->scheduler.engine_owner[engine->id] ||
 	    offset == i915_mmio_reg_offset(RING_TIMESTAMP(engine->mmio_base)) ||
 	    offset == i915_mmio_reg_offset(RING_TIMESTAMP_UDW(engine->mmio_base))) {
-		mmio_hw_access_pre(gvt->gt);
+		intel_wakeref_t wakeref;
+
+		wakeref = mmio_hw_access_pre(gvt->gt);
 		vgpu_vreg(vgpu, offset) =
 			intel_uncore_read(gvt->gt->uncore, _MMIO(offset));
-		mmio_hw_access_post(gvt->gt);
+		mmio_hw_access_post(gvt->gt, wakeref);
 	}
 
 	return intel_vgpu_default_mmio_read(vgpu, offset, p_data, bytes);
@@ -2001,7 +2004,7 @@ static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	 * vGPU reset, it's set on D0->D3 on PCI config write, and cleared after
 	 * vGPU reset if in resuming.
 	 * In S0ix exit, the device power state also transite from D3 to D0 as
-	 * S3 resume, but no vGPU reset (triggered by QEMU devic model). After
+	 * S3 resume, but no vGPU reset (triggered by QEMU device model). After
 	 * S0ix exit, all engines continue to work. However the d3_entered
 	 * remains set which will break next vGPU reset logic (miss the expected
 	 * PPGTT invalidation).
@@ -3119,23 +3122,6 @@ int intel_vgpu_mask_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 }
 
 /**
- * intel_gvt_in_force_nonpriv_whitelist - if a mmio is in whitelist to be
- * force-nopriv register
- *
- * @gvt: a GVT device
- * @offset: register offset
- *
- * Returns:
- * True if the register is in force-nonpriv whitelist;
- * False if outside;
- */
-bool intel_gvt_in_force_nonpriv_whitelist(struct intel_gvt *gvt,
-					  unsigned int offset)
-{
-	return in_whitelist(offset);
-}
-
-/**
  * intel_vgpu_mmio_reg_rw - emulate tracked mmio registers
  * @vgpu: a vGPU
  * @offset: register offset
@@ -3226,10 +3212,12 @@ void intel_gvt_restore_fence(struct intel_gvt *gvt)
 	int i, id;
 
 	idr_for_each_entry(&(gvt)->vgpu_idr, vgpu, id) {
-		mmio_hw_access_pre(gvt->gt);
+		intel_wakeref_t wakeref;
+
+		wakeref = mmio_hw_access_pre(gvt->gt);
 		for (i = 0; i < vgpu_fence_sz(vgpu); i++)
 			intel_vgpu_write_fence(vgpu, i, vgpu_vreg64(vgpu, fence_num_to_offset(i)));
-		mmio_hw_access_post(gvt->gt);
+		mmio_hw_access_post(gvt->gt, wakeref);
 	}
 }
 
@@ -3250,8 +3238,10 @@ void intel_gvt_restore_mmio(struct intel_gvt *gvt)
 	int id;
 
 	idr_for_each_entry(&(gvt)->vgpu_idr, vgpu, id) {
-		mmio_hw_access_pre(gvt->gt);
+		intel_wakeref_t wakeref;
+
+		wakeref = mmio_hw_access_pre(gvt->gt);
 		intel_gvt_for_each_tracked_mmio(gvt, mmio_pm_restore_handler, vgpu);
-		mmio_hw_access_post(gvt->gt);
+		mmio_hw_access_post(gvt->gt, wakeref);
 	}
 }

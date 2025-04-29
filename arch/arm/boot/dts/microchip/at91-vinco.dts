@@ -162,7 +162,7 @@
 			status = "disabled";
 		};
 
-		usb1: ohci@500000 {
+		usb1: usb@500000 {
 			num-ports = <3>;
 			atmel,vbus-gpio = <0
 					   &pioE 11 GPIO_ACTIVE_LOW
@@ -171,7 +171,7 @@
 			status = "disabled";
 		};
 
-		usb2: ehci@600000 {
+		usb2: usb@600000 {
 			/* 4G Modem */
 			status = "okay";
 		};

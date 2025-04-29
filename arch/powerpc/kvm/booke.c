@@ -622,7 +622,7 @@ static void arm_next_watchdog(struct kvm_vcpu *vcpu)
 	if (nr_jiffies < NEXT_TIMER_MAX_DELTA)
 		mod_timer(&vcpu->arch.wdt_timer, jiffies + nr_jiffies);
 	else
-		del_timer(&vcpu->arch.wdt_timer);
+		timer_delete(&vcpu->arch.wdt_timer);
 	spin_unlock_irqrestore(&vcpu->arch.wdt_lock, flags);
 }
 
@@ -1441,7 +1441,7 @@ int kvmppc_subarch_vcpu_init(struct kvm_vcpu *vcpu)
 
 void kvmppc_subarch_vcpu_uninit(struct kvm_vcpu *vcpu)
 {
-	del_timer_sync(&vcpu->arch.wdt_timer);
+	timer_delete_sync(&vcpu->arch.wdt_timer);
 }
 
 int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)

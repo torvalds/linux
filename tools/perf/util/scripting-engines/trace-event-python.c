@@ -745,19 +745,30 @@ static int set_regs_in_dict(PyObject *dict,
 	const char *arch = perf_env__arch(evsel__env(evsel));
 
 	int size = (__sw_hweight64(attr->sample_regs_intr) * MAX_REG_SIZE) + 1;
-	char *bf = malloc(size);
-	if (!bf)
-		return -1;
+	char *bf = NULL;
 
-	regs_map(&sample->intr_regs, attr->sample_regs_intr, arch, bf, size);
+	if (sample->intr_regs) {
+		bf = malloc(size);
+		if (!bf)
+			return -1;
 
-	pydict_set_item_string_decref(dict, "iregs",
-			_PyUnicode_FromString(bf));
+		regs_map(sample->intr_regs, attr->sample_regs_intr, arch, bf, size);
 
-	regs_map(&sample->user_regs, attr->sample_regs_user, arch, bf, size);
+		pydict_set_item_string_decref(dict, "iregs",
+					_PyUnicode_FromString(bf));
+	}
 
-	pydict_set_item_string_decref(dict, "uregs",
-			_PyUnicode_FromString(bf));
+	if (sample->user_regs) {
+		if (!bf) {
+			bf = malloc(size);
+			if (!bf)
+				return -1;
+		}
+		regs_map(sample->user_regs, attr->sample_regs_user, arch, bf, size);
+
+		pydict_set_item_string_decref(dict, "uregs",
+					_PyUnicode_FromString(bf));
+	}
 	free(bf);
 
 	return 0;

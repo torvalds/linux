@@ -158,8 +158,8 @@ struct j1939_ecu *j1939_ecu_create_locked(struct j1939_priv *priv, name_t name)
 	ecu->addr = J1939_IDLE_ADDR;
 	ecu->name = name;
 
-	hrtimer_init(&ecu->ac_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_SOFT);
-	ecu->ac_timer.function = j1939_ecu_timer_handler;
+	hrtimer_setup(&ecu->ac_timer, j1939_ecu_timer_handler, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL_SOFT);
 	INIT_LIST_HEAD(&ecu->list);
 
 	j1939_priv_get(priv);

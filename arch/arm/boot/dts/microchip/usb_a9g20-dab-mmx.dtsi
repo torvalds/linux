@@ -65,28 +65,26 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		user_pb1 {
+		button-user-pb1 {
 			label = "user_pb1";
 			gpios = <&pioB 25 GPIO_ACTIVE_LOW>;
 			linux,code = <0x100>;
 		};
 
-		user_pb2 {
+		button-user-pb2 {
 			label = "user_pb2";
 			gpios = <&pioB 13 GPIO_ACTIVE_LOW>;
 			linux,code = <0x101>;
 		};
 
-		user_pb3 {
+		button-user-pb3 {
 			label = "user_pb3";
 			gpios = <&pioA 26 GPIO_ACTIVE_LOW>;
 			linux,code = <0x102>;
 		};
 
-		user_pb4 {
+		button-user-pb4 {
 			label = "user_pb4";
 			gpios = <&pioC 9 GPIO_ACTIVE_LOW>;
 			linux,code = <0x103>;

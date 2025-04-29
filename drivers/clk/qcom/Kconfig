@@ -217,7 +217,7 @@ config IPQ_GCC_4019
 
 config IPQ_GCC_5018
 	tristate "IPQ5018 Global Clock Controller"
-	depends on ARM64 || COMPILE_TEST
+	depends on ARM || ARM64 || COMPILE_TEST
 	help
 	  Support for global clock controller on ipq5018 devices.
 	  Say Y if you want to use peripheral devices such as UART, SPI,
@@ -280,6 +280,13 @@ config IPQ_GCC_9574
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  i2c, USB, SD/eMMC, etc. Select this for the root clock
 	  of ipq9574.
+
+config IPQ_NSSCC_9574
+        tristate "IPQ9574 NSS Clock Controller"
+        depends on ARM64 || COMPILE_TEST
+        depends on IPQ_GCC_9574
+        help
+          Support for NSS clock controller on ipq9574 devices.
 
 config IPQ_NSSCC_QCA8K
 	tristate "QCA8K(QCA8386 or QCA8084) NSS Clock Controller"

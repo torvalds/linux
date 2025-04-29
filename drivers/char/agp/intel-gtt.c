@@ -53,6 +53,7 @@ struct intel_gtt_driver {
 	 * of the mmio register file, that's done in the generic code. */
 	void (*cleanup)(void);
 	void (*write_entry)(dma_addr_t addr, unsigned int entry, unsigned int flags);
+	dma_addr_t (*read_entry)(unsigned int entry, bool *is_present, bool *is_local);
 	/* Flags is a more or less chipset specific opaque value.
 	 * For chipsets that need to support old ums (non-gem) code, this
 	 * needs to be identical to the various supported agp memory types! */
@@ -334,6 +335,19 @@ static void i810_write_entry(dma_addr_t addr, unsigned int entry,
 	}
 
 	writel_relaxed(addr | pte_flags, intel_private.gtt + entry);
+}
+
+static dma_addr_t i810_read_entry(unsigned int entry,
+				  bool *is_present, bool *is_local)
+{
+	u32 val;
+
+	val = readl(intel_private.gtt + entry);
+
+	*is_present = val & I810_PTE_VALID;
+	*is_local = val & I810_PTE_LOCAL;
+
+	return val & ~0xfff;
 }
 
 static resource_size_t intel_gtt_stolen_size(void)
@@ -741,6 +755,19 @@ static void i830_write_entry(dma_addr_t addr, unsigned int entry,
 	writel_relaxed(addr | pte_flags, intel_private.gtt + entry);
 }
 
+static dma_addr_t i830_read_entry(unsigned int entry,
+				  bool *is_present, bool *is_local)
+{
+	u32 val;
+
+	val = readl(intel_private.gtt + entry);
+
+	*is_present = val & I810_PTE_VALID;
+	*is_local = false;
+
+	return val & ~0xfff;
+}
+
 bool intel_gmch_enable_gtt(void)
 {
 	u8 __iomem *reg;
@@ -877,6 +904,13 @@ void intel_gmch_gtt_insert_sg_entries(struct sg_table *st,
 		intel_private.driver->chipset_flush();
 }
 EXPORT_SYMBOL(intel_gmch_gtt_insert_sg_entries);
+
+dma_addr_t intel_gmch_gtt_read_entry(unsigned int pg,
+				     bool *is_present, bool *is_local)
+{
+	return intel_private.driver->read_entry(pg, is_present, is_local);
+}
+EXPORT_SYMBOL(intel_gmch_gtt_read_entry);
 
 #if IS_ENABLED(CONFIG_AGP_INTEL)
 static void intel_gmch_gtt_insert_pages(unsigned int first_entry,
@@ -1126,6 +1160,19 @@ static void i965_write_entry(dma_addr_t addr,
 	writel_relaxed(addr | pte_flags, intel_private.gtt + entry);
 }
 
+static dma_addr_t i965_read_entry(unsigned int entry,
+				  bool *is_present, bool *is_local)
+{
+	u64 val;
+
+	val = readl(intel_private.gtt + entry);
+
+	*is_present = val & I810_PTE_VALID;
+	*is_local = false;
+
+	return ((val & 0xf0) << 28) | (val & ~0xfff);
+}
+
 static int i9xx_setup(void)
 {
 	phys_addr_t reg_addr;
@@ -1187,6 +1234,7 @@ static const struct intel_gtt_driver i81x_gtt_driver = {
 	.cleanup = i810_cleanup,
 	.check_flags = i830_check_flags,
 	.write_entry = i810_write_entry,
+	.read_entry = i810_read_entry,
 };
 static const struct intel_gtt_driver i8xx_gtt_driver = {
 	.gen = 2,
@@ -1194,6 +1242,7 @@ static const struct intel_gtt_driver i8xx_gtt_driver = {
 	.setup = i830_setup,
 	.cleanup = i830_cleanup,
 	.write_entry = i830_write_entry,
+	.read_entry = i830_read_entry,
 	.dma_mask_size = 32,
 	.check_flags = i830_check_flags,
 	.chipset_flush = i830_chipset_flush,
@@ -1205,6 +1254,7 @@ static const struct intel_gtt_driver i915_gtt_driver = {
 	.cleanup = i9xx_cleanup,
 	/* i945 is the last gpu to need phys mem (for overlay and cursors). */
 	.write_entry = i830_write_entry,
+	.read_entry = i830_read_entry,
 	.dma_mask_size = 32,
 	.check_flags = i830_check_flags,
 	.chipset_flush = i9xx_chipset_flush,
@@ -1215,6 +1265,7 @@ static const struct intel_gtt_driver g33_gtt_driver = {
 	.setup = i9xx_setup,
 	.cleanup = i9xx_cleanup,
 	.write_entry = i965_write_entry,
+	.read_entry = i965_read_entry,
 	.dma_mask_size = 36,
 	.check_flags = i830_check_flags,
 	.chipset_flush = i9xx_chipset_flush,
@@ -1225,6 +1276,7 @@ static const struct intel_gtt_driver pineview_gtt_driver = {
 	.setup = i9xx_setup,
 	.cleanup = i9xx_cleanup,
 	.write_entry = i965_write_entry,
+	.read_entry = i965_read_entry,
 	.dma_mask_size = 36,
 	.check_flags = i830_check_flags,
 	.chipset_flush = i9xx_chipset_flush,
@@ -1235,6 +1287,7 @@ static const struct intel_gtt_driver i965_gtt_driver = {
 	.setup = i9xx_setup,
 	.cleanup = i9xx_cleanup,
 	.write_entry = i965_write_entry,
+	.read_entry = i965_read_entry,
 	.dma_mask_size = 36,
 	.check_flags = i830_check_flags,
 	.chipset_flush = i9xx_chipset_flush,
@@ -1244,6 +1297,7 @@ static const struct intel_gtt_driver g4x_gtt_driver = {
 	.setup = i9xx_setup,
 	.cleanup = i9xx_cleanup,
 	.write_entry = i965_write_entry,
+	.read_entry = i965_read_entry,
 	.dma_mask_size = 36,
 	.check_flags = i830_check_flags,
 	.chipset_flush = i9xx_chipset_flush,
@@ -1254,6 +1308,7 @@ static const struct intel_gtt_driver ironlake_gtt_driver = {
 	.setup = i9xx_setup,
 	.cleanup = i9xx_cleanup,
 	.write_entry = i965_write_entry,
+	.read_entry = i965_read_entry,
 	.dma_mask_size = 36,
 	.check_flags = i830_check_flags,
 	.chipset_flush = i9xx_chipset_flush,

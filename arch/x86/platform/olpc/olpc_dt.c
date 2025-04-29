@@ -215,13 +215,12 @@ static u32 __init olpc_dt_get_board_revision(void)
 static int __init olpc_dt_compatible_match(phandle node, const char *compat)
 {
 	char buf[64], *p;
-	int plen, len;
+	int plen;
 
 	plen = olpc_dt_getproperty(node, "compatible", buf, sizeof(buf));
 	if (plen <= 0)
 		return 0;
 
-	len = strlen(compat);
 	for (p = buf; p < buf + plen; p += strlen(p) + 1) {
 		if (strcmp(p, compat) == 0)
 			return 1;
