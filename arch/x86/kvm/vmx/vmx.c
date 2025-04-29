@@ -1445,8 +1445,7 @@ static void shrink_ple_window(struct kvm_vcpu *vcpu)
 	}
 }
 
-void vmx_vcpu_load_vmcs(struct kvm_vcpu *vcpu, int cpu,
-			struct loaded_vmcs *buddy)
+void vmx_vcpu_load_vmcs(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	bool already_loaded = vmx->loaded_vmcs->cpu == cpu;
@@ -1473,17 +1472,6 @@ void vmx_vcpu_load_vmcs(struct kvm_vcpu *vcpu, int cpu,
 	if (prev != vmx->loaded_vmcs->vmcs) {
 		per_cpu(current_vmcs, cpu) = vmx->loaded_vmcs->vmcs;
 		vmcs_load(vmx->loaded_vmcs->vmcs);
-
-		/*
-		 * No indirect branch prediction barrier needed when switching
-		 * the active VMCS within a vCPU, unless IBRS is advertised to
-		 * the vCPU.  To minimize the number of IBPBs executed, KVM
-		 * performs IBPB on nested VM-Exit (a single nested transition
-		 * may switch the active VMCS multiple times).
-		 */
-		if (static_branch_likely(&switch_vcpu_ibpb) &&
-		    (!buddy || WARN_ON_ONCE(buddy->vmcs != prev)))
-			indirect_branch_prediction_barrier();
 	}
 
 	if (!already_loaded) {
@@ -1522,7 +1510,7 @@ void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	if (vcpu->scheduled_out && !kvm_pause_in_guest(vcpu->kvm))
 		shrink_ple_window(vcpu);
 
-	vmx_vcpu_load_vmcs(vcpu, cpu, NULL);
+	vmx_vcpu_load_vmcs(vcpu, cpu);
 
 	vmx_vcpu_pi_load(vcpu, cpu);
 }
