@@ -150,7 +150,40 @@ Returns the voltage flow of the battery in mV as an u16.
 WMI method BatteryManufactureAccess()
 -------------------------------------
 
-Returns a manufacture-defined value as an u16.
+Returns the health status of the battery as a u16.
+The health status encoded in the following manner:
+
+ - the third nibble contains the general failure mode
+ - the fourth nibble contains the specific failure code
+
+Valid failure modes are:
+
+ - permanent failure (``0x9``)
+ - overheat failure (``0xa``)
+ - overcurrent failure (``0xb``)
+
+All other failure modes are to be considered normal.
+
+The following failure codes are valid for a permanent failure:
+
+ - fuse blown (``0x0``)
+ - cell imbalance (``0x1``)
+ - overvoltage (``0x2``)
+ - fet failure (``0x3``)
+
+The last two bits of the failure code are to be ignored when the battery
+signals a permanent failure.
+
+The following failure codes a valid for a overheat failure:
+
+ - overheat at start of charging (``0x5``)
+ - overheat during charging (``0x7``)
+ - overheat during discharging (``0x8``)
+
+The following failure codes are valid for a overcurrent failure:
+
+ - overcurrent during charging (``0x6``)
+ - overcurrent during discharging (``0xb``)
 
 WMI method BatteryRelativeStateOfCharge()
 -----------------------------------------

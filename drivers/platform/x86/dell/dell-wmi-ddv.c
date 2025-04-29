@@ -47,6 +47,26 @@
 #define SBS_MANUFACTURE_MONTH_MASK	GENMASK(8, 5)
 #define SBS_MANUFACTURE_DAY_MASK	GENMASK(4, 0)
 
+#define MA_FAILURE_MODE_MASK			GENMASK(11, 8)
+#define MA_FAILURE_MODE_PERMANENT		0x9
+#define MA_FAILURE_MODE_OVERHEAT		0xA
+#define MA_FAILURE_MODE_OVERCURRENT		0xB
+
+#define MA_PERMANENT_FAILURE_CODE_MASK		GENMASK(13, 12)
+#define MA_PERMANENT_FAILURE_FUSE_BLOWN		0x0
+#define MA_PERMANENT_FAILURE_CELL_IMBALANCE	0x1
+#define MA_PERMANENT_FAILURE_OVERVOLTAGE	0x2
+#define MA_PERMANENT_FAILURE_FET_FAILURE	0x3
+
+#define MA_OVERHEAT_FAILURE_CODE_MASK		GENMASK(15, 12)
+#define MA_OVERHEAT_FAILURE_START		0x5
+#define MA_OVERHEAT_FAILURE_CHARGING		0x7
+#define MA_OVERHEAT_FAILURE_DISCHARGING		0x8
+
+#define MA_OVERCURRENT_FAILURE_CODE_MASK	GENMASK(15, 12)
+#define MA_OVERCURRENT_FAILURE_CHARGING		0x6
+#define MA_OVERCURRENT_FAILURE_DISCHARGING	0xB
+
 #define DELL_EPPID_LENGTH	20
 #define DELL_EPPID_EXT_LENGTH	23
 
@@ -749,6 +769,72 @@ static ssize_t eppid_show(struct device *dev, struct device_attribute *attr, cha
 	return ret;
 }
 
+static int dell_wmi_ddv_get_health(struct dell_wmi_ddv_data *data, u32 index,
+				   union power_supply_propval *val)
+{
+	u32 value, code;
+	int ret;
+
+	ret = dell_wmi_ddv_query_integer(data->wdev, DELL_DDV_BATTERY_MANUFACTURER_ACCESS, index,
+					 &value);
+	if (ret < 0)
+		return ret;
+
+	switch (FIELD_GET(MA_FAILURE_MODE_MASK, value)) {
+	case MA_FAILURE_MODE_PERMANENT:
+		code = FIELD_GET(MA_PERMANENT_FAILURE_CODE_MASK, value);
+		switch (code) {
+		case MA_PERMANENT_FAILURE_FUSE_BLOWN:
+			val->intval = POWER_SUPPLY_HEALTH_BLOWN_FUSE;
+			return 0;
+		case MA_PERMANENT_FAILURE_CELL_IMBALANCE:
+			val->intval = POWER_SUPPLY_HEALTH_CELL_IMBALANCE;
+			return 0;
+		case MA_PERMANENT_FAILURE_OVERVOLTAGE:
+			val->intval = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+			return 0;
+		case MA_PERMANENT_FAILURE_FET_FAILURE:
+			val->intval = POWER_SUPPLY_HEALTH_DEAD;
+			return 0;
+		default:
+			dev_notice_once(&data->wdev->dev, "Unknown permanent failure code %u\n",
+					code);
+			val->intval = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
+			return 0;
+		}
+	case MA_FAILURE_MODE_OVERHEAT:
+		code = FIELD_GET(MA_OVERHEAT_FAILURE_CODE_MASK, value);
+		switch (code) {
+		case MA_OVERHEAT_FAILURE_START:
+		case MA_OVERHEAT_FAILURE_CHARGING:
+		case MA_OVERHEAT_FAILURE_DISCHARGING:
+			val->intval = POWER_SUPPLY_HEALTH_OVERHEAT;
+			return 0;
+		default:
+			dev_notice_once(&data->wdev->dev, "Unknown overheat failure code %u\n",
+					code);
+			val->intval = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
+			return 0;
+		}
+	case MA_FAILURE_MODE_OVERCURRENT:
+		code = FIELD_GET(MA_OVERCURRENT_FAILURE_CODE_MASK, value);
+		switch (code) {
+		case MA_OVERCURRENT_FAILURE_CHARGING:
+		case MA_OVERCURRENT_FAILURE_DISCHARGING:
+			val->intval = POWER_SUPPLY_HEALTH_OVERCURRENT;
+			return 0;
+		default:
+			dev_notice_once(&data->wdev->dev, "Unknown overcurrent failure code %u\n",
+					code);
+			val->intval = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
+			return 0;
+		}
+	default:
+		val->intval = POWER_SUPPLY_HEALTH_GOOD;
+		return 0;
+	}
+}
+
 static int dell_wmi_ddv_get_manufacture_date(struct dell_wmi_ddv_data *data, u32 index,
 					     enum power_supply_property psp,
 					     union power_supply_propval *val)
@@ -806,6 +892,8 @@ static int dell_wmi_ddv_get_property(struct power_supply *psy, const struct powe
 		return ret;
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_HEALTH:
+		return dell_wmi_ddv_get_health(data, index, val);
 	case POWER_SUPPLY_PROP_TEMP:
 		ret = dell_wmi_ddv_query_integer(data->wdev, DELL_DDV_BATTERY_TEMPERATURE, index,
 						 &value);
@@ -827,6 +915,7 @@ static int dell_wmi_ddv_get_property(struct power_supply *psy, const struct powe
 }
 
 static const enum power_supply_property dell_wmi_ddv_properties[] = {
+	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_MANUFACTURE_YEAR,
 	POWER_SUPPLY_PROP_MANUFACTURE_MONTH,
