@@ -1544,6 +1544,9 @@ int b53_vlan_add(struct dsa_switch *ds, int port,
 	if (err)
 		return err;
 
+	if (vlan->vid == 0)
+		return 0;
+
 	b53_read16(dev, B53_VLAN_PAGE, B53_VLAN_PORT_DEF_TAG(port), &old_pvid);
 	if (pvid)
 		new_pvid = vlan->vid;
@@ -1556,10 +1559,7 @@ int b53_vlan_add(struct dsa_switch *ds, int port,
 
 	b53_get_vlan_entry(dev, vlan->vid, vl);
 
-	if (vlan->vid == 0 && vlan->vid == b53_default_pvid(dev))
-		untagged = true;
-
-	if (vlan->vid > 0 && dsa_is_cpu_port(ds, port))
+	if (dsa_is_cpu_port(ds, port))
 		untagged = false;
 
 	vl->members |= BIT(port);
@@ -1588,6 +1588,9 @@ int b53_vlan_del(struct dsa_switch *ds, int port,
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	struct b53_vlan *vl;
 	u16 pvid;
+
+	if (vlan->vid == 0)
+		return 0;
 
 	b53_read16(dev, B53_VLAN_PAGE, B53_VLAN_PORT_DEF_TAG(port), &pvid);
 
@@ -1935,8 +1938,9 @@ int b53_br_join(struct dsa_switch *ds, int port, struct dsa_bridge bridge,
 		bool *tx_fwd_offload, struct netlink_ext_ack *extack)
 {
 	struct b53_device *dev = ds->priv;
+	struct b53_vlan *vl;
 	s8 cpu_port = dsa_to_port(ds, port)->cpu_dp->index;
-	u16 pvlan, reg;
+	u16 pvlan, reg, pvid;
 	unsigned int i;
 
 	/* On 7278, port 7 which connects to the ASP should only receive
@@ -1944,6 +1948,9 @@ int b53_br_join(struct dsa_switch *ds, int port, struct dsa_bridge bridge,
 	 */
 	if (dev->chip_id == BCM7278_DEVICE_ID && port == 7)
 		return -EINVAL;
+
+	pvid = b53_default_pvid(dev);
+	vl = &dev->vlans[pvid];
 
 	/* Make this port leave the all VLANs join since we will have proper
 	 * VLAN entries from now on
@@ -1954,6 +1961,15 @@ int b53_br_join(struct dsa_switch *ds, int port, struct dsa_bridge bridge,
 		if ((reg & BIT(cpu_port)) == BIT(cpu_port))
 			reg &= ~BIT(cpu_port);
 		b53_write16(dev, B53_VLAN_PAGE, B53_JOIN_ALL_VLAN_EN, reg);
+	}
+
+	if (ds->vlan_filtering) {
+		b53_get_vlan_entry(dev, pvid, vl);
+		vl->members &= ~BIT(port);
+		if (vl->members == BIT(cpu_port))
+			vl->members &= ~BIT(cpu_port);
+		vl->untag = vl->members;
+		b53_set_vlan_entry(dev, pvid, vl);
 	}
 
 	b53_read16(dev, B53_PVLAN_PAGE, B53_PVLAN_PORT_MASK(port), &pvlan);
@@ -2023,10 +2039,12 @@ void b53_br_leave(struct dsa_switch *ds, int port, struct dsa_bridge bridge)
 		b53_write16(dev, B53_VLAN_PAGE, B53_JOIN_ALL_VLAN_EN, reg);
 	}
 
-	b53_get_vlan_entry(dev, pvid, vl);
-	vl->members |= BIT(port) | BIT(cpu_port);
-	vl->untag |= BIT(port) | BIT(cpu_port);
-	b53_set_vlan_entry(dev, pvid, vl);
+	if (ds->vlan_filtering) {
+		b53_get_vlan_entry(dev, pvid, vl);
+		vl->members |= BIT(port) | BIT(cpu_port);
+		vl->untag |= BIT(port) | BIT(cpu_port);
+		b53_set_vlan_entry(dev, pvid, vl);
+	}
 }
 EXPORT_SYMBOL(b53_br_leave);
 
