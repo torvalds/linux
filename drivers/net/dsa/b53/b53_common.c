@@ -763,6 +763,22 @@ static bool b53_vlan_port_needs_forced_tagged(struct dsa_switch *ds, int port)
 	return dev->tag_protocol == DSA_TAG_PROTO_NONE && dsa_is_cpu_port(ds, port);
 }
 
+static bool b53_vlan_port_may_join_untagged(struct dsa_switch *ds, int port)
+{
+	struct b53_device *dev = ds->priv;
+	struct dsa_port *dp;
+
+	if (!dev->vlan_filtering)
+		return true;
+
+	dp = dsa_to_port(ds, port);
+
+	if (dsa_port_is_cpu(dp))
+		return true;
+
+	return dp->bridge == NULL;
+}
+
 int b53_configure_vlan(struct dsa_switch *ds)
 {
 	struct b53_device *dev = ds->priv;
@@ -781,7 +797,7 @@ int b53_configure_vlan(struct dsa_switch *ds)
 		b53_do_vlan_op(dev, VTA_CMD_CLEAR);
 	}
 
-	b53_enable_vlan(dev, -1, dev->vlan_enabled, ds->vlan_filtering);
+	b53_enable_vlan(dev, -1, dev->vlan_enabled, dev->vlan_filtering);
 
 	/* Create an untagged VLAN entry for the default PVID in case
 	 * CONFIG_VLAN_8021Q is disabled and there are no calls to
@@ -789,26 +805,39 @@ int b53_configure_vlan(struct dsa_switch *ds)
 	 * entry. Do this only when the tagging protocol is not
 	 * DSA_TAG_PROTO_NONE
 	 */
+	v = &dev->vlans[def_vid];
 	b53_for_each_port(dev, i) {
-		v = &dev->vlans[def_vid];
-		v->members |= BIT(i);
-		if (!b53_vlan_port_needs_forced_tagged(ds, i))
-			v->untag = v->members;
-		b53_write16(dev, B53_VLAN_PAGE,
-			    B53_VLAN_PORT_DEF_TAG(i), def_vid);
-	}
-
-	/* Upon initial call we have not set-up any VLANs, but upon
-	 * system resume, we need to restore all VLAN entries.
-	 */
-	for (vid = def_vid; vid < dev->num_vlans; vid++) {
-		v = &dev->vlans[vid];
-
-		if (!v->members)
+		if (!b53_vlan_port_may_join_untagged(ds, i))
 			continue;
 
-		b53_set_vlan_entry(dev, vid, v);
-		b53_fast_age_vlan(dev, vid);
+		vl.members |= BIT(i);
+		if (!b53_vlan_port_needs_forced_tagged(ds, i))
+			vl.untag = vl.members;
+		b53_write16(dev, B53_VLAN_PAGE, B53_VLAN_PORT_DEF_TAG(i),
+			    def_vid);
+	}
+	b53_set_vlan_entry(dev, def_vid, &vl);
+
+	if (dev->vlan_filtering) {
+		/* Upon initial call we have not set-up any VLANs, but upon
+		 * system resume, we need to restore all VLAN entries.
+		 */
+		for (vid = def_vid + 1; vid < dev->num_vlans; vid++) {
+			v = &dev->vlans[vid];
+
+			if (!v->members)
+				continue;
+
+			b53_set_vlan_entry(dev, vid, v);
+			b53_fast_age_vlan(dev, vid);
+		}
+
+		b53_for_each_port(dev, i) {
+			if (!dsa_is_cpu_port(ds, i))
+				b53_write16(dev, B53_VLAN_PAGE,
+					    B53_VLAN_PORT_DEF_TAG(i),
+					    dev->ports[i].pvid);
+		}
 	}
 
 	return 0;
@@ -1127,7 +1156,9 @@ EXPORT_SYMBOL(b53_setup_devlink_resources);
 static int b53_setup(struct dsa_switch *ds)
 {
 	struct b53_device *dev = ds->priv;
+	struct b53_vlan *vl;
 	unsigned int port;
+	u16 pvid;
 	int ret;
 
 	/* Request bridge PVID untagged when DSA_TAG_PROTO_NONE is set
@@ -1144,6 +1175,15 @@ static int b53_setup(struct dsa_switch *ds)
 	if (ret) {
 		dev_err(ds->dev, "failed to reset switch\n");
 		return ret;
+	}
+
+	/* setup default vlan for filtering mode */
+	pvid = b53_default_pvid(dev);
+	vl = &dev->vlans[pvid];
+	b53_for_each_port(dev, port) {
+		vl->members |= BIT(port);
+		if (!b53_vlan_port_needs_forced_tagged(ds, port))
+			vl->untag |= BIT(port);
 	}
 
 	b53_reset_mib(dev);
@@ -1499,7 +1539,10 @@ int b53_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering,
 {
 	struct b53_device *dev = ds->priv;
 
-	b53_enable_vlan(dev, port, dev->vlan_enabled, vlan_filtering);
+	if (dev->vlan_filtering != vlan_filtering) {
+		dev->vlan_filtering = vlan_filtering;
+		b53_apply_config(dev);
+	}
 
 	return 0;
 }
@@ -1524,7 +1567,7 @@ static int b53_vlan_prepare(struct dsa_switch *ds, int port,
 	if (vlan->vid >= dev->num_vlans)
 		return -ERANGE;
 
-	b53_enable_vlan(dev, port, true, ds->vlan_filtering);
+	b53_enable_vlan(dev, port, true, dev->vlan_filtering);
 
 	return 0;
 }
@@ -1547,20 +1590,16 @@ int b53_vlan_add(struct dsa_switch *ds, int port,
 	if (vlan->vid == 0)
 		return 0;
 
-	if (!ds->vlan_filtering)
-		return 0;
-
-	b53_read16(dev, B53_VLAN_PAGE, B53_VLAN_PORT_DEF_TAG(port), &old_pvid);
+	old_pvid = dev->ports[port].pvid;
 	if (pvid)
 		new_pvid = vlan->vid;
 	else if (!pvid && vlan->vid == old_pvid)
 		new_pvid = b53_default_pvid(dev);
 	else
 		new_pvid = old_pvid;
+	dev->ports[port].pvid = new_pvid;
 
 	vl = &dev->vlans[vlan->vid];
-
-	b53_get_vlan_entry(dev, vlan->vid, vl);
 
 	if (dsa_is_cpu_port(ds, port))
 		untagged = false;
@@ -1570,6 +1609,9 @@ int b53_vlan_add(struct dsa_switch *ds, int port,
 		vl->untag |= BIT(port);
 	else
 		vl->untag &= ~BIT(port);
+
+	if (!dev->vlan_filtering)
+		return 0;
 
 	b53_set_vlan_entry(dev, vlan->vid, vl);
 	b53_fast_age_vlan(dev, vlan->vid);
@@ -1595,22 +1637,21 @@ int b53_vlan_del(struct dsa_switch *ds, int port,
 	if (vlan->vid == 0)
 		return 0;
 
-	if (!ds->vlan_filtering)
-		return 0;
-
-	b53_read16(dev, B53_VLAN_PAGE, B53_VLAN_PORT_DEF_TAG(port), &pvid);
+	pvid = dev->ports[port].pvid;
 
 	vl = &dev->vlans[vlan->vid];
-
-	b53_get_vlan_entry(dev, vlan->vid, vl);
 
 	vl->members &= ~BIT(port);
 
 	if (pvid == vlan->vid)
 		pvid = b53_default_pvid(dev);
+	dev->ports[port].pvid = pvid;
 
 	if (untagged && !b53_vlan_port_needs_forced_tagged(ds, port))
 		vl->untag &= ~(BIT(port));
+
+	if (!dev->vlan_filtering)
+		return 0;
 
 	b53_set_vlan_entry(dev, vlan->vid, vl);
 	b53_fast_age_vlan(dev, vlan->vid);
@@ -1958,7 +1999,7 @@ int b53_br_join(struct dsa_switch *ds, int port, struct dsa_bridge bridge,
 	pvid = b53_default_pvid(dev);
 	vl = &dev->vlans[pvid];
 
-	if (ds->vlan_filtering) {
+	if (dev->vlan_filtering) {
 		/* Make this port leave the all VLANs join since we will have
 		 * proper VLAN entries from now on
 		 */
@@ -2038,7 +2079,7 @@ void b53_br_leave(struct dsa_switch *ds, int port, struct dsa_bridge bridge)
 	pvid = b53_default_pvid(dev);
 	vl = &dev->vlans[pvid];
 
-	if (ds->vlan_filtering) {
+	if (dev->vlan_filtering) {
 		/* Make this port join all VLANs without VLAN entries */
 		if (is58xx(dev)) {
 			b53_read16(dev, B53_VLAN_PAGE, B53_JOIN_ALL_VLAN_EN, &reg);
@@ -2803,6 +2844,7 @@ struct b53_device *b53_switch_alloc(struct device *base,
 	ds->ops = &b53_switch_ops;
 	ds->phylink_mac_ops = &b53_phylink_mac_ops;
 	dev->vlan_enabled = true;
+	dev->vlan_filtering = false;
 	/* Let DSA handle the case were multiple bridges span the same switch
 	 * device and different VLAN awareness settings are requested, which
 	 * would be breaking filtering semantics for any of the other bridge
