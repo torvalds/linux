@@ -2322,19 +2322,9 @@ void enable_percpu_nmi(unsigned int irq, unsigned int type)
  */
 bool irq_percpu_is_enabled(unsigned int irq)
 {
-	unsigned int cpu = smp_processor_id();
-	struct irq_desc *desc;
-	unsigned long flags;
-	bool is_enabled;
-
-	desc = irq_get_desc_lock(irq, &flags, IRQ_GET_DESC_CHECK_PERCPU);
-	if (!desc)
-		return false;
-
-	is_enabled = cpumask_test_cpu(cpu, desc->percpu_enabled);
-	irq_put_desc_unlock(desc, flags);
-
-	return is_enabled;
+	scoped_irqdesc_get_and_lock(irq, IRQ_GET_DESC_CHECK_PERCPU)
+		return cpumask_test_cpu(smp_processor_id(), scoped_irqdesc->percpu_enabled);
+	return false;
 }
 EXPORT_SYMBOL_GPL(irq_percpu_is_enabled);
 
