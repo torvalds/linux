@@ -277,6 +277,8 @@ int xe_bo_migrate(struct xe_bo *bo, u32 mem_type);
 int xe_bo_evict(struct xe_bo *bo);
 
 int xe_bo_evict_pinned(struct xe_bo *bo);
+int xe_bo_notifier_prepare_pinned(struct xe_bo *bo);
+int xe_bo_notifier_unprepare_pinned(struct xe_bo *bo);
 int xe_bo_restore_pinned(struct xe_bo *bo);
 
 int xe_bo_dma_unmap_pinned(struct xe_bo *bo);

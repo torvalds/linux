@@ -522,6 +522,9 @@ struct xe_device {
 		struct mutex lock;
 	} d3cold;
 
+	/** @pm_notifier: Our PM notifier to perform actions in response to various PM events. */
+	struct notifier_block pm_notifier;
+
 	/** @pmt: Support the PMT driver callback interface */
 	struct {
 		/** @pmt.lock: protect access for telemetry data */

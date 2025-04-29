@@ -3866,6 +3866,9 @@ void xe_vm_snapshot_print(struct xe_vm_snapshot *snap, struct drm_printer *p)
 		}
 
 		drm_puts(p, "\n");
+
+		if (drm_coredump_printer_is_full(p))
+			return;
 	}
 }
 

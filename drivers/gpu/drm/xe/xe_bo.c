@@ -1085,6 +1085,80 @@ out_unref:
 }
 
 /**
+ * xe_bo_notifier_prepare_pinned() - Prepare a pinned VRAM object to be backed
+ * up in system memory.
+ * @bo: The buffer object to prepare.
+ *
+ * On successful completion, the object backup pages are allocated. Expectation
+ * is that this is called from the PM notifier, prior to suspend/hibernation.
+ *
+ * Return: 0 on success. Negative error code on failure.
+ */
+int xe_bo_notifier_prepare_pinned(struct xe_bo *bo)
+{
+	struct xe_device *xe = ttm_to_xe_device(bo->ttm.bdev);
+	struct xe_bo *backup;
+	int ret = 0;
+
+	xe_bo_lock(bo, false);
+
+	xe_assert(xe, !bo->backup_obj);
+
+	/*
+	 * Since this is called from the PM notifier we might have raced with
+	 * someone unpinning this after we dropped the pinned list lock and
+	 * grabbing the above bo lock.
+	 */
+	if (!xe_bo_is_pinned(bo))
+		goto out_unlock_bo;
+
+	if (!xe_bo_is_vram(bo))
+		goto out_unlock_bo;
+
+	if (bo->flags & XE_BO_FLAG_PINNED_NORESTORE)
+		goto out_unlock_bo;
+
+	backup = ___xe_bo_create_locked(xe, NULL, NULL, bo->ttm.base.resv, NULL, bo->size,
+					DRM_XE_GEM_CPU_CACHING_WB, ttm_bo_type_kernel,
+					XE_BO_FLAG_SYSTEM | XE_BO_FLAG_NEEDS_CPU_ACCESS |
+					XE_BO_FLAG_PINNED);
+	if (IS_ERR(backup)) {
+		ret = PTR_ERR(backup);
+		goto out_unlock_bo;
+	}
+
+	backup->parent_obj = xe_bo_get(bo); /* Released by bo_destroy */
+	ttm_bo_pin(&backup->ttm);
+	bo->backup_obj = backup;
+
+out_unlock_bo:
+	xe_bo_unlock(bo);
+	return ret;
+}
+
+/**
+ * xe_bo_notifier_unprepare_pinned() - Undo the previous prepare operation.
+ * @bo: The buffer object to undo the prepare for.
+ *
+ * Always returns 0. The backup object is removed, if still present. Expectation
+ * it that this called from the PM notifier when undoing the prepare step.
+ *
+ * Return: Always returns 0.
+ */
+int xe_bo_notifier_unprepare_pinned(struct xe_bo *bo)
+{
+	xe_bo_lock(bo, false);
+	if (bo->backup_obj) {
+		ttm_bo_unpin(&bo->backup_obj->ttm);
+		xe_bo_put(bo->backup_obj);
+		bo->backup_obj = NULL;
+	}
+	xe_bo_unlock(bo);
+
+	return 0;
+}
+
+/**
  * xe_bo_evict_pinned() - Evict a pinned VRAM object to system memory
  * @bo: The buffer object to move.
  *
@@ -1098,7 +1172,8 @@ out_unref:
 int xe_bo_evict_pinned(struct xe_bo *bo)
 {
 	struct xe_device *xe = ttm_to_xe_device(bo->ttm.bdev);
-	struct xe_bo *backup;
+	struct xe_bo *backup = bo->backup_obj;
+	bool backup_created = false;
 	bool unmap = false;
 	int ret = 0;
 
@@ -1120,12 +1195,17 @@ int xe_bo_evict_pinned(struct xe_bo *bo)
 	if (bo->flags & XE_BO_FLAG_PINNED_NORESTORE)
 		goto out_unlock_bo;
 
-	backup = xe_bo_create_locked(xe, NULL, NULL, bo->size, ttm_bo_type_kernel,
-				     XE_BO_FLAG_SYSTEM | XE_BO_FLAG_NEEDS_CPU_ACCESS |
-				     XE_BO_FLAG_PINNED);
-	if (IS_ERR(backup)) {
-		ret = PTR_ERR(backup);
-		goto out_unlock_bo;
+	if (!backup) {
+		backup = ___xe_bo_create_locked(xe, NULL, NULL, bo->ttm.base.resv, NULL, bo->size,
+						DRM_XE_GEM_CPU_CACHING_WB, ttm_bo_type_kernel,
+						XE_BO_FLAG_SYSTEM | XE_BO_FLAG_NEEDS_CPU_ACCESS |
+						XE_BO_FLAG_PINNED);
+		if (IS_ERR(backup)) {
+			ret = PTR_ERR(backup);
+			goto out_unlock_bo;
+		}
+		backup->parent_obj = xe_bo_get(bo); /* Released by bo_destroy */
+		backup_created = true;
 	}
 
 	if (xe_bo_is_user(bo) || (bo->flags & XE_BO_FLAG_PINNED_LATE_RESTORE)) {
@@ -1173,12 +1253,12 @@ int xe_bo_evict_pinned(struct xe_bo *bo)
 				   bo->size);
 	}
 
-	bo->backup_obj = backup;
+	if (!bo->backup_obj)
+		bo->backup_obj = backup;
 
 out_backup:
 	xe_bo_vunmap(backup);
-	xe_bo_unlock(backup);
-	if (ret)
+	if (ret && backup_created)
 		xe_bo_put(backup);
 out_unlock_bo:
 	if (unmap)
@@ -1212,15 +1292,12 @@ int xe_bo_restore_pinned(struct xe_bo *bo)
 	if (!backup)
 		return 0;
 
-	xe_bo_lock(backup, false);
+	xe_bo_lock(bo, false);
 
-	ret = ttm_bo_validate(&backup->ttm, &backup->placement, &ctx);
-	if (ret)
-		goto out_backup;
-
-	if (WARN_ON(!dma_resv_trylock(bo->ttm.base.resv))) {
-		ret = -EBUSY;
-		goto out_backup;
+	if (!xe_bo_is_pinned(backup)) {
+		ret = ttm_bo_validate(&backup->ttm, &backup->placement, &ctx);
+		if (ret)
+			goto out_unlock_bo;
 	}
 
 	if (xe_bo_is_user(bo) || (bo->flags & XE_BO_FLAG_PINNED_LATE_RESTORE)) {
@@ -1261,7 +1338,7 @@ int xe_bo_restore_pinned(struct xe_bo *bo)
 		if (iosys_map_is_null(&bo->vmap)) {
 			ret = xe_bo_vmap(bo);
 			if (ret)
-				goto out_unlock_bo;
+				goto out_backup;
 			unmap = true;
 		}
 
@@ -1271,15 +1348,17 @@ int xe_bo_restore_pinned(struct xe_bo *bo)
 
 	bo->backup_obj = NULL;
 
+out_backup:
+	xe_bo_vunmap(backup);
+	if (!bo->backup_obj) {
+		if (xe_bo_is_pinned(backup))
+			ttm_bo_unpin(&backup->ttm);
+		xe_bo_put(backup);
+	}
 out_unlock_bo:
 	if (unmap)
 		xe_bo_vunmap(bo);
 	xe_bo_unlock(bo);
-out_backup:
-	xe_bo_vunmap(backup);
-	xe_bo_unlock(backup);
-	if (!bo->backup_obj)
-		xe_bo_put(backup);
 	return ret;
 }
 
@@ -1455,6 +1534,7 @@ static int xe_ttm_access_memory(struct ttm_buffer_object *ttm_bo,
 	struct xe_res_cursor cursor;
 	struct xe_vram_region *vram;
 	int bytes_left = len;
+	int err = 0;
 
 	xe_bo_assert_held(bo);
 	xe_device_assert_mem_access(xe);
@@ -1462,9 +1542,14 @@ static int xe_ttm_access_memory(struct ttm_buffer_object *ttm_bo,
 	if (!mem_type_is_vram(ttm_bo->resource->mem_type))
 		return -EIO;
 
-	/* FIXME: Use GPU for non-visible VRAM */
-	if (!xe_ttm_resource_visible(ttm_bo->resource))
-		return -EIO;
+	if (!xe_ttm_resource_visible(ttm_bo->resource) || len >= SZ_16K) {
+		struct xe_migrate *migrate =
+			mem_type_to_migrate(xe, ttm_bo->resource->mem_type);
+
+		err = xe_migrate_access_memory(migrate, bo, offset, buf, len,
+					       write);
+		goto out;
+	}
 
 	vram = res_to_mem_region(ttm_bo->resource);
 	xe_res_first(ttm_bo->resource, offset & PAGE_MASK,
@@ -1488,7 +1573,8 @@ static int xe_ttm_access_memory(struct ttm_buffer_object *ttm_bo,
 			xe_res_next(&cursor, PAGE_SIZE);
 	} while (bytes_left);
 
-	return len;
+out:
+	return err ?: len;
 }
 
 const struct ttm_device_funcs xe_ttm_funcs = {
@@ -1531,6 +1617,9 @@ static void xe_ttm_bo_destroy(struct ttm_buffer_object *ttm_bo)
 
 	if (bo->vm && xe_bo_is_user(bo))
 		xe_vm_put(bo->vm);
+
+	if (bo->parent_obj)
+		xe_bo_put(bo->parent_obj);
 
 	mutex_lock(&xe->mem_access.vram_userfault.lock);
 	if (!list_empty(&bo->vram_userfault_link))
@@ -2306,6 +2395,13 @@ void xe_bo_unpin(struct xe_bo *bo)
 		xe_assert(xe, !list_empty(&bo->pinned_link));
 		list_del_init(&bo->pinned_link);
 		spin_unlock(&xe->pinned.lock);
+
+		if (bo->backup_obj) {
+			if (xe_bo_is_pinned(bo->backup_obj))
+				ttm_bo_unpin(&bo->backup_obj->ttm);
+			xe_bo_put(bo->backup_obj);
+			bo->backup_obj = NULL;
+		}
 	}
 	ttm_bo_unpin(&bo->ttm);
 	if (bo->ttm.ttm && ttm_tt_is_populated(bo->ttm.ttm))

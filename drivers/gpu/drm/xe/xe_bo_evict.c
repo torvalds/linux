@@ -34,7 +34,13 @@ static int xe_bo_apply_to_pinned(struct xe_device *xe,
 		ret = pinned_fn(bo);
 		if (ret && pinned_list != new_list) {
 			spin_lock(&xe->pinned.lock);
-			list_move(&bo->pinned_link, pinned_list);
+			/*
+			 * We might no longer be pinned, since PM notifier can
+			 * call this. If the pinned link is now empty, keep it
+			 * that way.
+			 */
+			if (!list_empty(&bo->pinned_link))
+				list_move(&bo->pinned_link, pinned_list);
 			spin_unlock(&xe->pinned.lock);
 		}
 		xe_bo_put(bo);
@@ -47,25 +53,60 @@ static int xe_bo_apply_to_pinned(struct xe_device *xe,
 }
 
 /**
- * xe_bo_evict_all - evict all BOs from VRAM
- *
+ * xe_bo_notifier_prepare_all_pinned() - Pre-allocate the backing pages for all
+ * pinned VRAM objects which need to be saved.
  * @xe: xe device
  *
- * Evict non-pinned user BOs first (via GPU), evict pinned external BOs next
- * (via GPU), wait for evictions, and finally evict pinned kernel BOs via CPU.
- * All eviction magic done via TTM calls.
+ * Should be called from PM notifier when preparing for s3/s4.
+ *
+ * Return: 0 on success, negative error code on error.
+ */
+int xe_bo_notifier_prepare_all_pinned(struct xe_device *xe)
+{
+	int ret;
+
+	ret = xe_bo_apply_to_pinned(xe, &xe->pinned.early.kernel_bo_present,
+				    &xe->pinned.early.kernel_bo_present,
+				    xe_bo_notifier_prepare_pinned);
+	if (!ret)
+		ret = xe_bo_apply_to_pinned(xe, &xe->pinned.late.kernel_bo_present,
+					    &xe->pinned.late.kernel_bo_present,
+					    xe_bo_notifier_prepare_pinned);
+
+	return ret;
+}
+
+/**
+ * xe_bo_notifier_unprepare_all_pinned() - Remove the backing pages for all
+ * pinned VRAM objects which have been restored.
+ * @xe: xe device
+ *
+ * Should be called from PM notifier after exiting s3/s4 (either on success or
+ * failure).
+ */
+void xe_bo_notifier_unprepare_all_pinned(struct xe_device *xe)
+{
+	(void)xe_bo_apply_to_pinned(xe, &xe->pinned.early.kernel_bo_present,
+				    &xe->pinned.early.kernel_bo_present,
+				    xe_bo_notifier_unprepare_pinned);
+
+	(void)xe_bo_apply_to_pinned(xe, &xe->pinned.late.kernel_bo_present,
+				    &xe->pinned.late.kernel_bo_present,
+				    xe_bo_notifier_unprepare_pinned);
+}
+
+/**
+ * xe_bo_evict_all_user - evict all non-pinned user BOs from VRAM
+ * @xe: xe device
+ *
+ * Evict non-pinned user BOs (via GPU).
  *
  * Evict == move VRAM BOs to temporary (typically system) memory.
- *
- * This function should be called before the device goes into a suspend state
- * where the VRAM loses power.
  */
-int xe_bo_evict_all(struct xe_device *xe)
+int xe_bo_evict_all_user(struct xe_device *xe)
 {
 	struct ttm_device *bdev = &xe->ttm;
-	struct xe_tile *tile;
 	u32 mem_type;
-	u8 id;
 	int ret;
 
 	/* User memory */
@@ -91,9 +132,34 @@ int xe_bo_evict_all(struct xe_device *xe)
 		}
 	}
 
-	ret = xe_bo_apply_to_pinned(xe, &xe->pinned.late.external,
-				    &xe->pinned.late.external,
-				    xe_bo_evict_pinned);
+	return 0;
+}
+
+/**
+ * xe_bo_evict_all - evict all BOs from VRAM
+ * @xe: xe device
+ *
+ * Evict non-pinned user BOs first (via GPU), evict pinned external BOs next
+ * (via GPU), wait for evictions, and finally evict pinned kernel BOs via CPU.
+ * All eviction magic done via TTM calls.
+ *
+ * Evict == move VRAM BOs to temporary (typically system) memory.
+ *
+ * This function should be called before the device goes into a suspend state
+ * where the VRAM loses power.
+ */
+int xe_bo_evict_all(struct xe_device *xe)
+{
+	struct xe_tile *tile;
+	u8 id;
+	int ret;
+
+	ret = xe_bo_evict_all_user(xe);
+	if (ret)
+		return ret;
+
+	ret = xe_bo_apply_to_pinned(xe, &xe->pinned.late.kernel_bo_present,
+				    &xe->pinned.late.evicted, xe_bo_evict_pinned);
 
 	if (!ret)
 		ret = xe_bo_apply_to_pinned(xe, &xe->pinned.late.kernel_bo_present,
