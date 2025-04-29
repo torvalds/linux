@@ -5,6 +5,7 @@
 
 #include <linux/acpi.h>
 #include <linux/clk.h>
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/devfreq.h>
 #include <linux/gpio/consumer.h>
@@ -100,6 +101,24 @@ static const struct __ufs_qcom_bw_table {
 	[MODE_HS_RB][UFS_HS_G4][UFS_LANE_2] = { 2915200,	409600 },
 	[MODE_HS_RB][UFS_HS_G5][UFS_LANE_2] = { 5836800,	819200 },
 	[MODE_MAX][0][0]		    = { 7643136,	819200 },
+};
+
+static const struct {
+	int nminor;
+	char *prefix;
+} testbus_info[TSTBUS_MAX] = {
+	[TSTBUS_UAWM]     = {32, "TSTBUS_UAWM"},
+	[TSTBUS_UARM]     = {32, "TSTBUS_UARM"},
+	[TSTBUS_TXUC]     = {32, "TSTBUS_TXUC"},
+	[TSTBUS_RXUC]     = {32, "TSTBUS_RXUC"},
+	[TSTBUS_DFC]      = {32, "TSTBUS_DFC"},
+	[TSTBUS_TRLUT]    = {32, "TSTBUS_TRLUT"},
+	[TSTBUS_TMRLUT]   = {32, "TSTBUS_TMRLUT"},
+	[TSTBUS_OCSC]     = {32, "TSTBUS_OCSC"},
+	[TSTBUS_UTP_HCI]  = {32, "TSTBUS_UTP_HCI"},
+	[TSTBUS_COMBINED] = {32, "TSTBUS_COMBINED"},
+	[TSTBUS_WRAPPER]  = {32, "TSTBUS_WRAPPER"},
+	[TSTBUS_UNIPRO]   = {256, "TSTBUS_UNIPRO"},
 };
 
 static void ufs_qcom_get_default_testbus_cfg(struct ufs_qcom_host *host);
@@ -1644,12 +1663,100 @@ int ufs_qcom_testbus_config(struct ufs_qcom_host *host)
 	return 0;
 }
 
+static void ufs_qcom_dump_testbus(struct ufs_hba *hba)
+{
+	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+	int i, j, nminor = 0, testbus_len = 0;
+	u32 *testbus __free(kfree) = NULL;
+	char *prefix;
+
+	testbus = kmalloc_array(256, sizeof(u32), GFP_KERNEL);
+	if (!testbus)
+		return;
+
+	for (j = 0; j < TSTBUS_MAX; j++) {
+		nminor = testbus_info[j].nminor;
+		prefix = testbus_info[j].prefix;
+		host->testbus.select_major = j;
+		testbus_len = nminor * sizeof(u32);
+		for (i = 0; i < nminor; i++) {
+			host->testbus.select_minor = i;
+			ufs_qcom_testbus_config(host);
+			testbus[i] = ufshcd_readl(hba, UFS_TEST_BUS);
+		}
+		print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET,
+			       16, 4, testbus, testbus_len, false);
+	}
+}
+
+static int ufs_qcom_dump_regs(struct ufs_hba *hba, size_t offset, size_t len,
+			      const char *prefix, enum ufshcd_res id)
+{
+	u32 *regs __free(kfree) = NULL;
+	size_t pos;
+
+	if (offset % 4 != 0 || len % 4 != 0)
+		return -EINVAL;
+
+	regs = kzalloc(len, GFP_ATOMIC);
+	if (!regs)
+		return -ENOMEM;
+
+	for (pos = 0; pos < len; pos += 4)
+		regs[pos / 4] = readl(hba->res[id].base + offset + pos);
+
+	print_hex_dump(KERN_ERR, prefix,
+		       len > 4 ? DUMP_PREFIX_OFFSET : DUMP_PREFIX_NONE,
+		       16, 4, regs, len, false);
+
+	return 0;
+}
+
+static void ufs_qcom_dump_mcq_hci_regs(struct ufs_hba *hba)
+{
+	struct dump_info {
+		size_t offset;
+		size_t len;
+		const char *prefix;
+		enum ufshcd_res id;
+	};
+
+	struct dump_info mcq_dumps[] = {
+		{0x0, 256 * 4, "MCQ HCI-0 ", RES_MCQ},
+		{0x400, 256 * 4, "MCQ HCI-1 ", RES_MCQ},
+		{0x0, 5 * 4, "MCQ VS-0 ", RES_MCQ_VS},
+		{0x0, 256 * 4, "MCQ SQD-0 ", RES_MCQ_SQD},
+		{0x400, 256 * 4, "MCQ SQD-1 ", RES_MCQ_SQD},
+		{0x800, 256 * 4, "MCQ SQD-2 ", RES_MCQ_SQD},
+		{0xc00, 256 * 4, "MCQ SQD-3 ", RES_MCQ_SQD},
+		{0x1000, 256 * 4, "MCQ SQD-4 ", RES_MCQ_SQD},
+		{0x1400, 256 * 4, "MCQ SQD-5 ", RES_MCQ_SQD},
+		{0x1800, 256 * 4, "MCQ SQD-6 ", RES_MCQ_SQD},
+		{0x1c00, 256 * 4, "MCQ SQD-7 ", RES_MCQ_SQD},
+	};
+
+	for (int i = 0; i < ARRAY_SIZE(mcq_dumps); i++) {
+		ufs_qcom_dump_regs(hba, mcq_dumps[i].offset, mcq_dumps[i].len,
+				   mcq_dumps[i].prefix, mcq_dumps[i].id);
+		cond_resched();
+	}
+}
+
 static void ufs_qcom_dump_dbg_regs(struct ufs_hba *hba)
 {
 	u32 reg;
 	struct ufs_qcom_host *host;
 
 	host = ufshcd_get_variant(hba);
+
+	dev_err(hba->dev, "HW_H8_ENTER_CNT=%d\n", ufshcd_readl(hba, REG_UFS_HW_H8_ENTER_CNT));
+	dev_err(hba->dev, "HW_H8_EXIT_CNT=%d\n", ufshcd_readl(hba, REG_UFS_HW_H8_EXIT_CNT));
+
+	dev_err(hba->dev, "SW_H8_ENTER_CNT=%d\n", ufshcd_readl(hba, REG_UFS_SW_H8_ENTER_CNT));
+	dev_err(hba->dev, "SW_H8_EXIT_CNT=%d\n", ufshcd_readl(hba, REG_UFS_SW_H8_EXIT_CNT));
+
+	dev_err(hba->dev, "SW_AFTER_HW_H8_ENTER_CNT=%d\n",
+			ufshcd_readl(hba, REG_UFS_SW_AFTER_HW_H8_ENTER_CNT));
 
 	ufshcd_dump_regs(hba, REG_UFS_SYS1CLK_1US, 16 * 4,
 			 "HCI Vendor Specific Registers ");
@@ -1693,6 +1800,23 @@ static void ufs_qcom_dump_dbg_regs(struct ufs_hba *hba)
 
 	reg = ufs_qcom_get_debug_reg_offset(host, UFS_DBG_RD_REG_TMRLUT);
 	ufshcd_dump_regs(hba, reg, 9 * 4, "UFS_DBG_RD_REG_TMRLUT ");
+
+	if (hba->mcq_enabled) {
+		reg = ufs_qcom_get_debug_reg_offset(host, UFS_RD_REG_MCQ);
+		ufshcd_dump_regs(hba, reg, 64 * 4, "HCI MCQ Debug Registers ");
+	}
+
+	/* ensure below dumps occur only in task context due to blocking calls. */
+	if (in_task()) {
+		/* Dump MCQ Host Vendor Specific Registers */
+		if (hba->mcq_enabled)
+			ufs_qcom_dump_mcq_hci_regs(hba);
+
+		/* voluntarily yield the CPU as we are dumping too much data */
+		ufshcd_dump_regs(hba, UFS_TEST_BUS, 4, "UFS_TEST_BUS ");
+		cond_resched();
+		ufs_qcom_dump_testbus(hba);
+	}
 }
 
 /**
