@@ -540,8 +540,7 @@ exynos5_usbdrd_pipe3_set_refclk(struct phy_usb_instance *inst)
 
 	/* Use EXTREFCLK as ref clock */
 	reg &= ~PHYCLKRST_REFCLKSEL;
-	reg |=	FIELD_PREP_CONST(PHYCLKRST_REFCLKSEL,
-				 PHYCLKRST_REFCLKSEL_EXT_REFCLK);
+	reg |= FIELD_PREP(PHYCLKRST_REFCLKSEL, PHYCLKRST_REFCLKSEL_EXT_REFCLK);
 
 	/* FSEL settings corresponding to reference clock */
 	reg &= ~(PHYCLKRST_FSEL_PIPE |
@@ -549,24 +548,24 @@ exynos5_usbdrd_pipe3_set_refclk(struct phy_usb_instance *inst)
 		 PHYCLKRST_SSC_REFCLKSEL);
 	switch (phy_drd->extrefclk) {
 	case EXYNOS5_FSEL_50MHZ:
-		reg |= (FIELD_PREP_CONST(PHYCLKRST_SSC_REFCLKSEL, 0x00) |
-			FIELD_PREP_CONST(PHYCLKRST_MPLL_MULTIPLIER,
-					 PHYCLKRST_MPLL_MULTIPLIER_50M_REF));
+		reg |= (FIELD_PREP(PHYCLKRST_SSC_REFCLKSEL, 0x00) |
+			FIELD_PREP(PHYCLKRST_MPLL_MULTIPLIER,
+				   PHYCLKRST_MPLL_MULTIPLIER_50M_REF));
 		break;
 	case EXYNOS5_FSEL_24MHZ:
-		reg |= (FIELD_PREP_CONST(PHYCLKRST_SSC_REFCLKSEL, 0x88) |
-			FIELD_PREP_CONST(PHYCLKRST_MPLL_MULTIPLIER,
-					 PHYCLKRST_MPLL_MULTIPLIER_24MHZ_REF));
+		reg |= (FIELD_PREP(PHYCLKRST_SSC_REFCLKSEL, 0x88) |
+			FIELD_PREP(PHYCLKRST_MPLL_MULTIPLIER,
+				   PHYCLKRST_MPLL_MULTIPLIER_24MHZ_REF));
 		break;
 	case EXYNOS5_FSEL_20MHZ:
-		reg |= (FIELD_PREP_CONST(PHYCLKRST_SSC_REFCLKSEL, 0x00) |
-			FIELD_PREP_CONST(PHYCLKRST_MPLL_MULTIPLIER,
-					 PHYCLKRST_MPLL_MULTIPLIER_20MHZ_REF));
+		reg |= (FIELD_PREP(PHYCLKRST_SSC_REFCLKSEL, 0x00) |
+			FIELD_PREP(PHYCLKRST_MPLL_MULTIPLIER,
+				   PHYCLKRST_MPLL_MULTIPLIER_20MHZ_REF));
 		break;
 	case EXYNOS5_FSEL_19MHZ2:
-		reg |= (FIELD_PREP_CONST(PHYCLKRST_SSC_REFCLKSEL, 0x88) |
-			FIELD_PREP_CONST(PHYCLKRST_MPLL_MULTIPLIER,
-					 PHYCLKRST_MPLL_MULTIPLIER_19200KHZ_REF));
+		reg |= (FIELD_PREP(PHYCLKRST_SSC_REFCLKSEL, 0x88) |
+			FIELD_PREP(PHYCLKRST_MPLL_MULTIPLIER,
+				   PHYCLKRST_MPLL_MULTIPLIER_19200KHZ_REF));
 		break;
 	default:
 		dev_dbg(phy_drd->dev, "unsupported ref clk\n");
@@ -590,8 +589,7 @@ exynos5_usbdrd_utmi_set_refclk(struct phy_usb_instance *inst)
 	reg = readl(phy_drd->reg_phy + EXYNOS5_DRD_PHYCLKRST);
 
 	reg &= ~PHYCLKRST_REFCLKSEL;
-	reg |=	FIELD_PREP_CONST(PHYCLKRST_REFCLKSEL,
-				 PHYCLKRST_REFCLKSEL_EXT_REFCLK);
+	reg |= FIELD_PREP(PHYCLKRST_REFCLKSEL, PHYCLKRST_REFCLKSEL_EXT_REFCLK);
 
 	reg &= ~(PHYCLKRST_FSEL_UTMI |
 		 PHYCLKRST_MPLL_MULTIPLIER |
@@ -647,8 +645,7 @@ static void exynos5_usbdrd_pipe3_init(struct exynos5_usbdrd_phy *phy_drd)
 	reg = readl(phy_drd->reg_phy + EXYNOS5_DRD_PHYPARAM1);
 	/* Set Tx De-Emphasis level */
 	reg &= ~PHYPARAM1_PCS_TXDEEMPH;
-	reg |=	FIELD_PREP_CONST(PHYPARAM1_PCS_TXDEEMPH,
-				 PHYPARAM1_PCS_TXDEEMPH_VAL);
+	reg |= FIELD_PREP(PHYPARAM1_PCS_TXDEEMPH, PHYPARAM1_PCS_TXDEEMPH_VAL);
 	writel(reg, phy_drd->reg_phy + EXYNOS5_DRD_PHYPARAM1);
 
 	reg = readl(phy_drd->reg_phy + EXYNOS5_DRD_PHYTEST);
@@ -669,7 +666,7 @@ exynos5_usbdrd_usbdp_g2_v4_ctrl_pma_ready(struct exynos5_usbdrd_phy *phy_drd)
 
 	reg = readl(regs_base + EXYNOS850_DRD_SECPMACTL);
 	reg &= ~SECPMACTL_PMA_REF_FREQ_SEL;
-	reg |= FIELD_PREP_CONST(SECPMACTL_PMA_REF_FREQ_SEL, 1);
+	reg |= FIELD_PREP(SECPMACTL_PMA_REF_FREQ_SEL, 1);
 	/* SFR reset */
 	reg |= (SECPMACTL_PMA_LOW_PWR | SECPMACTL_PMA_APB_SW_RST);
 	reg &= ~(SECPMACTL_PMA_ROPLL_REF_CLK_SEL |
@@ -799,15 +796,13 @@ static void exynos5_usbdrd_utmi_init(struct exynos5_usbdrd_phy *phy_drd)
 	reg = readl(phy_drd->reg_phy + EXYNOS5_DRD_PHYPARAM0);
 	/* Set Loss-of-Signal Detector sensitivity */
 	reg &= ~PHYPARAM0_REF_LOSLEVEL;
-	reg |=	FIELD_PREP_CONST(PHYPARAM0_REF_LOSLEVEL,
-				 PHYPARAM0_REF_LOSLEVEL_VAL);
+	reg |= FIELD_PREP(PHYPARAM0_REF_LOSLEVEL, PHYPARAM0_REF_LOSLEVEL_VAL);
 	writel(reg, phy_drd->reg_phy + EXYNOS5_DRD_PHYPARAM0);
 
 	reg = readl(phy_drd->reg_phy + EXYNOS5_DRD_PHYPARAM1);
 	/* Set Tx De-Emphasis level */
 	reg &= ~PHYPARAM1_PCS_TXDEEMPH;
-	reg |=	FIELD_PREP_CONST(PHYPARAM1_PCS_TXDEEMPH,
-				 PHYPARAM1_PCS_TXDEEMPH_VAL);
+	reg |= FIELD_PREP(PHYPARAM1_PCS_TXDEEMPH, PHYPARAM1_PCS_TXDEEMPH_VAL);
 	writel(reg, phy_drd->reg_phy + EXYNOS5_DRD_PHYPARAM1);
 
 	/* UTMI Power Control */
@@ -838,7 +833,7 @@ static int exynos5_usbdrd_phy_init(struct phy *phy)
 	 * See xHCI 1.0 spec, 5.2.4
 	 */
 	reg =	LINKSYSTEM_XHCI_VERSION_CONTROL |
-		FIELD_PREP_CONST(LINKSYSTEM_FLADJ, 0x20);
+		FIELD_PREP(LINKSYSTEM_FLADJ, 0x20);
 	writel(reg, phy_drd->reg_phy + EXYNOS5_DRD_LINKSYSTEM);
 
 	reg = readl(phy_drd->reg_phy + EXYNOS5_DRD_PHYPARAM0);
@@ -1145,8 +1140,7 @@ static void exynos7870_usbdrd_utmi_init(struct exynos5_usbdrd_phy *phy_drd)
 	reg = readl(phy_drd->reg_phy + EXYNOS5_DRD_PHYCLKRST);
 	/* Use PADREFCLK as ref clock */
 	reg &= ~PHYCLKRST_REFCLKSEL;
-	reg |= FIELD_PREP_CONST(PHYCLKRST_REFCLKSEL,
-				PHYCLKRST_REFCLKSEL_PAD_REFCLK);
+	reg |= FIELD_PREP(PHYCLKRST_REFCLKSEL, PHYCLKRST_REFCLKSEL_PAD_REFCLK);
 	/* Select ref clock rate */
 	reg &= ~PHYCLKRST_FSEL_UTMI;
 	reg &= ~PHYCLKRST_FSEL_PIPE;
@@ -1169,7 +1163,7 @@ static void exynos7870_usbdrd_utmi_init(struct exynos5_usbdrd_phy *phy_drd)
 	else
 		reg &= ~HSPHYPLLTUNE_PLL_B_TUNE;
 	reg &= ~HSPHYPLLTUNE_PLL_P_TUNE;
-	reg |= FIELD_PREP_CONST(HSPHYPLLTUNE_PLL_P_TUNE, 14);
+	reg |= FIELD_PREP(HSPHYPLLTUNE_PLL_P_TUNE, 14);
 	writel(reg, phy_drd->reg_phy + EXYNOS7870_DRD_HSPHYPLLTUNE);
 
 	/* High-Speed PHY control */
@@ -1187,7 +1181,7 @@ static void exynos7870_usbdrd_utmi_init(struct exynos5_usbdrd_phy *phy_drd)
 	 */
 	reg |= LINKSYSTEM_XHCI_VERSION_CONTROL;
 	reg &= ~LINKSYSTEM_FLADJ;
-	reg |= FIELD_PREP_CONST(LINKSYSTEM_FLADJ, 0x20);
+	reg |= FIELD_PREP(LINKSYSTEM_FLADJ, 0x20);
 	/* Set VBUSVALID signal as the VBUS pad is not used */
 	reg |= LINKSYSTEM_FORCE_BVALID;
 	reg |= LINKSYSTEM_FORCE_VBUSVALID;
@@ -1350,7 +1344,7 @@ static void exynos850_usbdrd_utmi_init(struct exynos5_usbdrd_phy *phy_drd)
 
 	/* Set VBUS Valid and D+ pull-up control by VBUS pad usage */
 	reg = readl(regs_base + EXYNOS850_DRD_LINKCTRL);
-	reg |= FIELD_PREP_CONST(LINKCTRL_BUS_FILTER_BYPASS, 0xf);
+	reg |= FIELD_PREP(LINKCTRL_BUS_FILTER_BYPASS, 0xf);
 	writel(reg, regs_base + EXYNOS850_DRD_LINKCTRL);
 
 	if (!phy_drd->sw) {
@@ -1367,19 +1361,19 @@ static void exynos850_usbdrd_utmi_init(struct exynos5_usbdrd_phy *phy_drd)
 	reg &= ~SSPPLLCTL_FSEL;
 	switch (phy_drd->extrefclk) {
 	case EXYNOS5_FSEL_50MHZ:
-		reg |= FIELD_PREP_CONST(SSPPLLCTL_FSEL, 7);
+		reg |= FIELD_PREP(SSPPLLCTL_FSEL, 7);
 		break;
 	case EXYNOS5_FSEL_26MHZ:
-		reg |= FIELD_PREP_CONST(SSPPLLCTL_FSEL, 6);
+		reg |= FIELD_PREP(SSPPLLCTL_FSEL, 6);
 		break;
 	case EXYNOS5_FSEL_24MHZ:
-		reg |= FIELD_PREP_CONST(SSPPLLCTL_FSEL, 2);
+		reg |= FIELD_PREP(SSPPLLCTL_FSEL, 2);
 		break;
 	case EXYNOS5_FSEL_20MHZ:
-		reg |= FIELD_PREP_CONST(SSPPLLCTL_FSEL, 1);
+		reg |= FIELD_PREP(SSPPLLCTL_FSEL, 1);
 		break;
 	case EXYNOS5_FSEL_19MHZ2:
-		reg |= FIELD_PREP_CONST(SSPPLLCTL_FSEL, 0);
+		reg |= FIELD_PREP(SSPPLLCTL_FSEL, 0);
 		break;
 	default:
 		dev_warn(phy_drd->dev, "unsupported ref clk: %#.2x\n",
